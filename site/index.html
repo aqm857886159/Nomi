@@ -1,0 +1,1219 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Nomi — 本地优先的开源 AI 视频创作平台</title>
+<meta name="description" content="Nomi 是一个本地优先的开源 AI 视频创作工作台，把剧本、图片生成、视频生成、节点画布和时间轴剪辑放进同一条生产流。" />
+<meta name="keywords" content="Nomi, AI 视频创作, 开源 AI 视频工具, 本地优先, AI video editor, AI storyboard workflow, script to video, image to video, AI canvas" />
+<meta name="author" content="Nomi" />
+<meta name="robots" content="index,follow,max-image-preview:large" />
+<meta name="theme-color" content="#F2EFE8" />
+<link rel="canonical" href="https://nomiaqm.com/" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://nomiaqm.com/" />
+<meta property="og:site_name" content="Nomi" />
+<meta property="og:title" content="Nomi — 本地优先的开源 AI 视频创作平台" />
+<meta property="og:description" content="从剧本到图片、视频和时间轴剪辑，Nomi 让 AI 视频生产在同一张画布里自然流动。" />
+<meta property="og:image" content="https://nomiaqm.com/assets/mascot.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Nomi — 本地优先的开源 AI 视频创作平台" />
+<meta name="twitter:description" content="开源、本地优先的一站式 AI 视频创作工作台。" />
+<meta name="twitter:image" content="https://nomiaqm.com/assets/mascot.png" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Nomi",
+  "applicationCategory": "MultimediaApplication",
+  "operatingSystem": "macOS, Windows, Linux",
+  "description": "Nomi 是一个本地优先的开源 AI 视频创作工作台，把剧本、图片生成、视频生成、节点画布和时间轴剪辑放进同一条生产流。",
+  "codeRepository": "https://github.com/aqm857886159/Nomi",
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
+  "url": "https://nomiaqm.com/",
+  "image": "https://nomiaqm.com/assets/mascot.png",
+  "softwareVersion": "0.1"
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@300;400;600;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F2EFE8;
+    --paper-2: #EBE7DD;
+    --ink: #1A1816;
+    --ink-2: #3D3935;
+    --muted: #8A8278;
+    --rule: #D9D3C5;
+    --coral: #E8765A;
+    --coral-deep: #C7563D;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--paper); color: var(--ink); }
+  body {
+    font-family: "Inter", "Noto Serif SC", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  ::selection { background: var(--coral); color: var(--paper); }
+
+  /* paper grain */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background-image:
+      radial-gradient(rgba(26,24,22,0.025) 1px, transparent 1px),
+      radial-gradient(rgba(26,24,22,0.018) 1px, transparent 1px);
+    background-size: 3px 3px, 7px 7px;
+    background-position: 0 0, 1px 2px;
+    pointer-events: none;
+    z-index: 1;
+    mix-blend-mode: multiply;
+  }
+
+  .serif { font-family: "Instrument Serif", "Noto Serif SC", Georgia, serif; font-weight: 400; }
+  .mono  { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .cn    { font-family: "Noto Serif SC", "Inter", serif; }
+
+  /* ---------- Layout primitives ---------- */
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 0 40px; position: relative; z-index: 2; }
+  .rule { height: 1px; background: var(--rule); }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: color-mix(in oklab, var(--paper) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .topbar-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 40px;
+    max-width: 1320px; margin: 0 auto;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none; color: var(--ink);
+    font-family: "Inter", sans-serif;
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .brand .mark {
+    width: 30px; height: 30px;
+    display: block;
+    flex-shrink: 0;
+  }
+  .brand .mark svg { width: 100%; height: 100%; display: block; }
+  .brand .name { display: flex; align-items: baseline; gap: 0; }
+  .brand .name .m { color: #5B7C9E; }
+  .nav { display: flex; gap: 32px; align-items: center; }
+  .nav a {
+    color: var(--ink-2); text-decoration: none; font-size: 13px; letter-spacing: 0.02em;
+    transition: color .2s;
+  }
+  .nav a:hover { color: var(--coral-deep); }
+  .nav .cta {
+    border: 1px solid var(--ink); padding: 9px 16px; border-radius: 999px;
+    color: var(--ink); display: inline-flex; align-items: center; gap: 8px;
+    transition: background .2s, color .2s;
+  }
+  .nav .cta:hover { background: var(--ink); color: var(--paper); }
+
+  /* ---------- HERO ---------- */
+  .hero {
+    position: relative;
+    padding: 90px 0 40px;
+    overflow: hidden;
+  }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1fr 540px;
+    gap: 60px;
+    align-items: stretch;
+  }
+  .hero-left {
+    display: grid;
+    grid-template-rows: auto 1fr auto auto;
+    gap: 0;
+    height: 100%;
+  }
+  .hero-row {
+    padding: 28px 0;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    align-items: center;
+  }
+  .hero-row.hr-eyebrow { border-top: none; padding-top: 0; padding-bottom: 18px; }
+  .hero-row.hr-headline { padding: 18px 0; align-items: flex-start; }
+  .hero-row.hr-sub { padding: 22px 0; }
+  .hero-row.hr-actions { padding-top: 22px; padding-bottom: 0; }
+  .eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    text-transform: uppercase;
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 36px;
+  }
+  .eyebrow::before {
+    content: ""; width: 8px; height: 8px; background: var(--coral); border-radius: 50%;
+  }
+  .hero h1 {
+    font-family: "Instrument Serif", "Noto Serif SC", serif;
+    font-weight: 400;
+    font-size: clamp(48px, 6.5vw, 96px);
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+  }
+  .hero h1 .it { font-style: italic; color: var(--coral); }
+  .hero h1 .stroke {
+    -webkit-text-stroke: 1.5px var(--ink);
+    color: transparent;
+  }
+  .hero-sub {
+    margin-top: 0;
+    max-width: 520px;
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+  .hero-sub strong { font-weight: 600; color: var(--ink); }
+
+  .hero-bullets {
+    list-style: none;
+    margin-top: 32px;
+    border-top: 1px solid var(--rule);
+  }
+  .hero-bullets li {
+    display: flex; align-items: baseline; gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 15px;
+    color: var(--ink-2);
+    font-family: "Noto Serif SC", "Inter", serif;
+    font-weight: 400;
+  }
+  .hero-bullets li .k {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--coral);
+    letter-spacing: 0.08em;
+    flex-shrink: 0;
+    width: 32px;
+  }
+
+  .hero-right { display: flex; flex-direction: column; gap: 20px; }
+  .mini-ui {
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--paper);
+    font-family: "JetBrains Mono", monospace;
+  }
+  .mini-ui-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px;
+    background: var(--paper-2);
+    border-bottom: 1px solid var(--rule);
+    font-size: 11px;
+    color: var(--ink-2);
+  }
+  .mini-ui-head .dots { display: flex; gap: 5px; }
+  .mini-ui-head .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--rule); display: block; }
+  .mini-ui-head .dots .r { background: #E8765A; }
+  .mini-ui-head .dots .y { background: #D4B14E; }
+  .mini-ui-head .dots .g { background: #8FA876; }
+  .mini-ui-head .title { flex: 1; letter-spacing: 0.04em; }
+  .mini-ui-head .badge {
+    background: var(--ink); color: var(--paper);
+    padding: 3px 8px; border-radius: 3px; font-size: 9px; letter-spacing: 0.12em;
+  }
+  .mini-ui-body { padding: 14px; }
+  .mini-line {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0;
+    font-size: 12px;
+    color: var(--ink);
+    border-bottom: 1px dashed var(--rule);
+  }
+  .mini-line:last-of-type { border-bottom: none; }
+  .mini-line .num { color: var(--muted); width: 22px; }
+  .mini-line .t { flex: 1; font-family: "Noto Serif SC", "Inter", serif; }
+  .mini-line .chip {
+    border: 1px solid var(--rule); padding: 2px 7px; border-radius: 3px; font-size: 9px;
+    letter-spacing: 0.1em; color: var(--ink-2);
+  }
+  .mini-line .chip.coral { background: var(--coral); border-color: var(--coral); color: var(--paper); }
+  .mini-progress {
+    margin-top: 10px;
+    height: 4px; background: var(--paper-2); border-radius: 2px; overflow: hidden;
+  }
+  .mini-progress span {
+    display: block; height: 100%; background: linear-gradient(90deg, var(--coral), var(--coral-deep));
+  }
+  .mini-foot {
+    margin-top: 10px;
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: var(--muted); letter-spacing: 0.05em;
+  }
+
+  .hero-actions {
+    margin-top: 0;
+    display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 14px 22px;
+    border-radius: 999px;
+    font-size: 14px; font-weight: 500;
+    text-decoration: none;
+    transition: transform .2s, background .2s, color .2s;
+  }
+  .btn-primary { background: var(--ink); color: var(--paper); }
+  .btn-primary:hover { background: var(--coral); }
+  .btn-ghost { color: var(--ink); border: 1px solid var(--rule); }
+  .btn-ghost:hover { border-color: var(--ink); }
+  .btn .arrow { transition: transform .2s; }
+  .btn:hover .arrow { transform: translateX(3px); }
+
+  /* mascot column — taller, richer composite */
+  .hero-right { display: flex; flex-direction: column; gap: 0; align-self: stretch; }
+  .mascot-card {
+    position: relative;
+    padding: 0;
+    background:
+      radial-gradient(circle at 30% 30%, #FAF7F0 0%, #EBE7DD 100%);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+  }
+  .mascot-card img {
+    width: 78%;
+    max-width: 380px;
+    display: block;
+    mix-blend-mode: multiply;
+    margin-top: -120px;
+  }
+  .mascot-tag-tl, .mascot-tag-tr {
+    position: absolute; top: 18px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    color: var(--ink-2);
+    letter-spacing: 0.08em;
+    z-index: 2;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .mascot-tag-tl { left: 18px; }
+  .mascot-tag-tr { right: 18px; color: var(--muted); }
+  .mascot-tag-tl .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--coral); display: block; }
+
+  /* floating product readout overlay on mascot card */
+  .mascot-overlay {
+    position: absolute;
+    left: 18px; right: 18px; bottom: 18px;
+    background: color-mix(in oklab, var(--paper) 92%, transparent);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 14px 16px;
+    z-index: 2;
+  }
+  .ov-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 0;
+    font-size: 11px;
+    color: var(--ink);
+    border-bottom: 1px dashed var(--rule);
+  }
+  .ov-row:last-of-type { border-bottom: none; }
+  .ov-k {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: var(--coral-deep);
+    width: 54px;
+    flex-shrink: 0;
+  }
+  .ov-v {
+    flex: 1;
+    font-family: "Noto Serif SC", "Inter", serif;
+    color: var(--ink-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ov-chip {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 8px;
+    letter-spacing: 0.12em;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 2px 6px;
+    border-radius: 2px;
+  }
+  .ov-progress {
+    margin-top: 8px;
+    height: 3px;
+    background: var(--paper-2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .ov-progress span {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, var(--coral), var(--coral-deep));
+  }
+
+  /* ticker / hero footer */
+  .hero-foot {
+    margin-top: 80px;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding: 20px 0;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 40px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+  .hero-foot div span { display: block; color: var(--ink); font-size: 13px; margin-top: 4px; letter-spacing: 0; font-family: "Inter", sans-serif; }
+
+  /* ---------- Manifesto strip ---------- */
+  .manifesto {
+    padding: 140px 0 100px;
+  }
+  .manifesto-quote {
+    font-family: "Instrument Serif", "Noto Serif SC", serif;
+    font-size: clamp(36px, 5.2vw, 78px);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    max-width: 1100px;
+    text-wrap: balance;
+  }
+  .manifesto-quote .em { color: var(--coral); font-style: italic; }
+  .manifesto-quote .light { color: var(--muted); }
+  .manifesto-attr {
+    margin-top: 50px;
+    display: flex; align-items: center; gap: 16px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px; color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+  .manifesto-attr::before {
+    content: ""; width: 60px; height: 1px; background: var(--ink);
+  }
+
+  /* ---------- Section header ---------- */
+  .section-head {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 60px;
+    padding: 60px 0 40px;
+    align-items: baseline;
+  }
+  .section-num {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+  .section-title {
+    font-family: "Instrument Serif", "Noto Serif SC", serif;
+    font-size: clamp(40px, 5vw, 72px);
+    line-height: 1.0;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+  .section-title .it { font-style: italic; color: var(--coral); }
+
+  /* ---------- Pillars (4 features) ---------- */
+  .pillars {
+    padding: 20px 0 120px;
+  }
+  .pillar-row {
+    display: grid;
+    grid-template-columns: 200px 1fr 1fr;
+    gap: 60px;
+    padding: 50px 0;
+    border-top: 1px solid var(--rule);
+    align-items: start;
+  }
+  .pillar-row:last-child { border-bottom: 1px solid var(--rule); }
+  .pillar-tag {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    padding-top: 8px;
+  }
+  .pillar-tag .num { color: var(--ink); display: block; font-size: 13px; margin-bottom: 8px; }
+  .pillar-h {
+    font-family: "Instrument Serif", "Noto Serif SC", serif;
+    font-size: clamp(34px, 3.6vw, 52px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+    text-wrap: balance;
+  }
+  .pillar-h .em { color: var(--coral); font-style: italic; }
+  .pillar-body {
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--ink-2);
+    max-width: 460px;
+  }
+  .pillar-body p + p { margin-top: 14px; }
+  .pillar-visual {
+    aspect-ratio: 4/3;
+    background: var(--paper-2);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+  .pillar-visual img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pillar-visual .label {
+    position: absolute; left: 12px; bottom: 12px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 4px 8px;
+    color: var(--ink-2);
+    letter-spacing: 0.04em;
+  }
+
+  /* flow diagram */
+  .flow {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 24px;
+    height: 100%;
+  }
+  .flow-node {
+    aspect-ratio: 1;
+    border: 1px solid var(--ink);
+    border-radius: 6px;
+    display: grid; place-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink);
+    background: var(--paper);
+    text-align: center;
+    padding: 8px;
+    line-height: 1.3;
+    position: relative;
+  }
+  .flow-node strong { display: block; font-size: 14px; font-family: "Instrument Serif", serif; font-weight: 400; margin-bottom: 4px; letter-spacing: 0.02em; }
+  .flow-node.coral { background: var(--coral); color: var(--paper); border-color: var(--coral); }
+  .flow-arrow {
+    color: var(--ink);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 14px;
+  }
+
+  /* local node viz */
+  .local-card {
+    padding: 24px;
+    height: 100%;
+    display: flex; flex-direction: column; justify-content: space-between;
+    background:
+      repeating-linear-gradient(135deg, transparent 0 14px, rgba(26,24,22,0.025) 14px 15px);
+  }
+  .local-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    margin-bottom: 8px;
+  }
+  .local-row .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--coral); }
+  .local-row .ok { margin-left: auto; color: var(--coral-deep); }
+  .local-bar {
+    margin-top: 12px;
+    padding: 14px;
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 4px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    line-height: 1.6;
+  }
+  .local-bar .c { color: var(--coral); }
+
+  /* providers */
+  .providers {
+    padding: 20px;
+    height: 100%;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    align-content: center;
+  }
+  .provider-chip {
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    padding: 14px 10px;
+    text-align: center;
+    border-radius: 4px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    color: var(--ink-2);
+    letter-spacing: 0.05em;
+    line-height: 1.4;
+  }
+  .provider-chip strong { display: block; color: var(--ink); font-size: 12px; margin-bottom: 4px; font-family: "Inter", sans-serif; font-weight: 600; }
+  .provider-chip.add {
+    border: 1px dashed var(--coral);
+    color: var(--coral-deep);
+    background: rgba(232,118,90,0.06);
+  }
+
+  /* agent chat */
+  .agent-card {
+    padding: 22px;
+    height: 100%;
+    display: flex; flex-direction: column; gap: 10px; justify-content: center;
+  }
+  .bubble {
+    padding: 12px 16px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.5;
+    max-width: 86%;
+  }
+  .bubble.agent { background: var(--paper); border: 1px solid var(--rule); align-self: flex-start; border-bottom-left-radius: 4px; }
+  .bubble.user { background: var(--ink); color: var(--paper); align-self: flex-end; border-bottom-right-radius: 4px; }
+  .bubble.suggest { background: rgba(232,118,90,0.1); border: 1px solid rgba(232,118,90,0.3); color: var(--coral-deep); align-self: flex-start; font-family: "JetBrains Mono", monospace; font-size: 12px; }
+
+  /* ---------- Showcase ---------- */
+  .showcase {
+    padding: 100px 0 140px;
+    background: var(--ink);
+    color: var(--paper);
+    margin-top: 60px;
+  }
+  .showcase .wrap { color: var(--paper); }
+  .showcase .section-num { color: rgba(242,239,232,0.5); }
+  .showcase .section-title { color: var(--paper); }
+  .showcase .section-title .it { color: var(--coral); }
+  .showcase-stack {
+    margin-top: 60px;
+    display: grid;
+    gap: 24px;
+  }
+  .showcase-shot {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #000;
+    position: relative;
+  }
+  .showcase-shot img { width: 100%; display: block; }
+  .showcase-caption {
+    display: grid;
+    grid-template-columns: 60px 200px 1fr;
+    gap: 24px;
+    padding: 18px 24px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    align-items: center;
+    background: #14120F;
+  }
+  .showcase-caption .num { font-family: "JetBrains Mono", monospace; color: var(--coral); font-size: 12px; }
+  .showcase-caption .ttl { font-family: "Instrument Serif", serif; font-size: 22px; }
+  .showcase-caption .desc { font-size: 13px; color: rgba(242,239,232,0.65); line-height: 1.5; }
+
+  /* ---------- Philosophy ---------- */
+  .philosophy { padding: 140px 0 100px; }
+  .philosophy-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: start;
+  }
+  .philo-eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.18em; color: var(--muted);
+    margin-bottom: 32px;
+  }
+  .philo-h {
+    font-family: "Instrument Serif", "Noto Serif SC", serif;
+    font-size: clamp(48px, 6vw, 92px);
+    line-height: 0.96;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+  .philo-h .it { font-style: italic; color: var(--coral); }
+  .philo-text {
+    font-family: "Noto Serif SC", "Inter", serif;
+    font-size: 17px;
+    line-height: 1.85;
+    color: var(--ink-2);
+    font-weight: 300;
+  }
+  .philo-text p + p { margin-top: 22px; }
+  .philo-text strong { color: var(--ink); font-weight: 600; }
+  .philo-text .pull {
+    display: block;
+    margin: 32px 0;
+    padding: 18px 0 18px 22px;
+    border-left: 2px solid var(--coral);
+    font-family: "Instrument Serif", serif;
+    font-size: 24px;
+    line-height: 1.4;
+    color: var(--ink);
+    font-weight: 400;
+  }
+
+  /* ---------- Equation block ---------- */
+  .equation {
+    padding: 100px 0;
+    text-align: center;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper-2);
+  }
+  .eq-eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.2em; color: var(--muted);
+    margin-bottom: 30px;
+  }
+  .eq-line {
+    font-family: "Instrument Serif", "Noto Serif SC", serif;
+    font-size: clamp(28px, 4vw, 56px);
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+  .eq-line .gt { color: var(--coral); font-style: italic; }
+  .eq-line .strike { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--muted); }
+  .eq-foot {
+    margin-top: 40px;
+    font-family: "Instrument Serif", serif;
+    font-size: clamp(40px, 6vw, 96px);
+    letter-spacing: -0.03em;
+    color: var(--ink);
+  }
+  .eq-foot .em { color: var(--coral); font-style: italic; }
+
+  /* ---------- Open Source CTA ---------- */
+  .opensource {
+    padding: 140px 0 100px;
+  }
+  .os-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+  }
+  .os-h {
+    font-family: "Instrument Serif", "Noto Serif SC", serif;
+    font-size: clamp(56px, 7vw, 110px);
+    line-height: 0.94;
+    letter-spacing: -0.03em;
+  }
+  .os-h .it { font-style: italic; color: var(--coral); }
+  .os-h .stroke { -webkit-text-stroke: 1.5px var(--ink); color: transparent; }
+  .repo-card {
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 8px;
+    padding: 28px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+  }
+  .repo-card .top {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px;
+    color: rgba(242,239,232,0.5);
+    font-size: 11px; letter-spacing: 0.1em;
+  }
+  .repo-card .top .dots { display: flex; gap: 6px; }
+  .repo-card .top .dots span { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.15); }
+  .repo-card .top .dots .r { background: #ff5f57; }
+  .repo-card .top .dots .y { background: #febc2e; }
+  .repo-card .top .dots .g { background: #28c840; }
+  .repo-card pre {
+    color: var(--paper);
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .repo-card .c { color: rgba(242,239,232,0.5); }
+  .repo-card .k { color: var(--coral); }
+  .repo-card .s { color: #B5D9A4; }
+  .repo-stats {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    font-family: "Inter", sans-serif;
+    font-size: 12px;
+    color: rgba(242,239,232,0.55);
+  }
+  .repo-stats strong { display: block; font-family: "Instrument Serif", serif; font-size: 22px; color: var(--paper); margin-bottom: 4px; font-weight: 400; }
+  .os-actions {
+    margin-top: 36px;
+    display: flex; gap: 12px;
+  }
+  .os-actions .btn-primary { background: var(--ink); color: var(--paper); }
+  .os-actions .btn-primary:hover { background: var(--coral); }
+
+  /* ---------- Footer ---------- */
+  footer {
+    border-top: 1px solid var(--rule);
+    padding: 60px 0 40px;
+  }
+  .foot-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr;
+    gap: 60px;
+  }
+  .foot-h {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    margin-bottom: 18px;
+  }
+  .foot-grid ul { list-style: none; }
+  .foot-grid ul li { margin-bottom: 10px; }
+  .foot-grid ul a {
+    color: var(--ink-2); text-decoration: none; font-size: 14px;
+  }
+  .foot-grid ul a:hover { color: var(--coral-deep); }
+  .foot-bottom {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: end;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; color: var(--muted); letter-spacing: 0.05em;
+  }
+  .foot-mark {
+    font-family: "Instrument Serif", serif;
+    font-size: clamp(80px, 14vw, 220px);
+    line-height: 0.85;
+    letter-spacing: -0.04em;
+    margin-top: 60px;
+    color: var(--ink);
+  }
+  .foot-mark .it { font-style: italic; color: var(--coral); }
+  .foot-mark .stroke { -webkit-text-stroke: 1.5px var(--ink); color: transparent; }
+
+  /* responsive */
+  @media (max-width: 960px) {
+    .wrap { padding: 0 24px; }
+    .topbar-inner { padding: 14px 24px; }
+    .nav { display: none; }
+    .nav .cta { display: inline-flex; }
+    .nav { display: flex; gap: 12px; }
+    .nav a:not(.cta) { display: none; }
+    .hero-grid { grid-template-columns: 1fr; gap: 40px; }
+    .mascot-card { max-width: 420px; }
+    .hero-foot { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .section-head, .pillar-row { grid-template-columns: 1fr; gap: 24px; }
+    .philosophy-grid, .os-grid, .foot-grid { grid-template-columns: 1fr; gap: 40px; }
+    .showcase-caption { grid-template-columns: 1fr; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ TOP BAR ============ -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="/" class="brand" aria-label="Nomi">
+      <span class="mark"><svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg"><rect width="28" height="28" rx="7" fill="#2e2c2a"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg></span>
+      <span class="name"><span>No</span><span class="m">m</span><span>i</span></span>
+    </a>
+    <nav class="nav">
+      <a href="#features">特性</a>
+      <a href="#showcase">界面</a>
+      <a href="#philosophy">理念</a>
+      <a href="#opensource">开源</a>
+      <a href="https://github.com/aqm857886159/Nomi" target="_blank" rel="noopener noreferrer" class="cta">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-1.93c-3.2.69-3.87-1.54-3.87-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.77 2.7 1.26 3.36.96.1-.74.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.16 1.19a10.93 10.93 0 0 1 5.74 0c2.2-1.5 3.16-1.19 3.16-1.19.62 1.58.23 2.75.11 3.04.74.81 1.18 1.84 1.18 3.1 0 4.42-2.7 5.39-5.27 5.68.42.36.79 1.06.79 2.14v3.17c0 .31.2.66.79.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg>
+        GitHub
+      </a>
+    </nav>
+  </div>
+</header>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div class="hero-left">
+        <div class="hero-row hr-eyebrow">
+          <div class="eyebrow">v0.1 · 开源 · 本地优先 · 一站式</div>
+        </div>
+        <div class="hero-row hr-headline">
+          <h1>
+            创作、生成、<br>
+            预览，<span class="it">流</span> 在<br>
+            <span class="stroke">同一处。</span>
+          </h1>
+        </div>
+        <div class="hero-row hr-sub">
+          <p class="hero-sub">
+            <strong>Nomi</strong> 是一个开源、本地运行的 AI 视频一站式创作平台。从一句提示词到一条成片，所有数据在同一张画布里流动。
+          </p>
+        </div>
+        <div class="hero-row hr-actions">
+          <div class="hero-actions">
+          <a href="#opensource" class="btn btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-1.93c-3.2.69-3.87-1.54-3.87-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.77 2.7 1.26 3.36.96.1-.74.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.16 1.19a10.93 10.93 0 0 1 5.74 0c2.2-1.5 3.16-1.19 3.16-1.19.62 1.58.23 2.75.11 3.04.74.81 1.18 1.84 1.18 3.1 0 4.42-2.7 5.39-5.27 5.68.42.36.79 1.06.79 2.14v3.17c0 .31.2.66.79.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg>
+            克隆代码 / Clone
+          </a>
+          <a href="#showcase" class="btn btn-ghost">
+            看看长什么样 <span class="arrow">→</span>
+          </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-right">
+        <div class="mascot-card">
+          <div class="mascot-tag-tl">
+            <span class="dot"></span> Nomi · 折纸·守护
+          </div>
+          <div class="mascot-tag-tr">EDITION / 001</div>
+          <img src="assets/mascot.png" alt="Nomi 折纸吉祥物">
+          <!-- floating product readout overlay -->
+          <div class="mascot-overlay">
+            <div class="ov-row"><span class="ov-k">SCRIPT</span><span class="ov-v">折纸熊在白色背景前轻轻转身</span></div>
+            <div class="ov-row"><span class="ov-k">RENDER</span><span class="ov-v">→ 4 帧候选 · seed 8124</span><span class="ov-chip">LOCAL</span></div>
+            <div class="ov-row"><span class="ov-k">EDIT</span><span class="ov-v">→ 图片轨 · 0:00 — 0:08</span></div>
+            <div class="ov-progress"><span style="width:62%"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-foot">
+      <div>RUNTIME<span>本地运行 · 离线可用</span></div>
+      <div>WORKFLOW<span>剧本 / 生成 / 剪辑 一体</span></div>
+      <div>PROVIDERS<span>任意接入 · 文档驱动</span></div>
+      <div>LICENSE<span>Apache-2.0 · 完全开源</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MANIFESTO (product-anchored) ============ -->
+<section class="manifesto">
+  <div class="wrap">
+    <p class="manifesto-quote">
+      创作不是工具的接力赛。<br>
+      <span class="light">它应该</span>
+      <span class="em">在同一处</span>
+      <span class="light">发生。</span>
+    </p>
+    <div class="manifesto-attr">从一句提示词，到一条成片 · 0 次切换</div>
+  </div>
+</section>
+
+<!-- ============ FEATURES / PILLARS ============ -->
+<section id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-num">/ 01 · 特性</div>
+      <h2 class="section-title">四件 <span class="it">有趣的</span> 事情，<br>足够支撑一个工作流。</h2>
+    </div>
+  </div>
+
+  <div class="wrap pillars">
+
+    <!-- Pillar 1: Flow -->
+    <div class="pillar-row">
+      <div class="pillar-tag">
+        <span class="num">01 / FLOW</span>
+        创作流动
+      </div>
+      <div>
+        <h3 class="pillar-h">数据丝滑 <span class="em">流动</span>，<br>而不是在工具之间复制粘贴。</h3>
+        <div class="pillar-body">
+          <p>剧本里的每一段提示词，都可以一键变成图片节点、视频节点。任何节点的片段，都能拖拽进入剪辑时间轴。</p>
+          <p>从一个想法到最终成片，你不需要切换七个软件。它们本来就该是一个东西。</p>
+        </div>
+      </div>
+      <div class="pillar-visual">
+        <div class="flow">
+          <div class="flow-node"><strong>Script</strong>剧本 / 提示词</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node coral"><strong>Node</strong>图像 / 视频</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node"><strong>Edit</strong>时间轴</div>
+        </div>
+        <div class="label">FLOW · 01</div>
+      </div>
+    </div>
+
+    <!-- Pillar 2: Local -->
+    <div class="pillar-row">
+      <div class="pillar-tag">
+        <span class="num">02 / LOCAL</span>
+        本地优先
+      </div>
+      <div>
+        <h3 class="pillar-h">所有素材，<span class="em">留在</span><br>你自己的电脑里。</h3>
+        <div class="pillar-body">
+          <p>Nomi 是纯开源的本地项目。模型可以在本地跑，素材可以全部留在本地硬盘——不会上传，不会被训练，不会消失。</p>
+          <p>创作的私密性，应该和写日记一样。</p>
+        </div>
+      </div>
+      <div class="pillar-visual">
+        <div class="local-card">
+          <div>
+            <div class="local-row"><span class="dot"></span>~/nomi/projects/origami-bear<span class="ok">LOCAL</span></div>
+            <div class="local-row"><span class="dot"></span>script.md · 1.4 KB<span class="ok">LOCAL</span></div>
+            <div class="local-row"><span class="dot"></span>frames/ · 24 items<span class="ok">LOCAL</span></div>
+          </div>
+          <div class="local-bar">
+            <span class="c">$</span> ls ~/nomi/projects<br>
+            <span class="c">→</span> 0 bytes uploaded.
+          </div>
+        </div>
+        <div class="label">LOCAL · 02</div>
+      </div>
+    </div>
+
+    <!-- Pillar 3: Providers -->
+    <div class="pillar-row">
+      <div class="pillar-tag">
+        <span class="num">03 / OPEN</span>
+        任意接入
+      </div>
+      <div>
+        <h3 class="pillar-h">把<span class="em">一个文档链接</span>丢给它，<br>它会替你接入。</h3>
+        <div class="pillar-body">
+          <p>不喜欢内置的供应商？给 Nomi 一个 API 文档地址，或者直接是供应商的官网，它会读懂、写适配器、连上去。</p>
+          <p>你不必等我们支持。你来决定生态。</p>
+        </div>
+      </div>
+      <div class="pillar-visual">
+        <div class="providers">
+          <div class="provider-chip"><strong>Local</strong>SD / Comfy</div>
+          <div class="provider-chip"><strong>OpenAI</strong>GPT · DALL·E</div>
+          <div class="provider-chip"><strong>Claude</strong>Anthropic</div>
+          <div class="provider-chip"><strong>Runway</strong>Gen-3</div>
+          <div class="provider-chip"><strong>Kling</strong>可灵</div>
+          <div class="provider-chip add">+ 粘贴文档<br>自动接入</div>
+        </div>
+        <div class="label">PROVIDERS · 03</div>
+      </div>
+    </div>
+
+    <!-- Pillar 4: Agent -->
+    <div class="pillar-row">
+      <div class="pillar-tag">
+        <span class="num">04 / AGENT</span>
+        助手 · 非主理
+      </div>
+      <div>
+        <h3 class="pillar-h">Agent 给建议，<br><span class="em">你</span> 才是导演。</h3>
+        <div class="pillar-body">
+          <p>Nomi 内置的 agent 可以陪你跑通一整段视频制作——它会提建议、补镜头、调色调，但最终的每一个选择都交给你。</p>
+          <p>它是助理，不是替身。</p>
+        </div>
+      </div>
+      <div class="pillar-visual">
+        <div class="agent-card">
+          <div class="bubble user">这一帧的色调有点冷</div>
+          <div class="bubble agent">我建议把整体偏暖 8%，并且把折纸熊的红色印记略微提亮。要我生成三个候选吗？</div>
+          <div class="bubble suggest">[ 你 ] 选一个 · 或都不要</div>
+        </div>
+        <div class="label">AGENT · 04</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============ SHOWCASE ============ -->
+<section id="showcase" class="showcase">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-num">/ 02 · 界面</div>
+      <h2 class="section-title">三个面板，<br>一条<span class="it">河</span>。</h2>
+    </div>
+
+    <div class="showcase-stack">
+      <div class="showcase-shot">
+        <img src="assets/screen-script.png" alt="剧本面板">
+        <div class="showcase-caption">
+          <div class="num">01</div>
+          <div class="ttl">创作 / Script</div>
+          <div class="desc">从一段散文式的草稿出发，每一句都可以成为镜头。Nomi 会读懂上下文，给你提示词、节奏、灵感。</div>
+        </div>
+      </div>
+      <div class="showcase-shot">
+        <img src="assets/screen-canvas.png" alt="生成画布">
+        <div class="showcase-caption">
+          <div class="num">02</div>
+          <div class="ttl">生成 / Canvas</div>
+          <div class="desc">一个无限画布。把图像和视频节点当作可编辑的卡片，连成你想要的故事。Agent 在右侧待命。</div>
+        </div>
+      </div>
+      <div class="showcase-shot">
+        <img src="assets/screen-timeline.png" alt="预览时间轴">
+        <div class="showcase-caption">
+          <div class="num">03</div>
+          <div class="ttl">预览 / Timeline</div>
+          <div class="desc">所有节点都已经在时间轴上。拖、剪、叠、调速——传统剪辑该有的事情，都在这里发生。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WHY (product-anchored) ============ -->
+<section id="philosophy" class="philosophy">
+  <div class="wrap">
+    <div class="philosophy-grid">
+      <div>
+        <div class="philo-eyebrow">/ 03 · 为什么这样设计</div>
+        <h2 class="philo-h">
+          一条画布，<br>
+          <span class="it">而不是</span><br>
+          七个软件。
+        </h2>
+      </div>
+      <div class="philo-text">
+        <p><strong>剧本、生成、剪辑，本来就该是一件事。</strong>把它们拆成三个软件，是工具的局限，不是创作的局限。Nomi 把它们压回同一张画布——剧本里的提示词直接长出图像和视频节点，节点的片段再直接落进剪辑轨。</p>
+        <span class="pull">"数据丝滑流动，而不是在工具之间复制粘贴。"</span>
+        <p><strong>素材属于你，不属于云。</strong>整个工作流在本地跑：模型本地推理、文件本地存盘、不上传、不训练、不会某天因为"政策调整"消失。你的硬盘就是你的工作室。</p>
+        <p><strong>Agent 是助理，不是替身。</strong>它会读上下文、补镜头、提建议，但 Nomi 不会替你做决定——所有的"选哪个"，留给你按下去。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EQUATION ============ -->
+<section class="equation">
+  <div class="wrap">
+    <div class="eq-eyebrow">/ 04 · 这里没有什么魔法</div>
+    <p class="eq-line">
+      <span>剧本</span> 写出来 → <span>提示词</span> 自动抽出 → <br>
+      生成 <span class="gt">图像 / 视频</span> 节点 → <br>
+      节点 <span>拖入</span> 时间轴 → 一条 <span class="gt">成片</span>。
+    </p>
+    <p class="eq-foot">
+      一条画布，<br>
+      <span class="em">从头到尾。</span>
+    </p>
+  </div>
+</section>
+
+<!-- ============ OPEN SOURCE CTA ============ -->
+<section id="opensource" class="opensource">
+  <div class="wrap">
+    <div class="os-grid">
+      <div>
+        <div class="philo-eyebrow">/ 05 · 它属于你</div>
+        <h2 class="os-h">
+          <span class="stroke">克隆它，</span><br>
+          改它，<br>
+          <span class="it">让它</span><br>
+          成为你的。
+        </h2>
+        <div class="os-actions">
+          <a href="https://github.com/aqm857886159/Nomi" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-1.93c-3.2.69-3.87-1.54-3.87-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.77 2.7 1.26 3.36.96.1-.74.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.16 1.19a10.93 10.93 0 0 1 5.74 0c2.2-1.5 3.16-1.19 3.16-1.19.62 1.58.23 2.75.11 3.04.74.81 1.18 1.84 1.18 3.1 0 4.42-2.7 5.39-5.27 5.68.42.36.79 1.06.79 2.14v3.17c0 .31.2.66.79.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg>
+            访问 GitHub 仓库
+          </a>
+          <a href="https://github.com/aqm857886159/Nomi#readme" class="btn btn-ghost" target="_blank" rel="noopener noreferrer">阅读 README <span class="arrow">→</span></a>
+        </div>
+      </div>
+
+      <div class="repo-card">
+        <div class="top">
+          <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+          <div>~/nomi · main</div>
+        </div>
+<pre><span class="c"># 克隆并启动</span>
+<span class="k">$</span> git clone https://github.com/aqm857886159/Nomi.git
+<span class="k">$</span> cd Nomi
+<span class="k">$</span> pnpm install
+<span class="k">$</span> pnpm dev
+
+<span class="c"># 一切都在本地</span>
+<span class="k">→</span> <span class="s">"Nomi running at http://127.0.0.1:5173"</span>
+<span class="k">→</span> <span class="s">"Local-only · no telemetry"</span>
+</pre>
+        <div class="repo-stats">
+          <div><strong>Apache</strong>License</div>
+          <div><strong>Local</strong>Runtime</div>
+          <div><strong>0</strong>Trackers</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <a href="/" class="brand" aria-label="Nomi" style="font-size:32px;">
+          <span class="mark" style="width:36px;height:36px;"><svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg"><rect width="28" height="28" rx="7" fill="#2e2c2a"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white"/></svg></span>
+          <span class="name"><span>No</span><span class="m">m</span><span>i</span></span>
+        </a>
+        <p style="margin-top:18px; font-size:13px; color:var(--ink-2); max-width:320px; line-height:1.6;">
+          一个人的视频创作平台。
+          剧本、生成、剪辑——在同一张画布上完成。
+        </p>
+      </div>
+      <div>
+        <div class="foot-h">PRODUCT</div>
+        <ul>
+          <li><a href="#features">特性</a></li>
+          <li><a href="#showcase">界面预览</a></li>
+          <li><a href="https://github.com/aqm857886159/Nomi/archive/refs/heads/main.zip">下载</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="foot-h">OPEN SOURCE</div>
+        <ul>
+          <li><a href="https://github.com/aqm857886159/Nomi">GitHub</a></li>
+          <li><a href="https://github.com/aqm857886159/Nomi/issues">Issues</a></li>
+          <li><a href="https://github.com/aqm857886159/Nomi/issues">Roadmap</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="foot-h">CREATOR</div>
+        <ul>
+          <li><a href="https://github.com/aqm857886159">关于作者</a></li>
+          <li><a href="https://github.com/aqm857886159/Nomi#readme">写作 / 博客</a></li>
+          <li><a href="https://nomiaqm.com/">nomiaqm.com</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="foot-bottom">
+      <div>© 2026 · Nomi · 开源 · Apache-2.0</div>
+      <div>MADE WITH PAPER, INK, AND A LOT OF TOKENS.</div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
