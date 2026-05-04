@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="apps/web/public/nomi-logo.svg" alt="Nomi" width="96" />
+  <img src="apps/web/public/nomi-mascot.svg" alt="Nomi mascot" width="160" />
 </p>
 
 <h1 align="center">Nomi</h1>

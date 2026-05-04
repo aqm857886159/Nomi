@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-labelledby="title desc">
+  <title id="title">Nomi mascot</title>
+  <desc id="desc">A soft origami-style Nomi mascot with folded paper ears, black eyes, and a coral chest mark.</desc>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="64%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="74%" stop-color="#f4f3ed"/>
+      <stop offset="100%" stop-color="#ebe9df"/>
+    </radialGradient>
+    <linearGradient id="paper" x1="22%" y1="11%" x2="79%" y2="91%">
+      <stop offset="0%" stop-color="#fffaf0"/>
+      <stop offset="48%" stop-color="#f2eadb"/>
+      <stop offset="100%" stop-color="#d9cab6"/>
+    </linearGradient>
+    <linearGradient id="fold" x1="15%" y1="5%" x2="90%" y2="93%">
+      <stop offset="0%" stop-color="#fffdf6"/>
+      <stop offset="100%" stop-color="#cdbda7"/>
+    </linearGradient>
+    <linearGradient id="shadow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d7c7b0"/>
+      <stop offset="100%" stop-color="#aa9883"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="18" flood-color="#b7ad9f" flood-opacity=".32"/>
+    </filter>
+  </defs>
+  <rect width="640" height="640" fill="url(#bg)"/>
+  <ellipse cx="320" cy="548" rx="170" ry="32" fill="#c8c0b4" opacity=".26"/>
+  <g filter="url(#softShadow)">
+    <path d="M205 148 115 221l92 87 72-111z" fill="url(#fold)"/>
+    <path d="M117 221 204 309l-9-124z" fill="#efe4d1"/>
+    <path d="M124 214 204 150l-8 35z" fill="#dd695d"/>
+    <path d="M435 112c61 12 93 70 72 125l-58 80-132-3-112-83c10-83 93-138 230-119z" fill="url(#paper)"/>
+    <path d="M318 118c35 54 32 143-1 196l-112-83c7-55 44-94 113-113z" fill="#fff7e8" opacity=".76"/>
+    <path d="M449 317 318 314l100 73z" fill="#e0cfb8"/>
+    <path d="M205 307 135 404l22 131 105-127z" fill="#d7c7b0"/>
+    <path d="M205 307 261 408l57-94z" fill="#f5eddd"/>
+    <path d="M262 408 157 535l116 49 45-270z" fill="#e8dac5"/>
+    <path d="M318 314 273 584l99-3 46-194z" fill="#fff5e5"/>
+    <path d="M418 387 372 581l111-47 22-125z" fill="#d7c7b0"/>
+    <path d="M205 307 318 314l-56 94z" fill="#f0e3cf"/>
+    <path d="M262 408h156l-46 173h-99z" fill="#f8eedf"/>
+    <path d="M294 428 332 395l34 38-36 28z" fill="#ff897c"/>
+    <circle cx="293" cy="221" r="17" fill="#3f3d39"/>
+    <circle cx="384" cy="199" r="17" fill="#3f3d39"/>
+    <path d="M232 319 315 315l-54 34z" fill="#cf7066"/>
+    <path d="M205 148 115 221l92 87 72-111z" fill="none" stroke="#bfae98" stroke-opacity=".26"/>
+    <path d="M435 112c61 12 93 70 72 125l-58 80-132-3-112-83c10-83 93-138 230-119z" fill="none" stroke="#c8b9a3" stroke-opacity=".24"/>
+  </g>
+</svg>
