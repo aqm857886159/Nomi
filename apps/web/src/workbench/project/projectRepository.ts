@@ -39,7 +39,17 @@ const PROJECT_INDEX_KEY = 'tapcanvas-open-workbench-project-index-v1'
 const PROJECT_RECORD_PREFIX = 'tapcanvas-open-workbench-project-v1:'
 const PROJECT_BACKUP_PREFIX = 'tapcanvas-open-workbench-project-backup-v1:'
 const PROJECT_BACKUP_INDEX_PREFIX = 'tapcanvas-open-workbench-project-backup-index-v1:'
-const MAX_PROJECT_BACKUPS = 5
+const MAX_PROJECT_BACKUPS = 1
+
+// Clear old backups on load to prevent localStorage quota issues
+if (typeof window !== 'undefined') {
+  try {
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i)
+      if (k?.startsWith(PROJECT_BACKUP_PREFIX)) window.localStorage.removeItem(k)
+    }
+  } catch { /* ignore */ }
+}
 
 function readJson(key: string): unknown {
   if (typeof window === 'undefined') return null
