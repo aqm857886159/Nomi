@@ -52,7 +52,20 @@ function readJson(key: string): unknown {
 
 function writeJson(key: string, value: unknown): void {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(key, JSON.stringify(value))
+  const serialized = JSON.stringify(value)
+  try {
+    window.localStorage.setItem(key, serialized)
+  } catch {
+    // quota exceeded — evict oldest backups and retry once
+    evictOldBackups()
+    try { window.localStorage.setItem(key, serialized) } catch { /* give up silently */ }
+  }
+}
+
+function evictOldBackups(): void {
+  const keys = Array.from({ length: window.localStorage.length }, (_, i) => window.localStorage.key(i))
+    .filter((k): k is string => typeof k === 'string' && k.startsWith(PROJECT_BACKUP_PREFIX))
+  for (const k of keys) window.localStorage.removeItem(k)
 }
 
 function projectRecordKey(projectId: string): string {
