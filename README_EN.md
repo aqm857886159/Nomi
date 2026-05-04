@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="apps/web/public/nomi-mascot.svg" alt="Nomi mascot" width="160" />
+  <img src="apps/web/public/nomi-logo.svg" alt="Nomi" width="96" />
 </p>
 
 <h1 align="center">Nomi</h1>
@@ -19,6 +19,10 @@
 </p>
 
 ## What Is Nomi
+
+<p align="center">
+  <img src="apps/web/public/nomi-mascot.png" alt="Nomi mascot" width="280" />
+</p>
 
 Nomi is a local-first open-source workspace for AI video creation. It connects script writing, image generation, video generation, and timeline editing in one production flow instead of forcing creators to copy assets between disconnected tools.
 

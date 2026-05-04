@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="apps/web/public/nomi-mascot.svg" alt="Nomi mascot" width="160" />
+  <img src="apps/web/public/nomi-logo.svg" alt="Nomi" width="96" />
 </p>
 
 <h1 align="center">Nomi</h1>
@@ -26,6 +26,10 @@
 </p>
 
 ## Nomi 是什么
+
+<p align="center">
+  <img src="apps/web/public/nomi-mascot.png" alt="Nomi 吉祥物" width="280" />
+</p>
 
 Nomi 是一个本地优先的开源 AI 视频创作工作台。它把创作剧本、生成图片、生成视频和剪辑预览放在同一条生产流里，而不是让它们变成彼此割裂的工具。
 
