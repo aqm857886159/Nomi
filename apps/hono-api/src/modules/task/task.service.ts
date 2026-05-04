@@ -10739,11 +10739,19 @@ async function runQwenTextToImageTask(
 	})();
 
 	if (res.status < 200 || res.status >= 300) {
+		const parsedBodyRecord =
+			parsedBody && typeof parsedBody === "object"
+				? (parsedBody as Record<string, unknown>)
+				: null;
+		const parsedError = parsedBodyRecord?.error;
+		const parsedErrorMessage =
+			parsedError && typeof parsedError === "object"
+				? (parsedError as Record<string, unknown>).message
+				: null;
 		const msg =
-			(parsedBody &&
-				(parsedBody.error?.message ||
-					parsedBody.message ||
-					parsedBody.error)) ||
+			(typeof parsedErrorMessage === "string" && parsedErrorMessage) ||
+			(typeof parsedBodyRecord?.message === "string" && parsedBodyRecord.message) ||
+			(typeof parsedError === "string" && parsedError) ||
 			`sora2api 图像调用失败: ${res.status}`;
 		throw new AppError(msg, {
 			status: res.status,
@@ -10957,11 +10965,19 @@ async function runQwenTextToImageTask(
 		})();
 
 		if (res.status < 200 || res.status >= 300) {
+			const parsedBodyRecord =
+				parsedBody && typeof parsedBody === "object"
+					? (parsedBody as Record<string, unknown>)
+					: null;
+			const parsedError = parsedBodyRecord?.error;
+			const parsedErrorMessage =
+				parsedError && typeof parsedError === "object"
+					? (parsedError as Record<string, unknown>).message
+					: null;
 			const msg =
-				(parsedBody &&
-					(parsedBody.error?.message ||
-						parsedBody.message ||
-						parsedBody.error)) ||
+				(typeof parsedErrorMessage === "string" && parsedErrorMessage) ||
+				(typeof parsedBodyRecord?.message === "string" && parsedBodyRecord.message) ||
+				(typeof parsedError === "string" && parsedError) ||
 				`sora2api 视频调用失败: ${res.status}`;
 			throw new AppError(msg, {
 				status: res.status,

@@ -20,6 +20,7 @@
     "prompt-evolution:worker": "node scripts/prompt-evolution-worker.mjs"
   },
   "dependencies": {
+    "@nomi/agents-bridge-contract": "workspace:*",
     "@napi-rs/canvas": "^0.1.96",
     "@ai-sdk/anthropic": "^2.0.45",
     "@ai-sdk/google": "^2.0.39",
@@ -30,9 +31,6 @@
     "@alicloud/tea-util": "^1.4.11",
     "@aws-sdk/client-s3": "^3.978.0",
     "@hono/zod-openapi": "^0.19.10",
-    "@nestjs/common": "^11.0.10",
-    "@nestjs/core": "^11.0.10",
-    "@nestjs/platform-express": "^11.0.10",
     "@prisma/client": "^6.12.0",
     "@xmldom/xmldom": "^0.8.10",
     "ai": "^5.0.97",
@@ -41,8 +39,6 @@
     "hono": "^4.6.20",
     "ioredis": "^5.6.1",
     "jsonrepair": "^3.13.1",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
     "undici": "^7.16.0",
     "zod": "^3.24.1"
   },

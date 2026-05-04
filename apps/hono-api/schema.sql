@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 	due_date TEXT NOT NULL
 );
 
--- Users table (replacing NestJS + Postgres User model for auth)
+-- Users table for auth and ownership scoping.
 CREATE TABLE IF NOT EXISTS users (
 	id TEXT PRIMARY KEY,
 	login TEXT NOT NULL,

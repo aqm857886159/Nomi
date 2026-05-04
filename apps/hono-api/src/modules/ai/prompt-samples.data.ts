@@ -90,7 +90,7 @@ export const PROMPT_SAMPLES: PromptSample[] = [
 		outputNote: "背景平滑、无重复纹理，可直接用于海报或二次创作。",
 		keywords: ["元素消除", "路人", "去除", "清除人物", "移除行人"],
 	},
-	// 其余官方样例保持与 Nest 版本一致，可按需继续补充...
+	// 其余官方样例保持与当前 API 协议一致，可按需继续补充...
 ];
 
 type PromptScore = { sample: PromptSample; score: number };

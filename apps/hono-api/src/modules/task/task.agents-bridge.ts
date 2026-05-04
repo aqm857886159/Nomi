@@ -18,7 +18,7 @@ import type {
 	AgentsBridgeStreamObserver,
 	AgentsBridgeStreamTodoListEvent,
 	AgentsBridgeStreamToolCall,
-} from "../../../../../packages/schemas/agents-bridge-contract";
+} from "@nomi/agents-bridge-contract";
 import {
 	resolveEffectivePublicChatBookChapterScope,
 } from "./public-chat-workflow";

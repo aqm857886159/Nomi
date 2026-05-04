@@ -332,6 +332,7 @@ export async function generateImageToCanvas(input: {
     id: nodeId,
     data: {
       ...nodeData,
+      kind: taskNode.data.kind,
       status: "success",
       imageUrl: completed.imageUrl,
       imageResults: [

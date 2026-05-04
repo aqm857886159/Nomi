@@ -10,7 +10,7 @@ import { getProjectById, getProjectForOwner } from "../project/project.repo";
 import { getFlowForOwner, mapFlowRowToDto } from "../flow/flow.repo";
 import { listAssetsForUser, createAssetRow, getAssetByIdForUser } from "../asset/asset.repo";
 import { uploadInlineImageToRustfs } from "../task/task.inline-asset-utils";
-import { runAgentsBridgeChatTask } from "../task/task.agents-bridge";
+import { runAgentsBridgeChatTask } from "../agents-bridge";
 import type { TaskRequestDto } from "../task/task.schemas";
 import { runPublicTask } from "../apiKey/apiKey.routes";
 import { fetchTaskResultForPolling } from "../task/task.polling";

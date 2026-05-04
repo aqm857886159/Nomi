@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { OpenAPIHono, createRoute, z, type RouteHandler } from "@hono/zod-openapi";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { randomUUID } from "node:crypto";
@@ -22,6 +22,7 @@ import {
 	type PublicVisionRequestDto,
 	PublicVisionResponseSchema,
 	PublicRunTaskRequestSchema,
+	type PublicRunTaskRequestDto,
 	PublicRunTaskResponseSchema,
 	PublicFetchTaskResultRequestSchema,
 	PublicFetchTaskResultResponseSchema,
@@ -33,7 +34,12 @@ import {
 	PublicVideoUnderstandResponseSchema,
 } from "./apiKey.schemas";
 import { registerPublicFlowRoutes } from "../flow/flow.public.routes";
-import { registerPublicAgentsToolBridgeRoutes } from "../task/agents-tool-bridge.routes";
+import {
+	handlePublicAgentsChatRoute,
+	isAgentsBridgeEnabled,
+	registerPublicAgentsToolBridgeRoutes,
+	runAgentsBridgeChatTask,
+} from "../agents-bridge";
 import { createApiKey, deleteApiKey, listApiKeys, updateApiKey } from "./apiKey.service";
 import {
 	runApimartTextTask,
@@ -45,8 +51,11 @@ import {
 	enqueueStoredTaskForVendorAttempts,
 	resolveVendorContext,
 } from "../task/task.service";
-import { isAgentsBridgeEnabled, runAgentsBridgeChatTask } from "../task/task.agents-bridge";
-import { handlePublicAgentsChatRoute } from "../task/public-agents-chat";
+import {
+	TaskResultSchema,
+	type TaskRequestDto,
+	type TaskResultDto,
+} from "../task/task.schemas";
 import {
 	ensureModelCatalogSchema,
 	listCatalogModelsByModelAlias,
@@ -420,8 +429,8 @@ function normalizeStringArray(value: unknown): string[] {
 async function normalizeTaskAssetBackedVideoRequest(
 	c: AppContext,
 	userId: string,
-	request: unknown,
-): Promise<unknown> {
+	request: TaskRequestDto,
+): Promise<TaskRequestDto> {
 	if (!isPlainRecord(request)) return request;
 	const kind =
 		typeof request.kind === "string" ? request.kind.trim() : "";
@@ -1263,9 +1272,9 @@ function parseToolCallsFromText(raw: string): Array<{ id: string; name: string; 
 	return [];
 }
 
-function hasImageEditSourceInExtras(extras: Record<string, any>): boolean {
+function hasImageEditSourceInExtras(extras: Record<string, unknown>): boolean {
 	const referenceImages = Array.isArray(extras?.referenceImages)
-		? extras.referenceImages.filter((u: any) => typeof u === "string" && u.trim())
+		? extras.referenceImages.filter((u: unknown) => typeof u === "string" && u.trim())
 		: [];
 	if (referenceImages.length > 0) return true;
 	if (typeof extras?.imageUrl === "string" && extras.imageUrl.trim()) return true;
@@ -1275,10 +1284,10 @@ function hasImageEditSourceInExtras(extras: Record<string, any>): boolean {
 	return false;
 }
 
-function normalizeImageEditRequestKind(rawRequest: any): any {
+function normalizeImageEditRequestKind(rawRequest: TaskRequestDto): TaskRequestDto {
 	if (!rawRequest || typeof rawRequest !== "object") return rawRequest;
 	if (rawRequest.kind !== "image_edit") return rawRequest;
-	const extras = { ...((rawRequest.extras || {}) as Record<string, any>) };
+	const extras = { ...((rawRequest.extras || {}) as Record<string, unknown>) };
 	if (hasImageEditSourceInExtras(extras)) return rawRequest;
 	return {
 		...rawRequest,
@@ -1356,7 +1365,7 @@ function sanitizePublicTaskPayload(value: unknown, fieldName = "", depth = 0): u
 	return out;
 }
 
-function sanitizePublicTaskResult(result: unknown): unknown {
+function sanitizePublicTaskResult(result: TaskResultDto): TaskResultDto {
 	if (!result || typeof result !== "object") return result;
 	const src = result as Record<string, unknown>;
 	const out: Record<string, unknown> = { ...src };
@@ -1378,7 +1387,7 @@ function sanitizePublicTaskResult(result: unknown): unknown {
 		out.raw = sanitizePublicTaskPayload(src.raw, "raw", 0);
 	}
 
-	return out;
+	return TaskResultSchema.parse(out);
 }
 
 export function detectPublicTaskAssetHostingGap(input: {
@@ -1547,8 +1556,9 @@ function mergeAssetInputs(
 	return out;
 }
 
-const handlePublicAgentsChat = async (c: AppContext) => {
-	return handlePublicAgentsChatRoute(c);
+const handlePublicAgentsChat: RouteHandler<typeof PublicAgentsChatOpenApiRoute, AppEnv> = async (c) => {
+	const response = await handlePublicAgentsChatRoute(c);
+	return response as never;
 };
 
 publicApiRouter.openapi(PublicAgentsChatOpenApiRoute, handlePublicAgentsChat);
@@ -3054,10 +3064,13 @@ export async function resolvePublicTaskVendors(
 }
 
 export async function runPublicTask(
-	c: any,
+	c: AppContext,
 	userId: string,
-	input: any,
-): Promise<{ vendor: string; result: any }> {
+	input: PublicRunTaskRequestDto & {
+		abortSignal?: AbortSignal;
+		onAgentsStreamEvent?: (event: unknown) => void;
+	},
+): Promise<{ vendor: string; result: TaskResultDto }> {
 	const abortSignal = isAbortSignalLike(input?.abortSignal) ? input.abortSignal : null;
 	throwIfAbortSignalAborted(abortSignal);
 	const request = await normalizeTaskAssetBackedVideoRequest(
@@ -3065,7 +3078,7 @@ export async function runPublicTask(
 		userId,
 		normalizeImageEditRequestKind(input.request),
 	);
-	const extras = (request?.extras || {}) as Record<string, any>;
+	const extras = (request.extras || {}) as Record<string, unknown>;
 	setTraceStage(c, "public:run:begin", {
 		taskKind: request?.kind ?? null,
 		vendor: typeof input?.vendor === "string" ? input.vendor : null,
@@ -3142,8 +3155,8 @@ export async function runPublicTask(
 				const requestForVendor = (() => {
 					if (!modelAliasRaw) {
 						// Ensure local-only fields don't leak upstream.
-						const cleanExtras = { ...(request?.extras || {}) } as Record<string, any>;
-						delete (cleanExtras as any).modelAlias;
+						const cleanExtras = { ...(request.extras || {}) } as Record<string, unknown>;
+						delete cleanExtras.modelAlias;
 						return { ...request, extras: cleanExtras };
 					}
 					if (v === "agents") {
@@ -3166,8 +3179,8 @@ export async function runPublicTask(
 					});
 				}
 
-				const cleanExtras = { ...(request?.extras || {}) } as Record<string, any>;
-				delete (cleanExtras as any).modelAlias;
+				const cleanExtras = { ...(request.extras || {}) } as Record<string, unknown>;
+				delete cleanExtras.modelAlias;
 				cleanExtras.modelKey = mappedModelKey;
 				return { ...request, extras: cleanExtras };
 			})();
@@ -3218,8 +3231,8 @@ export async function runPublicTask(
 					details: { vendor: v },
 				});
 			} else if (v === "agents") {
-				result = await runAgentsBridgeChatTask(c as any, userId, requestForVendor, {
-					abortSignal,
+				result = await runAgentsBridgeChatTask(c, userId, requestForVendor, {
+					...(abortSignal ? { abortSignal } : {}),
 					onStreamEvent:
 						typeof input?.onAgentsStreamEvent === "function"
 							? input.onAgentsStreamEvent
@@ -3867,12 +3880,12 @@ publicApiRouter.openapi(PublicVideoOpenApiRoute, async (c) => {
 	const userId = requirePublicUserId(c);
 	const input = c.req.valid("json");
 
-	const extras: Record<string, any> = input.extras ? { ...input.extras } : {};
+	const extras: Record<string, unknown> = input.extras ? { ...input.extras } : {};
 	if (typeof input.durationSeconds === "number") {
 		extras.durationSeconds = input.durationSeconds;
 	}
 
-	const request = {
+	const request: TaskRequestDto = {
 		kind: "text_to_video",
 		prompt: input.prompt,
 		extras,

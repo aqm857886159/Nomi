@@ -436,6 +436,7 @@ export async function generateVideoToCanvas(input: {
     id: nodeId,
     data: {
       ...nodeData,
+      kind: taskNode.data.kind,
       status: "success",
       videoUrl: completed.videoUrl,
       ...(completed.thumbnailUrl ? { videoThumbnailUrl: completed.thumbnailUrl } : {}),

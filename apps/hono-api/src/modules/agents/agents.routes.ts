@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { AppEnv } from "../../types";
+import type { AppContext, AppEnv } from "../../types";
 import { authMiddleware } from "../../middleware/auth";
 import { apiKeyAuthMiddleware } from "../apiKey/apiKey.middleware";
 import {
@@ -47,6 +47,10 @@ export const adminAgentsRouter = new Hono<AppEnv>();
 // Public skill listing should work for both end-user JWT and external API keys.
 agentsRouter.use("*", apiKeyAuthMiddleware);
 adminAgentsRouter.use("*", authMiddleware);
+
+function isCanvasStoryboardRequest(c: AppContext): boolean {
+	return String(c.req.header("X-Nomi-Source") || "").trim().toLowerCase() === "canvas";
+}
 
 agentsRouter.get("/skill", async (c) => {
 	const userId = c.get("userId");
@@ -196,7 +200,7 @@ agentsRouter.post("/pipeline/runs/:id/execute", async (c) => {
 			400,
 		);
 	}
-	const isCanvasSource = ensureCanvasStoryboardRequest(c);
+	const isCanvasSource = isCanvasStoryboardRequest(c);
 	const run = await executeUserAgentPipelineRun(c as any, userId, id, {
 		...parsed.data,
 		skipMediaGeneration:

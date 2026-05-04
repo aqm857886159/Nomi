@@ -5,7 +5,7 @@ import { getPrismaClient } from "../../platform/node/prisma";
 import { authMiddleware } from "../../middleware/auth";
 import { errorMiddleware } from "../../middleware/error";
 import { resolveLocalDevRole } from "../auth/local-admin";
-import { handlePublicAgentsChatRoute } from "../task/public-agents-chat";
+import { handlePublicAgentsChatRoute } from "../agents-bridge";
 
 export const workbenchRouter = new Hono<AppEnv>();
 

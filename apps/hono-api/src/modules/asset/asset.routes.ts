@@ -37,7 +37,7 @@ import {
 } from "./asset.repo";
 import { getProjectForOwner } from "../project/project.repo";
 import { resolveLocalDevRole } from "../auth/local-admin";
-import { runAgentsBridgeChatTask } from "../task/task.agents-bridge";
+import { runAgentsBridgeChatTask } from "../agents-bridge";
 import { STORYBOARD_GOVERNANCE_MODEL_KEY } from "../agents/agents.model-keys";
 import { resolvePublicAssetBaseUrl } from "./asset.publicBase";
 import { createRustfsClient, resolveRustfsConfig } from "./rustfs.client";
@@ -8122,6 +8122,7 @@ assetRouter.patch("/:id/data", authMiddleware, async (c) => {
 	const userId = c.get("userId");
 	if (!userId) return c.json({ error: "Unauthorized" }, 401);
 	const id = c.req.param("id");
+	if (!id) return c.json({ error: "asset id is required" }, 400);
 	const body = (await c.req.json().catch(() => ({}))) ?? {};
 	const parsed = UpdateAssetDataSchema.safeParse(body);
 	if (!parsed.success) {
@@ -8159,6 +8160,7 @@ assetRouter.put("/:id", authMiddleware, async (c) => {
 	const userId = c.get("userId");
 	if (!userId) return c.json({ error: "Unauthorized" }, 401);
 	const id = c.req.param("id");
+	if (!id) return c.json({ error: "asset id is required" }, 400);
 	const body = (await c.req.json().catch(() => ({}))) ?? {};
 	const parsed = RenameAssetSchema.safeParse(body);
 	if (!parsed.success) {
@@ -8191,6 +8193,7 @@ assetRouter.delete("/:id", authMiddleware, async (c) => {
 	const userId = c.get("userId");
 	if (!userId) return c.json({ error: "Unauthorized" }, 401);
 	const id = c.req.param("id");
+	if (!id) return c.json({ error: "asset id is required" }, 400);
 	await deleteAssetRow(c.env.DB, userId, id);
 	return c.body(null, 204);
 });
@@ -9582,23 +9585,23 @@ function matchesTapNowFilter(value: string, filters: string[]): boolean {
 }
 
 type TapNowCharacterFilterInput = {
-	filterWorldview?: string | string[];
-	filterTheme?: string | string[];
-	gender?: string | string[];
-	ageGroup?: string | string[];
-	species?: string | string[];
-	physique?: string | string[];
-	heightLevel?: string | string[];
-	skinColor?: string | string[];
-	hairLength?: string | string[];
-	hairColor?: string | string[];
-	temperament?: string | string[];
+	filterWorldview?: unknown;
+	filterTheme?: unknown;
+	gender?: unknown;
+	ageGroup?: unknown;
+	species?: unknown;
+	physique?: unknown;
+	heightLevel?: unknown;
+	skinColor?: unknown;
+	hairLength?: unknown;
+	hairColor?: unknown;
+	temperament?: unknown;
 };
 
 function appendTapNowFilterQuery(
 	searchParams: URLSearchParams,
 	key: string,
-	value?: string | string[],
+	value?: unknown,
 ): void {
 	for (const item of normalizeTapNowFilterValues(value)) {
 		searchParams.append(key, item);
