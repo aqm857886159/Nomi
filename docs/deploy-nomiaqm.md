@@ -20,8 +20,10 @@ Create a Pages project from GitHub:
 - Repository: `aqm857886159/Nomi`
 - Production branch: `main`
 - Framework preset: `None`
-- Build command: leave empty
+- Build command: `pnpm run build:site`
 - Build output directory: `site`
+
+Do not use the root `pnpm run build` command for this Pages project. The root build is for the full Nomi application and requires production application environment variables such as `VITE_API_BASE`.
 
 ## Custom Domain
 
@@ -59,4 +61,3 @@ The canonical URL is:
 ```txt
 https://nomiaqm.com/
 ```
-

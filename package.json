@@ -9,6 +9,7 @@
     "dev:api:stable": "pnpm --filter @nomi/api dev:stable",
     "dev:agents": "pnpm --filter @nomi/agents dev",
     "build": "pnpm run build:web && pnpm run build:api && pnpm run build:agents",
+    "build:site": "node -e \"const fs=require('fs'); for (const file of ['site/index.html','site/robots.txt','site/sitemap.xml']) { if (!fs.existsSync(file)) throw new Error(file + ' is missing'); } console.log('site build ready');\"",
     "build:web": "pnpm --filter @nomi/web build",
     "build:api": "pnpm --filter @nomi/api build",
     "build:agents": "pnpm --filter @nomi/agents build",
