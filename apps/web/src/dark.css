@@ -1,0 +1,272 @@
+:root[data-mantine-color-scheme="dark"] {
+  --mantine-color-body: #05070b;
+  --mantine-color-text: #edf3ff;
+  --mantine-color-dimmed: #aab7ca;
+  --mantine-color-default: #10161d;
+  --mantine-color-default-hover: #131a22;
+  --mantine-color-gray-6: #73839a;
+  --mantine-color-gray-7: #4f5d72;
+  --mantine-color-anchor: #9fdcff;
+
+  --canvas-node-bg: rgba(10, 14, 20, 0.98);
+  --canvas-node-border: rgba(226, 232, 240, 0.08);
+  --canvas-node-border-selected: rgba(125, 211, 252, 0.5);
+  --canvas-node-shadow: 0 18px 40px rgba(0, 0, 0, 0.46);
+  --canvas-node-text: #edf3ff;
+  --canvas-node-subtext: #aab7ca;
+  --canvas-node-header-bg: rgba(6, 9, 15, 0.96);
+  --canvas-node-header-border: rgba(226, 232, 240, 0.08);
+  --canvas-node-chip-bg: rgba(255, 255, 255, 0.04);
+  --canvas-node-chip-text: #d8e6ff;
+  --canvas-node-action-bg: rgba(255, 255, 255, 0.035);
+  --canvas-node-action-border: rgba(255, 255, 255, 0.08);
+  --canvas-node-action-text: #edf3ff;
+  --canvas-node-action-hover-bg: rgba(96, 165, 250, 0.12);
+  --canvas-node-action-primary-bg: #1d4ed8;
+  --canvas-node-action-primary-hover-bg: #1e40af;
+  --canvas-node-action-primary-text: #ffffff;
+  --canvas-node-action-muted-text: #8ea0b8;
+  --canvas-surface-bg:
+    radial-gradient(circle at 16% 10%, rgba(34, 211, 238, 0.05), transparent 24%),
+    radial-gradient(circle at 88% 4%, rgba(96, 165, 250, 0.05), transparent 22%),
+    linear-gradient(180deg, #04060a 0%, #05070b 45%, #020409 100%);
+
+  --canvas-io-bg: rgba(10, 15, 21, 0.94);
+  --canvas-io-border: rgba(148, 163, 184, 0.26);
+  --canvas-io-border-selected: rgba(125, 211, 252, 0.62);
+  --canvas-io-text: #d8e6ff;
+  --canvas-io-handle: #22d3ee;
+
+  --canvas-group-bg: rgba(148, 163, 184, 0.14);
+  --canvas-group-border: rgba(226, 232, 240, 0.68);
+  --canvas-group-border-selected: rgba(125, 211, 252, 0.96);
+  --canvas-group-shadow: 0 0 0 1px rgba(226, 232, 240, 0.12), 0 14px 28px rgba(2, 6, 23, 0.24);
+  --canvas-group-shadow-selected: 0 0 0 1px rgba(125, 211, 252, 0.34), 0 18px 34px rgba(2, 6, 23, 0.32);
+
+  --tc-run-card-bg: linear-gradient(180deg, rgba(14, 19, 26, 0.98), rgba(8, 11, 16, 0.98));
+  --tc-run-card-border: rgba(148, 163, 184, 0.12);
+  --tc-run-card-shadow: 0 24px 58px rgba(0, 0, 0, 0.42);
+  --tc-run-accent-strong: rgba(96, 165, 250, 0.18);
+  --tc-run-accent-soft: rgba(45, 212, 191, 0.12);
+  --tc-run-accent-line: rgba(125, 211, 252, 0.9);
+  --tc-run-accent-icon: #93c5fd;
+  --tc-run-code-bg: rgba(8, 12, 20, 0.92);
+  --tc-run-code-bg-strong: rgba(5, 8, 14, 0.96);
+  --tc-run-code-border: rgba(148, 163, 184, 0.14);
+  --tc-run-code-text: #dbe7ff;
+  --tc-run-error-bg: rgba(127, 29, 29, 0.24);
+  --tc-run-error-border: rgba(248, 113, 113, 0.26);
+  --tc-run-error-icon: #fca5a5;
+  --tc-run-info-bg: rgba(15, 23, 42, 0.34);
+  --tc-run-info-border: rgba(96, 165, 250, 0.24);
+}
+
+:root[data-mantine-color-scheme="dark"] .mantine-AppShell-main {
+  background:
+    radial-gradient(circle at 12% 10%, rgba(34,211,238,0.03), transparent 28%),
+    radial-gradient(circle at 86% 0%, rgba(96,165,250,0.035), transparent 26%),
+    var(--mantine-color-body) !important;
+}
+
+:root[data-mantine-color-scheme="dark"] .mantine-AppShell-header,
+:root[data-mantine-color-scheme="dark"] .mantine-AppShell-navbar,
+:root[data-mantine-color-scheme="dark"] .mantine-AppShell-aside {
+  background: rgba(7, 10, 15, 0.94) !important;
+  border: none !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+}
+
+button {
+  color: var(--mantine-color-text);
+}
+
+:root[data-mantine-color-scheme="dark"] .mantine-Button-root[data-variant="outline"] {
+  border: none !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  box-shadow: none;
+}
+:root[data-mantine-color-scheme="dark"] .mantine-Button-root[data-variant="outline"]:hover {
+  border: none !important;
+  background: rgba(96, 165, 250, 0.1) !important;
+}
+:root[data-mantine-color-scheme="dark"] .mantine-Button-root[data-variant="light"] {
+  border: none !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+:root[data-mantine-color-scheme="dark"] .mantine-Button-root[data-variant="light"]:hover {
+  border: none !important;
+  background: rgba(96, 165, 250, 0.08) !important;
+}
+.mantine-Button-root[data-variant="subtle"] {
+  background: transparent !important;
+}
+
+:root[data-mantine-color-scheme="dark"] .mantine-Paper-root[data-with-border]:not(.template-panel-shell):not(.template-panel-card):not(.template-space):not(.template-detail) {
+  background: linear-gradient(180deg, rgba(16, 22, 29, 0.98), rgba(10, 14, 20, 0.98)) !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+}
+
+:root[data-mantine-color-scheme="dark"] .mantine-Card-root[data-with-border] {
+  background: linear-gradient(180deg, rgba(16, 22, 29, 0.98), rgba(10, 14, 20, 0.98)) !important;
+  border-color: rgba(226, 232, 240, 0.08) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+}
+
+:root[data-mantine-color-scheme="dark"] .mantine-Paper-root[data-with-border],
+:root[data-mantine-color-scheme="dark"] .mantine-Card-root[data-with-border] {
+  border-color: rgba(226, 232, 240, 0.08) !important;
+  border-radius: 10px !important;
+}
+
+:root[data-mantine-color-scheme="dark"] .mantine-Button-root,
+:root[data-mantine-color-scheme="dark"] .mantine-ActionIcon-root,
+:root[data-mantine-color-scheme="dark"] .mantine-Input-input,
+:root[data-mantine-color-scheme="dark"] .mantine-Pill-root {
+  border-radius: 6px !important;
+}
+
+:root[data-mantine-color-scheme="dark"] .mantine-Badge-root,
+:root[data-mantine-color-scheme="dark"] .mantine-Avatar-root {
+  border-radius: 999px !important;
+}
+
+:root[data-mantine-color-scheme="dark"] .mantine-SegmentedControl-root,
+:root[data-mantine-color-scheme="dark"] .mantine-Tabs-list {
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+:root[data-mantine-color-scheme="dark"] .mantine-SegmentedControl-indicator,
+:root[data-mantine-color-scheme="dark"] .mantine-Tabs-tab {
+  border-radius: 6px !important;
+}
+
+:root[data-mantine-color-scheme="dark"] .glass {
+  background: linear-gradient(180deg, rgba(12, 17, 24, 0.96), rgba(8, 12, 18, 0.96)) !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+:root[data-mantine-color-scheme="dark"] .panel-arrow {
+  display: none;
+}
+
+:root[data-mantine-color-scheme="dark"] .react-flow__controls {
+  background: rgba(8, 11, 16, 0.96) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.32);
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+:root[data-mantine-color-scheme="dark"] .react-flow__controls-button {
+  background: transparent !important;
+  color: #f5f7ff !important;
+}
+:root[data-mantine-color-scheme="dark"] .react-flow__controls-button:hover {
+  background: rgba(96, 165, 250, 0.08) !important;
+}
+:root[data-mantine-color-scheme="dark"] .react-flow__controls-button svg {
+  stroke: currentColor !important;
+}
+
+:root[data-mantine-color-scheme="dark"] .react-flow__minimap {
+  background: rgba(8, 11, 16, 0.98) !important;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.34);
+}
+
+/* Canvas perf: backdrop blur is expensive while the graph is moving underneath */
+.tc-canvas[data-viewport-moving="true"] .glass,
+.tc-canvas[data-dragging="true"] .glass,
+.tc-canvas[data-viewport-moving="true"] .react-flow__controls,
+.tc-canvas[data-dragging="true"] .react-flow__controls {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+:root[data-mantine-color-scheme="dark"] .react-flow__minimap-mask {
+  fill: rgba(146, 167, 255, 0.08) !important;
+}
+
+:root[data-mantine-color-scheme="dark"] .react-flow__selection {
+  background: rgba(125, 211, 252, 0.18) !important;
+  box-shadow: 0 10px 30px rgba(8, 14, 30, 0.4);
+}
+
+:root[data-mantine-color-scheme="dark"] .react-flow__handle {
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(140deg, rgba(125, 211, 252, 0.3), rgba(59, 130, 246, 0.65)) !important;
+  border: none !important;
+  box-shadow: 0 6px 16px rgba(4, 6, 12, 0.75), 0 0 0 2px rgba(5, 9, 20, 0.8);
+  z-index: 3;
+}
+:root[data-mantine-color-scheme="dark"] .react-flow__node.selected .react-flow__handle {
+  box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.25);
+}
+:root[data-mantine-color-scheme="dark"] .react-flow__handle:hover {
+  box-shadow: 0 0 0 4px rgba(125, 211, 252, 0.18), 0 8px 20px rgba(0, 0, 0, 0.6);
+}
+:root[data-mantine-color-scheme="dark"] .react-flow__edge-path {
+  opacity: 0.9;
+  transition: opacity 0.12s ease;
+}
+:root[data-mantine-color-scheme="dark"] .react-flow__edge:hover .react-flow__edge-path {
+  opacity: 1;
+}
+
+:root[data-mantine-color-scheme="dark"] *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+:root[data-mantine-color-scheme="dark"] *::-webkit-scrollbar-thumb {
+  background: rgba(125, 140, 178, 0.35);
+  border-radius: 8px;
+}
+:root[data-mantine-color-scheme="dark"] *::-webkit-scrollbar-thumb:hover {
+  background: rgba(125, 140, 178, 0.55);
+}
+:root[data-mantine-color-scheme="dark"] *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:root[data-mantine-color-scheme="dark"] [data-ux-panel] {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(125, 140, 178, 0.45) transparent;
+}
+:root[data-mantine-color-scheme="dark"] [data-ux-panel] *::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+:root[data-mantine-color-scheme="dark"] [data-ux-panel] *::-webkit-scrollbar-thumb {
+  background: rgba(125, 140, 178, 0.35);
+  border-radius: 8px;
+}
+:root[data-mantine-color-scheme="dark"] [data-ux-panel] *::-webkit-scrollbar-thumb:hover {
+  background: rgba(125, 140, 178, 0.55);
+}
+:root[data-mantine-color-scheme="dark"] [data-ux-panel] *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-compact="true"] .mantine-Button-root {
+  padding: 4px 8px !important;
+}
+[data-compact="true"] .mantine-NumberInput-input,
+[data-compact="true"] .mantine-TextInput-input,
+[data-compact="true"] textarea {
+  padding: 6px 8px !important;
+}
+[data-compact="true"] .mantine-Stack-root {
+  gap: 6px !important;
+}
+[data-compact="true"] .mantine-Group-root {
+  gap: 6px !important;
+}
+
+[data-dragging="true"] .react-flow__node:not(.selected) {
+  opacity: 0.45;
+  transition: opacity 0.12s ease;
+}

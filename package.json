@@ -1,0 +1,19 @@
+{
+  "name": "nomi-workspace",
+  "private": true,
+  "packageManager": "pnpm@10.8.1",
+  "scripts": {
+    "dev": "pnpm run dev:web",
+    "dev:web": "pnpm --filter @nomi/web dev",
+    "dev:api": "pnpm --filter @nomi/api dev",
+    "dev:api:stable": "pnpm --filter @nomi/api dev:stable",
+    "dev:agents": "pnpm --filter @nomi/agents dev",
+    "build": "pnpm run build:web && pnpm run build:api && pnpm run build:agents",
+    "build:web": "pnpm --filter @nomi/web build",
+    "build:api": "pnpm --filter @nomi/api build",
+    "build:agents": "pnpm --filter @nomi/agents build",
+    "test": "pnpm run build:web && pnpm run build:api && pnpm run build:agents",
+    "compose:up": "docker compose up -d",
+    "compose:down": "docker compose down"
+  }
+}

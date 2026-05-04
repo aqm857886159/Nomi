@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.npm-cache/
+
+# Build output
+dist/
+dist-local/
+.turbo/
+coverage/
+test-results/
+playwright-report/
+*.tsbuildinfo
+
+# Environment and local secrets
+.env
+.env.*
+apps/**/.env
+apps/**/.env.*
+packages/**/.env
+packages/**/.env.*
+apps/agents-cli/agents.config.json
+
+# Runtime data
+project-data/
+.data/
+**/.data/
+.agents/
+.claude/
+.tapcanvas/
+artifacts/
+orchestration/
+
+# OS / editor
+.DS_Store
+*.log
+.vscode/
+
+# Temporary release and design work
+temp-web-design-skill/
+nomi-landing/
+landing-page-*.html
