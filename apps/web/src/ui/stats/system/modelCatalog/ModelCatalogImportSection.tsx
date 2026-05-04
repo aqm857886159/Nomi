@@ -190,15 +190,31 @@ function normalizeImportPackage(value: unknown): ModelCatalogImportPackageDto {
   }
 }
 
-function parseAgentDraft(text: string): AgentDraft {
-  const parsed = parseJsonObject(text)
-  if (!isRecord(parsed)) throw new Error('Agent 返回的草案格式无效')
-  const pkg = normalizeImportPackage(parsed.package)
-  return {
-    summary: readString(parsed.summary) || '已生成模型接入草案，请确认后写入。',
-    missing: readStringArray(parsed.missing),
-    package: pkg,
+type AgentDraftResult =
+  | { kind: 'draft'; draft: AgentDraft }
+  | { kind: 'message'; text: string }
+
+function parseAgentResponse(text: string): AgentDraftResult {
+  const trimmed = text.trim()
+  if (!trimmed) return { kind: 'message', text: '没有收到 Agent 回复，请重试。' }
+  // Try to parse as JSON draft
+  try {
+    const parsed = parseJsonObject(trimmed)
+    if (isRecord(parsed) && parsed.package) {
+      const pkg = normalizeImportPackage(parsed.package)
+      return {
+        kind: 'draft',
+        draft: {
+          summary: readString(parsed.summary) || '已生成模型接入草案，请确认后写入。',
+          missing: readStringArray(parsed.missing),
+          package: pkg,
+        },
+      }
+    }
+  } catch {
+    // not JSON, treat as conversational reply
   }
+  return { kind: 'message', text: trimmed }
 }
 
 function createAgentPrompt(input: {
@@ -218,8 +234,8 @@ function createAgentPrompt(input: {
     '通用接入形态包括 openai-compatible、rest-sync、rest-async-task、openapi-import、native-known-provider；把形态写入 vendor.meta.integrationDraft.adapterShape。',
     '如果是 OpenAI-compatible，优先生成 chat/prompt_refine 映射，baseUrlHint 必须来自文档或用户输入。',
     '如果是图片/视频异步任务，requestProfile 必须包含 create/query 的结构草案；无法确认路径时把 mapping.enabled 设为 false，并在 missing 说明。',
-    '输出必须是纯 JSON，不要 markdown，不要解释。',
-    'JSON 格式：{"summary":string,"missing":string[],"package":ModelCatalogImportPackageDto}',
+    '如果信息足够，输出纯 JSON（不要 markdown，不要解释）：{"summary":string,"missing":string[],"package":ModelCatalogImportPackageDto}',
+    '如果信息不足（文档抓取失败、URL 无效、缺少关键字段），输出纯文本，向用户说明缺少什么、应该提供什么（具体模型页面 URL、curl 示例等），不要输出 JSON。',
     'ModelCatalogImportPackageDto 示例字段：package.version="v2"; package.vendors[].vendor={key,name,enabled,baseUrlHint,authType,authHeader,authQueryParam,meta}; models[]; mappings[]。',
     '不要输出 apiKey；API Key 由前端在用户确认时单独加入。',
     '',
@@ -324,7 +340,13 @@ export function ModelCatalogImportSection({
     try {
       const urls = extractHttpUrls(userRequest)
       const fetchedDocs = urls.length
-        ? await Promise.all(urls.slice(0, 2).map(async (url) => formatFetchedDocsEvidence(await fetchModelCatalogDocs({ url }))))
+        ? await Promise.all(urls.slice(0, 2).map(async (url) => {
+            try {
+              return formatFetchedDocsEvidence(await fetchModelCatalogDocs({ url }))
+            } catch (err) {
+              return `文档抓取失败（${url}）：${err instanceof Error ? err.message : String(err)}。请用户提供具体模型页面 URL 或直接粘贴 curl 示例。`
+            }
+          }))
         : []
       const response = await agentsChat({
         vendor: 'agents',
@@ -346,7 +368,18 @@ export function ModelCatalogImportSection({
         mode: 'auto',
         temperature: 0.1,
       })
-      const parsedDraft = parseAgentDraft(String(response.text || ''))
+      const agentResult = parseAgentResponse(String(response.text || ''))
+      if (agentResult.kind === 'message') {
+        // Agent asked a clarifying question or reported missing info
+        setStage('idle')
+        setMessage(agentResult.text)
+        setMessages((current) => current.map((item) => (
+          item.id === assistantPendingId ? { ...item, content: agentResult.text } : item
+        )))
+        setRunningAgent(false)
+        return
+      }
+      const parsedDraft = agentResult.draft
       setDraft(parsedDraft)
       setImportText(JSON.stringify(parsedDraft.package, null, 2))
       setStage('draft')
