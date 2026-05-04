@@ -26,6 +26,13 @@ import { BackgroundTaskManager } from "../core/background/manager.js";
 import { TerminalSessionManager } from "../core/terminal/session-manager.js";
 import { SkillLoader } from "../core/skills/loader.js";
 import { createSkillTool } from "../core/tools/skill.js";
+import {
+  modelCatalogFetchDocsTool,
+  modelCatalogImportTool,
+  modelCatalogHealthTool,
+  modelCatalogTestMappingTool,
+  modelCatalogListMappingsTool,
+} from "../core/tools/model-catalog.js";
 import { LLMClient } from "../llm/client.js";
 import { HookRunner } from "../core/hooks/runner.js";
 import { WorldLogger } from "../core/logs/world-logger.js";
@@ -204,6 +211,11 @@ export function createAssistantRuntime(input: CreateAssistantRuntimeInput): Assi
 
   const skills = new SkillLoader(resolveSkillsDirs(cwd, config.workspaceRoot, config.skillsDir));
   registry.register(createSkillTool(skills));
+  registry.register(modelCatalogFetchDocsTool);
+  registry.register(modelCatalogImportTool);
+  registry.register(modelCatalogHealthTool);
+  registry.register(modelCatalogTestMappingTool);
+  registry.register(modelCatalogListMappingsTool);
 
   if (profile !== "general") {
     registry.register(createSpawnAgentTool());
