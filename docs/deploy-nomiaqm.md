@@ -4,14 +4,14 @@ This repo contains a static marketing site in `site/`.
 
 ## Recommended Hosting
 
-Use Cloudflare Pages with GitHub integration.
+Use Cloudflare Pages with GitHub integration, or Cloudflare Workers Static Assets if your Cloudflare project is configured to run `npx wrangler deploy`.
 
 Why:
 
 - `site/index.html` is static and does not need a server runtime.
 - GitHub integration deploys automatically after each push to `main`.
 - Cloudflare can manage `nomiaqm.com` DNS, HTTPS, CDN, cache headers, and future redirects in one place.
-- If the site later needs edge logic, it can be moved to Workers without changing the public domain.
+- If the site later needs edge logic, Workers Static Assets can serve the same `site/` directory.
 
 ## Cloudflare Pages Settings
 
@@ -24,6 +24,12 @@ Create a Pages project from GitHub:
 - Build output directory: `site`
 
 The root `pnpm run build` command is intentionally scoped to the static marketing site so Cloudflare Pages can deploy without application runtime environment variables. Use `pnpm run build:app` when you need to build the full Nomi application.
+
+If the Cloudflare project has a deploy command configured, use:
+
+- Deploy command: `npx wrangler deploy`
+
+The repository root contains `wrangler.toml`, which points Wrangler Static Assets at `site/`.
 
 ## Custom Domain
 
