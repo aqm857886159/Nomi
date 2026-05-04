@@ -24,5 +24,13 @@ jobs:
       - name: Install dependencies
         run: pnpm -w install --frozen-lockfile
 
+      - name: Verify web build tools
+        run: pnpm --filter @nomi/web exec vite --version
+
       - name: Build web app
         run: pnpm build:web
+        env:
+          ALLOW_LOCALHOST_IN_PROD_BUILD: "1"
+          VITE_API_BASE: ${{ vars.VITE_API_BASE || 'http://localhost:8788' }}
+          VITE_GITHUB_CLIENT_ID: ${{ vars.VITE_GITHUB_CLIENT_ID || 'ci-local-dev' }}
+          VITE_GITHUB_REDIRECT_URI: ${{ vars.VITE_GITHUB_REDIRECT_URI || 'http://localhost:5173/oauth/github' }}
