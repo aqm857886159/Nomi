@@ -287,8 +287,13 @@ export function normalizeCatalogTaskResult(
   if (result.status === 'failed') {
     throw new Error(describeTaskFailure(result))
   }
-  const type = generationTypeForTask(result.kind)
-  const asset = firstAsset(result, type)
+  const inferredType = generationTypeForTask(result.kind)
+  // Prefer actual asset type over taskKind inference — if the API returns a video asset, show video
+  const firstVideoAsset = result.assets.find((item) => item.type === 'video' && asTrimmedString(item.url))
+  const firstImageAsset = result.assets.find((item) => item.type === 'image' && asTrimmedString(item.url))
+  const asset = firstVideoAsset || firstImageAsset || result.assets.find((item) => asTrimmedString(item.url))
+  if (!asset) throw new Error(inferredType === 'video' ? '模型任务完成但没有返回视频地址' : '模型任务完成但没有返回图片地址')
+  const type = (asset.type === 'video' || asset.type === 'image') ? asset.type : inferredType
   return {
     id: `${node.id}-${result.id || Date.now()}`,
     type,
