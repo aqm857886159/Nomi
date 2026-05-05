@@ -56,9 +56,11 @@ function buildTimelineRulerTicks(endFrame: number, fps: number, scale: number): 
 
 type TimelinePanelProps = {
   density?: 'compact' | 'full'
+  regionLabel: string
+  actionLabelPrefix: string
 }
 
-export default function TimelinePanel({ density = 'compact' }: TimelinePanelProps): JSX.Element {
+export default function TimelinePanel({ density = 'compact', regionLabel, actionLabelPrefix }: TimelinePanelProps): JSX.Element {
   const timeline = useWorkbenchStore((state) => state.timeline)
   const selectedClipId = useWorkbenchStore((state) => state.selectedTimelineClipId)
   const duplicateTimelineClip = useWorkbenchStore((state) => state.duplicateTimelineClip)
@@ -134,7 +136,7 @@ export default function TimelinePanel({ density = 'compact' }: TimelinePanelProp
     <section
       className="workbench-timeline"
       data-density={density}
-      aria-label="时间轴"
+      aria-label={regionLabel}
       style={{ '--workbench-timeline-content-width': `${rulerWidth}px` } as React.CSSProperties}
     >
       <div className="workbench-timeline__controls">
@@ -147,9 +149,9 @@ export default function TimelinePanel({ density = 'compact' }: TimelinePanelProp
               <WorkbenchIconButton className="workbench-timeline__tool" label="向后微调片段" icon={<IconArrowRight size={14} />} onClick={() => nudgeTimelineClip(selectedClipId, 1)} />
             </div>
           ) : null}
-          <WorkbenchIconButton className="workbench-timeline__tool" label="缩小时间轴" icon={<IconMinus size={14} />} onClick={() => setTimelineZoom(timeline.scale / 1.25)} />
-          <WorkbenchIconButton className="workbench-timeline__tool" label="放大时间轴" icon={<IconPlus size={14} />} onClick={() => setTimelineZoom(timeline.scale * 1.25)} />
-          <WorkbenchIconButton className="workbench-timeline__tool" label="删除选中片段" icon={<IconTrash size={14} />} disabled={!selectedClipId} onClick={() => removeTimelineClip(selectedClipId)} />
+          <WorkbenchIconButton className="workbench-timeline__tool" label={`${actionLabelPrefix}缩小时间轴`} icon={<IconMinus size={14} />} onClick={() => setTimelineZoom(timeline.scale / 1.25)} />
+          <WorkbenchIconButton className="workbench-timeline__tool" label={`${actionLabelPrefix}放大时间轴`} icon={<IconPlus size={14} />} onClick={() => setTimelineZoom(timeline.scale * 1.25)} />
+          <WorkbenchIconButton className="workbench-timeline__tool" label={`${actionLabelPrefix}删除选中片段`} icon={<IconTrash size={14} />} disabled={!selectedClipId} onClick={() => removeTimelineClip(selectedClipId)} />
         </div>
       </div>
       <div className="workbench-timeline__tracks">

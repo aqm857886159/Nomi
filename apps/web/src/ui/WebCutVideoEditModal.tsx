@@ -55,7 +55,7 @@ export function WebCutVideoEditModal(props: WebCutVideoEditModalProps): JSX.Elem
               disabled={loading}
               title="关闭"
               style={{ pointerEvents: 'auto', background: 'rgba(0,0,0,.35)' }}
-              aria-label="关闭"
+              aria-label="关闭视频剪辑弹窗"
               icon={<IconX className="webcut-video-edit-modal__close-icon" size={18} />}
             />
           </Group>

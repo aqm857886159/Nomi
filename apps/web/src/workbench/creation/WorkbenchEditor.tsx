@@ -244,7 +244,7 @@ export default function WorkbenchEditor(): JSX.Element {
   return (
     <section
       className="workbench-editor"
-      aria-label="创作区"
+      aria-label="创作文档编辑区"
       onKeyDown={(event) => event.stopPropagation()}
       onKeyUp={(event) => event.stopPropagation()}
     >

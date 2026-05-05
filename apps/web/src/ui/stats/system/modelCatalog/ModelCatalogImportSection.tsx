@@ -569,6 +569,7 @@ export function ModelCatalogImportSection({
           <WorkbenchIconButton
             className="stats-model-catalog-agent__send"
             label="发送"
+            aria-label="发送模型接入消息"
             disabled={runningAgent || !draftText.trim()}
             onClick={() => void askAgent()}
             icon={<IconSend2 size={15} />}

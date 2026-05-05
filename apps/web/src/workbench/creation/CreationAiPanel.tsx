@@ -266,6 +266,7 @@ export default function CreationAiPanel(): JSX.Element {
           <WorkbenchIconButton
             className="workbench-creation-ai__send"
             label="发送"
+            aria-label="创作 AI 发送"
             disabled={sending || !draft.trim()}
             onClick={() => void send()}
             icon={<IconSend2 size={15} />}

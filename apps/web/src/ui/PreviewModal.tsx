@@ -67,8 +67,8 @@ export default function PreviewModal({ className }: { className?: string }): JSX
             {name || '预览'}
           </Title>
           <Group className="preview-modal-actions" gap={6}>
-            <IconActionButton className="preview-modal-download" variant="light" onClick={download} title="下载" aria-label="下载" icon={<IconDownload className="preview-modal-download-icon" size={16} />} />
-            <IconActionButton className="preview-modal-close" variant="light" onClick={close} title="关闭" aria-label="关闭" icon={<IconX className="preview-modal-close-icon" size={16} />} />
+            <IconActionButton className="preview-modal-download" variant="light" onClick={download} title="下载" aria-label="预览弹窗下载" icon={<IconDownload className="preview-modal-download-icon" size={16} />} />
+            <IconActionButton className="preview-modal-close" variant="light" onClick={close} title="关闭" aria-label="关闭预览弹窗" icon={<IconX className="preview-modal-close-icon" size={16} />} />
           </Group>
         </div>
         <div

@@ -574,7 +574,7 @@ export default function StatsAgentsManagement({ className }: { className?: strin
         </Stack>
         <Group className="stats-agents-management__header-actions" gap={6}>
           <Tooltip className="stats-agents-management__reload-tooltip" label="刷新" withArrow>
-            <IconActionButton className="stats-agents-management__reload" size="sm" variant="subtle" aria-label="刷新" onClick={() => void reload()} loading={loading} icon={<IconRefresh className="stats-agents-management__reload-icon" size={14} />} />
+            <IconActionButton className="stats-agents-management__reload" size="sm" variant="subtle" aria-label="刷新 Agents 管理" onClick={() => void reload()} loading={loading} icon={<IconRefresh className="stats-agents-management__reload-icon" size={14} />} />
           </Tooltip>
           <DesignButton
             className="stats-agents-management__edit-skill"
@@ -757,7 +757,7 @@ export default function StatsAgentsManagement({ className }: { className?: strin
                         size="sm"
                         variant="subtle"
                         color="red"
-                        aria-label="删除"
+                        aria-label="删除 Agent Skill"
                         onClick={() => void removeSkill(skill.id)}
                         icon={<IconTrash className="stats-agents-management__skills-delete-icon" size={14} />}
                       />

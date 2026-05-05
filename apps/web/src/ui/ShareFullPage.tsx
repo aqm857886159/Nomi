@@ -378,7 +378,7 @@ export default function ShareFullPage(): JSX.Element {
           </Text>
           <Group className="tc-share__section-header" justify="space-between" align="center">
             <Title className="tc-share__section-title" order={5}>公开项目</Title>
-            <IconActionButton className="tc-share__icon-button" variant="light" onClick={() => reload()} loading={refreshing || loading} aria-label="刷新" icon={<IconRefresh className="tc-share__icon" size={16} />} />
+            <IconActionButton className="tc-share__icon-button" variant="light" onClick={() => reload()} loading={refreshing || loading} aria-label="刷新分享项目列表" icon={<IconRefresh className="tc-share__icon" size={16} />} />
           </Group>
           {loading ? (
             <Center className="tc-share__center" py="lg">
@@ -494,7 +494,7 @@ export default function ShareFullPage(): JSX.Element {
                 className="tc-share__icon-button"
                 variant="light"
                 onClick={() => setPromptModalOpen(true)}
-                aria-label="查看提示词"
+                aria-label="查看分享提示词"
                 disabled={!selectedFlow}
                 icon={<IconFileText className="tc-share__icon" size={16} />}
               />
@@ -503,7 +503,7 @@ export default function ShareFullPage(): JSX.Element {
               <IconActionButton className="tc-share__icon-button" variant="light" onClick={handleCopyLink} aria-label="复制链接" icon={<IconCopy className="tc-share__icon" size={16} />} />
             </Tooltip>
             <Tooltip className="tc-share__tooltip" label="刷新" withArrow>
-              <IconActionButton className="tc-share__icon-button" variant="light" onClick={() => reload({ silent: true })} loading={refreshing} aria-label="刷新" icon={<IconRefresh className="tc-share__icon" size={16} />} />
+              <IconActionButton className="tc-share__icon-button" variant="light" onClick={() => reload({ silent: true })} loading={refreshing} aria-label="刷新当前分享项目" icon={<IconRefresh className="tc-share__icon" size={16} />} />
             </Tooltip>
           </Group>
         </Group>

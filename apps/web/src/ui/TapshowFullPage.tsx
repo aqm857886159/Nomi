@@ -237,7 +237,7 @@ function TapshowCard({ asset, onPreview, onViewPrompt, className }: TapshowCardP
               radius="md"
               variant="subtle"
               icon={<IconMessage2 className="tapshow-card-open-icon" size={14} />}
-              aria-label="查看提示词"
+              aria-label="查看 TapShow 提示词"
               onClick={(e) => {
                 e.stopPropagation()
                 onViewPrompt(asset)
@@ -397,7 +397,7 @@ function PublicProjectCard({ item, onOpen, className }: PublicProjectCardProps):
             radius="md"
             variant="subtle"
             icon={<IconExternalLink className="tapshow-card-open-icon" size={14} />}
-            aria-label="打开分享页"
+            aria-label="打开 TapShow 分享页"
             onClick={(e) => {
               e.stopPropagation()
               onOpen(item)

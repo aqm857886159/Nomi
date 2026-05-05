@@ -295,7 +295,8 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
   const handleGenerate = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
     if (readOnly) return
-    if (!canRunGenerationNode(node)) return
+    const state = useGenerationCanvasStore.getState()
+    if (!canRunGenerationNode(node, { nodes: state.nodes, edges: state.edges })) return
     try {
       if (hasResult) {
         await rerunGenerationNodeAsNewNode(node.id)
@@ -319,7 +320,8 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
     height: previewHeight,
   }
   const isGenerating = status === 'queued' || status === 'running'
-  const canGenerate = canRunGenerationNode(node) && !isGenerating
+  const generationState = useGenerationCanvasStore.getState()
+  const canGenerate = canRunGenerationNode(node, { nodes: generationState.nodes, edges: generationState.edges }) && !isGenerating
   const canSendToTimeline = hasResult && status !== 'error'
   const showStatusBadge = status === 'queued' || status === 'running' || status === 'error'
   const composerLayout = floatingComposerLayout(visualSize.width, visualSize.height, node.kind)

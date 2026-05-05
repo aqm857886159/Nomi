@@ -107,7 +107,7 @@ export default function CanvasAssistantPanel({
 
   if (collapsed) {
     return (
-      <aside className="generation-canvas-v2-assistant" data-collapsed="true" aria-label="生成区 AI">
+      <aside className="generation-canvas-v2-assistant" data-collapsed="true" aria-label="生成区 AI 启动器">
         <WorkbenchButton
           className="generation-canvas-v2-assistant__launcher"
           onClick={() => setCollapsed(false)}
@@ -119,7 +119,7 @@ export default function CanvasAssistantPanel({
   }
 
   return (
-    <aside className="generation-canvas-v2-assistant" data-collapsed="false" aria-label="生成区 AI">
+    <aside className="generation-canvas-v2-assistant" data-collapsed="false" aria-label="生成区 AI 助手">
       <header className="generation-canvas-v2-assistant__header">
         <div className="generation-canvas-v2-assistant__title">
           <NomiAILabel suffix="生成" />
@@ -203,6 +203,7 @@ export default function CanvasAssistantPanel({
             className="generation-canvas-v2-assistant__send"
             disabled={busy || !draft.trim()}
             label="发送"
+            aria-label="生成 AI 发送"
             icon={<IconSend2 size={15} />}
           />
         </div>

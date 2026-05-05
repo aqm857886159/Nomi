@@ -394,7 +394,7 @@ export default function StatsModelCatalogManagement({
             导出迁移包
           </DesignButton>
           <Tooltip className="stats-model-catalog-refresh-tooltip" label="刷新" withArrow>
-            <IconActionButton className="stats-model-catalog-refresh" size="sm" variant="subtle" aria-label="刷新" onClick={() => void reloadAll()} loading={loading} icon={<IconRefresh className="stats-model-catalog-refresh-icon" size={14} />} />
+            <IconActionButton className="stats-model-catalog-refresh" size="sm" variant="subtle" aria-label="刷新模型目录" onClick={() => void reloadAll()} loading={loading} icon={<IconRefresh className="stats-model-catalog-refresh-icon" size={14} />} />
           </Tooltip>
         </Group>
       </Group>

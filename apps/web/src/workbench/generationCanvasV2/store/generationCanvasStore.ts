@@ -45,6 +45,7 @@ type NodeRunRecordPatch = Partial<Omit<GenerationNodeRunRecord, 'id' | 'startedA
 }
 
 type GenerationCanvasState = {
+  isReady: boolean
   nodes: GenerationCanvasNode[]
   edges: GenerationCanvasEdge[]
   selectedNodeIds: string[]
@@ -57,6 +58,7 @@ type GenerationCanvasState = {
   canUndo: boolean
   canRedo: boolean
   hasClipboard: boolean
+  markReady: () => void
   captureHistory: () => void
   setCanvasTransform: (zoom: number, offset: { x: number; y: number }) => void
   setCanvasZoom: (zoom: number) => void
@@ -331,6 +333,7 @@ function mergeRunRecord(
 }
 
 export const useGenerationCanvasStore = create<GenerationCanvasState>((set, get) => ({
+  isReady: false,
   nodes: seedNodes,
   edges: [{ id: 'edge-gen-v2-text-1-gen-v2-image-1', source: 'gen-v2-text-1', target: 'gen-v2-image-1' }],
   selectedNodeIds: [],
@@ -343,6 +346,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>((set, get)
   canUndo: false,
   canRedo: false,
   hasClipboard: false,
+  markReady: () => set({ isReady: true }),
   captureHistory: () => {
     set((state) => {
       pushUndoSnapshot(state)
@@ -704,13 +708,14 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>((set, get)
       selectedNodeIds: state.selectedNodeIds,
     }
   },
-  restoreSnapshot: (snapshot) => {
-    const normalized = normalizeGenerationCanvasSnapshot(snapshot)
-    undoStack = []
+	restoreSnapshot: (snapshot) => {
+	    const normalized = normalizeGenerationCanvasSnapshot(snapshot)
+	    undoStack = []
     redoStack = []
     clipboard = null
-    set({
-      nodes: normalized.nodes,
+	    set({
+	      isReady: true,
+	      nodes: normalized.nodes,
       edges: normalized.edges,
       selectedNodeIds: normalized.selectedNodeIds,
       pendingConnectionSourceId: '',

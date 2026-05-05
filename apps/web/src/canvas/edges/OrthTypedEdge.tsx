@@ -13,6 +13,12 @@ function inferType(sourceHandle?: string | null, targetHandle?: string | null) {
   return 'any'
 }
 
+function readEdgeType(data: unknown): string {
+  if (!data || typeof data !== 'object') return ''
+  const edgeType = (data as { edgeType?: unknown }).edgeType
+  return typeof edgeType === 'string' && edgeType.trim() ? edgeType.trim() : ''
+}
+
 function orthPathAvoid(sx: number, sy: number, tx: number, ty: number, obstacles: { x: number; y: number; w: number; h: number; id: string }[]) {
   const dir = sx < tx ? 1 : -1
   const steps = [0, 1, -1, 2, -2, 3, -3]
@@ -51,8 +57,8 @@ function orthPathAvoid(sx: number, sy: number, tx: number, ty: number, obstacles
   return [d, centerX, Math.round((sy + ty) / 2)] as const
 }
 
-export default function OrthTypedEdge(props: EdgeProps<any>) {
-  const t = (props.data && (props.data as any).edgeType) || inferType(props.sourceHandleId, props.targetHandleId)
+export default function OrthTypedEdge(props: EdgeProps) {
+  const t = readEdgeType(props.data) || inferType(props.sourceHandleId, props.targetHandleId)
   const { edgeStyle } = useEdgeVisuals(t)
   const nodes = useRFStore(s => s.nodes)
   const deleteEdge = useRFStore(s => s.deleteEdge)
@@ -61,9 +67,9 @@ export default function OrthTypedEdge(props: EdgeProps<any>) {
   const defaultW = 180, defaultH = 96
   const obstacles = React.useMemo(() => {
     const nodesById = new Map(nodes.map((n) => [n.id, n] as const))
-    return nodes.map((n: any) => {
-      const pos = getNodeAbsPosition(n as any, nodesById as any)
-      const { w, h } = getNodeSize(n as any, { w: defaultW, h: defaultH })
+    return nodes.map((n) => {
+      const pos = getNodeAbsPosition(n, nodesById)
+      const { w, h } = getNodeSize(n, { w: defaultW, h: defaultH })
       return { x: pos.x, y: pos.y, w, h, id: n.id }
     })
   }, [defaultH, defaultW, nodes])
@@ -116,7 +122,7 @@ export default function OrthTypedEdge(props: EdgeProps<any>) {
               radius="md"
               variant="light"
               color="red"
-              aria-label="删除连线"
+              aria-label="删除正交连线"
               onPointerDown={(e) => { e.preventDefault(); e.stopPropagation() }}
               onClick={(e) => {
                 e.preventDefault()

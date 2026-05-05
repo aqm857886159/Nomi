@@ -417,7 +417,7 @@ export function AiCharacterLibraryModal(props: AiCharacterLibraryModalProps): JS
               color="gray"
               icon={<IconX size={20} />}
               onClick={props.onClose}
-              aria-label="关闭角色库"
+              aria-label="关闭角色库弹窗"
             />
           </div>
           <div className="ai-character-library-content">
@@ -677,7 +677,7 @@ export function AiCharacterLibraryModal(props: AiCharacterLibraryModalProps): JS
                     color="gray"
                     icon={<IconX size={20} />}
                     onClick={props.onClose}
-                    aria-label="关闭角色库"
+                    aria-label="关闭角色库详情"
                   />
                 </Group>
               </div>

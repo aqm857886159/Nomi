@@ -223,7 +223,7 @@ export default function StatsProjectManagement({ className }: { className?: stri
             w={120}
           />
           <Tooltip className="stats-projects-refresh-tooltip" label="刷新" withArrow>
-            <IconActionButton className="stats-projects-refresh" size="sm" variant="subtle" aria-label="刷新" onClick={() => void reload()} loading={loading} icon={<IconRefresh className="stats-projects-refresh-icon" size={14} />} />
+            <IconActionButton className="stats-projects-refresh" size="sm" variant="subtle" aria-label="刷新项目列表" onClick={() => void reload()} loading={loading} icon={<IconRefresh className="stats-projects-refresh-icon" size={14} />} />
           </Tooltip>
         </Group>
       </Group>
@@ -314,16 +314,16 @@ export default function StatsProjectManagement({ className }: { className?: stri
                         <Table.Td className="stats-projects-table-cell">
                           <Group className="stats-projects-actions" gap={6} justify="flex-end" wrap="nowrap">
                             <Tooltip className="stats-projects-action-tooltip" label="打开分享页" withArrow>
-                              <IconActionButton className="stats-projects-action" size="sm" variant="subtle" aria-label="打开分享页" onClick={() => onOpenShare(p)} disabled={!p.isPublic} icon={<IconExternalLink className="stats-projects-action-icon" size={14} />} />
+                              <IconActionButton className="stats-projects-action" size="sm" variant="subtle" aria-label="打开项目分享页" onClick={() => onOpenShare(p)} disabled={!p.isPublic} icon={<IconExternalLink className="stats-projects-action-icon" size={14} />} />
                             </Tooltip>
                             <Tooltip className="stats-projects-action-tooltip" label="复制分享链接" withArrow>
                               <IconActionButton className="stats-projects-action" size="sm" variant="subtle" aria-label="复制分享链接" onClick={() => void onCopyShareLink(p)} disabled={!p.isPublic} icon={<IconCopy className="stats-projects-action-icon" size={14} />} />
                             </Tooltip>
                             <Tooltip className="stats-projects-action-tooltip" label="重命名" withArrow>
-                              <IconActionButton className="stats-projects-action" size="sm" variant="subtle" aria-label="重命名" onClick={() => openEdit(p)} disabled={busy} icon={<IconPencil className="stats-projects-action-icon" size={14} />} />
+                              <IconActionButton className="stats-projects-action" size="sm" variant="subtle" aria-label="重命名项目" onClick={() => openEdit(p)} disabled={busy} icon={<IconPencil className="stats-projects-action-icon" size={14} />} />
                             </Tooltip>
                             <Tooltip className="stats-projects-action-tooltip" label="删除" withArrow>
-                              <IconActionButton className="stats-projects-action stats-projects-action-delete" size="sm" variant="subtle" color="red" aria-label="删除" onClick={() => void onDeleteProject(p)} disabled={busy} loading={busy} icon={<IconTrash className="stats-projects-action-icon" size={14} />} />
+                              <IconActionButton className="stats-projects-action stats-projects-action-delete" size="sm" variant="subtle" color="red" aria-label="删除项目" onClick={() => void onDeleteProject(p)} disabled={busy} loading={busy} icon={<IconTrash className="stats-projects-action-icon" size={14} />} />
                             </Tooltip>
                           </Group>
                         </Table.Td>

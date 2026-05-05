@@ -179,7 +179,7 @@ export default function StatsUserManagement({ className }: { className?: string 
             label="显示已删除"
           />
           <Tooltip className="stats-users-refresh-tooltip" label="刷新" withArrow>
-            <IconActionButton className="stats-users-refresh" size="sm" variant="subtle" aria-label="刷新" onClick={() => void reload()} loading={loading} icon={<IconRefresh className="stats-users-refresh-icon" size={14} />} />
+            <IconActionButton className="stats-users-refresh" size="sm" variant="subtle" aria-label="刷新用户列表" onClick={() => void reload()} loading={loading} icon={<IconRefresh className="stats-users-refresh-icon" size={14} />} />
           </Tooltip>
         </Group>
       </Group>
@@ -317,7 +317,7 @@ export default function StatsUserManagement({ className }: { className?: string 
                               size="sm"
                               variant="subtle"
                               color="red"
-                              aria-label="删除"
+                              aria-label="删除用户"
                               disabled={deleted || updating || isSelf}
                               onClick={() => void onDeleteUser(u)}
                               icon={<IconTrash className="stats-users-delete-icon" size={14} />}

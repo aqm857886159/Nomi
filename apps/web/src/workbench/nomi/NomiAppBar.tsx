@@ -89,10 +89,10 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, onBac
           type="file"
           accept="image/*"
           multiple
-          aria-label="导入图片素材"
+          aria-label="图片素材文件选择器"
           onChange={handleAssetFilesSelected}
         />
-        <WorkbenchButton className="nomi-appbar__ghost" aria-label="导入图片素材" onClick={() => assetInputRef.current?.click()}>
+        <WorkbenchButton className="nomi-appbar__ghost" aria-label="打开图片素材导入" onClick={() => assetInputRef.current?.click()}>
           <IconPhoto size={15} stroke={1.7} />
           <span className="nomi-appbar__action-text">素材库</span>
         </WorkbenchButton>

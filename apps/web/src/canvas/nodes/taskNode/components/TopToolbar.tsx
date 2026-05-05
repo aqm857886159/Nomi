@@ -72,7 +72,7 @@ export function TopToolbar({
               variant="transparent"
               radius={0}
               size="sm"
-              aria-label="下载"
+              aria-label="下载节点结果"
               styles={toolbarActionIconStyles}
               onClick={onDownload}
               icon={<IconDownload className="top-toolbar-action-icon" size={16} />}

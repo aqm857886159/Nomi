@@ -237,7 +237,7 @@ export default function StatsFullPage(): JSX.Element {
                 size="xs"
               />
               <Tooltip className="stats-page-refresh-tooltip" label={$('刷新')} withArrow>
-                <IconActionButton className="stats-page-refresh" size="sm" aria-label="刷新" onClick={() => void reload()} loading={loading} icon={
+                <IconActionButton className="stats-page-refresh" size="sm" aria-label="刷新统计页" onClick={() => void reload()} loading={loading} icon={
                   <IconRefresh className="stats-page-refresh-icon" size={14} />
                 } />
               </Tooltip>

@@ -173,7 +173,7 @@ export default function AssetToolbar(props: {
                 variant="light"
                 disabled={!canRenameSingle}
                 onClick={onRenameSingle}
-                aria-label="重命名"
+                aria-label="重命名素材"
                 icon={<IconPencil size={16} />}
               />
             </Tooltip>

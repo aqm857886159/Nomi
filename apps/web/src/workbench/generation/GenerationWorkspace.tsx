@@ -23,11 +23,11 @@ export default function GenerationWorkspace({
         {canvas}
       </div>
       {aiSidebar ? (
-        <aside className="workbench-generation__ai" aria-label="生成区 AI">
+        <aside className="workbench-generation__ai" aria-label="生成区 AI 侧栏">
           {aiSidebar}
         </aside>
       ) : null}
-      <TimelinePanel density="compact" />
+      <TimelinePanel density="compact" regionLabel="生成时间轴" actionLabelPrefix="生成时间轴-" />
     </section>
   )
 }

@@ -14,6 +14,7 @@
     "build:web": "pnpm -w install --frozen-lockfile && pnpm --filter @nomi/web build",
     "build:api": "pnpm --filter @nomi/api build",
     "build:agents": "pnpm --filter @nomi/agents build",
+    "verify:env": "node apps/web/scripts/verify-env.ts",
     "test": "pnpm run build:web && pnpm run build:api && pnpm run build:agents",
     "compose:up": "docker compose up -d",
     "compose:down": "docker compose down"

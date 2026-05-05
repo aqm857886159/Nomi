@@ -75,6 +75,33 @@ type FetchTaskResultRequestDto = ReturnType<
 	typeof FetchTaskResultRequestSchema.parse
 >;
 
+function isUsableAssetUrl(value: unknown): boolean {
+	if (typeof value !== "string") return false;
+	const trimmed = value.trim();
+	if (!trimmed) return false;
+	return /^https?:\/\//i.test(trimmed) || trimmed.startsWith("/");
+}
+
+function hasUsableAssetUrlList(value: unknown): boolean {
+	return Array.isArray(value) && value.some((item) => isUsableAssetUrl(item));
+}
+
+function videoRequestHasRequiredAssetUrl(request: {
+	kind: string;
+	extras?: Record<string, unknown>;
+}): boolean {
+	if (request.kind !== "text_to_video" && request.kind !== "image_to_video") {
+		return true;
+	}
+	const extras = request.extras || {};
+	return (
+		isUsableAssetUrl(extras.firstFrameUrl) ||
+		isUsableAssetUrl(extras.lastFrameUrl) ||
+		hasUsableAssetUrlList(extras.referenceImages) ||
+		hasUsableAssetUrlList(extras.references)
+	);
+}
+
 async function parseFetchTaskResultBody(
 	c: any,
 ): Promise<
@@ -143,6 +170,9 @@ taskRouter.post("/", async (c) => {
 
 	const vendor = payload.vendor.trim().toLowerCase();
 	const req = payload.request;
+	if (!videoRequestHasRequiredAssetUrl(req)) {
+		return c.json({ error: "视频生成需要上游资产 URL" }, 400);
+	}
 
 	const isGeminiImageTask =
 		(vendor === "gemini" || vendor === "google") &&

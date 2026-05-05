@@ -17,8 +17,14 @@ function inferType(sourceHandle?: string | null, targetHandle?: string | null) {
   return 'any'
 }
 
-export default function TypedEdge(props: EdgeProps<any>) {
-  const t = (props.data && (props.data as any).edgeType) || inferType(props.sourceHandleId, props.targetHandleId)
+function readEdgeType(data: unknown): string {
+  if (!data || typeof data !== 'object') return ''
+  const edgeType = (data as { edgeType?: unknown }).edgeType
+  return typeof edgeType === 'string' && edgeType.trim() ? edgeType.trim() : ''
+}
+
+export default function TypedEdge(props: EdgeProps) {
+  const t = readEdgeType(props.data) || inferType(props.sourceHandleId, props.targetHandleId)
   const { edgeStyle } = useEdgeVisuals(t)
   const deleteEdge = useRFStore(s => s.deleteEdge)
   const viewOnly = useUIStore(s => s.viewOnly)
@@ -63,7 +69,7 @@ export default function TypedEdge(props: EdgeProps<any>) {
               radius="md"
               variant="light"
               color="red"
-              aria-label="删除连线"
+              aria-label="删除贝塞尔连线"
               onPointerDown={(e) => { e.preventDefault(); e.stopPropagation() }}
               onClick={(e) => {
                 e.preventDefault()

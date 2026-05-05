@@ -461,7 +461,7 @@ export default function NanoComicStoryboardTab({
                           radius="sm"
                           variant="light"
                           icon={<IconBrain size={15} />}
-                          aria-label="生成当前章节剧本"
+                          aria-label="分镜区生成当前章节剧本"
                           title="生成当前章节剧本"
                           loading={chapterScriptState?.status === 'running'}
                           disabled={chapterScriptState?.status === 'running'}

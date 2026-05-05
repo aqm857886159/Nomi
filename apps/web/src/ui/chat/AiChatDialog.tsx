@@ -3052,7 +3052,7 @@ export default function AiChatDialog({
 
                   <Group className="tc-ai-chat__compact-right" gap={6} align="center" wrap="nowrap">
                     <Tooltip className="tc-ai-chat__tooltip" label={$('开启新对话')} withArrow>
-                      <IconActionButton className="tc-ai-chat__icon" variant="subtle" icon={<IconMessagePlus className="tc-ai-chat__icon-svg" size={16} />} aria-label="开启新对话" onClick={startNewConversation} />
+                      <IconActionButton className="tc-ai-chat__icon" variant="subtle" icon={<IconMessagePlus className="tc-ai-chat__icon-svg" size={16} />} aria-label="聊天侧栏开启新对话" onClick={startNewConversation} />
                     </Tooltip>
                     <Tooltip className="tc-ai-chat__tooltip" label={$('展开')} withArrow>
                       <IconActionButton className="tc-ai-chat__icon" variant="subtle" icon={<IconChevronUp className="tc-ai-chat__icon-svg" size={16} />} aria-label="展开" onClick={expandChat} />
@@ -3090,7 +3090,7 @@ export default function AiChatDialog({
 
               <Group className="tc-ai-chat__header-right" gap={6} align="center" wrap="nowrap">
                 <Tooltip className="tc-ai-chat__tooltip" label={$('开启新对话')} withArrow>
-                  <IconActionButton className="tc-ai-chat__icon" variant="subtle" icon={<IconMessagePlus className="tc-ai-chat__icon-svg" size={16} />} aria-label="开启新对话" onClick={startNewConversation} />
+                  <IconActionButton className="tc-ai-chat__icon" variant="subtle" icon={<IconMessagePlus className="tc-ai-chat__icon-svg" size={16} />} aria-label="聊天窗口开启新对话" onClick={startNewConversation} />
                 </Tooltip>
                 {!isMaximized && !isWorkbenchSidebar && (
                   <Tooltip className="tc-ai-chat__tooltip" label={$('收起')} withArrow>
@@ -3112,7 +3112,7 @@ export default function AiChatDialog({
                 )}
                 {isMaximized && (
                   <Tooltip className="tc-ai-chat__tooltip" label={$('关闭')} withArrow>
-                    <IconActionButton className="tc-ai-chat__icon" variant="subtle" icon={<IconX className="tc-ai-chat__icon-svg" size={16} />} aria-label="关闭" onClick={collapseChat} />
+                    <IconActionButton className="tc-ai-chat__icon" variant="subtle" icon={<IconX className="tc-ai-chat__icon-svg" size={16} />} aria-label="关闭聊天窗口" onClick={collapseChat} />
                   </Tooltip>
                 )}
               </Group>

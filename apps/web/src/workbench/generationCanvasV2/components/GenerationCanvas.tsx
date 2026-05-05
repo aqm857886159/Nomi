@@ -90,6 +90,7 @@ function getSelectedBounds(nodes: readonly GenerationCanvasNode[], selectedNodeI
 }
 
 export default function GenerationCanvas({ readOnly = false }: GenerationCanvasProps): JSX.Element {
+  const isReady = useGenerationCanvasStore((state) => state.isReady)
   const nodes = useGenerationCanvasStore((state) => state.nodes)
   const edges = useGenerationCanvasStore((state) => state.edges)
   const selectedNodeIds = useGenerationCanvasStore((state) => state.selectedNodeIds)
@@ -107,6 +108,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
   const cancelConnection = useGenerationCanvasStore((state) => state.cancelConnection)
   const undo = useGenerationCanvasStore((state) => state.undo)
   const redo = useGenerationCanvasStore((state) => state.redo)
+  const markReady = useGenerationCanvasStore((state) => state.markReady)
   const selectedSet = React.useMemo(() => new Set(selectedNodeIds), [selectedNodeIds])
   const nodeById = React.useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes])
   const selectedBounds = React.useMemo(() => getSelectedBounds(nodes, selectedNodeIds), [nodes, selectedNodeIds])
@@ -143,6 +145,10 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
   } | null>(null)
   const [pendingCursorPos, setPendingCursorPos] = React.useState<{ x: number; y: number } | null>(null)
   const [isPanning, setIsPanning] = React.useState(false)
+
+  React.useEffect(() => {
+    markReady()
+  }, [markReady])
 
   // Refs so drag-connection effect can read latest values without re-subscribing
   const offsetRef = React.useRef(offset)
@@ -393,7 +399,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
   const selectedCount = selectedNodeIds.length
 
   return (
-    <section className="generation-canvas-v2" aria-label="AI 影像创作画布">
+    <section className="generation-canvas-v2" aria-label="AI 影像创作画布" data-ready={isReady ? 'true' : undefined}>
       <div className="generation-canvas-v2__main">
         {settingsOpen ? (
           <div className="generation-canvas-v2__provider-popover" onPointerDown={(event) => event.stopPropagation()}>
