@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useRFStore, persistToLocalStorage } from './canvas/store'
 import { useUIStore } from './ui/uiStore'
-import { extractCanvasGraph, type CanvasImportData } from './canvas/utils/serialization'
+import { extractCanvasGraph, type CanvasImportData } from './shared/serialization'
 
 function isTextInputElement(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false

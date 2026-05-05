@@ -1,7 +1,7 @@
 import type { Node as FlowNode } from '@xyflow/react'
 
 import { downloadUrl } from '../../utils/download'
-import { getTaskNodeSchema } from '../nodes/taskNodeSchema'
+import { getTaskNodeSchema } from '../../shared/taskNodeSchema'
 
 export type GroupDownloadableMediaType = 'image' | 'video' | 'audio'
 

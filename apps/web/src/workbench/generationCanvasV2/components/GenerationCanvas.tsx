@@ -14,6 +14,10 @@ const GENERATION_PROVIDER = 'chatfire'
 const GENERATION_DEFAULT_BASE_URL = 'https://api.chatfire.site'
 const OPEN_MODEL_CATALOG_EVENT = 'nomi-open-model-catalog'
 
+type GenerationCanvasProps = {
+  readOnly?: boolean
+}
+
 function readProviderSetting(key: 'apiKey' | 'baseUrl'): string {
   if (typeof window === 'undefined') return key === 'baseUrl' ? GENERATION_DEFAULT_BASE_URL : ''
   try {
@@ -85,7 +89,7 @@ function getSelectedBounds(nodes: readonly GenerationCanvasNode[], selectedNodeI
   }
 }
 
-export default function GenerationCanvas(): JSX.Element {
+export default function GenerationCanvas({ readOnly = false }: GenerationCanvasProps): JSX.Element {
   const nodes = useGenerationCanvasStore((state) => state.nodes)
   const edges = useGenerationCanvasStore((state) => state.edges)
   const selectedNodeIds = useGenerationCanvasStore((state) => state.selectedNodeIds)
@@ -155,6 +159,7 @@ export default function GenerationCanvas(): JSX.Element {
 
   // Drag-to-connect: track pointer while a connection is being drawn
   React.useEffect(() => {
+    if (readOnly) return undefined
     if (!pendingConnectionSourceId) {
       setPendingCursorPos(null)
       return
@@ -193,9 +198,10 @@ export default function GenerationCanvas(): JSX.Element {
       document.removeEventListener('pointermove', handleMove)
       document.removeEventListener('pointerup', handleUp)
     }
-  }, [pendingConnectionSourceId, connectToNode, cancelConnection])
+  }, [pendingConnectionSourceId, connectToNode, cancelConnection, readOnly])
 
   React.useEffect(() => {
+    if (readOnly) return undefined
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target instanceof HTMLElement ? event.target : null
       if (target?.closest('input, textarea, select, [contenteditable="true"]')) return
@@ -244,7 +250,7 @@ export default function GenerationCanvas(): JSX.Element {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [cancelConnection, copySelectedNodes, cutSelectedNodes, deleteSelectedNodes, pasteNodes, redo, selectedNodeIds.length, undo])
+  }, [cancelConnection, copySelectedNodes, cutSelectedNodes, deleteSelectedNodes, pasteNodes, readOnly, redo, selectedNodeIds.length, undo])
 
   React.useEffect(() => {
     const handleOpenSettings = () => {
@@ -263,6 +269,7 @@ export default function GenerationCanvas(): JSX.Element {
   }
 
   const handleStageDrop = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    if (readOnly) return
     const files = Array.from(event.dataTransfer.files || []).filter((file) => file.type.startsWith('image/'))
     if (!files.length) return
     event.preventDefault()
@@ -274,7 +281,7 @@ export default function GenerationCanvas(): JSX.Element {
         y: (event.clientY - rect.top - offset.y) / zoom,
       },
     })
-  }, [offset, zoom])
+  }, [offset, readOnly, zoom])
 
   const handleStagePanStart = (event: React.PointerEvent<HTMLDivElement>) => {
     const target = event.target instanceof HTMLElement ? event.target : null
@@ -283,8 +290,7 @@ export default function GenerationCanvas(): JSX.Element {
     )) {
       return
     }
-    // Cancel pending connection on empty-space click, but continue to pan
-    if (pendingConnectionSourceId) {
+    if (pendingConnectionSourceId && !readOnly) {
       cancelConnection()
     }
     // Left drag on empty canvas = pan
@@ -433,7 +439,7 @@ export default function GenerationCanvas(): JSX.Element {
             </p>
           </div>
         ) : null}
-        <CanvasToolbar getInsertionPosition={getToolbarInsertionPosition} />
+        {!readOnly ? <CanvasToolbar getInsertionPosition={getToolbarInsertionPosition} /> : null}
         <div
           className="generation-canvas-v2__stage"
           ref={stageRef}
@@ -443,6 +449,7 @@ export default function GenerationCanvas(): JSX.Element {
           onPointerUp={handleStagePanEnd}
           onWheel={handleWheel}
           onDragOver={(event) => {
+            if (readOnly) return
             if (Array.from(event.dataTransfer.types).includes('Files')) {
               event.preventDefault()
               event.dataTransfer.dropEffect = 'copy'
@@ -479,13 +486,16 @@ export default function GenerationCanvas(): JSX.Element {
                         <select
                           aria-label={`连接语义：${source.title} 到 ${target.title}`}
                           value={mode}
-                          onChange={(event) => updateEdgeMode(edge.id, event.currentTarget.value as GenerationCanvasEdgeMode)}
+                          onChange={(event) => {
+                            if (!readOnly) updateEdgeMode(edge.id, event.currentTarget.value as GenerationCanvasEdgeMode)
+                          }}
+                          disabled={readOnly}
                         >
                           {EDGE_MODE_ORDER.map((option) => (
                             <option key={option} value={option}>{EDGE_MODE_LABEL[option]}</option>
                           ))}
                         </select>
-                        <WorkbenchButton aria-label="删除连接" onClick={() => disconnectEdge(edge.id)}>×</WorkbenchButton>
+                        {!readOnly ? <WorkbenchButton aria-label="删除连接" onClick={() => disconnectEdge(edge.id)}>×</WorkbenchButton> : null}
                       </div>
                     </foreignObject>
                   </g>
@@ -511,10 +521,10 @@ export default function GenerationCanvas(): JSX.Element {
             </svg>
             <div className="generation-canvas-v2__nodes">
               {nodes.map((node) => (
-                <BaseGenerationNode key={node.id} node={node} selected={selectedSet.has(node.id)} />
+                <BaseGenerationNode key={node.id} node={node} selected={selectedSet.has(node.id)} readOnly={readOnly} />
               ))}
             </div>
-            {selectedBounds && selectedCount > 1 ? (
+            {selectedBounds && selectedCount > 1 && !readOnly ? (
               <div
                 className="generation-canvas-v2__selection-toolbar"
                 style={{

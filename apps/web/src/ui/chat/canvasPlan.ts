@@ -2,13 +2,13 @@ import type { Node } from '@xyflow/react'
 import { getProjectBookIndex, type ProjectBookIndexDto } from '../../api/server'
 import { CanvasService } from '../../ai/canvasService'
 import { useRFStore } from '../../canvas/store'
-import { buildTopLevelGroupReflowPositions } from '../../canvas/utils/reflowLayout'
-import { getNodeAbsPosition, getNodeSize } from '../../canvas/utils/nodeBounds'
+import { buildTopLevelGroupReflowPositions } from '../../shared/reflowLayout'
+import { getNodeAbsPosition, getNodeSize } from '../../shared/nodeBounds'
 import {
   getNodeProductionMeta,
   normalizeProductionLayer,
   normalizeProductionNodeMetaRecord,
-} from '../../canvas/productionMeta'
+} from '../../shared/productionMeta'
 import {
   normalizeStoryBeatPlan,
   storyBeatPlanToPromptText,

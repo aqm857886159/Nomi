@@ -5,7 +5,7 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { $, $t } from '../../../i18n';
+import { $, $t } from '../../../../../shared/i18n';
 
 export interface BaseModalProps {
   /** 是否显示 */

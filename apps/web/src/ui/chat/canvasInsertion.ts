@@ -1,6 +1,6 @@
 import type { Node } from '@xyflow/react'
 import { computeContextAwarePosition, resolveNonOverlappingPosition, useRFStore } from '../../canvas/store'
-import { getNodeAbsPosition, getNodeSize, type NodeSize, type XY } from '../../canvas/utils/nodeBounds'
+import { getNodeAbsPosition, getNodeSize, type NodeSize, type XY } from '../../shared/nodeBounds'
 import { useUIStore } from '../uiStore'
 
 type CanvasInsertionScope = {

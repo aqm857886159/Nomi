@@ -1,6 +1,6 @@
 import type { Edge, Node } from '@xyflow/react'
 import { CanvasService } from '../../ai/canvasService'
-import { getTaskNodeCoreType } from '../../canvas/nodes/taskNodeSchema'
+import { getTaskNodeCoreType } from '../../shared/taskNodeSchema'
 import { useRFStore } from '../../canvas/store'
 
 type NodeDataRecord = Record<string, unknown>

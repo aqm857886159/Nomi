@@ -3,8 +3,11 @@ import { IconCursorText, IconFilePlus, IconReplace, IconSend2 } from '@tabler/ic
 import { NomiAILabel, NomiLoadingMark, WorkbenchButton, WorkbenchIconButton } from '../../design'
 import ReactMarkdown from 'react-markdown'
 import { sendWorkbenchAiMessage } from '../ai/workbenchAiClient'
+import { AiReplyActionButton } from '../ai/AiReplyActionButton'
+import { handleAiComposerKeyDown } from '../ai/aiComposerKeyboard'
+import type { WorkbenchAiMessage } from '../ai/workbenchAiTypes'
 import { openWorkbenchModelIntegration, WorkbenchAiHeaderActions } from '../ai/WorkbenchAiHeaderActions'
-import { useWorkbenchStore, type WorkbenchAiMessage } from '../workbenchStore'
+import { useWorkbenchStore } from '../workbenchStore'
 import {
   buildCreationAiPrompt,
   CREATION_AI_MODES,
@@ -202,6 +205,12 @@ export default function CreationAiPanel(): JSX.Element {
                 ) : (
                   renderMarkdown(message.content)
                 )}
+                {message.role === 'assistant' && message.content !== '处理中...' && !message.content.startsWith('（错误）') ? (
+                  <AiReplyActionButton
+                    className="workbench-creation-ai__reply-action"
+                    content={message.documentAction?.content || message.content}
+                  />
+                ) : null}
               </div>
               {message.role === 'assistant' && message.content !== '处理中...' && !message.content.startsWith('（错误）') ? (
                 <div className="workbench-creation-ai__message-actions">
@@ -236,12 +245,7 @@ export default function CreationAiPanel(): JSX.Element {
           value={draft}
           placeholder="问点什么..."
           onChange={(event) => setDraft(event.currentTarget.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-              event.preventDefault()
-              void send()
-            }
-          }}
+          onKeyDown={(event) => handleAiComposerKeyDown(event, () => void send())}
         />
         <div className="workbench-creation-ai__actions">
           <label className="workbench-creation-ai__mode-picker" title={activeMode.description}>

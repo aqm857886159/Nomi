@@ -1,8 +1,9 @@
 import React from 'react'
 import { Group, Stack, Text } from '@mantine/core'
 import ReactMarkdown from 'react-markdown'
-import { $ } from '../../../canvas/i18n'
+import { $ } from '../../../shared/i18n'
 import { DesignBadge } from '../../../design'
+import { AiReplyActionButton } from '../../../workbench/ai/AiReplyActionButton'
 import type { ChatMessage } from '../AiChatDialog.types'
 import {
   dedupeProgressLines,
@@ -39,6 +40,12 @@ export default function ChatBubble({ message }: { message: ChatMessage }): JSX.E
   return (
     <Group className={wrapClassName} justify={isUser ? 'flex-end' : 'flex-start'} align="flex-start" gap={10} wrap="nowrap">
       <div className="tc-ai-chat-bubble__card">
+        {!isUser && message.phase !== 'thinking' ? (
+          <AiReplyActionButton
+            className="tc-ai-chat-bubble__reply-action"
+            content={markdownText || message.content}
+          />
+        ) : null}
         <Group className="tc-ai-chat-bubble__meta" justify="space-between" align="center" gap={10} mb={6} wrap="nowrap">
           <Group className="tc-ai-chat-bubble__meta-left" gap={6} align="center" wrap="nowrap">
             <DesignBadge className="tc-ai-chat-bubble__role" size="xs" radius="sm" variant="light" color={isUser ? 'gray' : 'blue'}>

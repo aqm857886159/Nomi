@@ -1,4 +1,4 @@
-import type { TaskNodeImageResult } from '../taskNodeSchema'
+import type { TaskNodeImageResult } from '../../../shared/taskNodeSchema'
 
 type StoryboardCandidateInput = {
   imageResults?: unknown

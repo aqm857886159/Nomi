@@ -13,18 +13,11 @@ import {
 import { createDefaultTimeline, normalizeTimeline } from './timeline/timelineMath'
 import type { TimelineClip, TimelineState, TimelineTrackType } from './timeline/timelineTypes'
 import { createDefaultWorkbenchDocument, type CreationDocumentTools, type PreviewAspectRatio, type WorkbenchDocument } from './workbenchTypes'
-import type { CreationDocumentAction } from './workbenchTypes'
+import type { WorkbenchAiMessage } from './ai/workbenchAiTypes'
 
 export const WORKSPACE_MODES = ['creation', 'generation', 'preview'] as const
 
 export type WorkspaceMode = (typeof WORKSPACE_MODES)[number]
-
-export type WorkbenchAiMessage = {
-  id: string
-  role: 'user' | 'assistant' | 'tool'
-  content: string
-  documentAction?: CreationDocumentAction
-}
 
 type WorkbenchState = {
   workspaceMode: WorkspaceMode
@@ -35,9 +28,6 @@ type WorkbenchState = {
   creationAiDraft: string
   creationAiMessages: WorkbenchAiMessage[]
   creationAiError: string
-  generationAiDraft: string
-  generationAiMessages: WorkbenchAiMessage[]
-  generationAiCollapsed: boolean
   timeline: TimelineState
   timelinePlaying: boolean
   previewAspectRatio: PreviewAspectRatio
@@ -51,10 +41,6 @@ type WorkbenchState = {
   setCreationAiMessages: (messages: WorkbenchAiMessage[] | ((messages: WorkbenchAiMessage[]) => WorkbenchAiMessage[])) => void
   setCreationAiError: (error: string) => void
   resetCreationAiConversation: () => void
-  setGenerationAiDraft: (draft: string) => void
-  setGenerationAiMessages: (messages: WorkbenchAiMessage[] | ((messages: WorkbenchAiMessage[]) => WorkbenchAiMessage[])) => void
-  setGenerationAiCollapsed: (collapsed: boolean) => void
-  resetGenerationAiConversation: () => void
   setTimeline: (timeline: TimelineState) => void
   setTimelinePlaying: (playing: boolean) => void
   setPreviewAspectRatio: (ratio: PreviewAspectRatio) => void
@@ -84,9 +70,6 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   creationAiDraft: '',
   creationAiMessages: [],
   creationAiError: '',
-  generationAiDraft: '',
-  generationAiMessages: [],
-  generationAiCollapsed: true,
   timeline: createDefaultTimeline(),
   timelinePlaying: false,
   previewAspectRatio: '16:9',
@@ -120,20 +103,6 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   },
   resetCreationAiConversation: () => {
     set({ creationAiDraft: '', creationAiMessages: [], creationAiError: '' })
-  },
-  setGenerationAiDraft: (generationAiDraft) => {
-    set({ generationAiDraft })
-  },
-  setGenerationAiMessages: (messages) => {
-    set((state) => ({
-      generationAiMessages: typeof messages === 'function' ? messages(state.generationAiMessages) : messages,
-    }))
-  },
-  setGenerationAiCollapsed: (generationAiCollapsed) => {
-    set({ generationAiCollapsed })
-  },
-  resetGenerationAiConversation: () => {
-    set({ generationAiDraft: '', generationAiMessages: [] })
   },
   setTimeline: (timeline) => {
     set({ timeline: normalizeTimeline(timeline) })

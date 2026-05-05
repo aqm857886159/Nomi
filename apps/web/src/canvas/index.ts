@@ -4,7 +4,7 @@
  */
 
 // 国际化功能
-export { $, $t, useI18n, setLanguage, getCurrentLanguage, initLanguage } from './i18n';
+export { $, $t, useI18n, setLanguage, getCurrentLanguage, initLanguage } from '../shared/i18n';
 export { LanguageSwitcher } from './components/shared/LanguageSwitcher';
 export {
   GitHubLanguageButton,
@@ -46,6 +46,3 @@ export { default as OrthTypedEdge } from './edges/OrthTypedEdge';
 // 状态管理
 export { useRFStore } from './store';
 export { useInsertMenuStore } from './insertMenuStore';
-
-// 主要组件
-export { default as Canvas } from './Canvas';

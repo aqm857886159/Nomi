@@ -5,7 +5,7 @@ import {
   normalizeStoryboardSelectionContext,
   type StoryboardSelectionContext,
 } from '@tapcanvas/storyboard-selection-protocol'
-import { $ } from '../../canvas/i18n'
+import { $ } from '../../shared/i18n'
 import {
   API_BASE,
   agentsChatStream,
@@ -22,7 +22,7 @@ import {
 } from '../../api/server'
 import { toast } from '../toast'
 import { resolveNonOverlappingPosition, useRFStore } from '../../canvas/store'
-import { isImageKind } from '../../canvas/utils/edgeRules'
+import { isImageKind } from '../../shared/edgeRules'
 import type { Node } from '@xyflow/react'
 import { useUIStore } from '../uiStore'
 import { useLiveChatRunStore } from './liveChatRunStore'
@@ -54,7 +54,7 @@ import { DesignBadge, DesignButton, IconActionButton, PanelCard } from '../desig
 import {
   getNodeProductionMeta,
   resolveChapterGroundedProductionMetadataForNode,
-} from '../../canvas/productionMeta'
+} from '../../shared/productionMeta'
 import {
   normalizePublicFlowAnchorBindings,
   type PublicFlowAnchorBinding,
@@ -63,7 +63,7 @@ import {
   resolvePrimarySemanticAnchorBinding,
   resolveSemanticNodeAnchorBindings,
   resolveSemanticNodeRoleBinding,
-} from '../../canvas/utils/semanticBindings'
+} from '../../shared/semanticBindings'
 import ChatBubble from './components/ChatBubble'
 import ReferenceImagesStrip from './components/ReferenceImagesStrip'
 import type { ChatMessage, InspirationQuickAction, ProjectTextMaterialState, SendOptions, UploadedReferenceAssetMeta } from './AiChatDialog.types'
@@ -74,6 +74,7 @@ import {
   formatNowTime,
   summarizeThinkingText,
 } from './AiChatDialog.utils'
+import { handleAiComposerKeyDown } from '../../workbench/ai/aiComposerKeyboard'
 
 const CHAT_STREAM_ABORT_ERROR = '__tapcanvas_ai_chat_aborted__'
 const CHAT_ABORTED_MESSAGE = '已中断本次对话。'
@@ -3023,6 +3024,7 @@ export default function AiChatDialog({
                             placeholder={$('请输入你的设计需求')}
                             value={draft}
                             onChange={(e) => setDraft(e.currentTarget.value)}
+                            onKeyDown={(event) => handleAiComposerKeyDown(event, () => void send())}
                             disabled={sending}
                             onFocus={() => {
                               if (mode !== 'compact') return
@@ -3232,6 +3234,7 @@ export default function AiChatDialog({
                       placeholder={$('请输入你的设计需求')}
                       value={draft}
                       onChange={(e) => setDraft(e.currentTarget.value)}
+                      onKeyDown={(event) => handleAiComposerKeyDown(event, () => void send())}
                       disabled={sending}
                     />
                   </div>

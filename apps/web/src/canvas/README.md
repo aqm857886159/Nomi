@@ -17,7 +17,6 @@
 ```
 src/canvas/
 ├── index.ts                          # 统一导出
-├── Canvas.tsx                        # 主画布组件
 ├── store.ts                          # 状态管理
 ├── insertMenuStore.ts               # 插入菜单状态
 ├── components/                       # 可复用组件
@@ -35,8 +34,7 @@ src/canvas/
 │   ├── Canvas/                       # 画布组件（计划）
 │   └── managers/                     # 功能管理器（计划）
 ├── nodes/                           # 节点组件
-│   ├── TaskNode.tsx                 # 原始任务节点
-│   ├── TaskNode.tsx      # 重构后的任务节点
+│   ├── TaskNode.tsx                 # 旧版任务节点组件
 │   ├── GroupNode.tsx                # 分组节点
 │   ├── IONode.tsx                   # 输入输出节点
 │   └── index.ts                     # 节点组件导出
@@ -48,7 +46,7 @@ src/canvas/
 ├── services/                        # 业务逻辑服务（计划）
 ├── hooks/                           # 全局hooks（计划）
 ├── types/                           # 类型定义（计划）
-├── utils/                           # 工具函数
+├── utils/                           # canvas 专属工具函数
 │   ├── constants.ts                 # 常量定义
 │   ├── colors.ts                    # 颜色工具
 │   ├── canvas.ts                    # 画布工具
@@ -58,6 +56,8 @@ src/canvas/
 │   └── index.ts                     # 工具函数导出
 └── README.md                        # 文档说明
 ```
+
+> 当前主生成画布入口在 `src/workbench/generationCanvasV2`。本目录保留旧版节点、store 和历史工具，供尚未迁移的 legacy 页面与服务使用；旧 `Canvas.tsx` 页面入口已删除。
 
 ## 重构成果
 

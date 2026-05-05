@@ -3,9 +3,9 @@
  * 参考雅虎军规：数据序列化安全，版本兼容，错误处理完善
  */
 
-import { STORAGE_KEYS } from './constants';
+import { STORAGE_KEYS } from '../canvas/utils/constants';
 import type { Node, Edge } from '@xyflow/react';
-import { sanitizeFlowValueForPersistence } from './persistenceSanitizer'
+import { sanitizeFlowValueForPersistence } from '../canvas/utils/persistenceSanitizer'
 
 export type CanvasViewport = { x: number; y: number; zoom: number }
 
@@ -268,7 +268,7 @@ export function clearCanvasFromLocalStorage(): boolean {
  * @param visited 已访问的对象集合
  * @returns 克隆后的对象
  */
-export function deepClone(obj: any, visited = new WeakSet()): any {
+export function deepClone<T>(obj: T, visited = new WeakSet<object>()): T | string {
   if (obj === null || typeof obj !== 'object') {
     return obj;
   }
@@ -283,18 +283,19 @@ export function deepClone(obj: any, visited = new WeakSet()): any {
     return new Date(obj.getTime());
   }
 
-  if (obj instanceof Array) {
+  if (Array.isArray(obj)) {
     return obj.map(item => deepClone(item, visited));
   }
 
   if (typeof obj === 'object') {
-    const cloned: any = {};
-    for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        cloned[key] = deepClone(obj[key], visited);
+    const inputRecord = obj as Record<string, unknown>
+    const cloned: Record<string, unknown> = {};
+    for (const key in inputRecord) {
+      if (Object.prototype.hasOwnProperty.call(inputRecord, key)) {
+        cloned[key] = deepClone(inputRecord[key], visited);
       }
     }
-    return cloned;
+    return cloned as T;
   }
 
   return obj;
@@ -306,20 +307,21 @@ export function deepClone(obj: any, visited = new WeakSet()): any {
  * @returns 清理后的节点数组
  */
 export function sanitizeNodes(nodes: Node[]): Node[] {
-  return nodes.map((node: any) => {
+  return nodes.map((node) => {
     // Never export `dragHandle`: it can make imported nodes appear "undraggable".
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { dragHandle: _dragHandle, ...rest } = (node && typeof node === 'object') ? node : { ...node }
+    const nodeRecord = node as Node & { dragHandle?: unknown; data?: Record<string, unknown> }
+    const { dragHandle: _dragHandle, ...rest } = nodeRecord
+    const data = nodeRecord.data || {}
     return {
       ...rest,
       data: {
-        id: node.data.id,
-        label: node.data.label,
-        kind: node.data.kind,
-        config: node.data.config || {},
-        experimentGroupId: node.data.experimentGroupId,
-        workflowStage: node.data.workflowStage,
-        iterationKey: node.data.iterationKey,
+        id: data.id,
+        label: data.label,
+        kind: data.kind,
+        config: data.config || {},
+        experimentGroupId: data.experimentGroupId,
+        workflowStage: data.workflowStage,
+        iterationKey: data.iterationKey,
         // 移除运行时状态
         progress: undefined,
         status: undefined,
@@ -351,20 +353,21 @@ export function sanitizeEdges(edges: Edge[]): Edge[] {
  * @param data 序列化数据
  * @returns 是否有效
  */
-function validateSerializedData(data: any): boolean {
+function validateSerializedData(data: unknown): data is SerializedCanvas {
   if (!data || typeof data !== 'object') {
     return false;
   }
+  const record = data as Record<string, unknown>
 
-  if (!data.version || typeof data.version !== 'string') {
+  if (!record.version || typeof record.version !== 'string') {
     return false;
   }
 
-  if (!data.timestamp || typeof data.timestamp !== 'number') {
+  if (!record.timestamp || typeof record.timestamp !== 'number') {
     return false;
   }
 
-  if (!Array.isArray(data.nodes) || !Array.isArray(data.edges)) {
+  if (!Array.isArray(record.nodes) || !Array.isArray(record.edges)) {
     return false;
   }
 
@@ -377,10 +380,9 @@ function validateSerializedData(data: any): boolean {
  * @returns 迁移后的数据
  */
 function migrateData(data: SerializedCanvas): SerializedCanvas {
-  const nodes = (data.nodes || []).map((n: any) => {
+  const nodes = (data.nodes || []).map((n) => {
     if (!n || typeof n !== 'object') return n
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { dragHandle: _dragHandle, ...rest } = n
+    const { dragHandle: _dragHandle, ...rest } = n as Node & { dragHandle?: unknown }
     return rest
   }) as Node[]
 

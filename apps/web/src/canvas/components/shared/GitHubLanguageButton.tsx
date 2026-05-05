@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { getCurrentLanguage, setLanguage, useI18n } from '../../i18n';
+import { getCurrentLanguage, setLanguage, useI18n } from '../../../shared/i18n';
 
 interface GitHubLanguageButtonProps {
   style?: React.CSSProperties;

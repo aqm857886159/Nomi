@@ -30,7 +30,7 @@ function MyComponent() {
 #### 2. 手动控制语言
 
 ```typescript
-import { $, $t, useI18n, setLanguage } from '@/canvas';
+import { $, $t, useI18n, setLanguage } from '@/shared/i18n';
 
 function LanguageControl() {
   const { currentLanguage, isZh, isEn } = useI18n();
@@ -51,7 +51,7 @@ function LanguageControl() {
 #### 3. 在组件中使用翻译
 
 ```typescript
-import { $, $t } from '@/canvas';
+import { $, $t } from '@/shared/i18n';
 
 function MyComponent() {
   return (
@@ -145,7 +145,7 @@ function StatusBar() {
 
 3. **使用翻译函数**
    ```typescript
-   import { $, $t } from '@/canvas';
+   import { $, $t } from '@/shared/i18n';
 
    const buttonText = $('确定');  // 自动翻译
    const message = $t('共 {{count}} 项', { count: 5 });  // 带参数
@@ -155,7 +155,8 @@ function StatusBar() {
 
 ```typescript
 import React from 'react';
-import { $, $t, useI18n, LanguageSwitcher } from '@/canvas';
+import { $, $t, useI18n } from '@/shared/i18n';
+import { LanguageSwitcher } from '@/canvas';
 
 function MyCanvas() {
   const { currentLanguage } = useI18n();

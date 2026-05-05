@@ -350,6 +350,7 @@
 
 .workbench-creation-ai__message,
 .app-ai-chat-dialog.tc-ai-chat .tc-ai-chat-bubble__card {
+  position: relative;
   max-width: 90%;
   border: 0 !important;
   border-radius: var(--nomi-radius) !important;
@@ -372,6 +373,10 @@
   border-bottom-right-radius: 4px !important;
   background: var(--nomi-ink) !important;
   color: var(--nomi-paper) !important;
+}
+
+.workbench-creation-ai__message-content {
+  position: relative;
 }
 
 .app-ai-chat-dialog.tc-ai-chat .tc-ai-chat-bubble__meta {

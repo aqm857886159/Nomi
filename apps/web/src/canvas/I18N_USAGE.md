@@ -5,7 +5,7 @@
 Canvas模块集成了简单的国际化系统，默认使用中文，提供英文翻译包。使用方式非常简洁：
 
 ```typescript
-import { $, $t, useI18n, setLanguage } from '@/canvas/i18n';
+import { $, $t, useI18n, setLanguage } from '@/shared/i18n';
 
 // 基础翻译 - 源码写中文，自动翻译
 const text = $('确定'); // 中文环境: "确定", 英文环境: "OK"
@@ -168,7 +168,7 @@ const successMessage = $t('节点 {{name}} 执行成功', { name: 'TextNode' });
 ### 手动切换
 
 ```typescript
-import { setLanguage } from '@/canvas/i18n';
+import { setLanguage } from '@/shared/i18n';
 
 // 切换到英文
 setLanguage('en');
@@ -265,7 +265,7 @@ $t('共 {{count}} 个节点', { count: 5 });  // "共 5 个节点"
 ### 单元测试
 
 ```typescript
-import { $, setLanguage } from '@/canvas/i18n';
+import { $, setLanguage } from '@/shared/i18n';
 
 test('translation works correctly', () => {
   setLanguage('zh');
@@ -280,7 +280,7 @@ test('translation works correctly', () => {
 
 ```typescript
 import { renderHook } from '@testing-library/react';
-import { useI18n } from '@/canvas/i18n';
+import { useI18n } from '@/shared/i18n';
 
 test('useI18n hook works', () => {
   const { result } = renderHook(() => useI18n());

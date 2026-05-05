@@ -1,8 +1,10 @@
 import React from 'react'
 import { Group, Stack, Text } from '@mantine/core'
-import { IconCheck, IconPlayerPlay, IconSend2, IconSparkles } from '@tabler/icons-react'
+import { IconCheck, IconPlayerPlay, IconPlus, IconSend2 } from '@tabler/icons-react'
 import { agentsChat } from '../../../../api/server'
 import { DesignAlert, DesignButton, DesignCheckbox, DesignTextarea, NomiAILabel, NomiLoadingMark, WorkbenchIconButton } from '../../../../design'
+import { AiReplyActionButton } from '../../../../workbench/ai/AiReplyActionButton'
+import { handleAiComposerKeyDown } from '../../../../workbench/ai/aiComposerKeyboard'
 import type {
   BillingModelKind,
   ModelCatalogImportPackageDto,
@@ -307,6 +309,15 @@ export function ModelCatalogImportSection({
   const [runningAgent, setRunningAgent] = React.useState(false)
   const [runRealTest, setRunRealTest] = React.useState(false)
   const [testResultText, setTestResultText] = React.useState('')
+  const resetConversation = React.useCallback(() => {
+    setMessages([])
+    setDraft(null)
+    setDraftText('')
+    setError(null)
+    setTestResultText('')
+    setStage('idle')
+    setMessage('直接告诉 Nomi 要接入哪个模型；可以把文档链接、curl、OpenAPI 或说明一起发来。')
+  }, [])
 
   const canAskAgent = Boolean(draftText.trim())
 
@@ -447,22 +458,12 @@ export function ModelCatalogImportSection({
         <div className="stats-model-catalog-agent__title">
           <NomiAILabel suffix="模型接入" />
         </div>
-        <DesignButton
+        <WorkbenchIconButton
           className="stats-model-catalog-agent__reset"
-          size="xs"
-          variant="subtle"
-          onClick={() => {
-            setMessages([])
-            setDraft(null)
-            setDraftText('')
-            setError(null)
-            setTestResultText('')
-            setStage('idle')
-            setMessage('直接告诉 Nomi 要接入哪个模型；可以把文档链接、curl、OpenAPI 或说明一起发来。')
-          }}
-        >
-          + 新对话
-        </DesignButton>
+          label="新对话"
+          onClick={resetConversation}
+          icon={<IconPlus size={14} />}
+        />
       </header>
 
       <div className="stats-model-catalog-agent__messages" aria-live="polite">
@@ -479,16 +480,27 @@ export function ModelCatalogImportSection({
               ) : (
                 <Text className="stats-model-catalog-agent__message-text" size="xs">{item.content}</Text>
               )}
+              {item.role === 'assistant' && item.content !== '处理中...' && !item.content.startsWith('（错误）') ? (
+                <AiReplyActionButton
+                  className="stats-model-catalog-agent__reply-action"
+                  content={item.content}
+                />
+              ) : null}
             </div>
           </article>
         ))}
 
-        <article className="stats-model-catalog-agent__message stats-model-catalog-agent__message--assistant">
-          <div className="stats-model-catalog-agent__message-content" data-stage={stage}>
-            <IconSparkles className="stats-model-catalog-agent__message-icon" size={14} />
-            <Text className="stats-model-catalog-agent__message-text" size="xs">{message}</Text>
-          </div>
-        </article>
+        {messages.length === 0 && stage !== 'idle' ? (
+          <article className="stats-model-catalog-agent__message stats-model-catalog-agent__message--assistant">
+            <div className="stats-model-catalog-agent__message-content" data-stage={stage}>
+              <Text className="stats-model-catalog-agent__message-text" size="xs">{message}</Text>
+              <AiReplyActionButton
+                className="stats-model-catalog-agent__reply-action"
+                content={message}
+              />
+            </div>
+          </article>
+        ) : null}
 
         {error ? (
           <DesignAlert className="stats-model-catalog-agent__error" color="red" variant="light" role="alert">
@@ -551,12 +563,7 @@ export function ModelCatalogImportSection({
           placeholder="例如：帮我接入 DeepSeek，文档是 https://api-docs.deepseek.com/，用于文本生成。"
           minRows={3}
           autosize
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-              event.preventDefault()
-              void askAgent()
-            }
-          }}
+          onKeyDown={(event) => handleAiComposerKeyDown(event, () => void askAgent())}
         />
         <div className="stats-model-catalog-agent__actions">
           <WorkbenchIconButton

@@ -1,5 +1,5 @@
 import React from 'react'
-import type { TaskNodeFeature } from '../taskNodeSchema'
+import type { TaskNodeFeature } from '../../../shared/taskNodeSchema'
 import type { TaskNodeFeatureFlags } from './features'
 import { ImageContent } from './components/ImageContent'
 import { StoryboardEditorContent } from './components/StoryboardEditorContent'

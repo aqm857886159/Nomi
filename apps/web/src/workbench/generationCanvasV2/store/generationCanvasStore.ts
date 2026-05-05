@@ -20,6 +20,7 @@ import type {
   GenerationNodeStatus,
   GenerationNodeTaskKind,
 } from '../model/generationCanvasTypes'
+import type { WorkbenchAiMessage } from '../../ai/workbenchAiTypes'
 
 type CreateNodeInput = {
   kind: GenerationNodeKind
@@ -50,12 +51,19 @@ type GenerationCanvasState = {
   pendingConnectionSourceId: string
   canvasZoom: number
   canvasOffset: { x: number; y: number }
+  generationAiDraft: string
+  generationAiMessages: WorkbenchAiMessage[]
+  generationAiCollapsed: boolean
   canUndo: boolean
   canRedo: boolean
   hasClipboard: boolean
   captureHistory: () => void
   setCanvasTransform: (zoom: number, offset: { x: number; y: number }) => void
   setCanvasZoom: (zoom: number) => void
+  setGenerationAiDraft: (draft: string) => void
+  setGenerationAiMessages: (messages: WorkbenchAiMessage[] | ((messages: WorkbenchAiMessage[]) => WorkbenchAiMessage[])) => void
+  setGenerationAiCollapsed: (collapsed: boolean) => void
+  resetGenerationAiConversation: () => void
   addNode: (input: CreateNodeInput) => GenerationCanvasNode
   updateNode: (nodeId: string, patch: Partial<GenerationCanvasNode>) => void
   updateNodePrompt: (nodeId: string, prompt: string) => void
@@ -329,6 +337,9 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>((set, get)
   pendingConnectionSourceId: '',
   canvasZoom: 1,
   canvasOffset: { x: 0, y: 0 },
+  generationAiDraft: '',
+  generationAiMessages: [],
+  generationAiCollapsed: true,
   canUndo: false,
   canRedo: false,
   hasClipboard: false,
@@ -340,6 +351,20 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>((set, get)
   },
   setCanvasTransform: (zoom, offset) => set({ canvasZoom: zoom, canvasOffset: offset }),
   setCanvasZoom: (zoom) => set({ canvasZoom: zoom }),
+  setGenerationAiDraft: (generationAiDraft) => {
+    set({ generationAiDraft })
+  },
+  setGenerationAiMessages: (messages) => {
+    set((state) => ({
+      generationAiMessages: typeof messages === 'function' ? messages(state.generationAiMessages) : messages,
+    }))
+  },
+  setGenerationAiCollapsed: (generationAiCollapsed) => {
+    set({ generationAiCollapsed })
+  },
+  resetGenerationAiConversation: () => {
+    set({ generationAiDraft: '', generationAiMessages: [] })
+  },
   addNode: (input) => {
     const currentState = get()
     const existingCount = currentState.nodes.filter((node) => node.kind === input.kind).length

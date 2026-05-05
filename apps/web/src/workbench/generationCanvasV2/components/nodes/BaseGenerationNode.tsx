@@ -17,6 +17,7 @@ import { diagnoseVideoPlaybackFailure, logVideoPlaybackFailure } from '../../../
 type BaseGenerationNodeProps = {
   node: GenerationCanvasNode
   selected: boolean
+  readOnly?: boolean
 }
 
 type FloatingComposerLayout = {
@@ -86,7 +87,7 @@ function findTimelineDropTarget(clientX: number, clientY: number): HTMLElement |
   return element.closest(TIMELINE_TRACK_CLIPS_SELECTOR)
 }
 
-export default function BaseGenerationNode({ node, selected }: BaseGenerationNodeProps): JSX.Element {
+export default function BaseGenerationNode({ node, selected, readOnly = false }: BaseGenerationNodeProps): JSX.Element {
   const selectNode = useGenerationCanvasStore((state) => state.selectNode)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
   const moveNode = useGenerationCanvasStore((state) => state.moveNode)
@@ -121,6 +122,10 @@ export default function BaseGenerationNode({ node, selected }: BaseGenerationNod
     if (target.closest('button, input, textarea, select')) return
     if ((target as HTMLElement).tagName === 'VIDEO') return
     event.stopPropagation()
+    if (readOnly) {
+      selectNode(node.id, event.shiftKey)
+      return
+    }
     if (typeof event.currentTarget.setPointerCapture === 'function') {
       event.currentTarget.setPointerCapture(event.pointerId)
     }
@@ -246,6 +251,7 @@ export default function BaseGenerationNode({ node, selected }: BaseGenerationNod
   const handleResizePointerDown = (direction: ResizeDirection) => (event: React.PointerEvent<HTMLButtonElement>) => {
     event.preventDefault()
     event.stopPropagation()
+    if (readOnly) return
     captureHistory()
     resizeStartRef.current = {
       pointerX: event.clientX,
@@ -288,6 +294,7 @@ export default function BaseGenerationNode({ node, selected }: BaseGenerationNod
 
   const handleGenerate = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
+    if (readOnly) return
     if (!canRunGenerationNode(node)) return
     try {
       if (hasResult) {
@@ -334,28 +341,32 @@ export default function BaseGenerationNode({ node, selected }: BaseGenerationNod
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
     >
-      <WorkbenchButton
-        className="generation-canvas-v2-node__handle generation-canvas-v2-node__handle--input"
-        aria-label="连接到此节点"
-        data-active={pendingConnectionSourceId && pendingConnectionSourceId !== node.id ? 'true' : 'false'}
-        onClick={(event) => {
-          event.stopPropagation()
-          connectToNode(node.id)
-        }}
-      />
-      <WorkbenchButton
-        className="generation-canvas-v2-node__handle generation-canvas-v2-node__handle--output"
-        aria-label="从此节点开始连线"
-        data-active={pendingConnectionSourceId === node.id ? 'true' : 'false'}
-        onPointerDown={(event) => {
-          event.preventDefault()
-          event.stopPropagation()
-          if (typeof event.currentTarget.releasePointerCapture === 'function') {
-            event.currentTarget.releasePointerCapture(event.pointerId)
-          }
-          startConnection(node.id)
-        }}
-      />
+      {!readOnly ? (
+        <>
+          <WorkbenchButton
+            className="generation-canvas-v2-node__handle generation-canvas-v2-node__handle--input"
+            aria-label="连接到此节点"
+            data-active={pendingConnectionSourceId && pendingConnectionSourceId !== node.id ? 'true' : 'false'}
+            onClick={(event) => {
+              event.stopPropagation()
+              connectToNode(node.id)
+            }}
+          />
+          <WorkbenchButton
+            className="generation-canvas-v2-node__handle generation-canvas-v2-node__handle--output"
+            aria-label="从此节点开始连线"
+            data-active={pendingConnectionSourceId === node.id ? 'true' : 'false'}
+            onPointerDown={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              if (typeof event.currentTarget.releasePointerCapture === 'function') {
+                event.currentTarget.releasePointerCapture(event.pointerId)
+              }
+              startConnection(node.id)
+            }}
+          />
+        </>
+      ) : null}
 
       <header className="generation-canvas-v2-node__header">
         {showStatusBadge ? (
@@ -403,7 +414,7 @@ export default function BaseGenerationNode({ node, selected }: BaseGenerationNod
         )}
       </div>
 
-      {canSendToTimeline ? (
+      {canSendToTimeline && !readOnly ? (
         <WorkbenchButton
           className="generation-canvas-v2-node__timeline-drag"
           aria-label="拖到时间线"
@@ -418,7 +429,7 @@ export default function BaseGenerationNode({ node, selected }: BaseGenerationNod
         </WorkbenchButton>
       ) : null}
 
-      {selected ? (
+      {selected && !readOnly ? (
         <div
           className="generation-canvas-v2-node__composer"
           style={{
@@ -462,7 +473,7 @@ export default function BaseGenerationNode({ node, selected }: BaseGenerationNod
           </div>
         </div>
       ) : null}
-      {selected ? RESIZE_DIRECTIONS.map((direction) => (
+      {selected && !readOnly ? RESIZE_DIRECTIONS.map((direction) => (
         <WorkbenchButton
           key={direction}
           className={`generation-canvas-v2-node__resize-zone generation-canvas-v2-node__resize-zone--${direction}`}

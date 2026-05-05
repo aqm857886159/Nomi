@@ -1,4 +1,4 @@
-import { TaskNodeFeature, TaskNodeSchema } from '../taskNodeSchema'
+import { TaskNodeFeature, TaskNodeSchema } from '../../../shared/taskNodeSchema'
 
 export type TaskNodeFeatureFlags = {
   featureSet: Set<TaskNodeFeature>

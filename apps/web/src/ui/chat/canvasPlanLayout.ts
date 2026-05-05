@@ -1,10 +1,10 @@
 import type { Node } from '@xyflow/react'
-import { getNodeAbsRect } from '../../canvas/utils/nodeBounds'
+import { getNodeAbsRect } from '../../shared/nodeBounds'
 import {
   inferProductionNodeMeta,
   normalizeProductionLayer,
   type ProductionLayer,
-} from '../../canvas/productionMeta'
+} from '../../shared/productionMeta'
 
 export type LayoutPlanPosition = { x: number; y: number }
 

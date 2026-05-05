@@ -40,4 +40,4 @@ export {
 export type { ValidationResult } from './validation';
 
 // 序列化工具
-export * from './serialization';
+export * from '../../shared/serialization';

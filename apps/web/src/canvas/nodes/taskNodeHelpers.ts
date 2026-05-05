@@ -1,6 +1,6 @@
 import type React from 'react'
 import { Position } from '@xyflow/react'
-import type { TaskNodeHandlesConfig } from './taskNodeSchema'
+import type { TaskNodeHandlesConfig } from '../../shared/taskNodeSchema'
 import type { TaskResultDto } from '../../api/server'
 
 export const MAX_VEO_REFERENCE_IMAGES = 3

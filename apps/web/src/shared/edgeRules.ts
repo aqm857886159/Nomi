@@ -1,4 +1,4 @@
-import { getTaskNodeCoreType } from '../nodes/taskNodeSchema'
+import { getTaskNodeCoreType } from './taskNodeSchema'
 
 type EdgeRuleMap = Record<string, string[]>
 

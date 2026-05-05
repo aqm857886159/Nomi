@@ -1,5 +1,5 @@
 import type { Node } from '@xyflow/react'
-import { getTaskNodeCoreType } from '../../canvas/nodes/taskNodeSchema'
+import { getTaskNodeCoreType } from '../../shared/taskNodeSchema'
 import { getStoryboardEditorCellCount, normalizeStoryboardEditorGrid } from '../../canvas/nodes/taskNode/storyboardEditor'
 import { hasPotentialImagePromptExecution } from '../../canvas/nodes/taskNode/imagePromptSpec'
 

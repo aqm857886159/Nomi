@@ -1,5 +1,5 @@
 import type { Edge, Node } from '@xyflow/react'
-import { getNodeProductionMeta } from '../productionMeta'
+import { getNodeProductionMeta } from '../../shared/productionMeta'
 
 type CharacterSummary = {
   nodeId: string

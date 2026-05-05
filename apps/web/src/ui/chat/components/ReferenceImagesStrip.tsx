@@ -2,7 +2,7 @@ import React from 'react'
 import { Group } from '@mantine/core'
 import { IconTrash } from '@tabler/icons-react'
 import { IconActionButton } from '../../../design'
-import { $ } from '../../../canvas/i18n'
+import { $ } from '../../../shared/i18n'
 
 export default function ReferenceImagesStrip({
   urls,

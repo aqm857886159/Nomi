@@ -1,5 +1,5 @@
 import type { Node } from '@xyflow/react'
-import { getTaskNodeCoreType } from '../nodes/taskNodeSchema'
+import { getTaskNodeCoreType } from './taskNodeSchema'
 
 export type XY = { x: number; y: number }
 export type NodeSize = { w: number; h: number }
@@ -15,7 +15,14 @@ function parseNumeric(value: unknown): number | undefined {
 }
 
 function fallbackSizeForNode(node: Node): NodeSize {
-  const type = String((node as any)?.type || '')
+  const typedNode = node as Node & {
+    measured?: { width?: number; height?: number }
+    width?: number
+    height?: number
+    style?: { width?: number | string; height?: number | string }
+    parentNode?: string
+  }
+  const type = String(typedNode.type || '')
   const kind = String((node as Record<string, unknown> & { data?: Record<string, unknown> })?.data?.kind || '')
   if (type === 'taskNode') {
     const coreType = getTaskNodeCoreType(kind)
@@ -30,26 +37,32 @@ function fallbackSizeForNode(node: Node): NodeSize {
 }
 
 export function getNodeSize(node: Node, fallback?: NodeSize): NodeSize {
-  const anyNode = node as any
-  const data = (anyNode?.data || {}) as any
+  const typedNode = node as Node & {
+    measured?: { width?: number; height?: number }
+    width?: number
+    height?: number
+    style?: { width?: number | string; height?: number | string }
+    data?: Record<string, unknown>
+  }
+  const data = typedNode.data || {}
 
   const measuredW =
-    typeof anyNode?.measured?.width === 'number' && Number.isFinite(anyNode.measured.width)
-      ? anyNode.measured.width
+    typeof typedNode.measured?.width === 'number' && Number.isFinite(typedNode.measured.width)
+      ? typedNode.measured.width
       : undefined
   const measuredH =
-    typeof anyNode?.measured?.height === 'number' && Number.isFinite(anyNode.measured.height)
-      ? anyNode.measured.height
+    typeof typedNode.measured?.height === 'number' && Number.isFinite(typedNode.measured.height)
+      ? typedNode.measured.height
       : undefined
 
-  const widthProp = typeof anyNode?.width === 'number' && Number.isFinite(anyNode.width) ? anyNode.width : undefined
-  const heightProp = typeof anyNode?.height === 'number' && Number.isFinite(anyNode.height) ? anyNode.height : undefined
+  const widthProp = typeof typedNode.width === 'number' && Number.isFinite(typedNode.width) ? typedNode.width : undefined
+  const heightProp = typeof typedNode.height === 'number' && Number.isFinite(typedNode.height) ? typedNode.height : undefined
 
-  const dataW = typeof data?.nodeWidth === 'number' && Number.isFinite(data.nodeWidth) ? data.nodeWidth : undefined
-  const dataH = typeof data?.nodeHeight === 'number' && Number.isFinite(data.nodeHeight) ? data.nodeHeight : undefined
+  const dataW = typeof data.nodeWidth === 'number' && Number.isFinite(data.nodeWidth) ? data.nodeWidth : undefined
+  const dataH = typeof data.nodeHeight === 'number' && Number.isFinite(data.nodeHeight) ? data.nodeHeight : undefined
 
-  const styleW = parseNumeric(anyNode?.style?.width)
-  const styleH = parseNumeric(anyNode?.style?.height)
+  const styleW = parseNumeric(typedNode.style?.width)
+  const styleH = parseNumeric(typedNode.style?.height)
 
   const resolvedFallback = fallback ?? fallbackSizeForNode(node)
   const w = measuredW ?? widthProp ?? dataW ?? styleW ?? resolvedFallback.w
@@ -62,17 +75,21 @@ export function getNodeAbsPosition(node: Node, nodesById: Map<string, Node>): XY
 
   const resolve = (cur: Node): XY => {
     const id = typeof cur?.id === 'string' ? cur.id : ''
+    const typedNode = cur as Node & {
+      position?: Partial<XY>
+      parentNode?: string
+    }
     if (id) {
-      if (visiting.has(id)) return { x: (cur as any)?.position?.x || 0, y: (cur as any)?.position?.y || 0 }
+      if (visiting.has(id)) return { x: typedNode.position?.x || 0, y: typedNode.position?.y || 0 }
       visiting.add(id)
     }
 
-    const base = { x: (cur as any)?.position?.x || 0, y: (cur as any)?.position?.y || 0 }
+    const base = { x: typedNode.position?.x || 0, y: typedNode.position?.y || 0 }
     const parentId =
-      typeof (cur as any)?.parentId === 'string'
-        ? ((cur as any).parentId as string)
-        : typeof (cur as any)?.parentNode === 'string'
-          ? ((cur as any).parentNode as string)
+      typeof typedNode.parentId === 'string'
+        ? typedNode.parentId
+        : typeof typedNode.parentNode === 'string'
+          ? typedNode.parentNode
           : null
     if (!parentId) return base
     const parent = nodesById.get(parentId)

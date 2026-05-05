@@ -7,7 +7,6 @@ type SendGenerationCanvasAgentMessageInput = {
   message: string
   snapshot: GenerationCanvasSnapshot
   selectedNodes: GenerationCanvasNode[]
-  mode?: 'agent' | 'chat' | 'refine'
 }
 
 export type GenerationCanvasAgentResponse = {
@@ -20,18 +19,10 @@ function stringifyForPrompt(value: unknown): string {
 }
 
 function buildGenerationCanvasAgentPrompt(input: SendGenerationCanvasAgentMessageInput): string {
-  const modeInstruction = input.mode === 'chat'
-    ? '当前模式：问答。只回答用户问题，不要输出 generation_canvas_plan，不要创建节点。'
-    : input.mode === 'refine'
-      ? '当前模式：润色。只改写选中节点的提示词，输出 generation_canvas_plan 时只包含一个节点（对应选中节点），不要创建新节点。'
-      : '当前模式：Agent。规划并创建待确认的画布节点。'
-
   return [
     '你是 Nomi 生成区右侧的 Nomi 生成 Agent。',
     '',
-    modeInstruction,
-    '',
-    '硬约束（Agent 模式）：',
+    '硬约束：',
     '- 你只能规划并创建待确认的画布节点，禁止直接生成图片、视频或调用任何真实生成工具。',
     '- 你必须把用户输入拆成可编辑的 text/image/video 节点提示词；图片/视频节点默认保持 idle，由用户点击节点上的生成按钮确认后才执行。',
     '- 如果用户提供故事、脚本或镜头段落，你应该拆成少量清晰节点，并用边表达文本依据到图片、图片到视频的关系。',

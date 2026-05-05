@@ -5,7 +5,7 @@ import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from '@xyflow/react'
 import { useRFStore } from '../store'
 import { useUIStore } from '../../ui/uiStore'
 import { useEdgeVisuals } from './useEdgeVisuals'
-import { getNodeAbsPosition, getNodeSize } from '../utils/nodeBounds'
+import { getNodeAbsPosition, getNodeSize } from '../../shared/nodeBounds'
 
 function inferType(sourceHandle?: string | null, targetHandle?: string | null) {
   if (sourceHandle && sourceHandle.startsWith('out-')) return sourceHandle.slice(4)

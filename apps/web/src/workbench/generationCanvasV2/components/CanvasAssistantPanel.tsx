@@ -8,7 +8,6 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { AiReplyActionButton } from '../../ai/AiReplyActionButton'
 import { handleAiComposerKeyDown } from '../../ai/aiComposerKeyboard'
 import { openWorkbenchModelIntegration, WorkbenchAiHeaderActions } from '../../ai/WorkbenchAiHeaderActions'
-import { useWorkbenchStore } from '../../workbenchStore'
 
 type CanvasAssistantPanelProps = {
   defaultCollapsed?: boolean
@@ -29,14 +28,13 @@ export default function CanvasAssistantPanel({
   const snapshot = React.useMemo(() => generationCanvasTools.read_canvas(), [nodes, edges, selectedNodeIds])
   const selectedNodes = React.useMemo(() => generationCanvasTools.read_selected_nodes(), [nodes, selectedNodeIds])
   const [busy, setBusy] = React.useState(false)
-  const [mode, setMode] = React.useState<'agent' | 'chat' | 'refine'>('agent')
-  const draft = useWorkbenchStore((state) => state.generationAiDraft)
-  const messages = useWorkbenchStore((state) => state.generationAiMessages)
-  const collapsed = useWorkbenchStore((state) => state.generationAiCollapsed)
-  const setDraft = useWorkbenchStore((state) => state.setGenerationAiDraft)
-  const setMessages = useWorkbenchStore((state) => state.setGenerationAiMessages)
-  const setCollapsed = useWorkbenchStore((state) => state.setGenerationAiCollapsed)
-  const resetConversation = useWorkbenchStore((state) => state.resetGenerationAiConversation)
+  const draft = useGenerationCanvasStore((state) => state.generationAiDraft)
+  const messages = useGenerationCanvasStore((state) => state.generationAiMessages)
+  const collapsed = useGenerationCanvasStore((state) => state.generationAiCollapsed)
+  const setDraft = useGenerationCanvasStore((state) => state.setGenerationAiDraft)
+  const setMessages = useGenerationCanvasStore((state) => state.setGenerationAiMessages)
+  const setCollapsed = useGenerationCanvasStore((state) => state.setGenerationAiCollapsed)
+  const resetConversation = useGenerationCanvasStore((state) => state.resetGenerationAiConversation)
 
   React.useEffect(() => {
     if (messages.length === 0 && !draft.trim()) setCollapsed(defaultCollapsed)
@@ -59,30 +57,7 @@ export default function CanvasAssistantPanel({
     setBusy(true)
     void (async () => {
       try {
-        const result = await sendGenerationCanvasAgentMessage({ message: text, snapshot, selectedNodes, mode })
-
-        if (mode === 'chat') {
-          // 问答模式：只显示回复，不改画布
-          appendMessage({ role: 'assistant', content: result.response.text || '已回答。' })
-          return
-        }
-
-        if (mode === 'refine') {
-          // 润色模式：只改选中节点的 prompt
-          const plan = result.plan
-          if (plan?.nodes?.length && selectedNodes.length > 0) {
-            const firstNode = plan.nodes[0]
-            if (firstNode?.prompt) {
-              generationCanvasTools.update_node_prompt(selectedNodes[0].id, firstNode.prompt)
-              appendMessage({ role: 'assistant', content: `已更新选中节点的提示词。` })
-              return
-            }
-          }
-          appendMessage({ role: 'assistant', content: result.response.text || '润色完成。' })
-          return
-        }
-
-        // Agent 模式：创建节点
+        const result = await sendGenerationCanvasAgentMessage({ message: text, snapshot, selectedNodes })
         const nodeInputs = toCreateNodeInputs(result.plan)
         const createdNodes = generationCanvasTools.create_nodes(nodeInputs)
         const edges = buildPlannedEdges(result.plan, createdNodes.map((node) => node.id))
@@ -187,14 +162,6 @@ export default function CanvasAssistantPanel({
           disabled={busy}
         />
         <div className="generation-canvas-v2-assistant__composer-row">
-          <label className="generation-canvas-v2-assistant__mode">
-            <span>模式</span>
-            <select aria-label="AI 模式" value={mode} onChange={(e) => setMode(e.target.value as 'agent' | 'chat' | 'refine')}>
-              <option value="agent">Agent</option>
-              <option value="chat">问答</option>
-              <option value="refine">润色</option>
-            </select>
-          </label>
           <WorkbenchIconButton
             type="submit"
             className="generation-canvas-v2-assistant__send"

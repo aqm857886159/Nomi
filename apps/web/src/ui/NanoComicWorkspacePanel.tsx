@@ -63,7 +63,7 @@ import {
   getChapterStoryboardPlan,
   type StoryboardGroupSize,
 } from './nanoComic/storyboardProduction'
-import { upsertSemanticNodeAnchorBinding } from '../canvas/utils/semanticBindings'
+import { upsertSemanticNodeAnchorBinding } from '../shared/semanticBindings'
 import type {
   NanoComicShotItem,
   NanoComicStoryboardProductionItem,

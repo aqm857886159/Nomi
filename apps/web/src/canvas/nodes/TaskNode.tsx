@@ -87,7 +87,7 @@ import {
   STORYBOARD_DEFAULT_DURATION,
   enforceStoryboardTotalLimit,
 } from './storyboardUtils'
-import { getTaskNodeCoreType, getTaskNodeSchema, normalizeTaskNodeKind } from './taskNodeSchema'
+import { getTaskNodeCoreType, getTaskNodeSchema, normalizeTaskNodeKind } from '../../shared/taskNodeSchema'
 import { buildTaskNodeFeatureFlags, type TaskNodeFeatureFlags } from './taskNode/features'
 import {
   applyMentionFallback,
@@ -171,7 +171,7 @@ import {
   getNodeProductionMeta,
   inferProductionNodeMeta,
   readChapterGroundedProductionMetadata,
-} from '../productionMeta'
+} from '../../shared/productionMeta'
 import {
   DEFAULT_CANVAS_RESIZE_SIZE,
   DEFAULT_IMAGE_EDIT_SIZE,
@@ -198,7 +198,7 @@ import {
   resolveSemanticNodeRoleBinding,
   resolveSemanticNodeVisualReferenceBinding,
   upsertSemanticNodeAnchorBinding,
-} from '../utils/semanticBindings'
+} from '../../shared/semanticBindings'
 import { useCanvasRenderContext } from '../CanvasRenderContext'
 
 const {

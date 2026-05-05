@@ -2,14 +2,14 @@ import React from 'react'
 import { Box, Center, Container, Group, Loader, ScrollArea, Stack, Text, Title, Tooltip } from '@mantine/core'
 import { IconArrowLeft, IconCopy, IconCopyPlus, IconFileText, IconRefresh } from '@tabler/icons-react'
 import type { Edge, Node } from '@xyflow/react'
-import Canvas from '../canvas/Canvas'
 import { cloneProject, getPublicProjectFlows, listPublicProjects, type FlowDto, type ProjectDto } from '../api/server'
-import { useRFStore } from '../canvas/store'
 import { buildStudioUrl } from '../utils/appRoutes'
 import { navigateBackOr } from '../utils/spaNavigate'
 import { DesignBadge, DesignButton, DesignModal, DesignSelect, IconActionButton, PanelCard } from '../design'
 import { useUIStore } from './uiStore'
 import { toast } from './toast'
+import { GenerationCanvas, useGenerationCanvasStore } from '../workbench/generationCanvasV2'
+import { importLegacyFlowGraph } from '../workbench/generationCanvasV2/model/importLegacyFlowGraph'
 
 const SHARE_GROUP_PADDING = 24
 const SHARE_GROUP_MIN_WIDTH = 240
@@ -262,7 +262,7 @@ export default function ShareFullPage(): JSX.Element {
   const setViewOnly = useUIStore((s) => s.setViewOnly)
   const setCurrentProject = useUIStore((s) => s.setCurrentProject)
   const setCurrentFlow = useUIStore((s) => s.setCurrentFlow)
-  const rfLoad = useRFStore((s) => s.load)
+  const restoreGenerationCanvas = useGenerationCanvasStore((s) => s.restoreSnapshot)
 
   const [loading, setLoading] = React.useState(false)
   const [refreshing, setRefreshing] = React.useState(false)
@@ -327,11 +327,11 @@ export default function ShareFullPage(): JSX.Element {
     const nodes = readReadonlyNodes(data.nodes)
     const edges = readReadonlyEdges(data.edges)
     const viewport = readRecord(data.viewport)
-    rfLoad(sanitizeReadonlyGraph({ nodes, edges }))
+    restoreGenerationCanvas(importLegacyFlowGraph(sanitizeReadonlyGraph({ nodes, edges })))
     useUIStore.getState().setRestoreViewport(typeof viewport.zoom === 'number' ? viewport : null)
     setCurrentProject({ id: projectId, name: project?.name || 'Shared Project' })
     setCurrentFlow({ id: f.id, name: f.name, source: 'server' })
-  }, [flows, project?.name, projectId, rfLoad, selectedFlowId, setCurrentFlow, setCurrentProject])
+  }, [flows, project?.name, projectId, restoreGenerationCanvas, selectedFlowId, setCurrentFlow, setCurrentProject])
 
   const handleCopyLink = React.useCallback(async () => {
     const url = buildShareUrl(projectId, selectedFlowId)
@@ -522,7 +522,7 @@ export default function ShareFullPage(): JSX.Element {
             <Text className="tc-share__empty" size="sm" c="dimmed">该项目暂无公开工作流</Text>
           </Center>
         ) : (
-          <Canvas />
+          <GenerationCanvas readOnly />
         )}
       </Box>
       <DesignModal

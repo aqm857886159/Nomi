@@ -9,7 +9,7 @@ import { setTapImageDragData } from '../canvas/dnd/setTapImageDragData'
 import {
   resolveChapterGroundedProductionMetadataForNode,
   type ChapterGroundedProductionMetadata,
-} from '../canvas/productionMeta'
+} from '../shared/productionMeta'
 
 type ChapterGroundedAnchorKey = keyof ChapterGroundedProductionMetadata['lockedAnchors'] & string
 type CanvasFocusWindow = Window & { __tcFocusNode?: (id: string) => void }

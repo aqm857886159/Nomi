@@ -1,7 +1,7 @@
 import React from 'react'
 
 import { DesignBadge } from '../../../../design'
-import type { ChapterGroundedProductionMetadata } from '../../../productionMeta'
+import type { ChapterGroundedProductionMetadata } from '../../../../shared/productionMeta'
 
 type ChapterGroundedBadgeProps = {
   metadata: ChapterGroundedProductionMetadata
