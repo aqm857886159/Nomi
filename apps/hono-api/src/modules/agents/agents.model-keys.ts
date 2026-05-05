@@ -1,3 +1,7 @@
+import { getModel } from "../ai/providers";
+
+export { getModel };
+
 export const STORYBOARD_GOVERNANCE_MODEL_KEY = "gpt-5.4";
 
 export function resolveStoryboardGovernanceModelKey(explicitModelKey?: string | null): string {

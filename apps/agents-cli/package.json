@@ -18,6 +18,7 @@
     "postinstall": "node scripts/sync-global-config.mjs"
   },
   "dependencies": {
+    "@nomi/schemas": "workspace:*",
     "@tapcanvas/generation-contract": "workspace:*",
     "commander": "^12.1.0",
     "redis": "^4.7.0",

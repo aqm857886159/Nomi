@@ -179,6 +179,22 @@ export const useAuth = create<AuthState>((set, get) => ({
   token: initialToken,
   user: initialUser,
   loading: false,
+  // TODO: Migrate to @tanstack/react-query (useMutation).
+  //
+  // Problem: `login` is a server mutation (POST /api/auth/github) whose loading/error
+  // state is managed manually inside Zustand. This conflates UI state (loading, error)
+  // with the side-effect of obtaining a token, and makes it impossible to deduplicate
+  // in-flight requests or get automatic retry/error boundaries.
+  //
+  // Correct pattern:
+  //   const loginMutation = useMutation({
+  //     mutationFn: (vars: { code: string; state?: string }) =>
+  //       fetch('/api/auth/github', { method: 'POST', ... }).then(r => r.json()),
+  //     onSuccess: (data) => useAuth.getState().setAuth(data.token, data.user),
+  //   })
+  //
+  // The Zustand store should only keep `token` and `user` (pure client state derived
+  // from the JWT). `loading` and any error state belong in the mutation result, not here.
   login: async (code: string, state?: string) => {
     set({ loading: true })
     try {

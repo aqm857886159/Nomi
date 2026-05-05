@@ -20,6 +20,7 @@
     "prompt-evolution:worker": "node scripts/prompt-evolution-worker.mjs"
   },
   "dependencies": {
+    "@nomi/schemas": "workspace:*",
     "@nomi/agents-bridge-contract": "workspace:*",
     "@tapcanvas/canvas-plan-protocol": "workspace:*",
     "@tapcanvas/flow-anchor-bindings": "workspace:*",
