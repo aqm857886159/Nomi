@@ -5,6 +5,8 @@ import { buildPlannedEdges, toCreateNodeInputs } from '../agent/generationCanvas
 import { sendGenerationCanvasAgentMessage } from '../agent/generationCanvasAgentClient'
 import { generationCanvasTools } from '../agent/generationCanvasTools'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { AiReplyActionButton } from '../../ai/AiReplyActionButton'
+import { handleAiComposerKeyDown } from '../../ai/aiComposerKeyboard'
 import { openWorkbenchModelIntegration, WorkbenchAiHeaderActions } from '../../ai/WorkbenchAiHeaderActions'
 import { useWorkbenchStore } from '../../workbenchStore'
 
@@ -27,6 +29,7 @@ export default function CanvasAssistantPanel({
   const snapshot = React.useMemo(() => generationCanvasTools.read_canvas(), [nodes, edges, selectedNodeIds])
   const selectedNodes = React.useMemo(() => generationCanvasTools.read_selected_nodes(), [nodes, selectedNodeIds])
   const [busy, setBusy] = React.useState(false)
+  const [mode, setMode] = React.useState<'agent' | 'chat' | 'refine'>('agent')
   const draft = useWorkbenchStore((state) => state.generationAiDraft)
   const messages = useWorkbenchStore((state) => state.generationAiMessages)
   const collapsed = useWorkbenchStore((state) => state.generationAiCollapsed)
@@ -56,7 +59,30 @@ export default function CanvasAssistantPanel({
     setBusy(true)
     void (async () => {
       try {
-        const result = await sendGenerationCanvasAgentMessage({ message: text, snapshot, selectedNodes })
+        const result = await sendGenerationCanvasAgentMessage({ message: text, snapshot, selectedNodes, mode })
+
+        if (mode === 'chat') {
+          // 问答模式：只显示回复，不改画布
+          appendMessage({ role: 'assistant', content: result.response.text || '已回答。' })
+          return
+        }
+
+        if (mode === 'refine') {
+          // 润色模式：只改选中节点的 prompt
+          const plan = result.plan
+          if (plan?.nodes?.length && selectedNodes.length > 0) {
+            const firstNode = plan.nodes[0]
+            if (firstNode?.prompt) {
+              generationCanvasTools.update_node_prompt(selectedNodes[0].id, firstNode.prompt)
+              appendMessage({ role: 'assistant', content: `已更新选中节点的提示词。` })
+              return
+            }
+          }
+          appendMessage({ role: 'assistant', content: result.response.text || '润色完成。' })
+          return
+        }
+
+        // Agent 模式：创建节点
         const nodeInputs = toCreateNodeInputs(result.plan)
         const createdNodes = generationCanvasTools.create_nodes(nodeInputs)
         const edges = buildPlannedEdges(result.plan, createdNodes.map((node) => node.id))
@@ -137,6 +163,12 @@ export default function CanvasAssistantPanel({
           messages.map((message) => (
             <div key={message.id} className="generation-canvas-v2-assistant__message" data-role={message.role}>
               {message.content}
+              {message.role !== 'user' ? (
+                <AiReplyActionButton
+                  className="generation-canvas-v2-assistant__reply-action"
+                  content={message.content}
+                />
+              ) : null}
             </div>
           ))
         )}
@@ -149,15 +181,18 @@ export default function CanvasAssistantPanel({
           placeholder="输入你的设计需求..."
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => handleAiComposerKeyDown(event, () => {
+            event.currentTarget.form?.requestSubmit()
+          })}
           disabled={busy}
         />
         <div className="generation-canvas-v2-assistant__composer-row">
           <label className="generation-canvas-v2-assistant__mode">
             <span>模式</span>
-            <select aria-label="AI 模式" defaultValue="Agent">
-              <option>Agent</option>
-              <option>问答</option>
-              <option>润色</option>
+            <select aria-label="AI 模式" value={mode} onChange={(e) => setMode(e.target.value as 'agent' | 'chat' | 'refine')}>
+              <option value="agent">Agent</option>
+              <option value="chat">问答</option>
+              <option value="refine">润色</option>
             </select>
           </label>
           <WorkbenchIconButton
