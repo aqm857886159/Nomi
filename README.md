@@ -64,6 +64,24 @@ Nomi Agent 可以和你一起拆剧本、建节点、写提示词、规划制作
 - 想快速接入自有模型供应商或私有模型网关的团队
 - 想要 Agent 辅助制作，但保留最终创作控制权的创作者
 
+## 关于作者
+
+<table>
+  <tr>
+    <td width="68%">
+      <strong>青阳</strong><br />
+      AI 产品经理 / 创作者 / 前期货交易员。<br /><br />
+      主要分享 AI 工具、赚钱路径和个人升级，关注如何帮普通人把 AI 变成效率、认知和收入。<br /><br />
+      目前在 AI 初创公司做产品，也提供社群交流和咨询。<br />
+      微信：<strong>TZ857886159</strong>
+    </td>
+    <td width="32%" align="center">
+      <img src="docs/media/qingyang-wechat.jpg" alt="青阳微信二维码" width="220" /><br />
+      <sub>扫码添加微信</sub>
+    </td>
+  </tr>
+</table>
+
 ## 快速启动
 
 环境要求：
