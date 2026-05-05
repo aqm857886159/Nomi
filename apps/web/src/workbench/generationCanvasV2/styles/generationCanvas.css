@@ -593,6 +593,10 @@
   -webkit-user-drag: none;
 }
 
+.generation-canvas-v2-node__media--video {
+  pointer-events: auto;
+}
+
 .generation-canvas-v2-node__empty {
   display: flex;
   width: 100%;

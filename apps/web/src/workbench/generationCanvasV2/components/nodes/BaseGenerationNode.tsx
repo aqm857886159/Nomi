@@ -118,7 +118,7 @@ export default function BaseGenerationNode({ node, selected }: BaseGenerationNod
   } | null>(null)
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement
-    if (target.closest('button, input, textarea, select')) return
+    if (target.closest('button, input, textarea, select, video')) return
     event.stopPropagation()
     if (typeof event.currentTarget.setPointerCapture === 'function') {
       event.currentTarget.setPointerCapture(event.pointerId)
@@ -373,10 +373,12 @@ export default function BaseGenerationNode({ node, selected }: BaseGenerationNod
               className="generation-canvas-v2-node__media generation-canvas-v2-node__media--video"
               src={buildVideoPlaybackUrl(node.result.url)}
               crossOrigin="use-credentials"
+              controls
               muted
               playsInline
               preload="metadata"
               draggable={false}
+              onPointerDown={(e) => e.stopPropagation()}
               onLoadedMetadata={(event) => {
                 updateMediaDimensions(event.currentTarget.videoWidth, event.currentTarget.videoHeight)
               }}
