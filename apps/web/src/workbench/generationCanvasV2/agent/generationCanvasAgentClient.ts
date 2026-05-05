@@ -8,6 +8,7 @@ type SendGenerationCanvasAgentMessageInput = {
   snapshot: GenerationCanvasSnapshot
   selectedNodes: GenerationCanvasNode[]
   mode?: 'agent' | 'chat' | 'refine'
+  onContent?: (delta: string, text: string) => void
 }
 
 export type GenerationCanvasAgentResponse = {
@@ -54,7 +55,7 @@ function buildGenerationCanvasAgentPrompt(input: SendGenerationCanvasAgentMessag
 export async function sendGenerationCanvasAgentMessage(
   input: SendGenerationCanvasAgentMessageInput,
 ): Promise<GenerationCanvasAgentResponse> {
-  const response = await sendWorkbenchAiMessage({
+  const request = {
     prompt: buildGenerationCanvasAgentPrompt(input),
     displayPrompt: input.message,
     sessionKey: 'nomi:generation:local',
@@ -63,8 +64,11 @@ export async function sendGenerationCanvasAgentMessage(
     projectName: '',
     skillKey: 'workbench.generation.canvas-planner',
     skillName: '生成区节点规划',
-    mode: 'auto',
-  })
+    mode: 'auto' as const,
+  }
+  const response = input.onContent
+    ? await sendWorkbenchAiMessage(request, { onContent: input.onContent })
+    : await sendWorkbenchAiMessage(request)
   return {
     response,
     plan: input.mode === 'chat' ? undefined : parseGenerationCanvasAgentPlan(response.text),

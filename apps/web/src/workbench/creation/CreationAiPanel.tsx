@@ -123,17 +123,26 @@ export default function CreationAiPanel(): JSX.Element {
     setSending(true)
     try {
       const projectId = readUrlParam('projectId')
-      const response = await sendWorkbenchAiMessage({
-        prompt,
-        displayPrompt,
-        sessionKey: `nomi:creation:${projectId || 'local'}:${activeMode.id}`,
-        projectId,
-        flowId: '',
-        projectName: '',
-        skillKey: `workbench.creation.${activeMode.id}`,
-        skillName: activeMode.title,
-        mode: 'auto',
-      })
+      const response = await sendWorkbenchAiMessage(
+        {
+          prompt,
+          displayPrompt,
+          sessionKey: `nomi:creation:${projectId || 'local'}:${activeMode.id}`,
+          projectId,
+          flowId: '',
+          projectName: '',
+          skillKey: `workbench.creation.${activeMode.id}`,
+          skillName: activeMode.title,
+          mode: 'auto',
+        },
+        {
+          onContent: (_delta, streamedText) => {
+            setMessages((prev) => prev.map((message) => (
+              message.id === pendingId ? { ...message, content: streamedText || '处理中...' } : message
+            )))
+          },
+        },
+      )
       const reply = readWorkbenchAiReplyText(response) || '（空响应：AI 没有返回文本）'
       const parsedAction = parseCreationDocumentAction(reply) ?? undefined
       const documentAction = parsedAction

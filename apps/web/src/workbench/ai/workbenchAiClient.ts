@@ -1,4 +1,9 @@
-import { workbenchAgentsChat, type AgentsChatResponseDto } from '../../api/server'
+import {
+  workbenchAgentsChat,
+  workbenchAgentsChatStream,
+  type AgentsChatResponseDto,
+  type AgentsChatStreamEvent,
+} from '../../api/server'
 
 export type WorkbenchAiRequest = {
   prompt: string
@@ -12,8 +17,13 @@ export type WorkbenchAiRequest = {
   mode?: 'chat' | 'auto'
 }
 
-export async function sendWorkbenchAiMessage(input: WorkbenchAiRequest): Promise<AgentsChatResponseDto> {
-  return workbenchAgentsChat({
+export type WorkbenchAiStreamHandlers = {
+  onContent?: (delta: string, text: string) => void
+  onEvent?: (event: AgentsChatStreamEvent) => void
+}
+
+function buildWorkbenchAiPayload(input: WorkbenchAiRequest) {
+  return {
     vendor: 'agents',
     prompt: input.prompt,
     displayPrompt: input.displayPrompt,
@@ -29,5 +39,55 @@ export async function sendWorkbenchAiMessage(input: WorkbenchAiRequest): Promise
     },
     mode: input.mode || 'auto',
     temperature: 0.7,
+  }
+}
+
+export async function sendWorkbenchAiMessage(
+  input: WorkbenchAiRequest,
+  handlers?: WorkbenchAiStreamHandlers,
+): Promise<AgentsChatResponseDto> {
+  const payload = buildWorkbenchAiPayload(input)
+  if (!handlers) {
+    return workbenchAgentsChat(payload)
+  }
+
+  let streamedText = ''
+  let finalResponse: AgentsChatResponseDto | null = null
+  let streamError: Error | null = null
+  let terminalReason: 'finished' | 'error' | '' = ''
+
+  await new Promise<void>((resolve, reject) => {
+    void workbenchAgentsChatStream(payload, {
+      onEvent: (event) => {
+        handlers.onEvent?.(event)
+        if (event.event === 'content') {
+          const delta = String(event.data.delta || '')
+          if (!delta) return
+          streamedText += delta
+          handlers.onContent?.(delta, streamedText)
+          return
+        }
+        if (event.event === 'result') {
+          finalResponse = event.data.response
+          return
+        }
+        if (event.event === 'error') {
+          const message = String(event.data.message || '').trim() || 'agents chat stream failed'
+          streamError = new Error(message)
+          reject(streamError)
+          return
+        }
+        if (event.event === 'done') {
+          terminalReason = event.data.reason
+          resolve()
+        }
+      },
+      onError: reject,
+    }).catch(reject)
   })
+
+  if (streamError) throw streamError
+  if (terminalReason === 'error') throw new Error('agents chat stream failed')
+  if (!finalResponse) throw new Error('agents chat stream ended without result')
+  return finalResponse
 }

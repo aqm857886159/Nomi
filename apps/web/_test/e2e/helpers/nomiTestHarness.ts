@@ -21,6 +21,27 @@ async function fulfillJson(route: Route, value: unknown, status = 200): Promise<
   await route.fulfill(jsonResponse(value, status))
 }
 
+function ssePayload(event: string, data: unknown): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
+}
+
+async function fulfillAgentsChat(route: Route, response: { id: string; vendor: string; text: string }): Promise<void> {
+  const body = route.request().postDataJSON() as { stream?: boolean } | null
+  if (body?.stream === true) {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: [
+        ssePayload('content', { delta: response.text }),
+        ssePayload('result', { response }),
+        ssePayload('done', { reason: 'finished' }),
+      ].join(''),
+    })
+    return
+  }
+  await fulfillJson(route, response)
+}
+
 function modelCatalogModels() {
   return [
     {
@@ -294,7 +315,7 @@ export async function mockWorkbenchAgent(page: Page): Promise<void> {
           edges: wantsRefine ? [] : [{ sourceClientId: 'n1', targetClientId: 'n2' }],
         })}</generation_canvas_plan>`
 
-    await fulfillJson(route, { id: 'e2e-agent-response', vendor: 'agents', text })
+    await fulfillAgentsChat(route, { id: 'e2e-agent-response', vendor: 'agents', text })
   })
 }
 

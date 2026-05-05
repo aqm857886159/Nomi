@@ -39,10 +39,15 @@ test.describe('P0 model catalog and explicit failure states', () => {
     await switchStep(page, '生成')
     const nodeCountBefore = await page.locator('.generation-canvas-v2-node').count()
     await page.route('**/workbench/agents/chat**', async (route) => {
+      const response = { id: 'bad-plan', vendor: 'agents', text: 'not json' }
       await route.fulfill({
         status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ id: 'bad-plan', vendor: 'agents', text: 'not json' }),
+        contentType: 'text/event-stream',
+        body: [
+          `event: content\ndata: ${JSON.stringify({ delta: response.text })}\n\n`,
+          `event: result\ndata: ${JSON.stringify({ response })}\n\n`,
+          'event: done\ndata: {"reason":"finished"}\n\n',
+        ].join(''),
       })
     })
 

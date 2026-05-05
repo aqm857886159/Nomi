@@ -1,7 +1,7 @@
 import React from 'react'
 import { Group, Stack, Text } from '@mantine/core'
 import { IconCheck, IconPlayerPlay, IconPlus, IconSend2 } from '@tabler/icons-react'
-import { agentsChat } from '../../../../api/server'
+import { agentsChatStream, type AgentsChatResponseDto } from '../../../../api/server'
 import { DesignAlert, DesignButton, DesignCheckbox, DesignTextarea, NomiAILabel, NomiLoadingMark, WorkbenchIconButton } from '../../../../design'
 import { AiReplyActionButton } from '../../../../workbench/ai/AiReplyActionButton'
 import { handleAiComposerKeyDown } from '../../../../workbench/ai/aiComposerKeyboard'
@@ -286,6 +286,64 @@ function summarizeDraft(pkg: ModelCatalogImportPackageDto): string {
   return `${vendorCount} 个供应商 · ${modelCount} 个模型 · ${mappingCount} 个调用配置`
 }
 
+async function runModelIntegrationAgent(input: {
+  userRequest: string
+  prompt: string
+  onContent: (text: string) => void
+}): Promise<AgentsChatResponseDto> {
+  let finalResponse: AgentsChatResponseDto | null = null
+  let streamError: Error | null = null
+  let terminalReason: 'finished' | 'error' | '' = ''
+  let streamedText = ''
+
+  await new Promise<void>((resolve, reject) => {
+    void agentsChatStream({
+      vendor: 'agents',
+      prompt: input.prompt,
+      displayPrompt: input.userRequest,
+      sessionKey: 'nomi:model-integration-agent',
+      chatContext: {
+        skill: {
+          key: 'tapcanvas.modelIntegration',
+          name: '模型接入 Agent',
+        },
+      },
+      mode: 'auto',
+      temperature: 0.1,
+    }, {
+      onEvent: (event) => {
+        if (event.event === 'content') {
+          const delta = String(event.data.delta || '')
+          if (!delta) return
+          streamedText += delta
+          input.onContent(streamedText)
+          return
+        }
+        if (event.event === 'result') {
+          finalResponse = event.data.response
+          return
+        }
+        if (event.event === 'error') {
+          const message = String(event.data.message || '').trim() || '模型接入 Agent 调用失败'
+          streamError = new Error(message)
+          reject(streamError)
+          return
+        }
+        if (event.event === 'done') {
+          terminalReason = event.data.reason
+          resolve()
+        }
+      },
+      onError: reject,
+    }).catch(reject)
+  })
+
+  if (streamError) throw streamError
+  if (terminalReason === 'error') throw new Error('模型接入 Agent 调用失败')
+  if (!finalResponse) throw new Error('模型接入 Agent 没有返回结果')
+  return finalResponse
+}
+
 export function ModelCatalogImportSection({
   setImportText,
   importSubmitting,
@@ -359,8 +417,8 @@ export function ModelCatalogImportSection({
             }
           }))
         : []
-      const response = await agentsChat({
-        vendor: 'agents',
+      const response = await runModelIntegrationAgent({
+        userRequest,
         prompt: createAgentPrompt({
           userRequest,
           docsUrl: urls.join('\n'),
@@ -368,16 +426,11 @@ export function ModelCatalogImportSection({
           knownBaseUrl: '',
           knownModelIds: '',
         }),
-        displayPrompt: userRequest,
-        sessionKey: 'nomi:model-integration-agent',
-        chatContext: {
-          skill: {
-            key: 'tapcanvas.modelIntegration',
-            name: '模型接入 Agent',
-          },
+        onContent: (streamedText) => {
+          setMessages((current) => current.map((item) => (
+            item.id === assistantPendingId ? { ...item, content: streamedText || '处理中...' } : item
+          )))
         },
-        mode: 'auto',
-        temperature: 0.1,
       })
       const agentResult = parseAgentResponse(String(response.text || ''))
       if (agentResult.kind === 'message') {

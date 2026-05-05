@@ -49,19 +49,38 @@ export default function CanvasAssistantPanel({
     setMessages((current) => [...current, { id: createMessageId(), ...message }])
   }, [setMessages])
 
+  const updateMessage = React.useCallback((id: string, content: string) => {
+    setMessages((current) => current.map((message) => (
+      message.id === id ? { ...message, content } : message
+    )))
+  }, [setMessages])
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const text = draft.trim()
     if (!text || busy) return
     setDraft('')
     appendMessage({ role: 'user', content: text })
+    const assistantMessageId = createMessageId()
+    setMessages((current) => [
+      ...current,
+      { id: assistantMessageId, role: 'assistant', content: '处理中...' },
+    ])
     setBusy(true)
     void (async () => {
       try {
-        const result = await sendGenerationCanvasAgentMessage({ message: text, snapshot, selectedNodes, mode })
+        const result = await sendGenerationCanvasAgentMessage({
+          message: text,
+          snapshot,
+          selectedNodes,
+          mode,
+          onContent: (_delta, streamedText) => {
+            if (mode === 'chat') updateMessage(assistantMessageId, streamedText || '处理中...')
+          },
+        })
 
         if (mode === 'chat') {
-          appendMessage({ role: 'assistant', content: result.response.text || '已回答。' })
+          updateMessage(assistantMessageId, result.response.text || '已回答。')
           return
         }
 
@@ -71,11 +90,11 @@ export default function CanvasAssistantPanel({
             const firstNode = plan.nodes[0]
             if (firstNode?.prompt) {
               generationCanvasTools.update_node_prompt(selectedNodes[0].id, firstNode.prompt)
-              appendMessage({ role: 'assistant', content: '已更新选中节点的提示词。' })
+              updateMessage(assistantMessageId, '已更新选中节点的提示词。')
               return
             }
           }
-          appendMessage({ role: 'assistant', content: result.response.text || '润色完成。' })
+          updateMessage(assistantMessageId, result.response.text || '润色完成。')
           return
         }
 
@@ -86,15 +105,15 @@ export default function CanvasAssistantPanel({
         const createdNodes = generationCanvasTools.create_nodes(nodeInputs)
         const edges = buildPlannedEdges(result.plan, createdNodes.map((node) => node.id))
         if (edges.length > 0) generationCanvasTools.connect_nodes(edges)
-        appendMessage({
-          role: 'assistant',
-          content: `已创建 ${createdNodes.length} 个待确认节点${edges.length > 0 ? `，并连接 ${edges.length} 条关系` : ''}。你可以先检查提示词，再点击节点上的生成按钮。`,
-        })
+        updateMessage(
+          assistantMessageId,
+          `已创建 ${createdNodes.length} 个待确认节点${edges.length > 0 ? `，并连接 ${edges.length} 条关系` : ''}。你可以先检查提示词，再点击节点上的生成按钮。`,
+        )
       } catch (error: unknown) {
-        appendMessage({
-          role: 'assistant',
-          content: `生成区 Agent 执行失败：${error instanceof Error && error.message ? error.message : '未知错误'}`,
-        })
+        updateMessage(
+          assistantMessageId,
+          `生成区 Agent 执行失败：${error instanceof Error && error.message ? error.message : '未知错误'}`,
+        )
       } finally {
         setBusy(false)
       }

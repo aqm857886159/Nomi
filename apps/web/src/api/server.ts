@@ -778,8 +778,32 @@ export async function agentsChatStream(
     onError?: (error: Error) => void
   },
 ): Promise<() => void> {
+  return openAgentsChatStream(resolveAgentsChatEndpoint(payload), payload, handlers, withAgentsChatAuth)
+}
+
+export async function workbenchAgentsChatStream(
+  payload: AgentsChatRequestDto,
+  handlers: {
+    onEvent: (event: AgentsChatStreamEvent) => void
+    onOpen?: () => void
+    onError?: (error: Error) => void
+  },
+): Promise<() => void> {
+  return openAgentsChatStream(`${API_BASE}/workbench/agents/chat`, payload, handlers, withAuth)
+}
+
+async function openAgentsChatStream(
+  endpoint: string,
+  payload: AgentsChatRequestDto,
+  handlers: {
+    onEvent: (event: AgentsChatStreamEvent) => void
+    onOpen?: () => void
+    onError?: (error: Error) => void
+  },
+  withRequestAuth: (init?: RequestInit) => RequestInit,
+): Promise<() => void> {
   const controller = new AbortController()
-  const response = await apiFetch(resolveAgentsChatEndpoint(payload), withAgentsChatAuth({
+  const response = await apiFetch(endpoint, withRequestAuth({
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
