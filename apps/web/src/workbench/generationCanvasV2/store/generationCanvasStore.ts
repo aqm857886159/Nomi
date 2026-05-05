@@ -131,11 +131,8 @@ const seedNodes = [
   }),
 ]
 
-let nodeCounter = 3
-
 function createNodeId(kind: GenerationNodeKind): string {
-  nodeCounter += 1
-  return `gen-v2-${kind}-${nodeCounter}`
+  return `gen-v2-${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
 }
 
 function createRunId(nodeId: string): string {

@@ -118,7 +118,8 @@ export default function BaseGenerationNode({ node, selected }: BaseGenerationNod
   } | null>(null)
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement
-    if (target.closest('button, input, textarea, select, video')) return
+    if (target.closest('button, input, textarea, select')) return
+    if ((target as HTMLElement).tagName === 'VIDEO') return
     event.stopPropagation()
     if (typeof event.currentTarget.setPointerCapture === 'function') {
       event.currentTarget.setPointerCapture(event.pointerId)
