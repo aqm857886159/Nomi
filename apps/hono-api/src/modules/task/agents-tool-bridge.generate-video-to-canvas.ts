@@ -16,7 +16,9 @@ import {
   updateFlowByIdUnsafe,
   type FlowRow,
 } from "../flow/flow.repo";
-import { runPublicTask } from "../apiKey/apiKey.routes";
+// lazy require to break circular dependency with apiKey.routes
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const runPublicTask: (...args: any[]) => any = (...args) => (require("../apiKey/apiKey.routes") as any).runPublicTask(...args);
 import { fetchTaskResultForPolling } from "./task.polling";
 import type { TaskRequestDto, TaskResultDto } from "./task.schemas";
 

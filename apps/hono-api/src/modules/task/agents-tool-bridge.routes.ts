@@ -63,7 +63,8 @@ import {
   selectStoryboardPlanReadResult,
 } from "./agents-tool-bridge.storyboard-plan";
 
-const AgentsToolExecuteRequestSchema = z.object({
+// eslint-disable-next-line no-var
+var AgentsToolExecuteRequestSchema = z.object({
   toolName: z.enum([
     "tapcanvas_project_flows_list",
     "tapcanvas_project_context_get",
@@ -93,7 +94,8 @@ const AgentsToolExecuteRequestSchema = z.object({
   canvasNodeId: z.string().min(1).optional(),
 });
 
-const AgentsToolExecuteResponseSchema = z.object({
+// eslint-disable-next-line no-var
+var AgentsToolExecuteResponseSchema = z.object({
   ok: z.literal(true),
   content: z.string(),
   data: z.record(z.string(), z.unknown()).optional(),
@@ -270,33 +272,32 @@ function resolveProjectOwnerUserId(input: {
   return ownerId;
 }
 
-const PublicAgentsToolExecuteRoute = createRoute({
-  method: "post",
-  path: "/agents/tools/execute",
-  tags: ["Public API"],
-  summary: "Execute project-scoped agents bridge tools",
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: AgentsToolExecuteRequestSchema,
-        },
-      },
-    },
-  },
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: AgentsToolExecuteResponseSchema,
-        },
-      },
-      description: "OK",
-    },
-  },
-});
-
 export function registerPublicAgentsToolBridgeRoutes(publicApiRouter: OpenAPIHono<AppEnv>) {
+  const PublicAgentsToolExecuteRoute = createRoute({
+    method: "post",
+    path: "/agents/tools/execute",
+    tags: ["Public API"],
+    summary: "Execute project-scoped agents bridge tools",
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: AgentsToolExecuteRequestSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: AgentsToolExecuteResponseSchema,
+          },
+        },
+        description: "OK",
+      },
+    },
+  });
   publicApiRouter.openapi(PublicAgentsToolExecuteRoute, async (c) => {
     const requestUserId = requireUserId(c);
     const devBypass = isDevBypassEnabled(c);
