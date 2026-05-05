@@ -7,11 +7,12 @@ type SendGenerationCanvasAgentMessageInput = {
   message: string
   snapshot: GenerationCanvasSnapshot
   selectedNodes: GenerationCanvasNode[]
+  mode?: 'agent' | 'chat' | 'refine'
 }
 
 export type GenerationCanvasAgentResponse = {
   response: AgentsChatResponseDto
-  plan: ReturnType<typeof parseGenerationCanvasAgentPlan>
+  plan?: ReturnType<typeof parseGenerationCanvasAgentPlan>
 }
 
 function stringifyForPrompt(value: unknown): string {
@@ -19,8 +20,16 @@ function stringifyForPrompt(value: unknown): string {
 }
 
 function buildGenerationCanvasAgentPrompt(input: SendGenerationCanvasAgentMessageInput): string {
+  const modeInstruction = input.mode === 'chat'
+    ? '当前模式：问答。只回答用户问题，不要输出 generation_canvas_plan，不要创建节点。'
+    : input.mode === 'refine'
+      ? '当前模式：润色。只改写选中节点的提示词，输出 generation_canvas_plan 时只包含一个节点（对应选中节点），不要创建新节点。'
+      : '当前模式：Agent。规划并创建待确认的画布节点。'
+
   return [
     '你是 Nomi 生成区右侧的 Nomi 生成 Agent。',
+    '',
+    modeInstruction,
     '',
     '硬约束：',
     '- 你只能规划并创建待确认的画布节点，禁止直接生成图片、视频或调用任何真实生成工具。',
@@ -58,6 +67,6 @@ export async function sendGenerationCanvasAgentMessage(
   })
   return {
     response,
-    plan: parseGenerationCanvasAgentPlan(response.text),
+    plan: input.mode === 'chat' ? undefined : parseGenerationCanvasAgentPlan(response.text),
   }
 }

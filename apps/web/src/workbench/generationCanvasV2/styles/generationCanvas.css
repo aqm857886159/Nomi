@@ -1276,8 +1276,31 @@
 .generation-canvas-v2-assistant__composer-row {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 12px;
+}
+
+.generation-canvas-v2-assistant__mode {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.generation-canvas-v2-assistant__mode span {
+  color: var(--nomi-ink-40);
+  font-size: 11.5px;
+}
+
+.generation-canvas-v2-assistant__mode select {
+  height: 25px;
+  padding: 3px 6px;
+  border: 1px solid var(--nomi-line-soft);
+  border-radius: var(--nomi-radius-sm);
+  outline: 0;
+  background: var(--nomi-ink-05);
+  color: var(--nomi-ink-80);
+  font: inherit;
+  font-size: 12px;
 }
 
 .generation-canvas-v2-assistant__send {

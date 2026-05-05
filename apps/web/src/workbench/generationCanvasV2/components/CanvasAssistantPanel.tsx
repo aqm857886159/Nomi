@@ -28,6 +28,7 @@ export default function CanvasAssistantPanel({
   const snapshot = React.useMemo(() => generationCanvasTools.read_canvas(), [nodes, edges, selectedNodeIds])
   const selectedNodes = React.useMemo(() => generationCanvasTools.read_selected_nodes(), [nodes, selectedNodeIds])
   const [busy, setBusy] = React.useState(false)
+  const [mode, setMode] = React.useState<'agent' | 'chat' | 'refine'>('agent')
   const draft = useGenerationCanvasStore((state) => state.generationAiDraft)
   const messages = useGenerationCanvasStore((state) => state.generationAiMessages)
   const collapsed = useGenerationCanvasStore((state) => state.generationAiCollapsed)
@@ -57,7 +58,30 @@ export default function CanvasAssistantPanel({
     setBusy(true)
     void (async () => {
       try {
-        const result = await sendGenerationCanvasAgentMessage({ message: text, snapshot, selectedNodes })
+        const result = await sendGenerationCanvasAgentMessage({ message: text, snapshot, selectedNodes, mode })
+
+        if (mode === 'chat') {
+          appendMessage({ role: 'assistant', content: result.response.text || '已回答。' })
+          return
+        }
+
+        if (mode === 'refine') {
+          const plan = result.plan
+          if (plan?.nodes.length && selectedNodes.length > 0) {
+            const firstNode = plan.nodes[0]
+            if (firstNode?.prompt) {
+              generationCanvasTools.update_node_prompt(selectedNodes[0].id, firstNode.prompt)
+              appendMessage({ role: 'assistant', content: '已更新选中节点的提示词。' })
+              return
+            }
+          }
+          appendMessage({ role: 'assistant', content: result.response.text || '润色完成。' })
+          return
+        }
+
+        if (!result.plan) {
+          throw new Error('生成区 Agent 没有返回节点计划。')
+        }
         const nodeInputs = toCreateNodeInputs(result.plan)
         const createdNodes = generationCanvasTools.create_nodes(nodeInputs)
         const edges = buildPlannedEdges(result.plan, createdNodes.map((node) => node.id))
@@ -162,6 +186,18 @@ export default function CanvasAssistantPanel({
           disabled={busy}
         />
         <div className="generation-canvas-v2-assistant__composer-row">
+          <label className="generation-canvas-v2-assistant__mode">
+            <span>模式</span>
+            <select
+              aria-label="AI 模式"
+              value={mode}
+              onChange={(event) => setMode(event.currentTarget.value as 'agent' | 'chat' | 'refine')}
+            >
+              <option value="agent">Agent</option>
+              <option value="chat">问答</option>
+              <option value="refine">润色</option>
+            </select>
+          </label>
           <WorkbenchIconButton
             type="submit"
             className="generation-canvas-v2-assistant__send"
