@@ -71,21 +71,53 @@ Nomi Agent 可以和你一起拆剧本、建节点、写提示词、规划制作
 - Node.js 20+
 - pnpm 10+
 - PostgreSQL 16+
+- Redis 7+
+
+macOS 安装依赖：
+
+```bash
+brew install postgresql@16 redis
+brew services start postgresql@16
+brew services start redis
+psql postgres -c "CREATE DATABASE nomi_dev;"
+```
+
+安装项目：
 
 ```bash
 git clone https://github.com/aqm857886159/Nomi.git
 cd Nomi
-pnpm -w install
-cp apps/web/.env.example apps/web/.env
+pnpm install
 cp apps/hono-api/.env.example apps/hono-api/.env
 cp apps/agents-cli/agents.config.example.json apps/agents-cli/agents.config.json
 ```
 
-启动开发环境：
+配置 `apps/hono-api/.env`（填入你的 PostgreSQL 连接串）：
+
+```env
+DATABASE_URL=postgresql://YOUR_USER@localhost:5432/nomi_dev
+JWT_SECRET=any-random-string
+REDIS_URL=redis://localhost:6379
+TAPCANVAS_DEV_PUBLIC_BYPASS=true
+```
+
+配置 `apps/agents-cli/agents.config.json`（填入你的 LLM API Key）：
+
+```json
+{
+  "apiBaseUrl": "https://api.openai.com/v1",
+  "apiKey": "your-api-key",
+  "model": "gpt-4o"
+}
+```
+
+启动开发环境（两个终端）：
 
 ```bash
-pnpm dev:agents
+# 终端 1 — API + Agents（自动拉起）
 pnpm dev:api
+
+# 终端 2 — Web
 pnpm dev:web
 ```
 
@@ -93,7 +125,7 @@ pnpm dev:web
 
 - Web: http://localhost:5173
 - API: http://localhost:8788
-- Agents Bridge: http://localhost:8799
+- Agents Bridge: http://localhost:8799（由 API 自动启动）
 
 更多步骤见 [docs/quickstart.md](docs/quickstart.md)。
 
