@@ -26,6 +26,7 @@ import { BackgroundTaskManager } from "../core/background/manager.js";
 import { TerminalSessionManager } from "../core/terminal/session-manager.js";
 import { SkillLoader } from "../core/skills/loader.js";
 import { createSkillTool } from "../core/tools/skill.js";
+import { skillInstallTool } from "../core/tools/skill-install.js";
 import {
   modelCatalogFetchDocsTool,
   modelCatalogImportTool,
@@ -216,6 +217,7 @@ export function createAssistantRuntime(input: CreateAssistantRuntimeInput): Assi
   registry.register(modelCatalogHealthTool);
   registry.register(modelCatalogTestMappingTool);
   registry.register(modelCatalogListMappingsTool);
+  registry.register(skillInstallTool);
 
   if (profile !== "general") {
     registry.register(createSpawnAgentTool());
@@ -283,6 +285,7 @@ export function createAssistantRuntime(input: CreateAssistantRuntimeInput): Assi
     registeredToolNames,
     registeredTeamToolNames,
     capabilityGrant,
+    skillLoader: skills,
     ...(extraMeta ?? {}),
   });
 

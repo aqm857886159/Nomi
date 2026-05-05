@@ -13,6 +13,7 @@ import type {
 } from "../types/index.js";
 import { loadSessionMessages, saveSessionMessages } from "../core/memory/session.js";
 import path from "node:path";
+import fs from "node:fs/promises";
 import { createClient } from "redis";
 import type { CollabAgentManager } from "../core/tools/collab.js";
 import type { RemoteToolDefinition } from "../types/index.js";
@@ -1884,6 +1885,28 @@ export function startAgentsHttpServer(
 
       if (method === "GET" && pathname === "/health") {
         return json(res, 200, { ok: true });
+      }
+
+      if (method === "GET" && pathname === "/skills") {
+        const skillLoader = input.toolContextMeta?.skillLoader as { listSkillSummaries?: () => unknown[] } | undefined;
+        const skills = skillLoader?.listSkillSummaries?.() ?? [];
+        return json(res, 200, { skills });
+      }
+
+      if (method === "POST" && pathname === "/skills/install") {
+        const body = (await readJsonBody(req)) as { name: string; description: string; content: string };
+        const name = typeof body?.name === "string" ? body.name.trim() : "";
+        const description = typeof body?.description === "string" ? body.description.trim() : "";
+        const content = typeof body?.content === "string" ? body.content.trim() : "";
+        if (!name || !description || !content) return badRequest(res, "name, description, content are required");
+        if (!/^[a-zA-Z0-9._-]+$/.test(name)) return badRequest(res, "name must be alphanumeric with dots, dashes, underscores");
+        const skillDir = path.join(process.env.HOME || "~", ".agents", "skills", name);
+        await fs.mkdir(skillDir, { recursive: true });
+        const skillMd = `---\nname: ${name}\ndescription: ${description}\n---\n\n${content}`;
+        await fs.writeFile(path.join(skillDir, "SKILL.md"), skillMd, "utf-8");
+        const skillLoader = input.toolContextMeta?.skillLoader as { reloadSkills?: () => void } | undefined;
+        skillLoader?.reloadSkills?.();
+        return json(res, 200, { ok: true, name, path: skillDir });
       }
 
       if (!requireAuth(req)) {
