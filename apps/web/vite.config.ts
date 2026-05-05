@@ -2,8 +2,6 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
-const imagePromptSpecEntry = resolve(__dirname, '../../packages/schemas/image-prompt-spec/index.js');
-
 function createManualChunks(id: string): string | undefined {
   if (
     id.includes('/node_modules/prosemirror-') ||
@@ -85,24 +83,20 @@ export default defineConfig(({ command, mode }) => {
 
 	  return {
 	    plugins: [react()],
-	    resolve: {
-	      alias: {
-	        '@tapcanvas/canvas-plan-protocol': resolve(__dirname, '../hono-api/src/modules/apiKey/canvasPlanProtocol.ts'),
-	        '@tapcanvas/flow-anchor-bindings': resolve(__dirname, '../hono-api/src/modules/flow/flow.anchor-bindings.ts'),
-	        '@tapcanvas/storyboard-selection-protocol': resolve(__dirname, '../hono-api/src/modules/storyboard/storyboardSelectionProtocol.ts'),
-	        '@tapcanvas/image-prompt-spec': imagePromptSpecEntry,
-	        '@tapcanvas/image-view-controls': resolve(__dirname, '../../packages/schemas/image-view-controls/index.mjs'),
-	      },
-	    },
 	    optimizeDeps: {
-	      include: ['@tapcanvas/image-prompt-spec', '@tapcanvas/image-view-controls'],
+	      include: [
+	        '@tapcanvas/canvas-plan-protocol',
+	        '@tapcanvas/flow-anchor-bindings',
+	        '@tapcanvas/image-prompt-spec',
+	        '@tapcanvas/image-view-controls',
+	        '@tapcanvas/storyboard-selection-protocol',
+	      ],
 	    },
 	    server: {
 	      port: 5173,
 	      host: true,
 	      fs: {
-	        // Allow importing protocol/schema from `apps/hono-api` (single source of truth).
-	        allow: [resolve(__dirname, '..'), resolve(__dirname, '../hono-api/src'), resolve(__dirname, '../../packages')],
+	        allow: [resolve(__dirname, '..'), resolve(__dirname, '../../packages')],
 	      },
 	      proxy: {
 	        '/api': {

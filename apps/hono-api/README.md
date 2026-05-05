@@ -31,7 +31,11 @@ Agents Bridge 的公开边界集中在 `src/modules/agents-bridge/index.ts`。AP
 - `handlePublicAgentsChatRoute`
 - `registerPublicAgentsToolBridgeRoutes`
 
+Agents Bridge 的本地运行时配置集中在 `src/modules/agents-bridge/agents-bridge.env.ts`。这里只处理可验证的环境变量、超时、并发、on-demand 启动与 Node fetch dispatcher，不承载 prompt、语义路由或工作流分支。
+
 Agents Bridge 的请求/响应契约来自共享 workspace 包 `@nomi/agents-bridge-contract`，避免 `hono-api` 与 `agents-cli` 继续通过相对路径或复制类型通信。
+
+Canvas plan、flow anchor binding、storyboard selection、generation contract、image prompt spec 与 image view controls 这类跨 Web/API/agents-cli 的协议均来自 `packages/schemas/*` 下的 workspace packages。Web 不直接引用 `apps/hono-api/src`，API 也不把内部模块当作共享协议源；协议变更必须先落在共享包，再由各端按包名引用。
 
 `/public/chat` 与 workbench 相关对话链路应保持同一原则：API 汇集真实上下文和可验证约束，调用 agents / agents-cli 做语义判断与任务执行，最后依据真实 trace、tool calls、节点状态和资产 URL 形成交付证据。不得在 `hono-api` 新增关键词、正则、固定 route 或 case-specific completion patch 来替代 agents 的语义决策。
 

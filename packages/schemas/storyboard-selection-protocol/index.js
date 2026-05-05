@@ -1,10 +1,12 @@
-import { z } from "zod";
+"use strict";
 
-export const STORYBOARD_SELECTION_PROTOCOL_VERSION = 1 as const;
+const { z } = require("zod");
 
-export const storyboardSelectionScopeSchema = z.enum(["chunk", "frame"]);
+const STORYBOARD_SELECTION_PROTOCOL_VERSION = 1;
 
-export const storyboardReferenceBindingKindSchema = z.enum([
+const storyboardSelectionScopeSchema = z.enum(["chunk", "frame"]);
+
+const storyboardReferenceBindingKindSchema = z.enum([
 	"continuity_tail",
 	"role",
 	"reference",
@@ -12,7 +14,7 @@ export const storyboardReferenceBindingKindSchema = z.enum([
 	"spell_fx",
 ]);
 
-export const storyboardReferenceBindingSchema = z
+const storyboardReferenceBindingSchema = z
 	.object({
 		kind: storyboardReferenceBindingKindSchema,
 		refId: z.string().min(1).max(200).optional(),
@@ -28,7 +30,7 @@ const storyboardGroupSizeSchema = z.union([
 	z.literal(25),
 ]);
 
-export const storyboardSelectionContextSchema = z
+const storyboardSelectionContextSchema = z
 	.object({
 		version: z.literal(STORYBOARD_SELECTION_PROTOCOL_VERSION),
 		scope: storyboardSelectionScopeSchema,
@@ -54,24 +56,15 @@ export const storyboardSelectionContextSchema = z
 	})
 	.strict();
 
-export type StoryboardSelectionScope = z.infer<typeof storyboardSelectionScopeSchema>;
-export type StoryboardReferenceBindingKind = z.infer<typeof storyboardReferenceBindingKindSchema>;
-export type StoryboardReferenceBinding = z.infer<typeof storyboardReferenceBindingSchema>;
-export type StoryboardSelectionContext = z.infer<typeof storyboardSelectionContextSchema>;
-
-export function normalizeStoryboardReferenceBinding(
-	input: unknown,
-): StoryboardReferenceBinding | null {
+function normalizeStoryboardReferenceBinding(input) {
 	const parsed = storyboardReferenceBindingSchema.safeParse(input);
 	return parsed.success ? parsed.data : null;
 }
 
-export function normalizeStoryboardReferenceBindings(
-	input: unknown,
-): StoryboardReferenceBinding[] {
+function normalizeStoryboardReferenceBindings(input) {
 	if (!Array.isArray(input)) return [];
-	const seen = new Set<string>();
-	const normalized: StoryboardReferenceBinding[] = [];
+	const seen = new Set();
+	const normalized = [];
 	for (const item of input) {
 		const parsed = normalizeStoryboardReferenceBinding(item);
 		if (!parsed) continue;
@@ -89,11 +82,9 @@ export function normalizeStoryboardReferenceBindings(
 	return normalized;
 }
 
-export function normalizeStoryboardSelectionContext(
-	input: unknown,
-): StoryboardSelectionContext | null {
+function normalizeStoryboardSelectionContext(input) {
 	if (!input || typeof input !== "object" || Array.isArray(input)) return null;
-	const value = input as Record<string, unknown>;
+	const value = input;
 	const parsed = storyboardSelectionContextSchema.safeParse({
 		...value,
 		referenceBindings: normalizeStoryboardReferenceBindings(value.referenceBindings),
@@ -101,12 +92,10 @@ export function normalizeStoryboardSelectionContext(
 	return parsed.success ? parsed.data : null;
 }
 
-export function collectStoryboardSelectionReferenceImageUrls(
-	context: StoryboardSelectionContext | null | undefined,
-): string[] {
+function collectStoryboardSelectionReferenceImageUrls(context) {
 	if (!context) return [];
-	const urls: string[] = [];
-	const seen = new Set<string>();
+	const urls = [];
+	const seen = new Set();
 	for (const binding of context.referenceBindings || []) {
 		const imageUrl = String(binding.imageUrl || "").trim();
 		if (!imageUrl || seen.has(imageUrl)) continue;
@@ -116,3 +105,15 @@ export function collectStoryboardSelectionReferenceImageUrls(
 	}
 	return urls;
 }
+
+module.exports = {
+	STORYBOARD_SELECTION_PROTOCOL_VERSION,
+	storyboardSelectionScopeSchema,
+	storyboardReferenceBindingKindSchema,
+	storyboardReferenceBindingSchema,
+	storyboardSelectionContextSchema,
+	normalizeStoryboardReferenceBinding,
+	normalizeStoryboardReferenceBindings,
+	normalizeStoryboardSelectionContext,
+	collectStoryboardSelectionReferenceImageUrls,
+};

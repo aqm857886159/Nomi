@@ -20,7 +20,7 @@ import {
   formatGenerationContractPromptLines,
   parseGenerationContract,
   type GenerationContract,
-} from "../contracts/generation-contract.js";
+} from "@tapcanvas/generation-contract";
 import type { RuntimeRunEvent } from "../runtime/events.js";
 import { createRuntimeChannelMeta } from "../runtime/channel.js";
 import { parseRuntimeTodoUpdate } from "../runtime/todo-events.js";

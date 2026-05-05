@@ -1,6 +1,6 @@
-import type { StoryboardSelectionContext } from "../storyboard/storyboardSelectionProtocol";
+import type { StoryboardSelectionContext } from "@tapcanvas/storyboard-selection-protocol";
 import type { PublicChatEnabledModelCatalogSummary } from "../model-catalog/model-catalog.public-chat-summary";
-import type { PublicFlowAnchorBinding } from "../flow/flow.anchor-bindings";
+import type { PublicFlowAnchorBinding } from "@tapcanvas/flow-anchor-bindings";
 
 export type ChatPromptSkill = {
 	key: string | null;

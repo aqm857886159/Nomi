@@ -1,0 +1,17 @@
+{
+  "name": "@tapcanvas/canvas-plan-protocol",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "require": "./index.js",
+      "default": "./index.js"
+    }
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  }
+}

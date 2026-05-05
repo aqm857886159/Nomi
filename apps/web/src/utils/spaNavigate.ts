@@ -10,17 +10,6 @@ export function spaNavigate(to: string) {
   }
 }
 
-export function spaReplace(to: string) {
-  if (typeof window === 'undefined') return
-  const next = String(to || '').trim() || '/'
-  try {
-    window.history.replaceState({}, '', next)
-    window.dispatchEvent(new PopStateEvent('popstate'))
-  } catch {
-    window.location.replace(next)
-  }
-}
-
 export function navigateBackOr(to: string) {
   if (typeof window === 'undefined') return
   if (window.history.length > 1) {

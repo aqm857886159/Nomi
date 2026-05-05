@@ -1,4 +1,4 @@
-import type { StoryboardSelectionContext } from "../storyboard/storyboardSelectionProtocol";
+import type { StoryboardSelectionContext } from "@tapcanvas/storyboard-selection-protocol";
 import type { PublicChatEnabledModelCatalogSummary } from "../model-catalog/model-catalog.public-chat-summary";
 import type { PublicChatPromptContext, PublicChatReferenceImageSlot } from "./chat-prompt.types";
 

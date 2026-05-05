@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
 	PUBLIC_FLOW_ANCHOR_BINDING_KINDS,
 	PUBLIC_FLOW_ANCHOR_REFERENCE_VIEWS,
-} from "./flow.anchor-bindings";
+} from "@tapcanvas/flow-anchor-bindings";
 
 function toArray(value: unknown): unknown[] | undefined {
 	if (typeof value === "undefined") return undefined;

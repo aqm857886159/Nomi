@@ -5,28 +5,6 @@ export const GITHUB_OAUTH_CALLBACK_PATH = '/oauth/github'
 export type StudioOwnerType = 'project' | 'chapter' | 'shot'
 export type StudioPanel = 'nanoComic'
 
-export function isStudioRoute(pathname?: string): boolean {
-  const path =
-    typeof pathname === 'string'
-      ? pathname
-      : typeof window !== 'undefined'
-        ? window.location.pathname || ''
-        : ''
-
-  return path === STUDIO_PATH || path.startsWith(`${STUDIO_PATH}/`)
-}
-
-export function isGithubOauthCallbackRoute(pathname?: string): boolean {
-  const path =
-    typeof pathname === 'string'
-      ? pathname
-      : typeof window !== 'undefined'
-        ? window.location.pathname || ''
-        : ''
-
-  return path === GITHUB_OAUTH_CALLBACK_PATH
-}
-
 export function buildStudioUrl(input?: string | null | {
   projectId?: string | null
   ownerType?: StudioOwnerType | null

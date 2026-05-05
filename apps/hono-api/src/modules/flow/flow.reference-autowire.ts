@@ -4,7 +4,7 @@ import {
 	getPublicFlowNodeHandles,
 	getPublicFlowTaskNodeCoreType,
 } from "./flow.node-protocol";
-import { collectPublicFlowAnchorBindingImageUrls } from "./flow.anchor-bindings";
+import { collectPublicFlowAnchorBindingImageUrls } from "@tapcanvas/flow-anchor-bindings";
 
 type NodeLike = Record<string, unknown> & {
 	id?: unknown;

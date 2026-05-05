@@ -23,3 +23,13 @@ export const IMAGE_PROMPT_SPEC_MAX_TEXT_LENGTH: number;
 
 export function parseImagePromptSpecV2(input: unknown): ImagePromptSpecV2ParseResult;
 export function compileImagePromptSpecV2(spec: ImagePromptSpecV2 | null): string;
+
+declare const imagePromptSpecModule: {
+  IMAGE_PROMPT_SPEC_V2_VERSION: "v2";
+  IMAGE_PROMPT_SPEC_MAX_LIST_ITEMS: number;
+  IMAGE_PROMPT_SPEC_MAX_TEXT_LENGTH: number;
+  parseImagePromptSpecV2: (input: unknown) => ImagePromptSpecV2ParseResult;
+  compileImagePromptSpecV2: (spec: ImagePromptSpecV2 | null) => string;
+};
+
+export default imagePromptSpecModule;

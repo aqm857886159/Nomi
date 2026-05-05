@@ -1,6 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
-
 import { AppError } from "../../middleware/error";
 
 export type GenerationContract = {
@@ -61,34 +58,30 @@ type ImageViewControlsModule = {
 	) => string;
 };
 
-function requireSharedSchemaModule<TModule>(moduleRelativePath: string): TModule {
-	const candidatePaths = [
-		path.resolve(process.cwd(), "../../packages/schemas", moduleRelativePath),
-		path.resolve(process.cwd(), "../packages/schemas", moduleRelativePath),
-	];
-	const matchedPath = candidatePaths.find((candidatePath) => fs.existsSync(candidatePath));
-	if (!matchedPath) {
+function requireSharedSchemaModule<TModule>(packageName: string): TModule {
+	try {
+		return require(packageName) as TModule;
+	} catch (error) {
 		throw new AppError("Failed to resolve shared schema module", {
 			status: 500,
 			code: "SHARED_SCHEMA_MODULE_NOT_FOUND",
 			details: {
-				moduleRelativePath,
+				packageName,
 				cwd: process.cwd(),
-				candidatePaths,
+				message: error instanceof Error ? error.message : String(error),
 			},
 		});
 	}
-	return require(matchedPath) as TModule;
 }
 
 export function loadGenerationContractModule(): GenerationContractModule {
-	return requireSharedSchemaModule<GenerationContractModule>("generation-contract/index.js");
+	return requireSharedSchemaModule<GenerationContractModule>("@tapcanvas/generation-contract");
 }
 
 export function loadImagePromptSpecModule(): ImagePromptSpecModule {
-	return requireSharedSchemaModule<ImagePromptSpecModule>("image-prompt-spec/index.js");
+	return requireSharedSchemaModule<ImagePromptSpecModule>("@tapcanvas/image-prompt-spec");
 }
 
 export function loadImageViewControlsModule(): ImageViewControlsModule {
-	return requireSharedSchemaModule<ImageViewControlsModule>("image-view-controls/index.js");
+	return requireSharedSchemaModule<ImageViewControlsModule>("@tapcanvas/image-view-controls");
 }

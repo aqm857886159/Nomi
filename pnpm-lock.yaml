@@ -10,6 +10,9 @@ importers:
 
   apps/agents-cli:
     dependencies:
+      '@tapcanvas/generation-contract':
+        specifier: workspace:*
+        version: link:../../packages/schemas/generation-contract
       commander:
         specifier: ^12.1.0
         version: 12.1.0
@@ -71,6 +74,24 @@ importers:
       '@prisma/client':
         specifier: ^6.12.0
         version: 6.19.3(prisma@6.19.3(magicast@0.3.5)(typescript@5.9.3))(typescript@5.9.3)
+      '@tapcanvas/canvas-plan-protocol':
+        specifier: workspace:*
+        version: link:../../packages/schemas/canvas-plan-protocol
+      '@tapcanvas/flow-anchor-bindings':
+        specifier: workspace:*
+        version: link:../../packages/schemas/flow-anchor-bindings
+      '@tapcanvas/generation-contract':
+        specifier: workspace:*
+        version: link:../../packages/schemas/generation-contract
+      '@tapcanvas/image-prompt-spec':
+        specifier: workspace:*
+        version: link:../../packages/schemas/image-prompt-spec
+      '@tapcanvas/image-view-controls':
+        specifier: workspace:*
+        version: link:../../packages/schemas/image-view-controls
+      '@tapcanvas/storyboard-selection-protocol':
+        specifier: workspace:*
+        version: link:../../packages/schemas/storyboard-selection-protocol
       '@xmldom/xmldom':
         specifier: ^0.8.10
         version: 0.8.12
@@ -153,6 +174,21 @@ importers:
       '@tabler/icons-react':
         specifier: ^3.19.0
         version: 3.41.1(react@18.3.1)
+      '@tapcanvas/canvas-plan-protocol':
+        specifier: workspace:*
+        version: link:../../packages/schemas/canvas-plan-protocol
+      '@tapcanvas/flow-anchor-bindings':
+        specifier: workspace:*
+        version: link:../../packages/schemas/flow-anchor-bindings
+      '@tapcanvas/image-prompt-spec':
+        specifier: workspace:*
+        version: link:../../packages/schemas/image-prompt-spec
+      '@tapcanvas/image-view-controls':
+        specifier: workspace:*
+        version: link:../../packages/schemas/image-view-controls
+      '@tapcanvas/storyboard-selection-protocol':
+        specifier: workspace:*
+        version: link:../../packages/schemas/storyboard-selection-protocol
       '@tiptap/extension-placeholder':
         specifier: ^3.22.5
         version: 3.22.5(@tiptap/extensions@3.22.5(@tiptap/core@3.22.5(@tiptap/pm@3.22.5))(@tiptap/pm@3.22.5))
@@ -237,6 +273,26 @@ importers:
         version: 1.6.1(@types/node@22.19.17)(jsdom@24.1.3)
 
   packages/schemas/agents-bridge-contract: {}
+
+  packages/schemas/canvas-plan-protocol:
+    dependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+
+  packages/schemas/flow-anchor-bindings: {}
+
+  packages/schemas/generation-contract: {}
+
+  packages/schemas/image-prompt-spec: {}
+
+  packages/schemas/image-view-controls: {}
+
+  packages/schemas/storyboard-selection-protocol:
+    dependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
 
 packages:
 
