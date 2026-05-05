@@ -4,7 +4,7 @@ import { getConfig } from "../config";
 import { getCookie } from "hono/cookie";
 import { verifyJwtHS256 } from "../jwt";
 import { getPrismaClient } from "../platform/node/prisma";
-import { resolveLocalDevRole } from "../modules/auth/local-admin";
+import { isLocalDevRequest, resolveLocalDevRole } from "../modules/auth/local-admin";
 
 export type AuthPayload = {
 	sub: string;
@@ -144,6 +144,17 @@ export async function resolveAuth(
 }
 
 export async function authMiddleware(c: AppContext, next: Next) {
+	// Dev loopback auto-auth: bypass JWT when TAPCANVAS_DEV_PUBLIC_BYPASS=true on localhost
+	if (String(c.env.TAPCANVAS_DEV_PUBLIC_BYPASS || "").trim() === "true" && isLocalDevRequest(c)) {
+		const devUserId = String(c.env.TAPCANVAS_DEV_PUBLIC_BYPASS_USER_ID || "dev-local").trim();
+		const devRole = String(c.env.TAPCANVAS_DEV_PUBLIC_BYPASS_ROLE || "admin").trim();
+		const devPayload: AuthPayload = { sub: devUserId, login: devUserId, role: devRole };
+		c.set("userId", devUserId);
+		c.set("auth", devPayload);
+		await ensureUserRow(c, devPayload);
+		return next();
+	}
+
 	const resolved = await resolveAuth(c);
 
 	if (!resolved) {

@@ -312,10 +312,18 @@ export async function updateProjectName(
 	params: { id: string; name: string; nowIso: string },
 ): Promise<ProjectRow | null> {
 	void db;
-	await getPrismaClient().projects.update({
-		where: { id: params.id },
-		data: { name: params.name, updated_at: params.nowIso },
-	});
+	try {
+		await getPrismaClient().projects.update({
+			where: { id: params.id },
+			data: { name: params.name, updated_at: params.nowIso },
+		});
+	} catch (err: unknown) {
+		// Prisma P2025: record not found — treat as not found instead of 500
+		if (err && typeof err === "object" && (err as any).code === "P2025") {
+			return null;
+		}
+		throw err;
+	}
 	return getProjectById(db, params.id);
 }
 
