@@ -84,23 +84,40 @@ Nomi Agent 可以和你一起拆剧本、建节点、写提示词、规划制作
 
 ## 快速启动
 
-环境要求：
+### 用 AI 帮你启动（推荐）
 
-- Node.js 20+
-- pnpm 10+
-- PostgreSQL 16+
-- Redis 7+
+把下面这段话复制给 Claude Code、Cursor 或任何 AI 编程助手，让它帮你完成所有配置：
 
-macOS 安装依赖：
+```
+帮我启动 Nomi 项目。步骤：
+1. 检查 Node.js 20+、pnpm、PostgreSQL、Redis 是否已安装，缺什么帮我安装
+2. 运行 pnpm install
+3. 复制 apps/hono-api/.env.example 为 .env，把 DATABASE_URL 里的 YOUR_USER 替换成当前系统用户名
+4. 复制 apps/agents-cli/agents.config.example.json 为 agents.config.json，提示我填入 DeepSeek 或 OpenAI 的 API Key 和 apiBaseUrl
+5. 运行数据库迁移（如果有）
+6. 启动 pnpm dev:api 和 pnpm dev:web
+7. 确认 http://localhost:5173 可以访问
+```
+
+---
+
+### 手动启动
+
+### 第一步：安装系统依赖
+
+需要 Node.js 20+、pnpm 10+、PostgreSQL 16+、Redis 7+。
+
+macOS 一键安装：
 
 ```bash
-brew install postgresql@16 redis
+brew install postgresql@16 redis node
 brew services start postgresql@16
 brew services start redis
+npm install -g pnpm
 psql postgres -c "CREATE DATABASE nomi_dev;"
 ```
 
-安装项目：
+### 第二步：克隆并安装项目
 
 ```bash
 git clone https://github.com/aqm857886159/Nomi.git
@@ -110,7 +127,11 @@ cp apps/hono-api/.env.example apps/hono-api/.env
 cp apps/agents-cli/agents.config.example.json apps/agents-cli/agents.config.json
 ```
 
-配置 `apps/hono-api/.env`（填入你的 PostgreSQL 连接串）：
+### 第三步：填写两个配置文件
+
+**① `apps/hono-api/.env` — 数据库连接**
+
+把 `YOUR_USER` 替换成你的系统用户名（macOS 通常和终端提示符里的名字一样）：
 
 ```env
 DATABASE_URL=postgresql://YOUR_USER@localhost:5432/nomi_dev
@@ -119,47 +140,48 @@ REDIS_URL=redis://localhost:6379
 TAPCANVAS_DEV_PUBLIC_BYPASS=true
 ```
 
-配置 `apps/agents-cli/agents.config.json`（驱动创作区 AI 和生成画布 Agent）：
+**② `apps/agents-cli/agents.config.json` — AI 对话 Key**
 
-**国内推荐：DeepSeek**（价格低、效果好，[申请 key](https://platform.deepseek.com/)）
+这个 Key 驱动创作区的续写/改写和生成画布的 Agent 拆分镜功能。
+
+国内推荐用 **DeepSeek**，便宜且效果好，[点这里申请 Key](https://platform.deepseek.com/)：
 
 ```json
 {
   "apiBaseUrl": "https://api.deepseek.com/v1",
-  "apiKey": "your-deepseek-api-key",
+  "apiKey": "填入你的-deepseek-api-key",
   "model": "deepseek-chat"
 }
 ```
 
-**OpenAI / 其他 OpenAI 格式接口：**
+用 OpenAI 或其他兼容接口（Qwen、Ollama 等）同理，换掉 `apiBaseUrl`、`apiKey`、`model` 三个字段即可。
 
-```json
-{
-  "apiBaseUrl": "https://api.openai.com/v1",
-  "apiKey": "your-openai-api-key",
-  "model": "gpt-4o"
-}
-```
+### 第四步：启动
 
-> 创作区的续写/改写、生成画布的 Agent 拆分镜和建节点，都由这个 LLM 驱动。`apiBaseUrl` 兼容任何 OpenAI 格式接口（Qwen、Ollama 等同理）。
-
-启动开发环境（两个终端）：
+开两个终端窗口：
 
 ```bash
-# 终端 1 — API + Agents（自动拉起）
+# 终端 1
 pnpm dev:api
+```
 
-# 终端 2 — Web
+```bash
+# 终端 2
 pnpm dev:web
 ```
 
-默认地址：
+浏览器打开 **http://localhost:5173**，看到项目库页面说明启动成功。
 
-- Web: http://localhost:5173
-- API: http://localhost:8788
-- Agents Bridge: http://localhost:8799（由 API 自动启动）
+### 第五步：配置图片/视频生成模型（可选）
 
-更多步骤见 [docs/quickstart.md](docs/quickstart.md)。
+AI 对话（创作区/Agent）和图片视频生成是两套独立的配置。图片视频生成需要在 Web UI 里配置供应商 API Key：
+
+1. 点击右上角 **模型管理**
+2. 在**供应商**标签页添加供应商（如即梦、可灵、Dreamina），填入接口地址和 API Key
+3. 在**模型**标签页添加对应模型
+4. 回到生成画布，选中节点 → 选择模型 → 点击**生成素材**
+
+详细接入说明见 [docs/provider-integration.md](docs/provider-integration.md)。
 
 ## 使用手册
 
