@@ -4,7 +4,7 @@ import {
   compileImagePromptSpecV2,
   parseImagePromptSpecV2,
   type ImagePromptSpecV2,
-} from '@tapcanvas/image-prompt-spec'
+} from '@nomi/schemas/image-prompt-spec'
 import { DesignButton } from '../../../../design'
 
 type StructuredPromptSectionProps = {

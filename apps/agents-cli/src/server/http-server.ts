@@ -21,7 +21,7 @@ import {
   formatGenerationContractPromptLines,
   parseGenerationContract,
   type GenerationContract,
-} from "@tapcanvas/generation-contract";
+} from "@nomi/schemas/generation-contract";
 import type { RuntimeRunEvent } from "../runtime/events.js";
 import { createRuntimeChannelMeta } from "../runtime/channel.js";
 import { parseRuntimeTodoUpdate } from "../runtime/todo-events.js";

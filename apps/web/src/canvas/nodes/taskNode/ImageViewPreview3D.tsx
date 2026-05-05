@@ -3,7 +3,7 @@ import { Text } from '@mantine/core'
 import type {
   ImageCameraControlConfig,
   ImageLightingRigConfig,
-} from '@tapcanvas/image-view-controls'
+} from '@nomi/schemas/image-view-controls'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js'

@@ -165,8 +165,8 @@ import {
   normalizeStoryboardSelectionContext,
   type StoryboardReferenceBinding,
   type StoryboardSelectionContext,
-} from '@tapcanvas/storyboard-selection-protocol'
-import type { PublicFlowAnchorBindingKind } from '@tapcanvas/flow-anchor-bindings'
+} from '@nomi/schemas/storyboard-selection-protocol'
+import type { PublicFlowAnchorBindingKind } from '@nomi/schemas/flow-anchor-bindings'
 import {
   getNodeProductionMeta,
   inferProductionNodeMeta,
@@ -192,7 +192,7 @@ import { collectUpstreamVideoTextContext } from './taskNode/videoPromptGeneratio
 import { ChapterGroundedBadge } from './taskNode/components/ChapterGroundedBadge'
 import { resolveCompiledImagePrompt, resolveImagePromptExecution } from './taskNode/imagePromptSpec'
 import { refineStructuredImagePrompt } from './taskNode/structuredPromptRefine'
-import imageViewControlsModule from '@tapcanvas/image-view-controls'
+import imageViewControlsModule from '@nomi/schemas/image-view-controls'
 import {
   resolvePrimarySemanticAnchorBinding,
   resolveSemanticNodeRoleBinding,

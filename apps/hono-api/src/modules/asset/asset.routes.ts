@@ -57,7 +57,7 @@ import { resolveProjectDataRepoRoot } from "./project-data-root";
 import {
 	normalizePublicFlowAnchorBindings,
 	type PublicFlowAnchorBinding,
-} from "@tapcanvas/flow-anchor-bindings";
+} from "@nomi/schemas/flow-anchor-bindings";
 import {
 	isProxyableVideoResponse,
 	resolveProxyVideoContentType,

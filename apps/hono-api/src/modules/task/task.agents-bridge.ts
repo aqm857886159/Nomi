@@ -37,16 +37,16 @@ import {
 	CANVAS_PLAN_TAG_NAME,
 	canvasPlanSchema,
 	type ChatCanvasPlan,
-} from "@tapcanvas/canvas-plan-protocol";
+} from "@nomi/schemas/canvas-plan-protocol";
 import {
 	normalizePublicFlowAnchorBindings,
 	type PublicFlowAnchorBinding,
-} from "@tapcanvas/flow-anchor-bindings";
+} from "@nomi/schemas/flow-anchor-bindings";
 import {
 	collectStoryboardSelectionReferenceImageUrls,
 	normalizeStoryboardSelectionContext,
 	type StoryboardSelectionContext,
-} from "@tapcanvas/storyboard-selection-protocol";
+} from "@nomi/schemas/storyboard-selection-protocol";
 import type { TaskRequestDto, TaskResultDto } from "./task.schemas";
 import { createSseEventParser } from "../../utils/sse";
 import type { SseEventMessage } from "../../utils/sse";

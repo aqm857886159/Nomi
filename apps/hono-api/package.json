@@ -22,12 +22,6 @@
   "dependencies": {
     "@nomi/schemas": "workspace:*",
     "@nomi/agents-bridge-contract": "workspace:*",
-    "@tapcanvas/canvas-plan-protocol": "workspace:*",
-    "@tapcanvas/flow-anchor-bindings": "workspace:*",
-    "@tapcanvas/generation-contract": "workspace:*",
-    "@tapcanvas/image-prompt-spec": "workspace:*",
-    "@tapcanvas/image-view-controls": "workspace:*",
-    "@tapcanvas/storyboard-selection-protocol": "workspace:*",
     "@napi-rs/canvas": "^0.1.96",
     "@ai-sdk/anthropic": "^2.0.45",
     "@ai-sdk/google": "^2.0.39",

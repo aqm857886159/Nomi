@@ -75,13 +75,13 @@ function requireSharedSchemaModule<TModule>(packageName: string): TModule {
 }
 
 export function loadGenerationContractModule(): GenerationContractModule {
-	return requireSharedSchemaModule<GenerationContractModule>("@tapcanvas/generation-contract");
+	return requireSharedSchemaModule<GenerationContractModule>("@nomi/schemas/generation-contract");
 }
 
 export function loadImagePromptSpecModule(): ImagePromptSpecModule {
-	return requireSharedSchemaModule<ImagePromptSpecModule>("@tapcanvas/image-prompt-spec");
+	return requireSharedSchemaModule<ImagePromptSpecModule>("@nomi/schemas/image-prompt-spec");
 }
 
 export function loadImageViewControlsModule(): ImageViewControlsModule {
-	return requireSharedSchemaModule<ImageViewControlsModule>("@tapcanvas/image-view-controls");
+	return requireSharedSchemaModule<ImageViewControlsModule>("@nomi/schemas/image-view-controls");
 }

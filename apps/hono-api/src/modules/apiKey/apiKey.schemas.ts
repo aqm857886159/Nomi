@@ -1,10 +1,10 @@
 import { z } from "@hono/zod-openapi";
 import { PUBLIC_CHAT_SESSION_KEY_MAX_LENGTH } from "./public-chat-session.constants";
-import { storyboardSelectionContextSchema } from "@tapcanvas/storyboard-selection-protocol";
+import { storyboardSelectionContextSchema } from "@nomi/schemas/storyboard-selection-protocol";
 import {
 	PUBLIC_FLOW_ANCHOR_BINDING_KINDS,
 	PUBLIC_FLOW_ANCHOR_REFERENCE_VIEWS,
-} from "@tapcanvas/flow-anchor-bindings";
+} from "@nomi/schemas/flow-anchor-bindings";
 import { TaskKindSchema, TaskRequestSchema, TaskResultSchema } from "../task/task.schemas";
 import { loadGenerationContractModule } from "../../platform/node/shared-schema-loader";
 

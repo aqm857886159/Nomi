@@ -1,4 +1,4 @@
-import imagePromptSpecModule, { type ImagePromptSpecV2 } from '@tapcanvas/image-prompt-spec'
+import imagePromptSpecModule, { type ImagePromptSpecV2 } from '@nomi/schemas/image-prompt-spec'
 
 const { compileImagePromptSpecV2, parseImagePromptSpecV2 } = imagePromptSpecModule
 

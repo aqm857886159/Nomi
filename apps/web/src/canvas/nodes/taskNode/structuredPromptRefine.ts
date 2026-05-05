@@ -1,4 +1,4 @@
-import { parseImagePromptSpecV2, type ImagePromptSpecV2 } from '@tapcanvas/image-prompt-spec'
+import { parseImagePromptSpecV2, type ImagePromptSpecV2 } from '@nomi/schemas/image-prompt-spec'
 import { runPublicTask } from '../../../api/server'
 import { getAuthToken } from '../../../auth/store'
 import { useUIStore } from '../../../ui/uiStore'

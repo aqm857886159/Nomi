@@ -5,7 +5,7 @@ import {
   type PublicFlowAnchorBinding,
   type PublicFlowAnchorBindingKind,
   type PublicFlowAnchorReferenceView,
-} from '@tapcanvas/flow-anchor-bindings'
+} from '@nomi/schemas/flow-anchor-bindings'
 
 export type SemanticReferenceView = PublicFlowAnchorReferenceView
 export type SemanticNodeAnchorBinding = PublicFlowAnchorBinding

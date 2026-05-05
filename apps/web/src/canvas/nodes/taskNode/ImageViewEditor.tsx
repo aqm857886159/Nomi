@@ -14,7 +14,7 @@ import { IconBulb, IconCamera } from '@tabler/icons-react'
 import imageViewControlsModule, {
   type ImageCameraControlConfig,
   type ImageLightingRigConfig,
-} from '@tapcanvas/image-view-controls'
+} from '@nomi/schemas/image-view-controls'
 
 import { DesignButton } from '../../../design'
 import { toast } from '../../../ui/toast'

@@ -4,7 +4,7 @@ import { IconArrowsMaximize, IconArrowsMinimize, IconBook2, IconChevronDown, Ico
 import {
   normalizeStoryboardSelectionContext,
   type StoryboardSelectionContext,
-} from '@tapcanvas/storyboard-selection-protocol'
+} from '@nomi/schemas/storyboard-selection-protocol'
 import { $ } from '../../shared/i18n'
 import {
   API_BASE,
@@ -58,7 +58,7 @@ import {
 import {
   normalizePublicFlowAnchorBindings,
   type PublicFlowAnchorBinding,
-} from '@tapcanvas/flow-anchor-bindings'
+} from '@nomi/schemas/flow-anchor-bindings'
 import {
   resolvePrimarySemanticAnchorBinding,
   resolveSemanticNodeAnchorBindings,

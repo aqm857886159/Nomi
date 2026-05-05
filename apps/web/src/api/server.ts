@@ -1,6 +1,6 @@
 import type { Edge, Node } from '@xyflow/react'
-import type { PublicFlowAnchorBinding } from '@tapcanvas/flow-anchor-bindings'
-import type { StoryboardSelectionContext } from '@tapcanvas/storyboard-selection-protocol'
+import type { PublicFlowAnchorBinding } from '@nomi/schemas/flow-anchor-bindings'
+import type { StoryboardSelectionContext } from '@nomi/schemas/storyboard-selection-protocol'
 import { getAuthToken, getAuthTokenFromCookie, type User } from '../auth/store'
 import { sanitizeFlowValueForPersistence } from '../canvas/utils/persistenceSanitizer'
 import { useUploadRuntimeStore } from '../domain/upload-runtime/store/uploadRuntimeStore'

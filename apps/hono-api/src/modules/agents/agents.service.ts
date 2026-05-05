@@ -87,7 +87,7 @@ import {
 	type ProjectWorkspaceContextFileDto,
 	type ProjectWorkspaceContextFileVersionContentDto,
 } from "./project-context.service";
-import type { PublicFlowAnchorBinding } from "@tapcanvas/flow-anchor-bindings";
+import type { PublicFlowAnchorBinding } from "@nomi/schemas/flow-anchor-bindings";
 
 const GENERATE_MEDIA_REQUIRED_SKILL = "generate-media";
 const STORYBOARD_ORCHESTRATOR_SKILL = "tapcanvas-storyboard-expert";

@@ -169,56 +169,13 @@ const initialUser = (() => {
 type AuthState = {
   token: string | null
   user: User | null
-  loading: boolean
-  login: (code: string, state?: string) => Promise<void>
   setAuth: (token: string, user?: User | null) => void
   clear: () => void
 }
 
-export const useAuth = create<AuthState>((set, get) => ({
+export const useAuth = create<AuthState>((set) => ({
   token: initialToken,
   user: initialUser,
-  loading: false,
-  // TODO: Migrate to @tanstack/react-query (useMutation).
-  //
-  // Problem: `login` is a server mutation (POST /api/auth/github) whose loading/error
-  // state is managed manually inside Zustand. This conflates UI state (loading, error)
-  // with the side-effect of obtaining a token, and makes it impossible to deduplicate
-  // in-flight requests or get automatic retry/error boundaries.
-  //
-  // Correct pattern:
-  //   const loginMutation = useMutation({
-  //     mutationFn: (vars: { code: string; state?: string }) =>
-  //       fetch('/api/auth/github', { method: 'POST', ... }).then(r => r.json()),
-  //     onSuccess: (data) => useAuth.getState().setAuth(data.token, data.user),
-  //   })
-  //
-  // The Zustand store should only keep `token` and `user` (pure client state derived
-  // from the JWT). `loading` and any error state belong in the mutation result, not here.
-  login: async (code: string, state?: string) => {
-    set({ loading: true })
-    try {
-      const response = await fetch('/api/auth/github', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code, state }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Authentication failed')
-      }
-
-      const data = await response.json() as { token: string; user?: User | null }
-      get().setAuth(data.token, data.user)
-    } catch (error) {
-      console.error('Login failed:', error)
-      throw error
-    } finally {
-      set({ loading: false })
-    }
-  },
   setAuth: (token, user) => {
     const attrs = resolveTapTokenCookieAttributes()
     writeCookie('tap_token', token, attrs)

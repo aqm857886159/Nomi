@@ -1,5 +1,5 @@
 import type { Node } from '@xyflow/react'
-import { normalizeStoryboardSelectionContext, type StoryboardSelectionContext } from '@tapcanvas/storyboard-selection-protocol'
+import { normalizeStoryboardSelectionContext, type StoryboardSelectionContext } from '@nomi/schemas/storyboard-selection-protocol'
 import type { ChatMessage, ChatTodoItem } from './AiChatDialog.types'
 
 const AUTO_SCROLL_BOTTOM_THRESHOLD_MIN_PX = 72

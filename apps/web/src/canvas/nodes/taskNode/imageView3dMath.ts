@@ -1,7 +1,7 @@
 import type {
   ImageCameraControlConfig,
   ImageLightControlConfig,
-} from '@tapcanvas/image-view-controls'
+} from '@nomi/schemas/image-view-controls'
 
 export type OrbitPoint3D = {
   x: number

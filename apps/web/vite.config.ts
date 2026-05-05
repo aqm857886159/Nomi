@@ -85,11 +85,11 @@ export default defineConfig(({ command, mode }) => {
 	    plugins: [react()],
 	    optimizeDeps: {
 	      include: [
-	        '@tapcanvas/canvas-plan-protocol',
-	        '@tapcanvas/flow-anchor-bindings',
-	        '@tapcanvas/image-prompt-spec',
-	        '@tapcanvas/image-view-controls',
-	        '@tapcanvas/storyboard-selection-protocol',
+	        '@nomi/schemas/canvas-plan-protocol',
+	        '@nomi/schemas/flow-anchor-bindings',
+	        '@nomi/schemas/image-prompt-spec',
+	        '@nomi/schemas/image-view-controls',
+	        '@nomi/schemas/storyboard-selection-protocol',
 	      ],
 	    },
 	    server: {

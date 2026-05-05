@@ -17,12 +17,12 @@ import {
 import {
   normalizePublicFlowAnchorBindings,
   type PublicFlowAnchorBinding,
-} from '@tapcanvas/flow-anchor-bindings'
+} from '@nomi/schemas/flow-anchor-bindings'
 import { normalizeImagePromptExecutionConfig, resolveCompiledImagePrompt } from '../../canvas/nodes/taskNode/imagePromptSpec'
 import { useUIStore } from '../uiStore'
 import { resolveCanvasPlanLayout, type LayoutPlanGroup } from './canvasPlanLayout'
 import { autoConnectReferenceNodesForTargets } from './referenceNodeAutowire'
-import { CANVAS_PLAN_TAG_NAME, canvasPlanSchema, type ChatCanvasPlan } from '@tapcanvas/canvas-plan-protocol'
+import { CANVAS_PLAN_TAG_NAME, canvasPlanSchema, type ChatCanvasPlan } from '@nomi/schemas/canvas-plan-protocol'
 
 const PLAN_PATTERN = new RegExp(`<${CANVAS_PLAN_TAG_NAME}>([\\s\\S]*?)</${CANVAS_PLAN_TAG_NAME}>`, 'i')
 
