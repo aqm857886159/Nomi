@@ -129,6 +129,12 @@ TAPCANVAS_DEV_PUBLIC_BYPASS=true
 }
 ```
 
+> **创作区 AI 和生成区 AI 都依赖这个配置。**
+> - 创作区的"续写/改写"功能由此处的 LLM 驱动。
+> - 生成画布的 Agent 模式（拆分镜、建节点、写提示词）也由此处的 LLM 驱动。
+> - `apiBaseUrl` 兼容任何 OpenAI 格式的接口（OpenAI、DeepSeek、Qwen、本地 Ollama 等）。
+> - `model` 填你的接口支持的模型名，例如 `gpt-4o`、`deepseek-chat`、`qwen-plus`。
+
 启动开发环境（两个终端）：
 
 ```bash
