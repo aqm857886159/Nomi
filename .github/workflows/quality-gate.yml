@@ -28,6 +28,9 @@ jobs:
       - name: Install dependencies
         run: pnpm -w install --frozen-lockfile
 
+      - name: Install web dependencies
+        run: pnpm --filter @nomi/web install --frozen-lockfile
+
       - name: Verify web build tools
         run: pnpm --filter @nomi/web exec vite --version
 
