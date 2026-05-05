@@ -322,7 +322,8 @@ async function waitForCatalogTaskResult(
 ): Promise<TaskResultDto> {
   if (TERMINAL_STATUSES.has(initialResult.status)) return initialResult
   const pollIntervalMs = options.pollIntervalMs ?? 1500
-  const pollTimeoutMs = options.pollTimeoutMs ?? 120000
+  const defaultTimeout = (request.kind === 'text_to_video' || request.kind === 'image_to_video') ? 300000 : 120000
+  const pollTimeoutMs = options.pollTimeoutMs ?? defaultTimeout
   const startedAt = Date.now()
   const fetchResult = options.fetchTaskResult || fetchWorkbenchTaskResultByVendor
 
