@@ -119,21 +119,29 @@ REDIS_URL=redis://localhost:6379
 TAPCANVAS_DEV_PUBLIC_BYPASS=true
 ```
 
-配置 `apps/agents-cli/agents.config.json`（填入你的 LLM API Key）：
+配置 `apps/agents-cli/agents.config.json`（驱动创作区 AI 和生成画布 Agent）：
+
+**国内推荐：DeepSeek**（价格低、效果好，[申请 key](https://platform.deepseek.com/)）
+
+```json
+{
+  "apiBaseUrl": "https://api.deepseek.com/v1",
+  "apiKey": "your-deepseek-api-key",
+  "model": "deepseek-chat"
+}
+```
+
+**OpenAI / 其他 OpenAI 格式接口：**
 
 ```json
 {
   "apiBaseUrl": "https://api.openai.com/v1",
-  "apiKey": "your-api-key",
+  "apiKey": "your-openai-api-key",
   "model": "gpt-4o"
 }
 ```
 
-> **创作区 AI 和生成区 AI 都依赖这个配置。**
-> - 创作区的"续写/改写"功能由此处的 LLM 驱动。
-> - 生成画布的 Agent 模式（拆分镜、建节点、写提示词）也由此处的 LLM 驱动。
-> - `apiBaseUrl` 兼容任何 OpenAI 格式的接口（OpenAI、DeepSeek、Qwen、本地 Ollama 等）。
-> - `model` 填你的接口支持的模型名，例如 `gpt-4o`、`deepseek-chat`、`qwen-plus`。
+> 创作区的续写/改写、生成画布的 Agent 拆分镜和建节点，都由这个 LLM 驱动。`apiBaseUrl` 兼容任何 OpenAI 格式接口（Qwen、Ollama 等同理）。
 
 启动开发环境（两个终端）：
 
@@ -164,12 +172,17 @@ pnpm dev:web
 5. 把生成的图片和视频片段拖进时间轴。
 6. 在时间轴里排序、剪辑、预览和导出。
 
-### 接入供应商
+### 接入图片/视频生成模型
 
-1. 准备供应商 API 文档或网页链接。
-2. 在模型管理里创建供应商和模型配置。
-3. 让 Agent 辅助理解接口参数、鉴权方式和返回结构。
-4. 用测试请求确认图片或视频任务可以创建、轮询和读取结果。
+图片和视频生成是独立的供应商配置，在 Web UI 里操作（不是 `agents.config.json`）：
+
+1. 启动后打开 http://localhost:5173，点击右上角**模型管理**。
+2. 在**供应商**标签页添加供应商，填入：
+   - 供应商名称（如 `Dreamina`、`即梦`、`可灵`）
+   - 接口 Base URL
+   - API Key
+3. 在**模型**标签页添加模型，关联到对应供应商，填入模型标识符。
+4. 在生成画布选中节点后，从节点的模型下拉框选择刚配置的模型，点击**生成素材**。
 
 详细说明见 [docs/provider-integration.md](docs/provider-integration.md)。
 
