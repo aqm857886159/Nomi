@@ -142,9 +142,6 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
   })
   return () => {
     disposed = true
-    if (activeWorkbenchProjectSaveTarget?.projectId === options.projectId) {
-      setActiveWorkbenchProjectSaveTarget(null)
-    }
     unsubscribeWorkbench()
     unsubscribeGeneration()
   }

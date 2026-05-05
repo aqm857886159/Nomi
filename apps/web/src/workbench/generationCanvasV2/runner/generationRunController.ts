@@ -1,7 +1,8 @@
-import type { GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
+import type { GenerationCanvasEdge, GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
 import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
+import { resolveGenerationReferences } from './generationReferenceResolver'
 
 export type RunGenerationNodeOptions = {
   executor?: GenerationNodeExecutor
@@ -9,6 +10,11 @@ export type RunGenerationNodeOptions = {
     maxAttempts?: number
     baseDelayMs?: number
   }
+}
+
+type GenerationRunContext = {
+  nodes?: GenerationCanvasNode[]
+  edges?: GenerationCanvasEdge[]
 }
 
 type RetryableGenerationError = Error & {
@@ -62,6 +68,11 @@ export async function runGenerationNode(
   const initialState = useGenerationCanvasStore.getState()
   const initialNode = initialState.nodes.find((node) => node.id === id)
   if (!initialNode) throw new Error('node not found')
+  if (!canRunGenerationNode(initialNode, { nodes: initialState.nodes, edges: initialState.edges })) {
+    throw new Error(initialNode.kind === 'video'
+      ? '视频节点缺少上游真实图片或视频资产 URL。请先生成或选择首帧/参考图后再生成视频。'
+      : `${initialNode.kind} generation is not implemented yet`)
+  }
 
   const run = initialState.appendNodeRun(id, {
     status: 'queued',
@@ -104,7 +115,7 @@ export async function runGenerationNode(
     }
     if (!result) throw new Error('Generation failed')
     useGenerationCanvasStore.getState().addNodeResult(id, result)
-    await persistActiveWorkbenchProjectNow()
+    await persistActiveWorkbenchProjectNow().catch(() => {})
     return result
   } catch (error: unknown) {
     const message = error instanceof Error && error.message ? error.message : 'Generation failed'
@@ -123,6 +134,18 @@ export async function rerunGenerationNodeAsNewNode(
   return runGenerationNode(duplicatedNode.id, options)
 }
 
-export function canRunGenerationNode(node: Pick<GenerationCanvasNode, 'kind'> | null | undefined): boolean {
-  return node?.kind === 'image' || node?.kind === 'video'
+export function canRunGenerationNode(
+  node: GenerationCanvasNode | Pick<GenerationCanvasNode, 'kind'> | null | undefined,
+  context: GenerationRunContext = {},
+): boolean {
+  if (!node) return false
+  if (node.kind === 'image') return true
+  if (node.kind !== 'video') return false
+  if (!('id' in node) || !node.id) return false
+  const references = resolveGenerationReferences(node, context)
+  return Boolean(
+    references.firstFrameUrl ||
+    references.lastFrameUrl ||
+    references.referenceImages.length > 0,
+  )
 }
