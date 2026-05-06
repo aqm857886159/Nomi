@@ -14,6 +14,12 @@ import NodeParameterControls from './NodeParameterControls'
 import { buildVideoPlaybackUrl } from '../../../../media/videoPlaybackUrl'
 import { diagnoseVideoPlaybackFailure, logVideoPlaybackFailure } from '../../../../media/videoPlaybackDiagnostics'
 
+const STATUS_LABEL: Record<string, string> = {
+  queued: '排队中',
+  running: '生成中',
+  error: '生成失败',
+}
+
 type BaseGenerationNodeProps = {
   node: GenerationCanvasNode
   selected: boolean
@@ -372,7 +378,7 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
 
       <header className="generation-canvas-v2-node__header">
         {showStatusBadge ? (
-          <span className="generation-canvas-v2-node__status" data-status={status}>{status}</span>
+          <span className="generation-canvas-v2-node__status" data-status={status}>{STATUS_LABEL[status] ?? status}</span>
         ) : null}
       </header>
 
@@ -464,14 +470,25 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
           ) : null}
           <div className="generation-canvas-v2-node__footer">
             <NodeParameterControls node={node} section="parameters" valueOnly />
-            <WorkbenchButton
-              className="generation-canvas-v2-node__generate"
-              aria-label="生成素材"
-              disabled={!canGenerate}
-              onClick={handleGenerate}
-            >
-              {isGenerating ? '生成中' : hasResult ? '重新生成' : '生成 →'}
-            </WorkbenchButton>
+            {(() => {
+              const disabledReason = !canGenerate && !isGenerating
+                ? node.kind === 'video'
+                  ? '需要先连接一个图片节点作为首帧'
+                  : '当前无法生成'
+                : undefined
+              return (
+                <span title={disabledReason} style={{ display: 'contents' }}>
+                  <WorkbenchButton
+                    className="generation-canvas-v2-node__generate"
+                    aria-label="生成素材"
+                    disabled={!canGenerate}
+                    onClick={handleGenerate}
+                  >
+                    {isGenerating ? '生成中' : hasResult ? '重新生成' : '生成 →'}
+                  </WorkbenchButton>
+                </span>
+              )
+            })()}
           </div>
         </div>
       ) : null}

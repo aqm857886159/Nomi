@@ -1781,3 +1781,29 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.workbench-preview-player__export-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+}
+.workbench-preview-player__export-progress-bar-track {
+  width: 80px;
+  height: 4px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.workbench-preview-player__export-progress-bar {
+  height: 4px;
+  background: var(--mantine-color-blue-5, #339af0);
+  border-radius: 2px;
+  transition: width 0.2s ease;
+  min-width: 4px;
+}
+.workbench-preview-player__export-progress-label {
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+  white-space: nowrap;
+}

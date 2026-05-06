@@ -6,6 +6,7 @@ import type { TimelineClip, TimelineState } from '../timeline/timelineTypes'
 import type { PreviewAspectRatio } from '../workbenchTypes'
 import { resolveVideoClipMediaTimeSeconds } from '../player/timelinePlayback'
 import { exportTimelineToWebm, type ExportStatus } from '../export/timelineWebmExport'
+import { toast } from '../../ui/toast'
 import { buildVideoPlaybackUrl } from '../../media/videoPlaybackUrl'
 import { diagnoseVideoPlaybackFailure, logVideoPlaybackFailure } from '../../media/videoPlaybackDiagnostics'
 
@@ -193,9 +194,9 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
         },
       })
     } catch (error) {
-      setExportStatus('error')
+      setExportStatus('idle')
       const message = error instanceof Error ? error.message : '导出失败'
-      window.alert(message)
+      toast(message, 'error')
     }
   }, [aspectRatio, exportStatus, timeline])
 
@@ -318,6 +319,19 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
             <WorkbenchIconButton className="workbench-preview-player__icon-button" label="放大画面" icon={<IconZoomIn size={16} />} onClick={() => updateMediaScale(0.1)} disabled={!hasMedia} />
           </div>
           <div className="workbench-preview-player__control-separator" aria-hidden="true" />
+          {(exportStatus === 'preparing' || exportStatus === 'recording') ? (
+            <div className="workbench-preview-player__export-progress">
+              <div className="workbench-preview-player__export-progress-bar-track">
+                <div
+                  className="workbench-preview-player__export-progress-bar"
+                  style={{ width: `${Math.round(exportRatio * 100)}%` }}
+                />
+              </div>
+              <span className="workbench-preview-player__export-progress-label">
+                {exportStatus === 'preparing' ? '准备中…' : `导出中 ${Math.round(exportRatio * 100)}%`}
+              </span>
+            </div>
+          ) : null}
           <WorkbenchIconButton
             className="workbench-preview-player__icon-button"
             label="导出 WebM"

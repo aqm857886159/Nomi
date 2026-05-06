@@ -11,6 +11,7 @@ import {
 } from './library/localProjectStore'
 import { createWorkbenchProjectPersistenceService } from './project/projectPersistenceService'
 import { DesignDrawer } from '../design'
+import { toast } from '../ui/toast'
 
 type AppView = 'library' | 'studio'
 
@@ -46,8 +47,8 @@ export default function NomiStudioApp(): JSX.Element {
       setActiveProject,
       setView,
       onSaveError: (error) => {
-        const message = error instanceof Error && error.message ? error.message : '项目保存失败'
-        console.error(message)
+        console.error('project save error', error)
+        toast('项目保存失败，请检查网络连接', 'error')
       },
     })
   }
@@ -113,8 +114,8 @@ export default function NomiStudioApp(): JSX.Element {
         refreshProjects()
       },
       onSaveError: (error) => {
-        const message = error instanceof Error ? error.message : '项目保存失败'
-        console.error(message)
+        console.error('project save error', error)
+        toast('项目保存失败，请检查网络连接', 'error')
       },
     })
   }, [activeProject, refreshProjects])
