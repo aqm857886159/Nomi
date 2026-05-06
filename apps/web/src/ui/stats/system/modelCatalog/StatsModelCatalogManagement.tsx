@@ -294,7 +294,7 @@ export default function StatsModelCatalogManagement({
       title: '导出迁移包',
       children: (
         <Text size=”sm”>
-          即将导出&ldquo;迁移包&rdquo;（包含所有厂商配置 + API Key 明文）。{'\n\n'}
+          {'即将导出"迁移包"（包含所有厂商配置 + API Key 明文）。'}{'\n\n'}
           注意：文件包含敏感信息，请勿上传到公开渠道。建议仅用于本地 → PRD 迁移后立即删除。
         </Text>
       ),
