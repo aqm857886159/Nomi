@@ -10,6 +10,7 @@ import {
   type LocalProjectSummary,
 } from './library/localProjectStore'
 import { createWorkbenchProjectPersistenceService } from './project/projectPersistenceService'
+import { useWorkspaceEvents } from './useWorkspaceEvents'
 import { DesignDrawer } from '../design'
 import { toast } from '../ui/toast'
 
@@ -119,6 +120,12 @@ export default function NomiStudioApp(): JSX.Element {
       },
     })
   }, [activeProject, refreshProjects])
+
+  useWorkspaceEvents(activeProject?.id, (type) => {
+    if (type === 'canvas.updated' || type === 'timeline.updated' || type === 'creation.updated') {
+      void hydrateProject(activeProject!.id)
+    }
+  })
 
   const backToLibrary = React.useCallback(() => {
     refreshProjects()

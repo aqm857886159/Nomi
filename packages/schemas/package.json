@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "exports": {
-    "./agents-bridge-contract": "./agents-bridge-contract/index.js",
-    "./canvas-plan-protocol": "./canvas-plan-protocol/index.js",
-    "./flow-anchor-bindings": "./flow-anchor-bindings/index.js",
-    "./generation-contract": "./generation-contract/index.js",
-    "./image-prompt-spec": "./image-prompt-spec/index.js",
-    "./image-view-controls": "./image-view-controls/index.js",
-    "./storyboard-selection-protocol": "./storyboard-selection-protocol/index.js"
+    "./agents-bridge-contract": { "types": "./agents-bridge-contract/index.d.ts", "default": "./agents-bridge-contract/index.js" },
+    "./canvas-plan-protocol": { "types": "./canvas-plan-protocol/index.d.ts", "default": "./canvas-plan-protocol/index.js" },
+    "./flow-anchor-bindings": { "types": "./flow-anchor-bindings/index.d.ts", "default": "./flow-anchor-bindings/index.js" },
+    "./generation-contract": { "types": "./generation-contract/index.d.ts", "default": "./generation-contract/index.js" },
+    "./image-prompt-spec": { "types": "./image-prompt-spec/index.d.ts", "default": "./image-prompt-spec/index.js" },
+    "./image-view-controls": { "types": "./image-view-controls/index.d.ts", "default": "./image-view-controls/index.js" },
+    "./storyboard-selection-protocol": { "types": "./storyboard-selection-protocol/index.d.ts", "default": "./storyboard-selection-protocol/index.js" }
   }
 }

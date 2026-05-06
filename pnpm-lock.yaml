@@ -10,9 +10,9 @@ importers:
 
   apps/agents-cli:
     dependencies:
-      '@tapcanvas/generation-contract':
+      '@nomi/schemas':
         specifier: workspace:*
-        version: link:../../packages/schemas/generation-contract
+        version: link:../../packages/schemas
       commander:
         specifier: ^12.1.0
         version: 12.1.0
@@ -71,27 +71,12 @@ importers:
       '@nomi/agents-bridge-contract':
         specifier: workspace:*
         version: link:../../packages/schemas/agents-bridge-contract
+      '@nomi/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
       '@prisma/client':
         specifier: ^6.12.0
         version: 6.19.3(prisma@6.19.3(magicast@0.3.5)(typescript@5.9.3))(typescript@5.9.3)
-      '@tapcanvas/canvas-plan-protocol':
-        specifier: workspace:*
-        version: link:../../packages/schemas/canvas-plan-protocol
-      '@tapcanvas/flow-anchor-bindings':
-        specifier: workspace:*
-        version: link:../../packages/schemas/flow-anchor-bindings
-      '@tapcanvas/generation-contract':
-        specifier: workspace:*
-        version: link:../../packages/schemas/generation-contract
-      '@tapcanvas/image-prompt-spec':
-        specifier: workspace:*
-        version: link:../../packages/schemas/image-prompt-spec
-      '@tapcanvas/image-view-controls':
-        specifier: workspace:*
-        version: link:../../packages/schemas/image-view-controls
-      '@tapcanvas/storyboard-selection-protocol':
-        specifier: workspace:*
-        version: link:../../packages/schemas/storyboard-selection-protocol
       '@xmldom/xmldom':
         specifier: ^0.8.10
         version: 0.8.12
@@ -171,24 +156,12 @@ importers:
       '@mantine/notifications':
         specifier: ^7.13.1
         version: 7.17.8(@mantine/core@7.17.8(@mantine/hooks@7.17.8(react@18.3.1))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@mantine/hooks@7.17.8(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@nomi/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
       '@tabler/icons-react':
         specifier: ^3.19.0
         version: 3.41.1(react@18.3.1)
-      '@tapcanvas/canvas-plan-protocol':
-        specifier: workspace:*
-        version: link:../../packages/schemas/canvas-plan-protocol
-      '@tapcanvas/flow-anchor-bindings':
-        specifier: workspace:*
-        version: link:../../packages/schemas/flow-anchor-bindings
-      '@tapcanvas/image-prompt-spec':
-        specifier: workspace:*
-        version: link:../../packages/schemas/image-prompt-spec
-      '@tapcanvas/image-view-controls':
-        specifier: workspace:*
-        version: link:../../packages/schemas/image-view-controls
-      '@tapcanvas/storyboard-selection-protocol':
-        specifier: workspace:*
-        version: link:../../packages/schemas/storyboard-selection-protocol
       '@tiptap/extension-placeholder':
         specifier: ^3.22.5
         version: 3.22.5(@tiptap/extensions@3.22.5(@tiptap/core@3.22.5(@tiptap/pm@3.22.5))(@tiptap/pm@3.22.5))
@@ -241,6 +214,9 @@ importers:
       '@playwright/test':
         specifier: ^1.58.2
         version: 1.59.1
+      '@tanstack/react-query':
+        specifier: ^5.62.7
+        version: 5.100.9(react@18.3.1)
       '@testing-library/jest-dom':
         specifier: ^6.9.1
         version: 6.9.1
@@ -271,6 +247,8 @@ importers:
       vitest:
         specifier: ^1.2.2
         version: 1.6.1(@types/node@22.19.17)(jsdom@24.1.3)
+
+  packages/schemas: {}
 
   packages/schemas/agents-bridge-contract: {}
 
@@ -1613,6 +1591,14 @@ packages:
 
   '@tabler/icons@3.41.1':
     resolution: {integrity: sha512-OaRnVbRmH2nHtFeg+RmMJ/7m2oBIF9XCJAUD5gQnMrpK9f05ydj8MZrAf3NZQqOXyxGN1UBL0D5IKLLEUfr74Q==}
+
+  '@tanstack/query-core@5.100.9':
+    resolution: {integrity: sha512-SJSFw1S8+kQ0+knv/XGfrbocWoAlT7vDKsSImtLx3ZPQmEcR46hkDjLSvynSy25N8Ms4tIEini1FuBd5k7IscQ==}
+
+  '@tanstack/react-query@5.100.9':
+    resolution: {integrity: sha512-Oa44XkaI3kCNN6ME0KByU3xT3SEUNOMfZpHxL6+wFoTm+OeUFYHKdeYVe0aOXlRDm/f15sgLwEt2HDorIdW8+A==}
+    peerDependencies:
+      react: ^18 || ^19
 
   '@testing-library/dom@10.4.1':
     resolution: {integrity: sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==}
@@ -5175,6 +5161,13 @@ snapshots:
       react: 18.3.1
 
   '@tabler/icons@3.41.1': {}
+
+  '@tanstack/query-core@5.100.9': {}
+
+  '@tanstack/react-query@5.100.9(react@18.3.1)':
+    dependencies:
+      '@tanstack/query-core': 5.100.9
+      react: 18.3.1
 
   '@testing-library/dom@10.4.1':
     dependencies:

@@ -34,6 +34,23 @@ import {
   modelCatalogTestMappingTool,
   modelCatalogListMappingsTool,
 } from "../core/tools/model-catalog.js";
+import {
+  workspaceReadTool,
+  workspaceListProjectsTool,
+  canvasReadTool,
+  canvasCreateNodesTool,
+  canvasUpdateNodeTool,
+  canvasConnectNodesTool,
+  canvasDeleteNodeTool,
+  canvasRunNodeTool,
+  timelineReadTool,
+  timelineAddClipTool,
+  timelineRemoveClipTool,
+  timelineUpdateClipTool,
+  creationReadTool,
+  creationAppendTextTool,
+  assetListTool,
+} from "../core/tools/workspace.js";
 import { LLMClient } from "../llm/client.js";
 import { HookRunner } from "../core/hooks/runner.js";
 import { WorldLogger } from "../core/logs/world-logger.js";
@@ -218,6 +235,21 @@ export function createAssistantRuntime(input: CreateAssistantRuntimeInput): Assi
   registry.register(modelCatalogTestMappingTool);
   registry.register(modelCatalogListMappingsTool);
   registry.register(skillInstallTool);
+  registry.register(workspaceReadTool);
+  registry.register(workspaceListProjectsTool);
+  registry.register(canvasReadTool);
+  registry.register(canvasCreateNodesTool);
+  registry.register(canvasUpdateNodeTool);
+  registry.register(canvasConnectNodesTool);
+  registry.register(canvasDeleteNodeTool);
+  registry.register(canvasRunNodeTool);
+  registry.register(timelineReadTool);
+  registry.register(timelineAddClipTool);
+  registry.register(timelineRemoveClipTool);
+  registry.register(timelineUpdateClipTool);
+  registry.register(creationReadTool);
+  registry.register(creationAppendTextTool);
+  registry.register(assetListTool);
 
   if (profile !== "general") {
     registry.register(createSpawnAgentTool());
