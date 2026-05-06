@@ -978,7 +978,7 @@ fetch('${publicChatUrl}', {
               </DesignButton>
             </Group>
             <Text className="stats-system-prompt-evolution-hint" size="xs" c="dimmed">
-              用于手动触发“对话数据评估 + 门禁检查”。后续可在此区域扩展版本发布、回滚、灰度策略。
+              {'用于手动触发”对话数据评估 + 门禁检查”。后续可在此区域扩展版本发布、回滚、灰度策略。'}
             </Text>
             <Group className="stats-system-prompt-evolution-runtime" gap="xs" wrap="wrap">
               <DesignBadge className="stats-system-prompt-evolution-runtime-status" variant="light" color={promptEvolutionRuntime?.status === 'active' ? 'teal' : promptEvolutionRuntime?.status === 'rolled_back' ? 'yellow' : 'gray'}>

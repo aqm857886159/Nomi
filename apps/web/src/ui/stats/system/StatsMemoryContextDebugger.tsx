@@ -139,7 +139,7 @@ export default function StatsMemoryContextDebugger({ className }: { className?: 
             </Stack>
           </Stack>
         ) : (
-          <Text className="stats-memory-context-debugger__empty" size="sm" c="dimmed">输入 scope 后点击“加载上下文”，查看 agents bridge 实际拿到的记忆。</Text>
+          <Text className=”stats-memory-context-debugger__empty” size=”sm” c=”dimmed”>{'输入 scope 后点击”加载上下文”，查看 agents bridge 实际拿到的记忆。'}</Text>
         )}
 
         <DesignTextarea className="stats-memory-context-debugger__response" label="Raw Response" value={responseText} readOnly autosize minRows={8} />

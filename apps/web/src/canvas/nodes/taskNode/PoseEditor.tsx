@@ -898,7 +898,7 @@ export function usePoseEditor(options: UsePoseEditorOptions) {
                     <Textarea
                       className="pose-editor__depth-textarea"
                       label="JSON 内容"
-                      placeholder="点击“生成深度描述”后在此编辑"
+                      placeholder={'点击”生成深度描述”后在此编辑'}
                       autosize
                       minRows={4}
                       maxRows={7}

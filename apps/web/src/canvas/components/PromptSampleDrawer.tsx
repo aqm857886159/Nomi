@@ -452,7 +452,7 @@ export function PromptSampleDrawer({ opened, nodeKind, onClose, onApplySample }:
                       <TextInput
                         className="prompt-sample-drawer__custom-scene"
                         label="场景"
-                        placeholder="用于分类，如“视频真实感”"
+                        placeholder={'用于分类，如”视频真实感”'}
                         value={customForm.scene}
                         onChange={(e) => handleCustomFieldChange('scene', e.currentTarget.value)}
                       />

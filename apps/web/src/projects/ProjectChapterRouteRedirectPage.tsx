@@ -65,7 +65,7 @@ export default function ProjectChapterRouteRedirectPage({
           <Text size="sm" c="dimmed" ta="center">{message}</Text>
           {status === 'failed' ? (
             <DesignAlert variant="light" color="red" title="跳转失败" w="100%">
-              当前独立章节页已经废弃。请改从画布内的“漫剧工作台”抽屉进入。
+              {'当前独立章节页已经废弃。请改从画布内的”漫剧工作台”抽屉进入。'}
             </DesignAlert>
           ) : null}
           <Group>

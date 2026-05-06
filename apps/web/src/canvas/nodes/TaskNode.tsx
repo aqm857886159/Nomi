@@ -7553,7 +7553,7 @@ const rewritePromptWithCharacters = React.useCallback(
               </Group>
               {hasStoryboardImageUpstreamForVideo && (
                 <Text className="tc-task-node__media-focus-settings-help" size="xs" c="dimmed">
-                  已连接分镜节点时，会默认把“4图合成图”作为首帧输入。
+                  {'已连接分镜节点时，会默认把”4图合成图”作为首帧输入。'}
                 </Text>
               )}
               <Group className="tc-task-node__media-focus-settings-actions" gap={6} wrap="wrap">

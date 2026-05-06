@@ -365,7 +365,7 @@ export function PromptSection({
             />
             {!hasPresetOptions && (
               <Text className="task-node-prompt__preset-empty-hint" size="xs" c="dimmed" mt={4}>
-                还没有可用预设，可点击右侧“新增预设”创建。
+                {'还没有可用预设，可点击右侧”新增预设”创建。'}
               </Text>
             )}
           </div>

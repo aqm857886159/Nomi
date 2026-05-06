@@ -87,7 +87,7 @@ export function VendorApiKeyModal({
       <Stack className="stats-model-catalog-vendor-api-key-form" gap="sm">
         <DesignAlert className="stats-model-catalog-vendor-api-key-alert" variant="light" color="blue" title="系统级全局 Key">
           <Text className="stats-model-catalog-vendor-api-key-alert-text" size="sm" c="dimmed">
-            仅用于服务商侧统一调用；保存后不会回显。导出“配置”默认不含 Key；导出“迁移包”会包含 Key（明文）。
+            {'仅用于服务商侧统一调用；保存后不会回显。导出”配置”默认不含 Key；导出”迁移包”会包含 Key（明文）。'}
           </Text>
         </DesignAlert>
         <DesignTextInput

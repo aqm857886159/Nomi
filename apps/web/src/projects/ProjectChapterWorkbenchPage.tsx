@@ -5710,7 +5710,7 @@ export default function ProjectChapterWorkbenchPage(): JSX.Element {
                           </Group>
                           <Text size="sm">{shotControlSummary}</Text>
                           <Text size="xs" c="dimmed" mt={6}>
-                            默认只保留当前阶段最有用的动作，搜索、筛选和批量整理都收进“整理镜头”。
+                            {'默认只保留当前阶段最有用的动作，搜索、筛选和批量整理都收进”整理镜头”。'}
                           </Text>
                           {recommendedShots.length ? (
                             <Text size="xs" mt={6}>
@@ -5880,7 +5880,7 @@ export default function ProjectChapterWorkbenchPage(): JSX.Element {
                       ) : null}
                     </InlinePanel>
                     {workbench.shots.length === 0 ? (
-                      <Text size="sm" c="dimmed">当前章节还没有镜头数据。可点击“按本章文本起稿”生成第一版镜头板，或手动新建镜头。</Text>
+                      <Text size=”sm” c=”dimmed”>{'当前章节还没有镜头数据。可点击”按本章文本起稿”生成第一版镜头板，或手动新建镜头。'}</Text>
                     ) : filteredShots.length === 0 ? (
                       <Text size="sm" c="dimmed">没有匹配当前筛选条件的镜头。</Text>
                     ) : (
