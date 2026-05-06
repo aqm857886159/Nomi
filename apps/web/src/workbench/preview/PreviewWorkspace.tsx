@@ -14,13 +14,16 @@ function formatTimecode(frame: number, fps: number): string {
 
 export default function PreviewWorkspace(): JSX.Element {
   const timeline = useWorkbenchStore((state) => state.timeline)
+  const tracks = useWorkbenchStore((state) => state.timeline.tracks)
+  const playheadFrame = useWorkbenchStore((state) => state.timeline.playheadFrame)
+  const fps = useWorkbenchStore((state) => state.timeline.fps)
   const playing = useWorkbenchStore((state) => state.timelinePlaying)
   const previewAspectRatio = useWorkbenchStore((state) => state.previewAspectRatio)
   const setTimelinePlaying = useWorkbenchStore((state) => state.setTimelinePlaying)
-  const durationFrame = computeTimelineDuration(timeline)
+  const durationFrame = React.useMemo(() => computeTimelineDuration(timeline), [tracks])
   const activeClips = React.useMemo(
-    () => resolveActiveClipsAtFrame(timeline, timeline.playheadFrame),
-    [timeline],
+    () => resolveActiveClipsAtFrame(timeline, playheadFrame),
+    [tracks, playheadFrame],
   )
 
   React.useEffect(() => {
@@ -40,7 +43,7 @@ export default function PreviewWorkspace(): JSX.Element {
       useWorkbenchStore.getState().setTimelinePlayhead(nextFrame)
     }, 1000 / timeline.fps)
     return () => window.clearInterval(interval)
-  }, [durationFrame, playing, setTimelinePlaying, timeline.fps])
+  }, [durationFrame, playing, setTimelinePlaying, fps])
 
   return (
     <section className="workbench-preview" aria-label="预览区">

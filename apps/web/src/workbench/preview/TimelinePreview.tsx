@@ -109,17 +109,22 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
   React.useEffect(() => {
     const video = videoRef.current
     if (!video || !videoClip?.url) return
+    if (playing) return
     const nextTime = resolveVideoClipMediaTimeSeconds({ clip: videoClip, playheadFrame, fps })
     if (!Number.isFinite(nextTime)) return
     if (Math.abs(video.currentTime - nextTime) < 0.08) return
     video.currentTime = nextTime
-  }, [fps, playheadFrame, videoClip])
+  }, [fps, playheadFrame, videoClip, playing])
 
   React.useEffect(() => {
     const video = videoRef.current
     if (!video || !videoClip?.url) return
     if (playing) {
       setPlaybackError('')
+      const startTime = resolveVideoClipMediaTimeSeconds({ clip: videoClip, playheadFrame, fps })
+      if (Number.isFinite(startTime) && Math.abs(video.currentTime - startTime) > 0.08) {
+        video.currentTime = startTime
+      }
       void video.play().catch((error: unknown) => {
         const message = error instanceof Error && error.message ? error.message : 'video play failed'
         setPlaybackError(`视频播放失败：${message}`)
@@ -134,7 +139,7 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
         // jsdom does not implement media controls; browsers do.
       }
     }
-  }, [playing, setTimelinePlaying, videoClip?.url])
+  }, [fps, playheadFrame, playing, setTimelinePlaying, videoClip?.url, videoClip])
 
   React.useEffect(() => {
     setPlaybackError('')
