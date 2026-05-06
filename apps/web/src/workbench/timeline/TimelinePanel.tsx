@@ -12,7 +12,7 @@ import { useWorkbenchStore } from '../workbenchStore'
 import { WorkbenchIconButton } from '../../design'
 import { computeTimelineDuration } from './timelineMath'
 import TimelineTrack from './TimelineTrack'
-import { frameToPixel, pixelToFrame } from './timelineEdit'
+import { frameToPixel, pixelToFrame, TIMELINE_MIN_SCALE, TIMELINE_MAX_SCALE } from './timelineEdit'
 
 function formatRulerLabel(frame: number, fps: number): string {
   const totalSeconds = Math.floor(frame / fps)
@@ -154,7 +154,15 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
           <WorkbenchIconButton className="workbench-timeline__tool" label={`${actionLabelPrefix}删除选中片段`} icon={<IconTrash size={14} />} disabled={!selectedClipId} onClick={() => removeTimelineClip(selectedClipId)} />
         </div>
       </div>
-      <div className="workbench-timeline__tracks">
+      <div
+        className="workbench-timeline__tracks"
+        onWheel={(e) => {
+          if (!e.ctrlKey && !e.metaKey) return
+          e.preventDefault()
+          const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15
+          setTimelineZoom(Math.min(TIMELINE_MAX_SCALE, Math.max(TIMELINE_MIN_SCALE, timeline.scale * factor)))
+        }}
+      >
         <div className="workbench-timeline__ruler">
           <div className="workbench-timeline__ruler-spacer" aria-hidden="true" />
           <div

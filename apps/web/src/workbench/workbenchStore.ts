@@ -14,6 +14,7 @@ import { createDefaultTimeline, normalizeTimeline } from './timeline/timelineMat
 import type { TimelineClip, TimelineState, TimelineTrackType } from './timeline/timelineTypes'
 import { createDefaultWorkbenchDocument, type CreationDocumentTools, type PreviewAspectRatio, type WorkbenchDocument } from './workbenchTypes'
 import type { WorkbenchAiMessage } from './ai/workbenchAiTypes'
+import { toast } from '../ui/toast'
 
 export const WORKSPACE_MODES = ['creation', 'generation', 'preview'] as const
 
@@ -125,10 +126,16 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
     })
   },
   moveTimelineClip: (clipId, startFrame) => {
-    set((state) => ({
-      timeline: moveClipToFrame(state.timeline, clipId, startFrame),
-      selectedTimelineClipId: String(clipId || '').trim(),
-    }))
+    set((state) => {
+      const nextTimeline = moveClipToFrame(state.timeline, clipId, startFrame)
+      if (nextTimeline === state.timeline) {
+        toast('此位置已有片段', 'error')
+      }
+      return {
+        timeline: nextTimeline,
+        selectedTimelineClipId: String(clipId || '').trim(),
+      }
+    })
   },
   removeTimelineClip: (clipId) => {
     set((state) => ({

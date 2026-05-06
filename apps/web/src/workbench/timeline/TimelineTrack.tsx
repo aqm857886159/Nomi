@@ -3,9 +3,7 @@ import { useWorkbenchStore } from '../workbenchStore'
 import { buildClipFromGenerationNode } from '../generationCanvasV2/model/buildClipFromGenerationNode'
 import { clientXToFrame } from './timelineEdit'
 import {
-  decodeTimelineClipDragPayload,
   decodeTimelineGenerationNodeDragPayload,
-  TIMELINE_CLIP_DRAG_MIME,
   TIMELINE_GENERATION_NODE_DRAG_MIME,
 } from './timelineDragPayload'
 import TimelineClip from './TimelineClip'
@@ -18,7 +16,6 @@ type TimelineTrackProps = {
 export default function TimelineTrack({ track }: TimelineTrackProps): JSX.Element {
   const timeline = useWorkbenchStore((state) => state.timeline)
   const addTimelineClipAtFrame = useWorkbenchStore((state) => state.addTimelineClipAtFrame)
-  const moveTimelineClip = useWorkbenchStore((state) => state.moveTimelineClip)
   const setTimelinePlayhead = useWorkbenchStore((state) => state.setTimelinePlayhead)
   const clipsRef = React.useRef<HTMLDivElement | null>(null)
   const [dragOver, setDragOver] = React.useState(false)
@@ -41,13 +38,8 @@ export default function TimelineTrack({ track }: TimelineTrackProps): JSX.Elemen
         resultId: generationNodePayload.resultId,
       })
       if (clip) addTimelineClipAtFrame(clip, clip.type, startFrame)
-      return
     }
-    const clipPayload = decodeTimelineClipDragPayload(event.dataTransfer.getData(TIMELINE_CLIP_DRAG_MIME))
-    if (clipPayload) {
-      moveTimelineClip(clipPayload.clipId, startFrame)
-    }
-  }, [addTimelineClipAtFrame, moveTimelineClip, resolveFrame, timeline.fps, track.type])
+  }, [addTimelineClipAtFrame, resolveFrame, timeline.fps])
 
   return (
     <div className="workbench-timeline-track" data-testid="timeline-track" data-track-type={track.type}>
@@ -73,7 +65,7 @@ export default function TimelineTrack({ track }: TimelineTrackProps): JSX.Elemen
         }}
         onDragOver={(event) => {
           event.preventDefault()
-          event.dataTransfer.dropEffect = event.dataTransfer.types.includes(TIMELINE_CLIP_DRAG_MIME) ? 'move' : 'copy'
+          event.dataTransfer.dropEffect = 'copy'
         }}
         onDrop={handleDrop}
       >
