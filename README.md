@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="apps/web/public/nomi-logo.svg" alt="Nomi" width="96" />
+  <img src="apps/web/public/nomi-logo.svg" alt="Nomi" width="80" />
 </p>
 
 <h1 align="center">Nomi</h1>
 
 <p align="center">
-  <strong>本地优先的开源 AI 视频创作工作台</strong><br />
-  剧本 → 图片生成 → 视频生成 → 剪辑，一条流。
+  写剧本，生成图片，生成视频，剪辑导出。<br />
+  <strong>在一个本地工作台里完成，素材不离开你的电脑。</strong>
 </p>
 
 <p align="center">
@@ -27,20 +27,30 @@
 
 ---
 
-## 是什么
+## 你可以用它做什么
 
-在一个工作台里完成 AI 视频的全流程：
+在创作区写一段剧本，让 Agent 把它拆成 6 个镜头，自动在画布上创建图片节点和视频节点，并行生成，生成完成后按顺序放进时间轴。
 
-- **创作区** — 写剧本、章节、镜头描述
-- **生成区** — 节点画布，图片生成 + 视频生成
-- **时间轴** — 拖入素材、剪辑、预览、导出
-- **终端 Agent** — 自然语言驱动整个工作台
+你去倒杯水，回来视频已经排好了。
 
-素材和项目文件留在本地，模型供应商自己选。
+这是 Nomi 想解决的问题：**AI 视频创作的每一步都是割裂的**——写稿在一个工具，生图在另一个，生视频又是另一个，剪辑再换一个。Nomi 把这条流打通，放在本地，让 Agent 可以驱动整个过程。
 
 ---
 
-## 快速启动
+## 三个核心差异
+
+**全流程，不是单点工具**
+剧本 → 图片节点 → 视频节点 → 时间轴剪辑 → 导出，数据在各环节之间自然流动，不需要手动导入导出。
+
+**本地优先，数据在你手里**
+项目文件、生成素材、剪辑记录全部存在本地。你决定哪些模型需要联网，哪些素材只留在自己的机器上。
+
+**Agent 可以驱动整个工作台**
+不只是聊天框里的 AI 助手。终端里说一句话，Agent 可以操作画布、触发生成、编辑时间轴，Web 界面实时展示变化。你也可以直接在 Web 上点。两种方式操作的是同一套状态。
+
+---
+
+## 30 秒启动
 
 需要 **Node.js 20+** 和 **Docker Desktop**。
 
@@ -52,13 +62,13 @@ corepack enable && pnpm install && pnpm start:local
 
 打开 **http://localhost:5173**。
 
-> 用 AI 编程助手（Claude Code / Cursor）？把 [AI_INSTALL.md](AI_INSTALL.md) 发给它，让它执行。
+> 用 Claude Code / Cursor？把 [AI_INSTALL.md](AI_INSTALL.md) 发给它，让它帮你执行。
 
 ---
 
 ## 配置
 
-### AI 对话（创作区 / Agent）
+### AI 对话（创作区 / 终端 Agent）
 
 编辑 `apps/agents-cli/agents.config.json`：
 
@@ -70,42 +80,21 @@ corepack enable && pnpm install && pnpm start:local
 }
 ```
 
-支持 DeepSeek、OpenAI、Qwen、Ollama 等任何兼容 OpenAI 格式的接口。
+支持 DeepSeek、OpenAI、Qwen、Ollama 等任何 OpenAI 兼容接口。国内推荐 DeepSeek，便宜且效果好。
 
 ### 图片 / 视频生成模型
 
-在 Web UI 里配置，不需要改配置文件：
+在 Web UI 里配置：**右上角 → 模型管理 → 添加供应商 → 添加模型**。
 
-1. 点击右上角 **模型管理**
-2. 添加供应商（填入 Base URL 和 API Key）
-3. 添加模型，关联到供应商
-4. 在生成画布选中节点 → 选择模型 → 生成
-
-详见 [docs/provider-integration.md](docs/provider-integration.md)。
-
----
-
-## 终端 Agent
-
-```bash
-pnpm dev:agents
-```
-
-然后用自然语言操作：
-
-```
-把这段剧本拆成 6 个镜头，生成图片，按顺序放进时间轴。
-```
-
-Agent 执行时，Web 画布实时展示变化。
+支持即梦、可灵、Dreamina、Runway 等，也可以接入私有模型网关。详见 [docs/provider-integration.md](docs/provider-integration.md)。
 
 ---
 
 ## 项目结构
 
 ```
-apps/web          Web 工作台
-apps/hono-api     本地 API
+apps/web          Web 工作台（React + Vite）
+apps/hono-api     本地 API（Hono + Prisma）
 apps/agents-cli   终端 Agent
 packages/schemas  共享协议
 ```
@@ -116,10 +105,8 @@ packages/schemas  共享协议
 
 **青阳** — AI 产品经理 / 创作者。微信：**TZ857886159**
 
-<img src="docs/media/qingyang-wechat.jpg" alt="微信二维码" width="160" />
+<img src="docs/media/qingyang-wechat.jpg" alt="微信二维码" width="140" />
 
 ---
 
-## License
-
-Apache-2.0
+Apache-2.0 License
