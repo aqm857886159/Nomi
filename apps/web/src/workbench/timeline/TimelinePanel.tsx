@@ -6,6 +6,7 @@ import {
   IconCut,
   IconMinus,
   IconPlus,
+  IconRefresh,
   IconTrash,
 } from '@tabler/icons-react'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -150,6 +151,8 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
             </div>
           ) : null}
           <WorkbenchIconButton className="workbench-timeline__tool" label={`${actionLabelPrefix}缩小时间轴`} icon={<IconMinus size={14} />} onClick={() => setTimelineZoom(timeline.scale / 1.25)} />
+          <span style={{ fontSize: 11, opacity: 0.6, minWidth: 32, textAlign: 'center' }}>{Math.round(timeline.scale * 100)}%</span>
+          <WorkbenchIconButton className="workbench-timeline__tool" label="重置缩放" icon={<IconRefresh size={14} />} onClick={() => setTimelineZoom(1)} />
           <WorkbenchIconButton className="workbench-timeline__tool" label={`${actionLabelPrefix}放大时间轴`} icon={<IconPlus size={14} />} onClick={() => setTimelineZoom(timeline.scale * 1.25)} />
           <WorkbenchIconButton className="workbench-timeline__tool" label={`${actionLabelPrefix}删除选中片段`} icon={<IconTrash size={14} />} disabled={!selectedClipId} onClick={() => removeTimelineClip(selectedClipId)} />
         </div>

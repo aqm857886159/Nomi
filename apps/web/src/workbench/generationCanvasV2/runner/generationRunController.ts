@@ -71,7 +71,7 @@ export async function runGenerationNode(
   if (!canRunGenerationNode(initialNode, { nodes: initialState.nodes, edges: initialState.edges })) {
     throw new Error(initialNode.kind === 'video'
       ? '视频节点缺少上游真实图片或视频资产 URL。请先生成或选择首帧/参考图后再生成视频。'
-      : `${initialNode.kind} generation is not implemented yet`)
+      : `暂不支持「${initialNode.kind}」类型节点的生成`)
   }
 
   const run = initialState.appendNodeRun(id, {
@@ -82,7 +82,7 @@ export async function runGenerationNode(
   useGenerationCanvasStore.getState().setNodeProgress(id, {
     runId: run.id,
     phase: 'queued',
-    message: 'Preparing generation',
+    message: '准备生成',
     percent: 0,
   })
 
@@ -107,18 +107,18 @@ export async function runGenerationNode(
         useGenerationCanvasStore.getState().setNodeProgress(id, {
           runId: run.id,
           phase: 'retrying-fetch',
-          message: `Retrying generation (${attempt + 1}/${maxAttempts})`,
+          message: `正在重试 (${attempt + 1}/${maxAttempts})`,
           percent: Math.min(90, attempt * 10),
         })
         await waitForRetry(attempt, baseDelayMs)
       }
     }
-    if (!result) throw new Error('Generation failed')
+    if (!result) throw new Error('生成失败')
     useGenerationCanvasStore.getState().addNodeResult(id, result)
     await persistActiveWorkbenchProjectNow().catch(() => {})
     return result
   } catch (error: unknown) {
-    const message = error instanceof Error && error.message ? error.message : 'Generation failed'
+    const message = error instanceof Error && error.message ? error.message : '生成失败'
     useGenerationCanvasStore.getState().setNodeStatus(id, 'error', message)
     throw error
   }

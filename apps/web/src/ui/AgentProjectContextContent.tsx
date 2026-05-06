@@ -1,4 +1,5 @@
 import React from 'react'
+import { modals } from '@mantine/modals'
 import { Code, Group, Loader, ScrollArea, Stack, Text } from '@mantine/core'
 import {
   fetchAdminProjectWorkspaceContext,
@@ -165,31 +166,37 @@ export default function AgentProjectContextContent(props: AgentProjectContextCon
     }
   }, [activeFile, projectId])
 
-  const handleRollbackVersion = React.useCallback(async (versionId: string) => {
+  const handleRollbackVersion = React.useCallback((versionId: string) => {
     if (!activeFile || !projectId) return
     if (!canEditActiveFile) {
       toast('当前无权限回滚该文件', 'error')
       return
     }
-    const ok = window.confirm(`确定回滚当前文件到版本 ${versionId.slice(0, 16)}？这会覆盖当前内容，但会自动生成一条新的历史记录。`)
-    if (!ok) return
-    setSaving(true)
-    try {
-      const fileName = getFileNameFromPath(activeFile.path)
-      if (activeFile.layer === 'global') {
-        if (fileName !== 'GLOBAL_RULES.md') throw new Error('仅支持回滚 GLOBAL_RULES.md')
-        await rollbackAdminGlobalWorkspaceContextFile({ fileName, versionId })
-      } else {
-        if (!isProjectEditableFileName(fileName)) throw new Error('不支持回滚该项目上下文文件')
-        await rollbackProjectWorkspaceContextFile({ projectId, fileName, versionId })
-      }
-      toast('回滚成功', 'success')
-      await load(false)
-    } catch (error) {
-      toast(error instanceof Error ? error.message : '回滚失败', 'error')
-    } finally {
-      setSaving(false)
-    }
+    modals.openConfirmModal({
+      title: '确认回滚',
+      children: <Text size="sm">{`确定回滚当前文件到版本 ${versionId.slice(0, 16)}？这会覆盖当前内容，但会自动生成一条新的历史记录。`}</Text>,
+      labels: { confirm: '回滚', cancel: '取消' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        setSaving(true)
+        try {
+          const fileName = getFileNameFromPath(activeFile.path)
+          if (activeFile.layer === 'global') {
+            if (fileName !== 'GLOBAL_RULES.md') throw new Error('仅支持回滚 GLOBAL_RULES.md')
+            await rollbackAdminGlobalWorkspaceContextFile({ fileName, versionId })
+          } else {
+            if (!isProjectEditableFileName(fileName)) throw new Error('不支持回滚该项目上下文文件')
+            await rollbackProjectWorkspaceContextFile({ projectId, fileName, versionId })
+          }
+          toast('回滚成功', 'success')
+          await load(false)
+        } catch (error) {
+          toast(error instanceof Error ? error.message : '回滚失败', 'error')
+        } finally {
+          setSaving(false)
+        }
+      },
+    })
   }, [activeFile, projectId, canEditActiveFile, load])
 
   const handleVerify = React.useCallback(async () => {

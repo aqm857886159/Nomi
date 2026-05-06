@@ -1,4 +1,5 @@
 import React from 'react'
+import { modals } from '@mantine/modals'
 import { Group, Stack, Text } from '@mantine/core'
 import type { ModelCatalogVendorDto } from '../deps'
 import { clearModelCatalogVendorApiKey, toast, upsertModelCatalogVendorApiKey } from '../deps'
@@ -51,18 +52,25 @@ export function VendorApiKeyModal({
     }
   }, [apiKeyValue, onClose, onSaved, submitting, vendor])
 
-  const clearVendorApiKey = React.useCallback(async () => {
+  const clearVendorApiKey = React.useCallback(() => {
     if (!vendor) return
-    if (!window.confirm(`确定清除厂商「${vendor.name}（${vendor.key}）」的 API Key？\n\n清除后，该厂商将无法使用系统级全局 Key 进行调用。`)) return
-    try {
-      await clearModelCatalogVendorApiKey(vendor.key)
-      toast('已清除 API Key', 'success')
-      onClose()
-      await onSaved()
-    } catch (err: unknown) {
-      console.error('clear vendor api key failed', err)
-      toast(toErrorMessage(err, '清除 API Key 失败'), 'error')
-    }
+    modals.openConfirmModal({
+      title: '确认清除 API Key',
+      children: <Text size="sm">{`确定清除厂商「${vendor.name}（${vendor.key}）」的 API Key？\n\n清除后，该厂商将无法使用系统级全局 Key 进行调用。`}</Text>,
+      labels: { confirm: '清除', cancel: '取消' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        try {
+          await clearModelCatalogVendorApiKey(vendor.key)
+          toast('已清除 API Key', 'success')
+          onClose()
+          await onSaved()
+        } catch (err: unknown) {
+          console.error('clear vendor api key failed', err)
+          toast(toErrorMessage(err, '清除 API Key 失败'), 'error')
+        }
+      },
+    })
   }, [onClose, onSaved, vendor])
 
   return (

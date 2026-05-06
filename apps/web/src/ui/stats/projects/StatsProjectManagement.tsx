@@ -1,4 +1,5 @@
 import React from 'react'
+import { modals } from '@mantine/modals'
 import { Divider, Group, Image, Loader, Stack, Table, Text, Tooltip, Title } from '@mantine/core'
 import { IconCopy, IconExternalLink, IconPencil, IconRefresh, IconSearch, IconTrash } from '@tabler/icons-react'
 import { deleteAdminProject, listAdminProjects, updateAdminProject, type AdminProjectDto } from '../../../api/server'
@@ -92,22 +93,28 @@ export default function StatsProjectManagement({ className }: { className?: stri
     void reload()
   }, [reload])
 
-  const onTogglePublic = async (p: AdminProjectDto) => {
+  const onTogglePublic = (p: AdminProjectDto) => {
     if (!p?.id) return
     if (updatingIds.has(p.id)) return
     const nextPublic = !p.isPublic
-    if (!window.confirm(nextPublic ? `确定公开项目「${p.name}」？` : `确定取消公开项目「${p.name}」？`)) return
-    markUpdating(p.id, true)
-    try {
-      const updated = await updateAdminProject(p.id, { isPublic: nextPublic })
-      setItems((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
-      toast('已保存', 'success')
-    } catch (err: unknown) {
-      console.error('toggle project public failed', err)
-      toast(err instanceof Error && err.message ? err.message : '更新失败', 'error')
-    } finally {
-      markUpdating(p.id, false)
-    }
+    modals.openConfirmModal({
+      title: nextPublic ? '公开项目' : '取消公开',
+      children: <Text size="sm">{nextPublic ? `确定公开项目「${p.name}」？` : `确定取消公开项目「${p.name}」？`}</Text>,
+      labels: { confirm: '确定', cancel: '取消' },
+      onConfirm: async () => {
+        markUpdating(p.id, true)
+        try {
+          const updated = await updateAdminProject(p.id, { isPublic: nextPublic })
+          setItems((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
+          toast('已保存', 'success')
+        } catch (err: unknown) {
+          console.error('toggle project public failed', err)
+          toast(err instanceof Error && err.message ? err.message : '更新失败', 'error')
+        } finally {
+          markUpdating(p.id, false)
+        }
+      },
+    })
   }
 
   const openEdit = (p: AdminProjectDto) => {
@@ -152,21 +159,29 @@ export default function StatsProjectManagement({ className }: { className?: stri
     }
   }
 
-  const onDeleteProject = async (p: AdminProjectDto) => {
+  const onDeleteProject = (p: AdminProjectDto) => {
     if (!p?.id) return
     if (updatingIds.has(p.id)) return
-    if (!window.confirm(`确定删除项目「${p.name}」？删除后该项目下的 flows / versions 也会被删除（不可恢复）。`)) return
-    markUpdating(p.id, true)
-    try {
-      await deleteAdminProject(p.id)
-      toast('已删除', 'success')
-      await reload()
-    } catch (err: unknown) {
-      console.error('delete project failed', err)
-      toast(err instanceof Error && err.message ? err.message : '删除失败', 'error')
-    } finally {
-      markUpdating(p.id, false)
-    }
+    modals.openConfirmModal({
+      title: '确认删除项目',
+      children: <Text size="sm">{`确定删除项目「${p.name}」？删除后该项目下的 flows / versions 也会被删除（不可恢复）。`}</Text>,
+      labels: { confirm: '删除', cancel: '取消' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        markUpdating(p.id, true)
+        try {
+          await deleteAdminProject(p.id)
+          toast('已删除', 'success')
+          await reload()
+        } catch (err: unknown) {
+          console.error('delete project failed', err)
+          toast(err instanceof Error && err.message ? err.message : '删除失败', 'error')
+        } finally {
+          markUpdating(p.id, false)
+        }
+      },
+    })
+  }
   }
 
   const onOpenShare = (p: AdminProjectDto) => {

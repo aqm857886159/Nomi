@@ -1,4 +1,5 @@
 import React from 'react'
+import { modals } from '@mantine/modals'
 import {
   ActionIcon,
   Badge,
@@ -8,9 +9,9 @@ import {
   Loader,
   ScrollArea,
   Select,
+  Text,
   Stack,
   Tabs,
-  Text,
   TextInput,
   Textarea,
 } from '@mantine/core'
@@ -222,17 +223,24 @@ export function PromptSampleDrawer({ opened, nodeKind, onClose, onApplySample }:
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('确定删除该案例？')) return
-    setDeletingId(id)
-    try {
-      await deletePromptSample(id)
-      loadCustomSamples()
-    } catch (err: any) {
-      setCustomError(err?.message || '删除失败')
-    } finally {
-      setDeletingId(null)
-    }
+  const handleDelete = (id: string) => {
+    modals.openConfirmModal({
+      title: '确认删除',
+      children: <Text size="sm">确定删除该案例？</Text>,
+      labels: { confirm: '删除', cancel: '取消' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        setDeletingId(id)
+        try {
+          await deletePromptSample(id)
+          loadCustomSamples()
+        } catch (err: any) {
+          setCustomError(err?.message || '删除失败')
+        } finally {
+          setDeletingId(null)
+        }
+      },
+    })
   }
 
   const kindBadge = effectiveKind ? (

@@ -1,4 +1,5 @@
 import React from 'react'
+import { modals } from '@mantine/modals'
 import type { Edge, Node } from '@xyflow/react'
 import { AppShell, Box, Card, Divider, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Text, Title } from '@mantine/core'
 import { IconArrowLeft, IconChevronRight, IconFilePlus, IconHelpCircle, IconPhoto, IconPlayerPlay, IconPlus, IconRefresh, IconSearch, IconTrash, IconArrowUp, IconArrowDown, IconVectorBezier2 } from '@tabler/icons-react'
@@ -2140,52 +2141,64 @@ export default function ProjectChapterWorkbenchPage(): JSX.Element {
     }
   }
 
-  const handleDeleteShot = async () => {
+  const handleDeleteShot = () => {
     if (!chapterId || !shotDraft?.shotId || deletingShot) return
-    const ok = window.confirm('删除这个镜头？')
-    if (!ok) return
-    setDeletingShot(true)
-    try {
-      await deleteChapterShot(chapterId, shotDraft.shotId)
-      const refreshed = await reloadProjectContext({ bypassBookThrottle: true })
-      if (refreshed) {
-        setWorkbench(refreshed.chapterWorkbench)
-        const nextShot = refreshed.chapterWorkbench.shots[0] || null
-        setShotDraft(nextShot ? {
-          shotId: nextShot.id,
-          title: nextShot.title || '',
-          summary: nextShot.summary || '',
-          status: nextShot.status || 'queued',
-        } : null)
-        spaNavigate(buildProjectChapterUrl(projectId, chapterId))
-      }
-      toast('镜头已删除。', 'success')
-    } catch (error) {
-      console.error('删除镜头失败', error)
-      toast(describeError(error, '删除镜头失败，请稍后重试'), 'error')
-    } finally {
-      setDeletingShot(false)
-    }
+    modals.openConfirmModal({
+      title: '确认删除',
+      children: <Text size="sm">删除这个镜头？</Text>,
+      labels: { confirm: '删除', cancel: '取消' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        setDeletingShot(true)
+        try {
+          await deleteChapterShot(chapterId, shotDraft.shotId)
+          const refreshed = await reloadProjectContext({ bypassBookThrottle: true })
+          if (refreshed) {
+            setWorkbench(refreshed.chapterWorkbench)
+            const nextShot = refreshed.chapterWorkbench.shots[0] || null
+            setShotDraft(nextShot ? {
+              shotId: nextShot.id,
+              title: nextShot.title || '',
+              summary: nextShot.summary || '',
+              status: nextShot.status || 'queued',
+            } : null)
+            spaNavigate(buildProjectChapterUrl(projectId, chapterId))
+          }
+          toast('镜头已删除。', 'success')
+        } catch (error) {
+          console.error('删除镜头失败', error)
+          toast(describeError(error, '删除镜头失败，请稍后重试'), 'error')
+        } finally {
+          setDeletingShot(false)
+        }
+      },
+    })
   }
 
-  const handleDeleteChapter = async () => {
+  const handleDeleteChapter = () => {
     if (!chapterId || deletingChapter) return
-    const ok = window.confirm('删除当前章节？章节下镜头会一并删除。')
-    if (!ok) return
-    setDeletingChapter(true)
-    try {
-      await deleteChapter(chapterId)
-      toast('章节已删除。', 'success')
-      const remaining = chapters.filter((item) => item.id !== chapterId)
-      const next = remaining[0] || null
-      if (next) spaNavigate(buildProjectChapterUrl(projectId, next.id))
-      else spaNavigate('/projects')
-    } catch (error) {
-      console.error('删除章节失败', error)
-      toast(describeError(error, '删除章节失败，请稍后重试'), 'error')
-    } finally {
-      setDeletingChapter(false)
-    }
+    modals.openConfirmModal({
+      title: '确认删除',
+      children: <Text size="sm">删除当前章节？章节下镜头会一并删除。</Text>,
+      labels: { confirm: '删除', cancel: '取消' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        setDeletingChapter(true)
+        try {
+          await deleteChapter(chapterId)
+          toast('章节已删除。', 'success')
+          const remaining = chapters.filter((item) => item.id !== chapterId)
+          const next = remaining[0] || null
+          if (next) spaNavigate(buildProjectChapterUrl(projectId, next.id))
+          else spaNavigate('/projects')
+        } catch (error) {
+          console.error('删除章节失败', error)
+          toast(describeError(error, '删除章节失败，请稍后重试'), 'error')
+        } finally {
+          setDeletingChapter(false)
+        }
+      },
+    })
   }
 
   const handleArchiveChapter = async () => {

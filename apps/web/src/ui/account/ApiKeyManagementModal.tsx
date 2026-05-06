@@ -1,4 +1,5 @@
 import React from 'react'
+import { modals } from '@mantine/modals'
 import {
   CopyButton,
   Group,
@@ -177,17 +178,23 @@ export function ApiKeyManagementModal({
     }
   }, [closeEdit, editEnabled, editId, editLabel, editOrigins, editSubmitting])
 
-  const handleDelete = React.useCallback(async (item: ApiKeyDto) => {
-    const confirmed = window.confirm(`确定删除 API Key「${item.label || item.keyPrefix}」？删除后外部调用将立即失效。`)
-    if (!confirmed) return
-    try {
-      await deleteApiKey(item.id)
-      setKeys((prev) => prev.filter((entry) => entry.id !== item.id))
-      toast('API Key 已删除', 'success')
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '删除 API Key 失败'
-      toast(message, 'error')
-    }
+  const handleDelete = React.useCallback((item: ApiKeyDto) => {
+    modals.openConfirmModal({
+      title: '确认删除',
+      children: <Text size="sm">{`确定删除 API Key「${item.label || item.keyPrefix}」？删除后外部调用将立即失效。`}</Text>,
+      labels: { confirm: '删除', cancel: '取消' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        try {
+          await deleteApiKey(item.id)
+          setKeys((prev) => prev.filter((entry) => entry.id !== item.id))
+          toast('API Key 已删除', 'success')
+        } catch (error) {
+          const message = error instanceof Error ? error.message : '删除 API Key 失败'
+          toast(message, 'error')
+        }
+      },
+    })
   }, [])
 
   const handleClearCurrentCanvasKey = React.useCallback(() => {

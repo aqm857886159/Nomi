@@ -97,22 +97,19 @@ function loadVideo(url: string): Promise<HTMLVideoElement> {
 }
 
 function waitForSeeked(video: HTMLVideoElement): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const cleanup = (): void => {
-      video.removeEventListener('seeked', handleSeeked)
-      video.removeEventListener('error', handleError)
-    }
-    const handleSeeked = (): void => {
-      cleanup()
-      resolve()
-    }
-    const handleError = (): void => {
-      cleanup()
-      reject(new Error('视频素材 seek 失败'))
-    }
-    video.addEventListener('seeked', handleSeeked, { once: true })
-    video.addEventListener('error', handleError, { once: true })
-  })
+  return Promise.race([
+    new Promise<void>((resolve, reject) => {
+      const cleanup = (): void => {
+        video.removeEventListener('seeked', handleSeeked)
+        video.removeEventListener('error', handleError)
+      }
+      const handleSeeked = (): void => { cleanup(); resolve() }
+      const handleError = (): void => { cleanup(); reject(new Error('视频素材 seek 失败')) }
+      video.addEventListener('seeked', handleSeeked, { once: true })
+      video.addEventListener('error', handleError, { once: true })
+    }),
+    new Promise<void>((_, reject) => setTimeout(() => reject(new Error('视频定位超时')), 5000)),
+  ])
 }
 
 async function seekVideoToTime(video: HTMLVideoElement, time: number): Promise<void> {
@@ -301,6 +298,7 @@ export async function exportTimelineToWebm(options: TimelineWebmExportOptions): 
   recorder.start()
   options.onProgress?.({ status: 'recording', frame: 0, totalFrames: durationFrame, ratio: 0 })
 
+  const msPerFrame = 1000 / options.timeline.fps
   try {
     await new Promise<void>((resolve, reject) => {
       let frame = 0
@@ -334,12 +332,12 @@ export async function exportTimelineToWebm(options: TimelineWebmExportOptions): 
             return
           }
           frame += 1
-          window.requestAnimationFrame(tick)
+          setTimeout(() => void tick(), msPerFrame)
         } catch (error) {
           reject(error)
         }
       }
-      window.requestAnimationFrame(tick)
+      setTimeout(() => void tick(), 0)
     })
   } catch (error) {
     if (recorder.state !== 'inactive') recorder.stop()
@@ -356,6 +354,9 @@ export async function exportTimelineToWebm(options: TimelineWebmExportOptions): 
   const blob = await recording
   if (blob.size <= 0) throw new Error('导出结果为空')
   options.onProgress?.({ status: 'done', frame: durationFrame, totalFrames: durationFrame, ratio: 1 })
-  downloadBlob(blob, `nomi-export-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`)
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const filename = `nomi-${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.webm`
+  downloadBlob(blob, filename)
   return blob
 }

@@ -186,7 +186,7 @@ function cloneClipboardPayload(payload: GenerationCanvasClipboard): GenerationCa
     return {
       ...node,
       id: nextId,
-      title: node.title ? `${node.title} Copy` : node.title,
+      title: node.title ? `${node.title} 副本` : node.title,
       position: {
         x: node.position.x + CLIPBOARD_OFFSET,
         y: node.position.y + CLIPBOARD_OFFSET,

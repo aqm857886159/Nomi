@@ -70,7 +70,7 @@ export default function TimelineTrack({ track }: TimelineTrackProps): JSX.Elemen
         onDrop={handleDrop}
       >
         {track.clips.length === 0 ? (
-          <div className="workbench-timeline-track__empty">+ 拖入或点击添加</div>
+          <div className="workbench-timeline-track__empty">从生成区拖入素材</div>
         ) : null}
         {track.clips.map((clip) => (
           <TimelineClip key={clip.id} clip={clip} />

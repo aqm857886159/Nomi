@@ -382,6 +382,12 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
         ) : null}
       </header>
 
+      {status === 'error' && node.error && !selected ? (
+        <div className="generation-canvas-v2-node__error-peek" title={node.error}>
+          {node.error.length > 40 ? node.error.slice(0, 40) + '…' : node.error}
+        </div>
+      ) : null}
+
       <div
         className="generation-canvas-v2-node__preview"
         data-timeline-draggable={canSendToTimeline ? 'true' : 'false'}
@@ -418,7 +424,9 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
             />
           )
         ) : (
-          <div className="generation-canvas-v2-node__empty" />
+          <div className="generation-canvas-v2-node__empty">
+            {selected ? null : <span style={{ fontSize: 11, opacity: 0.45, pointerEvents: 'none' }}>点击节点填写提示词</span>}
+          </div>
         )}
       </div>
 
@@ -474,7 +482,9 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
               const disabledReason = !canGenerate && !isGenerating
                 ? node.kind === 'video'
                   ? '需要先连接一个图片节点作为首帧'
-                  : '当前无法生成'
+                  : node.kind === 'image'
+                    ? undefined
+                    : `「${node.kind}」类型暂不支持直接生成`
                 : undefined
               return (
                 <span title={disabledReason} style={{ display: 'contents' }}>

@@ -1,4 +1,5 @@
 import React from 'react'
+import { modals } from '@mantine/modals'
 import { Avatar, Divider, Group, Loader, Paper, Stack, Table, Text, Tooltip, Title } from '@mantine/core'
 import { IconRefresh, IconSearch, IconTrash } from '@tabler/icons-react'
 import { deleteAdminUser, listAdminUsers, updateAdminUser, type AdminUserDto } from '../api/server'
@@ -81,25 +82,31 @@ export default function StatsUserManagement({ className }: { className?: string 
     })
   }
 
-  const onToggleAdmin = async (u: AdminUserDto) => {
+  const onToggleAdmin = (u: AdminUserDto) => {
     if (!u?.id) return
     if (u.deletedAt) return
     const nextAdmin = u.role !== 'admin'
-    if (!window.confirm(nextAdmin ? `确定将「${u.login}」设为管理员？` : `确定取消「${u.login}」的管理员权限？`)) return
-    markUpdating(u.id, true)
-    try {
-      const updated = await updateAdminUser(u.id, { role: nextAdmin ? 'admin' : null })
-      setItems((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
-      toast('已保存', 'success')
-    } catch (err: unknown) {
-      console.error('toggle admin failed', err)
-      toast(err instanceof Error ? err.message : '更新失败', 'error')
-    } finally {
-      markUpdating(u.id, false)
-    }
+    modals.openConfirmModal({
+      title: nextAdmin ? '设为管理员' : '取消管理员',
+      children: <Text size="sm">{nextAdmin ? `确定将「${u.login}」设为管理员？` : `确定取消「${u.login}」的管理员权限？`}</Text>,
+      labels: { confirm: '确定', cancel: '取消' },
+      onConfirm: async () => {
+        markUpdating(u.id, true)
+        try {
+          const updated = await updateAdminUser(u.id, { role: nextAdmin ? 'admin' : null })
+          setItems((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
+          toast('已保存', 'success')
+        } catch (err: unknown) {
+          console.error('toggle admin failed', err)
+          toast(err instanceof Error ? err.message : '更新失败', 'error')
+        } finally {
+          markUpdating(u.id, false)
+        }
+      },
+    })
   }
 
-  const onToggleDisabled = async (u: AdminUserDto) => {
+  const onToggleDisabled = (u: AdminUserDto) => {
     if (!u?.id) return
     if (u.deletedAt) return
     if (u.id === currentUserId) {
@@ -107,39 +114,53 @@ export default function StatsUserManagement({ className }: { className?: string 
       return
     }
     const nextDisabled = !u.disabled
-    if (!window.confirm(nextDisabled ? `确定禁用「${u.login}」？禁用后将无法登录/调用接口。` : `确定启用「${u.login}」？`)) return
-    markUpdating(u.id, true)
-    try {
-      const updated = await updateAdminUser(u.id, { disabled: nextDisabled })
-      setItems((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
-      toast('已保存', 'success')
-    } catch (err: unknown) {
-      console.error('toggle disabled failed', err)
-      toast(err instanceof Error ? err.message : '更新失败', 'error')
-    } finally {
-      markUpdating(u.id, false)
-    }
+    modals.openConfirmModal({
+      title: nextDisabled ? '禁用用户' : '启用用户',
+      children: <Text size="sm">{nextDisabled ? `确定禁用「${u.login}」？禁用后将无法登录/调用接口。` : `确定启用「${u.login}」？`}</Text>,
+      labels: { confirm: '确定', cancel: '取消' },
+      confirmProps: nextDisabled ? { color: 'red' } : undefined,
+      onConfirm: async () => {
+        markUpdating(u.id, true)
+        try {
+          const updated = await updateAdminUser(u.id, { disabled: nextDisabled })
+          setItems((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
+          toast('已保存', 'success')
+        } catch (err: unknown) {
+          console.error('toggle disabled failed', err)
+          toast(err instanceof Error ? err.message : '更新失败', 'error')
+        } finally {
+          markUpdating(u.id, false)
+        }
+      },
+    })
   }
 
-  const onDeleteUser = async (u: AdminUserDto) => {
+  const onDeleteUser = (u: AdminUserDto) => {
     if (!u?.id) return
     if (u.deletedAt) return
     if (u.id === currentUserId) {
       toast('不能删除自己', 'error')
       return
     }
-    if (!window.confirm(`确定删除用户「${u.login}」？删除后将无法登录/调用接口（不可恢复）。`)) return
-    markUpdating(u.id, true)
-    try {
-      await deleteAdminUser(u.id)
-      toast('已删除', 'success')
-      await reload()
-    } catch (err: unknown) {
-      console.error('delete user failed', err)
-      toast(err instanceof Error ? err.message : '删除失败', 'error')
-    } finally {
-      markUpdating(u.id, false)
-    }
+    modals.openConfirmModal({
+      title: '确认删除用户',
+      children: <Text size="sm">{`确定删除用户「${u.login}」？删除后将无法登录/调用接口（不可恢复）。`}</Text>,
+      labels: { confirm: '删除', cancel: '取消' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        markUpdating(u.id, true)
+        try {
+          await deleteAdminUser(u.id)
+          toast('已删除', 'success')
+          await reload()
+        } catch (err: unknown) {
+          console.error('delete user failed', err)
+          toast(err instanceof Error ? err.message : '删除失败', 'error')
+        } finally {
+          markUpdating(u.id, false)
+        }
+      },
+    })
   }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))

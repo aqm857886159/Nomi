@@ -9,6 +9,7 @@ import { exportTimelineToWebm, type ExportStatus } from '../export/timelineWebmE
 import { toast } from '../../ui/toast'
 import { buildVideoPlaybackUrl } from '../../media/videoPlaybackUrl'
 import { diagnoseVideoPlaybackFailure, logVideoPlaybackFailure } from '../../media/videoPlaybackDiagnostics'
+import { computeTimelineDuration } from '../timeline/timelineMath'
 
 type TimelinePreviewProps = {
   activeClips: TimelineClip[]
@@ -100,6 +101,10 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
   const activeRatio = PREVIEW_RATIOS.find((ratio) => ratio.value === aspectRatio) || PREVIEW_RATIOS[0]
   const activeMediaKey = videoClip?.url || imageClip?.url || ''
   const hasMedia = Boolean(activeMediaKey)
+  const isEmpty = timeline.tracks.every(t => t.clips.length === 0)
+  const totalFrames = computeTimelineDuration(timeline)
+  const currentSeconds = (playheadFrame / (timeline.fps || 30)).toFixed(1)
+  const totalSeconds = (totalFrames / (timeline.fps || 30)).toFixed(1)
 
   React.useEffect(() => {
     const video = videoRef.current
@@ -182,6 +187,10 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
 
   const handleExport = React.useCallback(async () => {
     if (exportStatus === 'preparing' || exportStatus === 'recording') return
+    const hasVideoClips = timeline.tracks.some(t => t.clips.some(c => c.type === 'video'))
+    if (hasVideoClips) {
+      toast('注意：导出 WebM 不包含音频轨道', 'info')
+    }
     try {
       setExportStatus('preparing')
       setExportRatio(0)
@@ -193,6 +202,8 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
           setExportRatio(progress.ratio)
         },
       })
+      toast('导出完成，文件已下载', 'success')
+      setExportStatus('idle')
     } catch (error) {
       setExportStatus('idle')
       const message = error instanceof Error ? error.message : '导出失败'
@@ -281,7 +292,12 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
             label={playing ? '暂停' : '播放'}
             icon={playing ? <IconPlayerPause size={16} stroke={2} /> : <IconPlayerPlay size={16} stroke={2} />}
             onClick={togglePlayback}
+            disabled={isEmpty}
+            title={isEmpty ? '时间轴为空' : undefined}
           />
+          <span style={{ fontSize: 11, opacity: 0.6, fontVariantNumeric: 'tabular-nums', minWidth: 60 }}>
+            {currentSeconds}s / {totalSeconds}s
+          </span>
           <div className="workbench-preview-player__control-separator" aria-hidden="true" />
           <div className="workbench-preview-player__select-control">
             <span className="workbench-preview-player__control-label">画幅</span>

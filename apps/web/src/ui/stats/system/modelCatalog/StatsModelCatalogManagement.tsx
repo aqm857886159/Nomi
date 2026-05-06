@@ -1,4 +1,5 @@
 import React from 'react'
+import { modals } from '@mantine/modals'
 import { Collapse, Group, Stack, Text, Tooltip } from '@mantine/core'
 import { IconDatabaseCog, IconDownload, IconKey, IconRefresh, IconCircleCheck, IconCircleDashed, IconAlertCircle } from '@tabler/icons-react'
 import {
@@ -164,46 +165,67 @@ export default function StatsModelCatalogManagement({
   }, [reloadAll])
 
   const handleDeleteVendor = React.useCallback(
-    async (vendor: ModelCatalogVendorDto) => {
-      if (!window.confirm(`确定删除厂商「${vendor.name}（${vendor.key}）」？\n\n注意：若该厂商仍被模型/映射引用，数据库可能会拒绝删除。`)) return
-      try {
-        await deleteModelCatalogVendor(vendor.key)
-        toast('已删除厂商', 'success')
-        await reloadAll()
-      } catch (err: unknown) {
-        console.error('delete vendor failed', err)
-        toast(getErrorMessage(err, '删除厂商失败'), 'error')
-      }
+    (vendor: ModelCatalogVendorDto) => {
+      modals.openConfirmModal({
+        title: '确认删除厂商',
+        children: <Text size="sm">{`确定删除厂商「${vendor.name}（${vendor.key}）」？\n\n注意：若该厂商仍被模型/映射引用，数据库可能会拒绝删除。`}</Text>,
+        labels: { confirm: '删除', cancel: '取消' },
+        confirmProps: { color: 'red' },
+        onConfirm: async () => {
+          try {
+            await deleteModelCatalogVendor(vendor.key)
+            toast('已删除厂商', 'success')
+            await reloadAll()
+          } catch (err: unknown) {
+            console.error('delete vendor failed', err)
+            toast(getErrorMessage(err, '删除厂商失败'), 'error')
+          }
+        },
+      })
     },
     [reloadAll],
   )
 
   const handleDeleteModel = React.useCallback(
-    async (model: ModelCatalogModelDto) => {
-      if (!window.confirm(`确定删除模型「${model.labelZh}（${model.modelKey}）」？`)) return
-      try {
-        await deleteModelCatalogModel(model.vendorKey, model.modelKey)
-        toast('已删除模型', 'success')
-        await reloadAll()
-      } catch (err: unknown) {
-        console.error('delete model failed', err)
-        toast(getErrorMessage(err, '删除模型失败'), 'error')
-      }
+    (model: ModelCatalogModelDto) => {
+      modals.openConfirmModal({
+        title: '确认删除模型',
+        children: <Text size="sm">{`确定删除模型「${model.labelZh}（${model.modelKey}）」？`}</Text>,
+        labels: { confirm: '删除', cancel: '取消' },
+        confirmProps: { color: 'red' },
+        onConfirm: async () => {
+          try {
+            await deleteModelCatalogModel(model.vendorKey, model.modelKey)
+            toast('已删除模型', 'success')
+            await reloadAll()
+          } catch (err: unknown) {
+            console.error('delete model failed', err)
+            toast(getErrorMessage(err, '删除模型失败'), 'error')
+          }
+        },
+      })
     },
     [reloadAll],
   )
 
   const handleDeleteMapping = React.useCallback(
-    async (mapping: ModelCatalogMappingDto) => {
-      if (!window.confirm(`确定删除映射「${mapping.vendorKey} / ${mapping.taskKind} / ${mapping.name}」？`)) return
-      try {
-        await deleteModelCatalogMapping(mapping.id)
-        toast('已删除映射', 'success')
-        await reloadAll()
-      } catch (err: unknown) {
-        console.error('delete mapping failed', err)
-        toast(getErrorMessage(err, '删除映射失败'), 'error')
-      }
+    (mapping: ModelCatalogMappingDto) => {
+      modals.openConfirmModal({
+        title: '确认删除映射',
+        children: <Text size="sm">{`确定删除映射「${mapping.vendorKey} / ${mapping.taskKind} / ${mapping.name}」？`}</Text>,
+        labels: { confirm: '删除', cancel: '取消' },
+        confirmProps: { color: 'red' },
+        onConfirm: async () => {
+          try {
+            await deleteModelCatalogMapping(mapping.id)
+            toast('已删除映射', 'success')
+            await reloadAll()
+          } catch (err: unknown) {
+            console.error('delete mapping failed', err)
+            toast(getErrorMessage(err, '删除映射失败'), 'error')
+          }
+        },
+      })
     },
     [reloadAll],
   )
@@ -266,34 +288,44 @@ export default function StatsModelCatalogManagement({
     }
   }, [exportSubmitting])
 
-  const handleExportFull = React.useCallback(async () => {
+  const handleExportFull = React.useCallback(() => {
     if (exportSubmitting) return
-    const ok = window.confirm('即将导出“迁移包”（包含所有厂商配置 + API Key 明文）。\n\n注意：\n- 文件包含敏感信息，请勿上传到公开渠道\n- 建议仅用于本地 -> PRD 迁移后立即删除\n\n确定继续导出？')
-    if (!ok) return
+    modals.openConfirmModal({
+      title: '导出迁移包',
+      children: (
+        <Text size=”sm”>
+          即将导出”迁移包”（包含所有厂商配置 + API Key 明文）。{'\n\n'}
+          注意：文件包含敏感信息，请勿上传到公开渠道。建议仅用于本地 → PRD 迁移后立即删除。
+        </Text>
+      ),
+      labels: { confirm: '确定导出', cancel: '取消' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        setExportMode('full')
+        setExportSubmitting(true)
+        try {
+          const pkg = await exportModelCatalogPackage({ includeApiKeys: true })
+          const vendorCount = Array.isArray(pkg?.vendors) ? pkg.vendors.length : 0
+          if (!vendorCount) {
+            toast('暂无厂商配置可导出', 'error')
+            return
+          }
+          const apiKeyCount = countImportPackageApiKeys(pkg.vendors || [])
 
-    setExportMode('full')
-    setExportSubmitting(true)
-    try {
-      const pkg = await exportModelCatalogPackage({ includeApiKeys: true })
-      const vendorCount = Array.isArray(pkg?.vendors) ? pkg.vendors.length : 0
-      if (!vendorCount) {
-        toast('暂无厂商配置可导出', 'error')
-        return
-      }
-      const apiKeyCount = countImportPackageApiKeys(pkg.vendors || [])
-
-      const now = new Date()
-      const jsonStr = JSON.stringify(pkg, null, 2)
-      const fileName = `tapcanvas-model-catalog-full-${buildSafeFileTimestamp(now)}.json`
-      downloadTextAsFile(jsonStr, fileName, 'application/json')
-      toast(`已导出迁移包（vendors=${vendorCount}，apiKeys=${apiKeyCount}）`, 'success')
-    } catch (err: unknown) {
-      console.error('export model catalog full failed', err)
-      toast(getErrorMessage(err, '导出失败'), 'error')
-    } finally {
-      setExportSubmitting(false)
-      setExportMode(null)
-    }
+          const now = new Date()
+          const jsonStr = JSON.stringify(pkg, null, 2)
+          const fileName = `tapcanvas-model-catalog-full-${buildSafeFileTimestamp(now)}.json`
+          downloadTextAsFile(jsonStr, fileName, 'application/json')
+          toast(`已导出迁移包（vendors=${vendorCount}，apiKeys=${apiKeyCount}）`, 'success')
+        } catch (err: unknown) {
+          console.error('export model catalog full failed', err)
+          toast(getErrorMessage(err, '导出失败'), 'error')
+        } finally {
+          setExportSubmitting(false)
+          setExportMode(null)
+        }
+      },
+    })
   }, [exportSubmitting])
 
   const fillTemplate = React.useCallback(() => {
@@ -329,12 +361,19 @@ export default function StatsModelCatalogManagement({
     }
 
     const apiKeyCount = countImportPackageApiKeys(vendorsArr)
-    const ok = window.confirm(
-      `确定导入 vendors=${vendorsArr.length} 的配置？\n\n注意：\n- 会覆盖同 Key 的厂商/模型/映射配置\n- ${apiKeyCount > 0 ? `会覆盖同 Key 的厂商 API Key（明文导入，apiKeys=${apiKeyCount}）` : '不包含 API Key（不会改动现有 API Key）'}`,
-    )
-    if (!ok) return
-
-    await runImport(parsed.value as ModelCatalogImportPackageDto)
+    modals.openConfirmModal({
+      title: '确认导入',
+      children: (
+        <Text size="sm">
+          {`确定导入 vendors=${vendorsArr.length} 的配置？\n\n注意：\n- 会覆盖同 Key 的厂商/模型/映射配置\n- ${apiKeyCount > 0 ? `会覆盖同 Key 的厂商 API Key（明文导入，apiKeys=${apiKeyCount}）` : '不包含 API Key（不会改动现有 API Key）'}`}
+        </Text>
+      ),
+      labels: { confirm: '确定导入', cancel: '取消' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        await runImport(parsed.value as ModelCatalogImportPackageDto)
+      },
+    })
   }, [importText, runImport])
 
   if (compact) {

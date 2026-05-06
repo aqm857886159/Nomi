@@ -1,6 +1,7 @@
 import React from 'react'
 import { IconCopy, IconCut, IconX } from '@tabler/icons-react'
 import { WorkbenchButton, WorkbenchIconButton } from '../../../design'
+import { toast } from '../../../ui/toast'
 import CanvasToolbar from './CanvasToolbar'
 import BaseGenerationNode from './nodes/BaseGenerationNode'
 import { importImageFilesToGenerationCanvas } from '../adapters/assetImportAdapter'
@@ -566,7 +567,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
           ) : null}
         </div>
         <div className="generation-canvas-v2__zoom-bar" aria-label="画布缩放">
-          <WorkbenchButton aria-label="适应视图" title="适应视图" onClick={fitView}>⌖</WorkbenchButton>
+          <WorkbenchButton aria-label="适应视图" title={nodes.length === 0 ? '画布为空' : '适应视图'} disabled={nodes.length === 0} onClick={fitView}>⌖</WorkbenchButton>
           <WorkbenchButton
             aria-label="重置视图"
             title="重置视图"
@@ -580,7 +581,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
             aria-label="缩放比例"
             onChange={(e) => setZoom(Number(e.target.value) / 100)}
           />
-          <WorkbenchButton aria-label="画布帮助" title="画布帮助">?</WorkbenchButton>
+          <WorkbenchButton aria-label="画布帮助" title="画布帮助" onClick={() => toast('快捷键：S 分割 · Cmd+D 复制 · Delete 删除 · ← → 移动播放头 · Ctrl+滚轮 缩放', 'info')}>?</WorkbenchButton>
         </div>
       </div>
     </section>

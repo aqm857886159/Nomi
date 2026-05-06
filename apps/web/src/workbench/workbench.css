@@ -1807,3 +1807,16 @@
   color: rgba(255,255,255,0.7);
   white-space: nowrap;
 }
+
+.generation-canvas-v2-node__error-peek {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--mantine-color-red-4, #ff6b6b);
+  background: rgba(0,0,0,0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}

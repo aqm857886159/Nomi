@@ -84,7 +84,7 @@ export default function CanvasToolbar({ getInsertionPosition }: CanvasToolbarPro
       </WorkbenchButton>
       <span className="generation-canvas-v2-toolbar__divider" />
       <span className="generation-canvas-v2-toolbar__hint" data-active={pendingConnectionSourceId ? 'true' : 'false'}>
-        {pendingConnectionSourceId ? '选择目标节点' : '拖拽空白区域框选'}
+        {pendingConnectionSourceId ? '选择目标节点' : '拖拽空白区域平移'}
       </span>
       <WorkbenchButton aria-label="复制选中节点" title="复制选中节点" disabled={selectedNodeIds.length === 0} onClick={copySelectedNodes}>
         <IconCopy size={15} />

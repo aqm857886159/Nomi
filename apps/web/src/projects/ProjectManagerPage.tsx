@@ -1,4 +1,5 @@
 import React from 'react'
+import { modals } from '@mantine/modals'
 import { AppShell, Group, Title, Box, Text, Paper, Stack, Divider, Breadcrumbs, Anchor, ScrollArea, Menu, Collapse, SimpleGrid } from '@mantine/core'
 import { IconArrowLeft, IconFolderPlus, IconFilePlus, IconSearch, IconChevronRight, IconFolder, IconLayoutGrid, IconDots, IconTrash, IconEdit, IconPhoto, IconArrowRight, IconSparkles, IconBooks, IconLayoutKanban } from '@tabler/icons-react'
 import GithubGate from '../auth/GithubGate'
@@ -581,7 +582,7 @@ export default function ProjectManagerPage(): JSX.Element {
     }
   }
 
-  const handleDelete = async (nodeId: string) => {
+  const handleDelete = (nodeId: string) => {
     const node = fs.nodesById[nodeId]
     if (!node) return
     if (node.kind === 'folder') {
@@ -607,84 +608,94 @@ export default function ProjectManagerPage(): JSX.Element {
         ),
       )
 
-      const ok = window.confirm(
-        projectIdsInFolder.length > 0
-          ? `删除分组「${node.name}」及其所有内容？将同时删除其中 ${projectIdsInFolder.length} 个项目（服务器数据也会删除）。`
-          : `删除分组「${node.name}」及其所有内容？`,
-      )
-      if (!ok) return
+      modals.openConfirmModal({
+        title: '确认删除',
+        children: (
+          <Text size="sm">
+            {projectIdsInFolder.length > 0
+              ? `删除分组「${node.name}」及其所有内容？将同时删除其中 ${projectIdsInFolder.length} 个项目（服务器数据也会删除）。`
+              : `删除分组「${node.name}」及其所有内容？`}
+          </Text>
+        ),
+        labels: { confirm: '删除', cancel: '取消' },
+        confirmProps: { color: 'red' },
+        onConfirm: async () => {
+          const deletedProjectIds = new Set<string>()
+          const failedProjectIds = new Set<string>()
+          for (const projectId of projectIdsInFolder) {
+            try {
+              await deleteProject(projectId)
+              deletedProjectIds.add(projectId)
+            } catch (error) {
+              console.error(`删除项目失败: ${projectId}`, error)
+              failedProjectIds.add(projectId)
+            }
+          }
 
-      const deletedProjectIds = new Set<string>()
-      const failedProjectIds = new Set<string>()
-      for (const projectId of projectIdsInFolder) {
-        try {
-          await deleteProject(projectId)
-          deletedProjectIds.add(projectId)
-        } catch (error) {
-          console.error(`删除项目失败: ${projectId}`, error)
-          failedProjectIds.add(projectId)
-        }
-      }
+          if (deletedProjectIds.size > 0) {
+            setProjects((prev) => prev.filter((p) => !deletedProjectIds.has(p.id)))
+          }
 
-      if (deletedProjectIds.size > 0) {
-        setProjects((prev) => prev.filter((p) => !deletedProjectIds.has(p.id)))
-      }
+          setFs((prev) => {
+            let next = prev
+            if (failedProjectIds.size === 0) {
+              next = deleteNode(next, nodeId)
+            }
+            const danglingProjectNodeIds = Object.values(next.nodesById)
+              .filter((n) => n.kind === 'project' && deletedProjectIds.has(n.projectId))
+              .map((n) => n.id)
+            for (const id of danglingProjectNodeIds) {
+              next = deleteNode(next, id)
+            }
+            return next
+          })
 
-      setFs((prev) => {
-        let next = prev
-        if (failedProjectIds.size === 0) {
-          next = deleteNode(next, nodeId)
-        }
-        const danglingProjectNodeIds = Object.values(next.nodesById)
-          .filter((n) => n.kind === 'project' && deletedProjectIds.has(n.projectId))
-          .map((n) => n.id)
-        for (const id of danglingProjectNodeIds) {
-          next = deleteNode(next, id)
-        }
-        return next
+          if (failedProjectIds.size === 0 && nodeId === activeFolderId) {
+            setActiveFolderId(fs.rootId)
+          }
+
+          const pidFromUrl = parseProjectIdFromUrl()
+          if (pidFromUrl && deletedProjectIds.has(pidFromUrl)) {
+            spaNavigate('/projects')
+          }
+
+          if (failedProjectIds.size > 0) {
+            toast(`目录删除未完成：${failedProjectIds.size} 个项目删除失败，目录已保留。请重试。`, 'warning')
+          }
+        },
       })
-
-      if (failedProjectIds.size === 0 && nodeId === activeFolderId) {
-        setActiveFolderId(fs.rootId)
-      }
-
-      const pidFromUrl = parseProjectIdFromUrl()
-      if (pidFromUrl && deletedProjectIds.has(pidFromUrl)) {
-        spaNavigate('/projects')
-      }
-
-      if (failedProjectIds.size > 0) {
-        toast(`目录删除未完成：${failedProjectIds.size} 个项目删除失败，目录已保留。请重试。`, 'warning')
-      }
       return
     }
 
-    const ok = window.confirm(
-      `删除项目「${node.name}」？（会删除项目及其数据）`,
-    )
-    if (!ok) return
-
-    try {
-      await deleteProject(node.projectId)
-      setProjects((prev) => prev.filter((p) => p.id !== node.projectId))
-      setFs((prev) => {
-        let next = prev
-        const ids = Object.values(next.nodesById)
-          .filter((n) => n.kind === 'project' && n.projectId === node.projectId)
-          .map((n) => n.id)
-        for (const id of ids) {
-          next = deleteNode(next, id)
+    modals.openConfirmModal({
+      title: '确认删除',
+      children: <Text size="sm">{`删除项目「${node.name}」？（会删除项目及其数据）`}</Text>,
+      labels: { confirm: '删除', cancel: '取消' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        try {
+          await deleteProject(node.projectId)
+          setProjects((prev) => prev.filter((p) => p.id !== node.projectId))
+          setFs((prev) => {
+            let next = prev
+            const ids = Object.values(next.nodesById)
+              .filter((n) => n.kind === 'project' && n.projectId === node.projectId)
+              .map((n) => n.id)
+            for (const id of ids) {
+              next = deleteNode(next, id)
+            }
+            return next
+          })
+          const pidFromUrl = parseProjectIdFromUrl()
+          if (pidFromUrl && pidFromUrl === node.projectId) {
+            spaNavigate('/projects')
+          }
+        } catch (error) {
+          console.error('删除项目失败', error)
+          toast(resolveErrorMessage(error, '删除项目失败，请稍后重试'), 'error')
         }
-        return next
-      })
-      const pidFromUrl = parseProjectIdFromUrl()
-      if (pidFromUrl && pidFromUrl === node.projectId) {
-        spaNavigate('/projects')
-      }
-    } catch (error) {
-      console.error('删除项目失败', error)
-      toast(resolveErrorMessage(error, '删除项目失败，请稍后重试'), 'error')
-    }
+      },
+    })
   }
 
   const canDropToFolder = React.useCallback((sourceNodeId: string, targetFolderId: string): boolean => {

@@ -1,4 +1,5 @@
 import React from 'react'
+import { modals } from '@mantine/modals'
 import { CopyButton, Divider, Group, Loader, Menu, Paper, Stack, Table, Text, Tooltip, Title, UnstyledButton } from '@mantine/core'
 import { IconCheck, IconChevronRight, IconCopy, IconEye, IconPencil, IconPlayerPlay, IconPlus, IconRefresh, IconRestore, IconTrash, IconUpload } from '@tabler/icons-react'
 import { API_BASE } from '../../../api/httpClient'
@@ -592,16 +593,23 @@ fetch('${publicChatUrl}', {
     }
   }
 
-  const handleDelete = async (item: ApiKeyDto) => {
-    if (!window.confirm(`确定删除 API Key「${item.label || item.keyPrefix}」？删除后外站将无法继续调用。`)) return
-    try {
-      await deleteApiKey(item.id)
-      setKeys((prev) => prev.filter((x) => x.id !== item.id))
-      toast('已删除', 'success')
-    } catch (err: unknown) {
-      console.error('delete api key failed', err)
-      toast(getErrorMessage(err, '删除 API Key 失败'), 'error')
-    }
+  const handleDelete = (item: ApiKeyDto) => {
+    modals.openConfirmModal({
+      title: '确认删除',
+      children: <Text size="sm">{`确定删除 API Key「${item.label || item.keyPrefix}」？删除后外站将无法继续调用。`}</Text>,
+      labels: { confirm: '删除', cancel: '取消' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        try {
+          await deleteApiKey(item.id)
+          setKeys((prev) => prev.filter((x) => x.id !== item.id))
+          toast('已删除', 'success')
+        } catch (err: unknown) {
+          console.error('delete api key failed', err)
+          toast(getErrorMessage(err, '删除 API Key 失败'), 'error')
+        }
+      },
+    })
   }
 
   const [logs, setLogs] = React.useState<VendorCallLogDto[]>([])

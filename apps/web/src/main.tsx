@@ -2,6 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import NomiRouterApp from './NomiRouterApp'
 import { MantineProvider, MantineThemeProvider } from '@mantine/core'
+import { ModalsProvider } from '@mantine/modals'
 import { Notifications } from '@mantine/notifications'
 import './styles/index.css'
 import { blockNonCanonicalDevEntry } from './auth/devEntryGuard'
@@ -33,8 +34,10 @@ root?.render(
   <React.StrictMode>
     <MantineProvider forceColorScheme={DEFAULT_COLOR_SCHEME} defaultColorScheme={DEFAULT_COLOR_SCHEME}>
       <DynamicThemeProvider>
-        <Notifications position="top-right" zIndex={2000} />
-        <NomiRouterApp />
+        <ModalsProvider>
+          <Notifications position="top-right" zIndex={2000} />
+          <NomiRouterApp />
+        </ModalsProvider>
       </DynamicThemeProvider>
     </MantineProvider>
   </React.StrictMode>

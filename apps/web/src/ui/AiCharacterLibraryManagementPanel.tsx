@@ -1,4 +1,6 @@
 import React from 'react'
+import { Text } from '@mantine/core'
+import { modals } from '@mantine/modals'
 import {
   createAiCharacterLibraryCharacter,
   deleteAiCharacterLibraryCharacter,
@@ -120,21 +122,28 @@ export default function AiCharacterLibraryManagementPanel(props: AiCharacterLibr
     }
   }, [effectiveProjectId, reload, setField, state.editor])
 
-  const handleDelete = React.useCallback(async (character: AiCharacterLibraryCharacterDto) => {
+  const handleDelete = React.useCallback((character: AiCharacterLibraryCharacterDto) => {
     if (!canEdit) return
     const label = character.name || character.identity_hint || character.character_id || character.id
-    if (!window.confirm(`确定删除角色库记录「${label}」？`)) return
-    setField('deletingId', character.id)
-    try {
-      await deleteAiCharacterLibraryCharacter(character.id)
-      toast('角色库记录已删除', 'success')
-      await reload()
-    } catch (err: unknown) {
-      console.error('delete ai character library failed', err)
-      toast(err instanceof Error ? err.message : '删除角色库记录失败', 'error')
-    } finally {
-      setField('deletingId', '')
-    }
+    modals.openConfirmModal({
+      title: '确认删除',
+      children: <Text size="sm">{`确定删除角色库记录「${label}」？`}</Text>,
+      labels: { confirm: '删除', cancel: '取消' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        setField('deletingId', character.id)
+        try {
+          await deleteAiCharacterLibraryCharacter(character.id)
+          toast('角色库记录已删除', 'success')
+          await reload()
+        } catch (err: unknown) {
+          console.error('delete ai character library failed', err)
+          toast(err instanceof Error ? err.message : '删除角色库记录失败', 'error')
+        } finally {
+          setField('deletingId', '')
+        }
+      },
+    })
   }, [canEdit, reload, setField])
 
   const handleImport = React.useCallback(async () => {
