@@ -13,7 +13,11 @@
   ·
   <a href="README_EN.md">English</a>
   ·
+  <a href="AI_INSTALL.md">AI 一键安装</a>
+  ·
   <a href="docs/quickstart.md">Quickstart</a>
+  ·
+  <a href="docs/user-guide.md">使用指南</a>
   ·
   <a href="docs/provider-integration.md">Provider integration</a>
 </p>
@@ -84,20 +88,17 @@ Nomi Agent 可以和你一起拆剧本、建节点、写提示词、规划制作
 
 ## 快速启动
 
-### 用 AI 帮你启动（推荐）
+### 一条命令启动（推荐）
 
-把下面这段话复制给 Claude Code、Cursor 或任何 AI 编程助手，让它帮你完成所有配置：
+需要先安装 **Node.js 20+** 和 **Docker Desktop**。然后在终端运行：
 
+```bash
+git clone https://github.com/aqm857886159/Nomi.git && cd Nomi && corepack enable && pnpm install && pnpm start:local
 ```
-帮我启动 Nomi 项目。步骤：
-1. 检查 Node.js 20+、pnpm、PostgreSQL、Redis 是否已安装，缺什么帮我安装
-2. 运行 pnpm install
-3. 复制 apps/hono-api/.env.example 为 .env，把 DATABASE_URL 里的 YOUR_USER 替换成当前系统用户名
-4. 复制 apps/agents-cli/agents.config.example.json 为 agents.config.json，提示我填入 DeepSeek 或 OpenAI 的 API Key 和 apiBaseUrl
-5. 运行数据库迁移（如果有）
-6. 启动 pnpm dev:api 和 pnpm dev:web
-7. 确认 http://localhost:5173 可以访问
-```
+
+打开 **http://localhost:5173**。这条命令会自动创建本地配置、启动 Docker 里的 PostgreSQL / Redis、初始化数据库，并同时启动 API 和 Web。
+
+想让 Claude Code、Cursor、Codex 等 AI 编程助手代你操作，直接把 [AI_INSTALL.md](AI_INSTALL.md) 发给它，让它按里面的一条命令执行。
 
 ---
 
@@ -105,16 +106,13 @@ Nomi Agent 可以和你一起拆剧本、建节点、写提示词、规划制作
 
 ### 第一步：安装系统依赖
 
-需要 Node.js 20+、pnpm 10+、PostgreSQL 16+、Redis 7+。
+需要 Node.js 20+、pnpm 10+ 和 Docker Desktop。PostgreSQL / Redis 默认通过 Docker 启动，不需要手动安装。
 
-macOS 一键安装：
+macOS 安装 Node 和 pnpm：
 
 ```bash
-brew install postgresql@16 redis node
-brew services start postgresql@16
-brew services start redis
-npm install -g pnpm
-psql postgres -c "CREATE DATABASE nomi_dev;"
+brew install node
+corepack enable
 ```
 
 ### 第二步：克隆并安装项目
@@ -123,26 +121,14 @@ psql postgres -c "CREATE DATABASE nomi_dev;"
 git clone https://github.com/aqm857886159/Nomi.git
 cd Nomi
 pnpm install
-cp apps/hono-api/.env.example apps/hono-api/.env
-cp apps/agents-cli/agents.config.example.json apps/agents-cli/agents.config.json
+pnpm setup:local
+pnpm deps:up
+pnpm db:setup
 ```
 
-### 第三步：填写两个配置文件
+### 第三步：可选填写 AI 对话 Key
 
-**① `apps/hono-api/.env` — 数据库连接**
-
-把 `YOUR_USER` 替换成你的系统用户名（macOS 通常和终端提示符里的名字一样）：
-
-```env
-DATABASE_URL=postgresql://YOUR_USER@localhost:5432/nomi_dev
-JWT_SECRET=any-random-string
-REDIS_URL=redis://localhost:6379
-TAPCANVAS_DEV_PUBLIC_BYPASS=true
-```
-
-**② `apps/agents-cli/agents.config.json` — AI 对话 Key**
-
-这个 Key 驱动创作区的续写/改写和生成画布的 Agent 拆分镜功能。
+`pnpm setup:local` 会自动创建 `apps/hono-api/.env` 和 `apps/agents-cli/agents.config.json`。如果你要使用创作区续写/改写、生成区 Agent 拆分节点，需要把 `apps/agents-cli/agents.config.json` 里的 `apiKey` 换成真实 Key。
 
 国内推荐用 **DeepSeek**，便宜且效果好，[点这里申请 Key](https://platform.deepseek.com/)：
 
@@ -158,16 +144,8 @@ TAPCANVAS_DEV_PUBLIC_BYPASS=true
 
 ### 第四步：启动
 
-开两个终端窗口：
-
 ```bash
-# 终端 1
-pnpm dev:api
-```
-
-```bash
-# 终端 2
-pnpm dev:web
+pnpm dev:local
 ```
 
 浏览器打开 **http://localhost:5173**，看到项目库页面说明启动成功。
