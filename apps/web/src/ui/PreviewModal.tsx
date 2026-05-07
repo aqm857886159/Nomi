@@ -100,12 +100,16 @@ export default function PreviewModal({ className }: { className?: string }): JSX
                 src={url}
                 controls
                 autoPlay
+                preload="auto"
                 style={{
                   maxWidth: '92vw',
                   maxHeight: '82vh',
                   borderRadius: 8,
                   boxShadow: '0 12px 40px rgba(0,0,0,.45)',
                   border: '1px solid rgba(255,255,255,.12)',
+                }}
+                onLoadedMetadata={(e) => {
+                  e.currentTarget.playbackRate = 1.5
                 }}
               />
             )}

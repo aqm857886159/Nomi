@@ -129,6 +129,7 @@ export function VideoResultModal({
                           muted
                           loop
                           playsInline
+                          preload="metadata"
                           style={{
                             width: '100%',
                             height: 180,
@@ -136,7 +137,9 @@ export function VideoResultModal({
                             display: 'block',
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.play().catch((error: unknown) => {
+                            const vid = e.currentTarget
+                            vid.playbackRate = 1.5
+                            vid.play().catch((error: unknown) => {
                               console.error('video preview playback failed', error)
                             })
                           }}

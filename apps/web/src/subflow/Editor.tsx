@@ -48,6 +48,7 @@ export default function SubflowEditor({ nodeId, onClose }: Props) {
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
               nodeTypes={{ taskNode: TaskNode }}
+              nodesDraggable={true}
               fitView
               connectionLineType={ConnectionLineType.SmoothStep}
             >

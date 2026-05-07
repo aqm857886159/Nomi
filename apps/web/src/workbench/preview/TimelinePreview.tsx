@@ -384,6 +384,7 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
             crossOrigin="use-credentials"
             muted
             playsInline
+            preload="auto"
             style={mediaStyle}
             onError={() => {
               void diagnoseVideoPlaybackFailure(videoUrl, videoRef.current?.error || null).then((diagnostics) => {

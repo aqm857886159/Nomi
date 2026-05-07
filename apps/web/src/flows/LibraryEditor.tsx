@@ -115,6 +115,7 @@ export default function LibraryEditor({ flowId, onClose }: Props) {
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
                 nodeTypes={{ taskNode: TaskNode }}
+                nodesDraggable={true}
                 fitView
                 connectionLineType={ConnectionLineType.SmoothStep}
               >
