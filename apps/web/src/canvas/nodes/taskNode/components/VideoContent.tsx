@@ -72,7 +72,7 @@ export function VideoContent({
   const canClip = Boolean(activeVideoUrl)
   return (
     <div
-      className="video-content nodrag"
+      className="video-content"
       style={{
         width: '100%',
         height: '100%',
