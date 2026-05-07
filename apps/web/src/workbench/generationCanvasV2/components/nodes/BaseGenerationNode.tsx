@@ -126,7 +126,6 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement
     if (target.closest('button, input, textarea, select')) return
-    if ((target as HTMLElement).tagName === 'VIDEO') return
     event.stopPropagation()
     if (readOnly) {
       selectNode(node.id, event.shiftKey)
