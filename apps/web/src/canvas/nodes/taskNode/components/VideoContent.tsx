@@ -152,7 +152,7 @@ export function VideoContent({
 
       {activeVideoUrl ? (
         <video
-          className="video-content-player"
+          className="video-content-player nodrag"
           src={buildVideoPlaybackUrl(activeVideoUrl)}
           crossOrigin="use-credentials"
           poster={videoResults[videoPrimaryIndex]?.thumbnailUrl || videoThumbnailUrl || undefined}
