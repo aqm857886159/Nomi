@@ -293,7 +293,7 @@ export default function StatsModelCatalogManagement({
     modals.openConfirmModal({
       title: '导出迁移包',
       children: (
-        <Text size=”sm”>
+        <Text size="sm">
           {`即将导出”迁移包”（包含所有厂商配置 + API Key 明文）。\n\n注意：文件包含敏感信息，请勿上传到公开渠道。建议仅用于本地 → PRD 迁移后立即删除。`}
         </Text>
       ),
