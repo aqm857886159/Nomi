@@ -620,6 +620,154 @@
   font-size: 13px;
 }
 
+.generation-canvas-v2-node__panorama-empty {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.generation-canvas-v2-node__panorama-upload {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 156px;
+  min-height: 48px;
+  padding: 0 18px;
+  color: var(--nomi-ink-60);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.generation-canvas-v2-node__panorama-upload input {
+  display: none;
+}
+
+.generation-canvas-v2-node__panorama-toolbar {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 18px);
+  z-index: 12;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 5px 8px;
+  border: 1px solid rgba(18, 24, 38, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 34px rgba(18, 24, 38, 0.14);
+  transform: translateX(-50%);
+  backdrop-filter: blur(12px);
+}
+
+.generation-canvas-v2-node__panorama-toolbar-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--nomi-ink-80);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.generation-canvas-v2-node__panorama-toolbar-item:hover {
+  background: var(--nomi-ink-05);
+  color: var(--nomi-ink);
+}
+
+.generation-canvas-v2-node__panorama-toolbar-item:disabled {
+  opacity: 0.45;
+  cursor: wait;
+}
+
+.generation-canvas-v2-node__panorama-toolbar-item--icon {
+  width: 34px;
+  padding: 0;
+}
+
+.generation-canvas-v2-node__panorama-toolbar-item input {
+  display: none;
+}
+
+.generation-canvas-v2-node__panorama-toolbar-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(18, 24, 38, 0.1);
+}
+
+.generation-canvas-v2-panorama-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgba(15, 18, 22, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.generation-canvas-v2-panorama-dialog__panel {
+  position: relative;
+  width: min(96vw, calc((100vh - 64px) * 16 / 9));
+  aspect-ratio: 16 / 9;
+  max-height: calc(100vh - 64px);
+  overflow: hidden;
+  border-radius: 8px;
+  background: #000;
+  box-shadow: 0 24px 72px rgba(15, 18, 22, 0.42);
+}
+
+.generation-canvas-v2-panorama-dialog__toolbar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--workbench-border);
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--nomi-paper) 88%, transparent);
+  box-shadow: var(--workbench-shadow-sm);
+  backdrop-filter: blur(12px) saturate(1.2);
+}
+
+.generation-canvas-v2-panorama-dialog__button {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--workbench-muted);
+  cursor: pointer;
+}
+
+.generation-canvas-v2-panorama-dialog__button:hover {
+  background: var(--workbench-hover);
+  color: var(--workbench-ink);
+}
+
+.generation-canvas-v2-panorama-dialog__button:disabled {
+  opacity: 0.45;
+  cursor: wait;
+}
+
 .generation-canvas-v2-node__composer {
   position: absolute;
   top: calc(100% + 10px);

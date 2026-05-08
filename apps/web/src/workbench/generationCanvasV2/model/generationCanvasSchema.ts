@@ -9,6 +9,7 @@ export const generationNodeKindSchema = z.enum([
   'video',
   'shot',
   'output',
+  'panorama',
 ])
 
 export const generationNodeStatusSchema = z.enum(['idle', 'queued', 'running', 'success', 'error'])
