@@ -1,6 +1,25 @@
 import '@testing-library/jest-dom/vitest'
 import { afterEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
+import type { CSSProperties, ReactNode } from 'react'
+
+vi.mock('react-pannellum', async () => {
+  const React = await import('react')
+  return {
+    default: ({ children, style }: { children?: ReactNode; style?: CSSProperties }) => (
+      React.createElement('div', { 'data-testid': 'react-pannellum', style }, children)
+    ),
+    usePannellum: () => ({
+      getPitch: () => 0,
+      getYaw: () => 0,
+      getHfov: () => 90,
+      getConfig: () => ({}),
+      getContainer: () => undefined,
+      getViewer: () => null,
+      stopMovement: () => undefined,
+    }),
+  }
+})
 
 afterEach(() => {
   cleanup()

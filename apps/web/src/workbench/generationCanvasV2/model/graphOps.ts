@@ -27,6 +27,7 @@ export const DEFAULT_NODE_SIZE: Record<GenerationNodeKind, { width: number; heig
   video: { width: 420, height: 340 },
   shot: { width: 340, height: 230 },
   output: { width: 280, height: 170 },
+  panorama: { width: 480, height: 270 },
 }
 
 export const NODE_KIND_LABEL: Record<GenerationNodeKind, string> = {
@@ -38,6 +39,7 @@ export const NODE_KIND_LABEL: Record<GenerationNodeKind, string> = {
   video: 'Video',
   shot: 'Shot',
   output: 'Output',
+  panorama: 'Panorama',
 }
 
 export function createGenerationNode(input: {

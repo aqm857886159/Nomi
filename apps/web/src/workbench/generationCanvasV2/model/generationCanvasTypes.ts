@@ -7,6 +7,7 @@ export type GenerationNodeKind =
   | 'video'
   | 'shot'
   | 'output'
+  | 'panorama'
 
 export type GenerationNodeStatus = 'idle' | 'queued' | 'running' | 'success' | 'error'
 

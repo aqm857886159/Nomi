@@ -10,6 +10,7 @@ import {
   IconUser,
   IconVideo,
   IconWriting,
+  Icon360,
 } from '@tabler/icons-react'
 import { WorkbenchButton } from '../../../design'
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
@@ -23,6 +24,7 @@ const QUICK_ADD: Array<{ kind: GenerationNodeKind; label: string; icon: React.Re
   { kind: 'keyframe', label: '关键帧', icon: <IconFlag size={15} /> },
   { kind: 'video', label: '视频', icon: <IconVideo size={15} /> },
   { kind: 'shot', label: '镜头', icon: <IconBoxMultiple size={15} /> },
+  { kind: 'panorama', label: '全景图', icon: <Icon360 size={15} /> },
   { kind: 'output', label: '输出', icon: <IconFlag size={15} /> },
 ]
 

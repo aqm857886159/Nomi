@@ -1,10 +1,11 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import os from 'node:os'
 import path from 'node:path'
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '/private/tmp/nomi-vitest-cache',
+  cacheDir: path.join(os.tmpdir(), 'nomi-vitest-cache'),
   plugins: [react()],
   resolve: {
     alias: {

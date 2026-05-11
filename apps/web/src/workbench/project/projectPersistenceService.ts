@@ -139,8 +139,6 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
       projectName: project.name,
       localRevision: localSaved.revision ?? 0,
     })
-    deps.setActiveProject(localSaved)
-    deps.refreshProjects()
     return localSaved
   }
 

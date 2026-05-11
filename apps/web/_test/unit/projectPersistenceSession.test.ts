@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   setActiveWorkbenchProjectSaveTarget,
   subscribeWorkbenchProjectPersistence,
@@ -25,6 +25,10 @@ describe('subscribeWorkbenchProjectPersistence', () => {
   beforeEach(() => {
     setActiveWorkbenchProjectSaveTarget(null)
     vi.restoreAllMocks()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   // Bug 1: dispose 间隙 — React useEffect 先 cleanup 旧订阅再 setup 新订阅
@@ -60,6 +64,24 @@ describe('subscribeWorkbenchProjectPersistence', () => {
     // 应该保存的是新项目 p2，不是旧项目 p1
     expect(opts2.saveProject).toHaveBeenCalledTimes(1)
     expect(opts1.saveProject).not.toHaveBeenCalled()
+  })
+
+  it('debounces rapid store changes into one autosave', async () => {
+    vi.useFakeTimers()
+    const opts = makeOptions({ autoSaveDelayMs: 100 })
+    const dispose = subscribeWorkbenchProjectPersistence(opts)
+
+    useGenerationCanvasStore.getState().setGenerationAiDraft('a')
+    await vi.advanceTimersByTimeAsync(99)
+    useGenerationCanvasStore.getState().setGenerationAiDraft('ab')
+    await vi.advanceTimersByTimeAsync(99)
+
+    expect(opts.saveProject).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1)
+
+    expect(opts.saveProject).toHaveBeenCalledTimes(1)
+    dispose()
   })
 })
 

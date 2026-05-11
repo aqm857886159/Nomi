@@ -62,6 +62,7 @@ export type WorkbenchProjectPersistenceOptions = {
   saveProject: WorkbenchProjectSaveFn
   onSaved: (record: WorkbenchProjectRecordV1) => void
   onSaveError?: (error: unknown) => void
+  autoSaveDelayMs?: number
 }
 
 type QueuedWorkbenchProjectSave = {
@@ -109,27 +110,31 @@ function createProjectSaveQueue(input: {
 
 export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPersistenceOptions): () => void {
   let disposed = false
-  let saveScheduled = false
+  let saveTimer: ReturnType<typeof setTimeout> | null = null
+  const autoSaveDelayMs = options.autoSaveDelayMs ?? 600
   const saveQueue = createProjectSaveQueue({
     saveProject: options.saveProject,
     onSaved: options.onSaved,
     onSaveError: options.onSaveError,
     isActive: () => !disposed,
   })
-  const flushSave = async () => {
-    saveScheduled = false
-    if (disposed || options.isHydrating() || !options.canPersist()) return
-    saveQueue.enqueue({
+  const buildQueuedSave = (): QueuedWorkbenchProjectSave | null => {
+    if (disposed || options.isHydrating() || !options.canPersist()) return null
+    return {
       projectId: options.projectId,
       projectName: options.projectName,
       payload: readCurrentWorkbenchProjectPayload(),
-    })
+    }
+  }
+  const flushSave = () => {
+    saveTimer = null
+    const next = buildQueuedSave()
+    if (next) saveQueue.enqueue(next)
   }
   const saveIfReady = () => {
     if (options.isHydrating() || !options.canPersist()) return
-    if (saveScheduled) return
-    saveScheduled = true
-    queueMicrotask(flushSave)
+    if (saveTimer) clearTimeout(saveTimer)
+    saveTimer = setTimeout(flushSave, autoSaveDelayMs)
   }
   const unsubscribeWorkbench = useWorkbenchStore.subscribe(saveIfReady)
   const unsubscribeGeneration = useGenerationCanvasStore.subscribe(saveIfReady)
@@ -141,6 +146,16 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
     onSaved: options.onSaved,
   })
   return () => {
+    if (saveTimer) {
+      clearTimeout(saveTimer)
+      saveTimer = null
+      const pending = buildQueuedSave()
+      if (pending) {
+        void options.saveProject(pending.projectId, pending.payload, pending.projectName).catch((error: unknown) => {
+          options.onSaveError?.(error)
+        })
+      }
+    }
     disposed = true
     unsubscribeWorkbench()
     unsubscribeGeneration()

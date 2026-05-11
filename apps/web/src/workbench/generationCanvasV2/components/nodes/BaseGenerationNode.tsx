@@ -1,4 +1,5 @@
 import React from 'react'
+import { IconGrid3x3, IconLayoutGrid, IconMaximize, IconUpload } from '@tabler/icons-react'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { useWorkbenchStore } from '../../../workbenchStore'
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
@@ -13,6 +14,7 @@ import { WorkbenchButton } from '../../../../design'
 import NodeParameterControls from './NodeParameterControls'
 import { buildVideoPlaybackUrl } from '../../../../media/videoPlaybackUrl'
 import { diagnoseVideoPlaybackFailure, logVideoPlaybackFailure } from '../../../../media/videoPlaybackDiagnostics'
+import PanoramaViewer, { type PanoramaScreenshot } from './PanoramaViewer'
 
 const STATUS_LABEL: Record<string, string> = {
   queued: '排队中',
@@ -34,6 +36,15 @@ type FloatingComposerLayout = {
 }
 
 type ResizeDirection = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+type ImageGridSize = 2 | 3
+
+type ImageGridTile = {
+  dataUrl: string
+  width: number
+  height: number
+  row: number
+  column: number
+}
 
 const RESIZE_DIRECTIONS: ResizeDirection[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']
 const MIN_NODE_WIDTH = 240
@@ -86,6 +97,64 @@ function mediaNodeSize(width: number, height: number, preferredWidth?: number): 
   }
 }
 
+function imageGridTileNodeSize(width: number, height: number, preferredWidth: number): { width: number; height: number; previewHeight: number } | null {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null
+  const aspectRatio = width / height
+  const nodeWidth = clampNumber(preferredWidth, MIN_NODE_WIDTH, MAX_NODE_WIDTH)
+  const previewHeight = Math.max(1, Math.round(nodeWidth / aspectRatio))
+  return {
+    width: nodeWidth,
+    height: previewHeight,
+    previewHeight,
+  }
+}
+
+function loadImageForCanvas(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error('Unable to load image.'))
+    if (!url.startsWith('data:') && !url.startsWith('blob:')) {
+      image.crossOrigin = 'anonymous'
+    }
+    image.src = url
+  })
+}
+
+async function splitImageIntoGrid(url: string, gridSize: ImageGridSize): Promise<ImageGridTile[]> {
+  if (typeof document === 'undefined') return []
+  const image = await loadImageForCanvas(url)
+  const imageWidth = image.naturalWidth || image.width
+  const imageHeight = image.naturalHeight || image.height
+  if (!imageWidth || !imageHeight) return []
+
+  const sourceTileWidth = imageWidth / gridSize
+  const sourceTileHeight = imageHeight / gridSize
+  const outputTileWidth = Math.max(1, Math.round(sourceTileWidth))
+  const outputTileHeight = Math.max(1, Math.round(sourceTileHeight))
+  const tiles: ImageGridTile[] = []
+  for (let row = 0; row < gridSize; row += 1) {
+    const sourceY = row * sourceTileHeight
+    for (let column = 0; column < gridSize; column += 1) {
+      const sourceX = column * sourceTileWidth
+      const canvas = document.createElement('canvas')
+      canvas.width = outputTileWidth
+      canvas.height = outputTileHeight
+      const context = canvas.getContext('2d')
+      if (!context) continue
+      context.drawImage(image, sourceX, sourceY, sourceTileWidth, sourceTileHeight, 0, 0, outputTileWidth, outputTileHeight)
+      tiles.push({
+        dataUrl: canvas.toDataURL('image/png'),
+        width: outputTileWidth,
+        height: outputTileHeight,
+        row,
+        column,
+      })
+    }
+  }
+  return tiles
+}
+
 function findTimelineDropTarget(clientX: number, clientY: number): HTMLElement | null {
   if (typeof document.elementFromPoint !== 'function') return null
   const element = document.elementFromPoint(clientX, clientY)
@@ -101,9 +170,14 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
   const selectedNodeIds = useGenerationCanvasStore((state) => state.selectedNodeIds)
   const startConnection = useGenerationCanvasStore((state) => state.startConnection)
   const connectToNode = useGenerationCanvasStore((state) => state.connectToNode)
+  const addNode = useGenerationCanvasStore((state) => state.addNode)
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
+  const storeConnectNodes = useGenerationCanvasStore((state) => state.connectNodes)
   const pendingConnectionSourceId = useGenerationCanvasStore((state) => state.pendingConnectionSourceId)
   const canvasZoom = useGenerationCanvasStore((state) => state.canvasZoom)
+  const panoramaFullscreenRef = React.useRef<(() => void) | null>(null)
+  const panoramaFourViewRef = React.useRef<(() => void) | null>(null)
+  const [splittingGridSize, setSplittingGridSize] = React.useState<ImageGridSize | null>(null)
   const dragStartRef = React.useRef<{
     pointerX: number
     pointerY: number
@@ -313,10 +387,26 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
     }
   }
 
+  const handlePanoramaFileChange = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0]
+    event.currentTarget.value = ''
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (loadEvent) => {
+      const dataUrl = loadEvent.target?.result
+      if (typeof dataUrl !== 'string') return
+      updateNode(node.id, { result: { id: `panorama-${Date.now()}`, type: 'image', url: dataUrl, createdAt: Date.now() } })
+    }
+    reader.readAsDataURL(file)
+  }, [node.id, updateNode])
+
   const status = node.status || 'idle'
   const size = node.size || { width: 320, height: 360 }
+  const isImageGridSplitNode = node.kind === 'image' && typeof node.meta?.source === 'string' && node.meta.source.startsWith('image-grid-split-')
   const storedPreviewHeight = typeof node.meta?.previewHeight === 'number' && Number.isFinite(node.meta.previewHeight)
-    ? clampNumber(Math.round(node.meta.previewHeight), 120, 520)
+    ? isImageGridSplitNode
+      ? Math.max(1, Math.round(node.meta.previewHeight))
+      : clampNumber(Math.round(node.meta.previewHeight), 120, 520)
     : null
   const hasResult = Boolean(node.result?.url)
   const previewHeight = storedPreviewHeight ?? clampNumber(size.height, 120, 520)
@@ -330,6 +420,116 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
   const canSendToTimeline = hasResult && status !== 'error'
   const showStatusBadge = status === 'queued' || status === 'running' || status === 'error'
   const composerLayout = floatingComposerLayout(visualSize.width, visualSize.height, node.kind)
+  const handlePanoramaScreenshot = React.useCallback((screenshot: PanoramaScreenshot) => {
+    const { dataUrl, dimensions } = screenshot
+    const createdAt = Date.now()
+    const screenshotNode = addNode({
+      kind: 'image',
+      title: screenshot.title || '全景截图',
+      prompt: screenshot.prompt || '全景视口截图',
+      position: {
+        x: Math.round(node.position.x + visualSize.width + 80),
+        y: Math.round(node.position.y),
+      },
+    })
+    const result = {
+      id: `panorama-shot-${screenshotNode.id}-${createdAt}`,
+      type: 'image' as const,
+      url: dataUrl,
+      createdAt,
+    }
+    const screenshotSize = mediaNodeSize(dimensions.width, dimensions.height)
+    updateNode(screenshotNode.id, {
+      result,
+      history: [result],
+      status: 'success',
+      ...(screenshotSize ? { size: { width: screenshotSize.width, height: screenshotSize.height } } : {}),
+      meta: {
+        ...(screenshotNode.meta || {}),
+        source: screenshot.source || 'panorama-screenshot',
+        sourceNodeId: node.id,
+        localOnly: true,
+        imageWidth: dimensions.width,
+        imageHeight: dimensions.height,
+        imageAspectRatio: dimensions.width / Math.max(1, dimensions.height),
+      },
+    })
+    storeConnectNodes(node.id, screenshotNode.id, 'reference')
+  }, [addNode, node.id, node.position.x, node.position.y, storeConnectNodes, updateNode, visualSize.width])
+
+  const handleImageGridSplit = React.useCallback(async (gridSize: ImageGridSize) => {
+    const imageUrl = node.result?.type === 'image' ? node.result.url : undefined
+    if (!imageUrl || splittingGridSize !== null) return
+
+    setSplittingGridSize(gridSize)
+    try {
+      const tiles = await splitImageIntoGrid(imageUrl, gridSize)
+      if (tiles.length !== gridSize * gridSize) return
+      const createdAt = Date.now()
+      const gap = 42
+      const preferredTileWidth = Math.max(MIN_NODE_WIDTH, Math.round(visualSize.width / gridSize))
+      const firstTileSize = imageGridTileNodeSize(tiles[0]?.width || 1, tiles[0]?.height || 1, preferredTileWidth)
+      const layoutWidth = firstTileSize?.width || 240
+      const layoutHeight = firstTileSize?.previewHeight || 180
+      const baseX = Math.round(node.position.x + visualSize.width + 80)
+      const baseY = Math.round(node.position.y)
+
+      tiles.forEach((tile, index) => {
+        const tileSize = imageGridTileNodeSize(tile.width, tile.height, layoutWidth)
+        const tileNode = addNode({
+          kind: 'image',
+          title: `${node.title || '图片'} ${gridSize}x${gridSize} 切片 ${index + 1}`,
+          prompt: `${gridSize}x${gridSize} 图片切片 ${tile.row + 1}-${tile.column + 1}`,
+          position: {
+            x: baseX + tile.column * (layoutWidth + gap),
+            y: baseY + tile.row * (layoutHeight + gap),
+          },
+          select: false,
+        })
+        const result = {
+          id: `image-split-${tileNode.id}-${createdAt}-${index}`,
+          type: 'image' as const,
+          url: tile.dataUrl,
+          createdAt,
+        }
+        updateNode(tileNode.id, {
+          result,
+          history: [result],
+          status: 'success',
+          ...(tileSize ? { size: { width: tileSize.width, height: tileSize.height } } : {}),
+          meta: {
+            ...(tileNode.meta || {}),
+            source: `image-grid-split-${gridSize}x${gridSize}`,
+            sourceNodeId: node.id,
+            localOnly: true,
+            gridSize,
+            gridRow: tile.row,
+            gridColumn: tile.column,
+            imageWidth: tile.width,
+            imageHeight: tile.height,
+            imageAspectRatio: tile.width / Math.max(1, tile.height),
+            previewHeight: tileSize?.previewHeight,
+          },
+        })
+        storeConnectNodes(node.id, tileNode.id, 'reference')
+      })
+    } catch {
+      // Image splitting can fail if the source image cannot be loaded into a canvas due to CORS.
+    } finally {
+      setSplittingGridSize(null)
+    }
+  }, [
+    addNode,
+    node.id,
+    node.position.x,
+    node.position.y,
+    node.result,
+    node.title,
+    splittingGridSize,
+    storeConnectNodes,
+    updateNode,
+    visualSize.width,
+  ])
 
   return (
     <article
@@ -375,6 +575,69 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
         </>
       ) : null}
 
+      {node.kind === 'panorama' && selected && !readOnly && node.result?.url ? (
+        <div
+          className="generation-canvas-v2-node__panorama-toolbar"
+          role="toolbar"
+          aria-label="全景图操作"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <button
+            className="generation-canvas-v2-node__panorama-toolbar-item"
+            type="button"
+            onClick={() => panoramaFullscreenRef.current?.()}
+          >
+            <IconMaximize size={16} stroke={1.8} />
+            <span>全景预览</span>
+          </button>
+          <button
+            className="generation-canvas-v2-node__panorama-toolbar-item generation-canvas-v2-node__panorama-toolbar-item--icon"
+            type="button"
+            aria-label="四视图截图"
+            title="四视图截图"
+            onClick={() => panoramaFourViewRef.current?.()}
+          >
+            <IconLayoutGrid size={16} stroke={1.8} />
+          </button>
+          <span className="generation-canvas-v2-node__panorama-toolbar-divider" />
+          <label className="generation-canvas-v2-node__panorama-toolbar-item">
+            <IconUpload size={16} stroke={1.8} />
+            <span>重新上传</span>
+            <input type="file" accept="image/*" onChange={handlePanoramaFileChange} />
+          </label>
+        </div>
+      ) : null}
+
+      {node.kind === 'image' && selected && !readOnly && node.result?.type === 'image' && node.result.url ? (
+        <div
+          className="generation-canvas-v2-node__panorama-toolbar"
+          role="toolbar"
+          aria-label="图片切图操作"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <button
+            className="generation-canvas-v2-node__panorama-toolbar-item generation-canvas-v2-node__panorama-toolbar-item--icon"
+            type="button"
+            aria-label="2x2 切图"
+            title="2x2 切图"
+            disabled={splittingGridSize !== null}
+            onClick={() => { void handleImageGridSplit(2) }}
+          >
+            <IconLayoutGrid size={16} stroke={1.8} />
+          </button>
+          <button
+            className="generation-canvas-v2-node__panorama-toolbar-item generation-canvas-v2-node__panorama-toolbar-item--icon"
+            type="button"
+            aria-label="3x3 切图"
+            title="3x3 切图"
+            disabled={splittingGridSize !== null}
+            onClick={() => { void handleImageGridSplit(3) }}
+          >
+            <IconGrid3x3 size={16} stroke={1.8} />
+          </button>
+        </div>
+      ) : null}
+
       <header className="generation-canvas-v2-node__header">
         {showStatusBadge ? (
           <span className="generation-canvas-v2-node__status" data-status={status}>{STATUS_LABEL[status] ?? status}</span>
@@ -392,7 +655,28 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
         data-timeline-draggable={canSendToTimeline ? 'true' : 'false'}
         draggable={false}
       >
-        {node.result?.url ? (
+        {node.kind === 'panorama' ? (
+          node.result?.url || node.meta?.imageUrl ? (
+            <PanoramaViewer
+              imageUrl={(node.result?.url || node.meta?.imageUrl) as string}
+              width={visualSize.width}
+              height={previewHeight}
+              onEnterFullscreen={(trigger) => { panoramaFullscreenRef.current = trigger }}
+              onCaptureFourView={(trigger) => { panoramaFourViewRef.current = trigger }}
+              onScreenshot={handlePanoramaScreenshot}
+            />
+          ) : (
+            <div className="generation-canvas-v2-node__panorama-empty">
+              <label
+                className="generation-canvas-v2-node__panorama-upload"
+                onPointerDown={(event) => event.stopPropagation()}
+              >
+                <span>+ 上传全景图</span>
+                <input type="file" accept="image/*" onChange={handlePanoramaFileChange} />
+              </label>
+            </div>
+          )
+        ) : node.result?.url ? (
           node.result.type === 'video' ? (
             <video
               className="generation-canvas-v2-node__media generation-canvas-v2-node__media--video"
@@ -444,7 +728,7 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
         </WorkbenchButton>
       ) : null}
 
-      {selected && !readOnly ? (
+      {selected && !readOnly && node.kind !== 'panorama' ? (
         <div
           className="generation-canvas-v2-node__composer"
           style={{
@@ -454,51 +738,53 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
           }}
           onPointerDown={(event) => event.stopPropagation()}
         >
-          {node.kind === 'video' || node.kind === 'image' || node.kind === 'keyframe' || node.kind === 'character' || node.kind === 'scene' ? (
-            <NodeParameterControls node={node} section="references" valueOnly />
-          ) : null}
-          <textarea
-            className="generation-canvas-v2-node__prompt-input"
-            value={node.prompt}
-            rows={composerLayout.promptRows}
-            placeholder={
-              node.kind === 'video'
-                ? '描述这一段视频的镜头、动作和节奏...'
-                : node.kind === 'text'
-                  ? '输入文本内容...'
-                  : '描述这一帧的画面...'
-            }
-            onChange={(event) => updateNode(node.id, { prompt: event.currentTarget.value })}
-          />
-          {status === 'error' && node.error ? (
-            <div className="generation-canvas-v2-node__error" role="alert">
-              生成失败：{node.error}
-            </div>
-          ) : null}
-          <div className="generation-canvas-v2-node__footer">
-            <NodeParameterControls node={node} section="parameters" valueOnly />
-            {(() => {
-              const disabledReason = !canGenerate && !isGenerating
-                ? node.kind === 'video'
-                  ? '需要先连接一个图片节点作为首帧'
-                  : node.kind === 'image'
-                    ? undefined
-                    : `「${node.kind}」类型暂不支持直接生成`
-                : undefined
-              return (
-                <span title={disabledReason} style={{ display: 'contents' }}>
-                  <WorkbenchButton
-                    className="generation-canvas-v2-node__generate"
-                    aria-label="生成素材"
-                    disabled={!canGenerate}
-                    onClick={handleGenerate}
-                  >
-                    {isGenerating ? '生成中' : hasResult ? '重新生成' : '生成 →'}
-                  </WorkbenchButton>
-                </span>
-              )
-            })()}
-          </div>
+          <>
+            {node.kind === 'video' || node.kind === 'image' || node.kind === 'keyframe' || node.kind === 'character' || node.kind === 'scene' ? (
+                <NodeParameterControls node={node} section="references" valueOnly />
+              ) : null}
+              <textarea
+                className="generation-canvas-v2-node__prompt-input"
+                value={node.prompt}
+                rows={composerLayout.promptRows}
+                placeholder={
+                  node.kind === 'video'
+                    ? '描述这一段视频的镜头、动作和节奏...'
+                    : node.kind === 'text'
+                      ? '输入文本内容...'
+                      : '描述这一帧的画面...'
+                }
+                onChange={(event) => updateNode(node.id, { prompt: event.currentTarget.value })}
+              />
+              {status === 'error' && node.error ? (
+                <div className="generation-canvas-v2-node__error" role="alert">
+                  生成失败：{node.error}
+                </div>
+              ) : null}
+              <div className="generation-canvas-v2-node__footer">
+                <NodeParameterControls node={node} section="parameters" valueOnly />
+                {(() => {
+                  const disabledReason = !canGenerate && !isGenerating
+                    ? node.kind === 'video'
+                      ? '需要先连接一个图片节点作为首帧'
+                      : node.kind === 'image'
+                        ? undefined
+                        : `「${node.kind}」类型暂不支持直接生成`
+                    : undefined
+                  return (
+                    <span title={disabledReason} style={{ display: 'contents' }}>
+                      <WorkbenchButton
+                        className="generation-canvas-v2-node__generate"
+                        aria-label="生成素材"
+                        disabled={!canGenerate}
+                        onClick={handleGenerate}
+                      >
+                        {isGenerating ? '生成中' : hasResult ? '重新生成' : '生成 →'}
+                      </WorkbenchButton>
+                    </span>
+                  )
+                })()}
+              </div>
+            </>
         </div>
       ) : null}
       {selected && !readOnly ? RESIZE_DIRECTIONS.map((direction) => (
