@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconGrid3x3, IconLayoutGrid, IconMaximize, IconUpload } from '@tabler/icons-react'
+import { IconDownload, IconGrid3x3, IconLayoutGrid, IconMaximize, IconUpload } from '@tabler/icons-react'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { useWorkbenchStore } from '../../../workbenchStore'
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
@@ -15,6 +15,7 @@ import NodeParameterControls from './NodeParameterControls'
 import { buildVideoPlaybackUrl } from '../../../../media/videoPlaybackUrl'
 import { diagnoseVideoPlaybackFailure, logVideoPlaybackFailure } from '../../../../media/videoPlaybackDiagnostics'
 import PanoramaViewer, { type PanoramaScreenshot } from './PanoramaViewer'
+import { appendDownloadSuffix, downloadUrl } from '../../../../utils/download'
 
 const STATUS_LABEL: Record<string, string> = {
   queued: '排队中',
@@ -52,6 +53,7 @@ const MAX_NODE_WIDTH = 680
 const MIN_NODE_HEIGHT = 120
 const MAX_NODE_HEIGHT = 520
 const TIMELINE_TRACK_CLIPS_SELECTOR = '.workbench-timeline-track__clips'
+const VIDEO_CONTROLS_HIT_AREA_PX = 48
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
@@ -457,6 +459,26 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
     storeConnectNodes(node.id, screenshotNode.id, 'reference')
   }, [addNode, node.id, node.position.x, node.position.y, storeConnectNodes, updateNode, visualSize.width])
 
+  const handleDownloadResult = React.useCallback(() => {
+    const resultUrl = String(node.result?.url || '').trim()
+    if (!resultUrl) return
+    void downloadUrl({
+      url: resultUrl,
+      filename: appendDownloadSuffix(node.title || node.kind || 'generation-node', Date.now()),
+      preferBlob: true,
+      fallbackTarget: '_blank',
+    })
+  }, [node.kind, node.result?.url, node.title])
+
+  const handleVideoPointerDown = React.useCallback((event: React.PointerEvent<HTMLVideoElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const isNativeControlsArea = event.clientY >= rect.bottom - VIDEO_CONTROLS_HIT_AREA_PX
+    if (!isNativeControlsArea) return
+
+    selectNode(node.id, event.shiftKey)
+    event.stopPropagation()
+  }, [node.id, selectNode])
+
   const handleImageGridSplit = React.useCallback(async (gridSize: ImageGridSize) => {
     const imageUrl = node.result?.type === 'image' ? node.result.url : undefined
     if (!imageUrl || splittingGridSize !== null) return
@@ -618,6 +640,16 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
           <button
             className="generation-canvas-v2-node__panorama-toolbar-item generation-canvas-v2-node__panorama-toolbar-item--icon"
             type="button"
+            aria-label="下载图片"
+            title="下载图片"
+            onClick={handleDownloadResult}
+          >
+            <IconDownload size={16} stroke={1.8} />
+          </button>
+          <span className="generation-canvas-v2-node__panorama-toolbar-divider" />
+          <button
+            className="generation-canvas-v2-node__panorama-toolbar-item generation-canvas-v2-node__panorama-toolbar-item--icon"
+            type="button"
             aria-label="2x2 切图"
             title="2x2 切图"
             disabled={splittingGridSize !== null}
@@ -687,7 +719,7 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
               playsInline
               preload="metadata"
               draggable={false}
-              onPointerDown={(e) => e.stopPropagation()}
+              onPointerDown={handleVideoPointerDown}
               onLoadedMetadata={(event) => {
                 updateMediaDimensions(event.currentTarget.videoWidth, event.currentTarget.videoHeight)
               }}

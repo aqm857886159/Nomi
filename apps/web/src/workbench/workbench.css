@@ -2,8 +2,8 @@
 .app-ai-chat-dialog.tc-ai-chat {
   /* Workbench visual system: flat light workspace, solid panels, 8px panels, 32px icon controls. */
   --workbench-topbar-height: 56px;
-  --workbench-timeline-height: 188px;
-  --workbench-preview-timeline-height: 208px;
+  --workbench-timeline-height: 174px;
+  --workbench-preview-timeline-height: 190px;
   --workbench-timeline-label-width: 112px;
   --workbench-bg: var(--nomi-bg);
   --workbench-surface: var(--nomi-paper);
@@ -940,7 +940,7 @@
   min-height: 0;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
-  padding: 12px 16px 12px;
+  padding: 10px 16px 10px;
   background: var(--workbench-surface-solid);
   border-top: 1px solid var(--workbench-border);
   box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.72);
@@ -948,7 +948,7 @@
 
 .workbench-timeline[data-density='full'] {
   grid-template-rows: minmax(0, 1fr);
-  padding: 10px 18px 14px;
+  padding: 10px 18px 12px;
 }
 
 .workbench-timeline__controls {
@@ -1014,7 +1014,7 @@
   background: transparent;
   overflow-x: auto;
   overflow-y: hidden;
-  padding-bottom: 8px;
+  padding-bottom: 6px;
   scrollbar-color: transparent transparent;
   scrollbar-width: thin;
 }
@@ -1022,7 +1022,7 @@
 .workbench-timeline[data-density='full'] .workbench-timeline__tracks {
   overflow-x: auto;
   overflow-y: hidden;
-  padding-bottom: 10px;
+  padding-bottom: 8px;
 }
 
 .workbench-timeline__tracks:hover,

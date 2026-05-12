@@ -1,15 +1,10 @@
 import React from 'react'
 import {
-  IconBoxMultiple,
   IconCopy,
   IconCut,
-  IconFlag,
-  IconLayoutGrid,
   IconPhoto,
   IconPlus,
-  IconUser,
   IconVideo,
-  IconWriting,
   Icon360,
 } from '@tabler/icons-react'
 import { WorkbenchButton } from '../../../design'
@@ -17,15 +12,9 @@ import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 
 const QUICK_ADD: Array<{ kind: GenerationNodeKind; label: string; icon: React.ReactNode }> = [
-  { kind: 'text', label: '文本', icon: <IconWriting size={15} /> },
-  { kind: 'character', label: '角色', icon: <IconUser size={15} /> },
-  { kind: 'scene', label: '场景', icon: <IconLayoutGrid size={15} /> },
   { kind: 'image', label: '图片', icon: <IconPhoto size={15} /> },
-  { kind: 'keyframe', label: '关键帧', icon: <IconFlag size={15} /> },
   { kind: 'video', label: '视频', icon: <IconVideo size={15} /> },
-  { kind: 'shot', label: '镜头', icon: <IconBoxMultiple size={15} /> },
   { kind: 'panorama', label: '全景图', icon: <Icon360 size={15} /> },
-  { kind: 'output', label: '输出', icon: <IconFlag size={15} /> },
 ]
 
 type CanvasToolbarProps = {
@@ -72,17 +61,17 @@ export default function CanvasToolbar({ getInsertionPosition }: CanvasToolbarPro
         </div>
       ) : null}
       <span className="generation-canvas-v2-toolbar__divider" />
-      <WorkbenchButton aria-label="添加文本节点" title="文本" onClick={() => handleAddNode('text')}>
-        <IconWriting size={15} />
-        <span>文本</span>
-      </WorkbenchButton>
       <WorkbenchButton aria-label="添加图片节点" title="图像" onClick={() => handleAddNode('image')}>
         <IconPhoto size={15} />
-        <span>图像</span>
+        <span>图片</span>
       </WorkbenchButton>
       <WorkbenchButton aria-label="添加视频节点" title="视频" onClick={() => handleAddNode('video')}>
         <IconVideo size={15} />
         <span>视频</span>
+      </WorkbenchButton>
+      <WorkbenchButton aria-label="添加全景图节点" title="全景图" onClick={() => handleAddNode('panorama')}>
+        <Icon360 size={15} />
+        <span>全景图</span>
       </WorkbenchButton>
       <span className="generation-canvas-v2-toolbar__divider" />
       <span className="generation-canvas-v2-toolbar__hint" data-active={pendingConnectionSourceId ? 'true' : 'false'}>

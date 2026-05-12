@@ -550,7 +550,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
           {nodes.length === 0 ? (
             <div className="generation-canvas-v2__empty">
               <strong>开始搭建生成链路</strong>
-              <span>添加文本、角色、图片或视频节点。</span>
+              <span>添加图片、视频或全景图节点。</span>
             </div>
           ) : null}
           {selectionBox ? (
