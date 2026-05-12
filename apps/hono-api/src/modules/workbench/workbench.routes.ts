@@ -8,7 +8,7 @@ import { authMiddleware } from "../../middleware/auth";
 import { errorMiddleware } from "../../middleware/error";
 import { resolveLocalDevRole } from "../auth/local-admin";
 import { handlePublicAgentsChatRoute } from "../agents-bridge";
-import { registerWorkspaceToolRoutes } from "./workspace-tools.routes.js";
+import { registerWorkspaceToolRoutes } from "./workspace-tools.routes";
 
 export const workbenchRouter = new Hono<AppEnv>();
 
