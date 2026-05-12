@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Center, Container, Group, Loader, ScrollArea, Stack, Text, Title, Tooltip } from '@mantine/core'
+import { Box, Button as MantineButton, Center, Container, Group, Loader, ScrollArea, Stack, Text, Title, Tooltip } from '@mantine/core'
 import { IconArrowLeft, IconCopy, IconCopyPlus, IconFileText, IconRefresh } from '@tabler/icons-react'
 import type { Edge, Node } from '@xyflow/react'
 import { cloneProject, getPublicProjectFlows, listPublicProjects, type FlowDto, type ProjectDto } from '../api/server'
@@ -36,6 +36,7 @@ type PromptEntry = {
   label: string
   items: Array<{ label: string; value: string }>
 }
+type ShareViewport = { x: number; y: number; zoom: number }
 
 function readRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
@@ -66,6 +67,17 @@ function shareErrorMessage(error: unknown, fallback: string): string {
 function toFiniteNumber(value: unknown): number | null {
   const n = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(n) ? n : null
+}
+
+function readShareViewport(value: unknown): ShareViewport | null {
+  const record = readRecord(value)
+  const zoom = toFiniteNumber(record.zoom)
+  if (zoom === null) return null
+  return {
+    x: toFiniteNumber(record.x) ?? 0,
+    y: toFiniteNumber(record.y) ?? 0,
+    zoom,
+  }
 }
 
 function getReadonlyNodeSize(node: ReadonlyCanvasNode): { w: number; h: number } {
@@ -326,9 +338,9 @@ export default function ShareFullPage(): JSX.Element {
     const data = readRecord(f.data)
     const nodes = readReadonlyNodes(data.nodes)
     const edges = readReadonlyEdges(data.edges)
-    const viewport = readRecord(data.viewport)
+    const viewport = readShareViewport(data.viewport)
     restoreGenerationCanvas(importLegacyFlowGraph(sanitizeReadonlyGraph({ nodes, edges })))
-    useUIStore.getState().setRestoreViewport(typeof viewport.zoom === 'number' ? viewport : null)
+    useUIStore.getState().setRestoreViewport(viewport)
     setCurrentProject({ id: projectId, name: project?.name || 'Shared Project' })
     setCurrentFlow({ id: f.id, name: f.name, source: 'server' })
   }, [flows, project?.name, projectId, restoreGenerationCanvas, selectedFlowId, setCurrentFlow, setCurrentProject])
@@ -392,8 +404,8 @@ export default function ShareFullPage(): JSX.Element {
           ) : (
             <Stack className="tc-share__list" gap={8}>
               {publicProjects.map((p) => (
-                <DesignButton
-                  className="tc-share__list-item"
+                <MantineButton
+                  className="tc-design-button tc-share__list-item"
                   key={p.id}
                   variant="light"
                   component="a"
@@ -402,7 +414,7 @@ export default function ShareFullPage(): JSX.Element {
                 >
                   <span className="tc-share__list-name">{p.name}</span>
                   <DesignBadge className="tc-share__list-badge" variant="outline" color="green">公开</DesignBadge>
-                </DesignButton>
+                </MantineButton>
               ))}
             </Stack>
           )}

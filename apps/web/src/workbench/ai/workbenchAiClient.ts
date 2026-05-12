@@ -54,7 +54,7 @@ export async function sendWorkbenchAiMessage(
   let streamedText = ''
   let finalResponse: AgentsChatResponseDto | null = null
   let streamError: Error | null = null
-  let terminalReason: 'finished' | 'error' | '' = ''
+  let terminalErrored = false
 
   await new Promise<void>((resolve, reject) => {
     void workbenchAgentsChatStream(payload, {
@@ -78,7 +78,7 @@ export async function sendWorkbenchAiMessage(
           return
         }
         if (event.event === 'done') {
-          terminalReason = event.data.reason
+          terminalErrored = event.data.reason === 'error'
           resolve()
         }
       },
@@ -87,7 +87,7 @@ export async function sendWorkbenchAiMessage(
   })
 
   if (streamError) throw streamError
-  if (terminalReason === 'error') throw new Error('agents chat stream failed')
+  if (terminalErrored) throw new Error('agents chat stream failed')
   if (!finalResponse) throw new Error('agents chat stream ended without result')
   return finalResponse
 }

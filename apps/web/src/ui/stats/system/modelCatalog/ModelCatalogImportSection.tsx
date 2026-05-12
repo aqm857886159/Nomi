@@ -293,7 +293,7 @@ async function runModelIntegrationAgent(input: {
 }): Promise<AgentsChatResponseDto> {
   let finalResponse: AgentsChatResponseDto | null = null
   let streamError: Error | null = null
-  let terminalReason: 'finished' | 'error' | '' = ''
+  let terminalErrored = false
   let streamedText = ''
 
   await new Promise<void>((resolve, reject) => {
@@ -330,7 +330,7 @@ async function runModelIntegrationAgent(input: {
           return
         }
         if (event.event === 'done') {
-          terminalReason = event.data.reason
+          terminalErrored = event.data.reason === 'error'
           resolve()
         }
       },
@@ -339,7 +339,7 @@ async function runModelIntegrationAgent(input: {
   })
 
   if (streamError) throw streamError
-  if (terminalReason === 'error') throw new Error('模型接入 Agent 调用失败')
+  if (terminalErrored) throw new Error('模型接入 Agent 调用失败')
   if (!finalResponse) throw new Error('模型接入 Agent 没有返回结果')
   return finalResponse
 }
