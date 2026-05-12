@@ -80,3 +80,18 @@ export async function downloadUrl({
     clickDownload(url, fallbackName, fallbackTarget)
   }
 }
+
+export function downloadTextFile(
+  text: string,
+  filename: string,
+  mimeType = 'text/plain;charset=utf-8',
+): void {
+  const fallbackName = filename || `tapcanvas-${Date.now()}.txt`
+  const blob = new Blob([text], { type: mimeType })
+  const objectUrl = URL.createObjectURL(blob)
+  try {
+    clickDownload(objectUrl, fallbackName, '_self')
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}

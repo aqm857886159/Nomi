@@ -1,6 +1,6 @@
 import React from 'react'
 import { Center, Group, Image, Loader, Box, SimpleGrid, Stack, Text } from '@mantine/core'
-import { IconPhoto, IconRefresh, IconSearch } from '@tabler/icons-react'
+import { IconDownload, IconPhoto, IconRefresh, IconSearch } from '@tabler/icons-react'
 import {
   getProjectBookIndex,
   listProjectBooks,
@@ -13,6 +13,7 @@ import {
 } from '../api/server'
 import { DesignBadge, DesignButton, DesignModal, DesignSegmentedControl, DesignTextInput, InlinePanel, PanelCard } from '../design'
 import { toast } from '../ui/toast'
+import { downloadTextFile, downloadUrl } from '../utils/download'
 
 type ViewerFilter = 'all' | 'roleCards' | 'docs'
 
@@ -122,6 +123,58 @@ function formatTime(value: string): string {
   const hh = String(date.getHours()).padStart(2, '0')
   const mi = String(date.getMinutes()).padStart(2, '0')
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}`
+}
+
+function sanitizeFilenamePart(input: string): string {
+  const trimmed = String(input || '').trim()
+  if (!trimmed) return 'untitled'
+  const replaced = trimmed
+    .replace(/[\\/:"*?<>|]+/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/\.+$/g, '')
+    .trim()
+  return replaced || 'untitled'
+}
+
+function guessExtFromUrl(url: string, fallback: string): string {
+  try {
+    const u = new URL(url)
+    const last = u.pathname.split('/').filter(Boolean).pop() || ''
+    const dot = last.lastIndexOf('.')
+    const ext = dot > 0 && dot < last.length - 1 ? last.slice(dot + 1).toLowerCase() : ''
+    return /^[a-z0-9]{1,8}$/.test(ext) ? ext : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function buildRoleCardText(card: ProjectRoleCardView): string {
+  return [
+    `角色名：${card.roleName || card.name || '未命名角色'}`,
+    `状态：${card.status === 'draft' ? '草稿' : '已生成'}`,
+    typeof card.chapter === 'number' ? `章节：第${card.chapter}章` : '',
+    `更新时间：${formatTime(card.updatedAt)}`,
+    '',
+    '角色状态：',
+    card.stateDescription || '无',
+    '',
+    '完整提示词：',
+    card.prompt || '无',
+    '',
+    card.imageUrl ? `图片地址：${card.imageUrl}` : '',
+  ].filter((line) => line !== '').join('\n')
+}
+
+function buildDocText(doc: ProjectDocAsset): string {
+  return [
+    `标题：${doc.name}`,
+    `类型：${toKindLabel(doc.kind)}`,
+    typeof doc.chapter === 'number' ? `章节：第${doc.chapter}章` : '',
+    `更新时间：${formatTime(doc.updatedAt)}`,
+    doc.source ? `来源：${doc.source}` : '',
+    '',
+    doc.content || '无内容',
+  ].filter((line) => line !== '').join('\n')
 }
 
 async function listAllAssetsByKind(projectId: string, kind: ProjectMaterialKind): Promise<ServerAssetDto[]> {
@@ -253,6 +306,7 @@ export default function ProjectAssetsViewer({
   const [docs, setDocs] = React.useState<ProjectDocAsset[]>([])
   const [activeRoleCard, setActiveRoleCard] = React.useState<ProjectRoleCardView | null>(null)
   const [activeDoc, setActiveDoc] = React.useState<ProjectDocAsset | null>(null)
+  const [downloading, setDownloading] = React.useState(false)
 
   const loadAssets = React.useCallback(async () => {
     const pid = String(projectId || '').trim()
@@ -331,6 +385,81 @@ export default function ProjectAssetsViewer({
     storyboardDocs.length > 0 ? `分镜脚本：${storyboardDocs.length}` : '分镜脚本：0',
     chapterBoundDocs.length > 0 ? `章节文档：${chapterBoundDocs.length}` : '章节文档：0',
   ]
+
+  const downloadRoleCardImage = React.useCallback(async (card: ProjectRoleCardView) => {
+    const imageUrl = String(card.imageUrl || '').trim()
+    if (!imageUrl) {
+      toast('这个角色卡没有可下载图片', 'error')
+      return
+    }
+    const ext = guessExtFromUrl(imageUrl, 'png')
+    await downloadUrl({
+      url: imageUrl,
+      filename: `${sanitizeFilenamePart(projectName || projectId)}-${sanitizeFilenamePart(card.roleName || card.name)}-角色卡.${ext}`,
+      preferBlob: true,
+      fallbackTarget: '_blank',
+    })
+  }, [projectId, projectName])
+
+  const downloadRoleCardText = React.useCallback((card: ProjectRoleCardView) => {
+    downloadTextFile(
+      buildRoleCardText(card),
+      `${sanitizeFilenamePart(projectName || projectId)}-${sanitizeFilenamePart(card.roleName || card.name)}-角色卡详情.txt`,
+    )
+  }, [projectId, projectName])
+
+  const downloadDoc = React.useCallback((doc: ProjectDocAsset) => {
+    downloadTextFile(
+      buildDocText(doc),
+      `${sanitizeFilenamePart(projectName || projectId)}-${sanitizeFilenamePart(doc.name)}.txt`,
+    )
+  }, [projectId, projectName])
+
+  const downloadCurrentFilter = React.useCallback(async () => {
+    if (downloading) return
+    const roleItems = filter === 'docs' ? [] : filteredRoleCards
+    const docItems = filter === 'roleCards' ? [] : filteredDocs
+    const total = roleItems.length + docItems.length
+    if (total === 0) {
+      toast('当前筛选没有可下载素材', 'error')
+      return
+    }
+    setDownloading(true)
+    let attempted = 0
+    try {
+      for (const card of roleItems) {
+        if (card.imageUrl) {
+          // eslint-disable-next-line no-await-in-loop
+          await downloadRoleCardImage(card)
+        } else {
+          downloadRoleCardText(card)
+        }
+        attempted += 1
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 80))
+      }
+      for (const doc of docItems) {
+        downloadDoc(doc)
+        attempted += 1
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 80))
+      }
+      toast(`已开始下载 ${attempted} 个素材`, 'success')
+    } catch (error: unknown) {
+      const message = error instanceof Error && error.message ? error.message : '下载素材失败'
+      toast(message, 'error')
+    } finally {
+      setDownloading(false)
+    }
+  }, [
+    downloadDoc,
+    downloadRoleCardImage,
+    downloadRoleCardText,
+    downloading,
+    filter,
+    filteredDocs,
+    filteredRoleCards,
+  ])
 
   return (
     <>
@@ -423,6 +552,16 @@ export default function ProjectAssetsViewer({
                 w={320}
               />
               <DesignButton
+                className="tc-pm-assets__download-filtered"
+                size="xs"
+                variant="light"
+                leftSection={<IconDownload className="tc-pm-assets__download-filtered-icon" size={14} />}
+                loading={downloading}
+                onClick={() => void downloadCurrentFilter()}
+              >
+                下载当前筛选
+              </DesignButton>
+              <DesignButton
                 className="tc-pm-assets__refresh"
                 size="xs"
                 variant="light"
@@ -479,6 +618,18 @@ export default function ProjectAssetsViewer({
                             </Group>
                             <Text className="tc-pm-assets__role-time" size="xs" c="dimmed">{formatTime(card.updatedAt)}</Text>
                             <Group className="tc-pm-assets__role-actions" justify="flex-end">
+                              <DesignButton
+                                className="tc-pm-assets__role-download-btn"
+                                size="xs"
+                                variant="subtle"
+                                leftSection={<IconDownload className="tc-pm-assets__role-download-icon" size={14} />}
+                                onClick={() => {
+                                  if (card.imageUrl) void downloadRoleCardImage(card)
+                                  else downloadRoleCardText(card)
+                                }}
+                              >
+                                下载
+                              </DesignButton>
                               <DesignButton className="tc-pm-assets__role-preview-btn" size="xs" variant="light" onClick={() => setActiveRoleCard(card)}>
                                 预览详情
                               </DesignButton>
@@ -518,9 +669,20 @@ export default function ProjectAssetsViewer({
                             </Text>
                             <Group className="tc-pm-assets__doc-footer" justify="space-between" align="center">
                               <Text className="tc-pm-assets__doc-time" size="xs" c="dimmed">{formatTime(doc.updatedAt)}</Text>
-                              <DesignButton className="tc-pm-assets__doc-preview-btn" size="xs" variant="light" onClick={() => setActiveDoc(doc)}>
-                                预览全文
-                              </DesignButton>
+                              <Group className="tc-pm-assets__doc-actions" gap={6}>
+                                <DesignButton
+                                  className="tc-pm-assets__doc-download-btn"
+                                  size="xs"
+                                  variant="subtle"
+                                  leftSection={<IconDownload className="tc-pm-assets__doc-download-icon" size={14} />}
+                                  onClick={() => downloadDoc(doc)}
+                                >
+                                  下载
+                                </DesignButton>
+                                <DesignButton className="tc-pm-assets__doc-preview-btn" size="xs" variant="light" onClick={() => setActiveDoc(doc)}>
+                                  预览全文
+                                </DesignButton>
+                              </Group>
                             </Group>
                           </Stack>
                         </PanelCard>
@@ -543,6 +705,32 @@ export default function ProjectAssetsViewer({
         size="lg"
       >
         <Stack className="tc-pm-assets__role-preview-stack" gap="sm">
+          <Group className="tc-pm-assets__role-preview-actions" justify="flex-end" gap="xs">
+            {String(activeRoleCard?.imageUrl || '').trim() ? (
+              <DesignButton
+                className="tc-pm-assets__role-preview-download-image"
+                size="xs"
+                variant="light"
+                leftSection={<IconDownload className="tc-pm-assets__role-preview-download-image-icon" size={14} />}
+                onClick={() => {
+                  if (activeRoleCard) void downloadRoleCardImage(activeRoleCard)
+                }}
+              >
+                下载图片
+              </DesignButton>
+            ) : null}
+            <DesignButton
+              className="tc-pm-assets__role-preview-download-text"
+              size="xs"
+              variant="light"
+              leftSection={<IconDownload className="tc-pm-assets__role-preview-download-text-icon" size={14} />}
+              onClick={() => {
+                if (activeRoleCard) downloadRoleCardText(activeRoleCard)
+              }}
+            >
+              下载详情
+            </DesignButton>
+          </Group>
           {String(activeRoleCard?.imageUrl || '').trim() ? (
             <Image
               className="tc-pm-assets__role-preview-image"
@@ -578,18 +766,31 @@ export default function ProjectAssetsViewer({
         size="xl"
       >
         <Stack className="tc-pm-assets__doc-preview-stack" gap="sm">
-          <Group className="tc-pm-assets__doc-preview-meta" gap={6}>
-            <DesignBadge className="tc-pm-assets__doc-preview-kind" size="sm" variant="light">
-              {activeDoc ? toKindLabel(activeDoc.kind) : '-'}
-            </DesignBadge>
-            {typeof activeDoc?.chapter === 'number' ? (
-              <DesignBadge className="tc-pm-assets__doc-preview-chapter" size="sm" variant="outline">
-                {`第${activeDoc.chapter}章`}
+          <Group className="tc-pm-assets__doc-preview-header" justify="space-between" align="center" gap="xs">
+            <Group className="tc-pm-assets__doc-preview-meta" gap={6}>
+              <DesignBadge className="tc-pm-assets__doc-preview-kind" size="sm" variant="light">
+                {activeDoc ? toKindLabel(activeDoc.kind) : '-'}
               </DesignBadge>
-            ) : null}
-            <Text className="tc-pm-assets__doc-preview-time" size="xs" c="dimmed">
-              {activeDoc ? formatTime(activeDoc.updatedAt) : '-'}
-            </Text>
+              {typeof activeDoc?.chapter === 'number' ? (
+                <DesignBadge className="tc-pm-assets__doc-preview-chapter" size="sm" variant="outline">
+                  {`第${activeDoc.chapter}章`}
+                </DesignBadge>
+              ) : null}
+              <Text className="tc-pm-assets__doc-preview-time" size="xs" c="dimmed">
+                {activeDoc ? formatTime(activeDoc.updatedAt) : '-'}
+              </Text>
+            </Group>
+            <DesignButton
+              className="tc-pm-assets__doc-preview-download"
+              size="xs"
+              variant="light"
+              leftSection={<IconDownload className="tc-pm-assets__doc-preview-download-icon" size={14} />}
+              onClick={() => {
+                if (activeDoc) downloadDoc(activeDoc)
+              }}
+            >
+              下载全文
+            </DesignButton>
           </Group>
           <div className="tc-pm-assets__doc-preview-scroll">
             <Text className="tc-pm-assets__doc-preview-content" size="sm">
