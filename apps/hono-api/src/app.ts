@@ -316,5 +316,44 @@ export async function createNomiApp(): Promise<OpenAPIHono<AppEnv>> {
 	// Internal ops endpoints (token protected; not in OpenAPI docs)
 	app.route("/internal", internalRouter);
 
+	// Desktop 本地文件存储：静态资源服务
+	app.get("/local-assets/*", async (c) => {
+		const assetLocalRoot = String(
+			(c.env as any)?.ASSET_LOCAL_ROOT || process.env.ASSET_LOCAL_ROOT || "",
+		).trim();
+		if (!assetLocalRoot) return c.notFound();
+
+		const key = c.req.param("*");
+		// 防止路径穿越攻击
+		if (!key || key.includes("..")) return c.notFound();
+
+		try {
+			const { join, extname } = await import("node:path");
+			const { readFile } = await import("node:fs/promises");
+			const filePath = join(assetLocalRoot, key);
+			const buf = await readFile(filePath);
+			const ext = extname(filePath).toLowerCase().slice(1);
+			const mimeMap: Record<string, string> = {
+				jpg: "image/jpeg",
+				jpeg: "image/jpeg",
+				png: "image/png",
+				gif: "image/gif",
+				webp: "image/webp",
+				mp4: "video/mp4",
+				mov: "video/quicktime",
+				webm: "video/webm",
+				svg: "image/svg+xml",
+			};
+			return new Response(buf, {
+				headers: {
+					"Content-Type": mimeMap[ext] || "application/octet-stream",
+					"Cache-Control": "public, max-age=31536000, immutable",
+				},
+			});
+		} catch {
+			return c.notFound();
+		}
+	});
+
 	return app;
 }

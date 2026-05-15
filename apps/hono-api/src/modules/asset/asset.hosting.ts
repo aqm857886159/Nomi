@@ -22,6 +22,15 @@ import {
 	type RustfsConfig,
 } from "./rustfs.client";
 
+async function writeLocalAsset(root: string, key: string, bytes: Uint8Array): Promise<void> {
+	const { join, dirname } = await import("node:path");
+	const { mkdir, writeFile } = await import("node:fs/promises");
+	const filePath = join(root, key);
+	const dir = dirname(filePath);
+	await mkdir(dir, { recursive: true });
+	await writeFile(filePath, bytes);
+}
+
 type HostedAssetMeta = {
 	type: "image" | "video";
 	url: string;
@@ -237,7 +246,9 @@ async function buildInlineSourceKey(input: {
 	return `inline:${mime};uuid:${crypto.randomUUID()}`;
 }
 
-type StorageTarget = { kind: "rustfs"; config: RustfsConfig };
+type StorageTarget =
+	| { kind: "rustfs"; config: RustfsConfig }
+	| { kind: "local"; root: string };
 
 async function uploadToStorageFromUrl(options: {
 	c: AppContext;
@@ -291,6 +302,15 @@ async function uploadToStorageFromUrl(options: {
 	const contentLength = parseContentLength(res.headers);
 	const ext = detectExtension(sourceUrl, contentType);
 	const key = buildStorageKey(userId, ext, options.prefix);
+
+	// Desktop 本地存储模式
+	if (options.storage.kind === "local") {
+		const buf = new Uint8Array(await res.arrayBuffer());
+		await writeLocalAsset(options.storage.root, key, buf);
+		const url = publicBase ? `${publicBase}/${key}` : `/local-assets/${key}`;
+		console.log("[asset-hosting] local file write ok", { key });
+		return { key, url };
+	}
 
 	try {
 		const stream = res.body;
@@ -400,10 +420,18 @@ async function uploadToStorageFromInlineBytes(options: {
 	const ext = detectExtension("", contentType);
 	const key = buildStorageKey(options.userId, ext, options.prefix);
 
-	const client = createRustfsClientFromConfig(options.storage.config);
+	// Desktop 本地存储模式
+	if (options.storage.kind === "local") {
+		await writeLocalAsset(options.storage.root, key, options.bytes);
+		const url = publicBase ? `${publicBase}/${key}` : `/local-assets/${key}`;
+		console.log("[asset-hosting] local file write ok", { key });
+		return { key, url };
+	}
+
+	const client = createRustfsClientFromConfig((options.storage as Extract<StorageTarget, { kind: "rustfs" }>).config);
 	await client.send(
 		new PutObjectCommand({
-			Bucket: options.storage.config.bucket,
+			Bucket: (options.storage as Extract<StorageTarget, { kind: "rustfs" }>).config.bucket,
 			Key: key,
 			Body: options.bytes,
 			ContentType: contentType,
@@ -724,6 +752,13 @@ export async function hostTaskAssetsInWorker(options: {
 	let cachedStorage: StorageTarget | null = null;
 	const getStorageOrThrow = (): StorageTarget => {
 		if (cachedStorage) return cachedStorage;
+		// Desktop 本地存储模式（优先于 S3/RustFS）
+		const localRoot = String((c.env as any)?.ASSET_LOCAL_ROOT || process.env.ASSET_LOCAL_ROOT || "").trim();
+		const localMode = String((c.env as any)?.ASSET_HOSTING_LOCAL_MODE || process.env.ASSET_HOSTING_LOCAL_MODE || "").trim();
+		if ((localMode === "1" || localMode === "true") && localRoot) {
+			cachedStorage = { kind: "local", root: localRoot };
+			return cachedStorage;
+		}
 		const rustfs = resolveRustfsConfig(c.env);
 		if (rustfs) {
 			cachedStorage = { kind: "rustfs", config: rustfs };

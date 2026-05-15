@@ -11,6 +11,19 @@ import { resolveRustfsConfig } from "./rustfs.client";
 export function resolvePublicAssetBaseUrl(
 	c: Pick<AppContext, "env" | "req">,
 ): string {
+	// Desktop 本地存储模式：使用请求来源 + /local-assets
+	const localMode = String(
+		(c.env as any)?.ASSET_HOSTING_LOCAL_MODE || process.env.ASSET_HOSTING_LOCAL_MODE || "",
+	).trim();
+	if (localMode === "1" || localMode === "true") {
+		try {
+			const requestUrl = new URL(c.req.url);
+			return `${requestUrl.origin}/local-assets`;
+		} catch {
+			return "http://127.0.0.1:8788/local-assets";
+		}
+	}
+
 	const storage = resolveRustfsConfig(c.env);
 	if (!storage) return "";
 	if (storage.publicBase) return storage.publicBase;
