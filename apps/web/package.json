@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build --mode production",
+    "build:desktop": "vite build --mode desktop",
     "preview": "vite preview",
     "smoke:project-chapter-ui": "node ./scripts/project-chapter-ui-smoke.mjs",
     "smoke:project-chapter-production": "node ./scripts/project-chapter-production-smoke.mjs",
