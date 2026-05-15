@@ -14,6 +14,9 @@ async function run(cmd, args, opts = {}) {
   });
 }
 
+// 0. 生成 desktop Prisma client（使用 libsql schema）
+await run('pnpm', ['--filter', '@nomi/api', 'prisma:generate:desktop'], { cwd: resolve(root, '../..') });
+
 // 1. 编译主进程
 await run('npx', ['esbuild',
   'src/main/index.ts', 'src/main/window.ts', 'src/main/api-server.ts',

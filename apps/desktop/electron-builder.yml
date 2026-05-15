@@ -23,6 +23,12 @@ extraResources:
     filter:
       - "**/*.js"
       - "**/*.json"
+  - from: "../hono-api/prisma/schema.desktop.prisma"
+    to: "prisma/schema.desktop.prisma"
+  - from: "../hono-api/node_modules/.bin/prisma"
+    to: "prisma-cli/node_modules/.bin/prisma"
+    filter:
+      - "**"
 
 mac:
   target:
