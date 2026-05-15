@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import net from 'node:net';
 import path from 'node:path';
-import { ensureUserDataDirs, getOrCreateJwtSecret, getOrCreateLocalUserId, getAssetsDir } from './storage';
+import { ensureUserDataDirs, getOrCreateJwtSecret, getOrCreateLocalUserId, getAssetsDir, getUserDataDir } from './storage';
 
 export interface ApiServerResult {
   port: number;
@@ -35,7 +35,11 @@ export async function startApiServer(): Promise<ApiServerResult> {
   const devBypassSecret = `desktop_${jwtSecret.slice(0, 16)}`;
 
   // 设置 Desktop 模式专用环境变量
-  // DATABASE_URL 必须由用户通过 .env 或系统环境变量提供（M1 阶段仍需 PostgreSQL）
+  const dbPath = path.join(getUserDataDir(), 'nomi.db');
+  // libsql 要求 file: 协议，Windows 路径需要转换正斜杠
+  const dbUrl = `file:${dbPath.replace(/\\/g, '/')}`;
+  process.env.DATABASE_URL = dbUrl;
+  process.env.PRISMA_DB_PROVIDER = 'libsql';
   process.env.JWT_SECRET = jwtSecret;
   process.env.AGENTS_BRIDGE_AUTOSTART = 'false'; // 主进程另外管理
   process.env.ASSET_HOSTING_LOCAL_MODE = '1';

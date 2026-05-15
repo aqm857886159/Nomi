@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import { createMainWindow, setMainWindowReady } from './window';
 import { startApiServer } from './api-server';
+import { initDatabase } from './db-init';
 import { registerIpcHandlers } from './ipc-handlers';
 import { setupTray } from './tray';
 import { checkForUpdates } from './updater';
@@ -30,7 +31,15 @@ app.whenReady().then(async () => {
   // 2. 创建主窗口（显示 loading 状态）
   const win = createMainWindow();
 
-  // 3. 启动 Hono API Server
+  // 3. 初始化本地数据库（SQLite，首次运行自动建表）
+  try {
+    await initDatabase();
+  } catch (err) {
+    console.error('[desktop] Database init failed:', err);
+    // 非致命：继续启动，让 API server 报错时再处理
+  }
+
+  // 4. 启动 Hono API Server
   let apiPort: number;
   try {
     const result = await startApiServer();

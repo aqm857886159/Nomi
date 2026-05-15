@@ -13,6 +13,10 @@ type TableInfoRow = {
 	pk: number;
 };
 
+function isLibSqlMode(): boolean {
+	return String(process.env.PRISMA_DB_PROVIDER || "").trim() === "libsql";
+}
+
 function replaceSqliteJsonExtract(sql: string): string {
 	return sql.replace(
 		/json_extract\(\s*([a-zA-Z0-9_.]+)\s*,\s*'\$\.([a-zA-Z0-9_]+)'\s*\)/g,
@@ -131,6 +135,13 @@ export async function queryAll<T = unknown>(
 	sql: string,
 	bindings: unknown[] = [],
 ): Promise<T[]> {
+	if (isLibSqlMode()) {
+		// libsql 是原生 SQLite，直接执行原始 SQL（无需 toPgSql 转换）
+		const rows = await db.$queryRawUnsafe<unknown[]>(sql, ...bindings);
+		if (!Array.isArray(rows)) return [];
+		return rows.map((row) => normalizeBigIntValue(row) as T);
+	}
+
 	if (isTableExistsSql(sql)) {
 		const table = String(bindings[0] ?? "");
 		const rows = await db.$queryRawUnsafe<Array<{ name: string }>>(
@@ -177,7 +188,8 @@ export async function execute(
 	sql: string,
 	bindings: unknown[] = [],
 ): Promise<void> {
-	await db.$executeRawUnsafe(toPgSql(sql), ...bindings);
+	const finalSql = isLibSqlMode() ? sql : toPgSql(sql);
+	await db.$executeRawUnsafe(finalSql, ...bindings);
 }
 
 export async function executeWithChanges(
@@ -185,6 +197,7 @@ export async function executeWithChanges(
 	sql: string,
 	bindings: unknown[] = [],
 ): Promise<number> {
-	const changes = await db.$executeRawUnsafe(toPgSql(sql), ...bindings);
+	const finalSql = isLibSqlMode() ? sql : toPgSql(sql);
+	const changes = await db.$executeRawUnsafe(finalSql, ...bindings);
 	return Number(changes || 0);
 }
