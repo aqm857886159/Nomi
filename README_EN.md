@@ -18,11 +18,16 @@
   <a href="docs/provider-integration.md">Provider integration</a>
 </p>
 
-## What Is Nomi
-
 <p align="center">
-  <img src="apps/web/public/nomi-mascot.png" alt="Nomi mascot" width="280" />
+  <a href="https://github.com/aqm857886159/Nomi/stargazers"><img src="https://img.shields.io/github/stars/aqm857886159/Nomi?style=for-the-badge&logo=github" alt="GitHub stars" /></a>
+  <a href="https://github.com/aqm857886159/Nomi/releases/latest"><img src="https://img.shields.io/github/v/release/aqm857886159/Nomi?style=for-the-badge&logo=electron&logoColor=white&label=Desktop+Download" alt="Desktop Release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge" alt="License" /></a>
+  <img src="https://img.shields.io/badge/TypeScript-strict-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
 </p>
+
+---
+
+## What Is Nomi
 
 Nomi is a local-first open-source workspace for AI video creation. It connects script writing, image generation, video generation, and timeline editing in one production flow instead of forcing creators to copy assets between disconnected tools.
 
@@ -43,54 +48,77 @@ Nomi is designed as a local open-source project. Your scripts, assets, generated
 
 ### Bring your own providers
 
-Nomi should not lock you into one model platform. You can connect image generation providers, video generation providers, private model gateways, or internal APIs. Give Nomi Agent a provider document link or website, and it can help understand the API, plan the integration, map request parameters, and parse results.
+Nomi should not lock you into one model platform. You can connect image generation providers, video generation providers, private model gateways, or internal APIs.
 
 ### Agent assists, creators decide
 
-Nomi Agent can help break down scripts, create node plans, write prompts, plan production steps, and debug generation issues. It gives suggestions; the final creative choices remain yours.
+Nomi Agent can help break down scripts, create node plans, write prompts, and plan production steps. It gives suggestions; the final creative choices remain yours.
+
+---
 
 ## Quickstart
 
-Requirements:
+### Desktop App (Recommended)
 
-- Node.js 20+
-- pnpm 10+
-- PostgreSQL 16+
+Download the installer from [GitHub Releases](https://github.com/aqm857886159/Nomi/releases/latest):
+
+- **macOS**: Download `.dmg`, drag to Applications, open it
+- **Windows**: Download `.exe`, install and launch from Start Menu
+
+No Docker, no terminal, no setup required.
+
+### Developer Mode (Source)
+
+Requirements: Node.js 20+, Docker Desktop.
 
 ```bash
 git clone https://github.com/aqm857886159/Nomi.git
 cd Nomi
-pnpm -w install
-cp apps/web/.env.example apps/web/.env
-cp apps/hono-api/.env.example apps/hono-api/.env
-cp apps/agents-cli/agents.config.example.json apps/agents-cli/agents.config.json
+corepack enable && pnpm install && pnpm start:local
 ```
 
-Run the development services:
-
-```bash
-pnpm dev:agents
-pnpm dev:api
-pnpm dev:web
-```
-
-Default URLs:
-
-- Web: http://localhost:5173
-- API: http://localhost:8788
-- Agents Bridge: http://localhost:8799
+Open **http://localhost:5173**.
 
 More details: [docs/quickstart.md](docs/quickstart.md).
 
+---
+
+## Configuration
+
+### AI Chat (Workspace / Terminal Agent)
+
+Edit `apps/agents-cli/agents.config.json`:
+
+```json
+{
+  "apiBaseUrl": "https://api.openai.com/v1",
+  "apiKey": "your-key",
+  "model": "gpt-4o"
+}
+```
+
+Any OpenAI-compatible API works: DeepSeek, Qwen, Ollama, etc.
+
+### Image / Video Generation Models
+
+In the Web UI: **top-right → Model Management → Add Provider → Add Model**.
+
+Supports Kling, Dreamina, Runway, and custom model gateways. See [docs/provider-integration.md](docs/provider-integration.md).
+
+---
+
 ## Project Structure
 
-```txt
-apps/web          Nomi Web workspace
-apps/hono-api     Local API and provider orchestration
-apps/agents-cli   Local agent bridge and skills
-packages          Shared schemas and protocols
-docs              Public documentation
 ```
+apps/desktop      Desktop app (Electron, no Docker needed)
+apps/web          Web workspace (React + Vite)
+apps/hono-api     Local API (Hono + Prisma)
+apps/agents-cli   Terminal Agent bridge
+packages/schemas  Shared schemas and protocols
+docs              Documentation
+```
+
+---
 
 ## Keywords
 

@@ -1,0 +1,77 @@
+appId: com.nomi.desktop
+productName: Nomi
+copyright: Copyright © 2025 Nomi
+
+directories:
+  output: dist-release
+  buildResources: resources
+
+files:
+  - "dist/main/**"
+  - "dist/preload/**"
+  - "dist/renderer/**"
+  - "!node_modules/@napi-rs/canvas/prebuilds/**"
+
+asarUnpack:
+  - "**/@napi-rs/canvas/**"
+  - "**/prisma/engines/**"
+  - "**/@prisma/engines/**"
+
+extraResources:
+  - from: "../agents-cli/dist"
+    to: "agents-cli/dist"
+    filter:
+      - "**/*.js"
+      - "**/*.json"
+  - from: "../hono-api/prisma/schema.desktop.prisma"
+    to: "prisma/schema.desktop.prisma"
+  - from: "../hono-api/node_modules/.bin/prisma"
+    to: "prisma-cli/node_modules/.bin/prisma"
+    filter:
+      - "**"
+
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+  category: public.app-category.productivity
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlementsFile: resources/entitlements.plist
+  entitlementsInheritFile: resources/entitlements.plist
+  notarize:
+    teamId: ${APPLE_TEAM_ID}
+
+dmg:
+  sign: false
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  signingHashAlgorithms: [sha256]
+  sign: false
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  installerLanguages: [zh_CN, en_US]
+  language: 2052
+
+fileAssociations:
+  - ext: nomi
+    name: Nomi Project
+    description: Nomi AI 视频创作项目
+    role: Editor
+
+publish:
+  provider: github
+  releaseType: release
+
+# 构建后钩子（公证在 electron-builder 内置 notarize 配置中处理）
+# afterSign 脚本仅在有 APPLE_ID 时才实际执行公证
+afterSign: scripts/notarize.mjs

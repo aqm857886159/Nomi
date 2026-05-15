@@ -21,6 +21,7 @@
 
 <p align="center">
   <a href="https://github.com/aqm857886159/Nomi/stargazers"><img src="https://img.shields.io/github/stars/aqm857886159/Nomi?style=for-the-badge&logo=github" alt="GitHub stars" /></a>
+  <a href="https://github.com/aqm857886159/Nomi/releases/latest"><img src="https://img.shields.io/github/v/release/aqm857886159/Nomi?style=for-the-badge&logo=electron&logoColor=white&label=桌面版下载" alt="Desktop Release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge" alt="License" /></a>
   <img src="https://img.shields.io/badge/TypeScript-strict-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
 </p>
@@ -50,7 +51,18 @@
 
 ---
 
-## 30 秒启动
+## 快速开始
+
+### 桌面版（推荐）
+
+从 [GitHub Releases](https://github.com/aqm857886159/Nomi/releases/latest) 下载安装包：
+
+- **macOS**：下载 `.dmg`，拖入 Applications，双击打开
+- **Windows**：下载 `.exe`，安装后从开始菜单启动
+
+无需 Docker，无需命令行，安装即用。
+
+### 开发者版（源码启动）
 
 需要 **Node.js 20+** 和 **Docker Desktop**。
 
@@ -62,7 +74,7 @@ corepack enable && pnpm install && pnpm start:local
 
 打开 **http://localhost:5173**。
 
-> 用 Claude Code / Cursor？把 [AI_INSTALL.md](AI_INSTALL.md) 发给它，让它帮你执行。
+> 用 Claude Code / Cursor？把项目根目录的内容发给 AI，让它帮你执行。
 
 ---
 
@@ -93,6 +105,7 @@ corepack enable && pnpm install && pnpm start:local
 ## 项目结构
 
 ```
+apps/desktop      桌面端（Electron，双击即用）
 apps/web          Web 工作台（React + Vite）
 apps/hono-api     本地 API（Hono + Prisma）
 apps/agents-cli   终端 Agent

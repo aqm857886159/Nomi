@@ -17,6 +17,9 @@
     "verify:env": "node apps/web/scripts/verify-env.ts",
     "test": "pnpm run build:web && pnpm run build:api && pnpm run build:agents",
     "compose:up": "docker compose up -d",
-    "compose:down": "docker compose down"
+    "compose:down": "docker compose down",
+    "dev:desktop": "pnpm --filter @nomi/desktop dev",
+    "build:desktop": "pnpm --filter @nomi/web build -- --mode desktop && pnpm --filter @nomi/desktop build",
+    "dist:desktop": "pnpm build:desktop && pnpm --filter @nomi/desktop dist"
   }
 }

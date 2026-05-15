@@ -40,10 +40,46 @@ export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
   const devApiProxyTarget = (env.VITE_DEV_API_PROXY_TARGET || '').trim() || 'http://127.0.0.1:8788';
 
-  if (command === 'build' && mode !== 'production') {
+  if (command === 'build' && mode !== 'production' && mode !== 'desktop') {
     throw new Error(
       `[nomi] Dev build is disabled. Use \`vite build --mode production\` (current mode: ${mode}).`,
     );
+  }
+
+  if (command === 'build' && mode === 'desktop') {
+    // Desktop 构建模式跳过 web 专用的环境变量检查
+    return {
+      plugins: [react()],
+      optimizeDeps: {
+        include: [
+          '@nomi/schemas/canvas-plan-protocol',
+          '@nomi/schemas/flow-anchor-bindings',
+          '@nomi/schemas/image-prompt-spec',
+          '@nomi/schemas/image-view-controls',
+          '@nomi/schemas/storyboard-selection-protocol',
+        ],
+      },
+      server: {
+        port: 5173,
+        host: true,
+        fs: {
+          allow: [resolve(__dirname, '..'), resolve(__dirname, '../../packages')],
+        },
+      },
+      build: {
+        outDir: resolve(__dirname, 'dist'),
+        emptyOutDir: true,
+        commonjsOptions: {
+          include: [/node_modules/, /packages\/schemas\/image-prompt-spec/],
+          transformMixedEsModules: true,
+        },
+        rollupOptions: {
+          output: {
+            manualChunks: createManualChunks,
+          },
+        },
+      },
+    };
   }
 
   if (command === 'build') {

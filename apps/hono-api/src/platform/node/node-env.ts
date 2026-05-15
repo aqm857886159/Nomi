@@ -94,16 +94,32 @@ async function initPostgresSchema(): Promise<void> {
 async function createRuntimePrismaClient() {
 	const databaseUrl = String(process.env.DATABASE_URL || "").trim();
 	if (!databaseUrl) {
-		throw new Error("DATABASE_URL is required. SQLite runtime has been removed.");
+		throw new Error("DATABASE_URL is required.");
 	}
-	await initPostgresSchema();
-	try {
+
+	const provider = String(process.env.PRISMA_DB_PROVIDER || "").trim();
+
+	if (provider === "libsql") {
+		// Desktop 模式：使用 libsql (SQLite) via @prisma/adapter-libsql
+		const { createClient } = await import("@libsql/client");
+		const { PrismaLibSQL } = await import("@prisma/adapter-libsql");
+		const { PrismaClient } = await import("@prisma/client");
+
+		const libsql = createClient({ url: databaseUrl });
+		const adapter = new PrismaLibSQL(libsql);
+		const client = new PrismaClient({ adapter } as any);
 		if (process.env.NODE_ENV !== "production") {
 			// eslint-disable-next-line no-console
-			console.log("[db] runtime: postgres (prisma)");
+			console.log("[db] runtime: libsql (SQLite)");
 		}
-	} catch {
-		// ignore
+		return client;
+	}
+
+	// 默认：PostgreSQL 模式
+	await initPostgresSchema();
+	if (process.env.NODE_ENV !== "production") {
+		// eslint-disable-next-line no-console
+		console.log("[db] runtime: postgres (prisma)");
 	}
 	return getPrismaClient();
 }
