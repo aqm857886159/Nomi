@@ -26,7 +26,14 @@ export function resolveApiBaseForEnv(env: ViteEnv): string {
   return configuredBase ? configuredBase.replace(/\/+$/, '') : ''
 }
 
-export const API_BASE = resolveApiBaseForEnv(viteEnv)
+// Desktop 模式：优先使用 Electron 预加载脚本注入的 API base
+const desktopApiBase = typeof window !== 'undefined'
+  ? (window as unknown as { __nomiDesktop__?: { apiBase?: string } }).__nomiDesktop__?.apiBase
+  : undefined
+
+export const API_BASE = desktopApiBase
+  ? desktopApiBase.replace(/\/+$/, '')
+  : resolveApiBaseForEnv(viteEnv)
 
 export function getApiBaseConfig(): { apiBase: string; explicitApiBase: string | null; dev: boolean } {
   return {
