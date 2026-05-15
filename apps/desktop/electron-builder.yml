@@ -34,18 +34,33 @@ mac:
   target:
     - target: dmg
       arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
   category: public.app-category.productivity
   hardenedRuntime: true
   gatekeeperAssess: false
+  entitlementsFile: resources/entitlements.plist
+  entitlementsInheritFile: resources/entitlements.plist
+  notarize:
+    teamId: ${APPLE_TEAM_ID}
+
+dmg:
+  sign: false
 
 win:
   target:
     - target: nsis
       arch: [x64]
+  signingHashAlgorithms: [sha256]
+  sign: false
 
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  installerLanguages: [zh_CN, en_US]
+  language: 2052
 
 fileAssociations:
   - ext: nomi
@@ -56,3 +71,7 @@ fileAssociations:
 publish:
   provider: github
   releaseType: release
+
+# 构建后钩子（公证在 electron-builder 内置 notarize 配置中处理）
+# afterSign 脚本仅在有 APPLE_ID 时才实际执行公证
+afterSign: scripts/notarize.mjs

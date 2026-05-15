@@ -1,0 +1,113 @@
+name: Desktop Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version tag (e.g. v1.0.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-mac:
+    name: Build macOS
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web (desktop mode)
+        run: pnpm --filter @nomi/web build -- --mode desktop
+        env:
+          ALLOW_LOCALHOST_IN_PROD_BUILD: '1'
+
+      - name: Build hono-api
+        run: pnpm --filter @nomi/api build
+
+      - name: Generate desktop Prisma client
+        run: pnpm --filter @nomi/api prisma:generate:desktop
+
+      - name: Install desktop dependencies
+        run: pnpm --filter @nomi/desktop install
+
+      - name: Rebuild native modules for Electron
+        run: npx @electron/rebuild
+        working-directory: apps/desktop
+
+      - name: Build & publish (macOS)
+        run: pnpm --filter @nomi/desktop dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS 代码签名（可选，无证书时跳过）
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          # macOS 公证（可选）
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+  build-win:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web (desktop mode)
+        run: pnpm --filter @nomi/web build -- --mode desktop
+        env:
+          ALLOW_LOCALHOST_IN_PROD_BUILD: '1'
+
+      - name: Build hono-api
+        run: pnpm --filter @nomi/api build
+
+      - name: Generate desktop Prisma client
+        run: pnpm --filter @nomi/api prisma:generate:desktop
+
+      - name: Install desktop dependencies
+        run: pnpm --filter @nomi/desktop install
+
+      - name: Rebuild native modules for Electron
+        run: npx @electron/rebuild
+        working-directory: apps/desktop
+
+      - name: Build & publish (Windows)
+        run: pnpm --filter @nomi/desktop dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Windows 代码签名（可选）
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
