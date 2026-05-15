@@ -6,7 +6,7 @@ generator client {
 // Auto-derived from schema.prisma — keep in sync when adding/removing models.
 
 datasource db {
-  provider     = "libsql"
+  provider     = "sqlite"
   url          = env("DATABASE_URL")
   relationMode = "prisma"
 }
