@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "main": "dist/main/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aqm857886159/Nomi.git"
+  },
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "node scripts/build.mjs",
