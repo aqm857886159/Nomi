@@ -37,10 +37,9 @@ mac:
     - target: zip
       arch: [x64, arm64]
   category: public.app-category.productivity
-  hardenedRuntime: true
+  hardenedRuntime: false
   gatekeeperAssess: false
-  entitlements: resources/entitlements.plist
-  entitlementsInherit: resources/entitlements.plist
+  identity: null
 
 dmg:
   sign: false
