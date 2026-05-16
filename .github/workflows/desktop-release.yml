@@ -49,10 +49,6 @@ jobs:
       - name: Install desktop dependencies
         run: pnpm --filter @nomi/desktop install
 
-      - name: Rebuild native modules for Electron
-        run: npx @electron/rebuild
-        working-directory: apps/desktop
-
       - name: Build & publish (macOS)
         run: pnpm --filter @nomi/desktop dist
         env:
@@ -99,10 +95,6 @@ jobs:
 
       - name: Install desktop dependencies
         run: pnpm --filter @nomi/desktop install
-
-      - name: Rebuild native modules for Electron
-        run: npx @electron/rebuild
-        working-directory: apps/desktop
 
       - name: Build & publish (Windows)
         run: pnpm --filter @nomi/desktop dist
