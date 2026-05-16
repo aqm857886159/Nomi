@@ -39,10 +39,8 @@ mac:
   category: public.app-category.productivity
   hardenedRuntime: true
   gatekeeperAssess: false
-  entitlementsFile: resources/entitlements.plist
-  entitlementsInheritFile: resources/entitlements.plist
-  notarize:
-    teamId: ${APPLE_TEAM_ID}
+  entitlements: resources/entitlements.plist
+  entitlementsInherit: resources/entitlements.plist
 
 dmg:
   sign: false
