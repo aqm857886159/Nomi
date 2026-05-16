@@ -8,7 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 
 async function run(cmd, args, opts = {}) {
-  const proc = spawn(cmd, args, { stdio: 'inherit', ...opts });
+  const proc = spawn(cmd, args, { stdio: 'inherit', shell: true, ...opts });
   return new Promise((resolve, reject) => {
     proc.on('close', (code) => code === 0 ? resolve() : reject(new Error(`${cmd} exit ${code}`)));
   });

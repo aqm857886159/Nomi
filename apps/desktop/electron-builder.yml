@@ -70,6 +70,3 @@ publish:
   provider: github
   releaseType: release
 
-# 构建后钩子（公证在 electron-builder 内置 notarize 配置中处理）
-# afterSign 脚本仅在有 APPLE_ID 时才实际执行公证
-afterSign: scripts/notarize.mjs
