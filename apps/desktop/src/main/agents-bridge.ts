@@ -38,7 +38,7 @@ export async function startAgentsBridge(apiPort: number): Promise<void> {
   bridgeProcess = spawn(process.execPath, [agentsCliEntry, 'serve', '--port', String(bridgePort)], {
     env: {
       ...process.env,
-      TAPCANVAS_API_BASE_URL: `http://127.0.0.1:${apiPort}`,
+      NOMI_API_BASE_URL: `http://127.0.0.1:${apiPort}`,
       AGENTS_PROFILE: 'code',
     },
     stdio: ['ignore', 'pipe', 'pipe'],

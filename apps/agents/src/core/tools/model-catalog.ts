@@ -7,11 +7,11 @@ function readStr(env: unknown, key: string): string {
 }
 
 function getBaseUrl(ctx: { meta?: Record<string, unknown> }): string {
-  return readStr(ctx.meta, "apiBaseUrl") || readStr(process.env, "TAPCANVAS_API_BASE_URL") || "http://localhost:8788";
+  return readStr(ctx.meta, "apiBaseUrl") || readStr(process.env, "NOMI_API_BASE_URL") || readStr(process.env, "TAPCANVAS_API_BASE_URL") || "http://localhost:8788";
 }
 
 function getAuthHeader(ctx: { meta?: Record<string, unknown> }): string {
-  const token = readStr(ctx.meta, "authToken") || readStr(process.env, "TAPCANVAS_API_KEY") || "";
+  const token = readStr(ctx.meta, "authToken") || readStr(process.env, "NOMI_API_KEY") || readStr(process.env, "TAPCANVAS_API_KEY") || "";
   return token ? `Bearer ${token}` : "";
 }
 

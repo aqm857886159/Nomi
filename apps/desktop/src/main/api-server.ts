@@ -45,11 +45,11 @@ export async function startApiServer(): Promise<ApiServerResult> {
   process.env.ASSET_HOSTING_LOCAL_MODE = '1';
   process.env.ASSET_LOCAL_ROOT = assetsDir;
 
-  // Desktop 模式跳过认证
-  process.env.TAPCANVAS_DEV_PUBLIC_BYPASS = '1';
-  process.env.TAPCANVAS_DEV_PUBLIC_BYPASS_SECRET = devBypassSecret;
-  process.env.TAPCANVAS_DEV_PUBLIC_BYPASS_USER_ID = localUserId;
-  process.env.TAPCANVAS_DEV_PUBLIC_BYPASS_ROLE = 'admin';
+  // Desktop 模式跳过认证（单用户模式）
+  process.env.NOMI_SINGLE_USER_MODE = '1';
+  process.env.NOMI_SINGLE_USER_SECRET = devBypassSecret;
+  process.env.NOMI_SINGLE_USER_ID = localUserId;
+  process.env.NOMI_SINGLE_USER_ROLE = 'admin';
 
   // 动态 require backend（必须先 build backend）
   // backend/dist/main.js

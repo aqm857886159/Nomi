@@ -11,8 +11,8 @@ async function workspaceFetch(
   tool: string,
   args: unknown,
 ): Promise<unknown> {
-  const base = readStr(ctx.meta, "apiBaseUrl") || readStr(process.env, "TAPCANVAS_API_BASE_URL") || "http://localhost:8788";
-  const token = readStr(ctx.meta, "authToken") || readStr(process.env, "TAPCANVAS_API_KEY") || "";
+  const base = readStr(ctx.meta, "apiBaseUrl") || readStr(process.env, "NOMI_API_BASE_URL") || readStr(process.env, "TAPCANVAS_API_BASE_URL") || "http://localhost:8788";
+  const token = readStr(ctx.meta, "authToken") || readStr(process.env, "NOMI_API_KEY") || readStr(process.env, "TAPCANVAS_API_KEY") || "";
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(`${base}/workbench/tools/${tool}`, {
