@@ -1,7 +1,9 @@
 export {
   createLocalProject,
+  deleteLocalProject,
   listLocalProjects,
   readLocalProject,
+  renameLocalProject,
   saveLocalProject,
 } from '../project/projectRepository'
 export type {

@@ -19,7 +19,6 @@ export function registerIpcHandlers(): void {
     }
     const stat = await fs.promises.stat(filePath);
     const buffer = await fs.promises.readFile(filePath);
-    const ext = path.extname(filePath).toLowerCase().slice(1);
     const mimeMap: Record<string, string> = {
       jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
       gif: 'image/gif', webp: 'image/webp', mp4: 'video/mp4',

@@ -8,6 +8,7 @@ import {
   createLocalProject,
   listLocalProjects,
   type LocalProjectSummary,
+  renameLocalProject,
 } from './library/localProjectStore'
 import { createWorkbenchProjectPersistenceService } from './project/projectPersistenceService'
 import { useWorkspaceEvents } from './useWorkspaceEvents'
@@ -49,7 +50,7 @@ export default function NomiStudioApp(): JSX.Element {
       setView,
       onSaveError: (error) => {
         console.error('project save error', error)
-        toast('项目保存失败，请检查网络连接', 'error')
+        toast('项目保存失败，请重试', 'error')
       },
     })
   }
@@ -116,7 +117,7 @@ export default function NomiStudioApp(): JSX.Element {
       },
       onSaveError: (error) => {
         console.error('project save error', error)
-        toast('项目保存失败，请检查网络连接', 'error')
+        toast('项目保存失败，请重试', 'error')
       },
     })
   }, [activeProject, refreshProjects])
@@ -139,6 +140,7 @@ export default function NomiStudioApp(): JSX.Element {
           projects={projects}
           onOpenProject={openProject}
           onNewProject={() => void newProject()}
+          onProjectsChanged={refreshProjects}
         />
         <ToastHost className="nomi-studio-app__toast-host" />
       </>
@@ -148,11 +150,18 @@ export default function NomiStudioApp(): JSX.Element {
   return (
     <div className="nomi-studio-app" aria-label="Nomi Studio">
       <WorkbenchShell
+        projectId={activeProject?.id}
         generation={<GenerationCanvas />}
         generationAiLayout={generationAiCollapsed ? 'overlay' : 'sidebar'}
         generationAi={<CanvasAssistantPanel defaultCollapsed onCollapsedChange={setGenerationAiCollapsed} />}
         onBackToLibrary={backToLibrary}
         onOpenModelCatalog={() => setModelCatalogOpened(true)}
+        onRenameProject={(newName) => {
+          if (!activeProject) return
+          renameLocalProject(activeProject.id, newName)
+          refreshProjects()
+          setActiveProject((p) => p ? { ...p, name: newName } : p)
+        }}
       />
       <DesignDrawer
         className="nomi-model-catalog-drawer"

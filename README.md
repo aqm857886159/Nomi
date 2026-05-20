@@ -10,8 +10,6 @@
 </p>
 
 <p align="center">
-  <a href="README_EN.md">English</a>
-  ·
   <a href="docs/quickstart.md">快速启动</a>
   ·
   <a href="docs/user-guide.md">使用指南</a>
@@ -130,23 +128,21 @@ model: deepseek-chat
 <details>
 <summary>展开查看完整开发者指南</summary>
 
-需要 **Node.js 20+** 和 **Docker Desktop**（首次启动会跑 Postgres 和 Redis）。
+需要 **Node.js 20+**。桌面版内置 SQLite，无需 Docker。
 
 ```bash
 git clone https://github.com/aqm857886159/Nomi.git
 cd Nomi
-corepack enable && pnpm install && pnpm start:local
+corepack enable && pnpm install && pnpm dev:desktop
 ```
-
-打开 **http://localhost:5173**。
 
 ### 项目结构
 
 ```
-apps/desktop      桌面端（Electron，双击即用）
+apps/desktop      桌面端（Electron，双击即用，内置 SQLite）
 apps/web          Web 工作台（React + Vite）
-apps/backend     本地 API（Hono + Prisma）
-apps/agents   终端 Agent
+apps/backend      本地 API（Hono + Prisma）
+apps/agents       终端 Agent
 packages/schemas  共享协议
 ```
 
@@ -154,9 +150,8 @@ packages/schemas  共享协议
 
 把这段话发给 Claude Code / Cursor / Codex：
 
-> 帮我在 ~/Desktop 启动 Nomi 项目。仓库地址：https://github.com/aqm857886159/Nomi
-> 启动命令：`git clone <url> && cd Nomi && corepack enable && pnpm install && pnpm start:local`
-> 如果 Docker 没启动，提醒我开启 Docker Desktop 后重试。
+> 帮我在 ~/Desktop 启动 Nomi 桌面项目。仓库地址：https://github.com/aqm857886159/Nomi
+> 启动命令：`git clone <url> && cd Nomi && corepack enable && pnpm install && pnpm dev:desktop`
 > 不要覆盖任何已有的 .env 或 agents.config.json 文件。
 
 </details>

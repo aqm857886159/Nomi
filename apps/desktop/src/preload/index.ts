@@ -47,4 +47,9 @@ contextBridge.exposeInMainWorld('__nomiDesktop__', {
     ipcRenderer.on('update-ready', () => callback());
   },
   installUpdate: () => ipcRenderer.invoke('install-update'),
+
+  // 启动进度回调（boot-progress 事件：'db-init' | 'api-start' | 'agents-start' | 'ui-load'）
+  onBootProgress: (callback: (stage: string) => void) => {
+    ipcRenderer.on('boot-progress', (_event, stage: string) => callback(stage));
+  },
 });

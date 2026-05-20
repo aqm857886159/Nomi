@@ -297,6 +297,35 @@ export function readLocalProject(projectId: string): WorkbenchProjectRecordV1 | 
   return normalizeRecord(summary, raw)
 }
 
+export function deleteLocalProject(projectId: string): void {
+  const id = String(projectId || '').trim()
+  if (!id) return
+  try { window.localStorage.removeItem(projectRecordKey(id)) } catch { /* ignore */ }
+  try { window.localStorage.removeItem(projectBackupKey(id)) } catch { /* ignore */ }
+  try { window.localStorage.removeItem(projectBackupIndexKey(id)) } catch { /* ignore */ }
+  const nextIndex = readMergedProjectSummaries().filter((item) => item.id !== id)
+  writeIndex(nextIndex)
+}
+
+export function renameLocalProject(projectId: string, newName: string): void {
+  const id = String(projectId || '').trim()
+  const name = String(newName || '').trim() || '未命名项目'
+  if (!id) return
+  const now = Date.now()
+
+  // Patch the stored record if it exists
+  const raw = readJson(projectRecordKey(id))
+  if (raw && typeof raw === 'object') {
+    writeJson(projectRecordKey(id), { ...(raw as Record<string, unknown>), name, updatedAt: now })
+  }
+
+  // Patch the index entry
+  const nextIndex = readMergedProjectSummaries().map((item) =>
+    item.id === id ? { ...item, name, updatedAt: now } : item
+  )
+  writeIndex(nextIndex)
+}
+
 export function saveLocalProject(
   projectId: string,
   state: {

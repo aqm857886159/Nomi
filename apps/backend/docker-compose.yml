@@ -1,25 +1,25 @@
 ## Host path conventions
 ## - Default assumes this file lives at <repo>/apps/backend, so shared roots resolve from ../..
-## - For flattened deployments like <root>/backend + <root>/packages, set TAPCANVAS_SHARED_ROOT=..
+## - For flattened deployments like <root>/backend + <root>/packages, set NOMI_SHARED_ROOT=..
 services:
   postgres:
     image: ${DOCKERHUB_REGISTRY:-docker.io}/postgres:16-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-tapcanvas}
-      POSTGRES_USER: ${POSTGRES_USER:-tapcanvas}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tapcanvas}
+      POSTGRES_DB: ${POSTGRES_DB:-nomi}
+      POSTGRES_USER: ${POSTGRES_USER:-nomi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nomi}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tapcanvas} -d ${POSTGRES_DB:-tapcanvas}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nomi} -d ${POSTGRES_DB:-nomi}"]
       interval: 5s
       timeout: 3s
       retries: 30
     volumes:
-      - hono_api_postgres:/var/lib/postgresql/data
+      - nomi_postgres:/var/lib/postgresql/data
 
   agents-bridge:
-    image: ${TAPCANVAS_AGENTS_BRIDGE_IMAGE:-tapcanvas/agents-bridge:local}
+    image: ${NOMI_AGENTS_BRIDGE_IMAGE:-nomi/agents-bridge:local}
     build:
       context: .
       dockerfile: Dockerfile
@@ -72,12 +72,12 @@ services:
     command: >-
       sh -lc '
       mkdir -p /runtime/bootstrap/apps/agents /runtime/bootstrap/packages /runtime/workspace/skills /runtime/workspace/project-data &&
-      cp -R /opt/tapcanvas-src/apps/agents/. /runtime/bootstrap/apps/agents &&
-      if [ -d /opt/tapcanvas-src/packages ]; then
-        cp -R /opt/tapcanvas-src/packages/. /runtime/bootstrap/packages/ || true;
+      cp -R /opt/nomi-src/apps/agents/. /runtime/bootstrap/apps/agents &&
+      if [ -d /opt/nomi-src/packages ]; then
+        cp -R /opt/nomi-src/packages/. /runtime/bootstrap/packages/ || true;
       fi &&
-      if [ -d /opt/tapcanvas-src/apps/agents/skills ]; then
-        cp -R -n /opt/tapcanvas-src/apps/agents/skills/. /runtime/workspace/skills/ || true;
+      if [ -d /opt/nomi-src/apps/agents/skills ]; then
+        cp -R -n /opt/nomi-src/apps/agents/skills/. /runtime/workspace/skills/ || true;
       fi &&
       cd /runtime/bootstrap/apps/agents &&
       pnpm config set registry ${NPM_REGISTRY:-https://registry.npmmirror.com} &&
@@ -86,10 +86,10 @@ services:
       node dist/cli/index.js serve --host 0.0.0.0 --port 8799 --body-limit ${AGENTS_BRIDGE_BODY_LIMIT_BYTES:-8000000}
       '
     volumes:
-      - ../agents-cli:/opt/tapcanvas-src/apps/agents:ro
-      - ${TAPCANVAS_SHARED_ROOT:-../..}/packages:/opt/tapcanvas-src/packages:ro
-      - ${TAPCANVAS_SHARED_ROOT:-../..}/project-data:/runtime/workspace/project-data
-      - ${TAPCANVAS_SHARED_ROOT:-../..}/project-data:/app/project-data
+      - ../agents:/opt/nomi-src/apps/agents:ro
+      - ${NOMI_SHARED_ROOT:-../..}/packages:/opt/nomi-src/packages:ro
+      - ${NOMI_SHARED_ROOT:-../..}/project-data:/runtime/workspace/project-data
+      - ${NOMI_SHARED_ROOT:-../..}/project-data:/app/project-data
       - agents_node_modules:/runtime/bootstrap/apps/agents/node_modules
       - agents_memory:/runtime/workspace/.agents
       - agents_runtime_skills:/runtime/workspace/skills
@@ -105,7 +105,7 @@ services:
       retries: 20
 
   api:
-    image: ${TAPCANVAS_API_IMAGE:-tapcanvas/api:local}
+    image: ${NOMI_API_IMAGE:-nomi/api:local}
     restart: unless-stopped
     init: true
     build:
@@ -128,13 +128,13 @@ services:
       NODE_ENV: development
       PORT: ${PORT:-8788}
       # Use an in-network DSN for containers. Do not reuse host-localhost DSN here.
-      DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql://${POSTGRES_USER:-tapcanvas}:${POSTGRES_PASSWORD:-tapcanvas}@postgres:5432/${POSTGRES_DB:-tapcanvas}?schema=public}
+      DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql://${POSTGRES_USER:-nomi}:${POSTGRES_PASSWORD:-nomi}@postgres:5432/${POSTGRES_DB:-nomi}?schema=public}
       PG_BACKUP_DIR: /app/backups
       REDIS_URL: redis://redis:6379
       AUTH_PHONE_OTP_TRACE: "1"
       AGENTS_BRIDGE_AUTOSTART: "0"
       AGENTS_BRIDGE_BASE_URL: http://agents-bridge:8799
-      TAPCANVAS_API_INTERNAL_BASE: http://api:8788
+      NOMI_API_INTERNAL_BASE: http://api:8788
       AGENTS_BRIDGE_TIMEOUT_MS: "1800000"
       AGENTS_BRIDGE_MAX_CONCURRENCY: "16"
       AGENTS_BRIDGE_DEBUG_LOG: "1"
@@ -182,11 +182,11 @@ services:
     command: sh -lc "pnpm config set registry ${NPM_REGISTRY:-https://registry.npmmirror.com} && ( [ -d node_modules/.pnpm ] && [ -f node_modules/undici/package.json ] && [ -f node_modules/@alicloud/dysmsapi20170525/package.json ] && [ -f node_modules/prisma/package.json ] && [ -f node_modules/@prisma/client/package.json ] && [ -f node_modules/jsonrepair/package.json ] || pnpm install --child-concurrency=1 --network-concurrency=1 --registry ${NPM_REGISTRY:-https://registry.npmmirror.com} --no-frozen-lockfile ) && pnpm db:pg:backup && pnpm prisma:generate && pnpm db:pg:schema && pnpm db:pg:seed-patches && pnpm build && exec node dist/main.js"
     volumes:
       - .:/app
-      - ${TAPCANVAS_SHARED_ROOT:-../..}/sql:/app/sql:ro
-      - ${TAPCANVAS_SHARED_ROOT:-../..}/packages:/packages:ro
-      - ${TAPCANVAS_SHARED_ROOT:-../..}/project-data:/app/project-data
-      - ../agents-cli:/workspace/apps/agents
-      - hono_api_db_backups:/app/backups
+      - ${NOMI_SHARED_ROOT:-../..}/sql:/app/sql:ro
+      - ${NOMI_SHARED_ROOT:-../..}/packages:/packages:ro
+      - ${NOMI_SHARED_ROOT:-../..}/project-data:/app/project-data
+      - ../agents:/workspace/apps/agents
+      - nomi_db_backups:/app/backups
       - pnpm_store:/app/.pnpm-store
       - api_node_modules:/app/node_modules
 
@@ -196,14 +196,14 @@ services:
     expose:
       - "6379"
     volumes:
-      - hono_api_redis:/data
+      - nomi_redis:/data
 
 volumes:
   pnpm_store:
     driver: local
-  hono_api_postgres:
+  nomi_postgres:
     driver: local
-  hono_api_db_backups:
+  nomi_db_backups:
     driver: local
   api_node_modules:
     driver: local
@@ -213,5 +213,5 @@ volumes:
     driver: local
   agents_runtime_skills:
     driver: local
-  hono_api_redis:
+  nomi_redis:
     driver: local

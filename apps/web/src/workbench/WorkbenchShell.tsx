@@ -9,11 +9,13 @@ const GenerationWorkspace = React.lazy(() => import('./generation/GenerationWork
 const PreviewWorkspace = React.lazy(() => import('./preview/PreviewWorkspace'))
 
 type WorkbenchShellProps = {
+  projectId?: string
   generation: React.ReactNode
   generationAi?: React.ReactNode
   generationAiLayout?: 'sidebar' | 'overlay'
   onBackToLibrary?: () => void
   onOpenModelCatalog?: () => void
+  onRenameProject?: (newName: string) => void
 }
 
 const STEP_PARAM_BY_MODE: Record<WorkspaceMode, string> = {
@@ -49,7 +51,7 @@ function writeWorkspaceModeToUrl(mode: WorkspaceMode): void {
   window.history.replaceState(null, '', url.toString())
 }
 
-export default function WorkbenchShell({ generation, generationAi, generationAiLayout = 'sidebar', onBackToLibrary, onOpenModelCatalog }: WorkbenchShellProps): JSX.Element {
+export default function WorkbenchShell({ projectId, generation, generationAi, generationAiLayout = 'sidebar', onBackToLibrary, onOpenModelCatalog, onRenameProject }: WorkbenchShellProps): JSX.Element {
   const workspaceMode = useWorkbenchStore((state) => state.workspaceMode)
   const setWorkspaceMode = useWorkbenchStore((state) => state.setWorkspaceMode)
 
@@ -74,10 +76,12 @@ export default function WorkbenchShell({ generation, generationAi, generationAiL
   return (
     <div className="workbench-shell" data-workspace-mode={workspaceMode}>
       <NomiAppBar
+        projectId={projectId}
         workspaceMode={workspaceMode}
         onWorkspaceModeChange={handleWorkspaceModeChange}
         onBackToLibrary={onBackToLibrary}
         onOpenModelCatalog={onOpenModelCatalog}
+        onRenameProject={onRenameProject}
       />
 
       <main className="workbench-shell__body">

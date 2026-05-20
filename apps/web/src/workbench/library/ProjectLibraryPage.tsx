@@ -1,11 +1,14 @@
 import './library.css'
+import React from 'react'
 import { NomiLogoMark } from '../../design'
 import type { LocalProjectSummary } from './localProjectStore'
+import { deleteLocalProject, renameLocalProject } from './localProjectStore'
 
 type Props = {
   onOpenProject: (projectId: string) => void
   onNewProject: () => void
   projects: LocalProjectSummary[]
+  onProjectsChanged?: () => void
 }
 
 function formatUpdatedAt(value: number): string {
@@ -38,7 +41,91 @@ function ThumbnailMosaic({ urls }: { urls: string[] }): JSX.Element {
   )
 }
 
-export default function ProjectLibraryPage({ onOpenProject, onNewProject, projects }: Props): JSX.Element {
+type CardMenuProps = {
+  projectId: string
+  projectName: string
+  onRename: () => void
+  onDelete: () => void
+}
+
+function CardMenu({ onRename, onDelete }: CardMenuProps): JSX.Element {
+  const [open, setOpen] = React.useState(false)
+  const ref = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    if (!open) return
+    function handleClick(e: MouseEvent): void {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
+
+  return (
+    <div ref={ref} className="lib-card__menu" onClick={(e) => e.stopPropagation()}>
+      <button
+        className="lib-card__menu-btn"
+        type="button"
+        aria-label="更多操作"
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
+      >
+        ···
+      </button>
+      {open && (
+        <div className="lib-card__dropdown">
+          <button
+            className="lib-card__dropdown-item"
+            type="button"
+            onClick={() => { setOpen(false); onRename() }}
+          >
+            重命名
+          </button>
+          <button
+            className="lib-card__dropdown-item lib-card__dropdown-item--danger"
+            type="button"
+            onClick={() => { setOpen(false); onDelete() }}
+          >
+            删除项目
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function ProjectLibraryPage({ onOpenProject, onNewProject, projects, onProjectsChanged }: Props): JSX.Element {
+  const [searchQuery, setSearchQuery] = React.useState('')
+  const [renamingId, setRenamingId] = React.useState<string | null>(null)
+  const [renameValue, setRenameValue] = React.useState('')
+
+  const filtered = searchQuery.trim()
+    ? projects.filter((p) => p.name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : projects
+
+  function handleDelete(project: LocalProjectSummary): void {
+    if (!window.confirm(`确认删除项目「${project.name}」？此操作不可恢复。`)) return
+    deleteLocalProject(project.id)
+    onProjectsChanged?.()
+  }
+
+  function startRename(project: LocalProjectSummary): void {
+    setRenamingId(project.id)
+    setRenameValue(project.name)
+  }
+
+  function commitRename(projectId: string): void {
+    const name = renameValue.trim() || '未命名项目'
+    renameLocalProject(projectId, name)
+    setRenamingId(null)
+    onProjectsChanged?.()
+  }
+
+  function cancelRename(): void {
+    setRenamingId(null)
+  }
+
   return (
     <div className="lib-shell">
       <main className="lib-main">
@@ -62,6 +149,8 @@ export default function ProjectLibraryPage({ onOpenProject, onNewProject, projec
             type="search"
             placeholder="搜索项目名称…"
             aria-label="搜索项目"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.currentTarget.value)}
           />
         </div>
 
@@ -82,16 +171,17 @@ export default function ProjectLibraryPage({ onOpenProject, onNewProject, projec
             </div>
           </button>
 
-          {projects.map((project) => {
+          {filtered.map((project) => {
             const urls = project.thumbnailUrls || (project.thumbnail ? [project.thumbnail] : [])
+            const isRenaming = renamingId === project.id
             return (
               <div
                 key={project.id}
                 className="lib-card"
                 role="button"
                 tabIndex={0}
-                onClick={() => onOpenProject(project.id)}
-                onKeyDown={(e) => e.key === 'Enter' && onOpenProject(project.id)}
+                onClick={() => !isRenaming && onOpenProject(project.id)}
+                onKeyDown={(e) => e.key === 'Enter' && !isRenaming && onOpenProject(project.id)}
               >
                 <div
                   className="lib-card__thumb"
@@ -107,9 +197,31 @@ export default function ProjectLibraryPage({ onOpenProject, onNewProject, projec
                       继续创作
                     </button>
                   </div>
+                  <CardMenu
+                    projectId={project.id}
+                    projectName={project.name}
+                    onRename={() => startRename(project)}
+                    onDelete={() => handleDelete(project)}
+                  />
                 </div>
                 <div className="lib-card__body">
-                  <div className="lib-card__name">{project.name}</div>
+                  {isRenaming ? (
+                    <input
+                      className="lib-card__rename-input"
+                      value={renameValue}
+                      autoFocus
+                      aria-label="项目名称"
+                      onChange={(e) => setRenameValue(e.currentTarget.value)}
+                      onBlur={() => commitRename(project.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') commitRename(project.id)
+                        if (e.key === 'Escape') cancelRename()
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <div className="lib-card__name">{project.name}</div>
+                  )}
                   <div className="lib-card__time">{formatUpdatedAt(project.updatedAt)}</div>
                 </div>
               </div>

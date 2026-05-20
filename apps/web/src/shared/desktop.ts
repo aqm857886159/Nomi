@@ -11,6 +11,7 @@ type NomiDesktop = {
   onUpdateAvailable: (callback: (info: unknown) => void) => void
   onUpdateReady: (callback: () => void) => void
   installUpdate: () => Promise<void>
+  onBootProgress: (callback: (stage: string) => void) => void
 }
 
 function getDesktopApi(): NomiDesktop | null {
@@ -75,4 +76,8 @@ export function onDesktopUpdateReady(callback: () => void): void {
 export async function installDesktopUpdate(): Promise<void> {
   if (!desktop) return
   return desktop.installUpdate()
+}
+
+export function onDesktopBootProgress(callback: (stage: string) => void): void {
+  desktop?.onBootProgress(callback)
 }

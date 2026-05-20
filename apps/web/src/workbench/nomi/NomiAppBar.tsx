@@ -3,23 +3,38 @@ import { IconDownload, IconPhoto, IconPlugConnected } from '@tabler/icons-react'
 import type { WorkspaceMode } from '../workbenchStore'
 import { importImageFilesToGenerationCanvas } from '../generationCanvasV2/adapters/assetImportAdapter'
 import { NomiBrand, NomiStepper, WorkbenchButton } from '../../design'
+import { listLocalProjects } from '../library/localProjectStore'
 
 type NomiAppBarProps = {
+  projectId?: string
   workspaceMode: WorkspaceMode
   onWorkspaceModeChange: (mode: WorkspaceMode) => void
   onBackToLibrary?: () => void
   onOpenModelCatalog?: () => void
+  onRenameProject?: (newName: string) => void
 }
 
-export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, onBackToLibrary, onOpenModelCatalog }: NomiAppBarProps): JSX.Element {
+export default function NomiAppBar({ projectId, workspaceMode, onWorkspaceModeChange, onBackToLibrary, onOpenModelCatalog, onRenameProject }: NomiAppBarProps): JSX.Element {
   const assetInputRef = React.useRef<HTMLInputElement>(null)
   const [editingProjectName, setEditingProjectName] = React.useState(false)
   const [projectTitle, setProjectTitle] = React.useState('未命名 Nomi 项目')
 
+  // Sync title from storage when projectId changes
+  React.useEffect(() => {
+    if (!projectId) return
+    const projects = listLocalProjects()
+    const found = projects.find((p) => p.id === projectId)
+    if (found?.name) setProjectTitle(found.name)
+  }, [projectId])
+
   const commitProjectTitle = React.useCallback(() => {
-    setProjectTitle((value) => value.trim() || '未命名 Nomi 项目')
+    setProjectTitle((value) => {
+      const trimmed = value.trim() || '未命名 Nomi 项目'
+      onRenameProject?.(trimmed)
+      return trimmed
+    })
     setEditingProjectName(false)
-  }, [])
+  }, [onRenameProject])
 
   const handleAssetFilesSelected = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.currentTarget.files || []).filter((file) => file.type.startsWith('image/'))

@@ -70,7 +70,7 @@ export function resolveDevPublicBypassFromContext(c: AppContext): DevPublicBypas
 	const secret = readEnvString(c.env, "NOMI_SINGLE_USER_SECRET");
 	if (!secret) return null;
 
-	const provided = normalizeHeaderValue(c.req.header("x-tap-dev-bypass"));
+	const provided = normalizeHeaderValue(c.req.header("x-nomi-dev-bypass") || c.req.header("x-tap-dev-bypass"));
 	if (!provided || provided !== secret) return null;
 
 	const host = readHostNameFromHostHeader(c.req.header("host") || "");

@@ -195,6 +195,81 @@
 }
 .lib-card__time { font-size: 11.5px; color: var(--nomi-ink-40); }
 
+/* ── Card menu (three-dot) ── */
+.lib-card__menu {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+  opacity: 0;
+  transition: opacity var(--nomi-transition-fast);
+}
+.lib-card:hover .lib-card__menu { opacity: 1; }
+
+.lib-card__menu-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--nomi-radius-sm);
+  border: none;
+  background: rgba(255,255,255,.85);
+  color: var(--nomi-ink-60);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  letter-spacing: 1px;
+  transition: background var(--nomi-transition-fast);
+}
+.lib-card__menu-btn:hover { background: white; color: var(--nomi-ink); }
+
+.lib-card__dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 120px;
+  background: var(--nomi-paper);
+  border: 1px solid var(--nomi-line);
+  border-radius: var(--nomi-radius-sm);
+  box-shadow: var(--nomi-shadow-md);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 100;
+}
+
+.lib-card__dropdown-item {
+  width: 100%;
+  padding: 6px 10px;
+  text-align: left;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--nomi-ink);
+  cursor: pointer;
+  transition: background var(--nomi-transition-fast);
+}
+.lib-card__dropdown-item:hover { background: var(--nomi-ink-05); }
+.lib-card__dropdown-item--danger { color: #e53e3e; }
+.lib-card__dropdown-item--danger:hover { background: #fff5f5; }
+
+.lib-card__rename-input {
+  width: 100%;
+  border: 1px solid color-mix(in oklch, var(--nomi-accent) 50%, transparent);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--nomi-ink);
+  background: var(--nomi-paper);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--nomi-accent) 15%, transparent);
+}
+
 /* ── New project card ── */
 .lib-card--new {
   font: inherit;
