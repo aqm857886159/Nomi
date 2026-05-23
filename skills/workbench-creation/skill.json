@@ -1,0 +1,26 @@
+{
+  "name": "workbench.creation",
+  "version": "1.0.0",
+  "description": "Creation-area AI assistant for writing, rewriting, screenwriting, prompt generation, and shot-list drafting. Returns documentAction proposals for user confirmation before any write.",
+  "tools": [
+    "creation_read",
+    "creation_write"
+  ],
+  "requiredProviders": [
+    "text"
+  ],
+  "permissions": [
+    "read-only",
+    "create"
+  ],
+  "examples": [
+    {
+      "title": "Polish current selection",
+      "description": "Improve clarity and rhythm of the selected paragraph."
+    },
+    {
+      "title": "Three-act script",
+      "description": "Draft a three-act structure from a one-line premise."
+    }
+  ]
+}
