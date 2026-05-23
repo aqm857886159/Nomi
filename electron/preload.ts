@@ -34,6 +34,20 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   },
   agents: {
     chat: (payload: unknown) => ipcRenderer.invoke("nomi:agents:chat", payload),
+    chatV2Start: (payload: unknown) => ipcRenderer.invoke("nomi:agents:chatV2:start", payload) as Promise<{ sessionId: string }>,
+    confirmTool: (sessionId: string, toolCallId: string, decision: unknown) =>
+      ipcRenderer.invoke("nomi:agents:chatV2:confirmTool", { sessionId, toolCallId, decision }),
+    cancelChatV2: (sessionId: string) =>
+      ipcRenderer.invoke("nomi:agents:chatV2:cancel", { sessionId }),
+    onChatV2Event: (sessionId: string, callback: (event: unknown) => void) => {
+      const listener = (_event: unknown, payload: { sessionId: string; event: unknown }) => {
+        if (payload && payload.sessionId === sessionId) callback(payload.event);
+      };
+      ipcRenderer.on("nomi:agents:chatV2:event", listener as never);
+      return () => {
+        ipcRenderer.removeListener("nomi:agents:chatV2:event", listener as never);
+      };
+    },
   },
   modelCatalog: {
     listVendors: () => invokeSync("nomi:model-catalog:vendors:list"),
