@@ -14,12 +14,13 @@ const standardProfile: ExportProfile = {
   quality: "standard",
 };
 
-function build(overrides: Partial<ExportProfile> = {}, noAudio = false): string[] {
+function build(overrides: Partial<ExportProfile> = {}, noAudio = false, reportProgress = false): string[] {
   return buildWebmToMp4Args({
     inputPath: "/tmp/input.webm",
     outputPath: "/tmp/output.partial.mp4",
     profile: { ...standardProfile, ...overrides },
     noAudio,
+    reportProgress,
   });
 }
 
@@ -46,6 +47,19 @@ describe("buildWebmToMp4Args", () => {
 
   it("does not emit -an when profile audioCodec is aac and noAudio is false", () => {
     expect(build({ audioCodec: "aac" }, false)).not.toContain("-an");
+  });
+
+  it("does not emit FFmpeg progress args by default", () => {
+    expect(build()).not.toContain("-progress");
+    expect(build()).not.toContain("-nostats");
+  });
+
+  it("emits FFmpeg progress args when reportProgress is true", () => {
+    const args = build({}, false, true);
+
+    expect(args.slice(args.indexOf("-progress"), args.indexOf("-progress") + 3)).toEqual(["-progress", "pipe:2", "-nostats"]);
+    expect(args.indexOf("-progress")).toBeGreaterThanOrEqual(0);
+    expect(args.indexOf("-progress")).toBeLessThan(args.length - 1);
   });
 
   it("uses profile width, height, fps, and pixelFormat instead of legacy defaults", () => {

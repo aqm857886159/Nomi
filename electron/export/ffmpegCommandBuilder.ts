@@ -7,6 +7,7 @@ export type FfmpegTranscodePlan = {
   profile: ExportProfile;
   noAudio: boolean;
   filtergraph?: FfmpegFiltergraphPlan;
+  reportProgress?: boolean;
 };
 
 const QUALITY_CRF: Record<ExportQuality, string> = {
@@ -40,6 +41,10 @@ export function buildWebmToMp4Args(plan: FfmpegTranscodePlan): string[] {
 
   const vf = `scale=${profile.width}:${profile.height}:force_original_aspect_ratio=decrease,pad=${profile.width}:${profile.height}:(ow-iw)/2:(oh-ih)/2:color=black,format=${profile.pixelFormat}`;
   const args = ["-y"];
+
+  if (plan.reportProgress === true) {
+    args.push("-progress", "pipe:2", "-nostats");
+  }
 
   if (plan.filtergraph !== undefined) {
     for (const input of plan.filtergraph.inputs) {
