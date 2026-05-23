@@ -1,6 +1,7 @@
 import {
   workbenchAgentsChat,
   workbenchAgentsChatStream,
+  type AgentChatV2Session,
   type AgentsChatResponseDto,
   type AgentsChatStreamEvent,
 } from '../../api/server'
@@ -20,6 +21,7 @@ export type WorkbenchAiRequest = {
 export type WorkbenchAiStreamHandlers = {
   onContent?: (delta: string, text: string) => void
   onEvent?: (event: AgentsChatStreamEvent) => void
+  onSession?: (session: AgentChatV2Session) => void
 }
 
 function buildWorkbenchAiPayload(input: WorkbenchAiRequest) {
@@ -58,6 +60,7 @@ export async function sendWorkbenchAiMessage(
 
   await new Promise<void>((resolve, reject) => {
     void workbenchAgentsChatStream(payload, {
+      onSession: handlers.onSession,
       onEvent: (event) => {
         handlers.onEvent?.(event)
         if (event.event === 'content') {

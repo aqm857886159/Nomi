@@ -48,10 +48,24 @@ export type AgentsChatStreamEvent =
   | { event: 'initial'; data: { requestId: string; messageId?: string } }
   | { event: 'content'; data: { delta: string; text: string } }
   | { event: 'tool'; data: AgentsChatToolStreamPayload }
+  | { event: 'tool-call'; data: { sessionId: string; toolCallId: string; toolName: string; args: unknown } }
+  | { event: 'tool-result'; data: { toolCallId: string; toolName: string; result: unknown } }
+  | { event: 'tool-error'; data: { toolCallId: string; toolName: string; message: string } }
+  | { event: 'step-finish'; data: { finishReason: string } }
   | { event: 'result'; data: { response: AgentsChatResponseDto } }
   | { event: 'error'; data: { message: string; code?: string } }
   | { event: 'done'; data: { reason: 'finished' | 'error' } }
   | { event: string; data: Record<string, unknown> }
+
+export type AgentChatV2ToolDecision =
+  | { ok: true; result?: unknown }
+  | { ok: false; message?: string }
+
+export type AgentChatV2Session = {
+  sessionId: string
+  confirmTool: (toolCallId: string, decision: AgentChatV2ToolDecision) => Promise<void>
+  cancel: () => Promise<void>
+}
 
 export type ModelCatalogVendorDto = {
   key: string
@@ -210,60 +224,167 @@ function createDesktopAgentResponse(raw: unknown): AgentsChatResponseDto {
   }
 }
 
+/**
+ * Real IPC-stream consumer. Subscribes to `nomi:agents:chatV2:event` and
+ * relays each chunk as the existing `AgentsChatStreamEvent` shape so
+ * downstream consumers (workbenchAiClient et al) keep working unchanged.
+ *
+ * Returns a stop function. Calling it cancels the underlying session and
+ * unsubscribes the IPC listener.
+ */
 async function openDesktopAgentsChatStream(
   payload: AgentsChatRequestDto,
   handlers: {
     onEvent: (event: AgentsChatStreamEvent) => void
     onOpen?: () => void
     onError?: (error: Error) => void
+    onSession?: (session: AgentChatV2Session) => void
   },
 ): Promise<() => void> {
   const desktop = requireDesktopRuntime('agents chat')
+
   let aborted = false
+  let streamedText = ''
+  let sessionId: string | null = null
+  let unsubscribe: (() => void) | null = null
+
+  handlers.onOpen?.()
   const requestId = `desktop-${Date.now()}`
   const messageId = `message-${Date.now()}`
-  handlers.onOpen?.()
   handlers.onEvent({ event: 'initial', data: { requestId, messageId } })
 
-  void desktop.agents.chat(payload).then((rawResponse) => {
+  const stop = async (): Promise<void> => {
     if (aborted) return
-    const response = createDesktopAgentResponse(rawResponse)
-    if (response.text) {
-      handlers.onEvent({ event: 'content', data: { delta: response.text, text: response.text } })
+    aborted = true
+    if (unsubscribe) {
+      unsubscribe()
+      unsubscribe = null
     }
-    handlers.onEvent({ event: 'result', data: { response } })
-    handlers.onEvent({ event: 'done', data: { reason: 'finished' } })
-  }).catch((error: unknown) => {
-    if (aborted) return
+    if (sessionId) {
+      try { await desktop.agents.cancelChatV2(sessionId) } catch { /* noop */ }
+    }
+  }
+
+  try {
+    const start = await desktop.agents.chatV2Start(payload)
+    sessionId = start.sessionId
+
+    unsubscribe = desktop.agents.onChatV2Event(sessionId, (rawEvent) => {
+      if (aborted) return
+      const evt = rawEvent as { type: string } & Record<string, unknown>
+      switch (evt.type) {
+        case 'content-delta': {
+          const delta = String(evt.delta || '')
+          if (!delta) return
+          streamedText += delta
+          handlers.onEvent({ event: 'content', data: { delta, text: streamedText } })
+          return
+        }
+        case 'tool-call-pending': {
+          handlers.onEvent({
+            event: 'tool-call',
+            data: {
+              sessionId: sessionId!,
+              toolCallId: String(evt.toolCallId),
+              toolName: String(evt.toolName),
+              args: evt.args,
+            },
+          })
+          return
+        }
+        case 'tool-result': {
+          handlers.onEvent({
+            event: 'tool-result',
+            data: {
+              toolCallId: String(evt.toolCallId),
+              toolName: String(evt.toolName),
+              result: evt.result,
+            },
+          })
+          return
+        }
+        case 'tool-error': {
+          handlers.onEvent({
+            event: 'tool-error',
+            data: {
+              toolCallId: String(evt.toolCallId),
+              toolName: String(evt.toolName),
+              message: String(evt.message || 'tool failed'),
+            },
+          })
+          return
+        }
+        case 'step-finish': {
+          handlers.onEvent({ event: 'step-finish', data: { finishReason: String(evt.finishReason || 'unknown') } })
+          return
+        }
+        case 'result': {
+          const inner = (evt.result as { id?: string; text?: string }) || {}
+          const response: AgentsChatResponseDto = {
+            id: typeof inner.id === 'string' ? inner.id : `agent-${Date.now()}`,
+            text: typeof inner.text === 'string' ? inner.text : streamedText,
+            raw: evt.result,
+            toolCalls: [],
+            artifacts: [],
+          }
+          handlers.onEvent({ event: 'result', data: { response } })
+          return
+        }
+        case 'error': {
+          const message = String(evt.message || 'agent error')
+          handlers.onError?.(new Error(message))
+          handlers.onEvent({ event: 'error', data: { message } })
+          return
+        }
+        case 'done': {
+          const reason = (evt.reason === 'error' ? 'error' : 'finished') as 'finished' | 'error'
+          handlers.onEvent({ event: 'done', data: { reason } })
+          if (unsubscribe) {
+            unsubscribe()
+            unsubscribe = null
+          }
+          return
+        }
+      }
+    })
+
+    handlers.onSession?.({
+      sessionId,
+      confirmTool: async (toolCallId, decision) => {
+        if (!sessionId) return
+        await desktop.agents.confirmTool(sessionId, toolCallId, decision)
+      },
+      cancel: stop,
+    })
+  } catch (error: unknown) {
     const err = error instanceof Error ? error : new Error(String(error))
     handlers.onError?.(err)
     handlers.onEvent({ event: 'error', data: { message: err.message } })
     handlers.onEvent({ event: 'done', data: { reason: 'error' } })
-  })
+  }
 
   return () => {
-    aborted = true
+    void stop()
   }
+}
+
+export type AgentsChatStreamHandlers = {
+  onEvent: (event: AgentsChatStreamEvent) => void
+  onOpen?: () => void
+  onError?: (error: Error) => void
+  onSession?: (session: AgentChatV2Session) => void
 }
 
 export async function agentsChatStream(
   payload: AgentsChatRequestDto,
-  handlers: {
-    onEvent: (event: AgentsChatStreamEvent) => void
-    onOpen?: () => void
-    onError?: (error: Error) => void
-  },
+  handlers: AgentsChatStreamHandlers,
 ): Promise<() => void> {
   return openDesktopAgentsChatStream(payload, handlers)
 }
 
 export async function workbenchAgentsChatStream(
   payload: AgentsChatRequestDto,
-  handlers: {
-    onEvent: (event: AgentsChatStreamEvent) => void
-    onOpen?: () => void
-    onError?: (error: Error) => void
-  },
+  handlers: AgentsChatStreamHandlers,
 ): Promise<() => void> {
   return openDesktopAgentsChatStream(payload, handlers)
 }
