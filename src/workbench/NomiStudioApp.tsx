@@ -11,6 +11,9 @@ import {
   useLocalProjects,
   type LocalProjectSummary,
 } from './library/localProjectStore'
+import { buildStoryDocument, type TryNowExample } from './library/tryNowExamples'
+import { useWorkbenchStore } from './workbenchStore'
+import { requestStoryboardPlanning } from './generationCanvasV2/agent/storyboardLauncher'
 import { createWorkbenchProjectPersistenceService } from './project/projectPersistenceService'
 import { readCurrentWorkbenchProjectPayload } from './project/workbenchProjectSession'
 import { useWorkspaceEvents } from './useWorkspaceEvents'
@@ -96,6 +99,29 @@ export default function NomiStudioApp(): JSX.Element {
   const newProject = React.useCallback(async () => {
     const project = createLocalProject()
     void hydrateProject(project.id)
+  }, [hydrateProject])
+
+  /**
+   * Try-Now hero handler (C6). Creates a fresh project, hydrates it,
+   * stuffs the example story into the creation workbench document, then
+   * dispatches a storyboard request so the demo runs end-to-end with a
+   * single click. We delay the storyboard event until after the project
+   * has hydrated and the creation editor has mounted, otherwise the
+   * canvas-assistant listener might not be attached yet.
+   */
+  const tryExample = React.useCallback(async (example: TryNowExample) => {
+    const project = createLocalProject(example.projectName)
+    const hydrated = await hydrateProject(project.id)
+    if (!hydrated) return
+    const doc = buildStoryDocument(example.story, example.projectName)
+    const store = useWorkbenchStore.getState()
+    store.setWorkbenchDocument(doc)
+    store.setWorkspaceMode('creation')
+    // Allow the creation editor + canvas assistant panel to mount before
+    // dispatching, so the storyboard listener actually picks up the event.
+    window.setTimeout(() => {
+      requestStoryboardPlanning({ storyText: example.story, source: `library-try-now:${example.id}` })
+    }, 200)
   }, [hydrateProject])
 
   const deleteProject = React.useCallback((project: LocalProjectSummary) => {
@@ -206,6 +232,7 @@ export default function NomiStudioApp(): JSX.Element {
           onOpenProject={openProject}
           onDeleteProject={deleteProject}
           onNewProject={() => void newProject()}
+          onTryExample={(example) => void tryExample(example)}
         />
         <ToastHost />
       </>

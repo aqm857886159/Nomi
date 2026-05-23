@@ -1,12 +1,14 @@
-import { IconTrash } from '@tabler/icons-react'
+import { IconMovie, IconSparkles, IconTrash } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { NomiLogoMark } from '../../design'
 import type { LocalProjectSummary } from './localProjectStore'
+import { TRY_NOW_EXAMPLES, type TryNowExample } from './tryNowExamples'
 
 type Props = {
   onOpenProject: (projectId: string) => void
   onDeleteProject: (project: LocalProjectSummary) => void
   onNewProject: () => void
+  onTryExample?: (example: TryNowExample) => void
   projects: LocalProjectSummary[]
 }
 
@@ -45,7 +47,7 @@ function ThumbnailMosaic({ urls }: { urls: string[] }): JSX.Element {
   )
 }
 
-export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onNewProject, projects }: Props): JSX.Element {
+export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onNewProject, onTryExample, projects }: Props): JSX.Element {
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-nomi-bg text-nomi-ink font-nomi-sans text-[13px] leading-normal antialiased">
       <main className="flex-1 overflow-y-auto px-14 pt-[60px] pb-20 flex flex-col gap-5">
@@ -58,6 +60,58 @@ export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onN
           </h1>
           <p className="m-0 pl-[39px] text-[13px] text-nomi-ink-40">新建一个项目，开始把你的创意变成作品。</p>
         </section>
+
+        {/* ── Try Now hero ── */}
+        {onTryExample ? (
+          <section
+            className={cn(
+              'relative flex flex-col gap-3 px-5 py-[18px] mb-4',
+              'border border-nomi-line rounded-nomi-lg bg-nomi-paper shadow-nomi-sm overflow-hidden',
+            )}
+            data-try-now-hero="true"
+            aria-label="30 秒体验 Nomi 故事板"
+          >
+            <div className="flex items-center gap-2 text-nomi-accent text-[11.5px] font-medium uppercase tracking-wider">
+              <IconSparkles size={14} />
+              <span>30 秒体验 Nomi</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <h2 className="m-0 font-nomi-display text-[20px] font-normal tracking-[-0.018em] text-nomi-ink leading-snug">
+                把一段故事，自动拆成 6-12 个镜头
+              </h2>
+              <p className="m-0 text-[12.5px] text-nomi-ink-60 leading-relaxed">
+                选一个示例，Nomi 会新建项目、填入故事文本，并自动调用 Agent 拆镜头 → 画布上看到一整排可生成的镜头节点。
+              </p>
+            </div>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2 mt-1">
+              {TRY_NOW_EXAMPLES.map((example) => (
+                <button
+                  key={example.id}
+                  type="button"
+                  className={cn(
+                    'group flex items-center gap-3 px-3 py-[10px] border border-nomi-line rounded-nomi-sm',
+                    'bg-nomi-bg text-left font-inherit cursor-pointer',
+                    'transition-[background,border-color,box-shadow] duration-150',
+                    'hover:bg-[color-mix(in_oklch,var(--nomi-accent)_6%,var(--nomi-bg))]',
+                    'hover:border-[color-mix(in_oklch,var(--nomi-accent)_40%,transparent)]',
+                  )}
+                  data-try-now-example-id={example.id}
+                  onClick={() => onTryExample(example)}
+                >
+                  <span className={cn(
+                    'shrink-0 inline-grid place-items-center w-9 h-9 rounded-nomi-sm',
+                    'bg-nomi-paper border border-nomi-line text-[18px]',
+                  )} aria-hidden="true">{example.emoji}</span>
+                  <span className="flex-1 min-w-0 flex flex-col gap-[2px]">
+                    <span className="text-[13px] font-medium text-nomi-ink truncate group-hover:text-nomi-accent">{example.label}</span>
+                    <span className="text-[11.5px] text-nomi-ink-60 truncate">{example.subtitle}</span>
+                  </span>
+                  <IconMovie size={15} className="shrink-0 text-nomi-ink-40 group-hover:text-nomi-accent" />
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {/* ── Search ── */}
         <div className={cn(
