@@ -86,7 +86,11 @@ describe("runtime export job IPC functions", () => {
       projectId: "project-1",
       projectDir: path.join(tempRoot, "Project One"),
       outputName: "demo",
-      status: "queued",
+      status: "planning",
+      progress: expect.objectContaining({
+        stage: "planning",
+        message: expect.stringMatching(/ffmpeg-webm-transcode|backend/i),
+      }),
     });
     await cancelExportJob(result.jobId);
   });
@@ -96,7 +100,7 @@ describe("runtime export job IPC functions", () => {
     createProject({ id: "project-1", name: "Project One", version: 1 });
     const { jobId } = startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") });
 
-    expect(getExportJobStatus(jobId).status).toBe("queued");
+    expect(getExportJobStatus(jobId).status).toBe("planning");
 
     const result = await cancelExportJob(jobId);
     const cancelled = getExportJobStatus(jobId);
@@ -197,6 +201,43 @@ describe("runtime export job IPC functions", () => {
         },
       }),
     ).toThrow(/asset resolution is not wired yet/i);
+  });
+
+  it("accepts current renderer WebM transition manifests with unresolved URL assets by sanitizing them to the WebM backend", async () => {
+    const { cancelExportJob, createProject, getExportJobStatus, startExportJob } = await import("../runtime");
+    createProject({ id: "project-1", name: "Project One", version: 1 });
+
+    const { jobId } = startExportJob({
+      projectId: "project-1",
+      manifest: {
+        ...makeManifest("project-1"),
+        diagnostics: {
+          warnings: ["Renderer request omits unsupported tracks while WebM capture migration is incomplete."],
+        },
+        timeline: {
+          fps: 30,
+          durationFrames: 30,
+          range: { startFrame: 0, endFrame: 30 },
+          tracks: [
+            {
+              id: "video-track",
+              kind: "video",
+              clips: [{ id: "clip-1", assetId: "asset1", startFrame: 0, endFrame: 30 }],
+            },
+          ],
+        },
+        assets: {
+          asset1: { id: "asset1", kind: "video", url: "nomi-local://project-1/assets/video.webm" },
+        },
+      },
+    });
+
+    const snapshot = getExportJobStatus(jobId);
+    expect(snapshot.status).toBe("planning");
+    expect(snapshot.progress.message).toMatch(/ffmpeg-webm-transcode/i);
+    expect(snapshot.manifest.timeline.tracks).toEqual([]);
+    expect(snapshot.manifest.assets).toEqual({});
+    await cancelExportJob(jobId);
   });
 
   it("rejects renderer URL assets even when a fake absolutePath is supplied", async () => {

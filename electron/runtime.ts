@@ -8,6 +8,7 @@ import { buildAiSdkModel } from "./ai/buildAiSdkModel";
 import { assertProjectExportRelativePath, ensureExportDirs } from "./export/exportPaths";
 import { ExportJobManager, type ExportJobEvent, type ExportJobSnapshot } from "./export/exportJobManager";
 import { assertValidManifest, type NomiRenderManifestV1 } from "./export/exportManifest";
+import { planExport } from "./export/exportPlanner";
 import { transcodeWebmFileToMp4, transcodeWebmToMp4 } from "./export/ffmpegRunner";
 import { appendExportTempInputChunk, finishExportTempInput as finishExportTempInputFile, removeExportTempInput } from "./export/exportTempInput";
 import {
@@ -500,19 +501,39 @@ function hasUnresolvedRendererAssets(manifest: NomiRenderManifestV1): boolean {
   return Object.values(manifest.assets).some((asset) => !isPlainRecord(asset) || typeof asset.absolutePath !== "string");
 }
 
+function isCurrentWebmTransitionRendererManifest(value: unknown): value is Record<string, unknown> {
+  if (!isPlainRecord(value)) return false;
+  const diagnostics = value.diagnostics;
+  if (!isPlainRecord(diagnostics) || !Array.isArray(diagnostics.warnings)) return false;
+  return diagnostics.warnings.some((warning) => typeof warning === "string" && /webm|capture|renderer|unresolved|unsupported tracks/i.test(warning));
+}
+
+function sanitizeCurrentWebmTransitionManifest(value: Record<string, unknown>): unknown {
+  const timeline = isPlainRecord(value.timeline) ? value.timeline : {};
+  return {
+    ...value,
+    timeline: {
+      ...timeline,
+      tracks: [],
+    },
+    assets: {},
+  };
+}
+
 function parseExportJobManifest(value: unknown): NomiRenderManifestV1 {
-  if (isPlainRecord(value) && isPlainRecord(value.assets)) {
-    for (const asset of Object.values(value.assets)) {
+  const manifestValue = isCurrentWebmTransitionRendererManifest(value) ? sanitizeCurrentWebmTransitionManifest(value) : value;
+  if (isPlainRecord(manifestValue) && isPlainRecord(manifestValue.assets)) {
+    for (const asset of Object.values(manifestValue.assets)) {
       if (isPlainRecord(asset) && ("url" in asset || "absolutePath" in asset)) {
         throw new Error("Export job asset resolution is not wired yet; renderer assets cannot start a production export job.");
       }
     }
   }
-  assertValidManifest(value);
-  if (hasUnresolvedRendererAssets(value)) {
+  assertValidManifest(manifestValue);
+  if (hasUnresolvedRendererAssets(manifestValue)) {
     throw new Error("Export job asset resolution is not wired yet; manifest assets must include absolutePath.");
   }
-  return value;
+  return manifestValue;
 }
 
 export function startExportJob(payload: unknown): { jobId: string } {
@@ -526,7 +547,12 @@ export function startExportJob(payload: unknown): { jobId: string } {
   if (manifest.projectId !== projectId) {
     throw new Error("Export job projectId must match manifest.projectId");
   }
+  const plan = planExport(manifest);
   const job = exportJobManager.createJob({ projectId, projectDir, manifest, outputName: raw.outputName });
+  exportJobManager.updateJob(job.id, {
+    status: "planning",
+    progress: { ratio: 0.02, stage: "planning", message: `Planned ${plan.backend} export backend` },
+  });
   return { jobId: job.id };
 }
 
