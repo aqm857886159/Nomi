@@ -25,8 +25,9 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     importFile: (payload: unknown) => ipcRenderer.invoke("nomi:assets:import-file", payload),
   },
   exports: {
-    start: (payload: unknown) => ipcRenderer.invoke("nomi:exports:start", payload),
     startJob: (payload: unknown) => ipcRenderer.invoke("nomi:exports:start-job", payload),
+    writeTempInput: (payload: unknown) => ipcRenderer.invoke("nomi:exports:write-temp-input", payload),
+    finishTempInput: (payload: unknown) => ipcRenderer.invoke("nomi:exports:finish-temp-input", payload),
     status: (jobId: string) => ipcRenderer.invoke("nomi:exports:status", jobId),
     cancel: (jobId: string) => ipcRenderer.invoke("nomi:exports:cancel", jobId),
     onEvent: (callback: (event: unknown) => void) => {

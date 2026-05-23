@@ -8,7 +8,8 @@ import { buildAiSdkModel } from "./ai/buildAiSdkModel";
 import { assertProjectExportRelativePath, ensureExportDirs } from "./export/exportPaths";
 import { ExportJobManager, type ExportJobEvent, type ExportJobSnapshot } from "./export/exportJobManager";
 import { assertValidManifest, type NomiRenderManifestV1 } from "./export/exportManifest";
-import { transcodeWebmToMp4 } from "./export/ffmpegRunner";
+import { transcodeWebmFileToMp4, transcodeWebmToMp4 } from "./export/ffmpegRunner";
+import { appendExportTempInputChunk, finishExportTempInput as finishExportTempInputFile, removeExportTempInput } from "./export/exportTempInput";
 import {
   canvasNodeKindSchema,
   plannedEdgeSchema,
@@ -141,6 +142,11 @@ type ExportJobStartRequest = {
   projectId?: string;
   manifest?: unknown;
   outputName?: string;
+};
+
+type ExportTempInputRequest = {
+  jobId?: string;
+  chunk?: ArrayBuffer | Uint8Array | number[];
 };
 
 type TaskResult = {
@@ -535,8 +541,85 @@ export function getExportJobStatus(jobId: string): ExportJobSnapshot {
 export async function cancelExportJob(jobId: string): Promise<{ ok: true }> {
   const id = String(jobId || "").trim();
   if (!id) throw new Error("jobId is required");
+  const job = exportJobManager.getJob(id);
   await exportJobManager.cancelJob(id);
+  if (job) removeExportTempInput(job);
   return { ok: true };
+}
+
+const EXPORT_TEMP_INPUT_WRITABLE_STATUSES = new Set(["queued", "preparing", "planning", "rendering", "encoding", "muxing", "finalizing"]);
+
+function requireWritableExportJob(jobId: unknown): ExportJobSnapshot {
+  const id = String(jobId || "").trim();
+  if (!id) throw new Error("jobId is required");
+  const job = exportJobManager.getJob(id);
+  if (!job) throw new Error(`Export job ${id} was not found`);
+  if (job.cancelled || !EXPORT_TEMP_INPUT_WRITABLE_STATUSES.has(job.status)) {
+    throw new Error(`Cannot write temp input for export job ${id} while it is ${job.status}`);
+  }
+  return job;
+}
+
+function aspectRatioFromProfile(profile: NomiRenderManifestV1["profile"]): TimelineMp4ExportRequest["aspectRatio"] {
+  const ratio = profile.width / profile.height;
+  const candidates: Array<{ value: NonNullable<TimelineMp4ExportRequest["aspectRatio"]>; ratio: number }> = [
+    { value: "16:9", ratio: 16 / 9 },
+    { value: "9:16", ratio: 9 / 16 },
+    { value: "1:1", ratio: 1 },
+    { value: "4:5", ratio: 4 / 5 },
+    { value: "3:4", ratio: 3 / 4 },
+    { value: "4:3", ratio: 4 / 3 },
+    { value: "21:9", ratio: 21 / 9 },
+  ];
+  return candidates.sort((a, b) => Math.abs(a.ratio - ratio) - Math.abs(b.ratio - ratio))[0]?.value || "16:9";
+}
+
+function resolutionFromProfile(profile: NomiRenderManifestV1["profile"]): TimelineMp4ExportRequest["resolution"] {
+  return Math.max(profile.width, profile.height) <= 1280 ? "720p" : "1080p";
+}
+
+export async function writeExportTempInput(payload: unknown): Promise<{ ok: true; size: number }> {
+  const raw = (payload || {}) as ExportTempInputRequest;
+  const job = requireWritableExportJob(raw.jobId);
+  const result = appendExportTempInputChunk(job, raw.chunk as never);
+  exportJobManager.updateJob(job.id, {
+    status: job.status === "queued" ? "preparing" : job.status,
+    progress: { ratio: Math.max(job.progress.ratio, 0.08), stage: job.status === "queued" ? "preparing" : job.status, message: "Receiving WebM input" },
+  });
+  return result;
+}
+
+export async function finishExportTempInput(payload: unknown): Promise<unknown> {
+  const raw = (payload || {}) as ExportTempInputRequest;
+  const job = requireWritableExportJob(raw.jobId);
+  try {
+    const { inputPath } = finishExportTempInputFile(job);
+    const profile = job.manifest.profile;
+    exportJobManager.updateJob(job.id, {
+      status: "encoding",
+      progress: { ratio: Math.max(job.progress.ratio, 0.86), stage: "encoding", message: "Encoding MP4" },
+    });
+    const result = await transcodeWebmFileToMp4({
+      projectDir: job.projectDir,
+      inputPath,
+      outputName: job.outputName || "nomi-export",
+      resolution: resolutionFromProfile(profile),
+      aspectRatio: aspectRatioFromProfile(profile),
+      quality: profile.quality || "standard",
+      fps: profile.fps || job.manifest.timeline.fps || 30,
+    });
+    exportJobManager.completeJob(job.id, {
+      outputPath: result.absolutePath,
+      relativeOutputPath: result.relativePath,
+      bytes: result.size,
+    });
+    return result;
+  } catch (error) {
+    exportJobManager.failJob(job.id, error);
+    throw error;
+  } finally {
+    removeExportTempInput(job);
+  }
 }
 
 export function subscribeExportJobEvents(listener: (event: ExportJobEvent) => void): () => void {

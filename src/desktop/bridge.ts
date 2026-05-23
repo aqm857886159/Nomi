@@ -10,16 +10,6 @@ export type DesktopAssetDto = {
   data: Record<string, unknown>
 }
 
-export type DesktopMp4ExportStartPayload = {
-  projectId: string
-  webmBytes: ArrayBuffer
-  outputName?: string
-  resolution?: '720p' | '1080p'
-  aspectRatio?: '16:9' | '9:16' | '1:1' | '4:5' | '3:4' | '4:3' | '21:9'
-  quality?: 'small' | 'standard' | 'high'
-  fps?: number
-}
-
 export type DesktopMp4ExportResult = {
   absolutePath: string
   relativePath: string
@@ -34,6 +24,16 @@ export type DesktopExportJobStartPayload = {
 
 export type DesktopExportJobStartResult = {
   jobId: string
+}
+
+export type DesktopExportTempInputWritePayload = {
+  jobId: string
+  chunk: ArrayBuffer | Uint8Array | number[]
+}
+
+export type DesktopExportTempInputWriteResult = {
+  ok: true
+  size: number
 }
 
 export type { ExportJobEvent, ExportJobSnapshot }
@@ -70,8 +70,9 @@ export type DesktopBridge = {
     }) => Promise<DesktopAssetDto>
   }
   exports: {
-    start: (payload: DesktopMp4ExportStartPayload) => Promise<DesktopMp4ExportResult>
     startJob: (payload: DesktopExportJobStartPayload) => Promise<DesktopExportJobStartResult>
+    writeTempInput: (payload: DesktopExportTempInputWritePayload) => Promise<DesktopExportTempInputWriteResult>
+    finishTempInput: (payload: { jobId: string }) => Promise<DesktopMp4ExportResult>
     status: (jobId: string) => Promise<ExportJobSnapshot>
     cancel: (jobId: string) => Promise<{ ok: boolean }>
     onEvent: (callback: (event: ExportJobEvent) => void) => () => void

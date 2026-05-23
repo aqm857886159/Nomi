@@ -67,16 +67,6 @@ export type RendererRenderManifestRequest = {
   diagnostics: { warnings: string[] }
 }
 
-export type DesktopMp4ExportStartPayload = {
-  projectId: string
-  webmBytes: ArrayBuffer
-  outputName?: string
-  resolution?: Exclude<ExportResolution, 'source'>
-  aspectRatio?: PreviewAspectRatio
-  quality?: ExportQuality
-  fps?: number
-}
-
 export type DesktopMp4ExportResult = {
   absolutePath: string
   relativePath: string

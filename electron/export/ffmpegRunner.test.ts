@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { exportDimensionsForPreset, resolveFfmpegPath, transcodeWebmToMp4 } from "./ffmpegRunner";
+import { exportDimensionsForPreset, resolveFfmpegPath, transcodeWebmFileToMp4, transcodeWebmToMp4 } from "./ffmpegRunner";
 
 const tempRoots: string[] = [];
 
@@ -61,6 +61,51 @@ describe("exportDimensionsForPreset", () => {
 });
 
 describe("transcodeWebmToMp4", () => {
+  it("transcodes an existing WebM file path without accepting a byte payload and preserves input", async () => {
+    const projectDir = makeTempDir();
+    const inputPath = path.join(projectDir, "cache", "exports", "job-1", "input.webm");
+    fs.mkdirSync(path.dirname(inputPath), { recursive: true });
+    fs.writeFileSync(inputPath, "existing-webm");
+    const calls: Array<{ command: string; args: string[] }> = [];
+
+    const result = await transcodeWebmFileToMp4({
+      projectDir,
+      inputPath,
+      outputName: "Path Export",
+      ffmpegPath: "/usr/local/bin/ffmpeg",
+      runProcess: async (command, args) => {
+        calls.push({ command, args });
+        fs.writeFileSync(args[args.length - 1], "mp4-bytes");
+        return { code: 0, stderr: "" };
+      },
+    });
+
+    expect(result.relativePath).toMatch(/^exports\/Path-Export-\d+\.mp4$/);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].args.slice(0, 4)).toEqual(["-y", "-i", inputPath, "-an"]);
+    expect(fs.readFileSync(inputPath, "utf8")).toBe("existing-webm");
+    expect(fs.readFileSync(result.absolutePath, "utf8")).toBe("mp4-bytes");
+  });
+
+  it("rejects missing and empty existing WebM file paths", async () => {
+    const projectDir = makeTempDir();
+    const emptyInputPath = path.join(projectDir, "input.webm");
+    fs.writeFileSync(emptyInputPath, "");
+
+    await expect(transcodeWebmFileToMp4({
+      projectDir,
+      inputPath: path.join(projectDir, "missing.webm"),
+      ffmpegPath: "/usr/local/bin/ffmpeg",
+      runProcess: vi.fn(),
+    })).rejects.toThrow(/输入视频.*不存在|not found|missing/i);
+    await expect(transcodeWebmFileToMp4({
+      projectDir,
+      inputPath: emptyInputPath,
+      ffmpegPath: "/usr/local/bin/ffmpeg",
+      runProcess: vi.fn(),
+    })).rejects.toThrow(/输入视频为空/i);
+  });
+
   it("writes input webm to a temp file and asks ffmpeg to create a playable 1080p mp4", async () => {
     const projectDir = makeTempDir();
     const calls: Array<{ command: string; args: string[] }> = [];

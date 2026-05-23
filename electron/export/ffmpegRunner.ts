@@ -22,6 +22,10 @@ export type TranscodeWebmToMp4Options = {
   runProcess?: RunFfmpegProcess;
 };
 
+export type TranscodeWebmFileToMp4Options = Omit<TranscodeWebmToMp4Options, "inputBytes"> & {
+  inputPath: string;
+};
+
 export type TimelineMp4ExportResult = {
   absolutePath: string;
   relativePath: string;
@@ -121,22 +125,25 @@ function defaultRunProcess(command: string, args: string[]): Promise<FfmpegProce
   });
 }
 
-export async function transcodeWebmToMp4(options: TranscodeWebmToMp4Options): Promise<TimelineMp4ExportResult> {
+export async function transcodeWebmFileToMp4(options: TranscodeWebmFileToMp4Options): Promise<TimelineMp4ExportResult> {
   const ffmpegPath = resolveFfmpegPath(options.ffmpegPath);
   if (!ffmpegPath) {
     throw new Error("导出失败：MP4 编码组件缺失，请重新安装 Nomi。你不需要单独安装 FFmpeg。");
   }
-  if (!options.inputBytes || options.inputBytes.byteLength <= 0) {
+
+  const inputPath = path.resolve(options.inputPath);
+  if (!fs.existsSync(inputPath)) {
+    throw new Error("导出失败：输入视频不存在");
+  }
+  const inputStat = fs.statSync(inputPath);
+  if (!inputStat.isFile() || inputStat.size <= 0) {
     throw new Error("导出失败：输入视频为空");
   }
 
   const projectDir = path.resolve(options.projectDir);
-  const tempDir = createExportTempDir(projectDir, `${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  const inputPath = path.join(tempDir, "input.webm");
   const outputPaths = createSafeOutputPaths({ projectDir, outputName: options.outputName, extension: "mp4" });
   const outputPath = outputPaths.finalPath;
   const partialOutputPath = outputPaths.partialPath;
-  fs.writeFileSync(inputPath, options.inputBytes);
 
   const resolution = exportDimensionsForPreset(options.resolution || "1080p", options.aspectRatio || "16:9");
   const fps = Math.max(1, Math.floor(options.fps || 30));
@@ -172,6 +179,26 @@ export async function transcodeWebmToMp4(options: TranscodeWebmToMp4Options): Pr
     };
   } finally {
     fs.rmSync(partialOutputPath, { force: true });
+  }
+}
+
+export async function transcodeWebmToMp4(options: TranscodeWebmToMp4Options): Promise<TimelineMp4ExportResult> {
+  if (!options.inputBytes || options.inputBytes.byteLength <= 0) {
+    throw new Error("导出失败：输入视频为空");
+  }
+
+  const projectDir = path.resolve(options.projectDir);
+  const tempDir = createExportTempDir(projectDir, `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const inputPath = path.join(tempDir, "input.webm");
+  fs.writeFileSync(inputPath, options.inputBytes);
+
+  try {
+    return await transcodeWebmFileToMp4({
+      ...options,
+      projectDir,
+      inputPath,
+    });
+  } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 }
