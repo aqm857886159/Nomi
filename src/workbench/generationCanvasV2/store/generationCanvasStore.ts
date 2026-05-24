@@ -107,6 +107,12 @@ type GenerationCanvasState = {
   /** Phase E: move a node into a different category (sidebar drop / right-click). */
   reassignNodeCategory: (nodeId: string, categoryId: string) => void
   copyNodeToCategory: (nodeId: string, categoryId: string) => GenerationCanvasNode | null
+  deleteNode: (nodeId: string) => void
+  createGroup: (categoryId: string, name?: string) => NodeGroup | null
+  renameGroup: (groupId: string, name: string) => void
+  setGroupColor: (groupId: string, color: string) => void
+  ungroup: (groupId: string) => void
+  deleteGroup: (groupId: string, deleteNodes?: boolean) => void
   moveNodeToGroup: (nodeId: string, groupId: string) => void
   removeNodeFromGroup: (nodeId: string) => void
   reorderGroup: (categoryId: string, activeGroupId: string, overGroupId: string) => void
@@ -173,6 +179,10 @@ const seedNodes = [
 
 function createNodeId(kind: GenerationNodeKind): string {
   return `gen-v2-${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+}
+
+function createGroupId(categoryId: CategoryId): string {
+  return `group-${categoryId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
 }
 
 function createRunId(nodeId: string): string {
@@ -782,13 +792,25 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
       meta: node.meta ? { ...node.meta } : {},
       size: node.size ? { ...node.size } : nextNode.size,
       prompt: node.prompt || '',
+      categoryId: node.categoryId,
+      groupId: node.groupId,
+      derivedFrom: node.id,
     }
+    pushUndoSnapshot(state)
     set((current) => {
       const original = current.nodes.find((candidate) => candidate.id === nodeId)
       if (original && history.length) original.history = history
       current.nodes.push(copiedNode)
+      if (copiedNode.groupId) {
+        const group = current.groups.find((candidate) => candidate.id === copiedNode.groupId)
+        if (group && !group.nodeIds.includes(copiedNode.id)) {
+          group.nodeIds.push(copiedNode.id)
+          group.updatedAt = Date.now()
+        }
+      }
       current.selectedNodeIds = [copiedNode.id]
       bumpPersistRevision(current)
+      Object.assign(current, getHistoryFlags())
     })
     return copiedNode
   },
@@ -833,6 +855,117 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
       Object.assign(state, getHistoryFlags())
     })
     return copiedNode
+  },
+  deleteNode: (nodeId) => {
+    const current = get()
+    if (!current.nodes.some((candidate) => candidate.id === nodeId)) return
+    pushUndoSnapshot(current)
+    set((state) => {
+      const next = removeNodes(state.nodes, state.edges, [nodeId])
+      state.nodes = next.nodes
+      state.edges = next.edges
+      state.groups = state.groups.map((group) => ({
+        ...group,
+        nodeIds: group.nodeIds.filter((candidateNodeId) => candidateNodeId !== nodeId),
+      }))
+      state.selectedNodeIds = state.selectedNodeIds.filter((candidateNodeId) => candidateNodeId !== nodeId)
+      bumpPersistRevision(state)
+      Object.assign(state, getHistoryFlags())
+    })
+  },
+  createGroup: (categoryId, name) => {
+    const id = String(categoryId || '').trim()
+    if (!isCategoryId(id)) return null
+    const now = Date.now()
+    const existingCount = get().groups.filter((group) => group.categoryId === id).length
+    const group: NodeGroup = {
+      id: createGroupId(id),
+      name: (name || '').trim() || `组 ${existingCount + 1}`,
+      categoryId: id,
+      nodeIds: [],
+      createdAt: now,
+      updatedAt: now,
+    }
+    pushUndoSnapshot(get())
+    set((state) => {
+      state.groups.push(group)
+      bumpPersistRevision(state)
+      Object.assign(state, getHistoryFlags())
+    })
+    return group
+  },
+  renameGroup: (groupId, name) => {
+    const nextName = String(name || '').trim()
+    if (!nextName) return
+    const current = get()
+    const existing = current.groups.find((group) => group.id === groupId)
+    if (!existing || existing.name === nextName) return
+    pushUndoSnapshot(current)
+    set((state) => {
+      const group = state.groups.find((candidate) => candidate.id === groupId)
+      if (!group) return
+      group.name = nextName
+      group.updatedAt = Date.now()
+      bumpPersistRevision(state)
+      Object.assign(state, getHistoryFlags())
+    })
+  },
+  setGroupColor: (groupId, color) => {
+    const nextColor = String(color || '').trim()
+    if (!nextColor) return
+    const current = get()
+    const existing = current.groups.find((group) => group.id === groupId)
+    if (!existing || existing.color === nextColor) return
+    pushUndoSnapshot(current)
+    set((state) => {
+      const group = state.groups.find((candidate) => candidate.id === groupId)
+      if (!group) return
+      group.color = nextColor
+      group.updatedAt = Date.now()
+      bumpPersistRevision(state)
+      Object.assign(state, getHistoryFlags())
+    })
+  },
+  ungroup: (groupId) => {
+    const current = get()
+    const existing = current.groups.find((group) => group.id === groupId)
+    if (!existing) return
+    pushUndoSnapshot(current)
+    set((state) => {
+      const group = state.groups.find((candidate) => candidate.id === groupId)
+      if (!group) return
+      const nodeIds = new Set(group.nodeIds)
+      for (const node of state.nodes) {
+        if (nodeIds.has(node.id)) delete node.groupId
+      }
+      state.groups = state.groups.filter((candidate) => candidate.id !== groupId)
+      bumpPersistRevision(state)
+      Object.assign(state, getHistoryFlags())
+    })
+  },
+  deleteGroup: (groupId, deleteNodes = false) => {
+    const current = get()
+    const existing = current.groups.find((group) => group.id === groupId)
+    if (!existing) return
+    pushUndoSnapshot(current)
+    set((state) => {
+      const group = state.groups.find((candidate) => candidate.id === groupId)
+      if (!group) return
+      const nodeIds = new Set(group.nodeIds)
+      if (deleteNodes) {
+        const next = removeNodes(state.nodes, state.edges, Array.from(nodeIds))
+        state.nodes = next.nodes
+        state.edges = next.edges
+        state.selectedNodeIds = state.selectedNodeIds.filter((nodeId) => !nodeIds.has(nodeId))
+      } else {
+        for (const node of state.nodes) {
+          if (nodeIds.has(node.id)) delete node.groupId
+        }
+      }
+      state.groups = state.groups.filter((candidate) => candidate.id !== groupId)
+      bumpPersistRevision(state)
+      Object.assign(state, getHistoryFlags())
+    })
   },
   moveNodeToGroup: (nodeId, groupId) => {
     const id = String(groupId || '').trim()

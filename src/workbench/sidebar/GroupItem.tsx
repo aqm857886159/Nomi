@@ -10,9 +10,11 @@ type Props = {
   onSelectNode?: (nodeId: string) => void
   onDropNode?: (nodeId: string, groupId: string) => void
   onDropGroup?: (activeGroupId: string, overGroupId: string) => void
+  onContextMenu?: (event: React.MouseEvent<HTMLButtonElement>, groupId: string) => void
+  onNodeContextMenu?: (event: React.MouseEvent<HTMLButtonElement>, nodeId: string) => void
 }
 
-export default function GroupItem({ group, nodes, selectedNodeIds, onSelectNode, onDropNode, onDropGroup }: Props): JSX.Element {
+export default function GroupItem({ group, nodes, selectedNodeIds, onSelectNode, onDropNode, onDropGroup, onContextMenu, onNodeContextMenu }: Props): JSX.Element {
   const [expanded, setExpanded] = React.useState(!group.collapsed)
   const [dragOver, setDragOver] = React.useState(false)
 
@@ -56,6 +58,7 @@ export default function GroupItem({ group, nodes, selectedNodeIds, onSelectNode,
         draggable
         onDragStart={handleDragStart}
         onClick={() => setExpanded((value) => !value)}
+        onContextMenu={(event) => onContextMenu?.(event, group.id)}
         aria-expanded={expanded}
         className={cn(
           'w-full flex items-center gap-2 px-2 py-1.5 text-left rounded-md',
@@ -75,13 +78,14 @@ export default function GroupItem({ group, nodes, selectedNodeIds, onSelectNode,
       {expanded ? (
         <div className="pb-1">
           {nodes.length ? nodes.map((node) => (
-            <NodeItem
-              key={node.id}
-              node={node}
-              depth={1}
-              active={selectedNodeIds.includes(node.id)}
-              onSelect={onSelectNode}
-            />
+          <NodeItem
+            key={node.id}
+            node={node}
+            active={selectedNodeIds.includes(node.id)}
+            depth={1}
+            onSelect={onSelectNode}
+            onContextMenu={onNodeContextMenu}
+          />
           )) : (
             <div className="px-7 py-1.5 text-[11px] text-nomi-ink-30">空组</div>
           )}

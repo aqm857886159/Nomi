@@ -9,9 +9,10 @@ type Props = {
   collapsed: boolean
   onActivate: () => void
   onDropNode?: (nodeId: string) => void
+  onContextMenu?: (event: React.MouseEvent<HTMLButtonElement>) => void
 }
 
-export default function CategoryItem({ category, count, active, collapsed, onActivate, onDropNode }: Props): JSX.Element {
+export default function CategoryItem({ category, count, active, collapsed, onActivate, onDropNode, onContextMenu }: Props): JSX.Element {
   const [dragOver, setDragOver] = React.useState(false)
 
   const handleDragOver = React.useCallback((event: React.DragEvent<HTMLButtonElement>) => {
@@ -40,6 +41,7 @@ export default function CategoryItem({ category, count, active, collapsed, onAct
     <button
       type="button"
       onClick={onActivate}
+      onContextMenu={onContextMenu}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}

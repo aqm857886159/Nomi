@@ -19,9 +19,10 @@ type Props = {
   active?: boolean
   depth?: number
   onSelect?: (nodeId: string) => void
+  onContextMenu?: (event: React.MouseEvent<HTMLButtonElement>, nodeId: string) => void
 }
 
-export default function NodeItem({ node, active = false, depth = 0, onSelect }: Props): JSX.Element {
+export default function NodeItem({ node, active = false, depth = 0, onSelect, onContextMenu }: Props): JSX.Element {
   const handleDragStart = React.useCallback((event: React.DragEvent<HTMLButtonElement>) => {
     event.dataTransfer.setData('application/x-nomi-node-id', node.id)
     event.dataTransfer.effectAllowed = 'move'
@@ -37,6 +38,7 @@ export default function NodeItem({ node, active = false, depth = 0, onSelect }: 
       draggable
       onDragStart={handleDragStart}
       onClick={handleClick}
+      onContextMenu={(event) => onContextMenu?.(event, node.id)}
       data-node-id={node.id}
       data-active={active ? 'true' : 'false'}
       className={cn(

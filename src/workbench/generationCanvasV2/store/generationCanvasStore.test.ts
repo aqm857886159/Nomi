@@ -100,4 +100,54 @@ describe('generationCanvasStore sidebar grouping actions', () => {
     expect(state.nodes.find((candidate) => candidate.id === 'cast-1')?.groupId).toBeUndefined()
     expect(state.groups.find((candidate) => candidate.id === 'cast-group')?.nodeIds).toEqual([])
   })
+
+  it('creates and edits sidebar groups', () => {
+    const created = useGenerationCanvasStore.getState().createGroup('shots', 'Board A')
+    expect(created).toBeTruthy()
+
+    useGenerationCanvasStore.getState().renameGroup(created?.id || '', 'Board B')
+    useGenerationCanvasStore.getState().setGroupColor(created?.id || '', '#ffcc00')
+
+    const groupState = useGenerationCanvasStore.getState().groups.find((candidate) => candidate.id === created?.id)
+    expect(groupState?.categoryId).toBe('shots')
+    expect(groupState?.name).toBe('Board B')
+    expect(groupState?.color).toBe('#ffcc00')
+  })
+
+  it('ungroups without deleting member nodes', () => {
+    useGenerationCanvasStore.getState().ungroup('cast-group')
+
+    const state = useGenerationCanvasStore.getState()
+    expect(state.groups.some((candidate) => candidate.id === 'cast-group')).toBe(false)
+    expect(state.nodes.find((candidate) => candidate.id === 'cast-1')?.groupId).toBeUndefined()
+    expect(state.nodes.some((candidate) => candidate.id === 'cast-1')).toBe(true)
+  })
+
+  it('deletes a group with its member nodes when requested', () => {
+    useGenerationCanvasStore.getState().deleteGroup('cast-group', true)
+
+    const state = useGenerationCanvasStore.getState()
+    expect(state.groups.some((candidate) => candidate.id === 'cast-group')).toBe(false)
+    expect(state.nodes.some((candidate) => candidate.id === 'cast-1')).toBe(false)
+  })
+
+  it('deletes a single node and removes it from group membership', () => {
+    useGenerationCanvasStore.getState().deleteNode('cast-1')
+
+    const state = useGenerationCanvasStore.getState()
+    expect(state.nodes.some((candidate) => candidate.id === 'cast-1')).toBe(false)
+    expect(state.groups.find((candidate) => candidate.id === 'cast-group')?.nodeIds).toEqual([])
+  })
+
+  it('duplicates for regeneration as a derived node in the same category and group', () => {
+    const duplicated = useGenerationCanvasStore.getState().duplicateNodeForRegeneration('cast-1')
+    expect(duplicated).toBeTruthy()
+
+    const state = useGenerationCanvasStore.getState()
+    const duplicateState = state.nodes.find((candidate) => candidate.id === duplicated?.id)
+    expect(duplicateState?.categoryId).toBe('cast')
+    expect(duplicateState?.groupId).toBe('cast-group')
+    expect(duplicateState?.derivedFrom).toBe('cast-1')
+    expect(state.groups.find((candidate) => candidate.id === 'cast-group')?.nodeIds).toContain(duplicated?.id)
+  })
 })
