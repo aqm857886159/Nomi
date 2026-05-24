@@ -412,7 +412,7 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
     )
   }
 
-  const handleAddToTimelineAtPlayhead = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleAddToTimelineAtPlayhead = (event: React.MouseEvent<HTMLElement> | React.KeyboardEvent<HTMLElement>) => {
     event.preventDefault()
     event.stopPropagation()
     const timeline = useWorkbenchStore.getState().timeline
@@ -939,7 +939,9 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
       </div>
 
       {canSendToTimeline ? (
-        <button
+        <div
+          role="button"
+          tabIndex={0}
           className={cn(
             'generation-canvas-v2-node__timeline-drag group',
             'absolute top-1/2 right-[-42px] z-[7]',
@@ -952,12 +954,16 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
             'hover:bg-white hover:text-nomi-ink hover:shadow-[0_12px_30px_rgba(18,24,38,0.18)]',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--workbench-accent)] focus-visible:ring-offset-2',
           )}
-          type="button"
           aria-label={TIMELINE_DRAG_HANDLE_LABEL}
           title={TIMELINE_DRAG_HANDLE_LABEL}
           draggable
           onClick={handleAddToTimelineAtPlayhead}
           onDragStart={handleTimelineDragStart}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return
+            event.preventDefault()
+            handleAddToTimelineAtPlayhead(event)
+          }}
           onPointerDown={(event) => event.stopPropagation()}
         >
           <IconGripVertical size={18} stroke={2.1} aria-hidden="true" />
@@ -972,7 +978,7 @@ export default function BaseGenerationNode({ node, selected, readOnly = false }:
           >
             {TIMELINE_DRAG_HANDLE_LABEL}
           </span>
-        </button>
+        </div>
       ) : null}
 
       {selected && !readOnly && node.kind !== 'panorama' ? (

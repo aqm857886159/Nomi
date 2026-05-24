@@ -13,14 +13,12 @@ import {
   IconItalic,
   IconList,
   IconListNumbers,
-  IconMovie,
 } from '@tabler/icons-react'
 import SelectionGeneratePopover from './SelectionGeneratePopover'
-import { WorkbenchButton, WorkbenchIconButton } from '../../design'
+import { WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
 import { useWorkbenchStore } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvasV2/store/generationCanvasStore'
-import { requestStoryboardPlanning } from '../generationCanvasV2/agent/storyboardLauncher'
 import { normalizeWorkbenchContentJson, type CreationDocumentTools } from '../workbenchTypes'
 import { markdownToTiptapContent } from './markdownToTiptap'
 import { createImageNodeFromContent, createStoryboardNodeFromContent } from './creationNodeCommands'
@@ -41,44 +39,7 @@ type ToolbarAction = {
   onClick: () => void
 }
 
-type StoryboardLauncherProps = {
-  editor: Editor | null
-  onLaunch: () => void
-}
-
-function StoryboardLauncherButton({ editor, onLaunch }: StoryboardLauncherProps): JSX.Element {
-  const disabled = !editor || editor.getText({ blockSeparator: '\n' }).trim().length < 20
-  return (
-    <WorkbenchButton
-      type="button"
-      className={cn(
-        'workbench-editor-toolbar__storyboard',
-        'inline-flex items-center gap-[6px] h-[30px] px-[10px]',
-        'border border-nomi-line rounded-nomi-sm',
-        'bg-nomi-paper text-nomi-ink font-[inherit] text-[12.5px] font-medium cursor-pointer',
-        'hover:bg-nomi-accent-soft/40 hover:text-nomi-accent hover:border-[color-mix(in_oklch,var(--nomi-accent)_40%,transparent)]',
-        'disabled:cursor-not-allowed disabled:opacity-[0.4] disabled:hover:bg-nomi-paper disabled:hover:text-nomi-ink',
-      )}
-      aria-label="把全文交给 Agent 拆镜头"
-      title="把当前正文交给 Agent 拆成 6-12 个镜头节点"
-      data-storyboard-trigger="true"
-      disabled={disabled}
-      onMouseDown={(event) => event.preventDefault()}
-      onClick={onLaunch}
-    >
-      <IconMovie size={15} />
-      <span>拆镜头</span>
-    </WorkbenchButton>
-  )
-}
-
-function WorkbenchEditorToolbar({
-  editor,
-  onLaunchStoryboard,
-}: {
-  editor: Editor | null
-  onLaunchStoryboard: () => void
-}): JSX.Element {
+function WorkbenchEditorToolbar({ editor }: { editor: Editor | null }): JSX.Element {
   const actions: ToolbarAction[] = !editor ? [] : [
     {
       id: 'bold',
@@ -175,7 +136,6 @@ function WorkbenchEditorToolbar({
         />
       ))}
       <div className="flex-1" aria-hidden="true" />
-      <StoryboardLauncherButton editor={editor} onLaunch={onLaunchStoryboard} />
     </div>
   )
 }
@@ -312,21 +272,7 @@ export default function WorkbenchEditor(): JSX.Element {
       onKeyDown={(event) => event.stopPropagation()}
       onKeyUp={(event) => event.stopPropagation()}
     >
-      <WorkbenchEditorToolbar
-        editor={editor}
-        onLaunchStoryboard={() => {
-          if (!editor) return
-          const fullText = editor.getText({ blockSeparator: '\n' }).trim()
-          if (!fullText) return
-          setWorkspaceMode('generation')
-          // Allow the workspace mode switch to remount the generation canvas
-          // (and its assistant panel) before we dispatch the request, so the
-          // panel's event listener is attached when the event fires.
-          window.setTimeout(() => {
-            requestStoryboardPlanning({ storyText: fullText, source: 'creation-editor' })
-          }, 60)
-        }}
-      />
+      <WorkbenchEditorToolbar editor={editor} />
       <SelectionGeneratePopover editor={editor} selectedText={selectedText} onCreated={() => setSelectedText('')} />
       <div
         ref={scrollRef}

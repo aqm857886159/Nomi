@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconCursorText, IconFilePlus, IconReplace, IconSend2 } from '@tabler/icons-react'
+import { IconCursorText, IconFilePlus, IconMovie, IconReplace, IconSend2 } from '@tabler/icons-react'
 import { NomiAILabel, NomiLoadingMark, WorkbenchButton, WorkbenchIconButton } from '../../design'
 import ReactMarkdown from 'react-markdown'
 import { cn } from '../../utils/cn'
@@ -9,6 +9,7 @@ import { handleAiComposerKeyDown } from '../ai/aiComposerKeyboard'
 import type { WorkbenchAiMessage } from '../ai/workbenchAiTypes'
 import { openWorkbenchModelIntegration, WorkbenchAiHeaderActions } from '../ai/WorkbenchAiHeaderActions'
 import { useWorkbenchStore } from '../workbenchStore'
+import { requestStoryboardPlanning } from '../generationCanvasV2/agent/storyboardLauncher'
 import {
   buildCreationAiPrompt,
   CREATION_AI_MODES,
@@ -20,6 +21,8 @@ import {
 } from './creationAiModes'
 import type { CreationDocumentAction, CreationDocumentActionType } from '../workbenchTypes'
 import { useTransientScrollingClass } from './useTransientScrollingClass'
+
+const STORYBOARD_REQUEST_PATTERN = /拆镜头|分镜|拆分/
 
 function readUrlParam(name: string): string {
   if (typeof window === 'undefined') return ''
@@ -57,6 +60,7 @@ export default function CreationAiPanel(): JSX.Element {
   const setDraft = useWorkbenchStore((state) => state.setCreationAiDraft)
   const setMessages = useWorkbenchStore((state) => state.setCreationAiMessages)
   const setError = useWorkbenchStore((state) => state.setCreationAiError)
+  const setWorkspaceMode = useWorkbenchStore((state) => state.setWorkspaceMode)
   const resetConversation = useWorkbenchStore((state) => state.resetCreationAiConversation)
 
   const activeMode = getCreationAiMode(modeId as CreationAiModeId)
@@ -101,10 +105,36 @@ export default function CreationAiPanel(): JSX.Element {
     return <IconFilePlus size={13} />
   }, [])
 
+  const launchStoryboardPlanning = React.useCallback((displayPrompt = '🎬 拆镜头') => {
+    const storyText = (selectedText || documentText).trim()
+    if (!storyText) {
+      setError('先在左侧写一段故事，再让 AI 拆镜头。')
+      return
+    }
+    const now = Date.now()
+    setMessages((prev) => [
+      ...prev,
+      { id: `creation_ai_user_${now}`, role: 'user', content: displayPrompt },
+      { id: `creation_ai_assistant_${now + 1}`, role: 'assistant', content: '已切到生成区，正在让 AI 拆镜头。' },
+    ])
+    setDraft('')
+    setError('')
+    setWorkspaceMode('generation')
+    // Allow the generation workspace + assistant panel to mount before
+    // dispatching the CustomEvent it listens for.
+    window.setTimeout(() => {
+      requestStoryboardPlanning({ storyText, source: 'creation-ai-panel' })
+    }, 60)
+  }, [documentText, selectedText, setDraft, setError, setMessages, setWorkspaceMode])
+
   const send = React.useCallback(async () => {
     if (sending) return
     const userRequest = draft.trim()
     if (!userRequest && !selectedText && !documentText) return
+    if (STORYBOARD_REQUEST_PATTERN.test(userRequest)) {
+      launchStoryboardPlanning(userRequest || '🎬 拆镜头')
+      return
+    }
     const prompt = buildCreationAiPrompt({
       mode: activeMode,
       userRequest,
@@ -160,7 +190,7 @@ export default function CreationAiPanel(): JSX.Element {
     } finally {
       setSending(false)
     }
-  }, [activeMode, applyDocumentAction, documentText, draft, selectedText, sending])
+  }, [activeMode, applyDocumentAction, documentText, draft, launchStoryboardPlanning, selectedText, sending])
 
   const suggestions = React.useMemo(() => [
     '一段悬疑开场',
@@ -331,6 +361,23 @@ export default function CreationAiPanel(): JSX.Element {
               ))}
             </select>
           </label>
+          <WorkbenchButton
+            className={cn(
+              'workbench-creation-ai__storyboard-chip',
+              'shrink-0 h-[30px] inline-flex items-center gap-[5px] px-2.5',
+              'border border-nomi-line rounded-full bg-nomi-paper',
+              'text-nomi-ink-80 text-[12.5px] font-medium cursor-pointer',
+              'hover:bg-nomi-accent-soft/40 hover:text-nomi-accent hover:border-[color-mix(in_srgb,var(--nomi-accent)_36%,transparent)]',
+              'disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-nomi-paper disabled:hover:text-nomi-ink-80',
+            )}
+            type="button"
+            title="把当前正文交给 AI 拆成镜头节点"
+            disabled={sending || !(selectedText || documentText).trim()}
+            onClick={() => launchStoryboardPlanning('🎬 拆镜头')}
+          >
+            <IconMovie size={14} />
+            <span>拆镜头</span>
+          </WorkbenchButton>
           <WorkbenchIconButton
             className={cn(
               'workbench-creation-ai__send',

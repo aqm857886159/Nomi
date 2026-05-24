@@ -48,10 +48,24 @@
 /* ── TipTap / ProseMirror editor content typography ── */
 .workbench-editor__content {
   min-height: 100%;
+  padding: 24px 32px 80px;
   color: var(--workbench-ink);
+  cursor: text;
   font-size: 16px;
   line-height: 1.76;
   letter-spacing: 0;
+}
+
+.workbench-editor__scroll > div {
+  min-height: 100%;
+  display: flex;
+}
+
+.workbench-editor__scroll .ProseMirror,
+.workbench-editor__scroll .tiptap {
+  min-height: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .workbench-editor__content p {

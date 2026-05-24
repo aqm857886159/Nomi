@@ -1,7 +1,7 @@
 /**
  * Story → Storyboard demo launcher.
  *
- * The creation editor's "🎬 拆镜头" button calls
+ * The creation AI panel's "🎬 拆镜头" chip / natural-language trigger calls
  * `requestStoryboardPlanning(text)`; the generation-canvas assistant
  * panel listens on the same global event channel and runs the storyboard
  * planner skill against the supplied story text.
