@@ -201,6 +201,43 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     originCanvasY: number
   } | null>(null)
   const stageRef = React.useRef<HTMLDivElement>(null)
+  // E8 P0 G1: viewport-aware virtualization.
+  // When node count exceeds the threshold, we filter the render list to only
+  // nodes whose bounding box intersects the visible viewport (in canvas coords)
+  // expanded by VIRTUALIZATION_BUFFER_PX on every side. Below the threshold
+  // we keep current behavior (render every node) so small projects pay zero
+  // overhead.
+  const VIRTUALIZATION_THRESHOLD = 50
+  const VIRTUALIZATION_BUFFER_PX = 400
+  const [stageSize, setStageSize] = React.useState<{ width: number; height: number }>({ width: 0, height: 0 })
+  React.useEffect(() => {
+    const el = stageRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const update = () => setStageSize({ width: el.clientWidth, height: el.clientHeight })
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const visibleNodesForRender = React.useMemo(() => {
+    if (nodes.length <= VIRTUALIZATION_THRESHOLD || stageSize.width === 0 || stageSize.height === 0) {
+      return nodes
+    }
+    // Compute viewport in canvas coordinates
+    const z = zoom || 1
+    const viewLeft = -offset.x / z - VIRTUALIZATION_BUFFER_PX
+    const viewTop = -offset.y / z - VIRTUALIZATION_BUFFER_PX
+    const viewRight = viewLeft + stageSize.width / z + VIRTUALIZATION_BUFFER_PX * 2
+    const viewBottom = viewTop + stageSize.height / z + VIRTUALIZATION_BUFFER_PX * 2
+    return nodes.filter((node) => {
+      const nx = node.position.x
+      const ny = node.position.y
+      const nw = node.size?.width || 300
+      const nh = node.size?.height || 220
+      // AABB intersection test
+      return nx + nw >= viewLeft && nx <= viewRight && ny + nh >= viewTop && ny <= viewBottom
+    })
+  }, [nodes, zoom, offset, stageSize])
   const [selectionBox, setSelectionBox] = React.useState<{
     left: number
     top: number
@@ -806,7 +843,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
             </svg>
             <div className={cn('generation-canvas-v2__nodes', 'absolute top-0 left-0 w-[4000px] h-[3000px]')}>
               <React.Suspense fallback={null}>
-                {nodes.map((node) => {
+                {visibleNodesForRender.map((node) => {
                   const NodeComponent = getGenerationNodeComponent(node.kind)
                   return (
                     <NodeComponent key={node.id} node={node} selected={selectedSet.has(node.id)} readOnly={readOnly} />
