@@ -1,4 +1,5 @@
 import type { GenerationNodeKind } from './generationNodeKinds'
+import type { NodeRenderKind } from '../../project/projectCategories'
 
 export type { GenerationNodeKind } from './generationNodeKinds'
 
@@ -105,7 +106,30 @@ export type GenerationCanvasNode = {
    */
   categoryId?: CategoryId
   groupId?: string
+  /**
+   * E.2C-15 语义收窄：**仅用于跨分类独立副本**。
+   * 当一个节点从 A 分类拖到 B 分类时，B 中的新副本 derivedFrom = A 节点 id。
+   * 这是只读元数据，不做双向同步。
+   * 同分类内"基于此重新生成"用 `regeneratedFrom` 字段，避免语义混淆。
+   */
   derivedFrom?: string
+  /**
+   * E.2C-15 新增：同分类内"基于此节点重新生成变体"的关系。
+   * 与 derivedFrom 不同，这是同分类血缘链（V1 → V2 → V3），UI 不显示"独立副本"角标。
+   */
+  regeneratedFrom?: string
+  /**
+   * E.2C-15 新增：分镜分类自动编号（仅 shots 分类用）。
+   * 由 store selector 按 (categoryId='shots', position.y 升序) 计算并写入。
+   * 拖动后重新计算。其它分类节点不写入此字段。
+   */
+  shotIndex?: number
+  /**
+   * E.2C-15 新增：节点渲染样式分发 key。
+   * 决定 BaseGenerationNode 走哪个 render 组件（ShotFrameNode / CharacterCardNode 等）。
+   * 新建节点时按 category.defaultNodeRenderKind 写入。可选，缺省时按 categoryId 推断。
+   */
+  renderKind?: NodeRenderKind
 }
 
 export type NodeGroup = {

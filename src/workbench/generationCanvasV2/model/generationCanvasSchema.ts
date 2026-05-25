@@ -95,6 +95,12 @@ export const generationCanvasNodeSchema = z.object({
   categoryId: categoryIdSchema.optional(),
   groupId: z.string().optional(),
   derivedFrom: z.string().optional(),
+  // E.2C-15 新增字段
+  regeneratedFrom: z.string().optional(),
+  shotIndex: z.number().int().nonnegative().optional(),
+  renderKind: z
+    .enum(['shot-frame', 'character-card', 'scene-card', 'prop-card', 'audio-strip'])
+    .optional(),
 })
 
 export const nodeGroupSchema = z.object({
