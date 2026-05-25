@@ -862,8 +862,8 @@ export const iconsByName = {
 
 ## 10. 进度跟踪
 
-**有效进度**: 5 / 23 tasks (22%)（W0 升级类整批 → Phase E.3，不计入本 Phase）
-**当前 Wave**: ✅ W1 完成，准备进 W2
+**有效进度**: 5 / 18 tasks (28%)（W2 5 个分离组件 over-engineered，简化合并；W0 升级 → E.3）
+**当前 Wave**: 🚧 W2 进行中（简化版）
 **最后更新**: 2026-05-25
 
 | Wave | Task | 主题 | 状态 | Commit |
@@ -884,13 +884,13 @@ export const iconsByName = {
 | W1 | E.2C-14 | NodeRenderKind + Tabler 图标映射 | ✓ | pending |
 | W1 | E.2C-15 | Node 类型扩展（renderKind / regeneratedFrom / shotIndex）| ✓ | pending |
 | W1 | E.2C-16 | Migration v51→v60 | ✓ | pending |
-| W2 | E.2C-17 | NodeShell 抽离 | ⏸ | - |
-| W2 | E.2C-18 | ShotFrameNode | ⏸ | - |
-| W2 | E.2C-19 | CharacterCardNode | ⏸ | - |
-| W2 | E.2C-20 | SceneCardNode | ⏸ | - |
-| W2 | E.2C-21 | PropCardNode | ⏸ | - |
-| W2 | E.2C-22 | AudioStripNode | ⏸ | - |
-| W2 | E.2C-23 | BaseGenerationNode 改分发器 | ⏸ | - |
+| W2 | E.2C-17 | TitlePill 组件 + 集成（合并自 NodeShell） | ⏸ | - |
+| W2 | E.2C-18 | composer 永久内嵌（shots 分类） | ⏸ | - |
+| ~~W2~~ | E.2C-19 | CharacterCardNode | → 简化合并到 W3 视觉装饰 | - |
+| ~~W2~~ | E.2C-20 | SceneCardNode | → 简化合并到 W3 视觉装饰 | - |
+| ~~W2~~ | E.2C-21 | PropCardNode | → 简化合并到 W3 视觉装饰 | - |
+| ~~W2~~ | E.2C-22 | AudioStripNode | → 简化合并到 W3 视觉装饰 | - |
+| ~~W2~~ | E.2C-23 | BaseGenerationNode 改分发器 | → 现有 kind-plugin 已支持，无需重做 | - |
 | W2 | E.2C-24 | 空状态引导按钮 | ⏸ | - |
 | W3 | E.2C-25 | 副本角标新文案 | ⏸ | - |
 | W3 | E.2C-26 | 撤销 toast | ⏸ | - |
