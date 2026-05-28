@@ -1,0 +1,49 @@
+# Onboarding Lab fixtures — known test cases for batch regression.
+#
+# Each fixture is one (docs URL × target kind) trial. The agent should
+# produce a catalog entry that passes execute_test_curl.
+#
+# Add new ones when you find a real-world failure mode you want to lock in.
+
+# === kie.ai (Bearer auth, unified /api/v1/jobs/createTask async API) ===
+
+- name: kie-gpt-image-2-t2i
+  docs: https://docs.kie.ai/market/gpt/gpt-image-2-text-to-image
+  kind: image
+  expected: success
+  notes: |
+    First success trial (2026-05-28T14-36-15). 2 fields, 170k tokens, 87s.
+    Agent correctly identified the unified jobs/createTask endpoint.
+
+- name: kie-kling-3-0
+  docs: https://docs.kie.ai/market/kling/kling-3-0
+  kind: video
+  expected: success
+  notes: |
+    First success trial (2026-05-28T14-38-15). 10 fields incl. multi-shot
+    mode, sound, image_urls, callBackUrl. 300k tokens, 130s.
+
+- name: kie-seedance-2
+  docs: https://docs.kie.ai/market/bytedance/seedance-2
+  kind: video
+  expected: probably_success
+
+- name: kie-happyhorse-t2v
+  docs: https://docs.kie.ai/market/happyhorse/text-to-video
+  kind: video
+  expected: probably_success
+
+- name: kie-happyhorse-i2v
+  docs: https://docs.kie.ai/market/happyhorse/image-to-video
+  kind: video
+  expected: probably_success
+
+- name: kie-gemini-omni-video
+  docs: https://docs.kie.ai/market/gemini-omni-video
+  kind: video
+  expected: probably_success
+
+- name: kie-gpt-image-2-i2i
+  docs: https://docs.kie.ai/market/gpt/gpt-image-2-image-to-image
+  kind: image
+  expected: probably_success
