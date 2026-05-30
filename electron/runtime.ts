@@ -793,56 +793,12 @@ function catalogPath(): string {
 }
 
 function defaultCatalog(): CatalogState {
-  const t = nowIso();
+  // v0.8: empty catalog. Fresh users add their own models via the Wizard.
+  // No more phantom seed entries (chatfire/sora/gpt-4o-mini) that have no keys.
   return {
     version: CURRENT_CATALOG_VERSION,
-    vendors: [
-      {
-        key: "chatfire",
-        name: "ChatFire OpenAI Compatible",
-        enabled: true,
-        hasApiKey: false,
-        baseUrlHint: "https://api.chatfire.site",
-        authType: "bearer",
-        authHeader: null,
-        authQueryParam: null,
-        providerKind: "openai-compatible",
-        createdAt: t,
-        updatedAt: t,
-      },
-    ],
-    models: [
-      {
-        modelKey: "gpt-image-1",
-        vendorKey: "chatfire",
-        modelAlias: "gpt-image-1",
-        labelZh: "GPT Image",
-        kind: "image",
-        enabled: true,
-        createdAt: t,
-        updatedAt: t,
-      },
-      {
-        modelKey: "sora",
-        vendorKey: "chatfire",
-        modelAlias: "sora",
-        labelZh: "Sora Video",
-        kind: "video",
-        enabled: true,
-        createdAt: t,
-        updatedAt: t,
-      },
-      {
-        modelKey: "gpt-4o-mini",
-        vendorKey: "chatfire",
-        modelAlias: "gpt-4o-mini",
-        labelZh: "GPT-4o mini",
-        kind: "text",
-        enabled: true,
-        createdAt: t,
-        updatedAt: t,
-      },
-    ],
+    vendors: [],
+    models: [],
     mappings: [],
     apiKeysByVendor: {},
   };
