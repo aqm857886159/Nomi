@@ -463,13 +463,16 @@ function BaseGenerationNodeImpl({ node, selected, readOnly = false, focusFlash =
   // 配合 spec §6.1 修正 3：composer 内嵌到 card flex 流，与图像区共占节点视觉空间
   // [DESIGN-CARDS-07] renderKind 分发：非 shots 分类用专属 card 组件
   // renderKind 优先级：node.renderKind > 按 categoryId 推断
-  const renderKind = (node.renderKind as string | undefined) ?? (
+  // 素材节点：永远走纯图片预览。强制 renderKind=undefined，否则落进 cast/scene 分类的素材
+  // 会被推断成角色卡/场景卡（A1.5 边界 1）。素材不挂 composer、不渲染生成占位。
+  const isAssetKind = node.kind === 'asset'
+  const renderKind = isAssetKind ? undefined : ((node.renderKind as string | undefined) ?? (
     node.categoryId === 'cast' ? 'character-card' :
     node.categoryId === 'scene' ? 'scene-card' :
     node.categoryId === 'prop' ? 'prop-card' :
     node.categoryId === 'audio' ? 'audio-strip' :
     undefined
-  )
+  ))
   const isCardKind = renderKind === 'character-card' || renderKind === 'scene-card' || renderKind === 'prop-card' || renderKind === 'audio-strip'
   const isImageGridSplitNode = node.kind === 'image' && typeof node.meta?.source === 'string' && node.meta.source.startsWith('image-grid-split-')
   const storedPreviewHeight = typeof node.meta?.previewHeight === 'number' && Number.isFinite(node.meta.previewHeight)
@@ -686,7 +689,7 @@ function BaseGenerationNodeImpl({ node, selected, readOnly = false, focusFlash =
         </div>
       ) : null}
 
-      {node.kind === 'image' && selected && !readOnly && node.result?.type === 'image' && node.result.url ? (
+      {(node.kind === 'image' || isAssetKind) && selected && !readOnly && node.result?.type === 'image' && node.result.url ? (
         <NodeImageEditToolbar
           splittingGridSize={imageEditing.splittingGridSize}
           cropMode={imageEditing.cropMode}
@@ -866,7 +869,7 @@ function BaseGenerationNodeImpl({ node, selected, readOnly = false, focusFlash =
             )}
           </div>
         )}
-        {imageEditing.cropMode && node.kind === 'image' && node.result?.type === 'image' && node.result.url ? (
+        {imageEditing.cropMode && (node.kind === 'image' || isAssetKind) && node.result?.type === 'image' && node.result.url ? (
           <ImageCropOverlay
             imageUrl={node.result.url}
             onConfirm={(rect) => { void imageEditing.handleCropConfirm(rect) }}
@@ -919,8 +922,8 @@ function BaseGenerationNodeImpl({ node, selected, readOnly = false, focusFlash =
       ) : null}
 
       {/* composer：仅生成类节点 + 选中时浮出（A1.5 抽成 NodeGenerationComposer）。
-          素材节点不挂它；点中节点才弹出 prompt + 参数 + 生成按钮，未选中只看图。 */}
-      {selected && !readOnly && node.kind !== 'panorama' ? (
+          素材节点（asset）/ 全景图不挂它；点中节点才弹出 prompt + 参数 + 生成按钮，未选中只看图。 */}
+      {selected && !readOnly && node.kind !== 'panorama' && !isAssetKind ? (
         <NodeGenerationComposer node={node} visualSize={visualSize} />
       ) : null}
       {selected && !readOnly ? RESIZE_DIRECTIONS.map((direction) => (

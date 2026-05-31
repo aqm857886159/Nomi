@@ -167,6 +167,21 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     providesImageReference: true,
     promptPlaceholder: '上传或截取全景参考图...',
   },
+  {
+    // 素材：导入图 / 文件树拖入 / 本地切图裁剪旋转衍生物。它就是一张图，不是生成节点：
+    // 无 executionKind（不会生成）、无 composer（壳按 isAssetKind 关闭）、不可手动新建（quickAdd:false）、
+    // 不进 agent 工具（agentCreatable 缺省 false）。仍可作参考被连线（providesImageReference）。
+    kind: 'asset',
+    label: 'Asset',
+    menuLabel: '素材',
+    component: loadBaseGenerationNode,
+    icon: 'image',
+    defaultTitle: '素材',
+    defaultSize: { width: 340, height: 280 },
+    catalogKind: 'image',
+    quickAdd: false,
+    providesImageReference: true,
+  },
 ])
 
 export type GenerationNodePlugin = typeof GENERATION_NODE_PLUGINS[number]
