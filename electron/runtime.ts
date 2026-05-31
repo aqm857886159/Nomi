@@ -20,6 +20,16 @@ import {
   type CanvasToolName,
 } from "./ai/canvasTools";
 import { logCostEntry, summarizeProjectCost, type CostEntry } from "./cost/costLog";
+import {
+  type AuthType,
+  appendQueryParams,
+  authHeaders as buildAuthHeaders,
+  authQueryParams as buildAuthQueryParams,
+  buildHttpRequest,
+  buildTemplateContext,
+  extractTaskId as extractTaskIdShared,
+  looksLikeLogicalError,
+} from "./ai/requestPipeline";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -1853,16 +1863,14 @@ function findExecutableModelForTask(vendorKey: string, modelKey: string, kind: B
   return findExecutableModel(vendorKey, model.modelKey, kind);
 }
 
+// Thin Vendor→primitive adapters over the shared requestPipeline auth logic
+// (the shared module is electron-free and doesn't know the Vendor shape).
 function authHeaders(vendor: Vendor, apiKey: string): Record<string, string> {
-  if (!apiKey || vendor.authType === "none") return {};
-  if (vendor.authType === "x-api-key") return { [vendor.authHeader || "X-API-Key"]: apiKey };
-  if (vendor.authType === "query") return {};
-  return { Authorization: `Bearer ${apiKey}` };
+  return buildAuthHeaders(vendor.authType as AuthType, apiKey, vendor.authHeader ?? undefined);
 }
 
 function authQueryParams(vendor: Vendor, apiKey: string): Record<string, string> {
-  if (!apiKey || vendor.authType !== "query") return {};
-  return { [vendor.authQueryParam || "api_key"]: apiKey };
+  return buildAuthQueryParams(vendor.authType as AuthType, apiKey, vendor.authQueryParam ?? undefined);
 }
 
 function endpoint(vendor: Vendor, suffix: string): string {
@@ -1873,19 +1881,6 @@ function endpoint(vendor: Vendor, suffix: string): string {
   // "https://api.example.com/v1" URLs.
   if (suffix && base.endsWith(suffix)) return base;
   return `${base}${suffix}`;
-}
-
-function appendQueryParams(url: string, params: Record<string, unknown>): string {
-  const parsed = new URL(url);
-  for (const [key, value] of Object.entries(params)) {
-    if (!key || value == null) continue;
-    const values = Array.isArray(value) ? value : [value];
-    for (const item of values) {
-      if (item == null || item === "") continue;
-      parsed.searchParams.append(key, String(item));
-    }
-  }
-  return parsed.toString();
 }
 
 function firstString(...values: unknown[]): string {
@@ -1919,23 +1914,6 @@ function extractAssetUrl(raw: unknown): string {
     (record.result as JsonRecord | undefined)?.image_url,
   ];
   return firstString(...candidates);
-}
-
-function extractTaskId(raw: unknown): string {
-  if (!raw || typeof raw !== "object") return "";
-  const record = raw as JsonRecord;
-  const data = record.data as JsonRecord | undefined;
-  // Async job APIs commonly wrap the id in a `data` envelope (kie: data.taskId).
-  // Probe both the top level and one level into `data` so the create response's
-  // task id is captured even when no response_mapping is configured.
-  return firstString(
-    record.id,
-    record.taskId,
-    record.task_id,
-    data?.id,
-    data?.taskId,
-    data?.task_id,
-  );
 }
 
 async function postJson(url: string, apiKey: string, vendor: Vendor, body: unknown): Promise<unknown> {
@@ -2015,89 +1993,19 @@ function taskTemplateParams(request: TaskRequest): JsonRecord {
   };
 }
 
+// Adapter over the shared requestPipeline context builder. Production maps the
+// rich TaskRequest fields into normalized params via `taskTemplateParams`; the
+// canonical context shape (model/account/user_api_key/providerMeta) lives in the
+// shared module so the wizard test and production build identical contexts.
 function templateContext(request: TaskRequest, model: Model, apiKey: string, providerMeta: JsonRecord = {}): JsonRecord {
-  const params = taskTemplateParams(request);
-  return {
-    request: {
-      ...request,
-      params,
-    },
-    model: {
-      ...model,
-      model_key: model.modelAlias || model.modelKey,
-      model_alias: model.modelAlias || model.modelKey,
-    },
-    account: {
-      account_key: apiKey,
-      api_key: apiKey,
-    },
-    // The onboarding subsystem (curlBlueprint / systemPrompt / tools) standardizes
-    // on `{{user_api_key}}` for the auth header, and its test-curl context provides
-    // it — so onboarded mappings pass the in-wizard test. Production must expose the
-    // SAME name or every onboarded mapping emits `Authorization: Bearer ` (empty) and
-    // 401s. `account.*` stays for older hand-authored mappings.
-    user_api_key: apiKey,
+  return buildTemplateContext({
+    request: request as unknown as JsonRecord,
+    params: taskTemplateParams(request),
+    model: model as unknown as JsonRecord,
+    modelKey: model.modelAlias || model.modelKey,
+    apiKey,
     providerMeta,
-  };
-}
-
-function readTemplatePath(context: JsonRecord, expression: string): unknown {
-  const normalized = expression.trim();
-  if (!normalized) return undefined;
-  const parts = normalized.split(".").map((part) => part.trim()).filter(Boolean);
-  let current: unknown = context;
-  for (const part of parts) {
-    if (!isJsonRecord(current)) return undefined;
-    current = current[part];
-  }
-  return current;
-}
-
-function renderTemplateString(input: string, context: JsonRecord): unknown {
-  const exact = input.match(/^\{\{\s*([^}]+)\s*\}\}$/);
-  if (exact) return readTemplatePath(context, exact[1]);
-  return input.replace(/\{\{\s*([^}]+)\s*\}\}/g, (_match, expression: string) => {
-    const value = readTemplatePath(context, expression);
-    if (value == null) return "";
-    return typeof value === "string" ? value : JSON.stringify(value);
   });
-}
-
-function renderTemplateValue(value: unknown, context: JsonRecord): unknown {
-  if (typeof value === "string") return renderTemplateString(value, context);
-  if (Array.isArray(value)) {
-    return value.map((item) => renderTemplateValue(item, context)).filter((item) => typeof item !== "undefined");
-  }
-  if (isJsonRecord(value)) {
-    const out: JsonRecord = {};
-    for (const [key, child] of Object.entries(value)) {
-      const rendered = renderTemplateValue(child, context);
-      if (typeof rendered !== "undefined") out[key] = rendered;
-    }
-    return out;
-  }
-  return value;
-}
-
-function renderedRecord(value: unknown): Record<string, unknown> {
-  return isJsonRecord(value) ? value : {};
-}
-
-function stringifyHeaders(headers: Record<string, unknown>): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(headers)) {
-    if (!key || value == null || value === "") continue;
-    out[key] = String(value);
-  }
-  return out;
-}
-
-function redactHeaders(headers: Record<string, string>): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(headers)) {
-    out[key] = /authorization|api[-_]?key/i.test(key) ? "[redacted]" : value;
-  }
-  return out;
 }
 
 async function requestJson(
@@ -2129,12 +2037,7 @@ async function requestJson(
   // a logical-error envelope `{ code: 4xx/5xx, msg/message: "..." }` instead of
   // a real error status. Treat that as a failure too, otherwise we'd hand a
   // body with no asset URL to the result builder and report a silent dud.
-  const logicalCode = (() => {
-    const c = record.code;
-    if (typeof c === "number" && c >= 400 && c < 600) return c;
-    if (typeof c === "string" && /^\d{3}$/.test(c) && Number(c) >= 400) return Number(c);
-    return null;
-  })();
+  const logicalCode = looksLikeLogicalError(record);
   if (!response.ok || logicalCode != null) {
     const upstreamMsg = firstString(
       record.msg,
@@ -2152,11 +2055,6 @@ async function requestJson(
   return json;
 }
 
-function operationUrl(vendor: Vendor, operationPath: string): string {
-  if (/^https?:\/\//i.test(operationPath)) return operationPath;
-  return endpoint(vendor, operationPath.startsWith("/") ? operationPath : `/${operationPath}`);
-}
-
 function buildProfileHttpRequest(input: {
   vendor: Vendor;
   model: Model;
@@ -2165,34 +2063,16 @@ function buildProfileHttpRequest(input: {
   operation: HttpOperation;
   providerMeta?: JsonRecord;
 }): { method: string; url: string; headers: Record<string, string>; query: Record<string, unknown>; body: unknown; preview: unknown } {
-  const context = templateContext(input.request, input.model, input.apiKey, input.providerMeta || {});
-  const method = firstString(input.operation.method) || "POST";
-  const renderedPath = renderTemplateValue(input.operation.path || "/v1/tasks", context);
-  const url = operationUrl(input.vendor, String(renderedPath || "/v1/tasks"));
-  const renderedHeaders = stringifyHeaders(renderedRecord(renderTemplateValue(input.operation.headers, context)));
-  const headers = {
-    ...authHeaders(input.vendor, input.apiKey),
-    ...renderedHeaders,
-  };
-  const upperMethod = method.toUpperCase();
-  const renderedBody = renderTemplateValue(input.operation.body, context);
-  if (upperMethod !== "GET" && upperMethod !== "HEAD" && renderedBody != null && !Object.keys(headers).some((key) => key.toLowerCase() === "content-type")) {
-    headers["Content-Type"] = "application/json";
-  }
-  const query = renderedRecord(renderTemplateValue(input.operation.query, context));
-  return {
-    method: upperMethod,
-    url,
-    headers,
-    query,
-    body: renderedBody,
-    preview: {
-      method: upperMethod,
-      url: appendQueryParams(url, query),
-      headers: redactHeaders(headers),
-      body: renderedBody,
-    },
-  };
+  // Single source of truth: the shared requestPipeline builds the exact request
+  // the wizard test also builds, so "passed test" == "works in prod".
+  return buildHttpRequest({
+    baseUrl: String(input.vendor.baseUrlHint || ""),
+    authType: input.vendor.authType as AuthType,
+    authHeaderName: input.vendor.authHeader ?? undefined,
+    apiKey: input.apiKey,
+    context: templateContext(input.request, input.model, input.apiKey, input.providerMeta || {}),
+    operation: input.operation,
+  });
 }
 
 async function executeProfileOperation(input: {
@@ -2316,7 +2196,7 @@ function providerMetaFromResponse(response: unknown, mapping: JsonRecord | null)
       if (value) meta[key] = value;
     }
   }
-  const taskId = firstString(meta.query_id, meta.task_id, extractTaskId(response));
+  const taskId = firstString(meta.query_id, meta.task_id, extractTaskIdShared(response));
   if (taskId) {
     meta.query_id = meta.query_id || taskId;
     meta.task_id = meta.task_id || taskId;
@@ -2341,7 +2221,7 @@ async function buildProfileTaskResult(input: {
     firstMappedString(input.response, responseMapping, "task_id"),
     providerMeta.task_id,
     providerMeta.query_id,
-    extractTaskId(input.response),
+    extractTaskIdShared(input.response),
     input.taskIdFallback,
   );
   const mappedAssetValues = [
@@ -2445,7 +2325,7 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
     extras: request.extras,
   });
   const assetUrl = extractAssetUrl(providerResponse);
-  const upstreamTaskId = extractTaskId(providerResponse) || taskId;
+  const upstreamTaskId = extractTaskIdShared(providerResponse) || taskId;
   if (!assetUrl) {
     taskCache.set(upstreamTaskId, { vendor: vendorKey, request, raw: providerResponse, model, apiKey, projectId, nodeId, wantedKind });
     return { id: upstreamTaskId, kind, status: "queued", assets: [], raw: providerResponse };

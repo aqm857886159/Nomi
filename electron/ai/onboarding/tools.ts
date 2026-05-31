@@ -19,6 +19,14 @@ import { draftStore, looksAsyncResponse } from "./draft";
 import { extractTables, extractCurlExamples, extractCodeBlocks, htmlToMarkdown } from "./docExtractors";
 import { extractOpenApiOperations, extractDehydratedParameters, extractEmbeddedParameterData, extractSpecLinks } from "./specExtractors";
 import { parseCurlBlueprint } from "./curlBlueprint";
+import {
+  appendQueryParams,
+  buildHttpRequest,
+  buildTemplateContext,
+  extractTaskId as extractTaskIdShared,
+  looksLikeLogicalError,
+  redactHeaders,
+} from "../requestPipeline";
 import type {
   ProviderKind, AuthType,
   FieldEvidence, FieldDefinition, RequestProfileOperation, RequestProfileStage,
@@ -391,24 +399,10 @@ export function buildOnboardingTools(hooks: ToolHooks) {
         const providerMeta: Record<string, string> = {};
         if (stage === "query") {
           const lastCreate = [...draft.testAttempts].reverse().find((t) => t.stage === "create" && t.ok);
-          const createPaths = draft.mappingCreate?.response_mapping || {};
-          const taskIdPath = (createPaths as Record<string, string>).task_id;
-          const seedFromBody = (body: unknown): string => {
-            if (!body || typeof body !== "object") return "";
-            const obj = body as Record<string, unknown>;
-            const followPath = (p: string): unknown => p.split(".").reduce<unknown>((acc, k) => (acc && typeof acc === "object" ? (acc as Record<string, unknown>)[k] : undefined), obj);
-            if (taskIdPath) {
-              const v = followPath(taskIdPath);
-              if (typeof v === "string" || typeof v === "number") return String(v);
-            }
-            // Fallback: common shapes.
-            for (const path of ["data.taskId", "data.task_id", "data.id", "taskId", "task_id", "id", "data.jobId", "jobId"]) {
-              const v = followPath(path);
-              if (typeof v === "string" || typeof v === "number") return String(v);
-            }
-            return "";
-          };
-          const seeded = lastCreate ? seedFromBody(lastCreate.response.body) : "";
+          const taskIdPath = (draft.mappingCreate?.response_mapping as Record<string, string> | undefined)?.task_id;
+          // Same extractor production uses → the wizard seeds the SAME task id
+          // that prod would (explicit response_mapping path, then data envelope).
+          const seeded = lastCreate ? extractTaskIdShared(lastCreate.response.body, taskIdPath) : "";
           if (seeded) {
             providerMeta.task_id = seeded;
             providerMeta.query_id = seeded;
@@ -419,16 +413,27 @@ export function buildOnboardingTools(hooks: ToolHooks) {
             providerMeta.query_id = (params as Record<string, string>).taskId;
           }
         }
-        const context = {
-          request: { prompt, params: { ...(params || {}) } },
-          model: { modelKey: draft.modelKey, model_key: draft.modelKey },
-          user_api_key: userApiKey,
+        // Build the request through the SHARED pipeline — byte-for-byte the same
+        // construction production uses, so "test passes" == "prod works".
+        const context = buildTemplateContext({
+          request: { prompt },
+          params: { ...(params || {}) },
+          model: {},
+          modelKey: draft.modelKey || "",
+          apiKey: userApiKey,
           providerMeta,
-        };
-        const renderedUrl = (() => {
-          if (/^https?:\/\//i.test(op.path)) return renderTemplate(op.path, context);
-          return draft.vendorBaseUrl + (op.path.startsWith("/") ? "" : "/") + renderTemplate(op.path, context);
-        })();
+        });
+        const built = buildHttpRequest({
+          baseUrl: draft.vendorBaseUrl,
+          authType: draft.vendorAuth.type,
+          authHeaderName: draft.vendorAuth.headerName,
+          apiKey: userApiKey,
+          context,
+          operation: op,
+        });
+        const renderedUrl = built.url;
+        const headers = built.headers;
+        const renderedBody = built.body;
 
         // Domain whitelist enforcement
         const allowedDomain = hooks.allowedDomain?.() || draft.vendorBaseUrl;
@@ -442,45 +447,18 @@ export function buildOnboardingTools(hooks: ToolHooks) {
           return err(`Invalid URL: ${renderedUrl}`);
         }
 
-        const headers: Record<string, string> = {};
-        // Auth header
-        if (draft.vendorAuth.type === "bearer") {
-          headers["Authorization"] = `Bearer ${userApiKey}`;
-        } else if (draft.vendorAuth.type === "x-api-key" && draft.vendorAuth.headerName) {
-          headers[draft.vendorAuth.headerName] = userApiKey;
-        }
-        // user-defined headers
-        if (op.headers) {
-          for (const [k, v] of Object.entries(op.headers)) {
-            headers[k] = renderTemplate(v, context);
-          }
-        }
-        if (!headers["Content-Type"] && op.body !== undefined) {
-          headers["Content-Type"] = "application/json";
-        }
-
-        const renderedBody = op.body !== undefined ? renderTemplateValue(op.body, context) : undefined;
-
         const startedAt = Date.now();
         let status = 0;
         let respBody: unknown = null;
         let diagnostics: string[] = [];
         let okFlag = false;
         try {
-          // Render query params (op.query) into the URL.
-          let finalUrl = renderedUrl;
-          if (op.query && Object.keys(op.query).length > 0) {
-            const u = new URL(renderedUrl);
-            for (const [k, v] of Object.entries(op.query)) {
-              const rendered = renderTemplate(String(v), context);
-              if (rendered !== "") u.searchParams.set(k, rendered);
-            }
-            finalUrl = u.toString();
-          }
+          // Query params were already rendered by buildHttpRequest; fold them in.
+          const finalUrl = appendQueryParams(built.url, built.query);
           const result = await hardenedFetch(finalUrl, {
             timeoutMs: 60_000,
             maxBytes: 10 * 1024 * 1024,
-            method: op.method,
+            method: built.method,
             headers,
             body: renderedBody,
             throwOnNon2xx: false,
@@ -509,7 +487,7 @@ export function buildOnboardingTools(hooks: ToolHooks) {
         draftStore.appendTestAttempt(sessionId, {
           timestamp: startedAt,
           stage: stage as RequestProfileStage,
-          request: { method: op.method, url: renderedUrl, headers: redactHeaders(headers), body: redactBody(renderedBody) },
+          request: { method: built.method, url: renderedUrl, headers: redactHeaders(headers), body: redactBody(renderedBody) },
           response: { status, body: respBody },
           ok: okFlag,
           diagnostics,
@@ -574,58 +552,6 @@ export function buildOnboardingTools(hooks: ToolHooks) {
 // Template rendering  -  supports {{request.prompt}} etc.
 // =================================================================
 
-function readPath(ctx: unknown, expr: string): unknown {
-  const parts = expr.trim().split(".");
-  let cur: unknown = ctx;
-  for (const part of parts) {
-    if (cur && typeof cur === "object" && part in (cur as Record<string, unknown>)) {
-      cur = (cur as Record<string, unknown>)[part];
-    } else {
-      return undefined;
-    }
-  }
-  return cur;
-}
-
-function renderTemplate(input: string, ctx: unknown): string {
-  // exact-match passthrough (return raw value if entire string is one expr)
-  const exact = input.match(/^\{\{\s*([^}]+)\s*\}\}$/);
-  if (exact) {
-    const val = readPath(ctx, exact[1]);
-    return val == null ? "" : String(val);
-  }
-  return input.replace(/\{\{\s*([^}]+)\s*\}\}/g, (_m, e) => {
-    const v = readPath(ctx, e);
-    if (v == null) return "";
-    return typeof v === "string" ? v : JSON.stringify(v);
-  });
-}
-
-function renderTemplateValue(value: unknown, ctx: unknown): unknown {
-  if (typeof value === "string") {
-    const exact = value.match(/^\{\{\s*([^}]+)\s*\}\}$/);
-    if (exact) return readPath(ctx, exact[1]);
-    return renderTemplate(value, ctx);
-  }
-  if (Array.isArray(value)) return value.map((v) => renderTemplateValue(v, ctx));
-  if (value && typeof value === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      out[k] = renderTemplateValue(v, ctx);
-    }
-    return out;
-  }
-  return value;
-}
-
-function redactHeaders(headers: Record<string, string>): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(headers)) {
-    out[k] = /authorization|api[-_]?key|token/i.test(k) ? "[REDACTED]" : v;
-  }
-  return out;
-}
-
 function redactBody(body: unknown): unknown {
   if (typeof body !== "object" || body === null) return body;
   if (Array.isArray(body)) return body.map(redactBody);
@@ -638,22 +564,6 @@ function redactBody(body: unknown): unknown {
     }
   }
   return out;
-}
-
-/**
- * Many providers (kie.ai, etc.) return HTTP 200 with a logical-error envelope
- * `{ code: 404, msg: "...", data: null }`. Detect that so we don't claim
- * success when the real call failed.
- *
- * Returns the logical error code if detected, else null.
- */
-function looksLikeLogicalError(body: unknown): number | null {
-  if (!body || typeof body !== "object") return null;
-  const obj = body as Record<string, unknown>;
-  const code = obj.code;
-  if (typeof code === "number" && code >= 400 && code < 600) return code;
-  if (typeof code === "string" && /^\d{3}$/.test(code) && Number(code) >= 400) return Number(code);
-  return null;
 }
 
 function buildDiagnostics(status: number, body: unknown): string[] {
