@@ -525,7 +525,7 @@ function BaseGenerationNodeImpl({ node, selected, readOnly = false, focusFlash =
     const { dataUrl, dimensions } = screenshot
     const createdAt = Date.now()
     const screenshotNode = addNode({
-      kind: 'image',
+      kind: 'asset',
       title: screenshot.title || '全景截图',
       prompt: screenshot.prompt || '全景视口截图',
       position: {

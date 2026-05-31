@@ -650,7 +650,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
       const url = buildWorkspaceFileUrl(workspaceDrag.projectId, workspaceDrag.relativePath)
       const store = useGenerationCanvasStore.getState()
       const node = store.addNode({
-        kind: 'image',
+        kind: 'asset',
         title: workspaceDrag.name.replace(/\.[^.]+$/, '') || '本地素材',
         prompt: '',
         position: { x: Math.max(40, Math.round(basePosition.x)), y: Math.max(40, Math.round(basePosition.y)) },

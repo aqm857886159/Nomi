@@ -164,7 +164,7 @@ export async function importImageFilesToGenerationCanvas(
     const persistableUrl = await readFileDataUrl(file)
     const size = nodeSizeForDimensions(dimensions)
     const node = useGenerationCanvasStore.getState().addNode({
-      kind: 'image',
+      kind: 'asset',
       title: file.name || '参考图片',
       prompt: '',
       position: {
