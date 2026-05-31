@@ -1,22 +1,17 @@
 import React from 'react'
 import { cn } from '../../utils/cn'
 import { type ProjectCategory } from '../project/projectCategories'
-import { useWorkbenchStore, type WorkspaceMode } from '../workbenchStore'
+import { useWorkbenchStore } from '../workbenchStore'
 import CategoryTree from '../sidebar/CategoryTree'
 import WorkspaceFileExplorerPanel from './WorkspaceFileExplorerPanel'
 
 type Props = {
   categories?: ProjectCategory[]
   projectId?: string | null
-  workspaceMode?: WorkspaceMode
 }
 
-export default function ProjectExplorerSidebar({ categories, projectId = null, workspaceMode = 'generation' }: Props): JSX.Element {
-  const preferredTab = workspaceMode === 'creation' ? 'categories' : 'files'
-  const [tab, setTab] = React.useState<'categories' | 'files'>(preferredTab)
-  React.useEffect(() => {
-    setTab(preferredTab)
-  }, [preferredTab])
+export default function ProjectExplorerSidebar({ categories, projectId = null }: Props): JSX.Element {
+  const [tab, setTab] = React.useState<'categories' | 'files'>('files')
   const collapsed = useWorkbenchStore((s) => s.sidebarCollapsed)
   const toggle = useWorkbenchStore((s) => s.toggleSidebarCollapsed)
 

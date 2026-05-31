@@ -96,12 +96,15 @@ export default function WorkbenchShell({ generation, generationAi, generationAiL
         onRenameProject={onRenameProject}
       />
 
-      {/* 左侧面板重做: 分类导航 + 文件树统一收进 ProjectExplorerSidebar 的双 Tab。 */}
+      {/* 左侧面板重做: 分类导航 + 文件树统一收进 ProjectExplorerSidebar 的双 Tab。
+          创作模式是纯文稿写作，不挂项目资源树（仅生成/预览显示）。 */}
       <main className={cn(
         'workbench-shell__body',
         'relative min-w-0 min-h-0 overflow-hidden flex',
       )}>
-        <ProjectExplorerSidebar projectId={projectId ?? null} workspaceMode={workspaceMode} />
+        {workspaceMode !== 'creation' ? (
+          <ProjectExplorerSidebar projectId={projectId ?? null} />
+        ) : null}
         <div className="flex-1 min-w-0 min-h-0 relative">
           <React.Suspense fallback={<div className={cn('workbench-shell__loading', 'w-full h-full bg-workbench-bg')} aria-label="工作区加载中" />}>
             <div className={cn('workbench-shell__workspace', 'w-full h-full min-w-0 min-h-0')} hidden={workspaceMode !== 'creation'}>
