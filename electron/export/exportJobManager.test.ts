@@ -57,7 +57,7 @@ describe("ExportJobManager", () => {
       id: "job-1",
       projectId: "project-1",
       projectDir,
-      jobDir: path.join(projectDir, "cache", "export-job-1"),
+      jobDir: path.join(projectDir, ".nomi", "jobs", "job-1"),
       status: "queued",
       progress: { ratio: 0, stage: "queued", message: "Queued" },
       cancelled: false,

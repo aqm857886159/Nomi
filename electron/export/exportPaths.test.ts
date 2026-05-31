@@ -24,14 +24,14 @@ function makeTempDir(): string {
 }
 
 describe("ensureExportDirs", () => {
-  it("creates and returns the project exports and cache directories", () => {
+  it("creates and returns the project exports and .nomi/jobs directories", () => {
     const projectDir = makeTempDir();
 
     const dirs = ensureExportDirs(projectDir);
 
     expect(dirs).toEqual({
       exportsDir: path.join(projectDir, "exports"),
-      cacheDir: path.join(projectDir, "cache"),
+      cacheDir: path.join(projectDir, ".nomi", "jobs"),
     });
     expect(fs.statSync(dirs.exportsDir).isDirectory()).toBe(true);
     expect(fs.statSync(dirs.cacheDir).isDirectory()).toBe(true);
@@ -39,12 +39,12 @@ describe("ensureExportDirs", () => {
 });
 
 describe("createExportTempDir", () => {
-  it("creates temp directories under cache/export-jobId", () => {
+  it("creates temp directories under .nomi/jobs/jobId", () => {
     const projectDir = makeTempDir();
 
     const tempDir = createExportTempDir(projectDir, "job-123");
 
-    expect(tempDir).toBe(path.join(projectDir, "cache", "export-job-123"));
+    expect(tempDir).toBe(path.join(projectDir, ".nomi", "jobs", "job-123"));
     expect(fs.statSync(tempDir).isDirectory()).toBe(true);
   });
 });

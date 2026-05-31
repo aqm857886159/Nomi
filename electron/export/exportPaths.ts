@@ -4,7 +4,7 @@ import path from "node:path";
 export function ensureExportDirs(projectDir: string): { exportsDir: string; cacheDir: string } {
   const resolvedProjectDir = path.resolve(projectDir);
   const exportsDir = path.join(resolvedProjectDir, "exports");
-  const cacheDir = path.join(resolvedProjectDir, "cache");
+  const cacheDir = path.join(resolvedProjectDir, ".nomi", "jobs");
   fs.mkdirSync(exportsDir, { recursive: true });
   fs.mkdirSync(cacheDir, { recursive: true });
   return { exportsDir, cacheDir };
@@ -30,7 +30,7 @@ function sanitizePathSegment(value: string): string {
 
 export function createExportTempDir(projectDir: string, jobId: string): string {
   const { cacheDir } = ensureExportDirs(projectDir);
-  const tempDir = path.join(cacheDir, `export-${sanitizePathSegment(jobId)}`);
+  const tempDir = path.join(cacheDir, sanitizePathSegment(jobId));
   fs.mkdirSync(tempDir, { recursive: true });
   return tempDir;
 }

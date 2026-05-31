@@ -59,15 +59,15 @@ export class ExportJobStore {
   }
 
   loadRecentJobs(projectDir: string): ExportJobSnapshot[] {
-    const cacheDir = path.join(path.resolve(projectDir), "cache");
-    if (!fs.existsSync(cacheDir)) {
+    const jobsDir = path.join(path.resolve(projectDir), ".nomi", "jobs");
+    if (!fs.existsSync(jobsDir)) {
       return [];
     }
 
     return fs
-      .readdirSync(cacheDir, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory() && entry.name.startsWith("export-"))
-      .map((entry) => path.join(cacheDir, entry.name, "job.json"))
+      .readdirSync(jobsDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => path.join(jobsDir, entry.name, "job.json"))
       .filter((jobPath) => fs.existsSync(jobPath))
       .map((jobPath) => readJson<ExportJobSnapshot>(jobPath))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));

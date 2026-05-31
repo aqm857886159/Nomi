@@ -1725,11 +1725,16 @@ function collectFilesRecursively(dir: string): string[] {
   return files;
 }
 
-function uniqueAssetPath(projectId: string, fileName: string): { absolutePath: string; relativePath: string } {
+function assetBucketFromMeta(meta: JsonRecord): "generated" | "imported" {
+  const kind = String(meta.kind || "").toLowerCase();
+  return kind === "upload" || kind === "imported" || kind === "local" ? "imported" : "generated";
+}
+
+function uniqueAssetPath(projectId: string, fileName: string, bucket: "generated" | "imported" = "generated"): { absolutePath: string; relativePath: string } {
   const projectDir = projectDirById(projectId);
   if (!projectDir) throw new Error("Project not found");
   const today = new Date().toISOString().slice(0, 10);
-  const assetDir = path.join(projectDir, "assets", today);
+  const assetDir = path.join(projectDir, "assets", bucket, today);
   ensureDir(assetDir);
   const parsed = path.parse(sanitizeName(fileName, "asset.bin"));
   const base = parsed.name || "asset";
@@ -1745,7 +1750,7 @@ function uniqueAssetPath(projectId: string, fileName: string): { absolutePath: s
 }
 
 function writeAsset(projectId: string, bytes: Buffer, fileName: string, contentType: string, meta: JsonRecord): unknown {
-  const { absolutePath, relativePath } = uniqueAssetPath(projectId, fileName);
+  const { absolutePath, relativePath } = uniqueAssetPath(projectId, fileName, assetBucketFromMeta(meta));
   fs.writeFileSync(absolutePath, bytes);
   const url = localAssetUrl(projectId, relativePath);
   const t = nowIso();
