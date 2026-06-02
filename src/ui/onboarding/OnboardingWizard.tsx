@@ -16,7 +16,7 @@
 import React from 'react'
 import { Stack, Group, Text, PasswordInput, ActionIcon, Anchor, TagsInput } from '@mantine/core'
 import { IconPlus, IconTrash, IconCheck, IconX } from '@tabler/icons-react'
-import { DesignButton, DesignModal, DesignTextInput, DesignSegmentedControl } from '../../design'
+import { DesignButton, DesignModal, DesignTextInput } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { PROVIDER_PRESETS } from './providerPresets'
 import { cn } from '../../utils/cn'
@@ -63,6 +63,10 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
   // breaks the bootstrap deadlock, works for local/text models); 'docs' is the
   // secondary path (AI reads docs) for image/video models with non-standard APIs.
   const [inputMode, setInputMode] = React.useState<'manual' | 'docs'>('manual')
+  // Whether the catalog already has a text model. Drives the adaptive default:
+  // none → open on "add text model" (manual); has one → open on "add image/video"
+  // (docs). Also gates the image/video entry, which needs a text model to read docs.
+  const [hasTextModel, setHasTextModel] = React.useState(false)
   const [docsUrl, setDocsUrl] = React.useState('')
   const [userApiKey, setUserApiKey] = React.useState('')
   // manual-form state
@@ -109,6 +113,20 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
       trialIdRef.current = null
     }
   }, [])
+
+  // On open, pick the smart default: if a text model already exists, start on the
+  // image/video flow; otherwise start on adding a text model (and disable the
+  // image/video entry, which can't run without a text model to read docs).
+  React.useEffect(() => {
+    if (!opened) return
+    let textCount = 0
+    try {
+      const list = bridge?.modelCatalog?.listModels?.({ kind: 'text' }) as unknown[] | undefined
+      textCount = Array.isArray(list) ? list.length : 0
+    } catch { /* catalog unavailable → treat as none */ }
+    setHasTextModel(textCount > 0)
+    setInputMode(textCount > 0 ? 'docs' : 'manual')
+  }, [opened, bridge])
 
   const resetToInput = React.useCallback(() => {
     setPhase('input')
@@ -357,8 +375,34 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
       closeOnEscape={phase !== 'running'}
     >
       <Stack gap="md">
-        {phase === 'input' && inputMode === 'manual' && (
+        {phase === 'input' && (
           <Stack gap={12}>
+            {/* 两个入口都可见、可一键切；系统只「猜默认」。无文本模型时图片/视频置灰（读文档需先有文本模型）。 */}
+            <Group gap={10} align="center">
+              <button
+                type="button"
+                onClick={() => setInputMode('manual')}
+                className={cn('text-[14px] transition-colors duration-150',
+                  inputMode === 'manual' ? 'font-semibold text-nomi-ink' : 'text-nomi-ink-60 hover:text-nomi-ink')}
+              >
+                文本模型
+              </button>
+              <span className="text-nomi-ink-20">·</span>
+              <button
+                type="button"
+                disabled={!hasTextModel}
+                onClick={() => { if (hasTextModel) setInputMode('docs') }}
+                title={hasTextModel ? undefined : '需先添加一个文本模型来读文档'}
+                className={cn('text-[14px] transition-colors duration-150',
+                  !hasTextModel ? 'text-nomi-ink-40 cursor-not-allowed'
+                    : inputMode === 'docs' ? 'font-semibold text-nomi-ink' : 'text-nomi-ink-60 hover:text-nomi-ink')}
+              >
+                图片 / 视频模型
+              </button>
+            </Group>
+
+            {inputMode === 'manual' && (
+              <>
             <Field label="供应商" hint="选一个自动填地址；中转站选「自定义」粘贴地址">
               <div className="flex flex-wrap gap-1.5">
                 {PROVIDER_PRESETS.map(p => {
@@ -383,19 +427,6 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
                 })}
               </div>
             </Field>
-            {(presetId === '' || presetId === 'custom') && (
-              <Field label="接口类型" hint={providerKind === 'anthropic' ? 'Claude 原生接口' : '绝大多数模型都选这个'}>
-                <DesignSegmentedControl
-                  fullWidth
-                  value={providerKind}
-                  onChange={value => { setProviderKind(value as 'openai-compatible' | 'anthropic'); setTestState('idle') }}
-                  data={[
-                    { label: 'OpenAI 兼容', value: 'openai-compatible' },
-                    { label: 'Anthropic 原生', value: 'anthropic' },
-                  ]}
-                />
-              </Field>
-            )}
             {showBaseUrlField ? (
               <Field
                 label="接入地址（BaseURL）"
@@ -403,7 +434,18 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
               >
                 <DesignTextInput
                   value={baseUrl}
-                  onChange={e => { setBaseUrl(e.currentTarget.value); setTestState('idle') }}
+                  onChange={e => {
+                    const v = e.currentTarget.value
+                    setBaseUrl(v)
+                    setTestState('idle')
+                    // Auto-detect provider kind for custom endpoints (preset path sets it
+                    // directly). Anthropic-native gateways carry "anthropic" in the host.
+                    if (presetId === 'custom') {
+                      try {
+                        setProviderKind(/anthropic/i.test(new URL(v).hostname) ? 'anthropic' : 'openai-compatible')
+                      } catch { /* partial url while typing */ }
+                    }
+                  }}
                   placeholder={providerKind === 'anthropic' ? 'https://api.anthropic.com（可留空）' : 'https://api.openai.com/v1'}
                   error={baseUrlTrimmed.length > 0 && !baseUrlValid ? '需以 http:// 或 https:// 开头' : undefined}
                 />
@@ -452,6 +494,7 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
               {fetchModelsMsg && <Text size="xs" c="var(--nomi-ink-60)">{fetchModelsMsg}</Text>}
             </Stack>
 
+            {presetId === 'custom' && (
             <Stack gap={4}>
               {headerRows.length > 0 && <Text size="sm" c="var(--nomi-ink)">自定义请求头</Text>}
               {headerRows.length > 0 && (
@@ -488,14 +531,7 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
                 </DesignButton>
               </Group>
             </Stack>
-
-            <Field label="供应商名称（可选）">
-              <DesignTextInput
-                value={vendorName}
-                onChange={e => setVendorName(e.currentTarget.value)}
-                placeholder="留空则按地址自动命名"
-              />
-            </Field>
+            )}
 
             <Group justify="space-between" align="center">
               <Group gap={8} align="center">
@@ -524,34 +560,13 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
                 保存
               </DesignButton>
             </Group>
+              </>
+            )}
 
-            <Anchor
-              component="button"
-              type="button"
-              onClick={() => setInputMode('docs')}
-              c="var(--nomi-ink-60)"
-              size="xs"
-              style={{ alignSelf: 'flex-start' }}
-            >
-              要加图片 / 视频模型？让 AI 读文档自动配置 →
-            </Anchor>
-          </Stack>
-        )}
-
-        {phase === 'input' && inputMode === 'docs' && (
-          <Stack gap="md">
-            <Anchor
-              component="button"
-              type="button"
-              onClick={() => setInputMode('manual')}
-              c="var(--nomi-ink-60)"
-              size="xs"
-              style={{ alignSelf: 'flex-start' }}
-            >
-              ← 返回手动填写
-            </Anchor>
+            {inputMode === 'docs' && (
+              <>
             <Text size="xs" c="var(--nomi-ink-60)">
-              适合图片 / 视频等非标准接口：AI 读官方文档，自动抠出参数并配置。需先有一个文本模型来读文档。
+              适合图片 / 视频等非标准接口：AI 读官方文档，自动抠出参数并配置。
             </Text>
             <Field label="文档地址" hint="粘贴这个模型的官方 API 文档页">
               <DesignTextInput
@@ -573,6 +588,8 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
                 开始
               </DesignButton>
             </Group>
+              </>
+            )}
           </Stack>
         )}
 
