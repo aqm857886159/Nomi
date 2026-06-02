@@ -25,6 +25,53 @@ function group(id: string, categoryId: NodeGroup['categoryId'], nodeIds: string[
   }
 }
 
+describe('generationCanvasStore snapshot normalization', () => {
+  it('keeps the category when creating a node', () => {
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [],
+      edges: [],
+      selectedNodeIds: [],
+      groups: [],
+    })
+
+    const created = useGenerationCanvasStore.getState().addNode({
+      kind: 'image',
+      position: { x: 123, y: 456 },
+      categoryId: 'scene',
+    })
+
+    const stateNode = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === created.id)
+    expect(created.categoryId).toBe('scene')
+    expect(stateNode?.categoryId).toBe('scene')
+    expect(stateNode?.position).toEqual({ x: 123, y: 456 })
+  })
+
+  it('drops removed semantic scene nodes from legacy snapshots', () => {
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [
+        node('image-1', 'shots'),
+        {
+          id: 'semantic-1',
+          kind: 'semanticScene',
+          title: '语义场景',
+          position: { x: 30, y: 40 },
+        },
+      ],
+      edges: [
+        { id: 'edge-image-semantic', source: 'image-1', target: 'semantic-1' },
+      ],
+      selectedNodeIds: ['semantic-1', 'image-1'],
+      groups: [group('shots-group', 'shots', ['image-1', 'semantic-1'])],
+    })
+
+    const state = useGenerationCanvasStore.getState()
+    expect(state.nodes.map((candidate) => candidate.id)).toEqual(['image-1'])
+    expect(state.edges).toEqual([])
+    expect(state.selectedNodeIds).toEqual(['image-1'])
+    expect(state.groups.find((candidate) => candidate.id === 'shots-group')?.nodeIds).toEqual(['image-1'])
+  })
+})
+
 describe('generationCanvasStore sidebar grouping actions', () => {
   beforeEach(() => {
     useGenerationCanvasStore.getState().restoreSnapshot({

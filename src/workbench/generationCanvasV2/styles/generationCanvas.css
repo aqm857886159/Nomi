@@ -39,7 +39,7 @@
 }
 
 .generation-canvas-v2-node {
-  position: relative;
+  position: absolute;
   z-index: 2;
   pointer-events: auto;
 }

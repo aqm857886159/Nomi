@@ -77,16 +77,17 @@ export function NodeAddMenu({
 
 type CanvasToolbarProps = {
   getInsertionPosition: () => { x: number; y: number }
+  categoryId?: string
 }
 
-export default function CanvasToolbar({ getInsertionPosition }: CanvasToolbarProps): JSX.Element {
+export default function CanvasToolbar({ getInsertionPosition, categoryId }: CanvasToolbarProps): JSX.Element {
   const addNode = useGenerationCanvasStore((state) => state.addNode)
   const selectedNodeIds = useGenerationCanvasStore((state) => state.selectedNodeIds)
   const copySelectedNodes = useGenerationCanvasStore((state) => state.copySelectedNodes)
   const cutSelectedNodes = useGenerationCanvasStore((state) => state.cutSelectedNodes)
 
   const handleAddNode = (kind: GenerationNodeKind) => {
-    addNode({ kind, position: getInsertionPosition() })
+    addNode({ kind, position: getInsertionPosition(), categoryId })
   }
 
   return (

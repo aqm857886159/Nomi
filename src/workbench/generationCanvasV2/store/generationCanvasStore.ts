@@ -32,6 +32,7 @@ type CreateNodeInput = {
   title?: string
   prompt?: string
   position?: { x: number; y: number }
+  categoryId?: string
   select?: boolean
 }
 
@@ -345,15 +346,20 @@ function normalizeGenerationCanvasSnapshot(input: unknown): GenerationCanvasSnap
   const selectedNodeIds = Array.isArray(raw.selectedNodeIds)
     ? raw.selectedNodeIds.filter((id): id is string => typeof id === 'string' && nodeIds.has(id))
     : []
+  const groups = Array.isArray(raw.groups)
+    ? raw.groups.flatMap((group): NodeGroup[] => {
+        const parsed = nodeGroupSchema.safeParse(group)
+        if (!parsed.success) return []
+        return [{
+          ...parsed.data,
+          nodeIds: Array.from(new Set(parsed.data.nodeIds.filter((id) => nodeIds.has(id)))),
+        }]
+      })
+    : []
   return {
     nodes,
     edges,
-    groups: Array.isArray(raw.groups)
-      ? raw.groups.flatMap((group): NodeGroup[] => {
-          const parsed = nodeGroupSchema.safeParse(group)
-          return parsed.success ? [parsed.data] : []
-        })
-      : [],
+    groups,
     selectedNodeIds,
   }
 }
@@ -426,7 +432,8 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
   addNode: (input) => {
     const currentState = get()
     const existingCount = currentState.nodes.filter((node) => node.kind === input.kind).length
-    const nextNode = createGenerationNode({
+    const categoryId = isCategoryId(input.categoryId) ? input.categoryId : undefined
+    const baseNode = createGenerationNode({
       id: createNodeId(input.kind),
       kind: input.kind,
       title: input.title,
@@ -434,6 +441,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
       x: input.position?.x ?? 120 + existingCount * 34,
       y: input.position?.y ?? 360 + existingCount * 30,
     })
+    const nextNode = categoryId ? { ...baseNode, categoryId } : baseNode
     pushUndoSnapshot(currentState)
     set((state) => {
       state.nodes = upsertNode(state.nodes, nextNode)

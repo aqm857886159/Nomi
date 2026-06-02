@@ -33,6 +33,8 @@ type GenerationCanvasProps = {
   readOnly?: boolean
 }
 
+type WheelZoomEvent = Pick<WheelEvent, 'deltaMode' | 'deltaY'>
+
 type ActiveEdge = {
   id: string
   position?: { x: number; y: number }
@@ -75,7 +77,7 @@ function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
-function getWheelZoomFactor(event: React.WheelEvent): number {
+function getWheelZoomFactor(event: WheelZoomEvent): number {
   const deltaModeMultiplier = event.deltaMode === 1
     ? WHEEL_LINE_HEIGHT
     : event.deltaMode === 2
@@ -176,9 +178,8 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
   )
   const selectedNodeIds = useGenerationCanvasStore((state) => state.selectedNodeIds)
   const addNode = useGenerationCanvasStore((state) => state.addNode)
-  const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const clearSelection = useGenerationCanvasStore((state) => state.clearSelection)
-  const setCanvasZoom = useGenerationCanvasStore((state) => state.setCanvasZoom)
+  const setCanvasTransform = useGenerationCanvasStore((state) => state.setCanvasTransform)
   const deleteSelectedNodes = useGenerationCanvasStore((state) => state.deleteSelectedNodes)
   const copySelectedNodes = useGenerationCanvasStore((state) => state.copySelectedNodes)
   const cutSelectedNodes = useGenerationCanvasStore((state) => state.cutSelectedNodes)
@@ -229,8 +230,12 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     return remembered || initialViewport
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCategoryId])
-  const [zoom, setZoom] = React.useState(seedViewport.zoom)
-  const [offset, setOffset] = React.useState(seedViewport.offset)
+  const [viewport, setViewport] = React.useState(() => ({
+    zoom: seedViewport.zoom,
+    offset: seedViewport.offset,
+  }))
+  const zoom = viewport.zoom
+  const offset = viewport.offset
   const lastCategoryRef = React.useRef(activeCategoryId)
   React.useEffect(() => {
     if (lastCategoryRef.current === activeCategoryId) return
@@ -238,8 +243,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     rememberCategoryViewport(lastCategoryRef.current, { zoom, offset })
     // load incoming
     const next = categoryViewports[activeCategoryId] || initialViewport
-    setZoom(next.zoom)
-    setOffset(next.offset)
+    setViewport({ zoom: next.zoom, offset: next.offset })
     lastCategoryRef.current = activeCategoryId
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCategoryId])
@@ -341,9 +345,30 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
       offsetFrameRef.current = null
       const pending = pendingOffsetRef.current
       pendingOffsetRef.current = null
-      if (pending) setOffset(pending)
+      if (pending) setViewport((current) => ({ ...current, offset: pending }))
     })
   }, [])
+
+  const setViewportTransform = React.useCallback((nextZoom: number, nextOffset: { x: number; y: number }) => {
+    if (offsetFrameRef.current !== null) {
+      window.cancelAnimationFrame(offsetFrameRef.current)
+      offsetFrameRef.current = null
+    }
+    pendingOffsetRef.current = null
+    zoomRef.current = nextZoom
+    offsetRef.current = nextOffset
+    setViewport({ zoom: nextZoom, offset: nextOffset })
+  }, [])
+
+  const zoomAtStagePoint = React.useCallback((nextZoom: number, point: { x: number; y: number }) => {
+    const currentZoom = zoomRef.current || 1
+    const currentOffset = offsetRef.current
+    const zoomRatio = nextZoom / currentZoom
+    setViewportTransform(nextZoom, {
+      x: point.x - (point.x - currentOffset.x) * zoomRatio,
+      y: point.y - (point.y - currentOffset.y) * zoomRatio,
+    })
+  }, [setViewportTransform])
 
   React.useEffect(() => () => {
     if (offsetFrameRef.current !== null) {
@@ -388,8 +413,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     if (targetCategoryId !== activeCategoryId) return
     const targetZoom = categoryViewports[targetCategoryId]?.zoom || zoomRef.current || 1
     const targetOffset = centerNodeOffset(target, stageSizeRef.current, targetZoom)
-    setZoom(targetZoom)
-    setOffset(targetOffset)
+    setViewportTransform(targetZoom, targetOffset)
     setFocusFlashNodeId(pendingFocusNodeId)
     setPendingFocusNodeId(null)
     if (focusFlashTimerRef.current !== null) window.clearTimeout(focusFlashTimerRef.current)
@@ -431,10 +455,10 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     }
   }, [commitPersistedChange, moveGroupNodes, readOnly])
 
-  // Keep store zoom in sync so BaseGenerationNode can read it
+  // Keep the store viewport in sync so nodes can read the same zoom/pan model.
   React.useEffect(() => {
-    setCanvasZoom(zoom)
-  }, [zoom, setCanvasZoom])
+    setCanvasTransform(zoom, offset)
+  }, [offset, setCanvasTransform, zoom])
 
   React.useEffect(() => {
     if (!contextNodeMenu) return undefined
@@ -674,6 +698,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
   }, [offset, readOnly, zoom])
 
   const handleStagePanStart = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return
     setContextNodeMenu(null)
     setActiveEdge(null)
     const target = event.target instanceof Element ? event.target : null
@@ -723,7 +748,8 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
       offsetFrameRef.current = null
     }
     if (pendingOffsetRef.current) {
-      setOffset(pendingOffsetRef.current)
+      const pending = pendingOffsetRef.current
+      setViewport((current) => ({ ...current, offset: pending }))
       pendingOffsetRef.current = null
     }
     setSelectionBox(null)
@@ -752,25 +778,24 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     }
   }, [])
 
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault()
+  const handleWheel = React.useCallback((event: WheelEvent) => {
+    event.preventDefault()
     setContextNodeMenu(null)
     if (!stageRef.current) return
     const rect = stageRef.current.getBoundingClientRect()
-    const mouseX = e.clientX - rect.left
-    const mouseY = e.clientY - rect.top
+    const mouseX = event.clientX - rect.left
+    const mouseY = event.clientY - rect.top
     const currentZoom = zoomRef.current
-    const currentOffset = offsetRef.current
-    const nextZoom = clampNumber(currentZoom * getWheelZoomFactor(e), 0.2, 3)
-    const zoomRatio = nextZoom / currentZoom
-    const nextOffset = {
-      x: mouseX - (mouseX - currentOffset.x) * zoomRatio,
-      y: mouseY - (mouseY - currentOffset.y) * zoomRatio,
-    }
-    zoomRef.current = nextZoom
-    scheduleOffset(nextOffset)
-    setZoom(nextZoom)
-  }
+    const nextZoom = clampNumber(currentZoom * getWheelZoomFactor(event), 0.2, 3)
+    zoomAtStagePoint(nextZoom, { x: mouseX, y: mouseY })
+  }, [zoomAtStagePoint])
+
+  React.useEffect(() => {
+    const stage = stageRef.current
+    if (!stage) return undefined
+    stage.addEventListener('wheel', handleWheel, { passive: false })
+    return () => stage.removeEventListener('wheel', handleWheel)
+  }, [handleWheel])
 
   const handleStageContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
     if (readOnly || !stageRef.current) return
@@ -786,19 +811,25 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     const rect = stageRef.current.getBoundingClientRect()
     const stageX = event.clientX - rect.left
     const stageY = event.clientY - rect.top
+    const canvasPoint = getCanvasPointFromClientPoint(event.clientX, event.clientY)
+    if (!canvasPoint) return
     const menuWidth = 148
     const menuHeight = 330
     setContextNodeMenu({
       stageX: clampNumber(stageX, 8, Math.max(8, rect.width - menuWidth - 8)),
       stageY: clampNumber(stageY, 8, Math.max(8, rect.height - menuHeight - 8)),
-      canvasX: Math.round((stageX - offsetRef.current.x) / zoomRef.current),
-      canvasY: Math.round((stageY - offsetRef.current.y) / zoomRef.current),
+      canvasX: Math.round(canvasPoint.x),
+      canvasY: Math.round(canvasPoint.y),
     })
   }
 
   const handleAddContextNode = (kind: GenerationNodeKind) => {
     if (!contextNodeMenu) return
-    addNode({ kind, position: { x: contextNodeMenu.canvasX, y: contextNodeMenu.canvasY } })
+    addNode({
+      kind,
+      position: { x: contextNodeMenu.canvasX, y: contextNodeMenu.canvasY },
+      categoryId: activeCategoryId,
+    })
     setContextNodeMenu(null)
   }
 
@@ -813,12 +844,11 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     const contentW = maxX - minX + padding * 2
     const contentH = maxY - minY + padding * 2
     const nextZoom = Math.min(1.2, Math.min(rect.width / contentW, rect.height / contentH))
-    setZoom(nextZoom)
-    setOffset({
+    setViewportTransform(nextZoom, {
       x: (rect.width - contentW * nextZoom) / 2 - (minX - padding) * nextZoom,
       y: (rect.height - contentH * nextZoom) / 2 - (minY - padding) * nextZoom,
     })
-  }, [nodes])
+  }, [nodes, setViewportTransform])
 
   const getToolbarInsertionPosition = React.useCallback(() => {
     const rect = stageRef.current?.getBoundingClientRect()
@@ -925,7 +955,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
             </p>
           </div>
         ) : null}
-        {!readOnly ? <CanvasToolbar getInsertionPosition={getToolbarInsertionPosition} /> : null}
+        {!readOnly ? <CanvasToolbar getInsertionPosition={getToolbarInsertionPosition} categoryId={activeCategoryId} /> : null}
         <div
           className="generation-canvas-v2__stage"
           ref={stageRef}
@@ -934,7 +964,6 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
           onPointerDown={handleStagePanStart}
           onPointerMove={handleStagePanMove}
           onPointerUp={handleStagePanEnd}
-          onWheel={handleWheel}
           onContextMenu={handleStageContextMenu}
           onDragOver={(event) => {
             if (readOnly) return
@@ -1091,14 +1120,12 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
             const activeCategoryName = categoryNameById[activeCategoryId] || '节点'
             const handleEmptyCtaClick = () => {
               // 默认创建 image kind 节点（声音分类暂用 image 占位，audio kind 待 future iteration）
-              const newNode = addNode({
+              addNode({
                 kind: 'image',
                 position: { x: 240, y: 240 },
+                categoryId: activeCategoryId,
                 select: true,
               })
-              if (newNode && activeCategoryId) {
-                updateNode(newNode.id, { categoryId: activeCategoryId })
-              }
             }
             return (
               <div className={cn(
@@ -1163,7 +1190,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
           <WorkbenchButton
             aria-label="重置视图"
             title="重置视图"
-            onClick={() => { setZoom(1); setOffset({ x: 0, y: 0 }) }}
+            onClick={() => setViewportTransform(1, { x: 0, y: 0 })}
           >▦</WorkbenchButton>
           <input
             className="w-[78px] accent-workbench-accent"
@@ -1172,7 +1199,15 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
             max="300"
             value={zoomPercent}
             aria-label="缩放比例"
-            onChange={(e) => setZoom(Number(e.target.value) / 100)}
+            onChange={(event) => {
+              const nextZoom = Number(event.target.value) / 100
+              const rect = stageRef.current?.getBoundingClientRect()
+              if (!rect) {
+                setViewportTransform(nextZoom, offsetRef.current)
+                return
+              }
+              zoomAtStagePoint(nextZoom, { x: rect.width / 2, y: rect.height / 2 })
+            }}
           />
           <WorkbenchButton aria-label="画布帮助" title="画布帮助" onClick={() => toast('快捷键：S 分割 · Cmd+D 复制 · Delete 删除 · ← → 移动播放头 · Ctrl+滚轮 缩放', 'info')}>?</WorkbenchButton>
         </div>

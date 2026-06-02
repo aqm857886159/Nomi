@@ -26,6 +26,15 @@ function createManualChunks(id: string): string | undefined {
   ) {
     return 'markdown-vendor';
   }
+  if (id.includes('/node_modules/three/')) return 'three-vendor';
+  if (
+    id.includes('/node_modules/@react-three/') ||
+    id.includes('/node_modules/three-stdlib/') ||
+    id.includes('/node_modules/tunnel-rat/') ||
+    id.includes('/node_modules/suspend-react/')
+  ) {
+    return 'r3f-vendor';
+  }
   if (id.includes('/src/ui/stats/')) return 'app-stats';
   if (id.includes('/src/api/')) return 'app-api';
   return undefined;

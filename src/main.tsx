@@ -5,7 +5,7 @@ import { MantineProvider, MantineThemeProvider } from '@mantine/core'
 import { ModalsProvider } from '@mantine/modals'
 import { Notifications } from '@mantine/notifications'
 import './styles/index.css'
-import { buildNomiTheme } from './design'
+import { buildNomiTheme } from './theme/nomiTheme'
 
 const DEFAULT_COLOR_SCHEME = 'light'
 

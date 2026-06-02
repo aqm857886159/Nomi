@@ -1,7 +1,6 @@
 import React from 'react'
 import { IconDownload, IconPhoto, IconPlugConnected } from '@tabler/icons-react'
 import type { WorkspaceMode } from '../../workbench/workbenchStore'
-import { importImageFilesToGenerationCanvas } from '../../workbench/generationCanvasV2/adapters/assetImportAdapter'
 import { NomiBrand, NomiStepper, WorkbenchButton } from '../../design'
 import { cn } from '../../utils/cn'
 
@@ -37,9 +36,15 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
     event.currentTarget.value = ''
     if (!files.length) return
     onWorkspaceModeChange('generation')
-    void importImageFilesToGenerationCanvas(files, {
-      basePosition: { x: 120, y: 90 },
-    })
+    void import('../../workbench/generationCanvasV2/adapters/assetImportAdapter')
+      .then(({ importImageFilesToGenerationCanvas }) => {
+        void importImageFilesToGenerationCanvas(files, {
+          basePosition: { x: 120, y: 90 },
+        })
+      })
+      .catch((error) => {
+        console.error('image import failed', error)
+      })
   }, [onWorkspaceModeChange])
 
   const handleOpenModelCatalog = React.useCallback(() => {

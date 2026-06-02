@@ -3,13 +3,13 @@ import {
   GENERATION_NODE_PLUGINS,
   type GenerationNodeExecutionKind,
   type GenerationNodeKind,
-  type GenerationNodePlugin,
+  type GenerationNodePluginDefinition,
 } from '../nodes/registry'
 
 export { GENERATION_NODE_KINDS }
 export type { GenerationNodeExecutionKind, GenerationNodeKind }
 
-export type GenerationNodeDefinition = Omit<GenerationNodePlugin, 'component' | 'icon'>
+export type GenerationNodeDefinition = Omit<GenerationNodePluginDefinition<GenerationNodeKind>, 'component' | 'icon'>
 
 export const GENERATION_NODE_DEFINITIONS: Record<GenerationNodeKind, GenerationNodeDefinition> =
   Object.fromEntries(GENERATION_NODE_PLUGINS.map((plugin) => {

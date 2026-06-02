@@ -70,13 +70,12 @@ export function useLocalProjects(): {
   projects: LocalProjectSummary[]
   refreshProjects: () => void
 } {
-  const fallbackRef = React.useRef<LocalProjectSummary[] | null>(null)
-  if (fallbackRef.current === null) fallbackRef.current = listProjectRecords()
   const { data, mutate: mutateProjects } = useSWR<LocalProjectSummary[]>(
     LOCAL_PROJECTS_SWR_KEY,
     () => listProjectRecords(),
     {
-      fallbackData: fallbackRef.current,
+      fallbackData: [],
+      revalidateOnMount: true,
       revalidateIfStale: false,
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
@@ -86,7 +85,7 @@ export function useLocalProjects(): {
     void mutateProjects(listProjectRecords(), { revalidate: false })
   }, [mutateProjects])
   return {
-    projects: data ?? fallbackRef.current ?? [],
+    projects: data ?? [],
     refreshProjects,
   }
 }

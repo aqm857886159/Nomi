@@ -23,7 +23,11 @@ type SendGenerationCanvasAgentMessageInput = {
    * prompt. Useful when a skill already defines the full system prompt and
    * we just want to forward the user's raw story text.
    */
-  buildPrompt?: (input: { message: string; snapshot: GenerationCanvasSnapshot; selectedNodes: GenerationCanvasNode[] }) => string
+  buildPrompt?: (input: {
+    message: string
+    snapshot: GenerationCanvasSnapshot
+    selectedNodes: GenerationCanvasNode[]
+  }) => string
   onContent?: (delta: string, text: string) => void
   /**
    * Called whenever the LLM issues a tool call. The caller is responsible
@@ -43,11 +47,12 @@ function stringifyForPrompt(value: unknown): string {
 
 function buildGenerationCanvasAgentPrompt(input: SendGenerationCanvasAgentMessageInput): string {
   const creatableKinds = getAgentCreatableGenerationNodeKinds().join('|')
-  const modeInstruction = input.mode === 'chat'
-    ? '当前模式：问答。只用自然语言回答用户问题，不要调用任何工具。'
-    : input.mode === 'refine'
-      ? '当前模式：润色。只能调用 set_node_prompt 改写选中节点的提示词，不要创建或删除节点。'
-      : '当前模式：Agent。你应当主动调用工具来达成用户的目标。'
+  const modeInstruction =
+    input.mode === 'chat'
+      ? '当前模式：问答。只用自然语言回答用户问题，不要调用任何工具。'
+      : input.mode === 'refine'
+        ? '当前模式：润色。只能调用 set_node_prompt 改写选中节点的提示词，不要创建或删除节点。'
+        : '当前模式：Agent。你应当主动调用工具来达成用户的目标。'
 
   return [
     '你是 Nomi 生成区右侧的 Nomi 生成 Agent。',
@@ -103,6 +108,7 @@ type ConnectEdgesArgs = {
  */
 async function defaultExecuteToolCall(event: ToolCallEvent): Promise<void> {
   const { toolName, args, confirm } = event
+
   try {
     if (toolName === 'read_canvas_state') {
       const snapshot = generationCanvasTools.read_canvas()
@@ -151,7 +157,9 @@ async function defaultExecuteToolCall(event: ToolCallEvent): Promise<void> {
     }
     if (toolName === 'delete_canvas_nodes') {
       const payload = args as { nodeIds?: unknown }
-      const nodeIds = Array.isArray(payload.nodeIds) ? payload.nodeIds.map((id) => String(id || '').trim()).filter(Boolean) : []
+      const nodeIds = Array.isArray(payload.nodeIds)
+        ? payload.nodeIds.map((id) => String(id || '').trim()).filter(Boolean)
+        : []
       const deleted = generationCanvasTools.delete_nodes(nodeIds)
       await confirm({ ok: true, result: { deletedNodeIds: deleted } })
       return
@@ -181,10 +189,11 @@ export async function sendGenerationCanvasAgentMessage(
       if (input.onToolCall) {
         input.onToolCall(event)
       } else {
-        // No host UI provided — auto-execute on the renderer.
+        // No host UI provided, auto-execute on the renderer.
         void defaultExecuteToolCall(event)
       }
     },
   })
+
   return { response }
 }
