@@ -2,9 +2,7 @@ import React from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import WorkbenchShell from './WorkbenchShell'
 import ProjectLibraryPage from './library/ProjectLibraryPage'
-import { CanvasAssistantPanel, GenerationCanvas } from './generationCanvasV2'
 import { ToastHost } from '../ui/toast'
-import StatsModelCatalogManagement from '../ui/stats/system/modelCatalog/StatsModelCatalogManagement'
 import {
   createLocalProject,
   deleteLocalProject,
@@ -20,6 +18,33 @@ import { setDesktopActiveProjectId } from '../desktop/activeProject'
 import { buildStudioUrl } from '../utils/appRoutes'
 
 type AppView = 'library' | 'studio'
+
+const GenerationCanvas = React.lazy(() => import('./generationCanvasV2/components/GenerationCanvas'))
+const CanvasAssistantPanel = React.lazy(() => import('./generationCanvasV2/components/CanvasAssistantPanel'))
+const StatsModelCatalogManagement = React.lazy(() => import('../ui/stats/system/modelCatalog/StatsModelCatalogManagement'))
+
+function GenerationCanvasLoading(): JSX.Element {
+  return (
+    <div
+      className={cn('w-full h-full bg-workbench-bg')}
+      aria-label="生成画布加载中"
+    />
+  )
+}
+
+function ModelCatalogLoading(): JSX.Element {
+  return (
+    <div
+      className={cn(
+        'grid min-h-[220px] place-items-center',
+        'text-[13px] text-nomi-ink-45',
+      )}
+      aria-label="模型管理加载中"
+    >
+      模型管理加载中
+    </div>
+  )
+}
 
 function readProjectIdFromSearch(search: string): string | null {
   try {
@@ -193,9 +218,17 @@ export default function NomiStudioApp(): JSX.Element {
   return (
     <div className={cn('nomi-studio-app w-full h-screen min-h-0 bg-nomi-bg')} aria-label="Nomi Studio">
       <WorkbenchShell
-        generation={<GenerationCanvas />}
+        generation={(
+          <React.Suspense fallback={<GenerationCanvasLoading />}>
+            <GenerationCanvas />
+          </React.Suspense>
+        )}
         generationAiLayout={generationAiCollapsed ? 'overlay' : 'sidebar'}
-        generationAi={<CanvasAssistantPanel defaultCollapsed onCollapsedChange={setGenerationAiCollapsed} />}
+        generationAi={(
+          <React.Suspense fallback={null}>
+            <CanvasAssistantPanel defaultCollapsed onCollapsedChange={setGenerationAiCollapsed} />
+          </React.Suspense>
+        )}
         onBackToLibrary={backToLibrary}
         onOpenModelCatalog={() => setModelCatalogOpened(true)}
       />
@@ -208,7 +241,11 @@ export default function NomiStudioApp(): JSX.Element {
         zIndex={4000}
         withinPortal
       >
-        <StatsModelCatalogManagement className={cn('nomi-model-catalog-drawer__content')} compact />
+        {modelCatalogOpened ? (
+          <React.Suspense fallback={<ModelCatalogLoading />}>
+            <StatsModelCatalogManagement className={cn('nomi-model-catalog-drawer__content')} compact />
+          </React.Suspense>
+        ) : null}
       </DesignDrawer>
       <ToastHost />
     </div>

@@ -30,6 +30,10 @@ function readSelectedText(editor: NonNullable<ReturnType<typeof useEditor>>): st
   return editor.state.doc.textBetween(from, to, '\n').trim()
 }
 
+function isEditorReady(editor: Editor | null): editor is Editor {
+  return Boolean(editor && !editor.isDestroyed)
+}
+
 type ToolbarAction = {
   id: string
   label: string
@@ -40,7 +44,7 @@ type ToolbarAction = {
 }
 
 function WorkbenchEditorToolbar({ editor }: { editor: Editor | null }): JSX.Element {
-  const actions: ToolbarAction[] = !editor ? [] : [
+  const actions: ToolbarAction[] = !isEditorReady(editor) ? [] : [
     {
       id: 'bold',
       label: '加粗',
@@ -196,14 +200,14 @@ export default function WorkbenchEditor(): JSX.Element {
   })
 
   React.useEffect(() => {
-    if (!editor) return
+    if (!isEditorReady(editor)) return
     const nextSelectedText = readSelectedText(editor)
     setSelectedText(nextSelectedText)
     setCreationSelectionText(nextSelectedText)
   }, [editor, setCreationSelectionText])
 
   React.useEffect(() => {
-    if (!editor) return
+    if (!isEditorReady(editor)) return
     const nextContent = normalizeWorkbenchContentJson(workbenchDocument.contentJson) as JSONContent
     const nextJson = JSON.stringify(nextContent)
     if (!nextJson || nextJson === lastEditorJsonRef.current) return
@@ -212,8 +216,9 @@ export default function WorkbenchEditor(): JSX.Element {
   }, [editor, workbenchDocument.contentJson])
 
   React.useEffect(() => {
-    if (!editor) return
+    if (!isEditorReady(editor)) return
     const applyContent = (content: string, mode: 'insert' | 'replace' | 'append') => {
+      if (!isEditorReady(editor)) return
       const tiptapContent = markdownToTiptapContent(content)
       if (!tiptapContent.length) return
       const chain = editor.chain().focus()

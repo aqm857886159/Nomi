@@ -19,6 +19,8 @@ export type GenerationNodeIconKey =
   | 'shot'
   | 'output'
   | 'panorama'
+  | 'semanticScene'
+  | 'scene3d'
 
 export type GenerationNodePluginDefinition<TKind extends string = string> = {
   kind: TKind
@@ -165,6 +167,34 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: true,
     providesImageReference: true,
     promptPlaceholder: '上传或截取全景参考图...',
+  },
+  {
+    kind: 'semanticScene',
+    label: 'Semantic Scene',
+    menuLabel: '语义场景',
+    component: loadBaseGenerationNode,
+    icon: 'semanticScene',
+    defaultTitle: '语义场景',
+    defaultSize: { width: 380, height: 260 },
+    catalogKind: 'text',
+    quickAdd: true,
+    agentCreatable: true,
+    providesImageReference: false,
+    promptPlaceholder: '从全景图或图片提取空间、边界、物体、光照与相机语义...',
+  },
+  {
+    kind: 'scene3d',
+    label: '3D Scene',
+    menuLabel: '3D场景',
+    component: loadBaseGenerationNode,
+    icon: 'scene3d',
+    defaultTitle: '3D场景',
+    defaultSize: { width: 480, height: 320 },
+    catalogKind: 'text',
+    quickAdd: true,
+    agentCreatable: false,
+    providesImageReference: true,
+    promptPlaceholder: '在3D场景中摆放模型并截图...',
   },
 ])
 

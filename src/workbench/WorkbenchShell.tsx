@@ -31,6 +31,34 @@ const MODE_BY_STEP_PARAM: Record<string, WorkspaceMode> = {
   preview: 'preview',
 }
 
+type WorkspaceSlotProps = {
+  active: boolean
+  children: React.ReactNode
+  label: string
+}
+
+function WorkspaceLoading({ label }: { label: string }): JSX.Element {
+  return (
+    <div
+      className={cn('workbench-shell__loading', 'w-full h-full bg-workbench-bg')}
+      aria-label={`${label}加载中`}
+    />
+  )
+}
+
+function WorkspaceSlot({ active, children, label }: WorkspaceSlotProps): JSX.Element {
+  return (
+    <div
+      className={cn('workbench-shell__workspace', 'w-full h-full min-w-0 min-h-0')}
+      hidden={!active}
+    >
+      <React.Suspense fallback={active ? <WorkspaceLoading label={label} /> : null}>
+        {children}
+      </React.Suspense>
+    </div>
+  )
+}
+
 function readWorkspaceModeFromUrl(): WorkspaceMode {
   if (typeof window === 'undefined') return 'generation'
   try {
@@ -53,6 +81,7 @@ function writeWorkspaceModeToUrl(mode: WorkspaceMode): void {
 export default function WorkbenchShell({ generation, generationAi, generationAiLayout = 'sidebar', onBackToLibrary, onOpenModelCatalog }: WorkbenchShellProps): JSX.Element {
   const workspaceMode = useWorkbenchStore((state) => state.workspaceMode)
   const setWorkspaceMode = useWorkbenchStore((state) => state.setWorkspaceMode)
+  const [mountedWorkspaceModes, setMountedWorkspaceModes] = React.useState<WorkspaceMode[]>(() => [workspaceMode])
 
   React.useEffect(() => {
     const initialMode = readWorkspaceModeFromUrl()
@@ -65,6 +94,12 @@ export default function WorkbenchShell({ generation, generationAi, generationAiL
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [setWorkspaceMode])
+
+  React.useEffect(() => {
+    setMountedWorkspaceModes((current) => (
+      current.includes(workspaceMode) ? current : [...current, workspaceMode]
+    ))
+  }, [workspaceMode])
 
   const handleWorkspaceModeChange = React.useCallback((mode: WorkspaceMode) => {
     if (!isWorkspaceMode(mode)) return
@@ -94,17 +129,21 @@ export default function WorkbenchShell({ generation, generationAi, generationAiL
         'workbench-shell__body',
         'relative min-w-0 min-h-0 overflow-hidden',
       )}>
-        <React.Suspense fallback={<div className={cn('workbench-shell__loading', 'w-full h-full bg-workbench-bg')} aria-label="工作区加载中" />}>
-          <div className={cn('workbench-shell__workspace', 'w-full h-full min-w-0 min-h-0')} hidden={workspaceMode !== 'creation'}>
+        {mountedWorkspaceModes.includes('creation') ? (
+          <WorkspaceSlot active={workspaceMode === 'creation'} label="创作区">
             <CreationWorkspace />
-          </div>
-          <div className={cn('workbench-shell__workspace', 'w-full h-full min-w-0 min-h-0')} hidden={workspaceMode !== 'generation'}>
+          </WorkspaceSlot>
+        ) : null}
+        {mountedWorkspaceModes.includes('generation') ? (
+          <WorkspaceSlot active={workspaceMode === 'generation'} label="生成区">
             <GenerationWorkspace canvas={generation} aiSidebar={generationAi} aiLayout={generationAiLayout} />
-          </div>
-          <div className={cn('workbench-shell__workspace', 'w-full h-full min-w-0 min-h-0')} hidden={workspaceMode !== 'preview'}>
+          </WorkspaceSlot>
+        ) : null}
+        {mountedWorkspaceModes.includes('preview') ? (
+          <WorkspaceSlot active={workspaceMode === 'preview'} label="预览区">
             <PreviewWorkspace />
-          </div>
-        </React.Suspense>
+          </WorkspaceSlot>
+        ) : null}
       </main>
     </div>
   )

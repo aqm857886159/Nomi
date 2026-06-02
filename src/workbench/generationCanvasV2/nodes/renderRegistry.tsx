@@ -2,9 +2,11 @@ import React from 'react'
 import {
   Icon360,
   IconBoxMultiple,
+  IconCube,
   IconFlag,
   IconLayoutGrid,
   IconPhoto,
+  IconSchema,
   IconUser,
   IconVideo,
   IconWriting,
@@ -20,7 +22,7 @@ import {
 
 export type { GenerationNodeRenderProps, GenerationNodeComponent } from './registry'
 
-export type GenerationNodeIcon = React.ComponentType<{ size?: number; stroke?: number; strokeWidth?: number }>
+export type GenerationNodeIcon = React.ComponentType<any>
 
 export type GenerationNodeRenderPlugin = Omit<GenerationNodePlugin, 'component' | 'icon'> & {
   icon: GenerationNodeIcon
@@ -37,6 +39,8 @@ const NODE_ICONS: Record<GenerationNodeIconKey, GenerationNodeIcon> = {
   shot: IconBoxMultiple,
   output: IconFlag,
   panorama: Icon360,
+  semanticScene: IconSchema,
+  scene3d: IconCube,
 }
 
 const lazyComponents = new Map<GenerationNodeKind, React.LazyExoticComponent<GenerationNodeComponent>>()
@@ -64,6 +68,6 @@ export function getGenerationNodeComponent(kind: GenerationNodeKind): Generation
 
 export function getQuickAddGenerationNodePlugins(): GenerationNodeRenderPlugin[] {
   return GENERATION_NODE_PLUGINS
-    .filter((plugin) => plugin.quickAdd !== false)
+    .filter((plugin): boolean => (plugin as { quickAdd?: boolean }).quickAdd !== false)
     .map((plugin) => getGenerationNodePlugin(plugin.kind))
 }

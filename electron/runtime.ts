@@ -1656,10 +1656,20 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
   }
 
   if (wantedKind === "text") {
+    const imageUrl = kind === "image_to_prompt" ? firstReferenceImage(request) : "";
+    const userContent: unknown = imageUrl
+      ? [
+          { type: "text", text: request.prompt },
+          { type: "image_url", image_url: { url: imageUrl } },
+        ]
+      : request.prompt;
+    const maxTokensValue = Number(request.extras?.maxTokens ?? request.extras?.max_tokens);
+    const temperatureValue = Number(request.extras?.temperature);
     const response = await postJson(endpoint(vendor, "/v1/chat/completions"), apiKey, vendor, {
       model: model.modelAlias || model.modelKey,
-      messages: [{ role: "user", content: request.prompt }],
-      temperature: 0.7,
+      messages: [{ role: "user", content: userContent }],
+      temperature: Number.isFinite(temperatureValue) ? temperatureValue : 0.7,
+      ...(Number.isFinite(maxTokensValue) && maxTokensValue > 0 ? { max_tokens: maxTokensValue } : {}),
     });
     return { id: taskId, kind, status: "succeeded", assets: [], raw: response };
   }

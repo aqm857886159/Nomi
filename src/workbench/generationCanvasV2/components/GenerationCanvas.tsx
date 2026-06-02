@@ -26,6 +26,8 @@ type GenerationCanvasProps = {
   readOnly?: boolean
 }
 
+type WheelZoomEvent = Pick<WheelEvent, 'deltaMode' | 'deltaY'>
+
 type ActiveEdge = {
   id: string
   position?: { x: number; y: number }
@@ -68,7 +70,7 @@ function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
-function getWheelZoomFactor(event: React.WheelEvent): number {
+function getWheelZoomFactor(event: WheelZoomEvent): number {
   const deltaModeMultiplier = event.deltaMode === 1
     ? WHEEL_LINE_HEIGHT
     : event.deltaMode === 2
@@ -460,16 +462,16 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     }
   }, [])
 
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault()
+  const handleWheel = React.useCallback((event: WheelEvent) => {
+    event.preventDefault()
     setContextNodeMenu(null)
     if (!stageRef.current) return
     const rect = stageRef.current.getBoundingClientRect()
-    const mouseX = e.clientX - rect.left
-    const mouseY = e.clientY - rect.top
+    const mouseX = event.clientX - rect.left
+    const mouseY = event.clientY - rect.top
     const currentZoom = zoomRef.current
     const currentOffset = offsetRef.current
-    const nextZoom = clampNumber(currentZoom * getWheelZoomFactor(e), 0.2, 3)
+    const nextZoom = clampNumber(currentZoom * getWheelZoomFactor(event), 0.2, 3)
     const zoomRatio = nextZoom / currentZoom
     const nextOffset = {
       x: mouseX - (mouseX - currentOffset.x) * zoomRatio,
@@ -478,7 +480,14 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     zoomRef.current = nextZoom
     scheduleOffset(nextOffset)
     setZoom(nextZoom)
-  }
+  }, [scheduleOffset])
+
+  React.useEffect(() => {
+    const stage = stageRef.current
+    if (!stage) return undefined
+    stage.addEventListener('wheel', handleWheel, { passive: false })
+    return () => stage.removeEventListener('wheel', handleWheel)
+  }, [handleWheel])
 
   const handleStageContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
     if (readOnly || !stageRef.current) return
@@ -639,7 +648,6 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
           onPointerDown={handleStagePanStart}
           onPointerMove={handleStagePanMove}
           onPointerUp={handleStagePanEnd}
-          onWheel={handleWheel}
           onContextMenu={handleStageContextMenu}
           onDragOver={(event) => {
             if (readOnly) return

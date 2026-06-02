@@ -2,6 +2,13 @@ import type { GenerationCanvasEdge, GenerationCanvasNode, GenerationNodeKind } f
 import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { collectNodeContext } from '../model/nodeContext'
+import { analyzeSemanticSceneFromSource } from '../nodes/semanticScene/semanticSceneAnalyzer'
+import {
+  createEmptySemanticScene,
+  normalizeSemanticScene,
+} from '../nodes/semanticScene/semanticSceneSerializer'
+import { semanticSceneToScene3D } from '../nodes/semanticScene/semanticSceneToScene3D'
+import type { SemanticScene, SemanticSceneClass } from '../nodes/semanticScene/semanticSceneTypes'
 import { runGenerationNode } from '../runner/generationRunController'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import {
@@ -14,6 +21,14 @@ export type CreateGenerationNodeToolInput = {
   title?: string
   prompt?: string
   position?: { x: number; y: number }
+}
+
+export type CreateSemanticSceneToolInput = {
+  sourceNodeId?: string
+  title?: string
+  position?: { x: number; y: number }
+  scaleHint?: string
+  sceneClass?: SemanticSceneClass
 }
 
 export type GenerationCanvasToolResult<T = unknown> = {
@@ -37,6 +52,9 @@ export type GenerationCanvasToolAction =
   | { tool: 'generate_image'; nodeId: string; confirmed?: boolean }
   | { tool: 'generate_video'; nodeId: string; confirmed?: boolean }
   | { tool: 'send_to_timeline'; nodeId: string; options?: SendGenerationNodeToTimelineOptions }
+  | { tool: 'create_semantic_scene'; input?: CreateSemanticSceneToolInput }
+  | { tool: 'analyze_semantic_scene_from_source'; nodeId: string }
+  | { tool: 'convert_semantic_scene_to_scene3d'; nodeId: string; title?: string; position?: { x: number; y: number } }
 
 function toolResult<T>(input: GenerationCanvasToolResult<T>): GenerationCanvasToolResult<T> {
   return input
@@ -46,6 +64,40 @@ function findNode(nodeId: string): GenerationCanvasNode | null {
   const id = String(nodeId || '').trim()
   if (!id) return null
   return useGenerationCanvasStore.getState().nodes.find((node) => node.id === id) || null
+}
+
+function sourceImageUrlForNode(node: GenerationCanvasNode): string {
+  if (node.kind === 'panorama') {
+    return node.result?.url || (typeof node.meta?.imageUrl === 'string' ? node.meta.imageUrl : '')
+  }
+  if (node.result?.type === 'image') return node.result.url || ''
+  return ''
+}
+
+function sourceTypeForNode(node: GenerationCanvasNode): SemanticScene['sourceType'] {
+  if (node.kind === 'panorama') return 'panorama'
+  return node.result?.type === 'image' ? 'image' : 'manual'
+}
+
+function semanticSceneForNode(node: GenerationCanvasNode): SemanticScene {
+  const state = useGenerationCanvasStore.getState()
+  const current = normalizeSemanticScene(node.meta?.semanticScene || createEmptySemanticScene())
+  if (current.sourceImageUrls.length) return current
+  const incoming = state.edges.find((edge) => edge.target === node.id)
+  const sourceNode = incoming ? state.nodes.find((candidate) => candidate.id === incoming.source) : undefined
+  const sourceUrl = sourceNode ? sourceImageUrlForNode(sourceNode) : ''
+  if (!sourceNode || !sourceUrl) return current
+  return normalizeSemanticScene({
+    ...current,
+    sourceType: sourceTypeForNode(sourceNode),
+    sourceNodeId: sourceNode.id,
+    sourceImageUrls: [sourceUrl],
+    updatedAt: Date.now(),
+  })
+}
+
+function readUpdatedNode(nodeId: string): GenerationCanvasNode | null {
+  return useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId) || null
 }
 
 export const generationCanvasTools = {
@@ -59,6 +111,107 @@ export const generationCanvasTools = {
   },
   create_nodes(nodes: CreateGenerationNodeToolInput[]): GenerationCanvasNode[] {
     return nodes.map((node) => useGenerationCanvasStore.getState().addNode(node))
+  },
+  create_semantic_scene(input: CreateSemanticSceneToolInput = {}): GenerationCanvasNode | null {
+    const sourceNode = input.sourceNodeId ? findNode(input.sourceNodeId) : null
+    if (input.sourceNodeId && !sourceNode) return null
+    const sourceUrl = sourceNode ? sourceImageUrlForNode(sourceNode) : ''
+    const semanticScene = createEmptySemanticScene({
+      sourceType: sourceNode ? sourceTypeForNode(sourceNode) : 'manual',
+      sceneClass: input.sceneClass,
+      sourceNodeId: sourceNode?.id,
+      sourceImageUrls: sourceUrl ? [sourceUrl] : [],
+      scaleHint: input.scaleHint,
+    })
+    const position = input.position || (
+      sourceNode
+        ? {
+          x: sourceNode.position.x + (sourceNode.size?.width || 340) + 90,
+          y: sourceNode.position.y,
+        }
+        : undefined
+    )
+    const node = useGenerationCanvasStore.getState().addNode({
+      kind: 'semanticScene',
+      title: input.title || (sourceNode ? `${sourceNode.title} 语义场景` : '语义场景'),
+      prompt: '从全景图或图片提取空间、边界、对象、光照与相机语义。',
+      position,
+    })
+    useGenerationCanvasStore.getState().updateNode(node.id, {
+      meta: {
+        ...(node.meta || {}),
+        semanticScene,
+      },
+    })
+    if (sourceNode) useGenerationCanvasStore.getState().connectNodes(sourceNode.id, node.id, 'reference')
+    return readUpdatedNode(node.id)
+  },
+  async analyze_semantic_scene_from_source(nodeId: string): Promise<GenerationCanvasNode | null> {
+    const node = findNode(nodeId)
+    if (!node || node.kind !== 'semanticScene') return null
+    const scene = semanticSceneForNode(node)
+    useGenerationCanvasStore.getState().updateNode(node.id, {
+      status: 'running',
+      error: undefined,
+      meta: {
+        ...(node.meta || {}),
+        semanticScene: scene,
+      },
+    })
+    try {
+      const analyzed = await analyzeSemanticSceneFromSource({
+        node,
+        scene,
+        draftJson: JSON.stringify(scene, null, 2),
+      })
+      useGenerationCanvasStore.getState().updateNode(node.id, {
+        status: 'success',
+        error: undefined,
+        meta: {
+          ...(readUpdatedNode(node.id)?.meta || node.meta || {}),
+          semanticScene: analyzed.scene,
+          semanticSceneAnalysis: {
+            modelVendor: analyzed.model.vendor,
+            modelKey: analyzed.model.modelKey,
+            modelAlias: analyzed.model.modelAlias,
+            modelLabel: analyzed.model.label,
+            analyzedAt: Date.now(),
+            raw: analyzed.raw,
+          },
+        },
+      })
+      return readUpdatedNode(node.id)
+    } catch (error: unknown) {
+      const message = error instanceof Error && error.message ? error.message : '语义场景分析失败'
+      useGenerationCanvasStore.getState().updateNode(node.id, { status: 'error', error: message })
+      throw new Error(message)
+    }
+  },
+  convert_semantic_scene_to_scene3d(nodeId: string, options: { title?: string; position?: { x: number; y: number } } = {}): GenerationCanvasNode | null {
+    const node = findNode(nodeId)
+    if (!node || node.kind !== 'semanticScene') return null
+    const semanticScene = semanticSceneForNode(node)
+    const scene3dState = semanticSceneToScene3D(semanticScene)
+    const scene3dNode = useGenerationCanvasStore.getState().addNode({
+      kind: 'scene3d',
+      title: options.title || `${node.title || '语义场景'} 3D`,
+      prompt: '由语义场景图转换生成，可继续进入 3D 编辑器调整。',
+      position: options.position || {
+        x: node.position.x + (node.size?.width || 380) + 90,
+        y: node.position.y,
+      },
+    })
+    useGenerationCanvasStore.getState().updateNode(scene3dNode.id, {
+      status: 'success',
+      meta: {
+        ...(scene3dNode.meta || {}),
+        source: 'semantic-scene',
+        sourceNodeId: node.id,
+        scene3dState,
+      },
+    })
+    useGenerationCanvasStore.getState().connectNodes(node.id, scene3dNode.id, 'reference')
+    return readUpdatedNode(scene3dNode.id)
   },
   connect_nodes(edges: Array<Pick<GenerationCanvasEdge, 'source' | 'target'>>) {
     edges.forEach((edge) => useGenerationCanvasStore.getState().connectNodes(edge.source, edge.target))
@@ -111,6 +264,44 @@ export const generationCanvasTools = {
     if (action.tool === 'create_nodes') {
       const nodes = generationCanvasTools.create_nodes(action.nodes)
       return toolResult({ ok: true, tool: action.tool, message: `创建节点：${nodes.length} 个`, data: nodes })
+    }
+    if (action.tool === 'create_semantic_scene') {
+      const node = generationCanvasTools.create_semantic_scene(action.input)
+      return toolResult({
+        ok: Boolean(node),
+        tool: action.tool,
+        message: node ? '已创建语义场景节点' : '未找到源图节点',
+        data: node,
+        ...(node ? {} : { error: 'source_node_not_found' }),
+      })
+    }
+    if (action.tool === 'analyze_semantic_scene_from_source') {
+      try {
+        const node = await generationCanvasTools.analyze_semantic_scene_from_source(action.nodeId)
+        return toolResult({
+          ok: Boolean(node),
+          tool: action.tool,
+          message: node ? '语义场景分析完成' : '未找到语义场景节点',
+          data: node,
+          ...(node ? {} : { error: 'node_not_found_or_kind_mismatch' }),
+        })
+      } catch (error: unknown) {
+        const message = error instanceof Error && error.message ? error.message : '语义场景分析失败'
+        return toolResult({ ok: false, tool: action.tool, message, error: message })
+      }
+    }
+    if (action.tool === 'convert_semantic_scene_to_scene3d') {
+      const node = generationCanvasTools.convert_semantic_scene_to_scene3d(action.nodeId, {
+        title: action.title,
+        position: action.position,
+      })
+      return toolResult({
+        ok: Boolean(node),
+        tool: action.tool,
+        message: node ? '已转换为 3D 场景节点' : '未找到语义场景节点',
+        data: node,
+        ...(node ? {} : { error: 'node_not_found_or_kind_mismatch' }),
+      })
     }
     if (action.tool === 'connect_nodes') {
       const edges = generationCanvasTools.connect_nodes(action.edges)
