@@ -9,7 +9,7 @@ import {
 } from '../workbench/api/modelCatalogApi'
 import type { ModelOption, ModelOptionPricing, NodeKind } from './models'
 
-export const MODEL_REFRESH_EVENT = 'tapcanvas-models-refresh'
+export const MODEL_REFRESH_EVENT = 'nomi-models-refresh'
 
 type RefreshDetail = 'openai' | 'anthropic' | 'all' | undefined
 

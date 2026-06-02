@@ -41,7 +41,7 @@ const validManifest = (): NomiRenderManifestV1 => ({
     "asset-1": {
       id: "asset-1",
       kind: "video",
-      absolutePath: "/Users/aoqimin/Videos/source.mp4",
+      absolutePath: "/Users/test/Videos/source.mp4",
       durationSeconds: 3,
       width: 1920,
       height: 1080,

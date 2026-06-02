@@ -40,7 +40,7 @@ function baseManifest(overrides: Partial<NomiRenderManifestV1> = {}): NomiRender
 const videoAsset = {
   id: "video-1",
   kind: "video" as const,
-  absolutePath: "/Users/aoqimin/Videos/source.mp4",
+  absolutePath: "/Users/test/Videos/source.mp4",
   durationSeconds: 3,
   width: 1920,
   height: 1080,
@@ -51,7 +51,7 @@ const videoAsset = {
 const imageAsset = {
   id: "image-1",
   kind: "image" as const,
-  absolutePath: "/Users/aoqimin/Pictures/title.png",
+  absolutePath: "/Users/test/Pictures/title.png",
   width: 1920,
   height: 1080,
 };

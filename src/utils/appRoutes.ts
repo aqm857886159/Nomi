@@ -33,7 +33,7 @@ export function buildStudioUrl(input?: string | null | {
   try {
     const url = typeof window !== 'undefined'
       ? new URL(window.location.href)
-      : new URL('https://tapcanvas.local')
+      : new URL('https://nomi.local')
 
     url.pathname = STUDIO_PATH
     url.search = ''
