@@ -369,7 +369,7 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
                       type="button"
                       onClick={() => handlePickPreset(p.id)}
                       className={cn(
-                        'px-3 py-1 rounded-full text-[13px] border',
+                        'inline-flex items-center gap-1 px-3 py-1 rounded-full text-[13px] border',
                         'transition-[background,color,border-color] duration-150',
                         active
                           ? 'bg-nomi-accent-soft text-nomi-accent border-nomi-accent'
@@ -377,6 +377,7 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
                       )}
                     >
                       {p.label}
+                      {active && <IconCheck size={13} stroke={2} />}
                     </button>
                   )
                 })}
@@ -508,14 +509,14 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
                 </DesignButton>
                 {testState === 'ok' && (
                   <Group gap={4} align="center" wrap="nowrap" c="var(--workbench-success)">
-                    <IconCheck size={14} stroke={1.5} />
                     <Text size="xs" c="var(--workbench-success)">{testMessage}</Text>
+                    <IconCheck size={14} stroke={1.5} />
                   </Group>
                 )}
                 {testState === 'fail' && (
                   <Group gap={4} align="center" wrap="nowrap" c="var(--workbench-danger)">
-                    <IconX size={14} stroke={1.5} />
                     <Text size="xs" c="var(--workbench-danger)" lineClamp={1}>{testMessage}</Text>
+                    <IconX size={14} stroke={1.5} />
                   </Group>
                 )}
               </Group>
@@ -642,7 +643,8 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 function MilestoneRow({ milestone, detail }: { milestone: Milestone; detail?: string }): JSX.Element {
   const color = milestone.status === 'pending' ? 'var(--nomi-ink-40)' : 'var(--nomi-ink-80)'
   return (
-    <Group gap={8} wrap="nowrap" align="center">
+    <Group gap={8} wrap="nowrap" align="center" justify="space-between">
+      <Text size="sm" c={color}>{detail || milestone.label}</Text>
       <span className="inline-flex items-center justify-center" style={{ width: 14 }}>
         {milestone.status === 'done' ? (
           <IconCheck size={14} stroke={1.8} color="var(--workbench-success)" />
@@ -655,7 +657,6 @@ function MilestoneRow({ milestone, detail }: { milestone: Milestone; detail?: st
           }} />
         )}
       </span>
-      <Text size="sm" c={color}>{detail || milestone.label}</Text>
     </Group>
   )
 }
