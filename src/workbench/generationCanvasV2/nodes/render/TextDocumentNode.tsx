@@ -77,9 +77,10 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
         <span className='text-[11px] font-medium tracking-[0.04em]'>Text</span>
       </header>
 
-      {/* 正文：ProseMirror 编辑区。stopPropagation 挡住画布全局快捷键。 */}
+      {/* 正文：ProseMirror 编辑区。stopPropagation 挡住画布全局快捷键。
+          select-text/touch-auto 覆盖外层 article 的 select-none/touch-none，否则正文无法选字。 */}
       <section
-        className={cn('relative flex-1 min-h-0 overflow-auto cursor-text')}
+        className={cn('relative flex-1 min-h-0 overflow-auto cursor-text select-text touch-auto')}
         onKeyDown={(event) => event.stopPropagation()}
         onKeyUp={(event) => event.stopPropagation()}
         onBlur={() => commitPersistedChange()}>
