@@ -9,17 +9,21 @@ import { WorkbenchButton } from '../../../design'
 import { cn } from '../../../utils/cn'
 import { toast } from '../../../ui/toast'
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
-import { getGenerationNodePlugin, getQuickAddGenerationNodePlugins } from '../nodes/renderRegistry'
+import { getQuickAddGenerationNodePlugins } from '../nodes/renderRegistry'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { sendStoryboardToTimeline } from '../agent/sendStoryboardToTimeline'
 import { runGenerationNodesBatch } from '../runner/generationRunController'
 
 const QUICK_ADD_NODE_ITEMS = getQuickAddGenerationNodePlugins()
 
-function NodePluginIcon({ kind, size }: { kind: GenerationNodeKind; size: number }): JSX.Element {
-  const Icon = getGenerationNodePlugin(kind).icon
-  return <Icon size={size} />
-}
+// Single source of truth for the手动「添加节点」set — used by BOTH the left
+// toolbar and the right-click menu so they never diverge. The其它 quickAdd kinds
+// (角色/场景/关键帧/镜头/输出) are created by the agent / storyboard flow, not by
+// manual add — keeping this list short de-clutters the right-click menu.
+const PRIMARY_NODE_KINDS: GenerationNodeKind[] = ['text', 'image', 'video', 'panorama', 'scene3d']
+const PRIMARY_ADD_ITEMS = PRIMARY_NODE_KINDS
+  .map((kind) => QUICK_ADD_NODE_ITEMS.find((item) => item.kind === kind))
+  .filter((item): item is (typeof QUICK_ADD_NODE_ITEMS)[number] => Boolean(item))
 
 type NodeAddMenuProps = {
   className?: string
@@ -51,7 +55,7 @@ export function NodeAddMenu({
       onContextMenu={onContextMenu}
       onPointerDown={onPointerDown}
     >
-      {QUICK_ADD_NODE_ITEMS.map((item) => {
+      {PRIMARY_ADD_ITEMS.map((item) => {
         const Icon = item.icon
         return (
           <WorkbenchButton
@@ -100,51 +104,21 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
       )}
       aria-label="生成画布工具栏"
     >
-      <WorkbenchButton
-        className={cn('w-8 h-8 min-h-8 p-0 border-0 rounded-nomi-sm cursor-pointer')}
-        aria-label="添加文本节点"
-        title="文本"
-        onClick={() => handleAddNode('text')}
-      >
-        <NodePluginIcon kind="text" size={15} />
-        <span className="hidden">文本</span>
-      </WorkbenchButton>
-      <WorkbenchButton
-        className={cn('w-8 h-8 min-h-8 p-0 border-0 rounded-nomi-sm cursor-pointer')}
-        aria-label="添加图片节点"
-        title="图像"
-        onClick={() => handleAddNode('image')}
-      >
-        <NodePluginIcon kind="image" size={15} />
-        <span className="hidden">图像</span>
-      </WorkbenchButton>
-      <WorkbenchButton
-        className={cn('w-8 h-8 min-h-8 p-0 border-0 rounded-nomi-sm cursor-pointer')}
-        aria-label="添加视频节点"
-        title="视频"
-        onClick={() => handleAddNode('video')}
-      >
-        <NodePluginIcon kind="video" size={15} />
-        <span className="hidden">视频</span>
-      </WorkbenchButton>
-      <WorkbenchButton
-        className={cn('w-8 h-8 min-h-8 p-0 border-0 rounded-nomi-sm cursor-pointer')}
-        aria-label="添加全景图节点"
-        title="全景图"
-        onClick={() => handleAddNode('panorama')}
-      >
-        <NodePluginIcon kind="panorama" size={15} />
-        <span className="hidden">全景图</span>
-      </WorkbenchButton>
-      <WorkbenchButton
-        className={cn('w-8 h-8 min-h-8 p-0 border-0 rounded-nomi-sm cursor-pointer')}
-        aria-label="添加 3D 场景节点"
-        title="3D 场景"
-        onClick={() => handleAddNode('scene3d')}
-      >
-        <NodePluginIcon kind="scene3d" size={15} />
-        <span className="hidden">3D 场景</span>
-      </WorkbenchButton>
+      {PRIMARY_ADD_ITEMS.map((item) => {
+        const Icon = item.icon
+        return (
+          <WorkbenchButton
+            key={item.kind}
+            className={cn('w-8 h-8 min-h-8 p-0 border-0 rounded-nomi-sm cursor-pointer')}
+            aria-label={`添加${item.menuLabel}节点`}
+            title={item.menuLabel}
+            onClick={() => handleAddNode(item.kind)}
+          >
+            <Icon size={15} />
+            <span className="hidden">{item.menuLabel}</span>
+          </WorkbenchButton>
+        )
+      })}
       <span className={cn('w-5 h-px bg-workbench-border')} />
       <WorkbenchButton
         className={cn('w-8 h-8 min-h-8 p-0 border-0 rounded-nomi-sm cursor-pointer disabled:cursor-not-allowed disabled:opacity-[0.42]')}
