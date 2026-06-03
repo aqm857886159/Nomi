@@ -158,13 +158,6 @@ export type GenerationCanvasEdgeMode =
   | 'character_ref'
   | 'composition_ref'
 
-export type GenerationCanvasSelectionRect = {
-  minX: number
-  minY: number
-  maxX: number
-  maxY: number
-}
-
 export type GenerationCanvasSnapshot = {
   nodes: GenerationCanvasNode[]
   edges: GenerationCanvasEdge[]

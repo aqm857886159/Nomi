@@ -190,7 +190,6 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
   const moveGroupNodes = useGenerationCanvasStore((state) => state.moveGroupNodes)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
-  const selectNodesInRect = useGenerationCanvasStore((state) => state.selectNodesInRect)
   const disconnectEdge = useGenerationCanvasStore((state) => state.disconnectEdge)
   const pendingConnectionSourceId = useGenerationCanvasStore((state) => state.pendingConnectionSourceId)
   const connectToNode = useGenerationCanvasStore((state) => state.connectToNode)
@@ -251,13 +250,6 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
   const panStartRef = React.useRef<{ clientX: number; clientY: number; offsetX: number; offsetY: number } | null>(null)
   const offsetFrameRef = React.useRef<number | null>(null)
   const pendingOffsetRef = React.useRef<{ x: number; y: number } | null>(null)
-  const boxSelectRef = React.useRef<{
-    additive: boolean
-    originClientX: number
-    originClientY: number
-    originCanvasX: number
-    originCanvasY: number
-  } | null>(null)
   const stageRef = React.useRef<HTMLDivElement>(null)
   // E8 P0 G1: viewport-aware virtualization.
   // When node count exceeds the threshold, we filter the render list to only
@@ -296,12 +288,6 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
       return nx + nw >= viewLeft && nx <= viewRight && ny + nh >= viewTop && ny <= viewBottom
     })
   }, [nodes, zoom, offset, stageSize])
-  const [selectionBox, setSelectionBox] = React.useState<{
-    left: number
-    top: number
-    width: number
-    height: number
-  } | null>(null)
   const [contextNodeMenu, setContextNodeMenu] = React.useState<{
     stageX: number
     stageY: number
@@ -742,7 +728,6 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     isPanningRef.current = false
     setIsPanning(false)
     panStartRef.current = null
-    boxSelectRef.current = null
     if (offsetFrameRef.current !== null) {
       window.cancelAnimationFrame(offsetFrameRef.current)
       offsetFrameRef.current = null
@@ -752,7 +737,6 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
       setViewport((current) => ({ ...current, offset: pending }))
       pendingOffsetRef.current = null
     }
-    setSelectionBox(null)
     if (event &&
       typeof event.currentTarget.hasPointerCapture === 'function' &&
       typeof event.currentTarget.releasePointerCapture === 'function' &&
@@ -1152,21 +1136,6 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
               </div>
             )
           })() : null}
-          {selectionBox ? (
-            <div
-              className={cn(
-                'generation-canvas-v2__selection-box',
-                'absolute z-[7] border border-nomi-accent bg-nomi-accent/[0.09] pointer-events-none',
-              )}
-              style={{
-                left: selectionBox.left,
-                top: selectionBox.top,
-                width: selectionBox.width,
-                height: selectionBox.height,
-              }}
-              aria-hidden="true"
-            />
-          ) : null}
           {contextNodeMenu ? (
             <NodeAddMenu
               className={cn('generation-canvas-v2__context-node-menu', 'z-[20]')}

@@ -2,7 +2,6 @@
  * vendor-overrides.css
  * ---------------------
  * CSS rules that override third-party component DOM we don't control:
- *   - React Flow (.react-flow__*)
  *   - Mantine UI (.mantine-*)
  *   - Webkit scrollbar pseudo-elements
  *   - [data-mantine-color-scheme="light"] overrides on third-party selectors
@@ -10,156 +9,6 @@
  * These rules CANNOT be converted to Tailwind utility classes because they
  * target selectors owned by external libraries.
  */
-
-/* ===== React Flow: taskNode / groupNode reset ===== */
-.react-flow__node-taskNode,
-.react-flow__node-taskNode:hover,
-.react-flow__node-taskNode:focus,
-.react-flow__node-taskNode:focus-visible,
-.react-flow__node-taskNode:focus-within,
-.react-flow__node-taskNode.selected {
-  padding: 0 !important;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  outline: none !important;
-}
-
-.react-flow__node-groupNode,
-.react-flow__node-groupNode:hover,
-.react-flow__node-groupNode:focus,
-.react-flow__node-groupNode:focus-visible,
-.react-flow__node-groupNode:focus-within,
-.react-flow__node-groupNode.selected {
-  padding: 0 !important;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  outline: none !important;
-}
-
-/* ===== React Flow: background ===== */
-.tc-canvas__background.react-flow__background {
-  transition: opacity 160ms ease;
-}
-
-.tc-canvas__background--spotlight.react-flow__background {
-  opacity: var(--tc-spotlight-opacity);
-  mask-image: radial-gradient(
-    circle var(--tc-spotlight-radius) at var(--tc-spotlight-x) var(--tc-spotlight-y),
-    rgba(0, 0, 0, 1) 0%,
-    rgba(0, 0, 0, 0.96) 22%,
-    rgba(0, 0, 0, 0.72) 54%,
-    rgba(0, 0, 0, 0.18) 78%,
-    transparent 100%
-  );
-  -webkit-mask-image: radial-gradient(
-    circle var(--tc-spotlight-radius) at var(--tc-spotlight-x) var(--tc-spotlight-y),
-    rgba(0, 0, 0, 1) 0%,
-    rgba(0, 0, 0, 0.96) 22%,
-    rgba(0, 0, 0, 0.72) 54%,
-    rgba(0, 0, 0, 0.18) 78%,
-    transparent 100%
-  );
-}
-
-/* ===== React Flow: minimap & controls positioning ===== */
-.tc-canvas__minimap.react-flow__panel.bottom.left {
-  bottom: 12px;
-  left: 12px;
-  margin: 0;
-}
-
-.tc-canvas__controls.react-flow__panel.bottom.left {
-  bottom: 130px;
-  left: 12px;
-  margin: 0;
-}
-
-.tc-canvas__controls.react-flow__controls {
-  flex-direction: row;
-}
-
-.tc-canvas__controls.react-flow__controls .react-flow__controls-button {
-  border-bottom: none;
-  border-right: 1px solid var(--xy-controls-button-border-color, var(--xy-controls-button-border-color-default));
-}
-
-.tc-canvas__controls.react-flow__controls .react-flow__controls-button:last-child {
-  border-right: none;
-}
-
-/* ===== React Flow: pane focus reset ===== */
-.tc-canvas:focus-visible,
-.tc-canvas__flow:focus,
-.tc-canvas__flow:focus-visible,
-.tc-canvas__flow .react-flow__pane:focus,
-.tc-canvas__flow .react-flow__pane:focus-visible {
-  outline: none !important;
-}
-
-/* ===== React Flow: edge paths ===== */
-.react-flow__edge-path {
-  stroke-width: 2px;
-  transition: opacity 120ms ease, filter 200ms ease;
-}
-.react-flow__connection-path {
-  stroke-width: 2px;
-  stroke-linecap: round;
-}
-.react-flow__edge:hover .react-flow__edge-path {
-  filter: none;
-  opacity: 1;
-}
-
-/* ===== React Flow: handle hit areas ===== */
-.react-flow__handle {
-  position: relative;
-  isolation: isolate;
-  border-radius: 999px;
-  transition: transform 140ms ease, border-color 140ms ease, box-shadow 160ms ease, background-color 140ms ease;
-}
-
-.react-flow__handle::after {
-  content: '';
-  position: absolute;
-  border-radius: 999px;
-  background: transparent;
-  border: 1px solid transparent;
-  transition: background-color .12s ease, border-color .12s ease;
-}
-
-.react-flow__handle-left::after,
-.react-flow__handle-right::after {
-  top: calc(-1 * var(--handle-hit-vertical));
-  bottom: calc(-1 * var(--handle-hit-vertical));
-}
-
-.react-flow__handle-left::after {
-  left: calc(-1 * var(--handle-hit-outside));
-  right: calc(-1 * var(--handle-hit-inside));
-}
-
-.react-flow__handle-right::after {
-  left: calc(-1 * var(--handle-hit-inside));
-  right: calc(-1 * var(--handle-hit-outside));
-}
-
-.react-flow__handle-top::after,
-.react-flow__handle-bottom::after {
-  left: calc(-1 * var(--handle-hit-vertical));
-  right: calc(-1 * var(--handle-hit-vertical));
-}
-
-.react-flow__handle-top::after {
-  top: calc(-1 * var(--handle-hit-outside));
-  bottom: calc(-1 * var(--handle-hit-inside));
-}
-
-.react-flow__handle-bottom::after {
-  top: calc(-1 * var(--handle-hit-inside));
-  bottom: calc(-1 * var(--handle-hit-outside));
-}
 
 /* ===== Mantine: Tooltip single-line ===== */
 .mantine-Tooltip-tooltip {
@@ -282,68 +131,6 @@
   box-shadow: 0 15px 40px rgba(15, 23, 42, 0.08);
 }
 
-/* ===== Light theme: React Flow controls ===== */
-:root[data-mantine-color-scheme="light"] .react-flow__controls {
-  background: rgba(255, 255, 255, 0.85) !important;
-  border: none !important;
-  border-radius: 10px !important;
-  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.1);
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-}
-:root[data-mantine-color-scheme="light"] .react-flow__controls-button {
-  background: transparent !important;
-  border: none !important;
-  color: #101427 !important;
-}
-:root[data-mantine-color-scheme="light"] .react-flow__controls-button:hover {
-  background: rgba(59, 130, 246, 0.08) !important;
-}
-:root[data-mantine-color-scheme="light"] .react-flow__controls-button svg {
-  stroke: currentColor !important;
-}
-
-/* ===== Light theme: React Flow minimap ===== */
-:root[data-mantine-color-scheme="light"] .react-flow__minimap {
-  background: rgba(255, 255, 255, 0.9) !important;
-  border: none !important;
-  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.12);
-}
-
-:root[data-mantine-color-scheme="light"] .react-flow__minimap-mask {
-  fill: rgba(59, 130, 246, 0.08) !important;
-}
-
-/* ===== Light theme: React Flow selection ===== */
-:root[data-mantine-color-scheme="light"] .react-flow__selection {
-  background: rgba(59, 130, 246, 0.2) !important;
-  border: none !important;
-  box-shadow: 0 12px 24px rgba(59, 130, 246, 0.15);
-}
-
-/* ===== Light theme: React Flow handles ===== */
-:root[data-mantine-color-scheme="light"] .react-flow__handle {
-  width: 12px;
-  height: 12px;
-  background: linear-gradient(140deg, rgba(59, 130, 246, 0.22), rgba(14, 165, 233, 0.35)) !important;
-  border: none !important;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18), 0 0 0 2px rgba(255, 255, 255, 0.7);
-  z-index: 3;
-}
-:root[data-mantine-color-scheme="light"] .react-flow__node.selected .react-flow__handle {
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-}
-:root[data-mantine-color-scheme="light"] .react-flow__handle:hover {
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.18), 0 10px 24px rgba(15, 23, 42, 0.12);
-}
-:root[data-mantine-color-scheme="light"] .react-flow__edge-path {
-  opacity: 0.9;
-  transition: opacity 0.12s ease;
-}
-:root[data-mantine-color-scheme="light"] .react-flow__edge:hover .react-flow__edge-path {
-  opacity: 1;
-}
-
 /* ===== Light theme: Webkit scrollbar ===== */
 :root[data-mantine-color-scheme="light"] *::-webkit-scrollbar {
   width: 8px;
@@ -394,19 +181,4 @@
 }
 [data-compact="true"] .mantine-Group-root {
   gap: 6px !important;
-}
-
-/* ===== Light theme: dragging state on react-flow nodes ===== */
-[data-dragging="true"] .react-flow__node:not(.selected) {
-  opacity: 0.45;
-  transition: opacity 0.12s ease;
-}
-
-/* ===== Canvas perf: backdrop blur disabled while graph is moving (light.css) ===== */
-.tc-canvas[data-viewport-moving="true"] .glass,
-.tc-canvas[data-dragging="true"] .glass,
-.tc-canvas[data-viewport-moving="true"] .react-flow__controls,
-.tc-canvas[data-dragging="true"] .react-flow__controls {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
 }

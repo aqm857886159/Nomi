@@ -15,7 +15,6 @@ import { CATEGORY_IDS, type CategoryId } from '../model/generationCanvasTypes'
 import type {
   GenerationCanvasEdge,
   GenerationCanvasNode,
-  GenerationCanvasSelectionRect,
   GenerationCanvasSnapshot,
   GenerationNodeKind,
   GenerationNodeProgress,
@@ -85,7 +84,6 @@ type GenerationCanvasState = {
   moveNode: (nodeId: string, position: { x: number; y: number }, options?: CanvasMutationOptions) => void
   moveSelectedNodes: (delta: { x: number; y: number }, options?: CanvasMutationOptions) => void
   moveGroupNodes: (groupId: string, delta: { x: number; y: number }, options?: CanvasMutationOptions) => void
-  selectNodesInRect: (rect: GenerationCanvasSelectionRect, additive?: boolean) => void
   deleteSelectedNodes: () => void
   copySelectedNodes: () => void
   cutSelectedNodes: () => void
@@ -257,21 +255,6 @@ function cloneClipboardPayload(payload: GenerationCanvasClipboard): GenerationCa
     selectedNodeIds: nodes.map((node) => node.id),
     pendingConnectionSourceId: '',
   }
-}
-
-function nodeIntersectsRect(node: GenerationCanvasNode, rect: GenerationCanvasSelectionRect): boolean {
-  const width = node.size?.width ?? 300
-  const height = node.size?.height ?? 220
-  const nodeRect = {
-    minX: node.position.x,
-    minY: node.position.y,
-    maxX: node.position.x + width,
-    maxY: node.position.y + height,
-  }
-  return nodeRect.minX <= rect.maxX
-    && nodeRect.maxX >= rect.minX
-    && nodeRect.minY <= rect.maxY
-    && nodeRect.maxY >= rect.minY
 }
 
 export function __resetGenerationCanvasHistoryForTests(): void {
@@ -516,20 +499,6 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
       if (!moved) return
       group.updatedAt = Date.now()
       if (shouldPersistCanvasMutation(options)) bumpPersistRevision(state)
-    })
-  },
-  selectNodesInRect: (rect, additive = false) => {
-    set((state) => {
-      const rectIds = state.nodes.filter((node) => nodeIntersectsRect(node, rect)).map((node) => node.id)
-      if (!additive) {
-        state.selectedNodeIds = rectIds
-        state.pendingConnectionSourceId = ''
-        return
-      }
-      const next = new Set(state.selectedNodeIds)
-      rectIds.forEach((id) => next.add(id))
-      state.selectedNodeIds = Array.from(next)
-      state.pendingConnectionSourceId = ''
     })
   },
   deleteSelectedNodes: () => {

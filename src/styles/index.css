@@ -4,7 +4,6 @@
 @import '../theme/nomi-tokens.css';
 @import './vendor-overrides.css';
 @import './animations.css';
-@import './performance.css';
 @import '../styles.css';
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
