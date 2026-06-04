@@ -36,6 +36,7 @@ import {
   extractTaskId as extractTaskIdShared,
   looksLikeLogicalError,
 } from "./ai/requestPipeline";
+import { sanitizeForBroadCompat } from "./ai/promptSanitize";
 import { discoverLegacyProjects, isLegacyProjectSuppressed, suppressLegacyProjectRediscovery } from "./workspace/legacyProjectMigration";
 import {
   createWorkspaceProject,
@@ -2188,12 +2189,11 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
 
   if (wantedKind === "text") {
     const imageUrl = kind === "image_to_prompt" ? firstReferenceImage(request) : "";
+    // 收口 sanitize（P0-6）：聊天/文本 LLM 调用的 prompt 统一 ASCII 可移植化。
+    const promptText = sanitizeForBroadCompat(request.prompt);
     const userContent: unknown = imageUrl
-      ? [
-          { type: "text", text: request.prompt },
-          { type: "image_url", image_url: { url: imageUrl } },
-        ]
-      : request.prompt;
+      ? [{ type: "text", text: promptText }, { type: "image_url", image_url: { url: imageUrl } }]
+      : promptText;
     const maxTokensValue = Number(request.extras?.maxTokens ?? request.extras?.max_tokens);
     const temperatureValue = Number(request.extras?.temperature);
     const response = await postJson(endpoint(vendor, "/v1/chat/completions"), apiKey, vendor, {
@@ -2648,10 +2648,11 @@ export async function runAgentChatV2(
   const { vendor, model, apiKey } = chooseTextModel();
   const systemPrompt = trim(payload.systemPrompt as unknown as JsonRecord["systemPrompt"]);
   const skillSystemPrompt = buildSkillSystemPrompt(payload as unknown as JsonRecord);
-  const userPrompt = trim(payload.prompt) || trim(payload.displayPrompt);
+  // 收口 sanitize（P0-6）：送进 LLM 的 user/system 文本 ASCII 可移植化（防 Moonshot 等 tokenizer 异常）。
+  const userPrompt = sanitizeForBroadCompat(trim(payload.prompt) || trim(payload.displayPrompt));
 
   const systemParts = [AGENT_LANGUAGE_DIRECTIVE, systemPrompt, skillSystemPrompt].filter((part) => part && part.length > 0);
-  const system = systemParts.length > 0 ? systemParts.join("\n\n") : undefined;
+  const system = systemParts.length > 0 ? sanitizeForBroadCompat(systemParts.join("\n\n")) : undefined;
 
   const languageModel = buildLanguageModelForVendor(vendor, model, apiKey);
 
@@ -2679,10 +2680,7 @@ export async function runAgentChatV2(
     tools,
     maxSteps: 5,
     toolCallStreaming: true,
-    onError: ({ error }) => {
-      const message = error instanceof Error ? error.message : String(error);
-      hooks.emit({ type: "error", message });
-    },
+    onError: ({ error }) => hooks.emit({ type: "error", message: error instanceof Error ? error.message : String(error) }),
   });
 
   let finalText = "";
