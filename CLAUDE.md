@@ -45,7 +45,7 @@
 | 项目级方案定稿 | 6 角色评审(7) |
 | 多文件/多步改动 | 动手前写 docs/plan 或 docs/audit 文档(4) |
 | 写/改任意 .ts/.tsx | ≤800 行；巨壳白名单只减不增(12) |
-| 改动完成 + 验证过 | build+typecheck+test+filesize 绿 → 自己 commit + push(11) |
+| 改动完成、准备 push | **跑全套 CI 门**(对齐 quality-gate.yml)：`check:filesize` + `lint:ci` + `typecheck` + `vitest run` + `build` 全绿 → 自己 commit + push(11)。**别漏 lint:ci**——它有 max-warnings 棘轮，新增 1 个 warning 就红。 |
 | 声称"用户可见改动验证过" | Playwright `_electron` 穿透走查，不只单测(13) |
 | 距上次审计 ≥25 commit / 发版前 | 多维 subagent 审计(14) |
 
@@ -56,7 +56,7 @@
 4. 用户可见 → 出样张了吗？**渐进展开**（收下拉/弹层，别平铺一长条）、**防遮挡**（控制项别盖住它要改的对象）、**空间极简**（别留大空框）？(2,8)
 5. **通用第一**：这东西对所有人/所有供应商通用，还是只服务某特例？
 6. 文件要长大 / 喂巨壳吗？(12)
-7. 改完绿了吗？该自己 commit + push 吗？(11,13)
+7. 准备 push 了吗？**全套 CI 门跑了吗**：`check:filesize` + `lint:ci`(含 max-warnings 棘轮) + `typecheck` + `vitest run` + `build`。别只跑 build/test 就推——漏 lint:ci 会红。(11,13)
 
 ### D. 本会话沉淀的教训（已成默认，违反即工作错误）
 - **通用第一**：能力/模板按「模型身份」认，**与供应商解耦**——任何人经任意供应商接入同一模型都用同一套；
