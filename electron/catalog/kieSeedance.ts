@@ -48,9 +48,16 @@ export const SEEDANCE_2_CREATE_OP: HttpOperation = {
     model: "{{model.modelKey}}",
     input: {
       prompt: "{{request.prompt}}",
+      // 一条 body 覆盖三模式：模板引擎对值为 undefined 的键整键丢弃（requestPipeline.renderTemplateValue），
+      // 而 catalogTaskActions 已按「当前模式」把别的模式的参考键投影掉 → 这里非当前模式的键自然不进 body（M2 互斥）。
       first_frame_url: "{{request.params.first_frame_url}}",
-      // 首尾帧模式才有 last_frame_url；首帧模式 params 里没有 → 渲染成 undefined 被丢掉（M2 互斥）。
       last_frame_url: "{{request.params.last_frame_url}}",
+      // 全能参考（omni）数组键。**输出键逐字符照抄 kie 文档（§2 坑1）**：
+      // reference_image_urls / reference_audio_urls 无尾随空格；reference_video_urls **带一个尾随空格**。
+      // 这是 kie 专属的 input 键，单源只此一处（M1）；值取自供应商无关的通用 snake 参数。
+      reference_image_urls: "{{request.params.reference_image_urls}}",
+      "reference_video_urls ": "{{request.params.reference_video_urls}}",
+      reference_audio_urls: "{{request.params.reference_audio_urls}}",
       resolution: "{{request.params.resolution}}",
       aspect_ratio: "{{request.params.aspect_ratio}}",
       duration: "{{request.params.duration}}",

@@ -42,15 +42,20 @@ import {
   resultPreviewUrl,
 } from './controls/parameterControlModel'
 import {
+  type ArchetypeArraySlot,
   applyArchetypeModeSwitch,
+  archetypeModeArraySlots,
   archetypeModeChoices,
   archetypeModeParams,
   archetypeModeSlots,
   currentArchetypeMode,
   ensureArchetypeNodeMeta,
+  modeHasCharacterSlot,
+  readArchetypeArray,
   resolveArchetypeForModel,
 } from './controls/archetypeMeta'
 import ModeBar from './controls/ModeBar'
+import ReferenceSlots from './controls/ReferenceSlots'
 
 type NodeParameterControlsProps = {
   node: GenerationCanvasNode
@@ -137,6 +142,9 @@ export default function NodeParameterControls({
   const [uploadingSlotKey, setUploadingSlotKey] = React.useState('')
   const [uploadError, setUploadError] = React.useState('')
   const [openSlotKey, setOpenSlotKey] = React.useState('')
+  // C3 数组参考槽（全能参考）：哪个槽的「+ 添加」菜单展开 + 哪个槽正在上传。
+  const [openArraySlotKey, setOpenArraySlotKey] = React.useState('')
+  const [uploadingArrayKey, setUploadingArrayKey] = React.useState('')
   const isImageLike = isImageLikeGenerationNodeKind(node.kind)
   const isVideoLike = isVideoLikeGenerationNodeKind(node.kind)
   // C5：文本节点也是可生成节点（executionKind:'text'）——要渲染模型选择器，否则没处选模型。
@@ -239,11 +247,42 @@ export default function NodeParameterControls({
     updateMeta(defaultPatchForCatalogControl({ ...control, defaultValue: value }))
   }
 
-  // 切生成方式：整组 swap 参考图（refsByMode）+ 投影当前模式的 flat 帧键（M2 互斥），切回还原。
+  // 切生成方式：只改 modeId，参考值全局保留（切回照片还在）；互斥发生在传输投影。
   const handleModeSwitch = (modeId: string) => {
     if (!archetype) return
     updateNode(node.id, { meta: applyArchetypeModeSwitch(node.meta || {}, archetype, modeId) })
     setOpenSlotKey('')
+    setOpenArraySlotKey('')
+  }
+
+  // ── C3 数组参考槽（全能参考，meta-only）：append / remove / 上传，写 node.meta[metaKey] 数组 ──
+  const setArrayValue = (metaKey: string, next: string[]) => updateMeta({ [metaKey]: next })
+  const handleArrayAdd = (slot: ArchetypeArraySlot, url: string) => {
+    const trimmed = url.trim()
+    if (!trimmed) return
+    const current = readArchetypeArray(node.meta || {}, slot.metaKey)
+    if (current.includes(trimmed) || current.length >= slot.max) return
+    setArrayValue(slot.metaKey, [...current, trimmed])
+    setOpenArraySlotKey('')
+  }
+  const handleArrayRemove = (metaKey: string, index: number) => {
+    const current = readArchetypeArray(node.meta || {}, metaKey)
+    setArrayValue(metaKey, current.filter((_, i) => i !== index))
+  }
+  const handleArrayUpload = async (slot: ArchetypeArraySlot, file: File | null | undefined) => {
+    if (!file) return
+    setUploadingArrayKey(slot.metaKey)
+    setUploadError('')
+    try {
+      const uploaded = await importWorkbenchLocalAssetFile(file, file.name || slot.label, { ownerNodeId: node.id, taskKind: 'image_edit' })
+      const url = assetUrl(uploaded)
+      if (!url) throw new Error('服务器没有返回素材 URL')
+      handleArrayAdd(slot, url)
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setUploadingArrayKey('')
+    }
   }
   const handleSlotAssignment = (slot: ImageUrlSlot, newSourceNodeId: string) => {
     const targetMode = edgeModeForGroup(slot.group)
@@ -324,12 +363,22 @@ export default function NodeParameterControls({
   const modeChoices = archetype ? archetypeModeChoices(archetype) : []
   const showModeBar = modeChoices.length > 1
   const candidateImageNodes = nodes.filter((item) => item.id !== node.id && isImageLikeGenerationNodeKind(item.kind))
+  // C3 数组参考槽（全能参考）：当前模式声明的数组槽 + 各自当前 URL 列表。
+  const arraySlots: ArchetypeArraySlot[] = archMode ? archetypeModeArraySlots(archMode) : []
+  const arrayValuesByKey: Record<string, string[]> = Object.fromEntries(
+    arraySlots.map((slot) => [slot.metaKey, readArchetypeArray(meta, slot.metaKey)]),
+  )
+  const arrayCandidates = candidateImageNodes
+    .map((item) => ({ id: item.id, title: item.title, url: resultPreviewUrl(item) }))
+    .filter((item) => item.url)
+  // U2：当前模式含角色图槽且已放图 → 在 prompt 旁提示「用 character1.. 指代」。
+  const showCharacterCue = Boolean(archMode && modeHasCharacterSlot(archMode) && (arrayValuesByKey.referenceImageUrls?.length || 0) > 0)
   const showReferences = section === 'all' || section === 'references'
   const showModel = section === 'all' || section === 'parameters' || section === 'model'
   const showControls = section === 'all' || section === 'parameters' || section === 'controls'
 
-  // 模式分段切换要常驻（即便当前模式无参考槽，如纯文生）——所以有 modeBar 时不空返回。
-  if (section === 'references' && imageUrlSlots.length === 0 && !showModeBar) return null
+  // 模式分段切换要常驻（即便当前模式无参考槽，如纯文生）——有 modeBar 或数组槽时都不空返回。
+  if (section === 'references' && imageUrlSlots.length === 0 && arraySlots.length === 0 && !showModeBar) return null
 
   const rootClassName = section === 'references'
     ? cn('generation-canvas-v2-node__ref-section', 'flex flex-col gap-[5px]')
@@ -595,10 +644,31 @@ export default function NodeParameterControls({
               </div>
             )
           })}
-          {uploadError ? (
-            <div className={cn('text-workbench-danger text-[10.5px] leading-[1.25]')} role="alert">{uploadError}</div>
-          ) : null}
         </div>
+      ) : null}
+
+      {showReferences && arraySlots.length > 0 ? (
+        <ReferenceSlots
+          slots={arraySlots}
+          valuesByKey={arrayValuesByKey}
+          candidates={arrayCandidates}
+          openKey={openArraySlotKey}
+          uploadingKey={uploadingArrayKey}
+          onToggleMenu={(metaKey) => setOpenArraySlotKey((prev) => (prev === metaKey ? '' : metaKey))}
+          onPickNode={(metaKey, url) => { const slot = arraySlots.find((s) => s.metaKey === metaKey); if (slot) handleArrayAdd(slot, url) }}
+          onUpload={(slot, file) => { void handleArrayUpload(slot, file) }}
+          onRemove={handleArrayRemove}
+        />
+      ) : null}
+
+      {showReferences && showCharacterCue ? (
+        <div className={cn('text-nomi-ink-60 text-[10.5px] leading-[1.35]')}>
+          提示：在描述里用 <span className="text-nomi-accent">character1</span>、<span className="text-nomi-accent">character2</span>… 指代上面的角色图
+        </div>
+      ) : null}
+
+      {showReferences && uploadError ? (
+        <div className={cn('text-workbench-danger text-[10.5px] leading-[1.25]')} role="alert">{uploadError}</div>
       ) : null}
     </div>
   )

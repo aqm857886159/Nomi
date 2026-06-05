@@ -114,6 +114,7 @@ import type {
   Vendor,
 } from "./catalog/types";
 import { CURRENT_CATALOG_VERSION } from "./catalog/types";
+import { referenceInputParams } from "./catalog/archetypeInput";
 import { applyBuiltinSeeds } from "./catalog/seedBuiltins";
 export type {
   AiSdkProviderKind,
@@ -1896,9 +1897,8 @@ function taskTemplateParams(request: TaskRequest): JsonRecord {
     negative_prompt: request.negativePrompt,
     duration,
     image_url: firstReferenceImage(request),
-    ...(firstString(extras.firstFrameUrl) ? { first_frame_url: firstString(extras.firstFrameUrl) } : {}),
-    ...(firstString(extras.lastFrameUrl) ? { last_frame_url: firstString(extras.lastFrameUrl) } : {}),
-    reference_images: Array.isArray(extras.referenceImages) ? extras.referenceImages : [],
+    // 参考输入（单图首/尾帧 + 多参考数组）—— 构建逻辑在 electron/catalog/archetypeInput（M5）。
+    ...referenceInputParams(extras),
     max_tokens: extras.maxTokens ?? extras.max_tokens,
   };
 }

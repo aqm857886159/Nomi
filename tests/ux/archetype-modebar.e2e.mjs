@@ -75,6 +75,33 @@ try {
   assert(after.slots >= 1, "切到首尾帧后出现「尾帧」参考槽");
   assert(after.hasLastHint, "vendor 副标签更新为「该模型称『首尾帧』」");
 
+  // ── C3：切到「角色参考」(全能参考 omni) → 数组槽 + 上传一张角色图 → ①徽标 + promptCue ──
+  await win.locator('.generation-canvas-v2-node__composer [role="group"][aria-label="生成方式"] button', { hasText: "角色参考" }).first().click();
+  await win.waitForTimeout(900);
+  await shot("04-omni");
+  const omniText = await win.evaluate(() => (document.querySelector(".generation-canvas-v2-node__composer")?.innerText || "").replace(/\s+/g, " "));
+  assert(/角色参考/.test(omniText), "omni：出现「角色参考」组");
+  assert(/character1…9|character1/.test(omniText), "omni：角色组共享说明含 character1…9（U2）");
+  assert(/参考视频/.test(omniText) && /参考音频/.test(omniText), "omni：参考视频 / 参考音频 分组小标题（U3）");
+
+  // 写一张 1x1 png 临时文件，经「+ 角色参考」菜单上传
+  const pngB64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+  const tmpPng = path.join(shotsDir, "_char1.png");
+  fs.writeFileSync(tmpPng, Buffer.from(pngB64, "base64"));
+  await win.locator('.generation-canvas-v2-node__composer button[aria-label="添加角色参考"]').first().click();
+  await win.waitForTimeout(400);
+  await win.locator('.generation-canvas-v2-node__composer input[type="file"][aria-label="上传角色参考"]').first().setInputFiles(tmpPng);
+  await win.waitForTimeout(2500); // 等本地素材导入
+  await shot("05-omni-char1");
+  const afterUpload = await win.evaluate(() => {
+    const comp = document.querySelector(".generation-canvas-v2-node__composer");
+    const badge1 = comp ? Array.from(comp.querySelectorAll("span")).some((s) => s.textContent.trim() === "1") : false;
+    const text = comp ? (comp.innerText || "").replace(/\s+/g, " ") : "";
+    return { badge1, hasCue: /用 character1/.test(text) };
+  });
+  assert(afterUpload.badge1, "上传后角色图 chip 带 ① 数字徽标（character1）");
+  assert(afterUpload.hasCue, "prompt 旁出现 character1.. 提示（U2）");
+
   console.log(`\nMODEBAR E2E PASS: ${passed} assertions`);
 } catch (error) {
   await shot("99-fail");

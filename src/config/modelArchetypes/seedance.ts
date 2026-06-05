@@ -53,5 +53,21 @@ export const SEEDANCE_2_ARCHETYPE: ModelArchetype = {
       ],
       params: FIRST_MODE_PARAMS,
     },
+    {
+      // 全能参考（omni）：多模态参考数组。kie 文档：reference_image_urls[≤9]（按序 = character1..9）、
+      // reference_video_urls[≤3]、reference_audio_urls[≤3]。三者与 first/last 帧互斥（§2 坑2）。
+      // 数组槽 meta-only，不走画布边（评审 M6：edge 只有 3 个值，表达不了 9 个有序槽）。
+      id: "omni",
+      intent: "character",
+      vendorTerm: "全能参考",
+      hint: "多模态参考；最多 9 角色 / 3 视频 / 3 音频",
+      promptRequired: true,
+      slots: [
+        { kind: "image_ref", label: "角色参考", min: 0, max: 9 },
+        { kind: "video_ref", label: "参考视频", min: 0, max: 3 },
+        { kind: "audio_ref", label: "参考音频", min: 0, max: 3 },
+      ],
+      params: FIRST_MODE_PARAMS,
+    },
   ],
 };
