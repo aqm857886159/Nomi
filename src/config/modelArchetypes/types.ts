@@ -34,6 +34,9 @@ export type ArchetypeReferenceSlot = {
   /** 该输入是否序列化为数组。缺省由 kind 推断（image/video/audio_ref=true，frame=false）。
    *  特例：HappyHorse 单图首帧的 input 是 `image_urls`[正好 1]——单图槽但 asArray=true（包成 1 元素数组）。 */
   asArray?: boolean;
+  /** 这些图是否**按序对应 prompt 的 character1..N**（角色参考）。true → 缩略图标 ①②③ + 给 character 提示。
+   *  仅角色槽为 true（Seedance 全能参考、HappyHorse 角色参考）；普通参考图（如 video-edit 的参考图）为 false。 */
+  characterIndexed?: boolean;
 };
 
 /** 跨模型统一的「意图」——UI 主标签按它走（角色参考/单图首帧/首尾帧/文生/视频编辑）。 */

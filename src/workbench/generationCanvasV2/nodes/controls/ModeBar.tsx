@@ -19,9 +19,9 @@ export default function ModeBar({ choices, activeId, onSelect }: ModeBarProps): 
   const active = choices.find((c) => c.id === activeId) ?? choices[0]
   return (
     <div className={cn('flex flex-col gap-[4px]')}>
-      <span className={cn('text-nomi-ink-40 text-[9.5px] leading-none')}>生成方式</span>
+      <span className={cn('text-nomi-ink-40 text-micro leading-none')}>生成方式</span>
       <div
-        className={cn('inline-flex flex-wrap gap-[2px] p-[2px] rounded-[5px] bg-nomi-ink-05 self-start')}
+        className={cn('inline-flex flex-wrap gap-[2px] p-[2px] rounded-nomi-sm bg-nomi-ink-05 self-start')}
         role="group"
         aria-label="生成方式"
       >
@@ -34,7 +34,7 @@ export default function ModeBar({ choices, activeId, onSelect }: ModeBarProps): 
               aria-pressed={isActive}
               data-active={isActive ? 'true' : 'false'}
               className={cn(
-                'rounded-[4px] px-[10px] py-[4px] text-[11px] leading-none font-[inherit]',
+                'rounded-nomi-sm px-[10px] py-[4px] text-micro leading-none font-[inherit]',
                 'text-nomi-ink-60 cursor-pointer transition-colors',
                 'data-[active=true]:bg-nomi-paper data-[active=true]:text-nomi-ink',
                 'data-[active=true]:font-semibold data-[active=true]:shadow-nomi-sm',
@@ -49,7 +49,7 @@ export default function ModeBar({ choices, activeId, onSelect }: ModeBarProps): 
           )
         })}
       </div>
-      <div className={cn('text-nomi-ink-40 text-[10.5px] leading-[1.35]')}>
+      <div className={cn('text-nomi-ink-40 text-micro leading-[1.35]')}>
         {active.hint}
       </div>
     </div>

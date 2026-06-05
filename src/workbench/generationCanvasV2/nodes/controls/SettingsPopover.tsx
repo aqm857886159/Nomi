@@ -26,8 +26,8 @@ const CHEVRON_BG = {
 
 // 样张 select：appearance-none + 自绘 chevron + 紧凑内边距，按内容收宽（min-w 72）。
 const selectClass = cn(
-  'appearance-none font-[inherit] text-[12px] text-nomi-ink cursor-pointer',
-  'bg-nomi-paper border border-nomi-line rounded-[6px] pl-2 pr-6 py-[6px] min-w-[72px]',
+  'appearance-none font-[inherit] text-caption text-nomi-ink cursor-pointer',
+  'bg-nomi-paper border border-nomi-line rounded-nomi-sm pl-2 pr-6 py-[6px] min-w-[72px]',
   'focus:border-nomi-accent outline-0',
 )
 
@@ -45,10 +45,10 @@ export default function SettingsPopover({ open, controls, meta, onParameterChang
     <div
       className={cn(
         'generation-canvas-v2-node__settings-pop',
-        // 块级面板，展开在参数卡底部（往下展开、不盖参考/描述）。样张是「浮在卡片下方的卡」——
-        // 实现成卡内底部块以避开 composer overflow 裁剪；视觉仍是独立面板（顶部分隔线 + 标签字段）。
-        'flex flex-col gap-[12px] p-[12px] mt-[2px] max-h-[240px] overflow-auto',
-        'bg-nomi-paper border-t border-nomi-line-soft',
+        // 悬浮在参数卡下方的独立卡（样张 v3 .pop：往下弹、不盖卡片内容）。定位由 composer 外层锚负责，
+        // 这里只画卡：纸底 + 描边 + 圆角 + 阴影 + 内边距。
+        'flex flex-col gap-[12px] p-[12px] max-h-[260px] overflow-auto',
+        'bg-nomi-paper border border-nomi-line rounded-nomi shadow-nomi-md',
       )}
       role="group"
       aria-label="生成设置"
@@ -57,7 +57,7 @@ export default function SettingsPopover({ open, controls, meta, onParameterChang
       <div className={cn('flex flex-wrap gap-x-[12px] gap-y-[8px]')}>
         {controls.map((control) => (
           <label key={control.key} className={cn('flex flex-none flex-col gap-[4px]')}>
-            <span className={cn('text-[11px] leading-none text-nomi-ink-40')}>{control.label}</span>
+            <span className={cn('text-micro leading-none text-nomi-ink-40')}>{control.label}</span>
             {renderControlInput(control, meta, onParameterChange, onCatalogChange)}
           </label>
         ))}
@@ -85,7 +85,7 @@ function renderControlInput(
   if (control.type === 'boolean') {
     const current = controlInitialValue(control, meta)
     return (
-      <div className={cn('inline-flex flex-none gap-[2px] p-[2px] rounded-[6px] bg-nomi-ink-05 self-start')} role="group" aria-label={control.label}>
+      <div className={cn('inline-flex flex-none gap-[2px] p-[2px] rounded-nomi-sm bg-nomi-ink-05 self-start')} role="group" aria-label={control.label}>
         {[{ v: 'true', t: '开' }, { v: 'false', t: '关' }].map((opt) => {
           const active = current === opt.v
           return (
@@ -95,7 +95,7 @@ function renderControlInput(
               aria-pressed={active}
               data-active={active ? 'true' : 'false'}
               className={cn(
-                'rounded-[4px] px-[12px] py-[4px] text-[12px] leading-none font-[inherit] text-nomi-ink-60 cursor-pointer',
+                'rounded-nomi-sm px-[12px] py-[4px] text-caption leading-none font-[inherit] text-nomi-ink-60 cursor-pointer',
                 'data-[active=true]:bg-nomi-paper data-[active=true]:text-nomi-ink data-[active=true]:font-semibold data-[active=true]:shadow-nomi-sm',
               )}
               onClick={(e) => { e.stopPropagation(); onParameterChange(control, opt.v) }}
@@ -118,7 +118,7 @@ function renderControlInput(
   }
   return (
     <input
-      className={cn('font-[inherit] text-[12px] text-nomi-ink bg-nomi-paper border border-nomi-line rounded-[6px] px-2 py-[6px] min-w-[72px] outline-0 focus:border-nomi-accent')}
+      className={cn('font-[inherit] text-caption text-nomi-ink bg-nomi-paper border border-nomi-line rounded-nomi-sm px-2 py-[6px] min-w-[72px] outline-0 focus:border-nomi-accent')}
       aria-label={control.label}
       type={control.type === 'number' ? 'number' : 'text'}
       value={controlInitialValue(control, meta)}

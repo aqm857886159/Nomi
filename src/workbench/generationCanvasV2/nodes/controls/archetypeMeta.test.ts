@@ -119,7 +119,7 @@ const OMNI = SEEDANCE.modes.find((m) => m.id === 'omni')!
 describe('C3 全能参考 — 数组槽声明', () => {
   it('omni 声明 image/video/audio 三类数组槽，character 槽按序编号', () => {
     expect(OMNI.slots).toEqual([
-      { kind: 'image_ref', label: '角色参考', min: 0, max: 9 },
+      { kind: 'image_ref', label: '角色参考', min: 0, max: 9, characterIndexed: true },
       { kind: 'video_ref', label: '参考视频', min: 0, max: 3 },
       { kind: 'audio_ref', label: '参考音频', min: 0, max: 3 },
     ])
@@ -129,7 +129,7 @@ describe('C3 全能参考 — 数组槽声明', () => {
       ['referenceVideoUrls', 3, false],
       ['referenceAudioUrls', 3, false],
     ])
-    expect(arr[0].caption).toMatch(/character1/)
+    expect(arr[0].caption).toMatch(/编号/)
   })
   it('omni 无单图 frame 槽；首/尾帧模式无数组槽（互斥）', () => {
     expect(archetypeModeSlots(OMNI)).toEqual([])
@@ -201,6 +201,16 @@ describe('C4 HappyHorse — 档案 + per-mode enum + 模型契约 input 键', ()
   it('t2v：无参考槽，只带 model enum', () => {
     const meta = { archetype: { id: 'happyhorse', modeId: 't2v' } }
     expect(buildArchetypeInputParams(meta, HAPPY)).toEqual({ model: 'happyhorse/text-to-video' })
+  })
+
+  it('video-edit 的「参考图」不是角色槽：不编号、无 character 说明、不触发 prompt 提示', () => {
+    const edit = HAPPY.modes.find((m) => m.id === 'edit')!
+    const refSlot = archetypeModeArraySlots(edit).find((s) => s.metaKey === 'referenceImageUrls')!
+    expect(refSlot.numbered).toBe(false)
+    expect(refSlot.caption).toBeUndefined()
+    expect(modeHasCharacterSlot(edit)).toBe(false)
+    // 而「角色参考」模式是角色槽
+    expect(modeHasCharacterSlot(HAPPY.modes.find((m) => m.id === 'ref')!)).toBe(true)
   })
 
   it('i2v 模式标量参数无 aspect_ratio（U3：无比例时直接不渲染）', () => {

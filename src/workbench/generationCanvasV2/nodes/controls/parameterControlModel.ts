@@ -574,11 +574,11 @@ export function buildEffectiveVideoCatalogConfig(meta: unknown): VideoModelCatal
   }
 }
 
-/** 设置芯片的摘要：当前标量值串成「16:9 · 720p · 5s · 🔊」（模式不进摘要——它常驻在模式条上）。 */
+/** 设置芯片的摘要：当前标量值串成「16:9 · 720p · 5s · 有声」（模式不进摘要——它常驻在模式条上）。 */
 export function buildSettingsSummary(controls: DynamicModelControl[], meta: Record<string, unknown>): string {
   const parts = controls.flatMap((control) => {
     if (isParameterControl(control)) {
-      if (control.type === 'boolean') return controlInitialValue(control, meta) === 'true' ? ['🔊'] : []
+      if (control.type === 'boolean') return controlInitialValue(control, meta) === 'true' ? ['有声'] : []
       const value = controlInitialValue(control, meta)
       if (!value) return []
       return [control.key === 'duration' || control.key === 'durationSeconds' ? `${value}s` : value]

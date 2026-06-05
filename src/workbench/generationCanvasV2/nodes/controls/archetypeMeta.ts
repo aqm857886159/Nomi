@@ -103,12 +103,13 @@ export type ArchetypeArraySlot = {
   caption?: string
 }
 
-/** 当前模式的**数组**参考槽（character1..9 / 视频 / 音频）。meta-only。 */
+/** 当前模式的**数组**参考槽（角色图 / 视频 / 音频）。meta-only。numbered/caption 由 characterIndexed 决定
+ *  ——只有「按序对应 character1..N」的角色槽才标 ①②③ + 给说明；普通参考图（如 video-edit）不标。 */
 export function archetypeModeArraySlots(mode: ArchetypeMode): ArchetypeArraySlot[] {
   return mode.slots.flatMap((slot): ArchetypeArraySlot[] => {
     const route = ARRAY_SLOT_ROUTE[slot.kind]
     if (!route) return []
-    const numbered = slot.kind === 'image_ref'
+    const numbered = Boolean(slot.characterIndexed)
     return [{
       metaKey: route.metaKey,
       label: slot.label,
@@ -116,14 +117,21 @@ export function archetypeModeArraySlots(mode: ArchetypeMode): ArchetypeArraySlot
       max: slot.max,
       accept: route.accept,
       numbered,
-      ...(numbered ? { caption: '顺序对应 prompt 里的 character1…9' } : {}),
+      // 说明只保留「编号」语义，不再重复 character1（prompt 旁的提示是唯一一处讲绑定，减少黑话重复）。
+      ...(numbered ? { caption: '按放入顺序编号 ①②③' } : {}),
     }]
   })
 }
 
-/** 当前模式是否含「角色参考」数组槽（用于在 prompt 框旁给出 character1.. 提示，U2）。 */
+/** 当前模式是否含「角色参考」槽（按序 character1..N）——用于在 prompt 框旁给提示（U2）。 */
 export function modeHasCharacterSlot(mode: ArchetypeMode): boolean {
-  return mode.slots.some((slot) => slot.kind === 'image_ref')
+  return mode.slots.some((slot) => Boolean(slot.characterIndexed))
+}
+
+/** 当前模式的「源视频」单槽（HappyHorse video-edit）。返回 meta 存储键 + 标签；无则 null。 */
+export function archetypeModeSourceVideoSlot(mode: ArchetypeMode): { metaKey: string; label: string } | null {
+  const slot = mode.slots.find((s) => s.kind === 'source_video')
+  return slot ? { metaKey: 'sourceVideoUrl', label: slot.label } : null
 }
 
 /** 读 meta 里某数组槽的当前 URL 列表（健壮：非数组 / 含空串都过滤掉）。 */

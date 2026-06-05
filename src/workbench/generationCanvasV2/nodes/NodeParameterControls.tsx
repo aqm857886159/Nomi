@@ -1,4 +1,5 @@
 import React from 'react'
+import { IconVideo } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { deriveGenerationModelCatalogStatus, findModelOptionByIdentifier, useGenerationModelOptionsState } from '../adapters/modelOptionsAdapter'
 import {
@@ -41,6 +42,7 @@ import {
   archetypeModeChoices,
   archetypeModeParams,
   archetypeModeSlots,
+  archetypeModeSourceVideoSlot,
   currentArchetypeMode,
   ensureArchetypeNodeMeta,
   modeHasCharacterSlot,
@@ -57,23 +59,6 @@ type NodeParameterControlsProps = {
   // section="parameters" 的设置芯片：开合状态由父级（composer）持有，便于把弹层渲染在卡底（不被裁剪）。
   settingsOpen?: boolean
   onToggleSettings?: () => void
-}
-
-// Number of controls that render in the bottom value row for this node: the
-// model selector (always one) + every dynamic control the selected model
-// exposes. BaseGenerationNode uses this to widen the composer so the controls
-// stay readable when a model has many params, instead of squishing into
-// slivers. Model-agnostic — driven entirely by the catalog meta.
-export function useNodeParameterControlCount(node: GenerationCanvasNode): number {
-  const modelOptionsState = useGenerationModelOptionsState(node.kind)
-  const modelOptions = modelOptionsState.options
-  const isImageLike = isImageLikeGenerationNodeKind(node.kind)
-  const isVideoLike = isVideoLikeGenerationNodeKind(node.kind)
-  if (!isImageLike && !isVideoLike) return 0
-  const meta = node.meta || {}
-  const selectedModelValue = readMeta(meta, 'modelKey') || readMeta(meta, 'modelAlias') || readMeta(meta, 'imageModel') || readMeta(meta, 'videoModel')
-  const selectedModelOption = findModelOptionByIdentifier(modelOptions, selectedModelValue) || null
-  return resolveRenderedControls(selectedModelOption, meta, isImageLike, isVideoLike).length + 1
 }
 
 function chooseDefaultModelOption(
@@ -281,6 +266,23 @@ export default function NodeParameterControls({
       setUploadingArrayKey('')
     }
   }
+
+  // D3 源视频单槽（video-edit）：上传一个视频 → 写 meta.sourceVideoUrl（传输映射成 video_url）。
+  const handleSourceVideoUpload = async (metaKey: string, file: File | null | undefined) => {
+    if (!file) return
+    setUploadingArrayKey(metaKey)
+    setUploadError('')
+    try {
+      const uploaded = await importWorkbenchLocalAssetFile(file, file.name || '源视频', { ownerNodeId: node.id, taskKind: 'image_edit' })
+      const url = assetUrl(uploaded)
+      if (!url) throw new Error('服务器没有返回视频 URL')
+      updateMeta({ [metaKey]: url })
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setUploadingArrayKey('')
+    }
+  }
   const handleSlotAssignment = (slot: ImageUrlSlot, newSourceNodeId: string) => {
     const targetMode = edgeModeForGroup(slot.group)
     if (!newSourceNodeId) {
@@ -368,6 +370,9 @@ export default function NodeParameterControls({
   const arrayCandidates = candidateImageNodes
     .map((item) => ({ id: item.id, title: item.title, url: resultPreviewUrl(item) }))
     .filter((item) => item.url)
+  // D3：源视频单槽（HappyHorse 视频编辑）。
+  const sourceVideoSlot = archMode ? archetypeModeSourceVideoSlot(archMode) : null
+  const sourceVideoUrl = sourceVideoSlot ? readMeta(meta, sourceVideoSlot.metaKey) : ''
   // U2：当前模式含角色图槽且已放图 → 在 prompt 旁提示「用 character1.. 指代」。
   const showCharacterCue = Boolean(archMode && modeHasCharacterSlot(archMode) && (arrayValuesByKey.referenceImageUrls?.length || 0) > 0)
   const showReferences = section === 'all' || section === 'references'
@@ -393,8 +398,8 @@ export default function NodeParameterControls({
         <button
           type="button"
           className={cn(
-            'inline-flex items-center gap-1.5 h-7 px-3 rounded-full border border-nomi-accent/30',
-            'bg-nomi-accent-soft text-nomi-accent font-medium text-[12px]',
+            'inline-flex items-center gap-1.5 h-7 px-3 rounded-pill border border-nomi-accent/30',
+            'bg-nomi-accent-soft text-nomi-accent font-medium text-caption',
             'hover:bg-nomi-accent hover:text-nomi-paper transition-colors cursor-pointer',
           )}
           aria-label="去配置模型"
@@ -412,8 +417,8 @@ export default function NodeParameterControls({
           <div className={cn('relative inline-flex items-center')}>
             <select
               className={cn(
-                'appearance-none h-7 max-w-[164px] pl-3 pr-7 rounded-full',
-                'border border-nomi-line bg-nomi-paper text-nomi-ink-80 font-[inherit] text-[12px]',
+                'appearance-none h-7 max-w-[164px] pl-3 pr-7 rounded-pill',
+                'border border-nomi-line bg-nomi-paper text-nomi-ink-80 font-[inherit] text-caption',
                 'cursor-pointer outline-0 focus:border-nomi-accent truncate',
               )}
               style={{
@@ -435,7 +440,7 @@ export default function NodeParameterControls({
           {selectedModelOption ? (
             <span
               className={cn(
-                'shrink-0 text-[11px] leading-none px-1.5 py-[3px] rounded-full',
+                'shrink-0 text-micro leading-none px-1.5 py-[3px] rounded-pill',
                 archetype ? 'bg-nomi-accent-soft text-nomi-accent' : 'bg-nomi-ink-10 text-nomi-ink-60',
               )}
               title={archetype ? '认得这个模型 · 用内置模板' : '未识别 · 通用回退（按接入文档原样展示）'}
@@ -448,8 +453,8 @@ export default function NodeParameterControls({
             data-open={settingsOpen ? 'true' : 'false'}
             aria-expanded={settingsOpen}
             className={cn(
-              'inline-flex items-center gap-1.5 h-7 px-3 rounded-full min-w-0',
-              'border border-nomi-line bg-nomi-paper text-nomi-ink-80 font-[inherit] text-[12px] cursor-pointer',
+              'inline-flex items-center gap-1.5 h-7 px-3 rounded-pill min-w-0',
+              'border border-nomi-line bg-nomi-paper text-nomi-ink-80 font-[inherit] text-caption cursor-pointer',
               'hover:border-nomi-ink-20',
               'data-[open=true]:border-nomi-accent data-[open=true]:text-nomi-accent data-[open=true]:bg-nomi-accent-soft',
             )}
@@ -457,15 +462,15 @@ export default function NodeParameterControls({
             onClick={(event) => { event.stopPropagation(); onToggleSettings() }}
           >
             <span className="truncate">{buildSettingsSummary(renderedControls, meta) || '设置'}</span>
-            <span className={cn('shrink-0 text-nomi-ink-40 text-[11px]')}>▾</span>
+            <span className={cn('shrink-0 text-nomi-ink-40 text-micro')}>▾</span>
           </button>
         ) : null}
       </div>
     )
   }
 
-  // 模式分段切换要常驻（即便当前模式无参考槽，如纯文生）——有 modeBar 或数组槽时都不空返回。
-  if (section === 'references' && imageUrlSlots.length === 0 && arraySlots.length === 0 && !showModeBar) return null
+  // 模式分段切换要常驻（即便当前模式无参考槽，如纯文生）——有 modeBar / 数组槽 / 源视频槽都不空返回。
+  if (section === 'references' && imageUrlSlots.length === 0 && arraySlots.length === 0 && !sourceVideoSlot && !showModeBar) return null
 
   // 走到这里只剩 section="references"（parameters/settings 已提前 return；旧的 all/model/controls 网格
   // 渲染随设置弹层落地而删除——参数现在进设置弹层，模型进底栏芯片，不再有这套裸值网格，Rule 1/12）。
@@ -475,6 +480,37 @@ export default function NodeParameterControls({
     <div className={rootClassName} aria-label="参考素材">
       {showReferences && showModeBar ? (
         <ModeBar choices={modeChoices} activeId={archMode?.id || ''} onSelect={handleModeSwitch} />
+      ) : null}
+
+      {showReferences && sourceVideoSlot ? (
+        <div className={cn('flex flex-col gap-[4px]')}>
+          <span className={cn('text-nomi-ink-60 text-micro leading-none')}>{sourceVideoSlot.label}</span>
+          <div className={cn('flex items-center gap-[6px]')}>
+            {sourceVideoUrl ? (
+              <div className={cn('relative w-12 h-12 rounded-nomi-sm border border-nomi-line bg-nomi-ink-05 overflow-hidden flex items-center justify-center')}>
+                <IconVideo size={20} stroke={1.5} className={cn('text-nomi-ink-40')} />
+                <button
+                  type="button"
+                  aria-label="移除源视频"
+                  className={cn('absolute -top-[4px] -right-[4px] w-[15px] h-[15px] rounded-pill bg-nomi-paper border border-nomi-line text-nomi-ink-60 text-micro leading-none flex items-center justify-center cursor-pointer')}
+                  onClick={(event) => { event.stopPropagation(); updateMeta({ [sourceVideoSlot.metaKey]: null }) }}
+                >×</button>
+              </div>
+            ) : (
+              <label className={cn('h-7 px-[10px] rounded-pill border border-dashed border-nomi-ink-20 bg-nomi-paper text-nomi-ink-60 text-micro inline-flex items-center gap-1 cursor-pointer hover:border-nomi-accent hover:text-nomi-accent')}>
+                {uploadingArrayKey === sourceVideoSlot.metaKey ? '上传中…' : `＋ ${sourceVideoSlot.label}`}
+                <input
+                  className={cn('absolute w-px h-px opacity-0 overflow-hidden')}
+                  type="file"
+                  accept="video/*"
+                  aria-label={`上传${sourceVideoSlot.label}`}
+                  disabled={Boolean(uploadingArrayKey)}
+                  onChange={(event) => { const f = event.currentTarget.files?.[0] || null; void handleSourceVideoUpload(sourceVideoSlot.metaKey, f); event.currentTarget.value = '' }}
+                />
+              </label>
+            )}
+          </div>
+        </div>
       ) : null}
 
       {showReferences && imageUrlSlots.length > 0 ? (
@@ -492,7 +528,7 @@ export default function NodeParameterControls({
                 <WorkbenchButton
                   className={cn(
                     'generation-canvas-v2-node__ref-thumb',
-                    'relative w-9 h-9 p-0 rounded-[5px]',
+                    'relative w-12 h-12 p-0 rounded-nomi-sm',
                     'border border-dashed border-nomi-line-soft',
                     'bg-nomi-ink-05 text-nomi-ink-30 overflow-hidden',
                     'flex items-center justify-center cursor-pointer',
@@ -515,9 +551,9 @@ export default function NodeParameterControls({
                   <div
                     className={cn(
                       'generation-canvas-v2-node__ref-menu',
-                      'absolute top-[42px] left-0 z-[3]',
+                      'absolute top-[54px] left-0 z-[3]',
                       'grid grid-cols-[repeat(4,32px)] gap-1 w-max max-w-[148px] p-[5px]',
-                      'border border-nomi-line-soft rounded-[7px]',
+                      'border border-nomi-line-soft rounded-nomi',
                       'bg-nomi-paper shadow-nomi-lg',
                     )}
                     role="menu"
@@ -526,7 +562,7 @@ export default function NodeParameterControls({
                     <label className={cn(
                       'generation-canvas-v2-node__ref-menu-item',
                       'relative flex items-center justify-center w-8 h-8 p-0',
-                      'border-0 rounded-[5px] bg-nomi-ink-05 text-nomi-ink-40',
+                      'border-0 rounded-nomi-sm bg-nomi-ink-05 text-nomi-ink-40',
                       'font-[inherit] overflow-hidden cursor-pointer',
                     )}>
                       <span className={cn('text-nomi-ink-30 text-[16px] leading-none select-none pointer-events-none')}>{uploadingSlotKey === slot.key ? '…' : '+'}</span>
@@ -552,7 +588,7 @@ export default function NodeParameterControls({
                           className={cn(
                             'generation-canvas-v2-node__ref-menu-item',
                             'relative flex items-center justify-center w-8 h-8 p-0',
-                            'border-0 rounded-[5px] bg-nomi-ink-05 text-nomi-ink-40',
+                            'border-0 rounded-nomi-sm bg-nomi-ink-05 text-nomi-ink-40',
                             'font-[inherit] overflow-hidden cursor-pointer',
                           )}
                           aria-label={item.title}
@@ -567,7 +603,7 @@ export default function NodeParameterControls({
                         className={cn(
                           'generation-canvas-v2-node__ref-menu-item',
                           'relative flex items-center justify-center w-8 h-8 p-0',
-                          'border-0 rounded-[5px] bg-nomi-ink-05',
+                          'border-0 rounded-nomi-sm bg-nomi-ink-05',
                           'text-workbench-danger text-[15px]',
                           'font-[inherit] overflow-hidden cursor-pointer',
                         )}

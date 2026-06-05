@@ -82,7 +82,7 @@ try {
   await shot("04-omni");
   const omniText = await win.evaluate(() => (document.querySelector(".generation-canvas-v2-node__composer")?.innerText || "").replace(/\s+/g, " "));
   assert(/角色参考/.test(omniText), "omni：出现「角色参考」组");
-  assert(/character1…9|character1/.test(omniText), "omni：角色组共享说明含 character1…9（U2）");
+  assert(/按放入顺序编号|编号/.test(omniText), "omni：角色组说明（按放入顺序编号，不再重复 character1）");
   assert(/参考视频/.test(omniText) && /参考音频/.test(omniText), "omni：参考视频 / 参考音频 分组小标题（U3）");
 
   // 写一张 1x1 png 临时文件，经「+ 角色参考」菜单上传

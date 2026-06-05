@@ -4,7 +4,7 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { canRunGenerationNode, rerunGenerationNodeAsNewNode, runGenerationNode } from '../runner/generationRunController'
 import { WorkbenchButton } from '../../../design'
-import NodeParameterControls, { useNodeParameterControlCount } from './NodeParameterControls'
+import NodeParameterControls from './NodeParameterControls'
 import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
 import {
   getGenerationNodeExecutionKind,
@@ -46,19 +46,16 @@ function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
 }
 
-function floatingComposerLayout(width: number, height: number, kind: GenerationCanvasNode['kind'], controlCount = 0): FloatingComposerLayout {
+function floatingComposerLayout(width: number, height: number, kind: GenerationCanvasNode['kind']): FloatingComposerLayout {
   const aspectRatio = width / Math.max(1, height)
   const aspectWidth = aspectRatio >= 1.55
-    ? clampNumber(Math.round(width * 0.88), 360, 560)
+    ? clampNumber(Math.round(width * 0.88), 360, 440)
     : aspectRatio <= 0.78
-      ? clampNumber(Math.round(width * 1.18), 320, 420)
-      : clampNumber(Math.round(width * 0.98), 330, 500)
-  // Widen the panel so each bottom control keeps a readable width instead of
-  // squishing into a sliver when a model exposes many params. ~92px per control
-  // + headroom for the generate button. Capped at 720 so it never runs off the
-  // canvas, then never narrower than the aspect-derived width.
-  const controlsWidth = controlCount > 0 ? controlCount * 92 + 96 : 0
-  const panelWidth = clampNumber(Math.max(aspectWidth, controlsWidth), 320, 720)
+      ? clampNumber(Math.round(width * 1.18), 320, 400)
+      : clampNumber(Math.round(width * 0.98), 330, 420)
+  // 参数已收进设置弹层，底栏只剩 模型芯片+设置芯片+发送 三件，不再按控件数撑宽。
+  // 卡片保持紧凑（≤440，对齐样张 v3 的 ~460 设计宽度），密度优先、不留大空框。
+  const panelWidth = clampNumber(aspectWidth, 320, 440)
   const maxHeight = clampNumber(Math.round(height * 0.72), 176, kind === 'video' ? 260 : 220)
   const gap = width >= 420 ? 14 : 10
   return {
@@ -79,8 +76,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   const canGenerate = useGenerationCanvasStore((state) =>
     canRunGenerationNode(node, { nodes: state.nodes, edges: state.edges }),
   ) && !isGenerating
-  const composerControlCount = useNodeParameterControlCount(node)
-  const composerLayout = floatingComposerLayout(visualSize.width, visualSize.height, node.kind, composerControlCount)
+  const composerLayout = floatingComposerLayout(visualSize.width, visualSize.height, node.kind)
   const isTextKind = node.kind === 'text'
   const textGenMode = getTextGenMode(node)
   // 设置弹层开合：放在 composer 这层，弹层渲染在卡底（参数卡内的最后一块），不被节点 overflow 裁剪。
@@ -102,23 +98,21 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   }
 
   return (
+    // 外层只做定位锚（不裁剪）：参数卡是会滚动的内层；设置弹层作为卡的**兄弟**悬浮在卡下方，
+    // 不被卡的 overflow 裁掉（样张 v3：往下弹的独立卡）。
     <div
-      className={cn(
-        'generation-canvas-v2-node__composer',
-        'flex flex-col gap-[6px]',
-        'p-[10px]',
-        'border border-nomi-line-soft rounded-nomi',
-        'bg-nomi-paper overflow-auto',
-        'absolute left-1/2 z-[8] shadow-nomi-lg -translate-x-1/2 min-h-[150px]',
-      )}
-      style={{
-        width: composerLayout.width,
-        // 设置弹层展开在卡底时给足高度，标量参数（带标签）完整可见、不被裁掉。
-        maxHeight: composerLayout.maxHeight + (settingsOpen ? 150 : 0),
-        top: `calc(100% + ${composerLayout.gap}px)`,
-      }}
+      className={cn('generation-canvas-v2-node__composer', 'absolute left-1/2 z-[8] -translate-x-1/2')}
+      style={{ width: composerLayout.width, top: `calc(100% + ${composerLayout.gap}px)` }}
       onPointerDown={(event) => event.stopPropagation()}
     >
+      <div
+        className={cn(
+          'generation-canvas-v2-node__composer-card',
+          'flex flex-col gap-[6px] p-[10px] min-h-[150px]',
+          'border border-nomi-line-soft rounded-nomi bg-nomi-paper overflow-auto shadow-nomi-lg',
+        )}
+        style={{ maxHeight: composerLayout.maxHeight }}
+      >
       {isImageLikeGenerationNodeKind(node.kind) || isVideoLikeGenerationNodeKind(node.kind) ? (
         <NodeParameterControls node={node} section="references" />
       ) : null}
@@ -193,7 +187,12 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
           )
         })()}
       </div>
-      {settingsOpen ? <NodeParameterControls node={node} section="settings" /> : null}
+      </div>
+      {settingsOpen ? (
+        <div className={cn('absolute left-0 right-0 top-[calc(100%+6px)] z-[9]')}>
+          <NodeParameterControls node={node} section="settings" />
+        </div>
+      ) : null}
     </div>
   )
 }

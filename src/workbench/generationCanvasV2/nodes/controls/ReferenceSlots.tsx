@@ -1,4 +1,5 @@
 import React from 'react'
+import { IconMusic, IconPhoto, IconVideo } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
 import { WorkbenchButton } from '../../../../design'
 import type { ArchetypeArraySlot } from './archetypeMeta'
@@ -26,7 +27,8 @@ const ACCEPT_ATTR: Record<ArchetypeArraySlot['accept'], string> = {
   video: 'video/*',
   audio: 'audio/*',
 }
-const ACCEPT_ICON: Record<ArchetypeArraySlot['accept'], string> = { image: '🖼', video: '🎬', audio: '🔊' }
+// 唯一图标库 Tabler（Design.md §6），stroke 1.5——不用 emoji（跨平台渲染不一、和 outline 风格冲突）。
+const ACCEPT_ICON: Record<ArchetypeArraySlot['accept'], typeof IconPhoto> = { image: IconPhoto, video: IconVideo, audio: IconMusic }
 
 export default function ReferenceSlots({
   slots, valuesByKey, candidates, openKey, uploadingKey,
@@ -38,38 +40,46 @@ export default function ReferenceSlots({
         const items = valuesByKey[slot.metaKey] || []
         const canAdd = items.length < slot.max
         const isOpen = openKey === slot.metaKey
+        // D2：空的「可选且无说明」组（如未用的参考视频/音频）收起组头，只留「+ 标签」按钮（样张 U3）。
+        // 有说明的组（角色参考的 character1…9 提示）即使空也保留组头——那条说明对用户有价值。
+        const showHeader = items.length > 0 || slot.min > 0 || Boolean(slot.caption)
         return (
           <div key={slot.metaKey} className={cn('flex flex-col gap-[4px]')}>
-            <div className={cn('flex items-baseline gap-[8px]')}>
-              <span className={cn('text-nomi-ink-60 text-[11px] leading-none')}>{slot.label}</span>
-              {slot.caption ? <span className={cn('text-nomi-ink-40 text-[10px] leading-none')}>{slot.caption}</span> : null}
-            </div>
+            {showHeader ? (
+              <div className={cn('flex items-baseline gap-[8px]')}>
+                <span className={cn('text-nomi-ink-60 text-micro leading-none')}>{slot.label}</span>
+                {slot.caption ? <span className={cn('text-nomi-ink-40 text-micro leading-none')}>{slot.caption}</span> : null}
+              </div>
+            ) : null}
             <div className={cn('relative flex flex-wrap items-center gap-[6px]')}>
-              {items.map((url, index) => (
-                <div key={`${url}-${index}`} className={cn('relative w-9 h-9 rounded-[5px] border border-nomi-line bg-nomi-ink-05 overflow-hidden flex items-center justify-center')}>
+              {items.map((url, index) => {
+                const AcceptIcon = ACCEPT_ICON[slot.accept]
+                return (
+                <div key={`${url}-${index}`} className={cn('relative w-12 h-12 rounded-nomi-sm border border-nomi-line bg-nomi-ink-05 overflow-hidden flex items-center justify-center')}>
                   {slot.accept === 'image'
                     ? <img className={cn('w-full h-full object-cover')} src={url} alt={`${slot.label}${index + 1}`} />
-                    : <span className={cn('text-[15px] leading-none select-none')}>{ACCEPT_ICON[slot.accept]}</span>}
+                    : <AcceptIcon size={20} stroke={1.5} className={cn('text-nomi-ink-40')} />}
                   {slot.numbered ? (
-                    <span className={cn('absolute -top-[5px] -left-[5px] min-w-[15px] h-[15px] px-[3px] rounded-full bg-nomi-accent text-nomi-paper text-[10px] font-semibold flex items-center justify-center leading-none')}>{index + 1}</span>
+                    <span className={cn('absolute -top-[4px] -left-[4px] min-w-[15px] h-[15px] px-[3px] rounded-pill bg-nomi-accent text-nomi-paper text-micro font-semibold flex items-center justify-center leading-none')}>{index + 1}</span>
                   ) : null}
                   <button
                     type="button"
                     aria-label={`移除${slot.label}${index + 1}`}
-                    className={cn('absolute -top-[5px] -right-[5px] w-[15px] h-[15px] rounded-full bg-nomi-paper border border-nomi-line text-nomi-ink-60 text-[10px] leading-none flex items-center justify-center cursor-pointer')}
+                    className={cn('absolute -top-[4px] -right-[4px] w-[15px] h-[15px] rounded-pill bg-nomi-paper border border-nomi-line text-nomi-ink-60 text-micro leading-none flex items-center justify-center cursor-pointer')}
                     onClick={(event) => { event.stopPropagation(); onRemove(slot.metaKey, index) }}
                   >×</button>
                 </div>
-              ))}
+                )
+              })}
               {canAdd ? (
                 slot.accept === 'image' ? (
                   <WorkbenchButton
-                    className={cn('h-7 px-[10px] rounded-full border border-dashed border-nomi-ink-20 bg-nomi-paper text-nomi-ink-60 text-[11px] inline-flex items-center gap-1 cursor-pointer hover:border-nomi-accent hover:text-nomi-accent')}
+                    className={cn('h-7 px-[10px] rounded-pill border border-dashed border-nomi-ink-20 bg-nomi-paper text-nomi-ink-60 text-micro inline-flex items-center gap-1 cursor-pointer hover:border-nomi-accent hover:text-nomi-accent')}
                     aria-label={`添加${slot.label}`}
                     onClick={() => onToggleMenu(slot.metaKey)}
                   >＋ {slot.label}</WorkbenchButton>
                 ) : (
-                  <label className={cn('h-7 px-[10px] rounded-full border border-dashed border-nomi-ink-20 bg-nomi-paper text-nomi-ink-60 text-[11px] inline-flex items-center gap-1 cursor-pointer hover:border-nomi-accent hover:text-nomi-accent')}>
+                  <label className={cn('h-7 px-[10px] rounded-pill border border-dashed border-nomi-ink-20 bg-nomi-paper text-nomi-ink-60 text-micro inline-flex items-center gap-1 cursor-pointer hover:border-nomi-accent hover:text-nomi-accent')}>
                     {uploadingKey === slot.metaKey ? '上传中…' : `＋ ${slot.label}`}
                     <input
                       className={cn('absolute w-px h-px opacity-0 overflow-hidden')}
@@ -84,11 +94,11 @@ export default function ReferenceSlots({
               ) : null}
               {isOpen && slot.accept === 'image' ? (
                 <div
-                  className={cn('absolute top-[40px] left-0 z-[3] grid grid-cols-[repeat(4,32px)] gap-1 w-max max-w-[148px] p-[5px] rounded-[7px] border border-nomi-line-soft bg-nomi-paper shadow-nomi-lg')}
+                  className={cn('absolute top-[54px] left-0 z-[3] grid grid-cols-[repeat(4,32px)] gap-1 w-max max-w-[148px] p-[5px] rounded-nomi border border-nomi-line-soft bg-nomi-paper shadow-nomi-lg')}
                   role="menu"
                   aria-label={`${slot.label}来源`}
                 >
-                  <label className={cn('relative flex items-center justify-center w-8 h-8 rounded-[5px] bg-nomi-ink-05 text-nomi-ink-40 overflow-hidden cursor-pointer')}>
+                  <label className={cn('relative flex items-center justify-center w-8 h-8 rounded-nomi-sm bg-nomi-ink-05 text-nomi-ink-40 overflow-hidden cursor-pointer')}>
                     <span className={cn('text-[16px] leading-none select-none')}>{uploadingKey === slot.metaKey ? '…' : '+'}</span>
                     <input
                       className={cn('absolute inset-0 w-full h-full opacity-0 cursor-pointer')}
@@ -102,7 +112,7 @@ export default function ReferenceSlots({
                   {candidates.map((item) => (
                     <WorkbenchButton
                       key={item.id}
-                      className={cn('relative flex items-center justify-center w-8 h-8 rounded-[5px] bg-nomi-ink-05 overflow-hidden cursor-pointer')}
+                      className={cn('relative flex items-center justify-center w-8 h-8 rounded-nomi-sm bg-nomi-ink-05 overflow-hidden cursor-pointer')}
                       aria-label={item.title}
                       onClick={() => onPickNode(slot.metaKey, item.url)}
                     >

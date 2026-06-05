@@ -64,7 +64,7 @@ export const SEEDANCE_2_ARCHETYPE: ModelArchetype = {
       hint: "多模态参考；最多 9 角色 / 3 视频 / 3 音频",
       promptRequired: true,
       slots: [
-        { kind: "image_ref", label: "角色参考", min: 0, max: 9 },
+        { kind: "image_ref", label: "角色参考", min: 0, max: 9, characterIndexed: true },
         { kind: "video_ref", label: "参考视频", min: 0, max: 3 },
         { kind: "audio_ref", label: "参考音频", min: 0, max: 3 },
       ],
