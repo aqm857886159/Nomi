@@ -83,6 +83,8 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   const composerLayout = floatingComposerLayout(visualSize.width, visualSize.height, node.kind, composerControlCount)
   const isTextKind = node.kind === 'text'
   const textGenMode = getTextGenMode(node)
+  // 设置弹层开合：放在 composer 这层，弹层渲染在卡底（参数卡内的最后一块），不被节点 overflow 裁剪。
+  const [settingsOpen, setSettingsOpen] = React.useState(false)
 
   const handleGenerate = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
@@ -111,13 +113,14 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
       )}
       style={{
         width: composerLayout.width,
-        maxHeight: composerLayout.maxHeight,
+        // 设置弹层展开在卡底时给足高度，标量参数（带标签）完整可见、不被裁掉。
+        maxHeight: composerLayout.maxHeight + (settingsOpen ? 150 : 0),
         top: `calc(100% + ${composerLayout.gap}px)`,
       }}
       onPointerDown={(event) => event.stopPropagation()}
     >
       {isImageLikeGenerationNodeKind(node.kind) || isVideoLikeGenerationNodeKind(node.kind) ? (
-        <NodeParameterControls node={node} section="references" valueOnly />
+        <NodeParameterControls node={node} section="references" />
       ) : null}
       {isTextKind ? (
         <div className={cn('flex items-center gap-1')} role="group" aria-label="生成模式">
@@ -154,8 +157,13 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
         onChange={(event) => updateNode(node.id, { prompt: event.currentTarget.value })}
         onBlur={() => { void persistActiveWorkbenchProjectNow().catch(() => {}) }}
       />
-      <div className={cn('flex items-center gap-1 mt-auto min-w-0 pt-1')}>
-        <NodeParameterControls node={node} section="parameters" valueOnly />
+      <div className={cn('flex items-center gap-2 mt-auto min-w-0 pt-1')}>
+        <NodeParameterControls
+          node={node}
+          section="parameters"
+          settingsOpen={settingsOpen}
+          onToggleSettings={() => setSettingsOpen((open) => !open)}
+        />
         {(() => {
           const disabledReason = !canGenerate && !isGenerating
             ? nodeExecutionKind === 'video'
@@ -164,26 +172,28 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
                 ? undefined
                 : `「${node.kind}」类型暂不支持直接生成`
             : undefined
+          const title = disabledReason ?? (isGenerating ? '生成中…' : hasResult ? '重新生成' : '生成')
           return (
-            <span title={disabledReason} style={{ display: 'contents' }}>
+            <span title={title} style={{ display: 'contents' }}>
               <WorkbenchButton
                 className={cn(
-                  'inline-flex items-center shrink-0 min-h-[24px] py-1 px-[10px]',
+                  'inline-flex items-center justify-center shrink-0 w-[30px] h-[30px] p-0',
                   'border-0 rounded-full bg-nomi-ink text-nomi-paper',
-                  'font-[inherit] text-[11px] font-medium whitespace-nowrap',
+                  'font-[inherit] text-[14px] leading-none',
                   'hover:enabled:bg-nomi-accent',
                   'disabled:bg-nomi-ink-20 disabled:text-nomi-ink-40 disabled:cursor-not-allowed',
                 )}
-                aria-label="生成素材"
+                aria-label={hasResult ? '重新生成' : '生成素材'}
                 disabled={!canGenerate}
                 onClick={handleGenerate}
               >
-                {isGenerating ? '生成中' : hasResult ? '重新生成' : '生成 →'}
+                {isGenerating ? '···' : '↑'}
               </WorkbenchButton>
             </span>
           )
         })()}
       </div>
+      {settingsOpen ? <NodeParameterControls node={node} section="settings" /> : null}
     </div>
   )
 }

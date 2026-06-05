@@ -55,6 +55,13 @@ try {
   await win.waitForTimeout(1000);
   await snap(win, "seedance-first", { composer: true });
 
+  // 5b) 打开设置弹层 → 看带标签的标量参数
+  await win.locator('.generation-canvas-v2-node__composer button[aria-label="生成设置"]').first().click().catch(() => {});
+  await win.waitForTimeout(600);
+  await snap(win, "settings-open", { composer: true });
+  await win.locator('.generation-canvas-v2-node__composer button[aria-label="生成设置"]').first().click().catch(() => {}); // 收起
+  await win.waitForTimeout(400);
+
   // 6) 切首尾帧
   await win.locator('.generation-canvas-v2-node__composer [role="group"][aria-label="生成方式"] button', { hasText: "首尾帧" }).first().click();
   await win.waitForTimeout(800);

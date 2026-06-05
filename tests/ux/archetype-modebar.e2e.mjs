@@ -113,15 +113,23 @@ try {
     "HappyHorse：4 模式各用真名（文生视频/图生视频/角色参考/视频编辑）");
   assert(/纯文本生成/.test(happyText), "HappyHorse：提示行显示当前模式说明");
 
-  // 切到「图生视频」(i2v) → 标量参数不含「比例」（U3：i2v 无 aspect_ratio 直接不渲染）
+  // 设置弹层带标签（核心修复）：打开 → 断言出现「清晰度」标签字段
+  await win.locator('.generation-canvas-v2-node__composer button[aria-label="生成设置"]').first().click();
+  await win.waitForTimeout(500);
+  const hasLabeledRes = await win.evaluate(() => {
+    const pop = document.querySelector(".generation-canvas-v2-node__settings-pop");
+    return Boolean(pop) && /清晰度/.test(pop.innerText || "");
+  });
+  assert(hasLabeledRes, "设置弹层：标量参数带标签（清晰度…，修复『裸值无标签』）");
+  // 切到「图生视频」(i2v) → 弹层里不含「比例」（U3：i2v 无 aspect_ratio）；t2v 有
   await win.locator('.generation-canvas-v2-node__composer [role="group"][aria-label="生成方式"] button', { hasText: "图生视频" }).first().click();
-  await win.waitForTimeout(800);
+  await win.waitForTimeout(700);
   await shot("07-happyhorse-i2v");
   const i2vHasRatio = await win.evaluate(() => {
-    const comp = document.querySelector(".generation-canvas-v2-node__composer");
-    return comp ? Array.from(comp.querySelectorAll('select[aria-label="比例"]')).length > 0 : false;
+    const pop = document.querySelector(".generation-canvas-v2-node__settings-pop");
+    return Boolean(pop) && Array.from(pop.querySelectorAll('select[aria-label="比例"]')).length > 0;
   });
-  assert(!i2vHasRatio, "HappyHorse i2v：标量参数无「比例」控件（U3）");
+  assert(!i2vHasRatio, "HappyHorse i2v：设置弹层无「比例」控件（U3）");
 
   // ── 同族扩展：Seedance 2.0 Fast 在下拉里、认得档案（同 3 模式）、清晰度收成 480/720（无 1080）──
   await modelSelect.selectOption({ label: "Seedance 2.0 Fast" }).catch(async () => { await modelSelect.selectOption("bytedance/seedance-2-fast") });

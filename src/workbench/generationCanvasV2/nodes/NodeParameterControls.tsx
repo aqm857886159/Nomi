@@ -2,7 +2,6 @@ import React from 'react'
 import { cn } from '../../../utils/cn'
 import { deriveGenerationModelCatalogStatus, findModelOptionByIdentifier, useGenerationModelOptionsState } from '../adapters/modelOptionsAdapter'
 import {
-  formatVideoOptionLabel,
   parseModelParameterControls,
   type ModelParameterControl,
 } from '../../../config/modelCatalogMeta'
@@ -22,9 +21,7 @@ import {
   buildEffectiveVideoCatalogConfig,
   buildImageUrlSlots,
   buildModelControls,
-  catalogControlInitialValue,
-  controlInitialValue,
-  controlValueToString,
+  buildSettingsSummary,
   defaultPatchForCatalogControl,
   defaultPatchForControls,
   edgeModeForGroup,
@@ -32,10 +29,6 @@ import {
   getSlotNodeRef,
   getSlotThumbUrl,
   imageCatalogReferenceSlot,
-  isParameterControl,
-  optionKey,
-  optionLabel,
-  optionValue,
   parseControlInput,
   readMeta,
   removePreviousControlParams,
@@ -56,11 +49,14 @@ import {
 } from './controls/archetypeMeta'
 import ModeBar from './controls/ModeBar'
 import ReferenceSlots from './controls/ReferenceSlots'
+import SettingsPopover from './controls/SettingsPopover'
 
 type NodeParameterControlsProps = {
   node: GenerationCanvasNode
-  section?: 'all' | 'references' | 'parameters' | 'model' | 'controls'
-  valueOnly?: boolean
+  section?: 'all' | 'references' | 'parameters' | 'model' | 'controls' | 'settings'
+  // section="parameters" 的设置芯片：开合状态由父级（composer）持有，便于把弹层渲染在卡底（不被裁剪）。
+  settingsOpen?: boolean
+  onToggleSettings?: () => void
 }
 
 // Number of controls that render in the bottom value row for this node: the
@@ -127,7 +123,8 @@ function resolveRenderedControls(
 export default function NodeParameterControls({
   node,
   section = 'all',
-  valueOnly = false,
+  settingsOpen = false,
+  onToggleSettings,
 }: NodeParameterControlsProps): JSX.Element | null {
   const nodes = useGenerationCanvasStore((state) => state.nodes)
   const edges = useGenerationCanvasStore((state) => state.edges)
@@ -374,72 +371,57 @@ export default function NodeParameterControls({
   // U2：当前模式含角色图槽且已放图 → 在 prompt 旁提示「用 character1.. 指代」。
   const showCharacterCue = Boolean(archMode && modeHasCharacterSlot(archMode) && (arrayValuesByKey.referenceImageUrls?.length || 0) > 0)
   const showReferences = section === 'all' || section === 'references'
-  const showModel = section === 'all' || section === 'parameters' || section === 'model'
-  const showControls = section === 'all' || section === 'parameters' || section === 'controls'
 
-  // 模式分段切换要常驻（即便当前模式无参考槽，如纯文生）——有 modeBar 或数组槽时都不空返回。
-  if (section === 'references' && imageUrlSlots.length === 0 && arraySlots.length === 0 && !showModeBar) return null
+  // section="settings"：设置弹层内容（标量参数，带标签）。开合由 composer 控制，渲染在卡底（不被裁剪）。
+  if (section === 'settings') {
+    if (renderedControls.length === 0) return null
+    return (
+      <SettingsPopover
+        open
+        controls={renderedControls}
+        meta={meta}
+        onParameterChange={handleParameterControlChange}
+        onCatalogChange={handleCatalogControlChange}
+      />
+    )
+  }
 
-  const rootClassName = section === 'references'
-    ? cn('generation-canvas-v2-node__ref-section', 'flex flex-col gap-[5px]')
-    : cn(
-        'generation-canvas-v2-node__params',
-        'grid grid-cols-[repeat(2,minmax(0,1fr))] gap-[6px] empty:hidden',
-        valueOnly && 'generation-canvas-v2-node__params--value-only',
-        (section === 'parameters' || section === 'model') && cn(
-          'generation-canvas-v2-node__params--parameters',
-          'flex flex-1 flex-nowrap gap-1 min-w-0 items-center',
-        ),
-        section === 'controls' && 'generation-canvas-v2-node__params--controls',
+  // section="parameters"：底栏 = 模型芯片(带 模板/通用 徽标) + 设置芯片(摘要 + 开设置弹层)。标量参数不在这，进弹层。
+  if (section === 'parameters') {
+    if (modelOptions.length === 0) {
+      return (
+        <button
+          type="button"
+          className={cn(
+            'inline-flex items-center gap-1.5 h-7 px-3 rounded-full border border-nomi-accent/30',
+            'bg-nomi-accent-soft text-nomi-accent font-medium text-[12px]',
+            'hover:bg-nomi-accent hover:text-nomi-paper transition-colors cursor-pointer',
+          )}
+          aria-label="去配置模型"
+          title="点击打开模型接入页"
+          onClick={(event) => { event.preventDefault(); event.stopPropagation(); window.dispatchEvent(new CustomEvent('nomi-open-model-catalog')) }}
+        >
+          <span className="truncate">{modelCatalogStatus.message}</span>
+          <span className="shrink-0">去配置 →</span>
+        </button>
       )
-
-  return (
-    <div className={rootClassName} aria-label={section === 'references' ? '参考素材' : '节点参数'}>
-      {showReferences && showModeBar ? (
-        <ModeBar choices={modeChoices} activeId={archMode?.id || ''} onSelect={handleModeSwitch} />
-      ) : null}
-      {showModel ? (
-        <label className={cn(
-          'generation-canvas-v2-node__param',
-          'grid min-w-0 gap-[3px]',
-          (section === 'parameters' || section === 'model') && 'flex-1',
-        )}>
-          <span className={cn(
-            'overflow-hidden text-nomi-ink-40 text-[9.5px] leading-none',
-            'text-ellipsis whitespace-nowrap',
-            valueOnly && 'sr-only',
-          )}>模型</span>
-          {modelOptions.length === 0 ? (
-            // v0.7.5: 没模型时显示明显的 "去配置 →" 按钮，不再只显示灰色文本
-            <button
-              type="button"
-              className={cn(
-                'w-full min-w-0 h-6 pl-[7px] pr-[7px] inline-flex items-center justify-between gap-1',
-                'border border-nomi-accent/30 rounded-[6px]',
-                'bg-nomi-accent-soft text-nomi-accent font-medium text-[10.5px]',
-                'hover:bg-nomi-accent hover:text-nomi-paper transition-colors cursor-pointer',
-                valueOnly && 'h-[30px] text-[11.5px]',
-              )}
-              aria-label="去配置模型"
-              title="点击打开模型接入页"
-              onClick={(event) => {
-                event.preventDefault()
-                event.stopPropagation()
-                window.dispatchEvent(new CustomEvent('nomi-open-model-catalog'))
-              }}
-            >
-              <span className="truncate">{modelCatalogStatus.message}</span>
-              <span className="shrink-0">去配置 →</span>
-            </button>
-          ) : (
+    }
+    return (
+      <div className={cn('generation-canvas-v2-node__params--parameters', 'flex flex-1 flex-nowrap items-center gap-2 min-w-0')}>
+        <div className={cn('inline-flex items-center gap-1.5 min-w-0')}>
+          <div className={cn('relative inline-flex items-center')}>
             <select
               className={cn(
-                'w-full min-w-0 h-6 pl-[7px] pr-[22px]',
-                'border border-nomi-line-soft rounded-[6px] outline-0',
-                'bg-nomi-ink-05 text-nomi-ink-80 font-[inherit] text-[10.5px]',
-                'focus:border-nomi-accent focus:bg-nomi-paper',
-                valueOnly && 'h-[30px] border-0 bg-nomi-ink-05 text-[11.5px] font-semibold',
+                'appearance-none h-7 max-w-[164px] pl-3 pr-7 rounded-full',
+                'border border-nomi-line bg-nomi-paper text-nomi-ink-80 font-[inherit] text-[12px]',
+                'cursor-pointer outline-0 focus:border-nomi-accent truncate',
               )}
+              style={{
+                backgroundImage:
+                  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23a8a29e' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>\")",
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 10px center',
+              }}
               aria-label="模型"
               value={selectedModelOption?.value || ''}
               onChange={(event) => handleModelChange(event.target.value)}
@@ -449,95 +431,51 @@ export default function NodeParameterControls({
                 <option key={option.value || 'auto'} value={option.value}>{option.label}</option>
               ))}
             </select>
-          )}
-        </label>
-      ) : null}
+          </div>
+          {selectedModelOption ? (
+            <span
+              className={cn(
+                'shrink-0 text-[11px] leading-none px-1.5 py-[3px] rounded-full',
+                archetype ? 'bg-nomi-accent-soft text-nomi-accent' : 'bg-nomi-ink-10 text-nomi-ink-60',
+              )}
+              title={archetype ? '认得这个模型 · 用内置模板' : '未识别 · 通用回退（按接入文档原样展示）'}
+            >{archetype ? '模板' : '通用'}</span>
+          ) : null}
+        </div>
+        {renderedControls.length > 0 && onToggleSettings ? (
+          <button
+            type="button"
+            data-open={settingsOpen ? 'true' : 'false'}
+            aria-expanded={settingsOpen}
+            className={cn(
+              'inline-flex items-center gap-1.5 h-7 px-3 rounded-full min-w-0',
+              'border border-nomi-line bg-nomi-paper text-nomi-ink-80 font-[inherit] text-[12px] cursor-pointer',
+              'hover:border-nomi-ink-20',
+              'data-[open=true]:border-nomi-accent data-[open=true]:text-nomi-accent data-[open=true]:bg-nomi-accent-soft',
+            )}
+            aria-label="生成设置"
+            onClick={(event) => { event.stopPropagation(); onToggleSettings() }}
+          >
+            <span className="truncate">{buildSettingsSummary(renderedControls, meta) || '设置'}</span>
+            <span className={cn('shrink-0 text-nomi-ink-40 text-[11px]')}>▾</span>
+          </button>
+        ) : null}
+      </div>
+    )
+  }
 
-      {showControls ? renderedControls.map((control) => (
-        <label key={control.key} className={cn(
-          'generation-canvas-v2-node__param',
-          'grid min-w-0 gap-[3px]',
-          (section === 'parameters' || section === 'controls') && 'flex-1',
-        )}>
-          <span className={cn(
-            'overflow-hidden text-nomi-ink-40 text-[9.5px] leading-none',
-            'text-ellipsis whitespace-nowrap',
-            valueOnly && 'sr-only',
-          )}>{control.label}</span>
-          {!isParameterControl(control) ? (
-            <select
-              className={cn(
-                'w-full min-w-0 h-6 pl-[7px] pr-[22px]',
-                'border border-nomi-line-soft rounded-[6px] outline-0',
-                'bg-nomi-ink-05 text-nomi-ink-80 font-[inherit] text-[10.5px]',
-                'focus:border-nomi-accent focus:bg-nomi-paper',
-                valueOnly && 'h-[30px] border-0 bg-nomi-ink-05 text-[11.5px] font-semibold',
-              )}
-              aria-label={control.label}
-              value={catalogControlInitialValue(control, meta)}
-              onChange={(event) => handleCatalogControlChange(control, event.target.value)}
-            >
-              {control.options.map((option) => (
-                <option key={optionKey(option)} value={optionValue(option)}>{optionLabel(option)}</option>
-              ))}
-            </select>
-          ) : control.type === 'boolean' ? (
-            <select
-              className={cn(
-                'w-full min-w-0 h-6 pl-[7px] pr-[22px]',
-                'border border-nomi-line-soft rounded-[6px] outline-0',
-                'bg-nomi-ink-05 text-nomi-ink-80 font-[inherit] text-[10.5px]',
-                'focus:border-nomi-accent focus:bg-nomi-paper',
-                valueOnly && 'h-[30px] border-0 bg-nomi-ink-05 text-[11.5px] font-semibold',
-              )}
-              aria-label={control.label}
-              value={controlInitialValue(control, meta)}
-              onChange={(event) => handleParameterControlChange(control, event.target.value)}
-            >
-              <option value="true">开启</option>
-              <option value="false">关闭</option>
-            </select>
-          ) : control.options.length > 0 ? (
-            <select
-              className={cn(
-                'w-full min-w-0 h-6 pl-[7px] pr-[22px]',
-                'border border-nomi-line-soft rounded-[6px] outline-0',
-                'bg-nomi-ink-05 text-nomi-ink-80 font-[inherit] text-[10.5px]',
-                'focus:border-nomi-accent focus:bg-nomi-paper',
-                valueOnly && 'h-[30px] border-0 bg-nomi-ink-05 text-[11.5px] font-semibold',
-              )}
-              aria-label={control.label}
-              value={controlInitialValue(control, meta)}
-              onChange={(event) => handleParameterControlChange(control, event.target.value)}
-            >
-              {control.options.map((option) => (
-                <option key={controlValueToString(option.value)} value={controlValueToString(option.value)}>
-                  {formatVideoOptionLabel(option.label, option.priceLabel)}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              className={cn(
-                'generation-canvas-v2-node__param-input',
-                'w-full min-w-0 h-6 pl-[7px] pr-[22px]',
-                'border border-nomi-line-soft rounded-[6px] outline-0',
-                'bg-nomi-ink-05 text-nomi-ink-80 font-[inherit] text-[10.5px]',
-                'focus:border-nomi-accent focus:bg-nomi-paper',
-                valueOnly && 'h-[30px] border-0 bg-nomi-ink-05 text-[11.5px] font-semibold',
-              )}
-              aria-label={control.label}
-              type={control.type === 'number' ? 'number' : 'text'}
-              value={controlInitialValue(control, meta)}
-              min={control.min}
-              max={control.max}
-              step={control.step}
-              placeholder={control.placeholder}
-              onChange={(event) => handleParameterControlChange(control, event.target.value)}
-            />
-          )}
-        </label>
-      )) : null}
+  // 模式分段切换要常驻（即便当前模式无参考槽，如纯文生）——有 modeBar 或数组槽时都不空返回。
+  if (section === 'references' && imageUrlSlots.length === 0 && arraySlots.length === 0 && !showModeBar) return null
+
+  // 走到这里只剩 section="references"（parameters/settings 已提前 return；旧的 all/model/controls 网格
+  // 渲染随设置弹层落地而删除——参数现在进设置弹层，模型进底栏芯片，不再有这套裸值网格，Rule 1/12）。
+  const rootClassName = cn('generation-canvas-v2-node__ref-section', 'flex flex-col gap-[5px]')
+
+  return (
+    <div className={rootClassName} aria-label="参考素材">
+      {showReferences && showModeBar ? (
+        <ModeBar choices={modeChoices} activeId={archMode?.id || ''} onSelect={handleModeSwitch} />
+      ) : null}
 
       {showReferences && imageUrlSlots.length > 0 ? (
         <div className={cn('generation-canvas-v2-node__ref-pickers', 'flex gap-[5px]')}>
