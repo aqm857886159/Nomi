@@ -41,7 +41,9 @@ function normalizeClip(input: unknown, fallbackType: TimelineTrackType): Timelin
     sourceNodeId,
     label: normalizeString(raw.label),
     startFrame,
-    endFrame: Math.max(endFrame, startFrame + frameCount),
+    // video/audio 的 frameCount 是素材全长（可 > 可见窗口），不能用它撑大 endFrame；
+    // endFrame 缺省时已由上方 rawEndFrame（startFrame + rawFrameCount）兜底。image 行为不变。
+    endFrame,
     frameCount,
     offsetStartFrame: toFiniteNonNegativeInteger(raw.offsetStartFrame, 0),
     offsetEndFrame: toFiniteNonNegativeInteger(raw.offsetEndFrame, 0),
