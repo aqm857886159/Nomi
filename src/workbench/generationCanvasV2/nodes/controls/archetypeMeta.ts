@@ -24,19 +24,6 @@ import type { ImageUrlSlot } from './parameterControlModel'
 export { resolveArchetypeForModel }
 export type { ModelArchetype, ArchetypeMode }
 
-/** 跨模型统一的「意图词」——模式分段按钮的主标签（vendorTerm 作副标签）。来自样张 v3 INTENT_LABEL。 */
-const INTENT_LABEL: Record<ArchetypeMode['intent'], string> = {
-  text: '文生视频',
-  single: '单图首帧',
-  firstlast: '首尾帧',
-  character: '角色参考',
-  edit: '视频编辑',
-}
-
-export function intentLabel(intent: ArchetypeMode['intent']): string {
-  return INTENT_LABEL[intent]
-}
-
 /**
  * 单图 frame 槽 → 现有 flat 传输键映射（首/尾帧，走画布边 + 单缩略图）。url 键即传输读取的键
  * （runtime taskTemplateParams 读 extras.firstFrameUrl/lastFrameUrl）；ref 键记住来源节点 id。
@@ -84,13 +71,12 @@ export function currentArchetypeMode(archetype: ModelArchetype, meta: Record<str
     ?? archetype.modes[0]
 }
 
-export type ArchetypeModeChoice = { id: string; label: string; vendorTerm: string; hint: string }
+export type ArchetypeModeChoice = { id: string; vendorTerm: string; hint: string }
 
-/** 模式分段切换的选项（仅当 >1 模式时 UI 才显示该段）。 */
+/** 模式分段切换的选项（标签 = 模型自己的真名 vendorTerm；仅当 >1 模式时 UI 才显示该段）。 */
 export function archetypeModeChoices(archetype: ModelArchetype): ArchetypeModeChoice[] {
   return archetype.modes.map((mode) => ({
     id: mode.id,
-    label: intentLabel(mode.intent),
     vendorTerm: mode.vendorTerm,
     hint: mode.hint,
   }))

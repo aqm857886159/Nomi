@@ -61,7 +61,7 @@ try {
   await snap(win, "seedance-firstlast", { composer: true });
 
   // 7) 切全能参考 → 数组槽
-  await win.locator('.generation-canvas-v2-node__composer [role="group"][aria-label="生成方式"] button', { hasText: "角色参考" }).first().click();
+  await win.locator('.generation-canvas-v2-node__composer [role="group"][aria-label="生成方式"] button', { hasText: "全能参考" }).first().click();
   await win.waitForTimeout(800);
   await snap(win, "seedance-omni", { composer: true });
 

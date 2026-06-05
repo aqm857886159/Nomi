@@ -44,7 +44,7 @@ export const HAPPYHORSE_ARCHETYPE: ModelArchetype = {
     {
       id: "t2v",
       intent: "text",
-      vendorTerm: "text-to-video",
+      vendorTerm: "文生视频",
       hint: "纯文本生成",
       promptRequired: true,
       modelEnum: "happyhorse/text-to-video",
@@ -54,7 +54,7 @@ export const HAPPYHORSE_ARCHETYPE: ModelArchetype = {
     {
       id: "i2v",
       intent: "single",
-      vendorTerm: "image-to-video",
+      vendorTerm: "图生视频",
       hint: "单张首帧图（无尾帧、无比例）",
       promptRequired: true,
       modelEnum: "happyhorse/image-to-video",
@@ -65,7 +65,7 @@ export const HAPPYHORSE_ARCHETYPE: ModelArchetype = {
     {
       id: "ref",
       intent: "character",
-      vendorTerm: "reference-to-video",
+      vendorTerm: "角色参考",
       hint: "1–9 张角色图 → prompt 里 character1…9",
       promptRequired: true,
       modelEnum: "happyhorse/reference-to-video",
@@ -75,7 +75,7 @@ export const HAPPYHORSE_ARCHETYPE: ModelArchetype = {
     {
       id: "edit",
       intent: "edit",
-      vendorTerm: "video-edit",
+      vendorTerm: "视频编辑",
       hint: "源视频 + 0–5 张参考图（无比例、无时长）",
       promptRequired: true,
       modelEnum: "happyhorse/video-edit",

@@ -9,7 +9,6 @@ import {
   buildArchetypeInputParams,
   currentArchetypeMode,
   ensureArchetypeNodeMeta,
-  intentLabel,
   modeHasCharacterSlot,
 } from './archetypeMeta'
 
@@ -19,12 +18,13 @@ import {
 const SEEDANCE = getArchetypeById('seedance-2')!
 
 describe('archetype 档案 — Seedance 模式', () => {
-  it('档案有 首帧 / 首尾帧 / 全能参考 三模式（C3），意图词为统一主标签', () => {
+  it('档案有 首帧 / 首尾帧 / 全能参考 三模式（C3），分段标签用 vendor 真名（决策 #2）', () => {
     expect(SEEDANCE.modes.map((m) => m.id)).toEqual(['first', 'firstlast', 'omni'])
+    // omni 显示「全能参考」而非「角色参考」——不把多模态能力说窄。
     expect(archetypeModeChoices(SEEDANCE)).toEqual([
-      { id: 'first', label: '单图首帧', vendorTerm: '首帧', hint: '单张首帧图驱动生成' },
-      { id: 'firstlast', label: '首尾帧', vendorTerm: '首尾帧', hint: '首帧 + 尾帧，过渡更可控' },
-      { id: 'omni', label: '角色参考', vendorTerm: '全能参考', hint: '多模态参考；最多 9 角色 / 3 视频 / 3 音频' },
+      { id: 'first', vendorTerm: '首帧', hint: '单张首帧图驱动生成' },
+      { id: 'firstlast', vendorTerm: '首尾帧', hint: '首帧 + 尾帧，过渡更可控' },
+      { id: 'omni', vendorTerm: '全能参考', hint: '多模态参考；最多 9 角色 / 3 视频 / 3 音频' },
     ])
   })
 
@@ -36,11 +36,6 @@ describe('archetype 档案 — Seedance 模式', () => {
     ])
   })
 
-  it('intentLabel 跨模型统一', () => {
-    expect(intentLabel('single')).toBe('单图首帧')
-    expect(intentLabel('firstlast')).toBe('首尾帧')
-    expect(intentLabel('character')).toBe('角色参考')
-  })
 })
 
 describe('archetypeModeSlots — 槽位映射到现有 flat 传输键', () => {

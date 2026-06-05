@@ -56,27 +56,28 @@ try {
   });
   console.log("    composer text:", modeBarText.slice(0, 200));
   assert(/生成方式/.test(modeBarText), "出现「生成方式」标签");
-  assert(/单图首帧/.test(modeBarText), "出现统一意图词「单图首帧」");
-  assert(/首尾帧/.test(modeBarText), "出现统一意图词「首尾帧」");
-  assert(/该模型称「首帧」/.test(modeBarText), "出现 vendor 副标签「该模型称『首帧』」");
+  // 分段标签用模型自己的真名（决策 #2），不用意图词
+  assert(/全能参考/.test(modeBarText), "出现 vendor 真名「全能参考」（不是被说窄的「角色参考」）");
+  assert(/首尾帧/.test(modeBarText), "出现 vendor 真名「首尾帧」");
+  assert(/单张首帧图驱动生成/.test(modeBarText), "提示行显示当前模式说明");
 
   // 切到「首尾帧」
   await win.locator('.generation-canvas-v2-node__composer [role="group"][aria-label="生成方式"] button', { hasText: "首尾帧" }).first().click();
   await win.waitForTimeout(900);
   await shot("03-firstlast");
 
-  // 断言尾帧参考槽出现（首帧模式 1 槽 → 首尾帧 2 槽）+ meta 已切
+  // 断言尾帧参考槽出现（首帧模式 1 槽 → 首尾帧 2 槽）+ 提示行更新
   const after = await win.evaluate(() => {
     const comp = document.querySelector(".generation-canvas-v2-node__composer");
     const slots = comp ? comp.querySelectorAll('[aria-label="尾帧"]').length : 0;
     const text = comp ? (comp.innerText || "").replace(/\s+/g, " ") : "";
-    return { slots, hasLastHint: /该模型称「首尾帧」/.test(text) };
+    return { slots, hasLastHint: /首帧 \+ 尾帧/.test(text) };
   });
   assert(after.slots >= 1, "切到首尾帧后出现「尾帧」参考槽");
-  assert(after.hasLastHint, "vendor 副标签更新为「该模型称『首尾帧』」");
+  assert(after.hasLastHint, "提示行更新为首尾帧的说明");
 
-  // ── C3：切到「角色参考」(全能参考 omni) → 数组槽 + 上传一张角色图 → ①徽标 + promptCue ──
-  await win.locator('.generation-canvas-v2-node__composer [role="group"][aria-label="生成方式"] button', { hasText: "角色参考" }).first().click();
+  // ── C3：切到「全能参考」(omni) → 数组槽 + 上传一张角色图 → ①徽标 + promptCue ──
+  await win.locator('.generation-canvas-v2-node__composer [role="group"][aria-label="生成方式"] button', { hasText: "全能参考" }).first().click();
   await win.waitForTimeout(900);
   await shot("04-omni");
   const omniText = await win.evaluate(() => (document.querySelector(".generation-canvas-v2-node__composer")?.innerText || "").replace(/\s+/g, " "));
@@ -102,18 +103,18 @@ try {
   assert(afterUpload.badge1, "上传后角色图 chip 带 ① 数字徽标（character1）");
   assert(afterUpload.hasCue, "prompt 旁出现 character1.. 提示（U2）");
 
-  // ── C4：切到 HappyHorse → 4 模式合 1（统一意图词 + vendor 副标签）+ i2v 无比例（U3）──
+  // ── C4：切到 HappyHorse → 4 模式合 1（各用模型自己的真名）+ i2v 无比例（U3）──
   await modelSelect.selectOption({ label: "HappyHorse 1.0" }).catch(async () => { await modelSelect.selectOption("happyhorse") });
   await win.waitForTimeout(1200);
   await shot("06-happyhorse");
   const happyText = await win.evaluate(() => (document.querySelector(".generation-canvas-v2-node__composer")?.innerText || "").replace(/\s+/g, " "));
   console.log("    happyhorse composer:", happyText.slice(0, 220));
-  assert(/文生视频/.test(happyText) && /单图首帧/.test(happyText) && /角色参考/.test(happyText) && /视频编辑/.test(happyText),
-    "HappyHorse：4 模式统一意图词都在（文生视频/单图首帧/角色参考/视频编辑）");
-  assert(/text-to-video/.test(happyText), "HappyHorse：vendor 副标签（text-to-video）在");
+  assert(/文生视频/.test(happyText) && /图生视频/.test(happyText) && /角色参考/.test(happyText) && /视频编辑/.test(happyText),
+    "HappyHorse：4 模式各用真名（文生视频/图生视频/角色参考/视频编辑）");
+  assert(/纯文本生成/.test(happyText), "HappyHorse：提示行显示当前模式说明");
 
-  // 切到「单图首帧」(i2v) → 标量参数不含「比例」（U3：i2v 无 aspect_ratio 直接不渲染）
-  await win.locator('.generation-canvas-v2-node__composer [role="group"][aria-label="生成方式"] button', { hasText: "单图首帧" }).first().click();
+  // 切到「图生视频」(i2v) → 标量参数不含「比例」（U3：i2v 无 aspect_ratio 直接不渲染）
+  await win.locator('.generation-canvas-v2-node__composer [role="group"][aria-label="生成方式"] button', { hasText: "图生视频" }).first().click();
   await win.waitForTimeout(800);
   await shot("07-happyhorse-i2v");
   const i2vHasRatio = await win.evaluate(() => {
@@ -127,7 +128,7 @@ try {
   await win.waitForTimeout(1000);
   await shot("08-seedance-fast");
   const fastText = await win.evaluate(() => (document.querySelector(".generation-canvas-v2-node__composer")?.innerText || "").replace(/\s+/g, " "));
-  assert(/单图首帧/.test(fastText) && /首尾帧/.test(fastText) && /角色参考/.test(fastText), "Fast：同 Seedance 3 模式（认得同族档案）");
+  assert(/首帧/.test(fastText) && /首尾帧/.test(fastText) && /全能参考/.test(fastText), "Fast：同 Seedance 3 模式真名（认得同族档案）");
   assert(/480p/.test(fastText) && !/1080p/.test(fastText), "Fast：清晰度收成 480/720（无 1080p）");
 
   console.log(`\nMODEBAR E2E PASS: ${passed} assertions`);

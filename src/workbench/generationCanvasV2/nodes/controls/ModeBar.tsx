@@ -3,9 +3,9 @@ import { cn } from '../../../../utils/cn'
 import type { ArchetypeModeChoice } from './archetypeMeta'
 
 // 「生成方式」分段切换 —— 常驻参考区的头（样张 v3：切它能当场看到下方参考槽变化，不被弹层遮挡）。
-// 主标签用跨模型统一意图词（角色参考/单图首帧/首尾帧…），vendor 原词 + 说明放下方提示行（U1）。
-// 视觉对齐样张 .seg；用 Tailwind 写在元素上（规则 10），与本目录既有的手写文本模式切换器一致，
-// 不引 Mantine（节点微观尺度，Mantine SegmentedControl 需大量覆盖才合身）。
+// 主标签用**模型自己的真名**（vendor 原词：首帧/首尾帧/全能参考…）——用户已熟悉这些词，改成意图词反而
+// 把能力说窄（如「全能参考」是多模态，写成「角色参考」会让人以为只能放角色）。决策 #2 拍板：保留 vendor 原词。
+// 视觉对齐样张 .seg；用 Tailwind 写在元素上（规则 10），与本目录既有的手写文本模式切换器一致，不引 Mantine。
 
 type ModeBarProps = {
   choices: ArchetypeModeChoice[]
@@ -44,13 +44,13 @@ export default function ModeBar({ choices, activeId, onSelect }: ModeBarProps): 
                 onSelect(choice.id)
               }}
             >
-              {choice.label}
+              {choice.vendorTerm}
             </button>
           )
         })}
       </div>
       <div className={cn('text-nomi-ink-40 text-[10.5px] leading-[1.35]')}>
-        该模型称「{active.vendorTerm}」 · {active.hint}
+        {active.hint}
       </div>
     </div>
   )
