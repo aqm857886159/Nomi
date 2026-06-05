@@ -32,6 +32,11 @@ describe("applyBuiltinSeeds", () => {
     const model = state.models.find((m) => m.modelKey === "happyhorse");
     expect(model).toMatchObject({ vendorKey: "kie", kind: "video", enabled: true });
     expect(model?.meta).toMatchObject({ archetypeId: "happyhorse" });
+
+    // Seedance Fast：同族扩展只多 1 行 model，复用 Seedance 的 image_to_video mapping（不新增 mapping）。
+    const fast = state.models.find((m) => m.modelKey === "bytedance/seedance-2-fast");
+    expect(fast?.meta).toMatchObject({ archetypeId: "seedance-2-fast" });
+    expect(state.mappings.filter((mp) => mp.vendorKey === "kie" && mp.taskKind === "image_to_video")).toHaveLength(1);
     const mapping = state.mappings.find((mp) => mp.vendorKey === "kie" && mp.taskKind === "text_to_video");
     expect(mapping?.enabled).toBe(true);
     expect(mapping?.create.path).toBe("/api/v1/jobs/createTask");

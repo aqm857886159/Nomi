@@ -24,7 +24,7 @@ import {
 } from '../model/generationNodeKinds'
 import type { ResolvedGenerationReferences } from './generationReferenceResolver'
 import { resolveArchetypeForModel } from '../../../config/modelArchetypes'
-import { archetypeModeModelEnum, buildArchetypeInputParams } from '../nodes/controls/archetypeMeta'
+import { buildArchetypeInputParams } from '../nodes/controls/archetypeMeta'
 
 export type CatalogTaskActionOptions = {
   references?: Partial<ResolvedGenerationReferences>
@@ -147,11 +147,12 @@ async function resolveExecutableNodeFromCatalog(
 function resolveTaskKind(node: GenerationCanvasNode, references: Partial<ResolvedGenerationReferences>): TaskKind {
   const executionKind = getGenerationNodeExecutionKind(node.kind)
   if (executionKind === 'video') {
-    // 档案 + per-mode enum（HappyHorse）：4 模式都打同一 kie createTask（kie 按 model enum 分流），
-    // 统一走 text_to_video 这条 mapping —— 避开按参考启发式分到 image_to_video 而和 Seedance 撞车。
+    // 认得档案的模型：mapping 桶**显式**由档案声明（archetype.transportTaskKind），不靠参考启发式猜——
+    // 否则 Seedance omni（无首帧）会被误判成 text_to_video 而撞到 HappyHorse 的 mapping。同一档案所有模式
+    // 打同一 createTask 端点（供应商按 model enum 自分流）。
     const meta = node.meta || {}
     const archetype = resolveArchetypeForModel({ modelKey: asTrimmedString(meta.modelKey), modelAlias: asTrimmedString(meta.modelAlias), meta })
-    if (archetype && archetypeModeModelEnum(archetype, meta)) return 'text_to_video'
+    if (archetype) return archetype.transportTaskKind
     const hasFrame = Boolean(
       asTrimmedString(references.firstFrameUrl) ||
       asTrimmedString(references.lastFrameUrl) ||

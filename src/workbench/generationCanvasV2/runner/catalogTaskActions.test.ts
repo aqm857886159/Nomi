@@ -90,6 +90,28 @@ describe('buildCatalogTaskRequest — 档案驱动 input（extras.archetypeInput
   })
 })
 
+describe('buildCatalogTaskRequest — 档案 mapping 桶由 transportTaskKind 显式决定（修 omni 误路由）', () => {
+  function videoNode(modelKey: string, modeId: string, extra: Record<string, unknown> = {}): GenerationCanvasNode {
+    return {
+      id: 'r1', kind: 'video', title: '', position: { x: 0, y: 0 }, prompt: 'x',
+      meta: { modelKey, modelVendor: 'kie', vendor: 'kie', archetype: { id: modelKey.includes('happyhorse') ? 'happyhorse' : modelKey.includes('fast') ? 'seedance-2-fast' : 'seedance-2', modeId }, ...extra },
+    }
+  }
+  it('Seedance omni（无首帧）→ image_to_video，不再误判 text_to_video 撞 HappyHorse mapping', () => {
+    expect(buildCatalogTaskRequest(videoNode('bytedance/seedance-2', 'omni', { referenceImageUrls: ['c1'] })).request.kind).toBe('image_to_video')
+  })
+  it('Seedance 首帧 → image_to_video', () => {
+    expect(buildCatalogTaskRequest(videoNode('bytedance/seedance-2', 'first', { firstFrameUrl: 'F' })).request.kind).toBe('image_to_video')
+  })
+  it('Seedance Fast → 复用 image_to_video 桶', () => {
+    expect(buildCatalogTaskRequest(videoNode('bytedance/seedance-2-fast', 'first', { firstFrameUrl: 'F' })).request.kind).toBe('image_to_video')
+  })
+  it('HappyHorse 任意模式 → text_to_video 桶', () => {
+    expect(buildCatalogTaskRequest(videoNode('happyhorse', 't2v')).request.kind).toBe('text_to_video')
+    expect(buildCatalogTaskRequest(videoNode('happyhorse', 'i2v', { firstFrameUrl: 'F' })).request.kind).toBe('text_to_video')
+  })
+})
+
 describe('normalizeCatalogTaskResult — image path unaffected', () => {
   it('still returns an image result from an asset', () => {
     const result = normalizeCatalogTaskResult(

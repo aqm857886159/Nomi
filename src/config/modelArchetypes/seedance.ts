@@ -30,6 +30,7 @@ export const SEEDANCE_2_ARCHETYPE: ModelArchetype = {
   label: "Seedance 2.0",
   kind: "video",
   defaultModeId: "first",
+  transportTaskKind: "image_to_video",
   identifierPatterns: ["bytedance/seedance-2", "seedance-2", "seedance2"],
   modes: [
     {
@@ -70,4 +71,21 @@ export const SEEDANCE_2_ARCHETYPE: ModelArchetype = {
       params: FIRST_MODE_PARAMS,
     },
   ],
+};
+
+// Seedance 2.0 Fast：与 2.0 **同形**——同模式、同参考槽、同传输 mapping（kie 的 image_to_video，body
+// 用 {{model.modelKey}} 自动取到 fast 的 enum，无需 per-mode 覆盖）。唯一差异：清晰度仅 480/720（无 1080，
+// kie 文档）。这正是「同族扩展 = 改几行数据」的样板：复用 2.0 的 modes，只换 resolution 选项。
+const FAST_RES: ModelParameterControl = {
+  key: "resolution", label: "清晰度", type: "select", options: toOptions(["480p", "720p"]), defaultValue: "720p",
+};
+const withFastResolution = (params: ModelParameterControl[]): ModelParameterControl[] =>
+  params.map((p) => (p.key === "resolution" ? FAST_RES : p));
+
+export const SEEDANCE_2_FAST_ARCHETYPE: ModelArchetype = {
+  ...SEEDANCE_2_ARCHETYPE,
+  id: "seedance-2-fast",
+  label: "Seedance 2.0 Fast",
+  identifierPatterns: ["bytedance/seedance-2-fast", "seedance-2-fast", "seedance2fast"],
+  modes: SEEDANCE_2_ARCHETYPE.modes.map((mode) => ({ ...mode, params: withFastResolution(mode.params) })),
 };

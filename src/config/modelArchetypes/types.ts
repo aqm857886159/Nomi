@@ -39,6 +39,13 @@ export type ArchetypeReferenceSlot = {
 /** 跨模型统一的「意图」——UI 主标签按它走（角色参考/单图首帧/首尾帧/文生/视频编辑）。 */
 export type ArchetypeIntent = "text" | "single" | "firstlast" | "character" | "edit";
 
+/**
+ * 该档案的所有模式打到哪条 mapping（catalog mapping 按 (vendor, taskKind) 寻址）。**显式声明，不靠
+ * 启发式猜**——避免「omni 无首帧 → 误判 text_to_video → 撞到别的模型的 mapping」这类 bug。
+ * 同一档案的所有模式都打同一个 createTask 端点（供应商按 model enum 自分流），故只需一个值。
+ */
+export type ArchetypeTransportTaskKind = "text_to_video" | "image_to_video";
+
 export type ArchetypeMode = {
   id: string;
   intent: ArchetypeIntent;
@@ -64,6 +71,8 @@ export type ModelArchetype = {
   kind: "video";
   modes: ArchetypeMode[];
   defaultModeId: string;
+  /** 该档案所有模式打到哪条 mapping（显式，不靠启发式）。见 ArchetypeTransportTaskKind。 */
+  transportTaskKind: ArchetypeTransportTaskKind;
   /**
    * 识别用：模型身份（modelKey/别名）匹配这些 pattern 之一就套这套档案。
    * 匹配规则见 resolveArchetypeForModel —— 按「整串相等」或「去掉 vendor 前缀后的末段相等」，

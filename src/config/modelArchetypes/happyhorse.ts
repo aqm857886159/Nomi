@@ -32,6 +32,7 @@ export const HAPPYHORSE_ARCHETYPE: ModelArchetype = {
   label: "HappyHorse 1.0",
   kind: "video",
   defaultModeId: "t2v",
+  transportTaskKind: "text_to_video",
   identifierPatterns: [
     "happyhorse",
     "happyhorse/text-to-video",

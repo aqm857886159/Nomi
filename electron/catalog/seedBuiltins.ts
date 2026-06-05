@@ -11,6 +11,7 @@ import type { CatalogState, Mapping, Model, Vendor } from "./types";
 import {
   KIE_VENDOR_SEED,
   SEEDANCE_2_CREATE_OP,
+  SEEDANCE_2_FAST_MODEL_SEED,
   SEEDANCE_2_IMAGE_TO_VIDEO_MAPPING,
   SEEDANCE_2_MODEL_SEED,
   SEEDANCE_2_QUERY_OP,
@@ -23,6 +24,7 @@ const HAPPYHORSE_MAPPING_ID = "seed-kie-happyhorse-text_to_video";
 
 /** 模型 meta：指向内置档案（渲染层据此套 UI 模板，见档案层）。 */
 const SEEDANCE_MODEL_META = { archetypeId: "seedance-2" };
+const SEEDANCE_FAST_MODEL_META = { archetypeId: "seedance-2-fast" };
 const HAPPYHORSE_MODEL_META = { archetypeId: "happyhorse" };
 
 export function applyBuiltinSeeds(
@@ -65,6 +67,21 @@ export function applyBuiltinSeeds(
       updatedAt: now,
     };
     models.push(model);
+    changed = true;
+  }
+
+  // Seedance 2.0 Fast：同族扩展，只多 1 行 model（复用 Seedance 的 image_to_video mapping）。
+  if (!models.some((m) => m.modelKey === SEEDANCE_2_FAST_MODEL_SEED.modelKey && m.vendorKey === KIE_VENDOR_SEED.key)) {
+    models.push({
+      modelKey: SEEDANCE_2_FAST_MODEL_SEED.modelKey,
+      vendorKey: KIE_VENDOR_SEED.key,
+      labelZh: SEEDANCE_2_FAST_MODEL_SEED.labelZh,
+      kind: SEEDANCE_2_FAST_MODEL_SEED.kind,
+      enabled: true,
+      meta: SEEDANCE_FAST_MODEL_META,
+      createdAt: now,
+      updatedAt: now,
+    });
     changed = true;
   }
 

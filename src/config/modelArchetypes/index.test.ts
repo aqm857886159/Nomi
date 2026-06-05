@@ -27,8 +27,16 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
     }
   });
 
-  it("不误命中相近但不同的模型（seedance-2-fast 是另一档案，本轮未登记 → null）", () => {
-    expect(resolveArchetypeForModel({ modelKey: "bytedance/seedance-2-fast" })).toBeNull();
+  it("seedance-2 与 seedance-2-fast 是两份档案，互不误命中（前缀相近也分得清）", () => {
+    expect(resolveArchetypeForModel({ modelKey: "bytedance/seedance-2-fast" })?.id).toBe("seedance-2-fast");
+    expect(resolveArchetypeForModel({ modelKey: "bytedance/seedance-2" })?.id).toBe("seedance-2");
+  });
+
+  it("seedance-2-fast 同族扩展：同模式形状，唯清晰度收成 480/720（无 1080）", () => {
+    const fast = getArchetypeById("seedance-2-fast");
+    expect(fast?.modes.map((m) => m.id)).toEqual(["first", "firstlast", "omni"]);
+    const firstRes = fast?.modes[0].params.find((p) => p.key === "resolution");
+    expect(firstRes?.options.map((o) => o.value)).toEqual(["480p", "720p"]);
   });
 
   it("认不出的模型 → null（渲染层走通用回退）", () => {

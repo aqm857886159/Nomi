@@ -32,6 +32,14 @@ export const SEEDANCE_2_MODEL_SEED = {
   kind: "video" as const,
 } as const;
 
+/** Seedance 2.0 Fast 模型种子。与 2.0 同形、**复用同一条 (kie, image_to_video) mapping**——
+ *  body 的 {{model.modelKey}} 自动取到 fast 的 enum。只是 catalog 多一行 + 档案多一份（480/720 清晰度）。 */
+export const SEEDANCE_2_FAST_MODEL_SEED = {
+  modelKey: "bytedance/seedance-2-fast",
+  labelZh: "Seedance 2.0 Fast",
+  kind: "video" as const,
+} as const;
+
 /**
  * createTask 操作（首帧 / image_to_video）。
  * body 是 kie 的 `{ model, input: {...} }` 嵌套形状；模板引擎对「整串就是一个 {{}}」

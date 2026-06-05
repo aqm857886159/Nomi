@@ -122,6 +122,14 @@ try {
   });
   assert(!i2vHasRatio, "HappyHorse i2v：标量参数无「比例」控件（U3）");
 
+  // ── 同族扩展：Seedance 2.0 Fast 在下拉里、认得档案（同 3 模式）、清晰度收成 480/720（无 1080）──
+  await modelSelect.selectOption({ label: "Seedance 2.0 Fast" }).catch(async () => { await modelSelect.selectOption("bytedance/seedance-2-fast") });
+  await win.waitForTimeout(1000);
+  await shot("08-seedance-fast");
+  const fastText = await win.evaluate(() => (document.querySelector(".generation-canvas-v2-node__composer")?.innerText || "").replace(/\s+/g, " "));
+  assert(/单图首帧/.test(fastText) && /首尾帧/.test(fastText) && /角色参考/.test(fastText), "Fast：同 Seedance 3 模式（认得同族档案）");
+  assert(/480p/.test(fastText) && !/1080p/.test(fastText), "Fast：清晰度收成 480/720（无 1080p）");
+
   console.log(`\nMODEBAR E2E PASS: ${passed} assertions`);
 } catch (error) {
   await shot("99-fail");
