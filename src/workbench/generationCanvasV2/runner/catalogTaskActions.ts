@@ -24,7 +24,7 @@ import {
 } from '../model/generationNodeKinds'
 import type { ResolvedGenerationReferences } from './generationReferenceResolver'
 import { resolveArchetypeForModel } from '../../../config/modelArchetypes'
-import { archetypeManagedFrameUrlKeys, projectArchetypeFrameExtras } from '../nodes/controls/archetypeMeta'
+import { archetypeManagedReferenceKeys, projectArchetypeReferenceExtras } from '../nodes/controls/archetypeMeta'
 
 export type CatalogTaskActionOptions = {
   references?: Partial<ResolvedGenerationReferences>
@@ -280,12 +280,12 @@ function buildReferenceExtras(
     modelAlias: asTrimmedString(meta.modelAlias),
     meta,
   })
-  // archetype 分支：先把所有受管帧键置 undefined（挡住 buildCatalogTaskRequest 里 `...meta` 把
-  // 别的模式残留的全局帧值泄露进 body），再覆盖回当前模式投影出的活跃键。
+  // archetype 分支：先把所有受管参考键（帧 + 数组槽）置 undefined（挡住 buildCatalogTaskRequest 里
+  // `...meta` 把别的模式残留的全局值泄露进 body），再覆盖回当前模式投影出的活跃键。
   const frameExtras = archetype
     ? {
-        ...Object.fromEntries(archetypeManagedFrameUrlKeys(archetype).map((key) => [key, undefined])),
-        ...projectArchetypeFrameExtras(meta, archetype, {
+        ...Object.fromEntries(archetypeManagedReferenceKeys(archetype).map((key) => [key, undefined])),
+        ...projectArchetypeReferenceExtras(meta, archetype, {
           firstFrameUrl: asTrimmedString(references.firstFrameUrl) || null,
           lastFrameUrl: asTrimmedString(references.lastFrameUrl) || null,
         }),

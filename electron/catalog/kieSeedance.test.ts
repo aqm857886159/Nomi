@@ -96,6 +96,38 @@ describe("Seedance 2.0 · 互斥投影（M2：首帧不发 last_frame_url）", (
   });
 });
 
+describe("Seedance 2.0 · 全能参考（C3 数组槽 + §2 坑1 尾随空格键）", () => {
+  const inputOf = (params: Record<string, unknown>) => {
+    const ctx = buildTemplateContext({
+      request: { prompt: "三个角色同框" },
+      params,
+      model: { modelKey: SEEDANCE_2_MODEL_SEED.modelKey },
+      modelKey: SEEDANCE_2_MODEL_SEED.modelKey,
+      apiKey: "SECRET",
+    });
+    const built = buildHttpRequest({ baseUrl: KIE_VENDOR_SEED.baseUrl, authType: KIE_VENDOR_SEED.authType, apiKey: "SECRET", context: ctx, operation: SEEDANCE_2_CREATE_OP });
+    return (built.body as { input: Record<string, unknown> }).input;
+  };
+
+  it("数组按序透传；reference_video_urls 输出键带尾随空格（逐字符照抄 kie 文档）", () => {
+    const input = inputOf({
+      reference_image_urls: ["c1.png", "c2.png", "c3.png"],
+      reference_video_urls: ["v1.mp4"],
+      resolution: "720p", aspect_ratio: "16:9", duration: "5", generate_audio: true,
+    });
+    // character 顺序必须保留（①②③ = character1/2/3）
+    expect(input.reference_image_urls).toEqual(["c1.png", "c2.png", "c3.png"]);
+    // 关键：键名是 "reference_video_urls "（带尾随空格），不是 "reference_video_urls"
+    expect(input).toHaveProperty("reference_video_urls ", ["v1.mp4"]);
+    expect(input).not.toHaveProperty("reference_video_urls");
+    // 空的音频数组没传 → 不出现该键
+    expect(input).not.toHaveProperty("reference_audio_urls");
+    // omni 与首/尾帧互斥：没有帧键
+    expect(input).not.toHaveProperty("first_frame_url");
+    expect(input).not.toHaveProperty("last_frame_url");
+  });
+});
+
 describe("Seedance 2.0 · 首帧 — recordInfo 轮询请求", () => {
   const built = buildHttpRequest({
     baseUrl: KIE_VENDOR_SEED.baseUrl,

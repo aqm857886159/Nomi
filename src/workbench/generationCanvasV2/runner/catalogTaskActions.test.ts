@@ -76,6 +76,18 @@ describe('buildCatalogTaskRequest — C2b 档案模式投影（M2 互斥）', ()
     expect(request.extras?.firstFrameUrl).toBe('F.png')
     expect(request.extras?.lastFrameUrl).toBe('L.png')
   })
+
+  it('全能参考模式：角色图数组进 extras（按序），残留的 firstFrameUrl 不进（互斥含数组）', () => {
+    const node = seedanceVideoNode('omni', {
+      referenceImageUrls: ['c1.png', 'c2.png'],
+      referenceVideoUrls: ['v1.mp4'],
+      firstFrameUrl: 'stale.png',
+    })
+    const { request } = buildCatalogTaskRequest(node)
+    expect(request.extras?.referenceImageUrls).toEqual(['c1.png', 'c2.png'])
+    expect(request.extras?.referenceVideoUrls).toEqual(['v1.mp4'])
+    expect(request.extras?.firstFrameUrl).toBeFalsy()
+  })
 })
 
 describe('normalizeCatalogTaskResult — image path unaffected', () => {
