@@ -25,6 +25,7 @@ import {
 import type { ResolvedGenerationReferences } from './generationReferenceResolver'
 import { resolveArchetypeForModel } from '../../../config/modelArchetypes'
 import { buildArchetypeInputParams } from '../nodes/controls/archetypeMeta'
+import { projectPromptForSend } from '../../assets/promptMentions'
 
 export type CatalogTaskActionOptions = {
   references?: Partial<ResolvedGenerationReferences>
@@ -321,8 +322,11 @@ export function buildCatalogTaskRequest(
   if (!vendor) throw new Error('请先在模型管理里选择一个可用模型')
   const modelKey = selectedModelKey(node)
   if (!modelKey) throw new Error('请先选择模型')
-  const prompt = asTrimmedString(node.prompt)
-  if (!prompt) throw new Error('prompt is required')
+  const rawPrompt = asTrimmedString(node.prompt)
+  if (!rawPrompt) throw new Error('prompt is required')
+  // @ 内联引用投影(R6 单源):发送前把 prompt 里的 @[asset:url] 标记转成 character{N}
+  // (N = url 在 referenceImageUrls 有序数组里的位置)。纯文字 prompt 无标记 → 原样(no-op)。
+  const prompt = projectPromptForSend(rawPrompt, readStringArray((node.meta || {}).referenceImageUrls))
 
   const references = options.references || {}
   const kind = resolveTaskKind(node, references)
