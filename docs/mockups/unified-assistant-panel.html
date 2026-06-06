@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>统一助手面板 · 样张</title>
+<title>统一助手面板 · 样张 v2</title>
 <style>
   :root{
     --nomi-paper: oklch(1 0 0);
@@ -11,6 +11,7 @@
     --nomi-ink-80: oklch(0.34 0.01 80);
     --nomi-ink-60: oklch(0.50 0.01 80);
     --nomi-ink-40: oklch(0.68 0.01 80);
+    --nomi-ink-30: oklch(0.78 0.008 80);
     --nomi-ink-10: oklch(0.93 0.004 80);
     --nomi-ink-05: oklch(0.97 0.003 80);
     --nomi-line: oklch(0.91 0.004 80);
@@ -24,32 +25,39 @@
   body{margin:0;background:#f7f7f9;color:var(--nomi-ink);font:13px/1.5 -apple-system,"PingFang SC",system-ui,sans-serif;padding:40px}
   h1{font-size:16px;margin:0 0 4px}
   h2{font-size:13px;margin:34px 0 12px;color:var(--nomi-ink-80)}
-  .sub{color:var(--nomi-ink-60);font-size:12.5px;margin:0 0 8px;max-width:760px}
+  .sub{color:var(--nomi-ink-60);font-size:12.5px;margin:0 0 8px;max-width:780px}
   .deck{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+  .ic{width:13px;height:13px;display:inline-block;vertical-align:-2px;stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+  .logo{display:block;flex:0 0 auto}
 
   /* —— 助手面板外壳 —— */
   .panel{width:300px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:16px;box-shadow:var(--shadow-card);overflow:hidden;display:flex;flex-direction:column}
   .ctx-label{font-size:11px;color:var(--nomi-ink-40);margin:0 0 6px;letter-spacing:.02em}
 
-  /* 顶栏：身份 + 上下文指示（解「工具可用性不可见」）*/
-  .head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--nomi-line-soft)}
-  .dot{width:7px;height:7px;border-radius:999px;background:var(--nomi-accent)}
+  /* 顶栏：Nomi 标 + 助手名 + 安静的上下文指示（小、不抢眼）*/
+  .head{display:flex;align-items:center;gap:7px;padding:9px 12px;border-bottom:1px solid var(--nomi-line-soft)}
   .head .name{font-weight:600;font-size:12.5px}
-  .ctx-chip{margin-left:auto;display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:999px;background:var(--nomi-ink-05);border:1px solid var(--nomi-line);font-size:11px;color:var(--nomi-ink-60)}
-  .ctx-chip .ci{font-size:11px}
+  .ctx{margin-left:auto;display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--nomi-ink-40)}
 
-  /* 工具域条：当前这个区能用哪些工具，一眼可见 */
-  .toolbar{display:flex;flex-wrap:wrap;gap:5px;padding:8px 12px;background:var(--nomi-ink-05);border-bottom:1px solid var(--nomi-line-soft)}
-  .toolbar .tt{font-size:10.5px;color:var(--nomi-ink-40);width:100%;margin-bottom:1px}
-  .tool{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:999px;background:var(--nomi-paper);border:1px solid var(--nomi-line);font-size:11px;color:var(--nomi-ink-80)}
+  /* 可用工具：默认折叠成一个不起眼的小入口（不重要、不需一直看）*/
+  .tools-fold{display:flex;align-items:center;gap:4px;padding:5px 12px;font-size:10.5px;color:var(--nomi-ink-40);cursor:pointer;border-bottom:1px solid var(--nomi-line-soft);background:var(--nomi-paper)}
+  .tools-fold .chev{margin-left:1px}
+  .tools-fold:hover{color:var(--nomi-ink-60)}
+  /* 展开态（按需，hover/点开才出现）*/
+  .tools-open{padding:7px 12px 9px;border-bottom:1px solid var(--nomi-line-soft);background:var(--nomi-ink-05)}
+  .tools-open .tt{display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--nomi-ink-40);margin-bottom:6px}
+  .chips{display:flex;flex-wrap:wrap;gap:5px}
+  .tool{display:inline-flex;align-items:center;height:21px;padding:0 8px;border-radius:999px;background:var(--nomi-paper);border:1px solid var(--nomi-line);font-size:11px;color:var(--nomi-ink-80)}
 
   /* 对话区 */
-  .msgs{padding:12px;display:flex;flex-direction:column;gap:10px;min-height:150px}
+  .msgs{padding:12px;display:flex;flex-direction:column;gap:10px;min-height:140px}
   .m{max-width:88%;font-size:12.5px;border-radius:12px;padding:8px 10px;line-height:1.5}
   .m.u{align-self:flex-end;background:var(--nomi-accent-soft);color:var(--nomi-ink)}
   .m.a{align-self:flex-start;background:var(--nomi-ink-05);color:var(--nomi-ink-80)}
-  .m .tcall{margin-top:6px;font-size:11px;color:var(--nomi-ink-60);display:flex;align-items:center;gap:5px}
-  .m .tcall code{background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:6px;padding:1px 5px;font-size:10.5px}
+  /* 工具调用指示：统一横排、一行、不换行、超长省略 */
+  .tcall{margin-top:6px;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--nomi-ink-60);white-space:nowrap;overflow:hidden}
+  .tcall code{background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:6px;padding:1px 6px;font-size:10.5px;color:var(--nomi-ink-80);overflow:hidden;text-overflow:ellipsis}
+  .tcall .q{color:var(--nomi-ink-40);font-size:10.5px;overflow:hidden;text-overflow:ellipsis}
 
   /* 底栏 composer：统一模式 + 模型常驻 */
   .composer{border-top:1px solid var(--nomi-line-soft);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
@@ -58,135 +66,131 @@
   .pill{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 8px;border:1px solid var(--nomi-line);border-radius:999px;background:var(--nomi-paper);font-size:11.5px;cursor:pointer;white-space:nowrap}
   .pill .k{font-size:10px;color:var(--nomi-ink-40)}
   .pill .v{color:var(--nomi-ink-80)}
-  .pill .chev{color:var(--nomi-ink-40);font-size:9px}
+  .pill .chev{color:var(--nomi-ink-40)}
   .gen{margin-left:auto;width:28px;height:28px;border-radius:999px;background:var(--nomi-ink);color:#fff;display:inline-flex;align-items:center;justify-content:center;border:0}
 
   .note{font-size:11.5px;color:var(--nomi-ink-60);max-width:300px;margin:8px 0 0}
-  .callout{margin-top:14px;padding:12px 14px;border:1px solid var(--nomi-line);border-radius:12px;background:#fff;max-width:300px}
+  .callout{margin-top:16px;padding:12px 14px;border:1px solid var(--nomi-line);border-radius:12px;background:#fff;max-width:340px}
   .callout b{font-size:12px}
   .callout ul{margin:6px 0 0;padding-left:16px;font-size:11.5px;color:var(--nomi-ink-60)}
-  .bad{margin-top:18px;padding:14px;border:1px dashed var(--nomi-line);border-radius:12px;background:#fff;max-width:640px}
-  .bad h3{margin:0 0 8px;font-size:13px}
-  .bad ul{margin:0;padding-left:18px;color:var(--nomi-ink-60);font-size:12px}
+  .callout li{margin-bottom:3px}
   .legend{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
   .tag{font-size:10.5px;padding:1px 7px;border-radius:999px;background:var(--nomi-ink-10);color:var(--nomi-ink-60)}
 </style>
 </head>
 <body>
-  <h1>统一助手面板 · 样张（v1）</h1>
-  <p class="sub"><strong>一个助手，工具域跟随当前活跃区切换</strong>。「拆镜头/定妆」不再是按钮，而是说人话就能触发的工具。后端早已单 runtime + 单 session（跨区记忆连续）。光模式 · token-only · 密度优先。</p>
-  <p class="sub">★ 本样张专门回应一个风险：<strong>「单面板会让『此刻能用哪些工具』变得不可见」</strong>。解法 = 顶栏<strong>上下文胶囊</strong> + 顶部<strong>工具域条</strong>，始终明示你在哪个区、能调哪些工具。</p>
+  <h1>统一助手面板 · 样张 v2</h1>
+  <p class="sub"><strong>一个助手，工具域跟随当前活跃区</strong>。「拆镜头/定妆」不再是按钮，而是说人话就能触发的工具。后端早已单 runtime + 单 session（跨区记忆连续）。光模式 · token-only · 密度优先。</p>
+  <p class="sub">v2 改动（按你的反馈）：① 区域图标换成<strong>设计系统的 tabler 细线图标</strong>（✎创作 / ✦生成 / ▦时间轴），不用 emoji；② 顶栏加 <strong>Nomi 标</strong>；③ 工具调用指示<strong>统一横排一行</strong>；④「可用工具」<strong>默认折叠成一个不起眼的小入口</strong>——它不重要、不需一直看，想看再点开。</p>
 
-  <h2>同一个助手在三个活跃区（工具域自动切换）</h2>
+  <h2>同一个助手在三个活跃区</h2>
   <div class="deck">
 
-    <!-- 1. 编辑器（创作）上下文 -->
+    <!-- 1. 编辑器（创作）—— 工具折叠 -->
     <div>
-      <p class="ctx-label">① 光标在剧本编辑器</p>
+      <p class="ctx-label">① 光标在剧本编辑器（工具默认折叠）</p>
       <div class="panel">
-        <div class="head"><span class="dot"></span><span class="name">助手</span>
-          <span class="ctx-chip"><span class="ci">✍️</span>创作 · 文本</span></div>
-        <div class="toolbar"><span class="tt">可用工具</span>
-          <span class="tool">读全文</span><span class="tool">插入到光标</span><span class="tool">替换选区</span>
-          <span class="tool">拆镜头→画布</span><span class="tool">剧本立角色卡</span></div>
+        <div class="head">
+          <svg class="logo" viewBox="0 0 28 28" width="18" height="18" aria-hidden="true"><rect width="28" height="28" rx="7" fill="oklch(0.22 0.01 80)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="#fff"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="#fff"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="#fff"/></svg>
+          <span class="name">助手</span>
+          <span class="ctx"><svg class="ic" viewBox="0 0 24 24"><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/></svg>创作</span>
+        </div>
+        <div class="tools-fold"><svg class="ic" viewBox="0 0 24 24"><path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5"/></svg>5 个工具<svg class="ic chev" viewBox="0 0 24 24" style="width:11px;height:11px"><path d="M6 9l6 6l6 -6"/></svg></div>
         <div class="msgs">
           <div class="m u">把刚选中这段拆成镜头</div>
           <div class="m a">已按 6 个镜头拆好，正在画布生成节点。
-            <div class="tcall">🔧 调用 <code>storyboard_to_canvas</code></div></div>
+            <div class="tcall"><svg class="ic" viewBox="0 0 24 24" style="width:12px;height:12px"><path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5"/></svg>调用 <code>storyboard_to_canvas</code></div></div>
           <div class="m u">给男主这段也立个角色卡</div>
-          <div class="m a">已建「角色 · 男主」概念卡（提示词按剧本反推，未自动生图，留给你点生成）。
-            <div class="tcall">🔧 调用 <code>fixation_card</code>（剧本级·无图）</div></div>
+          <div class="m a">已建「角色 · 男主」概念卡，提示词按剧本反推，未自动生图。
+            <div class="tcall"><svg class="ic" viewBox="0 0 24 24" style="width:12px;height:12px"><path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5"/></svg>调用 <code>fixation_card</code><span class="q">· 剧本级无图</span></div></div>
         </div>
         <div class="composer">
           <div class="input">说人话，让助手干…</div>
           <div class="ctrls">
-            <span class="pill"><span class="k">模式</span><span class="v">Agent</span><span class="chev">▾</span></span>
-            <span class="pill"><span class="k">模型</span><span class="v">Claude Opus 4.8</span><span class="chev">▾</span></span>
+            <span class="pill"><span class="k">模式</span><span class="v">Agent</span><svg class="ic chev" viewBox="0 0 24 24" style="width:10px;height:10px"><path d="M6 9l6 6l6 -6"/></svg></span>
+            <span class="pill"><span class="k">模型</span><span class="v">Opus 4.8</span><svg class="ic chev" viewBox="0 0 24 24" style="width:10px;height:10px"><path d="M6 9l6 6l6 -6"/></svg></span>
             <button class="gen">↑</button>
           </div>
         </div>
       </div>
-      <p class="note">文本工具 + 两个「带去画布」的工具。拆镜头/定妆从按钮降级为工具，说人话触发，不再走 window 事件桥。</p>
+      <p class="note">工具默认就这一行「5 个工具 ⌄」，安静、不抢眼。工具调用指示统一一行横排。</p>
     </div>
 
-    <!-- 2. 画布（生成）上下文 -->
+    <!-- 2. 画布（生成）—— 展示展开态 -->
     <div>
-      <p class="ctx-label">② 焦点在生成画布</p>
+      <p class="ctx-label">② 焦点在生成画布（点开「工具」后）</p>
       <div class="panel">
-        <div class="head"><span class="dot"></span><span class="name">助手</span>
-          <span class="ctx-chip"><span class="ci">🎨</span>生成 · 画布</span></div>
-        <div class="toolbar"><span class="tt">可用工具</span>
-          <span class="tool">建节点</span><span class="tool">连边</span><span class="tool">删节点</span>
-          <span class="tool">设提示词</span><span class="tool">生成图/视频</span><span class="tool">基于此图定妆</span><span class="tool">送时间轴</span></div>
+        <div class="head">
+          <svg class="logo" viewBox="0 0 28 28" width="18" height="18" aria-hidden="true"><rect width="28" height="28" rx="7" fill="oklch(0.22 0.01 80)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="#fff"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="#fff"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="#fff"/></svg>
+          <span class="name">助手</span>
+          <span class="ctx"><svg class="ic" viewBox="0 0 24 24"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2m0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2m-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6"/></svg>生成</span>
+        </div>
+        <div class="tools-open">
+          <div class="tt"><svg class="ic" viewBox="0 0 24 24" style="width:12px;height:12px"><path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5"/></svg>画布工具（点开才显示）</div>
+          <div class="chips">
+            <span class="tool">建节点</span><span class="tool">连边</span><span class="tool">删节点</span><span class="tool">设提示词</span><span class="tool">生成图/视频</span><span class="tool">基于此图定妆</span><span class="tool">送时间轴</span>
+          </div>
+        </div>
         <div class="msgs">
           <div class="m u">选中这张角色图，做一版定妆</div>
           <div class="m a">基于这张图做 i2i 定妆衍生（已带参考图），新节点待你点生成。
-            <div class="tcall">🔧 调用 <code>fixation_from_image</code>（节点级·带参考图）</div></div>
+            <div class="tcall"><svg class="ic" viewBox="0 0 24 24" style="width:12px;height:12px"><path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5"/></svg>调用 <code>fixation_from_image</code><span class="q">· 带参考图</span></div></div>
           <div class="m u">把这两个节点连起来</div>
           <div class="m a">已连边。
-            <div class="tcall">🔧 调用 <code>connect_nodes</code></div></div>
+            <div class="tcall"><svg class="ic" viewBox="0 0 24 24" style="width:12px;height:12px"><path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5"/></svg>调用 <code>connect_nodes</code></div></div>
         </div>
         <div class="composer">
           <div class="input">说人话，让助手干…</div>
           <div class="ctrls">
-            <span class="pill"><span class="k">模式</span><span class="v">Agent</span><span class="chev">▾</span></span>
-            <span class="pill"><span class="k">模型</span><span class="v">Claude Opus 4.8</span><span class="chev">▾</span></span>
+            <span class="pill"><span class="k">模式</span><span class="v">Agent</span><svg class="ic chev" viewBox="0 0 24 24" style="width:10px;height:10px"><path d="M6 9l6 6l6 -6"/></svg></span>
+            <span class="pill"><span class="k">模型</span><span class="v">Opus 4.8</span><svg class="ic chev" viewBox="0 0 24 24" style="width:10px;height:10px"><path d="M6 9l6 6l6 -6"/></svg></span>
             <button class="gen">↑</button>
           </div>
         </div>
       </div>
-      <p class="note">同一面板、同一会话记忆，工具换成画布域。注意定妆这里是<strong>「基于此图」</strong>（带参考图 i2i），与①里剧本级的「立角色卡」是两件事——文案已消歧义。</p>
+      <p class="note">想看工具时点开才出现。定妆这里是<strong>「基于此图」</strong>（带参考图 i2i），与①的剧本级「立角色卡」是两件事——文案已消歧义。</p>
     </div>
 
-    <!-- 3. 时间轴上下文 -->
+    <!-- 3. 时间轴 —— 工具折叠 -->
     <div>
-      <p class="ctx-label">③ 焦点在时间轴预览</p>
+      <p class="ctx-label">③ 焦点在时间轴预览（工具默认折叠）</p>
       <div class="panel">
-        <div class="head"><span class="dot"></span><span class="name">助手</span>
-          <span class="ctx-chip"><span class="ci">🎬</span>时间轴</span></div>
-        <div class="toolbar"><span class="tt">可用工具</span>
-          <span class="tool">读时间轴</span><span class="tool">加片段</span><span class="tool">调时长</span><span class="tool">排序</span></div>
+        <div class="head">
+          <svg class="logo" viewBox="0 0 28 28" width="18" height="18" aria-hidden="true"><rect width="28" height="28" rx="7" fill="oklch(0.22 0.01 80)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="#fff"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="#fff"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="#fff"/></svg>
+          <span class="name">助手</span>
+          <span class="ctx"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2l0 -12"/><path d="M8 4l0 16"/><path d="M16 4l0 16"/><path d="M4 8l4 0"/><path d="M4 16l4 0"/><path d="M4 12l16 0"/><path d="M16 8l4 0"/><path d="M16 16l4 0"/></svg>时间轴</span>
+        </div>
+        <div class="tools-fold"><svg class="ic" viewBox="0 0 24 24"><path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5"/></svg>4 个工具<svg class="ic chev" viewBox="0 0 24 24" style="width:11px;height:11px"><path d="M6 9l6 6l6 -6"/></svg></div>
         <div class="msgs">
           <div class="m u">把刚生成的 6 个镜头按顺序铺到时间轴</div>
           <div class="m a">已按镜头序号铺好 6 段，每段 3s。
-            <div class="tcall">🔧 调用 <code>add_clips</code> ×6</div></div>
+            <div class="tcall"><svg class="ic" viewBox="0 0 24 24" style="width:12px;height:12px"><path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5"/></svg>调用 <code>add_clips</code><span class="q">× 6</span></div></div>
         </div>
         <div class="composer">
           <div class="input">说人话，让助手干…</div>
           <div class="ctrls">
-            <span class="pill"><span class="k">模式</span><span class="v">Agent</span><span class="chev">▾</span></span>
-            <span class="pill"><span class="k">模型</span><span class="v">Claude Opus 4.8</span><span class="chev">▾</span></span>
+            <span class="pill"><span class="k">模式</span><span class="v">Agent</span><svg class="ic chev" viewBox="0 0 24 24" style="width:10px;height:10px"><path d="M6 9l6 6l6 -6"/></svg></span>
+            <span class="pill"><span class="k">模型</span><span class="v">Opus 4.8</span><svg class="ic chev" viewBox="0 0 24 24" style="width:10px;height:10px"><path d="M6 9l6 6l6 -6"/></svg></span>
             <button class="gen">↑</button>
           </div>
         </div>
       </div>
-      <p class="note">同一助手延伸到时间轴域。控件（模式/模型）三处完全一致，不再「这个有那个没有」。</p>
+      <p class="note">控件（模式/模型）三处完全一致，不再「这个有那个没有」。</p>
     </div>
   </div>
 
   <div class="callout">
-    <b>关键设计决定（请逐条看）</b>
+    <b>v2 回应了你的 4 点</b>
     <ul>
-      <li><b>上下文胶囊</b>（顶栏右）：始终显示你在哪个区——✍️创作 / 🎨画布 / 🎬时间轴。</li>
-      <li><b>工具域条</b>（顶部灰条）：列出此刻可调工具，回应「工具不可见」风险。</li>
-      <li><b>拆镜头/定妆 = 工具</b>，不是按钮；说人话触发，删 window 事件桥。</li>
-      <li><b>两种定妆文案消歧义</b>：剧本级「立角色卡（无图）」 vs 节点级「基于此图定妆（i2i）」。两条都保留。</li>
-      <li><b>模式 + 模型选择器三处一致、常驻</b>，不再时有时无。</li>
+      <li><b>图标统一</b>：区域用 tabler 细线（Pencil/Sparkles/Movie），工具调用用 Tool 图标，全部 emoji 退场。</li>
+      <li><b>Nomi 标</b>：顶栏左侧用品牌 M 标（<code>identity.tsx</code> 同款）。</li>
+      <li><b>调用指示统一横排</b>：一行、不换行、超长省略；限定词降级为灰色后缀。</li>
+      <li><b>工具默认折叠</b>：平时只一行「N 个工具 ⌄」，安静不抢眼；想看再点开（②为展开态）。</li>
     </ul>
   </div>
 
-  <h2>对照：现状（两块面板各一套）</h2>
-  <div class="bad">
-    <h3>当前问题</h3>
-    <ul>
-      <li>两个面对用户的助手，控件/模式/模型语义各异（模型选择器只在生成区、还会自我隐藏）。</li>
-      <li>跨区靠 <code>window</code> CustomEvent + <code>setTimeout(60)</code> 等面板挂载——脆弱、时序耦合、难测。</li>
-      <li>「拆镜头」「定妆」是制片行话，被摆成一等按钮，用户看不懂；定妆两入口同名，点了不知道得到哪种。</li>
-    </ul>
-  </div>
-
-  <p class="sub" style="margin-top:24px">实现备注（拍板后做，见 <code>docs/plan/2026-06-07-assistant-consolidation-plan.md</code>）：阶段 1 先工具化 + 拆桥（后端/store 几乎不动，复核已证），阶段 2 才合并面板成上图。加新同 commit 删旧（P1）。
-    <span class="legend"><span class="tag">光模式</span><span class="tag">token-only</span><span class="tag">密度优先</span><span class="tag">键盘可达</span></span>
+  <p class="sub" style="margin-top:22px">实现备注（拍板后做，见 <code>docs/plan/2026-06-07-assistant-consolidation-plan.md</code>）：阶段 1 先工具化 + 拆桥（后端/store 几乎不动），阶段 2 才合并面板成上图。加新同 commit 删旧（P1）。
+    <span class="legend"><span class="tag">光模式</span><span class="tag">token-only</span><span class="tag">密度优先</span><span class="tag">tabler 图标</span><span class="tag">键盘可达</span></span>
   </p>
 </body>
 </html>
