@@ -76,6 +76,42 @@
   .callout li{margin-bottom:3px}
   .legend{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
   .tag{font-size:10.5px;padding:1px 7px;border-radius:999px;background:var(--nomi-ink-10);color:var(--nomi-ink-60)}
+
+  /* —— 空间行为：停靠 / 折叠 / 调宽 —— */
+  .shell{position:relative;width:560px;height:320px;border:1px solid var(--nomi-line);border-radius:14px;background:#fff;overflow:hidden;display:flex;box-shadow:var(--shadow-card)}
+  .stage{flex:1;position:relative;background:
+      radial-gradient(circle, var(--nomi-ink-10) 1px, transparent 1px) 0 0/16px 16px;
+      background-color:#fcfcfd}
+  .stage .ghost{position:absolute;border:1px solid var(--nomi-line);border-radius:10px;background:#fff;box-shadow:var(--shadow-card)}
+  .stage .ghost .gh-t{height:8px;margin:8px 8px 0;border-radius:4px;background:var(--nomi-ink-10)}
+  .stage .ghost .gh-b{height:34px;margin:8px;border-radius:8px;background:var(--nomi-ink-05)}
+  .stagelabel{position:absolute;left:12px;top:10px;font-size:10.5px;color:var(--nomi-ink-40)}
+
+  /* 停靠的助手（展开态）*/
+  .dock{width:236px;border-left:1px solid var(--nomi-line);position:relative;display:flex;flex-direction:column;background:var(--nomi-paper)}
+  .grip{position:absolute;left:-4px;top:0;bottom:0;width:8px;cursor:col-resize;display:flex;align-items:center;justify-content:center;z-index:3}
+  .grip .bar{width:3px;height:34px;border-radius:999px;background:var(--nomi-ink-30)}
+  .grip:hover .bar{background:var(--nomi-accent)}
+  .dhead{display:flex;align-items:center;gap:7px;padding:8px 10px;border-bottom:1px solid var(--nomi-line-soft)}
+  .dhead .name{font-weight:600;font-size:12px}
+  .dhead .right{margin-left:auto;display:inline-flex;align-items:center;gap:6px;color:var(--nomi-ink-40)}
+  .sizeset{display:inline-flex;border:1px solid var(--nomi-line);border-radius:999px;overflow:hidden}
+  .sizeset span{font-size:10px;padding:1px 6px;color:var(--nomi-ink-40);cursor:pointer}
+  .sizeset span.on{background:var(--nomi-ink);color:#fff}
+  .collapse{cursor:pointer;display:inline-flex}
+  .dbody{flex:1;padding:10px;display:flex;flex-direction:column;gap:8px}
+  .dm{max-width:90%;font-size:11.5px;border-radius:10px;padding:6px 9px;line-height:1.45}
+  .dm.u{align-self:flex-end;background:var(--nomi-accent-soft)}
+  .dm.a{align-self:flex-start;background:var(--nomi-ink-05);color:var(--nomi-ink-80)}
+  .dfoot{border-top:1px solid var(--nomi-line-soft);padding:8px 10px;display:flex;gap:6px;align-items:center}
+  .dfoot .di{flex:1;height:28px;border:1px solid var(--nomi-line);border-radius:9px;display:flex;align-items:center;padding:0 9px;color:var(--nomi-ink-40);font-size:11px}
+  .dfoot .dg{width:26px;height:26px;border-radius:999px;background:var(--nomi-ink);color:#fff;display:flex;align-items:center;justify-content:center}
+
+  /* 折叠态：右边缘小入口 */
+  .launcher{position:absolute;right:12px;bottom:14px;display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 13px 0 10px;border-radius:999px;background:var(--nomi-paper);border:1px solid var(--nomi-line);box-shadow:var(--shadow-pop);cursor:pointer}
+  .launcher .lt{font-size:12px;color:var(--nomi-ink-80);font-weight:500}
+  .launcher .spark{color:var(--nomi-accent)}
+  .annot{position:absolute;font-size:10.5px;color:var(--nomi-accent);background:#fff;border:1px solid color-mix(in oklch,var(--nomi-accent) 35%,#fff);border-radius:6px;padding:2px 6px;white-space:nowrap;box-shadow:var(--shadow-card)}
 </style>
 </head>
 <body>
@@ -176,6 +212,64 @@
         </div>
       </div>
       <p class="note">控件（模式/模型）三处完全一致，不再「这个有那个没有」。</p>
+    </div>
+  </div>
+
+  <h2>空间行为：停靠 / 折叠 / 调宽（推荐做这套，不做自由浮窗）</h2>
+  <p class="sub">平时缩成右下角一个<strong>带 Nomi 标的小入口</strong>（认得出是 AI）；点开 → 展开成右侧<strong>停靠</strong>的助手，位置可预测；左缘<strong>拖宽手柄</strong>可调宽，顶栏有 S/M/L 档；想收起点 <code>»</code> 折回小入口。<strong>不做满屏自由拖放的浮窗</strong>——避免盖节点、飘出屏、找不着的窗口管理税。</p>
+  <div class="deck">
+
+    <!-- 展开 · 停靠右侧 -->
+    <div>
+      <p class="ctx-label">展开态 · 停靠右侧（可拖宽 · 可调档）</p>
+      <div class="shell">
+        <div class="stage">
+          <span class="stagelabel">生成画布（工作区）</span>
+          <div class="ghost" style="left:30px;top:40px;width:120px;height:96px"><div class="gh-t"></div><div class="gh-b"></div></div>
+          <div class="ghost" style="left:172px;top:150px;width:120px;height:96px"><div class="gh-t"></div><div class="gh-b"></div></div>
+        </div>
+        <div class="dock">
+          <div class="grip" title="拖动调宽"><span class="bar"></span></div>
+          <div class="dhead">
+            <svg class="logo" viewBox="0 0 28 28" width="16" height="16" aria-hidden="true"><rect width="28" height="28" rx="7" fill="oklch(0.22 0.01 80)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="#fff"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="#fff"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="#fff"/></svg>
+            <span class="name">助手</span>
+            <span class="ctx" style="margin-left:6px"><svg class="ic" viewBox="0 0 24 24" style="width:12px;height:12px"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2m0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2m-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6"/></svg>生成</span>
+            <span class="right">
+              <span class="sizeset"><span>S</span><span class="on">M</span><span>L</span></span>
+              <span class="collapse" title="折回小入口">»</span>
+            </span>
+          </div>
+          <div class="dbody">
+            <div class="dm u">把这两个节点连起来</div>
+            <div class="dm a">已连边。</div>
+            <div class="dm u">第一个改成竖构图</div>
+            <div class="dm a">已更新提示词为 9:16，待你点生成。</div>
+          </div>
+          <div class="dfoot"><span class="di">说人话…</span><span class="dg">↑</span></div>
+        </div>
+        <div class="annot" style="right:188px;top:150px">← 拖这里调宽</div>
+      </div>
+      <p class="note">停靠在固定一侧，眼睛知道往哪看；画布可平移把节点挪开，不靠移面板。S/M/L 或拖宽应对"小任务 vs 读长计划"。</p>
+    </div>
+
+    <!-- 折叠 · 小入口 -->
+    <div>
+      <p class="ctx-label">折叠态 · 右下角小入口（认得出是 AI）</p>
+      <div class="shell">
+        <div class="stage">
+          <span class="stagelabel">生成画布（工作区 · 满宽）</span>
+          <div class="ghost" style="left:30px;top:40px;width:130px;height:104px"><div class="gh-t"></div><div class="gh-b"></div></div>
+          <div class="ghost" style="left:182px;top:120px;width:130px;height:104px"><div class="gh-t"></div><div class="gh-b"></div></div>
+          <div class="ghost" style="left:120px;top:200px;width:130px;height:90px"><div class="gh-t"></div><div class="gh-b"></div></div>
+          <div class="launcher" title="点开助手">
+            <svg class="logo" viewBox="0 0 28 28" width="20" height="20" aria-hidden="true"><rect width="28" height="28" rx="7" fill="oklch(0.22 0.01 80)"/><rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="#fff"/><rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="#fff"/><polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="#fff"/></svg>
+            <span class="lt">助手</span>
+            <svg class="ic spark" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2m0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2m-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6"/></svg>
+          </div>
+          <div class="annot" style="right:16px;bottom:58px">点开 → 展开成左图 ↑</div>
+        </div>
+      </div>
+      <p class="note">不用时让出整个工作区，只留一个带品牌标 + ✦ 的小入口，明确"AI 在这"。这一步成本最低、收益最高，强烈建议做。</p>
     </div>
   </div>
 
