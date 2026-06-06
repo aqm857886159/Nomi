@@ -1,6 +1,7 @@
 import type { AgentsChatResponseDto, AgentChatV2Session } from '../../api/desktopClient'
 import { sendWorkbenchAiMessage } from './workbenchAiClient'
 import { getAssistantModelPref } from './assistantModelPref'
+import { useAgentUsageStore } from './agentUsageStore'
 
 /**
  * One shared agent runner for both workbench panels (创作区 + 生成区).
@@ -103,5 +104,9 @@ export async function runWorkbenchAgent(input: RunWorkbenchAgentInput): Promise<
     },
   }
 
-  return sendWorkbenchAiMessage(request, handlers)
+  const response = await sendWorkbenchAiMessage(request, handlers)
+  // Accumulate token usage for both panels here (single feed point) so a
+  // token/cost readout can render it; previously usage was dropped (audit #8).
+  useAgentUsageStore.getState().addUsage(response.usage)
+  return response
 }

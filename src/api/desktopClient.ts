@@ -37,12 +37,35 @@ export type AgentsChatRequestDto = {
   systemPrompt?: string
 }
 
+export type AgentUsage = {
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
+}
+
 export type AgentsChatResponseDto = {
   id?: string
   text: string
   raw?: unknown
   toolCalls?: unknown[]
   artifacts?: unknown[]
+  /** Token usage for this turn (was previously buried in `raw` and dropped). */
+  usage?: AgentUsage
+}
+
+/** Coerce the SDK's loosely-typed usage object into AgentUsage (0-filled). */
+export function coerceAgentUsage(raw: unknown): AgentUsage | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const r = raw as Record<string, unknown>
+  const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+  const usage: AgentUsage = {
+    promptTokens: num(r.promptTokens ?? r.inputTokens),
+    completionTokens: num(r.completionTokens ?? r.outputTokens),
+    totalTokens: num(r.totalTokens),
+  }
+  if (!usage.totalTokens) usage.totalTokens = usage.promptTokens + usage.completionTokens
+  if (!usage.promptTokens && !usage.completionTokens && !usage.totalTokens) return undefined
+  return usage
 }
 
 export type AgentsChatToolStreamPayload = Record<string, unknown>
@@ -322,13 +345,14 @@ async function openDesktopAgentsChatStream(
           return
         }
         case 'result': {
-          const inner = (evt.result as { id?: string; text?: string }) || {}
+          const inner = (evt.result as { id?: string; text?: string; usage?: unknown }) || {}
           const response: AgentsChatResponseDto = {
             id: typeof inner.id === 'string' ? inner.id : `agent-${Date.now()}`,
             text: typeof inner.text === 'string' ? inner.text : streamedText,
             raw: evt.result,
             toolCalls: [],
             artifacts: [],
+            usage: coerceAgentUsage(inner.usage),
           }
           handlers.onEvent({ event: 'result', data: { response } })
           return
