@@ -1,8 +1,17 @@
-# Plan：参考区重做（tile + @ 引用）+ 三来源统一添加
+# Plan：通用「素材引用」系统（不是 Seedance 专用模板）
 
-> 样张：`docs/design/mockups/2026-06-06-reference-at-v4.html`（4 态，已渲染 `tests/ux/shots/MOCKUP-v4.png`）。
-> 方向已过设计师 + 真实用户 agent（均「成立 / 好用多了」），并据反馈迭代到 v4.1。用户已认设计方向。
-> 规则：Rule 4 执行文档；UI 走 Rule 8 样张 + Rule 7 评审（已做）。
+> **定位（用户 2026-06-06 拍板）**：这套逻辑**通用**——产品里任何「挑/加/引用一个素材」都用它，别给某个模型/功能写专用版（规则 1 并行版 + 违反通用第一）。生成参考只是它的第一个消费方。
+> 样张：`docs/design/mockups/2026-06-06-reference-at-v4.html`（4 态，已渲染）。方向已过设计师 + 真实用户 agent + 用户认可。
+> 规则：Rule 4 执行文档；UI 走 Rule 8 样张 + Rule 7 评审（已做）；架构对偶于「档案声明能力 / 供应商负责传输」。
+
+## 0. 通用系统 = 3 原语 + 2 规律（住共享模块，非生成节点）
+
+- **AssetTile**：正方形、形态自明（图缩略图 / 视频缩略图+播放三角+暗蒙 / 音频整块波形）。一个素材的小表示，到处用。
+- **AssetPicker**：统一添加入口——画布 / 项目素材（搜索+最近+浏览全部）/ 上传 / 拖入 / 连线。任何「+」点开都是它。
+- **AssetMention**：内联 `@` 引用——句中缩略图 chip，**按调用方解析绑定**（Seedance→character1，时间轴→clip，…）。
+- 规律：**快速取（弹层：搜+最近）vs 全量浏览（面板）**；**形态自明 > 文字解释**。
+- **一处真相源「素材池」**（画布产出 + 上传 + 项目文件），picker/面板/@ 都读它。
+- **档案只声明「要几个什么槽」，通用系统负责怎么填**。加新模型/功能 = 声明槽，UI 零重写。
 
 ## 1. 目标（用户拍板）
 
@@ -27,11 +36,16 @@
 
 ## 3. 实现要点 / 改动面（按层）
 
-**渲染层 UI**
-- `ReferenceSlots.tsx` / 新 `ReferenceTiles.tsx`：三组分别标签 → **一排统一 tile**；类型形态（image/video/audio）自明；点 tile 插入描述。
-- 新 `AddReferencePicker.tsx`：统一选择器（画布卡 + 项目素材缩略图 + 上传 + 拖入），一个入口三来源。
-- 描述框：从纯 textarea → 支持**内联引用 chip**（contentEditable 或 textarea + overlay 方案，需调研；Rule 5/6 先查）。@ 唤起 + 点 tile 唤起，同一插入管道。
-- 发送前投影：句中引用按出现/放入顺序 → `character1..N`（renderer 侧，发请求前替换；接 archetypeMeta.buildArchetypeInputParams）。
+**共享原语（新模块 `src/workbench/assets/`，与生成节点解耦——这是通用第一的落点）**
+- `AssetTile.tsx`：形态自明的素材块（image/video/audio），到处复用。
+- `AssetPicker.tsx`：统一选择器（画布卡 + 项目素材[搜索+最近+浏览全部] + 上传 + 拖入），一个入口三来源 + 规模化。
+- `AssetMention`：描述框内联 `@` 引用 chip + 解析钩子（调用方决定绑定）。textarea 装不下内联图——**先按 Rule 5/6 查 Tiptap**（已在用）能否直接干，不手搓。
+- `assetPool`：一处真相源（画布产出 + 上传 + 项目文件 `useWorkspaceFiles`），picker/面板/@ 都读它。
+
+**生成节点（素材系统的第一个消费方，只声明 + 接线，不写交互）**
+- `ReferenceSlots` → 改用 AssetTile + AssetPicker；档案 slots 只声明「几个什么槽」。
+- 发送前投影：句中 AssetMention 按顺序 → `character1..N`（renderer 侧，接 `archetypeMeta.buildArchetypeInputParams`）。
+- 首尾帧 / 源视频 / 时间轴加片段：后续都切到同一套原语（消灭各自的 bespoke 加素材代码）。
 
 **数据 / 来源接入**
 - 项目素材来源：复用 `useWorkspaceFiles` / `workspaceFileIndex`，放开 FileTreeNode 只 image 可拖（视频/音频也要）。
