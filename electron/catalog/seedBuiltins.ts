@@ -94,29 +94,9 @@ export function applyBuiltinSeeds(
     changed = true;
   }
 
-  if (
-    !mappings.some(
-      (mp) =>
-        mp.vendorKey === KIE_VENDOR_SEED.key &&
-        mp.taskKind === SEEDANCE_2_IMAGE_TO_VIDEO_MAPPING.taskKind,
-    )
-  ) {
-    const mapping: Mapping = {
-      id: SEEDANCE_MAPPING_ID,
-      vendorKey: KIE_VENDOR_SEED.key,
-      taskKind: SEEDANCE_2_IMAGE_TO_VIDEO_MAPPING.taskKind,
-      name: SEEDANCE_2_IMAGE_TO_VIDEO_MAPPING.name,
-      enabled: true,
-      create: SEEDANCE_2_CREATE_OP,
-      query: SEEDANCE_2_QUERY_OP,
-      createdAt: now,
-      updatedAt: now,
-    };
-    mappings.push(mapping);
-    changed = true;
-  }
+  // 所有 curated mapping（Seedance / HappyHorse / GPT）的 insert + 对账统一由文件末尾的 CURATED_MAPPINGS 表驱动。
 
-  // HappyHorse 1.0（C4）：同 kie vendor，4 模式合 1 条目 + 1 条 (kie, text_to_video) mapping。
+  // HappyHorse 1.0（C4）：同 kie vendor，4 模式合 1 条目（mapping 见末尾统一表）。
   if (!models.some((m) => m.modelKey === HAPPYHORSE_MODEL_SEED.modelKey && m.vendorKey === KIE_VENDOR_SEED.key)) {
     models.push({
       modelKey: HAPPYHORSE_MODEL_SEED.modelKey,
@@ -131,22 +111,7 @@ export function applyBuiltinSeeds(
     changed = true;
   }
 
-  if (!mappings.some((mp) => mp.vendorKey === KIE_VENDOR_SEED.key && mp.taskKind === HAPPYHORSE_MAPPING.taskKind)) {
-    mappings.push({
-      id: HAPPYHORSE_MAPPING_ID,
-      vendorKey: KIE_VENDOR_SEED.key,
-      taskKind: HAPPYHORSE_MAPPING.taskKind,
-      name: HAPPYHORSE_MAPPING.name,
-      enabled: true,
-      create: HAPPYHORSE_CREATE_OP,
-      query: HAPPYHORSE_QUERY_OP,
-      createdAt: now,
-      updatedAt: now,
-    });
-    changed = true;
-  }
-
-  // GPT Image 2（图像，2026-06-06）：t2i + i2i 两个模型 + 两条 mapping（text_to_image / image_edit）。
+  // GPT Image 2（图像，2026-06-06）：t2i + i2i 两个模型（mapping 见末尾统一表 + 下面的 repair）。
   // 契约见 kieGptImage2.ts（直连实测确认）。**额外做 repair**：旧版本（用户 onboarding 抽错）留下的
   // 视频形状坏 mapping 会被替换——这不算「覆盖用户编辑」，是修我们自己该内置的坏记录。
   for (const seed of [GPT_IMAGE_2_T2I_MODEL_SEED, GPT_IMAGE_2_I2I_MODEL_SEED]) {
@@ -179,57 +144,53 @@ export function applyBuiltinSeeds(
     }
   }
 
-  if (!mappings.some((mp) => mp.vendorKey === KIE_VENDOR_SEED.key && mp.taskKind === GPT_IMAGE_2_T2I_MAPPING.taskKind)) {
-    mappings.push({
-      id: GPT_IMAGE_2_T2I_MAPPING_ID,
-      vendorKey: KIE_VENDOR_SEED.key,
-      taskKind: GPT_IMAGE_2_T2I_MAPPING.taskKind,
-      name: GPT_IMAGE_2_T2I_MAPPING.name,
-      enabled: true,
-      create: GPT_IMAGE_2_T2I_MAPPING.create,
-      query: GPT_IMAGE_2_T2I_MAPPING.query,
-      statusMapping: GPT_IMAGE_2_T2I_MAPPING.statusMapping,
-      createdAt: now,
-      updatedAt: now,
-    });
-    changed = true;
-  }
-
-  if (!mappings.some((mp) => mp.vendorKey === KIE_VENDOR_SEED.key && mp.taskKind === GPT_IMAGE_2_I2I_MAPPING.taskKind)) {
-    mappings.push({
-      id: GPT_IMAGE_2_I2I_MAPPING_ID,
-      vendorKey: KIE_VENDOR_SEED.key,
-      taskKind: GPT_IMAGE_2_I2I_MAPPING.taskKind,
-      name: GPT_IMAGE_2_I2I_MAPPING.name,
-      enabled: true,
-      create: GPT_IMAGE_2_I2I_MAPPING.create,
-      query: GPT_IMAGE_2_I2I_MAPPING.query,
-      statusMapping: GPT_IMAGE_2_I2I_MAPPING.statusMapping,
-      createdAt: now,
-      updatedAt: now,
-    });
-    changed = true;
-  }
-
-  // 刷新 curated 内置 mapping 的传输塑形（**代码单源**：create/query 住 kieSeedance/kieHappyhorse）。
-  // 「存在即跳过」只在缺失时插入——当代码定义演进（如 Seedance 加 omni 参考数组 reference_*_urls +
-  // generate_audio）时，旧装机里早先种下的旧 mapping 不会自动更新 → 真实生成**静默丢字段**
-  // （实测：omni 参考图上传了却没进 createTask body）。按**稳定 seed id**把 create/query 同步到当前代码，
-  // 只动我们自己种的记录（保留用户的 enabled/name/createdAt，不碰用户自建的 mapping）。
-  const CURATED_MAPPING_OPS: { id: string; create: HttpOperation; query: HttpOperation }[] = [
-    { id: SEEDANCE_MAPPING_ID, create: SEEDANCE_2_CREATE_OP, query: SEEDANCE_2_QUERY_OP },
-    { id: HAPPYHORSE_MAPPING_ID, create: HAPPYHORSE_CREATE_OP, query: HAPPYHORSE_QUERY_OP },
+  // ───────── 内置 curated mapping 的**单一真相源** + insert/对账（根因修复） ─────────
+  // 根因：curated 的传输塑形（create/query/statusMapping）是**代码所有**（住 kieSeedance/kieHappyhorse/
+  // kieGptImage2），但 seed 早先把它**拷贝**进持久化 catalog 且「存在即跳过、永不更新」——于是持久副本成了
+  // 第二份真相源，代码一演进（如 Seedance 加 omni 的 reference_*_urls + generate_audio）旧装机就**静默漂移**，
+  // 真实生成丢字段（实测：omni 参考图上传了却没进 createTask body）。
+  // 修法：把所有 curated mapping 收进这张**唯一**的表，insert 与对账都从它来——
+  //   · 缺失 → 插入（仅当该 (vendor,taskKind) 槽未被用户/onboarding 记录占用，保持原行为，不重复占槽）；
+  //   · 已存在（按稳定 seed id）→ **强制对账**代码所有字段，让老装机自愈。
+  // 所有权边界：create/query/statusMapping/taskKind = 代码所有（对账覆盖）；enabled/name/createdAt = 用户所有（保留）。
+  // 加新 curated mapping = 这里加一行，自动覆盖「装新机」与「老机自愈」两条路——这个类的 bug 结构上不再复发。
+  const CURATED_MAPPINGS: { id: string; taskKind: Mapping["taskKind"]; name: string; create: HttpOperation; query: HttpOperation; statusMapping?: Mapping["statusMapping"] }[] = [
+    { id: SEEDANCE_MAPPING_ID, taskKind: SEEDANCE_2_IMAGE_TO_VIDEO_MAPPING.taskKind, name: SEEDANCE_2_IMAGE_TO_VIDEO_MAPPING.name, create: SEEDANCE_2_CREATE_OP, query: SEEDANCE_2_QUERY_OP },
+    { id: HAPPYHORSE_MAPPING_ID, taskKind: HAPPYHORSE_MAPPING.taskKind, name: HAPPYHORSE_MAPPING.name, create: HAPPYHORSE_CREATE_OP, query: HAPPYHORSE_QUERY_OP },
+    { id: GPT_IMAGE_2_T2I_MAPPING_ID, taskKind: GPT_IMAGE_2_T2I_MAPPING.taskKind, name: GPT_IMAGE_2_T2I_MAPPING.name, create: GPT_IMAGE_2_T2I_MAPPING.create, query: GPT_IMAGE_2_T2I_MAPPING.query, statusMapping: GPT_IMAGE_2_T2I_MAPPING.statusMapping },
+    { id: GPT_IMAGE_2_I2I_MAPPING_ID, taskKind: GPT_IMAGE_2_I2I_MAPPING.taskKind, name: GPT_IMAGE_2_I2I_MAPPING.name, create: GPT_IMAGE_2_I2I_MAPPING.create, query: GPT_IMAGE_2_I2I_MAPPING.query, statusMapping: GPT_IMAGE_2_I2I_MAPPING.statusMapping },
   ];
-  for (let i = 0; i < mappings.length; i += 1) {
-    const curated = CURATED_MAPPING_OPS.find((c) => c.id === mappings[i].id);
-    if (!curated) continue;
-    const stale =
-      JSON.stringify(mappings[i].create) !== JSON.stringify(curated.create) ||
-      JSON.stringify(mappings[i].query) !== JSON.stringify(curated.query);
-    if (stale) {
-      mappings[i] = { ...mappings[i], create: curated.create, query: curated.query, updatedAt: now };
-      changed = true;
+  for (const c of CURATED_MAPPINGS) {
+    const i = mappings.findIndex((m) => m.id === c.id);
+    if (i >= 0) {
+      const ex = mappings[i];
+      const drift =
+        ex.taskKind !== c.taskKind ||
+        JSON.stringify(ex.create) !== JSON.stringify(c.create) ||
+        JSON.stringify(ex.query) !== JSON.stringify(c.query) ||
+        JSON.stringify(ex.statusMapping) !== JSON.stringify(c.statusMapping);
+      if (drift) {
+        mappings[i] = { ...ex, taskKind: c.taskKind, name: ex.name ?? c.name, create: c.create, query: c.query, statusMapping: c.statusMapping, updatedAt: now };
+        changed = true;
+      }
+      continue;
     }
+    // 还没有这条 curated 记录：仅当该 (vendor, taskKind) 槽未被占用时插入（GPT repair 修过的记录、
+    // 或 Kling 占用的 text_to_video 槽都不被重复，保持既有行为）。
+    if (mappings.some((m) => m.vendorKey === KIE_VENDOR_SEED.key && m.taskKind === c.taskKind)) continue;
+    mappings.push({
+      id: c.id,
+      vendorKey: KIE_VENDOR_SEED.key,
+      taskKind: c.taskKind,
+      name: c.name,
+      enabled: true,
+      create: c.create,
+      query: c.query,
+      statusMapping: c.statusMapping,
+      createdAt: now,
+      updatedAt: now,
+    });
+    changed = true;
   }
 
   if (!changed) return { state, changed: false };
