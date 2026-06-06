@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>定妆 · 样张 v2（一张大图 · 一次成图 · 工具栏入口）</title>
+<style>
+  :root{
+    --nomi-bg: oklch(0.985 0.003 90);
+    --nomi-paper: oklch(1 0 0);
+    --nomi-ink: oklch(0.22 0.01 80);
+    --nomi-ink-80: oklch(0.32 0.01 80);
+    --nomi-ink-60: oklch(0.50 0.01 80);
+    --nomi-ink-40: oklch(0.68 0.01 80);
+    --nomi-ink-20: oklch(0.88 0.005 80);
+    --nomi-ink-10: oklch(0.94 0.003 80);
+    --nomi-ink-05: oklch(0.97 0.003 80);
+    --nomi-line: oklch(0.91 0.004 80);
+    --nomi-line-soft: oklch(0.95 0.003 80);
+    --nomi-accent: oklch(0.55 0.13 250);
+    --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 12%, var(--nomi-paper));
+    --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03);
+    --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.06);
+    --nomi-shadow-lg: 0 12px 34px oklch(0 0 0 / 0.14);
+    --nomi-radius-sm: 6px;
+    --nomi-radius: 10px;
+    --nomi-radius-lg: 16px;
+    --nomi-font-sans: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+    --nomi-font-display: Fraunces, Inter, serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--nomi-bg);font-family:var(--nomi-font-sans);color:var(--nomi-ink);-webkit-font-smoothing:antialiased;font-size:13px;line-height:1.5}
+  .wrap{padding:32px}
+  .page-title{font-family:var(--nomi-font-display);font-size:24px;font-weight:600;margin-bottom:4px}
+  .page-sub{font-size:13px;color:var(--nomi-ink-60);margin-bottom:8px}
+  .legend{font-size:12px;color:var(--nomi-ink-40);margin-bottom:24px}
+  .section-label{font-size:12px;font-weight:600;color:var(--nomi-ink-60);letter-spacing:.04em;margin:28px 0 14px}
+  .stage{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+  .note{font-size:12px;color:var(--nomi-ink-40);margin-top:10px;max-width:300px}
+
+  /* ===== 工具栏（真实那条 + 新增「定妆」）===== */
+  .toolbar-demo{display:flex;flex-direction:column;align-items:center;gap:14px}
+  .toolbar{
+    display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:5px 8px;
+    border:1px solid oklch(0.22 0.01 80 / .08);border-radius:14px;
+    background:oklch(1 0 0 / .96);box-shadow:var(--nomi-shadow-lg);backdrop-filter:blur(12px);
+  }
+  .tb-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:34px;padding:0 11px;border:0;border-radius:9px;background:transparent;color:var(--nomi-ink-80);font:inherit;font-size:13px;line-height:1;white-space:nowrap;cursor:pointer}
+  .tb-btn:hover{background:var(--nomi-ink-05);color:var(--nomi-ink)}
+  .tb-btn.icon-only{width:34px;padding:0}
+  .tb-btn.primary{color:var(--nomi-accent)}
+  .tb-btn.primary:hover{background:var(--nomi-accent-soft)}
+  .tb-sep{width:1px;height:22px;background:oklch(0.22 0.01 80 / .1)}
+  .icon{width:16px;height:16px;display:inline-block;stroke-width:1.8}
+  .i14{width:14px;height:14px}
+  /* 工具栏下方那张被选中的角色卡（示意） */
+  .node{width:220px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:var(--nomi-radius);box-shadow:var(--nomi-shadow-md);overflow:hidden}
+  .node.selected{outline:2px solid var(--nomi-accent);outline-offset:2px}
+  .node .cover{height:150px;overflow:hidden}
+  .node .cover svg{width:100%;height:100%;object-fit:cover;display:block}
+  .node .body{padding:8px 12px}
+  .name-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .name{font-size:14px;font-weight:600}
+  .usage{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--nomi-ink-60)}
+  .udot{width:6px;height:6px;border-radius:50%;background:var(--nomi-accent)}
+
+  /* ===== 定妆面板 ===== */
+  .panel{width:340px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:var(--nomi-radius);box-shadow:var(--nomi-shadow-md);overflow:hidden;align-self:flex-start}
+  .p-head{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--nomi-line);font-size:14px;font-weight:600}
+  .p-head .turn{color:var(--nomi-accent)}
+  .p-body{padding:16px;display:flex;flex-direction:column;gap:16px}
+  .field-label{font-size:12px;font-weight:600;color:var(--nomi-ink-60);margin-bottom:8px}
+  .base-ref{display:flex;align-items:center;gap:8px}
+  .base-ref .img{width:48px;height:48px;border-radius:var(--nomi-radius-sm);overflow:hidden;background:var(--nomi-ink-05)}
+  .base-ref .img svg{width:100%;height:100%;object-fit:cover}
+  .base-ref .t{font-size:13px;font-weight:600}
+  .base-ref .s{font-size:12px;color:var(--nomi-ink-60)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{font-size:12px;padding:6px 12px;border-radius:999px;border:1px solid var(--nomi-line);color:var(--nomi-ink-60);cursor:pointer;user-select:none}
+  .chip.on{background:var(--nomi-accent);color:var(--nomi-paper);border-color:var(--nomi-accent)}
+  .seg{display:flex;gap:6px}
+  .seg .opt{flex:1;text-align:center;font-size:12px;padding:7px 0;border-radius:var(--nomi-radius-sm);background:var(--nomi-ink-05);color:var(--nomi-ink-60);cursor:pointer}
+  .seg .opt.on{background:var(--nomi-accent);color:var(--nomi-paper);font-weight:600}
+  .info-row{display:flex;align-items:flex-start;gap:6px;font-size:12px;color:var(--nomi-ink-40);line-height:1.5}
+  .p-foot{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--nomi-line)}
+  .cost{font-size:12px;color:var(--nomi-ink-60)}
+  .btn{background:var(--nomi-accent);color:var(--nomi-paper);border:none;border-radius:var(--nomi-radius-sm);padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer}
+
+  /* ===== 定妆大图（一张布局图）===== */
+  .sheet-card{width:720px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:var(--nomi-radius);box-shadow:var(--nomi-shadow-md);overflow:hidden}
+  .sheet-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--nomi-line)}
+  .sheet-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
+  .sheet-title .turn{color:var(--nomi-accent)}
+  .sheet-actions{display:flex;gap:6px}
+  .mini{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--nomi-ink-60);background:var(--nomi-ink-05);border:none;border-radius:var(--nomi-radius-sm);padding:6px 10px;cursor:pointer}
+  .mini:hover{color:var(--nomi-accent);background:var(--nomi-accent-soft)}
+  /* 大图本体：一张图里布局好的各区块（占位） */
+  .sheet{position:relative;padding:16px;background:oklch(0.985 0.004 90);display:grid;grid-template-columns:200px 1fr 150px;grid-template-rows:auto auto;gap:14px}
+  .blk{border-radius:var(--nomi-radius-sm);position:relative;overflow:hidden;min-height:60px}
+  .blk .tag{position:absolute;top:6px;left:6px;font-size:11px;color:var(--nomi-ink-60);background:oklch(1 0 0 / .82);border-radius:4px;padding:1px 6px;z-index:2}
+  .hero{grid-row:1 / span 2;background:linear-gradient(160deg,#6b8cce,#cda6c8)}
+  .hero .person{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:70px;height:150px}
+  .turn3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .turn3 .v{background:linear-gradient(160deg,#7c9bd0,#b6a0cc);border-radius:var(--nomi-radius-sm);position:relative;min-height:150px}
+  .turn3 .vlab{position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:11px;color:var(--nomi-ink-80)}
+  .exp{grid-column:2;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .exp .e{aspect-ratio:1;background:linear-gradient(160deg,#8aa0d2,#c3a8cf);border-radius:var(--nomi-radius-sm);position:relative}
+  .exp .elab{position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:11px;color:var(--nomi-ink-80)}
+  .side{grid-column:3;grid-row:1 / span 2;display:flex;flex-direction:column;gap:10px}
+  .idblock{background:var(--nomi-paper);border-radius:var(--nomi-radius-sm);padding:10px;box-shadow:var(--nomi-shadow-sm)}
+  .idblock .nm{font-family:var(--nomi-font-display);font-size:16px;font-weight:600}
+  .idblock .meta{font-size:11px;color:var(--nomi-ink-60);margin-top:2px;line-height:1.5}
+  .palette{display:flex;gap:6px;flex-wrap:wrap;background:var(--nomi-paper);border-radius:var(--nomi-radius-sm);padding:10px;box-shadow:var(--nomi-shadow-sm)}
+  .sw{width:22px;height:22px;border-radius:5px}
+  .pal-cap{flex-basis:100%;font-size:11px;color:var(--nomi-ink-60)}
+  .sil{display:flex;gap:6px;background:var(--nomi-paper);border-radius:var(--nomi-radius-sm);padding:10px;box-shadow:var(--nomi-shadow-sm)}
+  .sil .s{width:18px;height:54px;background:var(--nomi-ink-40);border-radius:3px}
+  /* 切片高亮示意（虚线框选一块） */
+  .crop-demo{position:absolute;border:2px dashed var(--nomi-accent);border-radius:4px;box-shadow:0 0 0 9999px oklch(0 0 0 / .04)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="page-title">定妆 · 样张 v2</div>
+  <div class="page-sub">修正：一张布局大图 · 模型一次成图（成本=1 张）· 入口挂在图片工具栏 · 取单件复用现有裁剪。</div>
+  <div class="legend">灰字气泡是讲解，非界面。大图区块用色块占位，真实是模型一次生成的整张身份板（参考你给的 ASHRAIL / 女主案例）。</div>
+
+  <svg style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true"><defs>
+    <linearGradient id="cv" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6b8cce"/><stop offset="1" stop-color="#cda6c8"/></linearGradient>
+  </defs></svg>
+
+  <!-- ① 入口：工具栏 + 定妆面板 -->
+  <div class="section-label">① 点角色卡 → 顶部图片工具栏最前面新增「定妆」→ 弹定妆面板</div>
+  <div class="stage">
+    <div class="toolbar-demo">
+      <div class="toolbar">
+        <button class="tb-btn primary"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M21 21v-5h-5"/></svg><span>定妆</span></button>
+        <span class="tb-sep"></span>
+        <button class="tb-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M12 3v18"/></svg><span>四视图截图</span></button>
+        <button class="tb-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg><span>九宫格截图</span></button>
+        <span class="tb-sep"></span>
+        <button class="tb-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2"/></svg><span>裁剪</span></button>
+        <span class="tb-sep"></span>
+        <button class="tb-btn icon-only"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+        <button class="tb-btn icon-only"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 1 3 6.7L3 16"/><path d="M3 21v-5h5"/></svg></button>
+      </div>
+      <div class="node selected">
+        <div class="cover"><svg viewBox="0 0 220 150"><rect width="220" height="150" fill="url(#cv)"/><circle cx="110" cy="60" r="30" fill="#fff" opacity=".9"/><rect x="78" y="92" width="64" height="58" rx="8" fill="#fff" opacity=".9"/></svg></div>
+        <div class="body"><div class="name-row"><span class="name">小苏</span><span class="usage"><span class="udot"></span>23</span></div></div>
+      </div>
+      <div class="note" style="text-align:center">「定妆」放工具栏最前、用主色，和切图工具同住一条，不另造入口。</div>
+    </div>
+
+    <div class="panel">
+      <div class="p-head"><svg class="icon turn" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M21 21v-5h-5"/></svg>定妆「小苏」</div>
+      <div class="p-body">
+        <div>
+          <div class="field-label">基准形象</div>
+          <div class="base-ref">
+            <div class="img"><svg viewBox="0 0 48 48"><rect width="48" height="48" fill="url(#cv)"/></svg></div>
+            <div><div class="t">主形象</div><div class="s">作为身份参考</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="field-label">这张大图里要哪些区块</div>
+          <div class="chips">
+            <span class="chip on">英雄全身</span><span class="chip on">三视图</span><span class="chip on">表情</span>
+            <span class="chip on">动作姿态</span><span class="chip">轮廓研究</span><span class="chip">装备拆解</span>
+            <span class="chip on">色板</span><span class="chip on">ID 块</span>
+          </div>
+        </div>
+        <div>
+          <div class="field-label">风格</div>
+          <div class="seg"><span class="opt on">电影感</span><span class="opt">日系</span><span class="opt">厚涂</span><span class="opt">赛博</span></div>
+        </div>
+        <div class="info-row"><svg class="icon i14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>已内置「身份锁定」：相同面部 / 比例 / 发型 / 服装，全图一致。</div>
+      </div>
+      <div class="p-foot">
+        <span class="cost">一次成图 · 约 1 张额度</span>
+        <button class="btn">生成定妆图</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 结果：一张大图 -->
+  <div class="section-label">② 一次生成 → 一张「角色身份板」大图（= 卡片封面 + 下游标准参考）</div>
+  <div class="stage">
+    <div class="sheet-card">
+      <div class="sheet-bar">
+        <div class="sheet-title"><svg class="icon turn" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M21 21v-5h-5"/></svg>小苏 · 定妆图</div>
+        <div class="sheet-actions">
+          <button class="mini"><svg class="icon i14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2"/></svg>裁剪取单件</button>
+          <button class="mini"><svg class="icon i14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>重新生成</button>
+          <button class="mini"><svg class="icon i14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12h14M13 6l6 6-6 6"/></svg>用小苏开分镜</button>
+        </div>
+      </div>
+      <div class="sheet">
+        <!-- 英雄全身 -->
+        <div class="blk hero"><span class="tag">英雄全身</span><svg class="person" viewBox="0 0 70 150"><circle cx="35" cy="26" r="18" fill="#fff" opacity=".92"/><rect x="14" y="50" width="42" height="96" rx="10" fill="#fff" opacity=".92"/></svg></div>
+        <!-- 三视图 -->
+        <div class="blk turn3">
+          <div class="v"><div class="vlab">正面</div></div>
+          <div class="v"><div class="vlab">侧面</div></div>
+          <div class="v"><div class="vlab">背面</div></div>
+        </div>
+        <!-- 右侧：ID块 + 色板 + 轮廓 -->
+        <div class="side">
+          <div class="idblock"><div class="nm">小苏 / ASHRAIL</div><div class="meta">反派少年 · 14 岁<br>核心：克制 · 危险<br>标志：左眉疤</div></div>
+          <div class="palette"><span class="sw" style="background:#2b3a67"></span><span class="sw" style="background:#5a6b8c"></span><span class="sw" style="background:#c9b27c"></span><span class="sw" style="background:#8a2f2f"></span><span class="pal-cap">主 / 辅 / 强调 / 点缀</span></div>
+          <div class="sil"><span class="s"></span><span class="s"></span><span class="s"></span></div>
+        </div>
+        <!-- 表情条（含一个裁剪框选示意） -->
+        <div class="blk exp">
+          <div class="e"><div class="elab">清冷</div></div>
+          <div class="e" style="position:relative"><div class="elab">愤怒</div><div class="crop-demo" style="inset:-3px"></div></div>
+          <div class="e"><div class="elab">惊讶</div></div>
+          <div class="e"><div class="elab">温柔</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="note">
+      整张大图 = 一次生成（你给的 ASHRAIL / 女主就是这种）。<br><br>
+      <b>想单独要「愤怒脸」？</b>不用新功能——直接用工具栏现有的<b>「裁剪」</b>在大图上框一下（虚线示意），
+      切出的子图自动进素材池，分镜里就能 <code>@小苏·愤怒</code>。复用现有切图，不造抽屉。
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

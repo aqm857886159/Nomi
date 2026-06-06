@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>定妆 / 定景 · 样张 v1（小卡 + 抽屉）</title>
+<style>
+  :root{
+    --nomi-bg: oklch(0.985 0.003 90);
+    --nomi-paper: oklch(1 0 0);
+    --nomi-ink: oklch(0.22 0.01 80);
+    --nomi-ink-80: oklch(0.32 0.01 80);
+    --nomi-ink-60: oklch(0.50 0.01 80);
+    --nomi-ink-40: oklch(0.68 0.01 80);
+    --nomi-ink-20: oklch(0.88 0.005 80);
+    --nomi-ink-10: oklch(0.94 0.003 80);
+    --nomi-ink-05: oklch(0.97 0.003 80);
+    --nomi-line: oklch(0.91 0.004 80);
+    --nomi-line-soft: oklch(0.95 0.003 80);
+    --nomi-accent: oklch(0.55 0.13 250);
+    --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 12%, var(--nomi-paper));
+    --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03);
+    --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.06);
+    --nomi-shadow-lg: 0 4px 8px oklch(0 0 0 / 0.05), 0 20px 50px oklch(0 0 0 / 0.08);
+    --nomi-radius-sm: 6px;
+    --nomi-radius: 10px;
+    --nomi-radius-lg: 16px;
+    --nomi-font-sans: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+    --nomi-font-display: Fraunces, Inter, serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--nomi-bg);font-family:var(--nomi-font-sans);color:var(--nomi-ink);-webkit-font-smoothing:antialiased;font-size:13px;line-height:1.5}
+  .wrap{padding:32px}
+  .page-title{font-family:var(--nomi-font-display);font-size:24px;font-weight:600;margin-bottom:4px}
+  .page-sub{font-size:13px;color:var(--nomi-ink-60);margin-bottom:8px}
+  .legend{font-size:12px;color:var(--nomi-ink-40);margin-bottom:24px}
+  .section-label{font-size:12px;font-weight:600;color:var(--nomi-ink-60);letter-spacing:.04em;margin:24px 0 12px}
+
+  /* ===== 画布区(节点小卡并置)===== */
+  .canvas{
+    position:relative;background:var(--nomi-bg);
+    background-image:radial-gradient(var(--nomi-ink-10) 1px, transparent 1px);
+    background-size:20px 20px;
+    border:1px solid var(--nomi-line);border-radius:var(--nomi-radius-lg);
+    padding:24px;display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;min-height:280px;
+  }
+  /* 节点外壳(仿 BaseGenerationNode：border/shadow/radius 由壳统一提供) */
+  .node{width:220px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:var(--nomi-radius);box-shadow:var(--nomi-shadow-md);overflow:hidden}
+  .node .cover{height:132px;overflow:hidden}
+  .node .cover img,.node .cover svg{width:100%;height:100%;object-fit:cover;display:block}
+  .node .body{padding:8px 12px;display:flex;flex-direction:column;gap:4px}
+  .name-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .name{font-size:14px;font-weight:600}
+  .tagline{font-size:12px;color:var(--nomi-ink-60)}
+  .usage{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--nomi-ink-60)}
+  .udot{width:6px;height:6px;border-radius:50%;background:var(--nomi-accent)}
+  /* 已定妆摘要 chip：一行小字，形态自明 */
+  .summary{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--nomi-ink-60)}
+  .summary .turn{color:var(--nomi-accent)}
+  /* 未定妆 CTA */
+  .cta{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 12px 12px;padding:8px 0;border:1px dashed var(--nomi-line);border-radius:var(--nomi-radius-sm);font-size:12px;color:var(--nomi-ink-60);cursor:pointer}
+  .cta:hover{border-color:var(--nomi-accent);color:var(--nomi-accent);background:var(--nomi-accent-soft)}
+  .icon{width:14px;height:14px;display:inline-block;vertical-align:-2px;stroke-width:1.8}
+
+  /* 标注气泡（讲解用，非 UI） */
+  .pin{position:relative}
+  .note{font-size:12px;color:var(--nomi-ink-40);margin-top:8px;max-width:220px}
+
+  /* ===== 抽屉(点开角色卡后侧滑) ===== */
+  .stage{position:relative;margin-top:8px;display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+  .drawer{
+    width:420px;background:var(--nomi-paper);border:1px solid var(--nomi-line);
+    border-radius:var(--nomi-radius-lg);box-shadow:var(--nomi-shadow-lg);overflow:hidden;
+  }
+  .dwr-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--nomi-line)}
+  .dwr-title{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:600}
+  .dwr-title .turn{color:var(--nomi-accent)}
+  .dwr-close{width:24px;height:24px;border-radius:var(--nomi-radius-sm);display:flex;align-items:center;justify-content:center;color:var(--nomi-ink-40);cursor:pointer}
+  .dwr-close:hover{background:var(--nomi-ink-05);color:var(--nomi-ink)}
+  .dwr-body{padding:16px;display:flex;flex-direction:column;gap:16px;max-height:640px;overflow-y:auto}
+
+  /* 验脸条：主形象 + 一句话 */
+  .hero{display:flex;gap:12px;align-items:flex-start}
+  .hero .pic{width:96px;height:120px;border-radius:var(--nomi-radius-sm);overflow:hidden;background:var(--nomi-ink-05);flex:0 0 auto}
+  .hero .pic img,.hero .pic svg{width:100%;height:100%;object-fit:cover;display:block}
+  .hero .meta{display:flex;flex-direction:column;gap:6px;padding-top:2px}
+  .hero .tag{font-size:12px;color:var(--nomi-ink-60)}
+  .verify-btn{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--nomi-accent);background:var(--nomi-accent-soft);border:none;border-radius:var(--nomi-radius-sm);padding:6px 10px;cursor:pointer}
+
+  /* 子图集分区：标题极简（单词）+ 缩略图条（统一形态，含重抽 + 加） */
+  .grp{display:flex;flex-direction:column;gap:8px}
+  .grp-head{display:flex;align-items:center;justify-content:space-between}
+  .grp-name{font-size:13px;font-weight:600}
+  .grp-act{font-size:12px;color:var(--nomi-accent);cursor:pointer}
+  .tiles{display:flex;gap:8px;flex-wrap:wrap}
+  .tile{position:relative;width:72px}
+  .tile .img{width:72px;height:72px;border-radius:var(--nomi-radius-sm);overflow:hidden;background:var(--nomi-ink-05)}
+  .tile .img img,.tile .img svg{width:100%;height:100%;object-fit:cover;display:block}
+  .tile .lab{font-size:12px;color:var(--nomi-ink-60);margin-top:4px;text-align:center;white-space:nowrap}
+  /* 仅“用户上传”加角标；AI 默认不标（反转） */
+  .tile .user-mark{position:absolute;top:4px;left:4px;background:var(--nomi-paper);color:var(--nomi-ink-60);font-size:11px;border-radius:var(--nomi-radius-sm);padding:0 4px;box-shadow:var(--nomi-shadow-sm)}
+  /* hover 重抽（单张） */
+  .tile .redo{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:var(--nomi-radius-sm);background:oklch(1 0 0 / .9);display:flex;align-items:center;justify-content:center;color:var(--nomi-ink-60);cursor:pointer;box-shadow:var(--nomi-shadow-sm)}
+  .tile .redo:hover{color:var(--nomi-accent)}
+  .tile.add .img{display:flex;align-items:center;justify-content:center;border:1px dashed var(--nomi-line);background:transparent;color:var(--nomi-ink-40);font-size:20px;cursor:pointer}
+
+  /* 色板 */
+  .palette{display:flex;gap:8px;align-items:center}
+  .swatch{width:24px;height:24px;border-radius:var(--nomi-radius-sm)}
+  .pal-label{font-size:12px;color:var(--nomi-ink-60)}
+
+  /* 下一步：小步试（未做的区显示“+ 加”而非空占位；本步可点按钮加） */
+  .nextstep{display:flex;gap:8px;flex-wrap:wrap;padding-top:4px;border-top:1px solid var(--nomi-line-soft);margin-top:4px}
+  .step-btn{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--nomi-ink-60);background:var(--nomi-ink-05);border:none;border-radius:var(--nomi-radius-sm);padding:8px 12px;cursor:pointer}
+  .step-btn:hover{color:var(--nomi-accent);background:var(--nomi-accent-soft)}
+
+  /* ===== 定妆面板（小步试 step1）===== */
+  .panel{width:340px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:var(--nomi-radius);box-shadow:var(--nomi-shadow-md);overflow:hidden;align-self:flex-start}
+  .p-head{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--nomi-line);font-size:14px;font-weight:600}
+  .p-head .turn{color:var(--nomi-accent)}
+  .p-body{padding:16px;display:flex;flex-direction:column;gap:16px}
+  .p-step{font-size:12px;color:var(--nomi-ink-60)}
+  .p-step b{color:var(--nomi-accent)}
+  .field-label{font-size:12px;font-weight:600;color:var(--nomi-ink-60);margin-bottom:8px}
+  .base-ref{display:flex;align-items:center;gap:8px}
+  .base-ref .img{width:48px;height:48px;border-radius:var(--nomi-radius-sm);overflow:hidden;background:var(--nomi-ink-05)}
+  .base-ref .img img,.base-ref .img svg{width:100%;height:100%;object-fit:cover}
+  .base-ref .t{font-size:13px;font-weight:600}
+  .base-ref .s{font-size:12px;color:var(--nomi-ink-60)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{font-size:12px;padding:6px 12px;border-radius:999px;border:1px solid var(--nomi-line);color:var(--nomi-ink-60);cursor:pointer;user-select:none}
+  .chip.on{background:var(--nomi-accent);color:var(--nomi-paper);border-color:var(--nomi-accent)}
+  .info-row{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--nomi-ink-40)}
+  .p-foot{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--nomi-line)}
+  .cost{font-size:12px;color:var(--nomi-ink-60)}
+  .btn{background:var(--nomi-accent);color:var(--nomi-paper);border:none;border-radius:var(--nomi-radius-sm);padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="page-title">定妆 / 定景 · 样张 v1</div>
+  <div class="page-sub">小卡 + 抽屉。命名换熟词、去盾换「转身」图标、小步试 + 单张重抽、AI 默认不标、去内层 border、全 token。</div>
+  <div class="legend">灰字气泡是讲解，非界面。子图用色块占位，只为看结构。</div>
+
+  <!-- 渐变占位 -->
+  <svg style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true"><defs>
+    <linearGradient id="c" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6b8cce"/><stop offset="1" stop-color="#cda6c8"/></linearGradient>
+    <linearGradient id="c2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c9bd0"/><stop offset="1" stop-color="#b6a0cc"/></linearGradient>
+    <linearGradient id="s" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d8a36b"/><stop offset="1" stop-color="#a86b6b"/></linearGradient>
+  </defs></svg>
+
+  <!-- ========== 1. 画布上的小卡（未定妆 / 已定妆摘要态） ========== -->
+  <div class="section-label">① 画布：节点永远是紧凑小卡（密度优先）</div>
+  <div class="canvas">
+    <!-- 未定妆 -->
+    <div class="pin">
+      <div class="node">
+        <div class="cover"><svg viewBox="0 0 220 132"><rect width="220" height="132" fill="url(#c)"/><circle cx="110" cy="58" r="28" fill="#fff" opacity=".85"/><rect x="80" y="88" width="60" height="40" rx="8" fill="#fff" opacity=".85"/></svg></div>
+        <div class="body">
+          <div class="name-row"><span class="name">阿樱</span><span class="usage"><span class="udot"></span>4</span></div>
+          <span class="tagline">配角少女，活泼，马尾</span>
+        </div>
+        <div class="cta">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
+          定妆
+        </div>
+      </div>
+      <div class="note">未定妆：封面 + 名字 + 一句设定 + 「定妆」入口。图标=转身箭头（各角度定下来），不是盾。</div>
+    </div>
+
+    <!-- 已定妆（摘要态） -->
+    <div class="pin">
+      <div class="node">
+        <div class="cover"><svg viewBox="0 0 220 132"><rect width="220" height="132" fill="url(#c)"/><circle cx="110" cy="54" r="30" fill="#fff" opacity=".9"/><rect x="78" y="86" width="64" height="46" rx="8" fill="#fff" opacity=".9"/></svg></div>
+        <div class="body">
+          <div class="name-row"><span class="name">小苏</span><span class="usage"><span class="udot"></span>23</span></div>
+          <span class="summary"><svg class="icon turn" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>已定妆 · 3视角 · 5表情</span>
+        </div>
+      </div>
+      <div class="note">已定妆：仍是小卡，只多一行「已定妆 · 3视角 · 5表情」摘要。点卡片 → 抽屉滑出完整档案 ↓</div>
+    </div>
+
+    <!-- 一张普通生成节点（陪衬，看密度对比） -->
+    <div class="pin">
+      <div class="node" style="opacity:.7">
+        <div class="cover"><svg viewBox="0 0 220 132"><rect width="220" height="132" fill="url(#s)"/></svg></div>
+        <div class="body"><div class="name-row"><span class="name">分镜 07</span></div></div>
+      </div>
+      <div class="note">旁边的普通节点——画布密度不被定妆破坏。</div>
+    </div>
+  </div>
+
+  <!-- ========== 2. 抽屉（点开后） + 定妆面板（小步试） ========== -->
+  <div class="section-label">② 点开 → 抽屉滑出完整定妆档案（大空间，验脸 / 单张重抽 / 小步加）</div>
+  <div class="stage">
+
+    <!-- 抽屉 -->
+    <div class="drawer">
+      <div class="dwr-head">
+        <div class="dwr-title"><svg class="icon turn" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>小苏 · 定妆档案</div>
+        <div class="dwr-close"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 6 6 18M6 6l12 12"/></svg></div>
+      </div>
+      <div class="dwr-body">
+        <!-- 主形象 + 验脸 -->
+        <div class="hero">
+          <div class="pic"><svg viewBox="0 0 96 120"><rect width="96" height="120" fill="url(#c)"/><circle cx="48" cy="44" r="22" fill="#fff" opacity=".9"/><rect x="26" y="70" width="44" height="50" rx="8" fill="#fff" opacity=".9"/></svg></div>
+          <div class="meta">
+            <span class="name" style="font-size:16px">小苏</span>
+            <span class="tag">反派少年，14 岁，左眉有疤</span>
+            <button class="verify-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>并排验脸</button>
+          </div>
+        </div>
+
+        <!-- 视角（统一缩略图条，不再用页签） -->
+        <div class="grp">
+          <div class="grp-head"><span class="grp-name">视角</span></div>
+          <div class="tiles">
+            <div class="tile"><div class="img"><svg viewBox="0 0 72 72"><rect width="72" height="72" fill="url(#c)"/></svg></div><div class="lab">正面</div><div class="redo"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div></div>
+            <div class="tile"><div class="img"><svg viewBox="0 0 72 72"><rect width="72" height="72" fill="url(#c2)"/></svg></div><div class="lab">侧面</div><div class="redo"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div></div>
+            <div class="tile"><div class="img"><svg viewBox="0 0 72 72"><rect width="72" height="72" fill="url(#c)"/></svg></div><div class="lab">背面</div><div class="redo"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div></div>
+            <div class="tile add"><div class="img">+</div><div class="lab">3/4</div></div>
+          </div>
+        </div>
+
+        <!-- 表情 -->
+        <div class="grp">
+          <div class="grp-head"><span class="grp-name">表情</span></div>
+          <div class="tiles">
+            <div class="tile"><div class="img"><svg viewBox="0 0 72 72"><rect width="72" height="72" fill="url(#c)"/></svg></div><div class="lab">平静</div><div class="redo"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div></div>
+            <div class="tile"><div class="img"><svg viewBox="0 0 72 72"><rect width="72" height="72" fill="url(#c2)"/></svg></div><div class="lab">微笑</div><div class="redo"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div></div>
+            <div class="tile"><div class="img"><svg viewBox="0 0 72 72"><rect width="72" height="72" fill="url(#c)"/></svg></div><div class="lab">愤怒</div><div class="redo"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div></div>
+            <div class="tile"><div class="img"><svg viewBox="0 0 72 72"><rect width="72" height="72" fill="url(#c2)"/></svg></div><div class="lab">惊讶</div><div class="redo"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div></div>
+            <div class="tile"><div class="img"><svg viewBox="0 0 72 72"><rect width="72" height="72" fill="url(#c)"/></svg></div><div class="lab">轻蔑</div><div class="redo"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div></div>
+            <div class="tile add"><div class="img">+</div><div class="lab">加表情</div></div>
+          </div>
+        </div>
+
+        <!-- 配色 -->
+        <div class="grp">
+          <div class="grp-head"><span class="grp-name">配色</span></div>
+          <div class="palette">
+            <div class="swatch" style="background:#2b3a67"></div>
+            <div class="swatch" style="background:#c9b27c"></div>
+            <div class="swatch" style="background:#8a2f2f"></div>
+            <span class="pal-label">主 / 辅 / 点缀</span>
+          </div>
+        </div>
+
+        <!-- 小步试：未做的区不空占，按钮邀请加下一步 -->
+        <div class="nextstep">
+          <button class="step-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>加服装变体</button>
+          <button class="step-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>写世界观</button>
+          <button class="step-btn" style="margin-left:auto"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12h14M13 6l6 6-6 6"/></svg>用小苏开个分镜</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 定妆面板（小步试 step1） -->
+    <div class="panel">
+      <div class="p-head"><svg class="icon turn" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>定妆「小苏」</div>
+      <div class="p-body">
+        <div class="p-step">第 <b>1</b> 步 / 共 2 步 · 先定<b>三视图</b>试水，满意了再加表情</div>
+        <div>
+          <div class="field-label">基准形象</div>
+          <div class="base-ref">
+            <div class="img"><svg viewBox="0 0 48 48"><rect width="48" height="48" fill="url(#c)"/></svg></div>
+            <div><div class="t">主形象</div><div class="s">作为角色参考 ①</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="field-label">这一步定哪些</div>
+          <div class="chips">
+            <span class="chip on">正面</span><span class="chip on">侧面</span><span class="chip on">背面</span><span class="chip">3/4</span>
+          </div>
+        </div>
+        <div class="info-row"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>已含一致性约束（比例一致 · 保持同一张脸）</div>
+      </div>
+      <div class="p-foot">
+        <span class="cost">约 3 张 · ≈ 平时 3 倍额度</span>
+        <button class="btn">定三视图</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 3. 场景：同一套抽屉，换 slotKind ========== -->
+  <div class="section-label">③ 定景：同一套抽屉，只换分区（时段 / 机位），不写两套</div>
+  <div class="stage">
+    <div class="drawer" style="width:420px">
+      <div class="dwr-head">
+        <div class="dwr-title"><svg class="icon turn" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>旧教室 · 定景档案</div>
+        <div class="dwr-close"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 6 6 18M6 6l12 12"/></svg></div>
+      </div>
+      <div class="dwr-body">
+        <div class="hero">
+          <div class="pic" style="width:140px;height:88px"><svg viewBox="0 0 140 88"><rect width="140" height="88" fill="url(#s)"/><rect x="20" y="52" width="100" height="28" fill="#fff" opacity=".25"/></svg></div>
+          <div class="meta"><span class="name" style="font-size:16px">旧教室</span><span class="tag">主场景 · 出现 11 次</span></div>
+        </div>
+        <div class="grp">
+          <div class="grp-head"><span class="grp-name">时段</span></div>
+          <div class="tiles">
+            <div class="tile"><div class="img"><svg viewBox="0 0 72 72"><rect width="72" height="72" fill="url(#s)"/></svg></div><div class="lab">白天</div><div class="redo"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div></div>
+            <div class="tile"><div class="img"><svg viewBox="0 0 72 72"><rect width="72" height="72" fill="#2b3550"/></svg></div><div class="lab">黑夜</div><div class="redo"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div></div>
+            <div class="tile"><div class="img"><svg viewBox="0 0 72 72"><rect width="72" height="72" fill="#7a6a4a"/></svg></div><div class="lab">黄昏</div><div class="redo"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div></div>
+            <div class="tile add"><div class="img">+</div><div class="lab">加时段</div></div>
+          </div>
+        </div>
+        <div class="grp">
+          <div class="grp-head"><span class="grp-name">机位</span></div>
+          <div class="tiles">
+            <div class="tile"><div class="img"><svg viewBox="0 0 72 72"><rect width="72" height="72" fill="url(#s)"/></svg></div><div class="lab">广角</div><div class="redo"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div></div>
+            <div class="tile"><div class="img"><svg viewBox="0 0 72 72"><rect width="72" height="72" fill="url(#s)"/></svg></div><div class="lab">俯视</div><div class="redo"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div></div>
+            <div class="tile add"><div class="img">+</div><div class="lab">加机位</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note" style="max-width:280px">场景与角色<b>同构</b>：换 slotKind（时段/机位）而已，共用一个 &lt;FixationSheet&gt; 抽屉组件。场景的保命句是「保持建筑结构完全相同，只改光照/天气」。</div>
+  </div>
+
+</div>
+</body>
+</html>

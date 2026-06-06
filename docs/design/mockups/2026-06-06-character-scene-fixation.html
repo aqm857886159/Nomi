@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>角色/场景固化 · 样张 v0（方案 B 结构化角色圣经）</title>
+<style>
+  :root{
+    --nomi-bg: oklch(0.985 0.003 90);
+    --nomi-paper: oklch(1 0 0);
+    --nomi-ink: oklch(0.22 0.01 80);
+    --nomi-ink-80: oklch(0.32 0.01 80);
+    --nomi-ink-60: oklch(0.50 0.01 80);
+    --nomi-ink-40: oklch(0.68 0.01 80);
+    --nomi-ink-20: oklch(0.88 0.005 80);
+    --nomi-ink-10: oklch(0.94 0.003 80);
+    --nomi-ink-05: oklch(0.97 0.003 80);
+    --nomi-line: oklch(0.91 0.004 80);
+    --nomi-accent: oklch(0.55 0.13 250);
+    --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 12%, var(--nomi-paper));
+    --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03);
+    --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.06);
+    --nomi-radius-sm: 6px;
+    --nomi-radius: 10px;
+    --nomi-radius-lg: 16px;
+    --nomi-font-sans: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+    --nomi-font-display: Fraunces, Inter, serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--nomi-bg);
+    font-family:var(--nomi-font-sans);
+    color:var(--nomi-ink);
+    padding:32px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page-title{font-family:var(--nomi-font-display);font-size:22px;font-weight:600;margin-bottom:4px}
+  .page-sub{font-size:13px;color:var(--nomi-ink-60);margin-bottom:28px}
+  .section-label{font-size:12px;font-weight:600;color:var(--nomi-ink-60);text-transform:uppercase;letter-spacing:.04em;margin:28px 0 12px}
+  .row{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+  .caption{font-size:12px;color:var(--nomi-ink-60);margin-top:8px;max-width:300px}
+
+  /* ---- 通用卡片壳（仿画布节点）---- */
+  .card{
+    background:var(--nomi-paper);
+    border:1px solid var(--nomi-line);
+    border-radius:var(--nomi-radius);
+    box-shadow:var(--nomi-shadow-md);
+    overflow:hidden;
+  }
+  .striped{background:repeating-linear-gradient(45deg,var(--nomi-ink-05) 0 10px,var(--nomi-ink-10) 10px 20px)}
+
+  /* ===== 态 1：未固化（现状）===== */
+  .card.collapsed{width:240px}
+  .card.collapsed .cover{height:150px;display:flex;align-items:center;justify-content:center}
+  .card.collapsed .cover img{width:100%;height:100%;object-fit:cover;display:block}
+  .card .info{padding:8px 12px;display:flex;flex-direction:column;gap:3px}
+  .name-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .name{font-size:14px;font-weight:600}
+  .tagline{font-size:12px;color:var(--nomi-ink-60)}
+  .usage{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--nomi-ink-60)}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--nomi-accent)}
+
+  /* 固化 CTA：未固化时卡片底部的一条入口（形态自明：盾形=固化） */
+  .fixate-cta{
+    display:flex;align-items:center;justify-content:center;gap:6px;
+    margin:0 12px 10px;padding:7px 0;
+    border:1px dashed var(--nomi-line);border-radius:var(--nomi-radius-sm);
+    font-size:12px;color:var(--nomi-ink-60);cursor:pointer;
+    transition:all .14s;
+  }
+  .fixate-cta:hover{border-color:var(--nomi-accent);color:var(--nomi-accent);background:var(--nomi-accent-soft)}
+
+  /* ===== 态 2：固化态（角色圣经，展开）===== */
+  .card.bible{width:360px}
+  .bible .cover{position:relative;height:200px}
+  .bible .cover img{width:100%;height:100%;object-fit:cover;display:block}
+  /* 固化徽标：嵌在封面左上，盾 + 已固化 */
+  .badge{
+    position:absolute;top:10px;left:10px;
+    display:inline-flex;align-items:center;gap:5px;
+    background:oklch(1 0 0 / .9);backdrop-filter:blur(4px);
+    border-radius:999px;padding:4px 9px;font-size:11px;font-weight:600;
+    color:var(--nomi-accent);box-shadow:var(--nomi-shadow-sm);
+  }
+  .bible .info{padding:10px 14px 4px}
+  .bible .name{font-size:16px}
+
+  /* 角度页签：三视图 + 3/4 */
+  .tabs{display:flex;gap:4px;padding:8px 14px 4px}
+  .tab{
+    flex:1;text-align:center;font-size:12px;padding:5px 0;border-radius:var(--nomi-radius-sm);
+    cursor:pointer;color:var(--nomi-ink-60);background:var(--nomi-ink-05);
+  }
+  .tab.active{background:var(--nomi-accent);color:#fff;font-weight:600}
+
+  /* 子图集分区标题 */
+  .grp{padding:12px 14px 4px}
+  .grp-title{font-size:11px;font-weight:600;color:var(--nomi-ink-60);text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;justify-content:space-between}
+  .grp-add{font-size:11px;color:var(--nomi-accent);cursor:pointer}
+
+  /* 表情格 / 服装行 通用缩略图条 */
+  .thumbs{display:flex;gap:7px;padding:8px 14px 4px;overflow-x:auto}
+  .thumb{flex:0 0 auto;width:60px;text-align:center}
+  .thumb .img{width:60px;height:60px;border-radius:var(--nomi-radius-sm);overflow:hidden;border:1px solid var(--nomi-line)}
+  .thumb .img img{width:100%;height:100%;object-fit:cover;display:block}
+  .thumb .lab{font-size:10px;color:var(--nomi-ink-60);margin-top:3px;white-space:nowrap}
+  .thumb.add .img{display:flex;align-items:center;justify-content:center;border-style:dashed;color:var(--nomi-ink-40);font-size:20px;cursor:pointer}
+  /* AI 来源角标 */
+  .thumb .img{position:relative}
+  .ai-mark{position:absolute;top:2px;right:2px;background:var(--nomi-accent);color:#fff;font-size:8px;border-radius:3px;padding:0 3px;line-height:1.4}
+
+  /* 色板 */
+  .palette{display:flex;gap:6px;padding:10px 14px 4px;align-items:center}
+  .swatch{width:22px;height:22px;border-radius:5px;border:1px solid var(--nomi-line)}
+  .pal-label{font-size:11px;color:var(--nomi-ink-60)}
+
+  /* 世界观短文 */
+  .bio{margin:8px 14px 14px;padding:9px 11px;background:var(--nomi-ink-05);border-radius:var(--nomi-radius-sm);font-size:11.5px;color:var(--nomi-ink-80);line-height:1.6}
+
+  /* ===== 固化生成面板（弹层）===== */
+  .panel{width:340px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:var(--nomi-radius);box-shadow:var(--nomi-shadow-md);overflow:hidden}
+  .panel-head{padding:12px 14px;border-bottom:1px solid var(--nomi-line);font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+  .panel-body{padding:12px 14px;display:flex;flex-direction:column;gap:12px}
+  .field-label{font-size:11px;font-weight:600;color:var(--nomi-ink-60);margin-bottom:6px}
+  .base-ref{display:flex;align-items:center;gap:8px}
+  .base-ref .img{width:46px;height:46px;border-radius:var(--nomi-radius-sm);overflow:hidden;border:1px solid var(--nomi-line)}
+  .base-ref .img img{width:100%;height:100%;object-fit:cover}
+  .base-ref .meta{font-size:12px}
+  .base-ref .meta .t{font-weight:600}
+  .base-ref .meta .s{font-size:11px;color:var(--nomi-ink-60)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-size:11px;padding:4px 9px;border-radius:999px;border:1px solid var(--nomi-line);color:var(--nomi-ink-60);cursor:pointer;user-select:none}
+  .chip.on{background:var(--nomi-accent);color:#fff;border-color:var(--nomi-accent)}
+  .panel-foot{padding:11px 14px;border-top:1px solid var(--nomi-line);display:flex;align-items:center;justify-content:space-between}
+  .cost{font-size:11px;color:var(--nomi-ink-60)}
+  .btn{background:var(--nomi-accent);color:#fff;border:none;border-radius:var(--nomi-radius-sm);padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer}
+  .tmpl-note{font-size:10.5px;color:var(--nomi-ink-40);line-height:1.5;background:var(--nomi-ink-05);padding:7px 9px;border-radius:var(--nomi-radius-sm)}
+  .icon{width:14px;height:14px;display:inline-block;vertical-align:-2px}
+</style>
+</head>
+<body>
+  <div class="page-title">角色 / 场景「固化」· 样张 v0</div>
+  <div class="page-sub">方案 B = 结构化角色圣经。子图带语义、进素材池、下游可精确取用。token 取自 nomi-tokens.css。</div>
+
+  <!-- 角度 SVG 占位图：用纯色块代替真实生成图，只为看结构 -->
+  <svg style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true"><defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6b8cce"/><stop offset="1" stop-color="#cda6c8"/></linearGradient>
+    <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d8a36b"/><stop offset="1" stop-color="#a86b6b"/></linearGradient>
+  </defs></svg>
+
+  <div class="section-label">A · 角色卡：未固化（现状）→ 固化态（本提案）</div>
+  <div class="row">
+    <!-- 态 1：未固化 -->
+    <div>
+      <div class="card collapsed">
+        <div class="cover"><svg width="240" height="150"><rect width="240" height="150" fill="url(#g1)"/><circle cx="120" cy="70" r="34" fill="#fff" opacity=".85"/><rect x="86" y="104" width="68" height="40" rx="8" fill="#fff" opacity=".85"/></svg></div>
+        <div class="info">
+          <div class="name-row"><span class="name">小苏</span><span class="usage"><span class="dot"></span>23</span></div>
+          <span class="tagline">反派少年，14 岁，左眉有疤</span>
+        </div>
+        <div class="fixate-cta">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z"/></svg>
+          固化这个角色
+        </div>
+      </div>
+      <div class="caption">现状：一张代表图 + 名字 + tagline。下游只能整图当参考，取不出「侧面 / 愤怒脸」。</div>
+    </div>
+
+    <!-- 态 2：固化态（角色圣经） -->
+    <div>
+      <div class="card bible">
+        <div class="cover">
+          <svg width="360" height="200"><rect width="360" height="200" fill="url(#g1)"/><circle cx="180" cy="86" r="40" fill="#fff" opacity=".9"/><rect x="138" y="128" width="84" height="60" rx="10" fill="#fff" opacity=".9"/></svg>
+          <span class="badge">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z"/></svg>
+            已固化
+          </span>
+        </div>
+        <div class="info"><div class="name-row"><span class="name">小苏</span><span class="usage"><span class="dot"></span>23</span></div></div>
+
+        <!-- 角度页签：三视图 -->
+        <div class="grp"><div class="grp-title">视角 · 三视图</div></div>
+        <div class="tabs">
+          <div class="tab active">正面</div>
+          <div class="tab">侧面</div>
+          <div class="tab">背面</div>
+          <div class="tab">3/4</div>
+        </div>
+
+        <!-- 表情格 -->
+        <div class="grp"><div class="grp-title">表情 · 5<span class="grp-add">+ 加</span></div></div>
+        <div class="thumbs">
+          <div class="thumb"><div class="img"><span class="ai-mark">AI</span><svg width="60" height="60"><rect width="60" height="60" fill="url(#g1)"/></svg></div><div class="lab">平静</div></div>
+          <div class="thumb"><div class="img"><span class="ai-mark">AI</span><svg width="60" height="60"><rect width="60" height="60" fill="url(#g1)"/></svg></div><div class="lab">微笑</div></div>
+          <div class="thumb"><div class="img"><span class="ai-mark">AI</span><svg width="60" height="60"><rect width="60" height="60" fill="url(#g1)"/></svg></div><div class="lab">愤怒</div></div>
+          <div class="thumb"><div class="img"><span class="ai-mark">AI</span><svg width="60" height="60"><rect width="60" height="60" fill="url(#g1)"/></svg></div><div class="lab">惊讶</div></div>
+          <div class="thumb"><div class="img"><span class="ai-mark">AI</span><svg width="60" height="60"><rect width="60" height="60" fill="url(#g1)"/></svg></div><div class="lab">轻蔑</div></div>
+          <div class="thumb add"><div class="img">+</div><div class="lab">&nbsp;</div></div>
+        </div>
+
+        <!-- 服装变体 -->
+        <div class="grp"><div class="grp-title">服装变体 · 3<span class="grp-add">+ 加</span></div></div>
+        <div class="thumbs">
+          <div class="thumb"><div class="img"><svg width="60" height="60"><rect width="60" height="60" fill="url(#g1)"/></svg></div><div class="lab">校服</div></div>
+          <div class="thumb"><div class="img"><svg width="60" height="60"><rect width="60" height="60" fill="url(#g2)"/></svg></div><div class="lab">便服</div></div>
+          <div class="thumb"><div class="img"><span class="ai-mark">AI</span><svg width="60" height="60"><rect width="60" height="60" fill="url(#g2)"/></svg></div><div class="lab">雨衣</div></div>
+          <div class="thumb add"><div class="img">+</div><div class="lab">&nbsp;</div></div>
+        </div>
+
+        <!-- 色板 -->
+        <div class="grp"><div class="grp-title">配色</div></div>
+        <div class="palette">
+          <div class="swatch" style="background:#2b3a67"></div>
+          <div class="swatch" style="background:#c9b27c"></div>
+          <div class="swatch" style="background:#8a2f2f"></div>
+          <span class="pal-label">主 / 辅 / 点缀</span>
+        </div>
+
+        <!-- 世界观短文 -->
+        <div class="bio">流浪学院的转校生，因童年事故左眉留疤；表面轻蔑、内心怕被抛弃。隶属「灰隼」阵营，与主角是宿敌兼镜像。</div>
+      </div>
+      <div class="caption">固化态：视角页签 + 表情格 + 服装变体 + 色板 + 世界观。每张子图带语义、进素材池，下游 <code>@小苏·愤怒</code> 可精确取用。</div>
+    </div>
+
+    <!-- 固化生成面板 -->
+    <div>
+      <div class="panel">
+        <div class="panel-head">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z"/></svg>
+          固化「小苏」
+        </div>
+        <div class="panel-body">
+          <div>
+            <div class="field-label">基准形象（喂给模型的参考）</div>
+            <div class="base-ref">
+              <div class="img"><svg width="46" height="46"><rect width="46" height="46" fill="url(#g1)"/></svg></div>
+              <div class="meta"><div class="t">主形象</div><div class="s">作为角色参考槽 ①</div></div>
+            </div>
+          </div>
+          <div>
+            <div class="field-label">要固化哪些（默认勾选三视图 + 5 表情）</div>
+            <div class="chips">
+              <span class="chip on">正面</span><span class="chip on">侧面</span><span class="chip on">背面</span><span class="chip">3/4</span>
+              <span class="chip on">平静</span><span class="chip on">微笑</span><span class="chip on">愤怒</span><span class="chip on">惊讶</span><span class="chip on">轻蔑</span>
+              <span class="chip">+ 服装</span>
+            </div>
+          </div>
+          <div class="tmpl-note">已自动套用设定集模板，含保命约束：<b>「比例一致、避免夸张透视」「保持同一张脸」</b>。无需手写 prompt。</div>
+        </div>
+        <div class="panel-foot">
+          <span class="cost">预计 8 张 · 消耗额度</span>
+          <button class="btn">开始固化</button>
+        </div>
+      </div>
+      <div class="caption">固化生成面板：选基准图 → 勾要固化的槽 → 模板自动加保命约束 → 花额度前确认。能力住 modelArchetypes，与供应商解耦。</div>
+    </div>
+  </div>
+
+  <div class="section-label">B · 场景卡：固化 = 多时段 / 多机位（同一套子图集结构）</div>
+  <div class="row">
+    <div>
+      <div class="card bible" style="width:360px">
+        <div class="cover">
+          <svg width="360" height="200"><rect width="360" height="200" fill="url(#g2)"/><rect x="40" y="120" width="280" height="60" fill="#fff" opacity=".25"/><circle cx="290" cy="50" r="24" fill="#fff" opacity=".7"/></svg>
+          <span class="badge">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z"/></svg>
+            已固化
+          </span>
+        </div>
+        <div class="info"><div class="name-row"><span class="name">旧教室</span><span class="usage"><span class="dot"></span>11</span></div></div>
+
+        <div class="grp"><div class="grp-title">时段 · 4<span class="grp-add">+ 加</span></div></div>
+        <div class="thumbs">
+          <div class="thumb"><div class="img"><svg width="60" height="60"><rect width="60" height="60" fill="url(#g2)"/></svg></div><div class="lab">白天</div></div>
+          <div class="thumb"><div class="img"><span class="ai-mark">AI</span><svg width="60" height="60"><rect width="60" height="60" fill="#2b3550"/></svg></div><div class="lab">黑夜</div></div>
+          <div class="thumb"><div class="img"><span class="ai-mark">AI</span><svg width="60" height="60"><rect width="60" height="60" fill="#7a6a4a"/></svg></div><div class="lab">黄昏</div></div>
+          <div class="thumb"><div class="img"><span class="ai-mark">AI</span><svg width="60" height="60"><rect width="60" height="60" fill="#4a5a6a"/></svg></div><div class="lab">雨</div></div>
+          <div class="thumb add"><div class="img">+</div><div class="lab">&nbsp;</div></div>
+        </div>
+
+        <div class="grp"><div class="grp-title">机位 · 3<span class="grp-add">+ 加</span></div></div>
+        <div class="thumbs">
+          <div class="thumb"><div class="img"><svg width="60" height="60"><rect width="60" height="60" fill="url(#g2)"/></svg></div><div class="lab">广角</div></div>
+          <div class="thumb"><div class="img"><span class="ai-mark">AI</span><svg width="60" height="60"><rect width="60" height="60" fill="url(#g2)"/></svg></div><div class="lab">俯视</div></div>
+          <div class="thumb"><div class="img"><span class="ai-mark">AI</span><svg width="60" height="60"><rect width="60" height="60" fill="url(#g2)"/></svg></div><div class="lab">过肩</div></div>
+          <div class="thumb add"><div class="img">+</div><div class="lab">&nbsp;</div></div>
+        </div>
+      </div>
+      <div class="caption">场景固化与角色<b>同构</b>：换 slotKind（时段/机位）而已。共用一个 &lt;FixationSheet&gt; 组件，不写两套（规则 1）。</div>
+    </div>
+  </div>
+
+</body>
+</html>
