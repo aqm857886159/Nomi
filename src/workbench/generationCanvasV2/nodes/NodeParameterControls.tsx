@@ -52,6 +52,7 @@ import ModeBar from './controls/ModeBar'
 import SettingsPopover from './controls/SettingsPopover'
 import AssetReference, { type AssetSlot } from '../../assets/AssetReference'
 import type { AssetRef } from '../../assets/assetTypes'
+import { removeMention } from '../../assets/promptMentions'
 
 type NodeParameterControlsProps = {
   node: GenerationCanvasNode
@@ -250,7 +251,19 @@ export default function NodeParameterControls({
   }
   const handleArrayRemove = (metaKey: string, index: number) => {
     const current = readArchetypeArray(node.meta || {}, metaKey)
-    setArrayValue(metaKey, current.filter((_, i) => i !== index))
+    const removedUrl = current[index] // 必须在 filter 前取(对抗评审 must-fix:删后数组已变)
+    const next = current.filter((_, i) => i !== index)
+    // image 数组(= character 参考)删除时,同步抹掉描述框里指向它的 @ chip。
+    // meta 删除 + prompt 改写**合并成单个 updateNode**(对抗评审 must-fix:保 undo 原子性 + 一次持久化;
+    // 走与现有 meta 删除同一持久化路径,不会出现刷新后 chip 复活)。chip/@ 只服务 image 参考,其余照旧。
+    if (metaKey === 'referenceImageUrls' && removedUrl) {
+      const nextPrompt = removeMention(node.prompt || '', removedUrl)
+      if (nextPrompt !== (node.prompt || '')) {
+        updateNode(node.id, { meta: { ...(node.meta || {}), [metaKey]: next }, prompt: nextPrompt })
+        return
+      }
+    }
+    setArrayValue(metaKey, next)
   }
   const handleArrayUpload = async (slot: ArchetypeArraySlot, file: File | null | undefined) => {
     if (!file) return

@@ -122,6 +122,15 @@ try {
   });
   assert(mention.chips >= 1 && mention.chipHasImg, "点参考 tile → 描述框插入 @ 引用 chip（18px 缩略图）");
 
+  // 删 tile → 描述框里指向它的 chip 同步消失(del-tile-sync-chip,对抗评审验收)
+  await win.locator('.generation-canvas-v2-node__composer button[aria-label^="移除"]').first().click();
+  await win.waitForTimeout(400);
+  const afterDel = await win.evaluate(() => {
+    const editor = document.querySelector(".generation-canvas-v2-node__prompt-input");
+    return editor ? editor.querySelectorAll("[data-asset-mention]").length : -1;
+  });
+  assert(afterDel === 0, "删参考 tile → 描述框里对应 @ chip 同步消失");
+
   // ── C4：切到 HappyHorse → 4 模式合 1（各用模型自己的真名）+ i2v 无比例（U3）──
   await modelSelect.selectOption({ label: "HappyHorse 1.0" }).catch(async () => { await modelSelect.selectOption("happyhorse") });
   await win.waitForTimeout(1200);

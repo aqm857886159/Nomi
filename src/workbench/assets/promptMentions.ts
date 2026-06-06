@@ -51,6 +51,23 @@ export function projectPromptForSend(prompt: string, orderedImageUrls: string[])
     const index = orderedImageUrls.indexOf(safeDecode(enc))
     return index >= 0 ? `character${index + 1}` : ''
   })
-  // 清理因删除标记产生的多余空格(「 character1  」→「 character1 」),不动正常文字。
-  return replaced.replace(/[ \t]{2,}/g, ' ').replace(/\s+([，。、,.!?])/g, '$1').trim()
+  return collapsePromptWhitespace(replaced)
+}
+
+// 删标记后清理多余空格/标点前空白(「 character1  走」→「character1 走」)。projectPromptForSend 与
+// removeMention 同源调用(对抗评审 must-fix:别两处各清各的导致行为漂移)。
+export function collapsePromptWhitespace(text: string): string {
+  return text.replace(/[ \t]{2,}/g, ' ').replace(/\s+([，。、,.!?])/g, '$1').trim()
+}
+
+/**
+ * 删 tile 时同步抹掉描述框里指向该 url 的所有 @ chip(对抗评审 must-fix:UX 清理孤儿 chip)。
+ * 按持久化整串 `@[asset:encodeURIComponent(url)]` 精确匹配(含 %/中文/空格的 url 也对得上)、删**全部**重复、
+ * 复用 collapsePromptWhitespace;url 不在 prompt 里 → 原样返回(no-op,避免无谓 setContent 抢光标)。
+ */
+export function removeMention(prompt: string, url: string): string {
+  if (!prompt) return prompt
+  const marker = encodeMention(url)
+  if (!prompt.includes(marker)) return prompt
+  return collapsePromptWhitespace(prompt.split(marker).join(''))
 }
