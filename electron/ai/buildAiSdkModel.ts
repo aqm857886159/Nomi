@@ -60,7 +60,21 @@ function buildProfiledFetch(modelId: string): typeof fetch {
         /* body is not JSON — pass through unchanged */
       }
     }
-    return fetch(url as any, init);
+    // 可观测：vendor HTTP **失败时**打实际 URL + 状态 + 上游返回体片段（诊断 502/超时/路由错的根因，别靠猜——
+    // 见 docs/workflow/2026-06-06-real-generation-e2e-loop.md「主进程埋点」）。成功不打，避免噪音。
+    const urlStr = typeof url === "string" ? url : ((url as { url?: string })?.url || String(url));
+    try {
+      const res = await fetch(url as any, init);
+      if (!res.ok) {
+        let snippet = "";
+        try { snippet = (await res.clone().text()).replace(/\s+/g, " ").slice(0, 300); } catch { /* body unreadable */ }
+        console.error(`[vendor-http] ${res.status} ${res.statusText} ← ${urlStr} (model=${modelId}) :: ${snippet}`);
+      }
+      return res;
+    } catch (fetchError: unknown) {
+      console.error(`[vendor-http] fetch threw ← ${urlStr} (model=${modelId}) :: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+      throw fetchError;
+    }
   }) as typeof fetch;
 }
 
