@@ -22,7 +22,6 @@ import {
   listProjects,
   readProject,
   resolveProjectRelativePath,
-  runAgentChat,
   runAgentChatV2,
   clearAgentChatV2History,
   runTask,
@@ -285,7 +284,6 @@ function registerIpc(): void {
   ipcMain.handle("nomi:exports:show-in-folder", (_event, payload) => showExportInFolder(payload));
   ipcMain.handle("nomi:tasks:run", (_event, payload) => runTask(payload));
   ipcMain.handle("nomi:tasks:result", (_event, payload) => fetchTaskResult(payload));
-  ipcMain.handle("nomi:agents:chat", (_event, payload) => runAgentChat(payload));
   registerAgentChatV2Ipc();
   registerOnboardingIpc();
 }

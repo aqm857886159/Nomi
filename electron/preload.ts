@@ -51,7 +51,6 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     result: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:result", payload),
   },
   agents: {
-    chat: (payload: unknown) => ipcRenderer.invoke("nomi:agents:chat", payload),
     chatV2Start: (payload: unknown) => ipcRenderer.invoke("nomi:agents:chatV2:start", payload) as Promise<{ sessionId: string }>,
     confirmTool: (sessionId: string, toolCallId: string, decision: unknown) =>
       ipcRenderer.invoke("nomi:agents:chatV2:confirmTool", { sessionId, toolCallId, decision }),

@@ -33,11 +33,8 @@ export type ProxyResolution =
 
 const LOG = "[nomi:proxy]";
 
-/** 当前生效代理的人类可读标签（供错误诊断提示用）；无代理为 null。 */
+/** 当前生效代理的人类可读标签（供 describeNetworkError 的诊断提示用）；无代理为 null。 */
 let activeProxyLabel: string | null = null;
-export function getActiveProxyLabel(): string | null {
-  return activeProxyLabel;
-}
 
 /**
  * 把一个原始代理串规范成 ProxyResolution。

@@ -16,8 +16,9 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import type { LanguageModelV1 } from "ai";
 import { applyProfileToRequestBody, getModelProfile } from "./modelProfiles";
-
-export type AiSdkProviderKind = "openai-compatible" | "anthropic";
+// 单一真相源：provider-kind 联合定义在 catalog/types，这里只 re-export，避免并行定义漂移（规则 1）。
+import type { AiSdkProviderKind } from "../catalog/types";
+export type { AiSdkProviderKind };
 
 export interface BuildAiSdkModelInput {
   kind: AiSdkProviderKind;

@@ -90,7 +90,6 @@ export type DesktopBridge = {
     result: (payload: unknown) => Promise<unknown>
   }
   agents: {
-    chat: (payload: unknown) => Promise<unknown>
     chatV2Start: (payload: unknown) => Promise<{ sessionId: string }>
     confirmTool: (
       sessionId: string,

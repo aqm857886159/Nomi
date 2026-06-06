@@ -1,5 +1,4 @@
 import {
-  workbenchAgentsChat,
   workbenchAgentsChatStream,
   type AgentChatV2Session,
   type AgentsChatResponseDto,
@@ -46,12 +45,9 @@ function buildWorkbenchAiPayload(input: WorkbenchAiRequest) {
 
 export async function sendWorkbenchAiMessage(
   input: WorkbenchAiRequest,
-  handlers?: WorkbenchAiStreamHandlers,
+  handlers: WorkbenchAiStreamHandlers,
 ): Promise<AgentsChatResponseDto> {
   const payload = buildWorkbenchAiPayload(input)
-  if (!handlers) {
-    return workbenchAgentsChat(payload)
-  }
 
   let streamedText = ''
   let finalResponse: AgentsChatResponseDto | null = null

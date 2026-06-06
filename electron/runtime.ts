@@ -5,7 +5,7 @@ import path from "node:path";
 import { hardenedFetch, hardenedFetchText } from "./hardenedFetch";
 import { localizeAssetsForVendor, resolveAssetIngestion } from "./catalog/assetLocalization";
 import { absolutePathFromLocalAssetUrl, readNomiLocalAsset, postJsonForAssetUpload } from "./assets/localAssetFile";
-import { generateText, streamText, tool, type CoreMessage, type LanguageModelV1 } from "ai";
+import { streamText, tool, type CoreMessage, type LanguageModelV1 } from "ai";
 import { z } from "zod";
 import { buildAiSdkModel } from "./ai/buildAiSdkModel";
 import { mergeMissingParamsIntoBody } from "./ai/onboarding/curlBlueprint";
@@ -2261,11 +2261,10 @@ export function extractVendorExtraHeaders(vendor: Vendor): Record<string, string
 }
 
 /**
- * Single vendor→LanguageModel construction path. Both runAgentChat and
- * runAgentChatV2 (and any future caller) go through here so provider-kind,
- * baseURL shaping, and custom headers stay consistent (Rule 1: no parallel
- * versions). anthropic uses the vendor's baseUrlHint verbatim (or the SDK
- * default when blank); openai-compatible appends /v1.
+ * Single vendor→LanguageModel construction path. runAgentChatV2 (and any future
+ * caller) goes through here so provider-kind, baseURL shaping, and custom headers
+ * stay consistent (Rule 1: no parallel versions). anthropic uses the vendor's
+ * baseUrlHint verbatim (or the SDK default when blank); openai-compatible appends /v1.
  */
 function buildLanguageModelForVendor(vendor: Vendor, model: Model, apiKey: string): LanguageModelV1 {
   const providerKind = normalizeProviderKind(vendor.providerKind);
@@ -2282,49 +2281,12 @@ function buildLanguageModelForVendor(vendor: Vendor, model: Model, apiKey: strin
   });
 }
 
-export async function runAgentChat(payload: unknown): Promise<unknown> {
-  const raw = payload as JsonRecord;
-  const { vendor, model, apiKey } = chooseTextModel();
-  const systemPrompt = trim(raw.systemPrompt);
-  const skillSystemPrompt = buildSkillSystemPrompt(raw);
-  const userPrompt = trim(raw.prompt) || trim(raw.displayPrompt);
-
-  // Compose system prompts into one (AI SDK `generateText` takes a single
-  // `system` string). The language directive is always present, so `system`
-  // is never undefined.
-  const systemParts = [AGENT_LANGUAGE_DIRECTIVE, systemPrompt, skillSystemPrompt].filter((part) => part && part.length > 0);
-  const system = systemParts.length > 0 ? systemParts.join("\n\n") : undefined;
-
-  const languageModel = buildLanguageModelForVendor(vendor, model, apiKey);
-
-  const result = await generateText({
-    model: languageModel,
-    ...(system ? { system } : {}),
-    messages: [{ role: "user", content: userPrompt }],
-    temperature: typeof raw.temperature === "number" ? raw.temperature : 0.7,
-  });
-
-  return {
-    id: `agent-${crypto.randomUUID()}`,
-    text: result.text,
-    raw: {
-      finishReason: result.finishReason,
-      usage: result.usage,
-      response: result.response,
-      providerMetadata: result.providerMetadata,
-    },
-    toolCalls: [],
-    artifacts: [],
-  };
-}
-
 // ---------------------------------------------------------------------------
 // runAgentChatV2 — Phase B: tool-calling + real streaming
 // ---------------------------------------------------------------------------
 //
-// `runAgentChat` (v1) is kept untouched as a fallback. v2 wires the canvas
-// tools through `streamText` and surfaces token deltas + tool-call lifecycle
-// to the renderer via an injected `emit` callback. The IPC layer (electron/
+// v2 wires the canvas tools through `streamText` and surfaces token deltas +
+// tool-call lifecycle to the renderer via an injected `emit` callback. The IPC layer (electron/
 // main.ts) is responsible for forwarding those events on a per-session
 // channel and for resolving the `awaitToolConfirmation` promise once the
 // user confirms or rejects the proposed tool call.

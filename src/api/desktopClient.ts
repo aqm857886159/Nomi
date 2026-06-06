@@ -225,16 +225,6 @@ function requireDesktopRuntime(feature: string): DesktopBridge {
   return desktop
 }
 
-function createDesktopAgentResponse(raw: unknown): AgentsChatResponseDto {
-  const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
-  return {
-    id: typeof record.id === 'string' ? record.id : `agent-${Date.now()}`,
-    text: typeof record.text === 'string' ? record.text : '',
-    raw: record.raw ?? raw,
-    toolCalls: Array.isArray(record.toolCalls) ? record.toolCalls : [],
-    artifacts: Array.isArray(record.artifacts) ? record.artifacts : [],
-  }
-}
 
 /**
  * Real IPC-stream consumer. Subscribes to `nomi:agents:chatV2:event` and
@@ -387,13 +377,6 @@ export type AgentsChatStreamHandlers = {
   onSession?: (session: AgentChatV2Session) => void
 }
 
-export async function agentsChatStream(
-  payload: AgentsChatRequestDto,
-  handlers: AgentsChatStreamHandlers,
-): Promise<() => void> {
-  return openDesktopAgentsChatStream(payload, handlers)
-}
-
 export async function workbenchAgentsChatStream(
   payload: AgentsChatRequestDto,
   handlers: AgentsChatStreamHandlers,
@@ -401,13 +384,6 @@ export async function workbenchAgentsChatStream(
   return openDesktopAgentsChatStream(payload, handlers)
 }
 
-export async function agentsChat(payload: AgentsChatRequestDto): Promise<AgentsChatResponseDto> {
-  return createDesktopAgentResponse(await requireDesktopRuntime('agents chat').agents.chat(payload))
-}
-
-export async function workbenchAgentsChat(payload: AgentsChatRequestDto): Promise<AgentsChatResponseDto> {
-  return createDesktopAgentResponse(await requireDesktopRuntime('workbench agents chat').agents.chat(payload))
-}
 
 /** Wipe the shared backend conversation memory for a sessionKey ("新对话"). */
 export async function clearWorkbenchAgentSession(sessionKey: string): Promise<void> {
