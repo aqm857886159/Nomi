@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildCatalogTaskRequest, normalizeCatalogTaskResult } from './catalogTaskActions'
+import { MODEL_ARCHETYPES } from '../../../config/modelArchetypes'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { TaskResultDto } from '../../api/taskApi'
 
@@ -121,4 +122,45 @@ describe('normalizeCatalogTaskResult — image path unaffected', () => {
     expect(result.type).toBe('image')
     expect(result.url).toBe('https://x/y.png')
   })
+})
+
+// ───────── 「接入即验证」零额度结构闸门 ─────────
+// 遍历**每个内置档案 × 每个模式**：把该模式声明的参考槽都填上 → 构建请求 → 断言每个填进去的参考值
+// 都真的到达了请求（extras.archetypeInput）。这正是 omni 参考图丢失那类 bug 的结构防线：以后任何模型/
+// 模式若"声明了槽但参考没进请求"，这条直接红。动态遍历 MODEL_ARCHETYPES → 新增档案自动纳入，漏不掉。
+describe('接入即验证（零额度）：每个档案/模式声明的参考槽，值都进得了请求', () => {
+  // 槽 kind → 渲染层存它的 meta 键 + 一个 dummy 值（数组槽给数组）。
+  const SLOT_FILL: Record<string, { key: string; value: unknown; flat: string[] }> = {
+    first_frame: { key: 'firstFrameUrl', value: 'https://x/ff.png', flat: ['https://x/ff.png'] },
+    last_frame: { key: 'lastFrameUrl', value: 'https://x/lf.png', flat: ['https://x/lf.png'] },
+    image_ref: { key: 'referenceImageUrls', value: ['https://x/ir.png'], flat: ['https://x/ir.png'] },
+    video_ref: { key: 'referenceVideoUrls', value: ['https://x/vr.mp4'], flat: ['https://x/vr.mp4'] },
+    audio_ref: { key: 'referenceAudioUrls', value: ['https://x/ar.mp3'], flat: ['https://x/ar.mp3'] },
+    source_video: { key: 'sourceVideoUrl', value: 'https://x/sv.mp4', flat: ['https://x/sv.mp4'] },
+  }
+  const flattenValues = (obj: Record<string, unknown>): string[] =>
+    Object.values(obj).flatMap((v) => (Array.isArray(v) ? v : [v])).filter((v): v is string => typeof v === 'string')
+
+  for (const archetype of MODEL_ARCHETYPES) {
+    for (const mode of archetype.modes) {
+      const refSlots = mode.slots.filter((s) => SLOT_FILL[s.kind])
+      it(`${archetype.id} / ${mode.id}：${refSlots.length} 个参考槽的值都进请求（不静默丢）`, () => {
+        const meta: Record<string, unknown> = {
+          modelKey: archetype.identifierPatterns[0],
+          modelVendor: 'kie', vendor: 'kie',
+          archetype: { id: archetype.id, modeId: mode.id },
+        }
+        for (const s of refSlots) meta[SLOT_FILL[s.kind].key] = SLOT_FILL[s.kind].value
+        const node: GenerationCanvasNode = { id: 'g1', kind: 'video', title: '', position: { x: 0, y: 0 }, prompt: 'p', meta }
+        const ai = buildCatalogTaskRequest(node).request.extras?.archetypeInput as Record<string, unknown>
+        expect(ai, '档案模型必须产出 archetypeInput').toBeTruthy()
+        const present = new Set(flattenValues(ai))
+        for (const s of refSlots) {
+          for (const v of SLOT_FILL[s.kind].flat) {
+            expect(present.has(v), `${archetype.id}/${mode.id} 的槽 ${s.kind} 值未进请求体（会像 omni 参考图那样静默丢）`).toBe(true)
+          }
+        }
+      })
+    }
+  }
 })
