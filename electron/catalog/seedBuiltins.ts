@@ -17,10 +17,19 @@ import {
   SEEDANCE_2_QUERY_OP,
 } from "./kieSeedance";
 import { HAPPYHORSE_CREATE_OP, HAPPYHORSE_MAPPING, HAPPYHORSE_MODEL_SEED, HAPPYHORSE_QUERY_OP } from "./kieHappyhorse";
+import {
+  GPT_IMAGE_2_I2I_MAPPING,
+  GPT_IMAGE_2_I2I_MODEL_SEED,
+  GPT_IMAGE_2_T2I_MAPPING,
+  GPT_IMAGE_2_T2I_MODEL_SEED,
+  isBrokenKieImageMapping,
+} from "./kieGptImage2";
 
 /** 稳定 id：按 (vendor, taskKind, model) 固定，便于幂等与排查。 */
 const SEEDANCE_MAPPING_ID = "seed-kie-seedance2-image_to_video";
 const HAPPYHORSE_MAPPING_ID = "seed-kie-happyhorse-text_to_video";
+const GPT_IMAGE_2_T2I_MAPPING_ID = "seed-kie-gpt-image-2-text_to_image";
+const GPT_IMAGE_2_I2I_MAPPING_ID = "seed-kie-gpt-image-2-image_edit";
 
 /** 模型 meta：指向内置档案（渲染层据此套 UI 模板，见档案层）。 */
 const SEEDANCE_MODEL_META = { archetypeId: "seedance-2" };
@@ -131,6 +140,71 @@ export function applyBuiltinSeeds(
       enabled: true,
       create: HAPPYHORSE_CREATE_OP,
       query: HAPPYHORSE_QUERY_OP,
+      createdAt: now,
+      updatedAt: now,
+    });
+    changed = true;
+  }
+
+  // GPT Image 2（图像，2026-06-06）：t2i + i2i 两个模型 + 两条 mapping（text_to_image / image_edit）。
+  // 契约见 kieGptImage2.ts（直连实测确认）。**额外做 repair**：旧版本（用户 onboarding 抽错）留下的
+  // 视频形状坏 mapping 会被替换——这不算「覆盖用户编辑」，是修我们自己该内置的坏记录。
+  for (const seed of [GPT_IMAGE_2_T2I_MODEL_SEED, GPT_IMAGE_2_I2I_MODEL_SEED]) {
+    if (!models.some((m) => m.modelKey === seed.modelKey && m.vendorKey === KIE_VENDOR_SEED.key)) {
+      models.push({
+        modelKey: seed.modelKey,
+        vendorKey: KIE_VENDOR_SEED.key,
+        labelZh: seed.labelZh,
+        kind: seed.kind,
+        enabled: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+      changed = true;
+    }
+  }
+
+  // repair：把视频形状的坏 (kie, text_to_image) 替换成正确的 GPT Image 2 文生图契约。
+  for (let i = 0; i < mappings.length; i += 1) {
+    if (isBrokenKieImageMapping(mappings[i])) {
+      mappings[i] = {
+        ...mappings[i],
+        name: GPT_IMAGE_2_T2I_MAPPING.name,
+        create: GPT_IMAGE_2_T2I_MAPPING.create,
+        query: GPT_IMAGE_2_T2I_MAPPING.query,
+        statusMapping: GPT_IMAGE_2_T2I_MAPPING.statusMapping,
+        updatedAt: now,
+      };
+      changed = true;
+    }
+  }
+
+  if (!mappings.some((mp) => mp.vendorKey === KIE_VENDOR_SEED.key && mp.taskKind === GPT_IMAGE_2_T2I_MAPPING.taskKind)) {
+    mappings.push({
+      id: GPT_IMAGE_2_T2I_MAPPING_ID,
+      vendorKey: KIE_VENDOR_SEED.key,
+      taskKind: GPT_IMAGE_2_T2I_MAPPING.taskKind,
+      name: GPT_IMAGE_2_T2I_MAPPING.name,
+      enabled: true,
+      create: GPT_IMAGE_2_T2I_MAPPING.create,
+      query: GPT_IMAGE_2_T2I_MAPPING.query,
+      statusMapping: GPT_IMAGE_2_T2I_MAPPING.statusMapping,
+      createdAt: now,
+      updatedAt: now,
+    });
+    changed = true;
+  }
+
+  if (!mappings.some((mp) => mp.vendorKey === KIE_VENDOR_SEED.key && mp.taskKind === GPT_IMAGE_2_I2I_MAPPING.taskKind)) {
+    mappings.push({
+      id: GPT_IMAGE_2_I2I_MAPPING_ID,
+      vendorKey: KIE_VENDOR_SEED.key,
+      taskKind: GPT_IMAGE_2_I2I_MAPPING.taskKind,
+      name: GPT_IMAGE_2_I2I_MAPPING.name,
+      enabled: true,
+      create: GPT_IMAGE_2_I2I_MAPPING.create,
+      query: GPT_IMAGE_2_I2I_MAPPING.query,
+      statusMapping: GPT_IMAGE_2_I2I_MAPPING.statusMapping,
       createdAt: now,
       updatedAt: now,
     });
