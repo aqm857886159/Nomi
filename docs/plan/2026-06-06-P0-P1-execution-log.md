@@ -61,11 +61,14 @@ CI 五门(filesize/lint≤98/typecheck/vitest/build)全绿 + Rule 11 自 commit/
   上传 → 拿回 `https://tempfile.redpandaai.co/...`(code 200)→ GET 回 HTTP 200 image/png。
   本地素材 → 公网可达 URL → 真可取回,传输层对真实 KIE 跑通(上传免费)。
   ⏳ 唯一剩项:一次**完整生成**端到端(KIE 真去 fetch 该 URL 出片)= 花额度,待用户拍。
-- [ ] **P0.4 节点级 onDrop / P1.3 连线→参考**:都要改 `BaseGenerationNode`(1406 巨壳,棘轮只减不增),
-  加代码需先抽等量代码offset。picker 已覆盖画布/项目/上传三源,拖入/连线是补充捷径,**留待**(避免为加功能喂大巨壳)。
-- [ ] **@ 内联引用(Tiptap,R6)——已评估,建议独立专注会话做**。原因(诚实风险画像):
-  ① prompt 现为绑定 `node.prompt` 纯字符串的 textarea;@ 内联图片 chip 要求换成 **Tiptap 编辑器 + 自定义内联节点**,
-  即**改 prompt 核心数据模型**(字符串↔富文档)——prompt 是生成/持久化的心脏,**高爆炸半径**。
-  ② 需新增依赖 `@tiptap/extension-mention`(联网装)+ 规则 5 先查 Tiptap 官方 + R6 编号单源投影。
-  ③ 端到端验证又要真实生成(花额度)。**@ 只是锦上添花**:character1 提示 + 新 picker/方块已让"加参考"顺畅。
-  基础设施已就绪(`useNomiRichTextEditor`/`WorkbenchEditor` 在用 Tiptap v3),开工不难,但应在浅上下文专注做。
+- [x] **@ 内联引用(Tiptap,R6)** ✅:工程核心(`promptMentions` 持久化 `@[asset:url]` + 发送投影单源)+ 编辑器 UI
+  (`PromptEditor` 替 textarea、`AssetMentionNode/Chip` 内联 chip、点 tile 插入)+ @ 键 suggestion
+  (`AssetMentionSuggestion`,@tiptap/suggestion@3.23.5 版本对齐,候选 = referenceImageUrls 单源,下拉走 body)。
+
+### 长尾(多 agent 对抗评审定的顺序,每项按 must-fix 改进后实现)
+- [x] **① 删 tile 同步清 chip**:`removeMention`(整串精确匹配删全部 + 共享 collapse)+ meta/prompt 合并单 updateNode(原子+持久)。
+- [x] **② @ 键 suggestion**(见上)。
+- [x] **③ tile 拖拽重排 + picker 浏览全部**:`moveArrayItem` 单源重排(同 metaKey 守卫)+ `nomi-open-files-panel` 事件开文件面板。
+- [x] **④ 每类型上限 toast + 灰显**:`showInfoToast`(无 Undo)+ picker `atLimitKinds` 灰显,单源计数。
+- [ ] **⑤ 拖入 / 连线 → 参考**:见独立执行文档 `docs/plan/2026-06-06-drop-and-wire-execution.md`(含压缩上下文 + 评审 must-fix
+  + 降风险方案:onDrop 挂 NodeGenerationComposer 非巨壳)。**待用户拍板 D1/D2 后执行。**
