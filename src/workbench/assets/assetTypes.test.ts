@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { GenerationCanvasNode } from '../generationCanvasV2/model/generationCanvasTypes'
 import type { WorkspaceFileNode } from '../../../electron/workspace/workspaceFileIndex'
-import { canvasNodeToAssetRef, workspaceNodeToAssetRef, flattenWorkspaceFiles, filterAssets } from './assetTypes'
+import { canvasNodeToAssetRef, workspaceNodeToAssetRef, flattenWorkspaceFiles, filterAssets, moveArrayItem } from './assetTypes'
 import type { AssetRef } from './assetTypes'
 
 const canvasNode = (overrides: Partial<GenerationCanvasNode>): GenerationCanvasNode =>
@@ -83,6 +83,23 @@ describe('filterAssets', () => {
 
   it('combines accept + query', () => {
     expect(filterAssets(pool, { accept: ['audio'], query: 'mp' }).map((a) => a.id)).toEqual(['3'])
+  })
+})
+
+describe('moveArrayItem (tile 重排)', () => {
+  it('把一项从 from 移到 to', () => {
+    expect(moveArrayItem(['a', 'b', 'c'], 0, 2)).toEqual(['b', 'c', 'a'])
+    expect(moveArrayItem(['a', 'b', 'c'], 2, 0)).toEqual(['c', 'a', 'b'])
+    expect(moveArrayItem(['a', 'b', 'c'], 0, 1)).toEqual(['b', 'a', 'c'])
+  })
+  it('同位/越界 → 内容不变', () => {
+    expect(moveArrayItem(['a', 'b'], 1, 1)).toEqual(['a', 'b'])
+    expect(moveArrayItem(['a', 'b'], 0, 5)).toEqual(['a', 'b'])
+  })
+  it('不改原数组', () => {
+    const arr = ['a', 'b', 'c']
+    moveArrayItem(arr, 0, 2)
+    expect(arr).toEqual(['a', 'b', 'c'])
   })
 })
 

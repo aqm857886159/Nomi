@@ -37,6 +37,10 @@ type AssetReferenceProps = {
   onRemove: (slot: AssetSlot, index: number) => void
   /** 点 image 参考 tile → 在描述框插入 @ 引用 chip(主路径)。 */
   onInsertMention?: (url: string) => void
+  /** 同槽内拖拽重排(from→to);跨槽(image/video/audio)由组件内 metaKey 守卫禁止。 */
+  onReorder?: (slot: AssetSlot, from: number, to: number) => void
+  /** picker 里「浏览全部 →」打开素材面板。 */
+  onBrowseAll?: () => void
 }
 
 // 合并后的数组参考行用这个伪 key 记展开状态。
@@ -54,8 +58,9 @@ function kindFromFile(file: File): AssetKind {
 
 export default function AssetReference({
   slots, valuesByKey, projectId, openSlotKey, uploadingSlotKey,
-  onTogglePicker, onPick, onUpload, onRemove, onInsertMention,
+  onTogglePicker, onPick, onUpload, onRemove, onInsertMention, onReorder, onBrowseAll,
 }: AssetReferenceProps): JSX.Element {
+  const dragRef = React.useRef<{ key: string; index: number } | null>(null)
   const singleSlots = slots.filter((s) => s.form === 'single')
   const arraySlots = slots.filter((s) => s.form === 'array')
   const labelSingles = singleSlots.length > 1 // 首尾帧:两个单帧槽才需标签区分;单个时不加标签(样张態③)。
@@ -98,6 +103,7 @@ export default function AssetReference({
                       uploading={uploadingSlotKey === slot.key}
                       onPick={(asset) => onPick(slot, asset)}
                       onUpload={(file) => onUpload(slot, file)}
+                      onBrowseAll={onBrowseAll}
                     />
                   </AssetPickerPopover>
                 ) : null}
@@ -118,6 +124,21 @@ export default function AssetReference({
                 index={slot.numbered ? index + 1 : undefined}
                 onRemove={() => onRemove(slot, index)}
                 onClick={slot.accept === 'image' && onInsertMention ? () => onInsertMention(url) : undefined}
+                dragProps={onReorder ? {
+                  draggable: true,
+                  onDragStart: () => { dragRef.current = { key: slot.key, index } },
+                  onDragOver: (e) => { e.preventDefault(); e.currentTarget.setAttribute('data-dragover', 'true') },
+                  onDragLeave: (e) => { e.currentTarget.removeAttribute('data-dragover') },
+                  onDrop: (e) => {
+                    e.preventDefault()
+                    e.currentTarget.removeAttribute('data-dragover')
+                    const d = dragRef.current
+                    dragRef.current = null
+                    // 同 metaKey 守卫:只在同一槽(image/video/audio 各自数组)内重排,禁跨槽(合并行视觉相邻 ≠ 同数组)
+                    if (d && d.key === slot.key && d.index !== index) onReorder(slot, d.index, index)
+                  },
+                  onDragEnd: () => { dragRef.current = null },
+                } : undefined}
               />
             ))}
             {arrayCanAdd ? (
@@ -132,6 +153,7 @@ export default function AssetReference({
                 uploading={arrayUploading}
                 onPick={(asset) => onPick(routeByKind(asset.kind), asset)}
                 onUpload={(file) => onUpload(routeByKind(kindFromFile(file)), file)}
+                onBrowseAll={onBrowseAll}
               />
             </AssetPickerPopover>
           ) : null}

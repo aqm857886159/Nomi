@@ -14,6 +14,14 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
   const [tab, setTab] = React.useState<'categories' | 'files'>('files')
   const collapsed = useWorkbenchStore((s) => s.sidebarCollapsed)
   const toggle = useWorkbenchStore((s) => s.toggleSidebarCollapsed)
+  const setSidebarCollapsed = useWorkbenchStore((s) => s.setSidebarCollapsed)
+
+  // picker 的「浏览全部 →」→ 展开侧栏 + 切到文件面板(全量浏览在面板,弹层只做快速取,规范 §5)。
+  React.useEffect(() => {
+    const open = () => { setTab('files'); setSidebarCollapsed(false) }
+    window.addEventListener('nomi-open-files-panel', open)
+    return () => window.removeEventListener('nomi-open-files-panel', open)
+  }, [setSidebarCollapsed])
 
   return (
     <aside

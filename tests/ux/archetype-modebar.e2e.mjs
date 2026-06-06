@@ -110,6 +110,10 @@ try {
   assert(afterUpload.badge1, "上传后角色图 chip 带 ① 数字徽标（character1）");
   assert(afterUpload.hasCue, "prompt 旁出现 character1.. 提示（U2）");
 
+  // 参考 tile 可拖拽重排(reorder 已接线;数组移动逻辑由 moveArrayItem 单测覆盖)
+  const draggable = await win.evaluate(() => Boolean(document.querySelector('.generation-canvas-v2-node__composer [role="button"][draggable="true"]')));
+  assert(draggable, "参考 tile 可拖拽重排（draggable 已接线）");
+
   // @ 键唤起 suggestion：描述框打 @ → 弹出已加参考缩略图列表（规范 §4 快捷路径,渲染在 body 不被裁）
   await win.locator(".generation-canvas-v2-node__prompt-input").last().click();
   await win.keyboard.type("光 @");

@@ -52,6 +52,7 @@ import ModeBar from './controls/ModeBar'
 import SettingsPopover from './controls/SettingsPopover'
 import AssetReference, { type AssetSlot } from '../../assets/AssetReference'
 import type { AssetRef } from '../../assets/assetTypes'
+import { moveArrayItem } from '../../assets/assetTypes'
 import { removeMention } from '../../assets/promptMentions'
 
 type NodeParameterControlsProps = {
@@ -432,6 +433,18 @@ export default function NodeParameterControls({
     }
     await handleSourceVideoUpload(slot.key, file)
   }
+  // 同槽内拖拽重排:移动 referenceXxxUrls 数组项(单源 setArrayValue 写入);character{N} 编号由
+  // projectPromptForSend 按新数组位置自动重算(单源,无需手动改 prompt/chip)。
+  const handleReorder = (slot: AssetSlot, from: number, to: number) => {
+    if (slot.form !== 'array') return
+    const arr = readArchetypeArray(node.meta || {}, slot.key)
+    if (from === to || from < 0 || to < 0 || from >= arr.length || to >= arr.length) return
+    setArrayValue(slot.key, moveArrayItem(arr, from, to))
+  }
+  const handleBrowseAll = () => {
+    setOpenSlotKey('')
+    window.dispatchEvent(new CustomEvent('nomi-open-files-panel'))
+  }
   const handleAssetRemove = (slot: AssetSlot, index: number) => {
     if (slot.form === 'array') { handleArrayRemove(slot.key, index); return }
     if (slot.persistAsEdge) {
@@ -549,6 +562,8 @@ export default function NodeParameterControls({
           onUpload={(slot, file) => { void handleAssetUpload(slot, file) }}
           onRemove={handleAssetRemove}
           onInsertMention={onInsertMention}
+          onReorder={handleReorder}
+          onBrowseAll={handleBrowseAll}
         />
       ) : null}
 

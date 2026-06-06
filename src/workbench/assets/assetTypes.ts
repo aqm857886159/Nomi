@@ -67,6 +67,15 @@ export function workspaceNodeToAssetRef(node: WorkspaceFileNode, projectId: stri
   }
 }
 
+/** 数组内移动一项(from→to),返回新数组;越界/同位 → 原样返回。tile 拖拽重排用,纯函数便于单测。 */
+export function moveArrayItem<T>(arr: readonly T[], from: number, to: number): T[] {
+  if (from < 0 || from >= arr.length || to < 0 || to >= arr.length || from === to) return arr.slice()
+  const next = arr.slice()
+  const [item] = next.splice(from, 1)
+  next.splice(to, 0, item)
+  return next
+}
+
 /** 按种类 + 名字模糊搜索过滤素材（picker 用，纯函数便于单测）。 */
 export function filterAssets(assets: AssetRef[], opts: { query?: string; accept?: AssetKind[] } = {}): AssetRef[] {
   const query = (opts.query || '').trim().toLowerCase()

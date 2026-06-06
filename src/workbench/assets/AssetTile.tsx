@@ -17,6 +17,8 @@ type AssetTileProps = {
   onRemove?: () => void
   /** 传了则可点(hover 高亮)。 */
   onClick?: () => void
+  /** 拖拽重排用:spread 到根 div(draggable + onDragStart/onDragOver/onDrop)。 */
+  dragProps?: React.HTMLAttributes<HTMLDivElement> & { draggable?: boolean }
   className?: string
 }
 
@@ -68,13 +70,14 @@ export function AssetThumb({ asset, playSize = 22 }: { asset: AssetRef; playSize
   return <img className={cn('w-full h-full object-cover')} src={preview} alt={asset.name} />
 }
 
-export default function AssetTile({ asset, index, onRemove, onClick, className }: AssetTileProps): JSX.Element {
+export default function AssetTile({ asset, index, onRemove, onClick, dragProps, className }: AssetTileProps): JSX.Element {
   const clickable = Boolean(onClick)
   return (
     <div
       className={cn(
         'relative w-14 h-14 rounded-nomi-sm border border-nomi-line bg-nomi-ink-05 overflow-hidden flex items-center justify-center',
         clickable && 'cursor-pointer hover:outline hover:outline-2 hover:outline-offset-1 hover:outline-nomi-accent',
+        dragProps?.draggable && 'data-[dragover=true]:outline data-[dragover=true]:outline-2 data-[dragover=true]:outline-nomi-accent',
         className,
       )}
       role={clickable ? 'button' : undefined}
@@ -82,6 +85,7 @@ export default function AssetTile({ asset, index, onRemove, onClick, className }
       aria-label={clickable ? asset.name : undefined}
       onClick={onClick}
       onKeyDown={clickable ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick?.() } } : undefined}
+      {...dragProps}
     >
       <AssetThumb asset={asset} />
       {typeof index === 'number' ? <NumberBadge index={index} /> : null}
