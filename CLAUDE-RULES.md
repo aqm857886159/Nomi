@@ -101,7 +101,7 @@
 **触发条件**：任何用户会看到的东西（界面/卡片/节点/面板/交互/文案排版）。
 
 **铁律（实现前必须走完）**：
-1. 参考设计系统：`Design.md` + `src/design/`，token-only，不凭空造组件
+1. **先读完整设计系统 `docs/design/nomi-design-system.md`**（§2 token 全表 / §3 通用组件 / 规范）+ `src/design/` 现有组件——文档原话"做任何新设计前请先读完整版"；token-only（**禁非 token 的 px/hex/圆角**，如 `h-[34px]`/`text-[12.5px]`/`gap-2.5` 都违规，用 `h-8`/`text-[13px]`/`gap-2`），不凭空造组件
 2. 出 HTML mockup（最低成本让用户先看到样子）
 3. 设计师 Agent + 真实用户 Agent 审一遍（R7）
 4. 用户本人确认后才进入实现
