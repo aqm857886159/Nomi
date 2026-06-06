@@ -146,6 +146,27 @@ describe('GPT Image 2 档案（图像，2 模式打不同 taskKind 桶 + input_u
   })
 })
 
+describe('Seedream 档案（图像，改图输入图走 image_urls，与 GPT 同桶不同键）', () => {
+  const sdNode = (modeId: string, extra: Record<string, unknown> = {}): GenerationCanvasNode => ({
+    id: 's1', kind: 'image', title: '', position: { x: 0, y: 0 }, prompt: '改图',
+    meta: { modelKey: 'seedream', modelVendor: 'kie', vendor: 'kie', archetype: { id: 'seedream', modeId }, ...extra },
+  })
+  it('文生图：taskKind=text_to_image，model=4.5 t2i enum', () => {
+    const built = buildCatalogTaskRequest(sdNode('t2i'))
+    expect(built.request.kind).toBe('text_to_image')
+    expect((built.request.extras?.archetypeInput as Record<string, unknown>).model).toBe('seedream/4.5-text-to-image')
+  })
+  it('改图：taskKind=image_edit，输入图进 image_urls（不是 input_urls / reference_image_urls）', () => {
+    const built = buildCatalogTaskRequest(sdNode('edit', { referenceImageUrls: ['https://x/1.png', 'https://x/2.png'] }))
+    expect(built.request.kind).toBe('image_edit')
+    const ai = built.request.extras?.archetypeInput as Record<string, unknown>
+    expect(ai.model).toBe('bytedance/seedream-v4-edit')
+    expect(ai.image_urls).toEqual(['https://x/1.png', 'https://x/2.png'])
+    expect(ai).not.toHaveProperty('input_urls')
+    expect(ai).not.toHaveProperty('reference_image_urls')
+  })
+})
+
 // ───────── 「接入即验证」零额度结构闸门 ─────────
 // 遍历**每个内置档案 × 每个模式**：把该模式声明的参考槽都填上 → 构建请求 → 断言每个填进去的参考值
 // 都真的到达了请求（extras.archetypeInput）。这正是 omni 参考图丢失那类 bug 的结构防线：以后任何模型/

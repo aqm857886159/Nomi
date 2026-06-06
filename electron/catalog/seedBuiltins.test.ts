@@ -147,6 +147,19 @@ describe("applyBuiltinSeeds", () => {
     expect(selectTaskMapping(next.mappings, "kie", "text_to_video", "some-other-model")?.id).toBe("kling-leftover");
   });
 
+  it("路由：Seedream 与 GPT 同 image_edit 桶，靠 modelKey 各路由到自己的 mapping（不撞）", () => {
+    const { state } = applyBuiltinSeeds(emptyCatalog(), NOW);
+    const editBucket = state.mappings.filter((mp) => mp.vendorKey === "kie" && mp.taskKind === "image_edit");
+    // GPT(generic) + Seedream(modelKey=seedream) 共存
+    expect(editBucket.length).toBeGreaterThanOrEqual(2);
+    expect(selectTaskMapping(state.mappings, "kie", "image_edit", "seedream")?.modelKey).toBe("seedream");
+    // GPT 节点（非 seedream modelKey）落 generic GPT mapping，不被 Seedream 抢
+    expect(selectTaskMapping(state.mappings, "kie", "image_edit", "gpt-image-2-image-to-image")?.id).toBe("seed-kie-gpt-image-2-image_edit");
+    // Seedream 伞模型带档案
+    const sd = state.models.find((m) => m.modelKey === "seedream");
+    expect((sd?.meta as { archetypeId?: string })?.archetypeId).toBe("seedream");
+  });
+
   it("存在即跳过：不覆盖用户已有的同 key 记录", () => {
     const state = emptyCatalog();
     state.vendors.push({
