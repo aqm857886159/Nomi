@@ -1,8 +1,8 @@
 import type { AgentsChatResponseDto } from '../../../api/desktopClient'
 import { runWorkbenchAgent, workbenchSessionKey, type ToolCallEvent } from '../../ai/workbenchAgentRunner'
-import type { GenerationCanvasSnapshot, GenerationCanvasNode, GenerationNodeKind } from '../model/generationCanvasTypes'
-import { getAgentCreatableGenerationNodeKinds, getGenerationNodeDefaultTitle } from '../model/generationNodeKinds'
-import { generationCanvasTools, type CreateGenerationNodeToolInput } from './generationCanvasTools'
+import type { GenerationCanvasSnapshot, GenerationCanvasNode } from '../model/generationCanvasTypes'
+import { getAgentCreatableGenerationNodeKinds } from '../model/generationNodeKinds'
+import { applyCanvasToolCall } from './applyCanvasToolCall'
 
 export type { ToolCallEvent } from '../../ai/workbenchAgentRunner'
 
@@ -84,87 +84,17 @@ function buildGenerationCanvasAgentPrompt(input: SendGenerationCanvasAgentMessag
   ].join('\n')
 }
 
-type CreateNodesArgs = {
-  summary?: string
-  nodes: Array<{
-    clientId: string
-    kind: GenerationNodeKind
-    title: string
-    prompt: string
-    position: { x: number; y: number }
-  }>
-}
-
-type ConnectEdgesArgs = {
-  edges: Array<{ sourceClientId: string; targetClientId: string }>
-}
-
 /**
- * Default tool-call executor. Translates each tool invocation into a real
- * mutation against the in-renderer `generationCanvasTools` store, and
- * returns the resulting structured data back to the LLM. This is the
- * "auto-execute" path used when the host doesn't supply its own
- * `onToolCall` handler.
+ * Default tool-call executor used when the host doesn't supply its own
+ * `onToolCall` handler ("auto-execute" path). Delegates to the shared
+ * `applyCanvasToolCall` (single source of truth) and maps the result/throw
+ * onto the LLM confirmation channel.
  */
 async function defaultExecuteToolCall(event: ToolCallEvent): Promise<void> {
   const { toolName, args, confirm } = event
-
   try {
-    if (toolName === 'read_canvas_state') {
-      const snapshot = generationCanvasTools.read_canvas()
-      await confirm({ ok: true, result: snapshot })
-      return
-    }
-    if (toolName === 'create_canvas_nodes') {
-      const payload = args as CreateNodesArgs
-      const inputs: CreateGenerationNodeToolInput[] = (payload.nodes || []).map((node, index) => ({
-        kind: node.kind,
-        title: node.title || `${getGenerationNodeDefaultTitle(node.kind)} ${index + 1}`,
-        prompt: node.prompt || '',
-        position: node.position || { x: 160 + index * 340, y: 260 + (index % 2) * 220 },
-      }))
-      const created = generationCanvasTools.create_nodes(inputs)
-      const clientIdToNodeId: Record<string, string> = {}
-      ;(payload.nodes || []).forEach((node, index) => {
-        if (node.clientId && created[index]) clientIdToNodeId[node.clientId] = created[index].id
-      })
-      await confirm({
-        ok: true,
-        result: {
-          createdNodeIds: created.map((node) => node.id),
-          clientIdToNodeId,
-        },
-      })
-      return
-    }
-    if (toolName === 'connect_canvas_edges') {
-      const payload = args as ConnectEdgesArgs
-      const edges = (payload.edges || [])
-        .map((edge) => ({ source: edge.sourceClientId, target: edge.targetClientId }))
-        .filter((edge) => edge.source && edge.target)
-      if (edges.length > 0) generationCanvasTools.connect_nodes(edges)
-      await confirm({ ok: true, result: { connectedCount: edges.length } })
-      return
-    }
-    if (toolName === 'set_node_prompt') {
-      const payload = args as { nodeId: string; prompt: string }
-      const node = generationCanvasTools.update_node_prompt(payload.nodeId, payload.prompt)
-      await confirm({
-        ok: Boolean(node),
-        ...(node ? { result: { nodeId: node.id } } : { message: 'node_not_found' }),
-      })
-      return
-    }
-    if (toolName === 'delete_canvas_nodes') {
-      const payload = args as { nodeIds?: unknown }
-      const nodeIds = Array.isArray(payload.nodeIds)
-        ? payload.nodeIds.map((id) => String(id || '').trim()).filter(Boolean)
-        : []
-      const deleted = generationCanvasTools.delete_nodes(nodeIds)
-      await confirm({ ok: true, result: { deletedNodeIds: deleted } })
-      return
-    }
-    await confirm({ ok: false, message: `unknown tool ${toolName}` })
+    const result = await applyCanvasToolCall(toolName, args)
+    await confirm({ ok: true, result })
   } catch (error: unknown) {
     const message = error instanceof Error && error.message ? error.message : String(error)
     await confirm({ ok: false, message })
