@@ -16,10 +16,18 @@
 import React from 'react'
 import { Stack, Group, Text, PasswordInput, ActionIcon, Anchor, TagsInput } from '@mantine/core'
 import { IconPlus, IconTrash, IconCheck, IconX } from '@tabler/icons-react'
-import { DesignButton, DesignModal, DesignTextInput } from '../../design'
+import { DesignButton, DesignModal, DesignTextInput, DesignSegmentedControl } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
+import type { ProviderKind } from '../../desktop/providerKind'
 import { PROVIDER_PRESETS } from './providerPresets'
 import { cn } from '../../utils/cn'
+
+// 接口协议的人类标签——探测成功后告诉用户「用的是 X 协议」，专家覆盖时也用它。
+const PROVIDER_KIND_LABEL: Record<ProviderKind, string> = {
+  'openai-compatible': 'Chat Completions',
+  'openai-responses': 'Responses',
+  anthropic: 'Anthropic',
+}
 
 type Phase = 'input' | 'running' | 'success' | 'error'
 
@@ -77,9 +85,15 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
   // When a named preset auto-fills BaseURL, we hide that field (correct value,
   // jargon-y for non-coders). This flag reveals it for the rare custom-gateway case.
   const [editBaseUrl, setEditBaseUrl] = React.useState(false)
-  // Endpoint shape: 'openai-compatible' (default; OpenAI/Kimi/智谱/DeepSeek/中转站)
-  // or 'anthropic' (Claude's native /v1/messages — x-api-key, different body).
-  const [providerKind, setProviderKind] = React.useState<'openai-compatible' | 'anthropic'>('openai-compatible')
+  // 接口协议（wire protocol）。默认让主进程 auto-probe 替用户判断（P4）：用户不必懂
+  // chat/responses/anthropic 的区别。这个 state 存「当前解析出的协议」——预设内置值 /
+  // hostname 猜测 / 探测结果 / 专家手选，任一来源。
+  const [providerKind, setProviderKind] = React.useState<ProviderKind>('openai-compatible')
+  // 专家是否手动锁定了协议。true → 测试时按它强制走（autoProbe 关），且 BaseURL 输入不再
+  // 用 hostname 自动覆盖（解决「自动探测 vs 手选打架」）。
+  const [kindForced, setKindForced] = React.useState(false)
+  // 「接口协议」覆盖区是否展开。默认收起（auto-probe 兜底）；专家点开、或测试失败时自动展开（逃生口）。
+  const [showKindOverride, setShowKindOverride] = React.useState(false)
   const [baseUrl, setBaseUrl] = React.useState('')
   // Model ids only (display name dropped — it defaulted to the id, nobody filled it).
   // Entered via TagsInput: type+enter for any endpoint, or pick from auto-fetched list.
@@ -174,6 +188,10 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
     setBaseUrl(preset.baseUrl)
     setVendorName(preset.custom ? '' : preset.label)
     setEditBaseUrl(false)
+    // 切预设 = 重置协议判断：具名预设内置了正确协议（视为已锁定，不再 auto-probe 覆盖）；
+    // 自定义/中转站则交回 auto-probe（kindForced=false），覆盖区收起。
+    setKindForced(!preset.custom)
+    setShowKindOverride(false)
     // Endpoint changed → previously fetched models / test result no longer apply.
     setFetchedModels([])
     setFetchModelsMsg('')
@@ -215,17 +233,24 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
       baseUrl: baseUrl.trim(),
       apiKey: userApiKey.trim(),
       modelId: firstModelId,
-      providerKind,
+      // 专家锁定 → 强制走该协议；否则交主进程 auto-probe（chat↔responses，anthropic 按 hostname）。
+      ...(kindForced ? { providerKind } : { autoProbe: true }),
       headers: buildHeadersObject(),
     })
     if (res.ok) {
+      // 探测出的协议存回 state → 保存时就用它；并显式告诉用户「替你选对了哪个」。
+      if (res.detectedKind) setProviderKind(res.detectedKind)
       setTestState('ok')
-      setTestMessage('连接正常')
+      setTestMessage(res.detectedKind ? `已连上 · 用的是 ${PROVIDER_KIND_LABEL[res.detectedKind]} 协议` : '连接正常')
     } else {
       setTestState('fail')
-      setTestMessage(res.error || '连接失败')
+      // 失败指路（设计/真实用户评审）：把「可能是协议不对，手动指定」摆出来，并展开覆盖区当逃生口。
+      setShowKindOverride(true)
+      setTestMessage(res.error
+        ? `连不上：${res.error}。可在下方「接口协议」手动指定再试`
+        : '连不上。可在下方「接口协议」手动指定，或检查地址 / Key')
     }
-  }, [bridge, baseUrl, userApiKey, models, providerKind, buildHeadersObject])
+  }, [bridge, baseUrl, userApiKey, models, providerKind, kindForced, buildHeadersObject])
 
   const handleManualSave = React.useCallback(async () => {
     if (!bridge?.onboarding?.manualCommit) {
@@ -438,9 +463,10 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
                     const v = e.currentTarget.value
                     setBaseUrl(v)
                     setTestState('idle')
-                    // Auto-detect provider kind for custom endpoints (preset path sets it
-                    // directly). Anthropic-native gateways carry "anthropic" in the host.
-                    if (presetId === 'custom') {
+                    // hostname 仅作「初始猜测」：anthropic-native 网关 host 带 anthropic。
+                    // 一旦专家手选过协议（kindForced），就不再覆盖——否则手选会被下次输入吞掉。
+                    // chat vs responses 无法靠 hostname 区分，交由保存前的 auto-probe 定夺。
+                    if (presetId === 'custom' && !kindForced) {
                       try {
                         setProviderKind(/anthropic/i.test(new URL(v).hostname) ? 'anthropic' : 'openai-compatible')
                       } catch { /* partial url while typing */ }
@@ -493,6 +519,40 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
               />
               {fetchModelsMsg && <Text size="xs" c="var(--nomi-ink-60)">{fetchModelsMsg}</Text>}
             </Stack>
+
+            {presetId === 'custom' && (
+            <Stack gap={4}>
+              {/* 接口协议：默认收起，保存时 auto-probe 替用户判断（P4）。专家可展开强制指定；
+                  测试失败时自动展开当逃生口（见 handleTestConnection）。 */}
+              {!showKindOverride ? (
+                <Text size="xs" c="var(--nomi-ink-60)">
+                  接口协议：{kindForced ? PROVIDER_KIND_LABEL[providerKind] : '保存时自动探测'} ·{' '}
+                  <Anchor component="button" type="button" onClick={() => setShowKindOverride(true)} c="var(--nomi-accent)" inherit>
+                    手动指定
+                  </Anchor>
+                </Text>
+              ) : (
+                <Field label="接口协议" hint="不确定就留给自动探测；codex 类中转选 Responses；Claude 官转选 Anthropic">
+                  <DesignSegmentedControl
+                    value={providerKind}
+                    onChange={(v: string) => { setProviderKind(v as ProviderKind); setKindForced(true); setTestState('idle') }}
+                    data={[
+                      { label: 'Chat Completions', value: 'openai-compatible' },
+                      { label: 'Responses', value: 'openai-responses' },
+                      { label: 'Anthropic', value: 'anthropic' },
+                    ]}
+                    fullWidth
+                  />
+                  {kindForced && (
+                    <Anchor component="button" type="button" size="xs" c="var(--nomi-ink-60)"
+                      onClick={() => { setKindForced(false); setShowKindOverride(false); setTestState('idle') }}>
+                      改回自动探测
+                    </Anchor>
+                  )}
+                </Field>
+              )}
+            </Stack>
+            )}
 
             {presetId === 'custom' && (
             <Stack gap={4}>

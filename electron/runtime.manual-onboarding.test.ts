@@ -23,6 +23,7 @@ import {
   listModelCatalogMappings,
   listModelCatalogModels,
   listModelCatalogVendors,
+  normalizeProviderKind,
   resolveOnboardingAgentFromCatalog,
 } from "./runtime";
 
@@ -200,6 +201,38 @@ describe("manual model entry — user journey", () => {
     });
   });
 
+  it("supports OpenAI Responses relays (foxcode codex shape): persists openai-responses + bearer, survives round-trip", () => {
+    // 这正是 2026-06-06 接不进来的那类供应商：wire_api=responses。改前 main.ts 的 2 值
+    // clamp 会把它降级成 openai-compatible；改后全链路走 normalizeProviderKind，存活到底。
+    const result = commitManualOpenAiCompatibleModels({
+      vendorName: "foxcode codex",
+      baseUrl: "https://api.fox-code.com/v1",
+      apiKey: "sk-fox-xxx",
+      providerKind: "openai-responses",
+      models: [{ id: "gpt-5-codex" }],
+    });
+    expect(result.vendorKey).toBe("api-fox-code-com");
+
+    const vendor = listModelCatalogVendors()[0] as {
+      providerKind?: string;
+      baseUrlHint?: string | null;
+      authType?: string;
+    };
+    // 第 3 协议存盘不被吞，认证仍是 bearer（非 anthropic 的 x-api-key）。
+    expect(vendor.providerKind).toBe("openai-responses");
+    expect(vendor.baseUrlHint).toBe("https://api.fox-code.com/v1");
+    expect(vendor.authType).toBe("bearer");
+
+    // 文档阅读 agent 也按 openai-responses 解析回来（runtime 读 catalog 时归一化）。
+    const agent = resolveOnboardingAgentFromCatalog();
+    expect(agent).toMatchObject({
+      providerKind: "openai-responses",
+      baseUrl: "https://api.fox-code.com/v1",
+      modelId: "gpt-5-codex",
+      apiKey: "sk-fox-xxx",
+    });
+  });
+
   it("persists custom request headers on the vendor and surfaces them to the agent", () => {
     commitManualOpenAiCompatibleModels({
       vendorName: "中转站",
@@ -239,6 +272,25 @@ describe("manual model entry — user journey", () => {
     });
     expect(listModelCatalogVendors()).toHaveLength(1);
     expect(listModelCatalogModels().map((m) => m.modelKey).sort()).toEqual(["first", "second"]);
+  });
+});
+
+describe("normalizeProviderKind — 唯一归一化器（替代 main.ts 旧的 2 值 clamp）", () => {
+  it("放行三个合法值原样返回", () => {
+    expect(normalizeProviderKind("openai-compatible")).toBe("openai-compatible");
+    expect(normalizeProviderKind("anthropic")).toBe("anthropic");
+    expect(normalizeProviderKind("openai-responses")).toBe("openai-responses");
+  });
+
+  it("对脏输入回落到 openai-compatible（新信任边界：任意脏值不得抵达工厂）", () => {
+    // CTO 评审要求的对抗输入：null/undefined/带空格/大小写/对象/数字。
+    for (const bad of [null, undefined, "", "  openai-responses  ", "OpenAI-Responses", "responses", "gpt", 42, {}, []]) {
+      expect(normalizeProviderKind(bad as unknown)).toBe("openai-compatible");
+    }
+  });
+
+  it("尊重显式 fallback 参数", () => {
+    expect(normalizeProviderKind("nonsense", "anthropic")).toBe("anthropic");
   });
 });
 

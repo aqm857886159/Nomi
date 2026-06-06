@@ -912,8 +912,8 @@ function normalizeEnabled(value: unknown, fallback = true): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
 
-function normalizeProviderKind(value: unknown, fallback: AiSdkProviderKind = "openai-compatible"): AiSdkProviderKind {
-  return value === "anthropic" || value === "openai-compatible" ? value : fallback;
+export function normalizeProviderKind(value: unknown, fallback: AiSdkProviderKind = "openai-compatible"): AiSdkProviderKind {
+  return value === "anthropic" || value === "openai-compatible" || value === "openai-responses" ? value : fallback;
 }
 
 function filterByParams<T extends { vendorKey?: string; kind?: BillingModelKind; enabled?: boolean; taskKind?: ProfileKind }>(

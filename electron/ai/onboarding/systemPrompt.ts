@@ -64,7 +64,8 @@ This is your **ground truth**. Don't second-guess it.
 ## Step 4 — Apply the blueprint
 Make FOUR calls in this order:
 
-a. \`set_vendor_info({ baseUrl: blueprint.vendorBaseUrl, vendorKey: <slugify host>, vendorName: <human name>, modelKey: <model id from docs>, modelDisplayName: <human label>, auth: blueprint.auth, providerKind: "openai-compatible" })\`
+a. \`set_vendor_info({ baseUrl: blueprint.vendorBaseUrl, vendorKey: <slugify host>, vendorName: <human name>, modelKey: <model id from docs>, modelDisplayName: <human label>, auth: blueprint.auth, providerKind: <see below> })\`
+   - \`providerKind\` 选值：默认 \`"openai-compatible"\`（/chat/completions）。若文档写明 \`wire_api="responses"\`、端点是 \`/responses\`、或自称 codex 线路 → 用 \`"openai-responses"\`。若是 Anthropic Messages（\`/v1/messages\`、x-api-key）→ 用 \`"anthropic"\`。
 
 b. \`set_model_kind({ kind: <"image"|"video"|"audio"|"text">, evidence: "<doc quote showing what it outputs>" })\` — determine this from the docs, NOT from the kind hint. Signals: video models expose duration/fps/resolution params or have "video" in the endpoint; audio models output speech/music; image models output images. Skipping this leaves the model mis-filed.
 

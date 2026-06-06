@@ -43,9 +43,11 @@ import {
   commitManualOpenAiCompatibleModels,
   resolveOnboardingAgentFromCatalog,
   ensureBuiltinModelSeeds,
+  normalizeProviderKind,
 } from "./runtime";
 import { runOnboardingTrial } from "./ai/onboarding/agent";
-import type { ProviderKind, ModelKind } from "./ai/onboarding/types";
+import type { ModelKind } from "./ai/onboarding/types";
+import type { AiSdkProviderKind } from "./catalog/types";
 import { openWorkspaceFolder, selectWorkspaceFolder } from "./workspace/workspaceIpc";
 import { listWorkspaceFiles, resolveWorkspaceFilePath } from "./workspace/workspaceFileIndex";
 import { installCrashHandlers, logCrash } from "./crashLog";
@@ -427,6 +429,57 @@ function sendOnboardingEvent(session: OnboardingSession, event: unknown): void {
   target.send("nomi:onboarding:event", { trialId: session.trialId, event });
 }
 
+/** 单协议探测结果。mismatch=true 表示像「路由/协议不对」（可换下一个协议试）。 */
+type ProtocolProbe = { ok: boolean; status?: number; error?: string; mismatch?: boolean };
+
+/**
+ * 用极小请求体探测一个 wire protocol 是否接受。三协议各自的 URL/认证/body 形状：
+ *  - anthropic        : host root + /v1/messages，x-api-key + anthropic-version，messages 体（剥尾随 /v1 防双拼）
+ *  - openai-responses : {baseUrl}/responses，bearer，{input, max_output_tokens}（非 messages！）
+ *  - openai-compatible: {baseUrl}/chat/completions，bearer，{messages, max_tokens}
+ */
+async function probeOneProtocol(
+  kind: AiSdkProviderKind,
+  rawBaseUrl: string,
+  apiKey: string,
+  modelId: string,
+  extraHeaders: Record<string, string>,
+  signal: AbortSignal,
+): Promise<ProtocolProbe> {
+  let url: string;
+  let headers: Record<string, string>;
+  let body: Record<string, unknown>;
+  if (kind === "anthropic") {
+    const root = (rawBaseUrl || "https://api.anthropic.com").replace(/\/v1$/i, "");
+    url = `${root}/v1/messages`;
+    headers = {
+      "content-type": "application/json",
+      "anthropic-version": "2023-06-01",
+      ...(apiKey ? { "x-api-key": apiKey } : {}),
+      ...extraHeaders,
+    };
+    body = { model: modelId || "claude-3-5-haiku-latest", max_tokens: 1, messages: [{ role: "user", content: "ping" }] };
+  } else if (kind === "openai-responses") {
+    url = `${rawBaseUrl}/responses`;
+    headers = { "content-type": "application/json", ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}), ...extraHeaders };
+    body = { model: modelId || "gpt-4o-mini", input: "ping", max_output_tokens: 16 };
+  } else {
+    url = `${rawBaseUrl}/chat/completions`;
+    headers = { "content-type": "application/json", ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}), ...extraHeaders };
+    body = { model: modelId || "gpt-3.5-turbo", messages: [{ role: "user", content: "ping" }], max_tokens: 1 };
+  }
+  try {
+    const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal });
+    if (res.ok) return { ok: true, status: res.status };
+    const text = await res.text().catch(() => "");
+    // 404/405/501/502/503 多为「路由/协议不对」→ 换下一个协议；401/403/400 多为鉴权/请求问题（不是协议错）。
+    const mismatch = [404, 405, 501, 502, 503].includes(res.status);
+    return { ok: false, status: res.status, error: text.slice(0, 300) || `HTTP ${res.status}`, mismatch };
+  } catch (error) {
+    return { ok: false, error: describeNetworkError(error), mismatch: true };
+  }
+}
+
 function registerOnboardingIpc(): void {
   ipcMain.handle("nomi:onboarding:start", async (event, payload: Record<string, unknown>) => {
     const docsUrl = String(payload?.docsUrl || "").trim();
@@ -443,9 +496,10 @@ function registerOnboardingIpc(): void {
     const agentConfig = (payload?.agent || {}) as Record<string, unknown>;
     const fromCatalog = resolveOnboardingAgentFromCatalog();
     const agent = {
-      providerKind: String(
-        agentConfig.providerKind || fromCatalog?.providerKind || process.env.NOMI_ONBOARDING_AGENT_PROVIDER || "openai-compatible",
-      ) as ProviderKind,
+      // 单一归一化器（R1）：不再 `as ProviderKind` 裸 cast——任意脏值流经 normalizeProviderKind 才到工厂。
+      providerKind: normalizeProviderKind(
+        agentConfig.providerKind || fromCatalog?.providerKind || process.env.NOMI_ONBOARDING_AGENT_PROVIDER,
+      ),
       baseUrl: String(agentConfig.baseUrl || fromCatalog?.baseUrl || process.env.NOMI_ONBOARDING_AGENT_BASE_URL || ""),
       modelId: String(agentConfig.modelId || fromCatalog?.modelId || process.env.NOMI_ONBOARDING_AGENT_MODEL || ""),
       apiKey: String(agentConfig.apiKey || fromCatalog?.apiKey || process.env.NOMI_ONBOARDING_AGENT_KEY || ""),
@@ -521,8 +575,8 @@ function registerOnboardingIpc(): void {
   // path. No forced connectivity test (aligns with opencode; see test-connection).
   ipcMain.handle("nomi:onboarding:manual-commit", async (_event, payload: Record<string, unknown>) => {
     try {
-      const providerKind =
-        payload?.providerKind === "anthropic" ? "anthropic" : "openai-compatible";
+      // R1：走唯一 normalizeProviderKind（接受 openai-responses），不再 2 值 clamp。
+      const providerKind = normalizeProviderKind(payload?.providerKind);
       const headers: Record<string, string> = {};
       if (payload?.headers && typeof payload.headers === "object") {
         for (const [k, v] of Object.entries(payload.headers as Record<string, unknown>)) {
@@ -549,20 +603,19 @@ function registerOnboardingIpc(): void {
     }
   });
 
-  // Optional, NON-BLOCKING connectivity probe for the manual form's 测试连接
-  // button. Honest result only — never gates saving. Minimal request body kept
-  // conservative for the widest openai-compatible tolerance.
+  // 接口协议探测（auto-probe）+ 连接测试。非阻塞，永不 gate 保存。
+  // 真实用户接不进来的根因是「不知道选哪个协议」（P4）——默认让主进程替他试：
+  // chat↔responses 共享 /v1 baseURL + bearer，只 path/body 不同，挨个发极小请求探测；
+  // anthropic（host root + x-api-key）仅当 hostname 像 anthropic 或地址留空时纳入。
+  // 专家在表单展开「接口协议」强制指定时，payload.providerKind 给定 → 只测那一个。
   ipcMain.handle("nomi:onboarding:test-connection", async (_event, payload: Record<string, unknown>) => {
-    const providerKind =
-      payload?.providerKind === "anthropic" ? "anthropic" : "openai-compatible";
     const rawBaseUrl = String(payload?.baseUrl || "").trim().replace(/\/+$/, "");
-    const baseUrl =
-      providerKind === "anthropic" && !rawBaseUrl ? "https://api.anthropic.com" : rawBaseUrl;
     const apiKey = String(payload?.apiKey || "").trim();
     const modelId = String(payload?.modelId || "").trim();
-    if (!/^https?:\/\//i.test(baseUrl)) return { ok: false, error: "接入地址需以 http:// 或 https:// 开头" };
-    // User-supplied relay/proxy headers replay on the probe too, so a gateway that
-    // gates on them doesn't report a false failure.
+    const forcedKind = payload?.providerKind ? normalizeProviderKind(payload.providerKind) : undefined;
+    const autoProbe = payload?.autoProbe === true && !forcedKind;
+    // User-supplied relay/proxy headers replay on every probe so a gateway that gates
+    // on them doesn't report a false failure.
     const extraHeaders: Record<string, string> = {};
     if (payload?.headers && typeof payload.headers === "object") {
       for (const [k, v] of Object.entries(payload.headers as Record<string, unknown>)) {
@@ -571,47 +624,40 @@ function registerOnboardingIpc(): void {
         if (key && value) extraHeaders[key] = value;
       }
     }
+    // 候选协议：强制 → 只它；自动 → chat+responses（+anthropic 当 hostname 像 anthropic 或地址留空）。
+    let candidates: AiSdkProviderKind[];
+    if (forcedKind) {
+      candidates = [forcedKind];
+    } else if (autoProbe) {
+      const host = (() => {
+        try { return new URL(rawBaseUrl).hostname; } catch { return ""; }
+      })();
+      const anthropicLikely = !rawBaseUrl || /anthropic|claude/i.test(host);
+      candidates = !rawBaseUrl
+        ? ["anthropic"]
+        : anthropicLikely
+          ? ["anthropic", "openai-compatible", "openai-responses"]
+          : ["openai-compatible", "openai-responses"];
+    } else {
+      candidates = ["openai-compatible"];
+    }
+    // openai-* 必须有 http(s) 地址；anthropic 可留空（托管默认）。无地址且无 anthropic 候选 → 直接报错。
+    if (!/^https?:\/\//i.test(rawBaseUrl) && !candidates.includes("anthropic")) {
+      return { ok: false, error: "接入地址需以 http:// 或 https:// 开头" };
+    }
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12_000);
     try {
-      const url =
-        providerKind === "anthropic" ? `${baseUrl}/v1/messages` : `${baseUrl}/chat/completions`;
-      const headers: Record<string, string> =
-        providerKind === "anthropic"
-          ? {
-              "content-type": "application/json",
-              "anthropic-version": "2023-06-01",
-              ...(apiKey ? { "x-api-key": apiKey } : {}),
-              ...extraHeaders,
-            }
-          : {
-              "content-type": "application/json",
-              ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}),
-              ...extraHeaders,
-            };
-      const body =
-        providerKind === "anthropic"
-          ? {
-              model: modelId || "claude-3-5-haiku-latest",
-              max_tokens: 1,
-              messages: [{ role: "user", content: "ping" }],
-            }
-          : {
-              model: modelId || "gpt-3.5-turbo",
-              messages: [{ role: "user", content: "ping" }],
-              max_tokens: 1,
-            };
-      const res = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-      if (res.ok) return { ok: true, status: res.status };
-      const text = await res.text().catch(() => "");
-      return { ok: false, status: res.status, error: text.slice(0, 300) || `HTTP ${res.status}` };
-    } catch (error) {
-      return { ok: false, error: describeNetworkError(error) };
+      let best: (ProtocolProbe & { kind: AiSdkProviderKind }) | null = null;
+      for (const kind of candidates) {
+        // openai-* 没地址就跳过（避免 fetch 无效 URL）。
+        if (kind !== "anthropic" && !/^https?:\/\//i.test(rawBaseUrl)) continue;
+        const r = await probeOneProtocol(kind, rawBaseUrl, apiKey, modelId, extraHeaders, controller.signal);
+        if (r.ok) return { ok: true, status: r.status, detectedKind: kind };
+        // 留住「最该报给用户」的错：非 mismatch（鉴权/请求错，可操作）优先于 mismatch（换协议）。
+        if (!best || (best.mismatch && !r.mismatch)) best = { ...r, kind };
+      }
+      return { ok: false, status: best?.status, error: best?.error || "连接失败", detectedKind: forcedKind };
     } finally {
       clearTimeout(timeout);
     }
@@ -622,8 +668,8 @@ function registerOnboardingIpc(): void {
   // OpenAI-compatible and expose this; when they don't, the UI falls back to manual
   // id entry (this just returns ok:false and nothing is blocked).
   ipcMain.handle("nomi:onboarding:list-models", async (_event, payload: Record<string, unknown>) => {
-    const providerKind =
-      payload?.providerKind === "anthropic" ? "anthropic" : "openai-compatible";
+    // R1：唯一归一化器。openai-responses 与 openai-compatible 一样走 GET {baseUrl}/models。
+    const providerKind = normalizeProviderKind(payload?.providerKind);
     const rawBaseUrl = String(payload?.baseUrl || "").trim().replace(/\/+$/, "");
     const baseUrl =
       providerKind === "anthropic" && !rawBaseUrl ? "https://api.anthropic.com" : rawBaseUrl;

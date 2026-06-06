@@ -1,5 +1,8 @@
 import type { ExportJobEvent, ExportJobSnapshot } from '../../electron/export/exportJobManager'
 import type { WorkspaceFileListResult } from '../../electron/workspace/workspaceFileIndex'
+import type { ProviderKind } from './providerKind'
+
+export type { ProviderKind }
 
 export type DesktopAssetDto = {
   id: string
@@ -107,7 +110,7 @@ export type DesktopBridge = {
       targetKind?: 'text' | 'image' | 'video' | 'audio'
       maxSteps?: number
       agent?: {
-        providerKind?: 'openai-compatible' | 'anthropic'
+        providerKind?: ProviderKind
         baseUrl?: string
         modelId?: string
         apiKey?: string
@@ -119,7 +122,7 @@ export type DesktopBridge = {
       vendorName: string
       baseUrl: string
       apiKey: string
-      providerKind?: 'openai-compatible' | 'anthropic'
+      providerKind?: ProviderKind
       headers?: Record<string, string>
       models: Array<{ id: string; displayName?: string }>
     }) => Promise<{
@@ -132,17 +135,22 @@ export type DesktopBridge = {
       baseUrl: string
       apiKey: string
       modelId?: string
-      providerKind?: 'openai-compatible' | 'anthropic'
+      /** 专家强制指定的协议。省略 + autoProbe=true 时由主进程探测。 */
+      providerKind?: ProviderKind
+      /** true = 自动探测 chat↔responses（anthropic 按 hostname 提示）。 */
+      autoProbe?: boolean
       headers?: Record<string, string>
     }) => Promise<{
       ok: boolean
       status?: number
       error?: string
+      /** 探测/确认成功的协议——渲染层据此显示「用的是 X 协议」并存盘。 */
+      detectedKind?: ProviderKind
     }>
     listModels: (payload: {
       baseUrl: string
       apiKey: string
-      providerKind?: 'openai-compatible' | 'anthropic'
+      providerKind?: ProviderKind
       headers?: Record<string, string>
     }) => Promise<{
       ok: boolean

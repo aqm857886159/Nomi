@@ -15,7 +15,9 @@ export type ProfileKind =
   | "text_to_audio"
   | "image_to_audio";
 
-export type AiSdkProviderKind = "openai-compatible" | "anthropic";
+// openai-responses：OpenAI Responses API（/responses，非 /chat/completions）。
+// 中转（如 foxcode codex 渠道 wire_api=responses）只认 Responses → chat/completions 会 502（2026-06-06 实测根因）。
+export type AiSdkProviderKind = "openai-compatible" | "anthropic" | "openai-responses";
 
 /**
  * 供应商「怎么吞本地素材」的声明(R1,通用第一)。本地素材(nomi-local://)只有 app 自己能读,

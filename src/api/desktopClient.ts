@@ -1,4 +1,5 @@
 import { getDesktopBridge, type DesktopBridge } from '../desktop/bridge'
+import type { ProviderKind } from '../desktop/providerKind'
 
 export type BillingModelKind = 'text' | 'image' | 'video' | 'audio'
 
@@ -14,7 +15,7 @@ export type ProfileKind =
   | 'image_to_audio'
 
 export type ModelCatalogVendorAuthType = 'none' | 'bearer' | 'x-api-key' | 'query'
-export type ModelCatalogVendorProviderKind = 'openai-compatible' | 'anthropic'
+export type ModelCatalogVendorProviderKind = ProviderKind
 
 export type ModelCatalogIntegrationChannelKind =
   | 'official_provider'

@@ -13,6 +13,7 @@
  * editing this file.
  */
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import type { LanguageModelV1 } from "ai";
 import { applyProfileToRequestBody, getModelProfile } from "./modelProfiles";
@@ -114,6 +115,19 @@ export function buildAiSdkModel(input: BuildAiSdkModelInput): LanguageModelV1 {
       ...(headers ? { headers } : {}),
     });
     return provider.languageModel(modelId);
+  }
+
+  // OpenAI Responses API（/responses）：中转如 foxcode codex 渠道 wire_api=responses，只认 /responses，
+  // 走 chat/completions 会 502（2026-06-06 实测根因）。用官方 @ai-sdk/openai 的 .responses()。
+  if (input.kind === "openai-responses") {
+    if (!baseURL) throw new Error("buildAiSdkModel: baseURL is required for openai-responses");
+    const provider = createOpenAI({
+      apiKey,
+      baseURL,
+      ...(headers ? { headers } : {}),
+      fetch: buildProfiledFetch(modelId),
+    });
+    return provider.responses(modelId);
   }
 
   if (!baseURL) {

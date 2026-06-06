@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>接入格式 — 自动探测 + 专家可覆盖（2026-06-06，评审后定稿）</title>
+<style>
+  :root{
+    --nomi-bg: oklch(0.985 0.003 90);
+    --nomi-paper: oklch(1 0 0);
+    --nomi-ink: oklch(0.22 0.01 80);
+    --nomi-ink-80: oklch(0.32 0.01 80);
+    --nomi-ink-60: oklch(0.50 0.01 80);
+    --nomi-ink-40: oklch(0.68 0.01 80);
+    --nomi-ink-20: oklch(0.88 0.005 80);
+    --nomi-ink-10: oklch(0.94 0.003 80);
+    --nomi-ink-05: oklch(0.97 0.003 80);
+    --nomi-line: oklch(0.91 0.004 80);
+    --nomi-line-soft: oklch(0.95 0.003 80);
+    --nomi-accent: oklch(0.55 0.13 250);
+    --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 12%, var(--nomi-paper));
+    --ok: oklch(0.6 0.13 150);
+    --danger: oklch(0.58 0.16 25);
+    --r-sm:6px; --r:10px;
+    --shadow-md: 0 2px 4px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.06);
+    --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03);
+    --font: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--nomi-bg);color:var(--nomi-ink);font-family:var(--font);
+       font-size:13px;line-height:1.5;padding:32px 28px 64px;}
+  h1{font-size:20px;margin:0 0 4px;}
+  .sub{color:var(--nomi-ink-60);margin:0 0 20px;max-width:1000px;}
+  .sub b{color:var(--nomi-ink);}
+  .rulebox{background:var(--nomi-accent-soft);border:1px solid color-mix(in oklch,var(--nomi-accent) 25%,var(--nomi-paper));
+       border-radius:var(--r);padding:12px 14px;margin:0 0 28px;max-width:1000px;font-size:12.5px;color:var(--nomi-ink-80);}
+  .rulebox b{color:var(--nomi-accent);}
+  .row{display:flex;gap:30px;align-items:flex-start;flex-wrap:wrap;}
+  .col{display:flex;flex-direction:column;}
+  .collab{font-size:11.5px;color:var(--nomi-ink-60);margin-top:10px;text-align:center;max-width:360px;}
+  .collab b{color:var(--nomi-ink);}
+
+  .card{width:380px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:var(--r);
+        box-shadow:var(--shadow-md);padding:20px 18px;display:flex;flex-direction:column;gap:16px;}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .flabel{font-size:13px;color:var(--nomi-ink);font-weight:500;}
+  .fhint{font-size:11.5px;color:var(--nomi-ink-60);}
+  .muted{font-size:11.5px;color:var(--nomi-ink-60);}
+  .muted a{color:var(--nomi-accent);text-decoration:none;}
+
+  .chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{font-size:12.5px;padding:4px 11px;border-radius:999px;border:1px solid var(--nomi-line);
+        background:var(--nomi-paper);color:var(--nomi-ink-80);cursor:default;white-space:nowrap;}
+  .chip.on{background:var(--nomi-accent-soft);color:var(--nomi-accent);border-color:var(--nomi-accent);}
+  .chip .ck{margin-left:4px;font-weight:700;}
+
+  .seg{display:flex;background:var(--nomi-ink-05);border-radius:var(--r-sm);padding:3px;gap:2px;}
+  .seg .s{flex:1;text-align:center;font-size:12.5px;padding:6px 4px;border-radius:4px;color:var(--nomi-ink-60);
+          cursor:default;white-space:nowrap;}
+  .seg .s.on{background:var(--nomi-paper);color:var(--nomi-ink);font-weight:600;box-shadow:var(--shadow-sm);}
+
+  .inp{border:1px solid var(--nomi-line);border-radius:var(--r-sm);padding:7px 10px;font-size:12.5px;
+       color:var(--nomi-ink);background:var(--nomi-paper);}
+  .inp.ph{color:var(--nomi-ink-40);}
+  .inp.auto{background:var(--nomi-ink-05);color:var(--nomi-ink-60);display:flex;justify-content:space-between;align-items:center;}
+  .inp.auto a{color:var(--nomi-accent);font-size:11.5px;text-decoration:none;}
+
+  .foot{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .btn{background:var(--nomi-accent);color:white;border:none;border-radius:var(--r-sm);padding:8px 14px;
+       font-size:13px;font-weight:600;text-align:center;cursor:default;}
+  .btn.ghost{background:transparent;color:var(--nomi-ink-80);padding:8px 4px;font-weight:500;}
+  .testline{display:flex;align-items:center;gap:6px;font-size:11.5px;}
+  .testline.ok{color:var(--ok);}
+  .testline.fail{color:var(--danger);}
+  .badge{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:999px;
+         background:color-mix(in oklch,var(--nomi-accent) 16%,var(--nomi-paper));color:var(--nomi-accent);margin-left:6px;}
+  .sech{font-size:13px;font-weight:700;margin:34px 0 16px;color:var(--nomi-ink-80);border-top:1px solid var(--nomi-line-soft);padding-top:24px;}
+</style>
+</head>
+<body>
+  <h1>接入格式 — 自动探测 + 专家可覆盖</h1>
+  <p class="sub">配套 plan：<b>2026-06-06-wire-protocol-onboarding-fix.md</b>（评审后定稿）。核心转向：<b>不让非专家选协议</b>。点「测试连接」时主进程按 Chat→Responses→Anthropic 自动探测，<b>替用户选对并显式告知</b>。选择器默认收起，仅专家展开或测试失败时露出（逃生口）。</p>
+  <div class="rulebox"><b>为什么改向</b>：真实用户（买中转 key 的视频创作者）反馈「这三个词一个不认识，我不想选，想让它告诉我它替我选对了」。让非专家声明 wire protocol = 让用户干系统的活，违反 <b>P4 通用第一</b>。改为系统探测 + 专家覆盖。</div>
+
+  <div class="sech">状态 A — 具名预设「foxcode codex」（协议内置，无选择器）</div>
+  <div class="row">
+    <div class="col">
+      <div class="card">
+        <div class="field">
+          <div class="flabel">供应商</div>
+          <div class="fhint">选一个自动填地址；中转站选「自定义」粘贴地址</div>
+          <div class="chips">
+            <span class="chip">OpenAI</span><span class="chip">Claude</span><span class="chip">Gemini</span>
+            <span class="chip on">foxcode codex<span class="ck">✓</span></span>
+            <span class="chip">OpenRouter</span><span class="chip">SiliconFlow</span><span class="chip">Kimi</span>
+            <span class="chip">智谱 GLM</span><span class="chip">DeepSeek</span><span class="chip">火山 / Doubao</span>
+            <span class="chip">阿里百炼</span><span class="chip">Groq</span><span class="chip">自定义 / 中转站</span>
+          </div>
+        </div>
+        <div class="field">
+          <div class="inp auto"><span>接入地址已自动填好 · Responses 协议<span class="badge">/responses</span></span><a>自定义</a></div>
+        </div>
+        <div class="field">
+          <div class="flabel">你的 API Key</div><div class="inp ph">sk-...</div>
+        </div>
+        <div class="field"><div class="flabel">模型</div><div class="inp ph">输入模型 id 回车，或先拉取可用模型</div></div>
+        <div class="foot"><span class="btn ghost">测试连接</span><span class="btn">保存</span></div>
+      </div>
+      <div class="collab"><b>预设路径</b>：foxcode 预设内置 providerKind=openai-responses。用户选名字即用，协议术语 0 暴露。</div>
+    </div>
+
+    <div class="col">
+      <div class="card">
+        <div class="field">
+          <div class="flabel">供应商</div>
+          <div class="fhint">选一个自动填地址；中转站选「自定义」粘贴地址</div>
+          <div class="chips">
+            <span class="chip">OpenAI</span><span class="chip">Claude</span><span class="chip">foxcode codex</span>
+            <span class="chip on">自定义 / 中转站<span class="ck">✓</span></span>
+          </div>
+        </div>
+        <div class="field">
+          <div class="flabel">接入地址（BaseURL）</div>
+          <div class="fhint">到 /v1 为止</div>
+          <div class="inp ph">https://your-relay.com/v1</div>
+        </div>
+        <div class="field"><div class="flabel">你的 API Key</div><div class="inp ph">sk-...</div></div>
+        <div class="field"><div class="flabel">模型</div><div class="inp ph">输入模型 id 回车，或先拉取可用模型</div></div>
+        <!-- 默认：选择器收起，仅一行说明 + 手动指定链接 -->
+        <div class="muted">接口协议：保存时自动探测 · <a>手动指定</a></div>
+        <div class="foot"><span class="btn ghost">测试连接</span><span class="btn">保存</span></div>
+      </div>
+      <div class="collab"><b>状态 B — 自定义默认</b>：选择器收起。90% 用户不碰协议，点测试即由后台探测。术语藏在「手动指定」后。</div>
+    </div>
+  </div>
+
+  <div class="sech">状态 C — 点了「测试连接」后</div>
+  <div class="row">
+    <div class="col">
+      <div class="card">
+        <div class="muted">供应商 · 自定义 / 中转站</div>
+        <div class="field"><div class="flabel">接入地址（BaseURL）</div><div class="inp">https://api.fox-code.com/v1</div></div>
+        <div class="field"><div class="flabel">你的 API Key</div><div class="inp">sk-fox-••••••••</div></div>
+        <div class="field"><div class="flabel">模型</div><div class="inp">gpt-5-codex</div></div>
+        <div class="muted">接口协议：保存时自动探测 · <a>手动指定</a></div>
+        <div class="foot">
+          <span class="testline ok">✓ 已连上 · 用的是 <b>Responses</b> 协议</span>
+          <span class="btn">保存</span>
+        </div>
+      </div>
+      <div class="collab"><b>探测成功</b>：后台试 Chat→404→试 Responses→200。绿勾告诉用户系统替他选对了，保存即用该协议。这就是真实用户要的「告诉我它替我选对了」。</div>
+    </div>
+
+    <div class="col">
+      <div class="card">
+        <div class="muted">供应商 · 自定义 / 中转站</div>
+        <div class="field"><div class="flabel">接入地址（BaseURL）</div><div class="inp">https://api.weird-relay.com/v1</div></div>
+        <div class="field"><div class="flabel">你的 API Key</div><div class="inp">sk-••••••••</div></div>
+        <div class="field"><div class="flabel">模型</div><div class="inp">some-model</div></div>
+        <!-- 失败 → 覆盖区自动展开当逃生口 -->
+        <div class="field">
+          <div class="flabel">接口协议</div>
+          <div class="fhint">不确定就留给自动探测；codex 类中转选 Responses；Claude 官转选 Anthropic</div>
+          <div class="seg">
+            <span class="s on">Chat Completions</span><span class="s">Responses</span><span class="s">Anthropic</span>
+          </div>
+          <div class="muted"><a>改回自动探测</a></div>
+        </div>
+        <div class="foot">
+          <span class="testline fail">✕ 连不上：HTTP 404。可在上方「接口协议」手动指定再试</span>
+          <span class="btn">保存</span>
+        </div>
+      </div>
+      <div class="collab"><b>状态 D — 探测全失败</b>：三协议都没通 → 覆盖区<b>自动展开</b>，错误指路换协议（不只甩红字）。专家可强制指定再试，或「改回自动探测」。</div>
+    </div>
+  </div>
+
+  <div class="sech">对账锚点（实现必须逐项对上）</div>
+  <p class="sub" style="max-width:1000px">
+    · <b>默认不露选择器</b>：custom 路径只显示「接口协议：保存时自动探测 · 手动指定」一行（OnboardingWizard 的 <code>showKindOverride=false</code> 分支）。<br>
+    · <b>探测在主进程</b>：测试连接按 chat→responses→anthropic 探测，返回 <code>detectedKind</code>，绿勾显示「用的是 X 协议」（main.ts <code>probeOneProtocol</code> + auto-probe handler）。<br>
+    · <b>失败展开逃生口</b>：测试失败 → <code>showKindOverride=true</code>，露出 SegmentedControl + 指路文案。<br>
+    · <b>专家覆盖</b>：手选协议 → <code>kindForced=true</code>，测试强制走该协议、BaseURL 输入不再 hostname 覆盖；「改回自动探测」复位。<br>
+    · <b>具名预设无选择器</b>：foxcode 等预设内置 providerKind，<code>presetId!=='custom'</code> 不渲染协议区。<br>
+    · <b>根因</b>：UI 只是露出口；真正修的是删掉 main.ts 3 处吞掉第 3 值的 clamp + 全链路走 normalizeProviderKind，否则探测出 Responses 也会被静默降级。
+  </p>
+</body>
+</html>

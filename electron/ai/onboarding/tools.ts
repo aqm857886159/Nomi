@@ -234,7 +234,7 @@ export function buildOnboardingTools(hooks: ToolHooks) {
           headerName: z.string().optional().describe("Required if type='x-api-key'"),
           queryParam: z.string().optional().describe("Required if type='query'"),
         }),
-        providerKind: z.enum(["openai-compatible", "anthropic"]).optional(),
+        providerKind: z.enum(["openai-compatible", "anthropic", "openai-responses"]).optional(),
       }),
       execute: async ({ baseUrl, vendorKey, vendorName, modelKey, modelDisplayName, auth, providerKind }) => {
         const a: { type: AuthType; headerName?: string; queryParam?: string } = { type: auth.type };

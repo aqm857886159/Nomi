@@ -11,7 +11,11 @@
 
 export type ModelKind = "text" | "image" | "video" | "audio";
 
-export type ProviderKind = "openai-compatible" | "anthropic";
+// R1：providerKind 的真相源是 catalog/types 的 AiSdkProviderKind（3 值，含 openai-responses）。
+// 这里 import + re-export（别名 ProviderKind）而非平行定义，避免 2 值/3 值漂移。分层
+// electron/ai → electron/catalog 单向，与 buildAiSdkModel 同样 import catalog/types，无循环。
+import type { AiSdkProviderKind } from "../../catalog/types";
+export type ProviderKind = AiSdkProviderKind;
 
 export type AuthType = "bearer" | "x-api-key" | "query" | "none";
 
