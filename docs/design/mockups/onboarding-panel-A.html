@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<title>模型接入面板 · 方案 A（样张 v3 · 按设计系统优化）</title>
+<style>
+  /* 近似映射 Nomi token（nomi-tokens.css / nomiTheme.ts）——样张供视觉拍板，实现换成真 token 类。
+     间距统一 4 的倍数（§2.2）；圆角用 field6/panel10/modal14/pill999（§2.4）；图标全 Tabler（§6）。 */
+  :root{
+    --nomi-bg:#f4f2ee; --nomi-paper:#ffffff;
+    --nomi-ink:#17191f; --nomi-ink-80:#3a3d45; --nomi-ink-60:#6b6f78; --nomi-ink-40:#9aa0aa;
+    --nomi-ink-30:#b6bbc4; --nomi-ink-20:#d4d8de; --nomi-ink-10:#e9ebef; --nomi-ink-05:#f4f5f7;
+    --nomi-line:#e6e5e1; --nomi-line-soft:#f0efeb;
+    --nomi-accent:#5566e6; --nomi-accent-soft:#ecedfb;
+    --ok-ink:#2b8a3e; --ok-soft:#e8f5ec;
+    --radius-sm:6px; --radius:10px; --radius-lg:14px;
+    --shadow-md:0 6px 22px rgba(18,24,38,.10);
+    --font-sans:"Inter",-apple-system,system-ui,"PingFang SC",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:var(--font-sans)}
+  body{background:#cfd2d8;padding:28px;display:flex;gap:32px;align-items:flex-start;justify-content:center}
+  .col{display:flex;flex-direction:column;gap:24px}
+  .stage-label{font-size:12px;color:#3a3d45;font-weight:600;margin:0 0 8px 2px;max-width:320px;line-height:1.5}
+  .stage-note{font-size:11px;color:#6b6f78;font-weight:400}
+  svg{display:block}
+
+  .panel{width:320px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);overflow:hidden}
+  .panel__head{padding:16px 16px 12px}
+  .panel__title{font-size:16px;font-weight:700;color:var(--nomi-ink)}
+  .list{padding:8px 12px 12px;display:flex;flex-direction:column;gap:8px}
+  /* 组标签：极简，靠字重/字号分层，不加框（§原则 one hierarchy）*/
+  .grouplabel{font-size:11px;font-weight:600;color:var(--nomi-ink-40);padding:8px 2px 0}
+
+  .card{border:1px solid var(--nomi-line);border-radius:var(--radius);background:var(--nomi-paper);overflow:hidden}
+  .card__row{display:flex;align-items:center;gap:12px;padding:12px}
+  .logo{width:28px;height:28px;flex:0 0 auto;border-radius:var(--radius-sm);background:var(--nomi-ink);color:var(--nomi-paper);display:grid;place-items:center;font-size:13px;font-weight:600}
+  .logo--soft{background:var(--nomi-ink-05);color:var(--nomi-ink-60)}
+  .meta{flex:1;min-width:0}
+  .meta__name{font-size:13px;font-weight:600;color:var(--nomi-ink);line-height:1.35}
+  .meta__sub{font-size:12px;color:var(--nomi-ink-40);line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pill{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:600}
+  .pill--ok{background:var(--ok-soft);color:var(--ok-ink)}
+  .pill--todo{background:var(--nomi-ink-10);color:var(--nomi-ink-60)}
+  .dot{width:6px;height:6px;border-radius:999px;flex:0 0 auto}
+  .dot--ok{background:var(--ok-ink)} .dot--todo{background:var(--nomi-ink-30)}
+  .chev{flex:0 0 auto;color:var(--nomi-ink-40)}
+
+  .body{border-top:1px solid var(--nomi-line-soft);padding:12px;display:flex;flex-direction:column;gap:12px}
+  .keyrow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .keyrow__txt{font-size:12px;color:var(--nomi-ink-60)}
+  .lnk{font-size:12px;color:var(--nomi-ink-60);background:none;border:1px solid var(--nomi-line);border-radius:999px;padding:3px 10px;cursor:pointer}
+  .lnk--ghost{border:none;color:var(--nomi-ink-40);padding:3px 4px}
+  .grp{display:flex;flex-direction:column;gap:8px}
+  .grp__h{font-size:11px;font-weight:600;color:var(--nomi-ink-60)}
+  .grp__h em{font-style:normal;font-weight:400;color:var(--nomi-ink-40)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--nomi-line);border-radius:999px;font-size:12px;color:var(--nomi-ink-80);background:var(--nomi-paper)}
+  .chip .dot{width:5px;height:5px}
+  .chip__x{color:var(--nomi-ink-30);margin-left:1px;display:inline-flex}
+
+  /* key 输入 */
+  .keyfield{display:flex;gap:8px}
+  .keyfield input{flex:1;height:32px;border:1px solid var(--nomi-line);border-radius:var(--radius-sm);padding:0 10px;font-size:13px;color:var(--nomi-ink);background:var(--nomi-paper)}
+  .keyfield input::placeholder{color:var(--nomi-ink-40)}
+  .btn-unlock{height:32px;padding:0 12px;border:none;border-radius:var(--radius-sm);background:var(--nomi-ink);color:var(--nomi-paper);font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+
+  /* 添加模型：列表里最后一张虚线卡，与其它卡排在一起 */
+  .addcard{border:1px dashed var(--nomi-ink-20);border-radius:var(--radius);background:var(--nomi-paper);display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer}
+  .addcard__plus{width:28px;height:28px;border-radius:var(--radius-sm);background:var(--nomi-ink-05);display:grid;place-items:center;color:var(--nomi-ink-60);flex:0 0 auto}
+  .addcard__t{font-size:13px;font-weight:600;color:var(--nomi-ink)}
+  .addcard__s{font-size:12px;color:var(--nomi-ink-40)}
+
+  .arrow{font-size:22px;color:#6b7280;align-self:center;margin-top:120px}
+</style>
+</head>
+<body>
+
+<!-- 左列：现状 -->
+<div class="col">
+  <div>
+    <p class="stage-label">现状（节选）<span class="stage-note">：模型墙，每模型一行 + 重复「未连通」；「添加模型」浮右上；自定义模型无归处</span></p>
+    <div class="panel">
+      <div class="panel__head" style="display:flex;justify-content:space-between;align-items:center"><span class="panel__title">模型设置</span><span style="font-size:13px;color:var(--nomi-ink-60);border:1px solid var(--nomi-line);border-radius:999px;padding:4px 11px">＋ 添加模型</span></div>
+      <div class="list" style="gap:0">
+        <div class="card__row" style="padding:8px 4px"><div class="logo" style="width:26px;height:26px">A</div><div class="meta"><div class="meta__name">APIMart</div><div class="meta__sub">一个 key，解锁全部预置模型</div></div></div>
+        <div style="font-size:12px;font-weight:600;color:var(--nomi-ink-60);margin-top:6px;padding:0 4px">图片</div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--nomi-ink-40);padding:7px 4px;border-top:1px solid var(--nomi-line-soft)"><span style="color:var(--nomi-ink)">Seedream 4.5</span><span>未连通</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--nomi-ink-40);padding:7px 4px;border-top:1px solid var(--nomi-line-soft)"><span style="color:var(--nomi-ink)">Nano Banana</span><span>未连通</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--nomi-ink-40);padding:7px 4px;border-top:1px solid var(--nomi-line-soft)"><span style="color:var(--nomi-ink)">GPT Image 2</span><span>未连通</span></div>
+        <div style="text-align:center;font-size:12px;color:var(--nomi-ink-30);padding-top:8px">…还有 9 行 ↓↓↓</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="arrow">→</div>
+
+<!-- 右列：方案 A v3 -->
+<div class="col">
+
+  <!-- 场景 1：默认 -->
+  <div>
+    <p class="stage-label">① 默认<span class="stage-note">：预置供应商各一行 +「其他模型」一行 +「添加模型」虚线卡，同一列表、全折叠</span></p>
+    <div class="panel">
+      <div class="panel__head"><span class="panel__title">模型设置</span></div>
+      <div class="list">
+        <div class="grouplabel">预置供应商</div>
+        <div class="card">
+          <div class="card__row">
+            <div class="logo">A</div>
+            <div class="meta"><div class="meta__name">APIMart</div><div class="meta__sub">12 个模型可用</div></div>
+            <span class="pill pill--ok"><span class="dot dot--ok"></span>已连通</span>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__row">
+            <div class="logo logo--soft">K</div>
+            <div class="meta"><div class="meta__name">KIE.AI</div><div class="meta__sub">填 key 解锁内置模型</div></div>
+            <span class="pill pill--todo"><span class="dot dot--todo"></span>待接入</span>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+          </div>
+        </div>
+
+        <div class="grouplabel">其他模型</div>
+        <div class="card">
+          <div class="card__row">
+            <div class="logo logo--soft"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4"/></svg></div>
+            <div class="meta"><div class="meta__name">其他模型</div><div class="meta__sub">2 个自定义模型</div></div>
+            <span class="pill pill--ok"><span class="dot dot--ok"></span>已连通</span>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+          </div>
+        </div>
+
+        <div class="addcard">
+          <div class="addcard__plus"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></div>
+          <div class="meta"><div class="addcard__t">添加模型</div><div class="addcard__s">接入不在上面的自定义模型</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 场景 2：点开「其他模型」 -->
+  <div>
+    <p class="stage-label">② 点开任意一行就地展开<span class="stage-note">：露出 key 状态 + 模型 chip（× 可删）。预置供应商点开同理（chip 按图片/视频分组）</span></p>
+    <div class="panel">
+      <div class="panel__head"><span class="panel__title">模型设置</span></div>
+      <div class="list">
+        <div class="grouplabel">预置供应商</div>
+        <div class="card">
+          <div class="card__row">
+            <div class="logo">A</div>
+            <div class="meta"><div class="meta__name">APIMart</div><div class="meta__sub">12 个模型可用</div></div>
+            <span class="pill pill--ok"><span class="dot dot--ok"></span>已连通</span>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+          </div>
+        </div>
+
+        <div class="grouplabel">其他模型</div>
+        <div class="card">
+          <div class="card__row" style="background:var(--nomi-ink-05)">
+            <div class="logo logo--soft"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4"/></svg></div>
+            <div class="meta"><div class="meta__name">其他模型</div><div class="meta__sub">2 个自定义模型</div></div>
+            <span class="pill pill--ok"><span class="dot dot--ok"></span>已连通</span>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(180deg)"><path d="M6 9l6 6 6-6"/></svg></span>
+          </div>
+          <div class="body">
+            <div class="chips">
+              <span class="chip"><span class="dot dot--ok"></span>Kimi (moonshot-v1)<span class="chip__x"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></span>
+              <span class="chip"><span class="dot dot--ok"></span>GPT-5.5<span class="chip__x"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="addcard">
+          <div class="addcard__plus"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></div>
+          <div class="meta"><div class="addcard__t">添加模型</div><div class="addcard__s">接入不在上面的自定义模型</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

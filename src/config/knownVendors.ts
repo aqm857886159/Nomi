@@ -41,7 +41,7 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
     promo: {
       text: '如果你愿意，可以用我们的链接注册；不愿意也可以直接去官方注册。',
       ctaLabel: '用我们的链接',
-      url: 'https://apimart.ai/zh', // TODO: 替换为专属 ?ref 链接
+      url: 'https://apimart.ai/register?aff=t55VtP', // 专属推广链接
     },
   },
   {
