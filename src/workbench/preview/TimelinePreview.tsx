@@ -335,6 +335,8 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
           'bg-[color-mix(in_oklch,var(--nomi-paper)_88%,transparent)]',
           'shadow-[var(--workbench-shadow-sm)] backdrop-blur-[12px] backdrop-saturate-[1.2]',
           'overflow-x-auto scrollbar-none',
+          // 子项一律不被 flex 挤压：避免画幅/显示下拉被截成「1…」「适.」、导出/安全框折两行。
+          '[&>*]:shrink-0',
         )} role="toolbar" aria-label="预览控制">
           <WorkbenchIconButton
             className={cn(
@@ -427,7 +429,7 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
           <WorkbenchButton
             className={cn(
               'workbench-preview-player__export-button',
-              'h-7 min-w-[92px] px-3 border border-transparent rounded-full',
+              'h-7 px-3 border border-transparent rounded-full whitespace-nowrap',
               'inline-flex items-center justify-center gap-1.5',
               'bg-[var(--nomi-ink)] text-[var(--nomi-paper)] text-[11.5px] font-bold cursor-pointer',
               'hover:bg-[var(--nomi-accent)] hover:text-[var(--nomi-paper)]',
@@ -444,7 +446,7 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
           <WorkbenchButton
             className={cn(
               'workbench-preview-player__mode',
-              'h-6 min-w-[48px] px-2.5 border border-transparent rounded-full',
+              'h-7 px-3 border border-transparent rounded-full whitespace-nowrap',
               'bg-transparent text-[var(--workbench-muted)] text-[11.5px] font-semibold cursor-pointer',
               safeAreaVisible && 'bg-[var(--workbench-accent)] text-[var(--nomi-paper)]',
               !safeAreaVisible && 'hover:border-[var(--workbench-border-soft)] hover:bg-[var(--workbench-hover)] hover:text-[var(--workbench-ink)]',

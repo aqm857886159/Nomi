@@ -26,7 +26,7 @@ import AgentPlanCard, { summarizeAgentPlan } from './AgentPlanCard'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { AiReplyActionButton } from '../../ai/AiReplyActionButton'
 import { handleAiComposerKeyDown } from '../../ai/aiComposerKeyboard'
-import { openWorkbenchModelIntegration, WorkbenchAiHeaderActions } from '../../ai/WorkbenchAiHeaderActions'
+import { WorkbenchAiHeaderActions } from '../../ai/WorkbenchAiHeaderActions'
 import AssistantModelPicker from '../../ai/AssistantModelPicker'
 import { AssistantToolsFold } from '../../ai/AssistantToolsFold'
 
@@ -336,7 +336,9 @@ export default function CanvasAssistantPanel({
     <aside
       className={cn(
         'generation-canvas-v2-assistant',
-        'grid grid-rows-[auto_auto_minmax(0,1fr)_auto] w-[340px] h-full',
+        // flexbox 而非 grid-rows-[…minmax(0,1fr)…] 任意值——后者在本环境解析异常，
+        // 把工具条行撑成 145px 留出 ~120px 空白（用户反馈"上面空这么大"的真凶）。
+        'flex flex-col w-[340px] h-full',
         'max-h-none min-w-0 min-h-0 overflow-hidden',
         'border-0 rounded-none bg-nomi-paper shadow-none',
         'max-[900px]:w-[min(340px,calc(100vw-28px))]',
@@ -366,7 +368,6 @@ export default function CanvasAssistantPanel({
               'p-0 border-0 rounded-nomi-sm bg-transparent text-nomi-ink-60 cursor-pointer',
               'hover:bg-nomi-ink-05 hover:text-nomi-ink',
             )}
-            onModelIntegration={openWorkbenchModelIntegration}
             onNewConversation={handleNewConversation}
           />
           <WorkbenchIconButton
@@ -382,7 +383,7 @@ export default function CanvasAssistantPanel({
         </div>
       </header>
       <AssistantToolsFold tools={['读画布', '建节点', '连边', '设提示词', '删节点', '生成图/视频', '送时间轴']} />
-      <div className={cn('flex flex-col gap-3 min-h-0 overflow-auto p-4')}>
+      <div className={cn('flex flex-1 flex-col gap-3 min-h-0 overflow-auto p-4')}>
         {messages.length === 0 && pendingToolCalls.length === 0 ? (
           <div className={cn(
             'flex flex-1 flex-col items-center justify-center gap-[10px]',

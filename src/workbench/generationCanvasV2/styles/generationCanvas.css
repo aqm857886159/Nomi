@@ -265,27 +265,9 @@
   transform: scale(1.08);
 }
 
-.generation-canvas-v2-assistant {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  width: 340px;
-  height: 100%;
-  max-height: none;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  border: 0;
-  border-radius: 0;
-  background: var(--nomi-paper);
-  box-shadow: none;
-}
-
-.generation-canvas-v2-assistant[data-collapsed='true'] {
-  display: block;
-  width: auto;
-  height: auto;
-  border-radius: 999px;
-}
+/* 布局/折叠态已迁到组件 Tailwind className（flex flex-col / data-collapsed 分支），
+   旧的 display:grid + grid-template-rows:auto minmax(0,1fr) auto 是给 3 子布局写的，
+   4 子（头/工具条/消息/composer）后工具条落进 1fr 行吃掉 ~120px 空白——删旧（R1/R10）。 */
 
 .generation-canvas-v2-assistant__launcher {
   display: inline-flex;
@@ -560,12 +542,4 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 900px) {
-  .generation-canvas-v2-assistant {
-    width: min(340px, calc(100vw - 28px));
-    max-height: calc(100vh - var(--workbench-topbar-height) - var(--workbench-timeline-height) - 32px);
-    border: 1px solid var(--nomi-line);
-    border-radius: var(--nomi-radius);
-    box-shadow: var(--nomi-shadow-lg);
-  }
-}
+/* 窄屏响应也已迁到组件 max-[900px]:* Tailwind className（逐项等价），删旧 media（R10）。 */

@@ -1,4 +1,5 @@
 import React from 'react'
+import { IconCategory, IconFolder } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { type ProjectCategory } from '../project/projectCategories'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -46,8 +47,8 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
       </div>
       {collapsed ? (
         <div className="flex flex-col items-center gap-1 py-2">
-          <button type="button" onClick={() => { setTab('categories'); toggle() }} className="w-9 h-8 rounded text-[11px] text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-bg" aria-label="展开分类面板">类</button>
-          <button type="button" onClick={() => { setTab('files'); toggle() }} className="w-9 h-8 rounded text-[11px] text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-bg" aria-label="展开文件面板">文</button>
+          <button type="button" onClick={() => { setTab('categories'); toggle() }} className="w-9 h-8 grid place-items-center rounded text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-bg" aria-label="展开分类面板" title="分类"><IconCategory size={16} stroke={1.5} /></button>
+          <button type="button" onClick={() => { setTab('files'); toggle() }} className="w-9 h-8 grid place-items-center rounded text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-bg" aria-label="展开文件面板" title="文件"><IconFolder size={16} stroke={1.5} /></button>
         </div>
       ) : tab === 'files' ? (
         <WorkspaceFileExplorerPanel projectId={projectId} />
