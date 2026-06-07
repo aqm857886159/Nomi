@@ -11,6 +11,11 @@
 > **~20 家供应商，坍缩成 3-4 种 transport 形状。用一张「声明式 Transport 描述符」(带一组形状开关) 能表达 ~95%；
 > 真正逃不掉的硬边缘只有 3 处（JWT 签名 / 二段下载 / base64 编码），用枚举开关 + 一个 token 钩子就能收编。**
 > 所以"通用方法" = **描述符 schema 当唯一抽象**；"方便" = 这张描述符可由 ①内置预设 ②社区导入包 ③AI 读文档生成 ④手填 任一方式填出来——同一张表，四种来源。
+>
+> **✅ 已实测验证（2026-06-07 spike，`tests/transport-spike/`）**：写了一个描述符解释器 + 6 家真实描述符
+> （SiliconFlow/OpenAI=images-sync，OpenRouter=chat-modalities，Replicate/fal/kie=async-task），**用假 key 打真实端点**——
+> **6/6 全部到达供应商、被假 key 拒（401）**= 请求形状全部正确。证明"一个解释器 + 纯数据描述符"对 3 种 transport +
+> 3 种认证（bearer / fal 的 `Key` 前缀 / header）都能构造出正确请求。**这不是纸上设计，是跑通的。**
 
 ---
 
@@ -71,8 +76,10 @@
 | **JWT 本地签名鉴权** | 可灵 Kling 官方（AccessKey/SecretKey→JWT） | `auth:"jwt"` 留一个 token 生成钩子（唯一需代码）；**或走阿里云百炼代理 → 退化成普通 Bearer**，钩子都省了 |
 | **二段下载**（结果 URL 不在 status 响应里） | MiniMax（query→files/retrieve）、Sora（GET /content 二进制） | `poll.downloadStep` 枚举覆盖，仍是声明 |
 | **结果编码各异**（base64-dataurl / 远端 uri / JSON-string 再 parse） | OpenRouter / Veo / kie market | `responsePath.encoding` 枚举覆盖 |
+| **HTTP 永远 200，真实状态码在 body**（spike 实测发现） | kie（`{"code":401,...}`） | 加 `statusInBody.codePath` 开关——解释器读 `body.code` 判成败，不只看 HTTP 状态 |
+| **认证不是 Bearer**（spike 实测发现） | fal（`Authorization: Key <key>`）、可灵 JWT、Google `x-goog-api-key` | `auth` 做成枚举：`bearer`/`key`/`header:<name>`/`jwt(hook)` |
 
-→ 除可灵官方 JWT 需一个钩子外，**全部用枚举开关收编，无需 per-家代码**。
+→ 除可灵官方 JWT 需一个钩子外，**全部用枚举开关收编，无需 per-家代码**（已 spike 验证 6 家）。
 
 ---
 
