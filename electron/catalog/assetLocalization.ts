@@ -112,6 +112,10 @@ const CURATED_ASSET_INGESTION: Record<string, AssetIngestion> = {
     fileNameField: "fileName",
     urlPath: "data.downloadUrl",
   },
+  // apimart:image_urls / first_frame_image 直接收 data:image base64(多数图片模型 + Hailuo 文档明确支持),
+  // 无需独立上传端点 → inline-base64。已知边界:Qwen 改图仅收公网 URL(本地图会失败);VEO 官方建议走
+  // 资产上传 API——这两类的本地素材路径作后续增强(见 docs/plan apimart 计划)。
+  apimart: { strategy: "inline-base64" },
 };
 
 /** 取某 vendor 的吞入策略:优先持久化声明,回退 curated 注册表。 */

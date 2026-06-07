@@ -7,6 +7,14 @@
 
 用户给一个 key，我们把 apimart（和已有的 kie）这两家中转站**预置好的全部图片/视频模型**一键接入。文本模型已处理完，不在本轮范围。Agent Harness 是独立轨道（见 `docs/plan/2026-06-07-agent-harness-hardening-plan.md`），不被本轮阻塞。
 
+## 进度（2026-06-07 实时）
+
+- ✅ **A 轨后端完成**：12 个高频模型（6 图 + 6 视频）全部接入并**用真 key 端到端真测出真媒体**（图 png/jpeg、视频 mp4），结果路径全部命中。两个里程碑已 commit+push（`feat(catalog): apimart 策展接入 P0 …`）。
+- ✅ **B 档案分层**已实现（`vendorParams` + `specializeArchetypeForVendor` + vendorKey 线程化）。共享档案：Seedream/Nano-banana/GPT/Kling 用 vendorParams；结构差异的 Seedance 用独立 apimart 档案（B/A 合理混用）。
+- ✅ **assetIngestion**：apimart = `inline-base64`（编辑/i2v 带本地图可用）。
+- ✅ **推广链接格式确认**：`https://apimart.ai/register?aff=CODE`（R6 对标 Infinite-Canvas 实证）。用户取自己的 `aff` 码即可嵌入。
+- ⏳ **待办**：B 轨前端「一个 key 全通」样张（R8 先行）+ 推广位；视频 i2v 本地素材；Qwen 改图本地图（仅公网 URL）/ VEO 资产上传两类边界增强。
+
 ## 1. 战略转向（R3 决策表 · 为什么撤销「通用接入」）
 
 | 维度 | 原「通用接入」（撤销） | 新「策展两家」（采纳） |
