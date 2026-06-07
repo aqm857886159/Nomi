@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconCursorText, IconFilePlus, IconMovie, IconPlayerStopFilled, IconReplace, IconSend2, IconSparkles } from '@tabler/icons-react'
+import { IconCursorText, IconFilePlus, IconMovie, IconPlayerStopFilled, IconReplace, IconSend2, IconSparkles, IconX } from '@tabler/icons-react'
 import { NomiAILabel, NomiLoadingMark, NomiSelect, WorkbenchButton, WorkbenchIconButton } from '../../design'
 import { NomiMarkdown } from '../common/NomiMarkdown'
 import { cn } from '../../utils/cn'
@@ -67,7 +67,14 @@ function readWorkbenchAiReplyText(response: unknown): string {
   return ''
 }
 
-export default function CreationAiPanel(): JSX.Element {
+type CreationAiPanelProps = {
+  /** Rendered inside the unified app-level dock (C-2): fill the dock; show a
+   * collapse button that asks the dock to collapse. */
+  embedded?: boolean
+  onCollapse?: () => void
+}
+
+export default function CreationAiPanel({ embedded = false, onCollapse }: CreationAiPanelProps = {}): JSX.Element {
   const [sending, setSending] = React.useState(false)
   // Cancel handle for the in-flight agent turn (user "Stop").
   const cancelRef = React.useRef<(() => void) | null>(null)
@@ -267,6 +274,7 @@ export default function CreationAiPanel(): JSX.Element {
         'grid grid-rows-[44px_minmax(0,1fr)_auto_auto]',
         '[grid-template-areas:"header"_"messages"_"error"_"composer"]',
         'min-w-0 min-h-0 overflow-hidden',
+        embedded && 'w-full h-full',
       )}
       aria-label="AI 创作区"
     >
@@ -292,6 +300,18 @@ export default function CreationAiPanel(): JSX.Element {
           onModelIntegration={openWorkbenchModelIntegration}
           onNewConversation={handleNewConversation}
         />
+        {embedded ? (
+          <WorkbenchIconButton
+            className={cn(
+              'min-w-[26px] w-[26px] h-[26px] inline-grid place-items-center shrink-0',
+              'p-0 border-0 rounded-nomi-sm bg-transparent text-nomi-ink-60 cursor-pointer',
+              'hover:bg-nomi-ink-05 hover:text-nomi-ink',
+            )}
+            label="收起 AI"
+            onClick={() => onCollapse?.()}
+            icon={<IconX size={14} />}
+          />
+        ) : null}
       </header>
 
       <div

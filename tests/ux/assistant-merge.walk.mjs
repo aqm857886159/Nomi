@@ -1,6 +1,5 @@
-// C-2 助手合并走查（R13）：开示例项目 → 截生成区助手 → 切创作区截图。
+// C-2 助手合并走查（R13）：验证 app 级统一 dock 跟随 workspaceMode + 折叠/展开。
 // 用法：pnpm run build && node tests/ux/assistant-merge.walk.mjs [label]
-// 截图落 tests/ux/shots/merge-<label>-<step>.png。零额度（不触发真实 AI）。
 import { _electron as electron } from "playwright";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,39 +17,49 @@ const app = await electron.launch({
   env: { ...process.env, NOMI_E2E_SMOKE: "1" },
 });
 const log = (...a) => console.log(" ", ...a);
-async function shot(step) {
-  const p = path.join(SHOTS, `merge-${label}-${step}.png`);
-  await win.screenshot({ path: p });
-  log("shot:", p);
-}
-
 const win = await app.firstWindow();
 await win.waitForLoadState("domcontentloaded");
 await win.waitForTimeout(1500);
+async function shot(step) {
+  const p = path.join(SHOTS, `merge-${label}-${step}.png`);
+  await win.screenshot({ path: p });
+  log("shot:", step);
+}
+async function clickMode(name) {
+  await win.getByRole("button", { name, exact: false }).first().click();
+  await win.waitForTimeout(900);
+}
 
 try {
-  // open example project
   await win.locator('[role="button"]', { hasText: "示例：30 秒产品介绍" }).first().click();
   await win.waitForTimeout(2500);
-  log("opened example project, url:", win.url());
+  log("opened project:", win.url());
 
-  // default mode is generation → screenshot assistant area
-  await shot("01-generation");
+  // generation (default) — dock collapsed → launcher bottom-right
+  await shot("01-gen-collapsed");
+  const launcher = win.getByRole("button", { name: "打开助手", exact: false }).first();
+  log("launcher visible:", await launcher.isVisible().catch(() => false));
+  await launcher.click();
+  await win.waitForTimeout(800);
+  await shot("02-gen-expanded"); // should show 生成 assistant body
 
-  // switch to creation
-  await win.getByRole("button", { name: "创作", exact: false }).first().click();
-  await win.waitForTimeout(1200);
-  await shot("02-creation");
+  // switch to creation while expanded → body swaps to 创作
+  await clickMode("创作");
+  await shot("03-creation-expanded"); // should show 创作 assistant body, full-width editor behind
 
-  // switch to preview
-  await win.getByRole("button", { name: "预览", exact: false }).first().click();
-  await win.waitForTimeout(1000);
-  await shot("03-preview");
+  // preview → dock hidden
+  await clickMode("预览");
+  await shot("04-preview-nodock");
 
-  // back to generation
-  await win.getByRole("button", { name: "生成", exact: false }).first().click();
-  await win.waitForTimeout(1000);
-  await shot("04-generation-again");
+  // back to generation, then collapse via 收起 AI
+  await clickMode("生成");
+  await shot("05-gen-expanded-again");
+  const collapse = win.getByRole("button", { name: "收起 AI", exact: false }).first();
+  if (await collapse.isVisible().catch(() => false)) {
+    await collapse.click();
+    await win.waitForTimeout(600);
+    await shot("06-gen-collapsed-again");
+  }
 
   log("WALK DONE");
 } catch (error) {
