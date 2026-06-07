@@ -8,7 +8,7 @@ import { clearWorkbenchAgentSession } from '../../api/desktopClient'
 import { AiReplyActionButton } from '../ai/AiReplyActionButton'
 import { handleAiComposerKeyDown } from '../ai/aiComposerKeyboard'
 import type { WorkbenchAiMessage } from '../ai/workbenchAiTypes'
-import { openWorkbenchModelIntegration, WorkbenchAiHeaderActions } from '../ai/WorkbenchAiHeaderActions'
+import { WorkbenchAiHeaderActions } from '../ai/WorkbenchAiHeaderActions'
 import { AssistantToolsFold } from '../ai/AssistantToolsFold'
 import { useWorkbenchStore } from '../workbenchStore'
 import { requestStoryboardPlanning } from '../generationCanvasV2/agent/storyboardLauncher'
@@ -294,7 +294,6 @@ export default function CreationAiPanel(): JSX.Element {
               'hover:bg-nomi-ink-05 hover:text-nomi-ink',
               'focus-visible:outline-2 focus-visible:outline-workbench-focus focus-visible:outline-offset-2',
             )}
-            onModelIntegration={openWorkbenchModelIntegration}
             onNewConversation={handleNewConversation}
           />
         </div>
