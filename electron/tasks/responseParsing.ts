@@ -90,10 +90,12 @@ export function taskStatusFromResponse(response: unknown, responseMapping: JsonR
     const values = Array.isArray(sm[status]) ? sm[status] : [];
     if (values.map((item) => String(item).toLowerCase()).includes(fallbackStatus)) return status;
   }
-  if (["queued", "pending"].includes(fallbackStatus)) return "queued";
-  if (["running", "processing", "in_progress"].includes(fallbackStatus)) return "running";
+  // 通用状态词表（供应商无关）。kie 用 waiting/generating/fail，故并入默认 —— 让所有走这套
+  // 动词的供应商无需各自声明 statusMapping（避免每家一份并行映射）。
+  if (["queued", "pending", "waiting", "in_queue", "starting"].includes(fallbackStatus)) return "queued";
+  if (["running", "processing", "in_progress", "generating"].includes(fallbackStatus)) return "running";
   if (["succeeded", "success", "completed", "complete", "done", "stop", "length"].includes(fallbackStatus)) return "succeeded";
-  if (["failed", "error", "timeout", "expired", "canceled", "cancelled"].includes(fallbackStatus)) return "failed";
+  if (["failed", "fail", "error", "timeout", "expired", "canceled", "cancelled"].includes(fallbackStatus)) return "failed";
   if (assetUrls.length > 0) return "succeeded";
   if (isJsonRecord(response) && (response.error || readNestedRecord(response, ["data", "error"]))) return "failed";
   return "queued";

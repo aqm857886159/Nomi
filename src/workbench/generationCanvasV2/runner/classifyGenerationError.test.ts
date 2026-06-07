@@ -17,6 +17,28 @@ describe('classifyGenerationError — 已知分类', () => {
     const r = classifyGenerationError('request failed: ETIMEDOUT')
     expect(r.reason).toBe('网络超时')
   })
+
+  it('余额不足（中文）与限流区分开', () => {
+    const r = classifyGenerationError('Provider request failed (code 402) at kie: 余额不足，请充值')
+    expect(r.reason).toBe('余额不足')
+    expect(r.hint).toMatch(/充值/)
+  })
+
+  it('余额不足（英文 balance）', () => {
+    const r = classifyGenerationError('insufficient balance to perform this request')
+    expect(r.reason).toBe('余额不足')
+  })
+
+  it('OpenAI insufficient_quota 仍归配额（不误判余额）', () => {
+    const r = classifyGenerationError('You exceeded your current quota: insufficient_quota')
+    expect(r.reason).toBe('配额或限流')
+  })
+
+  it('轮询超时归「生成超时」而非「网络超时」', () => {
+    const r = classifyGenerationError('模型任务轮询超时: task-abc123')
+    expect(r.reason).toBe('生成超时')
+    expect(r.hint).not.toMatch(/网络/)
+  })
 })
 
 describe('classifyGenerationError — 未识别兜底（方案 B 改进）', () => {

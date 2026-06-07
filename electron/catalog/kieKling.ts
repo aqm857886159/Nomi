@@ -9,12 +9,9 @@
 
 import type { HttpOperation, ProfileKind } from "./types";
 
-const KIE_STATUS_MAPPING: Record<string, string[]> = {
-  queued: ["waiting", "queued", "pending"],
-  running: ["generating", "processing", "running"],
-  succeeded: ["success", "succeeded", "completed"],
-  failed: ["fail", "failed", "error", "expired"],
-};
+// kie 的状态动词（waiting/generating/success/fail）已并入通用默认归一
+// （electron/tasks/responseParsing.ts taskStatusFromResponse），故本档案与 Seedance/HappyHorse
+// 一致，不再各自声明 statusMapping（避免每家一份并行映射）。
 
 export const KLING_3_QUERY_OP: HttpOperation = {
   method: "GET",
@@ -61,7 +58,6 @@ export const KLING_3_T2V_MAPPING = {
   name: "可灵 3.0 · 文生视频",
   create: KLING_3_CREATE_OP,
   query: KLING_3_QUERY_OP,
-  statusMapping: KIE_STATUS_MAPPING,
 };
 
 export const KLING_3_I2V_MAPPING = {
@@ -71,5 +67,4 @@ export const KLING_3_I2V_MAPPING = {
   name: "可灵 3.0 · 图生视频",
   create: KLING_3_CREATE_OP,
   query: KLING_3_QUERY_OP,
-  statusMapping: KIE_STATUS_MAPPING,
 };

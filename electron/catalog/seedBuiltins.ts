@@ -160,8 +160,9 @@ export function applyBuiltinSeeds(
     { id: SEEDREAM_EDIT_MAPPING_ID, taskKind: SEEDREAM_EDIT_MAPPING.taskKind, modelKey: SEEDREAM_EDIT_MAPPING.modelKey, name: SEEDREAM_EDIT_MAPPING.name, create: SEEDREAM_EDIT_MAPPING.create, query: SEEDREAM_EDIT_MAPPING.query, statusMapping: SEEDREAM_EDIT_MAPPING.statusMapping },
     { id: NANO_BANANA_T2I_MAPPING_ID, taskKind: NANO_BANANA_T2I_MAPPING.taskKind, modelKey: NANO_BANANA_T2I_MAPPING.modelKey, name: NANO_BANANA_T2I_MAPPING.name, create: NANO_BANANA_T2I_MAPPING.create, query: NANO_BANANA_T2I_MAPPING.query, statusMapping: NANO_BANANA_T2I_MAPPING.statusMapping },
     { id: NANO_BANANA_EDIT_MAPPING_ID, taskKind: NANO_BANANA_EDIT_MAPPING.taskKind, modelKey: NANO_BANANA_EDIT_MAPPING.modelKey, name: NANO_BANANA_EDIT_MAPPING.name, create: NANO_BANANA_EDIT_MAPPING.create, query: NANO_BANANA_EDIT_MAPPING.query, statusMapping: NANO_BANANA_EDIT_MAPPING.statusMapping },
-    { id: KLING_3_T2V_MAPPING_ID, taskKind: KLING_3_T2V_MAPPING.taskKind, modelKey: KLING_3_T2V_MAPPING.modelKey, name: KLING_3_T2V_MAPPING.name, create: KLING_3_T2V_MAPPING.create, query: KLING_3_T2V_MAPPING.query, statusMapping: KLING_3_T2V_MAPPING.statusMapping },
-    { id: KLING_3_I2V_MAPPING_ID, taskKind: KLING_3_I2V_MAPPING.taskKind, modelKey: KLING_3_I2V_MAPPING.modelKey, name: KLING_3_I2V_MAPPING.name, create: KLING_3_I2V_MAPPING.create, query: KLING_3_I2V_MAPPING.query, statusMapping: KLING_3_I2V_MAPPING.statusMapping },
+    // Kling 不再带 statusMapping —— kie 动词已并入通用默认归一（responseParsing），与 Seedance/HappyHorse 一致。
+    { id: KLING_3_T2V_MAPPING_ID, taskKind: KLING_3_T2V_MAPPING.taskKind, modelKey: KLING_3_T2V_MAPPING.modelKey, name: KLING_3_T2V_MAPPING.name, create: KLING_3_T2V_MAPPING.create, query: KLING_3_T2V_MAPPING.query },
+    { id: KLING_3_I2V_MAPPING_ID, taskKind: KLING_3_I2V_MAPPING.taskKind, modelKey: KLING_3_I2V_MAPPING.modelKey, name: KLING_3_I2V_MAPPING.name, create: KLING_3_I2V_MAPPING.create, query: KLING_3_I2V_MAPPING.query },
   ];
   for (const c of CURATED_MAPPINGS) {
     const i = mappings.findIndex((m) => m.id === c.id);

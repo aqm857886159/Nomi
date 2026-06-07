@@ -188,8 +188,18 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   if (lower.includes('api key') || lower.includes('apikey') || lower.includes('unauthorized') || lower.includes('401')) {
     return { reason: 'API Key 无效', hint: '请在「模型接入」页检查这个模型的 API Key。', raw }
   }
+  // 余额不足要和限流分开——用户动作不同（充值 vs 等待）。只匹配明确指向余额/欠费的词，
+  // 避免把 OpenAI 的 insufficient_quota（配额）误判成余额。
+  if (raw.includes('余额') || lower.includes('balance') || raw.includes('欠费') || lower.includes('arrears') || lower.includes('402')) {
+    return { reason: '余额不足', hint: '服务商账户余额不足，请到服务商充值后重试，或在「模型接入」换一个模型。', raw }
+  }
   if (lower.includes('quota') || lower.includes('rate limit') || lower.includes('429') || lower.includes('insufficient')) {
     return { reason: '配额或限流', hint: '服务商配额已用尽或触发限流，请稍后重试，或在「模型接入」换一个模型。', raw }
+  }
+  // 我们自己的轮询超时（视频长任务常见）——不是网络问题，任务多半还在服务商侧跑，
+  // 不该归到"网络超时"误导用户去查网络。
+  if (raw.includes('轮询超时') || lower.includes('task poll timeout')) {
+    return { reason: '生成超时', hint: '视频生成较慢，等待超过上限。任务可能仍在进行，请稍后重新生成，或换更快的模型（如 Seedance Fast）。', raw }
   }
   if (lower.includes('timeout') || lower.includes('etimedout') || lower.includes('econnreset') || lower.includes('network')) {
     return { reason: '网络超时', hint: '网络问题，请检查网络后重试。', raw }

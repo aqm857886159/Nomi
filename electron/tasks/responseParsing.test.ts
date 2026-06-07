@@ -85,6 +85,15 @@ describe("taskStatusFromResponse", () => {
     expect(taskStatusFromResponse({ status: "completed" }, null, undefined, [])).toBe("succeeded");
     expect(taskStatusFromResponse({ status: "error" }, null, undefined, [])).toBe("failed");
   });
+  it("understands kie verbs without an explicit statusMapping (waiting/generating/success/fail)", () => {
+    // kie 视频（Seedance/HappyHorse/Kling）不再各自声明 statusMapping，靠默认词表归一。
+    // 响应形如 { data: { state } }，经 response_mapping status:["data.state"] 取值。
+    const m = { status: ["data.state"] };
+    expect(taskStatusFromResponse({ data: { state: "waiting" } }, m, undefined, [])).toBe("queued");
+    expect(taskStatusFromResponse({ data: { state: "generating" } }, m, undefined, [])).toBe("running");
+    expect(taskStatusFromResponse({ data: { state: "success" } }, m, undefined, [])).toBe("succeeded");
+    expect(taskStatusFromResponse({ data: { state: "fail" } }, m, undefined, [])).toBe("failed");
+  });
   it("infers succeeded from presence of assets, failed from error field", () => {
     expect(taskStatusFromResponse({}, null, undefined, ["https://x/a"])).toBe("succeeded");
     expect(taskStatusFromResponse({ error: "boom" }, null, undefined, [])).toBe("failed");

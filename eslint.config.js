@@ -22,6 +22,7 @@ export default tseslint.config(
       'coverage/**',
       'scripts/**',
       'tests/ux/**',
+      'tests/transport-spike/**',
       '**/*.config.{js,ts,mjs,cjs}',
     ],
   },
