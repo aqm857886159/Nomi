@@ -27,7 +27,7 @@ const SCAN_DIRS = ["src", "electron"];
 const ALLOWLIST = {
   "src/workbench/generationCanvasV2/nodes/scene3d/Scene3DFullscreen.tsx": 4588,
   "electron/runtime.ts": 2516,
-  "src/workbench/generationCanvasV2/nodes/BaseGenerationNode.tsx": 1400,
+  "src/workbench/generationCanvasV2/nodes/BaseGenerationNode.tsx": 1399,
   "src/workbench/generationCanvasV2/components/GenerationCanvas.tsx": 1119,
   "src/workbench/generationCanvasV2/store/generationCanvasStore.ts": 1122,
   // NodeParameterControls.tsx 曾 1097 行（巨壳）；C2b 抽出 controls/parameterControlModel.ts +

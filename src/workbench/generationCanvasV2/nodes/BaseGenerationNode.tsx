@@ -736,11 +736,7 @@ function BaseGenerationNodeImpl({
                   : node.categoryId === "audio"
                     ? "audio-strip"
                     : undefined));
-    const isCardKind =
-        renderKind === "character-card" ||
-        renderKind === "scene-card" ||
-        renderKind === "prop-card" ||
-        renderKind === "audio-strip";
+    const isCardKind = ["character-card", "scene-card", "prop-card", "audio-strip"].includes(renderKind as string);
     // C5: 文本节点走专属可编辑 body（TextDocumentNode），像 card 那样脱离图片预览。
     const isTextKind = node.kind === "text";
     const isImageGridSplitNode =
@@ -1034,6 +1030,7 @@ function BaseGenerationNodeImpl({
             node.result?.type === "image" &&
             node.result.url ? (
                 <NodeImageEditToolbar
+                    node={node}
                     splittingGridSize={imageEditing.splittingGridSize}
                     cropMode={imageEditing.cropMode}
                     imageOpBusy={imageEditing.imageOpBusy}
@@ -1043,6 +1040,9 @@ function BaseGenerationNodeImpl({
                     onTransform={(op) => void imageEditing.handleImageTransform(op)}
                 />
             ) : null}
+
+            {/* 视频等无编辑工具条的结果：单独一条「下载」浮条（图片下载已并入上面的编辑工具条）。 */}
+            <NodeResultDownloadButton node={node} selected={selected} />
 
             <header
                 className={cn(
@@ -1103,7 +1103,6 @@ function BaseGenerationNodeImpl({
                         <IconInfoCircle size={14} stroke={1.6} />
                     </button>
                 ) : null}
-                <NodeResultDownloadButton node={node} />
             </header>
 
             <ProvenancePanel
