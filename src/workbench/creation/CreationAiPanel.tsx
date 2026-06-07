@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconCursorText, IconFilePlus, IconMovie, IconPencil, IconPlayerStopFilled, IconReplace, IconSend2, IconSparkles, IconX } from '@tabler/icons-react'
+import { IconCornerDownLeft, IconCursorText, IconFilePlus, IconMovie, IconPencil, IconPlayerStopFilled, IconReplace, IconSend2, IconSparkles, IconX } from '@tabler/icons-react'
 import { NomiLoadingMark, NomiLogoMark, NomiSelect, WorkbenchButton, WorkbenchIconButton } from '../../design'
 import { NomiMarkdown } from '../common/NomiMarkdown'
 import { cn } from '../../utils/cn'
@@ -171,9 +171,9 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     }, 60)
   }, [documentText, selectedText, setDraft, setError, setMessages, setWorkspaceMode])
 
-  const send = React.useCallback(async () => {
+  const send = React.useCallback(async (textOverride?: string) => {
     if (sending) return
-    const userRequest = draft.trim()
+    const userRequest = (textOverride ?? draft).trim()
     if (!userRequest && !selectedText && !documentText) return
     if (STORYBOARD_REQUEST_PATTERN.test(userRequest)) {
       launchStoryboardPlanning(userRequest || '🎬 拆镜头')
@@ -327,17 +327,28 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         aria-live="polite"
       >
         {messages.length === 0 && pendingToolCalls.length === 0 ? (
-          <div className={cn('workbench-creation-ai__empty', 'h-full grid place-content-center justify-items-center')}>
-            <div className="workbench-creation-ai__empty-title">需要一点灵感？</div>
-            <div className="workbench-creation-ai__empty-sub">告诉 AI 你想写什么，它会给你一个开头。</div>
-            <div className="workbench-creation-ai__suggestions">
+          <div className={cn(
+            'flex h-full flex-col items-center justify-center gap-2',
+            'max-w-[240px] mx-auto py-6 px-3 text-center',
+          )}>
+            <div className={cn('text-nomi-ink font-[Fraunces,Inter,serif] text-title font-medium')}>需要一点灵感？</div>
+            <div className={cn('text-nomi-ink-60 text-bodySm leading-relaxed')}>
+              告诉 AI 你想写什么，它会给你一个开头。
+            </div>
+            <div className={cn('flex flex-col gap-1.5 w-full mt-2')}>
               {suggestions.map((suggestion) => (
                 <WorkbenchButton
                   key={suggestion}
-                  className="workbench-creation-ai__suggestion"
-                  onClick={() => setDraft(suggestion)}
+                  className={cn(
+                    'w-full min-h-9 py-2 px-3 border border-transparent rounded-nomi',
+                    'flex items-center justify-between gap-2 text-left font-normal',
+                    'bg-nomi-ink-05 text-nomi-ink-80 cursor-pointer',
+                    'hover:border-nomi-line hover:bg-nomi-paper hover:text-nomi-ink',
+                  )}
+                  onClick={() => void send(suggestion)}
                 >
-                  {suggestion}
+                  <span className={cn('min-w-0')}>{suggestion}</span>
+                  <IconCornerDownLeft size={13} className={cn('shrink-0 text-nomi-ink-40')} />
                 </WorkbenchButton>
               ))}
             </div>

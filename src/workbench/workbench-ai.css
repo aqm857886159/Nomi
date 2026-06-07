@@ -383,7 +383,6 @@
   margin-bottom: 6px;
 }
 
-.workbench-creation-ai__empty,
 .app-ai-chat-dialog.tc-ai-chat .tc-ai-chat__empty-state {
   min-height: 100%;
   max-width: 240px;
@@ -398,47 +397,6 @@
   text-align: center;
 }
 
-.workbench-creation-ai__empty-title {
-  color: var(--nomi-ink);
-  font-family: Fraunces, Inter, serif;
-  font-size: 17px;
-  font-weight: 500;
-}
-
-.workbench-creation-ai__empty-sub {
-  color: var(--nomi-ink-60);
-  font-size: 13px;
-  line-height: 1.55;
-}
-
-.workbench-creation-ai__suggestions {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  margin-top: 8px;
-}
-
-.workbench-creation-ai__suggestion {
-  min-height: 34px;
-  padding: 8px 12px;
-  border: 1px solid transparent;
-  border-radius: var(--nomi-radius);
-  background: var(--nomi-ink-05);
-  color: var(--nomi-ink-80);
-  font: inherit;
-  font-size: 12.5px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.workbench-creation-ai__suggestion:hover {
-  border-color: var(--nomi-line);
-  background: var(--nomi-paper);
-  color: var(--nomi-ink);
-}
-
-.workbench-creation-ai__empty svg,
 .app-ai-chat-dialog.tc-ai-chat .tc-ai-chat__empty-state-orb {
   width: 36px;
   height: 36px;

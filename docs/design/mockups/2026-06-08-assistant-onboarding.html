@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<title>助手 onboarding 重设计 — 对齐真实能力</title>
+<style>
+  :root{
+    --nomi-bg:#f4f1ea; --nomi-paper:#fffefb; --nomi-ink:#22201b;
+    --nomi-ink-80:#3f3c34; --nomi-ink-60:#6b675c; --nomi-ink-40:#9b968a;
+    --nomi-ink-20:#d6d2c7; --nomi-ink-10:#e8e4da; --nomi-ink-05:#f1ede4;
+    --nomi-line:#e0dccf; --nomi-accent:#b4502a; --nomi-accent-soft:#f3e6df;
+    --r:8px; --r-sm:6px;
+    /* type scale tokens */
+    --t-micro:11px; --t-caption:12px; --t-bodySm:13px; --t-body:14px; --t-title:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--nomi-bg);font-family:Inter,system-ui,"PingFang SC",sans-serif;color:var(--nomi-ink);padding:32px;line-height:1.5}
+  h1{font-size:22px;font-weight:600;margin-bottom:4px}
+  .lead{color:var(--nomi-ink-60);font-size:var(--t-bodySm);margin-bottom:24px;max-width:760px}
+  .grid{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+  .col{display:flex;flex-direction:column;gap:8px}
+  .col h2{font-size:var(--t-bodySm);font-weight:600;color:var(--nomi-ink-60)}
+  .badge{display:inline-block;font-size:var(--t-micro);padding:2px 8px;border-radius:999px;font-weight:600}
+  .bad{background:#fbe4dd;color:#9a3412}
+  .good{background:#e3f0e4;color:#2f6b35}
+
+  /* panel shell — 344px right rail */
+  .panel{width:344px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 6px 18px rgba(0,0,0,.06)}
+  .hdr{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--nomi-line)}
+  .logo{width:18px;height:18px;border-radius:5px;background:var(--nomi-ink);color:var(--nomi-paper);display:grid;place-items:center;font-size:11px;font-weight:700}
+  .hdr .title{font-size:var(--t-bodySm);font-weight:600}
+  .hdr .ctx{margin-left:auto;font-size:var(--t-micro);color:var(--nomi-ink-40);display:inline-flex;gap:4px;align-items:center}
+  .tools{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--nomi-line);font-size:var(--t-caption);color:var(--nomi-ink-60)}
+  .tools .chip{background:var(--nomi-ink-05);border-radius:var(--r-sm);padding:1px 7px;font-size:var(--t-micro);color:var(--nomi-ink-60)}
+  .tools .fake{outline:1px dashed #c0392b;color:#9a3412}
+
+  .empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;padding:28px 16px;min-height:340px}
+  .empty .etitle{font-family:"Fraunces",serif;font-size:var(--t-title);font-weight:500}
+  .empty .esub{color:var(--nomi-ink-60);font-size:var(--t-bodySm);line-height:1.55;max-width:260px}
+  .sugs{display:flex;flex-direction:column;gap:6px;width:100%;margin-top:8px}
+  .sug{width:100%;min-height:36px;display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid transparent;border-radius:var(--r);background:var(--nomi-ink-05);color:var(--nomi-ink-80);font-size:var(--t-bodySm);text-align:left;cursor:pointer;white-space:nowrap}
+  .sug:hover{border-color:var(--nomi-line);background:var(--nomi-paper);color:var(--nomi-ink)}
+  .sug .ic{color:var(--nomi-ink-40);font-size:13px;width:16px;text-align:center}
+  .sug.auto::after{content:"↵";margin-left:auto;color:var(--nomi-ink-40);font-size:var(--t-caption)}
+  .powerrow{display:flex;gap:6px;width:100%;margin-top:2px}
+  .powerrow.keep{margin-top:0;margin-bottom:8px}
+  .power{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;min-height:32px;border:1px solid var(--nomi-line);border-radius:var(--r);background:var(--nomi-paper);font-size:var(--t-caption);color:var(--nomi-ink-80);cursor:pointer}
+  .power:hover{background:var(--nomi-ink-05)}
+
+  .composer{padding:10px 12px;border-top:1px solid var(--nomi-line)}
+  .composer .box{border:1px solid var(--nomi-line);border-radius:var(--r);padding:8px 10px;font-size:var(--t-bodySm);color:var(--nomi-ink-40);min-height:38px}
+  .footer{display:flex;gap:8px;margin-top:8px;align-items:center}
+  .pill{font-size:var(--t-caption);border:1px solid var(--nomi-line);border-radius:999px;padding:3px 10px;color:var(--nomi-ink-60)}
+  .send{margin-left:auto;width:30px;height:30px;border-radius:8px;background:var(--nomi-ink-10);display:grid;place-items:center;color:var(--nomi-ink-40)}
+
+  .note{font-size:var(--t-caption);color:var(--nomi-ink-60);max-width:344px;margin-top:4px}
+  .note b{color:var(--nomi-ink)}
+  hr{border:0;border-top:1px solid var(--nomi-line);margin:28px 0}
+</style>
+</head>
+<body>
+
+<h1>助手 onboarding 重设计 · 对齐真实能力</h1>
+<p class="lead">方向：把 onboarding 的承诺收回到 agent 真正能做的事。生成区助手只能<b>建节点 / 写提示词 / 连边 / 删节点 / 读画布</b>（不出图、不碰时间轴），原来的「改色调/加帧/换风格」是空头支票。两个面板的建议都改成<b>点一下直接发送并真的产生结果</b>，不再只往输入框塞字。</p>
+
+<!-- ============ 生成区 ============ -->
+<h2 style="font-size:15px;margin-bottom:12px">① 生成画布助手（截图里那个）</h2>
+<div class="grid">
+
+  <!-- BEFORE -->
+  <div class="col">
+    <h2><span class="badge bad">现状</span> 承诺做不到的事</h2>
+    <div class="panel">
+      <div class="hdr"><div class="logo">N</div><span class="title">助手</span><span class="ctx">✦ 生成</span></div>
+      <div class="tools">🔧 <span class="chip">读画布</span><span class="chip">建节点</span><span class="chip">连边</span><span class="chip">设提示词</span><span class="chip">删节点</span><span class="chip fake">生成图/视频</span><span class="chip fake">送时间轴</span><span style="margin-left:auto">7 个工具 ⌄</span></div>
+      <div class="empty">
+        <div class="etitle">需要 AI 帮忙？</div>
+        <div class="esub">告诉 AI 你想怎么改，它会写入待确认节点。</div>
+        <div class="sugs">
+          <button class="sug">把第一帧改成黄昏色调</button>
+          <button class="sug">在末尾追加一帧</button>
+          <button class="sug">整体风格统一为水彩</button>
+        </div>
+      </div>
+      <div class="composer"><div class="box">输入你的设计需求...</div><div class="footer"><span class="pill">模式 Agent ▾</span><span class="pill">GPT-5.5 ▾</span><span class="send">➤</span></div></div>
+    </div>
+    <p class="note">❌ 三条全做不到（没有「帧」概念、不会重出图、不能批量改风格）<br>❌ 点了只填输入框，啥也没发生<br>❌ 「7 个工具」里 2 个是假的（虚线标出）</p>
+  </div>
+
+  <!-- AFTER -->
+  <div class="col">
+    <h2><span class="badge good">提案</span> 只承诺真能做的</h2>
+    <div class="panel">
+      <div class="hdr"><div class="logo">N</div><span class="title">助手</span><span class="ctx">✦ 生成</span></div>
+      <div class="tools">🔧 <span class="chip">读画布</span><span class="chip">建节点</span><span class="chip">设提示词</span><span class="chip">连边</span><span class="chip">删节点</span><span style="margin-left:auto">5 个工具 ⌄</span></div>
+      <div class="empty">
+        <div class="etitle">我帮你搭画布</div>
+        <div class="esub">铺镜头、改提示词、连节点都交给我；<br>出图按节点上的「生成」键。</div>
+        <div class="sugs">
+          <button class="sug auto"><span class="ic">▦</span>列 3 个镜头铺到画布</button>
+          <button class="sug auto"><span class="ic">✎</span>给选中的镜头写一版提示词</button>
+          <button class="sug auto"><span class="ic">⇢</span>把镜头按先后顺序连起来</button>
+        </div>
+      </div>
+      <div class="composer"><div class="box">告诉我画布上想怎么搭...</div><div class="footer"><span class="pill">模式 Agent ▾</span><span class="pill">GPT-5.5 ▾</span><span class="send">➤</span></div></div>
+    </div>
+    <p class="note">✅ 三条都是 agent 真工具能完成的动作<br>✅ 点一下=直接发送（带 ↵ 标记），不再只填字<br>✅ 工具列表回到真实的 5 个；副标题讲清「我不出图」</p>
+  </div>
+</div>
+
+<hr/>
+
+<!-- ============ 创作区 ============ -->
+<h2 style="font-size:15px;margin-bottom:12px">② 创作助手（本来就比较诚实，轻调）</h2>
+<div class="grid">
+
+  <div class="col">
+    <h2><span class="badge bad">现状</span></h2>
+    <div class="panel">
+      <div class="hdr"><div class="logo">N</div><span class="title">助手</span><span class="ctx">✎ 创作</span></div>
+      <div class="tools">🔧 <span class="chip">读全文</span><span class="chip">读选区</span><span class="chip">插入到光标</span><span class="chip">替换选区</span><span class="chip">追加到文末</span><span style="margin-left:auto">5 个工具 ⌄</span></div>
+      <div class="empty">
+        <div class="etitle">需要一点灵感？</div>
+        <div class="esub">告诉 AI 你想写什么，它会给你一个开头。</div>
+        <div class="sugs">
+          <button class="sug">给我一个开头</button>
+          <button class="sug">把这段写得更有画面感</button>
+          <button class="sug">梳理成分镜脚本</button>
+        </div>
+      </div>
+      <div class="composer"><div class="box">问点什么...</div><div class="footer"><span class="pill">写故事 ▾</span><span class="send">➤</span></div></div>
+    </div>
+    <p class="note">✅ 建议本身能做到（文本工具）<br>❌ 但点了同样只填输入框<br>❌ 真正的「🎬 拆镜头 / 🎭 立角色卡」藏在输入框那排，新手看不到</p>
+  </div>
+
+  <div class="col">
+    <h2><span class="badge good">提案</span></h2>
+    <div class="panel">
+      <div class="hdr"><div class="logo">N</div><span class="title">助手</span><span class="ctx">✎ 创作</span></div>
+      <div class="tools">🔧 <span class="chip">读全文</span><span class="chip">读选区</span><span class="chip">插入到光标</span><span class="chip">替换选区</span><span class="chip">追加到文末</span><span style="margin-left:auto">5 个工具 ⌄</span></div>
+      <div class="empty">
+        <div class="etitle">需要一点灵感？</div>
+        <div class="esub">告诉 AI 你想写什么，它会给你一个开头。</div>
+        <div class="sugs">
+          <button class="sug auto">给我一个开头</button>
+          <button class="sug auto">把这段写得更有画面感</button>
+          <button class="sug auto">梳理成分镜脚本</button>
+        </div>
+      </div>
+      <div class="composer">
+        <div class="powerrow keep"><button class="power">🎬 拆镜头</button><button class="power">🎭 立角色卡</button></div>
+        <div class="box">问点什么...</div>
+        <div class="footer"><span class="pill">写故事 ▾</span><span class="send">➤</span></div>
+      </div>
+    </div>
+    <p class="note">✅ 建议点一下直接发送（3 条保留）<br>✅ 拆镜头/立角色卡留在<b>底部输入区上方</b>——常驻，进了对话也还在<br>✅ 工具列表本来就真实，不动</p>
+  </div>
+</div>
+
+<hr/>
+<p class="note" style="max-width:760px">附：顺手修两个 token 违规（现状代码里的 <code>text-[17px]</code>→<code>text-title</code>、<code>text-[12.5px]</code>→<code>text-bodySm</code>、<code>min-h-[34px]</code>→<code>min-h-9</code>、<code>gap-[10px]</code>→<code>gap-2</code>），符合设计系统 token-only。</p>
+
+</body>
+</html>

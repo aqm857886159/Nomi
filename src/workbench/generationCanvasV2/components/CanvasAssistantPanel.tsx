@@ -1,4 +1,4 @@
-import { IconPlayerStopFilled, IconSend2, IconSparkles, IconX } from '@tabler/icons-react'
+import { IconCornerDownLeft, IconPlayerStopFilled, IconSend2, IconSparkles, IconX } from '@tabler/icons-react'
 import { NomiAILabel, NomiLogoMark, NomiSelect, WorkbenchButton, WorkbenchIconButton } from '../../../design'
 import React from 'react'
 import { cn } from '../../../utils/cn'
@@ -382,29 +382,31 @@ export default function CanvasAssistantPanel({
           />
         </div>
       </header>
-      <AssistantToolsFold tools={['读画布', '建节点', '连边', '设提示词', '删节点', '生成图/视频', '送时间轴']} />
+      <AssistantToolsFold tools={['读画布', '建节点', '设提示词', '连边', '删节点']} />
       <div className={cn('flex flex-1 flex-col gap-3 min-h-0 overflow-auto p-4')}>
         {messages.length === 0 && pendingToolCalls.length === 0 ? (
           <div className={cn(
-            'flex flex-1 flex-col items-center justify-center gap-[10px]',
+            'flex flex-1 flex-col items-center justify-center gap-2',
             'max-w-[240px] mx-auto py-6 px-3 text-center',
           )}>
-            <div className={cn('text-nomi-ink font-[Fraunces,Inter,serif] text-[17px] font-medium')}>需要 AI 帮忙？</div>
-            <div className={cn('text-nomi-ink-60 text-[13px] leading-[1.55]')}>
-              告诉 AI 你想怎么改，它会写入待确认节点。
+            <div className={cn('text-nomi-ink font-[Fraunces,Inter,serif] text-title font-medium')}>我帮你搭画布</div>
+            <div className={cn('text-nomi-ink-60 text-bodySm leading-relaxed')}>
+              铺镜头、改提示词、连节点都交给我；出图按节点上的「生成」键。
             </div>
-            <div className={cn('flex flex-col gap-[6px] w-full mt-2')}>
-              {['把第一帧改成黄昏色调', '在末尾追加一帧', '整体风格统一为水彩'].map((suggestion) => (
+            <div className={cn('flex flex-col gap-1.5 w-full mt-2')}>
+              {['列 3 个镜头铺到画布', '给选中的镜头写一版提示词', '把镜头按先后顺序连起来'].map((suggestion) => (
                 <WorkbenchButton
                   key={suggestion}
                   className={cn(
-                    'min-h-[34px] py-2 px-3 border border-transparent rounded-nomi',
-                    'bg-nomi-ink-05 text-nomi-ink-80 font-[inherit] text-[12.5px] text-left cursor-pointer',
+                    'w-full min-h-9 py-2 px-3 border border-transparent rounded-nomi',
+                    'flex items-center justify-between gap-2 text-left font-normal',
+                    'bg-nomi-ink-05 text-nomi-ink-80 cursor-pointer',
                     'hover:border-nomi-line hover:bg-nomi-paper hover:text-nomi-ink',
                   )}
-                  onClick={() => setDraft(suggestion)}
+                  onClick={() => submitAgentMessage(suggestion)}
                 >
-                  {suggestion}
+                  <span className={cn('min-w-0')}>{suggestion}</span>
+                  <IconCornerDownLeft size={13} className={cn('shrink-0 text-nomi-ink-40')} />
                 </WorkbenchButton>
               ))}
             </div>
@@ -515,7 +517,7 @@ export default function CanvasAssistantPanel({
           )}
           aria-label="给生成助手发送消息"
           rows={1}
-          placeholder="输入你的设计需求..."
+          placeholder="告诉我画布上想怎么搭..."
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => handleAiComposerKeyDown(event, () => {
