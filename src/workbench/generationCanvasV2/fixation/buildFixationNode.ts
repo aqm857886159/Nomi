@@ -16,14 +16,17 @@ export type FixationNodeSpec = {
   position: { x: number; y: number }
 }
 
-const GPT_IMAGE_2_MODEL_META: Record<string, unknown> = {
+// 源节点无模型（如上传图）时的回退：只声明**模型身份**（GPT Image 2 图生图档案），
+// 不钉供应商（P4 通用第一）。modelKey 命中 gpt-image-2 档案的 identifierPatterns，运行咽喉
+// resolveExecutableNodeFromCatalog / 检查器 remap 会按「已连接供应商」把 vendor 填成 kie 或 apimart，
+// 不再硬编码 kie（否则 kie 断开就抛 API key missing: kie）。
+const GPT_IMAGE_2_FALLBACK_MODEL_META: Record<string, unknown> = {
   modelKey: 'gpt-image-2-image-to-image',
   modelAlias: 'gpt-image-2-image-to-image',
-  modelVendor: 'kie',
-  vendor: 'kie',
   modelLabel: 'GPT Image 2 · 图生图',
   imageModel: 'gpt-image-2-image-to-image',
-  imageModelVendor: 'kie',
+  // 带参考图 → 默认落 i2i 模式（档案 defaultModeId 是 t2i，定妆是改图所以显式 i2i）。
+  archetype: { id: 'gpt-image-2', modeId: 'i2i' },
 }
 
 /** 算出定妆新节点的规格；源节点无图则返回 null。 */
@@ -48,7 +51,7 @@ export function buildFixationNodeSpec(node: GenerationCanvasNode): FixationNodeS
         imageModel: srcMeta.imageModel,
         imageModelVendor: srcMeta.imageModelVendor,
       }
-    : GPT_IMAGE_2_MODEL_META
+    : GPT_IMAGE_2_FALLBACK_MODEL_META
   return {
     title: `${name}·定妆`,
     prompt,
