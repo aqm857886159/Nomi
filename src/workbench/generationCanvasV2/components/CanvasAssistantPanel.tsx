@@ -78,6 +78,9 @@ function createMessageId(): string {
   return `assistant-message-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
+// 文字里像「要动画布却没动」的意图特征——配合零工具发射判定「只说不做」，提示换模型。
+const AGENT_ACTION_INTENT = /创建|生成|添加|新增|修改|删除|替换|连接|拆镜头|分镜|节点|我将|我会|我来|计划|操作/
+
 export default function CanvasAssistantPanel({
   defaultCollapsed = false,
   onCollapsedChange,
@@ -166,6 +169,9 @@ export default function CanvasAssistantPanel({
     setBusy(true)
     void (async () => {
       let toolActionCount = 0
+      // 本轮模型是否发出过任何 tool 调用（含只读）。0 = 模型只回文字、没触发任何操作——
+      // 自动选模型撞到不会工具调用的模型时的典型「只说不做」（2026-06-07 走查 P0）。
+      let toolEmittedCount = 0
       try {
         const result = await sendGenerationCanvasAgentMessage({
           message: text,
@@ -180,6 +186,7 @@ export default function CanvasAssistantPanel({
             cancelRef.current = cancel
           },
           onToolCall: (event: ToolCallEvent) => {
+            toolEmittedCount += 1
             // Read-only tools auto-execute without user interaction. Wrap in
             // try/catch so a read failure can't strand the agent loop waiting
             // for a confirm that never comes.
@@ -225,6 +232,12 @@ export default function CanvasAssistantPanel({
           updateMessage(
             assistantMessageId,
             `${finalText ? finalText + '\n\n' : ''}已执行 ${toolActionCount} 个工具调用。`,
+          )
+        } else if (toolEmittedCount === 0 && mode === 'agent' && AGENT_ACTION_INTENT.test(finalText)) {
+          // 模型只回文字、没发任何工具调用，但话里像是要操作 → 多半是当前模型不擅长工具调用。
+          updateMessage(
+            assistantMessageId,
+            `${finalText}\n\n⚠️ 这一轮 AI 只回复了文字、没有真正动画布。如果你是想生成或修改节点，多半是当前模型不擅长工具调用——点上方「模型」换一个（推荐 GPT / Claude / DeepSeek 系）再试一次。`,
           )
         } else {
           updateMessage(assistantMessageId, finalText || '已完成。')

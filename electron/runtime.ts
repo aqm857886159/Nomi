@@ -2201,11 +2201,23 @@ export async function fetchTaskResult(payload: unknown): Promise<{ vendor: strin
   };
 }
 
+// Agent（工具调用）模式下不适合做主控的 text 模型特征——vision/preview/audio 等
+// 往往不可靠地发 tool_use，自动选模型撞上就「只说不做」（2026-06-07 真机走查 P0）。
+// 无用户偏好时把它们降权（仍保留作回退），让通用对话模型优先。
+const AUTO_TEXT_MODEL_DEPRIORITIZE = /vision|preview|audio|tts|whisper|embed|rerank|ocr|search|thinking/i;
+function autoTextModelPenalty(model: Model): number {
+  const id = `${model.modelKey} ${model.modelAlias ?? ""}`;
+  return AUTO_TEXT_MODEL_DEPRIORITIZE.test(id) ? 1 : 0;
+}
+
 function chooseTextModel(prefModelKey?: string): { vendor: Vendor; model: Model; apiKey: string } {
   const state = readCatalog();
   const texts = state.models.filter((item) => item.kind === "text" && item.enabled);
   // 用户在助手面板选的模型排第一（仍保留其余作回退，避免选了不可用的就彻底没法跑）。
-  const ordered = prefModelKey ? [...texts].sort((a, b) => (a.modelKey === prefModelKey ? -1 : 0) - (b.modelKey === prefModelKey ? -1 : 0)) : texts;
+  // 无偏好时不再盲选第一个：按「是否像通用对话模型」稳定排序，vision/preview 等降到末尾。
+  const ordered = prefModelKey
+    ? [...texts].sort((a, b) => (a.modelKey === prefModelKey ? -1 : 0) - (b.modelKey === prefModelKey ? -1 : 0))
+    : [...texts].sort((a, b) => autoTextModelPenalty(a) - autoTextModelPenalty(b));
   for (const model of ordered) {
     const vendor = state.vendors.find((item) => item.key === model.vendorKey && item.enabled);
     const apiKey = decryptApiKeyRecord(state.apiKeysByVendor[model.vendorKey]);
