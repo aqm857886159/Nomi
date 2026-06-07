@@ -16,6 +16,13 @@ const ASPECT_PARAM: ModelParameterControl = {
   defaultValue: "auto",
 };
 
+// apimart 专属 params（B 分层）：apimart GPT-Image-2 用扁平 size（同比例集）+ resolution(1k/2k/4k)。
+const opt = (values: string[]): ModelParameterControl["options"] => values.map((value) => ({ value, label: value }));
+const APIMART_PARAMS: ModelParameterControl[] = [
+  { key: "size", label: "比例", type: "select", options: ASPECT_RATIOS.map((value) => ({ value, label: value })), defaultValue: "auto" },
+  { key: "resolution", label: "清晰度", type: "select", options: opt(["1k", "2k", "4k"]), defaultValue: "1k" },
+];
+
 export const GPT_IMAGE_2_ARCHETYPE: ModelArchetype = {
   id: "gpt-image-2",
   family: "gpt-image",
@@ -36,6 +43,7 @@ export const GPT_IMAGE_2_ARCHETYPE: ModelArchetype = {
       transportTaskKind: "text_to_image",
       slots: [],
       params: [ASPECT_PARAM],
+      vendorParams: { apimart: APIMART_PARAMS },
     },
     {
       id: "i2i",
@@ -47,6 +55,7 @@ export const GPT_IMAGE_2_ARCHETYPE: ModelArchetype = {
       transportTaskKind: "image_edit",
       slots: [{ kind: "image_ref", label: "输入图", min: 1, max: 4, inputKey: "input_urls" }],
       params: [ASPECT_PARAM],
+      vendorParams: { apimart: APIMART_PARAMS },
     },
   ],
 };

@@ -90,7 +90,7 @@ function chooseDefaultModelOption(
 }
 
 function resolveArchetypeForOption(option: ModelOption | null) {
-  return resolveArchetypeForModel({ modelKey: option?.modelKey, modelAlias: option?.modelAlias, meta: option?.meta })
+  return resolveArchetypeForModel({ modelKey: option?.modelKey, modelAlias: option?.modelAlias, vendorKey: option?.vendor, meta: option?.meta })
 }
 
 /**

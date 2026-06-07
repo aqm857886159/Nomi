@@ -57,8 +57,16 @@ export type ArchetypeMode = {
   vendorTerm: string;
   hint: string;
   slots: ArchetypeReferenceSlot[];
-  /** 标量参数：复用现有控件类型（规则 1，不另造）。 */
+  /** 标量参数：复用现有控件类型（规则 1，不另造）。供应商无关的**缺省**集；某供应商字段枚举不同时用 vendorParams 覆盖。 */
   params: ModelParameterControl[];
+  /**
+   * B 档案分层（用户拍板 2026-06-07）：同一模型身份在不同供应商下**标量参数枚举不同**时，
+   * 按 vendorKey 覆盖 `params`。例：Seedream 文生图在 kie 是 quality(basic/high)，在 apimart 是
+   * resolution(2K/4K) —— 字段名+取值都不同，模板引擎只透传不翻译，故 UI 控件本身要按供应商不同。
+   * 缺省（绝大多数模式两家一致或只一家有）不写；解析时 resolveArchetypeForModel 按模型 vendorKey 特化。
+   * **身份与能力形状（id/family/label/modes/slots/intent）仍供应商无关**——只 params 这一层分供应商（P4）。
+   */
+  vendorParams?: Record<string, ModelParameterControl[]>;
   promptRequired: boolean;
   /**
    * 该模式发请求时用的 model enum，覆盖 catalog 行的 modelKey（评审 M3）。HappyHorse 把 4 个端点

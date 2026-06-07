@@ -23,6 +23,13 @@ const EDIT_PARAMS: ModelParameterControl[] = [
   { key: "max_images", label: "出图数", type: "number", options: [], min: 1, max: 6, defaultValue: 1 },
 ];
 
+// apimart 专属 params（B 档案分层）：apimart Seedream 用扁平 size/resolution（与 kie 的 aspect_ratio/quality、
+// image_size/image_resolution 字段名+取值都不同）。文生图/改图同一组（apimart 改图只多 image_urls 槽，槽不变）。
+const APIMART_PARAMS: ModelParameterControl[] = [
+  { key: "size", label: "比例", type: "select", options: opt(["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9", "9:21", "auto"]), defaultValue: "1:1" },
+  { key: "resolution", label: "清晰度", type: "select", options: opt(["2K", "4K"]), defaultValue: "2K" },
+];
+
 export const SEEDREAM_ARCHETYPE: ModelArchetype = {
   id: "seedream",
   family: "seedream",
@@ -42,6 +49,7 @@ export const SEEDREAM_ARCHETYPE: ModelArchetype = {
       transportTaskKind: "text_to_image",
       slots: [],
       params: T2I_PARAMS,
+      vendorParams: { apimart: APIMART_PARAMS },
     },
     {
       id: "edit",
@@ -53,6 +61,7 @@ export const SEEDREAM_ARCHETYPE: ModelArchetype = {
       transportTaskKind: "image_edit",
       slots: [{ kind: "image_ref", label: "输入图", min: 1, max: 10, inputKey: "image_urls" }],
       params: EDIT_PARAMS,
+      vendorParams: { apimart: APIMART_PARAMS },
     },
   ],
 };

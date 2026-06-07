@@ -12,6 +12,11 @@ const NB_PARAMS: ModelParameterControl[] = [
   { key: "output_format", label: "格式", type: "select", options: opt(["png", "jpeg"]), defaultValue: "png" },
 ];
 
+// apimart 专属 params（B 分层）：apimart Gemini 2.5 Flash 用扁平 size（resolution 固定 1K 不暴露，无 output_format）。
+const APIMART_PARAMS: ModelParameterControl[] = [
+  { key: "size", label: "比例", type: "select", options: opt(["auto", "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"]), defaultValue: "1:1" },
+];
+
 export const NANO_BANANA_ARCHETYPE: ModelArchetype = {
   id: "nano-banana",
   family: "nano-banana",
@@ -31,6 +36,7 @@ export const NANO_BANANA_ARCHETYPE: ModelArchetype = {
       transportTaskKind: "text_to_image",
       slots: [],
       params: NB_PARAMS,
+      vendorParams: { apimart: APIMART_PARAMS },
     },
     {
       id: "edit",
@@ -42,6 +48,7 @@ export const NANO_BANANA_ARCHETYPE: ModelArchetype = {
       transportTaskKind: "image_edit",
       slots: [{ kind: "image_ref", label: "输入图", min: 1, max: 10, inputKey: "image_urls" }],
       params: NB_PARAMS,
+      vendorParams: { apimart: APIMART_PARAMS },
     },
   ],
 };
