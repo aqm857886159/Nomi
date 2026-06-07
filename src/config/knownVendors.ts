@@ -25,7 +25,9 @@ export type KnownVendorPromo = {
 export type KnownVendor = {
   /** 与 catalog vendor.key 一致。 */
   vendorKey: string
-  /** 单字母 logo 字形。 */
+  /** brand logo 打包资源 URL；缺省回退到 glyph 字形。 */
+  logo?: string
+  /** 单字母 logo 字形（无 logo 时的回退）。 */
   glyph: string
   /** 卡片副标题。 */
   tagline: string
@@ -36,6 +38,7 @@ export type KnownVendor = {
 export const KNOWN_VENDORS: readonly KnownVendor[] = [
   {
     vendorKey: 'apimart',
+    logo: new URL('../assets/vendor-logos/apimart.png', import.meta.url).href,
     glyph: 'A',
     tagline: '一个 key，解锁全部预置模型',
     promo: {
@@ -46,6 +49,7 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
   },
   {
     vendorKey: 'kie',
+    logo: new URL('../assets/vendor-logos/kie.png', import.meta.url).href,
     glyph: 'K',
     tagline: '一个 key，解锁内置模型',
     promo: {

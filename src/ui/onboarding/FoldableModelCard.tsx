@@ -10,10 +10,10 @@ import { IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 
 type FoldableModelCardProps = {
-  /** logo 内容：字形（如 'A'）或 Tabler 图标。 */
+  /** logo 内容：字形（如 'A'）、Tabler 图标或 <img> brand logo。 */
   glyph: React.ReactNode
-  /** logo 色调：ink=深底白字（预置供应商）/ soft=浅底灰字（其他模型）。 */
-  glyphTone?: 'ink' | 'soft'
+  /** logo 色调：ink=深底白字 / soft=浅底灰字 / logo=白底带边框留白（承载图片 logo）。 */
+  glyphTone?: 'ink' | 'soft' | 'logo'
   name: string
   subtitle: string
   status: 'ok' | 'todo'
@@ -51,8 +51,10 @@ export function FoldableModelCard({
       >
         <span
           className={cn(
-            'w-7 h-7 rounded-nomi-sm grid place-items-center shrink-0 text-body-sm font-semibold',
-            glyphTone === 'soft' ? 'bg-nomi-ink-05 text-nomi-ink-60' : 'bg-nomi-ink text-nomi-paper',
+            'w-7 h-7 rounded-nomi-sm grid place-items-center shrink-0 overflow-hidden text-body-sm font-semibold',
+            glyphTone === 'logo' && 'bg-nomi-paper border border-nomi-line p-0.5',
+            glyphTone === 'soft' && 'bg-nomi-ink-05 text-nomi-ink-60',
+            glyphTone === 'ink' && 'bg-nomi-ink text-nomi-paper',
           )}
           aria-hidden
         >

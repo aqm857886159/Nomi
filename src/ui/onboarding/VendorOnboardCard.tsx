@@ -94,8 +94,10 @@ export function VendorOnboardCard({
 
   return (
     <FoldableModelCard
-      glyph={directory.glyph}
-      glyphTone="ink"
+      glyph={directory.logo
+        ? <img src={directory.logo} alt="" className="w-full h-full object-contain" />
+        : directory.glyph}
+      glyphTone={directory.logo ? 'logo' : 'ink'}
       name={vendorName}
       subtitle={hasApiKey ? `${total} 个模型可用` : directory.tagline}
       status={hasApiKey ? 'ok' : 'todo'}
