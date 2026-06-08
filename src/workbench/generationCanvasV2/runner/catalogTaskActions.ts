@@ -1,13 +1,4 @@
 import {
-  type BillingModelKind,
-  type ModelCatalogModelDto,
-  type ModelCatalogVendorDto,
-  listWorkbenchModelCatalogModels,
-  listWorkbenchModelCatalogVendors,
-} from '../../api/modelCatalogApi'
-import {
-  type TaskAssetDto,
-  type TaskKind,
   type TaskRequestDto,
   type TaskResultDto,
   fetchWorkbenchTaskResultByVendor,
@@ -16,268 +7,31 @@ import {
 import type {
   GenerationCanvasNode,
   GenerationNodeResult,
-  GenerationProvenance,
-  GenerationResultType,
 } from '../model/generationCanvasTypes'
-import {
-  getGenerationNodeCatalogKind,
-  getGenerationNodeExecutionKind,
-  isVideoLikeGenerationNodeKind,
-} from '../model/generationNodeKinds'
 import type { ResolvedGenerationReferences } from './generationReferenceResolver'
 import { resolveArchetypeForModel } from '../../../config/modelArchetypes'
-import { buildArchetypeInputParams, currentArchetypeMode } from '../nodes/controls/archetypeMeta'
+import { buildArchetypeInputParams } from '../nodes/controls/archetypeMeta'
 import { projectPromptForSend } from '../../assets/promptMentions'
-import { loadUsableVendorKeys, remapArchetypeMode, resolveUsableModelForNode } from './usableVendorModel'
+import {
+  type CatalogTaskActionOptions,
+  asFiniteNumber,
+  asTrimmedString,
+  readStringArray,
+  resolveExecutableNodeFromCatalog,
+  resolveTaskKind,
+  selectedModelKey,
+  selectedVendor,
+  uniqueStrings,
+} from './catalogTaskResolve'
+import { normalizeCatalogTaskResult } from './catalogTaskResultParse'
 
-export type CatalogTaskActionOptions = {
-  references?: Partial<ResolvedGenerationReferences>
-  runTask?: (vendor: string, request: TaskRequestDto) => Promise<TaskResultDto>
-  listCatalogModels?: (params: { kind: BillingModelKind; enabled: true }) => Promise<ModelCatalogModelDto[]>
-  listCatalogVendors?: () => Promise<ModelCatalogVendorDto[]>
-  fetchTaskResult?: (payload: {
-    taskId: string
-    vendor?: string
-    taskKind?: TaskKind
-    prompt?: string | null
-    modelKey?: string | null
-  }) => Promise<{ vendor: string; result: TaskResultDto }>
-  pollIntervalMs?: number
-  pollTimeoutMs?: number
-}
+// 重导出：实现已拆到 catalogTaskResolve（节点→vendor/model/kind 选择）与
+// catalogTaskResultParse（raw/asset/failure/provenance 解析），但 catalogTaskActions
+// 对外公共导出面保持不变，外部 import 路径无需改动。
+export type { CatalogTaskActionOptions } from './catalogTaskResolve'
+export { normalizeCatalogTaskResult } from './catalogTaskResultParse'
 
 const TERMINAL_STATUSES = new Set(['succeeded', 'failed'])
-
-function asTrimmedString(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : ''
-}
-
-function asFiniteNumber(value: unknown): number | undefined {
-  const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN
-  return Number.isFinite(parsed) ? parsed : undefined
-}
-
-function readStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
-  return value.map((item) => asTrimmedString(item)).filter(Boolean)
-}
-
-function uniqueStrings(values: readonly string[]): string[] {
-  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)))
-}
-
-function selectedVendor(node: GenerationCanvasNode): string {
-  const meta = node.meta || {}
-  return (
-    asTrimmedString(meta.modelVendor) ||
-    asTrimmedString(meta.vendor) ||
-    asTrimmedString(meta.imageModelVendor) ||
-    asTrimmedString(meta.videoModelVendor)
-  )
-}
-
-function selectedModelKey(node: GenerationCanvasNode): string {
-  const meta = node.meta || {}
-  return (
-    asTrimmedString(meta.modelKey) ||
-    asTrimmedString(meta.modelAlias) ||
-    asTrimmedString(meta.imageModel) ||
-    asTrimmedString(meta.videoModel)
-  )
-}
-
-function catalogKindForNode(node: GenerationCanvasNode): BillingModelKind {
-  return getGenerationNodeCatalogKind(node.kind)
-}
-
-async function resolveExecutableNodeFromCatalog(
-  node: GenerationCanvasNode,
-  options: CatalogTaskActionOptions,
-): Promise<GenerationCanvasNode> {
-  const vendor = selectedVendor(node)
-  const modelKey = selectedModelKey(node)
-
-  // 没钉供应商也没 modelKey → 交给下游报「请先选择模型」（保持原行为）。
-  if (!vendor && !modelKey) return node
-
-  // 「可用供应商」需要 catalog runtime；非 Electron 上下文（单测/Web）拿不到 → 退回旧行为：信任钉死的
-  // 供应商（无法重解析，但也不该误抛）。能拿到时才进入「断开→自动迁移」新逻辑。
-  const listVendors = options.listCatalogVendors || listWorkbenchModelCatalogVendors
-  let usable: Set<string> | null = null
-  try {
-    usable = await loadUsableVendorKeys(listVendors)
-  } catch {
-    usable = null
-  }
-  if (!usable) return node
-
-  // Happy path：钉死的供应商现在仍可用 → 原样执行（绝大多数情况）。
-  if (vendor && usable.has(vendor)) return node
-  // 钉了供应商但它现在不可用、却又没有 modelKey 可据以重解析 → 直接报清晰错误。
-  if (!modelKey) {
-    throw new Error(`供应商「${vendor}」已断开，且该节点未记录模型。请重新连接，或在该节点上改选已连接供应商的模型。`)
-  }
-
-  const listCatalogModels = options.listCatalogModels || listWorkbenchModelCatalogModels
-  let models: ModelCatalogModelDto[]
-  try {
-    models = await listCatalogModels({ kind: catalogKindForNode(node), enabled: true })
-  } catch (error: unknown) {
-    const message = error instanceof Error && error.message ? error.message : String(error)
-    throw new Error(`模型目录解析失败：${message}`)
-  }
-
-  const meta = node.meta || {}
-  const modelAlias = asTrimmedString(meta.modelAlias)
-  const match = resolveUsableModelForNode({ modelKey, modelAlias, vendor, meta, models, usable })
-  if (!match) {
-    const sourceArchetype = resolveArchetypeForModel({ modelKey, modelAlias, vendorKey: vendor, meta })
-    const brand = sourceArchetype?.label || asTrimmedString(meta.modelLabel) || modelKey
-    throw new Error(`当前没有已连接的供应商提供「${brand}」模型。请重新连接原供应商，或在该节点上改选一个已连接供应商的模型。`)
-  }
-
-  const resolvedVendor = asTrimmedString(match.vendorKey)
-  if (!resolvedVendor) throw new Error(`模型目录缺少 vendorKey：${modelKey}`)
-  // 跨档案迁移（family 兜底，如 Seedance kie↔apimart）时把 node.meta.archetype 重映射到目标档案；
-  // 同档案（同 id）保持原样（参数槽会按新 vendorKey 自动特化，无需动用户填的值）。
-  const sourceArchetype = resolveArchetypeForModel({ modelKey, modelAlias, vendorKey: vendor, meta })
-  const targetArchetype = resolveArchetypeForModel({ modelKey: match.modelKey, modelAlias: match.modelAlias, vendorKey: resolvedVendor, meta: match.meta })
-  const remappedArchetype = targetArchetype
-    ? remapArchetypeMode(sourceArchetype, asTrimmedString((meta.archetype as { modeId?: unknown } | undefined)?.modeId) || undefined, targetArchetype)
-    : null
-
-  return {
-    ...node,
-    meta: {
-      ...meta,
-      modelKey: asTrimmedString(match.modelKey) || modelKey,
-      modelAlias: asTrimmedString(match.modelAlias) || modelKey,
-      modelVendor: resolvedVendor,
-      vendor: resolvedVendor,
-      modelLabel: asTrimmedString(match.labelZh) || modelKey,
-      ...(remappedArchetype ? { archetype: remappedArchetype } : {}),
-      ...(isVideoLikeGenerationNodeKind(node.kind)
-        ? { videoModel: asTrimmedString(match.modelKey) || modelKey, videoModelVendor: resolvedVendor }
-        : { imageModel: asTrimmedString(match.modelKey) || modelKey, imageModelVendor: resolvedVendor }),
-    },
-  }
-}
-
-function resolveTaskKind(node: GenerationCanvasNode, references: Partial<ResolvedGenerationReferences>): TaskKind {
-  const executionKind = getGenerationNodeExecutionKind(node.kind)
-  const meta = node.meta || {}
-  // 认得档案的模型（视频**或图像**）：mapping 桶**显式**由档案声明（当前模式 transportTaskKind 覆盖 > 档案级），
-  // 不靠参考启发式猜——否则 Seedance omni（无首帧）会被误判 text_to_video 撞到别的模型；图像档案的文生图/改图
-  // taskKind 也得各走各的桶。modelKey 精确路由（findTaskMapping）再保证打到本模型的 mapping。
-  if (executionKind === 'video' || executionKind === 'image') {
-    const archetype = resolveArchetypeForModel({ modelKey: asTrimmedString(meta.modelKey), modelAlias: asTrimmedString(meta.modelAlias), meta })
-    if (archetype) return currentArchetypeMode(archetype, meta).transportTaskKind ?? archetype.transportTaskKind
-  }
-  if (executionKind === 'video') {
-    const hasFrame = Boolean(
-      asTrimmedString(references.firstFrameUrl) ||
-      asTrimmedString(references.lastFrameUrl) ||
-      (references.referenceImages?.length || 0) > 0,
-    )
-    return hasFrame ? 'image_to_video' : 'text_to_video'
-  }
-  if (executionKind === 'image') {
-    const hasReference = (references.referenceImages?.length || 0) > 0
-    return hasReference ? 'image_edit' : 'text_to_image'
-  }
-  // C5: 文本节点走 chat（runtime 的 wantedKind=text 分支 → /v1/chat/completions）。
-  if (executionKind === 'text') return 'chat'
-  throw new Error(`${node.kind} generation is not implemented yet`)
-}
-
-const TEXT_TASK_KINDS = new Set<TaskKind>(['chat', 'prompt_refine', 'image_to_prompt'])
-
-/**
- * C5: 从 chat 任务的 raw 响应里取出模型生成的文本。runtime 文本分支直接 POST
- * /v1/chat/completions 并把响应原样放进 raw（assets 为空），所以这里要兼容
- * OpenAI（choices[].message.content）与 Anthropic Messages（content[].text）两种形状。
- */
-function extractTextFromChatRaw(raw: unknown): string {
-  if (!raw || typeof raw !== 'object') return ''
-  const record = raw as Record<string, unknown>
-  const choices = record.choices
-  if (Array.isArray(choices) && choices.length) {
-    const first = choices[0] as Record<string, unknown> | undefined
-    const message = first?.message as Record<string, unknown> | undefined
-    const content = message?.content
-    if (typeof content === 'string') return content.trim()
-    if (Array.isArray(content)) {
-      return content
-        .map((part) => (typeof part === 'string' ? part : asTrimmedString((part as Record<string, unknown>)?.text)))
-        .filter(Boolean)
-        .join('')
-        .trim()
-    }
-    const legacyText = asTrimmedString(first?.text)
-    if (legacyText) return legacyText
-  }
-  const content = record.content
-  if (Array.isArray(content)) {
-    const joined = content
-      .map((part) => asTrimmedString((part as Record<string, unknown>)?.text))
-      .filter(Boolean)
-      .join('')
-      .trim()
-    if (joined) return joined
-  }
-  return asTrimmedString(record.text)
-}
-
-function firstAsset(result: TaskResultDto, expectedType: GenerationResultType): TaskAssetDto {
-  const asset = result.assets.find((item) => item.type === expectedType && asTrimmedString(item.url))
-  if (!asset) {
-    const label = expectedType === 'image' ? '图片' : '视频'
-    throw new Error(`模型任务完成但没有返回${label}地址`)
-  }
-  return asset
-}
-
-function generationTypeForTask(taskKind: TaskKind): GenerationResultType {
-  if (taskKind === 'text_to_video' || taskKind === 'image_to_video') return 'video'
-  return 'image'
-}
-
-function readFailureMessageFromRaw(raw: unknown): string {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return ''
-  const record = raw as Record<string, unknown>
-  const direct = [
-    record.message,
-    record.error,
-    record.errorMessage,
-    record.failureReason,
-    record.reason,
-  ]
-  for (const value of direct) {
-    const text = asTrimmedString(value)
-    if (text) return text
-  }
-  const nested = [record.raw, record.response, record.data, record.result]
-  for (const value of nested) {
-    const text = readFailureMessageFromRaw(value)
-    if (text) return text
-  }
-  return ''
-}
-
-function describeTaskFailure(result: TaskResultDto): string {
-  const rawMessage = readFailureMessageFromRaw(result.raw)
-  const suffix = [
-    result.id ? `taskId=${result.id}` : '',
-    result.kind ? `kind=${result.kind}` : '',
-  ].filter(Boolean).join(', ')
-  const prefix = rawMessage || '模型任务执行失败'
-  return suffix ? `${prefix} (${suffix})` : prefix
-}
-
-function readDurationSeconds(node: GenerationCanvasNode): number | undefined {
-  const meta = node.meta || {}
-  return asFiniteNumber(meta.durationSeconds) ?? asFiniteNumber(meta.videoDuration)
-}
 
 function buildReferenceExtras(
   node: GenerationCanvasNode,
@@ -379,56 +133,6 @@ export function buildCatalogTaskRequest(
   }
 }
 
-export function normalizeCatalogTaskResult(
-  result: TaskResultDto,
-  node: GenerationCanvasNode,
-): GenerationNodeResult {
-  if (result.status === 'failed') {
-    throw new Error(describeTaskFailure(result))
-  }
-  // C5: 文本任务没有 asset，文本在 raw 里。单独成支，不走下面的图片/视频 asset 逻辑。
-  if (TEXT_TASK_KINDS.has(result.kind)) {
-    const text = extractTextFromChatRaw(result.raw)
-    if (!text) throw new Error('模型任务完成但没有返回文本内容')
-    const provenance = extractProvenanceFromTaskResult(result)
-    return {
-      id: `${node.id}-${result.id || Date.now()}`,
-      type: 'text',
-      text,
-      model: selectedModelKey(node) || undefined,
-      taskId: result.id,
-      taskKind: 'text',
-      raw: result.raw,
-      createdAt: Date.now(),
-      ...(provenance ? { provenance } : {}),
-    }
-  }
-  const inferredType = generationTypeForTask(result.kind)
-  // Prefer actual asset type over taskKind inference — if the API returns a video asset, show video
-  const firstVideoAsset = result.assets.find((item) => item.type === 'video' && asTrimmedString(item.url))
-  const firstImageAsset = result.assets.find((item) => item.type === 'image' && asTrimmedString(item.url))
-  const asset = firstVideoAsset || firstImageAsset || result.assets.find((item) => asTrimmedString(item.url))
-  if (!asset) throw new Error(inferredType === 'video' ? '模型任务完成但没有返回视频地址' : '模型任务完成但没有返回图片地址')
-  const type = (asset.type === 'video' || asset.type === 'image') ? asset.type : inferredType
-  // E11: propagate provenance from electron TaskResult into the node result.
-  const provenance = extractProvenanceFromTaskResult(result)
-  return {
-    id: `${node.id}-${result.id || Date.now()}`,
-    type,
-    url: asset.url,
-    thumbnailUrl: asset.thumbnailUrl || undefined,
-    model: selectedModelKey(node) || undefined,
-    durationSeconds: type === 'video' ? readDurationSeconds(node) : undefined,
-    taskId: result.id,
-    taskKind: type,
-    assetId: asset.assetId || undefined,
-    assetRefId: asset.assetRefId || undefined,
-    raw: result.raw,
-    createdAt: Date.now(),
-    ...(provenance ? { provenance } : {}),
-  }
-}
-
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => globalThis.setTimeout(resolve, ms))
 }
@@ -474,33 +178,4 @@ export async function runCatalogGenerationTask(
   const initialResult = await runTask(vendor, request)
   const finalResult = await waitForCatalogTaskResult(vendor, request, initialResult, options)
   return normalizeCatalogTaskResult(finalResult, executableNode)
-}
-
-/**
- * E11: Extract provenance from electron TaskResult.
- *
- * The runtime attaches a `provenance` sibling field at the TaskResult level
- * (see electron/runtime.ts runTask). This helper validates the minimum
- * required field (`timestamp`) and returns a clean GenerationProvenance
- * for the renderer to embed in node.result.provenance.
- *
- * Returns undefined for legacy results (e.g., from v0.4.0 cached tasks).
- */
-function extractProvenanceFromTaskResult(result: TaskResultDto): GenerationProvenance | undefined {
-  const raw = (result as TaskResultDto & { provenance?: unknown }).provenance
-  if (!raw || typeof raw !== 'object') return undefined
-  const rec = raw as Record<string, unknown>
-  const ts = typeof rec.timestamp === 'number' ? rec.timestamp : Date.now()
-  return {
-    timestamp: ts,
-    ...(typeof rec.provider === 'string' ? { provider: rec.provider } : {}),
-    ...(typeof rec.modelKey === 'string' ? { modelKey: rec.modelKey } : {}),
-    ...(typeof rec.modelVersion === 'string' ? { modelVersion: rec.modelVersion } : {}),
-    ...(typeof rec.prompt === 'string' ? { prompt: rec.prompt } : {}),
-    ...(typeof rec.negativePrompt === 'string' ? { negativePrompt: rec.negativePrompt } : {}),
-    ...(typeof rec.seed === 'number' ? { seed: rec.seed } : {}),
-    ...(rec.params && typeof rec.params === 'object' ? { params: rec.params as Record<string, unknown> } : {}),
-    ...(typeof rec.vendorRequestId === 'string' ? { vendorRequestId: rec.vendorRequestId } : {}),
-    ...(typeof rec.agentRunId === 'string' ? { agentRunId: rec.agentRunId } : {}),
-  }
 }
