@@ -2,6 +2,7 @@ import React from 'react'
 import { IconFolderOpen, IconMovie, IconPlugConnected, IconSparkles, IconTrash } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { NomiLogoMark } from '../../design'
+import { NomiImage } from '../../design/media'
 import type { LocalProjectSummary } from './localProjectStore'
 import { TRY_NOW_EXAMPLES, type TryNowExample } from './tryNowExamples'
 import type { ProjectTemplateId } from './projectTemplates'
@@ -39,7 +40,7 @@ function ThumbnailMosaic({ urls }: { urls: string[] }): JSX.Element {
     )
   }
   if (urls.length === 1) {
-    return <img className="absolute inset-0 w-full h-full object-cover block" src={urls[0]} alt="" />
+    return <NomiImage className="absolute inset-0 w-full h-full object-cover block" src={urls[0]} alt="" />
   }
   const cells = urls.slice(0, 4)
   return (
@@ -50,7 +51,7 @@ function ThumbnailMosaic({ urls }: { urls: string[] }): JSX.Element {
       cells.length === 4 && 'grid-cols-2 grid-rows-2',
     )}>
       {cells.map((url, i) => (
-        <img key={i} className="w-full h-full object-cover block" src={url} alt="" />
+        <NomiImage key={i} className="w-full h-full object-cover block" src={url} alt="" />
       ))}
     </div>
   )

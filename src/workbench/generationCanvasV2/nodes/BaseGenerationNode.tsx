@@ -19,6 +19,7 @@ import NodeImageEditToolbar from "./NodeImageEditToolbar";
 import NodeResultDownloadButton from "./NodeResultDownloadButton";
 import { useNodeImageEditing } from "./useNodeImageEditing";
 import { cn } from "../../../utils/cn";
+import { NomiImage } from "../../../design/media";
 import type { GenerationCanvasNode } from "../model/generationCanvasTypes";
 import { useWorkbenchStore } from "../../workbenchStore";
 import { useGenerationCanvasStore } from "../store/generationCanvasStore";
@@ -1238,14 +1239,13 @@ function BaseGenerationNodeImpl({
                             }}
                         />
                     ) : (
-                        <img
+                        <NomiImage
                             className={cn(
                                 "w-full h-full min-h-0 object-contain pointer-events-none",
                                 "select-none",
                             )}
                             src={node.result.url}
                             alt=''
-                            draggable={false}
                             onLoad={(event) => {
                                 updateMediaDimensions(
                                     event.currentTarget.naturalWidth,

@@ -1,5 +1,6 @@
 import React from 'react'
 import { cn } from '../../utils/cn'
+import { NomiImage } from '../../design/media'
 import { useWorkbenchStore } from '../workbenchStore'
 import { frameToPixel, clampGroupDelta, type ClipOrigin } from './timelineEdit'
 import { buildSnapPoints, resolveSnap, pixelThresholdToFrames, type SnapResult } from './snapping'
@@ -184,10 +185,10 @@ export default function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
   const clipWidth = Math.max(36, frameToPixel(clip.frameCount, scale))
 
   const thumbContent = clip.thumbnailUrl ? (
-    <img className={cn(
+    <NomiImage className={cn(
       'workbench-timeline-clip__thumb',
       'block absolute inset-0 w-full h-full object-cover rounded-[inherit] bg-[var(--nomi-ink-10)]',
-    )} src={clip.thumbnailUrl} alt="" draggable={false} />
+    )} src={clip.thumbnailUrl} alt="" />
   ) : showVideoThumb && clipVideoUrl ? (
     <video
       className={cn(
