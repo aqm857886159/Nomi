@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>创作 AI 助手 · 附件 + 对话体验 mockup</title>
+<style>
+  /* ===== Tokens（逐字节复制自 src/theme/nomi-tokens.css + src/workbench/workbench.css，不发明新值）===== */
+  :root{
+    --nomi-bg: oklch(0.985 0.003 90);
+    --nomi-paper: oklch(1 0 0);
+    --nomi-ink: oklch(0.22 0.01 80);
+    --nomi-ink-80: oklch(0.32 0.01 80);
+    --nomi-ink-60: oklch(0.50 0.01 80);
+    --nomi-ink-40: oklch(0.68 0.01 80);
+    --nomi-ink-30: oklch(0.78 0.01 80);
+    --nomi-ink-20: oklch(0.88 0.005 80);
+    --nomi-ink-10: oklch(0.94 0.003 80);
+    --nomi-ink-05: oklch(0.97 0.003 80);
+    --nomi-line: oklch(0.91 0.004 80);
+    --nomi-line-soft: oklch(0.95 0.003 80);
+    --nomi-accent: oklch(0.55 0.13 250);
+    --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 12%, var(--nomi-paper));
+    --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03);
+    --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.06);
+    --nomi-shadow-lg: 0 4px 8px oklch(0 0 0 / 0.05), 0 20px 50px oklch(0 0 0 / 0.08);
+    --nomi-radius-sm: 6px;
+    --nomi-radius: 10px;
+    --nomi-radius-lg: 16px;
+    --nomi-transition-fast: 140ms cubic-bezier(.2,.7,.3,1);
+    --nomi-font-sans: Inter,-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",system-ui,sans-serif;
+    --nomi-font-display: Fraunces,Inter,serif;
+    --workbench-surface-solid: var(--nomi-paper);
+    --workbench-border: var(--nomi-line);
+    --workbench-danger: #ff3b30;
+    --workbench-danger-soft: rgba(255,59,48,0.1);
+    --workbench-backdrop: rgba(29,29,31,0.16);
+    --workbench-focus: color-mix(in srgb, var(--nomi-accent) 42%, transparent);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--nomi-bg);color:var(--nomi-ink);font-family:var(--nomi-font-sans);
+       -webkit-font-smoothing:antialiased;padding:32px;line-height:1.5;}
+  h1{font-family:var(--nomi-font-display);font-size:24px;font-weight:600;margin:0 0 4px;}
+  .sub{font-size:13px;color:var(--nomi-ink-60);margin:0 0 24px;max-width:880px;}
+  .legend{font-size:12px;color:var(--nomi-ink-60);background:var(--nomi-paper);border:1px solid var(--nomi-line);
+          border-radius:var(--nomi-radius);padding:12px 16px;max-width:880px;margin:0 0 28px;}
+  .legend b{color:var(--nomi-ink);}
+  .legend code{font-family:var(--nomi-font-display);background:var(--nomi-ink-05);padding:1px 5px;border-radius:4px;color:var(--nomi-ink-80);}
+  .grid{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start;}
+  .frame{display:flex;flex-direction:column;gap:8px;}
+  .cap{font-size:12px;font-weight:600;color:var(--nomi-ink-80);}
+  .cap span{font-weight:400;color:var(--nomi-ink-60);}
+
+  /* ===== 助手面板外壳（仿 .workbench-creation-ai：260px 侧栏）===== */
+  .panel{width:300px;background:var(--workbench-surface-solid);border:1px solid var(--workbench-border);
+         border-radius:var(--nomi-radius);box-shadow:var(--nomi-shadow-md);overflow:hidden;
+         display:flex;flex-direction:column;position:relative;}
+  .panel__header{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--nomi-line-soft);}
+  .brand{width:18px;height:18px;border-radius:5px;background:var(--nomi-ink);display:grid;place-items:center;color:var(--nomi-paper);font-family:var(--nomi-font-display);font-size:11px;font-weight:600;}
+  .panel__title{font-size:13px;font-weight:600;}
+  .hspacer{margin-left:auto;display:flex;align-items:center;gap:2px;}
+
+  /* messages */
+  .messages{padding:12px 11px;display:flex;flex-direction:column;gap:12px;min-height:200px;background:var(--nomi-paper);}
+  .msg{display:flex;flex-direction:column;gap:6px;max-width:100%;}
+  .msg--user .bubble{align-self:flex-end;background:var(--nomi-ink-05);}
+  .bubble{border-radius:var(--nomi-radius);padding:8px 11px;font-size:13px;color:var(--nomi-ink);white-space:pre-wrap;}
+  .msg--assistant .bubble{background:transparent;padding-left:0;}
+  .reply-actions{display:flex;gap:4px;color:var(--nomi-ink-40);}
+
+  /* 附件 chip 区（新组件 AttachmentChip / AttachmentRail）*/
+  .att-rail{display:flex;gap:8px;flex-wrap:wrap;}
+  .att-rail--inbubble{margin-bottom:2px;}
+  .chip-img{position:relative;width:48px;height:48px;border-radius:var(--nomi-radius-sm);border:1px solid var(--nomi-line);
+            overflow:hidden;background:var(--nomi-ink-10);flex:none;}
+  .chip-img img{width:100%;height:100%;object-fit:cover;display:block;}
+  .chip-file{display:flex;align-items:center;gap:8px;height:48px;padding:0 8px 0 8px;border:1px solid var(--nomi-line);
+             border-radius:var(--nomi-radius);background:var(--nomi-ink-05);max-width:188px;flex:none;}
+  .chip-file__icon{width:30px;height:30px;border-radius:var(--nomi-radius-sm);display:grid;place-items:center;flex:none;color:var(--nomi-paper);}
+  .ic-pdf{background:var(--workbench-danger);}
+  .ic-doc{background:var(--nomi-accent);}
+  .ic-xls{background:#248a3d;}
+  .chip-file__meta{min-width:0;display:flex;flex-direction:column;gap:1px;}
+  .chip-file__name{font-size:13px;color:var(--nomi-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .chip-file__sub{font-size:11px;color:var(--nomi-ink-60);white-space:nowrap;}
+  .chip-x{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:999px;background:var(--nomi-ink);
+          color:var(--nomi-paper);border:2px solid var(--nomi-paper);display:grid;place-items:center;cursor:pointer;}
+  .chip-x svg{width:9px;height:9px;}
+  .chip-file .chip-x{position:static;border:0;width:20px;height:20px;background:transparent;color:var(--nomi-ink-40);margin-left:auto;}
+  .chip-file .chip-x:hover{background:var(--nomi-ink-10);color:var(--nomi-ink);}
+  .chip-file .chip-x svg{width:12px;height:12px;}
+  /* 上传中蒙层 */
+  .uploading::after{content:"";position:absolute;inset:0;background:var(--workbench-overlay,rgba(255,255,255,.6));}
+  .ring{position:absolute;inset:0;margin:auto;width:18px;height:18px;border:2px solid var(--nomi-ink-20);
+        border-top-color:var(--nomi-accent);border-radius:999px;z-index:1;}
+
+  /* composer */
+  .composer{border-top:1px solid var(--nomi-line);padding:10px 11px;display:flex;flex-direction:column;gap:8px;background:var(--nomi-paper);}
+  .composer__att{display:flex;gap:8px;flex-wrap:wrap;}
+  .ta{width:100%;min-height:56px;max-height:160px;resize:none;border:0;outline:0;background:transparent;
+      font-family:inherit;font-size:14px;color:var(--nomi-ink);padding:0;}
+  .ta::placeholder{color:var(--nomi-ink-60);}
+  .actions{display:flex;align-items:center;gap:8px;}
+  .iconbtn{width:28px;height:28px;border-radius:var(--nomi-radius-sm);border:0;background:transparent;color:var(--nomi-ink-60);
+           display:grid;place-items:center;cursor:pointer;flex:none;}
+  .iconbtn:hover{background:var(--nomi-ink-05);color:var(--nomi-ink);}
+  .sel{height:28px;display:inline-flex;align-items:center;gap:4px;padding:0 8px;border:1px solid var(--nomi-line);
+       border-radius:999px;background:var(--nomi-paper);font-size:12px;color:var(--nomi-ink-80);cursor:pointer;flex:none;}
+  .sel .lead{color:var(--nomi-ink-60);}
+  .pill{height:28px;display:inline-flex;align-items:center;gap:4px;padding:0 8px;border:1px solid var(--nomi-line);
+        border-radius:999px;background:var(--nomi-paper);font-size:12px;color:var(--nomi-ink-80);cursor:pointer;flex:none;}
+  .pill svg{color:var(--nomi-ink-40);}
+  .send{width:28px;height:28px;border-radius:999px;border:0;background:var(--nomi-ink);color:var(--nomi-paper);
+        display:grid;place-items:center;cursor:pointer;margin-left:auto;flex:none;}
+  .send:hover{background:var(--nomi-accent);}
+  .send[disabled]{opacity:.48;cursor:not-allowed;}
+
+  /* 拖拽蒙层 */
+  .dropzone{position:absolute;inset:6px;border:2px dashed var(--nomi-accent);border-radius:var(--nomi-radius);
+            background:var(--nomi-accent-soft);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+            color:var(--nomi-accent);font-size:13px;font-weight:600;z-index:5;}
+  .dropzone .hint{font-size:11px;font-weight:400;color:var(--nomi-ink-60);}
+
+  /* 放大/全屏态 */
+  .stage{position:relative;width:760px;height:520px;border-radius:var(--nomi-radius);overflow:hidden;
+         background:var(--workbench-backdrop);display:grid;place-items:center;border:1px solid var(--nomi-line);}
+  .modal{width:680px;height:468px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:var(--nomi-radius-lg);
+         box-shadow:var(--nomi-shadow-lg);display:flex;flex-direction:column;overflow:hidden;}
+  .modal__header{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--nomi-line-soft);}
+  .modal__messages{flex:1;min-height:0;overflow:auto;padding:20px;}
+  .modal__inner{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:16px;}
+  .modal .composer{padding:12px 16px;}
+  .modal .modal__composer-wrap{max-width:592px;margin:0 auto;width:100%;}
+  .selectable-note{font-size:11px;color:var(--nomi-ink-60);}
+
+  svg{stroke-width:1.5;}
+  .muted{color:var(--nomi-ink-60);}
+</style>
+</head>
+<body>
+  <!-- 图标 defs（Tabler 风格，stroke 1.5，currentColor）-->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <symbol id="i-paperclip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7l-6.5 6.5a2.12 2.12 0 0 0 3 3L18 10a4.24 4.24 0 0 0-6-6l-7 7a6.36 6.36 0 0 0 9 9l6.5-6.5"/></symbol>
+    <symbol id="i-photo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 8h.01"/><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 15l5-5q2-1.5 4 0l5 5"/><path d="M14 14l1-1q1.5-1.5 3 0l3 3"/></symbol>
+    <symbol id="i-filetext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 9h1M9 13h6M9 17h6"/></symbol>
+    <symbol id="i-table" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M10 4v16"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14l11-11M21 3l-6.5 18a.55.55 0 0 1-1 0L10 14l-7-3.5a.55.55 0 0 1 0-1z"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z"/><path d="M19 14l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/></symbol>
+    <symbol id="i-movie" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 4v16M16 4v16M4 8h4M4 16h4M16 8h4M16 16h4"/></symbol>
+    <symbol id="i-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/></symbol>
+    <symbol id="i-minimize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v2a2 2 0 0 1-2 2H4M16 4v2a2 2 0 0 0 2 2h2M16 20v-2a2 2 0 0 1 2-2h2M8 20v-2a2 2 0 0 0-2-2H4"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-world" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8M3.6 15h16.8M12 3a14 14 0 0 0 0 18A14 14 0 0 0 12 3z"/></symbol>
+  </defs></svg>
+
+  <h1>创作 AI 助手 · 附件 + 对话体验</h1>
+  <p class="sub">对应方案 <code>docs/plan/2026-06-09-创作AI附件与对话体验.md</code>。token-only（OKLCH 值逐字节取自 <code>nomi-tokens.css</code>）。四态：①增强 composer ②拖拽蒙层 ③带附件的对话 ④放大/全屏对话。新组件 <b>AttachmentChip / AttachmentRail</b> 实现时按设计系统 §9 登记。</p>
+
+  <div class="legend">
+    <b>用到的 token：</b>
+    字号 micro 11 / caption 12 / bodySm 13 / body 14（<code>nomiTheme.fontSize</code>）·
+    圆角 <code>--nomi-radius-sm</code>(6) chip、<code>--nomi-radius</code>(10) 面板、<code>--nomi-radius-lg</code>(16) modal、999 pill ·
+    间距 4 的倍数（gap 8 / padding 10–12）·
+    色：<code>--nomi-ink*</code> 阶梯、<code>--nomi-accent</code> 强调、<code>--workbench-danger</code> PDF 角标 ·
+    阴影 <code>--nomi-shadow-md/lg</code> · 图标 Tabler stroke 1.5。
+    <br><b>关键改动：</b>① textarea <code>min-h 56 → max-h 160</code> 自增高；② 附件 chip 区在 textarea 上方；③ composer 左侧加 <use> 回形针入口；④ 头部加「放大」。
+  </div>
+
+  <div class="grid">
+
+    <!-- ===== 态① 增强 composer（空对话 + 附件待发）===== -->
+    <div class="frame">
+      <div class="cap">态① 增强 composer <span>· 自增高 + 附件待发 + 回形针入口</span></div>
+      <div class="panel">
+        <div class="panel__header">
+          <div class="brand">N</div><div class="panel__title">助手</div>
+          <div class="hspacer">
+            <button class="iconbtn" title="放大对话"><svg width="15" height="15"><use href="#i-maximize"/></svg></button>
+            <button class="iconbtn" title="新对话"><svg width="15" height="15"><use href="#i-plus"/></svg></button>
+          </div>
+        </div>
+        <div class="messages" style="min-height:160px;justify-content:center;align-items:center;text-align:center;color:var(--nomi-ink-60);">
+          <div style="font-family:var(--nomi-font-display);font-size:16px;color:var(--nomi-ink);">需要一点灵感？</div>
+          <div style="font-size:13px;max-width:200px;">把参考图、PDF 剧本或大纲拖进来，AI 看着它帮你写。</div>
+        </div>
+        <div class="composer">
+          <div class="composer__att">
+            <div class="chip-img"><img alt="" src="data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'&gt;&lt;rect width='48' height='48' fill='%23c9d6e8'/&gt;&lt;circle cx='16' cy='18' r='6' fill='%23eef2f8'/&gt;&lt;path d='M4 44 L20 28 L30 38 L40 30 L48 38 L48 48 L0 48Z' fill='%23a9bdd8'/&gt;&lt;/svg&gt;"/><span class="chip-x"><svg><use href="#i-x"/></svg></span></div>
+            <div class="chip-file">
+              <span class="chip-file__icon ic-pdf"><svg width="16" height="16"><use href="#i-filetext"/></svg></span>
+              <span class="chip-file__meta"><span class="chip-file__name">剧本设定稿.pdf</span><span class="chip-file__sub">PDF · 1.2 MB</span></span>
+              <span class="chip-x" title="移除"><svg><use href="#i-x"/></svg></span>
+            </div>
+          </div>
+          <textarea class="ta" placeholder="问点什么…">参考这张分镜图和剧本，帮我把第二幕扩写成 4 个镜头</textarea>
+          <div class="actions">
+            <button class="iconbtn" title="添加附件（也可拖拽 / 粘贴）"><svg width="16" height="16"><use href="#i-paperclip"/></svg></button>
+            <span class="sel"><span class="lead">模式</span> 通用 ▾</span>
+            <button class="send"><svg width="15" height="15"><use href="#i-send"/></svg></button>
+          </div>
+          <div class="actions" style="margin-top:-2px;">
+            <span class="pill"><svg width="13" height="13"><use href="#i-movie"/></svg> 拆镜头</span>
+            <span class="pill"><svg width="13" height="13"><use href="#i-sparkles"/></svg> 立角色卡</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 态② 拖拽蒙层 ===== -->
+    <div class="frame">
+      <div class="cap">态② 拖拽蒙层 <span>· 文件拖到面板上方</span></div>
+      <div class="panel">
+        <div class="panel__header">
+          <div class="brand">N</div><div class="panel__title">助手</div>
+          <div class="hspacer">
+            <button class="iconbtn"><svg width="15" height="15"><use href="#i-maximize"/></svg></button>
+            <button class="iconbtn"><svg width="15" height="15"><use href="#i-plus"/></svg></button>
+          </div>
+        </div>
+        <div class="messages" style="min-height:160px;"></div>
+        <div class="composer">
+          <textarea class="ta" placeholder="问点什么…"></textarea>
+          <div class="actions">
+            <button class="iconbtn"><svg width="16" height="16"><use href="#i-paperclip"/></svg></button>
+            <span class="sel"><span class="lead">模式</span> 通用 ▾</span>
+            <button class="send" disabled><svg width="15" height="15"><use href="#i-send"/></svg></button>
+          </div>
+        </div>
+        <div class="dropzone">
+          <svg width="26" height="26"><use href="#i-paperclip"/></svg>
+          <div>拖到这里添加附件</div>
+          <div class="hint">图片 / PDF / Word / Excel / txt · 单个上限 30MB</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 态③ 带附件的对话 ===== -->
+    <div class="frame">
+      <div class="cap">态③ 带附件的对话 <span>· 用户消息携文件 + 助手回复可复制</span></div>
+      <div class="panel">
+        <div class="panel__header">
+          <div class="brand">N</div><div class="panel__title">助手</div>
+          <div class="hspacer">
+            <button class="iconbtn"><svg width="15" height="15"><use href="#i-maximize"/></svg></button>
+            <button class="iconbtn"><svg width="15" height="15"><use href="#i-plus"/></svg></button>
+          </div>
+        </div>
+        <div class="messages">
+          <div class="msg msg--user">
+            <div class="bubble">
+              <div class="att-rail att-rail--inbubble">
+                <div class="chip-img"><img alt="" src="data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'&gt;&lt;rect width='48' height='48' fill='%23c9d6e8'/&gt;&lt;circle cx='16' cy='18' r='6' fill='%23eef2f8'/&gt;&lt;path d='M4 44 L20 28 L30 38 L40 30 L48 38 L48 48 L0 48Z' fill='%23a9bdd8'/&gt;&lt;/svg&gt;"/></div>
+                <div class="chip-file" style="height:40px;">
+                  <span class="chip-file__icon ic-xls" style="width:26px;height:26px;"><svg width="14" height="14"><use href="#i-table"/></svg></span>
+                  <span class="chip-file__meta"><span class="chip-file__name">角色表.xlsx</span><span class="chip-file__sub">XLSX · 18 KB</span></span>
+                </div>
+              </div>
+              参考这张图和角色表，帮我给主角写身份板提示词
+            </div>
+          </div>
+          <div class="msg msg--assistant">
+            <div class="bubble">好的。基于参考图的暖色调与角色表里「沉稳·理工背景」的设定，我给主角的身份板提示词草拟如下：<br>1. 外形：30 岁男性，短发，简约衬衫…<br>2. 气质：克制、专注，眼神带疲惫…</div>
+            <div class="reply-actions">
+              <button class="iconbtn" style="width:24px;height:24px;" title="复制"><svg width="13" height="13"><use href="#i-copy"/></svg></button>
+            </div>
+          </div>
+        </div>
+        <div class="composer">
+          <textarea class="ta" placeholder="问点什么…"></textarea>
+          <div class="actions">
+            <button class="iconbtn"><svg width="16" height="16"><use href="#i-paperclip"/></svg></button>
+            <span class="sel"><span class="lead">模式</span> 通用 ▾</span>
+            <button class="send" disabled><svg width="15" height="15"><use href="#i-send"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== 态④ 放大/全屏对话 ===== -->
+  <div class="frame" style="margin-top:32px;">
+    <div class="cap">态④ 放大 / 全屏对话 <span>· 点头部「放大」→ 居中大对话区（仿 Scene3D 全屏 portal），宽行距、宽 composer；右上角「缩小」回到侧栏</span></div>
+    <div class="stage">
+      <div class="modal">
+        <div class="modal__header">
+          <div class="brand">N</div><div class="panel__title">助手</div>
+          <span class="selectable-note">· 文本可选中复制（Cmd/Ctrl+C），回复带复制按钮</span>
+          <div class="hspacer">
+            <button class="iconbtn" title="新对话"><svg width="15" height="15"><use href="#i-plus"/></svg></button>
+            <button class="iconbtn" title="缩小"><svg width="15" height="15"><use href="#i-minimize"/></svg></button>
+          </div>
+        </div>
+        <div class="modal__messages">
+          <div class="modal__inner">
+            <div class="msg msg--user">
+              <div class="bubble">
+                <div class="att-rail att-rail--inbubble">
+                  <div class="chip-file" style="height:40px;">
+                    <span class="chip-file__icon ic-doc" style="width:26px;height:26px;"><svg width="14" height="14"><use href="#i-filetext"/></svg></span>
+                    <span class="chip-file__meta"><span class="chip-file__name">产品大纲.docx</span><span class="chip-file__sub">DOCX · 42 KB</span></span>
+                  </div>
+                </div>
+                按这份大纲，帮我写一条 30 秒产品介绍的旁白脚本
+              </div>
+            </div>
+            <div class="msg msg--assistant">
+              <div class="bubble" style="font-size:14px;">这是基于大纲的 30 秒旁白（约 90 字，留出镜头切换的呼吸）：<br><br>「每天，团队在十几个工具间反复横跳。信息散落，决策变慢。<br>现在，把它们交给一个会思考的工作台——它读懂上下文，主动接住下一步。<br>少点切换，多点创造。」</div>
+              <div class="reply-actions">
+                <button class="iconbtn" style="width:24px;height:24px;" title="复制"><svg width="13" height="13"><use href="#i-copy"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="composer">
+          <div class="modal__composer-wrap">
+            <div class="composer__att">
+              <div class="chip-img"><img alt="" src="data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'&gt;&lt;rect width='48' height='48' fill='%23d8c3a5'/&gt;&lt;path d='M4 44 L20 26 L30 36 L44 24 L48 30 L48 48 L0 48Z' fill='%23bfa982'/&gt;&lt;/svg&gt;"/><span class="chip-x"><svg><use href="#i-x"/></svg></span></div>
+            </div>
+            <textarea class="ta" placeholder="问点什么…">再给我一版更口语、更年轻的</textarea>
+            <div class="actions">
+              <button class="iconbtn"><svg width="16" height="16"><use href="#i-paperclip"/></svg></button>
+              <span class="sel"><span class="lead">模式</span> 通用 ▾</span>
+              <span class="pill"><svg width="13" height="13"><use href="#i-movie"/></svg> 拆镜头</span>
+              <span class="pill"><svg width="13" height="13"><use href="#i-sparkles"/></svg> 立角色卡</span>
+              <button class="send"><svg width="15" height="15"><use href="#i-send"/></svg></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
