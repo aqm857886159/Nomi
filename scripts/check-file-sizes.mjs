@@ -25,7 +25,7 @@ const SCAN_DIRS = ["src", "electron"];
 // 现存巨壳的基线行数（棘轮上限）。清空此表 = 巨壳债还清。
 // 改小某个数 = 你成功瘦身后锁定的新上限。新增条目应经人工评审。
 const ALLOWLIST = {
-  "src/workbench/generationCanvasV2/nodes/scene3d/Scene3DFullscreen.tsx": 4588,
+  "src/workbench/generationCanvasV2/nodes/scene3d/Scene3DFullscreen.tsx": 3860,
   "electron/runtime.ts": 2516,
   "src/workbench/generationCanvasV2/nodes/BaseGenerationNode.tsx": 1399,
   "src/workbench/generationCanvasV2/components/GenerationCanvas.tsx": 1111,

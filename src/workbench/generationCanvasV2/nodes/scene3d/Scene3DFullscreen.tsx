@@ -43,7 +43,7 @@ import * as THREE from 'three'
 import { cn } from '../../../../utils/cn'
 import { Switch } from '../../../../ui/switch'
 import { toast } from '../../../../ui/toast'
-import { cloneScene3DState, createScene3DCameraId, createScene3DObjectId } from './scene3dSerializer'
+import { cloneScene3DState } from './scene3dSerializer'
 import {
   SCENE3D_ASPECT_OPTIONS,
   SCENE3D_ASPECT_RATIOS,
@@ -59,6 +59,79 @@ import {
   type Scene3DTransformMode,
   type Scene3DVector3,
 } from './scene3dTypes'
+
+import {
+  radiansToDegrees,
+  degreesToRadians,
+  OBJECT_LIMIT,
+  CAMERA_HELPER_FLAG,
+  SCENE3D_GRID_FLAG,
+  FULLSCREEN_Z_INDEX,
+  CAMERA_MARKER_COLOR,
+  CAMERA_MARKER_ACCENT_COLOR,
+  CAMERA_HELPER_VISUAL_FAR,
+  CAMERA_AIM_FEEDBACK_LENGTH,
+  CAMERA_AIM_HANDLE_DISTANCE,
+  CAMERA_DEFAULT_TARGET,
+  OBJECT_GROUND_GUIDE_ELEVATION,
+  MANNEQUIN_FOOT_RING_COLOR,
+  MANNEQUIN_LABEL_BASE_HEIGHT,
+  CROWD_MAX_AXIS,
+  CROWD_DETAILED_MODEL_LIMIT,
+  CROWD_INSTANCED_GEOMETRY_SEGMENTS,
+  CROWD_FOOT_RING_SEGMENTS,
+  FREE_LOOK_ROTATION_SPEED,
+  WHEEL_TRAVEL_SPEED,
+  MANNEQUIN_MODEL_URL,
+  SCENE3D_LIGHT_BACKGROUND,
+  SCENE3D_DARK_BACKGROUND,
+  GRID_CELL_COLOR,
+  GRID_SECTION_COLOR,
+  DARK_GRID_CELL_COLOR,
+  DARK_GRID_SECTION_COLOR,
+  MANNEQUIN_POSE_SECTIONS,
+  MANNEQUIN_POSE_MIN_DEG,
+  MANNEQUIN_POSE_MAX_DEG,
+  MANNEQUIN_POSE_PRESETS,
+  type CrowdAddOptions,
+  type MannequinPoseControl,
+  type MannequinPosePreset,
+  type Scene3DMovementCode,
+} from './scene3dConstants'
+import {
+  isEditableKeyboardTarget,
+  pointerCaptureTarget,
+  vectorFromArray,
+  vectorToArray,
+  cameraLookAtRotation,
+  levelEditorCameraRotation,
+  applyEditorCameraPose,
+  applySceneCameraPose,
+  editorCameraFromSceneCamera,
+  eulerToArray,
+  vectorAlmostEqual,
+  clonePoseValue,
+  poseMatchesPreset,
+  rememberMannequinRestPose,
+  applyMannequinSkeletonPose,
+  normalizeMannequinModel,
+  aspectDimensions,
+  captureScene,
+  roleColorForIndex,
+  makeObject,
+  makeCrowdObject,
+  makeCamera,
+  cloneObjectForClipboard,
+  cloneCameraForClipboard,
+  makePastedObject,
+  makePastedCamera,
+  updateVectorValue,
+  numberInputValue,
+  isMovementCode,
+  clearMovementKeyState,
+  hasActiveMovementKey,
+  type PointerCaptureTarget,
+} from './scene3dMath'
 
 type Scene3DFullscreenProps = {
   initialState: Scene3DState
@@ -77,807 +150,6 @@ type CaptureApi = {
 type Scene3DClipboardItem =
   | { type: 'object'; item: Scene3DObject; pasteCount: number }
   | { type: 'camera'; item: Scene3DCamera; pasteCount: number }
-
-type CrowdAddOptions = {
-  rows: number
-  columns: number
-  spacing: number
-}
-
-type MannequinPoseControl = {
-  axisIndex: 0 | 1 | 2
-  baseOffsetDeg?: number
-  bone: string
-  label: string
-  max?: number
-  min?: number
-  standingValue: number
-  valueScale?: number
-}
-
-type MannequinPoseSection =
-  | {
-    title: string
-    controls: MannequinPoseControl[]
-    groups?: never
-  }
-  | {
-    title: string
-    controls?: never
-    groups: Array<{
-      title: string
-      controls: MannequinPoseControl[]
-    }>
-  }
-
-type MannequinPosePreset = {
-  id: string
-  label: string
-  pose?: Record<string, Scene3DVector3>
-}
-
-type PointerCaptureTarget = {
-  setPointerCapture?: (pointerId: number) => void
-  releasePointerCapture?: (pointerId: number) => void
-}
-
-type Scene3DMovementCode =
-  | 'KeyW'
-  | 'KeyA'
-  | 'KeyS'
-  | 'KeyD'
-  | 'ArrowUp'
-  | 'ArrowDown'
-  | 'ArrowLeft'
-  | 'ArrowRight'
-  | 'Space'
-  | 'ShiftLeft'
-  | 'ShiftRight'
-
-const MOVEMENT_CODES = new Set<string>([
-  'KeyW',
-  'KeyA',
-  'KeyS',
-  'KeyD',
-  'ArrowUp',
-  'ArrowDown',
-  'ArrowLeft',
-  'ArrowRight',
-  'Space',
-  'ShiftLeft',
-  'ShiftRight',
-])
-
-const OBJECT_LIMIT = 100
-const CAMERA_HELPER_FLAG = 'scene3dCameraHelper'
-const SCENE3D_GRID_FLAG = 'scene3dGridHelper'
-const FULLSCREEN_Z_INDEX = 2147483647
-const CAMERA_MARKER_COLOR = '#8b5e34'
-const CAMERA_MARKER_ACCENT_COLOR = '#a97946'
-const CAMERA_HELPER_VISUAL_FAR = 1.2
-const CAMERA_AIM_FEEDBACK_LENGTH = 1.45
-const CAMERA_AIM_HANDLE_DISTANCE = 0.42
-const CAMERA_DEFAULT_TARGET: Scene3DVector3 = [0, 0.75, 0]
-const OBJECT_GROUND_GUIDE_ELEVATION = 0.018
-const MANNEQUIN_FOOT_RING_COLOR = '#3b82f6'
-const MANNEQUIN_DEFAULT_SCALE: Scene3DVector3 = [2.5, 2.5, 2.5]
-const MANNEQUIN_LABEL_BASE_HEIGHT = 0.58
-const ROLE_COLOR_SEQUENCE = ['#ef4444', '#facc15', '#3b82f6', '#22c55e'] as const
-const CROWD_MAX_AXIS = 10
-const CROWD_DETAILED_MODEL_LIMIT = 4
-const CROWD_INSTANCED_GEOMETRY_SEGMENTS = 12
-const CROWD_FOOT_RING_SEGMENTS = 48
-const FREE_LOOK_ROTATION_SPEED = 0.003
-const WHEEL_TRAVEL_SPEED = 0.0045
-const CAMERA_LENS_DEPTH_MAX_FACTOR = 0.85
-const MANNEQUIN_MODEL_URL = new URL('../../../../assets/x-bot.glb', import.meta.url).href
-const SCENE3D_LIGHT_BACKGROUND = '#f6f3ee'
-const SCENE3D_DARK_BACKGROUND = '#111827'
-const GRID_CELL_COLOR = '#94a3b8'
-const GRID_SECTION_COLOR = '#64748b'
-const DARK_GRID_CELL_COLOR = '#475569'
-const DARK_GRID_SECTION_COLOR = '#94a3b8'
-const CLIPBOARD_PASTE_OFFSET: Scene3DVector3 = [0.45, 0, 0.45]
-const MANNEQUIN_REST_ROTATION_KEY = 'scene3dRestRotation'
-
-const MANNEQUIN_DEFAULT_POSE: Record<string, Scene3DVector3> = {
-  mixamorigSpine: [degreesToRadians(2), 0, 0],
-  mixamorigHead: [degreesToRadians(-10), 0, 0],
-  mixamorigLeftArm: [degreesToRadians(74), degreesToRadians(2), degreesToRadians(-4)],
-  mixamorigRightArm: [degreesToRadians(74), degreesToRadians(-2), degreesToRadians(4)],
-  mixamorigLeftForeArm: [degreesToRadians(10), degreesToRadians(-8), 0],
-  mixamorigRightForeArm: [degreesToRadians(10), degreesToRadians(8), 0],
-  mixamorigLeftHand: [degreesToRadians(6), 0, degreesToRadians(-8)],
-  mixamorigRightHand: [degreesToRadians(6), 0, degreesToRadians(8)],
-}
-
-const MANNEQUIN_POSE_SECTIONS: MannequinPoseSection[] = [
-  {
-    title: '身体',
-    controls: [
-      { bone: 'mixamorigHips', axisIndex: 0, label: '前倾', standingValue: 0 },
-      { bone: 'mixamorigHips', axisIndex: 1, label: '转身', standingValue: 0 },
-      { bone: 'mixamorigHips', axisIndex: 2, label: '侧倾', standingValue: 0 },
-    ],
-  },
-  {
-    title: '躯干',
-    controls: [
-      { bone: 'mixamorigSpine', axisIndex: 0, label: '前倾', standingValue: 2, baseOffsetDeg: 2 },
-      { bone: 'mixamorigSpine', axisIndex: 1, label: '扭转', standingValue: 0 },
-      { bone: 'mixamorigSpine', axisIndex: 2, label: '侧倾', standingValue: 0 },
-    ],
-  },
-  {
-    title: '头部',
-    controls: [
-      { bone: 'mixamorigHead', axisIndex: 0, label: '点头', standingValue: -10, baseOffsetDeg: -10 },
-      { bone: 'mixamorigHead', axisIndex: 1, label: '转头', standingValue: 0 },
-      { bone: 'mixamorigHead', axisIndex: 2, label: '歪头', standingValue: 0 },
-    ],
-  },
-  {
-    title: '手臂—肩',
-    groups: [
-      {
-        title: '左',
-        controls: [
-          { bone: 'mixamorigLeftArm', axisIndex: 0, label: '前举', standingValue: -5, baseOffsetDeg: 74 },
-          { bone: 'mixamorigLeftArm', axisIndex: 1, label: '外展', standingValue: 7, baseOffsetDeg: 2 },
-          { bone: 'mixamorigLeftArm', axisIndex: 2, label: '扭转', standingValue: 0, baseOffsetDeg: -4 },
-        ],
-      },
-      {
-        title: '右',
-        controls: [
-          { bone: 'mixamorigRightArm', axisIndex: 0, label: '前举', standingValue: -5, baseOffsetDeg: 74 },
-          { bone: 'mixamorigRightArm', axisIndex: 1, label: '外展', standingValue: 7, baseOffsetDeg: -2, valueScale: -1 },
-          { bone: 'mixamorigRightArm', axisIndex: 2, label: '扭转', standingValue: 0, baseOffsetDeg: 4 },
-        ],
-      },
-    ],
-  },
-  {
-    title: '肘部',
-    groups: [
-      {
-        title: '左',
-        controls: [
-          { bone: 'mixamorigLeftForeArm', axisIndex: 0, label: '弯曲', standingValue: 10, baseOffsetDeg: 10 },
-          { bone: 'mixamorigLeftForeArm', axisIndex: 1, label: '内收', standingValue: -8, baseOffsetDeg: -8 },
-          { bone: 'mixamorigLeftForeArm', axisIndex: 2, label: '扭转', standingValue: 0 },
-        ],
-      },
-      {
-        title: '右',
-        controls: [
-          { bone: 'mixamorigRightForeArm', axisIndex: 0, label: '弯曲', standingValue: 10, baseOffsetDeg: 10 },
-          { bone: 'mixamorigRightForeArm', axisIndex: 1, label: '内收', standingValue: -8, baseOffsetDeg: 8, valueScale: -1 },
-          { bone: 'mixamorigRightForeArm', axisIndex: 2, label: '扭转', standingValue: 0 },
-        ],
-      },
-    ],
-  },
-  {
-    title: '手腕',
-    groups: [
-      {
-        title: '左',
-        controls: [
-          { bone: 'mixamorigLeftHand', axisIndex: 0, label: '下压', standingValue: 6, baseOffsetDeg: 6 },
-          { bone: 'mixamorigLeftHand', axisIndex: 1, label: '侧摆', standingValue: 0 },
-          { bone: 'mixamorigLeftHand', axisIndex: 2, label: '放松', standingValue: -8, baseOffsetDeg: -8 },
-        ],
-      },
-      {
-        title: '右',
-        controls: [
-          { bone: 'mixamorigRightHand', axisIndex: 0, label: '下压', standingValue: 6, baseOffsetDeg: 6 },
-          { bone: 'mixamorigRightHand', axisIndex: 1, label: '侧摆', standingValue: 0 },
-          { bone: 'mixamorigRightHand', axisIndex: 2, label: '放松', standingValue: -8, baseOffsetDeg: 8, valueScale: -1 },
-        ],
-      },
-    ],
-  },
-]
-const MANNEQUIN_POSE_MIN_DEG = -90
-const MANNEQUIN_POSE_MAX_DEG = 90
-
-const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
-  {
-    id: 'standing',
-    label: '站立',
-  },
-  {
-    id: 't-pose',
-    label: 'T型',
-    pose: makePoseOffset({
-      mixamorigSpine: [-2, 0, 0],
-      mixamorigHead: [10, 0, 0],
-      mixamorigLeftArm: [-74, -2, 4],
-      mixamorigRightArm: [-74, 2, -4],
-      mixamorigLeftForeArm: [-10, 8, 0],
-      mixamorigRightForeArm: [-10, -8, 0],
-      mixamorigLeftHand: [-6, 0, 8],
-      mixamorigRightHand: [-6, 0, -8],
-    }),
-  },
-  {
-    id: 'walk',
-    label: '行走',
-    pose: makePoseOffset({
-      mixamorigHips: [0, -6, 0],
-      mixamorigSpine: [2, 4, 0],
-      mixamorigLeftArm: [22, -4, 2],
-      mixamorigRightArm: [-18, 4, -2],
-      mixamorigLeftForeArm: [12, -3, 0],
-      mixamorigRightForeArm: [16, 3, 0],
-      mixamorigLeftUpLeg: [-28, 0, 0],
-      mixamorigLeftLeg: [20, 0, 0],
-      mixamorigRightUpLeg: [22, 0, 0],
-      mixamorigRightLeg: [8, 0, 0],
-    }),
-  },
-  {
-    id: 'run',
-    label: '跑步',
-    pose: makePoseOffset({
-      mixamorigHips: [8, -8, 0],
-      mixamorigSpine: [10, 5, 0],
-      mixamorigHead: [6, 0, 0],
-      mixamorigLeftArm: [44, -10, 4],
-      mixamorigRightArm: [-32, 10, -4],
-      mixamorigLeftForeArm: [42, -4, 0],
-      mixamorigRightForeArm: [48, 4, 0],
-      mixamorigLeftUpLeg: [-44, 0, 0],
-      mixamorigLeftLeg: [42, 0, 0],
-      mixamorigRightUpLeg: [34, 0, 0],
-      mixamorigRightLeg: [26, 0, 0],
-      mixamorigLeftFoot: [-10, 0, 0],
-      mixamorigRightFoot: [10, 0, 0],
-    }),
-  },
-  {
-    id: 'sit',
-    label: '坐姿',
-    pose: makePoseOffset({
-      mixamorigHips: [-6, 0, 0],
-      mixamorigSpine: [6, 0, 0],
-      mixamorigLeftArm: [4, -16, 8],
-      mixamorigRightArm: [4, 16, -8],
-      mixamorigLeftForeArm: [12, -8, 0],
-      mixamorigRightForeArm: [12, 8, 0],
-      mixamorigLeftHand: [-2, 0, -6],
-      mixamorigRightHand: [-2, 0, 6],
-      mixamorigLeftUpLeg: [-68, 4, 0],
-      mixamorigRightUpLeg: [-68, -4, 0],
-      mixamorigLeftLeg: [-72, 0, 0],
-      mixamorigRightLeg: [-72, 0, 0],
-      mixamorigLeftFoot: [10, 0, 0],
-      mixamorigRightFoot: [10, 0, 0],
-    }),
-  },
-  {
-    id: 'squat',
-    label: '蹲下',
-    pose: makePoseOffset({
-      mixamorigHips: [-24, 0, 0],
-      mixamorigSpine: [14, 0, 0],
-      mixamorigHead: [8, 0, 0],
-      mixamorigLeftArm: [18, -8, 2],
-      mixamorigRightArm: [18, 8, -2],
-      mixamorigLeftForeArm: [30, -6, 0],
-      mixamorigRightForeArm: [30, 6, 0],
-      mixamorigLeftUpLeg: [68, 0, 0],
-      mixamorigRightUpLeg: [68, 0, 0],
-      mixamorigLeftLeg: [-96, 0, 0],
-      mixamorigRightLeg: [-96, 0, 0],
-      mixamorigLeftFoot: [34, 0, 0],
-      mixamorigRightFoot: [34, 0, 0],
-    }),
-  },
-  {
-    id: 'single-knee',
-    label: '单膝跪',
-    pose: makePoseOffset({
-      mixamorigHips: [-16, 0, 0],
-      mixamorigSpine: [10, 0, 0],
-      mixamorigLeftArm: [16, -6, 2],
-      mixamorigRightArm: [10, 6, -2],
-      mixamorigLeftForeArm: [28, -4, 0],
-      mixamorigRightForeArm: [22, 4, 0],
-      mixamorigLeftUpLeg: [70, 0, 0],
-      mixamorigLeftLeg: [-72, 0, 0],
-      mixamorigRightUpLeg: [18, 0, 0],
-      mixamorigRightLeg: [-108, 0, 0],
-      mixamorigLeftFoot: [18, 0, 0],
-      mixamorigRightFoot: [50, 0, 0],
-    }),
-  },
-  {
-    id: 'double-knee',
-    label: '双膝跪',
-    pose: makePoseOffset({
-      mixamorigHips: [-22, 0, 0],
-      mixamorigSpine: [12, 0, 0],
-      mixamorigLeftArm: [12, -4, 2],
-      mixamorigRightArm: [12, 4, -2],
-      mixamorigLeftForeArm: [26, -4, 0],
-      mixamorigRightForeArm: [26, 4, 0],
-      mixamorigLeftUpLeg: [46, 0, 0],
-      mixamorigRightUpLeg: [46, 0, 0],
-      mixamorigLeftLeg: [-118, 0, 0],
-      mixamorigRightLeg: [-118, 0, 0],
-      mixamorigLeftFoot: [56, 0, 0],
-      mixamorigRightFoot: [56, 0, 0],
-    }),
-  },
-]
-
-function isEditableKeyboardTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
-  return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
-}
-
-function pointerCaptureTarget(target: unknown): PointerCaptureTarget | null {
-  return target && typeof target === 'object' ? target as PointerCaptureTarget : null
-}
-
-function normalizeMannequinBoneName(boneName: string): string {
-  return boneName.replace(/^mixamorig:/, 'mixamorig')
-}
-
-function mannequinBoneNameVariants(boneName: string): string[] {
-  const normalizedName = normalizeMannequinBoneName(boneName)
-  const colonName = normalizedName.replace(/^mixamorig/, 'mixamorig:')
-  return Array.from(new Set([boneName, normalizedName, colonName]))
-}
-
-function mannequinPoseOffsetForBone(pose: Record<string, Scene3DVector3> | undefined, boneName: string): Scene3DVector3 | undefined {
-  if (!pose) return undefined
-  for (const candidate of mannequinBoneNameVariants(boneName)) {
-    const rotation = pose[candidate]
-    if (rotation) return rotation
-  }
-  return undefined
-}
-
-function vectorFromArray(value: Scene3DVector3): THREE.Vector3 {
-  return new THREE.Vector3(value[0], value[1], value[2])
-}
-
-function vectorToArray(value: THREE.Vector3): Scene3DVector3 {
-  return [
-    Number(value.x.toFixed(4)),
-    Number(value.y.toFixed(4)),
-    Number(value.z.toFixed(4)),
-  ]
-}
-
-function cameraLookAtRotation(position: Scene3DVector3, target: Scene3DVector3): Scene3DVector3 {
-  const cameraObject = new THREE.Object3D()
-  cameraObject.position.fromArray(position)
-  cameraObject.lookAt(vectorFromArray(target))
-  return eulerToArray(cameraObject.rotation)
-}
-
-function levelEditorCameraRotation(position: Scene3DVector3, target: Scene3DVector3): Scene3DVector3 {
-  const direction = vectorFromArray(target).sub(vectorFromArray(position))
-  if (direction.lengthSq() < 0.000001) return [0, 0, 0]
-  direction.normalize()
-  const pitch = Math.asin(THREE.MathUtils.clamp(direction.y, -1, 1))
-  const yaw = Math.atan2(-direction.x, -direction.z)
-  return [
-    Number(pitch.toFixed(4)),
-    Number(yaw.toFixed(4)),
-    0,
-  ]
-}
-
-function applyEditorCameraPose(camera: THREE.Camera, editorCamera: Pick<Scene3DState['editorCamera'], 'position' | 'target'>): void {
-  const rotation = levelEditorCameraRotation(editorCamera.position, editorCamera.target)
-  camera.up.set(0, 1, 0)
-  camera.position.fromArray(editorCamera.position)
-  camera.rotation.set(rotation[0], rotation[1], rotation[2], 'YXZ')
-  camera.updateMatrixWorld(true)
-}
-
-function cameraViewPosition(cameraData: Scene3DCamera): THREE.Vector3 {
-  const position = vectorFromArray(cameraData.position)
-  const target = vectorFromArray(cameraData.target || CAMERA_DEFAULT_TARGET)
-  const direction = target.clone().sub(position)
-  const distance = direction.length()
-  if (distance < 0.001) return position
-
-  const depth = THREE.MathUtils.clamp(cameraData.lensDepth ?? 0, -100, 100) / 100
-  if (Math.abs(depth) < 0.001) return position
-
-  direction.normalize()
-  const rawOffset = distance * CAMERA_LENS_DEPTH_MAX_FACTOR * depth
-  const safeForwardOffset = Math.max(0, distance - Math.max(cameraData.near ?? 0.1, 0.1) - 0.2)
-  const offset = depth > 0 ? Math.min(rawOffset, safeForwardOffset) : rawOffset
-  return position.addScaledVector(direction, offset)
-}
-
-function applySceneCameraPose(camera: THREE.Camera, cameraData: Scene3DCamera): void {
-  if (camera instanceof THREE.PerspectiveCamera) {
-    camera.fov = cameraData.fov
-    camera.aspect = SCENE3D_ASPECT_RATIOS[cameraData.aspectRatio]
-    camera.near = cameraData.near
-    camera.far = cameraData.far
-    camera.updateProjectionMatrix()
-  }
-  camera.position.copy(cameraViewPosition(cameraData))
-  camera.lookAt(vectorFromArray(cameraData.target || CAMERA_DEFAULT_TARGET))
-  camera.updateMatrixWorld(true)
-}
-
-function editorCameraFromSceneCamera(cameraData: Scene3DCamera): Scene3DState['editorCamera'] {
-  const target = cameraData.target || CAMERA_DEFAULT_TARGET
-  return {
-    position: [...cameraData.position],
-    target: [...target],
-    rotation: levelEditorCameraRotation(cameraData.position, target),
-    mode: 'fly',
-  }
-}
-
-function eulerToArray(value: THREE.Euler): Scene3DVector3 {
-  return [
-    Number(value.x.toFixed(4)),
-    Number(value.y.toFixed(4)),
-    Number(value.z.toFixed(4)),
-  ]
-}
-
-function vectorAlmostEqual(a: Scene3DVector3, b: Scene3DVector3, epsilon = 0.002): boolean {
-  return (
-    Math.abs(a[0] - b[0]) <= epsilon &&
-    Math.abs(a[1] - b[1]) <= epsilon &&
-    Math.abs(a[2] - b[2]) <= epsilon
-  )
-}
-
-function makePoseOffset(values: Record<string, Scene3DVector3>): Record<string, Scene3DVector3> {
-  return Object.fromEntries(
-    Object.entries(values).map(([boneName, rotation]) => [
-      boneName,
-      rotation.map((value) => degreesToRadians(value)) as Scene3DVector3,
-    ]),
-  )
-}
-
-function clonePoseValue(pose?: Record<string, Scene3DVector3>): Record<string, Scene3DVector3> | undefined {
-  if (!pose) return undefined
-  return Object.fromEntries(
-    Object.entries(pose).map(([boneName, rotation]) => [boneName, [...rotation] as Scene3DVector3]),
-  )
-}
-
-function poseMatchesPreset(pose: Record<string, Scene3DVector3> | undefined, preset: MannequinPosePreset): boolean {
-  if (!preset.pose) return !pose || Object.keys(pose).length === 0
-  if (!pose) return false
-  const presetEntries = Object.entries(preset.pose)
-  if (presetEntries.length !== Object.keys(pose).length) return false
-  return presetEntries.every(([boneName, rotation]) => {
-    const currentRotation = pose[boneName]
-    return currentRotation ? vectorAlmostEqual(currentRotation, rotation) : false
-  })
-}
-
-function radiansToDegrees(value: number): number {
-  return Number(THREE.MathUtils.radToDeg(value).toFixed(1))
-}
-
-function degreesToRadians(value: number): number {
-  return Number(THREE.MathUtils.degToRad(value).toFixed(4))
-}
-
-function rememberMannequinRestPose(root: THREE.Object3D): void {
-  root.traverse((object) => {
-    if (!(object instanceof THREE.Bone)) return
-    object.userData[MANNEQUIN_REST_ROTATION_KEY] = [
-      object.rotation.x,
-      object.rotation.y,
-      object.rotation.z,
-    ] satisfies Scene3DVector3
-  })
-}
-
-function applyMannequinSkeletonPose(root: THREE.Object3D, pose?: Record<string, Scene3DVector3>): void {
-  root.traverse((object) => {
-    if (!(object instanceof THREE.Bone)) return
-    const restRotation = object.userData[MANNEQUIN_REST_ROTATION_KEY] as Scene3DVector3 | undefined
-    if (!restRotation) return
-    object.rotation.set(restRotation[0], restRotation[1], restRotation[2])
-  })
-  root.traverse((object) => {
-    if (!(object instanceof THREE.Bone)) return
-    const defaultOffset = MANNEQUIN_DEFAULT_POSE[normalizeMannequinBoneName(object.name)]
-    const savedOffset = mannequinPoseOffsetForBone(pose, object.name)
-    if (!defaultOffset && !savedOffset) return
-    object.rotation.x += (defaultOffset?.[0] || 0) + (savedOffset?.[0] || 0)
-    object.rotation.y += (defaultOffset?.[1] || 0) + (savedOffset?.[1] || 0)
-    object.rotation.z += (defaultOffset?.[2] || 0) + (savedOffset?.[2] || 0)
-  })
-  root.updateMatrixWorld(true)
-}
-
-function normalizeMannequinModel(root: THREE.Object3D): THREE.Group {
-  root.updateMatrixWorld(true)
-  const box = new THREE.Box3().setFromObject(root)
-  const size = box.getSize(new THREE.Vector3())
-  const center = box.getCenter(new THREE.Vector3())
-  const normalized = new THREE.Group()
-  const height = Math.max(0.001, size.y)
-
-  root.position.sub(center)
-  normalized.scale.setScalar(1 / height)
-  normalized.add(root)
-  normalized.updateMatrixWorld(true)
-  return normalized
-}
-
-function aspectDimensions(aspectRatio: Scene3DAspectRatio): { width: number; height: number } {
-  const ratio = SCENE3D_ASPECT_RATIOS[aspectRatio]
-  const width = 1920
-  return {
-    width,
-    height: Math.max(1, Math.round(width / ratio)),
-  }
-}
-
-function captureScene(
-  gl: THREE.WebGLRenderer,
-  scene: THREE.Scene,
-  camera: THREE.Camera,
-  width: number,
-  height: number,
-  title: string,
-  source: Scene3DCaptureResult['source'],
-  hideGrid = false,
-): Scene3DCaptureResult | null {
-  const helpers: Array<{ object: THREE.Object3D; visible: boolean }> = []
-  scene.traverse((object) => {
-    if (object.userData?.[CAMERA_HELPER_FLAG] === true || (hideGrid && object.userData?.[SCENE3D_GRID_FLAG] === true)) {
-      helpers.push({ object, visible: object.visible })
-      object.visible = false
-    }
-  })
-
-  const previousRenderTarget = gl.getRenderTarget()
-  const renderTarget = new THREE.WebGLRenderTarget(width, height, {
-    format: THREE.RGBAFormat,
-    type: THREE.UnsignedByteType,
-  })
-  renderTarget.texture.colorSpace = THREE.SRGBColorSpace
-
-  try {
-    gl.setRenderTarget(renderTarget)
-    gl.clear()
-    gl.render(scene, camera)
-
-    const buffer = new Uint8Array(width * height * 4)
-    gl.readRenderTargetPixels(renderTarget, 0, 0, width, height, buffer)
-
-    const canvas = document.createElement('canvas')
-    canvas.width = width
-    canvas.height = height
-    const context = canvas.getContext('2d')
-    if (!context) return null
-    const imageData = context.createImageData(width, height)
-    for (let y = 0; y < height; y += 1) {
-      const sourceRow = (height - y - 1) * width * 4
-      const targetRow = y * width * 4
-      imageData.data.set(buffer.subarray(sourceRow, sourceRow + width * 4), targetRow)
-    }
-    context.putImageData(imageData, 0, 0)
-    return {
-      dataUrl: canvas.toDataURL('image/png'),
-      width,
-      height,
-      title,
-      source,
-    }
-  } finally {
-    gl.setRenderTarget(previousRenderTarget)
-    helpers.forEach((entry) => {
-      entry.object.visible = entry.visible
-    })
-    renderTarget.dispose()
-  }
-}
-
-function roleColorForIndex(index: number): string {
-  return ROLE_COLOR_SEQUENCE[index % ROLE_COLOR_SEQUENCE.length]
-}
-
-function clampCrowdOptions(options: CrowdAddOptions): CrowdAddOptions {
-  return {
-    rows: Math.min(CROWD_MAX_AXIS, Math.max(1, Math.round(options.rows))),
-    columns: Math.min(CROWD_MAX_AXIS, Math.max(1, Math.round(options.columns))),
-    spacing: Math.min(10, Math.max(0.2, Number(options.spacing.toFixed(2)))),
-  }
-}
-
-function makeObject(kind: Scene3DGeometry | 'mannequin' | 'light', roleIndex = 0): Scene3DObject {
-  const id = createScene3DObjectId()
-  if (kind === 'mannequin') {
-    return {
-      id,
-      name: '假人',
-      type: 'mannequin',
-      visible: true,
-      position: [0, MANNEQUIN_DEFAULT_SCALE[1] * 0.5, 0],
-      rotation: [0, 0, 0],
-      scale: [...MANNEQUIN_DEFAULT_SCALE],
-      color: roleColorForIndex(roleIndex),
-    }
-  }
-  if (kind === 'light') {
-    return {
-      id,
-      name: '点光源',
-      type: 'light',
-      visible: true,
-      position: [2.5, 3.5, 2.5],
-      rotation: [0, 0, 0],
-      scale: [1, 1, 1],
-      lightType: 'point',
-      lightColor: '#ffffff',
-      lightIntensity: 2.4,
-    }
-  }
-  const labels: Record<Scene3DGeometry, string> = {
-    box: '立方体',
-    sphere: '球体',
-    cylinder: '圆柱体',
-    plane: '平面',
-  }
-  return {
-    id,
-    name: labels[kind],
-    type: 'mesh',
-    visible: true,
-    position: kind === 'plane' ? [0, 0, 0] : [0, 0.5, 0],
-    rotation: kind === 'plane' ? [-Math.PI / 2, 0, 0] : [0, 0, 0],
-    scale: kind === 'plane' ? [4, 4, 4] : [1, 1, 1],
-    color: kind === 'plane' ? '#4b5563' : '#7c8ea0',
-    geometry: kind,
-  }
-}
-
-function makeCrowdObject(options: CrowdAddOptions): Scene3DObject {
-  const id = createScene3DObjectId()
-  const crowd = clampCrowdOptions(options)
-  return {
-    id,
-    name: `群众(${crowd.rows}x${crowd.columns})`,
-    type: 'mannequinCrowd',
-    visible: true,
-    position: [0, MANNEQUIN_DEFAULT_SCALE[1] * 0.5, 0],
-    rotation: [0, 0, 0],
-    scale: [...MANNEQUIN_DEFAULT_SCALE],
-    crowdRows: crowd.rows,
-    crowdColumns: crowd.columns,
-    crowdSpacing: crowd.spacing,
-  }
-}
-
-function makeCamera(index: number): Scene3DCamera {
-  const position: Scene3DVector3 = [4, 2.4, 5]
-  const target: Scene3DVector3 = [...CAMERA_DEFAULT_TARGET]
-  return {
-    id: createScene3DCameraId(),
-    name: `相机${index + 1}`,
-    visible: true,
-    position,
-    rotation: cameraLookAtRotation(position, target),
-    target,
-    fov: 45,
-    aspectRatio: '16:9',
-    lensDepth: 0,
-    near: 0.1,
-    far: 200,
-  }
-}
-
-function offsetScene3DVector(value: Scene3DVector3, count: number): Scene3DVector3 {
-  return [
-    Number((value[0] + CLIPBOARD_PASTE_OFFSET[0] * count).toFixed(4)),
-    Number((value[1] + CLIPBOARD_PASTE_OFFSET[1] * count).toFixed(4)),
-    Number((value[2] + CLIPBOARD_PASTE_OFFSET[2] * count).toFixed(4)),
-  ]
-}
-
-function cloneObjectForClipboard(object: Scene3DObject): Scene3DObject {
-  return {
-    ...object,
-    position: [...object.position],
-    rotation: [...object.rotation],
-    scale: [...object.scale],
-    pose: clonePoseValue(object.pose),
-    children: object.children ? [...object.children] : undefined,
-  }
-}
-
-function cloneCameraForClipboard(camera: Scene3DCamera): Scene3DCamera {
-  return {
-    ...camera,
-    position: [...camera.position],
-    rotation: [...camera.rotation],
-    target: [...camera.target],
-  }
-}
-
-function makePastedObject(object: Scene3DObject, pasteCount: number): Scene3DObject {
-  return {
-    ...cloneObjectForClipboard(object),
-    id: createScene3DObjectId(),
-    name: `${object.name} 副本`,
-    position: offsetScene3DVector(object.position, pasteCount),
-    parentId: undefined,
-    children: undefined,
-  }
-}
-
-function makePastedCamera(camera: Scene3DCamera, pasteCount: number): Scene3DCamera {
-  const position = offsetScene3DVector(camera.position, pasteCount)
-  const target = offsetScene3DVector(camera.target, pasteCount)
-  return {
-    ...cloneCameraForClipboard(camera),
-    id: createScene3DCameraId(),
-    name: `${camera.name} 副本`,
-    position,
-    target,
-    rotation: cameraLookAtRotation(position, target),
-  }
-}
-
-function updateVectorValue(value: Scene3DVector3, index: number, nextValue: number): Scene3DVector3 {
-  const next: Scene3DVector3 = [...value]
-  next[index] = Number.isFinite(nextValue) ? nextValue : value[index]
-  return next
-}
-
-function numberInputValue(value: number): string {
-  return Number.isFinite(value) ? String(Number(value.toFixed(3))) : '0'
-}
-
-function isMovementCode(code: string): code is Scene3DMovementCode {
-  return MOVEMENT_CODES.has(code)
-}
-
-function clearMovementKeyState(keys: Record<Scene3DMovementCode, boolean>): void {
-  keys.KeyW = false
-  keys.KeyA = false
-  keys.KeyS = false
-  keys.KeyD = false
-  keys.ArrowUp = false
-  keys.ArrowDown = false
-  keys.ArrowLeft = false
-  keys.ArrowRight = false
-  keys.Space = false
-  keys.ShiftLeft = false
-  keys.ShiftRight = false
-}
-
-function hasActiveMovementKey(keys: Record<Scene3DMovementCode, boolean>): boolean {
-  return (
-    keys.KeyW ||
-    keys.KeyA ||
-    keys.KeyS ||
-    keys.KeyD ||
-    keys.ArrowUp ||
-    keys.ArrowDown ||
-    keys.ArrowLeft ||
-    keys.ArrowRight ||
-    keys.Space ||
-    keys.ShiftLeft ||
-    keys.ShiftRight
-  )
-}
-
 function Scene3DControls({
   freeLook,
   selectionActive,
