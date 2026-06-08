@@ -1,5 +1,25 @@
-import { getDesktopBridge, type DesktopBridge } from '../desktop/bridge'
 import type { ProviderKind } from '../desktop/providerKind'
+import {
+  requireDesktopRuntime,
+  openDesktopAgentsChatStream,
+  type AgentsChatRequestDto,
+  type AgentsChatStreamHandlers,
+} from './desktopAgentsChatStream'
+
+// 重导出：openDesktopAgentsChatStream + chatV2 事件适配 + agents-chat 相关类型已拆到
+// desktopAgentsChatStream.ts（requireDesktopRuntime 这一守卫也随之搬过去，避免主文件 ↔
+// 流模块循环依赖），但 desktopClient 对外公共导出面保持不变。
+export {
+  coerceAgentUsage,
+  type AgentsChatRequestDto,
+  type AgentUsage,
+  type AgentsChatResponseDto,
+  type AgentsChatToolStreamPayload,
+  type AgentsChatStreamEvent,
+  type AgentChatV2ToolDecision,
+  type AgentChatV2Session,
+  type AgentsChatStreamHandlers,
+} from './desktopAgentsChatStream'
 
 export type BillingModelKind = 'text' | 'image' | 'video' | 'audio'
 
@@ -23,74 +43,6 @@ export type ModelCatalogIntegrationChannelKind =
   | 'private_proxy'
   | 'local_runtime'
   | 'custom_endpoint'
-
-export type AgentsChatRequestDto = {
-  vendor?: string
-  prompt: string
-  displayPrompt?: string
-  sessionKey?: string
-  canvasProjectId?: string
-  canvasFlowId?: string
-  chatContext?: unknown
-  mode?: 'chat' | 'auto' | string
-  temperature?: number
-  systemPrompt?: string
-}
-
-export type AgentUsage = {
-  promptTokens: number
-  completionTokens: number
-  totalTokens: number
-}
-
-export type AgentsChatResponseDto = {
-  id?: string
-  text: string
-  raw?: unknown
-  toolCalls?: unknown[]
-  artifacts?: unknown[]
-  /** Token usage for this turn (was previously buried in `raw` and dropped). */
-  usage?: AgentUsage
-}
-
-/** Coerce the SDK's loosely-typed usage object into AgentUsage (0-filled). */
-export function coerceAgentUsage(raw: unknown): AgentUsage | undefined {
-  if (!raw || typeof raw !== 'object') return undefined
-  const r = raw as Record<string, unknown>
-  const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
-  const usage: AgentUsage = {
-    promptTokens: num(r.promptTokens ?? r.inputTokens),
-    completionTokens: num(r.completionTokens ?? r.outputTokens),
-    totalTokens: num(r.totalTokens),
-  }
-  if (!usage.totalTokens) usage.totalTokens = usage.promptTokens + usage.completionTokens
-  if (!usage.promptTokens && !usage.completionTokens && !usage.totalTokens) return undefined
-  return usage
-}
-
-export type AgentsChatToolStreamPayload = Record<string, unknown>
-
-export type AgentsChatStreamEvent =
-  | { event: 'initial'; data: { requestId: string; messageId?: string } }
-  | { event: 'content'; data: { delta: string; text: string } }
-  | { event: 'tool'; data: AgentsChatToolStreamPayload }
-  | { event: 'tool-call'; data: { sessionId: string; toolCallId: string; toolName: string; args: unknown } }
-  | { event: 'tool-result'; data: { toolCallId: string; toolName: string; result: unknown } }
-  | { event: 'tool-error'; data: { toolCallId: string; toolName: string; message: string } }
-  | { event: 'step-finish'; data: { finishReason: string } }
-  | { event: 'result'; data: { response: AgentsChatResponseDto } }
-  | { event: 'error'; data: { message: string; code?: string } }
-  | { event: 'done'; data: { reason: 'finished' | 'error' } }
-
-export type AgentChatV2ToolDecision =
-  | { ok: true; result?: unknown }
-  | { ok: false; message?: string }
-
-export type AgentChatV2Session = {
-  sessionId: string
-  confirmTool: (toolCallId: string, decision: AgentChatV2ToolDecision) => Promise<void>
-  cancel: () => Promise<void>
-}
 
 export type ModelCatalogVendorDto = {
   key: string
@@ -241,165 +193,6 @@ export type ModelCatalogMappingTestResultDto = {
   diagnostics: string[]
   request: unknown
   response?: unknown
-}
-
-function requireDesktopRuntime(feature: string): DesktopBridge {
-  const desktop = getDesktopBridge()
-  if (!desktop) throw new Error(`${feature} requires the Electron desktop runtime`)
-  return desktop
-}
-
-
-/**
- * Real IPC-stream consumer. Subscribes to `nomi:agents:chatV2:event` and
- * relays each chunk as the existing `AgentsChatStreamEvent` shape so
- * downstream consumers (workbenchAiClient et al) keep working unchanged.
- *
- * Returns a stop function. Calling it cancels the underlying session and
- * unsubscribes the IPC listener.
- */
-async function openDesktopAgentsChatStream(
-  payload: AgentsChatRequestDto,
-  handlers: {
-    onEvent: (event: AgentsChatStreamEvent) => void
-    onOpen?: () => void
-    onError?: (error: Error) => void
-    onSession?: (session: AgentChatV2Session) => void
-  },
-): Promise<() => void> {
-  const desktop = requireDesktopRuntime('agents chat')
-
-  let aborted = false
-  let streamedText = ''
-  let sessionId: string | null = null
-  let unsubscribe: (() => void) | null = null
-
-  handlers.onOpen?.()
-  const requestId = `desktop-${Date.now()}`
-  const messageId = `message-${Date.now()}`
-  handlers.onEvent({ event: 'initial', data: { requestId, messageId } })
-
-  const stop = async (): Promise<void> => {
-    if (aborted) return
-    aborted = true
-    if (unsubscribe) {
-      unsubscribe()
-      unsubscribe = null
-    }
-    if (sessionId) {
-      try { await desktop.agents.cancelChatV2(sessionId) } catch { /* noop */ }
-    }
-  }
-
-  try {
-    const start = await desktop.agents.chatV2Start(payload)
-    sessionId = start.sessionId
-
-    unsubscribe = desktop.agents.onChatV2Event(sessionId, (rawEvent) => {
-      if (aborted) return
-      const evt = rawEvent as { type: string } & Record<string, unknown>
-      switch (evt.type) {
-        case 'content-delta': {
-          const delta = String(evt.delta || '')
-          if (!delta) return
-          streamedText += delta
-          handlers.onEvent({ event: 'content', data: { delta, text: streamedText } })
-          return
-        }
-        case 'tool-call-pending': {
-          handlers.onEvent({
-            event: 'tool-call',
-            data: {
-              sessionId: sessionId!,
-              toolCallId: String(evt.toolCallId),
-              toolName: String(evt.toolName),
-              args: evt.args,
-            },
-          })
-          return
-        }
-        case 'tool-result': {
-          handlers.onEvent({
-            event: 'tool-result',
-            data: {
-              toolCallId: String(evt.toolCallId),
-              toolName: String(evt.toolName),
-              result: evt.result,
-            },
-          })
-          return
-        }
-        case 'tool-error': {
-          handlers.onEvent({
-            event: 'tool-error',
-            data: {
-              toolCallId: String(evt.toolCallId),
-              toolName: String(evt.toolName),
-              message: String(evt.message || 'tool failed'),
-            },
-          })
-          return
-        }
-        case 'step-finish': {
-          handlers.onEvent({ event: 'step-finish', data: { finishReason: String(evt.finishReason || 'unknown') } })
-          return
-        }
-        case 'result': {
-          const inner = (evt.result as { id?: string; text?: string; usage?: unknown }) || {}
-          const response: AgentsChatResponseDto = {
-            id: typeof inner.id === 'string' ? inner.id : `agent-${Date.now()}`,
-            text: typeof inner.text === 'string' ? inner.text : streamedText,
-            raw: evt.result,
-            toolCalls: [],
-            artifacts: [],
-            usage: coerceAgentUsage(inner.usage),
-          }
-          handlers.onEvent({ event: 'result', data: { response } })
-          return
-        }
-        case 'error': {
-          const message = String(evt.message || 'agent error')
-          handlers.onError?.(new Error(message))
-          handlers.onEvent({ event: 'error', data: { message } })
-          return
-        }
-        case 'done': {
-          const reason = (evt.reason === 'error' ? 'error' : 'finished') as 'finished' | 'error'
-          handlers.onEvent({ event: 'done', data: { reason } })
-          if (unsubscribe) {
-            unsubscribe()
-            unsubscribe = null
-          }
-          return
-        }
-      }
-    })
-
-    handlers.onSession?.({
-      sessionId,
-      confirmTool: async (toolCallId, decision) => {
-        if (!sessionId) return
-        await desktop.agents.confirmTool(sessionId, toolCallId, decision)
-      },
-      cancel: stop,
-    })
-  } catch (error: unknown) {
-    const err = error instanceof Error ? error : new Error(String(error))
-    handlers.onError?.(err)
-    handlers.onEvent({ event: 'error', data: { message: err.message } })
-    handlers.onEvent({ event: 'done', data: { reason: 'error' } })
-  }
-
-  return () => {
-    void stop()
-  }
-}
-
-export type AgentsChatStreamHandlers = {
-  onEvent: (event: AgentsChatStreamEvent) => void
-  onOpen?: () => void
-  onError?: (error: Error) => void
-  onSession?: (session: AgentChatV2Session) => void
 }
 
 export async function workbenchAgentsChatStream(
