@@ -49,6 +49,7 @@
     "@react-three/drei": "^9",
     "@react-three/fiber": "^8",
     "@tabler/icons-react": "^3.19.0",
+    "@tanstack/react-virtual": "^3.14.2",
     "@tiptap/core": "3.23.5",
     "@tiptap/extension-placeholder": "^3.22.5",
     "@tiptap/pm": "3.23.5",

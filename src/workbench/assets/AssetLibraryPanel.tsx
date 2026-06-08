@@ -10,11 +10,15 @@
  */
 import React from 'react'
 import { Portal } from '@mantine/core'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { IconPhoto, IconPlus, IconSearch, IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { useAssetPool } from './useAssetPool'
 import { filterAssets, type AssetKind, type AssetRef } from './assetTypes'
 import { AssetThumb } from './AssetTile'
+
+const GRID_COLS = 3
+const ESTIMATED_ROW_HEIGHT = 121
 
 const PANEL_WIDTH = 380
 const TOP_OFFSET = 64
@@ -81,6 +85,23 @@ export function AssetLibraryPanel({ opened, onClose, projectId }: Props): JSX.El
     () => filterAssets(assets, { query, accept: filter === 'all' ? undefined : [filter] }),
     [assets, query, filter],
   )
+
+  // 虚拟化：按行渲染，只挂当前视口内的格子（图多时不再一次性渲染上百个 DOM 节点）。
+  //
+  // 根因坑（实测定位）：滚动容器用 flex-1 取高度，面板刚打开时它高度还是 0，虚拟器此刻
+  // 测到 scrollRect={0,0} → range=null → 一个格子都不挂；之后 flex 撑到 258px，但用对象
+  // useRef 时「ref 挂载/尺寸变化不会触发 React 重渲」，虚拟器没机会重算，于是一直空白
+  // （直到搜索等无关操作偶然触发重渲才恢复）。
+  // 解法：滚动元素用「callback-ref 写进 state」——元素挂载那一刻就强制一次重渲，虚拟器
+  // 立刻拿到带高度的元素重算。useState 的 setter 引用稳定，不会反复 detach/attach。
+  const [scrollEl, setScrollEl] = React.useState<HTMLDivElement | null>(null)
+  const rowCount = Math.ceil(visible.length / GRID_COLS)
+  const rowVirtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => scrollEl,
+    estimateSize: () => ESTIMATED_ROW_HEIGHT,
+    overscan: 3,
+  })
 
   // ESC 关闭
   React.useEffect(() => {
@@ -236,27 +257,41 @@ export function AssetLibraryPanel({ opened, onClose, projectId }: Props): JSX.El
           </div>
         </div>
 
-        {/* 网格 / 空态。每个格子是 memo 化的 AssetGridCell：搜索/筛选重渲时未变的格子不重建；
-            配合 A-1 的 lazy/decode（离屏图不解码），图多时滚动顺滑、不掉帧。 */}
-        {isEmpty ? (
-          <div className={cn('flex-1 flex flex-col items-center justify-center gap-2.5 px-6 py-12 text-center')}>
-            <IconPhoto size={34} stroke={1.4} className={cn('text-nomi-ink-30')} />
-            <div className={cn('text-body font-semibold text-nomi-ink')}>
-              {assets.length === 0 ? '还没有素材' : '没有匹配的素材'}
+        {/* 网格 / 空态 */}
+        <div ref={setScrollEl} className={cn('flex-1 overflow-y-auto px-3.5 pb-4')}>
+          {isEmpty ? (
+            <div className={cn('flex flex-col items-center justify-center gap-2.5 px-6 py-12 text-center')}>
+              <IconPhoto size={34} stroke={1.4} className={cn('text-nomi-ink-30')} />
+              <div className={cn('text-body font-semibold text-nomi-ink')}>
+                {assets.length === 0 ? '还没有素材' : '没有匹配的素材'}
+              </div>
+              <div className={cn('text-caption text-nomi-ink-40 leading-relaxed')}>
+                {assets.length === 0
+                  ? '点「上传」导入图片，或在生成区生成后会自动出现在这里。'
+                  : '换个筛选或搜索词试试。'}
+              </div>
             </div>
-            <div className={cn('text-caption text-nomi-ink-40 leading-relaxed')}>
-              {assets.length === 0
-                ? '点「上传」导入图片，或在生成区生成后会自动出现在这里。'
-                : '换个筛选或搜索词试试。'}
+          ) : (
+            <div style={{ height: rowVirtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const start = virtualRow.index * GRID_COLS
+                const rowAssets = visible.slice(start, start + GRID_COLS)
+                return (
+                  <div
+                    key={virtualRow.key}
+                    data-index={virtualRow.index}
+                    className={cn('grid grid-cols-3 gap-2.5 pb-2.5')}
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: virtualRow.size, transform: `translateY(${virtualRow.start}px)` }}
+                  >
+                    {rowAssets.map((asset) => (
+                      <AssetGridCell key={asset.id} asset={asset} />
+                    ))}
+                  </div>
+                )
+              })}
             </div>
-          </div>
-        ) : (
-          <div className={cn('flex-1 overflow-y-auto grid grid-cols-3 gap-2.5 px-3.5 pb-4 content-start')}>
-            {visible.map((asset) => (
-              <AssetGridCell key={asset.id} asset={asset} />
-            ))}
-          </div>
-        )}
+          )}
+        </div>
 
         <style>{`
           @keyframes nomi-panel-pop {
