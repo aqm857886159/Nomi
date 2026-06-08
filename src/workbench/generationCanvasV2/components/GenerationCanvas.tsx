@@ -1,6 +1,5 @@
 import React from 'react'
 import { IconCopy, IconCut, IconFolderPlus, IconX } from '@tabler/icons-react'
-import { IconScissors } from '@tabler/icons-react'
 import { WorkbenchButton, WorkbenchIconButton } from '../../../design'
 import { toast } from '../../../ui/toast'
 import { cn } from '../../../utils/cn'
@@ -8,7 +7,6 @@ import CanvasToolbar, { NodeAddMenu } from './CanvasToolbar'
 import { importImageFilesToGenerationCanvas } from '../adapters/assetImportAdapter'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { WORKSPACE_FILE_DRAG_MIME, buildWorkspaceFileUrl, parseWorkspaceFileDrag } from '../../explorer/workspaceFileDrag'
-import { EDGE_MODE_LABEL } from '../model/graphOps'
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 import { getGenerationNodeComponent } from '../nodes/renderRegistry'
 import { completeNodeConnection } from '../nodes/completeNodeConnection'
@@ -22,58 +20,19 @@ import {
   clampNumber,
   createInitialViewport,
   getCanvasGroupBoxes,
-  getNodeSize,
   getSelectedBounds,
   getWheelZoomFactor,
 } from './generationCanvasGeometry'
 import { findScrollableAncestor } from './canvasScroll'
+import { GENERATION_DEFAULT_BASE_URL, GENERATION_PROVIDER, readProviderSetting, writeProviderSettings } from '../services/providerSettings'
+import CanvasEdgeLayer, { type ActiveEdge } from './CanvasEdgeLayer'
 import '../styles/generationCanvas.css'
 
-const GENERATION_PROVIDER = 'chatfire'
-const GENERATION_DEFAULT_BASE_URL = 'https://api.chatfire.site'
 const OPEN_MODEL_CATALOG_EVENT = 'nomi-open-model-catalog'
 const FOCUS_GENERATION_NODE_EVENT = 'nomi-focus-generation-node'
 
 type GenerationCanvasProps = {
   readOnly?: boolean
-}
-
-type ActiveEdge = {
-  id: string
-  position?: { x: number; y: number }
-}
-
-function readProviderSetting(key: 'apiKey' | 'baseUrl'): string {
-  if (typeof window === 'undefined') return key === 'baseUrl' ? GENERATION_DEFAULT_BASE_URL : ''
-  try {
-    const storageKey = key === 'apiKey' ? 'api-keys-by-provider' : 'base-urls-by-provider'
-    const value = JSON.parse(window.localStorage.getItem(storageKey) || '{}') as Record<string, unknown>
-    const configured = typeof value[GENERATION_PROVIDER] === 'string' ? value[GENERATION_PROVIDER].trim() : ''
-    if (configured) return configured
-  } catch {
-    // ignore invalid local settings
-  }
-  if (key === 'apiKey') {
-    try {
-      return window.localStorage.getItem('tapcanvas_public_api_key')?.trim() || ''
-    } catch {
-      return ''
-    }
-  }
-  return GENERATION_DEFAULT_BASE_URL
-}
-
-function writeProviderSettings(apiKey: string, baseUrl: string) {
-  if (typeof window === 'undefined') return
-  const nextKey = apiKey.trim()
-  const nextBaseUrl = baseUrl.trim() || GENERATION_DEFAULT_BASE_URL
-  const apiKeys = JSON.parse(window.localStorage.getItem('api-keys-by-provider') || '{}') as Record<string, string>
-  const baseUrls = JSON.parse(window.localStorage.getItem('base-urls-by-provider') || '{}') as Record<string, string>
-  if (nextKey) apiKeys[GENERATION_PROVIDER] = nextKey
-  else delete apiKeys[GENERATION_PROVIDER]
-  baseUrls[GENERATION_PROVIDER] = nextBaseUrl
-  window.localStorage.setItem('api-keys-by-provider', JSON.stringify(apiKeys))
-  window.localStorage.setItem('base-urls-by-provider', JSON.stringify(baseUrls))
 }
 
 export default function GenerationCanvas({ readOnly = false }: GenerationCanvasProps): JSX.Element {
@@ -888,95 +847,17 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
             className={cn('generation-canvas-v2__canvas', 'absolute inset-0 origin-top-left')}
             style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})` }}
           >
-            <svg className="generation-canvas-v2__edges" aria-label="节点连接线">
-              {edges.map((edge) => {
-                const source = nodeById.get(edge.source)
-                const target = nodeById.get(edge.target)
-                if (!source || !target) return null
-                const sourceSize = source.size || { width: 300, height: 220 }
-                const targetSize = target.size || { width: 300, height: 220 }
-                const startX = source.position.x + sourceSize.width
-                const startY = source.position.y + sourceSize.height / 2
-                const endX = target.position.x
-                const endY = target.position.y + targetSize.height / 2
-                const control = Math.max(64, Math.min(140, Math.abs(endX - startX) * 0.45))
-                const mode = edge.mode || 'reference'
-                const midX = (startX + endX) / 2
-                const midY = (startY + endY) / 2
-                const path = `M ${startX} ${startY} C ${startX + control} ${startY}, ${endX - control} ${endY}, ${endX} ${endY}`
-                const isActiveEdge = activeEdgeId === edge.id
-                const cutPosition = isActiveEdge && activeEdge?.position ? activeEdge.position : { x: midX, y: midY }
-                return (
-                  <g key={edge.id} className="generation-canvas-v2__edge" data-mode={mode} data-active={isActiveEdge ? 'true' : undefined}>
-                    <path className="generation-canvas-v2__edge-path" d={path} />
-                    {!readOnly ? (
-                      <path
-                        className="generation-canvas-v2__edge-hit"
-                        d={path}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`选择连接线：${source.title} 到 ${target.title}`}
-                        onPointerDown={(event) => {
-                          event.stopPropagation()
-                          setActiveEdge({
-                            id: edge.id,
-                            position: getCanvasPointFromClientPoint(event.clientX, event.clientY) ?? { x: midX, y: midY },
-                          })
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key !== 'Enter' && event.key !== ' ') return
-                          event.preventDefault()
-                          setActiveEdge({ id: edge.id })
-                        }}
-                      />
-                    ) : null}
-                    {isActiveEdge && !readOnly ? (
-                      <foreignObject className="generation-canvas-v2__edge-cut-object" x={cutPosition.x - 18} y={cutPosition.y - 18} width="36" height="36">
-                        <div className={cn('generation-canvas-v2__edge-cut-wrap', 'grid w-9 h-9 place-items-center pointer-events-auto')}>
-                          <button
-                            type="button"
-                            className={cn(
-                              'generation-canvas-v2__edge-cut',
-                              'inline-grid w-[30px] h-[30px] place-items-center p-0 border-0 rounded-full',
-                              'bg-nomi-paper text-workbench-danger cursor-pointer',
-                              'shadow-[0_8px_24px_rgba(18,24,38,0.18),0_0_0_1px_rgba(18,24,38,0.08)]',
-                              'hover:bg-workbench-danger hover:text-nomi-paper',
-                            )}
-                            aria-label={`断开连接：${source.title} 到 ${target.title}`}
-                            title={`断开连接：${EDGE_MODE_LABEL[mode]}`}
-                            onPointerDown={(event) => event.stopPropagation()}
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              disconnectEdge(edge.id)
-                              setActiveEdge(null)
-                            }}
-                          >
-                            <IconScissors size={16} stroke={2.2} aria-hidden="true" />
-                          </button>
-                        </div>
-                      </foreignObject>
-                    ) : null}
-                  </g>
-                )
-              })}
-              {(() => {
-                if (!pendingConnectionSourceId || !pendingCursorPos) return null
-                const sourceNode = nodeById.get(pendingConnectionSourceId)
-                if (!sourceNode) return null
-                const sourceSize = getNodeSize(sourceNode)
-                const startX = sourceNode.position.x + sourceSize.width
-                const startY = sourceNode.position.y + sourceSize.height / 2
-                const endX = pendingCursorPos.x
-                const endY = pendingCursorPos.y
-                const ctrl = Math.max(40, Math.abs(endX - startX) * 0.45)
-                return (
-                  <path
-                    className="generation-canvas-v2__edge-preview"
-                    d={`M ${startX} ${startY} C ${startX + ctrl} ${startY}, ${endX - ctrl} ${endY}, ${endX} ${endY}`}
-                  />
-                )
-              })()}
-            </svg>
+            <CanvasEdgeLayer
+              edges={edges}
+              nodeById={nodeById}
+              activeEdge={activeEdge}
+              readOnly={readOnly}
+              pendingConnectionSourceId={pendingConnectionSourceId}
+              pendingCursorPos={pendingCursorPos}
+              onSetActiveEdge={setActiveEdge}
+              onDisconnectEdge={disconnectEdge}
+              getCanvasPointFromClientPoint={getCanvasPointFromClientPoint}
+            />
             <div className={cn('generation-canvas-v2__nodes', 'absolute top-0 left-0 w-[4000px] h-[3000px]')}>
               {/* E.2C-30: GroupFrame 抽离为独立组件 */}
               <GroupFrameList boxes={groupBoxes} onPointerDown={handleGroupFramePointerDown} />
