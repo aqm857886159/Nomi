@@ -1,0 +1,394 @@
+import { firstString, isJsonRecord, nowIso, trim, type JsonRecord } from "../jsonUtils";
+import { mergeMissingParamsIntoBody } from "../ai/onboarding/curlBlueprint";
+import { hardenedFetchText } from "../hardenedFetch";
+import type { AiSdkProviderKind, BillingModelKind, HttpOperation, Model, ProfileKind, Vendor } from "./types";
+import {
+  normalizeProviderKind,
+  readCatalog,
+  upsertModelCatalogMapping,
+  upsertModelCatalogModel,
+  upsertModelCatalogVendor,
+  upsertModelCatalogVendorApiKey,
+} from "./catalogStore";
+// 回引 runtime 的任务执行引擎（testModelCatalogMapping 复用）；调用都在函数体内（运行期），
+// CommonJS 循环引用安全（runtime ↔ catalogCommit 仅函数体互引，无加载期互调）。
+import {
+  billingKindForTaskKind,
+  buildProfileHttpRequest,
+  buildProfileTaskResult,
+  executeProfileOperation,
+  findExecutableModelForTask,
+  type TaskRequest,
+} from "../runtime";
+
+/**
+ * Commit a successful onboarding trial into the local catalog as a real entry:
+ * vendor + encrypted apiKey + model (with evidence) + create/query mappings.
+ *
+ * Designed to be called from the renderer once a TrialOutcome arrives with
+ * status === "success". Returns the persisted Model so the caller can light up
+ * the success UI.
+ */
+export function commitOnboardedModelToCatalog(payload: {
+  outcome: unknown;
+  userApiKey: string;
+  /** Optional display label override; otherwise we use draft.modelDisplayName. */
+  displayLabel?: string;
+  /** How this model was added. Defaults to "agent" (the doc-reader path). The
+   *  manual BaseURL entry passes "manual" so the catalog records provenance honestly. */
+  addedVia?: "agent" | "manual";
+}): Model {
+  const outcome = payload?.outcome as JsonRecord | null;
+  if (!outcome || typeof outcome !== "object") throw new Error("outcome required");
+  const draft = (outcome as JsonRecord).draft as JsonRecord | null;
+  if (!draft) throw new Error("outcome.draft missing");
+
+  const vendorKey = String(draft.vendorKey || "").trim();
+  const vendorName = String(draft.vendorName || vendorKey).trim();
+  const vendorBaseUrl = String(draft.vendorBaseUrl || "").trim();
+  const modelKey = String(draft.modelKey || "").trim();
+  const modelDisplayName = String(payload.displayLabel || draft.modelDisplayName || modelKey).trim();
+  const targetKind = String(draft.targetKind || "").trim();
+  const userApiKey = String(payload.userApiKey || "").trim();
+
+  if (!vendorKey || !vendorBaseUrl || !modelKey) {
+    throw new Error("incomplete draft: vendorKey + vendorBaseUrl + modelKey are required");
+  }
+  if (!userApiKey) throw new Error("userApiKey required to commit a model");
+
+  let billingKind: BillingModelKind;
+  let taskKind: ProfileKind;
+  if (targetKind === "text") { billingKind = "text"; taskKind = "chat"; }
+  else if (targetKind === "image") { billingKind = "image"; taskKind = "text_to_image"; }
+  else if (targetKind === "video") { billingKind = "video"; taskKind = "text_to_video"; }
+  else if (targetKind === "audio") { billingKind = "audio"; taskKind = "text_to_audio"; }
+  else throw new Error(`Unsupported model kind '${targetKind}'`);
+
+  const auth = (draft.vendorAuth || {}) as JsonRecord;
+  const authType = (auth.type as Vendor["authType"]) || "bearer";
+
+  // 1. vendor — carry draft.vendorMeta through so the manual-entry form's custom
+  // request headers (vendorMeta.extraHeaders) persist and reach buildAiSdkModel.
+  upsertModelCatalogVendor({
+    key: vendorKey,
+    name: vendorName,
+    baseUrlHint: vendorBaseUrl,
+    authType,
+    authHeader: auth.headerName || null,
+    authQueryParam: auth.queryParam || null,
+    providerKind: draft.vendorProviderKind || "openai-compatible",
+    enabled: true,
+    ...(draft.vendorMeta !== undefined ? { meta: draft.vendorMeta } : {}),
+  });
+
+  // 2. apiKey (auto-encrypted by upsert)
+  upsertModelCatalogVendorApiKey(vendorKey, { apiKey: userApiKey, enabled: true });
+
+  // 3. model + onboarding evidence snapshot
+  type OnboardingField = NonNullable<Model["onboarding"]>["fields"][number];
+  const onboardingFields: OnboardingField[] = Array.isArray(draft.modelFields)
+    ? (draft.modelFields as JsonRecord[]).map((f) => ({
+        key: String(f.key),
+        displayName: String(f.displayName),
+        type: f.type as OnboardingField["type"],
+        ...(f.options ? { options: f.options as OnboardingField["options"] } : {}),
+        ...(f.default !== undefined ? { default: String(f.default) } : {}),
+        evidence: f.evidence as OnboardingField["evidence"],
+      }))
+    : [];
+
+  // Project the agent-detected fields into model.meta.parameters so the node UI
+  // can render them. The UI reads parameters/upload-slots exclusively from
+  // model.meta (parseModelParameterControls); onboarding.fields is only an
+  // evidence snapshot. Without this projection the model lands in the catalog
+  // but shows zero parameters and no image-url upload slots on the node.
+  // The shape parseParameterControl expects: { key, label, type, options, default }.
+  const metaParameters = onboardingFields.map((f) => ({
+    key: f.key,
+    label: f.displayName || f.key,
+    type: f.type,
+    ...(f.options ? { options: f.options } : {}),
+    ...(f.default !== undefined ? { default: f.default } : {}),
+  }));
+
+  const model = upsertModelCatalogModel({
+    modelKey,
+    vendorKey,
+    modelAlias: modelKey,
+    labelZh: modelDisplayName,
+    kind: billingKind,
+    enabled: true,
+    meta: { parameters: metaParameters },
+    onboarding: {
+      addedVia: payload.addedVia ?? "agent",
+      trialId: String(outcome.trialId || ""),
+      docsUrl: String(outcome.docsUrl || ""),
+      addedAt: nowIso(),
+      fields: onboardingFields,
+    },
+  });
+
+  // 4. mapping: one row per (vendor, taskKind), carrying both stages.
+  const mappingCreate = draft.mappingCreate as HttpOperation | undefined;
+  const mappingQuery = draft.mappingQuery as HttpOperation | undefined;
+  if (mappingCreate) {
+    // Reconcile: the agent only templatizes params it saw in the curl example,
+    // so spec-derived params (resolution, duration, ...) the user can now select
+    // on the node have no {{request.params.*}} slot in the body and would send
+    // nothing. Inject the missing field keys at the param nesting level.
+    const reconciledCreate: HttpOperation =
+      mappingCreate.body !== undefined && onboardingFields.length > 0
+        ? { ...mappingCreate, body: mergeMissingParamsIntoBody(mappingCreate.body, onboardingFields.map((f) => f.key)) }
+        : mappingCreate;
+    upsertModelCatalogMapping({
+      vendorKey,
+      taskKind,
+      name: modelDisplayName,
+      enabled: true,
+      create: reconciledCreate,
+      ...(mappingQuery ? { query: mappingQuery } : {}),
+    });
+  }
+
+  return model;
+}
+
+/**
+ * Derive a stable vendorKey from a BaseURL host. Same host → same vendor (so
+ * re-adding models under the same endpoint merges, per upsert semantics).
+ * localhost/127.0.0.1 include the port so Ollama(11434) and ComfyUI(8188) don't
+ * collide as one "localhost" vendor.
+ */
+export function deriveVendorKeyFromBaseUrl(baseUrl: string): string {
+  let host = "";
+  let port = "";
+  try {
+    const u = new URL(baseUrl);
+    host = u.hostname;
+    port = u.port;
+  } catch {
+    return "";
+  }
+  let seed = host;
+  if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0") {
+    seed = `local-${port || "80"}`;
+  }
+  return seed.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase();
+}
+
+/**
+ * Manual provider entry — the PRIMARY model-adding path (BaseURL + key + models).
+ * Deterministic: for a standard OpenAI-compatible text endpoint the whole catalog
+ * shape is known, so no doc-reading AI is needed (that breaks the bootstrap
+ * deadlock where the doc-reader itself required a pre-existing text model).
+ *
+ * Reuses the SINGLE write path (commitOnboardedModelToCatalog) — N models = one
+ * vendor + N model upserts. Text/chat models run via the direct AI SDK path
+ * (buildAiSdkModel → createOpenAICompatible), so we deliberately emit NO HTTP
+ * mapping here: a fabricated /chat/completions mapping would be unused dead data.
+ *
+ * No connectivity test in this flow (aligns with opencode): local/custom
+ * endpoints vary in tolerance; storing-then-failing-at-call-time is honest and
+ * doesn't block legitimate models. A separate, non-blocking test exists.
+ */
+export function commitManualOpenAiCompatibleModels(payload: {
+  vendorName: string;
+  baseUrl: string;
+  apiKey: string;
+  models: Array<{ id: string; displayName?: string }>;
+  /** Endpoint shape. Defaults to "openai-compatible" (the common case). "anthropic"
+   *  routes text/chat through the Messages API (createAnthropic, x-api-key). */
+  providerKind?: AiSdkProviderKind;
+  /** Extra request headers for relay/proxy gateways, persisted on the vendor and
+   *  replayed on every model call via buildAiSdkModel. */
+  headers?: Record<string, string>;
+}): { vendorKey: string; committed: Array<{ modelKey: string; displayName: string }> } {
+  const rawBaseUrl = String(payload?.baseUrl || "").trim();
+  const apiKey = String(payload?.apiKey || "").trim();
+  const providerKind = normalizeProviderKind(payload?.providerKind);
+  // Anthropic offers a hosted default; an OpenAI-compatible endpoint must be told.
+  // For anthropic with a blank field we fill in the canonical host so the vendor
+  // always has a concrete baseUrlHint (the doc-reader + commit path require one).
+  const baseUrl =
+    providerKind === "anthropic" && !rawBaseUrl ? "https://api.anthropic.com" : rawBaseUrl;
+  if (!/^https?:\/\//i.test(baseUrl)) throw new Error("接入地址需以 http:// 或 https:// 开头");
+  if (!apiKey) throw new Error("API Key 不能为空");
+
+  const vendorKey = deriveVendorKeyFromBaseUrl(baseUrl);
+  if (!vendorKey) throw new Error("无法从接入地址解析出供应商标识");
+
+  const vendorName = String(payload?.vendorName || "").trim() || vendorKey;
+
+  // Clean custom headers: trim, drop blanks. Stored on vendor.meta.extraHeaders.
+  const cleanHeaders: Record<string, string> = {};
+  for (const [k, v] of Object.entries(payload?.headers || {})) {
+    const key = String(k || "").trim();
+    const value = String(v ?? "").trim();
+    if (key && value) cleanHeaders[key] = value;
+  }
+  const vendorMeta =
+    Object.keys(cleanHeaders).length > 0 ? { extraHeaders: cleanHeaders } : undefined;
+
+  const rawModels = Array.isArray(payload?.models) ? payload.models : [];
+  const seen = new Set<string>();
+  const cleanModels = rawModels
+    .map((m) => ({ id: String(m?.id || "").trim(), displayName: String(m?.displayName || "").trim() }))
+    .filter((m) => {
+      if (!m.id || seen.has(m.id)) return false;
+      seen.add(m.id);
+      return true;
+    });
+  if (cleanModels.length === 0) throw new Error("至少填写一个模型 id");
+
+  const committed: Array<{ modelKey: string; displayName: string }> = [];
+  for (const m of cleanModels) {
+    const displayName = m.displayName || m.id;
+    const outcome = {
+      status: "success",
+      trialId: "",
+      docsUrl: "",
+      draft: {
+        vendorKey,
+        vendorName,
+        vendorBaseUrl: baseUrl,
+        vendorAuth: { type: providerKind === "anthropic" ? ("x-api-key" as const) : ("bearer" as const) },
+        vendorProviderKind: providerKind,
+        ...(vendorMeta ? { vendorMeta } : {}),
+        modelKey: m.id,
+        modelDisplayName: displayName,
+        targetKind: "text" as const,
+        modelFields: [],
+      },
+    };
+    commitOnboardedModelToCatalog({ outcome, userApiKey: apiKey, addedVia: "manual" });
+    committed.push({ modelKey: m.id, displayName });
+  }
+
+  return { vendorKey, committed };
+}
+
+export async function fetchModelCatalogDocs(payload: unknown): Promise<unknown> {
+  const targetUrl = String((payload as JsonRecord)?.url || "").trim();
+  if (!/^https?:\/\//i.test(targetUrl)) throw new Error("http/https url is required");
+  // v0.7.6: hardenedFetch — 拦私网 + 超时 + 限制大小
+  const fetched = await hardenedFetchText(targetUrl, {
+    timeoutMs: 15_000,
+    maxBytes: 5 * 1024 * 1024, // 文档抓取 5MB 上限够用
+  });
+  const html = fetched.text;
+  const contentType = fetched.contentType;
+  const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.replace(/\s+/g, " ").trim() || null;
+  const text = html.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const max = 120000;
+  return {
+    url: targetUrl,
+    finalUrl: fetched.finalUrl,
+    status: fetched.status,
+    contentType,
+    title,
+    text: text.slice(0, max),
+    truncated: text.length > max,
+    diagnostics: [],
+  };
+}
+
+export async function testModelCatalogMapping(id: string, payload: unknown): Promise<unknown> {
+  const mapping = readCatalog().mappings.find((item) => item.id === id);
+  const raw = payload as JsonRecord | undefined;
+  if (!mapping) {
+    return {
+      mappingId: id,
+      vendorKey: "",
+      taskKind: "chat",
+      stage: raw?.stage || "create",
+      executed: false,
+      ok: false,
+      diagnostics: ["Mapping not found."],
+      request: null,
+    };
+  }
+  const stage = raw?.stage === "result" || raw?.stage === "query" ? "query" : "create";
+  const operation: HttpOperation | undefined = stage === "create" ? mapping.create : mapping.query;
+  if (!operation) {
+    return {
+      mappingId: id,
+      vendorKey: mapping.vendorKey,
+      taskKind: mapping.taskKind,
+      stage,
+      executed: false,
+      ok: false,
+      diagnostics: [`Mapping has no ${stage} stage.`],
+      request: null,
+    };
+  }
+  const wantedKind = billingKindForTaskKind(mapping.taskKind);
+  const { vendor, model, apiKey } = findExecutableModelForTask(mapping.vendorKey, trim(raw?.modelKey), wantedKind);
+  const request: TaskRequest = {
+    kind: mapping.taskKind,
+    prompt: firstString(raw?.prompt, "Nomi mapping smoke test"),
+    extras: {
+      ...(isJsonRecord(raw?.extras) ? raw?.extras : {}),
+      modelKey: model.modelKey,
+      modelAlias: model.modelAlias || model.modelKey,
+    },
+  };
+  const providerMeta = {
+    query_id: firstString(raw?.taskId),
+    task_id: firstString(raw?.taskId),
+  };
+  const preview = buildProfileHttpRequest({ vendor, model, apiKey, request, operation, providerMeta }).preview;
+  const upstreamResponse = raw && Object.prototype.hasOwnProperty.call(raw, "upstreamResponse") ? raw.upstreamResponse : undefined;
+  if (typeof upstreamResponse !== "undefined") {
+    const normalized = await buildProfileTaskResult({
+      response: upstreamResponse,
+      mapping,
+      operation,
+      request,
+      taskIdFallback: firstString(raw?.taskId, `test-${Date.now()}`),
+      wantedKind,
+    });
+    return {
+      mappingId: id,
+      vendorKey: mapping.vendorKey,
+      taskKind: mapping.taskKind,
+      stage,
+      executed: false,
+      ok: normalized.result.status !== "failed",
+      diagnostics: ["Mapped the provided upstream response without sending a request."],
+      request: preview,
+      response: normalized.result,
+    };
+  }
+  if (!raw?.execute) {
+    return {
+      mappingId: id,
+      vendorKey: mapping.vendorKey,
+      taskKind: mapping.taskKind,
+      stage,
+      executed: false,
+      ok: true,
+      diagnostics: ["Rendered local desktop mapping without sending a request."],
+      request: preview,
+    };
+  }
+  const executed = await executeProfileOperation({ vendor, model, apiKey, request, operation, providerMeta });
+  const normalized = await buildProfileTaskResult({
+    response: executed.response,
+    mapping,
+    operation,
+    request,
+    taskIdFallback: firstString(raw?.taskId, `test-${Date.now()}`),
+    wantedKind,
+  });
+  return {
+    mappingId: id,
+    vendorKey: mapping.vendorKey,
+    taskKind: mapping.taskKind,
+    stage,
+    executed: true,
+    ok: normalized.result.status !== "failed",
+    diagnostics: ["Executed mapping through the desktop runtime."],
+    request: executed.request,
+    response: normalized.result,
+  };
+}

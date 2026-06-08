@@ -26,7 +26,7 @@ const SCAN_DIRS = ["src", "electron"];
 // 改小某个数 = 你成功瘦身后锁定的新上限。新增条目应经人工评审。
 const ALLOWLIST = {
   "src/workbench/generationCanvasV2/nodes/scene3d/Scene3DFullscreen.tsx": 3860,
-  "electron/runtime.ts": 2516,
+  "electron/runtime.ts": 807,
   "src/workbench/generationCanvasV2/nodes/BaseGenerationNode.tsx": 1288,
   "src/workbench/generationCanvasV2/components/GenerationCanvas.tsx": 992,
   "src/workbench/generationCanvasV2/store/generationCanvasStore.ts": 871,
