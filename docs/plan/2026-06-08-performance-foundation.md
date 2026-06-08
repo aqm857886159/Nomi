@@ -105,4 +105,15 @@
 
 ## 八、执行记录（回填）
 
-_待执行后回填实际结果。_
+- **期A-1（统一图片 NomiImage）** ✅ commit f068f9c。新增 `src/design/media.tsx`，
+  lazy/decode/缩略图优先，路由画布节点/卡片/库/时间轴的裸 img。
+- **期B-1（base64→本地文件，根因杀手）** ✅ commit 44848da。新增
+  `adapters/persistNodeImage.ts` + `useNodeImageUpload.ts`，卡片/全景/音频上传 +
+  裁切/旋转/网格切分全部收敛到 nomi-local:// 本地文件，消除永久 base64。+5 单测。
+- **期B-2（同步IPC→异步）** ⏸️ **决定不做**。理由：B-1 已把保存载荷从 base64
+  缩小 ~100×，sendSync 阻塞从「几十 ms」降到「亚毫秒」，保存卡顿已被 B-1 根治；
+  而改异步 invoke 会引入退出时持久化风险（beforeunload 的异步保存可能在渲染进程
+  被杀前未完成，sendSync 则保证写盘完成）。按 P2「修根因不修症状」——根因是载荷
+  大小（B-1 已修），异步化是在修一个已被治好的症状、还赔上持久化可靠性，故撤销。
+- **期A-3 / A-4（节点订阅瘦身 / edges memo）** 进行中——修拖拽/缩放时的逐帧重渲。
+- **期B-3（undo 瘦身 + 历史迁移）** 待办。

@@ -253,7 +253,9 @@ function BaseGenerationNodeImpl({
             state.pendingConnectionSourceId !== "" &&
             state.pendingConnectionSourceId !== node.id,
     );
-    const canvasZoom = useGenerationCanvasStore((state) => state.canvasZoom);
+    // perf：canvasZoom 仅在 resize/drag 的 pointer-move 处理器里用到，渲染输出从不读它。
+    // 之前响应式订阅它 → 每次缩放（连续变化）都把全部 N 个节点重渲一遍（缩放卡顿的元凶）。
+    // 改为按需 getState() 读取，彻底消除缩放时的全节点 fan-out 重渲。
     const panoramaFullscreenRef = React.useRef<(() => void) | null>(null);
     const panoramaFourViewRef = React.useRef<(() => void) | null>(null);
     // E11: provenance viewer open state (mounted into node header for AI-generated assets)
@@ -381,7 +383,7 @@ function BaseGenerationNodeImpl({
     const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
         const resizeStart = resizeStartRef.current;
         if (resizeStart) {
-            const effectiveZoom = canvasZoom || 1;
+            const effectiveZoom = useGenerationCanvasStore.getState().canvasZoom || 1;
             const deltaX = Math.round(
                 (event.clientX - resizeStart.pointerX) / effectiveZoom,
             );
@@ -511,7 +513,7 @@ function BaseGenerationNodeImpl({
         }
         const dragStart = dragStartRef.current;
         if (!dragStart) return;
-        const effectiveZoom = canvasZoom || 1;
+        const effectiveZoom = useGenerationCanvasStore.getState().canvasZoom || 1;
         const deltaX = Math.round(
             (event.clientX - dragStart.pointerX) / effectiveZoom,
         );

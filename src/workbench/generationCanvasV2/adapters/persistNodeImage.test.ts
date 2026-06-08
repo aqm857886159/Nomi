@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { dataUrlToFile, persistNodeImageFile } from './persistNodeImage'
+import { dataUrlToFile } from './persistNodeImage'
 
 // 1x1 透明 PNG 的 base64 dataURL
 const PNG_DATA_URL =
