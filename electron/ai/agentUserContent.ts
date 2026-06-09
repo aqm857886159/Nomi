@@ -46,20 +46,23 @@ function isPdf(attachment: AgentUserAttachment): boolean {
   return attachment.contentType.toLowerCase().includes('pdf') || attachment.fileName.toLowerCase().endsWith('.pdf')
 }
 
-export function buildAgentUserContent(params: {
+export async function buildAgentUserContent(params: {
   prompt: string
   attachments?: AgentUserAttachment[]
   supportsImageInput: boolean
   supportsPdfInput: boolean
   resolveBytes: (url: string) => Uint8Array | null
-}): AgentUserContent {
-  const { prompt, attachments = [], supportsImageInput, supportsPdfInput, resolveBytes } = params
+  /** 文档（docx/xlsx/csv/txt/md）抽文本，注入 prompt（任何文本模型可用）。 */
+  extractText: (attachment: AgentUserAttachment) => Promise<string | null>
+}): Promise<AgentUserContent> {
+  const { prompt, attachments = [], supportsImageInput, supportsPdfInput, resolveBytes, extractText } = params
   if (!attachments.length) return prompt
 
   const mediaParts: Array<ImagePart | FilePart> = []
+  const docBlocks: string[] = []
   let droppedImages = 0
   let droppedPdfs = 0
-  let droppedDocs = 0
+  let failedDocs = 0
 
   for (const att of attachments) {
     if (att.kind === 'image') {
@@ -73,7 +76,9 @@ export function buildAgentUserContent(params: {
       if (!bytes) { droppedPdfs += 1; continue }
       mediaParts.push({ type: 'file', data: bytes, mimeType: 'application/pdf' })
     } else {
-      droppedDocs += 1
+      const text = await extractText(att)
+      if (text && text.trim()) docBlocks.push(`〈${att.fileName}〉\n${text.trim()}`)
+      else failedDocs += 1
     }
   }
 
@@ -84,11 +89,12 @@ export function buildAgentUserContent(params: {
   if (droppedPdfs > 0) {
     notes.push(`（注：${droppedPdfs} 个 PDF 未发送——当前模型不支持 PDF 输入。可换 Claude / GPT-4o / Gemini 等模型。）`)
   }
-  if (droppedDocs > 0) {
-    notes.push(`（注：附带了 ${droppedDocs} 个文档，当前版本尚未读取其内容。）`)
+  if (failedDocs > 0) {
+    notes.push(`（注：${failedDocs} 个文档未能读取内容。）`)
   }
 
-  const text = [prompt, ...notes].filter(Boolean).join('\n\n')
+  const docSection = docBlocks.length > 0 ? `\n\n[附件文档内容]\n${docBlocks.join('\n\n')}` : ''
+  const text = `${[prompt, ...notes].filter(Boolean).join('\n\n')}${docSection}`
   if (!mediaParts.length) return text
   return [{ type: 'text', text }, ...mediaParts]
 }

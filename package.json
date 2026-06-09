@@ -63,6 +63,7 @@
     "clsx": "^2.1.1",
     "framer-motion": "^12.39.0",
     "immer": "^11.1.8",
+    "mammoth": "^1.12.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
@@ -72,6 +73,7 @@
     "tailwind-merge": "^3.6.0",
     "three": "^0.170.0",
     "undici": "6.19.8",
+    "xlsx": "^0.18.5",
     "zod": "^3.25.76",
     "zustand": "^4.5.4"
   },

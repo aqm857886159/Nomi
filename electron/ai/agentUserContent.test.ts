@@ -34,14 +34,19 @@ describe("modelSupportsPdfInput", () => {
 });
 
 describe("buildAgentUserContent", () => {
-  const base = { supportsImageInput: true, supportsPdfInput: true, resolveBytes: bytes };
+  const base = {
+    supportsImageInput: true,
+    supportsPdfInput: true,
+    resolveBytes: bytes,
+    extractText: async () => null,
+  };
 
-  it("returns plain string when no attachments", () => {
-    expect(buildAgentUserContent({ prompt: "hi", ...base })).toBe("hi");
+  it("returns plain string when no attachments", async () => {
+    expect(await buildAgentUserContent({ prompt: "hi", ...base })).toBe("hi");
   });
 
-  it("builds text + image part when model supports image", () => {
-    const content = buildAgentUserContent({
+  it("builds text + image part when model supports image", async () => {
+    const content = await buildAgentUserContent({
       prompt: "看这张图",
       attachments: [{ url: "u", contentType: "image/png", fileName: "a.png", kind: "image" }],
       ...base,
@@ -51,8 +56,8 @@ describe("buildAgentUserContent", () => {
     expect(parts[1]).toMatchObject({ type: "image", mimeType: "image/png" });
   });
 
-  it("builds file part for PDF when supported", () => {
-    const content = buildAgentUserContent({
+  it("builds file part for PDF when supported", async () => {
+    const content = await buildAgentUserContent({
       prompt: "读这份 PDF",
       attachments: [{ url: "u", contentType: "application/pdf", fileName: "s.pdf", kind: "file" }],
       ...base,
@@ -61,8 +66,8 @@ describe("buildAgentUserContent", () => {
     expect(parts[1]).toMatchObject({ type: "file", mimeType: "application/pdf" });
   });
 
-  it("drops PDF + notes when model lacks pdf support", () => {
-    const content = buildAgentUserContent({
+  it("drops PDF + notes when model lacks pdf support", async () => {
+    const content = await buildAgentUserContent({
       prompt: "读这份 PDF",
       attachments: [{ url: "u", contentType: "application/pdf", fileName: "s.pdf", kind: "file" }],
       ...base,
@@ -72,8 +77,8 @@ describe("buildAgentUserContent", () => {
     expect(content as string).toContain("不支持 PDF");
   });
 
-  it("drops images + notes when model lacks image support", () => {
-    const content = buildAgentUserContent({
+  it("drops images + notes when model lacks image support", async () => {
+    const content = await buildAgentUserContent({
       prompt: "看图",
       attachments: [{ url: "u", contentType: "image/png", fileName: "a.png", kind: "image" }],
       ...base,
@@ -82,8 +87,8 @@ describe("buildAgentUserContent", () => {
     expect(content as string).toContain("不支持图片输入");
   });
 
-  it("drops media when resolveBytes returns null", () => {
-    const content = buildAgentUserContent({
+  it("drops media when resolveBytes returns null", async () => {
+    const content = await buildAgentUserContent({
       prompt: "p",
       attachments: [{ url: "missing", contentType: "image/png", fileName: "a.png", kind: "image" }],
       ...base,
@@ -92,12 +97,26 @@ describe("buildAgentUserContent", () => {
     expect(content as string).toContain("读取失败");
   });
 
-  it("notes non-image, non-pdf documents (not yet inlined)", () => {
-    const content = buildAgentUserContent({
+  it("injects extracted document text into the prompt", async () => {
+    const content = await buildAgentUserContent({
       prompt: "读这个",
-      attachments: [{ url: "u", contentType: "application/vnd.openxmlformats", fileName: "a.docx", kind: "file" }],
+      attachments: [{ url: "u", contentType: "text/plain", fileName: "note.txt", kind: "file" }],
       ...base,
+      extractText: async () => "这是文档正文",
     });
-    expect(content as string).toContain("尚未读取");
+    expect(typeof content).toBe("string");
+    expect(content as string).toContain("[附件文档内容]");
+    expect(content as string).toContain("〈note.txt〉");
+    expect(content as string).toContain("这是文档正文");
+  });
+
+  it("notes documents that fail to extract", async () => {
+    const content = await buildAgentUserContent({
+      prompt: "读这个",
+      attachments: [{ url: "u", contentType: "application/octet-stream", fileName: "a.bin", kind: "file" }],
+      ...base,
+      extractText: async () => null,
+    });
+    expect(content as string).toContain("未能读取");
   });
 });

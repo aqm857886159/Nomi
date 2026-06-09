@@ -41,13 +41,24 @@ export function contentTypeFromPath(filePath: string): string {
   if (ext === ".mov") return "video/quicktime";
   if (ext === ".json") return "application/json";
   if (ext === ".txt" || ext === ".md") return "text/plain";
+  if (ext === ".pdf") return "application/pdf";
+  if (ext === ".docx") return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  if (ext === ".xlsx") return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  if (ext === ".csv") return "text/csv";
   return "application/octet-stream";
 }
 
 export function assetKindFromContentType(contentType: string): string {
   if (contentType.startsWith("image/")) return "image";
   if (contentType.startsWith("video/")) return "video";
-  if (contentType === "application/json" || contentType.startsWith("text/")) return "document";
+  if (
+    contentType === "application/json" ||
+    contentType.startsWith("text/") ||
+    contentType.includes("pdf") ||
+    contentType.includes("officedocument")
+  ) {
+    return "document";
+  }
   return "file";
 }
 

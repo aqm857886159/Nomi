@@ -24,6 +24,7 @@ import { decryptApiKeyRecord } from "../catalog/secrets";
 import { extractVendorExtraHeaders, normalizeProviderKind, readCatalog } from "../catalog/catalogStore";
 import type { Model, Vendor } from "../catalog/types";
 import { readNomiLocalAsset } from "../assets/localAssetFile";
+import { extractTextFromLocalAsset } from "../files/extractText";
 import { buildAgentUserContent, modelSupportsImageInput, modelSupportsPdfInput, type AgentUserAttachment } from "./agentUserContent";
 
 type SkillRecord = {
@@ -447,7 +448,7 @@ export async function runAgentChatV2(
   if (sessionKey && payload.resetSession) agentChatV2History.delete(sessionKey);
   const priorMessages = sessionKey ? agentChatV2History.get(sessionKey) ?? [] : [];
   // 图片附件 → 原生多模态 image part（按模型能力门控，不支持则降级为文字 + 清晰提示）。
-  const userContent = buildAgentUserContent({
+  const userContent = await buildAgentUserContent({
     prompt: userPrompt,
     attachments,
     supportsImageInput: modelSupportsImageInput(model.modelKey, model.modelAlias, model.meta),
@@ -456,6 +457,7 @@ export async function runAgentChatV2(
       const asset = readNomiLocalAsset(url);
       return asset ? asset.bytes : null;
     },
+    extractText: (att) => extractTextFromLocalAsset(att.url, att.contentType, att.fileName),
   });
   const userMessage: CoreMessage = { role: "user", content: userContent as CoreUserMessage["content"] };
   const messages: CoreMessage[] = [...priorMessages, userMessage];
