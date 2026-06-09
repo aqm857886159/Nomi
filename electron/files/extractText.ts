@@ -1,6 +1,9 @@
 // 把文档附件（docx/xlsx/csv/txt/md）抽成纯文本，注入 agent prompt（任何文本模型可用）。
 // 在主进程跑（解析库重，不进渲染层 bundle）；图片/PDF 不走这里（它们走原生多模态）。
-import { readNomiLocalAsset } from "../assets/localAssetFile";
+//
+// 注意：localAssetFile 会链到 electron 包（projects/repository → app），在 vitest(Node)
+// 里 import 会报「Electron failed to install」。故 readNomiLocalAsset 改动态 import，
+// 让本模块的 eager 依赖图保持 electron-free——extractTextFromBytes 单测才能在 CI 跑（无 electron 运行时）。
 
 const MAX_EXTRACTED_CHARS = 120_000;
 
@@ -54,6 +57,7 @@ export async function extractTextFromLocalAsset(
   contentType: string,
   fileName: string,
 ): Promise<string | null> {
+  const { readNomiLocalAsset } = await import("../assets/localAssetFile");
   const asset = readNomiLocalAsset(url);
   if (!asset) return null;
   return extractTextFromBytes(asset.bytes, contentType || asset.contentType, fileName || asset.fileName);
