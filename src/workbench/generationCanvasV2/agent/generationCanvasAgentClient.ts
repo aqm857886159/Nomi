@@ -1,4 +1,4 @@
-import type { AgentsChatResponseDto } from '../../../api/desktopClient'
+import type { AgentAttachmentPayload, AgentsChatResponseDto } from '../../../api/desktopClient'
 import { runWorkbenchAgent, workbenchSessionKey, type ToolCallEvent } from '../../ai/workbenchAgentRunner'
 import type { GenerationCanvasSnapshot, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { getAgentCreatableGenerationNodeKinds } from '../model/generationNodeKinds'
@@ -38,6 +38,8 @@ type SendGenerationCanvasAgentMessageInput = {
   onToolCall?: (event: ToolCallEvent) => void
   /** Exposes a cancel handle (user "Stop") once the backend session exists. */
   onCancelReady?: (cancel: () => void) => void
+  /** 待发附件（图片/PDF 走原生多模态；文档抽文本）。透传给共享 runWorkbenchAgent。 */
+  attachments?: AgentAttachmentPayload[]
 }
 
 export type GenerationCanvasAgentResponse = {
@@ -126,6 +128,7 @@ export async function sendGenerationCanvasAgentMessage(
     sessionKey: workbenchSessionKey(),
     skillKey: input.skill?.key || 'workbench.generation.canvas-planner',
     skillName: input.skill?.name || '生成区节点规划',
+    ...(input.attachments?.length ? { attachments: input.attachments } : {}),
     onContent: input.onContent,
     onCancelReady: input.onCancelReady,
     onToolCall: (event) => {

@@ -1,4 +1,4 @@
-import { IconCornerDownLeft, IconPlayerStopFilled, IconSend2, IconX } from '@tabler/icons-react'
+import { IconCornerDownLeft, IconPaperclip, IconPlayerStopFilled, IconSend2, IconX } from '@tabler/icons-react'
 import { NomiAILabel, NomiLoadingMark, NomiLogoMark, NomiSelect, WorkbenchButton, WorkbenchIconButton } from '../../../design'
 import React from 'react'
 import { cn } from '../../../utils/cn'
@@ -29,6 +29,10 @@ import { handleAiComposerKeyDown } from '../../ai/aiComposerKeyboard'
 import { WorkbenchAiHeaderActions } from '../../ai/WorkbenchAiHeaderActions'
 import AssistantModelPicker from '../../ai/AssistantModelPicker'
 import { AssistantToolsFold } from '../../ai/AssistantToolsFold'
+import { AttachmentRail } from '../../ai/composer/AttachmentRail'
+import { AutoGrowTextarea } from '../../ai/composer/AutoGrowTextarea'
+import { COMPOSER_ATTACHMENT_ACCEPT, useComposerAttachments } from '../../ai/composer/useComposerAttachments'
+import type { ComposerAttachment } from '../../ai/composer/composerAttachmentTypes'
 
 type PendingToolCall = {
   toolCallId: string
@@ -123,8 +127,22 @@ export default function CanvasAssistantPanel({
   const collapsed = useGenerationCanvasStore((state) => state.generationAiCollapsed)
   const setDraft = useGenerationCanvasStore((state) => state.setGenerationAiDraft)
   const setMessages = useGenerationCanvasStore((state) => state.setGenerationAiMessages)
+  // 附件用组件本地态（不进 generationCanvasStore——它已是白名单巨壳，不再喂；附件本就 ephemeral，
+  // 面板折叠时组件仍挂载，本地态不丢）。
+  const [attachments, setAttachments] = React.useState<ComposerAttachment[]>([])
   const setCollapsed = useGenerationCanvasStore((state) => state.setGenerationAiCollapsed)
   const resetConversation = useGenerationCanvasStore((state) => state.resetGenerationAiConversation)
+
+  const {
+    isDragging,
+    openFilePicker,
+    inputRef,
+    onInputChange,
+    removeAttachment,
+    clearAttachments,
+    handlePaste,
+    dragHandlers,
+  } = useComposerAttachments({ attachments, setAttachments })
 
   React.useEffect(() => {
     if (messages.length === 0 && !draft.trim()) setCollapsed(defaultCollapsed)
@@ -142,7 +160,7 @@ export default function CanvasAssistantPanel({
     threadBottomRef.current?.scrollIntoView({ block: 'end' })
   }, [messages, pendingToolCalls, collapsed])
 
-  const appendMessage = React.useCallback((message: { role: 'assistant' | 'user' | 'tool'; content: string }) => {
+  const appendMessage = React.useCallback((message: { role: 'assistant' | 'user' | 'tool'; content: string; attachments?: ComposerAttachment[] }) => {
     setMessages((current) => [...current, { id: createMessageId(), ...message }])
   }, [setMessages])
 
@@ -158,9 +176,21 @@ export default function CanvasAssistantPanel({
   }
 
   const submitAgentMessage = React.useCallback((text: string, options: SubmitMessageOptions = {}) => {
-    if (!text || busy) return
+    const readyAttachments = attachments.filter((item) => item.status === 'ready' && item.url)
+    if ((!text && !readyAttachments.length) || busy) return
     setDraft('')
-    appendMessage({ role: 'user', content: options.displayMessage || text })
+    clearAttachments()
+    const attachmentPayload = readyAttachments.map((item) => ({
+      url: item.url as string,
+      contentType: item.contentType,
+      fileName: item.fileName,
+      kind: item.kind,
+    }))
+    appendMessage({
+      role: 'user',
+      content: options.displayMessage || text || '请看这些附件',
+      ...(readyAttachments.length ? { attachments: readyAttachments } : {}),
+    })
     const assistantMessageId = createMessageId()
     setMessages((current) => [
       ...current,
@@ -174,7 +204,8 @@ export default function CanvasAssistantPanel({
       let toolEmittedCount = 0
       try {
         const result = await sendGenerationCanvasAgentMessage({
-          message: text,
+          message: text || '请看这些附件',
+          ...(attachmentPayload.length ? { attachments: attachmentPayload } : {}),
           snapshot,
           selectedNodes,
           mode,
@@ -252,7 +283,7 @@ export default function CanvasAssistantPanel({
         cancelRef.current = null
       }
     })()
-  }, [appendMessage, busy, mode, selectedNodes, setDraft, setMessages, snapshot, updateMessage])
+  }, [appendMessage, attachments, busy, clearAttachments, mode, selectedNodes, setDraft, setMessages, snapshot, updateMessage])
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -300,10 +331,11 @@ export default function CanvasAssistantPanel({
 
   const handleNewConversation = React.useCallback(() => {
     setPendingToolCalls([])
+    clearAttachments()
     resetConversation()
     // Wipe the shared backend memory so both areas start a fresh thread.
     void clearWorkbenchAgentSession(workbenchSessionKey())
-  }, [resetConversation])
+  }, [clearAttachments, resetConversation])
 
   if (collapsed) {
     return (
@@ -340,7 +372,7 @@ export default function CanvasAssistantPanel({
         // 把工具条行撑成 145px 留出 ~120px 空白（用户反馈"上面空这么大"的真凶）。
         // 宽度撑满外层可拖拽的 grid 列（GenerationWorkspace 把列宽推到 assistantWidth），
         // 之前写死 w-[340px] → 拖宽后右侧一大片空白、header 右簇被 overflow-hidden 裁断 token。
-        'flex flex-col w-full h-full',
+        'relative flex flex-col w-full h-full',
         'max-h-none min-w-0 min-h-0 overflow-hidden',
         'border-0 rounded-none bg-nomi-paper shadow-none',
         'max-[900px]:w-[min(340px,calc(100vw-28px))]',
@@ -349,7 +381,22 @@ export default function CanvasAssistantPanel({
       )}
       data-collapsed="false"
       aria-label="生成区 AI 助手"
+      {...dragHandlers}
     >
+      {isDragging ? (
+        <div
+          className={cn(
+            'absolute inset-1.5 z-10 flex flex-col items-center justify-center gap-2 pointer-events-none',
+            'rounded-nomi border-2 border-dashed border-nomi-accent bg-nomi-accent-soft',
+            'text-bodySm font-semibold text-nomi-accent',
+          )}
+          aria-hidden="true"
+        >
+          <IconPaperclip size={26} stroke={1.5} />
+          <div>拖到这里添加附件</div>
+          <div className={cn('text-micro font-normal text-nomi-ink-60')}>图片 / PDF / Word / Excel / txt · 单个上限 30MB</div>
+        </div>
+      ) : null}
       {/* 头部：Nomi 标 + 「助手」+ 动作（含 token 计数）+ 收起。 */}
       <header className={cn(
         'flex items-center justify-between gap-2 px-3 py-2',
@@ -423,6 +470,9 @@ export default function CanvasAssistantPanel({
               )}
               data-role={message.role}
             >
+              {message.attachments?.length ? (
+                <AttachmentRail attachments={message.attachments} readOnly className={cn('mb-1.5')} />
+              ) : null}
               {message.role === 'assistant' && message.content === '处理中...' ? (
                 // 与创作助手一致：消息处理中时左侧显示转动的 N（NomiLoadingMark），而非干巴巴的「处理中...」文字。
                 <NomiLoadingMark size={15} label="处理中" />
@@ -511,26 +561,50 @@ export default function CanvasAssistantPanel({
         className={cn('grid gap-1 p-3 border-t border-nomi-line-soft bg-nomi-paper')}
         onSubmit={handleSubmit}
       >
-        <textarea
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept={COMPOSER_ATTACHMENT_ACCEPT}
+          className="hidden"
+          aria-hidden="true"
+          tabIndex={-1}
+          onChange={onInputChange}
+        />
+        <AttachmentRail attachments={attachments} onRemove={removeAttachment} className={cn('mb-1')} />
+        <AutoGrowTextarea
           className={cn(
             // 对齐样张 .input：带边框圆角输入盒。
-            'w-full min-h-14 px-2 py-2 resize-none rounded-nomi',
-            'border border-nomi-line outline-0 focus:border-nomi-accent',
-            'bg-nomi-paper text-nomi-ink font-[inherit] text-[13.5px] leading-[1.45]',
+            'min-h-14 px-2 py-2 rounded-nomi',
+            'border border-nomi-line focus:border-nomi-accent',
+            'bg-nomi-paper text-nomi-ink text-[13.5px] leading-[1.45]',
             'placeholder:text-nomi-ink-40',
           )}
           aria-label="给生成助手发送消息"
-          rows={1}
           placeholder="告诉我画布上想怎么搭..."
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => handleAiComposerKeyDown(event, () => {
             event.currentTarget.form?.requestSubmit()
           })}
+          onPaste={handlePaste}
           disabled={busy}
         />
         <div className={cn('flex items-center justify-between gap-2')}>
           <div className={cn('flex items-center gap-2 min-w-0')}>
+            <WorkbenchIconButton
+              type="button"
+              className={cn(
+                'size-7 grid place-items-center shrink-0',
+                'border-0 rounded-nomi-sm bg-transparent text-nomi-ink-60 cursor-pointer',
+                'hover:bg-nomi-ink-05 hover:text-nomi-ink',
+                'focus-visible:outline-2 focus-visible:outline-workbench-focus focus-visible:outline-offset-2',
+              )}
+              label="添加附件"
+              aria-label="添加附件（也可拖拽 / 粘贴）"
+              onClick={openFilePicker}
+              icon={<IconPaperclip size={16} />}
+            />
             <NomiSelect
               ariaLabel="AI 模式"
               leadingLabel="模式"
@@ -567,7 +641,7 @@ export default function CanvasAssistantPanel({
                 'hover:enabled:bg-nomi-accent',
                 'disabled:bg-nomi-ink-20 disabled:text-nomi-ink-40 disabled:cursor-not-allowed',
               )}
-              disabled={!draft.trim()}
+              disabled={!draft.trim() && !attachments.some((item) => item.status === 'ready')}
               label="发送"
               aria-label="生成 AI 发送"
               icon={<IconSend2 size={15} />}
