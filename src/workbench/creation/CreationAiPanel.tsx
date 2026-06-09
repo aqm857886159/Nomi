@@ -604,9 +604,11 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   )
 
   if (!expanded || typeof document === 'undefined') return panelBody
+  // portal 到 body 会脱离 .workbench-shell 作用域 → 所有 --workbench-* token 失效（面板背景/
+  // 蒙层全透明）。带上 workbench-shell 类把 token 作用域接回来（同 Scene3D 全屏壳做法）。
   return createPortal(
     <div
-      className={cn('fixed inset-0 z-[200] grid place-items-center bg-[var(--workbench-backdrop)] p-4')}
+      className={cn('workbench-shell', 'fixed inset-0 z-[200] grid place-items-center bg-[var(--workbench-backdrop)] p-4')}
       onClick={(event) => {
         if (event.target === event.currentTarget) setExpanded(false)
       }}
