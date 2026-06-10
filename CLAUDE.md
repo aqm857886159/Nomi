@@ -268,6 +268,9 @@ CSS 文件分工与「只可减不可增」规则详见 R1 最后一节。
 - `tests/ux/walkthrough.mjs` — 一次性探索式走查（逐步截图 + DOM dump）；**新工作优先用上面的常驻驱动**，盲脚本只在固定流程时用
 - `tests/ux/smoke.e2e.mjs`（`pnpm run test:e2e`）— 可断言冒烟，失败即非零退出，CI-ready
 
+**「特别完整的用户测试」标准方法（定稿）**：不引入外部工具——**自主点击的「computer-use 智能体」就是 AI 本身**，驱动层用上面的常驻驱动。标准动作：① 清场（`osascript -e 'quit app "Nomi"'` 关已装 app 释放 single-instance 锁 + 杀残留 Electron/驱动）→ ② `pnpm build` 全新构建（防 stale-chunk 伪 bug）→ ③ 起常驻驱动 → ④ 逐旅程走 J1–J5（snap→判断→click/fill/setfile→shot+Read 人眼判断）→ ⑤ 逐个打开交互态看遮挡 → ⑥ Explore agent 挖根因到 file:line、分症状/根因/地基 → ⑦ 落 `docs/audit`（问题分级 + 局部/地基拆分）→ ⑧ `quit`。完整方法 + 外部工具调研：`docs/workflow/2026-06-10-autonomous-ui-test-method.md`。
+**外部工具结论**：Midscene.js 等是最方便的外部自主探索器（支持 Electron CDP/desktop），但需 vision-model 额度（用户资源、要拍板）且不比现有 DOM 感知驱动更准——**常规续用现驱动**，无人值守批量爬再评估接入。
+
 能力边界：渲染层交互 + 感知判断（~90%）用 Playwright 完全覆盖；原生 OS 边界（系统文件对话框/Finder 拖拽）可经 `electronApp.evaluate` stub `dialog.*` 走通。
 
 ### UI 有「打开/交互态」的额外要求
