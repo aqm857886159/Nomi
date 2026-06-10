@@ -14,6 +14,8 @@ export type CreateGenerationNodeToolInput = {
   title?: string
   prompt?: string
   position?: { x: number; y: number }
+  /** 所属分类（缺省按 kind 推断：角色→cast/场景→scene/其余→shots）。决定卡片归类与镜头编号。 */
+  categoryId?: string
   /** bug①：agent 建议的模型/参数（modelKey/modelVendor/archetype/标量参数），写入 node.meta。 */
   meta?: Record<string, unknown>
 }

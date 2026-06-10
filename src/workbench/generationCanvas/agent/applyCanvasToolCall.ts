@@ -1,5 +1,5 @@
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
-import { getGenerationNodeDefaultTitle } from '../model/generationNodeKinds'
+import { getDefaultCategoryForNodeKind, getGenerationNodeDefaultTitle } from '../model/generationNodeKinds'
 import { generationCanvasTools, type CreateGenerationNodeToolInput } from './generationCanvasTools'
 import { listAvailableModelsForAgent, type AgentModelEntry } from './availableModels'
 import { buildPlannedNodeMeta } from './plannedNodeMeta'
@@ -64,6 +64,9 @@ export async function applyCanvasToolCall(toolName: string, args: unknown): Prom
             }
       return {
         kind,
+        // 按 kind 归类：镜头(image/video…)→分镜，角色→cast，场景→scene。让待生成卡拿到
+        // 「镜头 N」编号、角色/场景不被误归分镜（schema 不收 LLM 的 categoryId，纯渲染层 derive）。
+        categoryId: getDefaultCategoryForNodeKind(kind),
         title:
           typeof node.title === 'string' && node.title.trim()
             ? node.title.trim()

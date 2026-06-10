@@ -5,6 +5,7 @@ import {
   type GenerationNodeKind,
   type GenerationNodePluginDefinition,
 } from '../nodes/registry'
+import type { BuiltinCanvasCategoryId } from './generationCanvasTypes'
 
 export { GENERATION_NODE_KINDS }
 export type { GenerationNodeExecutionKind, GenerationNodeKind }
@@ -68,4 +69,23 @@ export function isImageLikeGenerationNodeKind(kind: GenerationNodeKind): boolean
 
 export function isVideoLikeGenerationNodeKind(kind: GenerationNodeKind): boolean {
   return getGenerationNodeExecutionKind(kind) === 'video'
+}
+
+/**
+ * agent/工具新建节点时，按 kind 推断默认所属分类（单一真相源，避免 categoryId 缺省落
+ * 'shots' 导致角色/场景被误归分镜、镜头拿不到「镜头 N」编号）：
+ * - character → 'cast'（角色）
+ * - scene → 'scene'（场景）
+ * - 其余（image/video/keyframe/shot/output/panorama/text…）→ 'shots'（分镜）
+ * prop/audio 无独占 kind，由各自创建流程显式指定，不在此推断。
+ */
+export function getDefaultCategoryForNodeKind(kind: GenerationNodeKind): BuiltinCanvasCategoryId {
+  switch (kind) {
+    case 'character':
+      return 'cast'
+    case 'scene':
+      return 'scene'
+    default:
+      return 'shots'
+  }
 }
