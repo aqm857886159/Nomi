@@ -11,7 +11,7 @@ import type {
   GenerationCanvasNode,
   GenerationNodeKind,
   NodeGroup,
-} from '../generationCanvasV2/model/generationCanvasTypes'
+} from '../generationCanvas/model/generationCanvasTypes'
 
 function makeNode(overrides: Partial<Omit<GenerationCanvasNode, 'categoryId'>> & {
   kind: GenerationNodeKind

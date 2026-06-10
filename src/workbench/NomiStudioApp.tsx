@@ -39,10 +39,10 @@ const AssetLibraryPanel = React.lazy(() =>
     })),
 );
 const GenerationCanvas = React.lazy(
-    () => import("./generationCanvasV2/components/GenerationCanvas"),
+    () => import("./generationCanvas/components/GenerationCanvas"),
 );
 const CanvasAssistantPanel = React.lazy(
-    () => import("./generationCanvasV2/components/CanvasAssistantPanel"),
+    () => import("./generationCanvas/components/CanvasAssistantPanel"),
 );
 
 function GenerationCanvasLoading(): JSX.Element {

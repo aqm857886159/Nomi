@@ -142,7 +142,7 @@ export function AssetLibraryPanel({ opened, onClose, projectId }: Props): JSX.El
     const files = Array.from(event.currentTarget.files || []).filter((file) => file.type.startsWith('image/'))
     event.currentTarget.value = ''
     if (!files.length) return
-    void import('../generationCanvasV2/adapters/assetImportAdapter')
+    void import('../generationCanvas/adapters/assetImportAdapter')
       .then(({ importImageFilesToGenerationCanvas }) => {
         void importImageFilesToGenerationCanvas(files, { basePosition: { x: 120, y: 90 } })
       })

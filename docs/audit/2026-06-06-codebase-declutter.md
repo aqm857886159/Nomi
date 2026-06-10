@@ -12,7 +12,7 @@
 |---|---|---|
 | `@dnd-kit/core` `@dnd-kit/modifiers` `@dnd-kit/sortable`（3 个 dep） | 全仓 `grep dnd-kit` 0 命中（除 package.json/lock） | `pnpm remove` |
 | `src/utils/motionPresets.ts`（97 行） | `grep motionPresets` 0 命中 | 删文件 |
-| `src/workbench/generationCanvasV2/index.ts`（barrel，12 行） | `grep "from '…/generationCanvasV2'"` 0 命中（消费方都走深路径） | 删文件 |
+| `src/workbench/generationCanvas/index.ts`（barrel，12 行） | `grep "from '…/generationCanvas'"` 0 命中（消费方都走深路径） | 删文件 |
 | `public/X Bot.glb`、`public/humanoid+figure+3d+model.glb` | 0 引用；实际用的是 `src/assets/x-bot.glb` | 删文件 |
 | `electron/systemProxy.ts::getActiveProxyLabel` | 本次新增即未用（describeNetworkError 直接读模块变量） | 删该 export |
 | `docs/.DS_Store` | macOS 元数据 | 删 + `.gitignore` 加 `**/.DS_Store` |
@@ -38,14 +38,14 @@
 - **docs 归档**：22 份已 ship 的 plan/audit（v0.7/v0.8/onboarding 系列）移入
   `docs/archive/{v0.7-shipped,v0.8-shipped,onboarding-2026-05}/`；过期 handoff 2 份归档。
 - **双 mockup 目录**：`docs/mockups/`(3) 并入 `docs/design/mockups/`（消除"双目录漂移"）。
-- **目录命名误导**：`generationCanvasV2/` → `generationCanvas/`（V1 已不存在，留 V2 后缀让人反复确认"是不是并行版"；改 ~30 import）。**需用户拍**（大范围、纯命名收益）。
+- **目录命名误导**：`generationCanvas/` → `generationCanvas/`（V1 已不存在，留 V2 后缀让人反复确认"是不是并行版"；改 ~30 import）。**需用户拍**（大范围、纯命名收益）。
 
 ### Tier 3 — 拆巨壳（架构重构，多会话，每项先写 plan 文档，规则 4/9）
 
 按 ROI（痛 × 频繁 × 低风险）排序：
 1. `electron/runtime.ts`（2623 行，5 个领域）→ 拆进已存在的 `catalog/ export/ tasks/ assets/ skills/ ai/` 子目录。**最高 ROI、低风险**（每个 export 都是 IPC 边界，无 in-file 状态耦合）。
-2. `generationCanvasV2/components/GenerationCanvas.tsx`（1186）→ 抽 `useCanvasViewport` 等 hook（一刀减 250 行，零风险）。
-3. `generationCanvasV2/store/generationCanvasStore.ts`（1122）→ **把 AI 抽屉 UI 态拆成独立 store**（顺手修一个"UI 混进领域 store"的规则 9 分层 bug）+ nodeOps/groupOps 拆纯函数。
+2. `generationCanvas/components/GenerationCanvas.tsx`（1186）→ 抽 `useCanvasViewport` 等 hook（一刀减 250 行，零风险）。
+3. `generationCanvas/store/generationCanvasStore.ts`（1122）→ **把 AI 抽屉 UI 态拆成独立 store**（顺手修一个"UI 混进领域 store"的规则 9 分层 bug）+ nodeOps/groupOps 拆纯函数。
 4. `nodes/BaseGenerationNode.tsx`（1406）→ 抽 `useNodeDragResize`（中风险，RAF cleanup 要跟走）。
 5. `scene3d/Scene3DFullscreen.tsx`（4598）→ 最痛但改动不频繁、R3F 闭包耦合风险中高，**最后拆**，先摘纯函数 `poseData.ts`/`scene3dMath.ts` 热身。
 
@@ -68,7 +68,7 @@
 
 ## 执行结果（回填）
 
-- **Tier 0 ✅**：删 3 个 dnd-kit 依赖、`motionPresets.ts`、`generationCanvasV2/index.ts` barrel、
+- **Tier 0 ✅**：删 3 个 dnd-kit 依赖、`motionPresets.ts`、`generationCanvas/index.ts` barrel、
   2 个孤儿 `.glb`、`getActiveProxyLabel` 死导出、`docs/.DS_Store`。
 - **Tier 1 ✅**：删 v1 agent chat 整条死链路（`runAgentChat` + IPC `nomi:agents:chat` + preload.chat +
   bridge.chat + `agentsChat`/`agentsChatStream`/`workbenchAgentsChat` + 不可达 `if(!handlers)` 分支 +

@@ -54,7 +54,7 @@
 - 在 `NodeGenerationComposer` 卡根加 `onDragOver`(`types` 含 `Files` 或 workspace MIME 时 `preventDefault` + `dropEffect='copy'` + 高亮态)+ `onDrop`(`stopPropagation` + `preventDefault`)。
 - onDrop 解析三类 payload:① workspace 文件(MIME)→ `buildWorkspaceFileUrl` → URL;② OS `Files` → `importImageFilesToGenerationCanvas`(上传拿 hosted URL,处理 uploading/失败);③ 画布卡 payload(若有)。
 - 拿到 URL 后按 kind 调当前节点的 `handleArrayAdd`(经回调/事件传进来,或把 drop 逻辑放 NodeParameterControls 暴露的入口)——**复用单源写入**。
-- 抽 `useNodeAssetDrop` hook(放 `src/workbench/assets/` 或 `generationCanvasV2/nodes/`),NodeGenerationComposer 只接线。
+- 抽 `useNodeAssetDrop` hook(放 `src/workbench/assets/` 或 `generationCanvas/nodes/`),NodeGenerationComposer 只接线。
 - 视觉态(见 §4):拖悬停 → 卡高亮 dashed accent + 「松手添加」覆盖提示。
 
 ### Phase B — 连线 → 参考(高风险,见 §5 决策后再定)

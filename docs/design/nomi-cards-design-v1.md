@@ -525,7 +525,7 @@ function BaseGenerationNode({ node, ...rest }) {
 ### §5.3 共享 hooks
 
 ```typescript
-// src/workbench/generationCanvasV2/hooks/useNodeRelationships.ts
+// src/workbench/generationCanvas/hooks/useNodeRelationships.ts
 
 export function useNodeUsageCount(nodeId: string, nodeTitle: string | undefined): number {
   return useGenerationCanvasStore((state) => {
@@ -548,7 +548,7 @@ export function useNodeVariantCount(nodeId: string): number {
 每个字段都附带 source 标记，便于 AI 重提时知道哪些是用户手填（不覆盖）。
 
 ```typescript
-// src/workbench/generationCanvasV2/model/nodeMetaFields.ts
+// src/workbench/generationCanvas/model/nodeMetaFields.ts
 
 export type FieldProvenance = 'user' | { ai: number /* timestamp */ }
 

@@ -7,7 +7,7 @@
 //   - 传输地址（vendor 可达 URL）**不在此存储**——它在「发送那一刻」由 origin 线索现算
 //     （本地素材需先推到 vendor 够得着的地方）。这条传输能力是 P1 发送链的事，此处只负责带上线索。
 
-import type { GenerationCanvasNode } from '../generationCanvasV2/model/generationCanvasTypes'
+import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import type { WorkspaceFileNode } from '../../../electron/workspace/workspaceFileIndex'
 import { buildWorkspaceFileUrl } from '../explorer/workspaceFileDrag'
 

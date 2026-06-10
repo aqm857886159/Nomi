@@ -39,5 +39,5 @@
 ## 相关索引（非 docs/）
 
 - **会话记忆索引**：`~/.claude/.../memory/MEMORY.md`（跨会话事实，每行一条）
-- **生成画布代码入口图**：[`../src/workbench/generationCanvasV2/ENTRY.md`](../src/workbench/generationCanvasV2/ENTRY.md)
+- **生成画布代码入口图**：[`../src/workbench/generationCanvas/ENTRY.md`](../src/workbench/generationCanvas/ENTRY.md)
 - **工程纪律**：`../CLAUDE.md`（速览 + R1–R14）

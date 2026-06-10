@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { normalizeLegacyImageAssetKinds } from './projectMediaMigration'
 import { createDefaultWorkbenchProjectPayload } from './projectRecordSchema'
 import type { WorkbenchProjectRecordV1 } from './projectRecordSchema'
-import type { GenerationCanvasNode } from '../generationCanvasV2/model/generationCanvasTypes'
+import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 
 function makeNode(overrides: Partial<GenerationCanvasNode> & { id: string }): GenerationCanvasNode {
   return {

@@ -110,6 +110,6 @@ runtime.ts (2687)
 
 明确不动：
 - `src/design/` — 设计系统是项目护城河，结构已稳
-- `src/workbench/generationCanvasV2/` — 大块但内部分得清楚（model / nodes / store / runner / agent / components），别为了"看着乱"重构
+- `src/workbench/generationCanvas/` — 大块但内部分得清楚（model / nodes / store / runner / agent / components），别为了"看着乱"重构
 - `electron/ai/onboarding/` — v0.8 新建的，干净
 - `electron/export/` — 25 个文件听起来多，但导出流程客观就这么多步骤

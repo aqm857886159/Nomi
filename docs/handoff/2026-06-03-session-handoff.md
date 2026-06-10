@@ -60,7 +60,7 @@
 ## 6. 关键文件索引
 - 规则：`CLAUDE.md` ｜ 设计系统：`Design.md`、`docs/design/nomi-design-system.md`、`src/design/`
 - 计划/样张：`docs/plan/`（onboarding-*、file-preview、onboarding-form-*、c5-text-node）、`docs/mockups/`（c1、c5）
-- 画布：`src/workbench/generationCanvasV2/`（`components/GenerationCanvas.tsx` 主画布、`components/CanvasToolbar.tsx` 左工具栏+右键、`nodes/BaseGenerationNode.tsx` 节点壳1350行、`nodes/registry.ts` 节点注册、`store/generationCanvasStore.ts`、`model/generationCanvasTypes.ts`、`runner/generationRunController.ts`）
+- 画布：`src/workbench/generationCanvas/`（`components/GenerationCanvas.tsx` 主画布、`components/CanvasToolbar.tsx` 左工具栏+右键、`nodes/BaseGenerationNode.tsx` 节点壳1350行、`nodes/registry.ts` 节点注册、`store/generationCanvasStore.ts`、`model/generationCanvasTypes.ts`、`runner/generationRunController.ts`）
 - 富文本：`src/workbench/common/useNomiRichTextEditor.ts`、`richTextActions.tsx`、`NomiMarkdown.tsx`；创作区 `src/workbench/creation/WorkbenchEditor.tsx`
 - 文件预览：`src/workbench/explorer/FilePreviewPanel.tsx`、`useFilePreviewStore.ts`、`FileTreeNode.tsx`
 - 加模型：`src/ui/onboarding/OnboardingWizard.tsx`、`providerPresets.ts`；后端 `electron/runtime.ts`、`electron/main.ts`、`electron/ai/buildAiSdkModel.ts`

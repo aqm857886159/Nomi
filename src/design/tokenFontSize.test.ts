@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 // 字号 token 只有 11/12/13/14/16/20/24（text-micro/caption/body-sm/body/title…）。
 // 已知文档化例外（spec §4.3 派生角标 / 时间轴 snap-tag）列白名单，棘轮只减不增。
 const ALLOWLIST = new Set([
-  'src/workbench/generationCanvasV2/nodes/BaseGenerationNode.tsx:611', // §4.3 独立副本派生角标，spec'd 10.5
+  'src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx:611', // §4.3 独立副本派生角标，spec'd 10.5
   'src/workbench/timeline/TimelinePanel.tsx:297', // 时间轴 snap-tag，9.5 低于 token 下限
 ])
 

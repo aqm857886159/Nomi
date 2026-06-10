@@ -130,7 +130,7 @@
 
   <div class="note">
     <b>取舍：</b>提案 A 信息刚好够「一眼分清哪个镜头」、最克制（R2 极简）；提案 B 把模型/比例也搬到卡面，信息全但密度高、可能和右上连线手柄抢位置。<b>推荐 A</b>，模型/比例继续靠点开节点看（已有）。<br/>
-    <b>落地：</b>改 <code>src/workbench/generationCanvasV2/nodes/render/CardCommon.tsx</code> 的 <code>PlaceholderCenter</code> / 卡片渲染，序号取 node 在分镜序列的 index、预览取 <code>node.prompt</code> 首 2 行；token-only，配 design-fidelity 断言。
+    <b>落地：</b>改 <code>src/workbench/generationCanvas/nodes/render/CardCommon.tsx</code> 的 <code>PlaceholderCenter</code> / 卡片渲染，序号取 node 在分镜序列的 index、预览取 <code>node.prompt</code> 首 2 行；token-only，配 design-fidelity 断言。
   </div>
 </body>
 </html>

@@ -42,7 +42,7 @@
 
 **P0-1 两个"上帝文件"是最大单点风险**（CTO+后端+前端+PM 命中）
 - `electron/runtime.ts` **3150 行**：一文件管项目存储/导出编排/模型目录CRUD/密钥加密/资产IO/任务执行/AI chat 六个领域。拆分方案已有专门决策文档 `docs/audit/2026-05-30-B1-decision-runtime-split.md`。
-- `src/workbench/generationCanvasV2/nodes/scene3d/Scene3DFullscreen.tsx` **4598 行**：单组件 18 个 `useState` + `stateRef`/`selectionRef` 镜像 ref（状态管理失控信号）。
+- `src/workbench/generationCanvas/nodes/scene3d/Scene3DFullscreen.tsx` **4598 行**：单组件 18 个 `useState` + `stateRef`/`selectionRef` 镜像 ref（状态管理失控信号）。
 
 **P0-2 手搓画布，未用 React Flow**（前端 P0，违反规则 5）
 - 全仓 0 处 `@xyflow`/`reactflow`；`GenerationCanvas.tsx`(1186行) 手写 pan/zoom/连线/命中测试/虚拟化，坐标换算逻辑在 4 处重复（L478/485/651/760）。
@@ -150,7 +150,7 @@ grep -rohE 'text-\[[0-9.]+px\]' src --include='*.tsx' --include='*.ts' | wc -l
 grep -rn '@xyflow\|reactflow' package.json src | wc -l
 
 # 巨壳行数监控
-wc -l electron/runtime.ts src/workbench/generationCanvasV2/nodes/scene3d/Scene3DFullscreen.tsx
+wc -l electron/runtime.ts src/workbench/generationCanvas/nodes/scene3d/Scene3DFullscreen.tsx
 
 # 验证门槛（规则 11）
 pnpm build && npx vitest run

@@ -2,7 +2,7 @@
 
 日期：2026-06-06
 状态：**调研 + 设计阶段（未实现）**。按规则 8，本文是动手前的方案文档；样张评审通过、用户确认后才进实现。
-覆盖代码版本：v0.8（generationCanvasV2）
+覆盖代码版本：v0.8（generationCanvas）
 依赖文档：
 - `docs/design/nomi-cards-design-v1.md`（分类卡片设计 v1 — 4 类卡片的真实需求与 MoSCoW）
 - `docs/design/nomi-design-system.md`（设计系统 v1 — token / 卡片视觉）
@@ -70,7 +70,7 @@ export type CharacterMeta = {
 | **Tier 1 基础（通用）** | **图片节点浮条**（`NodeImageEditToolbar`，加「定妆」） | 点 → 套**最基础通用模板**（基础三视图 + 人物基本款）→ 生成（带确认） | 谁都能用的**兜底**，只到「最基础那一档」 |
 | **Tier 2 剧本驱动（做到好）** | **剧本 / 创作区一个触发点** | AI 读剧本 → 在对应节点建角色卡/场景卡 → **注入按剧本写好的提示词** → AI 问「要不要生成」→ 用户定 | 贴合具体剧本，**质量来源**（对应实测 v2 ≫ v1） |
 
-### 工具盘点（`src/workbench/generationCanvasV2/agent/generationCanvasTools.ts`）—— 基础设施已就绪
+### 工具盘点（`src/workbench/generationCanvas/agent/generationCanvasTools.ts`）—— 基础设施已就绪
 
 | Tier 2 需要 | 现有工具 | 状态 |
 |---|---|---|

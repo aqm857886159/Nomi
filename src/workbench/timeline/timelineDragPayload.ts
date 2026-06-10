@@ -1,4 +1,4 @@
-import type { GenerationCanvasNode } from '../generationCanvasV2/model/generationCanvasTypes'
+import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 
 export const TIMELINE_GENERATION_NODE_DRAG_MIME = 'application/x-tapcanvas-generation-node'
 export const TIMELINE_CLIP_DRAG_MIME = 'application/x-tapcanvas-workbench-clip'

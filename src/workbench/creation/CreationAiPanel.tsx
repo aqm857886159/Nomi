@@ -12,8 +12,8 @@ import type { WorkbenchAiMessage } from '../ai/workbenchAiTypes'
 import { WorkbenchAiHeaderActions } from '../ai/WorkbenchAiHeaderActions'
 import { AssistantToolsFold } from '../ai/AssistantToolsFold'
 import { useWorkbenchStore } from '../workbenchStore'
-import { requestStoryboardPlanning } from '../generationCanvasV2/agent/storyboardLauncher'
-import { requestFixationPlanning } from '../generationCanvasV2/agent/fixationLauncher'
+import { requestStoryboardPlanning } from '../generationCanvas/agent/storyboardLauncher'
+import { requestFixationPlanning } from '../generationCanvas/agent/fixationLauncher'
 import {
   buildCreationAiPrompt,
   CREATION_AI_MODES,

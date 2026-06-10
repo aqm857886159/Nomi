@@ -11,7 +11,7 @@ import type {
   WorkbenchProjectRecordV1 as LocalProjectRecord,
   WorkbenchProjectSummary as LocalProjectSummary,
 } from '../project/projectRecordSchema'
-import type { GenerationCanvasSnapshot } from '../generationCanvasV2/model/generationCanvasTypes'
+import type { GenerationCanvasSnapshot } from '../generationCanvas/model/generationCanvasTypes'
 import type { TimelineState } from '../timeline/timelineTypes'
 import type { WorkbenchDocument } from '../workbenchTypes'
 

@@ -1,4 +1,4 @@
-import { useGenerationCanvasStore } from '../generationCanvasV2/store/generationCanvasStore'
+import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
 import type { WorkbenchProjectPayload, WorkbenchProjectRecordV1 } from './projectRecordSchema'
 

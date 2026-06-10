@@ -15,7 +15,7 @@
   无任何动态 class 拼接模式。
 - 活的样式都在别处：`styles/index.css`（Tailwind 入口 + Mantine + vendor + token + animations）、
   `theme/nomi-tokens.css`（`--nomi-*` token）、`styles/animations.css`（`@apply animate-shimmer`）、
-  `styles/vendor-overrides.css`（Mantine 覆盖）、`generationCanvasV2/styles/generationCanvas.css`
+  `styles/vendor-overrides.css`（Mantine 覆盖）、`generationCanvas/styles/generationCanvas.css`
   （活画布样式）、`tailwind.config.ts`（shimmer keyframe）、个别组件内联 keyframes。
 - Tailwind 官方最佳实践（已查）：utility-first；重复抽组件/partial 而非 `@apply`；token 走
   `@theme`/CSS 变量。**项目组件已符合**——剩下就是清尸体。

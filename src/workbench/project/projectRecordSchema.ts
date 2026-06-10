@@ -3,8 +3,8 @@ import { z } from 'zod'
 import { createDefaultTimeline } from '../timeline/timelineMath'
 import type { TimelineState } from '../timeline/timelineTypes'
 import { createDefaultWorkbenchDocument, type WorkbenchDocument } from '../workbenchTypes'
-import { createDefaultGenerationCanvasSnapshot } from '../generationCanvasV2/store/generationCanvasDefaults'
-import type { GenerationCanvasSnapshot } from '../generationCanvasV2/model/generationCanvasTypes'
+import { createDefaultGenerationCanvasSnapshot } from '../generationCanvas/store/generationCanvasDefaults'
+import type { GenerationCanvasSnapshot } from '../generationCanvas/model/generationCanvasTypes'
 import { cloneBuiltinCategories, projectCategorySchema, type ProjectCategory } from './projectCategories'
 
 // Persisted records come in two shapes that carry an identical `payload`:

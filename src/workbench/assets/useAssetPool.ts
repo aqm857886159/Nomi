@@ -3,7 +3,7 @@
 // picker / 面板 / @ 引用都读它。去重按 renderUrl，画布优先（保留 nodeId 线索给连边用）。
 
 import React from 'react'
-import { useGenerationCanvasStore } from '../generationCanvasV2/store/generationCanvasStore'
+import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkspaceFiles } from '../workspace/useWorkspaceFiles'
 import {
   canvasNodeToAssetRef,

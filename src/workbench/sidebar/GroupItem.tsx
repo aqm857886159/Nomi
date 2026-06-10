@@ -1,6 +1,6 @@
 import React from 'react'
 import { cn } from '../../utils/cn'
-import type { GenerationCanvasNode, NodeGroup } from '../generationCanvasV2/model/generationCanvasTypes'
+import type { GenerationCanvasNode, NodeGroup } from '../generationCanvas/model/generationCanvasTypes'
 import NodeItem from './NodeItem'
 
 type Props = {

@@ -163,7 +163,7 @@ tldraw `SnapManager`（吸附思路天花板，只读不依赖）：bounds/handl
 - **不碰导出/渲染链路**（`export/`、`electron/export/`）—— 属 P2/P3。
 - **不引入任何拖拽/canvas 第三方库**（自研结论）。
 - **不动数据模型的轨道结构**（2 轨）——多轨属后续，P1 不扩。
-- **不改生成画布（generationCanvasV2）→ 时间轴的投递链路**。
+- **不改生成画布（generationCanvas）→ 时间轴的投递链路**。
 - `timelineEdit.ts` 的领域算法**保留复用**，只改"何时调用 + 吸附"。
 
 ---

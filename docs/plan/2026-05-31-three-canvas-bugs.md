@@ -7,9 +7,9 @@
 
 | # | 现象 | 根因 | 文件 |
 |---|---|---|---|
-| 1 | 生成图显示成卡片框比例（被裁切），不是图自己的比例 | 结果 `<img>` 用 `object-cover`（裁切填满容器）；video 已用 `object-contain` | `src/workbench/generationCanvasV2/nodes/BaseGenerationNode.tsx:1046` |
+| 1 | 生成图显示成卡片框比例（被裁切），不是图自己的比例 | 结果 `<img>` 用 `object-cover`（裁切填满容器）；video 已用 `object-contain` | `src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx:1046` |
 | 2 | onboarding 一个视频模型 → 被识别成 image 模型 | onboarding 没有任何 kind 识别；`main.ts` 硬编码 `targetKind ?? "image"`（注释写 "fallback until set_model_kind tool lands"）。向导已有"识别类型"步骤 + `detectedKind` 等着 agent 声明，但工具从没实现 | `electron/main.ts:398`、`electron/ai/onboarding/*` |
-| 3 | GPT-image 工具条中间有个空参数框 | GPT-image catalog 有 `callBackUrl` 参数（type=text、options=[]、default=""），落到 `<input>` 空文本框分支 | `src/workbench/generationCanvasV2/nodes/NodeParameterControls.tsx`（`buildDynamicControls`） |
+| 3 | GPT-image 工具条中间有个空参数框 | GPT-image catalog 有 `callBackUrl` 参数（type=text、options=[]、default=""），落到 `<input>` 空文本框分支 | `src/workbench/generationCanvas/nodes/NodeParameterControls.tsx`（`buildDynamicControls`） |
 
 ## 2. 方案（bug #2 用户已拍板：Agent 工具 set_model_kind）
 

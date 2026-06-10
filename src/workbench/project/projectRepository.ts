@@ -4,7 +4,7 @@ import {
     type WorkbenchProjectRecordV1,
     type WorkbenchProjectSummary,
 } from "./projectRecordSchema";
-import type { GenerationCanvasSnapshot } from "../generationCanvasV2/model/generationCanvasTypes";
+import type { GenerationCanvasSnapshot } from "../generationCanvas/model/generationCanvasTypes";
 import type { WorkbenchDocument } from "../workbenchTypes";
 import { assertWorkbenchProjectMediaUrlsPersistable } from "./projectMediaMigration";
 import { getDesktopBridge } from "../../desktop/bridge";

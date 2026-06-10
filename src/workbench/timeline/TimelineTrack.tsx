@@ -1,7 +1,7 @@
 import React from 'react'
 import { useWorkbenchStore } from '../workbenchStore'
 import { cn } from '../../utils/cn'
-import { buildClipFromGenerationNode } from '../generationCanvasV2/model/buildClipFromGenerationNode'
+import { buildClipFromGenerationNode } from '../generationCanvas/model/buildClipFromGenerationNode'
 import { clientXToFrame } from './timelineEdit'
 import { buildTimelineDropPreview, type TimelineDropPreview } from './timelineDropFeedback'
 import {

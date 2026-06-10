@@ -5,7 +5,7 @@ import { z } from "zod";
  * Zod schemas for the generation canvas tools the LLM is allowed to call.
  *
  * The schemas mirror the existing `GenerationCanvasNode` shape (see
- * `src/workbench/generationCanvasV2/model/...`). They intentionally use a
+ * `src/workbench/generationCanvas/model/...`). They intentionally use a
  * `clientId` (LLM-supplied) instead of the real node id so the model can
  * reference nodes it just proposed before the user has confirmed creation.
  *

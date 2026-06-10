@@ -31,7 +31,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  src/workbench/generationCanvasV2/agent/                            │
+│  src/workbench/generationCanvas/agent/                            │
 │    ├─ generationCanvasAgentClient.ts   (建 prompt + 调 AI)          │
 │    └─ generationCanvasAgentPlan.ts     (Zod schema + 正则解析)      │
 │                          │                                          │

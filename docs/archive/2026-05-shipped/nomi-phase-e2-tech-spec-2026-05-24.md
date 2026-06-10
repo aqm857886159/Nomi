@@ -372,7 +372,7 @@ function migrateProjectV5ToV6(payload: ProjectPayloadV5): ProjectPayloadV6 {
 ### 5.1 当前 store 树
 
 ```typescript
-// src/workbench/generationCanvasV2/store/generationCanvasStore.ts
+// src/workbench/generationCanvas/store/generationCanvasStore.ts
 useGenerationCanvasStore = {
   // state
   nodes: [...]
@@ -437,13 +437,13 @@ function useNodesInActiveCategory() {
 ### Wave 1: 数据模型 + 迁移 (W1)
 
 #### Task E.2-1: 类型 + Zod schema 升级
-- 修改 `src/workbench/generationCanvasV2/model/generationCanvasTypes.ts`：
+- 修改 `src/workbench/generationCanvas/model/generationCanvasTypes.ts`：
   - 保留 `categoryId: CategoryId` 单分类字段（不引入 `categoryIds[]`）
   - 明确跨分类拖拽创建独立副本，不做多挂载
   - 加 `derivedFrom?: string`
   - 加 `NodeGroup` 类型
   - 加 `groups: NodeGroup[]` 到 snapshot
-- 修改 `src/workbench/generationCanvasV2/model/generationCanvasSchema.ts`：
+- 修改 `src/workbench/generationCanvas/model/generationCanvasSchema.ts`：
   - 同步 Zod schema 更新
 - 提交：`feat(canvas): extend schema for groups and source metadata`
 - 验收：tsc 通过 + vitest 不挂
@@ -503,7 +503,7 @@ function useNodesInActiveCategory() {
 ### Wave 3: Canvas 组框 + 双向同步 (W3)
 
 #### Task E.2-8: Canvas 组框渲染
-- 新建 `src/workbench/generationCanvasV2/components/GroupFrame.tsx`
+- 新建 `src/workbench/generationCanvas/components/GroupFrame.tsx`
 - 计算 groupBounds：包围所有成员节点 + 内边距
 - 渲染：浅色背景 + 边框 + 左上角标签
 - 提交：`feat(canvas): render group frames around member nodes`

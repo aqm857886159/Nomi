@@ -11,7 +11,7 @@
 2. 「能不能用」全系统看 `enabled` 而非「有没有 key」：
    - 下拉过滤 `getEnabledVendorKeys` 只看 `v.enabled`（`src/config/useModelOptions.ts:73`）→ 断开后 kie 模型仍在下拉。
    - 运行时 `findExecutableModel` 先过 `vendor.enabled`（通过）再查 key（没了）→ 抛 `API key missing: kie`（`electron/runtime.ts:1757`）。
-3. 节点 `meta.modelVendor` 存了 `'kie'`；运行链路咽喉 `resolveExecutableNodeFromCatalog` 有 `if (vendor || !modelKey) return node`（`src/workbench/generationCanvasV2/runner/catalogTaskActions.ts:109`）—— 有供应商就完全信任，绝不重解析。
+3. 节点 `meta.modelVendor` 存了 `'kie'`；运行链路咽喉 `resolveExecutableNodeFromCatalog` 有 `if (vendor || !modelKey) return node`（`src/workbench/generationCanvas/runner/catalogTaskActions.ts:109`）—— 有供应商就完全信任，绝不重解析。
 
 跨供应商「同款模型」的唯一真相源：每个 catalog 模型 seed 时写入的 `model.meta.archetypeId`（`electron/catalog/seedBuiltins.ts:129,141`）。kie 的 `seedream` 与 apimart 的 `doubao-seedream-4.5` 都是 `archetypeId === "seedream"`。**例外**：Seedance kie=`seedance-2` / apimart=`seedance-2-apimart`（id 不同、`family` 都是 `"seedance"`）。
 
@@ -21,7 +21,7 @@
 
 ### Stage 1（核心，直接修掉报错的 bug）
 
-新文件 `src/workbench/generationCanvasV2/runner/usableVendorModel.ts`：
+新文件 `src/workbench/generationCanvas/runner/usableVendorModel.ts`：
 - `vendorIsUsable(v)` = `enabled && (authType==='none' || hasApiKey)`
 - `loadUsableVendorKeys(listVendors?)` → `Set<vendorKey>`
 - `resolveUsableModelForNode({ modelKey, modelAlias, vendor, meta, kind, models, usable })` → 命中的 catalog 行或 `null`，解析顺序：

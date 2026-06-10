@@ -16,8 +16,8 @@
 
 | 阶段 | 改动文件（预估） | 性质 |
 |---|---|---|
-| 1a | `generationCanvasV2/components/CanvasAssistantPanel.tsx`（抽执行层）、新增 `generationCanvasV2/agent/applyCanvasToolCall.ts` | 抽共享执行模块 |
-| 1b | `creation/CreationAiPanel.tsx`、`generationCanvasV2/agent/storyboardLauncher.ts`、`fixationLauncher.ts` | 拆 window 事件桥 → 工具调用 |
+| 1a | `generationCanvas/components/CanvasAssistantPanel.tsx`（抽执行层）、新增 `generationCanvas/agent/applyCanvasToolCall.ts` | 抽共享执行模块 |
+| 1b | `creation/CreationAiPanel.tsx`、`generationCanvas/agent/storyboardLauncher.ts`、`fixationLauncher.ts` | 拆 window 事件桥 → 工具调用 |
 | 1c | `nodes/NodeImageEditToolbar.tsx`、`creation/CreationAiPanel.tsx` 的定妆入口文案 | 消除定妆命名歧义 |
 | 2 | 合并 `CreationAiPanel` + `CanvasAssistantPanel` → 单一上下文助手组件；统一模式/模型选择器；**空间行为**（折叠小入口 ↔ 右侧停靠 + 拖宽手柄，**不做自由浮窗**） | **可见大改，R8 样张已拍板** |
 | 3（可选） | 工具膨胀后 subagent-as-tools | 远期 |
@@ -25,7 +25,7 @@
 ## 2. 不动项（明确不碰，防止 scope 蔓延）
 
 - `workbench/ai/workbenchAgentRunner.ts`（runtime + sessionKey，已统一）。
-- `generationCanvasV2/store/generationCanvasStore.ts`、`runner/`、`generationCanvasTools.ts` 的 store action 落地逻辑。
+- `generationCanvas/store/generationCanvasStore.ts`、`runner/`、`generationCanvasTools.ts` 的 store action 落地逻辑。
 - `fixation/buildFixationNode.ts`、`fixation/fixationPromptTemplates.ts`（共用抽象，正确）。
 - 定妆两条路径的**行为**（只改触发方式与文案，不改产物）。
 

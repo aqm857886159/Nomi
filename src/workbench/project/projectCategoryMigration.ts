@@ -5,7 +5,7 @@ import {
   type GenerationCanvasNode,
   type GenerationCanvasSnapshot,
   type NodeGroup,
-} from '../generationCanvasV2/model/generationCanvasTypes'
+} from '../generationCanvas/model/generationCanvasTypes'
 import type { WorkbenchProjectPayload, WorkbenchProjectRecordV1 } from './projectRecordSchema'
 import { cloneBuiltinCategories } from './projectCategories'
 

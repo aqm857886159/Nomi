@@ -14,7 +14,7 @@
  * 旧持久化数据中不存在的字段保持 undefined，让 zod schema 在解析时 fallback。
  */
 import type { WorkbenchProjectRecordV1 } from './projectRecordSchema'
-import type { GenerationCanvasNode } from '../generationCanvasV2/model/generationCanvasTypes'
+import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import {
   BUILTIN_CATEGORIES,
   type NodeRenderKind,

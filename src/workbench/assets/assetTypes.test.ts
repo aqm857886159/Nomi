@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { GenerationCanvasNode } from '../generationCanvasV2/model/generationCanvasTypes'
+import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import type { WorkspaceFileNode } from '../../../electron/workspace/workspaceFileIndex'
 import { canvasNodeToAssetRef, workspaceNodeToAssetRef, flattenWorkspaceFiles, filterAssets, moveArrayItem } from './assetTypes'
 import type { AssetRef } from './assetTypes'

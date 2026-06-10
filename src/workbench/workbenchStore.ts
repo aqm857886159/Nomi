@@ -27,7 +27,7 @@ import {
   DEFAULT_CATEGORY_ID,
   type ProjectCategory,
 } from './project/projectCategories'
-import { useGenerationCanvasStore } from './generationCanvasV2/store/generationCanvasStore'
+import { useGenerationCanvasStore } from './generationCanvas/store/generationCanvasStore'
 
 /** 拖动中临时吸附辅助线（非持久化）。 */
 export type TimelineSnapGuide = { frame: number; label: string }

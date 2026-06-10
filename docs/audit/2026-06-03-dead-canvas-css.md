@@ -14,7 +14,7 @@
 - gating data 属性 `data-canvas-viewport-moving` / `data-heavy-selection` /
   `data-connecting-active` / `data-viewport-moving` / `data-dragging` 在**任何
   TS/TSX/HTML 里 0 设置**（核查命令见文末）。
-- 当前真实画布是自研的 `generationCanvasV2`（类名前缀 `generation-canvas-v2__*`），
+- 当前真实画布是自研的 `generationCanvas`（类名前缀 `generation-canvas-v2__*`），
   与上面这套 `tc-*` 旧画布无任何共用类。
 
 结论：这些 CSS 可证明不可达（依赖没装 + 类名/属性 0 引用），删除**不可能**改变任何
@@ -32,7 +32,7 @@
    edge-path、handle 命中区，及 light theme 的 react-flow controls/minimap/selection/
    handle/edge 段、`[data-dragging] .react-flow__node`、`.tc-canvas[data-viewport-moving]`
    perf 段）。**保留** Mantine / webkit 滚动条 / `[data-compact]` 段（这些是活的）。
-3. **死 marquee 框选**（`generationCanvasV2`，从未触发——`setSelectionBox` 只被传过
+3. **死 marquee 框选**（`generationCanvas`，从未触发——`setSelectionBox` 只被传过
    `null`）：
    - `components/GenerationCanvas.tsx`：删 `selectionBox` state、`boxSelectRef`、
      `selectNodesInRect` 订阅、`setSelectionBox(null)` 调用、`<div>` 渲染块。
@@ -48,7 +48,7 @@
   `.tc-handle` 这类可能与活类有部分前缀重叠，属于规则 4 级别的审计，不能当顺手小切。
 
 ## 不动什么
-- `generationCanvasV2` 的活样式（`generationCanvas.css`、`generation-canvas-v2__*`）。
+- `generationCanvas` 的活样式（`generationCanvas.css`、`generation-canvas-v2__*`）。
 - `vendor-overrides.css` 的 Mantine / 滚动条 / compact 段。
 - 任何运行时逻辑、持久化 schema、runner。
 
@@ -91,7 +91,7 @@
 | `.tc-group-node*` | 3 | 0 | 死，删 |
 | `.tc-connection-line` | 1 | 0 | 死，删 |
 | `.tc-ai-chat*`（旧 AI 聊天） | 359 | 0（仅 motionPresets.ts 一处**注释**提名） | 死，删 |
-| `.tc-storyboard-editor*`（旧分镜编辑器） | 168 | 0（活分镜全在 generationCanvasV2） | 死，删 |
+| `.tc-storyboard-editor*`（旧分镜编辑器） | 168 | 0（活分镜全在 generationCanvas） | 死，删 |
 | `.tc-local-pipeline-modal*` | 80 | 0 | 死，删 |
 | `.tc-pm*`（旧项目管理面板） | 52 | 0 | 死，删 |
 | `.tc-spotlight*`（规则体，非变量） | — | 0 | 死，删 |

@@ -282,7 +282,7 @@
 
 #### Task B5: 工具调用确认 UI
 
-- 文件：`src/workbench/generationCanvasV2/components/CanvasAssistantPanel.tsx`
+- 文件：`src/workbench/generationCanvas/components/CanvasAssistantPanel.tsx`
 - 操作：
   - 当 stream event 是 `tool-call` 时，UI 显示 "Agent 准备调用工具: create_canvas_nodes"
   - 提供"确认"和"拒绝"按钮
@@ -296,7 +296,7 @@
 
 #### Task B6: 切换生成区 Agent 到 V2
 
-- 文件：`src/workbench/generationCanvasV2/agent/generationCanvasAgentClient.ts`
+- 文件：`src/workbench/generationCanvas/agent/generationCanvasAgentClient.ts`
 - 操作：
   - prompt 改写：删除 `<generation_canvas_plan>` 标签描述，改为简单介绍工具能做什么
   - 调用 `sendWorkbenchAiMessage` 改用 V2 channel
@@ -307,7 +307,7 @@
 
 #### Task B7: 删除 XML 解析（**在 §5 清理清单中登记**）
 
-- 文件：`src/workbench/generationCanvasV2/agent/generationCanvasAgentPlan.ts`
+- 文件：`src/workbench/generationCanvas/agent/generationCanvasAgentPlan.ts`
 - 操作：删除 `PLAN_BLOCK_RE` 和 `parseGenerationCanvasAgentPlan`，保留 `toCreateNodeInputs` 等共享工具
 - 删除前：grep 确认无其他文件引用
 - 提交：`refactor(agent): remove obsolete XML plan parser`
@@ -376,7 +376,7 @@ Spawn audit agent（模板见 §5.2）。
 
 #### Task C3: Plan→Confirm→Execute UI 完善
 
-- 文件：`src/workbench/generationCanvasV2/components/CanvasAssistantPanel.tsx`
+- 文件：`src/workbench/generationCanvas/components/CanvasAssistantPanel.tsx`
 - 操作：
   - 把多个连续的 tool call 聚合显示为一个"待确认计划卡片"
   - 卡片显示：summary + N 个节点缩略 + 连边数量
@@ -389,7 +389,7 @@ Spawn audit agent（模板见 §5.2）。
 
 #### Task C4: 批量生成 + 失败重试
 
-- 文件：`src/workbench/generationCanvasV2/runner/generationRunController.ts` (扩展)
+- 文件：`src/workbench/generationCanvas/runner/generationRunController.ts` (扩展)
 - 操作：
   - 新增 `runGenerationNodesBatch(nodeIds: string[])`
   - 队列化执行，限并发 = 2
@@ -401,7 +401,7 @@ Spawn audit agent（模板见 §5.2）。
 
 #### Task C5: "发送故事板到时间轴" 一键操作
 
-- 文件：`src/workbench/generationCanvasV2/components/CanvasToolbar.tsx`
+- 文件：`src/workbench/generationCanvas/components/CanvasToolbar.tsx`
 - 操作：选中一组按时序连边的节点 → 点按钮 → 按 edge 顺序排进时间轴 image track
 - 提交：`feat(canvas): one-click send storyboard to timeline`
 - 验收：
@@ -562,7 +562,7 @@ Spawn final audit agent，全面 review。
 
 | 删除 | Phase | 文件/标识 | 删除 commit | 状态 |
 |---|---|---|---|---|
-| `<generation_canvas_plan>` XML parser 整文件 | B7 | `src/workbench/generationCanvasV2/agent/generationCanvasAgentPlan.ts` (PLAN_BLOCK_RE / parseGenerationCanvasAgentPlan / 相关 schema 与类型；B6 后无外部引用) | (本 commit) | ✅ |
+| `<generation_canvas_plan>` XML parser 整文件 | B7 | `src/workbench/generationCanvas/agent/generationCanvasAgentPlan.ts` (PLAN_BLOCK_RE / parseGenerationCanvasAgentPlan / 相关 schema 与类型；B6 后无外部引用) | (本 commit) | ✅ |
 | 假流式逻辑 | B4 | `src/api/server.ts:openDesktopAgentsChatStream` 旧实现 | rebased SHA in branch | ✅ |
 | 23 个 legacy skill | D4 | `skills/tapcanvas-*` 等 → `skills/legacy/` | `f690259` | ✅ |
 | `apps/` 目录 | (已删) | / | `--` (untracked clean) | ✅ |

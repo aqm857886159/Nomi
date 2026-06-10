@@ -1,4 +1,4 @@
-import type { GenerationCanvasNode } from '../generationCanvasV2/model/generationCanvasTypes'
+import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import type { WorkspaceMode } from '../workbenchStore'
 import { createNodeFromSelection } from './createNodeFromSelection'
 

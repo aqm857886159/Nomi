@@ -11,7 +11,7 @@ import {
 import { WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
 import { createNodeFromSelection, type SelectionGenerationKind } from './createNodeFromSelection'
-import { useGenerationCanvasStore } from '../generationCanvasV2/store/generationCanvasStore'
+import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
 
 type SelectionGeneratePopoverProps = {

@@ -713,29 +713,29 @@ export const iconsByName = {
 - 提交：`refactor(canvas): extract NodeShell for shared chrome [E.2C-17]`
 
 #### E.2C-18: ShotFrameNode 组件
-- 新建 `src/workbench/generationCanvasV2/nodes/render/ShotFrameNode.tsx`
+- 新建 `src/workbench/generationCanvas/nodes/render/ShotFrameNode.tsx`
 - 内嵌 composer（决策 2 极简版）
 - 自动编号显示 "分镜 NN"
 - 占位态文案 "等待生成"
 - 提交：`feat(canvas): ShotFrameNode with inline composer and auto-numbering [E.2C-18]`
 
 #### E.2C-19: CharacterCardNode 组件
-- 新建 `src/workbench/generationCanvasV2/nodes/render/CharacterCardNode.tsx`
+- 新建 `src/workbench/generationCanvas/nodes/render/CharacterCardNode.tsx`
 - 缩略图 + 名字 + tag + 一句话设定
 - 提交：`feat(canvas): CharacterCardNode for character category [E.2C-19]`
 
 #### E.2C-20: SceneCardNode 组件
-- 新建 `src/workbench/generationCanvasV2/nodes/render/SceneCardNode.tsx`
+- 新建 `src/workbench/generationCanvas/nodes/render/SceneCardNode.tsx`
 - 环境图 + 名字 + 关联角色 chip
 - 提交：`feat(canvas): SceneCardNode for scene category [E.2C-20]`
 
 #### E.2C-21: PropCardNode 组件
-- 新建 `src/workbench/generationCanvasV2/nodes/render/PropCardNode.tsx`
+- 新建 `src/workbench/generationCanvas/nodes/render/PropCardNode.tsx`
 - 道具图 + 名字 + 关联角色/场景 chip
 - 提交：`feat(canvas): PropCardNode for prop category [E.2C-21]`
 
 #### E.2C-22: AudioStripNode 组件
-- 新建 `src/workbench/generationCanvasV2/nodes/render/AudioStripNode.tsx`
+- 新建 `src/workbench/generationCanvas/nodes/render/AudioStripNode.tsx`
 - 波形 + 时长 + tag
 - 提交：`feat(canvas): AudioStripNode for audio category [E.2C-22]`
 
@@ -786,7 +786,7 @@ export const iconsByName = {
 - 提交：`refactor(workbench): mount CategorySidebar only inside GenerationWorkspace [E.2C-29]`
 
 #### E.2C-30: GroupFrame 抽离为独立组件
-- 新建 `src/workbench/generationCanvasV2/components/GroupFrame.tsx`
+- 新建 `src/workbench/generationCanvas/components/GroupFrame.tsx`
 - 从 GenerationCanvas.tsx 把组框渲染 + handler 抽过去
 - 提交：`refactor(canvas): extract GroupFrame component [E.2C-30]`
 

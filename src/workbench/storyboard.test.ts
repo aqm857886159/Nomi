@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { summarizeAgentPlan } from './generationCanvasV2/components/agentPlanSummary'
+import { summarizeAgentPlan } from './generationCanvas/components/agentPlanSummary'
 import {
   buildStoryboardPlanningMessage,
   STORYBOARD_PLANNER_SKILL,
-} from './generationCanvasV2/agent/storyboardLauncher'
-import { orderNodesByEdges } from './generationCanvasV2/agent/sendStoryboardToTimeline'
+} from './generationCanvas/agent/storyboardLauncher'
+import { orderNodesByEdges } from './generationCanvas/agent/sendStoryboardToTimeline'
 import { buildStoryDocument, TRY_NOW_EXAMPLES } from './library/tryNowExamples'
-import type { GenerationCanvasEdge } from './generationCanvasV2/model/generationCanvasTypes'
+import type { GenerationCanvasEdge } from './generationCanvas/model/generationCanvasTypes'
 
 describe('Phase C storyboard happy path', () => {
   describe('summarizeAgentPlan', () => {

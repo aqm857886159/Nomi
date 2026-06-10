@@ -5,7 +5,7 @@ import type { WorkbenchProjectRecordV1 } from './projectRecordSchema'
 import type {
   GenerationCanvasNode,
   GenerationNodeKind,
-} from '../generationCanvasV2/model/generationCanvasTypes'
+} from '../generationCanvas/model/generationCanvasTypes'
 
 function makeNode(overrides: Partial<GenerationCanvasNode> & { kind: GenerationNodeKind; id: string }): GenerationCanvasNode {
   return {

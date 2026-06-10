@@ -94,7 +94,7 @@
 
 **文件**：
 - `src/workbench/project/projectRecordSchema.ts` (Zod schema 扩展)
-- `src/workbench/generationCanvasV2/model/generationCanvasTypes.ts` (Node 类型扩展)
+- `src/workbench/generationCanvas/model/generationCanvasTypes.ts` (Node 类型扩展)
 - `electron/runtime.ts` (项目 read/save 兼容旧格式)
 
 **实现要点**：
@@ -114,7 +114,7 @@ type Category = {
 type CategoryViewType =
   | 'document'        // 故事 — TipTap full editor
   | 'card-grid'       // 角色 / 场景 / 风格
-  | 'graph-canvas'    // 分镜 (current generationCanvasV2 canvas)
+  | 'graph-canvas'    // 分镜 (current generationCanvas canvas)
   | 'asset-library'   // 资源池 — grid/list/card switchable
   | 'list-with-status'// 导出
   | 'audio-list'      // 声音
@@ -197,8 +197,8 @@ const BUILTIN_CATEGORIES: Category[] = [
 **目标**：每个分类点击时切换右侧主画布；每个 graph-canvas 类型的分类保留自己的 zoom/offset。
 
 **文件**：
-- `src/workbench/generationCanvasV2/components/GenerationCanvas.tsx` (按 activeCategoryId 过滤节点)
-- `src/workbench/generationCanvasV2/store/generationCanvasStore.ts` (per-category viewport)
+- `src/workbench/generationCanvas/components/GenerationCanvas.tsx` (按 activeCategoryId 过滤节点)
+- `src/workbench/generationCanvas/store/generationCanvasStore.ts` (per-category viewport)
 - `src/workbench/sidebar/CategoryHostView.tsx` (新建，根据 viewType dispatch 渲染)
 
 **实现要点**：
@@ -306,8 +306,8 @@ const PROJECT_TEMPLATES = {
 
 **文件**：
 - `src/workbench/sidebar/CategoryItem.tsx` (作为 drop target)
-- `src/workbench/generationCanvasV2/nodes/BaseGenerationNode.tsx` (作为 draggable)
-- `src/workbench/generationCanvasV2/store/generationCanvasStore.ts` (`reassignNodeCategory` action)
+- `src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx` (作为 draggable)
+- `src/workbench/generationCanvas/store/generationCanvasStore.ts` (`reassignNodeCategory` action)
 
 **交互**：
 - 长按 + 拖动节点头部触发 cross-category drag mode（区分于已有的 canvas 内移动）
@@ -327,7 +327,7 @@ const PROJECT_TEMPLATES = {
 
 **文件**：
 - 新建 `src/workbench/sidebar/AssetLibraryView.tsx`
-- `src/workbench/generationCanvasV2/adapters/assetImportAdapter.ts` (新导入素材默认 categoryId='inbox')
+- `src/workbench/generationCanvas/adapters/assetImportAdapter.ts` (新导入素材默认 categoryId='inbox')
 
 **视图三态**：
 - Grid：缩略图网格，悬停显示元数据
@@ -357,7 +357,7 @@ const PROJECT_TEMPLATES = {
 - 安装依赖：`pnpm add react-window @types/react-window`
 - 新建 `src/workbench/ui/virtualized/VirtualGrid.tsx`（卡片网格的虚拟化封装）
 - 新建 `src/workbench/ui/virtualized/VirtualList.tsx`（列表的虚拟化封装）
-- 现有 `src/workbench/generationCanvasV2/components/GenerationCanvas.tsx`：节点数 > 50 时启用 viewport-aware rendering（只渲染视口内 + 周围 buffer 的节点）
+- 现有 `src/workbench/generationCanvas/components/GenerationCanvas.tsx`：节点数 > 50 时启用 viewport-aware rendering（只渲染视口内 + 周围 buffer 的节点）
 
 **虚拟化阈值**：
 
@@ -471,9 +471,9 @@ const COST_TABLE: CostEntry[] = [
 **目标**：每个 AI 生成的资产保存完整 provenance；UI 可一键查看 + 一键"用相同参数重生成"。
 
 **文件**：
-- `src/workbench/generationCanvasV2/model/generationCanvasTypes.ts` (GenerationNodeResult 增加 provenance 字段)
+- `src/workbench/generationCanvas/model/generationCanvasTypes.ts` (GenerationNodeResult 增加 provenance 字段)
 - `electron/runtime.ts` runGenerationTask 末尾写 provenance
-- 新建 `src/workbench/generationCanvasV2/nodes/ProvenancePanel.tsx`
+- 新建 `src/workbench/generationCanvas/nodes/ProvenancePanel.tsx`
 
 **Provenance schema**：
 
@@ -525,7 +525,7 @@ type GenerationNodeResult = {
 - 新建 `electron/cost/costLog.test.ts`
 - 新建 `electron/cost/providerCostTable.test.ts`
 - 新建 `src/workbench/library/projectTemplates.test.ts`
-- 新建 `src/workbench/generationCanvasV2/model/provenance.test.ts`
+- 新建 `src/workbench/generationCanvas/model/provenance.test.ts`
 
 **E2E happy path test**（不跑 dev app，但跑端到端逻辑）：
 - 创建漫剧模板项目 → 7 个分类 → 在分镜分类创建节点 → 检查节点 categoryId
@@ -572,8 +572,8 @@ Phase E 在 v0.4.0 之上叠加。需要小心的接合点：
 | 现有模块 | Phase E 的修改 | 风险 |
 |---|---|---|
 | `projectRecordSchema.ts` | 增加 `categories` 字段 + node.categoryId | schema 升级，旧项目 fallback 必须 work |
-| `generationCanvasV2/components/GenerationCanvas.tsx` | filter 节点 by categoryId；E8 加虚拟化 | 现有 canvas pan/zoom 不能破 |
-| `generationCanvasV2/store/generationCanvasStore.ts` | per-category viewport | restoreSnapshot 兼容性 |
+| `generationCanvas/components/GenerationCanvas.tsx` | filter 节点 by categoryId；E8 加虚拟化 | 现有 canvas pan/zoom 不能破 |
+| `generationCanvas/store/generationCanvasStore.ts` | per-category viewport | restoreSnapshot 兼容性 |
 | `electron/runtime.ts` runAgentChat/V2/runGenerationTask | 末尾写 cost + provenance | 不影响 Agent / streaming 行为 |
 | `WorkbenchShell.tsx` | 左侧加 sidebar | 顶部 Topbar / 底部 Timeline 布局不破 |
 | `library/ProjectLibraryPage.tsx` | 新建按钮弹模板选择 | Try-Now hero（Phase C）保持 |

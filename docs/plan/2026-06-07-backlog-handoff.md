@@ -75,7 +75,7 @@
 - 设计系统（动 UI 必读）：`docs/design/nomi-design-system.md`（token-only，§6 图标只用 Tabler）。
 - 模型接入：`electron/catalog/`（apimart*/kie* mapping + seedBuiltins）、`src/config/knownVendors.ts`、`src/ui/onboarding/{OnboardingDrawer,VendorOnboardCard,FoldableModelCard}.tsx`。
 - 素材：`src/workbench/assets/{useAssetPool,AssetTile,assetTypes,AssetPicker}.ts(x)`。
-- 助手：`src/workbench/generationCanvasV2/components/CanvasAssistantPanel.tsx`（生成）、`src/workbench/creation/CreationAiPanel.tsx`（创作）。
+- 助手：`src/workbench/generationCanvas/components/CanvasAssistantPanel.tsx`（生成）、`src/workbench/creation/CreationAiPanel.tsx`（创作）。
 - 记忆：`~/.claude/.../memory/model-onboarding-and-e2e-loop.md`（真实生成 E2E + 自动选模型 P0 + 教训）、`r13-walkthrough-gotchas.md`。
 
 ## 5. 给新会话的一句话

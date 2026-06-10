@@ -2,10 +2,7 @@
 
 > 112 文件的画布子系统「我要改 X 去哪」地图。搜符号前先看这张表定位子目录，少 fan-out。
 
-## ⚠️ 关于 "V2" 这个名字
-
-**目前树里没有 V1。** "V2" 是历史胎记：早期是 `apps/web/.../generationCanvas` 的 monorepo 布局，"publish clean workspace"（commit `27ab140`）时整体搬进了现在的 `src/workbench/generationCanvasV2`，后缀跟着带过来了，指向一个已不存在的 V1。
-改名会动 29 文件 / 30 处 import，需过五门，属独立清场任务，未做。读代码时把 "V2" 当无意义后缀即可。
+> 历史注记：本目录曾名 `generationCanvasV2`——那是旧 `apps/web` monorepo 布局「publish clean workspace」(commit `27ab140`) 带来的残留后缀，树里从无 V1。2026-06-11 已重命名为 `generationCanvas`（无后缀）。
 
 ## 子目录职责
 

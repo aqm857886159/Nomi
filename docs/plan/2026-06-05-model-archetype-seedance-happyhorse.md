@@ -155,8 +155,8 @@
 - `src/config/modelCatalogMeta.ts` —— 加「`meta.archetypeId` 存在 → 走档案解析」分支；档案产出的富配置类型新增 `modes`、typed `slots`。**无 archetypeId 的旧路径完全不动**（长尾回退）。
 
 **UI**
-- `src/workbench/generationCanvasV2/nodes/NodeGenerationComposer.tsx` —— 顶部加模式分段切换（仅当档案有 >1 模式时显示）；面板宽度按当前模式控件数算。
-- `src/workbench/generationCanvasV2/nodes/NodeParameterControls.tsx` —— 按当前模式渲染 typed 槽（多图数组、视频、音频）+ 标量参数；写回 `node.meta.refs/params/modeId`。**注意 Rule 12：该文件已 1097 行**，新增逻辑须抽子模块（如 `modeControls.tsx`、`referenceSlots.tsx`），不得把本文件喂大。
+- `src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx` —— 顶部加模式分段切换（仅当档案有 >1 模式时显示）；面板宽度按当前模式控件数算。
+- `src/workbench/generationCanvas/nodes/NodeParameterControls.tsx` —— 按当前模式渲染 typed 槽（多图数组、视频、音频）+ 标量参数；写回 `node.meta.refs/params/modeId`。**注意 Rule 12：该文件已 1097 行**，新增逻辑须抽子模块（如 `modeControls.tsx`、`referenceSlots.tsx`），不得把本文件喂大。
 
 **运行时 / 传输**
 - `electron/runtime.ts` `taskTemplateParams`(L1972)/`firstReferenceImage`(L1960) —— 支持数组参考键（照抄含空格 key）、`model` enum 覆盖、`input.*` 嵌套构建。

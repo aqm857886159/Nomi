@@ -1,7 +1,7 @@
 import { normalizeWorkbenchDocument, type WorkbenchDocument } from './workbenchTypes'
 import { createDefaultTimeline, normalizeTimeline } from './timeline/timelineMath'
 import type { TimelineState } from './timeline/timelineTypes'
-import type { GenerationCanvasSnapshot } from './generationCanvasV2/model/generationCanvasTypes'
+import type { GenerationCanvasSnapshot } from './generationCanvas/model/generationCanvasTypes'
 
 export type SerializedWorkbenchState = {
   workbenchDocument: WorkbenchDocument
