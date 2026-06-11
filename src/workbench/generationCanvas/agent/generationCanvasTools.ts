@@ -74,8 +74,19 @@ export const generationCanvasTools = {
     })
   },
   connect_nodes(edges: Array<Pick<GenerationCanvasEdge, 'source' | 'target'>>) {
-    edges.forEach((edge) => useGenerationCanvasStore.getState().connectNodes(edge.source, edge.target))
-    return useGenerationCanvasStore.getState().edges
+    // 端点必须真实存在——吊边一旦入 store 会被持久化且永不渲染(连线静默丢失)。
+    const existing = new Set(useGenerationCanvasStore.getState().nodes.map((node) => node.id))
+    const skipped: Array<Pick<GenerationCanvasEdge, 'source' | 'target'>> = []
+    let connected = 0
+    for (const edge of edges) {
+      if (existing.has(edge.source) && existing.has(edge.target)) {
+        useGenerationCanvasStore.getState().connectNodes(edge.source, edge.target)
+        connected += 1
+      } else {
+        skipped.push(edge)
+      }
+    }
+    return { connected, skipped, edges: useGenerationCanvasStore.getState().edges }
   },
   delete_nodes(nodeIds: string[]): string[] {
     const existing = new Set(useGenerationCanvasStore.getState().nodes.map((node) => node.id))
@@ -132,8 +143,8 @@ export const generationCanvasTools = {
       return toolResult({ ok: true, tool: action.tool, message: `创建节点：${nodes.length} 个`, data: nodes })
     }
     if (action.tool === 'connect_nodes') {
-      const edges = generationCanvasTools.connect_nodes(action.edges)
-      return toolResult({ ok: true, tool: action.tool, message: `连接节点：${action.edges.length} 条`, data: edges })
+      const result = generationCanvasTools.connect_nodes(action.edges)
+      return toolResult({ ok: true, tool: action.tool, message: `连接节点：${result.connected} 条`, data: result.edges })
     }
     if (action.tool === 'delete_nodes') {
       const deleted = generationCanvasTools.delete_nodes(action.nodeIds)
