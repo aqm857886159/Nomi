@@ -1,6 +1,7 @@
 import { ipcMain, webContents as electronWebContents } from "electron";
 import type { WebContents } from "electron";
 import { clearAgentChatV2History, runAgentChatV2 } from "./agentChatV2";
+import { beginTurnTrace, traceChatEvent, traceToolDecision } from "../events/agentChatTrace";
 
 // ---------------------------------------------------------------------------
 // Agent chat V2 — real streaming + tool-call confirmation
@@ -19,6 +20,8 @@ type AgentChatV2Session = {
 const agentChatV2Sessions = new Map<string, AgentChatV2Session>();
 
 function sendChatV2Event(session: AgentChatV2Session, event: unknown): void {
+  // 结构化轨迹旁路(S3):先记账再投递;翻译器内部吞掉一切失败,绝不影响对话。
+  traceChatEvent(session.sessionId, event);
   const target: WebContents | undefined = electronWebContents.fromId(session.webContentsId) || undefined;
   if (!target || target.isDestroyed()) return;
   target.send("nomi:agents:chatV2:event", { sessionId: session.sessionId, event });
@@ -35,6 +38,7 @@ export function registerAgentChatV2Ipc(): void {
       abortController: new AbortController(),
     };
     agentChatV2Sessions.set(sessionId, session);
+    beginTurnTrace(sessionId, payload);
 
     // Run the agent loop asynchronously so the IPC call can return the
     // sessionId immediately; the renderer subscribes to events first.
@@ -84,9 +88,11 @@ export function registerAgentChatV2Ipc(): void {
     if (!pending) return { ok: false, error: "tool call not pending" };
     session.pendingConfirmations.delete(payload.toolCallId);
     if (payload.decision && payload.decision.ok === true) {
+      traceToolDecision(payload.sessionId, payload.toolCallId, { ok: true });
       pending.resolve({ ok: true, result: payload.decision.result ?? null });
     } else {
       const message = (payload.decision && (payload.decision as { message?: string }).message) || "rejected by user";
+      traceToolDecision(payload.sessionId, payload.toolCallId, { ok: false, message });
       pending.resolve({ ok: false, message });
     }
     return { ok: true };

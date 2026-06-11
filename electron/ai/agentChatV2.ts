@@ -5,6 +5,7 @@ import { tool, type CoreMessage, type CoreUserMessage, type LanguageModelV1 } fr
 import { z } from "zod";
 import { capAgentHistory, createLinkedAbortController } from "./agentChatHarness";
 import { runAgentLoop } from "./agentLoop";
+import { traceContextCapped } from "../events/agentChatTrace";
 import { consumeAgentStreamWithTimeout } from "./agentStreamConsumer";
 import { buildAiSdkModel } from "./buildAiSdkModel";
 import { sanitizeForBroadCompat } from "./promptSanitize";
@@ -485,7 +486,11 @@ export async function runAgentChatV2(
   // 历史只存简短 displayPrompt（不存含整张快照的完整 prompt，否则每轮各存一份旧快照、token 膨胀）。
   if (ok && sessionKey) {
     const generated = (await result.response).messages as CoreMessage[];
-    agentChatV2History.set(sessionKey, capAgentHistory([...priorMessages, { role: "user", content: sanitizeForBroadCompat(trim(payload.displayPrompt)) || userPrompt }, ...generated]));
+    const full: CoreMessage[] = [...priorMessages, { role: "user", content: sanitizeForBroadCompat(trim(payload.displayPrompt)) || userPrompt }, ...generated];
+    const capped = capAgentHistory(full);
+    // 截断真的发生 → 记 context.capped(C1 触发器观测;对话内"已不再记得最早 N 轮"提示的数据源)。
+    if (capped.length < full.length) traceContextCapped(sessionKey, full.length - capped.length, capped.length);
+    agentChatV2History.set(sessionKey, capped);
   }
 
   return { id: `agent-${crypto.randomUUID()}`, text: finalText, finishReason: finalFinish, usage: finalUsage };
