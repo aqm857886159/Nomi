@@ -38,6 +38,7 @@
     "eval:run": "node ./scripts/eval-run.mjs",
     "eval:score": "node ./scripts/eval-score.mjs",
     "eval:diff": "node ./scripts/eval-diff.mjs",
+    "eval:view": "node ./scripts/eval-trace-viewer.mjs",
     "dist": "electron-builder",
     "dist:mac:dir": "electron-builder --mac dir --arm64",
     "postinstall": "node ./scripts/install-git-hooks.cjs",
