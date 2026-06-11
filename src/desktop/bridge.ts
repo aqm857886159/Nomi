@@ -105,6 +105,8 @@ export type DesktopBridge = {
     ) => Promise<{ ok: boolean; error?: string }>
     cancelChatV2: (sessionId: string) => Promise<{ ok: boolean; error?: string }>
     clearChatV2Session: (sessionKey: string) => Promise<{ ok: boolean; error?: string }>
+    /** S1b 诚实探针:LLM 是否还记得这个会话(气泡在而记忆空 → 必须画「新会话」分隔线)。 */
+    chatV2SessionAlive?: (sessionKey: string) => Promise<{ alive: boolean }>
     onChatV2Event: (sessionId: string, callback: (event: unknown) => void) => () => void
   }
   onboarding: {

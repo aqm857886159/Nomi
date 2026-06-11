@@ -1,6 +1,6 @@
 import { ipcMain, webContents as electronWebContents } from "electron";
 import type { WebContents } from "electron";
-import { clearAgentChatV2History, runAgentChatV2 } from "./agentChatV2";
+import { clearAgentChatV2History, hasAgentChatV2History, runAgentChatV2 } from "./agentChatV2";
 import { beginTurnTrace, traceChatEvent, traceToolDecision } from "../events/agentChatTrace";
 
 // ---------------------------------------------------------------------------
@@ -117,5 +117,10 @@ export function registerAgentChatV2Ipc(): void {
   ipcMain.handle("nomi:agents:chatV2:clearSession", async (_event, payload: { sessionKey?: string }) => {
     clearAgentChatV2History(payload?.sessionKey);
     return { ok: true };
+  });
+
+  // S1b 诚实探针:UI 呈现的"AI 记得的范围"⊆ LLM 实际范围(总方案 §5 不变量)。
+  ipcMain.handle("nomi:agents:chatV2:sessionAlive", async (_event, payload: { sessionKey?: string }) => {
+    return { alive: hasAgentChatV2History(String(payload?.sessionKey || "")) };
   });
 }

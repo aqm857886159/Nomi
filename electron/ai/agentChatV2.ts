@@ -388,6 +388,12 @@ export type RunAgentChatV2Payload = {
 // grow unbounded. History/maxSteps/repair helpers live in ./ai/agentChatHarness.
 const agentChatV2History = new Map<string, CoreMessage[]>();
 
+/** S1b 诚实探针:LLM 是否还记得这个会话(气泡在而记忆空 → UI 必须画「新会话」分隔线)。 */
+export function hasAgentChatV2History(sessionKey: string): boolean {
+  const key = String(sessionKey || "").trim();
+  return key ? (agentChatV2History.get(key)?.length ?? 0) > 0 : false;
+}
+
 /** Drop stored history for a session (or all sessions when no key given). */
 export function clearAgentChatV2History(sessionKey?: string): void {
   if (sessionKey && sessionKey.trim()) {
