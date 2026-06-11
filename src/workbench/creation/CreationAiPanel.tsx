@@ -23,6 +23,7 @@ import {
 } from './creationAiModes'
 import { useTransientScrollingClass } from './useTransientScrollingClass'
 import { AttachmentRail } from '../ai/composer/AttachmentRail'
+import { StaleConversationDivider, useStaleConversationBoundary } from '../ai/staleConversationDivider'
 import { AutoGrowTextarea } from '../ai/composer/AutoGrowTextarea'
 import { COMPOSER_ATTACHMENT_ACCEPT, useComposerAttachments } from '../ai/composer/useComposerAttachments'
 
@@ -86,6 +87,8 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   const modeId = useWorkbenchStore((state) => state.creationAiModeId)
   const draft = useWorkbenchStore((state) => state.creationAiDraft)
   const messages = useWorkbenchStore((state) => state.creationAiMessages)
+  // S1b 诚实分隔线:气泡有历史而 LLM 记忆为空 → 在历史末尾画「以上对话 AI 已不再记得」。
+  const staleBoundaryId = useStaleConversationBoundary(messages.map((message) => message.id))
   const attachments = useWorkbenchStore((state) => state.creationAiAttachments)
   const error = useWorkbenchStore((state) => state.creationAiError)
   const setModeId = useWorkbenchStore((state) => state.setCreationAiModeId)
@@ -410,8 +413,8 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
           </div>
         ) : (
           messages.map((message) => (
+            <React.Fragment key={message.id}>
             <article
-              key={message.id}
               className={cn(
                 'workbench-creation-ai__message',
                 `workbench-creation-ai__message--${message.role}`,
@@ -435,6 +438,8 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
                 ) : null}
               </div>
             </article>
+            {message.id === staleBoundaryId ? <StaleConversationDivider /> : null}
+            </React.Fragment>
           ))
         )}
 

@@ -29,6 +29,7 @@ import { handleAiComposerKeyDown } from '../../ai/aiComposerKeyboard'
 import { WorkbenchAiHeaderActions } from '../../ai/WorkbenchAiHeaderActions'
 import AssistantModelPicker from '../../ai/AssistantModelPicker'
 import { AssistantToolsFold } from '../../ai/AssistantToolsFold'
+import { StaleConversationDivider, useStaleConversationBoundary } from '../../ai/staleConversationDivider'
 import { AttachmentRail } from '../../ai/composer/AttachmentRail'
 import { AutoGrowTextarea } from '../../ai/composer/AutoGrowTextarea'
 import { COMPOSER_ATTACHMENT_ACCEPT, useComposerAttachments } from '../../ai/composer/useComposerAttachments'
@@ -124,6 +125,8 @@ export default function CanvasAssistantPanel({
   })
   const draft = useGenerationCanvasStore((state) => state.generationAiDraft)
   const messages = useGenerationCanvasStore((state) => state.generationAiMessages)
+  // S1b 诚实分隔线:气泡有历史而 LLM 记忆为空 → 在历史末尾画「以上对话 AI 已不再记得」。
+  const staleBoundaryId = useStaleConversationBoundary(messages.map((message) => message.id))
   const collapsed = useGenerationCanvasStore((state) => state.generationAiCollapsed)
   const setDraft = useGenerationCanvasStore((state) => state.setGenerationAiDraft)
   const setMessages = useGenerationCanvasStore((state) => state.setGenerationAiMessages)
@@ -459,33 +462,35 @@ export default function CanvasAssistantPanel({
           </div>
         ) : (
           messages.map((message) => (
-            <div
-              key={message.id}
-              className={cn(
-                'relative max-w-[90%] py-[10px] px-[14px] rounded-nomi',
-                'bg-nomi-ink-05 text-nomi-ink text-body-sm leading-[1.55] whitespace-pre-wrap',
-                message.role === 'user' && 'self-end rounded-br-[4px]',
-                message.role === 'assistant' && 'self-start rounded-bl-[4px]',
-                message.role === 'tool' && 'self-start bg-nomi-accent-soft text-nomi-accent',
-              )}
-              data-role={message.role}
-            >
-              {message.attachments?.length ? (
-                <AttachmentRail attachments={message.attachments} readOnly className={cn('mb-1.5')} />
-              ) : null}
-              {message.role === 'assistant' && message.content === '处理中...' ? (
-                // 与创作助手一致：消息处理中时左侧显示转动的 N（NomiLoadingMark），而非干巴巴的「处理中...」文字。
-                <NomiLoadingMark size={15} label="处理中" />
-              ) : (
-                message.content
-              )}
-              {message.role !== 'user' && message.content !== '处理中...' ? (
-                <AiReplyActionButton
-                  className="generation-canvas-v2-assistant__reply-action"
-                  content={message.content}
-                />
-              ) : null}
-            </div>
+            <React.Fragment key={message.id}>
+              <div
+                className={cn(
+                  'relative max-w-[90%] py-[10px] px-[14px] rounded-nomi',
+                  'bg-nomi-ink-05 text-nomi-ink text-body-sm leading-[1.55] whitespace-pre-wrap',
+                  message.role === 'user' && 'self-end rounded-br-[4px]',
+                  message.role === 'assistant' && 'self-start rounded-bl-[4px]',
+                  message.role === 'tool' && 'self-start bg-nomi-accent-soft text-nomi-accent',
+                )}
+                data-role={message.role}
+              >
+                {message.attachments?.length ? (
+                  <AttachmentRail attachments={message.attachments} readOnly className={cn('mb-1.5')} />
+                ) : null}
+                {message.role === 'assistant' && message.content === '处理中...' ? (
+                  // 与创作助手一致：消息处理中时左侧显示转动的 N（NomiLoadingMark），而非干巴巴的「处理中...」文字。
+                  <NomiLoadingMark size={15} label="处理中" />
+                ) : (
+                  message.content
+                )}
+                {message.role !== 'user' && message.content !== '处理中...' ? (
+                  <AiReplyActionButton
+                    className="generation-canvas-v2-assistant__reply-action"
+                    content={message.content}
+                  />
+                ) : null}
+              </div>
+              {message.id === staleBoundaryId ? <StaleConversationDivider /> : null}
+            </React.Fragment>
           ))
         )}
         {pendingToolCalls.length > 0 ? (() => {
