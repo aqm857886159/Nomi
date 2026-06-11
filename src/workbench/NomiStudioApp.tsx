@@ -17,6 +17,7 @@ import type { WorkbenchProjectPersistenceService } from "./project/projectPersis
 import { useWorkspaceEvents } from "./useWorkspaceEvents";
 import { useWorkbenchStore } from "./workbenchStore";
 import { swapGenerationAiProject } from "./generationCanvas/store/generationAiConversation";
+import { flushConversationsNow, initConversationPersistence, loadProjectConversations } from "./ai/conversationPersistence";
 import { cn } from "../utils/cn";
 import { toast } from "../ui/toast";
 import { setDesktopActiveProjectId } from "../desktop/activeProject";
@@ -149,6 +150,9 @@ export default function NomiStudioApp(): JSX.Element {
         setDesktopActiveProjectId(activeProject?.id);
     }, [activeProject?.id]);
 
+    // S1b-3:对话消息变化 → 防抖落盘(projectId 在冲刷时刻取,防切换期错绑)。
+    React.useEffect(() => initConversationPersistence(() => activeProjectIdRef.current ?? null), []);
+
     const hydrateProject = React.useCallback(
         async (projectId: string, options: { replaceUrl?: boolean } = {}) => {
             const { module, service } = await ensureProjectPersistenceService();
@@ -159,8 +163,11 @@ export default function NomiStudioApp(): JSX.Element {
                 // S1 治串台:切项目时交换两个 AI 面板的对话桶(存旧载新),气泡不再跨项目漂移。
                 const prevProjectId = activeProjectIdRef.current ?? null;
                 if (prevProjectId !== hydrated.id) {
+                    // 先冲刷旧项目的落盘(取消挂起防抖,防把新项目内容写进旧文件)。
+                    flushConversationsNow(prevProjectId);
                     useWorkbenchStore.getState().swapCreationAiProject(prevProjectId, hydrated.id);
                     swapGenerationAiProject(prevProjectId, hydrated.id);
+                    void loadProjectConversations(hydrated.id);
                 }
                 activeProjectIdRef.current = hydrated.id;
                 setActiveProject(hydrated);

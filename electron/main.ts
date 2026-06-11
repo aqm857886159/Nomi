@@ -38,6 +38,7 @@ import { installCrashHandlers, logCrash } from "./crashLog";
 import { applySystemProxy } from "./systemProxy";
 import { registerExportJobIpc } from "./export/exportJobIpc";
 import { registerAgentChatV2Ipc } from "./ai/agentChatV2Ipc";
+import { registerConversationsIpc } from "./conversations/conversationsIpc";
 import { registerOnboardingIpc } from "./ai/onboarding/onboardingIpc";
 
 // 尽早安装：捕获引导阶段起的 uncaughtException / unhandledRejection，落盘到 app logs（P0-8）。
@@ -254,6 +255,7 @@ function registerIpc(): void {
   ipcMain.handle("nomi:tasks:run", (_event, payload) => runTask(payload));
   ipcMain.handle("nomi:tasks:result", (_event, payload) => fetchTaskResult(payload));
   registerAgentChatV2Ipc();
+  registerConversationsIpc();
   registerOnboardingIpc();
 }
 

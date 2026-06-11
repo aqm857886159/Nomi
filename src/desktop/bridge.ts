@@ -4,6 +4,9 @@ import type { ProviderKind } from './providerKind'
 
 export type { ProviderKind }
 
+/** 落盘的对话消息(conversation 域;draft/附件是 session 域不落盘)。 */
+export type PersistedAiMessage = { id: string; role: string; content: string }
+
 export type DesktopAssetDto = {
   id: string
   name: string
@@ -108,6 +111,11 @@ export type DesktopBridge = {
     /** S1b 诚实探针:LLM 是否还记得这个会话(气泡在而记忆空 → 必须画「新会话」分隔线)。 */
     chatV2SessionAlive?: (sessionKey: string) => Promise<{ alive: boolean }>
     onChatV2Event: (sessionId: string, callback: (event: unknown) => void) => () => void
+  }
+  /** S1b-3 对话持久化(conversation 域独立文件,不混画布 payload)。 */
+  conversations?: {
+    read: (projectId: string) => Promise<{ ok: boolean; conversations: { creationMessages: PersistedAiMessage[]; generationMessages: PersistedAiMessage[] } | null }>
+    write: (projectId: string, payload: { creationMessages: PersistedAiMessage[]; generationMessages: PersistedAiMessage[] }) => Promise<{ ok: boolean }>
   }
   onboarding: {
     start: (payload: {

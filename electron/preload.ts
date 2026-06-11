@@ -56,6 +56,11 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     run: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:run", payload),
     result: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:result", payload),
   },
+  conversations: {
+    read: (projectId: string) => ipcRenderer.invoke("nomi:conversations:read", { projectId }),
+    write: (projectId: string, payload: { creationMessages: unknown; generationMessages: unknown }) =>
+      ipcRenderer.invoke("nomi:conversations:write", { projectId, ...payload }),
+  },
   agents: {
     chatV2Start: (payload: unknown) => ipcRenderer.invoke("nomi:agents:chatV2:start", payload) as Promise<{ sessionId: string }>,
     confirmTool: (sessionId: string, toolCallId: string, decision: unknown) =>
