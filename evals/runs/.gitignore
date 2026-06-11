@@ -1,0 +1,3 @@
+# eval run 产物含真实轨迹(本地数据),不进仓库;报告样例手动挑选归档到 docs/audit
+*
+!.gitignore

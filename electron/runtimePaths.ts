@@ -10,6 +10,8 @@ export const PROJECT_FILE = "project.json";
 export const PROJECT_ROOT_ENV = "NOMI_PROJECTS_DIR";
 export const CATALOG_FILE = "model-catalog.json";
 export const SKILLS_ROOT_ENV = "NOMI_SKILLS_DIR";
+/** 评测/测试隔离:覆盖 settings 根(catalog + workspace 注册表),防 eval 临时项目污染全局状态。 */
+export const SETTINGS_ROOT_ENV = "NOMI_SETTINGS_DIR";
 
 export function getProjectsRoot(): string {
   const configured = String(process.env[PROJECT_ROOT_ENV] || "").trim();
@@ -17,7 +19,8 @@ export function getProjectsRoot(): string {
 }
 
 export function getSettingsRoot(): string {
-  return app.getPath("userData");
+  const configured = String(process.env[SETTINGS_ROOT_ENV] || "").trim();
+  return configured || app.getPath("userData");
 }
 
 export function getWorkspaceRepositoryDeps(): WorkspaceRepositoryDeps {
