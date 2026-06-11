@@ -545,6 +545,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
         title: workspaceDrag.name.replace(/\.[^.]+$/, '') || '本地素材',
         prompt: '',
         position: { x: Math.max(40, Math.round(basePosition.x)), y: Math.max(40, Math.round(basePosition.y)) },
+        categoryId: activeCategoryId,
       })
       const result = { id: `workspace-${node.id}-${Date.now()}`, type: 'image' as const, url, createdAt: Date.now() }
       store.updateNode(node.id, {
@@ -561,8 +562,8 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     if (!files.length) return
     event.preventDefault()
     event.stopPropagation()
-    void importImageFilesToGenerationCanvas(files, { basePosition })
-  }, [offset, readOnly, zoom])
+    void importImageFilesToGenerationCanvas(files, { basePosition, categoryId: activeCategoryId })
+  }, [activeCategoryId, offset, readOnly, zoom])
 
   const handleStagePanStart = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return

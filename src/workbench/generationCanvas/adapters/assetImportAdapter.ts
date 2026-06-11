@@ -22,6 +22,7 @@ export type GenerationAssetImportResult = {
 
 export type ImportImageFilesOptions = {
   basePosition: { x: number; y: number }
+  categoryId?: string
   createObjectUrl?: (file: File) => string
   revokeObjectUrl?: (url: string) => void
   readImageDimensions?: (url: string) => Promise<ImageDimensions | null>
@@ -171,6 +172,7 @@ export async function importImageFilesToGenerationCanvas(
         x: Math.max(40, Math.round(options.basePosition.x + index * 28)),
         y: Math.max(40, Math.round(options.basePosition.y + index * 28)),
       },
+      categoryId: options.categoryId,
     })
     const result = {
       id: `local-${node.id}-${Date.now()}`,
