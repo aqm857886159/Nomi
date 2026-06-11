@@ -1,9 +1,10 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { streamText, tool, type CoreMessage, type CoreUserMessage, type LanguageModelV1 } from "ai";
+import { tool, type CoreMessage, type CoreUserMessage, type LanguageModelV1 } from "ai";
 import { z } from "zod";
-import { agentStreamTuning, buildAgentPromptParts, capAgentHistory, createLinkedAbortController } from "./agentChatHarness";
+import { capAgentHistory, createLinkedAbortController } from "./agentChatHarness";
+import { runAgentLoop } from "./agentLoop";
 import { consumeAgentStreamWithTimeout } from "./agentStreamConsumer";
 import { buildAiSdkModel } from "./buildAiSdkModel";
 import { sanitizeForBroadCompat } from "./promptSanitize";
@@ -463,16 +464,21 @@ export async function runAgentChatV2(
   const messages: CoreMessage[] = [...priorMessages, userMessage];
 
   const abortController = createLinkedAbortController(hooks.abortSignal);
-  const result = streamText({
-    model: languageModel,
-    ...buildAgentPromptParts(system, messages, normalizeProviderKind(vendor.providerKind) === "anthropic"),
-    temperature: typeof payload.temperature === "number" ? payload.temperature : 0.7,
-    tools,
-    abortSignal: abortController.signal,
-    // maxSteps(skill) + toolCallStreaming + maxRetries + repairToolCall（见 harness 模块）。
-    ...agentStreamTuning(resolvedSkillKey, languageModel),
-    onError: ({ error }) => hooks.emit({ type: "error", message: error instanceof Error ? error.message : String(error) }),
-  });
+  // 统一循环内核（S0）：maxSteps(skill)/retry/repair/prompt 缓存全在 agentLoop 一处。
+  const result = runAgentLoop(
+    {
+      model: languageModel,
+      ...(system ? { system } : {}),
+      messages,
+      tools,
+      isAnthropic: normalizeProviderKind(vendor.providerKind) === "anthropic",
+      temperature: typeof payload.temperature === "number" ? payload.temperature : 0.7,
+      skillKey: resolvedSkillKey,
+      abortSignal: abortController.signal,
+    },
+    { onError: (message) => hooks.emit({ type: "error", message }) },
+    { mode: "stream" },
+  );
 
   const { finalText, finalFinish, finalUsage, ok } = await consumeAgentStreamWithTimeout(result, abortController, hooks, { firstChunkTimeoutMs: 90_000, label: `${vendor?.key}/${model?.modelKey}/${resolvedSkillKey}` });
 

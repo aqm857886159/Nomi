@@ -8,7 +8,7 @@
  *  - scripts/lab-onboard.ts (CLI)
  *  - electron/main.ts IPC handler (Phase B — user-facing)
  */
-import { generateText } from "ai";
+import { runAgentLoop } from "../agentLoop";
 import { buildAiSdkModel } from "../buildAiSdkModel";
 import { sanitizeForBroadCompat } from "../promptSanitize";
 import { buildOnboardingTools, clearFetchCache } from "./tools";
@@ -99,55 +99,30 @@ export async function runOnboardingTrial(input: OnboardingAgentInput): Promise<T
     // quirks: temperature requirements, default max_tokens, extra body fields.
     // buildAiSdkModel's profiled fetch applies them; the call here passes the
     // generic temperature/maxTokens and lets the profile override.
-    const result = await generateText({
-      model,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
-      tools,
-      maxSteps: input.maxSteps ?? 14,
-      temperature: 0.1,
-      maxTokens: 4096,
-      // experimental_repairToolCall: retry on malformed tool-call JSON.
-      // Some models emit invalid JSON for complex schemas; this gives them
-      // a structured retry chance instead of crashing the whole loop.
-      experimental_repairToolCall: async ({ toolCall, error, messages, system: _system }) => {
-        // Ask the same model to fix its own broken JSON arguments.
-        // This is AI SDK's built-in repair hook — works with any model.
-        try {
-          const repaired = await generateText({
-            model,
-            system:
-              "You are a JSON repair assistant. Given a tool call with broken arguments, return ONLY the corrected JSON object that matches the tool's parameter schema.",
-            messages: [
-              ...messages,
-              {
-                role: "user",
-                content:
-                  `The previous tool call to "${toolCall.toolName}" had invalid arguments:\n` +
-                  `\`\`\`json\n${toolCall.args}\n\`\`\`\n` +
-                  `Error: ${error.message}\n` +
-                  `Output only the corrected JSON arguments — no markdown, no explanation.`,
-              },
-            ],
-            temperature: 0.1,
-            maxTokens: 1024,
+    // 统一循环内核（S0）：repair/retry/步数计数由 agentLoop 提供，本文件不再自带副本。
+    const result = await runAgentLoop(
+      {
+        model,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userMessage }],
+        tools,
+        maxSteps: input.maxSteps ?? 14,
+        temperature: 0.1,
+        maxTokens: 4096,
+        isAnthropic: input.agent.providerKind === "anthropic",
+      },
+      {
+        onStepFinish: ({ stepIndex, text }) => {
+          stepCount = stepIndex;
+          input.onEvent?.({
+            type: "llm-step",
+            stepIndex,
+            ...(text ? { text: text.slice(0, 1000) } : {}),
           });
-          // Try to parse as JSON; if it works, AI SDK retries the tool with these args.
-          JSON.parse(repaired.text);
-          return { ...toolCall, args: repaired.text };
-        } catch {
-          return null;  // give up, let AI SDK report the original error
-        }
+        },
       },
-      onStepFinish: (step) => {
-        stepCount += 1;
-        input.onEvent?.({
-          type: "llm-step",
-          stepIndex: stepCount,
-          ...(step.text ? { text: step.text.slice(0, 1000) } : {}),
-        });
-      },
-    });
+      { mode: "oneshot" },
+    );
     promptTokens = result.usage?.promptTokens || 0;
     completionTokens = result.usage?.completionTokens || 0;
     totalTokens = result.usage?.totalTokens || 0;
