@@ -18,6 +18,15 @@ import type { TimelineClip, TimelineState, TimelineTrackType } from './timeline/
 import { createDefaultWorkbenchDocument, normalizeWorkbenchDocument, type CreationDocumentTools, type PreviewAspectRatio, type WorkbenchDocument } from './workbenchTypes'
 import type { WorkbenchAiMessage } from './ai/workbenchAiTypes'
 import type { ComposerAttachment } from './ai/composer/composerAttachmentTypes'
+import { createConversationBuckets } from './aiConversationBuckets'
+
+// 创作面板对话的 per-project 桶(S1 治串台;形状=被串台的四个字段)。
+const creationAiBuckets = createConversationBuckets(() => ({
+  creationAiDraft: '',
+  creationAiMessages: [] as WorkbenchAiMessage[],
+  creationAiAttachments: [] as ComposerAttachment[],
+  creationAiError: '',
+}))
 import {
   cloneBuiltinCategories,
   createCustomCategory,
@@ -88,6 +97,8 @@ type WorkbenchState = {
   setCreationAiMessages: (messages: WorkbenchAiMessage[] | ((messages: WorkbenchAiMessage[]) => WorkbenchAiMessage[])) => void
   setCreationAiAttachments: (attachments: ComposerAttachment[] | ((attachments: ComposerAttachment[]) => ComposerAttachment[])) => void
   setCreationAiError: (error: string) => void
+  /** 切项目时交换对话桶(S1 治串台):存旧项目的对话,载入新项目的(没有则空)。 */
+  swapCreationAiProject: (prevId: string | null, nextId: string | null) => void
   /** 一次性信号：打开示例/新项目时请求创作助手默认展开（让「拆镜头」CTA 一眼可见），消费后清掉。 */
   creationAssistantAutoOpen: boolean
   setCreationAssistantAutoOpen: (open: boolean) => void
@@ -243,6 +254,17 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   },
   resetCreationAiConversation: () => {
     set({ creationAiDraft: '', creationAiMessages: [], creationAiAttachments: [], creationAiError: '' })
+  },
+  swapCreationAiProject: (prevId, nextId) => {
+    const state = get()
+    set(
+      creationAiBuckets.swap(prevId, nextId, {
+        creationAiDraft: state.creationAiDraft,
+        creationAiMessages: state.creationAiMessages,
+        creationAiAttachments: state.creationAiAttachments,
+        creationAiError: state.creationAiError,
+      }),
+    )
   },
   setTimeline: (timeline) => {
     set((state) => ({

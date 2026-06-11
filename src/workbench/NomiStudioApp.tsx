@@ -16,6 +16,7 @@ import {
 import type { WorkbenchProjectPersistenceService } from "./project/projectPersistenceService";
 import { useWorkspaceEvents } from "./useWorkspaceEvents";
 import { useWorkbenchStore } from "./workbenchStore";
+import { swapGenerationAiProject } from "./generationCanvas/store/generationAiConversation";
 import { cn } from "../utils/cn";
 import { toast } from "../ui/toast";
 import { setDesktopActiveProjectId } from "../desktop/activeProject";
@@ -155,6 +156,12 @@ export default function NomiStudioApp(): JSX.Element {
             try {
                 const hydrated = await service.hydrateProject(projectId);
                 if (!hydrated) return false;
+                // S1 治串台:切项目时交换两个 AI 面板的对话桶(存旧载新),气泡不再跨项目漂移。
+                const prevProjectId = activeProjectIdRef.current ?? null;
+                if (prevProjectId !== hydrated.id) {
+                    useWorkbenchStore.getState().swapCreationAiProject(prevProjectId, hydrated.id);
+                    swapGenerationAiProject(prevProjectId, hydrated.id);
+                }
                 activeProjectIdRef.current = hydrated.id;
                 setActiveProject(hydrated);
                 setView("studio");
