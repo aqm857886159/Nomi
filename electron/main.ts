@@ -41,6 +41,8 @@ import { registerAgentChatV2Ipc } from "./ai/agentChatV2Ipc";
 import { registerConversationsIpc } from "./conversations/conversationsIpc";
 import { setEventLogSecretsProvider } from "./events/eventLogRepository";
 import { catalogSecretsProvider } from "./events/secretsProvider";
+import { VendorRequestError, encodeVendorErrorMessage } from "./vendor/vendorHttp";
+import { traceVendorCompleted } from "./events/vendorCallTrace";
 import { registerOnboardingIpc } from "./ai/onboarding/onboardingIpc";
 
 // 尽早安装：捕获引导阶段起的 uncaughtException / unhandledRejection，落盘到 app logs（P0-8）。
@@ -176,6 +178,27 @@ function registerSyncIpc<TArgs extends unknown[], TResult>(
   });
 }
 
+// S4-2:VendorRequestError 的 structured 经 base64 标记穿 IPC(rejection 只剩 message 字符串);
+// 顺带补「创建即失败」的 vendor.call.completed(failed) 事件(成功/轮询终态在 runtime 内记)。
+async function runTaskIpcGuard<T>(payload: unknown, thunk: () => Promise<T>): Promise<T> {
+  try {
+    return await thunk();
+  } catch (error) {
+    if (error instanceof VendorRequestError) {
+      const extras = (payload as { request?: { extras?: Record<string, unknown> } })?.request?.extras || {};
+      traceVendorCompleted(String(extras.projectId || ""), {
+        runId: `failed-${Math.random().toString(36).slice(2, 10)}`,
+        ...(extras.nodeId ? { nodeId: String(extras.nodeId) } : {}),
+        status: "failed",
+        assetCount: 0,
+        error: error.structured,
+      });
+      throw new Error(encodeVendorErrorMessage(error));
+    }
+    throw error;
+  }
+}
+
 function registerIpc(): void {
   const selectedWorkspaceRoots = new Set<string>();
   // 渲染层崩溃（RootErrorBoundary）也落到同一崩溃日志（P0-8）。
@@ -263,8 +286,8 @@ function registerIpc(): void {
   ipcMain.handle("nomi:assets:list", (_event, payload) => listProjectAssets(payload));
   ipcMain.handle("nomi:assets:download", (_event, payload) => downloadAssetToDisk(payload));
   registerExportJobIpc();
-  ipcMain.handle("nomi:tasks:run", (_event, payload) => runTask(payload));
-  ipcMain.handle("nomi:tasks:result", (_event, payload) => fetchTaskResult(payload));
+  ipcMain.handle("nomi:tasks:run", (_event, payload) => runTaskIpcGuard(payload, () => runTask(payload)));
+  ipcMain.handle("nomi:tasks:result", (_event, payload) => runTaskIpcGuard(payload, () => fetchTaskResult(payload)));
   registerAgentChatV2Ipc();
   registerConversationsIpc();
   registerOnboardingIpc();

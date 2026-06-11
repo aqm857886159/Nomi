@@ -73,3 +73,25 @@ describe('classifyGenerationError — 未识别兜底（方案 B 改进）', () 
     expect(r.hint).not.toBe('')
   })
 })
+
+describe('structured 路径(S4-2:VendorRequestError 经 IPC 标记穿透)', () => {
+  const encode = (structured: Record<string, unknown>, tail = 'Provider request failed (code 402) at kie POST https://x: 余额不足') =>
+    `Error invoking remote method 'nomi:tasks:run': Error: NOMI_VENDOR_ERR_B64::${Buffer.from(JSON.stringify(structured), 'utf8').toString('base64')}:: ${tail}`
+
+  it('balance 类别直读 structured,不靠正则;raw 剥掉标记段', () => {
+    const r = classifyGenerationError(encode({ category: 'balance', upstreamMsg: '余额不足', vendorKey: 'kie' }))
+    expect(r.reason).toBe('余额不足')
+    expect(r.raw).not.toContain('NOMI_VENDOR_ERR_B64')
+    expect(r.raw).toContain('余额不足')
+  })
+
+  it('中文 upstreamMsg 的 base64 roundtrip 不乱码', () => {
+    const r = classifyGenerationError(encode({ category: 'quota', upstreamMsg: '触发限流·稍后再试' }))
+    expect(r.reason).toBe('配额或限流')
+  })
+
+  it('未知类别退回 legacy 正则路径', () => {
+    const r = classifyGenerationError(encode({ category: 'weird-new-thing' }, 'something 401 unauthorized'))
+    expect(r.reason).toBe('API Key 无效')
+  })
+})

@@ -3,7 +3,8 @@ import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
-import { narrateProgress } from '../../observability/narrate'
+import { narrateGenerationError, narrateProgress, type GenerationErrorKind } from '../../observability/narrate'
+import { parseVendorErrorFromMessage, stripVendorErrorMarker } from './vendorErrorIpc'
 import type { DependencyWavePlan } from './dependencyWaves'
 import { resolveGenerationReferences } from './generationReferenceResolver'
 import { hasArchetypeArrayReferences, resolveArchetypeForModel } from '../nodes/controls/archetypeMeta'
@@ -192,40 +193,43 @@ function truncateLine(value: string): string {
  * The generation runner stores the raw message; the node error UI calls this to
  * render. Common cases: API key 无效、模型未配置、配额/限流、网络/超时、内容拦截。
  */
-export function classifyGenerationError(message: string): GenerationErrorReport {
-  // Strip any legacy "\n→ hint" tail that older builds baked into node.error.
-  const raw = String(message || '').split('\n→')[0].trim() || '生成失败'
+const STRUCTURED_KINDS: readonly GenerationErrorKind[] = ['auth', 'balance', 'quota', 'network', 'server', 'input']
+
+/** legacy 字符串 → 类别(老项目持久化的 node.error / 非 vendor 错误的兜底识别;文案不在这里)。 */
+function detectLegacyErrorKind(raw: string): GenerationErrorKind | null {
   const lower = raw.toLowerCase()
-  if (lower.includes('api key') || lower.includes('apikey') || lower.includes('unauthorized') || lower.includes('401')) {
-    return { reason: 'API Key 无效', hint: '请在「模型接入」页检查这个模型的 API Key。', raw }
+  if (lower.includes('api key') || lower.includes('apikey') || lower.includes('unauthorized') || lower.includes('401')) return 'auth'
+  // 余额不足要和限流分开——用户动作不同(充值 vs 等待)。只匹配明确指向余额/欠费的词,
+  // 避免把 OpenAI 的 insufficient_quota(配额)误判成余额。
+  if (raw.includes('余额') || lower.includes('balance') || raw.includes('欠费') || lower.includes('arrears') || lower.includes('402')) return 'balance'
+  if (lower.includes('quota') || lower.includes('rate limit') || lower.includes('429') || lower.includes('insufficient')) return 'quota'
+  // 我们自己的轮询超时(视频长任务常见)——不是网络问题,任务多半还在服务商侧跑。
+  if (raw.includes('轮询超时') || lower.includes('task poll timeout')) return 'poll-timeout'
+  if (lower.includes('timeout') || lower.includes('etimedout') || lower.includes('econnreset') || lower.includes('network')) return 'network'
+  if (lower.includes('model') && (lower.includes('not found') || lower.includes('未找到') || lower.includes('not configured'))) return 'model-config'
+  if (lower.includes('content') && (lower.includes('policy') || lower.includes('safety') || lower.includes('filter'))) return 'content-policy'
+  return null
+}
+
+export function classifyGenerationError(message: string): GenerationErrorReport {
+  // S4-2:structured 优先(VendorRequestError 经 IPC 标记穿透,源头保留的事实,不是猜);
+  // 老数据/非 vendor 错误退回 legacy 正则识别。两条路只产 kind,文案统一出自 narrate 词表。
+  const structured = parseVendorErrorFromMessage(message)
+  if (structured?.category && (STRUCTURED_KINDS as readonly string[]).includes(structured.category)) {
+    const { reason, hint } = narrateGenerationError(structured.category as GenerationErrorKind)
+    return { reason, hint, raw: stripVendorErrorMarker(message) }
   }
-  // 余额不足要和限流分开——用户动作不同（充值 vs 等待）。只匹配明确指向余额/欠费的词，
-  // 避免把 OpenAI 的 insufficient_quota（配额）误判成余额。
-  if (raw.includes('余额') || lower.includes('balance') || raw.includes('欠费') || lower.includes('arrears') || lower.includes('402')) {
-    return { reason: '余额不足', hint: '服务商账户余额不足，请到服务商充值后重试，或在「模型接入」换一个模型。', raw }
+  // Strip any legacy "\n→ hint" tail that older builds baked into node.error.
+  const raw = stripVendorErrorMarker(String(message || '')).split('\n→')[0].trim() || '生成失败'
+  const kind = detectLegacyErrorKind(raw)
+  if (kind) {
+    const { reason, hint } = narrateGenerationError(kind)
+    return { reason, hint, raw }
   }
-  if (lower.includes('quota') || lower.includes('rate limit') || lower.includes('429') || lower.includes('insufficient')) {
-    return { reason: '配额或限流', hint: '服务商配额已用尽或触发限流，请稍后重试，或在「模型接入」换一个模型。', raw }
-  }
-  // 我们自己的轮询超时（视频长任务常见）——不是网络问题，任务多半还在服务商侧跑，
-  // 不该归到"网络超时"误导用户去查网络。
-  if (raw.includes('轮询超时') || lower.includes('task poll timeout')) {
-    return { reason: '生成超时', hint: '视频生成较慢，等待超过上限。任务可能仍在进行，请稍后重新生成，或换更快的模型（如 Seedance Fast）。', raw }
-  }
-  if (lower.includes('timeout') || lower.includes('etimedout') || lower.includes('econnreset') || lower.includes('network')) {
-    return { reason: '网络超时', hint: '网络问题，请检查网络后重试。', raw }
-  }
-  if (lower.includes('model') && (lower.includes('not found') || lower.includes('未找到') || lower.includes('not configured'))) {
-    return { reason: '模型未配置', hint: '这个模型没配好，请去「模型接入」页设置。', raw }
-  }
-  if (lower.includes('content') && (lower.includes('policy') || lower.includes('safety') || lower.includes('filter'))) {
-    return { reason: '提示词被拦截', hint: '提示词触发了安全策略，请修改后重试。', raw }
-  }
-  // 兜底：抠 raw 可读首行当 reason（没有就退回"生成失败"），并给一句通用建议，
-  // 别让用户对着空白干瞪眼。
+  // 兜底:抠 raw 可读首行当 reason,通用建议出自 narrate 的 unknown 词条。
   return {
-    reason: extractReadableErrorLine(raw) || '生成失败',
-    hint: '可能是服务商临时故障或额度问题，建议稍等重试，或换一个模型。',
+    reason: extractReadableErrorLine(raw) || narrateGenerationError('unknown').reason,
+    hint: narrateGenerationError('unknown').hint,
     raw,
   }
 }

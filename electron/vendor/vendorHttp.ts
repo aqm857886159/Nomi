@@ -35,6 +35,18 @@ export class VendorRequestError extends Error {
   }
 }
 
+/**
+ * Electron IPC 的 promise rejection 只保留 message 字符串(自定义字段全丢)。
+ * structured 经 base64 标记嵌进 message 穿过 IPC;渲染层配对解析器:
+ * src/workbench/generationCanvas/runner/vendorErrorIpc.ts(双端常量,改一处必改另一处)。
+ */
+export const VENDOR_ERROR_IPC_MARKER = "NOMI_VENDOR_ERR_B64::";
+
+export function encodeVendorErrorMessage(error: VendorRequestError): string {
+  const b64 = Buffer.from(JSON.stringify(error.structured), "utf8").toString("base64");
+  return `${VENDOR_ERROR_IPC_MARKER}${b64}:: ${error.message}`;
+}
+
 /** 状态码→类别查表(数字逻辑码与 HTTP 状态同表)。 */
 export function categorizeVendorFailure(
   httpStatus?: number,
