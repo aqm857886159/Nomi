@@ -5,15 +5,14 @@ import { hardenedFetch } from "./hardenedFetch";
 import { localizeAssetsForVendor, resolveAssetIngestion } from "./catalog/assetLocalization";
 import { readNomiLocalAsset, postJsonForAssetUpload } from "./assets/localAssetFile";
 import { endpoint } from "./vendorEndpoint";
+import { authQueryParams, requestJson } from "./vendor/vendorHttp";
 import {
   type AuthType,
   appendQueryParams,
   authHeaders as buildAuthHeaders,
-  authQueryParams as buildAuthQueryParams,
   buildHttpRequest,
   buildTemplateContext,
   extractTaskId as extractTaskIdShared,
-  looksLikeLogicalError,
 } from "./ai/requestPipeline";
 import { sanitizeForBroadCompat } from "./ai/promptSanitize";
 import { firstString, isJsonRecord, nowIso, readNestedRecord, trim, type JsonRecord } from "./jsonUtils";
@@ -385,9 +384,7 @@ function authHeaders(vendor: Vendor, apiKey: string): Record<string, string> {
   return buildAuthHeaders(vendor.authType as AuthType, apiKey, vendor.authHeader ?? undefined);
 }
 
-function authQueryParams(vendor: Vendor, apiKey: string): Record<string, string> {
-  return buildAuthQueryParams(vendor.authType as AuthType, apiKey, vendor.authQueryParam ?? undefined);
-}
+// authQueryParams 已随 requestJson 迁往 vendorHttp.ts(全仓唯一,从那里 import)。
 
 // endpoint() 已抽到 electron/vendorEndpoint.ts（纯函数，便于无 electron 的单测）
 
@@ -471,52 +468,7 @@ function templateContext(request: TaskRequest, model: Model, apiKey: string, pro
   });
 }
 
-async function requestJson(
-  vendor: Vendor,
-  apiKey: string,
-  method: string,
-  url: string,
-  headers: Record<string, string>,
-  query: Record<string, unknown>,
-  body: unknown,
-): Promise<unknown> {
-  const finalUrl = appendQueryParams(url, { ...authQueryParams(vendor, apiKey), ...query });
-  const upperMethod = method.toUpperCase();
-  const hasBody = upperMethod !== "GET" && upperMethod !== "HEAD" && body != null;
-  const response = await fetch(finalUrl, {
-    method: upperMethod,
-    headers,
-    ...(hasBody ? { body: typeof body === "string" ? body : JSON.stringify(body) } : {}),
-  });
-  const text = await response.text();
-  let json: unknown = null;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    json = text;
-  }
-  const record = isJsonRecord(json) ? json : {};
-  // Many providers (kie.ai and other Java/Spring backends) return HTTP 200 with
-  // a logical-error envelope `{ code: 4xx/5xx, msg/message: "..." }` instead of
-  // a real error status. Treat that as a failure too, otherwise we'd hand a
-  // body with no asset URL to the result builder and report a silent dud.
-  const logicalCode = looksLikeLogicalError(record);
-  if (!response.ok || logicalCode != null) {
-    const upstreamMsg = firstString(
-      record.msg,
-      record.message,
-      record.error,
-      readNestedRecord(record, ["error", "message"]),
-      readNestedRecord(record, ["data", "msg"]),
-    );
-    const statusLabel = logicalCode != null ? `code ${logicalCode}` : `HTTP ${response.status}`;
-    // "No message available" is Spring's default placeholder — surface the URL
-    // and status so the failure is diagnosable instead of opaque.
-    const detail = upstreamMsg && upstreamMsg !== "No message available" ? upstreamMsg : `(no detail from provider)`;
-    throw new Error(`Provider request failed (${statusLabel}) at ${vendor.key} ${upperMethod} ${url}: ${detail}`);
-  }
-  return json;
-}
+// requestJson + 结构化错误已拆到 electron/vendor/vendorHttp.ts(S4-0:腾空间+修错误压扁根因)。
 
 export function buildProfileHttpRequest(input: {
   vendor: Vendor;
