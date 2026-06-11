@@ -150,3 +150,12 @@ export function UploadFallback({
 export function placeholderLabel(categoryName: string | undefined, title: string | undefined): string {
   return categoryName || title || '节点'
 }
+
+/** Scene3DEditor 懒加载期间的占位（React.Suspense fallback）。 */
+export function Scene3DEditorLoading(): JSX.Element {
+  return (
+    <div className={cn('flex w-full h-full items-center justify-center bg-nomi-ink-05 text-[12px] text-nomi-ink-45')}>
+      3D 编辑器加载中
+    </div>
+  )
+}
