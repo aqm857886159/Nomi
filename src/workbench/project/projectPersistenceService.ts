@@ -1,4 +1,5 @@
 import { readLocalProject, saveLocalProject, type LocalProjectSummary } from '../library/localProjectStore'
+import { readWindowUrlParam } from '../windowUrlParam'
 import { upgradeWorkbenchProjectMediaUrls, normalizeLegacyImageAssetKinds } from './projectMediaMigration'
 import {
   clearActiveWorkbenchProjectSaveTarget,
@@ -26,19 +27,6 @@ type Dependencies = {
   onSaveError: (error: unknown) => void
 }
 
-function readWindowSearchParam(name: string): string | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const url = new URL(window.location.href)
-    const directValue = url.searchParams.get(name)
-    if (directValue && directValue.trim()) return directValue.trim()
-    const hashSearch = url.hash.includes('?') ? url.hash.slice(url.hash.indexOf('?')) : ''
-    const value = hashSearch ? new URLSearchParams(hashSearch).get(name) : ''
-    return value && value.trim() ? value.trim() : null
-  } catch {
-    return null
-  }
-}
 
 function writeLastActiveProjectId(projectId: string): void {
   if (typeof window === 'undefined') return
@@ -110,7 +98,7 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
   }
 
   const hydrateInitialProject = async (_projects: readonly LocalProjectSummary[]): Promise<WorkbenchProjectRecordV1 | null> => {
-    const explicitProjectId = readWindowSearchParam('projectId')
+    const explicitProjectId = readWindowUrlParam('projectId')
     if (!explicitProjectId) return null
     return hydrateProject(explicitProjectId)
   }

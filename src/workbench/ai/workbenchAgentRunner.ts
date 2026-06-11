@@ -2,6 +2,7 @@ import type { AgentAttachmentPayload, AgentsChatResponseDto, AgentChatV2Session 
 import { sendWorkbenchAiMessage } from './workbenchAiClient'
 import { getAssistantModelPref } from './assistantModelPref'
 import { useAgentUsageStore } from './agentUsageStore'
+import { readWindowUrlParam } from '../windowUrlParam'
 
 /**
  * One shared agent runner for both workbench panels (创作区 + 生成区).
@@ -22,14 +23,8 @@ import { useAgentUsageStore } from './agentUsageStore'
  * different projects don't bleed context.
  */
 export function workbenchSessionKey(): string {
-  let projectId = ''
-  if (typeof window !== 'undefined') {
-    try {
-      projectId = String(new URL(window.location.href).searchParams.get('projectId') || '').trim()
-    } catch {
-      projectId = ''
-    }
-  }
+  // readWindowUrlParam 兼容 prod 的 hash 路由——只读 search 段曾让打包版全部落 `local` 桶。
+  const projectId = readWindowUrlParam('projectId')
   return `nomi:workbench:${projectId || 'local'}`
 }
 

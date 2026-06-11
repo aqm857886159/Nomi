@@ -22,6 +22,7 @@ import {
   type CreationAiModeId,
 } from './creationAiModes'
 import { useTransientScrollingClass } from './useTransientScrollingClass'
+import { readWindowUrlParam } from '../windowUrlParam'
 import { AttachmentRail } from '../ai/composer/AttachmentRail'
 import { StaleConversationDivider, useStaleConversationBoundary } from '../ai/staleConversationDivider'
 import { narrateTurnStats } from '../observability/narrate'
@@ -52,14 +53,6 @@ function writeToolLabel(name: WriteToolName): string {
   return '追加到文末'
 }
 
-function readUrlParam(name: string): string {
-  if (typeof window === 'undefined') return ''
-  try {
-    return String(new URL(window.location.href).searchParams.get(name) || '').trim()
-  } catch {
-    return ''
-  }
-}
 
 function readWorkbenchAiReplyText(response: unknown): string {
   if (!response || typeof response !== 'object' || Array.isArray(response)) return ''
@@ -229,7 +222,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         displayPrompt,
         ...(attachmentPayload.length ? { attachments: attachmentPayload } : {}),
         sessionKey: workbenchSessionKey(),
-        projectId: readUrlParam('projectId'),
+        projectId: readWindowUrlParam('projectId'),
         skillKey: `workbench.creation.${activeMode.id}`,
         skillName: activeMode.title,
         onContent: (_delta, streamedText) => {

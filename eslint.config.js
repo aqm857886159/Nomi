@@ -23,6 +23,7 @@ export default tseslint.config(
       'scripts/**',
       'tests/ux/**',
       'tests/transport-spike/**',
+      'evals/**',
       '**/*.config.{js,ts,mjs,cjs}',
     ],
   },
