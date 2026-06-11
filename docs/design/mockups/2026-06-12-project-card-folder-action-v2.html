@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nomi · 项目卡片文件夹入口 v2</title>
+  <link rel="stylesheet" href="../../../src/theme/nomi-tokens.css" />
+  <style>
+    :root {
+      --mock-thumb-a: color-mix(in oklch, var(--nomi-accent) 18%, var(--nomi-ink));
+      --mock-thumb-b: color-mix(in oklch, var(--nomi-track-image) 20%, var(--nomi-bg));
+      --mock-thumb-c: color-mix(in oklch, var(--nomi-track-video) 16%, var(--nomi-bg));
+      --mock-overlay: color-mix(in oklch, var(--nomi-ink) 34%, transparent);
+      --mock-float: color-mix(in oklch, var(--nomi-paper) 94%, transparent);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background: var(--nomi-bg);
+      color: var(--nomi-ink);
+      font-family: var(--nomi-font-sans);
+      font-size: 13px;
+      line-height: 1.45;
+      padding: 60px 56px;
+    }
+
+    .page {
+      max-width: 980px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin: 0;
+      font-family: var(--nomi-font-display);
+      font-size: 28px;
+      font-weight: 400;
+      line-height: 1;
+    }
+
+    .logo {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: var(--nomi-radius-sm);
+      background: var(--nomi-ink);
+      color: var(--nomi-paper);
+      font-family: var(--nomi-font-sans);
+      font-weight: 800;
+      font-size: 16px;
+    }
+
+    .sub {
+      margin: 7px 0 28px 39px;
+      color: var(--nomi-ink-40);
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .button {
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid var(--nomi-line);
+      border-radius: 999px;
+      background: var(--nomi-paper);
+      color: var(--nomi-ink-80);
+      padding: 0 13px;
+      font: inherit;
+      font-weight: 600;
+    }
+
+    .button-primary {
+      border-color: var(--nomi-ink);
+      background: var(--nomi-ink);
+      color: var(--nomi-paper);
+    }
+
+    .library-hint {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      max-width: 560px;
+      margin-bottom: 22px;
+      color: var(--nomi-ink-40);
+      font-size: 12px;
+    }
+
+    .library-hint svg {
+      flex: 0 0 auto;
+      color: var(--nomi-ink-30);
+    }
+
+    .section-title {
+      margin: 0 0 10px;
+      color: var(--nomi-ink-60);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(200px, 1fr));
+      gap: 14px;
+    }
+
+    .project-card {
+      overflow: hidden;
+      border: 1px solid var(--nomi-line);
+      border-radius: var(--nomi-radius-lg);
+      background: var(--nomi-paper);
+      box-shadow: var(--nomi-shadow-sm);
+      cursor: default;
+    }
+
+    .thumb {
+      position: relative;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      background:
+        linear-gradient(90deg, transparent 0 44%, color-mix(in oklch, var(--nomi-paper) 70%, transparent) 44% 45%, transparent 45%),
+        radial-gradient(circle at 18% 44%, var(--mock-thumb-b), transparent 46%),
+        linear-gradient(135deg, var(--mock-thumb-a), var(--nomi-ink));
+    }
+
+    .project-card:nth-child(2) .thumb {
+      background:
+        radial-gradient(circle at 78% 20%, var(--mock-thumb-c), transparent 36%),
+        linear-gradient(135deg, var(--nomi-ink-10), var(--mock-thumb-b));
+    }
+
+    .project-card:nth-child(3) .thumb {
+      background:
+        radial-gradient(circle at 28% 38%, var(--mock-thumb-a), transparent 42%),
+        linear-gradient(135deg, var(--nomi-ink-05), var(--mock-thumb-c));
+    }
+
+    .thumb::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: var(--mock-overlay);
+      opacity: 0;
+      transition: opacity var(--nomi-transition-fast);
+    }
+
+    .project-card:hover .thumb::after {
+      opacity: 1;
+    }
+
+    .delete {
+      position: absolute;
+      z-index: 2;
+      top: 8px;
+      right: 8px;
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: var(--nomi-radius-sm);
+      background: var(--mock-float);
+      color: var(--nomi-ink-60);
+      opacity: 0;
+      transition: opacity var(--nomi-transition-fast), color var(--nomi-transition-fast);
+    }
+
+    .project-card:hover .delete {
+      opacity: 1;
+    }
+
+    .continue {
+      position: absolute;
+      z-index: 2;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      height: 34px;
+      padding: 0 18px;
+      border: 0;
+      border-radius: var(--nomi-radius);
+      background: var(--mock-float);
+      color: var(--nomi-ink);
+      font: inherit;
+      font-weight: 700;
+      opacity: 0;
+      box-shadow: var(--nomi-shadow-sm);
+      transition: opacity var(--nomi-transition-fast);
+    }
+
+    .project-card:hover .continue {
+      opacity: 1;
+    }
+
+    .body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 32px;
+      gap: 10px;
+      align-items: center;
+      padding: 13px;
+    }
+
+    .name {
+      margin: 0;
+      overflow: hidden;
+      color: var(--nomi-ink);
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .time {
+      margin-top: 4px;
+      color: var(--nomi-ink-40);
+      font-size: 12px;
+    }
+
+    .folder-action {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--nomi-line);
+      border-radius: var(--nomi-radius-sm);
+      background: var(--nomi-paper);
+      color: var(--nomi-ink-60);
+    }
+
+    .folder-action:hover {
+      border-color: var(--nomi-ink-20);
+      background: var(--nomi-ink-05);
+      color: var(--nomi-accent);
+    }
+
+    .note {
+      max-width: 680px;
+      margin-top: 24px;
+      padding: 12px;
+      border: 1px solid var(--nomi-line);
+      border-radius: var(--nomi-radius);
+      background: var(--nomi-paper);
+      color: var(--nomi-ink-60);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1 class="brand"><span class="logo">N</span>Nomi 项目库</h1>
+    <p class="sub">新建一个项目，开始把你的创意变成作品。</p>
+
+    <section class="actions" aria-label="开始一个项目">
+      <button class="button button-primary">＋ 新建空白项目</button>
+      <button class="button">▣ 打开已有文件夹</button>
+      <button class="button">⌁ 模型接入</button>
+    </section>
+
+    <div class="library-hint">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 6h6l2 2h8v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+      </svg>
+      <span>生成物保存在项目文件夹内：图片在 assets，成片在 exports。卡片右侧文件夹图标可打开位置。</span>
+    </div>
+
+    <h2 class="section-title">最近项目</h2>
+    <section class="grid" aria-label="最近项目">
+      <article class="project-card">
+        <div class="thumb">
+          <button class="delete" aria-label="删除项目">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M5 7l1 14h12l1-14" /><path d="M9 7V4h6v3" />
+            </svg>
+          </button>
+          <button class="continue">继续创作</button>
+        </div>
+        <div class="body">
+          <div class="meta">
+            <h3 class="name">未命名项目 05_21 21_...</h3>
+            <div class="time">15 天前</div>
+          </div>
+          <button class="folder-action" aria-label="打开项目文件夹">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 6h6l2 2h8v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+            </svg>
+          </button>
+        </div>
+      </article>
+
+      <article class="project-card">
+        <div class="thumb">
+          <button class="delete" aria-label="删除项目">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M5 7l1 14h12l1-14" /><path d="M9 7V4h6v3" />
+            </svg>
+          </button>
+          <button class="continue">继续创作</button>
+        </div>
+        <div class="body">
+          <div class="meta">
+            <h3 class="name">示例：30 秒产品介绍</h3>
+            <div class="time">51 分钟前</div>
+          </div>
+          <button class="folder-action" aria-label="打开项目文件夹">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 6h6l2 2h8v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+            </svg>
+          </button>
+        </div>
+      </article>
+
+      <article class="project-card">
+        <div class="thumb">
+          <button class="delete" aria-label="删除项目">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M5 7l1 14h12l1-14" /><path d="M9 7V4h6v3" />
+            </svg>
+          </button>
+          <button class="continue">继续创作</button>
+        </div>
+        <div class="body">
+          <div class="meta">
+            <h3 class="name">短剧镜头测试</h3>
+            <div class="time">2 小时前</div>
+          </div>
+          <button class="folder-action" aria-label="打开项目文件夹">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 6h6l2 2h8v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+            </svg>
+          </button>
+        </div>
+      </article>
+    </section>
+
+    <div class="note">说明只出现一次，卡片上只放可行动入口。这样符合 R2：重复、无行动价值的信息不上每张卡片。</div>
+  </main>
+</body>
+</html>

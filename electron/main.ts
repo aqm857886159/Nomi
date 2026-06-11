@@ -246,6 +246,15 @@ function registerIpc(): void {
     shell.showItemInFolder(absolutePath);
     return { ok: true };
   });
+  ipcMain.handle("nomi:workspace:reveal-project-folder", (_event, payload) => {
+    const projectId = String((payload as { projectId?: unknown } | null)?.projectId || "").trim();
+    if (!projectId) throw new Error("projectId is required");
+    const project = readProject(projectId) as { lastKnownRootPath?: unknown } | null;
+    const rootPath = typeof project?.lastKnownRootPath === "string" ? path.resolve(project.lastKnownRootPath) : "";
+    if (!rootPath) throw new Error("Project folder is unavailable");
+    void shell.openPath(rootPath);
+    return { ok: true };
+  });
   ipcMain.handle("nomi:model-catalog:mapping:test", (_event, id, payload) => testModelCatalogMapping(id, payload));
   ipcMain.handle("nomi:assets:import-remote-url", (_event, payload) => importRemoteAsset(payload));
   ipcMain.handle("nomi:assets:import-file", (_event, payload) => importLocalFile(payload));

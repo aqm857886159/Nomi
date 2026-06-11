@@ -29,6 +29,8 @@ function toProjectSummary(record: LocalProjectRecord): LocalProjectSummary {
     thumbnail: record.thumbnail,
     thumbnailUrls: record.thumbnailUrls,
     source: record.source,
+    rootPath: record.rootPath,
+    missing: record.missing,
   }
 }
 

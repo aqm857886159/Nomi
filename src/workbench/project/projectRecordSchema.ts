@@ -80,6 +80,10 @@ export type WorkbenchProjectSummary = {
   thumbnailUrls?: string[]
   /** 仅桌面端有；Web 端无文件夹概念，缺省按 native 处理。 */
   source?: WorkbenchProjectSource
+  /** 仅桌面端有；项目真实根目录，用于打开 assets / exports 所在文件夹。 */
+  rootPath?: string
+  /** 仅桌面端有；最近项目指向的文件夹已不存在。 */
+  missing?: boolean
 }
 
 export type WorkbenchProjectPayload = {

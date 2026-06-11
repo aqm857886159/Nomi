@@ -80,6 +80,16 @@ export function normalizeSummary(input: unknown): WorkbenchProjectSummary | null
                   ),
               }
             : {}),
+        ...(raw.source === "native" || raw.source === "folder"
+            ? { source: raw.source }
+            : {}),
+        ...(typeof raw.rootPath === "string" && raw.rootPath.trim()
+            ? { rootPath: raw.rootPath.trim() }
+            : typeof raw.lastKnownRootPath === "string" &&
+                raw.lastKnownRootPath.trim()
+              ? { rootPath: raw.lastKnownRootPath.trim() }
+              : {}),
+        ...(typeof raw.missing === "boolean" ? { missing: raw.missing } : {}),
     };
 }
 

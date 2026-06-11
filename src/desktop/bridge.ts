@@ -52,6 +52,7 @@ export type DesktopBridge = {
     openFolder: (payload: { rootPath: string; initialize?: boolean; name?: string }) => Promise<unknown>
     listFiles: (payload: { projectId: string; limit?: number }) => Promise<WorkspaceFileListResult>
     revealFile: (payload: { projectId: string; relativePath: string }) => Promise<{ ok: boolean }>
+    revealProjectFolder: (payload: { projectId: string }) => Promise<{ ok: boolean }>
   }
   projects: {
     list: () => unknown[]

@@ -223,6 +223,23 @@ export default function NomiStudioApp(): JSX.Element {
         });
     }, [hydrateProject, refreshProjects]);
 
+    const revealProjectFolder = React.useCallback((projectId: string) => {
+        const bridge = getDesktopBridge();
+        if (!bridge?.workspace?.revealProjectFolder) {
+            toast("当前运行环境不支持打开项目文件夹", "error");
+            return;
+        }
+        void bridge.workspace
+            .revealProjectFolder({ projectId })
+            .catch((error: unknown) => {
+                const message =
+                    error instanceof Error && error.message
+                        ? error.message
+                        : "打开项目文件夹失败";
+                toast(message, "error");
+            });
+    }, []);
+
     const newProject = React.useCallback(() => {
         // 「新建项目」：直接在默认位置建项目，不弹文件夹选择器。
         // 桌面端 createLocalProject 经 IPC 落到 ~/Documents/Nomi Projects 的自动文件夹，
@@ -265,17 +282,16 @@ export default function NomiStudioApp(): JSX.Element {
             // 示例同样不强迫选文件夹：直接在默认位置建项目（桌面端落
             // ~/Documents/Nomi Projects，Web 端落 localStorage），让「30 秒体验」
             // 真的一键就跑。要自定义目录用户可后续走「打开文件夹」。
-            let projectId: string | null = null;
+            let project: LocalProjectSummary;
             try {
-                const project = createLocalProject(example.projectName);
-                projectId = project.id;
+                project = createLocalProject(example.projectName);
                 refreshProjects();
             } catch (error) {
                 console.error("try-now project error", error);
                 toast("新建示例项目失败，请检查本地磁盘权限", "error");
                 return;
             }
-            const hydrated = await hydrateProject(projectId);
+            const hydrated = await hydrateProject(project.id);
             if (!hydrated) return;
             const doc = buildStoryDocument(example.story, example.projectName);
             const { useWorkbenchStore } = await import("./workbenchStore");
@@ -456,6 +472,7 @@ export default function NomiStudioApp(): JSX.Element {
                     onDeleteProject={deleteProject}
                     onNewProject={() => void newProject()}
                     onOpenFolder={() => void openWorkspaceFolder()}
+                    onRevealProjectFolder={revealProjectFolder}
                     onTryExample={(example) => void tryExample(example)}
                     onOpenModelCatalog={() => setModelCatalogOpened(true)}
                 />

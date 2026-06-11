@@ -12,6 +12,7 @@ type Props = {
   onDeleteProject: (project: LocalProjectSummary) => void
   onNewProject: (templateId?: ProjectTemplateId) => void
   onOpenFolder?: () => void
+  onRevealProjectFolder?: (projectId: string) => void
   onTryExample?: (example: TryNowExample) => void
   onOpenModelCatalog?: () => void
   projects: LocalProjectSummary[]
@@ -59,12 +60,28 @@ const ThumbnailMosaic = React.memo(function ThumbnailMosaic({ urls }: { urls: st
   )
 }, (prev, next) => prev.urls.join('|') === next.urls.join('|'))
 
-export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onNewProject, onOpenFolder, onTryExample, onOpenModelCatalog, projects }: Props): JSX.Element {
+export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onNewProject, onOpenFolder, onRevealProjectFolder, onTryExample, onOpenModelCatalog, projects }: Props): JSX.Element {
   const [query, setQuery] = React.useState('')
+  const [sourceFilter, setSourceFilter] = React.useState<'all' | 'native' | 'folder'>('all')
   const normalizedQuery = query.trim().toLowerCase()
-  const filteredProjects = normalizedQuery
+  const searchedProjects = normalizedQuery
     ? projects.filter((project) => project.name.toLowerCase().includes(normalizedQuery))
     : projects
+  const sourceCounts = React.useMemo(() => ({
+    all: searchedProjects.length,
+    native: searchedProjects.filter((project) => project.source !== 'folder').length,
+    folder: searchedProjects.filter((project) => project.source === 'folder').length,
+  }), [searchedProjects])
+  const filteredProjects = sourceFilter === 'all'
+    ? searchedProjects
+    : searchedProjects.filter((project) => (
+      sourceFilter === 'folder' ? project.source === 'folder' : project.source !== 'folder'
+    ))
+  const sourceOptions: Array<{ id: 'all' | 'native' | 'folder'; label: string; count: number }> = [
+    { id: 'all', label: '全部', count: sourceCounts.all },
+    { id: 'native', label: '默认项目', count: sourceCounts.native },
+    { id: 'folder', label: '外部文件夹', count: sourceCounts.folder },
+  ]
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-nomi-bg text-nomi-ink font-nomi-sans text-[13px] leading-normal antialiased">
       <main className="flex-1 overflow-y-auto px-14 pt-[60px] pb-20 flex flex-col gap-5">
@@ -172,6 +189,10 @@ export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onN
             </button>
           ) : null}
         </section>
+        <div className="shrink-0 flex items-center gap-1.5 -mt-2 mb-1 text-caption text-nomi-ink-40">
+          <IconFolderOpen size={14} stroke={1.6} aria-hidden="true" />
+          <span>生成物保存在项目文件夹内：图片在 assets，成片在 exports。卡片右侧文件夹图标可打开位置。</span>
+        </div>
 
         {/* ── Search ── */}
         <div className={cn(
@@ -195,8 +216,28 @@ export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onN
         </div>
 
         {/* ── 最近项目 ── */}
-        {filteredProjects.length > 0 ? (
-          <h2 className="shrink-0 m-0 text-[12px] font-medium text-nomi-ink-60">最近项目</h2>
+        {searchedProjects.length > 0 ? (
+          <div className="shrink-0 inline-flex items-center gap-8 md:gap-10 flex-wrap mb-1">
+            <h2 className="m-0 text-caption font-medium text-nomi-ink-60">最近项目</h2>
+            <div className="inline-flex items-center gap-1 p-1 rounded-full border border-nomi-line bg-nomi-paper" aria-label="筛选项目来源">
+              {sourceOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={sourceFilter === option.id}
+                  onClick={() => setSourceFilter(option.id)}
+                  className={cn(
+                    'h-7 px-3 rounded-full border-0 bg-transparent text-caption font-medium font-inherit cursor-pointer',
+                    'text-nomi-ink-60 transition-[background,color] duration-150',
+                    sourceFilter === option.id && 'bg-nomi-ink-10 text-nomi-ink',
+                    option.count === 0 && 'text-nomi-ink-30',
+                  )}
+                >
+                  {option.label} {option.count}
+                </button>
+              ))}
+            </div>
+          </div>
         ) : null}
         <div className="shrink-0 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-[14px]">
 
@@ -221,18 +262,6 @@ export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onN
                   style={urls.length === 0 && project.thumbStyle ? { background: project.thumbStyle } : undefined}
                 >
                   <ThumbnailMosaic urls={urls} />
-                  {project.source === 'folder' ? (
-                    <span
-                      className={cn(
-                        'absolute top-1.5 left-1.5 z-[3] inline-flex items-center gap-1 h-5 px-2 rounded-full',
-                        'bg-[oklch(0.2_0.01_80/0.55)] text-nomi-paper text-micro backdrop-blur-sm',
-                      )}
-                      title="绑定到外部文件夹的项目"
-                    >
-                      <IconFolderOpen size={11} stroke={1.8} aria-hidden="true" />
-                      文件夹
-                    </span>
-                  ) : null}
                   <div className={cn(
                     'absolute inset-0 bg-[oklch(0.12_0.01_80/0.3)] opacity-0 transition-opacity duration-150',
                     'flex items-center justify-center z-[2]',
@@ -265,9 +294,29 @@ export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onN
                     </button>
                   </div>
                 </div>
-                <div className="px-[13px] pt-[10px] pb-3">
-                  <div className="text-[13px] font-medium text-nomi-ink truncate mb-0.5">{project.name}</div>
-                  <div className="text-micro text-nomi-ink-40">{formatUpdatedAt(project.updatedAt)}</div>
+                <div className="px-[13px] pt-[10px] pb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-medium text-nomi-ink truncate mb-0.5">{project.name}</div>
+                    <div className="text-micro text-nomi-ink-40">{formatUpdatedAt(project.updatedAt)}</div>
+                    <div className="text-micro text-nomi-ink-30 truncate">
+                      {project.source === 'folder' ? '外部文件夹' : '默认项目'}
+                    </div>
+                  </div>
+                  {onRevealProjectFolder && project.rootPath ? (
+                    <button
+                      type="button"
+                      aria-label={`打开项目文件夹 ${project.name}`}
+                      onClick={(e) => { e.stopPropagation(); onRevealProjectFolder(project.id) }}
+                      className={cn(
+                        'shrink-0 size-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper',
+                        'grid place-items-center text-nomi-ink-60 cursor-pointer',
+                        'transition-[background,border-color,color] duration-150',
+                        'hover:bg-nomi-ink-05 hover:border-nomi-ink-20 hover:text-nomi-accent',
+                      )}
+                    >
+                      <IconFolderOpen size={15} stroke={1.6} aria-hidden="true" />
+                    </button>
+                  ) : null}
                 </div>
               </div>
             )
