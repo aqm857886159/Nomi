@@ -3,8 +3,9 @@ import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-d
 import { NomiLoadingMark } from './design'
 import { buildStudioUrl } from './utils/appRoutes'
 import { getAppRoutePath } from './utils/routes'
+import { lazyWithChunkBoundary } from './ui/chunkBoundary'
 
-const NomiStudioApp = React.lazy(() => import('./workbench/NomiStudioApp'))
+const NomiStudioApp = lazyWithChunkBoundary('应用主界面', () => import('./workbench/NomiStudioApp'))
 
 function RedirectToStudio(): JSX.Element {
   const location = useLocation()

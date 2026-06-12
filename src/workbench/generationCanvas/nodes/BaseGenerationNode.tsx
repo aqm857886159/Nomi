@@ -20,6 +20,7 @@ import NodeResultDownloadButton from "./NodeResultDownloadButton";
 import { useNodeImageEditing } from "./useNodeImageEditing";
 import { useNodeDragResize } from "./useNodeDragResize";
 import { useHasFrameSourceEdge, useShotIndex } from "../hooks/useNodeRelationships";
+import { lazyWithChunkBoundary } from "../../../ui/chunkBoundary";
 import { PendingGenerationPlaceholder, Scene3DEditorLoading } from "./render/CardCommon";
 import { cn } from "../../../utils/cn";
 import { NomiImage } from "../../../design/media";
@@ -68,7 +69,7 @@ export type BaseGenerationNodeProps = {
     readOnly?: boolean;
     focusFlash?: boolean;
 };
-const Scene3DEditor = React.lazy(() => import("./Scene3DEditor"));
+const Scene3DEditor = lazyWithChunkBoundary("3D 场景编辑器", () => import("./Scene3DEditor")); // A5：chunk 失败只降级本卡
 
 function BaseGenerationNodeImpl({
     node,
@@ -358,8 +359,7 @@ function BaseGenerationNodeImpl({
     const nodeExecutionKind = getGenerationNodeExecutionKind(node.kind);
     // L3：待生成卡给镜头序号，让未选中的占位卡也能一眼分清哪个镜头（非 shots 返回 null）。
     const shotIndex = useShotIndex(node.id, node.categoryId);
-    // 审计 A15：已连上游画面边时占位不再误导喊「拖图进来」。
-    const hasFrameSourceEdge = useHasFrameSourceEdge(node.id, nodeExecutionKind === "video");
+    const hasFrameSourceEdge = useHasFrameSourceEdge(node.id, nodeExecutionKind === "video"); // A15：已连上游边时占位不再喊「拖图」
     const needsFirstFrame = nodeExecutionKind === "video" && !canGenerate && !isGenerating;
     const handlePanoramaScreenshot = React.useCallback(
         (screenshot: PanoramaScreenshot) => {

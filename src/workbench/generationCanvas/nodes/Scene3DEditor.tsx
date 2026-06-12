@@ -7,8 +7,9 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { normalizeScene3DState } from './scene3d/scene3dSerializer'
 import { persistScene3DScreenshot } from './scene3d/scene3dScreenshot'
 import type { Scene3DCaptureResult, Scene3DState } from './scene3d/scene3dTypes'
+import { lazyWithChunkBoundary } from '../../../ui/chunkBoundary'
 
-const Scene3DFullscreen = React.lazy(() => import('./scene3d/Scene3DFullscreen'))
+const Scene3DFullscreen = lazyWithChunkBoundary('3D 全屏编辑', () => import('./scene3d/Scene3DFullscreen'))
 
 type Scene3DEditorProps = {
   node: GenerationCanvasNode

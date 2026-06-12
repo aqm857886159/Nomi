@@ -31,28 +31,32 @@ import { useHasTextModel } from "./library/useHasTextModel";
 import { requestWorkbenchTour } from "./onboarding/workbenchTourState";
 import { buildStudioUrl } from "../utils/appRoutes";
 import { openWorkspaceFromLibrary } from "./library/openWorkspaceFlow";
+import { lazyWithChunkBoundary } from "../ui/chunkBoundary";
 
 type AppView = "library" | "studio";
 type ProjectPersistenceModule = typeof import("./project/projectPersistenceService");
 
-const WorkbenchShell = React.lazy(() => import("./WorkbenchShell"));
-const OnboardingFloatingPanel = React.lazy(() =>
+// 懒加载点位全部走容错域（审计 A5）：chunk 失败只降级该区域，不再拖死整个 app。
+const WorkbenchShell = lazyWithChunkBoundary("工作台", () => import("./WorkbenchShell"));
+const OnboardingFloatingPanel = lazyWithChunkBoundary("模型设置面板", () =>
     import("../ui/onboarding/OnboardingFloatingPanel").then((module) => ({
         default: module.OnboardingFloatingPanel,
     })),
 );
-const AssetLibraryPanel = React.lazy(() =>
+const AssetLibraryPanel = lazyWithChunkBoundary("素材库", () =>
     import("./assets/AssetLibraryPanel").then((module) => ({
         default: module.AssetLibraryPanel,
     })),
 );
-const GenerationCanvas = React.lazy(
+const GenerationCanvas = lazyWithChunkBoundary(
+    "生成画布",
     () => import("./generationCanvas/components/GenerationCanvas"),
 );
-const CanvasAssistantPanel = React.lazy(
+const CanvasAssistantPanel = lazyWithChunkBoundary(
+    "AI 助手面板",
     () => import("./generationCanvas/components/CanvasAssistantPanel"),
 );
-const BatchPlanOverlay = React.lazy(() =>
+const BatchPlanOverlay = lazyWithChunkBoundary("批量生成面板", () =>
     import("./generationCanvas/components/BatchPlanOverlay").then((module) => ({
         default: module.BatchPlanOverlay,
     })),

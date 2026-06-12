@@ -11,14 +11,18 @@ import {
 import { cn } from "../utils/cn";
 import ProjectExplorerSidebar from "./explorer/ProjectExplorerSidebar";
 import { WorkbenchTour } from "./onboarding/WorkbenchTour";
+import { lazyWithChunkBoundary } from "../ui/chunkBoundary";
 
-const CreationWorkspace = React.lazy(
+// 工作区懒加载走容错域（审计 A5）：单个工作区 chunk 失败不拖死其余工作区。
+const CreationWorkspace = lazyWithChunkBoundary(
+    "创作区",
     () => import("./creation/CreationWorkspace"),
 );
-const GenerationWorkspace = React.lazy(
+const GenerationWorkspace = lazyWithChunkBoundary(
+    "生成区",
     () => import("./generation/GenerationWorkspace"),
 );
-const PreviewWorkspace = React.lazy(() => import("./preview/PreviewWorkspace"));
+const PreviewWorkspace = lazyWithChunkBoundary("预览区", () => import("./preview/PreviewWorkspace"));
 
 type WorkbenchShellProps = {
     generation: React.ReactNode;
