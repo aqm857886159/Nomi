@@ -2,6 +2,7 @@ import React from 'react'
 import { BUILTIN_CATEGORIES, getBuiltinCategoryById, type ProjectCategory } from '../project/projectCategories'
 import { showUndoToast } from '../../utils/showUndoToast'
 import { useWorkbenchStore } from '../workbenchStore'
+import { confirmDialog, promptDialog } from '../../design'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useCommittedProposal } from '../generationCanvas/agent/proposalUndo'
 import CategoryItem from './CategoryItem'
@@ -268,11 +269,17 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
     closeMenu()
   }, [closeMenu])
 
-  const handleDeleteCategory = React.useCallback((categoryId: string) => {
+  const handleDeleteCategory = React.useCallback(async (categoryId: string) => {
     const category = (categories || BUILTIN_CATEGORIES).find((c) => c.id === categoryId)
     const label = category?.name || categoryId
-    if (window.confirm(`删除分类「${label}」？里面的节点会移回「分镜」，不会丢失。`)) deleteCategory(categoryId)
     closeMenu()
+    const confirmed = await confirmDialog({
+      title: '删除分类',
+      message: `删除分类「${label}」？里面的节点会移回「分镜」，不会丢失。`,
+      confirmLabel: '删除',
+      danger: true,
+    })
+    if (confirmed) deleteCategory(categoryId)
   }, [categories, closeMenu, deleteCategory])
 
   const handleCopyNode = React.useCallback((nodeId: string) => {
@@ -282,12 +289,12 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
     closeMenu()
   }, [closeMenu, copyNodeToCategory, nodeById])
 
-  const handleRenameNode = React.useCallback((nodeId: string) => {
+  const handleRenameNode = React.useCallback(async (nodeId: string) => {
     const node = nodeById.get(nodeId)
     if (!node) return
-    const title = window.prompt('节点名称', node.title || node.id)
-    if (title !== null && title.trim()) updateNode(nodeId, { title: title.trim() })
     closeMenu()
+    const title = await promptDialog({ title: '节点名称', initialValue: node.title || node.id })
+    if (title !== null && title.trim()) updateNode(nodeId, { title: title.trim() })
   }, [closeMenu, nodeById, updateNode])
 
   const handleRegenerateDerivedNode = React.useCallback((nodeId: string) => {
@@ -295,11 +302,17 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
     closeMenu()
   }, [closeMenu, duplicateNodeForRegeneration])
 
-  const handleDeleteNode = React.useCallback((nodeId: string) => {
+  const handleDeleteNode = React.useCallback(async (nodeId: string) => {
     const node = nodeById.get(nodeId)
     const label = node?.title || nodeId
-    if (window.confirm(`删除节点「${label}」？跨分类副本不会受影响。`)) deleteNode(nodeId)
     closeMenu()
+    const confirmed = await confirmDialog({
+      title: '删除节点',
+      message: `删除节点「${label}」？跨分类副本不会受影响。`,
+      confirmLabel: '删除',
+      danger: true,
+    })
+    if (confirmed) deleteNode(nodeId)
   }, [closeMenu, deleteNode, nodeById])
 
   const handleRenameGroup = React.useCallback((groupId: string) => {
@@ -307,12 +320,12 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
     closeMenu()
   }, [closeMenu])
 
-  const handleSetGroupColor = React.useCallback((groupId: string) => {
+  const handleSetGroupColor = React.useCallback(async (groupId: string) => {
     const group = groups.find((candidate) => candidate.id === groupId)
     if (!group) return
-    const color = window.prompt('组颜色（CSS 颜色值）', group.color || DEFAULT_GROUP_COLOR)
-    if (color !== null) setGroupColor(groupId, color)
     closeMenu()
+    const color = await promptDialog({ title: '组颜色', message: '输入 CSS 颜色值', initialValue: group.color || DEFAULT_GROUP_COLOR })
+    if (color !== null) setGroupColor(groupId, color)
   }, [closeMenu, groups, setGroupColor])
 
   const handleUngroup = React.useCallback((groupId: string) => {
@@ -320,11 +333,17 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
     closeMenu()
   }, [closeMenu, ungroup])
 
-  const handleDeleteGroup = React.useCallback((groupId: string) => {
+  const handleDeleteGroup = React.useCallback(async (groupId: string) => {
     const group = groups.find((candidate) => candidate.id === groupId)
     if (!group) return
-    if (window.confirm(`删除子组「${group.name}」并删除其中 ${group.nodeIds.length} 个节点？`)) deleteGroup(groupId, true)
     closeMenu()
+    const confirmed = await confirmDialog({
+      title: '删除子组',
+      message: `删除子组「${group.name}」并删除其中 ${group.nodeIds.length} 个节点？`,
+      confirmLabel: '删除',
+      danger: true,
+    })
+    if (confirmed) deleteGroup(groupId, true)
   }, [closeMenu, deleteGroup, groups])
 
   const renderContextMenu = () => {

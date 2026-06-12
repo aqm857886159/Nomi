@@ -19,6 +19,7 @@ import { AddModelCard } from './AddModelCard'
 import { KNOWN_VENDORS, isKnownVendor } from '../../config/knownVendors'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { notifyModelOptionsRefresh } from '../../config/useModelOptions'
+import { alertDialog, confirmDialog } from '../../design'
 
 type VendorMeta = {
   name: string
@@ -73,16 +74,21 @@ export function OnboardingDrawer({ experience }: { experience?: OnboardingExperi
     window.dispatchEvent(new CustomEvent('nomi-model-catalog-changed'))
   }, [])
 
-  const handleDelete = React.useCallback((row: ChipModel) => {
+  const handleDelete = React.useCallback(async (row: ChipModel) => {
     const bridge = getDesktopBridge()
     if (!bridge) return
-    const ok = window.confirm(`删除「${row.labelZh}」？此操作不可恢复。`)
+    const ok = await confirmDialog({
+      title: '删除模型',
+      message: `删除「${row.labelZh}」？此操作不可恢复。`,
+      confirmLabel: '删除',
+      danger: true,
+    })
     if (!ok) return
     try {
       bridge.modelCatalog.deleteModel(row.vendorKey, row.modelKey)
       refresh()
     } catch (e) {
-      window.alert(`删除失败：${e instanceof Error ? e.message : String(e)}`)
+      void alertDialog({ title: '删除失败', message: e instanceof Error ? e.message : String(e) })
     }
   }, [refresh])
 

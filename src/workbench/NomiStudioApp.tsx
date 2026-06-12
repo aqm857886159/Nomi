@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { NomiLoadingMark } from "../design";
+import { ConfirmDialogHost, confirmDialog, NomiLoadingMark } from "../design";
 import ProjectLibraryPage from "./library/ProjectLibraryPage";
 import { ToastHost } from "../ui/toast";
 import { FilePreviewPanel } from "./explorer/FilePreviewPanel";
@@ -241,9 +241,11 @@ export default function NomiStudioApp(): JSX.Element {
             hydrateProject,
             refreshProjects,
             confirmInitialize: async (rootPath) =>
-                window.confirm(
-                    `将此文件夹初始化为 Nomi 项目？\n\n${rootPath}\n\nNomi 会创建 .nomi/，并把生成的图片、视频保存到 assets/ 和 exports/。`,
-                ),
+                confirmDialog({
+                    title: "初始化为 Nomi 项目",
+                    message: `${rootPath}\n\nNomi 会创建 .nomi/，并把生成的图片、视频保存到 assets/ 和 exports/。`,
+                    confirmLabel: "初始化",
+                }),
             showMessage: (message, tone) => toast(message, tone || "error"),
         });
     }, [hydrateProject, refreshProjects]);
@@ -400,10 +402,15 @@ export default function NomiStudioApp(): JSX.Element {
     }, []);
 
     const deleteProject = React.useCallback(
-        (project: LocalProjectSummary) => {
-            const confirmed = window.confirm(
-                `确定删除「${project.name}」吗？项目文件夹和本地资源会一起删除。`,
-            );
+        async (project: LocalProjectSummary) => {
+            // 应用内确认框（审计 A7）：原生 window.confirm 脱设计系统、E2E 测不到、
+            // Electron/macOS 有焦点丢失史。
+            const confirmed = await confirmDialog({
+                title: "删除项目",
+                message: `确定删除「${project.name}」吗？项目文件夹和本地资源会一起删除。`,
+                confirmLabel: "删除",
+                danger: true,
+            });
             if (!confirmed) return;
             try {
                 deleteLocalProject(project.id);
@@ -582,6 +589,7 @@ export default function NomiStudioApp(): JSX.Element {
                     />
                 </React.Suspense>
                 <ToastHost />
+                <ConfirmDialogHost />
             </>
         );
     }
@@ -634,6 +642,7 @@ export default function NomiStudioApp(): JSX.Element {
             <FilePreviewPanel />
 
             <ToastHost />
+            <ConfirmDialogHost />
         </div>
     );
 }
