@@ -33,7 +33,7 @@ export const STORYBOARD_PLANNER_SKILL = {
 export function buildStoryboardPlanningMessage(storyText: string): string {
   const trimmed = storyText.trim()
   return [
-    '请把下面这段故事拆成 6-12 个镜头节点，按时序连边，写入生成画布。',
+    '请把下面这段故事规划成可生成的轨迹（共享角色/场景定妆 → 每镜关键帧 → 每镜视频），节点与边一次提交，写入生成画布。',
     '',
     '--- 故事正文 ---',
     trimmed,
