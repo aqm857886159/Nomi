@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nomi · 项目库布局选项 v4（尺寸与布局区隔）</title>
+  <style>
+    /* nomi-tokens.css 内嵌副本（与 src/theme/nomi-tokens.css 同源，仅为样张可独立打开） */
+    :root {
+      --nomi-bg: oklch(0.985 0.003 90);
+      --nomi-paper: oklch(1 0 0);
+      --nomi-ink: oklch(0.22 0.01 80);
+      --nomi-ink-80: oklch(0.32 0.01 80);
+      --nomi-ink-60: oklch(0.50 0.01 80);
+      --nomi-ink-40: oklch(0.68 0.01 80);
+      --nomi-ink-30: oklch(0.78 0.01 80);
+      --nomi-ink-20: oklch(0.88 0.005 80);
+      --nomi-ink-10: oklch(0.94 0.003 80);
+      --nomi-ink-05: oklch(0.97 0.003 80);
+      --nomi-line: oklch(0.91 0.004 80);
+      --nomi-accent: oklch(0.55 0.13 250);
+      --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 12%, var(--nomi-paper));
+      --nomi-paper-dim: color-mix(in oklch, var(--nomi-paper) 72%, var(--nomi-ink));
+      --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03);
+      --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.06);
+      --nomi-radius-sm: 6px;
+      --nomi-radius: 10px;
+      --nomi-radius-lg: 16px;
+      --nomi-font-sans: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+      --nomi-font-display: Fraunces, Inter, serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 40px 56px 72px;
+      background: var(--nomi-bg);
+      color: var(--nomi-ink);
+      font-family: var(--nomi-font-sans);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    button { font: inherit; cursor: pointer; }
+
+    .switcher {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      margin-bottom: 24px;
+      border: 1px solid var(--nomi-line);
+      border-radius: 999px;
+      background: var(--nomi-paper);
+      box-shadow: var(--nomi-shadow-sm);
+    }
+
+    .switcher button {
+      height: 28px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--nomi-ink-60);
+      padding: 0 12px;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .switcher button[aria-selected="true"] { background: var(--nomi-ink); color: var(--nomi-paper); }
+
+    .screen { display: none; max-width: 1320px; }
+    .screen.active { display: block; }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 0;
+      font-family: var(--nomi-font-display);
+      font-size: 28px;
+      font-weight: 400;
+      line-height: 1;
+    }
+
+    .mark {
+      width: 28px; height: 28px;
+      display: grid; place-items: center;
+      border-radius: var(--nomi-radius-sm);
+      background: var(--nomi-ink); color: var(--nomi-paper);
+      font-family: var(--nomi-font-sans); font-size: 15px; font-weight: 800;
+    }
+
+    .header-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+
+    /* 按钮尺寸三档：lg 40 / md 32 / sm 28 */
+    .button {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      border: 1px solid var(--nomi-line); border-radius: 999px;
+      background: var(--nomi-paper); color: var(--nomi-ink-80);
+      white-space: nowrap; font-weight: 650;
+    }
+    .button.lg { height: 40px; padding: 0 24px; font-size: 14px; }
+    .button.md { height: 32px; padding: 0 14px; font-size: 13px; }
+    .button.sm { height: 28px; padding: 0 10px; font-size: 12px; }
+    .button.primary { border-color: var(--nomi-ink); background: var(--nomi-ink); color: var(--nomi-paper); }
+    .button.subtle { border-color: transparent; background: transparent; color: var(--nomi-ink-60); }
+
+    .library-shell { display: flex; flex-direction: column; gap: 20px; }
+
+    .toolbar { display: flex; align-items: center; gap: 16px; }
+
+    .search {
+      width: 360px; height: 36px;
+      display: flex; align-items: center; gap: 8px;
+      border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-sm);
+      background: var(--nomi-paper); color: var(--nomi-ink-30);
+      padding: 0 12px;
+    }
+
+    .section-head { display: inline-flex; align-items: center; gap: 32px; }
+    .section-title { margin: 0; color: var(--nomi-ink-60); font-size: 12px; font-weight: 650; }
+
+    .segmented {
+      display: inline-flex; gap: 4px; padding: 4px;
+      border: 1px solid var(--nomi-line); border-radius: 999px; background: var(--nomi-paper);
+    }
+    .segmented button {
+      height: 28px; border: 0; border-radius: 999px;
+      background: transparent; color: var(--nomi-ink-60);
+      padding: 0 12px; font-size: 12px; font-weight: 650;
+    }
+    .segmented button.active { background: var(--nomi-ink-10); color: var(--nomi-ink); }
+
+    .projects { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+
+    .project-card {
+      overflow: hidden;
+      border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius);
+      background: var(--nomi-paper); box-shadow: var(--nomi-shadow-sm);
+    }
+    .thumb { aspect-ratio: 16 / 9; display: grid; place-items: center; background: var(--nomi-ink-05); color: var(--nomi-ink-30); }
+    .card-body { display: grid; grid-template-columns: minmax(0, 1fr) 32px; align-items: center; gap: 8px; padding: 12px; }
+    .card-title { margin: 0; overflow: hidden; font-size: 13px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+    .card-time { color: var(--nomi-ink-40); font-size: 11px; }
+    .icon-button {
+      width: 32px; height: 32px; display: grid; place-items: center;
+      border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius-sm);
+      background: var(--nomi-paper); color: var(--nomi-ink-60);
+    }
+
+    /* ===== O2 动作卡片 ===== */
+    .action-cards { display: flex; gap: 14px; }
+
+    .action-card {
+      display: flex; align-items: center; gap: 14px; text-align: left;
+      width: 280px; height: 88px; padding: 0 20px;
+      border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius);
+      background: var(--nomi-paper); box-shadow: var(--nomi-shadow-sm);
+    }
+    .action-card .ic {
+      width: 40px; height: 40px; flex: none;
+      display: grid; place-items: center;
+      border-radius: 999px; background: var(--nomi-ink-05);
+      color: var(--nomi-ink-80); font-size: 18px;
+    }
+    .action-card .t { margin: 0; font-size: 14px; font-weight: 700; }
+    .action-card .d { margin: 2px 0 0; font-size: 12px; color: var(--nomi-ink-60); }
+
+    .action-card.primary { border-color: var(--nomi-ink); background: var(--nomi-ink); color: var(--nomi-paper); }
+    .action-card.primary .ic { background: color-mix(in oklch, var(--nomi-paper) 14%, var(--nomi-ink)); color: var(--nomi-paper); }
+    .action-card.primary .d { color: var(--nomi-paper-dim); }
+
+    /* ===== O3 分栏 ===== */
+    .split { display: grid; grid-template-columns: 264px minmax(0, 1fr); gap: 32px; align-items: start; }
+    .rail { display: flex; flex-direction: column; gap: 10px; position: sticky; top: 72px; }
+    .rail .button { width: 100%; justify-content: flex-start; padding: 0 16px; }
+    .rail .button.lg { justify-content: center; }
+    .rail-note { margin: 6px 0 0; color: var(--nomi-ink-40); font-size: 12px; }
+    .rail-divider { height: 1px; background: var(--nomi-line); margin: 8px 0; }
+    .right-col { display: flex; flex-direction: column; gap: 16px; }
+
+    .note { max-width: 920px; margin-top: 18px; color: var(--nomi-ink-60); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <nav class="switcher" aria-label="布局选项切换">
+    <button data-target="o1" aria-selected="true">O1 尺寸阶梯（同布局）</button>
+    <button data-target="o2" aria-selected="false">O2 动作卡片（推荐）</button>
+    <button data-target="o3" aria-selected="false">O3 左栏动作 + 右区项目</button>
+  </nav>
+
+  <!-- ====== O1 尺寸阶梯：布局不动，只拉开尺寸 ====== -->
+  <main id="screen-o1" class="screen active">
+    <section class="library-shell">
+      <div class="header-row">
+        <h1 class="brand"><span class="mark">N</span>Nomi 项目库</h1>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button class="button sm subtle">⌁ 模型接入</button>
+          <span style="width:12px"></span>
+          <button class="button md">▣ 打开已有文件夹</button>
+          <button class="button lg primary">＋ 新建空白项目</button>
+        </div>
+      </div>
+
+      <div class="toolbar"><div class="search">⌕ 搜索项目</div></div>
+
+      <div class="section-head">
+        <h2 class="section-title">最近项目</h2>
+        <div class="segmented"><button class="active">全部 78</button><button>本地新建 75</button><button>外部文件夹 3</button></div>
+      </div>
+
+      <section class="projects">
+        <article class="project-card"><div class="thumb">film</div><div class="card-body"><div><h3 class="card-title">示例：京都一日 vlog</h3><div class="card-time">16 分钟前</div></div><button class="icon-button">▣</button></div></article>
+        <article class="project-card"><div class="thumb">film</div><div class="card-body"><div><h3 class="card-title">未命名项目 06/12 00:13</h3><div class="card-time">52 分钟前</div></div><button class="icon-button">▣</button></div></article>
+        <article class="project-card"><div class="thumb">film</div><div class="card-body"><div><h3 class="card-title">示例：天台上的告白</h3><div class="card-time">1 天前</div></div><button class="icon-button">▣</button></div></article>
+        <article class="project-card"><div class="thumb">film</div><div class="card-body"><div><h3 class="card-title">示例：30 秒产品介绍</h3><div class="card-time">1 天前</div></div><button class="icon-button">▣</button></div></article>
+      </section>
+    </section>
+    <p class="note">O1：布局与现在一致，只把同排按钮拉成三档尺寸 —— 主按钮 40px 高 / 14px 字（明显大一圈），次按钮 32px，弱入口 28px 纯文字。改动最小，但布局气质不变，「还是一排按钮」。</p>
+  </main>
+
+  <!-- ====== O2 动作卡片 ====== -->
+  <main id="screen-o2" class="screen">
+    <section class="library-shell">
+      <div class="header-row">
+        <h1 class="brand"><span class="mark">N</span>Nomi 项目库</h1>
+        <button class="button sm subtle">⌁ 模型接入</button>
+      </div>
+
+      <div class="action-cards" aria-label="开始一个项目">
+        <button class="action-card primary">
+          <span class="ic">＋</span>
+          <span><span class="t">新建空白项目</span><span class="d" style="display:block">从一段文字或想法开始</span></span>
+        </button>
+        <button class="action-card">
+          <span class="ic">▣</span>
+          <span><span class="t">打开已有文件夹</span><span class="d" style="display:block">把素材文件夹变成项目</span></span>
+        </button>
+      </div>
+
+      <div class="toolbar" style="justify-content:space-between;">
+        <div class="section-head">
+          <h2 class="section-title">最近项目</h2>
+          <div class="segmented"><button class="active">全部 78</button><button>本地新建 75</button><button>外部文件夹 3</button></div>
+        </div>
+        <div class="search" style="width:280px;">⌕ 搜索项目</div>
+      </div>
+
+      <section class="projects">
+        <article class="project-card"><div class="thumb">film</div><div class="card-body"><div><h3 class="card-title">示例：京都一日 vlog</h3><div class="card-time">16 分钟前</div></div><button class="icon-button">▣</button></div></article>
+        <article class="project-card"><div class="thumb">film</div><div class="card-body"><div><h3 class="card-title">未命名项目 06/12 00:13</h3><div class="card-time">52 分钟前</div></div><button class="icon-button">▣</button></div></article>
+        <article class="project-card"><div class="thumb">film</div><div class="card-body"><div><h3 class="card-title">示例：天台上的告白</h3><div class="card-time">1 天前</div></div><button class="icon-button">▣</button></div></article>
+        <article class="project-card"><div class="thumb">film</div><div class="card-body"><div><h3 class="card-title">示例：30 秒产品介绍</h3><div class="card-time">1 天前</div></div><button class="icon-button">▣</button></div></article>
+      </section>
+    </section>
+    <p class="note">O2：剪映 / CapCut / Resolve 起始页惯例 —— 两个主入口升级为 88px 高动作卡片（实心 ink 主卡 + 描边次卡，各带一行用途说明），尺寸/形态/位置三重区隔，页面有了明确视觉锚点。模型接入降为右上 28px 弱文字钮。搜索右移与「最近项目」同行，纵向密度反而更好。缺模型时状态条插在动作卡下方（沿用 v3 规则）。</p>
+  </main>
+
+  <!-- ====== O3 左栏动作 + 右区项目 ====== -->
+  <main id="screen-o3" class="screen">
+    <section>
+      <div class="header-row" style="margin-bottom:20px;">
+        <h1 class="brand"><span class="mark">N</span>Nomi 项目库</h1>
+      </div>
+      <div class="split">
+        <aside class="rail" aria-label="开始一个项目">
+          <button class="button lg primary">＋ 新建空白项目</button>
+          <button class="button md">▣ 打开已有文件夹</button>
+          <p class="rail-note">项目保存在本地 Nomi Projects。</p>
+          <div class="rail-divider"></div>
+          <button class="button sm subtle" style="align-self:flex-start;">⌁ 模型接入</button>
+        </aside>
+        <div class="right-col">
+          <div class="toolbar" style="justify-content:space-between;">
+            <div class="section-head">
+              <h2 class="section-title">最近项目</h2>
+              <div class="segmented"><button class="active">全部 78</button><button>本地新建 75</button><button>外部文件夹 3</button></div>
+            </div>
+            <div class="search" style="width:280px;">⌕ 搜索项目</div>
+          </div>
+          <section class="projects">
+            <article class="project-card"><div class="thumb">film</div><div class="card-body"><div><h3 class="card-title">示例：京都一日 vlog</h3><div class="card-time">16 分钟前</div></div><button class="icon-button">▣</button></div></article>
+            <article class="project-card"><div class="thumb">film</div><div class="card-body"><div><h3 class="card-title">未命名项目 06/12 00:13</h3><div class="card-time">52 分钟前</div></div><button class="icon-button">▣</button></div></article>
+            <article class="project-card"><div class="thumb">film</div><div class="card-body"><div><h3 class="card-title">示例：天台上的告白</h3><div class="card-time">1 天前</div></div><button class="icon-button">▣</button></div></article>
+            <article class="project-card"><div class="thumb">film</div><div class="card-body"><div><h3 class="card-title">示例：30 秒产品介绍</h3><div class="card-time">1 天前</div></div><button class="icon-button">▣</button></div></article>
+          </section>
+        </div>
+      </div>
+    </section>
+    <p class="note">O3：VS Code 欢迎页 / IDE 式分栏 —— 左栏 264px 常驻动作（主按钮 40px 全宽），右区全部留给项目。动作永远在固定位置、项目区滚动不影响；代价是 1440px 宽屏上为 3 个动作常驻吃掉一栏，项目网格变窄，且与 B 空库态（居中 hero）布局基因不同，两态切换跳跃感更大。</p>
+  </main>
+
+  <script>
+    const buttons = Array.from(document.querySelectorAll('.switcher button'));
+    const screens = Array.from(document.querySelectorAll('.screen'));
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const target = button.dataset.target;
+        buttons.forEach((item) => item.setAttribute('aria-selected', item === button ? 'true' : 'false'));
+        screens.forEach((screen) => screen.classList.toggle('active', screen.id === `screen-${target}`));
+      });
+    });
+  </script>
+</body>
+</html>
