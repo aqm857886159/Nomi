@@ -494,7 +494,8 @@ export default function CanvasAssistantPanel({
       )}>
         <div className={cn('flex items-center gap-2 min-w-0')}>
           <NomiLogoMark size={18} />
-          <span className={cn('text-bodySm font-semibold text-nomi-ink')}>助手</span>
+          {/* 审计 A14：与入口词「生成」一致，不再裸叫「助手」 */}
+          <span className={cn('text-bodySm font-semibold text-nomi-ink')}>生成助手</span>
         </div>
         <div className={cn('inline-flex items-center gap-2 ml-auto min-w-0')}>
           <WorkbenchAiHeaderActions

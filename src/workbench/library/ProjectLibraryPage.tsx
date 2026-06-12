@@ -259,6 +259,24 @@ export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onN
               </div>
             </div>
 
+            {filteredProjects.length === 0 ? (
+              // 审计 A10：库非空但「搜索 × 来源 tab」过滤后为空——给空态与出路，
+              // 不再渲染纯空白 grid（唯一的旧空态只判整库空）。
+              <div className="flex flex-col items-center gap-2 py-12 text-center" data-library-filter-empty="true">
+                <span className="text-caption text-nomi-ink-60">
+                  {normalizedQuery ? `没有匹配「${query.trim()}」的项目` : '这个分类下还没有项目'}
+                </span>
+                {normalizedQuery ? (
+                  <button
+                    type="button"
+                    className="inline-flex h-7 items-center px-3 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-caption text-nomi-ink-80 cursor-pointer hover:bg-nomi-ink-05"
+                    onClick={() => setQuery('')}
+                  >
+                    清除搜索
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
             <div className="shrink-0 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-[14px]">
               {filteredProjects.map((project) => {
                 const urls = project.thumbnailUrls || (project.thumbnail ? [project.thumbnail] : [])

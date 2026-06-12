@@ -135,9 +135,9 @@ describe("manual model entry — user journey", () => {
       "gpt-4o",
       "gpt-4o-mini",
     ]);
-    // Display name defaults to the id when omitted.
+    // 显示名缺省时人话化排版，不再落裸 id（审计 A13，humanizeModelKey）。
     const gpt4o = listModelCatalogModels().find((m) => m.modelKey === "gpt-4o");
-    expect(gpt4o?.labelZh).toBe("gpt-4o");
+    expect(gpt4o?.labelZh).toBe("Gpt 4o");
   });
 
   it("records provenance as manual and writes NO http mapping (text runs via direct AI SDK path)", () => {

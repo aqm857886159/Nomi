@@ -145,8 +145,8 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
       <span className={cn('w-5 h-px bg-workbench-border')} />
       <WorkbenchButton
         className={cn('w-8 h-8 min-h-8 p-0 border-0 rounded-nomi-sm cursor-pointer disabled:cursor-not-allowed disabled:opacity-[0.42]')}
-        aria-label="批量生成所有选中节点"
-        title="全部生成（限并发 2，失败自动重试）"
+        aria-label="批量生成选中节点"
+        title="生成选中节点（限并发 2，失败自动重试）"
         data-storyboard-run-all="true"
         disabled={selectedNodeIds.length === 0}
         onClick={() => {
@@ -167,7 +167,8 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
         }}
       >
         <IconPlayerPlay size={15} />
-        <span className="hidden">全部生成</span>
+        {/* 审计 A12：按钮语义对齐实际行为——生成「选中」，三处文案曾互相矛盾 */}
+        <span className="hidden">生成选中</span>
       </WorkbenchButton>
       <WorkbenchButton
         className={cn('w-8 h-8 min-h-8 p-0 border-0 rounded-nomi-sm cursor-pointer disabled:cursor-not-allowed disabled:opacity-[0.42]')}

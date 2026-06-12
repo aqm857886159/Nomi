@@ -327,7 +327,8 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         {/* 头部：Nomi 标 + 「助手」+ 动作（含 token 计数）。 */}
         <div className={cn('workbench-creation-ai__title', 'inline-flex items-center gap-2 min-w-0')}>
           <NomiLogoMark size={18} />
-          <span className={cn('text-bodySm font-semibold text-nomi-ink')}>助手</span>
+          {/* 审计 A14：与入口词「创作」一致，不再裸叫「助手」 */}
+          <span className={cn('text-bodySm font-semibold text-nomi-ink')}>创作助手</span>
         </div>
         <div className={cn('inline-flex items-center gap-2 ml-auto min-w-0')}>
           <WorkbenchAiHeaderActions

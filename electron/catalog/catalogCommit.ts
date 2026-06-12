@@ -1,5 +1,6 @@
 import { firstString, isJsonRecord, nowIso, trim, type JsonRecord } from "../jsonUtils";
 import { mergeMissingParamsIntoBody } from "../ai/onboarding/curlBlueprint";
+import { humanizeModelKey } from "./modelLabel";
 import { hardenedFetchText } from "../hardenedFetch";
 import type { AiSdkProviderKind, BillingModelKind, HttpOperation, Model, ProfileKind, Vendor } from "./types";
 import {
@@ -47,7 +48,8 @@ export function commitOnboardedModelToCatalog(payload: {
   const vendorName = String(draft.vendorName || vendorKey).trim();
   const vendorBaseUrl = String(draft.vendorBaseUrl || "").trim();
   const modelKey = String(draft.modelKey || "").trim();
-  const modelDisplayName = String(payload.displayLabel || draft.modelDisplayName || modelKey).trim();
+  // 显示名兜底不落裸 id（审计 A13）。
+  const modelDisplayName = String(payload.displayLabel || draft.modelDisplayName || "").trim() || humanizeModelKey(modelKey);
   const targetKind = String(draft.targetKind || "").trim();
   const userApiKey = String(payload.userApiKey || "").trim();
 
@@ -242,7 +244,7 @@ export function commitManualOpenAiCompatibleModels(payload: {
 
   const committed: Array<{ modelKey: string; displayName: string }> = [];
   for (const m of cleanModels) {
-    const displayName = m.displayName || m.id;
+    const displayName = m.displayName || humanizeModelKey(m.id);
     const outcome = {
       status: "success",
       trialId: "",
