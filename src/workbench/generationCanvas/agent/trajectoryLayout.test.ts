@@ -63,4 +63,49 @@ describe('trajectoryLayout（T4：分层布局 + 避让已有节点）', () => {
     expect(new Set(positions.map((p) => p.x)).size).toBe(2)
     expect(new Set(positions.map((p) => p.y)).size).toBe(2)
   })
+
+  it('网格横向跨度收敛，不随 index 线性发散（继承 gridPosition 回归意图）', () => {
+    const planned = kinds(Array.from({ length: 9 }, () => 'image'))
+    const xs = layoutPlannedNodes(planned, []).map((p) => p.x)
+    // 9 节点 3 列 → 跨度 = 2 格，远小于旧单行实现的 8 格
+    const cell = DEFAULT_NODE_SIZE.image.width + 48
+    expect(Math.max(...xs) - Math.min(...xs)).toBe(2 * cell)
+    expect(new Set(xs).size).toBe(3)
+  })
+
+  // —— 审计 A3 根治断言：步距由节点尺寸 derive，任意两节点 AABB 零重叠 ——
+
+  function assertNoOverlap(planned: GenerationNodeKind[], positions: Array<{ x: number; y: number }>) {
+    const rects = positions.map((p, i) => {
+      const size = DEFAULT_NODE_SIZE[planned[i]]
+      return { x: p.x, y: p.y, w: size.width, h: size.height, kind: planned[i] }
+    })
+    for (let i = 0; i < rects.length; i++) {
+      for (let j = i + 1; j < rects.length; j++) {
+        const a = rects[i]
+        const b = rects[j]
+        const overlaps = a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+        expect(overlaps, `节点 ${i}(${a.kind}) 与 ${j}(${b.kind}) 重叠：${JSON.stringify(a)} vs ${JSON.stringify(b)}`).toBe(false)
+      }
+    }
+  }
+
+  it('19 节点混合批（审计 A3 实测场景）分层布局零重叠——视频 420×340 不再被 420/320 步距压住', () => {
+    const planned = kinds([
+      'character', 'character', 'scene',
+      'image', 'image', 'image', 'image', 'image', 'image', 'image', 'image',
+      'video', 'video', 'video', 'video', 'video', 'video', 'video', 'video',
+    ])
+    const existing = [{ kind: 'image' as GenerationNodeKind, position: { x: 440, y: 380 } }]
+    const positions = layoutPlannedNodes(planned, existing)
+    assertNoOverlap(planned, positions)
+    // 也不压已有节点
+    const origin = trajectoryOrigin(existing)
+    for (const p of positions) expect(p.y).toBeGreaterThanOrEqual(origin.y)
+  })
+
+  it('纯视频批走网格回退同样零重叠（格子从批内最大尺寸 derive）', () => {
+    const planned = kinds(['video', 'video', 'video', 'video', 'video'])
+    assertNoOverlap(planned, layoutPlannedNodes(planned, []))
+  })
 })

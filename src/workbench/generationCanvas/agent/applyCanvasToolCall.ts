@@ -10,8 +10,7 @@ import { buildDependencyWaves } from '../runner/dependencyWaves'
 import { runPlanWithToasts } from '../components/batchPlanPreview'
 
 // 批量创建节点的布局由渲染层 derive，而不是信任 LLM 发来的像素坐标。
-// T4 后实现住在 trajectoryLayout（分层 + 避让 + 网格回退）；gridPosition 再导出供既有测试/调用方。
-export { gridPosition } from './trajectoryLayout'
+// 实现住在 trajectoryLayout（分层 + 避让 + 网格回退，步距由节点尺寸推导）。
 
 /**
  * Single source of truth for turning an agent canvas tool call into a real
