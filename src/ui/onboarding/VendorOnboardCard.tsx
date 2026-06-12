@@ -12,6 +12,7 @@ import React from 'react'
 import { IconKey, IconExternalLink, IconPencil } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
+import { confirmDialog } from '../../design'
 import type { KnownVendor } from '../../config/knownVendors'
 import { FoldableModelCard } from './FoldableModelCard'
 import { ModelChipGroups, type ChipModel } from './ModelChipGroups'
@@ -74,10 +75,15 @@ export function VendorOnboardCard({
     }
   }, [keyDraft, directory.vendorKey, onChanged])
 
-  const handleDisconnect = React.useCallback(() => {
+  const handleDisconnect = React.useCallback(async () => {
     const bridge = getDesktopBridge()
     if (!bridge) return
-    const ok = window.confirm(`断开「${vendorName}」？该家模型会回到"未连通"，需重新填 key。`)
+    const ok = await confirmDialog({
+      title: '断开供应商',
+      message: `断开「${vendorName}」？该家模型会回到"未连通"，需重新填 key。`,
+      confirmLabel: '断开',
+      danger: true,
+    })
     if (!ok) return
     setBusy(true)
     setError('')
