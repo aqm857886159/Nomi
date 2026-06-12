@@ -82,6 +82,14 @@ textActions.generateText(node, {onTextDelta})
 - **S3 渲染增量**：catalogTaskActions 路由 + textActions append/replace 增量 + rewrite 原语。验证：build 绿、textActions.test 扩流式断言。
 - **S4 体验走查（R13）**：真机点文本节点续写/重写/改写，截图人眼确认逐字；image_to_prompt 引擎流式（无视觉落点则只验最终值正确）。
 
+## 执行回填（2026-06-12）
+
+- **S1 ✅**（commit 9f254af）：抽 `vendorLanguageModel` + 新增 `streamTextTask` + `runtime.ts` 文本分支改调它，删旧 `/v1/chat/completions` 直 POST。五门绿。
+- **S2 ✅**（commit 764acc9）：`textTaskRunner`（executeTextTask 单一真相 + runTextTaskStream）+ `textStreamIpc` + preload/bridge/taskApi。runtime.ts 抽出后 743 行，filesize 基线棘轮下调到 743。五门绿。
+- **S3 ✅**（commit e4707f7）：`onTextDelta`/`runTextStream` 选项 + runCatalogGenerationTask 路由 + textActions 续写/重写逐 token 增量（合并旧 append/replace 为 `writeStreamingDoc`）。补 2 条流式单测。五门绿（vitest 951）。
+- **改写（rewrite）的范围决定**：选区替换需 ProseMirror 位置（数据层拿不到），保持「完成时交编辑器一次性替换」，引擎仍流式。逐字替换选区 = 新编辑器原语 `streamReplaceSelection` + store→editor 桥，留作后续切片。
+- **S4 ⏳ 待用户资源**：真机逐字 E2E 需配好的文本模型 + API key（用户额度）。代码层已五门绿 + 单测覆盖流式增量；真机人眼走查待用户拍板是否跑（花额度）。
+
 ## 6. 回滚策略
 
 - 每片独立 commit。S1 即便只到引擎收口，`runTask` 对外契约（返回 `TaskResultDto`）不变 → 渲染层零感知，可单独回退。
