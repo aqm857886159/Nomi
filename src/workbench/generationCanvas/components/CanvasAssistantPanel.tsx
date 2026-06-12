@@ -26,7 +26,7 @@ import {
   type FixationPlanningRequest,
 } from '../agent/fixationLauncher'
 import AssistantTimeline from './AssistantTimeline'
-import { summarizeToolCall } from './toolCallSummary'
+import { buildStepDetailLabels, countCreatedNodesByCategory, summarizeToolCall } from './toolCallSummary'
 import { MemoryFold } from './MemoryFold'
 import { clearCommittedProposal, runProposalUndo, setCommittedProposal, useCommittedProposal } from '../agent/proposalUndo'
 import { toastAction } from '../../../ui/toastAction'
@@ -239,16 +239,24 @@ export default function CanvasAssistantPanel({
           // S6-5 整笔撤销:committed 卡(约束①,存活到下一笔)+ 画布 toast 第二入口(约束②)。
           // 无可补偿的提议(如 run_generation_batch 受理——网络调用收不回)不出撤销入口,不误导。
           if (outcome.compensation.length > 0) {
+            // 落点回报(审计 A1):跨分类创建的节点会落进默认折叠的分类面板,回执/toast
+            // 必须报「落在哪」并给跳转入口,否则用户视角=确认过的节点凭空消失。
+            const categoryCounts = countCreatedNodesByCategory(steps)
             const record = {
               proposalId: outcome.proposalId,
               summary: steps.map((step) => summarizeToolCall(step.toolName, step.effectiveArgs)).join(' · '),
-              stepLabels: steps.map((step) => summarizeToolCall(step.toolName, step.effectiveArgs)),
+              // A16:逐节点「标题 → 落点分类」明细,不再与 summary 同句重复。
+              stepLabels: steps.flatMap((step) => buildStepDetailLabels(step.toolName, step.effectiveArgs)),
+              ...(categoryCounts.length ? { categoryCounts } : {}),
               compensation: outcome.compensation,
               watchNodes: outcome.watchNodes,
               reconciliationOk: outcome.reconciliation.ok,
             }
             setCommittedProposal(record)
-            toastAction(`AI 已应用：${record.summary}`, { label: '整笔撤销', onClick: () => runProposalUndo(record) })
+            const dropLine = categoryCounts.length > 1
+              ? `（落点：${categoryCounts.map((item) => `${item.label} ${item.count}`).join(' · ')}）`
+              : ''
+            toastAction(`AI 已应用：${record.summary}${dropLine}`, { label: '整笔撤销', onClick: () => runProposalUndo(record) })
           }
           for (let index = 0; index < steps.length; index += 1) {
             const step = steps[index]

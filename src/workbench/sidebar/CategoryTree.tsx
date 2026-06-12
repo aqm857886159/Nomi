@@ -3,6 +3,7 @@ import { BUILTIN_CATEGORIES, getBuiltinCategoryById, type ProjectCategory } from
 import { showUndoToast } from '../../utils/showUndoToast'
 import { useWorkbenchStore } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+import { useCommittedProposal } from '../generationCanvas/agent/proposalUndo'
 import CategoryItem from './CategoryItem'
 import GroupItem from './GroupItem'
 import NodeItem from './NodeItem'
@@ -73,6 +74,21 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
       return next
     })
   }, [activeCategoryId])
+
+  // 落点回报(审计 A1):AI 提议 commit 后,把刚收到节点的分类自动展开——
+  // 跨分类产物(定妆卡等)不再静默归档进默认折叠的面板。
+  const committedProposal = useCommittedProposal()
+  React.useEffect(() => {
+    const received = committedProposal?.categoryCounts
+    if (!received?.length) return
+    setExpandedCategoryIds((current) => {
+      const missing = received.filter((item) => item.count > 0 && !current.has(item.categoryId))
+      if (!missing.length) return current
+      const next = new Set(current)
+      for (const item of missing) next.add(item.categoryId)
+      return next
+    })
+  }, [committedProposal])
 
   React.useEffect(() => {
     if (!menu) return undefined

@@ -5,6 +5,12 @@
 import { getDesktopBridge, type PersistedAiMessage } from '../../desktop/bridge'
 import { useWorkbenchStore } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+import {
+  getCommittedProposal,
+  parseCommittedProposalRecord,
+  setCommittedProposal,
+  subscribeCommittedProposal,
+} from '../generationCanvas/agent/proposalUndo'
 import type { WorkbenchAiMessage } from './workbenchAiTypes'
 
 const WRITE_DEBOUNCE_MS = 1000
@@ -19,6 +25,8 @@ function writeNow(projectId: string): void {
     .write(projectId, {
       creationMessages: toPersisted(useWorkbenchStore.getState().creationAiMessages),
       generationMessages: toPersisted(useGenerationCanvasStore.getState().generationAiMessages),
+      // S6-5 事务回执随对话落盘(审计 A6):「整笔撤销」入口不再被一次 reload 蒸发。
+      committedProposal: getCommittedProposal(),
     })
     .catch(() => {})
 }
@@ -59,6 +67,11 @@ export async function loadProjectConversations(projectId: string): Promise<void>
     if (canvas.generationAiMessages.length === 0 && conversations.generationMessages.length > 0) {
       canvas.setGenerationAiMessages(conversations.generationMessages as WorkbenchAiMessage[])
     }
+    // 回执种回(仅内存槽为空时;损坏数据 parse 失败则宁缺勿错)。
+    if (!getCommittedProposal() && conversations.committedProposal) {
+      const record = parseCommittedProposalRecord(conversations.committedProposal)
+      if (record) setCommittedProposal(record)
+    }
   } catch {
     /* 旁路:读失败不影响面板 */
   }
@@ -69,9 +82,11 @@ export function initConversationPersistence(getProjectId: () => string | null): 
   const onChange = () => scheduleConversationsWrite(getProjectId)
   const unsubscribeWorkbench = useWorkbenchStore.subscribe((state) => state.creationAiMessages, onChange)
   const unsubscribeCanvas = useGenerationCanvasStore.subscribe((state) => state.generationAiMessages, onChange)
+  const unsubscribeProposal = subscribeCommittedProposal(onChange)
   return () => {
     unsubscribeWorkbench()
     unsubscribeCanvas()
+    unsubscribeProposal()
     if (timer) {
       clearTimeout(timer)
       timer = null

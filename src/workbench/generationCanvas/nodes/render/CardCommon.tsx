@@ -57,12 +57,15 @@ export function PlaceholderCenter({ label }: { label: string }): JSX.Element {
 export function PendingGenerationPlaceholder({
   selected,
   needsFirstFrame,
+  waitingUpstream = false,
   shotIndex,
   title,
   prompt,
 }: {
   selected: boolean
   needsFirstFrame: boolean
+  /** 审计 A15：已连首帧/参考边、只是上游还没生成出画面——提示等待而非再喊拖图。 */
+  waitingUpstream?: boolean
   shotIndex: number | null
   title?: string
   prompt?: string
@@ -72,9 +75,19 @@ export function PendingGenerationPlaceholder({
     return (
       <div className="flex w-full h-full items-center justify-center pointer-events-none px-4 text-center">
         <span className="text-micro text-nomi-ink-40 leading-relaxed">
-          把图片节点拖过来
-          <br />
-          作为首帧
+          {waitingUpstream ? (
+            <>
+              已连接上游画面
+              <br />
+              等待其生成完成
+            </>
+          ) : (
+            <>
+              把图片节点拖过来
+              <br />
+              作为首帧
+            </>
+          )}
         </span>
       </div>
     )

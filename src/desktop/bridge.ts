@@ -131,10 +131,10 @@ export type DesktopBridge = {
   review?: {
     onEvent: (callback: (payload: unknown) => void) => () => void
   }
-  /** S1b-3 对话持久化(conversation 域独立文件,不混画布 payload)。 */
+  /** S1b-3 对话持久化(conversation 域独立文件,不混画布 payload)。committedProposal=S6-5 事务回执(审计 A6),形状由画布层校验。 */
   conversations?: {
-    read: (projectId: string) => Promise<{ ok: boolean; conversations: { creationMessages: PersistedAiMessage[]; generationMessages: PersistedAiMessage[] } | null }>
-    write: (projectId: string, payload: { creationMessages: PersistedAiMessage[]; generationMessages: PersistedAiMessage[] }) => Promise<{ ok: boolean }>
+    read: (projectId: string) => Promise<{ ok: boolean; conversations: { creationMessages: PersistedAiMessage[]; generationMessages: PersistedAiMessage[]; committedProposal?: unknown } | null }>
+    write: (projectId: string, payload: { creationMessages: PersistedAiMessage[]; generationMessages: PersistedAiMessage[]; committedProposal?: unknown }) => Promise<{ ok: boolean }>
   }
   onboarding: {
     start: (payload: {

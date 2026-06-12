@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { summarizeToolCall, describeToolCallDetail } from './toolCallSummary'
+import { buildStepDetailLabels, countCreatedNodesByCategory, summarizeToolCall, describeToolCallDetail } from './toolCallSummary'
 
 describe('summarizeToolCall — 时间线步骤标题(人话,无 toolName 原文)', () => {
   it('各工具翻成人话动词短语', () => {
@@ -37,5 +37,63 @@ describe('describeToolCallDetail — 副标题翻 args(杀 raw JSON)', () => {
   it('delete/batch 列 id;read 无 detail', () => {
     expect(describeToolCallDetail('delete_canvas_nodes', { nodeIds: ['a', 'b'] })).toBe('a，b')
     expect(describeToolCallDetail('read_canvas_state', {})).toBe('')
+  })
+})
+
+describe('buildStepDetailLabels — 回执逐项明细(审计 A16)', () => {
+  it('创建节点 → 每节点一行「标题 → 落点分类」(落点回报,A1)', () => {
+    const labels = buildStepDetailLabels('create_canvas_nodes', {
+      nodes: [
+        { kind: 'character', title: '主人公定妆' },
+        { kind: 'image', title: '镜头 1 清晨街道' },
+        { kind: 'video' },
+      ],
+    })
+    expect(labels).toHaveLength(3)
+    expect(labels[0]).toBe('「主人公定妆」→ 角色')
+    expect(labels[1]).toBe('「镜头 1 清晨街道」→ 分镜')
+    expect(labels[2]).toContain('→ 分镜')
+  })
+
+  it('连接边 → 按语义分组计数,不灌 id 串', () => {
+    const labels = buildStepDetailLabels('connect_canvas_edges', {
+      edges: [
+        { mode: 'character_ref' },
+        { mode: 'character_ref' },
+        { mode: 'first_frame' },
+      ],
+    })
+    expect(labels).toHaveLength(1)
+    expect(labels[0]).toContain('连接 3 条引用线')
+    expect(labels[0]).toContain('角色 2')
+    expect(labels[0]).toContain('首帧 1')
+  })
+
+  it('其余工具退回一行摘要', () => {
+    expect(buildStepDetailLabels('delete_canvas_nodes', { nodeIds: ['a'] })).toEqual(['删除 1 个节点'])
+  })
+})
+
+describe('countCreatedNodesByCategory — 落点分组(审计 A1)', () => {
+  it('跨分类创建按分类计数,供回执跳转 chip / toast 落点行', () => {
+    const counts = countCreatedNodesByCategory([
+      {
+        toolName: 'create_canvas_nodes',
+        effectiveArgs: {
+          nodes: [
+            { kind: 'character' },
+            { kind: 'character' },
+            { kind: 'scene' },
+            { kind: 'image' },
+            { kind: 'video' },
+          ],
+        },
+      },
+      { toolName: 'connect_canvas_edges', effectiveArgs: { edges: [] } },
+    ])
+    const byId = new Map(counts.map((item) => [item.categoryId, item]))
+    expect(byId.get('cast')).toMatchObject({ label: '角色', count: 2 })
+    expect(byId.get('scene')).toMatchObject({ label: '场景', count: 1 })
+    expect(byId.get('shots')).toMatchObject({ label: '分镜', count: 2 })
   })
 })

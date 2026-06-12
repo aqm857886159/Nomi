@@ -2,6 +2,7 @@ import React from 'react'
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { WorkbenchButton } from '../../../design'
+import { useWorkbenchStore } from '../../workbenchStore'
 import {
   detectLostUserEdits,
   runProposalUndo,
@@ -21,6 +22,11 @@ export default function CommittedProposalCard({ record, onUndone, flat = false }
 }): JSX.Element {
   const [stepsOpen, setStepsOpen] = React.useState(false)
   const [lostEdits, setLostEdits] = React.useState<string[] | null>(null)
+  const setActiveCategoryId = useWorkbenchStore((state) => state.setActiveCategoryId)
+  const activeCategoryId = useWorkbenchStore((state) => state.activeCategoryId)
+  // 落点回报(审计 A1):本笔节点落进了哪些分类——非当前分类的给跳转 chip,
+  // 否则跨分类产物(定妆卡等)对停在分镜视图的用户等于凭空消失。
+  const jumpTargets = (record.categoryCounts ?? []).filter((item) => item.count > 0)
 
   const handleUndo = () => {
     const lost = detectLostUserEdits(record)
@@ -63,6 +69,26 @@ export default function CommittedProposalCard({ record, onUndone, flat = false }
           整笔撤销
         </WorkbenchButton>
       </div>
+      {jumpTargets.length > 0 ? (
+        <div className={cn('flex flex-wrap items-center gap-1')}>
+          {jumpTargets.map((item) => (
+            <button
+              key={item.categoryId}
+              type='button'
+              data-proposal-category-jump={item.categoryId}
+              className={cn(
+                'inline-flex items-center h-5 px-2 rounded-full border text-micro cursor-pointer',
+                item.categoryId === activeCategoryId
+                  ? 'border-nomi-line-soft bg-nomi-ink-05 text-nomi-ink-60 cursor-default'
+                  : 'border-nomi-line bg-nomi-paper text-nomi-ink-80 hover:bg-nomi-ink-05',
+              )}
+              onClick={() => setActiveCategoryId(item.categoryId)}
+            >
+              {item.label} {item.count}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {stepsOpen ? (
         <ol className={cn('flex flex-col gap-1 list-none p-0 m-0')}>
           {record.stepLabels.map((label, index) => (

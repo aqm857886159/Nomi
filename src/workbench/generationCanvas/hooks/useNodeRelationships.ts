@@ -97,6 +97,21 @@ export function useNodeVariantCount(nodeId: string): number {
 }
 
 /**
+ * 审计 A15：video 节点是否已连上「能供画面」的入边（首帧/尾帧/素材参考）。
+ * 占位文案据此区分「没连边 → 提示拖图」vs「已连、上游未生成 → 提示等待」。
+ */
+export function useHasFrameSourceEdge(nodeId: string, enabled: boolean): boolean {
+  return useGenerationCanvasStore((state) =>
+    enabled &&
+    state.edges.some(
+      (edge) =>
+        edge.target === nodeId &&
+        (!edge.mode || edge.mode === 'first_frame' || edge.mode === 'last_frame' || edge.mode === 'reference'),
+    ),
+  )
+}
+
+/**
  * 当前分镜节点的 1-based 镜头编号。
  *
  * 编号 = 节点上的存储身份 `shotIndex`（创建时一次性分配，hydrate 时为存量回填，

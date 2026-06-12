@@ -19,7 +19,7 @@ import NodeImageEditToolbar from "./NodeImageEditToolbar";
 import NodeResultDownloadButton from "./NodeResultDownloadButton";
 import { useNodeImageEditing } from "./useNodeImageEditing";
 import { useNodeDragResize } from "./useNodeDragResize";
-import { useShotIndex } from "../hooks/useNodeRelationships";
+import { useHasFrameSourceEdge, useShotIndex } from "../hooks/useNodeRelationships";
 import { PendingGenerationPlaceholder, Scene3DEditorLoading } from "./render/CardCommon";
 import { cn } from "../../../utils/cn";
 import { NomiImage } from "../../../design/media";
@@ -358,6 +358,9 @@ function BaseGenerationNodeImpl({
     const nodeExecutionKind = getGenerationNodeExecutionKind(node.kind);
     // L3：待生成卡给镜头序号，让未选中的占位卡也能一眼分清哪个镜头（非 shots 返回 null）。
     const shotIndex = useShotIndex(node.id, node.categoryId);
+    // 审计 A15：已连上游画面边时占位不再误导喊「拖图进来」。
+    const hasFrameSourceEdge = useHasFrameSourceEdge(node.id, nodeExecutionKind === "video");
+    const needsFirstFrame = nodeExecutionKind === "video" && !canGenerate && !isGenerating;
     const handlePanoramaScreenshot = React.useCallback(
         (screenshot: PanoramaScreenshot) => {
             const { dataUrl, dimensions } = screenshot;
@@ -801,11 +804,8 @@ function BaseGenerationNodeImpl({
                 ) : (
                     <PendingGenerationPlaceholder
                         selected={selected}
-                        needsFirstFrame={
-                            nodeExecutionKind === "video" &&
-                            !canGenerate &&
-                            !isGenerating
-                        }
+                        needsFirstFrame={needsFirstFrame}
+                        waitingUpstream={hasFrameSourceEdge}
                         shotIndex={shotIndex}
                         title={node.title}
                         prompt={node.prompt}

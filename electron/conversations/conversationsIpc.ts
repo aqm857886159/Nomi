@@ -14,6 +14,8 @@ type PersistedConversations = {
   v: 1;
   creationMessages: PersistedMessage[];
   generationMessages: PersistedMessage[];
+  /** S6-5 事务回执(审计 A6):整笔撤销入口随对话落盘,reload 后仍可撤销。形状由渲染层校验。 */
+  committedProposal?: unknown;
 };
 
 const MAX_MESSAGES = 200;
@@ -21,6 +23,13 @@ const MAX_MESSAGES = 200;
 function conversationsPath(projectId: string): string | null {
   const root = resolveWorkspaceProjectDir(projectId, getWorkspaceRepositoryDeps());
   return root ? path.join(root, ".nomi", "conversations.json") : null;
+}
+
+/** 回执只做最小形状检(proposalId 必须是非空 string),完整校验在渲染层 parse。 */
+function sanitizeCommittedProposal(value: unknown): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const proposalId = (value as Record<string, unknown>).proposalId;
+  return typeof proposalId === "string" && proposalId ? value : null;
 }
 
 function sanitizeMessages(value: unknown): PersistedMessage[] {
@@ -47,6 +56,7 @@ export function registerConversationsIpc(): void {
           v: 1 as const,
           creationMessages: sanitizeMessages(raw.creationMessages),
           generationMessages: sanitizeMessages(raw.generationMessages),
+          committedProposal: sanitizeCommittedProposal(raw.committedProposal),
         },
       };
     } catch (error) {
@@ -56,7 +66,10 @@ export function registerConversationsIpc(): void {
 
   ipcMain.handle(
     "nomi:conversations:write",
-    async (_event, payload: { projectId?: string; creationMessages?: unknown; generationMessages?: unknown }) => {
+    async (
+      _event,
+      payload: { projectId?: string; creationMessages?: unknown; generationMessages?: unknown; committedProposal?: unknown },
+    ) => {
       try {
         const filePath = conversationsPath(String(payload?.projectId || ""));
         if (!filePath) return { ok: false, error: "project not found" };
@@ -64,6 +77,7 @@ export function registerConversationsIpc(): void {
           v: 1,
           creationMessages: sanitizeMessages(payload?.creationMessages),
           generationMessages: sanitizeMessages(payload?.generationMessages),
+          committedProposal: sanitizeCommittedProposal(payload?.committedProposal),
         };
         writeJsonFileAtomic(filePath, value);
         return { ok: true };
