@@ -8,6 +8,8 @@ type ReconcileDeviationCardProps = {
   /** 一键整笔撤销(S6-2 后整笔提议=一个 undo barrier,一次 undo 即全退)。 */
   onUndoAll: () => void
   onDismiss: () => void
+  /** 时间线内嵌(方案三):去外框,导轨提供视觉结构。 */
+  flat?: boolean
 }
 
 const formatValue = (value: unknown): string => {
@@ -20,10 +22,10 @@ const formatValue = (value: unknown): string => {
  * 正常对账一致时这张卡永远不出现(M1:用户什么都看不见)——它是诚实纪律的兜底面,
  * 不是常驻 UI。样式复用 pending 工具卡的卡式(同层级、同密度),警示色用 --nomi-snap-tag。
  */
-export default function ReconcileDeviationCard({ deviations, onUndoAll, onDismiss }: ReconcileDeviationCardProps): JSX.Element {
+export default function ReconcileDeviationCard({ deviations, onUndoAll, onDismiss, flat = false }: ReconcileDeviationCardProps): JSX.Element {
   return (
     <div
-      className={cn('flex flex-col gap-2 p-3 rounded-nomi border border-nomi-line bg-nomi-paper')}
+      className={cn('flex flex-col gap-2', flat ? '' : 'p-3 rounded-nomi border border-nomi-line bg-nomi-paper')}
       data-reconcile-deviation-card="true"
       aria-label="执行与批准的出入"
     >

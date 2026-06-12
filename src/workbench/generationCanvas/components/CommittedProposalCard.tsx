@@ -13,9 +13,11 @@ import {
  * 「查看步骤」= 最小轨迹视图(本笔事务的人话步骤+对账状态);
  * 「整笔撤销」= 补偿事务回退本笔,期间用户工作保留;用户改过提议节点时先列明再丢(N13)。
  */
-export default function CommittedProposalCard({ record, onUndone }: {
+export default function CommittedProposalCard({ record, onUndone, flat = false }: {
   record: CommittedProposalRecord
   onUndone?: () => void
+  /** 时间线内嵌(方案三):去外框,导轨提供视觉结构。 */
+  flat?: boolean
 }): JSX.Element {
   const [stepsOpen, setStepsOpen] = React.useState(false)
   const [lostEdits, setLostEdits] = React.useState<string[] | null>(null)
@@ -32,7 +34,7 @@ export default function CommittedProposalCard({ record, onUndone }: {
 
   return (
     <div
-      className={cn('flex flex-col gap-2 p-3 rounded-nomi border border-nomi-line-soft bg-nomi-ink-05/60')}
+      className={cn('flex flex-col gap-2', flat ? '' : 'p-3 rounded-nomi border border-nomi-line-soft bg-nomi-ink-05/60')}
       data-committed-proposal-card={record.proposalId}
     >
       <div className={cn('flex items-center gap-2')}>

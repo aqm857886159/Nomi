@@ -1,5 +1,5 @@
-import { IconCornerDownLeft, IconPaperclip, IconPlayerStopFilled, IconSend2, IconX } from '@tabler/icons-react'
-import { NomiAILabel, NomiLoadingMark, NomiLogoMark, NomiSelect, WorkbenchButton, WorkbenchIconButton } from '../../../design'
+import { IconPaperclip, IconPlayerStopFilled, IconSend2, IconX } from '@tabler/icons-react'
+import { NomiAILabel, NomiLogoMark, NomiSelect, WorkbenchButton, WorkbenchIconButton } from '../../../design'
 import React from 'react'
 import { cn } from '../../../utils/cn'
 import {
@@ -25,21 +25,18 @@ import {
   FIXATION_PLANNING_EVENT,
   type FixationPlanningRequest,
 } from '../agent/fixationLauncher'
-import AgentPlanCard, { summarizeAgentPlan } from './AgentPlanCard'
-import ReconcileDeviationCard from './ReconcileDeviationCard'
-import CommittedProposalCard from './CommittedProposalCard'
+import AssistantTimeline from './AssistantTimeline'
+import { summarizeToolCall } from './toolCallSummary'
 import { MemoryFold } from './MemoryFold'
 import { clearCommittedProposal, runProposalUndo, setCommittedProposal, useCommittedProposal } from '../agent/proposalUndo'
 import { toastAction } from '../../../ui/toastAction'
 import type { ReconcileDeviation } from '../agent/reconcile'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { AiReplyActionButton } from '../../ai/AiReplyActionButton'
 import { handleAiComposerKeyDown } from '../../ai/aiComposerKeyboard'
 import { WorkbenchAiHeaderActions } from '../../ai/WorkbenchAiHeaderActions'
 import AssistantModelPicker from '../../ai/AssistantModelPicker'
 import { AssistantToolsFold } from '../../ai/AssistantToolsFold'
-import { StaleConversationDivider, useStaleConversationBoundary } from '../../ai/staleConversationDivider'
-import { narrateTurnStats } from '../../observability/narrate'
+import { useStaleConversationBoundary } from '../../ai/staleConversationDivider'
 import { AttachmentRail } from '../../ai/composer/AttachmentRail'
 import { AutoGrowTextarea } from '../../ai/composer/AutoGrowTextarea'
 import { COMPOSER_ATTACHMENT_ACCEPT, useComposerAttachments } from '../../ai/composer/useComposerAttachments'
@@ -57,34 +54,6 @@ type PendingToolCall = {
 export type ApproveCallRequest = {
   toolCallId: string
   overrides?: Record<string, unknown>
-}
-
-function summarizeToolCall(toolName: string, args: unknown): string {
-  const record = (args && typeof args === 'object') ? args as Record<string, unknown> : {}
-  if (toolName === 'create_canvas_nodes') {
-    const nodes = Array.isArray(record.nodes) ? record.nodes : []
-    const summary = typeof record.summary === 'string' ? record.summary : ''
-    return `创建 ${nodes.length} 个节点${summary ? `：${summary}` : ''}`
-  }
-  if (toolName === 'connect_canvas_edges') {
-    const edges = Array.isArray(record.edges) ? record.edges : []
-    return `连接 ${edges.length} 条边`
-  }
-  if (toolName === 'set_node_prompt') {
-    return `改写节点 ${String(record.nodeId || '')} 的提示词`
-  }
-  if (toolName === 'delete_canvas_nodes') {
-    const ids = Array.isArray(record.nodeIds) ? record.nodeIds : []
-    return `删除 ${ids.length} 个节点`
-  }
-  if (toolName === 'run_generation_batch') {
-    const ids = Array.isArray(record.nodeIds) ? record.nodeIds : []
-    return `批量生成 ${ids.length} 个节点（将产生生成费用）`
-  }
-  if (toolName === 'read_canvas_state') {
-    return '读取画布当前状态'
-  }
-  return `${toolName}`
 }
 
 type CanvasAssistantPanelProps = {
@@ -352,10 +321,9 @@ export default function CanvasAssistantPanel({
 
         const finalText = result.response.text?.trim() || ''
         if (toolActionCount > 0) {
-          updateMessage(
-            assistantMessageId,
-            `${finalText ? finalText + '\n\n' : ''}已执行 ${toolActionCount} 个工具调用。`,
-          )
+          // 方案三:工具执行结果由时间线的「已确认✓ / 已应用」步骤表达,
+          // 正文不再拼「已执行 N 个工具调用」(盘点 ✂:回执已说,正文拼接是双重陈述)。
+          updateMessage(assistantMessageId, finalText || '已完成。')
         } else if (toolEmittedCount === 0 && mode === 'agent' && AGENT_ACTION_INTENT.test(finalText)) {
           // 模型只回文字、没发任何工具调用，但话里像是要操作 → 多半是当前模型不擅长工具调用。
           updateMessage(
@@ -544,154 +512,24 @@ export default function CanvasAssistantPanel({
       </header>
       <AssistantToolsFold tools={['读画布', '建节点', '设提示词', '连边', '删节点', '批量生成']} />
       <MemoryFold refreshKey={memoryRefreshKey} />
-      <div className={cn('flex flex-1 flex-col gap-3 min-h-0 overflow-auto p-4')}>
-        {messages.length === 0 && pendingToolCalls.length === 0 ? (
-          <div className={cn(
-            'flex flex-1 flex-col items-center justify-center gap-2',
-            'max-w-[240px] mx-auto py-6 px-3 text-center',
-          )}>
-            <div className={cn('text-nomi-ink font-[Fraunces,Inter,serif] text-title font-medium')}>我帮你搭画布</div>
-            <div className={cn('text-nomi-ink-60 text-bodySm leading-relaxed')}>
-              铺镜头、改提示词、连节点都交给我；出图按节点上的「生成」键。
-            </div>
-            <div className={cn('flex flex-col gap-1.5 w-full mt-2')}>
-              {['列 3 个镜头铺到画布', '给选中的镜头写一版提示词', '把镜头按先后顺序连起来'].map((suggestion) => (
-                <WorkbenchButton
-                  key={suggestion}
-                  className={cn(
-                    'w-full min-h-9 py-2 px-3 border border-transparent rounded-nomi',
-                    'flex items-center justify-between gap-2 text-left font-normal',
-                    'bg-nomi-ink-05 text-nomi-ink-80 cursor-pointer',
-                    'hover:border-nomi-line hover:bg-nomi-paper hover:text-nomi-ink',
-                  )}
-                  onClick={() => submitAgentMessage(suggestion)}
-                >
-                  <span className={cn('min-w-0')}>{suggestion}</span>
-                  <IconCornerDownLeft size={13} className={cn('shrink-0 text-nomi-ink-40')} />
-                </WorkbenchButton>
-              ))}
-            </div>
-          </div>
-        ) : (
-          messages.map((message) => (
-            <React.Fragment key={message.id}>
-              <div
-                className={cn(
-                  'relative max-w-[90%] py-[10px] px-[14px] rounded-nomi',
-                  'bg-nomi-ink-05 text-nomi-ink text-body-sm leading-[1.55] whitespace-pre-wrap',
-                  message.role === 'user' && 'self-end rounded-br-[4px]',
-                  message.role === 'assistant' && 'self-start rounded-bl-[4px]',
-                  message.role === 'tool' && 'self-start bg-nomi-accent-soft text-nomi-accent',
-                )}
-                data-role={message.role}
-              >
-                {message.attachments?.length ? (
-                  <AttachmentRail attachments={message.attachments} readOnly className={cn('mb-1.5')} />
-                ) : null}
-                {message.role === 'assistant' && message.content === '处理中...' ? (
-                  // 与创作助手一致：消息处理中时左侧显示转动的 N（NomiLoadingMark），而非干巴巴的「处理中...」文字。
-                  <NomiLoadingMark size={15} label="处理中" />
-                ) : (
-                  message.content
-                )}
-                {message.role !== 'user' && message.content !== '处理中...' ? (
-                  <AiReplyActionButton
-                    className="generation-canvas-v2-assistant__reply-action"
-                    content={message.content}
-                  />
-                ) : null}
-                {message.turnStats?.totalTokens ? (
-                  <span className={cn('block mt-1 text-micro text-nomi-ink-40')}>{narrateTurnStats(message.turnStats.totalTokens, message.turnStats)}</span>
-                ) : null}
-              </div>
-              {message.id === staleBoundaryId ? <StaleConversationDivider /> : null}
-            </React.Fragment>
-          ))
-        )}
-        {committedProposal && !deviationReport ? (
-          <CommittedProposalCard record={committedProposal} />
-        ) : null}
-        {deviationReport ? (
-          <ReconcileDeviationCard
-            deviations={deviationReport}
-            onUndoAll={() => {
-              // 整笔撤销单机制(S6-5):补偿事务回退本笔,期间用户工作保留。
-              if (committedProposal) runProposalUndo(committedProposal)
-              else useGenerationCanvasStore.getState().undo()
-              setDeviationReport(null)
-            }}
-            onDismiss={() => setDeviationReport(null)}
-          />
-        ) : null}
-        {pendingToolCalls.length > 0 ? (() => {
-          // Aggregate consecutive create_canvas_nodes + connect_canvas_edges
-          // pairs into a single storyboard plan card; everything else falls
-          // back to the per-call confirmation list below. Rendered at the
-          // BOTTOM of the thread so the latest plan sits with the latest reply.
-          const plan = summarizeAgentPlan(pendingToolCalls)
-          const planCallIds = new Set([plan?.createCallId, plan?.connectCallId].filter(Boolean) as string[])
-          const remaining = plan
-            ? pendingToolCalls.filter((call) => !planCallIds.has(call.toolCallId))
-            : pendingToolCalls
-          return (
-            <div className={cn('flex flex-col gap-3')}>
-              {plan ? (
-                <AgentPlanCard plan={plan} approveCalls={approveCalls} rejectCall={(toolCallId) => resolvePending(toolCallId, { ok: false, message: 'rejected by user' })} />
-              ) : null}
-              {remaining.length > 0 ? (
-                <div
-                  className={cn(
-                    'flex flex-col gap-2 p-3 rounded-nomi border border-nomi-accent-soft bg-nomi-accent-soft/40',
-                  )}
-                  data-pending-tool-calls="true"
-                  aria-label="待确认的 Agent 工具调用"
-                >
-                  <div className={cn('text-nomi-accent text-[12px] font-medium uppercase tracking-wider')}>
-                    Agent 准备调用工具
-                  </div>
-                  {remaining.map((call) => (
-                    <div
-                      key={call.toolCallId}
-                      className={cn('flex flex-col gap-2 p-2 rounded-nomi-sm bg-nomi-paper border border-nomi-line-soft')}
-                      data-tool-call-id={call.toolCallId}
-                    >
-                      <div className={cn('text-nomi-ink text-[13px] font-medium')}>{call.toolName}</div>
-                      <div className={cn('text-nomi-ink-80 text-caption')}>{summarizeToolCall(call.toolName, call.args)}</div>
-                      <details className={cn('text-nomi-ink-60 text-caption')}>
-                        <summary className={cn('cursor-pointer select-none')}>查看参数</summary>
-                        <pre className={cn('mt-1 max-h-[160px] overflow-auto p-2 rounded-nomi-sm bg-nomi-ink-05 text-[11px] leading-[1.4] whitespace-pre-wrap break-all')}>
-                          {JSON.stringify(call.args, null, 2)}
-                        </pre>
-                      </details>
-                      <div className={cn('flex items-center justify-end gap-2 mt-1')}>
-                        <WorkbenchButton
-                          className={cn(
-                            'h-7 px-3 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-ink-80 text-[12px] cursor-pointer',
-                            'hover:bg-nomi-ink-05',
-                          )}
-                          onClick={() => resolvePending(call.toolCallId, { ok: false, message: 'rejected by user' })}
-                        >
-                          拒绝
-                        </WorkbenchButton>
-                        <WorkbenchButton
-                          className={cn(
-                            'h-7 px-3 rounded-nomi-sm border-0 bg-nomi-ink text-nomi-paper text-[12px] cursor-pointer',
-                            'hover:bg-nomi-accent',
-                          )}
-                          onClick={() => approveCalls([{ toolCallId: call.toolCallId }])}
-                        >
-                          确认
-                        </WorkbenchButton>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          )
-        })() : null}
-        <div ref={threadBottomRef} aria-hidden="true" />
-      </div>
+      <AssistantTimeline
+        messages={messages}
+        staleBoundaryId={staleBoundaryId}
+        onSuggestion={submitAgentMessage}
+        pendingToolCalls={pendingToolCalls}
+        approveCalls={approveCalls}
+        rejectPending={(toolCallId) => resolvePending(toolCallId, { ok: false, message: 'rejected by user' })}
+        committedProposal={committedProposal}
+        deviationReport={deviationReport}
+        onDeviationUndo={() => {
+          // 整笔撤销单机制(S6-5):补偿事务回退本笔,期间用户工作保留。
+          if (committedProposal) runProposalUndo(committedProposal)
+          else useGenerationCanvasStore.getState().undo()
+          setDeviationReport(null)
+        }}
+        onDeviationDismiss={() => setDeviationReport(null)}
+        threadBottomRef={threadBottomRef}
+      />
       <form
         className={cn('grid gap-1 p-3 border-t border-nomi-line-soft bg-nomi-paper')}
         onSubmit={handleSubmit}
