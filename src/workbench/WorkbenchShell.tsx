@@ -9,6 +9,7 @@ import {
 } from "./workbenchStore";
 import { cn } from "../utils/cn";
 import ProjectExplorerSidebar from "./explorer/ProjectExplorerSidebar";
+import { WorkbenchTour } from "./onboarding/WorkbenchTour";
 
 const CreationWorkspace = React.lazy(
     () => import("./creation/CreationWorkspace"),
@@ -212,6 +213,8 @@ export default function WorkbenchShell({
                     ) : null}
                 </div>
             </main>
+            {/* 三步引导：挂 shell 根内（main 之外不被 overflow 裁剪；body portal 会丢 token 作用域） */}
+            <WorkbenchTour />
         </div>
     );
 }

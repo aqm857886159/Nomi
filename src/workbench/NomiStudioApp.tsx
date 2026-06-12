@@ -26,6 +26,7 @@ import { setDesktopActiveProjectId } from "../desktop/activeProject";
 import { getDesktopBridge } from "../desktop/bridge";
 import { listWorkbenchModelCatalogModels } from "./api/modelCatalogApi";
 import { useHasTextModel } from "./library/useHasTextModel";
+import { requestWorkbenchTour } from "./onboarding/workbenchTourState";
 import { buildStudioUrl } from "../utils/appRoutes";
 import { openWorkspaceFromLibrary } from "./library/openWorkspaceFlow";
 
@@ -313,6 +314,8 @@ export default function NomiStudioApp(): JSX.Element {
             // 展开创作助手让「拆镜头」CTA 一眼可见，用户读完故事一键拆镜进画布。
             store.setWorkspaceMode("creation");
             store.setCreationAssistantAutoOpen(true);
+            // 首次体验自动开三步引导（已看过的用户由 WorkbenchTour 端按标记过滤）
+            requestWorkbenchTour();
         },
         [hydrateProject, refreshProjects],
     );

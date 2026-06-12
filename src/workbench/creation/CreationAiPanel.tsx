@@ -553,6 +553,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
             )}
             type="button"
             title="把当前正文交给 AI 拆成镜头节点"
+            data-tour="storyboard-cta"
             disabled={sending || !(selectedText || documentText).trim()}
             onClick={() => launchStoryboardPlanning('🎬 拆镜头')}
           >

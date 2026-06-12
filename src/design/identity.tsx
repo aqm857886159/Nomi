@@ -120,6 +120,7 @@ export function NomiStepper({ value, onChange }: NomiStepperProps): JSX.Element 
           type="button"
           aria-current={value === tab.mode ? 'page' : undefined}
           data-state={value === tab.mode ? 'active' : 'idle'}
+          data-mode={tab.mode}
           onClick={() => onChange(tab.mode)}
         >
           {tab.label}
