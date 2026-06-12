@@ -10,7 +10,7 @@ import { buildNormalizedRecipe, buildTaskProvenance } from "./vendor/provenance"
 import { traceVendorCompleted, traceVendorRequested } from "./events/vendorCallTrace";
 import { scheduleTechnicalReview } from "./review/reviewTrace";
 import { type AuthType, appendQueryParams, authHeaders as buildAuthHeaders, buildHttpRequest, buildTemplateContext, extractTaskId as extractTaskIdShared } from "./ai/requestPipeline";
-import { streamTextTask } from "./ai/streamTextTask";
+import { executeTextTask } from "./textTaskRunner";
 import { firstString, isJsonRecord, nowIso, readNestedRecord, trim, type JsonRecord } from "./jsonUtils";
 import { collectAssetUrls, firstMappedString, providerMetaFromResponse, taskStatusFromResponse, valuesFromMapping } from "./tasks/responseParsing";
 import { TtlLruCache } from "./tasks/taskCache";
@@ -43,7 +43,7 @@ import type {
   Vendor,
 } from "./catalog/types";
 import { selectTaskMapping } from "./catalog/types";
-import { firstReferenceImage, taskTemplateParams } from "./catalog/taskParams";
+import { taskTemplateParams } from "./catalog/taskParams";
 export type {
   AiSdkProviderKind,
   BillingModelKind,
@@ -115,7 +115,7 @@ export type TaskRequest = {
   extras?: Record<string, unknown>;
 };
 
-type TaskResult = {
+export type TaskResult = {
   id: string;
   kind: ProfileKind;
   status: "queued" | "running" | "succeeded" | "failed";
@@ -613,21 +613,9 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
   }
 
   if (wantedKind === "text") {
-    // 路径 B 文本任务统一走 AI SDK streamTextTask（方案 A）。runTask 这条不传 onDelta
-    // → 收集最终文本返回，对外契约（TaskResult.raw 形状）不变；逐字流式由独立 IPC 通道消费。
-    const imageUrl = kind === "image_to_prompt" ? firstReferenceImage(request) : "";
-    const maxTokensValue = Number(request.extras?.maxTokens ?? request.extras?.max_tokens);
-    const temperatureValue = Number(request.extras?.temperature);
-    const { raw } = await streamTextTask({
-      vendor,
-      model,
-      apiKey,
-      prompt: request.prompt,
-      ...(imageUrl ? { imageUrl } : {}),
-      ...(Number.isFinite(temperatureValue) ? { temperature: temperatureValue } : {}),
-      ...(Number.isFinite(maxTokensValue) && maxTokensValue > 0 ? { maxTokens: maxTokensValue } : {}),
-    });
-    return { id: taskId, kind, status: "succeeded", assets: [], raw };
+    // 路径 B 文本任务统一走 AI SDK（方案 A，引擎在 textTaskRunner）。runTask 这条不传 onDelta
+    // → 收集最终文本，对外契约（TaskResult.raw 形状）不变；逐字流式由 runTextTaskStream 消费。
+    return executeTextTask({ vendor, model, apiKey, kind, request, taskId });
   }
 
   const suffix = wantedKind === "video" ? "/v1/videos/generations" : "/v1/images/generations";

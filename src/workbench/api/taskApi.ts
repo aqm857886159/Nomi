@@ -100,3 +100,58 @@ export async function fetchWorkbenchTaskResultByVendor(
 ): Promise<FetchWorkbenchTaskResultResponseDto> {
   return requireDesktopRuntime('task result polling').tasks.result(payload) as Promise<FetchWorkbenchTaskResultResponseDto>
 }
+
+/**
+ * 文本任务流式执行：逐 token 回调 onDelta，最终 resolve 与 runWorkbenchTaskByVendor 同形的
+ * TaskResultDto（status:'succeeded'，raw 为 OpenAI choices 形状）。把 IPC 的 streamId+事件
+ * 订阅包成一个 Promise，调用方无需感知通道细节。
+ */
+export async function runWorkbenchTextTaskStream(
+  vendor: string,
+  request: TaskRequestDto,
+  opts: { onDelta?: (delta: string) => void; signal?: AbortSignal } = {},
+): Promise<TaskResultDto> {
+  const normalizedVendor = String(vendor || '').trim()
+  if (!normalizedVendor) throw new Error('vendor is required')
+  const desktop = requireDesktopRuntime('text streaming')
+  const projectId = getDesktopActiveProjectId()
+  const payload = {
+    vendor: normalizedVendor,
+    request: {
+      ...request,
+      extras: {
+        ...(request.extras || {}),
+        ...(projectId ? { projectId } : {}),
+      },
+    },
+  }
+  const { streamId } = await desktop.tasks.runTextStream(payload)
+  return new Promise<TaskResultDto>((resolve, reject) => {
+    let settled = false
+    const finish = (fn: () => void) => {
+      if (settled) return
+      settled = true
+      unsubscribe()
+      fn()
+    }
+    const unsubscribe = desktop.tasks.onTextEvent(streamId, (event) => {
+      const evt = event as { type?: string; delta?: string; result?: TaskResultDto; message?: string }
+      if (evt?.type === 'delta') {
+        opts.onDelta?.(String(evt.delta || ''))
+      } else if (evt?.type === 'done') {
+        finish(() => resolve(evt.result as TaskResultDto))
+      } else if (evt?.type === 'error') {
+        finish(() => reject(new Error(evt.message || '文本流式生成失败')))
+      }
+    })
+    // 外部取消：通知主进程真中断流 + 兜底 reject。
+    if (opts.signal) {
+      const onAbort = () => finish(() => {
+        void desktop.tasks.cancelTextStream(streamId)
+        reject(new DOMException('文本流式已取消', 'AbortError'))
+      })
+      if (opts.signal.aborted) onAbort()
+      else opts.signal.addEventListener('abort', onAbort, { once: true })
+    }
+  })
+}

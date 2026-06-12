@@ -56,6 +56,20 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   tasks: {
     run: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:run", payload),
     result: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:result", payload),
+    // 文本任务流式（逐 token）：start 返回 streamId，onTextEvent 收 delta/done/error。
+    runTextStream: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:tasks:text:stream", payload) as Promise<{ streamId: string }>,
+    cancelTextStream: (streamId: string) =>
+      ipcRenderer.invoke("nomi:tasks:text:cancel", { streamId }),
+    onTextEvent: (streamId: string, callback: (event: unknown) => void) => {
+      const listener = (_event: unknown, payload: { streamId: string; event: unknown }) => {
+        if (payload && payload.streamId === streamId) callback(payload.event);
+      };
+      ipcRenderer.on("nomi:tasks:text:event", listener as never);
+      return () => {
+        ipcRenderer.removeListener("nomi:tasks:text:event", listener as never);
+      };
+    },
   },
   events: {
     append: (projectId: string, events: unknown[]) =>

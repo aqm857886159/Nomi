@@ -38,6 +38,7 @@ import { installCrashHandlers, logCrash } from "./crashLog";
 import { applySystemProxy } from "./systemProxy";
 import { registerExportJobIpc } from "./export/exportJobIpc";
 import { registerAgentChatV2Ipc } from "./ai/agentChatV2Ipc";
+import { registerTextStreamIpc } from "./ai/textStreamIpc";
 import { registerConversationsIpc } from "./conversations/conversationsIpc";
 import { setEventLogSecretsProvider } from "./events/eventLogRepository";
 import { registerEventsIpc } from "./events/eventsIpc";
@@ -291,6 +292,7 @@ function registerIpc(): void {
   ipcMain.handle("nomi:tasks:run", (_event, payload) => runTaskIpcGuard(payload, () => runTask(payload)));
   ipcMain.handle("nomi:tasks:result", (_event, payload) => runTaskIpcGuard(payload, () => fetchTaskResult(payload)));
   registerAgentChatV2Ipc();
+  registerTextStreamIpc();
   registerConversationsIpc();
   registerEventsIpc();
   registerMemoryIpc();

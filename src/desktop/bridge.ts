@@ -99,6 +99,9 @@ export type DesktopBridge = {
   tasks: {
     run: (payload: unknown) => Promise<unknown>
     result: (payload: unknown) => Promise<unknown>
+    runTextStream: (payload: unknown) => Promise<{ streamId: string }>
+    cancelTextStream: (streamId: string) => Promise<unknown>
+    onTextEvent: (streamId: string, callback: (event: unknown) => void) => () => void
   }
   agents: {
     chatV2Start: (payload: unknown) => Promise<{ sessionId: string }>
