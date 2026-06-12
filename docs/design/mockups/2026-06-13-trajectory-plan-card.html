@@ -75,9 +75,7 @@
       display: flex; align-items: center; gap: 6px;
       color: var(--nomi-ink-60); font-size: 11px; font-weight: 650;
     }
-    .layer-head .ic { display: inline-grid; place-items: center; width: 16px; height: 16px; color: var(--nomi-ink-40); }
     .layer-head .count { color: var(--nomi-ink-40); font-weight: 500; }
-    .layer-head .head-chips { margin-left: auto; display: inline-flex; gap: 4px; }
 
     .node-row {
       display: flex; flex-direction: column; gap: 6px;
@@ -190,51 +188,59 @@
         <div class="plan-summary">2 个角色 + 1 个场景定妆，3 镜头连续动作</div>
 
         <section class="layer">
-          <div class="layer-head"><span class="ic">◑</span>参考 <span class="count">×2</span><span class="head-chips"><span class="model-chip">Seedream 4.5 <span class="v">▾</span></span></span></div>
+          <div class="layer-head">参考 <span class="count">×2</span></div>
           <div class="node-row">
-            <div class="head"><span class="title">角色：男主</span><span class="refs"><span class="model-chip">1:1 <span class="v">▾</span></span></span></div>
+            <div class="head"><span class="title">角色：男主</span></div>
             <div class="prompt">三十岁男性，灰色家居服，短发微乱，晨光柔和质感…</div>
+            <div class="chips"><span class="model-chip">Seedream 4.5 <span class="v">▾</span></span><span class="model-chip">1:1 <span class="v">▾</span></span></div>
           </div>
           <div class="node-row">
-            <div class="head"><span class="title">场景：清晨厨房</span><span class="refs"><span class="model-chip">16:9 <span class="v">▾</span></span></span></div>
+            <div class="head"><span class="title">场景：清晨厨房</span></div>
             <div class="prompt">现代极简厨房，晨光斜照料理台，金属咖啡机靠窗…</div>
+            <div class="chips"><span class="model-chip">Seedream 4.5 <span class="v">▾</span></span><span class="model-chip">16:9 <span class="v">▾</span></span></div>
           </div>
         </section>
 
         <section class="layer">
-          <div class="layer-head"><span class="ic">▦</span>关键帧 <span class="count">×3</span><span class="head-chips"><span class="model-chip">Seedream 4.5 <span class="v">▾</span></span><span class="model-chip">16:9 <span class="v">▾</span></span><span class="model-chip">2K <span class="v">▾</span></span></span></div>
+          <div class="layer-head">关键帧 <span class="count">×3</span></div>
           <div class="node-row">
             <div class="head"><span class="title">镜头 1 · 咖啡机特写</span><span class="refs"><span class="ref-chip">场景</span></span></div>
             <div class="prompt">咖啡机研磨特写，咖啡粉如细沙落下，微距质感…</div>
+            <div class="chips"><span class="model-chip">Seedream 4.5 <span class="v">▾</span></span><span class="model-chip">16:9 <span class="v">▾</span></span><span class="model-chip">2K <span class="v">▾</span></span></div>
           </div>
           <div class="node-row">
             <div class="head"><span class="title">镜头 2 · 萃取入杯</span><span class="refs"><span class="ref-chip">场景</span></span></div>
             <div class="prompt">琥珀色咖啡注入玻璃杯，蒸汽升腾，油脂金环…</div>
+            <div class="chips"><span class="model-chip">Seedream 4.5 <span class="v">▾</span></span><span class="model-chip">16:9 <span class="v">▾</span></span><span class="model-chip">2K <span class="v">▾</span></span></div>
           </div>
           <div class="node-row">
             <div class="head"><span class="title">镜头 3 · 阳台晨光</span><span class="refs"><span class="ref-chip">男主</span><span class="ref-chip">场景</span></span></div>
             <div class="prompt">男主端杯走向阳台，城市晨光，背影中景…</div>
+            <div class="chips"><span class="model-chip">Seedream 4.5 <span class="v">▾</span></span><span class="model-chip">16:9 <span class="v">▾</span></span><span class="model-chip">2K <span class="v">▾</span></span></div>
           </div>
         </section>
 
         <section class="layer">
-          <div class="layer-head"><span class="ic">▶</span>视频 <span class="count">×3</span><span class="head-chips"><span class="model-chip">Seedance 2.0 <span class="v">▾</span></span><span class="model-chip">16:9 <span class="v">▾</span></span></span></div>
+          <div class="layer-head">视频 <span class="count">×3</span></div>
           <div class="node-row">
             <div class="head"><span class="title">镜头 1 视频 · 5s</span></div>
             <div class="prompt">缓慢推近，研磨声渐强，咖啡粉落下的微距动态…</div>
+            <div class="chips"><span class="model-chip">Seedance 2.0 <span class="v">▾</span></span><span class="model-chip">16:9 <span class="v">▾</span></span></div>
           </div>
           <div class="node-row">
             <div class="head"><span class="title">镜头 2 视频 · 5s</span></div>
             <div class="prompt">固定机位，蒸汽与液体流动，光影缓变…</div>
+            <div class="chips"><span class="model-chip">Seedance 2.0 <span class="v">▾</span></span><span class="model-chip">16:9 <span class="v">▾</span></span></div>
           </div>
           <div class="node-row">
             <div class="head"><span class="title">镜头 3 视频 · 6s</span></div>
             <div class="prompt">跟随男主走向阳台，镜头缓摇至城市天际线…</div>
+            <div class="chips"><span class="model-chip">Seedance 2.0 <span class="v">▾</span></span><span class="model-chip">16:9 <span class="v">▾</span></span></div>
           </div>
         </section>
 
         <section class="layer">
-          <div class="layer-head"><span class="ic">⇢</span>尾帧接力 <span class="count">可选</span></div>
+          <div class="layer-head">尾帧接力 <span class="count">可选</span></div>
           <div class="relay-row">
             <input type="checkbox" checked aria-label="启用 镜头1→镜头2 尾帧接力" />
             <div>
@@ -257,7 +263,7 @@
         </div>
       </div>
     </div>
-    <p class="note">A（极简版，按用户反馈砍重复）：头部只留一行计划摘要——kicker/计数行/「蓝底=AI 配的」解释全删（计数已在组头、蓝底可点自明）。模型/参数 chip 上提到组头（全组一致时），行内只留差异参数与引用 chip——关键帧行因此只剩 标题+引用+提示词一行。视频行的「首帧=关键帧N」同构关系 chip 删（默认结构不复述）。尾帧接力行文案压成动宾短语。确认按钮纯「确认全部」，不带计数。点击节点行/组头 chip 展开编辑（现有能力）。</p>
+    <p class="note">A（定稿方向）：头部一行计划摘要（kicker/计数行/解释文案删）；组头纯文字「参考 ×2」——不配图标（用户反馈图标隐喻不清，看不懂的图标是负资产）；模型/参数 chip 保持在每行原位（上提组头被否：感觉乱）；视频行「首帧=关键帧N」同构 chip 删；接力行动宾短语；确认按钮纯「确认全部」。点击节点行展开 prompt 编辑（现有能力）。</p>
   </main>
 
   <!-- ===== B ===== -->
