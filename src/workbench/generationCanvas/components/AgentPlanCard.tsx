@@ -12,6 +12,8 @@ type AgentPlanCardProps = {
   approveCalls: (requests: { toolCallId: string; overrides?: Record<string, unknown> }[]) => void
   /** 拒绝单个 call(画布零痕迹)。 */
   rejectCall: (toolCallId: string) => void
+  /** 时间线内嵌(方案三):去外框,导轨提供视觉结构;标题/计数由步骤头承担。 */
+  flat?: boolean
 }
 
 // 从计划节点 + 可用模型清单算出要展示的「模型/比例/清晰度」chip 文案。
@@ -54,7 +56,7 @@ function PendingChip({ label, value }: { label?: string; value: string }): JSX.E
  * AI 把 create_canvas_nodes (+ optional connect) 折叠成一张可确认的卡:每个镜头展示
  * 模型/比例/清晰度(agent 配的,「待你看」高亮) + prompt 常驻可编辑,一键确认整批落地。
  */
-export default function AgentPlanCard({ plan, approveCalls, rejectCall }: AgentPlanCardProps): JSX.Element {
+export default function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPlanCardProps): JSX.Element {
   const [editedPrompts, setEditedPrompts] = React.useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
     plan.nodes.forEach((node) => { initial[node.clientId] = node.prompt })
@@ -98,15 +100,21 @@ export default function AgentPlanCard({ plan, approveCalls, rejectCall }: AgentP
 
   return (
     <div
-      className={cn('flex flex-col gap-3 p-3 rounded-nomi border border-nomi-accent-soft bg-nomi-accent-soft/40')}
+      className={cn(
+        'flex flex-col gap-3',
+        flat ? '' : 'p-3 rounded-nomi border border-nomi-accent-soft bg-nomi-accent-soft/40',
+      )}
       data-agent-plan-card="true"
       aria-label="Agent 故事板计划卡片"
     >
       <div className={cn('flex flex-col gap-[2px]')}>
-        <div className={cn('text-nomi-accent text-[11px] font-medium uppercase tracking-wider')}>
-          Agent 故事板计划
-        </div>
-        <div className={cn('text-nomi-ink text-[14px] font-medium leading-snug')}>{plan.summary}</div>
+        {flat ? null : (
+          <div className={cn('text-nomi-accent text-[11px] font-medium uppercase tracking-wider')}>
+            Agent 故事板计划
+          </div>
+        )}
+        {/* 时间线内嵌时步骤头已写「创建 N 个节点」,这里只留单行计数,不重复标题。 */}
+        {flat ? null : <div className={cn('text-nomi-ink text-[14px] font-medium leading-snug')}>{plan.summary}</div>}
         <div className={cn('text-nomi-ink-60 text-[12px]')}>
           {plan.nodes.length} 个节点 · {plan.edges.length} 条引用边 · <span className={cn('text-nomi-accent')}>蓝底 = AI 配的待你看</span>
         </div>
