@@ -40,7 +40,8 @@ export type NormalizedRecipe = {
   params: Record<string, unknown>;
 };
 
-const ROUTING_EXTRA_KEYS = new Set(["projectId", "nodeId"]);
+// forceRerun 是缓存控制旗标(S8 强制重跑),不影响生成产物——进指纹会假漂。
+const ROUTING_EXTRA_KEYS = new Set(["projectId", "nodeId", "forceRerun"]);
 
 function sortedParams(request: RecipeRequestFields): Record<string, unknown> {
   const raw: Record<string, unknown> = {

@@ -128,6 +128,10 @@ export function buildCatalogTaskRequest(
         modelAlias: asTrimmedString(meta.modelAlias) || modelKey,
         nodeId: node.id,
         nodeKind: node.kind,
+        // S8 缓存语义:节点血统里已出过图(result 或 history,含「基于此重生成」副本)→
+        // 再点生成=用户要重抽 → 强制重跑绕指纹缓存;首次生成/批量补跑同配方命中缓存
+        // 秒回零花费(防双击/重复受理重复扣费)。路由旗标,不进指纹。
+        ...(node.result || (node.history && node.history.length > 0) ? { forceRerun: true } : {}),
         ...buildReferenceExtras(node, references),
       },
     },

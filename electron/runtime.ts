@@ -9,33 +9,13 @@ import { authQueryParams, requestJson } from "./vendor/vendorHttp";
 import { buildNormalizedRecipe, buildTaskProvenance } from "./vendor/provenance";
 import { traceVendorCompleted, traceVendorRequested } from "./events/vendorCallTrace";
 import { scheduleTechnicalReview } from "./review/reviewTrace";
-import {
-  type AuthType,
-  appendQueryParams,
-  authHeaders as buildAuthHeaders,
-  buildHttpRequest,
-  buildTemplateContext,
-  extractTaskId as extractTaskIdShared,
-} from "./ai/requestPipeline";
+import { type AuthType, appendQueryParams, authHeaders as buildAuthHeaders, buildHttpRequest, buildTemplateContext, extractTaskId as extractTaskIdShared } from "./ai/requestPipeline";
 import { sanitizeForBroadCompat } from "./ai/promptSanitize";
 import { firstString, isJsonRecord, nowIso, readNestedRecord, trim, type JsonRecord } from "./jsonUtils";
-import {
-  collectAssetUrls,
-  firstMappedString,
-  providerMetaFromResponse,
-  taskStatusFromResponse,
-  valuesFromMapping,
-} from "./tasks/responseParsing";
+import { collectAssetUrls, firstMappedString, providerMetaFromResponse, taskStatusFromResponse, valuesFromMapping } from "./tasks/responseParsing";
 import { TtlLruCache } from "./tasks/taskCache";
-import {
-  assetBucketFromMeta,
-  assetKindFromContentType,
-  contentTypeFromPath,
-  extensionFromMime,
-  extensionFromUrl,
-  localAssetUrl,
-  stableAssetId,
-} from "./assets/assetPaths";
+import { assetBucketFromMeta, assetKindFromContentType, contentTypeFromPath, extensionFromMime, extensionFromUrl, localAssetUrl, stableAssetId } from "./assets/assetPaths";
+import { readCachedTaskResult, recipeFingerprint, rememberTaskResult } from "./vendor/fingerprintCache";
 import { decryptApiKeyRecord } from "./catalog/secrets";
 import { ensureDir } from "./runtimePaths";
 import {
@@ -177,6 +157,8 @@ type CachedTask = {
   projectId?: string;
   nodeId?: string;
   wantedKind?: BillingModelKind;
+  /** S8 指纹:异步任务终态成功时写回指纹缓存用。 */
+  fingerprint?: string;
 };
 
 type LocalAssetRecord = {
@@ -590,6 +572,11 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
   const mapping = findTaskMapping(vendorKey, kind, modelKey);
 
   if (mapping) {
+    // S8 指纹缓存:同配方(参数没动)秒回上次成功结果,零 vendor 调用;强制重跑经 extras.forceRerun 绕读。
+    const recipe = buildNormalizedRecipe({ vendor, model, mappingId: trim((mapping as unknown as JsonRecord).id), request });
+    const fingerprint = recipeFingerprint(recipe);
+    const cachedHit = readCachedTaskResult({ projectId, fingerprint, nodeId, extras: request.extras });
+    if (cachedHit) return cachedHit as TaskResult;
     const executed = await executeProfileOperation({ vendor, model, apiKey, request, operation: mapping.create });
     const normalized = await buildProfileTaskResult({
       response: executed.response,
@@ -603,9 +590,10 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
       vendor,
       model,
     });
-    traceVendorRequested(projectId, { runId: normalized.result.id, nodeId, recipe: buildNormalizedRecipe({ vendor, model, mappingId: trim((mapping as unknown as JsonRecord).id), request }) });
+    traceVendorRequested(projectId, { runId: normalized.result.id, nodeId, recipe });
     if (["succeeded", "failed"].includes(normalized.result.status)) {
       traceVendorCompleted(projectId, { runId: normalized.result.id, nodeId, status: normalized.result.status as "succeeded" | "failed", assetCount: normalized.result.assets.length });
+      rememberTaskResult(projectId, fingerprint, normalized.result);
     }
     if (!["succeeded", "failed"].includes(normalized.result.status)) {
       taskCache.set(normalized.result.id, {
@@ -618,6 +606,7 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
         projectId,
         nodeId,
         wantedKind,
+        fingerprint,
       });
     }
     return normalized.result;
@@ -642,6 +631,11 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
   }
 
   const suffix = wantedKind === "video" ? "/v1/videos/generations" : "/v1/images/generations";
+  // S8 指纹缓存(fallback 路径同语义)。
+  const fallbackRecipe = buildNormalizedRecipe({ vendor, model, request });
+  const fallbackFingerprint = recipeFingerprint(fallbackRecipe);
+  const fallbackHit = readCachedTaskResult({ projectId, fingerprint: fallbackFingerprint, nodeId, extras: request.extras });
+  if (fallbackHit) return fallbackHit as TaskResult;
   const providerResponse = await postJson(endpoint(vendor, suffix), apiKey, vendor, {
     model: model.modelAlias || model.modelKey,
     prompt: request.prompt,
@@ -653,9 +647,9 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
   });
   const assetUrl = extractAssetUrl(providerResponse);
   const upstreamTaskId = extractTaskIdShared(providerResponse) || taskId;
-  traceVendorRequested(projectId, { runId: upstreamTaskId, nodeId, recipe: buildNormalizedRecipe({ vendor, model, request }) });
+  traceVendorRequested(projectId, { runId: upstreamTaskId, nodeId, recipe: fallbackRecipe });
   if (!assetUrl) {
-    taskCache.set(upstreamTaskId, { vendor: vendorKey, request, raw: providerResponse, model, projectId, nodeId, wantedKind });
+    taskCache.set(upstreamTaskId, { vendor: vendorKey, request, raw: providerResponse, model, projectId, nodeId, wantedKind, fingerprint: fallbackFingerprint });
     return { id: upstreamTaskId, kind, status: "queued", assets: [], raw: providerResponse };
   }
   const type: "image" | "video" = wantedKind === "video" ? "video" : "image";
@@ -665,7 +659,9 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
   // E11 provenance + S4-1 终态事件:与 profile 路径共用 vendor/provenance 模块(单一真相)。
   const provenance = buildTaskProvenance({ vendor, model, request, vendorRequestId: upstreamTaskId });
   traceVendorCompleted(projectId, { runId: upstreamTaskId, nodeId, status: "succeeded", assetCount: 1 });
-  return { id: upstreamTaskId, kind, status: "succeeded", assets: [asset], raw: providerResponse, provenance };
+  const finalResult: TaskResult = { id: upstreamTaskId, kind, status: "succeeded", assets: [asset], raw: providerResponse, provenance };
+  rememberTaskResult(projectId, fallbackFingerprint, finalResult);
+  return finalResult;
 }
 
 export async function fetchTaskResult(payload: unknown): Promise<{ vendor: string; result: TaskResult }> {
@@ -719,6 +715,7 @@ export async function fetchTaskResult(payload: unknown): Promise<{ vendor: strin
     if (normalized.result.status === "succeeded" || normalized.result.status === "failed") {
       // 终态才入日志(轮询 tick 不记);cache.delete 保证单次触发
       traceVendorCompleted(cached.projectId, { runId: taskId, nodeId: cached.nodeId, status: normalized.result.status, assetCount: normalized.result.assets.length });
+      rememberTaskResult(cached.projectId || "", cached.fingerprint, normalized.result);
       taskCache.delete(taskId);
     } else {
       taskCache.set(taskId, {
@@ -740,10 +737,9 @@ export async function fetchTaskResult(payload: unknown): Promise<{ vendor: strin
       ? await localizeTaskAsset(cached.projectId, assetUrl, type, cached.nodeId)
       : { type, url: assetUrl, thumbnailUrl: type === "image" ? assetUrl : null };
     taskCache.delete(taskId);
-    return {
-      vendor: cached.vendor,
-      result: { id: taskId, kind: cached.request.kind, status: "succeeded", assets: [asset], raw: cached.raw },
-    };
+    const lateResult: TaskResult = { id: taskId, kind: cached.request.kind, status: "succeeded", assets: [asset], raw: cached.raw };
+    rememberTaskResult(cached.projectId || "", cached.fingerprint, lateResult);
+    return { vendor: cached.vendor, result: lateResult };
   }
 
   return {

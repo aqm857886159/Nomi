@@ -24,6 +24,23 @@ export function traceVendorRequested(
   ]);
 }
 
+/** S8 指纹缓存命中:零 vendor 调用的「秒回」入账(投影=节点秒得结果;不与真调用混淆)。 */
+export function traceVendorCached(
+  projectId: string | undefined,
+  payload: { runId: string; nodeId?: string; fingerprint: string },
+): void {
+  const id = String(projectId || "").trim();
+  if (!id) return;
+  appendEvents(id, [
+    {
+      id: mintId(),
+      source: "runtime",
+      type: "vendor.call.cached",
+      payload: { runId: payload.runId, ...(payload.nodeId ? { nodeId: payload.nodeId } : {}), fingerprint: payload.fingerprint },
+    },
+  ]);
+}
+
 export function traceVendorCompleted(
   projectId: string | undefined,
   payload: { runId: string; nodeId?: string; status: "succeeded" | "failed"; assetCount: number; error?: VendorErrorStructured },
