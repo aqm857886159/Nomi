@@ -80,6 +80,9 @@ export function normalizeSummary(input: unknown): WorkbenchProjectSummary | null
                   ),
               }
             : {}),
+        ...(typeof raw.seedKey === "string" && raw.seedKey.trim()
+            ? { seedKey: raw.seedKey.trim() }
+            : {}),
         ...(raw.source === "native" || raw.source === "folder"
             ? { source: raw.source }
             : {}),

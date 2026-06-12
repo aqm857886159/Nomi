@@ -41,6 +41,31 @@ describe('projectRepository workspace project creation', () => {
     expect('rootPath' in record).toBe(false)
   })
 
+  it('stamps seedKey onto programmatically seeded projects (idempotent example seeding, audit A8)', () => {
+    // seedKey 是播种身份：tryExample 以它判断「这个示例已播过」。名字不是身份——
+    // 此前以 projectName 重复 createLocalProject 堆出几十个重名示例项目。
+    const create = vi.fn((record: unknown) => record)
+    mockedGetDesktopBridge.mockReturnValue({
+      platform: 'darwin',
+      workspace: {} as never,
+      projects: { create } as never,
+      cost: {} as never,
+      assets: {} as never,
+      exports: {} as never,
+      tasks: {} as never,
+      agents: {} as never,
+      modelCatalog: {} as never,
+    })
+
+    createLocalProject('示例：30 秒产品介绍', undefined, { seedKey: 'example:product-demo' })
+
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ seedKey: 'example:product-demo' }))
+
+    mockedGetDesktopBridge.mockReturnValue(null)
+    const record = createLocalProject('手动项目')
+    expect('seedKey' in record).toBe(false)
+  })
+
   it('reads a workspace manifest record (version 2, nested payload) without throwing', () => {
     // Regression: the workspace folder migration writes version:2 manifests
     // (.nomi/project.json) with a nested payload + lastKnownRootPath. The

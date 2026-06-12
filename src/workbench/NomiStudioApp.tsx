@@ -7,6 +7,7 @@ import { FilePreviewPanel } from "./explorer/FilePreviewPanel";
 import {
     createLocalProject,
     deleteLocalProject,
+    listLocalProjects,
     useLocalProjects,
     type LocalProjectSummary,
 } from "./library/localProjectStore";
@@ -265,6 +266,9 @@ export default function NomiStudioApp(): JSX.Element {
         // 桌面端 createLocalProject 经 IPC 落到 ~/Documents/Nomi Projects 的自动文件夹，
         // Web 端落 localStorage。要绑定自选目录走「打开文件夹」。
         try {
+            // 创建入口契约：每个入口必须显式声明落地视图，不许继承上一个项目的
+            // 残留 mode（审计 A11）。CTA 文案是「从一段文字或想法开始」→ 落创作区。
+            useWorkbenchStore.getState().setWorkspaceMode("creation");
             const project = createLocalProject();
             refreshProjects();
             void hydrateProject(project.id);
@@ -296,12 +300,29 @@ export default function NomiStudioApp(): JSX.Element {
                 setModelCatalogOpened(true);
                 return;
             }
+            // 幂等播种（审计 A8）：示例项目以 seedKey 为身份。已播过 → 直接打开，
+            // 不再重复创建——否则空库 CTA 反复点击、模型接入后的自动续跑（下方
+            // nomi-model-catalog-changed 重放）都会各堆一份重名示例。
+            const seedKey = `example:${example.id}`;
+            const existing = listLocalProjects().find(
+                (item) => item.seedKey === seedKey && !item.missing,
+            );
+            if (existing) {
+                const opened = await hydrateProject(existing.id);
+                if (opened) {
+                    const { useWorkbenchStore } = await import("./workbenchStore");
+                    const store = useWorkbenchStore.getState();
+                    store.setWorkspaceMode("creation");
+                    store.setCreationAssistantAutoOpen(true);
+                }
+                return;
+            }
             // 示例同样不强迫选文件夹：直接在默认位置建项目（桌面端落
             // ~/Documents/Nomi Projects，Web 端落 localStorage），让「30 秒体验」
             // 真的一键就跑。要自定义目录用户可后续走「打开文件夹」。
             let project: LocalProjectSummary;
             try {
-                project = createLocalProject(example.projectName);
+                project = createLocalProject(example.projectName, undefined, { seedKey });
                 refreshProjects();
             } catch (error) {
                 console.error("try-now project error", error);

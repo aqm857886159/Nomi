@@ -72,14 +72,18 @@ describe('migrateNodeToCategoryId', () => {
     expect(migrateNodeToCategoryId(makeNode({ kind: 'image', categoryId: 'my-custom' }), [])).toBe('my-custom')
   })
 
-  it('maps uncategorized legacy node kinds only into surviving v0.6 categories', () => {
+  it('infers uncategorized nodes via the shared kind→category map and never removes them', () => {
+    // 与创建路径共用 getDefaultCategoryForNodeKind（单一真相源，审计 A4）：
+    // kind 可推断 → 永不返回 null。此前 text/output 被判 null 删除，导致
+    // 新建空白项目的默认 text 节点被迁移静默吞掉。
     expect(migrateNodeToCategoryId(makeNode({ kind: 'character' }), [])).toBe('cast')
     expect(migrateNodeToCategoryId(makeNode({ kind: 'scene' }), [])).toBe('scene')
     expect(migrateNodeToCategoryId(makeNode({ kind: 'panorama' }), [])).toBe('scene')
+    expect(migrateNodeToCategoryId(makeNode({ kind: 'scene3d' }), [])).toBe('scene')
     expect(migrateNodeToCategoryId(makeNode({ kind: 'image' }), [])).toBe('shots')
     expect(migrateNodeToCategoryId(makeNode({ kind: 'video' }), [])).toBe('shots')
-    expect(migrateNodeToCategoryId(makeNode({ kind: 'text' }), [])).toBeNull()
-    expect(migrateNodeToCategoryId(makeNode({ kind: 'output' }), [])).toBeNull()
+    expect(migrateNodeToCategoryId(makeNode({ kind: 'text' }), [])).toBe('shots')
+    expect(migrateNodeToCategoryId(makeNode({ kind: 'output' }), [])).toBe('shots')
   })
 })
 
@@ -193,6 +197,19 @@ describe('migrateProjectPayload', () => {
     }
 
     expect(workbenchProjectPayloadSchema.safeParse(payload).success).toBe(true)
+  })
+
+  it('treats a freshly created default project payload as already migrated (creation↔migration contract)', () => {
+    // 创建/迁移契约（审计 A4 的结构保证）：任何创建路径的产物必须是「已迁移形态」。
+    // 该不变量破掉的症状链：新建空白项目 → 打开即弹「项目已升级到目录树」toast →
+    // 默认节点被静默删除。新增创建入口若漏写 categoryId，本测试直接红。
+    const { payload: next, diagnostic } = migrateProjectPayload(createDefaultWorkbenchProjectPayload())
+
+    expect(diagnostic.alreadyMigrated).toBe(true)
+    expect(diagnostic.migratedNodes).toBe(0)
+    expect(diagnostic.removedNodes).toBe(0)
+    expect(diagnostic.categoriesSeeded).toBe(false)
+    expect(next.generationCanvas.nodes.map((node) => node.kind).sort()).toEqual(['image', 'text'])
   })
 
   it('does not merge legacy category ids back into normalized project categories', () => {

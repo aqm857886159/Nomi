@@ -9,6 +9,8 @@ export const workspaceProjectRecordSchema = z.object({
   savedAt: z.number().finite().optional(),
   revision: z.number().int().nonnegative().optional(),
   lastKnownRootPath: z.string().min(1).optional(),
+  /** 播种来源幂等键（如「一键示例」）。随 manifest 持久化，list 摘要原样带回。 */
+  seedKey: z.string().min(1).optional(),
   payload: z.unknown().optional(),
 });
 

@@ -1,5 +1,6 @@
 import {
   CATEGORY_IDS,
+  getDefaultCategoryForNodeKind,
   type CategoryId,
   type GenerationCanvasEdge,
   type GenerationCanvasNode,
@@ -65,11 +66,10 @@ export function migrateNodeToCategoryId(
   const existingCategoryId = readCategoryId(node)
   if (existingCategoryId) return mapLegacyCategoryId(existingCategoryId)
 
-  const kind = node.kind
-  if (kind === 'character') return 'cast'
-  if (kind === 'scene' || kind === 'panorama') return 'scene'
-  if (kind === 'image' || kind === 'video' || kind === 'keyframe' || kind === 'shot') return 'shots'
-  return null
+  // 无 categoryId → 按 kind 推断，走与创建路径同一份映射（唯一真相源），且永不返回
+  // null：迁移侧此前自持一份映射并把 text 等 kind 判 null 删除，导致「新建空白项目
+  // 过迁移被静默删默认节点」（审计 A4）。删除只保留给 legacy 废弃分类（上面的分支）。
+  return getDefaultCategoryForNodeKind(node.kind)
 }
 
 function unique(values: readonly string[]): string[] {

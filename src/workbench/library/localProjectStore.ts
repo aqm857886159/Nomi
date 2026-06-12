@@ -28,6 +28,7 @@ function toProjectSummary(record: LocalProjectRecord): LocalProjectSummary {
     thumbStyle: record.thumbStyle,
     thumbnail: record.thumbnail,
     thumbnailUrls: record.thumbnailUrls,
+    seedKey: record.seedKey,
     source: record.source,
     rootPath: record.rootPath,
     missing: record.missing,
@@ -93,7 +94,7 @@ export function useLocalProjects(): {
   }
 }
 
-export function createLocalProject(name?: string, templateId?: string, options: { rootPath?: string } = {}): LocalProjectRecord {
+export function createLocalProject(name?: string, templateId?: string, options: { rootPath?: string; seedKey?: string } = {}): LocalProjectRecord {
   const record = createProjectRecord(name, templateId, options)
   publishLocalProjectRecord(record)
   return record

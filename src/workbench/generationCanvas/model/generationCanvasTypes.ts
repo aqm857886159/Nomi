@@ -17,6 +17,29 @@ export type BuiltinCanvasCategoryId = (typeof CATEGORY_IDS)[number]
 export type CategoryId = string
 
 /**
+ * 按 kind 推断节点默认所属分类——kind→分类的唯一真相源。
+ * 创建（默认画布/手动添加/agent 工具）与迁移（projectCategoryMigration）共用本函数；
+ * 此前两处各持一份映射且互相矛盾（text 在迁移侧被判 null 删除），是「新建空白项目
+ * 走 legacy 迁移并删默认节点」的根因（2026-06-13 审计 A4）。
+ * - character → 'cast'（角色）
+ * - scene / panorama / scene3d → 'scene'（场景资产）
+ * - 其余（image/video/keyframe/shot/output/text…）→ 'shots'（分镜）
+ * prop/audio 无独占 kind，由各自创建流程显式指定，不在此推断。
+ */
+export function getDefaultCategoryForNodeKind(kind: GenerationNodeKind): BuiltinCanvasCategoryId {
+  switch (kind) {
+    case 'character':
+      return 'cast'
+    case 'scene':
+    case 'panorama':
+    case 'scene3d':
+      return 'scene'
+    default:
+      return 'shots'
+  }
+}
+
+/**
  * Phase E Task E11 — Complete provenance record for a generated asset.
  *
  * Recorded at generation time so a user can: (a) see WHY a node looks

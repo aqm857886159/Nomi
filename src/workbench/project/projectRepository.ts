@@ -108,7 +108,7 @@ export function listLocalProjects(): WorkbenchProjectSummary[] {
 export function createLocalProject(
     name?: string,
     templateId?: string,
-    options: { rootPath?: string } = {},
+    options: { rootPath?: string; seedKey?: string } = {},
 ): WorkbenchProjectRecordV1 {
     const now = Date.now();
     const template = getProjectTemplate(templateId || null);
@@ -122,6 +122,7 @@ export function createLocalProject(
         updatedAt: now,
         revision: 0,
         savedAt: now,
+        ...(options.seedKey?.trim() ? { seedKey: options.seedKey.trim() } : {}),
     };
     const docDefaults = createDefaultWorkbenchDocument();
     const seededDocument = template.seedDocument
@@ -214,6 +215,7 @@ export function saveLocalProject(
         revision: existingRevision + 1,
         savedAt: now,
         ...(existing?.thumbStyle ? { thumbStyle: existing.thumbStyle } : {}),
+        ...(existing?.seedKey ? { seedKey: existing.seedKey } : {}),
         ...(thumbnail ? { thumbnail } : {}),
         ...(thumbnailUrls.length
             ? { thumbnailUrls }

@@ -51,6 +51,7 @@ function deriveThumbnailUrls(record: unknown, max = 4): string[] {
 type RecordInput = {
   id?: unknown;
   name?: unknown;
+  seedKey?: unknown;
   payload?: unknown;
 };
 
@@ -101,6 +102,7 @@ export function createWorkspaceProject(
   const record = normalizeWorkspaceProjectRecord({
     ...initialized,
     ...(typeof raw.id === "string" && raw.id.trim() ? { id: raw.id.trim() } : {}),
+    ...(typeof raw.seedKey === "string" && raw.seedKey.trim() ? { seedKey: raw.seedKey.trim() } : {}),
     lastKnownRootPath: rootPath,
   });
   writeWorkspaceManifest(rootPath, record);

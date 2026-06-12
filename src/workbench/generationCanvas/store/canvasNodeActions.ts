@@ -1,5 +1,5 @@
 import { createGenerationNode, removeNodes, upsertNode } from '../model/graphOps'
-import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import { getDefaultCategoryForNodeKind, type GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { CLIPBOARD_OFFSET, createClipboardNodeId, createNodeId } from './canvasIds'
 import { bumpPersistRevision, isCategoryId, shouldPersistCanvasMutation } from './canvasGuards'
 import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasUndoJournal'
@@ -24,7 +24,10 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
   addNode: (input) => {
     const currentState = get()
     const existingCount = currentState.nodes.filter((node) => node.kind === input.kind).length
-    const categoryId = isCategoryId(input.categoryId) ? input.categoryId : undefined
+    // 节点出生必带 categoryId：调用方没给就按 kind 推断（与迁移共用同一映射）。
+    // 这是「无分类节点」的总闸——漏传 categoryId 的创建入口曾在下次打开项目时
+    // 触发 legacy 迁移 toast 甚至删节点（审计 A4 的入口集）。
+    const categoryId = isCategoryId(input.categoryId) ? input.categoryId : getDefaultCategoryForNodeKind(input.kind)
     const baseNode = createGenerationNode({
       id: createNodeId(input.kind),
       kind: input.kind,
@@ -33,7 +36,7 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       x: input.position?.x ?? 120 + existingCount * 34,
       y: input.position?.y ?? 360 + existingCount * 30,
     })
-    const nextNode = categoryId ? { ...baseNode, categoryId } : baseNode
+    const nextNode = { ...baseNode, categoryId }
     pushUndoSnapshot(currentState)
     set((state) => {
       state.nodes = upsertNode(state.nodes, nextNode)

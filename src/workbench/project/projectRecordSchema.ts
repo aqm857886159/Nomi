@@ -33,6 +33,7 @@ export const workbenchProjectSummarySchema = z.object({
   thumbStyle: z.string().optional(),
   thumbnail: z.string().optional(),
   thumbnailUrls: z.array(z.string()).optional(),
+  seedKey: z.string().min(1).optional(),
 })
 
 export const workbenchProjectPayloadSchema = z.object({
@@ -80,6 +81,12 @@ export type WorkbenchProjectSummary = {
   thumbStyle?: string
   thumbnail?: string
   thumbnailUrls?: string[]
+  /**
+   * 播种来源的幂等键（如 `example:product-demo`）。「一键示例」等程序化创建入口
+   * 用它识别「这个种子已经播过」——名字不是身份，靠名字去重必堆重复项目（审计 A8）。
+   * 用户手动新建的项目无此字段。
+   */
+  seedKey?: string
   /** 仅桌面端有；Web 端无文件夹概念，缺省按 native 处理。 */
   source?: WorkbenchProjectSource
   /** 仅桌面端有；项目真实根目录，用于打开 assets / exports 所在文件夹。 */
