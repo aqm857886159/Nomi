@@ -99,7 +99,12 @@ async function defaultExecuteToolCall(event: ToolCallEvent): Promise<void> {
   const { toolName, args, confirm } = event
   try {
     const result = await applyCanvasToolCall(toolName, args)
-    await confirm({ ok: true, result })
+    // S6-0:auto-execute 无用户 override,effectiveArgs ≡ args(对账统一有米,无 overridesDelta)。
+    await confirm({
+      ok: true,
+      result,
+      ...(args && typeof args === 'object' ? { effectiveArgs: args as Record<string, unknown> } : {}),
+    })
   } catch (error: unknown) {
     const message = error instanceof Error && error.message ? error.message : String(error)
     await confirm({ ok: false, message })

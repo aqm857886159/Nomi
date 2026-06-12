@@ -35,7 +35,7 @@ export type AgentEventType =
   | "agent.turn.finished" //  { sessionId, status: "ok"|"error"|"aborted", finalTextHead, finalTextSha256?, stepCount?, usage? }
   | "agent.tool.proposed" //  { toolCallId, toolName, args }
   | "agent.tool.completed" // { toolCallId, toolName, ok, resultHead }
-  | "agent.proposal.approved" // { toolCallId } (S6 起补 effectiveArgs/overridesDelta)
+  | "agent.proposal.approved" // { toolCallId, effectiveArgs?, overridesDelta? } —— S6-0 起携对账快照+偏好增量
   | "agent.proposal.rejected" // { toolCallId, message }
   | "agent.turn.error" //     { sessionId, message } —— 投影:人话错误卡
   | "agent.gate.denied"; //   { intent, reason(人话) }

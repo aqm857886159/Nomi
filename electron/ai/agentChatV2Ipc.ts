@@ -80,7 +80,10 @@ export function registerAgentChatV2Ipc(): void {
   ipcMain.handle("nomi:agents:chatV2:confirmTool", async (_event, payload: {
     sessionId: string;
     toolCallId: string;
-    decision: { ok: true; result?: unknown } | { ok: false; message?: string };
+    // S6-0:ok 分支携 effectiveArgs/overridesDelta —— 进 proposal.approved 供对账,result.resolve 不取它。
+    decision:
+      | { ok: true; result?: unknown; effectiveArgs?: Record<string, unknown>; overridesDelta?: Record<string, unknown> }
+      | { ok: false; message?: string };
   }) => {
     const session = agentChatV2Sessions.get(payload.sessionId);
     if (!session) return { ok: false, error: "session not found" };
@@ -88,7 +91,11 @@ export function registerAgentChatV2Ipc(): void {
     if (!pending) return { ok: false, error: "tool call not pending" };
     session.pendingConfirmations.delete(payload.toolCallId);
     if (payload.decision && payload.decision.ok === true) {
-      traceToolDecision(payload.sessionId, payload.toolCallId, { ok: true });
+      traceToolDecision(payload.sessionId, payload.toolCallId, {
+        ok: true,
+        effectiveArgs: payload.decision.effectiveArgs,
+        overridesDelta: payload.decision.overridesDelta,
+      });
       pending.resolve({ ok: true, result: payload.decision.result ?? null });
     } else {
       const message = (payload.decision && (payload.decision as { message?: string }).message) || "rejected by user";

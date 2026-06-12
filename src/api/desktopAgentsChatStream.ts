@@ -75,7 +75,10 @@ export type AgentsChatStreamEvent =
   | { event: 'done'; data: { reason: 'finished' | 'error' } }
 
 export type AgentChatV2ToolDecision =
-  | { ok: true; result?: unknown }
+  // S6-0 对账的「米」：effectiveArgs=合并后全量自洽快照(reconcile 逐字段比对用),
+  // overridesDelta=用户改了 AI 提议的哪些字段(记忆提炼的最强偏好信号)。二者只进轨迹,
+  // 不污染回喂 LLM 的 result(IPC 层只取 result.resolve)。
+  | { ok: true; result?: unknown; effectiveArgs?: Record<string, unknown>; overridesDelta?: Record<string, unknown> }
   | { ok: false; message?: string }
 
 export type AgentChatV2Session = {

@@ -32,8 +32,11 @@ export type ToolCallEvent = {
   toolCallId: string
   toolName: string
   args: unknown
-  /** Resolve with the user's decision; main process feeds the result back to the model. */
-  confirm: (decision: { ok: true; result?: unknown } | { ok: false; message?: string }) => Promise<void>
+  /** Resolve with the user's decision; main process feeds the result back to the model.
+   *  S6-0: ok 分支可带 effectiveArgs/overridesDelta(对账快照+偏好增量),透传至 proposal.approved。 */
+  confirm: (decision:
+    | { ok: true; result?: unknown; effectiveArgs?: Record<string, unknown>; overridesDelta?: Record<string, unknown> }
+    | { ok: false; message?: string }) => Promise<void>
 }
 
 export type RunWorkbenchAgentInput = {

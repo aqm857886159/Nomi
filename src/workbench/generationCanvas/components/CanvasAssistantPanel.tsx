@@ -249,7 +249,14 @@ export default function CanvasAssistantPanel({
                   try {
                     const result = await applyCanvasToolCall(event.toolName, effectiveArgs)
                     toolActionCount += 1
-                    await event.confirm({ ok: true, result })
+                    // S6-0:把对账的「米」随判决一起带回——effectiveArgs 是合并后全量快照,
+                    // overridesDelta 是用户实际改动的字段(无改动则不带,避免空对象进日志)。
+                    await event.confirm({
+                      ok: true,
+                      result,
+                      effectiveArgs,
+                      ...(overrides ? { overridesDelta: overrides } : {}),
+                    })
                   } catch (error: unknown) {
                     const message = error instanceof Error && error.message ? error.message : String(error)
                     await event.confirm({ ok: false, message })
