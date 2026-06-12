@@ -30,17 +30,35 @@ export async function generateText(
   const mode: TextGenMode = getTextGenMode(node) === 'rewrite' && !selText ? 'append' : getTextGenMode(node)
 
   const prompt = buildTextPrompt(mode, { userPrompt, docText, selText })
-  const result = await runCatalogGenerationTask({ ...node, prompt }, options)
+
+  // 续写起点：流式期间把新文本接在「原有内容」之后逐块重渲染，原内容快照锁在开头。
+  const baseContent = mode === 'append' && Array.isArray(node.contentJson?.content)
+    ? node.contentJson!.content
+    : []
+
+  // 续写/重写：数据层逐 token 增量重渲染（persist:false 草稿）。
+  // 改写：替换的是 ProseMirror 选区，数据层拿不到位置 → 不流式，完成时交编辑器一次性替换。
+  let streamBuffer = ''
+  const onTextDelta = mode === 'rewrite'
+    ? undefined
+    : (delta: string) => {
+        streamBuffer += delta
+        writeStreamingDoc(node.id, mode, baseContent, streamBuffer, false)
+      }
+
+  const result = await runCatalogGenerationTask(
+    { ...node, prompt },
+    { ...options, ...(onTextDelta ? { onTextDelta } : {}) },
+  )
   const text = (result.text || '').trim()
   if (!text) return result
 
   if (mode === 'rewrite') {
     // 让节点内编辑器替换当前选区（见 TextDocumentNode 的 apply effect）。
     markPendingSelectionApply(node.id, result.id)
-  } else if (mode === 'replace') {
-    replaceNodeDocument(node.id, text)
   } else {
-    appendTextToNodeDocument(node.id, text)
+    // 完成：用最终文本定稿并持久化（覆盖流式过程的 persist:false 草稿）。
+    writeStreamingDoc(node.id, mode, baseContent, text, true)
   }
   return result
 }
@@ -99,22 +117,27 @@ function buildTextPrompt(
   ].join('\n')
 }
 
-/** 续写：读节点最新 contentJson，把新文本段落 append 到末尾后整体写回（持久化）。 */
-function appendTextToNodeDocument(nodeId: string, text: string): void {
-  const state = useGenerationCanvasStore.getState()
-  const current = state.nodes.find((candidate) => candidate.id === nodeId)
-  if (!current) return
-  const existing = Array.isArray(current.contentJson?.content) ? current.contentJson!.content : []
-  const appended = markdownToTiptapContent(text)
-  if (!appended.length) return
-  state.updateNode(nodeId, { contentJson: { type: 'doc', content: [...existing, ...appended] } })
-}
-
-/** 重写：用生成内容替换整篇文档（持久化）。 */
-function replaceNodeDocument(nodeId: string, text: string): void {
-  const appended = markdownToTiptapContent(text)
-  if (!appended.length) return
-  useGenerationCanvasStore.getState().updateNode(nodeId, { contentJson: { type: 'doc', content: appended } })
+/**
+ * 续写/重写的统一落地（流式草稿 + 完成定稿共用一份）：
+ * - append：新内容接在 baseContent（流式起点的原有内容快照）之后。
+ * - replace：新内容整篇替换。
+ * persist=false 为流式过程中的草稿（不进撤销/不落盘）；persist=true 为完成时定稿。
+ */
+function writeStreamingDoc(
+  nodeId: string,
+  mode: TextGenMode,
+  baseContent: TiptapDocJson['content'],
+  text: string,
+  persist: boolean,
+): void {
+  const blocks = markdownToTiptapContent(text)
+  if (!blocks.length) return
+  const content = mode === 'replace' ? blocks : [...(baseContent || []), ...blocks]
+  useGenerationCanvasStore.getState().updateNode(
+    nodeId,
+    { contentJson: { type: 'doc', content } },
+    persist ? undefined : { persist: false },
+  )
 }
 
 /** 改写：打标记，交给 TextDocumentNode 的 effect 用 editor.replaceSelection 落地（persist:false）。 */

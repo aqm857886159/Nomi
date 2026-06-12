@@ -80,3 +80,48 @@ describe('generateText — 生成模式路由', () => {
     expect(after?.meta?.textPendingSelectionApply).toBeUndefined()
   })
 })
+
+describe('generateText — 流式增量落地', () => {
+  it('续写：逐 delta 把生长中的文本接在原内容后（中途快照可见增量）', async () => {
+    const node = addTextNode({
+      contentJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: '开头' }] }] },
+    })
+    const snapshots: string[] = []
+    // 注入流式执行：每发一个 delta 都记录当前节点文本，验证“逐字增量重渲染”。
+    const streamRun = async (
+      _vendor: string,
+      _request: unknown,
+      opts: { onDelta?: (delta: string) => void },
+    ): Promise<TaskResultDto> => {
+      opts.onDelta?.('生成')
+      snapshots.push(nodeText(node.id))
+      opts.onDelta?.('的全文') // 增量片段（非累积），textActions 内部 buffer += delta
+      snapshots.push(nodeText(node.id))
+      return { id: 'task-s', kind: 'chat', status: 'succeeded', assets: [], raw: { choices: [{ message: { content: '生成的全文' } }] } }
+    }
+    await generateText(node, { onTextDelta: () => {}, runTextStream: streamRun })
+    // 中途快照证明增量：第一帧只到“生成”，第二帧到全文，且都挂在“开头”之后。
+    expect(snapshots[0]).toBe('开头\n生成')
+    expect(snapshots[1]).toBe('开头\n生成的全文')
+    // 定稿：最终文本接在原内容后。
+    expect(nodeText(node.id)).toBe('开头\n生成的全文')
+  })
+
+  it('重写：流式整篇替换，最终用 result.text 定稿', async () => {
+    const node = addTextNode({
+      meta: { textGenMode: 'replace' },
+      contentJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: '旧内容' }] }] },
+    })
+    const streamRun = async (
+      _vendor: string,
+      _request: unknown,
+      opts: { onDelta?: (delta: string) => void },
+    ): Promise<TaskResultDto> => {
+      opts.onDelta?.('全新')
+      opts.onDelta?.('的一篇') // 增量片段
+      return { id: 'task-s2', kind: 'chat', status: 'succeeded', assets: [], raw: { choices: [{ message: { content: '全新的一篇' } }] } }
+    }
+    await generateText(node, { onTextDelta: () => {}, runTextStream: streamRun })
+    expect(nodeText(node.id)).toBe('全新的一篇')
+  })
+})

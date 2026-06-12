@@ -38,6 +38,14 @@ export type CatalogTaskActionOptions = {
   pollTimeoutMs?: number
   /** S2 进度报告:catalog 任务各阶段回报(phase 经 narrate 翻成人话,治 bug② 卡 30 秒像死了)。 */
   onProgress?: (progress: { phase: GenerationProgressPhase; message: string; taskId?: string }) => void
+  /** 文本任务逐 token 回调(流式)。仅文本 kind 生效;提供时走流式通道,否则一次性返回。 */
+  onTextDelta?: (delta: string) => void
+  /** 测试注入:替换流式文本执行(默认 runWorkbenchTextTaskStream),避免触网/desktop runtime。 */
+  runTextStream?: (
+    vendor: string,
+    request: TaskRequestDto,
+    opts: { onDelta?: (delta: string) => void },
+  ) => Promise<TaskResultDto>
 }
 
 export function asTrimmedString(value: unknown): string {

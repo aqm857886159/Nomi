@@ -1,8 +1,10 @@
 import {
+  type TaskKind,
   type TaskRequestDto,
   type TaskResultDto,
   fetchWorkbenchTaskResultByVendor,
   runWorkbenchTaskByVendor,
+  runWorkbenchTextTaskStream,
 } from '../../api/taskApi'
 import type {
   GenerationCanvasNode,
@@ -33,6 +35,9 @@ export type { CatalogTaskActionOptions } from './catalogTaskResolve'
 export { normalizeCatalogTaskResult } from './catalogTaskResultParse'
 
 const TERMINAL_STATUSES = new Set(['succeeded', 'failed'])
+
+// 走流式文本通道的 kind(与 catalogTaskResultParse 的 TEXT_TASK_KINDS 同语义)。
+const TEXT_STREAM_KINDS = new Set<TaskKind>(['chat', 'prompt_refine', 'image_to_prompt'])
 
 function buildReferenceExtras(
   node: GenerationCanvasNode,
@@ -190,6 +195,18 @@ export async function runCatalogGenerationTask(
   report('resolving')
   const executableNode = await resolveExecutableNodeFromCatalog(node, options)
   const { vendor, request } = buildCatalogTaskRequest(executableNode, options)
+
+  // 文本任务 + 调用方要逐字 → 走流式通道:逐 token 回调 onTextDelta,终态直接返回
+  // (文本无轮询,流 resolve 即 succeeded),不走下面的 runTask + 轮询。runTask 覆盖项
+  // (测试注入)优先,保持单测可控。
+  if (options.onTextDelta && TEXT_STREAM_KINDS.has(request.kind) && !options.runTask) {
+    const runTextStream = options.runTextStream || runWorkbenchTextTaskStream
+    report('requesting')
+    const streamed = await runTextStream(vendor, request, { onDelta: options.onTextDelta })
+    report('finalizing', streamed.id)
+    return normalizeCatalogTaskResult(streamed, executableNode)
+  }
+
   const runTask = options.runTask || runWorkbenchTaskByVendor
   report('requesting')
   const initialResult = await runTask(vendor, request)
