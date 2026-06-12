@@ -123,10 +123,17 @@ export function buildAgentPromptParts(
   isAnthropic: boolean,
 ): { system?: string; messages: CoreMessage[] } {
   if (system && isAnthropic) {
+    // 缓存命中率:断点① system(身份/规则,跨轮稳定);断点② 最后一条消息(把整段对话
+    // 历史也纳入前缀缓存——只标 system 时增长的历史每步每轮全价重算)。
+    const withTailBreakpoint = messages.map((message, index) =>
+      index === messages.length - 1
+        ? ({ ...message, providerOptions: { anthropic: { cacheControl: { type: "ephemeral" } } } } as CoreMessage)
+        : message,
+    );
     return {
       messages: [
         { role: "system", content: system, providerOptions: { anthropic: { cacheControl: { type: "ephemeral" } } } },
-        ...messages,
+        ...withTailBreakpoint,
       ],
     };
   }

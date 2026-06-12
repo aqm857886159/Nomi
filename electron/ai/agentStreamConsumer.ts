@@ -43,6 +43,21 @@ export async function consumeAgentStreamWithTimeout(
   let finalText = "";
   let finalFinish = "unknown";
   let finalUsage: unknown;
+  // 缓存命中观测:vendor 前缀缓存命中的输入 token(OpenAI cachedPromptTokens /
+  // Anthropic cacheReadInputTokens / DeepSeek prompt_cache_hit_tokens 等)。
+  // 多步轮按 step 累加(finish 块的 providerMetadata 只带最后一步)。
+  let cachedPromptTokens = 0;
+
+  const harvestCached = (meta: unknown): void => {
+    if (!meta || typeof meta !== "object") return;
+    for (const provider of Object.values(meta as Record<string, unknown>)) {
+      if (!provider || typeof provider !== "object") continue;
+      const rec = provider as Record<string, unknown>;
+      const hit = [rec.cachedPromptTokens, rec.cacheReadInputTokens, rec.promptCacheHitTokens, rec.cached_tokens]
+        .find((value) => typeof value === "number" && Number.isFinite(value) && value > 0);
+      if (typeof hit === "number") cachedPromptTokens += hit;
+    }
+  };
 
   try {
     for await (const chunk of result.fullStream) {
@@ -54,10 +69,20 @@ export async function consumeAgentStreamWithTimeout(
         finalText += chunk.textDelta ?? "";
         hooks.emit({ type: "content-delta", delta: chunk.textDelta ?? "" });
       } else if (chunk.type === "step-finish") {
+        harvestCached((chunk as { experimental_providerMetadata?: unknown; providerMetadata?: unknown }).providerMetadata
+          ?? (chunk as { experimental_providerMetadata?: unknown }).experimental_providerMetadata);
         hooks.emit({ type: "step-finish", finishReason: String(chunk.finishReason ?? "") });
       } else if (chunk.type === "finish") {
         finalFinish = String(chunk.finishReason ?? "unknown");
         finalUsage = chunk.usage;
+        // finish 块的 metadata 是最后一步的镜像——step-finish 已逐步累加过就不再吃,只兜底单步流。
+        if (cachedPromptTokens === 0) {
+          harvestCached((chunk as { experimental_providerMetadata?: unknown; providerMetadata?: unknown }).providerMetadata
+            ?? (chunk as { experimental_providerMetadata?: unknown }).experimental_providerMetadata);
+        }
+        if (cachedPromptTokens > 0 && finalUsage && typeof finalUsage === "object") {
+          finalUsage = { ...(finalUsage as Record<string, unknown>), cachedPromptTokens };
+        }
       } else if (chunk.type === "error") {
         const message = chunk.error instanceof Error ? chunk.error.message : String(chunk.error);
         console.error(`[agentv2] stream error chunk: ${message}`);

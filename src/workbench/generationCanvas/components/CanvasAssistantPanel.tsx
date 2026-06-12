@@ -366,10 +366,19 @@ export default function CanvasAssistantPanel({
           updateMessage(assistantMessageId, finalText || '已完成。')
         }
         // S3 轮次 footer:把本轮 token 用量挂到收尾消息上(渲染见消息体底部 caption)。
-        const totalTokens = result.response.usage?.totalTokens
-        if (totalTokens) {
+        const usage = result.response.usage
+        if (usage?.totalTokens) {
           setMessages((prev) => prev.map((message) => (
-            message.id === assistantMessageId ? { ...message, turnStats: { totalTokens } } : message
+            message.id === assistantMessageId
+              ? {
+                  ...message,
+                  turnStats: {
+                    totalTokens: usage.totalTokens,
+                    promptTokens: usage.promptTokens,
+                    ...(usage.cachedPromptTokens ? { cachedPromptTokens: usage.cachedPromptTokens } : {}),
+                  },
+                }
+              : message
           )))
         }
       } catch (error: unknown) {
@@ -592,7 +601,7 @@ export default function CanvasAssistantPanel({
                   />
                 ) : null}
                 {message.turnStats?.totalTokens ? (
-                  <span className={cn('block mt-1 text-micro text-nomi-ink-40')}>{narrateTurnStats(message.turnStats.totalTokens)}</span>
+                  <span className={cn('block mt-1 text-micro text-nomi-ink-40')}>{narrateTurnStats(message.turnStats.totalTokens, message.turnStats)}</span>
                 ) : null}
               </div>
               {message.id === staleBoundaryId ? <StaleConversationDivider /> : null}

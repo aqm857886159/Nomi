@@ -33,6 +33,8 @@ export type AgentUsage = {
   promptTokens: number
   completionTokens: number
   totalTokens: number
+  /** vendor 前缀缓存命中的输入 token(命中率=cached/prompt;缺省=vendor 未回报)。 */
+  cachedPromptTokens?: number
 }
 
 export type AgentsChatResponseDto = {
@@ -54,6 +56,7 @@ export function coerceAgentUsage(raw: unknown): AgentUsage | undefined {
     promptTokens: num(r.promptTokens ?? r.inputTokens),
     completionTokens: num(r.completionTokens ?? r.outputTokens),
     totalTokens: num(r.totalTokens),
+    ...(num(r.cachedPromptTokens) > 0 ? { cachedPromptTokens: num(r.cachedPromptTokens) } : {}),
   }
   if (!usage.totalTokens) usage.totalTokens = usage.promptTokens + usage.completionTokens
   if (!usage.promptTokens && !usage.completionTokens && !usage.totalTokens) return undefined
