@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>助手面板重设计 · 渐进披露三层(方案 A 样张)</title>
+<style>
+  /* tokens 摘自 src/theme/nomi-tokens.css —— 样张仅此一处允许写值 */
+  :root{
+    --ink:oklch(0.22 0.01 80);--ink80:oklch(0.32 0.01 80);--ink60:oklch(0.50 0.01 80);
+    --ink40:oklch(0.68 0.01 80);--ink30:oklch(0.78 0.01 80);--ink20:oklch(0.88 0.005 80);
+    --ink10:oklch(0.94 0.003 80);--ink05:oklch(0.97 0.003 80);
+    --paper:#fff;--bg:oklch(0.985 0.003 90);--line:oklch(0.91 0.004 80);--line-soft:oklch(0.95 0.003 80);
+    --accent:oklch(0.55 0.13 250);--accent-soft:color-mix(in oklch,oklch(0.55 0.13 250) 12%,#fff);
+    --warn:oklch(0.45 0.18 30);--warn-soft:color-mix(in oklch,oklch(0.45 0.18 30) 10%,#fff);
+    --r:10px;--rs:6px;
+    --font:Inter,-apple-system,"PingFang SC",system-ui,sans-serif;
+  }
+  body{margin:0;background:var(--bg);font-family:var(--font);color:var(--ink);display:flex;gap:32px;padding:32px;align-items:flex-start}
+  .note{max-width:300px;font-size:12px;line-height:1.8;color:var(--ink60)}
+  .note h2{font-size:13px;color:var(--ink)}
+  .panel{width:360px;background:var(--paper);border:1px solid var(--line);border-radius:16px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 2px 4px oklch(0 0 0/.04),0 8px 24px oklch(0 0 0/.06)}
+  /* header */
+  .hd{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line-soft)}
+  .hd .logo{width:18px;height:18px;border-radius:5px;background:var(--ink);color:#fff;font-size:10px;display:grid;place-items:center;font-weight:700}
+  .hd .title{font-size:13px;font-weight:600}
+  .hd .spacer{flex:1}
+  .brain{position:relative;display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px;border:1px solid var(--line);border-radius:999px;font-size:11px;color:var(--ink60);background:var(--paper);cursor:pointer}
+  .brain .dot{position:absolute;top:-2px;right:-2px;width:7px;height:7px;border-radius:50%;background:var(--accent);border:1.5px solid #fff}
+  .icon-btn{width:24px;height:24px;border:0;background:transparent;color:var(--ink40);display:grid;place-items:center;border-radius:6px;cursor:pointer;font-size:13px}
+  /* thread */
+  .th{flex:1;padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--paper)}
+  .u{align-self:flex-end;max-width:84%;background:var(--ink05);border-radius:12px 12px 4px 12px;padding:8px 10px;font-size:12.5px;line-height:1.6}
+  .a{align-self:flex-start;max-width:92%;font-size:12.5px;line-height:1.7;color:var(--ink80)}
+  /* 提议卡(唯一卡式) */
+  .card{border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  .card .cap{display:flex;align-items:center;gap:6px;padding:8px 10px;font-size:12.5px;font-weight:600;border-left:3px solid var(--accent)}
+  .card .cap .n{color:var(--ink40);font-weight:400;font-size:11px}
+  .row{display:flex;align-items:center;gap:6px;padding:6px 10px;border-top:1px solid var(--line-soft);font-size:12px}
+  .row .idx{width:16px;height:16px;border-radius:50%;background:var(--ink);color:#fff;font-size:9.5px;display:grid;place-items:center;flex-shrink:0}
+  .row .t{font-weight:500;white-space:nowrap}
+  .row .p{color:var(--ink60);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;cursor:text}
+  .chip{font-size:10px;padding:1px 6px;border-radius:999px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+  .card .ft{display:flex;justify-content:flex-end;gap:8px;padding:8px 10px;border-top:1px solid var(--line-soft)}
+  .btn{height:26px;padding:0 12px;border-radius:var(--rs);font-size:12px;cursor:pointer;border:1px solid var(--line);background:var(--paper);color:var(--ink80)}
+  .btn.pri{background:var(--ink);color:#fff;border:0}
+  /* 回执行 */
+  .rc{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink60);padding:2px 2px}
+  .rc .ok{color:var(--ink80)}
+  .rc a{color:var(--ink40);cursor:pointer;text-decoration:none}
+  .rc a:hover{color:var(--ink)}
+  .rc.warn{color:var(--warn);background:var(--warn-soft);border-radius:var(--rs);padding:6px 8px}
+  .rc.warn a{color:var(--warn);font-weight:500}
+  /* 审计层展开 */
+  .audit{margin-left:14px;padding:8px 10px;border-left:2px solid var(--line);font-size:11px;color:var(--ink60);line-height:1.9}
+  .audit .tk{color:var(--ink40)}
+  /* 项目脑浮层 */
+  .pop{position:relative}
+  .brainpanel{width:300px;background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 8px oklch(0 0 0/.05),0 20px 50px oklch(0 0 0/.08);padding:10px 12px;font-size:12px}
+  .brainpanel h4{margin:4px 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink40);font-weight:600}
+  .fact{display:flex;gap:6px;align-items:baseline;padding:3px 0;color:var(--ink80)}
+  .fact .k{font-size:10px;color:var(--ink40);flex-shrink:0}
+  .cap2{color:var(--ink40);font-size:11px;padding-top:6px;border-top:1px solid var(--line-soft);margin-top:8px}
+  /* composer */
+  .cp{border-top:1px solid var(--line-soft);padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+  .cp .ta{border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;font-size:12.5px;color:var(--ink40)}
+  .cp .bar{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink60)}
+  .cp .send{margin-left:auto;width:26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;border:0}
+  .sep{display:flex;align-items:center;gap:8px;color:var(--ink30);font-size:10.5px}
+  .sep::before,.sep::after{content:"";flex:1;border-top:1px dashed var(--line)}
+</style>
+</head>
+<body>
+
+<div class="note">
+  <h2>方案 A:渐进披露三层</h2>
+  <p><b>L1 对话流</b>只允许:气泡 / 提议卡 / 回执行。零统计、零内部词汇、零 JSON。</p>
+  <p><b>L2 项目脑</b>(header 圆点入口):记忆+能力+会话健康。有新记忆 → 蓝点,不再常驻两行 fold。</p>
+  <p><b>L3 审计层</b>(回执「▸详情」):步骤+对账+token 用量。「本轮 ~29.1k tokens」从气泡脚注降级到这里。</p>
+  <p>删除:正文拼接「已执行 N 个工具调用」/ raw JSON「查看参数」/ <code>connect_canvas_edges</code> 原文。</p>
+  <p>偏差不再是第五种卡:它是回执行的<b>异常态</b>(右图最下)。</p>
+</div>
+
+<div class="panel">
+  <div class="hd">
+    <div class="logo">N</div><div class="title">助手</div>
+    <div class="spacer"></div>
+    <div class="brain">◉ 项目脑<span class="dot"></span></div>
+    <button class="icon-btn">＋</button><button class="icon-btn">×</button>
+  </div>
+  <div class="th">
+    <div class="u">把这个故事拆成 3 个镜头铺到画布并按顺序连线</div>
+    <div class="a">我会创建 3 个按故事顺序排列的镜头节点,统一 Seedream 4.5、16:9。</div>
+
+    <!-- 提议卡:create -->
+    <div class="card">
+      <div class="cap">创建 3 个镜头节点 <span class="n">等你确认</span></div>
+      <div class="row"><span class="idx">1</span><span class="t">清晨京都小巷</span><span class="p">清晨的京都小巷,石板路狭长延伸,两侧木质町屋…</span><span class="chip">Seedream·16:9</span></div>
+      <div class="row"><span class="idx">2</span><span class="t">骑车穿过鸟居</span><span class="p">同一位年轻主角骑自行车穿过一排朱红色鸟居…</span><span class="chip">Seedream·16:9</span></div>
+      <div class="row"><span class="idx">3</span><span class="t">天台看日落</span><span class="p">傍晚京都城市天台,主角站在栏杆旁看日落…</span><span class="chip">Seedream·16:9</span></div>
+      <div class="ft"><button class="btn">全部拒绝</button><button class="btn pri">确认全部</button></div>
+    </div>
+
+    <!-- 提议卡:connect(同一卡式,人话行,杀 raw JSON) -->
+    <div class="card">
+      <div class="cap">连接 2 条引用线 <span class="n">等你确认</span></div>
+      <div class="row"><span class="p">清晨京都小巷 → 骑车穿过鸟居</span></div>
+      <div class="row"><span class="p">骑车穿过鸟居 → 天台看日落</span></div>
+      <div class="ft"><button class="btn">拒绝</button><button class="btn pri">确认</button></div>
+    </div>
+
+    <!-- 回执行(确认后卡塌缩成一行) -->
+    <div class="rc"><span class="ok">✓ 已应用</span> 创建 3 节点 · 连 2 线 <a>撤销</a> <a>▸ 详情</a></div>
+
+    <!-- 审计层展开态 -->
+    <div class="audit">
+      1. 创建 3 个镜头节点 ✓<br>
+      2. 连接 2 条引用线 ✓<br>
+      对账:与你批准的完全一致<br>
+      <span class="tk">本轮 2 次往返 · ~29.1k tokens</span>
+    </div>
+
+    <div class="sep">以上对话 AI 已不再记得</div>
+
+    <!-- 回执异常态(偏差并入,不是第五种卡) -->
+    <div class="rc warn">⚠ 有 1 处与批准不符:「镜头 2」的模型被换成自动推荐 <a>详情</a> <a>整笔撤销</a></div>
+  </div>
+  <div class="cp">
+    <div class="ta">告诉我画布上想怎么搭…</div>
+    <div class="bar"><span>📎</span><span>模式 Agent ▾</span><span>GPT-5.5 ▾</span><button class="send">↑</button></div>
+  </div>
+</div>
+
+<!-- 项目脑浮层(独立展示) -->
+<div class="pop">
+  <div class="brainpanel">
+    <h4>AI 记得 · 2 条</h4>
+    <div class="fact"><span class="k">偏好</span>用户会在确认前改写 AI 提议——以改后版本为准</div>
+    <div class="fact"><span class="k">约束</span>「镜头 1」已锁定:不改不删不接入,引用照常</div>
+    <h4 style="margin-top:10px">能做什么</h4>
+    <div class="fact" style="color:var(--ink60)">读画布 · 建节点 · 连线 · 改提示词 · 删节点 · 批量生成</div>
+    <div class="cap2">会话健康:AI 记得最近 12 轮 · 项目记忆永久</div>
+  </div>
+  <div class="note" style="margin-top:12px"><p>↑ 「项目脑」浮层:原「6 个工具」「AI 记得 N 条」两条常驻 fold 收纳于此。记忆条目仍可 pin / 双击改 / 删。</p></div>
+</div>
+
+</body>
+</html>
