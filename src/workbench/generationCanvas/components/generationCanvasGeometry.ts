@@ -13,6 +13,14 @@ const GROUP_BOX_LABEL_HEIGHT = 28
 
 export const DEFAULT_NODE_SIZE = { width: 320, height: 360 }
 
+// 无 size 的卡片按「实际渲染宽」估尺寸（与 nodeSizing.CARD_FIXED_WIDTH 对齐）：
+// 角色卡渲染只 200 宽，但旧版统一回退 320×360 → 缩略图/适配视图把角色卡画宽 60%，
+// 在 minimap 里相邻角色卡互相重叠（但画布上其实分离）。按 kind 给准默认尺寸根治。
+const CARD_KIND_FALLBACK_SIZE: Partial<Record<GenerationCanvasNode['kind'], { width: number; height: number }>> = {
+  character: { width: 200, height: 280 },
+  scene: { width: 320, height: 240 },
+}
+
 export type WheelZoomEvent = Pick<WheelEvent, 'deltaMode' | 'deltaY'>
 
 export function clampNumber(value: number, min: number, max: number): number {
@@ -43,7 +51,7 @@ export function createInitialViewport(): { zoom: number; offset: { x: number; y:
 }
 
 export function getNodeSize(node: GenerationCanvasNode): { width: number; height: number } {
-  return node.size || DEFAULT_NODE_SIZE
+  return node.size || CARD_KIND_FALLBACK_SIZE[node.kind] || DEFAULT_NODE_SIZE
 }
 
 export function getSelectedBounds(nodes: readonly GenerationCanvasNode[], selectedNodeIds: readonly string[]): {

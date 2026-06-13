@@ -112,13 +112,15 @@ export function CanvasMinimap({ nodes, selectedIds, zoom, offset, stageSize, onJ
               key={node.id}
               className={cn(
                 'absolute rounded-[2px]',
+                // 纸色描边 = 相邻/重叠的小方块之间留一道缝，避免同色方块糊成一团（用户报「粘连」）。
+                'ring-1 ring-nomi-paper',
                 selectedIds.has(node.id) ? 'bg-nomi-accent' : 'bg-nomi-ink-30',
               )}
               style={{
                 left: pos.left,
                 top: pos.top,
-                width: Math.max(2, size.width * geometry.scale),
-                height: Math.max(2, size.height * geometry.scale),
+                width: Math.max(3, size.width * geometry.scale),
+                height: Math.max(3, size.height * geometry.scale),
               }}
             />
           )
