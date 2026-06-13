@@ -2,6 +2,8 @@ import {
   TIMELINE_TRACK_DEFINITIONS,
   type TimelineClip,
   type TimelineState,
+  type TimelineTextClip,
+  type TimelineTextStyle,
   type TimelineTrack,
   type TimelineTrackType,
 } from './timelineTypes'
@@ -52,6 +54,23 @@ function normalizeClip(input: unknown, fallbackType: TimelineTrackType): Timelin
   }
 }
 
+function normalizeTextClip(input: unknown): TimelineTextClip | null {
+  if (!input || typeof input !== 'object') return null
+  const raw = input as Record<string, unknown>
+  const id = normalizeString(raw.id)
+  if (!id) return null
+  const style: TimelineTextStyle = raw.style === 'title' ? 'title' : 'caption'
+  const startFrame = toFiniteNonNegativeInteger(raw.startFrame, 0)
+  const endFrame = Math.max(startFrame + 1, toFiniteNonNegativeInteger(raw.endFrame, startFrame + 1))
+  return {
+    id,
+    text: typeof raw.text === 'string' ? raw.text : '',
+    style,
+    startFrame,
+    endFrame,
+  }
+}
+
 function createDefaultTrack(definition: Pick<TimelineTrack, 'id' | 'type' | 'label'>): TimelineTrack {
   return {
     ...definition,
@@ -66,6 +85,7 @@ export function createDefaultTimeline(): TimelineState {
     scale: DEFAULT_TIMELINE_SCALE,
     playheadFrame: 0,
     tracks: TIMELINE_TRACK_DEFINITIONS.map(createDefaultTrack),
+    textClips: [],
   }
 }
 
@@ -93,20 +113,32 @@ export function normalizeTimeline(input: unknown): TimelineState {
     }
   })
 
+  // 迁移：旧工程无 textClips → []。
+  const textClips = (Array.isArray(raw.textClips) ? raw.textClips : [])
+    .map(normalizeTextClip)
+    .filter((clip): clip is TimelineTextClip => Boolean(clip))
+    .sort((left, right) => left.startFrame - right.startFrame)
+
   return {
     version: 1,
     fps: 30,
     scale: Math.max(0.1, Number.isFinite(Number(raw.scale)) ? Number(raw.scale) : DEFAULT_TIMELINE_SCALE),
     playheadFrame: toFiniteNonNegativeInteger(raw.playheadFrame, 0),
     tracks,
+    textClips,
   }
 }
 
 export function computeTimelineDuration(timeline: TimelineState): number {
-  return timeline.tracks.reduce((maxFrame, track) => {
-    const trackMax = track.clips.reduce((clipMax, clip) => Math.max(clipMax, clip.endFrame), 0)
-    return Math.max(maxFrame, trackMax)
+  // 防御缺字段：textClips 是后加的字段，旧时间轴 / 直接构造的对象可能没有；tracks 同理保险。
+  // 无文本片段 = 不撑时长（textMax 0），不应 undefined.reduce 崩掉整条导出/时长计算。
+  const trackMax = (timeline.tracks ?? []).reduce((maxFrame, track) => {
+    const clipMax = (track.clips ?? []).reduce((current, clip) => Math.max(current, clip.endFrame), 0)
+    return Math.max(maxFrame, clipMax)
   }, 0)
+  // 末尾的标题卡/字幕也应撑出时长（如片尾标题）。
+  const textMax = (timeline.textClips ?? []).reduce((maxFrame, clip) => Math.max(maxFrame, clip.endFrame), 0)
+  return Math.max(trackMax, textMax)
 }
 
 export function resolveActiveClipsAtFrame(timeline: TimelineState, frame: number): TimelineClip[] {
@@ -114,6 +146,11 @@ export function resolveActiveClipsAtFrame(timeline: TimelineState, frame: number
   return timeline.tracks.flatMap((track) =>
     track.clips.filter((clip) => clip.startFrame <= targetFrame && targetFrame < clip.endFrame),
   )
+}
+
+export function resolveActiveTextClipsAtFrame(timeline: TimelineState, frame: number): TimelineTextClip[] {
+  const targetFrame = toFiniteNonNegativeInteger(frame, 0)
+  return (timeline.textClips ?? []).filter((clip) => clip.startFrame <= targetFrame && targetFrame < clip.endFrame)
 }
 
 export function hasClipOverlap(track: TimelineTrack, clip: TimelineClip): boolean {
