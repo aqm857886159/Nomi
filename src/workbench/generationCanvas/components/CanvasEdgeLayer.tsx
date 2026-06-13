@@ -13,6 +13,8 @@ export type ActiveEdge = {
 type CanvasEdgeLayerProps = {
   edges: GenerationCanvasEdge[]
   nodeById: Map<string, GenerationCanvasNode>
+  /** 视口裁剪：非空时只渲染两端任一在集内的边（虚拟化生效时由画布传入）；null = 渲染全部。 */
+  visibleNodeIds: Set<string> | null
   activeEdge: ActiveEdge | null
   readOnly: boolean
   pendingConnectionSourceId: string
@@ -26,6 +28,7 @@ type CanvasEdgeLayerProps = {
 export default function CanvasEdgeLayer({
   edges,
   nodeById,
+  visibleNodeIds,
   activeEdge,
   readOnly,
   pendingConnectionSourceId,
@@ -38,6 +41,8 @@ export default function CanvasEdgeLayer({
   return (
     <svg className="generation-canvas-v2__edges" aria-label="节点连接线">
       {edges.map((edge) => {
+        // 视口裁剪：两端都在可见集外的边不渲染（大图性能，B3）
+        if (visibleNodeIds && !visibleNodeIds.has(edge.source) && !visibleNodeIds.has(edge.target)) return null
         const source = nodeById.get(edge.source)
         const target = nodeById.get(edge.target)
         if (!source || !target) return null

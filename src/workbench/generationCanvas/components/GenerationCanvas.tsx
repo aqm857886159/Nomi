@@ -10,7 +10,6 @@ import { WORKSPACE_FILE_DRAG_MIME, buildWorkspaceFileUrl, parseWorkspaceFileDrag
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 import { resolveInsertionPosition } from './resolveInsertionPosition'
 import { getGenerationNodeComponent } from '../nodes/renderRegistry'
-import { completeNodeConnection } from '../nodes/completeNodeConnection'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { notifyModelOptionsRefresh, useModelOptionsState } from '../../../config/useModelOptions'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -18,6 +17,7 @@ import { GroupFrameList } from './GroupFrame'
 import { useAutoFitOnLoad } from './useAutoFitOnLoad'
 import { useCanvasShortcuts } from './useCanvasShortcuts'
 import { useCanvasPointerInteractions } from './useCanvasPointerInteractions'
+import { useDragToConnect } from './useDragToConnect'
 import { CanvasEmptyState } from './CanvasEmptyState'
 import {
   centerNodeOffset,
@@ -166,13 +166,18 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
       return nx + nw >= viewLeft && nx <= viewRight && ny + nh >= viewTop && ny <= viewBottom
     })
   }, [nodes, zoom, offset, stageSize])
+  // B3 边层视口裁剪：仅在虚拟化生效时给边层一个可见节点集，剔除两端都在视口外的边；
+  // 未虚拟化（小图）传 null = 渲染全部边，行为与改动前逐字一致。
+  const visibleEdgeNodeIds = React.useMemo(
+    () => (nodes.length > VIRTUALIZATION_THRESHOLD ? new Set(visibleNodesForRender.map((node) => node.id)) : null),
+    [nodes.length, visibleNodesForRender],
+  )
   const [contextNodeMenu, setContextNodeMenu] = React.useState<{
     stageX: number
     stageY: number
     canvasX: number
     canvasY: number
   } | null>(null)
-  const [pendingCursorPos, setPendingCursorPos] = React.useState<{ x: number; y: number } | null>(null)
   const [activeEdge, setActiveEdge] = React.useState<ActiveEdge | null>(null)
   const activeEdgeId = activeEdge?.id ?? null
   const [focusFlashNodeId, setFocusFlashNodeId] = React.useState<string | null>(null)
@@ -316,48 +321,16 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     }
   }, [contextNodeMenu])
 
-  // Drag-to-connect: track pointer while a connection is being drawn
-  React.useEffect(() => {
-    if (readOnly) return undefined
-    if (!pendingConnectionSourceId) {
-      setPendingCursorPos(null)
-      return
-    }
-    const handleMove = (event: PointerEvent) => {
-      if (!stageRef.current) return
-      const rect = stageRef.current.getBoundingClientRect()
-      const o = offsetRef.current
-      const z = zoomRef.current
-      setPendingCursorPos({
-        x: (event.clientX - rect.left - o.x) / z,
-        y: (event.clientY - rect.top - o.y) / z,
-      })
-    }
-    const handleUp = (event: PointerEvent) => {
-      if (!stageRef.current) return
-      const rect = stageRef.current.getBoundingClientRect()
-      const canvasX = (event.clientX - rect.left - offsetRef.current.x) / zoomRef.current
-      const canvasY = (event.clientY - rect.top - offsetRef.current.y) / zoomRef.current
-      const targetNode = nodesRef.current.find((n) => {
-        const w = n.size?.width || 300
-        const h = n.size?.height || 220
-        return canvasX >= n.position.x && canvasX <= n.position.x + w &&
-               canvasY >= n.position.y && canvasY <= n.position.y + h
-      })
-      if (targetNode && targetNode.id !== pendingConnectionSourceId) {
-        completeNodeConnection(targetNode.id)
-      } else {
-        cancelConnection()
-      }
-      setPendingCursorPos(null)
-    }
-    document.addEventListener('pointermove', handleMove)
-    document.addEventListener('pointerup', handleUp)
-    return () => {
-      document.removeEventListener('pointermove', handleMove)
-      document.removeEventListener('pointerup', handleUp)
-    }
-  }, [pendingConnectionSourceId, cancelConnection, readOnly])
+  // 拖拽连线跟踪（含 rAF 节流预览线）抽到 useDragToConnect（R9/B3）
+  const { pendingCursorPos } = useDragToConnect({
+    readOnly,
+    pendingConnectionSourceId,
+    stageRef,
+    offsetRef,
+    zoomRef,
+    nodesRef,
+    cancelConnection,
+  })
 
   const handleGroupSelectedNodes = React.useCallback(() => {
     const group = groupSelectedNodes(activeCategoryId)
@@ -675,6 +648,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
             <CanvasEdgeLayer
               edges={edges}
               nodeById={nodeById}
+              visibleNodeIds={visibleEdgeNodeIds}
               activeEdge={activeEdge}
               readOnly={readOnly}
               pendingConnectionSourceId={pendingConnectionSourceId}
