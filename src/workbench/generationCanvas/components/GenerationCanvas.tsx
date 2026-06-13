@@ -19,6 +19,7 @@ import { useCanvasShortcuts } from './useCanvasShortcuts'
 import { useCanvasPointerInteractions } from './useCanvasPointerInteractions'
 import { useDragToConnect } from './useDragToConnect'
 import { CanvasEmptyState } from './CanvasEmptyState'
+import { CanvasMinimap } from './CanvasMinimap'
 import {
   centerNodeOffset,
   clampNumber,
@@ -762,8 +763,19 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
               zoomAtStagePoint(nextZoom, { x: rect.width / 2, y: rect.height / 2 })
             }}
           />
-          <WorkbenchButton aria-label="画布帮助" title="画布帮助" onClick={() => toast('快捷键：S 分割 · Cmd+D 复制 · Delete 删除 · ← → 移动播放头 · Ctrl+滚轮 缩放', 'info')}>?</WorkbenchButton>
+          <WorkbenchButton aria-label="画布帮助" title="画布帮助" onClick={() => toast('滚轮/双指 平移 · ⌘/Ctrl+滚轮 或 捏合 缩放 · 拖空白 框选 · 空格/中键/右键拖 平移 · Delete 删除', 'info')}>?</WorkbenchButton>
         </div>
+        <CanvasMinimap
+          nodes={nodes}
+          selectedIds={selectedSet}
+          zoom={zoom}
+          offset={offset}
+          stageSize={stageSize}
+          onJumpToCanvasPoint={(point) => {
+            const z = zoomRef.current || 1
+            setViewportTransform(z, { x: stageSize.width / 2 - point.x * z, y: stageSize.height / 2 - point.y * z })
+          }}
+        />
       </div>
     </section>
   )
