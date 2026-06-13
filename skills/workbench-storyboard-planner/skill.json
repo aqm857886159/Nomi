@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Decompose a 200–500 character story into 6–12 ordered storyboard shots and lay them out on the generation canvas with linear edges.",
   "tools": [
+    "read_canvas_state",
     "create_canvas_nodes",
     "connect_canvas_edges"
   ],
