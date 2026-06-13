@@ -13,12 +13,13 @@ import { VEO_3_1_ARCHETYPE } from "./veo31";
 import { WAN_2_7_ARCHETYPE } from "./wan27";
 import { HAILUO_2_3_ARCHETYPE } from "./hailuo23";
 import { SEEDANCE_2_APIMART_ARCHETYPE } from "./seedanceApimart";
+import { OMNI_FLASH_EXT_ARCHETYPE } from "./omniFlashExt";
 import type { ModelArchetype } from "./types";
 
 export type { ModelArchetype, ArchetypeMode, ArchetypeReferenceSlot, ArchetypeReferenceSlotKind, ArchetypeIntent } from "./types";
 
 /** 内置档案注册表。新模型族在这里登记一条。 */
-export const MODEL_ARCHETYPES: readonly ModelArchetype[] = [SEEDANCE_2_ARCHETYPE, SEEDANCE_2_FAST_ARCHETYPE, HAPPYHORSE_ARCHETYPE, GPT_IMAGE_2_ARCHETYPE, SEEDREAM_ARCHETYPE, NANO_BANANA_ARCHETYPE, KLING_3_ARCHETYPE, QWEN_IMAGE_ARCHETYPE, IMAGEN_4_ARCHETYPE, Z_IMAGE_ARCHETYPE, SORA_2_ARCHETYPE, VEO_3_1_ARCHETYPE, WAN_2_7_ARCHETYPE, HAILUO_2_3_ARCHETYPE, SEEDANCE_2_APIMART_ARCHETYPE];
+export const MODEL_ARCHETYPES: readonly ModelArchetype[] = [SEEDANCE_2_ARCHETYPE, SEEDANCE_2_FAST_ARCHETYPE, HAPPYHORSE_ARCHETYPE, GPT_IMAGE_2_ARCHETYPE, SEEDREAM_ARCHETYPE, NANO_BANANA_ARCHETYPE, KLING_3_ARCHETYPE, QWEN_IMAGE_ARCHETYPE, IMAGEN_4_ARCHETYPE, Z_IMAGE_ARCHETYPE, SORA_2_ARCHETYPE, VEO_3_1_ARCHETYPE, WAN_2_7_ARCHETYPE, HAILUO_2_3_ARCHETYPE, SEEDANCE_2_APIMART_ARCHETYPE, OMNI_FLASH_EXT_ARCHETYPE];
 
 /** 按 id 取档案。 */
 export function getArchetypeById(id: string | null | undefined): ModelArchetype | null {

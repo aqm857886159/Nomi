@@ -97,6 +97,12 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
     t2vBody: { resolution: RESOLUTION, duration: DURATION },
     i2vBody: { resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE },
   }),
+  // Omni-Flash-Ext：Omni 类，比例字段用 size（与 aspect_ratio 同义）；参考图融合 image_urls（1 或 3 张）。
+  videoModel({
+    modelKey: "Omni-Flash-Ext", labelZh: "Omni-Flash-Ext", archetypeId: "omni-flash-ext",
+    t2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION },
+    i2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS },
+  }),
 ];
 
 export const APIMART_VIDEO_QUERY = APIMART_VIDEO_QUERY_OP;
