@@ -8,6 +8,8 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { canRunGenerationNode, rerunGenerationNodeAsNewNode, runGenerationNode } from '../runner/generationRunController'
 import NodeParameterControls from './NodeParameterControls'
+import NodeComposerWidthMeasurer from './NodeComposerWidthMeasurer'
+import { GENERATE_BUTTON_CLASS, CARD_HORIZONTAL_PADDING } from './nodeComposerStyles'
 import { NodeLockBadge } from './NodeLockBadge'
 import { useNodeAssetDrop } from './useNodeAssetDrop'
 import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
@@ -132,25 +134,18 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
     setAboveClearance(toolbarScreenH > 0 ? toolbarScreenH / (canvasZoom || 1) + 18 : 0)
   }, [canvasZoom, canvasOffset, node.position?.x, node.position?.y, visualSize.width, visualSize.height, composerLayout.gap, node.result?.url])
 
-  // 卡宽 = 底栏「参数行」的真实一行宽度（实测）。确定宽度下 tile/提示词/参数都正常布局——不写死常数。
-  // ⚠ 关键：footerRef 必须是 `w-max`（width:max-content）的元素，盒子尺寸 = 内容宽、**与卡宽脱钩**。
-  // 否则 footer 作为 flex-col 子项会被拉伸到卡宽，scrollWidth 反读回卡宽 → 成环：任何一次过宽测量
-  // 都会变成稳定不动点、再也缩不回来（曾导致「2 个参数的卡却有大片右侧空白」）。w-max 只裹底栏的
-  // 参数 pill + 生成钮，不含 AssetReference tile（那在上方 references 区），所以不会压塌 tile。
-  const footerRef = React.useRef<HTMLDivElement>(null)
-  const [cardWidth, setCardWidth] = React.useState<number | undefined>(undefined)
-  React.useLayoutEffect(() => {
-    const el = footerRef.current
-    if (!el) return
-    // w-max 下 scrollWidth = 底栏(模型芯片 + 参数 flex-nowrap + 生成钮)真实一行内容宽，不随卡宽变。
-    // 切模型/改参数 → 内容变 → w-max 盒子变 → ResizeObserver 触发重测（也靠 node.meta 依赖同步重跑）。
-    // 要多宽给多宽（不设上限、不换行）；下限 360 保证提示词可写。+24 = 卡左右 padding。
-    const measure = () => setCardWidth(Math.max(360, el.scrollWidth + 24))
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [node.meta])
+  // 卡宽 = 该节点**所有候选模型里最宽的那个底栏**的宽度（恒定）——用户拍板 2026-06-13：
+  // 以最长模型的宽度作为恒定卡宽。换模型时参数行内容变，但卡宽不变 → 生成钮锁死右下角、不再
+  // 跟着参数横排左右跳；最宽档保证任何模型的参数都一行放得下、不需横向滚动。
+  // 测量交给离屏组件 NodeComposerWidthMeasurer（渲染每个模型的 footer 副本取 max），这里只收宽度。
+  const [widestFooterWidth, setWidestFooterWidth] = React.useState<number | undefined>(undefined)
+  const handleWidestFooter = React.useCallback((px: number) => {
+    setWidestFooterWidth((prev) => (prev === px ? prev : px))
+  }, [])
+  // 下限 360 保证提示词可写；+padding 还原成卡宽。未测出前 undefined → 走 min-w-[360] 兜底。
+  const cardWidth = widestFooterWidth != null
+    ? Math.max(360, widestFooterWidth + CARD_HORIZONTAL_PADDING)
+    : undefined
 
   return (
     // 外层只做定位锚（不裁剪），宽度跟随内层卡（w-fit 包住确定宽度的卡，便于 -translate-x-1/2 居中）。
@@ -225,7 +220,9 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
           mentionCandidates={readArchetypeArray(node.meta || {}, 'referenceImageUrls')}
         />
       </div>
-      <div ref={footerRef} className={cn('flex items-center gap-2 mt-auto pt-1 shrink-0 w-max')}>
+      {/* 底栏铺满卡宽（w-full）：卡宽由「最宽模型」恒定，生成钮 ml-auto 永远贴右；
+          换到参数少的模型时底栏内容靠左、右侧留白，生成钮仍锁死右下角（不再随参数横排漂移）。 */}
+      <div className={cn('flex items-center gap-2 mt-auto pt-1 shrink-0 w-full')}>
         {/* 锁从节点卡片移到这里（编辑面板底栏）：卡片预览保持干净，锁定/解锁在选中编辑时就近可达。
             selected 恒为真（composer 只在选中时挂载）→ 始终可见：未锁=描边开锁、已锁=实心锁。 */}
         <NodeLockBadge nodeId={node.id} locked={node.locked} selected />
@@ -243,15 +240,11 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
           const title = disabledReason ?? (isGenerating ? '生成中…' : hasResult ? '重新生成' : '生成')
           return (
             <span title={title} style={{ display: 'contents' }}>
-              {/* 原生 button：避开 WorkbenchButton(Mantine)对 radius/bg 的覆盖,确保样张 v4 的深色圆形主行动钮 */}
+              {/* 原生 button：避开 WorkbenchButton(Mantine)对 radius/bg 的覆盖,确保样张 v4 的深色圆形主行动钮。
+                  ml-auto：把生成钮推到底栏最右 = 卡片右下角（卡宽恒定 → 屏幕位置锁死）。 */}
               <button
                 type="button"
-                className={cn(
-                  'inline-flex items-center justify-center shrink-0 w-[30px] h-[30px] p-0',
-                  'border-0 rounded-full bg-nomi-ink text-nomi-paper text-[14px] leading-none cursor-pointer',
-                  'transition-colors hover:enabled:bg-nomi-accent',
-                  'disabled:bg-nomi-ink-20 disabled:text-nomi-ink-40 disabled:cursor-not-allowed',
-                )}
+                className={cn(GENERATE_BUTTON_CLASS, 'ml-auto')}
                 aria-label={hasResult ? '重新生成' : '生成素材'}
                 disabled={!canGenerate}
                 onClick={handleGenerate}
@@ -263,6 +256,8 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
         })()}
       </div>
       </div>
+      {/* 离屏测量所有候选模型的底栏宽度 → 取最宽作为恒定卡宽（position:absolute 隐藏，不影响可见布局）。 */}
+      <NodeComposerWidthMeasurer node={node} onWidest={handleWidestFooter} />
       {isDragOver ? (
         <div
           className={cn(
