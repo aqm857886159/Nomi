@@ -4,7 +4,7 @@ import { cn } from '../../../utils/cn'
 import { alertDialog, confirmDialog } from '../../../design'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { applyCanvasToolCall } from '../../generationCanvas/agent/applyCanvasToolCall'
-import { resolveStoryboardVideoDefault } from '../../generationCanvas/agent/availableModels'
+import { resolveStoryboardImageDefault, resolveStoryboardVideoDefault } from '../../generationCanvas/agent/availableModels'
 import { storyboardPlanToCreateNodesArgs } from '../../generationCanvas/agent/storyboardPlan'
 import {
   addAnchor,
@@ -73,11 +73,17 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
     try {
       // S4：注入默认视频模型（偏好 Seedance、选有 image_ref 槽的模式，参考才喂得进）+ 时长钳到模型上限。
       // 解析失败/无可用视频模型 → 全空，视频节点不带模型，用户在画布上自己选（不阻断落画布）。
-      const videoDefault = await resolveStoryboardVideoDefault()
+      // 本链路模型锁：视频 Seedance 2.0、图片 GPT Image 2（用户铁律「其他都不要用」）。
+      const [videoDefault, imageDefault] = await Promise.all([
+        resolveStoryboardVideoDefault(),
+        resolveStoryboardImageDefault(),
+      ])
       const args = storyboardPlanToCreateNodesArgs(plan, {
         ...(videoDefault.modelKey ? { defaultVideoModelKey: videoDefault.modelKey } : {}),
         ...(videoDefault.modeId ? { defaultVideoModeId: videoDefault.modeId } : {}),
         ...(videoDefault.maxDurationSec ? { maxDurationSec: videoDefault.maxDurationSec } : {}),
+        ...(imageDefault.modelKey ? { defaultImageModelKey: imageDefault.modelKey } : {}),
+        ...(imageDefault.modeId ? { defaultImageModeId: imageDefault.modeId } : {}),
       })
       await applyCanvasToolCall('create_canvas_nodes', args)
       setStoryboardPlan(null)
