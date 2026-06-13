@@ -2,6 +2,7 @@ import React from 'react'
 import { IconAlertTriangle, IconBox, IconGripVertical, IconPalette, IconPhoto, IconPlus, IconTrash, IconUser, IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { NomiSelect } from '../../../design'
+import { AutoGrowTextarea } from '../../ai/composer/AutoGrowTextarea'
 import type { PlanAnchor, PlanAnchorKind, PlanShot } from '../../generationCanvas/agent/storyboardPlan'
 import { DURATION_OPTIONS_SEC } from '../../generationCanvas/agent/storyboardPlanEdits'
 
@@ -154,15 +155,14 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
         </div>
       )}
 
-      <textarea
+      <AutoGrowTextarea
         value={shot.prompt}
         onChange={(event) => onUpdate({ prompt: event.target.value })}
-        rows={2}
         aria-label={`镜 ${shot.index} 提示词`}
         placeholder="这镜画什么：运镜 + 动作演进（不复述锚的静态描述）"
         className={cn(
-          'mt-2 w-full px-[9px] py-[7px] rounded-nomi-sm border bg-nomi-paper',
-          'text-bodySm text-nomi-ink-80 leading-normal resize-none outline-none focus:border-nomi-accent',
+          'mt-2 px-[9px] py-[7px] rounded-nomi-sm border bg-nomi-paper',
+          'text-bodySm text-nomi-ink-80 leading-normal focus:border-nomi-accent',
           promptInvalid ? 'border-workbench-danger' : 'border-nomi-line',
         )}
       />

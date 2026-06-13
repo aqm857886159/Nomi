@@ -2,6 +2,7 @@ import React from 'react'
 import { IconBox, IconPalette, IconPhoto, IconTrash, IconTypography, IconUser } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { NomiSelect } from '../../../design'
+import { AutoGrowTextarea } from '../../ai/composer/AutoGrowTextarea'
 import type { PlanAnchor, PlanAnchorKind } from '../../generationCanvas/agent/storyboardPlan'
 import { ANCHOR_KIND_LABELS, ANCHOR_KINDS } from '../../generationCanvas/agent/storyboardPlanEdits'
 
@@ -61,15 +62,14 @@ export default function StoryboardAnchorCard({ anchor, onUpdate, onChangeKind, o
           <IconTrash size={15} stroke={1.6} />
         </button>
       </div>
-      <textarea
+      <AutoGrowTextarea
         value={anchor.description}
         onChange={(event) => onUpdate({ description: event.target.value })}
-        rows={1}
         aria-label="锚描述"
         placeholder={anchor.carrier === 'visual' ? '外貌/服装/光线，给生成模型的参考描述' : '能用文字说清的特征（色调/品牌色/服装词），会拼进每个引用它的镜头'}
         className={cn(
-          'mt-2 w-full px-[9px] py-[7px] rounded-nomi-sm border border-nomi-line bg-nomi-paper',
-          'text-bodySm text-nomi-ink-80 leading-normal resize-none outline-none focus:border-nomi-accent',
+          'mt-2 px-[9px] py-[7px] rounded-nomi-sm border border-nomi-line bg-nomi-paper',
+          'text-bodySm text-nomi-ink-80 leading-normal focus:border-nomi-accent',
         )}
       />
     </div>
