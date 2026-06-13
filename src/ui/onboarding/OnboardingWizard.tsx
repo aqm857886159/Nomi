@@ -375,7 +375,7 @@ export function OnboardingWizard({ opened, onClose, onCommitted, experience }: {
     : /^https?:\/\//i.test(baseUrlTrimmed)
   const canTest = baseUrlValid && (providerKind === 'anthropic' || baseUrlTrimmed.length > 0)
   const hasModelId = models.some(m => m.trim().length > 0)
-  const canSaveManual = baseUrlValid && userApiKey.trim().length > 0 && hasModelId && !saving
+  const canSaveManual = baseUrlValid && userApiKey.trim().length > 0 && hasModelId && !saving && testState === 'ok'
   const selectedPreset = PROVIDER_PRESETS.find(p => p.id === presetId)
   const isNamedPreset = Boolean(selectedPreset && !selectedPreset.custom)
   // Named preset already filled a correct BaseURL → hide the jargon-y field unless
@@ -620,7 +620,13 @@ export function OnboardingWizard({ opened, onClose, onCommitted, experience }: {
                   </Group>
                 )}
               </Group>
-              <DesignButton variant="filled" onClick={handleManualSave} disabled={!canSaveManual} loading={saving}>
+              <DesignButton
+                variant="filled"
+                onClick={handleManualSave}
+                disabled={!canSaveManual}
+                loading={saving}
+                title={!canSaveManual && testState !== 'ok' ? '请先点「测试连接」，确认可以连上再保存' : undefined}
+              >
                 {experience ? '保存并继续体验' : '保存'}
               </DesignButton>
             </Group>

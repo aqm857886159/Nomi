@@ -7,6 +7,7 @@ import { cn } from '../../utils/cn'
 import { runWorkbenchAgent, workbenchSessionKey, type ToolCallEvent } from '../ai/workbenchAgentRunner'
 import { clearWorkbenchAgentSession } from '../../api/desktopClient'
 import { AiReplyActionButton } from '../ai/AiReplyActionButton'
+import AssistantModelPicker from '../ai/AssistantModelPicker'
 import { handleAiComposerKeyDown } from '../ai/aiComposerKeyboard'
 import { routeCreationIntent } from './creationIntentRouting'
 import type { WorkbenchAiMessage } from '../ai/workbenchAiTypes'
@@ -565,28 +566,32 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
           onKeyDown={(event) => handleAiComposerKeyDown(event, () => void send())}
           onPaste={handlePaste}
         />
-        <div className={cn('workbench-creation-ai__actions', 'flex items-center justify-between gap-2')}>
-          <WorkbenchIconButton
-            className={cn(
-              'workbench-creation-ai__attach',
-              'shrink-0 size-7 inline-flex items-center justify-center cursor-pointer',
-              'text-nomi-ink-60 hover:text-nomi-ink',
-              'focus-visible:outline-2 focus-visible:outline-workbench-focus focus-visible:outline-offset-2',
-            )}
-            label="添加附件"
-            aria-label="添加附件（也可拖拽 / 粘贴）"
-            onClick={openFilePicker}
-            icon={<IconPaperclip size={16} />}
-          />
-          <NomiSelect
-            ariaLabel="创作模式"
-            leadingLabel="模式"
-            size="sm"
-            title={activeMode.description}
-            value={activeMode.id}
-            options={CREATION_AI_MODES.map((mode) => ({ value: mode.id, label: mode.shortLabel }))}
-            onChange={(value) => setModeId(value as CreationAiModeId)}
-          />
+        <div className={cn('workbench-creation-ai__actions', 'flex items-center justify-between')}>
+          {/* 左侧：附件 + 模式 + 模型选择 */}
+          <div className={cn('flex items-center gap-1.5 min-w-0')}>
+            <WorkbenchIconButton
+              className={cn(
+                'workbench-creation-ai__attach',
+                'shrink-0 size-7 inline-flex items-center justify-center cursor-pointer',
+                'text-nomi-ink-60 hover:text-nomi-ink',
+                'focus-visible:outline-2 focus-visible:outline-workbench-focus focus-visible:outline-offset-2',
+              )}
+              label="添加附件"
+              aria-label="添加附件（也可拖拽 / 粘贴）"
+              onClick={openFilePicker}
+              icon={<IconPaperclip size={16} />}
+            />
+            <NomiSelect
+              ariaLabel="创作模式"
+              leadingLabel="模式"
+              size="sm"
+              title={activeMode.description}
+              value={activeMode.id}
+              options={CREATION_AI_MODES.map((mode) => ({ value: mode.id, label: mode.shortLabel }))}
+              onChange={(value) => setModeId(value as CreationAiModeId)}
+            />
+            <AssistantModelPicker />
+          </div>
           {/* 拆镜头 / 立角色卡 不再做固定执行 chip（用户拍板：对话驱动）——
               用户在输入框直接说「拆成 6 个镜头」「把这个故事做成视频」「给主角立张定妆卡」即可，
               意图由 send() 的 pattern 路由给画布 agent（发现性靠 placeholder + tour 引导）。 */}
