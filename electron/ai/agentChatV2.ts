@@ -4,6 +4,12 @@ import path from "node:path";
 import { tool, type CoreMessage, type CoreUserMessage } from "ai";
 import { z } from "zod";
 import { capAgentHistory, createLinkedAbortController } from "./agentChatHarness";
+import {
+  clearAgentSession,
+  hasPersistedAgentSession,
+  loadAgentSession,
+  saveAgentSession,
+} from "./agentSessionStore";
 import { runAgentLoop } from "./agentLoop";
 import { traceContextCapped } from "../events/agentChatTrace";
 import { consumeAgentStreamWithTimeout } from "./agentStreamConsumer";
@@ -387,13 +393,17 @@ const agentChatV2History = new Map<string, CoreMessage[]>();
 /** S1b 诚实探针:LLM 是否还记得这个会话(气泡在而记忆空 → UI 必须画「新会话」分隔线)。 */
 export function hasAgentChatV2History(sessionKey: string): boolean {
   const key = String(sessionKey || "").trim();
-  return key ? (agentChatV2History.get(key)?.length ?? 0) > 0 : false;
+  if (!key) return false;
+  if ((agentChatV2History.get(key)?.length ?? 0) > 0) return true;
+  // 选项②:内存 Map 冷启动为空时,磁盘有持久工作缓存 → 重启后仍算"记得"(首个请求会回灌)。
+  return hasPersistedAgentSession(key);
 }
 
 /** Drop stored history for a session (or all sessions when no key given). */
 export function clearAgentChatV2History(sessionKey?: string): void {
   if (sessionKey && sessionKey.trim()) {
     agentChatV2History.delete(sessionKey.trim());
+    clearAgentSession(sessionKey.trim()); // 选项②:清会话连磁盘工作缓存一起删
   } else {
     agentChatV2History.clear();
   }
@@ -449,7 +459,15 @@ export async function runAgentChatV2(
   // (within a panel and across the creation / generation areas, which share a
   // sessionKey). "新对话" sends resetSession to wipe it first.
   const sessionKey = trim(payload.sessionKey);
-  if (sessionKey && payload.resetSession) agentChatV2History.delete(sessionKey);
+  if (sessionKey && payload.resetSession) {
+    agentChatV2History.delete(sessionKey);
+    clearAgentSession(sessionKey); // 选项②:「新对话」连磁盘工作缓存一起清
+  }
+  // 选项②冷启动回灌:内存 Map 没有但磁盘有 → 读回工作缓存,实现重启逐字续聊。
+  if (sessionKey && !payload.resetSession && !agentChatV2History.has(sessionKey)) {
+    const persisted = loadAgentSession(sessionKey);
+    if (persisted && persisted.length) agentChatV2History.set(sessionKey, persisted);
+  }
   const priorMessages = sessionKey ? agentChatV2History.get(sessionKey) ?? [] : [];
   // 图片附件 → 原生多模态 image part（按模型能力门控，不支持则降级为文字 + 清晰提示）。
   const userContent = await buildAgentUserContent({
@@ -493,6 +511,7 @@ export async function runAgentChatV2(
     // 截断真的发生 → 记 context.capped(C1 触发器观测;对话内"已不再记得最早 N 轮"提示的数据源)。
     if (capped.length < full.length) traceContextCapped(sessionKey, full.length - capped.length, capped.length);
     agentChatV2History.set(sessionKey, capped);
+    saveAgentSession(sessionKey, capped); // 选项②:同步把工作缓存落盘,供下次重启回灌
   }
 
   return { id: `agent-${crypto.randomUUID()}`, text: finalText, finishReason: finalFinish, usage: finalUsage };
