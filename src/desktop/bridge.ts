@@ -7,6 +7,24 @@ export type { ProviderKind }
 /** 落盘的对话消息(conversation 域;draft/附件是 session 域不落盘)。 */
 export type PersistedAiMessage = { id: string; role: string; content: string }
 
+/** 一条会话线程(v2 会话历史)。messages=该线程气泡;title=一句话摘要(首句兜底)。 */
+export type PersistedThread = {
+  id: string
+  title: string
+  createdAt: number
+  updatedAt: number
+  messages: PersistedAiMessage[]
+}
+/** 一个面板(创作/画布)的会话列表 + 当前活动线程。 */
+export type PersistedConversationArea = { activeId: string | null; threads: PersistedThread[] }
+/** conversations.json v2:两个面板各一份会话列表。 */
+export type PersistedConversationsV2 = {
+  v: 2
+  creation: PersistedConversationArea
+  generation: PersistedConversationArea
+  committedProposal?: unknown
+}
+
 export type DesktopAssetDto = {
   id: string
   name: string
@@ -133,8 +151,8 @@ export type DesktopBridge = {
   }
   /** S1b-3 对话持久化(conversation 域独立文件,不混画布 payload)。committedProposal=S6-5 事务回执(审计 A6),形状由画布层校验。 */
   conversations?: {
-    read: (projectId: string) => Promise<{ ok: boolean; conversations: { creationMessages: PersistedAiMessage[]; generationMessages: PersistedAiMessage[]; committedProposal?: unknown } | null }>
-    write: (projectId: string, payload: { creationMessages: PersistedAiMessage[]; generationMessages: PersistedAiMessage[]; committedProposal?: unknown }) => Promise<{ ok: boolean }>
+    read: (projectId: string) => Promise<{ ok: boolean; conversations: PersistedConversationsV2 | null }>
+    write: (projectId: string, payload: { creation: PersistedConversationArea; generation: PersistedConversationArea; committedProposal?: unknown }) => Promise<{ ok: boolean }>
   }
   onboarding: {
     start: (payload: {

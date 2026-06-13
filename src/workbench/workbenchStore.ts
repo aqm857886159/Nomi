@@ -13,18 +13,26 @@ import {
   setTimelineScale,
   splitClipAtFrame,
 } from './timeline/timelineEdit'
+import {
+  addTextClip,
+  moveTextClip,
+  removeTextClip,
+  resizeTextClip,
+  updateTextClipText,
+} from './timeline/timelineTextEdit'
 import { createDefaultTimeline, normalizeTimeline } from './timeline/timelineMath'
-import type { TimelineClip, TimelineState, TimelineTrackType } from './timeline/timelineTypes'
+import type { TimelineClip, TimelineState, TimelineTextStyle, TimelineTrackType } from './timeline/timelineTypes'
 import { createDefaultWorkbenchDocument, normalizeWorkbenchDocument, type CreationDocumentTools, type PreviewAspectRatio, type WorkbenchDocument } from './workbenchTypes'
 import type { WorkbenchAiMessage } from './ai/workbenchAiTypes'
 import type { StoryboardPlan } from './generationCanvas/agent/storyboardPlan'
 import type { ComposerAttachment } from './ai/composer/composerAttachmentTypes'
 import { createConversationBuckets } from './aiConversationBuckets'
 
-// 创作面板对话的 per-project 桶(S1 治串台;形状=被串台的四个字段)。
+// 创作面板会话「会话域」per-project 桶(S1 治串台)。
+// 注:messages 已迁出本桶,改由 conversationThreads 模型按项目寻址(会话历史,2026-06-14);
+// 本桶只管 draft/附件/error 这些「不落盘的 session 态」的切项目交换。
 const creationAiBuckets = createConversationBuckets(() => ({
   creationAiDraft: '',
-  creationAiMessages: [] as WorkbenchAiMessage[],
   creationAiAttachments: [] as ComposerAttachment[],
   creationAiError: '',
 }))
@@ -88,6 +96,8 @@ type WorkbenchState = {
   previewAspectRatio: PreviewAspectRatio
   /** 多选：选中 clip id 集合（单一真相源）。单片工具取末位为 primary。 */
   selectedTimelineClipIds: string[]
+  /** 选中的文字（字幕/标题卡）clip id。与媒体 clip 选择互斥，避免 Delete 歧义。 */
+  selectedTextClipId: string
   /** 拖动中临时吸附辅助线（非持久化，停手即清） */
   timelineSnapGuide: TimelineSnapGuide | null
   setWorkspaceMode: (mode: unknown) => void
@@ -107,7 +117,6 @@ type WorkbenchState = {
   /** 一次性信号：打开示例/新项目时请求创作助手默认展开（让「拆镜头」CTA 一眼可见），消费后清掉。 */
   creationAssistantAutoOpen: boolean
   setCreationAssistantAutoOpen: (open: boolean) => void
-  resetCreationAiConversation: () => void
   setTimeline: (timeline: TimelineState) => void
   setTimelinePlaying: (playing: boolean) => void
   setPreviewAspectRatio: (ratio: PreviewAspectRatio) => void
@@ -129,6 +138,14 @@ type WorkbenchState = {
   setTimelinePlayhead: (frame: number) => void
   setTimelineZoom: (scale: number) => void
   restoreTimeline: (timeline: unknown) => void
+  /** 文字轨（字幕/标题卡）。在 playhead 处加一条，选中并返回 id。 */
+  addTimelineTextClip: (style: TimelineTextStyle, startFrame: number) => string
+  updateTimelineTextClip: (id: string, text: string) => void
+  /** 拖动中传 commit:false 不落盘，松手 commit:true 落盘一次。 */
+  moveTimelineTextClip: (id: string, startFrame: number, options?: { commit?: boolean }) => void
+  resizeTimelineTextClip: (id: string, edge: 'left' | 'right', frame: number, options?: { commit?: boolean }) => void
+  removeTimelineTextClip: (id: string) => void
+  selectTimelineTextClip: (id: string) => void
 }
 
 export function isWorkspaceMode(value: unknown): value is WorkspaceMode {
@@ -218,6 +235,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   timelinePlaying: false,
   previewAspectRatio: '16:9',
   selectedTimelineClipIds: [],
+  selectedTextClipId: '',
   timelineSnapGuide: null,
   setWorkspaceMode: (mode) => {
     if (!isWorkspaceMode(mode)) return
@@ -261,18 +279,16 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   setCreationAssistantAutoOpen: (creationAssistantAutoOpen) => {
     set({ creationAssistantAutoOpen })
   },
-  resetCreationAiConversation: () => {
-    set({ creationAiDraft: '', creationAiMessages: [], creationAiAttachments: [], creationAiError: '' })
-  },
   swapCreationAiProject: (prevId, nextId) => {
     const state = get()
     set({
       ...creationAiBuckets.swap(prevId, nextId, {
         creationAiDraft: state.creationAiDraft,
-        creationAiMessages: state.creationAiMessages,
         creationAiAttachments: state.creationAiAttachments,
         creationAiError: state.creationAiError,
       }),
+      // messages 由 conversationThreads 模型按项目持有;切项目先清空,载入由 loadProjectConversations 投影回。
+      creationAiMessages: [],
       // 方案是 per-project 工作产物,不入对话桶——切项目直接清,防跨项目串台(2026-06-10 走查教训)。
       storyboardPlan: null,
     })
@@ -404,14 +420,15 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
           selectedTimelineClipIds: exists
             ? state.selectedTimelineClipIds.filter((current) => current !== id)
             : [...state.selectedTimelineClipIds, id],
+          selectedTextClipId: '',
         }
       }
-      return { selectedTimelineClipIds: [id] }
+      return { selectedTimelineClipIds: [id], selectedTextClipId: '' }
     })
   },
   setTimelineSelection: (clipIds) => {
     const ids = Array.from(new Set((clipIds || []).map((id) => String(id || '').trim()).filter(Boolean)))
-    set({ selectedTimelineClipIds: ids })
+    set({ selectedTimelineClipIds: ids, selectedTextClipId: '' })
   },
   setTimelinePlayhead: (frame) => {
     set((state) => ({ timeline: setTimelinePlayheadFrame(state.timeline, frame) }))
@@ -424,5 +441,63 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       timeline: normalizeTimeline(timeline),
       persistRevision: state.persistRevision + 1,
     }))
+  },
+  addTimelineTextClip: (style, startFrame) => {
+    const { timeline, id } = addTextClip(get().timeline, style, startFrame)
+    set((state) => ({
+      timeline,
+      selectedTextClipId: id,
+      selectedTimelineClipIds: [],
+      persistRevision: state.persistRevision + 1,
+    }))
+    return id
+  },
+  updateTimelineTextClip: (id, text) => {
+    set((state) => {
+      const next = updateTextClipText(state.timeline, id, text)
+      return next === state.timeline
+        ? state
+        : { timeline: next, persistRevision: state.persistRevision + 1 }
+    })
+  },
+  moveTimelineTextClip: (id, startFrame, options) => {
+    const commit = options?.commit !== false
+    set((state) => {
+      const next = moveTextClip(state.timeline, id, startFrame)
+      const changed = next !== state.timeline
+      return {
+        timeline: next,
+        selectedTextClipId: String(id || '').trim(),
+        selectedTimelineClipIds: [],
+        persistRevision: commit && changed ? state.persistRevision + 1 : state.persistRevision,
+      }
+    })
+  },
+  resizeTimelineTextClip: (id, edge, frame, options) => {
+    const commit = options?.commit !== false
+    set((state) => {
+      const next = resizeTextClip(state.timeline, id, edge, frame)
+      const changed = next !== state.timeline
+      return {
+        timeline: next,
+        persistRevision: commit && changed ? state.persistRevision + 1 : state.persistRevision,
+      }
+    })
+  },
+  removeTimelineTextClip: (id) => {
+    set((state) => {
+      const next = removeTextClip(state.timeline, id)
+      const changed = next !== state.timeline
+      return {
+        timeline: next,
+        selectedTextClipId: state.selectedTextClipId === id ? '' : state.selectedTextClipId,
+        timelinePlaying: false,
+        persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
+      }
+    })
+  },
+  selectTimelineTextClip: (id) => {
+    const next = String(id || '').trim()
+    set({ selectedTextClipId: next, selectedTimelineClipIds: [] })
   },
 })))

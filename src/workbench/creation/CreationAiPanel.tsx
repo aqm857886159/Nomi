@@ -5,6 +5,7 @@ import { NomiLoadingMark, NomiLogoMark, NomiSelect, WorkbenchButton, WorkbenchIc
 import { NomiMarkdown } from '../common/NomiMarkdown'
 import { cn } from '../../utils/cn'
 import { runWorkbenchAgent, workbenchSessionKey, type ToolCallEvent } from '../ai/workbenchAgentRunner'
+import { startNewConversation } from '../ai/conversationPersistence'
 import { clearWorkbenchAgentSession } from '../../api/desktopClient'
 import { AiReplyActionButton } from '../ai/AiReplyActionButton'
 import AssistantModelPicker from '../ai/AssistantModelPicker'
@@ -12,7 +13,7 @@ import { handleAiComposerKeyDown } from '../ai/aiComposerKeyboard'
 import { routeCreationIntent } from './creationIntentRouting'
 import type { WorkbenchAiMessage } from '../ai/workbenchAiTypes'
 import { WorkbenchAiHeaderActions } from '../ai/WorkbenchAiHeaderActions'
-import { AssistantToolsFold } from '../ai/AssistantToolsFold'
+import { MemoryFold } from '../generationCanvas/components/MemoryFold'
 import { useWorkbenchStore } from '../workbenchStore'
 import { runStoryboardPlanner } from '../generationCanvas/agent/runStoryboardPlanner'
 import { requestFixationPlanning } from '../generationCanvas/agent/fixationLauncher'
@@ -70,6 +71,13 @@ function readWorkbenchAiReplyText(response: unknown): string {
 
 export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => void } = {}): JSX.Element {
   const [sending, setSending] = React.useState(false)
+  // 项目记忆卡刷新键:每完成一轮(sending true→false)+1,触发记忆重取(本轮可能提炼新事实)。
+  const [memoryRefreshKey, setMemoryRefreshKey] = React.useState(0)
+  const prevSendingRef = React.useRef(sending)
+  React.useEffect(() => {
+    if (prevSendingRef.current && !sending) setMemoryRefreshKey((key) => key + 1)
+    prevSendingRef.current = sending
+  }, [sending])
   // 放大/全屏对话：把整块面板移到 body 级居中浮层（仿 Scene3D 全屏 portal）。
   const [expanded, setExpanded] = React.useState(false)
   // Cancel handle for the in-flight agent turn (user "Stop").
@@ -92,7 +100,6 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   const setAttachments = useWorkbenchStore((state) => state.setCreationAiAttachments)
   const setError = useWorkbenchStore((state) => state.setCreationAiError)
   const setWorkspaceMode = useWorkbenchStore((state) => state.setWorkspaceMode)
-  const resetConversation = useWorkbenchStore((state) => state.resetCreationAiConversation)
 
   const {
     isDragging,
@@ -319,11 +326,15 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
 
   const handleNewConversation = React.useCallback(() => {
     setPendingToolCalls([])
+    // 会话历史:归档当前线程(不销毁),建空活动线程,清面板消息投影。
+    startNewConversation('creation')
+    // 清 session 态(draft/附件/error 不落盘,不入线程)。
+    setDraft('')
     clearAttachments()
-    resetConversation()
-    // Wipe the shared backend memory so both areas start a fresh thread.
+    setError('')
+    // 新对话 = 模型上下文也归零(切回旧线程时由 S2 重灌)。
     void clearWorkbenchAgentSession(workbenchSessionKey())
-  }, [clearAttachments, resetConversation])
+  }, [clearAttachments, setDraft, setError])
 
   const panelBody = (
     <aside
@@ -365,6 +376,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         </div>
         <div className={cn('inline-flex items-center gap-2 ml-auto min-w-0')}>
           <WorkbenchAiHeaderActions
+            area="creation"
             className={cn('inline-flex items-center flex-nowrap gap-1')}
             actionClassName={cn(
               'size-6 inline-grid place-items-center shrink-0',
@@ -404,7 +416,8 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
       </header>
 
       <div className={cn('[grid-area:tools]')}>
-        <AssistantToolsFold tools={['读全文', '读选区', '插入到光标', '替换选区', '追加到文末']} />
+        {/* 对齐画布助手:项目记忆「AI 记得 N 条」(N=0 不渲染);删工具条(与记忆条重复的灰杠)。 */}
+        <MemoryFold refreshKey={memoryRefreshKey} />
       </div>
 
       <div

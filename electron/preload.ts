@@ -94,7 +94,7 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   },
   conversations: {
     read: (projectId: string) => ipcRenderer.invoke("nomi:conversations:read", { projectId }),
-    write: (projectId: string, payload: { creationMessages: unknown; generationMessages: unknown; committedProposal?: unknown }) =>
+    write: (projectId: string, payload: { creation: unknown; generation: unknown; committedProposal?: unknown }) =>
       ipcRenderer.invoke("nomi:conversations:write", { projectId, ...payload }),
   },
   agents: {

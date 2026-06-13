@@ -7,6 +7,7 @@ import {
   type ToolCallEvent,
 } from '../agent/generationCanvasAgentClient'
 import { workbenchSessionKey } from '../../ai/workbenchAgentRunner'
+import { startNewConversation } from '../../ai/conversationPersistence'
 import { clearWorkbenchAgentSession } from '../../../api/desktopClient'
 import { generationCanvasTools } from '../agent/generationCanvasTools'
 import { applyCanvasToolCall } from '../agent/applyCanvasToolCall'
@@ -26,7 +27,7 @@ import {
 import AssistantTimeline from './AssistantTimeline'
 import { buildStepDetailLabels, countCreatedNodesByCategory, summarizeToolCall } from './toolCallSummary'
 import { MemoryFold } from './MemoryFold'
-import { clearCommittedProposal, runProposalUndo, setCommittedProposal, useCommittedProposal } from '../agent/proposalUndo'
+import { runProposalUndo, setCommittedProposal, useCommittedProposal } from '../agent/proposalUndo'
 import { toastAction } from '../../../ui/toastAction'
 import type { ReconcileDeviation } from '../agent/reconcile'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
@@ -142,7 +143,6 @@ export default function CanvasAssistantPanel({
   // 面板折叠时组件仍挂载，本地态不丢）。
   const [attachments, setAttachments] = React.useState<ComposerAttachment[]>([])
   const setCollapsed = useGenerationCanvasStore((state) => state.setGenerationAiCollapsed)
-  const resetConversation = useGenerationCanvasStore((state) => state.resetGenerationAiConversation)
 
   const {
     isDragging,
@@ -466,13 +466,13 @@ export default function CanvasAssistantPanel({
     pendingByIdRef.current.clear()
     setPendingToolCalls([])
     setDeviationReport(null)
-    clearCommittedProposal() // S6-5 约束③:清空对话后整笔撤销入口不再提供
-
+    // 会话历史:归档当前线程(不销毁),建空活动线程,清消息投影;startNewConversation 内部清整笔撤销入口。
+    startNewConversation('generation')
+    setDraft('')
     clearAttachments()
-    resetConversation()
-    // Wipe the shared backend memory so both areas start a fresh thread.
+    // 新对话 = 模型上下文也归零(切回旧线程时由 S2 重灌)。
     void clearWorkbenchAgentSession(workbenchSessionKey())
-  }, [clearAttachments, resetConversation])
+  }, [clearAttachments, setDraft])
 
   if (collapsed) {
     return (
@@ -546,6 +546,7 @@ export default function CanvasAssistantPanel({
         </div>
         <div className={cn('inline-flex items-center gap-2 ml-auto min-w-0')}>
           <WorkbenchAiHeaderActions
+            area="generation"
             className={cn('generation-canvas-v2-assistant__shared-actions', 'inline-flex items-center flex-nowrap gap-1')}
             actionClassName={cn(
               'size-6 inline-grid place-items-center',
