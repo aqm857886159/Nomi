@@ -26,6 +26,15 @@ export type StreamTextTaskOptions = {
   abortSignal?: AbortSignal;
 };
 
+// 文本流式超时（根因修复 2026-06-13）：中转接了连接却不吐 token/不关流时，
+// AI SDK 的 textStream for-await 会永久挂起，节点永远停在「正在把任务发给模型」——
+// 既不报错也进不了重试。两道闸：
+// ① 首字超时：发出请求后这么久还没收到第一个 token 就中断（判活，区别于"慢但在动"）;
+// ② 整体超时：收到首字后总时长上限，防开了流又卡死在中途。
+// 超时即 abort（真掐断 HTTP 连接，见 buildAiSdkModel 透传 init.signal），并抛错让节点落 error 可重试。
+const FIRST_TOKEN_TIMEOUT_MS = 30_000;
+const OVERALL_TIMEOUT_MS = 120_000;
+
 /** http(s) URL 走 URL 引用（不内联）；data:/base64 等原样作字符串传给 SDK。 */
 function toImagePart(imageUrl: string): { type: "image"; image: URL | string } {
   if (/^https?:\/\//i.test(imageUrl)) {
@@ -53,18 +62,54 @@ export async function streamTextTask(
     ? [{ type: "text" as const, text: promptText }, toImagePart(input.imageUrl)]
     : promptText;
 
+  // 内部 controller 统一承载「超时」与「外部取消」两个中断源 → 只给 streamText 一个 signal。
+  const controller = new AbortController();
+  let timeoutReason: string | null = null;
+  const external = opts.abortSignal;
+  if (external) {
+    if (external.aborted) controller.abort();
+    else external.addEventListener("abort", () => controller.abort(), { once: true });
+  }
+  let firstTokenTimer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+    timeoutReason = `首字 ${FIRST_TOKEN_TIMEOUT_MS / 1000}s 未响应`;
+    controller.abort();
+  }, FIRST_TOKEN_TIMEOUT_MS);
+  const overallTimer = setTimeout(() => {
+    timeoutReason = `整体超过 ${OVERALL_TIMEOUT_MS / 1000}s`;
+    controller.abort();
+  }, OVERALL_TIMEOUT_MS);
+  const timeoutError = () =>
+    new Error(`文本生成超时（${timeoutReason}），已中断。请重试或更换模型。`);
+
   const result = streamText({
     model,
     messages: [{ role: "user", content }],
     temperature: typeof input.temperature === "number" ? input.temperature : 0.7,
     ...(typeof input.maxTokens === "number" && input.maxTokens > 0 ? { maxTokens: input.maxTokens } : {}),
-    ...(opts.abortSignal ? { abortSignal: opts.abortSignal } : {}),
+    abortSignal: controller.signal,
   });
 
   let text = "";
-  for await (const delta of result.textStream) {
-    text += delta;
-    opts.onDelta?.(delta);
+  try {
+    for await (const delta of result.textStream) {
+      // 收到首字 → 撤首字闸，后续交给整体闸。
+      if (firstTokenTimer) {
+        clearTimeout(firstTokenTimer);
+        firstTokenTimer = null;
+      }
+      text += delta;
+      opts.onDelta?.(delta);
+    }
+  } catch (err) {
+    // AI SDK abort 时 textStream 多半静默结束，但个别 provider 会抛——抛了也归一成超时错。
+    if (timeoutReason) throw timeoutError();
+    throw err;
+  } finally {
+    if (firstTokenTimer) clearTimeout(firstTokenTimer);
+    clearTimeout(overallTimer);
   }
+  // abort 导致的静默结束在这里兜：是我们的超时 abort 就抛错（落 node error 可重试），
+  // 不能把空/残文本当成功返回。外部取消(timeoutReason 为空)则由渲染层的取消路径收尾。
+  if (timeoutReason) throw timeoutError();
   return { text, raw: { choices: [{ message: { role: "assistant", content: text } }] } };
 }
