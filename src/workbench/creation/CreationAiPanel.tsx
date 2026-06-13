@@ -155,7 +155,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     setMessages((prev) => [
       ...prev,
       { id: `creation_ai_user_${now}`, role: 'user', content: displayPrompt },
-      { id: assistantId, role: 'assistant', content: '正在拆镜头，整理分镜方案…' },
+      { id: assistantId, role: 'assistant', content: '正在拆镜头，整理分镜方案…', status: 'pending' as const },
     ])
     setDraft('')
     setError('')
@@ -167,21 +167,21 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         const { text } = await runStoryboardPlanner({
           storyText,
           onContent: (streamed) =>
-            setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: streamed || '正在拆镜头…' } : m))),
+            setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: streamed || '正在拆镜头…', status: 'streaming' as const } : m))),
           onCancelReady: (cancel) => {
             cancelRef.current = cancel
           },
         })
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === assistantId ? { ...m, content: text || '分镜方案已生成，请在左侧审阅、修改后确认落画布。' } : m,
+            m.id === assistantId ? { ...m, content: text || '分镜方案已生成，请在左侧审阅、修改后确认落画布。', status: 'done' as const } : m,
           ),
         )
       } catch (error: unknown) {
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
-              ? { ...m, content: `拆镜头失败：${error instanceof Error && error.message ? error.message : '未知错误'}` }
+              ? { ...m, content: `拆镜头失败：${error instanceof Error && error.message ? error.message : '未知错误'}`, status: 'error' as const }
               : m,
           ),
         )
@@ -203,7 +203,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     setMessages((prev) => [
       ...prev,
       { id: `creation_ai_user_${now}`, role: 'user', content: displayPrompt },
-      { id: `creation_ai_assistant_${now + 1}`, role: 'assistant', content: '已切到生成区，正在让 AI 按剧本为角色/场景定妆。' },
+      { id: `creation_ai_assistant_${now + 1}`, role: 'assistant', content: '已切到生成区，正在让 AI 按剧本为角色/场景定妆。', status: 'done' as const },
     ])
     setDraft('')
     setError('')
@@ -243,7 +243,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
       ...(readyAttachments.length ? { attachments: readyAttachments } : {}),
     }
     const pendingId = `creation_ai_assistant_${Date.now() + 1}`
-    setMessages((prev) => [...prev, userMessage, { id: pendingId, role: 'assistant', content: '处理中...' }])
+    setMessages((prev) => [...prev, userMessage, { id: pendingId, role: 'assistant', content: '', status: 'pending' as const }])
     setDraft('')
     clearAttachments()
     setError('')
@@ -259,7 +259,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         skillName: activeMode.title,
         onContent: (_delta, streamedText) => {
           setMessages((prev) => prev.map((message) => (
-            message.id === pendingId ? { ...message, content: streamedText || '处理中...' } : message
+            message.id === pendingId ? { ...message, content: streamedText, status: 'streaming' as const } : message
           )))
         },
         onCancelReady: (cancel) => {
@@ -294,14 +294,14 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
       const totalTokens = response.usage?.totalTokens
       setMessages((prev) => prev.map((message) => (
         message.id === pendingId
-          ? { ...message, content: reply, ...(totalTokens ? { turnStats: { totalTokens } } : {}) }
+          ? { ...message, content: reply, status: 'done' as const, ...(totalTokens ? { turnStats: { totalTokens } } : {}) }
           : message
       )))
     } catch (err) {
       const message = err instanceof Error ? err.message : '创作 AI 调用失败'
       setError(message)
       setMessages((prev) => prev.map((item) => (
-        item.id === pendingId ? { ...item, content: `（错误）${message}` } : item
+        item.id === pendingId ? { ...item, content: `（错误）${message}`, status: 'error' as const } : item
       )))
     } finally {
       setSending(false)
@@ -455,12 +455,24 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
                 {message.attachments?.length ? (
                   <AttachmentRail attachments={message.attachments} readOnly className={cn('mb-1.5')} />
                 ) : null}
-                {message.role === 'assistant' && message.content === '处理中...' ? (
-                  <NomiLoadingMark size={15} label="处理中" />
+                {message.role === 'assistant' && message.status === 'pending' ? (
+                  <div className={cn('flex items-center gap-2')}>
+                    <NomiLoadingMark size={14} label="处理中" />
+                    {message.content ? (
+                      <span className={cn('text-nomi-ink-60 text-[13px] leading-snug')}>{message.content}</span>
+                    ) : null}
+                  </div>
                 ) : (
                   <NomiMarkdown compact>{message.content}</NomiMarkdown>
                 )}
-                {message.role === 'assistant' && message.content !== '处理中...' && !message.content.startsWith('（错误）') ? (
+                {message.role === 'assistant' && message.status === 'streaming' ? (
+                  <span className={cn('inline-flex gap-[3px] mt-1.5')} aria-hidden>
+                    {[0, 1, 2].map((i) => (
+                      <span key={i} className={cn('block w-1 h-1 rounded-full bg-nomi-ink-40 animate-pulse')} style={{ animationDelay: `${i * 150}ms` }} />
+                    ))}
+                  </span>
+                ) : null}
+                {message.role === 'assistant' && (!message.status || message.status === 'done') && !message.content.startsWith('（错误）') ? (
                   <AiReplyActionButton
                     className="workbench-creation-ai__reply-action"
                     content={message.content}
