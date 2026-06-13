@@ -2,6 +2,7 @@ import React from 'react'
 import { cn } from '../../utils/cn'
 import CreationAiPanel from './CreationAiPanel'
 import WorkbenchEditor from './WorkbenchEditor'
+import StoryboardPlanEditor from './storyboard/StoryboardPlanEditor'
 import { NomiAILabel, WorkbenchButton } from '../../design'
 import { useWorkbenchStore } from '../workbenchStore'
 
@@ -11,6 +12,8 @@ export default function CreationWorkspace(): JSX.Element {
   // 一次性信号：打开示例/新项目时自动展开助手，让「拆镜头」CTA 一眼可见，消费后清掉。
   const autoOpen = useWorkbenchStore((s) => s.creationAssistantAutoOpen)
   const setAutoOpen = useWorkbenchStore((s) => s.setCreationAssistantAutoOpen)
+  // 方案存在时主列展开分镜方案编辑器，替换文档编辑器（剧本→方案→确认落画布主链路 S3）。
+  const hasStoryboardPlan = useWorkbenchStore((s) => s.storyboardPlan !== null)
   React.useEffect(() => {
     if (autoOpen) {
       setCollapsed(false)
@@ -34,7 +37,7 @@ export default function CreationWorkspace(): JSX.Element {
       )}
       aria-label="创作区"
     >
-      <WorkbenchEditor />
+      {hasStoryboardPlan ? <StoryboardPlanEditor /> : <WorkbenchEditor />}
       {collapsed ? (
         <WorkbenchButton
           className={cn(
