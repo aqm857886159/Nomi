@@ -136,6 +136,26 @@ export async function resolveStoryboardVideoDefault(): Promise<{ modelKey?: stri
   }
 }
 
+/**
+ * 分镜方案落画布时给定妆卡/场景卡选的默认图片模型（用户铁律：本链路图片只用 GPT Image 2）。
+ * 通用解析（不硬编码 vendor 目录，P4）：按名字匹配 gpt image，**严格不回退**别的图片模型
+ * （「其他都不要用」）——找不到则全空，节点不带模型、用户在画布上自己选，绝不替成别的模型。
+ */
+export async function resolveStoryboardImageDefault(): Promise<{ modelKey?: string; modeId?: string }> {
+  let entries: AgentModelEntry[] = []
+  try {
+    entries = await listAvailableModelsForAgent()
+  } catch {
+    return {}
+  }
+  const images = entries.filter((entry) => entry.kind === 'image')
+  const prefer = images.find((entry) => /gpt[\s-]?image/i.test(`${entry.modelKey} ${entry.modelAlias ?? ''} ${entry.label}`))
+  if (!prefer) return {}
+  const mode =
+    prefer.modes.find((m) => m.modeId === prefer.defaultModeId) ?? prefer.modes[0]
+  return { modelKey: prefer.modelKey, ...(mode ? { modeId: mode.modeId } : {}) }
+}
+
 /** 把可选模型清单格式化成注入 agent 系统提示词的紧凑文本。空清单返回 ''（不注入）。 */
 export function formatAvailableModelsForPrompt(entries: readonly AgentModelEntry[]): string {
   if (entries.length === 0) return "";

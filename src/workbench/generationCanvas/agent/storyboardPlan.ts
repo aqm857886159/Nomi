@@ -27,6 +27,12 @@ export type PlanAnchor = {
   carrier: PlanAnchorCarrier
   /** all=每镜常驻（风格/品牌）；selective=被点名才用（角色/场景/道具）。缺省按 kind 推。 */
   scope?: 'all' | 'selective'
+  /**
+   * 同一锚要在「一张定妆卡/场景卡」里并列呈现的变体/状态（用户拍板：AI 猜 + 手改）。
+   * 角色：如「成年」「童年」「战损」；场景：如「白天远景」「夜晚近景」。
+   * 落画布时拼进卡片提示词的「变体行」，让多视图+多变体集中在一张图里、整张喂参考。
+   */
+  variants?: string[]
 }
 
 export type PlanShot = {
@@ -57,6 +63,13 @@ export const planAnchorSchema = z.object({
   description: z.string(),
   carrier: z.enum(['visual', 'text']),
   scope: z.enum(['all', 'selective']).optional(),
+  variants: z
+    .array(z.string())
+    .optional()
+    .describe(
+      '同一锚需要并列在一张定妆卡/场景卡里的变体/状态。仅当剧情里该角色/场景有明显形态差异时填，' +
+        '如角色「成年」「童年」，场景「白天远景」「夜晚近景」；没有就省略。',
+    ),
 })
 
 export const planShotSchema = z.object({
@@ -125,6 +138,10 @@ export type StoryboardPlanToArgsOptions = {
   defaultVideoModeId?: string
   /** 镜头时长上限（所选默认模型支持的最大时长）；超过则钳到此值（落地不超模型上限）。 */
   maxDurationSec?: number
+  /** 定妆卡/场景卡默认图片模型（本链路锁 GPT Image 2，通用解析）；调用方传入。 */
+  defaultImageModelKey?: string
+  /** 图片模型的模式 id；调用方传入。 */
+  defaultImageModeId?: string
 }
 
 const VISUAL_KINDS: ReadonlySet<PlanAnchorKind> = new Set(['character', 'scene', 'prop'])
@@ -149,6 +166,43 @@ function anchorKindToNodeKind(kind: PlanAnchorKind): string {
 
 function shotClientId(shot: PlanShot): string {
   return `shot-${shot.index}`
+}
+
+/**
+ * 定妆卡/场景卡提示词构造（R6 调研落地：把图当「版面/网格」描述，先锁身份再列视图，
+ * 中性背景+平光+小标签，多视图+多变体集中一张图，整张喂参考视频）。GPT Image 2 尤擅此类多面板版面。
+ * 视觉锚（character/scene/prop）→ 卡片大图；变体（成年/童年、白天/夜晚…）拼进「变体行」。
+ */
+export function buildAnchorSheetPrompt(anchor: PlanAnchor): string {
+  const name = anchor.name.trim()
+  const desc = anchor.description.trim()
+  const variantLine =
+    anchor.variants && anchor.variants.length
+      ? `\n变体行：${anchor.variants.map((v) => v.trim()).filter(Boolean).join('、')}（每个变体各占一格并在格下标注）。`
+      : ''
+  if (anchor.kind === 'scene') {
+    return [
+      '场景参考卡（environment reference sheet）。横向版面、分格清晰、每格下方小标签，统一色调与光源。',
+      `同一地点「${name}」：${desc}`,
+      '角度：①远景 establishing ②近景细节 ③俯视 overhead ④四分之三视。' + variantLine,
+      '要求：跨格保持同一地点与风格一致；避免人物入镜、避免风格漂移、避免格子合并。',
+    ].join('\n')
+  }
+  if (anchor.kind === 'prop') {
+    return [
+      '道具参考卡。白色中性背景、平光、分格清晰、每格下方小标签。',
+      `同一物件「${name}」：${desc}`,
+      '视图：①正面 ②侧面 ③细节特写。' + variantLine,
+      '要求：跨格保持同一物件一致；避免场景化背景、避免风格漂移、避免格子合并。',
+    ].join('\n')
+  }
+  // character（默认）
+  return [
+    '角色定妆参考卡（character reference sheet）。白色中性背景、平光、横向版面、分格清晰、每格下方小标签。',
+    `同一角色「${name}」，跨所有格保持脸型、发型、服装、标志物完全一致：${desc}`,
+    '视图：①正面全身 A-Pose ②侧面 ③背面 ④四分之三侧 ⑤表情行（中性 / 微笑 / 愤怒）。' + variantLine,
+    '要求：跨格五官与服装一致；避免格子合并、避免跨格漂移、避免场景化背景。',
+  ].join('\n')
 }
 
 /** 文本锚的描述拼进引用它的镜头 prompt（「能 prompt 说清的就别生成图」的落地：文本锚 = 写进 prompt）。 */
@@ -176,14 +230,17 @@ export function storyboardPlanToCreateNodesArgs(
   const nodes: PlanCreatedNode[] = []
   const edges: PlanCreatedEdge[] = []
 
-  // 视觉锚 → 卡片节点（clientId = anchor.id，落画布 registry 照常解析）。
+  // 视觉锚 → 定妆卡/场景卡节点（clientId = anchor.id）。prompt 用「卡片大图」构造器：
+  // 多视图+多变体集中一张图、整张喂参考（用户拍板）。图片模型锁 GPT Image 2（调用方传入）。
   for (const anchor of plan.anchors) {
     if (anchor.carrier !== 'visual' || !VISUAL_KINDS.has(anchor.kind)) continue
     nodes.push({
       clientId: anchor.id,
       kind: anchorKindToNodeKind(anchor.kind),
       title: anchor.name,
-      prompt: anchor.description.trim(),
+      prompt: buildAnchorSheetPrompt(anchor),
+      ...(options.defaultImageModelKey ? { modelKey: options.defaultImageModelKey } : {}),
+      ...(options.defaultImageModeId ? { modeId: options.defaultImageModeId } : {}),
     })
   }
 

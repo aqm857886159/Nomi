@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseStoryboardPlan, storyboardPlanToCreateNodesArgs, type StoryboardPlan } from './storyboardPlan'
+import { buildAnchorSheetPrompt, parseStoryboardPlan, storyboardPlanToCreateNodesArgs, type StoryboardPlan } from './storyboardPlan'
 
 const PLAN: StoryboardPlan = {
   title: '雨夜追凶',
@@ -24,6 +24,33 @@ describe('storyboardPlanToCreateNodesArgs', () => {
       ['a-roof', 'scene', '天台'],
       ['a-bag', 'image', '红书包'], // 道具无专用节点种类 → image（通用参考图），防 registry 查不到崩
     ]) // a-style(文本锚)不在
+  })
+
+  it('定妆卡提示词：角色含身份锁+多视图+变体行（变体来自 anchor.variants）', () => {
+    const p = buildAnchorSheetPrompt({
+      id: 'a', kind: 'character', name: '林夏', description: '齐肩黑发，红校服', carrier: 'visual', variants: ['成年', '童年'],
+    })
+    expect(p).toContain('角色定妆参考卡')
+    expect(p).toContain('林夏')
+    expect(p).toContain('齐肩黑发')
+    expect(p).toContain('正面全身 A-Pose')
+    expect(p).toContain('变体行：成年、童年')
+  })
+
+  it('场景卡提示词：含多角度（远景/近景/俯视），无变体则不出变体行', () => {
+    const p = buildAnchorSheetPrompt({ id: 's', kind: 'scene', name: '天台', description: '夜晚霓虹', carrier: 'visual' })
+    expect(p).toContain('场景参考卡')
+    expect(p).toContain('远景 establishing')
+    expect(p).not.toContain('变体行')
+  })
+
+  it('视觉锚落画布用定妆卡提示词 + 锁 GPT Image 2（defaultImageModelKey 注入）', () => {
+    const { nodes } = storyboardPlanToCreateNodesArgs(PLAN, { defaultImageModelKey: 'gpt-image-2', defaultImageModeId: 'default' })
+    const linxia = nodes.find((n) => n.clientId === 'a-linxia')
+    expect(linxia?.modelKey).toBe('gpt-image-2')
+    expect(linxia?.prompt).toContain('角色定妆参考卡')
+    // 文本锚（风格）仍不建节点
+    expect(nodes.some((n) => n.clientId === 'a-style')).toBe(false)
   })
 
   it('整批落「分镜」分类（用户拍板 A：角色/场景/镜头落在一起，参考边同屏可连）', () => {
