@@ -172,5 +172,11 @@
       "releaseType": "release"
     },
     "artifactName": "${productName}-${os}-${arch}.${ext}"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild"
+    ]
   }
 }
