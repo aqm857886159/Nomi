@@ -30,7 +30,6 @@ export function importWithRetry<T>(
 
 type BoundaryProps = {
   label: string
-  onRetry: () => void
   children: React.ReactNode
 }
 
@@ -64,19 +63,19 @@ class ChunkErrorBoundary extends React.Component<BoundaryProps, { error: Error |
         )}
       >
         <span className={cn('text-caption text-nomi-ink-80')}>{this.props.label}加载失败</span>
-        <span className={cn('text-micro text-nomi-ink-40')}>其余功能不受影响；若重试仍失败，请重启应用</span>
+        <span className={cn('text-micro text-nomi-ink-40')}>其余功能不受影响；可重新加载重试</span>
         <button
           type='button'
           className={cn(
             'inline-flex h-6 items-center px-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper',
             'text-caption text-nomi-ink-80 cursor-pointer hover:bg-nomi-ink-05',
           )}
-          onClick={() => {
-            this.setState({ error: null })
-            this.props.onRetry()
-          }}
+          // 重试 = 整页重载：工厂层 importWithRetry 已自动退避重试 2 次吃掉瞬时抖动，
+          // 走到降级说明 chunk 持续不可用；React.lazy 一旦 reject 会永久缓存失败、
+          // 在同一 JS 上下文里无法复活，只有 reload 拿到全新上下文才可能自愈。
+          onClick={() => { try { window.location.reload() } catch { /* noop */ } }}
         >
-          重试
+          重新加载
         </button>
       </div>
     )
@@ -85,23 +84,23 @@ class ChunkErrorBoundary extends React.Component<BoundaryProps, { error: Error |
 
 /**
  * React.lazy 的容错替身：用法与 `React.lazy(factory)` 相同（外层 Suspense 照旧），
- * 但失败只降级本区域，并提供真正能恢复的「重试」。
+ * 但 chunk 失败只降级本区域、不冒泡到根错误边界拖死整个 app。
+ *
+ * **关键：lazy 实例必须模块级创建一次**（在返回的组件之外）。一个会立即 suspend
+ * 的组件，若在其内部用 useState/useMemo 创建会 suspend 的 lazy，React 在首次渲染
+ * suspend 时会丢弃这次渲染的 hook 状态，promise resolve 后重试又重新初始化、新建
+ * lazy、新 pending promise → 永久 suspend，app 卡在 loading 打不开（2026-06-13
+ * 真机走查实锤，单测抓不到这个 React 树行为）。模块级 lazy 不受组件重渲染影响。
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ComponentType<any> 是 React 组件泛型约束的惯用形态
 export function lazyWithChunkBoundary<T extends React.ComponentType<any>>(
   label: string,
   factory: () => Promise<{ default: T }>,
 ): (props: React.ComponentProps<T>) => JSX.Element {
+  const Lazy = React.lazy(() => importWithRetry(factory))
   function ChunkGuarded(props: React.ComponentProps<T>): JSX.Element {
-    const [epoch, setEpoch] = React.useState(0)
-    // 重试 = 换 epoch 重建 lazy 实例（React 18 rejected lazy 不可复用）。
-    const Lazy = React.useMemo(
-      () => React.lazy(() => importWithRetry(factory)),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [epoch],
-    )
     return (
-      <ChunkErrorBoundary label={label} onRetry={() => setEpoch((value) => value + 1)}>
+      <ChunkErrorBoundary label={label}>
         <Lazy {...props} />
       </ChunkErrorBoundary>
     )
