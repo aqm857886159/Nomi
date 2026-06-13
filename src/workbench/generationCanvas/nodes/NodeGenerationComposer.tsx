@@ -7,6 +7,9 @@ import { readArchetypeArray } from './controls/archetypeMeta'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { canRunGenerationNode, rerunGenerationNodeAsNewNode, runGenerationNode } from '../runner/generationRunController'
+import { collectUngeneratedReferenceAncestors } from '../runner/referenceAncestors'
+import { buildDependencyWaves } from '../runner/dependencyWaves'
+import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
 import NodeParameterControls from './NodeParameterControls'
 import NodeComposerWidthMeasurer from './NodeComposerWidthMeasurer'
 import { GENERATE_BUTTON_CLASS, CARD_HORIZONTAL_PADDING } from './nodeComposerStyles'
@@ -73,6 +76,14 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   const canGenerate = useGenerationCanvasStore((state) =>
     canRunGenerationNode(node, { nodes: state.nodes, edges: state.edges }),
   ) && !isGenerating
+  // 自动备齐参考（对话 2026-06-14）：本节点经参考边、尚未出图的上游 id（稳定 key 订阅防抖）。
+  // 有则「生成」不裸跑，转而排依赖波次（参考先生成→本节点后生成）走批量确认条。
+  const pendingRefKey = useGenerationCanvasStore((state) =>
+    collectUngeneratedReferenceAncestors(node.id, { nodes: state.nodes, edges: state.edges }).join(','),
+  )
+  const hasPendingRefs = pendingRefKey.length > 0
+  // 视频缺参考本会禁用「生成」；但若缺的是「连了线、只是还没生成」的上游 → 仍可点（去备齐），不禁用。
+  const canGenerateNow = canGenerate || (hasPendingRefs && !isGenerating)
   const composerLayout = floatingComposerLayout(visualSize.width, visualSize.height, node.kind)
   const isTextKind = node.kind === 'text'
   const textGenMode = getTextGenMode(node)
@@ -87,6 +98,15 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   const handleGenerate = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
     const state = useGenerationCanvasStore.getState()
+    // 自动备齐参考：本节点有「连了线但还没出图」的上游 → 不裸跑，排依赖波次（参考先、本镜后）
+    // 走批量确认条（确认前零调用零扣费；用户一眼看到先生成谁、再生成谁）。根治单节点生成绕过
+    // 依赖、参考没回灌进镜头的整类问题（对话 2026-06-14）。
+    const pendingRefs = collectUngeneratedReferenceAncestors(node.id, { nodes: state.nodes, edges: state.edges })
+    if (pendingRefs.length > 0) {
+      const plan = buildDependencyWaves([...pendingRefs, node.id], { nodes: state.nodes, edges: state.edges })
+      useBatchPlanPreviewStore.getState().open(plan)
+      return
+    }
     if (!canRunGenerationNode(node, { nodes: state.nodes, edges: state.edges })) return
     try {
       if (hasResult) {
@@ -228,7 +248,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
         <NodeLockBadge nodeId={node.id} locked={node.locked} selected />
         <NodeParameterControls node={node} section="parameters" />
         {(() => {
-          const disabledReason = !canGenerate && !isGenerating
+          const disabledReason = !canGenerateNow && !isGenerating
             ? nodeExecutionKind === 'video'
               ? acceptsDrop
                 ? '需要先添加参考素材（拖入 / 连线 / 点 +）'
@@ -237,7 +257,8 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
                 ? undefined
                 : `「${node.kind}」类型暂不支持直接生成`
             : undefined
-          const title = disabledReason ?? (isGenerating ? '生成中…' : hasResult ? '重新生成' : '生成')
+          const title = disabledReason
+            ?? (isGenerating ? '生成中…' : hasPendingRefs ? '先生成参考，再生成本镜' : hasResult ? '重新生成' : '生成')
           return (
             <span title={title} style={{ display: 'contents' }}>
               {/* 原生 button：避开 WorkbenchButton(Mantine)对 radius/bg 的覆盖,确保样张 v4 的深色圆形主行动钮。
@@ -246,7 +267,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
                 type="button"
                 className={cn(GENERATE_BUTTON_CLASS, 'ml-auto')}
                 aria-label={hasResult ? '重新生成' : '生成素材'}
-                disabled={!canGenerate}
+                disabled={!canGenerateNow}
                 onClick={handleGenerate}
               >
                 {isGenerating ? '···' : '↑'}
