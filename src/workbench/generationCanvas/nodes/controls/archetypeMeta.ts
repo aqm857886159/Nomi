@@ -249,7 +249,7 @@ function slotAsArray(slot: { kind: ArchetypeReferenceSlotKind; asArray?: boolean
 export function buildArchetypeInputParams(
   meta: Record<string, unknown>,
   archetype: ModelArchetype,
-  references?: { firstFrameUrl?: string | null; lastFrameUrl?: string | null },
+  references?: { firstFrameUrl?: string | null; lastFrameUrl?: string | null; referenceImages?: readonly string[] },
 ): Record<string, string | string[]> {
   const mode = currentArchetypeMode(archetype, meta)
   const out: Record<string, string | string[]> = {}
@@ -258,8 +258,19 @@ export function buildArchetypeInputParams(
     const asArray = slotAsArray(slot)
     const arr = ARRAY_SLOT_ROUTE[slot.kind]
     if (arr) {
-      const list = readArchetypeArray(meta, arr.metaKey)
-      if (list.length) out[inputKey] = list
+      // 切片1 修边投递：手动拖入的 meta 数组 + 画布边产出的实时参考图（references.referenceImages，
+      // 含 character_ref/style_ref/composition_ref 边的图）合并、去重、截到 slot.max。此前档案模型
+      // 只读 meta、把边的图丢了——agent 连的 character_ref 边对主流模型连了等于没连。仅 image 槽收
+      // 图片边（video/audio 槽不污染）；cap 至 slot.max 顺带封死手动超额导致的 vendor 422。
+      const metaList = readArchetypeArray(meta, arr.metaKey)
+      const edgeList = arr.accept === 'image' ? (references?.referenceImages ?? []) : []
+      const merged: string[] = []
+      for (const candidate of [...metaList, ...edgeList]) {
+        const url = typeof candidate === 'string' ? candidate.trim() : ''
+        if (url && !merged.includes(url)) merged.push(url)
+      }
+      const capped = slot.max > 0 ? merged.slice(0, slot.max) : merged
+      if (capped.length) out[inputKey] = capped
       continue
     }
     const metaKey = SINGLE_SLOT_META_KEY[slot.kind]

@@ -72,6 +72,9 @@ function buildReferenceExtras(
     const archetypeInput = buildArchetypeInputParams(meta, archetype, {
       firstFrameUrl: asTrimmedString(references.firstFrameUrl) || null,
       lastFrameUrl: asTrimmedString(references.lastFrameUrl) || null,
+      // 切片1：把画布边产出的实时参考图喂进档案 image 槽（此前只读 meta，边的角色图被丢）。
+      // referenceImages 已是 meta.referenceImages + 边超集的去重并集。
+      referenceImages,
     })
     return {
       ...(referenceImages.length ? { referenceImages } : {}),

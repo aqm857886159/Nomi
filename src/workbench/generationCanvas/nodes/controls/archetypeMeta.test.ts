@@ -180,6 +180,37 @@ describe('C3 全能参考 — 数组 input 构建（M2 互斥含数组槽，snak
   })
 })
 
+describe('切片1 — 画布边参考图喂进档案 image 槽（修边投递裂开）', () => {
+  it('omni：边参考图并入 reference_image_urls，与 meta 去重保序', () => {
+    const meta = { archetype: { id: 'seedance-2', modeId: 'omni' }, referenceImageUrls: ['c1.png', 'c2.png'] }
+    expect(buildArchetypeInputParams(meta, SEEDANCE, { referenceImages: ['c2.png', 'e1.png'] })).toEqual({
+      reference_image_urls: ['c1.png', 'c2.png', 'e1.png'], // c2 去重，e1 追加在 meta 之后
+    })
+  })
+  it('纯边参考（meta 无数组）也进槽——agent 连 character_ref 边的常见场景，此前被丢', () => {
+    const meta = { archetype: { id: 'seedance-2', modeId: 'omni' } }
+    expect(buildArchetypeInputParams(meta, SEEDANCE, { referenceImages: ['e1.png'] })).toEqual({
+      reference_image_urls: ['e1.png'],
+    })
+  })
+  it('截到 slot.max（omni image ≤9）：meta 8 + 边 3 → 9，封死 vendor 422', () => {
+    const meta = { archetype: { id: 'seedance-2', modeId: 'omni' }, referenceImageUrls: ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8'] }
+    const result = buildArchetypeInputParams(meta, SEEDANCE, { referenceImages: ['e1', 'e2', 'e3'] })
+    expect(result.reference_image_urls).toEqual(['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'e1'])
+  })
+  it('图片边不污染 video/audio 槽', () => {
+    const meta = { archetype: { id: 'seedance-2', modeId: 'omni' }, referenceVideoUrls: ['v1.mp4'] }
+    expect(buildArchetypeInputParams(meta, SEEDANCE, { referenceImages: ['e1.png'] })).toEqual({
+      reference_image_urls: ['e1.png'],
+      reference_video_urls: ['v1.mp4'],
+    })
+  })
+  it('M2：首帧模式无 image_ref 槽，边参考图不泄漏进 body', () => {
+    const meta = { archetype: { id: 'seedance-2', modeId: 'first' }, firstFrameUrl: 'F.png' }
+    expect(buildArchetypeInputParams(meta, SEEDANCE, { referenceImages: ['e1.png'] })).toEqual({ first_frame_url: 'F.png' })
+  })
+})
+
 describe('appendArchetypeArrayValue — 单源去重/上限（拖入/连线/手动加共用）', () => {
   const slot: ArchetypeArraySlot = { metaKey: 'referenceImageUrls', label: '角色参考', min: 0, max: 2, accept: 'image', numbered: true }
   it('空 → empty；空白串也算空', () => {
