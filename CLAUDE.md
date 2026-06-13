@@ -24,6 +24,7 @@ Nomi：本地优先 AI 视频创作工作台。
 | `pnpm run typecheck` | TypeScript 双向类型检查 |
 | `pnpm run check:filesize` | 巨壳文件门岗 |
 | `pnpm run check:audit` | 审计节奏提醒（≥25 commit 提示） |
+| `npx skills experimental_install` | 从 `skills-lock.json` 还原 `.claude/skills/`（换机/协作者用） |
 
 **Push 前必须全过**：`check:filesize` → `lint:ci` → `typecheck` → `test` → `build`
 
@@ -308,6 +309,34 @@ CSS 文件分工与「只可减不可增」规则详见 R1 最后一节。
 | 7 迭代 | 全绿 ≠ 完成 | 发现问题回到对应阶段 | 全门绿 + 样张/体验对账过 |
 
 **UI 可见改动的最后一道永远是「真实用户体验 agent 视觉走查」（R13 固化）。**
+
+---
+
+## 技能库（Skills）— 规则的可执行版本
+
+> 已装一批 Claude Skill。它们**不是新规矩**，是上面 P1–P5 / R1–R14 / 工作流阶段的**可调用执行体**：规则讲「该这么做」，skill 把这套步骤直接跑出来。触发对应规则时就 `Skill` 调用对应技能，别另起炉灶（违 P1）。
+>
+> **冲突时**：本文件 CLAUDE.md = 最高真相源。skill 与本文件冲突一律**以本文件为准**（如 skill 默认 Next.js 写法、或它的 review 分级和 R7 六角色不一致，都按本项目走）。skill 是工具，纪律是宪法。`using-superpowers` 是元技能（提倡每条消息先查 skill）——本项目已用 CLAUDE.md 做编排，**按需调用即可，不强制每条触发**。
+
+**安装事实**：项目级装在 `.claude/skills/`（PromptScript 类，仅支持项目级，以完整 agent 权限运行）。技能目录已 gitignore，**唯一 committed 真相源 = `skills-lock.json`**；换机 / 协作者用 `npx skills experimental_install` 一键还原。
+
+### 触发 → 技能映射（在既有规则触发时调用，不替代规则）
+
+| 什么时候 | 调用技能 | 对应规则 / 阶段 |
+|---|---|---|
+| 任何创作 / 加功能 / 改行为，**动手前** | `brainstorming` | P5「想清楚再动手」/ 阶段 1 |
+| 有 spec、要落多步任务，**写码前** | `writing-plans` | R4「执行前写文档」→ 落 `docs/plan` |
+| 拿着写好的 plan 执行（带检查点） | `executing-plans` | 阶段 3 实现 |
+| 一会话内并行干多个互不依赖的子任务 | `subagent-driven-development` / `dispatching-parallel-agents` | 阶段 3「独立项并行」 |
+| 写任何功能 / 修 bug，**写实现前** | `test-driven-development` | 单测先行 / Push 前必过 test |
+| 撞 bug / 测试挂 / 行为怪，**提方案前** | `systematic-debugging` | P2「修根因不修症状」 |
+| 写 React 组件 / 取数 / 性能优化时 | `vercel-react-best-practices` | **仅 React**（本项目非 Next.js，取其 React 性能那部分）|
+| 完成任务 / 合并前要审代码 | `requesting-code-review` + `code-review-expert` | R7 / 阶段 6；与内置 `/code-review` 并用，这俩重 SOLID/安全的 P0–P3 分级 |
+| 收到 review 意见、**动手改前** | `receiving-code-review` | 不盲改，先技术核实 |
+| 要宣布「做完 / 修好 / 通过」前 | `verification-before-completion` | P3「全绿≠完成」/ R11 验证门槛 |
+| 开新分支要隔离工作区 | `using-git-worktrees` | worktree 放仓库**同级**（见「工作目录」）|
+| 实现完成、决定怎么并入 main | `finishing-a-development-branch` | R11 commit/push |
+| 自己造 / 改 skill 时 | `writing-skills` / `skill-creator` | — |
 
 ---
 
