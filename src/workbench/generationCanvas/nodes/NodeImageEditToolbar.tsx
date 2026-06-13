@@ -3,6 +3,7 @@ import { IconCrop, IconDownload, IconFlipHorizontal, IconFlipVertical, IconGrid3
 import { cn } from '../../../utils/cn'
 import { IMAGE_TRANSFORM_LABEL, type ImageGridSize, type ImageTransformOp } from './useNodeImageEditing'
 import { useResultDownload } from './useResultDownload'
+import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
 // 图片编辑浮动工具条（下载 / 切图 / 裁剪 / 旋转翻转）从 BaseGenerationNode 抽出（A1.5 接缝）。
@@ -31,6 +32,10 @@ export default function NodeImageEditToolbar({
   onMakeup,
 }: Props): JSX.Element {
   const { downloading, download } = useResultDownload(node)
+  // 与参数框 composer 一致：反向缩放抵消画布 scale(zoom) → 工具条恒定屏幕尺寸，缩小画布
+  // 也不缩成看不清/被压住（用户反馈：缩放后浮动条看不见）。锚在节点上方、底边贴近节点，
+  // 故 transform-origin = bottom center（缩放时贴节点的那条边不漂）。
+  const canvasZoom = useGenerationCanvasStore((state) => state.canvasZoom)
   return (
     <div
       className={cn(
@@ -39,8 +44,12 @@ export default function NodeImageEditToolbar({
         'inline-flex items-center gap-1 min-h-[44px] py-[5px] px-2',
         'border border-[rgba(18,24,38,0.08)] rounded-[14px]',
         'bg-white/[0.96] shadow-[0_12px_34px_rgba(18,24,38,0.14)]',
-        '-translate-x-1/2 backdrop-blur-[12px]',
+        'backdrop-blur-[12px]',
       )}
+      style={{
+        transform: `translateX(-50%) scale(${1 / (canvasZoom || 1)})`,
+        transformOrigin: 'bottom center',
+      }}
       role="toolbar"
       aria-label="图片切图操作"
       onPointerDown={(event) => event.stopPropagation()}

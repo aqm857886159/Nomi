@@ -108,6 +108,9 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   const canvasOffset = useGenerationCanvasStore((state) => state.canvasOffset)
   const anchorRef = React.useRef<HTMLDivElement>(null)
   const [flipUp, setFlipUp] = React.useState(false)
+  // 翻上时要避让的「节点上方图片编辑工具条」高度（节点坐标系 px）。否则参数框会压住那条
+  // 浮动工具条（用户反馈：浮动条看不见/遮挡）。无工具条（如未生成、视频节点）则为 0。
+  const [aboveClearance, setAboveClearance] = React.useState(0)
   React.useLayoutEffect(() => {
     const anchor = anchorRef.current
     const stage = anchor?.closest('.generation-canvas-v2__stage')
@@ -123,7 +126,11 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
         ? !(spaceBelow > neededScreenHeight + FLIP_HYSTERESIS)
         : spaceBelow < neededScreenHeight && spaceAbove > spaceBelow,
     )
-  }, [canvasZoom, canvasOffset, node.position?.x, node.position?.y, visualSize.width, visualSize.height, composerLayout.gap])
+    // 工具条也恒定屏幕尺寸（counter-scaled）→ 实测其屏幕高换回节点坐标（/zoom）+ 它距节点的 18px。
+    const toolbarEl = nodeEl.querySelector('.generation-canvas-v2-node__panorama-toolbar')
+    const toolbarScreenH = toolbarEl ? toolbarEl.getBoundingClientRect().height : 0
+    setAboveClearance(toolbarScreenH > 0 ? toolbarScreenH / (canvasZoom || 1) + 18 : 0)
+  }, [canvasZoom, canvasOffset, node.position?.x, node.position?.y, visualSize.width, visualSize.height, composerLayout.gap, node.result?.url])
 
   // 卡宽 = 底栏「参数行」的真实一行宽度（实测）。确定宽度下 tile/提示词/参数都正常布局——不写死常数。
   // ⚠ 关键：footerRef 必须是 `w-max`（width:max-content）的元素，盒子尺寸 = 内容宽、**与卡宽脱钩**。
@@ -158,7 +165,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
         transform: `translateX(-50%) scale(${1 / (canvasZoom || 1)})`,
         transformOrigin: flipUp ? 'bottom center' : 'top center',
         ...(flipUp
-          ? { bottom: `calc(100% + ${composerLayout.gap}px)` }
+          ? { bottom: `calc(100% + ${composerLayout.gap + aboveClearance}px)` }
           : { top: `calc(100% + ${composerLayout.gap}px)` }),
       }}
       onPointerDown={(event) => event.stopPropagation()}
