@@ -44,23 +44,10 @@ const ThumbnailMosaic = React.memo(function ThumbnailMosaic({ urls }: { urls: st
       </div>
     )
   }
-  if (urls.length === 1) {
-    return <NomiImage className="absolute inset-0 w-full h-full object-cover block" src={urls[0]} alt="" />
-  }
-  const cells = urls.slice(0, 4)
-  return (
-    <div className={cn(
-      'absolute inset-0 grid gap-px bg-nomi-line-soft',
-      cells.length === 2 && 'grid-cols-2',
-      cells.length === 3 && 'grid-cols-2 grid-rows-2 [&>*:first-child]:col-span-full',
-      cells.length === 4 && 'grid-cols-2 grid-rows-2',
-    )}>
-      {cells.map((url, i) => (
-        <NomiImage key={i} className="w-full h-full object-cover block" src={url} alt="" />
-      ))}
-    </div>
-  )
-}, (prev, next) => prev.urls.join('|') === next.urls.join('|'))
+  // 单封面：一个项目用一张代表图（首个产物）。早先 2–4 宫格把不同镜头并排塞进 200px 小卡，
+  // 读起来像一张糊在一起的图、看不出是什么项目（用户报「糊在一起」）。改单封面更干净、可识别。
+  return <NomiImage className="absolute inset-0 w-full h-full object-cover block" src={urls[0]} alt="" />
+}, (prev, next) => (prev.urls[0] || '') === (next.urls[0] || ''))
 
 const SECONDARY_PILL_CLASS = cn(
   'inline-flex items-center gap-1.5 h-8 px-3 rounded-pill cursor-pointer font-inherit',
