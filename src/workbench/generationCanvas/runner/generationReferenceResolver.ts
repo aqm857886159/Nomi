@@ -8,12 +8,21 @@ export type ResolvedGenerationReferences = {
   styleReferenceImages: string[]
   characterReferenceImages: string[]
   compositionReferenceImages: string[]
+  /**
+   * T5 尾帧接力：first_frame 边的源是 video 节点时，这里是源视频的 URL——
+   * 表示「用源视频的尾帧当本节点首帧」。runController 提交生成前 await 抽帧
+   * 把它换成真实图片 URL 填进 firstFrameUrl；resolver 不在此拿视频 URL/封面
+   * 冒充首帧（封死 thumbnail 静默回退，audit 2026-06-12 评审必改）。
+   */
+  relayFromVideoUrl?: string
 }
 
 function asUrl(value: unknown): string {
   if (typeof value !== 'string') return ''
   const trimmed = value.trim()
-  return /^https?:\/\//i.test(trimmed) || trimmed.startsWith('/') || trimmed.startsWith('blob:') ? trimmed : ''
+  // nomi-local:// 是项目内素材协议（抽帧 IPC 的返回值就是它）——必须放行，
+  // 否则尾帧接力抽出的帧 URL 进 resolver 即被丢弃（评审必改②）。
+  return /^https?:\/\//i.test(trimmed) || trimmed.startsWith('/') || trimmed.startsWith('blob:') || trimmed.startsWith('nomi-local://') ? trimmed : ''
 }
 
 function resultUrl(result: GenerationNodeResult | undefined): string {
@@ -57,12 +66,19 @@ export function resolveGenerationReferences(
   const compositionReferenceImages: string[] = []
   let firstFrameFromEdge = ''
   let lastFrameFromEdge = ''
+  let relayFromVideoUrl = ''
 
   for (const edge of edges) {
     if (edge.target !== node.id) continue
     const sourceUrl = findNodeResultUrl(nodesById, edge.source)
     if (!sourceUrl) continue
     if (edge.mode === 'first_frame') {
+      // 源是 video 节点 → 尾帧接力：标记待抽帧，绝不把视频 URL/封面当首帧塞进去
+      // （封死「用封面冒充尾帧」的静默回退，评审必改①）。源是 image → 现行为不变。
+      if (nodesById.get(edge.source)?.kind === 'video') {
+        relayFromVideoUrl = relayFromVideoUrl || sourceUrl
+        continue
+      }
       firstFrameFromEdge = firstFrameFromEdge || sourceUrl
       pushUnique(referenceImages, sourceUrl)
       continue
@@ -99,6 +115,11 @@ export function resolveGenerationReferences(
     if (Array.isArray(value)) value.forEach((item) => pushUnique(referenceImages, item))
     else pushUnique(referenceImages, value)
   })
+  // 尾帧接力源（视频文件 URL）不是参考图，从 referenceImages 剔除——否则它既被当
+  // 普通图片参考、又会经 referenceImages[0] fallback 冒充首帧（封死第二条泄漏路径）。
+  const cleanReferenceImages = relayFromVideoUrl
+    ? referenceImages.filter((url) => url !== relayFromVideoUrl)
+    : referenceImages
 
   const firstFrameUrl =
     firstFrameFromEdge ||
@@ -106,7 +127,8 @@ export function resolveGenerationReferences(
     asUrl(meta.first_frame_url) ||
     resolveReferenceUrl(nodesById, meta.firstFrameRef) ||
     resolveReferenceUrl(nodesById, meta.firstFrameReference) ||
-    referenceImages[0] ||
+    // relay 时首帧要等抽帧填，绝不 fallback 到通用参考图（否则又冒充）。
+    (relayFromVideoUrl ? undefined : cleanReferenceImages[0]) ||
     undefined
   const lastFrameUrl =
     lastFrameFromEdge ||
@@ -117,11 +139,12 @@ export function resolveGenerationReferences(
     undefined
 
   return {
-    referenceImages,
+    referenceImages: cleanReferenceImages,
     firstFrameUrl,
     lastFrameUrl,
     styleReferenceImages,
     characterReferenceImages,
     compositionReferenceImages,
+    ...(relayFromVideoUrl ? { relayFromVideoUrl } : {}),
   }
 }
