@@ -75,3 +75,38 @@ export function buildPlannedNodeMeta(
   }
   return meta;
 }
+
+const RESERVED_META_KEYS = new Set(["modelKey", "modelLabel", "archetype", "modelVendor"]);
+
+/**
+ * 把一个 planned node 的 modelKey/modeId/params 解析成「执行后会真正写入的值」——与
+ * buildPlannedNodeMeta 同源（执行端也用它）。在**批准时**对计划这样解析一遍，就能让
+ * 「你批准的」≡「实际执行的」，从根上消灭对账「执行与批准有出入」（参数被档案回退/模型被换/
+ * 非法值被丢这一整类，每次换个字段冒出来）。
+ *
+ * - 模型合法：modelKey/modeId 对齐解析结果，params 替换成「mode 默认 + 合法覆盖」的最终值
+ *   （如 agent 给 Hailuo duration:5 非法 → 这里就变成默认 6，与执行一致）。
+ * - 模型不可用/未配：剥掉 modelKey/modeId/params（执行会回退自动选、不写模型 meta，二者一致）。
+ */
+export function resolvePlannedNodeArgs(
+  node: Record<string, unknown>,
+  entryByKey: ReadonlyMap<string, AgentModelEntry>,
+): Record<string, unknown> {
+  if (typeof node.modelKey !== "string" || !node.modelKey.trim()) return node;
+  const meta = buildPlannedNodeMeta(node as PlannedNodeModelInput, entryByKey);
+  if (!meta) {
+    const { modelKey: _mk, modeId: _md, params: _p, ...rest } = node;
+    return rest;
+  }
+  const params: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(meta)) {
+    if (!RESERVED_META_KEYS.has(key)) params[key] = value;
+  }
+  const archetype = meta.archetype as { modeId?: string } | undefined;
+  return {
+    ...node,
+    modelKey: meta.modelKey,
+    ...(archetype?.modeId ? { modeId: archetype.modeId } : {}),
+    params,
+  };
+}

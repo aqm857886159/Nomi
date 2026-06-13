@@ -116,3 +116,40 @@ export function validateReferenceEdge(
   const satisfiable = required.some((slot) => slotKinds.has(slot) && SLOT_ACCEPTS[slot].includes(asset))
   return satisfiable ? { ok: true } : { ok: false, reason: 'unsupported_reference' }
 }
+
+/** 计划里的边(批准前):可能用 clientId(新节点)或真实 id(复用已有卡)。 */
+export type PlannedEdgeLike = {
+  source?: unknown
+  target?: unknown
+  sourceClientId?: unknown
+  targetClientId?: unknown
+  mode?: unknown
+}
+
+/**
+ * 批准时按目标模型能力把边分成「连得上」「连不上」——和参数解析同理,让「你批准的」≡「实际执行的」。
+ * 连不上的(目标模型不吃这类参考,如 image_ref 槽吃不了视频接力源)从批准计划里剔除,执行端不再丢、
+ * 对账不再报「执行与批准有出入」。解析不出节点(未知 id)保守保留,交执行端 dangling 兜底。
+ */
+export function partitionConnectableEdges(
+  edges: readonly PlannedEdgeLike[],
+  resolveNode: (id: string) => GenerationCanvasNode | null,
+): { connectable: PlannedEdgeLike[]; dropped: { edge: PlannedEdgeLike; reason: EdgeSkipReason }[] } {
+  const connectable: PlannedEdgeLike[] = []
+  const dropped: { edge: PlannedEdgeLike; reason: EdgeSkipReason }[] = []
+  for (const edge of edges) {
+    const sourceId = String(edge.sourceClientId ?? edge.source ?? '').trim()
+    const targetId = String(edge.targetClientId ?? edge.target ?? '').trim()
+    const source = sourceId ? resolveNode(sourceId) : null
+    const target = targetId ? resolveNode(targetId) : null
+    if (!source || !target) {
+      connectable.push(edge)
+      continue
+    }
+    const mode = typeof edge.mode === 'string' ? (edge.mode as GenerationCanvasEdgeMode) : undefined
+    const verdict = validateReferenceEdge(source, target, mode)
+    if (verdict.ok) connectable.push(edge)
+    else dropped.push({ edge, reason: verdict.reason })
+  }
+  return { connectable, dropped }
+}

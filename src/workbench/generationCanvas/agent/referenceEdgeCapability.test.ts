@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { referenceAssetKindForNode, validateReferenceEdge } from './referenceEdgeCapability'
+import { referenceAssetKindForNode, validateReferenceEdge, partitionConnectableEdges } from './referenceEdgeCapability'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
 // archetypeId 显式命中内置档案(resolveArchetypeForModel/getArchetypeById 优先看它):
@@ -85,5 +85,32 @@ describe('validateReferenceEdge — 参考边能力校验', () => {
   it('通用 reference(图片源)→ 有图片参考槽 → 放行；→ 纯文生 → 拒', () => {
     expect(validateReferenceEdge(node('a', 'image'), node('b', 'image', 'seedream'), undefined)).toEqual({ ok: true })
     expect(validateReferenceEdge(node('a', 'image'), node('b', 'image', 'imagen-4'), undefined)).toEqual({ ok: false, reason: 'unsupported_reference' })
+  })
+})
+
+describe('partitionConnectableEdges — 批准时剔除连不上的边(批准≡执行)', () => {
+  const kf = node('kf', 'keyframe')
+  const vid = node('vid', 'video', 'kling-3.0')
+  const vid2 = node('vid2', 'video', 'kling-3.0')
+  const lookup = (id: string) => (({ kf, vid, vid2 } as Record<string, ReturnType<typeof node>>)[id] ?? null)
+
+  it('keyframe→video 首帧(image_ref 吃图)保留;video→video 接力(image_ref 吃不了视频源)剔除', () => {
+    const { connectable, dropped } = partitionConnectableEdges(
+      [
+        { sourceClientId: 'kf', targetClientId: 'vid', mode: 'first_frame' },
+        { sourceClientId: 'vid', targetClientId: 'vid2', mode: 'first_frame' }, // 接力源是视频→kling 不吃
+      ],
+      lookup,
+    )
+    expect(connectable).toHaveLength(1)
+    expect((connectable[0] as { sourceClientId: string }).sourceClientId).toBe('kf')
+    expect(dropped).toHaveLength(1)
+    expect(dropped[0].reason).toBe('unsupported_reference')
+  })
+
+  it('解析不出节点 → 保守保留(交执行端 dangling 兜底)', () => {
+    const { connectable, dropped } = partitionConnectableEdges([{ sourceClientId: 'x', targetClientId: 'y' }], () => null)
+    expect(connectable).toHaveLength(1)
+    expect(dropped).toHaveLength(0)
   })
 })

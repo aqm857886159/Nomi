@@ -11,6 +11,10 @@ import { clearWorkbenchAgentSession } from '../../../api/desktopClient'
 import { generationCanvasTools } from '../agent/generationCanvasTools'
 import { applyCanvasToolCall } from '../agent/applyCanvasToolCall'
 import { applyProposalBatch } from '../agent/proposalTxn'
+import { listAvailableModelsForAgent } from '../agent/availableModels'
+import { resolvePlannedNodeArgs } from '../agent/plannedNodeMeta'
+import { partitionConnectableEdges, type PlannedEdgeLike } from '../agent/referenceEdgeCapability'
+import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { evaluateGate } from '../agent/gate'
 import { buildLockGateContext } from '../agent/lockGateContext'
 import {
@@ -219,7 +223,7 @@ export default function CanvasAssistantPanel({
         const ids = new Set(items.map((item) => item.request.toolCallId))
         items.forEach((item) => pendingByIdRef.current.delete(item.request.toolCallId))
         setPendingToolCalls((current) => current.filter((item) => !ids.has(item.toolCallId)))
-        const steps = items.map(({ request, call }) => {
+        const rawSteps = items.map(({ request, call }) => {
           const baseArgs = (call.args && typeof call.args === 'object') ? call.args as Record<string, unknown> : {}
           return {
             toolCallId: call.toolCallId,
@@ -228,6 +232,54 @@ export default function CanvasAssistantPanel({
             overridesDelta: request.overrides,
             transport: call.confirm,
           }
+        })
+        // 「批准 ≡ 执行」根治:批准前就把模型/参数按档案解析成执行后会真正写入的值(与执行端
+        // buildPlannedNodeMeta 同源),折进 effectiveArgs。否则 agent 写的非法参数(如给 Hailuo 配
+        // duration:5,档案只允许 6-10)执行时被静默回退 → 对账每次换个字段报「执行与批准有出入」。
+        const needsModels = rawSteps.some(
+          (step) =>
+            step.toolName === 'create_canvas_nodes' &&
+            Array.isArray((step.effectiveArgs as Record<string, unknown>).nodes) &&
+            ((step.effectiveArgs as { nodes: unknown[] }).nodes).some(
+              (node) => node && typeof node === 'object' && typeof (node as Record<string, unknown>).modelKey === 'string',
+            ),
+        )
+        const entryByKey = needsModels
+          ? new Map((await listAvailableModelsForAgent()).map((entry) => [entry.modelKey, entry]))
+          : new Map()
+        const nodeResolvedSteps = rawSteps.map((step) => {
+          const args = step.effectiveArgs as Record<string, unknown>
+          if (step.toolName !== 'create_canvas_nodes' || !Array.isArray(args.nodes)) return step
+          const nodes = (args.nodes as Record<string, unknown>[]).map((node) =>
+            node && typeof node === 'object' ? resolvePlannedNodeArgs(node, entryByKey) : node,
+          )
+          return { ...step, effectiveArgs: { ...args, nodes } }
+        })
+        // 同理把边按目标模型能力解析:连不上的(目标模型不吃这类参考,如 image_ref 槽吃不了视频
+        // 接力源)在批准时就剔除,执行端不再丢、对账不再报「执行与批准有出入」。节点查找=本批解析后的
+        // 计划节点(clientId)+ 画布已有节点(真实 id);查不到的边保守保留交执行端兜。
+        const plannedById = new Map<string, GenerationCanvasNode>()
+        for (const step of nodeResolvedSteps) {
+          const args = step.effectiveArgs as Record<string, unknown>
+          if (step.toolName !== 'create_canvas_nodes' || !Array.isArray(args.nodes)) continue
+          for (const node of args.nodes as Record<string, unknown>[]) {
+            if (node && typeof node === 'object' && typeof node.clientId === 'string') {
+              plannedById.set(node.clientId, {
+                id: node.clientId,
+                kind: node.kind,
+                meta: typeof node.modelKey === 'string' ? { modelKey: node.modelKey } : {},
+              } as GenerationCanvasNode)
+            }
+          }
+        }
+        const existingById = new Map(generationCanvasTools.read_canvas().nodes.map((node) => [node.id, node]))
+        const resolveNodeForEdge = (id: string): GenerationCanvasNode | null =>
+          plannedById.get(id) ?? existingById.get(id) ?? null
+        const steps = nodeResolvedSteps.map((step) => {
+          const args = step.effectiveArgs as Record<string, unknown>
+          if (!Array.isArray(args.edges)) return step
+          const { connectable } = partitionConnectableEdges(args.edges as PlannedEdgeLike[], resolveNodeForEdge)
+          return { ...step, effectiveArgs: { ...args, edges: connectable } }
         })
         const outcome = await applyProposalBatch(
           steps.map(({ toolCallId, toolName, effectiveArgs }) => ({ toolCallId, toolName, effectiveArgs })),
