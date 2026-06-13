@@ -59,9 +59,7 @@ export function useMarqueeSelection({
     if (target?.closest(EMPTY_TARGET_GUARD)) return
     startRef.current = { clientX: event.clientX, clientY: event.clientY, additive: event.shiftKey, moved: false }
     setMarqueeRect(null)
-    if (typeof event.currentTarget.setPointerCapture === 'function') {
-      event.currentTarget.setPointerCapture(event.pointerId)
-    }
+    try { event.currentTarget.setPointerCapture(event.pointerId) } catch { /* 无活动指针时忽略 */ }
   }, [readOnly])
 
   const handlePointerMove = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {

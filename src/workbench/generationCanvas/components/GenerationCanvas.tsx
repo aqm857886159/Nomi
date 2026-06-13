@@ -658,7 +658,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
               onDisconnectEdge={disconnectEdge}
               getCanvasPointFromClientPoint={getCanvasPointFromClientPoint}
             />
-            <div className={cn('generation-canvas-v2__nodes', 'absolute top-0 left-0 w-[4000px] h-[3000px]')}>
+            <div className={cn('generation-canvas-v2__nodes', 'absolute top-0 left-0 w-full h-full')}>
               {/* E.2C-30: GroupFrame 抽离为独立组件 */}
               <GroupFrameList boxes={groupBoxes} onPointerDown={handleGroupFramePointerDown} />
               <React.Suspense fallback={null}>

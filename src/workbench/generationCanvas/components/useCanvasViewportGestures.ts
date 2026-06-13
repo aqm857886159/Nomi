@@ -200,9 +200,7 @@ export function useCanvasViewportGestures({
       button: event.button,
       moved: false,
     }
-    if (typeof event.currentTarget.setPointerCapture === 'function') {
-      event.currentTarget.setPointerCapture(event.pointerId)
-    }
+    try { event.currentTarget.setPointerCapture(event.pointerId) } catch { /* 无活动指针时忽略 */ }
   }, [cancelConnection, offsetRef, pendingConnectionSourceId, readOnly, setActiveEdge, setContextNodeMenu])
 
   // 捕获阶段：空格/中键/右键拖在节点之上也能平移（抢在节点 pointerdown 前）。

@@ -26,6 +26,12 @@ for (const f of fs.readdirSync(DIR)) fs.rmSync(path.join(DIR, f), { force: true 
 
 const app = await electron.launch({ executablePath: require("electron"), args: ["."], cwd: repoRoot, env: { ...process.env } });
 const win = await app.firstWindow();
+const ERRLOG = path.join(DIR, "errors.log");
+const logErr = (kind, msg) => { try { fs.appendFileSync(ERRLOG, `[${kind}] ${msg}\n`); } catch { /* ignore */ } };
+win.on("pageerror", (e) => logErr("pageerror", (e && e.stack) || String(e)));
+win.on("console", (m) => { if (m.type() === "error") logErr("console.error", m.text()); });
+win.on("crash", () => logErr("crash", "renderer crashed"));
+win.on("close", () => logErr("close", "page closed"));
 await win.waitForLoadState("domcontentloaded");
 await win.waitForTimeout(1200);
 fs.writeFileSync(path.join(DIR, "ready"), String(process.pid));

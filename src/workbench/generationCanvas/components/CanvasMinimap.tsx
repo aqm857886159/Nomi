@@ -89,8 +89,8 @@ export function CanvasMinimap({ nodes, selectedIds, zoom, offset, stageSize, onJ
       onPointerDown={(event) => {
         event.stopPropagation()
         draggingRef.current = true
-        if (typeof event.currentTarget.setPointerCapture === 'function') event.currentTarget.setPointerCapture(event.pointerId)
-        jumpFromClient(event.clientX, event.clientY)
+        jumpFromClient(event.clientX, event.clientY) // 先跳转，再尝试捕获（捕获失败不该吞掉跳转）
+        try { event.currentTarget.setPointerCapture(event.pointerId) } catch { /* 无活动指针时忽略 */ }
       }}
       onPointerMove={(event) => {
         if (!draggingRef.current) return

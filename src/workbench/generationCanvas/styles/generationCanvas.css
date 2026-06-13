@@ -30,8 +30,11 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 4000px;
-  height: 3000px;
+  /* 不再钉死 4000x3000：节点/边均绝对定位且 overflow:visible，尺寸只需绑视口；
+     画布坐标无上限（节点位置不 clamp），靠出血绘制超出部分。 */
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
 .generation-canvas-v2__edges {
