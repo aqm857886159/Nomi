@@ -137,9 +137,10 @@ export async function resolveStoryboardVideoDefault(): Promise<{ modelKey?: stri
 }
 
 /**
- * 分镜方案落画布时给定妆卡/场景卡选的默认图片模型（用户铁律：本链路图片只用 GPT Image 2）。
- * 通用解析（不硬编码 vendor 目录，P4）：按名字匹配 gpt image，**严格不回退**别的图片模型
- * （「其他都不要用」）——找不到则全空，节点不带模型、用户在画布上自己选，绝不替成别的模型。
+ * 分镜方案落画布时给定妆卡/场景卡选的默认图片模型（用户拍板：推荐而非强制锁）。
+ * 偏好级联（通用解析，不硬编码 vendor 目录，P4）：GPT Image → 没有则 Nano Banana →
+ * 再没有则取第一个可用图片模型（总能给个默认；用户在画布上仍可自己换，不强制不禁用）。
+ * 无任何可用图片模型 → 全空，节点不带模型、用户自己选。
  */
 export async function resolveStoryboardImageDefault(): Promise<{ modelKey?: string; modeId?: string }> {
   let entries: AgentModelEntry[] = []
@@ -149,10 +150,11 @@ export async function resolveStoryboardImageDefault(): Promise<{ modelKey?: stri
     return {}
   }
   const images = entries.filter((entry) => entry.kind === 'image')
-  const prefer = images.find((entry) => /gpt[\s-]?image/i.test(`${entry.modelKey} ${entry.modelAlias ?? ''} ${entry.label}`))
-  if (!prefer) return {}
-  const mode =
-    prefer.modes.find((m) => m.modeId === prefer.defaultModeId) ?? prefer.modes[0]
+  if (images.length === 0) return {}
+  const byName = (re: RegExp) =>
+    images.find((entry) => re.test(`${entry.modelKey} ${entry.modelAlias ?? ''} ${entry.label}`))
+  const prefer = byName(/gpt[\s-]?image/i) ?? byName(/nano[\s-]?banana/i) ?? images[0]
+  const mode = prefer.modes.find((m) => m.modeId === prefer.defaultModeId) ?? prefer.modes[0]
   return { modelKey: prefer.modelKey, ...(mode ? { modeId: mode.modeId } : {}) }
 }
 
