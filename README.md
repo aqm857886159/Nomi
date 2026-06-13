@@ -20,6 +20,13 @@
   <a href="LICENSE">Apache-2.0</a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/aqm857886159/Nomi/stargazers"><img src="https://img.shields.io/github/stars/aqm857886159/Nomi?style=flat&logo=github&color=1c1c1a" alt="GitHub stars" /></a>
+  <a href="https://github.com/aqm857886159/Nomi/releases/latest"><img src="https://img.shields.io/github/v/release/aqm857886159/Nomi?display_name=tag&color=1c1c1a" alt="Latest release" /></a>
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey" alt="Platform" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License" /></a>
+</p>
+
 ---
 
 ## ⬇️ 下载（双击即用，不用懂代码）
@@ -51,6 +58,7 @@
             并行生成图/视频    拖播放头预览
 ```
 
+- 🤖 **AI 帮你拆镜头、排轨迹** — 写完故事点一下，AI 读懂剧情自动拆成镜头、规划「角色定妆 → 关键帧 → 视频」的生成顺序并铺到画布，整个计划你只确认一次。
 - 🔗 **全流程打通** — 剧本、生图、生视频、剪辑一条线，素材自动流转，不用在 ChatGPT / 即梦 / 剪映之间切。
 - 🔑 **一个 key 全通** — 「模型接入」填一个 key（APIMart / kie），Sora 2 / 可灵 / Seedream 等预置模型立即可用；也可自定义接入任意中转站。
 - 🎭 **项目级资产锁一致性** — 角色（多视角参考图）、分镜、风格沉淀成可复用资产，减少多片段里的「脸漂移、风格跑偏」。
