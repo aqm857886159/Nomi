@@ -149,16 +149,10 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
           <StepHeader title={summarizeToolCall(call.toolName, call.args)} badge="等你确认" badgeTone="active" />
           {detail ? <div className={cn('text-nomi-ink-60 text-[12px] leading-[1.6]')}>{detail}</div> : null}
           <div className={cn('flex items-center gap-2')}>
-            <WorkbenchButton
-              className={cn('h-7 px-3 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-ink-80 text-[12px] cursor-pointer hover:bg-nomi-ink-05')}
-              onClick={() => props.rejectPending(call.toolCallId)}
-            >
+            <WorkbenchButton variant="default" size="sm" onClick={() => props.rejectPending(call.toolCallId)}>
               拒绝
             </WorkbenchButton>
-            <WorkbenchButton
-              className={cn('h-7 px-3 rounded-nomi-sm border-0 bg-nomi-ink text-nomi-paper text-[12px] cursor-pointer hover:bg-nomi-accent')}
-              onClick={() => props.approveCalls([{ toolCallId: call.toolCallId }])}
-            >
+            <WorkbenchButton variant="primary" size="sm" onClick={() => props.approveCalls([{ toolCallId: call.toolCallId }])}>
               确认
             </WorkbenchButton>
           </div>
@@ -196,46 +190,69 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
     )
   }
 
-  return (
-    <ol className={cn('flex flex-1 flex-col min-h-0 overflow-auto p-4 list-none m-0')} data-assistant-timeline="true">
-      {messages.map((message, index) => {
-        // 连线 = 下一个渲染项也是导轨步骤:下一条消息是非 user(气泡断开),
-        // 或本条是最后一条且活动组有步骤紧随其后。
-        const next = messages[index + 1]
-        const nextIsRailStep = next ? next.role !== 'user' : liveSteps.length > 0
-        if (message.role === 'user') {
-          return (
-            <li key={message.id} className={cn('flex flex-col list-none mb-3')}>
-              <div className={cn('self-end max-w-[88%] py-[8px] px-[12px] rounded-nomi rounded-br-[4px] bg-nomi-ink-05 text-nomi-ink text-body-sm leading-[1.55] whitespace-pre-wrap')} data-role="user">
-                {message.attachments?.length ? <AttachmentRail attachments={message.attachments} readOnly className={cn('mb-1.5')} /> : null}
-                {message.content}
-              </div>
-              {message.id === staleBoundaryId ? <StaleConversationDivider /> : null}
-            </li>
-          )
-        }
-        const streaming = message.content === '处理中...'
-        return (
-          <React.Fragment key={message.id}>
-            <TimelineStep status={streaming ? 'active' : 'done'} connectDown={nextIsRailStep}>
-              <div className={cn('text-nomi-ink-80 text-body-sm leading-[1.7] whitespace-pre-wrap')} data-role={message.role}>
-                {message.attachments?.length ? <AttachmentRail attachments={message.attachments} readOnly className={cn('mb-1.5')} /> : null}
-                {streaming ? <NomiLoadingMark size={15} label="处理中" /> : message.content}
-                {!streaming ? <AiReplyActionButton className="generation-canvas-v2-assistant__reply-action" content={message.content} /> : null}
-                {message.turnStats?.totalTokens ? (
-                  <span className={cn('block mt-1 text-micro text-nomi-ink-40')}>{narrateTurnStats(message.turnStats.totalTokens, message.turnStats)}</span>
-                ) : null}
-              </div>
-            </TimelineStep>
-            {message.id === staleBoundaryId ? <StaleConversationDivider /> : null}
-          </React.Fragment>
-        )
-      })}
-      {liveSteps.map((step, index) => (
-        <TimelineStep key={step.key} status={step.status} connectDown={index < liveSteps.length - 1}>
+  const renderUserBubble = (message: WorkbenchAiMessage): JSX.Element => (
+    <li key={message.id} className={cn('flex flex-col list-none mb-3')}>
+      <div className={cn('self-end max-w-[88%] py-[8px] px-[12px] rounded-nomi rounded-br-[4px] bg-nomi-ink-05 text-nomi-ink text-body-sm leading-[1.55] whitespace-pre-wrap')} data-role="user">
+        {message.attachments?.length ? <AttachmentRail attachments={message.attachments} readOnly className={cn('mb-1.5')} /> : null}
+        {message.content}
+      </div>
+      {message.id === staleBoundaryId ? <StaleConversationDivider /> : null}
+    </li>
+  )
+
+  const renderAssistantStep = (message: WorkbenchAiMessage, connectDown: boolean): JSX.Element => {
+    const streaming = message.content === '处理中...'
+    return (
+      <React.Fragment key={message.id}>
+        <TimelineStep status={streaming ? 'active' : 'done'} connectDown={connectDown}>
+          <div className={cn('text-nomi-ink-80 text-body-sm leading-[1.7] whitespace-pre-wrap')} data-role={message.role}>
+            {message.attachments?.length ? <AttachmentRail attachments={message.attachments} readOnly className={cn('mb-1.5')} /> : null}
+            {streaming ? <NomiLoadingMark size={15} label="处理中" /> : message.content}
+            {!streaming ? <AiReplyActionButton className="generation-canvas-v2-assistant__reply-action" content={message.content} /> : null}
+            {message.turnStats?.totalTokens ? (
+              <span className={cn('block mt-1 text-micro text-nomi-ink-40')}>{narrateTurnStats(message.turnStats.totalTokens, message.turnStats)}</span>
+            ) : null}
+          </div>
+        </TimelineStep>
+        {message.id === staleBoundaryId ? <StaleConversationDivider /> : null}
+      </React.Fragment>
+    )
+  }
+
+  // 吐字顺序修复:把「当前轮的 AI 气泡」排到 liveSteps(待确认/已应用卡)之后,
+  // 让时间线 = 用户问 → AI 动手(卡) → AI 吐字总结,位置与时间一致。
+  // 旧实现把这条气泡钉在卡片上方,但 agent 的总结文字在动作之后才到 →
+  // 「下面已到下一阶段、上面过一会才吐字」的位置/时间倒挂。「处理中」转圈也随之
+  // 落到底部,眼睛跟随活动处。纯聊天(无 liveSteps)时位置与原先一致,零回归。
+  const lastIsAssistant = messages.length > 0 && messages[messages.length - 1].role !== 'user'
+  const headMessages = lastIsAssistant ? messages.slice(0, -1) : messages
+  const trailingAssistant = lastIsAssistant ? messages[messages.length - 1] : null
+
+  type RailItem = { rail: boolean; render: (connectDown: boolean) => React.ReactNode }
+  const items: RailItem[] = []
+  for (const message of headMessages) {
+    items.push(message.role === 'user'
+      ? { rail: false, render: () => renderUserBubble(message) }
+      : { rail: true, render: (connectDown) => renderAssistantStep(message, connectDown) })
+  }
+  for (const step of liveSteps) {
+    items.push({
+      rail: true,
+      render: (connectDown) => (
+        <TimelineStep key={step.key} status={step.status} connectDown={connectDown}>
           {step.render()}
         </TimelineStep>
-      ))}
+      ),
+    })
+  }
+  if (trailingAssistant) {
+    items.push({ rail: true, render: (connectDown) => renderAssistantStep(trailingAssistant, connectDown) })
+  }
+
+  return (
+    <ol className={cn('flex flex-1 flex-col min-h-0 overflow-auto p-4 list-none m-0')} data-assistant-timeline="true">
+      {/* 连线 = 紧邻的下一项也是导轨步骤(非 user 气泡);user 气泡断开导轨。 */}
+      {items.map((item, index) => item.render(index < items.length - 1 && items[index + 1].rail))}
       <li className={cn('list-none')} ref={props.threadBottomRef as unknown as React.RefObject<HTMLLIElement>} aria-hidden="true" />
     </ol>
   )

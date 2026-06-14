@@ -28,7 +28,6 @@ import AssistantTimeline from './AssistantTimeline'
 import { buildStepDetailLabels, countCreatedNodesByCategory, summarizeToolCall } from './toolCallSummary'
 import { MemoryFold } from './MemoryFold'
 import { runProposalUndo, setCommittedProposal, useCommittedProposal } from '../agent/proposalUndo'
-import { toastAction } from '../../../ui/toastAction'
 import type { ReconcileDeviation } from '../agent/reconcile'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { handleAiComposerKeyDown } from '../../ai/aiComposerKeyboard'
@@ -289,10 +288,12 @@ export default function CanvasAssistantPanel({
           toolActionCount += steps.length
           // S6-3 对账(N12):执行 ≠ 批准 → 弹偏差卡(per-field diff+一键整笔撤销);一致则零可见。
           if (!outcome.reconciliation.ok) setDeviationReport(outcome.reconciliation.deviations)
-          // S6-5 整笔撤销:committed 卡(约束①,存活到下一笔)+ 画布 toast 第二入口(约束②)。
+          // S6-5 整笔撤销唯一入口 = committed 卡(约束①,存活到下一笔)。落点回报靠卡内分类 chip。
+          // 旧实现额外弹一个「整笔撤销」toast 当第二入口——每次 commit 都弹、和卡内入口重复,
+          // 即用户反馈的「多余弹窗」,已删(单一入口,不再两套风格/两处冒泡)。
           // 无可补偿的提议(如 run_generation_batch 受理——网络调用收不回)不出撤销入口,不误导。
           if (outcome.compensation.length > 0) {
-            // 落点回报(审计 A1):跨分类创建的节点会落进默认折叠的分类面板,回执/toast
+            // 落点回报(审计 A1):跨分类创建的节点会落进默认折叠的分类面板,卡片
             // 必须报「落在哪」并给跳转入口,否则用户视角=确认过的节点凭空消失。
             const categoryCounts = countCreatedNodesByCategory(steps)
             const record = {
@@ -306,10 +307,6 @@ export default function CanvasAssistantPanel({
               reconciliationOk: outcome.reconciliation.ok,
             }
             setCommittedProposal(record)
-            const dropLine = categoryCounts.length > 1
-              ? `（落点：${categoryCounts.map((item) => `${item.label} ${item.count}`).join(' · ')}）`
-              : ''
-            toastAction(`AI 已应用：${record.summary}${dropLine}`, { label: '整笔撤销', onClick: () => runProposalUndo(record) })
           }
           for (let index = 0; index < steps.length; index += 1) {
             const step = steps[index]
