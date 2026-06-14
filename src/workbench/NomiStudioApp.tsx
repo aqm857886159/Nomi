@@ -17,7 +17,7 @@ import {
 } from "./library/tryNowExamples";
 import type { WorkbenchProjectPersistenceService } from "./project/projectPersistenceService";
 import { useWorkspaceEvents } from "./useWorkspaceEvents";
-import { useWorkbenchStore } from "./workbenchStore";
+import { useWorkbenchStore, type WorkspaceMode } from "./workbenchStore";
 import { swapGenerationAiProject } from "./generationCanvas/store/generationAiConversation";
 import { flushConversationsNow, initConversationPersistence, loadProjectConversations } from "./ai/conversationPersistence";
 import { initReviewEventBridge } from "./generationCanvas/reviewEventBridge";
@@ -34,6 +34,18 @@ import { openWorkspaceFromLibrary } from "./library/openWorkspaceFlow";
 import { lazyWithChunkBoundary } from "../ui/chunkBoundary";
 
 type AppView = "library" | "studio";
+
+// 项目创建规格：所有创建入口（newProject / tryExample）拼装项目的单一真相源（P1）。
+// 此前三入口各自决定 workspaceMode / seedKey / 创建+刷新+hydrate 的编排，约定不统一——
+// 「落地视图不确定」「新建空白被当 legacy 迁移删默认节点」根子都在分头拼装。
+type ProjectCreationSpec = {
+    /** 落地视图：必填，每个入口显式声明，杜绝继承上一个项目残留 mode（审计 A11）。*/
+    workspaceMode: WorkspaceMode;
+    name?: string;
+    templateId?: string;
+    /** 播种身份（如 example:xxx）；带 seedKey 的项目永不被空壳 GC 回收。*/
+    seedKey?: string;
+};
 type ProjectPersistenceModule = typeof import("./project/projectPersistenceService");
 
 // 懒加载点位全部走容错域（审计 A5）：chunk 失败只降级该区域，不再拖死整个 app。
@@ -271,22 +283,35 @@ export default function NomiStudioApp(): JSX.Element {
             });
     }, []);
 
-    const newProject = React.useCallback(() => {
-        // 「新建项目」：直接在默认位置建项目，不弹文件夹选择器。
-        // 桌面端 createLocalProject 经 IPC 落到 ~/Documents/Nomi Projects 的自动文件夹，
-        // Web 端落 localStorage。要绑定自选目录走「打开文件夹」。
-        try {
-            // 创建入口契约：每个入口必须显式声明落地视图，不许继承上一个项目的
-            // 残留 mode（审计 A11）。CTA 文案是「从一段文字或想法开始」→ 落创作区。
-            useWorkbenchStore.getState().setWorkspaceMode("creation");
-            const project = createLocalProject();
+    // 创建并打开项目的单一编排点（收口 newProject / tryExample 的重复拼装，P1）：
+    // 落地视图 → 建项目 → 刷新库 → hydrate，按 spec 统一走一遍。落地视图是 spec 必填字段，
+    // 由调用方显式声明（审计 A11）；seedKey 决定是否参与空壳 GC（带 seedKey 永不回收）。
+    // 桌面端 createLocalProject 经 IPC 落到 ~/Documents/Nomi Projects 自动文件夹，Web 端落
+    // localStorage；要绑定自选目录走「打开文件夹」（openWorkspaceFolder，另一条带 rootPath 的路径）。
+    const createAndOpenProject = React.useCallback(
+        async (
+            spec: ProjectCreationSpec,
+        ): Promise<{ projectId: string; opened: boolean }> => {
+            useWorkbenchStore.getState().setWorkspaceMode(spec.workspaceMode);
+            const project = createLocalProject(
+                spec.name,
+                spec.templateId,
+                spec.seedKey ? { seedKey: spec.seedKey } : {},
+            );
             refreshProjects();
-            void hydrateProject(project.id);
-        } catch (error) {
+            const opened = await hydrateProject(project.id);
+            return { projectId: project.id, opened };
+        },
+        [hydrateProject, refreshProjects],
+    );
+
+    const newProject = React.useCallback(() => {
+        // 「新建项目」：默认位置建项目，落「创作」区（CTA「从一段文字或想法开始」）。
+        void createAndOpenProject({ workspaceMode: "creation" }).catch((error) => {
             console.error("new project error", error);
             toast("新建项目失败，请检查本地磁盘权限", "error");
-        }
-    }, [hydrateProject, refreshProjects]);
+        });
+    }, [createAndOpenProject]);
 
     /**
      * Try-Now hero handler (C6). Creates a fresh project, hydrates it,
@@ -320,39 +345,34 @@ export default function NomiStudioApp(): JSX.Element {
             if (existing) {
                 const opened = await hydrateProject(existing.id);
                 if (opened) {
-                    const { useWorkbenchStore } = await import("./workbenchStore");
                     const store = useWorkbenchStore.getState();
                     store.setWorkspaceMode("creation");
                     store.setCreationAssistantAutoOpen(true);
                 }
                 return;
             }
-            // 示例同样不强迫选文件夹：直接在默认位置建项目（桌面端落
-            // ~/Documents/Nomi Projects，Web 端落 localStorage），让「30 秒体验」
-            // 真的一键就跑。要自定义目录用户可后续走「打开文件夹」。
-            let project: LocalProjectSummary;
-            try {
-                project = createLocalProject(example.projectName, undefined, { seedKey });
-                refreshProjects();
-            } catch (error) {
+            // 示例同样不强迫选文件夹：走统一创建编排点（落创作区 + 带 seedKey 永不被 GC 回收），
+            // 直接在默认位置建项目，让「30 秒体验」真的一键就跑。
+            const created = await createAndOpenProject({
+                workspaceMode: "creation",
+                name: example.projectName,
+                seedKey,
+            }).catch((error) => {
                 console.error("try-now project error", error);
                 toast("新建示例项目失败，请检查本地磁盘权限", "error");
-                return;
-            }
-            const hydrated = await hydrateProject(project.id);
-            if (!hydrated) return;
+                return null;
+            });
+            if (!created || !created.opened) return;
             const doc = buildStoryDocument(example.story, example.projectName);
-            const { useWorkbenchStore } = await import("./workbenchStore");
             const store = useWorkbenchStore.getState();
             store.setWorkbenchDocument(doc);
-            // 统一示例行为：打开后落在「创作」、不自动拆镜（不偷偷耗 LLM 额度、用户掌控节奏）。
-            // 展开创作助手让「拆镜头」CTA 一眼可见，用户读完故事一键拆镜进画布。
-            store.setWorkspaceMode("creation");
+            // 打开后落「创作」（mode 已由 createAndOpenProject 设好）、不自动拆镜（不偷偷耗
+            // LLM 额度、用户掌控节奏）。展开创作助手让「拆镜头」CTA 一眼可见。
             store.setCreationAssistantAutoOpen(true);
             // 首次体验自动开三步引导（已看过的用户由 WorkbenchTour 端按标记过滤）
             requestWorkbenchTour();
         },
-        [hydrateProject, refreshProjects],
+        [hydrateProject, createAndOpenProject],
     );
 
     // 接完模型（目录变更广播）→ 状态重查；有挂起的体验且文本模型就位 → 关面板自动续跑。
