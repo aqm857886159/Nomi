@@ -157,6 +157,8 @@ export function normalizePayload(input: unknown): WorkbenchProjectPayload {
         timeline: normalizeTimeline(payload.timeline),
         generationCanvas: payload.generationCanvas,
         categories: normalizeCategories(payload.categories),
+        // P0-6:分镜方案随项目持久化(normalizePayload 是字段重建式,不透传 → 必须显式带上,否则切项目/重载丢)。
+        storyboardPlan: payload.storyboardPlan ?? null,
     };
 }
 

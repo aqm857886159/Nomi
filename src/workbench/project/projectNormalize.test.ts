@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { extractCanvasThumbnailUrls, extractThumbnailUrlsFromRaw } from './projectNormalize'
+import { extractCanvasThumbnailUrls, extractThumbnailUrlsFromRaw, normalizePayload } from './projectNormalize'
+import { createDefaultWorkbenchProjectPayload } from './projectRecordSchema'
+import type { StoryboardPlan } from '../generationCanvas/agent/storyboardPlan'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 
 function node(overrides: Partial<GenerationCanvasNode> & { id: string }): GenerationCanvasNode {
@@ -11,6 +13,24 @@ function node(overrides: Partial<GenerationCanvasNode> & { id: string }): Genera
     result: overrides.result,
   } as GenerationCanvasNode
 }
+
+describe('normalizePayload — storyboardPlan 持久化往返(P0-6)', () => {
+  const plan: StoryboardPlan = {
+    title: '雨夜告白',
+    anchors: [{ id: 'a1', kind: 'character', name: '男主', description: '黑发少年', carrier: 'visual' }],
+    shots: [{ index: 1, durationSec: 3, anchorIds: ['a1'], prompt: '少年站在雨里' }],
+  }
+
+  it('带方案的 payload 往返不丢(normalizePayload 字段重建式,曾会丢)', () => {
+    const out = normalizePayload({ ...createDefaultWorkbenchProjectPayload(), storyboardPlan: plan })
+    expect(out.storyboardPlan).toEqual(plan)
+  })
+
+  it('老项目无 storyboardPlan → 归一化为 null,不报错', () => {
+    const out = normalizePayload(createDefaultWorkbenchProjectPayload())
+    expect(out.storyboardPlan).toBeNull()
+  })
+})
 
 describe('extractCanvasThumbnailUrls（封面派生 + 无产物降级）', () => {
   it('从有产物的节点取前若干个 url（封顶 max）', () => {

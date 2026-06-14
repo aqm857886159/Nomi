@@ -5,6 +5,7 @@ import type { TimelineState } from '../timeline/timelineTypes'
 import { createDefaultWorkbenchDocument, type WorkbenchDocument } from '../workbenchTypes'
 import { createDefaultGenerationCanvasSnapshot } from '../generationCanvas/store/generationCanvasDefaults'
 import type { GenerationCanvasSnapshot } from '../generationCanvas/model/generationCanvasTypes'
+import { storyboardPlanSchema, type StoryboardPlan } from '../generationCanvas/agent/storyboardPlan'
 import { cloneBuiltinCategories, projectCategorySchema, type ProjectCategory } from './projectCategories'
 
 // Persisted records come in two shapes that carry an identical `payload`:
@@ -74,6 +75,11 @@ export const workbenchProjectPayloadSchema = z.object({
   categories: z.array(projectCategorySchema).optional(),
   /** S5-b-1:快照覆盖到事件日志的哪个 seq——hydrate 时重放其后的尾巴(崩溃恢复)。可选,老项目无。 */
   generationCanvasLastSeq: z.number().optional(),
+  /**
+   * P0-6:创作区分镜方案(用户手改过锚/镜序的结构化产物)。此前是纯内存态,切项目/重载即蒸发。
+   * 可选 + nullable 让老项目向后兼容(无此字段即无方案)。
+   */
+  storyboardPlan: storyboardPlanSchema.nullable().optional(),
 })
 
 export const workbenchProjectRecordSchema = workbenchProjectSummarySchema.extend({
@@ -115,6 +121,8 @@ export type WorkbenchProjectPayload = {
   categories?: ProjectCategory[]
   /** S5-b-1:快照覆盖到日志的 seq(尾部重放游标);老项目无此字段则跳过重放。 */
   generationCanvasLastSeq?: number
+  /** P0-6:创作分镜方案(per-project 工作产物);无则 null/缺省。 */
+  storyboardPlan?: StoryboardPlan | null
 }
 
 export type WorkbenchProjectRecordV1 = WorkbenchProjectSummary & {

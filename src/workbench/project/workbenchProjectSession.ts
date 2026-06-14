@@ -15,6 +15,8 @@ export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
     categories: workbench.categories,
     // S5-b-1:尾部重放游标(append 回执维护;回执延迟导致略旧也安全——reducer 幂等)
     generationCanvasLastSeq: getCanvasEventLastSeq(),
+    // P0-6:分镜方案随项目落盘(此前纯内存→切项目/重载蒸发)。
+    storyboardPlan: workbench.storyboardPlan,
   }
 }
 
@@ -22,6 +24,9 @@ export function restoreWorkbenchProjectPayload(payload: WorkbenchProjectPayload)
   useWorkbenchStore.getState().setWorkbenchDocument(payload.workbenchDocument)
   useWorkbenchStore.getState().setTimeline(payload.timeline)
   useWorkbenchStore.getState().setCategories(payload.categories)
+  // P0-6:分镜方案随项目恢复。restore 在 hydrate 里先于 swapCreationAiProject 跑,故由它负责
+  // 载入本项目方案(swap 不再清,见 workbenchStore),老项目无字段则置 null。
+  useWorkbenchStore.getState().setStoryboardPlan(payload.storyboardPlan ?? null)
   useGenerationCanvasStore.getState().restoreSnapshot(payload.generationCanvas)
 }
 

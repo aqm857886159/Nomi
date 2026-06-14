@@ -281,7 +281,8 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     set({ creationAiError })
   },
   setStoryboardPlan: (storyboardPlan) => {
-    set({ storyboardPlan })
+    // P0-6:方案是 per-project 持久化产物 → bump persistRevision 触发防抖落盘(否则用户手改的方案不保存)。
+    set((state) => ({ storyboardPlan, persistRevision: state.persistRevision + 1 }))
   },
   setCreationAssistantAutoOpen: (creationAssistantAutoOpen) => {
     set({ creationAssistantAutoOpen })
@@ -296,8 +297,8 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       }),
       // messages 由 conversationThreads 模型按项目持有;切项目先清空,载入由 loadProjectConversations 投影回。
       creationAiMessages: [],
-      // 方案是 per-project 工作产物,不入对话桶——切项目直接清,防跨项目串台(2026-06-10 走查教训)。
-      storyboardPlan: null,
+      // 方案(storyboardPlan)不再在此清:它已随项目持久化(P0-6),hydrate 里 restore 先于本 swap 跑、
+      // 已按新项目 payload 载入(无则 null)。此处再清会清掉刚 restore 的方案 → 切项目即丢。防串台职责移交 restore。
     })
   },
   setTimeline: (timeline) => {
