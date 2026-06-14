@@ -27,5 +27,11 @@ export function completeNodeConnection(targetNodeId: string): void {
       }
     }
   }
-  state.connectToNode(targetNodeId)
+  const verdict = state.connectToNode(targetNodeId)
+  // 连边能力校验失败:给手动连线的用户即时反馈,而非静默不连(或落库后到生成期才被丢)。
+  if (!verdict.ok && verdict.reason === 'source_not_referenceable') {
+    showInfoToast('这个节点没有可作为参考的图/视频，先生成它或换个来源')
+  } else if (!verdict.ok && verdict.reason === 'unsupported_reference') {
+    showInfoToast('目标模型不支持这种参考连线')
+  }
 }

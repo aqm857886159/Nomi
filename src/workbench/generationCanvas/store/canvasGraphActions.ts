@@ -1,5 +1,6 @@
 import { connectNodes, disconnectEdge, removeNodes } from '../model/graphOps'
 import { isImageLikeGenerationNodeKind } from '../model/generationNodeKinds'
+import { validateReferenceEdge } from '../agent/referenceEdgeCapability'
 import type { GenerationCanvasEdge, NodeGroup } from '../model/generationCanvasTypes'
 import { createGroupId } from './canvasIds'
 import { bumpPersistRevision, isCategoryId, shouldPersistCanvasMutation } from './canvasGuards'
@@ -16,7 +17,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
   },
   connectToNode: (targetNodeId) => {
     const sourceNodeId = get().pendingConnectionSourceId
-    if (!sourceNodeId) return
+    if (!sourceNodeId) return { ok: false, reason: 'dangling' }
     // mode 选择在 set 外用同一份 pre-state 计算(与原内嵌逻辑等价),事件要带上它
     const pre = get()
     const sourceNode = pre.nodes.find((n) => n.id === sourceNodeId)
@@ -26,6 +27,18 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
       const incoming = pre.edges.filter((e) => e.target === targetNodeId)
       if (!incoming.some((e) => e.mode === 'first_frame')) mode = 'first_frame'
       else if (!incoming.some((e) => e.mode === 'last_frame')) mode = 'last_frame'
+    }
+    // 连边能力校验收口到此(手动连线总闸):文本→图片、错配参考槽等盲连在创建期就拦——
+    // T8 此前只补了 agent 入口,手动拖把柄/点输入口的边落库后才在生成期被静默丢弃。
+    // agent 路径已在 generationCanvasTools 预校验;这里防的是手动入口。
+    if (sourceNode && targetNode) {
+      const verdict = validateReferenceEdge(sourceNode, targetNode, mode)
+      if (!verdict.ok) {
+        set((state) => {
+          state.pendingConnectionSourceId = ''
+        })
+        return verdict
+      }
     }
     const beforeEdges = pre.edges
     set((state) => {
@@ -39,6 +52,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     if (get().edges !== beforeEdges) {
       emitCanvasGesture([{ type: 'canvas.edge.connected', payload: { sourceNodeId, targetNodeId, mode } }])
     }
+    return { ok: true }
   },
   connectNodes: (sourceNodeId, targetNodeId, mode) => {
     const beforeEdges = get().edges

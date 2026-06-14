@@ -10,6 +10,7 @@ import type {
   NodeGroup,
 } from '../model/generationCanvasTypes'
 import type { WorkbenchAiMessage } from '../../ai/workbenchAiTypes'
+import type { EdgeCapabilityResult } from '../agent/referenceEdgeCapability'
 import type { CanvasMutationOptions } from './canvasGuards'
 import type { NodeProgressInput, NodeRunRecordInput, NodeRunRecordPatch } from './runRecordHelpers'
 
@@ -47,7 +48,8 @@ export type CanvasNodeActions = {
 export type CanvasGraphActions = {
   startConnection: (nodeId: string) => void
   cancelConnection: () => void
-  connectToNode: (targetNodeId: string) => void
+  // 返回连边能力校验结果:ok=已连;否则带 reason(手动连线总闸,UI 据此提示)。
+  connectToNode: (targetNodeId: string) => EdgeCapabilityResult
   connectNodes: (sourceNodeId: string, targetNodeId: string, mode?: GenerationCanvasEdge['mode']) => void
   updateEdgeMode: (edgeId: string, mode: GenerationCanvasEdge['mode']) => void
   disconnectEdge: (edgeId: string) => void
