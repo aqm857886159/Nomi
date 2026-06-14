@@ -72,8 +72,9 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   }, [sending])
   // 放大/全屏对话：把整块面板移到 body 级居中浮层（仿 Scene3D 全屏 portal）。
   const [expanded, setExpanded] = React.useState(false)
-  // 面板卸载：抛弃在途轮次,迟到回调不再写、不残留待批写卡。
-  React.useEffect(() => () => { useCreationTurnStore.getState().abandon() }, [])
+  // 注意:不在卸载时 abort。turn 状态已搬到控制器(模块级单例)+ 消息在 store,
+  // 折叠/切 tab 会卸载本面板,但在途轮次应继续跑、重开面板时无缝接回(折叠续跑)。
+  // 跨项目串台由 swapCreationAiProject→abandon 兜底,与面板卸载解耦。
   const messagesScrollRef = useTransientScrollingClass<HTMLDivElement>('workbench-scrollbar-visible')
   const workbenchDocument = useWorkbenchStore((state) => state.workbenchDocument)
   const documentTools = useWorkbenchStore((state) => state.creationDocumentTools)

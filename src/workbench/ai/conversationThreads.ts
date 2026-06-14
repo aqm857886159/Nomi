@@ -94,6 +94,19 @@ function pruneThreads(area: AreaModel): void {
 
 // ───────────────────────────── 操作 ─────────────────────────────
 
+/**
+ * 持久化不变量:`pending`/`streaming` 是只存活于「轮次进行中」的瞬时态,绝不该进
+ * 线程模型→落盘。一条还没出任何字的在途气泡若被切项目/防抖写/崩溃截到,就会留下
+ * 一个空白助手气泡(序列化只存 content,重载即一条空 done)。这里在入线程的唯一隘口
+ * 收敛:丢掉「瞬时态且无内容」的助手气泡;有部分内容的流式气泡保留(中断也留半成品)。
+ */
+function dropTransientBlank(messages: readonly WorkbenchAiMessage[]): WorkbenchAiMessage[] {
+  return messages.filter((m) => {
+    const transient = m.status === 'pending' || m.status === 'streaming'
+    return !(m.role === 'assistant' && transient && !m.content.trim())
+  })
+}
+
 /** 面板流式写入后:把 store 的活动消息同步进活动线程(+bump updatedAt,+空标题时派生)。 */
 export function syncActiveMessages(
   projectId: string,
@@ -102,9 +115,10 @@ export function syncActiveMessages(
   now: number,
 ): void {
   const thread = getActive(ensureArea(projectId, area, now))
-  thread.messages = messages.slice()
-  if (messages.length > 0) thread.updatedAt = now
-  if (!thread.title.trim()) thread.title = deriveThreadTitle(messages)
+  const settled = dropTransientBlank(messages)
+  thread.messages = settled
+  if (settled.length > 0) thread.updatedAt = now
+  if (!thread.title.trim()) thread.title = deriveThreadTitle(settled)
 }
 
 /** 「新对话」:活动线程留在列表(归档),建一条空线程设为活动。返回新活动线程(空 messages)。 */

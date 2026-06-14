@@ -31,6 +31,29 @@ describe('deriveThreadTitle', () => {
   })
 })
 
+describe('瞬时态不持久化(治切项目/防抖写截到空在途气泡)', () => {
+  const amsg = (id: string, content: string, status?: WorkbenchAiMessage['status']): WorkbenchAiMessage => ({ id, role: 'assistant', content, ...(status ? { status } : {}) })
+
+  it('空白 pending 助手气泡不进线程→不落盘', () => {
+    syncActiveMessages(PID, 'creation', [msg('u1', 'user', '写一段开头'), amsg('a1', '', 'pending')], 100)
+    const persisted = serializeArea(PID, 'creation', 100)
+    const ids = persisted.threads[0].messages.map((m) => m.id)
+    expect(ids).toEqual(['u1']) // 空白在途气泡被收敛掉
+  })
+
+  it('有部分内容的 streaming 气泡保留(中断也留半成品)', () => {
+    syncActiveMessages(PID, 'creation', [msg('u1', 'user', 'x'), amsg('a1', '写到一半', 'streaming')], 100)
+    const ids = serializeArea(PID, 'creation', 100).threads[0].messages.map((m) => m.id)
+    expect(ids).toEqual(['u1', 'a1'])
+  })
+
+  it('done/cancelled/无状态助手气泡照常保留', () => {
+    syncActiveMessages(PID, 'creation', [amsg('a1', '完成', 'done'), amsg('a2', '（已停止）', 'cancelled'), amsg('a3', '旧消息')], 100)
+    const ids = serializeArea(PID, 'creation', 100).threads[0].messages.map((m) => m.id)
+    expect(ids).toEqual(['a1', 'a2', 'a3'])
+  })
+})
+
 describe('线程归档不销毁', () => {
   it('新对话:当前非空线程留在列表,新建空线程为活动', () => {
     syncActiveMessages(PID, 'creation', [msg('u1', 'user', '甲对话')], 100)
