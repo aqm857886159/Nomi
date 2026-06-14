@@ -233,6 +233,13 @@ export function buildHttpRequest(input: {
   apiKey: string;
   context: JsonRecord;
   operation: HttpOperationLike;
+  /**
+   * Relay/proxy-gateway custom auth headers (vendor.meta.extraHeaders). Applied
+   * as a base layer alongside standard auth — an explicit mapping header of the
+   * same name still wins. This is what makes the image/video profile path carry
+   * the same gateway headers the text/AI-SDK path already injects.
+   */
+  extraHeaders?: Record<string, string>;
 }): BuiltRequest {
   const { context, operation } = input;
   const method = (pickString(operation.method) || "POST").toUpperCase();
@@ -242,6 +249,7 @@ export function buildHttpRequest(input: {
   const renderedHeaders = stringifyHeaders(renderTemplateValue(operation.headers, context));
   const headers: Record<string, string> = {
     ...authHeaders(input.authType, input.apiKey, input.authHeaderName),
+    ...(input.extraHeaders || {}),
     ...renderedHeaders,
   };
 

@@ -5,15 +5,17 @@ import { hardenedFetch } from "./hardenedFetch";
 import { localizeAssetsForVendor, resolveAssetIngestion } from "./catalog/assetLocalization";
 import { readNomiLocalAsset, postJsonForAssetUpload } from "./assets/localAssetFile";
 import { endpoint } from "./vendorEndpoint";
-import { authQueryParams, requestJson } from "./vendor/vendorHttp";
+import { requestJson } from "./vendor/vendorHttp";
 import { buildNormalizedRecipe, buildTaskProvenance } from "./vendor/provenance";
 import { traceVendorCompleted, traceVendorRequested } from "./events/vendorCallTrace";
 import { scheduleTechnicalReview } from "./review/reviewTrace";
-import { type AuthType, appendQueryParams, authHeaders as buildAuthHeaders, buildHttpRequest, buildTemplateContext, extractTaskId as extractTaskIdShared } from "./ai/requestPipeline";
+import { type AuthType, authHeaders as buildAuthHeaders, buildHttpRequest, buildTemplateContext, extractTaskId as extractTaskIdShared } from "./ai/requestPipeline";
 import { executeTextTask } from "./textTaskRunner";
-import { firstString, isJsonRecord, nowIso, readNestedRecord, trim, type JsonRecord } from "./jsonUtils";
+import { firstString, isJsonRecord, nowIso, trim, type JsonRecord } from "./jsonUtils";
 import { collectAssetUrls, firstMappedString, providerMetaFromResponse, taskStatusFromResponse, valuesFromMapping } from "./tasks/responseParsing";
 import { TtlLruCache } from "./tasks/taskCache";
+import { classifyTaskCacheMiss, markTaskAdmitted, wasTaskAdmitted } from "./tasks/taskAdmission";
+import { collectFilesRecursively, parseDataUrl } from "./assets/assetBytes";
 import { assetBucketFromMeta, assetKindFromContentType, contentTypeFromPath, extensionFromMime, extensionFromUrl, localAssetUrl, stableAssetId } from "./assets/assetPaths";
 import { readCachedTaskResult, recipeFingerprint, rememberTaskResult } from "./vendor/fingerprintCache";
 import { decryptApiKeyRecord } from "./catalog/secrets";
@@ -31,8 +33,9 @@ import {
 // 公共 API：main.ts 仍从 "./runtime" 消费这些 —— re-export 保持其 import 不变。
 export { createProject, deleteProject, listProjects, readProject, resolveProjectRelativePath, saveProject };
 
-// 任务执行复用 catalog 状态（readCatalog）；catalogStore 反向复用本文件任务引擎 → 运行期循环引用（CommonJS 安全）。
-import { readCatalog } from "./catalog/catalogStore";
+// 任务执行复用 catalog 状态（readCatalog + extractVendorExtraHeaders 纯函数）；
+// catalogStore 反向复用本文件任务引擎 → 运行期循环引用（CommonJS 安全）。
+import { extractVendorExtraHeaders, readCatalog } from "./catalog/catalogStore";
 
 import type {
   BillingModelKind,
@@ -42,7 +45,7 @@ import type {
   ProfileKind,
   Vendor,
 } from "./catalog/types";
-import { selectTaskMapping } from "./catalog/types";
+import { selectExecutableModel, selectTaskMapping } from "./catalog/types";
 import { taskTemplateParams } from "./catalog/taskParams";
 export type {
   AiSdkProviderKind,
@@ -147,6 +150,12 @@ export type TaskResult = {
 // TTL(1h) + LRU(200) 上限，防异步任务条目无界驻留（P0-7）。不再缓存明文 apiKey。
 const taskCache = new TtlLruCache<CachedTask>({ maxEntries: 200, ttlMs: 60 * 60 * 1000 });
 
+/** 受理一个异步任务：写工作缓存 + 记账本（单一入口，所有 admit 点同源，防漏记）。 */
+function admitTask(id: string, entry: CachedTask): void {
+  taskCache.set(id, entry);
+  markTaskAdmitted(id);
+}
+
 type CachedTask = {
   vendor: string;
   request: TaskRequest;
@@ -177,20 +186,6 @@ type LocalAssetRecord = {
     kind: string;
   };
 };
-
-function collectFilesRecursively(dir: string): string[] {
-  if (!fs.existsSync(dir)) return [];
-  const files: string[] = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const absolutePath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...collectFilesRecursively(absolutePath));
-    } else if (entry.isFile()) {
-      files.push(absolutePath);
-    }
-  }
-  return files;
-}
 
 function uniqueAssetPath(projectId: string, fileName: string, bucket: "generated" | "imported" = "generated"): { absolutePath: string; relativePath: string } {
   const projectDir = projectDirById(projectId);
@@ -232,15 +227,6 @@ function writeAsset(projectId: string, bytes: Buffer, fileName: string, contentT
       size: bytes.byteLength,
     },
   };
-}
-
-function parseDataUrl(dataUrl: string): { bytes: Buffer; contentType: string } {
-  const match = dataUrl.match(/^data:([^;,]+)?(;base64)?,([\s\S]*)$/);
-  if (!match) throw new Error("Invalid data URL");
-  const contentType = match[1] || "application/octet-stream";
-  const encoded = match[3] || "";
-  const bytes = match[2] ? Buffer.from(encoded, "base64") : Buffer.from(decodeURIComponent(encoded));
-  return { bytes, contentType };
 }
 
 export async function importRemoteAsset(payload: unknown): Promise<unknown> {
@@ -348,7 +334,8 @@ function findExecutableModel(vendorKey: string, modelKey: string, kind?: Billing
   const state = readCatalog();
   const vendor = state.vendors.find((item) => item.key === vendorKey && item.enabled);
   if (!vendor) throw new Error(`Vendor is not enabled: ${vendorKey}`);
-  const model = state.models.find((item) => item.vendorKey === vendorKey && item.enabled && (!kind || item.kind === kind) && (item.modelKey === modelKey || item.modelAlias === modelKey));
+  // 精确 modelKey 优先于 alias（修双键 OR 误路由，selectExecutableModel 纯函数单测覆盖）。
+  const model = selectExecutableModel(state.models, vendorKey, modelKey, kind);
   if (!model) throw new Error(`Model is not enabled: ${modelKey}`);
   const apiKey = decryptApiKeyRecord(state.apiKeysByVendor[vendorKey]);
   if (vendor.authType !== "none" && !apiKey) throw new Error(`API key missing: ${vendorKey}`);
@@ -394,21 +381,6 @@ function extractAssetUrl(raw: unknown): string {
     (record.result as JsonRecord | undefined)?.image_url,
   ];
   return firstString(...candidates);
-}
-
-async function postJson(url: string, apiKey: string, vendor: Vendor, body: unknown): Promise<unknown> {
-  const response = await fetch(appendQueryParams(url, authQueryParams(vendor, apiKey)), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders(vendor, apiKey),
-    },
-    body: JSON.stringify(body),
-  });
-  const text = await response.text();
-  const json = text ? JSON.parse(text) : null;
-  if (!response.ok) throw new Error(firstString((json as JsonRecord | null)?.message, (json as JsonRecord | null)?.error, `Provider request failed: ${response.status}`));
-  return json;
 }
 
 async function localizeTaskAsset(projectId: string, assetUrl: string, type: "image" | "video", nodeId?: string): Promise<TaskResult["assets"][number]> {
@@ -457,8 +429,9 @@ export function buildProfileHttpRequest(input: {
   operation: HttpOperation;
   providerMeta?: JsonRecord;
 }): { method: string; url: string; headers: Record<string, string>; query: Record<string, unknown>; body: unknown; preview: unknown } {
-  // Single source of truth: the shared requestPipeline builds the exact request
-  // the wizard test also builds, so "passed test" == "works in prod".
+  // 用共享 requestPipeline 构造请求（与向导测试同一份，"测过"=="prod 能用"）。
+  // extraHeaders（relay/代理网关自定义鉴权头）透传进 profile 路径，与文本路径同源（修 P1）。
+  const extraHeaders = extractVendorExtraHeaders(input.vendor);
   return buildHttpRequest({
     baseUrl: String(input.vendor.baseUrlHint || ""),
     authType: input.vendor.authType as AuthType,
@@ -466,6 +439,7 @@ export function buildProfileHttpRequest(input: {
     apiKey: input.apiKey,
     context: templateContext(input.request, input.model, input.apiKey, input.providerMeta || {}),
     operation: input.operation,
+    ...(extraHeaders ? { extraHeaders } : {}),
   });
 }
 
@@ -596,7 +570,7 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
       rememberTaskResult(projectId, fingerprint, normalized.result);
     }
     if (!["succeeded", "failed"].includes(normalized.result.status)) {
-      taskCache.set(normalized.result.id, {
+      admitTask(normalized.result.id, {
         vendor: vendorKey,
         request,
         raw: executed.response,
@@ -624,7 +598,16 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
   const fallbackFingerprint = recipeFingerprint(fallbackRecipe);
   const fallbackHit = readCachedTaskResult({ projectId, fingerprint: fallbackFingerprint, nodeId, extras: request.extras });
   if (fallbackHit) return fallbackHit as TaskResult;
-  const providerResponse = await postJson(endpoint(vendor, suffix), apiKey, vendor, {
+  // 与 profile 路径同源走 requestJson（单一真相）：错误在抛出那刻即为结构化
+  // VendorRequestError（401→auth/402→balance 查表），不再裸 Error 让下游正则反猜（修 #1）；
+  // extraHeaders（网关头）也一并带上，与 profile 路径一致（修 #2 的 fallback 分支）。
+  const fallbackExtraHeaders = extractVendorExtraHeaders(vendor);
+  const fallbackHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...authHeaders(vendor, apiKey),
+    ...(fallbackExtraHeaders || {}),
+  };
+  const providerResponse = await requestJson(vendor, apiKey, "POST", endpoint(vendor, suffix), fallbackHeaders, {}, {
     model: model.modelAlias || model.modelKey,
     prompt: request.prompt,
     size: request.width && request.height ? `${request.width}x${request.height}` : undefined,
@@ -637,7 +620,7 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
   const upstreamTaskId = extractTaskIdShared(providerResponse) || taskId;
   traceVendorRequested(projectId, { runId: upstreamTaskId, nodeId, recipe: fallbackRecipe });
   if (!assetUrl) {
-    taskCache.set(upstreamTaskId, { vendor: vendorKey, request, raw: providerResponse, model, projectId, nodeId, wantedKind, fingerprint: fallbackFingerprint });
+    admitTask(upstreamTaskId, { vendor: vendorKey, request, raw: providerResponse, model, projectId, nodeId, wantedKind, fingerprint: fallbackFingerprint });
     return { id: upstreamTaskId, kind, status: "queued", assets: [], raw: providerResponse };
   }
   const type: "image" | "video" = wantedKind === "video" ? "video" : "image";
@@ -657,14 +640,16 @@ export async function fetchTaskResult(payload: unknown): Promise<{ vendor: strin
   const taskId = trim(raw.taskId);
   const cached = taskCache.get(taskId);
   if (!cached) {
+    // 区分两种 miss：曾受理但被驱逐/过期(可能 vendor 侧已完成) vs 真·未知 id（修 P1）。
+    const miss = classifyTaskCacheMiss(taskId, wasTaskAdmitted(taskId));
     return {
       vendor: trim(raw.vendor),
       result: {
         id: taskId,
         kind: (raw.taskKind as ProfileKind) || "text_to_image",
-        status: "failed",
+        status: miss.status,
         assets: [],
-        raw: { message: "Local task is not in the pending cache." },
+        raw: miss.raw,
       },
     };
   }
@@ -706,7 +691,7 @@ export async function fetchTaskResult(payload: unknown): Promise<{ vendor: strin
       rememberTaskResult(cached.projectId || "", cached.fingerprint, normalized.result);
       taskCache.delete(taskId);
     } else {
-      taskCache.set(taskId, {
+      admitTask(taskId, {
         ...cached,
         raw: executed.response,
         providerMeta: {

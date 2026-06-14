@@ -179,6 +179,29 @@ export function selectTaskMapping(
   );
 }
 
+/**
+ * 纯函数：在一组 model 里选出该 (vendor, modelKey/alias, kind) 该执行的那个。
+ * **精确 modelKey 优先于 alias**（P1·修双键 OR 误路由根因）：旧实现用
+ * `modelKey===k || modelAlias===k` 单条 OR，当「A 的 alias 撞 B 的 key」时会按
+ * 数组序把 B 误选成 A。这里先扫精确 key，无果再扫 alias —— 精确身份永远赢。
+ * 只认 enabled + 同 vendor；kind 给定时一并过滤。无匹配返回 undefined。
+ * 抽成纯函数是为了可单测（runtime.findExecutableModel 读 catalog 后调它）。
+ */
+export function selectExecutableModel(
+  models: Model[],
+  vendorKey: string,
+  modelKey: string,
+  kind?: BillingModelKind,
+): Model | undefined {
+  const inBucket = models.filter(
+    (m) => m.vendorKey === vendorKey && m.enabled && (!kind || m.kind === kind),
+  );
+  return (
+    inBucket.find((m) => m.modelKey === modelKey) ||
+    inBucket.find((m) => m.modelAlias === modelKey)
+  );
+}
+
 /** Catalog version.
  *  v2 added Model.onboarding + ApiKeyRecord.enc.
  *  v3 collapsed Mapping.{requestMapping,responseMapping} (which used to wrap

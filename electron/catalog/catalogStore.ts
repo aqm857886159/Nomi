@@ -179,8 +179,11 @@ function migrateCatalogForward(state: CatalogState): CatalogState {
   }
 
   if ((s.version as number) > CURRENT_CATALOG_VERSION) {
-    // Newer file than this app understands — keep going read-only, but don't downgrade.
-    console.warn(`[catalog] file version ${s.version} > app version ${CURRENT_CATALOG_VERSION}; reading as-is`);
+    // Newer file than this app understands — return it untouched so it stays
+    // readable, and let `writeCatalog` REFUSE any write back (read-only guard).
+    // This actually enforces "don't downgrade" instead of only warning about it.
+    console.warn(`[catalog] file version ${s.version} > app version ${CURRENT_CATALOG_VERSION}; read-only (writes refused)`);
+    return s;
   }
 
   // Lazy upgrade: any plaintext keys get re-encrypted on first read once safeStorage is up.
@@ -205,7 +208,25 @@ function migrateCatalogForward(state: CatalogState): CatalogState {
   return s;
 }
 
+/**
+ * 只读保护（P1·修高版本静默降级根因）：写盘前先看磁盘当前文件的版本——若它高于本应用
+ * 理解的 CURRENT_CATALOG_VERSION，则**拒绝写回**（抛错），绝不把更新版应用写入的新字段
+ * 以当前形状压扁丢弃。保护设在唯一写盘 choke point，覆盖所有 upsert/delete/import，而非
+ * 逐函数堵症状。读路径不调它 → 高版本文件仍可读、可用。
+ */
+function onDiskCatalogVersion(): number | null {
+  const parsed = readJson<CatalogState | null>(catalogPath(), null);
+  const v = parsed?.version;
+  return typeof v === "number" ? v : null;
+}
+
 function writeCatalog(state: CatalogState): CatalogState {
+  const diskVersion = onDiskCatalogVersion();
+  if (diskVersion != null && diskVersion > CURRENT_CATALOG_VERSION) {
+    throw new Error(
+      `[catalog] refusing to write: on-disk version ${diskVersion} > app version ${CURRENT_CATALOG_VERSION} (read-only to avoid silent downgrade). Update the app to edit this catalog.`,
+    );
+  }
   writeJsonFileAtomic(catalogPath(), state);
   return state;
 }

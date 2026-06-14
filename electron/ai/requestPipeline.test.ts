@@ -186,6 +186,47 @@ describe("buildHttpRequest — auth header fallback + override semantics", () =>
   });
 });
 
+describe("buildHttpRequest — vendor extraHeaders (relay/proxy gateway auth)", () => {
+  const context = buildTemplateContext({ request: {}, params: {}, model: {}, modelKey: "m", apiKey: "SECRET" });
+
+  it("injects extraHeaders into the request (image/video profile path now carries them)", () => {
+    const built = buildHttpRequest({
+      baseUrl: "https://relay",
+      authType: "bearer",
+      apiKey: "SECRET",
+      context,
+      operation: { method: "POST", path: "/p", body: { a: 1 } },
+      extraHeaders: { "HTTP-Referer": "https://nomi.app", "X-Title": "Nomi" },
+    });
+    expect(built.headers.Authorization).toBe("Bearer SECRET");
+    expect(built.headers["HTTP-Referer"]).toBe("https://nomi.app");
+    expect(built.headers["X-Title"]).toBe("Nomi");
+  });
+
+  it("an explicit mapping header overrides an extraHeader of the same name", () => {
+    const built = buildHttpRequest({
+      baseUrl: "https://relay",
+      authType: "bearer",
+      apiKey: "SECRET",
+      context,
+      operation: { method: "POST", path: "/p", headers: { "X-Title": "from-mapping" }, body: { a: 1 } },
+      extraHeaders: { "X-Title": "from-extra" },
+    });
+    expect(built.headers["X-Title"]).toBe("from-mapping");
+  });
+
+  it("no extraHeaders → headers unchanged (zero-cost when none set)", () => {
+    const built = buildHttpRequest({
+      baseUrl: "https://relay",
+      authType: "bearer",
+      apiKey: "SECRET",
+      context,
+      operation: { method: "POST", path: "/p", body: { a: 1 } },
+    });
+    expect(Object.keys(built.headers).sort()).toEqual(["Authorization", "Content-Type"]);
+  });
+});
+
 describe("buildHttpRequest — the query GET (kie recordInfo poll)", () => {
   const operation = {
     method: "GET",
