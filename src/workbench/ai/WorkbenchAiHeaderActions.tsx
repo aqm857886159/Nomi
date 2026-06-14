@@ -2,7 +2,7 @@ import React from 'react'
 import { IconHistory, IconPlugConnected } from '@tabler/icons-react'
 import { WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
-import AssetPickerPopover from '../assets/AssetPickerPopover'
+import { ConversationHistoryPopover } from './ConversationHistoryPopover'
 import { ConversationHistoryList } from './ConversationHistoryList'
 import type { ConvArea } from './conversationThreads'
 
@@ -27,6 +27,7 @@ export function WorkbenchAiHeaderActions({
   onNewConversation,
 }: WorkbenchAiHeaderActionsProps): JSX.Element {
   const [open, setOpen] = React.useState(false)
+  const anchorRef = React.useRef<HTMLButtonElement>(null)
   return (
     <div className={cn('workbench-ai-header-actions inline-flex items-center flex-nowrap gap-1.5', className)}>
       {onModelIntegration ? (
@@ -38,6 +39,7 @@ export function WorkbenchAiHeaderActions({
         />
       ) : null}
       <button
+        ref={anchorRef}
         type="button"
         aria-label="会话历史"
         aria-expanded={open}
@@ -53,9 +55,9 @@ export function WorkbenchAiHeaderActions({
         <IconHistory size={14} />
       </button>
       {open ? (
-        <AssetPickerPopover onClose={() => setOpen(false)}>
+        <ConversationHistoryPopover anchorRef={anchorRef} onClose={() => setOpen(false)}>
           <ConversationHistoryList area={area} onNewConversation={onNewConversation} onClose={() => setOpen(false)} />
-        </AssetPickerPopover>
+        </ConversationHistoryPopover>
       ) : null}
     </div>
   )

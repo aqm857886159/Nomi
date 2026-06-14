@@ -24,6 +24,11 @@ export default tseslint.config(
       'tests/ux/**',
       'tests/transport-spike/**',
       'evals/**',
+      // 技能(Claude Skill)安装产物:脚本是独立运行体(require/window/node 全局),非本项目源码,不纳入 lint。
+      '.agents/**',
+      '.claude/**',
+      '.hermes/**',
+      'skills/**',
       '**/*.config.{js,ts,mjs,cjs}',
     ],
   },

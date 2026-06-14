@@ -35,16 +35,18 @@ export function ConversationHistoryList({
   onClose: () => void
 }): JSX.Element {
   const revision = React.useSyncExternalStore(subscribeConversations, getConversationsRevision)
+  // revision=外部 store 版本号:listConversations 读可变线程模型,靠它强制重算(lint 看不出外部依赖)。
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const threads = React.useMemo(() => listConversations(area), [area, revision])
   const activeId = getActiveConversationId(area)
   const now = Date.now()
 
   return (
-    <div className={cn('w-72 rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-md p-1')}>
+    <div className={cn('w-64 rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-md p-1')}>
       <button
         type="button"
         className={cn(
-          'flex w-full items-center gap-2 h-[34px] px-2 rounded-nomi-sm border-0 bg-transparent cursor-pointer text-left',
+          'flex w-full items-center gap-2 h-8 px-2 rounded-nomi-sm border-0 bg-transparent cursor-pointer text-left',
           'hover:bg-nomi-ink-05',
         )}
         onClick={() => {
@@ -59,14 +61,14 @@ export function ConversationHistoryList({
 
       <div className={cn('h-px bg-nomi-line-soft mx-1.5 my-1')} />
 
-      <ul className={cn('list-none p-0 m-0 max-h-[300px] overflow-auto')}>
+      <ul className={cn('list-none p-0 m-0 max-h-[280px] overflow-auto')}>
         {threads.map((thread) => {
           const isActive = thread.id === activeId
           return (
             <li
               key={thread.id}
               className={cn(
-                'group flex items-center gap-2 h-9 px-2 rounded-nomi-sm cursor-pointer',
+                'group flex items-center gap-2 h-8 px-2 rounded-nomi-sm cursor-pointer',
                 'border-l-2',
                 isActive ? 'bg-nomi-accent-soft border-nomi-accent' : 'border-transparent hover:bg-nomi-ink-05',
               )}
