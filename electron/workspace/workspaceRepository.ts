@@ -202,6 +202,30 @@ export function removeWorkspaceProjectReference(
   return { id: projectId, deleted: false };
 }
 
+/**
+ * 删除一个 workspace 项目（真删盘，2026-06-14 用户拍板）。
+ * - native（默认根内的 Nomi 原生项目）→ fs.rmSync 整个目录，deleted:true。
+ * - folder（用户用「打开文件夹」绑定的外部目录）→ **绝不碰用户的文件**，只解绑库引用，deleted:false。
+ * 双重边界防误删用户目录：必须解析出真实目录、source 判 native、且严格位于默认根之下（非根本身）。
+ */
+export function deleteWorkspaceProject(
+  projectId: string,
+  deps: WorkspaceRepositoryDeps,
+): { id: string; deleted: boolean } {
+  const dir = resolveWorkspaceProjectDir(projectId, deps); // 解析必须在解绑引用之前
+  removeWorkspaceReference(deps.settingsRoot, projectId);
+  if (!dir) return { id: projectId, deleted: false };
+  const root = path.resolve(deps.defaultProjectsRoot);
+  const resolved = path.resolve(dir);
+  const isNative =
+    deriveProjectSource(resolved, deps.defaultProjectsRoot) === "native" &&
+    resolved !== root &&
+    resolved.startsWith(`${root}${path.sep}`);
+  if (!isNative) return { id: projectId, deleted: false }; // 外部文件夹：只解绑，不删用户内容
+  fs.rmSync(resolved, { recursive: true, force: true });
+  return { id: projectId, deleted: true };
+}
+
 export function resolveWorkspaceProjectDir(projectId: string, deps: WorkspaceRepositoryDeps): string | null {
   const entry = findRecentEntry(projectId, deps);
   if (!entry || entry.missing || !fs.existsSync(entry.rootPath)) {

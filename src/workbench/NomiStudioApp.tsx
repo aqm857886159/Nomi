@@ -405,10 +405,14 @@ export default function NomiStudioApp(): JSX.Element {
         async (project: LocalProjectSummary) => {
             // 应用内确认框（审计 A7）：原生 window.confirm 脱设计系统、E2E 测不到、
             // Electron/macOS 有焦点丢失史。
+            // 文案按来源如实区分（真删盘只对 native；外部「打开文件夹」只解绑、不删用户文件）。
+            const isExternal = project.source === "folder";
             const confirmed = await confirmDialog({
-                title: "删除项目",
-                message: `确定删除「${project.name}」吗？项目文件夹和本地资源会一起删除。`,
-                confirmLabel: "删除",
+                title: isExternal ? "从库移除项目" : "删除项目",
+                message: isExternal
+                    ? `确定从项目库移除「${project.name}」吗？这只解除绑定，你的原始文件夹和文件不会被删除。`
+                    : `确定删除「${project.name}」吗？项目文件夹和本地资源会从磁盘永久删除，无法恢复。`,
+                confirmLabel: isExternal ? "从库移除" : "删除",
                 danger: true,
             });
             if (!confirmed) return;
@@ -420,7 +424,7 @@ export default function NomiStudioApp(): JSX.Element {
                     setView("library");
                     navigate(buildStudioUrl(), { replace: true });
                 }
-                toast("项目已删除", "success");
+                toast(isExternal ? "已从库移除" : "项目已删除", "success");
             } catch (error: unknown) {
                 const message =
                     error instanceof Error && error.message

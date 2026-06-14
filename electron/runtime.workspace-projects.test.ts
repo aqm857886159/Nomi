@@ -86,7 +86,8 @@ describe("runtime workspace project APIs", () => {
     expect(raw.payload).toEqual({ draft: 2 });
   });
 
-  it("deleteProject only removes the recent workspace reference", () => {
+  it("deleteProject 对外部「打开文件夹」项目只解绑,绝不删用户目录", () => {
+    // makeTempDir() 在默认根之外 = 外部文件夹(folder source):真删盘绝不碰用户内容。
     const workspaceRoot = makeTempDir();
     const created = createProject({ rootPath: workspaceRoot, name: "Remove Reference", payload: {} });
 
@@ -95,6 +96,17 @@ describe("runtime workspace project APIs", () => {
     expect(result).toEqual({ id: created.id, deleted: false });
     expect(readProject(created.id)).toBeNull();
     expect(fs.existsSync(workspaceProjectFile(workspaceRoot))).toBe(true);
+  });
+
+  it("deleteProject 对 native(默认根内)项目真删盘:整目录消失", () => {
+    const nativeRoot = path.join(mockedDocumentsRoot, "Nomi Projects", "Native Proj");
+    const created = createProject({ rootPath: nativeRoot, name: "Native Proj", payload: {} });
+
+    const result = deleteProject(created.id);
+
+    expect(result).toEqual({ id: created.id, deleted: true });
+    expect(readProject(created.id)).toBeNull();
+    expect(fs.existsSync(nativeRoot)).toBe(false); // 真删盘:目录不再存在
   });
 
   it("listProjects migrates legacy projects from the default projects root into the workspace registry", () => {
@@ -142,9 +154,10 @@ describe("runtime workspace project APIs", () => {
     );
     expect(listProjects()).toEqual([expect.objectContaining({ id: "delete-legacy-id" })]);
 
-    expect(deleteProject("delete-legacy-id")).toEqual({ id: "delete-legacy-id", deleted: false });
+    // 迁移后该 legacy 项目位于默认根内 = native,真删盘:整目录消失,自然不会再被 list 重发现。
+    expect(deleteProject("delete-legacy-id")).toEqual({ id: "delete-legacy-id", deleted: true });
 
-    expect(fs.existsSync(legacyRoot)).toBe(true);
+    expect(fs.existsSync(legacyRoot)).toBe(false);
     expect(listProjects()).toEqual([]);
     expect(readProject("delete-legacy-id")).toBeNull();
   });
