@@ -91,7 +91,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   const draft = useWorkbenchStore((state) => state.creationAiDraft)
   const messages = useWorkbenchStore((state) => state.creationAiMessages)
   // S1b 诚实分隔线:气泡有历史而 LLM 记忆为空 → 在历史末尾画「以上对话 AI 已不再记得」。
-  const staleBoundaryId = useStaleConversationBoundary(messages.map((message) => message.id))
+  const staleBoundaryId = useStaleConversationBoundary(messages.map((message) => message.id), 'creation')
   const attachments = useWorkbenchStore((state) => state.creationAiAttachments)
   const error = useWorkbenchStore((state) => state.creationAiError)
   const setModeId = useWorkbenchStore((state) => state.setCreationAiModeId)
@@ -261,7 +261,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         prompt,
         displayPrompt,
         ...(attachmentPayload.length ? { attachments: attachmentPayload } : {}),
-        sessionKey: workbenchSessionKey(),
+        sessionKey: workbenchSessionKey('creation'),
         projectId: readWindowUrlParam('projectId'),
         skillKey: `workbench.creation.${activeMode.id}`,
         skillName: activeMode.title,
@@ -332,8 +332,8 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     setDraft('')
     clearAttachments()
     setError('')
-    // 新对话 = 模型上下文也归零(切回旧线程时由 S2 重灌)。
-    void clearWorkbenchAgentSession(workbenchSessionKey())
+    // 新对话 = 该 area 模型上下文归零(创作/画布各一份键,互不影响)。
+    void clearWorkbenchAgentSession(workbenchSessionKey('creation'))
   }, [clearAttachments, setDraft, setError])
 
   const panelBody = (

@@ -11,13 +11,14 @@ import {
   setAgentSessionDirResolverForTests,
 } from "./agentSessionStore";
 
-const KEY = "nomi:workbench:proj-1";
+// 会话历史:per-area 键(同项目两 area 落同一文件,内部 map 区分,互不覆盖)。
+const KEY = "nomi:workbench:proj-1:creation";
+const KEY_GEN = "nomi:workbench:proj-1:generation";
 
 let tmpRoot: string;
 
 beforeEach(() => {
   tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-agent-session-"));
-  // 每个 projectId 一个子目录,模拟项目目录。
   setAgentSessionDirResolverForTests((projectId) => path.join(tmpRoot, projectId));
 });
 
@@ -47,22 +48,27 @@ describe("agentSessionStore", () => {
     expect(JSON.stringify(loaded)).toContain("#8B0000");
   });
 
+  it("同项目两 area 键共存同一文件,互不覆盖", () => {
+    const genMessages: CoreMessage[] = [{ role: "user", content: "画布:连边" }];
+    saveAgentSession(KEY, sampleMessages);
+    saveAgentSession(KEY_GEN, genMessages);
+    // 一个文件(同 projectId)。
+    expect(fs.readdirSync(path.join(tmpRoot, "proj-1", ".nomi"))).toEqual(["agent-session.json"]);
+    // 两键各读各的,后写不冲掉先写。
+    expect(loadAgentSession(KEY)).toEqual(sampleMessages);
+    expect(loadAgentSession(KEY_GEN)).toEqual(genMessages);
+    // 清一个 area 不动另一个。
+    clearAgentSession(KEY);
+    expect(loadAgentSession(KEY)).toBeNull();
+    expect(loadAgentSession(KEY_GEN)).toEqual(genMessages);
+  });
+
   it("hasPersistedAgentSession reflects disk presence", () => {
     expect(hasPersistedAgentSession(KEY)).toBe(false);
     saveAgentSession(KEY, sampleMessages);
     expect(hasPersistedAgentSession(KEY)).toBe(true);
     clearAgentSession(KEY);
     expect(hasPersistedAgentSession(KEY)).toBe(false);
-    expect(loadAgentSession(KEY)).toBeNull();
-  });
-
-  it("returns null when the persisted file's sessionKey does not match", () => {
-    saveAgentSession(KEY, sampleMessages);
-    // 手动篡改文件里的 sessionKey → 读回应判失配返回 null(防串桶)。
-    const file = path.join(tmpRoot, "proj-1", ".nomi", "agent-session.json");
-    const raw = JSON.parse(fs.readFileSync(file, "utf8"));
-    raw.sessionKey = "nomi:workbench:other";
-    fs.writeFileSync(file, JSON.stringify(raw), "utf8");
     expect(loadAgentSession(KEY)).toBeNull();
   });
 

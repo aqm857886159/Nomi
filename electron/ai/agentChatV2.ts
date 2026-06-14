@@ -415,6 +415,43 @@ export function clearAgentChatV2History(sessionKey?: string): void {
   }
 }
 
+/**
+ * 会话历史(2026-06-14):翻回旧对话时,从该线程的界面气泡({role,content})重建模型工作缓存,
+ * 让模型「记起」这段、能无缝接着聊。空 → 等价 clear。
+ * 规范化:只取 user/assistant 文本轮、合并连续同角色、首条须 user、末条须 assistant(下一句 user 接得上,
+ * 满足 Anthropic 严格交替);tool 气泡丢弃(够续聊,且气泡里本无合法 tool pair)。
+ */
+export function seedAgentChatV2History(
+  sessionKey: string,
+  bubbles: ReadonlyArray<{ role?: string; content?: string }>,
+): void {
+  const key = String(sessionKey || "").trim();
+  if (!key) return;
+  const turns: CoreMessage[] = [];
+  for (const bubble of bubbles) {
+    const role = bubble?.role === "user" ? "user" : bubble?.role === "assistant" ? "assistant" : null;
+    if (!role) continue;
+    const content = sanitizeForBroadCompat(typeof bubble?.content === "string" ? bubble.content.trim() : "");
+    if (!content) continue;
+    const last = turns[turns.length - 1];
+    if (last && last.role === role && typeof last.content === "string") {
+      last.content = `${last.content}\n\n${content}`;
+    } else {
+      turns.push({ role, content });
+    }
+  }
+  while (turns.length && turns[0].role === "assistant") turns.shift();
+  while (turns.length && turns[turns.length - 1].role === "user") turns.pop();
+  if (turns.length === 0) {
+    agentChatV2History.delete(key);
+    clearAgentSession(key);
+    return;
+  }
+  const capped = capAgentHistory(turns);
+  agentChatV2History.set(key, capped);
+  saveAgentSession(key, capped);
+}
+
 function readAgentAttachments(payload: RunAgentChatV2Payload): AgentUserAttachment[] {
   const raw = (payload as { attachments?: unknown }).attachments;
   if (!Array.isArray(raw)) return [];

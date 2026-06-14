@@ -17,15 +17,16 @@ import { readWindowUrlParam } from '../windowUrlParam'
  * confirmation card and confirm only after the user approves.
  */
 
+export type WorkbenchAgentArea = 'creation' | 'generation'
+
 /**
- * Both workbench panels (创作区 + 生成区) share one backend memory key so the
- * agent remembers across turns AND across the two areas. Keyed by project so
- * different projects don't bleed context.
+ * 后端对话记忆键。会话历史(2026-06-14)起按 **area** 隔离:创作区 / 生成区各一份记忆,
+ * 翻回各自的历史线程互不串台。仍按 project 隔离,不同项目不漏上下文。
  */
-export function workbenchSessionKey(): string {
+export function workbenchSessionKey(area: WorkbenchAgentArea): string {
   // readWindowUrlParam 兼容 prod 的 hash 路由——只读 search 段曾让打包版全部落 `local` 桶。
   const projectId = readWindowUrlParam('projectId')
-  return `nomi:workbench:${projectId || 'local'}`
+  return `nomi:workbench:${projectId || 'local'}:${area}`
 }
 
 export type ToolCallEvent = {

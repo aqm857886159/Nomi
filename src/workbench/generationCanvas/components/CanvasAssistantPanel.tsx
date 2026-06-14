@@ -135,7 +135,7 @@ export default function CanvasAssistantPanel({
   const draft = useGenerationCanvasStore((state) => state.generationAiDraft)
   const messages = useGenerationCanvasStore((state) => state.generationAiMessages)
   // S1b 诚实分隔线:气泡有历史而 LLM 记忆为空 → 在历史末尾画「以上对话 AI 已不再记得」。
-  const staleBoundaryId = useStaleConversationBoundary(messages.map((message) => message.id))
+  const staleBoundaryId = useStaleConversationBoundary(messages.map((message) => message.id), 'generation')
   const collapsed = useGenerationCanvasStore((state) => state.generationAiCollapsed)
   const setDraft = useGenerationCanvasStore((state) => state.setGenerationAiDraft)
   const setMessages = useGenerationCanvasStore((state) => state.setGenerationAiMessages)
@@ -470,8 +470,8 @@ export default function CanvasAssistantPanel({
     startNewConversation('generation')
     setDraft('')
     clearAttachments()
-    // 新对话 = 模型上下文也归零(切回旧线程时由 S2 重灌)。
-    void clearWorkbenchAgentSession(workbenchSessionKey())
+    // 新对话 = 该 area 模型上下文归零(创作/画布各一份键,互不影响)。
+    void clearWorkbenchAgentSession(workbenchSessionKey('generation'))
   }, [clearAttachments, setDraft])
 
   if (collapsed) {

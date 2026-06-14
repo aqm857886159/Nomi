@@ -105,6 +105,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.invoke("nomi:agents:chatV2:cancel", { sessionId }),
     clearChatV2Session: (sessionKey: string) =>
       ipcRenderer.invoke("nomi:agents:chatV2:clearSession", { sessionKey }),
+    seedChatV2Session: (sessionKey: string, messages: Array<{ role: string; content: string }>) =>
+      ipcRenderer.invoke("nomi:agents:chatV2:seedSession", { sessionKey, messages }),
     chatV2SessionAlive: (sessionKey: string) =>
       ipcRenderer.invoke("nomi:agents:chatV2:sessionAlive", { sessionKey }) as Promise<{ alive: boolean }>,
     onChatV2Event: (sessionId: string, callback: (event: unknown) => void) => {

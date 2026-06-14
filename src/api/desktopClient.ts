@@ -204,9 +204,17 @@ export async function workbenchAgentsChatStream(
 }
 
 
-/** Wipe the shared backend conversation memory for a sessionKey ("新对话"). */
+/** Wipe the backend conversation memory for a sessionKey ("新对话"). */
 export async function clearWorkbenchAgentSession(sessionKey: string): Promise<void> {
   await requireDesktopRuntime('clear agent session').agents.clearChatV2Session(sessionKey)
+}
+
+/** 会话历史:从线程气泡重建该 sessionKey 的模型工作缓存(翻回旧对话接着聊)。 */
+export async function seedWorkbenchAgentSession(
+  sessionKey: string,
+  messages: Array<{ role: string; content: string }>,
+): Promise<void> {
+  await requireDesktopRuntime('seed agent session').agents.seedChatV2Session?.(sessionKey, messages)
 }
 
 export async function listModelCatalogVendors(): Promise<ModelCatalogVendorDto[]> {

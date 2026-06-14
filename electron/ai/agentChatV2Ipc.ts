@@ -1,6 +1,6 @@
 import { ipcMain, webContents as electronWebContents } from "electron";
 import type { WebContents } from "electron";
-import { clearAgentChatV2History, hasAgentChatV2History, runAgentChatV2 } from "./agentChatV2";
+import { clearAgentChatV2History, hasAgentChatV2History, runAgentChatV2, seedAgentChatV2History } from "./agentChatV2";
 import { beginTurnTrace, traceChatEvent, traceGateDenied, traceToolDecision } from "../events/agentChatTrace";
 
 // ---------------------------------------------------------------------------
@@ -139,4 +139,13 @@ export function registerAgentChatV2Ipc(): void {
   ipcMain.handle("nomi:agents:chatV2:sessionAlive", async (_event, payload: { sessionKey?: string }) => {
     return { alive: hasAgentChatV2History(String(payload?.sessionKey || "")) };
   });
+
+  // 会话历史:翻回旧对话时,从该线程气泡重建模型工作缓存,使模型「记起」这段、可无缝接着聊。
+  ipcMain.handle(
+    "nomi:agents:chatV2:seedSession",
+    async (_event, payload: { sessionKey?: string; messages?: Array<{ role?: string; content?: string }> }) => {
+      seedAgentChatV2History(String(payload?.sessionKey || ""), Array.isArray(payload?.messages) ? payload.messages : []);
+      return { ok: true };
+    },
+  );
 }

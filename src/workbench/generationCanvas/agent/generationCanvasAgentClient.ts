@@ -160,7 +160,7 @@ export async function sendGenerationCanvasAgentMessage(
     prompt,
     ...(input.buildPrompt ? {} : { systemPrompt: systemParts.join('\n\n') }),
     displayPrompt: input.message,
-    sessionKey: workbenchSessionKey(),
+    sessionKey: workbenchSessionKey('generation'),
     skillKey: input.skill?.key || 'workbench.generation.canvas-planner',
     skillName: input.skill?.name || '生成区节点规划',
     ...(input.attachments?.length ? { attachments: input.attachments } : {}),

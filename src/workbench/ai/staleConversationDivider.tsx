@@ -4,16 +4,16 @@
 import * as React from 'react'
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
-import { workbenchSessionKey } from './workbenchAgentRunner'
+import { workbenchSessionKey, type WorkbenchAgentArea } from './workbenchAgentRunner'
 
 /**
  * 探测一次"LLM 还记得这段对话吗";不记得且面板里有历史气泡 → 返回分界消息 id
  * (分隔线画在该消息之后:它和它之上的内容 AI 已不再记得)。
  * 探测时机:面板挂载 / 项目(sessionKey)变化。用户继续输入后边界保持不动。
  */
-export function useStaleConversationBoundary(messageIds: readonly string[]): string | null {
+export function useStaleConversationBoundary(messageIds: readonly string[], area: WorkbenchAgentArea): string | null {
   const [boundary, setBoundary] = React.useState<string | null>(null)
-  const sessionKey = workbenchSessionKey()
+  const sessionKey = workbenchSessionKey(area)
   const lastIdAtMount = messageIds.length > 0 ? messageIds[messageIds.length - 1] : null
   React.useEffect(() => {
     let cancelled = false
