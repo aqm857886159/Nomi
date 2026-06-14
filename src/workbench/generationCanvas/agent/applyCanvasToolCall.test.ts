@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // (本测试的 case 不带 modelKey,真实代码路径也不会调它)。
 vi.mock('./availableModels', () => ({ listAvailableModelsForAgent: vi.fn(async () => []) }))
 
-import { applyCanvasToolCall } from './applyCanvasToolCall'
+import { applyCanvasToolCall, resetClientIdRegistry, resolveCanvasToolNodeId } from './applyCanvasToolCall'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
 import type { StoryboardPlan } from './storyboardPlan'
@@ -18,6 +18,18 @@ function resetCanvas() {
 // 入 store → 落盘 "n1→n2" 吊边(指向不存在节点,连线静默丢失)。
 describe('applyCanvasToolCall clientId 翻译', () => {
   beforeEach(resetCanvas)
+
+  it('resetClientIdRegistry 清表后旧 clientId 不再解析到旧项目节点(P1 治跨项目串台)', async () => {
+    const created = (await applyCanvasToolCall('create_canvas_nodes', {
+      nodes: [{ clientId: 'n1', kind: 'image', title: '镜头 1', prompt: 'p1' }],
+    })) as { clientIdToNodeId: Record<string, string> }
+    // 注册后:resolveCanvasToolNodeId('n1') 翻译成真实 id。
+    expect(resolveCanvasToolNodeId('n1')).toBe(created.clientIdToNodeId.n1)
+    expect(resolveCanvasToolNodeId('n1')).not.toBe('n1')
+    // 切项目会调它:清表后 'n1' 不再解析到旧项目节点(返回自身=未注册),杜绝跨项目误连/误删。
+    resetClientIdRegistry()
+    expect(resolveCanvasToolNodeId('n1')).toBe('n1')
+  })
 
   it('connect_canvas_edges 用 clientId 连边 → store 里是真实节点 id', async () => {
     const created = (await applyCanvasToolCall('create_canvas_nodes', {
