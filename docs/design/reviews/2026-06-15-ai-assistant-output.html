@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI 助手输出 · 一致性优化样张</title>
+<style>
+  :root{
+    --nomi-bg: oklch(0.985 0.003 90);
+    --nomi-paper: oklch(1 0 0);
+    --nomi-ink: oklch(0.22 0.01 80);
+    --nomi-ink-80: oklch(0.32 0.01 80);
+    --nomi-ink-60: oklch(0.50 0.01 80);
+    --nomi-ink-40: oklch(0.68 0.01 80);
+    --nomi-ink-30: oklch(0.78 0.01 80);
+    --nomi-ink-20: oklch(0.88 0.005 80);
+    --nomi-ink-10: oklch(0.94 0.003 80);
+    --nomi-ink-05: oklch(0.97 0.003 80);
+    --nomi-line: oklch(0.91 0.004 80);
+    --nomi-line-soft: oklch(0.95 0.003 80);
+    --nomi-accent: oklch(0.55 0.13 250);
+    --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 12%, var(--nomi-paper));
+    --workbench-success: #34c759;
+    --workbench-danger: #ff3b30;
+    --nomi-font-sans: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", system-ui, sans-serif;
+    --nomi-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --nomi-radius-sm: 6px; --nomi-radius: 10px;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--nomi-bg); color:var(--nomi-ink); font-family:var(--nomi-font-sans); -webkit-font-smoothing:antialiased; padding:32px; }
+  h1{ font-size:24px; font-weight:600; margin:0 0 4px; }
+  .lede{ color:var(--nomi-ink-60); font-size:14px; margin:0 0 24px; max-width:760px; line-height:1.6; }
+  .lede b{ color:var(--nomi-ink-80); }
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; }
+  .col-head{ display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; margin:0 0 10px; }
+  .tag{ font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px; }
+  .tag.before{ background:var(--nomi-ink-05); color:var(--nomi-ink-60); }
+  .tag.after{ background:var(--nomi-accent-soft); color:var(--nomi-accent); }
+  .panel{ background:var(--nomi-paper); border:1px solid var(--nomi-line); border-radius:var(--nomi-radius); overflow:hidden; box-shadow:0 1px 2px oklch(0 0 0/.04); }
+  .panel-bar{ display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid var(--nomi-line-soft); font-size:13px; font-weight:600; }
+  .nomi-glyph{ width:18px; height:18px; border-radius:6px; background:var(--nomi-accent); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex:0 0 auto; }
+  .thread{ padding:16px; display:flex; flex-direction:column; gap:16px; min-height:210px; }
+
+  .msg-user{ align-self:flex-end; max-width:88%; background:var(--nomi-ink-05); border-radius:var(--nomi-radius); border-bottom-right-radius:4px; padding:8px 12px; font-size:13px; line-height:1.55; color:var(--nomi-ink); }
+
+  /* BEFORE — divergent */
+  .b-asst-bubble{ align-self:flex-start; max-width:90%; background:var(--nomi-ink-05); border-radius:var(--nomi-radius); padding:10px 11px; font-size:13.5px; line-height:1.55; white-space:pre-wrap; }
+  .tl{ display:flex; gap:10px; }
+  .tl-dot{ width:9px; height:9px; border-radius:999px; margin-top:5px; flex:0 0 auto; }
+  .tl-dot.done{ background:var(--workbench-success); }
+  .tl-line{ width:1px; background:var(--nomi-line); margin:4px 0 0 4px; align-self:stretch; }
+  .b-step{ color:var(--nomi-ink-80); font-size:13px; line-height:1.7; white-space:pre-wrap; }
+
+  /* AFTER — identical assistant treatment in BOTH panels */
+  .a-asst{ align-self:flex-start; max-width:100%; }
+  .a-ident{ display:flex; align-items:center; gap:6px; margin-bottom:5px; }
+  .a-ident .name{ font-size:11px; font-weight:600; color:var(--nomi-ink-60); }
+  .md{ font-size:14px; line-height:1.65; color:var(--nomi-ink); }
+  .md p{ margin:0 0 8px; } .md p:last-child{ margin-bottom:0; }
+  .md strong{ font-weight:600; }
+  .md h4{ font-size:13px; font-weight:600; margin:10px 0 4px; color:var(--nomi-ink); }
+  .md ul{ margin:4px 0 8px; padding-left:18px; } .md li{ margin:3px 0; }
+  .md code{ font-family:var(--nomi-font-mono); font-size:12px; background:var(--nomi-ink-05); padding:1px 5px; border-radius:4px; }
+
+  .note{ margin-top:10px; font-size:12px; color:var(--nomi-ink-60); line-height:1.6; }
+  .note b{ color:var(--nomi-ink-80); font-weight:600; }
+  .danger{ color:var(--workbench-danger); }
+  .section-title{ font-size:16px; font-weight:600; margin:30px 0 12px; padding-top:24px; border-top:1px solid var(--nomi-line); }
+  .typing{ display:inline-flex; gap:3px; align-items:center; } .typing i{ width:4px;height:4px;border-radius:999px;background:var(--nomi-ink-40);display:inline-block;animation:pulse 1s infinite; } .typing i:nth-child(2){animation-delay:.15s} .typing i:nth-child(3){animation-delay:.3s} @keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+  .callout{ background:var(--nomi-accent-soft); border-radius:var(--nomi-radius); padding:12px 14px; font-size:13px; line-height:1.6; color:var(--nomi-ink-80); margin:0 0 20px; max-width:760px; }
+  .callout b{ color:var(--nomi-ink); }
+  .proposal{ border:1px solid var(--nomi-line); border-radius:var(--nomi-radius); padding:10px 12px; font-size:12px; color:var(--nomi-ink-60); background:var(--nomi-paper); }
+  .proposal .h{ font-size:12px; font-weight:600; color:var(--nomi-ink-80); margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+</style>
+</head>
+<body>
+  <h1>AI 助手输出 · 一致性优化</h1>
+  <p class="lede">你的反馈：<b>两个助手设计不一致，看着不舒服</b>（画布那边是「小点 + 时间轴」，创作那边是气泡）。本次目标 = <b>让两个助手的「助手发言」长得一模一样</b>：左对齐 · 一行 Nomi 身份 · 真 markdown · 同 token 字号；不再有「小点时间轴 vs 气泡」两套。</p>
+
+  <div class="callout"><b>核心改动 = 去掉画布助手的「小点时间轴」外壳</b>，让画布助手的发言和创作助手完全一致。用户消息两边都是右对齐 ink-05 气泡。两个助手从此是「同一个 Nomi」，只是出现在不同地方。</div>
+
+  <!-- BEFORE: show the inconsistency -->
+  <div class="section-title">现状 · 两套设计（不一致）</div>
+  <div class="grid">
+    <div>
+      <div class="col-head"><span class="tag before">创作助手 现状</span> 气泡 · 与用户同色</div>
+      <div class="panel">
+        <div class="panel-bar"><span class="nomi-glyph">N</span> 创作助手</div>
+        <div class="thread">
+          <div class="msg-user">把这段拆成 3 个镜头</div>
+          <div class="b-asst-bubble">好的，我建议这样拆：
+
+**镜头 1** 雨夜独行
+**镜头 2** 橱窗回忆
+- 暖色调 · 特写
+
+镜头 2 用 `i2v` 运镜。</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="col-head"><span class="tag before">画布助手 现状</span> <span class="danger">小点时间轴 · markdown 露馅</span></div>
+      <div class="panel">
+        <div class="panel-bar"><span class="nomi-glyph">N</span> 画布助手</div>
+        <div class="thread">
+          <div class="msg-user">把这三镜排到画布</div>
+          <div class="tl">
+            <div style="display:flex;flex-direction:column;align-items:center"><span class="tl-dot done"></span><span class="tl-line"></span></div>
+            <div class="b-step">我会创建 3 个镜头节点：
+
+**镜头1** 雨夜独行
+**镜头2** 橱窗回忆
+- 关键帧用首帧参考</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="note">↑ 左边气泡、右边「小点 + 时间轴 + 纯文本（<code>**</code> 露馅）」——两套语言，正是「不一致」的来源。</p>
+
+  <!-- AFTER: identical in both -->
+  <div class="section-title">优化后 · 同一套（两个助手完全一致）</div>
+  <div class="grid">
+    <div>
+      <div class="col-head"><span class="tag after">创作助手</span></div>
+      <div class="panel">
+        <div class="panel-bar"><span class="nomi-glyph">N</span> 创作助手</div>
+        <div class="thread">
+          <div class="msg-user">把这段拆成 3 个镜头</div>
+          <div class="a-asst">
+            <div class="a-ident"><span class="nomi-glyph">N</span><span class="name">Nomi</span></div>
+            <div class="md">
+              <p>好的，我建议这样拆：</p>
+              <h4>镜头 1</h4><p>雨夜独行（建立基调）。</p>
+              <h4>镜头 2</h4><p>橱窗回忆：</p>
+              <ul><li>暖色调</li><li>特写脸部</li></ul>
+              <p>镜头 2 用 <code>i2v</code> 运镜。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="col-head"><span class="tag after">画布助手（同款）</span></div>
+      <div class="panel">
+        <div class="panel-bar"><span class="nomi-glyph">N</span> 画布助手</div>
+        <div class="thread">
+          <div class="msg-user">把这三镜排到画布</div>
+          <div class="a-asst">
+            <div class="a-ident"><span class="nomi-glyph">N</span><span class="name">Nomi</span></div>
+            <div class="md">
+              <p>我会创建 3 个镜头节点：</p>
+              <ul>
+                <li><strong>镜头 1</strong>　雨夜独行</li>
+                <li><strong>镜头 2</strong>　橱窗回忆（关键帧用首帧参考）</li>
+                <li><strong>镜头 3</strong>　空镜收尾</li>
+              </ul>
+              <p>下面是提议，确认后落画布：</p>
+            </div>
+            <div class="proposal" style="margin-top:8px">
+              <div class="h"><span class="nomi-glyph" style="background:var(--nomi-ink-20);color:var(--nomi-ink-60)">＋</span> 提议：新建 3 个节点 · 连 2 条参考边</div>
+              <div>镜头 1 · 镜头 2 · 镜头 3　　<span style="color:var(--nomi-accent)">［全部拒绝］［确认全部］</span></div>
+            </div>
+          </div>
+          <div class="a-asst">
+            <div class="a-ident"><span class="nomi-glyph">N</span><span class="name">Nomi</span></div>
+            <div class="md"><span class="typing"><i></i><i></i><i></i></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="note"><b>一致点</b>：两边助手发言 = 同一个 Nomi 身份行 + 左对齐 + 真 markdown + body(14)；用户 = 右对齐 ink-05 气泡；流式 = 同一组三点动画。<b>画布特有</b>的「提议卡 / 已应用对账卡 / 有出入卡」继续保留（它们是动作产物，不是发言），但**不再裹在小点时间轴里**，而是接在该条发言下面。</p>
+
+  <p class="note" style="margin-top:18px; max-width:760px;"><b>不在本次范围</b>：composer 输入区 · 附件 rail · 提议/对账卡内部样式（仅去掉外层时间轴轨）。<b>取舍提示</b>：去掉小点时间轴后，「步骤先后」靠自然的上下顺序表达（不再有连接线 + 状态点）——若你更看重「执行进度可视」，可保留一个极简的「✓ 已应用 / ⏳ 进行中」状态标，但不做成整条轨。这点想听你的。</p>
+</body>
+</html>
