@@ -247,13 +247,10 @@ export default function NodeParameterControls({
     }
     const conflictEdge = edges.find((e) => e.target === node.id && e.mode === targetMode && e.source !== newSourceNodeId)
     if (conflictEdge) storeDisconnectEdge(conflictEdge.id)
-    const sourceNode = nodes.find((n) => n.id === newSourceNodeId)
-    const url = resultPreviewUrl(sourceNode)
-    const patch: Record<string, unknown> = { [slot.key]: url || null, [slot.key + '_nodeRef']: newSourceNodeId }
-    if (slot.group === 'first_frame') { patch.firstFrameUrl = url || null; patch.firstFrameRef = newSourceNodeId }
-    if (slot.group === 'last_frame') { patch.lastFrameUrl = url || null; patch.lastFrameRef = newSourceNodeId }
-    if (slot.group === 'reference') { patch.referenceImages = url ? [url] : []; patch.referenceImageUrl = url || null; patch.referenceImageRef = newSourceNodeId }
-    updateNode(node.id, { meta: { ...getLatestMeta(), ...patch } })
+    // S2 写收口：边即真相源——不再写 firstFrameUrl/firstFrameRef/referenceImages 等快照 meta。
+    // 那份快照在连边时 resultPreviewUrl 还可能为空(源未生成)=陈旧,且与其它参数写入竞态(lost-update)；
+    // 所有读取方(resolver firstFrameFromEdge、显示 getEdgeSourceForSlot/resolveReferenceSlots)都已边优先，
+    // 快照纯冗余。源生成后 url 由边实时解析,不需回写。
     setOpenSlotKey('')
   }
   // 把单帧槽设成一个给定 URL（上传 / 选项目素材共用）：断开该组旧画布边(切到无源节点的 url)、写 flat meta。
