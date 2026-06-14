@@ -33,8 +33,40 @@ function readScene3DState(node: GenerationCanvasNode): Scene3DState {
   return normalizeScene3DState(node.meta?.scene3dState)
 }
 
-function scene3DStateKey(state: Scene3DState): string {
-  return JSON.stringify(state)
+// 结构化深比较（仅 JSON 值：plain object / array / 原始值——Scene3DState 一直是可序列化纯数据，
+// 故等价于原来的 JSON.stringify 相等，但**首处不同即短路返回**，不像 stringify 每次都把整棵
+// objects[]/cameras[] 全序列化两遍。根因 P1：去掉父层「每次 state 变就两次整树序列化」的热点开销，
+// 写库去重契约不变（仍只在 next 与已落盘 state 真不同时 updateNode）。
+function isPlainJsonObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function jsonValueEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+    for (let i = 0; i < a.length; i += 1) {
+      if (!jsonValueEqual(a[i], b[i])) return false
+    }
+    return true
+  }
+  if (isPlainJsonObject(a) && isPlainJsonObject(b)) {
+    // 与 JSON.stringify 同义：忽略两侧 value 为 undefined 的键（stringify 会丢这些键），
+    // 故 { parentId: undefined } 与 {} 视为相等——保持对旧实现的行为等价、不产生多余写入。
+    const keysA = Object.keys(a).filter((key) => a[key] !== undefined)
+    const keysB = Object.keys(b).filter((key) => b[key] !== undefined)
+    if (keysA.length !== keysB.length) return false
+    for (const key of keysA) {
+      if (b[key] === undefined) return false
+      if (!jsonValueEqual(a[key], b[key])) return false
+    }
+    return true
+  }
+  return false
+}
+
+export function scene3DStateEqual(a: Scene3DState, b: Scene3DState): boolean {
+  return jsonValueEqual(a, b)
 }
 
 export default function Scene3DEditor({ node, width, height, readOnly = false }: Scene3DEditorProps): JSX.Element {
@@ -48,7 +80,7 @@ export default function Scene3DEditor({ node, width, height, readOnly = false }:
   const handleStateChange = React.useCallback((nextState: Scene3DState) => {
     const current = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)
     const currentSceneState = normalizeScene3DState(current?.meta?.scene3dState)
-    if (scene3DStateKey(currentSceneState) === scene3DStateKey(nextState)) return
+    if (scene3DStateEqual(currentSceneState, nextState)) return
     updateNode(node.id, {
       meta: {
         ...(current?.meta || {}),

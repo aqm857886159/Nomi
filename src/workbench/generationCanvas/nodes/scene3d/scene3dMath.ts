@@ -157,6 +157,38 @@ export function vectorAlmostEqual(a: Scene3DVector3, b: Scene3DVector3, epsilon 
   )
 }
 
+// 相机位姿的扁平采样：9 个原始 number（位置 xyz + 旋转 xyz + 目标 xyz）。
+// 用扁平结构而非 Scene3DVector3[]，让 useFrame 每帧从 THREE 对象就地读 .x/.y/.z 填进同一个 ref 对象，
+// 零数组分配即可比对——只有真的动了才进入分配 cameraState + 回调的路径（消除相机静止时的 60fps churn）。
+export type CameraPoseSample = {
+  px: number; py: number; pz: number
+  rx: number; ry: number; rz: number
+  tx: number; ty: number; tz: number
+}
+
+const CAMERA_POSE_EPSILON = 0.0001
+
+// 纯函数：上一帧采样与本帧采样是否有任一分量超过 epsilon 变化。纯 number 比较，便于单测。
+// prev 为 null（首帧）一律视为「变化」，保证至少回灌一次初始位姿。
+export function cameraPoseSampleChanged(
+  prev: CameraPoseSample | null,
+  next: CameraPoseSample,
+  epsilon = CAMERA_POSE_EPSILON,
+): boolean {
+  if (!prev) return true
+  return (
+    Math.abs(prev.px - next.px) > epsilon ||
+    Math.abs(prev.py - next.py) > epsilon ||
+    Math.abs(prev.pz - next.pz) > epsilon ||
+    Math.abs(prev.rx - next.rx) > epsilon ||
+    Math.abs(prev.ry - next.ry) > epsilon ||
+    Math.abs(prev.rz - next.rz) > epsilon ||
+    Math.abs(prev.tx - next.tx) > epsilon ||
+    Math.abs(prev.ty - next.ty) > epsilon ||
+    Math.abs(prev.tz - next.tz) > epsilon
+  )
+}
+
 export function clonePoseValue(pose?: Record<string, Scene3DVector3>): Record<string, Scene3DVector3> | undefined {
   if (!pose) return undefined
   return Object.fromEntries(

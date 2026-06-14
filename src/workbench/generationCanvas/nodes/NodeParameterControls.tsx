@@ -93,9 +93,15 @@ export default function NodeParameterControls({
   const imageCatalogConfig = archetype ? null : buildEffectiveImageCatalogConfig(selectedModelOption?.meta)
   const renderedControls = resolveRenderedControls(selectedModelOption, meta, isImageLike, isVideoLike)
 
+  // P1 单一真相源：所有 meta 增量 patch 都从 store 读**最新** meta 再 spread，绝不基于渲染快照 prop
+  // `node.meta`（那是第二份真相源）。连边赋图 + 紧接改参数等「先后两次写」时，读快照会让后写覆盖前写
+  // (lost-update 竞态)。updateNode 是整体替换 meta（Object.assign 浅替换），故必须在此处自己合并最新值。
+  const getLatestMeta = (): Record<string, unknown> =>
+    useGenerationCanvasStore.getState().nodes.find((n) => n.id === node.id)?.meta || {}
+
   const updateMeta = (patch: Record<string, unknown>) => {
     updateNode(node.id, {
-      meta: { ...(node.meta || {}), ...patch },
+      meta: { ...getLatestMeta(), ...patch },
     })
   }
 
@@ -105,7 +111,7 @@ export default function NodeParameterControls({
     const defaultPatch = defaultPatchForControls(controls)
     updateNode(node.id, {
       meta: {
-        ...removePreviousControlParams(node.meta || {}, renderedControls),
+        ...removePreviousControlParams(getLatestMeta(), renderedControls),
         modelKey: nextOption?.modelKey || nextOption?.value || value || null,
         modelAlias: nextOption?.modelAlias || nextOption?.value || value || null,
         modelVendor: nextOption?.vendor || null,
@@ -154,7 +160,7 @@ export default function NodeParameterControls({
   // 切生成方式：只改 modeId，参考值全局保留（切回照片还在）；互斥发生在传输投影。
   const handleModeSwitch = (modeId: string) => {
     if (!archetype) return
-    updateNode(node.id, { meta: applyArchetypeModeSwitch(node.meta || {}, archetype, modeId) })
+    updateNode(node.id, { meta: applyArchetypeModeSwitch(getLatestMeta(), archetype, modeId) })
     setOpenSlotKey('')
   }
 
@@ -162,14 +168,16 @@ export default function NodeParameterControls({
   const setArrayValue = (metaKey: string, next: string[]) => updateMeta({ [metaKey]: next })
   const handleArrayAdd = (slot: ArchetypeArraySlot, url: string) => {
     // 单源去重/上限：与拖入/连线共用 appendArchetypeArrayValue（规则 1：不另开写路径）。
-    const result = appendArchetypeArrayValue(node.meta || {}, slot, url)
+    // 读最新 meta 计算追加（避免基于渲染快照算出过期数组 → 覆盖刚连边写入的项）。
+    const result = appendArchetypeArrayValue(getLatestMeta(), slot, url)
     if (result.status === 'full') { showInfoToast(`最多 ${slot.max} 个${slot.label}`); return } // 到上限:明确告知(对抗评审:别静默丢)
     if (result.status !== 'added') return // empty / duplicate：静默
     setArrayValue(slot.metaKey, result.next)
     setOpenSlotKey('')
   }
   const handleArrayRemove = (metaKey: string, index: number) => {
-    const current = readArchetypeArray(node.meta || {}, metaKey)
+    const latestMeta = getLatestMeta()
+    const current = readArchetypeArray(latestMeta, metaKey)
     const removedUrl = current[index] // 必须在 filter 前取(对抗评审 must-fix:删后数组已变)
     const next = current.filter((_, i) => i !== index)
     // image 数组(= character 参考)删除时,同步抹掉描述框里指向它的 @ chip。
@@ -178,7 +186,7 @@ export default function NodeParameterControls({
     if (metaKey === 'referenceImageUrls' && removedUrl) {
       const nextPrompt = removeMention(node.prompt || '', removedUrl)
       if (nextPrompt !== (node.prompt || '')) {
-        updateNode(node.id, { meta: { ...(node.meta || {}), [metaKey]: next }, prompt: nextPrompt })
+        updateNode(node.id, { meta: { ...latestMeta, [metaKey]: next }, prompt: nextPrompt })
         return
       }
     }
@@ -225,7 +233,7 @@ export default function NodeParameterControls({
       if (slot.group === 'first_frame') { clearPatch.firstFrameUrl = null; clearPatch.firstFrameRef = null }
       if (slot.group === 'last_frame') { clearPatch.lastFrameUrl = null; clearPatch.lastFrameRef = null }
       if (slot.group === 'reference') { clearPatch.referenceImages = []; clearPatch.referenceImageUrl = null; clearPatch.referenceImageRef = null }
-      updateNode(node.id, { meta: { ...meta, ...clearPatch } })
+      updateNode(node.id, { meta: { ...getLatestMeta(), ...clearPatch } })
       setOpenSlotKey('')
       return
     }
@@ -243,7 +251,7 @@ export default function NodeParameterControls({
     if (slot.group === 'first_frame') { patch.firstFrameUrl = url || null; patch.firstFrameRef = newSourceNodeId }
     if (slot.group === 'last_frame') { patch.lastFrameUrl = url || null; patch.lastFrameRef = newSourceNodeId }
     if (slot.group === 'reference') { patch.referenceImages = url ? [url] : []; patch.referenceImageUrl = url || null; patch.referenceImageRef = newSourceNodeId }
-    updateNode(node.id, { meta: { ...meta, ...patch } })
+    updateNode(node.id, { meta: { ...getLatestMeta(), ...patch } })
     setOpenSlotKey('')
   }
   // 把单帧槽设成一个给定 URL（上传 / 选项目素材共用）：断开该组旧画布边(切到无源节点的 url)、写 flat meta。
@@ -251,7 +259,7 @@ export default function NodeParameterControls({
     const targetMode = edgeModeForGroup(slot.group)
     const existingEdge = edges.find((e) => e.target === node.id && e.mode === targetMode)
     if (existingEdge) storeDisconnectEdge(existingEdge.id)
-    const latestMeta = useGenerationCanvasStore.getState().nodes.find((n) => n.id === node.id)?.meta || meta
+    const latestMeta = getLatestMeta()
     const patch: Record<string, unknown> = { [slot.key]: url, [slot.key + '_nodeRef']: null }
     if (slot.group === 'first_frame') { patch.firstFrameUrl = url; patch.firstFrameRef = null }
     if (slot.group === 'last_frame') { patch.lastFrameUrl = url; patch.lastFrameRef = null }
@@ -353,7 +361,7 @@ export default function NodeParameterControls({
   // projectPromptForSend 按新数组位置自动重算(单源,无需手动改 prompt/chip)。
   const handleReorder = (slot: AssetSlot, from: number, to: number) => {
     if (slot.form !== 'array') return
-    const arr = readArchetypeArray(node.meta || {}, slot.key)
+    const arr = readArchetypeArray(getLatestMeta(), slot.key)
     if (from === to || from < 0 || to < 0 || from >= arr.length || to >= arr.length) return
     setArrayValue(slot.key, moveArrayItem(arr, from, to))
   }

@@ -37,6 +37,15 @@ export default function NodeComposerWidthMeasurer({
   const isVideoLike = isVideoLikeGenerationNodeKind(node.kind)
   const rootRef = React.useRef<HTMLDivElement>(null)
 
+  // A11y：离屏测量树整棵屏蔽键盘焦点 + 辅助技术。aria-hidden 只屏蔽 a11y 树，**不拦键盘焦点**，
+  // 内部每模型一份真实 NomiSelect(button)+input 仍能 Tab 聚焦到 left:-99999 的幽灵控件。inert 才能
+  // 整树移出 tab 顺序与 a11y 树（DOM `inert` 内容属性，Chromium/Electron 原生支持）。
+  // React 18 的 @types/react 尚无 `inert` JSX prop，故经 ref 命令式设属性（React 19 升级后可改回 JSX prop）。
+  React.useLayoutEffect(() => {
+    const root = rootRef.current
+    if (root) root.setAttribute('inert', '')
+  }, [])
+
   React.useLayoutEffect(() => {
     const root = rootRef.current
     if (!root) return

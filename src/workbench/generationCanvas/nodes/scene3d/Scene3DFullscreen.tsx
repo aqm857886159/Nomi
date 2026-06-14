@@ -44,6 +44,7 @@ import { cn } from '../../../../utils/cn'
 import { Switch } from '../../../../ui/switch'
 import { toast } from '../../../../ui/toast'
 import { cloneScene3DState } from './scene3dSerializer'
+import { CameraStateRecorder } from './CameraStateRecorder'
 import {
   SCENE3D_ASPECT_OPTIONS,
   SCENE3D_ASPECT_RATIOS,
@@ -420,40 +421,6 @@ function Scene3DControls({
       ) : null}
     </>
   )
-}
-
-function CameraStateRecorder({
-  mode,
-  target,
-  onDraftChange,
-  onCommit,
-}: {
-  mode: Scene3DControlMode
-  target: Scene3DVector3
-  onDraftChange: (cameraState: Scene3DState['editorCamera']) => void
-  onCommit: (cameraState: Scene3DState['editorCamera']) => void
-}): null {
-  const { camera, controls } = useThree()
-  const lastCommitRef = React.useRef(0)
-
-  useFrame((state) => {
-    const controlsTarget = mode === 'edit' && controls && 'target' in controls && (controls as { target?: unknown }).target instanceof THREE.Vector3
-      ? (controls as { target: THREE.Vector3 }).target
-      : null
-    const cameraState = {
-      position: vectorToArray(camera.position),
-      target: controlsTarget ? vectorToArray(controlsTarget) : target,
-      rotation: eulerToArray(camera.rotation),
-      mode,
-    } satisfies Scene3DState['editorCamera']
-    onDraftChange(cameraState)
-    if (mode === 'fly') return
-    if (state.clock.elapsedTime - lastCommitRef.current < 1) return
-    lastCommitRef.current = state.clock.elapsedTime
-    onCommit(cameraState)
-  })
-
-  return null
 }
 
 function InitialCameraPose({ editorCamera }: { editorCamera: Scene3DState['editorCamera'] }): null {
