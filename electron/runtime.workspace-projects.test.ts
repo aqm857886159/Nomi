@@ -202,4 +202,48 @@ describe("runtime workspace project APIs", () => {
     expect(native).toMatchObject({ id: nativeProject.id, source: "native" });
     expect(folder).toMatchObject({ id: folderProject.id, source: "folder" });
   });
+
+  it("listProjects self-heals: prunes native projects whose folder was deleted outside the app", () => {
+    // 用户在 app 外手删了 native 项目目录(或某操作删文件没清 registry)→ 幽灵卡片。
+    // 列举时自愈:native 文件夹没了 = 真删,直接从 registry 摘除,不再返回。
+    const nativeProject = createProject({ name: "Native Ghost", payload: { scenes: [] } });
+    const rootPath = listProjects().find((item) => item.id === nativeProject.id)?.rootPath ?? "";
+    expect(rootPath).not.toBe("");
+
+    // 模拟「文件夹被外部删除」。
+    fs.rmSync(rootPath, { recursive: true, force: true });
+
+    // 第一次列举即自愈:幽灵消失。
+    expect(listProjects().find((item) => item.id === nativeProject.id)).toBeUndefined();
+    // registry 已物理摘除:再列举仍不在(不是每次现算)。
+    expect(listProjects()).toEqual([]);
+    expect(readProject(nativeProject.id)).toBeNull();
+  });
+
+  it("listProjects keeps external folder projects when their root is temporarily unavailable", () => {
+    // 外部「打开文件夹」绑定的盘可能临时卸载(U盘/外置盘/网络盘)→ missing 是临时态,
+    // 回来即恢复,绝不自动摘除(否则盘回来用户的项目就找不回了)。
+    const externalRoot = makeTempDir("nomi-runtime-external-missing-");
+    const folderProject = createProject({ rootPath: externalRoot, name: "Folder Detached", payload: { scenes: [] } });
+
+    fs.rmSync(externalRoot, { recursive: true, force: true });
+
+    const summary = listProjects().find((item) => item.id === folderProject.id);
+    expect(summary).toMatchObject({ id: folderProject.id, source: "folder", missing: true });
+  });
+
+  it("listProjects does not avalanche-prune native projects when the default root itself is gone", () => {
+    // 防雪崩:默认根整体不可访问(被移走/同步中)时,native 项目都会 missing,
+    // 但此时不能清——可能只是根临时不在,清了等于把整库误删。
+    const defaultRoot = path.join(mockedDocumentsRoot, "Nomi Projects");
+    const a = createProject({ name: "Native A", payload: { scenes: [] } });
+    const b = createProject({ name: "Native B", payload: { scenes: [] } });
+
+    // 整个默认根消失(模拟根目录被移走/同步未就绪)。
+    fs.rmSync(defaultRoot, { recursive: true, force: true });
+
+    const projects = listProjects();
+    expect(projects.find((item) => item.id === a.id)).toMatchObject({ missing: true });
+    expect(projects.find((item) => item.id === b.id)).toMatchObject({ missing: true });
+  });
 });

@@ -362,7 +362,7 @@ export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onN
                         </button>
                         {project.missing ? (
                           <span className="h-[30px] px-[14px] rounded-nomi-sm text-caption font-medium text-white/80 flex items-center">
-                            文件已删除
+                            文件夹暂不可用
                           </span>
                         ) : (
                           <button
