@@ -4,9 +4,7 @@ import SelectionGeneratePopover from './SelectionGeneratePopover'
 import { WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
 import { useWorkbenchStore } from '../workbenchStore'
-import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { normalizeWorkbenchContentJson, type CreationDocumentTools } from '../workbenchTypes'
-import { createImageNodeFromContent, createStoryboardNodeFromContent } from './creationNodeCommands'
 import { useTransientScrollingClass } from './useTransientScrollingClass'
 import { useNomiRichTextEditor } from '../common/useNomiRichTextEditor'
 import { buildRichTextActions, type RichTextAction } from '../common/richTextActions'
@@ -97,8 +95,6 @@ export default function WorkbenchEditor(): JSX.Element {
   const setWorkbenchDocument = useWorkbenchStore((state) => state.setWorkbenchDocument)
   const setCreationDocumentTools = useWorkbenchStore((state) => state.setCreationDocumentTools)
   const setCreationSelectionText = useWorkbenchStore((state) => state.setCreationSelectionText)
-  const setWorkspaceMode = useWorkbenchStore((state) => state.setWorkspaceMode)
-  const addGenerationNode = useGenerationCanvasStore((state) => state.addNode)
   const [selectedText, setSelectedText] = React.useState('')
   const scrollRef = useTransientScrollingClass<HTMLDivElement>('workbench-scrollbar-visible')
   const workbenchDocumentRef = React.useRef(workbenchDocument)
@@ -134,7 +130,8 @@ export default function WorkbenchEditor(): JSX.Element {
     onSelectionChange: handleSelectionChange,
   })
 
-  // Publish creation document tools = shared rich-text tools + creation-only node creators.
+  // Publish creation document tools = the shared rich-text read/write surface (read full/selection,
+  // insert/replace/append). The AI panel reads these to apply approved write-tool calls.
   const creationDocumentToolsRef = React.useRef<CreationDocumentTools | null>(null)
   React.useEffect(() => {
     if (!editor) return
@@ -144,11 +141,6 @@ export default function WorkbenchEditor(): JSX.Element {
       insertAtCursor: tools.insertAtCursor,
       replaceSelection: tools.replaceSelection,
       appendToEnd: tools.appendToEnd,
-      writeDocument: tools.appendToEnd,
-      generateStoryboardNode: (content) =>
-        createStoryboardNodeFromContent(content, { addGenerationNode, setWorkspaceMode }),
-      generateAssetNode: (content) =>
-        createImageNodeFromContent(content, { addGenerationNode, setWorkspaceMode }),
     }
     setCreationDocumentTools(toolsApi)
     creationDocumentToolsRef.current = toolsApi
@@ -158,7 +150,7 @@ export default function WorkbenchEditor(): JSX.Element {
         creationDocumentToolsRef.current = null
       }
     }
-  }, [editor, tools, addGenerationNode, setCreationDocumentTools, setWorkspaceMode])
+  }, [editor, tools, setCreationDocumentTools])
 
   return (
     <section

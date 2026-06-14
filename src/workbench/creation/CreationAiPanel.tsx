@@ -22,6 +22,7 @@ import {
   CREATION_AI_MODES,
   extractWorkbenchDocumentText,
   getCreationAiMode,
+  modeAllowsWriteTools,
   type CreationAiModeId,
 } from './creationAiModes'
 import { useTransientScrollingClass } from './useTransientScrollingClass'
@@ -212,6 +213,12 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   const send = React.useCallback(async (textOverride?: string) => {
     if (turn.getState().sending) return
     const userRequest = (textOverride ?? draft).trim()
+    // 附件还在上传就发送 = 静默丢弃在途附件（clearAttachments 会连 uploading 一起清）。
+    // 拦下并提示用户稍候,等就绪再发,绝不悄悄把用户附的文件吞掉。
+    if (attachments.some((item) => item.status === 'uploading')) {
+      setError('附件还在上传，请等上传完成再发送。')
+      return
+    }
     const readyAttachments = attachments.filter((item) => item.status === 'ready' && item.url)
     if (!userRequest && !selectedText && !documentText && !readyAttachments.length) return
     // 对话驱动（删固定 chip，用户拍板 2026-06-13）：自然语言意图 → 甩给画布 agent。
@@ -277,6 +284,13 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
           }
           // Write tools wait for explicit user approval through a card.
           if (isWriteTool(event.toolName)) {
+            // 能力声明驱动能力执行(P4):chatOnly 模式(通用问答)不接受写文档工具——
+            // 直接拒绝,不渲染写卡。prompt 软约束挡不住模型仍发 insert/replace/append,
+            // 这里按模式能力声明硬挡,保证「不改文档」是真约束而非文字祈求。
+            if (!modeAllowsWriteTools(activeMode)) {
+              void event.confirm({ ok: false, message: 'chat-only mode does not write to the document' })
+              return
+            }
             const args = (event.args && typeof event.args === 'object') ? event.args as Record<string, unknown> : {}
             const content = typeof args.content === 'string' ? args.content : ''
             turn.getState().addPendingToolCall({

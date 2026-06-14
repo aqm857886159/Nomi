@@ -135,9 +135,6 @@ export type CreationDocumentTools = {
   insertAtCursor: (content: string) => void
   replaceSelection: (content: string) => void
   appendToEnd: (content: string) => void
-  writeDocument: (content: string) => void
-  generateStoryboardNode: (content: string) => void
-  generateAssetNode: (content: string) => void
 }
 
 export type PreviewAspectRatio = '16:9' | '9:16' | '1:1' | '4:5' | '3:4' | '4:3' | '21:9'

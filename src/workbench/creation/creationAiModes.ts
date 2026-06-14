@@ -117,6 +117,15 @@ export function getCreationAiMode(modeId: unknown): CreationAiMode {
   return CREATION_AI_MODES.find((mode) => mode.id === modeId) || CREATION_AI_MODES[0]
 }
 
+/**
+ * 能力声明驱动能力执行（P4）：chatOnly 模式是纯问答，不接受任何写文档工具。
+ * 这是「本模式能不能写文档」的单一判定源——UI 的写卡渲染/工具受理都查它，
+ * 不再只靠 prompt 文字软约束（软约束挡不住模型仍发 insert/replace/append）。
+ */
+export function modeAllowsWriteTools(mode: CreationAiMode): boolean {
+  return !mode.chatOnly
+}
+
 export function extractWorkbenchDocumentText(document: WorkbenchDocument | null | undefined): string {
   return extractTextFromTiptapNode(document?.contentJson).trim()
 }
