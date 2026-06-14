@@ -1,5 +1,12 @@
 # 剧本 → 分镜方案文档 → 确认 → 落画布（一致性主链路）
 
+> ⚠️ **2026-06-15 决策变更回填**：本文档原设计「每镜 → **video** 节点（默认 Seedance 2.0 + 时长钳位）」。
+> 用户拍板改为 **image-first**：拆镜头默认建 **image** 关键画面节点（先锁画面、后续再动画化），相邻镜头默认连
+> **shot→shot** 时序链（reference）。落地点 `storyboardPlanToCreateNodesArgs`：镜头 `kind:'image'`、用图片模型
+> （偏好 GPT Image 2）、有参考入边的镜头用图生图模式（image_ref 槽）、无入边用文生图、不带 duration params。
+> 故下文凡「视频镜头 / Seedance 2.0 / 时长钳位」均已被 image-first 取代（视频是后续「动画化」动作，不在拆镜头阶段）。
+> 详见 [2026-06-15-storyboard-default-image-and-edges.md](2026-06-15-storyboard-default-image-and-edges.md)。
+>
 > 日期：2026-06-13　状态：方案，待拍板。承接 [记忆架构](2026-06-13-memory-architecture.md) 的收敛
 > 结论——「角色/场景/道具一致性」不是记忆问题，是「先把跨镜头要一致的东西生成成参考图、再挂到
 > 对应镜头」的编排问题。本文把这条端到端流程定下来，**重点定那份「分镜方案文档」长什么样、

@@ -71,19 +71,34 @@ describe('storyboardPlanToCreateNodesArgs', () => {
     expect(shotNodes.map((n) => n.title)).toEqual(['镜头 1', '镜头 2', '镜头 3'])
   })
 
-  it('镜头 → 视频节点，时长入 params，默认模型 + 模式可注入', () => {
-    const { nodes } = storyboardPlanToCreateNodesArgs(PLAN, { defaultVideoModelKey: 'seedance-2', defaultVideoModeId: 'omni' })
+  it('镜头 → image 节点（用户拍板 image-first），无 duration params，默认图片模型可注入', () => {
+    const { nodes } = storyboardPlanToCreateNodesArgs(PLAN, {
+      defaultImageModelKey: 'gpt-image-2',
+      defaultImageModeId: 't2i',
+      defaultImageRefModeId: 'i2i',
+    })
     const shotNodes = nodes.filter((n) => n.clientId.startsWith('shot-'))
     expect(shotNodes).toHaveLength(2)
-    expect(shotNodes[0]).toMatchObject({ clientId: 'shot-1', kind: 'video', title: '镜头 1', modelKey: 'seedance-2', modeId: 'omni', params: { duration: 5 } })
-    expect(shotNodes[1].params).toEqual({ duration: 8 })
+    // 镜1/镜2 都引用定妆卡（有参考入边）→ 图生图模式 i2i；image 节点不带 duration params。
+    expect(shotNodes[0]).toMatchObject({ clientId: 'shot-1', kind: 'image', title: '镜头 1', modelKey: 'gpt-image-2', modeId: 'i2i' })
+    expect(shotNodes[0].params).toBeUndefined()
+    expect(shotNodes[1]).toMatchObject({ clientId: 'shot-2', kind: 'image', modeId: 'i2i' })
+    expect(shotNodes[1].params).toBeUndefined()
   })
 
-  it('maxDurationSec 钳镜头时长到模型上限（S4：落地不超模型上限）', () => {
-    const { nodes } = storyboardPlanToCreateNodesArgs(PLAN, { maxDurationSec: 6 })
-    const shotNodes = nodes.filter((n) => n.clientId.startsWith('shot-'))
-    expect(shotNodes[0].params).toEqual({ duration: 5 }) // 5 ≤ 6 不变
-    expect(shotNodes[1].params).toEqual({ duration: 6 }) // 8 → 钳到 6
+  it('逐节点选模式：有参考入边（定妆卡/前镜）用图生图，无入边的首镜用文生图（GPT Image 2 i2i 槽 min:1）', () => {
+    const plan: StoryboardPlan = {
+      title: 't',
+      anchors: [],
+      shots: [
+        { index: 1, durationSec: 5, anchorIds: [], prompt: '镜一' }, // 首镜无锚无前镜 → 文生图 t2i
+        { index: 2, durationSec: 5, anchorIds: [], prompt: '镜二' }, // 有前镜入边 → 图生图 i2i
+      ],
+    }
+    const { nodes } = storyboardPlanToCreateNodesArgs(plan, { defaultImageModeId: 't2i', defaultImageRefModeId: 'i2i' })
+    const shots = nodes.filter((n) => n.clientId.startsWith('shot-'))
+    expect(shots[0].modeId).toBe('t2i') // 首镜无入边 → 纯文生
+    expect(shots[1].modeId).toBe('i2i') // 第二镜有 shot→shot 入边 → 图生图
   })
 
   it('文本锚描述拼进引用它的镜头 prompt（不建边）', () => {
@@ -95,7 +110,7 @@ describe('storyboardPlanToCreateNodesArgs', () => {
     expect(shot2.prompt).toBe('林夏背起书包向楼梯走，跟拍') // 镜2 没引用 style → prompt 不变
   })
 
-  it('视觉锚 → 参考边，mode 按类型（角色 character_ref / 场景 style_ref / 道具 reference）', () => {
+  it('定妆卡 → 镜头参考边（角色 character_ref / 场景 style_ref / 道具 reference）+ shot→shot 时序链', () => {
     const { edges } = storyboardPlanToCreateNodesArgs(PLAN)
     expect(edges).toEqual([
       { sourceClientId: 'a-linxia', targetClientId: 'shot-1', mode: 'character_ref' },
@@ -103,6 +118,8 @@ describe('storyboardPlanToCreateNodesArgs', () => {
       // a-style 是文本锚 → 不连边（拼进 prompt 了）
       { sourceClientId: 'a-linxia', targetClientId: 'shot-2', mode: 'character_ref' },
       { sourceClientId: 'a-bag', targetClientId: 'shot-2', mode: 'reference' },
+      // 顺序叙事默认连 shot→shot 时序链（用户拍板 2026-06-15）
+      { sourceClientId: 'shot-1', targetClientId: 'shot-2', mode: 'reference' },
     ])
   })
 

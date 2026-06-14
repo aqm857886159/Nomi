@@ -100,49 +100,18 @@ export async function listAvailableModelsForAgent(): Promise<AgentModelEntry[]> 
   return buildAgentModelEntries([...imageOptions, ...videoOptions]);
 }
 
-/** 从一个模式的 duration 参数取最大时长（number 型取 max；select 型取选项最大值）。无则 undefined。 */
-function maxDurationFromMode(mode: AgentModelMode): number | undefined {
-  const dur = mode.params.find((param) => param.key === 'duration')
-  if (!dur) return undefined
-  if (typeof dur.max === 'number') return dur.max
-  const nums = (dur.options ?? []).map((opt) => Number(opt.value)).filter((n) => Number.isFinite(n))
-  return nums.length ? Math.max(...nums) : undefined
-}
-
 /**
- * 分镜方案落画布时给视频镜头选的默认模型 + 模式 + 时长上限（S4）。
- * 通用解析（不硬编码某 vendor，P4）：偏好名字含 seedance 的视频模型，否则取第一个可用视频模型；
- * 模式选**声明了 image_ref 槽的那个**——角色/场景参考边（character_ref/style_ref→image_ref）
- * 才连得上、喂得进（Seedance 即「全能参考」omni 模式）；无则回退默认模式。无可用视频模型 → 全空。
- */
-export async function resolveStoryboardVideoDefault(): Promise<{ modelKey?: string; modeId?: string; maxDurationSec?: number }> {
-  let entries: AgentModelEntry[] = []
-  try {
-    entries = await listAvailableModelsForAgent()
-  } catch {
-    return {}
-  }
-  const videos = entries.filter((entry) => entry.kind === 'video')
-  if (videos.length === 0) return {}
-  const prefer =
-    videos.find((entry) => /seedance/i.test(`${entry.modelKey} ${entry.modelAlias ?? ''} ${entry.label}`)) ?? videos[0]
-  const refMode =
-    prefer.modes.find((mode) => mode.slots.some((slot) => slot.kind === 'image_ref')) ??
-    prefer.modes.find((mode) => mode.modeId === prefer.defaultModeId) ??
-    prefer.modes[0]
-  return {
-    modelKey: prefer.modelKey,
-    ...(refMode ? { modeId: refMode.modeId, maxDurationSec: maxDurationFromMode(refMode) } : {}),
-  }
-}
-
-/**
- * 分镜方案落画布时给定妆卡/场景卡选的默认图片模型（用户拍板：推荐而非强制锁）。
- * 偏好级联（通用解析，不硬编码 vendor 目录，P4）：GPT Image → 没有则 Nano Banana →
- * 再没有则取第一个可用图片模型（总能给个默认；用户在画布上仍可自己换，不强制不禁用）。
+ * 分镜方案落画布时给镜头/定妆卡选的默认图片模型 + 两个模式（用户拍板 2026-06-15：image-first）。
+ * 通用解析（不硬编码 vendor 目录，P4）：偏好 GPT Image → Nano Banana → 第一个可用图片模型
+ * （总能给个默认；用户在画布上仍可自己换，不强制不禁用）。返回两个模式供调用方逐节点选：
+ * - `modeId`：默认模式（纯文生，无必填输入图）——给定妆卡、以及**没有任何参考入边**的镜头用。
+ * - `refModeId`：声明了 image_ref 槽的**图生图**模式——给**有参考入边**的镜头用（定妆卡→镜头、
+ *   镜头→镜头的参考才喂得进，T8 能力校验）。GPT Image 2 的 i2i 输入图槽 `min:1`，故只给真有
+ *   入边的镜头用，无入边的镜头用 `modeId` 免触发「必须≥1 张输入图」。无图生图模式 → `refModeId`
+ *   省略（参考边在生成期按能力降级跳过，不假装喂入）。
  * 无任何可用图片模型 → 全空，节点不带模型、用户自己选。
  */
-export async function resolveStoryboardImageDefault(): Promise<{ modelKey?: string; modeId?: string }> {
+export async function resolveStoryboardImageDefault(): Promise<{ modelKey?: string; modeId?: string; refModeId?: string }> {
   let entries: AgentModelEntry[] = []
   try {
     entries = await listAvailableModelsForAgent()
@@ -154,8 +123,13 @@ export async function resolveStoryboardImageDefault(): Promise<{ modelKey?: stri
   const byName = (re: RegExp) =>
     images.find((entry) => re.test(`${entry.modelKey} ${entry.modelAlias ?? ''} ${entry.label}`))
   const prefer = byName(/gpt[\s-]?image/i) ?? byName(/nano[\s-]?banana/i) ?? images[0]
-  const mode = prefer.modes.find((m) => m.modeId === prefer.defaultModeId) ?? prefer.modes[0]
-  return { modelKey: prefer.modelKey, ...(mode ? { modeId: mode.modeId } : {}) }
+  const plainMode = prefer.modes.find((m) => m.modeId === prefer.defaultModeId) ?? prefer.modes[0]
+  const refMode = prefer.modes.find((m) => m.slots.some((s) => s.kind === 'image_ref'))
+  return {
+    modelKey: prefer.modelKey,
+    ...(plainMode ? { modeId: plainMode.modeId } : {}),
+    ...(refMode ? { refModeId: refMode.modeId } : {}),
+  }
 }
 
 /** 把可选模型清单格式化成注入 agent 系统提示词的紧凑文本。空清单返回 ''（不注入）。 */

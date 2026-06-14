@@ -72,11 +72,21 @@ handoff 当作待拍板,实则是 bug,且**从两个入口冒出**:
 - shot→shot 边 `mode`:用 `reference`(中性视觉连续/承接);非 `first_frame`(那是 image→video 动画化阶段的语义)。
 - `resolveStoryboardVideoDefault` 是否仅此一处调用 → 是则删,否则保留只摘传参。
 
-## 6. 执行回填(完成后填)
+## 6. 执行回填
 
-- [ ] Phase 1 free-build prompt + skill 对齐
-- [ ] Phase 2 plan 路径 image-first + shot→shot 链 + 删 video 死码
-- [ ] 单测更新 + 五门
-- [ ] 回填 2026-06-13 设计文档
-- [ ] (可选/需额度)eval 复跑数据
-- [ ] R13 走查截图
+- [x] Phase 1 free-build prompt + skill 对齐(commit 8a1f4ba;五门全绿)
+- [x] Phase 2 plan 路径 image-first + shot→shot 链 + 删 video 死码
+  - `availableModels.ts`:统一 resolver,`resolveStoryboardImageDefault` 返回 `modeId`(t2i)+`refModeId`(i2i);删 `resolveStoryboardVideoDefault`+`maxDurationFromMode`(死码)。
+  - `storyboardPlan.ts`:镜头 `kind:'image'`、图片模型默认、**逐节点选模式**(有参考入边→i2i,无→t2i,治 GPT Image 2 i2i 槽 min:1)、去 duration params、加 shot→shot `reference` 链。
+  - `StoryboardPlanEditor.tsx`:删 video resolver 调用,传 `defaultImageRefModeId`。
+  - `grading.mjs`:kind 注释更新为「image-first 已裁定」。
+- [x] 单测更新(storyboardPlan.test.ts 16/16:image kind/逐节点模式/shot→shot 链)
+- [x] 回填 2026-06-13 设计文档(顶部决策变更横幅)
+- [ ] **五门复跑**(Phase 1+2 合并后)— 进行中
+- [ ] **(需 agent 额度,用户资源)eval 复跑** `pnpm eval:run storyboard` 验 pass@1 上升
+- [ ] **(需额度/Electron)R13 真机走查 + 真实生成 E2E**:创作区拆镜头落画布看「镜头是 image / 定妆卡→镜头参考边在 / shot→shot 链在 / 真生成时参考喂得进(非显示骗局)」
+
+### 关键实现决策(执行中定,记录备查)
+- shot→shot 边 `mode='reference'`(中性视觉承接),排在该镜的定妆卡参考边之后。
+- **逐节点选模式是结构保证(P2)**:GPT Image 2 文生图(t2i,无必填输入)/图生图(i2i,image_ref 槽 min:1)是两个模式;只给「真有参考入边」的镜头配 i2i,否则首镜(无锚无前镜)会违反 min:1。无 i2i 模式的图片模型 → refModeId 省略,参考边在生成期按能力降级跳过(不假装喂入)。
+- **待真机 E2E 确认的质量问题**:shot→shot 参考把前镜整图喂进下一镜的 i2i,可能让相邻镜头过于相似;节点建出来是 idle 态、用户审阅后才手动生成,可手动断边。若 E2E 显示污染关键帧,再调(如只连不喂/换 composition_ref)。
