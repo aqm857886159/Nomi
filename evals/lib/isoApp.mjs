@@ -73,7 +73,15 @@ export async function createBlankProject(win, projectsDir) {
 export async function openGenerationAiPanel(win) {
   const input = win.locator('[aria-label="给生成助手发送消息"]');
   if (await input.count()) return;
-  await win.getByText("Nomi 生成", { exact: false }).first().click({ timeout: 5000 });
+  // 空白项目默认落「创作」标签,生成 AI 面板在「生成」工作区——先切过去
+  // (旧版直接点「Nomi 生成」文字在创作标签下找不到 → 整批评测 infra 超时)。
+  await win.getByRole("button", { name: "生成", exact: true }).first().click({ timeout: 5000 }).catch(() => {});
+  await win.waitForTimeout(800);
+  if (await input.count()) return;
+  // 点「生成区 AI 启动器」开侧栏
+  const launcher = win.locator('[aria-label="生成区 AI 启动器"]');
+  if (await launcher.count()) await launcher.first().click({ timeout: 5000 });
+  else await win.getByText("Nomi 生成", { exact: false }).first().click({ timeout: 5000 });
   await input.first().waitFor({ state: "visible", timeout: 5000 });
 }
 

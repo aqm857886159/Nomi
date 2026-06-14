@@ -1,15 +1,18 @@
-// eval:diff —— 按 caseId 对齐两次 run 的 scores.json,输出回归表(新 fail/新 pass/分数漂移)。
-// 有回归 → 非零退出(将来接 push 提醒)。
-// 用法: pnpm eval:diff <runDirA(旧)> <runDirB(新)>
+// eval:diff —— 回归门(Lane B)。两种用法:
+//   pnpm eval:diff <新runDir>            # 对入库 golden 基线比(常用,缺基线提示先 eval:baseline)
+//   pnpm eval:diff <旧runDir> <新runDir> # 直接比两次 run(临时对照)
+// 回归判据(任一即非零退出):pass@k 翻转 / 均分跌 ≥0.1 / 任一质量维度跌 ≥0.1。
 import fs from "node:fs";
 import path from "node:path";
+import { loadBaseline, diffAgainstBaseline, normalizeScores } from "../evals/lib/baseline.mjs";
 
-const [dirA, dirB] = process.argv.slice(2).map((p) => p && path.resolve(p));
-if (!dirA || !dirB) {
-  console.error("用法: pnpm eval:diff <runDirA(旧基线)> <runDirB(新)>");
+const positional = process.argv.slice(2).filter((a) => !a.startsWith("--")).map((p) => path.resolve(p));
+if (positional.length === 0) {
+  console.error("用法: pnpm eval:diff <新runDir> [旧runDir]");
   process.exit(2);
 }
-function load(dir) {
+
+function loadScores(dir) {
   const file = path.join(dir, "scores.json");
   if (!fs.existsSync(file)) {
     console.error(`缺 ${file} ——先 pnpm eval:score ${dir}`);
@@ -17,39 +20,53 @@ function load(dir) {
   }
   return JSON.parse(fs.readFileSync(file, "utf8"));
 }
-const a = load(dirA);
-const b = load(dirB);
-const aByCase = new Map(a.cases.map((c) => [c.caseId, c]));
 
-const regressions = [];
-const fixes = [];
-const drifts = [];
-const fresh = [];
-for (const cb of b.cases) {
-  const ca = aByCase.get(cb.caseId);
-  if (!ca) {
-    fresh.push(cb);
-    continue;
+function printDiff(label, d, newSummary) {
+  console.log(label);
+  if (d.regressions.length) {
+    console.log(`\n🔴 回归 ${d.regressions.length} 个:`);
+    for (const r of d.regressions) console.log(`  ${r.id}: ${r.from} → ${r.to}${r.kind ? ` (${r.kind})` : ""}`);
   }
-  if (ca.passAtK && !cb.passAtK) regressions.push({ caseId: cb.caseId, from: ca.meanScore, to: cb.meanScore });
-  else if (!ca.passAtK && cb.passAtK) fixes.push({ caseId: cb.caseId, from: ca.meanScore, to: cb.meanScore });
-  else if (Math.abs(cb.meanScore - ca.meanScore) >= 0.1) drifts.push({ caseId: cb.caseId, from: ca.meanScore, to: cb.meanScore });
+  if (d.qualityRegressions.length) {
+    console.log(`\n🔴 质量维度回归:`);
+    for (const r of d.qualityRegressions) console.log(`  ${r.dim}: ${r.from} → ${r.to}`);
+  }
+  if (d.fixes.length) {
+    console.log(`\n🟢 修复 ${d.fixes.length} 个:`);
+    for (const r of d.fixes) console.log(`  ${r.id}: ${r.from} → ${r.to}`);
+  }
+  if (d.drifts.length) {
+    console.log(`\n🟡 分数漂移 ≥0.1:`);
+    for (const r of d.drifts) console.log(`  ${r.id}: ${r.from} → ${r.to}`);
+  }
+  if (d.fresh.length) console.log(`\n➕ 新增项: ${d.fresh.join(", ")}`);
+  const regressed = d.regressions.length + d.qualityRegressions.length;
+  if (!regressed && !d.fixes.length && !d.drifts.length) console.log("\n无变化。");
+  return regressed;
 }
 
-console.log(`eval:diff ${a.runDir}(@${a.gitCommit}) → ${b.runDir}(@${b.gitCommit})`);
-console.log(`pass@k: ${a.summary.passAtK}/${a.summary.cases} → ${b.summary.passAtK}/${b.summary.cases}`);
-if (regressions.length) {
-  console.log(`\n🔴 回归 ${regressions.length} 个:`);
-  for (const r of regressions) console.log(`  ${r.caseId}: ${r.from} → ${r.to}`);
+let regressed = 0;
+if (positional.length === 1) {
+  // 单参数:对入库基线比
+  const newScores = loadScores(positional[0]);
+  const baseline = loadBaseline(newScores.dataset);
+  if (!baseline) {
+    console.error(`无 ${newScores.dataset} 基线——先 pnpm eval:baseline ${path.relative(process.cwd(), positional[0])} 入库一份`);
+    process.exit(2);
+  }
+  const d = diffAgainstBaseline(baseline, newScores);
+  const newNorm = normalizeScores(newScores);
+  regressed = printDiff(
+    `eval:diff 基线(@${baseline.gitCommit},${baseline.capturedAt?.slice(0, 10) || ""}) → ${newScores.runDir}(@${newScores.gitCommit})\npass@k 基线 ${baseline.items.filter((i) => i.passAtK).length}/${baseline.items.length} → 新 ${newNorm.items.filter((i) => i.passAtK).length}/${newNorm.items.length}`,
+    d,
+  );
+} else {
+  // 双参数:直接比两次 run(把旧 run 当临时基线)
+  const a = loadScores(positional[0]);
+  const b = loadScores(positional[1]);
+  const baselineLike = { ...normalizeScores(a), capturedAt: "" };
+  const d = diffAgainstBaseline(baselineLike, b);
+  regressed = printDiff(`eval:diff ${a.runDir}(@${a.gitCommit}) → ${b.runDir}(@${b.gitCommit})`, d);
 }
-if (fixes.length) {
-  console.log(`\n🟢 修复 ${fixes.length} 个:`);
-  for (const r of fixes) console.log(`  ${r.caseId}: ${r.from} → ${r.to}`);
-}
-if (drifts.length) {
-  console.log(`\n🟡 分数漂移 ≥0.1:`);
-  for (const r of drifts) console.log(`  ${r.caseId}: ${r.from} → ${r.to}`);
-}
-if (fresh.length) console.log(`\n➕ 新 case: ${fresh.map((c) => c.caseId).join(", ")}`);
-if (!regressions.length && !fixes.length && !drifts.length) console.log("\n无变化。");
-process.exit(regressions.length ? 1 : 0);
+
+process.exit(regressed ? 1 : 0);

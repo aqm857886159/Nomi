@@ -27,6 +27,15 @@ describe('workbenchPayloadSemanticEquals（语义相等：不靠引用相等）'
     expect(workbenchPayloadSemanticEquals(a, b)).toBe(true)
   })
 
+  it('仅 bookkeeping 元字段不同（updatedAt 等 wall-clock）判为相等（不因 Date.now 边界 flaky）', () => {
+    const a = createDefaultWorkbenchProjectPayload()
+    const b = createDefaultWorkbenchProjectPayload()
+    // 模拟两次新建相差 1ms：内容全等，仅 workbenchDocument.updatedAt 不同。
+    b.workbenchDocument = { ...b.workbenchDocument, updatedAt: a.workbenchDocument.updatedAt + 1 }
+    expect(b.workbenchDocument.updatedAt).not.toBe(a.workbenchDocument.updatedAt)
+    expect(workbenchPayloadSemanticEquals(a, b)).toBe(true)
+  })
+
   it('深拷贝（不同对象/数组引用，内容一致）判为相等', () => {
     const a = createDefaultWorkbenchProjectPayload()
     const b = JSON.parse(JSON.stringify(a)) as typeof a

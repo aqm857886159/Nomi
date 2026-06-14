@@ -1,0 +1,27 @@
+{
+  "dataset": "journeys",
+  "gitCommit": "2874a71",
+  "items": [
+    {
+      "id": "j3-onboarding",
+      "passAtK": true,
+      "meanScore": 1
+    },
+    {
+      "id": "j5-edit-export",
+      "passAtK": true,
+      "meanScore": 1
+    }
+  ],
+  "summary": {
+    "journeys": 2,
+    "skipped": 0,
+    "trialsPerJourney": 1,
+    "passAtK": 2,
+    "passAtKRate": 1,
+    "infraErrors": 0,
+    "tokensTotal": 0
+  },
+  "capturedAt": "2026-06-14T11:39:32.705Z",
+  "sourceRun": "2026-06-14-11-39-journeys-ci"
+}

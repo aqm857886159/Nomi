@@ -38,14 +38,17 @@
     "eval:run": "node ./scripts/eval-run.mjs",
     "eval:score": "node ./scripts/eval-score.mjs",
     "eval:diff": "node ./scripts/eval-diff.mjs",
+    "eval:baseline": "node ./scripts/eval-baseline.mjs",
     "eval:view": "node ./scripts/eval-trace-viewer.mjs",
     "eval:judge-calibrate": "node ./scripts/eval-judge-calibrate.mjs",
     "eval:review-images": "node ./scripts/eval-review-images.mjs",
+    "eval:generate-quality": "node ./scripts/eval-review-images.mjs",
+    "eval:journey": "node ./scripts/eval-journey.mjs",
     "dist": "electron-builder",
     "dist:mac:dir": "electron-builder --mac dir --arm64",
     "postinstall": "node ./scripts/install-git-hooks.cjs",
     "test:e2e": "node tests/ux/smoke.e2e.mjs",
-    "test:journeys": "node tests/ux/journeys.e2e.mjs"
+    "test:journeys": "node ./scripts/eval-journey.mjs --ci"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",

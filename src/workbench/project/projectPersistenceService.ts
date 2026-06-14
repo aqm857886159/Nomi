@@ -23,7 +23,21 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
-/** 结构化深比较：plain object（忽略 key 顺序，跳过值为 undefined 的键）/ array / 基本类型。 */
+// 语义相等里要跳过的 bookkeeping 元字段——它们由「保存/迁移动作本身」产生（updatedAt 来自
+// Date.now()、revision 由 ++ 累加），不是内容。否则两份内容全等、仅 updatedAt 差 1ms 的 payload
+// 会被判为不等：① migratedRecordNeedsPersist 误判「需写盘」→ 又一次保存（自激振荡，正是 line 47-53
+// 刻意要避免的）；② 比较两份新建 default payload 的测试因跨毫秒边界 flaky。与下方 migratedRecord
+// NeedsPersist 注释「刻意不比较 revision/savedAt/updatedAt」同一意图，这里把它落到实现层（任意深度）。
+const SEMANTIC_EQUALS_IGNORED_KEYS = new Set(['updatedAt', 'createdAt', 'savedAt', 'revision'])
+
+function semanticKeys(record: Record<string, unknown>): string[] {
+  return Object.keys(record).filter((key) => record[key] !== undefined && !SEMANTIC_EQUALS_IGNORED_KEYS.has(key))
+}
+
+/**
+ * 结构化深比较：plain object（忽略 key 顺序、跳过值为 undefined 的键、跳过 bookkeeping 元字段）
+ * / array / 基本类型。只服务 workbenchPayloadSemanticEquals（内容语义相等），故在此跳过 bookkeeping。
+ */
 function deepValueEquals(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true
   if (Array.isArray(a) || Array.isArray(b)) {
@@ -31,8 +45,8 @@ function deepValueEquals(a: unknown, b: unknown): boolean {
     return a.every((item, index) => deepValueEquals(item, b[index]))
   }
   if (isPlainRecord(a) && isPlainRecord(b)) {
-    const keysA = Object.keys(a).filter((key) => a[key] !== undefined)
-    const keysB = Object.keys(b).filter((key) => b[key] !== undefined)
+    const keysA = semanticKeys(a)
+    const keysB = semanticKeys(b)
     if (keysA.length !== keysB.length) return false
     return keysA.every((key) => Object.prototype.hasOwnProperty.call(b, key) && deepValueEquals(a[key], b[key]))
   }

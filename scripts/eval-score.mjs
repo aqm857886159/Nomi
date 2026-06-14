@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gradeCase, aggregateTrials, createdNodes } from "../evals/lib/grading.mjs";
-import { loadJudgeConfig, loadFewshots, judgeOne } from "../evals/lib/judge.mjs";
+import { loadJudgeConfig, loadFewshots, judgeOne, QUALITY_DIMENSIONS } from "../evals/lib/judge.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const runsRoot = path.join(repoRoot, "evals", "runs");
@@ -99,6 +99,23 @@ const infraErrors = caseResults.reduce((s, c) => s + c.trialsDetail.filter((t) =
 const tokensTotal = outputs.reduce((s, o) => s + (o.metrics?.tokens?.totalTokens || 0), 0);
 const latencyMean = outputs.length ? Math.round(outputs.reduce((s, o) => s + (o.metrics?.latencyMs || 0), 0) / outputs.length / 1000) : 0;
 
+// —— Lane A:分维度质量分聚合(judge 跑过才有)。各维 0-1 取均;计入与否看是否校准 ——
+const judgeNormalized = [];
+for (const trials of byCase.values()) {
+  for (const t of trials) {
+    if (t.grade.judge?.normalized) judgeNormalized.push(t.grade.judge.normalized);
+  }
+}
+const qualityByDimension = judgeNormalized.length
+  ? Object.fromEntries(QUALITY_DIMENSIONS.map((d) => [
+      d.key,
+      +(judgeNormalized.reduce((s, n) => s + (n[d.key] ?? 0), 0) / judgeNormalized.length).toFixed(3),
+    ]))
+  : null;
+const qualityOverall = qualityByDimension
+  ? +(Object.values(qualityByDimension).reduce((s, v) => s + v, 0) / QUALITY_DIMENSIONS.length).toFixed(3)
+  : null;
+
 const scores = {
   runDir: path.basename(runDir),
   dataset: meta.dataset,
@@ -113,6 +130,10 @@ const scores = {
     infraErrors,
     tokensTotal,
     latencyMeanSec: latencyMean,
+    // Lane A 质量分卡:judge 校准前为参考值(advisory),不计入 pass。
+    qualityCalibrated: calibrated,
+    qualityOverall,
+    qualityByDimension,
   },
   cases: caseResults.map((c) => ({
     caseId: c.caseId,
@@ -144,6 +165,17 @@ lines.push(`**${passAtK}/${totalCases} case 通过(pass@${meta.trials})** · pas
 if (worst.length) {
   lines.push("");
   lines.push(`最差 case:${worst.map((c) => `${c.caseId}(${c.meanScore})`).join(" / ")}`);
+}
+if (qualityByDimension) {
+  lines.push("");
+  lines.push(`## 质量分卡${calibrated ? "" : "（judge 未校准——以下仅供参考，不计入 pass）"}`);
+  lines.push(`**综合质量 ${(qualityOverall * 100).toFixed(0)}/100**（满分 100，各维等权）`);
+  lines.push("");
+  lines.push("| 维度 | 分数 |");
+  lines.push("|---|---|");
+  for (const d of QUALITY_DIMENSIONS) {
+    lines.push(`| ${d.name} | ${(qualityByDimension[d.key] * 100).toFixed(0)}/100 |`);
+  }
 }
 lines.push("");
 lines.push("| case | 描述 | pass@k | 均分 | 失败原因(首个 trial) |");
