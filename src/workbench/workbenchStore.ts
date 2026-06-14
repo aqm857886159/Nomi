@@ -18,6 +18,7 @@ import {
   moveTextClip,
   removeTextClip,
   resizeTextClip,
+  updateTextClipFont,
   updateTextClipText,
   updateTextClipTransform,
 } from './timeline/timelineTextEdit'
@@ -150,6 +151,8 @@ type WorkbenchState = {
   selectTimelineTextClip: (id: string) => void
   /** 画面内自由拖动/缩放：position(归一化中心)/scale。拖动中 commit:false 不落盘，松手 commit:true。 */
   updateTimelineTextClipTransform: (id: string, patch: { position?: Vec2; scale?: number }, options?: { commit?: boolean }) => void
+  /** 文字 clip 换字体（id，见 textFonts.ts）。 */
+  updateTimelineTextClipFont: (id: string, fontId: string) => void
 }
 
 export function isWorkspaceMode(value: unknown): value is WorkspaceMode {
@@ -513,6 +516,14 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
         timeline: next,
         persistRevision: commit && changed ? state.persistRevision + 1 : state.persistRevision,
       }
+    })
+  },
+  updateTimelineTextClipFont: (id, fontId) => {
+    set((state) => {
+      const next = updateTextClipFont(state.timeline, id, fontId)
+      return next === state.timeline
+        ? state
+        : { timeline: next, persistRevision: state.persistRevision + 1 }
     })
   },
 })))

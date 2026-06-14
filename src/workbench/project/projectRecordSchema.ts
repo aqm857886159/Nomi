@@ -65,6 +65,7 @@ export const workbenchProjectPayloadSchema = z.object({
       position: z.object({ x: z.number().finite(), y: z.number().finite() }).optional(),
       scale: z.number().finite().optional(),
       rotation: z.number().finite().optional(),
+      fontFamily: z.string().optional(),
     })).optional().default([]),
   }),
   // Keep project loading tolerant of legacy v0.5 category ids so the

@@ -1,11 +1,13 @@
 import React from 'react'
-import { IconChevronDown, IconDownload, IconLetterCase, IconPlayerPause, IconPlayerPlay, IconRefresh, IconZoomIn, IconZoomOut } from '@tabler/icons-react'
+import { IconChevronDown, IconDownload, IconLetterCase, IconMinus, IconPlayerPause, IconPlayerPlay, IconPlus, IconRefresh, IconZoomIn, IconZoomOut } from '@tabler/icons-react'
 import { NomiLoadingMark, NomiSelect, WorkbenchButton, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
 import { useWorkbenchStore } from '../workbenchStore'
 import type { TimelineClip, TimelineState } from '../timeline/timelineTypes'
 import { resolveActiveTextClipsAtFrame } from '../timeline/timelineMath'
 import { resolveTextBox, resolveOverlayTransform } from '../timeline/textLayout'
+import { TEXT_FONTS, DEFAULT_TEXT_FONT_ID } from '../timeline/textFonts'
+import { SCALE_MIN, SCALE_MAX } from '../timeline/overlayTransform'
 import OverlaySelectionBox from './OverlaySelectionBox'
 import type { PreviewAspectRatio } from '../workbenchTypes'
 import { resolveVideoClipMediaTimeSeconds } from '../player/timelinePlayback'
@@ -102,10 +104,12 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
   const [editingDraft, setEditingDraft] = React.useState('')
   const [textMenuOpen, setTextMenuOpen] = React.useState(false)
   const textMenuRef = React.useRef<HTMLDivElement | null>(null)
+  const [sizePctDraft, setSizePctDraft] = React.useState('')
   const [textSnapGuides, setTextSnapGuides] = React.useState<{ x: number | null; y: number | null }>({ x: null, y: null })
   const addTimelineTextClip = useWorkbenchStore((state) => state.addTimelineTextClip)
   const updateTimelineTextClip = useWorkbenchStore((state) => state.updateTimelineTextClip)
   const updateTimelineTextClipTransform = useWorkbenchStore((state) => state.updateTimelineTextClipTransform)
+  const updateTimelineTextClipFont = useWorkbenchStore((state) => state.updateTimelineTextClipFont)
   const selectTimelineTextClip = useWorkbenchStore((state) => state.selectTimelineTextClip)
   const selectedTextClipId = useWorkbenchStore((state) => state.selectedTextClipId)
   const setPreviewAspectRatio = useWorkbenchStore((state) => state.setPreviewAspectRatio)
@@ -327,6 +331,24 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
 
   // 文字叠加层（字幕/标题卡）：当前帧 active 的文字 clip，按 stage 像素几何摆放。
   const activeTextClips = resolveActiveTextClipsAtFrame(timeline, playheadFrame)
+  // 选中的文字 clip → 控制条出字号/字体精确控件
+  const selectedTextClip = (timeline.textClips ?? []).find((clip) => clip.id === selectedTextClipId) || null
+  const selectedTextScale = selectedTextClip ? resolveOverlayTransform(selectedTextClip).scale : 1
+  const selectedTextFontId = selectedTextClip?.fontFamily ?? DEFAULT_TEXT_FONT_ID
+  const selectedSizePct = Math.round(selectedTextScale * 100)
+
+  // 字号输入框：未聚焦时跟随真实 scale，聚焦编辑时用本地 draft。
+  React.useEffect(() => { setSizePctDraft(String(selectedSizePct)) }, [selectedSizePct, selectedTextClipId])
+
+  const applyTextScale = React.useCallback((scale: number) => {
+    if (!selectedTextClipId) return
+    updateTimelineTextClipTransform(selectedTextClipId, { scale: Math.min(SCALE_MAX, Math.max(SCALE_MIN, scale)) }, { commit: true })
+  }, [selectedTextClipId, updateTimelineTextClipTransform])
+
+  const commitSizePct = React.useCallback(() => {
+    const pct = Number(sizePctDraft)
+    if (Number.isFinite(pct) && pct > 0) applyTextScale(pct / 100)
+  }, [applyTextScale, sizePctDraft])
 
   return (
     <section className={cn(
@@ -438,6 +460,7 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
               const contentStyle: React.CSSProperties = {
                 maxWidth: `${box.maxWidthPx}px`,
                 fontSize: `${box.fontSizePx}px`,
+                fontFamily: box.fontFamily,
                 fontWeight: box.fontWeight,
                 lineHeight: String(box.lineHeight),
                 textAlign: 'center',
@@ -626,6 +649,36 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
             </div>
           ) : null}
         </div>
+        {selectedTextClip ? (
+          <>
+            <div className={cn('workbench-preview-player__control-separator', 'w-px h-5 bg-[var(--workbench-border-soft)]')} aria-hidden="true" />
+            <div className={cn('workbench-preview-player__text-style', 'flex-none inline-flex items-center gap-1.5')} aria-label="文字样式">
+              <span className="text-[11px] text-[var(--workbench-muted)] font-bold">字号</span>
+              <div className="inline-flex items-center gap-[3px]">
+                <WorkbenchIconButton className={cn('w-6 h-6 inline-grid place-items-center p-0 border border-transparent rounded-full bg-transparent text-[var(--workbench-muted)] cursor-pointer hover:bg-[var(--workbench-hover)] hover:text-[var(--workbench-ink)]')} label="减小字号" icon={<IconMinus size={14} />} onClick={() => applyTextScale(selectedTextScale - 0.1)} />
+                <input
+                  className={cn('w-[40px] h-6 text-center text-[11px] font-bold tabular-nums', 'rounded-[var(--nomi-radius-sm)] border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--workbench-ink)] outline-none focus:border-[var(--nomi-accent)]')}
+                  value={sizePctDraft}
+                  inputMode="numeric"
+                  aria-label="字号百分比"
+                  onChange={(event) => setSizePctDraft(event.target.value.replace(/[^0-9]/g, ''))}
+                  onBlur={commitSizePct}
+                  onKeyDown={(event) => { if (event.key === 'Enter') (event.target as HTMLInputElement).blur() }}
+                />
+                <span className="text-[11px] text-[var(--workbench-muted-soft)]">%</span>
+                <WorkbenchIconButton className={cn('w-6 h-6 inline-grid place-items-center p-0 border border-transparent rounded-full bg-transparent text-[var(--workbench-muted)] cursor-pointer hover:bg-[var(--workbench-hover)] hover:text-[var(--workbench-ink)]')} label="增大字号" icon={<IconPlus size={14} />} onClick={() => applyTextScale(selectedTextScale + 0.1)} />
+              </div>
+              <NomiSelect
+                ariaLabel="字体"
+                leadingLabel="字体"
+                size="xs"
+                value={selectedTextFontId}
+                options={TEXT_FONTS.map((font) => ({ value: font.id, label: font.label }))}
+                onChange={(value) => { if (selectedTextClipId) updateTimelineTextClipFont(selectedTextClipId, value) }}
+              />
+            </div>
+          </>
+        ) : null}
         <div className={cn(
           'workbench-preview-player__control-separator',
           'w-px h-5 bg-[var(--workbench-border-soft)]',

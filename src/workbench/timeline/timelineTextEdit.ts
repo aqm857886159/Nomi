@@ -87,6 +87,16 @@ export function resizeTextClip(
   return changed ? { ...timeline, textClips: sortTextClips(textClips) } : timeline
 }
 
+export function updateTextClipFont(timeline: TimelineState, id: string, fontId: string): TimelineState {
+  let changed = false
+  const textClips = timeline.textClips.map((clip) => {
+    if (clip.id !== id || clip.fontFamily === fontId) return clip
+    changed = true
+    return { ...clip, fontFamily: fontId }
+  })
+  return changed ? { ...timeline, textClips } : timeline
+}
+
 export function removeTextClip(timeline: TimelineState, id: string): TimelineState {
   const textClips = timeline.textClips.filter((clip) => clip.id !== id)
   return textClips.length === timeline.textClips.length ? timeline : { ...timeline, textClips }

@@ -1,5 +1,6 @@
 import type { TimelineTextClip, TimelineTextStyle } from './timelineTypes'
 import { clampScale, type OverlayTransform, type Vec2 } from './overlayTransform'
+import { resolveFontStack } from './textFonts'
 
 /**
  * 文字叠加层的「唯一」布局规范。预览 DOM、导出 PNG、WebM 回退 canvas 三处都消费它，
@@ -47,6 +48,8 @@ export type ResolvedTextBox = {
   hasBackdrop: boolean
   fontWeight: number
   lineHeight: number
+  /** 解析后的 CSS font stack（预览 DOM 与导出 canvas 共用）*/
+  fontFamily: string
 }
 
 export function resolveTextBox(clip: TimelineTextClip, width: number, height: number): ResolvedTextBox {
@@ -63,6 +66,7 @@ export function resolveTextBox(clip: TimelineTextClip, width: number, height: nu
     hasBackdrop: spec.hasBackdrop,
     fontWeight: spec.fontWeight,
     lineHeight: spec.lineHeight,
+    fontFamily: resolveFontStack(clip.fontFamily),
   }
 }
 

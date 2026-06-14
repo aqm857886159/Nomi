@@ -1,8 +1,6 @@
 import type { TimelineTextClip } from './timelineTypes'
 import { resolveTextBox } from './textLayout'
 
-const FONT_STACK = 'Inter, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif'
-
 function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const out: string[] = []
   for (const paragraph of text.split('\n')) {
@@ -45,7 +43,7 @@ export function drawTextBox(ctx: CanvasRenderingContext2D, clip: TimelineTextCli
   const innerMaxWidth = box.maxWidthPx - (box.hasBackdrop ? box.fontSizePx * 1.4 : 0)
 
   ctx.save()
-  ctx.font = `${box.fontWeight} ${box.fontSizePx}px ${FONT_STACK}`
+  ctx.font = `${box.fontWeight} ${box.fontSizePx}px ${box.fontFamily}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 

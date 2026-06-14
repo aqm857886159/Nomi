@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { createDefaultTimeline, normalizeTimeline, resolveActiveTextClipsAtFrame, computeTimelineDuration } from './timelineMath'
-import { addTextClip, moveTextClip, removeTextClip, resizeTextClip, updateTextClipText, updateTextClipTransform } from './timelineTextEdit'
+import { addTextClip, moveTextClip, removeTextClip, resizeTextClip, updateTextClipText, updateTextClipTransform, updateTextClipFont } from './timelineTextEdit'
 import { resolveTextBox } from './textLayout'
+import { resolveFontStack, normalizeTextFontId } from './textFonts'
 
 describe('timeline 文字 clip 编辑', () => {
   it('addTextClip 在 playhead 处加默认 3s 文字 clip', () => {
@@ -85,6 +86,30 @@ describe('timeline 文字 clip 编辑', () => {
     expect(moved.centerX).toBe(200)
     expect(moved.centerY).toBe(300)
     expect(moved.fontSizePx).toBe(base.fontSizePx * 2) // scale 翻倍字号翻倍
+  })
+
+  it('updateTextClipFont 换字体 + resolveTextBox 反映字体栈', () => {
+    const { timeline, id } = addTextClip(createDefaultTimeline(), 'caption', 0)
+    const defaultStack = resolveTextBox(timeline.textClips[0], 1000, 1000).fontFamily
+    const next = updateTextClipFont(timeline, id, 'songti')
+    expect(next.textClips[0].fontFamily).toBe('songti')
+    const songtiStack = resolveTextBox(next.textClips[0], 1000, 1000).fontFamily
+    expect(songtiStack).toContain('Songti')
+    expect(songtiStack).not.toBe(defaultStack)
+    expect(updateTextClipFont(next, id, 'songti')).toBe(next) // 同值无变化返回同引用
+  })
+
+  it('字体 id 兜底：未知 id → 默认栈', () => {
+    expect(normalizeTextFontId('songti')).toBe('songti')
+    expect(normalizeTextFontId('不存在')).toBeUndefined()
+    expect(resolveFontStack(undefined)).toBe(resolveFontStack('default'))
+    expect(resolveFontStack('乱写')).toBe(resolveFontStack('default'))
+  })
+
+  it('normalizeTimeline 迁移 fontFamily', () => {
+    const persisted = { version: 1, fps: 30, scale: 1, playheadFrame: 0, tracks: [],
+      textClips: [{ id: 'a', text: 'x', style: 'caption', startFrame: 0, endFrame: 30, fontFamily: 'kaiti' }] }
+    expect(normalizeTimeline(persisted).textClips[0].fontFamily).toBe('kaiti')
   })
 
   it('normalizeTimeline 迁移 position/scale（旧 clip 无 → 缺省）', () => {

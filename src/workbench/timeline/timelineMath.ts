@@ -84,6 +84,7 @@ function normalizeTextClip(input: unknown): TimelineTextClip | null {
   }
   if (Number.isFinite(Number(raw.scale))) clip.scale = Math.min(5, Math.max(0.2, Number(raw.scale)))
   if (Number.isFinite(Number(raw.rotation))) clip.rotation = Number(raw.rotation)
+  if (typeof raw.fontFamily === 'string' && raw.fontFamily) clip.fontFamily = raw.fontFamily
   return clip
 }
 

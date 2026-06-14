@@ -38,6 +38,7 @@ export type TimelineTextClip = {
   position?: { x: number; y: number } // 归一化中心 0~1
   scale?: number
   rotation?: number // 度，预留
+  fontFamily?: string // 字体 id（见 textFonts.ts），缺省 = 默认黑体
 }
 
 export type TimelineState = {
