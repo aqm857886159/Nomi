@@ -30,6 +30,7 @@ import type { WorkbenchAiMessage } from './ai/workbenchAiTypes'
 import type { StoryboardPlan } from './generationCanvas/agent/storyboardPlan'
 import type { ComposerAttachment } from './ai/composer/composerAttachmentTypes'
 import { createConversationBuckets } from './aiConversationBuckets'
+import { abandonCreationTurn } from './creation/creationTurnController'
 
 // 创作面板会话「会话域」per-project 桶(S1 治串台)。
 // 注:messages 已迁出本桶,改由 conversationThreads 模型按项目寻址(会话历史,2026-06-14);
@@ -288,6 +289,9 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     set({ creationAssistantAutoOpen })
   },
   swapCreationAiProject: (prevId, nextId) => {
+    // 结构性保证:任何「创作区切项目」都先中止在途流式轮次(中止流 + 作废 token +
+    // 拒绝清空待批写卡),否则旧轮回调会把内容写进新项目、写卡弹到新项目面板。
+    abandonCreationTurn()
     const state = get()
     set({
       ...creationAiBuckets.swap(prevId, nextId, {

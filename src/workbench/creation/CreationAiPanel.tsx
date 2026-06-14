@@ -25,6 +25,7 @@ import {
   type CreationAiModeId,
 } from './creationAiModes'
 import { useTransientScrollingClass } from './useTransientScrollingClass'
+import { isWriteTool, useCreationTurnStore, type PendingDocToolCall, type WriteToolName } from './creationTurnController'
 import { readWindowUrlParam } from '../windowUrlParam'
 import { AttachmentRail } from '../ai/composer/AttachmentRail'
 import { StaleConversationDivider, useStaleConversationBoundary } from '../ai/staleConversationDivider'
@@ -35,20 +36,7 @@ import { COMPOSER_ATTACHMENT_ACCEPT, useComposerAttachments } from '../ai/compos
 
 // The creation agent's write tools map 1:1 to the editor's document mutations.
 // Read tools auto-confirm without a card; write tools queue a confirmation card.
-const WRITE_TOOL_NAMES = ['insert_at_cursor', 'replace_selection', 'append_to_end'] as const
-type WriteToolName = (typeof WRITE_TOOL_NAMES)[number]
-
-type PendingDocToolCall = {
-  toolCallId: string
-  toolName: WriteToolName
-  content: string
-  confirm: (decision: { ok: true; result?: unknown } | { ok: false; message?: string }) => Promise<void>
-}
-
-function isWriteTool(name: string): name is WriteToolName {
-  return (WRITE_TOOL_NAMES as readonly string[]).includes(name)
-}
-
+// 写工具名/类型/守卫/待批卡形态已收口到 creationTurnController（turn 控制器单一真相源）。
 function writeToolLabel(name: WriteToolName): string {
   if (name === 'insert_at_cursor') return '插入到光标'
   if (name === 'replace_selection') return '替换选区'
@@ -70,7 +58,11 @@ function readWorkbenchAiReplyText(response: unknown): string {
 }
 
 export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => void } = {}): JSX.Element {
-  const [sending, setSending] = React.useState(false)
+  // 流式生命周期(sending/cancel/待批写卡/消息 id)收口到 turn 控制器,组件只读不持有 ——
+  // 这样切项目/新对话/卸载能统一中止在途轮次(治串台),按钮态也随之复位。
+  const sending = useCreationTurnStore((state) => state.sending)
+  const pendingToolCalls = useCreationTurnStore((state) => state.pendingToolCalls)
+  const turn = useCreationTurnStore
   // 项目记忆卡刷新键:每完成一轮(sending true→false)+1,触发记忆重取(本轮可能提炼新事实)。
   const [memoryRefreshKey, setMemoryRefreshKey] = React.useState(0)
   const prevSendingRef = React.useRef(sending)
@@ -80,9 +72,8 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   }, [sending])
   // 放大/全屏对话：把整块面板移到 body 级居中浮层（仿 Scene3D 全屏 portal）。
   const [expanded, setExpanded] = React.useState(false)
-  // Cancel handle for the in-flight agent turn (user "Stop").
-  const cancelRef = React.useRef<(() => void) | null>(null)
-  const [pendingToolCalls, setPendingToolCalls] = React.useState<PendingDocToolCall[]>([])
+  // 面板卸载：抛弃在途轮次,迟到回调不再写、不残留待批写卡。
+  React.useEffect(() => () => { useCreationTurnStore.getState().abandon() }, [])
   const messagesScrollRef = useTransientScrollingClass<HTMLDivElement>('workbench-scrollbar-visible')
   const workbenchDocument = useWorkbenchStore((state) => state.workbenchDocument)
   const documentTools = useWorkbenchStore((state) => state.creationDocumentTools)
@@ -124,25 +115,21 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     toolCallId: string,
     decision: { ok: true; result?: unknown } | { ok: false; message?: string },
   ) => {
-    setPendingToolCalls((current) => {
-      const target = current.find((item) => item.toolCallId === toolCallId)
-      if (target) void target.confirm(decision)
-      return current.filter((item) => item.toolCallId !== toolCallId)
-    })
-  }, [])
+    turn.getState().resolvePendingToolCall(toolCallId, decision)
+  }, [turn])
 
   // Run the actual editor mutation for an approved write tool, then resolve the
   // backend tool call so the agent loop can continue.
   const applyWriteTool = React.useCallback((call: PendingDocToolCall) => {
     const tools = documentToolsRef.current
     if (!tools) {
-      void resolvePending(call.toolCallId, { ok: false, message: 'editor_not_ready' })
+      resolvePending(call.toolCallId, { ok: false, message: 'editor_not_ready' })
       return
     }
     if (call.toolName === 'insert_at_cursor') tools.insertAtCursor(call.content)
     else if (call.toolName === 'replace_selection') tools.replaceSelection(call.content)
     else tools.appendToEnd(call.content)
-    void resolvePending(call.toolCallId, { ok: true, result: { applied: true } })
+    resolvePending(call.toolCallId, { ok: true, result: { applied: true } })
   }, [resolvePending])
 
 
@@ -158,34 +145,36 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
       setError('先在左侧写一段故事，再让 AI 拆镜头。')
       return
     }
-    const now = Date.now()
-    const assistantId = `creation_ai_assistant_${now + 1}`
+    const userId = turn.getState().nextMessageId('user')
+    const assistantId = turn.getState().nextMessageId('assistant')
     setMessages((prev) => [
       ...prev,
-      { id: `creation_ai_user_${now}`, role: 'user', content: displayPrompt },
+      { id: userId, role: 'user', content: displayPrompt },
       { id: assistantId, role: 'assistant', content: '正在拆镜头，整理分镜方案…', status: 'pending' as const },
     ])
     setDraft('')
     setError('')
     // 流程 A：就地跑规划师（不切到生成区）。产出 propose_storyboard_plan 落创作 store →
     // 主列展开分镜方案编辑器；规划阶段全程免费、不碰画布（runStoryboardPlanner 的 onToolCall 守卫）。
-    setSending(true)
+    const handle = turn.getState().begin()
     void (async () => {
       try {
         const { text } = await runStoryboardPlanner({
           storyText,
-          onContent: (streamed) =>
-            setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: streamed || '正在拆镜头…', status: 'streaming' as const } : m))),
-          onCancelReady: (cancel) => {
-            cancelRef.current = cancel
+          onContent: (streamed) => {
+            if (!handle.isCurrent()) return
+            setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: streamed || '正在拆镜头…', status: 'streaming' as const } : m)))
           },
+          onCancelReady: (cancel) => turn.getState().attachCancel(handle.id, cancel),
         })
+        if (!handle.isCurrent()) return // 轮次已被切项目/新对话作废:别把旧项目内容写进新项目
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId ? { ...m, content: text || '分镜方案已生成，请在左侧审阅、修改后确认落画布。', status: 'done' as const } : m,
           ),
         )
       } catch (error: unknown) {
+        if (!handle.isCurrent()) return
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
@@ -194,11 +183,10 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
           ),
         )
       } finally {
-        setSending(false)
-        cancelRef.current = null
+        turn.getState().finish(handle.id)
       }
     })()
-  }, [documentText, selectedText, setDraft, setError, setMessages])
+  }, [documentText, selectedText, setDraft, setError, setMessages, turn])
 
   // Tier2 定妆：把剧本交给 AI，按剧本为主要角色/场景建卡 + 注入身份板提示词（与拆镜头同构）。
   const launchFixationPlanning = React.useCallback((displayPrompt = '🎭 立角色卡') => {
@@ -207,11 +195,10 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
       setError('先在左侧写一段剧本，再让 AI 按剧本定妆。')
       return
     }
-    const now = Date.now()
     setMessages((prev) => [
       ...prev,
-      { id: `creation_ai_user_${now}`, role: 'user', content: displayPrompt },
-      { id: `creation_ai_assistant_${now + 1}`, role: 'assistant', content: '已切到生成区，正在让 AI 按剧本为角色/场景定妆。', status: 'done' as const },
+      { id: turn.getState().nextMessageId('user'), role: 'user', content: displayPrompt },
+      { id: turn.getState().nextMessageId('assistant'), role: 'assistant', content: '已切到生成区，正在让 AI 按剧本为角色/场景定妆。', status: 'done' as const },
     ])
     setDraft('')
     setError('')
@@ -219,10 +206,10 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     window.setTimeout(() => {
       requestFixationPlanning({ storyText, source: 'creation-ai-panel' })
     }, 60)
-  }, [documentText, selectedText, setDraft, setError, setMessages, setWorkspaceMode])
+  }, [documentText, selectedText, setDraft, setError, setMessages, setWorkspaceMode, turn])
 
   const send = React.useCallback(async (textOverride?: string) => {
-    if (sending) return
+    if (turn.getState().sending) return
     const userRequest = (textOverride ?? draft).trim()
     const readyAttachments = attachments.filter((item) => item.status === 'ready' && item.url)
     if (!userRequest && !selectedText && !documentText && !readyAttachments.length) return
@@ -245,17 +232,17 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
       kind: item.kind,
     }))
     const userMessage: WorkbenchAiMessage = {
-      id: `creation_ai_user_${Date.now()}`,
+      id: turn.getState().nextMessageId('user'),
       role: 'user',
       content: displayPrompt,
       ...(readyAttachments.length ? { attachments: readyAttachments } : {}),
     }
-    const pendingId = `creation_ai_assistant_${Date.now() + 1}`
+    const pendingId = turn.getState().nextMessageId('assistant')
     setMessages((prev) => [...prev, userMessage, { id: pendingId, role: 'assistant', content: '', status: 'pending' as const }])
     setDraft('')
     clearAttachments()
     setError('')
-    setSending(true)
+    const handle = turn.getState().begin()
     try {
       const response = await runWorkbenchAgent({
         prompt,
@@ -266,14 +253,18 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         skillKey: `workbench.creation.${activeMode.id}`,
         skillName: activeMode.title,
         onContent: (_delta, streamedText) => {
+          if (!handle.isCurrent()) return
           setMessages((prev) => prev.map((message) => (
             message.id === pendingId ? { ...message, content: streamedText, status: 'streaming' as const } : message
           )))
         },
-        onCancelReady: (cancel) => {
-          cancelRef.current = cancel
-        },
+        onCancelReady: (cancel) => turn.getState().attachCancel(handle.id, cancel),
         onToolCall: (event: ToolCallEvent) => {
+          // 轮次已被切项目/新对话/卸载作废:拒绝迟到的工具调用,绝不写进新项目。
+          if (!handle.isCurrent()) {
+            void event.confirm({ ok: false, message: 'creation turn abandoned' })
+            return
+          }
           // Read tools auto-execute against the live editor.
           if (event.toolName === 'read_full_text') {
             void event.confirm({ ok: true, result: { text: documentToolsRef.current?.readFullText() ?? '' } })
@@ -287,35 +278,47 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
           if (isWriteTool(event.toolName)) {
             const args = (event.args && typeof event.args === 'object') ? event.args as Record<string, unknown> : {}
             const content = typeof args.content === 'string' ? args.content : ''
-            setPendingToolCalls((current) => [...current, {
+            turn.getState().addPendingToolCall({
               toolCallId: event.toolCallId,
-              toolName: event.toolName as WriteToolName,
+              toolName: event.toolName,
               content,
               confirm: event.confirm,
-            }])
+            })
             return
           }
           void event.confirm({ ok: false, message: `unknown tool ${event.toolName}` })
         },
       })
-      const reply = readWorkbenchAiReplyText(response) || '（空响应：AI 没有返回文本）'
-      const totalTokens = response.usage?.totalTokens
-      setMessages((prev) => prev.map((message) => (
-        message.id === pendingId
-          ? { ...message, content: reply, status: 'done' as const, ...(totalTokens ? { turnStats: { totalTokens } } : {}) }
-          : message
-      )))
+      if (!handle.isCurrent()) return // 轮次已被作废:resolved 结果属于旧项目,丢弃不写
+      // 用户主动「停止」→ 流层合成的取消结果(raw.cancelled)落「已取消」第三态,不混作完成。
+      const cancelled = Boolean((response.raw as { cancelled?: unknown } | undefined)?.cancelled)
+      const streamed = readWorkbenchAiReplyText(response)
+      if (cancelled) {
+        setMessages((prev) => prev.map((message) => (
+          message.id === pendingId
+            ? { ...message, content: streamed || '（已停止）', status: 'cancelled' as const }
+            : message
+        )))
+      } else {
+        const reply = streamed || '（空响应：AI 没有返回文本）'
+        const totalTokens = response.usage?.totalTokens
+        setMessages((prev) => prev.map((message) => (
+          message.id === pendingId
+            ? { ...message, content: reply, status: 'done' as const, ...(totalTokens ? { turnStats: { totalTokens } } : {}) }
+            : message
+        )))
+      }
     } catch (err) {
+      if (!handle.isCurrent()) return // 轮次已被作废:错误属于旧项目,丢弃不写
       const message = err instanceof Error ? err.message : '创作 AI 调用失败'
       setError(message)
       setMessages((prev) => prev.map((item) => (
         item.id === pendingId ? { ...item, content: `（错误）${message}`, status: 'error' as const } : item
       )))
     } finally {
-      setSending(false)
-      cancelRef.current = null
+      turn.getState().finish(handle.id)
     }
-  }, [activeMode, attachments, clearAttachments, documentText, draft, launchStoryboardPlanning, selectedText, sending, setDraft, setError, setMessages])
+  }, [activeMode, attachments, clearAttachments, documentText, draft, launchStoryboardPlanning, launchFixationPlanning, selectedText, setDraft, setError, setMessages, turn])
 
   // 通用创作动作，贴 Nomi 视频创作调性、不绑小说题材（旧的「悬疑开场/童话语气」在产品/宣传项目里调性错配）。
   const suggestions = React.useMemo(() => [
@@ -325,7 +328,8 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   ], [])
 
   const handleNewConversation = React.useCallback(() => {
-    setPendingToolCalls([])
+    // 新对话 = 抛弃在途轮次:中止流 + 作废 token(迟到回调不再写) + 拒绝清空待批写卡。
+    turn.getState().abandon()
     // 会话历史:归档当前线程(不销毁),建空活动线程,清面板消息投影。
     startNewConversation('creation')
     // 清 session 态(draft/附件/error 不落盘,不入线程)。
@@ -334,7 +338,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     setError('')
     // 新对话 = 该 area 模型上下文归零(创作/画布各一份键,互不影响)。
     void clearWorkbenchAgentSession(workbenchSessionKey('creation'))
-  }, [clearAttachments, setDraft, setError])
+  }, [clearAttachments, setDraft, setError, turn])
 
   const panelBody = (
     <aside
@@ -486,6 +490,13 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
                     ))}
                   </span>
                 ) : null}
+                {message.role === 'assistant' && message.status === 'cancelled' ? (
+                  // 已取消第三态:中性「已停止」标,不走错误样式(用户主动停止≠出错)。
+                  <span className={cn('mt-1.5 inline-flex items-center gap-1 text-micro text-nomi-ink-40')}>
+                    <IconPlayerStopFilled size={11} />
+                    已停止
+                  </span>
+                ) : null}
                 {message.role === 'assistant' && (!message.status || message.status === 'done') && !message.content.startsWith('（错误）') ? (
                   <AiReplyActionButton
                     className="workbench-creation-ai__reply-action"
@@ -617,7 +628,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
               )}
               label="停止"
               aria-label="停止生成"
-              onClick={() => cancelRef.current?.()}
+              onClick={() => turn.getState().requestUserCancel()}
               icon={<IconPlayerStopFilled size={13} />}
             />
           ) : (
