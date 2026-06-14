@@ -7,6 +7,7 @@ import {
   type TimelineTrack,
   type TimelineTrackType,
 } from './timelineTypes'
+import { resolveClipFraming, type ClipFraming } from './clipFraming'
 
 const DEFAULT_TIMELINE_SCALE = 1
 const DEFAULT_TIMELINE_FPS = 30
@@ -63,6 +64,10 @@ function normalizeClip(input: unknown, fallbackType: TimelineTrackType): Timelin
     offsetEndFrame: toFiniteNonNegativeInteger(raw.offsetEndFrame, 0),
     ...(normalizeString(raw.url) ? { url: normalizeString(raw.url) } : {}),
     ...(normalizeString(raw.thumbnailUrl) ? { thumbnailUrl: normalizeString(raw.thumbnailUrl) } : {}),
+    // 取景随时间轴落盘：present 才挂（清洗成合法 framing），缺省则不挂 → 切项目/重载不蒸发。
+    ...(raw.framing && typeof raw.framing === 'object'
+      ? { framing: resolveClipFraming({ framing: raw.framing as Partial<ClipFraming> }) }
+      : {}),
   }
 }
 

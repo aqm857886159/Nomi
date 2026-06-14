@@ -1,5 +1,6 @@
 import type { TimelineClip, TimelineState, TimelineTrack, TimelineTrackType } from './timelineTypes'
 import { getTrackTypeForClipType } from './timelineTypes'
+import { resolveClipFraming, type ClipFraming } from './clipFraming'
 
 export const TIMELINE_MIN_SCALE = 0.35
 export const TIMELINE_MAX_SCALE = 4
@@ -376,6 +377,38 @@ export function resizeClipEdge(timeline: TimelineState, clipId: string, edge: 'l
     }
   })
   return resized ? { ...timeline, tracks } : timeline
+}
+
+/**
+ * 设置某个媒体 clip 的取景（patch 合并到现有 framing，缺省补默认、清洗、缩放 clamp）。
+ * 找不到 clip 或结果无变化 → 返回原 timeline（引用不变，供 store 跳过 persistRevision 自增）。
+ */
+export function setClipFraming(timeline: TimelineState, clipId: string, patch: Partial<ClipFraming>): TimelineState {
+  const id = String(clipId || '').trim()
+  if (!id) return timeline
+  let changed = false
+  const tracks = timeline.tracks.map((track) => {
+    const index = track.clips.findIndex((clip) => clip.id === id)
+    if (index < 0) return track
+    const current = track.clips[index]
+    const nextFraming = resolveClipFraming({ framing: { ...current.framing, ...patch } })
+    const prevFraming = resolveClipFraming(current)
+    if (
+      nextFraming.fit === prevFraming.fit &&
+      nextFraming.scale === prevFraming.scale &&
+      nextFraming.offsetX === prevFraming.offsetX &&
+      nextFraming.offsetY === prevFraming.offsetY &&
+      current.framing !== undefined
+    ) {
+      return track
+    }
+    changed = true
+    return {
+      ...track,
+      clips: track.clips.map((clip) => (clip.id === id ? { ...clip, framing: nextFraming } : clip)),
+    }
+  })
+  return changed ? { ...timeline, tracks } : timeline
 }
 
 export function setTimelinePlayheadFrame(timeline: TimelineState, frame: number): TimelineState {

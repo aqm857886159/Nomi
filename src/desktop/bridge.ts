@@ -49,6 +49,12 @@ export type DesktopExportJobStartPayload = {
 
 export type DesktopExportJobStartResult = {
   jobId: string
+  /**
+   * 后端选择（导出主权决策点）：
+   * - 'filtergraph'：资产可本地解析 → ffmpeg 直读源文件渲染（所见即所得），renderer **不录 WebM**。
+   * - 'webm'：资产无法本地解析 → renderer 录 canvas WebM 上传，主进程转码（降级）。
+   */
+  backend: 'filtergraph' | 'webm'
 }
 
 export type DesktopExportTempInputWritePayload = {

@@ -9,10 +9,12 @@ import {
   removeClipById,
   removeClipsByIds,
   resizeClipEdge,
+  setClipFraming,
   setTimelinePlayheadFrame,
   setTimelineScale,
   splitClipAtFrame,
 } from './timeline/timelineEdit'
+import type { ClipFraming } from './timeline/clipFraming'
 import {
   addTextClip,
   moveTextClip,
@@ -135,6 +137,8 @@ type WorkbenchState = {
   splitTimelineClip: (clipId: string, frame: number) => void
   duplicateTimelineClip: (clipId: string) => void
   nudgeTimelineClip: (clipId: string, deltaFrame: number) => void
+  /** 设置 clip 取景（适应/填充 + 缩放 + 平移）。拖动/连续缩放传 commit:false，落定 commit:true 落盘一次。 */
+  setTimelineClipFraming: (clipId: string, patch: Partial<ClipFraming>, options?: { commit?: boolean }) => void
   /** additive(shift/⌘)：在集合中切换；否则替换为单选。 */
   selectTimelineClip: (clipId: string, options?: { additive?: boolean }) => void
   setTimelineSelection: (clipIds: string[]) => void
@@ -512,6 +516,17 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     const commit = options?.commit !== false
     set((state) => {
       const next = updateTextClipTransform(state.timeline, id, patch)
+      const changed = next !== state.timeline
+      return {
+        timeline: next,
+        persistRevision: commit && changed ? state.persistRevision + 1 : state.persistRevision,
+      }
+    })
+  },
+  setTimelineClipFraming: (clipId, patch, options) => {
+    const commit = options?.commit !== false
+    set((state) => {
+      const next = setClipFraming(state.timeline, clipId, patch)
       const changed = next !== state.timeline
       return {
         timeline: next,

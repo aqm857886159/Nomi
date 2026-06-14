@@ -65,7 +65,7 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
     preset: 'publish',
   })
   manifest.textOverlays = renderTextOverlays(options.timeline, manifest.profile.width, manifest.profile.height)
-  const { jobId } = await desktop.exports.startJob({
+  const { jobId, backend } = await desktop.exports.startJob({
     projectId,
     outputName: options.outputName,
     manifest,
@@ -81,6 +81,16 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
     options.onProgress?.({ status, ratio })
   })
   try {
+    // 主路径：资产可本地解析 → 主进程 ffmpeg 直读源文件渲染（所见即所得）。renderer 不录 WebM。
+    if (backend === 'filtergraph') {
+      options.onProgress?.({ status: 'converting', ratio: 0.12 })
+      const result = await desktop.exports.finishTempInput({ jobId })
+      finishedTempInput = true
+      options.onProgress?.({ status: 'done', ratio: 1 })
+      return result
+    }
+
+    // 降级路径：资产无法本地解析 → 录 canvas WebM 上传，主进程转码。
     webmBlob = await exportTimelineToWebm({
       timeline: options.timeline,
       aspectRatio: options.aspectRatio,

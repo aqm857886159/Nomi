@@ -1,3 +1,5 @@
+import type { ClipFraming } from './clipFraming'
+
 // v0.7.1: 加 'audio' clip type（轨道仍是 image / video 两条；audio clip 落到 video 轨）
 export type TimelineTrackType = 'image' | 'video'
 export type TimelineClipType = 'image' | 'video' | 'audio'
@@ -15,6 +17,9 @@ export type TimelineClip = {
   text?: string
   url?: string
   thumbnailUrl?: string
+  // 取景（适应/填充 + 缩放 + 平移）。缺省 = DEFAULT_CLIP_FRAMING（contain/1/0/0）。
+  // 这是 P0-5「所见即所得」的关键：取景从预览局部 state 提升为时间轴数据，导出据此复现构图。
+  framing?: ClipFraming
 }
 
 export type TimelineTrack = {

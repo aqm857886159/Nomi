@@ -36,6 +36,14 @@ export type RendererRenderAsset = {
   hasAudio?: boolean
 }
 
+/** 取景：填充/适应 + 缩放 + 平移（offset 为帧尺寸的归一化分数）。导出据此复现预览构图。 */
+export type RendererClipTransform = {
+  fit: 'contain' | 'cover'
+  scale: number
+  offsetX: number
+  offsetY: number
+}
+
 export type RendererRenderClip = {
   id: string
   assetId: string
@@ -43,6 +51,8 @@ export type RendererRenderClip = {
   endFrame: number
   sourceStartFrame: number
   sourceEndFrame: number
+  /** 取景。缺省 = 默认 contain/1/0/0（仅非默认时携带，省体积）。 */
+  transform?: RendererClipTransform
 }
 
 export type RendererRenderTrack = {

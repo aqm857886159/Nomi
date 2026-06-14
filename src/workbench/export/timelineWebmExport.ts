@@ -3,6 +3,7 @@ import { computeTimelineDuration, resolveActiveClipsAtFrame, resolveActiveTextCl
 import type { PreviewAspectRatio } from '../workbenchTypes'
 import { resolveVideoClipMediaTimeSeconds } from '../player/timelinePlayback'
 import { drawTextBox } from '../timeline/textOverlayCanvas'
+import { computeFramedRect, resolveClipFraming } from '../timeline/clipFraming'
 
 export type ExportStatus = 'idle' | 'preparing' | 'recording' | 'done' | 'error'
 
@@ -53,7 +54,8 @@ const RATIO_SIZE: Record<PreviewAspectRatio, { width: number; height: number }> 
 }
 
 const DEFAULT_EXPORT_WIDTH = 1280
-const DEFAULT_EXPORT_BACKGROUND = '#f4f3ef'
+// WYSIWYG 背景：与预览舞台一致（--nomi-paper = 纯白）。三引擎统一白底，止「WebM 米白 / filtergraph 黑边」分裂。
+const DEFAULT_EXPORT_BACKGROUND = '#ffffff'
 
 export function resolveExportCanvasSize(aspectRatio: PreviewAspectRatio, width = DEFAULT_EXPORT_WIDTH): ExportCanvasSize {
   const ratio = RATIO_SIZE[aspectRatio]
@@ -152,20 +154,19 @@ async function preloadTimelineAssets(timeline: TimelineState): Promise<TimelineA
   return { images, videos }
 }
 
-function drawCoverImage(
+// 按 clip 取景把媒体画进帧：与预览 CSS / filtergraph 同一套公式（computeFramedRect）。
+// 超出帧的部分由 canvas 自动裁切（cover/放大），帧内空白露出白底（contain/缩小）。
+function drawFramedMedia(
   context: CanvasRenderingContext2D,
   source: CanvasImageSource,
   sourceWidth: number,
   sourceHeight: number,
   size: ExportCanvasSize,
+  clip: TimelineClip,
 ): void {
-  if (sourceWidth <= 0 || sourceHeight <= 0) return
-  const scale = Math.max(size.width / sourceWidth, size.height / sourceHeight)
-  const width = sourceWidth * scale
-  const height = sourceHeight * scale
-  const x = (size.width - width) / 2
-  const y = (size.height - height) / 2
-  context.drawImage(source, x, y, width, height)
+  const rect = computeFramedRect(resolveClipFraming(clip), size.width, size.height, sourceWidth, sourceHeight)
+  if (rect.width <= 0 || rect.height <= 0) return
+  context.drawImage(source, rect.x, rect.y, rect.width, rect.height)
 }
 
 export function drawTimelineFrame(input: DrawTimelineFrameInput): void {
@@ -178,14 +179,16 @@ export function drawTimelineFrame(input: DrawTimelineFrameInput): void {
   context.fillStyle = background
   context.fillRect(0, 0, size.width, size.height)
 
+  // 图片在下层、视频在上层（与预览 z-order 一致）：各按自己 clip 的取景绘制。
+  if (imageClip && hasMediaSource(imageClip)) {
+    const image = assets.images.get(imageClip.url)
+    if (image) drawFramedMedia(context, image, image.naturalWidth, image.naturalHeight, size, imageClip)
+  }
   if (videoClip && hasMediaSource(videoClip)) {
     const video = assets.videos.get(videoClip.url)
     if (video && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-      drawCoverImage(context, video, video.videoWidth, video.videoHeight, size)
+      drawFramedMedia(context, video, video.videoWidth, video.videoHeight, size, videoClip)
     }
-  } else if (imageClip && hasMediaSource(imageClip)) {
-    const image = assets.images.get(imageClip.url)
-    if (image) drawCoverImage(context, image, image.naturalWidth, image.naturalHeight, size)
   }
 
   // 文字叠加层（字幕/标题卡）：画在媒体之上，与预览 DOM 共用 textLayout 几何。

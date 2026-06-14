@@ -134,6 +134,27 @@ describe('buildRenderManifestRequest', () => {
     expect(request.timeline.tracks.map((track) => track.kind)).toEqual(['image'])
   })
 
+  it('carries a non-default clip framing as transform and omits it for default framing', () => {
+    const framedClip = makeClip({
+      id: 'clip-framed',
+      sourceNodeId: 'asset-framed',
+      framing: { fit: 'cover', scale: 1.5, offsetX: 0.2, offsetY: -0.1 },
+    })
+    const plainClip = makeClip({ id: 'clip-plain', sourceNodeId: 'asset-plain', startFrame: 40, endFrame: 70 })
+    const request = buildRenderManifestRequest({
+      projectId: 'project-1',
+      timeline: makeTimeline([{ id: 'videoTrack', type: 'video', label: 'Video', clips: [framedClip, plainClip] }]),
+      aspectRatio: '16:9',
+      resolution: '1080p',
+      quality: 'standard',
+      preset: 'publish',
+    })
+
+    const clips = request.timeline.tracks[0]?.clips ?? []
+    expect(clips[0]).toMatchObject({ id: 'clip-framed', transform: { fit: 'cover', scale: 1.5, offsetX: 0.2, offsetY: -0.1 } })
+    expect(clips[1]).not.toHaveProperty('transform')
+  })
+
   it('does not fake hasAudio but can carry it from future media probe clip metadata', () => {
     const silentClip = makeClip({ id: 'clip-silent', sourceNodeId: 'asset-silent' })
     const probedClip = makeClip({ id: 'clip-probed', sourceNodeId: 'asset-probed' }) as TimelineClip & { hasAudio: boolean }

@@ -60,6 +60,65 @@ function formatSeconds(seconds: number): string {
   return Number(seconds.toFixed(6)).toString();
 }
 
+function formatNumber(value: number): string {
+  if (!Number.isFinite(value)) return "0";
+  if (Number.isInteger(value)) return String(value);
+  return Number(value.toFixed(6)).toString();
+}
+
+// ── 取景（fit / 缩放 / 平移）──────────────────────────────────────────────
+// 与预览 CSS / WebM canvas computeFramedRect 同一套公式，用 ffmpeg 运行期表达式实现
+// （iw/ih=源尺寸，main_w/overlay_w=帧/已缩放媒体）。offsetX/Y 为帧尺寸的归一化分数。
+type ClipFraming = {
+  fit: "contain" | "cover";
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+};
+
+const DEFAULT_FRAMING: ClipFraming = { fit: "contain", scale: 1, offsetX: 0, offsetY: 0 };
+
+function finiteOr(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+/** 从 clip.transform 读出取景（缺省补默认、清洗、缩放 clamp[0.25,4]，与 src 端 resolveClipFraming 同语义）。 */
+function resolveClipFraming(transform: NomiRenderClip["transform"]): ClipFraming {
+  if (!transform || typeof transform !== "object") return { ...DEFAULT_FRAMING };
+  const raw = transform as Record<string, unknown>;
+  const scale = finiteOr(raw.scale, DEFAULT_FRAMING.scale);
+  return {
+    fit: raw.fit === "cover" ? "cover" : "contain",
+    scale: Math.max(0.25, Math.min(4, scale)),
+    offsetX: finiteOr(raw.offsetX, DEFAULT_FRAMING.offsetX),
+    offsetY: finiteOr(raw.offsetY, DEFAULT_FRAMING.offsetY),
+  };
+}
+
+/**
+ * 取景 → scale + overlay 表达式。
+ * factor = (contain? min : max)(W/iw, H/ih) × scale；缩放后居中再加 offset(×帧尺寸)。
+ * 表达式带单引号（ffmpeg 滤镜解析器识别），逗号转义 `\,`（已用真 ffmpeg 验证语法+几何）。
+ */
+function framingFilters(
+  framing: ClipFraming,
+  width: number,
+  height: number,
+  segmentLabel: string,
+  fittedLabel: string,
+): string {
+  const fitFn = framing.fit === "cover" ? "max" : "min";
+  const factor = `${fitFn}(${width}/iw\\,${height}/ih)*${formatNumber(framing.scale)}`;
+  return `[${segmentLabel}]scale=w='${factor}*iw':h='${factor}*ih'[${fittedLabel}]`;
+}
+
+function framingOverlayPosition(framing: ClipFraming): { x: string; y: string } {
+  return {
+    x: `(main_w-overlay_w)/2+(${formatNumber(framing.offsetX)})*main_w`,
+    y: `(main_h-overlay_h)/2+(${formatNumber(framing.offsetY)})*main_h`,
+  };
+}
+
 function labelForClip(clipId: string, suffix: string): string {
   const safeId = clipId.replace(/[^a-zA-Z0-9_]/g, "_");
   return `clip_${safeId}_${suffix}`;
@@ -163,11 +222,15 @@ function buildAudioGraph(
   return filters;
 }
 
-function buildVisualGraph(manifest: NomiRenderManifestV1, visualClips: ResolvedClip[]): string[] {
+// 视觉链：白底 base + 逐 clip 按取景 scale → 居中/偏移 overlay（所见即所得）。
+// 输出未定型的视觉 label（[vcomposite] 或 [base]），format=pixelFormat 由 compile 收口到链尾一次
+// （避免中间媒体奇数尺寸触发 yuv420p 报错）。返回 { filters, videoLabel }。
+function buildVisualGraph(manifest: NomiRenderManifestV1, visualClips: ResolvedClip[]): { filters: string[]; videoLabel: string } {
   const { profile } = manifest;
   const fps = manifest.timeline.fps;
   const durationSeconds = secondsFromFrames(manifest.timeline.durationFrames, fps);
-  const filters = [`color=black:size=${profile.width}x${profile.height}:rate=${fps}:duration=${formatSeconds(durationSeconds)}[base]`];
+  // 白底 = 与预览舞台一致（--nomi-paper 纯白）；contain 留白边、cover 铺满，三引擎统一。
+  const filters = [`color=white:size=${profile.width}x${profile.height}:rate=${fps}:duration=${formatSeconds(durationSeconds)}[base]`];
 
   const orderedVisualClips = [...visualClips].sort((left, right) => {
     return (
@@ -198,29 +261,25 @@ function buildVisualGraph(manifest: NomiRenderManifestV1, visualClips: ResolvedC
       throw new FfmpegFiltergraphError("unsupported_clip", `Asset ${asset.id} is not visual`);
     }
 
-    filters.push(
-      `[${segmentLabel}]scale=${profile.width}:${profile.height}:force_original_aspect_ratio=decrease,` +
-        `pad=${profile.width}:${profile.height}:(ow-iw)/2:(oh-ih)/2:color=black,format=${profile.pixelFormat}[${fittedLabel}]`,
-    );
+    // 取景：按 contain/cover×scale 缩放（不补边），位置由下方 overlay 居中+偏移决定。
+    const framing = resolveClipFraming(clip.transform);
+    filters.push(framingFilters(framing, profile.width, profile.height, segmentLabel, fittedLabel));
   });
 
   let baseLabel = "base";
   orderedVisualClips.forEach(({ clip }, index) => {
     const fittedLabel = labelForClip(clip.id, "fitted");
-    const outputLabel = index === orderedVisualClips.length - 1 ? "vout" : `vstack${index}`;
+    const outputLabel = index === orderedVisualClips.length - 1 ? "vcomposite" : `vstack${index}`;
     const start = secondsFromFrames(clip.startFrame, fps);
     const end = secondsFromFrames(clip.endFrame, fps);
+    const { x, y } = framingOverlayPosition(resolveClipFraming(clip.transform));
     filters.push(
-      `[${baseLabel}][${fittedLabel}]overlay=shortest=0:eof_action=pass:enable='gte(t,${formatSeconds(start)})*lt(t,${formatSeconds(end)})'[${outputLabel}]`,
+      `[${baseLabel}][${fittedLabel}]overlay=x='${x}':y='${y}':shortest=0:eof_action=pass:enable='gte(t,${formatSeconds(start)})*lt(t,${formatSeconds(end)})'[${outputLabel}]`,
     );
     baseLabel = outputLabel;
   });
 
-  if (orderedVisualClips.length === 0) {
-    filters.push("[base]format=yuv420p[vout]");
-  }
-
-  return filters;
+  return { filters, videoLabel: orderedVisualClips.length === 0 ? "base" : "vcomposite" };
 }
 
 /**
@@ -271,16 +330,18 @@ export function compileFfmpegFiltergraph(input: FfmpegFiltergraphInput): FfmpegF
   const visualClips = resolvedClips.filter(({ track, asset }) => isVisualTrack(track) || asset.kind === "image" || asset.kind === "video");
 
   const audioFilters = buildAudioGraph(resolvedClips, manifest.profile.audioCodec, fps);
-  const filters = buildVisualGraph(manifest, visualClips);
+  const visual = buildVisualGraph(manifest, visualClips);
+  const filters = visual.filters;
 
   const inputs = buildInputs(resolvedClips, fps);
   let videoOutputLabel = "[vout]";
   if (textOverlays.length > 0) {
+    // 文字层接在视觉链尾（最上层），末条 overlay 收口 format=pixelFormat → [voutfinal]。
     const durationSeconds = secondsFromFrames(manifest.timeline.durationFrames, fps);
     const overlayGraph = buildTextOverlayGraph(
       textOverlays,
       inputs.length,
-      "vout",
+      visual.videoLabel,
       fps,
       durationSeconds,
       manifest.profile.pixelFormat,
@@ -288,6 +349,9 @@ export function compileFfmpegFiltergraph(input: FfmpegFiltergraphInput): FfmpegF
     filters.push(...overlayGraph.filters);
     inputs.push(...overlayGraph.inputs);
     videoOutputLabel = overlayGraph.videoLabel;
+  } else {
+    // 无文字：在视觉链尾统一定型一次（中间媒体可能奇数尺寸，不能逐 clip 转 yuv420p）。
+    filters.push(`[${visual.videoLabel}]format=${manifest.profile.pixelFormat}[vout]`);
   }
 
   filters.push(...audioFilters);

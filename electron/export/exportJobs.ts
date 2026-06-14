@@ -89,9 +89,12 @@ function parseExportJobManifest(value: unknown): NomiRenderManifestV1 {
   return manifestValue;
 }
 
-// ── filtergraph 导出主路径（音频 + letterbox WYSIWYG）；失败回退 WebM 转码 ──────────
-// 按 jobId 暂存 renderer 原始 manifest；finishExportTempInput 里解析本地资产 + ffprobe + 编译 filtergraph。
-const rawExportManifests = new Map<string, unknown>();
+// ── 导出后端决策（所见即所得 + 删 WebM 并行版）────────────────────────────────────
+// startExportJob 里**前置**尝试编译 filtergraph 计划（解析本地资产 + ffprobe + 编译）：
+//   成功 → 暂存计划、backend='filtergraph'，renderer 不录 WebM，finishExportTempInput 直接 ffmpeg 渲染源文件。
+//   失败（资产无法本地解析等）→ backend='webm'，renderer 录 canvas WebM 上传，finishExportTempInput 转码。
+// 决策提到 startJob 是为了 renderer 能据 backend 决定「要不要录 WebM」——不再「总是先录再可能丢弃」。
+const preparedFiltergraphExports = new Map<string, { manifest: NomiRenderManifestV1; plan: FfmpegFiltergraphPlan }>();
 
 /**
  * renderer 原始 manifest → 可直接喂 ffmpeg 的 filtergraph 计划：
@@ -191,7 +194,7 @@ async function tryBuildFiltergraphExport(
   }
 }
 
-export function startExportJob(payload: unknown): { jobId: string } {
+export async function startExportJob(payload: unknown): Promise<{ jobId: string; backend: "filtergraph" | "webm" }> {
   const raw = (payload || {}) as ExportJobStartRequest;
   const projectId = String(raw.projectId || "").trim();
   if (!projectId) throw new Error("projectId is required");
@@ -202,15 +205,27 @@ export function startExportJob(payload: unknown): { jobId: string } {
   if (manifest.projectId !== projectId) {
     throw new Error("Export job projectId must match manifest.projectId");
   }
-  const plan = planExport(manifest);
+  planExport(manifest);
   const job = exportJobManager.createJob({ projectId, projectDir, manifest, outputName: raw.outputName });
-  // 暂存 renderer 原始 manifest，供 finishExportTempInput 解析本地资产走 filtergraph 主路径
-  rawExportManifests.set(job.id, raw.manifest);
+
+  // 前置决定后端：尝试编译 filtergraph 计划（解析资产 + ffprobe + 编译）。成功 → 主路径，renderer 不录 WebM。
+  let backend: "filtergraph" | "webm" = "webm";
+  try {
+    const prepared = await tryBuildFiltergraphExport(raw.manifest, projectId, job.jobDir);
+    if (prepared) {
+      preparedFiltergraphExports.set(job.id, prepared);
+      backend = "filtergraph";
+    }
+  } catch {
+    // 编译期异常（探测/校验失败）→ 退回 WebM 降级，不阻断导出。
+    backend = "webm";
+  }
+
   exportJobManager.updateJob(job.id, {
     status: "planning",
-    progress: { ratio: 0.02, stage: "planning", message: `Planned ${plan.backend} export backend` },
+    progress: { ratio: 0.02, stage: "planning", message: `Planned ${backend} export backend` },
   });
-  return { jobId: job.id };
+  return { jobId: job.id, backend };
 }
 
 export function getExportJobStatus(jobId: string): ExportJobSnapshot {
@@ -228,7 +243,7 @@ export async function cancelExportJob(jobId: string): Promise<{ ok: true }> {
   activeExportAbortControllers.get(id)?.abort();
   await exportJobManager.cancelJob(id);
   if (job) removeExportTempInput(job);
-  rawExportManifests.delete(id);
+  preparedFiltergraphExports.delete(id);
   return { ok: true };
 }
 
@@ -299,7 +314,7 @@ export async function finishExportTempInput(payload: unknown): Promise<unknown> 
   const controller = new AbortController();
   activeExportAbortControllers.set(job.id, controller);
   try {
-    const { inputPath } = finishExportTempInputFile(job);
+    const prepared = preparedFiltergraphExports.get(job.id);
     const profile = job.manifest.profile;
     const durationMs = Math.max(0, (job.manifest.timeline.durationFrames / Math.max(1, job.manifest.timeline.fps)) * 1000);
     const stderrLogPath = path.join(job.jobDir, "ffmpeg.log");
@@ -321,43 +336,28 @@ export async function finishExportTempInput(payload: unknown): Promise<unknown> 
       });
     };
 
-    // 主路径：解析本地资产 → filtergraph 直读源文件渲染（含音频 + letterbox WYSIWYG）
-    let result: TimelineMp4ExportResult | null = null;
-    const rawManifest = rawExportManifests.get(job.id);
-    if (rawManifest !== undefined) {
-      try {
-        const filtergraphExport = await tryBuildFiltergraphExport(rawManifest, job.manifest.projectId, job.jobDir);
-        if (filtergraphExport) {
-          const fgDurationMs = Math.max(
-            0,
-            (filtergraphExport.manifest.timeline.durationFrames / Math.max(1, filtergraphExport.manifest.timeline.fps)) * 1000,
-          );
-          result = await renderFiltergraphToMp4({
-            jobId: job.id,
-            projectDir: job.projectDir,
-            outputName: job.outputName || "nomi-export",
-            profile: filtergraphExport.manifest.profile,
-            filtergraph: filtergraphExport.plan,
-            durationMs: fgDurationMs,
-            signal: controller.signal,
-            stderrLogPath,
-            onProgress: onEncodeProgress,
-          });
-        }
-      } catch (filtergraphError) {
-        if (filtergraphError instanceof ExportCancelledError || controller.signal.aborted) throw filtergraphError;
-        // filtergraph 失败 → 记录并回退 WebM 转码（保证导出不中断）
-        try {
-          fs.appendFileSync(stderrLogPath, `\n[filtergraph fallback] ${filtergraphError instanceof Error ? filtergraphError.message : String(filtergraphError)}\n`);
-        } catch {
-          /* ignore log write failure */
-        }
-        result = null;
-      }
-    }
-
-    // 回退路径：WebM → MP4（视频帧由 renderer canvas 录制而来，无音频）
-    if (!result) {
+    let result: TimelineMp4ExportResult;
+    if (prepared) {
+      // 主路径（startJob 已编译好计划）：filtergraph 直读源文件渲染（含音频 + 取景 WYSIWYG）。
+      // 此模式 renderer 未录 WebM，无临时输入文件可读 —— 直接渲染，不调 finishExportTempInputFile。
+      const fgDurationMs = Math.max(
+        0,
+        (prepared.manifest.timeline.durationFrames / Math.max(1, prepared.manifest.timeline.fps)) * 1000,
+      );
+      result = await renderFiltergraphToMp4({
+        jobId: job.id,
+        projectDir: job.projectDir,
+        outputName: job.outputName || "nomi-export",
+        profile: prepared.manifest.profile,
+        filtergraph: prepared.plan,
+        durationMs: fgDurationMs,
+        signal: controller.signal,
+        stderrLogPath,
+        onProgress: onEncodeProgress,
+      });
+    } else {
+      // 降级路径：资产无法本地解析 → renderer 录的 canvas WebM → MP4（无音频）。
+      const { inputPath } = finishExportTempInputFile(job);
       result = await transcodeWebmFileToMp4({
         jobId: job.id,
         projectDir: job.projectDir,
@@ -397,7 +397,7 @@ export async function finishExportTempInput(payload: unknown): Promise<unknown> 
   } finally {
     activeExportAbortControllers.delete(job.id);
     removeExportTempInput(job);
-    rawExportManifests.delete(job.id);
+    preparedFiltergraphExports.delete(job.id);
   }
 }
 

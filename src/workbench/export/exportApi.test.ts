@@ -64,6 +64,33 @@ describe('exportTimelineToMp4', () => {
     expect(finishTempInput).not.toHaveBeenCalled()
   })
 
+  it('filtergraph backend: skips WebM recording/upload and finishes directly from source', async () => {
+    const startJob = vi.fn().mockResolvedValue({ jobId: 'job-1', backend: 'filtergraph' })
+    const writeTempInput = vi.fn()
+    const finishTempInput = vi.fn().mockResolvedValue({
+      absolutePath: '/tmp/out.mp4',
+      relativePath: 'exports/out.mp4',
+      size: 4,
+    })
+
+    vi.stubGlobal('window', {
+      nomiDesktop: {
+        exports: { startJob, writeTempInput, finishTempInput },
+      },
+    })
+
+    const { exportTimelineToMp4 } = await import('./exportApi')
+
+    await expect(
+      exportTimelineToMp4({ projectId: 'project-1', timeline: makeTimeline(), aspectRatio: '16:9' }),
+    ).resolves.toEqual({ absolutePath: '/tmp/out.mp4', relativePath: 'exports/out.mp4', size: 4 })
+
+    // 主路径不录 WebM、不上传分块
+    expect(exportTimelineToWebmMock).not.toHaveBeenCalled()
+    expect(writeTempInput).not.toHaveBeenCalled()
+    expect(finishTempInput).toHaveBeenCalledWith({ jobId: 'job-1' })
+  })
+
   it('does not cancel the desktop export job after finishTempInput succeeds', async () => {
     const startJob = vi.fn().mockResolvedValue({ jobId: 'job-1' })
     const writeTempInput = vi.fn().mockResolvedValue({ ok: true, size: 4 })

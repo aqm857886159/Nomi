@@ -50,13 +50,33 @@ describe("compileFfmpegFiltergraph", () => {
     });
 
     expect(plan.inputs).toEqual([{ assetId: "image1", path: "/media/still.png", kind: "image", inputArgs: ["-loop", "1", "-t", "5"] }]);
-    expect(plan.filterComplex).toContain("color=black:size=1920x1080:rate=30:duration=5[base]");
+    // 白底（WYSIWYG，与预览舞台一致）
+    expect(plan.filterComplex).toContain("color=white:size=1920x1080:rate=30:duration=5[base]");
     expect(plan.filterComplex).toContain("[0:v]trim=duration=5,setpts=PTS-STARTPTS");
-    expect(plan.filterComplex).toContain("scale=1920:1080:force_original_aspect_ratio=decrease");
-    expect(plan.filterComplex).toContain("pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black");
-    expect(plan.filterComplex).toContain("format=yuv420p");
-    expect(plan.filterComplex).toContain("overlay=shortest=0:eof_action=pass:enable='gte(t,0)*lt(t,5)'[vout]");
+    // 默认取景 contain×1：参数化 scale（min 取小、不补边），逗号转义 \,
+    expect(plan.filterComplex).toContain("[clip_clip_1_segment]scale=w='min(1920/iw\\,1080/ih)*1*iw':h='min(1920/iw\\,1080/ih)*1*ih'[clip_clip_1_fitted]");
+    // 居中 overlay（offset 0），定型 format 收口链尾一次
+    expect(plan.filterComplex).toContain("[base][clip_clip_1_fitted]overlay=x='(main_w-overlay_w)/2+(0)*main_w':y='(main_h-overlay_h)/2+(0)*main_h':shortest=0:eof_action=pass:enable='gte(t,0)*lt(t,5)'[vcomposite]");
+    expect(plan.filterComplex).toContain("[vcomposite]format=yuv420p[vout]");
+    expect(plan.filterComplex).not.toContain("force_original_aspect_ratio");
+    expect(plan.filterComplex).not.toContain("color=black");
     expect(plan.videoOutputLabel).toBe("[vout]");
+  });
+
+  it("cover 取景 → max 缩放铺满；非零 offset 进 overlay 位置", () => {
+    const plan = compileFfmpegFiltergraph({
+      manifest: manifest({
+        assets: { image1: { id: "image1", kind: "image", absolutePath: "/media/still.png" } },
+        timeline: {
+          fps: 30,
+          durationFrames: 150,
+          range: { startFrame: 0, endFrame: 150 },
+          tracks: [{ id: "visual-1", kind: "visual", clips: [{ id: "clip-1", assetId: "image1", startFrame: 0, endFrame: 150, transform: { fit: "cover", scale: 1.5, offsetX: 0.2, offsetY: -0.1 } }] }],
+        },
+      }),
+    });
+    expect(plan.filterComplex).toContain("scale=w='max(1920/iw\\,1080/ih)*1.5*iw':h='max(1920/iw\\,1080/ih)*1.5*ih'");
+    expect(plan.filterComplex).toContain("overlay=x='(main_w-overlay_w)/2+(0.2)*main_w':y='(main_h-overlay_h)/2+(-0.1)*main_h'");
   });
 
   it("builds trim/scale graph for one video clip honoring source frames", () => {
@@ -76,9 +96,8 @@ describe("compileFfmpegFiltergraph", () => {
 
     expect(plan.inputs).toEqual([{ assetId: "video1", path: "/media/source.mov", kind: "video", inputArgs: [] }]);
     expect(plan.filterComplex).toContain("[0:v]trim=start=1:end=3,setpts=PTS-STARTPTS");
-    expect(plan.filterComplex).toContain("scale=1920:1080:force_original_aspect_ratio=decrease");
-    expect(plan.filterComplex).toContain("pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black");
-    expect(plan.filterComplex).toContain("overlay=shortest=0:eof_action=pass:enable='gte(t,0)*lt(t,2)'[vout]");
+    expect(plan.filterComplex).toContain("[clip_clip_1_segment]scale=w='min(1920/iw\\,1080/ih)*1*iw':h='min(1920/iw\\,1080/ih)*1*ih'[clip_clip_1_fitted]");
+    expect(plan.filterComplex).toContain("overlay=x='(main_w-overlay_w)/2+(0)*main_w':y='(main_h-overlay_h)/2+(0)*main_h':shortest=0:eof_action=pass:enable='gte(t,0)*lt(t,2)'[vcomposite]");
   });
 
   it("preserves deterministic bottom-to-top layer order for overlapping visual clips", () => {
@@ -105,7 +124,7 @@ describe("compileFfmpegFiltergraph", () => {
     expect(plan.filterComplex).toContain("[vstack0][clip_clip_top_fitted]overlay");
   });
 
-  it("emits black background and shifts non-zero-start visual clips into timeline PTS", () => {
+  it("emits white background and shifts non-zero-start visual clips into timeline PTS", () => {
     const plan = compileFfmpegFiltergraph({
       manifest: manifest({
         assets: {
@@ -120,9 +139,10 @@ describe("compileFfmpegFiltergraph", () => {
       }),
     });
 
-    expect(plan.filterComplex).toContain("color=black:size=1920x1080:rate=30:duration=5[base]");
+    expect(plan.filterComplex).toContain("color=white:size=1920x1080:rate=30:duration=5[base]");
     expect(plan.filterComplex).toContain("[0:v]trim=duration=1,setpts=PTS-STARTPTS+2/TB[clip_clip_1_segment]");
-    expect(plan.filterComplex).toContain("overlay=shortest=0:eof_action=pass:enable='gte(t,2)*lt(t,3)'[vout]");
+    expect(plan.filterComplex).toContain("shortest=0:eof_action=pass:enable='gte(t,2)*lt(t,3)'[vcomposite]");
+    expect(plan.filterComplex).toContain("[vcomposite]format=yuv420p[vout]");
   });
 
   it("classifies missing asset before FFmpeg spawn", () => {
@@ -263,8 +283,8 @@ describe("compileFfmpegFiltergraph", () => {
     // 两条 overlay PNG 作为新输入接在素材输入之后（index 1、2），-loop 1 -t 全长 5s
     expect(plan.inputs[1]).toEqual({ assetId: "text_overlay_0", path: "/tmp/job/text-overlay-0.png", kind: "image", inputArgs: ["-loop", "1", "-t", "5"] });
     expect(plan.inputs[2]).toEqual({ assetId: "text_overlay_1", path: "/tmp/job/text-overlay-1.png", kind: "image", inputArgs: ["-loop", "1", "-t", "5"] });
-    // 第一条 overlay：base=vout，输入 index 1，区间 0~3s
-    expect(plan.filterComplex).toContain("[vout][1:v]overlay=0:0:eof_action=pass:enable='between(t,0,3)'[vtxt0]");
+    // 第一条 overlay：base=vcomposite（视觉链尾，未定型），输入 index 1，区间 0~3s
+    expect(plan.filterComplex).toContain("[vcomposite][1:v]overlay=0:0:eof_action=pass:enable='between(t,0,3)'[vtxt0]");
     // 第二条 overlay：base=vtxt0，输入 index 2，区间 1~5s，末条补 format=yuv420p，输出 voutfinal
     expect(plan.filterComplex).toContain("[vtxt0][2:v]overlay=0:0:eof_action=pass:enable='between(t,1,5)',format=yuv420p[voutfinal]");
     expect(plan.videoOutputLabel).toBe("[voutfinal]");

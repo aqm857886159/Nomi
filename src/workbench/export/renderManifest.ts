@@ -2,6 +2,7 @@ import type { ExportPreset, ExportQuality, ExportResolution } from './exportType
 import type { RendererRenderAsset, RendererRenderManifestRequest } from './exportTypes'
 import { computeTimelineDuration } from '../timeline/timelineMath'
 import type { TimelineClip, TimelineState, TimelineTrack } from '../timeline/timelineTypes'
+import { isDefaultFraming, resolveClipFraming } from '../timeline/clipFraming'
 import type { PreviewAspectRatio } from '../workbenchTypes'
 
 const RESOLUTION_SIZE: Record<Exclude<ExportResolution, 'source'>, { width: number; height: number }> = {
@@ -79,6 +80,8 @@ function buildAssets(tracks: TimelineTrack[]): Record<string, RendererRenderAsse
 }
 
 function buildClip(clip: TimelineClip): RendererRenderManifestRequest['timeline']['tracks'][number]['clips'][number] {
+  // 取景只在非默认时携带 → 默认构图的 clip 不增 manifest 体积、不动既有快照。
+  const framing = resolveClipFraming(clip)
   return {
     id: clip.id,
     assetId: clip.sourceNodeId,
@@ -86,6 +89,7 @@ function buildClip(clip: TimelineClip): RendererRenderManifestRequest['timeline'
     endFrame: clip.endFrame,
     sourceStartFrame: clip.offsetStartFrame,
     sourceEndFrame: clip.offsetEndFrame,
+    ...(isDefaultFraming(framing) ? {} : { transform: framing }),
   }
 }
 
