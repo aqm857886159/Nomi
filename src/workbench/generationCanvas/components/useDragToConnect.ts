@@ -3,6 +3,7 @@
 import React from 'react'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { completeNodeConnection } from '../nodes/completeNodeConnection'
+import { getNodeSize } from './generationCanvasGeometry'
 
 type Offset = { x: number; y: number }
 
@@ -53,8 +54,7 @@ export function useDragToConnect({
       const canvasX = (event.clientX - rect.left - offsetRef.current.x) / zoomRef.current
       const canvasY = (event.clientY - rect.top - offsetRef.current.y) / zoomRef.current
       const targetNode = nodesRef.current.find((n) => {
-        const w = n.size?.width || 300
-        const h = n.size?.height || 220
+        const { width: w, height: h } = getNodeSize(n)
         return canvasX >= n.position.x && canvasX <= n.position.x + w &&
           canvasY >= n.position.y && canvasY <= n.position.y + h
       })

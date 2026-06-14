@@ -2,72 +2,69 @@
  * 节点关联计数 hooks。
  *
  * Live 计算的关联度量（spec §5.3）：
- * - useNodeUsageCount: 该节点在多少分镜里被引用（文本匹配 prompt）
+ * - useNodeUsageCount: 该节点被多少**分镜**引用（结构化引用边，非文本子串）
  * - useNodeVariantCount: 该节点的变体数（derivedFrom + regeneratedFrom 反查）
  *
- * MVP 用文本匹配；Phase G 关系图谱接入后改为精确引用计数。
- *
  * v0.7.2 perf: 之前每次 store 变化每张卡都跑 O(n) filter → n 张卡 × O(n) = O(n²)
- * 现在用 WeakMap 缓存 keyed on state.nodes reference：相同 nodes 数组只 build 一次，
- * 每张卡 O(1) Map.get 查询。zustand immer 保证未改的 nodes 引用稳定 → 缓存命中率高。
+ * 现在用 WeakMap 缓存 keyed on (nodes, edges) 引用：相同输入只 build 一次，
+ * 每张卡 O(1) Map.get 查询。zustand immer 保证未改的数组引用稳定 → 缓存命中率高。
  */
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import type { GenerationCanvasNode, GenerationCanvasEdge } from '../model/generationCanvasTypes'
 
-// title (trimmed) → 包含该 title 的 shots 节点 id 列表
-type UsageMap = Map<string, string[]>
-const usageCache = new WeakMap<readonly GenerationCanvasNode[], UsageMap>()
+// 审计 P3 根治：usageCount 从「prompt.includes(title)」子串匹配改为**结构化引用边**统计。
+// 旧版用文本子串：title 是另一 title 子串（人物⊂人物特写）或重名即误计（历史 26 显示 36/26）。
+// 现按引用关系：一个节点「被 N 个分镜引用」= 以它为 source、指向 shots 分类节点的去重边数
+// （连边语义见 connectToNode：source=提供参考方，target=消费方/分镜）。文本无关，零假阳性。
 
-function buildUsageMap(nodes: readonly GenerationCanvasNode[]): UsageMap {
-  const cached = usageCache.get(nodes)
+// nodeId → 引用它的 shots 节点 id 集合
+type UsageMap = Map<string, Set<string>>
+const usageCache = new WeakMap<readonly GenerationCanvasEdge[], UsageMap>()
+
+function buildUsageMap(
+  nodes: readonly GenerationCanvasNode[],
+  edges: readonly GenerationCanvasEdge[],
+): UsageMap {
+  const cached = usageCache.get(edges)
   if (cached) return cached
-
-  // v0.7.3 fix: 用 Set 去重 title — 多张同名卡片（如默认"图片"）会让同一 shot 被重复推入桶
-  // 导致 count 远超真实命中数（用户报告 26 shots 显示 36 即此问题）
-  const titleSet = new Set<string>()
+  const shotIds = new Set<string>()
   for (const node of nodes) {
-    if (node.title && node.title.trim()) {
-      titleSet.add(node.title.trim())
-    }
+    if ((node.categoryId || 'shots') === 'shots') shotIds.add(node.id)
   }
-  const titles = Array.from(titleSet)
-
   const map: UsageMap = new Map()
-  for (const t of titles) map.set(t, [])
-
-  // 扫描每个 shots 节点的 prompt，每个 (shot, title) 组合最多记一次
-  for (const shot of nodes) {
-    if (shot.categoryId !== 'shots') continue
-    const prompt = typeof shot.prompt === 'string' ? shot.prompt : ''
-    if (!prompt) continue
-    for (const t of titles) {
-      if (prompt.includes(t)) {
-        const bucket = map.get(t)
-        if (bucket) bucket.push(shot.id)
-      }
+  for (const edge of edges) {
+    if (!shotIds.has(edge.target)) continue
+    let bucket = map.get(edge.source)
+    if (!bucket) {
+      bucket = new Set<string>()
+      map.set(edge.source, bucket)
     }
+    bucket.add(edge.target) // Set 去重：同一 source→shot 多条边只算一个分镜
   }
-
-  usageCache.set(nodes, map)
+  usageCache.set(edges, map)
   return map
 }
 
 /**
- * 当前节点的"使用次数"：在所有 shots 分类节点的 prompt 中，
- * 包含本节点 title 字符串的数量。
- *
- * 排除自身（避免 shots 自身 prompt 含 title 时自计）。
+ * 纯计数（可单测，不依赖 store）：节点 nodeId 被多少**不同分镜**引用。
+ * = 以 nodeId 为 source、target 为 shots 分类节点的去重边数。
  */
-export function useNodeUsageCount(nodeId: string, nodeTitle: string | undefined): number {
-  return useGenerationCanvasStore((state) => {
-    const title = nodeTitle ? nodeTitle.trim() : ''
-    if (!title) return 0
-    const bucket = buildUsageMap(state.nodes).get(title)
-    if (!bucket) return 0
-    let count = 0
-    for (const id of bucket) if (id !== nodeId) count++
-    return count
-  })
+export function countShotUsage(
+  nodeId: string,
+  nodes: readonly GenerationCanvasNode[],
+  edges: readonly GenerationCanvasEdge[],
+): number {
+  return buildUsageMap(nodes, edges).get(nodeId)?.size ?? 0
+}
+
+/**
+ * 当前节点的"使用次数"：被多少个分镜（shots 分类）节点引用（结构化引用边）。
+ *
+ * 注：第二个参数 `_nodeTitle` 为历史子串匹配遗留，现已不用（计数与文本无关）。
+ * 保留为可选并忽略，避免改动 render 层调用方（`SceneCardNode` 等）的签名。
+ */
+export function useNodeUsageCount(nodeId: string, _nodeTitle?: string | undefined): number {
+  return useGenerationCanvasStore((state) => countShotUsage(nodeId, state.nodes, state.edges))
 }
 
 // sourceId → 变体数（直接派生自该 id 的节点数）

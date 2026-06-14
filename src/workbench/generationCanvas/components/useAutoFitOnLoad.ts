@@ -1,5 +1,6 @@
 import React from 'react'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import { getNodeSize } from './generationCanvasGeometry'
 
 type Viewport = { zoom: number; offset: { x: number; y: number } }
 
@@ -16,8 +17,7 @@ export function anyNodeVisibleInViewport(
 ): boolean {
   const z = zoom || 1
   return nodes.some((n) => {
-    const w = n.size?.width || 300
-    const h = n.size?.height || 220
+    const { width: w, height: h } = getNodeSize(n)
     const left = n.position.x * z + offset.x
     const top = n.position.y * z + offset.y
     const right = (n.position.x + w) * z + offset.x

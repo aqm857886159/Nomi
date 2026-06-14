@@ -5,6 +5,7 @@ import {
   type GenerationNodeKind,
   type GenerationNodePluginDefinition,
 } from '../nodes/registry'
+import type { GenerationCanvasNode } from './generationCanvasTypes'
 
 export { GENERATION_NODE_KINDS }
 export type { GenerationNodeExecutionKind, GenerationNodeKind }
@@ -37,19 +38,31 @@ export function getGenerationNodeDefaultSize(kind: GenerationNodeKind): { width:
   return getGenerationNodeDefinition(kind).defaultSize
 }
 
+// 极端兜底：理论不可达（registry 必含每个 kind 的 defaultSize），仅防 kind 串入非法值。
+const FOOTPRINT_FALLBACK_SIZE = { width: 340, height: 280 }
+
+// 节点尺寸的**单一真相源**（跨 store / components / fixation 共用，避免第二份真相源）：
+// 显式 node.size 优先，否则回退到 registry 的 per-kind defaultSize。所有几何子系统
+// （虚拟化 / fitView / 连线命中 / 框选 / 自适应散落 / minimap / 边 / 分组框 / 碰撞避让）
+// 都经此函数取尺寸，不再各自内联 ||300/220 或裸 320×360——那些常量与真实渲染宽不一致，
+// 让同一无 size 节点在不同子系统被算成不同大小（框选命中框比真实窄 → 选不中可见卡）。
+export function getNodeSize(node: Pick<GenerationCanvasNode, 'kind' | 'size'>): { width: number; height: number } {
+  return node.size ?? DEFAULT_NODE_SIZE[node.kind] ?? FOOTPRINT_FALLBACK_SIZE
+}
+
 // 名义尺寸（registry.defaultSize）与真实渲染尺寸有差：footer/动态内容让实际比名义高一截
 // （真机实测十几到数十 px）。凡「落点间距 / 碰撞避让」都用这个外扩后的**足迹**来算，让间距
 // 吸收「渲染 > 名义」的增量 → 任何 kind、任何布局路径都不重叠。
 // 单插避让（store/resolveInsertionPosition）与批量布局（agent/trajectoryLayout）共用同一常量，
 // 不许各搞一套余量（那就是第二份真相源，正是「有的路径会重叠」这类 bug 的来源）。
+// 基础尺寸同样走 getNodeSize（共用单一真相源，不再各自 size ?? DEFAULT[kind]）。
 export const NODE_RENDER_SAFETY = 64
-const FOOTPRINT_FALLBACK_SIZE = { width: 340, height: 280 }
 
 export function getGenerationNodeFootprintSize(
   kind: GenerationNodeKind,
   size?: { width: number; height: number },
 ): { width: number; height: number } {
-  const base = size ?? DEFAULT_NODE_SIZE[kind] ?? FOOTPRINT_FALLBACK_SIZE
+  const base = getNodeSize({ kind, size })
   return { width: base.width + NODE_RENDER_SAFETY, height: base.height + NODE_RENDER_SAFETY }
 }
 

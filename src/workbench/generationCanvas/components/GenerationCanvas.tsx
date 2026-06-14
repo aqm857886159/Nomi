@@ -24,6 +24,7 @@ import {
   clampNumber,
   createInitialViewport,
   getCanvasGroupBoxes,
+  getNodeSize,
   getSelectedBounds,
 } from './generationCanvasGeometry'
 import { GENERATION_DEFAULT_BASE_URL, GENERATION_PROVIDER, readProviderSetting, writeProviderSettings } from '../services/providerSettings'
@@ -160,8 +161,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     return nodes.filter((node) => {
       const nx = node.position.x
       const ny = node.position.y
-      const nw = node.size?.width || 300
-      const nh = node.size?.height || 220
+      const { width: nw, height: nh } = getNodeSize(node)
       // AABB intersection test
       return nx + nw >= viewLeft && nx <= viewRight && ny + nh >= viewTop && ny <= viewBottom
     })
@@ -501,8 +501,8 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     const padding = 80
     const minX = Math.min(...nodes.map((n) => n.position.x))
     const minY = Math.min(...nodes.map((n) => n.position.y))
-    const maxX = Math.max(...nodes.map((n) => n.position.x + (n.size?.width || 300)))
-    const maxY = Math.max(...nodes.map((n) => n.position.y + (n.size?.height || 220)))
+    const maxX = Math.max(...nodes.map((n) => n.position.x + getNodeSize(n).width))
+    const maxY = Math.max(...nodes.map((n) => n.position.y + getNodeSize(n).height))
     const contentW = maxX - minX + padding * 2
     const contentH = maxY - minY + padding * 2
     const nextZoom = Math.min(1.2, Math.min(rect.width / contentW, rect.height / contentH))

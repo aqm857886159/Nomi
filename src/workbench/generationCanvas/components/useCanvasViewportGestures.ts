@@ -291,8 +291,8 @@ export function useCanvasViewportGestures({
     const isZoom = event.ctrlKey || event.metaKey
     if (!isZoom) {
       // 命中卡内可滚区（提示词编辑器等）→ 交原生滚动，画布不动（一处覆盖所有入口，P2）。
-      const dominant = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX
-      if (event.target instanceof Element && findScrollableAncestor(event.target, stageRef.current, dominant)) return
+      // 主轴判定在 findScrollableAncestor 内做（横/纵都支持），不在此处折成单轴 delta。
+      if (event.target instanceof Element && findScrollableAncestor(event.target, stageRef.current, event.deltaX, event.deltaY)) return
       event.preventDefault()
       setContextNodeMenu(null)
       // Shift+滚轮：把纵向滚动当横向（鼠标无横轴时的水平平移）

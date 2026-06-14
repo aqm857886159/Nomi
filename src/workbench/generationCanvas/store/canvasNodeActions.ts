@@ -1,6 +1,7 @@
 import { createGenerationNode, removeNodes, upsertNode } from '../model/graphOps'
 import { resolveInsertionPosition } from './resolveInsertionPosition'
 import { getDefaultCategoryForNodeKind, type GenerationCanvasNode } from '../model/generationCanvasTypes'
+import { getNodeSize } from '../model/generationNodeKinds'
 import { isShotNumberedNode, nextShotIndex } from '../model/shotNumbering'
 import { CLIPBOARD_OFFSET, createClipboardNodeId, createNodeId } from './canvasIds'
 import { bumpPersistRevision, isCategoryId, shouldPersistCanvasMutation } from './canvasGuards'
@@ -191,8 +192,7 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     set((state) => {
       const hits = state.nodes.filter((node) => {
         if (categoryId && (node.categoryId || 'shots') !== categoryId) return false
-        const w = node.size?.width || 300
-        const h = node.size?.height || 220
+        const { width: w, height: h } = getNodeSize(node)
         return node.position.x + w >= left && node.position.x <= right &&
           node.position.y + h >= top && node.position.y <= bottom
       }).map((node) => node.id)
