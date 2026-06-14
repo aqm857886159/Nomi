@@ -184,6 +184,25 @@ export function removeClipsByIds(timeline: TimelineState, clipIds: readonly stri
   return removed ? { ...timeline, tracks } : timeline
 }
 
+/**
+ * 删画布节点 → 时间轴对账：移除所有 sourceNodeId 命中的 clip（跨轨、含同节点的多个产物）。
+ * 根因（P2，数据一致性）：clip 创建时把节点 result 的 url/thumbnailUrl 快照冻结，无 node→clip 同步；
+ * 画布删了节点后时间轴仍引用「已不存在/过期素材」，导出会渲染悬空帧。此处按 sourceNodeId 单向对账，
+ * 让「画布删了的节点，时间轴不再放它的旧产物」。无命中返回原引用 → store 据此跳过 persistRevision 自增。
+ */
+export function removeClipsBySourceNodeIds(timeline: TimelineState, nodeIds: readonly string[]): TimelineState {
+  const idSet = new Set(nodeIds.map((id) => String(id || '').trim()).filter(Boolean))
+  if (idSet.size === 0) return timeline
+  let removed = false
+  const tracks = timeline.tracks.map((track) => {
+    const nextClips = track.clips.filter((clip) => !idSet.has(clip.sourceNodeId))
+    if (nextClips.length === track.clips.length) return track
+    removed = true
+    return { ...track, clips: nextClips }
+  })
+  return removed ? { ...timeline, tracks } : timeline
+}
+
 // ── 成组移动（多选拖动）─────────────────────────────────────────
 export type ClipOrigin = { id: string; startFrame: number; endFrame: number }
 

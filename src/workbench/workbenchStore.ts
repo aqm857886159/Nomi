@@ -8,6 +8,7 @@ import {
   nudgeClipById,
   removeClipById,
   removeClipsByIds,
+  removeClipsBySourceNodeIds,
   resizeClipEdge,
   setClipFraming,
   setTimelinePlayheadFrame,
@@ -134,6 +135,11 @@ type WorkbenchState = {
   setTimelineSnapGuide: (guide: TimelineSnapGuide | null) => void
   removeTimelineClip: (clipId: string) => void
   removeSelectedTimelineClips: () => void
+  /**
+   * 删画布节点后的时间轴对账：移除所有引用这些 sourceNodeId 的 clip。
+   * 由 canvasNodeActions 的 deleteNode/deleteSelectedNodes 删完节点后调用（跨 store 最小耦合）。
+   */
+  reconcileTimelineForDeletedNodes: (nodeIds: readonly string[]) => void
   resizeTimelineClip: (clipId: string, edge: 'left' | 'right', deltaFrame: number) => void
   splitTimelineClip: (clipId: string, frame: number) => void
   duplicateTimelineClip: (clipId: string) => void
@@ -383,6 +389,21 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
         selectedTimelineClipIds: [],
         timelinePlaying: false,
         persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
+      }
+    })
+  },
+  reconcileTimelineForDeletedNodes: (nodeIds) => {
+    set((state) => {
+      const nextTimeline = removeClipsBySourceNodeIds(state.timeline, nodeIds)
+      if (nextTimeline === state.timeline) return state // 无悬空 clip → 不动、不触发自动保存
+      // 被移除的 clip 可能正被选中/正在播 → 一并收口，避免选区指向已删 clip
+      const liveClipIds = new Set(
+        nextTimeline.tracks.flatMap((track) => track.clips.map((clip) => clip.id)),
+      )
+      return {
+        timeline: nextTimeline,
+        selectedTimelineClipIds: state.selectedTimelineClipIds.filter((id) => liveClipIds.has(id)),
+        persistRevision: state.persistRevision + 1,
       }
     })
   },

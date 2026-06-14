@@ -10,6 +10,7 @@ import { TEXT_FONTS, DEFAULT_TEXT_FONT_ID } from '../timeline/textFonts'
 import { SCALE_MIN, SCALE_MAX } from '../timeline/overlayTransform'
 import { resolveClipFraming, clampFramingScale, type ClipFit } from '../timeline/clipFraming'
 import { framingToMediaStyle, mediaFitClass, framingOffsetFromDrag } from './previewMediaFraming'
+import { fitPreviewStageSize } from './previewStageLayout'
 import OverlaySelectionBox from './OverlaySelectionBox'
 import type { PreviewAspectRatio } from '../workbenchTypes'
 import { resolveVideoClipMediaTimeSeconds } from '../player/timelinePlayback'
@@ -36,8 +37,6 @@ function findClip(activeClips: TimelineClip[], type: TimelineClip['type']): Time
   return activeClips.find((clip) => clip.type === type) || null
 }
 
-const PREVIEW_MAX_STAGE_WIDTH = 1040
-
 const PREVIEW_RATIOS: Array<{ value: PreviewAspectRatio; label: string; title: string; css: string; width: number; height: number }> = [
   { value: '16:9', label: '16:9', title: '横屏 / YouTube / B站', css: '16 / 9', width: 16, height: 9 },
   { value: '9:16', label: '9:16', title: '竖屏 / 短视频', css: '9 / 16', width: 9, height: 16 },
@@ -47,35 +46,6 @@ const PREVIEW_RATIOS: Array<{ value: PreviewAspectRatio; label: string; title: s
   { value: '4:3', label: '4:3', title: '传统横屏', css: '4 / 3', width: 4, height: 3 },
   { value: '21:9', label: '21:9', title: '电影宽屏', css: '21 / 9', width: 21, height: 9 },
 ]
-
-export function fitPreviewStageSize(params: {
-  containerWidth: number
-  containerHeight: number
-  ratioWidth: number
-  ratioHeight: number
-  maxWidth?: number
-}): { width: number; height: number } {
-  const containerWidth = Math.max(0, Number(params.containerWidth) || 0)
-  const containerHeight = Math.max(0, Number(params.containerHeight) || 0)
-  const ratioWidth = Math.max(1, Number(params.ratioWidth) || 1)
-  const ratioHeight = Math.max(1, Number(params.ratioHeight) || 1)
-  const maxWidth = Math.max(1, Number(params.maxWidth) || PREVIEW_MAX_STAGE_WIDTH)
-  if (containerWidth <= 0 || containerHeight <= 0) {
-    return { width: 0, height: 0 }
-  }
-
-  const ratio = ratioWidth / ratioHeight
-  let width = Math.min(containerWidth, maxWidth, containerHeight * ratio)
-  let height = width / ratio
-  if (height > containerHeight) {
-    height = containerHeight
-    width = height * ratio
-  }
-  return {
-    width: Math.max(1, Math.floor(width)),
-    height: Math.max(1, Math.floor(height)),
-  }
-}
 
 // 控制条圆形小图标按钮的统一样式。关键：cursor/hover 用 `enabled:` 变体门控——
 // disabled 按钮仍会收到 :hover，旧写法的无条件 `cursor-pointer hover:bg…` 会让禁用态
@@ -521,6 +491,9 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
                 background: box.hasBackdrop ? 'color-mix(in oklch, var(--nomi-paper) 86%, transparent)' : 'transparent',
                 border: box.hasBackdrop ? '1px solid var(--nomi-line-soft)' : 'none',
                 borderRadius: 'var(--nomi-radius-md)',
+                // 折行契约：预览用 CSS 原生折行，导出 canvas 用 textLayout.wrapTextToWidth 复刻同一语义
+                // （white-space:pre-wrap + word-break:break-word ⇔ 显式换行 + 优先整词断 + 超长词逐字断）。
+                // 两端共用 box 几何（resolveTextBox）与内边距（0.32em/0.7em ↔ 导出 fontSize*1.4 budget），断行一致。
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
               }

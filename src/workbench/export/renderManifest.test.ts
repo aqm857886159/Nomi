@@ -155,6 +155,64 @@ describe('buildRenderManifestRequest', () => {
     expect(clips[1]).not.toHaveProperty('transform')
   })
 
+  it('does not merge two clips from the same node when they carry different result urls', () => {
+    // 同一节点产出两个不同 result(不同 url)都被放上时间轴 → 必须各自成 asset，
+    // 否则 mergeAsset 按 sourceNodeId 合成一个、只留先到的 url，后镜头放成前画面。
+    const firstResult = makeClip({
+      id: 'clip-shotA-r1',
+      sourceNodeId: 'node-shot',
+      url: 'file:///project/media/result-1.mp4',
+      startFrame: 0,
+      endFrame: 30,
+    })
+    const secondResult = makeClip({
+      id: 'clip-shotA-r2',
+      sourceNodeId: 'node-shot',
+      url: 'file:///project/media/result-2.mp4',
+      startFrame: 30,
+      endFrame: 60,
+    })
+    const request = buildRenderManifestRequest({
+      projectId: 'project-1',
+      timeline: makeTimeline([{ id: 'videoTrack', type: 'video', label: 'Video', clips: [firstResult, secondResult] }]),
+      aspectRatio: '16:9',
+      resolution: '1080p',
+      quality: 'standard',
+      preset: 'publish',
+    })
+
+    const assetIds = Object.keys(request.assets)
+    expect(assetIds).toHaveLength(2)
+    const urls = assetIds.map((id) => request.assets[id].url).sort()
+    expect(urls).toEqual(['file:///project/media/result-1.mp4', 'file:///project/media/result-2.mp4'])
+
+    // 每个 clip 的 assetId 必须各自指向自己 url 的 asset（导出契约：assetId→asset 一一对应）
+    const clips = request.timeline.tracks[0]?.clips ?? []
+    const clipA = clips.find((clip) => clip.id === 'clip-shotA-r1')!
+    const clipB = clips.find((clip) => clip.id === 'clip-shotA-r2')!
+    expect(clipA.assetId).not.toBe(clipB.assetId)
+    expect(request.assets[clipA.assetId].url).toBe('file:///project/media/result-1.mp4')
+    expect(request.assets[clipB.assetId].url).toBe('file:///project/media/result-2.mp4')
+  })
+
+  it('still merges two clips from the same node sharing one url into a single asset', () => {
+    // 同节点同 url（如 split 出的两段、或同一图片放两处）应共用一个 asset，不重复声明。
+    const head = makeClip({ id: 'clip-img-head', sourceNodeId: 'node-img', type: 'image', url: 'file:///project/media/still.png', startFrame: 0, endFrame: 30 })
+    const tail = makeClip({ id: 'clip-img-tail', sourceNodeId: 'node-img', type: 'image', url: 'file:///project/media/still.png', startFrame: 30, endFrame: 60 })
+    const request = buildRenderManifestRequest({
+      projectId: 'project-1',
+      timeline: makeTimeline([{ id: 'imageTrack', type: 'image', label: 'Images', clips: [head, tail] }]),
+      aspectRatio: '16:9',
+      resolution: '1080p',
+      quality: 'standard',
+      preset: 'publish',
+    })
+
+    expect(Object.keys(request.assets)).toHaveLength(1)
+    const clips = request.timeline.tracks[0]?.clips ?? []
+    expect(clips[0].assetId).toBe(clips[1].assetId)
+  })
+
   it('does not fake hasAudio but can carry it from future media probe clip metadata', () => {
     const silentClip = makeClip({ id: 'clip-silent', sourceNodeId: 'asset-silent' })
     const probedClip = makeClip({ id: 'clip-probed', sourceNodeId: 'asset-probed' }) as TimelineClip & { hasAudio: boolean }

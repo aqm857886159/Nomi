@@ -45,10 +45,44 @@ type TimelineClipWithFutureProbeData = TimelineClip & {
   hasAudio?: unknown
 }
 
-function buildAssetFromClip(clip: TimelineClip): RendererRenderAsset {
+/**
+ * 解析每个 clip 的 asset id（导出契约：asset map key === asset.id === clip.assetId）。
+ *
+ * 根因（P2）：旧实现一律拿 clip.sourceNodeId 当 asset id，于是「同一节点的两个不同 result
+ * （不同 url）都放上时间轴」会合并成一个 asset、只留先到的 url → 后镜头放成前画面。
+ * 修法：合并键纳入「内容标识」= url。同节点同 url 仍合一个（split 出的两段、同图放两处）；
+ * 同节点不同 url 各自成 asset。第一/唯一 url 保留裸 sourceNodeId（不动既有单产物快照与 id 可读性），
+ * 之后每个新 url 领一个稳定后缀。两遍扫描全轨 → buildAssets 与 buildClip 共用同一映射，绝不分叉。
+ */
+function resolveAssetIds(tracks: TimelineTrack[]): Map<string, string> {
+  const clipIdToAssetId = new Map<string, string>()
+  // sourceNodeId → (url → assetId)：同节点下每个 distinct url 分一个稳定 id
+  const nodeUrlToAssetId = new Map<string, Map<string, string>>()
+  for (const track of tracks) {
+    for (const clip of track.clips) {
+      const nodeId = clip.sourceNodeId
+      const urlKey = clip.url ?? '' // 无 url 的 clip 归到该节点的「空 url」桶，仍共用裸 nodeId
+      let urlMap = nodeUrlToAssetId.get(nodeId)
+      if (!urlMap) {
+        urlMap = new Map<string, string>()
+        nodeUrlToAssetId.set(nodeId, urlMap)
+      }
+      let assetId = urlMap.get(urlKey)
+      if (assetId === undefined) {
+        // 第一个 url 用裸 nodeId；之后用 nodeId#2、#3…（非空、稳定、可读）
+        assetId = urlMap.size === 0 ? nodeId : `${nodeId}#${urlMap.size + 1}`
+        urlMap.set(urlKey, assetId)
+      }
+      clipIdToAssetId.set(clip.id, assetId)
+    }
+  }
+  return clipIdToAssetId
+}
+
+function buildAssetFromClip(clip: TimelineClip, assetId: string): RendererRenderAsset {
   const clipWithProbeData = clip as TimelineClipWithFutureProbeData
   return {
-    id: clip.sourceNodeId,
+    id: assetId,
     kind: clip.type,
     ...(clip.url ? { url: clip.url } : {}),
     ...(typeof clipWithProbeData.hasAudio === 'boolean' ? { hasAudio: clipWithProbeData.hasAudio } : {}),
@@ -69,22 +103,26 @@ function mergeAsset(existing: RendererRenderAsset | undefined, next: RendererRen
   return merged
 }
 
-function buildAssets(tracks: TimelineTrack[]): Record<string, RendererRenderAsset> {
+function buildAssets(tracks: TimelineTrack[], clipIdToAssetId: Map<string, string>): Record<string, RendererRenderAsset> {
   return tracks.reduce<Record<string, RendererRenderAsset>>((assets, track) => {
     track.clips.forEach((clip) => {
-      const next = buildAssetFromClip(clip)
+      const assetId = clipIdToAssetId.get(clip.id) ?? clip.sourceNodeId
+      const next = buildAssetFromClip(clip, assetId)
       assets[next.id] = mergeAsset(assets[next.id], next)
     })
     return assets
   }, {})
 }
 
-function buildClip(clip: TimelineClip): RendererRenderManifestRequest['timeline']['tracks'][number]['clips'][number] {
+function buildClip(
+  clip: TimelineClip,
+  clipIdToAssetId: Map<string, string>,
+): RendererRenderManifestRequest['timeline']['tracks'][number]['clips'][number] {
   // 取景只在非默认时携带 → 默认构图的 clip 不增 manifest 体积、不动既有快照。
   const framing = resolveClipFraming(clip)
   return {
     id: clip.id,
-    assetId: clip.sourceNodeId,
+    assetId: clipIdToAssetId.get(clip.id) ?? clip.sourceNodeId,
     startFrame: clip.startFrame,
     endFrame: clip.endFrame,
     sourceStartFrame: clip.offsetStartFrame,
@@ -93,12 +131,15 @@ function buildClip(clip: TimelineClip): RendererRenderManifestRequest['timeline'
   }
 }
 
-function buildTrack(track: TimelineTrack): RendererRenderManifestRequest['timeline']['tracks'][number] {
+function buildTrack(
+  track: TimelineTrack,
+  clipIdToAssetId: Map<string, string>,
+): RendererRenderManifestRequest['timeline']['tracks'][number] {
   return {
     id: track.id,
     kind: track.type,
     type: track.type,
-    clips: track.clips.map(buildClip),
+    clips: track.clips.map((clip) => buildClip(clip, clipIdToAssetId)),
   }
 }
 
@@ -112,8 +153,10 @@ export function buildRenderManifestRequest(options: {
 }): RendererRenderManifestRequest {
   const durationFrames = computeTimelineDuration(options.timeline)
   const dimensions = dimensionsForPreset(options.resolution, options.aspectRatio)
+  // 单一来源:clip→assetId 映射先算一次,track 与 assets 共用,保证 assetId/asset.id/map key 三处一致。
+  const clipIdToAssetId = resolveAssetIds(options.timeline.tracks)
   const tracks = options.timeline.tracks
-    .map(buildTrack)
+    .map((track) => buildTrack(track, clipIdToAssetId))
     .filter((track) => track.clips.length > 0)
   const warnings = [THIN_TIMELINE_MODEL_WARNING, OMIT_UNSUPPORTED_TRACKS_WARNING]
 
@@ -143,7 +186,7 @@ export function buildRenderManifestRequest(options: {
       pixelFormat: 'yuv420p',
       quality: options.quality,
     },
-    assets: buildAssets(options.timeline.tracks),
+    assets: buildAssets(options.timeline.tracks, clipIdToAssetId),
     diagnostics: { warnings },
   }
 }

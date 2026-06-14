@@ -70,6 +70,77 @@ export function resolveTextBox(clip: TimelineTextClip, width: number, height: nu
   }
 }
 
+/**
+ * 文字折行的「单一规范」。预览 DOM 用 CSS（white-space:pre-wrap + word-break:break-word）自动折，
+ * 导出 canvas（textOverlayCanvas）拿不到 DOM 折行，过去用「逐字贪心」手搓 → 拉丁单词被拦腰截断，
+ * 与预览断行不一致（P2）。此函数把 word-break:break-word 的语义集中实现：
+ *   1) 显式 `\n` 为硬换行（段落）；空段落保留为空行。
+ *   2) 段内按空格断词，优先整词换行（不截断单词）——尽量同行装箱（贪心）。
+ *   3) 单个词放不进限宽时逐字断（覆盖 CJK 无空格、长 URL/长串）——绝不丢字。
+ * measure 由调用方注入（canvas 传 ctx.measureText(t).width；测试传等宽度量），故纯函数可测、与渲染同度量。
+ */
+export function wrapTextToWidth(
+  text: string,
+  maxWidth: number,
+  measure: (segment: string) => number,
+): string[] {
+  const limit = Math.max(1, maxWidth)
+  const out: string[] = []
+
+  // 一个词若超过限宽，逐字切成多段（最后一段返回，供继续与后续词拼行）。
+  const breakLongWord = (word: string): { lines: string[]; tail: string } => {
+    const lines: string[] = []
+    let segment = ''
+    for (const ch of word) {
+      const candidate = segment + ch
+      if (segment && measure(candidate) > limit) {
+        lines.push(segment)
+        segment = ch
+      } else {
+        segment = candidate
+      }
+    }
+    return { lines, tail: segment }
+  }
+
+  for (const paragraph of text.split('\n')) {
+    if (!paragraph) {
+      out.push('')
+      continue
+    }
+    let line = ''
+    for (const word of paragraph.split(' ')) {
+      const candidate = line ? `${line} ${word}` : word
+      if (!line) {
+        // 行首：词能放下就放；放不下逐字断，末段留作行首继续。
+        if (measure(word) <= limit) {
+          line = word
+        } else {
+          const { lines, tail } = breakLongWord(word)
+          out.push(...lines)
+          line = tail
+        }
+        continue
+      }
+      if (measure(candidate) <= limit) {
+        line = candidate
+        continue
+      }
+      // 加这个词超宽 → 当前行落定，词另起。
+      out.push(line)
+      if (measure(word) <= limit) {
+        line = word
+      } else {
+        const { lines, tail } = breakLongWord(word)
+        out.push(...lines)
+        line = tail
+      }
+    }
+    out.push(line)
+  }
+  return out
+}
+
 /** 字幕默认时长（秒）——加一条字幕/标题卡时的默认可见区间。 */
 export const DEFAULT_TEXT_CLIP_SECONDS = 3
 

@@ -1,25 +1,5 @@
 import type { TimelineTextClip } from './timelineTypes'
-import { resolveTextBox } from './textLayout'
-
-function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const out: string[] = []
-  for (const paragraph of text.split('\n')) {
-    if (!paragraph) { out.push(''); continue }
-    let line = ''
-    // CJK 无空格 → 逐字贪心折行；同时尊重已有空格断点。
-    for (const ch of paragraph) {
-      const candidate = line + ch
-      if (line && ctx.measureText(candidate).width > maxWidth) {
-        out.push(line)
-        line = ch
-      } else {
-        line = candidate
-      }
-    }
-    out.push(line)
-  }
-  return out
-}
+import { resolveTextBox, wrapTextToWidth } from './textLayout'
 
 function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
   const radius = Math.min(r, w / 2, h / 2)
@@ -47,7 +27,8 @@ export function drawTextBox(ctx: CanvasRenderingContext2D, clip: TimelineTextCli
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 
-  const lines = wrapLines(ctx, content, Math.max(1, innerMaxWidth))
+  // 折行用 textLayout 单一规范（word-break:break-word 语义），度量注入 canvas 实测宽 → 与预览断行一致。
+  const lines = wrapTextToWidth(content, Math.max(1, innerMaxWidth), (segment) => ctx.measureText(segment).width)
   const lineHeightPx = box.fontSizePx * box.lineHeight
   const textBlockHeight = lines.length * lineHeightPx
   const widestLine = lines.reduce((max, line) => Math.max(max, ctx.measureText(line).width), 0)
