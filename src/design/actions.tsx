@@ -188,10 +188,37 @@ export function ActionCard({
   )
 }
 
+// 变体/尺寸 = 工作区按钮的唯一真相源:卡片动作(确认/拒绝/整笔撤销/撤销这次改动/让AI修…)
+// 一律走 variant+size,不再各处 ad-hoc className 各覆写一套(那是「明显不是一个设计风格」的根因)。
+const WORKBENCH_BUTTON_SIZE = {
+  md: 'h-8 px-3 text-[13px]',
+  sm: 'h-7 px-3 text-[12px]', // 时间线卡片内的紧凑动作
+} as const
+
+const WORKBENCH_BUTTON_VARIANT = {
+  // 次要/幽灵:边框 + 浅底,工作区默认。
+  default: cn(
+    'border border-workbench-border-soft bg-workbench-surface text-workbench-ink',
+    'hover:bg-workbench-hover active:bg-workbench-pressed',
+  ),
+  // 主操作:深底反白,hover 转 accent(确认/撤销这次改动等强动作)。
+  primary: cn(
+    'border-0 bg-nomi-ink text-nomi-paper',
+    'hover:bg-nomi-accent',
+  ),
+  // 强调文字:幽灵底 + accent 字(「让 AI 修一下」这类引导操作)。
+  accent: cn(
+    'border border-workbench-border-soft bg-workbench-surface text-nomi-accent',
+    'hover:bg-workbench-hover',
+  ),
+} as const
+
 export type WorkbenchButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children?: ReactNode
   /** pending 规范 #2:点击触发 async 时置 true → 品牌 N 转圈占位 + 自动禁用 + aria-busy。 */
   loading?: boolean
+  variant?: keyof typeof WORKBENCH_BUTTON_VARIANT
+  size?: keyof typeof WORKBENCH_BUTTON_SIZE
 }
 
 export function WorkbenchButton({
@@ -200,20 +227,19 @@ export function WorkbenchButton({
   type = 'button',
   loading = false,
   disabled,
+  variant = 'default',
+  size = 'md',
   ...props
 }: WorkbenchButtonProps): JSX.Element {
   const rootClassName = cn(
     'tc-workbench-button',
-    'inline-flex items-center justify-center gap-1.5',
-    'h-8 px-3 rounded-workbench-control',
-    'border border-workbench-border-soft',
-    'bg-workbench-surface text-workbench-ink text-[13px] font-medium',
+    'inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium',
     'cursor-pointer',
     'transition-[background,border-color,color,box-shadow] duration-150 ease-out',
-    'hover:bg-workbench-hover',
-    'active:bg-workbench-pressed',
     'disabled:opacity-50 disabled:cursor-not-allowed',
     '[&>svg]:size-4 [&>svg]:stroke-2',
+    WORKBENCH_BUTTON_SIZE[size],
+    WORKBENCH_BUTTON_VARIANT[variant],
     className,
   )
 
