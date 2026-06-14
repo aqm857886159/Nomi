@@ -1,14 +1,14 @@
 import React from 'react'
-import { IconChevronDown, IconDownload, IconLetterCase, IconMinus, IconPlayerPause, IconPlayerPlay, IconPlus, IconRefresh, IconX, IconZoomIn, IconZoomOut } from '@tabler/icons-react'
+import { IconChevronDown, IconDownload, IconLetterCase, IconPlayerPause, IconPlayerPlay, IconRefresh, IconX, IconZoomIn, IconZoomOut } from '@tabler/icons-react'
 import { NomiLoadingMark, NomiSelect, WorkbenchButton, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
 import { useWorkbenchStore } from '../workbenchStore'
 import type { TimelineClip, TimelineState } from '../timeline/timelineTypes'
 import { resolveActiveTextClipsAtFrame } from '../timeline/timelineMath'
 import { resolveTextBox, resolveOverlayTransform } from '../timeline/textLayout'
-import { TEXT_FONTS, DEFAULT_TEXT_FONT_ID } from '../timeline/textFonts'
-import { SCALE_MIN, SCALE_MAX } from '../timeline/overlayTransform'
 import { resolveClipFraming, clampFramingScale, type ClipFit } from '../timeline/clipFraming'
+import { TextClipStyleControls } from './TextClipStyleControls'
+import { CONTROL_ICON_BUTTON_CLASS } from './previewControlTokens'
 import { framingToMediaStyle, mediaFitClass, framingOffsetFromDrag } from './previewMediaFraming'
 import { fitPreviewStageSize } from './previewStageLayout'
 import OverlaySelectionBox from './OverlaySelectionBox'
@@ -47,18 +47,6 @@ const PREVIEW_RATIOS: Array<{ value: PreviewAspectRatio; label: string; title: s
   { value: '21:9', label: '21:9', title: '电影宽屏', css: '21 / 9', width: 21, height: 9 },
 ]
 
-// 控制条圆形小图标按钮的统一样式。关键：cursor/hover 用 `enabled:` 变体门控——
-// disabled 按钮仍会收到 :hover，旧写法的无条件 `cursor-pointer hover:bg…` 会让禁用态
-// 仍高亮成「假可点」。整条控制条共用此常数，禁用态收口一处（不逐个补）。
-// 注意 WorkbenchIconButton 基类自带「无条件」hover:bg-workbench-hover/text-workbench-ink，
-// twMerge 把 base 的 `hover:` 与本处 `enabled:hover:` 视作不同键（都保留）→ 仅加 enabled:
-// 杀不掉基类那条 hover。故再显式补 `disabled:hover:`（双伪类，特异性高于基类单 hover）把
-// 禁用态 hover 钉回静息态——这是 R8 反复点名的 twMerge 隐藏覆盖坑。
-const CONTROL_ICON_BUTTON_CLASS =
-  'w-6 h-6 inline-grid place-items-center p-0 border border-transparent rounded-full bg-transparent text-[var(--workbench-muted)] ' +
-  'enabled:cursor-pointer enabled:hover:bg-[var(--workbench-hover)] enabled:hover:text-[var(--workbench-ink)] ' +
-  'disabled:hover:bg-transparent disabled:hover:text-[var(--workbench-muted)]'
-
 export default function TimelinePreview({ activeClips, aspectRatio, fps, playheadFrame, timeline }: TimelinePreviewProps): JSX.Element {
   const playerRef = React.useRef<HTMLDivElement | null>(null)
   const stageRef = React.useRef<HTMLDivElement | null>(null)
@@ -85,12 +73,10 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
   const [editingDraft, setEditingDraft] = React.useState('')
   const [textMenuOpen, setTextMenuOpen] = React.useState(false)
   const textMenuRef = React.useRef<HTMLDivElement | null>(null)
-  const [sizePctDraft, setSizePctDraft] = React.useState('')
   const [textSnapGuides, setTextSnapGuides] = React.useState<{ x: number | null; y: number | null }>({ x: null, y: null })
   const addTimelineTextClip = useWorkbenchStore((state) => state.addTimelineTextClip)
   const updateTimelineTextClip = useWorkbenchStore((state) => state.updateTimelineTextClip)
   const updateTimelineTextClipTransform = useWorkbenchStore((state) => state.updateTimelineTextClipTransform)
-  const updateTimelineTextClipFont = useWorkbenchStore((state) => state.updateTimelineTextClipFont)
   const selectTimelineTextClip = useWorkbenchStore((state) => state.selectTimelineTextClip)
   const selectedTextClipId = useWorkbenchStore((state) => state.selectedTextClipId)
   const setPreviewAspectRatio = useWorkbenchStore((state) => state.setPreviewAspectRatio)
@@ -354,24 +340,6 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
   // 文字叠加层（字幕/标题卡）：当前帧 active 的文字 clip，按 stage 像素几何摆放。
   const activeTextClips = resolveActiveTextClipsAtFrame(timeline, playheadFrame)
   // 选中的文字 clip → 控制条出字号/字体精确控件
-  const selectedTextClip = (timeline.textClips ?? []).find((clip) => clip.id === selectedTextClipId) || null
-  const selectedTextScale = selectedTextClip ? resolveOverlayTransform(selectedTextClip).scale : 1
-  const selectedTextFontId = selectedTextClip?.fontFamily ?? DEFAULT_TEXT_FONT_ID
-  const selectedSizePct = Math.round(selectedTextScale * 100)
-
-  // 字号输入框：未聚焦时跟随真实 scale，聚焦编辑时用本地 draft。
-  React.useEffect(() => { setSizePctDraft(String(selectedSizePct)) }, [selectedSizePct, selectedTextClipId])
-
-  const applyTextScale = React.useCallback((scale: number) => {
-    if (!selectedTextClipId) return
-    updateTimelineTextClipTransform(selectedTextClipId, { scale: Math.min(SCALE_MAX, Math.max(SCALE_MIN, scale)) }, { commit: true })
-  }, [selectedTextClipId, updateTimelineTextClipTransform])
-
-  const commitSizePct = React.useCallback(() => {
-    const pct = Number(sizePctDraft)
-    if (Number.isFinite(pct) && pct > 0) applyTextScale(pct / 100)
-  }, [applyTextScale, sizePctDraft])
-
   return (
     <section className={cn(
       'workbench-preview-player',
@@ -677,36 +645,7 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
             </div>
           ) : null}
         </div>
-        {selectedTextClip ? (
-          <>
-            <div className={cn('workbench-preview-player__control-separator', 'w-px h-5 bg-[var(--workbench-border-soft)]')} aria-hidden="true" />
-            <div className={cn('workbench-preview-player__text-style', 'flex-none inline-flex items-center gap-1.5')} aria-label="文字样式">
-              <span className="text-[11px] text-[var(--workbench-muted)] font-bold">字号</span>
-              <div className="inline-flex items-center gap-[3px]">
-                <WorkbenchIconButton className={cn(CONTROL_ICON_BUTTON_CLASS)} label="减小字号" icon={<IconMinus size={14} />} onClick={() => applyTextScale(selectedTextScale - 0.1)} />
-                <input
-                  className={cn('w-[40px] h-6 text-center text-[11px] font-bold tabular-nums', 'rounded-[var(--nomi-radius-sm)] border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--workbench-ink)] outline-none focus:border-[var(--nomi-accent)]')}
-                  value={sizePctDraft}
-                  inputMode="numeric"
-                  aria-label="字号百分比"
-                  onChange={(event) => setSizePctDraft(event.target.value.replace(/[^0-9]/g, ''))}
-                  onBlur={commitSizePct}
-                  onKeyDown={(event) => { if (event.key === 'Enter') (event.target as HTMLInputElement).blur() }}
-                />
-                <span className="text-[11px] text-[var(--workbench-muted-soft)]">%</span>
-                <WorkbenchIconButton className={cn(CONTROL_ICON_BUTTON_CLASS)} label="增大字号" icon={<IconPlus size={14} />} onClick={() => applyTextScale(selectedTextScale + 0.1)} />
-              </div>
-              <NomiSelect
-                ariaLabel="字体"
-                leadingLabel="字体"
-                size="xs"
-                value={selectedTextFontId}
-                options={TEXT_FONTS.map((font) => ({ value: font.id, label: font.label }))}
-                onChange={(value) => { if (selectedTextClipId) updateTimelineTextClipFont(selectedTextClipId, value) }}
-              />
-            </div>
-          </>
-        ) : null}
+        <TextClipStyleControls timeline={timeline} selectedTextClipId={selectedTextClipId} />
         <div className={cn(
           'workbench-preview-player__control-separator',
           'w-px h-5 bg-[var(--workbench-border-soft)]',
