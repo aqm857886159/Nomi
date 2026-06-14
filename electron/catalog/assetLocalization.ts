@@ -66,7 +66,8 @@ export async function resolveLocalAsset(
 
   if (ingestion.strategy === "upload-multipart") {
     // multipart/form-data 上传（如 apimart POST /v1/uploads/images）
-    const headers: Record<string, string> = { Authorization: `Bearer ${apiKey}` };
+    // apiKey 为空时不发 Authorization（nomi-relay 等无鉴权中转端点）
+    const headers: Record<string, string> = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
     const response = await postMultipart(ingestion.endpoint, headers, asset.bytes, asset.fileName, asset.contentType);
     const url = readNestedPath(response, ingestion.urlPath);
     if (typeof url !== "string" || !url) {
