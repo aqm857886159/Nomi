@@ -1,9 +1,13 @@
-// L2 LLM-judge(llm-rubric)机制层。铁律(Hamel critique-shadowing):
+// L2 LLM-judge(analytic rubric,Lane A)。铁律(Hamel critique-shadowing):
 //   judge 未对人工标注校准(P/R≥80%)之前,它的判决只展示参考,绝不计入 pass。
-// grading prompt 形态抄 promptfoo DEFAULT_GRADING_PROMPT(Output/Rubric 双标签+强制 JSON)。
+//
+// 分工(Lane A 核心):客观项(数量/参数/连线结构/长度)归 grading.mjs 规则,免费且已有;
+// judge 只评规则查不了的「质量」四维,每维 1-5 档带锚点,逐维独立打分(analytic,非 holistic 单分)。
+// 这样能定位「回归在哪一维」,也不拿昂贵 judge 去判规则早能判的东西。
 //
 // 配置(用户一次性提供便宜档模型,不进仓库): evals/judge.config.json
 //   { "baseUrl": "https://api.xxx.com/v1", "apiKey": "sk-…", "model": "gpt-…-mini" }
+//   防 self-preference:judge 模型尽量选与被测 agent 不同家族的(避免偏袒自家产出)。
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -44,18 +48,68 @@ export function loadFewshots(limit = 6) {
   return [...pass, ...fail];
 }
 
-export const STORYBOARD_RUBRIC = `逐条判断下面的拆镜头结果是否同时满足(全部满足才 pass):
-1. 镜头划分忠实原始文案——没有遗漏文案里的关键叙事节点,也没有凭空编造文案外的情节;
-2. 每个镜头的提示词是「可生成的画面描述」——具体到画面主体/环境/光线/构图,而不是抽象概括;
-3. 相邻镜头在叙事上连续——按文案顺序推进,无跳跃断裂;
-4. 同一主体(角色/产品)在多个镜头中的描述一致——不会镜头 1 是橘猫、镜头 3 变成黑猫。`;
+/**
+ * 拆镜头质量四维(analytic rubric)。每维 1-5 档,锚点写清各档啥样——让 judge「对着标准打第几档」,
+ * 比直接吐模糊小数稳得多。客观项(参数/数量/连线)不在这里,归 grading.mjs 规则。
+ */
+export const QUALITY_DIMENSIONS = [
+  {
+    key: "faithfulness",
+    name: "忠实原文",
+    desc: "镜头是否覆盖了文案的关键情节/卖点,没遗漏、没瞎编文案外的情节",
+    anchors: { 5: "关键节点全覆盖,无遗漏无杜撰", 3: "覆盖主线但漏了次要节点,或轻微发挥", 1: "明显漏掉关键情节,或大量编造文案没有的内容" },
+  },
+  {
+    key: "generatable",
+    name: "画面可生成",
+    desc: "每个镜头是否写成「画得出来的具体画面」(主体/环境/动作/镜头/光线),而非抽象口号或内心戏",
+    anchors: { 5: "每个镜头都是具体可拍画面", 3: "约一半镜头偏抽象或只有概括", 1: "基本是内心戏/口号,模型生成不出来" },
+  },
+  {
+    key: "continuity",
+    name: "叙事连续",
+    desc: "镜头按文案顺序连成一个有节奏的小故事,无跳跃断裂",
+    anchors: { 5: "顺序连贯、节奏成立", 3: "大体连贯但有 1-2 处跳跃", 1: "镜头打乱或彼此割裂,不成故事" },
+  },
+  {
+    key: "consistency",
+    name: "跨镜一致",
+    desc: "同一主体(角色/产品)与画风在各镜头描述里保持一致(决定生成出来像不像一个片子)",
+    anchors: { 5: "主体外观与画风跨镜一致", 3: "主体一致但画风/细节偶有漂移", 1: "同一主体在不同镜头描述矛盾(如镜1橘猫镜3黑猫)" },
+  },
+];
 
-/** 调 OpenAI-compatible chat completions 评一条;返回 {pass, reason} 或 throw。 */
-export async function judgeOne(cfg, { userMessage, createdNodes, rubric = STORYBOARD_RUBRIC, fewshots = [] }) {
+/** 维度 1-5 档 → 0-1 归一(画质量分卡用):1→0, 3→0.5, 5→1。 */
+export function normalizeDimensionScore(score) {
+  const s = Math.max(1, Math.min(5, Number(score) || 1));
+  return +((s - 1) / 4).toFixed(3);
+}
+
+// 任一维度低于此档即判该组拆镜头质量不过关(转正后才计入 pass)。
+export const QUALITY_PASS_THRESHOLD = 3;
+
+/** 兼容旧引用:把四维 rubric 文字化(校准/few-shot 提示里可读)。 */
+export const STORYBOARD_RUBRIC = QUALITY_DIMENSIONS
+  .map((d, i) => `${i + 1}. ${d.name}——${d.desc}(5档=${d.anchors[5]};1档=${d.anchors[1]})`)
+  .join("\n");
+
+function buildRubricBlock() {
+  return QUALITY_DIMENSIONS
+    .map((d) => `- ${d.key}「${d.name}」：${d.desc}\n    5档：${d.anchors[5]} ｜ 3档：${d.anchors[3]} ｜ 1档：${d.anchors[1]}`)
+    .join("\n");
+}
+
+/**
+ * 调 OpenAI-compatible chat completions 评一条拆镜头结果。
+ * 返回 { scores:{维度:1-5}, normalized:{维度:0-1}, qualityScore:0-1, pass:boolean, reason, dimensions:[...] }。
+ * 向后兼容:仍带 .pass(任一维度 < 阈值即 false)与 .reason,eval-score / calibrate 无需改调用。
+ */
+export async function judgeOne(cfg, { userMessage, createdNodes, fewshots = [] }) {
   const shots = createdNodes.map((n, i) => `镜头${i + 1}《${n.title || ""}》: ${n.prompt || "(无提示词)"}`).join("\n");
   const fewshotText = fewshots
     .map((f) => `<Example verdict="${f.verdict}">${String(f.critique).slice(0, 300)}</Example>`)
     .join("\n");
+  const keys = QUALITY_DIMENSIONS.map((d) => d.key);
   const body = {
     model: cfg.model,
     temperature: 0,
@@ -64,13 +118,15 @@ export async function judgeOne(cfg, { userMessage, createdNodes, rubric = STORYB
       {
         role: "system",
         content:
-          "你是视频创作领域的评审。按 Rubric 评判 Output,Rubric 全部条目为真才 pass。" +
-          "不确定时输出 pass=false 并说明哪条存疑(宁可错杀)。只输出 JSON: {\"reason\": string, \"pass\": boolean}。" +
-          (fewshotText ? `\n以下是领域专家过往判例的口径,对齐它:\n${fewshotText}` : ""),
+          "你是视频创作领域的资深评审。逐维度按 Rubric 给这组拆镜头结果打分,每维 1-5 档(对着锚点判该打第几档)。" +
+          "先在 reason 里简述各维判断,再给分。打分铁律:① 不要因为提示词写得长就给高分——长而空洞应低分;" +
+          "② 拿不准时给保守(偏低)分;③ 只评质量四维,不评数量/参数是否填齐(那由规则另查)。" +
+          `只输出 JSON: {"reason": string, "scores": {${keys.map((k) => `"${k}": 1-5`).join(", ")}}}。` +
+          (fewshotText ? `\n以下是领域专家过往判例口径,对齐它:\n${fewshotText}` : ""),
       },
       {
         role: "user",
-        content: `<UserRequest>${userMessage}</UserRequest>\n<Output>\n${shots}\n</Output>\n<Rubric>\n${rubric}\n</Rubric>`,
+        content: `<UserRequest>${userMessage}</UserRequest>\n<Output>\n${shots}\n</Output>\n<Rubric 逐维度 1-5 档>\n${buildRubricBlock()}\n</Rubric>`,
       },
     ],
   };
@@ -84,6 +140,19 @@ export async function judgeOne(cfg, { userMessage, createdNodes, rubric = STORYB
   const text = json?.choices?.[0]?.message?.content || "";
   // grader 输出解析失败必须冒泡为 error,不静默当 fail(抄 promptfoo 纪律)
   const parsed = JSON.parse(text);
-  if (typeof parsed.pass !== "boolean") throw new Error(`judge 输出缺 pass 字段: ${text.slice(0, 120)}`);
-  return { pass: parsed.pass, reason: String(parsed.reason || "") };
+  if (!parsed.scores || typeof parsed.scores !== "object") {
+    throw new Error(`judge 输出缺 scores 字段: ${text.slice(0, 120)}`);
+  }
+  const scores = {};
+  const normalized = {};
+  for (const d of QUALITY_DIMENSIONS) {
+    const raw = Number(parsed.scores[d.key]);
+    if (!Number.isFinite(raw)) throw new Error(`judge 输出缺维度 ${d.key}: ${text.slice(0, 120)}`);
+    scores[d.key] = Math.max(1, Math.min(5, raw));
+    normalized[d.key] = normalizeDimensionScore(scores[d.key]);
+  }
+  const dims = QUALITY_DIMENSIONS.map((d) => d.key);
+  const qualityScore = +(dims.reduce((s, k) => s + normalized[k], 0) / dims.length).toFixed(3);
+  const pass = dims.every((k) => scores[k] >= QUALITY_PASS_THRESHOLD);
+  return { scores, normalized, qualityScore, pass, reason: String(parsed.reason || ""), dimensions: dims };
 }
