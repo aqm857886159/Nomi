@@ -19,6 +19,7 @@ import { IconPlayerPlay, IconPlus, IconTrash, IconCheck, IconX } from '@tabler/i
 import { DesignButton, DesignModal, DesignTextInput, DesignSegmentedControl } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { ProviderKind } from '../../desktop/providerKind'
+import { resolveManualSaveAction } from './onboardingSaveGate'
 import { PROVIDER_PRESETS } from './providerPresets'
 import { cn } from '../../utils/cn'
 import {
@@ -101,6 +102,9 @@ export function OnboardingWizard({ opened, onClose, onCommitted, experience }: {
   const [saving, setSaving] = React.useState(false)
   const [testState, setTestState] = React.useState<'idle' | 'testing' | 'ok' | 'fail'>('idle')
   const [testMessage, setTestMessage] = React.useState('')
+  // 「仍要保存」二次确认态（非阻断门槛，R3 用户拍板）：未测/测试失败时首次点保存先 arm，
+  // 再次点才强行提交。任何输入或测试态变化都自动解除 arm（下方 effect），避免残留误触。
+  const [forceSaveArmed, setForceSaveArmed] = React.useState(false)
   const [milestones, setMilestones] = React.useState<Milestone[]>(INITIAL_MILESTONES)
   const [activeMessage, setActiveMessage] = React.useState('正在阅读文档…')
   const [fieldsCount, setFieldsCount] = React.useState(0)
@@ -280,6 +284,11 @@ export function OnboardingWizard({ opened, onClose, onCommitted, experience }: {
     }
   }, [bridge, vendorName, baseUrl, userApiKey, models, providerKind, buildHeadersObject, onCommitted])
 
+  // 输入或测试态一变 → 解除「仍要保存」二次确认（防 arm 后改了地址/Key 还沿用旧确认）。
+  React.useEffect(() => {
+    setForceSaveArmed(false)
+  }, [testState, baseUrl, userApiKey, models, providerKind])
+
   const handleStart = React.useCallback(async () => {
     if (!bridge?.onboarding) {
       setErrorReason('当前环境没有桌面端模块，无法运行。')
@@ -375,7 +384,13 @@ export function OnboardingWizard({ opened, onClose, onCommitted, experience }: {
     : /^https?:\/\//i.test(baseUrlTrimmed)
   const canTest = baseUrlValid && (providerKind === 'anthropic' || baseUrlTrimmed.length > 0)
   const hasModelId = models.some(m => m.trim().length > 0)
-  const canSaveManual = baseUrlValid && userApiKey.trim().length > 0 && hasModelId && !saving && testState === 'ok'
+  // 非阻断门槛（R3 拍板）：字段齐即可保存；测试未通过走二次确认（arm→confirm），不死拦。
+  const manualFieldsReady = baseUrlValid && userApiKey.trim().length > 0 && hasModelId && !saving
+  const manualSaveAction = resolveManualSaveAction({
+    fieldsReady: manualFieldsReady,
+    testPassed: testState === 'ok',
+    forceArmed: forceSaveArmed,
+  })
   const selectedPreset = PROVIDER_PRESETS.find(p => p.id === presetId)
   const isNamedPreset = Boolean(selectedPreset && !selectedPreset.custom)
   // Named preset already filled a correct BaseURL → hide the jargon-y field unless
@@ -622,12 +637,28 @@ export function OnboardingWizard({ opened, onClose, onCommitted, experience }: {
               </Group>
               <DesignButton
                 variant="filled"
-                onClick={handleManualSave}
-                disabled={!canSaveManual}
+                onClick={() => {
+                  // arm = 首次点击（未测/失败）→ 进二次确认，不提交；其余 → 直接保存。
+                  if (manualSaveAction === 'arm') setForceSaveArmed(true)
+                  else void handleManualSave()
+                }}
+                disabled={manualSaveAction === 'disabled'}
                 loading={saving}
-                title={!canSaveManual && testState !== 'ok' ? '请先点「测试连接」，确认可以连上再保存' : undefined}
+                title={
+                  manualSaveAction === 'arm'
+                    ? '建议先点「测试连接」确认可连上；也可直接保存'
+                    : manualSaveAction === 'confirm'
+                      ? '未验证连接，再次点击将直接保存'
+                      : undefined
+                }
               >
-                {experience ? '保存并继续体验' : '保存'}
+                {manualSaveAction === 'arm'
+                  ? '仍要保存'
+                  : manualSaveAction === 'confirm'
+                    ? '确认保存（未验证连接）'
+                    : experience
+                      ? '保存并继续体验'
+                      : '保存'}
               </DesignButton>
             </Group>
               </>

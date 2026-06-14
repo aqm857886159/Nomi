@@ -31,8 +31,17 @@ function deriveProjectSource(rootPath: string, defaultProjectsRoot: string): Wor
   return resolvedPath.startsWith(`${resolvedRoot}${path.sep}`) ? "native" : "folder";
 }
 
-/** 从 manifest（payload.generationCanvas / 顶层 generationCanvas）的前若干个"有生成结果"的节点取封面 url。 */
-function deriveThumbnailUrls(record: unknown, max = 4): string[] {
+/**
+ * 从 manifest（payload.generationCanvas / 顶层 generationCanvas）的前若干个"有生成结果"的节点取封面 url。
+ *
+ * 单一来源关系（P4 / 缩略图唯一真相源）：本函数是主进程侧（桌面 list 不经渲染层、直接读
+ * manifest 派生封面）的封面派生。**算法真相源在渲染侧** `src/workbench/project/projectNormalize.ts`
+ * 的 `extractThumbnailUrlsFromRaw` / `extractCanvasThumbnailUrls`——两份分属 electron(CJS,
+ * rootDir=electron/) 与 renderer(ESM, src/)，跨 tsconfig 无法直接 import 共享，故以
+ * 「逻辑等价 + 注释锚定 + 等价回归测试」收口：`electron/workspace/thumbnailDerive.equivalence.test.ts`
+ * 用同一组 fixture 跑两份并断言输出逐字相等，任一侧改动漂移即红。改本函数务必同步那侧 + 跑等价测试。
+ */
+export function deriveThumbnailUrls(record: unknown, max = 4): string[] {
   const r = record as { payload?: unknown; generationCanvas?: unknown } | null;
   const payload = r?.payload as { generationCanvas?: unknown } | undefined;
   const gc = (payload && typeof payload === "object" ? payload.generationCanvas : undefined) ?? r?.generationCanvas;

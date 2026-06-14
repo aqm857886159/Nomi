@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createLocalProject, readLocalProject } from './projectRepository'
+import { migrateProjectRecord } from './projectCategoryMigration'
 import { getDesktopBridge } from '../../desktop/bridge'
 
 vi.mock('../../desktop/bridge', () => ({
@@ -91,6 +92,50 @@ describe('projectRepository workspace project creation', () => {
     create.mockClear()
     createLocalProject('外部', undefined, { rootPath: '/Users/me/Work/Folder' })
     expect(create).toHaveBeenCalledWith(expect.not.objectContaining({ draft: true }))
+  })
+
+  describe('creation invariants (single ProjectCreationSpec construction point)', () => {
+    // 防整类创建 bug（审计 A4/A11）：无论哪个入口拼装的创建规格，落地记录都必须满足
+    // 同一组不变量——分类齐备、默认节点出生即带 categoryId、身份字段（seedKey/draft）
+    // 互斥正确、且过分类迁移必须 no-op（alreadyMigrated）。否则「新建空白被当 legacy
+    // 迁移删默认节点」会从任意入口复发。
+    beforeEach(() => {
+      // 浏览器降级：createLocalProject 直接返回记录（不经 IPC），可对记录断言。
+      mockedGetDesktopBridge.mockReturnValue(null)
+    })
+
+    it('blank project: draft + no seedKey + builtin categories + categorized default nodes + migration no-op', () => {
+      const record = createLocalProject()
+
+      expect(record.draft).toBe(true)
+      expect('seedKey' in record).toBe(false)
+      expect(record.payload.categories.length).toBeGreaterThan(0)
+      expect(record.payload.generationCanvas.nodes.length).toBeGreaterThan(0)
+      expect(
+        record.payload.generationCanvas.nodes.every(
+          (node) => typeof node.categoryId === 'string' && node.categoryId.length > 0,
+        ),
+      ).toBe(true)
+
+      const { diagnostic } = migrateProjectRecord(record)
+      expect(diagnostic.alreadyMigrated).toBe(true)
+      expect(diagnostic.removedNodes).toBe(0)
+      expect(diagnostic.migratedNodes).toBe(0)
+    })
+
+    it('example project: seedKey + not draft + migration still no-op', () => {
+      const record = createLocalProject('示例：30 秒产品介绍', undefined, {
+        seedKey: 'example:product-demo',
+      })
+
+      expect(record.seedKey).toBe('example:product-demo')
+      expect('draft' in record).toBe(false)
+      expect(record.payload.generationCanvas.nodes.length).toBeGreaterThan(0)
+
+      const { diagnostic } = migrateProjectRecord(record)
+      expect(diagnostic.alreadyMigrated).toBe(true)
+      expect(diagnostic.removedNodes).toBe(0)
+    })
   })
 
   it('reads a workspace manifest record (version 2, nested payload) without throwing', () => {
