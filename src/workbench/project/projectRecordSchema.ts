@@ -54,6 +54,14 @@ export const workbenchProjectPayloadSchema = z.object({
       label: z.string(),
       clips: z.array(z.unknown().refine((value) => value !== undefined, 'clip is required')),
     })),
+    // 文字轨（字幕/标题卡）。可选 + 缺省 [] 让旧项目向后兼容。
+    textClips: z.array(z.object({
+      id: z.string(),
+      text: z.string(),
+      style: z.enum(['caption', 'title']),
+      startFrame: z.number().finite(),
+      endFrame: z.number().finite(),
+    })).optional().default([]),
   }),
   // Keep project loading tolerant of legacy v0.5 category ids so the
   // v5→v6 migration can run before the stricter canvas schema is enforced.

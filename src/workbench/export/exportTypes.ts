@@ -52,6 +52,14 @@ export type RendererRenderTrack = {
   clips: RendererRenderClip[]
 }
 
+export type RendererTextOverlay = {
+  id: string
+  startFrame: number
+  endFrame: number
+  /** 全画幅透明 PNG（已含文字几何）的 base64（不含 data: 前缀）。 */
+  pngBase64: string
+}
+
 export type RendererRenderManifestRequest = {
   version: 1
   projectId: string
@@ -64,6 +72,8 @@ export type RendererRenderManifestRequest = {
   }
   profile: ExportProfile
   assets: Record<string, RendererRenderAsset>
+  /** 字幕/标题卡叠加层（导出主路 filtergraph overlay 用）。无文字时为空/缺省。 */
+  textOverlays?: RendererTextOverlay[]
   diagnostics: { warnings: string[] }
 }
 

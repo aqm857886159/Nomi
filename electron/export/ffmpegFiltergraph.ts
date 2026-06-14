@@ -1,7 +1,15 @@
 import type { NomiRenderAsset, NomiRenderClip, NomiRenderManifestV1, NomiRenderTrack } from "./exportManifest";
 
+/** 字幕/标题卡叠加：已渲染成全画幅透明 PNG 的临时文件 + 可见区间。 */
+export type FfmpegTextOverlayInput = {
+  path: string;
+  startFrame: number;
+  endFrame: number;
+};
+
 export type FfmpegFiltergraphInput = {
   manifest: NomiRenderManifestV1;
+  textOverlays?: FfmpegTextOverlayInput[];
 };
 
 export type FfmpegFiltergraphPlanInput = {
@@ -215,8 +223,45 @@ function buildVisualGraph(manifest: NomiRenderManifestV1, visualClips: ResolvedC
   return filters;
 }
 
+/**
+ * 文字叠加链：每条 overlay PNG 作为新输入（-loop 1 -t 全长），在 [start,end] 区间 overlay 到视频上。
+ * PNG 是全画幅透明 → overlay=0:0 对齐。接在视觉链尾（最上层）。返回新增滤镜行 + 输入 + 最终视频 label。
+ */
+function buildTextOverlayGraph(
+  textOverlays: FfmpegTextOverlayInput[],
+  assetInputCount: number,
+  baseVideoLabel: string,
+  fps: number,
+  durationSeconds: number,
+  pixelFormat: string,
+): { filters: string[]; inputs: FfmpegFiltergraphPlanInput[]; videoLabel: string } {
+  const filters: string[] = [];
+  const inputs: FfmpegFiltergraphPlanInput[] = [];
+  let label = baseVideoLabel;
+  textOverlays.forEach((overlay, index) => {
+    const inputIndex = assetInputCount + index;
+    inputs.push({
+      assetId: `text_overlay_${index}`,
+      path: overlay.path,
+      kind: "image",
+      inputArgs: ["-loop", "1", "-t", formatSeconds(durationSeconds)],
+    });
+    const start = secondsFromFrames(overlay.startFrame, fps);
+    const end = secondsFromFrames(overlay.endFrame, fps);
+    const isLast = index === textOverlays.length - 1;
+    const out = isLast ? "voutfinal" : `vtxt${index}`;
+    const formatSuffix = isLast ? `,format=${pixelFormat}` : "";
+    filters.push(
+      `[${label}][${inputIndex}:v]overlay=0:0:eof_action=pass:enable='between(t,${formatSeconds(start)},${formatSeconds(end)})'${formatSuffix}[${out}]`,
+    );
+    label = out;
+  });
+  return { filters, inputs, videoLabel: `[${label}]` };
+}
+
 export function compileFfmpegFiltergraph(input: FfmpegFiltergraphInput): FfmpegFiltergraphPlan {
   const { manifest } = input;
+  const textOverlays = input.textOverlays ?? [];
   const fps = manifest.timeline.fps;
   if (!Number.isFinite(fps) || fps <= 0) {
     throw new FfmpegFiltergraphError("invalid_manifest", `Invalid timeline fps: ${fps}`);
@@ -227,12 +272,30 @@ export function compileFfmpegFiltergraph(input: FfmpegFiltergraphInput): FfmpegF
 
   const audioFilters = buildAudioGraph(resolvedClips, manifest.profile.audioCodec, fps);
   const filters = buildVisualGraph(manifest, visualClips);
+
+  const inputs = buildInputs(resolvedClips, fps);
+  let videoOutputLabel = "[vout]";
+  if (textOverlays.length > 0) {
+    const durationSeconds = secondsFromFrames(manifest.timeline.durationFrames, fps);
+    const overlayGraph = buildTextOverlayGraph(
+      textOverlays,
+      inputs.length,
+      "vout",
+      fps,
+      durationSeconds,
+      manifest.profile.pixelFormat,
+    );
+    filters.push(...overlayGraph.filters);
+    inputs.push(...overlayGraph.inputs);
+    videoOutputLabel = overlayGraph.videoLabel;
+  }
+
   filters.push(...audioFilters);
 
   return {
-    inputs: buildInputs(resolvedClips, fps),
+    inputs,
     filterComplex: filters.join(";"),
-    videoOutputLabel: "[vout]",
+    videoOutputLabel,
     audioOutputLabel: audioFilters.length > 0 ? "[aout]" : undefined,
     warnings: [],
   };

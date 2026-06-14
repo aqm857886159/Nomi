@@ -74,7 +74,7 @@ export default function PreviewWorkspace(): JSX.Element {
         playheadFrame={timeline.playheadFrame}
         timeline={timeline}
       />
-      <TimelinePanel density="full" regionLabel="预览时间轴" actionLabelPrefix="预览时间轴-" />
+      <TimelinePanel density="full" regionLabel="预览时间轴" actionLabelPrefix="预览时间轴-" showTextTrack />
     </section>
   )
 }

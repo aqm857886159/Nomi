@@ -3,7 +3,8 @@
   /* Workbench visual system: flat light workspace, solid panels, 8px panels, 32px icon controls. */
   --workbench-topbar-height: 56px;
   --workbench-timeline-height: 188px;
-  --workbench-preview-timeline-height: 208px;
+  /* 预览时间轴：图片轨 + 媒体轨 + 文字轨（字幕/标题卡）三条，比生成区多一条 → 加高一档容纳。 */
+  --workbench-preview-timeline-height: 268px;
   --workbench-timeline-label-width: 112px;
   --workbench-bg: var(--nomi-bg);
   --workbench-surface: var(--nomi-paper);

@@ -6,7 +6,7 @@ import { ExportJobManager, type ExportJobEvent, type ExportJobSnapshot } from ".
 import { assertValidManifest, type NomiRenderManifestV1 } from "./exportManifest";
 import { planExport } from "./exportPlanner";
 import { ExportCancelledError, renderFiltergraphToMp4, transcodeWebmFileToMp4, transcodeWebmToMp4, type TimelineMp4ExportResult } from "./ffmpegRunner";
-import { compileFfmpegFiltergraph, type FfmpegFiltergraphPlan } from "./ffmpegFiltergraph";
+import { compileFfmpegFiltergraph, type FfmpegFiltergraphPlan, type FfmpegTextOverlayInput } from "./ffmpegFiltergraph";
 import { probeMediaMetadata } from "./mediaProbe";
 import { appendExportTempInputChunk, finishExportTempInput as finishExportTempInputFile, removeExportTempInput } from "./exportTempInput";
 import { ensureProjectFolders, projectDirById, resolveProjectRelativePath } from "../projects/repository";
@@ -97,9 +97,31 @@ const rawExportManifests = new Map<string, unknown>();
  * renderer 原始 manifest → 可直接喂 ffmpeg 的 filtergraph 计划：
  * 资产 url → 本地绝对路径 + ffprobe(hasAudio/duration)；任一资产无法解析则返回 null（回退 WebM）。
  */
+/** 从 raw manifest 的 textOverlays 把每条字幕 PNG（base64）落成 jobDir 下的临时 PNG，返回 filtergraph overlay 输入。 */
+function writeTextOverlayFiles(rawManifest: unknown, jobDir: string): FfmpegTextOverlayInput[] {
+  if (!isPlainRecord(rawManifest) || !Array.isArray(rawManifest.textOverlays)) return [];
+  const out: FfmpegTextOverlayInput[] = [];
+  rawManifest.textOverlays.forEach((overlay, index) => {
+    if (!isPlainRecord(overlay)) return;
+    const base64 = typeof overlay.pngBase64 === "string" ? overlay.pngBase64 : "";
+    const startFrame = Number(overlay.startFrame);
+    const endFrame = Number(overlay.endFrame);
+    if (!base64 || !Number.isFinite(startFrame) || !Number.isFinite(endFrame) || endFrame <= startFrame) return;
+    const filePath = path.join(jobDir, `text-overlay-${index}.png`);
+    try {
+      fs.writeFileSync(filePath, Buffer.from(base64, "base64"));
+    } catch {
+      return;
+    }
+    out.push({ path: filePath, startFrame, endFrame });
+  });
+  return out;
+}
+
 async function tryBuildFiltergraphExport(
   rawManifest: unknown,
   projectId: string,
+  jobDir: string,
 ): Promise<{ manifest: NomiRenderManifestV1; plan: FfmpegFiltergraphPlan } | null> {
   if (!isPlainRecord(rawManifest)) return null;
   const rawTimeline = isPlainRecord(rawManifest.timeline) ? rawManifest.timeline : null;
@@ -161,7 +183,8 @@ async function tryBuildFiltergraphExport(
 
   try {
     assertValidManifest(manifest);
-    const plan = compileFfmpegFiltergraph({ manifest });
+    const textOverlays = writeTextOverlayFiles(rawManifest, jobDir);
+    const plan = compileFfmpegFiltergraph({ manifest, textOverlays });
     return { manifest, plan };
   } catch {
     return null; // 校验/编译失败 → 回退 WebM
@@ -285,7 +308,7 @@ export async function finishExportTempInput(payload: unknown): Promise<unknown> 
     const rawManifest = rawExportManifests.get(job.id);
     if (rawManifest !== undefined) {
       try {
-        const filtergraphExport = await tryBuildFiltergraphExport(rawManifest, job.manifest.projectId);
+        const filtergraphExport = await tryBuildFiltergraphExport(rawManifest, job.manifest.projectId, job.jobDir);
         if (filtergraphExport) {
           const fgDurationMs = Math.max(
             0,

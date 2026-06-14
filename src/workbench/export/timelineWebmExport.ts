@@ -1,7 +1,8 @@
 import type { TimelineClip, TimelineState } from '../timeline/timelineTypes'
-import { computeTimelineDuration, resolveActiveClipsAtFrame } from '../timeline/timelineMath'
+import { computeTimelineDuration, resolveActiveClipsAtFrame, resolveActiveTextClipsAtFrame } from '../timeline/timelineMath'
 import type { PreviewAspectRatio } from '../workbenchTypes'
 import { resolveVideoClipMediaTimeSeconds } from '../player/timelinePlayback'
+import { drawTextBox } from '../timeline/textOverlayCanvas'
 
 export type ExportStatus = 'idle' | 'preparing' | 'recording' | 'done' | 'error'
 
@@ -167,51 +168,6 @@ function drawCoverImage(
   context.drawImage(source, x, y, width, height)
 }
 
-function drawSubtitle(context: CanvasRenderingContext2D, text: string, size: ExportCanvasSize): void {
-  const content = text.trim()
-  if (!content) return
-  const horizontalPadding = Math.round(size.width * 0.07)
-  const bottom = Math.round(size.height * 0.08)
-  const maxWidth = size.width - horizontalPadding * 2
-  const fontSize = Math.max(22, Math.round(size.width * 0.035))
-  context.font = `700 ${fontSize}px Inter, system-ui, sans-serif`
-  context.textAlign = 'center'
-  context.textBaseline = 'middle'
-  const metrics = context.measureText(content)
-  const boxWidth = Math.min(maxWidth, Math.max(Math.round(size.width * 0.32), metrics.width + 36))
-  const boxHeight = Math.round(fontSize * 2.05)
-  const x = (size.width - boxWidth) / 2
-  const y = size.height - bottom - boxHeight
-
-  context.fillStyle = 'rgba(255,255,255,0.84)'
-  context.strokeStyle = 'rgba(29,29,31,0.1)'
-  context.lineWidth = 1
-  roundRect(context, x, y, boxWidth, boxHeight, 10)
-  context.fill()
-  context.stroke()
-
-  context.fillStyle = '#1d1d1f'
-  context.fillText(content, size.width / 2, y + boxHeight / 2, maxWidth)
-}
-
-function roundRect(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number,
-): void {
-  const nextRadius = Math.min(radius, width / 2, height / 2)
-  context.beginPath()
-  context.moveTo(x + nextRadius, y)
-  context.arcTo(x + width, y, x + width, y + height, nextRadius)
-  context.arcTo(x + width, y + height, x, y + height, nextRadius)
-  context.arcTo(x, y + height, x, y, nextRadius)
-  context.arcTo(x, y, x + width, y, nextRadius)
-  context.closePath()
-}
-
 export function drawTimelineFrame(input: DrawTimelineFrameInput): void {
   const { context, timeline, frame, size, background, assets } = input
   const activeClips = resolveActiveClipsAtFrame(timeline, frame)
@@ -232,6 +188,10 @@ export function drawTimelineFrame(input: DrawTimelineFrameInput): void {
     if (image) drawCoverImage(context, image, image.naturalWidth, image.naturalHeight, size)
   }
 
+  // 文字叠加层（字幕/标题卡）：画在媒体之上，与预览 DOM 共用 textLayout 几何。
+  for (const textClip of resolveActiveTextClipsAtFrame(timeline, frame)) {
+    drawTextBox(context, textClip, size.width, size.height)
+  }
 }
 
 function resolveRecorderMimeType(explicitMimeType?: string): string | undefined {

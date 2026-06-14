@@ -1,0 +1,123 @@
+import React from 'react'
+import { IconLetterCase } from '@tabler/icons-react'
+import { useWorkbenchStore } from '../workbenchStore'
+import { cn } from '../../utils/cn'
+import { clientXToFrame, frameToPixel, pixelToFrame } from './timelineEdit'
+
+/**
+ * 文字轨：字幕/标题卡的时间轴行。只在预览标签出现（生成画布底部那条不传 showTextTrack）。
+ * clip 显示文本内容；点选→选中并把 playhead 移到其起点（让预览叠加层显出来供编辑）；拖动改时间。
+ */
+export default function TimelineTextTrack(): JSX.Element {
+  const textClips = useWorkbenchStore((state) => state.timeline.textClips)
+  const scale = useWorkbenchStore((state) => state.timeline.scale)
+  const selectedTextClipId = useWorkbenchStore((state) => state.selectedTextClipId)
+  const selectTimelineTextClip = useWorkbenchStore((state) => state.selectTimelineTextClip)
+  const moveTimelineTextClip = useWorkbenchStore((state) => state.moveTimelineTextClip)
+  const setTimelinePlayhead = useWorkbenchStore((state) => state.setTimelinePlayhead)
+  const clipsRef = React.useRef<HTMLDivElement | null>(null)
+
+  const beginDrag = React.useCallback((event: React.PointerEvent<HTMLElement>, clipId: string, startFrame: number) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const pointerId = event.pointerId
+    const target = event.currentTarget
+    target.setPointerCapture?.(pointerId)
+    selectTimelineTextClip(clipId)
+    const rect = clipsRef.current?.getBoundingClientRect()
+    const grabFrame = rect ? pixelToFrame(event.clientX - rect.left, scale) : startFrame
+    const grabOffset = grabFrame - startFrame
+
+    const apply = (clientX: number, commit: boolean) => {
+      const bounds = clipsRef.current?.getBoundingClientRect()
+      if (!bounds) return
+      const frame = Math.max(0, pixelToFrame(clientX - bounds.left, scale) - grabOffset)
+      moveTimelineTextClip(clipId, frame, { commit })
+    }
+
+    const handleMove = (move: PointerEvent) => apply(move.clientX, false)
+    const handleUp = (up: PointerEvent) => {
+      apply(up.clientX, true)
+      target.releasePointerCapture?.(pointerId)
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+    }
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp)
+  }, [moveTimelineTextClip, scale, selectTimelineTextClip])
+
+  return (
+    <div className={cn(
+      'workbench-timeline-track',
+      'w-full min-h-[52px] grid grid-cols-[var(--workbench-timeline-label-width)_minmax(0,1fr)]',
+      'items-center mb-1.5 border-b-0',
+    )} data-testid="timeline-text-track" data-track-type="text">
+      <div className={cn(
+        'workbench-timeline-track__label',
+        'sticky left-0 z-[3] flex items-center gap-[7px]',
+        'min-w-0 min-h-[52px] pr-3 border-r-0 bg-transparent',
+        'text-[var(--workbench-ink)] text-xs font-semibold',
+      )}>
+        <span className="flex-none w-2 h-2 rounded-full shadow-none bg-[var(--nomi-accent)]" aria-hidden="true" />
+        <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">文字轨</span>
+        <span className={cn(
+          'flex-none min-w-0 h-auto ml-auto px-1.5 py-px inline-grid place-items-center border-0 rounded-full',
+          'bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-40)] text-micro font-bold tabular-nums',
+        )}>{textClips.length}</span>
+      </div>
+      <div
+        ref={clipsRef}
+        className={cn(
+          'workbench-timeline-track__clips',
+          'relative min-h-[46px] overflow-hidden cursor-crosshair',
+          'border border-[var(--nomi-line-soft)] rounded-[var(--nomi-radius-sm)]',
+          'bg-[var(--nomi-ink-05)]',
+        )}
+        style={{
+          width: 'var(--workbench-timeline-content-width, 100%)',
+          minWidth: 'var(--workbench-timeline-content-width, 100%)',
+        }}
+        onPointerDown={(event) => {
+          const rect = clipsRef.current?.getBoundingClientRect()
+          if (rect) setTimelinePlayhead(clientXToFrame(event.clientX, rect.left, scale))
+        }}
+      >
+        {textClips.length === 0 ? (
+          <div className={cn(
+            'workbench-timeline-track__empty',
+            'absolute inset-0 flex items-center justify-center',
+            'border border-dashed border-[var(--nomi-line)] rounded-[var(--nomi-radius-sm)]',
+            'text-[var(--nomi-ink-40)] leading-none text-[11px] font-medium pointer-events-none',
+          )}>用上方「字幕 / 标题卡」添加</div>
+        ) : null}
+        {textClips.map((clip) => {
+          const left = frameToPixel(clip.startFrame, scale)
+          const width = Math.max(24, frameToPixel(clip.endFrame - clip.startFrame, scale))
+          const selected = selectedTextClipId === clip.id
+          return (
+            <button
+              key={clip.id}
+              type="button"
+              className={cn(
+                'workbench-timeline-text-clip',
+                'absolute top-[5px] h-9 z-[1] flex items-center gap-1 px-2 overflow-hidden',
+                'rounded-[var(--nomi-radius-sm)] cursor-grab active:cursor-grabbing touch-none text-left',
+                'border bg-[var(--nomi-accent-soft)] text-[var(--nomi-ink)] text-[11px] font-semibold',
+                selected
+                  ? 'border-[var(--nomi-accent)] shadow-[0_0_0_1px_var(--nomi-accent)]'
+                  : 'border-[color-mix(in_oklch,var(--nomi-accent)_36%,transparent)]',
+              )}
+              style={{ left: `${left}px`, width: `${width}px` }}
+              title={clip.style === 'title' ? '标题卡' : '字幕'}
+              onPointerDown={(event) => beginDrag(event, clip.id, clip.startFrame)}
+              onClick={() => setTimelinePlayhead(clip.startFrame)}
+            >
+              <IconLetterCase size={12} className="flex-none opacity-70" />
+              <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{clip.text || '（空）'}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}

@@ -240,4 +240,51 @@ describe("compileFfmpegFiltergraph", () => {
     });
     expect(plan.audioOutputLabel).toBeUndefined();
   });
+
+  it("appends text overlay chain after the visual graph", () => {
+    const plan = compileFfmpegFiltergraph({
+      manifest: manifest({
+        assets: {
+          image1: { id: "image1", kind: "image", absolutePath: "/media/still.png", width: 1000, height: 800 },
+        },
+        timeline: {
+          fps: 30,
+          durationFrames: 150,
+          range: { startFrame: 0, endFrame: 150 },
+          tracks: [{ id: "visual-1", kind: "visual", clips: [{ id: "clip-1", assetId: "image1", startFrame: 0, endFrame: 150 }] }],
+        },
+      }),
+      textOverlays: [
+        { path: "/tmp/job/text-overlay-0.png", startFrame: 0, endFrame: 90 },
+        { path: "/tmp/job/text-overlay-1.png", startFrame: 30, endFrame: 150 },
+      ],
+    });
+
+    // 两条 overlay PNG 作为新输入接在素材输入之后（index 1、2），-loop 1 -t 全长 5s
+    expect(plan.inputs[1]).toEqual({ assetId: "text_overlay_0", path: "/tmp/job/text-overlay-0.png", kind: "image", inputArgs: ["-loop", "1", "-t", "5"] });
+    expect(plan.inputs[2]).toEqual({ assetId: "text_overlay_1", path: "/tmp/job/text-overlay-1.png", kind: "image", inputArgs: ["-loop", "1", "-t", "5"] });
+    // 第一条 overlay：base=vout，输入 index 1，区间 0~3s
+    expect(plan.filterComplex).toContain("[vout][1:v]overlay=0:0:eof_action=pass:enable='between(t,0,3)'[vtxt0]");
+    // 第二条 overlay：base=vtxt0，输入 index 2，区间 1~5s，末条补 format=yuv420p，输出 voutfinal
+    expect(plan.filterComplex).toContain("[vtxt0][2:v]overlay=0:0:eof_action=pass:enable='between(t,1,5)',format=yuv420p[voutfinal]");
+    expect(plan.videoOutputLabel).toBe("[voutfinal]");
+  });
+
+  it("leaves the graph untouched when there are no text overlays", () => {
+    const plan = compileFfmpegFiltergraph({
+      manifest: manifest({
+        assets: { image1: { id: "image1", kind: "image", absolutePath: "/media/still.png" } },
+        timeline: {
+          fps: 30,
+          durationFrames: 150,
+          range: { startFrame: 0, endFrame: 150 },
+          tracks: [{ id: "visual-1", kind: "visual", clips: [{ id: "clip-1", assetId: "image1", startFrame: 0, endFrame: 150 }] }],
+        },
+      }),
+      textOverlays: [],
+    });
+    expect(plan.videoOutputLabel).toBe("[vout]");
+    expect(plan.filterComplex).not.toContain("text_overlay");
+    expect(plan.inputs).toHaveLength(1);
+  });
 });

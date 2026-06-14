@@ -14,6 +14,7 @@ import { WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
 import { computeTimelineDuration } from './timelineMath'
 import TimelineTrack from './TimelineTrack'
+import TimelineTextTrack from './TimelineTextTrack'
 import { frameToPixel, pixelToFrame, TIMELINE_MIN_SCALE, TIMELINE_MAX_SCALE } from './timelineEdit'
 import { buildSnapPoints, resolveSnap, pixelThresholdToFrames } from './snapping'
 
@@ -63,11 +64,15 @@ type TimelinePanelProps = {
   density?: 'compact' | 'full'
   regionLabel: string
   actionLabelPrefix: string
+  /** 是否显示文字轨（字幕/标题卡）。仅预览标签传 true；生成画布底部不传。 */
+  showTextTrack?: boolean
 }
 
-export default function TimelinePanel({ density = 'compact', regionLabel, actionLabelPrefix }: TimelinePanelProps): JSX.Element {
+export default function TimelinePanel({ density = 'compact', regionLabel, actionLabelPrefix, showTextTrack = false }: TimelinePanelProps): JSX.Element {
   const timeline = useWorkbenchStore((state) => state.timeline)
   const selectedClipIds = useWorkbenchStore((state) => state.selectedTimelineClipIds)
+  const selectedTextClipId = useWorkbenchStore((state) => state.selectedTextClipId)
+  const removeTimelineTextClip = useWorkbenchStore((state) => state.removeTimelineTextClip)
   const snapGuide = useWorkbenchStore((state) => state.timelineSnapGuide)
   const duplicateTimelineClip = useWorkbenchStore((state) => state.duplicateTimelineClip)
   const nudgeTimelineClip = useWorkbenchStore((state) => state.nudgeTimelineClip)
@@ -102,6 +107,12 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
         setTimelinePlayhead(timeline.playheadFrame + (event.key === 'ArrowLeft' ? -1 : 1))
         return
       }
+      // 文字 clip 选中时的删除（与媒体 clip 选择互斥）
+      if (selectedTextClipId && (event.key === 'Backspace' || event.key === 'Delete')) {
+        event.preventDefault()
+        removeTimelineTextClip(selectedTextClipId)
+        return
+      }
       if (!hasSelection) return
       if (event.key === 'Backspace' || event.key === 'Delete') {
         event.preventDefault()
@@ -132,6 +143,8 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     nudgeTimelineClip,
     primaryClipId,
     removeSelectedTimelineClips,
+    removeTimelineTextClip,
+    selectedTextClipId,
     setTimelinePlayhead,
     splitTimelineClip,
     timeline.playheadFrame,
@@ -325,6 +338,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
         {timeline.tracks.map((track) => (
           <TimelineTrack key={track.id} track={track} />
         ))}
+        {showTextTrack ? <TimelineTextTrack /> : null}
       </div>
     </section>
   )

@@ -6,6 +6,7 @@ import type { PreviewAspectRatio } from '../workbenchTypes'
 import { createTimelineExportFilename, downloadTimelineBlob, exportTimelineToWebm } from './timelineWebmExport'
 import type { ExportQuality } from './exportTypes'
 import { buildRenderManifestRequest } from './renderManifest'
+import { renderTextOverlays } from './textOverlayPng'
 
 const MP4_WEBM_IPC_CHUNK_BYTES = 1024 * 1024
 
@@ -37,6 +38,7 @@ export async function startTimelineMp4ExportJob(options: StartTimelineMp4ExportJ
     quality: options.quality || 'standard',
     preset: 'publish',
   })
+  manifest.textOverlays = renderTextOverlays(options.timeline, manifest.profile.width, manifest.profile.height)
 
   return desktop.exports.startJob({
     projectId,
@@ -62,6 +64,7 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
     quality,
     preset: 'publish',
   })
+  manifest.textOverlays = renderTextOverlays(options.timeline, manifest.profile.width, manifest.profile.height)
   const { jobId } = await desktop.exports.startJob({
     projectId,
     outputName: options.outputName,

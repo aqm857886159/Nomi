@@ -1,9 +1,11 @@
 import React from 'react'
-import { IconDownload, IconPlayerPause, IconPlayerPlay, IconRefresh, IconZoomIn, IconZoomOut } from '@tabler/icons-react'
+import { IconDownload, IconLetterCase, IconPlayerPause, IconPlayerPlay, IconRefresh, IconZoomIn, IconZoomOut } from '@tabler/icons-react'
 import { NomiLoadingMark, NomiSelect, WorkbenchButton, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
 import { useWorkbenchStore } from '../workbenchStore'
 import type { TimelineClip, TimelineState } from '../timeline/timelineTypes'
+import { resolveActiveTextClipsAtFrame } from '../timeline/timelineMath'
+import { resolveTextBox } from '../timeline/textLayout'
 import type { PreviewAspectRatio } from '../workbenchTypes'
 import { resolveVideoClipMediaTimeSeconds } from '../player/timelinePlayback'
 import { exportTimelineToMp4, type ExportTimelineToMp4Options } from '../export/exportApi'
@@ -95,6 +97,12 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
   const [exportStatus, setExportStatus] = React.useState<PreviewExportStatus>('idle')
   const [exportRatio, setExportRatio] = React.useState(0)
   const [playbackError, setPlaybackError] = React.useState('')
+  const [editingTextId, setEditingTextId] = React.useState('')
+  const [editingDraft, setEditingDraft] = React.useState('')
+  const addTimelineTextClip = useWorkbenchStore((state) => state.addTimelineTextClip)
+  const updateTimelineTextClip = useWorkbenchStore((state) => state.updateTimelineTextClip)
+  const selectTimelineTextClip = useWorkbenchStore((state) => state.selectTimelineTextClip)
+  const selectedTextClipId = useWorkbenchStore((state) => state.selectedTextClipId)
   const setPreviewAspectRatio = useWorkbenchStore((state) => state.setPreviewAspectRatio)
   const playing = useWorkbenchStore((state) => state.timelinePlaying)
   const setTimelinePlaying = useWorkbenchStore((state) => state.setTimelinePlaying)
@@ -106,7 +114,7 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
   const activeRatio = PREVIEW_RATIOS.find((ratio) => ratio.value === aspectRatio) || PREVIEW_RATIOS[0]
   const activeMediaKey = videoClip?.url || imageClip?.url || ''
   const hasMedia = Boolean(activeMediaKey)
-  const isEmpty = timeline.tracks.every(t => t.clips.length === 0)
+  const isEmpty = timeline.tracks.every(t => t.clips.length === 0) && (timeline.textClips ?? []).length === 0
   const totalFrames = computeTimelineDuration(timeline)
   const currentSeconds = (playheadFrame / (timeline.fps || 30)).toFixed(1)
   const totalSeconds = (totalFrames / (timeline.fps || 30)).toFixed(1)
@@ -199,6 +207,24 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
     setMediaOffset({ x: 0, y: 0 })
   }, [])
 
+  const addText = React.useCallback((style: 'caption' | 'title') => {
+    const id = addTimelineTextClip(style, playheadFrame)
+    setEditingTextId(id)
+    setEditingDraft('')
+  }, [addTimelineTextClip, playheadFrame])
+
+  const beginEditText = React.useCallback((id: string, text: string) => {
+    selectTimelineTextClip(id)
+    setEditingTextId(id)
+    setEditingDraft(text)
+  }, [selectTimelineTextClip])
+
+  const commitEditText = React.useCallback((id: string) => {
+    const text = editingDraft.trim()
+    if (text) updateTimelineTextClip(id, text)
+    setEditingTextId('')
+  }, [editingDraft, updateTimelineTextClip])
+
   const handleExport = React.useCallback(async () => {
     if (exportBusy) return
     try {
@@ -227,10 +253,7 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
   }, [aspectRatio, exportBusy, timeline])
 
   const togglePlayback = React.useCallback(() => {
-    const durationFrame = timeline.tracks.reduce((maxFrame, track) => {
-      const trackEndFrame = track.clips.reduce((trackMax, clip) => Math.max(trackMax, clip.endFrame), 0)
-      return Math.max(maxFrame, trackEndFrame)
-    }, 0)
+    const durationFrame = computeTimelineDuration(timeline)
     if (durationFrame <= 0) return
     if (playheadFrame >= durationFrame) {
       setTimelinePlayhead(0)
@@ -278,6 +301,9 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
   // 「适应」=contain（整画面内缩、留边）/「填充」=cover（铺满、裁边）。
   // 之前 object-contain 写死，fitMode 改了没人消费 → 点了没效果，这里 derive 出来。
   const objectFitClass = fitMode === 'cover' ? 'object-cover' : 'object-contain'
+
+  // 文字叠加层（字幕/标题卡）：当前帧 active 的文字 clip，按 stage 像素几何摆放。
+  const activeTextClips = resolveActiveTextClipsAtFrame(timeline, playheadFrame)
 
   return (
     <section ref={playerRef} className={cn(
@@ -369,6 +395,73 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
             }}
           />
         ) : null}
+        {/* 文字叠加层（字幕/标题卡）：z 在媒体之上；容器不拦事件，仅文本框可点选/编辑。 */}
+        {stageSize && activeTextClips.length > 0 ? (
+          <div className="workbench-preview-player__text-layer absolute inset-0 z-[3] pointer-events-none" aria-hidden="false">
+            {activeTextClips.map((clip) => {
+              const box = resolveTextBox(clip.style, stageSize.width, stageSize.height)
+              const editing = editingTextId === clip.id
+              const selected = selectedTextClipId === clip.id
+              const positionStyle: React.CSSProperties = box.anchor === 'bottom'
+                ? { left: '50%', bottom: `${box.bottomMarginPx}px`, transform: 'translateX(-50%)' }
+                : { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }
+              const boxStyle: React.CSSProperties = {
+                ...positionStyle,
+                maxWidth: `${box.maxWidthPx}px`,
+                fontSize: `${box.fontSizePx}px`,
+                fontWeight: box.fontWeight,
+                lineHeight: String(box.lineHeight),
+                textAlign: 'center',
+                color: 'var(--nomi-ink)',
+                padding: box.hasBackdrop ? '0.32em 0.7em' : 0,
+                background: box.hasBackdrop ? 'color-mix(in oklch, var(--nomi-paper) 86%, transparent)' : 'transparent',
+                border: box.hasBackdrop ? '1px solid var(--nomi-line-soft)' : 'none',
+                borderRadius: 'var(--nomi-radius-md)',
+                boxShadow: selected ? '0 0 0 2px var(--nomi-accent)' : 'none',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }
+              if (editing) {
+                return (
+                  <textarea
+                    key={clip.id}
+                    className="workbench-preview-player__text-edit absolute pointer-events-auto resize-none outline-none overflow-hidden"
+                    style={{ ...boxStyle, boxShadow: '0 0 0 2px var(--nomi-accent)' }}
+                    value={editingDraft}
+                    placeholder={clip.text}
+                    autoFocus
+                    rows={1}
+                    onFocus={(event) => event.currentTarget.select()}
+                    onChange={(event) => setEditingDraft(event.target.value)}
+                    onBlur={() => commitEditText(clip.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault()
+                        event.currentTarget.blur()
+                      }
+                      if (event.key === 'Escape') {
+                        event.preventDefault()
+                        setEditingTextId('')
+                      }
+                    }}
+                  />
+                )
+              }
+              return (
+                <div
+                  key={clip.id}
+                  className="workbench-preview-player__text-box absolute pointer-events-auto cursor-text select-none"
+                  style={boxStyle}
+                  onPointerDown={(event) => { event.stopPropagation(); selectTimelineTextClip(clip.id) }}
+                  onDoubleClick={(event) => { event.stopPropagation(); beginEditText(clip.id, clip.text) }}
+                  title="双击编辑文字"
+                >
+                  {clip.text}
+                </div>
+              )
+            })}
+          </div>
+        ) : null}
       </div>
       {/* 控制条放在 player section（非 stage）层：stage 为裁剪 media 用了 overflow-hidden，
           若把这条浮动工具条放进去，stage 一窄就会裁掉「安全框」并冒出多余横向滚动条。
@@ -441,6 +534,31 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
           )} aria-label="当前缩放">{Math.round(mediaScale * 100)}%</span>
           <WorkbenchIconButton className={cn('workbench-preview-player__icon-button', 'w-6 h-6 inline-grid place-items-center p-0 border border-transparent rounded-full bg-transparent text-[var(--workbench-muted)] cursor-pointer hover:bg-[var(--workbench-hover)] hover:text-[var(--workbench-ink)]')} label="重置画面" icon={<IconRefresh size={16} />} onClick={resetMediaTransform} disabled={!hasMedia} />
           <WorkbenchIconButton className={cn('workbench-preview-player__icon-button', 'w-6 h-6 inline-grid place-items-center p-0 border border-transparent rounded-full bg-transparent text-[var(--workbench-muted)] cursor-pointer hover:bg-[var(--workbench-hover)] hover:text-[var(--workbench-ink)]')} label="放大画面" icon={<IconZoomIn size={16} />} onClick={() => updateMediaScale(0.1)} disabled={!hasMedia} />
+        </div>
+        <div className={cn(
+          'workbench-preview-player__control-separator',
+          'w-px h-5 bg-[var(--workbench-border-soft)]',
+        )} aria-hidden="true" />
+        <div className={cn(
+          'workbench-preview-player__text-tools',
+          'flex-none inline-flex items-center gap-[3px]',
+        )} aria-label="添加文字">
+          <WorkbenchButton
+            className={cn('h-7 px-2.5 inline-flex items-center gap-1 border border-[var(--workbench-border)] rounded-full whitespace-nowrap bg-transparent text-[var(--workbench-muted)] text-micro font-bold cursor-pointer hover:bg-[var(--workbench-hover)] hover:text-[var(--workbench-ink)]')}
+            aria-label="添加字幕"
+            title="在当前位置加一条字幕"
+            onClick={() => addText('caption')}
+          >
+            <IconLetterCase size={14} />字幕
+          </WorkbenchButton>
+          <WorkbenchButton
+            className={cn('h-7 px-2.5 inline-flex items-center gap-1 border border-[var(--workbench-border)] rounded-full whitespace-nowrap bg-transparent text-[var(--workbench-muted)] text-micro font-bold cursor-pointer hover:bg-[var(--workbench-hover)] hover:text-[var(--workbench-ink)]')}
+            aria-label="添加标题卡"
+            title="在当前位置加一张标题卡"
+            onClick={() => addText('title')}
+          >
+            <IconLetterCase size={14} />标题卡
+          </WorkbenchButton>
         </div>
         <div className={cn(
           'workbench-preview-player__control-separator',
