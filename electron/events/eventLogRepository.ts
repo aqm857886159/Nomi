@@ -101,7 +101,7 @@ function initState(projectId: string): LogState | null {
   const existing = parseLines(segmentPath(dir, segIndex));
   const state: LogState = {
     dir,
-    seq: existing.length > 0 ? existing[existing.length - 1].seq : segments.length > 1 ? recoverSeqFromOlderSegments(dir, segments) : 0,
+    seq: existing.length > 0 ? existing[existing.length - 1].seq : recoverSeqHighWater(dir, segments),
     segIndex,
     segEvents: existing.length,
     segBytes: fs.existsSync(segmentPath(dir, segIndex)) ? fs.statSync(segmentPath(dir, segIndex)).size : 0,
@@ -125,12 +125,21 @@ function sealTornTail(filePath: string): void {
   }
 }
 
-function recoverSeqFromOlderSegments(dir: string, segments: number[]): number {
-  for (let i = segments.length - 2; i >= 0; i -= 1) {
-    const events = parseLines(segmentPath(dir, segments[i]));
-    if (events.length > 0) return events[events.length - 1].seq;
+// seq 高水位恢复:扫所有段的**原始文本**取最大 "seq":N——连 JSON 解析失败的损坏行也能救回 seq 号,
+// 防「最新段全损(或仅一段且全损)→ seq 回退 0 → 与历史重号」(破坏 seq 全局唯一顺序权威)。
+// 返回已存在的最大 seq(append 时 +1);确实无任何可救的 seq 时才 0。seq 单调,故多段场景等价于
+// 旧的"最近非空段末事件 seq",且额外覆盖当前段损坏的情形。
+function recoverSeqHighWater(dir: string, segments: number[]): number {
+  let maxSeq = 0;
+  for (const seg of segments) {
+    const filePath = segmentPath(dir, seg);
+    if (!fs.existsSync(filePath)) continue;
+    for (const match of fs.readFileSync(filePath, "utf8").matchAll(/"seq"\s*:\s*(\d+)/g)) {
+      const n = Number(match[1]);
+      if (Number.isFinite(n) && n > maxSeq) maxSeq = n;
+    }
   }
-  return 0;
+  return maxSeq;
 }
 
 function sha256(text: string): string {

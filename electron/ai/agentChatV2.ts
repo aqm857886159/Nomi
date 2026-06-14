@@ -416,23 +416,21 @@ export function clearAgentChatV2History(sessionKey?: string): void {
 }
 
 /**
- * 会话历史(2026-06-14):翻回旧对话时,从该线程的界面气泡({role,content})重建模型工作缓存,
- * 让模型「记起」这段、能无缝接着聊。空 → 等价 clear。
- * 规范化:只取 user/assistant 文本轮、合并连续同角色、首条须 user、末条须 assistant(下一句 user 接得上,
- * 满足 Anthropic 严格交替);tool 气泡丢弃(够续聊,且气泡里本无合法 tool pair)。
+ * 把界面气泡({role,content})规范化成模型工作缓存的轮次(纯函数,便于单测)。
+ * 规则:user/assistant 文本轮保留;**tool 气泡(操作回执)折成一句 assistant 旁注**——让续聊的模型
+ * 知道自己上次做过什么(建了哪些节点/连了哪些边),不再整条丢弃以致重复建或指代不存在的 clientId。
+ * 合并连续同角色、首条须 user、末条须 assistant(满足 Anthropic 严格交替,下一句 user 接得上)。
  */
-export function seedAgentChatV2History(
-  sessionKey: string,
-  bubbles: ReadonlyArray<{ role?: string; content?: string }>,
-): void {
-  const key = String(sessionKey || "").trim();
-  if (!key) return;
+export function bubblesToSeedTurns(bubbles: ReadonlyArray<{ role?: string; content?: string }>): CoreMessage[] {
   const turns: CoreMessage[] = [];
   for (const bubble of bubbles) {
-    const role = bubble?.role === "user" ? "user" : bubble?.role === "assistant" ? "assistant" : null;
+    const rawRole = bubble?.role;
+    // tool 也并入 assistant 侧(它是 AI 这一方的操作),保持严格交替。
+    const role = rawRole === "user" ? "user" : rawRole === "assistant" || rawRole === "tool" ? "assistant" : null;
     if (!role) continue;
-    const content = sanitizeForBroadCompat(typeof bubble?.content === "string" ? bubble.content.trim() : "");
+    let content = sanitizeForBroadCompat(typeof bubble?.content === "string" ? bubble.content.trim() : "");
     if (!content) continue;
+    if (rawRole === "tool") content = `（已执行操作：${content.split("\n")[0].slice(0, 100)}）`;
     const last = turns[turns.length - 1];
     if (last && last.role === role && typeof last.content === "string") {
       last.content = `${last.content}\n\n${content}`;
@@ -442,6 +440,20 @@ export function seedAgentChatV2History(
   }
   while (turns.length && turns[0].role === "assistant") turns.shift();
   while (turns.length && turns[turns.length - 1].role === "user") turns.pop();
+  return turns;
+}
+
+/**
+ * 会话历史(2026-06-14):翻回旧对话时,从该线程的界面气泡重建模型工作缓存,让模型「记起」这段、
+ * 能无缝接着聊。空 → 等价 clear。规范化见 bubblesToSeedTurns。
+ */
+export function seedAgentChatV2History(
+  sessionKey: string,
+  bubbles: ReadonlyArray<{ role?: string; content?: string }>,
+): void {
+  const key = String(sessionKey || "").trim();
+  if (!key) return;
+  const turns = bubblesToSeedTurns(bubbles);
   if (turns.length === 0) {
     agentChatV2History.delete(key);
     clearAgentSession(key);

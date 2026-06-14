@@ -44,6 +44,17 @@ describe("eventLogRepository", () => {
     expect(events[0].ts).toMatch(/^\d{4}-/);
   });
 
+  it("单段全损(解析为空但含 seq)时按 raw 高水位恢复,不重号", () => {
+    // 模拟:唯一段 log-0.jsonl 的行全部 JSON 损坏(parseLines 得空),但文本里仍含 "seq":5。
+    // 旧逻辑 segments.length===1 → seq 回退 0 → 下一条 append 得 seq 1,与历史重号。
+    const eventsDir = path.join(tmpRoot, "p1", ".nomi", "events");
+    fs.mkdirSync(eventsDir, { recursive: true });
+    fs.writeFileSync(path.join(eventsDir, "log-0.jsonl"), '{"seq":3,"type":"x"\n{"seq":5,"type":"y","broken\n');
+    resetEventLogStateForTests();
+    const appended = appendEvents("p1", [evt("agent.turn.started")]);
+    expect(appended[0].seq).toBe(6); // 5(高水位)+1,绝不回到 1
+  });
+
   it("重启(内存态清空)后 seq 从磁盘恢复继续递增", () => {
     appendEvents("p1", [evt("a"), evt("b")]);
     resetEventLogStateForTests();
@@ -121,5 +132,19 @@ describe("redactDeep", () => {
     expect(JSON.stringify(out)).not.toContain("abc12345678901234");
     expect(JSON.stringify(out)).not.toContain("sk-1234567890abcdef");
     expect(input.nested.authorization).toContain("abc12345678901234"); // 入参不被修改
+  });
+
+  // 黑名单→对 query 鉴权参数补白名单:?key= / &token= 等的值,无论是否 URL 编码都脱敏
+  // (此前只盖对象字段名 + sk-/Bearer 值,query 形态密钥漏网)。
+  it("脱敏 URL query 里的鉴权参数值(含编码)", () => {
+    const out = redactDeep(
+      { url: "https://api.x.com/v1/gen?model=foo&key=secretKEY123&token=AbC%2Bd123", note: "ok" },
+      [],
+    );
+    const s = JSON.stringify(out);
+    expect(s).not.toContain("secretKEY123");
+    expect(s).not.toContain("AbC%2Bd123");
+    expect(s).toContain("model=foo"); // 非鉴权参数保留
+    expect(s).toContain("ok");
   });
 });

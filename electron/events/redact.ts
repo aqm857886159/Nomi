@@ -7,13 +7,18 @@
 const REDACTED = "«redacted»";
 const SECRET_KEY_NAMES = /^(api[-_]?key|authorization|token|secret|password|x-api-key)$/i;
 const SECRET_VALUE_PATTERN = /\b(sk-[A-Za-z0-9_-]{8,}|Bearer\s+[A-Za-z0-9._~+/=-]{8,})/g;
+// query 鉴权参数白名单:?key=… / &token=… 的值整体脱敏(URL 编码也盖),修「按已知值的黑名单
+// 盖不住 query 形态密钥」——尤其值经 %2B 等编码后精确匹配失败。匹配到查询位([?&])才动,
+// 保留非鉴权参数(model= 等)。值取到下一个 & 或字符串结束。
+const SECRET_QUERY_PARAM_PATTERN =
+  /([?&](?:api[-_]?key|access[-_]?token|token|secret|password|sig|signature|key)=)[^&\s"']+/gi;
 
 function redactString(value: string, secrets: readonly string[]): string {
   let out = value;
   for (const secret of secrets) {
     if (secret.length >= 8) out = out.split(secret).join(REDACTED);
   }
-  return out.replace(SECRET_VALUE_PATTERN, REDACTED);
+  return out.replace(SECRET_QUERY_PARAM_PATTERN, `$1${REDACTED}`).replace(SECRET_VALUE_PATTERN, REDACTED);
 }
 
 export function redactDeep<T>(value: T, secrets: readonly string[] = []): T {
