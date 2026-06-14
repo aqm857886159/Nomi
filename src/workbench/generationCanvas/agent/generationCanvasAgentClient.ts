@@ -64,8 +64,10 @@ function buildStaticAgentSystemPrompt(mode: SendGenerationCanvasAgentMessageInpu
         ? '当前模式：润色。只能调用 set_node_prompt 改写选中节点的提示词，不要创建或删除节点。'
         : '当前模式：Agent。你应当主动调用工具来达成用户的目标。'
 
+  // 身份/产品认知/语言/输出铁律由后端共享的 NOMI_AGENT_IDENTITY 注入（单一真相源）；
+  // 这里只声明本面专长——「你在生成画布工作」+ 可用工具 + 硬约束。
   return [
-    '你是 Nomi 生成区右侧的 Nomi 生成 Agent。',
+    '你现在在「生成画布」工作：把用户的想法落成画布上的节点、引用边和真实生成任务。',
     '',
     modeInstruction,
     '',

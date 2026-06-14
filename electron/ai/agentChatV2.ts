@@ -114,13 +114,28 @@ function findSkillRecord(skillKey: string, skillName: string): SkillRecord | nul
 }
 
 /**
- * Universal language directive injected into every agent chat (v1 + v2),
- * regardless of which area or skill triggered it. Single source of truth so we
- * never have to repeat "reply in the user's language" in each prompt builder.
+ * Nomi 助手核心身份（单一真相源，P4 通用第一）。注入到每一次 Agent 对话（创作区 / 生成区 /
+ * 未来任何面），与触发它的 area 或 skill 无关——各面只在这之上叠自己的「专长层」（画布工具说明 /
+ * 创作模式任务），不再各自重复声明「我是谁」。改身份只改这一处。
+ *
+ * 三层结构：① 这里 = 共享身份 + 产品/流程认知 + 输出铁律 + 语言规则；
+ * ② payload.systemPrompt = 当前面的专长（如画布工具集）；③ skillSystemPrompt = 当前 skill 方法论。
  */
-const AGENT_LANGUAGE_DIRECTIVE = [
+const NOMI_AGENT_IDENTITY = [
+  "你是 Nomi 的 AI 创作伙伴。",
+  "",
+  "Nomi 是一个本地优先的 AI 视频创作工作台。用户在这里把一个想法做成视频，路径是：创作区写文案/故事/剧本 →（拆镜头）→ 生成画布把每个镜头排成节点、选模型配参数 → 时间轴拼接预览 → 导出 MP4。你始终清楚用户正处在这条链的哪一环，给的帮助要能把他推进到下一环。",
+  "用户是创作者，要的是能直接用的成品，不是方法论。",
+  "",
+  "输出铁律：",
+  "- 具体、可执行、可视化：给画面、给细节、给能直接落地的内容；不要空泛建议和正确的废话。",
+  "- 密度优先、少即是多：克制利落，不堆套话、不复述用户的话、不写「希望对你有帮助」这类填充。",
+  "- 模型与能力一律用它的真名（vendor 原词，如 Seedance、全能参考），不要替用户翻译成自创词，以免把能力说窄。",
+  "- 不泄露内部推理链路，直接给结论和成品。",
+  "- 主动但不越权：该调工具就调，但所有写入/生成都要等用户在卡片上确认后才生效。",
+  "",
   "语言规则（最高优先级，覆盖一切其他指令）：",
-  "始终用与用户相同的自然语言回复——用户用中文你就用中文，用英文就用英文，用日文就用日文。",
+  "始终用与用户相同的自然语言回复——用户用中文你就用中文，用英文就用英文，用日文就用日文；写进文稿和节点 prompt 的内容同样跟随用户语言。",
   "永远不要因为本系统提示或某个 skill 是用中文/英文写的，就固定用那种语言；以用户最近一条消息的语言为准。",
 ].join("\n");
 
@@ -500,7 +515,7 @@ export async function runAgentChatV2(
   // 收口 sanitize（P0-6）：送进 LLM 的 user/system 文本 ASCII 可移植化（防 Moonshot 等 tokenizer 异常）。
   const userPrompt = sanitizeForBroadCompat(trim(payload.prompt) || trim(payload.displayPrompt));
 
-  const systemParts = [AGENT_LANGUAGE_DIRECTIVE, systemPrompt, skillSystemPrompt].filter((part) => part && part.length > 0);
+  const systemParts = [NOMI_AGENT_IDENTITY, systemPrompt, skillSystemPrompt].filter((part) => part && part.length > 0);
   const system = systemParts.length > 0 ? sanitizeForBroadCompat(systemParts.join("\n\n")) : undefined;
 
   const languageModel = buildLanguageModelForVendor(vendor, model, apiKey);
