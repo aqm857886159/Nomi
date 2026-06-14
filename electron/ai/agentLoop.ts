@@ -7,6 +7,7 @@
 // ③ 确认门焊在工具层(makeAgentTool),对话历史归调用方——内核只负责"开一轮循环"。
 import { generateText, streamText, type CoreMessage, type LanguageModelV1, type ToolSet } from "ai";
 import { buildAgentPromptParts, createToolCallRepair, maxStepsForSkill } from "./agentChatHarness";
+import { describeAgentError } from "./agentError";
 
 // 显式 retry(SDK 默认 2):中转/代理偶发 429/5xx 不该杀掉整轮。两模式统一为 3
 // (oneshot 原默认 2,统一是有意的行为变化,见 S0 commit)。
@@ -80,7 +81,7 @@ export function runAgentLoop(
     ...shared,
     toolCallStreaming: true,
     ...(hooks.onError
-      ? { onError: ({ error }: { error: unknown }) => hooks.onError?.(error instanceof Error ? error.message : String(error)) }
+      ? { onError: ({ error }: { error: unknown }) => hooks.onError?.(describeAgentError(error)) }
       : {}),
   });
 }

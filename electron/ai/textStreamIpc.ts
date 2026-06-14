@@ -6,6 +6,7 @@
 import { ipcMain, webContents as electronWebContents } from "electron";
 import type { WebContents } from "electron";
 import { runTextTaskStream } from "../textTaskRunner";
+import { describeAgentError } from "./agentError";
 
 type TextStreamSession = {
   streamId: string;
@@ -41,7 +42,8 @@ export function registerTextStreamIpc(): void {
           sendTextEvent(session, { type: "done", result });
         })
         .catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : String(error);
+          // 同根因1：透出上游 responseBody 人话，而非裸状态文本。
+          const message = describeAgentError(error);
           sendTextEvent(session, { type: "error", message });
         })
         .finally(() => {

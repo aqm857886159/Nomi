@@ -5,6 +5,7 @@
 // 只超「等模型首响应」，不超「等用户确认工具」（确认在首字块之后发生，那时 timer 已清）。
 
 import type { AgentChatV2Hooks } from "../runtime";
+import { describeAgentError } from "./agentError";
 
 type StreamChunk = {
   type: string;
@@ -84,7 +85,9 @@ export async function consumeAgentStreamWithTimeout(
           finalUsage = { ...(finalUsage as Record<string, unknown>), cachedPromptTokens };
         }
       } else if (chunk.type === "error") {
-        const message = chunk.error instanceof Error ? chunk.error.message : String(chunk.error);
+        // 透传上游人话(根因1):APICallError 的 responseBody 里常有真原因(如"官方算力限制"),
+        // 别只取 .message(=裸 HTTP 状态文本"Bad Request")。
+        const message = describeAgentError(chunk.error);
         console.error(`[agentv2] stream error chunk: ${message}`);
         hooks.emit({ type: "error", message });
       }
@@ -92,7 +95,7 @@ export async function consumeAgentStreamWithTimeout(
     }
   } catch (streamError: unknown) {
     // abort（首字块超时）或流式异常 → 收口成 error 事件，避免 UI 永远「处理中」。
-    const message = streamError instanceof Error && streamError.message ? streamError.message : String(streamError);
+    const message = describeAgentError(streamError);
     console.error(`[agentv2] 流式中断: ${message}`);
     hooks.emit({ type: "error", message });
     hooks.emit({ type: "finish", finishReason: "error", usage: finalUsage });

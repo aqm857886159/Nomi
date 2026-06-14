@@ -14,6 +14,8 @@ import { runAgentLoop } from "./agentLoop";
 import { traceContextCapped } from "../events/agentChatTrace";
 import { consumeAgentStreamWithTimeout } from "./agentStreamConsumer";
 import { buildLanguageModelForVendor } from "./vendorLanguageModel";
+import { getModelProfile } from "./modelProfiles";
+import { describeEmptyAgentReply } from "./agentError";
 import { sanitizeForBroadCompat } from "./promptSanitize";
 import {
   canvasNodeKindSchema,
@@ -557,6 +559,19 @@ export async function runAgentChatV2(
   );
 
   const { finalText, finalFinish, finalUsage, ok } = await consumeAgentStreamWithTimeout(result, abortController, hooks, { firstChunkTimeoutMs: 90_000, label: `${vendor?.key}/${model?.modelKey}/${resolvedSkillKey}` });
+
+  // 空响应说人话（根因2）：finishReason=length + 空文本 = 典型「弱模型把内容塞进写工具 JSON
+  // 被 max_tokens 截断」的失败签名（如 moonshot-v1 vision）。抛出带原因 + 换模型引导的错误，
+  // 替代 UI 侧无信息量的「空响应：AI 没有返回文本」。canvas「纯工具成功轮」是 stop/tool-calls，不受影响。
+  if (ok && !finalText.trim()) {
+    const profile = getModelProfile(model.modelAlias || model.modelKey);
+    const diagnostic = describeEmptyAgentReply(finalFinish, {
+      modelLabel: model.labelZh || model.modelAlias || model.modelKey,
+      ...(profile.agentSuitability ? { agentSuitability: profile.agentSuitability } : {}),
+      ...(profile.agentNote ? { agentNote: profile.agentNote } : {}),
+    });
+    if (diagnostic) throw new Error(diagnostic);
+  }
 
   // 历史只存简短 displayPrompt（不存含整张快照的完整 prompt，否则每轮各存一份旧快照、token 膨胀）。
   if (ok && sessionKey) {
