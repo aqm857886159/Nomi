@@ -189,7 +189,11 @@ export default function NomiStudioApp(): JSX.Element {
             hydratingProjectRef.current = true;
             try {
                 const hydrated = await service.hydrateProject(projectId);
-                if (!hydrated) return false;
+                if (!hydrated) {
+                    toast("找不到项目文件，可能已被删除，请刷新项目库", "error");
+                    refreshProjects();
+                    return false;
+                }
                 // S1 治串台:切项目时交换两个 AI 面板的对话桶(存旧载新),气泡不再跨项目漂移。
                 const prevProjectId = activeProjectIdRef.current ?? null;
                 if (prevProjectId !== hydrated.id) {
@@ -222,7 +226,7 @@ export default function NomiStudioApp(): JSX.Element {
             }
             return true;
         },
-        [ensureProjectPersistenceService, navigate],
+        [ensureProjectPersistenceService, navigate, refreshProjects],
     );
 
     const openProject = React.useCallback(

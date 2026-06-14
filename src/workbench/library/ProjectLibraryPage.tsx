@@ -325,15 +325,16 @@ export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onN
                     key={project.id}
                     data-project-card="true"
                     className={cn(
-                      'group bg-nomi-paper border border-nomi-line rounded-nomi-lg overflow-hidden cursor-pointer text-left',
+                      'group bg-nomi-paper border border-nomi-line rounded-nomi-lg overflow-hidden text-left',
                       'transition-[box-shadow,transform,border-color] duration-150',
-                      'hover:shadow-nomi-md hover:border-[var(--nomi-ink-20)] hover:-translate-y-0.5',
-                      'active:translate-y-0 active:shadow-none',
+                      project.missing
+                        ? 'opacity-50 cursor-not-allowed'
+                        : 'cursor-pointer hover:shadow-nomi-md hover:border-[var(--nomi-ink-20)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-none',
                     )}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => onOpenProject(project.id)}
-                    onKeyDown={(e) => e.key === 'Enter' && onOpenProject(project.id)}
+                    role={project.missing ? undefined : 'button'}
+                    tabIndex={project.missing ? undefined : 0}
+                    onClick={project.missing ? undefined : () => onOpenProject(project.id)}
+                    onKeyDown={project.missing ? undefined : (e) => e.key === 'Enter' && onOpenProject(project.id)}
                   >
                     <div
                       className="aspect-video relative overflow-hidden bg-nomi-ink-05"
@@ -359,17 +360,23 @@ export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onN
                         >
                           <IconTrash size={14} stroke={1.8} />
                         </button>
-                        <button
-                          className={cn(
-                            'h-[30px] px-[14px] rounded-nomi-sm border-none',
-                            'bg-white/90 text-nomi-ink font-inherit text-caption font-medium cursor-pointer',
-                            'transition-colors duration-150 hover:bg-white',
-                          )}
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); onOpenProject(project.id) }}
-                        >
-                          继续创作
-                        </button>
+                        {project.missing ? (
+                          <span className="h-[30px] px-[14px] rounded-nomi-sm text-caption font-medium text-white/80 flex items-center">
+                            文件已删除
+                          </span>
+                        ) : (
+                          <button
+                            className={cn(
+                              'h-[30px] px-[14px] rounded-nomi-sm border-none',
+                              'bg-white/90 text-nomi-ink font-inherit text-caption font-medium cursor-pointer',
+                              'transition-colors duration-150 hover:bg-white',
+                            )}
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onOpenProject(project.id) }}
+                          >
+                            继续创作
+                          </button>
+                        )}
                       </div>
                     </div>
                     <div className="px-[13px] pt-[10px] pb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
