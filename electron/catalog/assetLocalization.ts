@@ -140,3 +140,41 @@ export function resolveAssetIngestion(vendor: { key?: string; assetIngestion?: A
   if (vendor.key && CURATED_ASSET_INGESTION[vendor.key]) return CURATED_ASSET_INGESTION[vendor.key];
   return null;
 }
+
+/**
+ * 通用素材上传策略解析（带跨供应商 fallback）。
+ *
+ * 目标供应商无上传能力时自动用其他已配置供应商中转上传，返回公网 URL 供任意目标使用。
+ * 优先级：目标 vendor 自身策略 → KIE（免费）→ apimart（免费 72h）→ 其他有上传能力的供应商。
+ *
+ * 返回 null = 所有已配置供应商均无上传通道（用户需至少配置一个有上传能力的供应商）。
+ */
+export function resolveAssetIngestionWithFallback(
+  targetVendor: { key?: string; assetIngestion?: AssetIngestion } | null | undefined,
+  allVendors: Array<{ key?: string; assetIngestion?: AssetIngestion }>,
+  getApiKey: (vendorKey: string) => string | null,
+): { ingestion: AssetIngestion; uploadApiKey: string } | null {
+  // 1. 目标供应商自己有上传能力 → 直接用（apiKey 也是目标供应商的）
+  const targetIngestion = resolveAssetIngestion(targetVendor);
+  if (targetIngestion && targetIngestion.strategy !== "none") {
+    const key = targetVendor?.key ? (getApiKey(targetVendor.key) ?? "") : "";
+    return { ingestion: targetIngestion, uploadApiKey: key };
+  }
+  // 2. KIE：免费上传，返回公网 URL，所有供应商均可用该 URL
+  const kieKey = getApiKey("kie");
+  if (kieKey) return { ingestion: CURATED_ASSET_INGESTION.kie, uploadApiKey: kieKey };
+  // 3. apimart：免费上传（72h），目标不是 apimart 本身时才用（避免 key 二选一歧义）
+  if (targetVendor?.key !== "apimart") {
+    const apimartKey = getApiKey("apimart");
+    if (apimartKey) return { ingestion: CURATED_ASSET_INGESTION.apimart, uploadApiKey: apimartKey };
+  }
+  // 4. 其他任意有上传能力（非 inline-base64）的已配供应商
+  for (const vendor of allVendors) {
+    if (!vendor.key || vendor.key === targetVendor?.key) continue;
+    const ing = resolveAssetIngestion(vendor);
+    if (!ing || ing.strategy === "none" || ing.strategy === "inline-base64") continue;
+    const key = getApiKey(vendor.key);
+    if (key) return { ingestion: ing, uploadApiKey: key };
+  }
+  return null;
+}

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { hardenedFetch } from "./hardenedFetch";
-import { localizeAssetsForVendor, resolveAssetIngestion } from "./catalog/assetLocalization";
+import { localizeAssetsForVendor, resolveAssetIngestionWithFallback } from "./catalog/assetLocalization";
 import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload } from "./assets/localAssetFile";
 import { endpoint } from "./vendorEndpoint";
 import { requestJson } from "./vendor/vendorHttp";
@@ -460,12 +460,19 @@ export async function executeProfileOperation(input: {
   operation: HttpOperation;
   providerMeta?: JsonRecord;
 }): Promise<{ response: unknown; request: unknown }> {
-  // R1：发送前把 request 里的本地素材(nomi-local://)按当前 vendor 声明的策略变成可达值
-  // (上传换公网 URL / 内联 base64)。通用层与供应商无关;无本地素材时零开销原样通过。
+  // R1：发送前把 request 里的本地素材(nomi-local://)按策略变成 vendor 可达值。
+  // 带跨供应商 fallback：目标 vendor 无上传能力时自动用 KIE/apimart 中转，
+  // 上传 apiKey 可能与生成 apiKey 不同（中转 vendor 的 key）——通用解。
+  const uploadCatalog = readCatalog();
+  const uploadResolved = resolveAssetIngestionWithFallback(
+    input.vendor,
+    uploadCatalog.vendors,
+    (key) => decryptApiKeyRecord(uploadCatalog.apiKeysByVendor[key]),
+  );
   const localized = await localizeAssetsForVendor(
     input.request.extras,
-    resolveAssetIngestion(input.vendor),
-    input.apiKey,
+    uploadResolved?.ingestion ?? null,
+    uploadResolved?.uploadApiKey ?? input.apiKey,
     readNomiLocalAsset,
     postJsonForAssetUpload,
     postMultipartForAssetUpload,
