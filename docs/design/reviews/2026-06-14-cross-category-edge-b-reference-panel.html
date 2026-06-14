@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>跨分类边可见性 · 方案 B — 跨分类引用面板</title>
+<style>
+  :root{
+    --nomi-bg: oklch(0.985 0.003 90);
+    --nomi-paper: oklch(1 0 0);
+    --nomi-ink: oklch(0.22 0.01 80);
+    --nomi-ink-80: oklch(0.32 0.01 80);
+    --nomi-ink-60: oklch(0.50 0.01 80);
+    --nomi-ink-40: oklch(0.68 0.01 80);
+    --nomi-ink-20: oklch(0.88 0.005 80);
+    --nomi-ink-10: oklch(0.94 0.003 80);
+    --nomi-ink-05: oklch(0.97 0.003 80);
+    --nomi-line: oklch(0.91 0.004 80);
+    --nomi-accent: oklch(0.55 0.13 250);
+    --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 12%, var(--nomi-paper));
+    /* 分类色复用工作区 token，不手写新绿（值 = nomi-tokens.css 的 --nomi-track-video）*/
+    --workbench-video: oklch(0.65 0.13 150);
+    --workbench-video-ink: oklch(0.50 0.12 150);
+    --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / .04), 0 1px 1px oklch(0 0 0 / .03);
+    --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / .04), 0 8px 24px oklch(0 0 0 / .06);
+    --nomi-shadow-lg: 0 4px 8px oklch(0 0 0 / .05), 0 20px 50px oklch(0 0 0 / .08);
+    --nomi-radius-sm:6px; --nomi-radius:10px; --nomi-radius-lg:16px;
+    --nomi-font-sans: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", system-ui, sans-serif;
+    --t:140ms cubic-bezier(.2,.7,.3,1);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--nomi-bg);color:var(--nomi-ink);font-family:var(--nomi-font-sans);font-size:14px;line-height:1.5}
+  .page{max-width:1180px;margin:0 auto;padding:32px 24px 64px}
+  h1{font-size:24px;margin:0 0 4px;font-weight:650}
+  .sub{color:var(--nomi-ink-60);font-size:13px;margin:0 0 24px}
+  .legend{font-size:12px;color:var(--nomi-ink-60);margin:0 0 20px}
+  .legend b{color:var(--nomi-ink);font-weight:600}
+  h2{font-size:16px;margin:28px 0 4px;font-weight:600}
+  .caption{color:var(--nomi-ink-60);font-size:12px;margin:0 0 12px}
+
+  .viewframe{position:relative;border:1px solid var(--nomi-line);border-radius:var(--nomi-radius-lg);background:var(--nomi-bg);overflow:hidden;box-shadow:var(--nomi-shadow-sm)}
+  .viewbar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--nomi-line);background:var(--nomi-paper)}
+  .tab{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;font-size:12px;color:var(--nomi-ink-60)}
+  .tab.active{background:color-mix(in oklch,var(--nomi-accent) 10%,transparent);color:var(--nomi-accent)}
+  .tab .ico{width:16px;height:16px}
+  .spacer{flex:1}
+  /* 工具栏触发按钮 */
+  .toolbtn{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;font-size:12px;
+    color:var(--nomi-ink-60);border:1px solid var(--nomi-line);background:var(--nomi-paper);cursor:pointer;transition:var(--t)}
+  .toolbtn:hover{color:var(--nomi-ink);background:var(--nomi-ink-05)}
+  .toolbtn.on{color:var(--nomi-accent);border-color:color-mix(in oklch,var(--nomi-accent) 35%,transparent);background:color-mix(in oklch,var(--nomi-accent) 8%,transparent)}
+  .toolbtn .pip{display:inline-grid;place-items:center;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--nomi-accent);color:var(--nomi-paper);font-size:9px;font-variant-numeric:tabular-nums}
+
+  .stage{position:relative;height:380px;background-image:radial-gradient(var(--nomi-ink-10) 1px,transparent 1px);background-size:22px 22px;background-position:-1px -1px}
+
+  .node{position:absolute;width:200px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:var(--nomi-radius);box-shadow:var(--nomi-shadow-sm)}
+  .node.flash{outline:1.5px solid var(--nomi-accent);outline-offset:-0.5px;box-shadow:var(--nomi-shadow-md)}
+  .pill{position:absolute;top:10px;left:10px;z-index:2;background:var(--nomi-ink);color:var(--nomi-paper);font-size:11px;font-weight:500;padding:3px 8px;border-radius:6px}
+  .thumb{height:108px;border-radius:var(--nomi-radius) var(--nomi-radius) 0 0;display:grid;place-items:center;text-align:center;background:repeating-linear-gradient(45deg,var(--nomi-ink-05) 0 10px,var(--nomi-ink-10) 10px 20px)}
+  .ph1{font-size:13px;color:var(--nomi-ink-60)} .ph2{font-size:11px;color:var(--nomi-ink-40)}
+  .foot{padding:8px 10px 10px;font-size:12px;font-weight:550}
+
+  /* ── ★ 方案 B 的核心：跨分类引用抽屉（右侧不裁切锚）── */
+  .drawer{position:absolute;top:8px;right:8px;bottom:8px;width:272px;z-index:8;background:var(--nomi-paper);
+    border:1px solid var(--nomi-line);border-radius:var(--nomi-radius);box-shadow:var(--nomi-shadow-lg);display:flex;flex-direction:column;overflow:hidden}
+  .drawer header{display:flex;align-items:center;gap:8px;padding:11px 12px;border-bottom:1px solid var(--nomi-line)}
+  .drawer header .ttl{font-size:13px;font-weight:600}
+  .drawer header .cnt{font-size:11px;color:var(--nomi-ink-40);font-variant-numeric:tabular-nums}
+  .drawer header .x{margin-left:auto;width:24px;height:24px;display:grid;place-items:center;border-radius:6px;color:var(--nomi-ink-60);cursor:pointer}
+  .drawer header .x:hover{background:var(--nomi-ink-05)}
+  .drawer .body{overflow:auto;padding:6px}
+  .grp{margin:6px 4px 2px;font-size:11px;font-weight:600;color:var(--nomi-ink-60)}
+  .refrow{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:var(--nomi-radius-sm);cursor:pointer;transition:var(--t)}
+  .refrow:hover{background:var(--nomi-ink-05)}
+  .refrow .from{font-size:12px;font-weight:550;color:var(--nomi-ink);white-space:nowrap}
+  .refrow .arr{color:var(--nomi-ink-40)}
+  .refrow .to{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--nomi-ink-80);min-width:0}
+  .refrow .to .catdot{width:14px;height:14px;border-radius:4px;display:inline-grid;place-items:center;flex:none}
+  .catdot.cast{background:color-mix(in oklch,var(--nomi-accent) 14%,transparent);color:var(--nomi-accent)}
+  .catdot.scene{background:color-mix(in oklch,var(--workbench-video) 16%,transparent);color:var(--workbench-video-ink)}
+  .refrow .mode{margin-left:auto;font-size:11px;color:var(--nomi-ink-40);background:var(--nomi-ink-05);border-radius:999px;padding:2px 7px;white-space:nowrap}
+  .empty{padding:18px 12px;text-align:center;color:var(--nomi-ink-40);font-size:12px}
+
+  svg.edges{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+  .edgepath{stroke:var(--nomi-ink-40);stroke-width:1.5;fill:none}
+
+  .specbox{margin-top:28px;border:1px solid var(--nomi-line);border-radius:var(--nomi-radius);background:var(--nomi-paper);padding:18px 20px}
+  .specbox h3{margin:0 0 10px;font-size:13px}
+  .specbox table{width:100%;border-collapse:collapse;font-size:12px}
+  .specbox td{padding:5px 8px;border-bottom:1px solid var(--nomi-line);vertical-align:top}
+  .specbox td:first-child{color:var(--nomi-ink-60);width:140px;white-space:nowrap}
+  code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:var(--nomi-ink-05);padding:1px 4px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>方案 B · 跨分类引用面板（抽屉）</h1>
+  <p class="sub">画布工具栏一枚「跨分类引用」开关，打开右侧抽屉，把<b>全部</b>跨分类引用边列成可审计清单——「镜头3 ← 引用 → 主角·场景」，逐行可点跳转。一处看全所有隐形连接。</p>
+
+  <p class="legend"><b>场景：</b>定妆链路里有 4 条跨分类引用边散落在三个子画布。方案 A 要逐张卡去看，方案 B 把它们汇总成一个清单——做多角色一致性时这是「对账」视角。</p>
+
+  <h2>抽屉打开态（在 shots 视图下）</h2>
+  <p class="caption">抽屉只在「存在跨分类边」时可用；按引用方分组、按对端分类标色。点任一行 → 跳到对应视图并闪一下两端节点。误删/漏挂在这里一眼可查。</p>
+  <div class="viewframe">
+    <div class="viewbar">
+      <span class="tab active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>分镜</span>
+      <span class="tab"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>角色</span>
+      <span class="tab"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M5 19l5-5 4 4 3-3 2 2"/></svg>场景</span>
+      <span class="spacer"></span>
+      <button class="toolbtn on"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 12h6"/><path d="M8 8H6a4 4 0 0 0 0 8h2"/><path d="M16 8h2a4 4 0 0 1 0 8h-2"/></svg>跨分类引用<span class="pip">4</span></button>
+    </div>
+    <div class="stage">
+      <svg class="edges"><path class="edgepath" d="M236 120 C 300 120, 300 170, 360 170"/></svg>
+      <!-- 镜头节点 -->
+      <div class="node flash" style="left:36px;top:56px">
+        <div class="pill">分镜 03</div>
+        <div class="thumb"><div><div class="ph1">分镜 03 · 天台对望</div><div class="ph2">等待生成</div></div></div>
+        <div class="foot">分镜 03 · 天台对望</div>
+      </div>
+      <div class="node" style="left:36px;top:230px">
+        <div class="pill">分镜 02</div>
+        <div class="thumb"><div><div class="ph1">分镜 02 · 推门</div><div class="ph2">等待生成</div></div></div>
+        <div class="foot">分镜 02 · 推门</div>
+      </div>
+
+      <!-- 抽屉 -->
+      <div class="drawer">
+        <header>
+          <span class="ttl">跨分类引用</span><span class="cnt">4 条</span>
+          <span class="x"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+        </header>
+        <div class="body">
+          <div class="grp">分镜 03 · 天台对望</div>
+          <div class="refrow">
+            <span class="to"><span class="catdot cast"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg></span>主角 · 艾拉</span>
+            <span class="mode">角色参考</span>
+          </div>
+          <div class="refrow">
+            <span class="to"><span class="catdot scene"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/></svg></span>场景 · 天台</span>
+            <span class="mode">场景参考</span>
+          </div>
+          <div class="grp">分镜 02 · 推门</div>
+          <div class="refrow">
+            <span class="to"><span class="catdot cast"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg></span>主角 · 艾拉</span>
+            <span class="mode">角色参考</span>
+          </div>
+          <div class="grp">分镜 05 · 离别</div>
+          <div class="refrow">
+            <span class="to"><span class="catdot cast"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg></span>主角 · 艾拉</span>
+            <span class="mode">角色参考</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>关闭态 + 空态</h2>
+  <p class="caption">不打开时只占工具栏一枚带计数的按钮（密度优先）；项目无跨分类引用时按钮置灰不可点，抽屉空态给一句话引导。</p>
+  <div class="viewframe">
+    <div class="viewbar">
+      <span class="tab active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>分镜</span>
+      <span class="spacer"></span>
+      <button class="toolbtn"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 12h6"/><path d="M8 8H6a4 4 0 0 0 0 8h2"/><path d="M16 8h2a4 4 0 0 1 0 8h-2"/></svg>跨分类引用<span class="pip">4</span></button>
+    </div>
+    <div class="stage" style="height:120px">
+      <div class="node" style="left:36px;top:18px">
+        <div class="pill">分镜 03</div>
+        <div class="thumb" style="height:60px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="specbox">
+    <h3>实现规范（拍板后才写）</h3>
+    <table>
+      <tr><td>新组件</td><td>画布工具栏 toggle + 右侧 <code>BodyPortal</code> 抽屉（仿 §3.5 <code>DesignDrawer</code> / SettingsPopover 锚），不裁切层</td></tr>
+      <tr><td>数据源</td><td>新增 <code>useCrossCategoryEdges()</code>：扫 <code>state.edges</code>，两端 <code>getDefaultCategoryForNodeKind</code>/<code>node.categoryId</code> 不同即收集；mode 取 <code>edge.mode</code>（first_frame/character_ref/…）映射人话</td></tr>
+      <tr><td>分组</td><td>按「引用方镜头」分组，组内列对端 + mode chip；对端分类用锁定色（cast=accent、scene=video-green，§4.2 图标）</td></tr>
+      <tr><td>交互</td><td>行点击 = 切对端 categoryId 视图 + 双端 flash（outline accent 一次）；不在此面板删边（删边仍走画布，避免双入口）</td></tr>
+      <tr><td>出现条件</td><td>按钮常驻工具栏带计数；计数为 0 时 disabled（<code>text-nomi-ink-30 cursor-not-allowed</code>）</td></tr>
+      <tr><td>token</td><td>抽屉 <code>rounded-nomi shadow-nomi-lg border-nomi-line</code>；行 <code>rounded-nomi-sm hover:bg-nomi-ink-05</code>；mode chip <code>text-[10px] text-nomi-ink-40 bg-nomi-ink-05 rounded-full</code></td></tr>
+      <tr><td>登记</td><td>设计系统 §4 新增「§4.7 跨分类引用抽屉」entry（§9 协议）</td></tr>
+    </table>
+  </div>
+</div>
+</body>
+</html>

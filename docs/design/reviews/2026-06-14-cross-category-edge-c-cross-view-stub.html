@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>跨分类边可见性 · 方案 C — 跨视图存根指示</title>
+<style>
+  :root{
+    --nomi-bg: oklch(0.985 0.003 90);
+    --nomi-paper: oklch(1 0 0);
+    --nomi-ink: oklch(0.22 0.01 80);
+    --nomi-ink-80: oklch(0.32 0.01 80);
+    --nomi-ink-60: oklch(0.50 0.01 80);
+    --nomi-ink-40: oklch(0.68 0.01 80);
+    --nomi-ink-20: oklch(0.88 0.005 80);
+    --nomi-ink-10: oklch(0.94 0.003 80);
+    --nomi-ink-05: oklch(0.97 0.003 80);
+    --nomi-line: oklch(0.91 0.004 80);
+    --nomi-accent: oklch(0.55 0.13 250);
+    --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 12%, var(--nomi-paper));
+    /* 分类色复用工作区 token，不手写新绿（值 = nomi-tokens.css 的 --nomi-track-video）*/
+    --workbench-video: oklch(0.65 0.13 150);
+    --workbench-video-ink: oklch(0.50 0.12 150);
+    --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / .04), 0 1px 1px oklch(0 0 0 / .03);
+    --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / .04), 0 8px 24px oklch(0 0 0 / .06);
+    --nomi-shadow-lg: 0 4px 8px oklch(0 0 0 / .05), 0 20px 50px oklch(0 0 0 / .08);
+    --nomi-radius-sm:6px; --nomi-radius:10px; --nomi-radius-lg:16px;
+    --nomi-font-sans: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", system-ui, sans-serif;
+    --t:140ms cubic-bezier(.2,.7,.3,1);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--nomi-bg);color:var(--nomi-ink);font-family:var(--nomi-font-sans);font-size:14px;line-height:1.5}
+  .page{max-width:1180px;margin:0 auto;padding:32px 24px 64px}
+  h1{font-size:24px;margin:0 0 4px;font-weight:650}
+  .sub{color:var(--nomi-ink-60);font-size:13px;margin:0 0 24px}
+  .legend{font-size:12px;color:var(--nomi-ink-60);margin:0 0 20px}
+  .legend b{color:var(--nomi-ink);font-weight:600}
+  h2{font-size:16px;margin:28px 0 4px;font-weight:600}
+  .caption{color:var(--nomi-ink-60);font-size:12px;margin:0 0 12px}
+
+  .viewframe{position:relative;border:1px solid var(--nomi-line);border-radius:var(--nomi-radius-lg);background:var(--nomi-bg);overflow:hidden;box-shadow:var(--nomi-shadow-sm)}
+  .viewbar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--nomi-line);background:var(--nomi-paper)}
+  .tab{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;font-size:12px;color:var(--nomi-ink-60)}
+  .tab.active{background:color-mix(in oklch,var(--nomi-accent) 10%,transparent);color:var(--nomi-accent)}
+  .tab .ico{width:16px;height:16px}
+  /* tab 上的「此处有跨分类引用」小点 */
+  .tab .hint{width:6px;height:6px;border-radius:999px;background:var(--nomi-accent)}
+
+  .stage{position:relative;height:360px;background-image:radial-gradient(var(--nomi-ink-10) 1px,transparent 1px);background-size:22px 22px;background-position:-1px -1px}
+
+  .node{position:absolute;width:200px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:var(--nomi-radius);box-shadow:var(--nomi-shadow-sm)}
+  .node.sel{box-shadow:var(--nomi-shadow-md);outline:1.5px solid var(--nomi-accent);outline-offset:-0.5px}
+  .pill{position:absolute;top:10px;left:10px;z-index:2;background:var(--nomi-ink);color:var(--nomi-paper);font-size:11px;font-weight:500;padding:3px 8px;border-radius:6px}
+  .thumb{height:108px;border-radius:var(--nomi-radius) var(--nomi-radius) 0 0;display:grid;place-items:center;text-align:center;background:repeating-linear-gradient(45deg,var(--nomi-ink-05) 0 10px,var(--nomi-ink-10) 10px 20px)}
+  .thumb.real{background:linear-gradient(135deg,oklch(0.7 0.07 250),oklch(0.62 0.09 320))}
+  .ph1{font-size:13px;color:var(--nomi-ink-60)} .ph2{font-size:11px;color:var(--nomi-ink-40)}
+  .foot{padding:8px 10px 10px;font-size:12px;font-weight:550}
+  /* 连接口（参照真实节点 handle）*/
+  .handle{position:absolute;width:10px;height:10px;border-radius:999px;background:var(--nomi-paper);border:1.5px solid var(--nomi-ink-40);top:60px}
+  .handle.in{left:-5px} .handle.out{right:-5px}
+
+  /* ── ★ 方案 C 的核心：跨视图存根（ghost stub）──
+     边的一端在别的子画布 → 在本节点的连接口外画一截虚线存根 + 一枚「→ 对端(分类)」幽灵 pill，
+     点 pill = 切到对端视图并聚焦。视觉上"边没断，只是去了别的视图"。 */
+  svg.edges{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+  .edge-real{stroke:var(--nomi-ink-40);stroke-width:1.5;fill:none}
+  .edge-stub{stroke:var(--nomi-accent);stroke-width:1.5;fill:none;stroke-dasharray:3 3;opacity:.85}
+  .ghost{position:absolute;z-index:3;display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px 0 7px;
+    border-radius:999px;font-size:11px;font-weight:500;cursor:pointer;transition:var(--t);
+    background:color-mix(in oklch,var(--nomi-paper) 86%,transparent);backdrop-filter:blur(8px);
+    color:var(--nomi-accent);border:1px dashed color-mix(in oklch,var(--nomi-accent) 45%,transparent)}
+  .ghost:hover{background:var(--nomi-accent-soft);border-style:solid}
+  .ghost .catdot{width:14px;height:14px;border-radius:4px;display:inline-grid;place-items:center;flex:none;
+    background:color-mix(in oklch,var(--nomi-accent) 16%,transparent)}
+  .ghost.scene{color:var(--workbench-video-ink);border-color:color-mix(in oklch,var(--workbench-video) 45%,transparent)}
+  .ghost.scene .catdot{background:color-mix(in oklch,var(--workbench-video) 16%,transparent)}
+
+  .specbox{margin-top:28px;border:1px solid var(--nomi-line);border-radius:var(--nomi-radius);background:var(--nomi-paper);padding:18px 20px}
+  .specbox h3{margin:0 0 10px;font-size:13px}
+  .specbox table{width:100%;border-collapse:collapse;font-size:12px}
+  .specbox td{padding:5px 8px;border-bottom:1px solid var(--nomi-line);vertical-align:top}
+  .specbox td:first-child{color:var(--nomi-ink-60);width:140px;white-space:nowrap}
+  code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:var(--nomi-ink-05);padding:1px 4px;border-radius:4px}
+  .flag{color:oklch(0.55 0.16 30)}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>方案 C · 跨视图存根指示</h1>
+  <p class="sub">保留「边」的心智：当一条边的另一端在别的子画布，就在本节点连接口画一截<b>虚线存根</b> + 一枚「→ 对端·分类」幽灵 pill。你<b>看得见这里有连接</b>，只是它通向另一个视图。点 pill 即切过去。</p>
+
+  <p class="legend"><b>场景：</b>在 shots 视图看「分镜 03」——它引用了 cast 视图的主角、scene 视图的天台。两条边的对端都不在本视图，于是各画一截存根挂幽灵 pill。这是三个方案里唯一保住「边可见」直觉的。</p>
+
+  <h2>常驻态：跨分类的边露出存根</h2>
+  <p class="caption">同视图内的边照常实线全画（下方 分镜02→03 首帧边）；跨视图的边用虚线存根 + 幽灵 pill 收口在节点边上，永不画到画布外。tab 上一颗小圆点提示「那个分类里有连到这儿的引用」。</p>
+  <div class="viewframe">
+    <div class="viewbar">
+      <span class="tab active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>分镜</span>
+      <span class="tab"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>角色<span class="hint"></span></span>
+      <span class="tab"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M5 19l5-5 4 4 3-3 2 2"/></svg>场景<span class="hint"></span></span>
+    </div>
+    <div class="stage">
+      <svg class="edges">
+        <!-- 同视图真实边：分镜02 → 分镜03 -->
+        <path class="edge-real" d="M300 268 C 340 268, 320 132, 360 132"/>
+        <!-- 跨视图存根：从 分镜03 左口向左下引一小截虚线，接幽灵 pill（指向 cast）-->
+        <path class="edge-stub" d="M355 132 C 320 132, 310 150, 300 158"/>
+        <!-- 跨视图存根：指向 scene -->
+        <path class="edge-stub" d="M355 150 C 322 150, 312 184, 300 196"/>
+      </svg>
+
+      <!-- 分镜03（选中），左侧挂两枚幽灵 pill -->
+      <div class="node sel" style="left:360px;top:72px">
+        <div class="pill">分镜 03</div>
+        <div class="handle in"></div><div class="handle out"></div>
+        <div class="thumb"><div><div class="ph1">分镜 03 · 天台对望</div><div class="ph2">等待生成</div></div></div>
+        <div class="foot">分镜 03 · 天台对望</div>
+      </div>
+      <!-- 幽灵 pill：指向 cast -->
+      <div class="ghost" style="left:150px;top:147px" title="主角·艾拉 在「角色」视图 · 点击跳转">
+        <span class="catdot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg></span>
+        主角 · 艾拉 →
+      </div>
+      <!-- 幽灵 pill：指向 scene -->
+      <div class="ghost scene" style="left:150px;top:186px" title="场景·天台 在「场景」视图 · 点击跳转">
+        <span class="catdot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/></svg></span>
+        场景 · 天台 →
+      </div>
+
+      <!-- 分镜02：同视图，与 03 有实线边 -->
+      <div class="node" style="left:100px;top:208px">
+        <div class="pill">分镜 02</div>
+        <div class="handle out" style="top:60px"></div>
+        <div class="thumb"><div><div class="ph1">分镜 02 · 推门</div><div class="ph2">等待生成</div></div></div>
+        <div class="foot">分镜 02 · 推门</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>反向：cast 视图里的主角卡也露出存根</h2>
+  <p class="caption">对称地，在 cast 视图选中「主角·艾拉」，它向 3 个镜头的引用各露一截存根 + 幽灵 pill（多于阈值则收成「→ 3 个镜头」聚合 pill，点开列表）。</p>
+  <div class="viewframe">
+    <div class="viewbar">
+      <span class="tab"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>分镜<span class="hint"></span></span>
+      <span class="tab active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>角色</span>
+    </div>
+    <div class="stage" style="height:220px">
+      <svg class="edges">
+        <path class="edge-stub" d="M245 110 C 290 110, 300 96, 318 92"/>
+      </svg>
+      <div class="node sel" style="left:40px;top:50px">
+        <div class="pill">角色</div>
+        <div class="handle out"></div>
+        <div class="thumb real"></div>
+        <div class="foot">主角 · 艾拉</div>
+      </div>
+      <!-- 聚合幽灵 pill -->
+      <div class="ghost" style="left:320px;top:80px" title="被 分镜02 / 03 / 05 引用 · 点开列表跳转">
+        <span class="catdot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/></svg></span>
+        用于 3 个镜头 →
+      </div>
+    </div>
+  </div>
+
+  <div class="specbox">
+    <h3>实现规范（拍板后才写）</h3>
+    <table>
+      <tr><td>落点</td><td>画布边渲染层 <code>GenerationCanvas.tsx:56</code>——不再「两端都可见才画」，改为：两端都可见→实线全画；恰一端可见→画存根 + 幽灵 pill；两端都不可见→不画</td></tr>
+      <tr><td>新原语</td><td>自研画布需新增 <code>&lt;CrossViewStub&gt;</code>（虚线 path + 锚定连接口的 pill 层），<span class="flag">这是三方案里渲染改动最大的一项（边过滤逻辑 + 新绘制层 + 几何 clamp）</span></td></tr>
+      <tr><td>聚合</td><td>同节点跨视图引用 &gt; 阈值（如 3）时收成一枚「→ N 个X」聚合 pill，点开走 BodyPortal 列表（与方案 A 浮层同源）</td></tr>
+      <tr><td>tab 提示</td><td>category tab/sidebar 行加一颗 <code>6px</code> accent 圆点：标示「该分类里有连到当前视图的引用」（复用 §5.2 sidebar 行）</td></tr>
+      <tr><td>防遮挡</td><td>存根只在连接口外延伸固定短长度后收口于 pill，pill 走视口 clamp，<b>永不绘到画布裁剪层外</b>（R13 几何实测项）</td></tr>
+      <tr><td>token</td><td>存根 <code>stroke:nomi-accent / scene=video-green，dasharray 3 3</code>；幽灵 pill <code>border-dashed</code> + <code>bg-nomi-paper/86 backdrop-blur</code>，hover 转实线 + <code>bg-nomi-accent-soft</code></td></tr>
+      <tr><td>登记</td><td>设计系统 §4 新增「§4.7 跨视图存根 / 幽灵 pill」entry（§9 协议）</td></tr>
+    </table>
+  </div>
+</div>
+</body>
+</html>

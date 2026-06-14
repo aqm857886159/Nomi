@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>跨分类边可见性 · 方案 A — 节点徽标 MVP</title>
+<style>
+  /* ── Nomi 设计 token（值取自 src/theme/nomi-tokens.css，样张内联以便独立预览）── */
+  :root{
+    --nomi-bg: oklch(0.985 0.003 90);
+    --nomi-paper: oklch(1 0 0);
+    --nomi-ink: oklch(0.22 0.01 80);
+    --nomi-ink-80: oklch(0.32 0.01 80);
+    --nomi-ink-60: oklch(0.50 0.01 80);
+    --nomi-ink-40: oklch(0.68 0.01 80);
+    --nomi-ink-20: oklch(0.88 0.005 80);
+    --nomi-ink-10: oklch(0.94 0.003 80);
+    --nomi-ink-05: oklch(0.97 0.003 80);
+    --nomi-line: oklch(0.91 0.004 80);
+    --nomi-accent: oklch(0.55 0.13 250);
+    --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 12%, var(--nomi-paper));
+    --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / .04), 0 1px 1px oklch(0 0 0 / .03);
+    --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / .04), 0 8px 24px oklch(0 0 0 / .06);
+    --nomi-shadow-lg: 0 4px 8px oklch(0 0 0 / .05), 0 20px 50px oklch(0 0 0 / .08);
+    --nomi-radius-sm: 6px; --nomi-radius: 10px; --nomi-radius-lg: 16px;
+    --nomi-font-sans: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", system-ui, sans-serif;
+    --t: 140ms cubic-bezier(.2,.7,.3,1);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--nomi-bg);color:var(--nomi-ink);font-family:var(--nomi-font-sans);font-size:14px;line-height:1.5}
+  .page{max-width:1180px;margin:0 auto;padding:32px 24px 64px}
+  h1{font-size:24px;margin:0 0 4px;font-weight:650}
+  .sub{color:var(--nomi-ink-60);font-size:13px;margin:0 0 24px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin:0 0 20px;font-size:12px;color:var(--nomi-ink-60)}
+  .legend b{color:var(--nomi-ink);font-weight:600}
+  h2{font-size:16px;margin:28px 0 4px;font-weight:600}
+  .caption{color:var(--nomi-ink-60);font-size:12px;margin:0 0 12px}
+
+  /* ── 子画布视图框 ── */
+  .viewframe{position:relative;border:1px solid var(--nomi-line);border-radius:var(--nomi-radius-lg);
+    background:var(--nomi-bg);overflow:hidden;box-shadow:var(--nomi-shadow-sm)}
+  .viewbar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--nomi-line);background:var(--nomi-paper)}
+  .tab{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;font-size:12px;color:var(--nomi-ink-60);cursor:default}
+  .tab .ico{width:16px;height:16px}
+  .tab.active{background:color-mix(in oklch,var(--nomi-accent) 10%,transparent);color:var(--nomi-accent)}
+  .tab .pip{display:inline-grid;place-items:center;min-width:16px;height:16px;padding:0 4px;border-radius:999px;
+    background:var(--nomi-accent);color:var(--nomi-paper);font-size:9px;font-variant-numeric:tabular-nums}
+  .stage{position:relative;height:340px;
+    background-image:radial-gradient(var(--nomi-ink-10) 1px, transparent 1px);background-size:22px 22px;background-position:-1px -1px}
+
+  /* ── 节点卡 ── */
+  .node{position:absolute;width:208px;background:var(--nomi-paper);border:1px solid var(--nomi-line);
+    border-radius:var(--nomi-radius);box-shadow:var(--nomi-shadow-sm);overflow:visible}
+  .node.sel{box-shadow:var(--nomi-shadow-md);outline:1.5px solid var(--nomi-accent);outline-offset:-0.5px}
+  .pill{position:absolute;top:10px;left:10px;z-index:2;background:var(--nomi-ink);color:var(--nomi-paper);
+    font-size:11px;font-weight:500;padding:3px 8px;border-radius:6px}
+  .thumb{height:118px;border-radius:var(--nomi-radius) var(--nomi-radius) 0 0;display:grid;place-items:center;text-align:center;
+    background:repeating-linear-gradient(45deg,var(--nomi-ink-05) 0 10px,var(--nomi-ink-10) 10px 20px)}
+  .thumb.real{background:linear-gradient(135deg,oklch(0.7 0.07 250),oklch(0.62 0.09 320))}
+  .thumb .ph1{font-size:13px;color:var(--nomi-ink-60)} .thumb .ph2{font-size:11px;color:var(--nomi-ink-40)}
+  .foot{padding:8px 10px 10px;display:grid;gap:6px}
+  .compbar{display:flex;align-items:center;gap:6px}
+  .modelchip{font-size:11px;color:var(--nomi-ink-60);background:var(--nomi-ink-05);border-radius:6px;padding:2px 6px}
+  .gen{margin-left:auto;font-size:11px;color:var(--nomi-paper);background:var(--nomi-ink);border-radius:999px;padding:3px 10px}
+
+  /* ── ★ 方案 A 的核心：跨分类引用徽标 ── */
+  .usagebadge{position:absolute;top:10px;right:10px;z-index:3;display:inline-flex;align-items:center;gap:4px;
+    height:22px;padding:0 8px;border-radius:999px;font-size:11px;font-weight:500;
+    background:color-mix(in oklch,var(--nomi-paper) 82%,transparent);backdrop-filter:blur(8px);
+    color:var(--nomi-ink-60);border:1px solid var(--nomi-line);cursor:pointer;transition:var(--t)}
+  .usagebadge:hover{color:var(--nomi-accent);border-color:color-mix(in oklch,var(--nomi-accent) 35%,transparent)}
+  .usagebadge .ico{width:13px;height:13px}
+  .usagebadge.out{ /* shots 卡上的「引用了X」方向 */ }
+
+  /* ── 徽标点开的浮层（落 BodyPortal / 防裁切）── */
+  .pop{position:absolute;z-index:9;width:212px;background:var(--nomi-paper);border:1px solid var(--nomi-line);
+    border-radius:var(--nomi-radius);box-shadow:var(--nomi-shadow-lg);overflow:hidden}
+  .pop h4{margin:0;padding:9px 12px;font-size:11px;font-weight:600;color:var(--nomi-ink-60);border-bottom:1px solid var(--nomi-line)}
+  .pop a{display:flex;align-items:center;gap:8px;padding:8px 12px;font-size:12px;color:var(--nomi-ink);text-decoration:none;cursor:pointer;transition:var(--t)}
+  .pop a:hover{background:var(--nomi-ink-05)}
+  .pop a .k{margin-left:auto;font-size:11px;color:var(--nomi-ink-40)}
+  .pop a .dot{width:14px;height:14px;border-radius:4px;display:inline-grid;place-items:center;background:var(--nomi-ink-05);color:var(--nomi-ink-60)}
+  .arrow{position:absolute;width:10px;height:10px;background:var(--nomi-paper);border-left:1px solid var(--nomi-line);border-top:1px solid var(--nomi-line);transform:rotate(45deg)}
+
+  /* 同视图内的真实可见边（参照，证明徽标不替代它）*/
+  svg.edges{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+  .edgepath{stroke:var(--nomi-ink-40);stroke-width:1.5;fill:none}
+
+  .specbox{margin-top:28px;border:1px solid var(--nomi-line);border-radius:var(--nomi-radius);background:var(--nomi-paper);padding:18px 20px}
+  .specbox h3{margin:0 0 10px;font-size:13px}
+  .specbox table{width:100%;border-collapse:collapse;font-size:12px}
+  .specbox td{padding:5px 8px;border-bottom:1px solid var(--nomi-line);vertical-align:top}
+  .specbox td:first-child{color:var(--nomi-ink-60);width:140px;white-space:nowrap}
+  code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:var(--nomi-ink-05);padding:1px 4px;border-radius:4px}
+  .flag{color:oklch(0.55 0.16 30)}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>方案 A · 节点徽标 MVP</h1>
+  <p class="sub">在节点卡上常驻一枚「跨分类引用」徽标——卡自己说出「我被几个镜头用 / 我引用了谁」。复用已结构化的 <code>useNodeUsageCount</code>，几乎纯代码。</p>
+
+  <div class="legend">
+    <span><b>场景：</b>定妆链路——「主角·艾拉」这张角色卡在 <b>cast 视图</b>，被 镜头02/03/05 引用；那几条边的另一端在 <b>shots 视图</b>，当前任一视图都看不见。</span>
+  </div>
+
+  <h2>① cast 视图：角色卡显示「被 N 个镜头引用」</h2>
+  <p class="caption">默认只是一枚安静的中性徽标（密度优先，不抢 accent）。点开 → 落不裁切浮层列出全部引用方，每行可点跳到对应镜头。这就解决了「不知道镜头3 引用了主角、容易误删」。</p>
+  <div class="viewframe">
+    <div class="viewbar">
+      <span class="tab active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>角色</span>
+      <span class="tab"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>分镜</span>
+      <span class="tab"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M5 19l5-5 4 4 3-3 2 2"/></svg>场景</span>
+    </div>
+    <div class="stage">
+      <!-- 主角卡：带 usagebadge + 打开的浮层 -->
+      <div class="node sel" style="left:40px;top:46px">
+        <div class="pill">角色</div>
+        <div class="usagebadge" title="被 3 个镜头引用 · 点开查看">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 12h6"/><path d="M8 8H6a4 4 0 0 0 0 8h2"/><path d="M16 8h2a4 4 0 0 1 0 8h-2"/></svg>
+          用于 3 镜头
+        </div>
+        <div class="thumb real"></div>
+        <div class="foot"><div style="font-size:12px;font-weight:550">主角 · 艾拉</div></div>
+      </div>
+      <!-- 浮层 -->
+      <div class="pop" style="left:258px;top:42px">
+        <span class="arrow" style="left:-6px;top:18px"></span>
+        <h4>被这些镜头引用</h4>
+        <a><span class="dot"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/></svg></span>镜头 02 · 推门<span class="k">角色参考</span></a>
+        <a><span class="dot"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/></svg></span>镜头 03 · 天台对望<span class="k">角色参考</span></a>
+        <a><span class="dot"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/></svg></span>镜头 05 · 离别<span class="k">角色参考</span></a>
+      </div>
+      <!-- 同视图另一张无跨分类引用的卡：无徽标，证明徽标是按需出现 -->
+      <div class="node" style="left:430px;top:150px">
+        <div class="pill">角色</div>
+        <div class="thumb"><div><div class="ph1">配角 · 老陈</div><div class="ph2">等待生成</div></div></div>
+        <div class="foot"><div style="font-size:12px;font-weight:550">配角 · 老陈</div></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>② shots 视图：镜头卡显示「引用了 X」（反方向）</h2>
+  <p class="caption">同一枚徽标，反过来：镜头卡说出自己挂了哪些跨分类参考。<span class="flag">注：这个反方向（引用了谁）当前 <code>useNodeUsageCount</code> 只统计「被引用」，需补一段对 <code>edge.source===nodeId</code> 的小遍历——数据已在 <code>state.edges</code>，工作量很小但非零。</span></p>
+  <div class="viewframe">
+    <div class="viewbar">
+      <span class="tab"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>角色</span>
+      <span class="tab active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>分镜</span>
+      <span class="tab"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M5 19l5-5 4 4 3-3 2 2"/></svg>场景</span>
+    </div>
+    <div class="stage">
+      <svg class="edges"><path class="edgepath" d="M248 110 C 300 110, 300 150, 352 150"/></svg>
+      <!-- 镜头02：引用 主角（跨分类）→ 徽标提示 -->
+      <div class="node" style="left:40px;top:46px">
+        <div class="pill">分镜 02</div>
+        <div class="usagebadge out" title="引用了 1 个角色：主角·艾拉">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 12h6"/><path d="M8 8H6a4 4 0 0 0 0 8h2"/><path d="M16 8h2a4 4 0 0 1 0 8h-2"/></svg>
+          引用 1
+        </div>
+        <div class="thumb"><div><div class="ph1">分镜 02 · 推门</div><div class="ph2">等待生成</div></div></div>
+        <div class="foot"><div class="compbar"><span class="modelchip">可灵 2.1</span><span class="modelchip">16:9</span><span class="gen">生成</span></div></div>
+      </div>
+      <!-- 镜头03：引用 主角 + 场景（2 个跨分类）-->
+      <div class="node sel" style="left:352px;top:96px">
+        <div class="pill">分镜 03</div>
+        <div class="usagebadge out" title="引用了 2 项：主角·艾拉、场景·天台">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 12h6"/><path d="M8 8H6a4 4 0 0 0 0 8h2"/><path d="M16 8h2a4 4 0 0 1 0 8h-2"/></svg>
+          引用 2
+        </div>
+        <div class="thumb"><div><div class="ph1">分镜 03 · 天台对望</div><div class="ph2">等待生成</div></div></div>
+        <div class="foot"><div class="compbar"><span class="modelchip">可灵 2.1</span><span class="modelchip">16:9</span><span class="gen">生成</span></div></div>
+      </div>
+      <!-- 同视图内一条真实可见边（镜头01→镜头02 首帧），证明 A 不动现有边渲染 -->
+    </div>
+  </div>
+
+  <div class="specbox">
+    <h3>实现规范（拍板后才写）</h3>
+    <table>
+      <tr><td>落点</td><td><code>BaseGenerationNode.tsx:593</code> 的 header 区，与 status / 独立副本 / provenance 徽标同排（additive sibling，不动现有）</td></tr>
+      <tr><td>数据源</td><td>「被引用」复用 <code>useNodeUsageCount(node.id)</code>（已按 edges 结构化）；<span class="flag">「引用了 X」需新增一段 <code>edge.source===nodeId &amp;&amp; 跨 categoryId</code> 的遍历 hook</span></td></tr>
+      <tr><td>出现条件</td><td>仅当存在<b>跨分类</b>引用边时显示（同视图可见边不挂徽标，避免噪音）</td></tr>
+      <tr><td>token</td><td>容器 <code>bg-nomi-paper/82 + backdrop-blur-[8px]</code>、<code>border-nomi-line</code>、<code>rounded-full</code>、字 <code>text-[11px] text-nomi-ink-60</code>、hover <code>text-nomi-accent</code>；图标 <code>IconLink</code> 13px stroke 1.6</td></tr>
+      <tr><td>浮层</td><td>点开走 <code>BodyPortal</code> + 向上翻转 + 视口 clamp（仿 §3.10 / SettingsPopover），防节点在画布边缘被裁</td></tr>
+      <tr><td>交互</td><td>浮层每行点击 = 切到对端 categoryId 视图 + 聚焦对端节点（复用「独立副本」徽标 L617-633 的跳转能力）</td></tr>
+      <tr><td>登记</td><td>设计系统 §4 新增「§4.7 跨分类引用徽标」entry（§9 协议）</td></tr>
+    </table>
+  </div>
+</div>
+</body>
+</html>
