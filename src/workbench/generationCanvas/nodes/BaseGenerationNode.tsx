@@ -432,7 +432,7 @@ function BaseGenerationNodeImpl({
                 "data-[selected=true]:z-[5]",
                 "block",
             )}
-            data-kind={node.kind}
+            data-node-id={node.id} data-kind={node.kind}
             data-expanded={selected ? "true" : "false"}
             data-selected={selected ? "true" : "false"}
             data-focus-flash={focusFlash ? "true" : "false"}

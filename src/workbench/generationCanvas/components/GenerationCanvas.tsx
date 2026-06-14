@@ -198,8 +198,6 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
   offsetRef.current = offset
   const zoomRef = React.useRef(zoom)
   zoomRef.current = zoom
-  const nodesRef = React.useRef(nodes)
-  nodesRef.current = nodes
   const allNodesRef = React.useRef(allNodes)
   allNodesRef.current = allNodes
   const stageSizeRef = React.useRef(stageSize)
@@ -328,7 +326,6 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     stageRef,
     offsetRef,
     zoomRef,
-    nodesRef,
     cancelConnection,
   })
 

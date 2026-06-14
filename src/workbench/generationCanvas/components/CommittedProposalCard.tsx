@@ -60,9 +60,8 @@ export default function CommittedProposalCard({ record, onUndone, flat = false }
           查看步骤
         </button>
         <WorkbenchButton
-          className={cn(
-            'h-6 px-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-ink-80 text-caption cursor-pointer hover:bg-nomi-ink-05',
-          )}
+          variant='default'
+          size='sm'
           data-proposal-undo-all='true'
           onClick={handleUndo}
         >
@@ -107,17 +106,10 @@ export default function CommittedProposalCard({ record, onUndone, flat = false }
             <span key={index} className={cn('text-caption text-nomi-ink-80')}>· {line}</span>
           ))}
           <div className={cn('flex items-center justify-end gap-2')}>
-            <WorkbenchButton
-              className={cn('h-6 px-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-ink-80 text-caption cursor-pointer hover:bg-nomi-ink-05')}
-              onClick={() => setLostEdits(null)}
-            >
+            <WorkbenchButton variant='default' size='sm' onClick={() => setLostEdits(null)}>
               取消
             </WorkbenchButton>
-            <WorkbenchButton
-              className={cn('h-6 px-2 rounded-nomi-sm border-0 bg-nomi-ink text-nomi-paper text-caption cursor-pointer hover:bg-nomi-accent')}
-              data-proposal-undo-confirm='true'
-              onClick={handleUndo}
-            >
+            <WorkbenchButton variant='primary' size='sm' data-proposal-undo-confirm='true' onClick={handleUndo}>
               仍要撤销
             </WorkbenchButton>
           </div>

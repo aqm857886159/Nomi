@@ -58,32 +58,15 @@ export default function ReconcileDeviationCard({ deviations, onUndoAll, onDismis
       </ul>
       <div className={cn('flex items-center gap-2')}>
         {onAiFix && hasEdgeMiss ? (
-          <WorkbenchButton
-            className={cn(
-              'h-7 px-3 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-accent text-[12px] cursor-pointer hover:bg-nomi-ink-05',
-            )}
-            data-reconcile-ai-fix="true"
-            onClick={onAiFix}
-          >
+          <WorkbenchButton variant="accent" size="sm" data-reconcile-ai-fix="true" onClick={onAiFix}>
             让 AI 修一下
           </WorkbenchButton>
         ) : null}
         <div className={cn('flex items-center gap-2 ml-auto')}>
-          <WorkbenchButton
-            className={cn(
-              'h-7 px-3 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-ink-80 text-[12px] cursor-pointer hover:bg-nomi-ink-05',
-            )}
-            onClick={onDismiss}
-          >
+          <WorkbenchButton variant="default" size="sm" onClick={onDismiss}>
             保持现状
           </WorkbenchButton>
-          <WorkbenchButton
-            className={cn(
-              'h-7 px-3 rounded-nomi-sm border-0 bg-nomi-ink text-nomi-paper text-[12px] cursor-pointer hover:bg-nomi-accent',
-            )}
-            data-reconcile-undo-all="true"
-            onClick={onUndoAll}
-          >
+          <WorkbenchButton variant="primary" size="sm" data-reconcile-undo-all="true" onClick={onUndoAll}>
             撤销这次改动
           </WorkbenchButton>
         </div>
