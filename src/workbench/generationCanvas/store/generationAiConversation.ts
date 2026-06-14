@@ -6,6 +6,7 @@
 import { createConversationBuckets } from '../../aiConversationBuckets'
 import { useGenerationCanvasStore } from './generationCanvasStore'
 import { clearCommittedProposal } from '../agent/proposalUndo'
+import { resetClientIdRegistry } from '../agent/applyCanvasToolCall'
 
 const generationAiBuckets = createConversationBuckets(() => ({
   generationAiDraft: '',
@@ -15,6 +16,8 @@ const generationAiBuckets = createConversationBuckets(() => ({
 export function swapGenerationAiProject(prevId: string | null, nextId: string | null): void {
   // S6-5 约束③:整笔撤销入口不跨项目——补偿计划引用的是旧项目节点,跨项目执行会复活幽灵。
   clearCommittedProposal()
+  // 同理 clientId 注册表也不跨项目(P1):否则新项目复用旧 clientId 会解析到旧项目节点 → 误连/误删。
+  resetClientIdRegistry()
   const state = useGenerationCanvasStore.getState()
   useGenerationCanvasStore.setState({
     ...generationAiBuckets.swap(prevId, nextId, {

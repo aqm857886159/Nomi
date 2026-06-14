@@ -39,6 +39,16 @@ function resolveNodeId(id: string): string {
   return clientIdRegistry.get(id) ?? id
 }
 
+/**
+ * 切项目/换会话时清空 clientId 注册表(P1·治跨项目串台)。
+ * 注册表是模块级全局、只增不减;不清的话,A 项目用过 clientId "n1" 后切到 B 项目,
+ * 若 LLM 再用 "n1" 指代,resolveNodeId 会返回 A 项目的真实节点 id → 跨项目误连/误删,
+ * reconcile 还会把脏解析当"已连接"误判 ok。由 swapGenerationAiProject(画布会话切换的单一入口)调用。
+ */
+export function resetClientIdRegistry(): void {
+  clientIdRegistry.clear()
+}
+
 const EDGE_MODES: ReadonlySet<string> = new Set([
   'reference',
   'first_frame',
