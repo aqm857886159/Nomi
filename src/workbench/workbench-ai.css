@@ -343,39 +343,9 @@
   place-items: center;
 }
 
-.workbench-creation-ai__message,
-.app-ai-chat-dialog.tc-ai-chat .tc-ai-chat-bubble {
-  margin-bottom: 10px;
-}
-
-.workbench-creation-ai__message,
-.app-ai-chat-dialog.tc-ai-chat .tc-ai-chat-bubble__card {
-  position: relative;
-  max-width: 90%;
-  border: 0 !important;
-  border-radius: var(--nomi-radius) !important;
-  background: var(--nomi-ink-05) !important;
-  box-shadow: none;
-  color: var(--nomi-ink);
-  font-size: 13.5px;
-  line-height: 1.55;
-  backdrop-filter: none;
-}
-
-.app-ai-chat-dialog.tc-ai-chat .tc-ai-chat-bubble__card {
-  padding: 10px 11px !important;
-}
-
-.workbench-creation-ai__message--user,
-.app-ai-chat-dialog.tc-ai-chat .tc-ai-chat-bubble--user .tc-ai-chat-bubble__card {
-  margin-left: auto;
-  border-color: transparent !important;
-  border-bottom-right-radius: 4px !important;
-}
-
-.workbench-creation-ai__message-content {
-  position: relative;
-}
+/* 助手/用户消息气泡样式已收口到共享组件 src/workbench/ai/AssistantMessageView.tsx
+ * （token-only className）。原 .workbench-creation-ai__message* 规则连同已废弃的
+ * .tc-ai-chat-bubble* 一并删除（R10 CSS 只减不增）。 */
 
 .app-ai-chat-dialog.tc-ai-chat .tc-ai-chat-bubble__meta {
   margin-bottom: 6px;

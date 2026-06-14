@@ -1,13 +1,12 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 import { IconCornerDownLeft, IconCursorText, IconFilePlus, IconMaximize, IconMinimize, IconPaperclip, IconPlayerStopFilled, IconReplace, IconSend2, IconX } from '@tabler/icons-react'
-import { NomiLoadingMark, NomiLogoMark, NomiSelect, WorkbenchButton, WorkbenchIconButton } from '../../design'
-import { NomiMarkdown } from '../common/NomiMarkdown'
+import { NomiLogoMark, NomiSelect, WorkbenchButton, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
 import { runWorkbenchAgent, workbenchSessionKey, type ToolCallEvent } from '../ai/workbenchAgentRunner'
 import { startNewConversation } from '../ai/conversationPersistence'
 import { clearWorkbenchAgentSession } from '../../api/desktopClient'
-import { AiReplyActionButton } from '../ai/AiReplyActionButton'
+import { AssistantMessageView, UserMessageBubble } from '../ai/AssistantMessageView'
 import AssistantModelPicker from '../ai/AssistantModelPicker'
 import { handleAiComposerKeyDown } from '../ai/aiComposerKeyboard'
 import { routeCreationIntent } from './creationIntentRouting'
@@ -30,7 +29,6 @@ import { isWriteTool, useCreationTurnStore, type PendingDocToolCall, type WriteT
 import { readWindowUrlParam } from '../windowUrlParam'
 import { AttachmentRail } from '../ai/composer/AttachmentRail'
 import { StaleConversationDivider, useStaleConversationBoundary } from '../ai/staleConversationDivider'
-import { narrateTurnStats } from '../observability/narrate'
 import { AutoGrowTextarea } from '../ai/composer/AutoGrowTextarea'
 import { COMPOSER_ATTACHMENT_ACCEPT, useComposerAttachments } from '../ai/composer/useComposerAttachments'
 
@@ -444,6 +442,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         className={cn(
           'workbench-creation-ai__messages',
           '[grid-area:messages] min-h-0 overflow-auto',
+          'flex flex-col gap-3',
         )}
         aria-live="polite"
       >
@@ -477,53 +476,21 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         ) : (
           messages.map((message) => (
             <React.Fragment key={message.id}>
-            <article
-              className={cn(
-                'workbench-creation-ai__message',
-                `workbench-creation-ai__message--${message.role}`,
-                'p-[10px_11px] whitespace-pre-wrap',
+              {message.role === 'user' ? (
+                <UserMessageBubble content={message.content} attachments={message.attachments} />
+              ) : (
+                <AssistantMessageView
+                  content={message.status === 'pending' ? '' : message.content}
+                  attachments={message.attachments}
+                  streaming={message.status === 'pending' || message.status === 'streaming'}
+                  pendingLabel={message.status === 'pending' ? message.content : undefined}
+                  cancelled={message.status === 'cancelled'}
+                  isError={message.content.startsWith('（错误）')}
+                  turnStats={message.turnStats}
+                  replyActionClassName="workbench-creation-ai__reply-action"
+                />
               )}
-            >
-              <div className={cn('workbench-creation-ai__message-content', 'whitespace-normal')}>
-                {message.attachments?.length ? (
-                  <AttachmentRail attachments={message.attachments} readOnly className={cn('mb-1.5')} />
-                ) : null}
-                {message.role === 'assistant' && message.status === 'pending' ? (
-                  <div className={cn('flex items-center gap-2')}>
-                    <NomiLoadingMark size={14} label="处理中" />
-                    {message.content ? (
-                      <span className={cn('text-nomi-ink-60 text-[13px] leading-snug')}>{message.content}</span>
-                    ) : null}
-                  </div>
-                ) : (
-                  <NomiMarkdown compact>{message.content}</NomiMarkdown>
-                )}
-                {message.role === 'assistant' && message.status === 'streaming' ? (
-                  <span className={cn('inline-flex gap-[3px] mt-1.5')} aria-hidden>
-                    {[0, 1, 2].map((i) => (
-                      <span key={i} className={cn('block w-1 h-1 rounded-full bg-nomi-ink-40 animate-pulse')} style={{ animationDelay: `${i * 150}ms` }} />
-                    ))}
-                  </span>
-                ) : null}
-                {message.role === 'assistant' && message.status === 'cancelled' ? (
-                  // 已取消第三态:中性「已停止」标,不走错误样式(用户主动停止≠出错)。
-                  <span className={cn('mt-1.5 inline-flex items-center gap-1 text-micro text-nomi-ink-40')}>
-                    <IconPlayerStopFilled size={11} />
-                    已停止
-                  </span>
-                ) : null}
-                {message.role === 'assistant' && (!message.status || message.status === 'done') && !message.content.startsWith('（错误）') ? (
-                  <AiReplyActionButton
-                    className="workbench-creation-ai__reply-action"
-                    content={message.content}
-                  />
-                ) : null}
-                {message.turnStats?.totalTokens ? (
-                  <span className={cn('block mt-1 text-micro text-nomi-ink-40')}>{narrateTurnStats(message.turnStats.totalTokens)}</span>
-                ) : null}
-              </div>
-            </article>
-            {message.id === staleBoundaryId ? <StaleConversationDivider /> : null}
+              {message.id === staleBoundaryId ? <StaleConversationDivider /> : null}
             </React.Fragment>
           ))
         )}
