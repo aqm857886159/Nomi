@@ -64,7 +64,9 @@ export default {
           accent: 'var(--workbench-accent)',
           'accent-soft': 'var(--workbench-accent-soft)',
           success: 'var(--workbench-success)',
+          'success-soft': 'var(--workbench-success-soft)',
           danger: 'var(--workbench-danger)',
+          'danger-soft': 'var(--workbench-danger-soft)',
           hover: 'var(--workbench-hover)',
           pressed: 'var(--workbench-pressed)',
           overlay: 'var(--workbench-overlay)',
@@ -112,6 +114,7 @@ export default {
         title: 'var(--tc-font-size-title)',
         h2: 'var(--tc-font-size-h2)',
         h1: 'var(--tc-font-size-h1)',
+        display: 'var(--tc-font-size-display)',
       },
       fontFamily: {
         'nomi-sans': 'var(--nomi-font-sans)',

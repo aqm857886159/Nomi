@@ -59,7 +59,7 @@ export default function NodeImageEditToolbar({
           <button
             className={cn(
               'inline-flex items-center justify-center gap-[7px]',
-              'min-w-0 min-h-[34px] px-[11px] border-0 rounded-[9px]',
+              'min-w-0 min-h-[34px] px-[11px] border-0 rounded-nomi',
               'bg-transparent text-nomi-accent font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer',
               'hover:bg-nomi-accent-soft',
             )}
@@ -77,7 +77,7 @@ export default function NodeImageEditToolbar({
       <button
         className={cn(
           'inline-flex items-center justify-center gap-[7px]',
-          'min-w-0 min-h-[34px] px-[11px] border-0 rounded-[9px]',
+          'min-w-0 min-h-[34px] px-[11px] border-0 rounded-nomi',
           'bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer',
           'hover:bg-nomi-ink-05 hover:text-nomi-ink',
           'disabled:opacity-[0.45] disabled:cursor-wait',
@@ -94,7 +94,7 @@ export default function NodeImageEditToolbar({
       <button
         className={cn(
           'inline-flex items-center justify-center gap-[7px]',
-          'min-w-0 min-h-[34px] px-[11px] border-0 rounded-[9px]',
+          'min-w-0 min-h-[34px] px-[11px] border-0 rounded-nomi',
           'bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer',
           'hover:bg-nomi-ink-05 hover:text-nomi-ink',
           'disabled:opacity-[0.45] disabled:cursor-wait',
@@ -112,7 +112,7 @@ export default function NodeImageEditToolbar({
       <button
         className={cn(
           'inline-flex items-center justify-center gap-[7px]',
-          'min-w-0 min-h-[34px] px-[11px] border-0 rounded-[9px]',
+          'min-w-0 min-h-[34px] px-[11px] border-0 rounded-nomi',
           'bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer',
           'hover:bg-nomi-ink-05 hover:text-nomi-ink',
           'disabled:opacity-[0.45] disabled:cursor-wait',
@@ -137,7 +137,7 @@ export default function NodeImageEditToolbar({
           key={op}
           className={cn(
             'inline-flex items-center justify-center',
-            'min-w-0 w-[34px] min-h-[34px] border-0 rounded-[9px]',
+            'min-w-0 w-[34px] min-h-[34px] border-0 rounded-nomi',
             'bg-transparent text-nomi-ink-80 cursor-pointer',
             'hover:bg-nomi-ink-05 hover:text-nomi-ink',
             'disabled:opacity-[0.45] disabled:cursor-wait',
@@ -155,7 +155,7 @@ export default function NodeImageEditToolbar({
       <button
         className={cn(
           'inline-flex items-center justify-center gap-[7px]',
-          'min-w-0 min-h-[34px] px-[11px] border-0 rounded-[9px]',
+          'min-w-0 min-h-[34px] px-[11px] border-0 rounded-nomi',
           'bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer',
           'hover:bg-nomi-ink-05 hover:text-nomi-ink',
           'disabled:opacity-[0.45] disabled:cursor-wait',

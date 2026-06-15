@@ -285,7 +285,7 @@ export default function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
         <span className={cn(
           'workbench-timeline-clip__label',
           'relative z-[1] min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap',
-          'rounded-[3px] text-[var(--nomi-ink)] backdrop-blur-[8px]',
+          'rounded-nomi-sm text-[var(--nomi-ink)] backdrop-blur-[8px]',
           'self-end mt-auto mx-1 mb-1 px-[5px] py-0.5 bg-[color-mix(in_oklch,var(--nomi-paper)_72%,transparent)]',
         )}>{title}</span>
       ) : null}

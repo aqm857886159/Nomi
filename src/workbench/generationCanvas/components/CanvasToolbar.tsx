@@ -47,7 +47,7 @@ export function NodeAddMenu({
       className={cn(
         'generation-canvas-v2-toolbar__node-menu',
         'absolute top-0 left-[calc(100%+8px)] grid gap-1 w-[132px] p-[6px]',
-        'border border-workbench-border rounded-[12px]',
+        'border border-workbench-border rounded-nomi',
         'bg-white/[0.96] shadow-workbench-pop',
         className,
       )}
@@ -64,7 +64,7 @@ export function NodeAddMenu({
             key={item.kind}
             className={cn(
               'inline-flex items-center justify-start gap-[6px]',
-              'w-full h-8 min-h-8 px-2 border-0 rounded-[8px]',
+              'w-full h-8 min-h-8 px-2 border-0 rounded-nomi',
               'bg-workbench-surface-solid text-workbench-ink font-[inherit] text-xs cursor-pointer',
               'hover:bg-nomi-ink-05',
             )}

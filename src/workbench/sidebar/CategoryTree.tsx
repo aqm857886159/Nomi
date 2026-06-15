@@ -349,7 +349,7 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
   const renderContextMenu = () => {
     if (!menu) return null
     const buttonClass = 'w-full px-2.5 py-1 text-left text-caption text-nomi-ink-70 hover:bg-nomi-ink-05'
-    const dangerClass = 'w-full px-2.5 py-1 text-left text-caption text-red-600 hover:bg-red-50'
+    const dangerClass = 'w-full px-2.5 py-1 text-left text-caption text-workbench-danger hover:bg-workbench-danger-soft'
     return (
       <div
         role="menu"

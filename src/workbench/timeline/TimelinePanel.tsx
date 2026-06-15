@@ -306,7 +306,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
           >
             <div className="absolute top-0 bottom-0 left-0 w-px -translate-x-1/2 bg-[repeating-linear-gradient(var(--nomi-snap)_0_4px,transparent_4px_8px)]" />
             <span className={cn(
-              'absolute top-0.5 left-1 px-1 rounded-[3px] whitespace-nowrap',
+              'absolute top-0.5 left-1 px-1 rounded-nomi-sm whitespace-nowrap',
               'font-mono text-micro leading-[14px] text-[var(--nomi-paper)] bg-[var(--nomi-snap-tag)]',
             )}>{snapGuide.label}</span>
           </div>
@@ -327,7 +327,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
             className={cn(
               'workbench-timeline__playhead-handle',
               'absolute -top-px left-1/2 -translate-x-1/2 w-[11px] h-[11px] p-0',
-              'rounded-[3px] border-[1.5px] border-[var(--nomi-paper)] bg-[var(--workbench-accent)]',
+              'rounded-nomi-sm border-[1.5px] border-[var(--nomi-paper)] bg-[var(--workbench-accent)]',
               'shadow-[0_1px_2px_oklch(0_0_0/0.2)] cursor-ew-resize pointer-events-auto touch-none',
             )}
             aria-label="拖动播放头"

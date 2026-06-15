@@ -525,7 +525,7 @@ function BaseGenerationNodeImpl({
                     <button
                         className={cn(
                             "inline-flex items-center justify-center gap-[7px]",
-                            "min-w-0 min-h-[34px] px-[11px] border-0 rounded-[9px]",
+                            "min-w-0 min-h-[34px] px-[11px] border-0 rounded-nomi",
                             "bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer",
                             "hover:bg-nomi-ink-05 hover:text-nomi-ink",
                         )}
@@ -537,7 +537,7 @@ function BaseGenerationNodeImpl({
                     <button
                         className={cn(
                             "inline-flex items-center justify-center gap-[7px]",
-                            "min-w-0 min-h-[34px] px-[11px] border-0 rounded-[9px]",
+                            "min-w-0 min-h-[34px] px-[11px] border-0 rounded-nomi",
                             "bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer",
                             "hover:bg-nomi-ink-05 hover:text-nomi-ink",
                         )}
@@ -554,7 +554,7 @@ function BaseGenerationNodeImpl({
                     <label
                         className={cn(
                             "inline-flex items-center justify-center gap-[7px]",
-                            "min-w-0 min-h-[34px] px-[11px] border-0 rounded-[9px]",
+                            "min-w-0 min-h-[34px] px-[11px] border-0 rounded-nomi",
                             "bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer",
                             "hover:bg-nomi-ink-05 hover:text-nomi-ink",
                         )}>
@@ -601,7 +601,7 @@ function BaseGenerationNodeImpl({
                     <span
                         className={cn(
                             "text-micro font-medium tracking-[0.06em] uppercase",
-                            "py-[3px] px-2 rounded-[4px] backdrop-blur-[8px]",
+                            "py-[3px] px-2 rounded-nomi-sm backdrop-blur-[8px]",
                             "bg-nomi-paper/[0.82] text-nomi-ink-60",
                             "data-[status=success]:text-workbench-success-ink data-[status=success]:bg-workbench-success-soft",
                             "data-[status=error]:text-workbench-danger data-[status=error]:bg-workbench-danger-soft",

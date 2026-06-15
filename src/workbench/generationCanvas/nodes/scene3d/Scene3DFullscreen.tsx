@@ -1871,7 +1871,7 @@ function PanelButton({
   return (
     <button
       className={cn(
-        'inline-flex h-8 min-w-8 shrink-0 items-center justify-center gap-1.5 rounded-[7px] border px-2 whitespace-nowrap',
+        'inline-flex h-8 min-w-8 shrink-0 items-center justify-center gap-1.5 rounded-nomi-sm border px-2 whitespace-nowrap',
         'border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] text-caption text-[var(--nomi-ink-60)] transition',
         'hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)]',
         active && 'border-[var(--nomi-ink)] bg-[var(--nomi-ink)] text-[var(--nomi-paper)] hover:bg-[var(--nomi-ink)] hover:text-[var(--nomi-paper)]',
@@ -1899,7 +1899,7 @@ function SceneAddButton({
   return (
     <button
       className={cn(
-        'inline-flex h-8 min-w-8 shrink-0 items-center justify-center gap-1.5 rounded-[8px] px-2',
+        'inline-flex h-8 min-w-8 shrink-0 items-center justify-center gap-1.5 rounded-nomi px-2',
         'border-0 bg-transparent text-caption text-[var(--nomi-ink-60)] transition',
         'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)] disabled:cursor-not-allowed disabled:opacity-40',
         active && 'bg-[var(--nomi-ink-05)] text-[var(--nomi-ink)]',
@@ -1927,7 +1927,7 @@ function CanvasPanelRestoreButton({
   return (
     <button
       className={cn(
-        'pointer-events-auto absolute top-4 z-[4] grid size-9 place-items-center rounded-[9px]',
+        'pointer-events-auto absolute top-4 z-[4] grid size-9 place-items-center rounded-nomi',
         'border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] text-[var(--nomi-ink-60)] shadow-[var(--nomi-shadow-md)]',
         'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
         side === 'left' ? 'left-4' : 'right-4',
@@ -2004,7 +2004,7 @@ function SceneAddToolbar({
         <div
           className={cn(
             'absolute bottom-[calc(100%+8px)] left-10 z-[5] grid w-[168px] gap-1 p-[6px]',
-            'rounded-[12px] border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
+            'rounded-nomi border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
           )}
           role="menu"
           aria-label="添加几何模型"
@@ -2015,7 +2015,7 @@ function SceneAddToolbar({
               <button
                 key={item.kind}
                 className={cn(
-                  'inline-flex h-8 w-full items-center justify-start gap-2 rounded-[8px] px-2',
+                  'inline-flex h-8 w-full items-center justify-start gap-2 rounded-nomi px-2',
                   'border-0 bg-transparent text-left text-caption text-[var(--nomi-ink-70)] transition',
                   'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
                 )}
@@ -2034,14 +2034,14 @@ function SceneAddToolbar({
         <div
           className={cn(
             'absolute bottom-[calc(100%+8px)] left-[118px] z-[5] grid w-[168px] gap-1 p-[6px]',
-            'rounded-[12px] border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
+            'rounded-nomi border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
           )}
           role="menu"
           aria-label="添加假人"
         >
           <button
             className={cn(
-              'inline-flex h-8 w-full items-center justify-start gap-2 rounded-[8px] px-2',
+              'inline-flex h-8 w-full items-center justify-start gap-2 rounded-nomi px-2',
               'border-0 bg-transparent text-left text-caption text-[var(--nomi-ink-70)] transition',
               'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
             )}
@@ -2054,7 +2054,7 @@ function SceneAddToolbar({
           </button>
           <button
             className={cn(
-              'inline-flex h-8 w-full items-center justify-start gap-2 rounded-[8px] px-2',
+              'inline-flex h-8 w-full items-center justify-start gap-2 rounded-nomi px-2',
               'border-0 bg-transparent text-left text-caption text-[var(--nomi-ink-70)] transition',
               'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
               crowdPopoverOpen && 'bg-[var(--nomi-ink-05)] text-[var(--nomi-ink)]',
@@ -2073,7 +2073,7 @@ function SceneAddToolbar({
         <div
           className={cn(
             'absolute bottom-[calc(100%+8px)] left-[294px] z-[6] w-[240px] p-3',
-            'rounded-[12px] border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
+            'rounded-nomi border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
           )}
           role="dialog"
           aria-label="添加群众"
@@ -2086,7 +2086,7 @@ function SceneAddToolbar({
             <label className="grid gap-1 text-micro text-[var(--nomi-ink-60)]">
               行数
               <input
-                className="h-8 rounded-[7px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)]"
+                className="h-8 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)]"
                 max={CROWD_MAX_AXIS}
                 min={1}
                 type="number"
@@ -2097,7 +2097,7 @@ function SceneAddToolbar({
             <label className="grid gap-1 text-micro text-[var(--nomi-ink-60)]">
               列数
               <input
-                className="h-8 rounded-[7px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)]"
+                className="h-8 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)]"
                 max={CROWD_MAX_AXIS}
                 min={1}
                 type="number"
@@ -2109,7 +2109,7 @@ function SceneAddToolbar({
           <label className="mt-2 grid gap-1 text-micro text-[var(--nomi-ink-60)]">
             圆间距
             <input
-              className="h-8 rounded-[7px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)]"
+              className="h-8 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)]"
               max={10}
               min={0.2}
               step={0.1}
@@ -2120,14 +2120,14 @@ function SceneAddToolbar({
           </label>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button
-              className="h-8 rounded-[7px] bg-[var(--nomi-ink-10)] text-caption text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-20)]"
+              className="h-8 rounded-nomi-sm bg-[var(--nomi-ink-10)] text-caption text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-20)]"
               type="button"
               onClick={() => setCrowdPopoverOpen(false)}
             >
               取消
             </button>
             <button
-              className="h-8 rounded-[7px] bg-[var(--nomi-ink)] text-caption text-[var(--nomi-paper)] hover:opacity-90"
+              className="h-8 rounded-nomi-sm bg-[var(--nomi-ink)] text-caption text-[var(--nomi-paper)] hover:opacity-90"
               type="button"
               onClick={addCrowd}
             >
@@ -2139,11 +2139,11 @@ function SceneAddToolbar({
       <div
         className={cn(
           'inline-flex max-w-full items-center gap-1 overflow-x-auto p-[6px]',
-          'rounded-[12px] border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
+          'rounded-nomi border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
         )}
         role="toolbar"
       >
-        <span className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-[var(--nomi-ink)] text-[var(--nomi-paper)]" title="添加">
+        <span className="grid size-8 shrink-0 place-items-center rounded-nomi bg-[var(--nomi-ink)] text-[var(--nomi-paper)]" title="添加">
           <IconPlus size={17} />
         </span>
         <span className="h-5 w-px shrink-0 bg-[var(--workbench-border)]" />
@@ -2253,7 +2253,7 @@ function ColorField({
       <div className="grid grid-cols-[32px_minmax(0,1fr)] items-center gap-2">
         <label
           className={cn(
-            'relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-[7px] border border-[var(--nomi-line)]',
+            'relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-nomi-sm border border-[var(--nomi-line)]',
             disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-[var(--nomi-accent)]',
           )}
           title={disabled ? undefined : '选择颜色'}
@@ -2348,7 +2348,7 @@ function SceneObjectList({
             <React.Fragment key={row.id}>
               <div
                 className={cn(
-                  'group grid grid-cols-[22px_24px_minmax(0,1fr)_28px_28px] items-center gap-1 rounded-[7px] px-1 py-1',
+                  'group grid grid-cols-[22px_24px_minmax(0,1fr)_28px_28px] items-center gap-1 rounded-nomi-sm px-1 py-1',
                   'text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-05)]',
                   selected && 'bg-[var(--nomi-ink-05)] text-[var(--nomi-ink)]',
                 )}
@@ -2435,7 +2435,7 @@ function SceneObjectList({
                       <button
                         key={`${row.id}-member-${index}`}
                         className={cn(
-                          'grid grid-cols-[24px_minmax(0,1fr)_56px] items-center gap-1 rounded-[7px] px-1 py-1',
+                          'grid grid-cols-[24px_minmax(0,1fr)_56px] items-center gap-1 rounded-nomi-sm px-1 py-1',
                           'text-left text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
                           selected && 'text-[var(--nomi-ink)]',
                         )}
@@ -2453,7 +2453,7 @@ function SceneObjectList({
                           />
                           <span className="min-w-0 truncate text-caption">{mannequinRoleLabel(roleIndex)}</span>
                         </span>
-                        <span className="justify-self-end rounded-[5px] bg-[var(--nomi-ink-05)] px-1.5 py-0.5 text-micro text-[var(--nomi-ink-45)]">
+                        <span className="justify-self-end rounded-nomi-sm bg-[var(--nomi-ink-05)] px-1.5 py-0.5 text-micro text-[var(--nomi-ink-45)]">
                           只读
                         </span>
                       </button>
@@ -2523,7 +2523,7 @@ function MannequinPosePanel({
           onChange={(event) => updatePoseControl(control, Number(event.currentTarget.value))}
         />
         <input
-          className="h-7 w-full rounded-[7px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 text-center font-mono text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-ink-35)] disabled:opacity-50"
+          className="h-7 w-full rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 text-center font-mono text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-ink-35)] disabled:opacity-50"
           disabled={readOnly}
           max={max}
           min={min}
@@ -2538,11 +2538,11 @@ function MannequinPosePanel({
 
   return (
     <div className="grid gap-3">
-      <div className="rounded-[7px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 py-2 text-micro leading-5 text-[var(--nomi-ink-60)]">
+      <div className="rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 py-2 text-micro leading-5 text-[var(--nomi-ink-60)]">
         <div className="font-medium text-[var(--nomi-ink)]">姿势调节</div>
         <div>默认值为站立参数，调整会实时映射到模型骨骼。</div>
       </div>
-      <div className="grid gap-2 rounded-[8px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-2">
+      <div className="grid gap-2 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-2">
         <div className="text-caption font-medium text-[var(--nomi-ink)]">姿势预设</div>
         <div className="grid grid-cols-4 gap-1.5">
           {MANNEQUIN_POSE_PRESETS.map((preset) => {
@@ -2551,7 +2551,7 @@ function MannequinPosePanel({
               <button
                 key={preset.id}
                 className={cn(
-                  'h-8 rounded-[7px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-1 text-caption text-[var(--nomi-ink-70)] transition',
+                  'h-8 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-1 text-caption text-[var(--nomi-ink-70)] transition',
                   'hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)] disabled:cursor-not-allowed disabled:opacity-40',
                   active && 'border-[var(--nomi-ink)] bg-[var(--nomi-ink)] text-[var(--nomi-paper)] hover:bg-[var(--nomi-ink)] hover:text-[var(--nomi-paper)]',
                 )}
@@ -2567,7 +2567,7 @@ function MannequinPosePanel({
       </div>
       <div className="grid gap-3">
         {MANNEQUIN_POSE_SECTIONS.map((section) => (
-          <div key={section.title} className="grid gap-2 rounded-[8px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-2">
+          <div key={section.title} className="grid gap-2 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-2">
             <div className="text-caption font-medium text-[var(--nomi-ink)]">{section.title}</div>
             {section.controls ? (
               <div className="grid gap-2">{section.controls.map(renderControl)}</div>
@@ -2575,7 +2575,7 @@ function MannequinPosePanel({
               <div className="grid gap-3">
                 {section.groups.map((group) => (
                   <div key={group.title} className="grid gap-2">
-                    <div className="w-fit rounded-[5px] bg-[var(--nomi-ink-08)] px-1.5 py-0.5 text-micro font-medium text-[var(--nomi-ink-70)]">
+                    <div className="w-fit rounded-nomi-sm bg-[var(--nomi-ink-08)] px-1.5 py-0.5 text-micro font-medium text-[var(--nomi-ink-70)]">
                       {group.title}
                     </div>
                     <div className="grid gap-2">{group.controls.map(renderControl)}</div>
@@ -2631,7 +2631,7 @@ function PropertyPanel({
       {selectedObject ? (
         <div className="grid gap-3">
           {selectedObjectHasPose ? (
-            <div className="grid grid-cols-2 gap-1 rounded-[8px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] p-1">
+            <div className="grid grid-cols-2 gap-1 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] p-1">
               {([
                 ['properties', '属性'],
                 ['pose', '姿势'],
@@ -3021,7 +3021,7 @@ function CameraPreview({
   return (
     <div
       className={cn(
-        'absolute right-4 z-[3] w-[260px] rounded-[8px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-2 text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
+        'absolute right-4 z-[3] w-[260px] rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-2 text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
         rightPanelCollapsed ? 'top-16' : 'top-4',
       )}
     >
@@ -3056,7 +3056,7 @@ function CameraPreview({
         </div>
       </div>
       <div className="flex min-h-[126px] items-center justify-center rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] p-1">
-        <div className="overflow-hidden rounded-[5px] bg-[var(--nomi-ink)]" style={previewStyle}>
+        <div className="overflow-hidden rounded-nomi-sm bg-[var(--nomi-ink)]" style={previewStyle}>
           <Canvas
             camera={{
               fov: camera.fov,
@@ -3078,7 +3078,7 @@ function CameraPreview({
           <button
             key={option}
             className={cn(
-              'h-6 rounded-[5px] border border-[var(--nomi-line-soft)] text-micro text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+              'h-6 rounded-nomi-sm border border-[var(--nomi-line-soft)] text-micro text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
               option === camera.aspectRatio && 'bg-[var(--nomi-ink)] text-[var(--nomi-paper)]',
             )}
             disabled={readOnly}
@@ -3089,7 +3089,7 @@ function CameraPreview({
           </button>
         ))}
       </div>
-      <div className="mt-3 rounded-[7px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 py-2">
+      <div className="mt-3 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 py-2">
         <div className="mb-1 flex items-center justify-between gap-2 text-micro text-[var(--nomi-ink-60)]">
           <span>镜头深度</span>
           <span className="font-medium text-[var(--nomi-ink)]">{Math.round(lensDepth)}%</span>
@@ -3638,7 +3638,7 @@ export default function Scene3DFullscreen({
           <div className="min-w-0 truncate text-body-sm font-medium text-[var(--workbench-ink)]">{nodeTitle}</div>
         </div>
         <div className="ml-auto flex min-w-0 max-w-[72vw] items-center gap-2 overflow-x-auto">
-          <div className="flex items-center gap-1 rounded-[8px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-0.5">
+          <div className="flex items-center gap-1 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-0.5">
             <PanelButton title="移动" active={transformMode === 'translate'} onClick={() => setTransformMode('translate')}>
               <IconArrowsMove size={15} />
             </PanelButton>
@@ -3646,13 +3646,13 @@ export default function Scene3DFullscreen({
               <IconRotate size={15} />
             </PanelButton>
           </div>
-          <div className="flex items-center gap-1 rounded-[8px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-0.5">
+          <div className="flex items-center gap-1 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-0.5">
             <PanelButton title="当前视口截图" onClick={captureViewport}>
               <IconPhoto size={15} />
               <span>截图</span>
             </PanelButton>
           </div>
-          <label className="inline-flex h-8 shrink-0 items-center gap-2 rounded-[8px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--workbench-muted)]">
+          <label className="inline-flex h-8 shrink-0 items-center gap-2 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--workbench-muted)]">
             <IconWorld size={14} />
             <span>速度</span>
             <input
@@ -3666,7 +3666,7 @@ export default function Scene3DFullscreen({
             />
           </label>
           <button
-            className="grid size-8 shrink-0 place-items-center rounded-[7px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)]"
+            className="grid size-8 shrink-0 place-items-center rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)]"
             type="button"
             title="关闭"
             onClick={handleClose}
@@ -3763,7 +3763,7 @@ export default function Scene3DFullscreen({
             />
           ) : null}
           {cameraViewEditCamera ? (
-            <div className="pointer-events-auto absolute left-1/2 top-4 z-[3] flex -translate-x-1/2 items-center gap-2 rounded-[8px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] px-3 py-2 text-caption text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]">
+            <div className="pointer-events-auto absolute left-1/2 top-4 z-[3] flex -translate-x-1/2 items-center gap-2 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] px-3 py-2 text-caption text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]">
               <IconCamera size={15} className="text-[var(--nomi-ink-60)]" />
               <span className="max-w-[220px] truncate">取景调整 · {cameraViewEditCamera.name}</span>
               <button
@@ -3775,7 +3775,7 @@ export default function Scene3DFullscreen({
               </button>
             </div>
           ) : null}
-          <div className="pointer-events-none absolute bottom-4 left-4 grid size-20 place-items-center rounded-[8px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] text-micro text-[var(--nomi-ink-60)] shadow-[var(--nomi-shadow-md)]">
+          <div className="pointer-events-none absolute bottom-4 left-4 grid size-20 place-items-center rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] text-micro text-[var(--nomi-ink-60)] shadow-[var(--nomi-shadow-md)]">
             <div className="grid gap-1">
               <span className="text-red-300">X</span>
               <span className="text-green-300">Y</span>

@@ -51,7 +51,7 @@ export function AssetThumb({ asset, playSize = 22 }: { asset: AssetRef; playSize
     return (
       <span className={cn('flex items-center gap-[2px] h-[22px]')} aria-hidden>
         {WAVE_HEIGHTS.map((h, i) => (
-          <i key={i} className={cn('w-[2px] rounded-[1px] bg-nomi-ink-40')} style={{ height: `${h}px` }} />
+          <i key={i} className={cn('w-[2px] rounded-nomi-sm bg-nomi-ink-40')} style={{ height: `${h}px` }} />
         ))}
       </span>
     )

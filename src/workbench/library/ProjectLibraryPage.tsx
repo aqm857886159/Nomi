@@ -130,7 +130,7 @@ export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onN
 
         {/* ── Header：品牌 + 右上弱入口（模型接入） ── */}
         <section className="shrink-0 flex items-start justify-between gap-6 mb-1">
-          <h1 className="flex items-center gap-[11px] font-nomi-display text-[28px] font-normal tracking-[-0.022em] text-nomi-ink leading-none m-0">
+          <h1 className="flex items-center gap-[11px] font-nomi-display text-display font-normal tracking-[-0.022em] text-nomi-ink leading-none m-0">
             <NomiLogoMark size={28} />
             <span>No<span className="text-nomi-accent">m</span>i 项目库</span>
           </h1>
@@ -349,9 +349,9 @@ export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onN
                         <button
                           className={cn(
                             'absolute top-[9px] right-[9px] w-[30px] h-[30px] rounded-nomi-sm border-none',
-                            'bg-white/90 text-[#b42318] grid place-items-center cursor-pointer',
+                            'bg-white/90 text-workbench-danger grid place-items-center cursor-pointer',
                             'transition-[background,color] duration-150',
-                            'hover:bg-[#b42318] hover:text-white',
+                            'hover:bg-workbench-danger hover:text-white',
                           )}
                           type="button"
                           aria-label={`删除项目 ${project.name}`}

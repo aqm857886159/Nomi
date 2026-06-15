@@ -507,7 +507,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     <section
       className={cn(
         'generation-canvas-v2',
-        'grid grid-rows-[minmax(0,1fr)] w-full h-full min-w-0 min-h-0 bg-[#f7f7f9] text-workbench-ink',
+        'grid grid-rows-[minmax(0,1fr)] w-full h-full min-w-0 min-h-0 bg-workbench-bg text-workbench-ink',
       )}
       aria-label="AI 影像创作画布"
       data-ready={isReady ? 'true' : undefined}
@@ -519,7 +519,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
               'generation-canvas-v2__provider-popover',
               'absolute top-4 right-4 z-[12] grid gap-[10px]',
               'w-[min(360px,calc(100vw-40px))] p-3',
-              'border border-workbench-border rounded-[12px]',
+              'border border-workbench-border rounded-nomi',
               'bg-white/[0.98] shadow-workbench-pop pointer-events-auto',
             )}
             onPointerDown={(event) => event.stopPropagation()}

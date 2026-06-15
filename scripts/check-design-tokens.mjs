@@ -23,24 +23,24 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // 各类违规的正则 + 当前基线（棘轮上限）。把基线逐步降到 0 = token 债还清。
 const RULES = [
   {
-    key: "任意 px 字号（用 text-caption/micro/body-sm/body/title/h2/h1）",
+    key: "任意 px 字号（用 text-caption/micro/body-sm/body/title/h2/h1/display）",
     re: /\btext-\[[0-9.]+px\]/g,
-    baseline: 1, // 仅剩 ProjectLibraryPage 品牌 display 标题 28px（无对应 token，留待 display 档决策）
+    baseline: 0, // 已清零(28px 品牌标题 → text-display token)
   },
   {
     key: "任意 px 圆角（用 rounded-nomi-sm/nomi/nomi-lg）",
     re: /\brounded-\[[0-9.]+px\]/g,
-    baseline: 62, // 多为 7/8/9/12px——圆角 token 标尺(6/10/14)偏粗,snap 会改视觉,待标尺决策后逐步迁
+    baseline: 0, // 已清零(全 snap 到 6/10/14 标尺)
   },
   {
     key: "硬编码 hex 颜色（用语义 token）",
     re: /\b(?:text|bg|border|fill|stroke|from|to|ring|outline|divide)-\[#[0-9a-fA-F]{3,8}\b/g,
-    baseline: 3, // #b42318(删除红)/#f7f7f9(画布底)——token 颜色与原值不同,snap 会改色,待拍板
+    baseline: 0, // 已清零
   },
   {
     key: "Tailwind 默认色板（用语义 token）",
     re: /\b(?:text|bg|border|ring|divide|from|to)-(?:red|blue|green|yellow|gray|slate|zinc|amber|sky|indigo|emerald|rose|orange|teal|violet|cyan|lime|fuchsia|pink|purple)-[0-9]{2,3}\b/g,
-    baseline: 9, // toast/CategoryTree/Scene3D 轴标——同上,待拍板
+    baseline: 3, // 正当例外：Scene3DFullscreen 的 XYZ 三维轴色(red/green/blue-300 是 3D 轴约定语义色,无对应 UI token,故保留)
   },
 ];
 

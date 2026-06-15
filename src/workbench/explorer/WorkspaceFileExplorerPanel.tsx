@@ -96,7 +96,7 @@ export default function WorkspaceFileExplorerPanel({ projectId }: Props): JSX.El
       <div className="flex-1 min-h-0 overflow-auto px-1.5 py-2">
         {!projectId ? <p className="px-2 py-4 text-caption text-nomi-ink-40">打开项目后显示文件</p> : null}
         {loading ? <p className="px-2 py-4 text-caption text-nomi-ink-40">正在读取项目文件…</p> : null}
-        {error ? <p className="px-2 py-4 text-caption text-red-500">{error}</p> : null}
+        {error ? <p className="px-2 py-4 text-caption text-workbench-danger">{error}</p> : null}
         {!loading && !error && projectId && visibleItems.length === 0 ? (
           <p className="px-2 py-4 text-caption text-nomi-ink-40">这个文件夹还没有可用素材</p>
         ) : null}

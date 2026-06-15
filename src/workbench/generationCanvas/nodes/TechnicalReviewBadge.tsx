@@ -11,7 +11,7 @@ export function TechnicalReviewBadge({ meta }: { meta?: Record<string, unknown> 
   const reasons = (review.checks || []).filter((check) => check.suspect).map((check) => check.detail).join(';')
   return (
     <span
-      className={cn('text-micro py-[3px] px-2 rounded-[4px] bg-workbench-danger-soft text-workbench-danger')}
+      className={cn('text-micro py-[3px] px-2 rounded-nomi-sm bg-workbench-danger-soft text-workbench-danger')}
       title={`自检提醒:${reasons || '结果可能有问题'} — 内容不变,仅提醒;可重新生成`}
       data-technical-review='suspect'
     >

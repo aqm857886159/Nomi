@@ -27,7 +27,7 @@ function ToolbarButton({ action }: { action: RichTextAction }): JSX.Element {
       className={cn(
         'workbench-editor-toolbar__button',
         'w-[30px] h-[30px] inline-grid place-items-center',
-        'border border-transparent rounded-[7px]',
+        'border border-transparent rounded-nomi-sm',
         'bg-transparent text-workbench-muted cursor-pointer',
         'hover:bg-workbench-hover',
         'focus-visible:outline-2 focus-visible:outline-workbench-focus focus-visible:outline-offset-2',

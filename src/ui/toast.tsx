@@ -42,9 +42,9 @@ export function ToastHost({ className }: { className?: string } = {}): JSX.Eleme
         <div
           className={cn(
             'px-3 py-2 rounded-lg border border-black/[.15] shadow-sm',
-            i.type === 'error' && 'bg-red-500/[.12]',
-            i.type === 'success' && 'bg-emerald-500/[.12]',
-            i.type !== 'error' && i.type !== 'success' && 'bg-blue-500/[.12]',
+            i.type === 'error' && 'bg-workbench-danger-soft',
+            i.type === 'success' && 'bg-workbench-success-soft',
+            i.type !== 'error' && i.type !== 'success' && 'bg-nomi-accent-soft',
           )}
           key={i.id}
         >{i.message}</div>

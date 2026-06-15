@@ -111,7 +111,7 @@ export function CanvasMinimap({ nodes, selectedIds, zoom, offset, stageSize, onJ
             <div
               key={node.id}
               className={cn(
-                'absolute rounded-[2px]',
+                'absolute rounded-nomi-sm',
                 // 纸色描边 = 相邻/重叠的小方块之间留一道缝，避免同色方块糊成一团（用户报「粘连」）。
                 'ring-1 ring-nomi-paper',
                 selectedIds.has(node.id) ? 'bg-nomi-accent' : 'bg-nomi-ink-30',
@@ -126,7 +126,7 @@ export function CanvasMinimap({ nodes, selectedIds, zoom, offset, stageSize, onJ
           )
         })}
         <div
-          className="absolute border border-nomi-accent rounded-[2px] bg-nomi-accent-soft/30 pointer-events-none"
+          className="absolute border border-nomi-accent rounded-nomi-sm bg-nomi-accent-soft/30 pointer-events-none"
           style={{ left: viewTL.left, top: viewTL.top, width: Math.max(4, viewW), height: Math.max(4, viewH) }}
         />
       </div>
