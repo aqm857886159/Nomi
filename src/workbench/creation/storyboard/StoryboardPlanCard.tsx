@@ -54,7 +54,7 @@ export default function StoryboardPlanCard(): JSX.Element | null {
         {committed && !editorOpen
           ? <IconCircleCheck size={15} stroke={1.6} className="shrink-0 text-[var(--workbench-success)]" />
           : <IconMovie size={15} stroke={1.6} className="shrink-0 text-nomi-ink-60" />}
-        <span className="min-w-0 flex-1 truncate text-bodySm font-medium text-nomi-ink">{title}</span>
+        <span className="min-w-0 flex-1 truncate text-body-sm font-medium text-nomi-ink">{title}</span>
         <span className={cn('shrink-0 text-micro px-2 py-0.5 rounded-full leading-relaxed', badge.cls)}>{badge.label}</span>
       </div>
 

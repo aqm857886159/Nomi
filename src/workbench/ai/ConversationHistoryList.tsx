@@ -55,7 +55,7 @@ export function ConversationHistoryList({
         }}
       >
         <IconPlus size={15} className={cn('shrink-0 text-nomi-ink-60')} />
-        <span className={cn('text-bodySm text-nomi-ink')}>新对话</span>
+        <span className={cn('text-body-sm text-nomi-ink')}>新对话</span>
         <span className={cn('ml-auto text-micro text-nomi-ink-40')}>当前会存入历史</span>
       </button>
 
@@ -79,7 +79,7 @@ export function ConversationHistoryList({
             >
               <span
                 className={cn(
-                  'flex-1 min-w-0 truncate text-bodySm',
+                  'flex-1 min-w-0 truncate text-body-sm',
                   isActive ? 'text-nomi-ink' : 'text-nomi-ink-80',
                 )}
               >

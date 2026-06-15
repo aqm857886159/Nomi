@@ -24,7 +24,7 @@ type StepTone = 'done' | 'active' | 'warn'
 function StepHeader({ title, badge, badgeTone }: { title: string; badge?: string; badgeTone?: StepTone }): JSX.Element {
   return (
     <div className={cn('flex items-center gap-2 min-w-0')}>
-      <span className={cn('text-nomi-ink text-bodySm font-semibold truncate')}>{title}</span>
+      <span className={cn('text-nomi-ink text-body-sm font-semibold truncate')}>{title}</span>
       {badge ? (
         <span
           className={cn(
@@ -138,7 +138,7 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
       <div className={cn('flex flex-1 flex-col min-h-0 overflow-auto p-4')}>
         <div className={cn('flex flex-1 flex-col items-center justify-center gap-2 max-w-[240px] mx-auto py-6 px-3 text-center')}>
           <div className={cn('text-nomi-ink font-[Fraunces,Inter,serif] text-title font-medium')}>我帮你搭画布</div>
-          <div className={cn('text-nomi-ink-60 text-bodySm leading-relaxed')}>
+          <div className={cn('text-nomi-ink-60 text-body-sm leading-relaxed')}>
             铺镜头、改提示词、连节点都交给我；出图按节点上的「生成」键。
           </div>
           <div className={cn('flex flex-col gap-1.5 w-full mt-2')}>
