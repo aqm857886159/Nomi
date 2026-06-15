@@ -3,8 +3,10 @@
   /* Workbench visual system: flat light workspace, solid panels, 8px panels, 32px icon controls. */
   --workbench-topbar-height: 56px;
   --workbench-timeline-height: 188px;
-  /* 预览时间轴：图片轨 + 媒体轨 + 文字轨（字幕/标题卡）三条，比生成区多一条 → 加高一档容纳。 */
-  --workbench-preview-timeline-height: 268px;
+  /* 预览时间轴：图片轨 + 媒体轨 + 文字轨（字幕/标题卡）三条 = 标尺28 + 3×52 + 间距/内距 ≈ 222px。
+     贴合内容高度（轨道是固定 3 条，clip 填进轨道不新增行），消除文字轨下方的空白带。
+     注：上手清单聚光在预览区用此 var 浮于时间轴之上，改这里锚点自动跟随。 */
+  --workbench-preview-timeline-height: 222px;
   --workbench-timeline-label-width: 112px;
   --workbench-bg: var(--nomi-bg);
   --workbench-surface: var(--nomi-paper);
