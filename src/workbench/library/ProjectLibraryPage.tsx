@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconArrowRight, IconFolderOpen, IconFolderShare, IconGift, IconMovie, IconPlayerPlay, IconPlugConnected, IconPlus, IconTrash } from '@tabler/icons-react'
+import { IconArrowRight, IconFolderOpen, IconFolderShare, IconGift, IconMovie, IconPlayerPlay, IconPlugConnected, IconPlus, IconSparkles, IconTrash } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { ActionCard, NomiLogoMark, NomiWordmark } from '../../design'
 import { NomiImage } from '../../design/media'
@@ -15,6 +15,8 @@ type Props = {
   onRevealProjectFolder?: (projectId: string) => void
   onTryExample?: (example: TryNowExample) => void
   onOpenModelCatalog?: () => void
+  /** 重看开屏动画（首启播完后从这里可主动重播）；缺省则不渲染重看入口 */
+  onReplaySplash?: () => void
   /** null = 查询中（不渲染告警）；false 时弱入口隐藏、状态条升权（单一入口互斥） */
   hasTextModel?: boolean | null
   projects: LocalProjectSummary[]
@@ -97,7 +99,7 @@ function StoryboardHintStrip(): JSX.Element {
   )
 }
 
-export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onNewProject, onOpenFolder, onRevealProjectFolder, onTryExample, onOpenModelCatalog, hasTextModel = null, projects }: Props): JSX.Element {
+export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onNewProject, onOpenFolder, onRevealProjectFolder, onTryExample, onOpenModelCatalog, onReplaySplash, hasTextModel = null, projects }: Props): JSX.Element {
   const [query, setQuery] = React.useState('')
   const [sourceFilter, setSourceFilter] = React.useState<'all' | 'native' | 'folder'>('all')
   const normalizedQuery = query.trim().toLowerCase()
@@ -134,20 +136,37 @@ export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onN
             <NomiLogoMark size={28} />
             <span><NomiWordmark /> 项目库</span>
           </h1>
-          {showModelEntry ? (
-            <button
-              type="button"
-              onClick={onOpenModelCatalog}
-              className={cn(
-                'inline-flex items-center gap-1.5 h-7 px-2 rounded-pill border-0 bg-transparent cursor-pointer font-inherit',
-                'text-caption text-nomi-ink-60 transition-colors hover:text-nomi-ink',
-              )}
-              aria-label="模型接入"
-            >
-              <IconPlugConnected size={14} stroke={1.6} aria-hidden="true" />
-              模型接入
-            </button>
-          ) : null}
+          <div className="flex items-center gap-1">
+            {onReplaySplash ? (
+              <button
+                type="button"
+                onClick={onReplaySplash}
+                className={cn(
+                  'inline-flex items-center gap-1.5 h-7 px-2 rounded-pill border-0 bg-transparent cursor-pointer font-inherit',
+                  'text-caption text-nomi-ink-60 transition-colors hover:text-nomi-ink',
+                )}
+                data-replay-splash="true"
+                aria-label="看看 Nomi 能做什么"
+              >
+                <IconSparkles size={14} stroke={1.6} aria-hidden="true" />
+                看看 Nomi
+              </button>
+            ) : null}
+            {showModelEntry ? (
+              <button
+                type="button"
+                onClick={onOpenModelCatalog}
+                className={cn(
+                  'inline-flex items-center gap-1.5 h-7 px-2 rounded-pill border-0 bg-transparent cursor-pointer font-inherit',
+                  'text-caption text-nomi-ink-60 transition-colors hover:text-nomi-ink',
+                )}
+                aria-label="模型接入"
+              >
+                <IconPlugConnected size={14} stroke={1.6} aria-hidden="true" />
+                模型接入
+              </button>
+            ) : null}
+          </div>
         </section>
 
         {isEmptyLibrary ? (
