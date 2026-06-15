@@ -549,7 +549,7 @@ export default function CanvasAssistantPanel({
             'generation-canvas-v2-assistant__launcher',
             'inline-flex items-center gap-2 h-9 pl-[10px] pr-[14px]',
             'border border-nomi-line rounded-full',
-            'bg-nomi-paper text-nomi-ink font-[inherit] text-[13px] font-medium',
+            'bg-nomi-paper text-nomi-ink font-[inherit] text-body-sm font-medium',
             'shadow-nomi-sm cursor-pointer',
             'hover:shadow-nomi-md hover:-translate-y-px',
           )}

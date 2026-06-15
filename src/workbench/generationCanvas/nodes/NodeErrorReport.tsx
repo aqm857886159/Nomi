@@ -56,7 +56,7 @@ export function NodeErrorReport({ message, onRetry }: { message: string; onRetry
     >
       <div className="flex items-start gap-2">
         <IconAlertTriangle size={16} stroke={1.7} className="mt-[1px] shrink-0 text-workbench-danger" />
-        <span className="select-text cursor-text text-[14px] font-bold leading-snug text-nomi-ink">{report.reason}</span>
+        <span className="select-text cursor-text text-body font-bold leading-snug text-nomi-ink">{report.reason}</span>
       </div>
       {report.hint ? <p className="mt-2 select-text cursor-text text-caption leading-relaxed text-nomi-ink-60">{report.hint}</p> : null}
       {/* 服务商真实原话——提到可见区，别再让用户去折叠的「技术详情」里挖（一脸懵逼的根源）。 */}
@@ -71,7 +71,7 @@ export function NodeErrorReport({ message, onRetry }: { message: string; onRetry
 
       {showRaw ? (
         <pre
-          className="mb-2 max-h-[88px] select-text overflow-auto whitespace-pre-wrap break-all rounded-nomi-sm bg-nomi-ink-05 p-2 font-nomi-mono text-[11px] text-nomi-ink-60"
+          className="mb-2 max-h-[88px] select-text overflow-auto whitespace-pre-wrap break-all rounded-nomi-sm bg-nomi-ink-05 p-2 font-nomi-mono text-micro text-nomi-ink-60"
           onPointerDown={(event) => event.stopPropagation()}
         >
           {report.raw}
@@ -85,7 +85,7 @@ export function NodeErrorReport({ message, onRetry }: { message: string; onRetry
             onClick={handleRetry}
             aria-label="重试生成"
             className={cn(
-              'inline-flex h-7 items-center gap-1 rounded-nomi-sm px-3 text-[12px] font-medium text-nomi-paper',
+              'inline-flex h-7 items-center gap-1 rounded-nomi-sm px-3 text-caption font-medium text-nomi-paper',
               'bg-workbench-danger hover:brightness-95',
             )}
           >
@@ -96,7 +96,7 @@ export function NodeErrorReport({ message, onRetry }: { message: string; onRetry
         <button
           type="button"
           onClick={handleCopy}
-          className="text-[12px] text-nomi-ink-45 hover:text-nomi-ink"
+          className="text-caption text-nomi-ink-45 hover:text-nomi-ink"
         >
           {copied ? '已复制' : '复制详情'}
         </button>

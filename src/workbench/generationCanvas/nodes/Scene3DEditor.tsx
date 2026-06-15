@@ -168,7 +168,7 @@ export default function Scene3DEditor({ node, width, height, readOnly = false }:
             </div>
             <div className="text-center">
               <div className="text-caption font-medium text-nomi-ink-70">点击进入 3D 编辑器</div>
-              <div className="mt-1 text-[11px] text-nomi-ink-45">摆放模型、相机并输出截图</div>
+              <div className="mt-1 text-micro text-nomi-ink-45">摆放模型、相机并输出截图</div>
             </div>
           </div>
         )}

@@ -112,7 +112,7 @@ export function NomiStepper({ value, onChange }: NomiStepperProps): JSX.Element 
           key={tab.mode}
           className={cn(
             'nomi-stepper__step',
-            'inline-flex items-center px-3.5 py-[5px] border-0 rounded-full bg-transparent text-nomi-ink-60 font-inherit text-[13px] font-medium cursor-pointer',
+            'inline-flex items-center px-3.5 py-[5px] border-0 rounded-full bg-transparent text-nomi-ink-60 font-inherit text-body-sm font-medium cursor-pointer',
             'transition-[background,color,box-shadow] ease-nomi-fast',
             'hover:text-nomi-ink',
             'data-[state=active]:bg-nomi-paper data-[state=active]:text-nomi-ink data-[state=active]:shadow-nomi-sm',

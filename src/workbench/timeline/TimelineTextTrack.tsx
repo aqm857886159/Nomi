@@ -115,7 +115,7 @@ export default function TimelineTextTrack(): JSX.Element {
             'workbench-timeline-track__empty',
             'absolute inset-0 flex items-center justify-center',
             'border border-dashed border-[var(--nomi-line)] rounded-[var(--nomi-radius-sm)]',
-            'text-[var(--nomi-ink-40)] leading-none text-[11px] font-medium pointer-events-none',
+            'text-[var(--nomi-ink-40)] leading-none text-micro font-medium pointer-events-none',
           )}>用上方「字幕 / 标题卡」添加</div>
         ) : null}
         {textClips.map((clip) => {
@@ -130,7 +130,7 @@ export default function TimelineTextTrack(): JSX.Element {
                 'workbench-timeline-text-clip',
                 'absolute top-[5px] h-9 z-[1] flex items-center gap-1 px-2 overflow-hidden',
                 'rounded-[var(--nomi-radius-sm)] cursor-grab active:cursor-grabbing touch-none text-left',
-                'border bg-[var(--workbench-text-soft)] text-[var(--nomi-ink)] text-[11px] font-semibold',
+                'border bg-[var(--workbench-text-soft)] text-[var(--nomi-ink)] text-micro font-semibold',
                 selected
                   ? 'border-[var(--workbench-text)] shadow-[0_0_0_1px_var(--workbench-text)]'
                   : 'border-[color-mix(in_oklch,var(--workbench-text)_36%,transparent)]',

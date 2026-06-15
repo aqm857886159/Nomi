@@ -216,7 +216,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
                 updateNode(node.id, { meta: { ...(node.meta || {}), textGenMode: option.value } })
               }}
               className={cn(
-                'h-[22px] rounded-full px-2.5 text-[11px] font-medium',
+                'h-[22px] rounded-full px-2.5 text-micro font-medium',
                 'text-nomi-ink-60 hover:bg-nomi-ink-05',
                 'data-[active=true]:bg-nomi-accent-soft data-[active=true]:text-nomi-accent',
               )}

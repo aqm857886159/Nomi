@@ -15,16 +15,16 @@ function makeComponents(compact: boolean): Components {
   const pMy = compact ? 'my-1' : 'my-2'
   const hMt = compact ? 'mt-2.5' : 'mt-4'
   const hMb = compact ? 'mb-1' : 'mb-2'
-  const h1 = compact ? 'text-[16px]' : 'text-[20px]'
-  const h2 = compact ? 'text-[14px]' : 'text-[16px]'
-  const h3 = compact ? 'text-[13px]' : 'text-[14px]'
+  const h1 = compact ? 'text-title' : 'text-h2'
+  const h2 = compact ? 'text-body' : 'text-title'
+  const h3 = compact ? 'text-body-sm' : 'text-body'
   return {
     h1: ({ node: _n, ...p }) => <h1 className={`${h1} font-semibold leading-snug text-nomi-ink ${hMt} ${hMb} first:mt-0`} {...p} />,
     h2: ({ node: _n, ...p }) => <h2 className={`${h2} font-semibold leading-snug text-nomi-ink ${hMt} ${hMb} first:mt-0`} {...p} />,
     h3: ({ node: _n, ...p }) => <h3 className={`${h3} font-semibold leading-snug text-nomi-ink ${hMt} ${hMb} first:mt-0`} {...p} />,
-    p: ({ node: _n, ...p }) => <p className={`text-[14px] leading-relaxed text-nomi-ink-80 ${pMy}`} {...p} />,
-    ul: ({ node: _n, ...p }) => <ul className={`list-disc pl-5 ${pMy} text-[14px] leading-relaxed text-nomi-ink-80`} {...p} />,
-    ol: ({ node: _n, ...p }) => <ol className={`list-decimal pl-5 ${pMy} text-[14px] leading-relaxed text-nomi-ink-80`} {...p} />,
+    p: ({ node: _n, ...p }) => <p className={`text-body leading-relaxed text-nomi-ink-80 ${pMy}`} {...p} />,
+    ul: ({ node: _n, ...p }) => <ul className={`list-disc pl-5 ${pMy} text-body leading-relaxed text-nomi-ink-80`} {...p} />,
+    ol: ({ node: _n, ...p }) => <ol className={`list-decimal pl-5 ${pMy} text-body leading-relaxed text-nomi-ink-80`} {...p} />,
     li: ({ node: _n, ...p }) => <li className="my-0.5" {...p} />,
     a: ({ node: _n, ...p }) => <a className="text-nomi-accent underline underline-offset-2" target="_blank" rel="noreferrer" {...p} />,
     blockquote: ({ node: _n, ...p }) => <blockquote className={`border-l-2 border-nomi-line pl-3 ${pMy} text-nomi-ink-60`} {...p} />,

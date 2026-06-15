@@ -16,6 +16,7 @@
   --tc-font-size-body-sm: 13px;
   --tc-font-size-caption: 12px;
   --tc-font-size-title: 16px;
+  --tc-font-size-h2: 20px;
   --tc-font-size-h1: 24px;
   /* 连线句柄热区：越大越容易误触；适当收紧以提升精确度 */
   --handle-hit-outside: 20px;

@@ -557,7 +557,7 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
           disabled={isEmpty}
           title={isEmpty ? '时间轴为空' : undefined}
         />
-        <span className="text-[11px] opacity-60 tabular-nums min-w-[60px]">
+        <span className="text-micro opacity-60 tabular-nums min-w-[60px]">
           {currentSeconds}s / {totalSeconds}s
         </span>
         <div className={cn(
@@ -598,7 +598,7 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
           <WorkbenchIconButton className={cn('workbench-preview-player__icon-button', CONTROL_ICON_BUTTON_CLASS)} label="缩小画面" icon={<IconZoomOut size={16} />} onClick={() => updateMediaScale(-0.1)} disabled={!hasMedia} />
           <span className={cn(
             'workbench-preview-player__zoom-label',
-            'min-w-[38px] text-[var(--workbench-muted)] text-[11px] font-bold tabular-nums text-center',
+            'min-w-[38px] text-[var(--workbench-muted)] text-micro font-bold tabular-nums text-center',
           )} aria-label="当前缩放">{Math.round(framing.scale * 100)}%</span>
           <WorkbenchIconButton className={cn('workbench-preview-player__icon-button', CONTROL_ICON_BUTTON_CLASS)} label="重置画面" icon={<IconRefresh size={16} />} onClick={resetMediaTransform} disabled={!hasMedia} />
           <WorkbenchIconButton className={cn('workbench-preview-player__icon-button', CONTROL_ICON_BUTTON_CLASS)} label="放大画面" icon={<IconZoomIn size={16} />} onClick={() => updateMediaScale(0.1)} disabled={!hasMedia} />
@@ -629,18 +629,18 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
               'bg-[var(--nomi-paper)] shadow-[var(--workbench-shadow-pop)]',
             )} role="menu">
               <button type="button" role="menuitem"
-                className={cn('flex items-center gap-2 px-2 py-1.5 rounded-[var(--nomi-radius-sm)] text-left text-[12px] text-[var(--workbench-ink)] hover:bg-[var(--workbench-hover)]')}
+                className={cn('flex items-center gap-2 px-2 py-1.5 rounded-[var(--nomi-radius-sm)] text-left text-caption text-[var(--workbench-ink)] hover:bg-[var(--workbench-hover)]')}
                 onClick={() => addText('caption')}>
                 <IconLetterCase size={14} className="flex-none text-[var(--workbench-text)]" />
                 <span className="flex-1">字幕</span>
-                <span className="text-[var(--workbench-muted-soft)] text-[11px]">底部 · 小</span>
+                <span className="text-[var(--workbench-muted-soft)] text-micro">底部 · 小</span>
               </button>
               <button type="button" role="menuitem"
-                className={cn('flex items-center gap-2 px-2 py-1.5 rounded-[var(--nomi-radius-sm)] text-left text-[12px] text-[var(--workbench-ink)] hover:bg-[var(--workbench-hover)]')}
+                className={cn('flex items-center gap-2 px-2 py-1.5 rounded-[var(--nomi-radius-sm)] text-left text-caption text-[var(--workbench-ink)] hover:bg-[var(--workbench-hover)]')}
                 onClick={() => addText('title')}>
                 <IconLetterCase size={14} className="flex-none text-[var(--workbench-text)]" />
                 <span className="flex-1">标题</span>
-                <span className="text-[var(--workbench-muted-soft)] text-[11px]">居中 · 大</span>
+                <span className="text-[var(--workbench-muted-soft)] text-micro">居中 · 大</span>
               </button>
             </div>
           ) : null}

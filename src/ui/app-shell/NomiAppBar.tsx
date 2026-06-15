@@ -83,7 +83,7 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
                 className={cn(
                   'nomi-appbar__breadcrumb-seg nomi-appbar__breadcrumb-seg--lib',
                   'inline-flex items-center h-full px-2.5',
-                  'border-none bg-transparent font-inherit text-[13px]',
+                  'border-none bg-transparent font-inherit text-body-sm',
                   'cursor-pointer whitespace-nowrap',
                   'text-[var(--nomi-ink-50)]',
                   'transition-[background,color] duration-[var(--nomi-transition-fast)]',
@@ -111,7 +111,7 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
                 'nomi-appbar__breadcrumb-input',
                 'h-full px-2.5 border-none',
                 'bg-[color-mix(in_oklch,var(--nomi-accent)_6%,var(--nomi-bg))]',
-                'text-[var(--nomi-ink)] font-inherit text-[13px]',
+                'text-[var(--nomi-ink)] font-inherit text-body-sm',
                 'outline-none min-w-[80px] max-w-[240px]',
               )}
               value={projectTitle}
@@ -129,7 +129,7 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
               className={cn(
                 'nomi-appbar__breadcrumb-seg nomi-appbar__breadcrumb-seg--name',
                 'inline-flex items-center h-full px-2.5',
-                'border-none bg-transparent font-inherit text-[13px]',
+                'border-none bg-transparent font-inherit text-body-sm',
                 'cursor-pointer whitespace-nowrap',
                 'text-[var(--nomi-ink-80)] max-w-[200px] overflow-hidden text-ellipsis',
                 'transition-[background,color] duration-[var(--nomi-transition-fast)]',
@@ -160,7 +160,7 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
             'nomi-appbar__ghost',
             'inline-flex items-center gap-1.5 h-[30px] px-2.5',
             'border border-transparent rounded-[var(--nomi-radius-sm)]',
-            'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-[13px]',
+            'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
             'transition-[background,color] duration-[var(--nomi-transition-fast)]',
             'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
             'max-[700px]:w-[30px] max-[700px]:h-[30px] max-[700px]:justify-center max-[700px]:p-0',
@@ -177,7 +177,7 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
             'nomi-appbar__ghost',
             'inline-flex items-center gap-1.5 h-[30px] px-2.5',
             'border border-transparent rounded-[var(--nomi-radius-sm)]',
-            'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-[13px]',
+            'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
             'transition-[background,color] duration-[var(--nomi-transition-fast)]',
             'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
             'max-[700px]:w-[30px] max-[700px]:h-[30px] max-[700px]:justify-center max-[700px]:p-0',
@@ -194,7 +194,7 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
             'nomi-appbar__primary',
             'inline-flex items-center gap-1.5 h-[30px] px-2.5',
             'border border-transparent rounded-[var(--nomi-radius-sm)]',
-            'bg-[var(--nomi-ink)] text-[var(--nomi-paper)] font-inherit text-[13px]',
+            'bg-[var(--nomi-ink)] text-[var(--nomi-paper)] font-inherit text-body-sm',
             'transition-[background,color] duration-[var(--nomi-transition-fast)]',
             'hover:bg-[var(--nomi-ink-80)]',
             'max-[700px]:w-[30px] max-[700px]:h-[30px] max-[700px]:justify-center max-[700px]:p-0',

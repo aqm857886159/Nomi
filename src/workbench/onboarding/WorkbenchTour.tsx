@@ -204,7 +204,7 @@ export function WorkbenchTour(): JSX.Element | null {
       >
         <div className="text-micro font-bold tracking-wider text-nomi-ink-40">{step} / 3</div>
         <div className="text-title font-bold text-nomi-ink">{content.title}</div>
-        <p className="m-0 mb-2 text-[13px] text-nomi-ink-60">{content.text}</p>
+        <p className="m-0 mb-2 text-body-sm text-nomi-ink-60">{content.text}</p>
         <div className="flex items-center gap-2">
           {step === 2 && !step2Waiting ? (
             <button
@@ -215,7 +215,7 @@ export function WorkbenchTour(): JSX.Element | null {
               }}
               className={cn(
                 'inline-flex items-center h-8 px-4 rounded-pill border-0 cursor-pointer font-inherit',
-                'bg-nomi-ink text-nomi-paper text-[13px] font-medium transition-colors hover:bg-nomi-accent',
+                'bg-nomi-ink text-nomi-paper text-body-sm font-medium transition-colors hover:bg-nomi-accent',
               )}
             >
               下一步：预览
@@ -227,7 +227,7 @@ export function WorkbenchTour(): JSX.Element | null {
               onClick={() => finish('done')}
               className={cn(
                 'inline-flex items-center h-8 px-4 rounded-pill border-0 cursor-pointer font-inherit',
-                'bg-nomi-ink text-nomi-paper text-[13px] font-medium transition-colors hover:bg-nomi-accent',
+                'bg-nomi-ink text-nomi-paper text-body-sm font-medium transition-colors hover:bg-nomi-accent',
               )}
             >
               开始创作

@@ -49,7 +49,7 @@ export default function CategoryItem({ category, count, active, collapsed, expan
   if (editing && !collapsed) {
     const Icon = getCategoryIcon(category.iconName)
     return (
-      <div className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md border border-nomi-accent/30 bg-nomi-accent/10 text-[12px]">
+      <div className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md border border-nomi-accent/30 bg-nomi-accent/10 text-caption">
         <span className="w-3 shrink-0 text-[10px] text-nomi-ink-40" aria-hidden>{expanded ? '▾' : '▸'}</span>
         <Icon size={16} stroke={1.5} className="shrink-0" aria-hidden />
         <input
@@ -63,7 +63,7 @@ export default function CategoryItem({ category, count, active, collapsed, expan
             else if (event.key === 'Escape') { settledRef.current = true; onCancelEdit?.() }
           }}
           onBlur={(event) => { if (!settledRef.current) { settledRef.current = true; onCommitName?.(event.currentTarget.value) } }}
-          className="min-w-0 flex-1 bg-transparent border-b border-nomi-accent/50 text-[12px] text-nomi-ink outline-none"
+          className="min-w-0 flex-1 bg-transparent border-b border-nomi-accent/50 text-caption text-nomi-ink outline-none"
         />
       </div>
     )
@@ -82,7 +82,7 @@ export default function CategoryItem({ category, count, active, collapsed, expan
       title={collapsed ? `${category.name} (${count})` : undefined}
       className={cn(
         'w-full flex items-center gap-2 px-2 py-1.5 text-left rounded-md transition-colors',
-        'text-[12px] leading-tight border border-transparent',
+        'text-caption leading-tight border border-transparent',
         active
           ? 'bg-nomi-accent/10 text-nomi-accent border-nomi-accent/30'
           : 'text-nomi-ink-70 hover:bg-nomi-ink-05 hover:text-nomi-ink',
@@ -107,7 +107,7 @@ export default function CategoryItem({ category, count, active, collapsed, expan
         <>
           <span className="flex-1 truncate">{category.name}</span>
           {count > 0 ? (
-            <span className="text-[11px] text-nomi-ink-40 tabular-nums">{count}</span>
+            <span className="text-micro text-nomi-ink-40 tabular-nums">{count}</span>
           ) : null}
         </>
       )}

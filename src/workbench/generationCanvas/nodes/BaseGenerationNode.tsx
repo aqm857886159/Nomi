@@ -526,7 +526,7 @@ function BaseGenerationNodeImpl({
                         className={cn(
                             "inline-flex items-center justify-center gap-[7px]",
                             "min-w-0 min-h-[34px] px-[11px] border-0 rounded-[9px]",
-                            "bg-transparent text-nomi-ink-80 font-[inherit] text-[13px] leading-none whitespace-nowrap cursor-pointer",
+                            "bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer",
                             "hover:bg-nomi-ink-05 hover:text-nomi-ink",
                         )}
                         type='button'
@@ -538,7 +538,7 @@ function BaseGenerationNodeImpl({
                         className={cn(
                             "inline-flex items-center justify-center gap-[7px]",
                             "min-w-0 min-h-[34px] px-[11px] border-0 rounded-[9px]",
-                            "bg-transparent text-nomi-ink-80 font-[inherit] text-[13px] leading-none whitespace-nowrap cursor-pointer",
+                            "bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer",
                             "hover:bg-nomi-ink-05 hover:text-nomi-ink",
                         )}
                         type='button'
@@ -555,7 +555,7 @@ function BaseGenerationNodeImpl({
                         className={cn(
                             "inline-flex items-center justify-center gap-[7px]",
                             "min-w-0 min-h-[34px] px-[11px] border-0 rounded-[9px]",
-                            "bg-transparent text-nomi-ink-80 font-[inherit] text-[13px] leading-none whitespace-nowrap cursor-pointer",
+                            "bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer",
                             "hover:bg-nomi-ink-05 hover:text-nomi-ink",
                         )}>
                         <IconUpload size={16} stroke={1.8} />
@@ -741,7 +741,7 @@ function BaseGenerationNodeImpl({
                                 className={cn(
                                     "inline-flex items-center justify-center",
                                     "min-w-[156px] min-h-[48px] px-[18px]",
-                                    "text-nomi-ink-60 text-[13px] cursor-pointer",
+                                    "text-nomi-ink-60 text-body-sm cursor-pointer",
                                 )}
                                 onPointerDown={(event) =>
                                     event.stopPropagation()
@@ -861,7 +861,7 @@ function BaseGenerationNodeImpl({
                         className={cn(
                             "pointer-events-none absolute left-[calc(100%+8px)] top-1/2 -translate-y-1/2",
                             "whitespace-nowrap rounded-full px-2.5 py-1.5",
-                            "bg-[rgba(18,24,38,0.92)] text-white text-[11px] font-medium leading-none",
+                            "bg-[rgba(18,24,38,0.92)] text-white text-micro font-medium leading-none",
                             "opacity-0 translate-x-[-4px] transition-[opacity,transform] duration-150",
                             "group-hover:opacity-100 group-hover:translate-x-0 group-focus-visible:opacity-100 group-focus-visible:translate-x-0",
                         )}>

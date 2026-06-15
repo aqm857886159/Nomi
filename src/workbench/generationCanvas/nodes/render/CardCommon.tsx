@@ -19,7 +19,7 @@ export function UsageDot({ count }: { count: number }): JSX.Element | null {
   return (
     <span className="inline-flex items-center gap-1">
       <span className="inline-block w-1.5 h-1.5 rounded-full bg-nomi-accent" aria-hidden />
-      <span className="text-[11px] text-nomi-ink-60 tabular-nums">{count}</span>
+      <span className="text-micro text-nomi-ink-60 tabular-nums">{count}</span>
     </span>
   )
 }
@@ -31,7 +31,7 @@ export function VariantChip({ count }: { count: number }): JSX.Element | null {
       className={cn(
         'inline-flex items-center rounded-full',
         'bg-nomi-ink-05 text-nomi-ink-60',
-        'text-[11px] px-2 py-[1px] tabular-nums',
+        'text-micro px-2 py-[1px] tabular-nums',
       )}
     >
       ⊕{count}变体
@@ -42,8 +42,8 @@ export function VariantChip({ count }: { count: number }): JSX.Element | null {
 export function PlaceholderCenter({ label }: { label: string }): JSX.Element {
   return (
     <div className={cn('flex flex-col items-center justify-center w-full h-full gap-1 pointer-events-none')}>
-      <span className="text-[13px] font-medium text-nomi-ink-60 tabular-nums">{label}</span>
-      <span className="text-[11px] text-nomi-ink-40">等待生成</span>
+      <span className="text-body-sm font-medium text-nomi-ink-60 tabular-nums">{label}</span>
+      <span className="text-micro text-nomi-ink-40">等待生成</span>
     </div>
   )
 }
@@ -100,7 +100,7 @@ export function PendingGenerationPlaceholder({
           镜头 {shotIndex}
         </span>
       ) : null}
-      {title ? <span className="text-[13px] font-semibold text-nomi-ink-80 truncate">{title}</span> : null}
+      {title ? <span className="text-body-sm font-semibold text-nomi-ink-80 truncate">{title}</span> : null}
       {prompt ? (
         // 提示词是用户最常想复制的内容：穿透容器的 pointer-events-none + 覆盖 stage 的
         // user-select:none（select-text），并 stopPropagation 防节点拖拽吃掉划选手势。
@@ -175,7 +175,7 @@ export function UploadFallback({
         'text-nomi-ink-60 hover:text-nomi-ink hover:bg-nomi-ink-05/50 transition-colors',
       )}
     >
-      <span className="text-[13px] font-medium tabular-nums pointer-events-none">+ 上传{label}</span>
+      <span className="text-body-sm font-medium tabular-nums pointer-events-none">+ 上传{label}</span>
       <input className="hidden" type="file" accept={accept} onChange={handleChange} />
     </label>
   )
@@ -193,7 +193,7 @@ export function placeholderLabel(categoryName: string | undefined, title: string
 /** Scene3DEditor 懒加载期间的占位（React.Suspense fallback）。 */
 export function Scene3DEditorLoading(): JSX.Element {
   return (
-    <div className={cn('flex w-full h-full items-center justify-center bg-nomi-ink-05 text-[12px] text-nomi-ink-45')}>
+    <div className={cn('flex w-full h-full items-center justify-center bg-nomi-ink-05 text-caption text-nomi-ink-45')}>
       3D 编辑器加载中
     </div>
   )

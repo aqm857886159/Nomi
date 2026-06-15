@@ -110,6 +110,7 @@ export default {
         'body-sm': 'var(--tc-font-size-body-sm)',
         caption: 'var(--tc-font-size-caption)',
         title: 'var(--tc-font-size-title)',
+        h2: 'var(--tc-font-size-h2)',
         h1: 'var(--tc-font-size-h1)',
       },
       fontFamily: {

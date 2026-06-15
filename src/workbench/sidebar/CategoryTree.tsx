@@ -348,8 +348,8 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
 
   const renderContextMenu = () => {
     if (!menu) return null
-    const buttonClass = 'w-full px-2.5 py-1 text-left text-[12px] text-nomi-ink-70 hover:bg-nomi-ink-05'
-    const dangerClass = 'w-full px-2.5 py-1 text-left text-[12px] text-red-600 hover:bg-red-50'
+    const buttonClass = 'w-full px-2.5 py-1 text-left text-caption text-nomi-ink-70 hover:bg-nomi-ink-05'
+    const dangerClass = 'w-full px-2.5 py-1 text-left text-caption text-red-600 hover:bg-red-50'
     return (
       <div
         role="menu"
@@ -454,7 +454,7 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
                     )
                   })}
                   {!looseNodes.length && !categoryGroups.length ? (
-                    <div className="px-2 py-1.5 text-[11px] text-nomi-ink-30">暂无节点</div>
+                    <div className="px-2 py-1.5 text-micro text-nomi-ink-30">暂无节点</div>
                   ) : null}
                 </div>
               ) : null}

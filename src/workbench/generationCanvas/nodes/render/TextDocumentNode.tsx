@@ -145,7 +145,7 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
           )}
           aria-label="拖动文本节点">
           <IconGripVertical size={13} stroke={1.8} aria-hidden="true" />
-          <span className="text-[11px] font-medium tracking-[0.04em]">文本</span>
+          <span className="text-micro font-medium tracking-[0.04em]">文本</span>
         </header>
 
         {/* 正文：ProseMirror 编辑区。stopPropagation 挡画布快捷键；select-text/touch-auto 覆盖
@@ -160,7 +160,7 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
           onKeyUp={(event) => event.stopPropagation()}
           onBlur={() => commitPersistedChange()}>
           {showPlaceholder ? (
-            <span className="pointer-events-none absolute left-8 top-6 text-[16px] leading-[1.76] text-nomi-ink-40">
+            <span className="pointer-events-none absolute left-8 top-6 text-title leading-[1.76] text-nomi-ink-40">
               {TEXT_NODE_PLACEHOLDER}
             </span>
           ) : null}

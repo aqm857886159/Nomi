@@ -66,7 +66,7 @@ function SceneCardNodeImpl({ node }: Props): JSX.Element {
             </span>
           </div>
           {hasMood ? (
-            <span className="text-[11px] text-nomi-paper/80">
+            <span className="text-micro text-nomi-paper/80">
               {meta.mood!.join(' · ')}
             </span>
           ) : null}

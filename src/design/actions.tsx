@@ -59,7 +59,7 @@ export function DesignButton({
     'tc-design-button',
     'inline-flex items-center justify-center gap-1.5',
     'h-8 px-3 rounded-nomi-sm',
-    'text-[13px] font-medium',
+    'text-body-sm font-medium',
     'transition-[background,color,border-color] duration-150 ease-out',
     'disabled:opacity-50 disabled:cursor-not-allowed',
     className,
@@ -191,8 +191,8 @@ export function ActionCard({
 // 变体/尺寸 = 工作区按钮的唯一真相源:卡片动作(确认/拒绝/整笔撤销/撤销这次改动/让AI修…)
 // 一律走 variant+size,不再各处 ad-hoc className 各覆写一套(那是「明显不是一个设计风格」的根因)。
 const WORKBENCH_BUTTON_SIZE = {
-  md: 'h-8 px-3 text-[13px]',
-  sm: 'h-7 px-3 text-[12px]', // 时间线卡片内的紧凑动作
+  md: 'h-8 px-3 text-body-sm',
+  sm: 'h-7 px-3 text-caption', // 时间线卡片内的紧凑动作
 } as const
 
 const WORKBENCH_BUTTON_VARIANT = {

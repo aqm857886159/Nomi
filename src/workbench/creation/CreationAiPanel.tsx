@@ -511,18 +511,18 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
                   {writeToolIcon(call.toolName)}
                   {writeToolLabel(call.toolName)}
                 </div>
-                <div className={cn('workbench-creation-ai__tool-call-body', 'max-h-[160px] overflow-auto text-nomi-ink text-[13px] leading-[1.5] whitespace-pre-wrap')}>
+                <div className={cn('workbench-creation-ai__tool-call-body', 'max-h-[160px] overflow-auto text-nomi-ink text-body-sm leading-[1.5] whitespace-pre-wrap')}>
                   {call.content || '（空内容）'}
                 </div>
                 <div className={cn('flex items-center justify-end gap-2 mt-1')}>
                   <WorkbenchButton
-                    className={cn('h-7 px-3 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-ink-80 text-[12px] cursor-pointer hover:bg-nomi-ink-05')}
+                    className={cn('h-7 px-3 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-ink-80 text-caption cursor-pointer hover:bg-nomi-ink-05')}
                     onClick={() => resolvePending(call.toolCallId, { ok: false, message: 'rejected by user' })}
                   >
                     拒绝
                   </WorkbenchButton>
                   <WorkbenchButton
-                    className={cn('h-7 px-3 rounded-nomi-sm border-0 bg-nomi-ink text-nomi-paper text-[12px] cursor-pointer hover:bg-nomi-accent disabled:cursor-not-allowed disabled:opacity-45')}
+                    className={cn('h-7 px-3 rounded-nomi-sm border-0 bg-nomi-ink text-nomi-paper text-caption cursor-pointer hover:bg-nomi-accent disabled:cursor-not-allowed disabled:opacity-45')}
                     data-primary="true"
                     disabled={!documentTools}
                     onClick={() => applyWriteTool(call)}

@@ -145,7 +145,7 @@ export default function TimelineTrack({ track }: TimelineTrackProps): JSX.Elemen
             'workbench-timeline-track__empty',
             'absolute inset-0 flex items-center justify-center',
             'border border-dashed border-[var(--nomi-line)] rounded-[var(--nomi-radius-sm)]',
-            'text-[var(--nomi-ink-40)] leading-none text-[11px] font-medium pointer-events-none',
+            'text-[var(--nomi-ink-40)] leading-none text-micro font-medium pointer-events-none',
           )}>从生成区拖入素材</div>
         ) : null}
         {dragPreview ? (
@@ -153,7 +153,7 @@ export default function TimelineTrack({ track }: TimelineTrackProps): JSX.Elemen
             className={cn(
               'workbench-timeline-track__drop-preview',
               'absolute top-[5px] h-9 z-[2] pointer-events-none',
-              'flex items-center justify-center overflow-visible rounded text-[11px] font-semibold',
+              'flex items-center justify-center overflow-visible rounded text-micro font-semibold',
               'border border-dashed backdrop-blur-[8px] shadow-[0_8px_20px_rgba(18,24,38,0.12)]',
               dragPreview.canPlace
                 ? 'border-[color-mix(in_srgb,var(--workbench-accent)_58%,transparent)] bg-[color-mix(in_srgb,var(--workbench-accent)_20%,var(--nomi-paper))] text-[var(--workbench-ink)]'

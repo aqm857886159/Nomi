@@ -69,7 +69,7 @@ export function EditableNodeTitle({ nodeId, value, placeholder = '未命名', cl
         placeholder={placeholder}
         className={cn(
           'min-w-0 flex-1 outline-none border-0 bg-transparent p-0',
-          'text-[14px] font-medium text-nomi-ink',
+          'text-body font-medium text-nomi-ink',
           className,
         )}
       />
@@ -84,7 +84,7 @@ export function EditableNodeTitle({ nodeId, value, placeholder = '未命名', cl
       title="点击编辑名字"
       className={cn(
         'min-w-0 flex-1 truncate cursor-text select-none',
-        'text-[14px] font-medium',
+        'text-body font-medium',
         isEmpty ? 'text-nomi-ink-40 italic' : 'text-nomi-ink',
         'hover:bg-nomi-ink-05 rounded-sm -mx-1 px-1 transition-colors',
         className,

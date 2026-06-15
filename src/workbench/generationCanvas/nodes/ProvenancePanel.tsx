@@ -44,19 +44,19 @@ export default function ProvenancePanel({ node, open, onClose, onRegenerate }: P
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[16px] font-medium text-nomi-ink m-0">生成记录 · {node.title || node.kind}</h2>
+          <h2 className="text-title font-medium text-nomi-ink m-0">生成记录 · {node.title || node.kind}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-nomi-ink-40 hover:text-nomi-ink text-[20px] leading-none"
+            className="text-nomi-ink-40 hover:text-nomi-ink text-h2 leading-none"
             aria-label="关闭"
           >×</button>
         </div>
 
         {!provenance ? (
-          <div className="text-[13px] text-nomi-ink-40 leading-relaxed">
+          <div className="text-body-sm text-nomi-ink-40 leading-relaxed">
             该节点没有可追溯的生成记录。
-            <div className="mt-2 text-[12px]">
+            <div className="mt-2 text-caption">
               可能原因：
               <ul className="list-disc list-inside mt-1 space-y-0.5">
                 <li>节点来自 v0.4.0 之前的旧项目（Provenance 是 v0.5 新增能力）</li>
@@ -75,14 +75,14 @@ export default function ProvenancePanel({ node, open, onClose, onRegenerate }: P
             ) : null}
             <div>
               <div className="text-micro text-nomi-ink-40 uppercase tracking-wide mb-1">Prompt</div>
-              <div className="bg-nomi-bg border border-nomi-line-soft rounded-nomi-sm p-2 text-[12px] font-mono leading-relaxed whitespace-pre-wrap break-words text-nomi-ink-80">
+              <div className="bg-nomi-bg border border-nomi-line-soft rounded-nomi-sm p-2 text-caption font-mono leading-relaxed whitespace-pre-wrap break-words text-nomi-ink-80">
                 {provenance.prompt || '(空)'}
               </div>
               {provenance.prompt ? (
                 <button
                   type="button"
                   onClick={() => copyToClipboard(provenance.prompt || '')}
-                  className="mt-1 text-[11px] text-nomi-accent hover:underline"
+                  className="mt-1 text-micro text-nomi-accent hover:underline"
                 >
                   复制 Prompt
                 </button>
@@ -91,7 +91,7 @@ export default function ProvenancePanel({ node, open, onClose, onRegenerate }: P
             {provenance.negativePrompt ? (
               <div>
                 <div className="text-micro text-nomi-ink-40 uppercase tracking-wide mb-1">Negative Prompt</div>
-                <div className="bg-nomi-bg border border-nomi-line-soft rounded-nomi-sm p-2 text-[12px] font-mono">
+                <div className="bg-nomi-bg border border-nomi-line-soft rounded-nomi-sm p-2 text-caption font-mono">
                   {provenance.negativePrompt}
                 </div>
               </div>
@@ -116,7 +116,7 @@ export default function ProvenancePanel({ node, open, onClose, onRegenerate }: P
               type="button"
               onClick={() => onRegenerate(provenance)}
               className={cn(
-                'px-3 py-1.5 rounded-nomi-sm text-[12px]',
+                'px-3 py-1.5 rounded-nomi-sm text-caption',
                 'bg-nomi-accent text-white hover:opacity-90',
                 'transition-opacity duration-150',
               )}
@@ -127,7 +127,7 @@ export default function ProvenancePanel({ node, open, onClose, onRegenerate }: P
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 rounded-nomi-sm text-[12px] border border-nomi-line text-nomi-ink-80 hover:bg-nomi-bg"
+            className="px-3 py-1.5 rounded-nomi-sm text-caption border border-nomi-line text-nomi-ink-80 hover:bg-nomi-bg"
           >
             关闭
           </button>

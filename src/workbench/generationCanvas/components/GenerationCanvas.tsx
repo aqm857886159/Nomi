@@ -546,7 +546,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
                 className={cn(
                   'h-[34px] min-w-0 px-[10px]',
                   'border border-workbench-border rounded-workbench-control',
-                  'bg-workbench-surface-solid text-workbench-ink font-[inherit] text-[13px]',
+                  'bg-workbench-surface-solid text-workbench-ink font-[inherit] text-body-sm',
                 )}
                 type="password"
                 value={apiKey}
@@ -563,7 +563,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
                 className={cn(
                   'h-[34px] min-w-0 px-[10px]',
                   'border border-workbench-border rounded-workbench-control',
-                  'bg-workbench-surface-solid text-workbench-ink font-[inherit] text-[13px]',
+                  'bg-workbench-surface-solid text-workbench-ink font-[inherit] text-body-sm',
                 )}
                 value={baseUrl}
                 placeholder={GENERATION_DEFAULT_BASE_URL}
@@ -651,7 +651,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
                 aria-label="选中区域操作"
                 onPointerDown={(event) => event.stopPropagation()}
               >
-                <span className={cn('px-[6px] text-nomi-ink-60 text-[11px] whitespace-nowrap')}>{selectedCount} 个节点</span>
+                <span className={cn('px-[6px] text-nomi-ink-60 text-micro whitespace-nowrap')}>{selectedCount} 个节点</span>
                 <WorkbenchIconButton label="创建分组 (⌘G)" icon={<IconFolderPlus size={14} />} onClick={handleGroupSelectedNodes} />
                 <WorkbenchIconButton label="复制选中节点" icon={<IconCopy size={14} />} onClick={copySelectedNodes} />
                 <WorkbenchIconButton label="剪切选中节点" icon={<IconCut size={14} />} onClick={cutSelectedNodes} />

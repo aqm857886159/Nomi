@@ -37,7 +37,7 @@ export function BatchPlanOverlay() {
             key={node.id}
             className={cn(
               'absolute flex h-6 min-w-6 items-center justify-center rounded-full px-1',
-              'text-[11px] font-medium border -translate-x-1/2 -translate-y-1/2',
+              'text-micro font-medium border -translate-x-1/2 -translate-y-1/2',
               blockedInfo
                 ? 'bg-workbench-danger-soft text-workbench-danger border-workbench-danger'
                 : 'bg-nomi-accent-soft text-nomi-accent border-nomi-accent',
@@ -56,7 +56,7 @@ export function BatchPlanOverlay() {
         )}
       >
         <IconListCheck size={16} className={cn('shrink-0 text-nomi-accent')} aria-hidden />
-        <span className={cn('text-[13px] font-medium text-nomi-ink whitespace-nowrap')}>
+        <span className={cn('text-body-sm font-medium text-nomi-ink whitespace-nowrap')}>
           执行计划 · {planCount} 个节点 · {plan.waves.length} 波
         </span>
         <span className={cn('text-caption text-nomi-ink-60 whitespace-nowrap')}>

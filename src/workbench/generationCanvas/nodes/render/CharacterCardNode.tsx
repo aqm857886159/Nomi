@@ -61,7 +61,7 @@ function CharacterCardNodeImpl({ node }: Props): JSX.Element {
             <UsageDot count={usageCount} />
           </div>
           {hasTagline ? (
-            <span className="text-[12px] text-nomi-ink-60 truncate" title={meta.tagline}>
+            <span className="text-caption text-nomi-ink-60 truncate" title={meta.tagline}>
               {meta.tagline}
             </span>
           ) : null}

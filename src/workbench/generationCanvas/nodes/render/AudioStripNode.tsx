@@ -169,7 +169,7 @@ function AudioStripNodeImpl({ node }: Props): JSX.Element {
             {audioKindLabel}
           </span>
         ) : null}
-        <span className="text-[14px] text-nomi-ink truncate" title={node.title}>
+        <span className="text-body text-nomi-ink truncate" title={node.title}>
           {getDisplayTitle(node.title, '声音')}
         </span>
       </div>
@@ -181,7 +181,7 @@ function AudioStripNodeImpl({ node }: Props): JSX.Element {
 
       {/* 时长 + 计数 */}
       <div className="shrink-0 flex flex-col items-end gap-0.5">
-        <span className="text-[12px] text-nomi-ink-60 tabular-nums font-mono">
+        <span className="text-caption text-nomi-ink-60 tabular-nums font-mono">
           {formatDuration(meta.durationSec)}
         </span>
         <UsageDot count={usageCount} />

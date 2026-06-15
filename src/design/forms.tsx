@@ -30,7 +30,7 @@ export type DesignSwitchProps = SwitchProps
 export function DesignCheckbox({ className, radius = 'sm', ...props }: DesignCheckboxProps): JSX.Element {
   const rootClassName = cn(
     'tc-design-checkbox',
-    'text-[13px]',
+    'text-body-sm',
     className,
   )
 
@@ -40,7 +40,7 @@ export function DesignCheckbox({ className, radius = 'sm', ...props }: DesignChe
 export function DesignFileInput({ className, radius = 'sm', ...props }: DesignFileInputProps): JSX.Element {
   const rootClassName = cn(
     'tc-design-file-input',
-    'text-[13px]',
+    'text-body-sm',
     className,
   )
 
@@ -50,7 +50,7 @@ export function DesignFileInput({ className, radius = 'sm', ...props }: DesignFi
 export function DesignTextInput({ className, radius = 'sm', ...props }: DesignTextInputProps): JSX.Element {
   const rootClassName = cn(
     'tc-design-text-input',
-    'text-[13px]',
+    'text-body-sm',
     className,
   )
 
@@ -60,7 +60,7 @@ export function DesignTextInput({ className, radius = 'sm', ...props }: DesignTe
 export function DesignTextarea({ className, radius = 'sm', autosize = true, ...props }: DesignTextareaProps): JSX.Element {
   const rootClassName = cn(
     'tc-design-textarea',
-    'text-[13px]',
+    'text-body-sm',
     className,
   )
 
@@ -70,7 +70,7 @@ export function DesignTextarea({ className, radius = 'sm', autosize = true, ...p
 export function DesignSelect({ className, radius = 'sm', ...props }: DesignSelectProps): JSX.Element {
   const rootClassName = cn(
     'tc-design-select',
-    'text-[13px]',
+    'text-body-sm',
     className,
   )
 
@@ -80,7 +80,7 @@ export function DesignSelect({ className, radius = 'sm', ...props }: DesignSelec
 export function DesignNumberInput({ className, radius = 'sm', ...props }: DesignNumberInputProps): JSX.Element {
   const rootClassName = cn(
     'tc-design-number-input',
-    'text-[13px]',
+    'text-body-sm',
     className,
   )
 
@@ -94,7 +94,7 @@ export function DesignSegmentedControl({
 }: DesignSegmentedControlProps): JSX.Element {
   const rootClassName = cn(
     'tc-design-segmented-control',
-    'text-[13px]',
+    'text-body-sm',
     className,
   )
 
@@ -104,7 +104,7 @@ export function DesignSegmentedControl({
 export function DesignSwitch({ className, ...props }: DesignSwitchProps): JSX.Element {
   const rootClassName = cn(
     'tc-design-switch',
-    'text-[13px]',
+    'text-body-sm',
     className,
   )
 

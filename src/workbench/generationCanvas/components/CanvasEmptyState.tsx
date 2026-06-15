@@ -22,18 +22,18 @@ export function CanvasEmptyState({ activeCategoryId, onCreate }: CanvasEmptyStat
   return (
     <div className={cn(
       'absolute top-[44%] left-1/2 grid gap-3 place-items-center',
-      'text-workbench-muted text-[13px] text-center',
+      'text-workbench-muted text-body-sm text-center',
       '-translate-x-1/2 -translate-y-1/2',
     )}>
-      <strong className="text-[14px] text-nomi-ink">这里还没有{activeCategoryName}</strong>
-      <span className="text-[12px] text-nomi-ink-60 max-w-[300px]">
+      <strong className="text-body text-nomi-ink">这里还没有{activeCategoryName}</strong>
+      <span className="text-caption text-nomi-ink-60 max-w-[300px]">
         添加第一个节点开始创作，之后可以拖动、分组、跨分类复制。
       </span>
       <WorkbenchButton
         className={cn(
           'mt-2 inline-flex items-center gap-1.5 min-h-[28px] px-4',
           'rounded-full border-0 bg-nomi-ink text-nomi-paper',
-          'font-[inherit] text-[12px] font-medium',
+          'font-[inherit] text-caption font-medium',
           'hover:enabled:bg-nomi-accent',
         )}
         aria-label={`新建一个${activeCategoryName}节点`}

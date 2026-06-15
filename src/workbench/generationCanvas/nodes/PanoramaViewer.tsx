@@ -401,7 +401,7 @@ export default function PanoramaViewer({ imageUrl, width, height, onEnterFullscr
             }}
             className={cn(
               'pointer-events-auto inline-flex items-center gap-1.5 rounded-full',
-              'px-3 py-1.5 text-[11px] font-medium text-white',
+              'px-3 py-1.5 text-micro font-medium text-white',
               'bg-[rgba(15,18,22,0.64)] backdrop-blur-[6px]',
               'opacity-0 transition-opacity duration-150 group-hover:opacity-100',
               'hover:bg-[rgba(15,18,22,0.8)] focus-visible:opacity-100',

@@ -57,7 +57,7 @@ function PendingChip({ label, value }: { label?: string; value: string }): JSX.E
     <span
       className={cn(
         'inline-flex items-center gap-1 h-6 px-2 rounded-full',
-        'border border-nomi-accent bg-nomi-accent-soft text-nomi-accent text-[11px] font-medium',
+        'border border-nomi-accent bg-nomi-accent-soft text-nomi-accent text-micro font-medium',
       )}
     >
       {label ? <span className={cn('text-[10px] text-nomi-accent/70')}>{label}</span> : null}
@@ -100,10 +100,10 @@ function PlanNodeRow({
       >
         {numbered ? (
           <span className={cn(
-            'inline-grid place-items-center w-5 h-5 rounded-full bg-nomi-ink text-nomi-paper text-[11px] font-medium shrink-0',
+            'inline-grid place-items-center w-5 h-5 rounded-full bg-nomi-ink text-nomi-paper text-micro font-medium shrink-0',
           )}>{index + 1}</span>
         ) : null}
-        <span className={cn('text-nomi-ink text-[13px] font-medium truncate')}>{node.title}</span>
+        <span className={cn('text-nomi-ink text-body-sm font-medium truncate')}>{node.title}</span>
         {refTitles.length > 0 ? (
           <span className={cn('ml-auto inline-flex items-center gap-1 shrink-0')} data-plan-node-refs="true">
             {refTitles.map((title) => (
@@ -130,7 +130,7 @@ function PlanNodeRow({
         <textarea
           className={cn(
             'w-full min-h-[46px] p-2 rounded-nomi-sm',
-            'border border-nomi-line-soft bg-nomi-paper text-nomi-ink-80 text-[12px] leading-[1.5] resize-y outline-0',
+            'border border-nomi-line-soft bg-nomi-paper text-nomi-ink-80 text-caption leading-[1.5] resize-y outline-0',
             'hover:border-nomi-line focus:border-nomi-accent focus:text-nomi-ink',
             numbered && 'ml-7 w-[calc(100%-1.75rem)]',
           )}
@@ -141,7 +141,7 @@ function PlanNodeRow({
         />
       ) : (
         <div
-          className={cn('text-nomi-ink-60 text-[12px] overflow-hidden text-ellipsis whitespace-nowrap', numbered && 'pl-7')}
+          className={cn('text-nomi-ink-60 text-caption overflow-hidden text-ellipsis whitespace-nowrap', numbered && 'pl-7')}
           aria-hidden="true"
         >
           {prompt}
@@ -274,13 +274,13 @@ function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPl
       aria-label="Agent 故事板计划卡片"
     >
       {/* 定稿样张：头部只留一行摘要（计数在组头、蓝底 chip 可点自明，不再解释）。 */}
-      {flat ? null : <div className={cn('text-nomi-ink text-[14px] font-medium leading-snug')}>{plan.summary}</div>}
+      {flat ? null : <div className={cn('text-nomi-ink text-body font-medium leading-snug')}>{plan.summary}</div>}
 
       {layered ? (
         <div className={cn('flex flex-col gap-3')}>
           {groups.map((group) => (
             <section key={group.layer} className={cn('flex flex-col gap-[6px]')} data-plan-layer={group.layer}>
-              <div className={cn('text-nomi-ink-60 text-[11px] font-semibold')}>
+              <div className={cn('text-nomi-ink-60 text-micro font-semibold')}>
                 {LAYER_LABEL[group.layer]} <span className={cn('text-nomi-ink-40 font-medium')}>×{group.nodes.length}</span>
               </div>
               <ol className={cn('flex flex-col gap-2 list-none p-0 m-0')}>
@@ -291,7 +291,7 @@ function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPl
 
           {relayEdges.length > 0 ? (
             <section className={cn('flex flex-col gap-[6px]')} data-plan-layer="relay">
-              <div className={cn('text-nomi-ink-60 text-[11px] font-semibold')}>
+              <div className={cn('text-nomi-ink-60 text-micro font-semibold')}>
                 尾帧接力 <span className={cn('text-nomi-ink-40 font-medium')}>可选</span>
               </div>
               {relayEdges.map((edge) => {
@@ -313,10 +313,10 @@ function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPl
                       onChange={(event) => setRelayEnabled((current) => ({ ...current, [key]: event.target.checked }))}
                     />
                     <span className={cn('flex flex-col gap-[2px] min-w-0')}>
-                      <span className={cn('text-[12px] font-semibold', enabled ? 'text-nomi-ink' : 'text-nomi-ink-40 line-through')}>
+                      <span className={cn('text-caption font-semibold', enabled ? 'text-nomi-ink' : 'text-nomi-ink-40 line-through')}>
                         {shortTitle(edge.sourceClientId)} → {shortTitle(edge.targetClientId)}
                       </span>
-                      <span className={cn('text-[11px] text-nomi-ink-40')}>
+                      <span className={cn('text-micro text-nomi-ink-40')}>
                         {enabled ? '尾帧接首帧，动作顺接' : '已取消，独立生成'}
                       </span>
                     </span>
@@ -335,7 +335,7 @@ function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPl
       <div className={cn('flex items-center justify-end gap-2')}>
         <WorkbenchButton
           className={cn(
-            'h-8 px-3 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-ink-80 text-[13px] cursor-pointer hover:bg-nomi-ink-05',
+            'h-8 px-3 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-ink-80 text-body-sm cursor-pointer hover:bg-nomi-ink-05',
           )}
           onClick={handleRejectAll}
         >
@@ -343,7 +343,7 @@ function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPl
         </WorkbenchButton>
         <WorkbenchButton
           className={cn(
-            'h-8 px-3 rounded-nomi-sm border-0 bg-nomi-ink text-nomi-paper text-[13px] font-medium cursor-pointer hover:bg-nomi-accent',
+            'h-8 px-3 rounded-nomi-sm border-0 bg-nomi-ink text-nomi-paper text-body-sm font-medium cursor-pointer hover:bg-nomi-accent',
           )}
           data-plan-confirm-all="true"
           onClick={handleConfirmAll}

@@ -421,7 +421,7 @@ export function OnboardingWizard({ opened, onClose, onCommitted, experience }: {
               <button
                 type="button"
                 onClick={() => setInputMode('manual')}
-                className={cn('text-[14px] transition-colors duration-150',
+                className={cn('text-body transition-colors duration-150',
                   inputMode === 'manual' ? 'font-semibold text-nomi-ink' : 'text-nomi-ink-60 hover:text-nomi-ink')}
               >
                 文本模型
@@ -432,7 +432,7 @@ export function OnboardingWizard({ opened, onClose, onCommitted, experience }: {
                 disabled={!hasTextModel}
                 onClick={() => { if (hasTextModel) setInputMode('docs') }}
                 title={hasTextModel ? undefined : '需先添加一个文本模型来读文档'}
-                className={cn('text-[14px] transition-colors duration-150',
+                className={cn('text-body transition-colors duration-150',
                   !hasTextModel ? 'text-nomi-ink-40 cursor-not-allowed'
                     : inputMode === 'docs' ? 'font-semibold text-nomi-ink' : 'text-nomi-ink-60 hover:text-nomi-ink')}
               >
@@ -452,7 +452,7 @@ export function OnboardingWizard({ opened, onClose, onCommitted, experience }: {
                       type="button"
                       onClick={() => handlePickPreset(p.id)}
                       className={cn(
-                        'inline-flex items-center gap-1 px-3 py-1 rounded-full text-[13px] border',
+                        'inline-flex items-center gap-1 px-3 py-1 rounded-full text-body-sm border',
                         'transition-[background,color,border-color] duration-150',
                         active
                           ? 'bg-nomi-accent-soft text-nomi-accent border-nomi-accent'

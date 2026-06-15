@@ -44,7 +44,7 @@ export default function CreationWorkspace(): JSX.Element {
             'absolute top-[22px] right-6 z-[20]',
             'inline-flex items-center gap-2 h-9 pl-[10px] pr-[14px]',
             'border border-nomi-line rounded-full bg-nomi-paper text-nomi-ink',
-            'text-[13px] font-medium shadow-nomi-sm cursor-pointer',
+            'text-body-sm font-medium shadow-nomi-sm cursor-pointer',
             'hover:shadow-nomi-md hover:-translate-y-px',
           )}
           aria-label="展开创作助手"

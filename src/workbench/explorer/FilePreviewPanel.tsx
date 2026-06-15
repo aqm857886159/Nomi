@@ -49,7 +49,7 @@ export function FilePreviewPanel(): JSX.Element | null {
       style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 440, zIndex: 4000 }}
     >
       <div className="flex items-center gap-1 px-3 border-b border-nomi-line shrink-0" style={{ height: 44 }}>
-        <span className="flex-1 truncate text-[14px] text-nomi-ink" title={node.relativePath}>{node.name}</span>
+        <span className="flex-1 truncate text-body text-nomi-ink" title={node.relativePath}>{node.name}</span>
         <button type="button" onClick={reveal} title="在 Finder 打开" className="p-1 text-nomi-ink-60 hover:text-nomi-ink">
           <IconExternalLink size={16} stroke={1.6} />
         </button>
@@ -80,8 +80,8 @@ function PreviewBody({ node, url }: { node: WorkspaceFileNode; url: string }): J
     default:
       return (
         <div className="flex flex-col items-center justify-center gap-1 py-10 text-center">
-          <span className="text-[13px] text-nomi-ink-60">这种格式暂不支持预览</span>
-          <span className="text-[12px] text-nomi-ink-40">用上方「在 Finder 打开」查看</span>
+          <span className="text-body-sm text-nomi-ink-60">这种格式暂不支持预览</span>
+          <span className="text-caption text-nomi-ink-40">用上方「在 Finder 打开」查看</span>
         </div>
       )
   }
@@ -99,8 +99,8 @@ function TextPreview({ url, markdown }: { url: string; markdown: boolean }): JSX
     return () => { alive = false }
   }, [url])
 
-  if (state.loading) return <div className="text-[13px] text-nomi-ink-40">加载中…</div>
-  if (state.error) return <div className="text-[13px] text-workbench-danger">读取失败：{state.error}</div>
+  if (state.loading) return <div className="text-body-sm text-nomi-ink-40">加载中…</div>
+  if (state.error) return <div className="text-body-sm text-workbench-danger">读取失败：{state.error}</div>
   if (markdown) return <NomiMarkdown>{state.text}</NomiMarkdown>
   return <pre className="whitespace-pre-wrap break-words font-nomi-mono text-caption leading-relaxed text-nomi-ink-80">{state.text}</pre>
 }
