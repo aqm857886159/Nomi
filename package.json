@@ -1,7 +1,7 @@
 {
   "name": "nomi",
   "private": true,
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Open-source, local-first AI video creation workbench for writing scripts, generating assets, editing timelines, and exporting videos.",
   "author": "青阳 <TZ857886159>",
   "license": "Apache-2.0",
@@ -189,6 +189,10 @@
       "@ffprobe-installer/darwin-x64",
       "@ffprobe-installer/linux-x64",
       "@ffprobe-installer/win32-x64"
+    ],
+    "ignoredBuiltDependencies": [
+      "@ffmpeg-installer/darwin-arm64",
+      "@ffprobe-installer/darwin-arm64"
     ]
   }
 }
