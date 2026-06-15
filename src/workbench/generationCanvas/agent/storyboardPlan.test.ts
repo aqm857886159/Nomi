@@ -57,6 +57,15 @@ describe('storyboardPlanToCreateNodesArgs', () => {
     expect(storyboardPlanToCreateNodesArgs(PLAN).groupCategoryId).toBe('shots')
   })
 
+  it('anchorCount = 视觉锚数（落画布布局据此分「参考行 / 镜头网格」）', () => {
+    const { nodes, anchorCount } = storyboardPlanToCreateNodesArgs(PLAN)
+    // PLAN：3 视觉锚（角色/场景/道具）+ 2 镜头；文本锚（风格）不建节点
+    expect(anchorCount).toBe(3)
+    // 前 anchorCount 个是锚、其后是镜头（标题「镜头 N」）——布局角色边界的契约
+    expect(nodes.slice(0, anchorCount).every((n) => !n.title.startsWith('镜头'))).toBe(true)
+    expect(nodes.slice(anchorCount).every((n) => n.title.startsWith('镜头'))).toBe(true)
+  })
+
   it('镜头乱序吐出 → 按 shot.index 排序后建节点（审计 A5：钉死数组序=镜序）', () => {
     const shuffled: StoryboardPlan = {
       ...PLAN,

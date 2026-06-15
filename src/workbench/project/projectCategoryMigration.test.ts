@@ -209,7 +209,8 @@ describe('migrateProjectPayload', () => {
     expect(diagnostic.migratedNodes).toBe(0)
     expect(diagnostic.removedNodes).toBe(0)
     expect(diagnostic.categoriesSeeded).toBe(false)
-    expect(next.generationCanvas.nodes.map((node) => node.kind).sort()).toEqual(['image', 'text'])
+    // 默认空画布（删了预设两卡，用户拍板 2026-06-15）：无节点可迁移，契约仍 no-op。
+    expect(next.generationCanvas.nodes).toHaveLength(0)
   })
 
   it('treats a content-equal but newly-referenced canvas as already migrated (语义相等，不靠引用)', () => {

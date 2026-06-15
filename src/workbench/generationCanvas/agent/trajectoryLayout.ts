@@ -21,6 +21,8 @@ const ORIGIN_X = 160
 const ORIGIN_Y = 160
 const CLEARANCE_Y = 80
 const FALLBACK_SIZE = { width: 340, height: 280 }
+// 分镜网格每排镜头数（用户拍板 2026-06-15：镜头多时换行折成网格，参考卡顶部一排）。
+const STORYBOARD_SHOTS_PER_ROW = 4
 
 type ExistingNodeLite = { kind: GenerationNodeKind; position?: { x: number; y: number } }
 
@@ -101,4 +103,58 @@ export function layoutPlannedNodes(
     columnY.set(layer, y + sizeForKind(kind).height)
     return { x: columnX.get(layer) ?? origin.x, y }
   })
+}
+
+/**
+ * 分镜方案专用布局（用户拍板 2026-06-15）：
+ * - 参考卡（角色/场景/道具，前 `anchorCount` 个）→ 顶部一排横向排开（参考行）。
+ * - 镜头（其余节点）→ 参考行下方，按阅读序左→右、每排 `STORYBOARD_SHOTS_PER_ROW` 个折行成网格。
+ *
+ * 为什么不用 layoutPlannedNodes：它按 kind 分列、列内竖排，分镜的镜头全是 image →
+ * 全挤进一列竖排，参考卡在另一列、连线横跨拉扯（用户反馈「线很乱、都是竖排」的根因）。
+ * 镜头是顺序叙事（胶片条直觉），横向折行网格才贴合。
+ *
+ * 角色判定靠 `anchorCount`（调用方 storyboardPlanToCreateNodesArgs 按「锚先 push、镜头后 push」
+ * 的构造序给出），而非 kind——道具锚 kind 也是 image，与镜头 image 无法靠 kind 区分。
+ * 原点仍走 `trajectoryOrigin`，保留「新计划落在已有节点下方、不压旧内容」的避让。
+ * 间距一律用足迹（含 NODE_RENDER_SAFETY 余量即是间距），与 layoutPlannedNodes 同口径。
+ */
+export function layoutStoryboardNodes(
+  plannedKinds: readonly GenerationNodeKind[],
+  anchorCount: number,
+  existing: readonly ExistingNodeLite[],
+): Array<{ x: number; y: number }> {
+  const origin = trajectoryOrigin(existing)
+  const anchors = Math.max(0, Math.min(anchorCount, plannedKinds.length))
+  const positions: Array<{ x: number; y: number }> = []
+
+  // 参考行：顶部一排，逐个按自身足迹宽累加；行底 = 参考卡中最高的足迹。
+  let anchorX = origin.x
+  let anchorMaxHeight = 0
+  for (let i = 0; i < anchors; i += 1) {
+    const size = sizeForKind(plannedKinds[i])
+    positions.push({ x: anchorX, y: origin.y })
+    anchorX += size.width
+    anchorMaxHeight = Math.max(anchorMaxHeight, size.height)
+  }
+
+  // 镜头网格：参考行下方（空一档 CLEARANCE_Y 分隔参考区/镜头区）。格子 = 镜头中最大足迹，列对齐。
+  const shotTop = anchors > 0 ? origin.y + anchorMaxHeight + CLEARANCE_Y : origin.y
+  let cellWidth = 0
+  let cellHeight = 0
+  for (let i = anchors; i < plannedKinds.length; i += 1) {
+    const size = sizeForKind(plannedKinds[i])
+    cellWidth = Math.max(cellWidth, size.width)
+    cellHeight = Math.max(cellHeight, size.height)
+  }
+  cellWidth = cellWidth || FALLBACK_SIZE.width
+  cellHeight = cellHeight || FALLBACK_SIZE.height
+  const shotCount = plannedKinds.length - anchors
+  const perRow = Math.max(1, Math.min(STORYBOARD_SHOTS_PER_ROW, shotCount || 1))
+  for (let j = 0; j < shotCount; j += 1) {
+    const row = Math.floor(j / perRow)
+    const col = j % perRow
+    positions.push({ x: origin.x + col * cellWidth, y: shotTop + row * cellHeight })
+  }
+  return positions
 }

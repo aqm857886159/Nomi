@@ -104,33 +104,32 @@ describe('projectRepository workspace project creation', () => {
       mockedGetDesktopBridge.mockReturnValue(null)
     })
 
-    it('blank project: draft + no seedKey + builtin categories + categorized default nodes + migration no-op', () => {
+    it('blank project: draft + no seedKey + builtin categories + 空画布默认 + migration no-op', () => {
       const record = createLocalProject()
 
       expect(record.draft).toBe(true)
       expect('seedKey' in record).toBe(false)
       expect(record.payload.categories.length).toBeGreaterThan(0)
-      expect(record.payload.generationCanvas.nodes.length).toBeGreaterThan(0)
-      expect(
-        record.payload.generationCanvas.nodes.every(
-          (node) => typeof node.categoryId === 'string' && node.categoryId.length > 0,
-        ),
-      ).toBe(true)
+      // 新建空白项目默认空画布（用户拍板 2026-06-15：删了「剧本片段 + 关键画面」预设两卡）。
+      // 进画布即空 → CanvasEmptyState 引导；主链路靠创作区拆镜头灌节点。
+      expect(record.payload.generationCanvas.nodes).toHaveLength(0)
 
+      // 空画布天然是「已迁移形态」（无节点可迁移）→ 分类迁移仍 no-op，不弹「已升级」toast。
       const { diagnostic } = migrateProjectRecord(record)
       expect(diagnostic.alreadyMigrated).toBe(true)
       expect(diagnostic.removedNodes).toBe(0)
       expect(diagnostic.migratedNodes).toBe(0)
     })
 
-    it('example project: seedKey + not draft + migration still no-op', () => {
+    it('example project: seedKey + not draft + 空画布默认 + migration still no-op', () => {
       const record = createLocalProject('示例：30 秒产品介绍', undefined, {
         seedKey: 'example:product-demo',
       })
 
       expect(record.seedKey).toBe('example:product-demo')
       expect('draft' in record).toBe(false)
-      expect(record.payload.generationCanvas.nodes.length).toBeGreaterThan(0)
+      // 示例项目内容 = 创作区故事稿（buildStoryDocument），不预建画布节点 → 画布同样默认空。
+      expect(record.payload.generationCanvas.nodes).toHaveLength(0)
 
       const { diagnostic } = migrateProjectRecord(record)
       expect(diagnostic.alreadyMigrated).toBe(true)

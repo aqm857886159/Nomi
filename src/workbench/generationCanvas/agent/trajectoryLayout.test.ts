@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { layoutPlannedNodes, trajectoryOrigin } from './trajectoryLayout'
+import { layoutPlannedNodes, layoutStoryboardNodes, trajectoryOrigin } from './trajectoryLayout'
 import { DEFAULT_NODE_SIZE, NODE_RENDER_SAFETY } from '../model/generationNodeKinds'
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 
@@ -133,5 +133,55 @@ describe('trajectoryLayout（T4：分层布局 + 避让已有节点）', () => {
   it('纯视频批走网格回退同样零重叠（格子从批内最大尺寸 derive）', () => {
     const planned = kinds(['video', 'video', 'video', 'video', 'video'])
     assertNoOverlap(planned, layoutPlannedNodes(planned, []))
+  })
+
+  // —— 分镜布局（用户拍板 2026-06-15：参考行在上 + 镜头折行网格，治「都是竖排、线乱」）——
+
+  it('分镜布局：参考卡顶部一排（同 y、x 递增），镜头不与参考卡同列竖挤', () => {
+    // 2 参考卡（角色/场景）+ 6 镜头
+    const planned = kinds(['character', 'scene', 'image', 'image', 'image', 'image', 'image', 'image'])
+    const pos = layoutStoryboardNodes(planned, 2, [])
+    // 参考行：前 2 个同一 y、x 递增（横排）
+    expect(pos[0].y).toBe(pos[1].y)
+    expect(pos[1].x).toBeGreaterThan(pos[0].x)
+    // 镜头都在参考行下方
+    const refBottom = pos[0].y
+    for (let i = 2; i < pos.length; i++) expect(pos[i].y).toBeGreaterThan(refBottom)
+  })
+
+  it('分镜布局：镜头横向折行网格——每排 4 个，第 5 个换行（非全竖排）', () => {
+    const planned = kinds(['character', ...Array.from({ length: 6 }, () => 'image')])
+    const pos = layoutStoryboardNodes(planned, 1, [])
+    const shots = pos.slice(1) // 6 镜头
+    // 第 1 排 4 个：同 y、x 严格递增（横排，非竖排）
+    expect(new Set(shots.slice(0, 4).map((p) => p.y)).size).toBe(1)
+    expect(shots[0].x).toBeLessThan(shots[1].x)
+    expect(shots[3].x).toBeGreaterThan(shots[0].x)
+    // 第 5 个换行：回到第 1 列 x、y 更大
+    expect(shots[4].x).toBe(shots[0].x)
+    expect(shots[4].y).toBeGreaterThan(shots[0].y)
+    // 不是「全挤一列竖排」：至少 2 个不同 x
+    expect(new Set(shots.map((p) => p.x)).size).toBeGreaterThan(1)
+  })
+
+  it('分镜布局：原点避让已有节点（落在包围盒下方，不压旧内容）', () => {
+    const existing = [{ kind: 'image' as GenerationNodeKind, position: { x: 200, y: 900 } }]
+    const planned = kinds(['character', 'image', 'image'])
+    const pos = layoutStoryboardNodes(planned, 1, existing)
+    const origin = trajectoryOrigin(existing)
+    for (const p of pos) expect(p.y).toBeGreaterThanOrEqual(origin.y)
+  })
+
+  it('分镜布局：任意两节点 AABB 零重叠（参考行 + 镜头网格）', () => {
+    const planned = kinds(['character', 'scene', 'image', 'image', 'image', 'image', 'image', 'image', 'image'])
+    assertNoOverlap(planned, layoutStoryboardNodes(planned, 2, []))
+  })
+
+  it('分镜布局：无参考卡（anchorCount=0）时镜头从原点起的纯网格', () => {
+    const planned = kinds(['image', 'image', 'image'])
+    const pos = layoutStoryboardNodes(planned, 0, [])
+    const origin = trajectoryOrigin([])
+    expect(pos[0]).toEqual({ x: origin.x, y: origin.y })
+    assertNoOverlap(planned, pos)
   })
 })

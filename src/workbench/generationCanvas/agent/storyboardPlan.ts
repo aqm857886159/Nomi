@@ -123,6 +123,12 @@ export type PlanCreateNodesArgs = {
   nodes: PlanCreatedNode[]
   edges: PlanCreatedEdge[]
   /**
+   * 前 anchorCount 个 node 是参考卡（角色/场景/道具，按构造序先 push），其余是镜头。
+   * 落画布时交给 layoutStoryboardNodes 做「参考行在上 + 镜头折行网格」布局——道具锚 kind=image
+   * 与镜头 image 无法靠 kind 区分，故由域层用计数显式给出角色边界。
+   */
+  anchorCount: number
+  /**
    * 整批强制落进同一分类（用户拍板：一个分镜方案的角色/场景/镜头落在一起）。
    * 不设则按 kind 各归各类（cast/scene/shots）——agent 直接建卡仍走 kind 默认。
    * 设 'shots'：角色/场景与镜头同处「分镜」视图，参考边同屏可见可连、谁没生成一眼看到，
@@ -241,6 +247,9 @@ export function storyboardPlanToCreateNodesArgs(
     })
   }
 
+  // 锚已全部 push 完，此刻节点数 = 参考卡数（镜头随后 push）→ 落画布布局的角色边界。
+  const anchorCount = nodes.length
+
   // 镜头 → image 节点（用户拍板 image-first）+ 定妆卡参考边 + shot→shot 时序链。
   // 按 shot.index 排序后再建节点（审计 A5 防御）：布局按数组顺序排格子，若 LLM 把镜头
   // 乱序吐出来，画布空间顺序就会与镜头编号错位（镜6 排在镜5 前）。这里钉死「数组序=镜序」。
@@ -279,5 +288,5 @@ export function storyboardPlanToCreateNodesArgs(
   }
 
   // 整批落「分镜」分类：角色/场景与镜头同处一个视图，参考边同屏可见可连（用户拍板 A）。
-  return { summary: plan.title.trim() || '分镜方案', nodes, edges, groupCategoryId: 'shots' }
+  return { summary: plan.title.trim() || '分镜方案', nodes, edges, anchorCount, groupCategoryId: 'shots' }
 }

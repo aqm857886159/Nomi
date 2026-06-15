@@ -5,7 +5,7 @@ import { generationCanvasTools, type CreateGenerationNodeToolInput } from './gen
 import { listAvailableModelsForAgent, type AgentModelEntry } from './availableModels'
 import { buildPlannedNodeMeta } from './plannedNodeMeta'
 import { withCanvasGestureContext, type CanvasGestureContext } from '../events/canvasGestureContext'
-import { layoutPlannedNodes } from './trajectoryLayout'
+import { layoutPlannedNodes, layoutStoryboardNodes } from './trajectoryLayout'
 import { formatCanvasForAgent } from './canvasPromptContext'
 import { buildDependencyWaves } from '../runner/dependencyWaves'
 import { runPlanWithToasts } from '../components/batchPlanPreview'
@@ -124,7 +124,14 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
       const node = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
       return (typeof node.kind === 'string' ? node.kind : 'image') as GenerationNodeKind
     })
-    const layout = layoutPlannedNodes(plannedKinds, generationCanvasTools.read_canvas().nodes)
+    // 分镜方案落画布（storyboardPlanToCreateNodesArgs 给 anchorCount）→ 参考行在上 + 镜头折行网格；
+    // 其余（agent 直接建卡）→ 原轨迹分层布局。两者都从已有节点包围盒下方起、不压旧内容。
+    const existingCanvasNodes = generationCanvasTools.read_canvas().nodes
+    const storyboardAnchorCount = typeof record.anchorCount === 'number' ? record.anchorCount : null
+    const layout =
+      storyboardAnchorCount !== null
+        ? layoutStoryboardNodes(plannedKinds, storyboardAnchorCount, existingCanvasNodes)
+        : layoutPlannedNodes(plannedKinds, existingCanvasNodes)
     // 整批强制分类（分镜方案落画布用，用户拍板 A）：角色/场景/镜头落进同一分类，参考边
     // 同屏可见可连。仅程序化调用方（storyboardPlanToCreateNodesArgs）会设；agent 直接建卡
     // 不带 → 走 kind 默认。只认白名单分类，挡住脏值把节点丢进不存在的分类而消失。
