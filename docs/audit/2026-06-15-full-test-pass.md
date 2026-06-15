@@ -68,12 +68,14 @@
 
 依赖感知正确：单镜点生成会拉出全图执行计划（9 节点 7 波，因镜头依赖一致性元素），符合 dependency-wave 设计。
 
-### 走查发现（待用户拍板，未改）
+### 走查发现 → 已修复
 
-**F1「确认落画布」后视口不自动 fit（P2 UX 困惑）**
+**F1「确认落画布」后视口不自动 fit（P2 UX 困惑）→ 已修（commit f38df91）**
 - 现象：剧本拆镜后点「确认落画布」，6 镜落在当前视口外，画布看着像「没反应」，要手动点「适应视图」才看到。
-- 根因：自动 fit `useAutoFitOnLoad`（`useAutoFitOnLoad.ts:56`）只在项目/分类**首次加载**触发；落画布是在画布已加载态批量加节点，不走这条路 → 不 fit。
-- **取舍**：代码注释（`GenerationCanvas.tsx:459-461`）显示他们刻意保守避免「每次开项目都飞入」。落画布后是否该 fit/聚焦新镜头，是有设计张力的 UX 决定 → 留用户拍板（方案：A 落画布后平滑 fit 到全部新镜头；B 聚焦第 1 镜；C 维持现状加一句 toast「已落 N 镜，点适应视图查看」）。
+- 根因：自动 fit `useAutoFitOnLoad`（`useAutoFitOnLoad.ts:56`）只在项目/分类**首次加载**触发；落画布是在画布已加载态批量加节点，不走这条路 → 不 fit。且即便重跑，旧起手节点仍可见时 `anyNodeVisibleInViewport=true` 也不 fit。
+- 取舍判断：落画布是用户**主动动作**，揭示结果天经地义，不与 `useAutoFitOnLoad` 刻意避免「每次开项目都飞入」（那是 on-load 保守）冲突 → 选 A（落画布后平滑 fit 全部镜头）。
+- 修复（复用现成 nonce 模式，仿 `createCategoryNonce`，不造并行版）：store 加一次性信号 `canvasFitNonce` + `requestCanvasFit()`；`onConfirm` 落画布后 bump；`GenerationCanvas` 订阅后 360ms 平滑 `fitView(true)`。回归断言 `canvasFitSignal.test.ts`。
+- 验证：真机端到端，真实拆 6 镜 → 确认落画布 → 画布自动 fit，**8 镜 7 个直接落视口内**（修复前同序列 0 可见）。
 
 > 注：E2E 中「预览区在 0:00 空」是因我用拖拽把片段放在了 ~2s 处（释放位置），非 0:00；正常「发送到时间轴（按镜序）」会贴 0:00。非产品 bug。
 
