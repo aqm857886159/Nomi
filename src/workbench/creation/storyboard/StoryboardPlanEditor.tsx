@@ -50,6 +50,7 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
   const commitStoryboardPlan = useWorkbenchStore((s) => s.commitStoryboardPlan)
   const discardStoryboardPlan = useWorkbenchStore((s) => s.discardStoryboardPlan)
   const setWorkspaceMode = useWorkbenchStore((s) => s.setWorkspaceMode)
+  const requestCanvasFit = useWorkbenchStore((s) => s.requestCanvasFit)
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
   const [landing, setLanding] = React.useState(false)
@@ -87,6 +88,9 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
       // 不再即焚:方案保留、转「已落画布」、收起编辑器 → 卡片留在对话流可回看/再编辑。
       commitStoryboardPlan()
       setWorkspaceMode('generation')
+      // 揭示新落的镜头：请画布平滑 fit 一次。否则新节点落在已加载画布的视口外，
+      // 用户点完「确认落画布」看着像「没反应」（useAutoFitOnLoad 只在首次加载/切分类触发）。
+      requestCanvasFit()
     } catch (error: unknown) {
       await alertDialog({
         title: '落画布失败',

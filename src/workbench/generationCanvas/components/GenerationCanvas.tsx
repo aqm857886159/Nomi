@@ -480,6 +480,20 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
   // 防止图都在视口外、用户误以为「图消失」）。逻辑抽到 useAutoFitOnLoad（防巨壳）。
   useAutoFitOnLoad({ nodes, activeCategoryId, categoryViewports, fitView, stageRef, zoomRef, offsetRef })
 
+  // 一次性「请适应视图」信号（落画布等批量加节点场景，见 store.requestCanvasFit）。
+  // useAutoFitOnLoad 只在首次加载/切分类触发，加新节点不重跑——这里补「显式动作后揭示新内容」。
+  // 用 ref 取最新 fitView，确保 360ms 后 DOM 渲染完、节点就绪时 fit 到的是最新节点集。
+  const canvasFitNonce = useWorkbenchStore((state) => state.canvasFitNonce)
+  const fitViewRef = React.useRef(fitView)
+  fitViewRef.current = fitView
+  const lastFitNonceRef = React.useRef(0)
+  React.useEffect(() => {
+    if (canvasFitNonce === 0 || canvasFitNonce === lastFitNonceRef.current) return
+    lastFitNonceRef.current = canvasFitNonce
+    const tid = setTimeout(() => fitViewRef.current(true), 360) // 等模式切换 + 节点 DOM 渲染一帧
+    return () => clearTimeout(tid)
+  }, [canvasFitNonce])
+
   // 落点：把视口锚换回画布坐标，作为「期望落点」交给 store.addNode——真实 AABB 碰撞避让
   // 统一收口在 addNode（落点总闸，见 canvasNodeActions），这里不再各自算避让（否则就是
   // 第二份避让真相源，正是本类 bug 的来源）。kind 入参已无用（避让按落点+同分类在闸内做）。

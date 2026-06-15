@@ -102,6 +102,13 @@ type WorkbenchState = {
   storyboardPlanCommitted: boolean
   /** 主列是否展开全宽编辑器（UI 瞬态，不持久化；重开项目默认收起成卡片）。 */
   storyboardEditorOpen: boolean
+  /**
+   * 「请画布适应视图」一次性信号（nonce，仿 createCategoryNonce）。bump 一次 = 请生成画布
+   * 平滑 fit 到全部节点一次。用于落画布等「批量加节点到已加载画布」的场景——useAutoFitOnLoad
+   * 只在首次加载/切分类触发，加新节点不重跑，新节点会落在视口外（用户以为「没反应」）。
+   * 非持久化、非用户动作残留：只在显式动作时 bump。
+   */
+  canvasFitNonce: number
   timeline: TimelineState
   timelinePlaying: boolean
   previewAspectRatio: PreviewAspectRatio
@@ -127,6 +134,8 @@ type WorkbenchState = {
   setStoryboardEditorOpen: (open: boolean) => void
   /** 确认落画布后：方案保留、转「已落画布」、收起编辑器（卡片留痕）。 */
   commitStoryboardPlan: () => void
+  /** 请生成画布平滑 fit 一次（落画布后揭示新镜头）。bump canvasFitNonce。 */
+  requestCanvasFit: () => void
   /** 丢弃方案：清空 plan + 收起编辑器（卡片随之消失）。 */
   discardStoryboardPlan: () => void
   /** 项目载入专用：恢复 plan + committed，编辑器收起、不标脏（区别于用户动作 setStoryboardPlan）。 */
@@ -262,6 +271,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   storyboardPlan: null,
   storyboardPlanCommitted: false,
   storyboardEditorOpen: false,
+  canvasFitNonce: 0,
   creationAssistantAutoOpen: false,
   timeline: createDefaultTimeline(),
   timelinePlaying: false,
@@ -334,6 +344,10 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       storyboardEditorOpen: false,
       persistRevision: state.persistRevision + 1,
     }))
+  },
+  requestCanvasFit: () => {
+    // 一次性信号：bump nonce，生成画布消费后平滑 fit。不 bump persistRevision（视口意图非持久化产物）。
+    set((state) => ({ canvasFitNonce: state.canvasFitNonce + 1 }))
   },
   hydrateStoryboardPlan: (storyboardPlan, storyboardPlanCommitted) => {
     // 载入态:一次性设三字段、编辑器收起、不 bump persistRevision(restore 非用户编辑,别标脏触发回存)。
