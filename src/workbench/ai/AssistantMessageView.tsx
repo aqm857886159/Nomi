@@ -72,7 +72,7 @@ export function AssistantMessageView({
       {streaming && !hasContent ? (
         <div className={cn('flex items-center gap-2')}>
           <NomiLoadingMark size={14} label="处理中" />
-          {pendingLabel ? <span className={cn('text-bodySm text-nomi-ink-60 leading-snug')}>{pendingLabel}</span> : null}
+          {pendingLabel ? <span className={cn('text-body-sm text-nomi-ink-60 leading-snug')}>{pendingLabel}</span> : null}
         </div>
       ) : (
         <NomiMarkdown compact>{content}</NomiMarkdown>
@@ -105,7 +105,7 @@ export function UserMessageBubble({ content, attachments }: UserMessageBubblePro
     <div
       className={cn(
         'self-end max-w-[88%] py-2 px-3 rounded-nomi rounded-br-[4px]',
-        'bg-nomi-ink-05 text-nomi-ink text-bodySm leading-[1.55] whitespace-pre-wrap',
+        'bg-nomi-ink-05 text-nomi-ink text-body-sm leading-[1.55] whitespace-pre-wrap',
       )}
       data-role="user"
     >

@@ -137,7 +137,7 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
       <div className="overflow-y-auto px-4 py-4 flex flex-col gap-4">
         <section>
           <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-bodySm font-medium text-nomi-ink-80">跨镜头要一致的</span>
+            <span className="text-body-sm font-medium text-nomi-ink-80">跨镜头要一致的</span>
             <span className="text-micro text-nomi-ink-40">生成参考图=锁长相 · 仅提示词=写进 prompt</span>
           </div>
           <div className="border border-nomi-line rounded-nomi divide-y divide-nomi-line-soft overflow-hidden">
@@ -166,7 +166,7 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
         </section>
 
         <section>
-          <div className="text-bodySm font-medium text-nomi-ink-80 mb-2">分镜 · {plan.shots.length} 镜</div>
+          <div className="text-body-sm font-medium text-nomi-ink-80 mb-2">分镜 · {plan.shots.length} 镜</div>
           <div className="flex flex-col gap-2">
             {plan.shots.map((shot, pos) => (
               <StoryboardShotCard
@@ -225,7 +225,7 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
           onClick={onConfirm}
           disabled={issues.length > 0 || landing}
           className={cn(
-            'shrink-0 h-8 px-4 rounded-full text-bodySm font-medium inline-flex items-center gap-[5px]',
+            'shrink-0 h-8 px-4 rounded-full text-body-sm font-medium inline-flex items-center gap-[5px]',
             issues.length > 0 || landing
               ? 'bg-nomi-ink-40 text-nomi-paper cursor-not-allowed'
               : 'bg-nomi-ink text-nomi-paper hover:bg-nomi-accent',

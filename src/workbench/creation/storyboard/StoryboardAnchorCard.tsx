@@ -53,7 +53,7 @@ export default function StoryboardAnchorCard({ anchor, onUpdate, onChangeKind, o
           aria-label="锚名字"
           className={cn(
             'shrink-0 w-[124px] h-7 px-2 rounded-nomi-sm border bg-nomi-paper',
-            'text-bodySm font-medium text-nomi-ink outline-none focus:border-nomi-accent',
+            'text-body-sm font-medium text-nomi-ink outline-none focus:border-nomi-accent',
             nameInvalid ? 'border-workbench-danger' : 'border-transparent hover:border-nomi-line',
           )}
         />
@@ -109,7 +109,7 @@ export default function StoryboardAnchorCard({ anchor, onUpdate, onChangeKind, o
             aria-label="锚描述"
             autoFocus={!desc}
             placeholder={anchor.carrier === 'visual' ? '外貌/服装/光线，给生成模型的参考描述' : '能用文字说清的特征（色调/品牌色/服装词），会拼进每个引用它的镜头'}
-            className="px-2 py-2 rounded-nomi-sm bg-nomi-paper border border-nomi-line text-bodySm text-nomi-ink-60 leading-normal focus:border-nomi-accent"
+            className="px-2 py-2 rounded-nomi-sm bg-nomi-paper border border-nomi-line text-body-sm text-nomi-ink-60 leading-normal focus:border-nomi-accent"
           />
           <div className="flex justify-end mt-0.5">
             <button

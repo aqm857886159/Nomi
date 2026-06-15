@@ -78,7 +78,7 @@ function AttachmentChip({ attachment, onRemove, readOnly }: { attachment: Compos
         {uploading ? <NomiLoadingMark size={15} /> : <FileGlyph fileName={attachment.fileName} />}
       </span>
       <span className="flex min-w-0 flex-col">
-        <span className="truncate text-bodySm text-nomi-ink">{attachment.fileName}</span>
+        <span className="truncate text-body-sm text-nomi-ink">{attachment.fileName}</span>
         <span className="truncate text-micro text-nomi-ink-60">
           {error ? '上传失败' : [attachmentTypeLabel(attachment.fileName, attachment.contentType), formatAttachmentSize(attachment.sizeBytes)].filter(Boolean).join(' · ')}
         </span>

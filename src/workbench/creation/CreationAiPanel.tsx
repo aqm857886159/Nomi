@@ -371,7 +371,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
           className={cn(
             'absolute inset-1.5 z-10 flex flex-col items-center justify-center gap-2 pointer-events-none',
             'rounded-nomi border-2 border-dashed border-nomi-accent bg-nomi-accent-soft',
-            'text-bodySm font-semibold text-nomi-accent',
+            'text-body-sm font-semibold text-nomi-accent',
           )}
           aria-hidden="true"
         >
@@ -390,7 +390,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         <div className={cn('workbench-creation-ai__title', 'inline-flex items-center gap-2 min-w-0')}>
           <NomiLogoMark size={18} />
           {/* 审计 A14：与入口词「创作」一致，不再裸叫「助手」 */}
-          <span className={cn('text-bodySm font-semibold text-nomi-ink')}>创作助手</span>
+          <span className={cn('text-body-sm font-semibold text-nomi-ink')}>创作助手</span>
         </div>
         <div className={cn('inline-flex items-center gap-2 ml-auto min-w-0')}>
           <WorkbenchAiHeaderActions
@@ -453,7 +453,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
             'max-w-[240px] mx-auto py-6 px-3 text-center',
           )}>
             <div className={cn('text-nomi-ink font-[Fraunces,Inter,serif] text-title font-medium')}>需要一点灵感？</div>
-            <div className={cn('text-nomi-ink-60 text-bodySm leading-relaxed')}>
+            <div className={cn('text-nomi-ink-60 text-body-sm leading-relaxed')}>
               告诉 AI 你想写什么，它会给你一个开头。
             </div>
             <div className={cn('flex flex-col gap-1.5 w-full mt-2')}>

@@ -150,7 +150,7 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
         placeholder="这镜画什么：运镜 + 动作演进（不复述锚的静态描述）"
         className={cn(
           'mt-2.5 px-2 py-2 rounded-nomi-sm border bg-nomi-paper',
-          'text-bodySm text-nomi-ink-80 leading-normal focus:border-nomi-accent',
+          'text-body-sm text-nomi-ink-80 leading-normal focus:border-nomi-accent',
           promptInvalid ? 'border-workbench-danger' : 'border-nomi-line',
         )}
       />

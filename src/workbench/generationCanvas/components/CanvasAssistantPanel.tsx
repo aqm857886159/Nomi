@@ -585,7 +585,7 @@ export default function CanvasAssistantPanel({
           className={cn(
             'absolute inset-1.5 z-10 flex flex-col items-center justify-center gap-2 pointer-events-none',
             'rounded-nomi border-2 border-dashed border-nomi-accent bg-nomi-accent-soft',
-            'text-bodySm font-semibold text-nomi-accent',
+            'text-body-sm font-semibold text-nomi-accent',
           )}
           aria-hidden="true"
         >
@@ -602,7 +602,7 @@ export default function CanvasAssistantPanel({
         <div className={cn('flex items-center gap-2 min-w-0')}>
           <NomiLogoMark size={18} />
           {/* 审计 A14：与入口词「生成」一致，不再裸叫「助手」 */}
-          <span className={cn('text-bodySm font-semibold text-nomi-ink')}>生成助手</span>
+          <span className={cn('text-body-sm font-semibold text-nomi-ink')}>生成助手</span>
         </div>
         <div className={cn('inline-flex items-center gap-2 ml-auto min-w-0')}>
           <WorkbenchAiHeaderActions
