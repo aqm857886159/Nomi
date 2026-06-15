@@ -85,10 +85,14 @@ try {
   if (start.weakEntryShown) assert(start.weakEntryH === 28, "模型接入弱钮高 28（弱于动作卡两级）", String(start.weakEntryH));
   else console.log("  ⊘ 弱入口高度核对 — 跳过（当前为缺模型态，弱入口按规则隐藏）");
 
-  // 进工作区：优先开示例项目；当前 profile 没有它(如全新/隔离 profile)则用空库 hero CTA 现造一个。
+  // 进工作区：① 优先开示例项目；② 没示例但库里已有项目 → 开第一张项目卡（控制条等结构断言
+  // 不依赖示例内容，任意项目即可，覆盖「有项目但无该示例」的 profile）；③ 空库 → hero CTA 现造一个。
   const exampleCard = win.locator('[role="button"]', { hasText: "示例：30 秒产品介绍" }).first();
+  const anyCard = win.locator('[data-project-card="true"]').first();
   if (await exampleCard.count().then((n) => n > 0).catch(() => false)) {
     await exampleCard.click().catch(() => {});
+  } else if (await anyCard.count().then((n) => n > 0).catch(() => false)) {
+    await anyCard.click().catch(() => {});
   } else {
     await win.locator("[data-try-now-hero-cta]").first().click().catch(() => {});
   }
@@ -345,7 +349,9 @@ try {
   await win.waitForTimeout(1200);
   const prev = await win.evaluate(() => {
     const bar = document.querySelector('[aria-label="预览控制"]');
-    const exportBtn = document.querySelector('[aria-label="导出 MP4"]');
+    // 必须从控制条内部取导出钮：app bar 的导出钮在预览态也挂 aria-label="导出 MP4"（且故意 h-[30px]），
+    // 且 DOM 顺序在前；用 document 全局 query 会抓到 app bar 那颗(30) 而非控制条这颗(28)，断言对错元素。
+    const exportBtn = bar ? bar.querySelector('[aria-label="导出 MP4"]') : null;
     // NomiSelect 触发里的值 span（truncate）：scrollWidth>clientWidth 即被截断成 …。
     const valueSpan = (chip) => chip?.querySelector("span.truncate") || null;
     const aspectChip = document.querySelector('[aria-label="预览画幅"]');
