@@ -144,16 +144,30 @@ export function OnboardingChecklist(): JSX.Element | null {
     })
   }, [])
 
-  const takeMeThere = React.useCallback(
-    (step: StepMeta) => {
+  // 去某一步：切到该步所在模式 + 在真实控件上聚光。
+  const goToStep = React.useCallback(
+    (stepKey: ChecklistStep) => {
+      const meta = STEPS.find((s) => s.key === stepKey)
       setOpen(false)
-      if (step.mode && step.mode !== useWorkbenchStore.getState().workspaceMode) {
-        setWorkspaceMode(step.mode)
+      if (meta?.mode && meta.mode !== useWorkbenchStore.getState().workspaceMode) {
+        setWorkspaceMode(meta.mode)
       }
-      setGuideStep(step.key)
+      setGuideStep(stepKey)
     },
     [setWorkspaceMode],
   )
+
+  // 手动推进到序列下一步（不要求真完成；真完成会另由打勾逻辑反映）；末步「完成」→ 收起。
+  const advanceGuide = React.useCallback(() => {
+    if (!guideStep) return
+    const i = STEPS.findIndex((s) => s.key === guideStep)
+    const next = STEPS[i + 1]
+    if (!next) {
+      setGuideStep(null)
+      return
+    }
+    goToStep(next.key)
+  }, [guideStep, goToStep])
 
   if (allDone) return null
 
@@ -257,7 +271,7 @@ export function OnboardingChecklist(): JSX.Element | null {
                   {isNext ? (
                     <button
                       type="button"
-                      onClick={() => takeMeThere(step)}
+                      onClick={() => goToStep(step.key)}
                       data-take-me-there={step.key}
                       className={cn(
                         'self-start ml-[30px] inline-flex items-center gap-1 h-7 px-3 rounded-full border-0 cursor-pointer font-inherit',
@@ -275,7 +289,14 @@ export function OnboardingChecklist(): JSX.Element | null {
         </section>
       ) : null}
 
-      {guideStep ? <OnboardingSpotlight step={guideStep} onDismiss={() => setGuideStep(null)} /> : null}
+      {guideStep ? (
+        <OnboardingSpotlight
+          step={guideStep}
+          isLast={guideStep === STEPS[STEPS.length - 1].key}
+          onNext={advanceGuide}
+          onDismiss={() => setGuideStep(null)}
+        />
+      ) : null}
     </div>
   )
 }

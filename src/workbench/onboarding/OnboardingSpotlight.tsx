@@ -11,6 +11,7 @@
  * 渲染在 React 树内（不 BodyPortal，保 --nomi-* token 作用域）。
  */
 import React from 'react'
+import { IconArrowRight } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import type { ChecklistStep } from './onboardingState'
 
@@ -85,9 +86,16 @@ function calloutPosition(target: Rect, calloutH: number): { left: number; top: n
   return { left, top }
 }
 
-type Props = { step: ChecklistStep; onDismiss: () => void }
+type Props = {
+  step: ChecklistStep
+  /** 是否是末步——决定主按钮是「下一步」还是「完成」。 */
+  isLast: boolean
+  /** 手动推进到下一步（不要求真完成；真完成会另由清单自动打勾）。 */
+  onNext: () => void
+  onDismiss: () => void
+}
 
-export function OnboardingSpotlight({ step, onDismiss }: Props): JSX.Element | null {
+export function OnboardingSpotlight({ step, isLast, onNext, onDismiss }: Props): JSX.Element | null {
   const target = SPOTLIGHT_TARGETS[step]
   const [rect, setRect] = React.useState<Rect | null>(null)
   const calloutRef = React.useRef<HTMLDivElement | null>(null)
@@ -127,26 +135,33 @@ export function OnboardingSpotlight({ step, onDismiss }: Props): JSX.Element | n
     }
   }, [onDismiss])
 
-  if (!rect) return null
-
-  const pos = calloutPosition(rect, calloutH)
+  // 目标未找到（如「生成」步但画布还没节点）→ 不画环，气泡落到屏幕下方居中兜底，
+  // 让点「下一步」逐步走查时每步说明都看得到，不至于一片空白。
+  const pos = rect
+    ? calloutPosition(rect, calloutH)
+    : {
+        left: Math.max(VIEWPORT_MARGIN, Math.round((window.innerWidth - CALLOUT_WIDTH) / 2)),
+        top: Math.max(VIEWPORT_MARGIN, Math.round(window.innerHeight * 0.62)),
+      }
   // 矮目标（按钮/chip）用 pill 环；大块（节点卡）用标准圆角——pill 套大矩形会成巨型椭圆。
-  const ringRadius = rect.height <= 44 ? 'rounded-full' : 'rounded-nomi'
+  const ringRadius = rect && rect.height <= 44 ? 'rounded-full' : 'rounded-nomi'
 
   return (
     <>
-      <div
-        data-onboarding-spotlight-ring="true"
-        aria-hidden="true"
-        className={cn('fixed z-[3400] pointer-events-none border-2 border-nomi-accent', ringRadius)}
-        style={{
-          left: rect.left - RING_OUTSET,
-          top: rect.top - RING_OUTSET,
-          width: rect.width + RING_OUTSET * 2,
-          height: rect.height + RING_OUTSET * 2,
-          boxShadow: '0 0 0 4px var(--nomi-accent-soft)',
-        }}
-      />
+      {rect ? (
+        <div
+          data-onboarding-spotlight-ring="true"
+          aria-hidden="true"
+          className={cn('fixed z-[3400] pointer-events-none border-2 border-nomi-accent', ringRadius)}
+          style={{
+            left: rect.left - RING_OUTSET,
+            top: rect.top - RING_OUTSET,
+            width: rect.width + RING_OUTSET * 2,
+            height: rect.height + RING_OUTSET * 2,
+            boxShadow: '0 0 0 4px var(--nomi-accent-soft)',
+          }}
+        />
+      ) : null}
       <div
         ref={calloutRef}
         data-onboarding-spotlight-callout="true"
@@ -160,16 +175,29 @@ export function OnboardingSpotlight({ step, onDismiss }: Props): JSX.Element | n
       >
         <div className="text-caption font-bold text-nomi-accent">{target.title}</div>
         <p className="m-0 text-body-sm text-nomi-ink-80 leading-snug">{target.hint}</p>
-        <button
-          type="button"
-          onClick={onDismiss}
-          className={cn(
-            'self-end mt-1 inline-flex items-center h-7 px-3 rounded-full border-0 cursor-pointer font-inherit',
-            'bg-nomi-ink text-nomi-paper text-caption font-medium transition-colors hover:bg-nomi-accent',
-          )}
-        >
-          知道了
-        </button>
+        <div className="flex items-center justify-end gap-2 mt-1">
+          <button
+            type="button"
+            onClick={onDismiss}
+            className={cn(
+              'inline-flex items-center h-7 px-2.5 rounded-full border-0 bg-transparent cursor-pointer font-inherit',
+              'text-caption text-nomi-ink-40 transition-colors hover:text-nomi-ink',
+            )}
+          >
+            跳过
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            className={cn(
+              'inline-flex items-center gap-1 h-7 px-3 rounded-full border-0 cursor-pointer font-inherit',
+              'bg-nomi-ink text-nomi-paper text-caption font-medium transition-colors hover:bg-nomi-accent',
+            )}
+          >
+            {isLast ? '完成' : '下一步'}
+            {isLast ? null : <IconArrowRight size={13} stroke={2} aria-hidden="true" />}
+          </button>
+        </div>
       </div>
     </>
   )
