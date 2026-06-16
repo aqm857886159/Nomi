@@ -26,7 +26,7 @@ export function NodeLockBadge({ nodeId, locked, selected }: { nodeId: string; lo
         useGenerationCanvasStore.getState().setNodeLocked(nodeId, !locked)
       }}
       onPointerDown={(event) => event.stopPropagation()}>
-      {locked ? <IconLock size={13} stroke={2} /> : <IconLockOpen size={13} stroke={1.7} />}
+      {locked ? <IconLock size={13} stroke={1.8} /> : <IconLockOpen size={13} stroke={1.8} />}
     </button>
   )
 }

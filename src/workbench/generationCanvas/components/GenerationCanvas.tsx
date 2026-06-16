@@ -668,7 +668,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
               <div
                 className={cn(
                   'generation-canvas-v2__selection-toolbar',
-                  'absolute z-[11] inline-flex items-center gap-1.5 px-2 py-1',
+                  'absolute z-[11] inline-flex items-center gap-2 px-2.5 py-1.5',
                   'border border-nomi-line rounded-full',
                   'bg-nomi-paper/[0.96] shadow-nomi-md pointer-events-auto',
                 )}
@@ -678,20 +678,20 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
                 aria-label="选中区域操作"
                 onPointerDown={(event) => event.stopPropagation()}
               >
-                <span className={cn('pl-1 pr-0.5 text-nomi-ink-60 text-caption whitespace-nowrap')}>{selectedCount} 个节点</span>
-                {/* 主操作：批量生成（参考先行，点了直接跑能跑的；缺参考的会人话提示）。深色 pill，多选首要动作。 */}
+                <span className={cn('pl-1.5 pr-1 text-nomi-ink-60 text-body-sm whitespace-nowrap')}>已选 {selectedCount} 个</span>
+                {/* 主操作：批量生成（参考先行，点了直接跑能跑的；缺参考的会人话提示）。深色 pill 主角，放大更显眼。 */}
                 <button
                   type="button"
                   data-storyboard-run-all="true"
                   className={cn(
-                    'inline-flex items-center gap-1.5 h-7 px-3 rounded-full border-0 cursor-pointer',
-                    'bg-nomi-ink text-nomi-paper text-body-sm hover:bg-nomi-accent',
+                    'inline-flex items-center gap-2 h-9 px-4 rounded-full border-0 cursor-pointer',
+                    'bg-nomi-ink text-nomi-paper text-body font-medium hover:bg-nomi-accent',
                     'transition-colors duration-[var(--nomi-transition-fast)]',
                   )}
                   title="生成选中节点（参考先生成、镜头后生成；缺参考的会提示先生成参考卡）"
                   onClick={handleBatchGenerate}
                 >
-                  <IconPlayerPlay size={15} stroke={1.8} aria-hidden />
+                  <IconPlayerPlay size={16} stroke={1.6} aria-hidden />
                   生成 {selectedCount} 个
                 </button>
                 <span className={cn('w-px h-4 bg-nomi-line')} />

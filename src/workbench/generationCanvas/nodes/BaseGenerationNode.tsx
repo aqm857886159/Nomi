@@ -506,6 +506,7 @@ function BaseGenerationNodeImpl({
 
             {node.kind === "panorama" &&
             selected &&
+            !isMultiSelectActive &&
             !readOnly &&
             node.result?.url ? (
                 <div
@@ -570,6 +571,7 @@ function BaseGenerationNodeImpl({
 
             {(node.kind === "image" || isAssetKind || isImageLikeGenerationNodeKind(node.kind)) &&
             selected &&
+            !isMultiSelectActive &&
             !readOnly &&
             node.result?.type === "image" &&
             node.result.url ? (
@@ -585,8 +587,9 @@ function BaseGenerationNodeImpl({
                 />
             ) : null}
 
-            {/* 视频等无编辑工具条的结果：单独一条「下载」浮条（图片下载已并入上面的编辑工具条）。 */}
-            <NodeResultDownloadButton node={node} selected={selected} />
+            {/* 视频等无编辑工具条的结果：单独一条「下载」浮条（图片下载已并入上面的编辑工具条）。
+                多选时藏（!isMultiSelectActive）——批量只留居中批量条，不让每节点浮条糊一片。 */}
+            <NodeResultDownloadButton node={node} selected={selected && !isMultiSelectActive} />
 
             <header
                 className={cn(
@@ -852,7 +855,7 @@ function BaseGenerationNodeImpl({
                     onPointerDown={(event) => event.stopPropagation()}>
                     <IconGripVertical
                         size={18}
-                        stroke={2.1}
+                        stroke={1.6}
                         aria-hidden='true'
                     />
                     <span

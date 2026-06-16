@@ -54,16 +54,16 @@ export function NodeAddMenu({
           <WorkbenchButton
             key={item.kind}
             className={cn(
-              'inline-flex items-center justify-start gap-[6px]',
+              'inline-flex items-center justify-start gap-1.5',
               'w-full h-8 min-h-8 px-2 border-0 rounded-nomi',
-              'bg-workbench-surface-solid text-workbench-ink font-[inherit] text-xs cursor-pointer',
+              'bg-workbench-surface-solid text-workbench-ink font-[inherit] text-caption cursor-pointer',
               'hover:bg-nomi-ink-05',
             )}
             role="menuitem"
             aria-label={`添加${item.menuLabel}节点`}
             onClick={() => onAddNode(item.kind)}
           >
-            <Icon size={15} />
+            <Icon size={14} stroke={1.6} />
             <span>{item.menuLabel}</span>
           </WorkbenchButton>
         )
@@ -105,7 +105,7 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
             title={item.menuLabel}
             onClick={() => handleAddNode(item.kind)}
           >
-            <Icon size={15} />
+            <Icon size={18} stroke={1.6} />
             <span className="hidden">{item.menuLabel}</span>
           </WorkbenchButton>
         )
