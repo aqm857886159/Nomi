@@ -413,17 +413,26 @@ export function buildArchetypeInputParams(
   // 扁平键（M2 互斥）。role = slot.roleName ?? 由 kind 派生（单源）。键名来自档案声明，不写死/不 if-vendor。
   // 必须在此构造层拼好整个数组——模板引擎丢得掉 undefined 键/元素，但丢不掉 {url:undefined} 对象（坑）。
   if (mode.combineSlotsInto) {
-    const combined: Array<{ url: string; role: string }> = []
+    const flat = mode.combineSlotsInto.flat === true
+    // 扁平模式（Veo 首尾帧）：有序 string[]，[0]=首 [1]=尾。非扁平（Seedance）：[{url,role}]。
+    const combinedFlat: string[] = []
+    const combinedRoles: Array<{ url: string; role: string }> = []
     for (const slot of mode.slots) {
       const role = slot.roleName ?? DEFAULT_ROLE_FOR_KIND[slot.kind]
-      if (!role) continue
+      if (!flat && !role) continue
       const inputKey = slotInputKey(slot)
       const value = out[inputKey]
-      if (typeof value === 'string') combined.push({ url: value, role })
-      else if (Array.isArray(value)) value.forEach((item) => { if (typeof item === 'string') combined.push({ url: item, role }) })
+      const push = (url: string) => { if (flat) combinedFlat.push(url); else combinedRoles.push({ url, role: role as string }) }
+      if (typeof value === 'string') push(value)
+      else if (Array.isArray(value)) value.forEach((item) => { if (typeof item === 'string') push(item) })
       delete out[inputKey]
     }
+    const combined = flat ? combinedFlat : combinedRoles
     if (combined.length) out[mode.combineSlotsInto.key] = combined
+  }
+  // 模式级固定 body 参数（generation_type 等不需用户选的常量）。在 model 字段之前并入，键不与槽/参数冲突。
+  if (mode.fixedParams) {
+    for (const [key, value] of Object.entries(mode.fixedParams)) out[key] = value
   }
   // model 字段（变体 > per-mode enum > 不带）：
   // ① 变体轴（A）：选中变体的 modelKey 决定实际发请求的 model（如 doubao-seedance-2.0-fast）。

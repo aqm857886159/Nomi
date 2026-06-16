@@ -9,6 +9,8 @@ const opt = (values: string[]): ModelParameterControl["options"] => values.map((
 const PARAMS: ModelParameterControl[] = [
   { key: "size", label: "比例", type: "select", options: opt(["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"]), defaultValue: "1:1" },
   { key: "resolution", label: "清晰度", type: "select", options: opt(["1K", "2K"]), defaultValue: "1K" },
+  // 负向提示词（用户拍板：可选开关只暴露此高价值项）。≤500 字（vendor 约束，UI 不强校）。
+  { key: "negative_prompt", label: "负向提示", type: "text", options: [], placeholder: "排除的元素…" },
 ];
 
 export const QWEN_IMAGE_ARCHETYPE: ModelArchetype = {
@@ -18,7 +20,7 @@ export const QWEN_IMAGE_ARCHETYPE: ModelArchetype = {
   kind: "image",
   defaultModeId: "t2i",
   transportTaskKind: "text_to_image",
-  identifierPatterns: ["qwen-image", "qwen-image-2.0", "qwen-image-2-0"],
+  identifierPatterns: ["qwen-image", "qwen-image-2.0", "qwen-image-2-0", "qwen-image-2.0-pro", "qwen-image-2-0-pro"],
   modes: [
     { id: "t2i", intent: "text", vendorTerm: "文生图", hint: "纯文字生成图像", promptRequired: true, transportTaskKind: "text_to_image", slots: [], params: PARAMS },
     {
@@ -28,4 +30,10 @@ export const QWEN_IMAGE_ARCHETYPE: ModelArchetype = {
       params: PARAMS,
     },
   ],
+  // 变体：标准 / Pro。modelKey = 实际发请求的 model 字符串（catalog body 用 {{request.params.model}} 读）。
+  variants: [
+    { id: "standard", label: "标准", modelKey: "qwen-image-2.0", identifierPatterns: ["qwen-image-2-0", "qwen-image"] },
+    { id: "pro", label: "Pro", modelKey: "qwen-image-2.0-pro", identifierPatterns: ["qwen-image-2-0-pro"] },
+  ],
+  defaultVariantId: "standard",
 };

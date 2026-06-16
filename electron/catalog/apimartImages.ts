@@ -16,20 +16,25 @@ import { APIMART_CREATE_TASK_ID_PATH, APIMART_IMAGE_QUERY_OP, APIMART_STATUS_MAP
 
 const CREATE_HEADERS = { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" };
 
-/** 扁平图片 create op 工厂：model+prompt 固定，bodyFields 补 size/resolution/image_urls 等（undefined 键模板引擎丢弃）。 */
-function imageCreateOp(bodyFields: Record<string, unknown>): HttpOperation {
+/** 扁平图片 create op 工厂：model+prompt 固定，bodyFields 补 size/resolution/image_urls 等（undefined 键模板引擎丢弃）。
+ *  model 缺省取 catalog 行 modelKey；变体合并模型（Qwen：标准/Pro）传 VARIANT_MODEL_REF（取档案当前变体的 modelKey）。 */
+function imageCreateOp(bodyFields: Record<string, unknown>, modelRef = "{{model.modelKey}}"): HttpOperation {
   return {
     method: "POST",
     path: "/v1/images/generations",
     headers: CREATE_HEADERS,
-    body: { model: "{{model.modelKey}}", prompt: "{{request.prompt}}", ...bodyFields },
+    body: { model: modelRef, prompt: "{{request.prompt}}", ...bodyFields },
     response_mapping: { task_id: APIMART_CREATE_TASK_ID_PATH },
     provider_meta_mapping: { task_id: APIMART_CREATE_TASK_ID_PATH },
   };
 }
 
+// 变体合并模型用：body model = 档案当前变体的 modelKey（{{request.params.model}}，同视频侧）。
+const VARIANT_MODEL_REF = "{{request.params.model}}";
+
 const SIZE = "{{request.params.size}}";
 const RESOLUTION = "{{request.params.resolution}}";
+const NEGATIVE_PROMPT = "{{request.params.negative_prompt}}"; // 负向提示词（可选，未填则丢弃）
 const IMAGE_URLS = "{{request.params.image_urls}}"; // 改图模式的输入图数组（档案 slot inputKey=image_urls）
 
 /** 一个 apimart 图片模型的 curated 定义：catalog 行（modelKey=apimart enum）+ 档案指针 + 1~2 条 mapping。 */
@@ -45,6 +50,8 @@ function imageModel(p: {
   modelKey: string;
   labelZh: string;
   archetypeId: string;
+  /** body 的 model 字段引用。缺省 {{model.modelKey}}；变体合并模型传 VARIANT_MODEL_REF。 */
+  modelRef?: string;
   t2iBody: Record<string, unknown>;
   editBody?: Record<string, unknown>; // 省略 = 该模型仅文生图（imagen / z-image）
 }): ApimartImageModel {
@@ -53,7 +60,7 @@ function imageModel(p: {
       id: `seed-apimart-${p.archetypeId}-text_to_image`,
       taskKind: "text_to_image",
       name: `${p.labelZh} · 文生图`,
-      create: imageCreateOp(p.t2iBody),
+      create: imageCreateOp(p.t2iBody, p.modelRef),
     },
   ];
   if (p.editBody) {
@@ -61,7 +68,7 @@ function imageModel(p: {
       id: `seed-apimart-${p.archetypeId}-image_edit`,
       taskKind: "image_edit",
       name: `${p.labelZh} · 改图`,
-      create: imageCreateOp(p.editBody),
+      create: imageCreateOp(p.editBody, p.modelRef),
     });
   }
   return { modelKey: p.modelKey, labelZh: p.labelZh, archetypeId: p.archetypeId, mappings };
@@ -87,10 +94,11 @@ export const APIMART_IMAGE_MODELS: ApimartImageModel[] = [
     editBody: { size: SIZE, resolution: RESOLUTION, image_urls: "{{request.params.input_urls}}" },
   }),
   // 独占档案（apimart 专属，新建）：Qwen-Image / Imagen 4 / Z-Image-Turbo。
+  // Qwen-Image：变体（标准 qwen-image-2.0 / Pro qwen-image-2.0-pro）→ body model 取 {{request.params.model}}。
   imageModel({
-    modelKey: "qwen-image-2.0", labelZh: "Qwen-Image 2.0", archetypeId: "qwen-image",
-    t2iBody: { size: SIZE, resolution: RESOLUTION },
-    editBody: { size: SIZE, resolution: RESOLUTION, image_urls: IMAGE_URLS },
+    modelKey: "qwen-image-2.0", labelZh: "Qwen-Image 2.0", archetypeId: "qwen-image", modelRef: VARIANT_MODEL_REF,
+    t2iBody: { size: SIZE, resolution: RESOLUTION, negative_prompt: NEGATIVE_PROMPT },
+    editBody: { size: SIZE, resolution: RESOLUTION, image_urls: IMAGE_URLS, negative_prompt: NEGATIVE_PROMPT },
   }),
   imageModel({
     modelKey: "imagen-4.0-apimart", labelZh: "Imagen 4", archetypeId: "imagen-4",

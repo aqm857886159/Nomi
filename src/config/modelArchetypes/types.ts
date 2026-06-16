@@ -92,8 +92,18 @@ export type ArchetypeMode = {
    * 用途：apimart Seedance 首尾帧 = `image_with_roles:[{url,role:'first_frame'},{url,role:'last_frame'}]`。
    * **通用**：任何用 role-数组的模型只声明这一项即可，构造层零改动（不 if-vendor、不写死键名，键来自这里）。
    * role 取自各槽的 roleName ?? 由 kind 派生。合并必须在构造层做（模板引擎丢不掉 {url:undefined} 对象）。
+   *
+   * `flat`：产出**有序扁平 `string[]`**（按槽声明顺序）而非 `[{url,role}]`。用于位置数组语义的模型——
+   * 如 Veo 首尾帧 `image_urls:[首url, 尾url]`（[0]=首 [1]=尾），区别于 Seedance 的 role-对象数组。
    */
-  combineSlotsInto?: { key: string };
+  combineSlotsInto?: { key: string; flat?: boolean };
+  /**
+   * **模式级固定 body 参数**（通用）：本模式恒定要发、但**不需用户选**的请求字段。构造层直接并进 out
+   * （键 = API 字段名，值 = 常量字符串）→ catalog body 用 `{{request.params.<key>}}` 读它。
+   * 用途：Veo/Omni 的 `generation_type`（frame 首尾帧 / reference 参考图，由模式决定，不该是个 1 选下拉）。
+   * 与 params 的区别：params 是用户可调的控件，fixedParams 是模式内嵌的常量，不渲染 UI（保持极简 R2）。
+   */
+  fixedParams?: Record<string, string>;
 };
 
 /**

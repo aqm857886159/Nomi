@@ -46,6 +46,8 @@ const VIDEO_URLS = "{{request.params.video_urls}}"; // seedance 全能参考 vid
 const AUDIO_URLS = "{{request.params.audio_urls}}"; // seedance 全能参考 audio_ref 槽 inputKey=audio_urls
 const FIRST_FRAME_IMAGE = "{{request.params.first_frame_image}}"; // hailuo first_frame 槽 inputKey=first_frame_image
 const SEED = "{{request.params.seed}}"; // 可选种子（无默认 → 未填则模板丢弃）
+const NEGATIVE_PROMPT = "{{request.params.negative_prompt}}"; // 负向提示词（可选，未填则丢弃）
+const GENERATION_TYPE = "{{request.params.generation_type}}"; // 首尾帧/参考图模式标记（mode.fixedParams 注入，Veo/Omni）
 // 首尾帧角色数组：整串一个 {{}} → 模板引擎原样透传 [{url,role}] 不 stringify（同 kie 整串透传）。
 // 由 archetypeMeta combineSlotsInto 在构造层组装，与 image_urls 互斥（同 body，非当前模式键自动丢）。
 const IMAGE_WITH_ROLES = "{{request.params.image_with_roles}}";
@@ -84,21 +86,24 @@ function videoModel(p: {
 
 /** 6 个 apimart 视频模型（单源）。 */
 export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
+  // Sora 2：变体（标准 sora-2 / Pro sora-2-pro）→ body model 取 {{request.params.model}}。duration 离散枚举。
   videoModel({
-    modelKey: "sora-2", labelZh: "Sora 2", archetypeId: "sora-2",
+    modelKey: "sora-2", labelZh: "Sora 2", archetypeId: "sora-2", modelRef: VARIANT_MODEL_REF,
     t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION },
     i2vBody: { resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS }, // i2v 时 aspect 由图自动决定
   }),
+  // Veo 3.1：变体（fast/quality/lite）→ {{request.params.model}}。i2v 含 generation_type（reference 参考图 /
+  // frame 首尾帧，由 mode.fixedParams 注入）；duration 固定 8 不发（走 API 默认）。
   videoModel({
-    modelKey: "veo3.1-fast", labelZh: "Veo 3.1", archetypeId: "veo-3.1",
-    t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION },
-    i2vBody: { resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS },
+    modelKey: "veo3.1-fast", labelZh: "Veo 3.1", archetypeId: "veo-3.1", modelRef: VARIANT_MODEL_REF,
+    t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION },
+    i2vBody: { resolution: RESOLUTION, image_urls: IMAGE_URLS, generation_type: GENERATION_TYPE },
   }),
   // Kling v3：共享 kie 的 kling-3.0 档案（i2v 结构对齐：image_urls 数组槽）+ apimart vendorParams。
   videoModel({
     modelKey: "kling-v3", labelZh: "可灵 v3", archetypeId: "kling-3.0",
-    t2vBody: { mode: MODE, duration: DURATION, aspect_ratio: ASPECT, audio: AUDIO },
-    i2vBody: { mode: MODE, duration: DURATION, image_urls: IMAGE_URLS, audio: AUDIO },
+    t2vBody: { mode: MODE, duration: DURATION, aspect_ratio: ASPECT, audio: AUDIO, negative_prompt: NEGATIVE_PROMPT },
+    i2vBody: { mode: MODE, duration: DURATION, image_urls: IMAGE_URLS, audio: AUDIO, negative_prompt: NEGATIVE_PROMPT },
   }),
   // Seedance 2.0：变体合并（2026-06-16）——原 4 个独立 catalog 行（标准/fast/face/fast-face）收成 **1 个**。
   // 4 变体由档案 variants 声明（seedanceApimart.ts），用户经 VariantBar 切换；body 的 model 字段取
@@ -108,20 +113,21 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   videoModel({ modelKey: "doubao-seedance-2.0", labelZh: "Seedance 2.0", archetypeId: "seedance-2-apimart", modelRef: VARIANT_MODEL_REF, t2vBody: SEEDANCE_T2V_BODY, i2vBody: SEEDANCE_I2V_BODY }),
   videoModel({
     modelKey: "wan2.7", labelZh: "Wan 2.7", archetypeId: "wan-2.7",
-    t2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION },
-    i2vBody: { resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS },
+    t2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, negative_prompt: NEGATIVE_PROMPT },
+    i2vBody: { resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS, negative_prompt: NEGATIVE_PROMPT },
   }),
-  // Hailuo 2.3：无 aspect_ratio；图生视频用 first_frame_image（字符串，非数组）。
+  // Hailuo 2.3：无 aspect_ratio；图生视频用 first_frame_image（字符串，非数组）。变体（标准 / Fast）→ {{request.params.model}}。
   videoModel({
-    modelKey: "MiniMax-Hailuo-2.3", labelZh: "Hailuo 2.3", archetypeId: "hailuo-2.3",
+    modelKey: "MiniMax-Hailuo-2.3", labelZh: "Hailuo 2.3", archetypeId: "hailuo-2.3", modelRef: VARIANT_MODEL_REF,
     t2vBody: { resolution: RESOLUTION, duration: DURATION },
     i2vBody: { resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE },
   }),
-  // Omni-Flash-Ext：Omni 类，比例字段用 size（与 aspect_ratio 同义）；参考图融合 image_urls（1 或 3 张）。
+  // Omni-Flash-Ext：Omni 类，比例字段用 size（与 aspect_ratio 同义）；参考图融合 image_urls（1 或 3 张）+
+  // generation_type:reference（mode.fixedParams 注入，否则 3 图被拒）。
   videoModel({
     modelKey: "Omni-Flash-Ext", labelZh: "Omni-Flash-Ext", archetypeId: "omni-flash-ext",
     t2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION },
-    i2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS },
+    i2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS, generation_type: GENERATION_TYPE },
   }),
 ];
 

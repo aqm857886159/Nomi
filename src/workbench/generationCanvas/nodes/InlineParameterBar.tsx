@@ -102,12 +102,13 @@ export default function InlineParameterBar({
         />
       )
     }
-    // 自由数值/文本（无候选项，如步数/seed）：保留小输入 pill（非下拉）。
+    // 自由数值/文本（无候选项）：小输入 pill（非下拉）。文本（如负向提示）给更宽输入，数值（步数/seed）窄。
+    const inputWidth = control.type === 'number' ? 'w-[56px]' : 'w-[140px]'
     return (
       <label key={control.key} className={cn('inline-flex items-center gap-1 h-7 pl-2.5 pr-2 rounded-full border border-nomi-line bg-nomi-paper min-w-0 focus-within:border-nomi-accent')}>
         <span className={cn('shrink-0 text-micro leading-none text-nomi-ink-40')}>{control.label}</span>
         <input
-          className={cn('appearance-none bg-transparent border-0 outline-0 text-caption text-nomi-ink-80 min-w-0 w-[56px]')}
+          className={cn('appearance-none bg-transparent border-0 outline-0 text-caption text-nomi-ink-80 min-w-0', inputWidth)}
           aria-label={control.label}
           type={control.type === 'number' ? 'number' : 'text'}
           value={controlInitialValue(control, meta)}

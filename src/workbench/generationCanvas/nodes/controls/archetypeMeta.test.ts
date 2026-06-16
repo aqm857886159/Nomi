@@ -520,3 +520,59 @@ describe('变体轴 — ensureArchetypeNodeMeta 初始化变体', () => {
     expect(ensureArchetypeNodeMeta({ archetype: { id: 'seedance-2-apimart', modeId: 'i2v', variantId: 'fast' } }, SEEDANCE_APIMART)).toBeNull()
   })
 })
+
+// ───── apimart 参数补全（2026-06-16）：fixedParams 注入 + flat 合并 + 新变体 model 串 ─────
+describe('apimart 参数补全 — fixedParams / flat 合并 / 变体 model', () => {
+  const VEO = getArchetypeById('veo-3.1')!
+  const SORA = getArchetypeById('sora-2')!
+  const HAILUO = getArchetypeById('hailuo-2.3')!
+  const QWEN = getArchetypeById('qwen-image')!
+  const OMNI = getArchetypeById('omni-flash-ext')!
+
+  it('Veo 参考图模式：fixedParams 注入 generation_type=reference + 默认变体 model', () => {
+    const meta = { archetype: { id: 'veo-3.1', modeId: 'reference', variantId: 'fast' } }
+    expect(buildArchetypeInputParams(meta, VEO, { referenceImages: ['a.png'] })).toEqual({
+      image_urls: ['a.png'], generation_type: 'reference', model: 'veo3.1-fast',
+    })
+  })
+
+  it('Veo 首尾帧模式：flat 合并 → image_urls 有序 [首,尾] + generation_type=frame', () => {
+    const meta = { archetype: { id: 'veo-3.1', modeId: 'frame', variantId: 'fast' }, firstFrameUrl: 'F.png', lastFrameUrl: 'L.png' }
+    expect(buildArchetypeInputParams(meta, VEO)).toEqual({
+      image_urls: ['F.png', 'L.png'], generation_type: 'frame', model: 'veo3.1-fast',
+    })
+  })
+
+  it('Veo 首尾帧：只有首帧 → image_urls 仅 [首]', () => {
+    const meta = { archetype: { id: 'veo-3.1', modeId: 'frame', variantId: 'fast' }, firstFrameUrl: 'F.png' }
+    expect(buildArchetypeInputParams(meta, VEO)).toEqual({ image_urls: ['F.png'], generation_type: 'frame', model: 'veo3.1-fast' })
+  })
+
+  it('变体 model 串：选 Pro/quality/Fast → out.model = 变体 modelKey', () => {
+    expect(buildArchetypeInputParams({ archetype: { id: 'sora-2', modeId: 't2v', variantId: 'pro' } }, SORA).model).toBe('sora-2-pro')
+    expect(buildArchetypeInputParams({ archetype: { id: 'veo-3.1', modeId: 't2v', variantId: 'quality' } }, VEO).model).toBe('veo3.1-quality')
+    expect(buildArchetypeInputParams({ archetype: { id: 'hailuo-2.3', modeId: 't2v', variantId: 'fast' } }, HAILUO).model).toBe('MiniMax-Hailuo-2.3-Fast')
+    expect(buildArchetypeInputParams({ archetype: { id: 'qwen-image', modeId: 't2i', variantId: 'pro' } }, QWEN).model).toBe('qwen-image-2.0-pro')
+  })
+
+  it('Sora Pro 变体：resolution 经 paramOverrides 放宽到 1080p（标准只 720p）', () => {
+    const std = specializeArchetypeForVariant(SORA, 'standard')
+    const pro = specializeArchetypeForVariant(SORA, 'pro')
+    const resOf = (a: ModelArchetype) => a.modes[0].params.find((p) => p.key === 'resolution')!.options.map((o) => o.value)
+    expect(resOf(std)).toEqual(['720p'])
+    expect(resOf(pro)).toEqual(['720p', '1024p', '1080p'])
+  })
+
+  it('Omni 参考图融合：fixedParams 注入 generation_type=reference（避 3 图被拒）', () => {
+    const meta = { archetype: { id: 'omni-flash-ext', modeId: 'i2v' } }
+    expect(buildArchetypeInputParams(meta, OMNI, { referenceImages: ['a.png', 'b.png', 'c.png'] })).toEqual({
+      image_urls: ['a.png', 'b.png', 'c.png'], generation_type: 'reference',
+    })
+  })
+
+  it('duration 用数值 option 的 select：option value 是 number（发整数避 400）', () => {
+    const dur = SORA.modes[0].params.find((p) => p.key === 'duration')!
+    expect(dur.type).toBe('select')
+    expect(dur.options.map((o) => o.value)).toEqual([4, 8, 12, 16, 20])
+  })
+})

@@ -16,10 +16,12 @@ const ASPECT_PARAM: ModelParameterControl = {
   defaultValue: "auto",
 };
 
-// apimart 专属 params（B 分层）：apimart GPT-Image-2 用扁平 size（同比例集）+ resolution(1k/2k/4k)。
+// apimart 专属 params（B 分层）：apimart GPT-Image-2 用扁平 size + resolution(1k/2k/4k)。
+// apimart 官方 size 是 16 档（比 kie 的 ASPECT_RATIOS 多 5:4/4:5/3:1/1:3）→ 独立列，不污染 kie 的比例集。
 const opt = (values: string[]): ModelParameterControl["options"] => values.map((value) => ({ value, label: value }));
+const APIMART_SIZES = ["auto", "1:1", "3:2", "2:3", "4:3", "3:4", "5:4", "4:5", "16:9", "9:16", "2:1", "1:2", "3:1", "1:3", "21:9", "9:21"];
 const APIMART_PARAMS: ModelParameterControl[] = [
-  { key: "size", label: "比例", type: "select", options: ASPECT_RATIOS.map((value) => ({ value, label: value })), defaultValue: "auto" },
+  { key: "size", label: "比例", type: "select", options: opt(APIMART_SIZES), defaultValue: "auto" },
   { key: "resolution", label: "清晰度", type: "select", options: opt(["1k", "2k", "4k"]), defaultValue: "1k" },
 ];
 
@@ -53,6 +55,8 @@ export const GPT_IMAGE_2_ARCHETYPE: ModelArchetype = {
       promptRequired: true,
       modelEnum: "gpt-image-2-image-to-image",
       transportTaskKind: "image_edit",
+      // 注：共享档案（kie+apimart）。slot max 取**更严 vendor** 的安全值（kie），避免抬到 apimart 的 16
+      // 让 kie 用户超限 400。apimart 的 16 张要靠 per-vendor slot 配置（未做，见 audit E2 延后）。
       slots: [{ kind: "image_ref", label: "输入图", min: 1, max: 4, inputKey: "input_urls" }],
       params: [ASPECT_PARAM],
       vendorParams: { apimart: APIMART_PARAMS },

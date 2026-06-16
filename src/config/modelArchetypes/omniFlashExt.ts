@@ -14,11 +14,13 @@ import type { ModelArchetype } from "./types";
 // 接入主链路是文生 + 图参考——这与 Sora 2 / Veo 3.1 等既有 curated 模型同构。
 
 const opt = (values: string[]): ModelParameterControl["options"] => values.map((value) => ({ value, label: value }));
+const numOpt = (values: number[]): ModelParameterControl["options"] => values.map((value) => ({ value, label: `${value}` }));
 
 const PARAMS: ModelParameterControl[] = [
   { key: "size", label: "比例", type: "select", options: opt(["16:9", "9:16", "1:1"]), defaultValue: "16:9" },
   { key: "resolution", label: "清晰度", type: "select", options: opt(["720p", "1080p", "4k"]), defaultValue: "720p" },
-  { key: "duration", label: "时长(秒)", type: "number", options: [], min: 4, max: 10, step: 2, defaultValue: 6 },
+  // duration 合法离散 4/6/8/10（5/7 报 invalid_duration）→ select + 数值 option（parseControlInput 回整数）。
+  { key: "duration", label: "时长(秒)", type: "select", options: numOpt([4, 6, 8, 10]), defaultValue: 6 },
 ];
 
 export const OMNI_FLASH_EXT_ARCHETYPE: ModelArchetype = {
@@ -36,6 +38,8 @@ export const OMNI_FLASH_EXT_ARCHETYPE: ModelArchetype = {
       transportTaskKind: "image_to_video",
       slots: [{ kind: "image_ref", label: "参考图", min: 1, max: 3, inputKey: "image_urls" }],
       params: PARAMS,
+      // 传 1 或 3 图必须带 generation_type:reference，否则官方拒（之前漏发 → 3 图被拒）。
+      fixedParams: { generation_type: "reference" },
     },
   ],
 };

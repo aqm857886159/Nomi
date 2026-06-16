@@ -10,6 +10,7 @@ const PARAMS: ModelParameterControl[] = [
   { key: "size", label: "比例", type: "select", options: opt(["16:9", "9:16", "1:1", "4:3", "3:4"]), defaultValue: "16:9" },
   { key: "resolution", label: "清晰度", type: "select", options: opt(["720P", "1080P"]), defaultValue: "1080P" },
   { key: "duration", label: "时长(秒)", type: "number", options: [], min: 2, max: 15, defaultValue: 5 },
+  { key: "negative_prompt", label: "负向提示", type: "text", options: [], placeholder: "排除的元素…" },
 ];
 
 export const WAN_2_7_ARCHETYPE: ModelArchetype = {

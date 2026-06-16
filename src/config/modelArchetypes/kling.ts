@@ -23,6 +23,7 @@ const APIMART_KLING_PARAMS: ModelParameterControl[] = [
   { key: "duration", label: "时长(秒)", type: "number", options: [], min: 3, max: 15, defaultValue: 5 },
   { key: "aspect_ratio", label: "比例", type: "select", options: opt(["16:9", "9:16", "1:1"]), defaultValue: "16:9" },
   { key: "audio", label: "声效", type: "boolean", options: [], defaultValue: false },
+  { key: "negative_prompt", label: "负向提示", type: "text", options: [], placeholder: "排除的元素…" },
 ];
 
 export const KLING_3_ARCHETYPE: ModelArchetype = {
