@@ -25,9 +25,9 @@ const SCAN_DIRS = ["src", "electron"];
 // 现存巨壳的基线行数（棘轮上限）。清空此表 = 巨壳债还清。
 // 改小某个数 = 你成功瘦身后锁定的新上限。新增条目应经人工评审。
 const ALLOWLIST = {
-  "src/workbench/generationCanvas/nodes/scene3d/Scene3DFullscreen.tsx": 3827,
+  "src/workbench/generationCanvas/nodes/scene3d/Scene3DFullscreen.tsx": 3823,
   "electron/runtime.ts": 745,
-  "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 934,
+  "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 909,
   // generationCanvasStore.ts 曾 871 行（巨壳）；S5-0 按 zustand slice 模式拆出 canvasStoreTypes.ts +
   // canvasNodeActions.ts + canvasGraphActions.ts + canvasRunActions.ts 后壳文件缩到 161 < 800，已出白名单。
   // NodeParameterControls.tsx 曾 1097 行（巨壳）；C2b 抽出 controls/parameterControlModel.ts +

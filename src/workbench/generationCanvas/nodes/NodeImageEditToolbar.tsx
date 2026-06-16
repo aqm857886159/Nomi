@@ -1,13 +1,13 @@
 import React from 'react'
-import { IconCrop, IconDownload, IconFlipHorizontal, IconFlipVertical, IconGrid3x3, IconLayoutGrid, IconRotate2, IconRotateClockwise2, IconSparkles } from '@tabler/icons-react'
-import { cn } from '../../../utils/cn'
+import { IconCrop, IconDownload, IconFlipHorizontal, IconFlipVertical, IconGrid3x3, IconGridDots, IconLayoutGrid, IconRotate2, IconRotateClockwise2, IconSparkles, IconTransform } from '@tabler/icons-react'
 import { IMAGE_TRANSFORM_LABEL, type ImageGridSize, type ImageTransformOp } from './useNodeImageEditing'
 import { useResultDownload } from './useResultDownload'
-import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { FloatingToolbarShell, TOOLBAR_ICON as I, ToolbarButton, ToolbarDivider, ToolbarMenu } from './NodeFloatingToolbar'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
-// 图片编辑浮动工具条（下载 / 切图 / 裁剪 / 旋转翻转）从 BaseGenerationNode 抽出（A1.5 接缝）。
-// 图片类与素材类节点共用同一条。下载走 useResultDownload（与视频浮条共用单一来源）。
+// 图片节点编辑浮条（方案 B 分组，用户拍板）：定妆 ｜ 裁剪 · 切图▾ · 变换▾ ｜ 下载。
+// 把低频的截图(2)/变换(4)收进两个下拉，常用动作留在外面 1 次点击直达。容器/按钮/图标全走
+// NodeFloatingToolbar 共享组件（token 合规，§2/§6）。图片类与素材类节点共用此条。
 
 type Props = {
   node: GenerationCanvasNode
@@ -21,154 +21,59 @@ type Props = {
   onMakeup?: () => void
 }
 
-export default function NodeImageEditToolbar({
-  node,
-  splittingGridSize,
-  cropMode,
-  imageOpBusy,
-  onGridSplit,
-  onCrop,
-  onTransform,
-  onMakeup,
-}: Props): JSX.Element {
+export default function NodeImageEditToolbar({ node, splittingGridSize, cropMode, imageOpBusy, onGridSplit, onCrop, onTransform, onMakeup }: Props): JSX.Element {
   const { downloading, download } = useResultDownload(node)
-  // 与参数框 composer 一致：反向缩放抵消画布 scale(zoom) → 工具条恒定屏幕尺寸，缩小画布
-  // 也不缩成看不清/被压住（用户反馈：缩放后浮动条看不见）。锚在节点上方、底边贴近节点，
-  // 故 transform-origin = bottom center（缩放时贴节点的那条边不漂）。
-  const canvasZoom = useGenerationCanvasStore((state) => state.canvasZoom)
+  const splitting = splittingGridSize !== null
+  const transformBusy = imageOpBusy || cropMode || splitting
   return (
-    <div
-      className={cn(
-        'generation-canvas-v2-node__panorama-toolbar',
-        'absolute left-1/2 bottom-[calc(100%+18px)] z-[12]',
-        'inline-flex items-center gap-1 min-h-[44px] py-[5px] px-2',
-        'border border-[rgba(18,24,38,0.08)] rounded-nomi-lg',
-        'bg-white/[0.96] shadow-[0_12px_34px_rgba(18,24,38,0.14)]',
-        'backdrop-blur-[12px]',
-      )}
-      style={{
-        transform: `translateX(-50%) scale(${1 / (canvasZoom || 1)})`,
-        transformOrigin: 'bottom center',
-      }}
-      role="toolbar"
-      aria-label="图片切图操作"
-      onPointerDown={(event) => event.stopPropagation()}
-    >
+    <FloatingToolbarShell ariaLabel="图片操作">
       {onMakeup ? (
         <>
-          <button
-            className={cn(
-              'inline-flex items-center justify-center gap-[7px]',
-              'min-w-0 min-h-[34px] px-[11px] border-0 rounded-nomi',
-              'bg-transparent text-nomi-accent font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer',
-              'hover:bg-nomi-accent-soft',
-            )}
-            type="button"
-            aria-label="基于此图定妆"
+          <ToolbarButton
+            icon={<IconSparkles size={I.size} stroke={I.stroke} />}
+            label="定妆"
+            accent
             title="定妆：基于这张图，预填一份角色/场景身份板提示词到新节点（不自动生成）"
             onClick={onMakeup}
-          >
-            <IconSparkles size={16} stroke={1.8} />
-            <span>基于此图定妆</span>
-          </button>
-          <span className={cn('w-px h-[22px] bg-[rgba(18,24,38,0.1)]')} />
+          />
+          <ToolbarDivider />
         </>
       ) : null}
-      <button
-        className={cn(
-          'inline-flex items-center justify-center gap-[7px]',
-          'min-w-0 min-h-[34px] px-[11px] border-0 rounded-nomi',
-          'bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer',
-          'hover:bg-nomi-ink-05 hover:text-nomi-ink',
-          'disabled:opacity-[0.45] disabled:cursor-wait',
-        )}
-        type="button"
-        aria-label="四视图截图（2×2）"
-        title="四视图截图（2×2）"
-        disabled={splittingGridSize !== null}
-        onClick={() => onGridSplit(2)}
-      >
-        <IconLayoutGrid size={16} stroke={1.8} />
-        <span>四视图截图</span>
-      </button>
-      <button
-        className={cn(
-          'inline-flex items-center justify-center gap-[7px]',
-          'min-w-0 min-h-[34px] px-[11px] border-0 rounded-nomi',
-          'bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer',
-          'hover:bg-nomi-ink-05 hover:text-nomi-ink',
-          'disabled:opacity-[0.45] disabled:cursor-wait',
-        )}
-        type="button"
-        aria-label="九宫格截图（3×3）"
-        title="九宫格截图（3×3）"
-        disabled={splittingGridSize !== null}
-        onClick={() => onGridSplit(3)}
-      >
-        <IconGrid3x3 size={16} stroke={1.8} />
-        <span>九宫格截图</span>
-      </button>
-      <span className={cn('w-px h-[22px] bg-[rgba(18,24,38,0.1)]')} />
-      <button
-        className={cn(
-          'inline-flex items-center justify-center gap-[7px]',
-          'min-w-0 min-h-[34px] px-[11px] border-0 rounded-nomi',
-          'bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer',
-          'hover:bg-nomi-ink-05 hover:text-nomi-ink',
-          'disabled:opacity-[0.45] disabled:cursor-wait',
-        )}
-        type="button"
-        aria-label="裁剪图片"
+      <ToolbarButton
+        icon={<IconCrop size={I.size} stroke={I.stroke} />}
+        label="裁剪"
         title="裁剪（裁出一个新节点，原图保留）"
-        disabled={cropMode || splittingGridSize !== null}
+        disabled={cropMode || splitting}
         onClick={onCrop}
-      >
-        <IconCrop size={16} stroke={1.8} />
-        <span>裁剪</span>
-      </button>
-      <span className={cn('w-px h-[22px] bg-[rgba(18,24,38,0.1)]')} />
-      {([
-        { op: 'rotate-left' as const, Icon: IconRotate2 },
-        { op: 'rotate-right' as const, Icon: IconRotateClockwise2 },
-        { op: 'flip-h' as const, Icon: IconFlipHorizontal },
-        { op: 'flip-v' as const, Icon: IconFlipVertical },
-      ]).map(({ op, Icon }) => (
-        <button
-          key={op}
-          className={cn(
-            'inline-flex items-center justify-center',
-            'min-w-0 w-[34px] min-h-[34px] border-0 rounded-nomi',
-            'bg-transparent text-nomi-ink-80 cursor-pointer',
-            'hover:bg-nomi-ink-05 hover:text-nomi-ink',
-            'disabled:opacity-[0.45] disabled:cursor-wait',
-          )}
-          type="button"
-          aria-label={IMAGE_TRANSFORM_LABEL[op]}
-          title={`${IMAGE_TRANSFORM_LABEL[op]}（生成一个新节点，原图保留）`}
-          disabled={imageOpBusy || cropMode || splittingGridSize !== null}
-          onClick={() => onTransform(op)}
-        >
-          <Icon size={16} stroke={1.8} />
-        </button>
-      ))}
-      <span className={cn('w-px h-[22px] bg-[rgba(18,24,38,0.1)]')} />
-      <button
-        className={cn(
-          'inline-flex items-center justify-center gap-[7px]',
-          'min-w-0 min-h-[34px] px-[11px] border-0 rounded-nomi',
-          'bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer',
-          'hover:bg-nomi-ink-05 hover:text-nomi-ink',
-          'disabled:opacity-[0.45] disabled:cursor-wait',
-        )}
-        type="button"
-        aria-label="下载到本地"
+      />
+      <ToolbarMenu
+        icon={<IconGridDots size={I.size} stroke={I.stroke} />}
+        label="切图"
+        disabled={splitting}
+        items={[
+          { icon: <IconLayoutGrid size={I.size} stroke={I.stroke} />, label: '四视图（2×2）', onClick: () => onGridSplit(2) },
+          { icon: <IconGrid3x3 size={I.size} stroke={I.stroke} />, label: '九宫格（3×3）', onClick: () => onGridSplit(3) },
+        ]}
+      />
+      <ToolbarMenu
+        icon={<IconTransform size={I.size} stroke={I.stroke} />}
+        label="变换"
+        disabled={transformBusy}
+        items={([
+          { op: 'rotate-left' as const, icon: <IconRotate2 size={I.size} stroke={I.stroke} /> },
+          { op: 'rotate-right' as const, icon: <IconRotateClockwise2 size={I.size} stroke={I.stroke} /> },
+          { op: 'flip-h' as const, icon: <IconFlipHorizontal size={I.size} stroke={I.stroke} /> },
+          { op: 'flip-v' as const, icon: <IconFlipVertical size={I.size} stroke={I.stroke} /> },
+        ]).map(({ op, icon }) => ({ icon, label: IMAGE_TRANSFORM_LABEL[op], onClick: () => onTransform(op) }))}
+      />
+      <ToolbarDivider />
+      <ToolbarButton
+        icon={<IconDownload size={I.size} stroke={I.stroke} />}
+        label="下载"
         title="下载 / 另存到本地"
         disabled={downloading}
         onClick={download}
-      >
-        <IconDownload size={16} stroke={1.8} />
-        <span>下载</span>
-      </button>
-    </div>
+      />
+    </FloatingToolbarShell>
   )
 }

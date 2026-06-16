@@ -17,6 +17,7 @@ import AudioStripNode from "./render/AudioStripNode";
 import ImageCropOverlay from "./render/ImageCropOverlay";
 import NodeImageEditToolbar from "./NodeImageEditToolbar";
 import NodeResultDownloadButton from "./NodeResultDownloadButton";
+import { FloatingToolbarShell, TOOLBAR_ICON as TBI, ToolbarButton, ToolbarDivider } from "./NodeFloatingToolbar";
 import { useNodeImageEditing } from "./useNodeImageEditing";
 import { useNodeDragResize } from "./useNodeDragResize";
 import { useHasFrameSourceEdge, useShotIndex } from "../hooks/useNodeRelationships";
@@ -131,6 +132,7 @@ function BaseGenerationNodeImpl({
     // perf：canvasZoom 仅事件处理器用、渲染从不读它；改按需 getState() 避免缩放时全节点重渲。
     const panoramaFullscreenRef = React.useRef<(() => void) | null>(null);
     const panoramaFourViewRef = React.useRef<(() => void) | null>(null);
+    const panoramaUploadInputRef = React.useRef<HTMLInputElement | null>(null);
     // E11: provenance viewer open state (mounted into node header for AI-generated assets)
     const [provenanceOpen, setProvenanceOpen] = React.useState(false);
 
@@ -509,64 +511,34 @@ function BaseGenerationNodeImpl({
             !isMultiSelectActive &&
             !readOnly &&
             node.result?.url ? (
-                <div
-                    className={cn(
-                        "generation-canvas-v2-node__panorama-toolbar",
-                        "absolute left-1/2 bottom-[calc(100%+18px)] z-[12]",
-                        "inline-flex items-center gap-1 min-h-[44px] py-[5px] px-2",
-                        "border border-[rgba(18,24,38,0.08)] rounded-nomi-lg",
-                        "bg-white/[0.96] shadow-[0_12px_34px_rgba(18,24,38,0.14)]",
-                        "-translate-x-1/2 backdrop-blur-[12px]",
-                    )}
-                    role='toolbar'
-                    aria-label='全景图操作'
-                    onPointerDown={(event) => event.stopPropagation()}>
-                    <button
-                        className={cn(
-                            "inline-flex items-center justify-center gap-[7px]",
-                            "min-w-0 min-h-[34px] px-[11px] border-0 rounded-nomi",
-                            "bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer",
-                            "hover:bg-nomi-ink-05 hover:text-nomi-ink",
-                        )}
-                        type='button'
-                        onClick={() => panoramaFullscreenRef.current?.()}>
-                        <IconMaximize size={16} stroke={1.8} />
-                        <span>全景预览</span>
-                    </button>
-                    <button
-                        className={cn(
-                            "inline-flex items-center justify-center gap-[7px]",
-                            "min-w-0 min-h-[34px] px-[11px] border-0 rounded-nomi",
-                            "bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer",
-                            "hover:bg-nomi-ink-05 hover:text-nomi-ink",
-                        )}
-                        type='button'
-                        aria-label='四视图截图'
-                        title='四视图截图'
-                        onClick={() => panoramaFourViewRef.current?.()}>
-                        <IconLayoutGrid size={16} stroke={1.8} />
-                        <span>四视图截图</span>
-                    </button>
-                    <span
-                        className={cn("w-px h-[22px] bg-[rgba(18,24,38,0.1)]")}
+                <FloatingToolbarShell ariaLabel='全景图操作'>
+                    <ToolbarButton
+                        icon={<IconMaximize size={TBI.size} stroke={TBI.stroke} />}
+                        label='全景预览'
+                        title='全景预览'
+                        onClick={() => panoramaFullscreenRef.current?.()}
                     />
-                    <label
-                        className={cn(
-                            "inline-flex items-center justify-center gap-[7px]",
-                            "min-w-0 min-h-[34px] px-[11px] border-0 rounded-nomi",
-                            "bg-transparent text-nomi-ink-80 font-[inherit] text-body-sm leading-none whitespace-nowrap cursor-pointer",
-                            "hover:bg-nomi-ink-05 hover:text-nomi-ink",
-                        )}>
-                        <IconUpload size={16} stroke={1.8} />
-                        <span>重新上传</span>
-                        <input
-                            className='hidden'
-                            type='file'
-                            accept='image/*'
-                            onChange={handlePanoramaFileChange}
-                        />
-                    </label>
-                </div>
+                    <ToolbarButton
+                        icon={<IconLayoutGrid size={TBI.size} stroke={TBI.stroke} />}
+                        label='四视图截图'
+                        title='四视图截图'
+                        onClick={() => panoramaFourViewRef.current?.()}
+                    />
+                    <ToolbarDivider />
+                    <ToolbarButton
+                        icon={<IconUpload size={TBI.size} stroke={TBI.stroke} />}
+                        label='重新上传'
+                        title='重新上传全景图'
+                        onClick={() => panoramaUploadInputRef.current?.click()}
+                    />
+                    <input
+                        ref={panoramaUploadInputRef}
+                        className='hidden'
+                        type='file'
+                        accept='image/*'
+                        onChange={handlePanoramaFileChange}
+                    />
+                </FloatingToolbarShell>
             ) : null}
 
             {(node.kind === "image" || isAssetKind || isImageLikeGenerationNodeKind(node.kind)) &&
