@@ -4,6 +4,13 @@ import type { ModelArchetype } from "./types";
 // Seedance 2.0 经 apimart 的视频档案。**独立于 kie 的 seedance-2 档案**：apimart 图生视频用 image_urls
 // 数组（≤9），与 kie 的 first/last/omni 多槽分离键结构不同——这是 B/A 混用的合理边界（枚举差异用
 // vendorParams=B，能力结构差异用独立档案=A）。比例字段是 size；音频字段 generate_audio。
+//
+// **变体合并（2026-06-16，用户拍板方案 A）**：Seedance 一族原是 4 个独立 catalog 模型/档案
+// （标准 / fast / 真人(face) / 真人快速(fast-face)），picker 里散成 4 项。它们**同能力、仅 model 字符串不同**
+// （fast 另限清晰度 480/720），故用通用「变体轴」(types.ts ModelArchetypeVariant) 合成 1 个档案 +
+// 1 个 catalog 行 + 4 个变体。变体的 modelKey 决定实际发请求的 model（catalog body 用
+// {{request.params.model}} 读它，同 happyhorse modelEnum 通道）。旧项目 node.meta.modelKey 钉的是具体变体串
+// → 各变体的 identifierPatterns 收纳旧串，迁移层 normalizeArchetypeVariantMeta 归一到 基 modelKey + variantId。
 
 const opt = (values: string[]): ModelParameterControl["options"] => values.map((value) => ({ value, label: value }));
 
@@ -51,6 +58,18 @@ const SEEDANCE_2_APIMART_MODES: ModelArchetype["modes"] = [
   },
 ];
 
+// fast / fast-face 变体清晰度仅 480/720（无 1080，官方文档）。运行时按 variantId 叠加（specializeArchetypeForVariant），
+// 不再档案级 spread —— 变体是正交轴，跨所有 mode 收窄 resolution。
+const FAST_RES: ModelParameterControl = {
+  key: "resolution", label: "清晰度", type: "select", options: opt(["480p", "720p"]), defaultValue: "720p",
+};
+const narrowResolutionToFast = (params: ModelParameterControl[]): ModelParameterControl[] =>
+  params.map((p) => (p.key === "resolution" ? FAST_RES : p));
+// fast 变体把每个 mode 的 resolution 都收窄到 480/720。
+const FAST_OVERRIDES = Object.fromEntries(
+  SEEDANCE_2_APIMART_MODES.map((m) => [m.id, narrowResolutionToFast] as const),
+);
+
 export const SEEDANCE_2_APIMART_ARCHETYPE: ModelArchetype = {
   id: "seedance-2-apimart",
   family: "seedance",
@@ -58,24 +77,21 @@ export const SEEDANCE_2_APIMART_ARCHETYPE: ModelArchetype = {
   kind: "video",
   defaultModeId: "t2v",
   transportTaskKind: "text_to_video",
-  // face 变体能力与标准版一致（官方）→ 复用同档案，只多列其 model 字符串。
-  identifierPatterns: ["doubao-seedance-2.0", "doubao-seedance-2-0", "doubao-seedance-2.0-face", "doubao-seedance-2-0-face"],
+  // 收纳全部 4 变体的旧 modelKey → 旧项目仍解析到本档案（迁移层据 variant.identifierPatterns 落到对应变体）。
+  identifierPatterns: [
+    "doubao-seedance-2.0", "doubao-seedance-2-0",
+    "doubao-seedance-2.0-fast", "doubao-seedance-2-0-fast",
+    "doubao-seedance-2.0-face", "doubao-seedance-2-0-face",
+    "doubao-seedance-2.0-fast-face", "doubao-seedance-2-0-fast-face",
+  ],
   modes: SEEDANCE_2_APIMART_MODES,
-};
-
-// Seedance 2.0 Fast：同模式同结构，唯一差异——清晰度仅 480/720（无 1080，官方文档）。
-// 仿 kie 的 SEEDANCE_2_FAST_ARCHETYPE「同族扩展=改几行数据」。
-const FAST_RES: ModelParameterControl = {
-  key: "resolution", label: "清晰度", type: "select", options: opt(["480p", "720p"]), defaultValue: "720p",
-};
-const withFastRes = (params: ModelParameterControl[]): ModelParameterControl[] =>
-  params.map((p) => (p.key === "resolution" ? FAST_RES : p));
-
-export const SEEDANCE_2_APIMART_FAST_ARCHETYPE: ModelArchetype = {
-  ...SEEDANCE_2_APIMART_ARCHETYPE,
-  id: "seedance-2-apimart-fast",
-  label: "Seedance 2.0 Fast",
-  // fast-face 变体复用 fast 档案（同清晰度限制 480/720）。
-  identifierPatterns: ["doubao-seedance-2.0-fast", "doubao-seedance-2-0-fast", "doubao-seedance-2.0-fast-face", "doubao-seedance-2-0-fast-face"],
-  modes: SEEDANCE_2_APIMART_MODES.map((mode) => ({ ...mode, params: withFastRes(mode.params) })),
+  // 4 变体：标准 / 快速 / 真人 / 真人快速。modelKey = 实际发请求的 model 字符串。
+  // identifierPatterns = 旧项目 modelKey（含无连字符变体 -2-0-*），迁移层据此归一到本变体。
+  variants: [
+    { id: "standard", label: "标准", modelKey: "doubao-seedance-2.0", identifierPatterns: ["doubao-seedance-2-0"] },
+    { id: "fast", label: "快速", modelKey: "doubao-seedance-2.0-fast", identifierPatterns: ["doubao-seedance-2-0-fast"], paramOverrides: FAST_OVERRIDES },
+    { id: "face", label: "真人", modelKey: "doubao-seedance-2.0-face", identifierPatterns: ["doubao-seedance-2-0-face"] },
+    { id: "fast-face", label: "真人快速", modelKey: "doubao-seedance-2.0-fast-face", identifierPatterns: ["doubao-seedance-2-0-fast-face"], paramOverrides: FAST_OVERRIDES },
+  ],
+  defaultVariantId: "standard",
 };

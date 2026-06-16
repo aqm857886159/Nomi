@@ -17,12 +17,13 @@ import {
   type ArchetypeMode,
   type ArchetypeReferenceSlotKind,
   type ModelArchetype,
+  type ModelArchetypeVariant,
   resolveArchetypeForModel,
 } from '../../../../config/modelArchetypes'
 import type { ImageUrlSlot } from './parameterControlModel'
 
 export { resolveArchetypeForModel }
-export type { ModelArchetype, ArchetypeMode }
+export type { ModelArchetype, ArchetypeMode, ModelArchetypeVariant }
 
 /**
  * 单图 frame 槽 → 现有 flat 传输键映射（首/尾帧，走画布边 + 单缩略图）。url 键即传输读取的键
@@ -50,6 +51,8 @@ const ARRAY_SLOT_ROUTE: Partial<Record<ArchetypeReferenceSlotKind, ArraySlotRout
 type ArchetypeNodeMeta = {
   id: string
   modeId: string
+  /** 当前选中的变体 id（可选；无变体档案 / 旧 meta 未写时为空，由 currentArchetypeVariant 回落默认）。 */
+  variantId: string
 }
 
 function readArchetypeNodeMeta(meta: Record<string, unknown> | undefined): ArchetypeNodeMeta | null {
@@ -59,7 +62,8 @@ function readArchetypeNodeMeta(meta: Record<string, unknown> | undefined): Arche
   const id = typeof record.id === 'string' ? record.id : ''
   const modeId = typeof record.modeId === 'string' ? record.modeId : ''
   if (!id || !modeId) return null
-  return { id, modeId }
+  const variantId = typeof record.variantId === 'string' ? record.variantId : ''
+  return { id, modeId, variantId }
 }
 
 /** 当前激活的模式（无命名空间 meta 或 modeId 失效时落到 defaultModeId）。 */
@@ -69,6 +73,29 @@ export function currentArchetypeMode(archetype: ModelArchetype, meta: Record<str
   return archetype.modes.find((m) => m.id === modeId)
     ?? archetype.modes.find((m) => m.id === archetype.defaultModeId)
     ?? archetype.modes[0]
+}
+
+/**
+ * 当前激活的变体（对称 currentArchetypeMode）。读 `meta.archetype.variantId`，回落 defaultVariantId，
+ * 再回落 variants[0]。无 variants 档案 → null（UI 不显示变体段，传输不带变体 model）。
+ */
+export function currentArchetypeVariant(archetype: ModelArchetype, meta: Record<string, unknown> | undefined): ModelArchetypeVariant | null {
+  const variants = archetype.variants
+  if (!variants || variants.length === 0) return null
+  const stored = readArchetypeNodeMeta(meta)
+  const variantId = stored?.id === archetype.id ? stored.variantId : ''
+  return variants.find((v) => v.id === variantId)
+    ?? variants.find((v) => v.id === archetype.defaultVariantId)
+    ?? variants[0]
+}
+
+export type ArchetypeVariantChoice = { id: string; label: string }
+
+/** 变体分段切换的选项（标签 = 变体自己的名字）。无 variants / 仅 1 个 → 空（UI 不显示该段）。 */
+export function archetypeVariantChoices(archetype: ModelArchetype): ArchetypeVariantChoice[] {
+  const variants = archetype.variants
+  if (!variants || variants.length <= 1) return []
+  return variants.map((v) => ({ id: v.id, label: v.label }))
 }
 
 export type ArchetypeModeChoice = { id: string; vendorTerm: string; hint: string }
@@ -185,9 +212,25 @@ export function archetypeModeModelEnum(archetype: ModelArchetype, meta: Record<s
   return currentArchetypeMode(archetype, meta).modelEnum ?? null
 }
 
+/** 默认变体 id（无 variants → 空串；声明 variants 时取 defaultVariantId 回落 variants[0]）。 */
+function defaultVariantIdOf(archetype: ModelArchetype): string {
+  const variants = archetype.variants
+  if (!variants || variants.length === 0) return ''
+  return (variants.find((v) => v.id === archetype.defaultVariantId) ?? variants[0]).id
+}
+
+/** 保留当前 variantId（同档案）或回落默认（换档案 / 旧 meta 无 variantId）。 */
+function preservedVariantId(meta: Record<string, unknown>, archetype: ModelArchetype): string {
+  const stored = readArchetypeNodeMeta(meta)
+  const keep = stored?.id === archetype.id && stored.variantId
+    && archetype.variants?.some((v) => v.id === stored.variantId)
+  return keep ? stored!.variantId : defaultVariantIdOf(archetype)
+}
+
 /**
  * 切到 nextModeId：只改 node.meta.archetype.modeId（参考值全局保留，不搬不清）。返回**整份新 meta**。
  * 互斥不在这里发生——发生在传输投影（projectArchetypeFrameExtras）。这样切回时照片还在。
+ * variantId 跟随保留（切 mode 不动变体）；无变体档案则不写 variantId 键。
  */
 export function applyArchetypeModeSwitch(
   meta: Record<string, unknown>,
@@ -195,19 +238,80 @@ export function applyArchetypeModeSwitch(
   nextModeId: string,
 ): Record<string, unknown> {
   const nextMode = archetype.modes.find((m) => m.id === nextModeId) ?? archetype.modes[0]
-  return { ...meta, archetype: { id: archetype.id, modeId: nextMode.id } }
+  const variantId = preservedVariantId(meta, archetype)
+  return { ...meta, archetype: { id: archetype.id, modeId: nextMode.id, ...(variantId ? { variantId } : {}) } }
+}
+
+/**
+ * 切到 nextVariantId：只改 node.meta.archetype.variantId（对称 applyArchetypeModeSwitch；不动 modeId、
+ * 不动参考值）。返回**整份新 meta**。无效 variantId → 回落默认。无 variants 档案 → no-op（原样返回 meta）。
+ */
+export function applyArchetypeVariantSwitch(
+  meta: Record<string, unknown>,
+  archetype: ModelArchetype,
+  nextVariantId: string,
+): Record<string, unknown> {
+  const variants = archetype.variants
+  if (!variants || variants.length === 0) return meta
+  const stored = readArchetypeNodeMeta(meta)
+  const modeId = (stored?.id === archetype.id && stored.modeId) ? stored.modeId : archetype.defaultModeId
+  const nextVariant = variants.find((v) => v.id === nextVariantId) ?? variants.find((v) => v.id === archetype.defaultVariantId) ?? variants[0]
+  return { ...meta, archetype: { id: archetype.id, modeId, variantId: nextVariant.id } }
+}
+
+/**
+ * **迁移层（变体合并最大风险点）**：旧项目 node.meta.modelKey 钉的是具体变体串（如 `doubao-seedance-2.0-fast`），
+ * 合并后 picker 只剩基础 modelKey。此函数把旧变体 modelKey 归一成：① modelKey 改写成基础变体的 modelKey
+ * （让节点能在 picker 里选中、不变空）、② meta.archetype.variantId 写成对应变体（保住「用户当初要的是 fast」）。
+ * 按 variant.identifierPatterns / variant.modelKey 匹配旧 modelKey。
+ *
+ * 幂等：modelKey 已是某变体的基础 modelKey 且 variantId 已对 → 返回 null（不循环写）。
+ * 无 variants 档案 / 认不出旧串 → 返回 null。返回**待 patch 的字段**（含 modelKey + archetype），由调用方合并。
+ */
+export function normalizeArchetypeVariantMeta(
+  meta: Record<string, unknown>,
+  archetype: ModelArchetype,
+): { modelKey: string; archetype: { id: string; modeId: string; variantId: string } } | null {
+  const variants = archetype.variants
+  if (!variants || variants.length === 0) return null
+  const currentKey = typeof meta.modelKey === 'string' ? meta.modelKey.trim() : ''
+  if (!currentKey) return null
+
+  const norm = (v: string) => v.trim().toLowerCase()
+  // picker/catalog 折叠后只列**基础 modelKey** = 默认变体的 modelKey。归一后必须把 meta.modelKey 设成它，
+  // 否则变体全串(doubao-seedance-2.0-fast)在 picker(只有基础选项 + findModelOptionByIdentifier 精确匹配)
+  // 命中不到 → 选择显示空（这正是「最大风险点」）。变体信息只由 variantId 承载（与 applyArchetypeVariantSwitch
+  // 一致：切变体只改 variantId、不动 modelKey）。
+  const baseModelKey = (variants.find((v) => v.id === archetype.defaultVariantId) ?? variants[0]).modelKey
+  // modelKey 已是基础 → variantId 是权威（缺则 currentArchetypeVariant 回落默认），无需迁移、幂等 no-op。
+  // **绝不能用基础串反推变体**——基础串映射到 standard 会把已选的 fast/face 冲掉。
+  if (norm(currentKey) === norm(baseModelKey)) return null
+  // modelKey 是变体全串（旧项目钉死的具体变体）→ 折叠成基础 modelKey + 从串 derive variantId。
+  const matched = variants.find((variant) =>
+    norm(variant.modelKey) === norm(currentKey) || (variant.identifierPatterns ?? []).some((p) => norm(p) === norm(currentKey)),
+  )
+  if (!matched) return null
+  const stored = readArchetypeNodeMeta(meta)
+  const modeId = (stored?.id === archetype.id && stored.modeId) ? stored.modeId : archetype.defaultModeId
+  return { modelKey: baseModelKey, archetype: { id: archetype.id, modeId, variantId: matched.id } }
 }
 
 /**
  * 初次落地（节点刚选到一个有档案的模型、还没有命名空间 meta 时）：写入默认模式的 archetype 命名空间。
- * 幂等：已是该档案则返回 null（不循环）。
+ * 幂等：已是该档案则返回 null（不循环）。变体档案同时初始化 variantId（由 applyArchetypeModeSwitch 写）。
  */
 export function ensureArchetypeNodeMeta(
   meta: Record<string, unknown>,
   archetype: ModelArchetype,
 ): Record<string, unknown> | null {
   const stored = readArchetypeNodeMeta(meta)
-  if (stored?.id === archetype.id) return null
+  // 已是该档案：若有变体但 variantId 缺/失效 → 补默认变体（旧 meta 升级）；否则幂等 null。
+  if (stored?.id === archetype.id) {
+    const needsVariant = (archetype.variants?.length ?? 0) > 0
+      && !archetype.variants!.some((v) => v.id === stored.variantId)
+    if (!needsVariant) return null
+    return applyArchetypeVariantSwitch(meta, archetype, defaultVariantIdOf(archetype))
+  }
   return applyArchetypeModeSwitch(meta, archetype, archetype.defaultModeId)
 }
 
@@ -318,7 +422,13 @@ export function buildArchetypeInputParams(
     }
     if (combined.length) out[mode.combineSlotsInto.key] = combined
   }
-  // M3：per-mode enum 覆盖（HappyHorse）。Seedance 各模式同 model → 不带，body 用 {{model.modelKey}}。
-  if (mode.modelEnum) out.model = mode.modelEnum
+  // model 字段（变体 > per-mode enum > 不带）：
+  // ① 变体轴（A）：选中变体的 modelKey 决定实际发请求的 model（如 doubao-seedance-2.0-fast）。
+  //    变体优先于 mode.modelEnum——变体跨所有 mode 生效，是更外层的身份。
+  // ② per-mode enum 覆盖（M3，HappyHorse）：无变体时按当前模式的 modelEnum。
+  // ③ 都无（如 kie Seedance 各模式同 model 且无变体）→ 不带，catalog body 仍用 {{model.modelKey}}。
+  const variant = currentArchetypeVariant(archetype, meta)
+  if (variant) out.model = variant.modelKey
+  else if (mode.modelEnum) out.model = mode.modelEnum
   return out
 }

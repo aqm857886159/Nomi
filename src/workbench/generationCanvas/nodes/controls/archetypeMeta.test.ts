@@ -1,18 +1,22 @@
 import { describe, it, expect } from 'vitest'
-import { getArchetypeById, type ModelArchetype } from '../../../../config/modelArchetypes'
+import { getArchetypeById, specializeArchetypeForVariant, type ModelArchetype } from '../../../../config/modelArchetypes'
 import { archetypeModeModelEnum } from './archetypeMeta'
 import {
   type ArchetypeArraySlot,
   appendArchetypeArrayValue,
   applyArchetypeModeSwitch,
+  applyArchetypeVariantSwitch,
   archetypeModeArraySlots,
   archetypeModeChoices,
   archetypeModeSlots,
+  archetypeVariantChoices,
   buildArchetypeInputParams,
   currentArchetypeMode,
+  currentArchetypeVariant,
   ensureArchetypeNodeMeta,
   hasArchetypeArrayReferences,
   modeHasCharacterSlot,
+  normalizeArchetypeVariantMeta,
 } from './archetypeMeta'
 
 // C2b：模式分段切换 + 命名空间 meta + flat 帧键投影（M2 互斥）的核心逻辑钉死。
@@ -337,10 +341,12 @@ describe('combineSlotsInto — 角色对象数组合并（通用原语）', () =
 describe('apimart Seedance 首尾帧 — image_with_roles（combineSlotsInto 落地）', () => {
   const SEEDANCE_APIMART = getArchetypeById('seedance-2-apimart')!
 
-  it('首尾帧模式 → image_with_roles:[首帧,尾帧]，无扁平键、无 image_urls（与 image_urls 互斥）', () => {
+  it('首尾帧模式 → image_with_roles:[首帧,尾帧]，无扁平键、无 image_urls（与 image_urls 互斥）；带默认变体 model', () => {
     const meta = { archetype: { id: 'seedance-2-apimart', modeId: 'firstlast' } }
     const out = buildArchetypeInputParams(meta, SEEDANCE_APIMART, { firstFrameUrl: 'F.png', lastFrameUrl: 'L.png' })
     expect(out).toEqual({
+      // 变体合并后：无 variantId → 回落默认变体 standard → out.model = 基础 modelKey。
+      model: 'doubao-seedance-2.0',
       image_with_roles: [
         { url: 'F.png', role: 'first_frame' },
         { url: 'L.png', role: 'last_frame' },
@@ -350,10 +356,10 @@ describe('apimart Seedance 首尾帧 — image_with_roles（combineSlotsInto 落
     expect(out.first_frame_url).toBeUndefined()
   })
 
-  it('只首帧 → image_with_roles 只含首帧', () => {
+  it('只首帧 → image_with_roles 只含首帧（+ 默认变体 model）', () => {
     const meta = { archetype: { id: 'seedance-2-apimart', modeId: 'firstlast' } }
     const out = buildArchetypeInputParams(meta, SEEDANCE_APIMART, { firstFrameUrl: 'F.png' })
-    expect(out).toEqual({ image_with_roles: [{ url: 'F.png', role: 'first_frame' }] })
+    expect(out).toEqual({ model: 'doubao-seedance-2.0', image_with_roles: [{ url: 'F.png', role: 'first_frame' }] })
   })
 
   it('档案有 文生/图生/全能参考/首尾帧 四模式 + seed 参数全模式可见', () => {
@@ -361,5 +367,156 @@ describe('apimart Seedance 首尾帧 — image_with_roles（combineSlotsInto 落
     for (const mode of SEEDANCE_APIMART.modes) {
       expect(mode.params.map((p) => p.key)).toContain('seed')
     }
+  })
+})
+
+// ───────────────────────── S1/S2：变体轴（Seedance 合并）─────────────────────────
+const SEEDANCE_APIMART = getArchetypeById('seedance-2-apimart')!
+
+describe('变体轴 — currentArchetypeVariant 回落', () => {
+  it('无 variantId → 回落默认变体 standard', () => {
+    expect(currentArchetypeVariant(SEEDANCE_APIMART, {})?.id).toBe('standard')
+    expect(currentArchetypeVariant(SEEDANCE_APIMART, { archetype: { id: 'seedance-2-apimart', modeId: 't2v' } })?.id).toBe('standard')
+  })
+  it('显式 variantId 命中', () => {
+    const meta = { archetype: { id: 'seedance-2-apimart', modeId: 't2v', variantId: 'fast' } }
+    expect(currentArchetypeVariant(SEEDANCE_APIMART, meta)?.id).toBe('fast')
+  })
+  it('失效 variantId / 属于别的档案 → 回落默认', () => {
+    expect(currentArchetypeVariant(SEEDANCE_APIMART, { archetype: { id: 'seedance-2-apimart', modeId: 't2v', variantId: 'ghost' } })?.id).toBe('standard')
+    expect(currentArchetypeVariant(SEEDANCE_APIMART, { archetype: { id: 'other', modeId: 't2v', variantId: 'fast' } })?.id).toBe('standard')
+  })
+  it('无 variants 档案 → null（如 kie Seedance）', () => {
+    expect(currentArchetypeVariant(getArchetypeById('seedance-2')!, {})).toBeNull()
+  })
+  it('archetypeVariantChoices 列出 4 变体（标签用变体自己的名字）', () => {
+    expect(archetypeVariantChoices(SEEDANCE_APIMART)).toEqual([
+      { id: 'standard', label: '标准' },
+      { id: 'fast', label: '快速' },
+      { id: 'face', label: '真人' },
+      { id: 'fast-face', label: '真人快速' },
+    ])
+    // 无 variants → 空（UI 不显示该段）。
+    expect(archetypeVariantChoices(getArchetypeById('seedance-2')!)).toEqual([])
+  })
+})
+
+describe('变体轴 — 发出的 model（buildArchetypeInputParams out.model）', () => {
+  // 钉死：4 变体各发对自己的 modelKey（用户真机会逐个抓请求体确认）。
+  it.each([
+    ['standard', 'doubao-seedance-2.0'],
+    ['fast', 'doubao-seedance-2.0-fast'],
+    ['face', 'doubao-seedance-2.0-face'],
+    ['fast-face', 'doubao-seedance-2.0-fast-face'],
+  ])('变体 %s → out.model = %s', (variantId, expected) => {
+    const meta = { archetype: { id: 'seedance-2-apimart', modeId: 't2v', variantId } }
+    expect(buildArchetypeInputParams(meta, SEEDANCE_APIMART).model).toBe(expected)
+  })
+  it('无 variantId → out.model 取默认变体 modelKey（绝不缺 model 键，否则 apimart body 丢 model）', () => {
+    const meta = { archetype: { id: 'seedance-2-apimart', modeId: 't2v' } }
+    expect(buildArchetypeInputParams(meta, SEEDANCE_APIMART).model).toBe('doubao-seedance-2.0')
+  })
+  it('变体优先于 per-mode modelEnum（变体是更外层身份）', () => {
+    // 构造一个既有变体又有 modelEnum 的假档案，证明变体优先。
+    const fake: ModelArchetype = {
+      id: 'fake-v', family: 'f', label: 'F', kind: 'video', defaultModeId: 'm',
+      transportTaskKind: 'text_to_video', identifierPatterns: ['fake-v'],
+      modes: [{ id: 'm', intent: 'text', vendorTerm: 'M', hint: '', promptRequired: true, slots: [], params: [], modelEnum: 'enum-model' }],
+      variants: [{ id: 'v1', label: 'V1', modelKey: 'variant-model' }],
+      defaultVariantId: 'v1',
+    }
+    const out = buildArchetypeInputParams({ archetype: { id: 'fake-v', modeId: 'm', variantId: 'v1' } }, fake)
+    expect(out.model).toBe('variant-model')
+  })
+})
+
+describe('变体轴 — params 收窄（specializeArchetypeForVariant）', () => {
+  it('fast 变体：resolution 选项收窄到 480/720（无 1080）', () => {
+    const fast = specializeArchetypeForVariant(SEEDANCE_APIMART, 'fast')
+    for (const mode of fast.modes) {
+      const res = mode.params.find((p) => p.key === 'resolution')
+      expect(res?.options.map((o) => o.value)).toEqual(['480p', '720p'])
+    }
+  })
+  it('fast-face 变体：同样收窄 480/720', () => {
+    const ff = specializeArchetypeForVariant(SEEDANCE_APIMART, 'fast-face')
+    const res = ff.modes[0].params.find((p) => p.key === 'resolution')
+    expect(res?.options.map((o) => o.value)).toEqual(['480p', '720p'])
+  })
+  it('standard / face 变体：resolution 保留 480/720/1080', () => {
+    for (const variantId of ['standard', 'face']) {
+      const arch = specializeArchetypeForVariant(SEEDANCE_APIMART, variantId)
+      const res = arch.modes[0].params.find((p) => p.key === 'resolution')
+      expect(res?.options.map((o) => o.value)).toEqual(['480p', '720p', '1080p'])
+    }
+  })
+  it('无 variantId → 取默认 standard，不收窄', () => {
+    const arch = specializeArchetypeForVariant(SEEDANCE_APIMART, undefined)
+    const res = arch.modes[0].params.find((p) => p.key === 'resolution')
+    expect(res?.options.map((o) => o.value)).toEqual(['480p', '720p', '1080p'])
+  })
+})
+
+describe('变体轴 — 切换 applyArchetypeVariantSwitch', () => {
+  it('切变体只改 variantId，保留 modeId 与参考值', () => {
+    let meta: Record<string, unknown> = { archetype: { id: 'seedance-2-apimart', modeId: 'firstlast' }, firstFrameUrl: 'F.png' }
+    meta = applyArchetypeVariantSwitch(meta, SEEDANCE_APIMART, 'fast')
+    expect((meta.archetype as { modeId: string; variantId: string })).toEqual({ id: 'seedance-2-apimart', modeId: 'firstlast', variantId: 'fast' })
+    expect(meta.firstFrameUrl).toBe('F.png')
+  })
+  it('无效 variantId → 回落默认 standard', () => {
+    const meta = applyArchetypeVariantSwitch({ archetype: { id: 'seedance-2-apimart', modeId: 't2v' } }, SEEDANCE_APIMART, 'ghost')
+    expect((meta.archetype as { variantId: string }).variantId).toBe('standard')
+  })
+  it('切模式后变体跟随保留（正交，互不影响）', () => {
+    let meta: Record<string, unknown> = applyArchetypeVariantSwitch({ archetype: { id: 'seedance-2-apimart', modeId: 't2v' } }, SEEDANCE_APIMART, 'face')
+    meta = applyArchetypeModeSwitch(meta, SEEDANCE_APIMART, 'i2v')
+    expect((meta.archetype as { modeId: string; variantId: string })).toEqual({ id: 'seedance-2-apimart', modeId: 'i2v', variantId: 'face' })
+  })
+})
+
+describe('变体轴 — 旧项目迁移 normalizeArchetypeVariantMeta（最大风险点）', () => {
+  // 旧项目钉死的变体全串 → 归一成**基础 modelKey**（= 折叠后 picker 唯一选项，否则选择显示空）+ variantId 承载变体。
+  it.each([
+    ['doubao-seedance-2.0-fast', 'fast'],
+    ['doubao-seedance-2.0-face', 'face'],
+    ['doubao-seedance-2.0-fast-face', 'fast-face'],
+  ])('旧变体全串 %s → modelKey 折叠成基础 doubao-seedance-2.0 + variantId=%s', (oldKey, expectedVariant) => {
+    const meta = { modelKey: oldKey, archetype: { id: 'seedance-2-apimart', modeId: 'i2v' } }
+    const patch = normalizeArchetypeVariantMeta(meta, SEEDANCE_APIMART)
+    expect(patch?.modelKey).toBe('doubao-seedance-2.0') // 基础串，能在折叠后的 picker 命中
+    expect(patch?.archetype).toEqual({ id: 'seedance-2-apimart', modeId: 'i2v', variantId: expectedVariant })
+  })
+  it('旧标准节点 modelKey 已是基础 → 不迁移（variantId 缺由 currentArchetypeVariant 回落 standard）', () => {
+    const meta = { modelKey: 'doubao-seedance-2.0', archetype: { id: 'seedance-2-apimart', modeId: 't2v' } }
+    expect(normalizeArchetypeVariantMeta(meta, SEEDANCE_APIMART)).toBeNull()
+  })
+  it('旧无连字符变体串 doubao-seedance-2-0-fast → 基础 + fast（identifierPatterns 收纳）', () => {
+    const patch = normalizeArchetypeVariantMeta({ modelKey: 'doubao-seedance-2-0-fast' }, SEEDANCE_APIMART)
+    expect(patch?.modelKey).toBe('doubao-seedance-2.0')
+    expect(patch?.archetype.variantId).toBe('fast')
+  })
+  it('已归一（基础 modelKey + variantId）→ 幂等 null（不循环写、不冲掉已选变体）', () => {
+    const meta = { modelKey: 'doubao-seedance-2.0', archetype: { id: 'seedance-2-apimart', modeId: 'i2v', variantId: 'fast' } }
+    expect(normalizeArchetypeVariantMeta(meta, SEEDANCE_APIMART)).toBeNull()
+  })
+  it('无 variants 档案 / 认不出的 modelKey → null', () => {
+    expect(normalizeArchetypeVariantMeta({ modelKey: 'bytedance/seedance-2' }, getArchetypeById('seedance-2')!)).toBeNull()
+    expect(normalizeArchetypeVariantMeta({ modelKey: 'unknown' }, SEEDANCE_APIMART)).toBeNull()
+  })
+})
+
+describe('变体轴 — ensureArchetypeNodeMeta 初始化变体', () => {
+  it('首次落地：写默认模式 + 默认变体', () => {
+    const patch = ensureArchetypeNodeMeta({}, SEEDANCE_APIMART)
+    expect((patch!.archetype as { id: string; modeId: string; variantId: string })).toEqual({ id: 'seedance-2-apimart', modeId: 't2v', variantId: 'standard' })
+  })
+  it('旧 meta 有档案但缺 variantId → 补默认变体（升级）', () => {
+    const patch = ensureArchetypeNodeMeta({ archetype: { id: 'seedance-2-apimart', modeId: 'i2v' } }, SEEDANCE_APIMART)
+    expect((patch!.archetype as { variantId: string }).variantId).toBe('standard')
+    expect((patch!.archetype as { modeId: string }).modeId).toBe('i2v')
+  })
+  it('已有有效 variantId → 幂等 null', () => {
+    expect(ensureArchetypeNodeMeta({ archetype: { id: 'seedance-2-apimart', modeId: 'i2v', variantId: 'fast' } }, SEEDANCE_APIMART)).toBeNull()
   })
 })

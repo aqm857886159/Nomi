@@ -166,6 +166,51 @@ describe("applyBuiltinSeeds", () => {
     expect(editBucket.length).toBeGreaterThanOrEqual(3);
   });
 
+  it("变体合并迁移：fresh seed 只种 1 个 Seedance apimart 模型（基础 modelKey）", () => {
+    const { state } = applyBuiltinSeeds(emptyCatalog(), NOW);
+    const seedance = state.models.filter((m) => m.vendorKey === "apimart" && m.modelKey.startsWith("doubao-seedance-2.0"));
+    expect(seedance.map((m) => m.modelKey)).toEqual(["doubao-seedance-2.0"]);
+    // body 的 model 取 {{request.params.model}}（变体通道），非 {{model.modelKey}}。
+    const t2v = state.mappings.find((m) => m.id === "seed-apimart-seedance-2-apimart-text_to_video");
+    expect((t2v?.create.body as { model: string }).model).toBe("{{request.params.model}}");
+  });
+
+  it("变体合并迁移：老装机里残留的 3 个旧 Seedance 变体模型 + 6 mapping 被精确删除（picker 收成 1 项）", () => {
+    // 模拟老装机：先 fresh seed 1 个基础模型，再手塞 3 个旧变体模型 + 它们的 6 条 mapping（旧 seed id）。
+    const stale = applyBuiltinSeeds(emptyCatalog(), NOW).state;
+    const retiredKeys = ["doubao-seedance-2.0-fast", "doubao-seedance-2.0-face", "doubao-seedance-2.0-fast-face"];
+    for (const modelKey of retiredKeys) {
+      stale.models.push({ modelKey, vendorKey: "apimart", labelZh: modelKey, kind: "video", enabled: true, meta: { archetypeId: "seedance-2-apimart" }, createdAt: "old", updatedAt: "old" });
+    }
+    const retiredMappingIds = [
+      "seed-apimart-seedance-2-apimart-fast-text_to_video", "seed-apimart-seedance-2-apimart-fast-image_to_video",
+      "seed-apimart-seedance-2-apimart-face-text_to_video", "seed-apimart-seedance-2-apimart-face-image_to_video",
+      "seed-apimart-seedance-2-apimart-fast-face-text_to_video", "seed-apimart-seedance-2-apimart-fast-face-image_to_video",
+    ];
+    for (const id of retiredMappingIds) {
+      stale.mappings.push({ id, vendorKey: "apimart", taskKind: "text_to_video", name: id, enabled: true, create: { method: "POST", path: "/v1/videos/generations", headers: {}, body: {} }, createdAt: "old", updatedAt: "old" });
+    }
+    const { state, changed } = applyBuiltinSeeds(stale, "2026-06-16T00:00:00.000Z");
+    expect(changed).toBe(true);
+    // 3 旧变体模型全删，只剩基础。
+    const seedanceModels = state.models.filter((m) => m.vendorKey === "apimart" && m.modelKey.startsWith("doubao-seedance-2.0"));
+    expect(seedanceModels.map((m) => m.modelKey)).toEqual(["doubao-seedance-2.0"]);
+    // 6 旧 mapping 全删。
+    for (const id of retiredMappingIds) {
+      expect(state.mappings.find((m) => m.id === id)).toBeUndefined();
+    }
+    // 不误删基础模型的 mapping。
+    expect(state.mappings.find((m) => m.id === "seed-apimart-seedance-2-apimart-image_to_video")).toBeTruthy();
+  });
+
+  it("变体合并迁移：prune 不碰用户自建/改名的非 seed 记录", () => {
+    const stale = applyBuiltinSeeds(emptyCatalog(), NOW).state;
+    // 用户自建一个 modelKey 含 fast 但不是我们种的退役 key（不同 modelKey）→ 不删。
+    stale.models.push({ modelKey: "my-custom-seedance-fast", vendorKey: "apimart", labelZh: "我的", kind: "video", enabled: true, createdAt: "old", updatedAt: "old" });
+    const { state } = applyBuiltinSeeds(stale, "2026-06-16T00:00:00.000Z");
+    expect(state.models.find((m) => m.modelKey === "my-custom-seedance-fast")).toBeTruthy();
+  });
+
   it("存在即跳过：不覆盖用户已有的同 key 记录", () => {
     const state = emptyCatalog();
     state.vendors.push({

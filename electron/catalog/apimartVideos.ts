@@ -17,16 +17,21 @@ import { APIMART_CREATE_TASK_ID_PATH, APIMART_STATUS_MAPPING, APIMART_VIDEO_QUER
 
 const CREATE_HEADERS = { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" };
 
-function videoCreateOp(bodyFields: Record<string, unknown>): HttpOperation {
+// model 字段缺省取 catalog 行 modelKey；变体合并的模型（Seedance：1 catalog 行 + 4 变体）改取
+// {{request.params.model}}（值来自档案当前变体的 modelKey，同 happyhorse modelEnum 通道）。
+function videoCreateOp(bodyFields: Record<string, unknown>, modelRef = "{{model.modelKey}}"): HttpOperation {
   return {
     method: "POST",
     path: "/v1/videos/generations",
     headers: CREATE_HEADERS,
-    body: { model: "{{model.modelKey}}", prompt: "{{request.prompt}}", ...bodyFields },
+    body: { model: modelRef, prompt: "{{request.prompt}}", ...bodyFields },
     response_mapping: { task_id: APIMART_CREATE_TASK_ID_PATH },
     provider_meta_mapping: { task_id: APIMART_CREATE_TASK_ID_PATH },
   };
 }
+
+// 变体合并模型用：body model = 档案当前变体的 modelKey（{{request.params.model}}）。
+const VARIANT_MODEL_REF = "{{request.params.model}}";
 
 // 通用 snake 参数引用（值取自档案控件/槽，键 = 各模型 apimart 字段名）。
 const ASPECT = "{{request.params.aspect_ratio}}";
@@ -60,19 +65,19 @@ function videoModel(p: {
   modelKey: string;
   labelZh: string;
   archetypeId: string;
-  /** mapping id 的稳定后缀。缺省 = archetypeId（每模型唯一时够用）。**多模型共享一个档案时必须显式传**
-   *  （如 Seedance face/fast-face 复用标准/fast 档案 → 若用 archetypeId 会与标准版 id 撞、互相覆盖、
-   *  破坏 seeding 幂等）。现存模型不传 → id 不变，零迁移、漂移自愈按 id 仍命中老装机更新 body。 */
+  /** mapping id 的稳定后缀。缺省 = archetypeId（每模型唯一时够用）。 */
   idKey?: string;
+  /** body 的 model 字段引用。缺省 {{model.modelKey}}；变体合并模型传 VARIANT_MODEL_REF。 */
+  modelRef?: string;
   t2vBody: Record<string, unknown>;
   i2vBody?: Record<string, unknown>;
 }): ApimartVideoModel {
   const idKey = p.idKey ?? p.archetypeId;
   const mappings: ApimartVideoModel["mappings"] = [
-    { id: `seed-apimart-${idKey}-text_to_video`, taskKind: "text_to_video", name: `${p.labelZh} · 文生视频`, create: videoCreateOp(p.t2vBody) },
+    { id: `seed-apimart-${idKey}-text_to_video`, taskKind: "text_to_video", name: `${p.labelZh} · 文生视频`, create: videoCreateOp(p.t2vBody, p.modelRef) },
   ];
   if (p.i2vBody) {
-    mappings.push({ id: `seed-apimart-${idKey}-image_to_video`, taskKind: "image_to_video", name: `${p.labelZh} · 图生视频`, create: videoCreateOp(p.i2vBody) });
+    mappings.push({ id: `seed-apimart-${idKey}-image_to_video`, taskKind: "image_to_video", name: `${p.labelZh} · 图生视频`, create: videoCreateOp(p.i2vBody, p.modelRef) });
   }
   return { modelKey: p.modelKey, labelZh: p.labelZh, archetypeId: p.archetypeId, mappings };
 }
@@ -95,14 +100,12 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
     t2vBody: { mode: MODE, duration: DURATION, aspect_ratio: ASPECT, audio: AUDIO },
     i2vBody: { mode: MODE, duration: DURATION, image_urls: IMAGE_URLS, audio: AUDIO },
   }),
-  // Seedance 2.0 四变体（标准/fast/face/fast-face）。body 形状一致（SEEDANCE_*_BODY 单源 P1）：
-  // i2vBody 一条覆盖 图生/全能参考/首尾帧 三模式——image_urls(图生/多图) + video_urls/audio_urls(全能参考)
-  // + image_with_roles(首尾帧，与 image_urls 互斥) + seed；非当前模式的空键由模板自动丢（M2 互斥）。
-  // face/fast-face 能力与标准/fast 一致（官方）→ 复用同 archetypeId、同 body，只多两条 model 行。
-  videoModel({ modelKey: "doubao-seedance-2.0", labelZh: "Seedance 2.0", archetypeId: "seedance-2-apimart", t2vBody: SEEDANCE_T2V_BODY, i2vBody: SEEDANCE_I2V_BODY }),
-  videoModel({ modelKey: "doubao-seedance-2.0-fast", labelZh: "Seedance 2.0 Fast", archetypeId: "seedance-2-apimart-fast", t2vBody: SEEDANCE_T2V_BODY, i2vBody: SEEDANCE_I2V_BODY }),
-  videoModel({ modelKey: "doubao-seedance-2.0-face", labelZh: "Seedance 2.0 真人", archetypeId: "seedance-2-apimart", idKey: "seedance-2-apimart-face", t2vBody: SEEDANCE_T2V_BODY, i2vBody: SEEDANCE_I2V_BODY }),
-  videoModel({ modelKey: "doubao-seedance-2.0-fast-face", labelZh: "Seedance 2.0 真人快速", archetypeId: "seedance-2-apimart-fast", idKey: "seedance-2-apimart-fast-face", t2vBody: SEEDANCE_T2V_BODY, i2vBody: SEEDANCE_I2V_BODY }),
+  // Seedance 2.0：变体合并（2026-06-16）——原 4 个独立 catalog 行（标准/fast/face/fast-face）收成 **1 个**。
+  // 4 变体由档案 variants 声明（seedanceApimart.ts），用户经 VariantBar 切换；body 的 model 字段取
+  // {{request.params.model}}（= 档案当前变体的 modelKey，如 doubao-seedance-2.0-fast），同 happyhorse 通道。
+  // body 形状一致（SEEDANCE_*_BODY 单源 P1）：i2vBody 一条覆盖 图生/全能参考/首尾帧 三模式——
+  // image_urls + video_urls/audio_urls + image_with_roles(与 image_urls 互斥) + seed；空键由模板自动丢（M2）。
+  videoModel({ modelKey: "doubao-seedance-2.0", labelZh: "Seedance 2.0", archetypeId: "seedance-2-apimart", modelRef: VARIANT_MODEL_REF, t2vBody: SEEDANCE_T2V_BODY, i2vBody: SEEDANCE_I2V_BODY }),
   videoModel({
     modelKey: "wan2.7", labelZh: "Wan 2.7", archetypeId: "wan-2.7",
     t2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION },
