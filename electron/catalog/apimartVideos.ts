@@ -37,6 +37,8 @@ const MODE = "{{request.params.mode}}";
 const AUDIO = "{{request.params.audio}}";
 const GEN_AUDIO = "{{request.params.generate_audio}}";
 const IMAGE_URLS = "{{request.params.image_urls}}"; // image_ref 槽 inputKey=image_urls
+const VIDEO_URLS = "{{request.params.video_urls}}"; // seedance 全能参考 video_ref 槽 inputKey=video_urls
+const AUDIO_URLS = "{{request.params.audio_urls}}"; // seedance 全能参考 audio_ref 槽 inputKey=audio_urls
 const FIRST_FRAME_IMAGE = "{{request.params.first_frame_image}}"; // hailuo first_frame 槽 inputKey=first_frame_image
 
 export type ApimartVideoModel = {
@@ -80,11 +82,18 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
     t2vBody: { mode: MODE, duration: DURATION, aspect_ratio: ASPECT, audio: AUDIO },
     i2vBody: { mode: MODE, duration: DURATION, image_urls: IMAGE_URLS, audio: AUDIO },
   }),
-  // Seedance 2.0：独立 apimart 档案（i2v 用 image_urls 数组，与 kie 的 first/last/omni 结构不同）。
+  // Seedance 2.0：独立 apimart 档案。i2v/全能参考同走 image_to_video 桶——i2vBody 一条覆盖两模式：
+  // image_urls(图生/多图参考) + video_urls/audio_urls(全能参考多模态)；非当前模式的空数组键自动丢弃。
   videoModel({
     modelKey: "doubao-seedance-2.0", labelZh: "Seedance 2.0", archetypeId: "seedance-2-apimart",
     t2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, generate_audio: GEN_AUDIO },
-    i2vBody: { resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS, generate_audio: GEN_AUDIO },
+    i2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS, video_urls: VIDEO_URLS, audio_urls: AUDIO_URLS, generate_audio: GEN_AUDIO },
+  }),
+  // Seedance 2.0 Fast：同结构，独立 fast 档案（清晰度仅 480/720）。官方文档"功能与标准版一致"。
+  videoModel({
+    modelKey: "doubao-seedance-2.0-fast", labelZh: "Seedance 2.0 Fast", archetypeId: "seedance-2-apimart-fast",
+    t2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, generate_audio: GEN_AUDIO },
+    i2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS, video_urls: VIDEO_URLS, audio_urls: AUDIO_URLS, generate_audio: GEN_AUDIO },
   }),
   videoModel({
     modelKey: "wan2.7", labelZh: "Wan 2.7", archetypeId: "wan-2.7",
