@@ -24,7 +24,7 @@
 
 <p align="center">
   <a href="https://github.com/aqm857886159/Nomi/stargazers"><img src="https://img.shields.io/badge/GitHub-%E2%AD%90%20Star-2563eb?logo=github&logoColor=2563eb&labelColor=f1f5f9" alt="Star on GitHub" /></a>
-  <a href="https://github.com/aqm857886159/Nomi/releases/latest"><img src="https://img.shields.io/badge/release-v0.10.3-2563eb?labelColor=f1f5f9" alt="Latest release" /></a>
+  <a href="https://github.com/aqm857886159/Nomi/releases/latest"><img src="https://img.shields.io/badge/release-v0.10.13-2563eb?labelColor=f1f5f9" alt="Latest release" /></a>
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-2563eb?labelColor=f1f5f9" alt="Platform" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-2563eb?labelColor=f1f5f9" alt="License" /></a>
 </p>
@@ -62,7 +62,7 @@
 
 - 🤖 **AI 帮你拆镜头、排轨迹** — 写完故事点一下，AI 拆成一份**可改的分镜方案**（镜头 / 角色 / 提示词逐项可编辑），你确认后自动铺到画布、规划「角色定妆 → 关键帧 → 视频」的生成顺序，还能按镜序排上时间轴；跨次打开它也记得这个项目聊过什么。
 - 🔗 **全流程打通** — 剧本、生图、生视频、剪辑一条线，素材自动流转，不用在 ChatGPT / 即梦 / 剪映之间切。
-- 🔑 **一个 key 全通** — 「模型接入」填一个 key（APIMart / kie），Sora 2 / 可灵 / Seedream 等预置模型立即可用；也可自定义接入任意中转站。
+- 🔑 **一个 key、十几个模型全通** — 「模型接入」填一个 key（APIMart / kie），视频 **Sora 2 / Veo 3.1 / 可灵 / Seedance / Wan / Hailuo**、图像 **Seedream / Nano Banana / GPT Image / Qwen / Imagen** 等预置模型立即可用，**文生 / 图生 / 首尾帧补间 / 多图参考**模式齐全，同款模型的**标准 / 快速 / Pro 变体**一处切换；也可自定义接入任意中转站。
 - 🎭 **项目级资产锁一致性** — 角色（多视角参考图）、分镜、风格沉淀成可复用资产，减少多片段里的「脸漂移、风格跑偏」。
 - 🎬 **3D 导演台 + 全景图** — 在 3D 场景里摆角色姿势、架机位、设画幅，或生成 360° 全景，截取机位画面当生成参考——文字说不清的构图，直接「搭」出来。
 - 🏠 **本地优先** — 项目、素材、剪辑全在你电脑上，不上传任何素材到服务器。
