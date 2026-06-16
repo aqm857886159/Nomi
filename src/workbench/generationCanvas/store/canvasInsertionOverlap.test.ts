@@ -54,6 +54,14 @@ describe('画布插入避让：所有交互式入口都不让卡片相互遮挡'
     expect(hasOverlapWithinCategory(useGenerationCanvasStore.getState().nodes)).toBe(false)
   })
 
+  it('addNode exactPosition：成组紧凑布局信任原值、不被避让推散', () => {
+    const store = useGenerationCanvasStore.getState()
+    store.addNode({ kind: 'image', position: { x: 100, y: 100 }, categoryId: 'shots' })
+    // 切图瓦片式：落点与已有卡重叠，但 exactPosition 要求原地放置（不挪）。
+    const tile = store.addNode({ kind: 'image', position: { x: 120, y: 110 }, categoryId: 'shots', exactPosition: true })
+    expect(tile.position).toEqual({ x: 120, y: 110 })
+  })
+
   it('addNode：连续多次不传落点，互不重叠', () => {
     const store = useGenerationCanvasStore.getState()
     for (let i = 0; i < 6; i += 1) store.addNode({ kind: 'image', categoryId: 'shots' })

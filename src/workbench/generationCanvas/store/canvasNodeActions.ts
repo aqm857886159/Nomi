@@ -46,8 +46,11 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     // 旧版除工具栏外各入口都信任原始落点、零避让）。只比同分类：画布按 activeCategoryId
     // 分屏渲染，跨分类卡不同屏、不会遮挡，拿它们避让只会把新卡无谓推远。批量建卡（create_nodes）
     // 与项目加载直接 set nodes、不走这里，故其自有的紧凑布局不受影响。
+    // exactPosition：调用方已算好成组紧凑布局（切图瓦片），信任原值、不避让——否则会被逐张推散。
     const siblings = currentState.nodes.filter((node) => (node.categoryId || 'shots') === (categoryId || 'shots'))
-    const position = resolveInsertionPosition(input.kind, input.position ?? { x: 120, y: 360 }, siblings)
+    const position = input.exactPosition && input.position
+      ? input.position
+      : resolveInsertionPosition(input.kind, input.position ?? { x: 120, y: 360 }, siblings)
     const baseNode = createGenerationNode({
       id: createNodeId(input.kind),
       kind: input.kind,

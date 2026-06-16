@@ -192,6 +192,8 @@ export function useNodeImageEditing(
           title: isSplit ? `${nodeTitle || '图片'} ${grid}x${grid} 切片 ${index + 1}` : `${nodeTitle || '图片'} 裁剪`,
           prompt: isSplit ? `${grid}x${grid} 图片切片 ${cell.row + 1}-${cell.column + 1}` : '图片裁剪',
           position: { x: slot.x, y: slot.y },
+          // 切图瓦片是成组紧凑布局：信任落点、跳过逐卡避让(否则被推散)。裁剪单卡照常避让。
+          exactPosition: isSplit,
           select: !isSplit,
         })
         const resultAsset = {

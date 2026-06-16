@@ -21,6 +21,9 @@ export type CreateNodeInput = {
   position?: { x: number; y: number }
   categoryId?: string
   select?: boolean
+  // 调用方已算好「成组紧凑布局」(如切图九宫格瓦片)时置 true：信任 position 原值、跳过逐卡碰撞避让。
+  // 缺省 false = 走避让总闸。没有它，成组布局会被避让逐张推散（用户报「切完散落」的根因）。
+  exactPosition?: boolean
 }
 
 export type CanvasNodeActions = {
