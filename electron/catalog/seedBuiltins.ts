@@ -112,6 +112,51 @@ const APIMART_CURATED_MAPPINGS: CuratedMapping[] = [
   ),
 ];
 
+/**
+ * **退役的 curated 记录（变体合并迁移，2026-06-16）**：Seedance 一族原是 4 个独立 catalog 行
+ * （标准/fast/face/fast-face），合并成 1 行 + 4 变体后，老装机里残留 3 个变体模型 + 6 条 mapping 成孤儿
+ * （reconcile 只 insert/update 不删）→ picker 仍显示 4 项。这里**精确按我们当初种的 seed id / modelKey**
+ * 把它们删掉（不碰用户自建/改名的记录：模型按 (vendorKey, modelKey) 命中、mapping 按 seed- 前缀的稳定 id）。
+ * 节点侧的旧 modelKey 由 renderer 的 normalizeArchetypeVariantMeta 归一成 基 modelKey + variantId（正交，互不依赖）。
+ */
+const RETIRED_APIMART_VIDEO_MODEL_KEYS: readonly string[] = [
+  "doubao-seedance-2.0-fast",
+  "doubao-seedance-2.0-face",
+  "doubao-seedance-2.0-fast-face",
+];
+const RETIRED_APIMART_VIDEO_MAPPING_IDS: readonly string[] = [
+  "seed-apimart-seedance-2-apimart-fast-text_to_video",
+  "seed-apimart-seedance-2-apimart-fast-image_to_video",
+  "seed-apimart-seedance-2-apimart-face-text_to_video",
+  "seed-apimart-seedance-2-apimart-face-image_to_video",
+  "seed-apimart-seedance-2-apimart-fast-face-text_to_video",
+  "seed-apimart-seedance-2-apimart-fast-face-image_to_video",
+];
+
+/** 删退役 curated 模型（按 vendorKey+modelKey 精确命中我们种的行）。返回是否变更。 */
+function pruneRetiredModels(models: Model[], vendorKey: string, retiredKeys: readonly string[]): boolean {
+  let changed = false;
+  for (let i = models.length - 1; i >= 0; i -= 1) {
+    if (models[i].vendorKey === vendorKey && retiredKeys.includes(models[i].modelKey)) {
+      models.splice(i, 1);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+/** 删退役 curated mapping（按稳定 seed id 精确命中；用户自建 mapping id 不在表里，不受影响）。返回是否变更。 */
+function pruneRetiredMappings(mappings: Mapping[], retiredIds: readonly string[]): boolean {
+  let changed = false;
+  for (let i = mappings.length - 1; i >= 0; i -= 1) {
+    if (retiredIds.includes(mappings[i].id)) {
+      mappings.splice(i, 1);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 /** 供应商种子（裸 baseUrl + bearer）。存在即跳过（用户配置不覆盖）。返回是否变更。 */
 function seedVendor(vendors: Vendor[], seed: typeof KIE_VENDOR_SEED | typeof APIMART_VENDOR_SEED, now: string): boolean {
   if (vendors.some((v) => v.key === seed.key)) return false;
@@ -200,6 +245,10 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   // 供应商：kie + apimart（apimart 为核心变现通道）。
   if (seedVendor(vendors, KIE_VENDOR_SEED, now)) changed = true;
   if (seedVendor(vendors, APIMART_VENDOR_SEED, now)) changed = true;
+
+  // 退役 curated 记录清理（变体合并迁移：删 Seedance 旧 3 变体模型 + 6 mapping 孤儿，picker 收成 1 项）。
+  if (pruneRetiredModels(models, APIMART_VENDOR_SEED.key, RETIRED_APIMART_VIDEO_MODEL_KEYS)) changed = true;
+  if (pruneRetiredMappings(mappings, RETIRED_APIMART_VIDEO_MAPPING_IDS)) changed = true;
 
   // 模型 insert + 对账（两家各跑同一套逻辑）。
   if (reconcileModels(models, KIE_VENDOR_SEED.key, KIE_CURATED_MODELS, now)) changed = true;

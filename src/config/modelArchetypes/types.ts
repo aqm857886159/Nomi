@@ -96,6 +96,33 @@ export type ArchetypeMode = {
   combineSlotsInto?: { key: string };
 };
 
+/**
+ * **变体（variant）正交轴**（与 modes 平行的新轴，用户拍板方案 A：通用分段选择器）。
+ *
+ * 痛点：一族模型常有「同能力、不同 model 字符串」的若干变体（Seedance 的标准/fast/真人/真人快速、
+ * Sora 的标准/pro…）。它们**跨所有 mode 生效**（fast 影响 t2v/i2v/omni/firstlast 全部的清晰度），
+ * 故不能塞进 per-mode 的 `modelEnum`（否则 mode×variant 笛卡尔积）。新增档案级 `variants` 这一轴：
+ *
+ * - `modelKey`：选中该变体时**实际发请求**用的 model 字符串（如 `doubao-seedance-2.0-fast`）。
+ *   传输层 catalog body 用 `{{request.params.model}}` 读它（同 happyhorse modelEnum 通道）。
+ * - `paramOverrides`：该变体对某些 mode 的参数收窄（如 fast 的 resolution 仅 480/720）。按 modeId 索引；
+ *   值是「拿到该 mode 现有 params、返回收窄后的 params」的纯函数（仿 withFastRes，从档案级 spread
+ *   改成运行时按 variantId 叠加，见 specializeArchetypeForVariant）。缺省 = 该变体不改任何 mode 的参数。
+ * - `identifierPatterns`：旧项目里 node.meta.modelKey 钉的是**具体变体串**（合并前每变体是独立 catalog
+ *   行）。这些 pattern 让旧 modelKey 仍解析到本基础档案 + 被归一到对应 variantId（迁移，见
+ *   normalizeArchetypeVariantMeta）——绝不让旧项目模型选择变空。
+ */
+export type ModelArchetypeVariant = {
+  id: string;
+  label: string;
+  /** 选中该变体时实际发请求的 model 字符串（catalog body `{{request.params.model}}` 读它）。 */
+  modelKey: string;
+  /** 旧项目 node.meta.modelKey 命中这些串之一 → 归一到本变体（迁移层）。缺省 = 仅靠 modelKey 自身匹配。 */
+  identifierPatterns?: string[];
+  /** 按 modeId 把该 mode 的标量参数收窄（纯函数，仿 withFastRes）。缺省 = 不改任何 mode。 */
+  paramOverrides?: Record<string, (params: ModelParameterControl[]) => ModelParameterControl[]>;
+};
+
 export type ModelArchetype = {
   id: string; // 'seedance-2'
   family: string; // 'seedance'
@@ -103,12 +130,22 @@ export type ModelArchetype = {
   kind: "video" | "image" | "audio";
   modes: ArchetypeMode[];
   defaultModeId: string;
+  /**
+   * **变体轴**（可选，与 modes 正交）：一族「同能力、不同 model 字符串」的变体。声明后 UI 出变体分段
+   * 选择器（VariantBar），picker 里这一族只占 1 项（基础 modelKey）。缺省（绝大多数模型）= 无变体，
+   * 行为与从前完全一致。详见 ModelArchetypeVariant。
+   */
+  variants?: ModelArchetypeVariant[];
+  /** 默认选中的变体 id（无 meta.archetype.variantId 时回落）。声明 variants 时必填。 */
+  defaultVariantId?: string;
   /** 该档案默认打到哪个 mapping 桶（显式，不靠启发式）。图像档案可被 mode.transportTaskKind 覆盖。 */
   transportTaskKind: ArchetypeTransportTaskKind;
   /**
    * 识别用：模型身份（modelKey/别名）匹配这些 pattern 之一就套这套档案。
    * 匹配规则见 resolveArchetypeForModel —— 按「整串相等」或「去掉 vendor 前缀后的末段相等」，
    * 故 'seedance-2' 不会误命中 'seedance-2-fast'。
+   * **变体合并后**：本基础档案的 identifierPatterns 收纳所有变体的旧 modelKey（如 fast/face/fast-face），
+   * 使旧项目仍解析到本档案；具体落到哪个 variantId 由各 variant 的 identifierPatterns 决定（迁移层）。
    */
   identifierPatterns: string[];
 };

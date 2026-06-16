@@ -12,15 +12,15 @@ import { SORA_2_ARCHETYPE } from "./sora2";
 import { VEO_3_1_ARCHETYPE } from "./veo31";
 import { WAN_2_7_ARCHETYPE } from "./wan27";
 import { HAILUO_2_3_ARCHETYPE } from "./hailuo23";
-import { SEEDANCE_2_APIMART_ARCHETYPE, SEEDANCE_2_APIMART_FAST_ARCHETYPE } from "./seedanceApimart";
+import { SEEDANCE_2_APIMART_ARCHETYPE } from "./seedanceApimart";
 import { OMNI_FLASH_EXT_ARCHETYPE } from "./omniFlashExt";
 import { AUDIO_ARCHETYPE } from "./audioArchetype";
 import type { ModelArchetype } from "./types";
 
-export type { ModelArchetype, ArchetypeMode, ArchetypeReferenceSlot, ArchetypeReferenceSlotKind, ArchetypeIntent } from "./types";
+export type { ModelArchetype, ArchetypeMode, ArchetypeReferenceSlot, ArchetypeReferenceSlotKind, ArchetypeIntent, ModelArchetypeVariant } from "./types";
 
 /** 内置档案注册表。新模型族在这里登记一条。 */
-export const MODEL_ARCHETYPES: readonly ModelArchetype[] = [SEEDANCE_2_ARCHETYPE, SEEDANCE_2_FAST_ARCHETYPE, HAPPYHORSE_ARCHETYPE, GPT_IMAGE_2_ARCHETYPE, SEEDREAM_ARCHETYPE, NANO_BANANA_ARCHETYPE, KLING_3_ARCHETYPE, QWEN_IMAGE_ARCHETYPE, IMAGEN_4_ARCHETYPE, Z_IMAGE_ARCHETYPE, SORA_2_ARCHETYPE, VEO_3_1_ARCHETYPE, WAN_2_7_ARCHETYPE, HAILUO_2_3_ARCHETYPE, SEEDANCE_2_APIMART_ARCHETYPE, SEEDANCE_2_APIMART_FAST_ARCHETYPE, OMNI_FLASH_EXT_ARCHETYPE, AUDIO_ARCHETYPE];
+export const MODEL_ARCHETYPES: readonly ModelArchetype[] = [SEEDANCE_2_ARCHETYPE, SEEDANCE_2_FAST_ARCHETYPE, HAPPYHORSE_ARCHETYPE, GPT_IMAGE_2_ARCHETYPE, SEEDREAM_ARCHETYPE, NANO_BANANA_ARCHETYPE, KLING_3_ARCHETYPE, QWEN_IMAGE_ARCHETYPE, IMAGEN_4_ARCHETYPE, Z_IMAGE_ARCHETYPE, SORA_2_ARCHETYPE, VEO_3_1_ARCHETYPE, WAN_2_7_ARCHETYPE, HAILUO_2_3_ARCHETYPE, SEEDANCE_2_APIMART_ARCHETYPE, OMNI_FLASH_EXT_ARCHETYPE, AUDIO_ARCHETYPE];
 
 /** 按 id 取档案。 */
 export function getArchetypeById(id: string | null | undefined): ModelArchetype | null {
@@ -111,6 +111,27 @@ export function specializeArchetypeForVendor(archetype: ModelArchetype, vendorKe
 }
 
 /**
+ * **变体特化（A 变体轴的运行时叠加）**：把档案各 mode 的 params 按选中变体的 paramOverrides 收窄
+ * （如 Seedance fast 变体的 resolution 仅 480/720）。仿 specializeArchetypeForVendor —— 身份/能力形状
+ * （id/family/label/modes 结构/slots）不变，只 params 这层按变体叠加。无 variants、变体无 paramOverrides、
+ * 或变体不存在 → 原样返回（零开销）。**纯函数**，渲染读取点与构造层共用，保证 UI 选项收窄与发送一致。
+ */
+export function specializeArchetypeForVariant(archetype: ModelArchetype, variantId: string | null | undefined): ModelArchetype {
+  if (!archetype.variants || archetype.variants.length === 0) return archetype;
+  const targetId = typeof variantId === "string" && variantId.trim() ? variantId.trim() : archetype.defaultVariantId;
+  const variant = archetype.variants.find((v) => v.id === targetId);
+  const overrides = variant?.paramOverrides;
+  if (!overrides) return archetype;
+  return {
+    ...archetype,
+    modes: archetype.modes.map((m) => {
+      const fn = overrides[m.id];
+      return fn ? { ...m, params: fn(m.params) } : m;
+    }),
+  };
+}
+
+/**
  * 认得的模型 → 该档案默认模式的参数控件（ModelParameterControl[]，复用现有控件类型）；
  * 认不出 → null（调用方走现有 flat 解析）。供 model-options 适配层把它注入到 option.meta，
  * 让现有渲染路径不变就能渲染档案控件。**供应商无关**（resolveArchetypeForModel 只看模型身份）。
@@ -118,6 +139,8 @@ export function specializeArchetypeForVendor(archetype: ModelArchetype, vendorKe
 export function archetypeParameterControls(model: ArchetypeModelLike | null | undefined): ModelParameterControl[] | null {
   const archetype = resolveArchetypeForModel(model);
   if (!archetype) return null;
-  const mode = archetype.modes.find((m) => m.id === archetype.defaultModeId) ?? archetype.modes[0];
+  // 默认变体特化（variants 档案的默认变体可能收窄某 mode 的参数，如 Seedance 标准变体不收窄、fast 收窄）。
+  const specialized = specializeArchetypeForVariant(archetype, archetype.defaultVariantId);
+  const mode = specialized.modes.find((m) => m.id === specialized.defaultModeId) ?? specialized.modes[0];
   return mode ? mode.params : null;
 }

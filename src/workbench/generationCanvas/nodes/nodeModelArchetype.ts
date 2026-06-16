@@ -8,9 +8,11 @@ import {
   buildEffectiveImageCatalogConfig,
   buildEffectiveVideoCatalogConfig,
 } from './controls/parameterControlModel'
+import { specializeArchetypeForVariant } from '../../../config/modelArchetypes'
 import {
   archetypeModeParams,
   currentArchetypeMode,
+  currentArchetypeVariant,
   resolveArchetypeForModel,
 } from './controls/archetypeMeta'
 
@@ -50,8 +52,11 @@ export function resolveRenderedControls(
 ): DynamicModelControl[] {
   const archetype = resolveArchetypeForOption(option)
   if (archetype) {
+    // 变体特化：选中变体可能收窄某 mode 的参数（如 Seedance fast 的 resolution 仅 480/720）。
+    // 收窄发生在 params 这层，故先按 variantId 特化档案再取当前模式的 params。
+    const specialized = specializeArchetypeForVariant(archetype, currentArchetypeVariant(archetype, meta)?.id)
     return buildDynamicControls({
-      parameterControls: archetypeModeParams(currentArchetypeMode(archetype, meta)),
+      parameterControls: archetypeModeParams(currentArchetypeMode(specialized, meta)),
       imageCatalogConfig: null,
       videoCatalogConfig: null,
       isImageLike,

@@ -9,7 +9,7 @@ import {
   defaultPatchForControls,
   readMeta,
 } from './controls/parameterControlModel'
-import { ensureArchetypeNodeMeta, resolveArchetypeForModel } from './controls/archetypeMeta'
+import { ensureArchetypeNodeMeta, normalizeArchetypeVariantMeta, resolveArchetypeForModel } from './controls/archetypeMeta'
 import { remapArchetypeMode } from '../runner/usableVendorModel'
 import { showInfoToast } from '../../../utils/showInfoToast'
 import { chooseDefaultModelOption, resolveArchetypeForOption } from './nodeModelArchetype'
@@ -83,6 +83,33 @@ export function useNodeModelAutoSelect({
       },
     })
   }, [isGenerationNode, isVideoLike, meta, node.id, node.meta, selectedModelOption, updateNode])
+
+  // ★变体合并迁移（2026-06-16，最大风险点）：旧项目 node.meta.modelKey 钉的是具体变体串
+  // （如 doubao-seedance-2.0-fast），合并后 picker 只剩基础 modelKey。把旧变体 modelKey 归一成
+  // 基础 modelKey + meta.archetype.variantId（保住「用户当初要 fast」），绝不让旧项目模型选择变空。
+  // 必须**早于**下面的「供应商断开自愈」effect 跑——归一后 selectedModelValue 变成基础 modelKey、
+  // 能在 picker 命中，自愈 effect 就不会误报「供应商已断开」toast。幂等：已归一 → no-op。
+  // 据 selectedModelValue 解析档案（此时旧 modelKey 仍命中基础档案的 identifierPatterns）。
+  React.useEffect(() => {
+    if (!isGenerationNode || !selectedModelValue) return
+    const sourceArchetype = resolveArchetypeForModel({
+      modelKey: selectedModelValue,
+      modelAlias: readMeta(meta, 'modelAlias'),
+      vendorKey: readMeta(meta, 'modelVendor') || readMeta(meta, 'vendor'),
+      meta,
+    })
+    if (!sourceArchetype?.variants?.length) return
+    const patch = normalizeArchetypeVariantMeta(node.meta || {}, sourceArchetype)
+    if (!patch) return
+    updateNode(node.id, {
+      meta: {
+        ...(node.meta || {}),
+        ...patch,
+        modelAlias: patch.modelKey,
+        ...(isVideoLike ? { videoModel: patch.modelKey } : { imageModel: patch.modelKey }),
+      },
+    })
+  }, [isGenerationNode, isVideoLike, meta, node.id, node.meta, selectedModelValue, updateNode])
 
   // 供应商断开后，节点钉死的旧模型已从下拉移除（selectedModelOption===null，但 selectedModelValue 仍在）。
   // 按 archetype 在当前可用 options 里找同款，自动改选并写回 meta —— 否则节点会卡在选不中的死供应商上，

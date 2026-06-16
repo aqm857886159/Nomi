@@ -39,11 +39,20 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
     expect(firstRes?.options.map((o) => o.value)).toEqual(["480p", "720p"]);
   });
 
-  it("apimart Seedance 4 变体 → 标准/fast/face/fast-face 各命中正确档案（face 复用标准、fast-face 复用 fast）", () => {
-    expect(resolveArchetypeForModel({ modelKey: "doubao-seedance-2.0" })?.id).toBe("seedance-2-apimart");
-    expect(resolveArchetypeForModel({ modelKey: "doubao-seedance-2.0-fast" })?.id).toBe("seedance-2-apimart-fast");
-    expect(resolveArchetypeForModel({ modelKey: "doubao-seedance-2.0-face" })?.id).toBe("seedance-2-apimart");
-    expect(resolveArchetypeForModel({ modelKey: "doubao-seedance-2.0-fast-face" })?.id).toBe("seedance-2-apimart-fast");
+  it("apimart Seedance 变体合并：4 个旧变体 modelKey 全解析到同一基础档案（迁移层据 variant 落到对应 variantId）", () => {
+    // 变体合并后只剩 1 个档案 seedance-2-apimart；4 个旧变体 modelKey 都命中它（identifierPatterns 收纳）。
+    for (const modelKey of [
+      "doubao-seedance-2.0",
+      "doubao-seedance-2.0-fast",
+      "doubao-seedance-2.0-face",
+      "doubao-seedance-2.0-fast-face",
+    ]) {
+      expect(resolveArchetypeForModel({ modelKey })?.id).toBe("seedance-2-apimart");
+    }
+    // 档案声明 4 变体 + 默认 standard。
+    const arch = resolveArchetypeForModel({ modelKey: "doubao-seedance-2.0" });
+    expect(arch?.variants?.map((v) => v.id)).toEqual(["standard", "fast", "face", "fast-face"]);
+    expect(arch?.defaultVariantId).toBe("standard");
   });
 
   it("认不出的模型 → null（渲染层走通用回退）", () => {
