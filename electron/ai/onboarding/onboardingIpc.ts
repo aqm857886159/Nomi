@@ -190,10 +190,14 @@ export function registerOnboardingIpc(): void {
         providerKind,
         headers,
         models: Array.isArray(payload?.models)
-          ? (payload.models as Array<Record<string, unknown>>).map((m) => ({
-              id: String(m?.id || ""),
-              displayName: m?.displayName ? String(m.displayName) : undefined,
-            }))
+          ? (payload.models as Array<Record<string, unknown>>).map((m) => {
+              const k = m?.kind;
+              return {
+                id: String(m?.id || ""),
+                displayName: m?.displayName ? String(m.displayName) : undefined,
+                kind: (k === "image" || k === "video" || k === "text" ? k : undefined) as "text" | "image" | "video" | undefined,
+              };
+            })
           : [],
       });
       return { ok: true, vendorKey: result.vendorKey, committed: result.committed };

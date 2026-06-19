@@ -1,6 +1,7 @@
 import { firstString, isJsonRecord, nowIso, trim, type JsonRecord } from "../jsonUtils";
 import { mergeMissingParamsIntoBody } from "../ai/onboarding/curlBlueprint";
 import { humanizeModelKey } from "./modelLabel";
+import { newapiTransportFor } from "./newapiTransport";
 import { hardenedFetchText } from "../hardenedFetch";
 import type { AiSdkProviderKind, BillingModelKind, HttpOperation, Model, ProfileKind, Vendor } from "./types";
 import {
@@ -200,11 +201,43 @@ export function deriveVendorKeyFromBaseUrl(baseUrl: string): string {
  * 「测试连接」（轻量 GET {baseUrl}/models 探活，仅提示不拦提交）是合理的后续；但它需要新增
  * main.ts IPC + desktopClient 入口（均在本次作用域外），故此处暂记缺口、不落半截 dead export。
  */
+/** 标准参数控件 → onboarding field 形状（落 model.meta.parameters；标准参数无文档 evidence，标 standard）。 */
+function paramsToOnboardingFields(
+  params: Array<{ key: string; label: string; type: string; options: Array<{ value: string; label: string }>; defaultValue?: string | number | boolean; min?: number; max?: number }>,
+): JsonRecord[] {
+  return params.map((p) => ({
+    key: p.key,
+    displayName: p.label,
+    type: p.type,
+    ...(p.options.length ? { options: p.options } : {}),
+    ...(p.defaultValue !== undefined ? { default: String(p.defaultValue) } : {}),
+    evidence: { field: p.key, evidence: "new-api 标准参数", evidence_location: "", confidence: "high" },
+  }));
+}
+
+/** 按 kind 给出 commit draft 的 targetKind + 标准参数 + 传输 mapping（图片同步无 query / 视频异步带 query）。 */
+function draftShapeForKind(kind: "text" | "image" | "video"): {
+  targetKind: "text" | "image" | "video";
+  modelFields: JsonRecord[];
+  mappingCreate?: HttpOperation;
+  mappingQuery?: HttpOperation;
+} {
+  if (kind === "image") {
+    const t = newapiTransportFor("image");
+    return { targetKind: "image", modelFields: paramsToOnboardingFields(t.params), mappingCreate: t.create };
+  }
+  if (kind === "video") {
+    const t = newapiTransportFor("video");
+    return { targetKind: "video", modelFields: paramsToOnboardingFields(t.params), mappingCreate: t.create, ...(t.query ? { mappingQuery: t.query } : {}) };
+  }
+  return { targetKind: "text", modelFields: [] };
+}
+
 export function commitManualOpenAiCompatibleModels(payload: {
   vendorName: string;
   baseUrl: string;
   apiKey: string;
-  models: Array<{ id: string; displayName?: string }>;
+  models: Array<{ id: string; displayName?: string; kind?: "text" | "image" | "video" }>;
   /** Endpoint shape. Defaults to "openai-compatible" (the common case). "anthropic"
    *  routes text/chat through the Messages API (createAnthropic, x-api-key). */
   providerKind?: AiSdkProviderKind;
@@ -241,7 +274,14 @@ export function commitManualOpenAiCompatibleModels(payload: {
   const rawModels = Array.isArray(payload?.models) ? payload.models : [];
   const seen = new Set<string>();
   const cleanModels = rawModels
-    .map((m) => ({ id: String(m?.id || "").trim(), displayName: String(m?.displayName || "").trim() }))
+    .map((m) => {
+      const k = m?.kind;
+      return {
+        id: String(m?.id || "").trim(),
+        displayName: String(m?.displayName || "").trim(),
+        kind: (k === "image" || k === "video" || k === "text" ? k : "text") as "text" | "image" | "video",
+      };
+    })
     .filter((m) => {
       if (!m.id || seen.has(m.id)) return false;
       seen.add(m.id);
@@ -252,6 +292,8 @@ export function commitManualOpenAiCompatibleModels(payload: {
   const committed: Array<{ modelKey: string; displayName: string }> = [];
   for (const m of cleanModels) {
     const displayName = m.displayName || humanizeModelKey(m.id);
+    // 图片/视频走 new-api 标准传输模板（per-model kind）；文本不带 mapping（chat 直连）。
+    const shape = draftShapeForKind(m.kind);
     const outcome = {
       status: "success",
       trialId: "",
@@ -265,8 +307,10 @@ export function commitManualOpenAiCompatibleModels(payload: {
         ...(vendorMeta ? { vendorMeta } : {}),
         modelKey: m.id,
         modelDisplayName: displayName,
-        targetKind: "text" as const,
-        modelFields: [],
+        targetKind: shape.targetKind,
+        modelFields: shape.modelFields,
+        ...(shape.mappingCreate ? { mappingCreate: shape.mappingCreate } : {}),
+        ...(shape.mappingQuery ? { mappingQuery: shape.mappingQuery } : {}),
       },
     };
     commitOnboardedModelToCatalog({ outcome, userApiKey: apiKey, addedVia: "manual" });

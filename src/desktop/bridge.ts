@@ -204,7 +204,7 @@ export type DesktopBridge = {
       apiKey: string
       providerKind?: ProviderKind
       headers?: Record<string, string>
-      models: Array<{ id: string; displayName?: string }>
+      models: Array<{ id: string; displayName?: string; kind?: 'text' | 'image' | 'video' }>
     }) => Promise<{
       ok: boolean
       vendorKey?: string

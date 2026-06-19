@@ -294,6 +294,57 @@ describe("normalizeProviderKind — 唯一归一化器（替代 main.ts 旧的 2
   });
 });
 
+describe("manual entry — per-model kind（Issue #8 中转图片/视频接入）", () => {
+  it("图片模型：建 image 模型 + 标准参数 + /v1/images/generations 同步 mapping（无 query）", () => {
+    commitManualOpenAiCompatibleModels({
+      vendorName: "我的中转",
+      baseUrl: "https://relay.example.com",
+      apiKey: "sk-x",
+      models: [{ id: "dall-e-3", kind: "image" }],
+    });
+    const model = listModelCatalogModels().find((m) => m.modelKey === "dall-e-3");
+    expect(model).toMatchObject({ kind: "image", enabled: true });
+    const params = (model?.meta as { parameters?: Array<{ key: string }> } | undefined)?.parameters || [];
+    expect(params.map((p) => p.key)).toEqual(expect.arrayContaining(["size", "quality"]));
+    const vk = deriveVendorKeyFromBaseUrl("https://relay.example.com");
+    const mp = listModelCatalogMappings().find((x) => x.vendorKey === vk && x.taskKind === "text_to_image");
+    expect(mp?.create.path).toBe("/v1/images/generations");
+    expect(mp?.query).toBeUndefined();
+  });
+
+  it("视频模型：建 video 模型 + /v1/video/generations 异步 create + 轮询 query", () => {
+    commitManualOpenAiCompatibleModels({
+      vendorName: "我的中转",
+      baseUrl: "https://relay.example.com",
+      apiKey: "sk-x",
+      models: [{ id: "kling-v1", kind: "video" }],
+    });
+    expect(listModelCatalogModels().find((m) => m.modelKey === "kling-v1")).toMatchObject({ kind: "video", enabled: true });
+    const mp = listModelCatalogMappings().find((x) => x.taskKind === "text_to_video" && x.create.path === "/v1/video/generations");
+    expect(mp).toBeTruthy();
+    expect(mp?.query?.path).toBe("/v1/video/generations/{{providerMeta.task_id}}");
+  });
+
+  it("混合一把加：图片+视频+文本各落对类型", () => {
+    const res = commitManualOpenAiCompatibleModels({
+      vendorName: "我的中转",
+      baseUrl: "https://relay.example.com",
+      apiKey: "sk-x",
+      models: [{ id: "flux-1", kind: "image" }, { id: "cogvideox", kind: "video" }, { id: "gpt-4o", kind: "text" }],
+    });
+    expect(res.committed).toHaveLength(3);
+    const byKey = Object.fromEntries(listModelCatalogModels().map((m) => [m.modelKey, m.kind]));
+    expect(byKey["flux-1"]).toBe("image");
+    expect(byKey["cogvideox"]).toBe("video");
+    expect(byKey["gpt-4o"]).toBe("text");
+  });
+
+  it("缺省 kind 仍按 text（向后兼容旧调用）", () => {
+    commitManualOpenAiCompatibleModels({ vendorName: "本地", baseUrl: "http://localhost:11434/v1", apiKey: "x", models: [{ id: "llama3.1" }] });
+    expect(listModelCatalogModels().find((m) => m.modelKey === "llama3.1")?.kind).toBe("text");
+  });
+});
+
 describe("deriveVendorKeyFromBaseUrl", () => {
   it("derives a stable key from host, keeping local ports distinct", () => {
     expect(deriveVendorKeyFromBaseUrl("http://localhost:11434/v1")).toBe("local-11434");
