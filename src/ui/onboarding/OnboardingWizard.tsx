@@ -34,11 +34,13 @@ const KIND_OPTIONS: Array<{ value: ModelKind; label: string }> = [
   { value: 'text', label: '文本' },
 ]
 
-export function OnboardingWizard({ opened, onClose, onCommitted }: {
+export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }: {
   opened: boolean
   onClose: () => void
   /** Called once a model is committed to the catalog. */
   onCommitted?: (model: unknown) => void
+  /** 打开时预选的预设（如面板「接入你的中转站」卡传 'newapi'，直接进中转拉取流，Issue #8）。 */
+  initialPreset?: string
 }): JSX.Element {
   const bridge = getDesktopBridge()
   const [phase, setPhase] = React.useState<Phase>('input')
@@ -137,6 +139,13 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
     setFetchModelsMsg('')
     setTestState('idle')
   }, [])
+
+  // 打开时按 initialPreset 预选（面板「接入你的中转站」卡 → 'newapi'，直接进中转拉取流）。
+  React.useEffect(() => {
+    if (opened && initialPreset) handlePickPreset(initialPreset)
+    // 仅在打开瞬间执行一次（initialPreset/handlePickPreset 稳定）。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened, initialPreset])
 
   // 把一组模型 id 收敛进 models（去重；保留已选类型；新 id 由主进程 guessKinds 预填，用户可改）。
   const applyModelIds = React.useCallback(async (ids: string[]) => {
@@ -294,30 +303,40 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
 
             {inputMode === 'manual' && (
               <>
-            <Field label="供应商" hint="选一个自动填地址；中转站选「自定义」粘贴地址">
-              <div className="flex flex-wrap gap-1.5">
-                {PROVIDER_PRESETS.map(p => {
-                  const active = presetId === p.id
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => handlePickPreset(p.id)}
-                      className={cn(
-                        'inline-flex items-center gap-1 px-3 py-1 rounded-full text-body-sm border',
-                        'transition-[background,color,border-color] duration-150',
-                        active
-                          ? 'bg-nomi-accent-soft text-nomi-accent border-nomi-accent'
-                          : 'bg-nomi-paper text-nomi-ink-80 border-nomi-line hover:bg-nomi-ink-05',
-                      )}
-                    >
-                      {p.label}
-                      {active && <IconCheck size={13} stroke={2} />}
-                    </button>
-                  )
-                })}
-              </div>
-            </Field>
+            {/* Issue #8 可发现性：中转站（含图片/视频）拎到最上、点名 new-api；官方厂商（文本）弱化为次组。 */}
+            {([
+              { key: 'relay', label: '中转站（文本 / 图片 / 视频）' },
+              { key: 'official', label: '官方厂商（文本）' },
+            ] as const).map(grp => {
+              const items = PROVIDER_PRESETS.filter(p => (p.group ?? 'official') === grp.key)
+              if (items.length === 0) return null
+              return (
+                <Field key={grp.key} label={grp.label} hint={grp.key === 'relay' ? '填你中转后台的地址 + key，拉取它开放的全部模型' : undefined}>
+                  <div className="flex flex-wrap gap-1.5">
+                    {items.map(p => {
+                      const active = presetId === p.id
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => handlePickPreset(p.id)}
+                          className={cn(
+                            'inline-flex items-center gap-1 px-3 py-1 rounded-full text-body-sm border',
+                            'transition-[background,color,border-color] duration-150',
+                            active
+                              ? 'bg-nomi-accent-soft text-nomi-accent border-nomi-accent'
+                              : 'bg-nomi-paper text-nomi-ink-80 border-nomi-line hover:bg-nomi-ink-05',
+                          )}
+                        >
+                          {p.label}
+                          {active && <IconCheck size={13} stroke={2} />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </Field>
+              )
+            })}
             {showBaseUrlField ? (
               <Field
                 label="接入地址（BaseURL）"
@@ -332,7 +351,7 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
                     // hostname 仅作「初始猜测」：anthropic-native 网关 host 带 anthropic。
                     // 一旦专家手选过协议（kindForced），就不再覆盖——否则手选会被下次输入吞掉。
                     // chat vs responses 无法靠 hostname 区分，交由保存前的 auto-probe 定夺。
-                    if (presetId === 'custom' && !kindForced) {
+                    if (selectedPreset?.custom && !kindForced) {
                       try {
                         setProviderKind(/anthropic/i.test(new URL(v).hostname) ? 'anthropic' : 'openai-compatible')
                       } catch { /* partial url while typing */ }
@@ -406,7 +425,7 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
               )}
             </Stack>
 
-            {presetId === 'custom' && (
+            {selectedPreset?.custom && (
             <Stack gap={4}>
               {/* 接口协议：默认收起，保存时 auto-probe 替用户判断（P4）。专家可展开强制指定；
                   测试失败时自动展开当逃生口（见 handleTestConnection）。 */}
@@ -440,7 +459,7 @@ export function OnboardingWizard({ opened, onClose, onCommitted }: {
             </Stack>
             )}
 
-            {presetId === 'custom' && (
+            {selectedPreset?.custom && (
             <Stack gap={4}>
               {headerRows.length > 0 && <Text size="sm" c="var(--nomi-ink)">自定义请求头</Text>}
               {headerRows.length > 0 && (

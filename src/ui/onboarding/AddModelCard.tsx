@@ -26,8 +26,8 @@ export function AddModelCard({ onClick }: AddModelCardProps): JSX.Element {
         <IconPlus size={16} stroke={1.8} />
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block text-body-sm font-semibold text-nomi-ink group-hover:text-nomi-accent">添加模型</span>
-        <span className="block text-caption text-nomi-ink-40">接入不在上面的自定义模型</span>
+        <span className="block text-body-sm font-semibold text-nomi-ink group-hover:text-nomi-accent">添加其他模型</span>
+        <span className="block text-caption text-nomi-ink-40">官方厂商 / 自定义接口</span>
       </span>
     </button>
   )

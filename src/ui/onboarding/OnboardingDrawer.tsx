@@ -10,7 +10,8 @@
  * 不改后端 catalog / IPC / 模型数据。样张：docs/design/mockups/onboarding-panel-A.html
  */
 import React from 'react'
-import { IconStack2 } from '@tabler/icons-react'
+import { IconStack2, IconServerBolt, IconChevronRight } from '@tabler/icons-react'
+import { cn } from '../../utils/cn'
 import { OnboardingWizard } from './OnboardingWizard'
 import { FoldableModelCard } from './FoldableModelCard'
 import { VendorOnboardCard } from './VendorOnboardCard'
@@ -29,6 +30,9 @@ type VendorMeta = {
 
 export function OnboardingDrawer(): JSX.Element {
   const [wizardOpen, setWizardOpen] = React.useState(false)
+  // 打开 Wizard 时预选的预设：中转卡传 'newapi'（直接进中转拉取流），「添加其他模型」传 undefined。
+  const [wizardPreset, setWizardPreset] = React.useState<string | undefined>(undefined)
+  const openWizard = React.useCallback((preset?: string) => { setWizardPreset(preset); setWizardOpen(true) }, [])
   const [models, setModels] = React.useState<ChipModel[]>([])
   const [vendorMeta, setVendorMeta] = React.useState<Map<string, VendorMeta>>(new Map())
   const [version, setVersion] = React.useState(0) // bump to refetch
@@ -136,13 +140,35 @@ export function OnboardingDrawer(): JSX.Element {
           </>
         ) : null}
 
-        <AddModelCard onClick={() => setWizardOpen(true)} />
+        {/* Issue #8 可发现性：把「接你自己的中转（含图片/视频）」拎成一等公民醒目入口。 */}
+        <div className="text-micro font-semibold text-nomi-ink-40 pt-2 px-0.5">接你自己的中转</div>
+        <button
+          type="button"
+          onClick={() => openWizard('newapi')}
+          className={cn(
+            'group flex items-center gap-3 p-3 w-full text-left',
+            'border border-nomi-accent rounded-nomi bg-nomi-accent-soft',
+            'hover:bg-nomi-accent-soft/70',
+          )}
+        >
+          <span className="w-7 h-7 rounded-nomi-sm bg-nomi-paper grid place-items-center shrink-0 text-nomi-accent">
+            <IconServerBolt size={17} stroke={1.8} />
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-body-sm font-semibold text-nomi-accent">接入你的中转站 · new-api</span>
+            <span className="block text-caption text-nomi-ink-60">图片 / 视频 / 文本，一次拉全</span>
+          </span>
+          <IconChevronRight size={16} className="shrink-0 text-nomi-accent" />
+        </button>
+
+        <AddModelCard onClick={() => openWizard(undefined)} />
       </div>
 
       <OnboardingWizard
         opened={wizardOpen}
         onClose={() => setWizardOpen(false)}
         onCommitted={refresh}
+        initialPreset={wizardPreset}
       />
     </div>
   )
