@@ -1,6 +1,8 @@
 # 接入自建/第三方中转的图片·视频模型（Issue #8）
 
-> 状态：方向已拍板（2026-06-19，用户「值得做」），待实现。
+> 状态：**已实现并验证（2026-06-19）**。S1b mock + S1c 后端 + S1d UI + S1e mock E2E(7/7) + S2 删读文档，全部完成并 push main（commit bfc4e3b/f1b3cb2/9d42875）。
+> 真实最后一公里（reporter 用真 new-api 跑探测 tests/transport-spike/newapi.mjs 确认字段）待 reporter 回执；防御式 extractAssetUrl 兜底。
+> 坑：S2 删除期间并行会话经共享 index 把本人 staged 的 doc-reader 删除带走推 main、未带对应代码改动致 main 编译坏；已在 9d42875 补齐修复。
 > 关联：[#8 中转站添加绘图和视频模型没有文档不能接入](https://github.com/aqm857886159/Nomi/issues/8)。
 
 ## 1. 问题 & 根因
