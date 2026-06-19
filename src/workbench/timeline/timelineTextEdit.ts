@@ -7,10 +7,12 @@ function clampInteger(value: number, min: number): number {
   return Number.isFinite(next) ? Math.max(min, next) : min
 }
 
-let textClipSeq = 0
+// 文字 clip id 必须全局唯一且与「已落盘的旧 clip」不冲突。早先用每次加载归零的自增序列，
+// 反序列化出的旧 clip 仍带上一会话 text-1/2…，新建时序列从 0 重数 → text-1 撞旧 clip：
+// updateTextClipText 的 map 同时命中两条、React key 重复 → 改一条把另一条也改了。
+// 改用 crypto.randomUUID（仓库既有 id 范式），无论持久化都不撞，根除整类。
 function createTextClipId(): string {
-  textClipSeq += 1
-  return `text-${textClipSeq.toString(36)}-${(textClipSeq * 2654435761 % 0xffffff).toString(36)}`
+  return `text-${crypto.randomUUID()}`
 }
 
 function sortTextClips(clips: TimelineTextClip[]): TimelineTextClip[] {

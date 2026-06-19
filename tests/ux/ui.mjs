@@ -5,6 +5,7 @@
 //   node tests/ux/ui.mjs snap                 列出当前可点元素(标签/文字/aria/中心坐标)——据此决定点哪
 //   node tests/ux/ui.mjs shot [名字]           截图到 tests/ux/shots/<名字>.png（默认 live.png），再用 Read 看
 //   node tests/ux/ui.mjs click "添加节点菜单"   按可见文字点；也支持 aria:xx / css:sel / text:xx / xy:120,80
+//   node tests/ux/ui.mjs drag x1 y1 x2 y2 [steps]  从(x1,y1)按下→拖到(x2,y2)松手（测拖拽/trim/reorder/scrub）
 //   node tests/ux/ui.mjs fill "input[aria-label=模型]" 值
 //   node tests/ux/ui.mjs eval "document.title"
 //   node tests/ux/ui.mjs wait 800
@@ -25,6 +26,7 @@ else if (action === "click") cmd.target = rest.join(" ");
 else if (action === "fill") { cmd.sel = rest[0]; cmd.val = rest.slice(1).join(" "); }
 else if (action === "setfile") { cmd.sel = rest[0]; cmd.path = rest.slice(1).join(" "); }
 else if (action === "eval") cmd.js = rest.join(" ");
+else if (action === "drag") { cmd.x1 = Number(rest[0]); cmd.y1 = Number(rest[1]); cmd.x2 = Number(rest[2]); cmd.y2 = Number(rest[3]); cmd.steps = Number(rest[4] || 12); }
 else if (action === "wait") cmd.ms = Number(rest[0] || 500);
 
 const resP = path.join(DIR, "res.json");

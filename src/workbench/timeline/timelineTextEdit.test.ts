@@ -25,6 +25,24 @@ describe('timeline 文字 clip 编辑', () => {
     expect(updateTextClipText(next, id, '新文案')).toBe(next)
   })
 
+  it('新建 clip id 不与「落盘旧 clip」相撞，编辑互不串改（回归：id 自增归零撞 id）', () => {
+    // 真机复现：旧会话存的字幕 clip 反序列化进来，新建一条字幕。两者 id 必须不同，
+    // 否则 updateTextClipText 会同时改两条。这里连续新建多条，断言全唯一。
+    let tl = createDefaultTimeline()
+    const ids: string[] = []
+    for (let i = 0; i < 5; i += 1) {
+      const r = addTextClip(tl, 'caption', i * 100)
+      tl = r.timeline
+      ids.push(r.id)
+    }
+    expect(new Set(ids).size).toBe(ids.length) // 全唯一
+    // 改第一条不应波及其它
+    const edited = updateTextClipText(tl, ids[0], '只改第一条')
+    const hits = edited.textClips.filter((c) => c.text === '只改第一条')
+    expect(hits).toHaveLength(1)
+    expect(hits[0].id).toBe(ids[0])
+  })
+
   it('moveTextClip 保持时长、夹到 >=0', () => {
     const { timeline, id } = addTextClip(createDefaultTimeline(), 'caption', 60)
     const moved = moveTextClip(timeline, id, 10)

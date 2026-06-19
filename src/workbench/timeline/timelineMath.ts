@@ -148,9 +148,20 @@ export function normalizeTimeline(input: unknown): TimelineState {
   })
 
   // 迁移：旧工程无 textClips → []。
+  // 自愈：早先的自增-归零 id 生成器会让「跨会话新建」的 clip 撞上落盘旧 clip 的 id
+  //（详见 timelineTextEdit.createTextClipId 注释）。已损坏工程里可能存着重复 id，
+  // 重复 id 会让编辑一条串改另一条 + React key 重复。这里加载时把重复 id 重新铸成唯一 id。
+  const seenTextIds = new Set<string>()
   const textClips = (Array.isArray(raw.textClips) ? raw.textClips : [])
     .map(normalizeTextClip)
     .filter((clip): clip is TimelineTextClip => Boolean(clip))
+    .map((clip) => {
+      if (!seenTextIds.has(clip.id)) {
+        seenTextIds.add(clip.id)
+        return clip
+      }
+      return { ...clip, id: `text-${crypto.randomUUID()}` }
+    })
     .sort((left, right) => left.startFrame - right.startFrame)
 
   return {

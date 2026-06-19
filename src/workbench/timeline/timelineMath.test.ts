@@ -89,6 +89,19 @@ describe('normalizeTimeline — 归一化与清洗', () => {
     expect(normalizeTimeline(42)).toEqual(createDefaultTimeline())
   })
 
+  it('重复 id 的文字 clip 加载时重铸成唯一 id（自愈已损坏工程）', () => {
+    const input = { textClips: [
+      { id: 'text-1-abc', style: 'caption', text: '甲', startFrame: 0, endFrame: 90 },
+      { id: 'text-1-abc', style: 'caption', text: '乙', startFrame: 100, endFrame: 190 },
+    ] }
+    const out = normalizeTimeline(input)
+    expect(out.textClips).toHaveLength(2)
+    const ids = out.textClips.map((c) => c.id)
+    expect(new Set(ids).size).toBe(2) // 不再重复
+    // 两条文本各自保留，不被合并/串改
+    expect(out.textClips.map((c) => c.text).sort()).toEqual(['乙', '甲'])
+  })
+
   it('丢弃缺少 id 或 sourceNodeId 的 clip', () => {
     const input = { tracks: [{ id: 'videoTrack', type: 'video', clips: [
       { sourceNodeId: 'n', type: 'video', startFrame: 0, endFrame: 10 },     // 缺 id
