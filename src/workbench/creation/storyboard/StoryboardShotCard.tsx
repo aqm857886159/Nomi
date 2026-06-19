@@ -5,6 +5,8 @@ import { NomiSelect } from '../../../design'
 import { AutoGrowTextarea } from '../../ai/composer/AutoGrowTextarea'
 import type { PlanAnchor, PlanShot } from '../../generationCanvas/agent/storyboardPlan'
 import { DURATION_OPTIONS_SEC } from '../../generationCanvas/agent/storyboardPlanEdits'
+import type { ModelOption } from '../../../config/models'
+import ShotParamControls from './ShotParamControls'
 
 /**
  * 镜卡（白底主轴）。重设计 v4：白卡 + shadow-nomi-sm + 放大镜号,做成视觉主轴(比锚区设定面更有存在感)。
@@ -15,13 +17,15 @@ import { DURATION_OPTIONS_SEC } from '../../generationCanvas/agent/storyboardPla
 type Props = {
   shot: PlanShot
   anchors: PlanAnchor[]
-  /** 可选视频模型清单（父组件拉一次传入）；空 → 不显模型选择器，落画布用默认视频模型兜底。 */
-  modelOptions?: { value: string; label: string }[]
+  /** 可选视频模型清单（父组件拉一次传入，完整 ModelOption 供解析档案参数）；空 → 不显模型选择器，落画布用默认视频模型兜底。 */
+  modelOptions?: ModelOption[]
   /** 这镜引用了、但锚已不存在的 id（红标 + 阻断确认）。 */
   danglingIds: string[]
   onUpdate: (patch: Partial<PlanShot>) => void
   onToggleAnchor: (anchorId: string) => void
   onRemove: () => void
+  /** 把这镜的模型参数+模式套用到全部镜头（编辑器实现）。 */
+  onApplyParamsToAll?: () => void
   promptInvalid?: boolean
   // grip 拖拽重排（state 在编辑器，卡只透传）。
   draggable?: boolean
@@ -33,7 +37,7 @@ type Props = {
 }
 
 export default function StoryboardShotCard(props: Props): JSX.Element {
-  const { shot, anchors, modelOptions, danglingIds, onUpdate, onToggleAnchor, onRemove, promptInvalid } = props
+  const { shot, anchors, modelOptions, danglingIds, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll } = props
   const [pickerOpen, setPickerOpen] = React.useState(false)
   const byId = new Map(anchors.map((anchor) => [anchor.id, anchor]))
   const selected = shot.anchorIds.filter((id) => byId.has(id))
@@ -45,8 +49,10 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
   // 模型选择器：空值=默认（落画布用默认视频模型兜底）。选了具体模型 → 写 modelKey，清 modeId
   // （由 buildPlannedNodeMeta 按所选模型自动取默认模式，避免把别的模型的 modeId 套错）。
   const modelSelectOptions = modelOptions && modelOptions.length > 0
-    ? [{ value: '', label: '默认模型' }, ...modelOptions]
+    ? [{ value: '', label: '默认模型' }, ...modelOptions.map((o) => ({ value: o.value, label: o.label }))]
     : null
+  // 选中模型的完整 option（带 archetype 信息）→ 给 ShotParamControls 解析参数。空值=默认模型（无参数）。
+  const selectedModelOption = modelOptions?.find((o) => o.value === shot.modelKey) ?? null
 
   return (
     <div
@@ -80,7 +86,7 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
             size="xs"
             value={shot.modelKey ?? ''}
             options={modelSelectOptions}
-            onChange={(value) => onUpdate({ modelKey: value || undefined, modeId: undefined })}
+            onChange={(value) => onUpdate({ modelKey: value || undefined, modeId: undefined, params: undefined })}
           />
         ) : null}
         <span className="flex-1" />
@@ -93,6 +99,15 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
           <IconTrash size={14} stroke={1.6} />
         </button>
       </div>
+
+      {/* 模型参数（archetype 派生）：常用 inline + 抽屉，渐进展开。默认模型/无档案 → 不渲染。 */}
+      <ShotParamControls
+        modelOption={selectedModelOption}
+        modeId={shot.modeId}
+        params={shot.params || {}}
+        onUpdate={(patch) => onUpdate(patch)}
+        {...(onApplyParamsToAll ? { onApplyToAll: onApplyParamsToAll } : {})}
+      />
 
       <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
         <span className="text-micro text-nomi-ink-40 mr-0.5">参考</span>

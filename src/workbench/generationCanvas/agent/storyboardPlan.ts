@@ -47,6 +47,8 @@ export type PlanShot = {
   modelKey?: string
   /** 用户为该镜选的模型模式 id（随 modelKey 一起）；没选 → 默认模式。 */
   modeId?: string
+  /** 用户为该镜调的模型参数（archetype 控件键 → 值，如 aspect_ratio/resolution）；落画布铺进节点 meta。留空=用模型默认。 */
+  params?: Record<string, unknown>
 }
 
 export type StoryboardPlan = {
@@ -83,6 +85,7 @@ export const planShotSchema = z.object({
   prompt: z.string(),
   modelKey: z.string().optional(),
   modeId: z.string().optional(),
+  params: z.record(z.unknown()).optional(),
 })
 
 export const storyboardPlanSchema = z.object({
@@ -283,7 +286,8 @@ export function storyboardPlanToCreateNodesArgs(
       prompt: buildShotPrompt(shot, anchorById),
       ...(modelKey ? { modelKey } : {}),
       ...(modeId ? { modeId } : {}),
-      ...(Number.isFinite(shot.durationSec) ? { params: { duration: shot.durationSec } } : {}),
+      // duration 由卡的「时长」选择器管；其余模型参数（比例/清晰度/负向…）来自 shot.params。
+      params: { ...(shot.params || {}), ...(Number.isFinite(shot.durationSec) ? { duration: shot.durationSec } : {}) },
     })
     // 定妆卡 → 这一镜参考边（角色 character_ref / 场景·风格 style_ref / 道具 reference）。
     for (const anchorId of visualAnchorIds) {
