@@ -775,7 +775,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
             }}
           />
           {!readOnly ? (
-            <WorkbenchButton aria-label="整理画布" title="整理画布（散乱时一键收纳 · ⌘Z 撤销）" onClick={() => tidy(stageSize.width)}>
+            <WorkbenchButton aria-label="整理画布" title="整理画布（散乱时一键收纳 · ⌘Z 撤销）" onClick={() => tidy(stageSize.width / Math.max(1, stageSize.height))}>
               <IconLayoutGrid size={15} stroke={1.8} aria-hidden="true" />
             </WorkbenchButton>
           ) : null}

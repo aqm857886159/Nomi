@@ -34,11 +34,15 @@ function footprint(node: TidyNode): Size {
 /**
  * 当前分类节点 → 整理后坐标。返回 Map<id, position>（与入参等集）。
  * 结构：材料（纯输入）排顶部网格 → 镜头区（按 shotIndex，每镜紧跟其切片）排下方网格。统一流式折行。
+ *
+ * `targetAspect` = 屏幕宽高比（stage 宽/高）。整块按此比例铺开（layoutWidth = √(总足迹面积×比例)）——
+ * 不按视口宽硬折行（那样大节点只塞 3 个/排 → 高瘦长条），而是反推出「该多宽才接近屏幕横向比例」，
+ * 「适应视图」后正好铺满宽屏（用户要的「宽、适配电脑屏幕」）。
  */
 export function tidyCanvasLayout(
   nodes: readonly TidyNode[],
   edges: readonly TidyEdge[],
-  availableWidth: number,
+  targetAspect: number,
 ): Map<string, Point> {
   const result = new Map<string, Point>()
   if (nodes.length === 0) return result
@@ -89,7 +93,18 @@ export function tidyCanvasLayout(
     else mains.push(node)
   }
 
-  const rightEdge = ORIGIN_X + Math.max(availableWidth, 320)
+  // 按目标宽高比反推折行宽度：块面积≈Σ足迹面积，宽=√(面积×比例)，高=√(面积/比例) → 块≈屏幕比例。
+  // 至少容下最宽的单个节点（否则它每行独占还溢出）。aspect 夹在合理区间防异常测量产出离谱布局。
+  const aspect = Math.min(4, Math.max(0.8, targetAspect || 1.6))
+  let totalArea = 0
+  let widest = 0
+  for (const node of nodes) {
+    const fp = footprint(node)
+    totalArea += fp.width * fp.height
+    widest = Math.max(widest, fp.width)
+  }
+  const layoutWidth = Math.max(widest, Math.sqrt(totalArea * aspect))
+  const rightEdge = ORIGIN_X + layoutWidth
 
   // 扁平网格流式折行：每项占自身足迹，超宽换行，行高 = 行内最高足迹。返回该段底缘 y。
   // 切片尺寸不可控（常是大图，非小缩略图），故不搞「贴父小簇」（会被大切片撑成超高单列）——

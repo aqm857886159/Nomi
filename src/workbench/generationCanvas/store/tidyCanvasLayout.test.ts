@@ -38,7 +38,7 @@ describe('tidyCanvasLayout', () => {
       { source: 'mat', target: 's2' },
       { source: 's1', target: 'sl' },
     ]
-    const pos = tidyCanvasLayout(nodes, edges, 2000)
+    const pos = tidyCanvasLayout(nodes, edges, 1.8)
     expect(pos.size).toBe(4)
 
     const at = (id: string) => ({ node: nodes.find((n) => n.id === id)!, pos: pos.get(id)! })
@@ -67,19 +67,19 @@ describe('tidyCanvasLayout', () => {
     expect(slp.y > s1p.y || slp.x > s1p.x).toBe(true)
   })
 
-  it('availableWidth 窄 → 镜头折更多行（自适应每排镜数）', () => {
-    const nodes: TidyNode[] = [0, 1, 2, 3].map((i) => ({
+  it('目标宽高比越宽 → 折越少行（宽块、不高瘦）', () => {
+    const nodes: TidyNode[] = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({
       id: `s${i}`,
       kind: 'image' as const,
       size: { width: 200, height: 140 },
       position: { x: i * 10, y: i * 10 },
       shotIndex: i,
     }))
-    const wide = tidyCanvasLayout(nodes, [], 4000)
-    const narrow = tidyCanvasLayout(nodes, [], 400)
+    const wide = tidyCanvasLayout(nodes, [], 4) // 宽屏目标
+    const tall = tidyCanvasLayout(nodes, [], 0.8) // 竖向目标
     const rowsWide = new Set([...wide.values()].map((p) => p.y)).size
-    const rowsNarrow = new Set([...narrow.values()].map((p) => p.y)).size
-    expect(rowsWide).toBeLessThan(rowsNarrow)
+    const rowsTall = new Set([...tall.values()].map((p) => p.y)).size
+    expect(rowsWide).toBeLessThan(rowsTall)
   })
 
   it('嵌套切片（切片的切片）归到根镜头、不掉队', () => {
@@ -88,7 +88,7 @@ describe('tidyCanvasLayout', () => {
       { id: 'sl', kind: 'asset', size: { width: 80, height: 60 }, position: { x: -500, y: 300 }, meta: { sourceNodeId: 's1' } },
       { id: 'slsl', kind: 'asset', size: { width: 60, height: 50 }, position: { x: -900, y: 900 }, meta: { sourceNodeId: 'sl' } },
     ]
-    const pos = tidyCanvasLayout(nodes, [], 4000)
+    const pos = tidyCanvasLayout(nodes, [], 1.8)
     expect(pos.size).toBe(3)
     // 所有节点都被重排到非负区（根 ORIGIN 起），孙切片不再留在老负坐标
     for (const p of pos.values()) {
@@ -107,7 +107,7 @@ describe('tidyCanvasLayout', () => {
       { id: 'matSlice', kind: 'asset', size: { width: 80, height: 60 }, position: { x: -800, y: 700 }, meta: { sourceNodeId: 'mat' } },
     ]
     const edges: TidyEdge[] = [{ source: 'mat', target: 'shot' }]
-    const pos = tidyCanvasLayout(nodes, edges, 4000)
+    const pos = tidyCanvasLayout(nodes, edges, 1.8)
     expect(pos.size).toBe(3)
     // 材料的切片被重排到非负区（不再留老负坐标 -800）
     expect(pos.get('matSlice')!.x).toBeGreaterThanOrEqual(0)

@@ -35,8 +35,8 @@ export type CanvasNodeActions = {
   setNodeLocked: (nodeId: string, locked: boolean) => void
   moveNode: (nodeId: string, position: { x: number; y: number }, options?: CanvasMutationOptions) => void
   moveSelectedNodes: (delta: { x: number; y: number }, options?: CanvasMutationOptions) => void
-  /** 一键整理：把某分类节点重排成 storyboard 结构（材料行→镜头网格→切片贴父）。可撤销。 */
-  tidyCategory: (categoryId: string, availableWidth: number) => void
+  /** 一键整理：把某分类节点重排成 storyboard 网格（按屏幕宽高比铺成宽块）。可撤销。 */
+  tidyCategory: (categoryId: string, targetAspect: number) => void
   deleteSelectedNodes: () => void
   selectNode: (nodeId: string, additive?: boolean) => void
   clearSelection: () => void

@@ -158,13 +158,13 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       )
     }
   },
-  tidyCategory: (categoryId, availableWidth) => {
+  tidyCategory: (categoryId, targetAspect) => {
     const state0 = get()
     const catNodes = state0.nodes.filter((node) => (node.categoryId || 'shots') === categoryId)
     if (!catNodes.length) return
     const idSet = new Set(catNodes.map((node) => node.id))
     const catEdges = state0.edges.filter((edge) => idSet.has(edge.source) && idSet.has(edge.target))
-    const positions = tidyCanvasLayout(catNodes, catEdges, availableWidth)
+    const positions = tidyCanvasLayout(catNodes, catEdges, targetAspect)
     // 全部位置已是目标态 → 不打撤销点、不持久（避免空操作污染撤销栈 / 触发存盘）。
     const changed = catNodes.some((node) => {
       const next = positions.get(node.id)

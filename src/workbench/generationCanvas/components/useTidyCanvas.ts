@@ -7,7 +7,7 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 
 const TIDY_ANIM_MS = 600
 
-export function useTidyCanvas(categoryId: string): { isTidying: boolean; tidy: (availableWidth: number) => void } {
+export function useTidyCanvas(categoryId: string): { isTidying: boolean; tidy: (targetAspect: number) => void } {
   const tidyCategory = useGenerationCanvasStore((state) => state.tidyCategory)
   const [isTidying, setIsTidying] = React.useState(false)
   const timerRef = React.useRef<number | null>(null)
@@ -15,9 +15,9 @@ export function useTidyCanvas(categoryId: string): { isTidying: boolean; tidy: (
   React.useEffect(() => () => { if (timerRef.current !== null) window.clearTimeout(timerRef.current) }, [])
 
   const tidy = React.useCallback(
-    (availableWidth: number) => {
+    (targetAspect: number) => {
       setIsTidying(true)
-      tidyCategory(categoryId, availableWidth)
+      tidyCategory(categoryId, targetAspect)
       toast('已整理 · ⌘Z 撤销', 'info')
       if (timerRef.current !== null) window.clearTimeout(timerRef.current)
       timerRef.current = window.setTimeout(() => setIsTidying(false), TIDY_ANIM_MS)
