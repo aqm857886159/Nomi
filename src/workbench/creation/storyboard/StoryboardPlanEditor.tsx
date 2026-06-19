@@ -55,8 +55,8 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
   const [landing, setLanding] = React.useState(false)
-  // 视频模型清单拉一次，传给各镜卡的模型选择器（B-clean：分镜里就能为镜头选视频模型）。
-  const videoModelOptions = useModelOptionsState('video').options.map((o) => ({ value: o.value, label: o.label }))
+  // 视频模型清单拉一次，传给各镜卡的模型选择器 + 参数控件（完整 option 供解析 archetype 参数）。
+  const videoModelOptions = useModelOptionsState('video').options
 
   if (!plan) return null
 
@@ -207,6 +207,10 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
                 onUpdate={(patch) => setStoryboardPlan(updateShotAt(plan, pos, patch))}
                 onToggleAnchor={(anchorId) => setStoryboardPlan(toggleShotAnchor(plan, pos, anchorId))}
                 onRemove={() => setStoryboardPlan(removeShotAt(plan, pos))}
+                onApplyParamsToAll={() => setStoryboardPlan({
+                  ...plan,
+                  shots: plan.shots.map((s) => ({ ...s, modelKey: shot.modelKey, modeId: shot.modeId, params: shot.params })),
+                })}
               />
             ))}
             <button
