@@ -57,6 +57,15 @@ import { useGenerationCanvasStore } from './generationCanvas/store/generationCan
 /** 拖动中临时吸附辅助线（非持久化）。 */
 export type TimelineSnapGuide = { frame: number; label: string }
 
+// 时间轴撤销栈封顶（防无限增长）。
+const TIMELINE_UNDO_LIMIT = 30
+// 离散编辑生效时把旧 timeline 压栈：仅当真的变了。供 set 内联调用。
+function pushTimelineUndo(stack: TimelineState[], previous: TimelineState): TimelineState[] {
+  const next = [...stack, previous]
+  if (next.length > TIMELINE_UNDO_LIMIT) next.shift()
+  return next
+}
+
 export const WORKSPACE_MODES = ['creation', 'generation', 'preview'] as const
 
 export type WorkspaceMode = (typeof WORKSPACE_MODES)[number]
@@ -118,6 +127,15 @@ type WorkbenchState = {
   selectedTextClipId: string
   /** 拖动中临时吸附辅助线（非持久化，停手即清） */
   timelineSnapGuide: TimelineSnapGuide | null
+  /** 剪刀模式：进入后悬停片段出切点线、点击在光标处分割；平时点片段是选中。 */
+  timelineSplitMode: boolean
+  /** 时间轴撤销栈（仅时间轴编辑，非持久化）。封顶后丢最旧。 */
+  timelineUndoStack: TimelineState[]
+  setTimelineSplitMode: (on: boolean) => void
+  /** 把当前 timeline 压入撤销栈（变更生效前 / 拖拽手势首次移动时调）。 */
+  captureTimelineUndo: () => void
+  /** 弹出上一个 timeline 快照恢复（⌘Z）。 */
+  undoTimeline: () => void
   setWorkspaceMode: (mode: unknown) => void
   setAssistantWidth: (width: number) => void
   setWorkbenchDocument: (document: WorkbenchDocument) => void
@@ -279,6 +297,8 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   selectedTimelineClipIds: [],
   selectedTextClipId: '',
   timelineSnapGuide: null,
+  timelineSplitMode: false,
+  timelineUndoStack: [],
   setWorkspaceMode: (mode) => {
     if (!isWorkspaceMode(mode)) return
     set({ workspaceMode: mode })
@@ -394,6 +414,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
         && nextTimeline.tracks.some((track) => track.clips.some((current) => current.id === clip.id))
       return {
         timeline: nextTimeline,
+        timelineUndoStack: inserted ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
         selectedTimelineClipIds: inserted ? [clip.id] : state.selectedTimelineClipIds,
         persistRevision: inserted ? state.persistRevision + 1 : state.persistRevision,
       }
@@ -426,6 +447,36 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   setTimelineSnapGuide: (guide) => {
     set({ timelineSnapGuide: guide })
   },
+  setTimelineSplitMode: (on) => {
+    set({ timelineSplitMode: Boolean(on) })
+  },
+  captureTimelineUndo: () => {
+    set((state) => {
+      const stack = state.timelineUndoStack
+      // 去重：手势重复 capture 同一状态不重复入栈。
+      if (stack.length > 0 && stack[stack.length - 1] === state.timeline) return state
+      const next = [...stack, state.timeline]
+      if (next.length > TIMELINE_UNDO_LIMIT) next.shift()
+      return { timelineUndoStack: next }
+    })
+  },
+  undoTimeline: () => {
+    set((state) => {
+      const stack = state.timelineUndoStack
+      if (stack.length === 0) return state
+      const previous = stack[stack.length - 1]
+      const liveIds = new Set(previous.tracks.flatMap((track) => track.clips.map((clip) => clip.id)))
+      return {
+        timeline: previous,
+        timelineUndoStack: stack.slice(0, -1),
+        // 撤销后清掉指向已不存在 clip 的选择，避免 Delete/工具作用于幽灵选区
+        selectedTimelineClipIds: state.selectedTimelineClipIds.filter((id) => liveIds.has(id)),
+        selectedTextClipId: previous.textClips.some((c) => c.id === state.selectedTextClipId) ? state.selectedTextClipId : '',
+        timelinePlaying: false,
+        persistRevision: state.persistRevision + 1,
+      }
+    })
+  },
   removeTimelineClip: (clipId) => {
     set((state) => {
       const id = String(clipId || '').trim()
@@ -446,6 +497,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       const changed = nextTimeline !== state.timeline
       return {
         timeline: nextTimeline,
+        timelineUndoStack: changed ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
         selectedTimelineClipIds: [],
         timelinePlaying: false,
         persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
@@ -480,30 +532,36 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   splitTimelineClip: (clipId, frame) => {
     set((state) => {
       const nextTimeline = splitClipAtFrame(state.timeline, clipId, frame)
+      const changed = nextTimeline !== state.timeline
       return {
         timeline: nextTimeline,
+        timelineUndoStack: changed ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
         selectedTimelineClipIds: [String(clipId || '').trim()].filter(Boolean),
-        persistRevision: nextTimeline !== state.timeline ? state.persistRevision + 1 : state.persistRevision,
+        persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
       }
     })
   },
   duplicateTimelineClip: (clipId) => {
     set((state) => {
       const nextTimeline = duplicateClipById(state.timeline, clipId)
+      const changed = nextTimeline !== state.timeline
       return {
         timeline: nextTimeline,
+        timelineUndoStack: changed ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
         selectedTimelineClipIds: [String(clipId || '').trim()].filter(Boolean),
-        persistRevision: nextTimeline !== state.timeline ? state.persistRevision + 1 : state.persistRevision,
+        persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
       }
     })
   },
   nudgeTimelineClip: (clipId, deltaFrame) => {
     set((state) => {
       const nextTimeline = nudgeClipById(state.timeline, clipId, deltaFrame)
+      const changed = nextTimeline !== state.timeline
       return {
         timeline: nextTimeline,
+        timelineUndoStack: changed ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
         selectedTimelineClipIds: [String(clipId || '').trim()].filter(Boolean),
-        persistRevision: nextTimeline !== state.timeline ? state.persistRevision + 1 : state.persistRevision,
+        persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
       }
     })
   },
@@ -540,9 +598,11 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     }))
   },
   addTimelineTextClip: (style, startFrame) => {
-    const { timeline, id } = addTextClip(get().timeline, style, startFrame)
+    const previous = get().timeline
+    const { timeline, id } = addTextClip(previous, style, startFrame)
     set((state) => ({
       timeline,
+      timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, previous),
       selectedTextClipId: id,
       selectedTimelineClipIds: [],
       persistRevision: state.persistRevision + 1,
@@ -554,7 +614,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       const next = updateTextClipText(state.timeline, id, text)
       return next === state.timeline
         ? state
-        : { timeline: next, persistRevision: state.persistRevision + 1 }
+        : { timeline: next, timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline), persistRevision: state.persistRevision + 1 }
     })
   },
   moveTimelineTextClip: (id, startFrame, options) => {
@@ -587,6 +647,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       const changed = next !== state.timeline
       return {
         timeline: next,
+        timelineUndoStack: changed ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
         selectedTextClipId: state.selectedTextClipId === id ? '' : state.selectedTextClipId,
         timelinePlaying: false,
         persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,

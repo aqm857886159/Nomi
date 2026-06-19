@@ -28,6 +28,7 @@ export default function TimelineTextTrack(): JSX.Element {
     const rect = clipsRef.current?.getBoundingClientRect()
     const grabFrame = rect ? pixelToFrame(event.clientX - rect.left, scale) : startFrame
     const grabOffset = grabFrame - startFrame
+    let captured = false
 
     const apply = (clientX: number, commit: boolean) => {
       const bounds = clipsRef.current?.getBoundingClientRect()
@@ -36,7 +37,11 @@ export default function TimelineTextTrack(): JSX.Element {
       moveTimelineTextClip(clipId, frame, { commit })
     }
 
-    const handleMove = (move: PointerEvent) => apply(move.clientX, false)
+    const handleMove = (move: PointerEvent) => {
+      // 真正拖动才压撤销栈（纯点击 select 不污染栈）
+      if (!captured) { useWorkbenchStore.getState().captureTimelineUndo(); captured = true }
+      apply(move.clientX, false)
+    }
     const handleUp = (up: PointerEvent) => {
       apply(up.clientX, true)
       target.releasePointerCapture?.(pointerId)
@@ -55,6 +60,7 @@ export default function TimelineTextTrack(): JSX.Element {
     const target = event.currentTarget
     target.setPointerCapture?.(pointerId)
     selectTimelineTextClip(clipId)
+    let captured = false
 
     const apply = (clientX: number, commit: boolean) => {
       const bounds = clipsRef.current?.getBoundingClientRect()
@@ -63,7 +69,10 @@ export default function TimelineTextTrack(): JSX.Element {
       resizeTimelineTextClip(clipId, edge, frame, { commit })
     }
 
-    const handleMove = (move: PointerEvent) => apply(move.clientX, false)
+    const handleMove = (move: PointerEvent) => {
+      if (!captured) { useWorkbenchStore.getState().captureTimelineUndo(); captured = true }
+      apply(move.clientX, false)
+    }
     const handleUp = (up: PointerEvent) => {
       apply(up.clientX, true)
       target.releasePointerCapture?.(pointerId)

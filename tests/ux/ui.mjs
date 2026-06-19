@@ -27,6 +27,7 @@ else if (action === "fill") { cmd.sel = rest[0]; cmd.val = rest.slice(1).join(" 
 else if (action === "setfile") { cmd.sel = rest[0]; cmd.path = rest.slice(1).join(" "); }
 else if (action === "eval") cmd.js = rest.join(" ");
 else if (action === "drag") { cmd.x1 = Number(rest[0]); cmd.y1 = Number(rest[1]); cmd.x2 = Number(rest[2]); cmd.y2 = Number(rest[3]); cmd.steps = Number(rest[4] || 12); }
+else if (action === "move") { cmd.x = Number(rest[0]); cmd.y = Number(rest[1]); }
 else if (action === "wait") cmd.ms = Number(rest[0] || 500);
 
 const resP = path.join(DIR, "res.json");

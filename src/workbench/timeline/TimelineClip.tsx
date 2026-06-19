@@ -2,7 +2,7 @@ import React from 'react'
 import { cn } from '../../utils/cn'
 import { NomiImage } from '../../design/media'
 import { useWorkbenchStore } from '../workbenchStore'
-import { frameToPixel, clampGroupDelta, type ClipOrigin } from './timelineEdit'
+import { frameToPixel, pixelToFrame, clampGroupDelta, type ClipOrigin } from './timelineEdit'
 import { buildSnapPoints, resolveSnap, pixelThresholdToFrames, type SnapResult } from './snapping'
 import type { TimelineClip as TimelineClipData } from './timelineTypes'
 import { buildVideoPlaybackUrl } from '../../media/videoPlaybackUrl'
@@ -16,15 +16,17 @@ export default function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
   const scale = useWorkbenchStore((state) => state.timeline.scale)
   // 仅订阅"本 clip 是否选中"（布尔），避免选区变化时所有 clip 重渲染
   const isSelected = useWorkbenchStore((state) => state.selectedTimelineClipIds.includes(clip.id))
+  const splitMode = useWorkbenchStore((state) => state.timelineSplitMode)
 
   const [isDragging, setIsDragging] = React.useState(false)
+  // 剪刀模式：悬停时切点线相对本 clip 左缘的像素位置（null = 不在切点范围/未悬停）
+  const [cutPx, setCutPx] = React.useState<number | null>(null)
   const clipRef = React.useRef<HTMLDivElement | null>(null)
   const lastSnapLabelRef = React.useRef<string | null>(null)
   const didDragRef = React.useRef(false)
 
   const title = clip.label || clip.text || clip.sourceNodeId
   const showVideoThumb = clip.type === 'video' && !clip.thumbnailUrl && Boolean(clip.url)
-  const hasVisualThumb = Boolean(clip.thumbnailUrl) || showVideoThumb
   const clipVideoUrl = typeof clip.url === 'string' ? clip.url : ''
 
   // 吸附"咔哒"微反馈：WAAPI 实现，免改全局 CSS（规则 10）；不与 React 的 style.left 冲突。
@@ -59,6 +61,7 @@ export default function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
     const startX = event.clientX
     const originEdge = edge === 'left' ? clip.startFrame : clip.endFrame
     let appliedDelta = 0
+    let captured = false
     lastSnapLabelRef.current = null
     node.setPointerCapture(pointerId)
 
@@ -76,6 +79,8 @@ export default function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
       }
       const incremental = deltaFrame - appliedDelta
       if (incremental === 0) return
+      // 手势首次真正改动才压撤销栈（避免空点也压）
+      if (!captured) { useWorkbenchStore.getState().captureTimelineUndo(); captured = true }
       appliedDelta = deltaFrame
       useWorkbenchStore.getState().resizeTimelineClip(clip.id, edge, incremental)
     }
@@ -90,6 +95,8 @@ export default function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
   }, [applySnapGuide, clip.endFrame, clip.id, clip.startFrame])
 
   const beginDrag = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    // 剪刀模式下不拖动（点击 = 在光标处分割，由 onClick 处理）
+    if (useWorkbenchStore.getState().timelineSplitMode) return
     // 点在 resize 手柄上不触发整体拖动
     if ((event.target as HTMLElement).closest('.workbench-timeline-clip__handle')) return
     // Shift 用于多选切换，不启动拖动（交给 onClick 处理）
@@ -129,7 +136,11 @@ export default function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
       const scaleNow = useWorkbenchStore.getState().timeline.scale
-      if (Math.abs(moveEvent.clientX - startX) > 3) didDragRef.current = true
+      if (Math.abs(moveEvent.clientX - startX) > 3 && !didDragRef.current) {
+        didDragRef.current = true
+        // 拖拽手势首次真正移动 → 压撤销栈（拖动前的状态）
+        useWorkbenchStore.getState().captureTimelineUndo()
+      }
       let desiredStart = Math.max(0, dragged.startFrame + Math.round((moveEvent.clientX - startX) / scaleNow))
 
       if (!moveEvent.shiftKey) {
@@ -249,9 +260,19 @@ export default function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
         left: frameToPixel(clip.startFrame, scale),
         width: clipWidth,
         zIndex: isDragging ? 5 : undefined,
-        cursor: isDragging ? 'grabbing' : undefined,
+        cursor: splitMode ? 'col-resize' : isDragging ? 'grabbing' : undefined,
       }}
       onClick={(event) => {
+        // 剪刀模式：点击 = 在光标帧处分割（不选中、不移 playhead）
+        if (splitMode) {
+          event.stopPropagation()
+          const rect = clipRef.current?.getBoundingClientRect()
+          if (!rect) return
+          const splitFrame = clip.startFrame + pixelToFrame(event.clientX - rect.left, scale)
+          useWorkbenchStore.getState().splitTimelineClip(clip.id, splitFrame)
+          setCutPx(null)
+          return
+        }
         // 刚拖动过则不把这次 pointerup 当作点击（避免拖完误跳 playhead）
         if (didDragRef.current) {
           didDragRef.current = false
@@ -267,6 +288,15 @@ export default function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
         store.selectTimelineClip(clip.id)
         store.setTimelinePlayhead(clip.startFrame)
       }}
+      onPointerMove={splitMode ? (event) => {
+        const rect = clipRef.current?.getBoundingClientRect()
+        if (!rect) return
+        const px = event.clientX - rect.left
+        // 只在可切范围（离两端 >3 帧）才显切点线
+        const frameInto = pixelToFrame(px, scale)
+        setCutPx(frameInto > 3 && frameInto < clip.frameCount - 3 ? px : null)
+      } : undefined}
+      onPointerLeave={splitMode ? () => setCutPx(null) : undefined}
       onPointerDown={beginDrag}
     >
       {isSelected ? (
@@ -281,13 +311,24 @@ export default function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
         </button>
       ) : null}
       {thumbContent}
-      {!hasVisualThumb ? (
-        <span className={cn(
-          'workbench-timeline-clip__label',
-          'relative z-[1] min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap',
-          'rounded-nomi-sm text-[var(--nomi-ink)] backdrop-blur-[8px]',
-          'self-end mt-auto mx-1 mb-1 px-[5px] py-0.5 bg-[color-mix(in_oklch,var(--nomi-paper)_72%,transparent)]',
-        )}>{title}</span>
+      {/* 标签始终显示（含有缩略图时也压在其上）：宽参考图 object-cover 只见局部，光看图认不出哪一镜 */}
+      <span className={cn(
+        'workbench-timeline-clip__label',
+        'relative z-[1] min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap',
+        'rounded-nomi-sm text-[var(--nomi-ink)] backdrop-blur-[8px]',
+        'self-end mt-auto mx-1 mb-1 px-[5px] py-0.5 bg-[color-mix(in_oklch,var(--nomi-paper)_72%,transparent)]',
+      )}>{title}</span>
+      {/* 剪刀模式切点线：橙色虚线 + 剪刀图标，跟随光标 */}
+      {splitMode && cutPx !== null ? (
+        <span
+          className={cn(
+            'workbench-timeline-clip__cut-line',
+            'absolute top-0 bottom-0 z-[3] w-0 pointer-events-none',
+            'border-l border-dashed border-[var(--workbench-danger)]',
+          )}
+          style={{ left: `${cutPx}px` }}
+          aria-hidden="true"
+        />
       ) : null}
       {isSelected ? (
         <button

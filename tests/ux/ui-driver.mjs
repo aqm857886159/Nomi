@@ -117,6 +117,7 @@ async function run(cmd) {
       await w.waitForTimeout(cmd.wait ?? 400);
       return { ok: `drag ${cmd.x1},${cmd.y1} -> ${cmd.x2},${cmd.y2}`, shot: await shot("live") };
     }
+    case "move": { await getWin().mouse.move(cmd.x, cmd.y); await getWin().waitForTimeout(cmd.wait ?? 250); return { ok: `move ${cmd.x},${cmd.y}`, shot: await shot("live") }; }
     case "wait": await getWin().waitForTimeout(cmd.ms ?? 500); return { ok: true };
     case "quit": return { quit: true };
     default: return { error: "unknown action: " + cmd.action };

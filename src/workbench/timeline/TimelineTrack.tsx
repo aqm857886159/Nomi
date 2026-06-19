@@ -116,6 +116,8 @@ export default function TimelineTrack({ track }: TimelineTrackProps): JSX.Elemen
         data-drag-over={dragPreview ? 'true' : 'false'}
         data-drop-valid={dragPreview ? String(dragPreview.canPlace) : undefined}
         onClick={(event) => {
+          // 剪刀模式：点轨道空白不移 playhead（只有点在 clip 上才分割，由 TimelineClip 处理）
+          if (useWorkbenchStore.getState().timelineSplitMode) return
           // 点轨道空白：移动 playhead 并清空多选（点 clip 会 stopPropagation，不触发此处）
           setTimelinePlayhead(resolveFrame(event.clientX))
           if (!event.shiftKey) setTimelineSelection([])

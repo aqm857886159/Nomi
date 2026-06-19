@@ -536,11 +536,12 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
           section 不裁剪 → 下拉/安全框可正常溢出；居中、不被 flex 挤压。 */}
       <div className={cn(
         'workbench-preview-player__control-bar',
-        'relative z-[3] shrink-0 max-w-full inline-flex items-center gap-1.5 p-[5px]',
-        'border border-[var(--workbench-border)] rounded-full',
+        // 窄窗口时换行而非把「导出 MP4」挤出/截断：flex-wrap + 居中；圆角改 lg（换行后不再是单行 pill）。
+        'relative z-[3] shrink-0 max-w-full flex flex-wrap justify-center items-center gap-1.5 p-[5px]',
+        'border border-[var(--workbench-border)] rounded-[var(--nomi-radius-lg)]',
         'bg-[color-mix(in_oklch,var(--nomi-paper)_88%,transparent)]',
         'shadow-[var(--workbench-shadow-sm)] backdrop-blur-[12px] backdrop-saturate-[1.2]',
-        // 子项一律不被 flex 挤压：避免画幅/显示下拉被截成「1…」「适.」、导出/安全框折两行。
+        // 子项一律不被 flex 挤压：避免画幅/显示下拉被截成「1…」「适.」；满了整组换到下一行。
         '[&>*]:shrink-0',
       )} role="toolbar" aria-label="预览控制">
         <WorkbenchIconButton

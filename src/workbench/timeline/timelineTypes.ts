@@ -58,10 +58,11 @@ export type TimelineState = {
   textClips: TimelineTextClip[]
 }
 
-// v0.7.1: 视频轨改名"媒体轨"（承载 video / audio clip）
+// 轨道名与「图片轨」对称用「视频轨」（type 仍是 video；audio clip 也落此轨，少见）。
+// 原 v0.7.1 叫「媒体轨」求泛指，但和「图片轨」不对称、纯图片项目里也显得空泛——2026-06-19 走查改回对称命名。
 export const TIMELINE_TRACK_DEFINITIONS: Array<Pick<TimelineTrack, 'id' | 'type' | 'label'>> = [
   { id: 'imageTrack', type: 'image', label: '图片轨' },
-  { id: 'videoTrack', type: 'video', label: '媒体轨' },
+  { id: 'videoTrack', type: 'video', label: '视频轨' },
 ]
 
 // audio / video clip 共用一条轨道；helper 用于决定 clip 该挂哪条

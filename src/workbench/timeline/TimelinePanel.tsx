@@ -1,5 +1,6 @@
 import React from 'react'
 import {
+  IconArrowBackUp,
   IconArrowLeft,
   IconArrowRight,
   IconCopy,
@@ -78,6 +79,10 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
   const nudgeTimelineClip = useWorkbenchStore((state) => state.nudgeTimelineClip)
   const removeSelectedTimelineClips = useWorkbenchStore((state) => state.removeSelectedTimelineClips)
   const setTimelineZoom = useWorkbenchStore((state) => state.setTimelineZoom)
+  const splitMode = useWorkbenchStore((state) => state.timelineSplitMode)
+  const setTimelineSplitMode = useWorkbenchStore((state) => state.setTimelineSplitMode)
+  const canUndo = useWorkbenchStore((state) => state.timelineUndoStack.length > 0)
+  const undoTimeline = useWorkbenchStore((state) => state.undoTimeline)
   // 单片工具（分割/复制/微调）作用于"最后选中"的 primary
   const primaryClipId = selectedClipIds.length > 0 ? selectedClipIds[selectedClipIds.length - 1] : ''
   const hasSelection = selectedClipIds.length > 0
@@ -102,6 +107,18 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       if (target?.closest('input, textarea, [contenteditable="true"]')) return
+      // 撤销时间轴编辑（⌘Z / Ctrl+Z），不带 shift（shift+Z 留给将来 redo）
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z' && !event.shiftKey) {
+        event.preventDefault()
+        useWorkbenchStore.getState().undoTimeline()
+        return
+      }
+      // Esc 退出剪刀模式
+      if (event.key === 'Escape' && useWorkbenchStore.getState().timelineSplitMode) {
+        event.preventDefault()
+        useWorkbenchStore.getState().setTimelineSplitMode(false)
+        return
+      }
       if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
         event.preventDefault()
         setTimelinePlayhead(timeline.playheadFrame + (event.key === 'ArrowLeft' ? -1 : 1))
@@ -203,7 +220,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
         'relative min-w-0 min-h-0 grid grid-rows-[minmax(0,1fr)]',
         'bg-[var(--workbench-surface-solid)] border-t border-[var(--workbench-border)]',
         'shadow-[0_-1px_0_rgba(255,255,255,0.72)]',
-        density === 'full' ? 'px-[18px] py-[10px] pb-[14px]' : 'px-4 pt-3 pb-3',
+        density === 'full' ? 'px-[18px] pt-[10px] pb-5' : 'px-4 pt-3 pb-4',
       )}
       data-density={density}
       aria-label={regionLabel}
@@ -225,10 +242,25 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
               'inline-flex items-center gap-0.5 pr-0 border-r-0',
             )} aria-label="选中片段操作">
               <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label="向前微调片段" icon={<IconArrowLeft size={14} />} onClick={() => nudgeTimelineClip(primaryClipId, -1)} />
-              <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label="分割片段" icon={<IconCut size={14} />} onClick={() => splitTimelineClip(primaryClipId, timeline.playheadFrame)} />
               <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label="复制片段" icon={<IconCopy size={14} />} onClick={() => duplicateTimelineClip(primaryClipId)} />
               <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label="向后微调片段" icon={<IconArrowRight size={14} />} onClick={() => nudgeTimelineClip(primaryClipId, 1)} />
             </div>
+          ) : null}
+          {/* 剪刀模式：常驻切换。进入后悬停片段出切点线、点击在光标处分割（TimelineClip 处理）；再点 / Esc 退出。 */}
+          <WorkbenchIconButton
+            className={cn(
+              'workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] shadow-none cursor-pointer',
+              splitMode
+                ? 'bg-[var(--workbench-accent-soft)] text-[var(--workbench-accent)] hover:bg-[var(--workbench-accent-soft)]'
+                : 'bg-transparent text-[var(--workbench-muted)] hover:bg-[var(--workbench-hover)]',
+            )}
+            label={splitMode ? '退出剪刀模式' : '剪刀模式（点片段处分割）'}
+            title={splitMode ? '剪刀模式开启中：点片段即在光标处分割 · Esc 退出' : '剪刀：进入后点片段即可在该处分割'}
+            icon={<IconCut size={14} />}
+            onClick={() => setTimelineSplitMode(!splitMode)}
+          />
+          {canUndo ? (
+            <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label="撤销时间轴编辑" title="撤销（⌘Z）" icon={<IconArrowBackUp size={14} />} onClick={() => undoTimeline()} />
           ) : null}
           <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={`${actionLabelPrefix}缩小时间轴`} icon={<IconMinus size={14} />} onClick={() => setTimelineZoom(timeline.scale / 1.25)} />
           <span className="text-micro opacity-60 min-w-[32px] text-center">{Math.round(timeline.scale * 100)}%</span>
