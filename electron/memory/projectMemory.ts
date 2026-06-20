@@ -5,6 +5,7 @@
 // (删除点之前的旧事件不再重提炼同一事实,之后的新事件可以——重新上锁理应重新记住)。
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { appendEvents, readEvents } from "../events/eventLogRepository";
 import { getWorkspaceRepositoryDeps } from "../runtimePaths";
 import { resolveWorkspaceProjectDir } from "../workspace/workspaceRepository";
@@ -171,6 +172,23 @@ export function getProjectMemory(projectId: string): ProjectMemory {
       }
       continue;
     }
+    if (event.type === "memory.fact.user-added") {
+      // 用户确认记住的软偏好(提议态转正/手动加)。origin:user,回放纳入(墓碑后于此事件才挡=可重加)。
+      const f = asRecord(asRecord(event.payload).fact);
+      const id = String(f.id || "");
+      if (id && (tombstones[id] ?? -1) < event.seq) {
+        factById.set(id, {
+          id,
+          text: String(f.text || ""),
+          kind: (String(f.kind || "preference") as MemoryFactKind),
+          origin: "user",
+          sourceSeqs: [event.seq],
+          pinned: Boolean(factById.get(id)?.pinned),
+          updatedAt: event.ts,
+        });
+      }
+      continue;
+    }
     if (event.type.startsWith("memory.")) continue; // 提炼器自己的回执不再进规则
     for (const hit of distillEvent(event)) {
       if ("removeId" in hit) {
@@ -261,6 +279,28 @@ export function formatMemoryForPrompt(facts: readonly MemoryFact[], budgetChars 
   }
   if (lines.length === 0) return "";
   return `项目记忆（此前积累的事实，遵守其中的约束与偏好）：\n${lines.join("\n")}`;
+}
+
+/**
+ * 用户确认记住一条软偏好（提议态「记住」转正 / 手动加）。origin:user、id 按文本 sha1 派生（同文本去重），
+ * 永不被自动提炼覆盖（user 不变量）。精度铁律：原文逐字进，不摘要不改写。
+ */
+export function addUserMemoryFact(
+  projectId: string,
+  text: string,
+  kind: MemoryFactKind = "preference",
+): ProjectMemory {
+  const clean = text.trim();
+  if (!clean) return getProjectMemory(projectId);
+  const id = `user:${crypto.createHash("sha1").update(clean).digest("hex").slice(0, 12)}`;
+  appendEvents(projectId, [{
+    id: `evt_mem_${Math.random().toString(36).slice(2, 12)}`,
+    source: "user",
+    type: "memory.fact.user-added",
+    payload: { fact: { id, text: clean, kind, origin: "user" } },
+  }]);
+  // getProjectMemory 回放这条 user-added 事件把 fact 纳入（含墓碑判定 + 增量游标推进）。
+  return getProjectMemory(projectId);
 }
 
 /** 用户改文本(纠正,origin→user)/pin。纠正进日志审计。 */

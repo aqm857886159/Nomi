@@ -173,6 +173,7 @@ export type DesktopBridge = {
     get: (projectId: string) => Promise<{ ok: boolean; facts: unknown[] }>
     update: (projectId: string, factId: string, patch: { text?: string; pinned?: boolean }) => Promise<{ ok: boolean; facts: unknown[] }>
     remove: (projectId: string, factId: string) => Promise<{ ok: boolean; facts: unknown[] }>
+    add: (projectId: string, text: string, kind?: string) => Promise<{ ok: boolean; facts: unknown[] }>
   }
   /** S4-2b 技术自检结果广播(主进程异步旁路 → 节点 ⚠ 投影)。 */
   review?: {

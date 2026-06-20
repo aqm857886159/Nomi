@@ -45,3 +45,12 @@ export async function removeProjectMemoryFact(factId: string): Promise<MemoryFac
   const result = await api.remove(projectId, factId)
   return Array.isArray(result?.facts) ? result.facts.filter(isFact) : []
 }
+
+/** 用户确认记住一条软偏好（提议态「记住」/手动加）→ 写成 origin:user 事实，下次注入两个助手。 */
+export async function addProjectMemoryFact(text: string, kind = 'preference'): Promise<MemoryFactView[]> {
+  const projectId = getCanvasEventsProjectId()
+  const api = getDesktopBridge()?.memory
+  if (!projectId || !api?.add || !text.trim()) return []
+  const result = await api.add(projectId, text.trim(), kind)
+  return Array.isArray(result?.facts) ? result.facts.filter(isFact) : []
+}

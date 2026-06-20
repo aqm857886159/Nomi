@@ -1,6 +1,6 @@
-// 记忆卡 IPC(harness S9):get=增量提炼+读;update=pin/纠正;remove=删+墓碑。
+// 记忆卡 IPC(harness S9):get=增量提炼+读;update=pin/纠正;remove=删+墓碑;add=用户软偏好转正。
 import { ipcMain } from "electron";
-import { getProjectMemory, removeMemoryFact, updateMemoryFact } from "./projectMemory";
+import { addUserMemoryFact, getProjectMemory, removeMemoryFact, updateMemoryFact, type MemoryFactKind } from "./projectMemory";
 
 export function registerMemoryIpc(): void {
   ipcMain.handle("nomi:memory:get", async (_event, payload: { projectId?: string }) => {
@@ -17,6 +17,17 @@ export function registerMemoryIpc(): void {
       const factId = String(payload?.factId || "");
       if (!projectId || !factId) return { ok: false, facts: [] };
       const memory = updateMemoryFact(projectId, factId, payload?.patch || {});
+      return { ok: true, facts: memory.facts };
+    },
+  );
+
+  ipcMain.handle(
+    "nomi:memory:add",
+    async (_event, payload: { projectId?: string; text?: string; kind?: string }) => {
+      const projectId = String(payload?.projectId || "");
+      const text = String(payload?.text || "");
+      if (!projectId || !text.trim()) return { ok: false, facts: [] };
+      const memory = addUserMemoryFact(projectId, text, (payload?.kind as MemoryFactKind) || "preference");
       return { ok: true, facts: memory.facts };
     },
   );

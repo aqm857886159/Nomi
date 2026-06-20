@@ -88,6 +88,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.invoke("nomi:memory:update", { projectId, factId, patch }) as Promise<{ ok: boolean; facts: unknown[] }>,
     remove: (projectId: string, factId: string) =>
       ipcRenderer.invoke("nomi:memory:remove", { projectId, factId }) as Promise<{ ok: boolean; facts: unknown[] }>,
+    add: (projectId: string, text: string, kind?: string) =>
+      ipcRenderer.invoke("nomi:memory:add", { projectId, text, kind }) as Promise<{ ok: boolean; facts: unknown[] }>,
   },
   review: {
     onEvent: (callback: (payload: unknown) => void) => {
