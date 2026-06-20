@@ -1,0 +1,63 @@
+{
+  "name": "brand.promo",
+  "version": "1.0.0",
+  "description": "做产品/品牌宣传片。当用户要把产品文案、卖点或品牌介绍做成一条短宣传视频，或提到「宣传片 / 产品视频 / 品牌短片 / promo / 广告片」时用我。",
+  "author": "@nomi",
+  "tools": [
+    "read_canvas_state",
+    "propose_storyboard_plan",
+    "create_canvas_nodes",
+    "connect_canvas_edges",
+    "set_node_prompt",
+    "run_generation_batch",
+    "arrange_storyboard_to_timeline"
+  ],
+  "requiredProviders": ["text", "image", "video"],
+  "permissions": ["create"],
+  "inputs": [
+    {
+      "name": "brief",
+      "description": "产品文案 / 卖点 / 品牌介绍（一段话即可；可附产品图作参考）。",
+      "required": true
+    }
+  ],
+  "examples": [
+    {
+      "title": "便携榨汁杯 30 秒宣传片",
+      "description": "把一段卖点文案做成钩子→卖点→使用场景→行动号召的竖屏短宣传片。"
+    }
+  ],
+  "stages": [
+    {
+      "id": "storyboard",
+      "goal": "把产品文案拆成一份宣传片分镜方案（3 秒钩子 → 每个卖点一镜 → 使用场景 → 行动号召），交用户在创作区审阅修改。",
+      "tools": ["read_canvas_state", "propose_storyboard_plan"],
+      "pause": true,
+      "modelPrefs": [{ "kind": "text" }]
+    },
+    {
+      "id": "build",
+      "goal": "把确认后的分镜方案落成画布节点，建好产品/风格锚的参考边。",
+      "tools": ["read_canvas_state", "create_canvas_nodes", "connect_canvas_edges", "set_node_prompt"],
+      "dependsOn": ["storyboard"],
+      "pause": true,
+      "modelPrefs": [{ "kind": "image" }]
+    },
+    {
+      "id": "generate",
+      "goal": "按波次生成关键帧与镜头视频（先锁产品参考，再出各镜）。",
+      "tools": ["read_canvas_state", "run_generation_batch"],
+      "dependsOn": ["build"],
+      "pause": true,
+      "modelPrefs": [{ "kind": "image" }, { "kind": "video", "family": "seedance" }]
+    },
+    {
+      "id": "assemble",
+      "goal": "把生成好的镜头按镜序排到时间轴，节奏收紧、CTA 收尾，准备预览导出。",
+      "tools": ["read_canvas_state", "arrange_storyboard_to_timeline"],
+      "dependsOn": ["generate"],
+      "pause": true,
+      "modelPrefs": [{ "kind": "video" }]
+    }
+  ]
+}
