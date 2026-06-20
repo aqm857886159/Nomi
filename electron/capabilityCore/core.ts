@@ -46,6 +46,15 @@ type TaskResultLike = {
 /** runTask 的形状（注入式，便于单测构造请求体而不真打 vendor）。 */
 export type RunTaskFn = (payload: { vendor: string; request: unknown }) => Promise<TaskResultLike>
 
+/** fetchTaskResult 的形状（注入式）。异步 vendor（modelscope 图 / 视频）返 queued，需轮询到终态。 */
+export type FetchTaskResultFn = (payload: { taskId: string; vendor: string; taskKind: string; prompt: string; modelKey: string }) => Promise<{ result: TaskResultLike }>
+
+const TERMINAL_STATUSES = new Set(['succeeded', 'failed'])
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 function defaultKindForIntent(intent: GenerateIntent, hasReferences: boolean): string {
   switch (intent) {
     case 'image':
@@ -179,13 +188,16 @@ export type GenerateInput = {
 }
 
 /**
- * 触发一次生成。构造高层 TaskRequest → runTask（主进程组装请求体 + 发 vendor + 轮询 + 落资产）→
- * 把结果写回节点 result/history。runTask 注入式（测试不真打 vendor）。
- *
- * 注意（诚实交付）：真实 vendor 调用花用户额度，需真机 + 真 key 端到端验证才算「接通」（接入即验证
- * 铁律）；本函数保证请求**构造正确**与结果落盘，不替代真实 E2E。
+ * 触发一次生成。构造高层 TaskRequest → runTask（主进程组装请求体 + 发 vendor + 落资产）。
+ * 异步 vendor（modelscope 图 / 视频）首调返 queued → 用 fetchTaskResultFn **在本进程内**轮询到终态
+ * （taskCache 是进程内的，host 退出即丢，故不能跨调用轮询，必须本调用内等完）。再把结果写回节点。
+ * runTask/fetchTaskResult 注入式（测试不真打 vendor）。
  */
-export async function generateOnProject(input: GenerateInput, runTaskFn: RunTaskFn): Promise<{
+export async function generateOnProject(
+  input: GenerateInput,
+  runTaskFn: RunTaskFn,
+  fetchTaskResultFn?: FetchTaskResultFn,
+): Promise<{
   nodeId: string
   status: string
   assets: TaskResultLike['assets']
@@ -228,7 +240,25 @@ export async function generateOnProject(input: GenerateInput, runTaskFn: RunTask
     },
   }
 
-  const result = await runTaskFn({ vendor: input.vendor, request })
+  let result = await runTaskFn({ vendor: input.vendor, request })
+
+  // 异步 vendor 首调返 queued/processing → 本进程内轮询到终态（视频给更长超时）。无 fetch 注入则不轮询。
+  if (fetchTaskResultFn && result.status && !TERMINAL_STATUSES.has(result.status)) {
+    const timeoutMs = kind === 'text_to_video' || kind === 'image_to_video' ? 300000 : 120000
+    const startedAt = Date.now()
+    while (result.status && !TERMINAL_STATUSES.has(result.status)) {
+      if (Date.now() - startedAt > timeoutMs) break
+      await delay(2000)
+      const polled = await fetchTaskResultFn({
+        taskId: result.id || '',
+        vendor: input.vendor,
+        taskKind: kind,
+        prompt,
+        modelKey: input.modelKey,
+      })
+      result = polled.result
+    }
+  }
 
   // 落结果回节点。图/视频/音频走首资产；文本无资产，文本在 raw（best-effort 抽取）。失败也保存 prompt/节点。
   const primary = (result.assets || [])[0]

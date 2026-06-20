@@ -9,7 +9,7 @@
 import { app } from 'electron'
 
 import { dispatch, RpcError } from './dispatcher'
-import { runTask } from '../runtime'
+import { runTask, fetchTaskResult } from '../runtime'
 import { verifyToken } from './security'
 
 // 身份对齐（解密 vendor key 的前提）：CLI 用 `electron host.js` spawn 时 getName 默认 "Electron"，与主 app
@@ -48,7 +48,7 @@ async function run(): Promise<number> {
   const params = command.params && typeof command.params === 'object' ? command.params : {}
   // headless 永远是工程文件的唯一写者（app 关着时 CLI 才 spawn 它），无「项目正在打开」之说 → 全放行。
   try {
-    const result = await dispatch(method, params, { runTask })
+    const result = await dispatch(method, params, { runTask, fetchTaskResult })
     emit({ ok: true, result })
     return 0
   } catch (error) {

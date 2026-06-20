@@ -10,13 +10,15 @@
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
 
-import type { RunTaskFn } from './core'
+import type { FetchTaskResultFn, RunTaskFn } from './core'
 import { dispatch, MUTATION_METHODS, projectIdOf, RpcError } from './dispatcher'
 import { verifyToken } from './security'
 
 export type RpcServerOptions = {
   /** 真实生成入口（runtime.runTask）。注入式：headless host 与 app 各自传同一份。 */
   runTask: RunTaskFn
+  /** 异步任务轮询入口（runtime.fetchTaskResult）。图/视频异步生成等终态用。 */
+  fetchTaskResult?: FetchTaskResultFn
   /** 该 projectId 是否正在某个 app 窗口里打开（命中则拒绝直写图变更）。headless: ()=>false。 */
   isProjectOpen?: (projectId: string) => boolean
 }
@@ -81,7 +83,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
             throw new RpcError('该项目正在 Nomi 中打开；图变更请在 app 内操作，或关闭项目后再用外部调用（实时桥接为后续切片）。', 409)
           }
         }
-        const result = await dispatch(method, params, { runTask: options.runTask })
+        const result = await dispatch(method, params, { runTask: options.runTask, fetchTaskResult: options.fetchTaskResult })
         send(200, { ok: true, result })
       } catch (error) {
         const status = error instanceof RpcError ? error.httpStatus : 500

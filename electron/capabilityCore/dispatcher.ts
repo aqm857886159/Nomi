@@ -10,6 +10,7 @@ import {
   listAvailableModels,
   readProjectCanvas,
   setProjectNodePrompt,
+  type FetchTaskResultFn,
   type GenerateInput,
   type RunTaskFn,
 } from './core'
@@ -32,7 +33,7 @@ export function projectIdOf(params: Record<string, unknown>): string {
   return typeof params.projectId === 'string' ? params.projectId : ''
 }
 
-export type DispatchContext = { runTask: RunTaskFn }
+export type DispatchContext = { runTask: RunTaskFn; fetchTaskResult?: FetchTaskResultFn }
 
 export async function dispatch(method: string, params: Record<string, unknown>, ctx: DispatchContext): Promise<unknown> {
   switch (method) {
@@ -60,7 +61,7 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
     case 'canvas.deleteNodes':
       return deleteProjectNodes(projectIdOf(params), Array.isArray(params.nodeIds) ? (params.nodeIds as string[]) : [])
     case 'generate':
-      return generateOnProject(params as unknown as GenerateInput, ctx.runTask)
+      return generateOnProject(params as unknown as GenerateInput, ctx.runTask, ctx.fetchTaskResult)
     default:
       throw new RpcError(`未知方法: ${method}`, 404)
   }

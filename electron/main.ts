@@ -373,7 +373,7 @@ if (hasSingleInstanceLock) app.whenReady().then(async () => {
   registerIpc();
   // 能力核对外口（RPC + 实例广告）：让外部 Claude Code/Codex 经 CLI/MCP 在本地驱动 Nomi。
   // fail-open：内部不抛，绝不影响 app 启动。
-  await startCapabilityCore(runTask);
+  await startCapabilityCore(runTask, fetchTaskResult);
   await createWindow();
 
   app.on("activate", () => {

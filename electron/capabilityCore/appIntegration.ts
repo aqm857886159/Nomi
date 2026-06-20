@@ -10,7 +10,7 @@ import { app } from 'electron'
 import { startRpcServer, type RpcServerHandle } from './rpcServer'
 import { ensureToken } from './security'
 import { clearInstanceAdvertisement, writeInstanceAdvertisement } from './lockfile'
-import type { RunTaskFn } from './core'
+import type { FetchTaskResultFn, RunTaskFn } from './core'
 
 let handle: RpcServerHandle | null = null
 let openProjectId = ''
@@ -23,11 +23,12 @@ export function setOpenProjectId(projectId: string): void {
 /**
  * 启动能力核对外口。绝不拖垮 app 启动：任何失败只记日志、不抛（fail-open，与 applySystemProxy 同纪律）。
  */
-export async function startCapabilityCore(runTask: RunTaskFn): Promise<void> {
+export async function startCapabilityCore(runTask: RunTaskFn, fetchTaskResult: FetchTaskResultFn): Promise<void> {
   try {
     const token = ensureToken()
     handle = await startRpcServer({
       runTask,
+      fetchTaskResult,
       isProjectOpen: (id) => Boolean(openProjectId) && id === openProjectId,
     })
     writeInstanceAdvertisement({
