@@ -124,6 +124,19 @@ function chooseTextModel(prefModelKey?: string, preferImageInput = false): { ven
   throw new Error("No local text model is configured. Open model settings and add an API key.");
 }
 
+/**
+ * 解析默认文本大脑的 vendor/model 键（**不含 apiKey**,供渲染层经现成文本流式管线复用——
+ * 提示词优化与创作助手用同一个脑,P4 通用）。拿不到(没配文本模型)返回 null。
+ */
+export function resolveTextBrainKeys(): { vendor: string; modelKey: string } | null {
+  try {
+    const { vendor, model } = chooseTextModel();
+    return { vendor: vendor.key, modelKey: model.modelKey };
+  } catch {
+    return null;
+  }
+}
+
 // vendor→LanguageModel 构造已抽到 ./vendorLanguageModel（单一真相,与文本任务引擎共用）。
 
 // ---------------------------------------------------------------------------

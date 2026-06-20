@@ -52,6 +52,13 @@ export async function fetchPromptLibrary(): Promise<LibraryPrompt[]> {
   return res.prompts.map(toPrompt).filter((p): p is LibraryPrompt => p !== null)
 }
 
+/** 节点提示词优化用的文本大脑键(与创作助手同脑);未配文本模型返回 null。 */
+export async function getTextBrain(): Promise<{ vendor: string; modelKey: string } | null> {
+  const desktop = requireDesktopRuntime('prompt optimize')
+  const res = await desktop.promptLibrary!.textBrain()
+  return res?.ok && res.brain ? res.brain : null
+}
+
 export type PromptCategory = 'all' | 'image' | 'video'
 
 /** 平凡过滤:分类(全部/图片/视频)+ 关键词(标题/正文/来源)。 */
