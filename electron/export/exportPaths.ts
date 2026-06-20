@@ -42,7 +42,7 @@ export function createSafeOutputPaths(options: {
 }): { finalPath: string; partialPath: string; relativeFinalPath: string } {
   const { exportsDir } = ensureExportDirs(options.projectDir);
   const resolvedProjectDir = path.resolve(options.projectDir);
-  const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 12);
+  const stamp = localTimestamp();
   const base = `${sanitizeOutputBaseName(options.outputName)}-${stamp}`;
   let finalPath = path.join(exportsDir, `${base}.${options.extension}`);
   let suffix = 2;
@@ -55,6 +55,14 @@ export function createSafeOutputPaths(options: {
     partialPath: partialPathFor(finalPath, options.extension),
     relativeFinalPath: path.relative(resolvedProjectDir, finalPath).split(path.sep).join("/"),
   };
+}
+
+// 导出文件名时间戳用本地时间（YYYYMMDDHHmm），与渲染端 createTimelineExportFilename 口径一致。
+// 旧实现用 toISOString()（UTC），UTC+8 用户导出会得到早 8 小时、常跨到前一天的文件名。
+function localTimestamp(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}`;
 }
 
 function partialPathFor(finalPath: string, extension: "mp4" | "webm"): string {
