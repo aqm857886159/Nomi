@@ -47,3 +47,25 @@
 - 性能项（#4/#5/#6）：真机走查截图人眼判断（R13），不只 expect 断言。
 - 安全项（#7/#8）：构造私网 URL 验证被拦；导航被拦。
 - 完成后开 PR，不直接并 main（main 有并行会话）。
+
+## 交付状态（2026-06-21 收尾）
+
+13 项全部实现，**五门全绿**（filesize / tokens / lint 73≤98 / typecheck 双项目 / test 1556 全过 / build）：
+
+| 项 | 状态 | commit |
+|---|---|---|
+| #1/#7/#8 安全（单实例锁/CSP/will-navigate/抽帧 SSRF） | ✅ | 5719fbf |
+| #2/#3/#3b 永久处理中挂起面收口 | ✅ | 25b03b6 |
+| #9 Agent 循环集成测试 | ✅ | c7ec32b |
+| P2-1/P2-2 落盘原子性 + 接入事务化 | ✅ | 5254733 |
+| #4/#5 流式合帧 + 时间轴播放重渲收窄 | ✅ | 69f55bf |
+| #6 Scene3D 取景脏判断 | ✅ | 2b22737 |
+| P3-1 getHostedUrl 去重 | ✅ | c038e7c |
+| #10a GenerationCanvas 抽 useCanvasViewport | ✅ | 9bf2a9c |
+
+**判断微调（落地时）**：
+- **#8 onboarding SSRF 不拦私网**：本地优先应用连本机模型服务器（Ollama/LM Studio/vLLM/NAS）是核心功能，桌面端无云元数据可偷、SSRF 价值低；真正 SSRF（extractVideoFrame 机器传入 URL）已加固。
+- **#6 改脏判断而非 debounce**：实时预览（CameraPreview）读 React state，debounce 会让预览卡顿；改为静止时跳过 setState（消除空转）、运动时照常提交（保实时），并复用已有 `cameraPoseSampleChanged`（P1 不另造）。
+- **#10b Scene3D 3823 行大拆分**：仍留独立分支（纯结构重构、回归面在单测兜不住的 3D 编辑器）。
+
+**待真机走查（R13/P3）**：#4/#5/#6 是流畅度（帧时序）改动，单测证「无行为回归」但证不了「更顺滑」。因隔离 worktree + main 有并行会话占用 Electron，未在此环境跑 live 走查——建议并 main 后或 app 空闲时补做：创作助手长文吐字、时间轴多 clip 播放、Scene3D 取景拖相机三处人眼判断。
