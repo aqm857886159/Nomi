@@ -24,7 +24,10 @@ fs.mkdirSync(DIR, { recursive: true });
 fs.mkdirSync(SHOTS, { recursive: true });
 for (const f of fs.readdirSync(DIR)) fs.rmSync(path.join(DIR, f), { force: true });
 
-const app = await electron.launch({ executablePath: require("electron"), args: ["."], cwd: repoRoot, env: { ...process.env } });
+// 隔离实例支持（防多 worktree/多会话 app 窗口混淆）：设 NOMI_UI_USERDATA → 用独立 user-data-dir。
+const _ud = process.env.NOMI_UI_USERDATA;
+const _launchArgs = _ud ? [".", `--user-data-dir=${_ud}`] : ["."];
+const app = await electron.launch({ executablePath: require("electron"), args: _launchArgs, cwd: repoRoot, env: { ...process.env } });
 const ERRLOG = path.join(DIR, "errors.log");
 const logErr = (kind, msg) => { try { fs.appendFileSync(ERRLOG, `[${kind}] ${msg}\n`); } catch { /* ignore */ } };
 // 多窗口（v0.10.13+）：打开项目会新开一个 studio 窗口、关掉起始窗口。固定 firstWindow 引用会失效。
