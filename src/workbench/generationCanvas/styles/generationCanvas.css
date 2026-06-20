@@ -200,6 +200,9 @@
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
+  /* E5 降噪：边默认淡到近背景，多锚点不再「毛线球」；hover 边 / 选中节点的关联边 / 选中边 才点亮。 */
+  stroke-opacity: 0.18;
+  transition: stroke-opacity 140ms ease;
 }
 
 /* 终点圆点：指明「谁喂谁」的方向。半径恒定（非缩放）。 */
@@ -207,6 +210,21 @@
   fill: var(--nomi-accent);
   vector-effect: non-scaling-stroke;
   pointer-events: none;
+  opacity: 0.18;
+  transition: opacity 140ms ease;
+}
+
+/* 点亮：hover 该边 / 该边属于聚焦（单选）节点 / 该边被选中。 */
+.generation-canvas-v2__edge:hover .generation-canvas-v2__edge-path,
+.generation-canvas-v2__edge[data-incident='true'] .generation-canvas-v2__edge-path,
+.generation-canvas-v2__edge[data-active='true'] .generation-canvas-v2__edge-path {
+  stroke-opacity: 1;
+}
+
+.generation-canvas-v2__edge:hover .generation-canvas-v2__edge-dot,
+.generation-canvas-v2__edge[data-incident='true'] .generation-canvas-v2__edge-dot,
+.generation-canvas-v2__edge[data-active='true'] .generation-canvas-v2__edge-dot {
+  opacity: 1;
 }
 
 /* 参考类型小标签（仅 typed mode 渲染；反缩放恒定字号见 TSX 的 scale(1/zoom)）。 */
@@ -236,6 +254,7 @@
 }
 
 .generation-canvas-v2__edge:hover .generation-canvas-v2__edge-tag,
+.generation-canvas-v2__edge[data-incident='true'] .generation-canvas-v2__edge-tag,
 .generation-canvas-v2__edge[data-active='true'] .generation-canvas-v2__edge-tag {
   opacity: 1;
 }

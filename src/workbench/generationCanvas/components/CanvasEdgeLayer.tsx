@@ -20,6 +20,8 @@ type CanvasEdgeLayerProps = {
   zoom: number
   /** 视口裁剪：非空时只渲染两端任一在集内的边（虚拟化生效时由画布传入）；null = 渲染全部。 */
   visibleNodeIds: Set<string> | null
+  /** 聚焦节点（当前单选）：其关联边点亮，其余边默认淡化——根治多锚点「毛线球」。null = 全部淡化。 */
+  focusedNodeId: string | null
   activeEdge: ActiveEdge | null
   readOnly: boolean
   pendingConnectionSourceId: string
@@ -35,6 +37,7 @@ export default function CanvasEdgeLayer({
   nodeById,
   zoom,
   visibleNodeIds,
+  focusedNodeId,
   activeEdge,
   readOnly,
   pendingConnectionSourceId,
@@ -78,12 +81,14 @@ export default function CanvasEdgeLayer({
         const cutPosition = isActiveEdge && activeEdge?.position ? activeEdge.position : { x: midX, y: midY }
         const isTyped = mode !== 'reference'
         const isDense = (labeledCountByTarget.get(edge.target) || 0) > EDGE_TAG_DENSE_THRESHOLD
+        const isIncident = focusedNodeId != null && (edge.source === focusedNodeId || edge.target === focusedNodeId)
         return (
           <g
             key={edge.id}
             className="generation-canvas-v2__edge"
             data-mode={mode}
             data-active={isActiveEdge ? 'true' : undefined}
+            data-incident={isIncident ? 'true' : undefined}
             data-dense={isTyped && isDense ? 'true' : undefined}
           >
             <path className="generation-canvas-v2__edge-path" d={path} />

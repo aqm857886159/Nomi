@@ -645,6 +645,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
               nodeById={nodeById}
               zoom={zoom}
               visibleNodeIds={visibleEdgeNodeIds}
+              focusedNodeId={selectedNodeIds.length === 1 ? selectedNodeIds[0] : null}
               activeEdge={activeEdge}
               readOnly={readOnly}
               pendingConnectionSourceId={pendingConnectionSourceId}
