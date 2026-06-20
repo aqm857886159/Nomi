@@ -68,6 +68,11 @@ const BatchPlanOverlay = lazyWithChunkBoundary("批量生成面板", () =>
         default: module.BatchPlanOverlay,
     })),
 );
+const SpendConfirmDialog = lazyWithChunkBoundary("付费确认", () =>
+    import("./generationCanvas/spend/SpendConfirmDialog").then((module) => ({
+        default: module.SpendConfirmDialog,
+    })),
+);
 
 function GenerationCanvasLoading(): JSX.Element {
     return (
@@ -541,6 +546,7 @@ export default function NomiStudioApp(): JSX.Element {
                         <div className={cn("relative w-full h-full")}>
                             <GenerationCanvas />
                             <BatchPlanOverlay />
+                            <SpendConfirmDialog />
                         </div>
                     </React.Suspense>
                 }

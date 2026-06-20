@@ -2,6 +2,9 @@ import type { GenerationCanvasEdge, GenerationCanvasNode, GenerationNodeResult }
 import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { toast } from '../../../ui/toast'
+import { mintSpendGrant } from '../../api/taskApi'
+import { describeGenerationCost, useSpendConfirmStore } from '../spend/spendConfirm'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
 import { narrateGenerationError, narrateProgress, type GenerationErrorKind } from '../../observability/narrate'
 import { parseVendorErrorFromMessage, stripVendorErrorMarker } from './vendorErrorIpc'
@@ -15,6 +18,8 @@ export type RunGenerationNodeOptions = {
     maxAttempts?: number
     baseDelayMs?: number
   }
+  /** 付费守卫令牌：真人确认后铸的 grantId，透传到 executor → request.extras 供主进程核验。 */
+  grantId?: string
 }
 
 type GenerationRunContext = {
@@ -103,6 +108,7 @@ export async function runGenerationNode(
         result = await executor(node, {
           nodes: state.nodes,
           edges: state.edges,
+          ...(options.grantId ? { grantId: options.grantId } : {}),
           // S2:catalog 任务各阶段回报 → 节点进度(人话已由 narrate 翻好)。
           onProgress: (progress) => {
             useGenerationCanvasStore.getState().setNodeProgress(id, {
@@ -298,6 +304,7 @@ export async function runGenerationNodesBatch(
         const result = await runGenerationNode(nodeId, {
           executor: options.executor,
           retry: options.retry,
+          ...(options.grantId ? { grantId: options.grantId } : {}),
         })
         successes.push({ nodeId, result })
         options.onNodeResult?.({ ok: true, nodeId, result })
@@ -364,6 +371,39 @@ export async function runGenerationNodesByPlan(
     }
   }
   return { totalCount: plan.waves.flat().length + plan.blocked.length, successes, failures }
+}
+
+/**
+ * 单节点生成/重试/重新生成的轻确认 + 铸令牌 + 跑（付费守卫，务实纵深 A1）。
+ * rerun=true 先复制出新节点再绑令牌跑。抽到此处而非内联进 NodeGenerationComposer /
+ * BaseGenerationNode（后者 908 行顶格巨壳，不喂；BaseGenerationNode 复用其现有 controller import 行）。
+ */
+export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean } = {}): Promise<void> {
+  const ok = await useSpendConfirmStore.getState().requestConfirm({
+    title: opts.rerun ? '重新生成' : '开始生成',
+    message: describeGenerationCost(1),
+    confirmLabel: opts.rerun ? '重新生成' : '生成',
+    light: true,
+  })
+  if (!ok) return
+  let runId = nodeId
+  if (opts.rerun) {
+    const dup = useGenerationCanvasStore.getState().duplicateNodeForRegeneration(nodeId)
+    if (!dup) return
+    runId = dup.id
+  }
+  let grantId: string
+  try {
+    grantId = await mintSpendGrant([runId])
+  } catch (error) {
+    toast(error instanceof Error && error.message ? error.message : '付费授权失败', 'error')
+    return
+  }
+  try {
+    await runGenerationNode(runId, { grantId })
+  } catch {
+    // 失败已记在节点上（卡片渲染人话错误），这里不再弹。
+  }
 }
 
 export async function rerunGenerationNodeAsNewNode(

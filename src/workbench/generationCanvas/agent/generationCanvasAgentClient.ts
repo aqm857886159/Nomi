@@ -3,7 +3,6 @@ import { runWorkbenchAgent, workbenchSessionKey, type ToolCallEvent } from '../.
 import type { GenerationCanvasSnapshot, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { getAgentCreatableGenerationNodeKinds } from '../model/generationNodeKinds'
 import { applyCanvasToolCall } from './applyCanvasToolCall'
-import { applyProposalBatch } from './proposalTxn'
 import { evaluateGate } from './gate'
 import { buildLockGateContext } from './lockGateContext'
 import { listAvailableModelsForAgent, formatAvailableModelsForPrompt } from './availableModels'
@@ -129,14 +128,13 @@ async function defaultExecuteToolCall(event: ToolCallEvent): Promise<void> {
     }
     return
   }
-  const effectiveArgs = (args && typeof args === 'object') ? args as Record<string, unknown> : {}
-  const outcome = await applyProposalBatch([{ toolCallId: event.toolCallId, toolName, effectiveArgs }])
-  if (outcome.status === 'committed') {
-    // S6-0:auto-execute 无用户 override,effectiveArgs ≡ args(对账统一有米,无 overridesDelta)。
-    await confirm({ ok: true, result: outcome.results[0], effectiveArgs, proposalId: outcome.proposalId })
-  } else {
-    await confirm({ ok: false, message: outcome.reason })
-  }
+  // 付费守卫（红队洞 5）：ask（costy/写）绝不在「无 onToolCall」的 auto 路径静默放行——
+  // 否则谁忘传 onToolCall 就是一条 AI 静默烧钱的雷。这里直接拒绝，要求走真人确认 UI（生产面板）。
+  await confirm({
+    ok: false,
+    denied: true,
+    message: '该操作需用户在确认面板批准后才能执行（自动放行路径已禁用）',
+  })
 }
 
 export async function sendGenerationCanvasAgentMessage(

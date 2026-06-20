@@ -6,7 +6,7 @@ import PromptEditor from '../../assets/PromptEditor'
 import { readArchetypeArray } from './controls/archetypeMeta'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { canRunGenerationNode, rerunGenerationNodeAsNewNode, runGenerationNode } from '../runner/generationRunController'
+import { canRunGenerationNode, confirmAndRunNode } from '../runner/generationRunController'
 import { collectUngeneratedReferenceAncestors } from '../runner/referenceAncestors'
 import { buildDependencyWaves } from '../runner/dependencyWaves'
 import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
@@ -123,15 +123,8 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
       return
     }
     if (!canRunGenerationNode(node, { nodes: state.nodes, edges: state.edges })) return
-    try {
-      if (hasResult) {
-        await rerunGenerationNodeAsNewNode(node.id)
-      } else {
-        await runGenerationNode(node.id)
-      }
-    } catch {
-      // runGenerationNode records the explicit failure on the node; the card renders it below the prompt.
-    }
+    // 付费守卫：单节点生成/重新生成 → 轻确认 + 铸令牌 + 跑（confirmAndRunNode 内部收口）。
+    await confirmAndRunNode(node.id, hasResult ? { rerun: true } : {})
   }
 
   // 遮挡防线（audit 2026-06-12 bug C）：composer 默认朝下展开时，靠近画布底部的节点

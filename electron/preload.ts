@@ -60,6 +60,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   tasks: {
     run: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:run", payload),
     result: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:result", payload),
+    // 付费守卫：真人确认后铸一次性令牌（绑 nodeIds），返回不透明 grantId 随生成请求下传。
+    grantSpend: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:grant-spend", payload) as Promise<{ grantId: string }>,
     // 文本任务流式（逐 token）：start 返回 streamId，onTextEvent 收 delta/done/error。
     runTextStream: (payload: unknown) =>
       ipcRenderer.invoke("nomi:tasks:text:stream", payload) as Promise<{ streamId: string }>,

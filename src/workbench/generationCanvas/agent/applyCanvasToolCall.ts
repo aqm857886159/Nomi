@@ -9,6 +9,7 @@ import { layoutPlannedNodes, layoutStoryboardNodes } from './trajectoryLayout'
 import { formatCanvasForAgent } from './canvasPromptContext'
 import { buildDependencyWaves } from '../runner/dependencyWaves'
 import { runPlanWithToasts } from '../components/batchPlanPreview'
+import { mintSpendGrant } from '../../api/taskApi'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
 import { parseStoryboardPlan } from './storyboardPlan'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -238,7 +239,11 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
       const reasons = plan.blocked.map((item) => item.detail).join(';')
       throw new Error(`批量被拦:${reasons || '没有可执行节点'}`)
     }
-    void runPlanWithToasts(plan).catch(() => {}) // 进度/结果全走 toast+run 域事件,此处不再有未处理拒绝
+    // 付费守卫：本分支只在用户批准 pending 卡后到达（人手势在上游）→ 铸令牌绑受理节点，
+    // 随 plan 下到主进程 runTask 核验。删了 defaultExecuteToolCall 的自动放行旁路后此处不会被 AI 静默触发。
+    void mintSpendGrant(accepted)
+      .then((grantId) => runPlanWithToasts(plan, grantId))
+      .catch(() => {}) // 进度/结果全走 toast+run 域事件,此处不再有未处理拒绝
     return {
       accepted: true,
       acceptedNodeIds: accepted,
