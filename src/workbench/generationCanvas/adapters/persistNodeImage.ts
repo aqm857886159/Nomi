@@ -1,4 +1,4 @@
-import { importWorkbenchLocalAssetFile, type WorkbenchAssetDto } from '../../api/assetUploadApi'
+import { hostedAssetUrl, importWorkbenchLocalAssetFile } from '../../api/assetUploadApi'
 
 /**
  * 节点图片落盘统一入口。
@@ -16,15 +16,11 @@ import { importWorkbenchLocalAssetFile, type WorkbenchAssetDto } from '../../api
  * 直接 await 落盘换 nomi-local；只有落盘失败才退回 base64 兜底（可持久化、不丢图）。
  */
 
-function getHostedUrl(asset: WorkbenchAssetDto | null | undefined): string {
-  return typeof asset?.data?.url === 'string' ? asset.data.url.trim() : ''
-}
-
 /** File → 本地资产文件，返回可持久化 nomi-local:// URL；失败返回 null（调用方退回 base64 兜底）。 */
 export async function persistNodeImageFile(file: File, ownerNodeId: string): Promise<string | null> {
   try {
     const asset = await importWorkbenchLocalAssetFile(file, file.name || 'asset', { ownerNodeId })
-    return getHostedUrl(asset) || null
+    return hostedAssetUrl(asset) || null
   } catch {
     return null
   }

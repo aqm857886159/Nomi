@@ -1,4 +1,5 @@
 import {
+  hostedAssetUrl,
   importWorkbenchLocalAssetFile,
   recoverImportedWorkbenchLocalAssetFile,
   type WorkbenchAssetDto,
@@ -117,10 +118,6 @@ function readFileDataUrl(file: File): Promise<string> {
   })
 }
 
-function getHostedUrl(asset: WorkbenchAssetDto | null | undefined): string {
-  return typeof asset?.data?.url === 'string' ? asset.data.url.trim() : ''
-}
-
 export function filterImportableImageFiles(files: File[]): {
   files: File[]
   skippedDuplicateCount: number
@@ -204,7 +201,7 @@ export async function importImageFilesToGenerationCanvas(
     } catch {
       hosted = await recoverFile(file)
     }
-    const hostedUrl = getHostedUrl(hosted)
+    const hostedUrl = hostedAssetUrl(hosted)
     if (!hostedUrl) {
       useGenerationCanvasStore.getState().updateNode(node.id, {
         meta: {

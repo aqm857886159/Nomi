@@ -31,6 +31,8 @@ describe('persistNodeImageFile', () => {
     vi.resetModules()
     vi.doMock('../../api/assetUploadApi', () => ({
       importWorkbenchLocalAssetFile: vi.fn(async () => ({ data: { url: 'nomi-local://assets/abc.png' } })),
+      hostedAssetUrl: (asset: { data?: { url?: unknown } } | null | undefined) =>
+        (typeof asset?.data?.url === 'string' ? asset.data.url.trim() : ''),
     }))
     const { persistNodeImageFile: persist } = await import('./persistNodeImage')
     const file = dataUrlToFile(PNG_DATA_URL, 'tile.png')!
@@ -44,6 +46,8 @@ describe('persistNodeImageFile', () => {
       importWorkbenchLocalAssetFile: vi.fn(async () => {
         throw new Error('disk full')
       }),
+      hostedAssetUrl: (asset: { data?: { url?: unknown } } | null | undefined) =>
+        (typeof asset?.data?.url === 'string' ? asset.data.url.trim() : ''),
     }))
     const { persistNodeImageFile: persist } = await import('./persistNodeImage')
     const file = dataUrlToFile(PNG_DATA_URL, 'tile.png')!
