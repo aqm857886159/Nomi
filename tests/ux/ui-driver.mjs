@@ -15,16 +15,22 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { UI_DIR } from "./uiDir.mjs";
 
 const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const DIR = "/tmp/nomi-ui";
+// 按 worktree 派生的唯一 IPC 目录（不再写死 /tmp/nomi-ui，根治多会话串台，见 uiDir.mjs）。
+const DIR = UI_DIR;
 const SHOTS = path.join(repoRoot, "tests/ux/shots");
 fs.mkdirSync(DIR, { recursive: true });
 fs.mkdirSync(SHOTS, { recursive: true });
 for (const f of fs.readdirSync(DIR)) fs.rmSync(path.join(DIR, f), { force: true });
 
-const app = await electron.launch({ executablePath: require("electron"), args: ["."], cwd: repoRoot, env: { ...process.env } });
+// 多会话隔离（另一半根治）：单实例锁是 per-userData（main.ts:63）。默认用系统 userData
+// （单会话便利:能开已有/示例项目）；设 NOMI_UI_USER_DATA=<dir> 则用隔离 userData 起一份
+// 全新实例——多会话同时跑时必须用它，否则抢默认 userData 的锁会起不来/聚焦到别人的窗口。
+const isolateArgs = process.env.NOMI_UI_USER_DATA ? [`--user-data-dir=${process.env.NOMI_UI_USER_DATA}`] : [];
+const app = await electron.launch({ executablePath: require("electron"), args: [".", ...isolateArgs], cwd: repoRoot, env: { ...process.env } });
 const ERRLOG = path.join(DIR, "errors.log");
 const logErr = (kind, msg) => { try { fs.appendFileSync(ERRLOG, `[${kind}] ${msg}\n`); } catch { /* ignore */ } };
 // 多窗口（v0.10.13+）：打开项目会新开一个 studio 窗口、关掉起始窗口。固定 firstWindow 引用会失效。
@@ -121,7 +127,7 @@ async function ensureProbe(w) { try { await w.evaluate(PROBE_SRC); } catch { /* 
 await win.waitForLoadState("domcontentloaded");
 await win.waitForTimeout(1200);
 fs.writeFileSync(path.join(DIR, "ready"), String(process.pid));
-console.log("DRIVER READY pid=" + process.pid + " — app 已开，保持运行。用 tests/ux/ui.mjs 发命令。");
+console.log(`DRIVER READY pid=${process.pid} repoRoot=${repoRoot} IPC=${DIR} — app 已开，保持运行。用 tests/ux/ui.mjs 发命令。`);
 
 async function shot(name) {
   const p = path.join(SHOTS, (name || "live") + ".png");

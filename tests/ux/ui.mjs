@@ -12,12 +12,14 @@
 //   node tests/ux/ui.mjs quit                 关闭 app + 停驱动
 import fs from "node:fs";
 import path from "node:path";
+import { UI_DIR } from "./uiDir.mjs";
 
-const DIR = "/tmp/nomi-ui";
+// 与 ui-driver 同源派生的本 worktree 唯一 IPC 目录（不再写死共享 /tmp/nomi-ui，见 uiDir.mjs）。
+const DIR = UI_DIR;
 const [action, ...rest] = process.argv.slice(2);
 if (!action) { console.error("用法: node tests/ux/ui.mjs <snap|shot|click|fill|eval|wait|quit|probe-latency|fps-start|fps-stop|density|contrast> ..."); process.exit(1); }
 if (!fs.existsSync(path.join(DIR, "ready"))) {
-  console.error("驱动未就绪。先后台启动: node tests/ux/ui-driver.mjs");
+  console.error(`驱动未就绪（本 worktree 的 IPC 目录 ${DIR}）。先在本 worktree 后台启动: node tests/ux/ui-driver.mjs`);
   process.exit(2);
 }
 const cmd = { action };
