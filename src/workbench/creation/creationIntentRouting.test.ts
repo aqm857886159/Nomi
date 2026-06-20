@@ -14,6 +14,18 @@ describe('routeCreationIntent（删 chip 后自然语言是唯一入口，覆盖
     }
   })
 
+  it('人话视频说法也要接住（6-20 审计：正则太脆漏命中是 P0 入口问题）', () => {
+    for (const text of ['帮我做个视频', '把这个弄成短片', '变成片子吧', '剪成一段视频', '拍成短片', '出片']) {
+      expect(routeCreationIntent(text)).toBe('storyboard')
+    }
+  })
+
+  it('不误伤：含「视频/片」但非拆镜头意图 → null', () => {
+    for (const text of ['这个视频模型怎么样', '看张照片', '下一步呢', '帮我配个视频字幕的文案']) {
+      expect(routeCreationIntent(text)).toBeNull()
+    }
+  })
+
   it('「立角色卡」类说法 → fixation', () => {
     for (const text of ['给主角立角色卡', '建一个角色卡', '帮人物卡定妆', '做角色设定', '建个角色']) {
       expect(routeCreationIntent(text)).toBe('fixation')
