@@ -121,6 +121,10 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   documentToolsRef.current = documentTools
 
   const activeMode = getCreationAiMode(modeId as CreationAiModeId)
+  // 同理:send 是空依赖 useCallback（稳定），不能直接闭包 activeSkill/activeMode（会捕获首渲染的旧值
+  // → 点「AI 写技能」后 send 永远看不到）。用 live ref 让 send 取最新的技能选择。
+  const skillSelRef = React.useRef({ activeSkill, activeMode })
+  skillSelRef.current = { activeSkill, activeMode }
   const documentText = React.useMemo(() => extractWorkbenchDocumentText(workbenchDocument), [workbenchDocument])
 
   const resolvePending = React.useCallback((
@@ -232,7 +236,9 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     const readyAttachments = attachments.filter((item) => item.status === 'ready' && item.url)
     if (!userRequest && !selectedText && !documentText && !readyAttachments.length) return
     // 对话驱动（删固定 chip，用户拍板 2026-06-13）：自然语言意图 → 甩给画布 agent。
-    const intent = routeCreationIntent(userRequest)
+    // 但手动锁定了 active skill（如「AI 写技能」）时跳过意图路由——否则含「分镜/镜头」等词的输入
+    // 会被劫持到拆镜头流程，盖过用户明确选的技能。锁定 = 用户已明确意图，直走那个 skill。
+    const intent = skillSelRef.current.activeSkill ? null : routeCreationIntent(userRequest)
     if (intent === 'storyboard') {
       launchStoryboardPlanning(userRequest || '🎬 拆镜头')
       return
@@ -269,8 +275,8 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         sessionKey: workbenchSessionKey('creation'),
         projectId: readWindowUrlParam('projectId'),
         // 手动锁定的 active skill 优先（如「品牌宣传片」playbook）；否则回退创作模式推导。
-        skillKey: activeSkill ? activeSkill.key : `workbench.creation.${activeMode.id}`,
-        skillName: activeSkill ? activeSkill.name : activeMode.title,
+        skillKey: skillSelRef.current.activeSkill ? skillSelRef.current.activeSkill.key : `workbench.creation.${skillSelRef.current.activeMode.id}`,
+        skillName: skillSelRef.current.activeSkill ? skillSelRef.current.activeSkill.name : skillSelRef.current.activeMode.title,
         onContent: (_delta, streamedText) => {
           if (!handle.isCurrent()) return
           setMessages((prev) => prev.map((message) => (
