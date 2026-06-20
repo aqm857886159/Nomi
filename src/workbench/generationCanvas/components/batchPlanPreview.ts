@@ -3,6 +3,8 @@
 import { create } from 'zustand'
 import { toast } from '../../../ui/toast'
 import { runGenerationNodesByPlan } from '../runner/generationRunController'
+import { mintSpendGrant } from '../../api/taskApi'
+import { confirmAndMintGrant, describeGenerationCost } from '../spend/spendConfirm'
 import type { DependencyWavePlan } from '../runner/dependencyWaves'
 
 type BatchPlanPreviewState = {
@@ -22,8 +24,17 @@ export const useBatchPlanPreviewStore = create<BatchPlanPreviewState>()((set, ge
     const { plan, running } = get()
     if (!plan || running) return
     set({ running: true })
+    // 计划 overlay 的「按计划生成」点击本身 = 真人手势 → 铸付费令牌（绑本批节点）。
+    let grantId: string
+    try {
+      grantId = await mintSpendGrant(plan.waves.flat())
+    } catch (error) {
+      set({ running: false })
+      toast(error instanceof Error && error.message ? error.message : '付费授权失败', 'error')
+      return
+    }
     set({ plan: null, running: false })
-    await runPlanWithToasts(plan)
+    await runPlanWithToasts(plan, grantId)
   },
 }))
 
@@ -41,8 +52,30 @@ export function describeBlockedNotice(plan: DependencyWavePlan): string | null {
   return `还有 ${parts.join('、')}——先把它们生成/理顺，再批量。`
 }
 
-/** 按计划真实生成 + 进度人话 toast。「全部生成」与 S6b agent 受理路径共用(单一执行口)。 */
-export async function runPlanWithToasts(plan: DependencyWavePlan): Promise<void> {
+/**
+ * 用户直发批量（框选「生成 N 个」）：轻确认 + 铸令牌 + 跑。取消则零调用零扣费。
+ * 抽到此处而非内联进 GenerationCanvas（巨壳 800 行顶格，不喂）。
+ */
+export async function confirmAndRunPlan(plan: DependencyWavePlan): Promise<void> {
+  const ids = plan.waves.flat()
+  if (ids.length === 0) {
+    await runPlanWithToasts(plan) // 无可跑 → 复用人话 toast 报「为什么不能跑」
+    return
+  }
+  const grantId = await confirmAndMintGrant({
+    nodeIds: ids,
+    title: '开始生成',
+    message: describeGenerationCost(ids.length),
+    confirmLabel: '生成',
+    light: true,
+  })
+  if (!grantId) return
+  await runPlanWithToasts(plan, grantId)
+}
+
+/** 按计划真实生成 + 进度人话 toast。「全部生成」与 S6b agent 受理路径共用(单一执行口)。
+ * grantId：付费守卫令牌（确认后铸），随 plan 下到每个节点的 request.extras 供主进程核验。 */
+export async function runPlanWithToasts(plan: DependencyWavePlan, grantId?: string): Promise<void> {
   const waves = plan.waves
   const runnable = waves.flat().length
   const notice = describeBlockedNotice(plan)
@@ -59,7 +92,7 @@ export async function runPlanWithToasts(plan: DependencyWavePlan): Promise<void>
     : `开始生成 ${runnable} 个…`
   toast(startMsg, 'info')
   try {
-    const result = await runGenerationNodesByPlan(plan)
+    const result = await runGenerationNodesByPlan(plan, grantId ? { grantId } : {})
     const okCount = result.successes.length
     const failCount = result.failures.length
     // 完成汇总：把「还有谁没跑、为什么」(notice) 并进同一条，不再跑完补弹第二条（消除连环弹，弹窗审计）。

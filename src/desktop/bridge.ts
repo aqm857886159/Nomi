@@ -144,6 +144,7 @@ export type DesktopBridge = {
   tasks: {
     run: (payload: unknown) => Promise<unknown>
     result: (payload: unknown) => Promise<unknown>
+    grantSpend: (payload: { nodeIds: string[]; maxAttemptsPerNode?: number }) => Promise<{ grantId: string }>
     runTextStream: (payload: unknown) => Promise<{ streamId: string }>
     cancelTextStream: (streamId: string) => Promise<unknown>
     onTextEvent: (streamId: string, callback: (event: unknown) => void) => () => void

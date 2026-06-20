@@ -12,7 +12,7 @@ import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 import { getGenerationNodeComponent } from '../nodes/renderRegistry'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { buildDependencyWaves } from '../runner/dependencyWaves'
-import { runPlanWithToasts } from './batchPlanPreview'
+import { confirmAndRunPlan } from './batchPlanPreview'
 import { notifyModelOptionsRefresh, useModelOptionsState } from '../../../config/useModelOptions'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { GroupFrameList } from './GroupFrame'
@@ -352,7 +352,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     if (ids.length === 0) return
     const state = useGenerationCanvasStore.getState()
     const plan = buildDependencyWaves(ids, { nodes: state.nodes, edges: state.edges })
-    void runPlanWithToasts(plan)
+    void confirmAndRunPlan(plan)
   }, [selectedNodeIds])
 
   const handleUngroupSelectedNodes = React.useCallback(() => {

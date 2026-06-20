@@ -33,6 +33,7 @@ import {
   ensureBuiltinModelSeeds,
 } from "./runtime";
 import { extractVideoFrameToAsset } from "./video/extractVideoFrame";
+import { mintSpendGrant } from "./spendGrant";
 import { listSkillsForRenderer } from "./skills/skillIpc";
 import { exportSkillPackageByName, importSkillPackageToUserDir } from "./skills/skillPackage";
 import { openWorkspaceFolder, selectWorkspaceFolder } from "./workspace/workspaceIpc";
@@ -319,6 +320,13 @@ function registerIpc(): void {
   ipcMain.handle("nomi:assets:download", (_event, payload) => downloadAssetToDisk(payload));
   ipcMain.handle("nomi:video:extract-frame", (_event, payload) => extractVideoFrameToAsset(payload));
   registerExportJobIpc();
+  // 付费守卫铸令牌：仅由渲染层「真人确认」事件链调用（务实纵深：铸造面小而审计过 + 主进程硬闸兜底）。
+  ipcMain.handle("nomi:tasks:grant-spend", (_event, payload) => {
+    const raw = (payload || {}) as { nodeIds?: unknown; maxAttemptsPerNode?: unknown };
+    const nodeIds = Array.isArray(raw.nodeIds) ? raw.nodeIds.map((id) => String(id)) : [];
+    const maxAttemptsPerNode = typeof raw.maxAttemptsPerNode === "number" ? raw.maxAttemptsPerNode : undefined;
+    return { grantId: mintSpendGrant({ nodeIds, ...(maxAttemptsPerNode ? { maxAttemptsPerNode } : {}) }) };
+  });
   ipcMain.handle("nomi:tasks:run", (_event, payload) => runTaskIpcGuard(payload, () => runTask(payload)));
   ipcMain.handle("nomi:tasks:result", (_event, payload) => runTaskIpcGuard(payload, () => fetchTaskResult(payload)));
   // 能力核 A/B 守卫：renderer 在打开/切换/关闭项目时上报当前打开的 projectId，
