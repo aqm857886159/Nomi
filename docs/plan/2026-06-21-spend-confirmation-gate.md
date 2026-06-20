@@ -109,5 +109,28 @@ runGenerationNodesByPlan (generationRunController.ts:323)
 
 ---
 
+## 5.5 红队对抗评审结论（2026-06-21，动手前）—— 原设计需修正
+
+红队逐路验证真实代码，挑出两个把原 §3 地基打穿的洞 + 一串必修配套：
+
+**洞 A（致命）：铸令牌入口无法在主进程区分「真人点击」vs「渲染层 JS 调用」。**
+Electron IPC 不传 `isTrusted`/用户手势；`canvasGestureContext.source` 是渲染层自填字段，可伪造。
+→ 原 §3.2「令牌由真实用户确认事件链调用（渲染层发起 IPC）」退化成「渲染层说同意了」的换皮，等于没堵。
+**唯一硬解**：铸令牌绑定**主进程拥有的原生确认 UI**（`dialog.showMessageBox`，main.ts:256 已有先例），点击在主进程侧捕获，渲染层不持有、不可调用铸造路径。
+**关键澄清（降低恐慌）**：Nomi 的 AI 不是「能跑任意渲染层 JS」，它只能① 发 tool-call 让渲染层代码处理、② 生成自己的文本。AI 够不到 `ipcRenderer.invoke` 也 dispatch 不了真 click——**除非渲染层代码把 tool-call 路径接到了自动铸令牌上**。所以「小而审计过的铸造面 + 主进程硬闸 + 删自动放行」即可挡住「AI 不小心触发生成」这个真实威胁；原生弹窗只在「连我们自己的渲染层代码/供应链都不信」时才必需。
+
+**洞 B（高危）：付费 vendor 出口不止 runTask。** 绕过 runTask 的花钱路径：
+- agent 对话 LLM 本身 `agentChatV2.ts:466/521`（每轮烧 token）
+- 文本流式 `textStreamIpc.ts:26 → textTaskRunner.ts:49`（`runTaskIpcGuard` 没包它）
+- onboarding `list-models`/`test-connection`（`onboardingIpc.ts:120/179`，带 apiKey 真 fetch）
+- `model-catalog:mapping:test`（`catalogCommit.ts:391`，不带 upstreamResponse 时真打 vendor，preload 已暴露）
+→ 守卫不能只改 `runTaskIpcGuard`，必须下沉成 `assertSpendGrant(fingerprint)` 钉在**每一个持 apiKey 发 vendor 请求的出口**，并加「新增出口必须过 assert」的测试门。
+
+**必修配套**：
+- grantId 用 `crypto.randomUUID()`（勿 `Date.now()+Math.random()`，可暴力猜）
+- grant 绑 `recipeFingerprint`（runtime.ts:571 已有）而非可篡改的 `extras.nodeId` 标签——否则 AI 谎报 nodeId=A 借令牌生成别的
+- 校验+即焚在同一同步 tick 原子（先删再 await 发请求），防并发 TOCTOU 一令牌烧两次
+- 删掉 `defaultExecuteToolCall` 对 costy 工具的无 UI 自动放行（generationCanvasAgentClient.ts:113-140）
+
 ## 6. 与「傻瓜直达」的关系
 傻瓜直达的「一键出片确认」= 本守卫的**一个铸令牌入口**。先落本守卫（安全地基），傻瓜直达在其上接一个确认入口即可，天然合规。建议**守卫先行**。
