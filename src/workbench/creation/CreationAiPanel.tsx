@@ -35,6 +35,7 @@ import { AttachmentRail } from '../ai/composer/AttachmentRail'
 import { StaleConversationDivider, useStaleConversationBoundary } from '../ai/staleConversationDivider'
 import { AutoGrowTextarea } from '../ai/composer/AutoGrowTextarea'
 import { COMPOSER_ATTACHMENT_ACCEPT, useComposerAttachments } from '../ai/composer/useComposerAttachments'
+import { useRafCoalesce } from '../ai/useRafCoalesce'
 
 
 // The creation agent's write tools map 1:1 to the editor's document mutations.
@@ -66,6 +67,8 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   const sending = useCreationTurnStore((state) => state.sending)
   const pendingToolCalls = useCreationTurnStore((state) => state.pendingToolCalls)
   const turn = useCreationTurnStore
+  // 流式吐字 rAF 合帧：把每 token 一次的整 messages 重渲合并到每帧最多一次（治掉字掉帧）。
+  const { push: pushStreamFrame, cancel: cancelStreamFrame } = useRafCoalesce()
   // 项目记忆卡刷新键:每完成一轮(sending true→false)+1,触发记忆重取(本轮可能提炼新事实)。
   const [memoryRefreshKey, setMemoryRefreshKey] = React.useState(0)
   const prevSendingRef = React.useRef(sending)
@@ -174,7 +177,9 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
           storyText,
           onContent: (streamed) => {
             if (!handle.isCurrent()) return
-            setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: streamed || '正在拆镜头…', status: 'streaming' as const } : m)))
+            pushStreamFrame(() =>
+              setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: streamed || '正在拆镜头…', status: 'streaming' as const } : m))),
+            )
           },
           onCancelReady: (cancel) => turn.getState().attachCancel(handle.id, cancel),
         })
@@ -194,10 +199,11 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
           ),
         )
       } finally {
+        cancelStreamFrame() // 终态已落定，丢弃任何挂起的流式合帧，别用过期文本盖掉终态
         turn.getState().finish(handle.id)
       }
     })()
-  }, [documentText, selectedText, setDraft, setError, setMessages, turn])
+  }, [cancelStreamFrame, documentText, pushStreamFrame, selectedText, setDraft, setError, setMessages, turn])
 
   // Tier2 定妆：把剧本交给 AI，按剧本为主要角色/场景建卡 + 注入身份板提示词（与拆镜头同构）。
   const launchFixationPlanning = React.useCallback((displayPrompt = '🎭 立角色卡') => {
@@ -272,9 +278,11 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         skillName: activeSkill ? activeSkill.name : activeMode.title,
         onContent: (_delta, streamedText) => {
           if (!handle.isCurrent()) return
-          setMessages((prev) => prev.map((message) => (
-            message.id === pendingId ? { ...message, content: streamedText, status: 'streaming' as const } : message
-          )))
+          pushStreamFrame(() =>
+            setMessages((prev) => prev.map((message) => (
+              message.id === pendingId ? { ...message, content: streamedText, status: 'streaming' as const } : message
+            ))),
+          )
         },
         onCancelReady: (cancel) => turn.getState().attachCancel(handle.id, cancel),
         onToolCall: (event: ToolCallEvent) => {
@@ -341,9 +349,10 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         item.id === pendingId ? { ...item, content: `（错误）${message}`, status: 'error' as const } : item
       )))
     } finally {
+      cancelStreamFrame() // 终态已落定，丢弃任何挂起的流式合帧，别用过期文本盖掉终态
       turn.getState().finish(handle.id)
     }
-  }, [activeMode, attachments, clearAttachments, documentText, draft, launchStoryboardPlanning, launchFixationPlanning, selectedText, setDraft, setError, setMessages, turn])
+  }, [activeMode, activeSkill, attachments, cancelStreamFrame, clearAttachments, documentText, draft, launchStoryboardPlanning, launchFixationPlanning, pushStreamFrame, selectedText, setDraft, setError, setMessages, turn])
 
   // 通用创作动作，贴 Nomi 视频创作调性、不绑小说题材（旧的「悬疑开场/童话语气」在产品/宣传项目里调性错配）。
   const suggestions = React.useMemo(() => [

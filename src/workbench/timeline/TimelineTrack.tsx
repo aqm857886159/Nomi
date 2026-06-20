@@ -17,8 +17,11 @@ type TimelineTrackProps = {
   track: TimelineTrackData
 }
 
-export default function TimelineTrack({ track }: TimelineTrackProps): JSX.Element {
-  const timeline = useWorkbenchStore((state) => state.timeline)
+function TimelineTrack({ track }: TimelineTrackProps): JSX.Element {
+  // 只订阅渲染真正用到的 scale/fps，**不订阅整条 timeline**：播放推进每帧换 timeline 引用，
+  // 订阅整条会让本轨道（连同所有 clip）每帧重渲；playhead 由独立 overlay 订阅 playheadFrame。
+  const scale = useWorkbenchStore((state) => state.timeline.scale)
+  const fps = useWorkbenchStore((state) => state.timeline.fps)
   const addTimelineClipAtFrame = useWorkbenchStore((state) => state.addTimelineClipAtFrame)
   const setTimelinePlayhead = useWorkbenchStore((state) => state.setTimelinePlayhead)
   const setTimelineSelection = useWorkbenchStore((state) => state.setTimelineSelection)
@@ -30,15 +33,15 @@ export default function TimelineTrack({ track }: TimelineTrackProps): JSX.Elemen
   const resolveFrame = React.useCallback((clientX: number) => {
     const rect = clipsRef.current?.getBoundingClientRect()
     if (!rect) return 0
-    return clientXToFrame(clientX, rect.left, timeline.scale)
-  }, [timeline.scale])
+    return clientXToFrame(clientX, rect.left, scale)
+  }, [scale])
 
   const resolveDropPreview = React.useCallback((event: React.DragEvent<HTMLDivElement>): TimelineDropPreview | null => {
     const generationNodePayload = decodeTimelineGenerationNodeDragPayload(event.dataTransfer.getData(TIMELINE_GENERATION_NODE_DRAG_MIME))
     if (!generationNodePayload) return null
     const startFrame = resolveFrame(event.clientX)
     const clip = buildClipFromGenerationNode(generationNodePayload.node, {
-      fps: timeline.fps,
+      fps,
       startFrame,
       resultId: generationNodePayload.resultId,
     })
@@ -47,10 +50,10 @@ export default function TimelineTrack({ track }: TimelineTrackProps): JSX.Elemen
       track,
       clip,
       startFrame,
-      scale: timeline.scale,
-      fps: timeline.fps,
+      scale,
+      fps,
     })
-  }, [resolveFrame, timeline.fps, timeline.scale, track])
+  }, [resolveFrame, fps, scale, track])
 
   const handleDrop = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
     const preview = resolveDropPreview(event) || dragPreview
@@ -176,3 +179,7 @@ export default function TimelineTrack({ track }: TimelineTrackProps): JSX.Elemen
     </div>
   )
 }
+
+// TimelinePanel 为 playhead 线每帧重渲，但 track 引用在播放推进时稳定（immer）；memo 后
+// 未变的轨道（连同其 clip 子树）跳过重渲，把每帧重渲范围收窄到「只有 playhead 那根竖线」。
+export default React.memo(TimelineTrack)

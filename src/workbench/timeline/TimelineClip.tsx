@@ -12,7 +12,7 @@ type TimelineClipProps = {
   clip: TimelineClipData
 }
 
-export default function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
+function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
   const scale = useWorkbenchStore((state) => state.timeline.scale)
   // 仅订阅"本 clip 是否选中"（布尔），避免选区变化时所有 clip 重渲染
   const isSelected = useWorkbenchStore((state) => state.selectedTimelineClipIds.includes(clip.id))
@@ -344,3 +344,7 @@ export default function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
     </div>
   )
 }
+
+// 播放推进每帧换 timeline 引用 → 父轨道每帧重渲；但 immer 下未变的 clip 引用稳定，
+// memo 后未变 clip 跳过重渲（选中/scale/splitMode 仍由组件内细粒度订阅各自触发）。
+export default React.memo(TimelineClip)
