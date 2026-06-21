@@ -24,6 +24,8 @@ export default tseslint.config(
       'tests/ux/**',
       'tests/transport-spike/**',
       'evals/**',
+      // 3D 预设动作校准台：仅 dev 工具（vite 不打包，独立 Three.js 渲染页），非产品源码，不纳入 lint/token 门禁。
+      'src/devlab/**',
       // 技能(Claude Skill)安装产物:脚本是独立运行体(require/window/node 全局),非本项目源码,不纳入 lint。
       '.agents/**',
       '.claude/**',

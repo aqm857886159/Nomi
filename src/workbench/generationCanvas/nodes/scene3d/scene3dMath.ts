@@ -260,6 +260,50 @@ export function applyMannequinSkeletonPose(root: THREE.Object3D, pose?: Record<s
   root.updateMatrixWorld(true)
 }
 
+const MANNEQUIN_GROUND_REF_KEY = 'scene3dGroundRefY'
+const MANNEQUIN_GROUND_BASE_KEY = 'scene3dGroundBaseY'
+
+function lowestBoneLocalY(root: THREE.Object3D): number | null {
+  const point = new THREE.Vector3()
+  let minY: number | null = null
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Bone)) return
+    object.getWorldPosition(point)
+    root.worldToLocal(point)
+    if (minY === null || point.y < minY) minY = point.y
+  })
+  return minY
+}
+
+// 记录「站立（默认姿势）下最低骨骼的高度」作为落地基准；姿势变了之后用它把人沉回贴地。
+// 在默认姿势下调一次即可建立基准。
+export function captureMannequinGroundReference(root: THREE.Group): void {
+  applyMannequinSkeletonPose(root, undefined)
+  const inner = root.children[0]
+  if (!inner) return
+  if (inner.userData[MANNEQUIN_GROUND_BASE_KEY] === undefined) {
+    inner.userData[MANNEQUIN_GROUND_BASE_KEY] = inner.position.y
+  }
+  root.updateMatrixWorld(true)
+  const minY = lowestBoneLocalY(root)
+  if (minY !== null) root.userData[MANNEQUIN_GROUND_REF_KEY] = minY
+}
+
+// 姿势后自动落地：把整个人沉到「当前最低骨骼 = 站立时最低骨骼」的高度，
+// 让蹲/跪/坐等下蹲类姿势贴地而不悬空（纯旋转的姿势会让脚抬起、人悬空）。
+export function groundMannequinModel(root: THREE.Group): void {
+  const inner = root.children[0]
+  const refY = root.userData[MANNEQUIN_GROUND_REF_KEY] as number | undefined
+  if (!inner || refY === undefined) return
+  const baseY = (inner.userData[MANNEQUIN_GROUND_BASE_KEY] as number | undefined) ?? inner.position.y
+  inner.position.y = baseY
+  root.updateMatrixWorld(true)
+  const minY = lowestBoneLocalY(root)
+  if (minY === null) return
+  inner.position.y = baseY + (refY - minY)
+  root.updateMatrixWorld(true)
+}
+
 export function normalizeMannequinModel(root: THREE.Object3D): THREE.Group {
   root.updateMatrixWorld(true)
   const box = new THREE.Box3().setFromObject(root)

@@ -27,6 +27,8 @@ import {
   crowdCount,
   rememberMannequinRestPose,
   applyMannequinSkeletonPose,
+  captureMannequinGroundReference,
+  groundMannequinModel,
   normalizeMannequinModel,
   roleColorForIndex,
 } from './scene3dMath'
@@ -115,6 +117,7 @@ export function Mannequin({ color, pose }: { color: string; pose?: Record<string
         object.computeBoundingSphere()
       }
     })
+    captureMannequinGroundReference(cloned)
     return { object: cloned, materials }
   }, [scene])
 
@@ -134,6 +137,7 @@ export function Mannequin({ color, pose }: { color: string; pose?: Record<string
 
   React.useLayoutEffect(() => {
     applyMannequinSkeletonPose(model.object, pose)
+    groundMannequinModel(model.object)
   }, [model, pose])
 
   return <primitive object={model.object} />
