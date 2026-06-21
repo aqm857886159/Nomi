@@ -803,12 +803,12 @@ function BaseGenerationNodeImpl({
                         "generation-canvas-v2-node__timeline-drag group",
                         "absolute top-1/2 right-[-42px] z-[7]",
                         "inline-flex items-center justify-center",
-                        "w-8 h-12 m-0 p-0 border border-[rgba(18,24,38,0.08)] rounded-full",
+                        "w-8 h-12 m-0 p-0 border border-nomi-line rounded-full",
                         "bg-nomi-paper/[0.94] text-nomi-ink-60 font-[inherit]",
-                        "cursor-grab backdrop-blur-[10px] shadow-[0_10px_26px_rgba(18,24,38,0.14)]",
+                        "cursor-grab backdrop-blur-[10px] shadow-nomi-md",
                         "-translate-y-1/2 transition-[transform,color,background,box-shadow] duration-150 ease-out",
                         "active:cursor-grabbing active:scale-[0.96]",
-                        "hover:bg-white hover:text-nomi-ink hover:shadow-[0_12px_30px_rgba(18,24,38,0.18)]",
+                        "hover:bg-nomi-paper hover:text-nomi-ink hover:shadow-nomi-lg",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--workbench-accent)] focus-visible:ring-offset-2",
                     )}
                     aria-label={TIMELINE_DRAG_HANDLE_LABEL}
@@ -831,7 +831,7 @@ function BaseGenerationNodeImpl({
                         className={cn(
                             "pointer-events-none absolute left-[calc(100%+8px)] top-1/2 -translate-y-1/2",
                             "whitespace-nowrap rounded-full px-2.5 py-1.5",
-                            "bg-[rgba(18,24,38,0.92)] text-white text-micro font-medium leading-none",
+                            "bg-nomi-ink text-nomi-paper text-micro font-medium leading-none",
                             "opacity-0 translate-x-[-4px] transition-[opacity,transform] duration-150",
                             "group-hover:opacity-100 group-hover:translate-x-0 group-focus-visible:opacity-100 group-focus-visible:translate-x-0",
                         )}>
