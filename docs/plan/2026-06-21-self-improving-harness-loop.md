@@ -10,6 +10,48 @@
 
 ---
 
+## 回填 · 执行结果（2026-06-21，分支 `feat/self-improving-loop`）
+
+**用户已拍板（本轮）**：① 迁移到 Mastra —— 去做。② 人格/场景初始集 = **尽量覆盖每一类用户**（每类都能在 Nomi 用好）。③ 在**隔离 worktree** 干（避开并行分支脏树）。
+
+**S1 已交付（隔离 worktree，离线零额度跑通）**：
+- `evals/loop/personas.mjs` —— 8 类用户人格 × 场景（新手/短视频/叙事/品牌/二次元/专业精修/教育解说/音乐MV），每条带能力族 + 成功标准 + 真实摩擦；`NOMI_CAPABILITIES` 诚实标缺口（lipsync/beat_sync/music_gen 暂无）。
+- `evals/loop/scorers.mjs` —— 5 个**客观打分器**（task-completion / error-free / retry-efficiency / capability-coverage / connection-validity），纯 JS `createScorer().generateScore()`，零 LLM、零网络。
+- `evals/loop/runLoop.mjs` —— 离线 runner：8 人格 → mock target → 5 维指标表 + 总览均分 + 缺口诚实标。**实跑结果**：7/8 人格服务良好，音乐 MV 当场暴露缺口（completion 0 / coverage 0.60，缺 beat_sync+music_gen）。
+- `evals/loop/_smoke.mjs` —— 最小离线证明（已验 `scorer.run()` 纯客观路径跑通）。
+- ⚠️ **mock target 是占位**：按 `NOMI_CAPABILITIES` 推轨迹（"有能力即成功"，1.00 偏乐观）。真实质量要 S2 接 capability-core 才出。
+
+**实查发现（R5，改架构）**：
+- `@mastra/core@1.45.0`：`createScorer` / `runEvals` 确认真导出，**纯客观打分离线跑通**（不碰 `ai`/网络）。
+- ⚠️ **peer 冲突**：Mastra 1.45 要 `ai@^6`，Nomi 在 `ai@4.3.19`。**客观路径不受影响**（不走 `ai`）；但 **Mastra Agent / LLM-judge scorer 会撞**。→ **架构决策（S2 前定）**：loop 子系统的 Mastra 依赖须**与产品运行时的 `ai@4` 隔离**（独立 workspace 包 / 自带 `ai@6`），别污染产品。这反而强化「loop 是独立子系统」的边界。
+- `runEvals` 的 `target` 必须是 Mastra **Agent / Workflow**（非任意函数）→ S2 把「合成用户驱动」包成 Mastra Workflow/Agent。
+
+**S2 已交付（离线零额度，真 Nomi 领域逻辑）**：
+- `driver.ts` —— 用 `capabilityCore/canvasGraph` **真纯函数**(`addNodes`/`connectNodes`)按场景建图,产出真实客观信号(连边/skip/语义边正确性);真 vendor 生成 stub(额度门后)。从 S1 mock 升级为真领域逻辑。
+- `diagnose.ts`（查 agent）+ `fix.ts`（修 agent）—— **独立单向**(查只诊断、修只提改、修不自评),规则版零 LLM;`llmAgents.ts` = LLM 升级版(直连 fetch 绕开 ai@6,**需 `NOMI_LOOP_LLM_*` key,缺则自动回退规则版**)。
+- `loop.ts` —— 闭环:查→修→重跑→eval-diff 客观裁决→涨固化/跌回滚。**实跑验证**:语义边正确性 0.500→1.000 固化、注入坏 patch 1.000→0.500 自动回滚;带硬断言(失败退出码非零)。镜像真 Nomi bug 类(边模式语义,见 connection-reference/T8);顺带实查暴露 `image_ref` 无专用边模式→归 `composition_ref`。
+- `driver.test.ts` —— vitest 5 测(已加进 `vitest.config.ts` include,进 test 门),纯逻辑零 Mastra。
+
+**S3 已接（结构 + 三重门,未启用）**：`semiObjective.mjs` —— 独立批评 agent(VLM)查画面元素/一致性,直连 fetch。⚠️ **三重门**:① 额度(真生成才有图)② VLM key(`NOMI_LOOP_VLM_*`)③ 人工校准 P/R≥80%。缺则跳过、不假装判主观;**永不当唯一优化靶子**。
+
+**S4 已交付**：`report.ts` —— dev-facing 仪表盘(非产品 UI,不走 R8):真 driver 跑 8 人格 → 6 维客观指标表(控制台 + 落 `report.md`)+ 缺口诚实标(音乐 MV 缺 beat_sync/music_gen)。
+
+**依赖卫生**：`@mastra/core` 放 **devDependencies**(评测/dev 工具,不随产品发布)→ `ai@6` peer 仅 dev 警告,产品 runtime 不受影响,合并 main 干净。
+
+**LLM 查/修已在用户模型上跑通(2026-06-21,不再是门控)**：`llmViaApp.mjs` 复用 Nomi app **已配置的文本模型**(自动挑 enabled,免用户手填 key)——照 `r1-upload-verify.mjs` 自解密范式:启真app→主进程 safeStorage 解密→主进程内 fetch(明文key不出主进程)。`NOMI_LOOP_USE_APP_LLM=1 tsx loop.ts` 实跑(modelscope/Qwen3-Next-80B):**查诊断对 + 修产正确 patch(含 image_ref→composition_ref)→ 0.500→1.000 固化、坏patch回滚 exit 0**。⚠️约束:启真app须 Nomi 关着(单实例锁)。默认路径仍走规则版(快、不启app)。调试教训:查须被告知可用杠杆才在行动空间内诊断、修须被告知语义映射方向。
+
+**半客观 VLM 层已在用户视觉模型上跑通(2026-06-21,提交 3b28334)**：`appBridge.mjs`(收敛 `llmViaApp`,P1)统一复用 app 已配的文本/视觉模型——`chatVision` 走 `moonshot-v1-128k-vision-preview` 实跑:Q"有文字吗"→`{pass:true,1}`、"有动物吗"→`{pass:false,0}` 全对。坑(已修):视觉模型不抓外部URL要 base64、不支持 `response_format`、Node 抓图过不了代理 → **全挪主进程抓图转 base64**(主进程有代理/session)。`semiObjective.mjs` 复用之、稳健解析 JSON。
+
+**真生成 → 半客观 整条链已打通(2026-06-21,提交 d15db0d)**：经 Nomi 真 `runTask` 出图(**不重写轮询,P1**),为此修了 headless 真生成的**三个真缺口**(此前「E2E 未跑」):
+- `core.ts` **付费逃生口**:env `NOMI_LOOP_SPEND_OK=1` 才铸 spend grant 过付费守卫。⚠️**红队不变量不动**——默认不开则 AI/程序化路径仍铸不了令牌、被硬拦;开了=评测脚本本进程显式授权,等价 GUI 点确认。
+- `host.ts` 补 `applySystemProxy`(headless host 此前无代理 → 代理后机器 vendor fetch 全失败)。
+- `core.ts` 图像异步轮询 120s→240s(gpt-image-2 异步实测 120–240s 才出图)。
+- **实证**:apimart/gpt-image-2 `status:succeeded` 出真图 → moonshot 视觉 VLM 判定全对(蛋糕✓蜡烛✓无车✓)。**每层都在用户自己的模型上跑通**。
+
+**仍卡的(诚实标 · D4)**：① **人工校准** = VLM judge 正式采信前须几条人工标注验 P/R≥80%(`CALIBRATION_THRESHOLD`);② **主观美感** = 创始人抽查,不自动化;③ **loop driver 接真生成** = 现 `driver.ts` 用 canvasGraph 纯领域层(离线);把每场景的真生成+VLM 编进 driver 是工程接线(每跑全人格真生成烧额度,按需开)。**迁移收尾**:删旧 `scripts/eval-run/score/diff.mjs`。
+
+---
+
 ## 0. 一句话战略定位（为什么、底层逻辑、用户体验）
 
 **底层逻辑（D6 ①）**：一个系统只能变得和它对「好」的定义一样好。自循环变好 = `可靠验证器 × (生成 + 择优 + 记忆)`，**乘法**——验证器假则全盘 0。难点在「验证器从哪来」：真实用户信号要等用户、量小；自评会自偏。**解法 = AI 扮多种用户人格 × 多场景驱动 Nomi，产出机器可判定的量化指标当验证器；查/修两个独立 agent 防自偏。**
