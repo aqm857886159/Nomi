@@ -121,11 +121,11 @@ export const MANNEQUIN_REST_ROTATION_KEY = 'scene3dRestRotation'
 
 export const MANNEQUIN_DEFAULT_POSE: Record<string, Scene3DVector3> = {
   mixamorigSpine: [degreesToRadians(2), 0, 0],
-  mixamorigHead: [degreesToRadians(-10), 0, 0],
-  mixamorigLeftArm: [degreesToRadians(74), degreesToRadians(2), degreesToRadians(-4)],
-  mixamorigRightArm: [degreesToRadians(74), degreesToRadians(-2), degreesToRadians(4)],
-  mixamorigLeftForeArm: [degreesToRadians(10), degreesToRadians(-8), 0],
-  mixamorigRightForeArm: [degreesToRadians(10), degreesToRadians(8), 0],
+  mixamorigHead: [degreesToRadians(-2), 0, 0],
+  mixamorigLeftArm: [degreesToRadians(67.5), degreesToRadians(11.4), degreesToRadians(-6.8)],
+  mixamorigRightArm: [degreesToRadians(67.5), degreesToRadians(-11.4), degreesToRadians(6.8)],
+  mixamorigLeftForeArm: [degreesToRadians(8), degreesToRadians(-4), 0],
+  mixamorigRightForeArm: [degreesToRadians(8), degreesToRadians(4), 0],
   mixamorigLeftHand: [degreesToRadians(6), 0, degreesToRadians(-8)],
   mixamorigRightHand: [degreesToRadians(6), 0, degreesToRadians(8)],
 }
@@ -150,7 +150,7 @@ export const MANNEQUIN_POSE_SECTIONS: MannequinPoseSection[] = [
   {
     title: '头部',
     controls: [
-      { bone: 'mixamorigHead', axisIndex: 0, label: '点头', standingValue: -10, baseOffsetDeg: -10 },
+      { bone: 'mixamorigHead', axisIndex: 0, label: '点头', standingValue: -2, baseOffsetDeg: -2 },
       { bone: 'mixamorigHead', axisIndex: 1, label: '转头', standingValue: 0 },
       { bone: 'mixamorigHead', axisIndex: 2, label: '歪头', standingValue: 0 },
     ],
@@ -218,6 +218,51 @@ export const MANNEQUIN_POSE_SECTIONS: MannequinPoseSection[] = [
       },
     ],
   },
+  {
+    title: '大腿',
+    groups: [
+      {
+        title: '左',
+        controls: [
+          { bone: 'mixamorigLeftUpLeg', axisIndex: 0, label: '前摆', standingValue: 0, min: -90, max: 120 },
+          { bone: 'mixamorigLeftUpLeg', axisIndex: 1, label: '外展', standingValue: 0, min: -60, max: 60 },
+        ],
+      },
+      {
+        title: '右',
+        controls: [
+          { bone: 'mixamorigRightUpLeg', axisIndex: 0, label: '前摆', standingValue: 0, min: -90, max: 120 },
+          { bone: 'mixamorigRightUpLeg', axisIndex: 1, label: '外展', standingValue: 0, valueScale: -1, min: -60, max: 60 },
+        ],
+      },
+    ],
+  },
+  {
+    title: '膝盖',
+    groups: [
+      {
+        title: '左',
+        controls: [{ bone: 'mixamorigLeftLeg', axisIndex: 0, label: '弯曲', standingValue: 0, min: -10, max: 150 }],
+      },
+      {
+        title: '右',
+        controls: [{ bone: 'mixamorigRightLeg', axisIndex: 0, label: '弯曲', standingValue: 0, min: -10, max: 150 }],
+      },
+    ],
+  },
+  {
+    title: '脚踝',
+    groups: [
+      {
+        title: '左',
+        controls: [{ bone: 'mixamorigLeftFoot', axisIndex: 0, label: '勾绷', standingValue: 0, min: -60, max: 70 }],
+      },
+      {
+        title: '右',
+        controls: [{ bone: 'mixamorigRightFoot', axisIndex: 0, label: '勾绷', standingValue: 0, min: -60, max: 70 }],
+      },
+    ],
+  },
 ]
 export const MANNEQUIN_POSE_MIN_DEG = -90
 export const MANNEQUIN_POSE_MAX_DEG = 90
@@ -230,13 +275,14 @@ export const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
   {
     id: 't-pose',
     label: 'T型',
+    // 精确抵消 MANNEQUIN_DEFAULT_POSE，回到 X-Bot 的 rest（标准 T 字）。
     pose: makePoseOffset({
       mixamorigSpine: [-2, 0, 0],
-      mixamorigHead: [10, 0, 0],
-      mixamorigLeftArm: [-74, -2, 4],
-      mixamorigRightArm: [-74, 2, -4],
-      mixamorigLeftForeArm: [-10, 8, 0],
-      mixamorigRightForeArm: [-10, -8, 0],
+      mixamorigHead: [2, 0, 0],
+      mixamorigLeftArm: [-67.5, -11.4, 6.8],
+      mixamorigRightArm: [-67.5, 11.4, -6.8],
+      mixamorigLeftForeArm: [-8, 4, 0],
+      mixamorigRightForeArm: [-8, -4, 0],
       mixamorigLeftHand: [-6, 0, 8],
       mixamorigRightHand: [-6, 0, -8],
     }),
@@ -279,76 +325,102 @@ export const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
   {
     id: 'sit',
     label: '坐姿',
+    // 坐椅子：大腿前伸水平、小腿垂直向下、脚掌着地；落地后臀部停在椅高（需自行摆放椅/箱）。
     pose: makePoseOffset({
-      mixamorigHips: [-6, 0, 0],
-      mixamorigSpine: [6, 0, 0],
-      mixamorigLeftArm: [4, -16, 8],
-      mixamorigRightArm: [4, 16, -8],
-      mixamorigLeftForeArm: [12, -8, 0],
-      mixamorigRightForeArm: [12, 8, 0],
-      mixamorigLeftHand: [-2, 0, -6],
-      mixamorigRightHand: [-2, 0, 6],
-      mixamorigLeftUpLeg: [-68, 4, 0],
-      mixamorigRightUpLeg: [-68, -4, 0],
-      mixamorigLeftLeg: [-72, 0, 0],
-      mixamorigRightLeg: [-72, 0, 0],
-      mixamorigLeftFoot: [10, 0, 0],
-      mixamorigRightFoot: [10, 0, 0],
+      mixamorigHips: [-4, 0, 0],
+      mixamorigSpine: [4, 0, 0],
+      mixamorigLeftUpLeg: [90, 5, 0],
+      mixamorigRightUpLeg: [90, -5, 0],
+      mixamorigLeftLeg: [90, 0, 0],
+      mixamorigRightLeg: [90, 0, 0],
+      mixamorigLeftFoot: [4, 0, 0],
+      mixamorigRightFoot: [4, 0, 0],
     }),
   },
   {
     id: 'squat',
     label: '蹲下',
+    // 屈髋+屈膝幅度相等→小腿保持垂直、脚掌踩平；同步加大即加深。躯干前倾配平衡。
     pose: makePoseOffset({
-      mixamorigHips: [-24, 0, 0],
-      mixamorigSpine: [14, 0, 0],
-      mixamorigHead: [8, 0, 0],
-      mixamorigLeftArm: [18, -8, 2],
-      mixamorigRightArm: [18, 8, -2],
-      mixamorigLeftForeArm: [30, -6, 0],
-      mixamorigRightForeArm: [30, 6, 0],
-      mixamorigLeftUpLeg: [68, 0, 0],
-      mixamorigRightUpLeg: [68, 0, 0],
-      mixamorigLeftLeg: [-96, 0, 0],
-      mixamorigRightLeg: [-96, 0, 0],
-      mixamorigLeftFoot: [34, 0, 0],
-      mixamorigRightFoot: [34, 0, 0],
+      mixamorigHips: [-8, 0, 0],
+      mixamorigSpine: [22, 0, 0],
+      mixamorigHead: [-18, 0, 0],
+      mixamorigLeftUpLeg: [110, 8, 0],
+      mixamorigRightUpLeg: [110, -8, 0],
+      mixamorigLeftLeg: [110, 0, 0],
+      mixamorigRightLeg: [110, 0, 0],
+      mixamorigLeftFoot: [14, 0, 0],
+      mixamorigRightFoot: [14, 0, 0],
     }),
   },
   {
     id: 'single-knee',
     label: '单膝跪',
+    // 左腿在前脚掌着地(膝抬起)，右腿在后膝着地、小腿向后平铺。
     pose: makePoseOffset({
-      mixamorigHips: [-16, 0, 0],
-      mixamorigSpine: [10, 0, 0],
-      mixamorigLeftArm: [16, -6, 2],
-      mixamorigRightArm: [10, 6, -2],
-      mixamorigLeftForeArm: [28, -4, 0],
-      mixamorigRightForeArm: [22, 4, 0],
-      mixamorigLeftUpLeg: [70, 0, 0],
-      mixamorigLeftLeg: [-72, 0, 0],
-      mixamorigRightUpLeg: [18, 0, 0],
-      mixamorigRightLeg: [-108, 0, 0],
-      mixamorigLeftFoot: [18, 0, 0],
-      mixamorigRightFoot: [50, 0, 0],
+      mixamorigHips: [-6, 0, 0],
+      mixamorigSpine: [6, 0, 0],
+      mixamorigLeftUpLeg: [92, 4, 0],
+      mixamorigLeftLeg: [92, 0, 0],
+      mixamorigLeftFoot: [8, 0, 0],
+      mixamorigRightUpLeg: [-8, -2, 0],
+      mixamorigRightLeg: [128, 0, 0],
+      mixamorigRightFoot: [40, 0, 0],
     }),
   },
   {
     id: 'double-knee',
     label: '双膝跪',
+    // 双膝着地、小腿向后平铺、上身直立坐向脚跟。
     pose: makePoseOffset({
-      mixamorigHips: [-22, 0, 0],
-      mixamorigSpine: [12, 0, 0],
-      mixamorigLeftArm: [12, -4, 2],
-      mixamorigRightArm: [12, 4, -2],
-      mixamorigLeftForeArm: [26, -4, 0],
-      mixamorigRightForeArm: [26, 4, 0],
-      mixamorigLeftUpLeg: [46, 0, 0],
-      mixamorigRightUpLeg: [46, 0, 0],
-      mixamorigLeftLeg: [-118, 0, 0],
-      mixamorigRightLeg: [-118, 0, 0],
-      mixamorigLeftFoot: [56, 0, 0],
-      mixamorigRightFoot: [56, 0, 0],
+      mixamorigHips: [-4, 0, 0],
+      mixamorigSpine: [4, 0, 0],
+      mixamorigLeftUpLeg: [-6, 4, 0],
+      mixamorigRightUpLeg: [-6, -4, 0],
+      mixamorigLeftLeg: [130, 0, 0],
+      mixamorigRightLeg: [130, 0, 0],
+      mixamorigLeftFoot: [45, 0, 0],
+      mixamorigRightFoot: [45, 0, 0],
+    }),
+  },
+  {
+    id: 'hands-on-hips',
+    label: '叉腰',
+    // 上臂略抬、肘外撑、前臂弯回叉在腰上。
+    pose: makePoseOffset({
+      mixamorigLeftArm: [-28, 0, 0],
+      mixamorigRightArm: [-28, 0, 0],
+      mixamorigLeftForeArm: [102, 0, 0],
+      mixamorigRightForeArm: [102, 0, 0],
+    }),
+  },
+  {
+    id: 'point',
+    label: '指向',
+    // 右臂水平外伸指向，左臂自然下垂。
+    pose: makePoseOffset({
+      mixamorigRightArm: [-55, 70, 0],
+      mixamorigRightForeArm: [10, 0, 0],
+    }),
+  },
+  {
+    id: 'wave',
+    label: '举手',
+    // 右臂近伸直高举致意（举手/挥手）。
+    pose: makePoseOffset({
+      mixamorigRightArm: [-150, 8, 0],
+      mixamorigRightForeArm: [12, 0, 0],
+    }),
+  },
+  {
+    id: 'cheer',
+    label: '举双手',
+    // 双臂上举成 V 字——欢呼/胜利。
+    pose: makePoseOffset({
+      mixamorigLeftArm: [-148, 0, 0],
+      mixamorigRightArm: [-148, 0, 0],
+      mixamorigLeftForeArm: [6, 0, 0],
+      mixamorigRightForeArm: [6, 0, 0],
     }),
   },
 ]
