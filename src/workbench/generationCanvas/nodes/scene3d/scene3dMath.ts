@@ -141,6 +141,12 @@ export function editorCameraFromSceneCamera(cameraData: Scene3DCamera): Scene3DS
   }
 }
 
+export function cameraAimSpherical(camera: Scene3DCamera): THREE.Spherical {
+  const direction = vectorFromArray(camera.target).sub(vectorFromArray(camera.position))
+  if (direction.lengthSq() < 0.0001) direction.set(0, -0.2, 1)
+  return new THREE.Spherical().setFromVector3(direction)
+}
+
 export function eulerToArray(value: THREE.Euler): Scene3DVector3 {
   return [
     Number(value.x.toFixed(4)),
@@ -341,6 +347,11 @@ export function captureScene(
 
 export function roleColorForIndex(index: number): string {
   return ROLE_COLOR_SEQUENCE[index % ROLE_COLOR_SEQUENCE.length]
+}
+
+export function mannequinRoleLabel(index: number): string {
+  if (index < 26) return `角色${String.fromCharCode(65 + index)}`
+  return `角色A${index - 25}`
 }
 
 export function clampCrowdOptions(options: CrowdAddOptions): CrowdAddOptions {

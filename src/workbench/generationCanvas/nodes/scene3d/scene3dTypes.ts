@@ -76,6 +76,11 @@ export type Scene3DCaptureResult = {
   source: 'scene3d-viewport' | 'scene3d-camera'
 }
 
+export type CaptureApi = {
+  captureViewport: () => Scene3DCaptureResult | null
+  captureCamera: (camera: Scene3DCamera) => Scene3DCaptureResult | null
+}
+
 export const SCENE3D_ASPECT_RATIOS: Record<Scene3DAspectRatio, number> = {
   '16:9': 16 / 9,
   '9:16': 9 / 16,

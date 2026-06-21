@@ -25,13 +25,14 @@ const SCAN_DIRS = ["src", "electron"];
 // 现存巨壳的基线行数（棘轮上限）。清空此表 = 巨壳债还清。
 // 改小某个数 = 你成功瘦身后锁定的新上限。新增条目应经人工评审。
 const ALLOWLIST = {
-  "src/workbench/generationCanvas/nodes/scene3d/Scene3DFullscreen.tsx": 3822,
   "electron/runtime.ts": 749, // +4：付费守卫硬闸（grantId 读取 + audio/mapping/fallback 三点 assertAndConsumeSpendGrant）——安全特性非随意膨胀
   "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 908,
   // generationCanvasStore.ts 曾 871 行（巨壳）；S5-0 按 zustand slice 模式拆出 canvasStoreTypes.ts +
   // canvasNodeActions.ts + canvasGraphActions.ts + canvasRunActions.ts 后壳文件缩到 161 < 800，已出白名单。
   // NodeParameterControls.tsx 曾 1097 行（巨壳）；C2b 抽出 controls/parameterControlModel.ts +
   // archetypeMeta.ts + ModeBar.tsx 后缩到 605 < 800 硬上限，已出白名单（Rule 12：逐步清空白名单）。
+  // Scene3DFullscreen.tsx 曾 3822 行（最大巨壳）；#10b 拆出 scene3dToolbar/inspector/objects/
+  // viewControllers/sceneView/sceneContent/cameraPreview 七个子模块后壳缩到 771 < 800，已出白名单。
 };
 
 function listFiles() {
