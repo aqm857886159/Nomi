@@ -1,5 +1,5 @@
 import type { DesktopBridge } from '../../desktop/bridge'
-import type { GenerationCanvasNode, GenerationNodeResult } from '../generationCanvasV2/model/generationCanvasTypes'
+import type { GenerationCanvasNode, GenerationNodeResult } from '../generationCanvas/model/generationCanvasTypes'
 import type { TimelineClip } from '../timeline/timelineTypes'
 import type { WorkbenchProjectRecordV1 } from './projectRecordSchema'
 

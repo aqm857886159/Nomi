@@ -16,10 +16,7 @@ export type UndoToastOptions = {
 
 const DEFAULT_DURATION_MS = 5000
 
-let toastSeq = 0
-
 export function showUndoToast({ message, onUndo, durationMs = DEFAULT_DURATION_MS }: UndoToastOptions): void {
-  toastSeq += 1
   let consumed = false
 
   useToastStore.getState().push({

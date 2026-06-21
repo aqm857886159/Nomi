@@ -2,10 +2,6 @@ import React from 'react'
 import { NomiAILabel } from '../../../design/identity'
 import { WorkbenchButton } from '../../../design/workbenchActions'
 import { cn } from '../../../utils/cn'
-import {
-  STORYBOARD_PLANNING_EVENT,
-  type StoryboardPlanningRequest,
-} from '../agent/storyboardLauncher'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 
 const CanvasAssistantPanel = React.lazy(() => import('./CanvasAssistantPanel'))
@@ -53,7 +49,6 @@ export default function CanvasAssistantEntry({
   const [shouldLoadPanel, setShouldLoadPanel] = React.useState(() => (
     !defaultCollapsed || !collapsed || messagesLength > 0 || draft.trim().length > 0
   ))
-  const [initialStoryboardRequest, setInitialStoryboardRequest] = React.useState<StoryboardPlanningRequest | null>(null)
 
   React.useEffect(() => {
     if (shouldLoadPanel) return
@@ -65,19 +60,6 @@ export default function CanvasAssistantEntry({
       setShouldLoadPanel(true)
     }
   }, [collapsed, draft, messagesLength])
-
-  React.useEffect(() => {
-    if (shouldLoadPanel) return undefined
-    const handler = (event: Event) => {
-      const request = (event as CustomEvent<StoryboardPlanningRequest>).detail
-      if (!request?.storyText?.trim()) return
-      setInitialStoryboardRequest(request)
-      setShouldLoadPanel(true)
-      setCollapsed(false)
-    }
-    window.addEventListener(STORYBOARD_PLANNING_EVENT, handler as EventListener)
-    return () => window.removeEventListener(STORYBOARD_PLANNING_EVENT, handler as EventListener)
-  }, [setCollapsed, shouldLoadPanel])
 
   const openPanel = React.useCallback(() => {
     setShouldLoadPanel(true)
@@ -92,7 +74,6 @@ export default function CanvasAssistantEntry({
     <React.Suspense fallback={<CanvasAssistantLauncher onOpen={openPanel} />}>
       <CanvasAssistantPanel
         defaultCollapsed={defaultCollapsed}
-        initialStoryboardRequest={initialStoryboardRequest}
         onCollapsedChange={onCollapsedChange}
       />
     </React.Suspense>

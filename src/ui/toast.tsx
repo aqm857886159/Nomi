@@ -4,7 +4,14 @@ import { notifications } from '@mantine/notifications'
 import { cn } from '../utils/cn'
 
 type ToastType = 'info' | 'success' | 'error' | 'warning'
-type Toast = { id: string; message: string; type?: ToastType; ttl?: number }
+type Toast = {
+  id: string
+  message: string
+  type?: ToastType
+  ttl?: number
+  actionLabel?: string
+  onAction?: () => void
+}
 
 type ToastState = {
   items: Toast[]
@@ -36,19 +43,43 @@ export function toast(message: string, type?: ToastType) {
 
 export function ToastHost({ className }: { className?: string } = {}): JSX.Element {
   const items = useToastStore((s) => s.items)
+  const remove = useToastStore((s) => s.remove)
   return (
     <div className={cn('fixed bottom-4 right-4 flex flex-col gap-2 z-50', className)}>
-      {items.map(i => (
-        <div
-          className={cn(
-            'px-3 py-2 rounded-lg border border-black/[.15] shadow-sm',
-            i.type === 'error' && 'bg-workbench-danger-soft',
-            i.type === 'success' && 'bg-workbench-success-soft',
-            i.type !== 'error' && i.type !== 'success' && 'bg-nomi-accent-soft',
-          )}
-          key={i.id}
-        >{i.message}</div>
-      ))}
+      {items.map(i => {
+        const toastClassName = cn(
+          'px-3 py-2 rounded-lg border border-black/[.15] shadow-sm',
+          i.type === 'error' && 'bg-workbench-danger-soft',
+          i.type === 'success' && 'bg-workbench-success-soft',
+          i.type !== 'error' && i.type !== 'success' && 'bg-nomi-accent-soft',
+        )
+        if (!i.onAction) {
+          return (
+            <div className={toastClassName} key={i.id}>{i.message}</div>
+          )
+        }
+        return (
+          <button
+            className={cn(toastClassName, 'text-left cursor-pointer hover:shadow-md')}
+            key={i.id}
+            type="button"
+            onClick={() => {
+              try {
+                i.onAction?.()
+              } finally {
+                remove(i.id)
+              }
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex-1">{i.message}</span>
+              <span className="text-[12px] font-medium underline underline-offset-2">
+                {i.actionLabel || '操作'}
+              </span>
+            </div>
+          </button>
+        )
+      })}
     </div>
   )
 }

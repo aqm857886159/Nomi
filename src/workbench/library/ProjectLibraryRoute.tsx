@@ -1,18 +1,14 @@
 import React from "react";
 import { getDesktopBridge } from "../../desktop/bridge";
 import { markStartupProbe } from "../../utils/startupDiagnostics";
+import { openWorkspaceFromLibrary } from "./openWorkspaceFlow";
 import {
-    openWorkspaceFromLibrary,
-    openWorkspaceProjectFromPicker,
-} from "./openWorkspaceFlow";
-import {
-    createLocalProjectAsync,
+    createLocalProject,
     deleteLocalProject,
     useLocalProjects,
     type LocalProjectSummary,
 } from "./localProjectStore";
 import ProjectLibraryPage from "./ProjectLibraryPage";
-import type { TryNowExample } from "./tryNowExamples";
 import type { ProjectTemplateId } from "./projectTemplates";
 
 function buildStudioUrl(projectId?: string | null): string {
@@ -87,7 +83,7 @@ export default function ProjectLibraryRoute({
                     await openWorkspaceFolder();
                     return;
                 }
-                const project = await createLocalProjectAsync(undefined, templateId);
+                const project = createLocalProject(undefined, templateId);
                 void hydrateProject(project.id);
             } catch (error: unknown) {
                 const message = errorMessage(error, "新建项目失败");
@@ -98,59 +94,6 @@ export default function ProjectLibraryRoute({
         [hydrateProject, openWorkspaceFolder],
     );
 
-    const tryExample = React.useCallback(
-        async (example: TryNowExample) => {
-            try {
-                const desktop = getDesktopBridge();
-                let projectId: string | null = null;
-                if (desktop?.workspace) {
-                    projectId = await openWorkspaceProjectFromPicker({
-                        bridge: desktop,
-                        name: example.projectName,
-                        confirmInitialize: async (rootPath) =>
-                            window.confirm(
-                                `将此文件夹初始化为 Nomi 示例项目？\n\n${rootPath}\n\nNomi 会创建 .nomi/，并把生成的图片、视频保存到 assets/ 和 exports/。`,
-                            ),
-                        showMessage: (message, tone) =>
-                            showToast(message, tone || "error"),
-                    });
-                    if (!projectId) return;
-                    refreshProjects();
-                } else {
-                    const project = await createLocalProjectAsync(
-                        example.projectName,
-                    );
-                    projectId = project.id;
-                }
-
-                const hydrated = await hydrateProject(projectId);
-                if (!hydrated) return;
-
-                const { buildStoryDocument } = await import("./tryNowExamples");
-                const doc = buildStoryDocument(example.story, example.projectName);
-                const { useWorkbenchStore } = await import("../workbenchStore");
-                const store = useWorkbenchStore.getState();
-                store.setWorkbenchDocument(doc);
-                store.setWorkspaceMode("creation");
-                window.setTimeout(() => {
-                    void import(
-                        "../generationCanvasV2/agent/storyboardLauncher"
-                    ).then(({ requestStoryboardPlanning }) => {
-                        requestStoryboardPlanning({
-                            storyText: example.story,
-                            source: `library-try-now:${example.id}`,
-                        });
-                    });
-                }, 200);
-            } catch (error: unknown) {
-                const message = errorMessage(error, "示例项目创建失败");
-                console.error("try example failed", error);
-                showToast(message, "error");
-            }
-        },
-        [hydrateProject, refreshProjects],
-    );
-
     const deleteProject = React.useCallback(
         (project: LocalProjectSummary) => {
             const confirmed = window.confirm(
@@ -159,7 +102,7 @@ export default function ProjectLibraryRoute({
             if (!confirmed) return;
             void (async () => {
                 try {
-                    await deleteLocalProject(project.id);
+                    deleteLocalProject(project.id);
                     if (activeProjectId === project.id) {
                         onActiveProjectDeleted();
                         window.history.replaceState(null, "", `#${buildStudioUrl()}`);
@@ -185,7 +128,6 @@ export default function ProjectLibraryRoute({
             onDeleteProject={deleteProject}
             onNewProject={(templateId) => void newProject(templateId)}
             onOpenFolder={() => void openWorkspaceFolder()}
-            onTryExample={(example) => void tryExample(example)}
         />
     );
 }

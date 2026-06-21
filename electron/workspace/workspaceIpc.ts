@@ -53,7 +53,26 @@ function systemRootPrefixes(platform: NodeJS.Platform): string[] {
   return ["/usr", "/bin", "/sbin", "/lib", "/boot", "/proc", "/sys", "/dev"];
 }
 
-function isProtectedSystemPath(resolved: string, homedir: string, platform: NodeJS.Platform): boolean {
+function matchesRawSystemPath(rawPath: string, platform: NodeJS.Platform): boolean {
+  const raw = String(rawPath || "").trim();
+  if (!raw) return false;
+  if (raw === "/" || raw === "\\") return true;
+  if (/^[a-zA-Z]:[\\/]*$/.test(raw)) return true;
+
+  if (platform === "win32") {
+    const normalized = raw.replace(/\//g, "\\").toLowerCase();
+    return systemRootPrefixes(platform).some((prefix) => {
+      const candidate = prefix.toLowerCase();
+      return normalized === candidate || normalized.startsWith(`${candidate}\\`);
+    });
+  }
+
+  const normalized = raw.replace(/\\/g, "/");
+  return systemRootPrefixes(platform).some((prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`));
+}
+
+function isProtectedSystemPath(rawPath: string, resolved: string, homedir: string, platform: NodeJS.Platform): boolean {
+  if (matchesRawSystemPath(rawPath, platform)) return true;
   const root = path.parse(resolved).root;
   // 文件系统根本身。
   if (resolved === root || resolved === path.parse(root).root) return true;
@@ -82,14 +101,15 @@ function isProtectedSystemPath(resolved: string, homedir: string, platform: Node
  *   （含 .nomi/project.json）的目录视为 isEmpty=true（可直接打开，无需确认）。
  */
 export function assessWorkspaceFolderSafety(rootPath: string, options: SafetyOptions = {}): WorkspaceFolderSafety {
-  const resolved = path.resolve(String(rootPath || "").trim());
-  if (!resolved) {
+  const rawRootPath = String(rootPath || "").trim();
+  if (!rawRootPath) {
     return { ok: false, reason: "未选择有效的文件夹" };
   }
   const homedir = path.resolve(options.homedir ?? os.homedir());
   const platform = options.platform ?? process.platform;
+  const resolved = path.resolve(rawRootPath);
 
-  if (isProtectedSystemPath(resolved, homedir, platform)) {
+  if (isProtectedSystemPath(rawRootPath, resolved, homedir, platform)) {
     return {
       ok: false,
       reason: `“${resolved}” 是主目录或系统关键目录，不能作为 Nomi 项目文件夹（会污染你的照片/音乐/系统文件）。请新建或另选一个空文件夹。`,

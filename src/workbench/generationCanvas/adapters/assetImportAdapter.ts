@@ -190,7 +190,7 @@ export async function importImageFilesToGenerationCanvas(
     try {
       hosted = await uploadFile(file, deriveLabelFromFileName(file.name), { ownerNodeId: node.id })
     } catch {
-      hosted = await recoverFile()
+      hosted = await recoverFile(file)
     }
     const hostedUrl = hostedAssetUrl(hosted)
     if (!hostedUrl) {

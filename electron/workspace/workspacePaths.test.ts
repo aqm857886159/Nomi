@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { canCreateSymlink } from "../testSupport/canCreateSymlink";
 import {
   assertInsideWorkspace,
   resolveWorkspaceRelativePath,
@@ -13,6 +14,8 @@ import {
 } from "./workspacePaths";
 
 const tempRoots: string[] = [];
+const canCreateFileSymlink = canCreateSymlink("file");
+const canCreateDirSymlink = canCreateSymlink("dir");
 
 afterEach(() => {
   for (const root of tempRoots.splice(0)) {
@@ -45,7 +48,7 @@ describe("resolveWorkspaceRelativePath", () => {
     expect(() => resolveWorkspaceRelativePath(root, "assets/\0evil.png")).toThrow(/workspace/i);
   });
 
-  it("rejects symlinks that escape the workspace", () => {
+  (canCreateFileSymlink ? it : it.skip)("rejects symlinks that escape the workspace", () => {
     const root = makeTempDir();
     const outside = makeTempDir();
     const outsideFile = path.join(outside, "secret.txt");
@@ -55,7 +58,7 @@ describe("resolveWorkspaceRelativePath", () => {
     expect(() => resolveWorkspaceRelativePath(root, "linked-secret.txt")).toThrow(/workspace/i);
   });
 
-  it("rejects symlinked parent directories even when the final child does not exist yet", () => {
+  (canCreateDirSymlink ? it : it.skip)("rejects symlinked parent directories even when the final child does not exist yet", () => {
     const root = makeTempDir();
     const outside = makeTempDir();
     fs.symlinkSync(outside, path.join(root, "linked-outside-dir"), "dir");

@@ -104,7 +104,7 @@ function createManualChunks(id: string): string | undefined {
 }
 
 export default defineConfig(async ({ command, mode }) => {
-  const react = (await import('@vitejs/plugin-react-swc')).default;
+  const react = (await import('@vitejs/plugin-react')).default;
 
   loadEnv(mode, process.cwd(), 'VITE_');
 

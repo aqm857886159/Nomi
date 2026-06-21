@@ -3,9 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createProject, deleteProject, listProjects, readProject, resolveProjectRelativePath, saveProject } from "./runtime";
+import { canCreateSymlink } from "./testSupport/canCreateSymlink";
 import { workspaceProjectFile } from "./workspace/workspacePaths";
 
 const tempRoots: string[] = [];
+const canCreateDirSymlink = canCreateSymlink("dir");
 let mockedDocumentsRoot = "";
 let mockedUserDataRoot = "";
 
@@ -207,7 +209,7 @@ describe("runtime workspace project APIs", () => {
     expect(fs.readdirSync(path.join(legacyRoot, "assets", "generated", "2026-05-31"))).toHaveLength(1);
   });
 
-  it("resolveProjectRelativePath rejects symlink escapes from a workspace project", () => {
+  (canCreateDirSymlink ? it : it.skip)("resolveProjectRelativePath rejects symlink escapes from a workspace project", () => {
     const workspaceRoot = makeTempDir();
     const outsideRoot = makeTempDir("nomi-runtime-outside-");
     const created = createProject({ rootPath: workspaceRoot, name: "Symlink Runtime", payload: {} });

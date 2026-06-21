@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { migrateLegacyProjectFolder } from "./legacyProjectMigration";
 import { initializeWorkspace, readWorkspaceManifest, writeWorkspaceManifest } from "./workspaceManifest";
 import { listRecentWorkspaces, rememberWorkspace, removeWorkspaceReference } from "./workspaceRegistry";
 import { normalizeWorkspaceProjectRecord, type WorkspaceProjectRecordV2 } from "./workspaceTypes";
@@ -94,8 +95,24 @@ function withoutPayload(
   };
 }
 
+function hasLegacyProjectFile(rootPath: string): boolean {
+  try {
+    const filePath = path.join(path.resolve(rootPath), "project.json");
+    return fs.existsSync(filePath) && fs.statSync(filePath).isFile();
+  } catch {
+    return false;
+  }
+}
+
 function findRecentEntry(projectId: string, deps: WorkspaceRepositoryDeps) {
   return listRecentWorkspaces(deps.settingsRoot).find((entry) => entry.id === projectId) ?? null;
+}
+
+function readManifestOrMigrateLegacy(rootPath: string): WorkspaceProjectRecordV2 | null {
+  const manifest = readWorkspaceManifest(rootPath);
+  if (manifest) return manifest;
+  if (!hasLegacyProjectFile(rootPath)) return null;
+  return migrateLegacyProjectFolder(rootPath);
 }
 
 export function createWorkspaceProject(
@@ -143,6 +160,23 @@ export function listWorkspaceProjects(deps: WorkspaceRepositoryDeps): WorkspaceP
     }
     const manifest = readWorkspaceManifest(entry.rootPath);
     if (!manifest || manifest.id !== entry.id) {
+      if (hasLegacyProjectFile(entry.rootPath)) {
+        return withoutPayload(
+          normalizeWorkspaceProjectRecord({
+            id: entry.id,
+            name: entry.name,
+            version: 2,
+            createdAt: entry.lastOpenedAt,
+            updatedAt: entry.lastOpenedAt,
+            savedAt: entry.lastOpenedAt,
+            revision: 0,
+            lastKnownRootPath: entry.rootPath,
+          }),
+          entry.rootPath,
+          false,
+          source,
+        );
+      }
       return withoutPayload(
         normalizeWorkspaceProjectRecord({
           id: entry.id,
@@ -170,7 +204,7 @@ export function readWorkspaceProject(projectId: string, deps: WorkspaceRepositor
   if (!entry || entry.missing) {
     return null;
   }
-  const manifest = readWorkspaceManifest(entry.rootPath);
+  const manifest = readManifestOrMigrateLegacy(entry.rootPath);
   if (!manifest || manifest.id !== projectId) {
     return null;
   }
@@ -290,7 +324,7 @@ export function resolveWorkspaceProjectDir(projectId: string, deps: WorkspaceRep
   if (!entry || entry.missing || !fs.existsSync(entry.rootPath)) {
     return null;
   }
-  const manifest = readWorkspaceManifest(entry.rootPath);
+  const manifest = readManifestOrMigrateLegacy(entry.rootPath);
   if (!manifest || manifest.id !== projectId) {
     return null;
   }
