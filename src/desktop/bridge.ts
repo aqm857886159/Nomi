@@ -132,6 +132,17 @@ export type DesktopBridge = {
       forceRerun?: boolean
     }) => Promise<{ url: string }>
   }
+  scene3d: {
+    /** N 帧 PNG dataURL（沿相机轨迹采样）→ ffmpeg 拼 H.264 mp4 → 项目素材。
+     *  AI 运镜工具的「轨迹→视频文件」桥，见 electron/video/framesToVideo.ts。 */
+    framesToVideo: (payload: {
+      projectId: string
+      ownerNodeId?: string | null
+      fileName?: string
+      fps: number
+      frames: string[]
+    }) => Promise<{ url: string; assetId?: string }>
+  }
   exports: {
     startJob: (payload: DesktopExportJobStartPayload) => Promise<DesktopExportJobStartResult>
     writeTempInput: (payload: DesktopExportTempInputWritePayload) => Promise<DesktopExportTempInputWriteResult>

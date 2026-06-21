@@ -33,6 +33,7 @@ import {
   ensureBuiltinModelSeeds,
 } from "./runtime";
 import { extractVideoFrameToAsset } from "./video/extractVideoFrame";
+import { framesToVideoAsset } from "./video/framesToVideo";
 import { mintSpendGrant } from "./spendGrant";
 import { listSkillsForRenderer } from "./skills/skillIpc";
 import { exportSkillPackageByName, importSkillPackageToUserDir } from "./skills/skillPackage";
@@ -331,6 +332,7 @@ function registerIpc(): void {
   ipcMain.handle("nomi:assets:list", (_event, payload) => listProjectAssets(payload));
   ipcMain.handle("nomi:assets:download", (_event, payload) => downloadAssetToDisk(payload));
   ipcMain.handle("nomi:video:extract-frame", (_event, payload) => extractVideoFrameToAsset(payload));
+  ipcMain.handle("nomi:scene3d:frames-to-video", (_event, payload) => framesToVideoAsset(payload));
   registerExportJobIpc();
   // 付费守卫铸令牌：仅由渲染层「真人确认」事件链调用（务实纵深：铸造面小而审计过 + 主进程硬闸兜底）。
   ipcMain.handle("nomi:tasks:grant-spend", (_event, payload) => {
