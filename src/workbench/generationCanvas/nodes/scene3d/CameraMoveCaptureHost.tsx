@@ -12,8 +12,10 @@ import { persistCameraMoveVideo } from './cameraMoveVideo'
 import { Scene3DTrajectoryCapture, type CameraMoveCaptureResult } from './Scene3DTrajectoryCapture'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { archetypeForNode, findVideoRefMode } from '../../agent/referenceEdgeCapability'
-import { applyArchetypeModeSwitch, currentArchetypeMode, readArchetypeArray } from '../controls/archetypeMeta'
+import { applyArchetypeModeSwitch, readArchetypeArray } from '../controls/archetypeMeta'
 import { CAMERA_MOVE_LABEL, CAMERA_MOVE_DESC, type CameraMove } from './cameraMoveVocab'
+import { isVideoLikeGenerationNodeKind } from '../../model/generationNodeKinds'
+import { toast } from '../../../../ui/toast'
 
 type CameraMoveAutoCapture = {
   targetNodeId?: string
@@ -41,10 +43,28 @@ function readCameraMove(node: GenerationCanvasNode): CameraMoveAutoCapture | nul
   return raw && typeof raw === 'object' ? (raw as CameraMoveAutoCapture) : null
 }
 
-function clampFrameCount(value: number | undefined): number {
-  const n = Math.floor(value ?? DEFAULT_FRAME_COUNT)
-  if (!Number.isFinite(n)) return DEFAULT_FRAME_COUNT
+function clampFrameCount(value: number | undefined, fallback: number): number {
+  const n = Math.floor(value ?? fallback)
+  if (!Number.isFinite(n)) return fallback
   return Math.min(MAX_FRAME_COUNT, Math.max(MIN_FRAME_COUNT, n))
+}
+
+/**
+ * P3-C 没有显式 frameCount 时,从场景轨迹绑定时长 derive(frameCount = round(duration*fps)),
+ * 而非用固定 48（48/12=4s 对不上 3/5/8s 的运镜）。无可读时长 → 回落 DEFAULT_FRAME_COUNT。
+ */
+function deriveFrameCountFromScene(scene3dState: unknown, fps: number): number {
+  const state = scene3dState && typeof scene3dState === 'object' ? (scene3dState as Record<string, unknown>) : null
+  const bindings = state && Array.isArray(state.trajectoryBindings) ? state.trajectoryBindings : []
+  let maxDuration = 0
+  for (const raw of bindings) {
+    const b = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null
+    const end = b && typeof b.endTime === 'number' ? b.endTime : 0
+    const start = b && typeof b.startTime === 'number' ? b.startTime : 0
+    maxDuration = Math.max(maxDuration, end - start)
+  }
+  if (!(maxDuration > 0)) return DEFAULT_FRAME_COUNT
+  return Math.round(maxDuration * fps)
 }
 
 function clampFps(value: number | undefined): number {
@@ -70,27 +90,45 @@ function attachCameraMoveToTarget(targetNodeId: string, mp4Url: string, move: Ca
   const store = useGenerationCanvasStore.getState()
   const target = store.nodes.find((node) => node.id === targetNodeId)
   if (!target) return
+  // P2-A 校验目标节点种类:运镜参考只能喂视频生成节点。指到图片节点 → 没有 video_ref 槽,
+  // 旧逻辑会静默把无用的运镜 prompt 追加到图片上(图片模型不懂"镜头运动")。诚实跳过并提示。
+  if (!isVideoLikeGenerationNodeKind(target.kind)) {
+    toast('运镜参考只能喂给视频镜头节点，已跳过（目标不是视频节点）', 'warning')
+    return
+  }
   const meta = { ...(target.meta || {}) } as Record<string, unknown>
+  // P3-A 用 meta 标志判重附（不再靠 prompt 子串嗅探,基础 prompt 含 @Video1/「镜头运动：」会误判）。
+  if (meta.cameraMoveAttached === true) return
   const archetype = archetypeForNode(target)
   const videoRef = findVideoRefMode(archetype)
   if (archetype && videoRef) {
+    // P2-B 切模式前先看旧模式是否设了首/尾帧、而目标(video_ref)模式没有该槽 → 会在投影时被静默丢弃。
+    // 留痕告诉用户「模式变了，首帧不再注入」，不静默改。
+    const hadFirstOrLast =
+      (typeof meta.firstFrameUrl === 'string' && meta.firstFrameUrl.trim().length > 0) ||
+      (typeof meta.lastFrameUrl === 'string' && meta.lastFrameUrl.trim().length > 0)
     // 切到含 video_ref 的模式（已在该模式则 applyArchetypeModeSwitch 幂等）。
     let nextMeta = applyArchetypeModeSwitch(meta, archetype, videoRef.modeId)
     const existing = readArchetypeArray(nextMeta, videoRef.metaKey)
     const referenceVideoUrls = existing.includes(mp4Url) ? existing : [...existing, mp4Url]
-    nextMeta = { ...nextMeta, [videoRef.metaKey]: referenceVideoUrls }
+    nextMeta = { ...nextMeta, [videoRef.metaKey]: referenceVideoUrls, cameraMoveAttached: true }
+    const targetMode = archetype.modes.find((m) => m.id === videoRef.modeId)
+    const targetHasFrameSlot = targetMode?.slots.some((s) => s.kind === 'first_frame' || s.kind === 'last_frame') ?? false
+    if (hadFirstOrLast && !targetHasFrameSlot) {
+      toast('已切换到全能参考模式以注入运镜参考视频（该模式无首/尾帧，原首帧不再生效）', 'warning')
+    }
     const directive = `\n@Video1 跟随这段参考视频的运镜（只参考镜头运动，画面内容由角色参考与文字决定）。`
     const basePrompt = typeof target.prompt === 'string' ? target.prompt : ''
     const prompt = basePrompt.includes('@Video1') ? basePrompt : `${basePrompt}${directive}`
     store.updateNode(targetNodeId, { meta: nextMeta, prompt })
     return
   }
-  // 降级：无视频参考槽 → 只补结构化运镜 prompt 地板（保留模型不变）。
+  // 降级：视频节点但模型无视频参考槽 → 只补结构化运镜 prompt 地板（保留模型不变）。
   const directive = cameraMoveDirective(move)
   if (!directive) return
   const basePrompt = typeof target.prompt === 'string' ? target.prompt : ''
   const prompt = basePrompt.includes('镜头运动：') ? basePrompt : `${basePrompt}${directive}`
-  store.updateNode(targetNodeId, { prompt })
+  store.updateNode(targetNodeId, { meta: { ...meta, cameraMoveAttached: true }, prompt })
 }
 
 export function CameraMoveCaptureHost(): JSX.Element | null {
@@ -148,8 +186,9 @@ export function CameraMoveCaptureHost(): JSX.Element | null {
   const config = readCameraMove(pendingNode)
   const state = normalizeScene3DState(pendingNode.meta?.scene3dState)
   const nodeId = pendingNode.id
-  const frameCount = clampFrameCount(config?.frameCount)
   const fps = clampFps(config?.fps)
+  // P3-C 缺 frameCount 时按轨迹时长 derive(round(duration*fps)),别用固定 48。
+  const frameCount = clampFrameCount(config?.frameCount, deriveFrameCountFromScene(state, fps))
   return (
     <Scene3DTrajectoryCapture
       state={state}

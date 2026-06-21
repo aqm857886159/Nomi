@@ -4,6 +4,7 @@ import { getDefaultCategoryForNodeKind, type GenerationNodeKind } from '../model
 import { getGenerationNodeDefaultTitle, isGenerationNodeKind } from '../model/generationNodeKinds'
 import { EDGE_MODE_LABEL } from '../model/graphOps'
 import { BUILTIN_CATEGORIES } from '../../project/projectCategories'
+import { CAMERA_MOVE_LABEL, CAMERA_SPEED_DURATION, type CameraMove, type CameraSpeed } from '../nodes/scene3d/cameraMoveVocab'
 
 const CATEGORY_NAME = new Map(BUILTIN_CATEGORIES.map((category) => [category.id, category.name]))
 
@@ -54,6 +55,14 @@ export function summarizeToolCall(toolName: string, args: unknown): string {
       typeof camera.shot === 'string' ? String(camera.shot) : null,
     ].filter(Boolean)
     return `建站位参考图（${parts.join(' · ')}）`
+  }
+  if (toolName === 'create_camera_move') {
+    const move = record.move as CameraMove
+    const label = CAMERA_MOVE_LABEL[move] ?? String(record.move ?? '运镜')
+    const speed = (typeof record.speed === 'string' ? record.speed : 'medium') as CameraSpeed
+    const duration = CAMERA_SPEED_DURATION[speed] ?? CAMERA_SPEED_DURATION.medium
+    const shot = typeof record.shot === 'string' ? record.shot : 'medium'
+    return `建运镜参考（${label} · ${shot} · ≈${duration}s）`
   }
   return toolName
 }

@@ -1,5 +1,6 @@
 // 运镜 builder：语义 spec（人话运镜）→ Scene3DState（主体假人 + 跟拍相机 + 轨迹 + 绑定）。
-// 纯函数，配单测 cameraMoveBuilder.test.ts。相机绑到轨迹随时间走、followTargetId 锁主体保持注视。
+// 纯函数，配单测 cameraMoveBuilder.test.ts。相机绑到轨迹随时间走，注视固定的胸口点(静态 target，
+// 主体在运镜里不动，故不设 followTargetId——见 buildCamera 注释/P0-A)。
 // 见 docs/plan/2026-06-22-ai-camera-move-tool.md。
 import {
   createDefaultScene3DState,
@@ -25,7 +26,7 @@ import type {
   Scene3DVector3,
 } from './scene3dTypes'
 import {
-  SHOT_FRAMING,
+  CAMERA_MOVE_FRAMING,
   CAMERA_SPEED_DURATION,
   CAMERA_MOVE_LABEL,
   type CameraMove,
@@ -47,7 +48,7 @@ export type CameraMoveSpec = {
   subjectPose?: string
 }
 
-// 各运镜的相机路径点（世界坐标位置）。相机靠 followTargetId 注视主体，故只需定义位置。
+// 各运镜的相机路径点（世界坐标位置）。相机靠静态 target 注视主体胸口，故只需定义位置。
 // 主体在原点；d = 该景别水平距离，h = 眼高。
 function cameraPathPoints(move: CameraMove, d: number, h: number): Scene3DVector3[] {
   switch (move) {
@@ -105,7 +106,7 @@ function orbitPoints(d: number, h: number, count: number, sweepDeg: number, sign
   })
 }
 
-// 升降镜：在主体前方（距离 d）沿 Y 上升/下降，followTarget 让相机自动俯/仰看主体。
+// 升降镜：在主体前方（距离 d）沿 Y 上升/下降，静态 target 让相机自动俯/仰看主体胸口。
 function cranePoints(d: number, h: number, sign: number): Scene3DVector3[] {
   const lowY = h * 0.5
   const highY = h * 3.0
@@ -150,8 +151,8 @@ function buildTrajectory(move: CameraMove, points: Scene3DVector3[]): Scene3DTra
   }
 }
 
-function buildCamera(subjectId: string, shot: StagingShot, startPosition: Scene3DVector3): Scene3DCamera {
-  const framing = SHOT_FRAMING[shot]
+function buildCamera(shot: StagingShot, startPosition: Scene3DVector3): Scene3DCamera {
+  const framing = CAMERA_MOVE_FRAMING[shot]
   const target: Scene3DVector3 = [0, SUBJECT_TARGET_Y, 0]
   return {
     id: createScene3DCameraId(),
@@ -160,7 +161,10 @@ function buildCamera(subjectId: string, shot: StagingShot, startPosition: Scene3
     position: [...startPosition] as Scene3DVector3,
     rotation: cameraLookAtRotation(startPosition, target),
     target,
-    followTargetId: subjectId,
+    // 注意:**不设 followTargetId**。主体在运镜里是静止的(只有相机绑轨迹动),
+    // 若 followTargetId=主体,播放时注视点会被加上主体半身高 → 落到头顶(Y≈2.5)而非授权的胸口
+    // [0,1.35,0],把全身裁出框(P0-A 根因)。留空 → cameraWithPlaybackPosition 回落到静态 target。
+    followTargetId: undefined,
     fov: framing.fov,
     aspectRatio: '16:9',
     lensDepth: 0,
@@ -184,12 +188,12 @@ export function buildCameraMoveScene(spec: CameraMoveSpec): Scene3DState {
   const base = createDefaultScene3DState()
   const shot: StagingShot = spec.shot ?? 'medium'
   const duration = CAMERA_SPEED_DURATION[spec.speed ?? 'medium']
-  const framing = SHOT_FRAMING[shot]
+  const framing = CAMERA_MOVE_FRAMING[shot]
 
   const subject = buildSubject(spec)
   const points = cameraPathPoints(spec.move, framing.distance, EYE_Y)
   const trajectory = buildTrajectory(spec.move, points)
-  const camera = buildCamera(subject.id, shot, points[0])
+  const camera = buildCamera(shot, points[0])
   const binding = buildBinding(camera.id, trajectory.id, duration)
   const env = ENV_PRESET.studio
 

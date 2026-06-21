@@ -52,6 +52,19 @@ export const CAMERA_MOVE_LABEL: Record<CameraMove, string> = {
   arc_right: '右弧线',
 }
 
+// 运镜专属景别（distance/fov）——**不复用站位的 SHOT_FRAMING**（那套为「主体占画面」收紧，
+// 可见竖向 < 主体身高 2.5，运镜里会把头/脚裁掉）。运镜要让整个 2.5 高的主体始终在框内且留余量：
+// 目标「可见竖向 = 2·distance·tan(fov/2) ≥ 3.0」（主体 2.5 + 约 20% 余量），逐景别已验算（见单测）：
+//   wide  : 2·7  ·tan(20°) ≈ 5.10
+//   medium: 2·4.8·tan(20°) ≈ 3.49
+//   close : 2·3.6·tan(23°) ≈ 3.06
+// push_in 的近端距离 = medium 距离，故推到底也不裁。
+export const CAMERA_MOVE_FRAMING: Record<StagingShot, { distance: number; fov: number }> = {
+  wide: { distance: 7, fov: 40 },
+  medium: { distance: 4.8, fov: 40 },
+  close: { distance: 3.6, fov: 46 },
+}
+
 // 运镜人话描述（喂给 AI 的 schema，让它选对运镜）。
 export const CAMERA_MOVE_DESC: Record<CameraMove, string> = {
   orbit_left: '相机绕主体逆时针大角度环绕（约 300°），展示主体四周空间。',

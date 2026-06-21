@@ -182,7 +182,10 @@ export const cameraMoveParamsSchema = z.object({
     .optional()
     .describe("Framing of the move (wide / medium / close). Default medium."),
   subjectPose: z
-    .string()
+    .enum([
+      "standing", "t-pose", "walk", "run", "sit", "squat",
+      "single-knee", "double-knee", "hands-on-hips", "point", "wave", "cheer",
+    ])
     .optional()
     .describe("Optional body-pose preset id for the subject mannequin the camera moves around (e.g. standing / sit / walk). Default standing."),
 });
