@@ -71,4 +71,16 @@
 2. **CGI 副作用**：image_edit 直喂灰模 → 输出像给灰模上色。正解=出关键帧时给 prompt 加「构图控制+写实重渲染」后缀（catalogTaskActions，scoped: staging 图作 composition_ref + 图像 kind 才加）。staging 图打 meta.stagingComposition 标记 → resolver 透出 → 任务组装注入后缀。
    **验证**：三人组重跑——无后缀=CGI 灰模上色；**有后缀=写实阳光广场（左坐/中站/右跪站位完全保留）**。✓
 
-链路完整：staging(灰模) → 写实关键帧(构图锁定、自动去 CGI) → i2v 视频继承首帧站位。视频层运动漂移对比未跑（更贵，留后）。
+链路完整：staging(灰模) → 写实关键帧(构图锁定、自动去 CGI) → i2v 视频继承首帧站位。
+
+## E 层 · 视频层验证（真实 apimart doubao-seedance-2.0 i2v，已跑）
+
+`scripts/staging-video-ab.mjs`：把 staging 引导的写实关键帧喂 Seedance i2v 出视频，ffmpeg 抽首/尾帧比对漂移。
+- **三人组**（左坐/中站/右跪）：首帧=尾帧站位全保持（相机推进但三人各自姿势+相对位置不崩）。✓
+- **反套路求婚**（女跪/男站）：首尾保持，男方情绪反应(捂嘴)自然动起来、站位不变。✓
+**结论：staging→写实关键帧→i2v 链在视频层成立——视频全程站位/动作不崩。** 这是「灌进去视频就稳」的最终证明。
+坑：apimart seedance i2v 首帧走 `image_urls` 数组（非 firstFrameUrl）+ body 读 `{{request.params.model}}`（变体 modelKey 即 model 串）；hand-roll tasks.run 要按 archetype body 形状给键。
+
+## 全链路总结
+
+3D 站位校准 → 语义词汇表 + builder → 离屏出图 + 全局 Host → AI 工具(4 处注册+触发) → 三层评测(builder/agent/真实生成) → 根因修复(接线走关键帧+构图控制去 CGI+按 layout 默认机位+景别间距+point 瞄准+8 色) → 视频层 A/B 验证。staging 在「多角色特定姿势+精确机位+视频防漂移」处价值明确；简单显式双人现代图像模型已能从文本做好。
