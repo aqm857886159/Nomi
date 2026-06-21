@@ -342,17 +342,20 @@ function buildContentSecurityPolicy(): string {
   ];
   if (isDev) {
     // vite dev server：HMR 走 ws、sourcemap/模块求值需要 eval、注入 inline 脚本与样式。
+    // blob:：3D 编辑器（Three.js GLTF/meshopt 解码）的 worker 经 blob 脚本 importScripts。
     return [
       ...common,
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://127.0.0.1:5173",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: http://127.0.0.1:5173",
       "style-src 'self' 'unsafe-inline'",
       "connect-src 'self' nomi-local: https: ws://127.0.0.1:5173 http://127.0.0.1:5173",
     ].join("; ");
   }
   return [
     ...common,
-    // prod：vite 产物为外链脚本，无需 inline/eval。Tailwind/内联 style 需要 style 的 unsafe-inline。
-    "script-src 'self'",
+    // prod：vite 产物为外链脚本，无需 inline/eval。但 3D 编辑器要 'wasm-unsafe-eval'（Three.js
+    // GLTF/meshopt 解码器实例化 WASM）+ blob:（解码 worker 经 blob 脚本 importScripts）。
+    // 'wasm-unsafe-eval' 只放行 WASM 编译，不开放危险的 JS eval（比 'unsafe-eval' 收得紧）。
+    "script-src 'self' 'wasm-unsafe-eval' blob:",
     "style-src 'self' 'unsafe-inline'",
     "connect-src 'self' nomi-local: https:",
   ].join("; ");
