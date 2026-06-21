@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconChevronDown, IconDownload, IconLetterCase, IconPlayerPause, IconPlayerPlay, IconRefresh, IconX, IconZoomIn, IconZoomOut } from '@tabler/icons-react'
+import { IconChevronDown, IconDownload, IconLetterCase, IconMaximize, IconMinimize, IconPlayerPause, IconPlayerPlay, IconPlayerSkipBack, IconPlayerSkipForward, IconRefresh, IconVolume, IconVolumeOff, IconX, IconZoomIn, IconZoomOut } from '@tabler/icons-react'
 import { NomiLoadingMark, NomiSelect, WorkbenchButton, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -75,6 +75,10 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
   const [textMenuOpen, setTextMenuOpen] = React.useState(false)
   const textMenuRef = React.useRef<HTMLDivElement | null>(null)
   const [textSnapGuides, setTextSnapGuides] = React.useState<{ x: number | null; y: number | null }>({ x: null, y: null })
+  // P2 播放器手感：音量/静音（clip 本就带音频，之前播放器读不到）+ 全屏（看成片整体）。
+  const [volume, setVolume] = React.useState(1)
+  const [muted, setMuted] = React.useState(false)
+  const [isFullscreen, setIsFullscreen] = React.useState(false)
   const addTimelineTextClip = useWorkbenchStore((state) => state.addTimelineTextClip)
   const updateTimelineTextClip = useWorkbenchStore((state) => state.updateTimelineTextClip)
   const updateTimelineTextClipTransform = useWorkbenchStore((state) => state.updateTimelineTextClipTransform)
@@ -119,6 +123,32 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
     if (Math.abs(video.currentTime - nextTime) < 0.08) return
     video.currentTime = nextTime
   }, [fps, playheadFrame, videoClip, playing])
+
+  // 音量/静音应用到 <video>（video 每个 clip 重挂，故 videoUrl 变也要重设）。
+  React.useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    video.volume = volume
+    video.muted = muted
+  }, [videoUrl, volume, muted])
+
+  // 全屏态跟随：用 fullscreenchange 同步图标，避免 document.fullscreenElement 在渲染期不反应。
+  React.useEffect(() => {
+    const onChange = () => setIsFullscreen(document.fullscreenElement === stageRef.current)
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
+
+  const stepFrame = React.useCallback((delta: number) => {
+    setTimelinePlayhead(Math.max(0, Math.min(totalFrames, playheadFrame + delta)))
+  }, [playheadFrame, setTimelinePlayhead, totalFrames])
+
+  const toggleFullscreen = React.useCallback(() => {
+    const el = stageRef.current
+    if (!el) return
+    if (document.fullscreenElement) void document.exitFullscreen()
+    else void el.requestFullscreen?.()
+  }, [])
 
   React.useEffect(() => {
     const video = videoRef.current
@@ -559,9 +589,56 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
           disabled={isEmpty}
           title={isEmpty ? '时间轴为空' : undefined}
         />
+        <WorkbenchIconButton
+          className={cn('w-[28px] h-[28px] grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] enabled:hover:bg-[var(--workbench-hover)] disabled:opacity-40')}
+          label="上一帧"
+          title="上一帧（←）"
+          icon={<IconPlayerSkipBack size={15} stroke={1.6} />}
+          onClick={() => stepFrame(-1)}
+          disabled={isEmpty}
+        />
+        <WorkbenchIconButton
+          className={cn('w-[28px] h-[28px] grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] enabled:hover:bg-[var(--workbench-hover)] disabled:opacity-40')}
+          label="下一帧"
+          title="下一帧（→）"
+          icon={<IconPlayerSkipForward size={15} stroke={1.6} />}
+          onClick={() => stepFrame(1)}
+          disabled={isEmpty}
+        />
         <span className="text-micro opacity-60 tabular-nums min-w-[60px]">
           {currentSeconds}s / {totalSeconds}s
         </span>
+        <div className={cn('workbench-preview-player__volume', 'inline-flex items-center gap-1')}>
+          <WorkbenchIconButton
+            className={cn('w-[28px] h-[28px] grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] enabled:hover:bg-[var(--workbench-hover)]')}
+            label={muted ? '取消静音' : '静音'}
+            title={muted ? '取消静音' : '静音'}
+            icon={muted ? <IconVolumeOff size={15} stroke={1.6} /> : <IconVolume size={15} stroke={1.6} />}
+            onClick={() => setMuted((m) => !m)}
+          />
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={muted ? 0 : volume}
+            aria-label="音量"
+            className="w-[54px] h-1 cursor-pointer"
+            style={{ accentColor: 'var(--nomi-accent)' }}
+            onChange={(event) => {
+              const next = Number(event.target.value)
+              setVolume(next)
+              setMuted(next === 0)
+            }}
+          />
+        </div>
+        <WorkbenchIconButton
+          className={cn('w-[28px] h-[28px] grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] enabled:hover:bg-[var(--workbench-hover)]')}
+          label={isFullscreen ? '退出全屏' : '全屏'}
+          title={isFullscreen ? '退出全屏' : '全屏预览'}
+          icon={isFullscreen ? <IconMinimize size={15} stroke={1.6} /> : <IconMaximize size={15} stroke={1.6} />}
+          onClick={toggleFullscreen}
+        />
         <div className={cn(
           'workbench-preview-player__control-separator',
           'w-px h-5 bg-[var(--workbench-border-soft)]',
