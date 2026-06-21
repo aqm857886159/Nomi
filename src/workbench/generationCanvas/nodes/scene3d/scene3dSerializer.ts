@@ -6,6 +6,12 @@ import type {
   Scene3DLightType,
   Scene3DObject,
   Scene3DState,
+  Scene3DTrajectory,
+  Scene3DTrajectoryBinding,
+  Scene3DTrajectoryCurveControl,
+  Scene3DTrajectoryDirection,
+  Scene3DTrajectoryGroup,
+  Scene3DTrajectoryPoint,
   Scene3DVector3,
 } from './scene3dTypes'
 
@@ -13,10 +19,12 @@ const GEOMETRIES = new Set<Scene3DGeometry>(['box', 'sphere', 'cylinder', 'plane
 const LIGHT_TYPES = new Set<Scene3DLightType>(['point', 'directional', 'spot'])
 const ASPECT_RATIOS = new Set<Scene3DAspectRatio>(['16:9', '9:16', '4:3', '3:4', '1:1'])
 const CONTROL_MODES = new Set<Scene3DControlMode>(['edit', 'fly'])
+const TRAJECTORY_DIRECTIONS = new Set<Scene3DTrajectoryDirection>(['forward', 'reverse'])
 const COLOR_PATTERN = /^#[0-9a-f]{6}$/i
 const MANNEQUIN_DEFAULT_SCALE: Scene3DVector3 = [2.5, 2.5, 2.5]
 const ROLE_COLOR_SEQUENCE = ['#ef4444', '#facc15', '#3b82f6', '#22c55e'] as const
 const CROWD_MAX_AXIS = 10
+const DEFAULT_SCENE_TIMELINE_DURATION = 10
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? value as Record<string, unknown> : {}
@@ -70,6 +78,22 @@ export function createScene3DCameraId(): string {
   return createScene3DId('scene3d-camera')
 }
 
+export function createScene3DTrajectoryId(): string {
+  return createScene3DId('scene3d-trajectory')
+}
+
+export function createScene3DTrajectoryPointId(): string {
+  return createScene3DId('scene3d-trajectory-point')
+}
+
+export function createScene3DTrajectoryBindingId(): string {
+  return createScene3DId('scene3d-trajectory-binding')
+}
+
+export function createScene3DTrajectoryGroupId(): string {
+  return createScene3DId('scene3d-trajectory-group')
+}
+
 export function createDefaultScene3DState(): Scene3DState {
   return {
     objects: [
@@ -99,6 +123,12 @@ export function createDefaultScene3DState(): Scene3DState {
         far: 200,
       },
     ],
+    trajectories: [],
+    trajectoryBindings: [],
+    trajectoryGroups: [],
+    sceneTimeline: {
+      totalDuration: DEFAULT_SCENE_TIMELINE_DURATION,
+    },
     environment: {
       preset: 'city',
       showGrid: true,
@@ -152,6 +182,7 @@ function normalizeCamera(value: unknown, index: number): Scene3DCamera | null {
   const raw = asRecord(value)
   const id = stringValue(raw.id, '')
   if (!id) return null
+  const followTargetId = stringValue(raw.followTargetId, '')
   return {
     id,
     name: stringValue(raw.name, `相机${index + 1}`),
@@ -159,6 +190,7 @@ function normalizeCamera(value: unknown, index: number): Scene3DCamera | null {
     position: finiteVector(raw.position, [4, 2.4, 5]),
     rotation: finiteVector(raw.rotation, [-0.35, 0.65, 0]),
     target: finiteVector(raw.target, [0, 0.75, 0]),
+    followTargetId: followTargetId || undefined,
     fov: Math.min(120, Math.max(12, finiteNumber(raw.fov, 45))),
     aspectRatio: ASPECT_RATIOS.has(raw.aspectRatio as Scene3DAspectRatio) ? raw.aspectRatio as Scene3DAspectRatio : '16:9',
     lensDepth: Math.min(100, Math.max(-100, finiteNumber(raw.lensDepth, 0))),
@@ -167,11 +199,113 @@ function normalizeCamera(value: unknown, index: number): Scene3DCamera | null {
   }
 }
 
+function normalizeTrajectoryPoint(value: unknown): Scene3DTrajectoryPoint | null {
+  const raw = asRecord(value)
+  const id = stringValue(raw.id, '')
+  if (!id) return null
+  const timeRatio = finiteNumber(raw.timeRatio, Number.NaN)
+  return {
+    id,
+    position: finiteVector(raw.position, [0, 0, 0]),
+    timeRatio: Number.isFinite(timeRatio) ? Math.min(1, Math.max(0, timeRatio)) : undefined,
+  }
+}
+
+function normalizeTrajectoryCurveControl(value: unknown, pointIds: Set<string>): Scene3DTrajectoryCurveControl | null {
+  const raw = asRecord(value)
+  const segmentStartPointId = stringValue(raw.segmentStartPointId, '')
+  if (!pointIds.has(segmentStartPointId)) return null
+  return {
+    segmentStartPointId,
+    position: finiteVector(raw.position, [0, 0, 0]),
+  }
+}
+
+function normalizeTrajectory(value: unknown, index: number): Scene3DTrajectory | null {
+  const raw = asRecord(value)
+  const id = stringValue(raw.id, '')
+  if (!id) return null
+  const points = Array.isArray(raw.points)
+    ? raw.points.flatMap((item) => {
+      const point = normalizeTrajectoryPoint(item)
+      return point ? [point] : []
+    })
+    : []
+  const pointIds = new Set(points.map((point) => point.id))
+  const curveControls = Array.isArray(raw.curveControls)
+    ? raw.curveControls.flatMap((item) => {
+      const control = normalizeTrajectoryCurveControl(item, pointIds)
+      return control ? [control] : []
+    })
+    : []
+  return {
+    id,
+    name: stringValue(raw.name, `轨迹${index + 1}`),
+    points,
+    curveControls,
+    tension: Math.min(1, Math.max(0, finiteNumber(raw.tension, 0.5))),
+    closed: raw.closed === true,
+    color: colorValue(raw.color, ROLE_COLOR_SEQUENCE[index % ROLE_COLOR_SEQUENCE.length]),
+  }
+}
+
+function normalizeTrajectoryBinding(
+  value: unknown,
+  trajectoryIds: Set<string>,
+  bindableNodeIds: Set<string>,
+): Scene3DTrajectoryBinding | null {
+  const raw = asRecord(value)
+  const id = stringValue(raw.id, '')
+  const trajectoryId = stringValue(raw.trajectoryId, '')
+  if (!id || !trajectoryIds.has(trajectoryId)) return null
+  const objects = Array.isArray(raw.objects)
+    ? raw.objects.flatMap((item) => {
+      const boundObject = asRecord(item)
+      const objectId = stringValue(boundObject.objectId, '')
+      if (!bindableNodeIds.has(objectId)) return []
+      return [{
+        objectId,
+        offsetRatio: Math.min(0.999, Math.max(-0.999, finiteNumber(boundObject.offsetRatio, 0))),
+      }]
+    })
+    : []
+  const startTime = Math.max(0, finiteNumber(raw.startTime, 0))
+  return {
+    id,
+    trajectoryId,
+    objects,
+    startTime,
+    endTime: Math.max(startTime + 0.001, finiteNumber(raw.endTime, startTime + 3)),
+    direction: TRAJECTORY_DIRECTIONS.has(raw.direction as Scene3DTrajectoryDirection)
+      ? raw.direction as Scene3DTrajectoryDirection
+      : 'forward',
+  }
+}
+
+function normalizeTrajectoryGroup(value: unknown, index: number, trajectoryIds: Set<string>, usedTrajectoryIds: Set<string>): Scene3DTrajectoryGroup | null {
+  const raw = asRecord(value)
+  const id = stringValue(raw.id, '')
+  if (!id) return null
+  const groupTrajectoryIds = Array.isArray(raw.trajectoryIds)
+    ? raw.trajectoryIds.filter((trajectoryId): trajectoryId is string => {
+      if (typeof trajectoryId !== 'string' || !trajectoryIds.has(trajectoryId) || usedTrajectoryIds.has(trajectoryId)) return false
+      usedTrajectoryIds.add(trajectoryId)
+      return true
+    })
+    : []
+  return {
+    id,
+    name: stringValue(raw.name, `组${index + 1}`),
+    trajectoryIds: groupTrajectoryIds,
+  }
+}
+
 export function normalizeScene3DState(value: unknown): Scene3DState {
   const fallback = createDefaultScene3DState()
   const raw = asRecord(value)
   const environment = asRecord(raw.environment)
   const editorCamera = asRecord(raw.editorCamera)
+  const sceneTimeline = asRecord(raw.sceneTimeline)
   const objects = Array.isArray(raw.objects)
     ? raw.objects.flatMap((item, index) => {
       const object = normalizeObject(item, index)
@@ -184,10 +318,54 @@ export function normalizeScene3DState(value: unknown): Scene3DState {
       return camera ? [camera] : []
     })
     : fallback.cameras
+  const trajectories = Array.isArray(raw.trajectories)
+    ? raw.trajectories.flatMap((item, index) => {
+      const trajectory = normalizeTrajectory(item, index)
+      return trajectory ? [trajectory] : []
+    })
+    : []
+  const trajectoryIds = new Set(trajectories.map((trajectory) => trajectory.id))
+  const objectIds = new Set(objects.map((object) => object.id))
+  const camerasWithValidFollowTargets = cameras.map((camera) => (
+    camera.followTargetId && !objectIds.has(camera.followTargetId)
+      ? { ...camera, followTargetId: undefined }
+      : camera
+  ))
+  const cameraIds = new Set(camerasWithValidFollowTargets.map((camera) => camera.id))
+  const bindableNodeIds = new Set([...objectIds, ...cameraIds])
+  const normalizedTrajectoryBindings = Array.isArray(raw.trajectoryBindings)
+    ? raw.trajectoryBindings.flatMap((item) => {
+      const binding = normalizeTrajectoryBinding(item, trajectoryIds, bindableNodeIds)
+      return binding ? [binding] : []
+    })
+    : []
+  const usedTrajectoryObjectIds = new Set<string>()
+  const trajectoryBindings = normalizedTrajectoryBindings.map((binding) => {
+    const objects = binding.objects.filter((boundObject) => {
+      if (usedTrajectoryObjectIds.has(boundObject.objectId)) return false
+      usedTrajectoryObjectIds.add(boundObject.objectId)
+      return true
+    })
+    return objects.length === binding.objects.length ? binding : { ...binding, objects }
+  })
+  const usedGroupedTrajectoryIds = new Set<string>()
+  const trajectoryGroups = Array.isArray(raw.trajectoryGroups)
+    ? raw.trajectoryGroups.flatMap((item, index) => {
+      const group = normalizeTrajectoryGroup(item, index, trajectoryIds, usedGroupedTrajectoryIds)
+      return group ? [group] : []
+    })
+    : []
+  const totalDuration = finiteNumber(sceneTimeline.totalDuration, DEFAULT_SCENE_TIMELINE_DURATION)
 
   return {
     objects,
-    cameras,
+    cameras: camerasWithValidFollowTargets,
+    trajectories,
+    trajectoryBindings,
+    trajectoryGroups,
+    sceneTimeline: {
+      totalDuration: totalDuration > 0 ? totalDuration : DEFAULT_SCENE_TIMELINE_DURATION,
+    },
     environment: {
       preset: stringValue(environment.preset, fallback.environment.preset),
       showGrid: environment.showGrid !== false,
@@ -222,6 +400,27 @@ export function cloneScene3DState(state: Scene3DState): Scene3DState {
       rotation: [...camera.rotation],
       target: [...(camera.target || [0, 0.75, 0] as Scene3DVector3)],
     })),
+    trajectories: state.trajectories.map((trajectory) => ({
+      ...trajectory,
+      points: trajectory.points.map((point) => ({
+        ...point,
+        position: [...point.position],
+        timeRatio: point.timeRatio,
+      })),
+      curveControls: trajectory.curveControls?.map((control) => ({
+        ...control,
+        position: [...control.position],
+      })),
+    })),
+    trajectoryBindings: state.trajectoryBindings.map((binding) => ({
+      ...binding,
+      objects: binding.objects.map((object) => ({ ...object })),
+    })),
+    trajectoryGroups: state.trajectoryGroups.map((group) => ({
+      ...group,
+      trajectoryIds: [...group.trajectoryIds],
+    })),
+    sceneTimeline: { ...state.sceneTimeline },
     environment: { ...state.environment },
     editorCamera: {
       position: [...state.editorCamera.position],

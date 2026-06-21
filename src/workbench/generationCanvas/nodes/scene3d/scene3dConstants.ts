@@ -1,6 +1,3 @@
-// Scene3D 常量与姿态数据。
-// 从 Scene3DFullscreen.tsx 抽出（纯数据 + 构建数据所需的 degreesToRadians/makePoseOffset），
-// 单向依赖：scene3dMath.ts → scene3dConstants.ts（构建器内置于此，避免与 math 形成循环依赖）。
 import * as THREE from 'three'
 import type { Scene3DVector3 } from './scene3dTypes'
 
@@ -55,7 +52,6 @@ export type Scene3DMovementCode =
   | 'ShiftLeft'
   | 'ShiftRight'
 
-// 姿态数据构建器。内置于此以保持 constants 自洽，math 反向依赖这两个函数。
 export function radiansToDegrees(value: number): number {
   return Number(THREE.MathUtils.radToDeg(value).toFixed(1))
 }
@@ -101,7 +97,6 @@ export const OBJECT_GROUND_GUIDE_ELEVATION = 0.018
 export const MANNEQUIN_FOOT_RING_COLOR = '#3b82f6'
 export const MANNEQUIN_DEFAULT_SCALE: Scene3DVector3 = [2.5, 2.5, 2.5]
 export const MANNEQUIN_LABEL_BASE_HEIGHT = 0.58
-// 角色身份色（roleColorForIndex 按序循环）：扩到 8 色，5+ 角色不再撞回第 1 个。
 export const ROLE_COLOR_SEQUENCE = ['#ef4444', '#facc15', '#3b82f6', '#22c55e', '#f97316', '#a855f7', '#06b6d4', '#ec4899'] as const
 export const CROWD_MAX_AXIS = 10
 export const CROWD_DETAILED_MODEL_LIMIT = 4
@@ -119,6 +114,13 @@ export const DARK_GRID_CELL_COLOR = '#475569'
 export const DARK_GRID_SECTION_COLOR = '#94a3b8'
 export const CLIPBOARD_PASTE_OFFSET: Scene3DVector3 = [0.45, 0, 0.45]
 export const MANNEQUIN_REST_ROTATION_KEY = 'scene3dRestRotation'
+export const UNGROUPED_TRAJECTORY_GROUP_ID = '__ungrouped_trajectories__'
+export const CAMERA_AIM_HANDLE_POSITIONS = new Float32Array([
+  -0.14, 0, 0,
+  0.14, 0, 0,
+  0, -0.14, 0,
+  0, 0.14, 0,
+])
 
 export const MANNEQUIN_DEFAULT_POSE: Record<string, Scene3DVector3> = {
   mixamorigSpine: [degreesToRadians(2), 0, 0],
@@ -265,6 +267,7 @@ export const MANNEQUIN_POSE_SECTIONS: MannequinPoseSection[] = [
     ],
   },
 ]
+
 export const MANNEQUIN_POSE_MIN_DEG = -90
 export const MANNEQUIN_POSE_MAX_DEG = 90
 
@@ -276,7 +279,6 @@ export const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
   {
     id: 't-pose',
     label: 'T型',
-    // 精确抵消 MANNEQUIN_DEFAULT_POSE，回到 X-Bot 的 rest（标准 T 字）。
     pose: makePoseOffset({
       mixamorigSpine: [-2, 0, 0],
       mixamorigHead: [2, 0, 0],
@@ -326,7 +328,6 @@ export const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
   {
     id: 'sit',
     label: '坐姿',
-    // 坐椅子：大腿前伸水平、小腿垂直向下、脚掌着地；落地后臀部停在椅高（需自行摆放椅/箱）。
     pose: makePoseOffset({
       mixamorigHips: [-4, 0, 0],
       mixamorigSpine: [4, 0, 0],
@@ -341,7 +342,6 @@ export const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
   {
     id: 'squat',
     label: '蹲下',
-    // 屈髋+屈膝幅度相等→小腿保持垂直、脚掌踩平；同步加大即加深。躯干前倾配平衡。
     pose: makePoseOffset({
       mixamorigHips: [-8, 0, 0],
       mixamorigSpine: [22, 0, 0],
@@ -357,7 +357,6 @@ export const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
   {
     id: 'single-knee',
     label: '单膝跪',
-    // 左腿在前脚掌着地(膝抬起)，右腿在后膝着地、小腿向后平铺。
     pose: makePoseOffset({
       mixamorigHips: [-6, 0, 0],
       mixamorigSpine: [6, 0, 0],
@@ -372,7 +371,6 @@ export const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
   {
     id: 'double-knee',
     label: '双膝跪',
-    // 双膝着地、小腿向后平铺、上身直立坐向脚跟。
     pose: makePoseOffset({
       mixamorigHips: [-4, 0, 0],
       mixamorigSpine: [4, 0, 0],
@@ -387,7 +385,6 @@ export const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
   {
     id: 'hands-on-hips',
     label: '叉腰',
-    // 上臂略抬、肘外撑、前臂弯回叉在腰上。
     pose: makePoseOffset({
       mixamorigLeftArm: [-28, 0, 0],
       mixamorigRightArm: [-28, 0, 0],
@@ -398,7 +395,6 @@ export const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
   {
     id: 'point',
     label: '指向',
-    // 右臂水平外伸指向，左臂自然下垂。
     pose: makePoseOffset({
       mixamorigRightArm: [-55, 70, 0],
       mixamorigRightForeArm: [10, 0, 0],
@@ -407,7 +403,6 @@ export const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
   {
     id: 'wave',
     label: '举手',
-    // 右臂近伸直高举致意（举手/挥手）。
     pose: makePoseOffset({
       mixamorigRightArm: [-150, 8, 0],
       mixamorigRightForeArm: [12, 0, 0],
@@ -416,7 +411,6 @@ export const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
   {
     id: 'cheer',
     label: '举双手',
-    // 双臂上举成 V 字——欢呼/胜利。
     pose: makePoseOffset({
       mixamorigLeftArm: [-148, 0, 0],
       mixamorigRightArm: [-148, 0, 0],

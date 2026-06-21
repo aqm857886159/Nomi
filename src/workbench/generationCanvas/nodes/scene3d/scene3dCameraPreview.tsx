@@ -232,4 +232,3 @@ export function CameraPreview({
     </div>
   )
 }
-

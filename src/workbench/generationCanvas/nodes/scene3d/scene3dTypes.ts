@@ -6,6 +6,7 @@ export type Scene3DObjectType = 'mesh' | 'model' | 'light' | 'group' | 'mannequi
 export type Scene3DGeometry = 'box' | 'sphere' | 'cylinder' | 'plane'
 export type Scene3DLightType = 'point' | 'directional' | 'spot'
 export type Scene3DAspectRatio = '16:9' | '9:16' | '4:3' | '3:4' | '1:1'
+export type Scene3DTrajectoryDirection = 'forward' | 'reverse'
 
 export type Scene3DObject = {
   id: string
@@ -36,6 +37,7 @@ export type Scene3DCamera = {
   position: Scene3DVector3
   rotation: Scene3DVector3
   target: Scene3DVector3
+  followTargetId?: string
   fov: number
   aspectRatio: Scene3DAspectRatio
   lensDepth: number
@@ -43,9 +45,58 @@ export type Scene3DCamera = {
   far: number
 }
 
+export type Scene3DTrajectoryPoint = {
+  id: string
+  position: Scene3DVector3
+  timeRatio?: number
+}
+
+export type Scene3DTrajectoryCurveControl = {
+  segmentStartPointId: string
+  position: Scene3DVector3
+}
+
+export type Scene3DTrajectory = {
+  id: string
+  name: string
+  points: Scene3DTrajectoryPoint[]
+  curveControls?: Scene3DTrajectoryCurveControl[]
+  tension: number
+  closed: boolean
+  color: string
+}
+
+export type Scene3DTrajectoryBoundObject = {
+  objectId: string
+  offsetRatio: number
+}
+
+export type Scene3DTrajectoryBinding = {
+  id: string
+  trajectoryId: string
+  objects: Scene3DTrajectoryBoundObject[]
+  startTime: number
+  endTime: number
+  direction: Scene3DTrajectoryDirection
+}
+
+export type Scene3DTrajectoryGroup = {
+  id: string
+  name: string
+  trajectoryIds: string[]
+}
+
+export type Scene3DTimeline = {
+  totalDuration: number
+}
+
 export type Scene3DState = {
   objects: Scene3DObject[]
   cameras: Scene3DCamera[]
+  trajectories: Scene3DTrajectory[]
+  trajectoryBindings: Scene3DTrajectoryBinding[]
+  trajectoryGroups: Scene3DTrajectoryGroup[]
+  sceneTimeline: Scene3DTimeline
   environment: {
     preset: string
     showGrid: boolean

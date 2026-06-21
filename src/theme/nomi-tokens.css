@@ -16,6 +16,10 @@
   --nomi-track-text: var(--nomi-accent);
   --nomi-track-image: oklch(0.7 0.13 200);
   --nomi-track-video: oklch(0.65 0.13 150);
+  /* 3D 轴向语义色(X/Y/Z) —— 无对应 UI token,沉淀成 token */
+  --nomi-axis-x: #ef4444;
+  --nomi-axis-y: #16a34a;
+  --nomi-axis-z: #3b82f6;
   /* 时间轴吸附反馈（暖橙，与 accent 蓝互补、对比最大；仅拖动中临时出现） */
   --nomi-snap: oklch(0.72 0.18 30);
   --nomi-snap-tag: oklch(0.45 0.18 30);

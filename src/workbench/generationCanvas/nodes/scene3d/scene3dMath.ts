@@ -1,5 +1,3 @@
-// Scene3D 纯计算工具：姿态/向量/相机/截图/对象工厂/移动键。
-// 从 Scene3DFullscreen.tsx 抽出，无 React/组件状态依赖；单向依赖 scene3dConstants.ts。
 import * as THREE from 'three'
 import { createScene3DCameraId, createScene3DObjectId } from './scene3dSerializer'
 import {
@@ -52,7 +50,10 @@ export function mannequinBoneNameVariants(boneName: string): string[] {
   return Array.from(new Set([boneName, normalizedName, colonName]))
 }
 
-export function mannequinPoseOffsetForBone(pose: Record<string, Scene3DVector3> | undefined, boneName: string): Scene3DVector3 | undefined {
+export function mannequinPoseOffsetForBone(
+  pose: Record<string, Scene3DVector3> | undefined,
+  boneName: string,
+): Scene3DVector3 | undefined {
   if (!pose) return undefined
   for (const candidate of mannequinBoneNameVariants(boneName)) {
     const rotation = pose[candidate]
@@ -93,7 +94,10 @@ export function levelEditorCameraRotation(position: Scene3DVector3, target: Scen
   ]
 }
 
-export function applyEditorCameraPose(camera: THREE.Camera, editorCamera: Pick<Scene3DState['editorCamera'], 'position' | 'target'>): void {
+export function applyEditorCameraPose(
+  camera: THREE.Camera,
+  editorCamera: Pick<Scene3DState['editorCamera'], 'position' | 'target'>,
+): void {
   const rotation = levelEditorCameraRotation(editorCamera.position, editorCamera.target)
   camera.up.set(0, 1, 0)
   camera.position.fromArray(editorCamera.position)
@@ -163,6 +167,14 @@ export function vectorAlmostEqual(a: Scene3DVector3, b: Scene3DVector3, epsilon 
   )
 }
 
+export function radiansToDegrees(value: number): number {
+  return Number(THREE.MathUtils.radToDeg(value).toFixed(1))
+}
+
+export function degreesToRadians(value: number): number {
+  return Number(THREE.MathUtils.degToRad(value).toFixed(4))
+}
+
 export function crowdRows(object: Scene3DObject): number {
   return Math.min(CROWD_MAX_AXIS, Math.max(1, Math.round(object.crowdRows || 1)))
 }
@@ -179,20 +191,20 @@ export function crowdCount(object: Scene3DObject): number {
   return object.type === 'mannequinCrowd' ? crowdRows(object) * crowdColumns(object) : 1
 }
 
-
-// 相机位姿的扁平采样：9 个原始 number（位置 xyz + 旋转 xyz + 目标 xyz）。
-// 用扁平结构而非 Scene3DVector3[]，让 useFrame 每帧从 THREE 对象就地读 .x/.y/.z 填进同一个 ref 对象，
-// 零数组分配即可比对——只有真的动了才进入分配 cameraState + 回调的路径（消除相机静止时的 60fps churn）。
 export type CameraPoseSample = {
-  px: number; py: number; pz: number
-  rx: number; ry: number; rz: number
-  tx: number; ty: number; tz: number
+  px: number
+  py: number
+  pz: number
+  rx: number
+  ry: number
+  rz: number
+  tx: number
+  ty: number
+  tz: number
 }
 
 const CAMERA_POSE_EPSILON = 0.0001
 
-// 纯函数：上一帧采样与本帧采样是否有任一分量超过 epsilon 变化。纯 number 比较，便于单测。
-// prev 为 null（首帧）一律视为「变化」，保证至少回灌一次初始位姿。
 export function cameraPoseSampleChanged(
   prev: CameraPoseSample | null,
   next: CameraPoseSample,
@@ -219,7 +231,10 @@ export function clonePoseValue(pose?: Record<string, Scene3DVector3>): Record<st
   )
 }
 
-export function poseMatchesPreset(pose: Record<string, Scene3DVector3> | undefined, preset: { pose?: Record<string, Scene3DVector3> }): boolean {
+export function poseMatchesPreset(
+  pose: Record<string, Scene3DVector3> | undefined,
+  preset: { pose?: Record<string, Scene3DVector3> },
+): boolean {
   if (!preset.pose) return !pose || Object.keys(pose).length === 0
   if (!pose) return false
   const presetEntries = Object.entries(preset.pose)
@@ -275,8 +290,6 @@ function lowestBoneLocalY(root: THREE.Object3D): number | null {
   return minY
 }
 
-// 记录「站立（默认姿势）下最低骨骼的高度」作为落地基准；姿势变了之后用它把人沉回贴地。
-// 在默认姿势下调一次即可建立基准。
 export function captureMannequinGroundReference(root: THREE.Group): void {
   applyMannequinSkeletonPose(root, undefined)
   const inner = root.children[0]
@@ -289,8 +302,6 @@ export function captureMannequinGroundReference(root: THREE.Group): void {
   if (minY !== null) root.userData[MANNEQUIN_GROUND_REF_KEY] = minY
 }
 
-// 姿势后自动落地：把整个人沉到「当前最低骨骼 = 站立时最低骨骼」的高度，
-// 让蹲/跪/坐等下蹲类姿势贴地而不悬空（纯旋转的姿势会让脚抬起、人悬空）。
 export function groundMannequinModel(root: THREE.Group): void {
   const inner = root.children[0]
   const refY = root.userData[MANNEQUIN_GROUND_REF_KEY] as number | undefined

@@ -1,15 +1,17 @@
 import React from 'react'
 import { IconCube, IconMaximize } from '@tabler/icons-react'
+import { lazyWithChunkBoundary } from '../../../ui/chunkBoundary'
 import { cn } from '../../../utils/cn'
 import { toast } from '../../../ui/toast'
+import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { normalizeScene3DState } from './scene3d/scene3dSerializer'
+import { cloneScene3DState, normalizeScene3DState } from './scene3d/scene3dSerializer'
 import { persistScene3DScreenshot } from './scene3d/scene3dScreenshot'
 import type { Scene3DCaptureResult, Scene3DState } from './scene3d/scene3dTypes'
-import { lazyWithChunkBoundary } from '../../../ui/chunkBoundary'
 
-const Scene3DFullscreen = lazyWithChunkBoundary('3D 全屏编辑', () => import('./scene3d/Scene3DFullscreen'))
+const loadScene3DFullscreen = () => import('./scene3d/Scene3DFullscreen')
+const Scene3DFullscreen = lazyWithChunkBoundary('3D 全屏编辑', loadScene3DFullscreen)
 
 type Scene3DEditorProps = {
   node: GenerationCanvasNode
@@ -33,10 +35,6 @@ function readScene3DState(node: GenerationCanvasNode): Scene3DState {
   return normalizeScene3DState(node.meta?.scene3dState)
 }
 
-// 结构化深比较（仅 JSON 值：plain object / array / 原始值——Scene3DState 一直是可序列化纯数据，
-// 故等价于原来的 JSON.stringify 相等，但**首处不同即短路返回**，不像 stringify 每次都把整棵
-// objects[]/cameras[] 全序列化两遍。根因 P1：去掉父层「每次 state 变就两次整树序列化」的热点开销，
-// 写库去重契约不变（仍只在 next 与已落盘 state 真不同时 updateNode）。
 function isPlainJsonObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -51,8 +49,6 @@ function jsonValueEqual(a: unknown, b: unknown): boolean {
     return true
   }
   if (isPlainJsonObject(a) && isPlainJsonObject(b)) {
-    // 与 JSON.stringify 同义：忽略两侧 value 为 undefined 的键（stringify 会丢这些键），
-    // 故 { parentId: undefined } 与 {} 视为相等——保持对旧实现的行为等价、不产生多余写入。
     const keysA = Object.keys(a).filter((key) => a[key] !== undefined)
     const keysB = Object.keys(b).filter((key) => b[key] !== undefined)
     if (keysA.length !== keysB.length) return false
@@ -69,25 +65,64 @@ export function scene3DStateEqual(a: Scene3DState, b: Scene3DState): boolean {
   return jsonValueEqual(a, b)
 }
 
-export default function Scene3DEditor({ node, width, height, readOnly = false }: Scene3DEditorProps): JSX.Element {
+function scene3DStateKey(state: Scene3DState): string {
+  return JSON.stringify(state)
+}
+
+function persistableScene3DState(state: Scene3DState): Scene3DState {
+  return cloneScene3DState(normalizeScene3DState(state))
+}
+
+function Scene3DEditor({ node, width, height, readOnly = false }: Scene3DEditorProps): JSX.Element {
   const [fullscreen, setFullscreen] = React.useState(false)
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const addNode = useGenerationCanvasStore((state) => state.addNode)
   const connectNodes = useGenerationCanvasStore((state) => state.connectNodes)
-  const sceneState = readScene3DState(node)
+  const sceneState = React.useMemo(() => readScene3DState(node), [node.id, node.meta?.scene3dState])
+  const sceneStateKey = React.useMemo(() => scene3DStateKey(sceneState), [sceneState])
+  const persistedSceneStateKeyRef = React.useRef(sceneStateKey)
+  const lastThumbnailRef = React.useRef(sceneState.lastThumbnail)
   const thumbnailUrl = sceneState.lastThumbnail
 
+  React.useEffect(() => {
+    persistedSceneStateKeyRef.current = sceneStateKey
+    lastThumbnailRef.current = sceneState.lastThumbnail
+  }, [sceneState.lastThumbnail, sceneStateKey])
+
+  const preloadFullscreenEditor = React.useCallback(() => {
+    void loadScene3DFullscreen()
+  }, [])
+
   const handleStateChange = React.useCallback((nextState: Scene3DState) => {
+    const nextSceneState = persistableScene3DState({
+      ...nextState,
+      lastThumbnail: nextState.lastThumbnail ?? lastThumbnailRef.current,
+    })
+    const nextSceneStateKey = scene3DStateKey(nextSceneState)
+    if (persistedSceneStateKeyRef.current === nextSceneStateKey) return
+
     const current = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)
     const currentSceneState = normalizeScene3DState(current?.meta?.scene3dState)
-    if (scene3DStateEqual(currentSceneState, nextState)) return
+    if (scene3DStateEqual(currentSceneState, nextSceneState)) {
+      persistedSceneStateKeyRef.current = nextSceneStateKey
+      lastThumbnailRef.current = nextSceneState.lastThumbnail
+      return
+    }
+
+    persistedSceneStateKeyRef.current = nextSceneStateKey
+    lastThumbnailRef.current = nextSceneState.lastThumbnail
     updateNode(node.id, {
       meta: {
         ...(current?.meta || {}),
-        scene3dState: nextState,
+        scene3dState: nextSceneState,
       },
     })
   }, [node.id, updateNode])
+
+  const handleCloseFullscreen = React.useCallback(() => {
+    setFullscreen(false)
+    void persistActiveWorkbenchProjectNow().catch(() => {})
+  }, [])
 
   const handleScreenshot = React.useCallback(async (capture: Scene3DCaptureResult) => {
     try {
@@ -130,17 +165,19 @@ export default function Scene3DEditor({ node, width, height, readOnly = false }:
       connectNodes(node.id, screenshotNode.id, 'reference')
 
       const current = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)
-      const nextSceneState = {
+      const nextSceneState = persistableScene3DState({
         ...normalizeScene3DState(current?.meta?.scene3dState),
         lastThumbnail: persisted.url,
-      }
+      })
+      lastThumbnailRef.current = persisted.url
+      persistedSceneStateKeyRef.current = scene3DStateKey(nextSceneState)
       updateNode(node.id, {
         meta: {
           ...(current?.meta || node.meta || {}),
           scene3dState: nextSceneState,
         },
       })
-      toast('已创建图片节点', 'success')
+      toast('3D 截图已创建图片节点', 'success')
     } catch (error) {
       toast(error instanceof Error ? error.message : '截图失败，请重试', 'error')
     }
@@ -182,7 +219,9 @@ export default function Scene3DEditor({ node, width, height, readOnly = false }:
           type="button"
           aria-label="打开 3D 编辑器"
           title="打开 3D 编辑器"
+          onFocus={preloadFullscreenEditor}
           onPointerDown={(event) => event.stopPropagation()}
+          onPointerEnter={preloadFullscreenEditor}
           onClick={(event) => {
             event.stopPropagation()
             setFullscreen(true)
@@ -198,7 +237,7 @@ export default function Scene3DEditor({ node, width, height, readOnly = false }:
             initialState={sceneState}
             nodeTitle={node.title || '3D场景'}
             readOnly={readOnly}
-            onClose={() => setFullscreen(false)}
+            onClose={handleCloseFullscreen}
             onScreenshot={(capture) => { void handleScreenshot(capture) }}
             onStateChange={handleStateChange}
           />
@@ -207,3 +246,14 @@ export default function Scene3DEditor({ node, width, height, readOnly = false }:
     </>
   )
 }
+
+export default React.memo(Scene3DEditor, (previous, next) => (
+  previous.node.id === next.node.id &&
+  previous.node.title === next.node.title &&
+  previous.node.meta?.scene3dState === next.node.meta?.scene3dState &&
+  previous.node.position.x === next.node.position.x &&
+  previous.node.position.y === next.node.position.y &&
+  previous.width === next.width &&
+  previous.height === next.height &&
+  previous.readOnly === next.readOnly
+))
