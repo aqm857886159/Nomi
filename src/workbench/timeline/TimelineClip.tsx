@@ -28,8 +28,10 @@ function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
   const didDragRef = React.useRef(false)
 
   const title = clip.label || clip.text || clip.sourceNodeId
-  const showVideoThumb = clip.type === 'video' && !clip.thumbnailUrl && Boolean(clip.url)
   const clipVideoUrl = typeof clip.url === 'string' ? clip.url : ''
+  // C3 真实帧：video clip 优先用真实视频帧（<video> 首帧）而非存的 thumbnailUrl——
+  // 后者可能是节点预览的「黑底合成标题卡」（审计 D3「假数据感」）。image clip 的 thumbnail=真图，照旧。
+  const showVideoThumb = clip.type === 'video' && Boolean(clipVideoUrl)
 
   // 吸附"咔哒"微反馈：WAAPI 实现，免改全局 CSS（规则 10）；不与 React 的 style.left 冲突。
   const pulseSnap = React.useCallback(() => {
@@ -207,12 +209,7 @@ function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
 
   const clipWidth = Math.max(36, frameToPixel(clip.frameCount, scale))
 
-  const thumbContent = clip.thumbnailUrl ? (
-    <NomiImage className={cn(
-      'workbench-timeline-clip__thumb',
-      'block absolute inset-0 w-full h-full object-cover rounded-[inherit] bg-[var(--nomi-ink-10)]',
-    )} src={clip.thumbnailUrl} alt="" />
-  ) : showVideoThumb && clipVideoUrl ? (
+  const thumbContent = showVideoThumb && clipVideoUrl ? (
     <video
       className={cn(
         'workbench-timeline-clip__thumb',
@@ -228,6 +225,11 @@ function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
         void diagnoseVideoPlaybackFailure(clipVideoUrl, event.currentTarget.error).then(logVideoPlaybackFailure)
       }}
     />
+  ) : (clip.type === 'image' && clipVideoUrl) || clip.thumbnailUrl ? (
+    <NomiImage className={cn(
+      'workbench-timeline-clip__thumb',
+      'block absolute inset-0 w-full h-full object-cover rounded-[inherit] bg-[var(--nomi-ink-10)]',
+    )} src={clip.type === 'image' && clipVideoUrl ? clipVideoUrl : clip.thumbnailUrl || ''} alt="" />
   ) : null
 
   const clipBaseClasses = cn(

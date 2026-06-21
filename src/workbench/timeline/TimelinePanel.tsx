@@ -1,6 +1,7 @@
 import React from 'react'
 import {
   IconArrowBackUp,
+  IconArrowForwardUp,
   IconArrowLeft,
   IconArrowRight,
   IconCopy,
@@ -88,6 +89,8 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
   const setTimelineSplitMode = useWorkbenchStore((state) => state.setTimelineSplitMode)
   const canUndo = useWorkbenchStore((state) => state.timelineUndoStack.length > 0)
   const undoTimeline = useWorkbenchStore((state) => state.undoTimeline)
+  const canRedo = useWorkbenchStore((state) => state.timelineRedoStack.length > 0)
+  const redoTimeline = useWorkbenchStore((state) => state.redoTimeline)
   // 单片工具（分割/复制/微调）作用于"最后选中"的 primary
   const primaryClipId = selectedClipIds.length > 0 ? selectedClipIds[selectedClipIds.length - 1] : ''
   const hasSelection = selectedClipIds.length > 0
@@ -134,10 +137,16 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
       if (event.defaultPrevented) return
       const target = event.target as HTMLElement | null
       if (target?.closest('input, textarea, [contenteditable="true"]')) return
-      // 撤销时间轴编辑（⌘Z / Ctrl+Z），不带 shift（shift+Z 留给将来 redo）
+      // 撤销时间轴编辑（⌘Z / Ctrl+Z）
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z' && !event.shiftKey) {
         event.preventDefault()
         useWorkbenchStore.getState().undoTimeline()
+        return
+      }
+      // 重做（⇧⌘Z / ⇧Ctrl+Z）
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z' && event.shiftKey) {
+        event.preventDefault()
+        useWorkbenchStore.getState().redoTimeline()
         return
       }
       // Esc 退出剪刀模式
@@ -303,6 +312,9 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
             icon={<IconCut size={14} />}
             onClick={() => setTimelineSplitMode(!splitMode)}
           />
+          {canRedo ? (
+            <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label="重做时间轴编辑" title="重做（⇧⌘Z）" icon={<IconArrowForwardUp size={14} />} onClick={() => redoTimeline()} />
+          ) : null}
           {canUndo ? (
             <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label="撤销时间轴编辑" title="撤销（⌘Z）" icon={<IconArrowBackUp size={14} />} onClick={() => undoTimeline()} />
           ) : null}

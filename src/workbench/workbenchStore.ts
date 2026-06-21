@@ -136,11 +136,15 @@ type WorkbenchState = {
   timelineSplitMode: boolean
   /** 时间轴撤销栈（仅时间轴编辑，非持久化）。封顶后丢最旧。 */
   timelineUndoStack: TimelineState[]
+  /** 时间轴重做栈。撤销时压入；任一新编辑清空（新编辑使 redo 失效，标准语义）。 */
+  timelineRedoStack: TimelineState[]
   setTimelineSplitMode: (on: boolean) => void
   /** 把当前 timeline 压入撤销栈（变更生效前 / 拖拽手势首次移动时调）。 */
   captureTimelineUndo: () => void
   /** 弹出上一个 timeline 快照恢复（⌘Z）。 */
   undoTimeline: () => void
+  /** 重做（⇧⌘Z）：把撤销掉的编辑再放回。 */
+  redoTimeline: () => void
   setWorkspaceMode: (mode: unknown) => void
   setAssistantWidth: (width: number) => void
   setWorkbenchDocument: (document: WorkbenchDocument) => void
@@ -313,6 +317,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   timelineSnapGuide: null,
   timelineSplitMode: false,
   timelineUndoStack: [],
+  timelineRedoStack: [],
   setWorkspaceMode: (mode) => {
     if (!isWorkspaceMode(mode)) return
     set({ workspaceMode: mode })
@@ -441,6 +446,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       return {
         timeline: nextTimeline,
         timelineUndoStack: inserted ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
+        timelineRedoStack: inserted ? [] : state.timelineRedoStack,
         selectedTimelineClipIds: inserted ? [clip.id] : state.selectedTimelineClipIds,
         persistRevision: inserted ? state.persistRevision + 1 : state.persistRevision,
       }
@@ -483,7 +489,8 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       if (stack.length > 0 && stack[stack.length - 1] === state.timeline) return state
       const next = [...stack, state.timeline]
       if (next.length > TIMELINE_UNDO_LIMIT) next.shift()
-      return { timelineUndoStack: next }
+      // capture 发生在一次新编辑（多为拖拽手势）首次改动前 → 清空 redo（新编辑使 redo 失效）。
+      return { timelineUndoStack: next, timelineRedoStack: [] }
     })
   },
   undoTimeline: () => {
@@ -495,9 +502,29 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       return {
         timeline: previous,
         timelineUndoStack: stack.slice(0, -1),
+        // 撤销 = 把当前态推入 redo 栈（供 ⇧⌘Z 放回）。
+        timelineRedoStack: [...state.timelineRedoStack, state.timeline].slice(-TIMELINE_UNDO_LIMIT),
         // 撤销后清掉指向已不存在 clip 的选择，避免 Delete/工具作用于幽灵选区
         selectedTimelineClipIds: state.selectedTimelineClipIds.filter((id) => liveIds.has(id)),
         selectedTextClipId: previous.textClips.some((c) => c.id === state.selectedTextClipId) ? state.selectedTextClipId : '',
+        timelinePlaying: false,
+        persistRevision: state.persistRevision + 1,
+      }
+    })
+  },
+  redoTimeline: () => {
+    set((state) => {
+      const stack = state.timelineRedoStack
+      if (stack.length === 0) return state
+      const restored = stack[stack.length - 1]
+      const liveIds = new Set(restored.tracks.flatMap((track) => track.clips.map((clip) => clip.id)))
+      return {
+        timeline: restored,
+        // 重做 = 把当前态推回撤销栈、从 redo 弹出（不清 redo——这不是新编辑）。
+        timelineUndoStack: [...state.timelineUndoStack, state.timeline].slice(-TIMELINE_UNDO_LIMIT),
+        timelineRedoStack: stack.slice(0, -1),
+        selectedTimelineClipIds: state.selectedTimelineClipIds.filter((id) => liveIds.has(id)),
+        selectedTextClipId: restored.textClips.some((c) => c.id === state.selectedTextClipId) ? state.selectedTextClipId : '',
         timelinePlaying: false,
         persistRevision: state.persistRevision + 1,
       }
@@ -524,6 +551,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       return {
         timeline: nextTimeline,
         timelineUndoStack: changed ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
+        timelineRedoStack: changed ? [] : state.timelineRedoStack,
         selectedTimelineClipIds: [],
         timelinePlaying: false,
         persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
@@ -576,6 +604,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       return {
         timeline: nextTimeline,
         timelineUndoStack: changed ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
+        timelineRedoStack: changed ? [] : state.timelineRedoStack,
         selectedTimelineClipIds: [String(clipId || '').trim()].filter(Boolean),
         persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
       }
@@ -588,6 +617,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       return {
         timeline: nextTimeline,
         timelineUndoStack: changed ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
+        timelineRedoStack: changed ? [] : state.timelineRedoStack,
         selectedTimelineClipIds: [String(clipId || '').trim()].filter(Boolean),
         persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
       }
@@ -600,6 +630,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       return {
         timeline: nextTimeline,
         timelineUndoStack: changed ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
+        timelineRedoStack: changed ? [] : state.timelineRedoStack,
         selectedTimelineClipIds: [String(clipId || '').trim()].filter(Boolean),
         persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
       }
@@ -643,6 +674,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     set((state) => ({
       timeline,
       timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, previous),
+      timelineRedoStack: [],
       selectedTextClipId: id,
       selectedTimelineClipIds: [],
       persistRevision: state.persistRevision + 1,
@@ -654,7 +686,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       const next = updateTextClipText(state.timeline, id, text)
       return next === state.timeline
         ? state
-        : { timeline: next, timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline), persistRevision: state.persistRevision + 1 }
+        : { timeline: next, timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline), timelineRedoStack: [], persistRevision: state.persistRevision + 1 }
     })
   },
   moveTimelineTextClip: (id, startFrame, options) => {
@@ -688,6 +720,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       return {
         timeline: next,
         timelineUndoStack: changed ? pushTimelineUndo(state.timelineUndoStack, state.timeline) : state.timelineUndoStack,
+        timelineRedoStack: changed ? [] : state.timelineRedoStack,
         selectedTextClipId: state.selectedTextClipId === id ? '' : state.selectedTextClipId,
         timelinePlaying: false,
         persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,

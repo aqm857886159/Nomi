@@ -6,11 +6,12 @@
 //
 // 关键：host **不取单实例锁**（它是 worker 不是 app），也不开窗、不起 RPC、不写实例广告——它是一次性
 // 短命进程。app 关着时它就是工程文件的唯一写者（安全）；app 开着时 CLI 走 RPC 不会 spawn 它（无并发写）。
-import { app } from 'electron'
+import { app, session } from 'electron'
 
 import { dispatch, RpcError } from './dispatcher'
 import { runTask, fetchTaskResult } from '../runtime'
 import { verifyToken } from './security'
+import { applySystemProxy } from '../systemProxy'
 
 // 身份对齐（解密 vendor key 的前提）：CLI 用 `electron host.js` spawn 时 getName 默认 "Electron"，与主 app
 // 加密 safeStorage key 时的身份不符 → 解不开 key（真机实测「API key missing」根因）。spawner 经 NOMI_APP_NAME
@@ -61,6 +62,13 @@ async function run(): Promise<number> {
 app.whenReady().then(async () => {
   let code = 1
   try {
+    // 和主 app 一致设代理(main.ts:436):headless host 默认 session 不设代理 → 代理后的机器 vendor fetch 失败。
+    // 失败兜底直连(不崩),与主 app 同一不变量。
+    try {
+      await applySystemProxy(session.defaultSession)
+    } catch {
+      /* 代理设失败 → 直连兜底 */
+    }
     code = await run()
   } catch (error) {
     emit({ ok: false, error: error instanceof Error ? error.message : String(error) })

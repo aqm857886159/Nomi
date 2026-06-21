@@ -5,8 +5,8 @@
 > **实现进度（2026-06-21）**：
 > - ✅ P2 播放器：音量/静音 + 全屏 + 逐帧 ⏮⏭（TimelinePreview，五门绿）。
 > - ✅ trim 帧气泡：拖边裁剪浮「Δ帧·时长」（snap-tag 暖橙，TimelineClip，五门绿）。
-> - ⏳ redo 重做：**暂缓**——需在 workbenchStore 约 8 处 push 撤销栈的 set() 各加「清空 redo 栈」(否则新编辑后 redo 回放陈旧态=新 bug),多点改动 + 并行会话占用同文件风险高;留作单独小心切片。
-> - ⏳ scrub 91ms：先真机 probe-latency 实测确认是否真存在,再决定修不修(未做)。
+> - ✅ redo 重做(04463c1)：workbenchStore 加 timelineRedoStack(所有 ~8 处压栈点 + capture 均清 redo)+ redoTimeline + ⇧⌘Z + 工具栏按钮;单测 4 例(还原/新编辑清栈/空栈安全)。
+> - ⏳ scrub 91ms：先真机 probe-latency 实测确认是否真存在再决定修不修——**未做**(需稳定窗口 + 视频 clip 才能 probe;隔离实例无内容+studio 窗口 flaky,本轮没测成)。留给正常 GPU 实例。
 > 真相源：本文件。代码地图见对话；对标基线 2026 实搜（非记忆）。
 > 关联：`docs/audit/2026-06-19-clip-timeline-walkthrough.md`、`docs/audit/2026-06-20-experience-feel.md`、记忆 [[preview-roughcut-canvas-bridge-plan]]。
 

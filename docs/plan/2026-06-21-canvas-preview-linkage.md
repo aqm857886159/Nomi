@@ -6,8 +6,8 @@
 > - ✅ C0 地基：in-place 重生成(`regenerateNodeInPlace`,不 duplicate)+ clip 回填闸(`reconcileTimelineForUpdatedNodes`)+ URL 口径(providerUrl 优先,保留本地 scheme)+ trim 越界夹取 + 防重叠。纯函数单测 12 例。五门绿。
 > - ✅ C1 就地重生成 UI：时间轴选中单媒体 clip → 工具栏「重生成」(IconSparkles/accent)。
 > - ✅ C2 一键拼片 UI：TimelinePanel 工具栏「AI 拼片」(IconWand)复用 `arrangeStoryboardToTimeline`(此前无 UI 入口)。
-> - ⏳ C3 真实帧缩略图：未做(需先核准确「假缩略图」来源 + 抽帧缓存/失效设计,最重)。
-> - ⚠️ 真机 R13:新控件五门绿;本轮集中真机走查被隔离测试环境软渲染下 studio 窗口偶发崩挡住(非代码缺陷,本会话早先同驱动能进预览)。待正常 GPU 实例眼过 + 就地重生成端到端真生成验。
+> - ✅ C3 真实帧缩略图(26b3968)：video clip 优先用真实 `<video>` 首帧、image clip 优先 url，绕开节点预览的「黑底合成标题卡」(审计 D3)；thumbnailUrl 仅 audio/兜底。
+> - ⚠️ 真机 R13(部分通过)：新控制条在真 app 渲染**已肉眼确认**(逐帧/音量/全屏/AI拼片/三轨含文字轨，布局一行不溢出，screenshot pv_bar2)；**clip 相关行为(选中重生成/trim气泡/真实缩略图/scrub 延迟)无法在隔离实例验**——它无 key/无内容、且 studio 窗口在隔离环境 flaky 崩。待**正常 GPU + 有内容的实例**眼过 + 就地重生成端到端真生成验。
 > 真相源：本文件（v3）。配套：`2026-06-21-preview-rough-cut-overhaul.md`（预览区内部手感，需按 §6 同步裁剪）。
 > 关联记忆：`connection-reference-bugs`、`reconcile-edge-drop-and-card-redesign`、`agent-arrange-storyboard-to-timeline`、`url-priority-inconsistency-ref-lost`、`canvas-tidy-layout`。
 
