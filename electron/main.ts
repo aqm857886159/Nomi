@@ -48,6 +48,7 @@ import { registerConversationsIpc } from "./conversations/conversationsIpc";
 import { setEventLogSecretsProvider } from "./events/eventLogRepository";
 import { registerEventsIpc } from "./events/eventsIpc";
 import { registerMemoryIpc } from "./memory/memoryIpc";
+import { registerPromptLibraryIpc } from "./promptLibrary/promptLibraryIpc";
 import { catalogSecretsProvider } from "./events/secretsProvider";
 import { VendorRequestError, encodeVendorErrorMessage } from "./vendor/vendorHttp";
 import { traceVendorCompleted } from "./events/vendorCallTrace";
@@ -337,6 +338,7 @@ function registerIpc(): void {
   registerConversationsIpc();
   registerEventsIpc();
   registerMemoryIpc();
+  registerPromptLibraryIpc();
   registerOnboardingIpc();
   registerUpdaterIpc();
   // S4-1 评测安全铁律:事件落盘前,已配置的 vendor key 精确匹配脱敏(形态兜底之外的地基)。

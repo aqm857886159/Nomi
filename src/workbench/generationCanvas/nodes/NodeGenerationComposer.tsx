@@ -13,6 +13,7 @@ import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
 import NodeParameterControls from './NodeParameterControls'
 import { GENERATE_BUTTON_CLASS } from './nodeComposerStyles'
 import { NodeLockBadge } from './NodeLockBadge'
+import { NodePromptOptimizer } from './NodePromptOptimizer'
 import { useNodeAssetDrop } from './useNodeAssetDrop'
 import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
 import {
@@ -282,6 +283,9 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
             selected 恒为真（composer 只在选中时挂载）→ 始终可见：未锁=描边开锁、已锁=实心锁。 */}
         <NodeLockBadge nodeId={node.id} locked={node.locked} selected />
         <NodeParameterControls node={node} section="parameters" />
+        {(nodeExecutionKind === 'image' || nodeExecutionKind === 'video') && !node.locked ? (
+          <NodePromptOptimizer node={node} isVideo={nodeExecutionKind === 'video'} />
+        ) : null}
         {(() => {
           const disabledReason = !canGenerateNow && !isGenerating
             ? nodeExecutionKind === 'video'

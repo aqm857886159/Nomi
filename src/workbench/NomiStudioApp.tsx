@@ -55,6 +55,11 @@ const AssetLibraryPanel = lazyWithChunkBoundary("素材库", () =>
         default: module.AssetLibraryPanel,
     })),
 );
+const PromptLibraryPanel = lazyWithChunkBoundary("提示词库", () =>
+    import("./promptLibrary/PromptLibraryPanel").then((module) => ({
+        default: module.PromptLibraryPanel,
+    })),
+);
 const GenerationCanvas = lazyWithChunkBoundary(
     "生成画布",
     () => import("./generationCanvas/components/GenerationCanvas"),
@@ -106,6 +111,7 @@ export default function NomiStudioApp(): JSX.Element {
         React.useState(true);
     const [modelCatalogOpened, setModelCatalogOpened] = React.useState(false);
     const [assetLibraryOpened, setAssetLibraryOpened] = React.useState(false);
+    const [promptLibraryOpened, setPromptLibraryOpened] = React.useState(false);
     // 首启开屏：仅首次未看过时自动放；看过后可经项目库「看看 Nomi」重看。
     const [splashDone, setSplashDone] = React.useState(() => hasSeenSplash());
     const { hasTextModel, refresh: refreshModelStatus } = useHasTextModel();
@@ -159,6 +165,19 @@ export default function NomiStudioApp(): JSX.Element {
             window.removeEventListener(
                 "nomi-open-asset-library",
                 handleOpenAssetLibrary,
+            );
+    }, []);
+
+    React.useEffect(() => {
+        const handleOpenPromptLibrary = () => setPromptLibraryOpened(true);
+        window.addEventListener(
+            "nomi-open-prompt-library",
+            handleOpenPromptLibrary,
+        );
+        return () =>
+            window.removeEventListener(
+                "nomi-open-prompt-library",
+                handleOpenPromptLibrary,
             );
     }, []);
 
@@ -578,6 +597,13 @@ export default function NomiStudioApp(): JSX.Element {
                     opened={assetLibraryOpened}
                     onClose={() => setAssetLibraryOpened(false)}
                     projectId={activeProject?.id ?? null}
+                />
+            </React.Suspense>
+
+            <React.Suspense fallback={null}>
+                <PromptLibraryPanel
+                    opened={promptLibraryOpened}
+                    onClose={() => setPromptLibraryOpened(false)}
                 />
             </React.Suspense>
 
