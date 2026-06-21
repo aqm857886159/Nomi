@@ -113,6 +113,12 @@ export function buildCatalogTaskRequest(
 
   const references = options.references || {}
   const kind = resolveTaskKind(node, references)
+  // 站位构图参考：出关键帧时把 staging 灰模图当「构图蓝图」而非编辑底图——照站位/姿势/机位，
+  // 但写实重渲染，别照搬灰模 3D 外观（评测发现 image_edit 直喂会出 CGI 感）。只对图像生成加。
+  const finalPrompt =
+    references.stagingComposition && (kind === 'text_to_image' || kind === 'image_edit')
+      ? `${prompt}\n\n（构图参考仅用于确定人物站位、各自姿势和镜头机位；请据此完全写实地重新渲染人物与场景——真实皮肤/衣物/光影，不要保留参考图里灰色人偶或 3D 渲染的外观。）`
+      : prompt
   const meta = node.meta || {}
   const width = asFiniteNumber(meta.width)
   const height = asFiniteNumber(meta.height)
@@ -124,7 +130,7 @@ export function buildCatalogTaskRequest(
     vendor,
     request: {
       kind,
-      prompt,
+      prompt: finalPrompt,
       ...(typeof seed === 'number' ? { seed } : {}),
       ...(typeof width === 'number' ? { width } : {}),
       ...(typeof height === 'number' ? { height } : {}),

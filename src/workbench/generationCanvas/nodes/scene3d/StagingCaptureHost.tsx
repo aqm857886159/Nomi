@@ -70,6 +70,8 @@ export function StagingCaptureHost(): JSX.Element | null {
             ...(imageNode.meta || {}),
             source: capture.source,
             sourceNodeId: nodeId,
+            // 标记为站位构图图：被当 composition_ref 喂关键帧时，触发「构图控制+写实重渲染」prompt 后缀。
+            stagingComposition: true,
             localOnly: persisted.localOnly,
             imageWidth: capture.width,
             imageHeight: capture.height,

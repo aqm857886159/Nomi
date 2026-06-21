@@ -62,4 +62,13 @@
 - **三人各异姿势（左坐/中站/右单膝跪）**：A 纯文本直接 failed/难产；B 带 staging **精确锁住三人各自姿势+站位+连颜色都复刻**。→ **多人特定姿势是 staging 的硬价值区。**
 - **真限制（重要）**：用 `image_edit` 喂 staging 会让输出**偏 CGI/3D 渲染感**（三人组 B 像给灰模上色），太贴源图美学。→ 写实关键帧应把 staging 当**构图/姿态控制**（ControlNet 式，控布局不控像素）或加强写实 prompt，而非全图 edit。反套路 B 仍写实，说明因图而异。
 
-**净结论**：staging 在「**多角色特定姿势 + 精确机位/构图**」处价值明确；简单显式双人现代图像模型已能从文本做好；image_edit 模式有 CGI 美学副作用，是下一步要优化的（composition-control 而非 edit）。视频层运动漂移未跑（更贵，留后）。
+**净结论**：staging 在「**多角色特定姿势 + 精确机位/构图**」处价值明确；简单显式双人现代图像模型已能从文本做好。
+
+## D 层 · 修复（已实现+验证，commit 待推）
+
+发现两个真问题并根治：
+1. **结构性接线**：Seedance 等视频模型**没有 composition 槽**——composition_ref 直喂视频节点会被丢/误当首帧（灰人偶上屏）。正解=staging 接镜头的**关键帧图**（i2v 首帧源），视频继承。已在工具描述 + 系统提示写死「shotClientId 指关键帧图、非视频节点」。
+2. **CGI 副作用**：image_edit 直喂灰模 → 输出像给灰模上色。正解=出关键帧时给 prompt 加「构图控制+写实重渲染」后缀（catalogTaskActions，scoped: staging 图作 composition_ref + 图像 kind 才加）。staging 图打 meta.stagingComposition 标记 → resolver 透出 → 任务组装注入后缀。
+   **验证**：三人组重跑——无后缀=CGI 灰模上色；**有后缀=写实阳光广场（左坐/中站/右跪站位完全保留）**。✓
+
+链路完整：staging(灰模) → 写实关键帧(构图锁定、自动去 CGI) → i2v 视频继承首帧站位。视频层运动漂移对比未跑（更贵，留后）。

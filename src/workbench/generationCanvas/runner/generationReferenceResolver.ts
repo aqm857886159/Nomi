@@ -10,6 +10,9 @@ export type ResolvedGenerationReferences = {
   styleReferenceImages: string[]
   characterReferenceImages: string[]
   compositionReferenceImages: string[]
+  /** 至少有一条 composition_ref 的源是 staging 站位图（image 节点 meta.stagingComposition）。
+   *  → 出关键帧时给 prompt 加「构图控制+写实重渲染」后缀，避免照搬灰模 3D 外观。 */
+  stagingComposition?: boolean
   /**
    * T5 尾帧接力：first_frame 边的源是 video 节点时，这里是源视频的 URL——
    * 表示「用源视频的尾帧当本节点首帧」。runController 提交生成前 await 抽帧
@@ -39,6 +42,7 @@ export function resolveGenerationReferences(
   let firstFrameFromEdge = ''
   let lastFrameFromEdge = ''
   let relayFromVideoUrl = ''
+  let stagingComposition = false
 
   // **按 order 升序**遍历 → referenceImages（喂 buildArchetypeInputParams 的数组槽）顺序稳定，
   // 与显示侧 resolveReferenceSlots 同一口径，保住 character1..N（audit 2026-06-16 §1d「数组参考收口到有序边」）。
@@ -75,6 +79,7 @@ export function resolveGenerationReferences(
     if (edge.mode === 'composition_ref') {
       pushUnique(compositionReferenceImages, sourceUrl)
       pushUnique(referenceImages, sourceUrl)
+      if (nodesById.get(edge.source)?.meta?.stagingComposition === true) stagingComposition = true
       continue
     }
   }
@@ -119,6 +124,7 @@ export function resolveGenerationReferences(
     styleReferenceImages,
     characterReferenceImages,
     compositionReferenceImages,
+    ...(stagingComposition ? { stagingComposition } : {}),
     ...(relayFromVideoUrl ? { relayFromVideoUrl } : {}),
   }
 }

@@ -27,7 +27,7 @@ const SCENARIOS = [
     label: 'three-poses',
     spec: { characters: [{ pose: 'sit' }, { pose: 'standing' }, { pose: 'single-knee' }], layout: 'side-by-side', camera: { angle: 'front', height: 'eye', shot: 'wide' } },
     promptA: '写实照片，三个人并排：最左边的人坐在地上、中间的人站着、最右边的人单膝跪地，正面全景。',
-    promptB: '把参考图里三个灰色人偶渲染成真实的人，严格保持各自姿势——左边坐、中间站、右边单膝跪，以及三人站位：正面全景写实照片。',
+    promptB: '电影级写实照片：三个人在城市广场上，最左边的人坐在地上、中间的人站着、最右边的人单膝跪地。\n\n（构图参考仅用于确定人物站位、各自姿势和镜头机位；请据此完全写实地重新渲染人物与场景——真实皮肤/衣物/光影，不要保留参考图里灰色人偶或 3D 渲染的外观。）',
   },
   {
     label: 'back-facing',
@@ -36,6 +36,9 @@ const SCENARIOS = [
     promptB: '把参考图渲染成真人，严格保持：前景的人背对镜头、对面的人面朝镜头，两人面对面站立，过肩构图写实照片。',
   },
 ]
+
+// SC_ONLY=<label> 只跑某个场景（省额度调试）。
+if (process.env.SC_ONLY) { const only = process.env.SC_ONLY; for (let i = SCENARIOS.length - 1; i >= 0; i--) if (SCENARIOS[i].label !== only) SCENARIOS.splice(i, 1) }
 
 // ── Phase 1：chromium 渲每个场景的 staging 灰模图 ──
 console.log('▶ Phase 1: 渲染各场景 staging 灰模图')
