@@ -21,6 +21,8 @@ function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
   const [isDragging, setIsDragging] = React.useState(false)
   // 剪刀模式：悬停时切点线相对本 clip 左缘的像素位置（null = 不在切点范围/未悬停）
   const [cutPx, setCutPx] = React.useState<number | null>(null)
+  // P1 trim 气泡：拖边裁剪中浮「Δ帧 · 时长」（仅拖动瞬时显示，用 snap-tag 暖橙——与吸附同语义层）
+  const [resizeTag, setResizeTag] = React.useState<{ edge: 'left' | 'right'; text: string } | null>(null)
   const clipRef = React.useRef<HTMLDivElement | null>(null)
   const lastSnapLabelRef = React.useRef<string | null>(null)
   const didDragRef = React.useRef(false)
@@ -83,12 +85,22 @@ function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
       if (!captured) { useWorkbenchStore.getState().captureTimelineUndo(); captured = true }
       appliedDelta = deltaFrame
       useWorkbenchStore.getState().resizeTimelineClip(clip.id, edge, incremental)
+      // 气泡：读回 live clip 算可见时长 + 累计 Δ帧（裁掉相邻夹紧后的真实增量）
+      const liveTimeline = useWorkbenchStore.getState().timeline
+      const live = liveTimeline.tracks.flatMap((track) => track.clips).find((candidate) => candidate.id === clip.id)
+      if (live) {
+        const fpsNow = liveTimeline.fps || 30
+        const visible = live.endFrame - live.startFrame
+        const sign = appliedDelta >= 0 ? '+' : '−'
+        setResizeTag({ edge, text: `${sign}${Math.abs(appliedDelta)}f · ${(visible / fpsNow).toFixed(1)}s` })
+      }
     }
     const handlePointerUp = () => {
       node.releasePointerCapture(pointerId)
       window.removeEventListener('pointermove', handlePointerMove)
       window.removeEventListener('pointerup', handlePointerUp)
       useWorkbenchStore.getState().setTimelineSnapGuide(null)
+      setResizeTag(null)
     }
     window.addEventListener('pointermove', handlePointerMove)
     window.addEventListener('pointerup', handlePointerUp)
@@ -340,6 +352,18 @@ function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
         >
           <span className={gripClasses} aria-hidden="true" />
         </button>
+      ) : null}
+      {resizeTag ? (
+        <span
+          className={cn(
+            'workbench-timeline-clip__trim-tag',
+            'absolute -top-[19px] z-[4] pointer-events-none whitespace-nowrap',
+            'px-[5px] py-px rounded-nomi-sm text-micro tabular-nums',
+            'bg-[var(--nomi-snap-tag)] text-[var(--nomi-paper)]',
+            resizeTag.edge === 'left' ? 'left-0' : 'right-0',
+          )}
+          aria-hidden="true"
+        >{resizeTag.text}</span>
       ) : null}
     </div>
   )

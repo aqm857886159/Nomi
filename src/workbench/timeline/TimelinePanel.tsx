@@ -10,6 +10,7 @@ import {
   IconRefresh,
   IconSparkles,
   IconTrash,
+  IconWand,
 } from '@tabler/icons-react'
 import { useWorkbenchStore } from '../workbenchStore'
 import { WorkbenchIconButton } from '../../design'
@@ -20,6 +21,8 @@ import TimelineTextTrack from './TimelineTextTrack'
 import { frameToPixel, pixelToFrame, TIMELINE_MIN_SCALE, TIMELINE_MAX_SCALE } from './timelineEdit'
 import { buildSnapPoints, resolveSnap, pixelThresholdToFrames } from './snapping'
 import { regenerateNodeInPlace } from '../generationCanvas/runner/generationRunController'
+import { arrangeStoryboardToTimeline } from '../generationCanvas/agent/sendStoryboardToTimeline'
+import { toast } from '../../ui/toast'
 
 const WHEEL_ZOOM_FACTOR = 1.24
 
@@ -97,6 +100,15 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     }
     return null
   }, [selectedClipIds, primaryClipId, timeline.tracks])
+
+  // C2 一键拼片：把画布镜头按镜序追加排进时间轴（复用 arrangeStoryboardToTimeline，幂等去重）。
+  // 用户测的主线诉求——点一下出初剪，手动重排/trim 是之后的微调。
+  const handleAiArrange = React.useCallback(() => {
+    const result = arrangeStoryboardToTimeline()
+    if (result.sent.length > 0) toast(`已把 ${result.sent.length} 个镜头按镜序排进时间轴`, 'success')
+    else if (result.total === 0) toast('生成区还没有镜头——先去生成区生成几个镜头再拼片', 'info')
+    else toast('镜头都已在时间轴上了', 'info')
+  }, [])
   const setTimelinePlayhead = useWorkbenchStore((state) => state.setTimelinePlayhead)
   const splitTimelineClip = useWorkbenchStore((state) => state.splitTimelineClip)
   const durationFrame = computeTimelineDuration(timeline)
@@ -270,6 +282,14 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
               <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label="向后微调片段" icon={<IconArrowRight size={14} />} onClick={() => nudgeTimelineClip(primaryClipId, 1)} />
             </div>
           ) : null}
+          {/* C2 一键拼片：把画布镜头按镜序排进时间轴（accent，主操作权重）。 */}
+          <WorkbenchIconButton
+            className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-accent)] shadow-none cursor-pointer hover:bg-[var(--workbench-accent-soft)]')}
+            label="AI 拼片"
+            title="AI 拼片：把生成区的镜头按镜序排进时间轴（已在轨的跳过）"
+            icon={<IconWand size={14} />}
+            onClick={handleAiArrange}
+          />
           {/* 剪刀模式：常驻切换。进入后悬停片段出切点线、点击在光标处分割（TimelineClip 处理）；再点 / Esc 退出。 */}
           <WorkbenchIconButton
             className={cn(
