@@ -26,7 +26,19 @@
 - ⚠️ **peer 冲突**：Mastra 1.45 要 `ai@^6`，Nomi 在 `ai@4.3.19`。**客观路径不受影响**（不走 `ai`）；但 **Mastra Agent / LLM-judge scorer 会撞**。→ **架构决策（S2 前定）**：loop 子系统的 Mastra 依赖须**与产品运行时的 `ai@4` 隔离**（独立 workspace 包 / 自带 `ai@6`），别污染产品。这反而强化「loop 是独立子系统」的边界。
 - `runEvals` 的 `target` 必须是 Mastra **Agent / Workflow**（非任意函数）→ S2 把「合成用户驱动」包成 Mastra Workflow/Agent。
 
-**下一步（S2）**：把 mock target 换成**真 capability-core 驱动** + 独立「查（诊断）agent」「修（patch）agent」；先解决 `ai@6` 隔离。**迁移收尾**：S1-S2 验完，按 P1 **删除旧 `scripts/eval-run/score/diff.mjs`**（非永久并行版）——此删除是一个跟踪项，不遗忘。
+**S2 已交付（离线零额度，真 Nomi 领域逻辑）**：
+- `driver.ts` —— 用 `capabilityCore/canvasGraph` **真纯函数**(`addNodes`/`connectNodes`)按场景建图,产出真实客观信号(连边/skip/语义边正确性);真 vendor 生成 stub(额度门后)。从 S1 mock 升级为真领域逻辑。
+- `diagnose.ts`（查 agent）+ `fix.ts`（修 agent）—— **独立单向**(查只诊断、修只提改、修不自评),规则版零 LLM;`llmAgents.ts` = LLM 升级版(直连 fetch 绕开 ai@6,**需 `NOMI_LOOP_LLM_*` key,缺则自动回退规则版**)。
+- `loop.ts` —— 闭环:查→修→重跑→eval-diff 客观裁决→涨固化/跌回滚。**实跑验证**:语义边正确性 0.500→1.000 固化、注入坏 patch 1.000→0.500 自动回滚;带硬断言(失败退出码非零)。镜像真 Nomi bug 类(边模式语义,见 connection-reference/T8);顺带实查暴露 `image_ref` 无专用边模式→归 `composition_ref`。
+- `driver.test.ts` —— vitest 5 测(已加进 `vitest.config.ts` include,进 test 门),纯逻辑零 Mastra。
+
+**S3 已接（结构 + 三重门,未启用）**：`semiObjective.mjs` —— 独立批评 agent(VLM)查画面元素/一致性,直连 fetch。⚠️ **三重门**:① 额度(真生成才有图)② VLM key(`NOMI_LOOP_VLM_*`)③ 人工校准 P/R≥80%。缺则跳过、不假装判主观;**永不当唯一优化靶子**。
+
+**S4 已交付**：`report.ts` —— dev-facing 仪表盘(非产品 UI,不走 R8):真 driver 跑 8 人格 → 6 维客观指标表(控制台 + 落 `report.md`)+ 缺口诚实标(音乐 MV 缺 beat_sync/music_gen)。
+
+**依赖卫生**：`@mastra/core` 放 **devDependencies**(评测/dev 工具,不随产品发布)→ `ai@6` peer 仅 dev 警告,产品 runtime 不受影响,合并 main 干净。
+
+**仍卡在用户独有资源(诚实标 · D4)**：① LLM 查/修变聪明 = 需 `NOMI_LOOP_LLM_*` key（现回退规则版,机制已验）；② 半客观/真画质 = 需额度跑真生成 + VLM key + 人工校准；③ 主观美感 = 创始人抽查,不自动化。**迁移收尾**：与真 capability-core headless host 全链路接通(现用其纯领域层)+ 删旧 `scripts/eval-run/score/diff.mjs`，待 LLM/额度门后随真实跑通一起收。
 
 ---
 

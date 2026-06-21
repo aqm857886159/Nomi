@@ -38,9 +38,6 @@ importers:
       '@mantine/notifications':
         specifier: ^7.13.1
         version: 7.17.8(@mantine/core@7.17.8(@mantine/hooks@7.17.8(react@18.3.1))(@types/react@18.3.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@mantine/hooks@7.17.8(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@mastra/core':
-        specifier: ^1.45.0
-        version: 1.45.0(ai@4.3.19(react@18.3.1)(zod@3.25.76))(express@5.2.1)(zod@3.25.76)
       '@radix-ui/react-switch':
         specifier: ^1.2.6
         version: 1.2.6(@types/react-dom@18.3.7(@types/react@18.3.29))(@types/react@18.3.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -132,6 +129,9 @@ importers:
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.4.1(jiti@1.21.7))
+      '@mastra/core':
+        specifier: ^1.45.0
+        version: 1.45.0(ai@4.3.19(react@18.3.1)(zod@3.25.76))(express@5.2.1)(zod@3.25.76)
       '@types/node':
         specifier: 22.19.17
         version: 22.19.17

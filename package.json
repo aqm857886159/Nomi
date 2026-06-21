@@ -63,7 +63,6 @@
     "@mantine/core": "^7.13.1",
     "@mantine/modals": "^7.13.1",
     "@mantine/notifications": "^7.13.1",
-    "@mastra/core": "^1.45.0",
     "@radix-ui/react-switch": "^1.2.6",
     "@react-three/drei": "^9",
     "@react-three/fiber": "^8",
@@ -96,6 +95,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@mastra/core": "^1.45.0",
     "@types/node": "22.19.17",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
