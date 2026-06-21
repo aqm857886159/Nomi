@@ -19,7 +19,7 @@ function imageClip(id: string, start: number, frames: number): TimelineClip {
 describe('时间轴撤销栈', () => {
   beforeEach(() => {
     const tl = createDefaultTimeline()
-    useWorkbenchStore.setState({ timeline: tl, timelineUndoStack: [], selectedTimelineClipIds: [], selectedTextClipId: '' })
+    useWorkbenchStore.setState({ timeline: tl, timelineUndoStack: [], timelineRedoStack: [], selectedTimelineClipIds: [], selectedTextClipId: '' })
   })
 
   it('离散编辑（分割）压栈，undo 还原', () => {
@@ -61,6 +61,38 @@ describe('时间轴撤销栈', () => {
   it('空栈 undo 安全无操作', () => {
     const before = useWorkbenchStore.getState().timeline
     useWorkbenchStore.getState().undoTimeline()
+    expect(useWorkbenchStore.getState().timeline).toBe(before)
+  })
+
+  it('redo：undo 后能重做回去', () => {
+    const s = useWorkbenchStore.getState()
+    s.addTimelineClipAtFrame(imageClip('a', 0, 90), 'image', 0)
+    s.splitTimelineClip('a', 45)
+    const splitCount = useWorkbenchStore.getState().timeline.tracks.flatMap((t) => t.clips).length
+    useWorkbenchStore.getState().undoTimeline()
+    const undoneCount = useWorkbenchStore.getState().timeline.tracks.flatMap((t) => t.clips).length
+    expect(undoneCount).toBe(splitCount - 1)
+    useWorkbenchStore.getState().redoTimeline()
+    expect(useWorkbenchStore.getState().timeline.tracks.flatMap((t) => t.clips).length).toBe(splitCount)
+  })
+
+  it('新编辑清空 redo 栈（undo 后再做新编辑 → 不能 redo 回陈旧态）', () => {
+    const s = useWorkbenchStore.getState()
+    s.addTimelineClipAtFrame(imageClip('a', 0, 90), 'image', 0)
+    s.splitTimelineClip('a', 45)
+    useWorkbenchStore.getState().undoTimeline()
+    expect(useWorkbenchStore.getState().timelineRedoStack.length).toBe(1)
+    // 撤销后做一个新编辑 → redo 栈必须清空
+    useWorkbenchStore.getState().addTimelineClipAtFrame(imageClip('b', 100, 60), 'image', 100)
+    expect(useWorkbenchStore.getState().timelineRedoStack.length).toBe(0)
+    const before = useWorkbenchStore.getState().timeline
+    useWorkbenchStore.getState().redoTimeline() // 空 redo → no-op
+    expect(useWorkbenchStore.getState().timeline).toBe(before)
+  })
+
+  it('空栈 redo 安全无操作', () => {
+    const before = useWorkbenchStore.getState().timeline
+    useWorkbenchStore.getState().redoTimeline()
     expect(useWorkbenchStore.getState().timeline).toBe(before)
   })
 })
