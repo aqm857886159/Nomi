@@ -48,6 +48,7 @@ const VIEWS: Record<string, ViewSpec> = {
   side: { azDeg: 90, elDeg: 0 },
   q3: { azDeg: 38, elDeg: 20 }, // 3/4 斜俯——揭示深度（正/侧面藏不住的腿前后、脚穿插）
   back: { azDeg: 180, elDeg: 0 },
+  top: { azDeg: 0, elDeg: 88 }, // 顶视——读手臂/朝向在 XZ 平面的方位角
 }
 
 const params = new URLSearchParams(window.location.search)

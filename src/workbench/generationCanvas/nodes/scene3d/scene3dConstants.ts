@@ -101,7 +101,8 @@ export const OBJECT_GROUND_GUIDE_ELEVATION = 0.018
 export const MANNEQUIN_FOOT_RING_COLOR = '#3b82f6'
 export const MANNEQUIN_DEFAULT_SCALE: Scene3DVector3 = [2.5, 2.5, 2.5]
 export const MANNEQUIN_LABEL_BASE_HEIGHT = 0.58
-export const ROLE_COLOR_SEQUENCE = ['#ef4444', '#facc15', '#3b82f6', '#22c55e'] as const
+// 角色身份色（roleColorForIndex 按序循环）：扩到 8 色，5+ 角色不再撞回第 1 个。
+export const ROLE_COLOR_SEQUENCE = ['#ef4444', '#facc15', '#3b82f6', '#22c55e', '#f97316', '#a855f7', '#06b6d4', '#ec4899'] as const
 export const CROWD_MAX_AXIS = 10
 export const CROWD_DETAILED_MODEL_LIMIT = 4
 export const CROWD_INSTANCED_GEOMETRY_SEGMENTS = 12

@@ -80,6 +80,10 @@ function placeCircle(count: number, s: number): Placed[] {
   })
 }
 
+// point 手臂在身体坐标系指向 -X 侧（azimuth -90°，相对面向 +Z）——实测自顶视。
+// 要「A 指向 B」，让 A 的 -X 侧朝 B：faceDeg = 目标方位角 + 90°。
+const POINT_ARM_BODY_AZIMUTH_DEG = -90
+
 function buildCharacterObjects(spec: StagingSpec, layout: StagingLayout): Scene3DObject[] {
   const shot: StagingShot = spec.camera?.shot ?? 'medium'
   const spacing = STAGING_CHARACTER_SPACING * SHOT_SPACING_SCALE[shot]
@@ -87,7 +91,20 @@ function buildCharacterObjects(spec: StagingSpec, layout: StagingLayout): Scene3
   return spec.characters.map((character, index) => {
     const place = placed[index] ?? { x: 0, z: 0, faceDeg: 0 }
     const facingOverride = character.facing ? FACING_DEG[character.facing] : null
-    const faceDeg = facingOverride ?? place.faceDeg
+    // 指向类姿势且没指定朝向、且有其他角色 → 自动转身让手臂瞄准最近的人（指着某人）。
+    let aimDeg: number | null = null
+    if (character.pose === 'point' && facingOverride === null && placed.length > 1) {
+      let nearestX = 0
+      let nearestZ = 0
+      let best = Infinity
+      for (let i = 0; i < placed.length; i += 1) {
+        if (i === index) continue
+        const d = Math.hypot(placed[i].x - place.x, placed[i].z - place.z)
+        if (d < best) { best = d; nearestX = placed[i].x; nearestZ = placed[i].z }
+      }
+      if (best < Infinity) aimDeg = (Math.atan2(nearestX - place.x, nearestZ - place.z) * 180) / Math.PI - POINT_ARM_BODY_AZIMUTH_DEG
+    }
+    const faceDeg = facingOverride ?? aimDeg ?? place.faceDeg
     const preset = MANNEQUIN_POSE_PRESETS.find((item) => item.id === character.pose)
     return {
       id: createScene3DObjectId(),
