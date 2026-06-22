@@ -136,9 +136,9 @@ export const stagingReferenceParamsSchema = z.object({
           .describe("Facing direction. toward = face the partner / circle center."),
       }),
     )
-    .min(1)
     .max(6)
-    .describe("Characters to stage (1-6)."),
+    .optional()
+    .describe("Characters to stage (1-6) for vocab-based precise 3D staging. Omit only when using customBlocking."),
   layout: z
     .enum(["solo", "facing", "side-by-side", "line", "behind", "circle"])
     .optional()
@@ -155,6 +155,14 @@ export const stagingReferenceParamsSchema = z.object({
     .object({ rows: z.number().int(), columns: z.number().int() })
     .optional()
     .describe("Optional background crowd grid behind the main characters."),
+  // 词表外逃生口（站位）：词表(layout/pose/facing…)是精确首选，但站位/构图意图不在词表里时
+  // 不要硬塞最近的词——填自由文本，执行器不渲站位图、把它当 composition 指令追加进关键帧图 prompt。
+  customBlocking: z
+    .string()
+    .optional()
+    .describe(
+      "For blocking/composition that's OUTSIDE the layout/pose/facing vocab above (e.g. a complex multi-tier formation, an over-the-shoulder framing, a specific prop-relative arrangement, or 'match this reference image's composition') — DO NOT force a wrong vocab value. Describe it here in natural language and it is injected as a composition directive into the shot's KEYFRAME IMAGE prompt (the tool will NOT 3D-render a staging image; less precise than the rendered reference, but the honest fallback). Use proper film/composition terms. When you use customBlocking, the structured vocab fields (characters/layout/camera…) may be omitted. Provide EITHER vocab characters (precise 3D staging) OR customBlocking (prompt-guided fallback) — not neither.",
+    ),
 });
 
 // ── 运镜参考 schema（create_camera_move 的参数；镜像渲染层 cameraMoveBuilder 的 CameraMoveSpec，
@@ -170,8 +178,18 @@ export const cameraMoveParamsSchema = z.object({
       "orbit_left", "orbit_right", "push_in", "pull_out", "crane_up", "crane_down",
       "track_left", "track_right", "arc_left", "arc_right",
     ])
+    .optional()
     .describe(
-      "The single dominant camera move for this shot. orbit_left/right = camera circles the subject (~300°); push_in/pull_out = dolly toward/away; crane_up/down = boom up/down; track_left/right = lateral tracking; arc_left/right = short arc (~90°).",
+      "The single dominant camera move for this shot. orbit_left/right = camera circles the subject (~300°); push_in/pull_out = dolly toward/away; crane_up/down = boom up/down; track_left/right = lateral tracking; arc_left/right = short arc (~90°). " +
+        "Use ONE of these enum values ONLY when the intended move IS one of them (renders a precise 3D reference). If the move is NOT in this set (e.g. dolly-zoom/vertigo, whip-pan, handheld follow, a compound/sequenced move, or 'match this reference video'), DO NOT force a wrong enum — leave move empty and use customMove instead.",
+    ),
+  // 词表外逃生口（运镜）：enum 是精确首选(确定性渲 3D 参考)，但意图不在 enum 里时
+  // 不要硬塞最近的词——填自由文本，执行器不渲小片、把它当运镜指令追加进目标视频 prompt。
+  customMove: z
+    .string()
+    .optional()
+    .describe(
+      "Natural-language camera-move description for moves OUTSIDE the enum (dolly-zoom/vertigo, whip pan, handheld follow, a compound/sequenced move like 'push in then whip to the window', or 'match this reference video's camerawork'). The tool will NOT 3D-render this — it injects it as a cinematography directive into the shot's video prompt (less precise than the rendered reference; the honest fallback). Use proper film terms. Set move OR customMove, never both for the same intent.",
     ),
   speed: z
     .enum(["slow", "medium", "fast"])
@@ -286,7 +304,8 @@ export const canvasTools = {
     description:
       "Create a 3D staging reference image that LOCKS character blocking (who stands where, facing whom), body poses (kneel / sit / squat / point...), and camera angle for a shot — so the video model doesn't break the spatial relationship or the actions. Use it when a shot needs this pinned down: (a) two or more characters with a spatial relationship, (b) a specific physical action / pose, or (c) a director-specified camera angle (low / high / overhead / side). The rendered gray-mannequin reference auto-connects to shotClientId as composition_ref. Do NOT use it for a simple single talking-head shot. One call per shot.\n" +
       "Framing tips so the blocking READS: if the director didn't specify a camera, OMIT the camera field — the system auto-picks a readable angle per layout (circle→high, line→side, behind→3/4 high, facing→3/4). For 'who surrounds whom' use layout=circle (best read from high/overhead). For two characters confronting/addressing each other use layout=facing (they orient toward each other). The 'point'/'wave' poses show a pointing/raised-arm gesture but don't precisely aim at a named target — use them for 'a character is gesturing', not 'A points exactly at B'. Pick the layout that matches the described spatial relationship; only override the camera when the director named one.\n" +
-      "shotClientId MUST point to the shot's KEYFRAME IMAGE node (the photoreal first-frame that seeds image-to-video), NOT the video node — video models have no composition slot, so staging only locks blocking when it guides the keyframe image (the video then inherits that first frame). The system renders the keyframe photorealistically from the staging composition (it does not copy the gray mannequins). For an image-first storyboard, that means the shot's image/keyframe node.",
+      "shotClientId MUST point to the shot's KEYFRAME IMAGE node (the photoreal first-frame that seeds image-to-video), NOT the video node — video models have no composition slot, so staging only locks blocking when it guides the keyframe image (the video then inherits that first frame). The system renders the keyframe photorealistically from the staging composition (it does not copy the gray mannequins). For an image-first storyboard, that means the shot's image/keyframe node.\n" +
+      "Tiered rule: the vocab (characters/layout/pose/facing/camera) is the PRECISE first choice (deterministic 3D staging render). If the blocking is OUTSIDE the vocab, do NOT force the nearest wrong value — use customBlocking (prompt-guided, no staging render, honest about lower fidelity). Never force-map a clearly-different intent into a wrong vocab value.",
     parameters: stagingReferenceParamsSchema,
   }),
   // 运镜参考：组装 3D 相机轨迹场景离屏渲一段运镜小片 → 喂目标镜头视频节点的参考视频槽(Seedance 2.0
@@ -297,6 +316,7 @@ export const canvasTools = {
       "WHEN to call: a shot whose description carries a SPECIFIC camera-move intent — orbit/circle around the subject, push-in/dolly-in, pull-out/dolly-out to reveal, crane/boom up or down, lateral track/follow, or an arc sweep (e.g. '镜头绕着她转一圈推近', 'pull out to reveal the empty room', 'crane up over the battlefield'). One call per shot.\n" +
       "WHEN NOT: a static / locked-off / fixed-tripod shot, or a simple single talking-head — these have no camera motion to lock, so do NOT call it.\n" +
       "Pick the SINGLE dominant move that matches the intent. On models with a reference-video slot (e.g. Seedance 2.0 全能参考) the model copies ONLY the camera movement (content stays driven by the character refs + prompt); on models without one it degrades to a structured camera-move prompt directive.\n" +
+      "Tiered rule: the `move` enum is the PRECISE first choice (deterministic 3D camera-path render). If the intended move is OUTSIDE the enum (dolly-zoom/vertigo, whip-pan, handheld follow, a compound/sequenced move, or 'match this reference video'), do NOT force the nearest wrong enum — leave move empty and use customMove (prompt-guided into the video node's prompt, no 3D render, honest about lower fidelity). Never force-map a clearly-different intent into a wrong enum value.\n" +
       "shotClientId MUST point to the shot's VIDEO node (the node that actually generates the clip) — NOT its keyframe image, and NOT a text/shot note. For an image-first storyboard that is the shot's video node downstream of the keyframe. If no video node exists for the shot yet, create it first; never aim this at an image node.",
     parameters: cameraMoveParamsSchema,
   }),

@@ -297,12 +297,12 @@ function buildCanvasToolsForV2(hooks: AgentChatV2Hooks) {
     ),
     create_staging_reference: makeTool(
       "create_staging_reference",
-      "Create a 3D staging reference image locking character blocking + poses + camera for a shot (auto-connects to shotClientId as composition_ref). Use when ≥2 characters have a spatial relationship, a specific physical action is needed, or a director-specified camera angle. Not for simple single talking-head shots.",
+      "Create a 3D staging reference image locking character blocking + poses + camera for a shot (auto-connects to shotClientId as composition_ref). Use when ≥2 characters have a spatial relationship, a specific physical action is needed, or a director-specified camera angle. Not for simple single talking-head shots. Tiered rule: the vocab (characters/layout/pose/camera) is the precise first choice (3D staging render); if the blocking is OUTSIDE the vocab, do NOT force a wrong value — use customBlocking (prompt-guided into the keyframe image prompt, honest about lower fidelity).",
       stagingReferenceParamsSchema,
     ),
     create_camera_move: makeTool(
       "create_camera_move",
-      "Create a 3D camera-move reference clip locking a shot's camera motion (orbit / push-in / pull-out / crane / track / arc), fed to the shot's VIDEO node as a reference video (or degraded to a camera-move prompt directive on models without a video_ref slot). Call ONLY when a shot has a specific camera-move intent (orbit/push-in/pull-out/crane/track/arc); do NOT call for a static / locked-off shot or a simple talking-head. shotClientId MUST point to the shot's VIDEO node — not its keyframe image; if none exists yet, create the video node first.",
+      "Create a 3D camera-move reference clip locking a shot's camera motion (orbit / push-in / pull-out / crane / track / arc), fed to the shot's VIDEO node as a reference video (or degraded to a camera-move prompt directive on models without a video_ref slot). Call ONLY when a shot has a specific camera-move intent; do NOT call for a static / locked-off shot or a simple talking-head. Tiered rule: the `move` enum is the precise first choice (3D camera-path render); if the intended move is OUTSIDE the enum (dolly-zoom/vertigo, whip-pan, compound/sequenced moves, 'match this reference video'), do NOT force a wrong enum — leave move empty and use customMove (prompt-guided into the video prompt, honest about lower fidelity). shotClientId MUST point to the shot's VIDEO node — not its keyframe image; if none exists yet, create the video node first.",
       cameraMoveParamsSchema,
     ),
     // Silence unused-import warning for canvasNodeKindSchema by re-exporting

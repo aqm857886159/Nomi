@@ -16,6 +16,7 @@ import { buildStagingScene, type StagingSpec, type StagingCharacterSpec } from '
 import { buildCameraMoveScene, type CameraMoveSpec } from '../nodes/scene3d/cameraMoveBuilder'
 import { CAMERA_SPEED_DURATION, CAMERA_MOVE_LABEL, type CameraSpeed } from '../nodes/scene3d/cameraMoveVocab'
 import { useWorkbenchStore } from '../../workbenchStore'
+import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 
 // 批量创建节点的布局由渲染层 derive，而不是信任 LLM 发来的像素坐标。
 // 实现住在 trajectoryLayout（分层 + 避让 + 网格回退，步距由节点尺寸推导）。
@@ -84,6 +85,35 @@ export function resolveCanvasToolNodeId(id: string): string {
   return resolveNodeId(id)
 }
 
+/**
+ * 词表外逃生口的共同降级动作：把一条自由文本「电影术语指令」追加进目标节点 prompt。
+ * 不渲染 3D 参考——意图→3D 几何无解，故老实把它写进模型的文字通道由模型解释。
+ * 用 meta 标志(metaFlagKey)幂等去重：同一节点重复降级不重复追加同一指令。
+ * 返回 { applied, alreadyApplied, found } 供执行器写诚实回执。
+ */
+function appendDirectiveToNodePrompt(
+  nodeId: string,
+  label: string,
+  directive: string,
+  metaFlagKey: string,
+  inCtx: <T>(fn: () => T) => T,
+): { found: boolean; applied: boolean; alreadyApplied: boolean } {
+  const existing = generationCanvasTools.read_canvas().nodes.find((node) => node.id === nodeId)
+  if (!existing) return { found: false, applied: false, alreadyApplied: false }
+  const meta = (existing.meta ?? {}) as Record<string, unknown>
+  if (meta[metaFlagKey] === directive) {
+    return { found: true, applied: false, alreadyApplied: true } // 同指令已写过 → 幂等不重复追加
+  }
+  const base = typeof existing.prompt === 'string' ? existing.prompt : ''
+  const line = `${label}：${directive}`
+  const nextPrompt = base.trim() ? `${base}\n${line}` : line
+  inCtx(() => {
+    generationCanvasTools.update_node_prompt(nodeId, nextPrompt)
+    useGenerationCanvasStore.getState().updateNode(nodeId, { meta: { ...meta, [metaFlagKey]: directive } })
+  })
+  return { found: true, applied: true, alreadyApplied: false }
+}
+
 /** create_staging_reference 的参数 → StagingSpec（容错提取；非法枚举值由 builder 兜默认）。 */
 function parseStagingSpec(record: Record<string, unknown>): StagingSpec {
   const str = (value: unknown): string | undefined => (typeof value === 'string' && value.trim() ? value.trim() : undefined)
@@ -116,15 +146,23 @@ function parseStagingSpec(record: Record<string, unknown>): StagingSpec {
   }
 }
 
-/** create_camera_move 的参数 → CameraMoveSpec（容错提取；非法枚举值由 builder 兜默认）。
+/** create_camera_move 的参数 → 容错提取（词表外逃生口：move 现为可选，新增 customMove）。
+ *  move 在则走精确 3D 渲染路；只有 customMove 则降级成视频 prompt 指令（不渲）。
  *  导出供单测；进程隔离故不复用后端 Zod（与 parseStagingSpec 同例）。 */
-export function parseCameraMoveSpec(record: Record<string, unknown>): CameraMoveSpec {
+export function parseCameraMoveSpec(record: Record<string, unknown>): {
+  move?: CameraMoveSpec['move']
+  speed?: CameraMoveSpec['speed']
+  shot?: CameraMoveSpec['shot']
+  subjectPose?: string
+  customMove?: string
+} {
   const str = (value: unknown): string | undefined => (typeof value === 'string' && value.trim() ? value.trim() : undefined)
   return {
-    move: (str(record.move) ?? 'push_in') as CameraMoveSpec['move'],
+    move: str(record.move) as CameraMoveSpec['move'] | undefined,
     speed: str(record.speed) as CameraMoveSpec['speed'],
     shot: str(record.shot) as CameraMoveSpec['shot'],
     subjectPose: str(record.subjectPose),
+    customMove: str(record.customMove),
   }
 }
 
@@ -245,12 +283,33 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
   }
 
   if (toolName === 'create_staging_reference') {
+    const rawShot = typeof record.shotClientId === 'string' ? record.shotClientId.trim() : ''
+    const targetNodeId = rawShot ? resolveNodeId(rawShot) : undefined
+    const rawChars = Array.isArray(record.characters) ? record.characters : []
+    const customBlocking = typeof record.customBlocking === 'string' ? record.customBlocking.trim() : ''
+
+    // 词表外逃生口：没有词表角色、只给了 customBlocking → 不渲站位图，把构图意图
+    // 当指令追加进目标「关键帧图片节点」prompt（composition 文字通道，模型自己解；精度略低但不硬塞错词）。
+    if (rawChars.length === 0 && customBlocking) {
+      if (!targetNodeId) {
+        throw new Error('customBlocking 需要 shotClientId 指向该镜头的关键帧图片节点才能注入构图指令')
+      }
+      const outcome = appendDirectiveToNodePrompt(targetNodeId, '构图', customBlocking, 'stagingPromptApplied', inCtx)
+      if (!outcome.found) throw new Error('node_not_found:customBlocking 的目标节点不存在')
+      return {
+        stagingNodeId: null,
+        targetNodeId,
+        degraded: true,
+        message: outcome.alreadyApplied
+          ? `该构图指令已写入镜头关键帧 prompt（词表外，prompt 引导，未渲精确站位图）。`
+          : `站位意图不在词表内，已用 prompt 引导：把构图指令写进镜头关键帧 prompt（未渲精确站位图，保真度低于 3D 站位参考）。`,
+      }
+    }
+
     // 站位参考：词汇 spec → 3D 场景 → 建 scene3d 节点(带 stagingAutoCapture)。
     // 节点挂载时离屏出图 + 连 composition_ref 到目标镜头（Scene3DEditor 内完成）。
     const spec = parseStagingSpec(record)
     const state = buildStagingScene(spec)
-    const rawShot = typeof record.shotClientId === 'string' ? record.shotClientId.trim() : ''
-    const targetNodeId = rawShot ? resolveNodeId(rawShot) : undefined
     const existing = generationCanvasTools.read_canvas().nodes
     const position = layoutPlannedNodes(['image'], existing)[0]
     const created = inCtx(() =>
@@ -278,13 +337,43 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
   }
 
   if (toolName === 'create_camera_move') {
+    const parsed = parseCameraMoveSpec(record)
+    const rawShot = typeof record.shotClientId === 'string' ? record.shotClientId.trim() : ''
+    const targetNodeId = rawShot ? resolveNodeId(rawShot) : undefined
+
+    // move 与 customMove 都没有 → 明确报错让 LLM 二选一（不静默兜 push_in 硬塞一个运镜）。
+    if (!parsed.move && !parsed.customMove) {
+      throw new Error('create_camera_move 需要 move（词表内精确运镜）或 customMove（词表外自由描述）二选一')
+    }
+
+    // 词表外逃生口：只有 customMove → 不渲运镜小片，把运镜意图当电影术语指令追加进
+    // 目标「视频节点」prompt（i2v 文字通道，模型自己解；精度略低但不硬塞错的 enum）。
+    if (!parsed.move && parsed.customMove) {
+      if (!targetNodeId) {
+        throw new Error('customMove 需要 shotClientId 指向该镜头的视频节点才能注入运镜指令')
+      }
+      const outcome = appendDirectiveToNodePrompt(targetNodeId, '镜头运动', parsed.customMove, 'cameraMovePromptApplied', inCtx)
+      if (!outcome.found) throw new Error('node_not_found:customMove 的目标节点不存在')
+      return {
+        cameraMoveNodeId: null,
+        targetNodeId,
+        degraded: true,
+        message: outcome.alreadyApplied
+          ? `该运镜指令已写入镜头视频 prompt（词表外，prompt 引导，未渲精确运镜参考）。`
+          : `运镜意图不在词表内，已用 prompt 引导：把运镜指令写进镜头视频 prompt（未渲精确运镜参考，保真度低于 3D 运镜小片）。`,
+      }
+    }
+
     // 运镜参考:词汇 spec → 含相机轨迹的 3D 场景 → 建 scene3d 节点(带 cameraMoveAutoCapture)。
     // 节点挂载时常驻 Host(CameraMoveCaptureHost)离屏沿轨迹采帧拼 mp4 + 喂目标镜头视频参考(S3)。
     // 这里只建节点 + 打标志,不渲(S2 Host 异步出片),与 staging 执行结构对称。
-    const spec = parseCameraMoveSpec(record)
+    const spec: CameraMoveSpec = {
+      move: parsed.move ?? 'push_in',
+      speed: parsed.speed,
+      shot: parsed.shot,
+      subjectPose: parsed.subjectPose,
+    }
     const state = buildCameraMoveScene(spec)
-    const rawShot = typeof record.shotClientId === 'string' ? record.shotClientId.trim() : ''
-    const targetNodeId = rawShot ? resolveNodeId(rawShot) : undefined
     const speed: CameraSpeed = spec.speed ?? 'medium'
     const fps = 24 // Seedance 参考视频要求帧率 23.8–60 FPS（实测 12fps 被 InvalidParameter.FpsTooLow 拒）
     const frameCount = Math.round(CAMERA_SPEED_DURATION[speed] * fps)
