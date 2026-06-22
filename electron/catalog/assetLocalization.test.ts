@@ -7,6 +7,9 @@ import {
   resolveAssetIngestion,
   resolveAssetIngestionWithFallback,
   isLocalAssetUrl,
+  LITTERBOX_INGESTION,
+  TMPFILES_INGESTION,
+  ANON_UPLOAD_CHAIN,
   type LocalAsset,
 } from "./assetLocalization";
 import type { AssetIngestion } from "./types";
@@ -177,6 +180,53 @@ describe("resolveLocalAsset (per strategy)", () => {
     expect((extraFields as Record<string, string>).fileName).toBe("clip.mp4");
   });
 
+  it("upload-multipart with urlTransform (tmpfiles): JSON page url → /dl/ direct url", async () => {
+    const postMultipart = vi.fn().mockResolvedValue({ status: "success", data: { url: "https://tmpfiles.org/12345/clip.mp4" } });
+    const readMp4 = (): LocalAsset => ({ bytes: Buffer.from("mp4-bytes"), contentType: "video/mp4", fileName: "clip.mp4" });
+    const out = await resolveLocalAsset(localUrl("clip.mp4"), TMPFILES_INGESTION, "", readMp4, vi.fn(), postMultipart);
+    expect(out).toBe("https://tmpfiles.org/dl/12345/clip.mp4");
+    const [url, headers, , , , , fileField] = postMultipart.mock.calls[0];
+    expect(url).toBe("https://tmpfiles.org/api/v1/upload");
+    expect("Authorization" in (headers as Record<string, string>)).toBe(false); // anonymous
+    expect(fileField).toBe("file");
+  });
+
+  it("anon-chain falls through litterbox → tmpfiles when the first throws, returns the second's url", async () => {
+    const readMp4 = (): LocalAsset => ({ bytes: Buffer.from("mp4-bytes"), contentType: "video/mp4", fileName: "clip.mp4" });
+    const postMultipart = vi
+      .fn()
+      // 1st call = litterbox (plain text) → throw (host down / rate-limited)
+      .mockRejectedValueOnce(new Error("素材上传失败(HTTP 503)：litterbox down"))
+      // 2nd call = tmpfiles (JSON) → success
+      .mockResolvedValueOnce({ status: "success", data: { url: "https://tmpfiles.org/77/clip.mp4" } });
+    const out = await resolveLocalAsset(localUrl("clip.mp4"), ANON_UPLOAD_CHAIN, "ignored", readMp4, vi.fn(), postMultipart);
+    expect(out).toBe("https://tmpfiles.org/dl/77/clip.mp4"); // tmpfiles, /dl/-transformed
+    expect(postMultipart).toHaveBeenCalledTimes(2);
+    // 1st attempt hit litterbox, 2nd hit tmpfiles
+    expect(postMultipart.mock.calls[0][0]).toBe(LITTERBOX_INGESTION.strategy === "upload-multipart" ? LITTERBOX_INGESTION.endpoint : "");
+    expect(postMultipart.mock.calls[1][0]).toBe("https://tmpfiles.org/api/v1/upload");
+  });
+
+  it("anon-chain uses the first host when it succeeds (tmpfiles not tried)", async () => {
+    const readMp4 = (): LocalAsset => ({ bytes: Buffer.from("mp4-bytes"), contentType: "video/mp4", fileName: "clip.mp4" });
+    const postMultipart = vi.fn().mockResolvedValue("https://litter.catbox.moe/abc.mp4");
+    const out = await resolveLocalAsset(localUrl("clip.mp4"), ANON_UPLOAD_CHAIN, "", readMp4, vi.fn(), postMultipart);
+    expect(out).toBe("https://litter.catbox.moe/abc.mp4");
+    expect(postMultipart).toHaveBeenCalledTimes(1); // litterbox succeeded, tmpfiles never tried
+  });
+
+  it("anon-chain throws an honest error when ALL hosts fail", async () => {
+    const readMp4 = (): LocalAsset => ({ bytes: Buffer.from("mp4-bytes"), contentType: "video/mp4", fileName: "clip.mp4" });
+    const postMultipart = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("litterbox 503"))
+      .mockRejectedValueOnce(new Error("tmpfiles 500"));
+    await expect(
+      resolveLocalAsset(localUrl("clip.mp4"), ANON_UPLOAD_CHAIN, "", readMp4, vi.fn(), postMultipart),
+    ).rejects.toThrow(/所有免配置上传 host 都失败/);
+    expect(postMultipart).toHaveBeenCalledTimes(2);
+  });
+
   it("sidecar originalUrl short-circuits: returns public URL, never uploads", async () => {
     const readWithSidecar = (): LocalAsset => ({ ...fakeAsset("a.png"), originalUrl: "https://cdn.origin/a.png" });
     const postJson = vi.fn();
@@ -288,24 +338,24 @@ describe("resolveAssetIngestionWithFallback (跨 vendor 上传优先级链)", ()
     expect(out?.uploadApiKey).toBe("key-custom");
   });
 
-  it("inline-base64 的 vendor 不算「有上传能力」，不被选作中转 → 落到 litterbox 零配置兜底", () => {
+  it("inline-base64 的 vendor 不算「有上传能力」，不被选作中转 → 落到匿名链零配置兜底", () => {
     const inlineVendor = { key: "inliner", assetIngestion: { strategy: "inline-base64" } as AssetIngestion };
     const out = resolveAssetIngestionWithFallback({ key: "openai" }, [{ key: "openai" }, inlineVendor], keysOf("openai", "inliner"));
-    // 没有真正能产出公网 URL 的供应商通道 → litterbox（零配置）接住
-    expect(out?.ingestion.endpoint).toContain("litterbox.catbox.moe");
+    // 没有真正能产出公网 URL 的供应商通道 → 匿名链（零配置）接住
+    expect(out?.ingestion.strategy).toBe("anon-chain");
     expect(out?.uploadApiKey).toBe("");
   });
 
-  it("⑤ 无任何供应商上传通道 → litterbox 零配置兜底（不再返回 null）", () => {
+  it("⑤ 无任何供应商上传通道 → 匿名链零配置兜底（不再返回 null）", () => {
     const out = resolveAssetIngestionWithFallback({ key: "openai" }, [{ key: "openai" }], keysOf("openai"));
-    expect(out?.ingestion.endpoint).toContain("litterbox.catbox.moe");
+    expect(out?.ingestion.strategy).toBe("anon-chain");
     expect(out?.uploadApiKey).toBe("");
   });
 
-  it("配了 KIE 但没填 key → 不选 KIE，落到 litterbox（key 缺失视为不可用）", () => {
+  it("配了 KIE 但没填 key → 不选 KIE，落到匿名链（key 缺失视为不可用）", () => {
     // vendor 列表里有 kie，但 getApiKey('kie') 返回 null
     const out = resolveAssetIngestionWithFallback({ key: "openai" }, [{ key: "openai" }, { key: "kie" }], keysOf("openai"));
-    expect(out?.ingestion.endpoint).toContain("litterbox.catbox.moe");
+    expect(out?.ingestion.strategy).toBe("anon-chain");
   });
 });
 
@@ -318,9 +368,9 @@ describe("resolveAssetIngestionWithFallback (内容类型感知路由)", () => {
     expect(out?.uploadApiKey).toBe("key-apimart");
   });
 
-  it("video asset + only apimart configured → litterbox (apimart image-only, zero-config fallback)", () => {
+  it("video asset + only apimart configured → anon chain (apimart image-only, zero-config fallback)", () => {
     const out = resolveAssetIngestionWithFallback({ key: "apimart" }, [{ key: "apimart" }], keysOf("apimart"), "video");
-    expect(out?.ingestion.endpoint).toContain("litterbox.catbox.moe");
+    expect(out?.ingestion.strategy).toBe("anon-chain");
     expect(out?.uploadApiKey).toBe("");
   });
 
@@ -341,27 +391,28 @@ describe("resolveAssetIngestionWithFallback (内容类型感知路由)", () => {
     expect(out?.ingestion.strategy).toBe("upload-stream");
   });
 
-  it("video asset + no KIE (only apimart, image-only) → litterbox zero-config fallback, no honest error", () => {
-    // target apimart can't take mp4, no KIE key → litterbox (no key) catches it
+  it("video asset + no KIE (only apimart, image-only) → anon chain zero-config fallback, no honest error", () => {
+    // target apimart can't take mp4, no KIE key → anon chain (no key) catches it
     const out = resolveAssetIngestionWithFallback({ key: "apimart" }, [{ key: "apimart" }], keysOf("apimart"), "video");
     expect(out).not.toBeNull();
     expect(out?.uploadApiKey).toBe(""); // anonymous, no key needed
-    if (out?.ingestion.strategy === "upload-multipart") {
-      expect(out.ingestion.endpoint).toBe("https://litterbox.catbox.moe/resources/internals/api.php");
-      expect(out.ingestion.responseIsPlainTextUrl).toBe(true);
-      expect(out.ingestion.fileField).toBe("fileToUpload");
+    if (out?.ingestion.strategy === "anon-chain") {
+      // 链头是 litterbox，链尾是 tmpfiles —— 两个免 key host
+      const heads = out.ingestion.chain.map((h) => (h.strategy === "upload-multipart" ? h.endpoint : ""));
+      expect(heads[0]).toBe("https://litterbox.catbox.moe/resources/internals/api.php");
+      expect(heads[1]).toBe("https://tmpfiles.org/api/v1/upload");
     } else {
-      throw new Error("expected upload-multipart (litterbox)");
+      throw new Error("expected anon-chain");
     }
   });
 
-  it("video asset + nothing configured at all → still litterbox (zero user config)", () => {
+  it("video asset + nothing configured at all → still anon chain (zero user config)", () => {
     const out = resolveAssetIngestionWithFallback({ key: "openai" }, [{ key: "openai" }], keysOf("openai"), "video");
     expect(out?.uploadApiKey).toBe("");
-    expect(out?.ingestion.endpoint).toContain("litterbox.catbox.moe");
+    expect(out?.ingestion.strategy).toBe("anon-chain");
   });
 
-  it("video asset + KIE present → KIE wins over litterbox (upgrade when key available)", () => {
+  it("video asset + KIE present → KIE wins over anon chain (upgrade when key available)", () => {
     const out = resolveAssetIngestionWithFallback({ key: "openai" }, [{ key: "openai" }, { key: "kie" }], keysOf("openai", "kie"), "video");
     expect(out?.ingestion.strategy).toBe("upload-stream");
     expect(out?.uploadApiKey).toBe("key-kie");

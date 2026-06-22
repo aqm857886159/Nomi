@@ -67,6 +67,23 @@ function readNestedPath(value: unknown, path: string): unknown {
   }, value);
 }
 
+/** 对提取出的 URL 做一次纯字符串替换(如 tmpfiles 页面 URL → 直链)。未声明 transform 时原样返回。 */
+function applyUrlTransform(url: string, transform?: { search: string; replace: string }): string {
+  if (!transform || !transform.search) return url;
+  return url.replace(transform.search, transform.replace);
+}
+
+/** anon-chain 出错日志用的简短 host 名(从 endpoint 取域名)。 */
+function hostLabel(ingestion: AssetIngestion): string {
+  if (ingestion.strategy === "anon-chain") return "anon-chain";
+  if (ingestion.strategy === "inline-base64" || ingestion.strategy === "none") return ingestion.strategy;
+  try {
+    return new URL(ingestion.endpoint).host;
+  } catch {
+    return ingestion.endpoint;
+  }
+}
+
 /** 把一个本地素材按 vendor 声明的策略解析成可达值(data:URI 或上传后的公网 URL)。 */
 export async function resolveLocalAsset(
   localUrl: string,
@@ -78,6 +95,20 @@ export async function resolveLocalAsset(
 ): Promise<string> {
   if (ingestion.strategy === "none") {
     throw new Error("当前供应商不支持本地素材上传，请改用公网图片 URL(或为该供应商声明 assetIngestion)");
+  }
+  // 匿名上传 fallback 链：逐个 host 试，谁先产出合法 http(s) URL 就用谁；全失败抛诚实错误。
+  if (ingestion.strategy === "anon-chain") {
+    const errors: string[] = [];
+    for (const host of ingestion.chain) {
+      try {
+        const url = await resolveLocalAsset(localUrl, host, "", read, postJson, postMultipart);
+        if (/^https?:\/\//i.test(url)) return url;
+        errors.push(`${hostLabel(host)}: 返回非 http URL`);
+      } catch (err) {
+        errors.push(`${hostLabel(host)}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    throw new Error(`所有免配置上传 host 都失败：${errors.join("；") || "(链为空)"}`);
   }
   const asset = read(localUrl);
   if (!asset) throw new Error(`本地素材读取失败：${localUrl}`);
@@ -107,7 +138,7 @@ export async function resolveLocalAsset(
       if (!/^https?:\/\//i.test(text)) {
         throw new Error(`上传响应不是可达 URL(纯文本期望)：${text.slice(0, 120) || "(空)"}`);
       }
-      return text;
+      return applyUrlTransform(text, ingestion.urlTransform);
     }
     if (!ingestion.urlPath) {
       throw new Error("upload-multipart 声明缺少 urlPath（且未启用 responseIsPlainTextUrl）");
@@ -116,7 +147,8 @@ export async function resolveLocalAsset(
     if (typeof url !== "string" || !url) {
       throw new Error(`上传响应缺少可达 URL(期望路径 ${ingestion.urlPath})`);
     }
-    return url;
+    // tmpfiles 等：JSON 给的是页面 URL，需转成直链(host 后插 /dl/)，否则 vendor fetch 到 HTML 页。
+    return applyUrlTransform(url, ingestion.urlTransform);
   }
 
   if (ingestion.strategy === "upload-stream") {
@@ -250,6 +282,34 @@ export const LITTERBOX_INGESTION: AssetIngestion = {
   accepts: ["image", "video", "audio"],
 };
 
+/**
+ * tmpfiles.org：第二个零配置兜底 host——无 key、无账号、收任意文件。
+ * POST https://tmpfiles.org/api/v1/upload，multipart：file=<二进制>。无 Authorization（匿名）。
+ * 响应 JSON：{"status":"success","data":{"url":"https://tmpfiles.org/<id>/<name>"}}。
+ * ⚠️ data.url 是**页面 URL**；vendor 必须 fetch 的是**直链**——host 后插 "/dl/"
+ * (tmpfiles.org/<id>/<name> → tmpfiles.org/dl/<id>/<name>)。故 urlTransform 做这次替换。
+ * accepts 全媒体类型（收任何文件）。
+ */
+export const TMPFILES_INGESTION: AssetIngestion = {
+  strategy: "upload-multipart",
+  endpoint: "https://tmpfiles.org/api/v1/upload",
+  fileField: "file",
+  urlPath: "data.url",
+  urlTransform: { search: "tmpfiles.org/", replace: "tmpfiles.org/dl/" },
+  accepts: ["image", "video", "audio"],
+};
+
+/**
+ * 匿名上传 fallback 链(有序)：bake-in 的免 key 免账号公共托管。逐个试,谁先成功用谁。
+ * litterbox(catbox)优先 → tmpfiles.org 兜底。单 host 限速/宕机/封禁时自动切下一个,
+ * 全失败才抛诚实错误。两者都无 key、收任意文件(全媒体类型),故"开箱即用"永不要求用户配 key。
+ */
+export const ANON_UPLOAD_CHAIN: AssetIngestion = {
+  strategy: "anon-chain",
+  chain: [LITTERBOX_INGESTION, TMPFILES_INGESTION],
+  accepts: ["image", "video", "audio"],
+};
+
 /** 取某 vendor 的吞入策略:优先持久化声明,回退 curated 注册表。 */
 export function resolveAssetIngestion(vendor: { key?: string; assetIngestion?: AssetIngestion } | null | undefined): AssetIngestion | null {
   if (!vendor) return null;
@@ -321,11 +381,12 @@ export function resolveAssetIngestionWithFallback(
     const key = getApiKey(vendor.key);
     if (key) return { ingestion: ing, uploadApiKey: key };
   }
-  // 5. litterbox：零配置兜底（无 key、匿名、收任意文件 → 临时公网直链）。
-  //    走到这里说明上面更优的通道都没命中（图片几乎总有 apimart；视频缺 KIE 时此处接住）。
-  //    NET：视频上传零配置"开箱即用"，诚实错误基本只在 litterbox 本身不可达时才触发。
-  if (ingestionAccepts(LITTERBOX_INGESTION, mediaKind)) {
-    return { ingestion: LITTERBOX_INGESTION, uploadApiKey: "" };
+  // 5. 匿名上传链：零配置兜底（无 key、收任意文件 → 临时公网直链）。多 host 有序 fallback
+  //    (litterbox → tmpfiles)，单 host 限速/宕机时自动切下一个。走到这里说明上面更优的通道都没命中
+  //    （图片几乎总有 apimart；视频缺 KIE 时此处接住）。NET：上传零配置"开箱即用"，诚实错误
+  //    只在链里**所有** host 都不可达时才触发。
+  if (ingestionAccepts(ANON_UPLOAD_CHAIN, mediaKind)) {
+    return { ingestion: ANON_UPLOAD_CHAIN, uploadApiKey: "" };
   }
   return null;
 }

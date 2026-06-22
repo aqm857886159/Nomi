@@ -93,9 +93,28 @@ export type AssetIngestion =
       fileField?: string;
       /** multipart 里除 file 外的固定文本字段(如 litterbox 的 reqtype=fileupload & time=1h)。 */
       extraFields?: Record<string, string>;
+      /**
+       * 可选:提取出 URL 后再做一次纯字符串替换。
+       * 某些托管(tmpfiles.org)JSON 里给的是**页面 URL**,真正的直链需把 host 后插入 "/dl/"
+       * (tmpfiles.org/<id>/<name> → tmpfiles.org/dl/<id>/<name>),否则 vendor fetch 到的是 HTML 页。
+       * tmpfiles 用 { search: "tmpfiles.org/", replace: "tmpfiles.org/dl/" }。
+       */
+      urlTransform?: { search: string; replace: string };
       /** 鉴权:复用 vendor 的 api key(默认 bearer)。无 key 时不发 Authorization。 */
       authType?: "bearer";
       /** 该通道接受的媒体类型;缺省 ['image']。 */
+      accepts?: ReadonlyArray<AssetMediaKind>;
+    }
+  | {
+      /**
+       * 匿名上传 fallback 链:按顺序逐个 host 试,谁先返回合法 http(s) URL 就用谁。
+       * 用于"零配置兜底"——bake-in 的免 key 免账号公共托管(litterbox → tmpfiles…),
+       * 单 host 限速/宕机/封禁时自动切下一个,全失败才抛诚实错误。每个 chain 项都是
+       * 一个普通 upload-multipart 声明(无 key),由 resolveLocalAsset 逐个 try/catch 执行。
+       */
+      strategy: "anon-chain";
+      chain: ReadonlyArray<AssetIngestion>;
+      /** 该链接受的媒体类型;缺省 ['image']。匿名 host 收任意文件,声明全媒体类型。 */
       accepts?: ReadonlyArray<AssetMediaKind>;
     };
 
