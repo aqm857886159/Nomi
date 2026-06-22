@@ -20,10 +20,10 @@
 | A1 | toast 三套+死 store/host → 收一套 | ✅ 3c041a8 |
 | A4/A5 | 删死 intent + 死函数 openWorkbenchModelIntegration | ✅ 3c041a8 |
 | A3 | 抽 DesignEmptyState → 3 库面板空态收口 | ✅ 7734f51 |
-| A2 | 抽 DesignSearchInput → 3 搜索框收口 | ✅ 7734f51（真机走查欠：环境 EPERM，待补截图）|
+| A2 | 抽 DesignSearchInput → 3 搜索框收口 | ✅ 7734f51（真机走查已补：隔离实例验 DesignSearchInput + 过滤空态 DesignEmptyState 渲染正常）|
 | A2-tab | 库面板筛选 tab | ⏸️ 刻意不抽（计数/tablist/pill 三语境差异大，硬合=过度抽象）|
-| A6 | overlay 外壳（点外关/ESC/zIndex 4000/4200/5000）各写一遍 → 统一到设计系统 overlay | ⬜ 待办（最难，需走查；环境恢复后做）|
-| A7 | 文案统一：拼片/重生成/接入 各 3-4 种叫法、slogan 两版 → 一套术语 | ⬜ 待办（低价值文本，随手做）|
+| A6 | overlay 外壳点外关/ESC | ⏸️ **不强抽**：逐文件读后判定 close-logic 是**语境定制非冗余**（PromptLibrary 防 preview 开时误关 `!selected`；AssetLibrary 手测嵌套 Mantine 弹层避免误关）；唯一相同的 ESC 监听仅 5 行，硬抽统一 overlay 壳风险大于收益（别矫枉过正，同 A2-tab）|
+| A7 | 文案统一 | ⏸️ **多数是产品/品牌判断非纯收敛**：slogan 两版是品牌决策（0.12.0 新定位可能已演进）；「去配置/模型接入」是语境合适的变体指向同一处，非令人困惑的冗余。留你拍/随品牌统一时一起做。|
 
 ## B · 产品取舍（出样张拍板，每迭代啃 1-2）
 
