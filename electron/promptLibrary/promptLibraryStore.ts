@@ -8,6 +8,16 @@ import { writeJsonFileAtomic } from "../jsonFile";
 import { getSettingsRoot, readJson } from "../runtimePaths";
 import { PROMPT_SOURCES, type PromptSource } from "./promptSources";
 import type { LibraryPrompt } from "./promptLibraryTypes";
+import seedJson from "./promptLibrarySeed.json";
+
+// 打包进 App 的精选快照(scripts/snapshot-prompt-library.ts 生成)。
+// 作用=地板:外部 GitHub raw 全拉不到且无磁盘缓存时,库也不空(只覆盖空态,在线拉成功照常顶掉)。
+const PROMPT_LIBRARY_SEED = seedJson as unknown as LibraryPrompt[];
+
+/** 当前可用的「地板」:有磁盘/内存缓存优先用缓存,否则用打包快照。绝不返回空致空态。 */
+function floor(): LibraryPrompt[] {
+  return cache?.prompts.length ? cache.prompts : PROMPT_LIBRARY_SEED;
+}
 
 const TTL_MS = 60 * 60 * 1000;
 const FETCH_MAX_BYTES = 12 * 1024 * 1024; // 大 README(900+ case)可达数 MB
@@ -62,6 +72,7 @@ async function loadSource(source: PromptSource): Promise<LibraryPrompt[]> {
         ...item,
         id: `${source.id}-${parsed.length + 1}`,
         promptType: source.promptType,
+        origin: "public",
         source: source.label,
         sourceId: source.id,
         sourceUrl: source.sourceUrl,
@@ -89,10 +100,11 @@ export async function getPromptLibrary(): Promise<LibraryPrompt[]> {
       if (prompts.length > 0) {
         cache = { at: Date.now(), prompts };
         persistToDisk(cache);
+        return prompts;
       }
-      return cache?.prompts ?? prompts;
+      return floor(); // 全拉空 → 缓存或打包快照兜底,不返回空
     })
-    .catch(() => cache?.prompts ?? [])
+    .catch(() => floor())
     .finally(() => {
       inflight = null;
     });

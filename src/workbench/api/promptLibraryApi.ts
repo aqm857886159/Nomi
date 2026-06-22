@@ -4,6 +4,8 @@ import { getDesktopBridge, type DesktopBridge } from '../../desktop/bridge'
 
 export type PromptMediaType = 'image' | 'video'
 
+export type PromptOrigin = 'public' | 'user'
+
 export type LibraryPrompt = {
   id: string
   title: string
@@ -15,6 +17,10 @@ export type LibraryPrompt = {
   source: string
   sourceId: string
   sourceUrl: string
+  /** public=外部公开仓库(只读);user=我的库(可改可删,用户级跨项目)。 */
+  origin: PromptOrigin
+  /** 我的库条目的更新时间(ISO);public 无。 */
+  updatedAt?: string
 }
 
 function requireDesktopRuntime(feature: string): DesktopBridge {
@@ -42,6 +48,8 @@ function toPrompt(raw: unknown): LibraryPrompt | null {
     source: String(r.source ?? ''),
     sourceId: String(r.sourceId ?? ''),
     sourceUrl: String(r.sourceUrl ?? ''),
+    origin: r.origin === 'user' ? 'user' : 'public',
+    updatedAt: typeof r.updatedAt === 'string' ? r.updatedAt : undefined,
   }
 }
 
@@ -50,6 +58,37 @@ export async function fetchPromptLibrary(): Promise<LibraryPrompt[]> {
   const res = await desktop.promptLibrary!.list()
   if (!res?.ok || !Array.isArray(res.prompts)) return []
   return res.prompts.map(toPrompt).filter((p): p is LibraryPrompt => p !== null)
+}
+
+// —— 我的库(用户级·跨项目):手写攒的提示词 CRUD,均返回全量(渲染层本地过滤)。 ——
+
+function mapUserPrompts(res: { ok?: boolean; prompts?: unknown[] } | undefined): LibraryPrompt[] {
+  if (!res?.ok || !Array.isArray(res.prompts)) return []
+  return res.prompts.map(toPrompt).filter((p): p is LibraryPrompt => p !== null)
+}
+
+export async function fetchUserPrompts(): Promise<LibraryPrompt[]> {
+  const desktop = requireDesktopRuntime('my prompt library')
+  return mapUserPrompts(await desktop.promptLibrary!.userList())
+}
+
+export async function addUserPrompt(input: { title?: string; prompt: string; promptType: PromptMediaType }): Promise<LibraryPrompt[]> {
+  const desktop = requireDesktopRuntime('add prompt')
+  const res = await desktop.promptLibrary!.userAdd(input)
+  if (!res?.ok) throw new Error(res?.error || '保存失败')
+  return mapUserPrompts(res)
+}
+
+export async function updateUserPrompt(id: string, patch: { title?: string; prompt?: string; promptType?: PromptMediaType }): Promise<LibraryPrompt[]> {
+  const desktop = requireDesktopRuntime('edit prompt')
+  const res = await desktop.promptLibrary!.userUpdate(id, patch)
+  if (!res?.ok) throw new Error(res?.error || '更新失败')
+  return mapUserPrompts(res)
+}
+
+export async function deleteUserPrompt(id: string): Promise<LibraryPrompt[]> {
+  const desktop = requireDesktopRuntime('delete prompt')
+  return mapUserPrompts(await desktop.promptLibrary!.userDelete(id))
 }
 
 /** 节点提示词优化用的文本大脑键(与创作助手同脑);未配文本模型返回 null。 */

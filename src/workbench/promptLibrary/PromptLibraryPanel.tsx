@@ -1,24 +1,34 @@
 /**
  * 提示词库面板。借鉴 infinite-canvas 的提示词库,但瘦身:库只管「靠封面挑起点 → 送上画布」,
  * AI 优化下沉到节点 composer(不在库内重复)。居中大画廊 + 遮罩;点卡片 FLIP 放大浮到中央预览。
- * 数据由主进程聚合公开仓库(图/视频)+1h 缓存,渲染层取全量后本地过滤(usePromptLibrary)。
+ * 双来源:Nomi 精选(外部公开仓库,主进程聚合+1h 缓存+打包快照兜底,只读)/ 我的库(用户级·跨项目,手写可改可删)。
  */
 import React from 'react'
 import { Portal } from '@mantine/core'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { IconX, IconBulb, IconRefresh } from '@tabler/icons-react'
+import { IconX, IconBulb, IconRefresh, IconPlus } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { NomiLoadingMark, NomiWordmark, DesignEmptyState, DesignSearchInput } from '../../design'
 import { showUndoToast } from '../../utils/showUndoToast'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { filterPrompts, type LibraryPrompt, type PromptCategory } from '../api/promptLibraryApi'
 import { usePromptLibrary } from './usePromptLibrary'
+import { useUserPrompts } from './useUserPrompts'
 import { PromptCard } from './PromptCard'
+import { UserPromptCard } from './UserPromptCard'
+import { UserPromptComposer } from './UserPromptComposer'
 import { PromptPreviewOverlay } from './PromptPreviewOverlay'
 
 const GRID_GAP = 12 // gap-3
 const MIN_CARD_WIDTH = 200 // 卡片最小宽,据此推列数(窄窗自动减列,不再写死 4 列挤压)
 const CARD_ASPECT = 3 / 4 // PromptCard 为 aspect-[4/3]，行高由实际卡宽推出，不再写死 188
+
+type Source = 'nomi' | 'mine'
+
+const SOURCE_OPTIONS: { value: Source; label: string }[] = [
+  { value: 'mine', label: '我的库' },
+  { value: 'nomi', label: 'Nomi 精选' },
+]
 
 const CATEGORY_OPTIONS: { value: PromptCategory; label: string }[] = [
   { value: 'all', label: '全部' },
@@ -35,13 +45,19 @@ type Selected = { prompt: LibraryPrompt; rect: DOMRect }
 
 export function PromptLibraryPanel({ opened, onClose }: Props): JSX.Element | null {
   const panelRef = React.useRef<HTMLDivElement>(null)
+  const [source, setSource] = React.useState<Source>('nomi')
   const [category, setCategory] = React.useState<PromptCategory>('all')
   const [query, setQuery] = React.useState('')
   const [selected, setSelected] = React.useState<Selected | null>(null)
   const [scrollEl, setScrollEl] = React.useState<HTMLDivElement | null>(null)
+  const [composing, setComposing] = React.useState(false)
+  const [editing, setEditing] = React.useState<LibraryPrompt | null>(null)
 
   const { items, loading, error, reload } = usePromptLibrary(opened)
-  const visible = React.useMemo(() => filterPrompts(items, category, query), [items, category, query])
+  const user = useUserPrompts(opened)
+  const isMine = source === 'mine'
+  const activeItems = isMine ? user.items : items
+  const visible = React.useMemo(() => filterPrompts(activeItems, category, query), [activeItems, category, query])
 
   // 响应式列数 + 由实际卡宽推出的行高（替代写死的 grid-cols-4 / 188），窄窗也不挤压、滚动不跳。
   const [contentWidth, setContentWidth] = React.useState(0)
@@ -82,6 +98,12 @@ export function PromptLibraryPanel({ opened, onClose }: Props): JSX.Element | nu
     return () => window.removeEventListener('keydown', handler)
   }, [opened, onClose, selected])
 
+  // 切来源时收起编辑/新建态(避免在 Nomi 精选上下文里残留我的库表单)。
+  const switchSource = React.useCallback((next: Source) => {
+    setSource(next)
+    if (next !== 'mine') { setComposing(false); setEditing(null) }
+  }, [])
+
   const handleSelect = React.useCallback((prompt: LibraryPrompt, rect: DOMRect) => {
     setSelected({ prompt, rect })
   }, [])
@@ -100,7 +122,20 @@ export function PromptLibraryPanel({ opened, onClose }: Props): JSX.Element | nu
     })
   }, [])
 
+  const handleNew = React.useCallback(() => { setEditing(null); setComposing(true) }, [])
+  const handleEdit = React.useCallback((prompt: LibraryPrompt) => { setComposing(false); setEditing(prompt) }, [])
+  const handleDelete = React.useCallback((prompt: LibraryPrompt) => {
+    void user.remove(prompt.id)
+    showUndoToast({
+      message: `已从我的库删除 · ${prompt.title}`,
+      onUndo: () => void user.add({ title: prompt.title, prompt: prompt.prompt, promptType: prompt.promptType }),
+    })
+  }, [user])
+
   if (!opened) return null
+
+  const showComposer = isMine && (composing || editing !== null)
+  const showNewTile = isMine && !showComposer
 
   return (
     <Portal>
@@ -121,7 +156,7 @@ export function PromptLibraryPanel({ opened, onClose }: Props): JSX.Element | nu
             <IconBulb size={18} stroke={1.6} className={cn('text-nomi-accent')} />
             <b className={cn('text-title font-bold text-nomi-ink')}>提示词库</b>
             <NomiWordmark fontSize={13} className={cn('text-nomi-ink-40')} />
-            <span className={cn('text-caption text-nomi-ink-40')}>· {items.length}</span>
+            <span className={cn('text-caption text-nomi-ink-40')}>· {activeItems.length}</span>
             <span className={cn('flex-1')} />
             <button
               type="button"
@@ -135,6 +170,23 @@ export function PromptLibraryPanel({ opened, onClose }: Props): JSX.Element | nu
 
           {/* 工具行 */}
           <div className={cn('flex items-center gap-2 px-5 py-2.5')}>
+            <div className={cn('shrink-0 inline-flex bg-nomi-ink-05 rounded-full p-0.5')} role="tablist" aria-label="提示词来源">
+              {SOURCE_OPTIONS.map((option) => {
+                const active = source === option.value
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    className={cn('px-3 py-1 rounded-full text-caption cursor-pointer border-0 bg-transparent whitespace-nowrap', 'transition-[background,color] duration-[var(--nomi-transition-fast)]', active ? 'bg-nomi-paper text-nomi-ink font-semibold shadow-nomi-sm' : 'text-nomi-ink-60 hover:text-nomi-ink')}
+                    onClick={() => switchSource(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
             <div className={cn('shrink-0 inline-flex bg-nomi-ink-05 rounded-full p-0.5')} role="tablist" aria-label="提示词类型筛选">
               {CATEGORY_OPTIONS.map((option) => {
                 const active = category === option.value
@@ -157,7 +209,41 @@ export function PromptLibraryPanel({ opened, onClose }: Props): JSX.Element | nu
 
           {/* 网格 / 状态 */}
           <div ref={setScrollEl} className={cn('flex-1 overflow-y-auto px-5 pb-5')}>
-            {loading && !items.length ? (
+            {showComposer ? (
+              <UserPromptComposer
+                initial={editing}
+                onSubmit={async (draft) => {
+                  if (editing) await user.update(editing.id, draft)
+                  else await user.add(draft)
+                  setComposing(false)
+                  setEditing(null)
+                }}
+                onCancel={() => { setComposing(false); setEditing(null) }}
+              />
+            ) : null}
+
+            {isMine ? (
+              <div className={cn('grid gap-3')} style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+                {showNewTile ? (
+                  <button
+                    type="button"
+                    onClick={handleNew}
+                    className={cn('flex flex-col items-center justify-center gap-1.5 w-full aspect-[4/3] cursor-pointer', 'rounded-nomi border border-dashed border-nomi-line bg-transparent text-nomi-ink-40', 'hover:border-nomi-accent hover:text-nomi-accent transition-colors')}
+                  >
+                    <IconPlus size={22} stroke={1.6} />
+                    <span className={cn('text-caption')}>新建</span>
+                  </button>
+                ) : null}
+                {visible.map((prompt) => (
+                  <UserPromptCard key={prompt.id} prompt={prompt} onSelect={handleSelect} onEdit={handleEdit} onDelete={handleDelete} />
+                ))}
+                {!visible.length && !user.loading && (query || category !== 'all') ? (
+                  <div className={cn('col-span-full py-10')}>
+                    <DesignEmptyState title="没有匹配的提示词" description="换个筛选或搜索词试试。" />
+                  </div>
+                ) : null}
+              </div>
+            ) : loading && !items.length ? (
               <div className={cn('flex flex-col items-center justify-center gap-3 py-20 text-nomi-ink-40')}>
                 <NomiLoadingMark size={28} />
                 <span className={cn('text-caption')}>正在从公开库拉取提示词…</span>
