@@ -444,19 +444,24 @@ function registerLocalProtocol(): void {
 if (hasSingleInstanceLock) app.whenReady().then(async () => {
   registerLocalProtocol();
   installContentSecurityPolicy(session.defaultSession);
-  // 启动即探测系统/环境代理并应用到全局 fetch，让"测试连接/调 AI API/拉模型"能穿透代理。
-  // 失败只记日志、不抛——绝不拖垮启动。须在任何出站请求前完成。
-  await applySystemProxy(session.defaultSession);
   // 写入内置模型种子（Seedance 等主流模型档案）；幂等、存在即跳过，不覆盖用户已有记录。
+  // sync 且渲染层一进库就读 catalog → 须在 createWindow 前完成。
   try {
     ensureBuiltinModelSeeds();
   } catch (error) {
     console.error("[nomi:desktop] ensureBuiltinModelSeeds failed:", error);
   }
   registerIpc();
-  // 能力核对外口（RPC + 实例广告）：让外部 Claude Code/Codex 经 CLI/MCP 在本地驱动 Nomi。
-  // fail-open：内部不抛，绝不影响 app 启动。
-  await startCapabilityCore(runTask, fetchTaskResult);
+  // E(冷启动 P0)：代理探测与能力核都不是窗口首帧的依赖，挡在窗口前是纯浪费——并行后台跑，窗口立即出。
+  //  · applySystemProxy：PAC/Clash 环境下 resolveProxy 可阻塞数十~数百 ms；它只需在「用户触发的
+  //    出站请求」(测连接/调 AI，首帧后数秒)前完成，此处先于 createWindow 启动即有足够提前量(内部不抛)。
+  //  · startCapabilityCore(外部 MCP 的本地 RPC 广告)：fail-open，本就不影响 app。
+  void applySystemProxy(session.defaultSession).catch((error) => {
+    console.error("[nomi:desktop] applySystemProxy failed:", error);
+  });
+  void startCapabilityCore(runTask, fetchTaskResult).catch((error) => {
+    console.error("[nomi:desktop] startCapabilityCore failed:", error);
+  });
   await createWindow();
 
   app.on("activate", () => {

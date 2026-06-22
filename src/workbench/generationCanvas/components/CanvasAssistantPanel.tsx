@@ -170,13 +170,24 @@ export default function CanvasAssistantPanel({
     onCollapsedChange?.(collapsed)
   }, [collapsed, onCollapsedChange])
 
-  // Keep the newest reply / pending plan card in view. Without this the
-  // thread stays scrolled to the top and a fresh reply (or a tool-call card)
-  // looks like it landed "above" the conversation.
+  // 贴底跟随（P1 流式 layout thrash + 抢滚动）：旧实现每次 messages 变(流式每帧)都强制
+  // scrollIntoView → ① 每帧同步 layout；② 用户上翻读历史时被一把拽回底部。改成 IntersectionObserver
+  // 观察底部哨兵：在底部(哨兵可见)才自动滚跟随，上翻(哨兵被滚出裁剪)即停。滚动容器裁剪 overflow，
+  // 故 viewport-root IO 即能判「是否滚到底」，无需额外容器 ref。
+  const [stickToBottom, setStickToBottom] = React.useState(true)
   React.useEffect(() => {
-    if (collapsed) return
+    const sentinel = threadBottomRef.current
+    if (collapsed || !sentinel || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver(([entry]) => setStickToBottom(entry.isIntersecting), {
+      rootMargin: '0px 0px 80px 0px', // 距底 80px 内都算「在底部」
+    })
+    io.observe(sentinel)
+    return () => io.disconnect()
+  }, [collapsed])
+  React.useEffect(() => {
+    if (collapsed || !stickToBottom) return
     threadBottomRef.current?.scrollIntoView({ block: 'end' })
-  }, [messages, pendingToolCalls, deviationReport, collapsed])
+  }, [messages, pendingToolCalls, deviationReport, collapsed, stickToBottom])
 
   const updateMessage = React.useCallback((id: string, content: string) => {
     setMessages((current) => current.map((message) => (
