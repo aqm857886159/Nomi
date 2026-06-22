@@ -9,7 +9,8 @@
     "types": ["node", "electron"],
     "noEmit": false,
     "sourceMap": true,
-    "strict": true
+    "strict": true,
+    "resolveJsonModule": true
   },
   "include": ["**/*.ts"],
   "exclude": ["**/*.test.ts"]

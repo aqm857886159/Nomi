@@ -15,9 +15,13 @@ export type LibraryPrompt = ParsedPrompt & {
   id: string;
   /** 这条提示词产出的是图还是视频(决定送上画布建哪种节点)。 */
   promptType: PromptMediaType;
+  /** 来源域:public=外部公开仓库(只读);user=用户自己存的「我的库」(可改可删,用户级跨项目)。 */
+  origin: "public" | "user";
   /** 人话来源标签(显示在卡片上)。 */
   source: string;
   sourceId: string;
-  /** 仓库地址(详情可跳转)。 */
+  /** 仓库地址(详情可跳转);用户条目为空。 */
   sourceUrl: string;
+  /** 用户条目最近更新时间(ISO);public 条目无。 */
+  updatedAt?: string;
 };

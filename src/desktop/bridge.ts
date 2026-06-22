@@ -192,6 +192,11 @@ export type DesktopBridge = {
   promptLibrary?: {
     list: () => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
     textBrain: () => Promise<{ ok: boolean; brain: { vendor: string; modelKey: string } | null }>
+    /** 我的库(用户级·跨项目):手写攒的提示词 CRUD,返回全量供渲染层本地过滤。 */
+    userList: () => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
+    userAdd: (input: { title?: string; prompt: string; promptType: 'image' | 'video' }) => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
+    userUpdate: (id: string, patch: { title?: string; prompt?: string; promptType?: 'image' | 'video' }) => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
+    userDelete: (id: string) => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
   }
   /** S4-2b 技术自检结果广播(主进程异步旁路 → 节点 ⚠ 投影)。 */
   review?: {

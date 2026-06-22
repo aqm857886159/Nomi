@@ -100,6 +100,13 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   promptLibrary: {
     list: () => ipcRenderer.invoke("nomi:prompt-library:list") as Promise<{ ok: boolean; prompts: unknown[]; error?: string }>,
     textBrain: () => ipcRenderer.invoke("nomi:prompt-library:text-brain") as Promise<{ ok: boolean; brain: { vendor: string; modelKey: string } | null }>,
+    userList: () => ipcRenderer.invoke("nomi:prompt-library:user-list") as Promise<{ ok: boolean; prompts: unknown[]; error?: string }>,
+    userAdd: (input: { title?: string; prompt: string; promptType: "image" | "video" }) =>
+      ipcRenderer.invoke("nomi:prompt-library:user-add", input) as Promise<{ ok: boolean; prompts: unknown[]; error?: string }>,
+    userUpdate: (id: string, patch: { title?: string; prompt?: string; promptType?: "image" | "video" }) =>
+      ipcRenderer.invoke("nomi:prompt-library:user-update", { id, patch }) as Promise<{ ok: boolean; prompts: unknown[]; error?: string }>,
+    userDelete: (id: string) =>
+      ipcRenderer.invoke("nomi:prompt-library:user-delete", { id }) as Promise<{ ok: boolean; prompts: unknown[]; error?: string }>,
   },
   review: {
     onEvent: (callback: (payload: unknown) => void) => {

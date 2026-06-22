@@ -143,15 +143,19 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onSendToCanv
               {copied ? '已复制' : '复制'}
             </button>
             <span className={cn('flex-1')} />
-            <a
-              href={prompt.sourceUrl}
-              target="_blank"
-              rel="noreferrer"
-              className={cn('inline-flex items-center gap-1 text-caption text-nomi-ink-40 hover:text-nomi-ink')}
-            >
-              <IconExternalLink size={13} stroke={1.7} />
-              来源
-            </a>
+            {prompt.sourceUrl ? (
+              <a
+                href={prompt.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className={cn('inline-flex items-center gap-1 text-caption text-nomi-ink-40 hover:text-nomi-ink')}
+              >
+                <IconExternalLink size={13} stroke={1.7} />
+                来源
+              </a>
+            ) : (
+              <span className={cn('inline-flex items-center gap-1 text-caption text-nomi-ink-40')}>我的库 · 仅本地</span>
+            )}
           </div>
         </div>
         <style>{`@keyframes nomi-fade { from { opacity: 0 } to { opacity: 1 } }`}</style>
