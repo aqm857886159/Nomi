@@ -9,8 +9,8 @@
  * Backed by: nomiDesktop.onboarding.{listModels, guessKinds, testConnection, manualCommit}。
  */
 import React from 'react'
-import { Stack, Group, Text, PasswordInput, ActionIcon, Anchor, TagsInput, Select } from '@mantine/core'
-import { IconPlus, IconTrash, IconCheck, IconX } from '@tabler/icons-react'
+import { Stack, Group, Text, PasswordInput, ActionIcon, Anchor, TagsInput, Select, Collapse } from '@mantine/core'
+import { IconPlus, IconTrash, IconCheck, IconX, IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import { DesignButton, DesignModal, DesignTextInput, DesignSegmentedControl } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { ProviderKind } from '../../desktop/providerKind'
@@ -66,6 +66,8 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }
   const [kindForced, setKindForced] = React.useState(false)
   // 「接口协议」覆盖区是否展开。默认收起（auto-probe 兜底）；专家点开、或测试失败时自动展开（逃生口）。
   const [showKindOverride, setShowKindOverride] = React.useState(false)
+  // 「高级设置」整段（接口协议 + 自定义请求头）是否展开。默认收起；测试失败自动展开当逃生口。
+  const [showAdvanced, setShowAdvanced] = React.useState(false)
   const [baseUrl, setBaseUrl] = React.useState('')
   // Model ids only (display name dropped — it defaulted to the id, nobody filled it).
   // Entered via TagsInput: type+enter for any endpoint, or pick from auto-fetched list.
@@ -134,6 +136,7 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }
     // 自定义/中转站则交回 auto-probe（kindForced=false），覆盖区收起。
     setKindForced(!preset.custom)
     setShowKindOverride(false)
+    setShowAdvanced(false)
     // Endpoint changed → previously fetched models / test result no longer apply.
     setFetchedModels([])
     setFetchModelsMsg('')
@@ -212,7 +215,8 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }
       setTestMessage(res.detectedKind ? `已连上 · 用的是 ${PROVIDER_KIND_LABEL[res.detectedKind]} 协议` : '连接正常')
     } else {
       setTestState('fail')
-      // 失败指路（设计/真实用户评审）：把「可能是协议不对，手动指定」摆出来，并展开覆盖区当逃生口。
+      // 失败指路（设计/真实用户评审）：把「可能是协议不对，手动指定」摆出来，展开高级区+覆盖区当逃生口。
+      setShowAdvanced(true)
       setShowKindOverride(true)
       setTestMessage(res.error
         ? `连不上：${res.error}。可在下方「接口协议」手动指定再试`
@@ -426,75 +430,91 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }
             </Stack>
 
             {selectedPreset?.custom && (
-            <Stack gap={4}>
-              {/* 接口协议：默认收起，保存时 auto-probe 替用户判断（P4）。专家可展开强制指定；
-                  测试失败时自动展开当逃生口（见 handleTestConnection）。 */}
-              {!showKindOverride ? (
-                <Text size="xs" c="var(--nomi-ink-60)">
-                  接口协议：{kindForced ? PROVIDER_KIND_LABEL[providerKind] : '保存时自动探测'} ·{' '}
-                  <Anchor component="button" type="button" onClick={() => setShowKindOverride(true)} c="var(--nomi-accent)" inherit>
-                    手动指定
-                  </Anchor>
-                </Text>
-              ) : (
-                <Field label="接口协议" hint="不确定就留给自动探测；codex 类中转选 Responses；Claude 官转选 Anthropic">
-                  <DesignSegmentedControl
-                    value={providerKind}
-                    onChange={(v: string) => { setProviderKind(v as ProviderKind); setKindForced(true); setTestState('idle') }}
-                    data={[
-                      { label: 'Chat Completions', value: 'openai-compatible' },
-                      { label: 'Responses', value: 'openai-responses' },
-                      { label: 'Anthropic', value: 'anthropic' },
-                    ]}
-                    fullWidth
-                  />
-                  {kindForced && (
-                    <Anchor component="button" type="button" size="xs" c="var(--nomi-ink-60)"
-                      onClick={() => { setKindForced(false); setShowKindOverride(false); setTestState('idle') }}>
-                      改回自动探测
-                    </Anchor>
-                  )}
-                </Field>
-              )}
-            </Stack>
-            )}
+            <Stack gap={6}>
+              {/* 高级设置（接口协议 + 自定义请求头）：默认收起——主流程只剩 选→填地址+Key→拉模型→保存。
+                  专家点开、或测试失败时自动展开当逃生口（见 handleTestConnection）。 */}
+              <Anchor
+                component="button"
+                type="button"
+                size="xs"
+                c="var(--nomi-ink-60)"
+                onClick={() => setShowAdvanced((v) => !v)}
+                style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              >
+                {showAdvanced ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
+                高级设置（接口协议 / 自定义请求头）
+              </Anchor>
 
-            {selectedPreset?.custom && (
-            <Stack gap={4}>
-              {headerRows.length > 0 && <Text size="sm" c="var(--nomi-ink)">自定义请求头</Text>}
-              {headerRows.length > 0 && (
-                <Stack gap={6}>
-                  {headerRows.map((h, i) => (
-                    <Group key={i} gap={6} wrap="nowrap" align="flex-start">
-                      <DesignTextInput
-                        value={h.key}
-                        onChange={e => updateHeader(i, { key: e.currentTarget.value })}
-                        placeholder="Header 名，如 HTTP-Referer"
-                        style={{ flex: 1 }}
+              <Collapse in={showAdvanced}>
+                <Stack gap={12}>
+                  {/* 接口协议：保存时 auto-probe 替用户判断；专家可强制指定。 */}
+                  {!showKindOverride ? (
+                    <Text size="xs" c="var(--nomi-ink-60)">
+                      接口协议：{kindForced ? PROVIDER_KIND_LABEL[providerKind] : '保存时自动探测'} ·{' '}
+                      <Anchor component="button" type="button" onClick={() => setShowKindOverride(true)} c="var(--nomi-accent)" inherit>
+                        手动指定
+                      </Anchor>
+                    </Text>
+                  ) : (
+                    <Field label="接口协议" hint="不确定就留给自动探测；codex 类中转选 Responses；Claude 官转选 Anthropic">
+                      <DesignSegmentedControl
+                        value={providerKind}
+                        onChange={(v: string) => { setProviderKind(v as ProviderKind); setKindForced(true); setTestState('idle') }}
+                        data={[
+                          { label: 'Chat Completions', value: 'openai-compatible' },
+                          { label: 'Responses', value: 'openai-responses' },
+                          { label: 'Anthropic', value: 'anthropic' },
+                        ]}
+                        fullWidth
                       />
-                      <DesignTextInput
-                        value={h.value}
-                        onChange={e => updateHeader(i, { value: e.currentTarget.value })}
-                        placeholder="值"
-                        style={{ flex: 1 }}
-                      />
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        onClick={() => removeHeaderRow(i)}
-                        aria-label="删除这一行请求头"
-                      >
-                        <IconTrash size={14} />
-                      </ActionIcon>
+                      {kindForced && (
+                        <Anchor component="button" type="button" size="xs" c="var(--nomi-ink-60)"
+                          onClick={() => { setKindForced(false); setShowKindOverride(false); setTestState('idle') }}>
+                          改回自动探测
+                        </Anchor>
+                      )}
+                    </Field>
+                  )}
+
+                  {/* 自定义请求头 */}
+                  <Stack gap={4}>
+                    {headerRows.length > 0 && <Text size="sm" c="var(--nomi-ink)">自定义请求头</Text>}
+                    {headerRows.length > 0 && (
+                      <Stack gap={6}>
+                        {headerRows.map((h, i) => (
+                          <Group key={i} gap={6} wrap="nowrap" align="flex-start">
+                            <DesignTextInput
+                              value={h.key}
+                              onChange={e => updateHeader(i, { key: e.currentTarget.value })}
+                              placeholder="Header 名，如 HTTP-Referer"
+                              style={{ flex: 1 }}
+                            />
+                            <DesignTextInput
+                              value={h.value}
+                              onChange={e => updateHeader(i, { value: e.currentTarget.value })}
+                              placeholder="值"
+                              style={{ flex: 1 }}
+                            />
+                            <ActionIcon
+                              variant="subtle"
+                              color="gray"
+                              onClick={() => removeHeaderRow(i)}
+                              aria-label="删除这一行请求头"
+                            >
+                              <IconTrash size={14} />
+                            </ActionIcon>
+                          </Group>
+                        ))}
+                      </Stack>
+                    )}
+                    <Group justify="flex-start">
+                      <DesignButton variant="subtle" leftSection={<IconPlus size={14} />} onClick={addHeaderRow}>
+                        添加请求头（可选）
+                      </DesignButton>
                     </Group>
-                  ))}
+                  </Stack>
                 </Stack>
-              )}
-              <Group justify="flex-start">
-                <DesignButton variant="subtle" leftSection={<IconPlus size={14} />} onClick={addHeaderRow}>
-                  添加请求头（可选）
-                </DesignButton>
-              </Group>
+              </Collapse>
             </Stack>
             )}
 
