@@ -178,24 +178,36 @@ describe('parseCameraMoveSpec — 容错解析运镜参数', () => {
   it('完整参数原样落 spec', () => {
     expect(
       parseCameraMoveSpec({ move: 'orbit_left', speed: 'slow', shot: 'wide', subjectPose: 'walk' }),
-    ).toEqual({ move: 'orbit_left', speed: 'slow', shot: 'wide', subjectPose: 'walk' })
+    ).toEqual({ move: 'orbit_left', speed: 'slow', shot: 'wide', subjectPose: 'walk', customMove: undefined })
   })
 
-  it('缺 move → 兜 push_in；缺 speed/shot/subjectPose → undefined（builder 兜默认）', () => {
+  it('缺 move/customMove → 全 undefined（执行器据此判 词表内/外/缺一）', () => {
     expect(parseCameraMoveSpec({})).toEqual({
-      move: 'push_in',
+      move: undefined,
       speed: undefined,
       shot: undefined,
       subjectPose: undefined,
+      customMove: undefined,
+    })
+  })
+
+  it('词表外逃生口：customMove 原样落，move 仍可空（不硬塞 enum）', () => {
+    expect(parseCameraMoveSpec({ customMove: '希区柯克式眩晕变焦' })).toEqual({
+      move: undefined,
+      speed: undefined,
+      shot: undefined,
+      subjectPose: undefined,
+      customMove: '希区柯克式眩晕变焦',
     })
   })
 
   it('空串/非串值按缺省处理，不抛', () => {
     expect(parseCameraMoveSpec({ move: '   ', speed: 42 as unknown as string })).toEqual({
-      move: 'push_in',
+      move: undefined,
       speed: undefined,
       shot: undefined,
       subjectPose: undefined,
+      customMove: undefined,
     })
   })
 })
@@ -225,5 +237,69 @@ describe('applyCanvasToolCall create_camera_move 执行', () => {
     const flag = scene3d?.meta?.cameraMoveAutoCapture as Record<string, unknown> | undefined
     expect(flag).toMatchObject({ targetNodeId: targetId, fps: 24, frameCount: 72, move: 'push_in' })
     expect(scene3d?.meta?.scene3dState).toBeTruthy()
+  })
+
+  // 词表外逃生口：只给 customMove → 不建 scene3d 节点、不渲，运镜指令追加进目标视频节点 prompt（诚实降级）。
+  it('customMove（词表外）→ 不建 scene3d，运镜指令追加进视频节点 prompt + 打幂等标志', async () => {
+    const created = (await applyCanvasToolCall('create_canvas_nodes', {
+      nodes: [{ clientId: 'v9', kind: 'video', title: '镜头 1', prompt: '女孩站在窗边的特写' }],
+    })) as { clientIdToNodeId: Record<string, string> }
+    const targetId = created.clientIdToNodeId.v9
+
+    const res = (await applyCanvasToolCall('create_camera_move', {
+      shotClientId: 'v9',
+      customMove: '希区柯克式眩晕变焦（dolly zoom）',
+    })) as { cameraMoveNodeId: string | null; targetNodeId: string | null; degraded?: boolean }
+
+    expect(res.cameraMoveNodeId).toBeNull() // 不渲、不建 scene3d 节点
+    expect(res.degraded).toBe(true)
+    const state = useGenerationCanvasStore.getState()
+    expect(state.nodes.filter((n) => n.kind === 'scene3d')).toHaveLength(0)
+    const target = state.nodes.find((n) => n.id === targetId)
+    expect(target?.prompt).toContain('希区柯克式眩晕变焦')
+    expect(target?.prompt).toContain('女孩站在窗边的特写') // 不覆盖原 prompt，追加
+    expect((target?.meta as Record<string, unknown>)?.cameraMovePromptApplied).toBe('希区柯克式眩晕变焦（dolly zoom）')
+
+    // 幂等：同指令再来一次不重复追加
+    await applyCanvasToolCall('create_camera_move', { shotClientId: 'v9', customMove: '希区柯克式眩晕变焦（dolly zoom）' })
+    const after = useGenerationCanvasStore.getState().nodes.find((n) => n.id === targetId)
+    expect((after?.prompt.match(/希区柯克式眩晕变焦/g) || []).length).toBe(1)
+  })
+
+  it('move 与 customMove 都缺 → 抛错（不静默兜 push_in 硬塞运镜）', async () => {
+    const created = (await applyCanvasToolCall('create_canvas_nodes', {
+      nodes: [{ clientId: 'v8', kind: 'video', title: '镜头', prompt: 'p' }],
+    })) as { clientIdToNodeId: Record<string, string> }
+    void created
+    await expect(applyCanvasToolCall('create_camera_move', { shotClientId: 'v8' })).rejects.toThrow()
+  })
+})
+
+// 词表外逃生口（站位）：只给 customBlocking → 不建 scene3d、不渲，构图指令追加进目标关键帧节点 prompt。
+describe('applyCanvasToolCall create_staging_reference customBlocking 降级', () => {
+  beforeEach(() => {
+    resetCanvas()
+    resetClientIdRegistry()
+  })
+
+  it('customBlocking（词表外）→ 不建 scene3d，构图指令追加进关键帧节点 prompt', async () => {
+    const created = (await applyCanvasToolCall('create_canvas_nodes', {
+      nodes: [{ clientId: 'k1', kind: 'image', title: '镜头关键帧', prompt: '雨夜天台' }],
+    })) as { clientIdToNodeId: Record<string, string> }
+    const targetId = created.clientIdToNodeId.k1
+
+    const res = (await applyCanvasToolCall('create_staging_reference', {
+      shotClientId: 'k1',
+      customBlocking: '三层人墙的复杂队形，主角越肩构图',
+    })) as { stagingNodeId: string | null; targetNodeId: string | null; degraded?: boolean }
+
+    expect(res.stagingNodeId).toBeNull()
+    expect(res.degraded).toBe(true)
+    const state = useGenerationCanvasStore.getState()
+    expect(state.nodes.filter((n) => n.kind === 'scene3d')).toHaveLength(0)
+    const target = state.nodes.find((n) => n.id === targetId)
+    expect(target?.prompt).toContain('三层人墙的复杂队形')
+    expect(target?.prompt).toContain('雨夜天台')
+    expect((target?.meta as Record<string, unknown>)?.stagingPromptApplied).toBeTruthy()
   })
 })

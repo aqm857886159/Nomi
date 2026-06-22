@@ -43,16 +43,28 @@ const MODEL_PREF = {
   modelKey: process.env.APIMART_TEXT_MODEL || "deepseek-v4-pro",
 };
 
-// 8 条：7 个运镜意图（期望 move 枚举集）+ 1 个负样本（静止 → 不该调）。
+// 场景三类（kind 字段决定打分口径）：
+//   - in-vocab：期望 move ∈ expect 枚举集（精确路）。
+//   - out-of-vocab：期望 customMove 非空 且 NOT 硬塞 enum（词表外逃生口）。
+//   - static：负样本，不该调用工具。
 const SCENARIOS = [
-  { text: "镜头慢慢推近女主角的脸。", expect: ["push_in"] },
-  { text: "镜头绕着主角转一圈。", expect: ["orbit_left", "orbit_right"] },
-  { text: "镜头从低往高升起来，展现整个战场。", expect: ["crane_up"] },
-  { text: "镜头跟着奔跑的角色向左横移。", expect: ["track_left"] },
-  { text: "镜头缓缓拉远，露出空荡荡的房间。", expect: ["pull_out"] },
-  { text: "镜头快速怼近主角惊恐的眼睛。", expect: ["push_in"] },
-  { text: "镜头从侧面弧线扫过对峙的两人。", expect: ["arc_left", "arc_right"] },
-  { text: "固定机位，角色站着说话，镜头不动。", expect: [] }, // 负样本：不该调运镜
+  // 词表内：仍走 enum 精确路。
+  { kind: "in-vocab", text: "镜头慢慢推近女主角的脸。", expect: ["push_in"] },
+  { kind: "in-vocab", text: "镜头绕着主角转一圈。", expect: ["orbit_left", "orbit_right"] },
+  { kind: "in-vocab", text: "镜头从低往高升起来，展现整个战场。", expect: ["crane_up"] },
+  { kind: "in-vocab", text: "镜头跟着奔跑的角色向左横移。", expect: ["track_left"] },
+  { kind: "in-vocab", text: "镜头缓缓拉远，露出空荡荡的房间。", expect: ["pull_out"] },
+  { kind: "in-vocab", text: "镜头快速怼近主角惊恐的眼睛。", expect: ["push_in"] },
+  { kind: "in-vocab", text: "镜头从侧面弧线扫过对峙的两人。", expect: ["arc_left", "arc_right"] },
+  // 词表外：期望 customMove（不硬塞最近的 enum）。
+  // dolly-zoom 最容易被错塞成 push_in —— 显式断言不得是 push_in。
+  { kind: "out-of-vocab", text: "镜头来一个希区柯克式的眩晕变焦（dolly zoom）。", forbidMove: ["push_in"] },
+  { kind: "out-of-vocab", text: "镜头先推近她的脸，然后猛地甩向窗外。" }, // 复合：不该是单个硬塞 enum
+  // 无人机俯冲穿过人群 —— 词表无 drone/dive，应走 customMove（不硬塞 crane/push）。
+  // （注：「照搬某段参考视频运镜」是另一种操作=直接挂 video_ref，非 create_camera_move 的活，故不作本工具的用例）
+  { kind: "out-of-vocab", text: "镜头像无人机一样俯冲穿过欢呼的人群。" },
+  // 负样本：不该调运镜。
+  { kind: "static", text: "固定机位，角色站着说话，镜头不动。" },
 ];
 
 /** 读落盘画布节点（终态真相源，不信 agent 自述）。 */
@@ -138,17 +150,31 @@ try {
     const args = newCameraMoveArgs(readEventsLog(projectDir), baselineCmCount);
     const called = args !== null;
     const move = called ? (args.move ?? null) : null;
-    const wantStatic = sc.expect.length === 0;
+    const customMove = called ? (args.customMove ?? null) : null;
 
     let ok;
-    if (wantStatic) ok = !called; // 负样本：不该调
-    else ok = called && move != null && sc.expect.includes(move);
+    let expectLabel;
+    if (sc.kind === "static") {
+      // 负样本：不该调
+      ok = !called;
+      expectLabel = "不调用";
+    } else if (sc.kind === "in-vocab") {
+      // 词表内：走 enum 精确路，且不该用 customMove。
+      ok = called && move != null && sc.expect.includes(move) && !customMove;
+      expectLabel = `move=${sc.expect.join("/")}`;
+    } else {
+      // 词表外：必须用 customMove（非空），且不得硬塞被禁的 enum。
+      const usedCustom = called && typeof customMove === "string" && customMove.trim().length > 0;
+      const noForcedMove = !move || (sc.forbidMove ? !sc.forbidMove.includes(move) : true);
+      ok = usedCustom && noForcedMove;
+      expectLabel = `customMove(非空)${sc.forbidMove ? ` 且 move∉[${sc.forbidMove.join("/")}]` : "、move 留空"}`;
+    }
     if (ok) pass += 1;
 
     const got = !called
       ? "(未调用)"
-      : `move=${move} speed=${args.speed || "auto"} shot=${args.shot || "auto"}`;
-    const row = `${ok ? "✓" : "✗"} 期望[${sc.expect.join("/") || "不调用"}] 实得 ${got} | ${sc.text}`;
+      : `move=${move ?? "—"} customMove=${customMove ? "「" + String(customMove).slice(0, 24) + "」" : "—"} speed=${args.speed || "auto"}`;
+    const row = `${ok ? "✓" : "✗"} 期望[${expectLabel}] 实得 ${got} | ${sc.text}`;
     rows.push(row);
     console.log("  " + row);
   }
