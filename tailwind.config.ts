@@ -6,18 +6,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        // 旧 --tc-color-* 是已删的暗色层(§14.1)。仅保留仍被引用的 4 个键并重接到亮色 --nomi-*
-        // 等价物，其余无引用键已删（加新必删旧）。新增颜色一律进 nomi-tokens.css 的 --nomi-*。
-        surface: {
-          inline: 'var(--nomi-ink-05)',
-        },
-        border: {
-          subtle: 'var(--nomi-line-soft)',
-        },
-        text: {
-          primary: 'var(--nomi-ink)',
-          tertiary: 'var(--nomi-ink-40)',
-        },
+        // 旧 --tc-color-* 暗色层已删(§14.1)+ 4 个过渡键的最后消费者(PanoramaViewer/dead surfaces)
+        // 已收口到 --nomi-* 类，过渡键随之删净。新增颜色一律进 nomi-tokens.css 的 --nomi-*。
         nomi: {
           bg: 'var(--nomi-bg)',
           paper: 'var(--nomi-paper)',

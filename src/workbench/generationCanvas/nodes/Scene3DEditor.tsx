@@ -213,7 +213,7 @@ function Scene3DEditor({ node, width, height, readOnly = false }: Scene3DEditorP
           className={cn(
             'absolute right-3 top-3 grid size-8 place-items-center',
             'rounded-nomi border border-nomi-line-soft',
-            'bg-nomi-paper/[0.82] text-nomi-ink-55 shadow-nomi-sm',
+            'bg-nomi-paper/[0.82] text-nomi-ink-60 shadow-nomi-sm',
             'backdrop-blur-[10px] transition hover:bg-nomi-paper hover:text-nomi-ink',
           )}
           type="button"

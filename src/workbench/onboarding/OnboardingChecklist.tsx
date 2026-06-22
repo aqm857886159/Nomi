@@ -20,6 +20,7 @@ import { cn } from '../../utils/cn'
 import { useWorkbenchStore, type WorkspaceMode } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useHasTextModel } from '../library/useHasTextModel'
+import { DesignProgress } from '../../design'
 import { OnboardingSpotlight } from './OnboardingSpotlight'
 import {
   type ChecklistStep,
@@ -223,12 +224,7 @@ export function OnboardingChecklist(): JSX.Element | null {
             </button>
           </header>
 
-          <div className="h-1 mx-4 mb-2 rounded-full bg-nomi-ink-10 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-nomi-accent transition-[width] duration-[var(--nomi-transition-fast)]"
-              style={{ width: `${(doneCount / ALL_KEYS.length) * 100}%` }}
-            />
-          </div>
+          <DesignProgress value={(doneCount / ALL_KEYS.length) * 100} size="xs" className="mx-4 mb-2" />
 
           <ul className="flex flex-col px-1.5 pb-2 m-0 list-none">
             {STEPS.map((step) => {

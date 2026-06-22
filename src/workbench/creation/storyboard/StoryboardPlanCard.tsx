@@ -1,7 +1,7 @@
 import React from 'react'
 import { IconArrowRight, IconCircleCheck, IconMovie } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import { WorkbenchButton, confirmDialog } from '../../../design'
+import { StatusBadge, WorkbenchButton, confirmDialog } from '../../../design'
 import { useWorkbenchStore } from '../../workbenchStore'
 
 /**
@@ -37,10 +37,10 @@ export default function StoryboardPlanCard(): JSX.Element | null {
   }
 
   const badge = editorOpen
-    ? { label: '编辑中', cls: 'bg-nomi-accent-soft text-nomi-accent' }
+    ? { label: '编辑中', tone: 'info' as const }
     : committed
-      ? { label: '已落画布', cls: 'bg-[var(--workbench-success-soft)] text-[var(--workbench-success)]' }
-      : { label: '草稿', cls: 'bg-nomi-accent-soft text-nomi-accent' }
+      ? { label: '已落画布', tone: 'success' as const }
+      : { label: '草稿', tone: 'neutral' as const }
 
   return (
     <div
@@ -52,10 +52,10 @@ export default function StoryboardPlanCard(): JSX.Element | null {
     >
       <div className="flex items-center gap-2 min-w-0">
         {committed && !editorOpen
-          ? <IconCircleCheck size={15} stroke={1.6} className="shrink-0 text-[var(--workbench-success)]" />
+          ? <IconCircleCheck size={15} stroke={1.6} className="shrink-0 text-workbench-success" />
           : <IconMovie size={15} stroke={1.6} className="shrink-0 text-nomi-ink-60" />}
         <span className="min-w-0 flex-1 truncate text-body-sm font-medium text-nomi-ink">{title}</span>
-        <span className={cn('shrink-0 text-micro px-2 py-0.5 rounded-full leading-relaxed', badge.cls)}>{badge.label}</span>
+        <StatusBadge tone={badge.tone} className="shrink-0">{badge.label}</StatusBadge>
       </div>
 
       {editorOpen ? (
@@ -97,7 +97,7 @@ export default function StoryboardPlanCard(): JSX.Element | null {
             <button
               type="button"
               onClick={onDiscard}
-              className="ml-auto text-caption text-nomi-ink-40 hover:text-[var(--workbench-danger)]"
+              className="ml-auto text-caption text-nomi-ink-40 hover:text-workbench-danger"
             >
               丢弃
             </button>

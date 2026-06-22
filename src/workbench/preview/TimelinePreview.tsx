@@ -736,19 +736,19 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
           )}>
             <div className={cn(
               'workbench-preview-player__export-progress-bar-track',
-              'w-20 h-1 bg-white/15 rounded-sm overflow-hidden',
+              'w-20 h-1 bg-nomi-ink-10 rounded-nomi-sm overflow-hidden',
             )}>
               <div
                 className={cn(
                   'workbench-preview-player__export-progress-bar',
-                  'h-1 bg-nomi-accent rounded-sm transition-[width] duration-200 ease-in-out min-w-1',
+                  'h-1 bg-nomi-accent rounded-nomi-sm transition-[width] duration-200 ease-in-out min-w-1',
                 )}
                 style={{ width: `${Math.round(exportRatio * 100)}%` }}
               />
             </div>
             <span className={cn(
               'workbench-preview-player__export-progress-label',
-              'text-xs text-white/70 whitespace-nowrap',
+              'text-caption text-nomi-ink-60 whitespace-nowrap',
             )}>
               {exportStatus === 'preparing' ? '准备中…' : exportStatus === 'converting' ? '转码 MP4…' : `导出中 ${Math.round(exportRatio * 100)}%`}
             </span>

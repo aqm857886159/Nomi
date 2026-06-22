@@ -1,6 +1,6 @@
 import React from 'react'
 import { IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react'
-import { BodyPortal, NomiLoadingMark, NomiLogoMark, NomiWordmark, WorkbenchButton } from '../../design'
+import { BodyPortal, DesignProgress, NomiLoadingMark, NomiLogoMark, NomiWordmark, WorkbenchButton } from '../../design'
 import { cn } from '../../utils/cn'
 import { useUpdater } from './useUpdater'
 
@@ -135,12 +135,7 @@ function UpdateBody({ updater }: { updater: ReturnType<typeof useUpdater> }): JS
     return (
       <div>
         <p className="text-body-sm text-[var(--nomi-ink)] mb-2">正在下载更新…</p>
-        <div className="h-1.5 rounded-full bg-[var(--nomi-ink-10)] overflow-hidden">
-          <div
-            className="h-full rounded-full bg-[var(--nomi-accent)] transition-[width] duration-150"
-            style={{ width: `${updater.percent}%` }}
-          />
-        </div>
+        <DesignProgress value={updater.percent} size="sm" />
         <p className="mt-1.5 text-micro text-[var(--nomi-ink-40)]">后台下载，可继续创作 · {updater.percent}%</p>
       </div>
     )

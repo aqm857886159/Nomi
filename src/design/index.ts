@@ -1,5 +1,3 @@
-export { PanelCard, InlinePanel } from './surfaces'
-export type { PanelCardProps, InlinePanelProps } from './surfaces'
 export { ActionCard, DesignButton, IconActionButton, WorkbenchButton, WorkbenchIconButton } from './actions'
 export type { ActionCardProps, DesignButtonProps, IconActionButtonProps, WorkbenchButtonProps, WorkbenchIconButtonProps } from './actions'
 export { DesignBadge, StatusBadge } from './status'

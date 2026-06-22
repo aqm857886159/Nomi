@@ -287,7 +287,7 @@ function PanoramaDialogToolbar({ onClose, onScreenshot }: PanoramaDialogToolbarP
     <div
       className={cn(
         'absolute top-3 right-3 z-[2] flex items-center gap-1 p-[5px]',
-        'border border-border-subtle rounded-pill',
+        'border border-nomi-line rounded-pill',
         'bg-white/88 shadow-sm backdrop-blur-[12px] saturate-[1.2]',
       )}
       onPointerDown={(event) => event.stopPropagation()}
@@ -296,8 +296,8 @@ function PanoramaDialogToolbar({ onClose, onScreenshot }: PanoramaDialogToolbarP
         className={cn(
           'inline-grid w-6 h-6 place-items-center p-0',
           'border border-transparent rounded-full',
-          'bg-transparent text-text-tertiary cursor-pointer',
-          'hover:bg-surface-inline hover:text-text-primary',
+          'bg-transparent text-nomi-ink-60 cursor-pointer',
+          'hover:bg-nomi-ink-05 hover:text-nomi-ink',
           'disabled:opacity-45 disabled:cursor-wait',
         )}
         label="截图当前视口"
@@ -308,8 +308,8 @@ function PanoramaDialogToolbar({ onClose, onScreenshot }: PanoramaDialogToolbarP
         className={cn(
           'inline-grid w-6 h-6 place-items-center p-0',
           'border border-transparent rounded-full',
-          'bg-transparent text-text-tertiary cursor-pointer',
-          'hover:bg-surface-inline hover:text-text-primary',
+          'bg-transparent text-nomi-ink-60 cursor-pointer',
+          'hover:bg-nomi-ink-05 hover:text-nomi-ink',
           'disabled:opacity-45 disabled:cursor-wait',
         )}
         label="关闭预览"
