@@ -54,8 +54,10 @@ export type AssistantMessageViewProps = {
   replyActionClassName: string
 }
 
-/** 助手发言（左对齐·无气泡填充·身份行 + markdown 正文 + 极简状态标）。 */
-export function AssistantMessageView({
+/** 助手发言（左对齐·无气泡填充·身份行 + markdown 正文 + 极简状态标）。
+ *  memo（P0 流式卡顿）：done 消息的 props 全部引用稳定（primitives + message.* 稳定身份），
+ *  流式吐字时整列表重渲只有「正在吐字那条」真变 → 历史气泡被 memo 跳过，不再陪绑重渲+重 parse。 */
+export const AssistantMessageView = React.memo(function AssistantMessageView({
   content,
   attachments,
   streaming = false,
@@ -93,15 +95,18 @@ export function AssistantMessageView({
       ) : null}
     </div>
   )
-}
+})
 
 export type UserMessageBubbleProps = {
   content: string
   attachments?: ComposerAttachment[]
 }
 
-/** 用户消息（右对齐 ink-05 气泡，两面板一致）。 */
-export function UserMessageBubble({ content, attachments }: UserMessageBubbleProps): JSX.Element {
+/** 用户消息（右对齐 ink-05 气泡，两面板一致）。memo：内容固定，流式重渲时整列表跳过。 */
+export const UserMessageBubble = React.memo(function UserMessageBubble({
+  content,
+  attachments,
+}: UserMessageBubbleProps): JSX.Element {
   return (
     <div
       className={cn(
@@ -114,4 +119,4 @@ export function UserMessageBubble({ content, attachments }: UserMessageBubblePro
       {content}
     </div>
   )
-}
+})

@@ -437,6 +437,12 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     else setViewportTransform(nextZoom, nextOffset)
   }, [animateViewportTo, nodes, setViewportTransform, stageRef])
 
+  // memo 化 minimap 的跳转回调（内联会每渲染新建 → 废掉 CanvasMinimap 的 memo）。
+  const handleMinimapJump = React.useCallback((point: { x: number; y: number }) => {
+    const z = zoomRef.current || 1
+    setViewportTransform(z, { x: stageSize.width / 2 - point.x * z, y: stageSize.height / 2 - point.y * z })
+  }, [setViewportTransform, stageSize.width, stageSize.height, zoomRef])
+
   // 项目/分类首次加载时自动适应视图（含「历史视口框不住任何节点」的自愈式适应，
   // 防止图都在视口外、用户误以为「图消失」）。逻辑抽到 useAutoFitOnLoad（防巨壳）。
   useAutoFitOnLoad({ nodes, activeCategoryId, categoryViewports, fitView, stageRef, zoomRef, offsetRef })
@@ -733,10 +739,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
           zoom={zoom}
           offset={offset}
           stageSize={stageSize}
-          onJumpToCanvasPoint={(point) => {
-            const z = zoomRef.current || 1
-            setViewportTransform(z, { x: stageSize.width / 2 - point.x * z, y: stageSize.height / 2 - point.y * z })
-          }}
+          onJumpToCanvasPoint={handleMinimapJump}
         />
       </div>
     </section>

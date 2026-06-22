@@ -671,6 +671,7 @@ export default function Scene3DFullscreen({
           <Canvas
             camera={canvasCamera}
             dpr={[1, 2]}
+            frameloop={trajectory.isPlaying || trajectory.timelineOpen ? 'always' : 'demand'}
             gl={{ antialias: true, preserveDrawingBuffer: false }}
             onCreated={({ camera }) => applyEditorCameraPose(camera, initialEditorCameraRef.current)}
             onPointerMissed={clearSelection}

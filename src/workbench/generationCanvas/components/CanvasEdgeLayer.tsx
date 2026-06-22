@@ -32,7 +32,9 @@ type CanvasEdgeLayerProps = {
 }
 
 // 节点连接线层（贝塞尔路径 + 命中区 + 断开剪刀 + 待连预览）。从 GenerationCanvas.tsx 抽出。
-export default function CanvasEdgeLayer({
+// memo（P0-D）：平移不改本层 props（edges/nodeById/zoom 稳，offset 不传进来）→ 小/中图平移整层跳过；
+// >50 节点时 visibleNodeIds 每帧变仍会重渲，但 edgeGeoms 已 memo 化故不重算 bezier。
+function CanvasEdgeLayer({
   edges,
   nodeById,
   zoom,
@@ -58,28 +60,39 @@ export default function CanvasEdgeLayer({
     return counts
   }, [edges])
   const tagScale = 1 / (zoom || 1)
+  // P0-D 平移性能：边几何（bezier 路径 / 端点 / 中点）是节点坐标的纯函数，与 offset(平移)/zoom 无关。
+  // 抽进 useMemo([edges, nodeById]) → 平移时不重算（即使外层因虚拟化 visibleNodeIds 变而重渲，
+  // 也只重跑「裁剪过滤 + JSX」不再每帧重算 156 条 bezier 数学）。deps 仅在节点移动/连边增删时变。
+  const edgeGeoms = React.useMemo(
+    () =>
+      edges
+        .map((edge) => {
+          const source = nodeById.get(edge.source)
+          const target = nodeById.get(edge.target)
+          if (!source || !target) return null
+          const sourceSize = source.size || { width: 300, height: 220 }
+          const targetSize = target.size || { width: 300, height: 220 }
+          const startX = source.position.x + sourceSize.width
+          const startY = source.position.y + sourceSize.height / 2
+          const endX = target.position.x
+          const endY = target.position.y + targetSize.height / 2
+          const control = Math.max(64, Math.min(140, Math.abs(endX - startX) * 0.45))
+          const mode = edge.mode || 'reference'
+          const midX = (startX + endX) / 2
+          const midY = (startY + endY) / 2
+          const path = `M ${startX} ${startY} C ${startX + control} ${startY}, ${endX - control} ${endY}, ${endX} ${endY}`
+          return { edge, source, target, endX, endY, midX, midY, path, mode, isTyped: mode !== 'reference' }
+        })
+        .filter((geom): geom is NonNullable<typeof geom> => geom !== null),
+    [edges, nodeById],
+  )
   return (
     <svg className="generation-canvas-v2__edges" aria-label="节点连接线">
-      {edges.map((edge) => {
+      {edgeGeoms.map(({ edge, source, target, endX, endY, midX, midY, path, mode, isTyped }) => {
         // 视口裁剪：两端都在可见集外的边不渲染（大图性能，B3）
         if (visibleNodeIds && !visibleNodeIds.has(edge.source) && !visibleNodeIds.has(edge.target)) return null
-        const source = nodeById.get(edge.source)
-        const target = nodeById.get(edge.target)
-        if (!source || !target) return null
-        const sourceSize = source.size || { width: 300, height: 220 }
-        const targetSize = target.size || { width: 300, height: 220 }
-        const startX = source.position.x + sourceSize.width
-        const startY = source.position.y + sourceSize.height / 2
-        const endX = target.position.x
-        const endY = target.position.y + targetSize.height / 2
-        const control = Math.max(64, Math.min(140, Math.abs(endX - startX) * 0.45))
-        const mode = edge.mode || 'reference'
-        const midX = (startX + endX) / 2
-        const midY = (startY + endY) / 2
-        const path = `M ${startX} ${startY} C ${startX + control} ${startY}, ${endX - control} ${endY}, ${endX} ${endY}`
         const isActiveEdge = activeEdgeId === edge.id
         const cutPosition = isActiveEdge && activeEdge?.position ? activeEdge.position : { x: midX, y: midY }
-        const isTyped = mode !== 'reference'
         const isDense = (labeledCountByTarget.get(edge.target) || 0) > EDGE_TAG_DENSE_THRESHOLD
         const isIncident = focusedNodeId != null && (edge.source === focusedNodeId || edge.target === focusedNodeId)
         return (
@@ -172,3 +185,5 @@ export default function CanvasEdgeLayer({
     </svg>
   )
 }
+
+export default React.memo(CanvasEdgeLayer)

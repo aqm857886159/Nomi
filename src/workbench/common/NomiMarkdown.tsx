@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -63,13 +64,24 @@ function makeComponents(compact: boolean): Components {
 
 const docComponents = makeComponents(false)
 const compactComponents = makeComponents(true)
+// 模块级常量：避免会渲染的那几次给 ReactMarkdown 传新数组引用（触发其内部 effect 重跑）。
+const REMARK_PLUGINS = [remarkGfm]
 
-export function NomiMarkdown({ children, compact = false }: { children: string; compact?: boolean }): JSX.Element {
+// memo（P0 流式卡顿）：props 仅 children:string + compact:boolean（原始值，默认浅比较即可）。
+// 流式时只有「正在吐字那条」的 children 在变 → 它照常重渲重 parse；已 done 的历史气泡 children
+// 不变 → memo 跳过，不再每个 token 帧陪绑重新 mdast 解析整段累积全文（这是「对话越长越卡」的放大器）。
+export const NomiMarkdown = memo(function NomiMarkdown({
+  children,
+  compact = false,
+}: {
+  children: string
+  compact?: boolean
+}): JSX.Element {
   return (
     <div className="min-w-0 [overflow-wrap:anywhere]">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={compact ? compactComponents : docComponents}>
+      <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={compact ? compactComponents : docComponents}>
         {children}
       </ReactMarkdown>
     </div>
   )
-}
+})

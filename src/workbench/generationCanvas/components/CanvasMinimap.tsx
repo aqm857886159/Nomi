@@ -21,11 +21,12 @@ type CanvasMinimapProps = {
   onJumpToCanvasPoint: (point: { x: number; y: number }) => void
 }
 
-export function CanvasMinimap({ nodes, selectedIds, zoom, offset, stageSize, onJumpToCanvasPoint }: CanvasMinimapProps): JSX.Element | null {
+export const CanvasMinimap = React.memo(function CanvasMinimap({ nodes, selectedIds, zoom, offset, stageSize, onJumpToCanvasPoint }: CanvasMinimapProps): JSX.Element | null {
   const draggingRef = React.useRef(false)
   const innerRef = React.useRef<HTMLDivElement>(null)
 
-  const geometry = React.useMemo(() => {
+  // P0-D 平移性能：节点 bbox 与 offset 无关，拆出按 [nodes] memo → 平移时不再每帧遍历全部节点。
+  const nodeBbox = React.useMemo(() => {
     if (nodes.length < MINIMAP_MIN_NODES) return null
     let minX = Infinity
     let minY = Infinity
@@ -38,6 +39,12 @@ export function CanvasMinimap({ nodes, selectedIds, zoom, offset, stageSize, onJ
       maxX = Math.max(maxX, node.position.x + size.width)
       maxY = Math.max(maxY, node.position.y + size.height)
     }
+    return { minX, minY, maxX, maxY }
+  }, [nodes])
+
+  const geometry = React.useMemo(() => {
+    if (!nodeBbox) return null
+    let { minX, minY, maxX, maxY } = nodeBbox
     // 把当前视口也并入 bbox，保证取景框始终落在图内（即便平移到了节点外的空白）
     if (stageSize.width > 0 && zoom > 0) {
       minX = Math.min(minX, -offset.x / zoom)
@@ -52,7 +59,7 @@ export function CanvasMinimap({ nodes, selectedIds, zoom, offset, stageSize, onJ
     const padX = (MAP_W - contentW * scale) / 2
     const padY = (MAP_H - contentH * scale) / 2
     return { minX, minY, scale, padX, padY }
-  }, [nodes, offset.x, offset.y, stageSize.width, stageSize.height, zoom])
+  }, [nodeBbox, offset.x, offset.y, stageSize.width, stageSize.height, zoom])
 
   const jumpFromClient = React.useCallback((clientX: number, clientY: number) => {
     if (!geometry || !innerRef.current) return
@@ -132,4 +139,4 @@ export function CanvasMinimap({ nodes, selectedIds, zoom, offset, stageSize, onJ
       </div>
     </div>
   )
-}
+})

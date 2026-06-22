@@ -53,7 +53,7 @@ export function Scene3DControls({
   onKeyboardNavigationStart: () => void
   onKeyboardNavigationStop: () => void
 }): JSX.Element {
-  const { camera, gl } = useThree()
+  const { camera, gl, invalidate } = useThree()
   const direction = React.useRef(new THREE.Vector3())
   const desiredVelocity = React.useRef(new THREE.Vector3())
   const velocity = React.useRef(new THREE.Vector3())
@@ -134,6 +134,8 @@ export function Scene3DControls({
       pitchRef.current = THREE.MathUtils.clamp(pitchRef.current, -Math.PI / 2 + 0.02, Math.PI / 2 - 0.02)
       camera.rotation.set(pitchRef.current, yawRef.current, 0, 'YXZ')
       camera.updateMatrixWorld()
+      // frameloop=demand 下，free-look 鼠标转视直接改 camera.rotation（不走 React），需手动请求重绘。
+      invalidate()
     }
 
     const handleWheel = (event: WheelEvent) => {
@@ -161,6 +163,7 @@ export function Scene3DControls({
         controls.update()
       }
       camera.updateMatrixWorld()
+      invalidate()
       targetRef.current = vectorToArray(nextTarget)
       onWheelNavigation({
         position: vectorToArray(camera.position),
@@ -262,6 +265,8 @@ export function Scene3DControls({
     velocity.current.lerp(desiredVelocity.current, blend)
     if (velocity.current.lengthSq() < 0.000001) velocity.current.set(0, 0, 0)
     camera.position.addScaledVector(velocity.current, delta)
+    // frameloop=demand：键盘飞行靠自请求帧维持（按键中或减速滑行中）；完全停下不再 invalidate → 回到静止零渲染。
+    if (dir.lengthSq() > 0 || velocity.current.lengthSq() > 0) invalidate()
   })
 
   return (
@@ -330,7 +335,7 @@ export function FocusController({
   onTargetChange: (target: Scene3DVector3) => void
   onFocusConsumed: () => void
 }): null {
-  const { camera } = useThree()
+  const { camera, invalidate } = useThree()
   const lastFocusRef = React.useRef('')
 
   React.useEffect(() => {
@@ -348,7 +353,9 @@ export function FocusController({
     })
     onTargetChange(vectorToArray(target))
     onFocusConsumed()
-  }, [camera, cameras, focusId, objects, onFocusConsumed, onTargetChange])
+    // demand 下聚焦移动相机走 effect（不走 useFrame），需请求重绘。
+    invalidate()
+  }, [camera, cameras, focusId, invalidate, objects, onFocusConsumed, onTargetChange])
 
   return null
 }
