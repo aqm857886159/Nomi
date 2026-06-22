@@ -39,37 +39,14 @@ export const workbenchProjectSummarySchema = z.object({
 })
 
 export const workbenchProjectPayloadSchema = z.object({
-  workbenchDocument: z.object({
-    version: z.literal(1),
-    title: z.string(),
-    contentJson: z.unknown().refine((value) => value !== undefined, 'contentJson is required'),
-    updatedAt: z.number().finite(),
-  }),
-  timeline: z.object({
-    version: z.literal(1),
-    fps: z.literal(30),
-    scale: z.number().finite(),
-    playheadFrame: z.number().finite(),
-    tracks: z.array(z.object({
-      id: z.string(),
-      type: z.enum(['text', 'image', 'video']),
-      label: z.string(),
-      clips: z.array(z.unknown().refine((value) => value !== undefined, 'clip is required')),
-    })),
-    // 文字轨（字幕/标题卡）。可选 + 缺省 [] 让旧项目向后兼容。
-    textClips: z.array(z.object({
-      id: z.string(),
-      text: z.string(),
-      style: z.enum(['caption', 'title']),
-      startFrame: z.number().finite(),
-      endFrame: z.number().finite(),
-      // 通用变换（可选）：归一化中心 + 缩放 + 旋转(预留)。
-      position: z.object({ x: z.number().finite(), y: z.number().finite() }).optional(),
-      scale: z.number().finite().optional(),
-      rotation: z.number().finite().optional(),
-      fontFamily: z.string().optional(),
-    })).optional().default([]),
-  }),
+  // 健壮性根因（2026-06-22，真机 elicit走查 打不开）：workbenchDocument / timeline 的校验+默认
+  // 本就由下游容错 normalizer（normalizeWorkbenchDocument / normalizeTimeline，吃 undefined/非法
+  // 一律回工厂默认）全权负责。此处再用严格 z.object 当硬必填门是冗余且有害的——payload 只缺这两个
+  // 可默认字段（画布内容完好）时会 safeParse 失败 → 整个项目硬抛「缺少必要字段」打不开。降为
+  // z.unknown().optional()：缺失或 present-but-malformed 都交给 normalizer 降级，不再让项目锁死。
+  // generationCanvas（真实画布内容）保持必填——它是关键字段，缺它才走空项目兜底/上报。
+  workbenchDocument: z.unknown().optional(),
+  timeline: z.unknown().optional(),
   // Keep project loading tolerant of legacy v0.5 category ids so the
   // v5→v6 migration can run before the stricter canvas schema is enforced.
   generationCanvas: workbenchProjectGenerationCanvasPayloadSchema,

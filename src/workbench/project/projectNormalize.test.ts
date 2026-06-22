@@ -32,6 +32,35 @@ describe('normalizePayload — storyboardPlan 持久化往返(P0-6)', () => {
   })
 })
 
+describe('normalizePayload — 损坏记录优雅降级（缺可默认字段不该让项目打不开）', () => {
+  // 真机案例（elicit走查）：payload 只有 { name, generationCanvas }，缺 workbenchDocument/timeline。
+  // 旧行为：schema 硬必填这两个字段 → safeParse 失败 → throw「缺少必要字段」→ 整个项目打不开。
+  // 根因：这两个字段的校验+默认本就由容错 normalizer 负责，schema 的严格门是冗余且有害的。
+  it('缺 workbenchDocument + timeline（画布内容完好）→ 默认补齐、不抛、画布保留', () => {
+    const corrupted = {
+      name: 'elicit走查',
+      generationCanvas: { nodes: [node({ id: 'n1' })], edges: [], groups: [], selectedNodeIds: [] },
+    }
+    const out = normalizePayload(corrupted)
+    expect(out.generationCanvas.nodes).toHaveLength(1) // 关键内容保留
+    // 默认文档结构（不比 updatedAt——默认用 Date.now()，会 flaky）
+    expect(out.workbenchDocument.version).toBe(1)
+    expect(out.workbenchDocument.title).toBe('')
+    expect(out.timeline.tracks.length).toBeGreaterThan(0) // 默认时间轴轨道补齐
+  })
+
+  it('workbenchDocument/timeline 是非法值（present-but-malformed）→ 同样降级为默认，不抛', () => {
+    const out = normalizePayload({
+      workbenchDocument: 'garbage',
+      timeline: 42,
+      generationCanvas: { nodes: [], edges: [] },
+    })
+    expect(out.workbenchDocument.version).toBe(1)
+    expect(out.workbenchDocument.title).toBe('')
+    expect(out.timeline.tracks.length).toBeGreaterThan(0)
+  })
+})
+
 describe('extractCanvasThumbnailUrls（封面派生 + 无产物降级）', () => {
   it('从有产物的节点取前若干个 url（封顶 max）', () => {
     const nodes = [
