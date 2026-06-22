@@ -1,22 +1,21 @@
 /**
- * 模型设置面板内容（方案 A 折叠摘要卡）。
+ * 模型设置面板内容（简化版：A 分区列表 + 顶部能力概览，见 docs/plan/2026-06-22-model-onboarding-simplify.md）。
  *
- * 首屏从「模型墙」变「几行供应商摘要」：
- *  - grouplabel「预置供应商」+ 已知供应商折叠卡（apimart / kie，VendorOnboardCard）
- *  - grouplabel「其他模型」+ 自定义模型折叠卡（OtherModelsCard，chip 可删）
- *  - 末尾「添加模型」虚线卡（长尾逃生口，打开 Wizard）
+ * 从上到下：
+ *  - 顶部「你现在已经能生成」能力概览条（图/视频/文本/配音，由已连通供应商的模型 kind 派生，effect-first）
+ *  - 【接入生成模型】供应商行卡（VendorOnboardCard，待接入一眼可见可解锁）+ 其他模型卡 + 一个合并入口「添加模型/中转站」
+ *  - 【接入编程助手 · 可选】ConnectAssistantCard（长尾，折叠）
  *
- * 头部不再有「添加模型」按钮（P1，入口只留末尾虚线卡一个）。
- * 不改后端 catalog / IPC / 模型数据。样张：docs/design/mockups/onboarding-panel-A.html
+ * 合并同源入口：原「接你的中转站·new-api」与「添加其他模型」两张卡点开同一个 Wizard → 合成一张（消歧）。
+ * 不改后端 catalog / IPC / 模型数据。
  */
 import React from 'react'
-import { IconStack2, IconServerBolt, IconChevronRight } from '@tabler/icons-react'
+import { IconStack2, IconChevronRight, IconPlus, IconPhoto, IconVideo, IconMessageCircle, IconMusic } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { OnboardingWizard } from './OnboardingWizard'
 import { FoldableModelCard } from './FoldableModelCard'
 import { VendorOnboardCard } from './VendorOnboardCard'
 import { ModelChipGroups, type ChipModel } from './ModelChipGroups'
-import { AddModelCard } from './AddModelCard'
 import { ConnectAssistantCard } from './ConnectAssistantCard'
 import { KNOWN_VENDORS, isKnownVendor } from '../../config/knownVendors'
 import { getDesktopBridge } from '../../desktop/bridge'
@@ -28,6 +27,14 @@ type VendorMeta = {
   hasApiKey: boolean
   baseUrl: string
 }
+
+// 能力概览：四类产物 → 图标/文案。covered 由已连通供应商的模型 kind 派生（derive 不 hardcode）。
+const KIND_CAPS = [
+  { kind: 'image', label: '图片', Icon: IconPhoto },
+  { kind: 'video', label: '视频', Icon: IconVideo },
+  { kind: 'text', label: '文本', Icon: IconMessageCircle },
+  { kind: 'audio', label: '配音', Icon: IconMusic },
+] as const
 
 export function OnboardingDrawer(): JSX.Element {
   const [wizardOpen, setWizardOpen] = React.useState(false)
@@ -104,14 +111,47 @@ export function OnboardingDrawer(): JSX.Element {
   // 其他模型：非已知供应商的自定义接入。
   const otherModels = models.filter((m) => !isKnownVendor(m.vendorKey))
 
+  // 能力覆盖：某 kind 有「已连通供应商（hasApiKey）」的模型 = 现在就能生成（诚实，未连通不算）。
+  const coveredKinds = React.useMemo(() => {
+    const set = new Set<string>()
+    for (const m of models) {
+      if (vendorMeta.get(m.vendorKey)?.hasApiKey) set.add(String(m.kind))
+    }
+    return set
+  }, [models, vendorMeta])
+
   return (
     <div className="flex flex-col">
       <div className="px-4 pt-4 pb-1">
         <div className="text-title font-bold text-nomi-ink">模型设置</div>
       </div>
 
+      {/* 顶部能力概览：先告诉用户「你现在能生成什么」（effect-first），再谈配置。 */}
+      <div className="px-4 pt-1 pb-2">
+        <div className="text-micro text-nomi-ink-40 mb-1.5">你现在已经能生成</div>
+        <div className="flex flex-wrap gap-1.5">
+          {KIND_CAPS.map(({ kind, label, Icon }) => {
+            const on = coveredKinds.has(kind)
+            return (
+              <span
+                key={kind}
+                className={cn(
+                  'inline-flex items-center gap-1 text-caption rounded-nomi-sm px-2 py-1',
+                  on ? 'bg-workbench-success-soft text-workbench-success' : 'bg-nomi-ink-05 text-nomi-ink-40',
+                )}
+              >
+                <Icon size={13} stroke={1.7} />
+                {label}
+                {on ? null : <span className="text-nomi-ink-30">未接</span>}
+              </span>
+            )
+          })}
+        </div>
+      </div>
+
       <div className="px-3 pb-3 pt-1 flex flex-col gap-2">
-        <div className="text-micro font-semibold text-nomi-ink-40 pt-2 px-0.5">预置供应商</div>
+        {/* ── 区一：接入生成模型 ── */}
+        <div className="text-micro font-semibold text-nomi-ink-40 pt-1 px-0.5">接入生成模型</div>
         {knownCards.map(({ directory, meta, vendorModels }) => (
           <VendorOnboardCard
             key={directory.vendorKey}
@@ -125,47 +165,37 @@ export function OnboardingDrawer(): JSX.Element {
         ))}
 
         {otherModels.length > 0 ? (
-          <>
-            <div className="text-micro font-semibold text-nomi-ink-40 pt-2 px-0.5">其他模型</div>
-            <FoldableModelCard
-              glyph={<IconStack2 size={16} stroke={1.6} />}
-              glyphTone="soft"
-              name="其他模型"
-              subtitle={`${otherModels.length} 个自定义模型`}
-              status="ok"
-              statusLabel="已配置"
-              defaultExpanded={false}
-            >
-              <ModelChipGroups models={otherModels} connected onDelete={handleDelete} />
-            </FoldableModelCard>
-          </>
+          <FoldableModelCard
+            glyph={<IconStack2 size={16} stroke={1.6} />}
+            glyphTone="soft"
+            name="其他模型"
+            subtitle={`${otherModels.length} 个自定义模型`}
+            status="ok"
+            statusLabel="已配置"
+            defaultExpanded={false}
+          >
+            <ModelChipGroups models={otherModels} connected onDelete={handleDelete} />
+          </FoldableModelCard>
         ) : null}
 
-        {/* Issue #8 可发现性：把「接你自己的中转（含图片/视频）」拎成一等公民醒目入口。 */}
-        <div className="text-micro font-semibold text-nomi-ink-40 pt-2 px-0.5">接你自己的中转</div>
+        {/* 合并入口：原「中转站·new-api」与「添加其他模型」两张同源卡 → 一张（消歧，P1）。 */}
         <button
           type="button"
-          onClick={() => openWizard('newapi')}
+          onClick={() => openWizard(undefined)}
           className={cn(
-            'group flex items-center gap-3 p-3 w-full text-left',
-            'border border-nomi-accent rounded-nomi bg-nomi-accent-soft',
-            'hover:bg-nomi-accent-soft/70',
+            'group flex items-center gap-2.5 px-3 h-11 w-full text-left mt-0.5',
+            'bg-nomi-ink text-nomi-paper rounded-nomi text-body-sm font-semibold',
+            'hover:bg-nomi-accent transition-colors duration-[var(--nomi-transition-fast)]',
           )}
         >
-          <span className="w-7 h-7 rounded-nomi-sm bg-nomi-paper grid place-items-center shrink-0 text-nomi-accent">
-            <IconServerBolt size={17} stroke={1.8} />
-          </span>
-          <span className="flex-1 min-w-0">
-            <span className="block text-body-sm font-semibold text-nomi-accent">接入你的中转站 · new-api</span>
-            <span className="block text-caption text-nomi-ink-60">图片 / 视频 / 文本，一次拉全</span>
-          </span>
-          <IconChevronRight size={16} className="shrink-0 text-nomi-accent" />
+          <IconPlus size={16} stroke={1.9} />
+          <span className="flex-1 min-w-0">添加模型 / 中转站</span>
+          <IconChevronRight size={15} className="shrink-0 opacity-60" />
         </button>
+        <div className="text-micro text-nomi-ink-40 px-1 -mt-0.5">new-api 一次拉全图·视频·文本 · 也可接官方厂商 / 自定义接口</div>
 
-        <AddModelCard onClick={() => openWizard(undefined)} />
-
-        {/* 接入 AI 编程助手：一键把 Nomi 接进 Claude Code（能力核 CLI/MCP）。 */}
-        <div className="text-micro font-semibold text-nomi-ink-40 pt-2 px-0.5">在编程助手里用 Nomi</div>
+        {/* ── 区二：接入编程助手（长尾，可选，折叠）── */}
+        <div className="text-micro font-semibold text-nomi-ink-40 pt-3 px-0.5">接入编程助手 · 可选</div>
         <ConnectAssistantCard />
       </div>
 
