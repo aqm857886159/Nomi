@@ -103,7 +103,7 @@ export function WorkbenchIconButton({
     'transition-[background,color] duration-150 ease-out',
     'hover:bg-workbench-hover hover:text-workbench-ink',
     'disabled:opacity-40 disabled:cursor-not-allowed',
-    '[&>svg]:size-3.5 [&>svg]:stroke-[1.6]',
+    '[&>svg]:size-4 [&>svg]:stroke-2',
     className,
   )
 
@@ -237,7 +237,7 @@ export function WorkbenchButton({
     'cursor-pointer',
     'transition-[background,border-color,color,box-shadow] duration-150 ease-out',
     'disabled:opacity-50 disabled:cursor-not-allowed',
-    '[&>svg]:size-3.5 [&>svg]:stroke-[1.6]',
+    '[&>svg]:size-4 [&>svg]:stroke-2',
     WORKBENCH_BUTTON_SIZE[size],
     WORKBENCH_BUTTON_VARIANT[variant],
     className,

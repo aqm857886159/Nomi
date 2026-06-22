@@ -70,7 +70,7 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
           type="button"
           className={cn(
             'nomi-appbar__brand-btn',
-            'inline-flex items-center border-0 bg-transparent p-0 cursor-pointer rounded-nomi-sm',
+            'inline-flex items-center border-0 bg-transparent p-0 cursor-pointer rounded-[var(--nomi-radius-sm)]',
             'transition-[opacity] duration-[var(--nomi-transition-fast)] hover:opacity-80',
           )}
           aria-label="关于 Nomi · 检查更新"
@@ -96,7 +96,7 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
         <div
           className={cn(
             'nomi-appbar__breadcrumb',
-            'inline-flex items-center h-8',
+            'inline-flex items-center h-[30px]',
             'border border-workbench-border rounded-[var(--nomi-radius-sm)]',
             'bg-workbench-bg overflow-hidden min-w-0 shrink',
           )}
@@ -106,10 +106,14 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
           {onBackToLibrary ? (
             <>
               <WorkbenchButton
-                variant="default"
                 className={cn(
                   'nomi-appbar__breadcrumb-seg nomi-appbar__breadcrumb-seg--lib',
-                  'h-full px-2.5 whitespace-nowrap',
+                  'inline-flex items-center h-full px-2.5',
+                  'border-none bg-transparent font-inherit text-body-sm',
+                  'cursor-pointer whitespace-nowrap',
+                  'text-[var(--nomi-ink-40)]',
+                  'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+                  'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
                   'max-[700px]:hidden',
                 )}
                 aria-label="返回项目库"
@@ -120,7 +124,7 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
               <span
                 className={cn(
                   'nomi-appbar__breadcrumb-arrow',
-                  'text-[var(--nomi-ink-30)] text-body leading-none select-none shrink-0',
+                  'text-[var(--nomi-ink-30)] text-sm leading-none select-none shrink-0',
                   'max-[700px]:hidden',
                 )}
                 aria-hidden="true"
@@ -148,11 +152,14 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
             />
           ) : (
             <WorkbenchButton
-              variant="default"
               className={cn(
                 'nomi-appbar__breadcrumb-seg nomi-appbar__breadcrumb-seg--name',
-                'h-full px-2.5 whitespace-nowrap',
-                'max-w-[200px] overflow-hidden text-ellipsis',
+                'inline-flex items-center h-full px-2.5',
+                'border-none bg-transparent font-inherit text-body-sm',
+                'cursor-pointer whitespace-nowrap',
+                'text-[var(--nomi-ink-80)] max-w-[200px] overflow-hidden text-ellipsis',
+                'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+                'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
               )}
               title={projectTitle}
               onClick={() => setEditingProjectName(true)}
@@ -177,53 +184,65 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
         {/* 上手 4 步引导入口：停靠顶栏(始终高/不遮画布)，4/4 自动消失。 */}
         <OnboardingChecklist />
         <WorkbenchButton
-          variant="default"
           className={cn(
             'nomi-appbar__ghost',
-            'h-8',
-            'max-[700px]:w-8 max-[700px]:justify-center max-[700px]:px-0',
+            'inline-flex items-center gap-1.5 h-[30px] px-2.5',
+            'border border-transparent rounded-[var(--nomi-radius-sm)]',
+            'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
+            'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+            'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+            'max-[700px]:w-[30px] max-[700px]:h-[30px] max-[700px]:justify-center max-[700px]:p-0',
           )}
           aria-label="打开提示词库"
           title="提示词库"
           onClick={openPromptLibrary}
         >
-          <IconBulb size={18} stroke={1.6} />
+          <IconBulb size={15} stroke={1.7} />
           <span className={cn('nomi-appbar__action-text', 'max-[700px]:hidden')}>提示词库</span>
         </WorkbenchButton>
         <WorkbenchButton
-          variant="default"
           className={cn(
             'nomi-appbar__ghost',
-            'h-8',
-            'max-[700px]:w-8 max-[700px]:justify-center max-[700px]:px-0',
+            'inline-flex items-center gap-1.5 h-[30px] px-2.5',
+            'border border-transparent rounded-[var(--nomi-radius-sm)]',
+            'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
+            'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+            'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+            'max-[700px]:w-[30px] max-[700px]:h-[30px] max-[700px]:justify-center max-[700px]:p-0',
           )}
           aria-label="打开素材库"
           title="素材库"
           onClick={openAssetLibrary}
         >
-          <IconPhoto size={18} stroke={1.6} />
+          <IconPhoto size={15} stroke={1.7} />
           <span className={cn('nomi-appbar__action-text', 'max-[700px]:hidden')}>素材库</span>
         </WorkbenchButton>
         <WorkbenchButton
-          variant="default"
           className={cn(
             'nomi-appbar__ghost',
-            'h-8',
-            'max-[700px]:w-8 max-[700px]:justify-center max-[700px]:px-0',
+            'inline-flex items-center gap-1.5 h-[30px] px-2.5',
+            'border border-transparent rounded-[var(--nomi-radius-sm)]',
+            'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
+            'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+            'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+            'max-[700px]:w-[30px] max-[700px]:h-[30px] max-[700px]:justify-center max-[700px]:p-0',
           )}
           aria-label="打开模型接入"
           title="模型接入"
           onClick={handleOpenModelCatalog}
         >
-          <IconPlugConnected size={18} stroke={1.6} />
+          <IconPlugConnected size={15} stroke={1.7} />
           <span className={cn('nomi-appbar__action-text', 'max-[700px]:hidden')}>模型接入</span>
         </WorkbenchButton>
         <WorkbenchButton
-          variant="primary"
           className={cn(
             'nomi-appbar__primary',
-            'h-8',
-            'max-[700px]:w-8 max-[700px]:justify-center max-[700px]:px-0',
+            'inline-flex items-center gap-1.5 h-[30px] px-2.5',
+            'border border-transparent rounded-[var(--nomi-radius-sm)]',
+            'bg-[var(--nomi-ink)] text-[var(--nomi-paper)] font-inherit text-body-sm',
+            'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+            'hover:bg-[var(--nomi-ink-80)]',
+            'max-[700px]:w-[30px] max-[700px]:h-[30px] max-[700px]:justify-center max-[700px]:p-0',
           )}
           aria-label={workspaceMode === 'preview' ? '导出 MP4' : '前往预览导出'}
           title={workspaceMode === 'preview' ? '导出 MP4' : '前往预览导出'}
@@ -233,7 +252,7 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
             else onWorkspaceModeChange('preview')
           }}
         >
-          <IconDownload size={18} stroke={1.6} />
+          <IconDownload size={15} stroke={1.7} />
           <span className={cn('nomi-appbar__action-text', 'max-[700px]:hidden')}>导出</span>
         </WorkbenchButton>
       </div>
