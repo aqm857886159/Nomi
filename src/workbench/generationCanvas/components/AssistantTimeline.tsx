@@ -179,7 +179,10 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
           attachments={message.attachments}
           streaming={isPending}
           pendingLabel={isPending ? '处理中' : undefined}
-          isError={message.content.startsWith('（错误）')}
+          // status 是真相源:错误/取消按字段判,不再嗅 content 前缀(旧前缀法永不命中→错误曾被
+          // 当普通回复渲染还带「复制」。content 前缀仅作旧 session 兼容兜底)。
+          isError={message.status === 'error' || message.content.startsWith('（错误）')}
+          cancelled={message.status === 'cancelled'}
           turnStats={message.turnStats}
           replyActionClassName="generation-canvas-v2-assistant__reply-action"
         />
