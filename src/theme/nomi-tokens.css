@@ -41,31 +41,6 @@
   --nomi-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
-:root[data-nomi-color-scheme="dark"],
-:root[data-mantine-color-scheme="dark"] {
-  color-scheme: dark;
-  --nomi-bg: oklch(0.18 0.006 80);
-  --nomi-paper: oklch(0.235 0.007 80);
-  --nomi-ink: oklch(0.93 0.006 85);
-  --nomi-ink-80: oklch(0.84 0.006 85);
-  --nomi-ink-60: oklch(0.70 0.006 85);
-  --nomi-ink-40: oklch(0.56 0.006 85);
-  --nomi-ink-30: oklch(0.44 0.006 85);
-  --nomi-ink-20: oklch(0.36 0.006 85);
-  --nomi-ink-10: oklch(0.30 0.006 85);
-  --nomi-ink-05: oklch(0.27 0.006 85);
-  --nomi-line: oklch(0.36 0.007 80);
-  --nomi-line-soft: oklch(0.31 0.007 80);
-  --nomi-accent: oklch(0.70 0.13 250);
-  --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 18%, var(--nomi-paper));
-  --nomi-scrim: oklch(0.08 0.004 80 / 0.58);
-  --nomi-overlay-chip: oklch(0.08 0.004 80 / 0.68);
-  --nomi-overlay-chip-strong: oklch(0.08 0.004 80 / 0.78);
-  --nomi-media-veil: oklch(0.08 0.004 80 / 0.76);
-  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.32), 0 1px 1px oklch(0 0 0 / 0.22);
-  --nomi-shadow-md: 0 2px 5px oklch(0 0 0 / 0.30), 0 14px 34px oklch(0 0 0 / 0.32);
-  --nomi-shadow-lg: 0 4px 10px oklch(0 0 0 / 0.30), 0 24px 64px oklch(0 0 0 / 0.40);
-}
 
 html,
 body,

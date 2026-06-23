@@ -53,7 +53,7 @@ export function WorkbenchButton({
         "inline-flex items-center justify-center gap-1.5",
         "h-8 px-3 rounded-workbench-control",
         "border border-workbench-border-soft",
-        "bg-workbench-surface text-workbench-ink text-[13px] font-medium",
+        "bg-workbench-surface text-workbench-ink text-body-sm font-medium",
         "cursor-pointer",
         "transition-[background,border-color,color,box-shadow] duration-150 ease-out",
         "hover:bg-workbench-hover",

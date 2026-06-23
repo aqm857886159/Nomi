@@ -51,29 +51,6 @@
   --tc-spotlight-grid-color: rgba(60, 60, 67, 0.22);
 }
 
-:root[data-nomi-color-scheme="dark"] .workbench-shell,
-:root[data-mantine-color-scheme="dark"] .workbench-shell,
-:root[data-nomi-color-scheme="dark"] .app-ai-chat-dialog.tc-ai-chat,
-:root[data-mantine-color-scheme="dark"] .app-ai-chat-dialog.tc-ai-chat {
-  --workbench-hover: oklch(1 0 0 / 0.055);
-  --workbench-pressed: oklch(1 0 0 / 0.085);
-  --workbench-overlay: oklch(0.24 0.007 80 / 0.86);
-  --workbench-overlay-strong: oklch(0.24 0.007 80 / 0.96);
-  --workbench-backdrop: oklch(0.06 0.004 80 / 0.56);
-  --workbench-success: #45d483;
-  --workbench-success-soft: rgba(69, 212, 131, 0.16);
-  --workbench-danger: #ff6961;
-  --workbench-danger-soft: rgba(255, 105, 97, 0.14);
-  --workbench-video: #35d0b0;
-  --workbench-video-soft: rgba(53, 208, 176, 0.16);
-  --workbench-text: oklch(0.75 0.15 305);
-  --workbench-text-soft: oklch(0.75 0.15 305 / 0.17);
-  --workbench-success-ink: #7ee8aa;
-  --workbench-code-bg: oklch(0.15 0.006 80);
-  --workbench-code-ink: var(--nomi-ink);
-  --tc-spotlight-grid-color: rgba(255, 255, 255, 0.18);
-}
-
 /* ── TipTap / ProseMirror editor content typography ── */
 .workbench-editor__content {
   min-height: 100%;

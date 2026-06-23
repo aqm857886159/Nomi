@@ -36,7 +36,6 @@ import {
 } from './scene3dConstants'
 import { PanelButton, CanvasPanelRestoreButton, SceneAddToolbar } from './scene3dToolbar'
 import {
-  isEditableKeyboardTarget,
   cameraLookAtRotation,
   levelEditorCameraRotation,
   applyEditorCameraPose,
@@ -46,10 +45,6 @@ import {
   makeObject,
   makeCrowdObject,
   makeCamera,
-  cloneObjectForClipboard,
-  cloneCameraForClipboard,
-  makePastedObject,
-  makePastedCamera,
 } from './scene3dMath'
 import { SceneObjectList } from './scene3dInspector'
 import { TrajectoryListPanel } from './scene3dTrajectoryListPanel'
@@ -67,7 +62,12 @@ import {
 } from './scene3dTrajectorySurfaces'
 import { removeTrajectoryBindingsForNode } from './scene3dTrajectoryState'
 import { cameraWithPlaybackPosition } from './scene3dPlayback'
-import { trajectoryPointTimeRatio } from './trajectory'
+import {
+  useScene3DClipboardActions,
+  useScene3DTrajectoryModeActions,
+  useScene3DKeyboardShortcuts,
+  type Scene3DClipboardItem,
+} from './useScene3DFullscreenActions'
 
 type Scene3DFullscreenProps = {
   initialState: Scene3DState
@@ -77,11 +77,6 @@ type Scene3DFullscreenProps = {
   onStateChange: (state: Scene3DState) => void
   onScreenshot: (capture: Scene3DCaptureResult) => void
 }
-
-
-type Scene3DClipboardItem =
-  | { type: 'object'; item: Scene3DObject; pasteCount: number }
-  | { type: 'camera'; item: Scene3DCamera; pasteCount: number }
 
 export default function Scene3DFullscreen({
   initialState,
@@ -304,92 +299,18 @@ export default function Scene3DFullscreen({
     setViewLocked(false)
   }, [exitTrajectoryMode, readOnly, state.objects.length])
 
-  const startKeyboardNavigation = React.useCallback(() => {
-    const currentSelection = selectionRef.current
-    setViewLocked(false)
-    setFocusId('')
-    if (!currentSelection) return
-    if (!suspendedKeyboardSelectionRef.current) {
-      suspendedKeyboardSelectionRef.current = currentSelection
-    }
-    setSelection(null)
-  }, [])
-
-  const stopKeyboardNavigation = React.useCallback(() => {
-    const suspendedSelection = suspendedKeyboardSelectionRef.current
-    if (!suspendedSelection) return
-    suspendedKeyboardSelectionRef.current = null
-
-    const currentState = stateRef.current
-    const stillExists = suspendedSelection.type === 'object'
-      ? currentState.objects.some((object) => object.id === suspendedSelection.id)
-      : currentState.cameras.some((camera) => camera.id === suspendedSelection.id)
-    setSelection(stillExists ? suspendedSelection : null)
-  }, [])
-
-  const copySelection = React.useCallback(() => {
-    const currentSelection = selectionRef.current
-    if (!currentSelection) return false
-
-    if (currentSelection.type === 'object') {
-      const object = stateRef.current.objects.find((candidate) => candidate.id === currentSelection.id)
-      if (!object) return false
-      clipboardRef.current = {
-        type: 'object',
-        item: cloneObjectForClipboard(object),
-        pasteCount: 0,
-      }
-      return true
-    }
-
-    const camera = stateRef.current.cameras.find((candidate) => candidate.id === currentSelection.id)
-    if (!camera) return false
-    clipboardRef.current = {
-      type: 'camera',
-      item: cloneCameraForClipboard(camera),
-      pasteCount: 0,
-    }
-    return true
-  }, [])
-
-  const pasteClipboard = React.useCallback(() => {
-    if (readOnly) return false
-    const clipboard = clipboardRef.current
-    if (!clipboard) return false
-    const pasteCount = clipboard.pasteCount + 1
-
-    if (clipboard.type === 'object') {
-      const current = stateRef.current
-      if (current.objects.length >= OBJECT_LIMIT) {
-        toast('单个 3D 场景最多支持 100 个对象', 'warning')
-        return true
-      }
-      const object = makePastedObject(clipboard.item, pasteCount)
-      const nextState = {
-        ...current,
-        objects: [...current.objects, object],
-      }
-      clipboardRef.current = { ...clipboard, pasteCount }
-      stateRef.current = nextState
-      setState(nextState)
-      setSelection({ type: 'object', id: object.id })
-      setViewLocked(false)
-      return true
-    }
-
-    const current = stateRef.current
-    const camera = makePastedCamera(clipboard.item, pasteCount)
-    const nextState = {
-      ...current,
-      cameras: [...current.cameras, camera],
-    }
-    clipboardRef.current = { ...clipboard, pasteCount }
-    stateRef.current = nextState
-    setState(nextState)
-    setSelection({ type: 'camera', id: camera.id })
-    setViewLocked(false)
-    return true
-  }, [readOnly])
+  const { startKeyboardNavigation, stopKeyboardNavigation, copySelection, pasteClipboard } =
+    useScene3DClipboardActions({
+      readOnly,
+      stateRef,
+      selectionRef,
+      clipboardRef,
+      suspendedKeyboardSelectionRef,
+      setState,
+      setSelection,
+      setViewLocked,
+      setFocusId,
+    })
 
   const captureViewport = React.useCallback(() => {
     const capture = captureApiRef.current?.captureViewport()
@@ -520,106 +441,25 @@ export default function Scene3DFullscreen({
     })
   }, [patchCamera, readOnly, selectedCamera, trajectory.activeTrajectoryIds, trajectory.playheadRef])
 
-  const selectTrajectoryForMode = React.useCallback((trajectoryId: string) => {
-    trajectory.selectTrajectory(trajectoryId)
-    enterTrajectoryMode()
-  }, [enterTrajectoryMode, trajectory])
-
-  const selectSceneTrajectory = React.useCallback((trajectoryId: string) => {
-    if (trajectoryMode) {
-      selectTrajectoryForMode(trajectoryId)
-      return
-    }
-    trajectory.selectTrajectory(trajectoryId)
-    setSelection(null)
-  }, [selectTrajectoryForMode, trajectory, trajectoryMode])
-
-  const selectTrajectoryPointForMode = React.useCallback((trajectoryId: string, pointId: string) => {
-    trajectory.selectPoint(trajectoryId, pointId)
-    enterTrajectoryMode()
-  }, [enterTrajectoryMode, trajectory])
-
-  const createTrajectoryAtForMode = React.useCallback((position: Scene3DVector3) => {
-    trajectory.createTrajectoryAt(position)
-    enterTrajectoryMode()
-  }, [enterTrajectoryMode, trajectory])
-
-  const insertTrajectoryPointForMode = React.useCallback((
-    trajectoryId: string,
-    position: Scene3DVector3,
-    targetPointId?: string | null,
-    placement?: 'before' | 'after',
-  ) => {
-    trajectory.insertPoint(trajectoryId, position, targetPointId, placement)
-    enterTrajectoryMode()
-  }, [enterTrajectoryMode, trajectory])
-
-  const updateTrajectoryCurveControlForMode = React.useCallback((
-    trajectoryId: string,
-    segmentStartPointId: string,
-    position: Scene3DVector3 | null,
-  ) => {
-    trajectory.updateCurveControl(trajectoryId, segmentStartPointId, position)
-    enterTrajectoryMode()
-  }, [enterTrajectoryMode, trajectory])
-
-  const assignTrajectoryToGroup = React.useCallback((trajectoryId: string, groupId: string) => {
-    if (readOnly) return
-    const groupExists = stateRef.current.trajectoryGroups.some((group) => group.id === groupId)
-    const trajectoryExists = stateRef.current.trajectories.some((candidate) => candidate.id === trajectoryId)
-    if (!groupExists || !trajectoryExists) return
-    setState((current) => ({
-      ...current,
-      trajectoryGroups: current.trajectoryGroups.map((group) => {
-        const withoutTrajectory = group.trajectoryIds.filter((id) => id !== trajectoryId)
-        return group.id === groupId
-          ? { ...group, trajectoryIds: [...withoutTrajectory, trajectoryId] }
-          : { ...group, trajectoryIds: withoutTrajectory }
-      }),
-    }))
-    trajectory.selectTrajectory(trajectoryId)
-    trajectory.selectGroup(groupId)
-    trajectory.setTimelineOpen(true)
-    enterTrajectoryMode(false)
-  }, [enterTrajectoryMode, readOnly, trajectory])
-
-  const bindTargetToTrajectoryForMode = React.useCallback((
-    trajectoryId: string,
-    targetId: string,
-    pointId?: string | null,
-  ) => {
-    if (readOnly) return
-    const current = stateRef.current
-    const targetTrajectory = current.trajectories.find((candidate) => candidate.id === trajectoryId)
-    if (!targetTrajectory) return
-    const objectExists = current.objects.some((object) => object.id === targetId)
-    const cameraExists = current.cameras.some((camera) => camera.id === targetId)
-    if (!objectExists && !cameraExists) return
-    const alreadyBound = current.trajectoryBindings.some((binding) => (
-      binding.objects.some((boundObject) => boundObject.objectId === targetId)
-    ))
-    if (alreadyBound) {
-      toast('同一节点只能绑定一条轨迹', 'warning')
-      return
-    }
-    const pointIndex = pointId ? targetTrajectory.points.findIndex((point) => point.id === pointId) : -1
-    const offsetRatio = pointIndex >= 0 ? trajectoryPointTimeRatio(targetTrajectory, pointIndex) : 0
-    trajectory.bindObject(trajectoryId, targetId, offsetRatio)
-    trajectory.selectGroup(null)
-    trajectory.selectTrajectory(trajectoryId)
-    trajectory.setTimelineOpen(true)
-    enterTrajectoryMode(false)
-    setSelection(cameraExists ? { type: 'camera', id: targetId } : { type: 'object', id: targetId })
-  }, [enterTrajectoryMode, readOnly, trajectory])
-
-  const requestTrajectoryPlayChange = React.useCallback((playing: boolean) => {
-    if (playing && !trajectory.hasPlayableBinding) {
-      toast('请先为轨迹绑定对象或相机', 'warning')
-      return
-    }
-    trajectory.setIsPlaying(playing)
-    if (playing) trajectory.setTimelineOpen(true)
-  }, [trajectory])
+  const {
+    selectTrajectoryForMode,
+    selectSceneTrajectory,
+    selectTrajectoryPointForMode,
+    createTrajectoryAtForMode,
+    insertTrajectoryPointForMode,
+    updateTrajectoryCurveControlForMode,
+    assignTrajectoryToGroup,
+    bindTargetToTrajectoryForMode,
+    requestTrajectoryPlayChange,
+  } = useScene3DTrajectoryModeActions({
+    trajectory,
+    enterTrajectoryMode,
+    trajectoryMode,
+    readOnly,
+    stateRef,
+    setState,
+    setSelection,
+  })
 
   const flushLatestState = React.useCallback(() => {
     const latestState = {
@@ -642,56 +482,16 @@ export default function Scene3DFullscreen({
     onClose()
   }, [flushLatestState, onClose, trajectory])
 
-  React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const shortcutKey = event.key.toLowerCase()
-      const isModifierShortcut = event.ctrlKey || event.metaKey
-      if (
-        shortcutKey === 'r' &&
-        !event.repeat &&
-        !isModifierShortcut &&
-        !event.altKey &&
-        !isEditableKeyboardTarget(event.target)
-      ) {
-        event.preventDefault()
-        event.stopPropagation()
-        setTransformMode((mode) => (mode === 'rotate' ? 'translate' : 'rotate'))
-        return
-      }
-      if (isModifierShortcut && !event.altKey && !isEditableKeyboardTarget(event.target)) {
-        if (shortcutKey === 'c' && copySelection()) {
-          event.preventDefault()
-          event.stopPropagation()
-          return
-        }
-        if (shortcutKey === 'v' && pasteClipboard()) {
-          event.preventDefault()
-          event.stopPropagation()
-          return
-        }
-      }
-      if (event.key === 'Delete' && !isEditableKeyboardTarget(event.target)) {
-        const currentSelection = selectionRef.current
-        if (currentSelection) {
-          event.preventDefault()
-          event.stopPropagation()
-          deleteSceneItem(currentSelection)
-          return
-        }
-      }
-      if (event.key === 'Escape' && !document.pointerLockElement) {
-        if (cameraViewEditId) {
-          event.preventDefault()
-          event.stopPropagation()
-          exitCameraViewEdit()
-          return
-        }
-        handleClose()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown, { capture: true })
-    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true })
-  }, [cameraViewEditId, copySelection, deleteSceneItem, exitCameraViewEdit, handleClose, pasteClipboard])
+  useScene3DKeyboardShortcuts({
+    cameraViewEditId,
+    selectionRef,
+    setTransformMode,
+    copySelection,
+    pasteClipboard,
+    deleteSceneItem,
+    exitCameraViewEdit,
+    handleClose,
+  })
 
   React.useEffect(() => () => {
     flushLatestState()

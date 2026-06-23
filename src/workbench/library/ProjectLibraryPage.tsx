@@ -3,7 +3,6 @@ import { IconFolderOpen, IconFolderShare, IconMovie, IconPlugConnected, IconPlus
 import { cn } from '../../utils/cn'
 import { ActionCard, NomiLogoMark, NomiWordmark, DesignEmptyState, DesignSearchInput } from '../../design'
 import { NomiImage } from '../../design/media'
-import { ThemeToggleButton } from '../../ui/theme/ThemeToggleButton'
 import type { LocalProjectSummary } from './localProjectStore'
 import type { ProjectTemplateId } from './projectTemplates'
 
@@ -116,10 +115,6 @@ export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onN
                 模型接入
               </button>
             ) : null}
-            <ThemeToggleButton
-              className="size-7 rounded-pill"
-              aria-label="切换暗黑模式"
-            />
           </div>
         </section>
 

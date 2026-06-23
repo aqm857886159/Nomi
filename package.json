@@ -18,7 +18,7 @@
     "dev": "node ./scripts/dev-electron.mjs",
     "dev:renderer": "vite --host 127.0.0.1",
     "build": "pnpm run build:renderer && pnpm run build:electron",
-    "build:renderer": "vite build --mode production",
+    "build:renderer": "node scripts/build-tailwind.mjs --minify && vite build --mode production",
     "build:electron": "tsc -p electron/tsconfig.json",
     "build:site": "node -e \"const fs=require('fs'); for (const f of ['marketing/index.html','marketing/robots.txt','marketing/sitemap.xml']) { if (!fs.existsSync(f)) throw new Error(f+' is missing'); } console.log('marketing site ready');\"",
     "start": "node ./scripts/start-electron.mjs",

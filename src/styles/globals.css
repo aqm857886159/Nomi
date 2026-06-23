@@ -7,11 +7,6 @@
   --handle-hit-vertical: 18px;
 }
 
-:root[data-nomi-color-scheme="dark"],
-:root[data-mantine-color-scheme="dark"] {
-  color-scheme: dark;
-}
-
 * {
   box-sizing: border-box;
 }

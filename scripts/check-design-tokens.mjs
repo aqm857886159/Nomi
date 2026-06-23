@@ -40,7 +40,7 @@ const RULES = [
   {
     key: "Tailwind 默认色板（用语义 token）",
     re: /\b(?:text|bg|border|ring|divide|from|to)-(?:red|blue|green|yellow|gray|slate|zinc|amber|sky|indigo|emerald|rose|orange|teal|violet|cyan|lime|fuchsia|pink|purple)-[0-9]{2,3}\b/g,
-    baseline: 3, // 正当例外：Scene3DFullscreen 的 XYZ 三维轴色(red/green/blue-300 是 3D 轴约定语义色,无对应 UI token,故保留)
+    baseline: 0, // 已清零（原 3 处 Scene3DFullscreen XYZ 轴色已不再以默认色板形式出现，锁定战果）
   },
 ];
 

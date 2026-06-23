@@ -294,7 +294,7 @@ export const PlaybackCameraMonitor = React.memo(function PlaybackCameraMonitor({
         <div className="min-w-0 truncate text-caption font-medium">
           {activeCamera.camera.name} · {activeCamera.trajectory.name}
         </div>
-        <div className="shrink-0 text-micro tabular-nums text-[var(--nomi-ink-45)]">
+        <div className="shrink-0 text-micro tabular-nums text-[var(--nomi-ink-40)]">
           {Math.round(progress * 100)}%
         </div>
       </div>

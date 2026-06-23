@@ -127,7 +127,7 @@ export function TrajectoryCreateMenu({
       zIndexRange={[28, 0]}
     >
       <div
-        className="min-w-[128px] overflow-hidden rounded-[8px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-1 text-[12px] text-[var(--nomi-ink)] shadow-[0_14px_34px_rgba(18,24,38,0.2)]"
+        className="min-w-[128px] overflow-hidden rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-1 text-caption text-[var(--nomi-ink)] shadow-[0_14px_34px_rgba(18,24,38,0.2)]"
         data-trajectory-create-menu="true"
         onContextMenu={(event) => {
           event.preventDefault()
@@ -137,7 +137,7 @@ export function TrajectoryCreateMenu({
       >
         <button
           type="button"
-          className="flex h-8 w-full items-center gap-2 rounded-[6px] px-2 text-left hover:bg-[var(--nomi-ink-05)]"
+          className="flex h-8 w-full items-center gap-2 rounded-nomi-sm px-2 text-left hover:bg-[var(--nomi-ink-05)]"
           onClick={(event) => {
             event.preventDefault()
             event.stopPropagation()
@@ -195,7 +195,7 @@ export function TrajectoryContextMenu({
       zIndexRange={[24, 0]}
     >
       <div
-        className="min-w-[116px] overflow-hidden rounded-[8px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-1 text-[12px] text-[var(--nomi-ink)] shadow-[0_14px_34px_rgba(18,24,38,0.2)]"
+        className="min-w-[116px] overflow-hidden rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-1 text-caption text-[var(--nomi-ink)] shadow-[0_14px_34px_rgba(18,24,38,0.2)]"
         data-trajectory-context-menu="true"
         onContextMenu={(event) => {
           event.preventDefault()
@@ -206,7 +206,7 @@ export function TrajectoryContextMenu({
         {onInsertPoint ? (
           <button
             type="button"
-            className="flex h-8 w-full items-center gap-2 rounded-[6px] px-2 text-left hover:bg-[var(--nomi-ink-05)]"
+            className="flex h-8 w-full items-center gap-2 rounded-nomi-sm px-2 text-left hover:bg-[var(--nomi-ink-05)]"
             onClick={(event) => {
               event.preventDefault()
               event.stopPropagation()
@@ -220,7 +220,7 @@ export function TrajectoryContextMenu({
         ) : null}
         <button
           type="button"
-          className="flex h-8 w-full items-center gap-2 rounded-[6px] px-2 text-left hover:bg-[var(--nomi-ink-05)]"
+          className="flex h-8 w-full items-center gap-2 rounded-nomi-sm px-2 text-left hover:bg-[var(--nomi-ink-05)]"
           onClick={(event) => {
             event.preventDefault()
             event.stopPropagation()
@@ -233,7 +233,7 @@ export function TrajectoryContextMenu({
         </button>
         <button
           type="button"
-          className="flex h-8 w-full items-center gap-2 rounded-[6px] px-2 text-left text-red-500 hover:bg-red-50"
+          className="flex h-8 w-full items-center gap-2 rounded-nomi-sm px-2 text-left text-workbench-danger hover:bg-workbench-danger-soft"
           onClick={(event) => {
             event.preventDefault()
             event.stopPropagation()
@@ -324,7 +324,7 @@ export function TrajectoryPointBindMenu({
       zIndexRange={[26, 0]}
     >
       <div
-        className="relative min-w-[126px] rounded-[8px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-1 text-[12px] text-[var(--nomi-ink)] shadow-[0_14px_34px_rgba(18,24,38,0.22)]"
+        className="relative min-w-[126px] rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-1 text-caption text-[var(--nomi-ink)] shadow-[0_14px_34px_rgba(18,24,38,0.22)]"
         data-trajectory-point-bind-menu="true"
         onContextMenu={(event) => {
           event.preventDefault()
@@ -336,25 +336,25 @@ export function TrajectoryPointBindMenu({
           <button
             key={category.type}
             type="button"
-            className="flex h-8 w-full items-center gap-2 rounded-[6px] px-2 text-left hover:bg-[var(--nomi-ink-05)]"
+            className="flex h-8 w-full items-center gap-2 rounded-nomi-sm px-2 text-left hover:bg-[var(--nomi-ink-05)]"
             onMouseEnter={() => setHoveredType(category.type)}
             onFocus={() => setHoveredType(category.type)}
           >
             {category.icon}
             <span className="min-w-0 flex-1 truncate">{category.label}</span>
-            <span className="text-[10px] text-[var(--nomi-ink-45)]">{category.items.length}</span>
+            <span className="text-micro text-[var(--nomi-ink-40)]">{category.items.length}</span>
             <IconChevronRight size={13} stroke={1.9} />
           </button>
         ))}
-        <div className="absolute left-[calc(100%+6px)] top-1 min-w-[148px] rounded-[8px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-1 shadow-[0_14px_34px_rgba(18,24,38,0.2)]">
+        <div className="absolute left-[calc(100%+6px)] top-1 min-w-[148px] rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-1 shadow-[0_14px_34px_rgba(18,24,38,0.2)]">
           {hoveredItems.length === 0 ? (
-            <div className="px-2 py-2 text-[11px] text-[var(--nomi-ink-45)]">暂无可绑定节点</div>
+            <div className="px-2 py-2 text-micro text-[var(--nomi-ink-40)]">暂无可绑定节点</div>
           ) : (
             hoveredItems.map((target) => (
               <button
                 key={target.id}
                 type="button"
-                className="flex h-8 w-full min-w-0 items-center gap-2 rounded-[6px] px-2 text-left hover:bg-[var(--nomi-ink-05)]"
+                className="flex h-8 w-full min-w-0 items-center gap-2 rounded-nomi-sm px-2 text-left hover:bg-[var(--nomi-ink-05)]"
                 onClick={(event) => {
                   event.preventDefault()
                   event.stopPropagation()

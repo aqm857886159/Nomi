@@ -10,6 +10,15 @@ describe("endpoint URL 拼接", () => {
     expect(endpoint(vendor("https://api.deepseek.com/v1/"), "/v1/images/generations")).toBe("https://api.deepseek.com/v1/images/generations");
   });
 
+  it("base 以 /api/v3 结尾（火山方舟）→ 去掉 suffix 冗余 /v1，命中真实端点（Issue #19 的 404 根因）", () => {
+    expect(endpoint(vendor("https://ark.cn-beijing.volces.com/api/v3"), "/v1/images/generations")).toBe(
+      "https://ark.cn-beijing.volces.com/api/v3/images/generations",
+    );
+    expect(endpoint(vendor("https://ark.cn-beijing.volces.com/api/v3/"), "/v1/videos/generations")).toBe(
+      "https://ark.cn-beijing.volces.com/api/v3/videos/generations",
+    );
+  });
+
   it("base 不带 /v1 → 正常拼接", () => {
     expect(endpoint(vendor("https://api.moonshot.cn"), "/v1/chat/completions")).toBe("https://api.moonshot.cn/v1/chat/completions");
   });

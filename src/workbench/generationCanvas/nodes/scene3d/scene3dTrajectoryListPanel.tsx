@@ -65,7 +65,7 @@ export const TrajectoryListPanel = React.memo(function TrajectoryListPanel({
     menu && activeMenuTrajectory && typeof document !== 'undefined'
       ? createPortal(
           <div
-            className="fixed min-w-[132px] rounded-[8px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-1 text-[12px] text-[var(--nomi-ink)] shadow-[0_14px_34px_rgba(18,24,38,0.2)]"
+            className="fixed min-w-[132px] rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-1 text-caption text-[var(--nomi-ink)] shadow-[0_14px_34px_rgba(18,24,38,0.2)]"
             data-trajectory-list-menu="true"
             style={{ left: menu.x, top: menu.y, zIndex: FULLSCREEN_Z_INDEX }}
             onContextMenu={(event) => event.preventDefault()}
@@ -73,7 +73,7 @@ export const TrajectoryListPanel = React.memo(function TrajectoryListPanel({
           >
             <div className="group/menu relative">
               <button
-                className="flex h-8 w-full items-center gap-2 rounded-[6px] px-2 text-left hover:bg-[var(--nomi-ink-05)] disabled:cursor-not-allowed disabled:opacity-45"
+                className="flex h-8 w-full items-center gap-2 rounded-nomi-sm px-2 text-left hover:bg-[var(--nomi-ink-05)] disabled:cursor-not-allowed disabled:opacity-45"
                 disabled={readOnly || groups.length === 0}
                 type="button"
               >
@@ -83,11 +83,11 @@ export const TrajectoryListPanel = React.memo(function TrajectoryListPanel({
               </button>
               {groups.length > 0 ? (
                 <div className="absolute left-full top-0 hidden min-w-[158px] pl-2 group-hover/menu:block">
-                  <div className="min-w-[146px] rounded-[8px] border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-1 shadow-[0_14px_34px_rgba(18,24,38,0.18)]">
+                  <div className="min-w-[146px] rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-1 shadow-[0_14px_34px_rgba(18,24,38,0.18)]">
                     {groups.map((group) => (
                       <button
                         key={group.id}
-                        className="flex h-8 w-full min-w-0 items-center gap-2 rounded-[6px] px-2 text-left hover:bg-[var(--nomi-ink-05)]"
+                        className="flex h-8 w-full min-w-0 items-center gap-2 rounded-nomi-sm px-2 text-left hover:bg-[var(--nomi-ink-05)]"
                         type="button"
                         onClick={(event) => {
                           event.preventDefault()
@@ -105,7 +105,7 @@ export const TrajectoryListPanel = React.memo(function TrajectoryListPanel({
               ) : null}
             </div>
             <button
-              className="flex h-8 w-full items-center gap-2 rounded-[6px] px-2 text-left text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-45"
+              className="flex h-8 w-full items-center gap-2 rounded-nomi-sm px-2 text-left text-workbench-danger hover:bg-workbench-danger-soft disabled:cursor-not-allowed disabled:opacity-45"
               disabled={readOnly}
               type="button"
               onClick={(event) => {
@@ -126,12 +126,12 @@ export const TrajectoryListPanel = React.memo(function TrajectoryListPanel({
   return (
     <section className="flex h-full min-h-0 flex-col bg-[var(--nomi-paper)]">
       <div className="flex shrink-0 items-center justify-between px-3 py-2">
-        <h3 className="m-0 text-[12px] font-medium text-[var(--nomi-ink)]">轨迹列表</h3>
-        <span className="text-[11px] text-[var(--nomi-ink-60)]">{trajectories.length}</span>
+        <h3 className="m-0 text-caption font-medium text-[var(--nomi-ink)]">轨迹列表</h3>
+        <span className="text-micro text-[var(--nomi-ink-60)]">{trajectories.length}</span>
       </div>
       <div className="min-h-0 flex-1 overflow-auto px-2 pb-2">
         {trajectories.length === 0 ? (
-          <div className="grid h-20 place-items-center rounded-[7px] border border-dashed border-[var(--nomi-line-soft)] text-[11px] text-[var(--nomi-ink-45)]">
+          <div className="grid h-20 place-items-center rounded-nomi-sm border border-dashed border-[var(--nomi-line-soft)] text-micro text-[var(--nomi-ink-40)]">
             双击空白创建轨迹
           </div>
         ) : (
@@ -142,7 +142,7 @@ export const TrajectoryListPanel = React.memo(function TrajectoryListPanel({
               <div
                 key={trajectory.id}
                 className={cn(
-                  'group grid grid-cols-[18px_minmax(0,1fr)_28px] items-center gap-1 rounded-[7px] px-2 py-1.5',
+                  'group grid grid-cols-[18px_minmax(0,1fr)_28px] items-center gap-1 rounded-nomi-sm px-2 py-1.5',
                   'text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-05)]',
                   active && 'bg-[var(--nomi-ink-05)] text-[var(--nomi-ink)]',
                 )}
@@ -158,14 +158,14 @@ export const TrajectoryListPanel = React.memo(function TrajectoryListPanel({
                   type="button"
                   onClick={() => onSelectTrajectory(trajectory.id)}
                 >
-                  <span className="min-w-0 truncate text-[12px] font-medium">{trajectory.name}</span>
-                  <span className="min-w-0 truncate text-[10px] text-[var(--nomi-ink-45)]">
+                  <span className="min-w-0 truncate text-caption font-medium">{trajectory.name}</span>
+                  <span className="min-w-0 truncate text-micro text-[var(--nomi-ink-40)]">
                     {groupName || '未分组'} · {trajectory.points.length}点
                   </span>
                 </button>
                 <button
                   className={cn(
-                    'grid size-7 place-items-center rounded-[6px] text-[var(--nomi-ink-45)] opacity-0 hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)] group-hover:opacity-100',
+                    'grid size-7 place-items-center rounded-nomi-sm text-[var(--nomi-ink-40)] opacity-0 hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)] group-hover:opacity-100',
                     menu?.trajectoryId === trajectory.id && 'opacity-100',
                   )}
                   title="更多"

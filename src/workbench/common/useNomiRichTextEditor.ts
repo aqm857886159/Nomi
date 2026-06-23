@@ -27,25 +27,6 @@ export function isEditorReady(editor: Editor | null): editor is Editor {
   return Boolean(editor && !editor.isDestroyed)
 }
 
-const NOMI_RICH_TEXT_EDITOR_CLASS = [
-  'workbench-editor__content',
-  'min-h-full box-border px-8 pt-6 pb-20',
-  'cursor-text text-[16px] leading-[1.76] tracking-[0] text-workbench-ink',
-  'outline-none focus:outline-none focus-visible:outline-none',
-  '[&_p]:m-0 [&_p]:mb-[14px]',
-  '[&_h1]:mt-[22px] [&_h1]:mb-3 [&_h1]:text-[28px] [&_h1]:leading-[1.22] [&_h1]:tracking-[0] [&_h1]:text-workbench-ink',
-  '[&_h2]:mt-[22px] [&_h2]:mb-3 [&_h2]:text-[22px] [&_h2]:leading-[1.22] [&_h2]:tracking-[0] [&_h2]:text-workbench-ink',
-  '[&_h3]:mt-[22px] [&_h3]:mb-3 [&_h3]:text-[18px] [&_h3]:leading-[1.22] [&_h3]:tracking-[0] [&_h3]:text-workbench-ink',
-  '[&_ul]:m-0 [&_ul]:mb-[14px] [&_ul]:pl-6',
-  '[&_ol]:m-0 [&_ol]:mb-[14px] [&_ol]:pl-6',
-  '[&_blockquote]:m-0 [&_blockquote]:mb-[14px] [&_blockquote]:border-l-[3px]',
-  '[&_blockquote]:border-l-[color-mix(in_srgb,var(--workbench-accent)_34%,transparent)]',
-  '[&_blockquote]:bg-workbench-surface-soft [&_blockquote]:px-3 [&_blockquote]:py-2 [&_blockquote]:text-workbench-ink',
-  '[&_pre]:m-0 [&_pre]:mb-[14px] [&_pre]:overflow-auto [&_pre]:rounded-[7px]',
-  '[&_pre]:bg-workbench-code-bg [&_pre]:p-3 [&_pre]:text-workbench-code-ink',
-  '[&_code]:rounded [&_code]:bg-workbench-pressed [&_code]:px-1 [&_code]:py-px [&_code]:text-[0.92em]',
-].join(' ')
-
 export function readSelectedText(editor: Editor): string {
   const { from, to, empty } = editor.state.selection
   if (empty || from === to) return ''
@@ -80,7 +61,7 @@ export function useNomiRichTextEditor(options: {
       Placeholder.configure({ placeholder: placeholder ?? '' }),
     ],
     content,
-    editorProps: { attributes: { class: NOMI_RICH_TEXT_EDITOR_CLASS } },
+    editorProps: { attributes: { class: 'workbench-editor__content' } },
     onUpdate: ({ editor: current }) => {
       const json = current.getJSON()
       lastEditorJsonRef.current = JSON.stringify(json)

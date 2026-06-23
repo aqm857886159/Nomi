@@ -25,7 +25,7 @@ const SCAN_DIRS = ["src", "electron"];
 // 现存巨壳的基线行数（棘轮上限）。清空此表 = 巨壳债还清。
 // 改小某个数 = 你成功瘦身后锁定的新上限。新增条目应经人工评审。
 const ALLOWLIST = {
-  "electron/runtime.ts": 749, // +4：付费守卫硬闸（grantId 读取 + audio/mapping/fallback 三点 assertAndConsumeSpendGrant）——安全特性非随意膨胀
+  "electron/runtime.ts": 748, // 付费守卫硬闸（grantId 读取 + audio/mapping/fallback 三点 assertAndConsumeSpendGrant）——安全特性非随意膨胀
   "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 907,
   // generationCanvasStore.ts 曾 871 行（巨壳）；S5-0 按 zustand slice 模式拆出 canvasStoreTypes.ts +
   // canvasNodeActions.ts + canvasGraphActions.ts + canvasRunActions.ts 后壳文件缩到 161 < 800，已出白名单。

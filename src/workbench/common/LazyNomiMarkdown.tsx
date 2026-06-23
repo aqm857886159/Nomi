@@ -11,7 +11,7 @@ const NomiMarkdownImpl = React.lazy(() =>
 
 function MarkdownFallback({ compact = false }: Pick<LazyNomiMarkdownProps, 'compact'>): JSX.Element {
   return (
-    <div className={`${compact ? 'text-[13px]' : 'text-[14px]'} leading-relaxed text-nomi-ink-60`}>
+    <div className={`${compact ? 'text-body-sm' : 'text-body'} leading-relaxed text-nomi-ink-60`}>
       正在渲染...
     </div>
   )
