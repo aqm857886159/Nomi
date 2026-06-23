@@ -35,7 +35,7 @@ export type TrajectoryRendererProps = {
   onEditTrajectory?: (trajectoryId: string) => void
   onDeleteTrajectory?: (trajectoryId: string) => void
   bindTargets?: TrajectoryBindTarget[]
-  onBindTargetToTrajectory?: (trajectoryId: string, targetId: string) => void
+  onBindTargetToTrajectory?: (trajectoryId: string, targetId: string, pointId?: string | null) => void
 }
 
 export type PointerCaptureHost = EventTarget & {
@@ -45,6 +45,10 @@ export type PointerCaptureHost = EventTarget & {
 
 export type TrajectoryContextMenuState = {
   trajectoryId: string
+  position: Scene3DVector3
+}
+
+export type TrajectoryCreateMenuState = {
   position: Scene3DVector3
 }
 

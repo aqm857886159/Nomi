@@ -60,6 +60,14 @@ import { readMcpInfo, installMcp, uninstallMcp } from "./capabilityCore/mcpConfi
 // 尽早安装：捕获引导阶段起的 uncaughtException / unhandledRejection，落盘到 app logs（P0-8）。
 installCrashHandlers();
 
+const configuredUserDataDir = String(process.env.NOMI_ELECTRON_USER_DATA_DIR || "").trim();
+if (configuredUserDataDir) {
+  // dev-electron.mjs 会按 renderer 端口分配独立 profile；这里若不真正切到该目录，
+  // Electron 仍会复用全局 userData，把旧的 Vite chunk/code cache 吃回来，出现
+  // 「主界面加载失败但纯 Vite 页面正常」这类很像灵异事件的缓存串味。
+  app.setPath("userData", configuredUserDataDir);
+}
+
 // 单实例锁（能力核前提，docs/plan/2026-06-20）：保证同一 user-data 只有一个 app 实例 = 工程文件的
 // 唯一写者，外部 CLI/MCP 才能安全地「app 开着走 RPC、关着走 headless」。隔离实例（eval/promo 用独立
 // --user-data-dir）拿到的是各自的锁，不受影响。拿不到锁 = 已有实例在跑 → 让出（聚焦老窗后退出）。
@@ -102,6 +110,9 @@ function registerDevDiagnostics(mainWindow: BrowserWindow, rendererUrl: string):
   if (!isDev) return;
 
   console.log(`[nomi:desktop] loading renderer: ${rendererUrl}`);
+  if (configuredUserDataDir) {
+    console.log(`[nomi:desktop] userData dir: ${configuredUserDataDir}`);
+  }
 
   mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
     console.error(`[nomi:desktop] renderer load failed (${errorCode}): ${errorDescription} ${validatedURL}`);
@@ -127,7 +138,7 @@ function registerDevDiagnostics(mainWindow: BrowserWindow, rendererUrl: string):
 function getRendererUrl(): string {
   const explicit = process.env.VITE_DEV_SERVER_URL || process.env.NOMI_RENDERER_URL;
   if (explicit) return explicit;
-  if (isDev) return "http://127.0.0.1:5173";
+  if (isDev) return "http://127.0.0.1:5273";
   return pathToFileURL(path.join(__dirname, "../dist/index.html")).toString();
 }
 
@@ -193,6 +204,13 @@ async function createWindow(): Promise<void> {
   });
 
   registerDevDiagnostics(mainWindow, rendererUrl);
+  if (isDev) {
+    try {
+      await mainWindow.webContents.session.clearCache();
+    } catch (error) {
+      console.warn("[nomi:desktop] failed to clear dev session cache:", error);
+    }
+  }
   await loadRendererWithRetry(mainWindow, rendererUrl);
 
   if (isDev) {
@@ -380,9 +398,9 @@ function buildContentSecurityPolicy(): string {
     // blob:：3D 编辑器（Three.js GLTF/meshopt 解码）的 worker 经 blob 脚本 importScripts。
     return [
       ...common,
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: http://127.0.0.1:5173",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: http://127.0.0.1:5273",
       "style-src 'self' 'unsafe-inline'",
-      "connect-src 'self' nomi-local: https: ws://127.0.0.1:5173 http://127.0.0.1:5173",
+      "connect-src 'self' nomi-local: https: ws://127.0.0.1:5273 http://127.0.0.1:5273",
     ].join("; ");
   }
   return [

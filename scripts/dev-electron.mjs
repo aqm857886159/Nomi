@@ -89,15 +89,24 @@ function startTailwindWatcher() {
   });
 }
 
-async function waitForRenderer(url) {
+async function waitForRenderer(
+  url,
+  timeoutMs = readPositiveIntegerEnv("NOMI_RENDERER_READY_TIMEOUT_MS", 180000),
+) {
   const { hostname, port } = new URL(url);
   const numericPort = Number(port || 80);
   const startedAt = Date.now();
-  while (Date.now() - startedAt < 60000) {
+  let nextProgressLogMs = 15000;
+  while (Date.now() - startedAt < timeoutMs) {
     if (await canConnect(hostname, numericPort)) return;
+    const elapsedMs = Date.now() - startedAt;
+    if (elapsedMs >= nextProgressLogMs) {
+      console.log(`▶  Waiting for renderer (${Math.round(elapsedMs / 1000)}s): ${url}`);
+      nextProgressLogMs += 15000;
+    }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
-  throw new Error(`Renderer did not become ready: ${url}`);
+  throw new Error(`Renderer did not become ready within ${timeoutMs}ms: ${url}`);
 }
 
 function canConnect(host, port) {
@@ -401,7 +410,7 @@ function startRendererServer(port) {
   });
 }
 
-const rendererPort = await findRendererPort(readPositiveIntegerEnv("NOMI_RENDERER_PORT", 5173));
+const rendererPort = await findRendererPort(readPositiveIntegerEnv("NOMI_RENDERER_PORT", 5273));
 const rendererUrl = `http://127.0.0.1:${rendererPort}`;
 const electronRendererUrl =
   process.env.NOMI_RENDERER_URL || `${rendererUrl}/index.html#/studio`;

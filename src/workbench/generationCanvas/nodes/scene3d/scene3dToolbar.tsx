@@ -9,6 +9,7 @@ import {
   IconMinimize,
   IconPlane,
   IconPlus,
+  IconRoute,
   IconSphere,
   IconUser,
 } from '@tabler/icons-react'
@@ -105,12 +106,16 @@ export function SceneAddToolbar({
   onAddObject,
   onAddCrowd,
   onAddCamera,
+  trajectoryMode,
+  onToggleTrajectoryMode,
   canvasFocusMode,
   onToggleCanvasFocusMode,
 }: {
   onAddObject: (kind: Scene3DGeometry | 'mannequin' | 'light') => void
   onAddCrowd: (options: CrowdAddOptions) => void
   onAddCamera: () => void
+  trajectoryMode: boolean
+  onToggleTrajectoryMode: () => void
   canvasFocusMode: boolean
   onToggleCanvasFocusMode: () => void
 }): JSX.Element {
@@ -342,6 +347,19 @@ export function SceneAddToolbar({
           setCrowdPopoverOpen(false)
           onAddCamera()
         }}><IconCamera size={15} /><span>相机</span></SceneAddButton>
+        <SceneAddButton
+          active={trajectoryMode}
+          title={trajectoryMode ? '退出轨迹模式' : '进入轨迹模式'}
+          onClick={() => {
+            setGeometryOpen(false)
+            setCharacterOpen(false)
+            setCrowdPopoverOpen(false)
+            onToggleTrajectoryMode()
+          }}
+        >
+          <IconRoute size={15} />
+          <span>轨迹</span>
+        </SceneAddButton>
         <span className="h-5 w-px shrink-0 bg-[var(--workbench-border)]" />
         <SceneAddButton
           active={canvasFocusMode}

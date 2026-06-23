@@ -8,7 +8,7 @@ import {
   type Scene3DVector3,
 } from './scene3dTypes'
 import { CAMERA_DEFAULT_TARGET, UNGROUPED_TRAJECTORY_GROUP_ID } from './scene3dConstants'
-import { buildTrajectoryCurve, clampRatio, remapTrajectoryTimeRatio, wrapRatio } from './trajectory/trajectoryUtils'
+import { buildTrajectoryCurve, clampRatio, remapTrajectoryTimeRatio, wrapRatio } from './trajectory'
 import { cameraLookAtRotation, eulerToArray, vectorToArray } from './scene3dMath'
 import { objectVisualHalfHeight } from './scene3dCrowd'
 

@@ -19,7 +19,7 @@ import {
 } from './scene3dTypes'
 import type { CrowdAddOptions } from './scene3dSharedTypes'
 import { CAMERA_DEFAULT_TARGET, MANNEQUIN_DEFAULT_SCALE } from './scene3dConstants'
-import { clampRatio, trajectoryPointTimeRatio } from './trajectory/trajectoryUtils'
+import { clampRatio, trajectoryPointTimeRatio } from './trajectory'
 import { cameraLookAtRotation } from './scene3dMath'
 import { clampCrowdOptions, roleColorForIndex } from './scene3dCrowd'
 

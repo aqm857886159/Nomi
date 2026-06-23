@@ -1,14 +1,21 @@
 import React from 'react'
 import { Line } from '@react-three/drei'
+import * as THREE from 'three'
 import type { Scene3DTrajectory, Scene3DVector3 } from '../scene3dTypes'
 import {
   ENDPOINT_ADD_HIDE_DELAY_MS,
+  type TrajectoryContextMenuState,
+  type TrajectoryCreateMenuState,
+  type TrajectoryPointBindMenuState,
   isTrajectoryEndpoint,
   type TrajectoryRendererProps,
   useTrajectoryWholeDrag,
+  vectorFromScene,
+  vectorToScene,
 } from './trajectoryRendererShared'
 import {
   TrajectoryContextMenu,
+  TrajectoryCreateMenu,
   TrajectoryEditPlane,
   TrajectoryHitTube,
   TrajectoryPointBindMenu,
@@ -18,7 +25,29 @@ import {
   TrajectoryCurveControlHandle,
   TrajectoryEndpointAddButton,
 } from './TrajectoryRendererControls'
-import { trajectoryLinePoints, trajectorySegmentCount } from './trajectoryUtils'
+import {
+  buildTrajectoryCurve,
+  trajectoryInsertIndex,
+  trajectoryLinePoints,
+  trajectorySegmentCount,
+} from './trajectoryUtils'
+
+function nearestCurvePoint(
+  curve: THREE.Curve<THREE.Vector3>,
+  point: THREE.Vector3,
+): THREE.Vector3 {
+  const samples = curve.getSpacedPoints(160)
+  let nearest = samples[0] ?? point
+  let nearestDistanceSq = Number.POSITIVE_INFINITY
+  samples.forEach((sample) => {
+    const distanceSq = sample.distanceToSquared(point)
+    if (distanceSq < nearestDistanceSq) {
+      nearest = sample
+      nearestDistanceSq = distanceSq
+    }
+  })
+  return nearest.clone()
+}
 
 function TrajectoryLineView({
   trajectory,
@@ -99,6 +128,24 @@ function TrajectoryLineView({
     [clearHideEndpointTimer],
   )
 
+  const insertPointAtHit = React.useCallback(
+    (hitPoint: THREE.Vector3) => {
+      if (!editable || !onInsertPoint) return
+      const curve = buildTrajectoryCurve(trajectory)
+      if (!curve) return
+      const insertIndex = trajectoryInsertIndex(trajectory, curve, hitPoint)
+      const targetIndex = insertIndex <= 0
+        ? 0
+        : Math.min(insertIndex - 1, trajectory.points.length - 1)
+      const targetPoint = trajectory.points[targetIndex]
+      const placement = insertIndex <= 0 ? 'before' : 'after'
+      const insertPosition = vectorToScene(nearestCurvePoint(curve, hitPoint))
+      onSelectTrajectory?.(trajectory.id)
+      onInsertPoint(trajectory.id, insertPosition, targetPoint?.id ?? null, placement)
+    },
+    [editable, onInsertPoint, onSelectTrajectory, trajectory],
+  )
+
   return (
     <>
       {points.length >= 2 ? (
@@ -119,11 +166,11 @@ function TrajectoryLineView({
             onContextMenu={(event) => {
               event.stopPropagation()
               event.nativeEvent.preventDefault()
-              onContextMenu?.(trajectory.id, [
-                Number(event.point.x.toFixed(4)),
-                Number(event.point.y.toFixed(4)),
-                Number(event.point.z.toFixed(4)),
-              ])
+              onContextMenu?.(trajectory.id, vectorToScene(event.point))
+            }}
+            onDoubleClick={(event) => {
+              event.stopPropagation()
+              insertPointAtHit(event.point)
             }}
           />
           {!editable || wholeDraggable ? (
@@ -131,6 +178,7 @@ function TrajectoryLineView({
               trajectory={trajectory}
               onWholePointerDown={wholeDraggable ? handleWholePointerDown : undefined}
               onContextMenu={onContextMenu}
+              onInsertPointAt={editable ? insertPointAtHit : undefined}
               onSelectTrajectory={onSelectTrajectory}
             />
           ) : null}
@@ -204,15 +252,9 @@ export function TrajectoryRenderer({
   bindTargets = [],
   onBindTargetToTrajectory,
 }: TrajectoryRendererProps): JSX.Element | null {
-  const [contextMenu, setContextMenu] = React.useState<{
-    trajectoryId: string
-    position: Scene3DVector3
-  } | null>(null)
-  const [pointBindMenu, setPointBindMenu] = React.useState<{
-    trajectoryId: string
-    pointId: string
-    position: Scene3DVector3
-  } | null>(null)
+  const [contextMenu, setContextMenu] = React.useState<TrajectoryContextMenuState | null>(null)
+  const [createMenu, setCreateMenu] = React.useState<TrajectoryCreateMenuState | null>(null)
+  const [pointBindMenu, setPointBindMenu] = React.useState<TrajectoryPointBindMenuState | null>(null)
 
   const createTrajectoryFromBlank = React.useCallback(
     (position: Scene3DVector3) => {
@@ -221,14 +263,29 @@ export function TrajectoryRenderer({
     [onCreateTrajectoryAt],
   )
 
-  const contextMenuEnabled = Boolean(wholeDraggable && (onEditTrajectory || onDeleteTrajectory))
+  const createMenuEnabled = Boolean(editable && onCreateTrajectoryAt)
+  const contextMenuEnabled = Boolean(
+    (wholeDraggable || editable) && (onEditTrajectory || onDeleteTrajectory || (editable && onInsertPoint)),
+  )
   const pointBindMenuEnabled = Boolean(editable && onBindTargetToTrajectory)
+
+  const openCreateMenu = React.useCallback(
+    (position: Scene3DVector3) => {
+      if (!createMenuEnabled) return
+      setCreateMenu({ position })
+      setContextMenu(null)
+      setPointBindMenu(null)
+    },
+    [createMenuEnabled],
+  )
 
   const openContextMenu = React.useCallback(
     (trajectoryId: string, position: Scene3DVector3) => {
       if (!contextMenuEnabled) return
       onSelectTrajectory?.(trajectoryId)
       setContextMenu({ trajectoryId, position })
+      setCreateMenu(null)
+      setPointBindMenu(null)
     },
     [contextMenuEnabled, onSelectTrajectory],
   )
@@ -239,18 +296,52 @@ export function TrajectoryRenderer({
       onSelectTrajectory?.(trajectoryId)
       onSelectPoint?.(trajectoryId, pointId)
       setPointBindMenu({ trajectoryId, pointId, position })
+      setCreateMenu(null)
+      setContextMenu(null)
     },
     [onSelectPoint, onSelectTrajectory, pointBindMenuEnabled],
+  )
+
+  const insertPointFromContextMenu = React.useCallback(
+    (trajectoryId: string, position: Scene3DVector3) => {
+      if (!editable || !onInsertPoint) return
+      const trajectory = trajectories.find((item) => item.id === trajectoryId)
+      if (!trajectory) return
+      const curve = buildTrajectoryCurve(trajectory)
+      if (!curve) return
+      const hitPoint = vectorFromScene(position)
+      const insertIndex = trajectoryInsertIndex(trajectory, curve, hitPoint)
+      const targetIndex = insertIndex <= 0
+        ? 0
+        : Math.min(insertIndex - 1, trajectory.points.length - 1)
+      const targetPoint = trajectory.points[targetIndex]
+      const placement = insertIndex <= 0 ? 'before' : 'after'
+      onSelectTrajectory?.(trajectory.id)
+      onInsertPoint(
+        trajectory.id,
+        vectorToScene(nearestCurvePoint(curve, hitPoint)),
+        targetPoint?.id ?? null,
+        placement,
+      )
+    },
+    [editable, onInsertPoint, onSelectTrajectory, trajectories],
   )
 
   React.useEffect(() => {
     if (
       contextMenu &&
-      (editable || !trajectories.some((trajectory) => trajectory.id === contextMenu.trajectoryId))
+      (!contextMenuEnabled ||
+        !trajectories.some((trajectory) => trajectory.id === contextMenu.trajectoryId))
     ) {
       setContextMenu(null)
     }
-  }, [contextMenu, editable, trajectories])
+  }, [contextMenu, contextMenuEnabled, trajectories])
+
+  React.useEffect(() => {
+    if (createMenu && !createMenuEnabled) {
+      setCreateMenu(null)
+    }
+  }, [createMenu, createMenuEnabled])
 
   React.useEffect(() => {
     if (
@@ -268,7 +359,12 @@ export function TrajectoryRenderer({
 
   return (
     <group>
-      {editable ? <TrajectoryEditPlane onCreateTrajectory={createTrajectoryFromBlank} /> : null}
+      {editable ? (
+        <TrajectoryEditPlane
+          onCreateTrajectory={createTrajectoryFromBlank}
+          onOpenCreateMenu={createMenuEnabled ? openCreateMenu : undefined}
+        />
+      ) : null}
       {trajectories.map((trajectory) => (
         <TrajectoryLineView
           key={trajectory.id}
@@ -287,12 +383,20 @@ export function TrajectoryRenderer({
           onPointContextMenu={pointBindMenuEnabled ? openPointBindMenu : undefined}
         />
       ))}
-      {!editable && contextMenuEnabled ? (
+      {contextMenuEnabled ? (
         <TrajectoryContextMenu
           menu={contextMenu}
           onClose={() => setContextMenu(null)}
+          onInsertPoint={editable && onInsertPoint ? insertPointFromContextMenu : undefined}
           onEditTrajectory={onEditTrajectory}
           onDeleteTrajectory={onDeleteTrajectory}
+        />
+      ) : null}
+      {createMenuEnabled ? (
+        <TrajectoryCreateMenu
+          menu={createMenu}
+          onClose={() => setCreateMenu(null)}
+          onCreateTrajectory={createTrajectoryFromBlank}
         />
       ) : null}
       {editable && pointBindMenuEnabled ? (

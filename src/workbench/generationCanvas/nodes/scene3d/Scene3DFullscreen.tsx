@@ -8,6 +8,9 @@ import {
   IconCube,
   IconListTree,
   IconPhoto,
+  IconPlayerPause,
+  IconPlayerPlay,
+  IconRoute,
   IconRotate,
   IconSettings,
   IconWorld,
@@ -50,9 +53,14 @@ import {
   makePastedCamera,
 } from './scene3dMath'
 import { SceneObjectList, PropertyPanel } from './scene3dInspector'
+import { TrajectoryListPanel } from './scene3dTrajectoryListPanel'
 import { nextAvailableObjectPosition } from './scene3dObjects'
 import { SceneContent } from './scene3dSceneContent'
-import { CameraPreview } from './scene3dCameraPreview'
+import { CameraPreview, PlaybackCameraMonitor } from './scene3dCameraPreview'
+import { TrajectoryPanel, TrajectoryTimeline, trajectoryPointTimeRatio } from './trajectory'
+import { removeTrajectoryBindingsForNode } from './scene3dTrajectoryState'
+import { useScene3DTrajectoryEditor } from './useScene3DTrajectoryEditor'
+import { cameraWithPlaybackPosition } from './scene3dPlayback'
 
 type Scene3DFullscreenProps = {
   initialState: Scene3DState
@@ -85,6 +93,8 @@ export default function Scene3DFullscreen({
   const [flySpeed, setFlySpeed] = React.useState(5)
   const [leftPanelOpen, setLeftPanelOpen] = React.useState(true)
   const [rightPanelOpen, setRightPanelOpen] = React.useState(true)
+  const [trajectoryMode, setTrajectoryMode] = React.useState(false)
+  const trajectoryModeRef = React.useRef(trajectoryMode)
   const canvasFocusMode = !leftPanelOpen || !rightPanelOpen
   const [focusId, setFocusId] = React.useState('')
   const [cameraViewEditId, setCameraViewEditId] = React.useState<string | null>(null)
@@ -113,6 +123,47 @@ export default function Scene3DFullscreen({
   const cameraViewEditCamera = cameraViewEditId
     ? state.cameras.find((camera) => camera.id === cameraViewEditId)
     : undefined
+  const trajectoryEditor = useScene3DTrajectoryEditor({
+    state,
+    setState,
+    readOnly,
+    suspendPlayback: Boolean(cameraViewEditCamera),
+  })
+  const {
+    activeGroupId,
+    activePointId,
+    activeTrajectoryId,
+    activeTrajectoryIds,
+    bindTargets,
+    displayState,
+    isPlaying,
+    playheadRef,
+    requestPlayChange,
+    selectGroup,
+    selectPoint,
+    selectTrajectory,
+    timelineVisible,
+    setTimelineVisible,
+    setTrajectoryPlaying,
+    addTrajectory,
+    addTrajectoryAt,
+    addTrajectoryGroup,
+    addTrajectoryPoint,
+    bindObjectToTrajectory,
+    deleteTrajectory,
+    deleteTrajectoryBinding,
+    deleteTrajectoryPoint,
+    insertTrajectoryPointAt,
+    patchTrajectory,
+    patchTrajectoryBinding,
+    patchTrajectoryBoundObject,
+    patchTrajectoryCurveControl,
+    patchTrajectoryPointPosition,
+    patchTrajectoryPointTiming,
+    renameTrajectoryGroup,
+    translateTrajectoryBy,
+    unbindObjectFromTrajectory,
+  } = trajectoryEditor
 
   React.useEffect(() => {
     stateRef.current = state
@@ -129,6 +180,10 @@ export default function Scene3DFullscreen({
       mode: controlMode,
     }
   }, [controlMode])
+
+  React.useEffect(() => {
+    trajectoryModeRef.current = trajectoryMode
+  }, [trajectoryMode])
 
   React.useEffect(() => {
     onStateChangeRef.current = onStateChange
@@ -162,6 +217,8 @@ export default function Scene3DFullscreen({
     setSelection(nextSelection)
     setViewLocked(false)
     setFocusId('')
+    trajectoryModeRef.current = false
+    setTrajectoryMode(false)
   }, [])
 
   const clearSelection = React.useCallback(() => {
@@ -173,6 +230,8 @@ export default function Scene3DFullscreen({
 
   const focusSceneItem = React.useCallback((id: string) => {
     if (cameraViewEditId) return
+    trajectoryModeRef.current = false
+    setTrajectoryMode(false)
     setViewLocked(true)
     setFocusId(`${id}:${Date.now()}`)
   }, [cameraViewEditId])
@@ -193,15 +252,21 @@ export default function Scene3DFullscreen({
 
   const deleteSceneItem = React.useCallback((target: Exclude<Scene3DSelection, null>) => {
     if (readOnly) return
-    setState((current) => target.type === 'object'
-      ? {
-          ...current,
-          objects: current.objects.filter((object) => object.id !== target.id),
-        }
-      : {
-          ...current,
-          cameras: current.cameras.filter((camera) => camera.id !== target.id),
-        })
+    setState((current) => {
+      const nextState = target.type === 'object'
+        ? {
+            ...current,
+            objects: current.objects.filter((object) => object.id !== target.id),
+            cameras: current.cameras.map((camera) => (
+              camera.followTargetId === target.id ? { ...camera, followTargetId: undefined } : camera
+            )),
+          }
+        : {
+            ...current,
+            cameras: current.cameras.filter((camera) => camera.id !== target.id),
+          }
+      return removeTrajectoryBindingsForNode(nextState, target.id)
+    })
     if (selectionRef.current?.type === target.type && selectionRef.current.id === target.id) {
       setViewLocked(false)
     }
@@ -230,6 +295,8 @@ export default function Scene3DFullscreen({
     }
     setState((current) => ({ ...current, objects: [...current.objects, object] }))
     setSelection({ type: 'object', id: object.id })
+    trajectoryModeRef.current = false
+    setTrajectoryMode(false)
     setViewLocked(false)
   }, [readOnly, state.objects.length])
 
@@ -238,6 +305,8 @@ export default function Scene3DFullscreen({
     const camera = makeCamera(state.cameras.length)
     setState((current) => ({ ...current, cameras: [...current.cameras, camera] }))
     setSelection({ type: 'camera', id: camera.id })
+    trajectoryModeRef.current = false
+    setTrajectoryMode(false)
     setViewLocked(false)
   }, [readOnly, state.cameras.length])
 
@@ -251,6 +320,8 @@ export default function Scene3DFullscreen({
     crowd.position = nextAvailableObjectPosition(crowd, stateRef.current.objects)
     setState((current) => ({ ...current, objects: [...current.objects, crowd] }))
     setSelection({ type: 'object', id: crowd.id })
+    trajectoryModeRef.current = false
+    setTrajectoryMode(false)
     setViewLocked(false)
   }, [readOnly, state.objects.length])
 
@@ -355,13 +426,19 @@ export default function Scene3DFullscreen({
       toast('请先选中一个拍摄相机', 'warning')
       return
     }
-    const capture = captureApiRef.current?.captureCamera(selectedCamera)
+    const captureCamera = cameraWithPlaybackPosition(
+      stateRef.current,
+      selectedCamera,
+      playheadRef.current,
+      activeTrajectoryIds,
+    )
+    const capture = captureApiRef.current?.captureCamera(captureCamera)
     if (!capture) {
       toast('相机截图失败，请重试', 'error')
       return
     }
     onScreenshot(capture)
-  }, [onScreenshot, selectedCamera])
+  }, [activeTrajectoryIds, onScreenshot, playheadRef, selectedCamera])
 
   const updateEditorCamera = React.useCallback((editorCamera: Scene3DState['editorCamera']) => {
     setState((current) => {
@@ -459,15 +536,175 @@ export default function Scene3DFullscreen({
     if (cameraViewEditId === selectedCamera.id) {
       return
     }
-    enterCameraViewEdit(selectedCamera)
-  }, [cameraViewEditId, enterCameraViewEdit, readOnly, selectedCamera])
+    enterCameraViewEdit(cameraWithPlaybackPosition(
+      stateRef.current,
+      selectedCamera,
+      playheadRef.current,
+      activeTrajectoryIds,
+    ))
+  }, [activeTrajectoryIds, cameraViewEditId, enterCameraViewEdit, playheadRef, readOnly, selectedCamera])
 
   const levelSelectedCamera = React.useCallback(() => {
     if (!selectedCamera || readOnly) return
+    const displayCamera = cameraWithPlaybackPosition(
+      stateRef.current,
+      selectedCamera,
+      playheadRef.current,
+      activeTrajectoryIds,
+    )
     patchCamera(selectedCamera.id, {
-      rotation: cameraLookAtRotation(selectedCamera.position, selectedCamera.target),
+      rotation: cameraLookAtRotation(displayCamera.position, displayCamera.target),
     })
-  }, [patchCamera, readOnly, selectedCamera])
+  }, [activeTrajectoryIds, patchCamera, playheadRef, readOnly, selectedCamera])
+
+  const enterTrajectoryMode = React.useCallback((showTimeline = true) => {
+    trajectoryModeRef.current = true
+    setTrajectoryMode(true)
+    if (showTimeline) setTimelineVisible(true)
+    setSelection(null)
+    setViewLocked(false)
+    setFocusId('')
+  }, [setTimelineVisible])
+
+  const toggleTrajectoryMode = React.useCallback(() => {
+    const next = !trajectoryModeRef.current
+    trajectoryModeRef.current = next
+    setTrajectoryMode(next)
+    if (next) {
+      setTimelineVisible(true)
+      setSelection(null)
+      setViewLocked(false)
+      setFocusId('')
+    }
+  }, [setTimelineVisible])
+
+  const selectTrajectoryForMode = React.useCallback((trajectoryId: string) => {
+    selectTrajectory(trajectoryId)
+    enterTrajectoryMode()
+  }, [enterTrajectoryMode, selectTrajectory])
+
+  const selectSceneTrajectory = React.useCallback((trajectoryId: string) => {
+    if (trajectoryModeRef.current) {
+      selectTrajectoryForMode(trajectoryId)
+      return
+    }
+    selectTrajectory(trajectoryId)
+    setSelection(null)
+  }, [selectTrajectory, selectTrajectoryForMode])
+
+  const selectTrajectoryPointForMode = React.useCallback((trajectoryId: string, pointId: string) => {
+    selectPoint(trajectoryId, pointId)
+    enterTrajectoryMode()
+  }, [enterTrajectoryMode, selectPoint])
+
+  const addTrajectoryForMode = React.useCallback(() => {
+    addTrajectory()
+    enterTrajectoryMode()
+  }, [addTrajectory, enterTrajectoryMode])
+
+  const addTrajectoryAtForMode = React.useCallback((position: Scene3DVector3) => {
+    addTrajectoryAt(position)
+    enterTrajectoryMode()
+  }, [addTrajectoryAt, enterTrajectoryMode])
+
+  const addTrajectoryPointForMode = React.useCallback((trajectoryId: string) => {
+    addTrajectoryPoint(trajectoryId)
+    enterTrajectoryMode()
+  }, [addTrajectoryPoint, enterTrajectoryMode])
+
+  const insertTrajectoryPointForMode = React.useCallback((
+    trajectoryId: string,
+    position: Scene3DVector3,
+    targetPointId?: string | null,
+    placement?: 'before' | 'after',
+  ) => {
+    insertTrajectoryPointAt(trajectoryId, position, targetPointId, placement)
+    enterTrajectoryMode()
+  }, [enterTrajectoryMode, insertTrajectoryPointAt])
+
+  const patchTrajectoryCurveControlForMode = React.useCallback((
+    trajectoryId: string,
+    segmentStartPointId: string,
+    position: Scene3DVector3 | null,
+  ) => {
+    patchTrajectoryCurveControl(trajectoryId, segmentStartPointId, position)
+    enterTrajectoryMode()
+  }, [enterTrajectoryMode, patchTrajectoryCurveControl])
+
+  const assignTrajectoryToGroup = React.useCallback((trajectoryId: string, groupId: string) => {
+    if (readOnly) return
+    const groupExists = stateRef.current.trajectoryGroups.some((group) => group.id === groupId)
+    const trajectoryExists = stateRef.current.trajectories.some((trajectory) => trajectory.id === trajectoryId)
+    if (!groupExists || !trajectoryExists) return
+    setState((current) => ({
+      ...current,
+      trajectoryGroups: current.trajectoryGroups.map((group) => {
+        const withoutTrajectory = group.trajectoryIds.filter((id) => id !== trajectoryId)
+        return group.id === groupId
+          ? { ...group, trajectoryIds: [...withoutTrajectory, trajectoryId] }
+          : { ...group, trajectoryIds: withoutTrajectory }
+      }),
+    }))
+    selectTrajectoryForMode(trajectoryId)
+    selectGroup(groupId)
+    setTimelineVisible(true)
+  }, [readOnly, selectGroup, selectTrajectoryForMode, setTimelineVisible])
+
+  const handleEditTrajectory = React.useCallback((trajectoryId: string) => {
+    selectTrajectoryForMode(trajectoryId)
+  }, [selectTrajectoryForMode])
+
+  const bindTargetToTrajectoryForMode = React.useCallback((
+    trajectoryId: string,
+    targetId: string,
+    pointId?: string | null,
+  ) => {
+    if (readOnly) return
+    const current = stateRef.current
+    const trajectory = current.trajectories.find((candidate) => candidate.id === trajectoryId)
+    if (!trajectory) return
+    const objectExists = current.objects.some((object) => object.id === targetId)
+    const cameraExists = current.cameras.some((camera) => camera.id === targetId)
+    if (!objectExists && !cameraExists) return
+    const alreadyBound = current.trajectoryBindings.some((binding) => (
+      binding.objects.some((boundObject) => boundObject.objectId === targetId)
+    ))
+    if (alreadyBound) {
+      toast('同一节点只能绑定一条轨迹', 'warning')
+      return
+    }
+    const pointIndex = pointId ? trajectory.points.findIndex((point) => point.id === pointId) : -1
+    const offsetRatio = pointIndex >= 0 ? trajectoryPointTimeRatio(trajectory, pointIndex) : 0
+    bindObjectToTrajectory(trajectoryId, targetId, offsetRatio)
+    selectGroup(null)
+    selectTrajectory(trajectoryId)
+    enterTrajectoryMode()
+    setSelection(cameraExists ? { type: 'camera', id: targetId } : { type: 'object', id: targetId })
+  }, [bindObjectToTrajectory, enterTrajectoryMode, readOnly, selectGroup, selectTrajectory])
+
+  const patchTrajectoryBindingForMode = React.useCallback((bindingId: string, patch: Parameters<typeof patchTrajectoryBinding>[1]) => {
+    patchTrajectoryBinding(bindingId, patch)
+    setTimelineVisible(true)
+  }, [patchTrajectoryBinding, setTimelineVisible])
+
+  const patchTrajectoryBoundObjectForMode = React.useCallback((
+    bindingId: string,
+    objectId: string,
+    patch: Parameters<typeof patchTrajectoryBoundObject>[2],
+  ) => {
+    patchTrajectoryBoundObject(bindingId, objectId, patch)
+    setTimelineVisible(true)
+  }, [patchTrajectoryBoundObject, setTimelineVisible])
+
+  const unbindObjectFromTrajectoryForMode = React.useCallback((bindingId: string, objectId: string) => {
+    unbindObjectFromTrajectory(bindingId, objectId)
+    setTimelineVisible(true)
+  }, [setTimelineVisible, unbindObjectFromTrajectory])
+
+  const deleteTrajectoryBindingForMode = React.useCallback((bindingId: string) => {
+    deleteTrajectoryBinding(bindingId)
+    setTimelineVisible(true)
+  }, [deleteTrajectoryBinding, setTimelineVisible])
 
   const flushLatestState = React.useCallback(() => {
     const latestState = {
@@ -483,9 +720,13 @@ export default function Scene3DFullscreen({
   }, [])
 
   const handleClose = React.useCallback(() => {
+    trajectoryModeRef.current = false
+    setTrajectoryMode(false)
+    setTimelineVisible(false)
+    setTrajectoryPlaying(false)
     flushLatestState()
     onClose()
-  }, [flushLatestState, onClose])
+  }, [flushLatestState, onClose, setTimelineVisible, setTrajectoryPlaying])
 
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -596,6 +837,29 @@ export default function Scene3DFullscreen({
               <span>截图</span>
             </PanelButton>
           </div>
+          <div className="flex items-center gap-1 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-0.5">
+            <PanelButton
+              title={trajectoryMode ? '退出轨迹模式' : '进入轨迹模式'}
+              active={trajectoryMode}
+              onClick={() => {
+                toggleTrajectoryMode()
+              }}
+            >
+              <IconRoute size={15} />
+              <span>轨迹</span>
+            </PanelButton>
+            <PanelButton
+              title={isPlaying ? '暂停轨迹播放' : '播放轨迹'}
+              active={isPlaying}
+              onClick={() => {
+                if (!requestPlayChange(!isPlaying) && !isPlaying) {
+                  toast('请先为轨迹绑定对象或相机', 'warning')
+                }
+              }}
+            >
+              {isPlaying ? <IconPlayerPause size={15} /> : <IconPlayerPlay size={15} />}
+            </PanelButton>
+          </div>
           <label className="inline-flex h-8 shrink-0 items-center gap-2 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--workbench-muted)]">
             <IconWorld size={14} />
             <span>速度</span>
@@ -632,17 +896,29 @@ export default function Scene3DFullscreen({
               style={{ transformOrigin: 'top left' }}
               transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             >
-              <SceneObjectList
-                objects={state.objects}
-                cameras={state.cameras}
-                selection={selection}
-                readOnly={readOnly}
-                onSelect={selectSceneItem}
-                onFocus={focusSceneItem}
-                onObjectPatch={patchObject}
-                onCameraPatch={patchCamera}
-                onDelete={deleteSceneItem}
-              />
+              {trajectoryMode ? (
+                <TrajectoryListPanel
+                  trajectories={state.trajectories}
+                  groups={state.trajectoryGroups}
+                  activeTrajectoryId={activeTrajectoryId}
+                  readOnly={readOnly}
+                  onSelectTrajectory={selectTrajectoryForMode}
+                  onAssignTrajectoryToGroup={assignTrajectoryToGroup}
+                  onDeleteTrajectory={deleteTrajectory}
+                />
+              ) : (
+                <SceneObjectList
+                  objects={state.objects}
+                  cameras={state.cameras}
+                  selection={selection}
+                  readOnly={readOnly}
+                  onSelect={selectSceneItem}
+                  onFocus={focusSceneItem}
+                  onObjectPatch={patchObject}
+                  onCameraPatch={patchCamera}
+                  onDelete={deleteSceneItem}
+                />
+              )}
             </motion.aside>
           ) : null}
         </AnimatePresence>
@@ -656,14 +932,15 @@ export default function Scene3DFullscreen({
             onPointerMissed={clearSelection}
           >
             <SceneContent
-              state={state}
+              state={displayState}
               selection={selection}
               readOnly={readOnly}
-              transformMode={transformMode}
+              transformMode={trajectoryMode ? 'translate' : transformMode}
               flySpeed={flySpeed}
               focusId={focusId}
               viewLocked={viewLocked}
               cameraViewEditCamera={cameraViewEditCamera}
+              trajectoryMode={trajectoryMode}
               onSelect={selectSceneItem}
               onFocus={focusSceneItem}
               onObjectPatch={patchObject}
@@ -680,6 +957,19 @@ export default function Scene3DFullscreen({
               setCaptureApi={(api) => {
                 captureApiRef.current = api
               }}
+              activeTrajectoryId={activeTrajectoryId}
+              activePointId={activePointId}
+              trajectoryBindTargets={bindTargets}
+              onSelectTrajectory={selectSceneTrajectory}
+              onSelectTrajectoryPoint={selectTrajectoryPointForMode}
+              onCreateTrajectoryAt={addTrajectoryAtForMode}
+              onInsertTrajectoryPoint={insertTrajectoryPointForMode}
+              onUpdateTrajectoryCurveControl={patchTrajectoryCurveControlForMode}
+              onUpdateTrajectoryPoint={patchTrajectoryPointPosition}
+              onTranslateTrajectory={translateTrajectoryBy}
+              onEditTrajectory={handleEditTrajectory}
+              onDeleteTrajectory={deleteTrajectory}
+              onBindTargetToTrajectory={bindTargetToTrajectoryForMode}
             />
           </Canvas>
           {!leftPanelOpen ? (
@@ -692,10 +982,17 @@ export default function Scene3DFullscreen({
               <IconSettings size={18} />
             </CanvasPanelRestoreButton>
           ) : null}
-          {selectedCamera ? (
+          {isPlaying ? (
+            <PlaybackCameraMonitor
+              state={state}
+              activeTrajectoryIds={activeTrajectoryIds}
+              rightPanelCollapsed={!rightPanelOpen}
+            />
+          ) : selectedCamera ? (
             <CameraPreview
               camera={selectedCamera}
               state={state}
+              activeTrajectoryIds={activeTrajectoryIds}
               readOnly={readOnly}
               cameraViewEditing={cameraViewEditId === selectedCamera.id}
               rightPanelCollapsed={!rightPanelOpen}
@@ -731,8 +1028,32 @@ export default function Scene3DFullscreen({
               onAddObject={addObject}
               onAddCrowd={addCrowd}
               onAddCamera={addCamera}
+              trajectoryMode={trajectoryMode}
+              onToggleTrajectoryMode={toggleTrajectoryMode}
               canvasFocusMode={canvasFocusMode}
               onToggleCanvasFocusMode={toggleCanvasFocusMode}
+            />
+          ) : null}
+          {trajectoryMode ? (
+            <TrajectoryTimeline
+              state={state}
+              visible={timelineVisible}
+              isPlaying={isPlaying}
+              readOnly={readOnly}
+              activeGroupId={activeGroupId}
+              playheadRef={playheadRef}
+              onPlayChange={(playing) => {
+                if (!requestPlayChange(playing) && playing) {
+                  toast('请先为轨迹绑定对象或相机', 'warning')
+                }
+              }}
+              onSelectGroup={selectGroup}
+              onSelectTrajectory={selectTrajectoryForMode}
+              onClose={() => setTimelineVisible(false)}
+              onAddGroup={addTrajectoryGroup}
+              onRenameGroup={renameTrajectoryGroup}
+              onPatchBinding={patchTrajectoryBindingForMode}
+              onPatchTrajectoryPoint={patchTrajectoryPointTiming}
             />
           ) : null}
         </div>
@@ -748,17 +1069,39 @@ export default function Scene3DFullscreen({
               style={{ transformOrigin: 'top right' }}
               transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             >
-              <PropertyPanel
-                state={state}
-                selection={selection}
-                readOnly={readOnly}
-                onObjectPatch={patchObject}
-                onCameraPatch={patchCamera}
-                onEnvironmentPatch={(patch) => setState((current) => ({
-                  ...current,
-                  environment: { ...current.environment, ...patch },
-                }))}
-              />
+              {trajectoryMode ? (
+                <TrajectoryPanel
+                  state={state}
+                  activeTrajectoryId={activeTrajectoryId}
+                  activePointId={activePointId}
+                  readOnly={readOnly}
+                  onAddTrajectory={addTrajectoryForMode}
+                  onSelectTrajectory={selectTrajectoryForMode}
+                  onDeleteTrajectory={deleteTrajectory}
+                  onPatchTrajectory={patchTrajectory}
+                  onAddPoint={addTrajectoryPointForMode}
+                  onSelectPoint={selectTrajectoryPointForMode}
+                  onUpdatePoint={patchTrajectoryPointPosition}
+                  onDeletePoint={deleteTrajectoryPoint}
+                  onBindObject={bindTargetToTrajectoryForMode}
+                  onPatchBinding={patchTrajectoryBindingForMode}
+                  onPatchBoundObject={patchTrajectoryBoundObjectForMode}
+                  onUnbindObject={unbindObjectFromTrajectoryForMode}
+                  onDeleteBinding={deleteTrajectoryBindingForMode}
+                />
+              ) : (
+                <PropertyPanel
+                  state={state}
+                  selection={selection}
+                  readOnly={readOnly}
+                  onObjectPatch={patchObject}
+                  onCameraPatch={patchCamera}
+                  onEnvironmentPatch={(patch) => setState((current) => ({
+                    ...current,
+                    environment: { ...current.environment, ...patch },
+                  }))}
+                />
+              )}
             </motion.aside>
           ) : null}
         </AnimatePresence>

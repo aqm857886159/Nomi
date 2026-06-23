@@ -47,7 +47,7 @@ const ctx = await browser.newContext({ viewport: { width: 900, height: 700 } })
 for (const sc of SCENARIOS) {
   const b64 = Buffer.from(JSON.stringify(sc.spec)).toString('base64')
   const page = await ctx.newPage()
-  await page.goto(`http://127.0.0.1:5173/staging-one.html?spec=${encodeURIComponent(b64)}`, { waitUntil: 'networkidle' })
+  await page.goto(`http://127.0.0.1:5273/staging-one.html?spec=${encodeURIComponent(b64)}`, { waitUntil: 'networkidle' })
   await page.waitForFunction(() => window.__oneDataUrl, { timeout: 30000 }).catch(() => {})
   await page.waitForTimeout(400)
   sc.staging = await page.evaluate(() => window.__oneDataUrl || null)

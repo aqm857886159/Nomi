@@ -1,12 +1,17 @@
 import React from 'react'
 import * as THREE from 'three'
 import { Canvas, useThree } from '@react-three/fiber'
-import { Environment, Sky } from '@react-three/drei'
+import { Sky } from '@react-three/drei'
 import { IconCamera, IconEye, IconRotate } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
 import { applySceneCameraPose, crowdCount } from './scene3dMath'
 import { SCENE3D_ASPECT_OPTIONS, SCENE3D_ASPECT_RATIOS } from './scene3dTypes'
 import type { Scene3DAspectRatio, Scene3DCamera, Scene3DObject, Scene3DState } from './scene3dTypes'
+import {
+  cameraWithPlaybackPosition,
+  objectWithPlaybackPose,
+  playbackCameraAtPlayhead,
+} from './scene3dPlayback'
 import {
   Scene3DMeshGeometry,
   ProceduralMannequin,
@@ -15,6 +20,8 @@ import {
   LightObject,
   MannequinAssetBoundary,
 } from './scene3dObjects'
+import { Scene3DLocalEnvironmentLights } from './scene3dEnvironment'
+import { clampRatio, useScene3DTrajectoryRuntimeStore } from './trajectory'
 
 export function cameraPreviewViewportStyle(aspectRatio: Scene3DAspectRatio): React.CSSProperties {
   const ratio = SCENE3D_ASPECT_RATIOS[aspectRatio]
@@ -84,27 +91,33 @@ export function PreviewObjectView({
 export function CameraPreviewScene({
   state,
   cameraData,
+  playheadSeconds,
+  activeTrajectoryIds,
 }: {
   state: Scene3DState
   cameraData: Scene3DCamera
+  playheadSeconds: number
+  activeTrajectoryIds: ReadonlySet<string> | null
 }): JSX.Element {
   let roleIndex = 0
   return (
     <>
       <color attach="background" args={[state.environment.backgroundColor]} />
       <ambientLight intensity={0.65} />
+      <Scene3DLocalEnvironmentLights darkMode={state.environment.darkMode} />
       {state.environment.showSky ? <Sky sunPosition={[2, 1, 4]} /> : null}
-      {state.environment.preset ? (
-        <React.Suspense fallback={null}>
-          <Environment preset="city" />
-        </React.Suspense>
-      ) : null}
       {state.environment.showAxes ? <axesHelper args={[2]} /> : null}
       {state.objects.map((object) => {
         const roleStartIndex = roleIndex
         if (object.type === 'mannequin') roleIndex += 1
         if (object.type === 'mannequinCrowd') roleIndex += crowdCount(object)
-        return <PreviewObjectView key={object.id} object={object} roleStartIndex={roleStartIndex} />
+        return (
+          <PreviewObjectView
+            key={object.id}
+            object={objectWithPlaybackPose(state, object, playheadSeconds, activeTrajectoryIds)}
+            roleStartIndex={roleStartIndex}
+          />
+        )
       })}
       <CameraPreviewPose cameraData={cameraData} />
     </>
@@ -114,6 +127,7 @@ export function CameraPreviewScene({
 export function CameraPreview({
   camera,
   state,
+  activeTrajectoryIds,
   readOnly,
   cameraViewEditing,
   rightPanelCollapsed,
@@ -125,6 +139,7 @@ export function CameraPreview({
 }: {
   camera: Scene3DCamera
   state: Scene3DState
+  activeTrajectoryIds: ReadonlySet<string> | null
   readOnly: boolean
   cameraViewEditing: boolean
   rightPanelCollapsed: boolean
@@ -134,6 +149,11 @@ export function CameraPreview({
   onLevelCamera: () => void
   onScreenshot: () => void
 }): JSX.Element {
+  const playheadSeconds = useScene3DTrajectoryRuntimeStore((runtime) => runtime.playheadSeconds)
+  const previewCamera = React.useMemo(
+    () => cameraWithPlaybackPosition(state, camera, playheadSeconds, activeTrajectoryIds),
+    [activeTrajectoryIds, camera, playheadSeconds, state],
+  )
   const previewStyle = React.useMemo(() => cameraPreviewViewportStyle(camera.aspectRatio), [camera.aspectRatio])
   const lensDepth = camera.lensDepth ?? 0
 
@@ -178,17 +198,22 @@ export function CameraPreview({
         <div className="overflow-hidden rounded-nomi-sm bg-[var(--nomi-ink)]" style={previewStyle}>
           <Canvas
             camera={{
-              fov: camera.fov,
-              near: camera.near,
-              far: camera.far,
-              position: camera.position,
-              rotation: camera.rotation,
+              fov: previewCamera.fov,
+              near: previewCamera.near,
+              far: previewCamera.far,
+              position: previewCamera.position,
+              rotation: previewCamera.rotation,
             }}
             dpr={[1, 1.5]}
             frameloop="demand"
             gl={{ antialias: true, preserveDrawingBuffer: false }}
           >
-            <CameraPreviewScene state={state} cameraData={camera} />
+            <CameraPreviewScene
+              state={state}
+              cameraData={previewCamera}
+              playheadSeconds={playheadSeconds}
+              activeTrajectoryIds={activeTrajectoryIds}
+            />
           </Canvas>
         </div>
       </div>
@@ -232,3 +257,67 @@ export function CameraPreview({
     </div>
   )
 }
+
+export const PlaybackCameraMonitor = React.memo(function PlaybackCameraMonitor({
+  state,
+  activeTrajectoryIds,
+  rightPanelCollapsed,
+}: {
+  state: Scene3DState
+  activeTrajectoryIds: ReadonlySet<string> | null
+  rightPanelCollapsed: boolean
+}): JSX.Element | null {
+  const playheadSeconds = useScene3DTrajectoryRuntimeStore((runtime) => runtime.playheadSeconds)
+  const activeCamera = React.useMemo(
+    () => playbackCameraAtPlayhead(state, playheadSeconds, activeTrajectoryIds),
+    [activeTrajectoryIds, playheadSeconds, state],
+  )
+
+  if (!activeCamera) return null
+
+  const previewCamera = cameraWithPlaybackPosition(state, activeCamera.camera, playheadSeconds, activeTrajectoryIds)
+  const previewStyle = cameraPreviewViewportStyle(previewCamera.aspectRatio)
+  const duration = Math.max(0.001, activeCamera.binding.endTime - activeCamera.binding.startTime)
+  const progress = clampRatio((playheadSeconds - activeCamera.binding.startTime) / duration)
+
+  return (
+    <div
+      className={cn(
+        'pointer-events-none absolute right-4 z-[4] w-[260px] rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-2 text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
+        rightPanelCollapsed ? 'top-16' : 'top-4',
+      )}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="min-w-0 truncate text-caption font-medium">
+          {activeCamera.camera.name} · {activeCamera.trajectory.name}
+        </div>
+        <div className="shrink-0 text-micro tabular-nums text-[var(--nomi-ink-45)]">
+          {Math.round(progress * 100)}%
+        </div>
+      </div>
+      <div className="flex min-h-[126px] items-center justify-center rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] p-1">
+        <div className="overflow-hidden rounded-nomi-sm bg-[var(--nomi-ink)]" style={previewStyle}>
+          <Canvas
+            camera={{
+              fov: previewCamera.fov,
+              near: previewCamera.near,
+              far: previewCamera.far,
+              position: previewCamera.position,
+              rotation: previewCamera.rotation,
+            }}
+            dpr={[1, 1.5]}
+            frameloop="always"
+            gl={{ antialias: true, preserveDrawingBuffer: false }}
+          >
+            <CameraPreviewScene
+              state={state}
+              cameraData={previewCamera}
+              playheadSeconds={playheadSeconds}
+              activeTrajectoryIds={activeTrajectoryIds}
+            />
+          </Canvas>
+        </div>
+      </div>
+    </div>
+  )
+})

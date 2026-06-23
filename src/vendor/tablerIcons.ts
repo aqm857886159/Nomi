@@ -98,6 +98,7 @@ export { default as IconPlugConnected } from '@tabler/icons-react/dist/esm/icons
 export { default as IconPlus } from '@tabler/icons-react/dist/esm/icons/IconPlus.mjs'
 export { default as IconRefresh } from '@tabler/icons-react/dist/esm/icons/IconRefresh.mjs'
 export { default as IconReplace } from '@tabler/icons-react/dist/esm/icons/IconReplace.mjs'
+export { default as IconRoute } from '@tabler/icons-react/dist/esm/icons/IconRoute.mjs'
 export { default as IconRotate } from '@tabler/icons-react/dist/esm/icons/IconRotate.mjs'
 export { default as IconRotate2 } from '@tabler/icons-react/dist/esm/icons/IconRotate2.mjs'
 export { default as IconRotateClockwise2 } from '@tabler/icons-react/dist/esm/icons/IconRotateClockwise2.mjs'

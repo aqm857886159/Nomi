@@ -10,11 +10,19 @@ import {
   IconX,
 } from '@tabler/icons-react'
 import { cn } from '../../../../../utils/cn'
-import type { Scene3DTrajectory, Scene3DTrajectoryBinding, Scene3DTrajectoryGroup, Scene3DTrajectoryPoint } from '../scene3dTypes'
+import { UNGROUPED_TRAJECTORY_GROUP_ID } from '../scene3dConstants'
+import type {
+  Scene3DState,
+  Scene3DTrajectory,
+  Scene3DTrajectoryBinding,
+  Scene3DTrajectoryGroup,
+  Scene3DTrajectoryPoint,
+} from '../scene3dTypes'
 import { trajectoryPointTimeRatio } from './trajectoryUtils'
 import { useScene3DTrajectoryRuntimeStore, setScene3DPlayheadSeconds } from './trajectoryRuntimeStore'
 
 type TrajectoryTimelineProps = {
+  state: Pick<Scene3DState, 'trajectories' | 'trajectoryBindings' | 'trajectoryGroups' | 'sceneTimeline'>
   visible: boolean
   isPlaying: boolean
   readOnly: boolean
@@ -22,6 +30,7 @@ type TrajectoryTimelineProps = {
   playheadRef: React.MutableRefObject<number>
   onPlayChange: (playing: boolean) => void
   onSelectGroup: (groupId: string | null) => void
+  onSelectTrajectory: (trajectoryId: string) => void
   onClose: () => void
   onAddGroup: () => void
   onRenameGroup: (groupId: string, name: string) => void
@@ -48,7 +57,6 @@ type TimelineRow =
     depth: 0 | 1
   }
 
-export const UNGROUPED_TRAJECTORY_GROUP_ID = '__ungrouped_trajectories__'
 const MIN_BINDING_DURATION = 0.1
 const MIN_POINT_TIME_GAP = 0.01
 
@@ -131,7 +139,11 @@ function buildTimelineRows({
   collapsedGroupIds: Set<string>
 }): TimelineRow[] {
   const trajectoryById = new Map(trajectories.map((trajectory) => [trajectory.id, trajectory]))
-  const bindingByTrajectoryId = new Map(bindings.map((binding) => [binding.trajectoryId, binding]))
+  const bindingByTrajectoryId = new Map(
+    bindings
+      .filter((binding) => binding.objects.length > 0)
+      .map((binding) => [binding.trajectoryId, binding]),
+  )
   const assignedTrajectoryIds = new Set<string>()
   const rows: TimelineRow[] = []
 
@@ -231,6 +243,7 @@ function GroupNameEditor({
 }
 
 export function TrajectoryTimeline({
+  state,
   visible,
   isPlaying,
   readOnly,
@@ -238,6 +251,7 @@ export function TrajectoryTimeline({
   playheadRef,
   onPlayChange,
   onSelectGroup,
+  onSelectTrajectory,
   onClose,
   onAddGroup,
   onRenameGroup,
@@ -245,10 +259,10 @@ export function TrajectoryTimeline({
   onPatchTrajectoryPoint,
 }: TrajectoryTimelineProps): JSX.Element | null {
   const laneRef = React.useRef<HTMLDivElement>(null)
-  const trajectories = useScene3DTrajectoryRuntimeStore((state) => state.trajectories)
-  const trajectoryBindings = useScene3DTrajectoryRuntimeStore((state) => state.trajectoryBindings)
-  const trajectoryGroups = useScene3DTrajectoryRuntimeStore((state) => state.trajectoryGroups)
-  const totalDuration = useScene3DTrajectoryRuntimeStore((state) => Math.max(0.001, state.sceneTimeline.totalDuration))
+  const trajectories = state.trajectories
+  const trajectoryBindings = state.trajectoryBindings
+  const trajectoryGroups = state.trajectoryGroups
+  const totalDuration = Math.max(0.001, state.sceneTimeline.totalDuration)
   const [collapsedGroupIds, setCollapsedGroupIds] = React.useState<Set<string>>(() => new Set())
   const [renamingGroupId, setRenamingGroupId] = React.useState<string | null>(null)
   const rows = React.useMemo(() => buildTimelineRows({
@@ -331,17 +345,19 @@ export function TrajectoryTimeline({
             ) : rows.map((row) => {
               if (row.type !== 'group') {
                 return (
-                  <div
+                  <button
                     key={row.id}
                     className={cn(
                       'grid h-7 grid-cols-[16px_minmax(0,1fr)_40px] items-center gap-1 rounded-[6px] pr-1 text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-05)]',
                       row.depth === 1 && 'pl-7',
                     )}
+                    type="button"
+                    onClick={() => onSelectTrajectory(row.trajectory.id)}
                   >
                     <span className="size-2.5 rounded-full" style={{ backgroundColor: row.trajectory.color }} />
-                    <span className="min-w-0 truncate text-[11px]">{row.trajectory.name}</span>
+                    <span className="min-w-0 truncate text-left text-[11px]">{row.trajectory.name}</span>
                     <span className="justify-self-end text-[10px] text-[var(--nomi-ink-45)]">{row.binding ? '已绑定' : '未绑定'}</span>
-                  </div>
+                  </button>
                 )
               }
 
