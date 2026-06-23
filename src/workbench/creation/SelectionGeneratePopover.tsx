@@ -17,6 +17,7 @@ import { useWorkbenchStore } from '../workbenchStore'
 type SelectionGeneratePopoverProps = {
   editor: Editor | null
   selectedText: string
+  selectionVersion: number
   onCreated?: () => void
 }
 
@@ -62,7 +63,12 @@ function resolveSelectionPosition(editor: Editor, root: HTMLElement | null): Sel
   }
 }
 
-export default function SelectionGeneratePopover({ editor, selectedText, onCreated }: SelectionGeneratePopoverProps): JSX.Element | null {
+export default function SelectionGeneratePopover({
+  editor,
+  selectedText,
+  selectionVersion,
+  onCreated,
+}: SelectionGeneratePopoverProps): JSX.Element | null {
   const normalizedText = selectedText.trim()
   const rootRef = React.useRef<HTMLDivElement | null>(null)
   const [position, setPosition] = React.useState<SelectionPopoverPosition | null>(null)
@@ -80,7 +86,7 @@ export default function SelectionGeneratePopover({ editor, selectedText, onCreat
 
   React.useLayoutEffect(() => {
     updatePosition()
-  }, [updatePosition])
+  }, [selectionVersion, updatePosition])
 
   React.useEffect(() => {
     if (!editor || !normalizedText) return
