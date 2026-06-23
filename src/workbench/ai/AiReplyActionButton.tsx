@@ -5,7 +5,6 @@ import { cn } from '../../utils/cn'
 import { useWorkbenchStore } from '../workbenchStore'
 
 type AiReplyActionButtonProps = {
-  className: string
   content: string
 }
 
@@ -28,7 +27,7 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
   return copied
 }
 
-export function AiReplyActionButton({ className, content }: AiReplyActionButtonProps): JSX.Element | null {
+export function AiReplyActionButton({ content }: AiReplyActionButtonProps): JSX.Element | null {
   const documentTools = useWorkbenchStore((state) => state.creationDocumentTools)
   const [done, setDone] = React.useState(false)
   const text = content.trim()
@@ -61,7 +60,7 @@ export function AiReplyActionButton({ className, content }: AiReplyActionButtonP
 
   return (
     <WorkbenchIconButton
-      className={cn('ai-reply-action', className)}
+      className={cn('ai-reply-action')}
       label={label}
       onClick={handleClick}
       icon={done ? <IconCheck size={13} /> : <IconClipboard size={13} />}

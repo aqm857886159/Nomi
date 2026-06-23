@@ -93,7 +93,7 @@ export default function CommittedProposalCard({ record, onUndone, flat = false }
           data-proposal-undo-all='true'
           onClick={handleUndo}
         >
-          整笔撤销
+          撤销这次改动
         </WorkbenchButton>
       </div>
       {stepsOpen ? (

@@ -71,15 +71,3 @@ const NARRATE_ERROR: Record<GenerationErrorKind, { reason: string; hint: string 
 export function narrateGenerationError(kind: GenerationErrorKind): { reason: string; hint: string } {
   return NARRATE_ERROR[kind]
 }
-
-/** 轮次 footer(S3 可感知出口):本轮 token 用量 + 缓存命中占比(有回报才显——
- *  命中的部分 vendor 按 1-5 折计费,这是「数字大但没那么贵」的诚实注脚)。
- *  S7 成本落地后此形态切金额并删除(P1)。 */
-export function narrateTurnStats(totalTokens: number, opts: { promptTokens?: number; cachedPromptTokens?: number } = {}): string {
-  const base = totalTokens >= 1000 ? `本轮 ~${(totalTokens / 1000).toFixed(1)}k tokens` : `本轮 ${totalTokens} tokens`
-  const { promptTokens, cachedPromptTokens } = opts
-  if (cachedPromptTokens && promptTokens && promptTokens > 0) {
-    return `${base} · 缓存命中 ${Math.round((cachedPromptTokens / promptTokens) * 100)}%`
-  }
-  return base
-}

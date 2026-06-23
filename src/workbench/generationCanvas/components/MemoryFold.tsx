@@ -19,7 +19,7 @@ const KIND_LABEL: Record<MemoryFactView['kind'], string> = {
 /**
  * 记忆卡折叠条(harness S9):默认一行「AI 记得 N 条 ⌄」(N=0 整条不渲染,M1)。
  * 点开列出事实:pin(注入优先)/双击改文本(纠正→origin:user,自动提炼永不覆盖)/删(留墓碑)。
- * 形态仿 AssistantToolsFold(同一折叠语言);refreshKey 由面板在每轮对话后递增触发重取。
+ * 极简折叠条形态;refreshKey 由面板在每轮对话后递增触发重取。
  */
 export function MemoryFold({ refreshKey }: { refreshKey: number }): JSX.Element | null {
   const [open, setOpen] = React.useState(false)

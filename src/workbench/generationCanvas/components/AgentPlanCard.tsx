@@ -332,23 +332,13 @@ function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPl
         </ol>
       )}
 
-      {/* flex-wrap + shrink-0:窄面板放不下时整组优雅换行,不挤压(对齐 committed/deviation 几何修)。 */}
+      {/* flex-wrap + shrink-0:窄面板放不下时整组优雅换行,不挤压(对齐 committed/deviation 几何修)。
+          按钮走设计系统 variant(default/primary)+size md(=h-8,零尺寸变化),不再手搓 className。 */}
       <div className={cn('flex flex-wrap items-center justify-end gap-2')}>
-        <WorkbenchButton
-          className={cn(
-            'shrink-0 h-8 px-3 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-ink-80 text-body-sm cursor-pointer hover:bg-nomi-ink-05',
-          )}
-          onClick={handleRejectAll}
-        >
+        <WorkbenchButton className={cn('shrink-0')} variant="default" size="md" onClick={handleRejectAll}>
           全部拒绝
         </WorkbenchButton>
-        <WorkbenchButton
-          className={cn(
-            'shrink-0 h-8 px-3 rounded-nomi-sm border-0 bg-nomi-ink text-nomi-paper text-body-sm font-medium cursor-pointer hover:bg-nomi-accent',
-          )}
-          data-plan-confirm-all="true"
-          onClick={handleConfirmAll}
-        >
+        <WorkbenchButton className={cn('shrink-0')} variant="primary" size="md" data-plan-confirm-all="true" onClick={handleConfirmAll}>
           确认全部
         </WorkbenchButton>
       </div>

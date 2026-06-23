@@ -71,15 +71,16 @@
 | A | CR-A1+A3 | 错误/取消渲染改读 `status` 字段（不嗅 content 前缀）→ 生成侧错误终被识别 | ✅ 本轮 |
 | A | CR-A2 | 删计划卡假下拉 `▾`（无 onClick 的伪交互）| ✅ 本轮 |
 | A | CR-A4 | 计划卡确认条加 flex-wrap/shrink-0（几何安全网）| ✅ 本轮 |
-| A | CR-A5 | `replyActionClassName` 死码 prop（CSS 零命中、无 hover）→ 删/实现 | ⬜ |
-| A | CR-A6 | 计划外单工具卡漏原始 id（n3→n5 黑话）→ 翻人话 | ⬜ |
-| A | CR-A7/A8 | 计划卡确认/拒绝手搓 className 走 variant + 撤销/确认文案统一 | ⬜ |
-| A | CR-A9 | `pendingLabel` 与内置「处理中」撞车核实去重 | ⬜ |
-| 🔵B | **CR-B1** | 🔴**错误透传重设计**：红色语气 + 接 narrate 人话 + 创作侧双重展示去重（最伤信任，最该先动）| ✅ 5175e58（方案A错误卡 AssistantErrorCard，两 agent 共用；plan 2026-06-23-error-transparency-redesign）|
-| 🔵B | CR-B2 | token 统计行降噪/收起（零行动价值的过渡债 + 两侧不对等）| ⬜ 出样张 |
-| 🔵B | CR-B3 | `AssistantToolsFold`+`MemoryFold` 占首屏（工具名=黑话）| ⬜ 出样张 |
-| ⚫D | CR-D1 | 截断/空响应无专门态（需底层 runner 透出 finishReason）| ⬜ 立项 |
-| ⚫D | CR-D2 | `CanvasAssistantPanel`(764)/`CreationAiPanel`(746) 双巨壳逼近 800 | ⬜ 立项 |
+| A | CR-A5 | `replyActionClassName` 死码 prop（CSS 零命中、无 hover）→ 删 | ✅ 删整条 prop 链（AiReplyActionButton/AssistantMessageView/两调用点），行为不变 |
+| A | CR-A6 | 计划外单工具卡漏原始 id（n3→n5 黑话）→ 翻人话 | ✅ toolCallSummary 按 id 查节点标题（「镜1」），查不到省略不灌 id；单测改为验翻译 |
+| A | CR-A7 | 计划卡确认/拒绝手搓 className 走 variant | ✅ AgentPlanCard 改 variant default/primary + size md（=h-8 零尺寸变化） |
+| A | CR-A8 | 撤销文案统一 | ✅ committed 卡「整笔撤销」→「撤销这次改动」（与对账卡一致）；确认/拒绝 vs 确认全部/全部拒绝 是单/批量语义，保留 |
+| A | CR-A9 | `pendingLabel` 与内置「处理中」撞车 | ✅ 核实=非 bug（NomiLoadingMark 的 label 仅 aria-label 不渲染可见文字，不双显） |
+| 🔵B | **CR-B1** | 🔴**错误透传重设计**：红色语气 + 接 narrate 人话 + 创作侧双重展示去重 | ✅ 5175e58（方案A错误卡 AssistantErrorCard，两 agent 共用；plan 2026-06-23-error-transparency-redesign）|
+| 🔵B | CR-B2 | token 统计行降噪 | ✅ 删每条消息的 token 行（作者自标过渡债 + D4「零行动价值」）；整条 turnStats/narrateTurnStats 链清净 |
+| 🔵B | CR-B3 | `AssistantToolsFold` 占首屏（工具名=黑话）| ✅ 删 AssistantToolsFold（开发者黑话对创作者零价值）；MemoryFold（项目记忆透明）保留 |
+| ⚫D | CR-D1 | 截断/空响应无专门态 | ✅ finishReason 透到渲染层（DTO 加字段）；两 agent 在 finishReason=length+有正文时附「可能被截断·说继续」（空文本+length 仍由 backend 弱模型空响应词表处理）|
+| ⚫D | CR-D2 | `CanvasAssistantPanel`/`CreationAiPanel` 逼近 800 | ⬜ 评估：均在 800 门内（filesize 门把关），拆精密流式/事务闭包高风险低回报且非缺陷 → 监控不强拆 |
 
 ## 体检轮次
 - **第 1 轮 2026-06-22**：基线体检，五路并行扫出上述全部项，建 backlog。报告 `docs/audit/2026-06-22-app-wide-redundancy-audit.md`。

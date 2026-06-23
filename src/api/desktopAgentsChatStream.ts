@@ -45,6 +45,9 @@ export type AgentsChatResponseDto = {
   artifacts?: unknown[]
   /** Token usage for this turn (was previously buried in `raw` and dropped). */
   usage?: AgentUsage
+  /** SDK 终止原因（'stop' 正常 / 'length' 达输出上限被截断 / 'tool-calls' 等）。
+   *  面板据此在「有文本但 finishReason=length」时标「可能被截断」，避免把半截当完整。 */
+  finishReason?: string
 }
 
 /** Coerce the SDK's loosely-typed usage object into AgentUsage (0-filled). */
@@ -209,7 +212,7 @@ export async function openDesktopAgentsChatStream(
           return
         }
         case 'result': {
-          const inner = (evt.result as { id?: string; text?: string; usage?: unknown }) || {}
+          const inner = (evt.result as { id?: string; text?: string; usage?: unknown; finishReason?: string }) || {}
           const response: AgentsChatResponseDto = {
             id: typeof inner.id === 'string' ? inner.id : `agent-${Date.now()}`,
             text: typeof inner.text === 'string' ? inner.text : streamedText,
@@ -217,6 +220,7 @@ export async function openDesktopAgentsChatStream(
             toolCalls: [],
             artifacts: [],
             usage: coerceAgentUsage(inner.usage),
+            ...(typeof inner.finishReason === 'string' ? { finishReason: inner.finishReason } : {}),
           }
           handlers.onEvent({ event: 'result', data: { response } })
           return

@@ -390,11 +390,15 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
             : message
         )))
       } else {
-        const reply = streamed || '（空响应：AI 没有返回文本）'
-        const totalTokens = response.usage?.totalTokens
+        const base = streamed || '（空响应：AI 没有返回文本）'
+        // finishReason=length 且真有正文 = 这条被模型单次输出上限切断,标出来别当完整(空文本不标)。
+        const truncated = response.finishReason === 'length' && streamed.trim() !== ''
+        const reply = truncated
+          ? `${base}\n\n⚠️ 这条回复可能没说完（达到模型单次输出上限被截断）。需要的话直接说「继续」。`
+          : base
         setMessages((prev) => prev.map((message) => (
           message.id === pendingId
-            ? { ...message, content: reply, status: 'done' as const, ...(totalTokens ? { turnStats: { totalTokens } } : {}) }
+            ? { ...message, content: reply, status: 'done' as const }
             : message
         )))
       }
@@ -578,8 +582,6 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
                   streaming={message.status === 'pending' || message.status === 'streaming'}
                   pendingLabel={message.status === 'pending' ? message.content : undefined}
                   cancelled={message.status === 'cancelled'}
-                  turnStats={message.turnStats}
-                  replyActionClassName="workbench-creation-ai__reply-action"
                 />
               )}
               {message.id === staleBoundaryId ? <StaleConversationDivider /> : null}

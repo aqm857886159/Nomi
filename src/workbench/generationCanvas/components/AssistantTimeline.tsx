@@ -189,8 +189,6 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
             streaming={isPending}
             pendingLabel={isPending ? '处理中' : undefined}
             cancelled={message.status === 'cancelled'}
-            turnStats={message.turnStats}
-            replyActionClassName="generation-canvas-v2-assistant__reply-action"
           />
         )}
         {message.id === staleBoundaryId ? <StaleConversationDivider /> : null}
