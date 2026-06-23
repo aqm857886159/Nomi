@@ -15,6 +15,8 @@ import { requestRenderer } from './rendererBridge'
 /** 弹付费确认卡需要的上下文（让用户一眼看懂谁要花钱、花在哪、花多少）。 */
 export type SpendConfirmInfo = {
   projectId: string
+  /** 目标项目名——确认卡显示「AI 想在项目 X 生成」，让用户在非当前项目时也知道花在哪。 */
+  projectName?: string
   nodeId: string
   intent: string
   vendor: string
@@ -70,6 +72,22 @@ export function createDiskGateway(projectId: string): ProjectGateway {
 const RENDERER_APPLY_TIMEOUT_MS = 15_000
 // 付费确认等待：卡片自身 60s 倒计时，主进程这道兜底略长（65s），防渲染层异常永不应答（不死等）。
 const RENDERER_SPEND_TIMEOUT_MS = 65_000
+
+/**
+ * 混合网关：窗口活着、但目标项目**没在前台**时用。
+ * 读写走盘（绝不动非活动项目的运行中 store，免串台），但**付费确认走渲染层弹全局卡**
+ * （用户拍板 A：全局确认、不打断）——治「外部 MCP 生成到非当前项目 → 静默黑洞」根因。
+ * 安全不变量不破：令牌仍只在真人点确认卡后由主进程铸（复用 createRendererGateway.confirmSpend）。
+ */
+export function createHybridGateway(projectId: string): ProjectGateway {
+  const disk = createDiskGateway(projectId)
+  const renderer = createRendererGateway(projectId)
+  return {
+    readDoc: disk.readDoc,
+    apply: disk.apply,
+    confirmSpend: renderer.confirmSpend,
+  }
+}
 
 /** 渲染层网关（A 模式）。读/写转发进运行中 store；付费确认弹实时卡，真人点了才在主进程铸令牌。 */
 export function createRendererGateway(projectId: string): ProjectGateway {

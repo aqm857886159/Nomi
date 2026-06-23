@@ -50,7 +50,9 @@ export function SpendConfirmDialog() {
 
   return (
     <div
-      className={cn('absolute inset-0 z-50 flex items-center justify-center bg-nomi-ink/20 pointer-events-auto')}
+      // 全屏固定模态：付费确认是全局阻断性动作，要盖住整窗（含顶栏/侧栏），任意视图（库/studio）都能弹。
+      // 之前 absolute 只盖画布层 → 只在 studio 可见，是「外部生成到非当前项目静默黑洞」的放大器之一。
+      className={cn('fixed inset-0 z-[3500] flex items-center justify-center bg-nomi-ink/20 pointer-events-auto')}
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) resolvePending(false)
       }}

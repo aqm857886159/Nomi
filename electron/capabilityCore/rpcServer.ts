@@ -12,7 +12,7 @@ import type { AddressInfo } from 'node:net'
 
 import type { FetchTaskResultFn, RunTaskFn } from './core'
 import { dispatch, RpcError } from './dispatcher'
-import { createDiskGateway, createRendererGateway, type ProjectGateway } from './gateway'
+import { createDiskGateway, createHybridGateway, createRendererGateway, type ProjectGateway } from './gateway'
 import { isRendererAvailable } from './rendererBridge'
 import { verifyToken } from './security'
 
@@ -58,12 +58,14 @@ export type RpcServerHandle = {
 /** 启动 RPC server，监听 127.0.0.1 随机端口。返回端口与关闭句柄。 */
 export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHandle> {
   const isProjectOpen = options.isProjectOpen || (() => false)
-  // 该项目正在窗口打开且渲染层可达 → 渲染层网关（实时）；否则磁盘网关（直写盘）。
-  // isProjectOpen 由 renderer 上报，为真即意味着窗口活着；isRendererAvailable 兜底（窗口刚销毁等边缘）。
-  const makeGateway = (projectId: string): ProjectGateway =>
-    projectId && isProjectOpen(projectId) && isRendererAvailable()
-      ? createRendererGateway(projectId)
-      : createDiskGateway(projectId)
+  // 三态路由（治「外部 MCP 生成到非当前项目 → 静默黑洞」，用户拍板 A）：
+  // - 项目正在前台打开 + 渲染层可达 → 渲染层网关（A：读写实时刷画布 + 弹卡）。
+  // - 窗口活着但项目没在前台 → 混合网关（读写走盘不动非活动 store + 付费确认弹全局卡，不打断）。
+  // - 无窗口（headless host）→ 磁盘网关（认 env 逃生口）。
+  const makeGateway = (projectId: string): ProjectGateway => {
+    if (!projectId || !isRendererAvailable()) return createDiskGateway(projectId)
+    return isProjectOpen(projectId) ? createRendererGateway(projectId) : createHybridGateway(projectId)
+  }
 
   const server = http.createServer((req, res) => {
     void (async () => {

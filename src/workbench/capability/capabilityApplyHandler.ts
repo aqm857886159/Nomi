@@ -10,6 +10,7 @@ import { getDesktopBridge } from '../../desktop/bridge'
 
 type SpendConfirmPayload = {
   projectId?: string
+  projectName?: string
   nodeId?: string
   intent?: string
   vendor?: string
@@ -34,6 +35,7 @@ async function confirmSpendForAgent(info: SpendConfirmPayload): Promise<{ confir
   const node = store.nodes.find((item) => item.id === info.nodeId)
   const nodeLabel = node?.title?.trim() || (typeof node?.prompt === 'string' && node.prompt.trim() ? node.prompt.trim().slice(0, 24) : '新节点')
   const promptPreview = typeof info.prompt === 'string' && info.prompt.trim() ? info.prompt.trim().slice(0, 60) : ''
+  const projectName = typeof info.projectName === 'string' ? info.projectName.trim() : ''
   const ok = await useSpendConfirmStore.getState().requestConfirm({
     title: `AI 助手想生成${describeIntent(info.intent)}`,
     message: promptPreview ? `提示词：「${promptPreview}${info.prompt && info.prompt.length > 60 ? '…' : ''}」。确认后将消耗模型额度生成。` : '确认后将消耗模型额度生成。',
@@ -41,6 +43,8 @@ async function confirmSpendForAgent(info: SpendConfirmPayload): Promise<{ confir
     source: 'agent',
     countdownMs: 60_000,
     details: [
+      // 项目行放第一位：用户可能不在这个项目里，先让他知道花在哪个项目。
+      ...(projectName ? [{ label: '项目', value: projectName }] : []),
       { label: '节点', value: nodeLabel },
       { label: '模型', value: [info.vendor, info.modelKey].filter(Boolean).join(' · ') || '默认模型' },
       { label: '产物', value: describeIntent(info.intent) },
@@ -54,8 +58,10 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
   const data = (payload && typeof payload === 'object' ? payload : {}) as Record<string, unknown>
   const projectId = typeof data.projectId === 'string' ? data.projectId : ''
   const activeId = getActiveWorkbenchProjectId()
-  // 主进程只在「该项目正打开」时才路由到这里；二次校验防竞态（用户在转发途中切走了项目）。
-  if (projectId && activeId && projectId !== activeId) {
+  // 画布读写**只能**作用于当前打开的项目（动 store → 必须是活动项目，否则串台）；目标≠活动 → 拒。
+  // 付费确认（spend.confirm）不在此限：用户拍板 A——AI 想在「非当前项目」生成时也弹全局卡，
+  // 卡里标明项目名，确认后走盘落地（不动非活动 store）。这正是治静默黑洞的关键放开。
+  if (op !== 'spend.confirm' && projectId && activeId && projectId !== activeId) {
     throw new Error('项目已切换，无法实时应用')
   }
 

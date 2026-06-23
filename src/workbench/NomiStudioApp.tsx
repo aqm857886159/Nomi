@@ -579,6 +579,11 @@ export default function NomiStudioApp(): JSX.Element {
                         onClose={closeModelCatalog}
                     />
                 </React.Suspense>
+                {/* 付费确认卡提全局：外部 MCP 想在「非当前项目」生成时，用户停在项目库首页也能弹卡确认
+                    （治静默黑洞，用户拍板 A）。同一全局 store，库/studio 任一时刻只一个分支渲染、不双弹。 */}
+                <React.Suspense fallback={null}>
+                    <SpendConfirmDialog />
+                </React.Suspense>
                 <ConfirmDialogHost />
             </>
         );
