@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { PROMPT_SOURCES, type PromptSource } from "../electron/promptLibrary/promptSources";
 import type { LibraryPrompt } from "../electron/promptLibrary/promptLibraryTypes";
 
-const SEED_CAP = 16; // 每源最多塞进快照多少条（地板，不是全量）
+const SEED_CAP = 30; // 每源最多塞进快照多少条（地板，不是全量）
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = path.join(ROOT, "electron", "promptLibrary", "promptLibrarySeed.json");
 
