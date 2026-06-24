@@ -87,12 +87,12 @@
    - ✅ C4 跨项目拖图导出读不到：根因=readNomiLocalAsset(信 URL 自带 projectId,生成侧能跑) vs absolutePathFromLocalAssetUrl(当前 projectId 强匹配,导出侧失败) 口径不一致;加 absolutePathFromLocalAssetUrlAnyProject 统一,导出侧改用。
    - ✅ C5 >8 张截断 + 上传失败：导入结果加 skippedOverLimitCount/failedCount，canvasStageDrop 聚合成 toast(不再静默)。
    - ✅ D5 死注释清理：archetypeMeta 注释引用了不存在的 projectArchetypeFrameExtras → 改指 buildArchetypeInputParams(真正做互斥处)。
-   - ⏳ **D2 参数栏换行：延后** —— blind 改宽度正是 violations.log 反复栽的坑(矫枉过正又截断)，必须真机几何实测，不盲改。
-   - ⏳ **D4 连线超额 toast：延后(minor)** —— verdict 系统外需非平凡的槽满检测，罕见(连第 10 个参考)。
-4. **第 4 轮（潜伏/健壮性）**：
+   - ✅ **D2 参数栏换行**：**真机几何实测驱动**(tests/ux/param-bar-geometry.walk.mjs)——隔离复制真 catalog(seedance 4 供应商→供应商下拉出现)+真项目,选中视频节点量到 cardW=880(顶上限)+clip=true 复现;改 InlineParameterBar/底栏 flex-nowrap→flex-wrap(min-w-0),复量 clip=false+视觉两行干净,窄卡不足一行不换行无副作用。**没盲改,先量后改再复量**(治本那条 violations.log 坑)。
+   - ✅ **D4 连线超额 toast**：completeNodeConnection 用 resolveReferenceSlots 判断新边有没有落进槽 fill,没落=槽满→明提示「参考槽已满(最多N)」。
+4. **第 4 轮（潜伏/健壮性）** ✅ 全做完：
    - ✅ C6 编解码对称化(Round 1 顺带，main.ts)。
-   - ⏳ **B5 去重(minor)**：同 url 既上传又连线的「叉一次还在」，罕见边角，延后。
-   - ⏳ **C3 上传失败重试：延后** —— 需在节点留住 File 引用 + 重试 UI，是 UX 功能不是快修。
+   - ✅ **B5 去重**：同 url 既上传又连线时,断边一并清 meta 同 url 上传(否则重现成 upload「叉一次还在」),合成一次持久化保 undo 原子。
+   - ✅ **C3 上传失败重试**：抽 uploadAndApplyAssetToNode 单源(初次+重试共用)+pendingRetryImports 留住失败 File+retryLocalAssetImport;BaseGenerationNode 错误态「重试」按 meta.retryableImport 分流(导入失败→重新上传 vs 生成失败→重跑)。File 内存态重启清(重启后仍 error 文案引导重导)。
 
 每条修复守三闸：根因 P2 / 五门 R11 / 真机走查 R13；TDD 先写测试（referenceSlots.test.ts、promptMentions.test.ts 已存在，扩它们）。
 </content>

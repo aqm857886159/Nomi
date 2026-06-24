@@ -39,6 +39,7 @@ import { getTrackTypeForClipType } from "../../timeline/timelineTypes";
 import { buildClipFromGenerationNode } from "../model/buildClipFromGenerationNode";
 import { toast } from "../../../ui/toast";
 import { canRunGenerationNode, confirmAndRunNode } from "../runner/generationRunController";
+import { retryLocalAssetImport } from "../adapters/assetImportAdapter";
 import { NodeErrorReport } from "./NodeErrorReport";
 import { NodeRecoverableReport } from "./NodeRecoverableReport";
 import { dismissRecoverableNode, recoverNodeResult } from "../runner/recoverTaskActions";
@@ -607,16 +608,13 @@ function BaseGenerationNodeImpl({
             {status === "error" && node.error ? (
                 <NodeErrorReport
                     message={node.error}
-                    onRetry={() => { void confirmAndRunNode(node.id) }}
+                    onRetry={() => { void (node.meta?.retryableImport === true ? retryLocalAssetImport(node.id) : confirmAndRunNode(node.id)) }}
                 />
             ) : null}
 
             {/* 可找回态：异步任务超时但上游可能已出片——中性面板 + 一键重新拉取（query 不扣费），不进红色错误桶。 */}
             {status === "recoverable" ? (
-                <NodeRecoverableReport
-                    onRecover={() => { void recoverNodeResult(node.id) }}
-                    onDismiss={() => { dismissRecoverableNode(node.id) }}
-                />
+                <NodeRecoverableReport onRecover={() => { void recoverNodeResult(node.id) }} onDismiss={() => { dismissRecoverableNode(node.id) }} />
             ) : null}
 
             {/* [DESIGN-CARDS-07] 卡片分发：非 shots 分类渲染对应 card 组件（preview div + composer 隐藏）。 */}

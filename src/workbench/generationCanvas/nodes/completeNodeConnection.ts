@@ -11,13 +11,34 @@
 // 在创建期就拦，不落库到生成期才被丢。本函数只负责把校验失败的人话反馈给手动连线的用户。
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { showInfoToast } from '../../../utils/showInfoToast'
+import { resolveReferenceSlots } from '../runner/referenceSlots'
 
 export function completeNodeConnection(targetNodeId: string): void {
+  // 连接成功后会清空 pendingConnectionSourceId，先存下来（用于 D4 槽满检测）。
+  const sourceNodeId = useGenerationCanvasStore.getState().pendingConnectionSourceId
   const verdict = useGenerationCanvasStore.getState().connectToNode(targetNodeId)
   // 连边能力校验失败:给手动连线的用户即时反馈,而非静默不连(或落库后到生成期才被丢)。
   if (!verdict.ok && verdict.reason === 'source_not_referenceable') {
     showInfoToast('这个节点没有可作为参考的图/视频，先生成它或换个来源')
-  } else if (!verdict.ok && verdict.reason === 'unsupported_reference') {
+    return
+  }
+  if (!verdict.ok && verdict.reason === 'unsupported_reference') {
     showInfoToast('目标模型不支持这种参考连线')
+    return
+  }
+  // D4：边建了，但目标参考槽已满 → placeAt 把它丢弃（显示/发送都不含它）= 连了等于没连。
+  // 用 resolveReferenceSlots(单源)判断这条新边有没有落进任一槽 fill；没落=槽满，明着提示而非静默。
+  if (verdict.ok && sourceNodeId) {
+    const { nodes, edges } = useGenerationCanvasStore.getState()
+    const target = nodes.find((n) => n.id === targetNodeId)
+    if (target) {
+      const slots = resolveReferenceSlots(target, nodes, edges)
+      const landed = slots.some((s) => s.fills.some((f) => f.origin.type === 'edge' && f.origin.sourceNodeId === sourceNodeId))
+      const hasEdge = edges.some((e) => e.source === sourceNodeId && e.target === targetNodeId)
+      if (hasEdge && !landed) {
+        const maxOfSlots = slots.reduce((m, s) => Math.max(m, s.max), 0)
+        showInfoToast(maxOfSlots > 0 ? `参考槽已满（最多 ${maxOfSlots} 个），多出的连线不会被使用` : '该参考已满，多出的连线不会被使用')
+      }
+    }
   }
 }

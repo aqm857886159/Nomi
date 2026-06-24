@@ -285,8 +285,10 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
         </div>
       )}
       {/* 底栏铺满卡宽（w-full）：卡宽由「最宽模型」恒定，生成钮 ml-auto 永远贴右；
-          换到参数少的模型时底栏内容靠左、右侧留白，生成钮仍锁死右下角（不再随参数横排漂移）。 */}
-      <div className={cn('flex items-center gap-2 mt-auto pt-1 shrink-0 w-full')}>
+          换到参数少的模型时底栏内容靠左、右侧留白，生成钮仍锁死右下角（不再随参数横排漂移）。
+          flex-wrap：当参数 pill + 供应商下拉撑过卡宽上限(880)时换到第二行而非被 overflow-hidden 裁掉
+          （D2 真机实测：4 供应商 Seedance 视频节点会顶到 880 且裁切；窄卡内容不足一行时不换行，无副作用）。 */}
+      <div className={cn('flex flex-wrap items-center gap-2 mt-auto pt-1 shrink-0 w-full')}>
         {/* 锁从节点卡片移到这里（编辑面板底栏）：卡片预览保持干净，锁定/解锁在选中编辑时就近可达。
             selected 恒为真（composer 只在选中时挂载）→ 始终可见：未锁=描边开锁、已锁=实心锁。 */}
         <NodeLockBadge nodeId={node.id} locked={node.locked} selected />
