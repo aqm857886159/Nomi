@@ -135,7 +135,8 @@ const workbenchBasePlugin = plugin(({ addBase }) => {
       '--nomi-line': 'oklch(0.36 0.007 80)',
       '--nomi-line-soft': 'oklch(0.31 0.007 80)',
       '--nomi-accent': 'oklch(0.70 0.13 250)',
-      '--nomi-accent-soft': 'color-mix(in oklch, var(--nomi-accent) 18%, var(--nomi-paper))',
+      // 暗底下 soft 混合比要更高，否则选中高亮(侧栏行/节点选中/上手步骤)几乎看不出（浅色 12% 够、暗色压没）。
+      '--nomi-accent-soft': 'color-mix(in oklch, var(--nomi-accent) 26%, var(--nomi-paper))',
       '--nomi-focus': 'color-mix(in srgb, var(--nomi-accent) 50%, transparent)',
       // 时间轴三轨：暗底提亮以保持可辨（fork 未覆盖，本次补）。
       '--nomi-track-text': 'oklch(0.75 0.15 305)',

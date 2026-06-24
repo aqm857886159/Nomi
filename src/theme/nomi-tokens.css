@@ -59,7 +59,7 @@
   --nomi-line: oklch(0.36 0.007 80);
   --nomi-line-soft: oklch(0.31 0.007 80);
   --nomi-accent: oklch(0.70 0.13 250);
-  --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 18%, var(--nomi-paper));
+  --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 26%, var(--nomi-paper));
   --nomi-track-text: oklch(0.75 0.15 305);
   --nomi-track-image: oklch(0.72 0.13 200);
   --nomi-track-video: oklch(0.70 0.13 150);

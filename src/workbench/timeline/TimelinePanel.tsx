@@ -255,7 +255,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
         'workbench-timeline',
         'relative min-w-0 min-h-0 grid grid-rows-[minmax(0,1fr)]',
         'bg-[var(--workbench-surface-solid)] border-t border-[var(--workbench-border)]',
-        'shadow-[0_-1px_0_rgba(255,255,255,0.72)]',
+        'shadow-[0_-1px_0_var(--workbench-bevel)]',
         density === 'full' ? 'px-[18px] pt-[10px] pb-5' : 'px-4 pt-3 pb-4',
       )}
       data-density={density}

@@ -35,6 +35,10 @@
   --workbench-overlay: rgba(255, 255, 255, 0.82);
   --workbench-overlay-strong: rgba(255, 255, 255, 0.94);
   --workbench-backdrop: rgba(29, 29, 31, 0.16);
+  /* 顶边高光斜面 / 内描边：浅色是微妙立体感，暗色必须淡到几乎无——否则白色高光在暗底变刺眼白线/白框。
+     消费点：时间轴顶(TimelinePanel)、片段顶(TimelineClip)、分组框(GroupFrame/generationCanvas.css)。 */
+  --workbench-bevel: rgba(255, 255, 255, 0.7);
+  --workbench-frame-ring: rgba(255, 255, 255, 0.58);
   --workbench-code-bg: #1d1d1f;
   --workbench-code-ink: #f5f5f7;
   --workbench-radius: var(--nomi-radius);
@@ -71,6 +75,9 @@
   --workbench-code-bg: oklch(0.15 0.006 80);
   --workbench-code-ink: var(--nomi-ink);
   --tc-spotlight-grid-color: rgba(255, 255, 255, 0.18);
+  /* 高光斜面/内描边在暗底淡到几乎无（治时间轴顶白线那一类）。 */
+  --workbench-bevel: rgba(255, 255, 255, 0.05);
+  --workbench-frame-ring: rgba(255, 255, 255, 0.08);
 }
 
 /* ── TipTap / ProseMirror editor content typography ── */

@@ -43,7 +43,7 @@ export default function GroupFrame({ box, onPointerDown }: GroupFrameProps): JSX
         'absolute pointer-events-auto cursor-grab select-none rounded-nomi-lg',
         'border-[1.5px] border-[color-mix(in_srgb,var(--nomi-accent)_55%,transparent)]',
         'bg-[color-mix(in_srgb,var(--nomi-accent)_8%,transparent)]',
-        'shadow-[inset_0_0_0_1px_rgba(255,255,255,0.58),0_14px_34px_rgba(18,24,38,0.055)]',
+        'shadow-[inset_0_0_0_1px_var(--workbench-frame-ring),0_14px_34px_rgba(18,24,38,0.055)]',
         'active:cursor-grabbing',
       )}
       style={{
