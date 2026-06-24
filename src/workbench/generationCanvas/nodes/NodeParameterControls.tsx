@@ -429,7 +429,7 @@ export default function NodeParameterControls({
     updateMeta({ [slot.key]: null })
   }
 
-  // section="parameters"：底栏 = 模型芯片 + 该模型所有参数横排内联（实现见 InlineParameterBar）。
+  // section="parameters"：底栏 = 模型芯片 + 变体 + 最常调参数内联 + 「更多」弹层（主次分层，实现见 InlineParameterBar）。
   if (section === 'parameters') {
     return (
       <InlineParameterBar

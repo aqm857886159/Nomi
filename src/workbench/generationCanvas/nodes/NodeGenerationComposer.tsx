@@ -196,8 +196,8 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   }, [canvasZoom, canvasOffset, node.position?.x, node.position?.y, visualSize.width, visualSize.height, composerLayout.gap, node.result?.url])
 
   // 卡宽 = **内容驱动**（用户拍板 2026-06-16，推翻 06-13 的「按最宽模型恒定宽」）：
-  // 卡片 **w-max**（max-content）跟着当前模型的「底栏一行」(锁+参数横排+生成钮)自然撑开——参数少则窄、
-  // 多则宽，永远一行不换（InlineParameterBar flex-nowrap），生成钮 ml-auto 贴右。
+  // 卡片 **w-max**（max-content）跟着当前模型的「底栏一行」(锁+参数+生成钮)自然撑开。参数已主次分层
+  // （最常调内联、其余收进 InlineParameterBar 的「更多」弹层，方案 B 2026-06-25），底栏恒单行，生成钮 ml-auto 贴右。
   // **为什么不能用 w-fit**：composer 是 absolute + left-1/2 锚在节点上，fit-content 的可用宽被节点框
   // (~300px) 卡死 → 塌回 min-content(min-w-360)、参数多就被挤截断（实测 2026-06-16 真机：card 卡 360）。
   // max-content 不吃可用宽约束，按内容真实宽长开。提示词/参考区用 w-0 min-w-full **只填不撑**(贡献 0 到
