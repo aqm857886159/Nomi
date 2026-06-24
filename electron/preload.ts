@@ -42,6 +42,13 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     extractFrame: (payload: unknown) =>
       ipcRenderer.invoke("nomi:video:extract-frame", payload) as Promise<{ url: string }>,
   },
+  dreamina: {
+    status: () => ipcRenderer.invoke("nomi:dreamina:status"),
+    loginStart: () => ipcRenderer.invoke("nomi:dreamina:login-start"),
+    loginPoll: (deviceCode: string) => ipcRenderer.invoke("nomi:dreamina:login-poll", deviceCode),
+    logout: () => ipcRenderer.invoke("nomi:dreamina:logout"),
+    install: () => ipcRenderer.invoke("nomi:dreamina:install"),
+  },
   scene3d: {
     framesToVideo: (payload: unknown) =>
       ipcRenderer.invoke("nomi:scene3d:frames-to-video", payload) as Promise<{ url: string; assetId?: string }>,

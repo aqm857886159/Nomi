@@ -16,7 +16,8 @@ import { type AuthType, authHeaders as buildAuthHeaders } from "./ai/requestPipe
 import { firstString, isJsonRecord, trim, type JsonRecord } from "./jsonUtils";
 import { taskTemplateParams } from "./catalog/taskParams";
 import { buildDoubaoReqParams, decodeDoubaoNdjsonAudio, splitDoubaoCredential } from "./catalog/doubaoTtsCodec";
-import { buildProfileHttpRequest, importLocalFile, type TaskRequest, type TaskResult } from "./runtime";
+import { buildProfileHttpRequest, type TaskRequest, type TaskResult } from "./runtime";
+import { importLocalFile } from "./assets/localFileImport";
 import type { HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./catalog/types";
 
 const TTS_PATH = "/v1/audio/speech";

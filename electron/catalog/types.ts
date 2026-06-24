@@ -207,6 +207,23 @@ export type HttpOperation = {
    */
   audioResponse?: "binary" | "ndjson-base64";
   /**
+   * **进程型 transport 声明**（仅 processOperation 消费，P4 声明驱动不 hardcode vendor）。
+   * 当一个 vendor 不是 HTTP 端点而是本地 CLI 二进制（如即梦官方 `dreamina`）时，create/query op
+   * 各自声明 process，runtime 的 executeProfileOperation 顶部据此分流到 spawn 分支（而非 requestJson）：
+   * spawn `bin` + 渲染后的 `args`（含 `{{...}}` 占位，与 body 同一套 renderTemplateValue），按 `parser`
+   * 把 stdout 归一成「类 HTTP 响应」对象，喂回现有 buildProfileTaskResult/statusMapping，状态机零改。
+   *  - bin            ：可执行名（运行时经 PATH / env 解析真实路径）。
+   *  - args           ：参数模板数组（如 ["text2video","--prompt={{prompt}}","--duration={{params.duration}}"]）。
+   *  - parser         ：stdout 解码器选择子（目前仅 "dreamina-cli"）。未来同形状 vendor 声明各自 parser 即复用。
+   *  - appendDownloadDir：true 时追加 `--download_dir=<项目素材临时目录>`，让 CLI 把结果下到本地（取本地文件）。
+   */
+  process?: {
+    bin: string;
+    args: string[];
+    parser: "dreamina-cli";
+    appendDownloadDir?: boolean;
+  };
+  /**
    * 参数翻译表（铁律：模型身份决定参数，与渠道无关）。档案声明**中性 canonical 参数**（全站一致），
    * 这里把它们翻译成本 codec 的 wire 字段（改名 / 值转换 / 显式 drop）——见 paramTranslate.ts。
    * runtime 渲染 body 前 applyParamMap 注入 wire 键。**改名/identity 透传不必写**（canonical 键 =

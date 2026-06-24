@@ -10,6 +10,7 @@ import { buildNormalizedRecipe, buildTaskProvenance } from "./vendor/provenance"
 import { traceVendorCompleted, traceVendorRequested } from "./events/vendorCallTrace";
 import { scheduleTechnicalReview } from "./review/reviewTrace";
 import { type AuthType, authHeaders as buildAuthHeaders, buildHttpRequest, buildTemplateContext, extractTaskId as extractTaskIdShared } from "./ai/requestPipeline";
+import { executeProcessOperation } from "./catalog/processOperation";
 import { executeTextTask } from "./textTaskRunner";
 import { runAudioTask } from "./audioTaskRunner";
 import { firstString, isJsonRecord, nowIso, trim, type JsonRecord } from "./jsonUtils";
@@ -271,27 +272,6 @@ export async function importRemoteAsset(payload: unknown): Promise<unknown> {
   });
 }
 
-function bytesFromPayload(value: unknown): Buffer {
-  if (value instanceof ArrayBuffer) return Buffer.from(value);
-  if (ArrayBuffer.isView(value)) return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
-  if (Array.isArray(value)) return Buffer.from(value);
-  throw new Error("bytes must be an ArrayBuffer");
-}
-
-export async function importLocalFile(payload: unknown): Promise<unknown> {
-  const raw = payload as JsonRecord;
-  const projectId = String(raw.projectId || "").trim();
-  if (!projectId) throw new Error("projectId is required");
-  const bytes = bytesFromPayload(raw.bytes);
-  const contentType = String(raw.contentType || "application/octet-stream");
-  const ext = extensionFromMime(contentType, "bin");
-  const fileName = String(raw.fileName || `asset-${Date.now()}.${ext}`);
-  return writeAsset(projectId, bytes, fileName, contentType, {
-    kind: raw.kind || "upload",
-    originalName: raw.fileName || null,
-  });
-}
-
 export function listProjectAssets(payload: unknown): { items: LocalAssetRecord[]; cursor: string | null } {
   const raw = payload as JsonRecord | undefined;
   const projectId = String(raw?.projectId || "").trim();
@@ -462,6 +442,13 @@ export async function executeProfileOperation(input: {
   operation: HttpOperation;
   providerMeta?: JsonRecord;
 }): Promise<{ response: unknown; request: unknown }> {
+  // 进程型 transport（P4 声明驱动）：op 声明 process（本地 CLI dreamina）→ spawn，不走 HTTP。
+  // 渲染/spawn/本地文件导入全在 processOperation（注入 writeAsset，避免 ↔ runtime 循环依赖）。
+  if (input.operation.process) {
+    const context = templateContext(input.request, input.model, input.apiKey, input.providerMeta || {}, input.operation.paramMap);
+    return executeProcessOperation({ process: input.operation.process, context, projectId: trim(input.request.extras?.projectId), writeAsset });
+  }
+
   // R1：发送前把本地素材(nomi-local://)按策略变成 vendor 可达值。带跨供应商 fallback + 内容类型感知：
   // 每素材按媒体类型挑通道(图→apimart/KIE base64;视频→KIE stream,apimart image-only 跳过)。上传 key 可异于生成 key。
   const uploadCatalog = readCatalog();

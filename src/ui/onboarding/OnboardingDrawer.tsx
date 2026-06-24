@@ -17,6 +17,7 @@ import { FoldableModelCard } from './FoldableModelCard'
 import { VendorOnboardCard } from './VendorOnboardCard'
 import { ModelChipGroups, type ChipModel } from './ModelChipGroups'
 import { ConnectAssistantCard } from './ConnectAssistantCard'
+import { DreaminaMemberCard } from './DreaminaMemberCard'
 import { KNOWN_VENDORS, isKnownVendor } from '../../config/knownVendors'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { notifyModelOptionsRefresh } from '../../config/useModelOptions'
@@ -193,6 +194,10 @@ export function OnboardingDrawer(): JSX.Element {
           <IconChevronRight size={15} className="shrink-0 opacity-60" />
         </button>
         <div className="text-micro text-nomi-ink-40 px-1 -mt-0.5">new-api 一次拉全图·视频·文本 · 也可接官方厂商 / 自定义接口</div>
+
+        {/* ── 即梦会员（没别的 key 的用户也能用会员积分出视频）── */}
+        <div className="text-micro font-semibold text-nomi-ink-40 pt-3 px-0.5">有即梦会员？直接用会员积分</div>
+        <DreaminaMemberCard />
 
         {/* ── 区二：接入编程助手（长尾，可选，折叠）── */}
         <div className="text-micro font-semibold text-nomi-ink-40 pt-3 px-0.5">接入编程助手 · 可选</div>

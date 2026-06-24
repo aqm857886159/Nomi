@@ -101,6 +101,7 @@ export { default as IconPlayerTrackNext } from '@tabler/icons-react/dist/esm/ico
 export { default as IconPlayerTrackPrev } from '@tabler/icons-react/dist/esm/icons/IconPlayerTrackPrev.mjs'
 export { default as IconPlugConnected } from '@tabler/icons-react/dist/esm/icons/IconPlugConnected.mjs'
 export { default as IconPlus } from '@tabler/icons-react/dist/esm/icons/IconPlus.mjs'
+export { default as IconQrcode } from '@tabler/icons-react/dist/esm/icons/IconQrcode.mjs'
 export { default as IconRefresh } from '@tabler/icons-react/dist/esm/icons/IconRefresh.mjs'
 export { default as IconReplace } from '@tabler/icons-react/dist/esm/icons/IconReplace.mjs'
 export { default as IconRobot } from '@tabler/icons-react/dist/esm/icons/IconRobot.mjs'

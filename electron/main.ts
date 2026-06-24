@@ -12,7 +12,6 @@ import {
   fetchModelCatalogDocs,
   fetchTaskResult,
   getModelCatalogHealth,
-  importLocalFile,
   importModelCatalogPackage,
   importRemoteAsset,
   listProjectAssets,
@@ -58,6 +57,8 @@ import { registerUpdaterIpc } from "./update/autoUpdater";
 import { startCapabilityCore, stopCapabilityCore, setOpenProjectId, getCapabilityPort } from "./capabilityCore/appIntegration";
 import { setRendererTarget } from "./capabilityCore/rendererBridge";
 import { readMcpInfo, installMcp, uninstallMcp } from "./capabilityCore/mcpConfig";
+import { dreaminaStatus, dreaminaLoginStart, dreaminaLoginPoll, dreaminaLogout, dreaminaInstall } from "./catalog/dreaminaLoginIpc";
+import { importLocalFile } from "./assets/localFileImport";
 import { startMcpStdioServer } from "./capabilityCore/mcpStdioServer";
 
 // 尽早安装：捕获引导阶段起的 uncaughtException / unhandledRejection，落盘到 app logs（P0-8）。
@@ -314,6 +315,12 @@ function registerIpc(): void {
   registerSyncIpc("nomi:skill:delete", (dirName: unknown) => deleteUserSkill(String(dirName || "")));
 
   ipcMain.handle("nomi:model-catalog:docs:fetch", (_event, payload) => fetchModelCatalogDocs(payload));
+  // 即梦会员（dreamina CLI）：设备码登录/账户检测/安装（异步，spawn 本地 CLI）。
+  ipcMain.handle("nomi:dreamina:status", () => dreaminaStatus());
+  ipcMain.handle("nomi:dreamina:login-start", () => dreaminaLoginStart());
+  ipcMain.handle("nomi:dreamina:login-poll", (_event, deviceCode: unknown) => dreaminaLoginPoll(String(deviceCode || "")));
+  ipcMain.handle("nomi:dreamina:logout", () => dreaminaLogout());
+  ipcMain.handle("nomi:dreamina:install", () => dreaminaInstall());
   ipcMain.handle("nomi:workspace:select-folder", async () => {
     const selection = await selectWorkspaceFolder({ showOpenDialog: (options) => dialog.showOpenDialog(options) });
     if (!selection.canceled) selectedWorkspaceRoots.add(selection.rootPath);

@@ -22,10 +22,13 @@ function seededState(): CatalogState {
   return applyBuiltinSeeds(empty, "2026-06-24T00:00:00.000Z").state;
 }
 
-function coveredWireKeys(create: { body?: unknown; paramMap?: { drops?: string[] } | undefined } & Record<string, unknown>): Set<string> {
+function coveredWireKeys(create: { body?: unknown; process?: { args?: string[] }; paramMap?: { drops?: string[] } | undefined } & Record<string, unknown>): Set<string> {
   const map = (create as { paramMap?: Parameters<typeof consumedCanonicalKeys>[0] }).paramMap;
   return new Set([
     ...bodyReferencedParamKeys(create.body),
+    // 进程型 transport（即梦 dreamina）的参数在 CLI args 里读（{{request.params.X}}），同样算「真覆盖」
+    // ——它们确实经 argv 发出去，不是静默丢弃。bodyReferencedParamKeys 能直接扫字符串数组。
+    ...bodyReferencedParamKeys(create.process?.args),
     ...consumedCanonicalKeys(map),
     ...(map?.drops ?? []),
   ]);

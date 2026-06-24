@@ -294,6 +294,14 @@ export type DesktopBridge = {
     importPackage: (payload: unknown) => unknown
     deleteByDir: (dirName: string) => unknown
   }
+  /** 即梦会员（dreamina CLI）：设备码登录/账户检测/安装（可选——老 preload 无此口）。 */
+  dreamina?: {
+    status: () => Promise<{ installed: boolean; loggedIn: boolean; totalCredit: number | null; vipLevel: string; notMaestroVip: boolean }>
+    loginStart: () => Promise<{ verificationUri: string; userCode: string; deviceCode: string; expiresAt: string }>
+    loginPoll: (deviceCode: string) => Promise<{ status: 'success' | 'pending' | 'error'; message: string }>
+    logout: () => Promise<{ ok: boolean }>
+    install: () => Promise<{ ok: boolean; message: string }>
+  }
   /** 能力核：上报当前打开项目，供外部调用的 A/B 守卫（可选——老 preload 无此口）。 */
   capability?: {
     setActiveProject: (projectId: string) => void
