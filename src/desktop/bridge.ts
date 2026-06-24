@@ -301,7 +301,7 @@ export type DesktopBridge = {
     mcpInfo: () => {
       tokenReady: boolean
       rpcRunning: boolean
-      server: { command: string; args: string[] }
+      server: { command: string; args: string[]; env?: Record<string, string> }
       clients: Record<'claude' | 'codex' | 'cursor', { installed: boolean; configPath: string; snippet: string }>
     }
     /** 一键写入指定客户端配置的 nomi 条目（合并 + 备份）。默认 Claude Code。 */

@@ -51,7 +51,8 @@ function writeDiskSnapshot(projectId: string, snapshot: CanvasSnapshot): void {
 /**
  * 磁盘网关（B 模式：app 关着，headless host 内）。本进程无窗口可弹应用内确认卡，
  * 故付费授权认 env NOMI_LOOP_SPEND_OK：它=「本次 host 调用已被显式授权」，两个合法来源——
- * ① 评测/CLI 脚本显式设；② MCP server 经 elicitation 让真人在 Claude 里点了确认后,按本次调用注入(nomi-mcp.mjs)。
+ * ① 评测/CLI 脚本显式设（nomiClient.mjs spawn host 时按本次调用注入）；进程内 MCP server 走的是
+ *    makeConfirmedGateway（elicitation 真人确认后直铸令牌，mcpStdioServer.ts），不碰本 env。
  * 两者都是「真人/脚本显式授权」,模型自己设不了 env → 红队信任边界不破。无授权 → null → runTask 硬闸拦。
  */
 export function createDiskGateway(projectId: string): ProjectGateway {

@@ -24,7 +24,7 @@ type McpClientInfo = { installed: boolean; configPath: string; snippet: string }
 type McpInfo = {
   tokenReady: boolean
   rpcRunning: boolean
-  server: { command: string; args: string[] }
+  server: { command: string; args: string[]; env?: Record<string, string> }
   clients: Record<ClientKey, McpClientInfo>
 }
 
