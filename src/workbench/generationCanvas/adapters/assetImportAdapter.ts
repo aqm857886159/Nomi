@@ -162,6 +162,92 @@ export function filterImportableMediaFiles(files: File[]): {
   return { files: out, skippedDuplicateCount, skippedTooLargeCount }
 }
 
+type AssetUploadDeps = {
+  uploadFile: (file: File, label: string, meta: { ownerNodeId: string }) => Promise<WorkbenchAssetDto>
+  recoverFile: (file: File) => Promise<WorkbenchAssetDto | null>
+  probeVideoDuration: (url: string) => Promise<number | null>
+}
+
+// 上传失败（无 data-url 兜底）的 File 留存——供节点「重试导入」复用（C3：此前失败即死，只能删了重拖）。
+// File 不可持久化故只活在内存，重启即清（重启后节点仍是 error 态，文案引导重新导入）。
+const pendingRetryImports = new Map<string, { file: File; kind: 'image' | 'video' }>()
+
+// 单文件「上传→落节点」的单一实现：初次导入与「重试」共用（P1 不造并行版）。返回 true=成功。
+async function uploadAndApplyAssetToNode(
+  nodeId: string,
+  file: File,
+  kind: 'image' | 'video',
+  deps: AssetUploadDeps,
+): Promise<boolean> {
+  const store = useGenerationCanvasStore.getState()
+  let hosted: WorkbenchAssetDto | null = null
+  try {
+    hosted = await deps.uploadFile(file, deriveLabelFromFileName(file.name), { ownerNodeId: nodeId })
+  } catch {
+    hosted = await deps.recoverFile(file)
+  }
+  const hostedUrl = hostedAssetUrl(hosted)
+  if (!hostedUrl) {
+    // 图片可在极小阈值内退化成 data-url 落盘；视频体积过大不做兜底（报错 + 留 File 供重试）。
+    const canPersistSmallFallback = kind === 'image' && (typeof file.size === 'number' ? file.size : 0) <= DATA_URL_FALLBACK_MAX_BYTES
+    const fallbackResult = canPersistSmallFallback
+      ? { id: `local-${nodeId}-${Date.now()}`, type: 'image' as const, url: await readFileDataUrl(file), createdAt: Date.now() }
+      : null
+    if (fallbackResult) pendingRetryImports.delete(nodeId)
+    else pendingRetryImports.set(nodeId, { file, kind })
+    store.updateNode(nodeId, {
+      ...(fallbackResult ? { result: fallbackResult, history: [fallbackResult] } : {}),
+      status: fallbackResult ? 'success' : 'error',
+      error: fallbackResult ? undefined : '本地素材复制失败，可点节点上的「重试导入」',
+      meta: {
+        ...(useGenerationCanvasStore.getState().nodes.find((c) => c.id === nodeId)?.meta || {}),
+        uploadStatus: 'local-only',
+        localOnly: true,
+        persistable: Boolean(fallbackResult),
+        retryableImport: !fallbackResult,
+      },
+    })
+    return Boolean(fallbackResult)
+  }
+  const videoDuration = kind === 'video' ? await deps.probeVideoDuration(hostedUrl) : null
+  const hostedResult = {
+    id: `asset-${nodeId}-${hosted?.id || Date.now()}`,
+    type: kind,
+    url: hostedUrl,
+    assetId: hosted?.id,
+    raw: { asset: hosted },
+    createdAt: Date.now(),
+  }
+  pendingRetryImports.delete(nodeId)
+  store.updateNode(nodeId, {
+    result: hostedResult,
+    history: [hostedResult],
+    status: 'success',
+    meta: {
+      ...(useGenerationCanvasStore.getState().nodes.find((c) => c.id === nodeId)?.meta || {}),
+      source: 'asset-upload',
+      uploadStatus: 'uploaded',
+      localOnly: false,
+      retryableImport: false,
+      serverAssetId: hosted?.id,
+      ...(videoDuration && videoDuration > 0 ? { videoDuration } : {}),
+    },
+  })
+  return true
+}
+
+/** 节点「重试导入」：复用留存的 File 重新上传（C3）。无留存（重启/已成功）→ 返回 false。 */
+export async function retryLocalAssetImport(nodeId: string): Promise<boolean> {
+  const pending = pendingRetryImports.get(nodeId)
+  if (!pending) return false
+  useGenerationCanvasStore.getState().updateNode(nodeId, { status: 'queued', error: undefined })
+  return uploadAndApplyAssetToNode(nodeId, pending.file, pending.kind, {
+    uploadFile: importWorkbenchLocalAssetFile,
+    recoverFile: recoverImportedWorkbenchLocalAssetFile,
+    probeVideoDuration: readVideoDurationSeconds,
+  })
+}
+
 export async function importLocalMediaFilesToGenerationCanvas(
   inputFiles: File[],
   options: ImportImageFilesOptions,
@@ -216,63 +302,8 @@ export async function importLocalMediaFilesToGenerationCanvas(
 
   let failedCount = 0
   await Promise.all(created.map(async ({ node, file, kind }) => {
-    let hosted: WorkbenchAssetDto | null = null
-    try {
-      hosted = await uploadFile(file, deriveLabelFromFileName(file.name), { ownerNodeId: node.id })
-    } catch {
-      hosted = await recoverFile(file)
-    }
-    const hostedUrl = hostedAssetUrl(hosted)
-    if (!hostedUrl) {
-      const canPersistSmallFallbackPre = kind === 'image' && (typeof file.size === 'number' ? file.size : 0) <= DATA_URL_FALLBACK_MAX_BYTES
-      if (!canPersistSmallFallbackPre) failedCount += 1 // 无 data-url 兜底 → 真失败,计入提示
-      // 图片可在极小阈值内退化成 data-url 落盘；视频体积过大，不做 data-url 兜底（直接报错让用户重导）。
-      const canPersistSmallFallback = kind === 'image' && (typeof file.size === 'number' ? file.size : 0) <= DATA_URL_FALLBACK_MAX_BYTES
-      const fallbackResult = canPersistSmallFallback
-        ? {
-            id: `local-${node.id}-${Date.now()}`,
-            type: 'image' as const,
-            url: await readFileDataUrl(file),
-            createdAt: Date.now(),
-          }
-        : null
-      useGenerationCanvasStore.getState().updateNode(node.id, {
-        ...(fallbackResult ? { result: fallbackResult, history: [fallbackResult] } : {}),
-        status: fallbackResult ? 'success' : 'error',
-        error: fallbackResult ? undefined : '本地素材复制失败，请重新导入',
-        meta: {
-          ...(useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)?.meta || {}),
-          uploadStatus: 'local-only',
-          localOnly: true,
-          persistable: Boolean(fallbackResult),
-        },
-      })
-      return
-    }
-    // 视频：导入即离屏测真实时长写 meta.videoDuration，消除「渲染前就拖到时间轴」的竞态
-    // （节点渲染的 onLoadedMetadata 仍会二次自愈，两处同一真相键）。
-    const videoDuration = kind === 'video' ? await probeVideoDuration(hostedUrl) : null
-    const hostedResult = {
-      id: `asset-${node.id}-${hosted?.id || Date.now()}`,
-      type: kind,
-      url: hostedUrl,
-      assetId: hosted?.id,
-      raw: { asset: hosted },
-      createdAt: Date.now(),
-    }
-    useGenerationCanvasStore.getState().updateNode(node.id, {
-      result: hostedResult,
-      history: [hostedResult],
-      status: 'success',
-      meta: {
-        ...(useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)?.meta || {}),
-        source: 'asset-upload',
-        uploadStatus: 'uploaded',
-        localOnly: false,
-        serverAssetId: hosted?.id,
-        ...(videoDuration && videoDuration > 0 ? { videoDuration } : {}),
-      },
-    })
+    const ok = await uploadAndApplyAssetToNode(node.id, file, kind, { uploadFile, recoverFile, probeVideoDuration })
+    if (!ok) failedCount += 1
   }))
 
   return {

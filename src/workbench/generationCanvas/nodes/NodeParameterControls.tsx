@@ -206,8 +206,16 @@ export default function NodeParameterControls({
 
     if (decision.kind === 'disconnect-edge') {
       storeDisconnectEdge(decision.edgeId)
+      // B5：同一 url 既来自边、又残留在 meta 上传里（去重后只显示边那份）→ 仅断边会让它以 upload 形态
+      // 重现（「叉一次还在」）。断边时一并清掉 meta 里的同 url 上传（与断边/删 chip 合成一次持久化，保 undo 原子）。
+      const latestMeta = getLatestMeta()
+      const metaArr = readArchetypeArray(latestMeta, metaKey)
+      const cleanedMeta = decision.url ? metaArr.filter((u) => u !== decision.url) : metaArr
       const nextPrompt = promptAfterRemovingMention(decision.url)
-      if (nextPrompt != null && nextPrompt !== (node.prompt || '')) updateNode(node.id, { prompt: nextPrompt })
+      const patch: { meta?: Record<string, unknown>; prompt?: string } = {}
+      if (cleanedMeta.length !== metaArr.length) patch.meta = { ...latestMeta, [metaKey]: cleanedMeta }
+      if (nextPrompt != null && nextPrompt !== (node.prompt || '')) patch.prompt = nextPrompt
+      if (Object.keys(patch).length > 0) updateNode(node.id, patch)
       return
     }
     if (decision.kind === 'noop') return
