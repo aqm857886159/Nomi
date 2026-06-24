@@ -22,6 +22,7 @@ export default tseslint.config(
       'public/**',
       'marketing/**',
       'coverage/**',
+      '.tmp/**',
       'scripts/**',
       'tests/ux/**',
       'tests/transport-spike/**',

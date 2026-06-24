@@ -9,6 +9,17 @@ const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const buildTailwindScript = path.join(repoRoot, "scripts", "build-tailwind.mjs");
 
+function configureWindowsConsoleEncoding() {
+  if (process.platform !== "win32" || process.env.NOMI_SKIP_UTF8_CONSOLE === "1") return;
+  const command = process.env.ComSpec || "cmd.exe";
+  spawnSync(command, ["/d", "/s", "/c", "chcp 65001 >nul"], {
+    stdio: "ignore",
+    env: process.env,
+  });
+}
+
+configureWindowsConsoleEncoding();
+
 /**
  * Make the onboarding agent work in `pnpm dev` without manual `export`s.
  *
@@ -437,6 +448,7 @@ if (process.env.NOMI_BLOCKING_RENDERER_WARMUP === "1") {
 const app = startElectron({
   env: electronEnv({
     NOMI_DESKTOP_DEV: "1",
+    ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
     NOMI_ELECTRON_USER_DATA_DIR: path.join(repoRoot, ".tmp", "electron-user-data", `dev-${rendererPort}`),
     VITE_DEV_SERVER_URL: electronRendererUrl,
     NOMI_RENDERER_URL: electronRendererUrl,

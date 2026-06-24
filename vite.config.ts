@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { createLogger, defineConfig, loadEnv, type Logger, type Plugin } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { resolve } from 'node:path';
 
@@ -29,6 +29,23 @@ function nomiStaticAssetPlugin(): Plugin {
       });
     },
   };
+}
+
+function isKnownDevDependencyWarning(message: string): boolean {
+  return (
+    message.includes('The above dynamic import cannot be analyzed by Vite') &&
+    message.includes('react-router-dom.js')
+  );
+}
+
+function createNomiLogger(): Logger {
+  const logger = createLogger();
+  const warn = logger.warn.bind(logger);
+  logger.warn = (message, options) => {
+    if (typeof message === 'string' && isKnownDevDependencyWarning(message)) return;
+    warn(message, options);
+  };
+  return logger;
 }
 
 function createManualChunks(id: string): string | undefined {
@@ -117,6 +134,7 @@ export default defineConfig(async ({ command, mode }) => {
   return {
     base: './',
     cacheDir: resolve(__dirname, '.tmp/vite'),
+    customLogger: createNomiLogger(),
     plugins: [nomiStaticAssetPlugin(), react()],
     resolve: {
       dedupe: ['react', 'react-dom', 'scheduler', 'use-sync-external-store'],

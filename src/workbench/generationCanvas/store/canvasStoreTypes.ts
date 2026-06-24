@@ -18,6 +18,8 @@ export type CreateNodeInput = {
   kind: GenerationNodeKind
   title?: string
   prompt?: string
+  meta?: Record<string, unknown>
+  size?: { width: number; height: number }
   position?: { x: number; y: number }
   categoryId?: string
   select?: boolean

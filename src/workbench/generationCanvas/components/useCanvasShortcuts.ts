@@ -49,6 +49,7 @@ export function useCanvasShortcuts(opts: {
   React.useEffect(() => {
     if (readOnly) return undefined
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (document.querySelector('[data-nomi-whiteboard-modal="true"]')) return
       const target = event.target instanceof HTMLElement ? event.target : null
       if (target?.closest('input, textarea, select, [contenteditable="true"]')) return
       if (!stageRef.current || stageRef.current.offsetParent === null) return

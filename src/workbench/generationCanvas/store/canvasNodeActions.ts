@@ -63,6 +63,8 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     // 镜头编号是出生即分配的存储身份（max+1），之后移动/加无关节点不再改号（审计 A2）。
     const nextNode = {
       ...baseNode,
+      ...(input.meta ? { meta: { ...input.meta } } : {}),
+      ...(input.size ? { size: { ...input.size } } : {}),
       categoryId,
       ...(isShotNumberedNode({ kind: input.kind, categoryId })
         ? { shotIndex: nextShotIndex(currentState.nodes) }

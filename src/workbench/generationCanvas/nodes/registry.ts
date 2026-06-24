@@ -11,7 +11,7 @@ export type GenerationNodeRenderProps<TNode = unknown> = {
 };
 
 export type GenerationNodeComponent = ComponentType<
-    GenerationNodeRenderProps<any>
+    GenerationNodeRenderProps<unknown>
 >;
 export type GenerationNodeExecutionKind = "image" | "video" | "text" | "audio";
 export type GenerationNodeIconKey =
@@ -25,6 +25,7 @@ export type GenerationNodeIconKey =
     | "output"
     | "panorama"
     | "scene3d"
+    | "whiteboard"
     | "audio";
 
 export type GenerationNodePluginDefinition<TKind extends string = string> = {
@@ -211,6 +212,21 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
         agentCreatable: false,
         providesImageReference: true,
         promptPlaceholder: "在3D场景中摆放模型并截图...",
+    },
+    {
+        kind: "whiteboard",
+        label: "Whiteboard",
+        menuLabel: "画板",
+        component: () => import("./whiteboard/WhiteboardCardNode") as Promise<{
+            default: GenerationNodeComponent;
+        }>,
+        icon: "whiteboard",
+        defaultTitle: "画板",
+        defaultSize: { width: 320, height: 240 },
+        catalogKind: "image",
+        quickAdd: true,
+        providesImageReference: true,
+        promptPlaceholder: "在画板里绘制参考，再描述要生成的画面...",
     },
     {
         // 素材：导入图 / 文件树拖入 / 本地切图裁剪旋转衍生物。它就是一张图，不是生成节点：

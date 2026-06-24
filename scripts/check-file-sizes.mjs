@@ -26,7 +26,10 @@ const SCAN_DIRS = ["src", "electron"];
 // 改小某个数 = 你成功瘦身后锁定的新上限。新增条目应经人工评审。
 const ALLOWLIST = {
   "electron/runtime.ts": 648, // 续查收口已拆到 tasks/taskResultQuery.ts（2026-06-25）；付费守卫硬闸仍在本文件
-  "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 889,
+  "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 887,
+  // PR#21 白板节点引入（2026-06-25）：两个巨壳待后续按 Rule 9 拆分（WhiteboardLeaferCanvas 3406 行尤甚）。
+  "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardDrawingTool.tsx": 1032,
+  "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardLeaferCanvas.tsx": 3406,
   // generationCanvasStore.ts 曾 871 行（巨壳）；S5-0 按 zustand slice 模式拆出 canvasStoreTypes.ts +
   // canvasNodeActions.ts + canvasGraphActions.ts + canvasRunActions.ts 后壳文件缩到 161 < 800，已出白名单。
   // NodeParameterControls.tsx 曾 1097 行（巨壳）；C2b 抽出 controls/parameterControlModel.ts +

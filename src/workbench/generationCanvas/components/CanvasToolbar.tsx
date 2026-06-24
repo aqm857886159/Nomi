@@ -1,5 +1,4 @@
 import React from 'react'
-import { WorkbenchButton } from '../../../design'
 import { cn } from '../../../utils/cn'
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 import { getQuickAddGenerationNodePlugins } from '../nodes/renderRegistry'
@@ -13,7 +12,7 @@ const QUICK_ADD_NODE_ITEMS = getQuickAddGenerationNodePlugins()
 // manual add — keeping this list short de-clutters the right-click menu.
 // 2026-06-15：左侧栏瘦身为「纯创建节点」——复制/剪切走快捷键(⌘C/⌘X)、批量生成移到选中浮条、
 // 发送到时间轴删除(节点可直接拖入时间轴)。这里只保留可手动新建的节点种类（含新增的「声音」）。
-const PRIMARY_NODE_KINDS: GenerationNodeKind[] = ['text', 'image', 'video', 'audio', 'panorama', 'scene3d']
+const PRIMARY_NODE_KINDS: GenerationNodeKind[] = ['text', 'image', 'video', 'audio', 'whiteboard', 'panorama', 'scene3d']
 const PRIMARY_ADD_ITEMS = PRIMARY_NODE_KINDS
   .map((kind) => QUICK_ADD_NODE_ITEMS.find((item) => item.kind === kind))
   .filter((item): item is (typeof QUICK_ADD_NODE_ITEMS)[number] => Boolean(item))
@@ -51,13 +50,15 @@ export function NodeAddMenu({
       {PRIMARY_ADD_ITEMS.map((item) => {
         const Icon = item.icon
         return (
-          <WorkbenchButton
+          <button
+            type="button"
             key={item.kind}
             className={cn(
               'inline-flex items-center justify-start gap-1.5',
               'w-full h-8 min-h-8 px-2 border-0 rounded-nomi',
               'bg-workbench-surface-solid text-workbench-ink font-[inherit] text-caption cursor-pointer',
               'hover:bg-nomi-ink-05',
+              '[&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-nomi-ink-60 [&>svg]:stroke-[1.8]',
             )}
             role="menuitem"
             aria-label={`添加${item.menuLabel}节点`}
@@ -65,7 +66,7 @@ export function NodeAddMenu({
           >
             <Icon size={14} stroke={1.6} />
             <span>{item.menuLabel}</span>
-          </WorkbenchButton>
+          </button>
         )
       })}
     </div>
@@ -98,16 +99,21 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
       {PRIMARY_ADD_ITEMS.map((item) => {
         const Icon = item.icon
         return (
-          <WorkbenchButton
+          <button
+            type="button"
             key={item.kind}
-            className={cn('w-8 h-8 min-h-8 p-0 border-0 rounded-nomi-sm cursor-pointer')}
+            className={cn(
+              'grid size-8 min-h-8 place-items-center rounded-nomi-sm border-0 bg-transparent p-0 text-nomi-ink-60 cursor-pointer',
+              'transition-colors hover:bg-nomi-ink-05 hover:text-nomi-ink',
+              '[&>svg]:size-[18px] [&>svg]:stroke-[1.8]',
+            )}
             aria-label={`添加${item.menuLabel}节点`}
             title={item.menuLabel}
             onClick={() => handleAddNode(item.kind)}
           >
             <Icon size={18} stroke={1.6} />
             <span className="hidden">{item.menuLabel}</span>
-          </WorkbenchButton>
+          </button>
         )
       })}
     </div>
