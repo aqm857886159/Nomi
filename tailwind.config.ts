@@ -26,6 +26,8 @@ const workbenchBasePlugin = plugin(({ addBase }) => {
       '--nomi-track-video': 'oklch(0.65 0.13 150)',
       '--nomi-snap': 'oklch(0.72 0.18 30)',
       '--nomi-snap-tag': 'oklch(0.45 0.18 30)',
+      // 品牌 mark 底色（深底+白笔画 §3.9）。浅色=深底；暗色提亮到能在暗背景上看出方块轮廓（用户拍板）。
+      '--nomi-logo-ground': 'oklch(0.22 0.01 80)',
       // 3D 轴向语义色(X/Y/Z)。主题无关——明暗两模式同色（用户拍板：3D 渲染色不动）。
       '--nomi-axis-x': '#ef4444',
       '--nomi-axis-y': '#16a34a',
@@ -127,11 +129,13 @@ const workbenchBasePlugin = plugin(({ addBase }) => {
       '--nomi-ink': 'oklch(0.93 0.006 85)',
       '--nomi-ink-80': 'oklch(0.84 0.006 85)',
       '--nomi-ink-60': 'oklch(0.70 0.006 85)',
-      '--nomi-ink-40': 'oklch(0.56 0.006 85)',
-      '--nomi-ink-30': 'oklch(0.44 0.006 85)',
-      '--nomi-ink-20': 'oklch(0.36 0.006 85)',
-      '--nomi-ink-10': 'oklch(0.30 0.006 85)',
-      '--nomi-ink-05': 'oklch(0.27 0.006 85)',
+      // 中低档比浅色对应位整体抬一档：暗底下次级文字/占位/边框/斜纹对比不足（用户反馈+设计审），
+      // 只抬 40 及以下（60 以上主文字已够，避免矫枉过正）。
+      '--nomi-ink-40': 'oklch(0.62 0.006 85)',
+      '--nomi-ink-30': 'oklch(0.50 0.006 85)',
+      '--nomi-ink-20': 'oklch(0.42 0.006 85)',
+      '--nomi-ink-10': 'oklch(0.34 0.006 85)',
+      '--nomi-ink-05': 'oklch(0.30 0.006 85)',
       '--nomi-line': 'oklch(0.36 0.007 80)',
       '--nomi-line-soft': 'oklch(0.31 0.007 80)',
       '--nomi-accent': 'oklch(0.70 0.13 250)',
@@ -144,6 +148,7 @@ const workbenchBasePlugin = plugin(({ addBase }) => {
       '--nomi-track-video': 'oklch(0.70 0.13 150)',
       '--nomi-snap': 'oklch(0.78 0.18 30)',
       '--nomi-snap-tag': 'oklch(0.62 0.18 30)',
+      '--nomi-logo-ground': 'oklch(0.30 0.01 80)',
       '--nomi-scrim': 'oklch(0.08 0.004 80 / 0.58)',
       '--nomi-overlay-chip': 'oklch(0.08 0.004 80 / 0.68)',
       '--nomi-overlay-chip-strong': 'oklch(0.08 0.004 80 / 0.78)',
