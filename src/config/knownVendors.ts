@@ -68,6 +68,7 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
   },
   {
     vendorKey: 'modelscope',
+    logo: new URL('../assets/vendor-logos/modelscope.png', import.meta.url).href,
     glyph: '魔',
     tagline: '官方原生 · 绑定阿里云每天免费额度',
     promo: {
@@ -78,6 +79,7 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
   },
   {
     vendorKey: 'volcengine',
+    logo: new URL('../assets/vendor-logos/volcengine.png', import.meta.url).href,
     glyph: '火',
     tagline: '官方原生 · 豆包 Seedream / Seedance',
     promo: {
@@ -91,6 +93,7 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
     // 故必须独立成卡：否则豆包语音音色被归进「其他模型」且写死「已配置」，
     // 用户既无处填 APP_ID:ACCESS_KEY，又被误导以为已连通（真实坑，2026-06-25 用户反馈）。
     vendorKey: 'volcengine-speech',
+    logo: new URL('../assets/vendor-logos/doubao.png', import.meta.url).href,
     glyph: '声',
     tagline: '官方原生 · 豆包语音 2.0 配音（自然语言情感控制）',
     credentialPlaceholder: '粘贴 APP_ID:ACCESS_KEY（用冒号拼接）',
