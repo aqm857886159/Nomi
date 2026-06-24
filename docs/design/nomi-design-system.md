@@ -83,7 +83,7 @@ Script → Generate → Edit → Preview → Export
 
 锁定原则：
 
-- **Light + Dark 双模式**（2026-06-24 重新引入）：token-only 翻转——`tailwind.config.ts` addBase 的 `:root[data-mantine-color-scheme="dark"]` 重定义全套 `--nomi-*`，组件零改动随之翻。浅色仍是默认；首次启动跟随系统偏好，用户手动切一次后记住选择（`localStorage['nomi-color-scheme']`）。新增颜色一律走语义 token，别在组件直写 hex/oklch，否则暗色翻不到。3D 渲染色（`--nomi-axis-*`、scene3d 场景物体/轴/网格）主题无关，明暗同色。开关：库页头 + 关于弹层「外观」行。
+- **Light + Dark 双模式**（2026-06-24 重新引入）：token-only 翻转——`tailwind.config.ts` addBase 的 `:root[data-mantine-color-scheme="dark"]` 重定义全套 `--nomi-*`，组件零改动随之翻。默认按本地时间「天黑自动暗」（傍晚 18:00–清晨 7:00 用暗色，与 macOS 外观无关），用户手动切一次后记住选择（`localStorage['nomi-color-scheme']`）；App 开着跨过时间窗会自动切。窗口常量在 `theme/colorScheme.ts`（`NIGHT_START_HOUR`/`NIGHT_END_HOUR`）。新增颜色一律走语义 token，别在组件直写 hex/oklch，否则暗色翻不到。3D 渲染色（`--nomi-axis-*`、scene3d 场景物体/轴/网格）主题无关，明暗同色。开关：库页头 + 关于弹层「外观」行。
 - **No fake progress**：禁止假进度条、占位 spinner 假装在工作
 - **Density over decoration**：密集生产 surface > 营销式装饰
 - **One visual hierarchy**：用 spacing + typography + 轻微 surface 对比建立层次，避免到处加 border

@@ -10,8 +10,8 @@ import { NomiAppProviders } from './NomiAppProviders'
 import { NomiColorSchemeProvider } from './theme/NomiColorSchemeProvider'
 import { primeNomiColorScheme } from './theme/colorScheme'
 
-// 预渲染钉死 color-scheme 属性（首次跟随系统偏好、之后用户存储），让 tailwind base 层的
-// [data-mantine-color-scheme="dark|light"] 选择器即刻命中，避免首帧主题闪烁。
+// 预渲染钉死 color-scheme 属性（未手动选过时按本地时间「天黑自动暗」、之后用户存储），让
+// tailwind base 层的 [data-mantine-color-scheme="dark|light"] 选择器即刻命中，避免首帧主题闪烁。
 primeNomiColorScheme()
 
 const container = document.getElementById('root')

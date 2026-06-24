@@ -13,7 +13,7 @@
 Nomi：本地优先 AI 视频创作工作台。
 **技术栈**：Electron + React 18 + Tailwind 3 + Zustand + Vercel AI SDK。
 **主要模块**：项目库 → 创作（文本）→ 生成画布（节点系统）→ 时间轴预览 → 导出 MP4。
-**设计系统**：`Design.md` + `src/design/`，token-only，光/暗双模式（默认浅色·首启跟随系统·token 翻转），密度优先。
+**设计系统**：`Design.md` + `src/design/`，token-only，光/暗双模式（默认按本地时间「天黑自动暗」·手动切一次后记住·token 翻转），密度优先。
 **工作树**：`/Users/aoqimin/Desktop/Nomi/`，分支 `main`，直接在 main 上 commit + push。
 
 ## 常用命令

@@ -19,16 +19,18 @@ export function normalizeColorScheme(value: unknown): NomiColorScheme {
   return value === 'dark' ? 'dark' : DEFAULT_COLOR_SCHEME
 }
 
-const DARK_MEDIA_QUERY = '(prefers-color-scheme: dark)'
+// 「天黑自动暗」时间窗（本地时间）：傍晚 18:00 起用暗色，清晨 7:00 起回浅色。
+// 用户反馈「浅色晚上睁不开眼」→ 默认按时间走、与 macOS 外观无关（用户拍板 2026-06-24）。
+export const NIGHT_START_HOUR = 18
+export const NIGHT_END_HOUR = 7
 
-export function getSystemColorScheme(): NomiColorScheme {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return DEFAULT_COLOR_SCHEME
-  }
-  return window.matchMedia(DARK_MEDIA_QUERY).matches ? 'dark' : 'light'
+export function getTimeBasedColorScheme(now: Date = new Date()): NomiColorScheme {
+  const hour = now.getHours()
+  const isNight = hour >= NIGHT_START_HOUR || hour < NIGHT_END_HOUR
+  return isNight ? 'dark' : 'light'
 }
 
-/** 读用户显式存储；无（首次/未选过）返回 null —— 调用方再决定回退到系统偏好。 */
+/** 读用户显式存储；无（首次/未选过）返回 null —— 调用方再决定回退到时间策略。 */
 export function readStoredColorScheme(): NomiColorScheme | null {
   if (typeof window === 'undefined') return null
   try {
@@ -43,9 +45,9 @@ export function hasStoredColorScheme(): boolean {
   return readStoredColorScheme() !== null
 }
 
-/** 初始方案：用户选过 → 用存储；否则跟随系统偏好（用户拍板的默认行为）。 */
+/** 初始方案：用户选过 → 用存储；否则按本地时间（天黑自动暗）。 */
 export function resolveInitialColorScheme(): NomiColorScheme {
-  return readStoredColorScheme() ?? getSystemColorScheme()
+  return readStoredColorScheme() ?? getTimeBasedColorScheme()
 }
 
 /** 把方案落到 document（dataset + Mantine 属性 + color-scheme）。不写存储——跟随系统时不该污染用户选择。 */

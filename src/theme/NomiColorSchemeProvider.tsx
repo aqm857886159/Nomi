@@ -1,7 +1,7 @@
 import React from 'react'
 import {
   applyNomiColorScheme,
-  getSystemColorScheme,
+  getTimeBasedColorScheme,
   hasStoredColorScheme,
   NomiColorSchemeContext,
   normalizeColorScheme,
@@ -24,16 +24,17 @@ export function NomiColorSchemeProvider({ children }: { children: React.ReactNod
     applyNomiColorScheme(colorScheme)
   }, [colorScheme])
 
-  // 跟随系统：仅在用户未显式选过时，OS 切换深/浅色实时跟随。
+  // 天黑自动暗：仅在用户未显式选过时，每分钟核对本地时间窗——App 开着跨过傍晚/清晨会自动切。
   React.useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
-    const media = window.matchMedia('(prefers-color-scheme: dark)')
-    const onChange = () => {
+    if (typeof window === 'undefined') return
+    const id = window.setInterval(() => {
       if (hasStoredColorScheme()) return
-      setColorSchemeState(getSystemColorScheme())
-    }
-    media.addEventListener('change', onChange)
-    return () => media.removeEventListener('change', onChange)
+      setColorSchemeState((prev) => {
+        const next = getTimeBasedColorScheme()
+        return next === prev ? prev : next
+      })
+    }, 60_000)
+    return () => window.clearInterval(id)
   }, [])
 
   const value = React.useMemo<NomiColorSchemeContextValue>(() => ({
