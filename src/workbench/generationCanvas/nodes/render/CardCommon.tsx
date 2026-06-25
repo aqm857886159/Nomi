@@ -37,24 +37,54 @@ export function NodeBodyHeader({ title, shotIndex }: { title?: string; shotIndex
 }
 
 /**
- * 空态启动器视觉（统一：size-12 圆形实心墨图标 + 主文案 + 副提示）。纯视觉，点击/拖放由各 body 包一层
- * 自己处理（手势各异）。收口画板「点击打开」/ 3D「点击进入」此前圆⇄方、实心⇄描边的分叉。
+ * 空态启动器（统一：size-12 圆形实心墨图标 + 主文案 + 副提示）。收口画板「点击打开」/ 3D「点击进入」
+ * 此前圆⇄方、实心⇄描边的分叉。
+ *
+ * 点击：给 onActivate 即渲染成**可点按钮**（onPointerDown stopPropagation 不触发节点拖拽，卡片其余可拖；
+ * 收口「文案说『点击进入』但 body 没挂 handler」的真坑）。不给 onActivate 则纯视觉。onPreload 在 hover/focus
+ * 触发（如 3D 预拉编辑器 chunk）。点击/拖拽手势与外壳一致（外壳 setPointerCapture 在 article，故走显式按钮）。
  */
 export function EmptyStateLauncher({
   icon,
   label,
   hint,
+  onActivate,
+  onPreload,
+  activateAriaLabel,
 }: {
   icon: React.ReactNode
   label?: string
   hint?: string
+  onActivate?: () => void
+  onPreload?: () => void
+  activateAriaLabel?: string
 }): JSX.Element {
-  return (
-    <div className="flex flex-col items-center justify-center gap-2 text-center">
+  const cluster = (
+    <>
       <span className="grid size-12 place-items-center rounded-full bg-nomi-ink text-nomi-paper">{icon}</span>
       {label ? <span className="text-body-sm font-semibold text-nomi-ink-80">{label}</span> : null}
       {hint ? <span className="text-caption text-nomi-ink-60">{hint}</span> : null}
-    </div>
+    </>
+  )
+  if (!onActivate) {
+    return <div className="flex flex-col items-center justify-center gap-2 text-center">{cluster}</div>
+  }
+  return (
+    <button
+      type="button"
+      aria-label={activateAriaLabel || label || '打开'}
+      className={cn(
+        'flex flex-col items-center justify-center gap-2 text-center rounded-nomi px-4 py-3 bg-transparent border-0 cursor-pointer',
+        'transition-[background] duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05',
+        'focus-visible:outline-2 focus-visible:outline-nomi-accent focus-visible:outline-offset-2',
+      )}
+      onClick={(event) => { event.stopPropagation(); onActivate() }}
+      onPointerDown={(event) => event.stopPropagation()}
+      onPointerEnter={onPreload}
+      onFocus={onPreload}
+    >
+      {cluster}
+    </button>
   )
 }
 

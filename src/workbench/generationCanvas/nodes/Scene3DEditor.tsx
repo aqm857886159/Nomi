@@ -200,6 +200,9 @@ function Scene3DEditor({ node, width, height, readOnly = false }: Scene3DEditorP
               icon={<IconCube size={24} stroke={1.65} />}
               label="点击进入 3D 编辑器"
               hint="摆放模型、相机并输出截图"
+              activateAriaLabel="进入 3D 编辑器"
+              onActivate={() => setFullscreen(true)}
+              onPreload={preloadFullscreenEditor}
             />
           </div>
         )}

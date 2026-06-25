@@ -20,8 +20,7 @@ function WhiteboardCardBodyImpl({ node, readOnly = false }: { node: GenerationCa
   const [open, setOpen] = React.useState(false)
   const selectNode = useGenerationCanvasStore((state) => state.selectNode)
 
-  const handleOpen = React.useCallback((event: React.MouseEvent) => {
-    event.stopPropagation()
+  const handleOpen = React.useCallback(() => {
     if (readOnly) return
     selectNode(node.id)
     setOpen(true)
@@ -33,21 +32,14 @@ function WhiteboardCardBodyImpl({ node, readOnly = false }: { node: GenerationCa
       <div className={cn('p-2.5 pointer-events-none')}>
         <NodeBodyHeader title={node.title || '画板'} />
       </div>
-      {/* 中间只留启动器（用户拍板）；圆底图标统一 EmptyStateLauncher。 */}
+      {/* 中间只留启动器（用户拍板）；圆底图标 + 点击行为统一 EmptyStateLauncher(onActivate)。 */}
       <div className={cn('flex-1 min-h-0 flex flex-col items-center justify-center pb-3')}>
-        <button
-          type="button"
-          className={cn(
-            'rounded-nomi px-3 py-2 bg-transparent border-0 cursor-pointer',
-            'transition-[background] duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05',
-            'focus-visible:outline-2 focus-visible:outline-nomi-accent focus-visible:outline-offset-2',
-          )}
-          aria-label="打开画板"
-          onClick={handleOpen}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <EmptyStateLauncher icon={<IconBrush size={24} stroke={1.55} />} hint="点击打开画板" />
-        </button>
+        <EmptyStateLauncher
+          icon={<IconBrush size={24} stroke={1.55} />}
+          hint="点击打开画板"
+          activateAriaLabel="打开画板"
+          onActivate={handleOpen}
+        />
       </div>
       {open ? (
         <WhiteboardModal
