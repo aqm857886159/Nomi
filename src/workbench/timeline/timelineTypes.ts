@@ -1,7 +1,7 @@
 import type { ClipFraming } from './clipFraming'
 
-// v0.7.1: 加 'audio' clip type（轨道仍是 image / video 两条；audio clip 落到 video 轨）
-export type TimelineTrackType = 'image' | 'video'
+// 三轨：图片 / 视频 / 音频。audio 自 2026-06-25 起有独立音频轨（此前寄生 video 轨、跟视频抢位）。
+export type TimelineTrackType = 'image' | 'video' | 'audio'
 export type TimelineClipType = 'image' | 'video' | 'audio'
 
 export type TimelineClip = {
@@ -58,14 +58,14 @@ export type TimelineState = {
   textClips: TimelineTextClip[]
 }
 
-// 轨道名与「图片轨」对称用「视频轨」（type 仍是 video；audio clip 也落此轨，少见）。
-// 原 v0.7.1 叫「媒体轨」求泛指，但和「图片轨」不对称、纯图片项目里也显得空泛——2026-06-19 走查改回对称命名。
+// 三轨对称命名。audio 自 2026-06-25 起独立成「音频轨」（配乐/BGM，不再跟视频抢位）。
 export const TIMELINE_TRACK_DEFINITIONS: Array<Pick<TimelineTrack, 'id' | 'type' | 'label'>> = [
   { id: 'imageTrack', type: 'image', label: '图片轨' },
   { id: 'videoTrack', type: 'video', label: '视频轨' },
+  { id: 'audioTrack', type: 'audio', label: '音频轨' },
 ]
 
-// audio / video clip 共用一条轨道；helper 用于决定 clip 该挂哪条
+// clip type → 该挂哪条轨道（现在一一对应，audio 有独立轨）。
 export function getTrackTypeForClipType(clipType: TimelineClipType): TimelineTrackType {
-  return clipType === 'image' ? 'image' : 'video'
+  return clipType
 }

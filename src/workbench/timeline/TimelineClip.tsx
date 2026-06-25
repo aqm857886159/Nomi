@@ -239,14 +239,14 @@ function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
     'shadow-[inset_0_1px_0_var(--workbench-bevel)] cursor-grab select-none active:cursor-grabbing',
     clip.type === 'image' && 'border border-[color-mix(in_srgb,var(--workbench-accent)_22%,transparent)] bg-[var(--workbench-accent-soft)]',
     clip.type === 'video' && 'border border-[color-mix(in_srgb,var(--workbench-video)_24%,transparent)] bg-[var(--workbench-video-soft)]',
-    // v0.7.1: audio clip 视觉（紫色调，与 video 区分）
-    clip.type === 'audio' && 'border border-[color-mix(in_srgb,var(--nomi-accent)_24%,transparent)] bg-[var(--nomi-accent-soft)]',
+    // audio clip 视觉（紫色调 --workbench-audio，与图=蓝/视频=青区分）
+    clip.type === 'audio' && 'border border-[color-mix(in_srgb,var(--workbench-audio)_24%,transparent)] bg-[var(--workbench-audio-soft)]',
   )
 
   const selectedClasses = isSelected ? cn(
-    clip.type === 'video'
-      ? 'border-[color-mix(in_srgb,var(--workbench-video)_56%,transparent)] bg-[color-mix(in_srgb,var(--workbench-video)_16%,var(--workbench-surface))] shadow-[0_0_0_1.5px_color-mix(in_srgb,var(--workbench-video)_13%,transparent),0_8px_18px_var(--workbench-video-soft)]'
-      : 'border-[color-mix(in_srgb,var(--workbench-accent)_62%,transparent)] bg-[color-mix(in_srgb,var(--workbench-accent)_16%,var(--workbench-surface))] shadow-[0_0_0_1.5px_color-mix(in_srgb,var(--workbench-accent)_13%,transparent),0_8px_18px_var(--workbench-accent-soft)]',
+    clip.type === 'video' && 'border-[color-mix(in_srgb,var(--workbench-video)_56%,transparent)] bg-[color-mix(in_srgb,var(--workbench-video)_16%,var(--workbench-surface))] shadow-[0_0_0_1.5px_color-mix(in_srgb,var(--workbench-video)_13%,transparent),0_8px_18px_var(--workbench-video-soft)]',
+    clip.type === 'audio' && 'border-[color-mix(in_srgb,var(--workbench-audio)_56%,transparent)] bg-[color-mix(in_srgb,var(--workbench-audio)_16%,var(--workbench-surface))] shadow-[0_0_0_1.5px_color-mix(in_srgb,var(--workbench-audio)_13%,transparent),0_8px_18px_var(--workbench-audio-soft)]',
+    clip.type === 'image' && 'border-[color-mix(in_srgb,var(--workbench-accent)_62%,transparent)] bg-[color-mix(in_srgb,var(--workbench-accent)_16%,var(--workbench-surface))] shadow-[0_0_0_1.5px_color-mix(in_srgb,var(--workbench-accent)_13%,transparent),0_8px_18px_var(--workbench-accent-soft)]',
   ) : ''
 
   // trim 手柄：专门的等宽对称握把（非按钮原语，避免 px/min-width 撑开导致左右不一致）
@@ -258,7 +258,9 @@ function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
   const gripClasses = cn(
     'block w-[3px] h-3.5 rounded-full pointer-events-none',
     'shadow-[0_0_0_1px_oklch(1_0_0/0.72)]',
-    clip.type === 'video' ? 'bg-[var(--workbench-video)]' : 'bg-[var(--workbench-accent)]',
+    clip.type === 'video' && 'bg-[var(--workbench-video)]',
+    clip.type === 'audio' && 'bg-[var(--workbench-audio)]',
+    clip.type === 'image' && 'bg-[var(--workbench-accent)]',
   )
 
   return (

@@ -53,11 +53,9 @@ const KIND_LABEL: Record<AssetKind, string> = {
 
 // 单个素材格。memo 化：父组件（搜索/筛选/滚动）重渲时，未变的格子不重建（图多更省）。
 const AssetGridCell = React.memo(function AssetGridCell({ asset }: { asset: AssetRef }): JSX.Element {
-  // 图片/视频可拖到画布建素材节点（音频不渲染节点，不可拖）。
-  const draggable = asset.kind === 'image' || asset.kind === 'video'
+  // 三类都可拖：图片/视频 → 画布建素材节点；音频 → 时间轴音频轨（drop 端按 kind 各自处理）。
+  const draggable = true
   const handleDragStart = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    if (!draggable) return
-    if (asset.kind !== 'image' && asset.kind !== 'video') return
     event.dataTransfer.setData(ASSET_LIBRARY_DRAG_MIME, serializeAssetLibraryDrag({
       kind: asset.kind,
       name: asset.name,
@@ -65,7 +63,8 @@ const AssetGridCell = React.memo(function AssetGridCell({ asset }: { asset: Asse
       origin: asset.origin,
     }))
     event.dataTransfer.effectAllowed = 'copy'
-  }, [draggable, asset.kind, asset.name, asset.renderUrl, asset.origin])
+  }, [asset.kind, asset.name, asset.renderUrl, asset.origin])
+  const dragHint = asset.kind === 'audio' ? '拖到时间轴音频轨' : '拖到画布'
   return (
     <div
       draggable={draggable}
@@ -75,7 +74,7 @@ const AssetGridCell = React.memo(function AssetGridCell({ asset }: { asset: Asse
         'flex items-center justify-center',
         draggable && 'cursor-grab active:cursor-grabbing',
       )}
-      title={draggable ? `${asset.name} · 拖到画布` : asset.name}
+      title={`${asset.name} · ${dragHint}`}
     >
       <AssetThumb asset={asset} />
       <span className={cn(

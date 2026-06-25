@@ -21,8 +21,8 @@ function makeClip(overrides: Partial<TimelineClip> = {}): TimelineClip {
     startFrame: 10,
     endFrame: 40,
     frameCount: 30,
-    offsetStartFrame: 5,
-    offsetEndFrame: 35,
+    offsetStartFrame: 0,
+    offsetEndFrame: 0,
     url: 'file:///project/media/clip.mp4',
     thumbnailUrl: 'file:///project/media/thumb.jpg',
     ...overrides,
@@ -69,8 +69,9 @@ describe('buildRenderManifestRequest', () => {
     expect(request.diagnostics.warnings).toContain('Timeline has no image or video clips to render.')
   })
 
-  it('preserves video clip source offsets as source frame ranges', () => {
-    const clip = makeClip({ offsetStartFrame: 12, offsetEndFrame: 72 })
+  it('maps clip trim offsets to the source frame window [offsetStart, frameCount - offsetEnd]', () => {
+    // 裁掉头 12、尾 20 帧的 100 帧素材 → 源窗口 [12, 80]（offset* 是裁帧数，不是源位置）。
+    const clip = makeClip({ frameCount: 100, offsetStartFrame: 12, offsetEndFrame: 20 })
     const request = buildRenderManifestRequest({
       projectId: 'project-1',
       timeline: makeTimeline([{ id: 'videoTrack', type: 'video', label: 'Video', clips: [clip] }]),
@@ -93,15 +94,16 @@ describe('buildRenderManifestRequest', () => {
             startFrame: 10,
             endFrame: 40,
             sourceStartFrame: 12,
-            sourceEndFrame: 72,
+            sourceEndFrame: 80,
           },
         ],
       },
     ])
   })
 
-  it('preserves zero clip source offsets as explicit source frame ranges', () => {
-    const clip = makeClip({ offsetStartFrame: 0, offsetEndFrame: 0 })
+  it('untrimmed clip yields a valid source window (sourceEnd = frameCount, not 0)', () => {
+    // P2 根因回归：offsetEnd=0 此前被直接当 sourceEnd=0 → sourceEnd ≤ sourceStart → 导出拒收回退无声 WebM。
+    const clip = makeClip({ frameCount: 30, offsetStartFrame: 0, offsetEndFrame: 0 })
     const request = buildRenderManifestRequest({
       projectId: 'project-1',
       timeline: makeTimeline([{ id: 'videoTrack', type: 'video', label: 'Video', clips: [clip] }]),
@@ -113,7 +115,7 @@ describe('buildRenderManifestRequest', () => {
 
     expect(request.timeline.tracks[0]?.clips[0]).toMatchObject({
       sourceStartFrame: 0,
-      sourceEndFrame: 0,
+      sourceEndFrame: 30,
     })
   })
 

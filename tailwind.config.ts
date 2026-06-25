@@ -375,6 +375,8 @@ const workbenchBasePlugin = plugin(({ addBase }) => {
       '--workbench-danger-soft': 'rgba(255, 59, 48, 0.1)',
       '--workbench-video': '#00a886',
       '--workbench-video-soft': 'rgba(0, 168, 134, 0.11)',
+      '--workbench-audio': '#8b5cf6',
+      '--workbench-audio-soft': 'rgba(139, 92, 246, 0.11)',
       '--workbench-success-ink': '#248a3d',
       '--workbench-hover': 'rgba(60, 60, 67, 0.06)',
       '--workbench-pressed': 'rgba(60, 60, 67, 0.09)',

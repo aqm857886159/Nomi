@@ -59,6 +59,11 @@ export function handleCanvasStageDrop(event: DragEvent<HTMLDivElement>, ctx: Can
   if (assetDrag) {
     event.preventDefault()
     event.stopPropagation()
+    // 音频无画布节点（不渲染画面），引导到时间轴音频轨而不是在画布建个哑节点。
+    if (assetDrag.kind === 'audio') {
+      toast('音频请拖到时间轴的「音频轨」当配乐', 'info')
+      return
+    }
     const store = useGenerationCanvasStore.getState()
     const node = store.addNode({
       kind: 'asset',

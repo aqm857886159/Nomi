@@ -15,7 +15,8 @@ export type TimelineDropPreview = {
 
 function trackTypeLabel(type: TimelineClip['type']): string {
   if (type === 'image') return '图片轨'
-  if (type === 'video' || type === 'audio') return '媒体轨'
+  if (type === 'video') return '视频轨'
+  if (type === 'audio') return '音频轨'
   return '对应轨道'
 }
 

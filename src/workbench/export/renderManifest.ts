@@ -120,13 +120,17 @@ function buildClip(
 ): RendererRenderManifestRequest['timeline']['tracks'][number]['clips'][number] {
   // 取景只在非默认时携带 → 默认构图的 clip 不增 manifest 体积、不动既有快照。
   const framing = resolveClipFraming(clip)
+  // 源帧窗口 = [offsetStartFrame, frameCount − offsetEndFrame]。offset* 是「从两端裁掉的帧数」，
+  // 不是源位置——直接把 offsetEndFrame 当 sourceEndFrame 是 P2 根因 bug：未裁剪 clip(offsetEnd=0)
+  // 会得到 sourceEnd=0 ≤ sourceStart=0，assertValidManifest 拒收 → 整个导出静默回退无声 WebM
+  // （filtergraph「所见即所得」主路径形同虚设，配乐也因此从来出不来）。
   return {
     id: clip.id,
     assetId: clipIdToAssetId.get(clip.id) ?? clip.sourceNodeId,
     startFrame: clip.startFrame,
     endFrame: clip.endFrame,
     sourceStartFrame: clip.offsetStartFrame,
-    sourceEndFrame: clip.offsetEndFrame,
+    sourceEndFrame: Math.max(clip.offsetStartFrame + 1, clip.frameCount - clip.offsetEndFrame),
     ...(isDefaultFraming(framing) ? {} : { transform: framing }),
   }
 }
