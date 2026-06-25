@@ -3,7 +3,7 @@ import { IconScissors } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { EDGE_MODE_LABEL } from '../model/graphOps'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { getNodeSize } from './generationCanvasGeometry'
+import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 
 export type ActiveEdge = {
   id: string
@@ -70,8 +70,10 @@ function CanvasEdgeLayer({
           const source = nodeById.get(edge.source)
           const target = nodeById.get(edge.target)
           if (!source || !target) return null
-          const sourceSize = source.size || { width: 300, height: 220 }
-          const targetSize = target.size || { width: 300, height: 220 }
+          // 锚点必须用「真实渲染尺寸」（卡片类固定宽 200/320…），不能用名义 node.size——否则
+          // 起笔/落点会偏到节点框外（character-card 名义 300 实渲 200 → 连线飘在右侧 100px 外的根因）。
+          const sourceSize = resolveNodeVisualSize(source)
+          const targetSize = resolveNodeVisualSize(target)
           const startX = source.position.x + sourceSize.width
           const startY = source.position.y + sourceSize.height / 2
           const endX = target.position.x
@@ -169,7 +171,7 @@ function CanvasEdgeLayer({
         if (!pendingConnectionSourceId || !pendingCursorPos) return null
         const sourceNode = nodeById.get(pendingConnectionSourceId)
         if (!sourceNode) return null
-        const sourceSize = getNodeSize(sourceNode)
+        const sourceSize = resolveNodeVisualSize(sourceNode)
         const startX = sourceNode.position.x + sourceSize.width
         const startY = sourceNode.position.y + sourceSize.height / 2
         const endX = pendingCursorPos.x

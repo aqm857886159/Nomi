@@ -2,6 +2,7 @@
 // 从 BaseGenerationNode.tsx 抽出（纯函数 + 常量，无 React 依赖）。
 import type { GenerationCanvasNode } from "../model/generationCanvasTypes";
 import { readNodeAspectRatio } from "./aspectRatio";
+import { isCardRenderKind, resolveNodeRenderKind } from "./resolveRenderKind";
 
 export const STATUS_LABEL: Record<string, string> = {
     queued: "排队中",
@@ -230,6 +231,49 @@ export function resolvePreviewHeight(opts: {
         aspectHeight ??
         clampNumber(sizeHeight, bounds.minHeight, bounds.maxHeight)
     );
+}
+
+// 节点「真实渲染尺寸」的**单一真相源**。卡片类（角色/场景/道具/音轨/画板）按 cardFixedSize
+// 固定宽、resolvePreviewHeight 取高；其余按 size/比例。BaseGenerationNode 的可视外壳与所有
+// 几何子系统（连线锚点 / 最小地图 / fitView / 选框）都必须经此取尺寸，不能再用名义 node.size——
+// 名义 size 与渲染尺寸有差（character-card 名义宽 300、实渲固定宽 200），连线锚点用名义 size
+// 就会从节点右侧 100px 外的空中起笔，看着「连不上」(本次根因)。
+const DEFAULT_VISUAL_SIZE = { width: 320, height: 360 };
+
+export function resolveNodeVisualSize(
+    node: Pick<GenerationCanvasNode, "kind" | "size" | "renderKind" | "categoryId" | "meta" | "result">,
+): { width: number; height: number } {
+    const size = node.size || DEFAULT_VISUAL_SIZE;
+    const renderKind = resolveNodeRenderKind(node);
+    const isCardKind = isCardRenderKind(renderKind);
+    const bounds = getNodeSizeBounds(node.kind);
+    const { width: cardFixedWidth, height: cardFixedHeight } = cardFixedSize(renderKind, isCardKind);
+    const hasResult = Boolean(node.result?.url);
+    const isImageGridSplitNode =
+        node.kind === "image" &&
+        typeof node.meta?.source === "string" &&
+        node.meta.source.startsWith("image-grid-split-");
+    const storedPreviewHeight =
+        typeof node.meta?.previewHeight === "number" && Number.isFinite(node.meta.previewHeight)
+            ? isImageGridSplitNode
+                ? Math.max(1, Math.round(node.meta.previewHeight))
+                : clampNumber(Math.round(node.meta.previewHeight), bounds.minHeight, bounds.maxHeight)
+            : null;
+    const previewHeight = resolvePreviewHeight({
+        node: node as GenerationCanvasNode,
+        hasResult,
+        isCardKind,
+        cardFixedWidth,
+        cardFixedHeight,
+        storedPreviewHeight,
+        sizeWidth: size.width,
+        sizeHeight: size.height,
+        bounds,
+    });
+    return {
+        width: cardFixedWidth ?? Math.max(bounds.minWidth, size.width),
+        height: previewHeight,
+    };
 }
 
 export function findTimelineDropTarget(

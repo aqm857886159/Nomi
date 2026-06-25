@@ -58,11 +58,9 @@ import {
   RESIZE_DIRECTIONS,
   getNodeSizeBounds,
   FOCUS_GENERATION_NODE_EVENT,
-  clampNumber,
   mediaNodeSize,
   computeMediaMetaPatch,
-  cardFixedSize,
-  resolvePreviewHeight,
+  resolveNodeVisualSize,
 } from "./nodeSizing";
 
 export type BaseGenerationNodeProps = {
@@ -226,7 +224,6 @@ function BaseGenerationNodeImpl({
     );
 
     const status = node.status || "idle";
-    const size = node.size || { width: 320, height: 360 };
     // E.2.1: shots 分类的 composer 真正 flex-inlined（不再 absolute 浮在节点下方）
     // 配合 spec §6.1 修正 3：composer 内嵌到 card flex 流，与图像区共占节点视觉空间
     // [DESIGN-CARDS-07] renderKind 分发：非 shots 分类用专属 card 组件
@@ -239,41 +236,11 @@ function BaseGenerationNodeImpl({
     const isCardKind = isCardRenderKind(renderKind);
     // C5: 文本节点走专属可编辑 body（TextDocumentNode），像 card 那样脱离图片预览。
     const isTextKind = node.kind === "text";
-    const isImageGridSplitNode =
-        node.kind === "image" &&
-        typeof node.meta?.source === "string" &&
-        node.meta.source.startsWith("image-grid-split-");
-    const storedPreviewHeight =
-        typeof node.meta?.previewHeight === "number" &&
-        Number.isFinite(node.meta.previewHeight)
-            ? isImageGridSplitNode
-                ? Math.max(1, Math.round(node.meta.previewHeight))
-                : clampNumber(
-                      Math.round(node.meta.previewHeight),
-                      sizeBounds.minHeight,
-                      sizeBounds.maxHeight,
-                  )
-            : null;
     const hasResult = Boolean(node.result?.url);
-    const { width: cardFixedWidth, height: cardFixedHeight } = cardFixedSize(
-        renderKind,
-        isCardKind,
-    );
-    const previewHeight = resolvePreviewHeight({
-        node,
-        hasResult,
-        isCardKind,
-        cardFixedWidth,
-        cardFixedHeight,
-        storedPreviewHeight,
-        sizeWidth: size.width,
-        sizeHeight: size.height,
-        bounds: sizeBounds,
-    });
-    const visualSize = {
-        width: cardFixedWidth ?? Math.max(sizeBounds.minWidth, size.width),
-        height: previewHeight,
-    };
+    // 可视尺寸（卡片固定宽 / 动态高）的单一真相源 resolveNodeVisualSize——连线锚点 / 最小地图 /
+    // fitView 与本外壳共用同一函数，避免名义 size 与渲染尺寸两套真相源（连线起笔飘在节点外的根因）。
+    const visualSize = resolveNodeVisualSize(node);
+    const previewHeight = visualSize.height;
     const { handlePointerDown, handlePointerMove, handlePointerUp, handleResizePointerDown } =
         useNodeDragResize({
             node,
