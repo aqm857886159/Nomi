@@ -14,12 +14,18 @@ import { getDesktopBridge } from '../../desktop/bridge'
 import { toast } from '../toast'
 import { FoldableModelCard } from './FoldableModelCard'
 
-type Status = { installed: boolean; loggedIn: boolean; totalCredit: number | null; vipLevel: string; notMaestroVip: boolean }
+export type DreaminaStatus = { installed: boolean; loggedIn: boolean; totalCredit: number | null; vipLevel: string; notMaestroVip: boolean }
 type DeviceFlow = { verificationUri: string; userCode: string; deviceCode: string; expiresAt: string }
 
-export function DreaminaMemberCard(): JSX.Element | null {
+type DreaminaMemberCardProps = {
+  /** 连接状态由父组件统一 fetch 后下传（单一来源，见 plan §4.1）；null = 不显（加载中/老 preload）。 */
+  status: DreaminaStatus | null
+  /** 安装/登录/退出后冒泡，父组件重查 + 重新分桶。 */
+  onChanged: () => void
+}
+
+export function DreaminaMemberCard({ status, onChanged }: DreaminaMemberCardProps): JSX.Element | null {
   const dreamina = getDesktopBridge()?.dreamina
-  const [status, setStatus] = React.useState<Status | null>(null)
   const [busy, setBusy] = React.useState(false)
   const [flow, setFlow] = React.useState<DeviceFlow | null>(null)
   const [polling, setPolling] = React.useState(false)
@@ -27,22 +33,16 @@ export function DreaminaMemberCard(): JSX.Element | null {
   const [error, setError] = React.useState('')
   const cancelPoll = React.useRef(false)
 
-  const refresh = React.useCallback(async () => {
-    if (!dreamina) return
-    try { setStatus(await dreamina.status()) } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
-  }, [dreamina])
-
-  React.useEffect(() => { void refresh() }, [refresh])
   React.useEffect(() => () => { cancelPoll.current = true }, [])
 
-  // 老 preload（无 dreamina 口）：整卡不显，避免坏入口。
+  // 加载中 / 老 preload（无 dreamina 口）：整卡不显，避免坏入口。
   if (!dreamina || !status) return null
 
   const handleInstall = async () => {
     setBusy(true); setError('')
     try {
       const r = await dreamina.install()
-      if (r.ok) { toast('即梦 CLI 安装完成', 'success'); await refresh() }
+      if (r.ok) { toast('即梦 CLI 安装完成', 'success'); onChanged() }
       else setError(r.message)
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setBusy(false) }
   }
@@ -54,7 +54,7 @@ export function DreaminaMemberCard(): JSX.Element | null {
       // checklogin 单次最多阻塞 ~60s；循环续查直到成功/出错/用户取消（设备码有效期内）。
       for (let i = 0; i < 8 && !cancelPoll.current; i += 1) {
         const r = await dreamina.loginPoll(deviceCode)
-        if (r.status === 'success') { toast('即梦登录成功', 'success'); setFlow(null); await refresh(); return }
+        if (r.status === 'success') { toast('即梦登录成功', 'success'); setFlow(null); onChanged(); return }
         if (r.status === 'error') { setError(r.message); return }
         // pending → 继续下一轮
       }
@@ -74,7 +74,7 @@ export function DreaminaMemberCard(): JSX.Element | null {
   const handleLogout = async () => {
     cancelPoll.current = true
     setBusy(true); setError('')
-    try { await dreamina.logout(); setFlow(null); await refresh(); toast('已退出即梦登录', 'success') }
+    try { await dreamina.logout(); setFlow(null); onChanged(); toast('已退出即梦登录', 'success') }
     catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setBusy(false) }
   }
 
