@@ -178,6 +178,14 @@ export function joinUrl(baseUrl: string, path: string): string {
   // Don't double-append when the base already ends with the path (users paste
   // full URLs like https://api.example.com/v1).
   if (base.endsWith(p)) return base;
+  // Collapse a duplicate version segment: if base already ends with a version
+  // segment (/v1, /v3, /api/v3, …/codex/v1 …) and the op path starts with /v1/,
+  // drop the path's redundant /v1 so we don't build ".../v1/v1/..." (a 404 at
+  // code-newcli-com, ".../v1/v1/images/generations") or ".../api/v3/v1/...".
+  // SINGLE source of truth — endpoint() in vendorEndpoint.ts delegates here.
+  if (p.startsWith("/v1/") && /\/v\d+$/.test(base)) {
+    return `${base}${p.slice(3)}`;
+  }
   return `${base}${p}`;
 }
 

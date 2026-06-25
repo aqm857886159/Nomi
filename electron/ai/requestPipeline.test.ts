@@ -124,6 +124,23 @@ describe("joinUrl", () => {
   it("does not double-append when base already ends with path", () => {
     expect(joinUrl("https://api.example.com/v1", "/v1")).toBe("https://api.example.com/v1");
   });
+  it("collapses duplicate /v1 when base ends in a version segment (code-newcli-com 404 根因)", () => {
+    // base 末尾已带版本段 + op path 以 /v1/ 开头 → 不能拼成 .../v1/v1/...
+    expect(joinUrl("https://code.newcli.com/codex/v1", "/v1/images/generations")).toBe(
+      "https://code.newcli.com/codex/v1/images/generations",
+    );
+    expect(joinUrl("https://api.deepseek.com/v1/", "/v1/images/generations")).toBe(
+      "https://api.deepseek.com/v1/images/generations",
+    );
+  });
+  it("does NOT collapse when base has no version segment or path is not /v1/* (火山/kie 不受影响)", () => {
+    // 火山：base 不带版本段，path 自带 /api/v3 → URL 本就正确
+    expect(joinUrl("https://ark.cn-beijing.volces.com", "/api/v3/images/generations")).toBe(
+      "https://ark.cn-beijing.volces.com/api/v3/images/generations",
+    );
+    // kie：path 不以 /v1/ 开头 → 不去重
+    expect(joinUrl("https://api.kie.ai", "/api/v1/jobs/createTask")).toBe("https://api.kie.ai/api/v1/jobs/createTask");
+  });
 });
 
 describe("appendQueryParams", () => {
