@@ -28,10 +28,11 @@ const PROVIDER_KIND_LABEL: Record<ProviderKind, string> = {
 }
 
 type Phase = 'input' | 'running' | 'success' | 'error'
-type ModelKind = 'text' | 'image' | 'video'
+type ModelKind = 'text' | 'image' | 'video' | 'audio'
 const KIND_OPTIONS: Array<{ value: ModelKind; label: string }> = [
   { value: 'image', label: '图片' },
   { value: 'video', label: '视频' },
+  { value: 'audio', label: '配音' },
   { value: 'text', label: '文本' },
 ]
 
