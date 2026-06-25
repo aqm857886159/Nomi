@@ -111,8 +111,30 @@ export const NEWAPI_STANDARD_VIDEO_PARAMS: ParamControl[] = [
   { key: "image", label: "首帧图(图生视频，可选)", type: "image-url", options: [] },
 ];
 
+// ── 配音(TTS)：OpenAI 兼容同步 create（POST /v1/audio/speech → **直接回二进制音频**，runner 读 arrayBuffer）──
+// 中转(Xcode.hk 等)的 seed-tts-2.0 走这条：Bearer + JSON body，response_format=mp3（实测回 audio/mpeg，
+// 见 SeedTTS-2.0 文档）。audioResponse 缺省=binary（裸字节），区别于火山原生的 ndjson-base64。
+// model 发模型真名（用户接入时填 seed-tts-2.0），voice 由档案/参数给（seed-tts 档案提供火山音色下拉）。
+export const NEWAPI_AUDIO_TTS_OP: HttpOperation = {
+  method: "POST",
+  path: "/v1/audio/speech",
+  headers: JSON_HEADERS,
+  body: {
+    model: "{{model.modelKey}}",
+    input: "{{request.prompt}}",
+    voice: "{{request.params.voice}}",
+    response_format: "mp3",
+  },
+};
+
+// 通用中转配音参数（裸 relay 模型的兜底；模型若命中 seed-tts 档案，UI 由档案给火山音色下拉）。
+// voice 用 freeform——各中转 TTS 模型音色 ID 不同，不写死枚举。
+export const NEWAPI_STANDARD_AUDIO_PARAMS: ParamControl[] = [
+  { key: "voice", label: "音色 ID", type: "text", options: [] },
+];
+
 /** 一个 new-api 模型的传输配方（按 kind 取 create/query + taskKind）。 */
-export function newapiTransportFor(kind: "image" | "video"): {
+export function newapiTransportFor(kind: "image" | "video" | "audio"): {
   taskKind: ProfileKind;
   create: HttpOperation;
   query?: HttpOperation;
@@ -121,6 +143,9 @@ export function newapiTransportFor(kind: "image" | "video"): {
 } {
   if (kind === "video") {
     return { taskKind: "text_to_video", create: NEWAPI_VIDEO_CREATE_OP, query: NEWAPI_VIDEO_QUERY_OP, statusMapping: NEWAPI_STATUS_MAPPING, params: NEWAPI_STANDARD_VIDEO_PARAMS };
+  }
+  if (kind === "audio") {
+    return { taskKind: "text_to_audio", create: NEWAPI_AUDIO_TTS_OP, params: NEWAPI_STANDARD_AUDIO_PARAMS };
   }
   return { taskKind: "text_to_image", create: NEWAPI_IMAGE_CREATE_OP, params: NEWAPI_STANDARD_IMAGE_PARAMS };
 }
