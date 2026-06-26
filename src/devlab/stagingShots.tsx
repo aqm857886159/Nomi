@@ -8,7 +8,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Mannequin, MannequinCrowd, MannequinAssetBoundary, ProceduralMannequin } from '../workbench/generationCanvas/nodes/scene3d/scene3dObjects'
 import { captureScene, applySceneCameraPose } from '../workbench/generationCanvas/nodes/scene3d/scene3dMath'
-import { buildStagingScene } from '../workbench/generationCanvas/nodes/scene3d/stagingBuilder'
+import { buildStagingScene, buildStagingSceneAudited, type StagingSpec } from '../workbench/generationCanvas/nodes/scene3d/stagingBuilder'
 import type { Scene3DState, Scene3DCaptureResult, Scene3DVector3 } from '../workbench/generationCanvas/nodes/scene3d/scene3dTypes'
 import { STAGING_TEST_CASES } from './stagingTestCases'
 
@@ -30,6 +30,14 @@ function parseOverrides(): PoseOverrides {
   try { return JSON.parse(decodeURIComponent(escape(atob(raw)))) as PoseOverrides } catch { return {} }
 }
 const POSE_OVERRIDES = parseOverrides()
+
+// 直接渲染任意 agent spec（走生产 buildStagingSceneAudited,验运行时自检 F3）：?spec=<base64(JSON StagingSpec)>。
+function parseSpecParam(): StagingSpec | null {
+  const raw = params.get('spec')
+  if (!raw) return null
+  try { return JSON.parse(decodeURIComponent(escape(atob(raw)))) as StagingSpec } catch { return null }
+}
+const AUDIT_SPEC = parseSpecParam()
 
 // 把覆盖层增量叠加进已建场景：mannequin 对象按 spec.characters 顺序一一对应,匹配 pose id 即叠加。
 function applyPoseOverrides(state: Scene3DState): Scene3DState {
@@ -173,7 +181,10 @@ function CaptureController({ state, onDone }: { state: Scene3DState; onDone: (sh
 }
 
 function StagingShots(): JSX.Element {
-  const state = React.useMemo(() => applyPoseOverrides(buildStagingScene(testCase.spec)), [])
+  const state = React.useMemo(
+    () => (AUDIT_SPEC ? buildStagingSceneAudited(AUDIT_SPEC).state : applyPoseOverrides(buildStagingScene(testCase.spec))),
+    [],
+  )
   const [shots, setShots] = React.useState<ShotMap | null>(null)
   React.useEffect(() => {
     if (shots) {
