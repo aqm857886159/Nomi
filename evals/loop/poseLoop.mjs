@@ -6,7 +6,10 @@
 // 跑:node evals/loop/poseLoop.mjs            (self,失败退出码非零=可执行验证)
 //     MODE=detect node evals/loop/poseLoop.mjs
 //     MODE=fix    node evals/loop/poseLoop.mjs   (需 app + 视觉模型)
-import { runPoseLane } from "./poseLane.mjs";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { runPoseLane, runStagingWalk, SHOT_DIR } from "./poseLane.mjs";
 
 const EPS = 0.01;
 
@@ -59,20 +62,48 @@ async function detect() {
 }
 
 // ── fix:形状 fix 闭环(VLM gated)。免费结构/落地当硬门,VLM 判形状/意图当 fitness。需 app + 视觉模型。──
+// 真跑:渲一个用例(可带姿势覆盖)→ 读 hero 图(生产无地面帧)→ 复用 app 视觉模型问「像不像意图+解剖正常」
+// → 分。诊断≠修、裁决靠重跑分差(round())。本自测:从「破坏的坐姿」修回校准坐姿应固化、再注坏应回滚。
 async function fixMode() {
-  const { visionAvailable } = await import("./semiObjective.mjs").catch(() => ({ visionAvailable: () => false }));
-  const { closeApp } = await import("./appBridge.mjs");
+  const { visionAvailable, vlmJudge } = await import("./semiObjective.mjs");
+  const { closeApp, modelLabels } = await import("./appBridge.mjs");
+  const CASE = "05-sit";
+  const INTENT = "一个人坐着的姿势:大腿大致水平、小腿大致垂直、上身直立,四肢解剖正常(膝盖不反折)";
+  const BAD = { sit: { mixamorigLeftLeg: [-95, 0, 0], mixamorigRightLeg: [-95, 0, 0] } }; // 膝反折=破坏坐姿
+  const ovPath = path.join(os.tmpdir(), "nomi-pose-fix-ov.json");
+
+  // measure:写覆盖→渲该用例→读 hero PNG→VLM 判意图/解剖→分。免费结构没过则直接 0(硬门)。
+  const measure = async (ov) => {
+    if (ov && Object.keys(ov).length) fs.writeFileSync(ovPath, JSON.stringify(ov));
+    const rows = runStagingWalk(ov && Object.keys(ov).length ? ovPath : undefined, "05");
+    const row = rows.find((r) => r.id === CASE);
+    if (!row || !row.ok) return 0; // free 硬门:结构没过(断渲/悬空)直接 0,不浪费 VLM
+    const png = path.join(SHOT_DIR, `${CASE}__hero.png`);
+    const dataUrl = `data:image/png;base64,${fs.readFileSync(png).toString("base64")}`;
+    const v = await vlmJudge(dataUrl, `画面里的人是否是「${INTENT}」?`);
+    const score = v.pass ? Math.max(0.5, v.confidence ?? 0.5) : (1 - (v.confidence ?? 0)) * 0.5;
+    console.log(`    VLM: pass=${v.pass} conf=${v.confidence ?? "?"} → score ${score.toFixed(3)}`);
+    return score;
+  };
+
   try {
     if (!visionAvailable()) {
-      console.log("MODE=fix 需视觉模型(VLM)做形状裁判。未检测到 enabled 视觉模型 → 跳过形状 fix,回退免费探测。");
+      console.log("MODE=fix 需视觉模型(VLM)做形状裁判。未检测到 enabled 视觉模型 → 回退免费探测。");
       await detect();
       return;
     }
-    // measure = free 结构/落地硬门(不过则 0) × VLM 形状分(逐例对 hero 图问「像不像意图」)。
-    // 注:这里给出闭环骨架;真跑会逐例 chatVision 烧 VLM 额度,故按需开。诊断≠修、重跑裁决同 round()。
-    console.log("=== 姿势自纠闭环 · 形状 fix(免费门 + VLM 形状裁判) ===");
-    console.log("(骨架已就位:measure=free结构落地硬门 × VLM形状分;round() 重跑裁决固化/回滚。逐例 chatVision 烧额度,按需扩。)");
-    await detect();
+    console.log("=== 姿势自纠闭环 · 形状 fix(免费结构硬门 + VLM 形状裁判) ===");
+    console.log(`视觉模型:${modelLabels().vision}\n目标用例:${CASE} · 意图:${INTENT}\n`);
+    let cur = BAD; // 起点:破坏的坐姿(膝反折)
+    // 回合1:修 agent 提议回退覆盖(=校准坐姿)→ VLM 分应升 → 固化。
+    const r1 = await round("回合1 修(破坏坐姿→校准)", cur, async () => ({}), measure);
+    cur = r1.next;
+    // 回合2(对照):注入破坏覆盖 → VLM 分应降 → 回滚。
+    const r2 = await round("回合2 坏patch对照(注膝反折)", cur, async () => BAD, measure);
+    cur = r2.next;
+    if (!r1.kept) throw new Error("回合1 未固化(VLM 没认出校准坐姿更好)——检查视觉模型/意图措辞");
+    if (r2.kept) throw new Error("回合2 坏 patch 未回滚(VLM 没认出破坏更差)");
+    console.log("\n✅ VLM 形状 fix 闭环成立:校准坐姿被固化、膝反折破坏被回滚——裁决在 VLM 重判分差(诊断≠修)。");
   } finally {
     await closeApp();
   }

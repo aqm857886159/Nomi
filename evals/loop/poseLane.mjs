@@ -10,10 +10,13 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SUMMARY = path.join(repoRoot, "tests/ux/_stagingshot/_summary.json");
 
-/** 跑 walk(可选姿势覆盖层 JSON 路径),返回逐例 {id, ok(结构通过), grounded(落地), structFails, diag}。零额度。 */
-export function runStagingWalk(overridesPath) {
+export const SHOT_DIR = path.join(repoRoot, "tests/ux/_stagingshot");
+
+/** 跑 walk(可选姿势覆盖层 + 可选用例筛选),返回逐例 {id, ok, grounded, structFails, diag}。零额度。 */
+export function runStagingWalk(overridesPath, casesFilter) {
   const env = { ...process.env };
   if (overridesPath) env.OVERRIDES = overridesPath;
+  if (casesFilter) env.CASES = casesFilter;
   const r = spawnSync("node", ["tests/ux/staging-pose-shots.walk.mjs"], {
     cwd: repoRoot,
     env,
