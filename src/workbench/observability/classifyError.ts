@@ -88,10 +88,35 @@ function detectLegacyErrorKind(raw: string): GenerationErrorKind | null {
   return null
 }
 
+/**
+ * 「模型未开通」是文本信号,不是状态码信号——火山方舟用 404、别家可能 403/400,
+ * 各自的 category 会被派生成 auth/input/unknown,把「去控制台开通」误导成「查密钥/查参数」。
+ * 故在分类前先按文案判定,命中即压过 structured.category。短语取得很窄,避免误吞普通 404。
+ */
+function detectModelNotOpen(upstream: string | undefined, raw: string): boolean {
+  const text = `${upstream || ''} ${raw}`.toLowerCase()
+  return (
+    text.includes('not activated the model') ||
+    text.includes('activate the model service') ||
+    text.includes('modelnotopen') ||
+    text.includes('未开通') ||
+    text.includes('开通管理') ||
+    (text.includes('开通') && text.includes('模型'))
+  )
+}
+
 export function classifyGenerationError(message: string): GenerationErrorReport {
   // S4-2:structured 优先(VendorRequestError 经 IPC 标记穿透,源头保留的事实,不是猜);
   // 老数据/非 vendor 错误退回 legacy 正则识别。两条路只产 kind,文案统一出自 narrate 词表。
   const structured = parseVendorErrorFromMessage(message)
+  // 模型未开通先于 category 判(理由见 detectModelNotOpen):reason 用 narrate 词表,
+  // 服务商原话(如「has not activated the model …」)单独提到 providerMessage 可见区。
+  const cleanRaw = stripVendorErrorMarker(String(message || '')).split('\n→')[0].trim() || '生成失败'
+  if (detectModelNotOpen(structured?.upstreamMsg, cleanRaw)) {
+    const { reason, hint } = narrateGenerationError('model-not-open')
+    const providerMessage = pickProviderMessage(structured?.upstreamMsg ?? extractReadableErrorLine(cleanRaw), reason)
+    return { reason, hint, raw: cleanRaw, ...(providerMessage ? { providerMessage } : {}) }
+  }
   if (structured?.category && (STRUCTURED_KINDS as readonly string[]).includes(structured.category)) {
     const { reason, hint } = narrateGenerationError(structured.category as GenerationErrorKind)
     const providerMessage = pickProviderMessage(structured.upstreamMsg, reason)

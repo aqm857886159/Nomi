@@ -39,6 +39,37 @@ describe('classifyGenerationError — 已知分类', () => {
     expect(r.reason).toBe('生成超时')
     expect(r.hint).not.toMatch(/网络/)
   })
+
+  it('模型未开通(火山 404,真实 structured IPC 形态):不当成「服务商临时故障」,指向控制台开通', () => {
+    const upstreamMsg =
+      'Your account 2126482930 has not activated the model doubao-seedream-4-5-251128. Please activate the model service in the Ark Console.'
+    const message =
+      "Error invoking remote method 'nomi:tasks:run': Error: NOMI_VENDOR_ERR_B64::" +
+      Buffer.from(JSON.stringify({ category: 'unknown', httpStatus: 404, upstreamMsg, vendorKey: 'volcengine' }), 'utf8').toString('base64') +
+      ":: Provider request failed (HTTP 404) at volcengine POST https://ark.cn-beijing.volces.com/api/v3/images/generations: " + upstreamMsg
+    const r = classifyGenerationError(message)
+    expect(r.reason).toBe('模型未开通')
+    expect(r.hint).toMatch(/开通/)
+    expect(r.hint).not.toMatch(/临时故障/)
+    expect(r.providerMessage).toMatch(/has not activated/)
+  })
+
+  it('模型未开通(无 structured 的纯文本兜底)也能识别 reason', () => {
+    const r = classifyGenerationError(
+      'Provider request failed (HTTP 404) at volcengine POST https://x: 该模型未开通,请到 Ark 控制台开通管理激活',
+    )
+    expect(r.reason).toBe('模型未开通')
+  })
+
+  it('模型未开通即便上游标 403(被状态码派生成 auth):文本判定压过,不误导查密钥', () => {
+    const raw = classifyGenerationError(
+      "NOMI_VENDOR_ERR_B64::" +
+        Buffer.from(JSON.stringify({ category: 'auth', upstreamMsg: '该模型未开通,请到控制台开通管理激活该模型' }), 'utf8').toString('base64') +
+        ":: Provider request failed (HTTP 403) at volcengine POST https://x: 该模型未开通,请到控制台开通管理激活该模型",
+    )
+    expect(raw.reason).toBe('模型未开通')
+    expect(raw.hint).not.toMatch(/API Key/)
+  })
 })
 
 describe('classifyGenerationError — 未识别兜底（方案 B 改进）', () => {

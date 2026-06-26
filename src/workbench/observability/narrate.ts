@@ -56,6 +56,7 @@ export type GenerationErrorKind =
   | 'poll-timeout'
   | 'network'
   | 'model-config'
+  | 'model-not-open'
   | 'content-policy'
   | 'server'
   | 'input'
@@ -68,6 +69,12 @@ const NARRATE_ERROR: Record<GenerationErrorKind, { reason: string; hint: string 
   'poll-timeout': { reason: '生成超时', hint: '视频生成较慢，等待超过上限。任务可能仍在进行，请稍后重新生成，或换更快的模型（如 Seedance Fast）。' },
   network: { reason: '网络超时', hint: '网络问题，请检查网络后重试。' },
   'model-config': { reason: '模型未配置', hint: '这个模型没配好，请去「模型接入」页设置。' },
+  // 模型已接好但服务商账户没开通该模型(火山方舟最常见,Seedream/Seedance 各自要单独开通)。
+  // 这不是 Key/额度问题——上游 404/403 各家不一,但都是「去控制台开通」一个动作能解。
+  'model-not-open': {
+    reason: '模型未开通',
+    hint: '这个模型你的服务商账户还没开通。请到服务商控制台开通它（火山方舟：在 Ark 控制台「开通管理」激活对应模型），或在「模型接入」换一个已开通的模型。',
+  },
   'content-policy': { reason: '提示词被拦截', hint: '提示词触发了安全策略，请修改后重试。' },
   server: { reason: '服务商故障', hint: '服务商服务异常，请稍后重试，或换一个模型。' },
   input: { reason: '参数不被接受', hint: '服务商拒绝了请求参数，请检查比例/尺寸等设置，或换一个模型。' },
