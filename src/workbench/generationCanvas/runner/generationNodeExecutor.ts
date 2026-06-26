@@ -3,6 +3,7 @@ import type { CatalogTaskActionOptions } from './catalogTaskResolve'
 import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import { generateAudio } from './audioActions'
 import { generateImage } from './imageActions'
+import { generate3D } from './model3dActions'
 import { resolveGenerationReferences } from './generationReferenceResolver'
 import { applyRelayFirstFrame } from './relayFrameResolver'
 import { generateText } from './textActions'
@@ -44,6 +45,10 @@ export const generationNodeExecutor: GenerationNodeExecutor = async (node, conte
   if (executionKind === 'audio') {
     const references = resolveGenerationReferences(node, context)
     return generateAudio(node, { references, ...gate, ...(onProgress ? { onProgress } : {}) })
+  }
+  if (executionKind === 'model3d') {
+    const references = resolveGenerationReferences(node, context)
+    return generate3D(node, { references, ...gate, ...(onProgress ? { onProgress } : {}) })
   }
   throw new Error(`${node.kind} generation is not implemented yet`)
 }

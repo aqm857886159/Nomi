@@ -103,7 +103,7 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
 
   const assetUrl = extractAssetUrl(cached.raw);
   if (assetUrl) {
-    const type: "image" | "video" = cached.wantedKind === "video" ? "video" : "image";
+    const type: "image" | "video" | "model3d" = cached.wantedKind === "video" ? "video" : cached.wantedKind === "model3d" ? "model3d" : "image";
     const asset = cached.projectId
       ? await localizeTaskAsset(cached.projectId, assetUrl, type, cached.nodeId)
       : { type, url: assetUrl, thumbnailUrl: type === "image" ? assetUrl : null };

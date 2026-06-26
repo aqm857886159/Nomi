@@ -15,6 +15,7 @@ import { executeTextTask } from "./textTaskRunner";
 import { runAudioTask } from "./audioTaskRunner";
 import { firstString, isJsonRecord, nowIso, trim, type JsonRecord } from "./jsonUtils";
 import { collectAssetUrls, firstMappedString, providerMetaFromResponse, taskStatusFromResponse, valuesFromMapping } from "./tasks/responseParsing";
+import { extractAssetUrl } from "./tasks/assetUrlExtract";
 import { TtlLruCache } from "./tasks/taskCache";
 import { markTaskAdmitted } from "./tasks/taskAdmission";
 import { collectFilesRecursively, parseDataUrl } from "./assets/assetBytes";
@@ -127,7 +128,7 @@ export type TaskResult = {
   kind: ProfileKind;
   status: "queued" | "running" | "succeeded" | "failed";
   assets: Array<{
-    type: "image" | "video" | "audio";
+    type: "image" | "video" | "audio" | "model3d";
     url: string;
     thumbnailUrl?: string | null;
     assetId?: string | null;
@@ -352,37 +353,21 @@ export function billingKindForTaskKind(kind: ProfileKind): BillingModelKind {
   if (kind === "text_to_video" || kind === "image_to_video") return "video";
   if (kind === "chat" || kind === "prompt_refine" || kind === "image_to_prompt") return "text";
   if (kind === "text_to_audio" || kind === "image_to_audio" || kind === "transcribe") return "audio"; // 音频族走第四路同步收口
+  if (kind === "text_to_3d" || kind === "image_to_3d") return "model3d"; // 3D 族（RunningHub 混元/HiTem/Meshy，输出 glb）
   return "image";
 }
 
-export function extractAssetUrl(raw: unknown): string {
-  if (!raw || typeof raw !== "object") return "";
-  const record = raw as JsonRecord;
-  const candidates = [
-    record.url,
-    record.video_url,
-    record.image_url,
-    record.output,
-    (record.data as JsonRecord[] | undefined)?.[0]?.url,
-    (record.data as JsonRecord[] | undefined)?.[0]?.b64_json ? `data:image/png;base64,${(record.data as JsonRecord[])[0].b64_json}` : "",
-    (record.images as JsonRecord[] | undefined)?.[0]?.url,
-    (record.videos as JsonRecord[] | undefined)?.[0]?.url,
-    (record.result as JsonRecord | undefined)?.url,
-    (record.result as JsonRecord | undefined)?.video_url,
-    (record.result as JsonRecord | undefined)?.image_url,
-  ];
-  return firstString(...candidates);
-}
+export { extractAssetUrl } from "./tasks/assetUrlExtract";
 
-export async function localizeTaskAsset(projectId: string, assetUrl: string, type: "image" | "video" | "audio", nodeId?: string): Promise<TaskResult["assets"][number]> {
+export async function localizeTaskAsset(projectId: string, assetUrl: string, type: "image" | "video" | "audio" | "model3d", nodeId?: string): Promise<TaskResult["assets"][number]> {
   const imported = await importRemoteAsset({
     projectId,
     url: assetUrl,
     kind: "generated",
     ownerNodeId: nodeId || null,
-    fileName: `${type}-${Date.now()}.${type === "image" ? "png" : type === "video" ? "mp4" : "mp3"}`,
+    fileName: `${type}-${Date.now()}.${type === "image" ? "png" : type === "video" ? "mp4" : type === "model3d" ? "glb" : "mp3"}`,
   }) as { id?: string; name?: string; data?: { url?: string; absolutePath?: string } };
-  if (type !== "audio") scheduleTechnicalReview({ projectId, nodeId, absolutePath: String(imported.data?.absolutePath || ""), assetUrl: String(imported.data?.url || assetUrl), type }); // S4-2b:落地技术自检,仅图像/视频
+  if (type === "image" || type === "video") scheduleTechnicalReview({ projectId, nodeId, absolutePath: String(imported.data?.absolutePath || ""), assetUrl: String(imported.data?.url || assetUrl), type }); // S4-2b:落地技术自检,仅图像/视频（3D 模型不送 VLM）
   return {
     type,
     url: String(imported.data?.url || assetUrl),
@@ -510,13 +495,14 @@ export async function buildProfileTaskResult(input: {
     ...valuesFromMapping(input.response, responseMapping, "assets"),
     ...valuesFromMapping(input.response, responseMapping, "image_url"),
     ...valuesFromMapping(input.response, responseMapping, "video_url"),
+    ...valuesFromMapping(input.response, responseMapping, "model_url"),
   ];
   const assetUrls = Array.from(new Set([
     ...mappedAssetValues.flatMap(collectAssetUrls),
     ...collectAssetUrls(extractAssetUrl(input.response)),
   ]));
   const status = taskStatusFromResponse(input.response, responseMapping, input.mapping.statusMapping, assetUrls);
-  const type: "image" | "video" = input.wantedKind === "video" ? "video" : "image";
+  const type: "image" | "video" | "model3d" = input.wantedKind === "video" ? "video" : input.wantedKind === "model3d" ? "model3d" : "image";
   const assets = input.projectId
     ? await Promise.all(assetUrls.map((url) => localizeTaskAsset(input.projectId || "", url, type, input.nodeId)))
     : assetUrls.map((url) => ({ type, url, thumbnailUrl: type === "image" ? url : null }));
@@ -630,7 +616,7 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
     admitTask(upstreamTaskId, { vendor: vendorKey, request, raw: providerResponse, model, projectId, nodeId, wantedKind, fingerprint: fallbackFingerprint });
     return { id: upstreamTaskId, kind, status: "queued", assets: [], raw: providerResponse };
   }
-  const type: "image" | "video" = wantedKind === "video" ? "video" : "image";
+  const type: "image" | "video" | "model3d" = wantedKind === "video" ? "video" : wantedKind === "model3d" ? "model3d" : "image";
   const asset: TaskResult["assets"][number] = projectId
     ? await localizeTaskAsset(projectId, assetUrl, type, nodeId)
     : { type, url: assetUrl, thumbnailUrl: type === "image" ? assetUrl : null };

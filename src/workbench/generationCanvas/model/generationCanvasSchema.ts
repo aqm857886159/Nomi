@@ -5,7 +5,7 @@ import { GENERATION_NODE_KINDS } from './generationNodeKinds'
 export const generationNodeKindSchema = z.enum(GENERATION_NODE_KINDS)
 
 export const generationNodeStatusSchema = z.enum(['idle', 'queued', 'running', 'success', 'error', 'recoverable'])
-export const generationNodeTaskKindSchema = z.enum(['text', 'image', 'video', 'workflow', 'asset', 'unknown'])
+export const generationNodeTaskKindSchema = z.enum(['text', 'image', 'video', 'audio', 'model3d', 'workflow', 'asset', 'unknown'])
 export const generationNodeRunStatusSchema = z.enum(['queued', 'running', 'success', 'error', 'cancelled', 'recoverable'])
 export const categoryIdSchema = z.enum(CATEGORY_IDS)
 
@@ -34,7 +34,7 @@ export const generationProvenanceSchema = z.object({
 
 export const generationNodeResultSchema = z.object({
   id: z.string().min(1),
-  type: z.enum(['image', 'video', 'text']),
+  type: z.enum(['image', 'video', 'text', 'audio', 'model3d']),
   url: z.string().optional(),
   thumbnailUrl: z.string().optional(),
   text: z.string().optional(),

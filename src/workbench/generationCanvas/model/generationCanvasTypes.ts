@@ -7,9 +7,9 @@ export type { GenerationNodeKind } from './generationNodeKinds'
 // 刻意独立于 error：① 不进红色错误桶误导用户 ② 批量/下游逻辑不把它当真失败传染。
 export type GenerationNodeStatus = 'idle' | 'queued' | 'running' | 'success' | 'error' | 'recoverable'
 
-export type GenerationResultType = 'image' | 'video' | 'text' | 'audio'
+export type GenerationResultType = 'image' | 'video' | 'text' | 'audio' | 'model3d'
 
-export type GenerationNodeTaskKind = 'text' | 'image' | 'video' | 'audio' | 'workflow' | 'asset' | 'unknown'
+export type GenerationNodeTaskKind = 'text' | 'image' | 'video' | 'audio' | 'model3d' | 'workflow' | 'asset' | 'unknown'
 
 export const CATEGORY_IDS = ['shots', 'cast', 'scene', 'prop', 'audio'] as const
 
@@ -35,6 +35,7 @@ export function getDefaultCategoryForNodeKind(kind: GenerationNodeKind): Builtin
     case 'scene':
     case 'panorama':
     case 'scene3d':
+    case 'model3d':
       return 'scene'
     case 'audio':
       return 'audio'

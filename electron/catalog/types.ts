@@ -4,7 +4,7 @@
 import type { ApiKeyRecord } from "./secrets";
 import type { ParamMap } from "./paramTranslate";
 
-export type BillingModelKind = "text" | "image" | "video" | "audio";
+export type BillingModelKind = "text" | "image" | "video" | "audio" | "model3d";
 export type ProfileKind =
   | "chat"
   | "prompt_refine"
@@ -15,7 +15,9 @@ export type ProfileKind =
   | "image_edit"
   | "text_to_audio"
   | "image_to_audio"
-  | "transcribe";
+  | "transcribe"
+  | "text_to_3d"
+  | "image_to_3d";
 
 // openai-responses：OpenAI Responses API（/responses，非 /chat/completions）。
 // 中转（如 foxcode codex 渠道 wire_api=responses）只认 Responses → chat/completions 会 502（2026-06-06 实测根因）。

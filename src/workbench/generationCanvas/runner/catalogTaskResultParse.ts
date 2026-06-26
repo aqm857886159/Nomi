@@ -52,6 +52,7 @@ function extractTextFromChatRaw(raw: unknown): string {
 function generationTypeForTask(taskKind: TaskKind): GenerationResultType {
   if (taskKind === 'text_to_video' || taskKind === 'image_to_video') return 'video'
   if (taskKind === 'text_to_audio') return 'audio'
+  if (taskKind === 'text_to_3d' || taskKind === 'image_to_3d') return 'model3d'
   return 'image'
 }
 

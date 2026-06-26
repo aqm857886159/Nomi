@@ -22,7 +22,7 @@ export {
   type AgentsChatStreamHandlers,
 } from './desktopAgentsChatStream'
 
-export type BillingModelKind = 'text' | 'image' | 'video' | 'audio'
+export type BillingModelKind = 'text' | 'image' | 'video' | 'audio' | 'model3d'
 
 export type ProfileKind =
   | 'chat'
@@ -35,6 +35,8 @@ export type ProfileKind =
   | 'text_to_audio'
   | 'image_to_audio'
   | 'transcribe'
+  | 'text_to_3d'
+  | 'image_to_3d'
 
 export type ModelCatalogVendorAuthType = 'none' | 'bearer' | 'x-api-key' | 'query'
 export type ModelCatalogVendorProviderKind = ProviderKind

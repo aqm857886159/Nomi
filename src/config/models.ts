@@ -72,6 +72,7 @@ export type NodeKind =
   | 'audio'
   | 'subtitle'
   | 'character'
+  | 'model3d'
 
 export function getAllowedModelsByKind(kind?: NodeKind): ModelOption[] {
   switch (kind) {

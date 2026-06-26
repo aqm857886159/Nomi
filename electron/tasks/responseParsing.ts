@@ -70,6 +70,7 @@ export function collectAssetUrls(value: unknown): string[] {
       value.url,
       value.video_url,
       value.image_url,
+      value.model_url,
       value.output_url,
       value.thumbnailUrl,
     ].flatMap(collectAssetUrls);

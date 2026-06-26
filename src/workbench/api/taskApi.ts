@@ -11,6 +11,8 @@ export type TaskKind =
   | 'image_edit'
   | 'text_to_audio'
   | 'transcribe'
+  | 'text_to_3d'
+  | 'image_to_3d'
 
 export type TaskStatus = 'queued' | 'running' | 'succeeded' | 'failed'
 

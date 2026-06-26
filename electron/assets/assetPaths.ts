@@ -13,6 +13,7 @@ export function extensionFromMime(contentType: string, fallback = "bin"): string
   if (type === "image/gif") return "gif";
   if (type === "video/mp4") return "mp4";
   if (type === "video/webm") return "webm";
+  if (type === "model/gltf-binary") return "glb";
   if (type === "application/json") return "json";
   return fallback;
 }
@@ -39,6 +40,7 @@ export function contentTypeFromPath(filePath: string): string {
   if (ext === ".mp4") return "video/mp4";
   if (ext === ".webm") return "video/webm";
   if (ext === ".mov") return "video/quicktime";
+  if (ext === ".glb") return "model/gltf-binary";
   if (ext === ".json") return "application/json";
   if (ext === ".txt" || ext === ".md") return "text/plain";
   if (ext === ".pdf") return "application/pdf";
@@ -51,6 +53,7 @@ export function contentTypeFromPath(filePath: string): string {
 export function assetKindFromContentType(contentType: string): string {
   if (contentType.startsWith("image/")) return "image";
   if (contentType.startsWith("video/")) return "video";
+  if (contentType.startsWith("model/")) return "model3d";
   if (
     contentType === "application/json" ||
     contentType.startsWith("text/") ||

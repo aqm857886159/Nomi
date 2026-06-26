@@ -22,6 +22,7 @@ import { useNodeDragResize } from "./useNodeDragResize";
 import { useHasFrameSourceEdge, useShotIndex, useMountedCards } from "../hooks/useNodeRelationships";
 import { lazyWithChunkBoundary } from "../../../ui/chunkBoundary";
 import { GeneratingOverlay, PendingGenerationPlaceholder, Scene3DEditorLoading, STRIPED_BG_CLASS } from "./render/CardCommon";
+import PanoramaUploadFallback from "./PanoramaUploadFallback";
 import { cn } from "../../../utils/cn";
 import { NomiImage } from "../../../design/media";
 import { persistNodeImageFile } from "../adapters/persistNodeImage";
@@ -71,6 +72,7 @@ export type BaseGenerationNodeProps = {
     appear?: boolean;
 };
 const Scene3DEditor = lazyWithChunkBoundary("3D 场景编辑器", () => import("./Scene3DEditor")); // A5：chunk 失败只降级本卡
+const Model3DViewer = lazyWithChunkBoundary("3D 模型预览", () => import("./model3d/Model3DViewer")); // 生成出的 .glb 卡内可旋转预览（R3F）
 
 function BaseGenerationNodeImpl({
     node,
@@ -632,31 +634,14 @@ function BaseGenerationNodeImpl({
                             onScreenshot={handlePanoramaScreenshot}
                         />
                     ) : (
-                        <div
-                            className={cn(
-                                "flex w-full h-full items-center justify-center",
-                            )}>
-                            <label
-                                className={cn(
-                                    "inline-flex items-center justify-center",
-                                    "min-w-[156px] min-h-[48px] px-[18px]",
-                                    "text-nomi-ink-60 text-body-sm cursor-pointer",
-                                )}
-                                onPointerDown={(event) =>
-                                    event.stopPropagation()
-                                }>
-                                <span>+ 上传全景图</span>
-                                <input
-                                    className='hidden'
-                                    type='file'
-                                    accept='image/*'
-                                    onChange={handlePanoramaFileChange}
-                                />
-                            </label>
-                        </div>
+                        <PanoramaUploadFallback onChange={handlePanoramaFileChange} />
                     )
                 ) : node.result?.url ? (
-                    node.result.type === "video" ? (
+                    node.result.type === "model3d" ? (
+                        <React.Suspense fallback={<Scene3DEditorLoading />}>
+                            <Model3DViewer url={node.result.url} />
+                        </React.Suspense>
+                    ) : node.result.type === "video" ? (
                         <video
                             className={cn(
                                 "w-full h-full min-h-0 object-contain pointer-events-auto",
