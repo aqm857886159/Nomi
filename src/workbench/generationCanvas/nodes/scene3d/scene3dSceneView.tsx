@@ -536,6 +536,7 @@ export function CameraHelperView({
       stopNativePointerEvent(event)
       aimDraggingRef.current = null
       setSceneControlsDragging(false)
+      onTransformEnd()
       drag.target?.releasePointerCapture?.(drag.pointerId)
     }
 
@@ -547,7 +548,7 @@ export function CameraHelperView({
       window.removeEventListener('pointerup', stopWindowAimDrag, { capture: true })
       window.removeEventListener('pointercancel', stopWindowAimDrag, { capture: true })
     }
-  }, [readOnly, setSceneControlsDragging, updateAimFromDrag])
+  }, [onTransformEnd, readOnly, setSceneControlsDragging, updateAimFromDrag])
 
   const marker = (
     <group
@@ -629,4 +630,3 @@ export function CameraHelperView({
     </>
   )
 }
-

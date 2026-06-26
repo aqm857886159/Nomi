@@ -1,12 +1,12 @@
 import React from 'react'
 import * as THREE from 'three'
 import { Canvas, useThree } from '@react-three/fiber'
-import { Environment, Sky } from '@react-three/drei'
 import { IconCamera, IconEye, IconRotate } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
 import { applySceneCameraPose, crowdCount } from './scene3dMath'
 import { SCENE3D_ASPECT_OPTIONS, SCENE3D_ASPECT_RATIOS } from './scene3dTypes'
 import type { Scene3DAspectRatio, Scene3DCamera, Scene3DObject, Scene3DState } from './scene3dTypes'
+import { Scene3DEnvironmentLayer } from './scene3dEnvironment'
 import {
   Scene3DMeshGeometry,
   ProceduralMannequin,
@@ -33,11 +33,12 @@ export function cameraPreviewViewportStyle(aspectRatio: Scene3DAspectRatio): Rea
 }
 
 export function CameraPreviewPose({ cameraData }: { cameraData: Scene3DCamera }): null {
-  const { camera } = useThree()
+  const { camera, invalidate } = useThree()
 
   React.useLayoutEffect(() => {
     applySceneCameraPose(camera, cameraData)
-  }, [camera, cameraData])
+    invalidate()
+  }, [camera, cameraData, invalidate])
 
   return null
 }
@@ -91,14 +92,7 @@ export function CameraPreviewScene({
   let roleIndex = 0
   return (
     <>
-      <color attach="background" args={[state.environment.backgroundColor]} />
-      <ambientLight intensity={0.65} />
-      {state.environment.showSky ? <Sky sunPosition={[2, 1, 4]} /> : null}
-      {state.environment.preset ? (
-        <React.Suspense fallback={null}>
-          <Environment preset="city" />
-        </React.Suspense>
-      ) : null}
+      <Scene3DEnvironmentLayer environment={state.environment} />
       {state.environment.showAxes ? <axesHelper args={[2]} /> : null}
       {state.objects.map((object) => {
         const roleStartIndex = roleIndex

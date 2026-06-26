@@ -90,6 +90,8 @@ export type Scene3DTimeline = {
   totalDuration: number
 }
 
+export type Scene3DEnvironmentMode = 'panorama' | 'sphere'
+
 export type Scene3DState = {
   objects: Scene3DObject[]
   cameras: Scene3DCamera[]
@@ -104,6 +106,11 @@ export type Scene3DState = {
     showSky: boolean
     darkMode: boolean
     backgroundColor: string
+    panoramaUrl?: string
+    panoramaFileName?: string
+    panoramaRotation: number
+    environmentMode: Scene3DEnvironmentMode
+    sphereRadius: number
   }
   editorCamera: {
     position: Scene3DVector3

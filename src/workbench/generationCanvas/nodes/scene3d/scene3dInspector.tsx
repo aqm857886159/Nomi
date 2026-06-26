@@ -8,12 +8,16 @@ import {
   IconEye,
   IconEyeOff,
   IconFocusCentered,
+  IconPhoto,
   IconSettings,
   IconTrash,
+  IconUpload,
   IconUser,
 } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
+import { toast } from '../../../../ui/toast'
 import { Switch } from '../../../../ui/switch'
+import { hostedAssetUrl, importWorkbenchLocalAssetFile } from '../../../api/assetUploadApi'
 import {
   SCENE3D_ASPECT_OPTIONS,
   type Scene3DAspectRatio,
@@ -30,6 +34,8 @@ import {
   CROWD_MAX_AXIS,
   SCENE3D_LIGHT_BACKGROUND,
   SCENE3D_DARK_BACKGROUND,
+  SPHERE_RADIUS_MIN,
+  SPHERE_RADIUS_MAX,
   MANNEQUIN_POSE_SECTIONS,
   MANNEQUIN_POSE_MIN_DEG,
   MANNEQUIN_POSE_MAX_DEG,
@@ -47,6 +53,48 @@ import {
   updateVectorValue,
   numberInputValue,
 } from './scene3dMath'
+
+const PANORAMA_IMPORT_MAX_BYTES = 80 * 1024 * 1024
+const PANORAMA_STANDARD_RATIO = 2
+const PANORAMA_RATIO_TOLERANCE = 0.03
+
+type ImageDimensions = {
+  width: number
+  height: number
+}
+
+function readImageFileDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : ''
+      if (result) resolve(result)
+      else reject(new Error('failed to read panorama image'))
+    }
+    reader.onerror = () => reject(new Error('failed to read panorama image'))
+    reader.readAsDataURL(file)
+  })
+}
+
+function readImageDimensions(src: string): Promise<ImageDimensions> {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => {
+      if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+        resolve({ width: image.naturalWidth, height: image.naturalHeight })
+      } else {
+        reject(new Error('invalid panorama image dimensions'))
+      }
+    }
+    image.onerror = () => reject(new Error('failed to inspect panorama image'))
+    image.src = src
+  })
+}
+
+function isStandardPanoramaDimensions(dimensions: ImageDimensions): boolean {
+  if (dimensions.height <= 0) return false
+  return Math.abs(dimensions.width / dimensions.height - PANORAMA_STANDARD_RATIO) <= PANORAMA_RATIO_TOLERANCE
+}
 
 function VectorInputs({
   label,
@@ -458,6 +506,8 @@ export function PropertyPanel({
     ? state.cameras.find((camera) => camera.id === selection.id)
     : undefined
   const [objectInspectorTab, setObjectInspectorTab] = React.useState<SceneObjectInspectorTab>('properties')
+  const panoramaInputRef = React.useRef<HTMLInputElement | null>(null)
+  const panoramaImportRunRef = React.useRef(0)
   const selectedObjectHasPose = selectedObject?.type === 'mannequin' || selectedObject?.type === 'mannequinCrowd'
 
   React.useEffect(() => {
@@ -467,6 +517,89 @@ export function PropertyPanel({
   React.useEffect(() => {
     if (!selectedObjectHasPose) setObjectInspectorTab('properties')
   }, [selectedObjectHasPose])
+
+  const handlePanoramaFile = React.useCallback((file: File) => {
+    if (readOnly) return
+    if (!file.type.startsWith('image/')) {
+      toast('请选择图片格式的全景图', 'warning')
+      return
+    }
+    if (file.size > PANORAMA_IMPORT_MAX_BYTES) {
+      toast('全景图文件过大，请压缩后再导入', 'warning')
+      return
+    }
+
+    const previewUrl = URL.createObjectURL(file)
+    const importRunId = panoramaImportRunRef.current + 1
+    panoramaImportRunRef.current = importRunId
+
+    void (async () => {
+      try {
+        let dimensions: ImageDimensions
+        try {
+          dimensions = await readImageDimensions(previewUrl)
+        } catch {
+          toast('无法读取全景图尺寸，请换一张标准图片', 'warning')
+          return
+        }
+        if (panoramaImportRunRef.current !== importRunId) return
+        if (!isStandardPanoramaDimensions(dimensions)) {
+          toast(`请导入 2:1 标准经纬度全景图，当前尺寸 ${dimensions.width}×${dimensions.height}`, 'warning')
+          return
+        }
+
+        onEnvironmentPatch({
+          panoramaUrl: previewUrl,
+          panoramaFileName: file.name || '全景图',
+          showSky: false,
+          environmentMode: 'panorama',
+        })
+
+        const asset = await importWorkbenchLocalAssetFile(file, file.name || 'panorama')
+        const hostedUrl = hostedAssetUrl(asset)
+        if (!hostedUrl) throw new Error('panorama asset missing url')
+        if (panoramaImportRunRef.current !== importRunId) return
+        onEnvironmentPatch({
+          panoramaUrl: hostedUrl,
+          panoramaFileName: file.name || '全景图',
+        })
+        toast('全景图已导入', 'success')
+      } catch {
+        try {
+          const dataUrl = await readImageFileDataUrl(file)
+          if (panoramaImportRunRef.current !== importRunId) return
+          onEnvironmentPatch({
+            panoramaUrl: dataUrl,
+            panoramaFileName: file.name || '全景图',
+          })
+          toast('全景图已导入为临时数据', 'info')
+        } catch {
+          if (panoramaImportRunRef.current === importRunId) {
+            onEnvironmentPatch({ panoramaUrl: undefined, panoramaFileName: undefined })
+          }
+          toast('全景图导入失败', 'error')
+        }
+      } finally {
+        window.setTimeout(() => URL.revokeObjectURL(previewUrl), 30_000)
+      }
+    })()
+  }, [onEnvironmentPatch, readOnly])
+
+  const handlePanoramaInputChange = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0]
+    event.currentTarget.value = ''
+    if (file) handlePanoramaFile(file)
+  }, [handlePanoramaFile])
+
+  const clearPanorama = React.useCallback(() => {
+    if (readOnly) return
+    panoramaImportRunRef.current += 1
+    onEnvironmentPatch({
+      panoramaUrl: undefined,
+      panoramaFileName: undefined,
+      panoramaRotation: 0,
+    })
+  }, [onEnvironmentPatch, readOnly])
 
   return (
     <section className="min-h-0 flex-1 overflow-auto bg-[var(--nomi-paper)] px-3 py-3">
@@ -678,6 +811,124 @@ export function PropertyPanel({
             disabled={readOnly}
             onChange={(backgroundColor) => onEnvironmentPatch({ backgroundColor })}
           />
+          <div className="grid gap-2 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] p-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex min-w-0 items-center gap-1.5 text-caption font-medium text-[var(--nomi-ink)]">
+                <IconPhoto size={14} className="shrink-0 text-[var(--nomi-ink-60)]" />
+                <span className="truncate">全景图</span>
+              </span>
+              {state.environment.panoramaUrl ? (
+                <button
+                  className="grid size-7 place-items-center rounded-nomi-sm text-[var(--nomi-ink-40)] hover:bg-[var(--workbench-danger-soft)] hover:text-[var(--workbench-danger)] disabled:opacity-40"
+                  disabled={readOnly}
+                  type="button"
+                  title="移除全景图"
+                  onClick={clearPanorama}
+                >
+                  <IconTrash size={14} />
+                </button>
+              ) : null}
+            </div>
+            {state.environment.panoramaUrl ? (
+              <div className="grid gap-2">
+                <div className="aspect-[2/1] overflow-hidden rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-10)]">
+                  <img
+                    className="size-full object-cover"
+                    src={state.environment.panoramaUrl}
+                    alt=""
+                    draggable={false}
+                  />
+                </div>
+                <div className="min-w-0 truncate text-micro text-[var(--nomi-ink-60)]">
+                  {state.environment.panoramaFileName || '全景图'}
+                </div>
+                <label className="grid gap-1">
+                  <span className="text-micro text-[var(--nomi-ink-60)]">水平旋转</span>
+                  <div className="grid grid-cols-[1fr_48px] items-center gap-2">
+                    <input
+                      className="h-1.5 w-full accent-[var(--nomi-ink)] disabled:opacity-50"
+                      disabled={readOnly}
+                      max={180}
+                      min={-180}
+                      step={1}
+                      type="range"
+                      value={Math.round(radiansToDegrees(state.environment.panoramaRotation || 0))}
+                      onChange={(event) => onEnvironmentPatch({
+                        panoramaRotation: degreesToRadians(Number(event.currentTarget.value)),
+                      })}
+                    />
+                    <span className="text-right font-mono text-micro text-[var(--nomi-ink-60)]">
+                      {Math.round(radiansToDegrees(state.environment.panoramaRotation || 0))}°
+                    </span>
+                  </div>
+                </label>
+                <div className="grid gap-2 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-2">
+                  <span className="text-micro text-[var(--nomi-ink-60)]">显示模式</span>
+                  <div className="grid grid-cols-2 gap-1">
+                    {([
+                      ['panorama', '全景背景'],
+                      ['sphere', '全景球'],
+                    ] as const).map(([mode, label]) => (
+                      <button
+                        key={mode}
+                        className={cn(
+                          'h-7 rounded-nomi-sm text-caption transition',
+                          state.environment.environmentMode === mode
+                            ? 'bg-[var(--nomi-ink)] text-[var(--nomi-paper)]'
+                            : 'bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)]',
+                        )}
+                        disabled={readOnly}
+                        type="button"
+                        onClick={() => onEnvironmentPatch({ environmentMode: mode })}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {state.environment.environmentMode === 'sphere' ? (
+                  <div className="grid gap-2 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-2">
+                    <span className="text-micro font-medium text-[var(--nomi-ink)]">球体半径</span>
+                    <label className="grid gap-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-micro text-[var(--nomi-ink-60)]">半径</span>
+                        <span className="font-mono text-micro text-[var(--nomi-ink-40)]">
+                          {state.environment.sphereRadius.toFixed(0)}
+                        </span>
+                      </div>
+                      <input
+                        className="h-1.5 w-full accent-[var(--nomi-ink)] disabled:opacity-50"
+                        disabled={readOnly}
+                        max={SPHERE_RADIUS_MAX}
+                        min={SPHERE_RADIUS_MIN}
+                        step={5}
+                        type="range"
+                        value={state.environment.sphereRadius}
+                        onChange={(event) => onEnvironmentPatch({ sphereRadius: Number(event.currentTarget.value) })}
+                      />
+                    </label>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <button
+                className="flex h-9 items-center justify-center gap-1.5 rounded-nomi-sm border border-dashed border-[var(--nomi-ink-20)] bg-[var(--nomi-paper)] text-caption text-[var(--nomi-ink-60)] transition hover:border-[var(--nomi-accent)] hover:text-[var(--nomi-accent)] disabled:opacity-50"
+                disabled={readOnly}
+                type="button"
+                onClick={() => panoramaInputRef.current?.click()}
+              >
+                <IconUpload size={14} />
+                导入全景图
+              </button>
+            )}
+            <input
+              ref={panoramaInputRef}
+              className="hidden"
+              type="file"
+              accept="image/*"
+              onChange={handlePanoramaInputChange}
+            />
+          </div>
         </div>
       )}
     </section>

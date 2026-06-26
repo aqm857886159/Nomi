@@ -6,13 +6,13 @@
 // 全部采完回调一次 frames[]。供 CameraMoveCaptureHost → ffmpeg 拼运镜小片（S2）。
 import React, { Suspense } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Sky } from '@react-three/drei'
 import * as THREE from 'three'
 import { Mannequin, MannequinCrowd, MannequinAssetBoundary, ProceduralMannequin } from './scene3dObjects'
 import { captureScene, applySceneCameraPose, aspectDimensions, capCameraMoveDimensions } from './scene3dMath'
 import { cameraWithPlaybackPosition, objectWithPlaybackPose } from './scene3dPlayback'
 import { frameTimes } from './cameraMoveSchedule'
 import type { Scene3DState, Scene3DObject } from './scene3dTypes'
+import { Scene3DEnvironmentLayer } from './scene3dEnvironment'
 
 export type CameraMoveCaptureResult = {
   frames: string[]
@@ -161,11 +161,9 @@ export function Scene3DTrajectoryCapture({
   return (
     <div aria-hidden style={{ position: 'absolute', left: -10000, top: 0, width: 480, height: 270, opacity: 0, pointerEvents: 'none' }}>
       <Canvas gl={{ preserveDrawingBuffer: true, antialias: true }} camera={{ position: [4, 2.4, 5], fov: 45 }}>
-        <color attach="background" args={[state.environment.backgroundColor]} />
-        <ambientLight intensity={0.7} />
+        <Scene3DEnvironmentLayer environment={state.environment} ambientIntensity={0.7} />
         <directionalLight position={[4, 6, 5]} intensity={1.1} />
         <directionalLight position={[-4, 3, -3]} intensity={0.4} />
-        {state.environment.showSky ? <Sky sunPosition={[2, 1, 4]} /> : null}
         <MannequinAssetBoundary fallback={<ProceduralMannequin color="#808080" />}>
           <Suspense fallback={null}>
             <TrajectoryFrameStepper

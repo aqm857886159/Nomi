@@ -31,6 +31,39 @@ import {
   type Scene3DState,
   type Scene3DVector3,
 } from './scene3dTypes'
+import {
+  objectGroundFootprint,
+  objectVisualHalfHeight,
+} from './scene3dObjects'
+
+const FOCUS_VIEW_DIRECTION = new THREE.Vector3(1, 0.62, 1).normalize()
+
+function objectFocusTarget(object: Scene3DObject): THREE.Vector3 {
+  const target = vectorFromArray(object.position)
+  if (object.type === 'light') return target
+  target.y += objectVisualHalfHeight(object) * 0.32
+  return target
+}
+
+function objectFocusDistance(object: Scene3DObject): number {
+  const footprint = objectGroundFootprint(object)
+  const halfHeight = objectVisualHalfHeight(object)
+  const radius = Math.max(footprint.width, footprint.depth, halfHeight * 2)
+  return THREE.MathUtils.clamp(radius * 2.25 + 1.2, 3.2, 18)
+}
+
+function cameraFocusTarget(cameraData: Scene3DCamera): THREE.Vector3 {
+  const position = vectorFromArray(cameraData.position)
+  const target = vectorFromArray(cameraData.target || CAMERA_DEFAULT_TARGET)
+  if (position.distanceToSquared(target) < 0.0001) return position
+  return position.lerp(target, 0.45)
+}
+
+function cameraFocusDistance(cameraData: Scene3DCamera): number {
+  const aimDistance = vectorFromArray(cameraData.position)
+    .distanceTo(vectorFromArray(cameraData.target || CAMERA_DEFAULT_TARGET))
+  return THREE.MathUtils.clamp(aimDistance * 0.9 + 1.6, 3.2, 16)
+}
 
 export function Scene3DControls({
   freeLook,
@@ -189,7 +222,7 @@ export function Scene3DControls({
       window.removeEventListener('pointercancel', stopDrag)
       element.style.cursor = ''
     }
-  }, [camera, gl, navigationLockedRef, onWheelNavigation])
+  }, [camera, gl, invalidate, navigationLockedRef, onWheelNavigation])
 
   React.useEffect(() => {
     const clearKeys = () => {
@@ -326,13 +359,13 @@ export function FocusController({
   focusId,
   objects,
   cameras,
-  onTargetChange,
+  onCameraChange,
   onFocusConsumed,
 }: {
   focusId: string
   objects: Scene3DObject[]
   cameras: Scene3DCamera[]
-  onTargetChange: (target: Scene3DVector3) => void
+  onCameraChange: (cameraState: Scene3DState['editorCamera']) => void
   onFocusConsumed: () => void
 }): null {
   const { camera, invalidate } = useThree()
@@ -343,19 +376,26 @@ export function FocusController({
     const targetId = focusId.split(':')[0] || focusId
     const object = objects.find((candidate) => candidate.id === targetId)
     const sceneCamera = cameras.find((candidate) => candidate.id === targetId)
-    const position = object?.position || sceneCamera?.position
-    if (!position) return
+    if (!object && !sceneCamera) return
     lastFocusRef.current = focusId
-    const target = vectorFromArray(position)
+    const target = object ? objectFocusTarget(object) : cameraFocusTarget(sceneCamera!)
+    const distance = object ? objectFocusDistance(object) : cameraFocusDistance(sceneCamera!)
+    const nextPosition = vectorToArray(target.clone().addScaledVector(FOCUS_VIEW_DIRECTION, distance))
+    const nextTarget = vectorToArray(target)
     applyEditorCameraPose(camera, {
-      position: vectorToArray(target.clone().add(new THREE.Vector3(3.5, 2.2, 3.5))),
-      target: vectorToArray(target),
+      position: nextPosition,
+      target: nextTarget,
     })
-    onTargetChange(vectorToArray(target))
+    onCameraChange({
+      position: nextPosition,
+      target: nextTarget,
+      rotation: eulerToArray(camera.rotation),
+      mode: 'fly',
+    })
     onFocusConsumed()
     // demand 下聚焦移动相机走 effect（不走 useFrame），需请求重绘。
     invalidate()
-  }, [camera, cameras, focusId, invalidate, objects, onFocusConsumed, onTargetChange])
+  }, [camera, cameras, focusId, invalidate, objects, onCameraChange, onFocusConsumed])
 
   return null
 }

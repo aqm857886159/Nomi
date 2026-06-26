@@ -2,6 +2,7 @@ import type {
   Scene3DAspectRatio,
   Scene3DCamera,
   Scene3DControlMode,
+  Scene3DEnvironmentMode,
   Scene3DGeometry,
   Scene3DLightType,
   Scene3DObject,
@@ -19,8 +20,10 @@ const GEOMETRIES = new Set<Scene3DGeometry>(['box', 'sphere', 'cylinder', 'plane
 const LIGHT_TYPES = new Set<Scene3DLightType>(['point', 'directional', 'spot'])
 const ASPECT_RATIOS = new Set<Scene3DAspectRatio>(['16:9', '9:16', '4:3', '3:4', '1:1'])
 const CONTROL_MODES = new Set<Scene3DControlMode>(['edit', 'fly'])
+const ENVIRONMENT_MODES = new Set<Scene3DEnvironmentMode>(['panorama', 'sphere'])
 const TRAJECTORY_DIRECTIONS = new Set<Scene3DTrajectoryDirection>(['forward', 'reverse'])
 const COLOR_PATTERN = /^#[0-9a-f]{6}$/i
+const SCENE3D_LOCAL_ASSET_URL_PATTERN = /^(nomi-local:\/\/|data:image\/|https?:\/\/)/i
 const MANNEQUIN_DEFAULT_SCALE: Scene3DVector3 = [2.5, 2.5, 2.5]
 const ROLE_COLOR_SEQUENCE = ['#ef4444', '#facc15', '#3b82f6', '#22c55e'] as const
 const CROWD_MAX_AXIS = 10
@@ -53,6 +56,12 @@ function finiteVector(value: unknown, fallback: Scene3DVector3): Scene3DVector3 
 
 function colorValue(value: unknown, fallback: string): string {
   return typeof value === 'string' && COLOR_PATTERN.test(value) ? value : fallback
+}
+
+function assetUrlValue(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return SCENE3D_LOCAL_ASSET_URL_PATTERN.test(trimmed) ? trimmed : undefined
 }
 
 function poseValue(value: unknown): Record<string, Scene3DVector3> | undefined {
@@ -136,6 +145,9 @@ export function createDefaultScene3DState(): Scene3DState {
       showSky: false,
       darkMode: false,
       backgroundColor: '#f6f3ee',
+      panoramaRotation: 0,
+      environmentMode: 'panorama',
+      sphereRadius: 50,
     },
     editorCamera: {
       position: [-5, 3.2, 6],
@@ -373,6 +385,15 @@ export function normalizeScene3DState(value: unknown): Scene3DState {
       showSky: environment.showSky === true,
       darkMode: environment.darkMode === true,
       backgroundColor: colorValue(environment.backgroundColor, fallback.environment.backgroundColor),
+      panoramaUrl: assetUrlValue(environment.panoramaUrl),
+      panoramaFileName: typeof environment.panoramaFileName === 'string' && environment.panoramaFileName.trim()
+        ? environment.panoramaFileName.trim()
+        : undefined,
+      panoramaRotation: finiteNumber(environment.panoramaRotation, fallback.environment.panoramaRotation),
+      environmentMode: ENVIRONMENT_MODES.has(environment.environmentMode as Scene3DEnvironmentMode)
+        ? environment.environmentMode as Scene3DEnvironmentMode
+        : fallback.environment.environmentMode,
+      sphereRadius: Math.min(200, Math.max(10, finiteNumber(environment.sphereRadius, fallback.environment.sphereRadius))),
     },
     editorCamera: {
       position: finiteVector(editorCamera.position, fallback.editorCamera.position),

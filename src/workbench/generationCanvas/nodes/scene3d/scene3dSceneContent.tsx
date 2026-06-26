@@ -1,5 +1,5 @@
 import React from 'react'
-import { Grid, Sky, Environment } from '@react-three/drei'
+import { Grid } from '@react-three/drei'
 import { crowdCount, mannequinRoleLabel } from './scene3dMath'
 import {
   SCENE3D_GRID_FLAG,
@@ -8,11 +8,11 @@ import {
   DARK_GRID_CELL_COLOR,
   DARK_GRID_SECTION_COLOR,
 } from './scene3dConstants'
+import { Scene3DEnvironmentLayer } from './scene3dEnvironment'
 import type {
   Scene3DState,
   Scene3DCamera,
   Scene3DObject,
-  Scene3DVector3,
   Scene3DSelection,
   CaptureApi,
   Scene3DControlMode,
@@ -43,7 +43,6 @@ export function SceneContent({
   onCameraPatch,
   onEditorCameraDraft,
   onEditorCameraCommit,
-  onEditorCameraTargetChange,
   onWheelNavigation,
   onTransformInteractionStart,
   onTransformInteractionEnd,
@@ -66,7 +65,6 @@ export function SceneContent({
   onCameraPatch: (id: string, patch: Partial<Scene3DCamera>) => void
   onEditorCameraDraft: (cameraState: Scene3DState['editorCamera']) => void
   onEditorCameraCommit: (cameraState: Scene3DState['editorCamera']) => void
-  onEditorCameraTargetChange: (target: Scene3DVector3) => void
   onWheelNavigation: (cameraState: Scene3DState['editorCamera']) => void
   onTransformInteractionStart: () => void
   onTransformInteractionEnd: () => void
@@ -102,14 +100,7 @@ export function SceneContent({
 
   return (
     <>
-      <color attach="background" args={[state.environment.backgroundColor]} />
-      <ambientLight intensity={0.65} />
-      {state.environment.showSky ? <Sky sunPosition={[2, 1, 4]} /> : null}
-      {state.environment.preset ? (
-        <React.Suspense fallback={null}>
-          <Environment preset="city" />
-        </React.Suspense>
-      ) : null}
+      <Scene3DEnvironmentLayer environment={state.environment} />
       {state.environment.showGrid && !cameraViewEditing ? (
         <group userData={{ [SCENE3D_GRID_FLAG]: true }}>
           <Grid
@@ -167,7 +158,7 @@ export function SceneContent({
         focusId={focusId}
         objects={state.objects}
         cameras={state.cameras}
-        onTargetChange={onEditorCameraTargetChange}
+        onCameraChange={onEditorCameraCommit}
         onFocusConsumed={onFocusConsumed}
       />
       <Scene3DControls
