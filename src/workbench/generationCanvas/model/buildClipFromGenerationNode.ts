@@ -51,10 +51,18 @@ function resolveClipType(node: GenerationCanvasNode, result: GenerationNodeResul
   return 'image'
 }
 
-function resolveFrameCount(type: TimelineClipType, result: GenerationNodeResult | null, fps: number): number {
+function resolveFrameCount(
+  type: TimelineClipType,
+  result: GenerationNodeResult | null,
+  fps: number,
+  metaDurationSeconds?: number | null,
+): number {
   if (type === 'image') return DEFAULT_IMAGE_SECONDS * fps
-  // v0.7.1: audio 默认 5 秒（与 video 一致），未来读 meta.durationSec
-  const seconds = readPositiveNumber(result?.durationSeconds) || DEFAULT_VIDEO_SECONDS
+  // 时长真相序：生成参数 result.durationSeconds > 文件真实时长 meta.videoDuration（拖入/上传的视频
+  // 渲染/导入时离屏测得，见 readVideoDurationSeconds）> 默认 5 秒。修「拖入视频一律 5 秒」的根因。
+  const seconds = readPositiveNumber(result?.durationSeconds)
+    ?? readPositiveNumber(metaDurationSeconds)
+    ?? DEFAULT_VIDEO_SECONDS
   return Math.max(1, Math.round(seconds * fps))
 }
 
@@ -86,7 +94,8 @@ export function buildClipFromGenerationNode(node: GenerationCanvasNode, options?
   // v0.7.1: image / video / audio 都要求有 url（生成或上传后才允许拖）
   if (!url) return null
 
-  const frameCount = resolveFrameCount(type, result, fps)
+  const metaDurationSeconds = readPositiveNumber((node.meta as Record<string, unknown> | undefined)?.videoDuration)
+  const frameCount = resolveFrameCount(type, result, fps, metaDurationSeconds)
 
   return {
     id: buildClipId(node.id, type, startFrame, result),

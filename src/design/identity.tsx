@@ -66,7 +66,7 @@ export function NomiBrand({ markSize = 26, wordSize = 17, className }: NomiBrand
         aria-hidden="true"
         className="shrink-0"
       >
-        <rect width="28" height="28" rx={rx} fill="oklch(0.22 0.01 80)" />
+        <rect width="28" height="28" rx={rx} fill="var(--nomi-logo-ground)" />
         <rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white" />
         <rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white" />
         <polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white" />
@@ -86,7 +86,7 @@ export function NomiLogoMark({ size = 24, className }: NomiLogoMarkProps): JSX.E
       aria-hidden="true"
       className={cn('nomi-logo-mark', 'block shrink-0', className)}
     >
-      <rect width="28" height="28" rx="7" fill="oklch(0.22 0.01 80)" />
+      <rect width="28" height="28" rx="7" fill="var(--nomi-logo-ground)" />
       <rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white" />
       <rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white" />
       <polygon points="9.5,5.5 13.5,5.5 18.5,22.5 14.5,22.5" fill="white" />

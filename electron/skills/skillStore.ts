@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { getSkillsRoots, readText } from "../runtimePaths";
+import { getSkillsRoots, getUserSkillsRoot, readText } from "../runtimePaths";
 import {
   parseSkillManifest,
   type SkillManifest,
@@ -24,6 +24,8 @@ export type SkillRecord = {
   manifest: SkillManifest | null;
   /** manifest 解析失败时的人话原因（用于加载期诊断；成功/缺失为 undefined）。 */
   manifestError?: string;
+  /** 来源：'user' = 可写用户目录（可删/可导出）；'builtin' = 安装目录随附（只读）。 */
+  origin: "builtin" | "user";
 };
 
 function parseSkillName(markdown: string, directoryName: string): string {
@@ -62,8 +64,10 @@ function readSkillManifest(skillDir: string): { manifest: SkillManifest | null; 
 export function readSkillRecords(): SkillRecord[] {
   const records: SkillRecord[] = [];
   const seenDirs = new Set<string>();
+  const userRoot = path.resolve(getUserSkillsRoot());
   for (const root of getSkillsRoots()) {
     if (!fs.existsSync(root)) continue;
+    const origin: SkillRecord["origin"] = path.resolve(root) === userRoot ? "user" : "builtin";
     for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
       const skillDir = path.join(root, entry.name);
@@ -82,6 +86,7 @@ export function readSkillRecords(): SkillRecord[] {
         body,
         manifest,
         manifestError: error,
+        origin,
       });
     }
   }

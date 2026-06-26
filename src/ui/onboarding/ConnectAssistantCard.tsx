@@ -21,15 +21,21 @@ const CLIENT_LABEL: Record<ClientKey, string> = { claude: 'Claude Code', codex: 
 const CLIENT_ORDER: ClientKey[] = ['claude', 'codex', 'cursor']
 
 type McpClientInfo = { installed: boolean; configPath: string; snippet: string }
-type McpInfo = {
+export type McpInfo = {
   tokenReady: boolean
   rpcRunning: boolean
-  server: { command: string; args: string[] }
+  server: { command: string; args: string[]; env?: Record<string, string> }
   clients: Record<ClientKey, McpClientInfo>
 }
 
-export function ConnectAssistantCard(): JSX.Element | null {
-  const [info, setInfo] = React.useState<McpInfo | null>(null)
+type ConnectAssistantCardProps = {
+  /** MCP 接入状态由父组件统一 fetch 后下传（单一来源，见 plan §4.1）；null = 不显（加载中/老 preload）。 */
+  info: McpInfo | null
+  /** 接入/撤销后冒泡，父组件重查 + 重新分桶。 */
+  onChanged: () => void
+}
+
+export function ConnectAssistantCard({ info, onChanged }: ConnectAssistantCardProps): JSX.Element | null {
   const [target, setTarget] = React.useState<ClientKey>('claude')
   const pickedDefault = React.useRef(false)
   const [busy, setBusy] = React.useState(false)
@@ -38,25 +44,15 @@ export function ConnectAssistantCard(): JSX.Element | null {
 
   const capability = getDesktopBridge()?.capability
 
-  const refresh = React.useCallback(() => {
-    if (!capability?.mcpInfo) return
-    try {
-      const next = capability.mcpInfo() as McpInfo
-      setInfo(next)
-      // 首次加载默认选已接入的那个客户端（没有则 Claude Code）。只挑一次，不抢用户后续切换。
-      if (!pickedDefault.current) {
-        pickedDefault.current = true
-        const installed = CLIENT_ORDER.find((key) => next.clients[key]?.installed)
-        if (installed) setTarget(installed)
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    }
-  }, [capability])
+  // 首次拿到 info 时默认选已接入的客户端（没有则保持 Claude Code）。只挑一次，不抢用户后续切换。
+  React.useEffect(() => {
+    if (!info || pickedDefault.current) return
+    pickedDefault.current = true
+    const installed = CLIENT_ORDER.find((key) => info.clients[key]?.installed)
+    if (installed) setTarget(installed)
+  }, [info])
 
-  React.useEffect(() => { refresh() }, [refresh])
-
-  // 老 preload（无 capability.mcpInfo）：整卡不显，避免坏入口。
+  // 加载中 / 老 preload（无 capability.mcpInfo）：整卡不显，避免坏入口。
   if (!capability?.mcpInfo || !info) return null
 
   const label = CLIENT_LABEL[target]
@@ -69,7 +65,7 @@ export function ConnectAssistantCard(): JSX.Element | null {
     setError('')
     try {
       capability.installMcp(target)
-      refresh()
+      onChanged()
       toast(`已接入 ${label}，重启后生效`, 'success')
     } catch (e) {
       setError(`接入失败：${e instanceof Error ? e.message : String(e)}`)
@@ -84,7 +80,7 @@ export function ConnectAssistantCard(): JSX.Element | null {
     setError('')
     try {
       capability.uninstallMcp(target)
-      refresh()
+      onChanged()
       toast('已撤销接入', 'success')
     } catch (e) {
       setError(`撤销失败：${e instanceof Error ? e.message : String(e)}`)

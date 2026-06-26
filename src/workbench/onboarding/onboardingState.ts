@@ -10,6 +10,7 @@ const SPLASH_KEY = 'nomi:splash:v1'
 const CHECKLIST_KEY = 'nomi:checklist:v1'
 const CHECKLIST_COLLAPSED_KEY = 'nomi:checklist-collapsed:v1'
 const CANVAS_GESTURE_HINT_KEY = 'nomi:canvas-gesture-hint:v1'
+const JOURNEY_TOUR_KEY = 'nomi:journey-tour:v1'
 
 export function hasSeenCanvasGestureHint(): boolean {
   try {
@@ -66,6 +67,26 @@ export function markChecklistStep(step: ChecklistStep): void {
     const state = readChecklist()
     state[step] = true
     window.localStorage.setItem(CHECKLIST_KEY, JSON.stringify(state))
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * 引导旅途（首页主动点的「60 秒看 Nomi 怎么出片」预置回放）是否看过。
+ * 用于首页 CTA 文案在「看一遍 / 重看一遍」之间切换；不阻断、永远可重看。
+ */
+export function hasSeenJourneyTour(): boolean {
+  try {
+    return window.localStorage.getItem(JOURNEY_TOUR_KEY) === 'seen'
+  } catch {
+    return false
+  }
+}
+
+export function markJourneyTourSeen(): void {
+  try {
+    window.localStorage.setItem(JOURNEY_TOUR_KEY, 'seen')
   } catch {
     /* ignore */
   }

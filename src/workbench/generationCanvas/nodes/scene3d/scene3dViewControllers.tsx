@@ -24,6 +24,7 @@ import {
   vectorToArray,
   type CameraPoseSample,
 } from './scene3dMath'
+import { objectGroundFootprint, objectVisualHalfHeight } from './scene3dCrowd'
 import {
   type CaptureApi,
   type Scene3DCamera,
@@ -31,10 +32,6 @@ import {
   type Scene3DState,
   type Scene3DVector3,
 } from './scene3dTypes'
-import {
-  objectGroundFootprint,
-  objectVisualHalfHeight,
-} from './scene3dObjects'
 
 const FOCUS_VIEW_DIRECTION = new THREE.Vector3(1, 0.62, 1).normalize()
 
@@ -368,7 +365,7 @@ export function FocusController({
   onCameraChange: (cameraState: Scene3DState['editorCamera']) => void
   onFocusConsumed: () => void
 }): null {
-  const { camera, invalidate } = useThree()
+  const { camera, controls, invalidate } = useThree()
   const lastFocusRef = React.useRef('')
 
   React.useEffect(() => {
@@ -386,6 +383,7 @@ export function FocusController({
       position: nextPosition,
       target: nextTarget,
     })
+    syncOrbitControlsTarget(controls, target)
     onCameraChange({
       position: nextPosition,
       target: nextTarget,
@@ -395,9 +393,24 @@ export function FocusController({
     onFocusConsumed()
     // demand 下聚焦移动相机走 effect（不走 useFrame），需请求重绘。
     invalidate()
-  }, [camera, cameras, focusId, invalidate, objects, onCameraChange, onFocusConsumed])
+  }, [camera, cameras, controls, focusId, invalidate, objects, onCameraChange, onFocusConsumed])
 
   return null
+}
+
+function orbitControlsTarget(controls: unknown): THREE.Vector3 | null {
+  return controls && typeof controls === 'object' && 'target' in controls && (controls as { target?: unknown }).target instanceof THREE.Vector3
+    ? (controls as { target: THREE.Vector3 }).target
+    : null
+}
+
+function syncOrbitControlsTarget(controls: unknown, target: THREE.Vector3): void {
+  const controlsTarget = orbitControlsTarget(controls)
+  if (!controlsTarget) return
+  controlsTarget.copy(target)
+  if ('update' in (controls as object) && typeof (controls as { update?: unknown }).update === 'function') {
+    ;(controls as { update: () => void }).update()
+  }
 }
 
 export function CaptureBinder({

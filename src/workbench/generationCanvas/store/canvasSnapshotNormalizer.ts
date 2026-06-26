@@ -9,8 +9,31 @@ import type {
   GenerationCanvasEdge,
   GenerationCanvasNode,
   GenerationCanvasSnapshot,
+  GenerationNodeProgress,
+  GenerationNodeRunRecord,
+  GenerationNodeRunStatus,
+  GenerationNodeStatus,
   NodeGroup,
 } from '../model/generationCanvasTypes'
+
+/**
+ * 重启收敛：磁盘里 status 仍是 running/queued 的节点 = 上次退出时正在生成（没活着的轮询循环了）。
+ * 有 taskId（已落盘）→ 收敛成 `recoverable`：上游可能仍在跑/已出片，给「重新拉取结果」入口（重启后也能拉）。
+ * 无 taskId（从没真发出去）→ 收敛成 `idle`：清掉幽灵转圈。progress 一律清空（重启不再假装在转）。
+ */
+function convergeStuckMidFlightNode(
+  node: Omit<GenerationCanvasNode, 'categoryId'>,
+): Omit<GenerationCanvasNode, 'categoryId'> {
+  if (node.status !== 'running' && node.status !== 'queued') return node
+  const runs: GenerationNodeRunRecord[] = Array.isArray(node.runs) ? node.runs : []
+  const taskId = (runs[0]?.taskId || (node.progress as GenerationNodeProgress | undefined)?.taskId || '').trim()
+  const nextStatus: GenerationNodeStatus = taskId ? 'recoverable' : 'idle'
+  const nextRunStatus: GenerationNodeRunStatus = taskId ? 'recoverable' : 'cancelled'
+  const nextRuns = runs.length
+    ? [{ ...runs[0], status: nextRunStatus, progress: undefined }, ...runs.slice(1)]
+    : runs
+  return { ...node, status: nextStatus, progress: undefined, runs: nextRuns }
+}
 
 export function normalizeStoreSnapshot(input: unknown): GenerationCanvasSnapshot {
   if (!input || typeof input !== 'object') {
@@ -39,7 +62,8 @@ export function normalizeStoreSnapshot(input: unknown): GenerationCanvasSnapshot
           title: typeof node.title === 'string' ? node.title : id,
           position: { x, y },
         }
-        return [categoryId ? { ...normalizedNode, categoryId } : normalizedNode]
+        const convergedNode = convergeStuckMidFlightNode(normalizedNode)
+        return [categoryId ? { ...convergedNode, categoryId } : convergedNode]
       })
     : []
   const nodeIds = new Set(nodes.map((node) => node.id))

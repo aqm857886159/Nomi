@@ -2,6 +2,8 @@ import React from 'react'
 import { useWorkbenchStore } from '../workbenchStore'
 import { cn } from '../../utils/cn'
 import { buildClipFromGenerationNode } from '../generationCanvas/model/buildClipFromGenerationNode'
+import { tryAddAudioAssetFromDragData } from './dropAudioAssetToTimeline'
+import { ASSET_LIBRARY_DRAG_MIME } from '../assets/assetLibraryDrag'
 import { clientXToFrame } from './timelineEdit'
 import { buildTimelineDropPreview, type TimelineDropPreview } from './timelineDropFeedback'
 import {
@@ -15,9 +17,12 @@ import { toast } from '../../ui/toast'
 
 type TimelineTrackProps = {
   track: TimelineTrackData
+  // 主次分层：primary=画面轨(图/视频,显眼)；secondary=叠加层(配乐/字幕,压矮变淡)。缺省 primary。
+  variant?: 'primary' | 'secondary'
 }
 
-function TimelineTrack({ track }: TimelineTrackProps): JSX.Element {
+function TimelineTrack({ track, variant = 'primary' }: TimelineTrackProps): JSX.Element {
+  const secondary = variant === 'secondary'
   // 只订阅渲染真正用到的 scale/fps，**不订阅整条 timeline**：播放推进每帧换 timeline 引用，
   // 订阅整条会让本轨道（连同所有 clip）每帧重渲；playhead 由独立 overlay 订阅 playheadFrame。
   const scale = useWorkbenchStore((state) => state.timeline.scale)
@@ -35,6 +40,13 @@ function TimelineTrack({ track }: TimelineTrackProps): JSX.Element {
     if (!rect) return 0
     return clientXToFrame(clientX, rect.left, scale)
   }, [scale])
+
+  // 接受拖入的类型：生成节点（任意轨）或素材库音频（仅音频轨）。dragover 时只能读 types 不能读 data。
+  const acceptsDragTypes = React.useCallback((types: readonly string[]) => {
+    if (types.includes(TIMELINE_GENERATION_NODE_DRAG_MIME)) return true
+    if (track.type === 'audio' && types.includes(ASSET_LIBRARY_DRAG_MIME)) return true
+    return false
+  }, [track.type])
 
   const resolveDropPreview = React.useCallback((event: React.DragEvent<HTMLDivElement>): TimelineDropPreview | null => {
     const generationNodePayload = decodeTimelineGenerationNodeDragPayload(event.dataTransfer.getData(TIMELINE_GENERATION_NODE_DRAG_MIME))
@@ -55,7 +67,20 @@ function TimelineTrack({ track }: TimelineTrackProps): JSX.Element {
     })
   }, [resolveFrame, fps, scale, track])
 
+  // 素材库音频拖到音频轨：payload 同步可读，时长离屏探测后落 clip（核心逻辑共用 dropAudioAssetToTimeline）。
+  const handleAssetAudioDrop = React.useCallback((event: React.DragEvent<HTMLDivElement>): boolean => {
+    if (track.type !== 'audio') return false
+    const result = tryAddAudioAssetFromDragData(event.dataTransfer.getData(ASSET_LIBRARY_DRAG_MIME), { fps, startFrame: resolveFrame(event.clientX) })
+    if (!result) return false
+    event.preventDefault()
+    setDragPreview(null)
+    setIsDragHovering(false)
+    if (result === 'reject') toast('只有音频素材能放到音频轨', 'warning')
+    return true
+  }, [track.type, resolveFrame, fps])
+
   const handleDrop = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    if (handleAssetAudioDrop(event)) return
     const preview = resolveDropPreview(event) || dragPreview
     if (!preview) return
     event.preventDefault()
@@ -64,29 +89,29 @@ function TimelineTrack({ track }: TimelineTrackProps): JSX.Element {
       toast(preview.reason || '这里暂时不能放置素材', 'warning')
       return
     }
-    // v0.7.3 fix: clip.type 是 'image' | 'video' | 'audio'，trackType 是 'image' | 'video'
-    // audio clip 落到 video 轨；image/video 直传
     addTimelineClipAtFrame(preview.clip, getTrackTypeForClipType(preview.clip.type), preview.startFrame)
-  }, [addTimelineClipAtFrame, dragPreview, resolveDropPreview])
+  }, [handleAssetAudioDrop, addTimelineClipAtFrame, dragPreview, resolveDropPreview])
 
   return (
     <div className={cn(
       'workbench-timeline-track',
-      'w-full min-h-[52px] grid grid-cols-[var(--workbench-timeline-label-width)_minmax(0,1fr)]',
-      'items-center mb-1.5 border-b-0',
+      'w-full grid grid-cols-[var(--workbench-timeline-label-width)_minmax(0,1fr)]',
+      secondary ? 'min-h-[40px] mb-1' : 'min-h-[52px] mb-1.5',
+      'items-center border-b-0',
     )} data-testid="timeline-track" data-track-type={track.type}>
       <div className={cn(
         'workbench-timeline-track__label',
         'sticky left-0 z-[3] flex items-center gap-[7px]',
-        'min-w-0 min-h-[52px] pr-3 border-r-0 bg-transparent',
-        'text-[var(--workbench-ink)] text-xs font-semibold',
+        secondary ? 'min-h-[40px]' : 'min-h-[52px]',
+        'min-w-0 pr-3 border-r-0 bg-transparent',
+        secondary ? 'text-[var(--workbench-muted)] text-micro font-medium' : 'text-[var(--workbench-ink)] text-xs font-semibold',
       )}>
         <span className={cn(
           'workbench-timeline-track__type-dot',
           'flex-none w-2 h-2 rounded-full shadow-none',
           track.type === 'image' && 'bg-[var(--workbench-accent)]',
           track.type === 'video' && 'bg-[var(--workbench-video)]',
-          track.type !== 'image' && track.type !== 'video' && 'bg-[var(--workbench-muted-soft)]',
+          track.type === 'audio' && 'bg-[var(--workbench-audio)]',
         )} aria-hidden="true" />
         <span className={cn(
           'workbench-timeline-track__name',
@@ -104,7 +129,8 @@ function TimelineTrack({ track }: TimelineTrackProps): JSX.Element {
         ref={clipsRef}
         className={cn(
           'workbench-timeline-track__clips',
-          'relative min-h-[46px] overflow-hidden cursor-crosshair',
+          secondary ? 'min-h-[30px]' : 'min-h-[46px]',
+          'relative overflow-hidden cursor-crosshair',
           'border border-[var(--nomi-line-soft)] rounded-[var(--nomi-radius-sm)]',
           'bg-[var(--nomi-ink-05)] transition-[background,box-shadow] duration-[140ms] ease-in-out',
           dragPreview && dragPreview.canPlace && 'bg-[var(--workbench-accent-soft)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--workbench-accent)_20%,transparent)]',
@@ -126,7 +152,7 @@ function TimelineTrack({ track }: TimelineTrackProps): JSX.Element {
           if (!event.shiftKey) setTimelineSelection([])
         }}
         onDragEnter={(event) => {
-          if (!event.dataTransfer.types.includes(TIMELINE_GENERATION_NODE_DRAG_MIME)) return
+          if (!acceptsDragTypes(event.dataTransfer.types)) return
           event.preventDefault()
           setIsDragHovering(true)
         }}
@@ -136,7 +162,7 @@ function TimelineTrack({ track }: TimelineTrackProps): JSX.Element {
           setIsDragHovering(false)
         }}
         onDragOver={(event) => {
-          if (!event.dataTransfer.types.includes(TIMELINE_GENERATION_NODE_DRAG_MIME)) return
+          if (!acceptsDragTypes(event.dataTransfer.types)) return
           event.preventDefault()
           event.dataTransfer.dropEffect = 'copy'
         }}
@@ -151,13 +177,13 @@ function TimelineTrack({ track }: TimelineTrackProps): JSX.Element {
             'absolute inset-0 flex items-center justify-center',
             'border border-dashed border-[var(--nomi-line)] rounded-[var(--nomi-radius-sm)]',
             'text-[var(--nomi-ink-40)] leading-none text-micro font-medium pointer-events-none',
-          )}>从生成区拖入素材</div>
+          )}>{track.type === 'audio' ? '从素材库拖入音频当配乐' : '从生成区拖入素材'}</div>
         ) : null}
         {dragPreview ? (
           <div
             className={cn(
               'workbench-timeline-track__drop-preview',
-              'absolute top-[5px] h-9 z-[2] pointer-events-none',
+              'absolute top-[5px] bottom-[5px] z-[2] pointer-events-none',
               'flex items-center justify-center overflow-visible rounded text-micro font-semibold',
               'border border-dashed backdrop-blur-[8px] shadow-[0_8px_20px_rgba(18,24,38,0.12)]',
               dragPreview.canPlace

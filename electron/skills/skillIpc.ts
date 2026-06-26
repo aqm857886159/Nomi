@@ -22,10 +22,18 @@ export type SkillListItem = {
   neededProviders: SkillProviderKind[];
   /** manifest 解析失败的人话原因（加载期诊断）；正常为 null。 */
   manifestError: string | null;
+  /** 来源：'user'=可写用户目录（可删/可导出）；'builtin'=安装随附（只读、禁删）。 */
+  origin: "builtin" | "user";
 };
 
 export function listSkillsForRenderer(): SkillListItem[] {
-  return readSkillRecords().map((r) => {
+  return readSkillRecords()
+    // 库只露「用户会浏览、挑来用」的：用户目录的（自己导入/建的，永远显示）∪ 内置 playbook（有 stages，
+    // 如品牌宣传片）。藏掉两类不该出现在用户库里的：① 外来工程技能（superpowers 的 brainstorming 等，
+    // 无 manifest）；② 幕后管线技能（creation-edit / skill-author / workbench.* 助手，自动路由或按钮触发，
+    // 不是浏览挑选项）。口径与创作区技能下拉（ActiveSkillChip 的 isPlaybook 过滤）一致。
+    .filter((r) => r.origin === "user" || (r.manifest?.stages?.length ?? 0) > 0)
+    .map((r) => {
     const needs = r.manifest ? deriveSkillNeeds(r.manifest) : null;
     return {
       directoryName: r.directoryName,
@@ -37,6 +45,7 @@ export function listSkillsForRenderer(): SkillListItem[] {
       isPlaybook: (r.manifest?.stages ?? []).length > 0,
       neededProviders: needs?.providers ?? [],
       manifestError: r.manifestError ?? null,
+      origin: r.origin,
     };
   });
 }

@@ -41,6 +41,35 @@ describe('buildClipFromGenerationNode URL 口径（providerUrl 优先）', () =>
   })
 })
 
+describe('buildClipFromGenerationNode 视频时长真相序（修「拖入视频一律 5 秒」）', () => {
+  function videoNode(over: { result?: Partial<GenerationNodeResult>; meta?: Record<string, unknown> }): GenerationCanvasNode {
+    return {
+      id: 'node-v',
+      kind: 'video',
+      title: '一个视频',
+      position: { x: 0, y: 0 },
+      status: 'idle',
+      result: { id: 'rv', type: 'video', url: 'nomi-local://v.mp4', createdAt: 1, ...over.result },
+      ...(over.meta ? { meta: over.meta } : {}),
+    }
+  }
+
+  it('无 result.durationSeconds 但有 meta.videoDuration → 用真实时长（不再钉死 5 秒）', () => {
+    const clip = buildClipFromGenerationNode(videoNode({ meta: { videoDuration: 12 } }), { fps: 30 })
+    expect(clip?.frameCount).toBe(360) // 12s * 30fps
+  })
+
+  it('result.durationSeconds 优先于 meta.videoDuration', () => {
+    const clip = buildClipFromGenerationNode(videoNode({ result: { durationSeconds: 8 }, meta: { videoDuration: 12 } }), { fps: 30 })
+    expect(clip?.frameCount).toBe(240) // 8s * 30fps
+  })
+
+  it('两者皆无 → 回退默认 5 秒', () => {
+    const clip = buildClipFromGenerationNode(videoNode({}), { fps: 30 })
+    expect(clip?.frameCount).toBe(150) // 5s * 30fps
+  })
+})
+
 function videoClip(over: Partial<TimelineClip> = {}): TimelineClip {
   return {
     id: 'clip-1',

@@ -8,6 +8,7 @@ import { startNewConversation } from '../ai/conversationPersistence'
 import { clearWorkbenchAgentSession } from '../../api/desktopClient'
 import { AssistantMessageView, UserMessageBubble } from '../ai/AssistantMessageView'
 import { NoTextModelRecoveryCard } from '../ai/NoTextModelRecoveryCard'
+import { AssistantErrorCard } from '../ai/AssistantErrorCard'
 import { useHasTextModel } from '../library/useHasTextModel'
 import AssistantModelPicker from '../ai/AssistantModelPicker'
 import StoryboardPlanCard from './storyboard/StoryboardPlanCard'
@@ -389,18 +390,23 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
             : message
         )))
       } else {
-        const reply = streamed || '（空响应：AI 没有返回文本）'
-        const totalTokens = response.usage?.totalTokens
+        const base = streamed || '（空响应：AI 没有返回文本）'
+        // finishReason=length 且真有正文 = 这条被模型单次输出上限切断,标出来别当完整(空文本不标)。
+        const truncated = response.finishReason === 'length' && streamed.trim() !== ''
+        const reply = truncated
+          ? `${base}\n\n⚠️ 这条回复可能没说完（达到模型单次输出上限被截断）。需要的话直接说「继续」。`
+          : base
         setMessages((prev) => prev.map((message) => (
           message.id === pendingId
-            ? { ...message, content: reply, status: 'done' as const, ...(totalTokens ? { turnStats: { totalTokens } } : {}) }
+            ? { ...message, content: reply, status: 'done' as const }
             : message
         )))
       }
     } catch (err) {
       if (!handle.isCurrent()) return // 轮次已被作废:错误属于旧项目,丢弃不写
       const message = err instanceof Error ? err.message : '创作 AI 调用失败'
-      setError(message)
+      // 不再 setError(底部红 banner)——agent 错误只在对话内渲成红色错误卡(避免上下双显);
+      // 底部 banner 仅留给 composer 校验提示(「先写段故事」「附件还在上传」)。
       setMessages((prev) => prev.map((item) => (
         item.id === pendingId ? { ...item, content: `（错误）${message}`, status: 'error' as const } : item
       )))
@@ -477,7 +483,6 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
               'size-6 inline-grid place-items-center shrink-0',
               'p-0 border-0 rounded-nomi-sm bg-transparent text-nomi-ink-60 cursor-pointer',
               'hover:bg-nomi-ink-05 hover:text-nomi-ink',
-              'focus-visible:outline-2 focus-visible:outline-workbench-focus focus-visible:outline-offset-2',
             )}
             onNewConversation={handleNewConversation}
           />
@@ -486,7 +491,6 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
               'size-6 inline-grid place-items-center shrink-0',
               'p-0 border-0 rounded-nomi-sm bg-transparent text-nomi-ink-60 cursor-pointer',
               'hover:bg-nomi-ink-05 hover:text-nomi-ink',
-              'focus-visible:outline-2 focus-visible:outline-workbench-focus focus-visible:outline-offset-2',
             )}
             label={expanded ? '缩小' : '放大对话'}
             aria-label={expanded ? '缩小创作助手' : '放大创作助手'}
@@ -499,7 +503,6 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
                 'size-6 inline-grid place-items-center shrink-0',
                 'p-0 border-0 rounded-nomi-sm bg-transparent text-nomi-ink-60 cursor-pointer',
                 'hover:bg-nomi-ink-05 hover:text-nomi-ink',
-                'focus-visible:outline-2 focus-visible:outline-workbench-focus focus-visible:outline-offset-2',
               )}
               label="收起助手"
               aria-label="收起创作助手"
@@ -563,6 +566,15 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
                     refreshTextModel()
                   }}
                 />
+              ) : message.status === 'error' || message.content.startsWith('（错误）') ? (
+                // 缺大脑(上一分支)外的一般错误 → 红色错误卡(人话+重试/去模型接入),与生成侧同一张卡。
+                <AssistantErrorCard
+                  error={message.content}
+                  onRetry={() => {
+                    const lastUser = [...messages].reverse().find((item) => item.role === 'user')
+                    if (lastUser) void send(lastUser.content)
+                  }}
+                />
               ) : (
                 <AssistantMessageView
                   content={message.status === 'pending' ? '' : message.content}
@@ -570,9 +582,6 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
                   streaming={message.status === 'pending' || message.status === 'streaming'}
                   pendingLabel={message.status === 'pending' ? message.content : undefined}
                   cancelled={message.status === 'cancelled'}
-                  isError={message.content.startsWith('（错误）')}
-                  turnStats={message.turnStats}
-                  replyActionClassName="workbench-creation-ai__reply-action"
                 />
               )}
               {message.id === staleBoundaryId ? <StaleConversationDivider /> : null}
@@ -674,7 +683,6 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
                 'size-7 grid place-items-center shrink-0',
                 'border-0 rounded-nomi-sm bg-transparent text-nomi-ink-60 cursor-pointer',
                 'hover:bg-nomi-ink-05 hover:text-nomi-ink',
-                'focus-visible:outline-2 focus-visible:outline-workbench-focus focus-visible:outline-offset-2',
               )}
               label="添加附件"
               aria-label="添加附件（也可拖拽 / 粘贴）"
@@ -701,7 +709,6 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
                 'size-7 grid place-items-center shrink-0',
                 'border-0 rounded-full bg-nomi-ink text-nomi-paper cursor-pointer',
                 'hover:enabled:bg-nomi-accent',
-                'focus-visible:outline-2 focus-visible:outline-workbench-focus focus-visible:outline-offset-2',
               )}
               label="停止"
               aria-label="停止生成"
@@ -715,7 +722,6 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
                 'border-0 rounded-full bg-nomi-ink text-nomi-paper cursor-pointer',
                 'hover:enabled:bg-nomi-accent',
                 'disabled:bg-nomi-ink-20 disabled:text-nomi-ink-40 disabled:cursor-not-allowed',
-                'focus-visible:outline-2 focus-visible:outline-workbench-focus focus-visible:outline-offset-2',
               )}
               label="发送"
               aria-label="创作 AI 发送"

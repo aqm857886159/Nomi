@@ -2,6 +2,7 @@
 // 从 BaseGenerationNode.tsx 抽出（纯函数 + 常量，无 React 依赖）。
 import type { GenerationCanvasNode } from "../model/generationCanvasTypes";
 import { readNodeAspectRatio } from "./aspectRatio";
+import { isCardRenderKind, resolveNodeRenderKind } from "./resolveRenderKind";
 
 export const STATUS_LABEL: Record<string, string> = {
     queued: "排队中",
@@ -108,6 +109,60 @@ export function mediaNodeSize(
     };
 }
 
+export type MediaMetaPatch = {
+  size?: { width: number; height: number };
+  meta: Record<string, unknown>;
+};
+
+/**
+ * 媒体（图片/视频）loadedmetadata 回填的纯计算：据真实 W/H（视频再带真实时长）算出
+ * 节点尺寸 + meta 补丁；无变化返回 null（调用方不发空 update）。从 BaseGenerationNode 抽出
+ * 保持壳瘦身（R9）+ 可裸测。视频回填 meta.videoDuration 是「拖入视频一律 5 秒」的 catch-all 修复键。
+ */
+export function computeMediaMetaPatch(params: {
+  resultType: string | undefined;
+  meta: Record<string, unknown>;
+  currentSize: { width?: number; height?: number } | undefined;
+  width: number;
+  height: number;
+  durationSeconds?: number;
+}): MediaMetaPatch | null {
+  const { resultType, meta, currentSize, width, height, durationSeconds } = params;
+  const nextSize = mediaNodeSize(width, height, currentSize?.width);
+  if (!nextSize) return null;
+  const isVideo = resultType === "video";
+  const previousWidth = readFiniteNumber(meta.imageWidth ?? meta.videoWidth);
+  const previousHeight = readFiniteNumber(meta.imageHeight ?? meta.videoHeight);
+  const previousDuration = readFiniteNumber(meta.videoDuration);
+  const userResized = meta.userResized === true;
+  const nextDuration =
+    isVideo && Number.isFinite(durationSeconds) && (durationSeconds as number) > 0
+      ? Math.round((durationSeconds as number) * 1000) / 1000
+      : null;
+  const mediaPatch = isVideo
+    ? {
+        videoWidth: width,
+        videoHeight: height,
+        videoAspectRatio: width / height,
+        ...(nextDuration !== null ? { videoDuration: nextDuration } : {}),
+      }
+    : { imageWidth: width, imageHeight: height, imageAspectRatio: width / height };
+  const shouldPatchSize =
+    !userResized &&
+    (currentSize?.width !== nextSize.width || currentSize?.height !== nextSize.height);
+  if (
+    previousWidth === width &&
+    previousHeight === height &&
+    (nextDuration === null || previousDuration === nextDuration) &&
+    !shouldPatchSize
+  )
+    return null;
+  return {
+    ...(shouldPatchSize ? { size: { width: nextSize.width, height: nextSize.height } } : {}),
+    meta: { ...meta, ...mediaPatch, previewHeight: nextSize.previewHeight },
+  };
+}
+
 // 卡片模式（角色/场景/道具/音轨卡）按 cards-design-v1 §4 的固定宽度；高度部分卡固定、部分动态。
 export const CARD_FIXED_WIDTH: Record<string, number> = {
     "character-card": 200,
@@ -176,6 +231,49 @@ export function resolvePreviewHeight(opts: {
         aspectHeight ??
         clampNumber(sizeHeight, bounds.minHeight, bounds.maxHeight)
     );
+}
+
+// 节点「真实渲染尺寸」的**单一真相源**。卡片类（角色/场景/道具/音轨/画板）按 cardFixedSize
+// 固定宽、resolvePreviewHeight 取高；其余按 size/比例。BaseGenerationNode 的可视外壳与所有
+// 几何子系统（连线锚点 / 最小地图 / fitView / 选框）都必须经此取尺寸，不能再用名义 node.size——
+// 名义 size 与渲染尺寸有差（character-card 名义宽 300、实渲固定宽 200），连线锚点用名义 size
+// 就会从节点右侧 100px 外的空中起笔，看着「连不上」(本次根因)。
+const DEFAULT_VISUAL_SIZE = { width: 320, height: 360 };
+
+export function resolveNodeVisualSize(
+    node: Pick<GenerationCanvasNode, "kind" | "size" | "renderKind" | "categoryId" | "meta" | "result">,
+): { width: number; height: number } {
+    const size = node.size || DEFAULT_VISUAL_SIZE;
+    const renderKind = resolveNodeRenderKind(node);
+    const isCardKind = isCardRenderKind(renderKind);
+    const bounds = getNodeSizeBounds(node.kind);
+    const { width: cardFixedWidth, height: cardFixedHeight } = cardFixedSize(renderKind, isCardKind);
+    const hasResult = Boolean(node.result?.url);
+    const isImageGridSplitNode =
+        node.kind === "image" &&
+        typeof node.meta?.source === "string" &&
+        node.meta.source.startsWith("image-grid-split-");
+    const storedPreviewHeight =
+        typeof node.meta?.previewHeight === "number" && Number.isFinite(node.meta.previewHeight)
+            ? isImageGridSplitNode
+                ? Math.max(1, Math.round(node.meta.previewHeight))
+                : clampNumber(Math.round(node.meta.previewHeight), bounds.minHeight, bounds.maxHeight)
+            : null;
+    const previewHeight = resolvePreviewHeight({
+        node: node as GenerationCanvasNode,
+        hasResult,
+        isCardKind,
+        cardFixedWidth,
+        cardFixedHeight,
+        storedPreviewHeight,
+        sizeWidth: size.width,
+        sizeHeight: size.height,
+        bounds,
+    });
+    return {
+        width: cardFixedWidth ?? Math.max(bounds.minWidth, size.width),
+        height: previewHeight,
+    };
 }
 
 export function findTimelineDropTarget(

@@ -5,6 +5,8 @@ import {
   createScene3DTrajectoryId,
   createScene3DTrajectoryPointId,
 } from './scene3dSerializer'
+import { UNGROUPED_TRAJECTORY_GROUP_ID } from './scene3dConstants'
+import { trajectoryBindTargetsFromState } from './scene3dTrajectoryState'
 import type {
   Scene3DState,
   Scene3DTrajectory,
@@ -13,7 +15,10 @@ import type {
   Scene3DTrajectoryPoint,
   Scene3DVector3,
 } from './scene3dTypes'
-import { setScene3DTrajectorySnapshot } from './trajectory/trajectoryRuntimeStore'
+import {
+  setScene3DObjectRuntimeRefsVisible,
+  setScene3DTrajectorySnapshot,
+} from './trajectory/trajectoryRuntimeStore'
 import type { TrajectoryBindTarget } from './trajectory/TrajectoryRenderer'
 
 const TRAJECTORY_COLOR_SEQUENCE = ['#ef4444', '#facc15', '#3b82f6', '#22c55e'] as const
@@ -29,6 +34,7 @@ export type Scene3DTrajectoryEditing = {
   trajectoryEditMode: boolean
   timelineOpen: boolean
   isPlaying: boolean
+  hasPlayableBinding: boolean
   playheadRef: React.MutableRefObject<number>
   bindTargets: TrajectoryBindTarget[]
   setTrajectoryEditMode: (enabled: boolean) => void
@@ -53,7 +59,7 @@ export type Scene3DTrajectoryEditing = {
   deletePoint: (trajectoryId: string, pointId: string) => void
   updateCurveControl: (trajectoryId: string, segmentStartPointId: string, position: Scene3DVector3 | null) => void
   translateTrajectory: (trajectoryId: string, delta: Scene3DVector3) => void
-  bindObject: (trajectoryId: string, objectId: string) => void
+  bindObject: (trajectoryId: string, objectId: string, offsetRatio?: number) => void
   patchBinding: (bindingId: string, patch: Partial<Scene3DTrajectoryBinding>) => void
   patchBoundObject: (bindingId: string, objectId: string, patch: Partial<Scene3DTrajectoryBoundObject>) => void
   unbindObject: (bindingId: string, objectId: string) => void
@@ -120,18 +126,27 @@ export function useScene3DTrajectoryEditing({
     }
   }, [activeTrajectoryId, state.trajectories])
 
-  const activeTrajectoryIds = React.useMemo<ReadonlySet<string> | null>(() => (
-    activeGroupId
-      ? new Set(state.trajectoryGroups.find((group) => group.id === activeGroupId)?.trajectoryIds ?? [])
-      : null
-  ), [activeGroupId, state.trajectoryGroups])
+  const activeTrajectoryIds = React.useMemo<ReadonlySet<string> | null>(() => {
+    if (!activeGroupId) return null
+    if (activeGroupId === UNGROUPED_TRAJECTORY_GROUP_ID) {
+      const groupedIds = new Set<string>()
+      state.trajectoryGroups.forEach((group) => {
+        group.trajectoryIds.forEach((trajectoryId) => groupedIds.add(trajectoryId))
+      })
+      return new Set(
+        state.trajectories
+          .filter((trajectory) => !groupedIds.has(trajectory.id))
+          .map((trajectory) => trajectory.id),
+      )
+    }
+    return new Set(state.trajectoryGroups.find((group) => group.id === activeGroupId)?.trajectoryIds ?? [])
+  }, [activeGroupId, state.trajectories, state.trajectoryGroups])
 
-  const bindTargets = React.useMemo<TrajectoryBindTarget[]>(() => [
-    ...state.objects
-      .filter((object) => object.type === 'mannequin' || object.type === 'mannequinCrowd')
-      .map((object) => ({ id: object.id, name: object.name, type: 'mannequin' as const })),
-    ...state.cameras.map((camera) => ({ id: camera.id, name: camera.name, type: 'camera' as const })),
-  ], [state.cameras, state.objects])
+  const bindTargets = React.useMemo<TrajectoryBindTarget[]>(() => trajectoryBindTargetsFromState(state), [state])
+  const hasPlayableBinding = React.useMemo(() => state.trajectoryBindings.some((binding) => (
+    binding.objects.length > 0 &&
+    (!activeTrajectoryIds || activeTrajectoryIds.has(binding.trajectoryId))
+  )), [activeTrajectoryIds, state.trajectoryBindings])
 
   const selectTrajectory = React.useCallback((trajectoryId: string) => {
     setActiveTrajectoryId(trajectoryId)
@@ -144,6 +159,7 @@ export function useScene3DTrajectoryEditing({
   }, [])
 
   const selectGroup = React.useCallback((groupId: string | null) => {
+    setIsPlaying(false)
     setActiveGroupId(groupId)
   }, [])
 
@@ -173,15 +189,22 @@ export function useScene3DTrajectoryEditing({
 
   const deleteTrajectory = React.useCallback((trajectoryId: string) => {
     if (readOnly) return
-    setState((current) => ({
-      ...current,
-      trajectories: current.trajectories.filter((trajectory) => trajectory.id !== trajectoryId),
-      trajectoryBindings: current.trajectoryBindings.filter((binding) => binding.trajectoryId !== trajectoryId),
-      trajectoryGroups: current.trajectoryGroups.map((group) => ({
-        ...group,
-        trajectoryIds: group.trajectoryIds.filter((id) => id !== trajectoryId),
-      })),
-    }))
+    setState((current) => {
+      current.trajectoryBindings
+        .filter((binding) => binding.trajectoryId === trajectoryId)
+        .forEach((binding) => {
+          binding.objects.forEach((object) => setScene3DObjectRuntimeRefsVisible(object.objectId, true))
+        })
+      return {
+        ...current,
+        trajectories: current.trajectories.filter((trajectory) => trajectory.id !== trajectoryId),
+        trajectoryBindings: current.trajectoryBindings.filter((binding) => binding.trajectoryId !== trajectoryId),
+        trajectoryGroups: current.trajectoryGroups.map((group) => ({
+          ...group,
+          trajectoryIds: group.trajectoryIds.filter((id) => id !== trajectoryId),
+        })),
+      }
+    })
     setActiveTrajectoryId((current) => (current === trajectoryId ? null : current))
     setActivePointId(null)
   }, [readOnly, setState])
@@ -307,21 +330,20 @@ export function useScene3DTrajectoryEditing({
     }))
   }, [mutateTrajectoryPoints])
 
-  const bindObject = React.useCallback((trajectoryId: string, objectId: string) => {
+  const bindObject = React.useCallback((trajectoryId: string, objectId: string, offsetRatio = 0) => {
     if (readOnly) return
     setState((current) => {
-      const boundObject: Scene3DTrajectoryBoundObject = { objectId, offsetRatio: 0 }
-      const existing = current.trajectoryBindings.find((binding) => binding.trajectoryId === trajectoryId)
-      // One object lives on one trajectory at a time; drop it from any other binding first.
-      const withoutObject = current.trajectoryBindings.map((binding) => (
+      if (current.trajectoryBindings.some((binding) => (
         binding.objects.some((object) => object.objectId === objectId)
-          ? { ...binding, objects: binding.objects.filter((object) => object.objectId !== objectId) }
-          : binding
-      ))
+      ))) {
+        return current
+      }
+      const boundObject: Scene3DTrajectoryBoundObject = { objectId, offsetRatio }
+      const existing = current.trajectoryBindings.find((binding) => binding.trajectoryId === trajectoryId)
       if (existing) {
         return {
           ...current,
-          trajectoryBindings: withoutObject.map((binding) => (
+          trajectoryBindings: current.trajectoryBindings.map((binding) => (
             binding.id === existing.id
               ? { ...binding, objects: [...binding.objects, boundObject] }
               : binding
@@ -336,18 +358,39 @@ export function useScene3DTrajectoryEditing({
         endTime: Math.max(0.1, current.sceneTimeline.totalDuration),
         direction: 'forward',
       }
-      return { ...current, trajectoryBindings: [...withoutObject, binding] }
+      return {
+        ...current,
+        trajectoryBindings: [...current.trajectoryBindings, binding],
+        sceneTimeline: binding.endTime > current.sceneTimeline.totalDuration
+          ? { ...current.sceneTimeline, totalDuration: binding.endTime }
+          : current.sceneTimeline,
+      }
     })
   }, [readOnly, setState])
 
   const patchBinding = React.useCallback((bindingId: string, patch: Partial<Scene3DTrajectoryBinding>) => {
     if (readOnly) return
-    setState((current) => ({
-      ...current,
-      trajectoryBindings: current.trajectoryBindings.map((binding) => (
-        binding.id === bindingId ? { ...binding, ...patch } : binding
-      )),
-    }))
+    setState((current) => {
+      let nextMaxEndTime = current.sceneTimeline.totalDuration
+      const trajectoryBindings = current.trajectoryBindings.map((binding) => {
+        if (binding.id !== bindingId) return binding
+        const nextBinding = { ...binding, ...patch }
+        const startTime = Math.max(0, Number.isFinite(nextBinding.startTime) ? nextBinding.startTime : binding.startTime)
+        const endTime = Math.max(
+          startTime + 0.001,
+          Number.isFinite(nextBinding.endTime) ? nextBinding.endTime : binding.endTime,
+        )
+        nextMaxEndTime = Math.max(nextMaxEndTime, endTime)
+        return { ...nextBinding, startTime, endTime }
+      })
+      return {
+        ...current,
+        trajectoryBindings,
+        sceneTimeline: nextMaxEndTime === current.sceneTimeline.totalDuration
+          ? current.sceneTimeline
+          : { ...current.sceneTimeline, totalDuration: nextMaxEndTime },
+      }
+    })
   }, [readOnly, setState])
 
   const patchBoundObject = React.useCallback((
@@ -378,6 +421,7 @@ export function useScene3DTrajectoryEditing({
       trajectoryBindings: current.trajectoryBindings.flatMap((binding) => {
         if (binding.id !== bindingId) return [binding]
         const objects = binding.objects.filter((object) => object.objectId !== objectId)
+        if (objects.length !== binding.objects.length) setScene3DObjectRuntimeRefsVisible(objectId, true)
         return objects.length > 0 ? [{ ...binding, objects }] : []
       }),
     }))
@@ -385,10 +429,14 @@ export function useScene3DTrajectoryEditing({
 
   const deleteBinding = React.useCallback((bindingId: string) => {
     if (readOnly) return
-    setState((current) => ({
-      ...current,
-      trajectoryBindings: current.trajectoryBindings.filter((binding) => binding.id !== bindingId),
-    }))
+    setState((current) => {
+      const binding = current.trajectoryBindings.find((candidate) => candidate.id === bindingId)
+      binding?.objects.forEach((object) => setScene3DObjectRuntimeRefsVisible(object.objectId, true))
+      return {
+        ...current,
+        trajectoryBindings: current.trajectoryBindings.filter((binding) => binding.id !== bindingId),
+      }
+    })
   }, [readOnly, setState])
 
   const addGroup = React.useCallback(() => {
@@ -426,6 +474,7 @@ export function useScene3DTrajectoryEditing({
     trajectoryEditMode,
     timelineOpen,
     isPlaying,
+    hasPlayableBinding,
     playheadRef,
     bindTargets,
     setTrajectoryEditMode,

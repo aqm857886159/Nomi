@@ -1,57 +1,23 @@
 /**
- * 上手引导的「带我去」聚光：在真实控件上画一圈高亮 + 一句话气泡指明「在这里」。
+ * 引导旅途的聚光：在真实控件上画一圈高亮 + 一句话气泡指明「在这里」。
  *
- * 原则（承袭已删的 WorkbenchTour，但由清单按需触发、不自动推进）：
+ * 纯展示组件：高亮目标（selectors）、文案（title/body）、按钮回调全由调用方（JourneyTour）
+ * 配置传入——不绑定任何固定步骤枚举，可服务任意一步引导。
+ *
+ * 原则（承袭已删的 WorkbenchTour）：
  *  - **不压暗**主内容（Design.md：别让要看的东西变暗）；高亮环 pointer-events:none，
  *    用户能直接点真实控件。
  *  - **位置精准**：环按目标 getBoundingClientRect 实测绘制（视口坐标，跨画布平移/缩放仍准），
  *    用 rAF 持续重测——节点会随画布动、模式刚切换布局也在沉降。气泡视口 clamp，不溢出。
- *  - 点别处 / Esc / 该步完成 → 收起。
+ *  - 点别处 / Esc → onDismiss（跳过整条引导）。
  *
  * 渲染在 React 树内（不 BodyPortal，保 --nomi-* token 作用域）。
  */
 import React from 'react'
 import { IconArrowRight } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
-import type { ChecklistStep } from './onboardingState'
 
 type Rect = { left: number; top: number; width: number; height: number }
-
-type SpotTarget = {
-  /** 目标控件选择器（按序取第一个命中且可见的）。 */
-  selectors: string[]
-  /** 气泡标题（带步号）与一句话指引。 */
-  title: string
-  hint: string
-}
-
-/** 每步指向的真实控件 + 文案。选择器来自现状勘察（顶栏常驻 / 创作输入 / 画布节点 / 预览导出）。 */
-const SPOTLIGHT_TARGETS: Record<ChecklistStep, SpotTarget> = {
-  model: {
-    selectors: ['.nomi-appbar__ghost[aria-label="打开模型接入"]', '[aria-label="模型接入"]'],
-    title: '① 接入模型',
-    hint: '点这里接入一个 AI 服务（用你自己的 Key，Nomi 不另收费）。',
-  },
-  storyboard: {
-    selectors: ['[data-tour="storyboard-cta"]', '[aria-label="展开创作助手"]'],
-    title: '② 拆一个镜头',
-    hint: '在这里跟创作助手说「拆成镜头」，它会把故事铺成画布。',
-  },
-  generated: {
-    selectors: [
-      '.generation-canvas-v2-node [aria-label="生成素材"]',
-      '.generation-canvas-v2-node [aria-label="重新生成"]',
-      '.generation-canvas-v2-node',
-    ],
-    title: '③ 生成一张',
-    hint: '在镜头卡里选好模型，点「生成」开始出图。',
-  },
-  exported: {
-    selectors: ['.workbench-preview-player__export-button', '.nomi-appbar__primary'],
-    title: '④ 导出成片',
-    hint: '排进时间轴后，点这里导出 MP4。',
-  },
-}
 
 const RING_OUTSET = 4 // 环相对目标外扩，留呼吸
 const VIEWPORT_MARGIN = 12
@@ -87,16 +53,32 @@ function calloutPosition(target: Rect, calloutH: number): { left: number; top: n
 }
 
 type Props = {
-  step: ChecklistStep
-  /** 是否是末步——决定主按钮是「下一步」还是「完成」。 */
-  isLast: boolean
-  /** 手动推进到下一步（不要求真完成；真完成会另由清单自动打勾）。 */
+  /** 目标控件选择器（按序取第一个命中且可见的）；空数组 = 无目标，气泡兜底居中。 */
+  selectors: string[]
+  /** 气泡标题（如「① 一切从你的一句话开始」）。 */
+  title: string
+  /** 一句话指引。 */
+  body: string
+  /** 进度标（如「讲解 1/6」）；空则不显示。 */
+  stepLabel?: string
+  /** 主按钮文案（如「下一步」「完成」）。 */
+  primaryLabel: string
+  /** 推进到下一步。 */
   onNext: () => void
+  /** 跳过整条引导（点别处 / Esc / 点跳过）。 */
   onDismiss: () => void
 }
 
-export function OnboardingSpotlight({ step, isLast, onNext, onDismiss }: Props): JSX.Element | null {
-  const target = SPOTLIGHT_TARGETS[step]
+export function OnboardingSpotlight({
+  selectors,
+  title,
+  body,
+  stepLabel,
+  primaryLabel,
+  onNext,
+  onDismiss,
+}: Props): JSX.Element | null {
+  const selectorKey = selectors.join('|')
   const [rect, setRect] = React.useState<Rect | null>(null)
   const calloutRef = React.useRef<HTMLDivElement | null>(null)
   const [calloutH, setCalloutH] = React.useState(96)
@@ -104,18 +86,20 @@ export function OnboardingSpotlight({ step, isLast, onNext, onDismiss }: Props):
   // rAF 持续实测目标几何：模式刚切换布局在沉降、画布会平移/缩放，位置必须实时跟随才精准。
   React.useEffect(() => {
     setRect(null)
+    if (selectors.length === 0) return
     let raf = 0
     const tick = () => {
-      setRect(measure(target.selectors))
+      setRect(measure(selectors))
       raf = window.requestAnimationFrame(tick)
     }
     raf = window.requestAnimationFrame(tick)
     return () => window.cancelAnimationFrame(raf)
-  }, [target])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectorKey])
 
   React.useLayoutEffect(() => {
     if (calloutRef.current) setCalloutH(calloutRef.current.offsetHeight)
-  }, [rect, step])
+  }, [rect, selectorKey])
 
   // 点别处 / Esc → 收起（pointerdown 捕获阶段，避免被画布吞掉）。
   React.useEffect(() => {
@@ -166,21 +150,22 @@ export function OnboardingSpotlight({ step, isLast, onNext, onDismiss }: Props):
         ref={calloutRef}
         data-onboarding-spotlight-callout="true"
         role="dialog"
-        aria-label={target.title}
+        aria-label={title}
         className={cn(
           'fixed z-[3401] flex flex-col gap-1 p-3',
           'rounded-nomi-lg border border-nomi-line bg-nomi-paper shadow-nomi-lg',
         )}
         style={{ left: pos.left, top: pos.top, width: CALLOUT_WIDTH }}
       >
-        <div className="text-caption font-bold text-nomi-accent">{target.title}</div>
-        <p className="m-0 text-body-sm text-nomi-ink-80 leading-snug">{target.hint}</p>
-        <div className="flex items-center justify-end gap-2 mt-1">
+        <div className="text-caption font-bold text-nomi-accent">{title}</div>
+        <p className="m-0 text-body-sm text-nomi-ink-80 leading-snug">{body}</p>
+        <div className="flex items-center gap-2 mt-1">
+          {stepLabel ? <span className="text-micro text-nomi-ink-40 tabular-nums">{stepLabel}</span> : null}
           <button
             type="button"
             onClick={onDismiss}
             className={cn(
-              'inline-flex items-center h-7 px-2.5 rounded-full border-0 bg-transparent cursor-pointer font-inherit',
+              'ml-auto inline-flex items-center h-7 px-2.5 rounded-full border-0 bg-transparent cursor-pointer font-inherit',
               'text-caption text-nomi-ink-40 transition-colors hover:text-nomi-ink',
             )}
           >
@@ -194,8 +179,8 @@ export function OnboardingSpotlight({ step, isLast, onNext, onDismiss }: Props):
               'bg-nomi-ink text-nomi-paper text-caption font-medium transition-colors hover:bg-nomi-accent',
             )}
           >
-            {isLast ? '完成' : '下一步'}
-            {isLast ? null : <IconArrowRight size={13} stroke={1.6} aria-hidden="true" />}
+            {primaryLabel}
+            <IconArrowRight size={13} stroke={1.6} aria-hidden="true" />
           </button>
         </div>
       </div>

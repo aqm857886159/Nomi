@@ -3,7 +3,7 @@ import type { Editor } from '@tiptap/react'
 import { NomiLoadingMark } from '../../../design'
 import { cn } from '../../../utils/cn'
 import PromptEditor from '../../assets/PromptEditor'
-import { readArchetypeArray } from './controls/archetypeMeta'
+import { resolveReferenceSlots } from '../runner/referenceSlots'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { canRunGenerationNode, confirmAndRunNode } from '../runner/generationRunController'
@@ -110,6 +110,14 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   }, [promptEditor])
   // 拖文件到卡 → 加为参考（捷径 A）。仅当当前模式有数组参考槽时接管拖拽。
   const { acceptsDrop, isDragOver, isUploading, dropHandlers } = useNodeAssetDrop(node)
+  // @ 候选 = 当前模式 image_ref 槽的有序填充（连线在前+上传，option 2 单源），与面板编号①②③、
+  // 发送的 reference_image 数组同一口径——连线进来的参考图也在候选里、能被 @（此前只读 meta 漏掉边）。
+  const mentionNodes = useGenerationCanvasStore((state) => state.nodes)
+  const mentionEdges = useGenerationCanvasStore((state) => state.edges)
+  const mentionCandidates = React.useMemo(() => {
+    const imageSlot = resolveReferenceSlots(node, mentionNodes, mentionEdges).find((s) => s.slotKind === 'image_ref')
+    return imageSlot ? imageSlot.fills.flatMap((f) => (f.url ? [f.url] : [])) : []
+  }, [node, mentionNodes, mentionEdges])
 
   const handleGenerate = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
@@ -188,8 +196,8 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   }, [canvasZoom, canvasOffset, node.position?.x, node.position?.y, visualSize.width, visualSize.height, composerLayout.gap, node.result?.url])
 
   // 卡宽 = **内容驱动**（用户拍板 2026-06-16，推翻 06-13 的「按最宽模型恒定宽」）：
-  // 卡片 **w-max**（max-content）跟着当前模型的「底栏一行」(锁+参数横排+生成钮)自然撑开——参数少则窄、
-  // 多则宽，永远一行不换（InlineParameterBar flex-nowrap），生成钮 ml-auto 贴右。
+  // 卡片 **w-max**（max-content）跟着当前模型的「底栏一行」(锁+参数+生成钮)自然撑开。参数已主次分层
+  // （最常调内联、其余收进 InlineParameterBar 的「更多」弹层，方案 B 2026-06-25），底栏恒单行，生成钮 ml-auto 贴右。
   // **为什么不能用 w-fit**：composer 是 absolute + left-1/2 锚在节点上，fit-content 的可用宽被节点框
   // (~300px) 卡死 → 塌回 min-content(min-w-360)、参数多就被挤截断（实测 2026-06-16 真机：card 卡 360）。
   // max-content 不吃可用宽约束，按内容真实宽长开。提示词/参考区用 w-0 min-w-full **只填不撑**(贡献 0 到
@@ -272,12 +280,12 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
             onChange={(next) => updateNode(node.id, { prompt: next })}
             onBlur={() => { void persistActiveWorkbenchProjectNow().catch(() => {}) }}
             onReady={setPromptEditor}
-            mentionCandidates={readArchetypeArray(node.meta || {}, 'referenceImageUrls')}
+            mentionCandidates={mentionCandidates}
           />
         </div>
       )}
-      {/* 底栏铺满卡宽（w-full）：卡宽由「最宽模型」恒定，生成钮 ml-auto 永远贴右；
-          换到参数少的模型时底栏内容靠左、右侧留白，生成钮仍锁死右下角（不再随参数横排漂移）。 */}
+      {/* 底栏铺满卡宽（w-full）：生成钮 ml-auto 永远贴右。底栏恒单行——参数已主次分层（最常调的内联、
+          其余收进 InlineParameterBar 的「更多」弹层，方案 B），不会再横排超长/截断/换行（D2 根治）。 */}
       <div className={cn('flex items-center gap-2 mt-auto pt-1 shrink-0 w-full')}>
         {/* 锁从节点卡片移到这里（编辑面板底栏）：卡片预览保持干净，锁定/解锁在选中编辑时就近可达。
             selected 恒为真（composer 只在选中时挂载）→ 始终可见：未锁=描边开锁、已锁=实心锁。 */}

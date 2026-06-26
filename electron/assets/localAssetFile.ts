@@ -30,6 +30,28 @@ export function absolutePathFromLocalAssetUrl(url: unknown, projectId: string): 
   }
 }
 
+/**
+ * 按 URL **自带的 projectId** 解析绝对路径(不强求等于当前项目)——与 readNomiLocalAsset 同口径。
+ * C4 修:跨项目把素材库的图/视频拖进当前项目时,节点 URL 仍编源项目 id;生成侧(readNomiLocalAsset)本就
+ * 自解析故能跑,但导出/抽帧侧用「当前 projectId 强匹配」→ urlProjectId !== projectId 返回 null → 跨项目素材
+ * 在导出里读不到(整体回退 WebM)。统一成「信 URL 自带 id」消除这条不一致(无新暴露:生成侧早已这么读)。
+ */
+export function absolutePathFromLocalAssetUrlAnyProject(url: unknown): string | null {
+  if (typeof url !== "string") return null;
+  const prefix = "nomi-local://asset/";
+  if (!url.startsWith(prefix)) return null;
+  const rest = url.slice(prefix.length);
+  const slashIndex = rest.indexOf("/");
+  if (slashIndex < 0) return null;
+  let urlProjectId: string;
+  try {
+    urlProjectId = decodeURIComponent(rest.slice(0, slashIndex));
+  } catch {
+    return null;
+  }
+  return absolutePathFromLocalAssetUrl(url, urlProjectId);
+}
+
 /** R1：把 nomi-local URL(自带 projectId)读成字节 + contentType + 文件名,供 assetLocalization 上传/内联。
  *  同时读 sidecar `.meta` 文件里的 originalUrl（生成素材落盘时写入），
  *  供 assetLocalization 优先直接使用公网 URL 而无需转 base64 或调供应商上传 API。 */

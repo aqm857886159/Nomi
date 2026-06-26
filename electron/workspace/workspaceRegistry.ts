@@ -3,6 +3,18 @@ import path from "node:path";
 import { writeJsonFileAtomic } from "../jsonFile";
 import { normalizeRecentWorkspaceEntry, type RecentWorkspaceEntry, type WorkspaceProjectRecordV2 } from "./workspaceTypes";
 
+function readRecentWorkspaceEntries(settingsRoot: string): RecentWorkspaceEntry[] {
+  const registryPath = recentWorkspacesPath(settingsRoot);
+  if (!fs.existsSync(registryPath)) {
+    return [];
+  }
+  const raw = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.map((entry) => normalizeRecentWorkspaceEntry(entry));
+}
+
 function writeRecentWorkspaces(settingsRoot: string, entries: RecentWorkspaceEntry[]): void {
   writeJsonFileAtomic(recentWorkspacesPath(settingsRoot), entries);
 }
@@ -23,15 +35,17 @@ export function recentWorkspacesPath(settingsRoot: string): string {
 }
 
 export function listRecentWorkspaces(settingsRoot: string): RecentWorkspaceEntry[] {
-  const registryPath = recentWorkspacesPath(settingsRoot);
-  if (!fs.existsSync(registryPath)) {
-    return [];
-  }
-  const raw = JSON.parse(fs.readFileSync(registryPath, "utf8"));
-  if (!Array.isArray(raw)) {
-    return [];
-  }
-  return sortRecentWorkspaces(raw.map((entry) => withMissingState(normalizeRecentWorkspaceEntry(entry))));
+  return sortRecentWorkspaces(readRecentWorkspaceEntries(settingsRoot).map((entry) => withMissingState(entry)));
+}
+
+export function findRecentWorkspace(
+  settingsRoot: string,
+  projectId: string,
+): RecentWorkspaceEntry | null {
+  const id = String(projectId || "").trim();
+  if (!id) return null;
+  const entry = readRecentWorkspaceEntries(settingsRoot).find((item) => item.id === id);
+  return entry ? withMissingState(entry) : null;
 }
 
 export function rememberWorkspace(settingsRoot: string, record: WorkspaceProjectRecordV2): RecentWorkspaceEntry[] {
@@ -47,14 +61,14 @@ export function rememberWorkspace(settingsRoot: string, record: WorkspaceProject
     lastOpenedAt: Date.now(),
     missing: !fs.existsSync(rootPath),
   });
-  const entries = listRecentWorkspaces(settingsRoot).filter((entry) => entry.id !== record.id);
+  const entries = readRecentWorkspaceEntries(settingsRoot).filter((entry) => entry.id !== record.id);
   const next = sortRecentWorkspaces([nextEntry, ...entries]);
   writeRecentWorkspaces(settingsRoot, next);
   return next;
 }
 
 export function removeWorkspaceReference(settingsRoot: string, projectId: string): RecentWorkspaceEntry[] {
-  const next = listRecentWorkspaces(settingsRoot).filter((entry) => entry.id !== projectId);
+  const next = readRecentWorkspaceEntries(settingsRoot).filter((entry) => entry.id !== projectId);
   writeRecentWorkspaces(settingsRoot, next);
   return next;
 }

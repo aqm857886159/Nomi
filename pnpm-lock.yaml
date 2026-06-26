@@ -119,6 +119,9 @@ importers:
       remark-gfm:
         specifier: 4.0.1
         version: 4.0.1
+      scheduler:
+        specifier: 0.23.2
+        version: 0.23.2
       swr:
         specifier: ^2.4.1
         version: 2.4.1(react@18.3.1)
@@ -131,6 +134,9 @@ importers:
       undici:
         specifier: 6.19.8
         version: 6.19.8
+      use-sync-external-store:
+        specifier: 1.6.0
+        version: 1.6.0(react@18.3.1)
       xlsx:
         specifier: ^0.18.5
         version: 0.18.5

@@ -2,6 +2,7 @@
 // electron 内部各处（runtime / seedBuiltins / kieSeedance …）一处定义、各处 import，避免漂移。
 // 渲染层不消费这些（electron 专用；渲染层有自己的 DTO，经 desktopClient 单源）。
 import type { ApiKeyRecord } from "./secrets";
+import type { ParamMap } from "./paramTranslate";
 
 export type BillingModelKind = "text" | "image" | "video" | "audio";
 export type ProfileKind =
@@ -197,6 +198,59 @@ export type HttpOperation = {
   body?: unknown;
   response_mapping?: Record<string, unknown>;
   provider_meta_mapping?: Record<string, unknown>;
+  /**
+   * 音频 create op 的**响应形状声明**（仅 audioTaskRunner 消费，P4 声明驱动不 hardcode vendor）。
+   *  - 缺省 / "binary"      ：响应体即裸音频字节（OpenAI 兼容 /v1/audio/speech，现有行为）。
+   *  - "ndjson-base64"      ：NDJSON 流（逐行 {code,data}，code===0 时 data 为 base64 音频块，
+   *                           code===20000000 收尾）——豆包语音 /api/v3/tts/unidirectional。
+   * 任何未来同形状的 vendor 声明此值即复用解码，无需碰 runtime（runTextToSpeech 按它分流）。
+   */
+  audioResponse?: "binary" | "ndjson-base64";
+  /**
+   * **进程型 transport 声明**（仅 processOperation 消费，P4 声明驱动不 hardcode vendor）。
+   * 当一个 vendor 不是 HTTP 端点而是本地 CLI 二进制（如即梦官方 `dreamina`）时，create/query op
+   * 各自声明 process，runtime 的 executeProfileOperation 顶部据此分流到 spawn 分支（而非 requestJson）：
+   * spawn `bin` + 渲染后的 `args`（含 `{{...}}` 占位，与 body 同一套 renderTemplateValue），按 `parser`
+   * 把 stdout 归一成「类 HTTP 响应」对象，喂回现有 buildProfileTaskResult/statusMapping，状态机零改。
+   *  - bin            ：可执行名（运行时经 PATH / env 解析真实路径）。
+   *  - args           ：参数模板数组（如 ["text2video","--prompt={{prompt}}","--duration={{params.duration}}"]）。
+   *  - parser         ：stdout 解码器选择子（目前仅 "dreamina-cli"）。未来同形状 vendor 声明各自 parser 即复用。
+   *  - appendDownloadDir：true 时追加 `--download_dir=<项目素材临时目录>`，让 CLI 把结果下到本地（取本地文件）。
+   *  - fileParams     ：**输入文件吞入声明**。即梦带图/视频/音频的命令收**本地文件路径**（`--image=./x.png`），
+   *                     而 Nomi 槽给的是资产 URL（nomi-local://http/data）。spawn 前据此把每个输入 URL 物化成
+   *                     本地路径（nomi-local 零拷贝取现成绝对路径；http/data 下到 temp，spawn 后清理），按 mode
+   *                     暴露成 args 模板可读的 expose 参数：single=单路径 / csv=逗号串 / repeat=`flag=path` 数组（spread）。
+   */
+  process?: {
+    bin: string;
+    args: string[];
+    parser: "dreamina-cli";
+    appendDownloadDir?: boolean;
+    /**
+     * 特殊 arg 构建器（声明驱动分派）。缺省=用 `args` 模板渲染。"multiframe"=多帧按图数变形（2 图 shorthand /
+     * 3+ 图 N-1 个 --transition-prompt），逻辑在 dreaminaCodec.buildMultiframeArgs（纯函数可测），processOperation
+     * 据此忽略 args、改调构建器。其余 6 个模式都走通用 args 模板，唯独多帧条数随输入变、模板表达不了。
+     */
+    build?: "multiframe";
+    fileParams?: Array<{
+      /** request.params 里持有输入资产 URL（string 或 string[]）的键（= 槽 inputKey）。 */
+      param: string;
+      /** 物化后写回 request.params 的键（被 args 模板 `{{request.params.<expose>}}` 引用）。 */
+      expose: string;
+      /** single=取首个路径；csv=逗号连接；repeat=`flag=path` 字符串数组（exact 模板 spread）；array=原样路径数组（多帧 build 直接读）。 */
+      mode: "single" | "csv" | "repeat" | "array";
+      /** mode=repeat 时的 flag 名（如 "--image"）。 */
+      flag?: string;
+    }>;
+  };
+  /**
+   * 参数翻译表（铁律：模型身份决定参数，与渠道无关）。档案声明**中性 canonical 参数**（全站一致），
+   * 这里把它们翻译成本 codec 的 wire 字段（改名 / 值转换 / 显式 drop）——见 paramTranslate.ts。
+   * runtime 渲染 body 前 applyParamMap 注入 wire 键。**改名/identity 透传不必写**（canonical 键 =
+   * body 读的键时，值经 ...extras 直达）；只在 wire≠canonical 或要算值（如比例+档位→OpenAI 像素）时写。
+   * 可序列化（持久化进 catalog JSON）：规则纯数据，值转换用 PARAM_TRANSFORMS 的字符串 id 引用。
+   */
+  paramMap?: ParamMap;
 };
 
 /**
@@ -285,8 +339,11 @@ export function selectExecutableModel(
  *  flat Mapping.{create,query} HttpOperation fields. Old rows are normalized
  *  in `migrateCatalogForward`.
  */
-export type CatalogVersion = 1 | 2 | 3;
-export const CURRENT_CATALOG_VERSION: CatalogVersion = 3;
+/*  v4 给自建中转(relay)的旧图像/视频 op 补「中性参数→线缆字段」翻译表(paramMap)——存量用户已接入的
+ *  OpenAI 兼容中转其 op 是迁移前持久化的(读 size 像素却无 paramMap)，档案中性化后比例/清晰度发不出去。
+ *  见 docs/plan/2026-06-24-model-param-consistency-invariant.md。 */
+export type CatalogVersion = 1 | 2 | 3 | 4;
+export const CURRENT_CATALOG_VERSION: CatalogVersion = 4;
 
 export type CatalogState = {
   version: CatalogVersion;

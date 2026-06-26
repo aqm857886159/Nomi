@@ -51,6 +51,12 @@ try {
   const keySet = await win.evaluate((key) => window.nomiDesktop.modelCatalog.upsertVendorApiKey("kie", { apiKey: key, enabled: true }), KEY);
   assert(keySet?.hasApiKey, "kie API key 已设置");
 
+  // 2.5) 付费守卫令牌（2026-06-21 spend gate）：真生成前铸一颗（模拟真人点确认卡），随 extras.grantId 下传。
+  //      用**生产同款** grantSpend IPC（不在 enforcement 层加 e2e 旁路 → 不削弱「真人确认才铸」安全性）。
+  //      默认 3 次预算覆盖本 e2e 两次 createTask（首帧主生成 + Mini id 探针），都落 GENERIC_NODE_KEY。
+  const { grantId } = await win.evaluate(() => window.nomiDesktop.tasks.grantSpend({ nodeIds: [] }));
+  assert(grantId, "铸付费令牌成功（grantSpend IPC，模拟真人确认）");
+
   // 3) 经 app runtime 发起一次 Seedance 首帧生成（真实 createTask + 内置 mapping）
   const initial = await win.evaluate(async (args) => {
     return await window.nomiDesktop.tasks.run({
@@ -59,8 +65,11 @@ try {
         kind: "image_to_video",
         prompt: args.prompt,
         extras: {
-          modelKey: "bytedance/seedance-2",
-          firstFrameUrl: args.frame,
+          modelKey: "bytedance/seedance-2", // findExecutableModel 据基础 catalog 行解析 vendor/model
+          grantId: args.grantId, // 付费守卫令牌
+          // 变体合并后 body 取 {{request.params.model}} + {{request.params.first_frame_url}}（不再 extras.firstFrameUrl）；
+          // 真实流程由 buildArchetypeInputParams 产出 archetypeInput={ model, first_frame_url }，e2e 须自带（同 apimart）。
+          archetypeInput: { model: "bytedance/seedance-2", first_frame_url: args.frame },
           resolution: "720p",
           aspect_ratio: "16:9",
           duration: "5",
@@ -68,7 +77,7 @@ try {
         },
       },
     });
-  }, { prompt: "a gentle slow cinematic zoom-in on the scene", frame: FIRST_FRAME });
+  }, { prompt: "a gentle slow cinematic zoom-in on the scene", frame: FIRST_FRAME, grantId });
   assert(initial?.id, "app runtime 返回 taskId（createTask 经内置 mapping 成功）");
   console.log(`    taskId=${initial.id} status=${initial.status}`);
 
@@ -94,6 +103,27 @@ try {
   const video = (final.assets || []).find((a) => a.type === "video" && a.url);
   assert(video, "返回视频 asset（resultJson.resultUrls 解析正确）");
   console.log(`    video=${video.url}`);
+
+  // 5) Mini 变体 model id live 核实：kie 文档页枚举疑似从 fast 页克隆（强制 enum 写 -fast，描述写 -mini）。
+  //    只发 createTask（不轮询出片）确认 `bytedance/seedance-2-mini` 被接受、未 400 unknown-model——省额度。
+  //    若返回 taskId → mini id 真实可用（落地正确）；若失败 → 说明该 id 不被接受，需回退（不落 mini 变体）。
+  const mini = await win.evaluate(async (args) => {
+    try {
+      const r = await window.nomiDesktop.tasks.run({
+        vendor: "kie",
+        request: {
+          kind: "image_to_video",
+          prompt: args.prompt,
+          // modelKey=基础行（findExecutableModel）；body 的 params.model 取变体 mini id（archetypeInput.model）——
+          // 这正是真实流程：节点 modelKey 钉基础行、variantId=mini → out.model=bytedance/seedance-2-mini。
+          extras: { modelKey: "bytedance/seedance-2", grantId: args.grantId, archetypeInput: { model: "bytedance/seedance-2-mini", first_frame_url: args.frame }, resolution: "480p", aspect_ratio: "16:9", duration: "4", generate_audio: false },
+        },
+      });
+      return { id: r?.id || null, status: r?.status || null, error: null };
+    } catch (e) { return { id: null, status: null, error: String(e?.message || e) }; }
+  }, { prompt: "a gentle slow cinematic zoom-in on the scene", frame: FIRST_FRAME, grantId });
+  assert(mini.id, `Mini 变体 createTask 被 kie 接受（model=bytedance/seedance-2-mini, taskId=${mini.id || "—"}${mini.error ? ", err=" + mini.error : ""}）`);
+  console.log(`    mini taskId=${mini.id} status=${mini.status}`);
 
   console.log(`\nSEEDANCE E2E PASS: ${passed} assertions`);
 } catch (error) {

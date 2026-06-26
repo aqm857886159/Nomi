@@ -150,6 +150,28 @@ describe('migrateProjectV51ToV60', () => {
       expect(second.record).toBe(first.record)
     })
 
+    it('does not treat cross-category derivedFrom as a change once render metadata is present', () => {
+      const record = makeRecord([
+        makeNode({
+          id: 'cast-source',
+          kind: 'character',
+          categoryId: 'cast',
+          renderKind: 'character-card',
+        }),
+        makeNode({
+          id: 'shot-copy',
+          kind: 'image',
+          categoryId: 'shots',
+          renderKind: 'shot-frame',
+          shotIndex: 1,
+          derivedFrom: 'cast-source',
+        }),
+      ])
+      const { record: out, diagnostic } = migrateProjectV51ToV60(record)
+      expect(out).toBe(record)
+      expect(diagnostic.alreadyMigrated).toBe(true)
+    })
+
     it('returns the same record reference when nothing changed', () => {
       const record = makeRecord([])
       const { record: out, diagnostic } = migrateProjectV51ToV60(record)

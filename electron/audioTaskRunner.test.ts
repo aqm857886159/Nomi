@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 
-// 隔离 runtime（重 electron 依赖）：只桩 audioTaskRunner 用到的两个出口。
+// 隔离 runtime（重 electron 依赖）：只桩 audioTaskRunner 用到的出口。
 vi.mock("./runtime", () => ({
   buildProfileHttpRequest: vi.fn(() => ({
     method: "POST",
@@ -10,6 +10,9 @@ vi.mock("./runtime", () => ({
     body: { model: "gpt-4o-mini-tts", input: "hi", voice: "alloy", response_format: "wav", speed: 1 },
     preview: {},
   })),
+}));
+// importLocalFile 已抽到独立资产模块（runtime 巨壳减负）——在这桩，避免触真 writeAsset 落盘。
+vi.mock("./assets/localFileImport", () => ({
   importLocalFile: vi.fn(async () => ({ id: "asset-1", name: "tts.wav", data: { url: "nomi-local://asset/p/tts.wav" } })),
 }));
 

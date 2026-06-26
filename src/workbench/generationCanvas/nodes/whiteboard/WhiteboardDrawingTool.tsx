@@ -3,29 +3,22 @@ import {
   IconBrush,
   IconCamera,
   IconCheck,
-  IconChevronDown,
-  IconEraser,
   IconEye,
   IconEyeOff,
   IconMaximize,
   IconMinimize,
   IconPhoto,
   IconPhotoPlus,
-  IconPointer,
-  IconSquare,
   IconTrash,
 } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
 import { toast } from '../../../../ui/toast'
 import { persistNodeImageFile } from '../../adapters/persistNodeImage'
 import {
-  ASPECT_RATIOS,
   COMMON_COLORS,
   clampBrushSize,
   getCanvasDimensions,
   type AspectRatioKey,
-  type CanvasAsset,
-  type LayerItem,
   type ToolKey,
 } from './lib/canvas'
 import {
@@ -42,18 +35,19 @@ import {
   loadImageSize,
   serializeWhiteboardState,
 } from './whiteboardState'
-
-type AssetPanelItem = {
-  id: string
-  layerId: string
-  name: string
-  visible: boolean
-  locked: boolean
-  url: string
-  width: number
-  height: number
-  target: CanvasObjectTarget
-}
+import { AspectRatioPopover, TOOL_ITEMS, ToolIconButton } from './WhiteboardToolbarControls'
+import {
+  ASSET_DRAG_MIME,
+  clampCanvasPosition,
+  deleteTargetFromState,
+  getAssetPanelItems,
+  groupTargetsIntoLayer,
+  isWhiteboardAssetDrag,
+  parseLibraryDragPayload,
+  stripFileExtension,
+  type AssetPanelItem,
+  type LibraryDragPayload,
+} from './whiteboardStateOps'
 
 export type WhiteboardResultLibraryItem = {
   id: string
@@ -79,135 +73,7 @@ type WhiteboardDrawingToolProps = {
   onScreenshot?: () => void
 }
 
-const ASSET_DRAG_MIME = 'application/x-nomi-whiteboard-asset'
-
 type LibraryTabKey = 'board' | 'results'
-
-type LibraryDragPayload =
-  | { source: 'board'; assetId: string }
-  | { source: 'result'; itemId: string }
-
-const TOOL_ITEMS: Array<{ key: ToolKey; label: string; icon: React.ReactNode; disabled?: boolean }> = [
-  { key: 'brush', label: '画笔', icon: <IconBrush size={17} stroke={1.7} /> },
-  { key: 'select', label: '选择', icon: <IconPointer size={17} stroke={1.7} /> },
-  { key: 'eraser', label: '橡皮', icon: <IconEraser size={17} stroke={1.7} /> },
-  { key: 'shape', label: '形状', icon: <IconSquare size={17} stroke={1.7} />, disabled: true },
-]
-
-type AspectRatioPopoverProps = {
-  value: AspectRatioKey
-  onChange: (value: AspectRatioKey) => void
-}
-
-function AspectRatioPopover({ value, onChange }: AspectRatioPopoverProps): JSX.Element {
-  const [open, setOpen] = React.useState(false)
-  const rootRef = React.useRef<HTMLDivElement | null>(null)
-
-  React.useEffect(() => {
-    if (!open) return undefined
-    const handlePointerDown = (event: PointerEvent) => {
-      if (rootRef.current?.contains(event.target as Node | null)) return
-      setOpen(false)
-    }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('pointerdown', handlePointerDown, true)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown, true)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [open])
-
-  return (
-    <div ref={rootRef} className="relative shrink-0">
-      <button
-        type="button"
-        className={cn(
-          'inline-flex h-9 min-w-[98px] items-center gap-1.5 rounded-nomi-sm border border-nomi-line bg-nomi-ink-05 pl-3 pr-2',
-          'text-caption font-medium text-nomi-ink transition-colors hover:border-nomi-ink-20 hover:bg-nomi-paper',
-          open && 'border-nomi-accent bg-nomi-paper',
-        )}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={`画板比例 ${value}`}
-        title="画板比例"
-        onClick={() => setOpen((current) => !current)}
-      >
-        <span className="text-nomi-ink-40">比例</span>
-        <span className="tabular-nums">{value}</span>
-        <IconChevronDown size={14} stroke={1.7} className="ml-auto text-nomi-ink-40" aria-hidden />
-      </button>
-      {open ? (
-        <div
-          className={cn(
-            'absolute bottom-[calc(100%+8px)] left-1/2 z-[30] w-[138px] -translate-x-1/2 rounded-nomi border border-nomi-line bg-nomi-paper p-1 shadow-nomi-md',
-          )}
-          role="listbox"
-          aria-label="选择画板比例"
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          {ASPECT_RATIOS.map((ratio) => {
-            const active = ratio.label === value
-            return (
-              <button
-                key={ratio.label}
-                type="button"
-                role="option"
-                aria-selected={active}
-                className={cn(
-                  'flex h-8 w-full items-center gap-2 rounded-nomi-sm px-2 text-left text-caption transition-colors',
-                  active ? 'bg-nomi-accent-soft font-semibold text-nomi-accent' : 'text-nomi-ink-80 hover:bg-nomi-ink-05 hover:text-nomi-ink',
-                )}
-                onClick={() => {
-                  onChange(ratio.label)
-                  setOpen(false)
-                }}
-              >
-                <span className="min-w-0 flex-1 tabular-nums">{ratio.label}</span>
-                <span
-                  className={cn('grid h-4 w-6 place-items-center rounded-sm border border-nomi-line bg-nomi-ink-05', active && 'border-nomi-accent')}
-                  aria-hidden
-                >
-                  <span
-                    className="block max-h-3 max-w-5 rounded-[2px] bg-current opacity-70"
-                    style={{
-                      aspectRatio: `${ratio.width} / ${ratio.height}`,
-                      width: ratio.width >= ratio.height ? 18 : undefined,
-                      height: ratio.width < ratio.height ? 12 : undefined,
-                    }}
-                  />
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
-type ToolIconButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  active?: boolean
-}
-
-function ToolIconButton({ active = false, className, type = 'button', ...props }: ToolIconButtonProps): JSX.Element {
-  return (
-    <button
-      {...props}
-      type={type}
-      aria-pressed={active || undefined}
-      className={cn(
-        'grid size-9 shrink-0 place-items-center rounded-nomi-sm border border-transparent bg-transparent text-nomi-ink-60',
-        'transition-colors hover:bg-nomi-paper hover:text-nomi-ink',
-        'disabled:cursor-not-allowed disabled:opacity-40',
-        active && 'border-nomi-line bg-nomi-paper text-nomi-accent shadow-nomi-sm',
-        className,
-      )}
-    />
-  )
-}
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -635,7 +501,7 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
                     aria-label="自定义画笔颜色"
                   >
                     <span
-                      className="pointer-events-none absolute inset-1 rounded-[6px] border"
+                      className="pointer-events-none absolute inset-1 rounded-nomi-sm border"
                       style={{
                         backgroundColor: selectedColor,
                         borderColor: normalizeHexColor(selectedColor) === '#ffffff' ? 'rgba(17, 24, 39, 0.28)' : 'rgba(255, 255, 255, 0.28)',
@@ -892,141 +758,3 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
 )
 
 export default WhiteboardDrawingTool
-
-function groupTargetsIntoLayer(state: WhiteboardState, targets: CanvasObjectTarget[]): WhiteboardState {
-  const groupLayerIds = new Set(targets.filter((target) => target.kind === 'group').map((target) => target.id))
-  const uniqueTargets = Array.from(new Map([
-    ...targets.filter((target) => target.kind === 'asset' || target.kind === 'stroke'),
-    ...state.canvasAssets
-      .filter((asset) => groupLayerIds.has(asset.layerId))
-      .map((asset): CanvasObjectTarget => ({ kind: 'asset', id: asset.id })),
-    ...state.strokes
-      .filter((stroke) => groupLayerIds.has(stroke.layerId) && stroke.tool !== 'eraser')
-      .map((stroke): CanvasObjectTarget => ({ kind: 'stroke', id: stroke.id })),
-  ].map((target) => [`${target.kind}:${target.id}`, target])).values())
-  if (uniqueTargets.length < 2) return state
-
-  const assetIds = new Set(uniqueTargets.filter((target) => target.kind === 'asset').map((target) => target.id))
-  const strokeIds = new Set(uniqueTargets.filter((target) => target.kind === 'stroke').map((target) => target.id))
-  const sourceLayerIds = new Set<string>()
-  for (const asset of state.canvasAssets) if (assetIds.has(asset.id)) sourceLayerIds.add(asset.layerId)
-  for (const stroke of state.strokes) if (strokeIds.has(stroke.id)) sourceLayerIds.add(stroke.layerId)
-  for (const groupLayerId of groupLayerIds) sourceLayerIds.add(groupLayerId)
-  if (sourceLayerIds.size === 0) return state
-
-  const groupLayerId = createWhiteboardId('group-layer')
-  const nextAssets = state.canvasAssets.map((asset) => (
-    assetIds.has(asset.id) ? { ...asset, layerId: groupLayerId } : asset
-  ))
-  const nextStrokes = state.strokes.map((stroke) => (
-    strokeIds.has(stroke.id) || (stroke.tool === 'eraser' && sourceLayerIds.has(stroke.layerId))
-      ? { ...stroke, layerId: groupLayerId }
-      : stroke
-  ))
-  const layerHasElement = (layerId: string) =>
-    nextAssets.some((asset) => asset.layerId === layerId) ||
-    nextStrokes.some((stroke) => stroke.layerId === layerId && stroke.tool !== 'eraser')
-  const nextLayers: LayerItem[] = [
-    ...state.layers.filter((layer) =>
-      !sourceLayerIds.has(layer.id) ||
-      layer.id === 'drawing-layer-1' ||
-      layerHasElement(layer.id),
-    ),
-    {
-      id: groupLayerId,
-      name: `组合 ${state.layers.filter((layer) => layer.id.startsWith('group-layer')).length + 1}`,
-      visible: true,
-      locked: false,
-      opacity: 1,
-      kind: 'group',
-      thumbnail: 'checker',
-    },
-  ]
-
-  return {
-    ...state,
-    canvasAssets: nextAssets,
-    strokes: nextStrokes,
-    layers: nextLayers,
-    activeLayerId: groupLayerId,
-  }
-}
-
-function deleteTargetFromState(state: WhiteboardState, target: CanvasObjectTarget): WhiteboardState {
-  const targetLayerId =
-    target.kind === 'group'
-      ? target.id
-      : target.kind === 'asset'
-        ? state.canvasAssets.find((asset) => asset.id === target.id)?.layerId
-        : state.strokes.find((stroke) => stroke.id === target.id)?.layerId
-  if (!targetLayerId) return state
-  const layer = state.layers.find((item) => item.id === targetLayerId)
-  if (!layer || layer.kind === 'background' || layer.locked) return state
-
-  const nextAssets = state.canvasAssets.filter((asset) =>
-    !(target.kind === 'asset' && asset.id === target.id) &&
-    !(target.kind === 'group' && asset.layerId === target.id),
-  )
-  const nextStrokes = state.strokes.filter((stroke) =>
-    !(target.kind === 'stroke' && stroke.id === target.id) &&
-    !(target.kind === 'group' && stroke.layerId === target.id),
-  )
-  const layerStillHasElement =
-    nextAssets.some((asset) => asset.layerId === targetLayerId) ||
-    nextStrokes.some((stroke) => stroke.layerId === targetLayerId && stroke.tool !== 'eraser')
-  const removeLayer = targetLayerId !== 'drawing-layer-1' && !layerStillHasElement
-  return {
-    ...state,
-    canvasAssets: nextAssets,
-    strokes: removeLayer ? nextStrokes.filter((stroke) => stroke.layerId !== targetLayerId) : nextStrokes,
-    layers: removeLayer ? state.layers.filter((item) => item.id !== targetLayerId) : state.layers,
-    activeLayerId: 'drawing-layer-1',
-  }
-}
-
-function getAssetPanelItems(layers: LayerItem[], assets: CanvasAsset[]): AssetPanelItem[] {
-  const layerMap = new Map(layers.map((layer) => [layer.id, layer]))
-  return assets.map((asset): AssetPanelItem => {
-    const layer = layerMap.get(asset.layerId)
-    return {
-      id: `asset:${asset.id}`,
-      layerId: asset.layerId,
-      name: layer?.name ?? stripFileExtension(asset.name),
-      visible: layer?.visible ?? true,
-      locked: layer?.locked ?? false,
-      url: asset.url,
-      width: Math.round(asset.width),
-      height: Math.round(asset.height),
-      target: { kind: 'asset', id: asset.id },
-    }
-  })
-}
-
-function stripFileExtension(value: string): string {
-  return value.replace(/\.[^.]+$/, '') || value
-}
-
-function isWhiteboardAssetDrag(dataTransfer: DataTransfer): boolean {
-  return Array.from(dataTransfer.types).includes(ASSET_DRAG_MIME)
-}
-
-function parseLibraryDragPayload(dataTransfer: DataTransfer): LibraryDragPayload | null {
-  const value = dataTransfer.getData(ASSET_DRAG_MIME)
-  if (!value) return null
-  try {
-    const parsed = JSON.parse(value) as Partial<LibraryDragPayload>
-    if (parsed.source === 'board' && typeof parsed.assetId === 'string' && parsed.assetId) {
-      return { source: 'board', assetId: parsed.assetId }
-    }
-    if (parsed.source === 'result' && typeof parsed.itemId === 'string' && parsed.itemId) {
-      return { source: 'result', itemId: parsed.itemId }
-    }
-  } catch {
-    return { source: 'board', assetId: value }
-  }
-  return null
-}
-
-function clampCanvasPosition(value: number, itemSize: number, canvasSize: number): number {
-  return Math.min(Math.max(0, canvasSize - itemSize), Math.max(0, value))
-}

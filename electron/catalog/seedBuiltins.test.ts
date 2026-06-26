@@ -263,4 +263,16 @@ describe("applyBuiltinSeeds", () => {
     // 文本大脑不建 mapping（直连 chat）。
     expect(state.mappings.some((mp) => mp.vendorKey === "modelscope" && mp.taskKind === "chat")).toBe(false);
   });
+
+  it("火山方舟：fresh seed 同时播 Seedream 图片与 Seedance 视频，Seedance 带异步 query", () => {
+    const { state } = applyBuiltinSeeds(emptyCatalog(), NOW);
+    const seedance = state.models.find((m) => m.vendorKey === "volcengine" && m.modelKey === "doubao-seedance-2-0-260128");
+    expect(seedance).toMatchObject({ kind: "video", enabled: true });
+    expect(seedance?.meta).toMatchObject({ archetypeId: "volcengine-seedance-2" });
+
+    const mappings = state.mappings.filter((m) => m.vendorKey === "volcengine" && m.modelKey === "doubao-seedance-2-0-260128");
+    expect(mappings.map((m) => m.id)).toEqual(["seed-volcengine-seedance-2-text_to_video", "seed-volcengine-seedance-2-image_to_video"]);
+    expect(mappings.every((m) => m.query?.path === "/api/v3/contents/generations/tasks/{{providerMeta.task_id}}")).toBe(true);
+    expect(mappings.every((m) => m.statusMapping?.succeeded?.includes("succeeded"))).toBe(true);
+  });
 });

@@ -15,11 +15,13 @@ import {
 export type AssetPool = {
   assets: AssetRef[]
   loading: boolean
+  /** 重新拉取项目文件源（音频上传经项目文件落库，不像画布 store 自动反应，需手动刷新）。 */
+  refresh: () => void
 }
 
 export function useAssetPool(projectId: string | null): AssetPool {
   const nodes = useGenerationCanvasStore((state) => state.nodes)
-  const { items, loading } = useWorkspaceFiles(projectId)
+  const { items, loading, refresh } = useWorkspaceFiles(projectId)
 
   return React.useMemo<AssetPool>(() => {
     const byUrl = new Map<string, AssetRef>()
@@ -36,6 +38,6 @@ export function useAssetPool(projectId: string | null): AssetPool {
       }
     }
 
-    return { assets: Array.from(byUrl.values()), loading }
-  }, [nodes, items, projectId, loading])
+    return { assets: Array.from(byUrl.values()), loading, refresh }
+  }, [nodes, items, projectId, loading, refresh])
 }

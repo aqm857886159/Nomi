@@ -8,8 +8,6 @@ import { cn } from '../../utils/cn'
 import { NomiMarkdown } from '../common/NomiMarkdown'
 import { AiReplyActionButton } from './AiReplyActionButton'
 import { AttachmentRail } from './composer/AttachmentRail'
-import { narrateTurnStats } from '../observability/narrate'
-import type { WorkbenchAiMessage } from './workbenchAiTypes'
 import type { ComposerAttachment } from './composer/composerAttachmentTypes'
 
 /** 一行轻身份：真 brand logo mark + 「Nomi」名。两个助手共用，是「同一个 Nomi」的锚。
@@ -47,11 +45,6 @@ export type AssistantMessageViewProps = {
   pendingLabel?: string
   /** 用户主动「停止」第三态（中性「已停止」，非错误样式）。 */
   cancelled?: boolean
-  /** 内容是错误文本（「（错误）」开头）→ 不显示 reply action。 */
-  isError?: boolean
-  turnStats?: WorkbenchAiMessage['turnStats']
-  /** reply action 的 hover 容器类（两面板各有自己的）。 */
-  replyActionClassName: string
 }
 
 /** 助手发言（左对齐·无气泡填充·身份行 + markdown 正文 + 极简状态标）。
@@ -63,9 +56,6 @@ export const AssistantMessageView = React.memo(function AssistantMessageView({
   streaming = false,
   pendingLabel,
   cancelled = false,
-  isError = false,
-  turnStats,
-  replyActionClassName,
 }: AssistantMessageViewProps): JSX.Element {
   const hasContent = content.trim().length > 0
   return (
@@ -87,11 +77,8 @@ export const AssistantMessageView = React.memo(function AssistantMessageView({
           已停止
         </span>
       ) : null}
-      {!streaming && !cancelled && !isError && hasContent ? (
-        <AiReplyActionButton className={replyActionClassName} content={content} />
-      ) : null}
-      {turnStats?.totalTokens ? (
-        <span className={cn('block mt-1 text-micro text-nomi-ink-40')}>{narrateTurnStats(turnStats.totalTokens, turnStats)}</span>
+      {!streaming && !cancelled && hasContent ? (
+        <AiReplyActionButton content={content} />
       ) : null}
     </div>
   )

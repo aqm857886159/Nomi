@@ -8,11 +8,14 @@ dist/
 dist-electron/
 dist-local/
 release/
+.tmp/
 .turbo/
 coverage/
 test-results/
 playwright-report/
 *.tsbuildinfo
+public/tailwind.generated.css
+src/styles/tailwind.generated.css
 
 # Environment and local secrets
 .env
@@ -47,6 +50,7 @@ docs/onboarding-trials/20*/
 # UX 走查截图产物（规则13）—— 不入库
 tests/ux/shots/
 tests/ux/__shots__/
+tests/ux/_stagingshot/
 
 # 3D 预设动作校准台的本地输出（pose-lab）
 .pose-lab/

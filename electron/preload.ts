@@ -42,6 +42,13 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     extractFrame: (payload: unknown) =>
       ipcRenderer.invoke("nomi:video:extract-frame", payload) as Promise<{ url: string }>,
   },
+  dreamina: {
+    status: () => ipcRenderer.invoke("nomi:dreamina:status"),
+    loginStart: () => ipcRenderer.invoke("nomi:dreamina:login-start"),
+    loginPoll: (deviceCode: string) => ipcRenderer.invoke("nomi:dreamina:login-poll", deviceCode),
+    logout: () => ipcRenderer.invoke("nomi:dreamina:logout"),
+    install: () => ipcRenderer.invoke("nomi:dreamina:install"),
+  },
   scene3d: {
     framesToVideo: (payload: unknown) =>
       ipcRenderer.invoke("nomi:scene3d:frames-to-video", payload) as Promise<{ url: string; assetId?: string }>,
@@ -207,6 +214,7 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     list: () => invokeSync("nomi:skill:list"),
     exportPackage: (dirName: string) => invokeSync("nomi:skill:export", dirName),
     importPackage: (payload: unknown) => invokeSync("nomi:skill:import", payload),
+    deleteByDir: (dirName: string) => invokeSync("nomi:skill:delete", dirName),
   },
   // 能力核：上报当前窗口打开的项目，供外部调用的 A/B 路由（决定走渲染层网关还是磁盘网关）。
   capability: {

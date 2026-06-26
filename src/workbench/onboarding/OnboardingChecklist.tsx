@@ -1,5 +1,5 @@
 /**
- * 上手 4 步引导（替代旧三步 spotlight 引导 WorkbenchTour）。
+ * 上手 4 步进度（被动指示，不带走查——引导走查归首页触发的 JourneyTour）。
  *
  * 形态：**停靠在顶栏右簇**的一颗紧凑「上手 N/4」入口（始终高、不遮画布、不撞 AI 启动器/
  * 时间轴/创作助手——工作区每个角落都被占了，顶栏是唯一干净又显眼的位置）。点开是下拉清单，
@@ -9,19 +9,16 @@
  *   3 生成一张   = 任一节点 status === 'success'
  *   4 导出成片   = 一次 MP4 导出成功（TimelinePreview 处 markChecklistStep）
  *
- * 「带我去」：当前步给一个按钮，点了 → 切到该步所在模式 + 在真实控件上打高亮圈 + 气泡指明
- * （OnboardingSpotlight，不压暗）。完成一步自动跳下一步；4/4 后整个入口消失。
- *
- * 打勾单调持久（localStorage）。渲染在 NomiAppBar 内（React 树内，保 --nomi-* token）。
+ * 4/4 后整个入口消失。打勾单调持久（localStorage）。
+ * 渲染在 NomiAppBar 内（React 树内，保 --nomi-* token）。
  */
 import React from 'react'
-import { IconCheck, IconChevronDown, IconListCheck, IconArrowRight } from '@tabler/icons-react'
+import { IconCheck, IconChevronDown, IconListCheck } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
-import { useWorkbenchStore, type WorkspaceMode } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useHasTextModel } from '../library/useHasTextModel'
-import { DesignProgress, WorkbenchButton } from '../../design'
-import { OnboardingSpotlight } from './OnboardingSpotlight'
+import { useJourneyTourStore } from './journeyTourStore'
+import { DesignProgress } from '../../design'
 import {
   type ChecklistStep,
   type ChecklistState,
@@ -35,23 +32,22 @@ type StepMeta = {
   key: ChecklistStep
   label: string
   hint: string
-  /** 「带我去」要切到的模式；null = 目标在顶栏常驻，不用切。 */
-  mode: WorkspaceMode | null
 }
 
 const STEPS: StepMeta[] = [
-  { key: 'model', label: '接入模型', hint: '连一个 AI 服务（用你自己的 Key）。', mode: null },
-  { key: 'storyboard', label: '拆一个镜头', hint: '在创作区说「拆成镜头」，铺成画布。', mode: 'creation' },
-  { key: 'generated', label: '生成一张', hint: '在镜头卡里选模型，点「生成」出图。', mode: 'generation' },
-  { key: 'exported', label: '导出成片', hint: '排进时间轴，右上「导出」输出 MP4。', mode: 'preview' },
+  { key: 'model', label: '接入模型', hint: '连一个 AI 服务（用你自己的 Key）。' },
+  { key: 'storyboard', label: '拆一个镜头', hint: '在创作区说「拆成镜头」，铺成画布。' },
+  { key: 'generated', label: '生成一张', hint: '在镜头卡里选模型，点「生成」出图。' },
+  { key: 'exported', label: '导出成片', hint: '排进时间轴，右上「导出」输出 MP4。' },
 ]
 
 const ALL_KEYS = STEPS.map((s) => s.key)
 
 export function OnboardingChecklist(): JSX.Element | null {
-  const setWorkspaceMode = useWorkbenchStore((state) => state.setWorkspaceMode)
   const nodes = useGenerationCanvasStore((state) => state.nodes)
   const { hasTextModel: textModelReady } = useHasTextModel()
+  // 引导旅途进行时让位：清单是被动进度，tour 在演同一条流程，两者同屏会叠成一团（真机走查抓出）。
+  const journeyTourActive = useJourneyTourStore((state) => state.active)
 
   const live = React.useMemo<ChecklistState>(
     () => ({
@@ -65,7 +61,6 @@ export function OnboardingChecklist(): JSX.Element | null {
 
   const [persisted, setPersisted] = React.useState<ChecklistState>(() => readChecklist())
   const [open, setOpen] = React.useState<boolean>(() => !readChecklistCollapsed())
-  const [guideStep, setGuideStep] = React.useState<ChecklistStep | null>(null)
   const triggerRef = React.useRef<HTMLButtonElement | null>(null)
   const [anchor, setAnchor] = React.useState<{ top: number; right: number } | null>(null)
 
@@ -105,11 +100,6 @@ export function OnboardingChecklist(): JSX.Element | null {
   const allDone = doneCount === ALL_KEYS.length
   const nextKey = STEPS.find((s) => !effective[s.key])?.key ?? null
 
-  // 正在引导的步骤一旦完成 → 自动收起聚光。
-  React.useEffect(() => {
-    if (guideStep && effective[guideStep]) setGuideStep(null)
-  }, [guideStep, effective])
-
   // 下拉锚定在触发钮正下方、右对齐（实测触发钮几何，精准跟随顶栏布局）。
   const measureAnchor = React.useCallback(() => {
     const el = triggerRef.current
@@ -145,32 +135,7 @@ export function OnboardingChecklist(): JSX.Element | null {
     })
   }, [])
 
-  // 去某一步：切到该步所在模式 + 在真实控件上聚光。
-  const goToStep = React.useCallback(
-    (stepKey: ChecklistStep) => {
-      const meta = STEPS.find((s) => s.key === stepKey)
-      setOpen(false)
-      if (meta?.mode && meta.mode !== useWorkbenchStore.getState().workspaceMode) {
-        setWorkspaceMode(meta.mode)
-      }
-      setGuideStep(stepKey)
-    },
-    [setWorkspaceMode],
-  )
-
-  // 手动推进到序列下一步（不要求真完成；真完成会另由打勾逻辑反映）；末步「完成」→ 收起。
-  const advanceGuide = React.useCallback(() => {
-    if (!guideStep) return
-    const i = STEPS.findIndex((s) => s.key === guideStep)
-    const next = STEPS[i + 1]
-    if (!next) {
-      setGuideStep(null)
-      return
-    }
-    goToStep(next.key)
-  }, [guideStep, goToStep])
-
-  if (allDone) return null
+  if (allDone || journeyTourActive) return null
 
   return (
     <div data-onboarding-checklist-root="true" className="contents">
@@ -264,32 +229,11 @@ export function OnboardingChecklist(): JSX.Element | null {
                       ) : null}
                     </span>
                   </div>
-                  {isNext ? (
-                    <WorkbenchButton
-                      variant="primary"
-                      size="sm"
-                      onClick={() => goToStep(step.key)}
-                      data-take-me-there={step.key}
-                      className="self-start ml-[30px]"
-                    >
-                      带我去
-                      <IconArrowRight size={13} stroke={1.6} aria-hidden="true" />
-                    </WorkbenchButton>
-                  ) : null}
                 </li>
               )
             })}
           </ul>
         </section>
-      ) : null}
-
-      {guideStep ? (
-        <OnboardingSpotlight
-          step={guideStep}
-          isLast={guideStep === STEPS[STEPS.length - 1].key}
-          onNext={advanceGuide}
-          onDismiss={() => setGuideStep(null)}
-        />
       ) : null}
     </div>
   )

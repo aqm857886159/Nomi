@@ -98,12 +98,27 @@ function PanoramaEnvironment({
   )
 }
 
-export function SafeSceneEnvironmentLighting(): JSX.Element {
+export function Scene3DLocalEnvironmentLights({
+  darkMode,
+}: {
+  darkMode: boolean
+}): JSX.Element {
   return (
     <>
-      <hemisphereLight args={['#fff7ed', '#8795a8', 0.78]} />
-      <directionalLight color="#fff3df" intensity={0.72} position={[5, 7, 4]} />
-      <directionalLight color="#dbeafe" intensity={0.22} position={[-4, 3, -5]} />
+      <hemisphereLight
+        args={darkMode ? ['#8fa8ff', '#10131f', 0.55] : ['#f8fbff', '#d8c9b0', 0.8]}
+      />
+      <directionalLight
+        castShadow={false}
+        intensity={darkMode ? 1.1 : 1.35}
+        position={[4, 7, 5]}
+      />
+      <directionalLight
+        castShadow={false}
+        color={darkMode ? '#8fb3ff' : '#c8ddff'}
+        intensity={darkMode ? 0.35 : 0.28}
+        position={[-5, 3, -4]}
+      />
     </>
   )
 }
@@ -211,6 +226,7 @@ export function Scene3DEnvironmentLayer({
         <color attach="background" args={[environment.backgroundColor]} />
       ) : null}
       <ambientLight intensity={ambientIntensity} />
+      <Scene3DLocalEnvironmentLights darkMode={environment.darkMode} />
       {!panoramaUrl && environment.showSky ? <Sky sunPosition={[2, 1, 4]} /> : null}
       {panoramaUrl && environment.environmentMode === 'sphere' ? (
         <SafePanoramaSphere
@@ -225,8 +241,6 @@ export function Scene3DEnvironmentLayer({
           rotation={environment.panoramaRotation}
           fallback={<color attach="background" args={[environment.backgroundColor]} />}
         />
-      ) : environment.preset ? (
-        <SafeSceneEnvironmentLighting />
       ) : null}
     </>
   )

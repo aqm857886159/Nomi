@@ -332,44 +332,51 @@ export const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
   {
     id: 'sit',
     label: '坐姿',
+    // 坐在椅面高度：大腿水平(UpLeg 90)、小腿垂直(Leg 90)、脚掌踩平(foot 仅 +8，治此前 +28 脚尖下垂)，
+    // 躯干微前倾自然坐姿。Hips 归 0（它是骨架根，任何角度都整体歪身）。脚轴向：+ 跖屈(脚尖下)/- 背屈(脚尖上)，
+    // 蒙皮最低点自动落地(scene3dMath lowestMannequinLocalY)。多视角校准见 tests/ux/staging-pose-shots.walk.mjs。
     pose: makePoseOffset({
-      mixamorigHips: [-4, 0, 0],
-      mixamorigSpine: [4, 0, 0],
-      mixamorigLeftUpLeg: [90, 5, 0],
-      mixamorigRightUpLeg: [90, -5, 0],
+      mixamorigSpine: [6, 0, 0],
+      mixamorigLeftUpLeg: [90, 3, 0],
+      mixamorigRightUpLeg: [90, -3, 0],
       mixamorigLeftLeg: [90, 0, 0],
       mixamorigRightLeg: [90, 0, 0],
-      mixamorigLeftFoot: [4, 0, 0],
-      mixamorigRightFoot: [4, 0, 0],
+      mixamorigLeftFoot: [-18, 0, 0],
+      mixamorigRightFoot: [-18, 0, 0],
     }),
   },
   {
     id: 'squat',
     label: '蹲下',
+    // 深蹲：髋/膝深屈、躯干前倾压在膝上、脚掌踩平。脚要背屈(foot -10，脚尖上抬)才能整只脚掌落地——
+    // 此前 +42 跖屈(脚尖下)使其踮脚尖→落地时脚尖点地、脚跟抬高、整体后仰跌坐。脚轴向：+ 跖屈/- 背屈。
     pose: makePoseOffset({
-      mixamorigHips: [-8, 0, 0],
-      mixamorigSpine: [22, 0, 0],
-      mixamorigHead: [-18, 0, 0],
-      mixamorigLeftUpLeg: [110, 8, 0],
-      mixamorigRightUpLeg: [110, -8, 0],
-      mixamorigLeftLeg: [110, 0, 0],
-      mixamorigRightLeg: [110, 0, 0],
-      mixamorigLeftFoot: [14, 0, 0],
-      mixamorigRightFoot: [14, 0, 0],
+      mixamorigHips: [-6, 0, 0],
+      mixamorigSpine: [26, 0, 0],
+      mixamorigHead: [-8, 0, 0],
+      mixamorigLeftUpLeg: [100, 6, 0],
+      mixamorigRightUpLeg: [100, -6, 0],
+      mixamorigLeftLeg: [106, 0, 0],
+      mixamorigRightLeg: [106, 0, 0],
+      mixamorigLeftFoot: [-30, 0, 0],
+      mixamorigRightFoot: [-30, 0, 0],
     }),
   },
   {
     id: 'single-knee',
     label: '单膝跪',
+    // 前腿(左)：大腿水平、小腿垂直、脚掌踩平(foot +15)。后腿(右)：大腿略后、膝着地、小腿向后贴地、
+    // 脚背贴地——脚要大幅跖屈(foot +68，脚尖朝后压平)才不翘起；治此前 +38 致后脚翘起整条腿悬空。
+    // 脚轴向：+ 跖屈(脚尖下)/- 背屈(脚尖上)。蒙皮最低点自动落地。
     pose: makePoseOffset({
-      mixamorigHips: [-6, 0, 0],
-      mixamorigSpine: [6, 0, 0],
-      mixamorigLeftUpLeg: [92, 4, 0],
-      mixamorigLeftLeg: [92, 0, 0],
-      mixamorigLeftFoot: [8, 0, 0],
-      mixamorigRightUpLeg: [-8, -2, 0],
-      mixamorigRightLeg: [128, 0, 0],
-      mixamorigRightFoot: [40, 0, 0],
+      mixamorigHips: [-4, 0, 0],
+      mixamorigSpine: [8, 0, 0],
+      mixamorigLeftUpLeg: [90, 4, 0],
+      mixamorigLeftLeg: [90, 0, 0],
+      mixamorigLeftFoot: [-18, 0, 0],
+      mixamorigRightUpLeg: [-2, -2, 0],
+      mixamorigRightLeg: [118, 0, 0],
+      mixamorigRightFoot: [68, 0, 0],
     }),
   },
   {

@@ -6,8 +6,8 @@
 //
 // **参考图存储模型（对齐样张 v3）**：参考值按 slot 键**全局**存在 flat meta 里（firstFrameUrl /
 // lastFrameUrl…），跨模式持久——切模式只改变「显示哪些槽」，不搬动/清空数据，所以切回照片还在
-// （真实用户 F4「怕丢上传」）。**模式互斥（M2）发生在传输投影**：`projectArchetypeFrameExtras`
-// 只把**当前模式声明的槽键**放进请求，残留的别的模式的键不进 body（§2 坑2，避免 Seedance 422）。
+// （真实用户 F4「怕丢上传」）。**模式互斥（M2）发生在 `buildArchetypeInputParams`**：它只把**当前模式
+// 声明的槽键**打进 archetypeInput，残留的别的模式的键根本不进 body（§2 坑2，避免 Seedance 422）。
 // node.meta.archetype 只记 { id, modeId }（当前模式），不囤参考数据。
 //
 // C2b 只处理首帧 / 尾帧两类 frame 槽，映射到现有 flat 传输键（firstFrameUrl/lastFrameUrl），
@@ -19,6 +19,7 @@ import {
   type ModelArchetype,
   type ModelArchetypeVariant,
   resolveArchetypeForModel,
+  specializeArchetypeForVariant,
 } from '../../../../config/modelArchetypes'
 import type { ImageUrlSlot } from './parameterControlModel'
 
@@ -232,7 +233,7 @@ function preservedVariantId(meta: Record<string, unknown>, archetype: ModelArche
 
 /**
  * 切到 nextModeId：只改 node.meta.archetype.modeId（参考值全局保留，不搬不清）。返回**整份新 meta**。
- * 互斥不在这里发生——发生在传输投影（projectArchetypeFrameExtras）。这样切回时照片还在。
+ * 互斥不在这里发生——发生在 buildArchetypeInputParams（只发当前模式声明的槽键）。这样切回时照片还在。
  * variantId 跟随保留（切 mode 不动变体）；无变体档案则不写 variantId 键。
  */
 export function applyArchetypeModeSwitch(
@@ -246,8 +247,29 @@ export function applyArchetypeModeSwitch(
 }
 
 /**
- * 切到 nextVariantId：只改 node.meta.archetype.variantId（对称 applyArchetypeModeSwitch；不动 modeId、
- * 不动参考值）。返回**整份新 meta**。无效 variantId → 回落默认。无 variants 档案 → no-op（原样返回 meta）。
+ * 把存量 meta 里「已不在新变体允许选项内」的 select 参数夹回该参数的 defaultValue（通用·按档案声明派生，
+ * 不 hardcode 任何 key）。根治 D1：标准变体选了 4k → 切到「快速」变体（清晰度只剩 480/720）→ 存量 4k
+ * 仍被发出 → 供应商 400/422。变体只收窄「选项」，本函数顺带收窄「已存的值」，让 UI 与发送一致。
+ */
+function clampMetaToModeParams(meta: Record<string, unknown>, modeParams: ModelParameterControl[]): Record<string, unknown> {
+  let next = meta
+  for (const param of modeParams) {
+    if (param.type !== 'select' || !param.options || param.options.length === 0) continue
+    if (!(param.key in next)) continue
+    const allowed = param.options.map((o) => o.value)
+    if (allowed.includes(next[param.key] as string)) continue
+    // 存量值越界 → 回落该参数 defaultValue（无 default 则删键，由下游取档案默认）。
+    next = { ...next }
+    if (param.defaultValue !== undefined) next[param.key] = param.defaultValue
+    else delete next[param.key]
+  }
+  return next
+}
+
+/**
+ * 切到 nextVariantId：改 node.meta.archetype.variantId（对称 applyArchetypeModeSwitch；不动 modeId、
+ * 不动参考值）+ 夹取被新变体收窄掉的越界参数值（D1）。返回**整份新 meta**。无效 variantId → 回落默认。
+ * 无 variants 档案 → no-op（原样返回 meta）。
  */
 export function applyArchetypeVariantSwitch(
   meta: Record<string, unknown>,
@@ -259,7 +281,11 @@ export function applyArchetypeVariantSwitch(
   const stored = readArchetypeNodeMeta(meta)
   const modeId = (stored?.id === archetype.id && stored.modeId) ? stored.modeId : archetype.defaultModeId
   const nextVariant = variants.find((v) => v.id === nextVariantId) ?? variants.find((v) => v.id === archetype.defaultVariantId) ?? variants[0]
-  return { ...meta, archetype: { id: archetype.id, modeId, variantId: nextVariant.id } }
+  // 按新变体特化出当前模式的参数声明，把存量越界的 select 值夹回默认（D1：4k→fast 变体不再漏发）。
+  const specialized = specializeArchetypeForVariant(archetype, nextVariant.id)
+  const mode = specialized.modes.find((m) => m.id === modeId) ?? specialized.modes.find((m) => m.id === specialized.defaultModeId) ?? specialized.modes[0]
+  const clamped = mode ? clampMetaToModeParams(meta, mode.params) : meta
+  return { ...clamped, archetype: { id: archetype.id, modeId, variantId: nextVariant.id } }
 }
 
 /**
@@ -347,7 +373,7 @@ const DEFAULT_ROLE_FOR_KIND: Partial<Record<ArchetypeReferenceSlotKind, string>>
 }
 
 /** 构造层产出的通用 input 值：标量 / 数组 / 角色对象数组（combineSlotsInto）。模板引擎原样透传。 */
-type ArchetypeInputValue = string | string[] | Array<{ url: string; role: string }>
+type ArchetypeInputValue = string | Record<string, unknown> | string[] | Array<{ url: string; role: string }> | Array<Record<string, unknown>>
 
 /** 一个声明槽在 meta 里的存储形态（单一真相源：槽→存储键 的知识只在这里）。无存储映射 → null。 */
 export type ReferenceSlotStorage = { metaKey: string; isArray: boolean }
@@ -366,6 +392,53 @@ function slotAsArray(slot: { kind: ArchetypeReferenceSlotKind; asArray?: boolean
   return slot.asArray ?? DEFAULT_AS_ARRAY[slot.kind]
 }
 
+function volcengineImageContentItem(url: string, role: string): Record<string, unknown> {
+  return { type: 'image_url', image_url: { url }, role }
+}
+
+function volcengineContentItem(inputKey: string, url: string): Record<string, unknown> | null {
+  if (inputKey === 'volcengine_first_image_content') return volcengineImageContentItem(url, DEFAULT_ROLE_FOR_KIND.first_frame ?? 'first_frame')
+  if (inputKey === 'volcengine_first_role_image_content') return volcengineImageContentItem(url, DEFAULT_ROLE_FOR_KIND.first_frame ?? 'first_frame')
+  if (inputKey === 'volcengine_last_role_image_content') return volcengineImageContentItem(url, DEFAULT_ROLE_FOR_KIND.last_frame ?? 'last_frame')
+  return null
+}
+
+/**
+ * 「有序参考图列表」单一真相源（option 2 · 2026-06-25 用户拍板）：**连线在前、上传在后**、去重、截到 maxCap。
+ * 面板编号①②③（resolveReferenceSlots）、@ 候选、@ 发送投影 character{N}、实际发送的 reference_image 数组
+ * 四处共用同一顺序——杜绝「面板①与模型 character1 不是同一张」的张冠李戴。edgeImageUrls = 画布边解析出的
+ * 有序图（与 resolveReferenceSlots 同口径：边按 order 升序在前）。maxCap ≤ 0 表示不截断。
+ */
+export function mergeOrderedReferenceImageUrls(
+  edgeImageUrls: readonly string[],
+  uploadUrls: readonly string[],
+  maxCap: number,
+): string[] {
+  const merged: string[] = []
+  for (const candidate of [...edgeImageUrls, ...uploadUrls]) {
+    const url = typeof candidate === 'string' ? candidate.trim() : ''
+    if (url && !merged.includes(url)) merged.push(url)
+  }
+  return maxCap > 0 ? merged.slice(0, maxCap) : merged
+}
+
+/**
+ * 当前模式「发给模型 + @ 投影 character{N}」共用的有序图片参考 URL 列表（option 2：连线在前）。
+ * = buildArchetypeInputParams 给 image_ref 槽算出的同一份列表，projectPromptForSend 复用它 → 保证
+ * character{N} 编号与实际发送的 reference_image 数组逐位一致。当前模式无 image 数组槽 → []。
+ */
+export function orderedSentImageReferenceUrls(
+  meta: Record<string, unknown>,
+  archetype: ModelArchetype,
+  edgeImageUrls: readonly string[],
+): string[] {
+  const mode = currentArchetypeMode(archetype, meta)
+  const slot = mode.slots.find((s) => ARRAY_SLOT_ROUTE[s.kind]?.accept === 'image')
+  const route = slot ? ARRAY_SLOT_ROUTE[slot.kind] : undefined
+  if (!slot || !route) return []
+  return mergeOrderedReferenceImageUrls(edgeImageUrls, readArchetypeArray(meta, route.metaKey), slot.max)
+}
+
 /**
  * **档案驱动的 input 构建（M1 单源 + M2 互斥 + M3 enum 覆盖）**：renderer 据当前模式把参考值打成
  * 最终的**通用 snake input 参数**（key = slot 的 API 名，值 = 标量或数组）。只含当前模式声明的键
@@ -376,7 +449,13 @@ function slotAsArray(slot: { kind: ArchetypeReferenceSlotKind; asArray?: boolean
 export function buildArchetypeInputParams(
   meta: Record<string, unknown>,
   archetype: ModelArchetype,
-  references?: { firstFrameUrl?: string | null; lastFrameUrl?: string | null; referenceImages?: readonly string[] },
+  references?: {
+    firstFrameUrl?: string | null
+    lastFrameUrl?: string | null
+    referenceImages?: readonly string[]
+    referenceVideos?: readonly string[]
+    referenceAudios?: readonly string[]
+  },
 ): Record<string, ArchetypeInputValue> {
   const mode = currentArchetypeMode(archetype, meta)
   const out: Record<string, ArchetypeInputValue> = {}
@@ -385,19 +464,30 @@ export function buildArchetypeInputParams(
     const asArray = slotAsArray(slot)
     const arr = ARRAY_SLOT_ROUTE[slot.kind]
     if (arr) {
-      // 切片1 修边投递：手动拖入的 meta 数组 + 画布边产出的实时参考图（references.referenceImages，
-      // 含 character_ref/style_ref/composition_ref 边的图）合并、去重、截到 slot.max。此前档案模型
-      // 只读 meta、把边的图丢了——agent 连的 character_ref 边对主流模型连了等于没连。仅 image 槽收
-      // 图片边（video/audio 槽不污染）；cap 至 slot.max 顺带封死手动超额导致的 vendor 422。
+      // 画布边产出的实时参考图 + 手动拖入的 meta 数组，经 mergeOrderedReferenceImageUrls 单源合并：
+      // **连线在前、上传在后**（option 2 · 2026-06-25 拍板），去重、截到 slot.max——与面板编号①②③、
+      // @ 候选、@ 投影 character{N} 同一顺序，杜绝张冠李戴。仅 image 槽收图片边（video/audio 槽不污染，
+      // edgeList=[]）；cap 顺带封死手动超额导致的 vendor 422。
       const metaList = readArchetypeArray(meta, arr.metaKey)
-      const edgeList = arr.accept === 'image' ? (references?.referenceImages ?? []) : []
-      const merged: string[] = []
-      for (const candidate of [...metaList, ...edgeList]) {
-        const url = typeof candidate === 'string' ? candidate.trim() : ''
-        if (url && !merged.includes(url)) merged.push(url)
+      // 按槽资产类型喂对应的连线参考（B4：video_ref/audio_ref 槽此前只收 meta 上传，连线的视频/音频被丢）。
+      const edgeList =
+        arr.accept === 'image' ? (references?.referenceImages ?? [])
+        : arr.accept === 'video' ? (references?.referenceVideos ?? [])
+        : arr.accept === 'audio' ? (references?.referenceAudios ?? [])
+        : []
+      const capped = mergeOrderedReferenceImageUrls(edgeList, metaList, slot.max)
+      if (capped.length) {
+        if (inputKey === 'volcengine_image_contents') {
+          const role = DEFAULT_ROLE_FOR_KIND.image_ref ?? 'reference_image'
+          out[inputKey] = capped.map((url) => volcengineImageContentItem(url, role))
+        } else if (inputKey === 'volcengine_video_contents') {
+          out[inputKey] = capped.map((url) => ({ type: 'video_url', video_url: { url } }))
+        } else if (inputKey === 'volcengine_audio_contents') {
+          out[inputKey] = capped.map((url) => ({ type: 'audio_url', audio_url: { url } }))
+        } else {
+          out[inputKey] = capped
+        }
       }
-      const capped = slot.max > 0 ? merged.slice(0, slot.max) : merged
-      if (capped.length) out[inputKey] = capped
       continue
     }
     const metaKey = SINGLE_SLOT_META_KEY[slot.kind]
@@ -407,7 +497,9 @@ export function buildArchetypeInputParams(
       : undefined
     const raw = (typeof fromRef === 'string' && fromRef.trim()) ? fromRef.trim()
       : (typeof meta[metaKey] === 'string' ? (meta[metaKey] as string).trim() : '')
-    if (raw) out[inputKey] = asArray ? [raw] : raw
+    if (raw) {
+      out[inputKey] = volcengineContentItem(inputKey, raw) ?? (asArray ? [raw] : raw)
+    }
   }
   // 角色数组合并（通用原语）：把本模式有值的槽 → [{url, role}] 落在 combineSlotsInto.key，删被合并的
   // 扁平键（M2 互斥）。role = slot.roleName ?? 由 kind 派生（单源）。键名来自档案声明，不写死/不 if-vendor。

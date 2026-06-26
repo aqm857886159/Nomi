@@ -26,8 +26,11 @@ export type AssetSlot = {
 
 type AssetReferenceProps = {
   slots: AssetSlot[]
-  /** 每个槽当前值:单 → 缩略图 url(空串=空);数组 → url 列表。 */
+  /** 每个槽当前值:单 → 缩略图 url(空串=空);数组 → url 列表(仅有 url 的显示项)。 */
   valuesByKey: Record<string, string | string[]>
+  /** 数组槽**已占用位置数**(含连线 + pending 边,单源 resolveReferenceSlots.fills.length)。容量(能否再加)
+   *  按它判,而非有 url 的显示数——否则被 pending 边占满的槽仍显示「+」却加不进去。无此 key → 退回按显示数。 */
+  occupiedByKey?: Record<string, number> | Map<string, number>
   projectId: string | null
   openSlotKey: string
   uploadingSlotKey: string
@@ -57,7 +60,7 @@ function kindFromFile(file: File): AssetKind {
 }
 
 export default function AssetReference({
-  slots, valuesByKey, projectId, openSlotKey, uploadingSlotKey,
+  slots, valuesByKey, occupiedByKey, projectId, openSlotKey, uploadingSlotKey,
   onTogglePicker, onPick, onUpload, onRemove, onInsertMention, onReorder, onBrowseAll,
 }: AssetReferenceProps): JSX.Element {
   const dragRef = React.useRef<{ key: string; index: number } | null>(null)
@@ -65,21 +68,25 @@ export default function AssetReference({
   const arraySlots = slots.filter((s) => s.form === 'array')
   const labelSingles = singleSlots.length > 1 // 首尾帧:两个单帧槽才需标签区分;单个时不加标签(样张態③)。
 
+  // 槽**已占用位置数**：优先 occupiedByKey(含 pending 边)，无则退回有 url 的显示数(向后兼容)。
+  const occupiedOf = (slot: AssetSlot): number => {
+    const raw = valuesByKey[slot.key]
+    const shown = Array.isArray(raw) ? raw.filter(Boolean).length : 0
+    const occ = occupiedByKey instanceof Map ? occupiedByKey.get(slot.key) : occupiedByKey?.[slot.key]
+    return Math.max(occ ?? 0, shown)
+  }
+
   const arrayAccepts = Array.from(new Set(arraySlots.map((s) => s.accept)))
   const arrayTiles = arraySlots.flatMap((slot) => {
     const raw = valuesByKey[slot.key]
     const urls = (Array.isArray(raw) ? raw : []).filter(Boolean)
     return urls.map((url, index) => ({ slot, url, index }))
   })
-  const arrayCanAdd = arraySlots.some((slot) => {
-    const raw = valuesByKey[slot.key]
-    const len = Array.isArray(raw) ? raw.filter(Boolean).length : 0
-    return len < slot.max
-  })
+  const arrayCanAdd = arraySlots.some((slot) => occupiedOf(slot) < slot.max)
   const arrayUploading = arraySlots.some((slot) => uploadingSlotKey === slot.key)
   // 已到上限的类型(该数组满)→ 在合并 picker 里灰显;点击仍走 onPick→handleArrayAdd 出「最多 N」toast。
   const atLimitKinds = arraySlots
-    .filter((slot) => { const raw = valuesByKey[slot.key]; return (Array.isArray(raw) ? raw.filter(Boolean).length : 0) >= slot.max })
+    .filter((slot) => occupiedOf(slot) >= slot.max)
     .map((slot) => slot.accept)
 
   const routeByKind = (kind: AssetKind): AssetSlot => arraySlots.find((s) => s.accept === kind) ?? arraySlots[0]

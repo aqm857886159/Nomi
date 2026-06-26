@@ -11,7 +11,9 @@ const toOptions = (values: string[]): ModelParameterControl["options"] =>
   values.map((value) => ({ value, label: value }));
 
 const FIRST_MODE_PARAMS: ModelParameterControl[] = [
-  { key: "resolution", label: "清晰度", type: "select", options: toOptions(["480p", "720p", "1080p"]), defaultValue: "720p" },
+  // 标准档清晰度含 4k（2026-06 火山引擎 FORCE 给 Seedance 2.0 追加原生 4K；kie 文档 resolution 枚举含 4k）。
+  // Fast / Mini 档收窄到 480/720（见下 LOW_RES_OVERRIDES）。
+  { key: "resolution", label: "清晰度", type: "select", options: toOptions(["480p", "720p", "1080p", "4k"]), defaultValue: "720p" },
   {
     key: "aspect_ratio",
     label: "比例",
@@ -65,15 +67,15 @@ const SEEDANCE_2_MODES: ModelArchetype["modes"] = [
   },
 ];
 
-// Fast 变体清晰度仅 480/720（无 1080，kie 文档）。运行时按 variantId 叠加（specializeArchetypeForVariant），
-// 不再档案级复制——变体是正交轴，跨所有 mode 收窄 resolution。
-const FAST_RES: ModelParameterControl = {
+// Fast / Mini 变体清晰度仅 480/720（无 1080/4k，kie 文档）。运行时按 variantId 叠加（specializeArchetypeForVariant），
+// 不再档案级复制——变体是正交轴，跨所有 mode 收窄 resolution。Fast 与 Mini 收窄目标相同，复用同一份 override（不另造）。
+const LOW_RES: ModelParameterControl = {
   key: "resolution", label: "清晰度", type: "select", options: toOptions(["480p", "720p"]), defaultValue: "720p",
 };
-const narrowResolutionToFast = (params: ModelParameterControl[]): ModelParameterControl[] =>
-  params.map((p) => (p.key === "resolution" ? FAST_RES : p));
-const FAST_OVERRIDES = Object.fromEntries(
-  SEEDANCE_2_MODES.map((m) => [m.id, narrowResolutionToFast] as const),
+const narrowResolutionToLow = (params: ModelParameterControl[]): ModelParameterControl[] =>
+  params.map((p) => (p.key === "resolution" ? LOW_RES : p));
+const LOW_RES_OVERRIDES = Object.fromEntries(
+  SEEDANCE_2_MODES.map((m) => [m.id, narrowResolutionToLow] as const),
 );
 
 export const SEEDANCE_2_ARCHETYPE: ModelArchetype = {
@@ -83,14 +85,16 @@ export const SEEDANCE_2_ARCHETYPE: ModelArchetype = {
   kind: "video",
   defaultModeId: "first",
   transportTaskKind: "image_to_video",
-  // 收纳标准 + Fast 两变体 modelKey → 旧 fast 节点仍解析到本档案（迁移层据 variant.identifierPatterns 归一）。
-  identifierPatterns: ["bytedance/seedance-2", "seedance-2", "seedance2", "bytedance/seedance-2-fast", "seedance-2-fast", "seedance2fast"],
+  // 收纳标准 + Fast + Mini 变体 modelKey → 旧 fast/mini 节点仍解析到本档案（迁移层据 variant.identifierPatterns 归一）。
+  identifierPatterns: ["bytedance/seedance-2", "seedance-2", "seedance2", "bytedance/seedance-2-fast", "seedance-2-fast", "seedance2fast", "bytedance/seedance-2-mini", "seedance-2-mini", "seedance2mini"],
   modes: SEEDANCE_2_MODES,
-  // 变体轴：标准 / 快速（kie 的 model enum bytedance/seedance-2 与 -fast）。快速仅 480/720（FAST_OVERRIDES
-  // 按 modeId 收窄 resolution）。catalog body 取 {{request.params.model}} 读当前变体 modelKey（同 apimart Seedance）。
+  // 变体轴：标准 / 快速 / Mini（kie 的 model enum bytedance/seedance-2 / -fast / -mini）。快速与 Mini 仅 480/720
+  // （LOW_RES_OVERRIDES 按 modeId 收窄 resolution）。catalog body 取 {{request.params.model}} 读当前变体 modelKey
+  // （同 apimart Seedance，零传输改动）。Mini = 轻量档（比 Fast 更快更省，能力同档），2026-06 ByteDance 放出。
   variants: [
     { id: "standard", label: "标准", modelKey: "bytedance/seedance-2", identifierPatterns: ["seedance-2", "seedance2"] },
-    { id: "fast", label: "快速", modelKey: "bytedance/seedance-2-fast", identifierPatterns: ["seedance-2-fast", "seedance2fast"], paramOverrides: FAST_OVERRIDES },
+    { id: "fast", label: "快速", modelKey: "bytedance/seedance-2-fast", identifierPatterns: ["seedance-2-fast", "seedance2fast"], paramOverrides: LOW_RES_OVERRIDES },
+    { id: "mini", label: "Mini", modelKey: "bytedance/seedance-2-mini", identifierPatterns: ["seedance-2-mini", "seedance2mini"], paramOverrides: LOW_RES_OVERRIDES },
   ],
   defaultVariantId: "standard",
 };

@@ -60,3 +60,24 @@ describe('resolveGenerationReferences — URL 优先级一致（#4 根因：prov
     expect(refs.referenceImages).toContain('https://cdn/provider-only.png')
   })
 })
+
+describe('B4 — 连线视频/音频参考分流（不漏进 referenceImages / 不冒充首帧）', () => {
+  it('视频源 reference 边 → 进 referenceVideos，不进 referenceImages、不当首帧', () => {
+    const refVid = node('rv1', 'video', 'https://cdn/ref.mp4')
+    const target = node('t1', 'video')
+    const edges: GenerationCanvasEdge[] = [{ id: 'e1', source: 'rv1', target: 't1', mode: 'reference' }]
+    const refs = resolveGenerationReferences(target, { nodes: [refVid, target], edges })
+    expect(refs.referenceVideos).toEqual(['https://cdn/ref.mp4'])
+    expect(refs.referenceImages).toEqual([]) // 不再把 mp4 当图片参考
+    expect(refs.firstFrameUrl).toBeUndefined() // 不再拿视频冒充首帧
+  })
+
+  it('图片源仍进 referenceImages（视频分流不误伤图片）', () => {
+    const img = node('i1', 'image', 'https://cdn/a.png')
+    const target = node('t1', 'video')
+    const edges: GenerationCanvasEdge[] = [{ id: 'e1', source: 'i1', target: 't1', mode: 'reference' }]
+    const refs = resolveGenerationReferences(target, { nodes: [img, target], edges })
+    expect(refs.referenceImages).toEqual(['https://cdn/a.png'])
+    expect(refs.referenceVideos).toEqual([])
+  })
+})

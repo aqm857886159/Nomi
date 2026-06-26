@@ -37,8 +37,13 @@ import { APIMART_TEXT_MODELS } from "./apimartTexts";
 import { MODELSCOPE_VENDOR_SEED } from "./modelscopeVendor";
 import { MODELSCOPE_IMAGE_MODELS, MODELSCOPE_IMAGE_QUERY, MODELSCOPE_IMAGE_STATUS } from "./modelscopeImages";
 import { MODELSCOPE_TEXT_MODELS } from "./modelscopeTexts";
-import { VOLCENGINE_VENDOR_SEED } from "./volcengineVendor";
+import { VOLCENGINE_VENDOR_SEED, VOLCENGINE_SPEECH_VENDOR_SEED } from "./volcengineVendor";
+import { DREAMINA_VENDOR_SEED } from "./dreaminaVendor";
+import { DREAMINA_CURATED_MODELS, DREAMINA_CURATED_MAPPINGS } from "./dreaminaVideos";
+import { DREAMINA_IMAGE_CURATED_MODELS, DREAMINA_IMAGE_CURATED_MAPPINGS } from "./dreaminaImages";
 import { VOLCENGINE_IMAGE_MODELS } from "./volcengineImages";
+import { VOLCENGINE_AUDIO_MODELS } from "./volcengineAudios";
+import { VOLCENGINE_SEEDANCE_QUERY_OP, VOLCENGINE_SEEDANCE_STATUS_MAPPING, VOLCENGINE_VIDEO_MODELS } from "./volcengineVideos";
 
 /** curated 模型/mapping 的内部类型（reconcile 两函数的输入）。 */
 type CuratedModel = { modelKey: string; labelZh: string; kind: Model["kind"]; archetypeId?: string };
@@ -131,11 +136,30 @@ const MODELSCOPE_CURATED_MAPPINGS: CuratedMapping[] = MODELSCOPE_IMAGE_MODELS.fl
   })),
 );
 
-/** 火山 Seedream curated 模型 + mapping（同步族：无 query / 无 statusMapping，响应即结果）。 */
-const VOLCENGINE_CURATED_MODELS: CuratedModel[] = VOLCENGINE_IMAGE_MODELS.map((m) => ({
-  modelKey: m.modelKey, labelZh: m.labelZh, kind: "image" as const, archetypeId: m.archetypeId,
+/** 火山 Seedream 图片（同步）+ Seedance 视频（异步）curated 模型 + mapping。 */
+const VOLCENGINE_CURATED_MODELS: CuratedModel[] = [
+  ...VOLCENGINE_IMAGE_MODELS.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "image" as const, archetypeId: m.archetypeId })),
+  ...VOLCENGINE_VIDEO_MODELS.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "video" as const, archetypeId: m.archetypeId })),
+];
+const VOLCENGINE_CURATED_MAPPINGS: CuratedMapping[] = [
+  ...VOLCENGINE_IMAGE_MODELS.flatMap((m) =>
+    m.mappings.map((mp) => ({
+      id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, name: mp.name, create: mp.create,
+    })),
+  ),
+  ...VOLCENGINE_VIDEO_MODELS.flatMap((m) =>
+    m.mappings.map((mp) => ({
+      id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, name: mp.name,
+      create: mp.create, query: VOLCENGINE_SEEDANCE_QUERY_OP, statusMapping: VOLCENGINE_SEEDANCE_STATUS_MAPPING,
+    })),
+  ),
+];
+
+/** 火山豆包语音 curated 模型 + mapping（同步族；NDJSON 解码由 audioTaskRunner 按 create.audioResponse 走）。 */
+const VOLCENGINE_SPEECH_CURATED_MODELS: CuratedModel[] = VOLCENGINE_AUDIO_MODELS.map((m) => ({
+  modelKey: m.modelKey, labelZh: m.labelZh, kind: m.kind, archetypeId: m.archetypeId,
 }));
-const VOLCENGINE_CURATED_MAPPINGS: CuratedMapping[] = VOLCENGINE_IMAGE_MODELS.flatMap((m) =>
+const VOLCENGINE_SPEECH_CURATED_MAPPINGS: CuratedMapping[] = VOLCENGINE_AUDIO_MODELS.flatMap((m) =>
   m.mappings.map((mp) => ({
     id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, name: mp.name, create: mp.create,
   })),
@@ -192,7 +216,7 @@ function pruneRetiredMappings(mappings: Mapping[], retiredIds: readonly string[]
 }
 
 /** 供应商种子（裸 baseUrl + bearer）。存在即跳过（用户配置不覆盖）。返回是否变更。 */
-function seedVendor(vendors: Vendor[], seed: typeof KIE_VENDOR_SEED | typeof APIMART_VENDOR_SEED | typeof MODELSCOPE_VENDOR_SEED | typeof VOLCENGINE_VENDOR_SEED, now: string): boolean {
+function seedVendor(vendors: Vendor[], seed: typeof KIE_VENDOR_SEED | typeof APIMART_VENDOR_SEED | typeof MODELSCOPE_VENDOR_SEED | typeof VOLCENGINE_VENDOR_SEED | typeof VOLCENGINE_SPEECH_VENDOR_SEED | typeof DREAMINA_VENDOR_SEED, now: string): boolean {
   if (vendors.some((v) => v.key === seed.key)) return false;
   vendors.push({
     key: seed.key, name: seed.name, enabled: true,
@@ -281,6 +305,8 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (seedVendor(vendors, APIMART_VENDOR_SEED, now)) changed = true;
   if (seedVendor(vendors, MODELSCOPE_VENDOR_SEED, now)) changed = true;
   if (seedVendor(vendors, VOLCENGINE_VENDOR_SEED, now)) changed = true;
+  if (seedVendor(vendors, VOLCENGINE_SPEECH_VENDOR_SEED, now)) changed = true;
+  if (seedVendor(vendors, DREAMINA_VENDOR_SEED, now)) changed = true;
 
   // 退役 curated 记录清理（变体合并迁移：删 Seedance 旧变体模型 + mapping 孤儿，picker 收成 1 项）。
   if (pruneRetiredModels(models, APIMART_VENDOR_SEED.key, RETIRED_APIMART_VIDEO_MODEL_KEYS)) changed = true;
@@ -292,6 +318,9 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (reconcileModels(models, APIMART_VENDOR_SEED.key, APIMART_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, MODELSCOPE_VENDOR_SEED.key, MODELSCOPE_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, VOLCENGINE_VENDOR_SEED.key, VOLCENGINE_CURATED_MODELS, now)) changed = true;
+  if (reconcileModels(models, VOLCENGINE_SPEECH_VENDOR_SEED.key, VOLCENGINE_SPEECH_CURATED_MODELS, now)) changed = true;
+  if (reconcileModels(models, DREAMINA_VENDOR_SEED.key, DREAMINA_CURATED_MODELS, now)) changed = true;
+  if (reconcileModels(models, DREAMINA_VENDOR_SEED.key, DREAMINA_IMAGE_CURATED_MODELS, now)) changed = true;
 
   // kie 历史包袱 repair：把视频形状的坏 (kie, text_to_image) 替换成正确的 GPT Image 2 文生图契约
   // （旧 onboarding 抽错留下的；契约见 kieGptImage2.ts 直连实测确认）。apimart 无此历史，不需要。
@@ -314,6 +343,9 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (reconcileMappings(mappings, APIMART_VENDOR_SEED.key, APIMART_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, MODELSCOPE_VENDOR_SEED.key, MODELSCOPE_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, VOLCENGINE_VENDOR_SEED.key, VOLCENGINE_CURATED_MAPPINGS, now)) changed = true;
+  if (reconcileMappings(mappings, VOLCENGINE_SPEECH_VENDOR_SEED.key, VOLCENGINE_SPEECH_CURATED_MAPPINGS, now)) changed = true;
+  if (reconcileMappings(mappings, DREAMINA_VENDOR_SEED.key, DREAMINA_CURATED_MAPPINGS, now)) changed = true;
+  if (reconcileMappings(mappings, DREAMINA_VENDOR_SEED.key, DREAMINA_IMAGE_CURATED_MAPPINGS, now)) changed = true;
 
   if (!changed) return { state, changed: false };
   return { state: { ...state, vendors, models, mappings }, changed: true };

@@ -12,20 +12,21 @@ const NOW = "2026-06-06T00:00:00.000Z";
 const emptyCatalog = (): CatalogState => ({ version: 3, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
 
 describe("GPT Image 2 · 传输契约（锁死，防漂移）", () => {
-  it("文生图 body：只有 prompt + aspect_ratio，无 input_urls、无视频参数", () => {
+  it("文生图 body：prompt + aspect_ratio + resolution（铁律：resolution 是 gpt-image-2 能力），无 input_urls、无 duration", () => {
     const input = (GPT_IMAGE_2_T2I_CREATE_OP.body as { input: Record<string, unknown> }).input;
     expect(input.prompt).toBe("{{request.prompt}}");
     expect(input.aspect_ratio).toBe("{{request.params.aspect_ratio}}");
+    expect(input.resolution).toBe("{{request.params.resolution}}");
     expect("input_urls" in input).toBe(false);
-    expect("duration" in input).toBe(false);
-    expect("resolution" in input).toBe(false);
+    expect("duration" in input).toBe(false); // duration 才是视频参数（resolution 不是）
     expect(GPT_IMAGE_2_T2I_CREATE_OP.path).toBe("/api/v1/jobs/createTask");
   });
 
-  it("图生图 body：input_urls 取档案图生图模式的输入图数组（slot inputKey=input_urls），仍无视频参数", () => {
+  it("图生图 body：input_urls + aspect_ratio + resolution，仍无 duration", () => {
     const input = (GPT_IMAGE_2_I2I_CREATE_OP.body as { input: Record<string, unknown> }).input;
     expect(input.input_urls).toBe("{{request.params.input_urls}}");
     expect(input.prompt).toBe("{{request.prompt}}");
+    expect(input.resolution).toBe("{{request.params.resolution}}");
     expect("duration" in input).toBe(false);
   });
 

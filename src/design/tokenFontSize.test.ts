@@ -1,4 +1,5 @@
-import { execSync } from 'node:child_process'
+import fs from 'node:fs'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 // L1 回归：禁止非 token 的半 px 字号（text-[N.5px]），R8 token-only。
@@ -12,18 +13,26 @@ const ALLOWED_PER_FILE: Record<string, number> = {
 
 describe('字号 token 合规（R8）', () => {
   it('src 内无超出白名单的半 px 字号 text-[N.5px]', () => {
-    let raw = ''
-    try {
-      // grep 命中返回 0，无命中返回 1（抛错）→ 无命中即视为通过
-      raw = execSync(String.raw`grep -rn "text-\[[0-9]*\.5px\]" src/`, { encoding: 'utf8' })
-    } catch {
-      raw = ''
-    }
     const countByFile = new Map<string, number>()
-    for (const line of raw.split('\n').filter(Boolean)) {
-      const file = line.split(':')[0]
-      countByFile.set(file, (countByFile.get(file) ?? 0) + 1)
+    const pattern = /text-\[[0-9]*\.5px\]/g
+
+    function walk(dir: string): void {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const absolutePath = path.join(dir, entry.name)
+        if (entry.isDirectory()) {
+          walk(absolutePath)
+          continue
+        }
+        if (!/\.(ts|tsx)$/.test(entry.name)) continue
+        const content = fs.readFileSync(absolutePath, 'utf8')
+        const matches = content.match(pattern)
+        if (!matches?.length) continue
+        const relativePath = absolutePath.replace(/\\/g, '/')
+        countByFile.set(relativePath, matches.length)
+      }
     }
+
+    walk('src')
     const offenders = [...countByFile.entries()]
       .filter(([file, count]) => count > (ALLOWED_PER_FILE[file] ?? 0))
       .map(([file, count]) => `${file}: ${count} 处（白名单允许 ${ALLOWED_PER_FILE[file] ?? 0}）`)

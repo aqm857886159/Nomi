@@ -2,6 +2,7 @@ import React from 'react'
 import { IconCube, IconMaximize } from '@tabler/icons-react'
 import { lazyWithChunkBoundary } from '../../../ui/chunkBoundary'
 import { cn } from '../../../utils/cn'
+import { EmptyStateLauncher } from './render/CardCommon'
 import { toast } from '../../../ui/toast'
 import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -185,28 +186,55 @@ function Scene3DEditor({ node, width, height, readOnly = false }: Scene3DEditorP
 
   return (
     <>
-      <div className="relative w-full h-full overflow-hidden">
+      <div className="group relative w-full h-full overflow-hidden">
         {thumbnailUrl ? (
-          <img
-            className="w-full h-full object-contain select-none pointer-events-none bg-nomi-ink-05"
-            src={thumbnailUrl}
-            alt=""
-            draggable={false}
-          />
+          <>
+            <img
+              className="w-full h-full object-contain select-none pointer-events-none bg-nomi-ink-05"
+              src={thumbnailUrl}
+              alt=""
+              draggable={false}
+            />
+            {/* 有缩略图时整图悬浮可点开编辑器——此前只有右上角小钮能点，整张图看着可点其实点不动（用户反馈）。
+                覆盖层 pointer-events-none 让节点仍可从图上拖拽；只有居中按钮接管点击（外壳放行 button 不触发拖拽）。 */}
+            <div
+              className={cn(
+                'pointer-events-none absolute inset-0 grid place-items-center',
+                'bg-nomi-ink/0 transition-colors duration-[var(--nomi-transition-fast)] group-hover:bg-nomi-ink/[0.32]',
+              )}
+            >
+              <button
+                type="button"
+                aria-label="打开 3D 编辑器"
+                className={cn(
+                  'pointer-events-auto inline-flex items-center gap-1.5 rounded-nomi px-3 py-1.5 border-0 cursor-pointer',
+                  'bg-nomi-paper/[0.92] text-body-sm font-semibold text-nomi-ink shadow-nomi-sm backdrop-blur-[10px]',
+                  'opacity-0 transition-opacity duration-[var(--nomi-transition-fast)] group-hover:opacity-100',
+                  'focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-nomi-accent focus-visible:outline-offset-2',
+                )}
+                onFocus={preloadFullscreenEditor}
+                onPointerEnter={preloadFullscreenEditor}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setFullscreen(true)
+                }}
+              >
+                <IconCube size={15} stroke={1.7} />
+                打开 3D 编辑器
+              </button>
+            </div>
+          </>
         ) : (
-          <div
-            className={cn(
-              'flex h-full w-full flex-col items-center justify-center gap-3',
-              'text-nomi-ink-60',
-            )}
-          >
-            <div className="grid size-12 place-items-center rounded-nomi border border-nomi-line-soft bg-nomi-paper/[0.72] shadow-nomi-sm">
-              <IconCube className="text-nomi-ink-60" size={25} stroke={1.65} />
-            </div>
-            <div className="text-center">
-              <div className="text-caption font-medium text-nomi-ink-60">点击进入 3D 编辑器</div>
-              <div className="mt-1 text-micro text-nomi-ink-40">摆放模型、相机并输出截图</div>
-            </div>
+          <div className={cn('flex h-full w-full items-center justify-center')}>
+            <EmptyStateLauncher
+              icon={<IconCube size={24} stroke={1.65} />}
+              label="点击进入 3D 编辑器"
+              hint="摆放模型、相机并输出截图"
+              activateAriaLabel="进入 3D 编辑器"
+              onActivate={() => setFullscreen(true)}
+              onPreload={preloadFullscreenEditor}
+            />
           </div>
         )}
         <button

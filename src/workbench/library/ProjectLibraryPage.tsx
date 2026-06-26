@@ -1,8 +1,9 @@
 import React from 'react'
-import { IconFolderOpen, IconFolderShare, IconMovie, IconPlugConnected, IconPlus, IconSparkles, IconTrash } from '@tabler/icons-react'
+import { IconFolderOpen, IconFolderShare, IconMovie, IconPlayerPlay, IconPlugConnected, IconPlus, IconSparkles, IconTrash } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { ActionCard, NomiLogoMark, NomiWordmark, DesignEmptyState, DesignSearchInput } from '../../design'
 import { NomiImage } from '../../design/media'
+import { ThemeToggleButton } from '../../ui/theme/ThemeToggleButton'
 import type { LocalProjectSummary } from './localProjectStore'
 import type { ProjectTemplateId } from './projectTemplates'
 
@@ -13,6 +14,10 @@ type Props = {
   onOpenFolder?: () => void
   onRevealProjectFolder?: (projectId: string) => void
   onOpenModelCatalog?: () => void
+  /** 看「60 秒预置回放」引导旅途（建示例项目 + 走一遍全流程）；缺省则不渲染该卡 */
+  onPlayJourneyTour?: () => void
+  /** 旅途是否看过——决定 CTA 文案在「看一遍 / 重看」之间切换 */
+  journeyTourSeen?: boolean
   /** 重看开屏动画（首启播完后从这里可主动重播）；缺省则不渲染重看入口 */
   onReplaySplash?: () => void
   /** null = 查询中（不渲染告警）；false 时弱入口隐藏、状态条升权（单一入口互斥） */
@@ -49,7 +54,7 @@ const ThumbnailMosaic = React.memo(function ThumbnailMosaic({ urls }: { urls: st
   return <NomiImage className="absolute inset-0 w-full h-full object-cover block" src={urls[0]} alt="" />
 }, (prev, next) => (prev.urls[0] || '') === (next.urls[0] || ''))
 
-export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onNewProject, onOpenFolder, onRevealProjectFolder, onOpenModelCatalog, onReplaySplash, hasTextModel = null, projects }: Props): JSX.Element {
+export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onNewProject, onOpenFolder, onRevealProjectFolder, onOpenModelCatalog, onPlayJourneyTour, journeyTourSeen = false, onReplaySplash, hasTextModel = null, projects }: Props): JSX.Element {
   const [query, setQuery] = React.useState('')
   const [sourceFilter, setSourceFilter] = React.useState<'all' | 'native' | 'folder'>('all')
   const normalizedQuery = query.trim().toLowerCase()
@@ -115,6 +120,7 @@ export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onN
                 模型接入
               </button>
             ) : null}
+            <ThemeToggleButton className="size-7 rounded-pill" />
           </div>
         </section>
 
@@ -136,6 +142,14 @@ export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onN
                   title="打开已有文件夹"
                   description="把素材文件夹变成项目"
                   onClick={onOpenFolder}
+                />
+              ) : null}
+              {onPlayJourneyTour ? (
+                <ActionCard
+                  icon={<IconPlayerPlay size={18} stroke={1.6} />}
+                  title={journeyTourSeen ? '重看一遍引导' : '看 Nomi 怎么出片'}
+                  description="60 秒预览，从一句话到成片"
+                  onClick={onPlayJourneyTour}
                 />
               ) : null}
             </section>

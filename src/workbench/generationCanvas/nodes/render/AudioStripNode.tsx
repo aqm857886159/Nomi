@@ -233,9 +233,10 @@ function AudioStripNodeImpl({ node }: Props): JSX.Element {
             {audioKindLabel}
           </span>
         ) : null}
-        <span className="text-body text-nomi-ink truncate" title={node.title}>
+        <span className="text-body-sm font-semibold text-nomi-ink-80 truncate" title={node.title}>
           {getDisplayTitle(node.title, '声音')}
         </span>
+        {!hasAudio ? <span className="text-micro text-nomi-ink-40 truncate">上传或连接音频</span> : null}
       </div>
 
       {hasAudio ? (

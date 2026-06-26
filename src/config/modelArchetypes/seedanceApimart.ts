@@ -16,7 +16,9 @@ const opt = (values: string[]): ModelParameterControl["options"] => values.map((
 
 const PARAMS: ModelParameterControl[] = [
   { key: "size", label: "比例", type: "select", options: opt(["16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"]), defaultValue: "16:9" },
-  { key: "resolution", label: "清晰度", type: "select", options: opt(["480p", "720p", "1080p"]), defaultValue: "720p" },
+  // PARAMS = 全能力清晰度（含 4k）。apimart 约束：4k 仅基础档 doubao-seedance-2.0 支持，1080p 仅基础档 + face 支持。
+  // 沿用「PARAMS=max，变体往下收窄」既有范式：标准档不收窄（拿全集含 4k）；face 去 4k（留 1080）；fast/fast-face 仅 480/720。
+  { key: "resolution", label: "清晰度", type: "select", options: opt(["480p", "720p", "1080p", "4k"]), defaultValue: "720p" },
   { key: "duration", label: "时长(秒)", type: "number", options: [], min: 4, max: 15, defaultValue: 5 },
   { key: "seed", label: "种子", type: "number", options: [], placeholder: "随机" },
   { key: "generate_audio", label: "生成音频", type: "boolean", options: [], defaultValue: true },
@@ -58,17 +60,18 @@ const SEEDANCE_2_APIMART_MODES: ModelArchetype["modes"] = [
   },
 ];
 
-// fast / fast-face 变体清晰度仅 480/720（无 1080，官方文档）。运行时按 variantId 叠加（specializeArchetypeForVariant），
-// 不再档案级 spread —— 变体是正交轴，跨所有 mode 收窄 resolution。
-const FAST_RES: ModelParameterControl = {
-  key: "resolution", label: "清晰度", type: "select", options: opt(["480p", "720p"]), defaultValue: "720p",
+// 变体清晰度收窄（运行时按 variantId 叠加，specializeArchetypeForVariant；不档案级 spread——变体是正交轴）。
+// 两档收窄目标（官方约束）：
+//   fast / fast-face → 480/720（无 1080/4k）
+//   face            → 480/720/1080（有 1080，无 4k；4k 仅基础档独占）
+const makeResNarrower = (values: string[]) => {
+  const res: ModelParameterControl = { key: "resolution", label: "清晰度", type: "select", options: opt(values), defaultValue: "720p" };
+  return (params: ModelParameterControl[]): ModelParameterControl[] => params.map((p) => (p.key === "resolution" ? res : p));
 };
-const narrowResolutionToFast = (params: ModelParameterControl[]): ModelParameterControl[] =>
-  params.map((p) => (p.key === "resolution" ? FAST_RES : p));
-// fast 变体把每个 mode 的 resolution 都收窄到 480/720。
-const FAST_OVERRIDES = Object.fromEntries(
-  SEEDANCE_2_APIMART_MODES.map((m) => [m.id, narrowResolutionToFast] as const),
-);
+const narrowResolutionToFast = makeResNarrower(["480p", "720p"]);
+const narrowResolutionToFace = makeResNarrower(["480p", "720p", "1080p"]);
+const FAST_OVERRIDES = Object.fromEntries(SEEDANCE_2_APIMART_MODES.map((m) => [m.id, narrowResolutionToFast] as const));
+const FACE_OVERRIDES = Object.fromEntries(SEEDANCE_2_APIMART_MODES.map((m) => [m.id, narrowResolutionToFace] as const));
 
 export const SEEDANCE_2_APIMART_ARCHETYPE: ModelArchetype = {
   id: "seedance-2-apimart",
@@ -90,7 +93,7 @@ export const SEEDANCE_2_APIMART_ARCHETYPE: ModelArchetype = {
   variants: [
     { id: "standard", label: "标准", modelKey: "doubao-seedance-2.0", identifierPatterns: ["doubao-seedance-2-0"] },
     { id: "fast", label: "快速", modelKey: "doubao-seedance-2.0-fast", identifierPatterns: ["doubao-seedance-2-0-fast"], paramOverrides: FAST_OVERRIDES },
-    { id: "face", label: "真人", modelKey: "doubao-seedance-2.0-face", identifierPatterns: ["doubao-seedance-2-0-face"] },
+    { id: "face", label: "真人", modelKey: "doubao-seedance-2.0-face", identifierPatterns: ["doubao-seedance-2-0-face"], paramOverrides: FACE_OVERRIDES },
     { id: "fast-face", label: "真人快速", modelKey: "doubao-seedance-2.0-fast-face", identifierPatterns: ["doubao-seedance-2-0-fast-face"], paramOverrides: FAST_OVERRIDES },
   ],
   defaultVariantId: "standard",

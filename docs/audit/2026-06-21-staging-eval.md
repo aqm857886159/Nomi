@@ -4,7 +4,7 @@
 
 ## 怎么跑
 
-`pnpm dev:renderer` → 截 `http://127.0.0.1:5173/staging-eval.html?page=0..3`（每页 6 例）。用例在 `src/devlab/stagingEval.tsx`，改 spec 即扩展。改 builder 后重截对比。
+`pnpm dev:renderer` → 截 `http://127.0.0.1:5273/staging-eval.html?page=0..3`（每页 6 例）。用例在 `src/devlab/stagingEval.tsx`，改 spec 即扩展。改 builder 后重截对比。
 
 ## 第一轮发现（24 例）
 

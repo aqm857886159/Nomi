@@ -10,6 +10,7 @@ export type GenerationProgressPhase =
   | 'requesting' //  正在把任务发给模型(vendor HTTP 出门)
   | 'waiting' //     模型已接单,排队中(拿到 taskId,首个非终态)
   | 'generating' //  模型生成中(轮询进行时)
+  | 'still-generating' // 超过常规时长仍在生成(软超时后,后台继续等结果)
   | 'retrying' //    网络波动重试中
   | 'finalizing' //  正在保存结果(本地化/归一)
 
@@ -28,6 +29,11 @@ const NARRATE_PROGRESS: Record<GenerationProgressPhase, (ctx: ProgressNarrationC
     typeof ctx.elapsedMs === 'number' && ctx.elapsedMs >= 5000
       ? `正在生成,已等 ${Math.round(ctx.elapsedMs / 1000)} 秒`
       : '正在生成',
+  // 软超时后:视频较慢仍在跑,后台继续等。说真话(已等 N 分钟),不假装快完成。
+  'still-generating': (ctx) =>
+    typeof ctx.elapsedMs === 'number'
+      ? `仍在生成 · 已超常规时长(已等 ${Math.round(ctx.elapsedMs / 60000)} 分钟)`
+      : '仍在生成 · 已超常规时长',
   retrying: (ctx) =>
     ctx.attempt && ctx.maxAttempts ? `网络波动,正在重试(${ctx.attempt}/${ctx.maxAttempts})` : '网络波动,正在重试',
   finalizing: () => '正在保存结果',
@@ -70,16 +76,4 @@ const NARRATE_ERROR: Record<GenerationErrorKind, { reason: string; hint: string 
 
 export function narrateGenerationError(kind: GenerationErrorKind): { reason: string; hint: string } {
   return NARRATE_ERROR[kind]
-}
-
-/** 轮次 footer(S3 可感知出口):本轮 token 用量 + 缓存命中占比(有回报才显——
- *  命中的部分 vendor 按 1-5 折计费,这是「数字大但没那么贵」的诚实注脚)。
- *  S7 成本落地后此形态切金额并删除(P1)。 */
-export function narrateTurnStats(totalTokens: number, opts: { promptTokens?: number; cachedPromptTokens?: number } = {}): string {
-  const base = totalTokens >= 1000 ? `本轮 ~${(totalTokens / 1000).toFixed(1)}k tokens` : `本轮 ${totalTokens} tokens`
-  const { promptTokens, cachedPromptTokens } = opts
-  if (cachedPromptTokens && promptTokens && promptTokens > 0) {
-    return `${base} · 缓存命中 ${Math.round((cachedPromptTokens / promptTokens) * 100)}%`
-  }
-  return base
 }

@@ -5,8 +5,10 @@
 import type { DragEvent } from 'react'
 import { WORKSPACE_FILE_DRAG_MIME, buildWorkspaceFileUrl, parseWorkspaceFileDrag } from '../../explorer/workspaceFileDrag'
 import { ASSET_LIBRARY_DRAG_MIME, parseAssetLibraryDrag } from '../../assets/assetLibraryDrag'
-import { importImageFilesToGenerationCanvas } from '../adapters/assetImportAdapter'
+import { importLocalMediaFilesToGenerationCanvas } from '../adapters/assetImportAdapter'
+import { dropKindFromMime } from '../model/nodeAssetDrop'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { toast } from '../../../ui/toast'
 
 export type CanvasStageDropContext = {
   readOnly: boolean
@@ -57,6 +59,11 @@ export function handleCanvasStageDrop(event: DragEvent<HTMLDivElement>, ctx: Can
   if (assetDrag) {
     event.preventDefault()
     event.stopPropagation()
+    // 音频无画布节点（不渲染画面），引导到时间轴音频轨而不是在画布建个哑节点。
+    if (assetDrag.kind === 'audio') {
+      toast('音频请拖到时间轴的「音频轨」当配乐', 'info')
+      return
+    }
     const store = useGenerationCanvasStore.getState()
     const node = store.addNode({
       kind: 'asset',
@@ -78,10 +85,20 @@ export function handleCanvasStageDrop(event: DragEvent<HTMLDivElement>, ctx: Can
     return
   }
 
-  // 3) OS 文件拖入：复制进项目并上传，创建图片节点。
-  const files = Array.from(event.dataTransfer.files || []).filter((file) => file.type.startsWith('image/'))
+  // 3) OS 文件拖入：复制进项目并上传，创建图片 / 视频素材节点（音频无可落节点，过滤）。
+  const files = Array.from(event.dataTransfer.files || []).filter((file) => {
+    const kind = dropKindFromMime(file.type)
+    return kind === 'image' || kind === 'video'
+  })
   if (!files.length) return
   event.preventDefault()
   event.stopPropagation()
-  void importImageFilesToGenerationCanvas(files, { basePosition, categoryId: ctx.activeCategoryId })
+  void importLocalMediaFilesToGenerationCanvas(files, { basePosition, categoryId: ctx.activeCategoryId }).then((result) => {
+    // C5：超限截断 / 上传失败不再静默——聚合成一句人话提示（此前 >8 张悄悄丢、失败只在节点上红）。
+    const notes: string[] = []
+    if (result.skippedOverLimitCount > 0) notes.push(`超过 8 个，已忽略 ${result.skippedOverLimitCount} 个`)
+    if (result.skippedTooLargeCount > 0) notes.push(`${result.skippedTooLargeCount} 个文件过大`)
+    if (result.failedCount > 0) notes.push(`${result.failedCount} 个导入失败`)
+    if (notes.length) toast(notes.join('；'), result.failedCount > 0 ? 'error' : 'info')
+  }).catch(() => {})
 }

@@ -44,21 +44,24 @@ try {
   await win.waitForLoadState("domcontentloaded");
   await win.waitForTimeout(1500);
 
-  // 1) apimart Seedance 四变体在目录、带 apimart 档案（M-C seed 生效）
+  // 1) apimart Seedance 在目录、带 apimart 档案（M-C seed 生效）。
+  //    变体合并（2026-06-16）后：fast/face/fast-face 不再是独立 catalog 行，而是档案 variants
+  //    （逐变体能力/清晰度由 archetypeMeta.test.ts / index.test.ts 单测钉死）→ 这里只核 catalog 真相：
+  //    唯一基础行在 + 旧 3 独立变体行已退役 + 带正确 archetypeId。
   const models = await win.evaluate(() => {
     const mc = window.nomiDesktop?.modelCatalog;
     const list = mc?.listModels({ kind: "video" }) || [];
     const keys = list.map((m) => m.modelKey);
     const std = list.find((m) => m.modelKey === "doubao-seedance-2.0");
+    const retired = ["doubao-seedance-2.0-fast", "doubao-seedance-2.0-face", "doubao-seedance-2.0-fast-face"];
     return {
       hasStd: keys.includes("doubao-seedance-2.0"),
-      hasFast: keys.includes("doubao-seedance-2.0-fast"),
-      hasFace: keys.includes("doubao-seedance-2.0-face"),
-      hasFastFace: keys.includes("doubao-seedance-2.0-fast-face"),
+      retiredGone: !keys.some((k) => retired.includes(k)),
       archetypeId: std?.meta?.archetypeId,
     };
   });
-  assert(models.hasStd && models.hasFast && models.hasFace && models.hasFastFace, "apimart Seedance 4 变体全在目录（标准/fast/face/fast-face）");
+  assert(models.hasStd, "apimart Seedance 标准档在目录（doubao-seedance-2.0，变体合并后唯一 catalog 行）");
+  assert(models.retiredGone, "旧 3 独立变体行已退役（fast/face/fast-face 现为档案 variants，非 catalog 行）");
   assert(models.archetypeId === "seedance-2-apimart", "标准版带 archetypeId=seedance-2-apimart");
 
   // 2) apimart key：env 覆盖，否则用已存的
@@ -77,6 +80,12 @@ try {
     assert(true, "apimart 已配 key（用已存的，自解密）");
   }
 
+  // 2.5) 付费守卫令牌（2026-06-21 spend gate）：真生成前铸一颗（模拟真人点确认卡），随 extras.grantId 下传。
+  //      用**生产同款** grantSpend IPC（不在 enforcement 层加任何 e2e 旁路 → 不削弱「真人确认才铸」安全性）。
+  //      nodeIds:[] → 通用占位 key；本 e2e 不传 nodeId → 主进程 enforcement 也落到 GENERIC_NODE_KEY，匹配。
+  const { grantId } = await win.evaluate(() => window.nomiDesktop.tasks.grantSpend({ nodeIds: [] }));
+  assert(grantId, "铸付费令牌成功（grantSpend IPC，模拟真人确认）");
+
   // 3) 经 app runtime 发起一次 apimart Seedance 首尾帧生成（真实 createTask + 内置 mapping）。
   //    image_with_roles 走 archetypeInput → referenceInputParams spread → request.params（与 image_urls 互斥）。
   const initial = await win.evaluate(async (a) => {
@@ -87,11 +96,16 @@ try {
         prompt: a.prompt,
         extras: {
           modelKey: "doubao-seedance-2.0",
+          grantId: a.grantId, // 付费守卫令牌
           size: "16:9",
           resolution: "720p",
           duration: 5, // number（真实渲染流程节点标量参数存的就是 number 5，见 taskParams.ts:39；string 会被 apimart 拒）
           generate_audio: false,
           archetypeInput: {
+            // 变体合并（2026-06-16）后 catalog body 取 {{request.params.model}}（不再 extras.modelKey）；
+            // 真实渲染流程由 buildArchetypeInputParams 把当前变体 modelKey 写进 archetypeInput.model →
+            // taskTemplateParams 经 referenceInputParams 摊进 params.model。e2e 直调 runtime 须自带它。
+            model: "doubao-seedance-2.0",
             image_with_roles: [
               { url: a.first, role: "first_frame" },
               { url: a.last, role: "last_frame" },
@@ -100,7 +114,7 @@ try {
         },
       },
     });
-  }, { prompt: "smooth cinematic transition from the first scene to the last", first: FIRST, last: LAST });
+  }, { prompt: "smooth cinematic transition from the first scene to the last", first: FIRST, last: LAST, grantId });
   assert(initial?.id, "app runtime 返回 taskId（apimart createTask 接受 image_with_roles，未 400）");
   console.log(`    taskId=${initial.id} status=${initial.status}`);
 

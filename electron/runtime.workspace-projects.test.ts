@@ -3,9 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createProject, deleteProject, listProjects, readProject, resolveProjectRelativePath, saveProject } from "./runtime";
+import { canCreateSymlink } from "./testSupport/canCreateSymlink";
 import { workspaceProjectFile } from "./workspace/workspacePaths";
 
 const tempRoots: string[] = [];
+const canCreateDirSymlink = canCreateSymlink("dir");
 let mockedDocumentsRoot = "";
 let mockedUserDataRoot = "";
 
@@ -65,6 +67,44 @@ describe("runtime workspace project APIs", () => {
 
     expect(workspaceRoot.startsWith(defaultRoot)).toBe(false);
     expect(readProject(created.id)).toEqual(created);
+  });
+
+  it("localizes embedded data media URLs before parsing a workspace manifest", () => {
+    const workspaceRoot = makeTempDir();
+    const created = createProject({ rootPath: workspaceRoot, name: "Slim Embedded", payload: {} });
+    const manifestPath = workspaceProjectFile(workspaceRoot);
+    const dataUrl = "data:image/png;base64,aGVsbG8=";
+    const bloated = {
+      ...created,
+      payload: {
+        generationCanvas: {
+          nodes: [
+            {
+              id: "node-1",
+              result: {
+                id: "result-1",
+                type: "image",
+                url: dataUrl,
+                createdAt: 1,
+              },
+            },
+          ],
+          edges: [],
+          selectedNodeIds: [],
+          groups: [],
+        },
+      },
+    };
+    fs.writeFileSync(manifestPath, JSON.stringify(bloated), "utf8");
+
+    const read = readProject(created.id) as typeof bloated;
+    const rawAfterRead = fs.readFileSync(manifestPath, "utf8");
+    const localizedUrl = read.payload.generationCanvas.nodes[0].result.url;
+
+    expect(localizedUrl).toMatch(/^nomi-local:\/\/asset\//);
+    expect(rawAfterRead).not.toContain(dataUrl);
+    expect(rawAfterRead).toContain("nomi-local://asset/");
+    expect(fs.readdirSync(path.join(workspaceRoot, "assets", "generated", "2026-05-31"))).toHaveLength(1);
   });
 
   it("saveProject updates workspace manifest payload", () => {
@@ -130,11 +170,46 @@ describe("runtime workspace project APIs", () => {
     const projects = listProjects();
 
     expect(projects).toEqual([expect.objectContaining({ id: "legacy-id", name: "Legacy Project", version: 2 })]);
-    expect(fs.existsSync(workspaceProjectFile(legacyRoot))).toBe(true);
+    expect(fs.existsSync(workspaceProjectFile(legacyRoot))).toBe(false);
     expect(readProject("legacy-id")?.payload).toEqual({ old: true });
+    expect(fs.existsSync(workspaceProjectFile(legacyRoot))).toBe(true);
   });
 
-  it("resolveProjectRelativePath rejects symlink escapes from a workspace project", () => {
+  it("defers legacy payload migration from listProjects until readProject", () => {
+    const defaultRoot = path.join(mockedDocumentsRoot, "Nomi Projects");
+    const legacyRoot = path.join(defaultRoot, "Bloated Legacy");
+    const dataUrl = "data:image/png;base64,aGVsbG8=";
+    fs.mkdirSync(legacyRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(legacyRoot, "project.json"),
+      JSON.stringify({
+        id: "bloated-legacy-id",
+        name: "Bloated Legacy",
+        version: 1,
+        createdAt: 100,
+        updatedAt: 200,
+        savedAt: 300,
+        revision: 2,
+        payload: { image: dataUrl },
+      }),
+    );
+
+    expect(listProjects()).toEqual([expect.objectContaining({ id: "bloated-legacy-id", name: "Bloated Legacy" })]);
+    expect(fs.existsSync(workspaceProjectFile(legacyRoot))).toBe(false);
+    expect(fs.existsSync(path.join(legacyRoot, "assets", "generated"))).toBe(false);
+
+    const read = readProject("bloated-legacy-id") as { payload: { image: string } } | null;
+    const rawLegacyAfterRead = fs.readFileSync(path.join(legacyRoot, "project.json"), "utf8");
+    const rawManifestAfterRead = fs.readFileSync(workspaceProjectFile(legacyRoot), "utf8");
+
+    expect(read?.payload.image).toMatch(/^nomi-local:\/\/asset\//);
+    expect(rawLegacyAfterRead).not.toContain(dataUrl);
+    expect(rawManifestAfterRead).not.toContain(dataUrl);
+    expect(rawManifestAfterRead).toContain("nomi-local://asset/");
+    expect(fs.readdirSync(path.join(legacyRoot, "assets", "generated", "2026-05-31"))).toHaveLength(1);
+  });
+
+  (canCreateDirSymlink ? it : it.skip)("resolveProjectRelativePath rejects symlink escapes from a workspace project", () => {
     const workspaceRoot = makeTempDir();
     const outsideRoot = makeTempDir("nomi-runtime-outside-");
     const created = createProject({ rootPath: workspaceRoot, name: "Symlink Runtime", payload: {} });

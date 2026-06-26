@@ -23,6 +23,8 @@
   /* 时间轴吸附反馈（暖橙，与 accent 蓝互补、对比最大；仅拖动中临时出现） */
   --nomi-snap: oklch(0.72 0.18 30);
   --nomi-snap-tag: oklch(0.45 0.18 30);
+  /* 品牌 mark 底色（§3.9 深底+白笔画）。暗色提亮见下方 dark 块。 */
+  --nomi-logo-ground: oklch(0.22 0.01 80);
   /* 媒体浮层（图片之上的 scrim / 徽章 / 渐变遮罩）——深色取 ink 同色相，集中此处，组件只引 token，
      不在 JSX 直写 oklch（§2.1）。scrim=模态背景压暗；overlay-chip=图上小标；media-veil=底部标题渐变。 */
   --nomi-scrim: oklch(0.2 0.01 80 / 0.42);
@@ -39,6 +41,40 @@
   --nomi-font-sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
   --nomi-font-display: "Fraunces Variable", Fraunces, "Inter Variable", Inter, serif;
   --nomi-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+/* 深色主题（暖灰 oklch）。⚠️ 运行时真源是 tailwind.config.ts 的 addBase（编译进 tailwind.generated.css）；
+   本文件未被任何 import = 参考镜像 + 喂 check-dangling-tokens。改值两处都要同步（§0.5）。
+   3D 轴色(--nomi-axis-*)主题无关，明暗同色，故此处不重定义。 */
+:root[data-mantine-color-scheme="dark"] {
+  color-scheme: dark;
+  --nomi-bg: oklch(0.18 0.006 80);
+  --nomi-paper: oklch(0.235 0.007 80);
+  --nomi-ink: oklch(0.93 0.006 85);
+  --nomi-ink-80: oklch(0.84 0.006 85);
+  --nomi-ink-60: oklch(0.70 0.006 85);
+  --nomi-ink-40: oklch(0.62 0.006 85);
+  --nomi-ink-30: oklch(0.50 0.006 85);
+  --nomi-ink-20: oklch(0.42 0.006 85);
+  --nomi-ink-10: oklch(0.34 0.006 85);
+  --nomi-ink-05: oklch(0.30 0.006 85);
+  --nomi-line: oklch(0.36 0.007 80);
+  --nomi-line-soft: oklch(0.31 0.007 80);
+  --nomi-accent: oklch(0.70 0.13 250);
+  --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 26%, var(--nomi-paper));
+  --nomi-track-text: oklch(0.75 0.15 305);
+  --nomi-track-image: oklch(0.72 0.13 200);
+  --nomi-track-video: oklch(0.70 0.13 150);
+  --nomi-snap: oklch(0.78 0.18 30);
+  --nomi-snap-tag: oklch(0.62 0.18 30);
+  --nomi-logo-ground: oklch(0.30 0.01 80);
+  --nomi-scrim: oklch(0.08 0.004 80 / 0.58);
+  --nomi-overlay-chip: oklch(0.08 0.004 80 / 0.68);
+  --nomi-overlay-chip-strong: oklch(0.08 0.004 80 / 0.78);
+  --nomi-media-veil: oklch(0.08 0.004 80 / 0.76);
+  --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.32), 0 1px 1px oklch(0 0 0 / 0.22);
+  --nomi-shadow-md: 0 2px 5px oklch(0 0 0 / 0.30), 0 14px 34px oklch(0 0 0 / 0.32);
+  --nomi-shadow-lg: 0 4px 10px oklch(0 0 0 / 0.30), 0 24px 64px oklch(0 0 0 / 0.40);
 }
 
 html,

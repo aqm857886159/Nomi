@@ -7,8 +7,37 @@ import { CATALOG_FILE, getSettingsRoot, readJson } from "../runtimePaths";
 import { type ApiKeyRecord, decryptApiKeyRecord, isSafeStorageAvailable, makeApiKeyRecordFromPlain } from "./secrets";
 import { humanizeModelKey } from "./modelLabel";
 import { applyBuiltinSeeds } from "./seedBuiltins";
+import { NEWAPI_IMAGE_PARAM_MAP, NEWAPI_VIDEO_PARAM_MAP } from "./newapiTransport";
 import type { AiSdkProviderKind, BillingModelKind, CatalogState, HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./types";
 import { CURRENT_CATALOG_VERSION } from "./types";
+
+// 内置 vendor（由 seedBuiltins 管理、op 已正确）。v4 relay 迁移只碰这之外的**用户自建中转**——
+// 尤其别碰 apimart：它的 size 是比例字符串("16:9")不是像素，套 OpenAI 像素转换会发错。
+const BUILTIN_VENDOR_KEYS = new Set(["kie", "apimart", "modelscope", "volcengine", "volcengine-speech"]);
+
+/**
+ * v3 → v4：给**用户自建 OpenAI 兼容中转**的旧图像/视频 create op 补 paramMap（铁律翻译层）。
+ * 这些 op 是档案中性化之前持久化的（读 {{request.params.size}} 像素，但无 paramMap）——档案现在产
+ * 中性「比例 + 清晰度档位」，没翻译就发不出去（gpt-image-2 × 自建中转报错的根因）。幂等：已有 paramMap
+ * 或非 relay 形状的跳过。按 op.path 识别 new-api/OpenAI 兼容形状（/images|video/generations）。
+ */
+export function migrateRelayParamMaps(mappings: Mapping[]): { mappings: Mapping[]; changed: boolean } {
+  let changed = false;
+  const out = mappings.map((m) => {
+    if (BUILTIN_VENDOR_KEYS.has(m.vendorKey)) return m;
+    const create = m.create;
+    if (!create || create.paramMap) return m;
+    const pathStr = typeof create.path === "string" ? create.path : "";
+    const isImage = /\/images\/generations$/.test(pathStr);
+    const isVideo = /\/video\/generations$/.test(pathStr);
+    if (!isImage && !isVideo) return m;
+    // 只在 body 确实读 size（即 OpenAI 兼容像素契约）时补——避免给不相干形状乱套。
+    if (!JSON.stringify(create.body ?? "").includes("request.params.size")) return m;
+    changed = true;
+    return { ...m, create: { ...create, paramMap: isImage ? NEWAPI_IMAGE_PARAM_MAP : NEWAPI_VIDEO_PARAM_MAP } };
+  });
+  return { mappings: out, changed };
+}
 
 function catalogPath(): string {
   return path.join(getSettingsRoot(), CATALOG_FILE);
@@ -175,6 +204,14 @@ function migrateCatalogForward(state: CatalogState): CatalogState {
     // {create,query}. Handles three legacy shapes — bare op, v2 envelope, and
     // split create/query rows — and dedupes by (vendorKey, taskKind).
     s = { ...s, version: 3, mappings: normalizeLegacyMappings(s.mappings) };
+    writeCatalog(s);
+  }
+
+  if (s.version === 3) {
+    // v3 → v4: 给用户自建中转的旧图像/视频 op 补 paramMap（铁律翻译层），修「档案中性化后比例/清晰度
+    // 发不出去」。只碰非内置 vendor 的 OpenAI 兼容 relay op（见 migrateRelayParamMaps）。
+    const { mappings } = migrateRelayParamMaps(s.mappings);
+    s = { ...s, version: 4, mappings };
     writeCatalog(s);
   }
 

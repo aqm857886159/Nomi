@@ -12,7 +12,6 @@ import {
   fetchModelCatalogDocs,
   fetchTaskResult,
   getModelCatalogHealth,
-  importLocalFile,
   importModelCatalogPackage,
   importRemoteAsset,
   listProjectAssets,
@@ -36,7 +35,7 @@ import { extractVideoFrameToAsset } from "./video/extractVideoFrame";
 import { framesToVideoAsset } from "./video/framesToVideo";
 import { mintSpendGrant } from "./spendGrant";
 import { listSkillsForRenderer } from "./skills/skillIpc";
-import { exportSkillPackageByName, importSkillPackageToUserDir } from "./skills/skillPackage";
+import { deleteUserSkill, exportSkillPackageByName, importSkillPackageToUserDir } from "./skills/skillPackage";
 import { openWorkspaceFolder, selectWorkspaceFolder } from "./workspace/workspaceIpc";
 import { listWorkspaceFiles, resolveWorkspaceFilePath } from "./workspace/workspaceFileIndex";
 import { installCrashHandlers, logCrash } from "./crashLog";
@@ -58,23 +57,47 @@ import { registerUpdaterIpc } from "./update/autoUpdater";
 import { startCapabilityCore, stopCapabilityCore, setOpenProjectId, getCapabilityPort } from "./capabilityCore/appIntegration";
 import { setRendererTarget } from "./capabilityCore/rendererBridge";
 import { readMcpInfo, installMcp, uninstallMcp } from "./capabilityCore/mcpConfig";
+import { dreaminaStatus, dreaminaLoginStart, dreaminaLoginPoll, dreaminaLogout, dreaminaInstall } from "./catalog/dreaminaLoginIpc";
+import { importLocalFile } from "./assets/localFileImport";
+import { startMcpStdioServer } from "./capabilityCore/mcpStdioServer";
 
 // 尽早安装：捕获引导阶段起的 uncaughtException / unhandledRejection，落盘到 app logs（P0-8）。
 installCrashHandlers();
 
+const configuredUserDataDir = String(process.env.NOMI_ELECTRON_USER_DATA_DIR || "").trim();
+if (configuredUserDataDir) {
+  // dev-electron.mjs 会按 renderer 端口分配独立 profile；这里若不真正切到该目录，
+  // Electron 仍会复用全局 userData，把旧的 Vite chunk/code cache 吃回来，出现
+  // 「主界面加载失败但纯 Vite 页面正常」这类很像灵异事件的缓存串味。
+  app.setPath("userData", configuredUserDataDir);
+}
+
 // 单实例锁（能力核前提，docs/plan/2026-06-20）：保证同一 user-data 只有一个 app 实例 = 工程文件的
 // 唯一写者，外部 CLI/MCP 才能安全地「app 开着走 RPC、关着走 headless」。隔离实例（eval/promo 用独立
 // --user-data-dir）拿到的是各自的锁，不受影响。拿不到锁 = 已有实例在跑 → 让出（聚焦老窗后退出）。
-const hasSingleInstanceLock = app.requestSingleInstanceLock();
-if (!hasSingleInstanceLock) {
-  app.quit();
-} else {
-  app.on("second-instance", () => {
-    const [existing] = BrowserWindow.getAllWindows();
-    if (existing) {
-      if (existing.isMinimized()) existing.restore();
-      existing.focus();
-    }
+// MCP stdio 模式：Claude Code / Codex 用 Nomi 自身二进制 + env NOMI_MCP_STDIO=1 把它拉起当 MCP server
+//（见 docs/plan/2026-06-24-packaged-mcp-stdio-server.md）。此模式**绝不抢单实例锁**——否则 GUI 在跑时
+// 它会被判第二实例而自杀；也不开窗、不起 IPC，只跑进程内 stdio JSON-RPC（下方 GUI whenReady 由
+// hasSingleInstanceLock=false 自动跳过）。
+const isMcpStdio = process.env.NOMI_MCP_STDIO === "1";
+const hasSingleInstanceLock = isMcpStdio ? false : app.requestSingleInstanceLock();
+if (!isMcpStdio) {
+  if (!hasSingleInstanceLock) {
+    app.quit();
+  } else {
+    app.on("second-instance", () => {
+      const [existing] = BrowserWindow.getAllWindows();
+      if (existing) {
+        if (existing.isMinimized()) existing.restore();
+        existing.focus();
+      }
+    });
+  }
+}
+if (isMcpStdio) {
+  void app.whenReady().then(startMcpStdioServer).catch((error) => {
+    process.stderr.write(`[nomi:mcp-stdio] 启动失败: ${error instanceof Error ? error.message : String(error)}\n`);
+    app.exit(1);
   });
 }
 
@@ -104,6 +127,9 @@ function registerDevDiagnostics(mainWindow: BrowserWindow, rendererUrl: string):
   if (!isDev) return;
 
   console.log(`[nomi:desktop] loading renderer: ${rendererUrl}`);
+  if (configuredUserDataDir) {
+    console.log(`[nomi:desktop] userData dir: ${configuredUserDataDir}`);
+  }
 
   mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
     console.error(`[nomi:desktop] renderer load failed (${errorCode}): ${errorDescription} ${validatedURL}`);
@@ -129,7 +155,7 @@ function registerDevDiagnostics(mainWindow: BrowserWindow, rendererUrl: string):
 function getRendererUrl(): string {
   const explicit = process.env.VITE_DEV_SERVER_URL || process.env.NOMI_RENDERER_URL;
   if (explicit) return explicit;
-  if (isDev) return "http://127.0.0.1:5173";
+  if (isDev) return "http://127.0.0.1:5273";
   return pathToFileURL(path.join(__dirname, "../dist/index.html")).toString();
 }
 
@@ -200,6 +226,13 @@ async function createWindow(): Promise<void> {
   mainWindow.webContents.on("destroyed", () => setRendererTarget(null));
 
   registerDevDiagnostics(mainWindow, rendererUrl);
+  if (isDev) {
+    try {
+      await mainWindow.webContents.session.clearCache();
+    } catch (error) {
+      console.warn("[nomi:desktop] failed to clear dev session cache:", error);
+    }
+  }
   await loadRendererWithRetry(mainWindow, rendererUrl);
 
   if (isDev) {
@@ -279,8 +312,15 @@ function registerIpc(): void {
     exportSkillPackageByName(String(dirName || ""), Date.now()),
   );
   registerSyncIpc("nomi:skill:import", (payload: unknown) => importSkillPackageToUserDir(payload));
+  registerSyncIpc("nomi:skill:delete", (dirName: unknown) => deleteUserSkill(String(dirName || "")));
 
   ipcMain.handle("nomi:model-catalog:docs:fetch", (_event, payload) => fetchModelCatalogDocs(payload));
+  // 即梦会员（dreamina CLI）：设备码登录/账户检测/安装（异步，spawn 本地 CLI）。
+  ipcMain.handle("nomi:dreamina:status", () => dreaminaStatus());
+  ipcMain.handle("nomi:dreamina:login-start", () => dreaminaLoginStart());
+  ipcMain.handle("nomi:dreamina:login-poll", (_event, deviceCode: unknown) => dreaminaLoginPoll(String(deviceCode || "")));
+  ipcMain.handle("nomi:dreamina:logout", () => dreaminaLogout());
+  ipcMain.handle("nomi:dreamina:install", () => dreaminaInstall());
   ipcMain.handle("nomi:workspace:select-folder", async () => {
     const selection = await selectWorkspaceFolder({ showOpenDialog: (options) => dialog.showOpenDialog(options) });
     if (!selection.canceled) selectedWorkspaceRoots.add(selection.rootPath);
@@ -388,9 +428,9 @@ function buildContentSecurityPolicy(): string {
     // blob:：3D 编辑器（Three.js GLTF/meshopt 解码）的 worker 经 blob 脚本 importScripts。
     return [
       ...common,
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: http://127.0.0.1:5173",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: http://127.0.0.1:5273",
       "style-src 'self' 'unsafe-inline'",
-      "connect-src 'self' nomi-local: https: ws://127.0.0.1:5173 http://127.0.0.1:5173",
+      "connect-src 'self' nomi-local: https: ws://127.0.0.1:5273 http://127.0.0.1:5273",
     ].join("; ");
   }
   return [
@@ -423,7 +463,12 @@ function registerLocalProtocol(): void {
       if (url.hostname !== "asset") {
         return new Response("Unsupported nomi-local host", { status: 404 });
       }
-      const [projectId, ...relativeParts] = decodeURIComponent(url.pathname.replace(/^\/+/, "")).split("/");
+      // 解码与 localAssetUrl 的「逐段 encodeURIComponent」对称：先按 "/" 切段、再逐段 decode。
+      // （此前先整体 decode 再 split，文件名若含被编码的 %2F 会让段边界错位 → 路径错位 404。）
+      const segments = url.pathname.replace(/^\/+/, "").split("/").map((seg) => {
+        try { return decodeURIComponent(seg); } catch { return seg; }
+      });
+      const [projectId, ...relativeParts] = segments;
       const relativePath = relativeParts.join("/");
       const filePath = resolveProjectRelativePath(projectId, relativePath);
       const fileResponse = await net.fetch(pathToFileURL(filePath).toString());

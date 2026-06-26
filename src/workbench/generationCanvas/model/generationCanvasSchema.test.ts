@@ -85,4 +85,41 @@ describe('generationCanvasSchema Phase E.2 groups', () => {
     })
     expect(legacy.contentJson).toBeUndefined()
   })
+
+  it('preserves scene3d trajectory data in node meta', () => {
+    const parsed = generationCanvasNodeSchema.parse({
+      id: 'scene3d-1',
+      kind: 'scene3d',
+      title: '3D 场景',
+      position: { x: 0, y: 0 },
+      categoryId: 'shots',
+      meta: {
+        scene3dState: {
+          trajectories: [
+            {
+              id: 'trajectory-1',
+              name: '轨迹1',
+              points: [
+                { id: 'point-1', position: [0, 0, 0] },
+                { id: 'point-2', position: [2, 0, 1] },
+              ],
+              curveControls: [{ segmentStartPointId: 'point-1', position: [1, 0, 1] }],
+              tension: 0.5,
+              closed: false,
+              color: '#ef4444',
+            },
+          ],
+          trajectoryBindings: [],
+          trajectoryGroups: [{ id: 'group-1', name: '组1', trajectoryIds: ['trajectory-1'] }],
+          sceneTimeline: { totalDuration: 3 },
+        },
+      },
+    })
+
+    expect(parsed.meta?.scene3dState).toMatchObject({
+      trajectories: [expect.objectContaining({ id: 'trajectory-1' })],
+      trajectoryGroups: [expect.objectContaining({ id: 'group-1' })],
+      sceneTimeline: { totalDuration: 3 },
+    })
+  })
 })

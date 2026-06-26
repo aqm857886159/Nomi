@@ -6,6 +6,7 @@
  * 不依赖 store；所有数据由调用方传入，便于将来虚拟化或换 dnd 后端。
  */
 import React from 'react'
+import { cn } from '../../../utils/cn'
 import type { NodeGroup } from '../model/generationCanvasTypes'
 
 export type CanvasGroupBox = {
@@ -37,7 +38,14 @@ export default function GroupFrame({ box, onPointerDown }: GroupFrameProps): JSX
   const groupColor = box.group.color || undefined
   return (
     <div
-      className="generation-canvas-v2__group-box"
+      className={cn(
+        'generation-canvas-v2__group-box',
+        'absolute pointer-events-auto cursor-grab select-none rounded-nomi-lg',
+        'border-[1.5px] border-[color-mix(in_srgb,var(--nomi-accent)_55%,transparent)]',
+        'bg-[color-mix(in_srgb,var(--nomi-accent)_8%,transparent)]',
+        'shadow-[inset_0_0_0_1px_var(--workbench-frame-ring),0_14px_34px_rgba(18,24,38,0.055)]',
+        'active:cursor-grabbing',
+      )}
       style={{
         left: box.left,
         top: box.top,
@@ -53,11 +61,18 @@ export default function GroupFrame({ box, onPointerDown }: GroupFrameProps): JSX
       onPointerDown={(event) => onPointerDown(event, box.group.id)}
     >
       <div
-        className="generation-canvas-v2__group-box-label"
+        className={cn(
+          'generation-canvas-v2__group-box-label',
+          'absolute left-3 top-2 inline-flex min-h-[22px] max-w-[calc(100%-24px)] items-center gap-2',
+          'rounded-full bg-nomi-accent px-[9px] py-[3px] text-micro font-[650] leading-[1.25] text-nomi-paper',
+          'pointer-events-auto cursor-grab select-none shadow-[0_8px_18px_rgba(18,24,38,0.12)] active:cursor-grabbing',
+        )}
         style={{ backgroundColor: groupColor }}
       >
-        <span>{box.group.name}</span>
-        <span>{box.memberCount}</span>
+        <span className="min-w-0 truncate">{box.group.name}</span>
+        <span className="inline-grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[var(--workbench-veil-chip)] px-[5px] text-micro">
+          {box.memberCount}
+        </span>
       </div>
     </div>
   )
@@ -70,7 +85,7 @@ export type GroupFrameListProps = {
 
 export function GroupFrameList({ boxes, onPointerDown }: GroupFrameListProps): JSX.Element {
   return (
-    <div className="generation-canvas-v2__group-boxes">
+    <div className="generation-canvas-v2__group-boxes pointer-events-none absolute inset-0 z-0">
       {boxes.map((box) => (
         <GroupFrame key={box.group.id} box={box} onPointerDown={onPointerDown} />
       ))}

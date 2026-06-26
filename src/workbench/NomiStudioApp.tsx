@@ -23,7 +23,10 @@ import { setDesktopActiveProjectId } from "../desktop/activeProject";
 import { getDesktopBridge } from "../desktop/bridge";
 import { useHasTextModel } from "./library/useHasTextModel";
 import { SplashIntro } from "./onboarding/SplashIntro";
-import { hasSeenSplash, markSplashSeen } from "./onboarding/onboardingState";
+import { hasSeenSplash, markSplashSeen, hasSeenJourneyTour } from "./onboarding/onboardingState";
+import { JourneyTourController } from "./onboarding/JourneyTourController";
+import { useJourneyTourStore } from "./onboarding/journeyTourStore";
+import { DEMO_PROJECT_NAME, DEMO_PROJECT_SEED_KEY } from "./onboarding/demoProject";
 import { buildStudioUrl } from "../utils/appRoutes";
 import { openWorkspaceFromLibrary } from "./library/openWorkspaceFlow";
 import { lazyWithChunkBoundary } from "../ui/chunkBoundary";
@@ -58,6 +61,11 @@ const AssetLibraryPanel = lazyWithChunkBoundary("素材库", () =>
 const PromptLibraryPanel = lazyWithChunkBoundary("提示词库", () =>
     import("./promptLibrary/PromptLibraryPanel").then((module) => ({
         default: module.PromptLibraryPanel,
+    })),
+);
+const SkillLibraryPanel = lazyWithChunkBoundary("技能库", () =>
+    import("./skillLibrary/SkillLibraryPanel").then((module) => ({
+        default: module.SkillLibraryPanel,
     })),
 );
 const GenerationCanvas = lazyWithChunkBoundary(
@@ -112,6 +120,7 @@ export default function NomiStudioApp(): JSX.Element {
     const [modelCatalogOpened, setModelCatalogOpened] = React.useState(false);
     const [assetLibraryOpened, setAssetLibraryOpened] = React.useState(false);
     const [promptLibraryOpened, setPromptLibraryOpened] = React.useState(false);
+    const [skillLibraryOpened, setSkillLibraryOpened] = React.useState(false);
     // 首启开屏：仅首次未看过时自动放；看过后可经项目库「看看 Nomi」重看。
     const [splashDone, setSplashDone] = React.useState(() => hasSeenSplash());
     const { hasTextModel, refresh: refreshModelStatus } = useHasTextModel();
@@ -133,14 +142,6 @@ export default function NomiStudioApp(): JSX.Element {
     const activeProjectPersistenceKey = activeProject
         ? `${activeProject.id}\u0000${activeProject.name}`
         : "";
-
-    React.useEffect(() => {
-        document.documentElement.dataset.theme = "light";
-        document.documentElement.setAttribute(
-            "data-mantine-color-scheme",
-            "light",
-        );
-    }, []);
 
     React.useEffect(() => {
         const handleOpenModelCatalog = () => setModelCatalogOpened(true);
@@ -178,6 +179,16 @@ export default function NomiStudioApp(): JSX.Element {
             window.removeEventListener(
                 "nomi-open-prompt-library",
                 handleOpenPromptLibrary,
+            );
+    }, []);
+
+    React.useEffect(() => {
+        const handleOpenSkillLibrary = () => setSkillLibraryOpened(true);
+        window.addEventListener("nomi-open-skill-library", handleOpenSkillLibrary);
+        return () =>
+            window.removeEventListener(
+                "nomi-open-skill-library",
+                handleOpenSkillLibrary,
             );
     }, []);
 
@@ -236,6 +247,9 @@ export default function NomiStudioApp(): JSX.Element {
                     void loadProjectConversations(hydrated.id);
                 }
                 activeProjectIdRef.current = hydrated.id;
+                // 同步喂全局（不等 effect 滞后一拍）：切项目瞬间拖图上传时 resolveProjectId 取的就是新项目，
+                // 不再误写进旧项目目录 / 编错 projectId 致渲染 404（C2 修，对齐 activeProjectIdRef 同步口径）。
+                setDesktopActiveProjectId(hydrated.id);
                 setActiveProject(hydrated);
                 setView("studio");
                 const migrationDiag =
@@ -333,6 +347,22 @@ export default function NomiStudioApp(): JSX.Element {
         });
     }, [createAndOpenProject]);
 
+    // 引导旅途：建一个 seedKey 隔离的示例项目（永不 GC、不脏用户真项目）→ 进 studio →
+    // 激活 tour，JourneyTourController 用预置数据回放整条流水线。
+    const startJourneyTour = useJourneyTourStore((s) => s.start);
+    const playJourneyTour = React.useCallback(() => {
+        void createAndOpenProject({
+            workspaceMode: "creation",
+            name: DEMO_PROJECT_NAME,
+            seedKey: DEMO_PROJECT_SEED_KEY,
+        })
+            .then(() => startJourneyTour())
+            .catch((error) => {
+                console.error("journey tour project error", error);
+                toast("打开示例项目失败，请检查本地磁盘权限", "error");
+            });
+    }, [createAndOpenProject, startJourneyTour]);
+
     // 接完模型（目录变更广播）→ 状态重查，让缺模型状态条/弱入口即时翻面
     // （面板还开着时也更新，不必等用户关面板）。
     React.useEffect(() => {
@@ -371,6 +401,7 @@ export default function NomiStudioApp(): JSX.Element {
                 deleteLocalProject(project.id);
                 if (activeProjectIdRef.current === project.id) {
                     activeProjectIdRef.current = null;
+                    setDesktopActiveProjectId(null);
                     setActiveProject(null);
                     setView("library");
                     navigate(buildStudioUrl(), { replace: true });
@@ -400,6 +431,7 @@ export default function NomiStudioApp(): JSX.Element {
                 if (cancelled) return;
                 if (hydrated) {
                     activeProjectIdRef.current = hydrated.id;
+                    setDesktopActiveProjectId(hydrated.id);
                     setActiveProject(hydrated);
                     setView("studio");
                     navigate(buildStudioUrl(hydrated.id), { replace: true });
@@ -530,6 +562,8 @@ export default function NomiStudioApp(): JSX.Element {
                     onOpenFolder={() => void openWorkspaceFolder()}
                     onRevealProjectFolder={revealProjectFolder}
                     onOpenModelCatalog={() => setModelCatalogOpened(true)}
+                    onPlayJourneyTour={playJourneyTour}
+                    journeyTourSeen={hasSeenJourneyTour()}
                     onReplaySplash={() => setSplashDone(false)}
                     hasTextModel={hasTextModel}
                 />
@@ -549,6 +583,11 @@ export default function NomiStudioApp(): JSX.Element {
                         opened={modelCatalogOpened}
                         onClose={closeModelCatalog}
                     />
+                </React.Suspense>
+                {/* 付费确认卡提全局：外部 MCP 想在「非当前项目」生成时，用户停在项目库首页也能弹卡确认
+                    （治静默黑洞，用户拍板 A）。同一全局 store，库/studio 任一时刻只一个分支渲染、不双弹。 */}
+                <React.Suspense fallback={null}>
+                    <SpendConfirmDialog />
                 </React.Suspense>
                 <ConfirmDialogHost />
             </>
@@ -608,7 +647,16 @@ export default function NomiStudioApp(): JSX.Element {
                 />
             </React.Suspense>
 
+            <React.Suspense fallback={null}>
+                <SkillLibraryPanel
+                    opened={skillLibraryOpened}
+                    onClose={() => setSkillLibraryOpened(false)}
+                />
+            </React.Suspense>
+
             <FilePreviewPanel />
+
+            <JourneyTourController onStartReal={newProject} />
 
             <ConfirmDialogHost />
         </div>

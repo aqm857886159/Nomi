@@ -1,8 +1,7 @@
 import { createScene3DCameraId, createScene3DObjectId } from './scene3dSerializer'
 import type { Scene3DCamera, Scene3DObject, Scene3DVector3 } from './scene3dTypes'
 import { CLIPBOARD_PASTE_OFFSET } from './scene3dConstants'
-import { cameraLookAtRotation } from './scene3dMath'
-import { clonePoseValue } from './scene3dMannequinPose'
+import { cameraLookAtRotation, clonePoseValue } from './scene3dMath'
 
 export function offsetScene3DVector(value: Scene3DVector3, count: number): Scene3DVector3 {
   return [

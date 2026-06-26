@@ -58,12 +58,33 @@ function inferRenderKind(categoryId: string | undefined): NodeRenderKind | undef
   return DEFAULT_RENDER_KIND_BY_CATEGORY[categoryId]
 }
 
+function recordNeedsV51ToV60Migration(nodes: readonly GenerationCanvasNode[]): boolean {
+  const derivedFromCandidates: GenerationCanvasNode[] = []
+  for (const node of nodes) {
+    if (!node.renderKind && inferRenderKind(node.categoryId)) return true
+    if (node.categoryId === 'shots' && typeof node.shotIndex !== 'number') return true
+    if (node.derivedFrom && !node.regeneratedFrom) derivedFromCandidates.push(node)
+  }
+  if (!derivedFromCandidates.length) return false
+
+  const categoryById = new Map<string, string | undefined>()
+  for (const node of nodes) categoryById.set(node.id, node.categoryId)
+  for (const node of derivedFromCandidates) {
+    const sourceCategoryId = categoryById.get(node.derivedFrom || '')
+    if (!sourceCategoryId || sourceCategoryId === node.categoryId) return true
+  }
+  return false
+}
+
 export function migrateProjectV51ToV60(record: WorkbenchProjectRecordV1): {
   record: WorkbenchProjectRecordV1
   diagnostic: V51ToV60Diagnostic
 } {
   const canvas = record.payload?.generationCanvas
   if (!canvas || !Array.isArray(canvas.nodes) || canvas.nodes.length === 0) {
+    return { record, diagnostic: EMPTY_DIAGNOSTIC }
+  }
+  if (!recordNeedsV51ToV60Migration(canvas.nodes as GenerationCanvasNode[])) {
     return { record, diagnostic: EMPTY_DIAGNOSTIC }
   }
 
@@ -145,7 +166,6 @@ export function migrateProjectV51ToV60(record: WorkbenchProjectRecordV1): {
 
   const anyChange =
     renderKindBackfilled +
-      derivedFromKeptCrossCategory +
       derivedFromMovedToRegeneratedFrom +
       derivedFromClearedOrphan +
       shotIndicesAssigned +
@@ -153,7 +173,15 @@ export function migrateProjectV51ToV60(record: WorkbenchProjectRecordV1): {
       0 || referenceMetaChanged
 
   if (!anyChange) {
-    return { record, diagnostic: EMPTY_DIAGNOSTIC }
+    return {
+      record,
+      diagnostic: derivedFromKeptCrossCategory > 0
+        ? {
+            ...EMPTY_DIAGNOSTIC,
+            derivedFromKeptCrossCategory,
+          }
+        : EMPTY_DIAGNOSTIC,
+    }
   }
 
   const upgradedRecord: WorkbenchProjectRecordV1 = {

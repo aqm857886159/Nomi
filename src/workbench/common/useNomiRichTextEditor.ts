@@ -77,8 +77,16 @@ export function useNomiRichTextEditor(options: {
     if (!isEditorReady(editor)) return
     const nextJson = JSON.stringify(content)
     if (!nextJson || nextJson === lastEditorJsonRef.current) return
+    const previousSelection = editor.state.selection
     lastEditorJsonRef.current = nextJson
     editor.commands.setContent(content)
+    if (editor.isFocused) {
+      const maxPosition = editor.state.doc.content.size
+      editor.commands.setTextSelection({
+        from: Math.min(previousSelection.from, maxPosition),
+        to: Math.min(previousSelection.to, maxPosition),
+      })
+    }
   }, [editor, content])
 
   React.useEffect(() => {

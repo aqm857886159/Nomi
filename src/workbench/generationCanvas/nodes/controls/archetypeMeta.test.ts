@@ -15,8 +15,10 @@ import {
   currentArchetypeVariant,
   ensureArchetypeNodeMeta,
   hasArchetypeArrayReferences,
+  mergeOrderedReferenceImageUrls,
   modeHasCharacterSlot,
   normalizeArchetypeVariantMeta,
+  orderedSentImageReferenceUrls,
 } from './archetypeMeta'
 
 // C2b：模式分段切换 + 命名空间 meta + flat 帧键投影（M2 互斥）的核心逻辑钉死。
@@ -186,10 +188,12 @@ describe('C3 全能参考 — 数组 input 构建（M2 互斥含数组槽，snak
 })
 
 describe('切片1 — 画布边参考图喂进档案 image 槽（修边投递裂开）', () => {
-  it('omni：边参考图并入 reference_image_urls，与 meta 去重保序', () => {
+  // option 2（2026-06-25 用户拍板）：合并顺序统一成「连线在前、上传在后」——与面板编号①②③、@ 候选、
+  // @ 投影 character{N} 同口径，杜绝「面板①与模型 character1 不是同一张」。
+  it('omni：边参考图并入 reference_image_urls，连线在前+上传去重保序', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'omni' }, referenceImageUrls: ['c1.png', 'c2.png'] }
     expect(buildArchetypeInputParams(meta, SEEDANCE, { referenceImages: ['c2.png', 'e1.png'] })).toEqual({
-      reference_image_urls: ['c1.png', 'c2.png', 'e1.png'], // c2 去重，e1 追加在 meta 之后
+      reference_image_urls: ['c2.png', 'e1.png', 'c1.png'], // 边 c2/e1 在前，上传 c1 追加，c2 去重
       model: 'bytedance/seedance-2',
     })
   })
@@ -200,10 +204,10 @@ describe('切片1 — 画布边参考图喂进档案 image 槽（修边投递裂
       model: 'bytedance/seedance-2',
     })
   })
-  it('截到 slot.max（omni image ≤9）：meta 8 + 边 3 → 9，封死 vendor 422', () => {
+  it('截到 slot.max（omni image ≤9）：边 3 + meta 8 → 9（连线在前优先保留），封死 vendor 422', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'omni' }, referenceImageUrls: ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8'] }
     const result = buildArchetypeInputParams(meta, SEEDANCE, { referenceImages: ['e1', 'e2', 'e3'] })
-    expect(result.reference_image_urls).toEqual(['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'e1'])
+    expect(result.reference_image_urls).toEqual(['e1', 'e2', 'e3', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6'])
   })
   it('图片边不污染 video/audio 槽', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'omni' }, referenceVideoUrls: ['v1.mp4'] }
@@ -216,6 +220,48 @@ describe('切片1 — 画布边参考图喂进档案 image 槽（修边投递裂
   it('M2：首帧模式无 image_ref 槽，边参考图不泄漏进 body', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'first' }, firstFrameUrl: 'F.png' }
     expect(buildArchetypeInputParams(meta, SEEDANCE, { referenceImages: ['e1.png'] })).toEqual({ first_frame_url: 'F.png', model: 'bytedance/seedance-2' })
+  })
+})
+
+describe('D1 — 切变体夹取越界参数值（4k→fast 不再漏发被供应商打回）', () => {
+  const APIMART = getArchetypeById('seedance-2-apimart')!
+  it('标准(含4k) → 快速(仅480/720)：存量 4k 夹回默认 720p', () => {
+    const meta = { archetype: { id: 'seedance-2-apimart', modeId: 't2v', variantId: 'standard' }, resolution: '4k', size: '21:9' }
+    const next = applyArchetypeVariantSwitch(meta, APIMART, 'fast')
+    expect(next.resolution).toBe('720p') // 4k 不在 fast 选项内 → 夹回 defaultValue
+    expect((next.archetype as { variantId: string }).variantId).toBe('fast')
+    expect(next.size).toBe('21:9') // size 在 fast 仍允许（同选项）→ 不动
+  })
+  it('标准 → 真人(含1080,无4k)：1080p 保留、4k 才夹回', () => {
+    expect(applyArchetypeVariantSwitch({ archetype: { id: 'seedance-2-apimart', modeId: 't2v', variantId: 'standard' }, resolution: '1080p' }, APIMART, 'face').resolution).toBe('1080p')
+    expect(applyArchetypeVariantSwitch({ archetype: { id: 'seedance-2-apimart', modeId: 't2v', variantId: 'standard' }, resolution: '4k' }, APIMART, 'face').resolution).toBe('720p')
+  })
+  it('切回标准(含全集)：不夹取（4k 合法保留）', () => {
+    expect(applyArchetypeVariantSwitch({ archetype: { id: 'seedance-2-apimart', modeId: 't2v', variantId: 'fast' }, resolution: '720p' }, APIMART, 'standard').resolution).toBe('720p')
+  })
+})
+
+describe('option 2 单源 — 「有序参考图」连线在前、上传在后（面板/@/发送共用）', () => {
+  it('mergeOrderedReferenceImageUrls：边在前、上传在后、去重、截到 maxCap', () => {
+    expect(mergeOrderedReferenceImageUrls(['e1', 'e2'], ['u1', 'u2'], 9)).toEqual(['e1', 'e2', 'u1', 'u2'])
+    expect(mergeOrderedReferenceImageUrls(['e1', 'u1'], ['u1', 'u2'], 9)).toEqual(['e1', 'u1', 'u2']) // u1 去重
+    expect(mergeOrderedReferenceImageUrls(['e1', 'e2', 'e3'], ['u1', 'u2'], 4)).toEqual(['e1', 'e2', 'e3', 'u1']) // 截到 4，连线优先
+    expect(mergeOrderedReferenceImageUrls([], ['u1'], 0)).toEqual(['u1']) // maxCap≤0 不截
+    expect(mergeOrderedReferenceImageUrls([' ', 'e1', ''], ['u1'], 9)).toEqual(['e1', 'u1']) // 空白过滤
+  })
+
+  it('orderedSentImageReferenceUrls = buildArchetypeInputParams 给 image 槽的同一份列表（character{N} 编号锚点）', () => {
+    const meta = { archetype: { id: 'seedance-2', modeId: 'omni' }, referenceImageUrls: ['u1.png', 'u2.png'] }
+    const edges = ['e1.png', 'u2.png']
+    const ordered = orderedSentImageReferenceUrls(meta, SEEDANCE, edges)
+    expect(ordered).toEqual(['e1.png', 'u2.png', 'u1.png']) // 连线在前、u2 去重、上传 u1 追加
+    // 与实际发送的 reference_image_urls 逐位一致——@ 投影 character{N} 才不会张冠李戴。
+    expect(buildArchetypeInputParams(meta, SEEDANCE, { referenceImages: edges }).reference_image_urls).toEqual(ordered)
+  })
+
+  it('当前模式无 image 数组槽（首帧模式）→ []（@ 投影回退 no-op）', () => {
+    const meta = { archetype: { id: 'seedance-2', modeId: 'first' }, firstFrameUrl: 'F.png' }
+    expect(orderedSentImageReferenceUrls(meta, SEEDANCE, ['e1.png'])).toEqual([])
   })
 })
 
@@ -405,10 +451,11 @@ describe('变体轴 — currentArchetypeVariant 回落', () => {
       { id: 'face', label: '真人' },
       { id: 'fast-face', label: '真人快速' },
     ])
-    // kie Seedance 合并后 2 变体。
+    // kie Seedance 合并后 3 变体（标准 / 快速 / Mini）。
     expect(archetypeVariantChoices(getArchetypeById('seedance-2')!)).toEqual([
       { id: 'standard', label: '标准' },
       { id: 'fast', label: '快速' },
+      { id: 'mini', label: 'Mini' },
     ])
     // 无 variants → 空（UI 不显示该段）。
     expect(archetypeVariantChoices(getArchetypeById('happyhorse')!)).toEqual([])
@@ -457,17 +504,20 @@ describe('变体轴 — params 收窄（specializeArchetypeForVariant）', () =>
     const res = ff.modes[0].params.find((p) => p.key === 'resolution')
     expect(res?.options.map((o) => o.value)).toEqual(['480p', '720p'])
   })
-  it('standard / face 变体：resolution 保留 480/720/1080', () => {
-    for (const variantId of ['standard', 'face']) {
-      const arch = specializeArchetypeForVariant(SEEDANCE_APIMART, variantId)
-      const res = arch.modes[0].params.find((p) => p.key === 'resolution')
-      expect(res?.options.map((o) => o.value)).toEqual(['480p', '720p', '1080p'])
-    }
+  it('standard 变体：resolution 含 4k（基础档独占的 2026-06 4K 升级）', () => {
+    const arch = specializeArchetypeForVariant(SEEDANCE_APIMART, 'standard')
+    const res = arch.modes[0].params.find((p) => p.key === 'resolution')
+    expect(res?.options.map((o) => o.value)).toEqual(['480p', '720p', '1080p', '4k'])
   })
-  it('无 variantId → 取默认 standard，不收窄', () => {
-    const arch = specializeArchetypeForVariant(SEEDANCE_APIMART, undefined)
+  it('face 变体：保留 1080p、去 4k（apimart 约束：4k 仅基础档）', () => {
+    const arch = specializeArchetypeForVariant(SEEDANCE_APIMART, 'face')
     const res = arch.modes[0].params.find((p) => p.key === 'resolution')
     expect(res?.options.map((o) => o.value)).toEqual(['480p', '720p', '1080p'])
+  })
+  it('无 variantId → 取默认 standard（含 4k）', () => {
+    const arch = specializeArchetypeForVariant(SEEDANCE_APIMART, undefined)
+    const res = arch.modes[0].params.find((p) => p.key === 'resolution')
+    expect(res?.options.map((o) => o.value)).toEqual(['480p', '720p', '1080p', '4k'])
   })
 })
 
@@ -606,5 +656,61 @@ describe('apimart 参数补全 — fixedParams / flat 合并 / 变体 model', ()
     const dur = SORA.modes[0].params.find((p) => p.key === 'duration')!
     expect(dur.type).toBe('select')
     expect(dur.options.map((o) => o.value)).toEqual([4, 8, 12, 16, 20])
+  })
+})
+
+describe('火山方舟 Seedance — 档案投影', () => {
+  const VOLC = getArchetypeById('volcengine-seedance-2')!
+
+  it('四模式：文生 / 首帧 / 首尾帧 / 全能参考；变体为标准/Fast/Mini', () => {
+    expect(VOLC.modes.map((m) => m.id)).toEqual(['t2v', 'first', 'firstlast', 'omni'])
+    expect(archetypeVariantChoices(VOLC)).toEqual([
+      { id: 'standard', label: '标准' },
+      { id: 'fast', label: '快速' },
+      { id: 'mini', label: 'Mini' },
+    ])
+  })
+
+  it('首帧模式：ratio 字段 + 默认变体 model 使用火山官方 Model ID', () => {
+    const meta = { archetype: { id: 'volcengine-seedance-2', modeId: 'first' }, firstFrameUrl: 'F.png' }
+    expect(buildArchetypeInputParams(meta, VOLC)).toEqual({
+      volcengine_first_image_content: { type: 'image_url', image_url: { url: 'F.png' }, role: 'first_frame' },
+      model: 'doubao-seedance-2-0-260128',
+    })
+    expect(VOLC.modes[0].params.map((p) => p.key)).toEqual(['ratio', 'resolution', 'duration', 'generate_audio'])
+  })
+
+  it('fast 变体：out.model 发 fast Model ID', () => {
+    const meta = { archetype: { id: 'volcengine-seedance-2', modeId: 't2v', variantId: 'fast' } }
+    expect(buildArchetypeInputParams(meta, VOLC).model).toBe('doubao-seedance-2-0-fast-260128')
+  })
+
+  it('mini 变体：out.model 发 mini Model ID', () => {
+    const meta = { archetype: { id: 'volcengine-seedance-2', modeId: 't2v', variantId: 'mini' } }
+    expect(buildArchetypeInputParams(meta, VOLC).model).toBe('doubao-seedance-2-0-mini-260615')
+  })
+
+  it('首尾帧：图像 item 带 first_frame / last_frame role', () => {
+    const meta = { archetype: { id: 'volcengine-seedance-2', modeId: 'firstlast' }, firstFrameUrl: 'F.png', lastFrameUrl: 'L.png' }
+    expect(buildArchetypeInputParams(meta, VOLC)).toEqual({
+      volcengine_first_role_image_content: { type: 'image_url', image_url: { url: 'F.png' }, role: 'first_frame' },
+      volcengine_last_role_image_content: { type: 'image_url', image_url: { url: 'L.png' }, role: 'last_frame' },
+      model: 'doubao-seedance-2-0-260128',
+    })
+  })
+
+  it('全能参考：数组参考转成火山 content item 数组，供模板扁平展开', () => {
+    const meta = {
+      archetype: { id: 'volcengine-seedance-2', modeId: 'omni' },
+      referenceImageUrls: ['c1.png'],
+      referenceVideoUrls: ['v1.mp4'],
+      referenceAudioUrls: ['a1.mp3'],
+    }
+    expect(buildArchetypeInputParams(meta, VOLC)).toEqual({
+      volcengine_image_contents: [{ type: 'image_url', image_url: { url: 'c1.png' }, role: 'reference_image' }],
+      volcengine_video_contents: [{ type: 'video_url', video_url: { url: 'v1.mp4' } }],
+      volcengine_audio_contents: [{ type: 'audio_url', audio_url: { url: 'a1.mp3' } }],
+      model: 'doubao-seedance-2-0-260128',
+    })
   })
 })

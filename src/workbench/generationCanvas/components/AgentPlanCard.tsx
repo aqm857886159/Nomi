@@ -61,8 +61,8 @@ function PendingChip({ label, value }: { label?: string; value: string }): JSX.E
       )}
     >
       {label ? <span className={cn('text-micro text-nomi-accent/70')}>{label}</span> : null}
+      {/* 只如实展示 AI 配的值(改值去节点/画布)——曾有假下拉 ▾ 暗示可点开改选项实则无交互,已删(诚实)。 */}
       <span className={cn('truncate max-w-[120px]')}>{value}</span>
-      <span className={cn('text-micro text-nomi-accent/60')}>▾</span>
     </span>
   )
 }
@@ -332,22 +332,13 @@ function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPl
         </ol>
       )}
 
-      <div className={cn('flex items-center justify-end gap-2')}>
-        <WorkbenchButton
-          className={cn(
-            'h-8 px-3 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-ink-80 text-body-sm cursor-pointer hover:bg-nomi-ink-05',
-          )}
-          onClick={handleRejectAll}
-        >
+      {/* flex-wrap + shrink-0:窄面板放不下时整组优雅换行,不挤压(对齐 committed/deviation 几何修)。
+          按钮走设计系统 variant(default/primary)+size md(=h-8,零尺寸变化),不再手搓 className。 */}
+      <div className={cn('flex flex-wrap items-center justify-end gap-2')}>
+        <WorkbenchButton className={cn('shrink-0')} variant="default" size="md" onClick={handleRejectAll}>
           全部拒绝
         </WorkbenchButton>
-        <WorkbenchButton
-          className={cn(
-            'h-8 px-3 rounded-nomi-sm border-0 bg-nomi-ink text-nomi-paper text-body-sm font-medium cursor-pointer hover:bg-nomi-accent',
-          )}
-          data-plan-confirm-all="true"
-          onClick={handleConfirmAll}
-        >
+        <WorkbenchButton className={cn('shrink-0')} variant="primary" size="md" data-plan-confirm-all="true" onClick={handleConfirmAll}>
           确认全部
         </WorkbenchButton>
       </div>

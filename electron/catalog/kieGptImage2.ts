@@ -63,6 +63,8 @@ export const GPT_IMAGE_2_T2I_CREATE_OP: HttpOperation = {
     input: {
       prompt: "{{request.prompt}}",
       aspect_ratio: "{{request.params.aspect_ratio}}",
+      // 铁律：resolution 是 gpt-image-2 本身的能力（kie 契约 1K/2K/4K），进基础层全站一致（非 apimart 专属）。
+      resolution: "{{request.params.resolution}}",
     },
   },
 };
@@ -81,6 +83,7 @@ export const GPT_IMAGE_2_I2I_CREATE_OP: HttpOperation = {
       prompt: "{{request.prompt}}",
       input_urls: "{{request.params.input_urls}}",
       aspect_ratio: "{{request.params.aspect_ratio}}",
+      resolution: "{{request.params.resolution}}",
     },
   },
 };
@@ -114,7 +117,9 @@ export function isBrokenKieImageMapping(mapping: {
 }): boolean {
   if (mapping.vendorKey !== "kie" || mapping.taskKind !== "text_to_image") return false;
   const input = (mapping.create?.body as { input?: Record<string, unknown> } | undefined)?.input;
-  const hasVideoParam = Boolean(input && ("duration" in input || "resolution" in input));
+  // 视频形状的唯一可靠标志是 duration —— resolution 现在是 gpt-image-2 的合法图像参数（铁律：能力进基础层），
+  // 不再当作「坏视频 mapping」标志（否则会把刚补好 resolution 的正确 mapping 误判 repair）。
+  const hasVideoParam = Boolean(input && "duration" in input);
   const rm = mapping.query?.response_mapping || {};
   const readsVideo = !rm.image_url && Boolean(rm.video_url);
   return hasVideoParam || readsVideo;

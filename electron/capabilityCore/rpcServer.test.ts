@@ -12,11 +12,27 @@ let mockedUserDataRoot = ''
 let server: RpcServerHandle | null = null
 let token = ''
 let openProjectId = ''
+// 模拟渲染层在线 + 付费确认应答（测 hybrid 网关：窗口活着但项目没在前台）。
+let rendererUp = false
+let spendReply: { confirmed?: boolean } = { confirmed: true }
+let rendererOps: string[] = []
+// 捕获最后一次 runTask 请求,断言 grantId 是否随请求下传(=付费确认是否真路由+铸令牌)。
+let lastRunTaskReq: { extras?: Record<string, unknown> } | null = null
 
 vi.mock('electron', () => ({
   app: {
     getPath: (name: string) => (name === 'documents' ? mockedDocumentsRoot : mockedUserDataRoot),
     getAppPath: () => process.cwd(),
+  },
+}))
+
+vi.mock('./rendererBridge', () => ({
+  isRendererAvailable: () => rendererUp,
+  requestRenderer: async (op: string) => {
+    rendererOps.push(op)
+    if (op === 'spend.confirm') return spendReply
+    // hybrid 网关读写应走盘,绝不该把 canvas.* 转给渲染层——命中即测试失败。
+    throw new Error(`hybrid 不应调用渲染层 op: ${op}`)
   },
 }))
 
@@ -40,9 +56,16 @@ beforeEach(async () => {
   mockedUserDataRoot = makeTempDir('nomi-rpc-user-data-')
   delete process.env.NOMI_PROJECTS_DIR
   openProjectId = ''
+  rendererUp = false
+  spendReply = { confirmed: true }
+  rendererOps = []
+  lastRunTaskReq = null
   token = ensureToken()
   server = await startRpcServer({
-    runTask: async () => ({ id: 't', status: 'succeeded', assets: [{ type: 'image', url: 'nomi-local://x' }] }),
+    runTask: async (req) => {
+      lastRunTaskReq = req.request as { extras?: Record<string, unknown> }
+      return { id: 't', status: 'succeeded', assets: [{ type: 'image', url: 'nomi-local://x' }] }
+    },
     isProjectOpen: (id) => Boolean(openProjectId) && id === openProjectId,
   })
 })
@@ -102,6 +125,33 @@ describe('capabilityCore/rpcServer', () => {
     expect((added.body.result as { ids: string[] }).ids).toHaveLength(1)
     const read = await rpc('canvas.read', { projectId })
     expect((read.body.result as { nodes: unknown[] }).nodes).toHaveLength(1)
+  })
+
+  it('hybrid：窗口在线但项目没在前台 → 付费确认弹全局卡(经渲染层)，确认后铸令牌随 runTask 下传', async () => {
+    // 治根：外部 MCP 生成到「非当前打开的项目」时，旧逻辑走磁盘网关 env 闸 → 秒退未确认(静默黑洞)。
+    // 新逻辑：窗口在线 + 项目没在前台 → hybrid 网关 → confirmSpend 走渲染层弹卡。
+    rendererUp = true
+    spendReply = { confirmed: true }
+    const created = await rpc('project.create', { name: '后台项目' })
+    const projectId = (created.body.result as { id: string }).id
+    // 注意:不设 openProjectId → 该项目不在前台。
+    const gen = await rpc('generate', { projectId, intent: 'image', prompt: 'robot', vendor: 'v', modelKey: 'm' })
+    expect(gen.body.ok).toBe(true)
+    // 付费确认确实经渲染层(全局卡)路由,canvas 读写没走渲染层(hybrid 读写走盘)。
+    expect(rendererOps).toContain('spend.confirm')
+    expect(rendererOps.filter((op) => op.startsWith('canvas'))).toHaveLength(0)
+    // 真人(模拟)确认 → 铸了令牌随请求下传 runTask(主进程硬闸据此核验消费)。
+    expect(lastRunTaskReq?.extras?.grantId).toBeTruthy()
+  })
+
+  it('安全：付费确认被拒(confirmed:false) → 不铸令牌,请求不带 grantId(runTask 硬闸会拦)', async () => {
+    rendererUp = true
+    spendReply = { confirmed: false }
+    const created = await rpc('project.create', { name: '后台项目-拒绝' })
+    const projectId = (created.body.result as { id: string }).id
+    await rpc('generate', { projectId, intent: 'image', prompt: 'robot', vendor: 'v', modelKey: 'm' })
+    expect(rendererOps).toContain('spend.confirm')
+    expect(lastRunTaskReq?.extras?.grantId).toBeUndefined()
   })
 
   it('未知方法 → 404', async () => {

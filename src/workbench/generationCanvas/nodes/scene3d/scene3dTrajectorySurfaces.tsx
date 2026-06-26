@@ -1,10 +1,10 @@
 import React from 'react'
 import { IconCamera, IconRoute, IconSettings } from '@tabler/icons-react'
+import { toast } from '../../../../ui/toast'
 import type { Scene3DCamera, Scene3DObject, Scene3DSelection, Scene3DState } from './scene3dTypes'
 import type { Scene3DTrajectoryEditing } from './useScene3DTrajectoryEditing'
 import { PanelButton } from './scene3dToolbar'
 import { PropertyPanel } from './scene3dInspector'
-import { TrajectoryRenderer } from './trajectory/TrajectoryRenderer'
 import { TrajectoryPanel } from './trajectory/TrajectoryPanel'
 import { TrajectoryTimeline } from './trajectory/TrajectoryTimeline'
 import { TrajectoryPlayback } from './trajectory/TrajectoryPlayback'
@@ -15,36 +15,14 @@ export type Scene3DRightPanelTab = 'properties' | 'trajectory'
 export function Scene3DTrajectoryLayer({
   state,
   trajectory,
-  readOnly,
   activeTrajectoryIds,
-  onEditTrajectory,
 }: {
   state: Scene3DState
   trajectory: Scene3DTrajectoryEditing
-  readOnly: boolean
   activeTrajectoryIds: ReadonlySet<string> | null
-  onEditTrajectory: (trajectoryId: string) => void
 }): JSX.Element {
   return (
     <>
-      <TrajectoryRenderer
-        trajectories={state.trajectories}
-        activeTrajectoryId={trajectory.activeTrajectoryId}
-        activePointId={trajectory.activePointId}
-        editable={trajectory.trajectoryEditMode && !readOnly}
-        wholeDraggable={!readOnly && !trajectory.trajectoryEditMode}
-        bindTargets={trajectory.bindTargets}
-        onSelectTrajectory={trajectory.selectTrajectory}
-        onSelectPoint={trajectory.selectPoint}
-        onCreateTrajectoryAt={trajectory.createTrajectoryAt}
-        onInsertPoint={trajectory.insertPoint}
-        onUpdateCurveControl={trajectory.updateCurveControl}
-        onUpdatePoint={trajectory.updatePoint}
-        onTranslateTrajectory={trajectory.translateTrajectory}
-        onEditTrajectory={onEditTrajectory}
-        onDeleteTrajectory={trajectory.deleteTrajectory}
-        onBindTargetToTrajectory={trajectory.bindObject}
-      />
       {trajectory.timelineOpen ? (
         <TrajectoryPlayback
           bindings={state.trajectoryBindings}
@@ -178,7 +156,10 @@ export function Scene3DTrajectoryInspector({
         trajectory.setTimelineOpen(true)
         trajectory.createTrajectory()
       }}
-      onSelectTrajectory={trajectory.selectTrajectory}
+      onSelectTrajectory={(trajectoryId) => {
+        trajectory.selectTrajectory(trajectoryId)
+        trajectory.setTrajectoryEditMode(true)
+      }}
       onDeleteTrajectory={trajectory.deleteTrajectory}
       onPatchTrajectory={trajectory.patchTrajectory}
       onAddPoint={trajectory.addPoint}
@@ -209,8 +190,15 @@ export function Scene3DTrajectoryTimelineBar({
       readOnly={readOnly}
       activeGroupId={trajectory.activeGroupId}
       playheadRef={trajectory.playheadRef}
-      onPlayChange={trajectory.setIsPlaying}
+      onPlayChange={(playing) => {
+        if (playing && !trajectory.hasPlayableBinding) {
+          toast('请先为轨迹绑定对象或相机', 'warning')
+          return
+        }
+        trajectory.setIsPlaying(playing)
+      }}
       onSelectGroup={trajectory.selectGroup}
+      onSelectTrajectory={trajectory.selectTrajectory}
       onClose={() => {
         trajectory.setIsPlaying(false)
         trajectory.setTimelineOpen(false)

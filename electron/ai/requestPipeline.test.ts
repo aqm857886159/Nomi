@@ -70,7 +70,7 @@ describe("authQueryParams", () => {
 describe("template rendering", () => {
   const ctx = buildTemplateContext({
     request: { prompt: "a cat" },
-    params: { aspect_ratio: "16:9", input_urls: ["http://x/y.png"] },
+    params: { aspect_ratio: "16:9", input_urls: ["http://x/y.png"], content_items: [{ type: "image_url", image_url: { url: "http://x/y.png" } }] },
     model: { displayName: "GPT Image" },
     modelKey: "gpt-image-2",
     apiKey: "SECRET",
@@ -98,6 +98,14 @@ describe("template rendering", () => {
     expect(renderTemplateValue("{{request.params.input_urls}}", ctx)).toEqual(["http://x/y.png"]);
   });
 
+  it("expands exact-placeholder arrays for content item composition only", () => {
+    expect(renderTemplateValue([{ type: "text", text: "{{request.prompt}}" }, "{{request.params.content_items}}"], ctx)).toEqual([
+      { type: "text", text: "a cat" },
+      { type: "image_url", image_url: { url: "http://x/y.png" } },
+    ]);
+    expect(renderTemplateValue([["literal"], "{{request.params.input_urls}}"], ctx)).toEqual([["literal"], "http://x/y.png"]);
+  });
+
   it("missing placeholder renders empty string inline", () => {
     expect(renderTemplateString("x={{request.params.nope}}", ctx)).toBe("x=");
   });
@@ -115,6 +123,23 @@ describe("joinUrl", () => {
   });
   it("does not double-append when base already ends with path", () => {
     expect(joinUrl("https://api.example.com/v1", "/v1")).toBe("https://api.example.com/v1");
+  });
+  it("collapses duplicate /v1 when base ends in a version segment (code-newcli-com 404 根因)", () => {
+    // base 末尾已带版本段 + op path 以 /v1/ 开头 → 不能拼成 .../v1/v1/...
+    expect(joinUrl("https://code.newcli.com/codex/v1", "/v1/images/generations")).toBe(
+      "https://code.newcli.com/codex/v1/images/generations",
+    );
+    expect(joinUrl("https://api.deepseek.com/v1/", "/v1/images/generations")).toBe(
+      "https://api.deepseek.com/v1/images/generations",
+    );
+  });
+  it("does NOT collapse when base has no version segment or path is not /v1/* (火山/kie 不受影响)", () => {
+    // 火山：base 不带版本段，path 自带 /api/v3 → URL 本就正确
+    expect(joinUrl("https://ark.cn-beijing.volces.com", "/api/v3/images/generations")).toBe(
+      "https://ark.cn-beijing.volces.com/api/v3/images/generations",
+    );
+    // kie：path 不以 /v1/ 开头 → 不去重
+    expect(joinUrl("https://api.kie.ai", "/api/v1/jobs/createTask")).toBe("https://api.kie.ai/api/v1/jobs/createTask");
   });
 });
 

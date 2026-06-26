@@ -126,71 +126,9 @@
   opacity: 0.72;
 }
 
-.generation-canvas-v2__group-boxes {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-}
-
-.generation-canvas-v2__group-box {
-  position: absolute;
-  border: 1.5px solid color-mix(in srgb, var(--nomi-accent) 55%, transparent);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--nomi-accent) 8%, transparent);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.58), 0 14px 34px rgba(18, 24, 38, 0.055);
-  cursor: grab;
-  pointer-events: auto;
-  user-select: none;
-}
-
-.generation-canvas-v2__group-box:active {
-  cursor: grabbing;
-}
-
-.generation-canvas-v2__group-box-label {
-  position: absolute;
-  top: 8px;
-  left: 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  max-width: calc(100% - 24px);
-  min-height: 22px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: var(--nomi-accent);
-  color: var(--nomi-paper);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.25;
-  box-shadow: var(--nomi-shadow-md);
-  cursor: grab;
-  pointer-events: auto;
-  user-select: none;
-}
-
-.generation-canvas-v2__group-box-label:active {
-  cursor: grabbing;
-}
-
-.generation-canvas-v2__group-box-label span:first-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.generation-canvas-v2__group-box-label span:last-child {
-  display: inline-grid;
-  min-width: 18px;
-  height: 18px;
-  place-items: center;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.28);
-  font-size: 10px;
-}
+/* 分组框/标签/计数 chip 的视觉样式收口到组件 className（GroupFrame.tsx，P1/R10：迁 Tailwind 即删旧 CSS）。
+   原此处 .group-boxes/.group-box(-label/span) 与 GroupFrame 的 Tailwind 重复定义且已漂移（radius 16/18、
+   字重 650/600、badge 白 0.30/0.28），删除以消除双真相源；暗色 badge 走 --workbench-veil-chip token。 */
 
 .generation-canvas-v2__edge-path {
   fill: none;

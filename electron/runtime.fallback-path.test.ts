@@ -175,3 +175,33 @@ describe("fetchTaskResult — taskCache miss 区分（受理账本 → 集成验
     expect(polled.result.id).toBe("kie-xyz");
   });
 });
+
+describe("fetchTaskResult — 缓存 miss 无状态重建续查（重启/驱逐后仍能找回）", () => {
+  it("缓存里没有该 taskId，但带 vendor+modelKey+taskKind → 重建 query 真去查上游，不报 task_unknown", async () => {
+    await seedAsyncVideoVendorWithMapping();
+    // **不跑 create**（模拟重启后内存 taskCache 全空）。直接对一个上游真实存在的 taskId 发查询。
+    const fetchFn = stubFetch(() =>
+      new Response(JSON.stringify({ video_url: "https://cdn.example.com/recovered.mp4" }), { status: 200 }),
+    );
+    const { fetchTaskResult } = await import("./runtime");
+    const recovered = await fetchTaskResult({
+      vendor: "asyncv",
+      taskId: "upstream-live-123",
+      taskKind: "text_to_video",
+      modelKey: "vid-model",
+    });
+    // 真发了 query GET（无状态重建跑了上游查询），不是直接合成失败。
+    expect(fetchFn).toHaveBeenCalled();
+    expect(recovered.result.status).toBe("succeeded");
+    expect(recovered.result.assets.length).toBeGreaterThan(0);
+    expect((recovered.result.raw as { code?: string }).code).not.toBe("task_unknown");
+  });
+
+  it("重建不了（缺 modelKey 无法定位 mapping）→ 仍回落诚实诊断 task_unknown，不静默吞", async () => {
+    await seedAsyncVideoVendorWithMapping();
+    const { fetchTaskResult } = await import("./runtime");
+    const miss = await fetchTaskResult({ vendor: "asyncv", taskId: "no-context-id", taskKind: "text_to_video" });
+    expect(miss.result.status).toBe("failed");
+    expect((miss.result.raw as { code?: string }).code).toBe("task_unknown");
+  });
+});

@@ -8,7 +8,7 @@ import {
   IconPhoto,
   IconVideo,
 } from '@tabler/icons-react'
-import { WorkbenchIconButton } from '../../design'
+import { WorkbenchIconButton } from '../../design/workbenchActions'
 import { cn } from '../../utils/cn'
 import { createNodeFromSelection, type SelectionGenerationKind } from './createNodeFromSelection'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
@@ -17,6 +17,7 @@ import { useWorkbenchStore } from '../workbenchStore'
 type SelectionGeneratePopoverProps = {
   editor: Editor | null
   selectedText: string
+  selectionVersion: number
   onCreated?: () => void
 }
 
@@ -62,7 +63,12 @@ function resolveSelectionPosition(editor: Editor, root: HTMLElement | null): Sel
   }
 }
 
-export default function SelectionGeneratePopover({ editor, selectedText, onCreated }: SelectionGeneratePopoverProps): JSX.Element | null {
+export default function SelectionGeneratePopover({
+  editor,
+  selectedText,
+  selectionVersion,
+  onCreated,
+}: SelectionGeneratePopoverProps): JSX.Element | null {
   const normalizedText = selectedText.trim()
   const rootRef = React.useRef<HTMLDivElement | null>(null)
   const [position, setPosition] = React.useState<SelectionPopoverPosition | null>(null)
@@ -80,7 +86,7 @@ export default function SelectionGeneratePopover({ editor, selectedText, onCreat
 
   React.useLayoutEffect(() => {
     updatePosition()
-  }, [updatePosition])
+  }, [selectionVersion, updatePosition])
 
   React.useEffect(() => {
     if (!editor || !normalizedText) return
@@ -171,7 +177,6 @@ export default function SelectionGeneratePopover({ editor, selectedText, onCreat
               'cursor-pointer',
               'hover:border-[color-mix(in_srgb,var(--workbench-accent)_14%,transparent)]',
               'hover:bg-workbench-accent-soft hover:text-workbench-accent',
-              'focus-visible:outline-2 focus-visible:outline-workbench-focus focus-visible:outline-offset-2',
             )}
             label={action.label}
             data-active={action.active ? 'true' : 'false'}
@@ -203,7 +208,6 @@ export default function SelectionGeneratePopover({ editor, selectedText, onCreat
             'cursor-pointer',
             'hover:border-[color-mix(in_srgb,var(--workbench-accent)_18%,transparent)]',
             'hover:bg-workbench-accent-soft hover:text-workbench-accent',
-            'focus-visible:outline-2 focus-visible:outline-workbench-focus focus-visible:outline-offset-2',
           )}
           label="生成图片"
           onMouseDown={(event) => event.preventDefault()}
@@ -219,7 +223,6 @@ export default function SelectionGeneratePopover({ editor, selectedText, onCreat
             'cursor-pointer',
             'hover:border-[color-mix(in_srgb,var(--workbench-accent)_18%,transparent)]',
             'hover:bg-workbench-accent-soft hover:text-workbench-accent',
-            'focus-visible:outline-2 focus-visible:outline-workbench-focus focus-visible:outline-offset-2',
           )}
           label="生成视频"
           onMouseDown={(event) => event.preventDefault()}

@@ -1,6 +1,10 @@
-// 能力核 · 接入 MCP 客户端的配置读写（见 docs/plan/2026-06-22-multi-client-mcp-connect.md）。
+// 能力核 · 接入 MCP 客户端的配置读写（见 docs/plan/2026-06-22-multi-client-mcp-connect.md
+// + docs/plan/2026-06-24-packaged-mcp-stdio-server.md）。
 //
-// 「一键接入」就靠这一层：算出 nomi-mcp.mjs 的绝对路径 → 把 nomi 条目合并进各客户端的配置文件。
+// 「一键接入」就靠这一层：算出 nomi MCP server 启动条目 → 把 nomi 条目合并进各客户端的配置文件。
+// 启动条目 = **app 自身二进制 + env NOMI_MCP_STDIO=1**（main.ts 据此跑进程内 stdio MCP server，
+// 见 mcpStdioServer.ts）。打包版二进制永远存在、不依赖用户装 node——根治旧版指向 asar 里不存在的
+// node 脚本导致的「Connection closed」握手失败。
 // 支持 Claude Code / Codex / Cursor 三个一键，其余助手走 UI 的「复制配置」。
 // 安全口径（三客户端一致）：**只写各自固定文件**（非任意路径写）；写前自动备份；**合并而非覆盖**
 // （保留用户已有的其它 MCP server）；原子写（tmp→rename）。
@@ -32,10 +36,20 @@ function resolveClient(client?: string): McpClientKey {
   return client === 'codex' || client === 'cursor' ? client : 'claude'
 }
 
-/** nomi MCP server 条目。dev 下脚本在 repo；打包入口是后续切片。三客户端共用。 */
-function mcpServerEntry(): { command: string; args: string[] } {
-  const script = path.join(app.getAppPath(), 'scripts', 'nomi-mcp.mjs')
-  return { command: 'node', args: [script] }
+/** MCP server 启动条目（command/args/env），三客户端共用。 */
+type McpServerEntry = { command: string; args: string[]; env?: Record<string, string> }
+
+/**
+ * nomi MCP server 条目：让 Nomi 用**自身可执行文件**以 NOMI_MCP_STDIO 模式启动 = 进程内 stdio MCP server。
+ * 打包版 process.execPath = `/Applications/Nomi.app/Contents/MacOS/Nomi`（包内永远存在、无 node 依赖）。
+ * dev 下 execPath = node_modules 的 electron，需 args 指明 app 路径（repo 根）让它找到 main。三客户端共用。
+ */
+function mcpServerEntry(): McpServerEntry {
+  return {
+    command: process.execPath,
+    args: app.isPackaged ? [] : [app.getAppPath()],
+    env: { NOMI_MCP_STDIO: '1' },
+  }
 }
 
 function ensureDir(filePath: string): void {
@@ -71,7 +85,7 @@ function jsonInstalled(target: string): boolean {
   return Boolean(servers && typeof servers === 'object' && (servers as Record<string, unknown>)[SERVER_NAME])
 }
 
-function jsonSnippet(server: { command: string; args: string[] }): string {
+function jsonSnippet(server: McpServerEntry): string {
   return JSON.stringify({ mcpServers: { [SERVER_NAME]: server } }, null, 2)
 }
 
@@ -106,9 +120,15 @@ function tomlEscape(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }
 
-function codexBlock(server: { command: string; args: string[] }): string {
+function codexBlock(server: McpServerEntry): string {
   const args = server.args.map((arg) => `"${tomlEscape(arg)}"`).join(', ')
-  return `[mcp_servers.${SERVER_NAME}]\ncommand = "${tomlEscape(server.command)}"\nargs = [${args}]\n`
+  let block = `[mcp_servers.${SERVER_NAME}]\ncommand = "${tomlEscape(server.command)}"\nargs = [${args}]\n`
+  const envKeys = server.env ? Object.keys(server.env) : []
+  if (envKeys.length) {
+    const env = envKeys.map((key) => `${key} = "${tomlEscape(server.env![key])}"`).join(', ')
+    block += `env = { ${env} }\n`
+  }
+  return block
 }
 
 function readText(target: string): string {
@@ -160,12 +180,12 @@ export type McpClientInfo = { installed: boolean; configPath: string; snippet: s
 export type McpInfo = {
   tokenReady: boolean
   rpcRunning: boolean
-  server: { command: string; args: string[] }
+  server: McpServerEntry
   /** 每个可一键接入的客户端的状态 + 可复制片段（卡片据此显示 + 默认选已接入的）。 */
   clients: Record<McpClientKey, McpClientInfo>
 }
 
-function clientInfo(client: McpClientKey, server: { command: string; args: string[] }): McpClientInfo {
+function clientInfo(client: McpClientKey, server: McpServerEntry): McpClientInfo {
   const spec = CLIENTS[client]
   const target = spec.configPath()
   const installed = spec.format === 'toml' ? codexInstalled(target) : jsonInstalled(target)

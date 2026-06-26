@@ -69,6 +69,8 @@ export type FetchWorkbenchTaskResultRequestDto = {
   taskKind?: TaskKind
   prompt?: string | null
   modelKey?: string | null
+  /** 续查所属项目：内存缓存 miss 后主进程无状态重建查询时，用它把找回的资产本地化进项目。 */
+  projectId?: string | null
 }
 
 export type FetchWorkbenchTaskResultResponseDto = {
@@ -112,7 +114,12 @@ export async function runWorkbenchTaskByVendor(vendor: string, request: TaskRequ
 export async function fetchWorkbenchTaskResultByVendor(
   payload: FetchWorkbenchTaskResultRequestDto,
 ): Promise<FetchWorkbenchTaskResultResponseDto> {
-  return requireDesktopRuntime('task result polling').tasks.result(payload) as Promise<FetchWorkbenchTaskResultResponseDto>
+  // 带上当前项目：内存缓存命中走 cached.projectId；miss 后无状态重建查询时主进程用 payload.projectId 本地化资产。
+  const projectId = payload.projectId ?? getDesktopActiveProjectId()
+  return requireDesktopRuntime('task result polling').tasks.result({
+    ...payload,
+    ...(projectId ? { projectId } : {}),
+  }) as Promise<FetchWorkbenchTaskResultResponseDto>
 }
 
 /**

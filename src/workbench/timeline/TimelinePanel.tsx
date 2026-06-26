@@ -14,11 +14,12 @@ import {
   IconWand,
 } from '@tabler/icons-react'
 import { useWorkbenchStore } from '../workbenchStore'
-import { WorkbenchIconButton } from '../../design'
+import { WorkbenchIconButton } from '../../design/workbenchActions'
 import { cn } from '../../utils/cn'
 import { computeTimelineDuration } from './timelineMath'
 import TimelineTrack from './TimelineTrack'
 import TimelineTextTrack from './TimelineTextTrack'
+import { TimelineSecondaryAddRow } from './TimelineSecondaryAddRow'
 import { frameToPixel, pixelToFrame, TIMELINE_MIN_SCALE, TIMELINE_MAX_SCALE } from './timelineEdit'
 import { buildSnapPoints, resolveSnap, pixelThresholdToFrames } from './snapping'
 import { regenerateNodeInPlace } from '../generationCanvas/runner/generationRunController'
@@ -255,7 +256,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
         'workbench-timeline',
         'relative min-w-0 min-h-0 grid grid-rows-[minmax(0,1fr)]',
         'bg-[var(--workbench-surface-solid)] border-t border-[var(--workbench-border)]',
-        'shadow-[0_-1px_0_rgba(255,255,255,0.72)]',
+        'shadow-[0_-1px_0_var(--workbench-bevel)]',
         density === 'full' ? 'px-[18px] pt-[10px] pb-5' : 'px-4 pt-3 pb-4',
       )}
       data-density={density}
@@ -423,10 +424,24 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
             onPointerDown={beginScrub}
           />
         </div>
-        {timeline.tracks.map((track) => (
-          <TimelineTrack key={track.id} track={track} />
+        {/* 主次分层(方案 B)：画面(图/视频)主轨;配乐/字幕降副轨,空时收成「+配乐/+字幕」窄条。 */}
+        {timeline.tracks.filter((t) => t.type !== 'audio').map((track) => (
+          <TimelineTrack key={track.id} track={track} variant="primary" />
         ))}
-        {showTextTrack ? <TimelineTextTrack /> : null}
+        {(() => {
+          const audioTrack = timeline.tracks.find((t) => t.type === 'audio')
+          const audioHasClips = (audioTrack?.clips.length ?? 0) > 0
+          const textHasClips = (timeline.textClips?.length ?? 0) > 0
+          const showAudioChip = Boolean(audioTrack) && !audioHasClips
+          const showTextChip = showTextTrack && !textHasClips
+          return (
+            <>
+              {audioTrack && audioHasClips ? <TimelineTrack key={audioTrack.id} track={audioTrack} variant="secondary" /> : null}
+              {showTextTrack && textHasClips ? <TimelineTextTrack /> : null}
+              {showAudioChip || showTextChip ? <TimelineSecondaryAddRow showAudio={showAudioChip} showText={showTextChip} /> : null}
+            </>
+          )
+        })()}
       </div>
     </section>
   )

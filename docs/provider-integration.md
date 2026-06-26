@@ -57,6 +57,7 @@ Anthropic provider 与 OpenAI 兼容 provider 共享同一套 Tool Calling + 流
 | 可灵（Kling） | 国内，按秒计费 | [klingai.com](https://klingai.com) |
 | Runway | 国际主流 | [runwayml.com](https://runwayml.com) |
 | Wan（万象） | 开源可本地部署 | — |
+| 火山方舟 Seedance | 官方原生，已内置 Seedance 2.0 / Fast / Mini | [console.volcengine.com/ark](https://console.volcengine.com/ark) |
 
 ---
 

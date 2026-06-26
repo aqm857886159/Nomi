@@ -46,6 +46,59 @@ describe('generationCanvasStore snapshot normalization', () => {
     expect(stateNode?.position).toEqual({ x: 123, y: 456 })
   })
 
+  it('keeps scene3d trajectory data in node meta across restore/read snapshot', () => {
+    const scene3dState = {
+      objects: [],
+      cameras: [],
+      trajectories: [
+        {
+          id: 'trajectory-1',
+          name: '轨迹1',
+          points: [
+            { id: 'point-1', position: [0, 0, 0] },
+            { id: 'point-2', position: [2, 0, 1] },
+          ],
+          curveControls: [{ segmentStartPointId: 'point-1', position: [1, 0, 1] }],
+          tension: 0.5,
+          closed: false,
+          color: '#ef4444',
+        },
+      ],
+      trajectoryBindings: [
+        {
+          id: 'binding-1',
+          trajectoryId: 'trajectory-1',
+          objects: [{ objectId: 'camera-1', offsetRatio: 0 }],
+          startTime: 0,
+          endTime: 3,
+          direction: 'forward',
+        },
+      ],
+      trajectoryGroups: [{ id: 'group-1', name: '组1', trajectoryIds: ['trajectory-1'] }],
+      sceneTimeline: { totalDuration: 3 },
+      environment: { preset: 'city', showGrid: true, showAxes: true, showSky: false, darkMode: false, backgroundColor: '#f6f3ee' },
+      editorCamera: { position: [-5, 3, 6], target: [0, 1, 0], rotation: [0, 0, 0], mode: 'edit' },
+    }
+
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [
+        {
+          id: 'scene3d-1',
+          kind: 'scene3d',
+          title: '3D 场景',
+          position: { x: 10, y: 20 },
+          meta: { scene3dState },
+        },
+      ],
+      edges: [],
+      selectedNodeIds: ['scene3d-1'],
+      groups: [],
+    })
+
+    const snapshot = useGenerationCanvasStore.getState().readSnapshot()
+    expect(snapshot.nodes[0]?.meta?.scene3dState).toEqual(scene3dState)
+  })
+
   it('drops removed semantic scene nodes from legacy snapshots', () => {
     useGenerationCanvasStore.getState().restoreSnapshot({
       nodes: [

@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconDownload, IconPhoto, IconPlugConnected, IconBulb } from '@tabler/icons-react'
+import { IconBooks, IconDownload, IconPhoto, IconPlugConnected, IconBulb } from '@tabler/icons-react'
 import type { WorkspaceMode } from '../../workbench/workbenchStore'
 import { NomiBrand, NomiStepper, WorkbenchButton } from '../../design'
 import { OnboardingChecklist } from '../../workbench/onboarding/OnboardingChecklist'
@@ -15,6 +15,11 @@ function openAssetLibrary(): void {
 // 「提示词库」点击 → 打开提示词库面板（仿素材库的事件驱动开法）。
 function openPromptLibrary(): void {
   window.dispatchEvent(new CustomEvent('nomi-open-prompt-library'))
+}
+
+// 「技能库」点击 → 打开技能库面板（同一套事件驱动开法）。
+function openSkillLibrary(): void {
+  window.dispatchEvent(new CustomEvent('nomi-open-skill-library'))
 }
 
 type NomiAppBarProps = {
@@ -191,14 +196,14 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
             'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
             'transition-[background,color] duration-[var(--nomi-transition-fast)]',
             'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
-            'max-[700px]:w-[30px] max-[700px]:h-[30px] max-[700px]:justify-center max-[700px]:p-0',
+            'max-[1400px]:w-[30px] max-[1400px]:h-[30px] max-[1400px]:justify-center max-[1400px]:p-0',
           )}
           aria-label="打开提示词库"
           title="提示词库"
           onClick={openPromptLibrary}
         >
           <IconBulb size={15} stroke={1.7} />
-          <span className={cn('nomi-appbar__action-text', 'max-[700px]:hidden')}>提示词库</span>
+          <span className={cn('nomi-appbar__action-text', 'max-[1400px]:hidden')}>提示词库</span>
         </WorkbenchButton>
         <WorkbenchButton
           className={cn(
@@ -208,14 +213,31 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
             'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
             'transition-[background,color] duration-[var(--nomi-transition-fast)]',
             'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
-            'max-[700px]:w-[30px] max-[700px]:h-[30px] max-[700px]:justify-center max-[700px]:p-0',
+            'max-[1400px]:w-[30px] max-[1400px]:h-[30px] max-[1400px]:justify-center max-[1400px]:p-0',
+          )}
+          aria-label="打开技能库"
+          title="技能库"
+          onClick={openSkillLibrary}
+        >
+          <IconBooks size={15} stroke={1.7} />
+          <span className={cn('nomi-appbar__action-text', 'max-[1400px]:hidden')}>技能库</span>
+        </WorkbenchButton>
+        <WorkbenchButton
+          className={cn(
+            'nomi-appbar__ghost',
+            'inline-flex items-center gap-1.5 h-[30px] px-2.5',
+            'border border-transparent rounded-[var(--nomi-radius-sm)]',
+            'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
+            'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+            'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+            'max-[1400px]:w-[30px] max-[1400px]:h-[30px] max-[1400px]:justify-center max-[1400px]:p-0',
           )}
           aria-label="打开素材库"
           title="素材库"
           onClick={openAssetLibrary}
         >
           <IconPhoto size={15} stroke={1.7} />
-          <span className={cn('nomi-appbar__action-text', 'max-[700px]:hidden')}>素材库</span>
+          <span className={cn('nomi-appbar__action-text', 'max-[1400px]:hidden')}>素材库</span>
         </WorkbenchButton>
         <WorkbenchButton
           className={cn(
@@ -225,14 +247,14 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
             'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
             'transition-[background,color] duration-[var(--nomi-transition-fast)]',
             'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
-            'max-[700px]:w-[30px] max-[700px]:h-[30px] max-[700px]:justify-center max-[700px]:p-0',
+            'max-[1400px]:w-[30px] max-[1400px]:h-[30px] max-[1400px]:justify-center max-[1400px]:p-0',
           )}
           aria-label="打开模型接入"
           title="模型接入"
           onClick={handleOpenModelCatalog}
         >
           <IconPlugConnected size={15} stroke={1.7} />
-          <span className={cn('nomi-appbar__action-text', 'max-[700px]:hidden')}>模型接入</span>
+          <span className={cn('nomi-appbar__action-text', 'max-[1400px]:hidden')}>模型接入</span>
         </WorkbenchButton>
         <WorkbenchButton
           className={cn(
@@ -242,7 +264,7 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
             'bg-[var(--nomi-ink)] text-[var(--nomi-paper)] font-inherit text-body-sm',
             'transition-[background,color] duration-[var(--nomi-transition-fast)]',
             'hover:bg-[var(--nomi-ink-80)]',
-            'max-[700px]:w-[30px] max-[700px]:h-[30px] max-[700px]:justify-center max-[700px]:p-0',
+            'max-[1400px]:w-[30px] max-[1400px]:h-[30px] max-[1400px]:justify-center max-[1400px]:p-0',
           )}
           aria-label={workspaceMode === 'preview' ? '导出 MP4' : '前往预览导出'}
           title={workspaceMode === 'preview' ? '导出 MP4' : '前往预览导出'}
@@ -253,7 +275,7 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
           }}
         >
           <IconDownload size={15} stroke={1.7} />
-          <span className={cn('nomi-appbar__action-text', 'max-[700px]:hidden')}>导出</span>
+          <span className={cn('nomi-appbar__action-text', 'max-[1400px]:hidden')}>导出</span>
         </WorkbenchButton>
       </div>
     </header>

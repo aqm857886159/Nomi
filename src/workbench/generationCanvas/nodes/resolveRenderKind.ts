@@ -3,7 +3,7 @@
 import type { GenerationCanvasNode } from "../model/generationCanvasTypes";
 
 /** 走「卡片」式 body（非纯图片预览）的 renderKind 集合。 */
-export const CARD_RENDER_KINDS = ["character-card", "scene-card", "prop-card", "audio-strip"] as const;
+export const CARD_RENDER_KINDS = ["character-card", "scene-card", "prop-card", "audio-strip", "whiteboard-card"] as const;
 
 /**
  * 推断节点的 renderKind。优先级：
@@ -20,6 +20,7 @@ export function resolveNodeRenderKind(
   if (node.kind === "asset") return undefined;
   const explicit = node.renderKind as string | undefined;
   if (explicit) return explicit;
+  if (node.kind === "whiteboard") return "whiteboard-card";
   if (node.kind === "audio") return "audio-strip";
   if (node.kind === "character") return "character-card";
   if (node.kind === "scene") return "scene-card";

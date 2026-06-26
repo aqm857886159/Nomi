@@ -5,8 +5,24 @@ import { getGenerationNodeDefaultTitle, isGenerationNodeKind } from '../model/ge
 import { EDGE_MODE_LABEL } from '../model/graphOps'
 import { BUILTIN_CATEGORIES } from '../../project/projectCategories'
 import { CAMERA_MOVE_LABEL, CAMERA_SPEED_DURATION, type CameraMove, type CameraSpeed } from '../nodes/scene3d/cameraMoveVocab'
+import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 
 const CATEGORY_NAME = new Map(BUILTIN_CATEGORIES.map((category) => [category.id, category.name]))
+
+/** id → 节点标题(把 n3/真实 id 这类机器串翻成「镜1」给用户看;查不到返回 null,调用方省略不灌 id)。 */
+function nodeTitleById(id: string): string | null {
+  const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === id)
+  const title = node?.title?.trim()
+  return title ? title : null
+}
+
+/** 一串节点 id → 「镜1」「镜2」人话(最多列 3 个,多了「等 N 个」;全查不到返回空,由摘要的计数兜底)。 */
+function joinNodeTitles(ids: string[]): string {
+  const titles = ids.map(nodeTitleById).filter((t): t is string => Boolean(t))
+  if (titles.length === 0) return ''
+  const head = titles.slice(0, 3).map((t) => `「${t}」`).join('、')
+  return titles.length > 3 ? `${head} 等 ${titles.length} 个` : head
+}
 
 function categoryLabelOf(categoryId: string): string {
   return CATEGORY_NAME.get(categoryId) ?? categoryId
@@ -29,7 +45,8 @@ export function summarizeToolCall(toolName: string, args: unknown): string {
     return `连接 ${edges.length} 条引用线`
   }
   if (toolName === 'set_node_prompt') {
-    return `改写节点 ${String(record.nodeId || '')} 的提示词`
+    const title = record.nodeId ? nodeTitleById(String(record.nodeId)) : null
+    return title ? `改写「${title}」的提示词` : '改写节点提示词'
   }
   if (toolName === 'delete_canvas_nodes') {
     const ids = Array.isArray(record.nodeIds) ? record.nodeIds : []
@@ -126,29 +143,29 @@ export function countCreatedNodesByCategory(
   }))
 }
 
-/** 单工具 pending 卡(非计划折叠)的副标题:把 args 翻成一行人话,不再直怼 JSON。 */
+/** 单工具 pending 卡(非计划折叠)的副标题:把 args 翻成一行人话,不再直怼 raw id/JSON。 */
 export function describeToolCallDetail(toolName: string, args: unknown): string {
   const record = args && typeof args === 'object' ? (args as Record<string, unknown>) : {}
   if (toolName === 'connect_canvas_edges') {
+    // 把 sourceClientId → targetClientId 翻成「源标题 → 目标标题」;任一端查不到则跳过该对(不灌 id)。
     const edges = Array.isArray(record.edges) ? record.edges : []
-    return edges
+    const lines = edges
       .map((edge) => {
         const e = edge && typeof edge === 'object' ? (edge as Record<string, unknown>) : {}
-        return `${String(e.sourceClientId || e.source || '?')} → ${String(e.targetClientId || e.target || '?')}`
+        const src = nodeTitleById(String(e.sourceClientId || e.source || ''))
+        const tgt = nodeTitleById(String(e.targetClientId || e.target || ''))
+        return src && tgt ? `「${src}」→「${tgt}」` : null
       })
-      .join('，')
+      .filter((line): line is string => Boolean(line))
+    return lines.join('，')
   }
   if (toolName === 'set_node_prompt') {
     const prompt = String(record.prompt || '')
     return prompt.length > 80 ? `${prompt.slice(0, 80)}…` : prompt
   }
-  if (toolName === 'delete_canvas_nodes') {
+  if (toolName === 'delete_canvas_nodes' || toolName === 'run_generation_batch') {
     const ids = Array.isArray(record.nodeIds) ? record.nodeIds.map((id) => String(id)) : []
-    return ids.join('，')
-  }
-  if (toolName === 'run_generation_batch') {
-    const ids = Array.isArray(record.nodeIds) ? record.nodeIds.map((id) => String(id)) : []
-    return ids.join('，')
+    return joinNodeTitles(ids)
   }
   return ''
 }

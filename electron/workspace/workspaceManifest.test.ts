@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { canCreateSymlink } from "../testSupport/canCreateSymlink";
 import {
   ensureWorkspaceFolders,
   hasWorkspaceManifest,
@@ -13,6 +14,8 @@ import { workspaceProjectFile } from "./workspacePaths";
 import type { WorkspaceProjectRecordV2 } from "./workspaceTypes";
 
 const tempRoots: string[] = [];
+const canCreateDirSymlink = canCreateSymlink("dir");
+const canCreateFileSymlink = canCreateSymlink("file");
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -90,7 +93,7 @@ describe("workspace manifest", () => {
     expect(fs.statSync(path.join(root, "exports")).isDirectory()).toBe(true);
   });
 
-  it("rejects pre-existing managed directory symlinks that point outside the workspace", () => {
+  (canCreateDirSymlink ? it : it.skip)("rejects pre-existing managed directory symlinks that point outside the workspace", () => {
     const root = makeTempDir();
     const outside = makeTempDir();
     fs.symlinkSync(outside, path.join(root, ".nomi"), "dir");
@@ -99,7 +102,7 @@ describe("workspace manifest", () => {
     expect(() => writeWorkspaceManifest(root, makeRecord())).toThrow(/workspace/i);
   });
 
-  it("rejects project manifest file symlinks that point outside the workspace", () => {
+  (canCreateFileSymlink ? it : it.skip)("rejects project manifest file symlinks that point outside the workspace", () => {
     const root = makeTempDir();
     const outside = makeTempDir();
     fs.mkdirSync(path.join(root, ".nomi"));

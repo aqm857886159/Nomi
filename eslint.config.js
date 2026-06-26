@@ -16,6 +16,8 @@ export default tseslint.config(
       'dist-electron/**',
       'release/**',
       'node_modules/**',
+      // Vite 预打包依赖缓存（vite.config cacheDir = .tmp/vite）——第三方 bundle，非源码，不 lint。
+      '.tmp/**',
       'build/**',
       'public/**',
       'marketing/**',

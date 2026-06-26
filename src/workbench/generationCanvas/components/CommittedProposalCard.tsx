@@ -43,30 +43,15 @@ export default function CommittedProposalCard({ record, onUndone, flat = false }
       className={cn('flex flex-col gap-2', flat ? '' : 'p-3 rounded-nomi border border-nomi-line-soft bg-nomi-ink-05/60')}
       data-committed-proposal-card={record.proposalId}
     >
-      <div className={cn('flex items-center gap-2')}>
-        <span className={cn('text-caption text-nomi-ink-80')}>✓ 已应用：{record.summary}</span>
+      {/* 摘要独占一行(可换行不挤);按钮另起一行 → 窄面板里也放得下,不再逼 flex 压缩按钮致竖排。 */}
+      <div className={cn('flex items-start gap-1.5 min-w-0')}>
+        <span className={cn('shrink-0 text-caption text-workbench-success-ink')}>✓</span>
+        <span className={cn('min-w-0 text-caption text-nomi-ink-80 leading-[1.55]')}>
+          已应用：{record.summary}
+        </span>
         {!record.reconciliationOk ? (
-          <span className={cn('text-caption text-[var(--nomi-snap-tag)]')}>有出入</span>
+          <span className={cn('shrink-0 text-caption text-[var(--nomi-snap-tag)]')}>有出入</span>
         ) : null}
-        <button
-          type='button'
-          className={cn(
-            'ml-auto inline-flex items-center gap-1 border-0 bg-transparent p-0 cursor-pointer',
-            'text-caption text-nomi-ink-60 hover:text-nomi-ink',
-          )}
-          onClick={() => setStepsOpen((open) => !open)}
-        >
-          {stepsOpen ? <IconChevronDown size={12} stroke={1.8} /> : <IconChevronRight size={12} stroke={1.8} />}
-          查看步骤
-        </button>
-        <WorkbenchButton
-          variant='default'
-          size='sm'
-          data-proposal-undo-all='true'
-          onClick={handleUndo}
-        >
-          整笔撤销
-        </WorkbenchButton>
       </div>
       {jumpTargets.length > 0 ? (
         <div className={cn('flex flex-wrap items-center gap-1')}>
@@ -88,6 +73,29 @@ export default function CommittedProposalCard({ record, onUndone, flat = false }
           ))}
         </div>
       ) : null}
+      {/* 动作行:两个按钮各自一行排开,shrink-0 + 底座 nowrap → 永不竖排。 */}
+      <div className={cn('flex items-center gap-2')}>
+        <button
+          type='button'
+          className={cn(
+            'inline-flex items-center gap-1 border-0 bg-transparent p-0 cursor-pointer whitespace-nowrap',
+            'text-caption text-nomi-ink-60 hover:text-nomi-ink',
+          )}
+          onClick={() => setStepsOpen((open) => !open)}
+        >
+          {stepsOpen ? <IconChevronDown size={12} stroke={1.8} /> : <IconChevronRight size={12} stroke={1.8} />}
+          查看步骤
+        </button>
+        <WorkbenchButton
+          className={cn('ml-auto shrink-0')}
+          variant='default'
+          size='sm'
+          data-proposal-undo-all='true'
+          onClick={handleUndo}
+        >
+          撤销这次改动
+        </WorkbenchButton>
+      </div>
       {stepsOpen ? (
         <ol className={cn('flex flex-col gap-1 list-none p-0 m-0')}>
           {record.stepLabels.map((label, index) => (

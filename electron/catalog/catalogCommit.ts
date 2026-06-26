@@ -261,8 +261,8 @@ function paramsToOnboardingFields(
 }
 
 /** 按 kind 给出 commit draft 的 targetKind + 标准参数 + 传输 mapping（图片同步无 query / 视频异步带 query）。 */
-function draftShapeForKind(kind: "text" | "image" | "video"): {
-  targetKind: "text" | "image" | "video";
+function draftShapeForKind(kind: "text" | "image" | "video" | "audio"): {
+  targetKind: "text" | "image" | "video" | "audio";
   modelFields: JsonRecord[];
   mappingCreate?: HttpOperation;
   mappingQuery?: HttpOperation;
@@ -275,6 +275,11 @@ function draftShapeForKind(kind: "text" | "image" | "video"): {
     const t = newapiTransportFor("video");
     return { targetKind: "video", modelFields: paramsToOnboardingFields(t.params), mappingCreate: t.create, ...(t.query ? { mappingQuery: t.query } : {}) };
   }
+  if (kind === "audio") {
+    // 中转配音(TTS)：OpenAI 兼容 /v1/audio/speech 同步出二进制音频（无 query）。命中 seed-tts 档案 → UI 出火山音色。
+    const t = newapiTransportFor("audio");
+    return { targetKind: "audio", modelFields: paramsToOnboardingFields(t.params), mappingCreate: t.create };
+  }
   return { targetKind: "text", modelFields: [] };
 }
 
@@ -282,7 +287,7 @@ export function commitManualOpenAiCompatibleModels(payload: {
   vendorName: string;
   baseUrl: string;
   apiKey: string;
-  models: Array<{ id: string; displayName?: string; kind?: "text" | "image" | "video" }>;
+  models: Array<{ id: string; displayName?: string; kind?: "text" | "image" | "video" | "audio" }>;
   /** Endpoint shape. Defaults to "openai-compatible" (the common case). "anthropic"
    *  routes text/chat through the Messages API (createAnthropic, x-api-key). */
   providerKind?: AiSdkProviderKind;
@@ -326,7 +331,7 @@ export function commitManualOpenAiCompatibleModels(payload: {
       return {
         id,
         displayName: String(m?.displayName || "").trim(),
-        kind: (k === "image" || k === "video" || k === "text" ? k : guessModelKind(id)) as "text" | "image" | "video",
+        kind: (k === "image" || k === "video" || k === "text" || k === "audio" ? k : guessModelKind(id)) as "text" | "image" | "video" | "audio",
       };
     })
     .filter((m) => {

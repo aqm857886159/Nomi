@@ -83,7 +83,7 @@ Script → Generate → Edit → Preview → Export
 
 锁定原则：
 
-- **Light-only**：当前只做浅色主题，不维护 dark theme（包体与一致性优先）
+- **Light + Dark 双模式**（2026-06-24 重新引入）：token-only 翻转——`tailwind.config.ts` addBase 的 `:root[data-mantine-color-scheme="dark"]` 重定义全套 `--nomi-*`，组件零改动随之翻。默认按本地时间「天黑自动暗」（傍晚 18:00–清晨 7:00 用暗色，与 macOS 外观无关），用户手动切一次后记住选择（`localStorage['nomi-color-scheme']`）；App 开着跨过时间窗会自动切。窗口常量在 `theme/colorScheme.ts`（`NIGHT_START_HOUR`/`NIGHT_END_HOUR`）。新增颜色一律走语义 token，别在组件直写 hex/oklch，否则暗色翻不到。3D 渲染色（`--nomi-axis-*`、scene3d 场景物体/轴/网格）主题无关，明暗同色。开关：库页头 + 关于弹层「外观」行。
 - **No fake progress**：禁止假进度条、占位 spinner 假装在工作
 - **Density over decoration**：密集生产 surface > 营销式装饰
 - **One visual hierarchy**：用 spacing + typography + 轻微 surface 对比建立层次，避免到处加 border
@@ -677,6 +677,14 @@ showUndoToast({
 可访问性：aria-label / 键盘行为 / focus ring
 ```
 
+### 焦点环（全局，别再 per-component 加）
+
+所有交互控件的键盘焦点环由**一条全局规则**统一供给（`tailwind.config.ts` 的 `addBase`）：
+- `:focus-visible { outline: none }` 先全局杀掉浏览器默认 `outline:auto`——它在 macOS 上**跟系统强调色**，用户设了橙/黄就冒橙环。
+- `button / [role=button] / a / input / select / textarea / summary` 的 `:focus-visible` 统一给 `2px solid var(--nomi-focus)` + `outline-offset:2px`。`--nomi-focus` = accent 42%（`:root` 全局 token）。
+
+**纪律**：新按钮**不要**再手写 `focus-visible:outline-*` className——全局规则已覆盖，手写=回到「漏一个就冒橙环」的症状层（2026-06-23 已根治，删了散在 6 文件的 13 处旧写法）。需要无焦点环的特例（如 contenteditable 编辑器）才显式 `outline:none` 覆盖。
+
 ---
 
 ## 9. 新增协议（开工前的规则）
@@ -783,6 +791,11 @@ import IconX from '@/assets/some-svg.svg'
 > 这节是「真实设计反推出来的现状」——文档不再假装代码 100% 合规。每条 = 现状 + 为什么是问题 + 修法。**机器门岗（`check:tokens`）已把 hex/px 这类粗漂移卡到 0**，所以下面是门岗抓不到的结构性 / 系统性漂移。
 
 ### 14.1 系统级（影响全局，需用户拍板再动）
+
+> **2026-06-24 暗色重新引入 + 两处真相源校正（动手前必读）**：
+> - **暗色回归**：新暗色是**暖灰 oklch 主题**（`tailwind.config.ts` 的 `:root[data-mantine-color-scheme="dark"]` addBase 块），与上面 S1 删掉的那套**蓝黑 `--tc-*` 旧暗色无关**——别把两者搞混。开关默认浅色、首启跟随系统。
+> - **真相源校正（重要）**：`src/theme/nomi-tokens.css` / `globals.css` / `vendor-overrides.css` / `animations.css` **未被任何 import = 死参考文件**；`index.html` 只 `<link>` `public/tailwind.generated.css`，其内容由 **`tailwind.config.ts` 的 `workbenchBasePlugin` addBase 编译而来 = 运行时唯一真源**。§0.5 称 nomi-tokens.css 为「① 层真源」是历史说法，**实际改 token 必改 tailwind.config.ts**（nomi-tokens.css 同步只为参考 + 喂 `check-dangling-tokens`）。
+> - **顺带修的潜伏 bug**：`--nomi-scrim`/`--nomi-overlay-chip`/`--nomi-overlay-chip-strong`/`--nomi-media-veil`/`--nomi-axis-x/y/z` 此前**只存在于死文件 nomi-tokens.css → 运行时 undefined**（提示词库/技能库/库页 scrim、引导旅途背景、scene3d 轴标全在用空颜色）；已补进 tailwind.config.ts 真源（光+暗）。
 
 | # | 现状 | 为什么是问题 | 修法 |
 |---|---|---|---|

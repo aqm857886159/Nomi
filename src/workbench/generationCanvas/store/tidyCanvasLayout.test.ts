@@ -1,14 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { tidyCanvasLayout, type TidyNode, type TidyEdge } from './tidyCanvasLayout'
-import { getGenerationNodeFootprintSize, getNodeSize } from '../model/generationNodeKinds'
+import { getNodeSize } from '../model/generationNodeKinds'
 
 // 视觉不重叠用**名义尺寸**判（足迹的 +安全余量是主网格的保守间距，切片簇刻意压更紧，不该用足迹判）。
 function nominal(node: TidyNode): { width: number; height: number } {
   return getNodeSize({ kind: node.kind, size: node.size })
-}
-
-function fp(node: TidyNode): { width: number; height: number } {
-  return getGenerationNodeFootprintSize(node.kind, node.size)
 }
 
 function overlaps(
@@ -112,6 +108,35 @@ describe('tidyCanvasLayout', () => {
     // 材料的切片被重排到非负区（不再留老负坐标 -800）
     expect(pos.get('matSlice')!.x).toBeGreaterThanOrEqual(0)
     expect(pos.get('matSlice')!.y).toBeGreaterThanOrEqual(0)
+  })
+
+  it('连接链优先于原始坐标：A→B→C 时 B 必须排在 C 前', () => {
+    const nodes: TidyNode[] = [
+      { id: 'a', kind: 'image', size: { width: 200, height: 140 }, position: { x: 900, y: 500 } },
+      { id: 'b', kind: 'image', size: { width: 200, height: 140 }, position: { x: 800, y: 900 } },
+      { id: 'c', kind: 'image', size: { width: 200, height: 140 }, position: { x: 100, y: 100 } },
+    ]
+    const edges: TidyEdge[] = [
+      { source: 'a', target: 'b' },
+      { source: 'b', target: 'c' },
+    ]
+    const pos = tidyCanvasLayout(nodes, edges, 1.8)
+    const b = pos.get('b')!
+    const c = pos.get('c')!
+    expect(b.y < c.y || (b.y === c.y && b.x < c.x)).toBe(true)
+  })
+
+  it('有连接线的主节点优先于孤立节点，孤立节点再按 shotIndex 兜底', () => {
+    const nodes: TidyNode[] = [
+      { id: 'ref', kind: 'image', size: { width: 200, height: 140 }, position: { x: 900, y: 500 } },
+      { id: 'connected-late-shot', kind: 'image', size: { width: 200, height: 140 }, position: { x: 700, y: 600 }, shotIndex: 9 },
+      { id: 'orphan-early-shot', kind: 'image', size: { width: 200, height: 140 }, position: { x: 0, y: 0 }, shotIndex: 0 },
+    ]
+    const edges: TidyEdge[] = [{ source: 'ref', target: 'connected-late-shot' }]
+    const pos = tidyCanvasLayout(nodes, edges, 1.8)
+    const connected = pos.get('connected-late-shot')!
+    const orphan = pos.get('orphan-early-shot')!
+    expect(connected.y < orphan.y || (connected.y === orphan.y && connected.x < orphan.x)).toBe(true)
   })
 
   it('空输入返回空映射', () => {

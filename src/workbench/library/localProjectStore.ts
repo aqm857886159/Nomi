@@ -81,7 +81,8 @@ export function useLocalProjects(): {
       fallbackData: [],
       revalidateOnMount: true,
       revalidateIfStale: false,
-      revalidateOnFocus: false,
+      // 从 Claude Code/外部 MCP 切回 Nomi 聚焦时重读列表——外部新建的项目立刻出现（治「看不到新建项目」）。
+      revalidateOnFocus: true,
       revalidateOnReconnect: false,
     },
   )

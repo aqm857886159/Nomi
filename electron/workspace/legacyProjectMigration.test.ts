@@ -104,7 +104,7 @@ describe("migrateLegacyProjectFolder", () => {
 });
 
 describe("discoverLegacyProjects", () => {
-  it("migrates direct child legacy projects and skips non-project folders", () => {
+  it("reads direct child legacy project summaries without migrating payloads", () => {
     const defaultRoot = makeTempDir();
     writeLegacyProject(path.join(defaultRoot, "Old Project"), { id: "old-project" });
     fs.mkdirSync(path.join(defaultRoot, "Not Project"));
@@ -112,7 +112,25 @@ describe("discoverLegacyProjects", () => {
     const projects = discoverLegacyProjects(defaultRoot);
 
     expect(projects.map((project) => project.id)).toEqual(["old-project"]);
-    expect(fs.existsSync(workspaceProjectFile(path.join(defaultRoot, "Old Project")))).toBe(true);
+    expect(projects[0]).toEqual(expect.not.objectContaining({ payload: expect.anything() }));
+    expect(fs.existsSync(workspaceProjectFile(path.join(defaultRoot, "Old Project")))).toBe(false);
+  });
+
+  it("does not scan huge legacy payloads while reading summaries", () => {
+    const defaultRoot = makeTempDir();
+    const legacyRoot = path.join(defaultRoot, "Huge Project");
+    const dataUrl = `data:image/png;base64,${"a".repeat(96 * 1024)}`;
+    writeLegacyProject(legacyRoot, {
+      id: "huge-project",
+      name: "Huge Project",
+      payload: { image: dataUrl },
+    });
+
+    const projects = discoverLegacyProjects(defaultRoot);
+
+    expect(projects).toEqual([expect.objectContaining({ id: "huge-project", name: "Huge Project" })]);
+    expect(fs.existsSync(workspaceProjectFile(legacyRoot))).toBe(false);
+    expect(fs.existsSync(path.join(legacyRoot, "assets", "generated"))).toBe(false);
   });
 
   it("skips malformed legacy project files instead of failing the whole discovery", () => {

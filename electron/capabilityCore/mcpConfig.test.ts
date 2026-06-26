@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 let homeDir = ''
 
 vi.mock('electron', () => ({
-  app: { getAppPath: () => '/fake/repo', getPath: () => homeDir },
+  app: { getAppPath: () => '/fake/repo', getPath: () => homeDir, isPackaged: false },
 }))
 vi.mock('node:os', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:os')>()
@@ -46,8 +46,10 @@ describe('capabilityCore/mcpConfig', () => {
     const after = JSON.parse(fs.readFileSync(claudeJson(), 'utf8'))
     expect(after.theme).toBe('dark') // 其它字段原样保留
     expect(after.mcpServers['cocos-creator']).toEqual({ command: 'x' }) // 别人的 server 没被动
-    expect(after.mcpServers.nomi.command).toBe('node')
-    expect(after.mcpServers.nomi.args[0]).toContain('nomi-mcp.mjs')
+    // 启动条目 = app 自身二进制 + env NOMI_MCP_STDIO=1（不再是 node + asar 里的脚本）。
+    expect(after.mcpServers.nomi.command).toBe(process.execPath)
+    expect(after.mcpServers.nomi.env.NOMI_MCP_STDIO).toBe('1')
+    expect(after.mcpServers.nomi.args[0]).toBe('/fake/repo') // dev（isPackaged=false）下指明 app 路径
   })
 
   it('install 在 ~/.claude.json 不存在时也能建出来', () => {
@@ -75,7 +77,7 @@ describe('capabilityCore/mcpConfig', () => {
     expect(info.clients.claude.installed).toBe(true)
     expect(info.rpcRunning).toBe(true)
     expect(info.clients.claude.snippet).toContain('"nomi"')
-    expect(info.clients.claude.snippet).toContain('nomi-mcp.mjs')
+    expect(info.clients.claude.snippet).toContain('NOMI_MCP_STDIO')
   })
 
   it('codex：install 写 TOML [mcp_servers.nomi]，保留已有表；uninstall 只删本块', () => {
@@ -85,8 +87,7 @@ describe('capabilityCore/mcpConfig', () => {
     installMcp('codex')
     let text = fs.readFileSync(codexPath, 'utf8')
     expect(text).toContain('[mcp_servers.nomi]')
-    expect(text).toContain('command = "node"')
-    expect(text).toContain('nomi-mcp.mjs')
+    expect(text).toContain('env = { NOMI_MCP_STDIO = "1" }')
     expect(text).toContain('[mcp_servers.other]') // 别人的块没被动
     expect(readMcpInfo(0).clients.codex.installed).toBe(true)
     uninstallMcp('codex')
@@ -101,8 +102,8 @@ describe('capabilityCore/mcpConfig', () => {
     expect(fs.existsSync(cursorPath)).toBe(false)
     installMcp('cursor')
     const after = JSON.parse(fs.readFileSync(cursorPath, 'utf8'))
-    expect(after.mcpServers.nomi.command).toBe('node')
-    expect(after.mcpServers.nomi.args[0]).toContain('nomi-mcp.mjs')
+    expect(after.mcpServers.nomi.command).toBe(process.execPath)
+    expect(after.mcpServers.nomi.env.NOMI_MCP_STDIO).toBe('1')
     expect(readMcpInfo(0).clients.cursor.installed).toBe(true)
     expect(readMcpInfo(0).clients.claude.installed).toBe(false) // 各客户端独立
   })

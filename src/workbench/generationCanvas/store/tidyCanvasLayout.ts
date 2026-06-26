@@ -47,13 +47,52 @@ export function tidyCanvasLayout(
   const result = new Map<string, Point>()
   if (nodes.length === 0) return result
 
+  const nodeById = new Map(nodes.map((node) => [node.id, node]))
   const idSet = new Set(nodes.map((node) => node.id))
   const incoming = new Map<string, number>()
   const outgoing = new Map<string, number>()
+  const incomingIds = new Map<string, string[]>()
+  const outgoingIds = new Map<string, string[]>()
   for (const edge of edges) {
     if (!idSet.has(edge.source) || !idSet.has(edge.target)) continue
     outgoing.set(edge.source, (outgoing.get(edge.source) ?? 0) + 1)
     incoming.set(edge.target, (incoming.get(edge.target) ?? 0) + 1)
+    incomingIds.set(edge.target, [...(incomingIds.get(edge.target) ?? []), edge.source])
+    outgoingIds.set(edge.source, [...(outgoingIds.get(edge.source) ?? []), edge.target])
+  }
+  const connectedNodeIds = new Set<string>()
+  for (const [nodeId, count] of incoming) if (count > 0) connectedNodeIds.add(nodeId)
+  for (const [nodeId, count] of outgoing) if (count > 0) connectedNodeIds.add(nodeId)
+
+  const graphDepthMemo = new Map<string, number>()
+  const graphDepth = (nodeId: string, visiting = new Set<string>()): number => {
+    const cached = graphDepthMemo.get(nodeId)
+    if (cached !== undefined) return cached
+    if (visiting.has(nodeId)) return 0
+    visiting.add(nodeId)
+    const parents = incomingIds.get(nodeId) ?? []
+    const depth = parents.length > 0
+      ? Math.max(...parents.map((parentId) => graphDepth(parentId, visiting) + 1))
+      : 0
+    visiting.delete(nodeId)
+    graphDepthMemo.set(nodeId, depth)
+    return depth
+  }
+
+  const reachableShotIndexMemo = new Map<string, number>()
+  const reachableShotIndex = (nodeId: string, visiting = new Set<string>()): number => {
+    const cached = reachableShotIndexMemo.get(nodeId)
+    if (cached !== undefined) return cached
+    const node = nodeById.get(nodeId)
+    let best = node?.shotIndex ?? Number.POSITIVE_INFINITY
+    if (visiting.has(nodeId)) return best
+    visiting.add(nodeId)
+    for (const targetId of outgoingIds.get(nodeId) ?? []) {
+      best = Math.min(best, reachableShotIndex(targetId, visiting))
+    }
+    visiting.delete(nodeId)
+    reachableShotIndexMemo.set(nodeId, best)
+    return best
   }
 
   // 子节点：切片/裁剪（meta.sourceNodeId 指向集内某节点）。沿 sourceNodeId 链上溯到**根镜头祖先**——
@@ -137,8 +176,24 @@ export function tidyCanvasLayout(
   }
 
   // 材料区（纯输入，按当前 x 保留左右手感）排顶部；镜头区按 shotIndex、每镜紧跟切片，排材料下方。
-  materials.sort((a, b) => a.position.x - b.position.x || a.position.y - b.position.y)
+  materials.sort((a, b) => {
+    const ai = reachableShotIndex(a.id)
+    const bi = reachableShotIndex(b.id)
+    if (ai !== bi) return ai - bi
+    return a.position.x - b.position.x || a.position.y - b.position.y
+  })
   mains.sort((a, b) => {
+    const ac = connectedNodeIds.has(a.id)
+    const bc = connectedNodeIds.has(b.id)
+    if (ac !== bc) return ac ? -1 : 1
+    if (ac && bc) {
+      const ad = graphDepth(a.id)
+      const bd = graphDepth(b.id)
+      if (ad !== bd) return ad - bd
+      const ai = reachableShotIndex(a.id)
+      const bi = reachableShotIndex(b.id)
+      if (ai !== bi) return ai - bi
+    }
     const ai = a.shotIndex ?? Number.POSITIVE_INFINITY
     const bi = b.shotIndex ?? Number.POSITIVE_INFINITY
     return ai - bi || a.position.y - b.position.y || a.position.x - b.position.x

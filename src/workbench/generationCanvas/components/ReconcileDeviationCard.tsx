@@ -56,17 +56,18 @@ export default function ReconcileDeviationCard({ deviations, onUndoAll, onDismis
           </li>
         ))}
       </ul>
-      <div className={cn('flex items-center gap-2')}>
+      {/* flex-wrap + shrink-0:三个按钮在窄面板放不下时整组换行(AI 修一行、保持/撤销一行),不挤压不竖排。 */}
+      <div className={cn('flex flex-wrap items-center gap-2')}>
         {onAiFix && hasEdgeMiss ? (
-          <WorkbenchButton variant="accent" size="sm" data-reconcile-ai-fix="true" onClick={onAiFix}>
+          <WorkbenchButton className={cn('shrink-0')} variant="accent" size="sm" data-reconcile-ai-fix="true" onClick={onAiFix}>
             让 AI 修一下
           </WorkbenchButton>
         ) : null}
         <div className={cn('flex items-center gap-2 ml-auto')}>
-          <WorkbenchButton variant="default" size="sm" onClick={onDismiss}>
+          <WorkbenchButton className={cn('shrink-0')} variant="default" size="sm" onClick={onDismiss}>
             保持现状
           </WorkbenchButton>
-          <WorkbenchButton variant="primary" size="sm" data-reconcile-undo-all="true" onClick={onUndoAll}>
+          <WorkbenchButton className={cn('shrink-0')} variant="primary" size="sm" data-reconcile-undo-all="true" onClick={onUndoAll}>
             撤销这次改动
           </WorkbenchButton>
         </div>

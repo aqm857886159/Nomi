@@ -22,6 +22,25 @@ export type KnownVendorPromo = {
   url: string
 }
 
+/**
+ * 多段凭证的单个字段声明（如火山语音的 App ID / Access Token）。
+ * 供应商档案声明「我要哪几段」，通用接入卡按声明渲染对应数量的输入框（P4 档案声明槽、通用系统填）。
+ * 保存时各段按 credentialJoin（默认冒号）拼成单串存进 vendor 的唯一 apiKey 槽——
+ * 底层存储/钥匙串/runner 零改动，多段拆分只活在录入这一层。
+ */
+export type CredentialField = {
+  /** 字段标识（aria-label / 状态区分用，不进存储）。 */
+  key: string
+  /** 字段显示名（如「App ID」）。 */
+  label: string
+  /** 输入框占位。 */
+  placeholder: string
+  /** 是否密文输入（如 Access Token）。 */
+  secret?: boolean
+  /** 字段下方小字说明（去哪拿这一段）。 */
+  hint?: string
+}
+
 export type KnownVendor = {
   /** 与 catalog vendor.key 一致。 */
   vendorKey: string
@@ -33,6 +52,21 @@ export type KnownVendor = {
   tagline: string
   /** 推广位；null = 不展示推广。 */
   promo: KnownVendorPromo | null
+  /** key 输入框占位（缺省 = 通用 sk- 提示）。仅单段凭证用；声明了 credentialFields 时被忽略。 */
+  credentialPlaceholder?: string
+  /** key 输入框下方帮助文案（缺省 = 通用「填一次即可…」）。多段凭证时作为卡片底部总说明。 */
+  credentialHint?: string
+  /**
+   * 多段凭证声明（缺省 = 单段，沿用 credentialPlaceholder）。
+   * 声明后接入卡渲染对应数量的独立输入框，各自标注；保存时按 credentialJoin 拼成单串存进唯一 key 槽。
+   * 用于火山语音这类需要 App ID + Access Token 两段、但底层只有一个 key 槽的供应商。
+   */
+  credentialFields?: readonly CredentialField[]
+  /** 多段凭证的拼接分隔符（缺省冒号）。必须与后端拆分一致（如 splitDoubaoCredential 按首个冒号切）。 */
+  credentialJoin?: string
+  /** 「新手推荐」软标：仅未接入时显示，帮纯新人在多家里有个默认起点（聚合中转一个 key 全解锁）。
+   *  软提示，不钦点、不占 C 位（用户拍板：留但只当软提示）。 */
+  recommended?: boolean
 }
 
 export const KNOWN_VENDORS: readonly KnownVendor[] = [
@@ -41,6 +75,8 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
     logo: new URL('../assets/vendor-logos/apimart.png', import.meta.url).href,
     glyph: 'A',
     tagline: '一个 key，解锁全部预置模型',
+    recommended: true, // 聚合中转，一个 key 解锁图/视频/文本/配音 → 新手最省事的起点
+
     promo: {
       text: '如果你愿意，可以用我们的链接注册；不愿意也可以直接去官方注册。',
       ctaLabel: '用我们的链接',
@@ -60,6 +96,7 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
   },
   {
     vendorKey: 'modelscope',
+    logo: new URL('../assets/vendor-logos/modelscope.png', import.meta.url).href,
     glyph: '魔',
     tagline: '官方原生 · 绑定阿里云每天免费额度',
     promo: {
@@ -70,12 +107,45 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
   },
   {
     vendorKey: 'volcengine',
+    logo: new URL('../assets/vendor-logos/volcengine.png', import.meta.url).href,
     glyph: '火',
     tagline: '官方原生 · 豆包 Seedream / Seedance',
     promo: {
       text: '火山方舟（字节跳动）官方。需先在 Ark 控制台「开通管理」激活模型（Seedream/Seedance），再拿 API Key。',
       ctaLabel: '去火山方舟',
       url: 'https://console.volcengine.com/ark',
+    },
+  },
+  {
+    // 火山「语音技术」= 独立产品线，凭证 ≠ 方舟 bearer key（见 volcengineVendor.ts）。
+    // 故必须独立成卡：否则豆包语音音色被归进「其他模型」且写死「已配置」，
+    // 用户既无处填 APP_ID:ACCESS_KEY，又被误导以为已连通（真实坑，2026-06-25 用户反馈）。
+    vendorKey: 'volcengine-speech',
+    logo: new URL('../assets/vendor-logos/doubao.png', import.meta.url).href,
+    glyph: '声',
+    tagline: '官方原生 · 豆包语音 2.0 配音（自然语言情感控制）',
+    // 火山语音需要两段凭证（App ID + Access Token），声明成两个独立框，别让用户自己拼冒号
+    // （D1：让用户照我们的格式手写 = 离谱）。卡片保存时内部拼成 APP_ID:ACCESS_KEY 存单槽。
+    credentialFields: [
+      {
+        key: 'appId',
+        label: 'App ID',
+        placeholder: '火山语音应用的 App ID',
+        hint: '语音控制台 → 应用管理里的 App ID',
+      },
+      {
+        key: 'accessToken',
+        label: 'Access Token',
+        placeholder: '对应的 Access Token',
+        secret: true,
+        hint: '同一应用的访问令牌（Access Key）',
+      },
+    ],
+    credentialHint: '需先开通豆包语音合成 2.0 + 付费音色；凭证本地加密存储、只在调用时使用。',
+    promo: {
+      text: '火山「语音技术」官方（与方舟是不同控制台）。开通豆包语音合成 2.0 与付费音色后，拿 App ID 与 Access Token。',
+      ctaLabel: '去火山语音控制台',
+      url: 'https://console.volcengine.com/speech/app',
     },
   },
 ] as const

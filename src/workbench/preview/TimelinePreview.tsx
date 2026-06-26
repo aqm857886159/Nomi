@@ -13,7 +13,9 @@ import { framingToMediaStyle, mediaFitClass, framingOffsetFromDrag } from './pre
 import { fitPreviewStageSize } from './previewStageLayout'
 import OverlaySelectionBox from './OverlaySelectionBox'
 import type { PreviewAspectRatio } from '../workbenchTypes'
-import { resolveVideoClipMediaTimeSeconds } from '../player/timelinePlayback'
+import { resolveVideoClipMediaTimeSeconds, findClipByType as findClip } from '../player/timelinePlayback'
+import { usePreviewBgmPlayback } from './usePreviewBgmPlayback'
+import { PREVIEW_RATIOS } from './previewAspectRatios'
 import { exportTimelineToMp4, type ExportTimelineToMp4Options } from '../export/exportApi'
 import { markChecklistStep } from '../onboarding/onboardingState'
 import { buildMp4ExportButtonTitle } from '../export/exportCopy'
@@ -33,20 +35,6 @@ type TimelinePreviewProps = {
 }
 
 type PreviewExportStatus = 'idle' | 'preparing' | 'recording' | 'converting' | 'done' | 'error'
-
-function findClip(activeClips: TimelineClip[], type: TimelineClip['type']): TimelineClip | null {
-  return activeClips.find((clip) => clip.type === type) || null
-}
-
-const PREVIEW_RATIOS: Array<{ value: PreviewAspectRatio; label: string; title: string; css: string; width: number; height: number }> = [
-  { value: '16:9', label: '16:9', title: '横屏 / YouTube / B站', css: '16 / 9', width: 16, height: 9 },
-  { value: '9:16', label: '9:16', title: '竖屏 / 短视频', css: '9 / 16', width: 9, height: 16 },
-  { value: '1:1', label: '1:1', title: '方形 / 信息流', css: '1 / 1', width: 1, height: 1 },
-  { value: '4:5', label: '4:5', title: '社媒竖图 / Feed', css: '4 / 5', width: 4, height: 5 },
-  { value: '3:4', label: '3:4', title: '竖版海报 / 封面', css: '3 / 4', width: 3, height: 4 },
-  { value: '4:3', label: '4:3', title: '传统横屏', css: '4 / 3', width: 4, height: 3 },
-  { value: '21:9', label: '21:9', title: '电影宽屏', css: '21 / 9', width: 21, height: 9 },
-]
 
 export default function TimelinePreview({ activeClips, aspectRatio, fps, playheadFrame, timeline }: TimelinePreviewProps): JSX.Element {
   const playerRef = React.useRef<HTMLDivElement | null>(null)
@@ -91,6 +79,7 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
   const setTimelinePlayhead = useWorkbenchStore((state) => state.setTimelinePlayhead)
   const videoClip = findClip(activeClips, 'video')
   const imageClip = findClip(activeClips, 'image')
+  const audioClip = findClip(activeClips, 'audio')
   const videoUrl = videoClip?.url || ''
   const videoPlaybackUrl = videoUrl ? buildVideoPlaybackUrl(videoUrl) : ''
   const activeRatio = PREVIEW_RATIOS.find((ratio) => ratio.value === aspectRatio) || PREVIEW_RATIOS[0]
@@ -114,13 +103,17 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
     progressPercent: exportRatio * 100,
   })
 
+  // playhead → <video>.currentTime 同步（playhead 是单一真相源）。
+  // 旧实现「playing 时直接 return」→ 播放中点时间轴中间，playhead 跳了但画面不跟（scrub 失效）。
+  // 改为播放感知阈值：暂停时贴紧（逐帧步进也要跟）；播放时 <video> 自走、与 playhead 实时相近，
+  // 放宽阈值只在 scrub 这种「大跳」时纠正，避免每帧把 currentTime 往回拽造成抖动。
   React.useEffect(() => {
     const video = videoRef.current
     if (!video || !videoClip?.url) return
-    if (playing) return
     const nextTime = resolveVideoClipMediaTimeSeconds({ clip: videoClip, playheadFrame, fps })
     if (!Number.isFinite(nextTime)) return
-    if (Math.abs(video.currentTime - nextTime) < 0.08) return
+    const threshold = playing ? 0.3 : 0.04
+    if (Math.abs(video.currentTime - nextTime) < threshold) return
     video.currentTime = nextTime
   }, [fps, playheadFrame, videoClip, playing])
 
@@ -131,6 +124,9 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
     video.volume = volume
     video.muted = muted
   }, [videoUrl, volume, muted])
+
+  // 配乐 <audio> 播放（playhead 同步 + 播放/暂停 + 音量静音）抽到 hook（R9）。
+  const { audioRef, audioUrl } = usePreviewBgmPlayback(audioClip, { playing, playheadFrame, fps, volume, muted })
 
   // 全屏态跟随：用 fullscreenchange 同步图标，避免 document.fullscreenElement 在渲染期不反应。
   React.useEffect(() => {
@@ -463,6 +459,17 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
             }}
           />
         ) : null}
+        {/* 配乐 <audio>：无画面，仅播放当前音频轨 clip 的声音（试听）。currentTime/play 由上方 effect 跟 playhead。 */}
+        {audioUrl ? (
+          <audio
+            ref={audioRef}
+            src={audioUrl}
+            crossOrigin="use-credentials"
+            preload="auto"
+            className="hidden"
+            aria-hidden="true"
+          />
+        ) : null}
         {/* 文字叠加层（字幕/标题卡）：z 在媒体之上；容器不拦事件，仅文本框可点选/编辑。 */}
         {stageSize && activeTextClips.length > 0 ? (
           <div className="workbench-preview-player__text-layer absolute inset-0 z-[3] pointer-events-none" aria-hidden="false">
@@ -694,7 +701,7 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
             className={cn('h-7 px-2.5 inline-flex items-center gap-1 border border-[var(--workbench-border)] rounded-full whitespace-nowrap bg-transparent text-[var(--workbench-muted)] text-micro font-bold cursor-pointer hover:bg-[var(--workbench-hover)] hover:text-[var(--workbench-ink)]')}
             aria-label="添加文字"
             aria-expanded={textMenuOpen}
-            title="加字幕 / 标题（都是文字，可自由拖动缩放）"
+            title="加字幕 / 标题卡（都是文字，可自由拖动缩放）"
             onClick={() => setTextMenuOpen((open) => !open)}
           >
             <IconLetterCase size={14} />文字<IconChevronDown size={12} className="opacity-60" />
@@ -718,7 +725,7 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
                 className={cn('flex items-center gap-2 px-2 py-1.5 rounded-[var(--nomi-radius-sm)] text-left text-caption text-[var(--workbench-ink)] hover:bg-[var(--workbench-hover)]')}
                 onClick={() => addText('title')}>
                 <IconLetterCase size={14} className="flex-none text-[var(--workbench-text)]" />
-                <span className="flex-1">标题</span>
+                <span className="flex-1">标题卡</span>
                 <span className="text-[var(--workbench-muted-soft)] text-micro">居中 · 大</span>
               </button>
             </div>

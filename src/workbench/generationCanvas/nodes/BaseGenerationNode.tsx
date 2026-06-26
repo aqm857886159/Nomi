@@ -11,11 +11,8 @@ import ProvenancePanel from "./ProvenancePanel";
 import { resolveNodeRenderKind, isCardRenderKind } from "./resolveRenderKind";
 import ShotMountBadges from "./render/ShotMountBadges";
 import { getBuiltinCategoryById } from "../../project/projectCategories";
-import CharacterCardNode from "./render/CharacterCardNode";
+import { NodeCardBody } from "./render/NodeCardBody";
 import TextDocumentNode from "./render/TextDocumentNode";
-import SceneCardNode from "./render/SceneCardNode";
-import PropCardNode from "./render/PropCardNode";
-import AudioStripNode from "./render/AudioStripNode";
 import ImageCropGridOverlay from "./render/ImageCropGridOverlay";
 import NodeImageEditToolbar from "./NodeImageEditToolbar";
 import NodeResultDownloadButton from "./NodeResultDownloadButton";
@@ -24,7 +21,7 @@ import { useNodeImageEditing } from "./useNodeImageEditing";
 import { useNodeDragResize } from "./useNodeDragResize";
 import { useHasFrameSourceEdge, useShotIndex, useMountedCards } from "../hooks/useNodeRelationships";
 import { lazyWithChunkBoundary } from "../../../ui/chunkBoundary";
-import { GeneratingOverlay, PendingGenerationPlaceholder, Scene3DEditorLoading } from "./render/CardCommon";
+import { GeneratingOverlay, PendingGenerationPlaceholder, Scene3DEditorLoading, STRIPED_BG_CLASS } from "./render/CardCommon";
 import { cn } from "../../../utils/cn";
 import { NomiImage } from "../../../design/media";
 import { persistNodeImageFile } from "../adapters/persistNodeImage";
@@ -39,7 +36,10 @@ import { getTrackTypeForClipType } from "../../timeline/timelineTypes";
 import { buildClipFromGenerationNode } from "../model/buildClipFromGenerationNode";
 import { toast } from "../../../ui/toast";
 import { canRunGenerationNode, confirmAndRunNode } from "../runner/generationRunController";
+import { retryLocalAssetImport } from "../adapters/assetImportAdapter";
 import { NodeErrorReport } from "./NodeErrorReport";
+import { NodeRecoverableReport } from "./NodeRecoverableReport";
+import { dismissRecoverableNode, recoverNodeResult } from "../runner/recoverTaskActions";
 import { WorkbenchButton } from "../../../design";
 import NodeGenerationComposer from "./NodeGenerationComposer";
 import { completeNodeConnection } from "./completeNodeConnection";
@@ -58,11 +58,9 @@ import {
   RESIZE_DIRECTIONS,
   getNodeSizeBounds,
   FOCUS_GENERATION_NODE_EVENT,
-  clampNumber,
-  readFiniteNumber,
   mediaNodeSize,
-  cardFixedSize,
-  resolvePreviewHeight,
+  computeMediaMetaPatch,
+  resolveNodeVisualSize,
 } from "./nodeSizing";
 
 export type BaseGenerationNodeProps = {
@@ -177,49 +175,20 @@ function BaseGenerationNodeImpl({
             );
     };
 
-    const updateMediaDimensions = (width: number, height: number) => {
-        const nextSize = mediaNodeSize(width, height, node.size?.width);
-        if (!nextSize) return;
-        const meta = node.meta || {};
-        const previousWidth = readFiniteNumber(
-            meta.imageWidth ?? meta.videoWidth,
-        );
-        const previousHeight = readFiniteNumber(
-            meta.imageHeight ?? meta.videoHeight,
-        );
-        const userResized = meta.userResized === true;
-        const mediaPatch =
-            node.result?.type === "video"
-                ? {
-                      videoWidth: width,
-                      videoHeight: height,
-                      videoAspectRatio: width / height,
-                  }
-                : {
-                      imageWidth: width,
-                      imageHeight: height,
-                      imageAspectRatio: width / height,
-                  };
-        const shouldPatchSize =
-            !userResized &&
-            (node.size?.width !== nextSize.width ||
-                node.size?.height !== nextSize.height);
-        if (
-            previousWidth === width &&
-            previousHeight === height &&
-            !shouldPatchSize
-        )
-            return;
-        updateNode(node.id, {
-            ...(shouldPatchSize
-                ? { size: { width: nextSize.width, height: nextSize.height } }
-                : {}),
-            meta: {
-                ...meta,
-                ...mediaPatch,
-                previewHeight: nextSize.previewHeight,
-            },
+    const updateMediaDimensions = (
+        width: number,
+        height: number,
+        durationSeconds?: number,
+    ) => {
+        const patch = computeMediaMetaPatch({
+            resultType: node.result?.type,
+            meta: node.meta || {},
+            currentSize: node.size,
+            width,
+            height,
+            durationSeconds,
         });
+        if (patch) updateNode(node.id, patch);
     };
 
     const handleFocusSourceNode = React.useCallback(
@@ -255,7 +224,6 @@ function BaseGenerationNodeImpl({
     );
 
     const status = node.status || "idle";
-    const size = node.size || { width: 320, height: 360 };
     // E.2.1: shots 分类的 composer 真正 flex-inlined（不再 absolute 浮在节点下方）
     // 配合 spec §6.1 修正 3：composer 内嵌到 card flex 流，与图像区共占节点视觉空间
     // [DESIGN-CARDS-07] renderKind 分发：非 shots 分类用专属 card 组件
@@ -268,41 +236,11 @@ function BaseGenerationNodeImpl({
     const isCardKind = isCardRenderKind(renderKind);
     // C5: 文本节点走专属可编辑 body（TextDocumentNode），像 card 那样脱离图片预览。
     const isTextKind = node.kind === "text";
-    const isImageGridSplitNode =
-        node.kind === "image" &&
-        typeof node.meta?.source === "string" &&
-        node.meta.source.startsWith("image-grid-split-");
-    const storedPreviewHeight =
-        typeof node.meta?.previewHeight === "number" &&
-        Number.isFinite(node.meta.previewHeight)
-            ? isImageGridSplitNode
-                ? Math.max(1, Math.round(node.meta.previewHeight))
-                : clampNumber(
-                      Math.round(node.meta.previewHeight),
-                      sizeBounds.minHeight,
-                      sizeBounds.maxHeight,
-                  )
-            : null;
     const hasResult = Boolean(node.result?.url);
-    const { width: cardFixedWidth, height: cardFixedHeight } = cardFixedSize(
-        renderKind,
-        isCardKind,
-    );
-    const previewHeight = resolvePreviewHeight({
-        node,
-        hasResult,
-        isCardKind,
-        cardFixedWidth,
-        cardFixedHeight,
-        storedPreviewHeight,
-        sizeWidth: size.width,
-        sizeHeight: size.height,
-        bounds: sizeBounds,
-    });
-    const visualSize = {
-        width: cardFixedWidth ?? Math.max(sizeBounds.minWidth, size.width),
-        height: previewHeight,
-    };
+    // 可视尺寸（卡片固定宽 / 动态高）的单一真相源 resolveNodeVisualSize——连线锚点 / 最小地图 /
+    // fitView 与本外壳共用同一函数，避免名义 size 与渲染尺寸两套真相源（连线起笔飘在节点外的根因）。
+    const visualSize = resolveNodeVisualSize(node);
+    const previewHeight = visualSize.height;
     const { handlePointerDown, handlePointerMove, handlePointerUp, handleResizePointerDown } =
         useNodeDragResize({
             node,
@@ -634,25 +572,17 @@ function BaseGenerationNodeImpl({
             {status === "error" && node.error ? (
                 <NodeErrorReport
                     message={node.error}
-                    onRetry={() => { void confirmAndRunNode(node.id) }}
+                    onRetry={() => { void (node.meta?.retryableImport === true ? retryLocalAssetImport(node.id) : confirmAndRunNode(node.id)) }}
                 />
             ) : null}
 
-            {/* [DESIGN-CARDS-07] 卡片分发：非 shots 分类渲染对应 card 组件（preview div + composer 隐藏）。 */}
-            {isCardKind ? (
-                <div className='w-full h-full rounded-nomi shadow-nomi-md overflow-hidden ring-1 ring-inset ring-nomi-line'>
-                    {renderKind === "character-card" && (
-                        <CharacterCardNode node={node} />
-                    )}
-                    {renderKind === "scene-card" && (
-                        <SceneCardNode node={node} />
-                    )}
-                    {renderKind === "prop-card" && <PropCardNode node={node} />}
-                    {renderKind === "audio-strip" && (
-                        <AudioStripNode node={node} />
-                    )}
-                </div>
+            {/* 可找回态：异步任务超时但上游可能已出片——中性面板 + 一键重新拉取（query 不扣费），不进红色错误桶。 */}
+            {status === "recoverable" ? (
+                <NodeRecoverableReport onRecover={() => { void recoverNodeResult(node.id) }} onDismiss={() => { dismissRecoverableNode(node.id) }} />
             ) : null}
+
+            {/* [DESIGN-CARDS-07] 卡片分发抽到 NodeCardBody（R9 治巨壳）：非 shots 分类共用外壳只换 body。 */}
+            {isCardKind ? <NodeCardBody renderKind={renderKind} node={node} readOnly={readOnly} /> : null}
 
             {/* C5: 文本节点。外层不裁剪让浮动格式条浮到节点上方（圆角/阴影/裁剪在 TextDocumentNode 内层 body）。 */}
             {isTextKind ? (
@@ -669,8 +599,7 @@ function BaseGenerationNodeImpl({
                     "rounded-nomi shadow-nomi-md cursor-grab touch-none ring-1 ring-inset ring-nomi-line",
                     // 棋盘格占位底纹只在「未生成」态出现；有结果后节点尺寸已贴合图片比例，
                     // 不再露出底纹，避免图片外面套一层框。
-                    !hasResult &&
-                        "bg-[repeating-linear-gradient(45deg,var(--nomi-ink-05)_0_23px,var(--nomi-ink-20)_23px_24px)]",
+                    !hasResult && STRIPED_BG_CLASS,
                     // [DESIGN-CARDS-07] 卡片模式隐藏 preview div；C5 文本节点同理。
                     (isCardKind || isTextKind) && "hidden",
                 )}
@@ -744,6 +673,7 @@ function BaseGenerationNodeImpl({
                                 updateMediaDimensions(
                                     event.currentTarget.videoWidth,
                                     event.currentTarget.videoHeight,
+                                    event.currentTarget.duration,
                                 );
                             }}
                             onError={(event) => {
@@ -847,6 +777,7 @@ function BaseGenerationNodeImpl({
             !readOnly &&
             node.kind !== "panorama" &&
             node.kind !== "scene3d" &&
+            node.kind !== "whiteboard" &&
             !isAssetKind ? (
                 <NodeGenerationComposer node={node} visualSize={visualSize} />
             ) : null}

@@ -189,7 +189,9 @@ describe('projectRepository workspace project creation', () => {
 
     expect(record).toMatchObject({ id: 'ws-1', name: 'Workspace Project', version: 1 })
     expect(record?.payload.workbenchDocument.version).toBe(1)
-    expect(record?.payload.timeline.tracks).toHaveLength(2)
+    // 三轨：旧 2 轨工程加载时 normalizeTimeline 自动补音频轨（migration，幂等）。
+    expect(record?.payload.timeline.tracks).toHaveLength(3)
+    expect(record?.payload.timeline.tracks.map((t) => t.type)).toEqual(['image', 'video', 'audio'])
   })
 
   it('opens a freshly-initialized workspace (minimal payload) as an empty default project', () => {

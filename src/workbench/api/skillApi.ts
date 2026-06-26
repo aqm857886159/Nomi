@@ -16,12 +16,20 @@ export type SkillListItemDto = {
   isPlaybook: boolean
   neededProviders: SkillProviderKind[]
   manifestError: string | null
+  /** 'user'=可写用户目录（可删/可导出）；'builtin'=安装随附（只读、禁删）。 */
+  origin: 'builtin' | 'user'
 }
 
 export type SkillImportResultDto = {
   ok: boolean
   dirName?: string
   skillName?: string
+  error?: string
+}
+
+export type SkillDeleteResultDto = {
+  ok: boolean
+  dirName?: string
   error?: string
 }
 
@@ -41,6 +49,11 @@ export function exportWorkbenchSkill(dirName: string): unknown {
 
 export function importWorkbenchSkill(payload: unknown): SkillImportResultDto {
   return requireDesktopRuntime('skill import').skill.importPackage(payload) as SkillImportResultDto
+}
+
+/** 删除一个用户技能（内置只读、删不掉，后端会拒）。 */
+export function deleteWorkbenchSkill(dirName: string): SkillDeleteResultDto {
+  return requireDesktopRuntime('skill delete').skill.deleteByDir(dirName) as SkillDeleteResultDto
 }
 
 /** 当前已接入且 enabled 的模型模态集合（text/image/video；过滤掉 audio——skill 不声明 audio）。 */

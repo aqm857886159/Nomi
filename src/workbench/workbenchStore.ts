@@ -174,6 +174,7 @@ type WorkbenchState = {
   creationAssistantAutoOpen: boolean
   setCreationAssistantAutoOpen: (open: boolean) => void
   setTimeline: (timeline: TimelineState) => void
+  restoreProjectWorkbenchState: (payload: { workbenchDocument: WorkbenchDocument; timeline: TimelineState }) => void
   setTimelinePlaying: (playing: boolean) => void
   setPreviewAspectRatio: (ratio: PreviewAspectRatio) => void
   addTimelineClipAtFrame: (clip: TimelineClip, trackType: TimelineTrackType, startFrame: number) => void
@@ -421,6 +422,15 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       timeline: normalizeTimeline(timeline),
       persistRevision: state.persistRevision + 1,
     }))
+  },
+  restoreProjectWorkbenchState: ({ workbenchDocument, timeline }) => {
+    set({
+      workbenchDocument: normalizeWorkbenchDocument(workbenchDocument),
+      timeline: normalizeTimeline(timeline),
+      timelinePlaying: false,
+      selectedTimelineClipIds: [],
+      timelineSnapGuide: null,
+    })
   },
   setTimelinePlaying: (timelinePlaying) => {
     set({ timelinePlaying: Boolean(timelinePlaying) })

@@ -13,6 +13,6 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["src/main.tsx", "vite.config.ts"],
+  "include": ["src/main.tsx", "vite.config.ts", "src/vendor/**/*.d.ts"],
   "references": []
 }

@@ -2,9 +2,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { canCreateSymlink } from "../testSupport/canCreateSymlink";
 import { listWorkspaceFiles, resolveWorkspaceFilePath } from "./workspaceFileIndex";
 
 const tempRoots: string[] = [];
+const canCreateDirSymlink = canCreateSymlink("dir");
 
 afterEach(() => {
   for (const root of tempRoots.splice(0)) {
@@ -55,7 +57,7 @@ describe("workspace file index", () => {
     expect(tree.map((node) => node.relativePath)).toEqual(["visible.txt"]);
   });
 
-  it("does not follow symlinks outside workspace by default", () => {
+  (canCreateDirSymlink ? it : it.skip)("does not follow symlinks outside workspace by default", () => {
     const root = makeTempDir();
     const outside = makeTempDir();
     write(outside, "secret.txt", "secret");
@@ -94,7 +96,7 @@ describe("workspace file index", () => {
     }
   });
 
-  it("rejects reveal paths that are absolute malformed traversal or symlink escapes", () => {
+  (canCreateDirSymlink ? it : it.skip)("rejects reveal paths that are absolute malformed traversal or symlink escapes", () => {
     const root = makeTempDir();
     const outside = makeTempDir();
     write(root, "safe/file.txt");

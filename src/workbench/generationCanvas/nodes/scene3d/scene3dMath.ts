@@ -278,9 +278,31 @@ export function applyMannequinSkeletonPose(root: THREE.Object3D, pose?: Record<s
 const MANNEQUIN_GROUND_REF_KEY = 'scene3dGroundRefY'
 const MANNEQUIN_GROUND_BASE_KEY = 'scene3dGroundBaseY'
 
-function lowestBoneLocalY(root: THREE.Object3D): number | null {
-  const point = new THREE.Vector3()
+const _groundVertex = new THREE.Vector3()
+
+// 落地参考用「蒙皮后网格的真实最低点」（不是骨骼关节点）。
+// 关节点法的坑：脚踝/脚尖关节到鞋底网格的偏移随脚的勾绷（dorsi/plantar-flex）变化，
+// 坐/蹲/跪这类脚姿大变的预设会按关节落地 → 鞋底网格悬空或陷地 0.7~0.9 单位（实测）。
+// 改用 applyBoneTransform 取每个顶点蒙皮后的世界坐标求最低 Y，任何姿势鞋底/膝盖都精确贴地。
+// 仅在姿势变化时跑一次（非每帧），单网格 x-bot 全顶点遍历开销可忽略。
+function lowestMannequinLocalY(root: THREE.Object3D): number | null {
   let minY: number | null = null
+  root.updateMatrixWorld(true)
+  root.traverse((object) => {
+    if (!(object instanceof THREE.SkinnedMesh)) return
+    const position = object.geometry.getAttribute('position')
+    if (!position) return
+    for (let i = 0; i < position.count; i += 1) {
+      _groundVertex.fromBufferAttribute(position, i)
+      object.applyBoneTransform(i, _groundVertex) // 顶点 → 蒙皮变形后（含当前骨骼姿势）的 mesh-local
+      object.localToWorld(_groundVertex) // mesh-local → world
+      root.worldToLocal(_groundVertex) // world → root-local
+      if (minY === null || _groundVertex.y < minY) minY = _groundVertex.y
+    }
+  })
+  if (minY !== null) return minY
+  // 兜底：无蒙皮网格（理论不该发生）时退回骨骼关节点。
+  const point = new THREE.Vector3()
   root.traverse((object) => {
     if (!(object instanceof THREE.Bone)) return
     object.getWorldPosition(point)
@@ -298,7 +320,7 @@ export function captureMannequinGroundReference(root: THREE.Group): void {
     inner.userData[MANNEQUIN_GROUND_BASE_KEY] = inner.position.y
   }
   root.updateMatrixWorld(true)
-  const minY = lowestBoneLocalY(root)
+  const minY = lowestMannequinLocalY(root)
   if (minY !== null) root.userData[MANNEQUIN_GROUND_REF_KEY] = minY
 }
 
@@ -309,7 +331,7 @@ export function groundMannequinModel(root: THREE.Group): void {
   const baseY = (inner.userData[MANNEQUIN_GROUND_BASE_KEY] as number | undefined) ?? inner.position.y
   inner.position.y = baseY
   root.updateMatrixWorld(true)
-  const minY = lowestBoneLocalY(root)
+  const minY = lowestMannequinLocalY(root)
   if (minY === null) return
   inner.position.y = baseY + (refY - minY)
   root.updateMatrixWorld(true)

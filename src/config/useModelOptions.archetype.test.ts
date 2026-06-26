@@ -16,7 +16,7 @@ describe("toCatalogModelOptions — 认得的模型注入内置档案控件", ()
     const controls = parseModelParameterControls(opt.meta);
     expect(controls.map((c) => c.key)).toEqual(["resolution", "aspect_ratio", "duration", "generate_audio"]);
     const resolution = controls.find((c) => c.key === "resolution");
-    expect(resolution?.options.map((o) => o.value)).toEqual(["480p", "720p", "1080p"]);
+    expect(resolution?.options.map((o) => o.value)).toEqual(["480p", "720p", "1080p", "4k"]);
     expect(resolution?.defaultValue).toBe("720p");
   });
 

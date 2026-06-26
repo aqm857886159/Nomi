@@ -11,7 +11,7 @@
 //
 // 真相源（P1）：generate 不重建 archetype→body——runTask 主进程内部据 catalog mapping + extras
 // 自己组装请求体（findExecutableModel / requestPipeline / 资产本地化）。本核只构造高层 TaskRequest。
-import { listProjects, createProject } from '../projects/repository'
+import { listProjects, createProject, readProject } from '../projects/repository'
 import { readCatalog } from '../catalog/catalogStore'
 import {
   addNodes,
@@ -250,8 +250,10 @@ export async function generateOnProject(
   // 付费确认：A 模式弹实时卡，真人点确认才铸令牌；B 模式只认 env 逃生口。
   // 不在此硬拦——enforcement 仍在 runTask 内的 assertAndConsumeSpendGrant（红队不变量：主进程硬闸）；
   // 未确认 = 不带 grantId，runTask 会 fail-fast 抛「未确认」并秒回，不死等、不烧额度。
+  const projectName = readProject(input.projectId)?.name
   const grantId = await gateway.confirmSpend({
     projectId: input.projectId,
+    ...(projectName ? { projectName } : {}),
     nodeId,
     intent,
     vendor: input.vendor,

@@ -1,6 +1,5 @@
 import React from 'react'
-import { IconHistory, IconPlugConnected } from '@tabler/icons-react'
-import { WorkbenchIconButton } from '../../design'
+import { IconHistory } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { ConversationHistoryPopover } from './ConversationHistoryPopover'
 import { ConversationHistoryList } from './ConversationHistoryList'
@@ -11,8 +10,6 @@ export type WorkbenchAiHeaderActionsProps = {
   actionClassName?: string
   /** 哪个面板:决定历史弹层操作的 area。 */
   area: ConvArea
-  /** 模型接入入口：缺省则不渲染该图标（如创作助手——统一只走顶栏「模型接入」一个入口，去掉面板内重复）。 */
-  onModelIntegration?: () => void
   /** 「新对话」处理器(归档当前线程 + 面板清理);由历史弹层顶部触发。 */
   onNewConversation: () => void
 }
@@ -23,21 +20,12 @@ export function WorkbenchAiHeaderActions({
   className,
   actionClassName,
   area,
-  onModelIntegration,
   onNewConversation,
 }: WorkbenchAiHeaderActionsProps): JSX.Element {
   const [open, setOpen] = React.useState(false)
   const anchorRef = React.useRef<HTMLButtonElement>(null)
   return (
     <div className={cn('workbench-ai-header-actions inline-flex items-center flex-nowrap gap-1.5', className)}>
-      {onModelIntegration ? (
-        <WorkbenchIconButton
-          className={cn('workbench-ai-header-actions__button', actionClassName)}
-          label="模型接入"
-          onClick={onModelIntegration}
-          icon={<IconPlugConnected size={14} />}
-        />
-      ) : null}
       <button
         ref={anchorRef}
         type="button"

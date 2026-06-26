@@ -217,9 +217,9 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
         kind: "whiteboard",
         label: "Whiteboard",
         menuLabel: "画板",
-        component: () => import("./whiteboard/WhiteboardCardNode") as Promise<{
-            default: GenerationNodeComponent;
-        }>,
+        // 画板复用共享外壳 BaseGenerationNode(renderKind=whiteboard-card)，和其他节点同一套外壳；
+        // body 在 whiteboard/WhiteboardCardBody（懒加载）。删了旧 WhiteboardCardNode 平行外壳。
+        component: loadBaseGenerationNode,
         icon: "whiteboard",
         defaultTitle: "画板",
         defaultSize: { width: 320, height: 240 },

@@ -16,6 +16,7 @@ import { getDesktopBridge } from '../../desktop/bridge'
 import type { ProviderKind } from '../../desktop/providerKind'
 import { resolveManualSaveAction } from './onboardingSaveGate'
 import { PROVIDER_PRESETS } from './providerPresets'
+import { resolveArchetypeForModel } from '../../config/modelArchetypes'
 import { cn } from '../../utils/cn'
 import { Field } from './onboardingWizardSupport'
 
@@ -27,10 +28,11 @@ const PROVIDER_KIND_LABEL: Record<ProviderKind, string> = {
 }
 
 type Phase = 'input' | 'running' | 'success' | 'error'
-type ModelKind = 'text' | 'image' | 'video'
+type ModelKind = 'text' | 'image' | 'video' | 'audio'
 const KIND_OPTIONS: Array<{ value: ModelKind; label: string }> = [
   { value: 'image', label: '图片' },
   { value: 'video', label: '视频' },
+  { value: 'audio', label: '配音' },
   { value: 'text', label: '文本' },
 ]
 
@@ -75,6 +77,9 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }
   const [models, setModels] = React.useState<Array<{ id: string; kind: ModelKind }>>([])
   // Auto-fetched model ids (GET /models) used as TagsInput autocomplete suggestions.
   const [fetchedModels, setFetchedModels] = React.useState<string[]>([])
+  // 中转「只导认得的」：拉到的里 Nomi 认不出档案的（多为杂牌）默认不自动添加，折叠在这，可手动加。
+  const [unrecognizedModels, setUnrecognizedModels] = React.useState<string[]>([])
+  const [showUnrecognized, setShowUnrecognized] = React.useState(false)
   const [fetchingModels, setFetchingModels] = React.useState(false)
   const [fetchModelsMsg, setFetchModelsMsg] = React.useState('')
   // Custom request headers (key/value) for relay/proxy gateways. Empty by default
@@ -180,9 +185,18 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }
       })
       if (res.ok && res.models && res.models.length > 0) {
         setFetchedModels(res.models)
-        // 一次拉全：把拉到的模型直接加进列表（自动判类型），用户再勾掉不要的 / 改类型。
-        await applyModelIds([...models.map(m => m.id), ...res.models])
-        setFetchModelsMsg(`拉到 ${res.models.length} 个，已按类型自动分好（可改 / 删）`)
+        // 只导认得的（用户拍板）：能匹配 Nomi 档案身份的自动添加；认不出的（中转杂牌）折叠、默认不勾。
+        const already = new Set(models.map(m => m.id))
+        const recognized = res.models.filter(id => resolveArchetypeForModel({ modelKey: id }))
+        const unrecognized = res.models.filter(id => !resolveArchetypeForModel({ modelKey: id }) && !already.has(id))
+        await applyModelIds([...models.map(m => m.id), ...recognized])
+        setUnrecognizedModels(unrecognized)
+        setShowUnrecognized(false)
+        setFetchModelsMsg(
+          unrecognized.length > 0
+            ? `拉到 ${res.models.length} 个：自动添加 ${recognized.length} 个 Nomi 认得的；其余 ${unrecognized.length} 个未识别已折叠，可手动添加`
+            : `拉到 ${res.models.length} 个，已按类型自动分好（可改 / 删）`,
+        )
       } else if (res.ok) {
         setFetchedModels([])
         setFetchModelsMsg('这个地址没返回模型列表，手填 id 即可')
@@ -425,6 +439,38 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }
                       />
                     </Group>
                   ))}
+                </Stack>
+              )}
+              {/* 「只导认得的」其余折叠：未识别模型默认不勾，点开手动添加（不丢任何模型）。 */}
+              {unrecognizedModels.length > 0 && (
+                <Stack gap={6}>
+                  <Anchor
+                    component="button"
+                    type="button"
+                    onClick={() => setShowUnrecognized(v => !v)}
+                    style={{ fontSize: 12, color: 'var(--nomi-ink-60)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  >
+                    {showUnrecognized ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
+                    其余 {unrecognizedModels.length} 个未识别模型（多为中转杂牌）
+                  </Anchor>
+                  <Collapse in={showUnrecognized}>
+                    <Group gap={6} wrap="wrap">
+                      {unrecognizedModels.map(id => (
+                        <DesignButton
+                          key={id}
+                          variant="subtle"
+                          size="xs"
+                          leftSection={<IconPlus size={12} />}
+                          onClick={() => {
+                            void applyModelIds([...models.map(m => m.id), id])
+                            setUnrecognizedModels(prev => prev.filter(x => x !== id))
+                          }}
+                        >
+                          {id}
+                        </DesignButton>
+                      ))}
+                    </Group>
+                  </Collapse>
                 </Stack>
               )}
             </Stack>

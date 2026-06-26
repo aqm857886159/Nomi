@@ -18,6 +18,10 @@ export type TrajectoryContextMenuState = {
   position: Scene3DVector3
 }
 
+export type TrajectoryCreateMenuState = {
+  position: Scene3DVector3
+}
+
 export type TrajectoryPointBindMenuState = {
   trajectoryId: string
   pointId: string

@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  findRecentWorkspace,
   listRecentWorkspaces,
   recentWorkspacesPath,
   rememberWorkspace,
@@ -101,6 +102,43 @@ describe("workspace registry", () => {
 
     expect(entries).toHaveLength(1);
     expect(entries[0]).toMatchObject({ id: "project-1", missing: true });
+  });
+
+  it("finds a recent workspace without checking unrelated root paths", () => {
+    const settingsRoot = makeTempDir();
+    const targetRoot = makeTempDir();
+    const slowRoot = path.join(settingsRoot, "offline-drive", "slow-workspace");
+    const registryPath = recentWorkspacesPath(settingsRoot);
+    fs.writeFileSync(
+      registryPath,
+      JSON.stringify([
+        {
+          id: "slow-project",
+          name: "Slow Project",
+          rootPath: slowRoot,
+          lastOpenedAt: 2,
+        },
+        {
+          id: "target-project",
+          name: "Target Project",
+          rootPath: targetRoot,
+          lastOpenedAt: 1,
+        },
+      ]),
+    );
+    const existsSpy = vi.spyOn(fs, "existsSync");
+
+    const entry = findRecentWorkspace(settingsRoot, "target-project");
+
+    expect(entry).toMatchObject({
+      id: "target-project",
+      rootPath: path.resolve(targetRoot),
+      missing: false,
+    });
+    expect(existsSpy).toHaveBeenCalledWith(registryPath);
+    expect(existsSpy).toHaveBeenCalledWith(path.resolve(targetRoot));
+    expect(existsSpy).not.toHaveBeenCalledWith(path.resolve(slowRoot));
+    existsSpy.mockRestore();
   });
 
   it("removes a workspace reference without deleting the folder", () => {

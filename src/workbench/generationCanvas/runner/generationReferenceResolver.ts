@@ -5,6 +5,10 @@ import { asUrl, findNodeResultUrl, resolveReferenceUrl } from './referenceUrl'
 
 export type ResolvedGenerationReferences = {
   referenceImages: string[]
+  /** 连线进来的视频/音频参考（按源节点类型分流，不混进 referenceImages）。喂 omni 的 video_ref/audio_ref
+   *  槽——B4 修：此前视频源 URL 漏进 referenceImages 当图片/首帧发，且 video_ref 槽只收 meta 上传。 */
+  referenceVideos: string[]
+  referenceAudios: string[]
   firstFrameUrl?: string
   lastFrameUrl?: string
   styleReferenceImages: string[]
@@ -100,14 +104,38 @@ export function resolveGenerationReferences(
     ? referenceImages.filter((url) => url !== relayFromVideoUrl)
     : referenceImages
 
+  // B4：按源节点资产类型把视频/音频 URL 从 referenceImages 分流出去——否则连线进来的视频参考会被当
+  // 图片参考发（甚至经下面 fallback 冒充首帧）。URL→kind 由各节点 result.type / kind 派生（单源）。
+  const assetKindByUrl = new Map<string, 'image' | 'video' | 'audio'>()
+  for (const candidate of nodes) {
+    const rType = candidate.result?.type
+    const kind: 'image' | 'video' | 'audio' =
+      rType === 'video' || (!rType && candidate.kind === 'video') ? 'video'
+      : rType === 'audio' || (!rType && candidate.kind === 'audio') ? 'audio'
+      : 'image'
+    for (const u of [candidate.result?.url, ...((candidate.history || []).map((h) => h.url))]) {
+      const url = asUrl(u)
+      if (url && !assetKindByUrl.has(url)) assetKindByUrl.set(url, kind)
+    }
+  }
+  const imageReferenceImages: string[] = []
+  const referenceVideos: string[] = []
+  const referenceAudios: string[] = []
+  for (const url of cleanReferenceImages) {
+    const kind = assetKindByUrl.get(url) || 'image'
+    if (kind === 'video') referenceVideos.push(url)
+    else if (kind === 'audio') referenceAudios.push(url)
+    else imageReferenceImages.push(url)
+  }
+
   const firstFrameUrl =
     firstFrameFromEdge ||
     asUrl(meta.firstFrameUrl) ||
     asUrl(meta.first_frame_url) ||
     resolveReferenceUrl(nodesById, meta.firstFrameRef) ||
     resolveReferenceUrl(nodesById, meta.firstFrameReference) ||
-    // relay 时首帧要等抽帧填，绝不 fallback 到通用参考图（否则又冒充）。
-    (relayFromVideoUrl ? undefined : cleanReferenceImages[0]) ||
+    // relay 时首帧要等抽帧填，绝不 fallback 到通用参考图（否则又冒充）。只从**图片**参考兜底（视频已分流）。
+    (relayFromVideoUrl ? undefined : imageReferenceImages[0]) ||
     undefined
   const lastFrameUrl =
     lastFrameFromEdge ||
@@ -118,7 +146,9 @@ export function resolveGenerationReferences(
     undefined
 
   return {
-    referenceImages: cleanReferenceImages,
+    referenceImages: imageReferenceImages,
+    referenceVideos,
+    referenceAudios,
     firstFrameUrl,
     lastFrameUrl,
     styleReferenceImages,

@@ -41,7 +41,8 @@ export function VendorOnboardCard({
 }: VendorOnboardCardProps): JSX.Element {
   // 已连通默认折叠 key 输入（显「已保存」）；点「更换」展开输入。
   const [editing, setEditing] = React.useState(!hasApiKey)
-  const [keyDraft, setKeyDraft] = React.useState('')
+  // 多段凭证（如火山语音 App ID + Access Token）的草稿，按字段 key 存；单段家只有一个字段。
+  const [drafts, setDrafts] = React.useState<Record<string, string>>({})
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState('')
   const [urlEditing, setUrlEditing] = React.useState(false)
@@ -53,19 +54,40 @@ export function VendorOnboardCard({
 
   const total = models.length
 
+  // 凭证字段：档案声明了 credentialFields 就按声明渲染多框；否则退化成单框（沿用 credentialPlaceholder）。
+  const fields = React.useMemo(
+    () =>
+      directory.credentialFields ?? [
+        {
+          key: 'apiKey',
+          label: '',
+          placeholder: directory.credentialPlaceholder ?? '粘贴你的 API Key（sk-…）',
+          secret: true,
+        },
+      ],
+    [directory.credentialFields, directory.credentialPlaceholder],
+  )
+  const isMulti = fields.length > 1
+
+  const setDraft = React.useCallback((key: string, value: string) => {
+    setDrafts((prev) => ({ ...prev, [key]: value }))
+  }, [])
+
   const handleUnlock = React.useCallback(() => {
-    const apiKey = keyDraft.trim()
-    if (!apiKey) {
-      setError('请先粘贴 API Key。')
+    const parts = fields.map((field) => (drafts[field.key] ?? '').trim())
+    if (parts.some((part) => !part)) {
+      setError(isMulti ? '请把上面每一项都填上。' : '请先粘贴 API Key。')
       return
     }
+    // 多段拼成单串存进唯一 key 槽（火山语音 → APP_ID:ACCESS_KEY）；后端按同一分隔符拆。
+    const apiKey = parts.join(directory.credentialJoin ?? ':')
     const bridge = getDesktopBridge()
     if (!bridge) return
     setBusy(true)
     setError('')
     try {
       bridge.modelCatalog.upsertVendorApiKey(directory.vendorKey, { apiKey, enabled: true })
-      setKeyDraft('')
+      setDrafts({})
       setEditing(false)
       onChanged()
     } catch (e) {
@@ -73,7 +95,7 @@ export function VendorOnboardCard({
     } finally {
       setBusy(false)
     }
-  }, [keyDraft, directory.vendorKey, onChanged])
+  }, [fields, drafts, isMulti, directory.vendorKey, directory.credentialJoin, onChanged])
 
   const handleDisconnect = React.useCallback(async () => {
     const bridge = getDesktopBridge()
@@ -131,54 +153,116 @@ export function VendorOnboardCard({
       name={vendorName}
       subtitle={hasApiKey ? `${total} 个模型可用` : directory.tagline}
       status={hasApiKey ? 'ok' : 'todo'}
+      badge={!hasApiKey && directory.recommended ? (
+        <span className="text-micro font-semibold text-nomi-accent bg-nomi-accent-soft rounded-full px-2 py-[2px] whitespace-nowrap">新手推荐</span>
+      ) : undefined}
       defaultExpanded={false}
     >
       {/* key 区 */}
       {editing ? (
         <div className="flex flex-col gap-2">
-          <div className="flex gap-2">
-            <input
-              type="password"
-              aria-label={`${vendorName} API Key`}
-              placeholder="粘贴你的 API Key（sk-…）"
-              value={keyDraft}
-              onChange={(e) => setKeyDraft(e.currentTarget.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleUnlock() }}
-              disabled={busy}
-              className={cn(
-                'flex-1 min-w-0 h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
-                'text-body-sm text-nomi-ink placeholder:text-nomi-ink-40',
-                'outline-none focus:border-nomi-accent',
-              )}
-            />
-            <button
-              type="button"
-              onClick={handleUnlock}
-              disabled={busy}
-              className={cn(
-                'shrink-0 h-8 px-3 rounded-nomi-sm bg-nomi-ink text-nomi-paper',
-                'text-body-sm font-semibold inline-flex items-center gap-1.5',
-                'hover:bg-nomi-accent disabled:opacity-50 disabled:cursor-not-allowed',
-              )}
-            >
-              <IconKey size={14} stroke={1.6} />解锁
-            </button>
-          </div>
-          <div className="text-caption text-nomi-ink-40">填一次即可，密钥本地加密存储、只在调用时使用。</div>
-          {hasApiKey ? (
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              disabled={busy}
-              className="self-start text-caption text-nomi-ink-40 hover:text-nomi-ink-60"
-            >
-              取消
-            </button>
-          ) : null}
+          {isMulti ? (
+            // 多段凭证：每段一个标注好的独立框，别让用户自己拼（D1）。
+            <div className="flex flex-col gap-2.5">
+              {fields.map((field) => (
+                <div key={field.key} className="flex flex-col gap-1">
+                  <label
+                    htmlFor={`${directory.vendorKey}-${field.key}`}
+                    className="text-caption font-medium text-nomi-ink-80"
+                  >
+                    {field.label}
+                  </label>
+                  <input
+                    id={`${directory.vendorKey}-${field.key}`}
+                    type={field.secret ? 'password' : 'text'}
+                    aria-label={`${vendorName} ${field.label}`}
+                    placeholder={field.placeholder}
+                    value={drafts[field.key] ?? ''}
+                    onChange={(e) => setDraft(field.key, e.currentTarget.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleUnlock() }}
+                    disabled={busy}
+                    className={cn(
+                      'h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
+                      'text-body-sm text-nomi-ink placeholder:text-nomi-ink-40',
+                      'outline-none focus:border-nomi-accent',
+                    )}
+                  />
+                  {field.hint ? <div className="text-micro text-nomi-ink-40">{field.hint}</div> : null}
+                </div>
+              ))}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleUnlock}
+                  disabled={busy}
+                  className={cn(
+                    'shrink-0 h-8 px-3 rounded-nomi-sm bg-nomi-ink text-nomi-paper',
+                    'text-body-sm font-semibold inline-flex items-center gap-1.5',
+                    'hover:bg-nomi-accent disabled:opacity-50 disabled:cursor-not-allowed',
+                  )}
+                >
+                  <IconKey size={14} stroke={1.6} />解锁
+                </button>
+                {hasApiKey ? (
+                  <button
+                    type="button"
+                    onClick={() => setEditing(false)}
+                    disabled={busy}
+                    className="text-caption text-nomi-ink-40 hover:text-nomi-ink-60"
+                  >
+                    取消
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            // 单段凭证：输入框 + 解锁按钮同排（绝大多数家）。
+            <>
+              <div className="flex gap-2">
+                <input
+                  type={fields[0].secret ? 'password' : 'text'}
+                  aria-label={`${vendorName} API Key`}
+                  placeholder={fields[0].placeholder}
+                  value={drafts[fields[0].key] ?? ''}
+                  onChange={(e) => setDraft(fields[0].key, e.currentTarget.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleUnlock() }}
+                  disabled={busy}
+                  className={cn(
+                    'flex-1 min-w-0 h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
+                    'text-body-sm text-nomi-ink placeholder:text-nomi-ink-40',
+                    'outline-none focus:border-nomi-accent',
+                  )}
+                />
+                <button
+                  type="button"
+                  onClick={handleUnlock}
+                  disabled={busy}
+                  className={cn(
+                    'shrink-0 h-8 px-3 rounded-nomi-sm bg-nomi-ink text-nomi-paper',
+                    'text-body-sm font-semibold inline-flex items-center gap-1.5',
+                    'hover:bg-nomi-accent disabled:opacity-50 disabled:cursor-not-allowed',
+                  )}
+                >
+                  <IconKey size={14} stroke={1.6} />解锁
+                </button>
+              </div>
+              {hasApiKey ? (
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  disabled={busy}
+                  className="self-start text-caption text-nomi-ink-40 hover:text-nomi-ink-60"
+                >
+                  取消
+                </button>
+              ) : null}
+            </>
+          )}
+          <div className="text-caption text-nomi-ink-40">{directory.credentialHint ?? '填一次即可，密钥本地加密存储、只在调用时使用。'}</div>
         </div>
       ) : (
         <div className="flex items-center justify-between gap-2">
-          <span className="text-caption text-nomi-ink-60">API Key 已保存</span>
+          <span className="text-caption text-nomi-ink-60">凭证已保存</span>
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"

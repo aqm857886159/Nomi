@@ -1,6 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
-import { ensureWorkspaceFolders, hasWorkspaceManifest, readWorkspaceManifest, writeWorkspaceManifest } from "./workspaceManifest";
+import {
+  ensureWorkspaceFolders,
+  hasWorkspaceManifest,
+  readProjectJsonFileWithEmbeddedMediaSlimming,
+  readProjectJsonTopLevelFields,
+  readWorkspaceManifest,
+  readWorkspaceManifestSummary,
+  writeWorkspaceManifest,
+} from "./workspaceManifest";
 import { workspaceNomiDir } from "./workspacePaths";
 import { normalizeWorkspaceProjectRecord, type WorkspaceProjectRecordV2 } from "./workspaceTypes";
 
@@ -13,13 +21,13 @@ function legacyProjectFile(rootPath: string): string {
   return path.join(path.resolve(rootPath), LEGACY_PROJECT_FILE);
 }
 
-function readLegacyProject(rootPath: string): LegacyProjectRecord | null {
+export function readLegacyProject(rootPath: string): LegacyProjectRecord | null {
   const filePath = legacyProjectFile(rootPath);
   if (!fs.existsSync(filePath)) {
     return null;
   }
   try {
-    const raw = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    const raw = readProjectJsonFileWithEmbeddedMediaSlimming(rootPath, filePath);
     return raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as LegacyProjectRecord) : null;
   } catch {
     return null;
@@ -66,6 +74,26 @@ function toWorkspaceRecord(rootPath: string, raw: LegacyProjectRecord): Workspac
   });
 }
 
+export function readLegacyProjectSummary(rootPath: string): Omit<WorkspaceProjectRecordV2, "payload"> | null {
+  const filePath = legacyProjectFile(rootPath);
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+  try {
+    const fields = readProjectJsonTopLevelFields(filePath, {
+      keys: ["id", "name", "createdAt", "updatedAt", "savedAt", "revision"],
+      stopBeforeKeys: ["payload"],
+    });
+    if (!fields) {
+      return null;
+    }
+    const { payload: _payload, ...summary } = toWorkspaceRecord(rootPath, fields);
+    return summary;
+  } catch {
+    return null;
+  }
+}
+
 export function migrateLegacyProjectFolder(rootPath: string): WorkspaceProjectRecordV2 | null {
   if (isLegacyProjectSuppressed(rootPath)) {
     return null;
@@ -92,9 +120,18 @@ export function discoverLegacyProjects(defaultProjectsRoot: string): WorkspacePr
   const projects: WorkspaceProjectRecordV2[] = [];
   for (const entry of fs.readdirSync(root, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
     if (!entry.isDirectory()) continue;
-    const migrated = migrateLegacyProjectFolder(path.join(root, entry.name));
-    if (migrated) {
-      projects.push(migrated);
+    const projectRoot = path.join(root, entry.name);
+    if (isLegacyProjectSuppressed(projectRoot)) continue;
+    if (hasWorkspaceManifest(projectRoot)) {
+      const manifest = readWorkspaceManifestSummary(projectRoot);
+      if (manifest) {
+        projects.push({ ...manifest, lastKnownRootPath: path.resolve(projectRoot) });
+      }
+      continue;
+    }
+    const summary = readLegacyProjectSummary(projectRoot);
+    if (summary) {
+      projects.push(summary);
     }
   }
   return projects;

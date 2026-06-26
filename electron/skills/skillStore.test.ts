@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { findSkillRecord, normalizeSkillLookupKey, type SkillRecord } from "./skillStore";
 
 function record(name: string, directoryName: string): SkillRecord {
-  return { name, directoryName, filePath: `${directoryName}/SKILL.md`, body: "x", manifest: null };
+  return { name, directoryName, filePath: `${directoryName}/SKILL.md`, body: "x", manifest: null, origin: "builtin" };
 }
 
 const records: SkillRecord[] = [

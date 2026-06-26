@@ -1,7 +1,7 @@
 import React from 'react'
 import { EditorContent, type Editor, type JSONContent } from '@tiptap/react'
 import SelectionGeneratePopover from './SelectionGeneratePopover'
-import { WorkbenchIconButton } from '../../design'
+import { WorkbenchIconButton } from '../../design/workbenchActions'
 import { cn } from '../../utils/cn'
 import { useWorkbenchStore } from '../workbenchStore'
 import { normalizeWorkbenchContentJson, type CreationDocumentTools } from '../workbenchTypes'
@@ -30,7 +30,6 @@ function ToolbarButton({ action }: { action: RichTextAction }): JSX.Element {
         'border border-transparent rounded-nomi-sm',
         'bg-transparent text-workbench-muted cursor-pointer',
         'hover:bg-workbench-hover',
-        'focus-visible:outline-2 focus-visible:outline-workbench-focus focus-visible:outline-offset-2',
         'disabled:cursor-not-allowed disabled:opacity-[0.38]',
       )}
       label={action.label}
@@ -95,7 +94,7 @@ export default function WorkbenchEditor(): JSX.Element {
   const setWorkbenchDocument = useWorkbenchStore((state) => state.setWorkbenchDocument)
   const setCreationDocumentTools = useWorkbenchStore((state) => state.setCreationDocumentTools)
   const setCreationSelectionText = useWorkbenchStore((state) => state.setCreationSelectionText)
-  const [selectedText, setSelectedText] = React.useState('')
+  const [selectionState, setSelectionState] = React.useState({ text: '', version: 0 })
   const scrollRef = useTransientScrollingClass<HTMLDivElement>('workbench-scrollbar-visible')
   const workbenchDocumentRef = React.useRef(workbenchDocument)
 
@@ -117,11 +116,19 @@ export default function WorkbenchEditor(): JSX.Element {
 
   const handleSelectionChange = React.useCallback(
     (text: string) => {
-      setSelectedText(text)
+      setSelectionState((current) => {
+        if (!current.text && !text.trim()) return current
+        return { text, version: current.version + 1 }
+      })
       setCreationSelectionText(text)
     },
     [setCreationSelectionText],
   )
+
+  const clearSelectionText = React.useCallback(() => {
+    setSelectionState((current) => ({ text: '', version: current.version + 1 }))
+    setCreationSelectionText('')
+  }, [setCreationSelectionText])
 
   const { editor, tools } = useNomiRichTextEditor({
     content: editorContent,
@@ -167,7 +174,12 @@ export default function WorkbenchEditor(): JSX.Element {
       onKeyUp={(event) => event.stopPropagation()}
     >
       <WorkbenchEditorToolbar editor={editor} />
-      <SelectionGeneratePopover editor={editor} selectedText={selectedText} onCreated={() => setSelectedText('')} />
+      <SelectionGeneratePopover
+        editor={editor}
+        selectedText={selectionState.text}
+        selectionVersion={selectionState.version}
+        onCreated={clearSelectionText}
+      />
       <div
         ref={scrollRef}
         className={cn(

@@ -9,6 +9,7 @@ import { IconCornerDownLeft } from '@tabler/icons-react'
 import { WorkbenchButton } from '../../../design'
 import { StaleConversationDivider } from '../../ai/staleConversationDivider'
 import { AssistantMessageView, UserMessageBubble } from '../../ai/AssistantMessageView'
+import { AssistantErrorCard } from '../../ai/AssistantErrorCard'
 import AgentPlanCard, { summarizeAgentPlan } from './AgentPlanCard'
 import CommittedProposalCard from './CommittedProposalCard'
 import ReconcileDeviationCard from './ReconcileDeviationCard'
@@ -60,6 +61,8 @@ export type AssistantTimelineProps = {
   onDeviationDismiss: () => void
   /** 让 AI 用支持的方式重连没接上的边(完整版重设计)。 */
   onDeviationAiFix: () => void
+  /** 错误卡「重试」= 重发上一条用户消息(undefined 则不显重试按钮)。 */
+  onRetry?: () => void
   threadBottomRef: React.RefObject<HTMLDivElement>
 }
 
@@ -172,17 +175,22 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
   const renderAssistantMessage = (message: WorkbenchAiMessage): JSX.Element => {
     // 画布无独立 streaming 状态字段:'处理中...' 哨兵 = 等首 token(pending);有真内容 = 已到 token。
     const isPending = message.content === '处理中...'
+    // status 是错误真相源(旧 session 用「（错误）」前缀兜底)。错误分流到红色错误卡(人话+一键出路),
+    // 不再当普通回复渲染。
+    const isErrorMsg = message.status === 'error' || message.content.startsWith('（错误）')
     return (
       <React.Fragment key={message.id}>
-        <AssistantMessageView
-          content={isPending ? '' : message.content}
-          attachments={message.attachments}
-          streaming={isPending}
-          pendingLabel={isPending ? '处理中' : undefined}
-          isError={message.content.startsWith('（错误）')}
-          turnStats={message.turnStats}
-          replyActionClassName="generation-canvas-v2-assistant__reply-action"
-        />
+        {isErrorMsg ? (
+          <AssistantErrorCard error={message.content} onRetry={props.onRetry} />
+        ) : (
+          <AssistantMessageView
+            content={isPending ? '' : message.content}
+            attachments={message.attachments}
+            streaming={isPending}
+            pendingLabel={isPending ? '处理中' : undefined}
+            cancelled={message.status === 'cancelled'}
+          />
+        )}
         {message.id === staleBoundaryId ? <StaleConversationDivider /> : null}
       </React.Fragment>
     )

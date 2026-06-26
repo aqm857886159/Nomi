@@ -13,13 +13,14 @@
 //   音频：audio(kling) · generate_audio(seedance)
 
 import type { HttpOperation, ProfileKind } from "./types";
+import type { ParamMap } from "./paramTranslate";
 import { APIMART_CREATE_TASK_ID_PATH, APIMART_STATUS_MAPPING, APIMART_VIDEO_QUERY_OP } from "./apimartVendor";
 
 const CREATE_HEADERS = { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" };
 
 // model 字段缺省取 catalog 行 modelKey；变体合并的模型（Seedance：1 catalog 行 + 4 变体）改取
 // {{request.params.model}}（值来自档案当前变体的 modelKey，同 happyhorse modelEnum 通道）。
-function videoCreateOp(bodyFields: Record<string, unknown>, modelRef = "{{model.modelKey}}"): HttpOperation {
+function videoCreateOp(bodyFields: Record<string, unknown>, modelRef = "{{model.modelKey}}", paramMap?: ParamMap): HttpOperation {
   return {
     method: "POST",
     path: "/v1/videos/generations",
@@ -27,8 +28,14 @@ function videoCreateOp(bodyFields: Record<string, unknown>, modelRef = "{{model.
     body: { model: modelRef, prompt: "{{request.prompt}}", ...bodyFields },
     response_mapping: { task_id: APIMART_CREATE_TASK_ID_PATH },
     provider_meta_mapping: { task_id: APIMART_CREATE_TASK_ID_PATH },
+    ...(paramMap ? { paramMap } : {}),
   };
 }
+
+// i2v「比例由图自动决定」→ 档案该模式仍显示比例控件（与 t2v 共享 params），但 apimart i2v body 不发它。
+// 用 drops 把这层「故意不发」显式声明（铁律不变量要求：每个 canonical 参数要么被 codec 覆盖、要么明示 drop），
+// 行为与迁移前完全一致，只是从「静默丢弃」变「明示不支持」。
+const dropParamMap = (keys: string[]): ParamMap => ({ drops: keys, rules: [] });
 
 // 变体合并模型用：body model = 档案当前变体的 modelKey（{{request.params.model}}）。
 const VARIANT_MODEL_REF = "{{request.params.model}}";
@@ -73,13 +80,15 @@ function videoModel(p: {
   modelRef?: string;
   t2vBody: Record<string, unknown>;
   i2vBody?: Record<string, unknown>;
+  /** i2v 模式「故意不发」的 canonical 参数（比例由图自动决定）。明示 drop 满足铁律不变量，行为不变。 */
+  i2vDrops?: string[];
 }): ApimartVideoModel {
   const idKey = p.idKey ?? p.archetypeId;
   const mappings: ApimartVideoModel["mappings"] = [
     { id: `seed-apimart-${idKey}-text_to_video`, taskKind: "text_to_video", name: `${p.labelZh} · 文生视频`, create: videoCreateOp(p.t2vBody, p.modelRef) },
   ];
   if (p.i2vBody) {
-    mappings.push({ id: `seed-apimart-${idKey}-image_to_video`, taskKind: "image_to_video", name: `${p.labelZh} · 图生视频`, create: videoCreateOp(p.i2vBody, p.modelRef) });
+    mappings.push({ id: `seed-apimart-${idKey}-image_to_video`, taskKind: "image_to_video", name: `${p.labelZh} · 图生视频`, create: videoCreateOp(p.i2vBody, p.modelRef, p.i2vDrops?.length ? dropParamMap(p.i2vDrops) : undefined) });
   }
   return { modelKey: p.modelKey, labelZh: p.labelZh, archetypeId: p.archetypeId, mappings };
 }
@@ -91,6 +100,7 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
     modelKey: "sora-2", labelZh: "Sora 2", archetypeId: "sora-2", modelRef: VARIANT_MODEL_REF,
     t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION },
     i2vBody: { resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS }, // i2v 时 aspect 由图自动决定
+    i2vDrops: ["aspect_ratio"],
   }),
   // Veo 3.1：变体（fast/quality/lite）→ {{request.params.model}}。i2v 含 generation_type（reference 参考图 /
   // frame 首尾帧，由 mode.fixedParams 注入）；duration 固定 8 不发（走 API 默认）。
@@ -98,12 +108,14 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
     modelKey: "veo3.1-fast", labelZh: "Veo 3.1", archetypeId: "veo-3.1", modelRef: VARIANT_MODEL_REF,
     t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION },
     i2vBody: { resolution: RESOLUTION, image_urls: IMAGE_URLS, generation_type: GENERATION_TYPE },
+    i2vDrops: ["aspect_ratio"],
   }),
   // Kling v3：共享 kie 的 kling-3.0 档案（i2v 结构对齐：image_urls 数组槽）+ apimart vendorParams。
   videoModel({
-    modelKey: "kling-v3", labelZh: "可灵 v3", archetypeId: "kling-3.0",
+    modelKey: "kling-v3", labelZh: "可灵 3.0", archetypeId: "kling-3.0",
     t2vBody: { mode: MODE, duration: DURATION, aspect_ratio: ASPECT, audio: AUDIO, negative_prompt: NEGATIVE_PROMPT },
     i2vBody: { mode: MODE, duration: DURATION, image_urls: IMAGE_URLS, audio: AUDIO, negative_prompt: NEGATIVE_PROMPT },
+    i2vDrops: ["aspect_ratio"], // i2v 比例由首/尾帧决定
   }),
   // Seedance 2.0：变体合并（2026-06-16）——原 4 个独立 catalog 行（标准/fast/face/fast-face）收成 **1 个**。
   // 4 变体由档案 variants 声明（seedanceApimart.ts），用户经 VariantBar 切换；body 的 model 字段取
@@ -115,6 +127,7 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
     modelKey: "wan2.7", labelZh: "Wan 2.7", archetypeId: "wan-2.7",
     t2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, negative_prompt: NEGATIVE_PROMPT },
     i2vBody: { resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS, negative_prompt: NEGATIVE_PROMPT },
+    i2vDrops: ["size"], // wan i2v 比例（size）由参考帧决定
   }),
   // Hailuo 2.3：无 aspect_ratio；图生视频用 first_frame_image（字符串，非数组）。变体（标准 / Fast）→ {{request.params.model}}。
   videoModel({

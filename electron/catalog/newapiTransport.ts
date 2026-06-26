@@ -17,6 +17,7 @@
 // issue reporter 跑 tests/transport-spike/newapi.mjs 探测确认。
 
 import type { HttpOperation, ProfileKind } from "./types";
+import type { ParamMap } from "./paramTranslate";
 
 const JSON_HEADERS = { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" };
 
@@ -26,6 +27,17 @@ export const NEWAPI_STATUS_MAPPING: Record<string, string[]> = {
   running: ["processing", "running", "in_progress", "queueing"],
   succeeded: ["succeeded", "success", "completed", "done"],
   failed: ["failed", "fail", "error", "cancelled", "canceled", "timeout"],
+};
+
+// 铁律翻译（用户自建中转的关键）：通用 new-api 站走 OpenAI 兼容契约 → size 是像素。当模型套上某档案
+// （如 gpt-image-2）时，档案产中性「比例 + 清晰度档位」，这里把它俩算成 OpenAI 像素 size（3840x2160=4K…）。
+// 模型未套档案（裸 relay 模型，UI 直接出像素 size）时：aspect_ratio 不存在 → 转换返回 undefined → 不覆盖
+// 直填的 size（兼容旧行为）。这条 paramMap 同时覆盖两种情况，且让自建站的「分辨率/比例」不再发不出去。
+export const NEWAPI_IMAGE_PARAM_MAP: ParamMap = {
+  rules: [{ wire: "size", fromMany: ["aspect_ratio", "resolution"], transform: "ratioResToOpenAiSize" }],
+};
+export const NEWAPI_VIDEO_PARAM_MAP: ParamMap = {
+  rules: [{ wire: "size", fromMany: ["aspect_ratio", "resolution"], transform: "ratioResToOpenAiSize" }],
 };
 
 // ── 图片：同步 create（无 query；create 返回即结果，buildProfileTaskResult 用 extractAssetUrl 取 data[0].url）──
@@ -42,6 +54,7 @@ export const NEWAPI_IMAGE_CREATE_OP: HttpOperation = {
     response_format: "url",
   },
   response_mapping: { image_url: "data.0.url" },
+  paramMap: NEWAPI_IMAGE_PARAM_MAP,
 };
 
 // ── 视频：异步 create（返回 task_id 进轮询）──
@@ -58,6 +71,7 @@ export const NEWAPI_VIDEO_CREATE_OP: HttpOperation = {
   },
   response_mapping: { task_id: "task_id" },
   provider_meta_mapping: { task_id: "task_id" },
+  paramMap: NEWAPI_VIDEO_PARAM_MAP,
 };
 
 // ── 视频：轮询 query（task_id 走路径参数）──
@@ -97,8 +111,30 @@ export const NEWAPI_STANDARD_VIDEO_PARAMS: ParamControl[] = [
   { key: "image", label: "首帧图(图生视频，可选)", type: "image-url", options: [] },
 ];
 
+// ── 配音(TTS)：OpenAI 兼容同步 create（POST /v1/audio/speech → **直接回二进制音频**，runner 读 arrayBuffer）──
+// 中转(Xcode.hk 等)的 seed-tts-2.0 走这条：Bearer + JSON body，response_format=mp3（实测回 audio/mpeg，
+// 见 SeedTTS-2.0 文档）。audioResponse 缺省=binary（裸字节），区别于火山原生的 ndjson-base64。
+// model 发模型真名（用户接入时填 seed-tts-2.0），voice 由档案/参数给（seed-tts 档案提供火山音色下拉）。
+export const NEWAPI_AUDIO_TTS_OP: HttpOperation = {
+  method: "POST",
+  path: "/v1/audio/speech",
+  headers: JSON_HEADERS,
+  body: {
+    model: "{{model.modelKey}}",
+    input: "{{request.prompt}}",
+    voice: "{{request.params.voice}}",
+    response_format: "mp3",
+  },
+};
+
+// 通用中转配音参数（裸 relay 模型的兜底；模型若命中 seed-tts 档案，UI 由档案给火山音色下拉）。
+// voice 用 freeform——各中转 TTS 模型音色 ID 不同，不写死枚举。
+export const NEWAPI_STANDARD_AUDIO_PARAMS: ParamControl[] = [
+  { key: "voice", label: "音色 ID", type: "text", options: [] },
+];
+
 /** 一个 new-api 模型的传输配方（按 kind 取 create/query + taskKind）。 */
-export function newapiTransportFor(kind: "image" | "video"): {
+export function newapiTransportFor(kind: "image" | "video" | "audio"): {
   taskKind: ProfileKind;
   create: HttpOperation;
   query?: HttpOperation;
@@ -107,6 +143,9 @@ export function newapiTransportFor(kind: "image" | "video"): {
 } {
   if (kind === "video") {
     return { taskKind: "text_to_video", create: NEWAPI_VIDEO_CREATE_OP, query: NEWAPI_VIDEO_QUERY_OP, statusMapping: NEWAPI_STATUS_MAPPING, params: NEWAPI_STANDARD_VIDEO_PARAMS };
+  }
+  if (kind === "audio") {
+    return { taskKind: "text_to_audio", create: NEWAPI_AUDIO_TTS_OP, params: NEWAPI_STANDARD_AUDIO_PARAMS };
   }
   return { taskKind: "text_to_image", create: NEWAPI_IMAGE_CREATE_OP, params: NEWAPI_STANDARD_IMAGE_PARAMS };
 }

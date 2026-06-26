@@ -35,7 +35,11 @@
   --workbench-overlay: rgba(255, 255, 255, 0.82);
   --workbench-overlay-strong: rgba(255, 255, 255, 0.94);
   --workbench-backdrop: rgba(29, 29, 31, 0.16);
-  --workbench-focus: color-mix(in srgb, var(--workbench-accent) 42%, transparent);
+  /* 顶边高光斜面 / 内描边：浅色是微妙立体感，暗色必须淡到几乎无——否则白色高光在暗底变刺眼白线/白框。
+     消费点：时间轴顶(TimelinePanel)、片段顶(TimelineClip)、分组框(GroupFrame/generationCanvas.css)。 */
+  --workbench-bevel: rgba(255, 255, 255, 0.7);
+  --workbench-frame-ring: rgba(255, 255, 255, 0.58);
+  --workbench-veil-chip: rgba(255, 255, 255, 0.3);
   --workbench-code-bg: #1d1d1f;
   --workbench-code-ink: #f5f5f7;
   --workbench-radius: var(--nomi-radius);
@@ -49,6 +53,33 @@
   --workbench-icon-stroke: 2;
   --canvas-surface-bg: var(--workbench-bg);
   --tc-spotlight-grid-color: rgba(60, 60, 67, 0.22);
+}
+
+/* 深色覆盖：只重定义「硬编码字面值」那些（success/danger/video/hover/pressed/overlay/backdrop/code/
+   spotlight-grid）。其余 --workbench-* 派生自 --nomi-*（bg/surface/border/ink/accent…）→ 随 token 自动翻。 */
+:root[data-mantine-color-scheme="dark"] .workbench-shell,
+:root[data-mantine-color-scheme="dark"] .app-ai-chat-dialog.tc-ai-chat {
+  --workbench-success: #45d483;
+  --workbench-success-soft: rgba(69, 212, 131, 0.16);
+  --workbench-success-ink: #7ee8aa;
+  --workbench-danger: #ff6961;
+  --workbench-danger-soft: rgba(255, 105, 97, 0.14);
+  --workbench-video: #35d0b0;
+  --workbench-video-soft: rgba(53, 208, 176, 0.16);
+  --workbench-text: oklch(0.75 0.15 305);
+  --workbench-text-soft: oklch(0.75 0.15 305 / 0.17);
+  --workbench-hover: oklch(1 0 0 / 0.055);
+  --workbench-pressed: oklch(1 0 0 / 0.085);
+  --workbench-overlay: oklch(0.24 0.007 80 / 0.86);
+  --workbench-overlay-strong: oklch(0.24 0.007 80 / 0.96);
+  --workbench-backdrop: oklch(0.06 0.004 80 / 0.56);
+  --workbench-code-bg: oklch(0.15 0.006 80);
+  --workbench-code-ink: var(--nomi-ink);
+  --tc-spotlight-grid-color: rgba(255, 255, 255, 0.18);
+  /* 高光斜面/内描边在暗底淡到几乎无（治时间轴顶白线那一类）。 */
+  --workbench-bevel: rgba(255, 255, 255, 0.05);
+  --workbench-frame-ring: rgba(255, 255, 255, 0.08);
+  --workbench-veil-chip: rgba(255, 255, 255, 0.12);
 }
 
 /* ── TipTap / ProseMirror editor content typography ── */

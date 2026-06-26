@@ -15,7 +15,9 @@ import { hardenedFetch } from "./hardenedFetch";
 import { type AuthType, authHeaders as buildAuthHeaders } from "./ai/requestPipeline";
 import { firstString, isJsonRecord, trim, type JsonRecord } from "./jsonUtils";
 import { taskTemplateParams } from "./catalog/taskParams";
-import { buildProfileHttpRequest, importLocalFile, type TaskRequest, type TaskResult } from "./runtime";
+import { buildDoubaoReqParams, decodeDoubaoNdjsonAudio, splitDoubaoCredential } from "./catalog/doubaoTtsCodec";
+import { buildProfileHttpRequest, type TaskRequest, type TaskResult } from "./runtime";
+import { importLocalFile } from "./assets/localFileImport";
 import type { HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./catalog/types";
 
 const TTS_PATH = "/v1/audio/speech";
@@ -53,6 +55,9 @@ async function runTextToSpeech(input: AudioTaskInput): Promise<TaskResult> {
     headers: { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" },
     body: { model: "{{request.params.model}}", input: "{{request.prompt}}", voice: "{{request.params.voice}}", response_format: "wav", speed: "{{request.params.speed}}" },
   };
+  // 声明驱动分流（P4）：NDJSON+base64 形状（豆包语音 unidirectional）走专属手搓分支，
+  // 其余（缺省/binary，OpenAI 兼容裸音频字节）走下方通用路径。
+  if (op.audioResponse === "ndjson-base64") return runDoubaoUnidirectionalTts(input, op);
   const built = buildProfileHttpRequest({ vendor, model, apiKey, request, operation: op });
   let response: Response;
   try {
@@ -80,6 +85,60 @@ async function runTextToSpeech(input: AudioTaskInput): Promise<TaskResult> {
     id: taskId, kind, status: "succeeded",
     assets: [{ type: "audio", url, thumbnailUrl: null, assetId: saved.id || null, assetName: saved.name || null }],
     raw: { audio_url: url, response_format: fmt },
+  };
+}
+
+// 豆包语音 2.0 配音（火山原生 unidirectional）。OpenAI 兼容套不进，故手搓（先例：runTranscribe 手搓 multipart）：
+//   三头鉴权（凭证存 APP_ID:ACCESS_KEY，此处 split）+ 嵌套 req_params body（additions 情感安全 JSON 转义）
+//   → fetch → NDJSON+base64 解码（decodeDoubaoNdjsonAudio）→ 落盘 mp3 资产。
+async function runDoubaoUnidirectionalTts(input: AudioTaskInput, op: HttpOperation): Promise<TaskResult> {
+  const { vendor, apiKey, request, kind, taskId, projectId } = input;
+  const params = taskTemplateParams(request);
+  const text = trim(request.prompt) || firstString(params.text);
+  if (!text) throw new Error("配音生成失败：没有台词文本");
+  const voice = firstString(params.voice);
+  if (!voice) throw new Error("配音生成失败：未选择音色");
+  const emotion = firstString(params.emotion);
+  const [appId, accessKey] = splitDoubaoCredential(apiKey);
+  const resourceId = firstString(op.headers?.["X-Api-Resource-Id"]) || "seed-tts-2.0";
+
+  const baseUrl = trim(vendor.baseUrlHint).replace(/\/$/, "");
+  const path = op.path || "/api/v3/tts/unidirectional";
+  const url = /^https?:/i.test(path) ? path : `${baseUrl}${path}`;
+
+  const reqParams = buildDoubaoReqParams({ text, voice, emotion });
+  const body = JSON.stringify({ user: { uid: "nomi" }, req_params: reqParams });
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Api-App-Id": appId,
+        "X-Api-Access-Key": accessKey,
+        "X-Api-Resource-Id": resourceId,
+      },
+      body,
+    });
+  } catch (error: unknown) {
+    throw new Error(`配音生成失败（${vendor.key} 网络错误）：${(error instanceof Error ? error.message : String(error)).slice(0, 256)}`, { cause: error });
+  }
+  if (!response.ok) {
+    throw new Error(`配音生成失败（${vendor.key} HTTP ${response.status}）：${(await safeText(response)).slice(0, 300) || "(无详情)"}`);
+  }
+  const audio = decodeDoubaoNdjsonAudio(await response.text());
+  if (audio.byteLength === 0) throw new Error("配音生成失败：供应商返回空音频");
+  const ab = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) as ArrayBuffer;
+  const saved = (await importLocalFile({
+    projectId, bytes: ab, contentType: "audio/mpeg", fileName: `tts-${taskId}.mp3`, kind: "generated",
+  })) as { id?: string; name?: string; data?: { url?: string } };
+  const url2 = String(saved.data?.url || "");
+  if (!url2) throw new Error("配音生成失败：音频落盘异常");
+  return {
+    id: taskId, kind, status: "succeeded",
+    assets: [{ type: "audio", url: url2, thumbnailUrl: null, assetId: saved.id || null, assetName: saved.name || null }],
+    raw: { audio_url: url2, response_format: "mp3" },
   };
 }
 

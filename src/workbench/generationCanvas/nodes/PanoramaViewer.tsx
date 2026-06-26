@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import ReactPannellum, { usePannellum } from 'react-pannellum'
 import { IconCamera, IconMaximize, IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import { WorkbenchIconButton } from '../../../design'
+import { WorkbenchIconButton } from '../../../design/workbenchActions'
 
 export type PanoramaScreenshot = {
   dataUrl: string

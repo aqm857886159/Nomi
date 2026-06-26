@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { absolutePathFromLocalAssetUrl } from "../assets/localAssetFile";
+import { absolutePathFromLocalAssetUrlAnyProject } from "../assets/localAssetFile";
 import { assertProjectExportRelativePath } from "./exportPaths";
 import { ExportJobManager, type ExportJobEvent, type ExportJobSnapshot } from "./exportJobManager";
 import { assertValidManifest, type NomiRenderManifestV1 } from "./exportManifest";
@@ -140,7 +140,8 @@ async function tryBuildFiltergraphExport(
     if (!isPlainRecord(rawAsset)) return null;
     const kind = rawAsset.kind;
     if (kind !== "image" && kind !== "video" && kind !== "audio") return null;
-    const absolutePath = absolutePathFromLocalAssetUrl(rawAsset.url, projectId);
+    // 信 URL 自带 projectId(C4):跨项目拖进来的素材也能导出,不再整体回退 WebM。
+    const absolutePath = absolutePathFromLocalAssetUrlAnyProject(rawAsset.url);
     if (!absolutePath) return null; // 非本地/无法解析 → 整体回退 WebM
     const asset: NomiRenderManifestV1["assets"][string] = { id: assetId, kind, absolutePath };
     if (kind === "video" || kind === "audio") {

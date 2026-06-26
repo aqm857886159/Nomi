@@ -293,7 +293,11 @@ export function TrajectoryPanel({
     ? state.trajectories.find((trajectory) => trajectory.id === activeTrajectoryId)
     : undefined
   const bindingByTrajectoryId = React.useMemo(
-    () => new Map(state.trajectoryBindings.map((binding) => [binding.trajectoryId, binding])),
+    () => new Map(
+      state.trajectoryBindings
+        .filter((binding) => binding.objects.length > 0)
+        .map((binding) => [binding.trajectoryId, binding]),
+    ),
     [state.trajectoryBindings],
   )
   const activeBinding = activeTrajectory ? bindingByTrajectoryId.get(activeTrajectory.id) : undefined

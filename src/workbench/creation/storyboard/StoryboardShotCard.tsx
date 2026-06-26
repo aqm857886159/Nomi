@@ -6,6 +6,7 @@ import { AutoGrowTextarea } from '../../ai/composer/AutoGrowTextarea'
 import type { PlanAnchor, PlanShot } from '../../generationCanvas/agent/storyboardPlan'
 import { DURATION_OPTIONS_SEC } from '../../generationCanvas/agent/storyboardPlanEdits'
 import type { ModelOption } from '../../../config/models'
+import { useDedupedModelSelect } from '../../common/useDedupedModelSelect'
 import ShotParamControls from './ShotParamControls'
 
 /**
@@ -48,9 +49,18 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
     .map((sec) => ({ value: String(sec), label: `${sec} 秒` }))
   // 模型选择器：空值=默认（落画布用默认视频模型兜底）。选了具体模型 → 写 modelKey，清 modeId
   // （由 buildPlannedNodeMeta 按所选模型自动取默认模式，避免把别的模型的 modeId 套错）。
+  // 选具体模型 → 写 modelKey、清 modeId/params（由 buildPlannedNodeMeta 按所选模型取默认模式）。
+  const onShotModelChange = React.useCallback(
+    (value: string) => onUpdate({ modelKey: value || undefined, modeId: undefined, params: undefined }),
+    [onUpdate],
+  )
+  // 去重选择 view-model（与画布节点共用同一逻辑，P1）。
+  const modelSelect = useDedupedModelSelect(modelOptions ?? [], shot.modelKey ?? '', onShotModelChange)
+  // 模型下拉：「默认模型」空值项 + 去重后的模型（同模型只一条，多家标「N 家」）。
   const modelSelectOptions = modelOptions && modelOptions.length > 0
-    ? [{ value: '', label: '默认模型' }, ...modelOptions.map((o) => ({ value: o.value, label: o.label }))]
+    ? [{ value: '', label: '默认模型' }, ...modelSelect.modelOptions]
     : null
+  const onModelSelect = (id: string): void => (id ? modelSelect.onModelPick(id) : onShotModelChange(''))
   // 选中模型的完整 option（带 archetype 信息）→ 给 ShotParamControls 解析参数。空值=默认模型（无参数）。
   const selectedModelOption = modelOptions?.find((o) => o.value === shot.modelKey) ?? null
 
@@ -84,9 +94,19 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
             ariaLabel="视频模型"
             leadingLabel="模型"
             size="xs"
-            value={shot.modelKey ?? ''}
+            value={shot.modelKey ? modelSelect.modelValue : ''}
             options={modelSelectOptions}
-            onChange={(value) => onUpdate({ modelKey: value || undefined, modeId: undefined, params: undefined })}
+            onChange={onModelSelect}
+          />
+        ) : null}
+        {modelSelect.providerOptions.length > 1 ? (
+          <NomiSelect
+            ariaLabel="供应商"
+            leadingLabel="供应商"
+            size="xs"
+            value={modelSelect.providerValue}
+            options={modelSelect.providerOptions}
+            onChange={modelSelect.onProviderPick}
           />
         ) : null}
         <span className="flex-1" />

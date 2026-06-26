@@ -51,7 +51,8 @@
     "https://nomiaqm.com/assets/screen-canvas.png",
     "https://nomiaqm.com/assets/screen-timeline.png"
   ],
-  "softwareVersion": "0.12.0",
+  "softwareVersion": "0.13.0",
+  "downloadUrl": "https://github.com/aqm857886159/Nomi/releases/latest",
   "inLanguage": "zh-CN",
   "featureList": [
     "3D 导演台：摆位 / 机位 / 画幅，截图当生成参考",
@@ -353,6 +354,53 @@
   .btn-ghost:hover { border-color: var(--ink); }
   .btn .arrow { transition: transform .2s; }
   .btn:hover .arrow { transform: translateX(3px); }
+  .hero-clone-note { margin-top: 16px; font-size: 13px; color: var(--muted); }
+  .hero-clone-note a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--rule); }
+  .hero-clone-note a:hover { color: var(--coral); border-color: var(--coral); }
+
+  /* ============ DOWNLOAD ============ */
+  .download { padding: 100px 0; border-top: 1px solid var(--rule); }
+  .dl-head { max-width: 640px; margin-bottom: 48px; }
+  .dl-eyebrow {
+    font-family: "Inter", sans-serif; font-size: 12px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 18px;
+  }
+  .dl-h { font-size: clamp(34px, 5vw, 56px); line-height: 1.04; letter-spacing: -0.02em; color: var(--ink); }
+  .dl-h .it { font-style: italic; font-family: Georgia, "Times New Roman", serif; }
+  .dl-sub { margin-top: 18px; font-size: 15px; line-height: 1.65; color: var(--ink-2); max-width: 520px; }
+  .dl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .dl-card {
+    position: relative; display: flex; flex-direction: column; gap: 16px;
+    padding: 26px 24px; border: 1px solid var(--rule); border-radius: 16px;
+    background: var(--paper); transition: border-color .2s, transform .2s, box-shadow .2s;
+  }
+  .dl-card:hover { border-color: var(--ink); transform: translateY(-3px); }
+  .dl-card.is-detected { border-color: var(--ink); box-shadow: 0 10px 30px -18px rgba(26,24,22,.45); }
+  .dl-os { display: flex; align-items: center; gap: 12px; }
+  .dl-os svg { width: 26px; height: 26px; color: var(--ink); flex: none; }
+  .dl-os-name { font-family: "Inter", sans-serif; font-size: 16px; font-weight: 600; color: var(--ink); }
+  .dl-os-arch { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .dl-rec {
+    position: absolute; top: 18px; right: 18px; display: none;
+    font-family: "Inter", sans-serif; font-size: 10px; letter-spacing: 0.08em;
+    text-transform: uppercase; padding: 4px 9px; border-radius: 999px;
+    background: var(--coral); color: var(--paper);
+  }
+  .dl-card.is-detected .dl-rec { display: inline-block; }
+  .dl-card .btn { width: 100%; justify-content: center; margin-top: auto; }
+  .dl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 28px; font-size: 13px; color: var(--muted); }
+  .dl-meta a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--rule); }
+  .dl-meta a:hover { color: var(--coral); border-color: var(--coral); }
+  .dl-note {
+    margin-top: 22px; padding: 16px 18px; border: 1px solid var(--rule); border-radius: 12px;
+    background: var(--paper-2); font-size: 13px; line-height: 1.6; color: var(--ink-2); max-width: 720px;
+  }
+  .dl-note strong { color: var(--ink); font-weight: 600; }
+  .dl-note code {
+    font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 12px;
+    background: var(--paper); border: 1px solid var(--rule); border-radius: 5px; padding: 1px 6px;
+  }
+  @media (max-width: 860px) { .dl-grid { grid-template-columns: 1fr; } }
 
   /* mascot column — taller, richer composite */
   .hero-right { display: flex; flex-direction: column; gap: 0; align-self: stretch; }
@@ -921,6 +969,7 @@
       <a href="#features">特性</a>
       <a href="#showcase">界面</a>
       <a href="#philosophy">理念</a>
+      <a href="#download">下载</a>
       <a href="#opensource">开源</a>
       <a href="https://github.com/aqm857886159/Nomi" target="_blank" rel="noopener noreferrer" class="cta">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-1.93c-3.2.69-3.87-1.54-3.87-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.77 2.7 1.26 3.36.96.1-.74.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.16 1.19a10.93 10.93 0 0 1 5.74 0c2.2-1.5 3.16-1.19 3.16-1.19.62 1.58.23 2.75.11 3.04.74.81 1.18 1.84 1.18 3.1 0 4.42-2.7 5.39-5.27 5.68.42.36.79 1.06.79 2.14v3.17c0 .31.2.66.79.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg>
@@ -936,7 +985,7 @@
     <div class="hero-grid">
       <div class="hero-left">
         <div class="hero-row hr-eyebrow">
-          <div class="eyebrow">v0.12.0 · 开源 · 本地优先</div>
+          <div class="eyebrow"><span data-latest-version>v0.13.0</span> · 开源 · 本地优先</div>
         </div>
         <div class="hero-row hr-headline">
           <h1>
@@ -952,14 +1001,17 @@
         </div>
         <div class="hero-row hr-actions">
           <div class="hero-actions">
-          <a href="#opensource" class="btn btn-primary">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-1.93c-3.2.69-3.87-1.54-3.87-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.77 2.7 1.26 3.36.96.1-.74.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.16 1.19a10.93 10.93 0 0 1 5.74 0c2.2-1.5 3.16-1.19 3.16-1.19.62 1.58.23 2.75.11 3.04.74.81 1.18 1.84 1.18 3.1 0 4.42-2.7 5.39-5.27 5.68.42.36.79 1.06.79 2.14v3.17c0 .31.2.66.79.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg>
-            克隆代码 / Clone
+          <a id="heroDownload" href="#download" class="btn btn-primary">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+            <span id="heroDownloadLabel">下载 Nomi</span>
           </a>
           <a href="#showcase" class="btn btn-ghost">
             看看长什么样 <span class="arrow">→</span>
           </a>
           </div>
+          <p class="hero-clone-note">
+            或者 <a href="#opensource">克隆代码自己跑 →</a>
+          </p>
         </div>
       </div>
 
@@ -1209,6 +1261,68 @@
   </div>
 </section>
 
+<!-- ============ DOWNLOAD ============ -->
+<section id="download" class="download">
+  <div class="wrap">
+    <div class="dl-head">
+      <div class="dl-eyebrow">/ 04.5 · 下载即用</div>
+      <h2 class="dl-h"><span class="it">下载</span>，安装，<br>开始创作。</h2>
+      <p class="dl-sub">不用配环境、不用装命令行。下载安装包，打开就是完整的 Nomi 桌面工作台——工程与素材全在你本地盘。</p>
+    </div>
+
+    <div class="dl-grid">
+      <!-- macOS Apple Silicon -->
+      <div class="dl-card" data-platform="mac-arm">
+        <span class="dl-rec">为你推荐</span>
+        <div class="dl-os">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.36 1.43c0 1.14-.42 2.2-1.25 3.06-1 1.02-2.2 1.62-3.49 1.52-.02-.11-.04-.27-.04-.43 0-1.1.48-2.27 1.27-3.09.5-.53 1.18-.97 2.04-1.31.84-.33 1.2-.31 1.46-.29.01.18.01.36.01.54zM21.4 16.7c-.55 1.27-.82 1.84-1.53 2.96-.99 1.57-2.39 3.52-4.12 3.53-1.54.02-1.93-.99-4.02-.98-2.08.01-2.51.99-4.06.98-1.73-.02-3.05-1.78-4.04-3.34C.8 15.5.51 10.39 2.22 7.66c1.22-1.95 3.14-3.09 4.95-3.09 1.84 0 3 1.01 4.52 1.01 1.48 0 2.38-1.01 4.51-1.01 1.61 0 3.32.88 4.54 2.39-3.99 2.18-3.34 7.88.66 9.74z"/></svg>
+          <div><div class="dl-os-name">macOS</div><div class="dl-os-arch">Apple Silicon · M1–M4</div></div>
+        </div>
+        <a class="btn btn-primary" href="https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-mac-arm64.dmg">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          下载 .dmg
+        </a>
+      </div>
+
+      <!-- macOS Intel -->
+      <div class="dl-card" data-platform="mac-intel">
+        <span class="dl-rec">为你推荐</span>
+        <div class="dl-os">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.36 1.43c0 1.14-.42 2.2-1.25 3.06-1 1.02-2.2 1.62-3.49 1.52-.02-.11-.04-.27-.04-.43 0-1.1.48-2.27 1.27-3.09.5-.53 1.18-.97 2.04-1.31.84-.33 1.2-.31 1.46-.29.01.18.01.36.01.54zM21.4 16.7c-.55 1.27-.82 1.84-1.53 2.96-.99 1.57-2.39 3.52-4.12 3.53-1.54.02-1.93-.99-4.02-.98-2.08.01-2.51.99-4.06.98-1.73-.02-3.05-1.78-4.04-3.34C.8 15.5.51 10.39 2.22 7.66c1.22-1.95 3.14-3.09 4.95-3.09 1.84 0 3 1.01 4.52 1.01 1.48 0 2.38-1.01 4.51-1.01 1.61 0 3.32.88 4.54 2.39-3.99 2.18-3.34 7.88.66 9.74z"/></svg>
+          <div><div class="dl-os-name">macOS</div><div class="dl-os-arch">Intel 芯片</div></div>
+        </div>
+        <a class="btn btn-ghost" href="https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-mac-intel.dmg">
+          下载 .dmg
+        </a>
+      </div>
+
+      <!-- Windows -->
+      <div class="dl-card" data-platform="win">
+        <span class="dl-rec">为你推荐</span>
+        <div class="dl-os">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.1L10.5 4v7.5H3V5.1zM10.5 12.5V20L3 18.9v-6.4h7.5zM11.5 3.85L21 2.5v9H11.5V3.85zM21 12.5V21.5l-9.5-1.35V12.5H21z"/></svg>
+          <div><div class="dl-os-name">Windows</div><div class="dl-os-arch">64 位 · 安装程序</div></div>
+        </div>
+        <a class="btn btn-ghost" href="https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-windows-setup.exe">
+          下载 .exe
+        </a>
+      </div>
+    </div>
+
+    <div class="dl-meta">
+      <span>当前版本 <strong data-latest-version style="color:var(--ink-2);font-weight:600;">v0.13.0</strong></span>
+      <span>·</span>
+      <a href="https://github.com/aqm857886159/Nomi/releases/latest" target="_blank" rel="noopener noreferrer">全部版本 / 更新日志 →</a>
+      <span>·</span>
+      <a href="#opensource">从源码构建 →</a>
+    </div>
+
+    <div class="dl-note">
+      <strong>首次打开提示。</strong> 应用暂未做苹果签名，macOS 第一次打开可能拦截。解决：在「访达」里<strong>右键 Nomi → 打开</strong>，确认一次即可；或在终端执行 <code>xattr -cr /Applications/Nomi.app</code>。Windows 若被 SmartScreen 拦截，点「更多信息 → 仍要运行」。
+    </div>
+  </div>
+</section>
+
 <!-- ============ OPEN SOURCE CTA ============ -->
 <section id="opensource" class="opensource">
   <div class="wrap">
@@ -1274,7 +1388,7 @@
         <ul>
           <li><a href="#features">特性</a></li>
           <li><a href="#showcase">界面预览</a></li>
-          <li><a href="https://github.com/aqm857886159/Nomi/archive/refs/heads/main.zip">下载</a></li>
+          <li><a href="#download">下载</a></li>
         </ul>
       </div>
       <div>
@@ -1347,6 +1461,66 @@
 
       ScrollTrigger.refresh();
     });
+  })();
+</script>
+
+<!-- platform detection: personalize the download CTA + highlight the matching card -->
+<script>
+  (function () {
+    var DL = {
+      'mac-arm':   { href: 'https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-mac-arm64.dmg',     label: '下载 Nomi · macOS' },
+      'mac-intel': { href: 'https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-mac-intel.dmg',     label: '下载 Nomi · macOS' },
+      'win':       { href: 'https://github.com/aqm857886159/Nomi/releases/latest/download/Nomi-windows-setup.exe', label: '下载 Nomi · Windows' }
+    };
+
+    function detect() {
+      var ua = navigator.userAgent || '';
+      var plat = (navigator.platform || '') + ' ' + ua;
+      if (/Win/i.test(plat)) return 'win';
+      if (/Mac/i.test(plat) || /iPhone|iPad|iPod/i.test(ua)) {
+        // Intel Macs report no GPU hint; Apple Silicon is the modern default.
+        // navigator.userAgentData has no reliable arch, so guess by GPU renderer string.
+        try {
+          var cv = document.createElement('canvas');
+          var gl = cv.getContext('webgl') || cv.getContext('experimental-webgl');
+          var dbg = gl && gl.getExtension('WEBGL_debug_renderer_info');
+          var r = dbg ? (gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '') : '';
+          if (/Intel/i.test(r)) return 'mac-intel';
+        } catch (e) {}
+        return 'mac-arm';
+      }
+      return null; // unknown OS (Linux/other): leave generic, send to section
+    }
+
+    var key = detect();
+    var btn = document.getElementById('heroDownload');
+    var lbl = document.getElementById('heroDownloadLabel');
+    if (key && DL[key] && btn) {
+      btn.setAttribute('href', DL[key].href);
+      if (lbl) lbl.textContent = DL[key].label;
+    }
+    if (key) {
+      var card = document.querySelector('.dl-card[data-platform="' + key + '"]');
+      if (card) card.classList.add('is-detected');
+    }
+
+    // Pull the live latest version from GitHub Releases so the page never shows a
+    // stale number after a new release. Falls back silently to the hardcoded text
+    // (API rate-limit / offline) — download links already use /releases/latest/.
+    fetch('https://api.github.com/repos/aqm857886159/Nomi/releases/latest', {
+      headers: { 'Accept': 'application/vnd.github+json' }
+    })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (rel) {
+        if (!rel) return;
+        var tag = (rel.tag_name || '').trim();
+        if (!tag) return;
+        if (tag[0] !== 'v') tag = 'v' + tag;
+        document.querySelectorAll('[data-latest-version]').forEach(function (el) {
+          el.textContent = tag;
+        });
+      })
+      .catch(function () { /* keep fallback text */ });
   })();
 </script>
 

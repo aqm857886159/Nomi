@@ -12,13 +12,15 @@
 // （标 meta.archetypeId，apimart 专属 params 由档案 vendorParams 提供，见 B 分层）；独占模型新建档案。
 
 import type { HttpOperation, ProfileKind } from "./types";
+import type { ParamMap } from "./paramTranslate";
 import { APIMART_CREATE_TASK_ID_PATH, APIMART_IMAGE_QUERY_OP, APIMART_STATUS_MAPPING } from "./apimartVendor";
 
 const CREATE_HEADERS = { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" };
 
 /** 扁平图片 create op 工厂：model+prompt 固定，bodyFields 补 size/resolution/image_urls 等（undefined 键模板引擎丢弃）。
- *  model 缺省取 catalog 行 modelKey；变体合并模型（Qwen：标准/Pro）传 VARIANT_MODEL_REF（取档案当前变体的 modelKey）。 */
-function imageCreateOp(bodyFields: Record<string, unknown>, modelRef = "{{model.modelKey}}"): HttpOperation {
+ *  model 缺省取 catalog 行 modelKey；变体合并模型（Qwen：标准/Pro）传 VARIANT_MODEL_REF（取档案当前变体的 modelKey）。
+ *  paramMap：把档案的中性 canonical 参数翻译成 apimart 字段（如 gpt-image-2 的 比例→size、清晰度档位小写）。 */
+function imageCreateOp(bodyFields: Record<string, unknown>, modelRef = "{{model.modelKey}}", paramMap?: ParamMap): HttpOperation {
   return {
     method: "POST",
     path: "/v1/images/generations",
@@ -26,8 +28,18 @@ function imageCreateOp(bodyFields: Record<string, unknown>, modelRef = "{{model.
     body: { model: modelRef, prompt: "{{request.prompt}}", ...bodyFields },
     response_mapping: { task_id: APIMART_CREATE_TASK_ID_PATH },
     provider_meta_mapping: { task_id: APIMART_CREATE_TASK_ID_PATH },
+    ...(paramMap ? { paramMap } : {}),
   };
 }
+
+// GPT Image 2 的 apimart 翻译（铁律）：中性 比例(aspect_ratio) → apimart 的 size 字段；
+// 清晰度档位小写（apimart 历史用 1k/2k/4k，中性 canonical 用 1K/2K/4K）。线缆输出与迁移前完全一致。
+const GPT_IMAGE_2_APIMART_PARAM_MAP: ParamMap = {
+  rules: [
+    { wire: "size", from: "aspect_ratio" },
+    { wire: "resolution", fromMany: ["resolution"], transform: "toLowerCase" },
+  ],
+};
 
 // 变体合并模型用：body model = 档案当前变体的 modelKey（{{request.params.model}}，同视频侧）。
 const VARIANT_MODEL_REF = "{{request.params.model}}";
@@ -54,13 +66,15 @@ function imageModel(p: {
   modelRef?: string;
   t2iBody: Record<string, unknown>;
   editBody?: Record<string, unknown>; // 省略 = 该模型仅文生图（imagen / z-image）
+  /** 中性 canonical → apimart 字段的翻译（如 gpt-image-2）。缺省 = 档案 params 键即 apimart 字段名（透传）。 */
+  paramMap?: ParamMap;
 }): ApimartImageModel {
   const mappings: ApimartImageModel["mappings"] = [
     {
       id: `seed-apimart-${p.archetypeId}-text_to_image`,
       taskKind: "text_to_image",
       name: `${p.labelZh} · 文生图`,
-      create: imageCreateOp(p.t2iBody, p.modelRef),
+      create: imageCreateOp(p.t2iBody, p.modelRef, p.paramMap),
     },
   ];
   if (p.editBody) {
@@ -68,7 +82,7 @@ function imageModel(p: {
       id: `seed-apimart-${p.archetypeId}-image_edit`,
       taskKind: "image_edit",
       name: `${p.labelZh} · 改图`,
-      create: imageCreateOp(p.editBody, p.modelRef),
+      create: imageCreateOp(p.editBody, p.modelRef, p.paramMap),
     });
   }
   return { modelKey: p.modelKey, labelZh: p.labelZh, archetypeId: p.archetypeId, mappings };
@@ -92,6 +106,8 @@ export const APIMART_IMAGE_MODELS: ApimartImageModel[] = [
     t2iBody: { size: SIZE, resolution: RESOLUTION },
     // GPT 档案改图槽 inputKey=input_urls（kie 契约），apimart 字段名是 image_urls → 值读 input_urls。
     editBody: { size: SIZE, resolution: RESOLUTION, image_urls: "{{request.params.input_urls}}" },
+    // 铁律迁移：gpt-image-2 已中性化（档案 params=比例+清晰度），apimart 字段是 size/resolution → 翻译。
+    paramMap: GPT_IMAGE_2_APIMART_PARAM_MAP,
   }),
   // 独占档案（apimart 专属，新建）：Qwen-Image / Imagen 4 / Z-Image-Turbo。
   // Qwen-Image：变体（标准 qwen-image-2.0 / Pro qwen-image-2.0-pro）→ body model 取 {{request.params.model}}。

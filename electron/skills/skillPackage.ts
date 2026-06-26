@@ -152,6 +152,29 @@ export function exportSkillPackageByName(directoryName: string, exportedAt: numb
   return null;
 }
 
+export type DeleteSkillResult = { ok: true; dirName: string } | { ok: false; error: string };
+
+/**
+ * 删除一个**用户目录下**的 skill（不可逆）。安全：解析后必须严格落在 userRoot 内（防 `..` 穿越），
+ * 且只删 userData/skills——内置随附 skill 在只读安装目录，这里碰不到，天然禁删（与导入对称）。
+ */
+export function deleteUserSkill(directoryName: string): DeleteSkillResult {
+  const name = String(directoryName || "").trim();
+  if (!name || name !== path.basename(name) || name === "." || name === "..") {
+    return { ok: false, error: "非法的技能目录名" };
+  }
+  const userRoot = path.resolve(getUserSkillsRoot());
+  const target = path.resolve(userRoot, name);
+  if (target !== path.join(userRoot, name) || !target.startsWith(userRoot + path.sep)) {
+    return { ok: false, error: "只能删除用户目录下的技能" };
+  }
+  if (!fs.existsSync(path.join(target, "SKILL.md"))) {
+    return { ok: false, error: "该技能不在用户目录（内置技能只读，不能删除）" };
+  }
+  fs.rmSync(target, { recursive: true, force: true });
+  return { ok: true, dirName: name };
+}
+
 /** 导入一个外来包到可写用户 skills 目录（校验 → 落地）。 */
 export function importSkillPackageToUserDir(raw: unknown): ImportSkillResult {
   const validated = validateSkillPackage(raw);

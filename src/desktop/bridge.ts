@@ -83,6 +83,10 @@ export type DesktopUpdateEvent =
 
 export type DesktopBridge = {
   platform: string
+  startupProbe?: {
+    enabled: boolean
+    mark: (label: string, payload?: Record<string, unknown>) => void
+  }
   workspace: {
     selectFolder: () => Promise<{ canceled: true } | { canceled: false; rootPath: string }>
     openFolder: (payload: { rootPath: string; initialize?: boolean; name?: string }) => Promise<unknown>
@@ -92,9 +96,12 @@ export type DesktopBridge = {
   }
   projects: {
     list: () => unknown[]
+    listAsync?: () => Promise<unknown[]>
     create: (record: unknown) => unknown
     read: (projectId: string) => unknown | null
+    readAsync?: (projectId: string) => Promise<unknown | null>
     save: (projectId: string, record: unknown) => unknown
+    saveAsync?: (projectId: string, record: unknown) => Promise<unknown>
     delete: (projectId: string) => { id: string; deleted: boolean }
   }
   assets: {
@@ -214,7 +221,7 @@ export type DesktopBridge = {
       apiKey: string
       providerKind?: ProviderKind
       headers?: Record<string, string>
-      models: Array<{ id: string; displayName?: string; kind?: 'text' | 'image' | 'video' }>
+      models: Array<{ id: string; displayName?: string; kind?: 'text' | 'image' | 'video' | 'audio' }>
     }) => Promise<{
       ok: boolean
       vendorKey?: string
@@ -285,6 +292,15 @@ export type DesktopBridge = {
     list: () => unknown[]
     exportPackage: (dirName: string) => unknown
     importPackage: (payload: unknown) => unknown
+    deleteByDir: (dirName: string) => unknown
+  }
+  /** 即梦会员（dreamina CLI）：设备码登录/账户检测/安装（可选——老 preload 无此口）。 */
+  dreamina?: {
+    status: () => Promise<{ installed: boolean; loggedIn: boolean; totalCredit: number | null; vipLevel: string; notMaestroVip: boolean }>
+    loginStart: () => Promise<{ verificationUri: string; userCode: string; deviceCode: string; expiresAt: string }>
+    loginPoll: (deviceCode: string) => Promise<{ status: 'success' | 'pending' | 'error'; message: string }>
+    logout: () => Promise<{ ok: boolean }>
+    install: () => Promise<{ ok: boolean; message: string }>
   }
   /** 能力核：上报当前打开项目，供外部调用的 A/B 守卫（可选——老 preload 无此口）。 */
   capability?: {
@@ -293,7 +309,7 @@ export type DesktopBridge = {
     mcpInfo: () => {
       tokenReady: boolean
       rpcRunning: boolean
-      server: { command: string; args: string[] }
+      server: { command: string; args: string[]; env?: Record<string, string> }
       clients: Record<'claude' | 'codex' | 'cursor', { installed: boolean; configPath: string; snippet: string }>
     }
     /** 一键写入指定客户端配置的 nomi 条目（合并 + 备份）。默认 Claude Code。 */

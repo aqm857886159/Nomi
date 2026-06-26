@@ -19,6 +19,8 @@ type FoldableModelCardProps = {
   status: 'ok' | 'todo'
   /** 状态胶囊文案；缺省按 status：ok→已连通 / todo→待接入。 */
   statusLabel?: string
+  /** 名字右侧的软标（如「新手推荐」）；不传则不显。 */
+  badge?: React.ReactNode
   defaultExpanded?: boolean
   children: React.ReactNode
 }
@@ -30,6 +32,7 @@ export function FoldableModelCard({
   subtitle,
   status,
   statusLabel,
+  badge,
   defaultExpanded = false,
   children,
 }: FoldableModelCardProps): JSX.Element {
@@ -64,6 +67,7 @@ export function FoldableModelCard({
           <span className="block text-body-sm font-semibold text-nomi-ink truncate">{name}</span>
           <span className="block text-caption text-nomi-ink-40 truncate">{subtitle}</span>
         </span>
+        {badge ? <span className="shrink-0">{badge}</span> : null}
         <span
           className={cn(
             'inline-flex items-center gap-1.5 px-2 py-[3px] rounded-full text-micro font-semibold shrink-0',

@@ -233,7 +233,9 @@ export function WorkbenchButton({
 }: WorkbenchButtonProps): JSX.Element {
   const rootClassName = cn(
     'tc-workbench-button',
-    'inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium',
+    // whitespace-nowrap:按钮文字永不逐字折行(根因治本)——窄容器里被挤压时宁可溢出/由
+    // 调用处给 shrink-0,也绝不把「整笔撤销」这种 4 字标签折成竖排(2026-06-23 用户截图根因)。
+    'inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap',
     'cursor-pointer',
     'transition-[background,border-color,color,box-shadow] duration-150 ease-out',
     'disabled:opacity-50 disabled:cursor-not-allowed',

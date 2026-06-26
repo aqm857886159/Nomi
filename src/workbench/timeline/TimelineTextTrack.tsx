@@ -86,14 +86,14 @@ export default function TimelineTextTrack(): JSX.Element {
   return (
     <div className={cn(
       'workbench-timeline-track',
-      'w-full min-h-[52px] grid grid-cols-[var(--workbench-timeline-label-width)_minmax(0,1fr)]',
-      'items-center mb-1.5 border-b-0',
+      'w-full min-h-[40px] grid grid-cols-[var(--workbench-timeline-label-width)_minmax(0,1fr)]',
+      'items-center mb-1 border-b-0',
     )} data-testid="timeline-text-track" data-track-type="text">
       <div className={cn(
         'workbench-timeline-track__label',
         'sticky left-0 z-[3] flex items-center gap-[7px]',
-        'min-w-0 min-h-[52px] pr-3 border-r-0 bg-transparent',
-        'text-[var(--workbench-ink)] text-xs font-semibold',
+        'min-w-0 min-h-[40px] pr-3 border-r-0 bg-transparent',
+        'text-[var(--workbench-muted)] text-micro font-medium',
       )}>
         <span className="flex-none w-2 h-2 rounded-full shadow-none bg-[var(--workbench-text)]" aria-hidden="true" />
         <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">文字轨</span>
@@ -106,7 +106,7 @@ export default function TimelineTextTrack(): JSX.Element {
         ref={clipsRef}
         className={cn(
           'workbench-timeline-track__clips',
-          'relative min-h-[46px] overflow-hidden cursor-crosshair',
+          'relative min-h-[30px] overflow-hidden cursor-crosshair',
           'border border-[var(--nomi-line-soft)] rounded-[var(--nomi-radius-sm)]',
           'bg-[var(--nomi-ink-05)]',
         )}
@@ -137,7 +137,7 @@ export default function TimelineTextTrack(): JSX.Element {
               type="button"
               className={cn(
                 'workbench-timeline-text-clip',
-                'absolute top-[5px] h-9 z-[1] flex items-center gap-1 px-2 overflow-hidden',
+                'absolute top-[5px] bottom-[5px] z-[1] flex items-center gap-1 px-2 overflow-hidden',
                 'rounded-[var(--nomi-radius-sm)] cursor-grab active:cursor-grabbing touch-none text-left',
                 'border bg-[var(--workbench-text-soft)] text-[var(--nomi-ink)] text-micro font-semibold',
                 selected

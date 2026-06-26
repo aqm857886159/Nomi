@@ -13,7 +13,7 @@ import type {
 import type { ResolvedGenerationReferences } from './generationReferenceResolver'
 import { narrateProgress, type GenerationProgressPhase, type ProgressNarrationContext } from '../../observability/narrate'
 import { resolveArchetypeForModel } from '../../../config/modelArchetypes'
-import { buildArchetypeInputParams } from '../nodes/controls/archetypeMeta'
+import { buildArchetypeInputParams, orderedSentImageReferenceUrls } from '../nodes/controls/archetypeMeta'
 import { projectPromptForSend } from '../../assets/promptMentions'
 import {
   type CatalogTaskActionOptions,
@@ -27,6 +27,7 @@ import {
   uniqueStrings,
 } from './catalogTaskResolve'
 import { normalizeCatalogTaskResult } from './catalogTaskResultParse'
+import { RecoverableTimeoutError } from './recoverableTimeout'
 
 // 重导出：实现已拆到 catalogTaskResolve（节点→vendor/model/kind 选择）与
 // catalogTaskResultParse（raw/asset/failure/provenance 解析），但 catalogTaskActions
@@ -75,6 +76,9 @@ function buildReferenceExtras(
       // 切片1：把画布边产出的实时参考图喂进档案 image 槽（此前只读 meta，边的角色图被丢）。
       // referenceImages 已是 meta.referenceImages + 边超集的去重并集。
       referenceImages,
+      // B4：连线进来的视频/音频参考喂进 video_ref/audio_ref 槽（此前只收 meta 上传）。
+      referenceVideos: references.referenceVideos || [],
+      referenceAudios: references.referenceAudios || [],
     })
     return {
       ...(referenceImages.length ? { referenceImages } : {}),
@@ -107,19 +111,29 @@ export function buildCatalogTaskRequest(
   if (!modelKey) throw new Error('请先选择模型')
   const rawPrompt = asTrimmedString(node.prompt)
   if (!rawPrompt) throw new Error('prompt is required')
-  // @ 内联引用投影(R6 单源):发送前把 prompt 里的 @[asset:url] 标记转成 character{N}
-  // (N = url 在 referenceImageUrls 有序数组里的位置)。纯文字 prompt 无标记 → 原样(no-op)。
-  const prompt = projectPromptForSend(rawPrompt, readStringArray((node.meta || {}).referenceImageUrls))
 
   const references = options.references || {}
   const kind = resolveTaskKind(node, references)
+  const meta = node.meta || {}
+  // @ 内联引用投影(R6 单源 · option 2 · 2026-06-25):把 prompt 里的 @[asset:url] 标记转成 character{N}，
+  // N = url 在「连线在前+上传」有序数组里的位置——**与实际发送的 reference_image 数组逐位一致**。此前只读
+  // meta.referenceImageUrls，把连线进来的参考图当成「不在数组里」直接把 @ 标记删成空串（连线图 @ 不到/被
+  // 删空的根因）。纯文字 prompt 无标记 → 原样(no-op)。无档案模型回退旧口径（仅上传）。
+  const promptRefArchetype = resolveArchetypeForModel({
+    modelKey: asTrimmedString(meta.modelKey),
+    modelAlias: asTrimmedString(meta.modelAlias),
+    meta,
+  })
+  const orderedReferenceUrls = promptRefArchetype
+    ? orderedSentImageReferenceUrls(meta, promptRefArchetype, references.referenceImages || [])
+    : readStringArray(meta.referenceImageUrls)
+  const prompt = projectPromptForSend(rawPrompt, orderedReferenceUrls)
   // 站位构图参考：出关键帧时把 staging 灰模图当「构图蓝图」而非编辑底图——照站位/姿势/机位，
   // 但写实重渲染，别照搬灰模 3D 外观（评测发现 image_edit 直喂会出 CGI 感）。只对图像生成加。
   const finalPrompt =
     references.stagingComposition && (kind === 'text_to_image' || kind === 'image_edit')
       ? `${prompt}\n\n（构图参考仅用于确定人物站位、各自姿势和镜头机位；请据此完全写实地重新渲染人物与场景——真实皮肤/衣物/光影，不要保留参考图里灰色人偶或 3D 渲染的外观。）`
       : prompt
-  const meta = node.meta || {}
   const width = asFiniteNumber(meta.width)
   const height = asFiniteNumber(meta.height)
   const steps = asFiniteNumber(meta.steps)
@@ -166,20 +180,31 @@ async function waitForCatalogTaskResult(
 ): Promise<TaskResultDto> {
   if (TERMINAL_STATUSES.has(initialResult.status)) return initialResult
   const pollIntervalMs = options.pollIntervalMs ?? 1500
-  const defaultTimeout = (request.kind === 'text_to_video' || request.kind === 'image_to_video') ? 300000 : 120000
-  const pollTimeoutMs = options.pollTimeoutMs ?? defaultTimeout
+  const isVideo = request.kind === 'text_to_video' || request.kind === 'image_to_video'
+  // 软超时：到点不报错，只把文案切成「仍在生成·已超常规时长」，后台继续等（视频 5min→续拉到 hard）。
+  // 硬超时：真停，抛可找回错误（视频 20min；非视频 2min）。options.pollTimeoutMs 覆盖时 soft=hard（测试可控）。
+  const softTimeoutMs = options.pollTimeoutMs ?? (isVideo ? 300000 : 120000)
+  const hardTimeoutMs = options.pollTimeoutMs ?? (isVideo ? 1200000 : 120000)
   const startedAt = Date.now()
   const fetchResult = options.fetchTaskResult || fetchWorkbenchTaskResultByVendor
 
   let current = initialResult
   while (!TERMINAL_STATUSES.has(current.status)) {
-    if (Date.now() - startedAt > pollTimeoutMs) {
-      throw new Error(`模型任务轮询超时: ${initialResult.id}`)
+    const elapsedMs = Date.now() - startedAt
+    if (elapsedMs > hardTimeoutMs) {
+      // 超时≠失败：上游可能仍在跑/已出片 → 抛可找回错误，节点落 recoverable，给「重新拉取」入口。
+      throw new RecoverableTimeoutError({
+        taskId: initialResult.id,
+        vendor,
+        taskKind: request.kind,
+        modelKey: asTrimmedString(request.extras?.modelKey),
+      })
     }
-    // S2:每个轮询 tick 回报进度(人话 + 已等秒数),不再静默吞掉 status。
+    // S2:每个轮询 tick 回报进度(人话 + 已等秒数),不再静默吞掉 status。软超时后切「仍在生成·已超常规时长」。
+    const overSoft = elapsedMs > softTimeoutMs
     options.onProgress?.({
-      phase: 'generating',
-      message: narrateProgress('generating', { elapsedMs: Date.now() - startedAt }),
+      phase: overSoft ? 'still-generating' : 'generating',
+      message: narrateProgress(overSoft ? 'still-generating' : 'generating', { elapsedMs }),
       taskId: initialResult.id,
     })
     await delay(pollIntervalMs)

@@ -1,7 +1,4 @@
-/* Light-only（设计系统 §1 锁定原则）。早期暗色 tc 层与 handle-color 层已删（§14.1 S1/S2/S4）：
-   app 由 main.tsx forceColorScheme 永远 light，那套暗色默认 + 光模式覆盖块全是死重量；
-   外部仅 2 处消费已迁回 nomi 体系（vendor-overrides 的 surface-inline、animations 的 sheen）。
-   颜色/圆角/字号真相源在 nomi-tokens.css，别再往这里加 tc 前缀变量（见设计系统 §0.5 三层 token）。 */
+/* Global document primitives. Color tokens live in nomi-tokens.css / Tailwind base. */
 :root {
   color-scheme: light;
   /* 连线句柄热区几何（canvas 连线命中区，与配色无关，保留） */

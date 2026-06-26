@@ -22,6 +22,7 @@ type TrajectoryTimelineProps = {
   playheadRef: React.MutableRefObject<number>
   onPlayChange: (playing: boolean) => void
   onSelectGroup: (groupId: string | null) => void
+  onSelectTrajectory: (trajectoryId: string) => void
   onClose: () => void
   onAddGroup: () => void
   onRenameGroup: (groupId: string, name: string) => void
@@ -131,7 +132,11 @@ function buildTimelineRows({
   collapsedGroupIds: Set<string>
 }): TimelineRow[] {
   const trajectoryById = new Map(trajectories.map((trajectory) => [trajectory.id, trajectory]))
-  const bindingByTrajectoryId = new Map(bindings.map((binding) => [binding.trajectoryId, binding]))
+  const bindingByTrajectoryId = new Map(
+    bindings
+      .filter((binding) => binding.objects.length > 0)
+      .map((binding) => [binding.trajectoryId, binding]),
+  )
   const assignedTrajectoryIds = new Set<string>()
   const rows: TimelineRow[] = []
 
@@ -238,6 +243,7 @@ export function TrajectoryTimeline({
   playheadRef,
   onPlayChange,
   onSelectGroup,
+  onSelectTrajectory,
   onClose,
   onAddGroup,
   onRenameGroup,
@@ -331,17 +337,19 @@ export function TrajectoryTimeline({
             ) : rows.map((row) => {
               if (row.type !== 'group') {
                 return (
-                  <div
+                  <button
                     key={row.id}
                     className={cn(
                       'grid h-7 grid-cols-[16px_minmax(0,1fr)_40px] items-center gap-1 rounded-nomi-sm pr-1 text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-05)]',
                       row.depth === 1 && 'pl-7',
                     )}
+                    type="button"
+                    onClick={() => onSelectTrajectory(row.trajectory.id)}
                   >
                     <span className="size-2.5 rounded-full" style={{ backgroundColor: row.trajectory.color }} />
                     <span className="min-w-0 truncate text-micro">{row.trajectory.name}</span>
                     <span className="justify-self-end text-micro text-[var(--nomi-ink-40)]">{row.binding ? '已绑定' : '未绑定'}</span>
-                  </div>
+                  </button>
                 )
               }
 

@@ -2,6 +2,8 @@ import React from 'react'
 import { IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react'
 import { BodyPortal, DesignProgress, NomiLoadingMark, NomiLogoMark, NomiWordmark, WorkbenchButton } from '../../design'
 import { cn } from '../../utils/cn'
+import { useNomiColorScheme } from '../../theme/colorScheme'
+import { ThemeToggleButton } from '../theme/ThemeToggleButton'
 import { useUpdater } from './useUpdater'
 
 type AboutNomiPopoverProps = {
@@ -20,6 +22,7 @@ function platformLabel(info: { platform: string; arch: string } | null): string 
 
 export function AboutNomiPopover({ anchorEl, onClose }: AboutNomiPopoverProps): JSX.Element {
   const updater = useUpdater()
+  const { isDark } = useNomiColorScheme()
   const [pos, setPos] = React.useState<{ top: number; left: number } | null>(null)
 
   React.useLayoutEffect(() => {
@@ -75,6 +78,14 @@ export function AboutNomiPopover({ anchorEl, onClose }: AboutNomiPopoverProps): 
               {updater.appInfo ? ` · ${platformLabel(updater.appInfo)}` : ''}
             </p>
           </div>
+        </div>
+
+        <div className="mb-3.5 flex min-h-9 items-center justify-between gap-3 rounded-nomi-sm bg-[var(--nomi-ink-05)] px-3 py-2">
+          <div className="min-w-0">
+            <div className="text-body-sm text-[var(--nomi-ink)]">外观</div>
+            <div className="mt-0.5 text-micro text-[var(--nomi-ink-40)]">{isDark ? '深色模式' : '浅色模式'}</div>
+          </div>
+          <ThemeToggleButton className="shrink-0 border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)]" />
         </div>
 
         <div className="pt-3.5 border-t border-[var(--nomi-line-soft)]">

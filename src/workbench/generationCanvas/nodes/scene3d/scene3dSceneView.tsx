@@ -124,6 +124,7 @@ export function SceneObjectView({
   object,
   selected,
   readOnly,
+  interactionDisabled,
   transformMode,
   orbitControlsActive,
   navigationLockedRef,
@@ -138,6 +139,7 @@ export function SceneObjectView({
   object: Scene3DObject
   selected: boolean
   readOnly: boolean
+  interactionDisabled?: boolean
   transformMode: Scene3DTransformMode
   orbitControlsActive: boolean
   navigationLockedRef: React.MutableRefObject<boolean>
@@ -244,11 +246,11 @@ export function SceneObjectView({
       position={object.position}
       rotation={object.rotation}
       scale={object.scale}
-      onPointerDown={(event) => {
+      onPointerDown={interactionDisabled ? undefined : (event) => {
         event.stopPropagation()
         onSelect()
       }}
-      onDoubleClick={(event) => {
+      onDoubleClick={interactionDisabled ? undefined : (event) => {
         event.stopPropagation()
         onSelect()
         onFocus()
@@ -331,6 +333,7 @@ export function CameraHelperView({
   cameraData,
   selected,
   readOnly,
+  positionLocked,
   orbitControlsActive,
   navigationLockedRef,
   onSelect,
@@ -342,6 +345,7 @@ export function CameraHelperView({
   cameraData: Scene3DCamera
   selected: boolean
   readOnly: boolean
+  positionLocked?: boolean
   orbitControlsActive: boolean
   navigationLockedRef: React.MutableRefObject<boolean>
   onSelect: () => void
@@ -428,7 +432,7 @@ export function CameraHelperView({
     stopScenePointerEvent(event)
     onSelect()
     orbitControlsActiveRef.current = false
-    if (readOnly) return
+    if (readOnly || positionLocked) return
     onTransformStart()
     setSceneControlsDragging(true)
     const planeNormal = new THREE.Vector3()
@@ -439,7 +443,7 @@ export function CameraHelperView({
     dragOffsetRef.current.copy(hit ? cameraPosition.clone().sub(hit) : new THREE.Vector3())
     positionDraggingRef.current = true
     pointerCaptureTarget(event.target)?.setPointerCapture?.(event.pointerId)
-  }, [cameraPosition, onSelect, onTransformStart, readOnly, setSceneControlsDragging, stopScenePointerEvent])
+  }, [cameraPosition, onSelect, onTransformStart, positionLocked, readOnly, setSceneControlsDragging, stopScenePointerEvent])
 
   const handlePositionPointerMove = React.useCallback((event: ThreeEvent<PointerEvent>) => {
     if (!positionDraggingRef.current || readOnly) return
@@ -550,6 +554,10 @@ export function CameraHelperView({
     }
   }, [onTransformEnd, readOnly, setSceneControlsDragging, updateAimFromDrag])
 
+  const positionInteractionDisabled = Boolean(positionLocked)
+  const lockedPositionRaycast = React.useCallback(() => null, [])
+  const lockedRaycastProps = positionInteractionDisabled ? { raycast: lockedPositionRaycast } : undefined
+
   const marker = (
     <group
       ref={markerRef}
@@ -557,11 +565,11 @@ export function CameraHelperView({
       visible={cameraData.visible}
       position={cameraData.position}
       rotation={cameraRotation}
-      onPointerDown={handlePositionPointerDown}
-      onPointerMove={handlePositionPointerMove}
-      onPointerUp={stopCameraDrag}
-      onPointerCancel={stopCameraDrag}
-      onDoubleClick={(event) => {
+      onPointerDown={positionInteractionDisabled ? undefined : handlePositionPointerDown}
+      onPointerMove={positionInteractionDisabled ? undefined : handlePositionPointerMove}
+      onPointerUp={positionInteractionDisabled ? undefined : stopCameraDrag}
+      onPointerCancel={positionInteractionDisabled ? undefined : stopCameraDrag}
+      onDoubleClick={positionInteractionDisabled ? undefined : (event) => {
         event.stopPropagation()
         onSelect()
         onFocus()
@@ -596,11 +604,11 @@ export function CameraHelperView({
           </mesh>
         </group>
       ) : null}
-      <mesh>
+      <mesh {...lockedRaycastProps}>
         <sphereGeometry args={[0.38, 16, 12]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
-      <mesh>
+      <mesh {...lockedRaycastProps}>
         <boxGeometry args={[0.14, 0.09, 0.08]} />
         <meshBasicMaterial
           color={selected ? '#facc15' : CAMERA_MARKER_COLOR}
@@ -610,7 +618,7 @@ export function CameraHelperView({
           toneMapped={false}
         />
       </mesh>
-      <mesh position={[0, 0, -0.12]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[0, 0, -0.12]} rotation={[-Math.PI / 2, 0, 0]} {...lockedRaycastProps}>
         <coneGeometry args={[0.045, 0.09, 18]} />
         <meshBasicMaterial
           color={selected ? '#facc15' : CAMERA_MARKER_ACCENT_COLOR}

@@ -215,6 +215,32 @@ describe('runCatalogGenerationTask — 断开 kie 后老节点自动迁移到已
   })
 })
 
+describe('runCatalogGenerationTask — 轮询硬超时抛 RecoverableTimeoutError（可找回，非普通失败）', () => {
+  const videoNode: GenerationCanvasNode = {
+    id: 'v1', kind: 'video', title: '', position: { x: 0, y: 0 }, prompt: '一只猫跑过草地',
+    meta: { modelKey: 'vid', vendor: 'asyncv' },
+  }
+
+  it('超时抛 RecoverableTimeoutError，detail 带 taskId/vendor/taskKind，且软超时后回报 still-generating', async () => {
+    const { isRecoverableTimeoutError, RecoverableTimeoutError } = await import('./recoverableTimeout')
+    const phases: string[] = []
+    const error = await runCatalogGenerationTask(videoNode, {
+      // 首发拿到 taskId、非终态 → 进轮询
+      runTask: async (_v, req) => ({ id: 'up-task-9', kind: req.kind, status: 'queued' as const, assets: [], raw: {} }),
+      // 始终非终态 → 必定走到硬超时
+      fetchTaskResult: async () => ({ vendor: 'asyncv', result: { id: 'up-task-9', kind: 'text_to_video' as const, status: 'queued' as const, assets: [], raw: {} } }),
+      pollIntervalMs: 1,
+      pollTimeoutMs: 4, // soft=hard=4ms（覆盖时收敛），几个 tick 即超时
+      onProgress: (p) => { if (p.phase) phases.push(p.phase) },
+    }).catch((e) => e)
+
+    expect(isRecoverableTimeoutError(error)).toBe(true)
+    expect((error as InstanceType<typeof RecoverableTimeoutError>).detail).toMatchObject({
+      taskId: 'up-task-9', vendor: 'asyncv', taskKind: 'text_to_video', modelKey: 'vid',
+    })
+  })
+})
+
 describe('normalizeCatalogTaskResult — image path unaffected', () => {
   it('still returns an image result from an asset', () => {
     const result = normalizeCatalogTaskResult(
@@ -283,14 +309,14 @@ describe('接入即验证（零额度）：每个档案/模式声明的参考槽
     audio_ref: { key: 'referenceAudioUrls', value: ['https://x/ar.mp3'], flat: ['https://x/ar.mp3'] },
     source_video: { key: 'sourceVideoUrl', value: 'https://x/sv.mp4', flat: ['https://x/sv.mp4'] },
   }
-  // 扁平出所有 url 字符串：含 combineSlotsInto 产出的角色对象数组 [{url,role}]（首尾帧的值嵌在 url 字段里，
-  // 仍算"进了请求"——不静默丢）。
-  const flattenValues = (obj: Record<string, unknown>): string[] =>
-    Object.values(obj).flatMap((v) => (Array.isArray(v) ? v : [v])).flatMap((v) => {
-      if (typeof v === 'string') return [v]
-      if (v && typeof v === 'object' && typeof (v as { url?: unknown }).url === 'string') return [(v as { url: string }).url]
-      return []
-    })
+  // 扁平出所有 url 字符串：含 combineSlotsInto 的 [{url,role}]，也含火山 content item 的
+  // {image_url:{url}} / {video_url:{url}} / {audio_url:{url}}。只关心"槽值是否进入请求"，不关心供应商外壳。
+  const flattenValues = (value: unknown): string[] => {
+    if (typeof value === 'string') return /^https?:\/\//i.test(value) ? [value] : []
+    if (Array.isArray(value)) return value.flatMap(flattenValues)
+    if (value && typeof value === 'object') return Object.values(value as Record<string, unknown>).flatMap(flattenValues)
+    return []
+  }
 
   for (const archetype of MODEL_ARCHETYPES) {
     for (const mode of archetype.modes) {

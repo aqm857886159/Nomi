@@ -4,9 +4,10 @@ import { resolveActiveClipsAtFrame } from '../timeline/timelineMath'
 export type TimelinePlaybackLayer = {
   image: TimelineClip | null
   video: TimelineClip | null
+  audio: TimelineClip | null
 }
 
-function findClipByType(activeClips: TimelineClip[], type: TimelineClip['type']): TimelineClip | null {
+export function findClipByType(activeClips: TimelineClip[], type: TimelineClip['type']): TimelineClip | null {
   return activeClips.find((clip) => clip.type === type) || null
 }
 
@@ -15,6 +16,7 @@ export function resolveTimelinePlaybackLayer(timeline: TimelineState): TimelineP
   return {
     image: findClipByType(activeClips, 'image'),
     video: findClipByType(activeClips, 'video'),
+    audio: findClipByType(activeClips, 'audio'),
   }
 }
 

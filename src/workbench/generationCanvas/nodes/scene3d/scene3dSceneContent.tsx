@@ -13,11 +13,13 @@ import type {
   Scene3DState,
   Scene3DCamera,
   Scene3DObject,
+  Scene3DVector3,
   Scene3DSelection,
   CaptureApi,
   Scene3DControlMode,
   Scene3DTransformMode,
 } from './scene3dTypes'
+import type { TrajectoryBindTarget } from './trajectory'
 import { SceneObjectView, CameraHelperView } from './scene3dSceneView'
 import {
   Scene3DControls,
@@ -27,6 +29,7 @@ import {
   CameraViewEditController,
 } from './scene3dViewControllers'
 import { CameraStateRecorder } from './CameraStateRecorder'
+import { TrajectoryRenderer } from './trajectory'
 
 export function SceneContent({
   state,
@@ -37,6 +40,7 @@ export function SceneContent({
   focusId,
   viewLocked,
   cameraViewEditCamera,
+  trajectoryMode,
   onSelect,
   onFocus,
   onObjectPatch,
@@ -50,6 +54,19 @@ export function SceneContent({
   onKeyboardNavigationStart,
   onKeyboardNavigationStop,
   setCaptureApi,
+  activeTrajectoryId,
+  activePointId,
+  trajectoryBindTargets,
+  onSelectTrajectory,
+  onSelectTrajectoryPoint,
+  onCreateTrajectoryAt,
+  onInsertTrajectoryPoint,
+  onUpdateTrajectoryCurveControl,
+  onUpdateTrajectoryPoint,
+  onTranslateTrajectory,
+  onEditTrajectory,
+  onDeleteTrajectory,
+  onBindTargetToTrajectory,
 }: {
   state: Scene3DState
   selection: Scene3DSelection
@@ -59,6 +76,7 @@ export function SceneContent({
   focusId: string
   viewLocked: boolean
   cameraViewEditCamera?: Scene3DCamera
+  trajectoryMode: boolean
   onSelect: (selection: Scene3DSelection) => void
   onFocus: (id: string) => void
   onObjectPatch: (id: string, patch: Partial<Scene3DObject>) => void
@@ -72,6 +90,28 @@ export function SceneContent({
   onKeyboardNavigationStart: () => void
   onKeyboardNavigationStop: () => void
   setCaptureApi: (api: CaptureApi | null) => void
+  activeTrajectoryId?: string | null
+  activePointId?: string | null
+  trajectoryBindTargets?: TrajectoryBindTarget[]
+  onSelectTrajectory?: (trajectoryId: string) => void
+  onSelectTrajectoryPoint?: (trajectoryId: string, pointId: string) => void
+  onCreateTrajectoryAt?: (position: Scene3DVector3) => void
+  onInsertTrajectoryPoint?: (
+    trajectoryId: string,
+    position: Scene3DVector3,
+    targetPointId?: string | null,
+    placement?: 'before' | 'after',
+  ) => void
+  onUpdateTrajectoryCurveControl?: (
+    trajectoryId: string,
+    segmentStartPointId: string,
+    position: Scene3DVector3 | null,
+  ) => void
+  onUpdateTrajectoryPoint?: (trajectoryId: string, pointId: string, position: Scene3DVector3) => void
+  onTranslateTrajectory?: (trajectoryId: string, delta: Scene3DVector3) => void
+  onEditTrajectory?: (trajectoryId: string) => void
+  onDeleteTrajectory?: (trajectoryId: string) => void
+  onBindTargetToTrajectory?: (trajectoryId: string, targetId: string, pointId?: string | null) => void
 }): JSX.Element {
   const freeLook = !viewLocked
   const controlMode: Scene3DControlMode = freeLook ? 'fly' : 'edit'
@@ -115,12 +155,33 @@ export function SceneContent({
         </group>
       ) : null}
       {state.environment.showAxes && !cameraViewEditing ? <axesHelper args={[2]} /> : null}
+      {(trajectoryMode || state.trajectories.length > 0) && !cameraViewEditing ? (
+        <TrajectoryRenderer
+          trajectories={state.trajectories}
+          activeTrajectoryId={activeTrajectoryId}
+          activePointId={trajectoryMode ? activePointId : null}
+          editable={trajectoryMode && !readOnly}
+          wholeDraggable={!trajectoryMode && !readOnly}
+          bindTargets={trajectoryBindTargets}
+          onSelectTrajectory={onSelectTrajectory}
+          onSelectPoint={onSelectTrajectoryPoint}
+          onCreateTrajectoryAt={onCreateTrajectoryAt}
+          onInsertPoint={onInsertTrajectoryPoint}
+          onUpdateCurveControl={onUpdateTrajectoryCurveControl}
+          onUpdatePoint={onUpdateTrajectoryPoint}
+          onTranslateTrajectory={onTranslateTrajectory}
+          onEditTrajectory={onEditTrajectory}
+          onDeleteTrajectory={onDeleteTrajectory}
+          onBindTargetToTrajectory={onBindTargetToTrajectory}
+        />
+      ) : null}
       {state.objects.map((object) => (
         <SceneObjectView
           key={object.id}
           object={object}
           selected={selection?.type === 'object' && selection.id === object.id}
-          readOnly={readOnly}
+          readOnly={readOnly || trajectoryMode}
+          interactionDisabled={trajectoryMode}
           transformMode={transformMode}
           orbitControlsActive={!freeLook}
           navigationLockedRef={navigationLockedRef}
@@ -139,6 +200,7 @@ export function SceneContent({
           cameraData={camera}
           selected={selection?.type === 'camera' && selection.id === camera.id}
           readOnly={readOnly}
+          positionLocked={trajectoryMode}
           orbitControlsActive={!freeLook}
           navigationLockedRef={navigationLockedRef}
           onSelect={() => onSelect({ type: 'camera', id: camera.id })}
