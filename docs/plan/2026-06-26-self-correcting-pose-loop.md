@@ -61,6 +61,19 @@ F2 的集成缝（来自对 `evals/loop/` 的实查；现闭环是**单 lane 硬
 
 五门绿 + 闭环自测：注入一个坏姿势增量 → 结构/ VLM 分跌 → 自动回滚（exit 非 0 即证机制活，照搬现 `loop.ts` round-2 对抗控制）。
 
+## 7. 执行（用户拍板 F2+F3+bugfix · 2026-06-26）
+
+**关键设计约束（实查得出）**：假人**落地是自动的(蒙皮最低点)、结构断言是 harness 不变量**——都改不动于姿势角度。
+所以**唯一可靠的姿势「形状」信号是 VLM(贵/gated)**。这正坐实分层：免费的落地/结构当**常驻预滤+回归探测**，VLM 当**gated 形状裁判**。最省钱 = 免费层永远先跑、VLM 只判残差且只在 fix 模式+配了视觉模型时花。
+
+落地件：
+- **F2-a 姿势覆盖层**(`stagingShots` 读 `?ov=<base64>` 增量叠加预设；walk 透传 `OVERRIDES` 文件)——fix agent 改姿势的可回滚载体，不碰 `scene3dConstants` 源(P1，调好再人工固化)。
+- **F2-b 探测 lane**(`evals/loop/poseLane.mjs`)：driver = 跑 walk → 解析 `_summary.json`(逐例结构 pass + 落地) → rows；scorer `staging-structural-pass`(免费) + `staging-anatomy`(VLM gated，复用 `appBridge.chatVision`)。
+- **F2-c 闭环+自测**(`evals/loop/poseLoop.mjs`)：复用 `loop.ts` 的 `round()` 裁决范式(诊断≠修、重跑差裁决、涨固化/跌回滚)。自测用确定性 mock 指标证「注坏→探测到→回滚」机制(免 VLM/app 可验)；真形状 fix 走 VLM-gated(配视觉模型时 exercise)。
+- **F3 运行时自检**(生产 staging 路径)：出参考图后用**免费**蒙福最低点自检每个角色是否落地，未落地则保守纠正/标记——**零 per-user API 成本**(几何自检不花钱)，治自由造型/多角色边角。
+
+验收：五门绿；poseLoop 自测退出码 0(机制成立)；F3 真机走查(R13)出图角色落地。
+
 ## 来源
 - [Tiered agent evaluation / LLM-as-judge](https://medium.com/@vinodkrane/chapter-8-agent-evaluation-for-llms-how-to-test-tools-trajectories-and-llm-as-judge-788f6f3e0d52)
 - [LangChain: calibrate LLM-as-judge, rules first](https://www.langchain.com/resources/llm-as-a-judge)

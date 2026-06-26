@@ -9,7 +9,7 @@ import * as THREE from 'three'
 import { Mannequin, MannequinCrowd, MannequinAssetBoundary, ProceduralMannequin } from '../workbench/generationCanvas/nodes/scene3d/scene3dObjects'
 import { captureScene, applySceneCameraPose } from '../workbench/generationCanvas/nodes/scene3d/scene3dMath'
 import { buildStagingScene } from '../workbench/generationCanvas/nodes/scene3d/stagingBuilder'
-import type { Scene3DState, Scene3DCaptureResult } from '../workbench/generationCanvas/nodes/scene3d/scene3dTypes'
+import type { Scene3DState, Scene3DCaptureResult, Scene3DVector3 } from '../workbench/generationCanvas/nodes/scene3d/scene3dTypes'
 import { STAGING_TEST_CASES } from './stagingTestCases'
 
 type ShotMap = Record<string, string>
@@ -19,6 +19,41 @@ const caseIndex = Number.parseInt(params.get('case') ?? '0', 10) || 0
 const testCase = STAGING_TEST_CASES[caseIndex] ?? STAGING_TEST_CASES[0]
 const SHOT_W = 960
 const SHOT_H = 720
+
+// 姿势覆盖层（自纠闭环的可回滚载体）：?ov=<base64(JSON)>，形如 { "<poseId>": { "<bone>": [dxDeg,dyDeg,dzDeg] } }。
+// 把增量(度)叠加到对应预设上,不改 scene3dConstants 源(P1,调好再人工固化)。
+const DEG2RAD = Math.PI / 180
+type PoseOverrides = Record<string, Record<string, [number, number, number]>>
+function parseOverrides(): PoseOverrides {
+  const raw = params.get('ov')
+  if (!raw) return {}
+  try { return JSON.parse(decodeURIComponent(escape(atob(raw)))) as PoseOverrides } catch { return {} }
+}
+const POSE_OVERRIDES = parseOverrides()
+
+// 把覆盖层增量叠加进已建场景：mannequin 对象按 spec.characters 顺序一一对应,匹配 pose id 即叠加。
+function applyPoseOverrides(state: Scene3DState): Scene3DState {
+  if (!Object.keys(POSE_OVERRIDES).length) return state
+  const poseIds = testCase.spec.characters.map((c) => c.pose ?? 'standing')
+  let manIndex = 0
+  for (const obj of state.objects) {
+    if (obj.type !== 'mannequin') continue
+    const ov = POSE_OVERRIDES[poseIds[manIndex]]
+    manIndex += 1
+    if (!ov) continue
+    const pose: Record<string, Scene3DVector3> = { ...(obj.pose ?? {}) }
+    for (const [bone, deg] of Object.entries(ov)) {
+      const base = pose[bone] ?? [0, 0, 0]
+      pose[bone] = [
+        base[0] + deg[0] * DEG2RAD,
+        base[1] + deg[1] * DEG2RAD,
+        base[2] + deg[2] * DEG2RAD,
+      ]
+    }
+    obj.pose = pose
+  }
+  return state
+}
 
 // 环绕诊断视角：方位角(绕Y,度) + 俯仰角(度,正=俯视)。覆盖正/三四分斜俯/侧/背/顶——
 // 断肢藏不住、前后腿穿插与悬空在 q3/top 暴露。
@@ -138,7 +173,7 @@ function CaptureController({ state, onDone }: { state: Scene3DState; onDone: (sh
 }
 
 function StagingShots(): JSX.Element {
-  const state = React.useMemo(() => buildStagingScene(testCase.spec), [])
+  const state = React.useMemo(() => applyPoseOverrides(buildStagingScene(testCase.spec)), [])
   const [shots, setShots] = React.useState<ShotMap | null>(null)
   React.useEffect(() => {
     if (shots) {

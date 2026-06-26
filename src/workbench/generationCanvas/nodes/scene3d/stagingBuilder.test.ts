@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildStagingScene } from './stagingBuilder'
+import { buildStagingScene, resolveStagingPose, auditStagingSpec, buildStagingSceneAudited } from './stagingBuilder'
 import { normalizeScene3DState } from './scene3dSerializer'
 
 describe('buildStagingScene', () => {
@@ -64,5 +64,52 @@ describe('buildStagingScene', () => {
     expect(state.objects[1].name).toBe('角色B')
     expect(state.objects[0].rotation[1]).toBeCloseTo(0, 5) // camera = 朝 +Z
     expect(Math.abs(state.objects[1].rotation[1])).toBeCloseTo(Math.PI, 5) // away = 180°
+  })
+})
+
+describe('运行时自检(F3)：姿势 id 解析', () => {
+  it('词表 id 原样通过、无 pose=站立(合法,无 note)', () => {
+    expect(resolveStagingPose('single-knee')).toEqual({ id: 'single-knee' })
+    expect(resolveStagingPose(undefined)).toEqual({})
+    expect(resolveStagingPose('')).toEqual({})
+  })
+  it('别名/近似归一到词表 id 并带 note(治静默落站立)', () => {
+    expect(resolveStagingPose('kneel').id).toBe('single-knee')
+    expect(resolveStagingPose('sitting').id).toBe('sit')
+    expect(resolveStagingPose('crouch').id).toBe('squat')
+    expect(resolveStagingPose('Kneeling').id).toBe('single-knee') // 大小写无关
+    expect(resolveStagingPose('hands on hips').id).toBe('hands-on-hips') // 空格归一
+    expect(resolveStagingPose('kneel').note).toBeTruthy()
+  })
+  it('完全无法识别的姿势:无 id(落站立)+ 明确 note', () => {
+    const r = resolveStagingPose('moonwalk-backflip')
+    expect(r.id).toBeUndefined()
+    expect(r.note).toContain('不是有效姿势')
+  })
+  it('auditStagingSpec 汇总问题、修正 spec', () => {
+    const { spec, issues } = auditStagingSpec({ characters: [{ pose: 'kneel' }, { pose: 'standing' }] })
+    expect(spec.characters[0].pose).toBe('single-knee')
+    expect(spec.characters[1].pose).toBe('standing')
+    expect(issues).toHaveLength(1)
+  })
+})
+
+describe('运行时自检(F3)：角色过近自动拉开', () => {
+  it('正常间距不触发拉开(无 issue)', () => {
+    const { state, issues } = buildStagingSceneAudited({ characters: [{ pose: 'standing' }, { pose: 'standing' }], layout: 'side-by-side' })
+    const men = state.objects.filter((o) => o.type === 'mannequin')
+    const d = Math.hypot(men[0].position[0] - men[1].position[0], men[0].position[2] - men[1].position[2])
+    expect(d).toBeGreaterThanOrEqual(1.0)
+    expect(issues.filter((i) => i.includes('间距'))).toHaveLength(0)
+  })
+  it('近景面对面也保证中心间距 ≥ 下限(必要时自动加宽)', () => {
+    const { state } = buildStagingSceneAudited({
+      characters: [{ pose: 'standing', facing: 'toward' }, { pose: 'standing', facing: 'toward' }],
+      layout: 'facing',
+      camera: { shot: 'close' },
+    })
+    const men = state.objects.filter((o) => o.type === 'mannequin')
+    const d = Math.hypot(men[0].position[0] - men[1].position[0], men[0].position[2] - men[1].position[2])
+    expect(d).toBeGreaterThanOrEqual(1.0)
   })
 })

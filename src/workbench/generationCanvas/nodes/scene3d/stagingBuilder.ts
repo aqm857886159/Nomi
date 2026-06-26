@@ -84,9 +84,9 @@ function placeCircle(count: number, s: number): Placed[] {
 // 要「A 指向 B」，让 A 的 -X 侧朝 B：faceDeg = 目标方位角 + 90°。
 const POINT_ARM_BODY_AZIMUTH_DEG = -90
 
-function buildCharacterObjects(spec: StagingSpec, layout: StagingLayout): Scene3DObject[] {
+function buildCharacterObjects(spec: StagingSpec, layout: StagingLayout, spacingScale = 1): Scene3DObject[] {
   const shot: StagingShot = spec.camera?.shot ?? 'medium'
-  const spacing = STAGING_CHARACTER_SPACING * SHOT_SPACING_SCALE[shot]
+  const spacing = STAGING_CHARACTER_SPACING * SHOT_SPACING_SCALE[shot] * spacingScale
   const placed = placeCharacters(spec.characters.length, layout, spacing)
   return spec.characters.map((character, index) => {
     const place = placed[index] ?? { x: 0, z: 0, faceDeg: 0 }
@@ -175,10 +175,10 @@ function buildStagingCamera(objects: Scene3DObject[], camera: StagingSpec['camer
   }
 }
 
-export function buildStagingScene(spec: StagingSpec): Scene3DState {
+export function buildStagingScene(spec: StagingSpec, spacingScale = 1): Scene3DState {
   const base = createDefaultScene3DState()
   const layout: StagingLayout = spec.layout ?? (spec.characters.length > 1 ? 'side-by-side' : 'solo')
-  const objects = buildCharacterObjects(spec, layout)
+  const objects = buildCharacterObjects(spec, layout, spacingScale)
   const centerX = objects.reduce((sum, o) => sum + o.position[0], 0) / Math.max(1, objects.length)
   const backZ = Math.min(...objects.map((o) => o.position[2]), 0)
   const crowd = buildCrowdObject(spec, centerX, backZ)
@@ -204,4 +204,80 @@ export function buildStagingScene(spec: StagingSpec): Scene3DState {
       mode: 'edit',
     },
   }
+}
+
+// ── 运行时自检（F3）：零额度几何守卫，治 agent 生成站位图时的两类「人物问题」————
+// ① 非法/近似姿势 id（如 agent 传 'kneel' 而词表是 'single-knee'）此前静默落成站立、无报错；
+// ② 角色过近互相穿插。两者都能从纯数据免费查出并修，不花任何 API（区别于 VLM 形状判）。
+
+const KNOWN_POSE_IDS = new Set(MANNEQUIN_POSE_PRESETS.map((p) => p.id))
+// agent 常见说法 → 词表 id（治静默落标准化）。
+const POSE_ALIASES: Record<string, string> = {
+  kneel: 'single-knee', kneeling: 'single-knee', 'one-knee': 'single-knee', propose: 'single-knee', proposal: 'single-knee',
+  'both-knees': 'double-knee', 'two-knees': 'double-knee',
+  sitting: 'sit', seated: 'sit',
+  crouch: 'squat', crouching: 'squat', squatting: 'squat',
+  stand: 'standing', idle: 'standing',
+  walking: 'walk', running: 'run', sprint: 'run',
+  pointing: 'point', waving: 'wave', 'raise-hand': 'wave', cheering: 'cheer', celebrate: 'cheer',
+  akimbo: 'hands-on-hips', 'hand-on-hip': 'hands-on-hips', 'hands-on-hip': 'hands-on-hips',
+  tpose: 't-pose', t: 't-pose',
+}
+
+function normalizePoseToken(raw: string): string {
+  return raw.toLowerCase().trim().replace(/[_\s]+/g, '-')
+}
+
+/** 把任意 pose 串解析成有效词表 id。返回 {id?} + 可选 note（被纠正/无法识别时）。无 pose=站立=合法。 */
+export function resolveStagingPose(raw?: string): { id?: string; note?: string } {
+  if (!raw || !raw.trim()) return {}
+  const norm = normalizePoseToken(raw)
+  if (KNOWN_POSE_IDS.has(norm)) return { id: norm }
+  const alias = POSE_ALIASES[norm]
+  if (alias) return { id: alias, note: `「${raw}」非词表姿势，已按最接近的「${alias}」处理` }
+  // 模糊只接受「输入是某词表 id 的片段」(如 knee→single-knee、hip→hands-on-hips),且片段够长;
+  // 不做反向(norm 含 id)以免短 id 命中无关长词(moonwalk 含 walk)误纠。别名表兜「长说法→id」。
+  const fuzzy = norm.length >= 3 ? [...KNOWN_POSE_IDS].find((id) => id.includes(norm)) : undefined
+  if (fuzzy) return { id: fuzzy, note: `「${raw}」非词表姿势，已按最接近的「${fuzzy}」处理` }
+  return { note: `「${raw}」不是有效姿势，已渲染为站立（有效：${[...KNOWN_POSE_IDS].join('/')}）` }
+}
+
+/** 解析 spec 内所有角色姿势 id → 修正后的 spec + 问题清单（纯函数,可单测）。 */
+export function auditStagingSpec(spec: StagingSpec): { spec: StagingSpec; issues: string[] } {
+  const issues: string[] = []
+  const characters = spec.characters.map((c) => {
+    const r = resolveStagingPose(c.pose)
+    if (r.note) issues.push(r.note)
+    return { ...c, pose: r.id }
+  })
+  return { spec: { ...spec, characters }, issues }
+}
+
+const MIN_CHARACTER_CENTER_SEP = 1.0 // 角色脚下中心间距下限（假人占地约 0.75 宽,留余量）。
+
+function stagingHasOverlap(state: Scene3DState): boolean {
+  const men = state.objects.filter((o) => o.type === 'mannequin')
+  for (let a = 0; a < men.length; a += 1) {
+    for (let b = a + 1; b < men.length; b += 1) {
+      const d = Math.hypot(men[a].position[0] - men[b].position[0], men[a].position[2] - men[b].position[2])
+      if (d < MIN_CHARACTER_CENTER_SEP) return true
+    }
+  }
+  return false
+}
+
+/** 生产站位入口（带运行时自检）：修正姿势 id + 角色过近自动拉开间距。返回最终场景 + 问题清单（追加给用户提示）。 */
+export function buildStagingSceneAudited(spec: StagingSpec): { state: Scene3DState; issues: string[] } {
+  const audit = auditStagingSpec(spec)
+  let state = buildStagingScene(audit.spec, 1)
+  const scales = [1.4, 1.9, 2.5]
+  let widened = false
+  for (let i = 0; i < scales.length && stagingHasOverlap(state); i += 1) {
+    state = buildStagingScene(audit.spec, scales[i])
+    widened = true
+  }
+  const issues = [...audit.issues]
+  if (stagingHasOverlap(state)) issues.push('角色仍偏近（已尽力拉开间距，建议改用更宽的景别/布局）')
+  else if (widened) issues.push('角色过近，已自动拉开站位间距')
+  return { state, issues }
 }

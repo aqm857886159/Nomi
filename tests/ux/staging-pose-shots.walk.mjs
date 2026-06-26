@@ -17,6 +17,12 @@ fs.mkdirSync(outDir, { recursive: true })
 const casesSrc = fs.readFileSync(path.join(repoRoot, 'src/devlab/stagingTestCases.ts'), 'utf8')
 const caseIds = [...casesSrc.matchAll(/id:\s*'(\d\d-[^']+)'/g)].map((m) => m[1])
 const onlyFilter = (process.env.CASES || '').split(',').map((s) => s.trim()).filter(Boolean)
+// 姿势覆盖层(自纠闭环用):OVERRIDES=path/to/overrides.json → 透传给 stagingShots ?ov=<base64>。
+const overridesParam = (() => {
+  const p = process.env.OVERRIDES
+  if (!p || !fs.existsSync(p)) return ''
+  try { return '&ov=' + Buffer.from(fs.readFileSync(p, 'utf8')).toString('base64') } catch { return '' }
+})()
 const CALIBRATE = process.env.CALIBRATE === '1' // 打印逐视角度量，标定阈值用
 
 // 结构性断言阈值（确定性,零成本,补 VLM 人眼审查）：hero 是「生产无地面」帧、5 环绕视角是「地面+网格+投影」帧。
@@ -76,11 +82,13 @@ try {
   for (let i = 0; i < caseIds.length; i += 1) {
     const id = caseIds[i]
     if (onlyFilter.length && !onlyFilter.some((f) => id.startsWith(f))) continue
-    await page.goto(`${BASE}/staging-shots.html?case=${i}`, { waitUntil: 'domcontentloaded' })
+    await page.goto(`${BASE}/staging-shots.html?case=${i}${overridesParam}`, { waitUntil: 'domcontentloaded' })
     let shots = null
+    let diag = null
     try {
       await page.waitForFunction(() => window.__shotsReady === true, { timeout: 30000 })
       shots = await page.evaluate(() => window.__shots)
+      diag = await page.evaluate(() => window.__diag) // 逐角色蒙皮最低点世界 Y(落地判据)
     } catch (err) {
       console.log(`  ✗ ${id}: 渲染超时/无 __shots (${err.message})`)
       summary.push({ id, ok: false, views: 0 })
@@ -144,9 +152,11 @@ try {
       console.log(`  · ${id} 度量: ` + ['hero', 'front', 'q3', 'side', 'back', 'top'].map((v) => `${v}[f=${m[v]?.floorFrac.toFixed(2)},s=${m[v]?.shadowFrac.toFixed(3)}]`).join(' ') + ` shadowSum=${orbitShadowSum.toFixed(3)}`)
     }
     suiteMaxShadow = Math.max(suiteMaxShadow, caseMaxShadow)
+    // 落地:每个角色蒙皮最低点世界 Y 都应≈0(|Y|<0.12 视为落地)。供自纠闭环当免费形状回归信号。
+    const grounded = Array.isArray(diag) && diag.length > 0 && diag.every((y) => Math.abs(y) < 0.12)
     const structOk = structFails.length === 0
     console.log(`  ${views.length >= 5 && structOk ? '✓' : '✗'} ${id}: ${views.length} 视角${structOk ? '' : ' ⚠ ' + structFails.join('; ')}`)
-    summary.push({ id, ok: views.length >= 5 && structOk, views: views.length, structFails })
+    summary.push({ id, ok: views.length >= 5 && structOk, views: views.length, structFails, grounded, diag })
   }
 
   // 整套级投影管线断言（仅整套跑时——筛选子集可能不含明显投影的例,跳过免误报）。

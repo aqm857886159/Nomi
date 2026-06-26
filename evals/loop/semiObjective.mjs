@@ -11,6 +11,11 @@ export function visionAvailable() {
   return modelLabels().vision != null;
 }
 
+/** 半客观层是否就绪(有视觉模型即可出图判;真采信仍需真图+校准,见文件头两重门)。report.ts 标注用。 */
+export function semiObjectiveEnabled() {
+  return visionAvailable();
+}
+
 /** 校准门:正式采信前,须用人工标注集验证该 judge 的查准/查全 ≥ 此阈值。 */
 export const CALIBRATION_THRESHOLD = 0.8;
 
