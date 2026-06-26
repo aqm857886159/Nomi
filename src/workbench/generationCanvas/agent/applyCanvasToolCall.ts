@@ -12,7 +12,7 @@ import { runPlanWithToasts } from '../components/batchPlanPreview'
 import { mintSpendGrant } from '../../api/taskApi'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
 import { parseStoryboardPlan } from './storyboardPlan'
-import { buildStagingScene, type StagingSpec, type StagingCharacterSpec } from '../nodes/scene3d/stagingBuilder'
+import { buildStagingSceneAudited, type StagingSpec, type StagingCharacterSpec } from '../nodes/scene3d/stagingBuilder'
 import { buildCameraMoveScene, type CameraMoveSpec } from '../nodes/scene3d/cameraMoveBuilder'
 import { CAMERA_SPEED_DURATION, CAMERA_MOVE_LABEL, type CameraSpeed } from '../nodes/scene3d/cameraMoveVocab'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -309,7 +309,8 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
     // 站位参考：词汇 spec → 3D 场景 → 建 scene3d 节点(带 stagingAutoCapture)。
     // 节点挂载时离屏出图 + 连 composition_ref 到目标镜头（Scene3DEditor 内完成）。
     const spec = parseStagingSpec(record)
-    const state = buildStagingScene(spec)
+    // 运行时自检(F3,零额度几何守卫):修正非法/近似姿势 id(治静默落站立)+ 角色过近自动拉开间距。
+    const { state, issues: stagingIssues } = buildStagingSceneAudited(spec)
     const existing = generationCanvasTools.read_canvas().nodes
     const position = layoutPlannedNodes(['image'], existing)[0]
     const created = inCtx(() =>
@@ -332,7 +333,7 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
     return {
       stagingNodeId,
       targetNodeId: targetNodeId ?? null,
-      message: `已创建站位参考（${spec.characters.length} 角色 · ${spec.layout ?? '自动'} 站位 · ${cam.angle ?? 'three-quarter'}/${cam.height ?? 'eye'}/${cam.shot ?? 'medium'}）。正在离屏渲染出图${targetNodeId ? '并连到镜头作 composition_ref' : ''}。`,
+      message: `已创建站位参考（${spec.characters.length} 角色 · ${spec.layout ?? '自动'} 站位 · ${cam.angle ?? 'three-quarter'}/${cam.height ?? 'eye'}/${cam.shot ?? 'medium'}）。正在离屏渲染出图${targetNodeId ? '并连到镜头作 composition_ref' : ''}。${stagingIssues.length ? ' ⚠️ ' + stagingIssues.join('；') : ''}`,
     }
   }
 
