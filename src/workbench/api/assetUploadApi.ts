@@ -79,6 +79,21 @@ export async function importWorkbenchLocalAssetFile(
   }) as Promise<WorkbenchAssetDto>
 }
 
+export async function importWorkbenchRemoteAssetUrl(
+  url: string,
+  name?: string,
+  meta?: UploadWorkbenchAssetMeta,
+): Promise<WorkbenchAssetDto> {
+  const desktop = requireDesktopRuntime('remote asset import')
+  return desktop.assets.importRemoteUrl({
+    projectId: resolveProjectId(meta),
+    url,
+    kind: 'upload',
+    fileName: name,
+    ownerNodeId: meta?.ownerNodeId || null,
+  }) as Promise<WorkbenchAssetDto>
+}
+
 export async function recoverImportedWorkbenchLocalAssetFile(_file: File): Promise<WorkbenchAssetDto | null> {
   return null
 }

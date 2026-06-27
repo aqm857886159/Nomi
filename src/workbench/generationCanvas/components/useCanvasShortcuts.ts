@@ -1,4 +1,8 @@
 import React from 'react'
+import {
+  pasteClipboardImageToGenerationCanvas,
+  showClipboardImagePasteNotes,
+} from '../adapters/clipboardImagePaste'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 
 /**
@@ -25,6 +29,7 @@ export function useCanvasShortcuts(opts: {
   copySelectedNodes: () => void
   cutSelectedNodes: () => void
   pasteNodes: () => void
+  getPastePosition: () => { x: number; y: number }
   undo: () => void
   redo: () => void
 }): void {
@@ -42,17 +47,28 @@ export function useCanvasShortcuts(opts: {
     copySelectedNodes,
     cutSelectedNodes,
     pasteNodes,
+    getPastePosition,
     undo,
     redo,
   } = opts
+  const pasteFallbackTimerRef = React.useRef<number | null>(null)
 
   React.useEffect(() => {
     if (readOnly) return undefined
+    const clearPasteFallback = () => {
+      if (pasteFallbackTimerRef.current === null) return
+      window.clearTimeout(pasteFallbackTimerRef.current)
+      pasteFallbackTimerRef.current = null
+    }
+    const shouldIgnoreCanvasShortcut = (target: EventTarget | null): boolean => {
+      if (document.querySelector('[data-nomi-whiteboard-modal="true"]')) return true
+      const element = target instanceof HTMLElement ? target : null
+      if (element?.closest('input, textarea, select, [contenteditable="true"]')) return true
+      if (!stageRef.current || stageRef.current.offsetParent === null) return true
+      return false
+    }
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (document.querySelector('[data-nomi-whiteboard-modal="true"]')) return
-      const target = event.target instanceof HTMLElement ? event.target : null
-      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return
-      if (!stageRef.current || stageRef.current.offsetParent === null) return
+      if (shouldIgnoreCanvasShortcut(event.target)) return
       const key = event.key.toLowerCase()
       const mod = event.metaKey || event.ctrlKey
       const hasTextSelection = !(window.getSelection()?.isCollapsed ?? true)
@@ -98,8 +114,11 @@ export function useCanvasShortcuts(opts: {
         return
       }
       if (key === 'v') {
-        event.preventDefault()
-        pasteNodes()
+        clearPasteFallback()
+        pasteFallbackTimerRef.current = window.setTimeout(() => {
+          pasteFallbackTimerRef.current = null
+          pasteNodes()
+        }, 120)
         return
       }
       if (key === 'z' && event.shiftKey) {
@@ -117,14 +136,38 @@ export function useCanvasShortcuts(opts: {
         redo()
       }
     }
+    const handlePaste = (event: ClipboardEvent) => {
+      if (shouldIgnoreCanvasShortcut(event.target)) return
+      event.preventDefault()
+      clearPasteFallback()
+      void pasteClipboardImageToGenerationCanvas({
+        clipboardData: event.clipboardData,
+        basePosition: getPastePosition(),
+        categoryId: activeCategoryId,
+      }).then((result) => {
+        if (!result.handled) {
+          pasteNodes()
+          return
+        }
+        showClipboardImagePasteNotes(result)
+      }).catch(() => {
+        pasteNodes()
+      })
+    }
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener('paste', handlePaste)
+    return () => {
+      clearPasteFallback()
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('paste', handlePaste)
+    }
   }, [
     activeCategoryId,
     cancelConnection,
     copySelectedNodes,
     cutSelectedNodes,
     deleteSelectedNodes,
+    getPastePosition,
     groupSelectedNodes,
     pasteNodes,
     readOnly,

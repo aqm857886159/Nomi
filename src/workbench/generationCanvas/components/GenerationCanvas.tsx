@@ -350,6 +350,20 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     // 解组结果画布即时可见 → 成功 toast 是噪音（弹窗审计 R2）。
   }, [selectedGroupIds, ungroupGroups])
 
+  const getToolbarInsertionPosition = React.useCallback(
+    () => {
+      const rect = stageRef.current?.getBoundingClientRect()
+      const viewportAnchor = rect
+        ? { x: rect.width * 0.38, y: rect.height * 0.42 }
+        : { x: 360, y: 280 }
+      return {
+        x: Math.round((viewportAnchor.x - offset.x) / zoom),
+        y: Math.round((viewportAnchor.y - offset.y) / zoom),
+      }
+    },
+    [offset.x, offset.y, zoom, stageRef],
+  )
+
   const handleGroupFramePointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>, groupId: string) => {
     if (readOnly || event.button !== 0) return
     event.preventDefault()
@@ -377,6 +391,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     copySelectedNodes,
     cutSelectedNodes,
     pasteNodes,
+    getPastePosition: getToolbarInsertionPosition,
     undo,
     redo,
   })
@@ -493,23 +508,6 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     const tid = setTimeout(() => fitViewRef.current(true), 360) // 等模式切换 + 节点 DOM 渲染一帧
     return () => clearTimeout(tid)
   }, [canvasFitNonce])
-
-  // 落点：把视口锚换回画布坐标，作为「期望落点」交给 store.addNode——真实 AABB 碰撞避让
-  // 统一收口在 addNode（落点总闸，见 canvasNodeActions），这里不再各自算避让（否则就是
-  // 第二份避让真相源，正是本类 bug 的来源）。kind 入参已无用（避让按落点+同分类在闸内做）。
-  const getToolbarInsertionPosition = React.useCallback(
-    () => {
-      const rect = stageRef.current?.getBoundingClientRect()
-      const viewportAnchor = rect
-        ? { x: rect.width * 0.38, y: rect.height * 0.42 }
-        : { x: 360, y: 280 }
-      return {
-        x: Math.round((viewportAnchor.x - offset.x) / zoom),
-        y: Math.round((viewportAnchor.y - offset.y) / zoom),
-      }
-    },
-    [offset.x, offset.y, zoom, stageRef],
-  )
 
   const zoomPercent = Math.round(zoom * 100)
   const selectedCount = selectedNodeIds.length
