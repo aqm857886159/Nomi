@@ -40,3 +40,6 @@ orchestration/
 temp-web-design-skill/
 nomi-landing/
 landing-page-*.html
+
+.tmp
+dist-electron
