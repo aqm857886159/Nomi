@@ -131,6 +131,7 @@ export { default as IconTimelineEventPlus } from '@tabler/icons-react/dist/esm/i
 export { default as IconTool } from '@tabler/icons-react/dist/esm/icons/IconTool.mjs'
 export { default as IconTransform } from '@tabler/icons-react/dist/esm/icons/IconTransform.mjs'
 export { default as IconTrash } from '@tabler/icons-react/dist/esm/icons/IconTrash.mjs'
+export { default as IconTypography } from '@tabler/icons-react/dist/esm/icons/IconTypography.mjs'
 export { default as IconUpload } from '@tabler/icons-react/dist/esm/icons/IconUpload.mjs'
 export { default as IconUser } from '@tabler/icons-react/dist/esm/icons/IconUser.mjs'
 export { default as IconUserPlus } from '@tabler/icons-react/dist/esm/icons/IconUserPlus.mjs'

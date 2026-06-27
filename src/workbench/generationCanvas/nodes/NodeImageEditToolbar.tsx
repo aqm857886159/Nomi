@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconBrush, IconCrop, IconDownload, IconFlipHorizontal, IconFlipVertical, IconGrid3x3, IconGridDots, IconLayoutGrid, IconRotate2, IconRotateClockwise2, IconScissors, IconSparkles, IconTransform } from '@tabler/icons-react'
+import { IconBrush, IconCrop, IconDownload, IconFlipHorizontal, IconFlipVertical, IconGrid3x3, IconGridDots, IconLayoutGrid, IconRotate2, IconRotateClockwise2, IconScissors, IconSparkles, IconTransform, IconTypography } from '@tabler/icons-react'
 import { IMAGE_TRANSFORM_LABEL, type ImageGridSize, type ImageTransformOp } from './useNodeImageEditing'
 import type { CropGridSize } from './render/ImageCropGridOverlay'
 import { useResultDownload } from './useResultDownload'
@@ -7,6 +7,7 @@ import { FloatingToolbarShell, TOOLBAR_ICON as I, ToolbarButton, ToolbarDivider,
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import WhiteboardModal from './whiteboard/WhiteboardModal'
 import { inferWhiteboardAspectRatio, readWhiteboardState } from './whiteboard/whiteboardState'
+import { applyTextEdit } from '../textEdit/buildTextEditNode'
 import { NomiLoadingMark } from '../../../design'
 
 // 图片节点编辑浮条（方案 B 分组，用户拍板）：定妆 ｜ 裁剪 · 切图▾ · 变换▾ ｜ 下载。
@@ -36,17 +37,22 @@ export default function NodeImageEditToolbar({ node, editGrid, imageOpBusy, onGr
     <>
       <FloatingToolbarShell ariaLabel="图片操作">
         {onMakeup ? (
-          <>
-            <ToolbarButton
-              icon={<IconSparkles size={I.size} stroke={I.stroke} />}
-              label="定妆"
-              accent
-              title="定妆：基于这张图，预填一份角色/场景身份板提示词到新节点（不自动生成）"
-              onClick={onMakeup}
-            />
-            <ToolbarDivider />
-          </>
+          <ToolbarButton
+            icon={<IconSparkles size={I.size} stroke={I.stroke} />}
+            label="定妆"
+            accent
+            title="定妆：基于这张图，预填一份角色/场景身份板提示词到新节点（不自动生成）"
+            onClick={onMakeup}
+          />
         ) : null}
+        <ToolbarButton
+          icon={<IconTypography size={I.size} stroke={I.stroke} />}
+          label="改字"
+          title="改字：基于这张图，预填一份「把旧字改成新字、保留字体/风格」改图提示词到新节点（不自动生成）"
+          disabled={busy || !imageUrl}
+          onClick={() => applyTextEdit(node)}
+        />
+        <ToolbarDivider />
         <ToolbarButton
           icon={<IconCrop size={I.size} stroke={I.stroke} />}
           label="裁剪"
