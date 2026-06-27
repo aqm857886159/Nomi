@@ -21,7 +21,7 @@ import { useNodeImageEditing } from "./useNodeImageEditing";
 import { useNodeDragResize } from "./useNodeDragResize";
 import { useHasFrameSourceEdge, useShotIndex, useMountedCards } from "../hooks/useNodeRelationships";
 import { lazyWithChunkBoundary } from "../../../ui/chunkBoundary";
-import { GeneratingOverlay, PendingGenerationPlaceholder, Scene3DEditorLoading, STRIPED_BG_CLASS } from "./render/CardCommon";
+import { GeneratingOverlay, PendingGenerationPlaceholder, RemoveBackgroundPendingOverlay, RemoveBackgroundPendingPlaceholder, Scene3DEditorLoading, STRIPED_BG_CLASS } from "./render/CardCommon";
 import { cn } from "../../../utils/cn";
 import { NomiImage } from "../../../design/media";
 import { persistNodeImageFile } from "../adapters/persistNodeImage";
@@ -237,6 +237,9 @@ function BaseGenerationNodeImpl({
     // C5: 文本节点走专属可编辑 body（TextDocumentNode），像 card 那样脱离图片预览。
     const isTextKind = node.kind === "text";
     const hasResult = Boolean(node.result?.url);
+    const isRemoveBackgroundPending =
+        (node.status === "queued" || node.status === "running") &&
+        node.progress?.phase === "remove-background";
     // 可视尺寸（卡片固定宽 / 动态高）的单一真相源 resolveNodeVisualSize——连线锚点 / 最小地图 /
     // fitView 与本外壳共用同一函数，避免名义 size 与渲染尺寸两套真相源（连线起笔飘在节点外的根因）。
     const visualSize = resolveNodeVisualSize(node);
@@ -492,6 +495,8 @@ function BaseGenerationNodeImpl({
                     onGridSplit={(g) => imageEditing.openEdit(g)}
                     onCrop={() => imageEditing.openEdit(1)}
                     onTransform={(op) => void imageEditing.handleImageTransform(op)}
+                    onRemoveBackground={() => void imageEditing.handleRemoveBackground()}
+                    removeBackgroundBusy={isRemoveBackgroundPending}
                 />
             ) : null}
 
@@ -688,6 +693,8 @@ function BaseGenerationNodeImpl({
                             className={cn(
                                 "w-full h-full min-h-0 object-contain pointer-events-none",
                                 "select-none",
+                                isRemoveBackgroundPending && "blur-sm scale-[1.02] transition-[filter,opacity]",
+                                isRemoveBackgroundPending && "[animation:_remove-bg-pulse_1.5s_ease-in-out_infinite]",
                             )}
                             src={node.result.url}
                             alt=''
@@ -699,6 +706,8 @@ function BaseGenerationNodeImpl({
                             }}
                         />
                     )
+                ) : isRemoveBackgroundPending ? (
+                    <RemoveBackgroundPendingPlaceholder title={node.title} progress={node.progress?.percent} />
                 ) : (
                     <PendingGenerationPlaceholder
                         selected={selected}
@@ -722,9 +731,10 @@ function BaseGenerationNodeImpl({
                         onCancel={() => imageEditing.cancelEdit()}
                     />
                 ) : null}
+                {isRemoveBackgroundPending && hasResult ? <RemoveBackgroundPendingOverlay message={node.progress?.message} progress={node.progress?.percent} /> : null}
             </div>
 
-            {isGenerating ? <GeneratingOverlay /> : null}
+            {isGenerating && !isRemoveBackgroundPending ? <GeneratingOverlay /> : null}
             {canSendToTimeline && node.kind !== "scene3d" ? (
                 <div
                     role='button'

@@ -4,6 +4,7 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { dataUrlToFile, persistNodeImageFile } from '../adapters/persistNodeImage'
 import type { CropGridResult, CropGridSize } from './render/ImageCropGridOverlay'
 import { computeGridCells, computeSplitLayout } from './render/cropGridGeometry'
+import { blobToDataUrl, removeBackgroundBlob } from '../../../lib/removeBackground'
 
 // 裁切 / 旋转 / 网格切分都用 canvas.toDataURL 产出 PNG base64。先用 base64 给即时预览，
 // 紧接着把它落盘换成 nomi-local:// 替换掉 —— 避免 PNG base64 永久挂在 store（图多即卡）。
@@ -27,7 +28,8 @@ function persistEditedNodeImageToLocal(nodeId: string, dataUrl: string, createdA
 
 // 图片本地编辑（切图 / 裁剪 / 旋转翻转）从 BaseGenerationNode 抽出（A1.5 接缝）。
 // 图片类与素材类节点都复用这一处；以后新增图片编辑功能只动这里 + NodeImageEditToolbar，
-// 不碰壳、不碰生成逻辑。所有操作都遵循「跳出新节点」原则——原图零改动，衍生物是新节点。
+// 不碰壳、不碰生成逻辑。裁剪 / 切图 / 旋转翻转遵循「跳出新节点」原则；
+// 抠图是覆盖式编辑：直接用透明 PNG 替换当前图片节点。
 
 // 切图入口仍是「四视图(2) / 九宫格(3)」两档；裁剪是 1 档。统一由可调框处理（见 CropGridSize）。
 export type ImageGridSize = 2 | 3
@@ -46,6 +48,15 @@ const MAX_NODE_WIDTH = 680
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
+}
+
+function removeBackgroundProgressMessage(key: string): string {
+  if (key.includes('decode')) return '读取图片中'
+  if (key.includes('inference')) return '识别主体中'
+  if (key.includes('mask')) return '生成透明遮罩'
+  if (key.includes('encode')) return '导出透明 PNG'
+  if (key.includes('model')) return '加载抠图模型'
+  return '抠图中'
 }
 
 function imageGridTileNodeSize(width: number, height: number, preferredWidth: number): { width: number; height: number; previewHeight: number } | null {
@@ -129,6 +140,7 @@ export type NodeImageEditing = {
   imageOpBusy: boolean
   handleEditConfirm: (result: CropGridResult) => Promise<void>
   handleImageTransform: (op: ImageTransformOp) => Promise<void>
+  handleRemoveBackground: () => Promise<void>
 }
 
 export function useNodeImageEditing(
@@ -149,6 +161,9 @@ export function useNodeImageEditing(
   const nodePositionX = node.position.x
   const nodePositionY = node.position.y
   const nodeResult = node.result
+  const nodeHistory = node.history
+  const nodeMeta = node.meta
+  const nodeStatus = node.status
 
   // 裁剪 / 切图统一走可调框确认：computeGridCells 把「外框 + 框内线」换算成 N 个 image 归一化
   // cell，逐 cell cropImageRegion 裁出新节点。1 cell = 裁剪（单节点）；N cell = 切图（展开网格）。
@@ -281,6 +296,76 @@ export function useNodeImageEditing(
     }
   }, [addNode, imageOpBusy, nodeId, nodePositionX, nodePositionY, nodeResult, nodeTitle, storeConnectNodes, updateNode, visualWidth])
 
+  const handleRemoveBackground = React.useCallback(async () => {
+    const imageUrl = nodeResult?.type === 'image' ? nodeResult.url : undefined
+    if (!imageUrl || imageOpBusy) return
+    setImageOpBusy(true)
+    const createdAt = Date.now()
+    const previousStatus = nodeStatus || 'success'
+    updateNode(nodeId, {
+      status: 'running',
+      progress: {
+        runId: `remove-bg-${nodeId}-${createdAt}`,
+        taskKind: 'asset',
+        phase: 'remove-background',
+        message: '抠图中',
+        percent: 0,
+        updatedAt: createdAt,
+      },
+      meta: {
+        ...(nodeMeta || {}),
+        removeBackgroundSource: imageUrl,
+      },
+    })
+    try {
+      const blob = await removeBackgroundBlob(imageUrl, ({ key, current, total }) => {
+        const percent = total > 0 ? Math.round((current / total) * 100) : undefined
+        updateNode(nodeId, {
+          progress: {
+            runId: `remove-bg-${nodeId}-${createdAt}`,
+            taskKind: 'asset',
+            phase: 'remove-background',
+            message: removeBackgroundProgressMessage(key),
+            percent,
+            updatedAt: Date.now(),
+          },
+        }, { persist: false })
+      })
+      const file = new File([blob], `remove-bg-${nodeId}-${createdAt}.png`, { type: 'image/png' })
+      const localUrl = await persistNodeImageFile(file, nodeId)
+      const finalUrl = localUrl ?? await blobToDataUrl(blob)
+      const result = {
+        id: `image-remove-bg-${nodeId}-${createdAt}`,
+        type: 'image' as const,
+        url: finalUrl,
+        createdAt,
+      }
+      updateNode(nodeId, {
+        result,
+        history: [result, ...(nodeHistory || []).filter((entry) => entry.id !== result.id)],
+        status: 'success',
+        error: undefined,
+        progress: undefined,
+        meta: {
+          ...(nodeMeta || {}),
+          removeBackgroundSource: imageUrl,
+          localOnly: !localUrl,
+          uploadStatus: localUrl ? 'uploaded' : undefined,
+        },
+      })
+    } catch {
+      // removeBackground 失败（离线/CDN 不通）时静默报错 toast
+      updateNode(nodeId, {
+        status: previousStatus,
+        progress: undefined,
+      })
+      const { toast } = await import('../../../ui/toast')
+      toast('抠图失败，请检查网络连接后重试', 'error')
+    } finally {
+      setImageOpBusy(false)
+    }
+  }, [imageOpBusy, nodeHistory, nodeId, nodeMeta, nodeResult, nodeStatus, updateNode])
+
   return {
     editGrid,
     openEdit,
@@ -288,5 +373,6 @@ export function useNodeImageEditing(
     imageOpBusy,
     handleEditConfirm,
     handleImageTransform,
+    handleRemoveBackground,
   }
 }

@@ -430,7 +430,7 @@ function buildContentSecurityPolicy(): string {
       ...common,
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: http://127.0.0.1:5273",
       "style-src 'self' 'unsafe-inline'",
-      "connect-src 'self' nomi-local: https: ws://127.0.0.1:5273 http://127.0.0.1:5273",
+      "connect-src 'self' nomi-local: https: ws://127.0.0.1:5273 http://127.0.0.1:5273 blob:",
     ].join("; ");
   }
   return [
@@ -440,7 +440,7 @@ function buildContentSecurityPolicy(): string {
     // 'wasm-unsafe-eval' 只放行 WASM 编译，不开放危险的 JS eval（比 'unsafe-eval' 收得紧）。
     "script-src 'self' 'wasm-unsafe-eval' blob:",
     "style-src 'self' 'unsafe-inline'",
-    "connect-src 'self' nomi-local: https:",
+    "connect-src 'self' nomi-local: https: blob:",
   ].join("; ");
 }
 
@@ -451,6 +451,10 @@ function installContentSecurityPolicy(targetSession: Electron.Session): void {
       responseHeaders: {
         ...details.responseHeaders,
         "Content-Security-Policy": [csp],
+        // ONNX Runtime Web 需要 SharedArrayBuffer 才能多线程推理（否则退回单线程阻塞主线程）。
+        // SharedArrayBuffer 要求 cross-origin isolation，Electron renderer 需注入这两个头。
+        "Cross-Origin-Opener-Policy": ["same-origin"],
+        "Cross-Origin-Embedder-Policy": ["require-corp"],
       },
     });
   });
@@ -476,6 +480,7 @@ function registerLocalProtocol(): void {
       // 导致九宫格/裁切等操作静默失败（SecurityError 被吞掉）。
       const corsHeaders = new Headers(fileResponse.headers);
       corsHeaders.set("Access-Control-Allow-Origin", "*");
+      corsHeaders.set("Cross-Origin-Resource-Policy", "cross-origin");
       return new Response(fileResponse.body, { status: fileResponse.status, headers: corsHeaders });
     } catch (error) {
       const message = error instanceof Error ? error.message : "local asset not found";

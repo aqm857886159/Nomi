@@ -46,19 +46,21 @@ type ToolbarButtonProps = {
   label?: string
   accent?: boolean
   disabled?: boolean
+  ariaBusy?: boolean
   title?: string
   ariaLabel?: string
   onClick?: (event: React.MouseEvent) => void
 }
 
 /** 带文字的工具栏按钮（定妆 / 裁剪 / 下载 / 抽首帧…）。 */
-export function ToolbarButton({ icon, label, accent, disabled, title, ariaLabel, onClick }: ToolbarButtonProps): JSX.Element {
+export function ToolbarButton({ icon, label, accent, disabled, ariaBusy, title, ariaLabel, onClick }: ToolbarButtonProps): JSX.Element {
   return (
     <button
       type="button"
       className={cn(buttonBase, 'gap-1.5 px-3', accent && 'font-medium', variantClass(accent))}
       title={title}
       aria-label={ariaLabel ?? label}
+      aria-busy={ariaBusy || undefined}
       disabled={disabled}
       onClick={onClick}
     >

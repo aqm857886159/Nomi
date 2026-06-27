@@ -185,6 +185,87 @@ export function PendingGenerationPlaceholder({
   )
 }
 
+function clampProgressPercent(value: number | undefined): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null
+  return Math.max(0, Math.min(100, Math.round(value)))
+}
+
+function RemoveBackgroundProgressMark({ progress }: { progress?: number }): JSX.Element {
+  const percent = clampProgressPercent(progress)
+  const radius = 18
+  const circumference = 2 * Math.PI * radius
+  const isDeterminate = percent !== null && percent > 0
+  return (
+    <div
+      className={cn(
+        'grid size-14 place-items-center rounded-full',
+        'bg-nomi-paper/[0.92] text-nomi-ink shadow-nomi-md backdrop-blur-[8px]',
+      )}
+      aria-hidden="true"
+    >
+      <svg className="size-10" viewBox="0 0 44 44">
+        <circle
+          cx="22"
+          cy="22"
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="4"
+          opacity="0.16"
+        />
+        <circle
+          className={isDeterminate ? undefined : 'origin-center animate-spin motion-reduce:animate-none'}
+          cx="22"
+          cy="22"
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeWidth="4"
+          strokeDasharray={isDeterminate ? circumference : '28 85'}
+          strokeDashoffset={isDeterminate ? circumference * (1 - percent / 100) : 0}
+          transform={isDeterminate ? 'rotate(-90 22 22)' : undefined}
+        />
+      </svg>
+    </div>
+  )
+}
+
+function RemoveBackgroundPendingStatus({ title, message = '抠图中', progress }: { title?: string; message?: string; progress?: number }): JSX.Element {
+  const percent = clampProgressPercent(progress)
+  return (
+    <div className="grid place-items-center gap-2" role="status" aria-label="抠图中" aria-busy="true">
+      <RemoveBackgroundProgressMark progress={progress} />
+      <span className="rounded-full bg-nomi-paper/[0.88] px-2.5 py-1 text-micro font-medium text-nomi-ink-80 shadow-nomi-sm backdrop-blur-[8px]">
+        {percent !== null && percent > 0 ? `${message} ${percent}%` : message}
+      </span>
+      <span className="sr-only">{title || '抠图节点'} 正在生成透明 PNG</span>
+    </div>
+  )
+}
+
+export function RemoveBackgroundPendingPlaceholder({ title, progress }: { title?: string; progress?: number }): JSX.Element {
+  return (
+    <div className="grid h-full w-full place-items-center overflow-hidden bg-nomi-ink-05 p-4">
+      <RemoveBackgroundPendingStatus title={title} progress={progress} />
+    </div>
+  )
+}
+
+export function RemoveBackgroundPendingOverlay({ message, progress }: { message?: string; progress?: number }): JSX.Element {
+  const percent = clampProgressPercent(progress)
+  return (
+    <span
+      className="sr-only"
+      role="status"
+      aria-label="抠图中"
+      aria-busy="true"
+    >
+      {percent !== null && percent > 0 ? `${message || '抠图中'} ${percent}%` : (message || '抠图中')}
+    </span>
+  )
+}
+
 /**
  * 生成中（queued/running）的统一品牌转圈遮罩（pending 规范 #1）。
  * 挂在节点根容器、对分镜/卡片/文本所有节点类型一致生效；z-[1] 盖住正文但低于

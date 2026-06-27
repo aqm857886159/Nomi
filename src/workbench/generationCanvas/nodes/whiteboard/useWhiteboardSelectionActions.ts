@@ -235,6 +235,7 @@ export function useWhiteboardSelectionActions(
       }
 
       event.preventDefault()
+      event.stopPropagation()
       const stage = stageRef.current
       if (!stage) {
         return
@@ -356,7 +357,6 @@ export function useWhiteboardSelectionActions(
       if (isCanvasContextMenuEvent(event)) {
         return
       }
-
       setContextMenu(null)
     }
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -365,10 +365,14 @@ export function useWhiteboardSelectionActions(
       }
     }
 
-    window.addEventListener('pointerdown', closeContextMenu)
+    // 延迟注册，跳过触发右键菜单的同一批 pointerdown 事件
+    const timerId = setTimeout(() => {
+      window.addEventListener('pointerdown', closeContextMenu)
+    }, 0)
     window.addEventListener('keydown', handleKeyDown)
 
     return () => {
+      clearTimeout(timerId)
       window.removeEventListener('pointerdown', closeContextMenu)
       window.removeEventListener('keydown', handleKeyDown)
     }
