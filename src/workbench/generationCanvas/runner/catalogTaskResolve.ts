@@ -26,6 +26,8 @@ export type CatalogTaskActionOptions = {
   references?: Partial<ResolvedGenerationReferences>
   /** 付费守卫令牌：真人确认后铸的 grantId，随 request.extras 下到主进程 runTask 核验消费。 */
   grantId?: string
+  /** 提交幂等键（= node run.id）：随 request.extras 下到主进程，让同一次意图提交 at-most-once（不二次下单）。 */
+  idempotencyKey?: string
   runTask?: (vendor: string, request: TaskRequestDto) => Promise<TaskResultDto>
   listCatalogModels?: (params: { kind: BillingModelKind; enabled: true }) => Promise<ModelCatalogModelDto[]>
   listCatalogVendors?: () => Promise<ModelCatalogVendorDto[]>

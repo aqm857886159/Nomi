@@ -16,6 +16,8 @@ export type GenerationNodeExecutorContext = {
   onProgress?: CatalogTaskActionOptions['onProgress']
   /** 付费守卫令牌：透传到 build request 的 extras.grantId。 */
   grantId?: string
+  /** 提交幂等键（= node run.id）：透传到 extras.idempotencyKey，让同一次意图提交在 electron 侧 at-most-once。 */
+  idempotencyKey?: string
 }
 
 export type GenerationNodeExecutor = (
@@ -27,7 +29,11 @@ export const generationNodeExecutor: GenerationNodeExecutor = async (node, conte
   const executionKind = getGenerationNodeExecutionKind(node.kind)
   const onProgress = context?.onProgress
   const grantId = context?.grantId
-  const gate = grantId ? { grantId } : {}
+  // gate = 付费相关透传(令牌 + 幂等键)，随各付费 action 一路进 buildCatalogTaskRequest 的 extras。
+  const gate = {
+    ...(grantId ? { grantId } : {}),
+    ...(context?.idempotencyKey ? { idempotencyKey: context.idempotencyKey } : {}),
+  }
   if (executionKind === 'image') {
     const references = resolveGenerationReferences(node, context)
     return generateImage(node, { references, ...gate, ...(onProgress ? { onProgress } : {}) })

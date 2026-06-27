@@ -31,6 +31,7 @@ import {
   clearModelCatalogVendorApiKey,
   ensureBuiltinModelSeeds,
 } from "./runtime";
+import { runTaskWithIdempotency } from "./submissionLedger";
 import { extractVideoFrameToAsset } from "./video/extractVideoFrame";
 import { framesToVideoAsset } from "./video/framesToVideo";
 import { mintSpendGrant } from "./spendGrant";
@@ -387,7 +388,9 @@ function registerIpc(): void {
     const maxAttemptsPerNode = typeof raw.maxAttemptsPerNode === "number" ? raw.maxAttemptsPerNode : undefined;
     return { grantId: mintSpendGrant({ nodeIds, ...(maxAttemptsPerNode ? { maxAttemptsPerNode } : {}) }) };
   });
-  ipcMain.handle("nomi:tasks:run", (_event, payload) => runTaskIpcGuard(payload, () => runTask(payload)));
+  // 提交幂等包在 IPC 边界：渲染层每次提交（含控制器重试）都经此，同 idempotencyKey 的提交内核 at-most-once
+  // （堵「提交瞬间丢回执 → 重试 → 二次下单」；query 类 nomi:tasks:result 不包，查结果本就免费）。
+  ipcMain.handle("nomi:tasks:run", (_event, payload) => runTaskIpcGuard(payload, () => runTaskWithIdempotency(payload, () => runTask(payload))));
   ipcMain.handle("nomi:tasks:result", (_event, payload) => runTaskIpcGuard(payload, () => fetchTaskResult(payload)));
   // 能力核 A/B 守卫：renderer 在打开/切换/关闭项目时上报当前打开的 projectId，
   // 让外部调用拒绝直写「正在窗口里编辑」的工程（防内存 store 回盘覆盖，见 capabilityCore/rpcServer）。

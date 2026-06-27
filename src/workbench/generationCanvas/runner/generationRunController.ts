@@ -133,6 +133,9 @@ export async function runGenerationNode(
           nodes: state.nodes,
           edges: state.edges,
           ...(options.grantId ? { grantId: options.grantId } : {}),
+          // 提交幂等键 = 本次 run.id：重试循环内每次 attempt 复用同一个 run.id，
+          // electron 侧台账据此认作「同一次意图提交」→ 重试绝不二次下单。新生成 = 新 run.id。
+          idempotencyKey: run.id,
           // S2:catalog 任务各阶段回报 → 节点进度(人话已由 narrate 翻好)。
           onProgress: (progress) => {
             useGenerationCanvasStore.getState().setNodeProgress(id, {

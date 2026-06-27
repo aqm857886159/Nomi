@@ -162,6 +162,8 @@ export function buildCatalogTaskRequest(
         nodeKind: node.kind,
         // 付费守卫令牌：随 extras 下到主进程 runTask 核验消费（无则主进程拦截）。
         ...(options.grantId ? { grantId: options.grantId } : {}),
+        // 提交幂等键：随 extras 下到主进程 runTask，同键提交内核 at-most-once（堵「丢回执→重试→二次下单」）。
+        ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}),
         // S8 缓存语义:节点血统里已出过图(result 或 history,含「基于此重生成」副本)→
         // 再点生成=用户要重抽 → 强制重跑绕指纹缓存;首次生成/批量补跑同配方命中缓存
         // 秒回零花费(防双击/重复受理重复扣费)。路由旗标,不进指纹。

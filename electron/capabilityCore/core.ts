@@ -11,6 +11,7 @@
 //
 // 真相源（P1）：generate 不重建 archetype→body——runTask 主进程内部据 catalog mapping + extras
 // 自己组装请求体（findExecutableModel / requestPipeline / 资产本地化）。本核只构造高层 TaskRequest。
+import crypto from 'node:crypto'
 import { listProjects, createProject, readProject } from '../projects/repository'
 import { readCatalog } from '../catalog/catalogStore'
 import {
@@ -277,6 +278,8 @@ export async function generateOnProject(
       nodeKind: node.kind,
       ...(references.length ? { referenceImages: references } : {}),
       ...(grantId ? { grantId } : {}),
+      // 提交幂等键：headless 路自生一个（本路无重试循环故无双发向量，纯纵深防御 + 未来若加重试已护住）。
+      idempotencyKey: `mcp-${crypto.randomUUID()}`,
     },
   }
 
