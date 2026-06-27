@@ -84,7 +84,7 @@ export default function CategoryItem({ category, count, active, collapsed, expan
         'w-full flex items-center gap-2 px-2 py-1.5 text-left rounded-nomi-sm transition-colors',
         'text-caption leading-tight border border-transparent',
         active
-          ? 'bg-nomi-accent/10 text-nomi-accent border-nomi-accent/30'
+          ? 'bg-nomi-ink-10 text-nomi-accent'
           : 'text-nomi-ink-80 hover:bg-nomi-ink-05 hover:text-nomi-ink',
         dragOver && 'ring-2 ring-nomi-accent border-nomi-accent',
         collapsed && 'justify-center px-0',

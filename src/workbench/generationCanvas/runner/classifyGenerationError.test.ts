@@ -70,6 +70,13 @@ describe('classifyGenerationError — 已知分类', () => {
     expect(raw.reason).toBe('模型未开通')
     expect(raw.hint).not.toMatch(/API Key/)
   })
+
+  it('剪贴板网页媒体下载失败时优先提示下载到本地', () => {
+    const r = classifyGenerationError('网页媒体下载失败：该站点可能禁止跨域请求或开启防盗链。请先下载到本地，再复制或拖入画布。')
+    expect(r.reason).toBe('网页媒体下载失败')
+    expect(r.hint).toMatch(/下载到本地/)
+    expect(r.hint).toMatch(/防盗链/)
+  })
 })
 
 describe('classifyGenerationError — 未识别兜底（方案 B 改进）', () => {

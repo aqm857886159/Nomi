@@ -45,7 +45,7 @@ export default function NodeItem({ node, active = false, depth = 0, onSelect, on
         'w-full flex items-center gap-2 rounded-nomi-sm px-2 py-1.5 text-left transition-colors',
         'text-micro leading-tight border border-transparent',
         active
-          ? 'bg-nomi-accent/10 text-nomi-accent border-nomi-accent/20'
+          ? 'bg-nomi-ink-10 text-nomi-accent'
           : 'text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink',
       )}
       style={{ paddingLeft: `${8 + depth * 10}px` }}

@@ -1,7 +1,7 @@
 import React from 'react'
 import {
-  pasteClipboardImageToGenerationCanvas,
-  showClipboardImagePasteNotes,
+  pasteClipboardMediaToGenerationCanvas,
+  showClipboardMediaPasteNotes,
 } from '../adapters/clipboardImagePaste'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 
@@ -28,7 +28,7 @@ export function useCanvasShortcuts(opts: {
   ungroupSelectedNodes: () => void
   copySelectedNodes: () => void
   cutSelectedNodes: () => void
-  pasteNodes: () => void
+  pasteNodes: (basePosition?: { x: number; y: number }) => void
   getPastePosition: () => { x: number; y: number }
   undo: () => void
   redo: () => void
@@ -117,7 +117,7 @@ export function useCanvasShortcuts(opts: {
         clearPasteFallback()
         pasteFallbackTimerRef.current = window.setTimeout(() => {
           pasteFallbackTimerRef.current = null
-          pasteNodes()
+          pasteNodes(getPastePosition())
         }, 120)
         return
       }
@@ -140,18 +140,19 @@ export function useCanvasShortcuts(opts: {
       if (shouldIgnoreCanvasShortcut(event.target)) return
       event.preventDefault()
       clearPasteFallback()
-      void pasteClipboardImageToGenerationCanvas({
+      const pastePosition = getPastePosition()
+      void pasteClipboardMediaToGenerationCanvas({
         clipboardData: event.clipboardData,
-        basePosition: getPastePosition(),
+        basePosition: pastePosition,
         categoryId: activeCategoryId,
       }).then((result) => {
         if (!result.handled) {
-          pasteNodes()
+          pasteNodes(pastePosition)
           return
         }
-        showClipboardImagePasteNotes(result)
+        showClipboardMediaPasteNotes(result)
       }).catch(() => {
-        pasteNodes()
+        pasteNodes(pastePosition)
       })
     }
     window.addEventListener('keydown', handleKeyDown)

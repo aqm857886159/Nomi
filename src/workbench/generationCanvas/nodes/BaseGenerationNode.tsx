@@ -229,8 +229,7 @@ function BaseGenerationNodeImpl({
   // C5: 文本节点走专属可编辑 body（TextDocumentNode），像 card 那样脱离图片预览。
   const isTextKind = node.kind === 'text'
   const hasResult = Boolean(node.result?.url)
-  const isRemoveBackgroundPending =
-    (node.status === 'queued' || node.status === 'running') && node.progress?.phase === 'remove-background'
+  const isRemoveBackgroundPending = (node.status === 'queued' || node.status === 'running') && node.progress?.phase === 'remove-background'
   // 可视尺寸（卡片固定宽 / 动态高）的单一真相源 resolveNodeVisualSize——连线锚点 / 最小地图 /
   // fitView 与本外壳共用同一函数，避免名义 size 与渲染尺寸两套真相源（连线起笔飘在节点外的根因）。
   const visualSize = resolveNodeVisualSize(node)
@@ -564,7 +563,7 @@ function BaseGenerationNodeImpl({
       {status === 'error' && node.error ? (
         <NodeErrorReport
           message={node.error}
-          onRetry={() => {
+          onRetry={isAssetKind && node.meta?.source === 'clipboard-url' ? undefined : () => {
             void (node.meta?.retryableImport === true ? retryLocalAssetImport(node.id) : confirmAndRunNode(node.id))
           }}
         />
@@ -601,6 +600,7 @@ function BaseGenerationNodeImpl({
           // 棋盘格占位底纹只在「未生成」态出现；有结果后节点尺寸已贴合图片比例，
           // 不再露出底纹，避免图片外面套一层框。
           !hasResult && STRIPED_BG_CLASS,
+          isGenerating && node.progress?.phase === 'clipboard-import' && 'ring-nomi-accent/50 [animation:_remove-bg-pulse_1.2s_ease-in-out_infinite]',
           // [DESIGN-CARDS-07] 卡片模式隐藏 preview div；C5 文本节点同理。
           (isCardKind || isTextKind) && 'hidden',
         )}

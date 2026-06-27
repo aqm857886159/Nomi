@@ -124,6 +124,13 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   }
   // Strip any legacy "\n→ hint" tail that older builds baked into node.error.
   const raw = stripVendorErrorMarker(String(message || '')).split('\n→')[0].trim() || '生成失败'
+  if (raw.includes('网页媒体下载失败')) {
+    return {
+      reason: '网页媒体下载失败',
+      hint: '部分站点会禁止跨域请求或开启防盗链。请先在浏览器中把图片/视频下载到本地，再复制或拖入画布。',
+      raw,
+    }
+  }
   const kind = detectLegacyErrorKind(raw)
   if (kind) {
     const { reason, hint } = narrateGenerationError(kind)

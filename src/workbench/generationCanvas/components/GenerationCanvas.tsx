@@ -350,6 +350,26 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     // 解组结果画布即时可见 → 成功 toast 是噪音（弹窗审计 R2）。
   }, [selectedGroupIds, ungroupGroups])
 
+  const lastPastePositionRef = React.useRef<{ x: number; y: number } | null>(null)
+
+  const getCanvasPointFromClientPoint = React.useCallback((clientX: number, clientY: number) => {
+    if (!stageRef.current) return null
+    const rect = stageRef.current.getBoundingClientRect()
+    return {
+      x: (clientX - rect.left - offsetRef.current.x) / zoomRef.current,
+      y: (clientY - rect.top - offsetRef.current.y) / zoomRef.current,
+    }
+  }, [offsetRef, stageRef, zoomRef])
+
+  const rememberPastePositionFromClientPoint = React.useCallback((clientX: number, clientY: number) => {
+    const point = getCanvasPointFromClientPoint(clientX, clientY)
+    if (!point) return
+    lastPastePositionRef.current = {
+      x: Math.max(40, Math.round(point.x)),
+      y: Math.max(40, Math.round(point.y)),
+    }
+  }, [getCanvasPointFromClientPoint])
+
   const getToolbarInsertionPosition = React.useCallback(
     () => {
       const rect = stageRef.current?.getBoundingClientRect()
@@ -362,6 +382,11 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
       }
     },
     [offset.x, offset.y, zoom, stageRef],
+  )
+
+  const getPastePosition = React.useCallback(
+    () => lastPastePositionRef.current ?? getToolbarInsertionPosition(),
+    [getToolbarInsertionPosition],
   )
 
   const handleGroupFramePointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>, groupId: string) => {
@@ -391,7 +416,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     copySelectedNodes,
     cutSelectedNodes,
     pasteNodes,
-    getPastePosition: getToolbarInsertionPosition,
+    getPastePosition,
     undo,
     redo,
   })
@@ -400,14 +425,15 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     handleCanvasStageDrop(event, { readOnly, offset, zoom, activeCategoryId })
   }, [activeCategoryId, offset, readOnly, zoom])
 
-  const getCanvasPointFromClientPoint = React.useCallback((clientX: number, clientY: number) => {
-    if (!stageRef.current) return null
-    const rect = stageRef.current.getBoundingClientRect()
-    return {
-      x: (clientX - rect.left - offsetRef.current.x) / zoomRef.current,
-      y: (clientY - rect.top - offsetRef.current.y) / zoomRef.current,
-    }
-  }, [offsetRef, stageRef, zoomRef])
+  const handleStagePointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    rememberPastePositionFromClientPoint(event.clientX, event.clientY)
+    pointer.onPointerDown(event)
+  }, [pointer, rememberPastePositionFromClientPoint])
+
+  const handleStagePointerMove = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    rememberPastePositionFromClientPoint(event.clientX, event.clientY)
+    pointer.onPointerMove(event)
+  }, [pointer, rememberPastePositionFromClientPoint])
 
   const handleStageContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
     if (readOnly || !stageRef.current) return
@@ -534,8 +560,8 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
           data-panning={isPanning ? 'true' : undefined}
           data-space-pan={isSpaceHeld ? 'true' : undefined}
           onPointerDownCapture={pointer.onPointerDownCapture}
-          onPointerDown={pointer.onPointerDown}
-          onPointerMove={pointer.onPointerMove}
+          onPointerDown={handleStagePointerDown}
+          onPointerMove={handleStagePointerMove}
           onPointerUp={pointer.onPointerUp}
           onContextMenu={handleStageContextMenu}
           onDragOver={(event) => {

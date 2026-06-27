@@ -345,6 +345,35 @@ describe('generationCanvasStore sidebar grouping actions', () => {
   })
 })
 
+describe('generationCanvasStore clipboard paste placement', () => {
+  beforeEach(() => {
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [
+        { ...node('copy-a', 'shots'), position: { x: 100, y: 200 } },
+        { ...node('copy-b', 'shots'), position: { x: 260, y: 240 } },
+      ],
+      edges: [{ id: 'edge-copy-a-copy-b', source: 'copy-a', target: 'copy-b' }],
+      selectedNodeIds: [],
+      groups: [],
+    })
+  })
+
+  it('pastes copied nodes at the requested canvas position while preserving their relative layout', () => {
+    const store = useGenerationCanvasStore.getState()
+    store.selectNode('copy-a')
+    store.selectNode('copy-b', true)
+    store.copySelectedNodes()
+    store.pasteNodes({ x: 500, y: 600 })
+
+    const pasted = useGenerationCanvasStore.getState().nodes.filter((candidate) => candidate.id.includes('-copy-'))
+    expect(pasted.map((candidate) => candidate.position)).toEqual([
+      { x: 500, y: 600 },
+      { x: 660, y: 640 },
+    ])
+    expect(useGenerationCanvasStore.getState().edges.some((edge) => edge.source === pasted[0]?.id && edge.target === pasted[1]?.id)).toBe(true)
+  })
+})
+
 describe('generationCanvasStore result history', () => {
   it('keeps the previous main image when a new result is added', () => {
     const first = imageResult('r-old', 'https://cdn/old.png')

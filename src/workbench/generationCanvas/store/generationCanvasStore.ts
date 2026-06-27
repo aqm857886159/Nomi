@@ -92,7 +92,7 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
     })
     emitCanvasGesture(removedIds.map((nodeId) => ({ type: 'canvas.node.removed', payload: { nodeId } })))
   },
-  pasteNodes: () => {
+  pasteNodes: (basePosition) => {
     const currentState = get()
     const clipboardPayload = getClipboard()
     if (!clipboardPayload) return
@@ -103,15 +103,30 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
     const numberedNodes = cloned.nodes.map((node) =>
       isShotNumberedNode(node) ? { ...node, shotIndex: nextIndex++ } : node,
     )
+    const positionedNodes = basePosition
+      ? (() => {
+          const minX = Math.min(...numberedNodes.map((node) => node.position.x))
+          const minY = Math.min(...numberedNodes.map((node) => node.position.y))
+          const dx = Math.round(basePosition.x - minX)
+          const dy = Math.round(basePosition.y - minY)
+          return numberedNodes.map((node) => ({
+            ...node,
+            position: {
+              x: Math.max(40, Math.round(node.position.x + dx)),
+              y: Math.max(40, Math.round(node.position.y + dy)),
+            },
+          }))
+        })()
+      : numberedNodes
     // 整簇避让：粘贴簇（已 +OFFSET）拿相关分类的已有卡求一个统一位移，整体挪开不遮挡，
     // 保住簇内相对排布（刚体平移不变形）。只比簇内出现过的分类——跨分类不同屏、不遮挡。
-    const clusterCategories = new Set(numberedNodes.map((node) => node.categoryId || 'shots'))
+    const clusterCategories = new Set(positionedNodes.map((node) => node.categoryId || 'shots'))
     const relevantExisting = currentState.nodes.filter((node) => clusterCategories.has(node.categoryId || 'shots'))
-    const delta = resolveGroupInsertionDelta(numberedNodes, relevantExisting)
+    const delta = basePosition ? { x: 0, y: 0 } : resolveGroupInsertionDelta(positionedNodes, relevantExisting)
     const pastedNodes =
       delta.x === 0 && delta.y === 0
-        ? numberedNodes
-        : numberedNodes.map((node) => ({
+        ? positionedNodes
+        : positionedNodes.map((node) => ({
             ...node,
             position: { x: node.position.x + delta.x, y: node.position.y + delta.y },
           }))

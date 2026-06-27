@@ -7,6 +7,7 @@ import {
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { dropKindFromMime } from '../model/nodeAssetDrop'
 import { readVideoDurationSeconds } from '../../../media/videoDurationProbe'
+import { getGenerationNodeFootprintSize } from '../model/generationNodeKinds'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 
 export const GENERATION_CANVAS_IMAGE_IMPORT_MAX_BYTES = 30 * 1024 * 1024
@@ -39,6 +40,7 @@ export type ImportImageFilesOptions = {
   readVideoDuration?: (url: string) => Promise<number | null>
   uploadFile?: typeof importWorkbenchLocalAssetFile
   recoverFile?: typeof recoverImportedWorkbenchLocalAssetFile
+  exactPosition?: boolean
 }
 
 type ImageDimensions = {
@@ -85,6 +87,25 @@ function imageMetaForDimensions(dimensions: ImageDimensions | null): Record<stri
     imageAspectRatio: dimensions.width / dimensions.height,
     previewHeight: previewHeightForDimensions(dimensions),
   }
+}
+
+function layoutColumns(count: number): number {
+  if (count <= 1) return 1
+  return Math.min(4, Math.ceil(Math.sqrt(count)))
+}
+
+function layoutImportPositions(
+  basePosition: { x: number; y: number },
+  sizes: Array<{ width: number; height: number } | undefined>,
+): Array<{ x: number; y: number }> {
+  const columns = layoutColumns(sizes.length)
+  const footprints = sizes.map((size) => getGenerationNodeFootprintSize('asset', size))
+  const cellWidth = Math.max(...footprints.map((size) => size.width)) + 36
+  const cellHeight = Math.max(...footprints.map((size) => size.height)) + 36
+  return sizes.map((_, index) => ({
+    x: Math.max(40, Math.round(basePosition.x + (index % columns) * cellWidth)),
+    y: Math.max(40, Math.round(basePosition.y + Math.floor(index / columns) * cellHeight)),
+  }))
 }
 
 function readBrowserImageDimensions(url: string): Promise<ImageDimensions | null> {
@@ -181,7 +202,7 @@ async function uploadAndApplyAssetToNode(
   deps: AssetUploadDeps,
 ): Promise<boolean> {
   const store = useGenerationCanvasStore.getState()
-  let hosted: WorkbenchAssetDto | null = null
+  let hosted: WorkbenchAssetDto | null
   try {
     hosted = await deps.uploadFile(file, deriveLabelFromFileName(file.name), { ownerNodeId: nodeId })
   } catch {
@@ -265,8 +286,17 @@ export async function importLocalMediaFilesToGenerationCanvas(
   const MAX_IMPORT_FILES = 8
   const accepted = filtered.files.slice(0, MAX_IMPORT_FILES)
   const skippedOverLimitCount = filtered.files.length - accepted.length
+  if (!accepted.length) {
+    return {
+      created,
+      skippedDuplicateCount: filtered.skippedDuplicateCount,
+      skippedTooLargeCount: filtered.skippedTooLargeCount,
+      skippedOverLimitCount,
+      failedCount: 0,
+    }
+  }
 
-  await Promise.all(accepted.map(async (file, index) => {
+  const prepared = await Promise.all(accepted.map(async (file) => {
     const kind = importKindForFile(file) ?? 'image'
     // 视频不在导入时离屏读尺寸（节点渲染的 onLoadedMetadata 会回填 W/H + 真实时长，单源 catch-all）；
     // 图片仍即时读尺寸以定节点初始大小。
@@ -277,15 +307,18 @@ export async function importLocalMediaFilesToGenerationCanvas(
       revokeObjectUrl(objectUrl)
     }
     const size = nodeSizeForDimensions(dimensions)
+    return { file, kind, dimensions, size }
+  }))
+  const positions = layoutImportPositions(options.basePosition, prepared.map((item) => item.size))
+
+  prepared.forEach(({ dimensions, file, kind, size }, index) => {
     const node = useGenerationCanvasStore.getState().addNode({
       kind: 'asset',
       title: file.name || (kind === 'video' ? '参考视频' : '参考图片'),
       prompt: '',
-      position: {
-        x: Math.max(40, Math.round(options.basePosition.x + index * 28)),
-        y: Math.max(40, Math.round(options.basePosition.y + index * 28)),
-      },
+      position: positions[index],
       categoryId: options.categoryId,
+      exactPosition: options.exactPosition,
     })
     useGenerationCanvasStore.getState().updateNode(node.id, {
       ...(size ? { size } : {}),
@@ -299,7 +332,7 @@ export async function importLocalMediaFilesToGenerationCanvas(
       },
     }, { persist: false })
     created.push({ node, file, kind })
-  }))
+  })
 
   let failedCount = 0
   await Promise.all(created.map(async ({ node, file, kind }) => {
