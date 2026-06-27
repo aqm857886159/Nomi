@@ -66,11 +66,14 @@ type LeaferCanvasProps = {
   brushSize: number
   strokes: CanvasStroke[]
   activeObjectTarget?: CanvasObjectTarget | null
+  removingBackgroundTargetId?: string | null
+  removingBackgroundProgress?: number | null
   onStrokeCommit: (stroke: CanvasStroke) => void
   onLayerSelect?: (layerId: string) => void
   onObjectSelect?: (target: CanvasObjectTarget, layerId: string) => void
   onObjectsGroup?: (targets: CanvasObjectTarget[]) => void
   onObjectDelete?: (target: CanvasObjectTarget) => void
+  onRemoveBackground?: (target: CanvasObjectTarget) => void
 }
 
 export type LeaferCanvasHandle = {
@@ -101,11 +104,14 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
   brushSize,
   strokes,
   activeObjectTarget,
+  removingBackgroundTargetId,
+  removingBackgroundProgress,
   onStrokeCommit,
   onLayerSelect,
   onObjectSelect,
   onObjectsGroup,
-  onObjectDelete
+  onObjectDelete,
+  onRemoveBackground
 }: LeaferCanvasProps, ref) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
@@ -459,6 +465,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
       activeTool,
       activeLayerId,
       activeObjectTarget,
+      contextMenu,
       selectedObjectTargets,
       renderReadyVersion,
       assets,
@@ -530,6 +537,16 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
 
   const activeLayer = layers.find((layer) => layer.id === activeLayerId)
   const canDraw = (activeTool === 'brush' || activeTool === 'eraser') && Boolean(activeLayer && !activeLayer.locked)
+  const removeBackgroundBounds = removingBackgroundTargetId
+    ? getCanvasTargetsUnionBounds(
+        [{ kind: 'asset', id: removingBackgroundTargetId }],
+        layers,
+        assets,
+        strokes,
+        objectOffsetsRef.current,
+        assetTransformsRef.current
+      )
+    : null
 
   const { hideToolCursor, updateToolCursor, handlePointerDown, handlePointerMove, finishStroke } =
     useWhiteboardDrawing(
@@ -657,6 +674,14 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
               )}
             />
           ) : null}
+          {removeBackgroundBounds ? (
+            <rect
+              data-testid="remove-bg-target-pending"
+              fill="white"
+              style={{ animation: 'remove-bg-pulse 1.5s ease-in-out infinite' }}
+              {...getSvgRectAttributes(removeBackgroundBounds)}
+            />
+          ) : null}
           {activeTool === 'brush' ? (
             <path ref={draftPathRef} fill={color} style={{ display: 'none' }} />
           ) : null}
@@ -730,6 +755,15 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
                 <button type="button" role="menuitem" onClick={() => flipSelectedTarget('y')}>
                   垂直翻转
                 </button>
+                {contextMenu.targets[0].kind === 'asset' && onRemoveBackground ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { onRemoveBackground(contextMenu.targets[0]); setContextMenu(null) }}
+                  >
+                    抠图
+                  </button>
+                ) : null}
               </>
             ) : null}
           </div>

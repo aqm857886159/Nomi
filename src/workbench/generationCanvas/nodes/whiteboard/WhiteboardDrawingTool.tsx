@@ -36,6 +36,7 @@ import {
   serializeWhiteboardState,
 } from './whiteboardState'
 import { AspectRatioPopover, TOOL_ITEMS, ToolIconButton } from './WhiteboardToolbarControls'
+import { blobToDataUrl, removeBackgroundBlob } from '../../../../lib/removeBackground'
 import {
   ASSET_DRAG_MIME,
   clampCanvasPosition,
@@ -125,6 +126,9 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
     const [state, setState] = React.useState<WhiteboardState>(() => getInitialState(initialState, initialImage))
     const [activeCanvasObject, setActiveCanvasObject] = React.useState<CanvasObjectTarget | null>(null)
     const [uploading, setUploading] = React.useState(false)
+    const [removeBgBusy, setRemoveBgBusy] = React.useState(false)
+    const [removeBgTargetId, setRemoveBgTargetId] = React.useState<string | null>(null)
+    const [removeBgProgress, setRemoveBgProgress] = React.useState<number | null>(null)
     const [assetDragOver, setAssetDragOver] = React.useState(false)
     const [activeLibraryTab, setActiveLibraryTab] = React.useState<LibraryTabKey>('board')
     const leaferCanvasRef = React.useRef<LeaferCanvasHandle | null>(null)
@@ -267,8 +271,15 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
     }) => {
       const layerId = createWhiteboardId('asset-layer')
       const assetIdCopy = createWhiteboardId('asset')
-      const width = Math.max(1, Math.min(input.width, canvasDimensions.width))
-      const height = Math.max(1, Math.min(input.height, canvasDimensions.height))
+      const aspectRatio = input.height > 0 ? input.width / input.height : 1
+      const maxW = canvasDimensions.width
+      const maxH = canvasDimensions.height
+      let width = Math.max(1, input.width)
+      let height = Math.max(1, input.height)
+      if (width > maxW) { width = maxW; height = Math.round(width / aspectRatio) }
+      if (height > maxH) { height = maxH; width = Math.round(height * aspectRatio) }
+      width = Math.max(1, width)
+      height = Math.max(1, height)
       const x = clampCanvasPosition(Math.round(input.point.x - width / 2), width, canvasDimensions.width)
       const y = clampCanvasPosition(Math.round(input.point.y - height / 2), height, canvasDimensions.height)
       const baseName = stripFileExtension(input.name || '素材')
@@ -326,10 +337,10 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
         url: item.url,
         name: item.name || '结果图片',
         width: item.width || Math.round(canvasDimensions.width * 0.72),
-        height: item.height || Math.round(canvasDimensions.height * 0.72),
+        height: item.height || Math.round(canvasDimensions.width * 0.72),
         point,
       })
-    }, [addLibraryImageToCanvasPoint, canvasDimensions.height, canvasDimensions.width, resultItemById])
+    }, [addLibraryImageToCanvasPoint, canvasDimensions.width, resultItemById])
 
     const handleAssetDragStart = React.useCallback((event: React.DragEvent<HTMLElement>, payload: LibraryDragPayload) => {
       event.dataTransfer.effectAllowed = 'copy'
@@ -380,6 +391,45 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
       onScreenshot?.()
     }, [onScreenshot])
 
+    const handleRemoveBackground = React.useCallback((target: CanvasObjectTarget) => {
+      if (removeBgBusy || target.kind !== 'asset') return
+      const asset = state.canvasAssets.find((a) => a.id === target.id)
+      if (!asset?.url) return
+      const createdAt = Date.now()
+      setRemoveBgBusy(true)
+      setRemoveBgTargetId(asset.id)
+      setRemoveBgProgress(0)
+      void (async () => {
+        try {
+          const blob = await removeBackgroundBlob(asset.url, ({ current, total }) => {
+            if (total > 0) setRemoveBgProgress(Math.round((current / total) * 100))
+          })
+          const file = new File(
+            [blob],
+            `rmbg-${asset.id}-${createdAt}.png`,
+            { type: 'image/png' },
+          )
+          const localUrl = await persistNodeImageFile(file, ownerNodeId)
+          const finalUrl = localUrl ?? await blobToDataUrl(blob)
+          setState((current) => ({
+            ...current,
+            canvasAssets: current.canvasAssets.map((item) => (
+              item.id === asset.id ? { ...item, url: finalUrl } : item
+            )),
+          }))
+          setActiveCanvasObject({ kind: 'asset', id: asset.id })
+          setActiveTool('select')
+          toast('已替换为抠图结果', 'success')
+        } catch {
+          toast('抠图失败，请检查网络连接后重试', 'error')
+        } finally {
+          setRemoveBgBusy(false)
+          setRemoveBgTargetId(null)
+          setRemoveBgProgress(null)
+        }
+      })()
+    }, [ownerNodeId, removeBgBusy, state.canvasAssets])
+
     return (
       <div
         ref={fullscreenPanelRef}
@@ -401,6 +451,16 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
                 <span className="rounded-full border border-nomi-line bg-nomi-ink-05 px-2.5 py-1 text-caption font-medium tabular-nums text-nomi-ink-60">
                   {state.activeRatio}
                 </span>
+                {removeBgBusy ? (
+                  <span
+                    className="rounded-full bg-nomi-ink-10 px-2.5 py-1 text-caption font-medium text-nomi-ink-60"
+                    role="status"
+                    aria-label="抠图处理中"
+                    aria-busy="true"
+                  >
+                    抠图中
+                  </span>
+                ) : null}
               </div>
 
               <div className="ml-auto flex shrink-0 items-center gap-1">
@@ -447,6 +507,8 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
                 brushSize={brushSize}
                 strokes={state.strokes}
                 activeObjectTarget={activeCanvasObject}
+                removingBackgroundTargetId={removeBgTargetId}
+                removingBackgroundProgress={removeBgProgress}
                 onStrokeCommit={commitStroke}
                 onLayerSelect={(layerId) => setState((current) => ({ ...current, activeLayerId: layerId }))}
                 onObjectSelect={(target, layerId) => {
@@ -455,6 +517,7 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
                 }}
                 onObjectsGroup={groupCanvasObjects}
                 onObjectDelete={deleteCanvasObject}
+                onRemoveBackground={handleRemoveBackground}
               />
             </main>
 

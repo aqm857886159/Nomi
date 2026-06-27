@@ -58,6 +58,7 @@ export type WhiteboardSceneSyncProps = {
   activeTool: string
   activeLayerId: string
   activeObjectTarget: CanvasObjectTarget | null | undefined
+  contextMenu: { targets: CanvasObjectTarget[] } | null
   selectedObjectTargets: CanvasObjectTarget[]
   renderReadyVersion: number
   assets: CanvasAsset[]
@@ -91,6 +92,7 @@ export function useWhiteboardSceneSync(refs: WhiteboardSceneSyncRefs, props: Whi
     activeTool,
     activeLayerId,
     activeObjectTarget,
+    contextMenu,
     selectedObjectTargets,
     renderReadyVersion,
     assets,
@@ -131,7 +133,26 @@ export function useWhiteboardSceneSync(refs: WhiteboardSceneSyncRefs, props: Whi
   }, [activeLayerId, activeObjectTarget, activeTool, assets, layers, renderReadyVersion, selectedObjectTargets, strokes])
 
   useEffect(() => {
-    setContextMenu(null)
+    const menuTargets = contextMenu?.targets ?? []
+    const activeSelectionTargets = getActiveMultiSelectionTargets(
+      selectedObjectTargetsRef.current,
+      multiSelectedObjectTargetsRef.current
+    )
+    const contextMenuMatchesSelection =
+      menuTargets.length > 0 &&
+      menuTargets.every((menuTarget) => (
+        activeSelectionTargets.some((selectedTarget) => areCanvasTargetsEqual(selectedTarget, menuTarget))
+      ))
+    const contextMenuMatchesActiveObject =
+      Boolean(activeObjectTarget) &&
+      menuTargets.some((menuTarget) => areCanvasTargetsEqual(menuTarget, activeObjectTarget as CanvasObjectTarget))
+    const shouldKeepContextMenu =
+      activeTool === 'select' &&
+      (contextMenuMatchesSelection || contextMenuMatchesActiveObject)
+
+    if (!shouldKeepContextMenu) {
+      setContextMenu(null)
+    }
     setSelectionBox(null)
 
     if (activeTool !== 'select') {
@@ -157,7 +178,7 @@ export function useWhiteboardSceneSync(refs: WhiteboardSceneSyncRefs, props: Whi
       multiSelectedObjectTargetsRef.current = []
     }
     updateSelectedObjectTargets(activeObjectTarget ? [activeObjectTarget] : [])
-  }, [activeObjectTarget, activeTool, updateSelectedObjectTargets])
+  }, [activeObjectTarget, activeTool, contextMenu, updateSelectedObjectTargets])
 
   useEffect(() => {
     const snapshots = multiSelectionInteractionSnapshotsRef.current

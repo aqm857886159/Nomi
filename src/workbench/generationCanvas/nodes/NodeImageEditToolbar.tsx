@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconBrush, IconCrop, IconDownload, IconFlipHorizontal, IconFlipVertical, IconGrid3x3, IconGridDots, IconLayoutGrid, IconRotate2, IconRotateClockwise2, IconSparkles, IconTransform } from '@tabler/icons-react'
+import { IconBrush, IconCrop, IconDownload, IconFlipHorizontal, IconFlipVertical, IconGrid3x3, IconGridDots, IconLayoutGrid, IconRotate2, IconRotateClockwise2, IconScissors, IconSparkles, IconTransform } from '@tabler/icons-react'
 import { IMAGE_TRANSFORM_LABEL, type ImageGridSize, type ImageTransformOp } from './useNodeImageEditing'
 import type { CropGridSize } from './render/ImageCropGridOverlay'
 import { useResultDownload } from './useResultDownload'
@@ -7,6 +7,7 @@ import { FloatingToolbarShell, TOOLBAR_ICON as I, ToolbarButton, ToolbarDivider,
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import WhiteboardModal from './whiteboard/WhiteboardModal'
 import { inferWhiteboardAspectRatio } from './whiteboard/whiteboardState'
+import { NomiLoadingMark } from '../../../design'
 
 // 图片节点编辑浮条（方案 B 分组，用户拍板）：定妆 ｜ 裁剪 · 切图▾ · 变换▾ ｜ 下载。
 // 把低频的截图(2)/变换(4)收进两个下拉，常用动作留在外面 1 次点击直达。容器/按钮/图标全走
@@ -20,14 +21,16 @@ type Props = {
   onGridSplit: (gridSize: ImageGridSize) => void
   onCrop: () => void
   onTransform: (op: ImageTransformOp) => void
+  onRemoveBackground?: () => void
+  removeBackgroundBusy?: boolean
   /** Tier1「定妆」：基于当前图建一个预填身份板提示词的新节点（不自动生成）。缺省不渲染该按钮。 */
   onMakeup?: () => void
 }
 
-export default function NodeImageEditToolbar({ node, editGrid, imageOpBusy, onGridSplit, onCrop, onTransform, onMakeup }: Props): JSX.Element {
+export default function NodeImageEditToolbar({ node, editGrid, imageOpBusy, onGridSplit, onCrop, onTransform, onRemoveBackground, removeBackgroundBusy = false, onMakeup }: Props): JSX.Element {
   const { downloading, download } = useResultDownload(node)
   const [whiteboardOpen, setWhiteboardOpen] = React.useState(false)
-  const busy = editGrid !== null || imageOpBusy
+  const busy = editGrid !== null || imageOpBusy || removeBackgroundBusy
   const imageUrl = node.result?.type === 'image' ? node.result.url || '' : ''
   return (
     <>
@@ -51,6 +54,16 @@ export default function NodeImageEditToolbar({ node, editGrid, imageOpBusy, onGr
           disabled={busy}
           onClick={onCrop}
         />
+        {onRemoveBackground ? (
+          <ToolbarButton
+            icon={removeBackgroundBusy ? <NomiLoadingMark size={I.size} /> : <IconScissors size={I.size} stroke={I.stroke} />}
+            label={removeBackgroundBusy ? '抠图中' : '抠图'}
+            title="抠图（去除背景，用透明 PNG 替换当前图片）"
+            disabled={busy}
+            ariaBusy={removeBackgroundBusy}
+            onClick={onRemoveBackground}
+          />
+        ) : null}
         <ToolbarMenu
           icon={<IconGridDots size={I.size} stroke={I.stroke} />}
           label="切图"
