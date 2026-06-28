@@ -15,9 +15,18 @@
 |---|---|---|---|
 | GitHub issues | 官方 API，无需 token（公开仓库） | repo 从 git remote 推断（aqm857886159/Nomi） | 零 |
 | B站评论 | 非官方但稳定的 `reply/wbi/main` | 需 WBI 签名 + bv2av + 浏览器 UA + dm_img_* 防 -352 | 低（只读、可匿名） |
-| 微信群 | chatlog 本地解密 HTTP API | 需用户 Mac 上 chatlog 服务在跑（127.0.0.1:5030） | 只读≈零 |
+| 微信群 | WeLive CLI 只读导出 JSONL | 见下「微信前置」 | 只读≈零，但取钥要关 SIP |
 
-微信收发类框架（WeChatFerry/ntchat）**全 Windows-only**，macOS 上唯一干净路 = chatlog 只读。
+微信收发类框架（WeChatFerry/ntchat）**全 Windows-only**；原 chatlog 已被微信官方发函下架（2025-10）。
+macOS 上现役干净路 = **WeLive**（chatlog 维护中的继任，github.com/hicccc77/WeLive-release）只读导出。
+
+### 微信前置（macOS，2026-06-28 实测确认）
+WeLive 在 macOS 上**不自动取微信库密钥**（只 Windows 自动）。本机实测：微信 4.1.10、SIP enabled → `welive init` 只到 `needs_keys`。要跑通微信渠道：
+1. **临时关 SIP**（重启进 Recovery，`csrutil disable`，再重启）——这是降系统安全等级的不可逆决策，**只能用户本人物理操作**，是整条微信链路唯一的人工卡点。
+2. 关 SIP 后才能读微信进程内存取 `db_key`，填进 `welive.yaml` → `welive init` 到 `status:ok`。
+3. 之后 adapter 全自动：`welive sessions` 找群 → `welive export-session --jsonl` 导出群消息。
+
+WeLive 已装在 `~/welive/`（本机）。adapter 在未初始化时优雅跳过，不连累 GitHub/B站。
 
 ## 3. 分层（R9，单文件 ≤800 行）
 
