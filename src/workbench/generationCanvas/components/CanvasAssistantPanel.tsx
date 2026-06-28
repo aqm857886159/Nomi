@@ -29,6 +29,7 @@ import { buildStepDetailLabels, countCreatedNodesByCategory, summarizeToolCall }
 import { MemoryFold } from './MemoryFold'
 import { runProposalUndo, setCommittedProposal, useCommittedProposal } from '../agent/proposalUndo'
 import type { ReconcileDeviation } from '../agent/reconcile'
+import { useShotVerifyStore, buildContentFixMessage } from '../agent/shotVerifyStore'
 import type { WorkbenchAiMessage } from '../../ai/workbenchAiTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { handleAiComposerKeyDown } from '../../ai/aiComposerKeyboard'
@@ -93,6 +94,12 @@ export default function CanvasAssistantPanel({
   const [deviationReport, setDeviationReport] = React.useState<ReconcileDeviation[] | null>(null)
   // 时序内联:对账卡跟在本轮「卡前气泡」后(与 committed 同源,approveCalls 设)。
   const [deviationAnchorId, setDeviationAnchorId] = React.useState<string | null>(null)
+  // 镜级画面校验偏差(Stage 1,独立 store):生成完成后由 verifyShotsAndReport 写入,这里订阅显示。
+  const contentDeviations = useShotVerifyStore((s) => s.deviations)
+  const contentExhausted = useShotVerifyStore((s) => s.exhausted)
+  const consumeVerifyRound = useShotVerifyStore((s) => s.consumeRound)
+  const markVerifyFixing = useShotVerifyStore((s) => s.markFixing)
+  const clearVerify = useShotVerifyStore((s) => s.clear)
   // S6-5:最近一笔已 commit 提议(整笔撤销/查看步骤入口;约束①存活到下一笔,③切项目清场)。
   const committedProposal = useCommittedProposal()
   // S9:每轮对话结束后递增,触发记忆卡重取(本轮新事件可能提炼出新事实)。
@@ -656,6 +663,17 @@ export default function CanvasAssistantPanel({
           setDeviationReport(null)
           setDeviationAnchorId(null)
         }}
+        contentDeviations={contentDeviations}
+        contentExhausted={contentExhausted}
+        onContentAiFix={() => {
+          // 半自动·每轮确认(Stage 2):消耗一轮预算;到顶则不发(卡片已落「已尽力」)。
+          if (!consumeVerifyRound()) return
+          // 发修复消息走 agent 现成「确认才生成」路径(改 prompt/重生坏镜),不另建付费 loop。
+          submitAgentMessage(buildContentFixMessage(contentDeviations))
+          // 暂藏卡(AI 干活中);重生完成后再跑一轮 verify 重新填充。markFixing 不动预算(区别于收敛重置)。
+          markVerifyFixing()
+        }}
+        onContentDismiss={() => clearVerify()}
         threadBottomRef={threadBottomRef}
       />
       <form

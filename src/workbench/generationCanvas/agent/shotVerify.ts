@@ -105,7 +105,7 @@ export function buildShotVerifyPrompt(ctx: ShotVerifyContext): string {
     rubric,
     '</Rubric>',
     '',
-    `只输出 JSON：{"reason": string, "scores": {${keys.map((k) => `"${k}": 1-5`).join(', ')}}}。`,
+    `不要调用任何工具，只输出 JSON：{"reason": string, "scores": {${keys.map((k) => `"${k}": 1-5`).join(', ')}}}。`,
     'reason 简短(每轴一句、整体不超过 100 字)。打分铁律：拿不准给保守(偏低)分；不要因为图清晰就给高分，主体对不上/机位错就低分。',
   ].join('\n')
 }

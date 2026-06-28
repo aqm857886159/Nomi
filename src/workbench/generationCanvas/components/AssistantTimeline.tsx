@@ -61,6 +61,12 @@ export type AssistantTimelineProps = {
   onDeviationDismiss: () => void
   /** 让 AI 用支持的方式重连没接上的边(完整版重设计)。 */
   onDeviationAiFix: () => void
+  /** 镜级画面校验(verify)的内容偏差(Stage 1,与结构对账分开:不同生命周期、无撤销)。空/null 不显。 */
+  contentDeviations?: ReconcileDeviation[] | null
+  /** 半自动闭环预算耗尽 → 内容偏差卡落「已尽力」、不再给「让 AI 修」。 */
+  contentExhausted?: boolean
+  onContentAiFix?: () => void
+  onContentDismiss?: () => void
   /** 错误卡「重试」= 重发上一条用户消息(undefined 则不显重试按钮)。 */
   onRetry?: () => void
   threadBottomRef: React.RefObject<HTMLDivElement>
@@ -100,6 +106,24 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
       key: `committed-${props.committedProposal.proposalId}`,
       anchor: props.committedProposal.anchorMessageId,
       render: () => <CommittedProposalCard flat record={props.committedProposal!} />,
+    })
+  }
+  // 镜级画面校验偏差(Stage 1):独立块(无锚,挂线程底部),与结构对账互不干扰。
+  if (props.contentDeviations && props.contentDeviations.length > 0) {
+    liveBlocks.push({
+      key: 'content-deviation',
+      render: () => (
+        <div className={cn('flex flex-col gap-1')}>
+          <StepHeader title={`画面校验：${props.contentDeviations!.length} 处和设定对不上`} badge="⚠" badgeTone="warn" />
+          <ReconcileDeviationCard
+            flat
+            deviations={props.contentDeviations!}
+            exhausted={props.contentExhausted}
+            {...(props.onContentAiFix ? { onAiFix: props.onContentAiFix } : {})}
+            onDismiss={props.onContentDismiss ?? (() => {})}
+          />
+        </div>
+      ),
     })
   }
   if (plan) {

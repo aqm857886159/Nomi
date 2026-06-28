@@ -6,6 +6,8 @@ import { runGenerationNodesByPlan, spendCostKindForNodes } from '../runner/gener
 import { mintSpendGrant } from '../../api/taskApi'
 import { confirmAndMintGrant, describeGenerationCost } from '../spend/spendConfirm'
 import type { DependencyWavePlan } from '../runner/dependencyWaves'
+import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { verifyShotsAndReport } from '../agent/shotVerifyStore'
 
 type BatchPlanPreviewState = {
   plan: DependencyWavePlan | null
@@ -100,6 +102,15 @@ export async function runPlanWithToasts(plan: DependencyWavePlan, grantId?: stri
     if (failCount === 0) toast(`已完成 ${okCount} 个${tail}`, notice ? 'warning' : 'success')
     else if (okCount === 0) toast(`批量生成失败：${failCount} 个未完成${tail}`, 'error')
     else toast(`已完成 ${okCount} 个，${failCount} 个失败 — 在画布上单独重试${tail}`, 'warning')
+    // Stage 1:生成完成 → 对成功的「镜头」节点(有 shotIndex,排除锚卡)跑画面校验(fire-and-forget,
+    // 不阻塞完成 toast;verify 失败静默,绝不把生成完成拖红)。
+    if (okCount > 0) {
+      const nodes = useGenerationCanvasStore.getState().nodes
+      const shotIds = result.successes
+        .map((s) => s.nodeId)
+        .filter((id) => typeof nodes.find((n) => n.id === id)?.shotIndex === 'number')
+      if (shotIds.length > 0) void verifyShotsAndReport(shotIds)
+    }
   } catch (error: unknown) {
     toast(error instanceof Error && error.message ? error.message : '批量生成异常', 'error')
   }
