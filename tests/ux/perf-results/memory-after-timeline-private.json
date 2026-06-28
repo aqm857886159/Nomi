@@ -1,0 +1,7 @@
+{
+  "label": "after-timeline-private",
+  "fixture": "ZZ 性能基准 fixture",
+  "samples": [],
+  "error": "browserType.connectOverCDP: Timeout 60000ms exceeded.\nCall log:\n\u001b[2m  - <ws preparing> retrieving websocket url from http://127.0.0.1:9345\u001b[22m\n\u001b[2m  - <ws connecting> ws://127.0.0.1:9345/devtools/browser/5492e26d-9784-42c0-adaa-8069bf02816b\u001b[22m\n\u001b[2m  - <ws connected> ws://127.0.0.1:9345/devtools/browser/5492e26d-9784-42c0-adaa-8069bf02816b\u001b[22m\n",
+  "stderr": "DevTools listening on ws://127.0.0.1:9345/devtools/browser/5492e26d-9784-42c0-adaa-8069bf02816b"
+}

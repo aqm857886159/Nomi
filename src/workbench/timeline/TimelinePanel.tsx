@@ -23,8 +23,6 @@ import TimelineTextTrack from './TimelineTextTrack'
 import { TimelineSecondaryAddRow } from './TimelineSecondaryAddRow'
 import { frameToPixel, pixelToFrame, TIMELINE_MIN_SCALE, TIMELINE_MAX_SCALE } from './timelineEdit'
 import { buildSnapPoints, resolveSnap, pixelThresholdToFrames } from './snapping'
-import { regenerateNodeInPlace } from '../generationCanvas/runner/generationRunController'
-import { arrangeStoryboardToTimeline } from '../generationCanvas/agent/sendStoryboardToTimeline'
 import { toast } from '../../ui/toast'
 
 const WHEEL_ZOOM_FACTOR = 1.24
@@ -110,10 +108,12 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
   // C2 一键拼片：把画布镜头按镜序追加排进时间轴（复用 arrangeStoryboardToTimeline，幂等去重）。
   // 用户测的主线诉求——点一下出初剪，手动重排/trim 是之后的微调。
   const handleAiArrange = React.useCallback(() => {
-    const result = arrangeStoryboardToTimeline()
-    if (result.sent.length > 0) toast(`已把 ${result.sent.length} 个镜头按镜序排进时间轴`, 'success')
-    else if (result.total === 0) toast('生成区还没有镜头——先去生成区生成几个镜头再拼片', 'info')
-    else toast('镜头都已在时间轴上了', 'info')
+    void import('../generationCanvas/agent/sendStoryboardToTimeline').then(({ arrangeStoryboardToTimeline }) => {
+      const result = arrangeStoryboardToTimeline()
+      if (result.sent.length > 0) toast(`已把 ${result.sent.length} 个镜头按镜序排进时间轴`, 'success')
+      else if (result.total === 0) toast('生成区还没有镜头——先去生成区生成几个镜头再拼片', 'info')
+      else toast('镜头都已在时间轴上了', 'info')
+    })
   }, [])
   const setTimelinePlayhead = useWorkbenchStore((state) => state.setTimelinePlayhead)
   const splitTimelineClip = useWorkbenchStore((state) => state.splitTimelineClip)
@@ -286,7 +286,10 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
                   label="重新生成这个镜头"
                   title="重新生成这个镜头（就地重出、贴回原位；改 prompt/参数请去画布节点）"
                   icon={<IconSparkles size={14} />}
-                  onClick={() => { void regenerateNodeInPlace(primaryMediaClip.sourceNodeId) }}
+                  onClick={() => {
+                    void import('../generationCanvas/runner/generationRunController')
+                      .then(({ regenerateNodeInPlace }) => regenerateNodeInPlace(primaryMediaClip.sourceNodeId))
+                  }}
                 />
               ) : null}
               <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label="向前微调片段" icon={<IconArrowLeft size={14} />} onClick={() => nudgeTimelineClip(primaryClipId, -1)} />

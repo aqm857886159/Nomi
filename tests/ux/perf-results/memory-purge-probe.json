@@ -1,0 +1,7 @@
+{
+  "label": "purge-probe",
+  "fixture": "ZZ 性能基准 fixture",
+  "samples": [],
+  "error": "Cannot find default execution context (-32000)",
+  "stderr": "DevTools listening on ws://127.0.0.1:9351/devtools/browser/79315a5c-a110-4251-a5d1-bb9d0044cf2e"
+}

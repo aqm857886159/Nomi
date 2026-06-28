@@ -1,5 +1,4 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
-import { autoUpdater } from "electron-updater";
 
 // 版本号 + 检查更新 + 一键更新（功能需求 1/2/3）。
 // GitHub Releases provider 由 package.json build.publish 自动派生，无需额外服务器。
@@ -52,8 +51,9 @@ function normalizeNotes(notes: string | ReleaseNote[] | null | undefined): strin
 }
 
 let eventsWired = false;
+let autoUpdaterPromise: Promise<typeof import("electron-updater")["autoUpdater"]> | null = null;
 
-function wireUpdaterEvents(): void {
+function wireUpdaterEvents(autoUpdater: typeof import("electron-updater")["autoUpdater"]): void {
   if (eventsWired) return;
   eventsWired = true;
   autoUpdater.on("checking-for-update", () => broadcast({ type: "checking" }));
@@ -66,13 +66,19 @@ function wireUpdaterEvents(): void {
   autoUpdater.on("error", (error) => broadcast({ type: "error", message: describeError(error) }));
 }
 
-export function registerUpdaterIpc(): void {
-  autoUpdater.autoDownload = false;
-  autoUpdater.autoInstallOnAppQuit = false;
-  // electron-updater 默认日志器会刷屏 + 抢崩溃日志，错误统一走事件透传给用户，关掉它。
-  autoUpdater.logger = null;
-  wireUpdaterEvents();
+async function loadAutoUpdater(): Promise<typeof import("electron-updater")["autoUpdater"]> {
+  autoUpdaterPromise ??= import("electron-updater").then(({ autoUpdater }) => {
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = false;
+    // electron-updater 默认日志器会刷屏 + 抢崩溃日志，错误统一走事件透传给用户，关掉它。
+    autoUpdater.logger = null;
+    wireUpdaterEvents(autoUpdater);
+    return autoUpdater;
+  });
+  return autoUpdaterPromise;
+}
 
+export function registerUpdaterIpc(): void {
   ipcMain.handle("nomi:app:version", (): AppInfo => ({
     version: app.getVersion(),
     platform: process.platform,
@@ -98,6 +104,7 @@ export function registerUpdaterIpc(): void {
       return { ok: false, reason: "not-packaged" };
     }
     try {
+      const autoUpdater = await loadAutoUpdater();
       await autoUpdater.checkForUpdates();
       return { ok: true };
     } catch (error) {
@@ -108,6 +115,7 @@ export function registerUpdaterIpc(): void {
 
   ipcMain.handle("nomi:update:download", async () => {
     try {
+      const autoUpdater = await loadAutoUpdater();
       await autoUpdater.downloadUpdate();
       return { ok: true };
     } catch (error) {
@@ -120,7 +128,9 @@ export function registerUpdaterIpc(): void {
     // 立即重启并安装（非静默）。mac 未签名会被 Gatekeeper 拦——降级实况以真机为准。
     setImmediate(() => {
       try {
-        autoUpdater.quitAndInstall();
+        void loadAutoUpdater()
+          .then((autoUpdater) => autoUpdater.quitAndInstall())
+          .catch((error) => broadcast({ type: "error", message: describeError(error) }));
       } catch (error) {
         broadcast({ type: "error", message: describeError(error) });
       }

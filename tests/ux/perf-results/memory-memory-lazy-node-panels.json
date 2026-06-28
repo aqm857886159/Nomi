@@ -1,0 +1,522 @@
+{
+  "label": "memory-lazy-node-panels",
+  "fixture": "ZZ 性能基准 fixture",
+  "samples": [
+    {
+      "label": "library-initial",
+      "renderer": {
+        "hash": "#/studio",
+        "domNodes": 154,
+        "projectCards": 1,
+        "canvasNodes": 0,
+        "lightweightCanvasNodes": 0,
+        "fullCanvasNodes": 0,
+        "images": 0,
+        "videos": 0,
+        "jsHeapUsedMB": 11,
+        "jsHeapTotalMB": 13,
+        "assetResources": [],
+        "loadedAssets": [
+          {
+            "tag": "script",
+            "name": "index-C2E7i_rd.js"
+          },
+          {
+            "tag": "stylesheet",
+            "name": "tailwind.generated.css"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "runtime-vendor-C7o3WUtX.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "react-vendor-B-P2gMmg.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "ui-vendor-pE9hUZy7.js"
+          },
+          {
+            "tag": "stylesheet",
+            "name": "index-CYfQcDT7.css"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "NomiStudioApp-DiRVCzvZ.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "app-api-Cjb4-Ire.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "markdown-vendor-CGlAaRkP.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "state-vendor-cbTTZecu.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "three-vendor-B1nDEE9_.js"
+          }
+        ]
+      },
+      "cdp": {
+        "jsHeapUsedMB": 7,
+        "jsHeapTotalMB": 9
+      },
+      "processTree": {
+        "totalWorkingSetMB": 607,
+        "totalPrivateMB": 385,
+        "processes": [
+          {
+            "pid": 6168,
+            "parentPid": 37608,
+            "name": "electron.exe",
+            "type": "browser",
+            "workingSetMB": 154,
+            "privateMB": 130
+          },
+          {
+            "pid": 14536,
+            "parentPid": 6168,
+            "name": "electron.exe",
+            "type": "gpu-process",
+            "workingSetMB": 199,
+            "privateMB": 171
+          },
+          {
+            "pid": 22952,
+            "parentPid": 6168,
+            "name": "electron.exe",
+            "type": "utility",
+            "workingSetMB": 65,
+            "privateMB": 18
+          },
+          {
+            "pid": 21960,
+            "parentPid": 6168,
+            "name": "electron.exe",
+            "type": "renderer",
+            "workingSetMB": 111,
+            "privateMB": 54
+          },
+          {
+            "pid": 16112,
+            "parentPid": 6168,
+            "name": "electron.exe",
+            "type": "utility",
+            "workingSetMB": 78,
+            "privateMB": 12
+          }
+        ]
+      }
+    },
+    {
+      "label": "canvas-open",
+      "renderer": {
+        "hash": "#/studio?projectId=project-perf-fixture-0001",
+        "domNodes": 2305,
+        "projectCards": 0,
+        "canvasNodes": 96,
+        "lightweightCanvasNodes": 96,
+        "fullCanvasNodes": 0,
+        "images": 0,
+        "videos": 0,
+        "jsHeapUsedMB": 11,
+        "jsHeapTotalMB": 13,
+        "assetResources": [],
+        "loadedAssets": [
+          {
+            "tag": "script",
+            "name": "index-C2E7i_rd.js"
+          },
+          {
+            "tag": "stylesheet",
+            "name": "tailwind.generated.css"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "runtime-vendor-C7o3WUtX.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "react-vendor-B-P2gMmg.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "ui-vendor-pE9hUZy7.js"
+          },
+          {
+            "tag": "stylesheet",
+            "name": "index-CYfQcDT7.css"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "NomiStudioApp-DiRVCzvZ.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "app-api-Cjb4-Ire.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "markdown-vendor-CGlAaRkP.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "state-vendor-cbTTZecu.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "three-vendor-B1nDEE9_.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "projectPersistenceService-FW-FABk6.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "index-C2E7i_rd.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "WorkbenchShell-BIIv9TBf.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconBooks-z6v_pQ-n.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconBulb-DwNsjugI.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconDownload-CglhET7b.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconChevronRight-D1b4gqRy.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconListCheck-CbjR2pmA.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconFile-BrXBQsBH.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "use-resolved-styles-api-B-Yn7RQ8.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconAlertTriangle-DqZQkoeg.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconMusic-ItBwprpJ.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "portal-CuJJy-t8.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconFolder-5deDoF4c.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "showUndoToast-D1tFMSMZ.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconUser-Bb2tNqI2.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "useWorkspaceFiles-CQbKBOxT.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconFileText-DnHCzsRz.js"
+          },
+          {
+            "tag": "stylesheet",
+            "name": "WorkbenchShell-4GlreB80.css"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "GenerationWorkspace-CWJeWsdM.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconChevronUp-BiJtO3jS.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "TimelinePanel-o8Nf3Lhj.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconArrowForwardUp-B0gbd_OV.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconCopy-D1ImT3B7.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconRefresh-DSkA2vIb.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconWand-CdLuhlQC.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "workbenchActions-BO6KUSzy.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "assetLibraryDrag-Bx9q4jLg.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "videoPlaybackDiagnostics-D7N4Rv1X.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconLetterCase-cQOkKK-O.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "GenerationCanvas-DVkhqTqi.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconFolderPlus-B4Mzk9ah.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "completeNodeConnection-DQzQnoCz.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "referenceSlots-C_sYorXO.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "showInfoToast-BzCwEq3A.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconCube-DTr8p2oB.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconVideo-DcM3nMFv.js"
+          },
+          {
+            "tag": "stylesheet",
+            "name": "GenerationCanvas-D6gwWlvD.css"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "CanvasAssistantEntry-dEUBioQf.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "BaseGenerationNode-DPJ8VkUb.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconMinimize-DKoCLu2c.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconUpload-BHlDosvb.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconPlayerPause-_4ZRF6a8.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "IconGripVertical-DkUAaFfc.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "classifyError-BdLw0IfQ.js"
+          }
+        ]
+      },
+      "cdp": {
+        "jsHeapUsedMB": 11,
+        "jsHeapTotalMB": 12
+      },
+      "processTree": {
+        "totalWorkingSetMB": 825,
+        "totalPrivateMB": 728,
+        "processes": [
+          {
+            "pid": 6168,
+            "parentPid": 37608,
+            "name": "electron.exe",
+            "type": "browser",
+            "workingSetMB": 129,
+            "privateMB": 101
+          },
+          {
+            "pid": 14536,
+            "parentPid": 6168,
+            "name": "electron.exe",
+            "type": "gpu-process",
+            "workingSetMB": 226,
+            "privateMB": 221
+          },
+          {
+            "pid": 22952,
+            "parentPid": 6168,
+            "name": "electron.exe",
+            "type": "utility",
+            "workingSetMB": 38,
+            "privateMB": 14
+          },
+          {
+            "pid": 21960,
+            "parentPid": 6168,
+            "name": "electron.exe",
+            "type": "renderer",
+            "workingSetMB": 386,
+            "privateMB": 380
+          },
+          {
+            "pid": 16112,
+            "parentPid": 6168,
+            "name": "electron.exe",
+            "type": "utility",
+            "workingSetMB": 46,
+            "privateMB": 12
+          }
+        ]
+      }
+    },
+    {
+      "label": "library-after-back",
+      "renderer": {
+        "hash": "#/studio",
+        "domNodes": 165,
+        "projectCards": 1,
+        "canvasNodes": 0,
+        "lightweightCanvasNodes": 0,
+        "fullCanvasNodes": 0,
+        "images": 0,
+        "videos": 0,
+        "jsHeapUsedMB": 11,
+        "jsHeapTotalMB": 14,
+        "assetResources": [],
+        "loadedAssets": [
+          {
+            "tag": "script",
+            "name": "index-C2E7i_rd.js"
+          },
+          {
+            "tag": "stylesheet",
+            "name": "tailwind.generated.css"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "runtime-vendor-C7o3WUtX.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "react-vendor-B-P2gMmg.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "ui-vendor-pE9hUZy7.js"
+          },
+          {
+            "tag": "stylesheet",
+            "name": "index-CYfQcDT7.css"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "NomiStudioApp-DiRVCzvZ.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "app-api-Cjb4-Ire.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "markdown-vendor-CGlAaRkP.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "state-vendor-cbTTZecu.js"
+          },
+          {
+            "tag": "modulepreload",
+            "name": "three-vendor-B1nDEE9_.js"
+          }
+        ]
+      },
+      "cdp": {
+        "jsHeapUsedMB": 7,
+        "jsHeapTotalMB": 9
+      },
+      "processTree": {
+        "totalWorkingSetMB": 550,
+        "totalPrivateMB": 383,
+        "processes": [
+          {
+            "pid": 6168,
+            "parentPid": 37608,
+            "name": "electron.exe",
+            "type": "browser",
+            "workingSetMB": 122,
+            "privateMB": 92
+          },
+          {
+            "pid": 14536,
+            "parentPid": 6168,
+            "name": "electron.exe",
+            "type": "gpu-process",
+            "workingSetMB": 220,
+            "privateMB": 210
+          },
+          {
+            "pid": 22952,
+            "parentPid": 6168,
+            "name": "electron.exe",
+            "type": "utility",
+            "workingSetMB": 43,
+            "privateMB": 16
+          },
+          {
+            "pid": 16112,
+            "parentPid": 6168,
+            "name": "electron.exe",
+            "type": "utility",
+            "workingSetMB": 46,
+            "privateMB": 12
+          },
+          {
+            "pid": 33452,
+            "parentPid": 6168,
+            "name": "electron.exe",
+            "type": "renderer",
+            "workingSetMB": 119,
+            "privateMB": 53
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -6,7 +6,7 @@
 import { createConversationBuckets } from '../../aiConversationBuckets'
 import { useGenerationCanvasStore } from './generationCanvasStore'
 import { clearCommittedProposal } from '../agent/proposalUndo'
-import { resetClientIdRegistry } from '../agent/applyCanvasToolCall'
+import { resetClientIdRegistry } from '../agent/clientIdRegistry'
 
 const generationAiBuckets = createConversationBuckets(() => ({
   generationAiDraft: '',

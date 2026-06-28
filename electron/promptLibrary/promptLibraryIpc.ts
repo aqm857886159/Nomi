@@ -3,7 +3,6 @@
 import { ipcMain } from "electron";
 import { getPromptLibrary } from "./promptLibraryStore";
 import { addUserPrompt, deleteUserPrompt, listUserPrompts, updateUserPrompt } from "./userPromptStore";
-import { resolveTextBrainKeys } from "../ai/agentChatV2";
 
 export function registerPromptLibraryIpc(): void {
   ipcMain.handle("nomi:prompt-library:list", async () => {
@@ -51,6 +50,7 @@ export function registerPromptLibraryIpc(): void {
 
   // 节点提示词优化用的文本大脑(vendor/modelKey,不含 apiKey)——渲染层据此走现成文本流式管线。
   ipcMain.handle("nomi:prompt-library:text-brain", async () => {
+    const { resolveTextBrainKeys } = await import("../ai/agentChatV2");
     const brain = resolveTextBrainKeys();
     return { ok: Boolean(brain), brain };
   });

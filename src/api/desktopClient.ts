@@ -217,6 +217,7 @@ export async function seedWorkbenchAgentSession(
   sessionKey: string,
   messages: Array<{ role: string; content: string }>,
 ): Promise<void> {
+  if (messages.length === 0) return
   await requireDesktopRuntime('seed agent session').agents.seedChatV2Session?.(sessionKey, messages)
 }
 

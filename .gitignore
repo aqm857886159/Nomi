@@ -43,6 +43,9 @@ temp-web-design-skill/
 nomi-landing/
 landing-page-*.html
 
+.tmp
+dist-electron
+
 # Onboarding lab — local secrets + per-trial outputs
 .secrets/
 docs/onboarding-trials/20*/
