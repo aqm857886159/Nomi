@@ -5,16 +5,14 @@
 import React from 'react'
 import { IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
+import { groupModelsByKind, type ModelChipKind } from './modelChipGrouping'
 
 export type ChipModel = {
   modelKey: string
   vendorKey: string
   labelZh: string
-  kind: 'text' | 'image' | 'video' | 'audio'
+  kind: ModelChipKind
 }
-
-const KIND_LABEL: Record<ChipModel['kind'], string> = { text: '文本', image: '图片', video: '视频', audio: '音频' }
-const KIND_ORDER: ChipModel['kind'][] = ['text', 'image', 'video', 'audio']
 
 type ModelChipGroupsProps = {
   models: ChipModel[]
@@ -26,18 +24,14 @@ type ModelChipGroupsProps = {
 
 export function ModelChipGroups({ models, connected, onDelete }: ModelChipGroupsProps): JSX.Element | null {
   if (models.length === 0) return null
-  const byKind: Record<ChipModel['kind'], ChipModel[]> = { text: [], image: [], video: [], audio: [] }
-  for (const m of models) byKind[m.kind].push(m)
 
   return (
     <>
-      {KIND_ORDER.map((kind) => {
-        const list = byKind[kind]
-        if (list.length === 0) return null
+      {groupModelsByKind(models).map(({ kind, label, models: list }) => {
         return (
           <div key={kind} className="flex flex-col gap-2">
             <div className="text-micro font-semibold text-nomi-ink-60">
-              {KIND_LABEL[kind]} <span className="font-normal text-nomi-ink-40">{list.length}</span>
+              {label} <span className="font-normal text-nomi-ink-40">{list.length}</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {list.map((m) => (
