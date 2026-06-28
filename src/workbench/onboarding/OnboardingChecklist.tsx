@@ -9,8 +9,9 @@
  *   3 生成一张   = 任一节点 status === 'success'
  *   4 导出成片   = 一次 MP4 导出成功（TimelinePreview 处 markChecklistStep）
  *
- * 4/4 后整个入口消失。打勾单调持久（localStorage）。
- * 渲染在 NomiAppBar 内（React 树内，保 --nomi-* token）。
+ * 入口消失的三条退出路：① 4/4 全做完；② 用户点「不再提示」；③ 首次显示满 2 天仍未
+ * 完成 → 自动永久关闭。后两条写 nomi:checklist-dismissed，关了不再回来（onboardingState）。
+ * 打勾单调持久（localStorage）。渲染在 NomiAppBar 内（React 树内，保 --nomi-* token）。
  */
 import React from 'react'
 import { IconCheck, IconChevronDown, IconListCheck } from '@tabler/icons-react'
@@ -26,6 +27,9 @@ import {
   markChecklistStep,
   readChecklistCollapsed,
   writeChecklistCollapsed,
+  isChecklistDismissed,
+  markChecklistDismissed,
+  isChecklistExpired,
 } from './onboardingState'
 
 type StepMeta = {
@@ -60,6 +64,7 @@ export function OnboardingChecklist(): JSX.Element | null {
   )
 
   const [persisted, setPersisted] = React.useState<ChecklistState>(() => readChecklist())
+  const [dismissed, setDismissed] = React.useState<boolean>(() => isChecklistDismissed())
   const [open, setOpen] = React.useState<boolean>(() => !readChecklistCollapsed())
   const triggerRef = React.useRef<HTMLButtonElement | null>(null)
   const [anchor, setAnchor] = React.useState<{ top: number; right: number } | null>(null)
@@ -135,7 +140,21 @@ export function OnboardingChecklist(): JSX.Element | null {
     })
   }, [])
 
-  if (allDone || journeyTourActive) return null
+  const handleDismiss = React.useCallback(() => {
+    markChecklistDismissed()
+    setDismissed(true)
+  }, [])
+
+  // 首次显示落时间戳；满 2 天仍未完成 → 自动永久关闭（写持久标记，不再回来）。
+  React.useEffect(() => {
+    if (dismissed || allDone) return
+    if (isChecklistExpired(Date.now())) {
+      markChecklistDismissed()
+      setDismissed(true)
+    }
+  }, [dismissed, allDone])
+
+  if (allDone || journeyTourActive || dismissed) return null
 
   return (
     <div data-onboarding-checklist-root="true" className="contents">
@@ -233,6 +252,19 @@ export function OnboardingChecklist(): JSX.Element | null {
               )
             })}
           </ul>
+
+          <div className="flex justify-end border-t border-nomi-line-soft px-3 py-2">
+            <button
+              type="button"
+              onClick={handleDismiss}
+              className={cn(
+                'rounded-nomi-sm border-0 bg-transparent px-1.5 py-0.5 cursor-pointer',
+                'text-caption text-nomi-ink-40 transition-colors hover:text-nomi-ink',
+              )}
+            >
+              不再提示
+            </button>
+          </div>
         </section>
       ) : null}
     </div>

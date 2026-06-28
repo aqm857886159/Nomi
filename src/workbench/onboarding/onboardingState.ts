@@ -9,8 +9,13 @@
 const SPLASH_KEY = 'nomi:splash:v1'
 const CHECKLIST_KEY = 'nomi:checklist:v1'
 const CHECKLIST_COLLAPSED_KEY = 'nomi:checklist-collapsed:v1'
+const CHECKLIST_FIRST_SHOWN_KEY = 'nomi:checklist-first-shown:v1'
+const CHECKLIST_DISMISSED_KEY = 'nomi:checklist-dismissed:v1'
 const CANVAS_GESTURE_HINT_KEY = 'nomi:canvas-gesture-hint:v1'
 const JOURNEY_TOUR_KEY = 'nomi:journey-tour:v1'
+
+/** 上手清单生命周期上限：首次显示满 2 天仍未完成 → 自动永久关闭，不再回来。 */
+export const CHECKLIST_TTL_MS = 2 * 24 * 60 * 60 * 1000
 
 export function hasSeenCanvasGestureHint(): boolean {
   try {
@@ -90,6 +95,42 @@ export function markJourneyTourSeen(): void {
   } catch {
     /* ignore */
   }
+}
+
+/** 上手清单是否已永久关闭（用户点「不再提示」或满 2 天自动过期）。关了不再回来。 */
+export function isChecklistDismissed(): boolean {
+  try {
+    return window.localStorage.getItem(CHECKLIST_DISMISSED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function markChecklistDismissed(): void {
+  try {
+    window.localStorage.setItem(CHECKLIST_DISMISSED_KEY, '1')
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 首次显示时间戳：仅第一次写入（已存在不覆盖），返回最终值。注入 now 便于测试。 */
+export function ensureChecklistFirstShownAt(now: number): number {
+  try {
+    const raw = window.localStorage.getItem(CHECKLIST_FIRST_SHOWN_KEY)
+    const existing = raw == null ? NaN : Number(raw)
+    if (Number.isFinite(existing)) return existing
+    window.localStorage.setItem(CHECKLIST_FIRST_SHOWN_KEY, String(now))
+    return now
+  } catch {
+    return now
+  }
+}
+
+/** 首次显示满 TTL（默认 2 天）即过期。从未记录首显 → 顺手记为 now，本次不算过期。 */
+export function isChecklistExpired(now: number): boolean {
+  const firstShown = ensureChecklistFirstShownAt(now)
+  return now - firstShown >= CHECKLIST_TTL_MS
 }
 
 /** 清单折叠态（跨会话记住用户上次是否收起；默认展开）。 */

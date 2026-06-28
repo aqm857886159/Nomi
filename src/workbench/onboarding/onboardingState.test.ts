@@ -6,6 +6,11 @@ import {
   markChecklistStep,
   readChecklistCollapsed,
   writeChecklistCollapsed,
+  isChecklistDismissed,
+  markChecklistDismissed,
+  ensureChecklistFirstShownAt,
+  isChecklistExpired,
+  CHECKLIST_TTL_MS,
 } from './onboardingState'
 
 // 测试环境是 node（无 jsdom），用最小 localStorage 桩模拟 window（照 activeProject.test.ts）。
@@ -63,5 +68,24 @@ describe('onboardingState', () => {
     expect(readChecklistCollapsed()).toBe(true)
     writeChecklistCollapsed(false)
     expect(readChecklistCollapsed()).toBe(false)
+  })
+
+  it('清单未关闭默认 false，标记后 true', () => {
+    expect(isChecklistDismissed()).toBe(false)
+    markChecklistDismissed()
+    expect(isChecklistDismissed()).toBe(true)
+  })
+
+  it('首次显示时间只写一次，后续调用返回首值（不被覆盖）', () => {
+    const t0 = 1_000_000
+    expect(ensureChecklistFirstShownAt(t0)).toBe(t0)
+    expect(ensureChecklistFirstShownAt(t0 + 99_999)).toBe(t0)
+  })
+
+  it('首显满 2 天未完成即过期；首显当下与差 1ms 均不过期', () => {
+    const t0 = 1_000_000
+    expect(isChecklistExpired(t0)).toBe(false) // 首次：记 now，不算过期
+    expect(isChecklistExpired(t0 + CHECKLIST_TTL_MS - 1)).toBe(false)
+    expect(isChecklistExpired(t0 + CHECKLIST_TTL_MS)).toBe(true)
   })
 })
