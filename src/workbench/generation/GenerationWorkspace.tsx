@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconChevronUp, IconTimeline } from '@tabler/icons-react'
+import { IconChevronUp, IconLayoutList } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import TimelinePanel from '../timeline/TimelinePanel'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -87,7 +87,7 @@ export default function GenerationWorkspace({
             aria-label="展开生成时间轴"
             onClick={() => setTimelineCollapsed(false)}
           >
-            <IconTimeline size={15} stroke={1.8} className="text-nomi-ink-60" />
+            <IconLayoutList size={15} stroke={1.8} className="text-nomi-ink-60" />
             <span>时间轴</span>
             <span className="text-nomi-ink-60">
               {timelineSummary.clipCount} 段 · {timelineSummary.durationLabel}
