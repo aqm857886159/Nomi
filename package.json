@@ -38,6 +38,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "feedback:radar": "node ./scripts/feedback-radar.mjs",
     "stats": "node ./scripts/stats-downloads.mjs",
     "stats:snapshot": "node ./scripts/stats-downloads.mjs --snapshot",
     "stats:html": "node ./scripts/stats-downloads.mjs --html",
