@@ -310,7 +310,7 @@ function PanoramaCaptureOverlay({
       <div
         ref={captureFrameRef}
         data-panorama-capture-frame
-        className="relative rounded-[6px] border border-nomi-paper/[0.92]"
+        className="relative rounded-nomi-sm border border-nomi-paper/[0.92]"
         style={{
           width: frameSize?.width ?? 'auto',
           height: frameSize?.height ?? `max(1px, calc(100% - ${CAPTURE_FRAME_VERTICAL_INSET}px))`,
@@ -403,9 +403,9 @@ function PanoramaDialogControls({
             'pointer-events-none absolute bottom-6 left-1/2 z-[4] -translate-x-1/2',
             'rounded-pill border px-4 py-2 text-caption font-semibold shadow-[0_14px_34px_rgba(0,0,0,0.42)]',
             feedback.tone === 'success'
-              ? 'border-white/85 bg-white text-[#102018]'
+              ? 'border-white/85 bg-white text-black'
               : feedback.tone === 'error'
-                ? 'border-red-200 bg-red-600 text-white'
+                ? 'border-white/40 bg-workbench-danger text-white'
                 : 'border-white/20 bg-black/90 text-white',
           )}
           role="status"

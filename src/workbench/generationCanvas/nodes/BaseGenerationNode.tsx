@@ -27,7 +27,7 @@ import { MagneticConnectionHandle } from './NodeConnectionHandles'
 import { SideTimelineDragHandle, TimelineNotchDragHandle } from './NodeTimelineDragHandles'
 import { cn } from '../../../utils/cn'
 import { DeferredNodeImage, DeferredNodeVideo } from './DeferredNodeMedia'
-import { persistNodeImageFile } from '../adapters/persistNodeImage'
+import { useNodePanoramaHandlers } from './useNodePanoramaHandlers'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -48,7 +48,6 @@ import { WorkbenchButton } from '../../../design'
 import { completeNodeConnection } from './completeNodeConnection'
 import { buildVideoPlaybackUrl } from '../../../media/videoPlaybackUrl'
 import { diagnoseVideoPlaybackFailure, logVideoPlaybackFailure } from '../../../media/videoPlaybackDiagnostics'
-import type { PanoramaScreenshot } from './PanoramaViewer'
 import { getGenerationNodeExecutionKind, isImageLikeGenerationNodeKind } from '../model/generationNodeKinds'
 import { applyFixationMakeup } from '../fixation/buildFixationNode'
 import { TechnicalReviewBadge } from './TechnicalReviewBadge'
@@ -59,7 +58,6 @@ import {
   RESIZE_DIRECTIONS,
   getNodeSizeBounds,
   FOCUS_GENERATION_NODE_EVENT,
-  mediaNodeSize,
   computeMediaMetaPatch,
   resolveNodeVisualSize,
 } from './nodeSizing'
@@ -110,9 +108,7 @@ function BaseGenerationNodeImpl({
     return state.nodes.some((candidate) => candidate.id === node.derivedFrom)
   })
   const startConnection = useGenerationCanvasStore((state) => state.startConnection)
-  const addNode = useGenerationCanvasStore((state) => state.addNode)
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
-  const storeConnectNodes = useGenerationCanvasStore((state) => state.connectNodes)
   // v0.7.2 perf: 只关心 "this node 是否是 pending source"，boolean
   const isPendingConnectionSource = useGenerationCanvasStore((state) => state.pendingConnectionSourceId === node.id)
   const pendingConnectionSourceSide = useGenerationCanvasStore((state) =>
@@ -191,28 +187,6 @@ function BaseGenerationNodeImpl({
     [node.derivedFrom],
   )
 
-  const handlePanoramaFileChange = React.useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.currentTarget.files?.[0]
-      event.currentTarget.value = ''
-      if (!file) return
-      const createdAt = Date.now()
-      // 即时 base64 预览（短命）→ 落盘换 nomi-local 替换，避免全景大图 base64 永久驻留。
-      const reader = new FileReader()
-      reader.onload = (loadEvent) => {
-        const dataUrl = loadEvent.target?.result
-        if (typeof dataUrl !== 'string') return
-        updateNode(node.id, { result: { id: `panorama-${createdAt}`, type: 'image', url: dataUrl, createdAt } })
-      }
-      reader.readAsDataURL(file)
-      void persistNodeImageFile(file, node.id).then((localUrl) => {
-        if (!localUrl) return
-        updateNode(node.id, { result: { id: `panorama-asset-${createdAt}`, type: 'image', url: localUrl, createdAt } })
-      })
-    },
-    [node.id, updateNode],
-  )
-
   const status = node.status || 'idle'
   // E.2.1: shots 分类的 composer 真正 flex-inlined（不再 absolute 浮在节点下方）
   // 配合 spec §6.1 修正 3：composer 内嵌到 card flex 流，与图像区共占节点视觉空间
@@ -285,53 +259,7 @@ function BaseGenerationNodeImpl({
   const mountedCards = useMountedCards(node.id)
   const hasFrameSourceEdge = useHasFrameSourceEdge(node.id, nodeExecutionKind === 'video') // A15：已连上游边时占位不再喊「拖图」
   const needsFirstFrame = nodeExecutionKind === 'video' && !canGenerate && !isGenerating
-  const handlePanoramaScreenshot = React.useCallback(
-    (screenshot: PanoramaScreenshot) => {
-      const { dataUrl, dimensions } = screenshot
-      const createdAt = Date.now()
-      const screenshotNode = addNode({
-        kind: 'asset',
-        title: screenshot.title || '全景截图',
-        prompt: screenshot.prompt || '全景视口截图',
-        position: {
-          x: Math.round(node.position.x + visualSize.width + 80),
-          y: Math.round(node.position.y),
-        },
-      })
-      const result = {
-        id: `panorama-shot-${screenshotNode.id}-${createdAt}`,
-        type: 'image' as const,
-        url: dataUrl,
-        createdAt,
-      }
-      const screenshotSize = mediaNodeSize(dimensions.width, dimensions.height)
-      updateNode(screenshotNode.id, {
-        result,
-        history: [result],
-        status: 'success',
-        ...(screenshotSize
-          ? {
-              size: {
-                width: screenshotSize.width,
-                height: screenshotSize.height,
-              },
-            }
-          : {}),
-        meta: {
-          ...(screenshotNode.meta || {}),
-          source: screenshot.source || 'panorama-screenshot',
-          sourceNodeId: node.id,
-          localOnly: true,
-          imageWidth: dimensions.width,
-          imageHeight: dimensions.height,
-          imageAspectRatio: dimensions.width / Math.max(1, dimensions.height),
-        },
-      })
-      storeConnectNodes(node.id, screenshotNode.id, 'reference')
-      toast('已创建全景截图节点', 'success')
-    },
-    [addNode, node.id, node.position.x, node.position.y, storeConnectNodes, updateNode, visualSize.width],
-  )
+  const { handlePanoramaFileChange, handlePanoramaScreenshot } = useNodePanoramaHandlers(node, visualSize)
 
   // 图片本地编辑（切图 / 裁剪 / 旋转翻转）—— A1.5 抽进 useNodeImageEditing。
   // 图片类与素材类共用；编辑产物进入当前节点历史堆叠，并切换为主图。

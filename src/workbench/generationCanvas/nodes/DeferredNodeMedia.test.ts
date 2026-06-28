@@ -4,7 +4,7 @@ import {
   __setDeferredNodeMediaLimitForTests,
   observeDeferredNodeMediaVisibility,
   requestDeferredNodeMediaSlot,
-} from './DeferredNodeMedia'
+} from './deferredNodeMediaQueue'
 
 describe('deferred node media queue', () => {
   afterEach(() => {
