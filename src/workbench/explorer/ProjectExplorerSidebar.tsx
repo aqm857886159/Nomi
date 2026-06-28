@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconCategory, IconFolder, IconPlus, IconLayoutGrid } from '@tabler/icons-react'
+import { IconCategory, IconFolder, IconPlus, IconSearch } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { type ProjectCategory } from '../project/projectCategories'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -72,7 +72,7 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
                   tab === 'find' ? 'bg-nomi-paper text-nomi-ink' : 'text-nomi-ink-40 hover:text-nomi-ink-60',
                 )}
               >
-                <IconLayoutGrid size={14} stroke={1.5} />找
+                <IconSearch size={14} stroke={1.5} />找
               </button>
               <button
                 type="button"
@@ -131,7 +131,7 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
             aria-label="展开找素材面板"
             title="找素材"
           >
-            <IconLayoutGrid size={16} stroke={1.5} />
+            <IconSearch size={16} stroke={1.5} />
           </button>
           <button
             type="button"

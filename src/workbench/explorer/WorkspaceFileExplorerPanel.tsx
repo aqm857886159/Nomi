@@ -1,5 +1,7 @@
 import React from 'react'
+import { IconRefresh, IconFolderOpen } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
+import { DesignEmptyState } from '../../design'
 import { useWorkspaceFiles } from '../workspace/useWorkspaceFiles'
 import { importWorkbenchLocalAssetFile } from '../api/assetUploadApi'
 import type { WorkspaceFileNode } from '../../../electron/workspace/workspaceFileIndex'
@@ -69,10 +71,11 @@ export default function WorkspaceFileExplorerPanel({ projectId }: Props): JSX.El
         <button
           type="button"
           onClick={refresh}
-          className="text-micro px-1.5 py-1 rounded-nomi-sm text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-bg"
+          className="grid place-items-center w-7 h-7 rounded-nomi-sm text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-bg"
           aria-label="刷新项目文件"
+          title="刷新项目文件"
         >
-          刷新
+          <IconRefresh size={16} stroke={1.5} />
         </button>
       </div>
       {projectId ? (
@@ -98,7 +101,12 @@ export default function WorkspaceFileExplorerPanel({ projectId }: Props): JSX.El
         {loading ? <p className="px-2 py-4 text-caption text-nomi-ink-40">正在读取项目文件…</p> : null}
         {error ? <p className="px-2 py-4 text-caption text-workbench-danger">{error}</p> : null}
         {!loading && !error && projectId && visibleItems.length === 0 ? (
-          <p className="px-2 py-4 text-caption text-nomi-ink-40">这个文件夹还没有可用素材</p>
+          <DesignEmptyState
+            density="inline"
+            icon={<IconFolderOpen size={32} stroke={1.5} className="text-nomi-ink-30" />}
+            title="还没有文件"
+            description="点上方「导入本地文件」，或把文件拖进来。"
+          />
         ) : null}
         {!loading && !error ? (
           <div className={cn('flex flex-col gap-0.5')}>
