@@ -7,13 +7,13 @@
  */
 import React from 'react'
 import { cn } from '../../../../utils/cn'
-import { NomiImage } from '../../../../design/media'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { readSceneMeta } from '../../model/nodeMetaFields'
 import { useNodeUsageCount, useNodeVariantCount } from '../../hooks/useNodeRelationships'
 import { STRIPED_BG_CLASS, UsageDot, VariantChip, UploadFallback } from './CardCommon'
 import { useNodeImageUpload } from '../../adapters/useNodeImageUpload'
 import { EditableNodeTitle } from './EditableNodeTitle'
+import { DeferredNodeImage } from '../DeferredNodeMedia'
 
 type Props = {
   node: GenerationCanvasNode
@@ -32,9 +32,9 @@ function SceneCardNodeImpl({ node }: Props): JSX.Element {
 
   return (
     <div className={cn('relative w-full h-full rounded-nomi overflow-hidden bg-nomi-paper')}>
-      <div className={cn('w-full h-full overflow-hidden', !hasImage && STRIPED_BG_CLASS)}>
+      <div className={cn('relative w-full h-full overflow-hidden', !hasImage && STRIPED_BG_CLASS)}>
         {hasImage ? (
-          <NomiImage
+          <DeferredNodeImage
             src={node.result!.url!}
             alt={node.title || ''}
             className="w-full h-full object-contain object-center select-none pointer-events-none"

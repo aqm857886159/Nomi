@@ -24,10 +24,10 @@ function makeNode(overrides: Partial<GenerationCanvasNode> = {}): GenerationCanv
 }
 
 describe('timeline drag affordance', () => {
-  it('marks every generated asset with a result url as draggable to the timeline', () => {
+  it('marks generated image and video assets with a result url as draggable to the timeline', () => {
     expect(canDragGenerationNodeToTimeline(makeNode({ kind: 'image' }))).toBe(true)
     expect(canDragGenerationNodeToTimeline(makeNode({ kind: 'video', result: { id: 'video-1', type: 'video', url: 'file:///asset.mp4', durationSeconds: 4, createdAt: 1 } }))).toBe(true)
-    expect(canDragGenerationNodeToTimeline(makeNode({ kind: 'panorama' }))).toBe(true)
+    expect(canDragGenerationNodeToTimeline(makeNode({ kind: 'panorama' }))).toBe(false)
   })
 
   it('does not advertise dragging for failed, readonly, or empty nodes', () => {

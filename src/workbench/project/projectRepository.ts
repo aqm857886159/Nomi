@@ -179,6 +179,25 @@ export function readLocalProject(
     return normalizeRecord(summary, raw);
 }
 
+export async function readLocalProjectAsync(
+    projectId: string,
+): Promise<WorkbenchProjectRecordV1 | null> {
+    const id = String(projectId || "").trim();
+    if (!id) return null;
+    const desktop = getDesktopBridge();
+    if (desktop?.projects.readAsync) {
+        const record = await desktop.projects.readAsync(id);
+        return record
+            ? normalizeRecord(
+                  normalizeSummary(record) ||
+                      (record as WorkbenchProjectSummary),
+                  record,
+              )
+            : null;
+    }
+    return readLocalProject(id);
+}
+
 export function saveLocalProject(
     projectId: string,
     state: {

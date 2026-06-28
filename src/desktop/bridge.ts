@@ -83,6 +83,10 @@ export type DesktopUpdateEvent =
 
 export type DesktopBridge = {
   platform: string
+  app?: {
+    reopenLibraryWindow: () => void
+    hardReloadWindow?: () => void
+  }
   startupProbe?: {
     enabled: boolean
     mark: (label: string, payload?: Record<string, unknown>) => void

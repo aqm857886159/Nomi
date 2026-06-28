@@ -80,7 +80,7 @@ function createManualChunks(id: string): string | undefined {
   ) {
     return 'ui-vendor';
   }
-  if (normalizedId.includes('/node_modules/react-pannellum/')) {
+  if (normalizedId.includes('/node_modules/@photo-sphere-viewer/core/')) {
     return 'panorama-vendor';
   }
   if (
@@ -118,6 +118,44 @@ function createManualChunks(id: string): string | undefined {
   if (normalizedId.includes('/src/ui/stats/')) return 'app-stats';
   if (normalizedId.includes('/src/api/')) return 'app-api';
   return undefined;
+}
+
+const DEFERRED_MODULE_PRELOAD_PATTERNS: RegExp[] = [
+  /^AssetLibraryPanel-/,
+  /^BaseGenerationNode-/,
+  /^BatchPlanOverlay-/,
+  /^CameraMoveCaptureHost-/,
+  /^CanvasAssistantPanel-/,
+  /^JourneyTourController-/,
+  /^Model3DViewer-/,
+  /^NodeGenerationComposer-/,
+  /^OnboardingFloatingPanel-/,
+  /^PanoramaViewer-/,
+  /^PromptLibraryPanel-/,
+  /^Scene3DEditor-/,
+  /^Scene3DFullscreen-/,
+  /^SkillLibraryPanel-/,
+  /^SpendConfirmDialog-/,
+  /^StagingCaptureHost-/,
+  /^TextDocumentNode-/,
+  /^WhiteboardCardBody-/,
+  /^applyCanvasToolCall-/,
+  /^cameraMove/,
+  /^demoProject-/,
+  /^generationRunController-/,
+  /^journeyTourStore-/,
+  /^panorama-vendor-/,
+  /^prosemirror-vendor-/,
+  /^r3f-vendor-/,
+  /^scene3d/,
+  /^three-vendor-/,
+  /^tiptap-vendor-/,
+]
+
+function shouldDeferModulePreload(dep: string): boolean {
+  const fileName = dep.split('/').pop() ?? dep
+  if (!fileName.endsWith('.js')) return false
+  return DEFERRED_MODULE_PRELOAD_PATTERNS.some((pattern) => pattern.test(fileName))
 }
 
 export default defineConfig(async ({ command, mode }) => {
@@ -215,7 +253,7 @@ export default defineConfig(async ({ command, mode }) => {
         'clsx',
         'framer-motion',
         'react-markdown',
-        'react-pannellum',
+        '@photo-sphere-viewer/core',
         'tailwind-merge',
         'swr',
         'three',
@@ -229,6 +267,11 @@ export default defineConfig(async ({ command, mode }) => {
     build: {
       outDir: resolve(__dirname, 'dist'),
       emptyOutDir: true,
+      modulePreload: {
+        resolveDependencies(_filename, deps) {
+          return deps.filter((dep) => !shouldDeferModulePreload(dep));
+        },
+      },
       commonjsOptions: {
         include: [/node_modules/],
         transformMixedEsModules: true,

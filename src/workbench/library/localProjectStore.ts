@@ -5,6 +5,7 @@ import {
   deleteLocalProject as deleteProjectRecord,
   listLocalProjects as listProjectRecords,
   readLocalProject,
+  readLocalProjectAsync,
   saveLocalProject as saveProjectRecord,
 } from '../project/projectRepository'
 import type {
@@ -101,7 +102,7 @@ export function createLocalProject(name?: string, templateId?: string, options: 
   return record
 }
 
-export { readLocalProject }
+export { readLocalProject, readLocalProjectAsync }
 
 export function saveLocalProject(
   projectId: string,

@@ -1,0 +1,168 @@
+{
+  "label": "after-first",
+  "fixture": "ZZ 性能基准 fixture",
+  "samples": [
+    {
+      "label": "library-initial",
+      "renderer": {
+        "hash": "#/studio",
+        "domNodes": 177,
+        "projectCards": 1,
+        "canvasNodes": 0,
+        "lightweightCanvasNodes": 0,
+        "fullCanvasNodes": 0,
+        "images": 0,
+        "videos": 0,
+        "jsHeapUsedMB": 12,
+        "jsHeapTotalMB": 14
+      },
+      "cdp": {
+        "jsHeapUsedMB": null,
+        "jsHeapTotalMB": null
+      },
+      "processTree": {
+        "totalWorkingSetMB": 715,
+        "processes": [
+          {
+            "pid": 8236,
+            "parentPid": 26276,
+            "name": "electron.exe",
+            "workingSetMB": 170
+          },
+          {
+            "pid": 12672,
+            "parentPid": 8236,
+            "name": "electron.exe",
+            "workingSetMB": 245
+          },
+          {
+            "pid": 31092,
+            "parentPid": 8236,
+            "name": "electron.exe",
+            "workingSetMB": 92
+          },
+          {
+            "pid": 23944,
+            "parentPid": 8236,
+            "name": "electron.exe",
+            "workingSetMB": 121
+          },
+          {
+            "pid": 30416,
+            "parentPid": 8236,
+            "name": "electron.exe",
+            "workingSetMB": 87
+          }
+        ]
+      }
+    },
+    {
+      "label": "canvas-open",
+      "renderer": {
+        "hash": "#/studio?projectId=project-perf-fixture-0001",
+        "domNodes": 2265,
+        "projectCards": 0,
+        "canvasNodes": 96,
+        "lightweightCanvasNodes": 96,
+        "fullCanvasNodes": 0,
+        "images": 0,
+        "videos": 20,
+        "jsHeapUsedMB": 12,
+        "jsHeapTotalMB": 14
+      },
+      "cdp": {
+        "jsHeapUsedMB": null,
+        "jsHeapTotalMB": null
+      },
+      "processTree": {
+        "totalWorkingSetMB": 1102,
+        "processes": [
+          {
+            "pid": 8236,
+            "parentPid": 26276,
+            "name": "electron.exe",
+            "workingSetMB": 205
+          },
+          {
+            "pid": 12672,
+            "parentPid": 8236,
+            "name": "electron.exe",
+            "workingSetMB": 294
+          },
+          {
+            "pid": 31092,
+            "parentPid": 8236,
+            "name": "electron.exe",
+            "workingSetMB": 85
+          },
+          {
+            "pid": 23944,
+            "parentPid": 8236,
+            "name": "electron.exe",
+            "workingSetMB": 431
+          },
+          {
+            "pid": 30416,
+            "parentPid": 8236,
+            "name": "electron.exe",
+            "workingSetMB": 87
+          }
+        ]
+      }
+    },
+    {
+      "label": "library-after-back",
+      "renderer": {
+        "hash": "#/studio",
+        "domNodes": 196,
+        "projectCards": 1,
+        "canvasNodes": 0,
+        "lightweightCanvasNodes": 0,
+        "fullCanvasNodes": 0,
+        "images": 0,
+        "videos": 0,
+        "jsHeapUsedMB": 12,
+        "jsHeapTotalMB": 14
+      },
+      "cdp": {
+        "jsHeapUsedMB": null,
+        "jsHeapTotalMB": null
+      },
+      "processTree": {
+        "totalWorkingSetMB": 1035,
+        "processes": [
+          {
+            "pid": 8236,
+            "parentPid": 26276,
+            "name": "electron.exe",
+            "workingSetMB": 187
+          },
+          {
+            "pid": 12672,
+            "parentPid": 8236,
+            "name": "electron.exe",
+            "workingSetMB": 256
+          },
+          {
+            "pid": 31092,
+            "parentPid": 8236,
+            "name": "electron.exe",
+            "workingSetMB": 85
+          },
+          {
+            "pid": 23944,
+            "parentPid": 8236,
+            "name": "electron.exe",
+            "workingSetMB": 420
+          },
+          {
+            "pid": 30416,
+            "parentPid": 8236,
+            "name": "electron.exe",
+            "workingSetMB": 87
+          }
+        ]
+      }
+    }
+  ]
+}

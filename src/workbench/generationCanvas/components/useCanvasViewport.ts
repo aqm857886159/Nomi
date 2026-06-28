@@ -12,6 +12,28 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 const VIRTUALIZATION_THRESHOLD = 50
 const VIRTUALIZATION_BUFFER_PX = 400
 
+export function getVisibleCanvasNodesForRender(params: {
+  nodes: GenerationCanvasNode[]
+  zoom: number
+  offset: { x: number; y: number }
+  stageSize: { width: number; height: number }
+}): GenerationCanvasNode[] {
+  const { nodes, zoom, offset, stageSize } = params
+  if (nodes.length <= VIRTUALIZATION_THRESHOLD) return nodes
+  if (stageSize.width === 0 || stageSize.height === 0) return []
+  const z = zoom || 1
+  const viewLeft = -offset.x / z - VIRTUALIZATION_BUFFER_PX
+  const viewTop = -offset.y / z - VIRTUALIZATION_BUFFER_PX
+  const viewRight = viewLeft + stageSize.width / z + VIRTUALIZATION_BUFFER_PX * 2
+  const viewBottom = viewTop + stageSize.height / z + VIRTUALIZATION_BUFFER_PX * 2
+  return nodes.filter((node) => {
+    const nx = node.position.x
+    const ny = node.position.y
+    const { width: nw, height: nh } = getNodeSize(node)
+    return nx + nw >= viewLeft && nx <= viewRight && ny + nh >= viewTop && ny <= viewBottom
+  })
+}
+
 export function useCanvasViewport(activeCategoryId: string, nodes: GenerationCanvasNode[]) {
   // Pan/zoom state
   const initialViewport = React.useMemo(() => createInitialViewport(), [])
@@ -50,22 +72,7 @@ export function useCanvasViewport(activeCategoryId: string, nodes: GenerationCan
     return () => ro.disconnect()
   }, [])
   const visibleNodesForRender = React.useMemo(() => {
-    if (nodes.length <= VIRTUALIZATION_THRESHOLD || stageSize.width === 0 || stageSize.height === 0) {
-      return nodes
-    }
-    // Compute viewport in canvas coordinates
-    const z = zoom || 1
-    const viewLeft = -offset.x / z - VIRTUALIZATION_BUFFER_PX
-    const viewTop = -offset.y / z - VIRTUALIZATION_BUFFER_PX
-    const viewRight = viewLeft + stageSize.width / z + VIRTUALIZATION_BUFFER_PX * 2
-    const viewBottom = viewTop + stageSize.height / z + VIRTUALIZATION_BUFFER_PX * 2
-    return nodes.filter((node) => {
-      const nx = node.position.x
-      const ny = node.position.y
-      const { width: nw, height: nh } = getNodeSize(node)
-      // AABB intersection test
-      return nx + nw >= viewLeft && nx <= viewRight && ny + nh >= viewTop && ny <= viewBottom
-    })
+    return getVisibleCanvasNodesForRender({ nodes, zoom, offset, stageSize })
   }, [nodes, zoom, offset, stageSize])
   // B3 边层视口裁剪：仅在虚拟化生效时给边层一个可见节点集，剔除两端都在视口外的边；
   // 未虚拟化（小图）传 null = 渲染全部边，行为与改动前逐字一致。

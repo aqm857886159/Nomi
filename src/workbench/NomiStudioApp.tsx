@@ -2,7 +2,6 @@ import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ConfirmDialogHost, confirmDialog, NomiLoadingMark } from "../design";
 import ProjectLibraryPage from "./library/ProjectLibraryPage";
-import { FilePreviewPanel } from "./explorer/FilePreviewPanel";
 import {
     createLocalProject,
     deleteLocalProject,
@@ -24,12 +23,12 @@ import { getDesktopBridge } from "../desktop/bridge";
 import { useHasTextModel } from "./library/useHasTextModel";
 import { SplashIntro } from "./onboarding/SplashIntro";
 import { hasSeenSplash, markSplashSeen, hasSeenJourneyTour } from "./onboarding/onboardingState";
-import { JourneyTourController } from "./onboarding/JourneyTourController";
-import { useJourneyTourStore } from "./onboarding/journeyTourStore";
-import { DEMO_PROJECT_NAME, DEMO_PROJECT_SEED_KEY } from "./onboarding/demoProject";
 import { buildStudioUrl } from "../utils/appRoutes";
 import { openWorkspaceFromLibrary } from "./library/openWorkspaceFlow";
 import { lazyWithChunkBoundary } from "../ui/chunkBoundary";
+import { releaseWorkbenchProjectRuntimeState } from "./project/releaseWorkbenchProjectSession";
+import { useSpendConfirmStore } from "./generationCanvas/spend/spendConfirm";
+import { useFilePreviewStore } from "./explorer/useFilePreviewStore";
 
 type AppView = "library" | "studio";
 
@@ -72,18 +71,23 @@ const GenerationCanvas = lazyWithChunkBoundary(
     "生成画布",
     () => import("./generationCanvas/components/GenerationCanvas"),
 );
-const CanvasAssistantPanel = lazyWithChunkBoundary(
-    "AI 助手面板",
-    () => import("./generationCanvas/components/CanvasAssistantPanel"),
-);
-const BatchPlanOverlay = lazyWithChunkBoundary("批量生成面板", () =>
-    import("./generationCanvas/components/BatchPlanOverlay").then((module) => ({
-        default: module.BatchPlanOverlay,
-    })),
+const CanvasAssistantEntry = lazyWithChunkBoundary(
+    "AI 助手入口",
+    () => import("./generationCanvas/components/CanvasAssistantEntry"),
 );
 const SpendConfirmDialog = lazyWithChunkBoundary("付费确认", () =>
     import("./generationCanvas/spend/SpendConfirmDialog").then((module) => ({
         default: module.SpendConfirmDialog,
+    })),
+);
+const JourneyTourController = lazyWithChunkBoundary("引导旅途", () =>
+    import("./onboarding/JourneyTourController").then((module) => ({
+        default: module.JourneyTourController,
+    })),
+);
+const FilePreviewPanel = lazyWithChunkBoundary("文件预览", () =>
+    import("./explorer/FilePreviewPanel").then((module) => ({
+        default: module.FilePreviewPanel,
     })),
 );
 
@@ -121,8 +125,14 @@ export default function NomiStudioApp(): JSX.Element {
     const [assetLibraryOpened, setAssetLibraryOpened] = React.useState(false);
     const [promptLibraryOpened, setPromptLibraryOpened] = React.useState(false);
     const [skillLibraryOpened, setSkillLibraryOpened] = React.useState(false);
+    const hasPendingSpendConfirm = useSpendConfirmStore(
+        (state) => Boolean(state.pending),
+    );
+    const filePreviewOpen = useFilePreviewStore((state) => state.open);
     // 首启开屏：仅首次未看过时自动放；看过后可经项目库「看看 Nomi」重看。
     const [splashDone, setSplashDone] = React.useState(() => hasSeenSplash());
+    const [journeyTourControllerMounted, setJourneyTourControllerMounted] =
+        React.useState(false);
     const { hasTextModel, refresh: refreshModelStatus } = useHasTextModel();
     // 模型接入面板关闭后重查（用户可能刚接完模型 → 状态条/弱入口要立即翻面）
     React.useEffect(() => {
@@ -135,6 +145,10 @@ export default function NomiStudioApp(): JSX.Element {
         React.useRef<ProjectPersistenceModule | null>(null);
     const projectPersistenceServiceRef =
         React.useRef<WorkbenchProjectPersistenceService | null>(null);
+    const projectPersistenceUnbindRef = React.useRef<(() => void) | null>(
+        null,
+    );
+    const hardReloadingRef = React.useRef(false);
     const routeProjectId = React.useMemo(
         () => readProjectIdFromSearch(location.search),
         [location.search],
@@ -225,6 +239,34 @@ export default function NomiStudioApp(): JSX.Element {
     React.useEffect(() => setCanvasEventProjectIdProvider(() => activeProjectIdRef.current ?? null), []);
     // 能力核 A 模式实时桥:注册处理器,接主进程转发来的外部 MCP 画布读/写/付费确认(所见即所得)。
     React.useEffect(() => registerCapabilityApplyHandler(), []);
+
+    React.useEffect(() => {
+        const handleHardReloadShortcut = (event: KeyboardEvent) => {
+            const key = event.key.toLowerCase();
+            const isReloadShortcut =
+                key === "f5" ||
+                ((event.ctrlKey || event.metaKey) && key === "r");
+            if (!isReloadShortcut) return;
+            const desktop = getDesktopBridge();
+            if (!desktop?.app?.hardReloadWindow) return;
+            event.preventDefault();
+            event.stopPropagation();
+            if (hardReloadingRef.current) return;
+            hardReloadingRef.current = true;
+            const projectId = activeProjectIdRef.current;
+            flushConversationsNow(projectId);
+            void import("./project/workbenchProjectSession")
+                .then(({ persistActiveWorkbenchProjectNow }) => persistActiveWorkbenchProjectNow())
+                .catch((error: unknown) => {
+                    console.error("hard reload save error", error);
+                })
+                .finally(() => {
+                    desktop.app?.hardReloadWindow?.();
+                });
+        };
+        window.addEventListener("keydown", handleHardReloadShortcut, { capture: true });
+        return () => window.removeEventListener("keydown", handleHardReloadShortcut, { capture: true });
+    }, []);
 
     const hydrateProject = React.useCallback(
         async (projectId: string, options: { replaceUrl?: boolean } = {}) => {
@@ -349,19 +391,25 @@ export default function NomiStudioApp(): JSX.Element {
 
     // 引导旅途：建一个 seedKey 隔离的示例项目（永不 GC、不脏用户真项目）→ 进 studio →
     // 激活 tour，JourneyTourController 用预置数据回放整条流水线。
-    const startJourneyTour = useJourneyTourStore((s) => s.start);
     const playJourneyTour = React.useCallback(() => {
-        void createAndOpenProject({
-            workspaceMode: "creation",
-            name: DEMO_PROJECT_NAME,
-            seedKey: DEMO_PROJECT_SEED_KEY,
-        })
-            .then(() => startJourneyTour())
-            .catch((error) => {
-                console.error("journey tour project error", error);
-                toast("打开示例项目失败，请检查本地磁盘权限", "error");
+        setJourneyTourControllerMounted(true);
+        void (async () => {
+            const [{ DEMO_PROJECT_NAME, DEMO_PROJECT_SEED_KEY }, { useJourneyTourStore }] =
+                await Promise.all([
+                    import("./onboarding/demoProject"),
+                    import("./onboarding/journeyTourStore"),
+                ]);
+            const result = await createAndOpenProject({
+                workspaceMode: "creation",
+                name: DEMO_PROJECT_NAME,
+                seedKey: DEMO_PROJECT_SEED_KEY,
             });
-    }, [createAndOpenProject, startJourneyTour]);
+            if (result.opened) useJourneyTourStore.getState().start();
+        })().catch((error) => {
+            console.error("journey tour project error", error);
+            toast("打开示例项目失败，请检查本地磁盘权限", "error");
+        });
+    }, [createAndOpenProject]);
 
     // 接完模型（目录变更广播）→ 状态重查，让缺模型状态条/弱入口即时翻面
     // （面板还开着时也更新，不必等用户关面板）。
@@ -479,29 +527,45 @@ export default function NomiStudioApp(): JSX.Element {
         let disposed = false;
         let unbind: (() => void) | undefined;
         void ensureProjectPersistenceService().then(({ service }) => {
-            if (disposed) return;
-            unbind = service.bindProjectPersistence({
+            if (disposed || activeProjectIdRef.current !== activeProject.id)
+                return;
+            const rawUnbind = service.bindProjectPersistence({
                 project: activeProject,
                 isHydrating: () => hydratingProjectRef.current,
                 canPersist: () =>
                     activeProjectIdRef.current === activeProject.id,
                 onSaved: (saved) => {
-                    setActiveProject(saved);
+                    if (activeProjectIdRef.current === activeProject.id) {
+                        setActiveProject(saved);
+                    } else {
+                        refreshProjects();
+                    }
                 },
                 onSaveError: (error) => {
                     console.error("project save error", error);
                     toast("项目保存失败，请检查本地磁盘权限", "error");
                 },
             });
+            let unbound = false;
+            unbind = () => {
+                if (unbound) return;
+                unbound = true;
+                rawUnbind();
+            };
+            projectPersistenceUnbindRef.current = unbind;
         });
         return () => {
             disposed = true;
+            if (unbind && projectPersistenceUnbindRef.current === unbind) {
+                projectPersistenceUnbindRef.current = null;
+            }
             unbind?.();
         };
     }, [
         activeProject,
         activeProjectPersistenceKey,
         ensureProjectPersistenceService,
+        refreshProjects,
     ]);
 
     useWorkspaceEvents(view === "studio" ? activeProject?.id : null, (type) => {
@@ -515,9 +579,19 @@ export default function NomiStudioApp(): JSX.Element {
     });
 
     const backToLibrary = React.useCallback(() => {
+        const previousProjectId = activeProjectIdRef.current;
+        flushConversationsNow(previousProjectId);
+        const unbindPersistence = projectPersistenceUnbindRef.current;
+        projectPersistenceUnbindRef.current = null;
+        unbindPersistence?.();
+        activeProjectIdRef.current = null;
+        setDesktopActiveProjectId(null);
+        setActiveProject(null);
         setView("library");
         navigate(buildStudioUrl(), { replace: false });
-    }, [navigate]);
+        releaseWorkbenchProjectRuntimeState();
+        refreshProjects();
+    }, [navigate, refreshProjects]);
 
     const handleRenameProject = React.useCallback(
         (newName: string) => {
@@ -578,17 +652,21 @@ export default function NomiStudioApp(): JSX.Element {
                 {/* 模型接入面板也要在首页可用：全新安装零模型时，「30 秒体验」会派发
                     nomi-open-model-catalog 引导接入；之前此面板只挂在 studio 视图 →
                     首页派发事件无人响应，用户卡死（冷启动 J3 P0）。 */}
-                <React.Suspense fallback={null}>
-                    <OnboardingFloatingPanel
-                        opened={modelCatalogOpened}
-                        onClose={closeModelCatalog}
-                    />
-                </React.Suspense>
+                {modelCatalogOpened ? (
+                    <React.Suspense fallback={null}>
+                        <OnboardingFloatingPanel
+                            opened={modelCatalogOpened}
+                            onClose={closeModelCatalog}
+                        />
+                    </React.Suspense>
+                ) : null}
                 {/* 付费确认卡提全局：外部 MCP 想在「非当前项目」生成时，用户停在项目库首页也能弹卡确认
                     （治静默黑洞，用户拍板 A）。同一全局 store，库/studio 任一时刻只一个分支渲染、不双弹。 */}
-                <React.Suspense fallback={null}>
-                    <SpendConfirmDialog />
-                </React.Suspense>
+                {hasPendingSpendConfirm ? (
+                    <React.Suspense fallback={null}>
+                        <SpendConfirmDialog />
+                    </React.Suspense>
+                ) : null}
                 <ConfirmDialogHost />
             </>
         );
@@ -604,8 +682,11 @@ export default function NomiStudioApp(): JSX.Element {
                         {/* relative 包一层:S2b 计划 overlay 与画布同坐标系,且不喂巨壳 */}
                         <div className={cn("relative w-full h-full")}>
                             <GenerationCanvas />
-                            <BatchPlanOverlay />
-                            <SpendConfirmDialog />
+                            {hasPendingSpendConfirm ? (
+                                <React.Suspense fallback={null}>
+                                    <SpendConfirmDialog />
+                                </React.Suspense>
+                            ) : null}
                         </div>
                     </React.Suspense>
                 }
@@ -614,7 +695,7 @@ export default function NomiStudioApp(): JSX.Element {
                 }
                 generationAi={
                     <React.Suspense fallback={null}>
-                        <CanvasAssistantPanel
+                        <CanvasAssistantEntry
                             defaultCollapsed
                             onCollapsedChange={setGenerationAiCollapsed}
                         />
@@ -627,36 +708,54 @@ export default function NomiStudioApp(): JSX.Element {
                 onRenameProject={handleRenameProject}
             />
 
-            <OnboardingFloatingPanel
-                opened={modelCatalogOpened}
-                onClose={closeModelCatalog}
-            />
+            {modelCatalogOpened ? (
+                <React.Suspense fallback={null}>
+                    <OnboardingFloatingPanel
+                        opened={modelCatalogOpened}
+                        onClose={closeModelCatalog}
+                    />
+                </React.Suspense>
+            ) : null}
 
-            <React.Suspense fallback={null}>
-                <AssetLibraryPanel
-                    opened={assetLibraryOpened}
-                    onClose={() => setAssetLibraryOpened(false)}
-                    projectId={activeProject?.id ?? null}
-                />
-            </React.Suspense>
+            {assetLibraryOpened ? (
+                <React.Suspense fallback={null}>
+                    <AssetLibraryPanel
+                        opened={assetLibraryOpened}
+                        onClose={() => setAssetLibraryOpened(false)}
+                        projectId={activeProject?.id ?? null}
+                    />
+                </React.Suspense>
+            ) : null}
 
-            <React.Suspense fallback={null}>
-                <PromptLibraryPanel
-                    opened={promptLibraryOpened}
-                    onClose={() => setPromptLibraryOpened(false)}
-                />
-            </React.Suspense>
+            {promptLibraryOpened ? (
+                <React.Suspense fallback={null}>
+                    <PromptLibraryPanel
+                        opened={promptLibraryOpened}
+                        onClose={() => setPromptLibraryOpened(false)}
+                    />
+                </React.Suspense>
+            ) : null}
 
-            <React.Suspense fallback={null}>
-                <SkillLibraryPanel
-                    opened={skillLibraryOpened}
-                    onClose={() => setSkillLibraryOpened(false)}
-                />
-            </React.Suspense>
+            {skillLibraryOpened ? (
+                <React.Suspense fallback={null}>
+                    <SkillLibraryPanel
+                        opened={skillLibraryOpened}
+                        onClose={() => setSkillLibraryOpened(false)}
+                    />
+                </React.Suspense>
+            ) : null}
 
-            <FilePreviewPanel />
+            {filePreviewOpen ? (
+                <React.Suspense fallback={null}>
+                    <FilePreviewPanel />
+                </React.Suspense>
+            ) : null}
 
-            <JourneyTourController onStartReal={newProject} />
+            {journeyTourControllerMounted ? (
+                <React.Suspense fallback={null}>
+                    <JourneyTourController onStartReal={newProject} />
+                </React.Suspense>
+            ) : null}
 
             <ConfirmDialogHost />
         </div>

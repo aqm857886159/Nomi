@@ -2,7 +2,6 @@ import type { GenerationCanvasEdge, GenerationCanvasNode, GenerationNodeKind } f
 import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { collectNodeContext } from '../model/nodeContext'
-import { runGenerationNode } from '../runner/generationRunController'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { validateReferenceEdge, type EdgeSkipReason } from './referenceEdgeCapability'
 import {
@@ -217,6 +216,7 @@ export const generationCanvasTools = {
       }
 
       try {
+        const { runGenerationNode } = await import('../runner/generationRunController')
         const result = await runGenerationNode(node.id)
         return toolResult({ ok: true, tool: action.tool, message: '生成完成', data: result })
       } catch (error: unknown) {

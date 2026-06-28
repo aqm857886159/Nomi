@@ -18,7 +18,7 @@ import '@tiptap/suggestion';
 import 'clsx';
 import 'framer-motion';
 import 'react-markdown';
-import 'react-pannellum';
+import '@photo-sphere-viewer/core';
 import 'tailwind-merge';
 import 'swr';
 import 'three';

@@ -13,6 +13,10 @@ function invokeSync<T>(channel: string, ...args: unknown[]): T {
 contextBridge.exposeInMainWorld("nomiDesktop", {
   platform: process.platform,
   logRendererCrash: (message: unknown) => ipcRenderer.send("nomi:log:renderer-crash", message),
+  app: {
+    reopenLibraryWindow: () => ipcRenderer.send("nomi:app:reopen-library-window"),
+    hardReloadWindow: () => ipcRenderer.send("nomi:app:hard-reload-window"),
+  },
   workspace: {
     selectFolder: () => ipcRenderer.invoke("nomi:workspace:select-folder"),
     openFolder: (payload: unknown) => ipcRenderer.invoke("nomi:workspace:open-folder", payload),
@@ -22,9 +26,12 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   },
   projects: {
     list: () => invokeSync("nomi:projects:list"),
+    listAsync: () => ipcRenderer.invoke("nomi:projects:list-async"),
     create: (record: unknown) => invokeSync("nomi:projects:create", record),
     read: (projectId: string) => invokeSync("nomi:projects:read", projectId),
+    readAsync: (projectId: string) => ipcRenderer.invoke("nomi:projects:read-async", projectId),
     save: (projectId: string, record: unknown) => invokeSync("nomi:projects:save", projectId, record),
+    saveAsync: (projectId: string, record: unknown) => ipcRenderer.invoke("nomi:projects:save-async", projectId, record),
     delete: (projectId: string) => invokeSync("nomi:projects:delete", projectId),
   },
   assets: {

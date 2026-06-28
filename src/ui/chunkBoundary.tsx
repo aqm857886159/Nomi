@@ -12,6 +12,20 @@ import { cn } from '../utils/cn'
 
 const AUTO_RETRIES = 2
 const RETRY_BASE_DELAY_MS = 300
+type DesktopReloadBridge = { nomiDesktop?: { app?: { hardReloadWindow?: () => void } } }
+
+function reloadRendererWindow(): void {
+  try {
+    const hardReloadWindow = (window as unknown as DesktopReloadBridge).nomiDesktop?.app?.hardReloadWindow
+    if (hardReloadWindow) {
+      hardReloadWindow()
+      return
+    }
+  } catch {
+    /* fall back to browser reload */
+  }
+  window.location.reload()
+}
 
 export function importWithRetry<T>(
   factory: () => Promise<T>,
@@ -73,7 +87,7 @@ class ChunkErrorBoundary extends React.Component<BoundaryProps, { error: Error |
           // 重试 = 整页重载：工厂层 importWithRetry 已自动退避重试 2 次吃掉瞬时抖动，
           // 走到降级说明 chunk 持续不可用；React.lazy 一旦 reject 会永久缓存失败、
           // 在同一 JS 上下文里无法复活，只有 reload 拿到全新上下文才可能自愈。
-          onClick={() => { try { window.location.reload() } catch { /* noop */ } }}
+          onClick={reloadRendererWindow}
         >
           重新加载
         </button>
