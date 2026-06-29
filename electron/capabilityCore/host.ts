@@ -10,6 +10,7 @@ import { app, session } from 'electron'
 
 import { dispatch, RpcError } from './dispatcher'
 import { createDiskGateway } from './gateway'
+import { ensureBuiltinModelSeeds } from '../catalog/catalogStore'
 import { runTask, fetchTaskResult } from '../runtime'
 import { verifyToken } from './security'
 import { applySystemProxy } from '../systemProxy'
@@ -69,6 +70,16 @@ app.whenReady().then(async () => {
       await applySystemProxy(session.defaultSession)
     } catch {
       /* 代理设失败 → 直连兜底 */
+    }
+    // 内置种子对账（与主 app 启动 main.ts:722 同一步）：headless 此前从不调它 → 代码改了 curated mapping
+    // （create op / defaultParams / CLI flag…）后**只有开过 GUI 才同步**，纯 MCP/CLI 用户跑旧目录（实测：
+    // 火山/apimart/豆包的 defaultParams 修复在 headless 不生效根因）。这里补上 → headless 永远反映当前代码。
+    // setName 已在模块顶部(L21)先于此执行 → userData=nomi（NOMI_APP_NAME 由 spawner 传，与主 app 同源）。
+    // 幂等：无变化不写盘；writeJsonFileAtomic 原子写，并发短命 host 各自对账出同一确定结果，互不破坏。
+    try {
+      ensureBuiltinModelSeeds()
+    } catch (error) {
+      process.stderr.write(`seed reconcile failed: ${error instanceof Error ? error.message : String(error)}\n`)
     }
     code = await run()
   } catch (error) {
