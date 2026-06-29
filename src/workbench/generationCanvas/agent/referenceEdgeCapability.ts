@@ -16,7 +16,7 @@
 // 改模式兜)——避免误伤可恢复的模式选择问题。目标未声明档案(未知/未设模型)一律放行(P4 通用回退)。
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { getGenerationNodeDefinition, getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
-import type { ArchetypeReferenceSlotKind, ModelArchetype } from '../../../config/modelArchetypes'
+import type { ArchetypeMode, ArchetypeReferenceSlotKind, ModelArchetype } from '../../../config/modelArchetypes'
 import { getArchetypeById, resolveArchetypeForModel } from '../../../config/modelArchetypes'
 import { currentArchetypeMode } from '../nodes/controls/archetypeMeta'
 
@@ -170,6 +170,36 @@ export function selectConnectionEdgeMode(
     if (!existingEdgesToTarget.some((e) => e.mode === 'last_frame')) return 'last_frame'
   }
   return 'reference'
+}
+
+/**
+ * 连线落地后，目标该切到哪个「生成方式」才能真正消费这条参考边。纯函数，可单测，单一真相源。
+ *
+ * 根因（2026-06-29）：节点「生成方式」(t2i/edit/i2v…) 是 `node.meta.archetype.modeId` 的**持久状态**，
+ * 默认落在 defaultModeId（如 nano-banana 的 t2i 文生图，slots:[] 无参考槽）。connectToNode 过去只建边、
+ * 从不回看目标模式 → 把一张图连进新图片节点，节点仍停在「文生图」，图无槽可落，逼用户手动切「改图」。
+ *
+ * 规则：目标**当前模式**已有能消费（该 edge mode + 该源资产）的槽 → null（不切，尊重当前/用户的选择）；
+ * 否则在档案里找**第一个**能消费的模式，返回其 id（连线后切到它，如 t2i→edit 参考图）。
+ * 都不行 / 无档案 / 源无可参考产物 → null（真不支持的边 validateReferenceEdge 已在前面拦掉）。
+ * 全从档案的参考槽声明派生，不写死任何 model/mode 字符串（P4 通用，与 validateReferenceEdge 同口径）。
+ */
+export function resolveTargetModeForEdge(
+  source: GenerationCanvasNode,
+  target: GenerationCanvasNode,
+  mode: GenerationCanvasEdgeMode | undefined,
+): string | null {
+  const asset = referenceAssetKindForNode(source)
+  if (!asset) return null
+  const archetype = archetypeForNode(target)
+  if (!archetype) return null
+  const required = EDGE_MODE_SLOTS[mode ?? 'reference']
+  const accepts = (m: ArchetypeMode): boolean =>
+    m.slots.some((slot) => required.includes(slot.kind) && SLOT_ACCEPTS[slot.kind].includes(asset))
+  const currentMode = currentArchetypeMode(archetype, (target.meta || {}) as Record<string, unknown>)
+  if (accepts(currentMode)) return null
+  const fallback = archetype.modes.find(accepts)
+  return fallback ? fallback.id : null
 }
 
 /** 计划里的边(批准前):可能用 clientId(新节点)或真实 id(复用已有卡)。 */

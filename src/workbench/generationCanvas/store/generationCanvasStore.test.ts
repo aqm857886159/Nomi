@@ -29,6 +29,44 @@ function imageResult(id: string, url: string): GenerationNodeResult {
   return { id, type: 'image', url, createdAt: 1 }
 }
 
+describe('connectToNode — 连一张图进图片节点自动切到「参考图/改图」模式(根因回归 2026-06-29)', () => {
+  function archImageNode(id: string, modeId: string): GenerationCanvasNode {
+    return { id, kind: 'image', title: id, position: { x: 0, y: 0 }, prompt: '', categoryId: 'shots', meta: { archetype: { id: 'nano-banana', modeId } } }
+  }
+
+  it('源图 → 目标图片节点停在默认「文生图」(t2i,无参考槽) → 连线后 modeId 变 edit(改图)', () => {
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [node('src', 'shots'), archImageNode('dst', 't2i')],
+      edges: [],
+      selectedNodeIds: [],
+      groups: [],
+    })
+    useGenerationCanvasStore.getState().startConnection('src')
+    const verdict = useGenerationCanvasStore.getState().connectToNode('dst')
+    expect(verdict.ok).toBe(true)
+
+    const state = useGenerationCanvasStore.getState()
+    // 边真建上了
+    expect(state.edges.some((e) => e.source === 'src' && e.target === 'dst')).toBe(true)
+    // 目标自动切到含 image_ref 槽的「改图」模式——不再停在文生图
+    const dst = state.nodes.find((n) => n.id === 'dst')
+    expect((dst?.meta?.archetype as { modeId?: string } | undefined)?.modeId).toBe('edit')
+  })
+
+  it('目标已在「改图」模式 → 连线不重复切(尊重现状,幂等)', () => {
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [node('src', 'shots'), archImageNode('dst', 'edit')],
+      edges: [],
+      selectedNodeIds: [],
+      groups: [],
+    })
+    useGenerationCanvasStore.getState().startConnection('src')
+    useGenerationCanvasStore.getState().connectToNode('dst')
+    const dst = useGenerationCanvasStore.getState().nodes.find((n) => n.id === 'dst')
+    expect((dst?.meta?.archetype as { modeId?: string } | undefined)?.modeId).toBe('edit')
+  })
+})
+
 describe('generationCanvasStore snapshot normalization', () => {
   it('keeps the category when creating a node', () => {
     useGenerationCanvasStore.getState().restoreSnapshot({

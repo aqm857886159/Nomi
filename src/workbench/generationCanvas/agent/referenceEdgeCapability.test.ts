@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { referenceAssetKindForNode, validateReferenceEdge, partitionConnectableEdges } from './referenceEdgeCapability'
+import { referenceAssetKindForNode, validateReferenceEdge, partitionConnectableEdges, resolveTargetModeForEdge } from './referenceEdgeCapability'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
 // archetypeId 显式命中内置档案(resolveArchetypeForModel/getArchetypeById 优先看它):
@@ -112,6 +112,37 @@ describe('partitionConnectableEdges — 批准时剔除连不上的边(批准≡
     const { connectable, dropped } = partitionConnectableEdges([{ sourceClientId: 'x', targetClientId: 'y' }], () => null)
     expect(connectable).toHaveLength(1)
     expect(dropped).toHaveLength(0)
+  })
+})
+
+describe('resolveTargetModeForEdge — 连线后目标自动切到能消费这条参考的「生成方式」', () => {
+  // 节点(可指定当前 modeId)。imageGen 用 image kind + 有 edit(image_ref) 模式的档案。
+  function nodeWithMode(id: string, kind: string, archetypeId: string, modeId: string): GenerationCanvasNode {
+    return { id, kind: kind as GenerationCanvasNode['kind'], title: id, prompt: '', x: 0, y: 0, width: 100, height: 100, meta: { archetype: { id: archetypeId, modeId } } } as GenerationCanvasNode
+  }
+
+  it.each(['seedream', 'nano-banana'])(
+    '图 → 图片节点停在默认文生图(无参考槽)的 %s → 切到含 image_ref 的 edit 模式（根因回归）',
+    (archetypeId) => {
+      // 默认 modeId:'' → currentArchetypeMode 回落 defaultModeId(t2i,slots:[])→ 收不下 → 找到 edit。
+      expect(resolveTargetModeForEdge(node('a', 'image'), node('b', 'image', archetypeId), 'reference')).toBe('edit')
+    },
+  )
+
+  it('图 → 已在 edit(参考图)模式的节点 → null(当前模式已能落，不重复切、尊重用户选择)', () => {
+    expect(resolveTargetModeForEdge(node('a', 'image'), nodeWithMode('b', 'image', 'seedream', 'edit'), 'reference')).toBeNull()
+  })
+
+  it('图 → 纯文生模型(imagen-4，所有模式都无参考槽) → null(没有能落的模式)', () => {
+    expect(resolveTargetModeForEdge(node('a', 'image'), node('b', 'image', 'imagen-4'), 'reference')).toBeNull()
+  })
+
+  it('文本源(无可参考产物) → null(不触发切模式)', () => {
+    expect(resolveTargetModeForEdge(node('t', 'text'), node('b', 'image', 'seedream'), 'reference')).toBeNull()
+  })
+
+  it('目标未声明档案(未知/未设模型) → null(无从派生，P4 通用回退)', () => {
+    expect(resolveTargetModeForEdge(node('a', 'image'), node('b', 'image'), 'reference')).toBeNull()
   })
 })
 
