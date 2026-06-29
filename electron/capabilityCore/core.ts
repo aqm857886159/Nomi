@@ -56,6 +56,37 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+// 连「参考边」就该等于「喂参考图」——但 headless 生成此前只读 input.references / node.references，
+// **从不读画布上的参考边**（多 agent 用户测试钉死：连线→生成=三个不同的人 / 改图模型 400「需要参考图」；
+// 对齐记忆 connection-reference-bugs 的「槽读 meta、生成读边」分裂在 headless 路仍未收口）。GUI 路由渲染层
+// 把边归一进 node.references 再发；headless/CLI/MCP 直发绕过它 → 边被无视。这里在「没有显式/节点 references」时
+// 兜底从入边解析：取指向本节点的参考类边、按 order 排，收集源节点产出的资产 URL 当参考图。GUI 路 node.references
+// 已填 → 不走此兜底，零影响。
+const REFERENCE_EDGE_MODES = new Set(['reference', 'character_ref', 'style_ref', 'composition_ref'])
+
+function sourceNodeAssetUrl(node: { result?: unknown; references?: unknown; url?: unknown } | undefined): string {
+  if (!node) return ''
+  const result = node.result as { url?: unknown } | undefined
+  if (typeof result?.url === 'string' && result.url) return result.url
+  if (typeof node.url === 'string' && node.url) return node.url
+  const refs = node.references
+  if (Array.isArray(refs) && typeof refs[0] === 'string' && refs[0]) return refs[0]
+  return ''
+}
+
+/** 从指向 nodeId 的参考类入边解析参考图 URL（按 order 排、去重）。供 headless 生成兜底用。 */
+export function referencesFromEdges(snapshot: CanvasSnapshot, nodeId: string): string[] {
+  const incoming = (snapshot.edges || [])
+    .filter((edge) => edge.target === nodeId && REFERENCE_EDGE_MODES.has(edge.mode || 'reference'))
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  const urls: string[] = []
+  for (const edge of incoming) {
+    const url = sourceNodeAssetUrl(snapshot.nodes.find((n) => n.id === edge.source))
+    if (url && !urls.includes(url)) urls.push(url)
+  }
+  return urls
+}
+
 function defaultKindForIntent(intent: GenerateIntent, hasReferences: boolean): string {
   switch (intent) {
     case 'image':
@@ -241,7 +272,9 @@ export async function generateOnProject(
   const prompt = typeof node.prompt === 'string' ? node.prompt.trim() : ''
   if (!prompt && intent !== 'audio') throw new Error('prompt is required')
 
-  const references = input.references && input.references.length ? input.references : (Array.isArray(node.references) ? node.references : [])
+  const references = input.references && input.references.length
+    ? input.references
+    : (Array.isArray(node.references) && node.references.length ? node.references : referencesFromEdges(snapshot, nodeId))
   const kind = input.kind || defaultKindForIntent(intent, references.length > 0)
 
   // 先把节点以「排队中」态写出去——A 模式：节点立即出现在画布（所见即所得）；B 模式：落盘占位。
@@ -289,7 +322,10 @@ export async function generateOnProject(
 
     // 异步 vendor 首调返 queued/processing → 本进程内轮询到终态（视频给更长超时）。无 fetch 注入则不轮询。
     if (fetchTaskResultFn && result.status && !TERMINAL_STATUSES.has(result.status)) {
-      const timeoutMs = kind === 'text_to_video' || kind === 'image_to_video' ? 300000 : 240000
+      // 慢 vendor（如 runninghub/ComfyUI 队列可达数分钟）可经 NOMI_POLL_TIMEOUT_MS 调大本进程轮询上限，
+      // 否则 240s/300s 到点 break → 结果未取回（headless 返 queued）。缺省维持原值。
+      const envPoll = Number(process.env.NOMI_POLL_TIMEOUT_MS)
+      const timeoutMs = Number.isFinite(envPoll) && envPoll > 0 ? envPoll : (kind === 'text_to_video' || kind === 'image_to_video' ? 300000 : 240000)
       const startedAt = Date.now()
       while (result.status && !TERMINAL_STATUSES.has(result.status)) {
         if (Date.now() - startedAt > timeoutMs) break

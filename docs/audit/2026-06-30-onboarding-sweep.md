@@ -64,6 +64,23 @@ text 全部(claude-fable-5/deepseek-v4-pro/gpt-5.5/moonshot/Qwen3 ×3)；apimart
 
 > **视频 headless 缺参**是 #3-5 同一根因的延伸，但**铺得更广**：每个视频档案各有 model 变体 + duration(要 int) + resolution/ratio，值都在 `src/config/modelArchetypes`（renderer 侧，electron rootDir 隔离够不着）。逐 op 加 defaultParams=可行但要复刻每个档案的值(脆 + 多)；**根治应是「档案默认参数下沉成 electron 也能读的共享源」一次性桥接**（架构改动）。这是个有取舍的架构岔路 → 待用户拍板范围，不擅自大重构/不堆脆补丁。
 
+## 全量复跑（app 关闭 + 沙箱隔离 + runninghub key 已接入，59 模型逐个真跑，81min）
+
+> harness v2：每模型一个全新项目（绕开 headless「同项目 >3 次生成偶发 项目不存在」坑，见下 backlog），串行 + 网络重试，沙箱隔离（独立 NOMI_SETTINGS_DIR/PROJECTS_DIR 复制目录）。
+
+汇总：**20 成功 / 15 no-output(提交成功但 240s 内没取回结果) / 18 连接错 / 6 其他**。
+
+- **成功 20**：所有有 key 的 vendor 的 text/image/audio——code-newcli(fable-5)、modelscope(全部图+文本)、apimart(deepseek/seedream-4.5/gemini-flash/gpt-image-2/z-image/**nomi-audio**)、dm-fox、moonshot、火山 Seedream **5.0**(size 修生效)、Qwen-Image-Edit。本轮修复全部 live 复验通过。
+- **runninghub 全部 no-output（13）**：key 已生效**提交成功**(不再 key missing)→ 返 `queued`，但 240s headless 轮询上限内没取回结果。runninghub(ComfyUI)队列慢，**根因=headless 轮询上限太短**，非连接断。已修：`NOMI_POLL_TIMEOUT_MS` 可调大轮询上限（核 core.ts）。
+- **apimart/火山 视频缺参（8 连接错）**：`Model name is required`(VARIANT_MODEL_REF 模型不填 model) + `duration string≠int`——headless 缺档案参数类，待**档案默认桥接**（已有 plan，用户已选根治 A）。
+- **慢图 2 个 no-output**：code-newcli/gpt-image-2、apimart/imagen-4——同轮询上限问题（提交成功未取回）。
+- **配置缺口（用户已拍留着）**：kie 全部(no key)、火山 4.5/4.0(未在 Ark 开通)、豆包语音(凭证格式 APP_ID:ACCESS_KEY)、dreamina(账号非 maestro vip)。
+
+## Backlog（接入测试 v2 新增）
+- [ ] **档案默认桥接到 electron**（根治 headless 视频/慢模型缺参，用户已选 A，plan: docs/plan/2026-06-30-headless-archetype-defaults-bridge.md）。
+- [ ] **headless 项目 poison**：同项目 MCP 生成 >3 次后**偶发**永久「项目不存在」（注册表+manifest 都在却 readWorkspaceProject 返 null）。仅 headless 磁盘网关路；GUI 渲染层网关不受影响。**setPath userData 修复后 48+ 次连续/并发生成未复现**，根因未钉死（非确定性，疑早期 userData 漂移+共享注册表脏态）。保留观察，多 agent 大流量测试时若复现即现场抓。
+- [ ] runninghub 轮询上限默认值是否该按 vendor 调（现 env 可调）。
+
 ## 结论
 - **UI 路视频正常**（档案在 UI 填好 model/duration）；本类只伤 **headless/MCP 视频**。
 - 连接健康面：text/image/audio（连接齐全的 vendor）headless 全通；image/audio 的缺参已修验。

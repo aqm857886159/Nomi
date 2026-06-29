@@ -11,9 +11,36 @@ import {
   generateOnProject,
   listAllProjects,
   readProjectCanvas,
+  referencesFromEdges,
   setProjectNodePrompt,
 } from './core'
 import { createDiskGateway } from './gateway'
+
+describe('referencesFromEdges（连参考边=喂参考图，headless 兜底）', () => {
+  const snap = {
+    nodes: [
+      { id: 'a', kind: 'image', result: { url: 'nomi-local://a.png' } },
+      { id: 'b', kind: 'image' },
+      { id: 'c', kind: 'image', url: 'nomi-local://c.png' },
+    ],
+    edges: [
+      { id: 'e1', source: 'a', target: 'b', mode: 'reference', order: 1 },
+      { id: 'e2', source: 'c', target: 'b', mode: 'character_ref', order: 0 },
+    ],
+    groups: [],
+    selectedNodeIds: [],
+  } as never
+  it('收集指向目标节点的参考类入边的源资产，按 order 排', () => {
+    expect(referencesFromEdges(snap, 'b')).toEqual(['nomi-local://c.png', 'nomi-local://a.png'])
+  })
+  it('无入边目标返回空', () => {
+    expect(referencesFromEdges(snap, 'a')).toEqual([])
+  })
+  it('非参考类边（first_frame 等）不计入此兜底', () => {
+    const s = { ...(snap as object), edges: [{ id: 'e', source: 'a', target: 'b', mode: 'first_frame', order: 0 }] } as never
+    expect(referencesFromEdges(s, 'b')).toEqual([])
+  })
+})
 
 const tempRoots: string[] = []
 let mockedDocumentsRoot = ''
