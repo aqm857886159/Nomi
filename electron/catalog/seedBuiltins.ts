@@ -34,6 +34,10 @@ import { APIMART_IMAGE_MODELS, APIMART_IMAGE_QUERY, APIMART_IMAGE_STATUS } from 
 import { APIMART_VIDEO_MODELS, APIMART_VIDEO_QUERY, APIMART_VIDEO_STATUS } from "./apimartVideos";
 import { APIMART_AUDIO_MODELS } from "./apimartAudios";
 import { APIMART_TEXT_MODELS } from "./apimartTexts";
+import { AGNES_VENDOR_SEED, AGNES_VIDEO_QUERY_OP, AGNES_STATUS_MAPPING } from "./agnesVendor";
+import { AGNES_IMAGE_MODELS } from "./agnesImages";
+import { AGNES_VIDEO_MODELS } from "./agnesVideos";
+import { AGNES_TEXT_MODELS } from "./agnesTexts";
 import { MODELSCOPE_VENDOR_SEED } from "./modelscopeVendor";
 import { MODELSCOPE_IMAGE_MODELS, MODELSCOPE_IMAGE_QUERY, MODELSCOPE_IMAGE_STATUS } from "./modelscopeImages";
 import { MODELSCOPE_TEXT_MODELS } from "./modelscopeTexts";
@@ -123,6 +127,27 @@ const APIMART_CURATED_MAPPINGS: CuratedMapping[] = [
   ...APIMART_AUDIO_MODELS.flatMap((m) =>
     m.mappings.map((mp) => ({
       id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, name: mp.name, create: mp.create,
+    })),
+  ),
+];
+
+/** Agnes AI（全模态免费网关）curated 模型 + mapping。文本：免费大脑(无 mapping，直连 chat)；
+ *  图片：同步 create(无 query)；视频：异步 create→poll(query 参数版轮询，见 agnesVendor)。 */
+const AGNES_CURATED_MODELS: CuratedModel[] = [
+  ...AGNES_TEXT_MODELS.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "text" as const })),
+  ...AGNES_IMAGE_MODELS.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "image" as const, archetypeId: m.archetypeId })),
+  ...AGNES_VIDEO_MODELS.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "video" as const, archetypeId: m.archetypeId })),
+];
+const AGNES_CURATED_MAPPINGS: CuratedMapping[] = [
+  // 图片同步族：无 query / 无 statusMapping（create 响应即结果，runtime 取 data.0.url）。
+  ...AGNES_IMAGE_MODELS.flatMap((m) =>
+    m.mappings.map((mp) => ({ id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, name: mp.name, create: mp.create })),
+  ),
+  // 视频异步族：共用 AGNES_VIDEO_QUERY_OP 轮询 + AGNES_STATUS_MAPPING 状态归一。
+  ...AGNES_VIDEO_MODELS.flatMap((m) =>
+    m.mappings.map((mp) => ({
+      id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, name: mp.name,
+      create: mp.create, query: AGNES_VIDEO_QUERY_OP, statusMapping: AGNES_STATUS_MAPPING,
     })),
   ),
 ];
@@ -220,7 +245,7 @@ function pruneRetiredMappings(mappings: Mapping[], retiredIds: readonly string[]
 }
 
 /** 供应商种子（裸 baseUrl + bearer）。存在即跳过（用户配置不覆盖）。返回是否变更。 */
-function seedVendor(vendors: Vendor[], seed: typeof KIE_VENDOR_SEED | typeof APIMART_VENDOR_SEED | typeof MODELSCOPE_VENDOR_SEED | typeof VOLCENGINE_VENDOR_SEED | typeof VOLCENGINE_SPEECH_VENDOR_SEED | typeof DREAMINA_VENDOR_SEED | typeof RUNNINGHUB_VENDOR_SEED | typeof REPLICATE_VENDOR_SEED, now: string): boolean {
+function seedVendor(vendors: Vendor[], seed: typeof KIE_VENDOR_SEED | typeof APIMART_VENDOR_SEED | typeof AGNES_VENDOR_SEED | typeof MODELSCOPE_VENDOR_SEED | typeof VOLCENGINE_VENDOR_SEED | typeof VOLCENGINE_SPEECH_VENDOR_SEED | typeof DREAMINA_VENDOR_SEED | typeof RUNNINGHUB_VENDOR_SEED | typeof REPLICATE_VENDOR_SEED, now: string): boolean {
   if (vendors.some((v) => v.key === seed.key)) return false;
   vendors.push({
     key: seed.key, name: seed.name, enabled: true,
@@ -309,6 +334,7 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   // 供应商：kie + apimart（apimart 为核心变现通道）。
   if (seedVendor(vendors, KIE_VENDOR_SEED, now)) changed = true;
   if (seedVendor(vendors, APIMART_VENDOR_SEED, now)) changed = true;
+  if (seedVendor(vendors, AGNES_VENDOR_SEED, now)) changed = true; // Agnes AI（全模态免费网关）
   if (seedVendor(vendors, MODELSCOPE_VENDOR_SEED, now)) changed = true;
   if (seedVendor(vendors, VOLCENGINE_VENDOR_SEED, now)) changed = true;
   if (seedVendor(vendors, VOLCENGINE_SPEECH_VENDOR_SEED, now)) changed = true;
@@ -324,6 +350,7 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   // 模型 insert + 对账（两家各跑同一套逻辑）。
   if (reconcileModels(models, KIE_VENDOR_SEED.key, KIE_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, APIMART_VENDOR_SEED.key, APIMART_CURATED_MODELS, now)) changed = true;
+  if (reconcileModels(models, AGNES_VENDOR_SEED.key, AGNES_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, MODELSCOPE_VENDOR_SEED.key, MODELSCOPE_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, VOLCENGINE_VENDOR_SEED.key, VOLCENGINE_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, VOLCENGINE_SPEECH_VENDOR_SEED.key, VOLCENGINE_SPEECH_CURATED_MODELS, now)) changed = true;
@@ -352,6 +379,7 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   // mapping insert + 对账（两家各跑同一套逻辑）。
   if (reconcileMappings(mappings, KIE_VENDOR_SEED.key, KIE_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, APIMART_VENDOR_SEED.key, APIMART_CURATED_MAPPINGS, now)) changed = true;
+  if (reconcileMappings(mappings, AGNES_VENDOR_SEED.key, AGNES_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, MODELSCOPE_VENDOR_SEED.key, MODELSCOPE_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, VOLCENGINE_VENDOR_SEED.key, VOLCENGINE_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, VOLCENGINE_SPEECH_VENDOR_SEED.key, VOLCENGINE_SPEECH_CURATED_MAPPINGS, now)) changed = true;
