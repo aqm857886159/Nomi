@@ -81,6 +81,24 @@ text 全部(claude-fable-5/deepseek-v4-pro/gpt-5.5/moonshot/Qwen3 ×3)；apimart
 - [ ] **headless 项目 poison**：同项目 MCP 生成 >3 次后**偶发**永久「项目不存在」（注册表+manifest 都在却 readWorkspaceProject 返 null）。仅 headless 磁盘网关路；GUI 渲染层网关不受影响。**setPath userData 修复后 48+ 次连续/并发生成未复现**，根因未钉死（非确定性，疑早期 userData 漂移+共享注册表脏态）。保留观察，多 agent 大流量测试时若复现即现场抓。
 - [ ] runninghub 轮询上限默认值是否该按 vendor 调（现 env 可调）。
 
+## 多 agent 完整用户测试（3 路并行真实旅程，独立沙箱）
+
+三个「真实用户」agent 各跑一条端到端旅程，记录顺/卡/困惑/报错：
+
+| Agent | 旅程 | 结果 |
+|---|---|---|
+| 1 | 角色设定（生成→改词→变体） | 功能链路全绿、出图质量高；但**一致性靠手写提示词硬背**（无角色锁）、改词不标 stale、尺寸/画风不可控 |
+| 2 | 三镜头分镜（同主角） | 三次生成+连线全绿，但**三个不同的女孩**——连线对一致性零作用 |
+| 3 | 改图+配音 | 配音✓（真 wav）；**改图走不通**（连了参考边，生成仍 400「需要参考图」） |
+
+**三路收敛到同一头号根因（已修+真机验证，commit）**：**headless generate 从不读画布参考边**——只读 `input.references`/`node.references`，GUI 走渲染层把边归一进 node.references 再发，headless/CLI/MCP 直发绕过它 → 连线=空承诺（对齐记忆 `connection-reference-bugs` 的槽/边分裂在 headless 仍未收口）。修：references 为空时兜底从参考类入边解析源节点产出（core.ts `referencesFromEdges`）。验证：连图→改图节点→生成，改图成功取到参考（此前 400）。
+
+**其余 agent 情报（非 bug / 产品向，记一笔）**：
+- **URL/磁盘目录口径**：asset url 用稳定 `workspace-<id>`，磁盘是 `名字-slug-hash`——**by design**（url 经 registry `resolveProjectRelativePath` 解析，便携抗改名）；不是 bug。但与 poison 共享「registry 解析 id」依赖。
+- 改词不标 node stale、CLI 无尺寸/比例参、同 prompt 家族画风漂移、无角色身份锁 → 都指向 Nomi 战略招牌「跨镜身份/显式版本」空白（产品级，非表面 bug）。
+- CLI 无参时报「项目不存在」误导（应打 usage）；失败留孤儿节点无回收（小 UX）。
+- **poison 未复现**：三 agent 各 3-4 次生成均未触发（仍非确定性）。
+
 ## 结论
 - **UI 路视频正常**（档案在 UI 填好 model/duration）；本类只伤 **headless/MCP 视频**。
 - 连接健康面：text/image/audio（连接齐全的 vendor）headless 全通；image/audio 的缺参已修验。
