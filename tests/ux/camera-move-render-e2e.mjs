@@ -381,8 +381,10 @@ try {
       approveSet: new Set(["create_camera_move", "run_generation_batch"]),
     });
 
-    // 轮询节点终态：成功（result.providerUrl/url）或失败（status=error + error 文案）。~5min。
-    console.log("◆ 轮询生成终态（成功出片 or 上传/生成失败，~5min 上限）……");
+    // 轮询节点终态：成功（result.providerUrl/url）或失败（status=error + error 文案）。
+    // omni（全能参考）+ mp4 上传 + 代理下，真生成常 >5min → 默认 10min，可用 NOMI_GEN_POLL_MS 调。
+    const genPollMs = Number(process.env.NOMI_GEN_POLL_MS) || 600_000;
+    console.log(`◆ 轮询生成终态（成功出片 or 上传/生成失败，~${Math.round(genPollMs / 60000)}min 上限）……`);
     const finished = await pollNodes(
       win,
       projectDir,
@@ -392,7 +394,7 @@ try {
         const failed = n?.status === "error" || (typeof n?.error === "string" && n.error.trim().length > 0);
         return Boolean(url) || failed;
       },
-      { timeoutMs: 300_000, intervalMs: 3000 },
+      { timeoutMs: genPollMs, intervalMs: 3000 },
     );
 
     const node = finished.nodes.find((x) => x.id === targetNodeId);

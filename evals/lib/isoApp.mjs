@@ -90,11 +90,30 @@ export async function openGenerationAiPanel(win) {
   await win.getByRole("button", { name: "生成", exact: true }).first().click({ timeout: 5000 }).catch(() => {});
   await win.waitForTimeout(800);
   if (await input.count()) return;
-  // 点「生成区 AI 启动器」开侧栏
-  const launcher = win.locator('[aria-label="生成区 AI 启动器"]');
-  if (await launcher.count()) await launcher.first().click({ timeout: 5000 });
-  else await win.getByText("Nomi 生成", { exact: false }).first().click({ timeout: 5000 });
-  await input.first().waitFor({ state: "visible", timeout: 5000 });
+  // 空白项目默认无「画面」board(空态显示「这里还没有画面 / 新建画面」)→ 助手输入框不挂载。
+  // 先建一个 board(无则 no-op),再开面板。
+  const boardCta = win.getByText("新建画面", { exact: false }).first();
+  if (await boardCta.count()) {
+    await boardCta.click({ timeout: 5000 }).catch(() => {});
+    await win.waitForTimeout(1200);
+  }
+  if (await input.count()) return;
+  // 开侧栏:点「生成区 AI 启动器」。Playwright 的 click(含 force) 对这个启动器**不稳**——
+  // 偶发不触发 onOpen(data-collapsed 仍为 true、输入框不挂载)。改用页面内原生 DOM .click():
+  // 它直接触发 React onClick(openPanel→setCollapsed(false)),无 actionability/坐标/遮挡判定的不确定性。
+  // 外裹重试轮询直到输入框真出现,绝不在超时上谎报。
+  const deadline = Date.now() + 12_000;
+  let opened = false;
+  while (Date.now() < deadline) {
+    if (await input.count()) { opened = true; break; }
+    await win.evaluate(() => {
+      const btn = document.querySelector(".generation-canvas-v2-assistant__launcher");
+      if (btn) (btn).click();
+    });
+    await win.waitForTimeout(600);
+  }
+  if (!opened) throw new Error("生成区 AI 面板未能展开(启动器点击后输入框始终未挂载)");
+  await input.first().waitFor({ state: "visible", timeout: 8000 });
 }
 
 /** 指定本次评测用的助手模型(写 localStorage 偏好,与用户在面板里手选等价)。 */
