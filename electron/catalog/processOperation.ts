@@ -10,7 +10,7 @@ import os from "node:os";
 import path from "node:path";
 import type { HttpOperation } from "./types";
 import { runDreaminaCli, resolveDreaminaBin } from "./dreaminaCli";
-import { normalizeDreaminaOutput, buildMultiframeArgs, splitTransitionLines } from "./dreaminaCodec";
+import { normalizeDreaminaOutput, buildMultiframeArgs, splitTransitionLines, describeDreaminaFailure } from "./dreaminaCodec";
 import { renderTemplateValue } from "../ai/requestPipeline";
 import { contentTypeFromPath } from "../assets/assetPaths";
 import { materializeInputFiles } from "./dreaminaInputFiles";
@@ -91,11 +91,11 @@ export async function executeProcessOperation(input: ProcessOperationInput): Pro
     const ran = await runDreaminaCli(args, { timeoutMs: input.timeoutMs ?? 300_000, bin });
     const normalized = normalizeDreaminaOutput(ran.stdout, ran.stderr);
 
-    // 退出码非 0 且连 submit_id/gen_status 都解析不到 = 真·调用失败（未装/无 maestro vip 权限/参数非法）。
-    // 抛清晰错误让用户看到（如「current account is not maestro vip」），而非吞成空结果。
+    // 退出码非 0 且连 submit_id/gen_status 都解析不到 = 真·调用失败。
+    // 现役 CLI（build 2026-06-18）非会员被拒时**静默失败**（exit=1、输出全空、不建任务记录），旧版会打印
+    // "not maestro vip" 现在什么都不打印 → 不能甩 "exit=1"，按最可能原因给可执行指引（治「用不了」黑洞，P2）。
     if (ran.code !== 0 && !normalized.submitId && !normalized.genStatus) {
-      const message = (ran.stderr || ran.stdout || `exit=${ran.code}`).trim();
-      throw new Error(`即梦 CLI 调用失败：${message.slice(0, 600)}`);
+      throw new Error(describeDreaminaFailure(ran.code, ran.stdout, ran.stderr));
     }
 
     // 本地下载文件导入项目素材 → nomi-local://；远端 URL 直接交给现有 buildProfileTaskResult 下载。

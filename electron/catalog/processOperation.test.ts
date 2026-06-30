@@ -65,9 +65,14 @@ describe("executeProcessOperation", () => {
     expect(writeAsset).not.toHaveBeenCalled();
   });
 
-  it("非 maestro vip：退出码非 0 且无 submit_id/gen_status → 抛清晰错误", async () => {
+  it("非会员（CLI 显式报 not maestro vip）：退出码非 0 → 抛会员引导错误", async () => {
     runDreaminaCli.mockResolvedValue({ code: 1, stdout: "", stderr: "current account is not maestro vip" });
-    await expect(call(["text2video", "--prompt=cat"])).rejects.toThrow(/maestro vip/);
+    await expect(call(["text2video", "--prompt=cat"])).rejects.toThrow(/会员/);
+  });
+
+  it("静默失败（exit≠0 + 输出全空，现役 CLI 非会员行为）→ 抛会员/网页授权两条原因，不甩 exit=1", async () => {
+    runDreaminaCli.mockResolvedValue({ code: 1, stdout: "", stderr: "" });
+    await expect(call(["text2video", "--prompt=cat"])).rejects.toThrow(/会员.*授权|授权.*会员|开通即梦会员/);
   });
 
   it("未装 CLI → 抛安装引导错误", async () => {

@@ -150,7 +150,7 @@ export function DreaminaMemberCard({ status, onChanged }: DreaminaMemberCardProp
                 {status.totalCredit != null ? <span className="text-nomi-ink-60 font-normal"> · 积分 {status.totalCredit}</span> : null}
               </div>
               <div className="text-caption text-nomi-ink-60 mt-0.5">
-                在生成画布选「即梦 Seedance 2.0（会员）」出视频。注意：生成需即梦<strong>高级会员（maestro vip）</strong>档——非此档会被拒（光充积分不够）。
+                在生成画布选「即梦 Seedance 2.0（会员）」出视频。注意：免费试用已于 2026-05-01 结束，生成需即梦<strong>高级会员</strong>——非会员会被拒（光登录、光充积分不够）；部分模型首次使用还需先在 jimeng.jianying.com 网页端授权一次。
               </div>
             </div>
           </div>
