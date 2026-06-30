@@ -58,6 +58,16 @@
 | 4 | agnes image_edit 参考图位置 | `agnesImages.ts:34` | 用 `extra_body.image`（跟 curl 示例）；官方 prose 说顶层 `image` —— 文档自相矛盾 | 用 agnes(免费) key 跑一次 image_edit，看 server 收哪个 |
 | 5 | volcengine 音色 ID + fast/mini 日期后缀 | `doubaoTtsArchetype.ts` / `seedanceVolcengine.ts:80-81` | `zh_male_liufei/m191_uranus_bigtts`、`-fast-260128`/`-mini-260615` 官方全表 JS 渲染取不到 | 各发一次确认不报「音色/模型不存在」|
 
+### 2026-06-30 真机 update（用你已配的 key 跑了真机探测）
+
+- **火山 Seedance fast 清晰度 / Seedream 4.0 size 下限**：**无法测——这俩+4.5 模型你的火山账号(2126482930)没在 Ark 控制台开通**，
+  返回 `ModelNotOpen`「has not activated the model… Please activate the model service in the Ark Console」（你只开通了 5.0，故 5.0 能用）。
+  → 是**账号侧逐模型开通**问题（非代码 bug），错误已清楚透传。要用 4.0/4.5/fast 得先去 Ark 控制台开通这些模型；开通后我才能验证 size/清晰度能否放宽。
+  **结论：保守 caps 维持现状（安全），待开通后再调。**
+- **RunningHub C-Dance（Seedance）生成按钮点不了**：已修（commit c038f92a）——根因是 t2v 模式按钮被错误锁死，与档位闸无关。
+- **kie HappyHorse 字段空格 / agnes image_edit 字段位置**：kie 没配 key（测不了）；agnes 经 API 测不出「参考图是否被视觉采用」（结论模糊），
+  现状跟 curl 示例走是更安全默认，维持。
+
 低优可选（doc 已确认但现状能用，churn 价值低）：apimart Omni 用 `size` 兼容别名而非主字段 `aspect_ratio`（`apimartVideos.ts:142`）；agnes/kie 若干官方支持但我们有意未接的可选参数（multi_shots/web_search/nsfw_checker 等，代码注释已声明）。
 
 ---
