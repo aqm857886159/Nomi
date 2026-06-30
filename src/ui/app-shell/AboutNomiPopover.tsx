@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react'
+import { IconAlertTriangle, IconChevronRight, IconCircleCheck, IconMap } from '@tabler/icons-react'
 import { BodyPortal, DesignProgress, NomiLoadingMark, NomiLogoMark, NomiWordmark, WorkbenchButton } from '../../design'
 import { cn } from '../../utils/cn'
 import { useNomiColorScheme } from '../../theme/colorScheme'
@@ -79,6 +79,24 @@ export function AboutNomiPopover({ anchorEl, onClose }: AboutNomiPopoverProps): 
             </p>
           </div>
         </div>
+
+        {/* 上手手册入口：永久家（顶栏已删按钮，挪到这里，语义贴「关于/帮助」、不挤工具栏）。
+            点 → 派 nomi-open-handbook（NomiStudioApp 监听挂面板）+ 关掉本气泡。 */}
+        <button
+          type="button"
+          className="mb-3.5 flex w-full min-h-9 items-center gap-2.5 rounded-nomi-sm border-0 bg-[var(--nomi-ink-05)] px-3 py-2 cursor-pointer text-left transition-colors hover:bg-[var(--nomi-ink-10)]"
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('nomi-open-handbook'))
+            onClose()
+          }}
+        >
+          <IconMap size={18} stroke={1.6} className="shrink-0 text-[var(--nomi-accent)]" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-body-sm text-[var(--nomi-ink)]">上手手册</span>
+            <span className="block text-micro text-[var(--nomi-ink-40)]">流水线 · 90 秒首胜 · 能力对照 · 自查</span>
+          </span>
+          <IconChevronRight size={16} stroke={1.8} className="shrink-0 text-[var(--nomi-ink-40)]" />
+        </button>
 
         <div className="mb-3.5 flex min-h-9 items-center justify-between gap-3 rounded-nomi-sm bg-[var(--nomi-ink-05)] px-3 py-2">
           <div className="min-w-0">

@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconBooks, IconDownload, IconMap, IconPhoto, IconPlugConnected, IconBulb } from '@tabler/icons-react'
+import { IconBooks, IconDownload, IconPhoto, IconPlugConnected, IconBulb } from '@tabler/icons-react'
 import type { WorkspaceMode } from '../../workbench/workbenchStore'
 import { NomiBrand, NomiStepper, WorkbenchButton } from '../../design'
 import { OnboardingChecklist } from '../../workbench/onboarding/OnboardingChecklist'
@@ -24,11 +24,6 @@ function openPromptLibrary(): void {
 // 「技能库」点击 → 打开技能库面板（同一套事件驱动开法）。
 function openSkillLibrary(): void {
   window.dispatchEvent(new CustomEvent('nomi-open-skill-library'))
-}
-
-// 「上手手册」点击 → 打开手册面板（同一套事件驱动开法）。
-function openHandbook(): void {
-  window.dispatchEvent(new CustomEvent('nomi-open-handbook'))
 }
 
 type NomiAppBarProps = {
@@ -208,24 +203,6 @@ export default function NomiAppBar({ workspaceMode, onWorkspaceModeChange, proje
         {/* 上手 4 步引导入口：非 win32 住这里（始终高/不遮画布，4/4 自动消失）。
             win32 已移进 WorkbenchShell 自绘标题栏，本栏不重复渲染——两平台都有家、不丢 mac 清单。 */}
         {!isWindows ? <OnboardingChecklist /> : null}
-        <WorkbenchButton
-          className={cn(
-            'nomi-appbar__ghost',
-            'app-no-drag',
-            'inline-flex items-center gap-1.5 h-[30px] px-2.5',
-            'border border-transparent rounded-[var(--nomi-radius-sm)]',
-            'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
-            'transition-[background,color] duration-[var(--nomi-transition-fast)]',
-            'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
-            'max-[1400px]:w-[30px] max-[1400px]:h-[30px] max-[1400px]:justify-center max-[1400px]:p-0',
-          )}
-          aria-label="打开上手手册"
-          title="上手手册"
-          onClick={openHandbook}
-        >
-          <IconMap size={15} stroke={1.7} />
-          <span className={cn('nomi-appbar__action-text', 'max-[1400px]:hidden')}>上手手册</span>
-        </WorkbenchButton>
         <WorkbenchButton
           className={cn(
             'nomi-appbar__ghost',

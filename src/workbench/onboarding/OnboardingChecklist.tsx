@@ -15,7 +15,7 @@
  * 非 win32（mac/Linux）渲染在 NomiAppBar 右簇内——两边都在 React 树内，保 --nomi-* token。
  */
 import React from 'react'
-import { IconCheck, IconChevronDown, IconListCheck } from '@tabler/icons-react'
+import { IconCheck, IconChevronDown, IconListCheck, IconMap } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useHasTextModel } from '../library/useHasTextModel'
@@ -254,7 +254,22 @@ export function OnboardingChecklist(): JSX.Element | null {
             })}
           </ul>
 
-          <div className="flex justify-end border-t border-nomi-line-soft px-3 py-2">
+          <div className="flex items-center justify-between border-t border-nomi-line-soft px-3 py-2">
+            {/* 新手最显眼处的手册入口：清单本就是上手时盯着的面板，开同一个 nomi-open-handbook 事件。 */}
+            <button
+              type="button"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('nomi-open-handbook'))
+                setOpen(false)
+              }}
+              className={cn(
+                'inline-flex items-center gap-1 rounded-nomi-sm border-0 bg-transparent px-1.5 py-0.5 cursor-pointer',
+                'text-caption text-nomi-accent transition-colors hover:text-nomi-ink',
+              )}
+            >
+              <IconMap size={13} stroke={1.7} aria-hidden="true" />
+              看完整手册
+            </button>
             <button
               type="button"
               onClick={handleDismiss}
