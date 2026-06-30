@@ -105,6 +105,33 @@ function detectModelNotOpen(upstream: string | undefined, raw: string): boolean 
   )
 }
 
+/**
+ * 「账号档位闸」是文案信号，不是状态码信号——会员/企业 Key/网页授权各家用不同码（即梦静默 exit≠0、
+ * RunningHub 200+errorCode 1014、即梦 compliance 文本），分别会被派生成 unknown/input，把「开会员/换企业
+ * Key/去授权」误导成「查参数」。故在 category 分类前先按文案判定，命中即压过 structured.category。
+ * 短语取得窄，避免误吞普通错误。区别于 model-not-open（去控制台开通一个动作）。
+ */
+function detectAccountGate(upstream: string | undefined, raw: string): boolean {
+  const text = `${upstream || ''} ${raw}`.toLowerCase()
+  return (
+    // 即梦高级会员（dreamina）
+    text.includes('maestro vip') ||
+    text.includes('高级会员') ||
+    text.includes('开通即梦会员') ||
+    text.includes('dreamina_cli 使用权限') ||
+    (text.includes('会员') && (text.includes('生成') || text.includes('试用'))) ||
+    // RunningHub 标准模型需企业级共享 Key（errorCode 1014）
+    text.includes('enterprise-shared') ||
+    text.includes('企业级') ||
+    text.includes('企业共享') ||
+    text.includes('仅限企业') ||
+    // 即梦部分模型首次需网页端授权
+    text.includes('aigccomplianceconfirmationrequired') ||
+    text.includes('complianceconfirmationrequired') ||
+    (text.includes('授权') && (text.includes('网页') || text.includes('web') || text.includes('确认')))
+  )
+}
+
 export function classifyGenerationError(message: string): GenerationErrorReport {
   // S4-2:structured 优先(VendorRequestError 经 IPC 标记穿透,源头保留的事实,不是猜);
   // 老数据/非 vendor 错误退回 legacy 正则识别。两条路只产 kind,文案统一出自 narrate 词表。
@@ -114,6 +141,13 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   const cleanRaw = stripVendorErrorMarker(String(message || '')).split('\n→')[0].trim() || '生成失败'
   if (detectModelNotOpen(structured?.upstreamMsg, cleanRaw)) {
     const { reason, hint } = narrateGenerationError('model-not-open')
+    const providerMessage = pickProviderMessage(structured?.upstreamMsg ?? extractReadableErrorLine(cleanRaw), reason)
+    return { reason, hint, raw: cleanRaw, ...(providerMessage ? { providerMessage } : {}) }
+  }
+  // 账号档位闸（会员/企业 Key/网页授权）先于 category 判——否则 RunningHub 1014 会被 categorize 成 input
+  // →「参数不被接受」误导，即梦会员被吞进 unknown。reason 出自 narrate，服务商原话单独提到可见区。
+  if (detectAccountGate(structured?.upstreamMsg, cleanRaw)) {
+    const { reason, hint } = narrateGenerationError('account-gate')
     const providerMessage = pickProviderMessage(structured?.upstreamMsg ?? extractReadableErrorLine(cleanRaw), reason)
     return { reason, hint, raw: cleanRaw, ...(providerMessage ? { providerMessage } : {}) }
   }

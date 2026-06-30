@@ -57,6 +57,7 @@ export type GenerationErrorKind =
   | 'network'
   | 'model-config'
   | 'model-not-open'
+  | 'account-gate'
   | 'content-policy'
   | 'server'
   | 'input'
@@ -74,6 +75,13 @@ const NARRATE_ERROR: Record<GenerationErrorKind, { reason: string; hint: string 
   'model-not-open': {
     reason: '模型未开通',
     hint: '这个模型你的服务商账户还没开通。请到服务商控制台开通它（火山方舟：在 Ark 控制台「开通管理」激活对应模型），或在「模型接入」换一个已开通的模型。',
+  },
+  // 账号档位闸：模型已接好、参数也对，但服务商按账号档位拒了——即梦需高级会员、RunningHub 标准模型需
+  // 企业级共享 Key、即梦部分模型首次需网页端授权。区别于 model-not-open（去控制台开通一个动作）：这类
+  // 动作各异（开会员 / 换企业 Key / 网页授权），具体以「服务商原话」为准，故 hint 指向原话 + 给换模型出口。
+  'account-gate': {
+    reason: '账号权限不足',
+    hint: '这个模型需要更高的账号档位才能用——按下方「服务商原话」开通对应会员 / 换企业级 API Key / 先在服务商网页端完成授权；也可在「模型接入」换一个能用的模型。',
   },
   'content-policy': { reason: '提示词被拦截', hint: '提示词触发了安全策略，请修改后重试。' },
   server: { reason: '服务商故障', hint: '服务商服务异常，请稍后重试，或换一个模型。' },
