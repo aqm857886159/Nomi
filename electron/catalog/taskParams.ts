@@ -30,6 +30,20 @@ export function firstReferenceImage(request: TaskParamsInput): string {
   );
 }
 
+/**
+ * wire 必填参数兜底（headless/MCP 路）：UI 经 NodeGenerationComposer 按档案填好 size/voice/model 等；
+ * 但 MCP/CLI 的 generate 不经 UI、也不暴露 params，缺必填参 vendor 直接拒（火山缺 size→400 / apimart 缺
+ * model→500 / 豆包缺 voice→「未选择音色」）。把 mapping.create.defaultParams 合并到 extras **之下**
+ * （既有值优先）：UI 路已填故零影响，headless 路得到一份能成的请求。纯函数（可单测）。
+ */
+export function applyWireDefaults(
+  extras: Record<string, unknown> | undefined,
+  defaultParams: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!defaultParams) return extras;
+  return { ...defaultParams, ...(extras || {}) };
+}
+
 export function taskTemplateParams(request: TaskParamsInput): JsonRecord {
   const extras = request.extras || {};
   const size = request.width && request.height ? `${request.width}x${request.height}` : firstString(extras.size, extras.aspectRatio);

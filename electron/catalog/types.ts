@@ -201,6 +201,16 @@ export type HttpOperation = {
   response_mapping?: Record<string, unknown>;
   provider_meta_mapping?: Record<string, unknown>;
   /**
+   * **wire 必填参数的兜底默认值**（headless/MCP 路专用）。UI 路由 NodeGenerationComposer 会按档案
+   * (src/config/modelArchetypes) 把用户选的 size/voice/model 等填进 request.params；但 MCP/CLI 的
+   * `generate` 不经 UI、调用方也无从知道每家 vendor 的必填参数（nomi_generate 根本不暴露 params）。
+   * 缺这些参数时 vendor 直接拒（实测：火山 Seedream 缺 size→HTTP 400；apimart TTS 缺 model→HTTP 500；
+   * 豆包语音缺 voice→「未选择音色」）。runtime.runTask 解析出 mapping 后，把这里的默认值**合并到
+   * request.extras 之下（既有值优先）**——UI 路因为已填值故零影响，headless 路得到一份能成的请求。
+   * 注：值与档案默认有小重叠（不同层：档案=UI 控件默认；这里=headless wire 下限），改档案默认时一并核对此处。
+   */
+  defaultParams?: Record<string, unknown>;
+  /**
    * 音频 create op 的**响应形状声明**（仅 audioTaskRunner 消费，P4 声明驱动不 hardcode vendor）。
    *  - 缺省 / "binary"      ：响应体即裸音频字节（OpenAI 兼容 /v1/audio/speech，现有行为）。
    *  - "ndjson-base64"      ：NDJSON 流（逐行 {code,data}，code===0 时 data 为 base64 音频块，

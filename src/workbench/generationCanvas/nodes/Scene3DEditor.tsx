@@ -9,6 +9,8 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { cloneScene3DState, normalizeScene3DState } from './scene3d/scene3dSerializer'
 import { persistScene3DScreenshot } from './scene3d/scene3dScreenshot'
+import { frameCountForDuration } from './scene3d/takeRecording'
+import { isVideoLikeGenerationNodeKind } from '../model/generationNodeKinds'
 import type { Scene3DCaptureResult, Scene3DState } from './scene3d/scene3dTypes'
 
 const loadScene3DFullscreen = () => import('./scene3d/Scene3DFullscreen')
@@ -124,6 +126,41 @@ function Scene3DEditor({ node, width, height, readOnly = false }: Scene3DEditorP
     setFullscreen(false)
     void persistActiveWorkbenchProjectNow().catch(() => {})
   }, [])
+
+  // 录 take（S2）：把录制好的（含角色/机位轨迹的）场景另建一个 scene3d 节点 + 打 cameraMoveAutoCapture 标志，
+  // 整条出 mp4 + 喂目标镜头 video_ref 复用 AI 运镜常驻 Host（CameraMoveCaptureHost），不另起接缝（P1）。
+  // 另建节点而非覆写本节点 → 非破坏：用户原本编排好的 3D 场景保持原样。
+  // 目标镜头 = 本 scene3d 节点下游连到的视频节点（无则只出 mp4 留痕，不挂）。
+  const handleRecordTake = React.useCallback((recordedState: Scene3DState) => {
+    const store = useGenerationCanvasStore.getState()
+    const downstreamVideoTarget = store.edges
+      .filter((edge) => edge.source === node.id)
+      .map((edge) => store.nodes.find((candidate) => candidate.id === edge.target))
+      .find((candidate) => candidate && isVideoLikeGenerationNodeKind(candidate.kind))
+    const fps = 24 // Seedance 参考视频要求 23.8–60 FPS（与 AI 运镜一致）
+    const duration = recordedState.sceneTimeline?.totalDuration ?? 1
+    const frameCount = frameCountForDuration(duration, fps)
+    const takeNode = addNode({
+      kind: 'scene3d',
+      title: '录制走位参考',
+      prompt: '',
+      position: {
+        x: Math.round(node.position.x),
+        y: Math.round(node.position.y + height + 80),
+      },
+    })
+    updateNode(takeNode.id, {
+      meta: {
+        ...(takeNode.meta || {}),
+        scene3dState: recordedState,
+        cameraMoveAutoCapture: {
+          ...(downstreamVideoTarget ? { targetNodeId: downstreamVideoTarget.id } : {}),
+          fps,
+          frameCount,
+        },
+      },
+    })
+  }, [addNode, height, node.id, node.position.x, node.position.y, updateNode])
 
   const handleScreenshot = React.useCallback(async (capture: Scene3DCaptureResult) => {
     try {
@@ -268,6 +305,7 @@ function Scene3DEditor({ node, width, height, readOnly = false }: Scene3DEditorP
             onClose={handleCloseFullscreen}
             onScreenshot={(capture) => { void handleScreenshot(capture) }}
             onStateChange={handleStateChange}
+            onRecordTake={readOnly ? undefined : handleRecordTake}
           />
         </React.Suspense>
       ) : null}

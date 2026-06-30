@@ -2,8 +2,10 @@ import React from 'react'
 import { IconChevronUp, IconLayoutList } from '@tabler/icons-react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { cn } from '../../utils/cn'
-import TimelinePanel from '../timeline/TimelinePanel'
+import { lazyWithChunkBoundary } from '../../ui/chunkBoundary'
 import { useWorkbenchStore } from '../workbenchStore'
+
+const TimelinePanel = lazyWithChunkBoundary('生成时间轴', () => import('../timeline/TimelinePanel'))
 import { computeTimelineDuration } from '../timeline/timelineMath'
 
 type GenerationWorkspaceProps = {
@@ -28,7 +30,7 @@ export default function GenerationWorkspace({
   const setWidth = useWorkbenchStore((s) => s.setAssistantWidth)
   const timeline = useWorkbenchStore((s) => s.timeline)
   const reduceMotion = useReducedMotion()
-  const [timelineCollapsed, setTimelineCollapsed] = React.useState(false)
+  const [timelineCollapsed, setTimelineCollapsed] = React.useState(true)
   // 折叠态悬浮把手的真实摘要：段数（含字幕/标题卡）+ 总时长，绝不编造。
   const timelineSummary = React.useMemo(() => {
     const clipCount =
@@ -40,19 +42,29 @@ export default function GenerationWorkspace({
     return { clipCount, durationLabel: `${mm}:${ss}` }
   }, [timeline])
   const dragRef = React.useRef<{ startX: number; startW: number } | null>(null)
-  const onPointerDown = React.useCallback((e: React.PointerEvent) => {
-    dragRef.current = { startX: e.clientX, startW: width }
-    e.currentTarget.setPointerCapture(e.pointerId)
-  }, [width])
-  const onPointerMove = React.useCallback((e: React.PointerEvent) => {
-    const st = dragRef.current
-    if (!st) return
-    // 右侧停靠：往左拖（clientX 变小）= 加宽。
-    setWidth(st.startW + (st.startX - e.clientX))
-  }, [setWidth])
+  const onPointerDown = React.useCallback(
+    (e: React.PointerEvent) => {
+      dragRef.current = { startX: e.clientX, startW: width }
+      e.currentTarget.setPointerCapture(e.pointerId)
+    },
+    [width],
+  )
+  const onPointerMove = React.useCallback(
+    (e: React.PointerEvent) => {
+      const st = dragRef.current
+      if (!st) return
+      // 右侧停靠：往左拖（clientX 变小）= 加宽。
+      setWidth(st.startW + (st.startX - e.clientX))
+    },
+    [setWidth],
+  )
   const endDrag = React.useCallback((e: React.PointerEvent) => {
     dragRef.current = null
-    try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* noop */ }
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    } catch {
+      /* noop */
+    }
   }, [])
   const assistantTargetWidth = `${width}px`
   const assistantColumnWidth = aiSidebar && aiLayout === 'sidebar' ? assistantTargetWidth : '0px'
@@ -83,11 +95,13 @@ export default function GenerationWorkspace({
       data-ai-layout={aiSidebar ? aiLayout : 'none'}
       aria-label="生成区"
     >
-      <div className={cn(
-        'workbench-generation__canvas',
-        'min-w-0 min-h-0 overflow-hidden border-b border-[var(--workbench-border)]',
-        'relative',
-      )}>
+      <div
+        className={cn(
+          'workbench-generation__canvas',
+          'min-w-0 min-h-0 overflow-hidden border-b border-[var(--workbench-border)]',
+          'relative',
+        )}
+      >
         {canvas}
         {/* 折叠态：底部悬浮把手——画布吃满高度，把手给一眼可见的成片摘要 + 拉起入口。 */}
         {timelineCollapsed ? (
@@ -114,13 +128,14 @@ export default function GenerationWorkspace({
         ) : null}
       </div>
       {aiSidebar ? (
-        <aside className={cn(
-          'workbench-generation__ai relative',
-          'grid min-w-0 min-h-0 overflow-hidden border-b border-[var(--workbench-border)]',
-          aiLayout === 'overlay'
-            ? 'absolute top-4 right-4 z-[80] block w-auto h-auto border-0 bg-transparent pointer-events-auto'
-            : 'justify-items-end border-l border-l-[var(--workbench-border)] bg-[var(--workbench-surface)]',
-        )}
+        <aside
+          className={cn(
+            'workbench-generation__ai relative',
+            'grid min-w-0 min-h-0 overflow-hidden border-b border-[var(--workbench-border)]',
+            aiLayout === 'overlay'
+              ? 'absolute top-4 right-4 z-[80] block w-auto h-auto border-0 bg-transparent pointer-events-auto'
+              : 'justify-items-end border-l border-l-[var(--workbench-border)] bg-[var(--workbench-surface)]',
+          )}
           aria-label="生成区 AI 侧栏"
         >
           {/* 左缘拖手柄：仅停靠态显示。 */}
@@ -144,17 +159,16 @@ export default function GenerationWorkspace({
           {aiSidebar}
         </aside>
       ) : null}
-      <div className={cn(
-        'workbench-generation__timeline',
-        'relative col-span-full min-w-0 min-h-0',
-      )}>
+      <div className={cn('workbench-generation__timeline', 'relative col-span-full min-w-0 min-h-0')}>
         {timelineCollapsed ? null : (
-          <TimelinePanel
-            density="compact"
-            regionLabel="生成时间轴"
-            actionLabelPrefix="生成时间轴-"
-            onCollapse={() => setTimelineCollapsed(true)}
-          />
+          <React.Suspense fallback={null}>
+            <TimelinePanel
+              density="compact"
+              regionLabel="生成时间轴"
+              actionLabelPrefix="生成时间轴-"
+              onCollapse={() => setTimelineCollapsed(true)}
+            />
+          </React.Suspense>
         )}
       </div>
     </motion.section>

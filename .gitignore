@@ -63,3 +63,9 @@ tests/ux/_stagingshot/
 
 # 下载量可视化看板：派生产物（pnpm stats:html 按需生成），数据每次都变故不提交
 docs/stats/dashboard.html
+
+# Feedback Radar：用户私有渠道配置 + 去重状态 + 当轮抓取产物（含他人昵称/评论，不入库）
+docs/feedback/sources.json
+docs/feedback/state.json
+docs/feedback/*-raw.json
+docs/feedback/*-digest.md

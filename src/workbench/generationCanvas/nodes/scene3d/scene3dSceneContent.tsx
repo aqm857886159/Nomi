@@ -29,6 +29,7 @@ import {
   CameraViewEditController,
 } from './scene3dViewControllers'
 import { CameraStateRecorder } from './CameraStateRecorder'
+import { CharacterDriveController } from './scene3dCharacterDriveController'
 import { TrajectoryRenderer } from './trajectory'
 
 export function SceneContent({
@@ -41,6 +42,7 @@ export function SceneContent({
   viewLocked,
   cameraViewEditCamera,
   trajectoryMode,
+  possessedObject,
   onSelect,
   onFocus,
   onObjectPatch,
@@ -77,6 +79,7 @@ export function SceneContent({
   viewLocked: boolean
   cameraViewEditCamera?: Scene3DCamera
   trajectoryMode: boolean
+  possessedObject?: Scene3DObject
   onSelect: (selection: Scene3DSelection) => void
   onFocus: (id: string) => void
   onObjectPatch: (id: string, patch: Partial<Scene3DObject>) => void
@@ -180,7 +183,7 @@ export function SceneContent({
           key={object.id}
           object={object}
           selected={selection?.type === 'object' && selection.id === object.id}
-          readOnly={readOnly || trajectoryMode}
+          readOnly={readOnly || trajectoryMode || possessedObject?.id === object.id}
           interactionDisabled={trajectoryMode}
           transformMode={transformMode}
           orbitControlsActive={!freeLook}
@@ -228,6 +231,7 @@ export function SceneContent({
         selectionActive={selection !== null}
         speed={flySpeed}
         target={state.editorCamera.target}
+        keyboardDisabled={Boolean(possessedObject)}
         navigationLockedRef={navigationLockedRef}
         onClearSelection={() => onSelect(null)}
         onWheelNavigation={onWheelNavigation}
@@ -240,6 +244,12 @@ export function SceneContent({
         onDraftChange={onEditorCameraDraft}
         onCommit={onEditorCameraCommit}
       />
+      {possessedObject ? (
+        <CharacterDriveController
+          possessedObject={possessedObject}
+          onObjectPatch={onObjectPatch}
+        />
+      ) : null}
       <CaptureBinder cameras={state.cameras} setApi={setCaptureApi} />
     </>
   )

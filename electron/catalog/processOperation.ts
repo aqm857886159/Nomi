@@ -79,7 +79,10 @@ export async function executeProcessOperation(input: ProcessOperationInput): Pro
   }
 
   let downloadDir = "";
-  if (input.process.appendDownloadDir) {
+  // `--download_dir` 只有 query_result 子命令支持（实查 CLI：text2image/text2video/image2video… 全部 unknown flag）。
+  // 提交子命令此刻也无结果可下，语义上本就不该带它。结构性兜底：即便某 op 误标 appendDownloadDir，
+  // 也只在真正取结果的子命令上追加，杜绝「提交即 unknown flag 秒挂」这类复发（根因 P2，非逐 op 修症状）。
+  if (input.process.appendDownloadDir && args[0] === "query_result") {
     downloadDir = mkdtempSync(path.join(os.tmpdir(), "nomi-dreamina-"));
     args.push(`--download_dir=${downloadDir}`);
   }

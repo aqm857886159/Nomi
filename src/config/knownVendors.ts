@@ -84,6 +84,20 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
     },
   },
   {
+    // Agnes AI（Sapiens AI，新加坡）：全模态 OpenAI 兼容网关，文本/图片/视频**无限期免费**
+    // （2026-06-01 起，免费层 RPM 20）。一个 key 解锁三模态、邮箱注册不绑卡 → 新手零成本起点。
+    vendorKey: 'agnes',
+    glyph: 'Ag',
+    tagline: '全模态免费 · 一个 key 解锁文本/图片/视频',
+    credentialPlaceholder: '粘贴 Agnes API Key',
+    credentialHint: '免费：去 platform.agnes-ai.com 邮箱注册（不绑卡）→ 创建 API Key。免费层有速率上限（RPM 20），个人/原型够用。凭证本地加密存储。',
+    promo: {
+      text: 'Agnes AI（新加坡 Sapiens AI）把文本/图片/视频三模态 API 无限期免费开放，OpenAI 兼容。邮箱注册不绑卡即可拿 Key。',
+      ctaLabel: '去 Agnes 注册（免费）',
+      url: 'https://agnes-ai.com',
+    },
+  },
+  {
     vendorKey: 'kie',
     logo: new URL('../assets/vendor-logos/kie.png', import.meta.url).href,
     glyph: 'K',

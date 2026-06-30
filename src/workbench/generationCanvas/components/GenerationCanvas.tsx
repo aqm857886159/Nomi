@@ -13,7 +13,7 @@ import { getGenerationNodeComponent } from '../nodes/renderRegistry'
 import { completeNodeConnection } from '../nodes/completeNodeConnection'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { buildDependencyWaves } from '../runner/dependencyWaves'
-import { confirmAndRunPlan } from './batchPlanPreview'
+import { confirmAndRunPlan, useBatchPlanPreviewStore } from './batchPlanPreview'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { GroupFrameList } from './GroupFrame'
 import { useAutoFitOnLoad } from './useAutoFitOnLoad'
@@ -35,11 +35,22 @@ import {
 import { useCanvasViewport } from './useCanvasViewport'
 import CanvasEdgeLayer, { type ActiveEdge } from './CanvasEdgeLayer'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
-import { StagingCaptureHost } from '../nodes/scene3d/StagingCaptureHost'
-import { CameraMoveCaptureHost } from '../nodes/scene3d/CameraMoveCaptureHost'
+import { shouldRenderFullNodeContent, shouldUseLightweightNodeRendering } from './canvasNodeLevelOfDetail'
+import { LightweightGenerationNode } from './LightweightGenerationNode'
+import { hasPendingScene3DCameraMoveCapture, hasPendingScene3DStagingCapture } from './scene3dCaptureHostActivation'
+import { lazyWithChunkBoundary } from '../../../ui/chunkBoundary'
 import '../styles/generationCanvas.css'
 
 const FOCUS_GENERATION_NODE_EVENT = 'nomi-focus-generation-node'
+const StagingCaptureHost = lazyWithChunkBoundary('3D 站位捕获', () =>
+  import('../nodes/scene3d/StagingCaptureHost').then((module) => ({ default: module.StagingCaptureHost })),
+)
+const CameraMoveCaptureHost = lazyWithChunkBoundary('3D 运镜捕获', () =>
+  import('../nodes/scene3d/CameraMoveCaptureHost').then((module) => ({ default: module.CameraMoveCaptureHost })),
+)
+const BatchPlanOverlay = lazyWithChunkBoundary('批量生成面板', () =>
+  import('./BatchPlanOverlay').then((module) => ({ default: module.BatchPlanOverlay })),
+)
 
 type GenerationCanvasProps = {
   readOnly?: boolean
@@ -50,6 +61,11 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
   const allNodes = useGenerationCanvasStore((state) => state.nodes)
   const allEdges = useGenerationCanvasStore((state) => state.edges)
   const allGroups = useGenerationCanvasStore((state) => state.groups)
+  const hasPendingStagingCapture = useGenerationCanvasStore((state) => hasPendingScene3DStagingCapture(state.nodes))
+  const hasPendingCameraMoveCapture = useGenerationCanvasStore((state) =>
+    hasPendingScene3DCameraMoveCapture(state.nodes),
+  )
+  const hasBatchPlanPreview = useBatchPlanPreviewStore((state) => Boolean(state.plan))
   const activeCategoryId = useWorkbenchStore((state) => state.activeCategoryId)
   const setActiveCategoryId = useWorkbenchStore((state) => state.setActiveCategoryId)
   // Phase E3: filter nodes by active sub-canvas. Nodes with no categoryId
@@ -97,11 +113,11 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
   const groupBoxes = React.useMemo(() => getCanvasGroupBoxes(groups, nodes), [groups, nodes])
   const selectedGroupIds = React.useMemo(() => {
     const selected = new Set(selectedNodeIds)
-    return groups
-      .filter((group) => group.nodeIds.some((nodeId) => selected.has(nodeId)))
-      .map((group) => group.id)
+    return groups.filter((group) => group.nodeIds.some((nodeId) => selected.has(nodeId))).map((group) => group.id)
   }, [groups, selectedNodeIds])
-  const draggingGroupRef = React.useRef<{ groupId: string; clientX: number; clientY: number; moved: boolean } | null>(null)
+  const draggingGroupRef = React.useRef<{ groupId: string; clientX: number; clientY: number; moved: boolean } | null>(
+    null,
+  )
 
   // Pan/zoom + 视口虚拟化收口到 useCanvasViewport（壳组件顶死 800 行，抽出腾 headroom）。
   const {
@@ -117,6 +133,10 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     zoomRef,
     stageSizeRef,
   } = useCanvasViewport(activeCategoryId, nodes)
+  const edgesForRender = React.useMemo(() => {
+    if (!visibleEdgeNodeIds) return edges
+    return edges.filter((edge) => visibleEdgeNodeIds.has(edge.source) || visibleEdgeNodeIds.has(edge.target))
+  }, [edges, visibleEdgeNodeIds])
   // 出现动画：只让**新落点**节点弹入（add/paste/Agent），开项目时已有节点不齐闪（实现见 hook）。
   const appearNodeIds = useNodeAppearTracking(allNodes)
   const { isTidying, tidy } = useTidyCanvas(activeCategoryId)
@@ -307,7 +327,8 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     cancelConnection,
     onDropOnEmpty: ({ sourceNodeId, sourceSide, stagePoint, canvasPoint }) => {
       const sourceNode = allNodesRef.current.find((node) => node.id === sourceNodeId)
-      const sourceCanCreateMedia = sourceNode?.kind === 'image' || Boolean(sourceNode && isImageLikeGenerationNodeKind(sourceNode.kind))
+      const sourceCanCreateMedia =
+        sourceNode?.kind === 'image' || Boolean(sourceNode && isImageLikeGenerationNodeKind(sourceNode.kind))
       if (!sourceCanCreateMedia || !stageRef.current) {
         cancelConnection()
         return
@@ -353,55 +374,59 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
 
   const lastPastePositionRef = React.useRef<{ x: number; y: number } | null>(null)
 
-  const getCanvasPointFromClientPoint = React.useCallback((clientX: number, clientY: number) => {
-    if (!stageRef.current) return null
-    const rect = stageRef.current.getBoundingClientRect()
-    return {
-      x: (clientX - rect.left - offsetRef.current.x) / zoomRef.current,
-      y: (clientY - rect.top - offsetRef.current.y) / zoomRef.current,
-    }
-  }, [offsetRef, stageRef, zoomRef])
-
-  const rememberPastePositionFromClientPoint = React.useCallback((clientX: number, clientY: number) => {
-    const point = getCanvasPointFromClientPoint(clientX, clientY)
-    if (!point) return
-    lastPastePositionRef.current = {
-      x: Math.max(40, Math.round(point.x)),
-      y: Math.max(40, Math.round(point.y)),
-    }
-  }, [getCanvasPointFromClientPoint])
-
-  const getToolbarInsertionPosition = React.useCallback(
-    () => {
-      const rect = stageRef.current?.getBoundingClientRect()
-      const viewportAnchor = rect
-        ? { x: rect.width * 0.38, y: rect.height * 0.42 }
-        : { x: 360, y: 280 }
+  const getCanvasPointFromClientPoint = React.useCallback(
+    (clientX: number, clientY: number) => {
+      if (!stageRef.current) return null
+      const rect = stageRef.current.getBoundingClientRect()
       return {
-        x: Math.round((viewportAnchor.x - offset.x) / zoom),
-        y: Math.round((viewportAnchor.y - offset.y) / zoom),
+        x: (clientX - rect.left - offsetRef.current.x) / zoomRef.current,
+        y: (clientY - rect.top - offsetRef.current.y) / zoomRef.current,
       }
     },
-    [offset.x, offset.y, zoom, stageRef],
+    [offsetRef, stageRef, zoomRef],
   )
+
+  const rememberPastePositionFromClientPoint = React.useCallback(
+    (clientX: number, clientY: number) => {
+      const point = getCanvasPointFromClientPoint(clientX, clientY)
+      if (!point) return
+      lastPastePositionRef.current = {
+        x: Math.max(40, Math.round(point.x)),
+        y: Math.max(40, Math.round(point.y)),
+      }
+    },
+    [getCanvasPointFromClientPoint],
+  )
+
+  const getToolbarInsertionPosition = React.useCallback(() => {
+    const rect = stageRef.current?.getBoundingClientRect()
+    const viewportAnchor = rect ? { x: rect.width * 0.38, y: rect.height * 0.42 } : { x: 360, y: 280 }
+    return {
+      x: Math.round((viewportAnchor.x - offset.x) / zoom),
+      y: Math.round((viewportAnchor.y - offset.y) / zoom),
+    }
+  }, [offset.x, offset.y, zoom, stageRef])
 
   const getPastePosition = React.useCallback(
     () => lastPastePositionRef.current ?? getToolbarInsertionPosition(),
     [getToolbarInsertionPosition],
   )
 
-  const handleGroupFramePointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>, groupId: string) => {
-    if (readOnly || event.button !== 0) return
-    event.preventDefault()
-    event.stopPropagation()
-    captureHistory()
-    draggingGroupRef.current = {
-      groupId,
-      clientX: event.clientX,
-      clientY: event.clientY,
-      moved: false,
-    }
-  }, [captureHistory, readOnly])
+  const handleGroupFramePointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>, groupId: string) => {
+      if (readOnly || event.button !== 0) return
+      event.preventDefault()
+      event.stopPropagation()
+      captureHistory()
+      draggingGroupRef.current = {
+        groupId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        moved: false,
+      }
+    },
+    [captureHistory, readOnly],
+  )
 
   useCanvasShortcuts({
     readOnly,
@@ -422,19 +447,28 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     redo,
   })
 
-  const handleStageDrop = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    handleCanvasStageDrop(event, { readOnly, offset, zoom, activeCategoryId })
-  }, [activeCategoryId, offset, readOnly, zoom])
+  const handleStageDrop = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      handleCanvasStageDrop(event, { readOnly, offset, zoom, activeCategoryId })
+    },
+    [activeCategoryId, offset, readOnly, zoom],
+  )
 
-  const handleStagePointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    rememberPastePositionFromClientPoint(event.clientX, event.clientY)
-    pointer.onPointerDown(event)
-  }, [pointer, rememberPastePositionFromClientPoint])
+  const handleStagePointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      rememberPastePositionFromClientPoint(event.clientX, event.clientY)
+      pointer.onPointerDown(event)
+    },
+    [pointer, rememberPastePositionFromClientPoint],
+  )
 
-  const handleStagePointerMove = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    rememberPastePositionFromClientPoint(event.clientX, event.clientY)
-    pointer.onPointerMove(event)
-  }, [pointer, rememberPastePositionFromClientPoint])
+  const handleStagePointerMove = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      rememberPastePositionFromClientPoint(event.clientX, event.clientY)
+      pointer.onPointerMove(event)
+    },
+    [pointer, rememberPastePositionFromClientPoint],
+  )
 
   const handleStageContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
     if (readOnly || !stageRef.current) return
@@ -443,9 +477,11 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
       return
     }
     const target = event.target instanceof Element ? event.target : null
-    if (target?.closest(
-      '.generation-canvas-v2-node, .generation-canvas-v2-toolbar, .generation-canvas-v2__zoom-bar, .generation-canvas-v2__selection-toolbar, .generation-canvas-v2__edge, .generation-canvas-v2__edge-preview, button, input, textarea, select, [role="menu"], [role="menuitem"]',
-    )) {
+    if (
+      target?.closest(
+        '.generation-canvas-v2-node, .generation-canvas-v2-toolbar, .generation-canvas-v2__zoom-bar, .generation-canvas-v2__selection-toolbar, .generation-canvas-v2__edge, .generation-canvas-v2__edge-preview, button, input, textarea, select, [role="menu"], [role="menuitem"]',
+      )
+    ) {
       return
     }
     event.preventDefault()
@@ -493,30 +529,36 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
   }
 
   // animate=true：用户点「适应视图」按钮，平滑过渡；自动加载（useAutoFitOnLoad）传 false 即时定位，避免每次开项目都「飞入」。
-  const fitView = React.useCallback((animate = false) => {
-    if (!nodes.length || !stageRef.current) return
-    const rect = stageRef.current.getBoundingClientRect()
-    const padding = 80
-    const minX = Math.min(...nodes.map((n) => n.position.x))
-    const minY = Math.min(...nodes.map((n) => n.position.y))
-    const maxX = Math.max(...nodes.map((n) => n.position.x + getNodeSize(n).width))
-    const maxY = Math.max(...nodes.map((n) => n.position.y + getNodeSize(n).height))
-    const contentW = maxX - minX + padding * 2
-    const contentH = maxY - minY + padding * 2
-    const nextZoom = Math.min(1.2, Math.min(rect.width / contentW, rect.height / contentH))
-    const nextOffset = {
-      x: (rect.width - contentW * nextZoom) / 2 - (minX - padding) * nextZoom,
-      y: (rect.height - contentH * nextZoom) / 2 - (minY - padding) * nextZoom,
-    }
-    if (animate) animateViewportTo(nextZoom, nextOffset, 200)
-    else setViewportTransform(nextZoom, nextOffset)
-  }, [animateViewportTo, nodes, setViewportTransform, stageRef])
+  const fitView = React.useCallback(
+    (animate = false) => {
+      if (!nodes.length || !stageRef.current) return
+      const rect = stageRef.current.getBoundingClientRect()
+      const padding = 80
+      const minX = Math.min(...nodes.map((n) => n.position.x))
+      const minY = Math.min(...nodes.map((n) => n.position.y))
+      const maxX = Math.max(...nodes.map((n) => n.position.x + getNodeSize(n).width))
+      const maxY = Math.max(...nodes.map((n) => n.position.y + getNodeSize(n).height))
+      const contentW = maxX - minX + padding * 2
+      const contentH = maxY - minY + padding * 2
+      const nextZoom = Math.min(1.2, Math.min(rect.width / contentW, rect.height / contentH))
+      const nextOffset = {
+        x: (rect.width - contentW * nextZoom) / 2 - (minX - padding) * nextZoom,
+        y: (rect.height - contentH * nextZoom) / 2 - (minY - padding) * nextZoom,
+      }
+      if (animate) animateViewportTo(nextZoom, nextOffset, 200)
+      else setViewportTransform(nextZoom, nextOffset)
+    },
+    [animateViewportTo, nodes, setViewportTransform, stageRef],
+  )
 
   // memo 化 minimap 的跳转回调（内联会每渲染新建 → 废掉 CanvasMinimap 的 memo）。
-  const handleMinimapJump = React.useCallback((point: { x: number; y: number }) => {
-    const z = zoomRef.current || 1
-    setViewportTransform(z, { x: stageSize.width / 2 - point.x * z, y: stageSize.height / 2 - point.y * z })
-  }, [setViewportTransform, stageSize.width, stageSize.height, zoomRef])
+  const handleMinimapJump = React.useCallback(
+    (point: { x: number; y: number }) => {
+      const z = zoomRef.current || 1
+      setViewportTransform(z, { x: stageSize.width / 2 - point.x * z, y: stageSize.height / 2 - point.y * z })
+    },
+    [setViewportTransform, stageSize.width, stageSize.height, zoomRef],
+  )
 
   // 项目/分类首次加载时自动适应视图（含「历史视口框不住任何节点」的自愈式适应，
   // 防止图都在视口外、用户误以为「图消失」）。逻辑抽到 useAutoFitOnLoad（防巨壳）。
@@ -538,6 +580,14 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
 
   const zoomPercent = Math.round(zoom * 100)
   const selectedCount = selectedNodeIds.length
+  const lightweightNodeMode = shouldUseLightweightNodeRendering(nodes.length, zoom)
+  const handleSelectLightweightNode = React.useCallback(
+    (nodeId: string, additive: boolean) => {
+      if (readOnly) return
+      selectNode(nodeId, additive)
+    },
+    [readOnly, selectNode],
+  )
   const hasMinimapContent = nodes.length >= MINIMAP_MIN_NODES
   const showMinimap = minimapVisible && hasMinimapContent
   const MinimapToggleIcon = showMinimap ? EyeOff : MapIcon
@@ -555,9 +605,15 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
       data-ready={isReady ? 'true' : undefined}
     >
       <div className={cn('generation-canvas-v2__main', 'relative w-full h-full min-w-0 min-h-0')}>
-        <StagingCaptureHost />
-        <CameraMoveCaptureHost />
-        {!readOnly ? <CanvasToolbar getInsertionPosition={getToolbarInsertionPosition} categoryId={activeCategoryId} /> : null}
+        {hasPendingStagingCapture || hasPendingCameraMoveCapture ? (
+          <React.Suspense fallback={null}>
+            {hasPendingStagingCapture ? <StagingCaptureHost /> : null}
+            {hasPendingCameraMoveCapture ? <CameraMoveCaptureHost /> : null}
+          </React.Suspense>
+        ) : null}
+        {!readOnly ? (
+          <CanvasToolbar getInsertionPosition={getToolbarInsertionPosition} categoryId={activeCategoryId} />
+        ) : null}
         <div
           className="generation-canvas-v2__stage"
           ref={stageRef}
@@ -571,7 +627,11 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
           onDragOver={(event) => {
             if (readOnly) return
             const types = Array.from(event.dataTransfer.types)
-            if (types.includes('Files') || types.includes(WORKSPACE_FILE_DRAG_MIME) || types.includes(ASSET_LIBRARY_DRAG_MIME)) {
+            if (
+              types.includes('Files') ||
+              types.includes(WORKSPACE_FILE_DRAG_MIME) ||
+              types.includes(ASSET_LIBRARY_DRAG_MIME)
+            ) {
               event.preventDefault()
               event.dataTransfer.dropEffect = 'copy'
             }
@@ -583,33 +643,53 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
             style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})` }}
           >
             <CanvasEdgeLayer
-              edges={edges}
+              edges={edgesForRender}
               nodeById={nodeById}
               zoom={zoom}
               visibleNodeIds={visibleEdgeNodeIds}
+              lightweight={lightweightNodeMode}
               focusedNodeId={selectedNodeIds.length === 1 ? selectedNodeIds[0] : null}
               activeEdge={activeEdge}
               readOnly={readOnly}
               pendingConnectionSourceId={connectionCreateMenu?.sourceNodeId ?? pendingConnectionSourceId}
               pendingConnectionSourceSide={connectionCreateMenu?.sourceSide ?? pendingConnectionSourceSide}
-              pendingCursorPos={connectionCreateMenu ? { x: connectionCreateMenu.canvasX, y: connectionCreateMenu.canvasY } : pendingCursorPos}
+              pendingCursorPos={
+                connectionCreateMenu
+                  ? { x: connectionCreateMenu.canvasX, y: connectionCreateMenu.canvasY }
+                  : pendingCursorPos
+              }
               onSetActiveEdge={setActiveEdge}
               onDisconnectEdge={disconnectEdge}
               getCanvasPointFromClientPoint={getCanvasPointFromClientPoint}
             />
-            <div className={cn('generation-canvas-v2__nodes', 'absolute top-0 left-0 w-full h-full')} data-tidying={isTidying ? 'true' : undefined}>
+            <div
+              className={cn('generation-canvas-v2__nodes', 'absolute top-0 left-0 w-full h-full')}
+              data-tidying={isTidying ? 'true' : undefined}
+            >
               {/* E.2C-30: GroupFrame 抽离为独立组件 */}
               <GroupFrameList boxes={groupBoxes} onPointerDown={handleGroupFramePointerDown} />
               <React.Suspense fallback={null}>
                 {visibleNodesForRender.map((node) => {
+                  const selected = selectedSet.has(node.id)
+                  const focusFlash = focusFlashNodeId === node.id
+                  if (!shouldRenderFullNodeContent({ lightweightMode: lightweightNodeMode, selected, focusFlash })) {
+                    return (
+                      <LightweightGenerationNode
+                        key={node.id}
+                        node={node}
+                        appear={appearNodeIds.has(node.id)}
+                        onSelect={handleSelectLightweightNode}
+                      />
+                    )
+                  }
                   const NodeComponent = getGenerationNodeComponent(node.kind)
                   return (
                     <NodeComponent
                       key={node.id}
                       node={node}
-                      selected={selectedSet.has(node.id)}
+                      selected={selected}
                       readOnly={readOnly}
-                      focusFlash={focusFlashNodeId === node.id}
+                      focusFlash={focusFlash}
                       appear={appearNodeIds.has(node.id)}
                     />
                   )
@@ -630,7 +710,9 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
                 aria-label="选中区域操作"
                 onPointerDown={(event) => event.stopPropagation()}
               >
-                <span className={cn('pl-1.5 pr-1 text-nomi-ink-60 text-body-sm whitespace-nowrap')}>已选 {selectedCount} 个</span>
+                <span className={cn('pl-1.5 pr-1 text-nomi-ink-60 text-body-sm whitespace-nowrap')}>
+                  已选 {selectedCount} 个
+                </span>
                 {/* 主操作：批量生成（参考先行，点了直接跑能跑的；缺参考的会人话提示）。深色 pill 主角，放大更显眼。 */}
                 <button
                   type="button"
@@ -648,8 +730,16 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
                 </button>
                 <span className={cn('w-px h-4 bg-nomi-line')} />
                 {/* 复制/剪切已移除（⌘C / ⌘X 覆盖，去重复）；保留编组 + 清除。 */}
-                <WorkbenchIconButton label="创建分组 (⌘G)" icon={<FolderPlus size={16} strokeWidth={1.8} />} onClick={handleGroupSelectedNodes} />
-                <WorkbenchIconButton label="清除选择" icon={<X size={16} strokeWidth={1.8} />} onClick={clearSelection} />
+                <WorkbenchIconButton
+                  label="创建分组 (⌘G)"
+                  icon={<FolderPlus size={16} strokeWidth={1.8} />}
+                  onClick={handleGroupSelectedNodes}
+                />
+                <WorkbenchIconButton
+                  label="清除选择"
+                  icon={<X size={16} strokeWidth={1.8} />}
+                  onClick={clearSelection}
+                />
               </div>
             ) : null}
           </div>
@@ -673,7 +763,9 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
           {nodes.length === 0 ? (
             <CanvasEmptyState
               activeCategoryId={activeCategoryId}
-              onCreate={() => addNode({ kind: 'image', position: { x: 240, y: 240 }, categoryId: activeCategoryId, select: true })}
+              onCreate={() =>
+                addNode({ kind: 'image', position: { x: 240, y: 240 }, categoryId: activeCategoryId, select: true })
+              }
             />
           ) : null}
           {contextNodeMenu ? (
@@ -713,6 +805,11 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
               onJumpToCanvasPoint={handleMinimapJump}
             />
           ) : null}
+          {hasBatchPlanPreview ? (
+            <React.Suspense fallback={null}>
+              <BatchPlanOverlay />
+            </React.Suspense>
+          ) : null}
           <div
             className={cn(
               'generation-canvas-v2__zoom-bar',
@@ -722,7 +819,12 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
             )}
             aria-label="画布缩放"
           >
-            <WorkbenchButton aria-label="适应视图" title={nodes.length === 0 ? '画布为空' : '适应视图'} disabled={nodes.length === 0} onClick={() => fitView(true)}>
+            <WorkbenchButton
+              aria-label="适应视图"
+              title={nodes.length === 0 ? '画布为空' : '适应视图'}
+              disabled={nodes.length === 0}
+              onClick={() => fitView(true)}
+            >
               <Focus size={15} strokeWidth={1.8} aria-hidden="true" />
             </WorkbenchButton>
             <WorkbenchButton
@@ -750,13 +852,23 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
               }}
             />
             {!readOnly ? (
-              <WorkbenchButton aria-label="整理画布" title="整理画布（散乱时一键收纳 · ⌘Z 撤销）" onClick={() => tidy(stageSize.width / Math.max(1, stageSize.height))}>
+              <WorkbenchButton
+                aria-label="整理画布"
+                title="整理画布（散乱时一键收纳 · ⌘Z 撤销）"
+                onClick={() => tidy(stageSize.width / Math.max(1, stageSize.height))}
+              >
                 <LayoutGrid size={15} strokeWidth={1.8} aria-hidden="true" />
               </WorkbenchButton>
             ) : null}
             <WorkbenchButton
               aria-label={showMinimap ? '隐藏小地图' : '显示小地图'}
-              title={hasMinimapContent ? (showMinimap ? '隐藏小地图' : '显示小地图') : `至少 ${MINIMAP_MIN_NODES} 个节点后显示小地图`}
+              title={
+                hasMinimapContent
+                  ? showMinimap
+                    ? '隐藏小地图'
+                    : '显示小地图'
+                  : `至少 ${MINIMAP_MIN_NODES} 个节点后显示小地图`
+              }
               aria-pressed={showMinimap}
               onClick={() => setMinimapVisible((visible) => !visible)}
             >

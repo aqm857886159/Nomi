@@ -8,7 +8,7 @@
  * 设计 docs/plan/2026-06-28-canvas-auto-grouping-and-find.md。
  */
 import React from 'react'
-import { IconStar, IconStarFilled, IconMovie, IconPhotoStar, IconLayoutGrid, IconSparkles } from '@tabler/icons-react'
+import { IconStar, IconStarFilled, IconMovie, IconPhotoStar, IconSparkles } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { NomiImage } from '../../../design/media'
 import { DesignSearchInput, DesignEmptyState } from '../../../design'
@@ -69,7 +69,7 @@ function StackCell({
             : 'bg-nomi-paper/85 text-nomi-ink-40 opacity-0 group-hover:opacity-100 hover:text-nomi-ink',
         )}
       >
-        {marked ? <IconStarFilled size={10} /> : <IconStar size={10} stroke={2} />}
+        {marked ? <IconStarFilled size={12} /> : <IconStar size={12} stroke={1.5} />}
       </button>
       <span className={cn('block px-1.5 pt-1 pb-1.5 text-micro text-nomi-ink-80 truncate')}>{cover.title}</span>
     </div>
@@ -189,7 +189,7 @@ export default function AssetFinderPanel(): JSX.Element {
         zone === value ? 'bg-nomi-paper text-nomi-ink shadow-nomi-sm' : 'text-nomi-ink-40 hover:text-nomi-ink-60',
       )}
     >
-      <Icon size={13} stroke={1.6} />{label} <span className="text-nomi-ink-30">{count}</span>
+      <Icon size={14} stroke={1.5} />{label} <span className="text-nomi-ink-30">{count}</span>
     </button>
   )
 
@@ -215,7 +215,7 @@ export default function AssetFinderPanel(): JSX.Element {
               starOnly ? 'bg-nomi-accent text-nomi-paper border-nomi-accent' : 'bg-nomi-paper text-nomi-ink-40 border-nomi-line hover:text-nomi-ink',
             )}
           >
-            <IconStar size={14} stroke={1.8} />
+            <IconStar size={14} stroke={1.5} />
           </button>
         </div>
       </div>
@@ -232,14 +232,18 @@ export default function AssetFinderPanel(): JSX.Element {
             )}
             title="读没归好那些的提示词，用 AI 归成命名组"
           >
-            <IconSparkles size={13} stroke={1.6} className="text-nomi-accent" />
+            <IconSparkles size={14} stroke={1.5} className="text-nomi-accent" />
             {grouping ? '正在用 AI 归类…' : `用 AI 整理未分组的 ${aiCandidates.length} 张`}
           </button>
         ) : null}
         {isEmpty ? (
           <DesignEmptyState
             density="inline"
-            icon={<IconLayoutGrid size={32} stroke={1.4} className="text-nomi-ink-30" />}
+            icon={
+              zone === 'film'
+                ? <IconMovie size={32} stroke={1.5} className="text-nomi-ink-30" />
+                : <IconPhotoStar size={32} stroke={1.5} className="text-nomi-ink-30" />
+            }
             title={zoneCount === 0 ? (zone === 'film' ? '还没有成片' : '还没有参考') : '没有匹配的素材'}
             description={
               query || starOnly

@@ -31,7 +31,7 @@ const TEXT2IMAGE: HttpOperation = {
   method: PROCESS_METHOD,
   path: "dreamina:text2image",
   process: {
-    bin: "dreamina", parser: "dreamina-cli", appendDownloadDir: true,
+    bin: "dreamina", parser: "dreamina-cli",
     args: [
       "text2image",
       "--prompt={{request.prompt}}",
@@ -49,7 +49,7 @@ const IMAGE2IMAGE: HttpOperation = {
   method: PROCESS_METHOD,
   path: "dreamina:image2image",
   process: {
-    bin: "dreamina", parser: "dreamina-cli", appendDownloadDir: true,
+    bin: "dreamina", parser: "dreamina-cli",
     fileParams: [{ param: "input_images", expose: "image_paths", mode: "csv" }],
     args: [
       "image2image",
@@ -69,7 +69,7 @@ const IMAGE_UPSCALE: HttpOperation = {
   method: PROCESS_METHOD,
   path: "dreamina:image_upscale",
   process: {
-    bin: "dreamina", parser: "dreamina-cli", appendDownloadDir: true,
+    bin: "dreamina", parser: "dreamina-cli",
     fileParams: [{ param: "input_image", expose: "image_path", mode: "single" }],
     args: ["image_upscale", "--image={{request.params.image_path}}", "--resolution_type={{request.params.resolution_type}}", "--poll=30"],
   },

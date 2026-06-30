@@ -15,6 +15,7 @@ import { storyboardPlanToCreateNodesArgs } from '../generationCanvas/agent/story
 import { TOUR_BEATS, type TourBeat, type TourBeatId } from './journeyTour'
 import { playTypewriter } from './journeyTypewriter'
 import { markJourneyTourSeen } from './onboardingState'
+import { setJourneyTourActive } from './journeyTourActivity'
 import {
   buildDemoStoryboardPlan,
   DEMO_STORY,
@@ -144,6 +145,7 @@ export const useJourneyTourStore = create<JourneyTourState>((set) => {
     teachIndex: 0,
     selectors: null,
     start: () => {
+      setJourneyTourActive(true)
       set({ active: true, phase: 'running', beat: null, teachIndex: 0, selectors: null })
       void run()
     },
@@ -151,6 +153,7 @@ export const useJourneyTourStore = create<JourneyTourState>((set) => {
       runToken += 1
       resolveNext?.()
       resolveNext = null
+      setJourneyTourActive(false)
       set({ active: false, phase: 'idle', beat: null, selectors: null })
     },
     advance: () => {
@@ -169,6 +172,7 @@ export const useJourneyTourStore = create<JourneyTourState>((set) => {
       runToken += 1
       resolveNext?.()
       resolveNext = null
+      setJourneyTourActive(false)
       set({ active: false, phase: 'idle', beat: null, selectors: null })
     },
   }

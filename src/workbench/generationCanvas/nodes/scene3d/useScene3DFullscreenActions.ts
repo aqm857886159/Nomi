@@ -1,24 +1,30 @@
 // 从 Scene3DFullscreen.tsx 抽出的动作钩子（防巨壳 R9：原文件 >800 行）。
-// 三块自包含逻辑——剪贴板/键盘导航、轨迹模式动作包装、全局快捷键监听——
+// 自包含逻辑——剪贴板/键盘导航、轨迹模式动作包装、全局快捷键监听、添加对象/相机/群众——
 // 行为 100% 等价于原内联实现，仅做位置迁移（无并行版 P1）。
 import React from 'react'
 import { toast } from '../../../../ui/toast'
 import {
   type Scene3DCamera,
+  type Scene3DGeometry,
   type Scene3DObject,
   type Scene3DSelection,
   type Scene3DState,
   type Scene3DTransformMode,
   type Scene3DVector3,
 } from './scene3dTypes'
-import { OBJECT_LIMIT } from './scene3dConstants'
+import { OBJECT_LIMIT, type CrowdAddOptions } from './scene3dConstants'
 import {
   isEditableKeyboardTarget,
   cloneObjectForClipboard,
   cloneCameraForClipboard,
   makePastedObject,
   makePastedCamera,
+  crowdCount,
+  makeObject,
+  makeCrowdObject,
+  makeCamera,
 } from './scene3dMath'
+import { nextAvailableObjectPosition } from './scene3dObjects'
 import { useScene3DTrajectoryEditing } from './useScene3DTrajectoryEditing'
 import { trajectoryPointTimeRatio } from './trajectory'
 
@@ -345,4 +351,74 @@ export function useScene3DKeyboardShortcuts({
     window.addEventListener('keydown', handleKeyDown, { capture: true })
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true })
   }, [cameraViewEditId, copySelection, deleteSceneItem, exitCameraViewEdit, handleClose, pasteClipboard, selectionRef, setTransformMode])
+}
+
+// 「添加对象/相机/群众」三个动作（从 Scene3DFullscreen 抽出，防巨壳 R9）。行为与原内联实现等价：
+// 容量门岗 + 选中新建项 + 退出轨迹模式 + 解锁视图。新建假人/群众落到避让后的可用空位。
+export function useScene3DAddActions({
+  readOnly,
+  stateRef,
+  setState,
+  setSelection,
+  setViewLocked,
+  exitTrajectoryMode,
+}: {
+  readOnly: boolean
+  stateRef: React.MutableRefObject<Scene3DState>
+  setState: React.Dispatch<React.SetStateAction<Scene3DState>>
+  setSelection: React.Dispatch<React.SetStateAction<Scene3DSelection>>
+  setViewLocked: React.Dispatch<React.SetStateAction<boolean>>
+  exitTrajectoryMode: () => void
+}): {
+  addObject: (kind: Scene3DGeometry | 'mannequin' | 'light') => void
+  addCamera: () => void
+  addCrowd: (options: CrowdAddOptions) => void
+} {
+  const addObject = React.useCallback((kind: Scene3DGeometry | 'mannequin' | 'light') => {
+    if (readOnly) return
+    if (stateRef.current.objects.length >= OBJECT_LIMIT) {
+      toast('单个 3D 场景最多支持 100 个对象', 'warning')
+      return
+    }
+    const roleIndex = kind === 'mannequin'
+      ? stateRef.current.objects.reduce((count, object) => {
+        if (object.type === 'mannequin') return count + 1
+        if (object.type === 'mannequinCrowd') return count + crowdCount(object)
+        return count
+      }, 0)
+      : 0
+    const object = makeObject(kind, roleIndex)
+    if (object.type === 'mannequin') {
+      object.position = nextAvailableObjectPosition(object, stateRef.current.objects)
+    }
+    setState((current) => ({ ...current, objects: [...current.objects, object] }))
+    setSelection({ type: 'object', id: object.id })
+    exitTrajectoryMode()
+    setViewLocked(false)
+  }, [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked, stateRef])
+
+  const addCamera = React.useCallback(() => {
+    if (readOnly) return
+    const camera = makeCamera(stateRef.current.cameras.length)
+    setState((current) => ({ ...current, cameras: [...current.cameras, camera] }))
+    setSelection({ type: 'camera', id: camera.id })
+    exitTrajectoryMode()
+    setViewLocked(false)
+  }, [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked, stateRef])
+
+  const addCrowd = React.useCallback((options: CrowdAddOptions) => {
+    if (readOnly) return
+    if (stateRef.current.objects.length >= OBJECT_LIMIT) {
+      toast('单个 3D 场景最多支持 100 个对象', 'warning')
+      return
+    }
+    const crowd = makeCrowdObject(options)
+    crowd.position = nextAvailableObjectPosition(crowd, stateRef.current.objects)
+    setState((current) => ({ ...current, objects: [...current.objects, crowd] }))
+    setSelection({ type: 'object', id: crowd.id })
+    exitTrajectoryMode()
+    setViewLocked(false)
+  }, [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked, stateRef])
+
+  return { addObject, addCamera, addCrowd }
 }

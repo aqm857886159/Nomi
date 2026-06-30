@@ -1,11 +1,39 @@
 import { connectNodes, disconnectEdge, removeNodes } from '../model/graphOps'
-import { selectConnectionEdgeMode, validateReferenceEdge } from '../agent/referenceEdgeCapability'
-import type { GenerationCanvasEdge, NodeGroup } from '../model/generationCanvasTypes'
+import { archetypeForNode, resolveTargetModeForEdge, selectConnectionEdgeMode, validateReferenceEdge } from '../agent/referenceEdgeCapability'
+import { applyArchetypeModeSwitch } from '../nodes/controls/archetypeMeta'
+import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
 import { createGroupId } from './canvasIds'
 import { bumpPersistRevision, isCategoryId, shouldPersistCanvasMutation } from './canvasGuards'
 import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasUndoJournal'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import type { CanvasGraphActions, CanvasSliceCreator } from './canvasStoreTypes'
+
+/**
+ * 连线落地后，若目标当前「生成方式」收不下这条参考、档案却有能收的模式 → 自动切过去(t2i→改图)。
+ * 三个连线入口共用(手动拖把柄 connectToNode、agent 计划 connectNodes、3D 站位 StagingCaptureHost)，
+ * 杜绝「拉图进新图片节点却停在文生图」这类 bug 从任一入口复发(P2)。**幂等**：当前模式已能落该参考则
+ * resolveTargetModeForEdge 返回 null → no-op，故对「已正确规划模式」的 agent 路径零影响。走 updateNode
+ * 单一写路径(与手动切 ModeBar 同)。须在边已确认建上之后调用。
+ */
+type ModeSwitchStore = {
+  nodes: GenerationCanvasNode[]
+  updateNode: (nodeId: string, patch: { meta: Record<string, unknown> }) => void
+}
+function autoPromoteTargetModeForEdge(
+  store: ModeSwitchStore,
+  sourceNodeId: string,
+  targetNodeId: string,
+  mode: GenerationCanvasEdgeMode | undefined,
+): void {
+  const source = store.nodes.find((n) => n.id === sourceNodeId)
+  const target = store.nodes.find((n) => n.id === targetNodeId)
+  if (!source || !target) return
+  const nextModeId = resolveTargetModeForEdge(source, target, mode)
+  if (!nextModeId) return
+  const archetype = archetypeForNode(target)
+  if (!archetype) return
+  store.updateNode(targetNodeId, { meta: applyArchetypeModeSwitch((target.meta || {}) as Record<string, unknown>, archetype, nextModeId) })
+}
 
 export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = (set, get) => ({
   startConnection: (nodeId, side = 'right') => {
@@ -51,6 +79,8 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     })
     if (get().edges !== beforeEdges) {
       emitCanvasGesture([{ type: 'canvas.edge.connected', payload: { sourceNodeId, targetNodeId, mode } }])
+      // 边真建上了才切模式(重复连线等空操作不写 meta)。
+      autoPromoteTargetModeForEdge(get(), sourceNodeId, targetNodeId, mode)
     }
     return { ok: true }
   },
@@ -64,6 +94,8 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     })
     if (get().edges !== beforeEdges) {
       emitCanvasGesture([{ type: 'canvas.edge.connected', payload: { sourceNodeId, targetNodeId, ...(mode ? { mode } : {}) } }])
+      // agent 计划 / 3D 站位经此入口连线，同样把收不下参考的目标自动切到能收的模式(幂等，见 helper)。
+      autoPromoteTargetModeForEdge(get(), sourceNodeId, targetNodeId, mode)
     }
   },
   updateEdgeMode: (edgeId, mode) => {

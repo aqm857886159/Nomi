@@ -112,7 +112,7 @@ export async function listAvailableModelsForAgent(): Promise<AgentModelEntry[]> 
  * 无任何可用图片模型 → 全空，节点不带模型、用户自己选。
  */
 export async function resolveStoryboardImageDefault(): Promise<{ modelKey?: string; modeId?: string; refModeId?: string }> {
-  let entries: AgentModelEntry[] = []
+  let entries: AgentModelEntry[]
   try {
     entries = await listAvailableModelsForAgent()
   } catch {

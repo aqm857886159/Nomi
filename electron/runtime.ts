@@ -49,7 +49,7 @@ import type {
   Vendor,
 } from "./catalog/types";
 import { selectExecutableModel, selectTaskMapping } from "./catalog/types";
-import { taskTemplateParams } from "./catalog/taskParams";
+import { applyWireDefaults, taskTemplateParams } from "./catalog/taskParams";
 import { applyParamMap, type ParamMap } from "./catalog/paramTranslate";
 import { assertAndConsumeSpendGrant } from "./spendGrant";
 export type {
@@ -536,7 +536,7 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
   const grantId = trim(request.extras?.grantId);
   const taskId = `task-${crypto.randomUUID()}`;
   const mapping = findTaskMapping(vendorKey, kind, modelKey);
-
+  request.extras = applyWireDefaults(request.extras, mapping?.create?.defaultParams); // headless/MCP 缺必填参→vendor 拒；见 taskParams.applyWireDefaults
   // 第四路 audio：TTS/Whisper 同步收口（二进制/multipart）。付费守卫：必发 vendor，进来即校验消费令牌。
   if (wantedKind === "audio") { assertAndConsumeSpendGrant(grantId, nodeId); return runAudioTask({ vendor, model, apiKey, request, kind, taskId, projectId, nodeId, mapping }); }
   if (mapping) {

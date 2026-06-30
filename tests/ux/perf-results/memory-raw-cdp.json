@@ -1,0 +1,201 @@
+{
+  "label": "raw-cdp",
+  "fixture": "ZZ 性能基准 fixture",
+  "samples": [
+    {
+      "label": "library-initial",
+      "renderer": {
+        "hash": "#/studio",
+        "domNodes": 177,
+        "projectCards": 1,
+        "canvasNodes": 0,
+        "lightweightCanvasNodes": 0,
+        "fullCanvasNodes": 0,
+        "images": 0,
+        "videos": 0,
+        "jsHeapUsedMB": 12,
+        "jsHeapTotalMB": 14
+      },
+      "cdp": {
+        "jsHeapUsedMB": 8,
+        "jsHeapTotalMB": 9
+      },
+      "processTree": {
+        "totalWorkingSetMB": 536,
+        "totalPrivateMB": 358,
+        "processes": [
+          {
+            "pid": 34176,
+            "parentPid": 12104,
+            "name": "electron.exe",
+            "type": "browser",
+            "workingSetMB": 151,
+            "privateMB": 112
+          },
+          {
+            "pid": 32044,
+            "parentPid": 34176,
+            "name": "electron.exe",
+            "type": "gpu-process",
+            "workingSetMB": 195,
+            "privateMB": 166
+          },
+          {
+            "pid": 37300,
+            "parentPid": 34176,
+            "name": "electron.exe",
+            "type": "utility",
+            "workingSetMB": 50,
+            "privateMB": 16
+          },
+          {
+            "pid": 22276,
+            "parentPid": 34176,
+            "name": "electron.exe",
+            "type": "renderer",
+            "workingSetMB": 89,
+            "privateMB": 52
+          },
+          {
+            "pid": 12884,
+            "parentPid": 34176,
+            "name": "electron.exe",
+            "type": "utility",
+            "workingSetMB": 51,
+            "privateMB": 12
+          }
+        ]
+      }
+    },
+    {
+      "label": "canvas-open",
+      "renderer": {
+        "hash": "#/studio?projectId=project-perf-fixture-0001",
+        "domNodes": 2324,
+        "projectCards": 0,
+        "canvasNodes": 96,
+        "lightweightCanvasNodes": 96,
+        "fullCanvasNodes": 0,
+        "images": 0,
+        "videos": 0,
+        "jsHeapUsedMB": 12,
+        "jsHeapTotalMB": 14
+      },
+      "cdp": {
+        "jsHeapUsedMB": 13,
+        "jsHeapTotalMB": 15
+      },
+      "processTree": {
+        "totalWorkingSetMB": 867,
+        "totalPrivateMB": 747,
+        "processes": [
+          {
+            "pid": 34176,
+            "parentPid": 12104,
+            "name": "electron.exe",
+            "type": "browser",
+            "workingSetMB": 201,
+            "privateMB": 165
+          },
+          {
+            "pid": 32044,
+            "parentPid": 34176,
+            "name": "electron.exe",
+            "type": "gpu-process",
+            "workingSetMB": 189,
+            "privateMB": 164
+          },
+          {
+            "pid": 37300,
+            "parentPid": 34176,
+            "name": "electron.exe",
+            "type": "utility",
+            "workingSetMB": 46,
+            "privateMB": 14
+          },
+          {
+            "pid": 22276,
+            "parentPid": 34176,
+            "name": "electron.exe",
+            "type": "renderer",
+            "workingSetMB": 379,
+            "privateMB": 392
+          },
+          {
+            "pid": 12884,
+            "parentPid": 34176,
+            "name": "electron.exe",
+            "type": "utility",
+            "workingSetMB": 52,
+            "privateMB": 12
+          }
+        ]
+      }
+    },
+    {
+      "label": "library-after-back",
+      "renderer": {
+        "hash": "#/studio",
+        "domNodes": 229,
+        "projectCards": 1,
+        "canvasNodes": 0,
+        "lightweightCanvasNodes": 0,
+        "fullCanvasNodes": 0,
+        "images": 0,
+        "videos": 0,
+        "jsHeapUsedMB": 12,
+        "jsHeapTotalMB": 14
+      },
+      "cdp": {
+        "jsHeapUsedMB": 11,
+        "jsHeapTotalMB": 13
+      },
+      "processTree": {
+        "totalWorkingSetMB": 886,
+        "totalPrivateMB": 771,
+        "processes": [
+          {
+            "pid": 34176,
+            "parentPid": 12104,
+            "name": "electron.exe",
+            "type": "browser",
+            "workingSetMB": 198,
+            "privateMB": 161
+          },
+          {
+            "pid": 32044,
+            "parentPid": 34176,
+            "name": "electron.exe",
+            "type": "gpu-process",
+            "workingSetMB": 226,
+            "privateMB": 201
+          },
+          {
+            "pid": 37300,
+            "parentPid": 34176,
+            "name": "electron.exe",
+            "type": "utility",
+            "workingSetMB": 46,
+            "privateMB": 14
+          },
+          {
+            "pid": 22276,
+            "parentPid": 34176,
+            "name": "electron.exe",
+            "type": "renderer",
+            "workingSetMB": 364,
+            "privateMB": 383
+          },
+          {
+            "pid": 12884,
+            "parentPid": 34176,
+            "name": "electron.exe",
+            "type": "utility",
+            "workingSetMB": 52,
+            "privateMB": 12
+          }
+        ]
+      }
+    }
+  ]
+}

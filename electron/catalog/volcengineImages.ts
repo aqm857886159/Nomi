@@ -14,6 +14,9 @@ function seedreamCreateOp(): HttpOperation {
     // watermark:false 去掉火山默认的「AI生成」角标（真实验证：默认带角标，false 后干净）——创作工具默认要干净图。
     body: { model: "{{model.modelKey}}", prompt: "{{request.prompt}}", size: "{{request.params.size}}", watermark: false },
     response_mapping: { image_url: "data.0.url" },
+    // headless/MCP 兜底：缺 size 火山直接 HTTP 400（size must be WxH/2k/3k/4k）。2048x2048 = 档案默认
+    // （≥370 万像素下限，见 src/config/modelArchetypes/seedreamVolcengine.ts）。UI 路已填故零影响。
+    defaultParams: { size: "2048x2048" },
   };
 }
 

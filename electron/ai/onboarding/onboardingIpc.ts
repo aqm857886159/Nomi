@@ -1,12 +1,8 @@
 import { ipcMain } from "electron";
 import type { AiSdkProviderKind } from "../../catalog/types";
-import { describeNetworkError } from "../../systemProxy";
 import { describeIllegalHeader, findIllegalHeader, findNonHeaderSafeChar } from "../../jsonUtils";
 import { guessModelKind } from "../../catalog/modelKindHeuristic";
-import {
-  commitManualOpenAiCompatibleModels,
-  normalizeProviderKind,
-} from "../../runtime";
+import { normalizeProviderKind } from "../../catalog/catalogStore";
 
 // ---------------------------------------------------------------------------
 // Onboarding — 中转拉取式接入 IPC（手填地址+key → 拉模型 → 按 id 分类 → 保存）。
@@ -15,6 +11,11 @@ import {
 
 /** 单协议探测结果。mismatch=true 表示像「路由/协议不对」（可换下一个协议试）。 */
 type ProtocolProbe = { ok: boolean; status?: number; error?: string; mismatch?: boolean };
+
+async function describeNetworkErrorLazy(error: unknown): Promise<string> {
+  const { describeNetworkError } = await import("../../systemProxy");
+  return describeNetworkError(error);
+}
 
 /**
  * 用极小请求体探测一个 wire protocol 是否接受。三协议各自的 URL/认证/body 形状：
@@ -60,7 +61,7 @@ async function probeOneProtocol(
     const mismatch = [404, 405, 501, 502, 503].includes(res.status);
     return { ok: false, status: res.status, error: text.slice(0, 300) || `HTTP ${res.status}`, mismatch };
   } catch (error) {
-    return { ok: false, error: describeNetworkError(error), mismatch: true };
+    return { ok: false, error: await describeNetworkErrorLazy(error), mismatch: true };
   }
 }
 
@@ -74,6 +75,7 @@ export function registerOnboardingIpc(): void {
     try {
       // R1：走唯一 normalizeProviderKind（接受 openai-responses），不再 2 值 clamp。
       const providerKind = normalizeProviderKind(payload?.providerKind);
+      const { commitManualOpenAiCompatibleModels } = await import("../../catalog/catalogCommit");
       const headers: Record<string, string> = {};
       if (payload?.headers && typeof payload.headers === "object") {
         for (const [k, v] of Object.entries(payload.headers as Record<string, unknown>)) {
@@ -108,7 +110,7 @@ export function registerOnboardingIpc(): void {
   // 图片/视频/文本（单一真相源 guessModelKind），返回给 UI 预填「类型」下拉，用户可改。
   ipcMain.handle("nomi:onboarding:guess-kinds", async (_event, payload: Record<string, unknown>) => {
     const ids = Array.isArray(payload?.ids) ? (payload.ids as unknown[]).map((x) => String(x || "")) : [];
-    const kinds: Record<string, "text" | "image" | "video"> = {};
+    const kinds: Record<string, "text" | "image" | "video" | "audio"> = {};
     for (const id of ids) if (id) kinds[id] = guessModelKind(id);
     return { kinds };
   });
@@ -224,7 +226,7 @@ export function registerOnboardingIpc(): void {
       for (const url of candidates) {
         let res: Response;
         try { res = await fetch(url, { method: "GET", headers, signal: controller.signal }); }
-        catch (e) { lastErr = describeNetworkError(e); continue; }
+        catch (e) { lastErr = await describeNetworkErrorLazy(e); continue; }
         if (!res.ok) { lastStatus = res.status; lastErr = (await res.text().catch(() => "")).slice(0, 300) || `HTTP ${res.status}`; continue; }
         const json = (await res.json().catch(() => null)) as { data?: Array<{ id?: unknown }> } | null;
         const models = Array.isArray(json?.data) ? json!.data.map((m) => String(m?.id || "").trim()).filter(Boolean) : [];

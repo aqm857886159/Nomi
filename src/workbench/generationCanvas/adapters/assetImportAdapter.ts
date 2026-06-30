@@ -194,6 +194,10 @@ type AssetUploadDeps = {
 // File 不可持久化故只活在内存，重启即清（重启后节点仍是 error 态，文案引导重新导入）。
 const pendingRetryImports = new Map<string, { file: File; kind: 'image' | 'video' }>()
 
+export function clearPendingRetryImports(): void {
+  pendingRetryImports.clear()
+}
+
 // 单文件「上传→落节点」的单一实现：初次导入与「重试」共用（P1 不造并行版）。返回 true=成功。
 async function uploadAndApplyAssetToNode(
   nodeId: string,

@@ -14,10 +14,22 @@ describe("guessModelKind", () => {
     }
   });
 
+  it("配音/音频族 id → audio（不再被塞进 text 桶）", () => {
+    for (const id of ["doubao-tts-2.0", "cosyvoice-2", "gpt-realtime-1.5-official", "whisper-large-v3", "elevenlabs-v3", "gpt-4o-audio-preview", "fish-speech-1.5", "minimax-speech-02", "musicgen-large", "suno-v4", "qwen-tts"]) {
+      expect(guessModelKind(id)).toBe("audio");
+    }
+  });
+
   it("对话/未知 id → text（最安全默认）", () => {
     for (const id of ["gpt-4o", "deepseek-chat", "claude-opus-4-8", "moonshot-v1-128k", "qwen-max", "some-unknown-model"]) {
       expect(guessModelKind(id)).toBe("text");
     }
+  });
+
+  it("音频判别不误伤其它类（qwen-image 仍 image、seedance 仍 video）", () => {
+    expect(guessModelKind("qwen-image-2.0")).toBe("image");
+    expect(guessModelKind("doubao-seedance-1-0-pro")).toBe("video");
+    expect(guessModelKind("gpt-image-2-high")).toBe("image");
   });
 
   it("大小写无关 + 空串兜底", () => {

@@ -22,6 +22,7 @@ import {
   MOVEMENT_CODES,
   ROLE_COLOR_SEQUENCE,
   SCENE3D_GRID_FLAG,
+  SCENE3D_RUNTIME_ID_KEY,
   type CrowdAddOptions,
   type Scene3DMovementCode,
 } from './scene3dConstants'
@@ -38,6 +39,22 @@ export function isEditableKeyboardTarget(target: EventTarget | null): boolean {
 
 export function pointerCaptureTarget(target: unknown): PointerCaptureTarget | null {
   return target && typeof target === 'object' ? target as PointerCaptureTarget : null
+}
+
+// 按 runtime id 在 scene 里找对象的**唯一**正确做法。运行期 id 标在 `object.userData[SCENE3D_RUNTIME_ID_KEY]`，
+// 而 three 的 `getObjectByProperty(name, value)` 查的是 `object[name]`（顶层属性，非 userData）→ 永远找不到。
+// 误用 getObjectByProperty 会静默返回 null（直驱失效、采样为空）——所有按 runtime id 查 scene 对象的代码
+// 必须走这个助手，别再碰 getObjectByProperty(SCENE3D_RUNTIME_ID_KEY, ...)。
+export function findSceneObjectByRuntimeId(
+  root: THREE.Object3D | null | undefined,
+  runtimeId: string | null | undefined,
+): THREE.Object3D | null {
+  if (!root || !runtimeId) return null
+  let found: THREE.Object3D | null = null
+  root.traverse((object) => {
+    if (!found && object.userData?.[SCENE3D_RUNTIME_ID_KEY] === runtimeId) found = object
+  })
+  return found
 }
 
 export function normalizeMannequinBoneName(boneName: string): string {

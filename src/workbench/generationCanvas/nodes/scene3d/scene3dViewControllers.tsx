@@ -67,6 +67,7 @@ export function Scene3DControls({
   selectionActive,
   speed,
   target,
+  keyboardDisabled = false,
   navigationLockedRef,
   onClearSelection,
   onWheelNavigation,
@@ -77,6 +78,7 @@ export function Scene3DControls({
   selectionActive: boolean
   speed: number
   target: Scene3DVector3
+  keyboardDisabled?: boolean
   navigationLockedRef: React.MutableRefObject<boolean>
   onClearSelection: () => void
   onWheelNavigation: (cameraState: Scene3DState['editorCamera']) => void
@@ -90,6 +92,7 @@ export function Scene3DControls({
   const orbitRef = React.useRef<any>(null)
   const dragSurfaceRef = React.useRef<THREE.Mesh>(null)
   const freeLookRef = React.useRef(freeLook)
+  const keyboardDisabledRef = React.useRef(keyboardDisabled)
   const selectionActiveRef = React.useRef(selectionActive)
   const targetRef = React.useRef<Scene3DVector3>(target)
   const keyboardNavigationRef = React.useRef(false)
@@ -139,6 +142,19 @@ export function Scene3DControls({
   React.useLayoutEffect(() => {
     selectionActiveRef.current = selectionActive
   }, [selectionActive])
+
+  // 角色操控态：相机 WASD 让位给角色，彻底不接走位键（杜绝两条 WASD 路径争用）。
+  React.useLayoutEffect(() => {
+    keyboardDisabledRef.current = keyboardDisabled
+    if (keyboardDisabled) {
+      clearMovementKeyState(keyStateRef.current)
+      velocity.current.set(0, 0, 0)
+      if (keyboardNavigationRef.current) {
+        keyboardNavigationRef.current = false
+        onKeyboardNavigationStop()
+      }
+    }
+  }, [keyboardDisabled, onKeyboardNavigationStop])
 
   React.useEffect(() => {
     const element = gl.domElement
@@ -231,6 +247,7 @@ export function Scene3DControls({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (keyboardDisabledRef.current) return
       if (isEditableKeyboardTarget(event.target) || !isMovementCode(event.code)) return
       if (event.ctrlKey || event.metaKey || event.altKey) return
       if ((selectionActiveRef.current || !freeLookRef.current) && !keyboardNavigationRef.current) {
@@ -266,7 +283,7 @@ export function Scene3DControls({
   }, [camera, gl, onKeyboardNavigationStart, onKeyboardNavigationStop])
 
   useFrame((_, delta) => {
-    if (!freeLookRef.current && !keyboardNavigationRef.current) {
+    if (keyboardDisabledRef.current || (!freeLookRef.current && !keyboardNavigationRef.current)) {
       velocity.current.set(0, 0, 0)
       return
     }

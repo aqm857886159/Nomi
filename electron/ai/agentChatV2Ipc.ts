@@ -1,6 +1,5 @@
 import { ipcMain, webContents as electronWebContents } from "electron";
 import type { WebContents } from "electron";
-import { clearAgentChatV2History, hasAgentChatV2History, runAgentChatV2, seedAgentChatV2History } from "./agentChatV2";
 import { beginTurnTrace, traceChatEvent, traceGateDenied, traceToolDecision } from "../events/agentChatTrace";
 
 // ---------------------------------------------------------------------------
@@ -24,6 +23,12 @@ type AgentChatV2Session = {
 const CONFIRM_TIMEOUT_MS = 10 * 60_000;
 
 const agentChatV2Sessions = new Map<string, AgentChatV2Session>();
+let agentChatV2ModulePromise: Promise<typeof import("./agentChatV2")> | null = null;
+
+function loadAgentChatV2Module(): Promise<typeof import("./agentChatV2")> {
+  agentChatV2ModulePromise ??= import("./agentChatV2");
+  return agentChatV2ModulePromise;
+}
 
 // 统一取消出口：abort 在途流 + 解开所有挂起确认（清各自超时定时器）。
 // 被「cancel IPC」与「渲染层 webContents 销毁」两处复用——后者根治「窗口关了但主进程还在 await」。
@@ -68,31 +73,34 @@ export function registerAgentChatV2Ipc(): void {
     // Run the agent loop asynchronously so the IPC call can return the
     // sessionId immediately; the renderer subscribes to events first.
     queueMicrotask(() => {
-      void runAgentChatV2(payload as Parameters<typeof runAgentChatV2>[0], {
-        emit: (evt) => sendChatV2Event(session, evt),
-        abortSignal: session.abortController.signal,
-        awaitToolConfirmation: ({ toolCallId, toolName, args }) => new Promise((resolve) => {
-          if (session.cancelled) {
-            resolve({ ok: false, message: "session cancelled" });
-            return;
-          }
-          // 兜底超时：渲染层若永不回话（崩溃/事件丢失），到点自动按拒绝收口并清理。
-          const timeout = setTimeout(() => {
-            const pending = session.pendingConfirmations.get(toolCallId);
-            if (!pending) return;
-            session.pendingConfirmations.delete(toolCallId);
-            console.error(`[agentv2] 工具确认 ${CONFIRM_TIMEOUT_MS / 60_000} 分钟无响应，自动跳过（${toolName}）`);
-            pending.resolve({ ok: false, message: "工具确认超时（长时间无响应，已自动跳过）" });
-          }, CONFIRM_TIMEOUT_MS);
-          session.pendingConfirmations.set(toolCallId, { resolve, timeout });
-          sendChatV2Event(session, {
-            type: "tool-call-pending",
-            toolCallId,
-            toolName,
-            args,
-          });
-        }),
-      })
+      void (async () => {
+        const { runAgentChatV2 } = await loadAgentChatV2Module();
+        return runAgentChatV2(payload as Parameters<typeof runAgentChatV2>[0], {
+          emit: (evt) => sendChatV2Event(session, evt),
+          abortSignal: session.abortController.signal,
+          awaitToolConfirmation: ({ toolCallId, toolName, args }) => new Promise((resolve) => {
+            if (session.cancelled) {
+              resolve({ ok: false, message: "session cancelled" });
+              return;
+            }
+            // 兜底超时：渲染层若永不回话（崩溃/事件丢失），到点自动按拒绝收口并清理。
+            const timeout = setTimeout(() => {
+              const pending = session.pendingConfirmations.get(toolCallId);
+              if (!pending) return;
+              session.pendingConfirmations.delete(toolCallId);
+              console.error(`[agentv2] 工具确认 ${CONFIRM_TIMEOUT_MS / 60_000} 分钟无响应，自动跳过（${toolName}）`);
+              pending.resolve({ ok: false, message: "工具确认超时（长时间无响应，已自动跳过）" });
+            }, CONFIRM_TIMEOUT_MS);
+            session.pendingConfirmations.set(toolCallId, { resolve, timeout });
+            sendChatV2Event(session, {
+              type: "tool-call-pending",
+              toolCallId,
+              toolName,
+              args,
+            });
+          }),
+        });
+      })()
         .then((result) => {
           sendChatV2Event(session, { type: "result", result });
           sendChatV2Event(session, { type: "done", reason: "finished" });
@@ -159,12 +167,14 @@ export function registerAgentChatV2Ipc(): void {
   // "新对话" — wipe the shared conversation memory for a sessionKey so the next
   // turn starts fresh (no key = wipe all).
   ipcMain.handle("nomi:agents:chatV2:clearSession", async (_event, payload: { sessionKey?: string }) => {
+    const { clearAgentChatV2History } = await loadAgentChatV2Module();
     clearAgentChatV2History(payload?.sessionKey);
     return { ok: true };
   });
 
   // S1b 诚实探针:UI 呈现的"AI 记得的范围"⊆ LLM 实际范围(总方案 §5 不变量)。
   ipcMain.handle("nomi:agents:chatV2:sessionAlive", async (_event, payload: { sessionKey?: string }) => {
+    const { hasAgentChatV2History } = await loadAgentChatV2Module();
     return { alive: hasAgentChatV2History(String(payload?.sessionKey || "")) };
   });
 
@@ -172,6 +182,7 @@ export function registerAgentChatV2Ipc(): void {
   ipcMain.handle(
     "nomi:agents:chatV2:seedSession",
     async (_event, payload: { sessionKey?: string; messages?: Array<{ role?: string; content?: string }> }) => {
+      const { seedAgentChatV2History } = await loadAgentChatV2Module();
       seedAgentChatV2History(String(payload?.sessionKey || ""), Array.isArray(payload?.messages) ? payload.messages : []);
       return { ok: true };
     },

@@ -2,7 +2,7 @@ import React from 'react'
 import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
 import type { Scene3DTrajectoryBinding } from '../scene3dTypes'
-import { SCENE3D_RUNTIME_ID_KEY } from '../scene3dConstants'
+import { findSceneObjectByRuntimeId } from '../scene3dMath'
 import { useTrajectoryAnimation } from './useTrajectoryAnimation'
 import {
   registerScene3DObjectRef,
@@ -25,10 +25,7 @@ function ObjectRefBinder({ objectId }: { objectId: string }): null {
   const { scene } = useThree()
 
   React.useEffect(() => {
-    let found: THREE.Object3D | null = null
-    scene.traverse((object) => {
-      if (!found && object.userData?.[SCENE3D_RUNTIME_ID_KEY] === objectId) found = object
-    })
+    const found = findSceneObjectByRuntimeId(scene, objectId)
     if (!found) return undefined
     const ref = { current: found } as React.MutableRefObject<THREE.Object3D>
     registerScene3DObjectRef(objectId, ref)

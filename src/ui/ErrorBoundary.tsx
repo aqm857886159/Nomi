@@ -2,6 +2,20 @@ import React from 'react'
 
 type Props = { children: React.ReactNode }
 type State = { error: Error | null; info: string }
+type DesktopReloadBridge = { nomiDesktop?: { app?: { hardReloadWindow?: () => void } } }
+
+function reloadRendererWindow(): void {
+  try {
+    const hardReloadWindow = (window as unknown as DesktopReloadBridge).nomiDesktop?.app?.hardReloadWindow
+    if (hardReloadWindow) {
+      hardReloadWindow()
+      return
+    }
+  } catch {
+    /* fall back to browser reload */
+  }
+  window.location.reload()
+}
 
 /**
  * 根 ErrorBoundary（多维审计 P0-8）：渲染层任意抛错时，给可读兜底 + 可复制错误，
@@ -51,7 +65,7 @@ export class RootErrorBoundary extends React.Component<Props, State> {
             <button
               type="button"
               className="rounded-nomi bg-nomi-ink px-3 py-1.5 text-body-sm text-white"
-              onClick={() => window.location.reload()}
+              onClick={reloadRendererWindow}
             >
               重新加载
             </button>

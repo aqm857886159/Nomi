@@ -1,4 +1,4 @@
-import { readLocalProject, saveLocalProject, type LocalProjectSummary } from '../library/localProjectStore'
+import { readLocalProjectAsync, saveLocalProject, type LocalProjectSummary } from '../library/localProjectStore'
 import { readWindowUrlParam } from '../windowUrlParam'
 import { upgradeWorkbenchProjectMediaUrls, normalizeLegacyImageAssetKinds } from './projectMediaMigration'
 import {
@@ -130,14 +130,18 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
       projectName: input.project.name,
       isHydrating: input.isHydrating,
       canPersist: input.canPersist,
-      saveProject: async (_projectId, payload, _projectName) => persistProject(input.project, payload),
+      saveProject: async (_projectId, payload, _projectName) => {
+        const localSaved = saveLocalProject(input.project.id, payload, input.project.name)
+        writeLastActiveProjectId(localSaved.id)
+        return localSaved
+      },
       onSaved: input.onSaved,
       onSaveError: input.onSaveError,
     })
   }
 
   const hydrateProject = async (projectId: string): Promise<WorkbenchProjectRecordV1 | null> => {
-    const project = readLocalProject(projectId)
+    const project = await readLocalProjectAsync(projectId)
     if (!project) return null
     clearActiveWorkbenchProjectSaveTarget()
     const mediaUpgraded = await upgradeWorkbenchProjectMediaUrls(project)

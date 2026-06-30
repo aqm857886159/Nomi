@@ -89,6 +89,10 @@ export type DesktopBridge = {
     close: () => Promise<void>
     onMaximized: (cb: (maximized: boolean) => void) => () => void
   }
+  app?: {
+    reopenLibraryWindow: () => void
+    hardReloadWindow?: () => void
+  }
   startupProbe?: {
     enabled: boolean
     mark: (label: string, payload?: Record<string, unknown>) => void
@@ -194,7 +198,10 @@ export type DesktopBridge = {
     cancelChatV2: (sessionId: string) => Promise<{ ok: boolean; error?: string }>
     clearChatV2Session: (sessionKey: string) => Promise<{ ok: boolean; error?: string }>
     /** 会话历史:从线程气泡重建模型工作缓存(翻回旧对话接着聊)。 */
-    seedChatV2Session?: (sessionKey: string, messages: Array<{ role: string; content: string }>) => Promise<{ ok: boolean }>
+    seedChatV2Session?: (
+      sessionKey: string,
+      messages: Array<{ role: string; content: string }>,
+    ) => Promise<{ ok: boolean }>
     /** S1b 诚实探针:LLM 是否还记得这个会话(气泡在而记忆空 → 必须画「新会话」分隔线)。 */
     chatV2SessionAlive?: (sessionKey: string) => Promise<{ alive: boolean }>
     onChatV2Event: (sessionId: string, callback: (event: unknown) => void) => () => void
@@ -207,7 +214,11 @@ export type DesktopBridge = {
   /** S9 项目记忆卡:get=增量提炼+读;update=pin/纠正(text→origin:user);remove=删+墓碑。 */
   memory?: {
     get: (projectId: string) => Promise<{ ok: boolean; facts: unknown[] }>
-    update: (projectId: string, factId: string, patch: { text?: string; pinned?: boolean }) => Promise<{ ok: boolean; facts: unknown[] }>
+    update: (
+      projectId: string,
+      factId: string,
+      patch: { text?: string; pinned?: boolean },
+    ) => Promise<{ ok: boolean; facts: unknown[] }>
     remove: (projectId: string, factId: string) => Promise<{ ok: boolean; facts: unknown[] }>
     add: (projectId: string, text: string, kind?: string) => Promise<{ ok: boolean; facts: unknown[] }>
   }
@@ -218,8 +229,15 @@ export type DesktopBridge = {
     textBrain: () => Promise<{ ok: boolean; brain: { vendor: string; modelKey: string } | null }>
     /** 我的库(用户级·跨项目):手写攒的提示词 CRUD,返回全量供渲染层本地过滤。 */
     userList: () => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
-    userAdd: (input: { title?: string; prompt: string; promptType: 'image' | 'video' }) => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
-    userUpdate: (id: string, patch: { title?: string; prompt?: string; promptType?: 'image' | 'video' }) => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
+    userAdd: (input: {
+      title?: string
+      prompt: string
+      promptType: 'image' | 'video'
+    }) => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
+    userUpdate: (
+      id: string,
+      patch: { title?: string; prompt?: string; promptType?: 'image' | 'video' },
+    ) => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
     userDelete: (id: string) => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
   }
   /** S4-2b 技术自检结果广播(主进程异步旁路 → 节点 ⚠ 投影)。 */
@@ -229,7 +247,14 @@ export type DesktopBridge = {
   /** S1b-3 对话持久化(conversation 域独立文件,不混画布 payload)。committedProposal=S6-5 事务回执(审计 A6),形状由画布层校验。 */
   conversations?: {
     read: (projectId: string) => Promise<{ ok: boolean; conversations: PersistedConversationsV2 | null }>
-    write: (projectId: string, payload: { creation: PersistedConversationArea; generation: PersistedConversationArea; committedProposal?: unknown }) => Promise<{ ok: boolean }>
+    write: (
+      projectId: string,
+      payload: {
+        creation: PersistedConversationArea
+        generation: PersistedConversationArea
+        committedProposal?: unknown
+      },
+    ) => Promise<{ ok: boolean }>
   }
   onboarding: {
     manualCommit: (payload: {
@@ -272,9 +297,9 @@ export type DesktopBridge = {
       status?: number
       error?: string
     }>
-    /** 按 id 关键词猜模型类型（图片/视频/文本），给「类型」下拉预填，用户可改（Issue #8）。 */
+    /** 按 id 关键词猜模型类型（图片/视频/配音/文本），给「类型」下拉预填，用户可改（Issue #8）。 */
     guessKinds: (payload: { ids: string[] }) => Promise<{
-      kinds: Record<string, 'text' | 'image' | 'video'>
+      kinds: Record<string, 'text' | 'image' | 'video' | 'audio'>
     }>
   }
   /** 版本号 + 检查更新 + 一键更新（功能需求1/2/3）。check/download/install 用户显式触发，进度/状态走 onEvent。 */
@@ -313,7 +338,13 @@ export type DesktopBridge = {
   }
   /** 即梦会员（dreamina CLI）：设备码登录/账户检测/安装（可选——老 preload 无此口）。 */
   dreamina?: {
-    status: () => Promise<{ installed: boolean; loggedIn: boolean; totalCredit: number | null; vipLevel: string; notMaestroVip: boolean }>
+    status: () => Promise<{
+      installed: boolean
+      loggedIn: boolean
+      totalCredit: number | null
+      vipLevel: string
+      notMaestroVip: boolean
+    }>
     loginStart: () => Promise<{ verificationUri: string; userCode: string; deviceCode: string; expiresAt: string }>
     loginPoll: (deviceCode: string) => Promise<{ status: 'success' | 'pending' | 'error'; message: string }>
     logout: () => Promise<{ ok: boolean }>

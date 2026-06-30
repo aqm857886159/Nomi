@@ -5,8 +5,6 @@
 // 支持 cancel（AbortController 真中断流，不只是置标志）。
 import { ipcMain, webContents as electronWebContents } from "electron";
 import type { WebContents } from "electron";
-import { runTextTaskStream } from "../textTaskRunner";
-import { describeAgentError } from "./agentError";
 
 type TextStreamSession = {
   streamId: string;
@@ -15,6 +13,12 @@ type TextStreamSession = {
 };
 
 const textStreamSessions = new Map<string, TextStreamSession>();
+let textTaskRunnerPromise: Promise<typeof import("../textTaskRunner")> | null = null;
+
+function loadTextTaskRunner(): Promise<typeof import("../textTaskRunner")> {
+  textTaskRunnerPromise ??= import("../textTaskRunner");
+  return textTaskRunnerPromise;
+}
 
 function sendTextEvent(session: TextStreamSession, event: unknown): void {
   const target: WebContents | undefined = electronWebContents.fromId(session.webContentsId) || undefined;
@@ -32,17 +36,28 @@ export function registerTextStreamIpc(): void {
     };
     textStreamSessions.set(streamId, session);
 
+    event.sender.once("destroyed", () => {
+      const live = textStreamSessions.get(streamId);
+      if (!live) return;
+      live.abortController.abort();
+      textStreamSessions.delete(streamId);
+    });
+
     // 异步跑，让 handle 立刻返回 streamId（渲染层先订阅事件再收 delta）。
     queueMicrotask(() => {
-      void runTextTaskStream(payload, {
-        onDelta: (delta) => sendTextEvent(session, { type: "delta", delta }),
-        abortSignal: session.abortController.signal,
-      })
+      void (async () => {
+        const { runTextTaskStream } = await loadTextTaskRunner();
+        return runTextTaskStream(payload, {
+          onDelta: (delta) => sendTextEvent(session, { type: "delta", delta }),
+          abortSignal: session.abortController.signal,
+        });
+      })()
         .then((result) => {
           sendTextEvent(session, { type: "done", result });
         })
-        .catch((error: unknown) => {
+        .catch(async (error: unknown) => {
           // 同根因1：透出上游 responseBody 人话，而非裸状态文本。
+          const { describeAgentError } = await import("./agentError");
           const message = describeAgentError(error);
           sendTextEvent(session, { type: "error", message });
         })

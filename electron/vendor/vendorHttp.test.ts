@@ -35,6 +35,14 @@ describe("requestJson 结构化错误(S4-0,修压扁根因)", () => {
     expect(String(error.message)).toContain("Provider request failed (HTTP 429)");
   });
 
+  it("魔搭风格复数 errors 信封(HTTP 400)→ 提取真实原因,不再压成「(no detail from provider)」", async () => {
+    stubFetch(() => new Response(JSON.stringify({ errors: { message: "size must be pixels like 1024x1024" } }), { status: 400 }));
+    const error = await requestJson(vendor, "k", "POST", "https://api-inference.modelscope.cn/v1/images/generations", {}, {}, {}).catch((e) => e);
+    expect(error.structured).toMatchObject({ httpStatus: 400, category: "input", retryable: false });
+    expect(error.structured.upstreamMsg).toBe("size must be pixels like 1024x1024");
+    expect(String(error.message)).not.toContain("no detail from provider");
+  });
+
   it("网络层抛错 → category network 可重试", async () => {
     stubFetch(() => Promise.reject(new TypeError("fetch failed")));
     const error = await requestJson(vendor, "k", "GET", "https://x", {}, {}, null).catch((e) => e);

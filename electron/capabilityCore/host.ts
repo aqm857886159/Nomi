@@ -6,10 +6,12 @@
 //
 // 关键：host **不取单实例锁**（它是 worker 不是 app），也不开窗、不起 RPC、不写实例广告——它是一次性
 // 短命进程。app 关着时它就是工程文件的唯一写者（安全）；app 开着时 CLI 走 RPC 不会 spawn 它（无并发写）。
+import path from 'node:path'
 import { app, session } from 'electron'
 
 import { dispatch, RpcError } from './dispatcher'
 import { createDiskGateway } from './gateway'
+import { ensureBuiltinModelSeeds } from '../catalog/catalogStore'
 import { runTask, fetchTaskResult } from '../runtime'
 import { verifyToken } from './security'
 import { applySystemProxy } from '../systemProxy'
@@ -18,7 +20,18 @@ import { applySystemProxy } from '../systemProxy'
 // 加密 safeStorage key 时的身份不符 → 解不开 key（真机实测「API key missing」根因）。spawner 经 NOMI_APP_NAME
 // 传入主 app 身份（= package.json name），setName 对齐 keychain + 默认 userData 才能读到真 catalog 并解密。
 // 必须在 app ready 前调。生产（host 在打包 app 内、getName 已是产品名）spawner 不传此 env → 不覆盖。
-if (process.env.NOMI_APP_NAME) app.setName(process.env.NOMI_APP_NAME)
+// setName 只对齐 keychain 身份（safeStorage 解密）；userData 路径却**不一定**跟着改——实测 dev host
+// 偶发 userData 仍解析到 "Electron"（getPath 缓存 / setName 时机），导致读到空目录 → 项目/目录/密钥全
+// 「不存在」（接入测试踩到的 headless 偶发坑）。故显式 setPath 钉死 userData=<appData>/<name>，与主 app
+// 同源、确定不漂。getPath('appData') 在 ready 前可用，setPath 在 ready 前调生效。
+if (process.env.NOMI_APP_NAME) {
+  app.setName(process.env.NOMI_APP_NAME)
+  try {
+    app.setPath('userData', path.join(app.getPath('appData'), process.env.NOMI_APP_NAME))
+  } catch {
+    /* setPath 失败 → 退回 setName 默认行为 */
+  }
+}
 
 type HostCommand = { token?: string; method?: string; params?: Record<string, unknown> }
 
@@ -69,6 +82,13 @@ app.whenReady().then(async () => {
       await applySystemProxy(session.defaultSession)
     } catch {
       /* 代理设失败 → 直连兜底 */
+    }
+    // 内置种子对账（与主 app 启动 main.ts 同一步）：headless 此前从不调它 → 代码改了 curated mapping 后只有
+    // 开过 GUI 才同步，纯 MCP/CLI 用户跑旧目录。幂等：无变化不写盘、atomic 写。userData 由顶部 setPath 钉死同源。
+    try {
+      ensureBuiltinModelSeeds()
+    } catch (error) {
+      process.stderr.write(`seed reconcile failed: ${error instanceof Error ? error.message : String(error)}\n`)
     }
     code = await run()
   } catch (error) {

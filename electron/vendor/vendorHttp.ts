@@ -171,6 +171,12 @@ export async function requestJson(
       record.error,
       readNestedRecord(record, ["error", "message"]),
       readNestedRecord(record, ["data", "msg"]),
+      // ModelScope（及同类）失败体是复数 `errors`：{ "errors": { "message": "..." } }——
+      // 轮询侧 mapping 早就读这个键（modelscopeVendor.ts:41），但提交/错误侧此前漏读，
+      // 真正的 400 原因被压成「(no detail from provider)」。补齐复数 errors 的 message/detail。
+      readNestedRecord(record, ["errors", "message"]),
+      readNestedRecord(record, ["errors", "detail"]),
+      record.errors,
     );
     const statusLabel = logicalCode != null ? `code ${logicalCode}` : `HTTP ${response.status}`;
     // "No message available" is Spring's default placeholder — surface the URL

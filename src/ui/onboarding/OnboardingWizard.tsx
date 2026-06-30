@@ -9,9 +9,10 @@
  * Backed by: nomiDesktop.onboarding.{listModels, guessKinds, testConnection, manualCommit}。
  */
 import React from 'react'
-import { Stack, Group, Text, PasswordInput, ActionIcon, Anchor, TagsInput, Select, Collapse, Loader } from '@mantine/core'
-import { IconPlus, IconTrash, IconCheck, IconX, IconChevronDown, IconChevronRight, IconRefresh, IconAlertTriangle } from '@tabler/icons-react'
+import { Stack, Group, Text, PasswordInput, ActionIcon, Anchor, Select, Collapse, Loader } from '@mantine/core'
+import { IconPlus, IconTrash, IconCheck, IconX, IconChevronDown, IconChevronRight, IconAlertTriangle, IconListCheck, IconCloudDownload } from '@tabler/icons-react'
 import { DesignButton, DesignModal, DesignTextInput, DesignSegmentedControl } from '../../design'
+import { ModelPickerScreen } from './ModelPickerScreen'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { ProviderKind } from '../../desktop/providerKind'
 import { resolveManualSaveAction } from './onboardingSaveGate'
@@ -70,12 +71,15 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }
   // 「高级设置」整段（接口协议 + 自定义请求头）是否展开。默认收起；测试失败自动展开当逃生口。
   const [showAdvanced, setShowAdvanced] = React.useState(false)
   const [baseUrl, setBaseUrl] = React.useState('')
-  // Model ids only (display name dropped — it defaulted to the id, nobody filled it).
-  // Entered via TagsInput: type+enter for any endpoint, or pick from auto-fetched list.
-  // 模型携带 per-model 类型（图片/视频/文本，Issue #8）：拉取/输入后由主进程 guessKinds 预填，用户可改。
+  // 已选中、将落库的模型（单一真相源）。每个携带 per-model 类型（图片/视频/配音/文本，可改）。
+  // 录入唯一入口 = 第二屏 ModelPickerScreen（拉取后勾选确认，2026-06-29 改 opt-in）。
   const [models, setModels] = React.useState<Array<{ id: string; kind: ModelKind }>>([])
-  // Auto-fetched model ids (GET /models) used as TagsInput autocomplete suggestions.
-  const [fetchedModels, setFetchedModels] = React.useState<string[]>([])
+  // 拉到的「候选池」（GET /models 的全部，带预判类型）——喂第二屏供勾选，不直接落库。
+  const [candidateModels, setCandidateModels] = React.useState<Array<{ id: string; kind: ModelKind }>>([])
+  // 当前在表单还是模型勾选第二屏（换屏，非新弹窗）。success/error 阶段不看它。
+  const [screen, setScreen] = React.useState<'form' | 'select'>('form')
+  // 是否已尝试过拉取（区分「还没填地址」与「拉了但端点没列出」两种空态）。
+  const [fetchAttempted, setFetchAttempted] = React.useState(false)
   const [fetchingModels, setFetchingModels] = React.useState(false)
   const [fetchModelsMsg, setFetchModelsMsg] = React.useState('')
   // 失焦自动拉取的去重签名：记录已自动拉过的 baseUrl\0apiKey\0协议，避免每次失焦重拉。
@@ -101,6 +105,10 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }
     // Keep credentials (vendorName/baseUrl/userApiKey) so "再添加一个" under the
     // same endpoint is one step; only clear the per-add model picks + test result.
     setModels([])
+    setCandidateModels([])
+    setScreen('form')
+    setFetchAttempted(false)
+    setFetchModelsMsg('')
     setTestState('idle')
     setTestMessage('')
   }, [])
@@ -140,8 +148,10 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }
     setKindForced(!preset.custom)
     setShowKindOverride(false)
     setShowAdvanced(false)
-    // Endpoint changed → previously fetched models / test result no longer apply.
-    setFetchedModels([])
+    // Endpoint changed → previously fetched candidates / test result no longer apply.
+    setCandidateModels([])
+    setFetchAttempted(false)
+    setScreen('form')
     setFetchModelsMsg('')
     setTestState('idle')
     autoFetchSigRef.current = ''
@@ -154,23 +164,33 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, initialPreset])
 
-  // 把一组模型 id 收敛进 models（去重；保留已选类型；新 id 由主进程 guessKinds 预填，用户可改）。
-  const applyModelIds = React.useCallback(async (ids: string[]) => {
-    const uniq = Array.from(new Set(ids.map(s => s.trim()).filter(Boolean)))
-    const existing = new Map(models.map(m => [m.id, m.kind]))
-    const newIds = uniq.filter(id => !existing.has(id))
-    let guessed: Record<string, ModelKind> = {}
-    if (newIds.length > 0 && bridge?.onboarding?.guessKinds) {
-      try { guessed = (await bridge.onboarding.guessKinds({ ids: newIds })).kinds || {} } catch { /* 退回 text */ }
-    }
-    setModels(uniq.map(id => ({ id, kind: existing.get(id) ?? guessed[id] ?? 'text' })))
-    setTestState('idle')
-  }, [models, bridge])
-
   const setModelKind = React.useCallback((id: string, kind: ModelKind) => {
     setModels(prev => prev.map(m => (m.id === id ? { ...m, kind } : m)))
   }, [])
 
+  const removeModel = React.useCallback((id: string) => {
+    setModels(prev => prev.filter(m => m.id !== id))
+    setTestState('idle')
+  }, [])
+
+  // 第二屏手填未列出的 id 时，问主进程它是哪类（同一启发式 guessModelKind）。
+  const resolveKind = React.useCallback(async (id: string): Promise<string> => {
+    if (!bridge?.onboarding?.guessKinds) return 'text'
+    try { return (await bridge.onboarding.guessKinds({ ids: [id] })).kinds?.[id] ?? 'text' } catch { return 'text' }
+  }, [bridge])
+
+  // 第二屏确认 → 选中的子集成为将落库的 models（kind 收敛到合法四类，model3d 等异常退回 text）。
+  const handleConfirmPicked = React.useCallback((picked: Array<{ id: string; kind: string }>) => {
+    setModels(picked.map(m => ({
+      id: m.id,
+      kind: (m.kind === 'image' || m.kind === 'video' || m.kind === 'audio' ? m.kind : 'text') as ModelKind,
+    })))
+    setScreen('form')
+    setTestState('idle')
+  }, [])
+
+  // 拉取这个上游开放的全部模型 → 预判类型 → 存进候选池（不直接落库）。用户在第二屏勾选确认
+  // 真正要哪些（opt-in，2026-06-29 反转旧「全量灌库再删」）。失焦自动拉取也走这里，只静默填池。
   const handleFetchModels = React.useCallback(async () => {
     if (!bridge?.onboarding?.listModels) return
     setFetchingModels(true)
@@ -183,23 +203,25 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }
         headers: buildHeadersObject(),
       })
       if (res.ok && res.models && res.models.length > 0) {
-        setFetchedModels(res.models)
-        // 全部加入（用户拍板 2026-06-27，反转旧「只导认得的」）：认得的带档案参数、不认得的走
-        // guessKinds 猜类型的通用档，都直接加入并按类型分好——老师拉到即能用，不必再翻折叠手点。
-        // 多余的用下方 TagsInput 的标签 × 删即可。
-        await applyModelIds([...models.map(m => m.id), ...res.models])
-        setFetchModelsMsg(`拉到 ${res.models.length} 个，已全部加入并按类型自动分好（可改 / 删）`)
+        const ids = Array.from(new Set(res.models.map(s => s.trim()).filter(Boolean)))
+        let guessed: Record<string, ModelKind> = {}
+        if (bridge?.onboarding?.guessKinds) {
+          try { guessed = (await bridge.onboarding.guessKinds({ ids })).kinds || {} } catch { /* 退回 text */ }
+        }
+        setCandidateModels(ids.map(id => ({ id, kind: guessed[id] ?? 'text' })))
+        setFetchModelsMsg('')
       } else if (res.ok) {
-        setFetchedModels([])
-        setFetchModelsMsg('这个地址没自动列出模型，可在下方手动输入模型 id，或重新拉取')
+        setCandidateModels([])
+        setFetchModelsMsg('这个地址没自动列出模型，可在「选择模型」里手动输入 id，或重新拉取')
       } else {
-        setFetchedModels([])
-        setFetchModelsMsg('没自动拉到模型，可在下方手动输入模型 id，或重新拉取')
+        setCandidateModels([])
+        setFetchModelsMsg('没自动拉到模型，可在「选择模型」里手动输入 id，或重新拉取')
       }
     } finally {
+      setFetchAttempted(true)
       setFetchingModels(false)
     }
-  }, [bridge, baseUrl, userApiKey, providerKind, buildHeadersObject, applyModelIds, models])
+  }, [bridge, baseUrl, userApiKey, providerKind, buildHeadersObject])
 
   const handleTestConnection = React.useCallback(async () => {
     if (!bridge?.onboarding?.testConnection) return
@@ -282,7 +304,7 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }
   // 发现并点「拉取」。去重（同 baseUrl+key+协议只拉一次）+ 不覆盖已手填/已拉到的模型。
   const maybeAutoFetchModels = () => {
     if (!canTest || fetchingModels) return
-    if (userApiKey.trim().length === 0 || models.length > 0) return
+    if (userApiKey.trim().length === 0 || candidateModels.length > 0 || models.length > 0) return
     const sig = `${baseUrlTrimmed} ${userApiKey.trim()} ${providerKind}`
     if (sig === autoFetchSigRef.current) return
     autoFetchSigRef.current = sig
@@ -313,7 +335,7 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }
       closeOnEscape={phase !== 'running'}
     >
       <Stack gap="md">
-        {phase === 'input' && (
+        {phase === 'input' && screen === 'form' && (
           <Stack gap={12}>
             {/* 中转优先·一次拉全·按模型分类（Issue #8）：填中转地址 + key → 拉取它开放的模型 →
                 每个自动判好类型(图片/视频/文本，可改) → 一次加多类型。文本/图片/视频统一一条路。 */}
@@ -357,6 +379,13 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }
                 </Field>
               )
             })}
+            <Field label="来源名称" hint="给这个上游起个名，方便区分不同 API（断供时一眼知道哪家）">
+              <DesignTextInput
+                value={vendorName}
+                onChange={e => setVendorName(e.currentTarget.value)}
+                placeholder="如：TOAPI 中转"
+              />
+            </Field>
             {showBaseUrlField ? (
               <Field
                 label="接入地址（BaseURL）"
@@ -405,75 +434,73 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }
               )}
             </Field>
 
-            <Stack gap={4}>
-              <Group justify="space-between" align="center">
-                <Group gap={6} align="center" wrap="nowrap">
-                  <Text size="sm" c="var(--nomi-ink)">模型</Text>
-                  {models.length > 0 && (
-                    <Group gap={3} align="center" wrap="nowrap">
-                      <IconCheck size={13} stroke={1.5} style={{ color: 'var(--workbench-success)' }} />
-                      <Text size="xs" c="var(--workbench-success)">已添加 {models.length} 个</Text>
-                    </Group>
-                  )}
-                </Group>
-                {/* P1 删旧：原「拉取可用模型」主动作链接 → 失焦自动拉取后降级为「重新拉取」补充入口。 */}
-                <DesignButton
-                  variant="subtle"
-                  leftSection={<IconRefresh size={13} />}
-                  onClick={handleFetchModels}
-                  disabled={!canTest || fetchingModels}
-                  loading={fetchingModels}
-                >
-                  重新拉取
-                </DesignButton>
+            <Stack gap={6}>
+              <Group gap={6} align="center" wrap="nowrap">
+                <Text size="sm" c="var(--nomi-ink)">模型</Text>
+                {models.length > 0 && (
+                  <Group gap={3} align="center" wrap="nowrap">
+                    <IconCheck size={13} stroke={1.5} style={{ color: 'var(--workbench-success)' }} />
+                    <Text size="xs" c="var(--workbench-success)">已选 {models.length} 个</Text>
+                  </Group>
+                )}
               </Group>
-              {fetchingModels && models.length === 0 ? (
+
+              {fetchingModels && candidateModels.length === 0 ? (
                 // 加载态（失焦自动拉取替用户干活）：明确告诉他「我没点但它在转」是正常的。
                 <div className="flex items-center gap-2.5 rounded-nomi border border-nomi-line px-3.5 py-3">
                   <Loader size="xs" />
                   <Text size="sm" c="var(--nomi-ink-60)">正在拉取这个地址开放的模型…</Text>
                 </div>
-              ) : (
+              ) : models.length > 0 ? (
+                // 已选摘要：每行 id + 类型（可改）+ 删除；「修改所选」回第二屏增删。
                 <>
-                  <TagsInput
-                    value={models.map(m => m.id)}
-                    onChange={value => { void applyModelIds(value) }}
-                    data={fetchedModels}
-                    placeholder={models.length === 0 ? '模型会自动拉取；也可手动输入 id 回车补充' : undefined}
-                    splitChars={[',', ' ', '\n']}
-                  />
-                  {/* 自动拉取失败/为空 → 不静默：人话 + 手填 TagsInput 就地可用（无缝退化为手动）。 */}
-                  {fetchModelsMsg && (
-                    models.length === 0 ? (
-                      <Group gap={6} align="flex-start" wrap="nowrap">
-                        <IconAlertTriangle size={13} stroke={1.5} style={{ color: 'var(--nomi-ink-60)', flexShrink: 0, marginTop: 2 }} />
-                        <Text size="xs" c="var(--nomi-ink-60)">{fetchModelsMsg}</Text>
+                  <Stack gap={6}>
+                    {models.map(m => (
+                      <Group key={m.id} gap={8} wrap="nowrap" align="center" justify="space-between">
+                        <Text size="sm" c="var(--nomi-ink)" style={{ fontFamily: 'var(--nomi-font-mono, monospace)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {m.id}
+                        </Text>
+                        <Group gap={4} wrap="nowrap" align="center" style={{ flexShrink: 0 }}>
+                          <Select
+                            value={m.kind}
+                            onChange={v => { if (v) setModelKind(m.id, v as ModelKind) }}
+                            data={KIND_OPTIONS}
+                            size="xs"
+                            allowDeselect={false}
+                            style={{ width: 88 }}
+                          />
+                          <ActionIcon variant="subtle" color="gray" onClick={() => removeModel(m.id)} aria-label={`移除 ${m.id}`}>
+                            <IconX size={14} />
+                          </ActionIcon>
+                        </Group>
                       </Group>
-                    ) : (
-                      <Text size="xs" c="var(--nomi-ink-60)">{fetchModelsMsg}</Text>
-                    )
-                  )}
+                    ))}
+                  </Stack>
+                  <Anchor component="button" type="button" size="xs" c="var(--nomi-accent)" onClick={() => setScreen('select')} style={{ alignSelf: 'flex-start' }}>
+                    修改所选 / 重新拉取
+                  </Anchor>
                 </>
-              )}
-              {/* 每个模型一行：id + 类型（自动判，可改）。删除经上方 TagsInput 的标签 x。 */}
-              {models.length > 0 && (
-                <Stack gap={6} mt={4}>
-                  {models.map(m => (
-                    <Group key={m.id} gap={8} wrap="nowrap" align="center" justify="space-between">
-                      <Text size="sm" c="var(--nomi-ink)" style={{ fontFamily: 'var(--nomi-font-mono, monospace)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {m.id}
-                      </Text>
-                      <Select
-                        value={m.kind}
-                        onChange={v => { if (v) setModelKind(m.id, v as ModelKind) }}
-                        data={KIND_OPTIONS}
-                        size="xs"
-                        allowDeselect={false}
-                        style={{ width: 88, flexShrink: 0 }}
-                      />
-                    </Group>
-                  ))}
-                </Stack>
+              ) : candidateModels.length > 0 ? (
+                // 拉到候选池但还没选 → 进第二屏挑（opt-in 主路径）。
+                <div className="flex items-center gap-2.5 rounded-nomi border border-nomi-line px-3.5 py-3">
+                  <IconListCheck size={18} stroke={1.6} style={{ color: 'var(--nomi-ink-40)', flexShrink: 0 }} />
+                  <Text size="sm" c="var(--nomi-ink-60)" style={{ flex: 1 }}>拉到 {candidateModels.length} 个模型，还没选</Text>
+                  <DesignButton variant="light" onClick={() => setScreen('select')}>选择模型 →</DesignButton>
+                </div>
+              ) : fetchAttempted ? (
+                // 拉了但端点没列出 → 去第二屏手填 id（保留逃生口）。
+                <div className="flex items-center gap-2.5 rounded-nomi border border-nomi-line px-3.5 py-3">
+                  <IconAlertTriangle size={16} stroke={1.5} style={{ color: 'var(--nomi-ink-60)', flexShrink: 0 }} />
+                  <Text size="xs" c="var(--nomi-ink-60)" style={{ flex: 1 }}>{fetchModelsMsg || '这个地址没自动列出模型'}</Text>
+                  <DesignButton variant="light" onClick={() => setScreen('select')}>手动选择 →</DesignButton>
+                </div>
+              ) : (
+                // 还没拉 → 提示 + 显式拉取（失焦也会自动拉）。
+                <div className="flex items-center gap-2.5 rounded-nomi border border-nomi-line px-3.5 py-3">
+                  <IconCloudDownload size={18} stroke={1.6} style={{ color: 'var(--nomi-ink-40)', flexShrink: 0 }} />
+                  <Text size="sm" c="var(--nomi-ink-60)" style={{ flex: 1 }}>填好接入地址和 Key，会自动拉取这个上游开放的模型</Text>
+                  <DesignButton variant="light" onClick={handleFetchModels} disabled={!canTest} loading={fetchingModels}>拉取模型</DesignButton>
+                </div>
               )}
             </Stack>
 
@@ -616,6 +643,21 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset }
               </>
             )}
           </Stack>
+        )}
+
+        {phase === 'input' && screen === 'select' && (
+          <ModelPickerScreen
+            candidates={candidateModels}
+            initialSelected={models}
+            sourceName={vendorName.trim()}
+            host={(() => { try { return new URL(baseUrl.trim()).hostname } catch { return baseUrl.trim() } })()}
+            total={candidateModels.length}
+            fetching={fetchingModels}
+            onRefetch={handleFetchModels}
+            onBack={() => setScreen('form')}
+            onConfirm={handleConfirmPicked}
+            onResolveKind={resolveKind}
+          />
         )}
 
         {phase === 'success' && (

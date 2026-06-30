@@ -3,8 +3,10 @@ import { Folder, FolderSearch, PanelLeftClose, PanelLeftOpen, Plus, Tags } from 
 import { cn } from '../../utils/cn'
 import { type ProjectCategory } from '../project/projectCategories'
 import { useWorkbenchStore } from '../workbenchStore'
-import CategoryTree from '../sidebar/CategoryTree'
-import WorkspaceFileExplorerPanel from './WorkspaceFileExplorerPanel'
+import { lazyWithChunkBoundary } from '../../ui/chunkBoundary'
+
+const CategoryTree = lazyWithChunkBoundary('分类面板', () => import('../sidebar/CategoryTree'))
+const WorkspaceFileExplorerPanel = lazyWithChunkBoundary('项目文件面板', () => import('./WorkspaceFileExplorerPanel'))
 import AssetFinderPanel from '../assets/autoGroup/AssetFinderPanel'
 
 type Props = {
@@ -28,7 +30,10 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
 
   // picker 的「浏览全部 →」→ 展开侧栏 + 切到文件面板(全量浏览在面板,弹层只做快速取,规范 §5)。
   React.useEffect(() => {
-    const open = () => { setTab('files'); setSidebarCollapsed(false) }
+    const open = () => {
+      setTab('files')
+      setSidebarCollapsed(false)
+    }
     window.addEventListener('nomi-open-files-panel', open)
     return () => window.removeEventListener('nomi-open-files-panel', open)
   }, [setSidebarCollapsed])
@@ -89,16 +94,44 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
       )}
       {collapsed ? (
         <div className="flex flex-col items-center gap-1 py-2">
-          <button type="button" onClick={() => { setTab('find'); toggle() }} className="w-9 h-8 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-bg" aria-label="展开找素材面板" title="找素材"><FolderSearch size={16} strokeWidth={1.7} /></button>
-          <button type="button" onClick={() => { setTab('categories'); toggle() }} className="w-9 h-8 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-bg" aria-label="展开分类面板" title="分类"><Tags size={16} strokeWidth={1.7} /></button>
-          <button type="button" onClick={() => { setTab('files'); toggle() }} className="w-9 h-8 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-bg" aria-label="展开文件面板" title="文件"><Folder size={16} strokeWidth={1.7} /></button>
+          <button
+            type="button"
+            onClick={() => { setTab('find'); toggle() }}
+            className="w-9 h-8 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-bg"
+            aria-label="展开找素材面板"
+            title="找素材"
+          >
+            <FolderSearch size={16} strokeWidth={1.7} />
+          </button>
+          <button
+            type="button"
+            onClick={() => { setTab('categories'); toggle() }}
+            className="w-9 h-8 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-bg"
+            aria-label="展开分类面板"
+            title="分类"
+          >
+            <Tags size={16} strokeWidth={1.7} />
+          </button>
+          <button
+            type="button"
+            onClick={() => { setTab('files'); toggle() }}
+            className="w-9 h-8 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-bg"
+            aria-label="展开文件面板"
+            title="文件"
+          >
+            <Folder size={16} strokeWidth={1.7} />
+          </button>
         </div>
       ) : tab === 'find' ? (
         <AssetFinderPanel />
-      ) : tab === 'files' ? (
-        <WorkspaceFileExplorerPanel projectId={projectId} />
       ) : (
-        <CategoryTree categories={categories} createCategoryNonce={createCategoryNonce} />
+        <React.Suspense fallback={null}>
+          {tab === 'files' ? (
+            <WorkspaceFileExplorerPanel projectId={projectId} />
+          ) : (
+            <CategoryTree categories={categories} createCategoryNonce={createCategoryNonce} />
+          )}
+        </React.Suspense>
       )}
     </aside>
   )

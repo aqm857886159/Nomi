@@ -38,6 +38,9 @@ const TTS_CREATE: HttpOperation = {
     response_format: "wav",
     speed: "{{request.params.speed}}",
   },
+  // headless/MCP 兜底：缺 model apimart 直接 HTTP 500「model is required」。值=档案当前模式默认
+  // （speech→gpt-4o-mini-tts，voice→alloy，见 src/config/modelArchetypes/audioArchetype.ts）。UI 路已填故零影响。
+  defaultParams: { model: "gpt-4o-mini-tts", voice: "alloy", speed: 1 },
 };
 
 // 转写 Whisper：multipart（file + model + language + response_format）由 audioTaskRunner 组装；

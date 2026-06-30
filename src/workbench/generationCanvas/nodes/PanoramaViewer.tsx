@@ -1,9 +1,12 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
-import ReactPannellum, { usePannellum } from 'react-pannellum'
+import { EquirectangularAdapter, Viewer, type PanoData, type ViewerConfig } from '@photo-sphere-viewer/core'
+import '@photo-sphere-viewer/core/index.css'
 import { IconCamera, IconMaximize, IconX } from '@tabler/icons-react'
+import { NomiImage } from '../../../design/media'
 import { cn } from '../../../utils/cn'
 import { WorkbenchIconButton } from '../../../design/workbenchActions'
+import { toast } from '../../../ui/toast'
 
 export type PanoramaScreenshot = {
   dataUrl: string
@@ -17,349 +20,504 @@ type PanoramaViewerProps = {
   imageUrl: string
   width: number
   height: number
-  onEnterFullscreen?: (trigger: () => void) => void
-  onCaptureFourView?: (trigger: () => void) => void
+  onEnterFullscreen?: (trigger: (() => void) | null) => void
   onScreenshot?: (screenshot: PanoramaScreenshot) => void
 }
 
-type PanoramaDialogToolbarProps = {
-  onClose: () => void
-  onScreenshot?: (screenshot: PanoramaScreenshot) => void
+type PhotoSphereViewerConfig = Pick<
+  ViewerConfig,
+  'keyboard' | 'mousemove' | 'mousewheel' | 'moveInertia' | 'touchmoveTwoFingers'
+>
+
+type PhotoSphereRendererInternals = {
+  renderer?: {
+    domElement?: HTMLCanvasElement
+  }
 }
 
-type PanoramaFourViewCaptureBinderProps = {
-  onCaptureFourView?: (trigger: () => void) => void
-  onScreenshot?: (screenshot: PanoramaScreenshot) => void
+type PanoramaCaptureRatioId = '16:9' | '9:16' | '1:1' | '4:3'
+
+type PanoramaCaptureRatio = {
+  id: PanoramaCaptureRatioId
+  label: string
+  width: number
+  height: number
 }
 
-type PannellumApi = ReturnType<typeof usePannellum>
-
-type PannellumRenderer = {
-  render?: (
-    pitch: number,
-    yaw: number,
-    hfov: number,
-    params?: { roll?: number; returnImage?: boolean },
-  ) => string | undefined
+type PanoramaCaptureFeedback = {
+  tone: 'info' | 'success' | 'error'
+  message: string
 }
 
-type PannellumViewerWithRenderer = {
-  getRenderer?: () => PannellumRenderer | undefined
+const PANORAMA_FULLSCREEN_CONFIG: PhotoSphereViewerConfig = {
+  keyboard: 'always',
+  mousemove: true,
+  mousewheel: true,
+  moveInertia: true,
+  touchmoveTwoFingers: false,
 }
 
-type PanoramaCaptureView = {
-  pitch: number
-  yaw: number
-  hfov: number
-}
-
-type PanoramaDirectionView = {
-  yaw: number
-}
-
-const DEGREES_TO_RADIANS = Math.PI / 180
-const PANORAMA_CARDINAL_VIEWS: PanoramaDirectionView[] = [
-  { yaw: 0 },
-  { yaw: 180 },
-  { yaw: 90 },
-  { yaw: -90 },
+const PANORAMA_CAPTURE_RATIOS: PanoramaCaptureRatio[] = [
+  { id: '16:9', label: '16:9', width: 16, height: 9 },
+  { id: '9:16', label: '9:16', width: 9, height: 16 },
+  { id: '1:1', label: '1:1', width: 1, height: 1 },
+  { id: '4:3', label: '4:3', width: 4, height: 3 },
 ]
 
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value)
-}
+const DEFAULT_CAPTURE_RATIO_ID: PanoramaCaptureRatioId = '16:9'
+const CAPTURE_FRAME_HORIZONTAL_INSET = 48
+const CAPTURE_FRAME_VERTICAL_INSET = 96
+const PhotoSphereViewerContext = React.createContext<Viewer | null>(null)
 
-function getPanoramaCanvas(container: HTMLElement | undefined): HTMLCanvasElement | null {
-  return (
-    container?.querySelector('.pnlm-render-container > canvas') ||
-    container?.querySelector('canvas')
-  ) as HTMLCanvasElement | null
-}
-
-function getScreenshotDimensions(container: HTMLElement | undefined, canvas: HTMLCanvasElement | null): PanoramaScreenshot['dimensions'] {
-  const rect = container?.getBoundingClientRect()
-  const width = canvas?.width || canvas?.clientWidth || Math.round(rect?.width || 0)
-  const height = canvas?.height || canvas?.clientHeight || Math.round(rect?.height || 0)
+function buildFullEquirectangularPanoData(image: HTMLImageElement): PanoData {
   return {
-    width: Math.max(1, width),
-    height: Math.max(1, height),
+    isEquirectangular: true,
+    fullWidth: image.width,
+    fullHeight: image.height,
+    croppedWidth: image.width,
+    croppedHeight: image.height,
+    croppedX: 0,
+    croppedY: 0,
+    poseHeading: 0,
+    posePitch: 0,
+    poseRoll: 0,
   }
 }
 
-function getCurrentCaptureView(pannellum: PannellumApi): PanoramaCaptureView | null {
-  const pitch = pannellum.getPitch()
-  const yaw = pannellum.getYaw()
-  const hfov = pannellum.getHfov()
-  if (!isFiniteNumber(pitch) || !isFiniteNumber(yaw) || !isFiniteNumber(hfov)) return null
-  return { pitch, yaw, hfov }
+function getCaptureRatio(ratioId: PanoramaCaptureRatioId): PanoramaCaptureRatio {
+  return PANORAMA_CAPTURE_RATIOS.find((ratio) => ratio.id === ratioId) || PANORAMA_CAPTURE_RATIOS[0]
 }
 
-function renderPanoramaView(pannellum: PannellumApi, view: PanoramaCaptureView, returnImage: boolean): string | undefined {
-  const container = pannellum.getContainer()
-  const viewer = pannellum.getViewer() as (PannellumViewerWithRenderer & object) | null
-  const renderer = viewer?.getRenderer?.()
-  if (!container || !renderer?.render) return undefined
-
-  const configRoll = pannellum.getConfig()?.roll
-  const roll = isFiniteNumber(configRoll) ? configRoll : 0
-  try {
-    return renderer.render(
-      view.pitch * DEGREES_TO_RADIANS,
-      view.yaw * DEGREES_TO_RADIANS,
-      view.hfov * DEGREES_TO_RADIANS,
-      { roll: roll * DEGREES_TO_RADIANS, ...(returnImage ? { returnImage: true } : {}) },
-    )
-  } catch {
-    return undefined
-  }
+function getPhotoSphereCanvas(viewer: Viewer | null): HTMLCanvasElement | null {
+  const rendererInternals = viewer?.renderer as unknown as PhotoSphereRendererInternals | undefined
+  const internalCanvas = rendererInternals?.renderer?.domElement
+  if (internalCanvas instanceof HTMLCanvasElement) return internalCanvas
+  return (viewer?.container.querySelector('canvas') as HTMLCanvasElement | null) ?? null
 }
 
-function capturePanoramaView(pannellum: PannellumApi, view: PanoramaCaptureView): PanoramaScreenshot | null {
-  const container = pannellum.getContainer()
-  const canvas = getPanoramaCanvas(container)
-  const dataUrl = renderPanoramaView(pannellum, view, true)
+function cropCurrentPanoramaFrame(viewer: Viewer, frameElement: HTMLElement): PanoramaScreenshot | null {
+  const canvas = getPhotoSphereCanvas(viewer)
+  if (!canvas || canvas.width <= 0 || canvas.height <= 0) return null
 
-  if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) return null
-  return {
-    dataUrl,
-    dimensions: getScreenshotDimensions(container, canvas),
-  }
-}
+  const containerRect = viewer.container.getBoundingClientRect()
+  const frameRect = frameElement.getBoundingClientRect()
+  const left = Math.max(frameRect.left, containerRect.left)
+  const top = Math.max(frameRect.top, containerRect.top)
+  const right = Math.min(frameRect.right, containerRect.right)
+  const bottom = Math.min(frameRect.bottom, containerRect.bottom)
+  if (right <= left || bottom <= top || containerRect.width <= 0 || containerRect.height <= 0) return null
 
-function captureCurrentPanoramaView(pannellum: PannellumApi): PanoramaScreenshot | null {
-  const currentView = getCurrentCaptureView(pannellum)
-  if (!currentView) return null
-  pannellum.stopMovement()
-  return capturePanoramaView(pannellum, currentView)
-}
-
-function loadImage(dataUrl: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image()
-    image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error('Unable to load panorama screenshot.'))
-    image.src = dataUrl
-  })
-}
-
-function drawImageCover(
-  context: CanvasRenderingContext2D,
-  image: HTMLImageElement,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-): void {
-  const imageRatio = image.width / Math.max(1, image.height)
-  const targetRatio = width / Math.max(1, height)
-  const sourceWidth = imageRatio > targetRatio ? image.height * targetRatio : image.width
-  const sourceHeight = imageRatio > targetRatio ? image.height : image.width / targetRatio
-  const sourceX = (image.width - sourceWidth) / 2
-  const sourceY = (image.height - sourceHeight) / 2
-  context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height)
-}
-
-async function composeFourViewScreenshot(screenshots: PanoramaScreenshot[]): Promise<PanoramaScreenshot | null> {
-  const firstScreenshot = screenshots[0]
-  if (!firstScreenshot || screenshots.length !== 4) return null
-
-  const cellWidth = Math.max(1, firstScreenshot.dimensions.width)
-  const cellHeight = Math.max(1, Math.round(cellWidth * 9 / 16))
-  const canvas = document.createElement('canvas')
-  canvas.width = cellWidth * 2
-  canvas.height = cellHeight * 2
-  const context = canvas.getContext('2d')
+  const scaleX = canvas.width / containerRect.width
+  const scaleY = canvas.height / containerRect.height
+  const sourceX = Math.max(0, Math.round((left - containerRect.left) * scaleX))
+  const sourceY = Math.max(0, Math.round((top - containerRect.top) * scaleY))
+  const sourceWidth = Math.max(1, Math.min(canvas.width - sourceX, Math.round((right - left) * scaleX)))
+  const sourceHeight = Math.max(1, Math.min(canvas.height - sourceY, Math.round((bottom - top) * scaleY)))
+  const outputCanvas = document.createElement('canvas')
+  outputCanvas.width = sourceWidth
+  outputCanvas.height = sourceHeight
+  const context = outputCanvas.getContext('2d')
   if (!context) return null
 
-  const images = await Promise.all(screenshots.map((screenshot) => loadImage(screenshot.dataUrl)))
-  context.fillStyle = '#000'
-  context.fillRect(0, 0, canvas.width, canvas.height)
-  images.forEach((image, index) => {
-    drawImageCover(
-      context,
-      image,
-      (index % 2) * cellWidth,
-      Math.floor(index / 2) * cellHeight,
-      cellWidth,
-      cellHeight,
-    )
-  })
-
-  return {
-    dataUrl: canvas.toDataURL('image/png'),
-    dimensions: {
-      width: canvas.width,
-      height: canvas.height,
-    },
-    title: '全景四视图',
-    prompt: '全景前后左右四视图',
-    source: 'panorama-four-view-screenshot',
+  try {
+    context.drawImage(canvas, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, sourceWidth, sourceHeight)
+    return {
+      dataUrl: outputCanvas.toDataURL('image/png'),
+      dimensions: { width: outputCanvas.width, height: outputCanvas.height },
+      title: '全景截图',
+      prompt: '全景取景框截图',
+      source: 'panorama-framed-screenshot',
+    }
+  } catch {
+    // Canvas export can be blocked if a remote panorama image is loaded without CORS support.
+    return null
   }
 }
 
-async function captureFourViewScreenshot(pannellum: PannellumApi): Promise<PanoramaScreenshot | null> {
-  const currentView = getCurrentCaptureView(pannellum)
-  if (!currentView) return null
-
-  pannellum.stopMovement()
-  const screenshots = PANORAMA_CARDINAL_VIEWS.map((view) => (
-    capturePanoramaView(pannellum, {
-      pitch: 0,
-      yaw: view.yaw,
-      hfov: currentView.hfov,
-    })
-  ))
-  renderPanoramaView(pannellum, currentView, false)
-
-  const capturedScreenshots = screenshots.filter((screenshot): screenshot is PanoramaScreenshot => screenshot !== null)
-  if (capturedScreenshots.length !== PANORAMA_CARDINAL_VIEWS.length) return null
-  return composeFourViewScreenshot(capturedScreenshots)
+function captureFramedPanoramaView(
+  viewer: Viewer,
+  frameElement: HTMLElement,
+): Promise<PanoramaScreenshot | null> {
+  return new Promise((resolve) => {
+    let resolved = false
+    let timeout: ReturnType<typeof setTimeout> | null = null
+    const finish = () => {
+      if (resolved) return
+      resolved = true
+      if (timeout) clearTimeout(timeout)
+      resolve(cropCurrentPanoramaFrame(viewer, frameElement))
+    }
+    viewer.addEventListener('render', finish, { once: true })
+    timeout = setTimeout(finish, 250)
+    viewer.needsUpdate()
+  })
 }
 
-function PanoramaExportableViewer({ children, imageUrl, viewerId }: { children: React.ReactNode; imageUrl: string; viewerId: string }): JSX.Element {
+function useElementSize(element: HTMLElement | null): { width: number; height: number } {
+  const [size, setSize] = React.useState({ width: 0, height: 0 })
+
   React.useLayoutEffect(() => {
-    if (typeof HTMLCanvasElement === 'undefined') return undefined
-    const originalGetContext = HTMLCanvasElement.prototype.getContext
-    const patchedGetContext = function patchedGetContext(
-      this: HTMLCanvasElement,
-      contextId: string,
-      options?: unknown,
-    ) {
-      const shouldPreserve =
-        (contextId === 'webgl' || contextId === 'experimental-webgl') &&
-        this.parentElement?.classList.contains('pnlm-render-container') &&
-        this.closest('[data-panorama-dialog-panel]')
-      if (!shouldPreserve) {
-        return originalGetContext.call(this, contextId as never, options as never)
-      }
-      return originalGetContext.call(this, contextId as never, {
-        ...(typeof options === 'object' && options ? options : {}),
+    if (!element) {
+      setSize({ width: 0, height: 0 })
+      return undefined
+    }
+
+    const update = () => {
+      const rect = element.getBoundingClientRect()
+      setSize({
+        width: Math.max(0, Math.round(rect.width)),
+        height: Math.max(0, Math.round(rect.height)),
+      })
+    }
+    update()
+    if (typeof ResizeObserver === 'undefined') return undefined
+    const observer = new ResizeObserver(update)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [element])
+
+  return size
+}
+
+function computeCaptureFrameSize(
+  panelSize: { width: number; height: number },
+  captureRatio: PanoramaCaptureRatio,
+): { width: number; height: number } | null {
+  if (panelSize.width <= 0 || panelSize.height <= 0) return null
+  const ratio = captureRatio.width / captureRatio.height
+  const maxWidth = Math.max(1, panelSize.width - CAPTURE_FRAME_HORIZONTAL_INSET)
+  const maxHeight = Math.max(1, panelSize.height - CAPTURE_FRAME_VERTICAL_INSET)
+  if (maxWidth / maxHeight > ratio) {
+    const height = Math.max(1, Math.round(maxHeight))
+    return { width: Math.max(1, Math.round(height * ratio)), height }
+  }
+  const width = Math.max(1, Math.round(maxWidth))
+  return { width, height: Math.max(1, Math.round(width / ratio)) }
+}
+
+function PhotoSpherePanoramaViewer({
+  children,
+  config,
+  imageUrl,
+}: {
+  children?: React.ReactNode
+  config: PhotoSphereViewerConfig
+  imageUrl: string
+}): JSX.Element {
+  const containerRef = React.useRef<HTMLDivElement | null>(null)
+  const [viewer, setViewer] = React.useState<Viewer | null>(null)
+
+  React.useLayoutEffect(() => {
+    const container = containerRef.current
+    if (!container || !imageUrl) return undefined
+
+    container.innerHTML = ''
+    const nextViewer = new Viewer({
+      container,
+      panorama: imageUrl,
+      adapter: EquirectangularAdapter.withConfig({
+        resolution: 128,
+        useXmpData: false,
+      }),
+      panoData: buildFullEquirectangularPanoData,
+      navbar: false,
+      loadingTxt: '',
+      canvasBackground: '#000',
+      defaultYaw: 0,
+      defaultPitch: 0,
+      defaultZoomLvl: 50,
+      rendererParameters: {
+        alpha: false,
+        antialias: false,
+        powerPreference: 'low-power',
         preserveDrawingBuffer: true,
-      } as never)
-    } as HTMLCanvasElement['getContext']
-    HTMLCanvasElement.prototype.getContext = patchedGetContext
-    return () => {
-      if (HTMLCanvasElement.prototype.getContext === patchedGetContext) {
-        HTMLCanvasElement.prototype.getContext = originalGetContext
+      },
+      ...config,
+    })
+    setViewer(nextViewer)
+
+    let cancelled = false
+    let firstFrame = 0
+    let secondFrame = 0
+    let settleTimer: ReturnType<typeof setTimeout> | null = null
+    let resizeObserver: ResizeObserver | null = null
+    const runResize = () => {
+      if (cancelled) return
+      const rect = container.getBoundingClientRect()
+      if (rect.width <= 0 || rect.height <= 0) return
+      try {
+        nextViewer.resize({
+          width: `${Math.round(rect.width)}px`,
+          height: `${Math.round(rect.height)}px`,
+        })
+        nextViewer.needsUpdate()
+      } catch {
+        /* The native viewer can be between initialization and first render. */
       }
     }
-  }, [])
+
+    nextViewer.addEventListener('ready', runResize, { once: true })
+    firstFrame = requestAnimationFrame(() => {
+      runResize()
+      secondFrame = requestAnimationFrame(runResize)
+    })
+    settleTimer = setTimeout(runResize, 240)
+
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(runResize)
+      resizeObserver.observe(container)
+    }
+
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(firstFrame)
+      cancelAnimationFrame(secondFrame)
+      if (settleTimer) clearTimeout(settleTimer)
+      resizeObserver?.disconnect()
+      setViewer((currentViewer) => (currentViewer === nextViewer ? null : currentViewer))
+      try {
+        nextViewer.destroy()
+      } catch {
+        /* The native viewer can already be torn down by React remounts. */
+      }
+      container.innerHTML = ''
+    }
+  }, [config, imageUrl])
 
   return (
-    <ReactPannellum
-      id={viewerId}
-      sceneId="fullscreen"
-      imageSource={imageUrl}
-      config={{ autoLoad: true, showZoomCtrl: false, showFullscreenCtrl: false, mouseZoom: true, draggable: true }}
-      style={{ width: '100%', height: '100%' }}
-    >
+    <PhotoSphereViewerContext.Provider value={viewer}>
+      <div
+        ref={containerRef}
+        className="h-full w-full [&_.psv-container]:!bg-nomi-ink"
+        style={{ width: '100%', height: '100%' }}
+      />
       {children}
-    </ReactPannellum>
+    </PhotoSphereViewerContext.Provider>
   )
 }
 
-function PanoramaDialogToolbar({ onClose, onScreenshot }: PanoramaDialogToolbarProps): JSX.Element {
-  const pannellum = usePannellum()
-
-  const handleScreenshot = React.useCallback(() => {
-    const renderedScreenshot = captureCurrentPanoramaView(pannellum)
-    if (renderedScreenshot) {
-      onScreenshot?.(renderedScreenshot)
-      return
-    }
-
-    const container = pannellum.getContainer()
-    const canvas = getPanoramaCanvas(container)
-    if (!canvas) return
-    requestAnimationFrame(() => {
-      try {
-        onScreenshot?.({
-          dataUrl: canvas.toDataURL('image/png'),
-          dimensions: getScreenshotDimensions(container, canvas),
-        })
-      } catch {
-        // Canvas export can be blocked if the panorama image is cross-origin without CORS headers.
-      }
-    })
-  }, [onScreenshot, pannellum])
-
+function PanoramaCaptureOverlay({
+  captureFrameRef,
+  captureRatio,
+  frameSize,
+}: {
+  captureFrameRef: React.RefObject<HTMLDivElement>
+  captureRatio: PanoramaCaptureRatio
+  frameSize: { width: number; height: number } | null
+}): JSX.Element {
   return (
-    <div
-      className={cn(
-        'absolute top-3 right-3 z-[2] flex items-center gap-1 p-1.5',
-        'border border-nomi-line rounded-pill',
-        'bg-nomi-paper shadow-nomi-md backdrop-blur-[12px] saturate-[1.2]',
-      )}
-      onPointerDown={(event) => event.stopPropagation()}
-    >
-      <WorkbenchIconButton
-        className={cn(
-          'inline-grid w-6 h-6 place-items-center p-0',
-          'border border-transparent rounded-full',
-          'bg-transparent text-nomi-ink-60 cursor-pointer',
-          'hover:bg-nomi-ink-05 hover:text-nomi-ink',
-          'disabled:opacity-45 disabled:cursor-wait',
-        )}
-        label="截图当前视口"
-        icon={<IconCamera size={15} />}
-        onClick={handleScreenshot}
-      />
-      <WorkbenchIconButton
-        className={cn(
-          'inline-grid w-6 h-6 place-items-center p-0',
-          'border border-transparent rounded-full',
-          'bg-transparent text-nomi-ink-60 cursor-pointer',
-          'hover:bg-nomi-ink-05 hover:text-nomi-ink',
-          'disabled:opacity-45 disabled:cursor-wait',
-        )}
-        label="关闭预览"
-        icon={<IconX size={15} />}
-        onClick={onClose}
-      />
+    <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center" aria-hidden="true">
+      <div
+        ref={captureFrameRef}
+        data-panorama-capture-frame
+        className="relative rounded-nomi-sm border border-nomi-paper/[0.92]"
+        style={{
+          width: frameSize?.width ?? 'auto',
+          height: frameSize?.height ?? `max(1px, calc(100% - ${CAPTURE_FRAME_VERTICAL_INSET}px))`,
+          maxWidth: `max(1px, calc(100% - ${CAPTURE_FRAME_HORIZONTAL_INSET}px))`,
+          maxHeight: `max(1px, calc(100% - ${CAPTURE_FRAME_VERTICAL_INSET}px))`,
+          aspectRatio: `${captureRatio.width} / ${captureRatio.height}`,
+          boxSizing: 'border-box',
+          flex: '0 0 auto',
+          boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.56), 0 0 0 1px rgba(0, 0, 0, 0.45) inset',
+        }}
+      >
+        <span className="absolute left-[-1px] top-[-1px] h-5 w-5 rounded-tl-[6px] border-l-2 border-t-2 border-nomi-paper" />
+        <span className="absolute right-[-1px] top-[-1px] h-5 w-5 rounded-tr-[6px] border-r-2 border-t-2 border-nomi-paper" />
+        <span className="absolute bottom-[-1px] left-[-1px] h-5 w-5 rounded-bl-[6px] border-b-2 border-l-2 border-nomi-paper" />
+        <span className="absolute bottom-[-1px] right-[-1px] h-5 w-5 rounded-br-[6px] border-b-2 border-r-2 border-nomi-paper" />
+      </div>
     </div>
   )
 }
 
-function PanoramaFourViewCaptureBinder({ onCaptureFourView, onScreenshot }: PanoramaFourViewCaptureBinderProps): null {
-  const pannellum = usePannellum()
-  const capturingRef = React.useRef(false)
+function PanoramaDialogControls({
+  captureFrameRef,
+  captureRatioId,
+  onCaptureRatioChange,
+  onClose,
+  onScreenshot,
+}: {
+  captureFrameRef: React.RefObject<HTMLDivElement>
+  captureRatioId: PanoramaCaptureRatioId
+  onCaptureRatioChange: (ratioId: PanoramaCaptureRatioId) => void
+  onClose: () => void
+  onScreenshot?: (screenshot: PanoramaScreenshot) => void
+}): JSX.Element {
+  const viewer = React.useContext(PhotoSphereViewerContext)
+  const [capturing, setCapturing] = React.useState(false)
+  const [feedback, setFeedback] = React.useState<PanoramaCaptureFeedback | null>(null)
+  const mountedRef = React.useRef(true)
+  const feedbackTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  React.useLayoutEffect(() => {
-    onCaptureFourView?.(() => {
-      if (capturingRef.current) return
-      capturingRef.current = true
-      void captureFourViewScreenshot(pannellum)
-        .then((screenshot) => {
-          if (screenshot) onScreenshot?.(screenshot)
-        })
-        .finally(() => {
-          capturingRef.current = false
-        })
-    })
-  }, [onCaptureFourView, onScreenshot, pannellum])
+  const showFeedback = React.useCallback((nextFeedback: PanoramaCaptureFeedback) => {
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current)
+    setFeedback(nextFeedback)
+    feedbackTimerRef.current = setTimeout(() => {
+      if (mountedRef.current) setFeedback(null)
+    }, 2200)
+  }, [])
 
-  return null
+  React.useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current)
+    }
+  }, [])
+
+  const handleScreenshot = React.useCallback(() => {
+    if (capturing) return
+    if (!viewer || !captureFrameRef.current) {
+      showFeedback({ tone: 'info', message: '全景还没准备好，请稍后再试' })
+      toast('全景还没准备好，请稍后再试', 'info')
+      return
+    }
+
+    setCapturing(true)
+    showFeedback({ tone: 'info', message: '截图中…' })
+    void captureFramedPanoramaView(viewer, captureFrameRef.current)
+      .then((screenshot) => {
+        if (!screenshot) {
+          showFeedback({ tone: 'error', message: '截图失败，请重试' })
+          toast('截图失败，请重试', 'error')
+          return
+        }
+        onScreenshot?.(screenshot)
+        showFeedback({ tone: 'success', message: '已创建全景截图节点' })
+      })
+      .catch(() => {
+        showFeedback({ tone: 'error', message: '截图失败，请重试' })
+        toast('截图失败，请重试', 'error')
+      })
+      .finally(() => {
+        if (mountedRef.current) setCapturing(false)
+      })
+  }, [captureFrameRef, capturing, onScreenshot, showFeedback, viewer])
+
+  return (
+    <>
+      {feedback ? (
+        <div
+          className={cn(
+            'pointer-events-none absolute bottom-6 left-1/2 z-[4] -translate-x-1/2',
+            'rounded-pill border px-4 py-2 text-caption font-semibold shadow-[0_14px_34px_rgba(0,0,0,0.42)]',
+            feedback.tone === 'success'
+              ? 'border-white/85 bg-white text-black'
+              : feedback.tone === 'error'
+                ? 'border-white/40 bg-workbench-danger text-white'
+                : 'border-white/20 bg-black/90 text-white',
+          )}
+          role="status"
+          aria-live="polite"
+        >
+          {feedback.message}
+        </div>
+      ) : null}
+
+      <div
+        className={cn(
+          'absolute left-1/2 top-3 z-[3] flex -translate-x-1/2 items-center gap-1 p-1',
+          'rounded-pill border border-nomi-line bg-nomi-paper shadow-nomi-md',
+          'backdrop-blur-[12px] saturate-[1.2]',
+        )}
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        {PANORAMA_CAPTURE_RATIOS.map((ratio) => (
+          <button
+            key={ratio.id}
+            type="button"
+            className={cn(
+              'h-7 rounded-full px-2.5 text-micro font-medium tabular-nums transition-colors duration-150',
+              captureRatioId === ratio.id
+                ? 'bg-nomi-ink text-nomi-paper'
+                : 'bg-transparent text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink',
+            )}
+            aria-pressed={captureRatioId === ratio.id}
+            onClick={() => onCaptureRatioChange(ratio.id)}
+          >
+            {ratio.label}
+          </button>
+        ))}
+      </div>
+
+      <div
+        className={cn(
+          'absolute right-3 top-3 z-[3] flex items-center gap-1 p-1.5',
+          'rounded-pill border border-nomi-line bg-nomi-paper shadow-nomi-md',
+          'backdrop-blur-[12px] saturate-[1.2]',
+        )}
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        <WorkbenchIconButton
+          className={cn(
+            'inline-grid h-6 w-6 place-items-center p-0',
+            'rounded-full border border-transparent bg-transparent text-nomi-ink-60 cursor-pointer',
+            'hover:bg-nomi-ink-05 hover:text-nomi-ink',
+            'disabled:opacity-45 disabled:cursor-wait',
+          )}
+          label={capturing ? '截图中' : '截图取景框'}
+          icon={<IconCamera size={15} />}
+          disabled={capturing}
+          onClick={handleScreenshot}
+        />
+        <WorkbenchIconButton
+          className={cn(
+            'inline-grid h-6 w-6 place-items-center p-0',
+            'rounded-full border border-transparent bg-transparent text-nomi-ink-60 cursor-pointer',
+            'hover:bg-nomi-ink-05 hover:text-nomi-ink',
+            'disabled:opacity-45 disabled:cursor-wait',
+          )}
+          label="关闭预览"
+          icon={<IconX size={15} />}
+          onClick={onClose}
+        />
+      </div>
+    </>
+  )
 }
 
-export default function PanoramaViewer({ imageUrl, width, height, onEnterFullscreen, onCaptureFourView, onScreenshot }: PanoramaViewerProps): JSX.Element {
+export default function PanoramaViewer({
+  imageUrl,
+  width,
+  height,
+  onEnterFullscreen,
+  onScreenshot,
+}: PanoramaViewerProps): JSX.Element {
   const [fullscreen, setFullscreen] = React.useState(false)
+  const [captureRatioId, setCaptureRatioId] = React.useState<PanoramaCaptureRatioId>(DEFAULT_CAPTURE_RATIO_ID)
   const instanceId = React.useId().replace(/[^a-zA-Z0-9_-]/g, '')
-  const previewViewerId = `panorama-viewer-${instanceId}`
-  const fullscreenViewerId = `panorama-fullscreen-${instanceId}`
+  const [panelElement, setPanelElement] = React.useState<HTMLElement | null>(null)
+  const captureFrameRef = React.useRef<HTMLDivElement | null>(null)
+  const panelSize = useElementSize(panelElement)
+  const captureRatio = getCaptureRatio(captureRatioId)
+  const captureFrameSize = computeCaptureFrameSize(panelSize, captureRatio)
+  const openFullscreen = React.useCallback(() => {
+    setFullscreen(true)
+  }, [])
 
   React.useLayoutEffect(() => {
-    onEnterFullscreen?.(() => {
-      setFullscreen(true)
-    })
-  }, [onEnterFullscreen])
+    onEnterFullscreen?.(openFullscreen)
+    return () => onEnterFullscreen?.(null)
+  }, [onEnterFullscreen, openFullscreen])
 
   React.useEffect(() => {
     if (!fullscreen) return undefined
+    const body = document.body
+    const root = document.documentElement
+    const previousBodyOverflow = body.style.overflow
+    const previousRootOverflow = root.style.overflow
+    body.style.overflow = 'hidden'
+    root.style.overflow = 'hidden'
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setFullscreen(false)
     }
     document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      body.style.overflow = previousBodyOverflow
+      root.style.overflow = previousRootOverflow
+    }
   }, [fullscreen])
 
   if (!imageUrl) {
@@ -376,28 +534,22 @@ export default function PanoramaViewer({ imageUrl, width, height, onEnterFullscr
   return (
     <>
       <div
-        className="group relative overflow-hidden rounded-nomi"
+        className="group relative overflow-hidden rounded-nomi bg-nomi-ink"
         style={{ width, height }}
+        data-panorama-viewer-id={instanceId}
       >
-        <ReactPannellum
-          id={previewViewerId}
-          sceneId="main"
-          imageSource={imageUrl}
-          config={{ autoLoad: true, showZoomCtrl: false, showFullscreenCtrl: false, mouseZoom: false, draggable: false }}
-          style={{ width: '100%', height: '100%' }}
-        >
-          <PanoramaFourViewCaptureBinder onCaptureFourView={onCaptureFourView} onScreenshot={onScreenshot} />
-        </ReactPannellum>
-        {/* 覆盖层：默认不拦事件（保留单击选中/拖动节点），悬停浮现「进入全景」按钮。
-            之前只有节点上方那个浮动按钮能进全屏（需选中+有结果+非只读），用户双击图片无反应，
-            这里给一个不依赖节点选中态的直接入口。 */}
+        <NomiImage
+          src={imageUrl}
+          className="h-full w-full object-cover object-center pointer-events-none select-none"
+          alt=""
+        />
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
           <button
             type="button"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation()
-              setFullscreen(true)
+              openFullscreen()
             }}
             className={cn(
               'pointer-events-auto inline-flex items-center gap-1.5 rounded-full',
@@ -416,7 +568,7 @@ export default function PanoramaViewer({ imageUrl, width, height, onEnterFullscr
       {fullscreen && typeof document !== 'undefined' ? createPortal(
         <div
           className={cn(
-            'fixed inset-0 z-[9999] flex items-center justify-center p-8',
+            'fixed inset-0 z-[9999] flex h-[100dvh] w-screen items-center justify-center overflow-hidden p-8 overscroll-contain',
             'bg-workbench-backdrop backdrop-blur-[10px]',
           )}
           onPointerDown={(event) => event.stopPropagation()}
@@ -425,6 +577,7 @@ export default function PanoramaViewer({ imageUrl, width, height, onEnterFullscr
           }}
         >
           <section
+            ref={setPanelElement}
             className={cn(
               'relative w-[min(96vw,calc((100vh-64px)*16/9))] aspect-video',
               'max-h-[calc(100vh-64px)] overflow-hidden rounded-nomi-lg',
@@ -435,12 +588,24 @@ export default function PanoramaViewer({ imageUrl, width, height, onEnterFullscr
             aria-modal="true"
             aria-label="全景预览"
           >
-            <PanoramaExportableViewer imageUrl={imageUrl} viewerId={fullscreenViewerId}>
-              <PanoramaDialogToolbar
+            <PhotoSpherePanoramaViewer
+              key={`fullscreen-${imageUrl}`}
+              imageUrl={imageUrl}
+              config={PANORAMA_FULLSCREEN_CONFIG}
+            >
+              <PanoramaCaptureOverlay
+                captureFrameRef={captureFrameRef}
+                captureRatio={captureRatio}
+                frameSize={captureFrameSize}
+              />
+              <PanoramaDialogControls
+                captureFrameRef={captureFrameRef}
+                captureRatioId={captureRatioId}
+                onCaptureRatioChange={setCaptureRatioId}
                 onClose={() => setFullscreen(false)}
                 onScreenshot={(screenshot) => onScreenshot?.(screenshot)}
               />
-            </PanoramaExportableViewer>
+            </PhotoSpherePanoramaViewer>
           </section>
         </div>,
         document.body,

@@ -18,7 +18,7 @@ import { IconCheck, IconChevronDown, IconListCheck } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useHasTextModel } from '../library/useHasTextModel'
-import { useJourneyTourStore } from './journeyTourStore'
+import { useJourneyTourActive } from './journeyTourActivity'
 import { DesignProgress } from '../../design'
 import {
   type ChecklistStep,
@@ -51,7 +51,7 @@ export function OnboardingChecklist(): JSX.Element | null {
   const nodes = useGenerationCanvasStore((state) => state.nodes)
   const { hasTextModel: textModelReady } = useHasTextModel()
   // 引导旅途进行时让位：清单是被动进度，tour 在演同一条流程，两者同屏会叠成一团（真机走查抓出）。
-  const journeyTourActive = useJourneyTourStore((state) => state.active)
+  const journeyTourActive = useJourneyTourActive()
 
   const live = React.useMemo<ChecklistState>(
     () => ({

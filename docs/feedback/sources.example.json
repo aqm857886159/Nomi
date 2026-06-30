@@ -1,0 +1,24 @@
+{
+  "_说明": "复制本文件为 docs/feedback/sources.json 并填上你自己的渠道。sources.json 不入库（gitignore）。",
+
+  "github": {
+    "_说明": "repo 留空则自动用本仓库 git remote（aqm857886159/Nomi）。sinceDays = 只看近 N 天更新的 issue/评论。",
+    "repo": "",
+    "sinceDays": 30,
+    "comments": true
+  },
+
+  "bilibili": {
+    "_说明": "videos 填你要盯的视频 BV 号（在视频 URL 里，形如 BV1xx411x7xx）。mode=2 按时间取最新评论。",
+    "videos": [],
+    "mode": 2
+  },
+
+  "wechat": {
+    "_说明": "经 WeLive CLI 只读导出群消息。groups 填群名（WeLive sessions 的 nick_name）或群id（xxx@chatroom）。macOS 前置：需先临时关 SIP 取 db_key + welive init 到 ok（见 docs/plan）。welivePath 默认 ~/welive/welive。",
+    "welivePath": "",
+    "stateDir": "",
+    "groups": [],
+    "sinceDays": 3
+  }
+}

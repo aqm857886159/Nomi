@@ -12,11 +12,13 @@ import { runPlanWithToasts } from '../components/batchPlanPreview'
 import { mintSpendGrant } from '../../api/taskApi'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
 import { parseStoryboardPlan } from './storyboardPlan'
-import { buildStagingSceneAudited, type StagingSpec, type StagingCharacterSpec } from '../nodes/scene3d/stagingBuilder'
-import { buildCameraMoveScene, type CameraMoveSpec } from '../nodes/scene3d/cameraMoveBuilder'
-import { CAMERA_SPEED_DURATION, CAMERA_MOVE_LABEL, type CameraSpeed } from '../nodes/scene3d/cameraMoveVocab'
+import type { StagingSpec, StagingCharacterSpec } from '../nodes/scene3d/stagingBuilder'
+import type { CameraMoveSpec } from '../nodes/scene3d/cameraMoveBuilder'
+import type { CameraSpeed } from '../nodes/scene3d/cameraMoveVocab'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { registerCanvasToolClientId, resolveCanvasToolNodeId } from './clientIdRegistry'
+export { resetClientIdRegistry, resolveCanvasToolNodeId } from './clientIdRegistry'
 
 // 批量创建节点的布局由渲染层 derive，而不是信任 LLM 发来的像素坐标。
 // 实现住在 trajectoryLayout（分层 + 避让 + 网格回退，步距由节点尺寸推导）。
@@ -38,22 +40,6 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
  * 仍会用 clientId 指代节点——曾因为只回不存,clientId 原样进了 store,落盘出
  * "n1→n2" 吊边(指向不存在的节点,连线静默丢失,评测 sb-001 抓出)。
  */
-const clientIdRegistry = new Map<string, string>()
-
-function resolveNodeId(id: string): string {
-  return clientIdRegistry.get(id) ?? id
-}
-
-/**
- * 切项目/换会话时清空 clientId 注册表(P1·治跨项目串台)。
- * 注册表是模块级全局、只增不减;不清的话,A 项目用过 clientId "n1" 后切到 B 项目,
- * 若 LLM 再用 "n1" 指代,resolveNodeId 会返回 A 项目的真实节点 id → 跨项目误连/误删,
- * reconcile 还会把脏解析当"已连接"误判 ok。由 swapGenerationAiProject(画布会话切换的单一入口)调用。
- */
-export function resetClientIdRegistry(): void {
-  clientIdRegistry.clear()
-}
-
 const EDGE_MODES: ReadonlySet<string> = new Set([
   'reference',
   'first_frame',
@@ -81,8 +67,8 @@ function normalizePlannedEdges(rawEdges: unknown[]): Array<{ source: string; tar
 }
 
 /** S6-4 锁求值要把 LLM 口中的 clientId 翻译成真实节点 id 再查锁面(gate 调用方用)。 */
-export function resolveCanvasToolNodeId(id: string): string {
-  return resolveNodeId(id)
+function resolveNodeId(id: string): string {
+  return resolveCanvasToolNodeId(id)
 }
 
 /**
@@ -261,7 +247,7 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
       const clientId = typeof node.clientId === 'string' ? node.clientId : ''
       if (clientId && created[index]) {
         clientIdToNodeId[clientId] = created[index].id
-        clientIdRegistry.set(clientId, created[index].id)
+        registerCanvasToolClientId(clientId, created[index].id)
       }
     })
     // 节点和边是一个计划、一次批准、一次落地（不许把连边拆成第二次审批——用户拍板）。
@@ -309,6 +295,7 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
     // 站位参考：词汇 spec → 3D 场景 → 建 scene3d 节点(带 stagingAutoCapture)。
     // 节点挂载时离屏出图 + 连 composition_ref 到目标镜头（Scene3DEditor 内完成）。
     const spec = parseStagingSpec(record)
+    const { buildStagingSceneAudited } = await import('../nodes/scene3d/stagingBuilder')
     // 运行时自检(F3,零额度几何守卫):修正非法/近似姿势 id(治静默落站立)+ 角色过近自动拉开间距。
     const { state, issues: stagingIssues } = buildStagingSceneAudited(spec)
     const existing = generationCanvasTools.read_canvas().nodes
@@ -374,6 +361,10 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
       shot: parsed.shot,
       subjectPose: parsed.subjectPose,
     }
+    const [{ buildCameraMoveScene }, { CAMERA_SPEED_DURATION, CAMERA_MOVE_LABEL }] = await Promise.all([
+      import('../nodes/scene3d/cameraMoveBuilder'),
+      import('../nodes/scene3d/cameraMoveVocab'),
+    ])
     const state = buildCameraMoveScene(spec)
     const speed: CameraSpeed = spec.speed ?? 'medium'
     const fps = 24 // Seedance 参考视频要求帧率 23.8–60 FPS（实测 12fps 被 InvalidParameter.FpsTooLow 拒）

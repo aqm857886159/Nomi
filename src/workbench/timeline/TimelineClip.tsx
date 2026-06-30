@@ -5,6 +5,7 @@ import { useWorkbenchStore } from '../workbenchStore'
 import { frameToPixel, pixelToFrame, clampGroupDelta, type ClipOrigin } from './timelineEdit'
 import { buildSnapPoints, resolveSnap, pixelThresholdToFrames, type SnapResult } from './snapping'
 import type { TimelineClip as TimelineClipData } from './timelineTypes'
+import { resolveTimelineClipPreviewMedia } from './timelineClipPreview'
 import { buildVideoPlaybackUrl } from '../../media/videoPlaybackUrl'
 import { diagnoseVideoPlaybackFailure, logVideoPlaybackFailure } from '../../media/videoPlaybackDiagnostics'
 
@@ -16,6 +17,7 @@ function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
   const scale = useWorkbenchStore((state) => state.timeline.scale)
   // 仅订阅"本 clip 是否选中"（布尔），避免选区变化时所有 clip 重渲染
   const isSelected = useWorkbenchStore((state) => state.selectedTimelineClipIds.includes(clip.id))
+  const selectedClipCount = useWorkbenchStore((state) => state.selectedTimelineClipIds.length)
   const splitMode = useWorkbenchStore((state) => state.timelineSplitMode)
 
   const [isDragging, setIsDragging] = React.useState(false)
@@ -28,10 +30,10 @@ function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
   const didDragRef = React.useRef(false)
 
   const title = clip.label || clip.text || clip.sourceNodeId
-  const clipVideoUrl = typeof clip.url === 'string' ? clip.url : ''
-  // C3 真实帧：video clip 优先用真实视频帧（<video> 首帧）而非存的 thumbnailUrl——
-  // 后者可能是节点预览的「黑底合成标题卡」（审计 D3「假数据感」）。image clip 的 thumbnail=真图，照旧。
-  const showVideoThumb = clip.type === 'video' && Boolean(clipVideoUrl)
+  const previewMedia = resolveTimelineClipPreviewMedia(clip, {
+    // 时间轴可有几十个视频片段；默认不批量挂 <video>，只让正在编辑的单个片段加载真实帧。
+    isSingleSelected: isSelected && selectedClipCount === 1,
+  })
 
   // 吸附"咔哒"微反馈：WAAPI 实现，免改全局 CSS（规则 10）；不与 React 的 style.left 冲突。
   const pulseSnap = React.useCallback(() => {
@@ -209,27 +211,27 @@ function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
 
   const clipWidth = Math.max(36, frameToPixel(clip.frameCount, scale))
 
-  const thumbContent = showVideoThumb && clipVideoUrl ? (
+  const thumbContent = previewMedia.kind === 'video' ? (
     <video
       className={cn(
         'workbench-timeline-clip__thumb',
         'block absolute inset-0 w-full h-full object-cover rounded-[inherit] bg-[var(--nomi-ink-10)]',
       )}
-      src={buildVideoPlaybackUrl(clipVideoUrl)}
+      src={buildVideoPlaybackUrl(previewMedia.src)}
       crossOrigin="use-credentials"
       muted
       playsInline
       preload="metadata"
       draggable={false}
       onError={(event) => {
-        void diagnoseVideoPlaybackFailure(clipVideoUrl, event.currentTarget.error).then(logVideoPlaybackFailure)
+        void diagnoseVideoPlaybackFailure(previewMedia.src, event.currentTarget.error).then(logVideoPlaybackFailure)
       }}
     />
-  ) : (clip.type === 'image' && clipVideoUrl) || clip.thumbnailUrl ? (
+  ) : previewMedia.kind === 'image' ? (
     <NomiImage className={cn(
       'workbench-timeline-clip__thumb',
       'block absolute inset-0 w-full h-full object-cover rounded-[inherit] bg-[var(--nomi-ink-10)]',
-    )} src={clip.type === 'image' && clipVideoUrl ? clipVideoUrl : clip.thumbnailUrl || ''} alt="" />
+    )} src={previewMedia.src} alt="" />
   ) : null
 
   const clipBaseClasses = cn(

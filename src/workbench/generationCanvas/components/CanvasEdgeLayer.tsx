@@ -21,6 +21,8 @@ type CanvasEdgeLayerProps = {
   zoom: number
   /** 视口裁剪：非空时只渲染两端任一在集内的边（虚拟化生效时由画布传入）；null = 渲染全部。 */
   visibleNodeIds: Set<string> | null
+  /** 大图/远缩放时只画线条，延后标签、命中热区、端点等重 UI。 */
+  lightweight?: boolean
   /** 聚焦节点（当前单选）：其关联边点亮，其余边默认淡化——根治多锚点「毛线球」。null = 全部淡化。 */
   focusedNodeId: string | null
   activeEdge: ActiveEdge | null
@@ -41,6 +43,7 @@ function CanvasEdgeLayer({
   nodeById,
   zoom,
   visibleNodeIds,
+  lightweight = false,
   focusedNodeId,
   activeEdge,
   readOnly,
@@ -102,6 +105,7 @@ function CanvasEdgeLayer({
         const cutPosition = isActiveEdge && activeEdge?.position ? activeEdge.position : { x: midX, y: midY }
         const isDense = (labeledCountByTarget.get(edge.target) || 0) > EDGE_TAG_DENSE_THRESHOLD
         const isIncident = focusedNodeId != null && (edge.source === focusedNodeId || edge.target === focusedNodeId)
+        const renderInteractiveEdge = !lightweight || isActiveEdge || isIncident
         return (
           <g
             key={edge.id}
@@ -112,8 +116,8 @@ function CanvasEdgeLayer({
             data-dense={isTyped && isDense ? 'true' : undefined}
           >
             <path className="generation-canvas-v2__edge-path" d={path} />
-            <circle className="generation-canvas-v2__edge-dot" cx={endX} cy={endY} r={3.2} />
-            {isTyped ? (
+            {renderInteractiveEdge ? <circle className="generation-canvas-v2__edge-dot" cx={endX} cy={endY} r={3.2} /> : null}
+            {renderInteractiveEdge && isTyped ? (
               <g className="generation-canvas-v2__edge-tag" transform={`translate(${midX} ${midY}) scale(${tagScale})`}>
                 <foreignObject x={-46} y={-9} width={92} height={18} style={{ overflow: 'visible' }}>
                   <div className="flex w-full h-full items-center justify-center">
@@ -122,7 +126,7 @@ function CanvasEdgeLayer({
                 </foreignObject>
               </g>
             ) : null}
-            {!readOnly ? (
+            {!readOnly && renderInteractiveEdge ? (
               <path
                 className="generation-canvas-v2__edge-hit"
                 d={path}

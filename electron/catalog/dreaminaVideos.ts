@@ -23,7 +23,6 @@ const TEXT2VIDEO_CREATE: HttpOperation = {
   process: {
     bin: "dreamina",
     parser: "dreamina-cli",
-    appendDownloadDir: true,
     args: [
       "text2video",
       "--prompt={{request.prompt}}",
@@ -47,7 +46,6 @@ const IMAGE_TO_VIDEO_CREATE: HttpOperation = {
   process: {
     bin: "dreamina",
     parser: "dreamina-cli",
-    appendDownloadDir: true,
     fileParams: [
       { param: "i2v_image", expose: "i2v_image_path", mode: "single" },
       { param: "frames_first", expose: "frames_first_path", mode: "single" },
@@ -84,7 +82,6 @@ const MULTIFRAME_CREATE: HttpOperation = {
   process: {
     bin: "dreamina",
     parser: "dreamina-cli",
-    appendDownloadDir: true,
     build: "multiframe",
     fileParams: [{ param: "mf_images", expose: "mf_image_paths", mode: "array" }],
     args: [], // 忽略：build=multiframe 改调 buildMultiframeArgs

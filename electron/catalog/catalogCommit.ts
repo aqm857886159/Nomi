@@ -4,21 +4,12 @@ import { newapiTransportFor } from "./newapiTransport";
 import { guessModelKind } from "./modelKindHeuristic";
 import { hardenedFetchText } from "../hardenedFetch";
 import type { AiSdkProviderKind, BillingModelKind, HttpOperation, Model, ProfileKind, Vendor } from "./types";
+import type { TaskRequest } from "../runtime";
 import {
   mutateCatalog,
   normalizeProviderKind,
   readCatalog,
 } from "./catalogStore";
-// 回引 runtime 的任务执行引擎（testModelCatalogMapping 复用）；调用都在函数体内（运行期），
-// CommonJS 循环引用安全（runtime ↔ catalogCommit 仅函数体互引，无加载期互调）。
-import {
-  billingKindForTaskKind,
-  buildProfileHttpRequest,
-  buildProfileTaskResult,
-  executeProfileOperation,
-  findExecutableModelForTask,
-  type TaskRequest,
-} from "../runtime";
 
 /**
  * 把「档案声明了、但 mapping body 里没有 {{request.params.*}} 槽」的参数键补进 body
@@ -398,6 +389,13 @@ export async function fetchModelCatalogDocs(payload: unknown): Promise<unknown> 
 }
 
 export async function testModelCatalogMapping(id: string, payload: unknown): Promise<unknown> {
+  const {
+    billingKindForTaskKind,
+    buildProfileHttpRequest,
+    buildProfileTaskResult,
+    executeProfileOperation,
+    findExecutableModelForTask,
+  } = await import("../runtime");
   const mapping = readCatalog().mappings.find((item) => item.id === id);
   const raw = payload as JsonRecord | undefined;
   if (!mapping) {

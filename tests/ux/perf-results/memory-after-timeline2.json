@@ -1,0 +1,168 @@
+{
+  "label": "after-timeline2",
+  "fixture": "ZZ 性能基准 fixture",
+  "samples": [
+    {
+      "label": "library-initial",
+      "renderer": {
+        "hash": "#/studio",
+        "domNodes": 177,
+        "projectCards": 1,
+        "canvasNodes": 0,
+        "lightweightCanvasNodes": 0,
+        "fullCanvasNodes": 0,
+        "images": 0,
+        "videos": 0,
+        "jsHeapUsedMB": 12,
+        "jsHeapTotalMB": 14
+      },
+      "cdp": {
+        "jsHeapUsedMB": null,
+        "jsHeapTotalMB": null
+      },
+      "processTree": {
+        "totalWorkingSetMB": 655,
+        "processes": [
+          {
+            "pid": 28128,
+            "parentPid": 37300,
+            "name": "electron.exe",
+            "workingSetMB": 167
+          },
+          {
+            "pid": 37416,
+            "parentPid": 28128,
+            "name": "electron.exe",
+            "workingSetMB": 224
+          },
+          {
+            "pid": 32980,
+            "parentPid": 28128,
+            "name": "electron.exe",
+            "workingSetMB": 89
+          },
+          {
+            "pid": 21404,
+            "parentPid": 28128,
+            "name": "electron.exe",
+            "workingSetMB": 89
+          },
+          {
+            "pid": 30276,
+            "parentPid": 28128,
+            "name": "electron.exe",
+            "workingSetMB": 86
+          }
+        ]
+      }
+    },
+    {
+      "label": "canvas-open",
+      "renderer": {
+        "hash": "#/studio?projectId=project-perf-fixture-0001",
+        "domNodes": 2287,
+        "projectCards": 0,
+        "canvasNodes": 96,
+        "lightweightCanvasNodes": 96,
+        "fullCanvasNodes": 0,
+        "images": 0,
+        "videos": 0,
+        "jsHeapUsedMB": 12,
+        "jsHeapTotalMB": 14
+      },
+      "cdp": {
+        "jsHeapUsedMB": null,
+        "jsHeapTotalMB": null
+      },
+      "processTree": {
+        "totalWorkingSetMB": 847,
+        "processes": [
+          {
+            "pid": 28128,
+            "parentPid": 37300,
+            "name": "electron.exe",
+            "workingSetMB": 154
+          },
+          {
+            "pid": 37416,
+            "parentPid": 28128,
+            "name": "electron.exe",
+            "workingSetMB": 215
+          },
+          {
+            "pid": 32980,
+            "parentPid": 28128,
+            "name": "electron.exe",
+            "workingSetMB": 49
+          },
+          {
+            "pid": 21404,
+            "parentPid": 28128,
+            "name": "electron.exe",
+            "workingSetMB": 396
+          },
+          {
+            "pid": 30276,
+            "parentPid": 28128,
+            "name": "electron.exe",
+            "workingSetMB": 33
+          }
+        ]
+      }
+    },
+    {
+      "label": "library-after-back",
+      "renderer": {
+        "hash": "#/studio",
+        "domNodes": 196,
+        "projectCards": 1,
+        "canvasNodes": 0,
+        "lightweightCanvasNodes": 0,
+        "fullCanvasNodes": 0,
+        "images": 0,
+        "videos": 0,
+        "jsHeapUsedMB": 12,
+        "jsHeapTotalMB": 14
+      },
+      "cdp": {
+        "jsHeapUsedMB": null,
+        "jsHeapTotalMB": null
+      },
+      "processTree": {
+        "totalWorkingSetMB": 805,
+        "processes": [
+          {
+            "pid": 28128,
+            "parentPid": 37300,
+            "name": "electron.exe",
+            "workingSetMB": 132
+          },
+          {
+            "pid": 37416,
+            "parentPid": 28128,
+            "name": "electron.exe",
+            "workingSetMB": 206
+          },
+          {
+            "pid": 32980,
+            "parentPid": 28128,
+            "name": "electron.exe",
+            "workingSetMB": 49
+          },
+          {
+            "pid": 21404,
+            "parentPid": 28128,
+            "name": "electron.exe",
+            "workingSetMB": 385
+          },
+          {
+            "pid": 30276,
+            "parentPid": 28128,
+            "name": "electron.exe",
+            "workingSetMB": 33
+          }
+        ]
+      }
+    }
+  ]
+}
