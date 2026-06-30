@@ -10,6 +10,16 @@ import {
 } from './scene3dConstants'
 import type { Scene3DVector3 } from './scene3dTypes'
 
+// header「速度」滑块（flySpeed，原给相机 fly 调）的取值范围（与 Scene3DFullscreen 滑块 min/max 一致）。
+export const CHARACTER_DRIVE_FLY_SPEED_MIN = 1
+export const CHARACTER_DRIVE_FLY_SPEED_MAX = 16
+// 角色走位地面基速（米/秒）。滑块在此之上缩放：低档=从容走路(远低于 run 阈值 3.2)，
+// 高档=明确奔跑(越过 run 阈值)。基速以下任何缩放都走路，基速 ~2.3 倍才奔跑。
+export const CHARACTER_DRIVE_BASE_GROUND_SPEED = 2.6
+// 滑块两端相对基速的缩放：低端 ≈ 基速×0.46 (≈1.2 m/s 舒适走)、高端 ≈ 基速×2.31 (≈6.0 m/s 奔跑)。
+const GROUND_SPEED_SCALE_AT_MIN_FLY = 0.46
+const GROUND_SPEED_SCALE_AT_MAX_FLY = 2.31
+
 // 角色操控（possess）纯运动学层。和相机 fly（scene3dViewControllers）是两条独立路径：
 // 相机 fly 把按键映射到「相机本地空间」并允许 y 飞行；角色操控只在「地面平面 x/z」走位、贴地、自动面向。
 // 这里只放可单测的纯函数；R3F 控制器与节流提交在 scene3dCharacterDrive.tsx。
@@ -86,6 +96,21 @@ export function applyGroundTranslation(
     Number(groundY.toFixed(4)),
     Number((position[2] + deltaZ).toFixed(4)),
   ]
+}
+
+// 把 header「速度」滑块(flySpeed，1–16) 线性映射到角色走位地面速度(米/秒)。
+// 滑块越高走得越快，**高档要越过 run 阈值(3.2)** 触发奔跑、低档保持走路；随滑块连续 derive，不钉死。
+// clamp 到滑块范围后归一化，再在「基速×低端缩放 ~ 基速×高端缩放」间线性插值。
+export function groundSpeedForFlySpeed(flySpeed: number): number {
+  const clamped = Math.min(
+    CHARACTER_DRIVE_FLY_SPEED_MAX,
+    Math.max(CHARACTER_DRIVE_FLY_SPEED_MIN, flySpeed),
+  )
+  const t = (clamped - CHARACTER_DRIVE_FLY_SPEED_MIN)
+    / (CHARACTER_DRIVE_FLY_SPEED_MAX - CHARACTER_DRIVE_FLY_SPEED_MIN)
+  const scale = GROUND_SPEED_SCALE_AT_MIN_FLY
+    + t * (GROUND_SPEED_SCALE_AT_MAX_FLY - GROUND_SPEED_SCALE_AT_MIN_FLY)
+  return CHARACTER_DRIVE_BASE_GROUND_SPEED * scale
 }
 
 // 由「角色当前地面速度(米/秒，非负)」分桶到 locomotion 动画 clip：

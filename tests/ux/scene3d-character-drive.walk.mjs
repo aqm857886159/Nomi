@@ -76,6 +76,18 @@ try {
   await win.screenshot({ path: path.join(outDir, 'cd-01-editor-open.png') })
   log(`  ${pass.editorOpen ? '✓' : '✗'} 编辑器打开`)
 
+  // 把 header「速度」滑块拉到高档（验 run 动画触发 + 走得够快）
+  const speed = win.locator('input[type="range"]').first()
+  if ((await speed.count()) > 0) {
+    await speed.evaluate((el) => {
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+      setter.call(el, String(el.max || 16))
+      el.dispatchEvent(new Event('input', { bubbles: true }))
+      el.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await win.waitForTimeout(300)
+  }
+
   // 选第一个假人（默认场景已有一个）
   const firstMan = win.getByText('假人', { exact: true }).first()
   if ((await firstMan.count()) > 0) { await firstMan.click(); await win.waitForTimeout(800) }

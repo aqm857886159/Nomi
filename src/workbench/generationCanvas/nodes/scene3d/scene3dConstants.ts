@@ -117,8 +117,8 @@ export const LOCOMOTION_CLIP_IDLE: Scene3DLocomotionClip = 'idle'
 export const LOCOMOTION_CLIP_WALK: Scene3DLocomotionClip = 'walk'
 export const LOCOMOTION_CLIP_RUN: Scene3DLocomotionClip = 'run'
 // 由「角色地面速度(米/秒)」分桶到 locomotion clip 的阈值。低于 walk 阈值 = 站立(idle)；
-// 超过 run 阈值 = 奔跑。值贴现有走位基速（WALK_SPEED 2.6 × SPEED_SCALE 0.42 ≈ 1.09 m/s 满速），
-// 故 run 门设在满速之上一截，需配速度滑块调高才触发；walk 门设在「确实在动」的微小正速度之上。
+// 超过 run 阈值 = 奔跑。地面速度由 header「速度」滑块经 groundSpeedForFlySpeed 派生（≈1.2~6.0 m/s）：
+// 低档落在 walk 段、中高档越过 run 阈值触发奔跑；walk 门设在「确实在动」的微小正速度之上。
 export const LOCOMOTION_WALK_SPEED_THRESHOLD = 0.05
 export const LOCOMOTION_RUN_SPEED_THRESHOLD = 3.2
 // crossFade 时长(秒)：clip 切换的平滑过渡。

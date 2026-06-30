@@ -16,13 +16,12 @@ import {
   dampYaw,
   facingYawFromDirection,
   groundMoveDirection,
+  groundSpeedForFlySpeed,
   locomotionForSpeed,
 } from './scene3dCharacterDrive'
 import { LOCOMOTION_CLIP_IDLE } from './scene3dConstants'
 import type { Scene3DObject } from './scene3dTypes'
 
-const WALK_SPEED = 2.6 // 米/秒（地面走位基速，速度滑块再乘进来）
-const SPEED_SCALE = 0.42 // 把 header 速度滑块(1–16，给相机 fly 调的)缩到适合角色走位的尺度
 const TURN_LAMBDA = 11 // 自动面向转身的阻尼系数（越大转身越快）
 const COMMIT_INTERVAL = 0.08 // 节流提交 state 的间隔(秒)，复用 CameraViewEditController 的 80ms
 
@@ -32,15 +31,21 @@ const COMMIT_INTERVAL = 0.08 // 节流提交 state 的间隔(秒)，复用 Camer
 // 照 CameraViewEditController 那套，避免每帧 setState 触发全场景 reconcile。
 export function CharacterDriveController({
   possessedObject,
+  flySpeed,
   onObjectPatch,
   onLocomotionChange,
 }: {
   possessedObject: Scene3DObject
+  // header「速度」滑块(1–16，与相机 fly 同一个)。高档 → 地面速度越过 run 阈值播奔跑，低档走路。
+  flySpeed: number
   onObjectPatch: (id: string, patch: Partial<Scene3DObject>) => void
   // 当 locomotion 桶（idle/walk/run）变化时上抛——驱动被操控假人切迈腿动画 clip。仅在桶变化时调用（非每帧）。
   onLocomotionChange?: (clip: string) => void
 }): null {
   const { camera, scene, invalidate } = useThree()
+  // 滑块值放 ref，useFrame 每帧读最新值；改滑块不重订阅、不重挂键盘。
+  const flySpeedRef = React.useRef(flySpeed)
+  flySpeedRef.current = flySpeed
   const locomotionRef = React.useRef<string>(LOCOMOTION_CLIP_IDLE)
   const objectIdRef = React.useRef(possessedObject.id)
   const groundYRef = React.useRef(possessedObject.position[1])
@@ -117,7 +122,7 @@ export function CharacterDriveController({
       yawRef.current = dampYaw(yawRef.current, targetYaw, TURN_LAMBDA, delta)
     }
 
-    const groundSpeed = moving ? WALK_SPEED * Math.max(0.2, SPEED_SCALE) : 0
+    const groundSpeed = moving ? groundSpeedForFlySpeed(flySpeedRef.current) : 0
     if (moving) {
       const step = groundSpeed * delta
       positionRef.current.x += direction.x * step

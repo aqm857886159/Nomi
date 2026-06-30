@@ -131,6 +131,7 @@ export function SceneObjectView({
   roleLabel,
   roleStartIndex,
   activeClip,
+  possessed,
   onSelect,
   onFocus,
   onTransformStart,
@@ -149,6 +150,8 @@ export function SceneObjectView({
   // possess 态被操控假人的 locomotion 动画 clip（idle/walk/run）。仅被操控的单个假人有值；
   // 其余对象/群众一律 undefined → Mannequin 走静态 pose 路径，零回归。
   activeClip?: string
+  // 该假人正被 possess 直驱 → 脚环每帧跟住实时 group（不滞后）。其余 undefined → 静态脚环（零回归）。
+  possessed?: boolean
   onSelect: () => void
   onFocus: () => void
   onTransformStart: () => void
@@ -306,7 +309,7 @@ export function SceneObjectView({
 
   return (
     <>
-      {selected ? <MannequinFootRings object={object} /> : null}
+      {selected || possessed ? <MannequinFootRings object={object} possessed={possessed} /> : null}
       {object.type === 'mannequin' && roleLabel ? <MannequinRoleLabel position={singleMannequinLabelPosition(object)} label={roleLabel} /> : null}
       {object.type === 'mannequinCrowd' && roleStartIndex !== undefined
         ? crowdLabelPositions(object).map((position, index) => (

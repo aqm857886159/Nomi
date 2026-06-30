@@ -8,6 +8,9 @@ import {
   dampYaw,
   applyGroundTranslation,
   locomotionForSpeed,
+  groundSpeedForFlySpeed,
+  CHARACTER_DRIVE_FLY_SPEED_MIN,
+  CHARACTER_DRIVE_FLY_SPEED_MAX,
 } from './scene3dCharacterDrive'
 import {
   LOCOMOTION_RUN_SPEED_THRESHOLD,
@@ -141,6 +144,42 @@ describe('applyGroundTranslation', () => {
 
   it('y 始终来自 groundY，与传入 position.y 无关', () => {
     expect(applyGroundTranslation([0, 5, 0], 0, 0, 1.25)[1]).toBe(1.25)
+  })
+})
+
+describe('groundSpeedForFlySpeed', () => {
+  it('滑块最低档 → 走路速度（远低于 run 阈值）', () => {
+    const speed = groundSpeedForFlySpeed(CHARACTER_DRIVE_FLY_SPEED_MIN)
+    expect(speed).toBeGreaterThan(LOCOMOTION_WALK_SPEED_THRESHOLD)
+    expect(speed).toBeLessThan(LOCOMOTION_RUN_SPEED_THRESHOLD)
+    expect(locomotionForSpeed(speed)).toBe('walk')
+  })
+
+  it('滑块最高档 → 越过 run 阈值（奔跑）', () => {
+    const speed = groundSpeedForFlySpeed(CHARACTER_DRIVE_FLY_SPEED_MAX)
+    expect(speed).toBeGreaterThan(LOCOMOTION_RUN_SPEED_THRESHOLD)
+    expect(locomotionForSpeed(speed)).toBe('run')
+  })
+
+  it('滑块单调递增 → 速度单调递增', () => {
+    let prev = -Infinity
+    for (let s = CHARACTER_DRIVE_FLY_SPEED_MIN; s <= CHARACTER_DRIVE_FLY_SPEED_MAX; s += 1) {
+      const speed = groundSpeedForFlySpeed(s)
+      expect(speed).toBeGreaterThan(prev)
+      prev = speed
+    }
+  })
+
+  it('存在一个中高档使桶从 walk 翻成 run（run 真能被滑块触发）', () => {
+    const walkAtLow = locomotionForSpeed(groundSpeedForFlySpeed(CHARACTER_DRIVE_FLY_SPEED_MIN))
+    const runAtHigh = locomotionForSpeed(groundSpeedForFlySpeed(CHARACTER_DRIVE_FLY_SPEED_MAX))
+    expect(walkAtLow).toBe('walk')
+    expect(runAtHigh).toBe('run')
+  })
+
+  it('clamp 越界输入到滑块范围（不爆速/不负速）', () => {
+    expect(groundSpeedForFlySpeed(-100)).toBeCloseTo(groundSpeedForFlySpeed(CHARACTER_DRIVE_FLY_SPEED_MIN), 6)
+    expect(groundSpeedForFlySpeed(9999)).toBeCloseTo(groundSpeedForFlySpeed(CHARACTER_DRIVE_FLY_SPEED_MAX), 6)
   })
 })
 

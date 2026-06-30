@@ -196,6 +196,7 @@ export function SceneContent({
           roleLabel={object.type === 'mannequin' ? mannequinRoleData.labels.get(object.id) : undefined}
           roleStartIndex={mannequinRoleData.starts.get(object.id)}
           activeClip={possessedObject?.id === object.id ? possessedLocomotionClip : undefined}
+          possessed={possessedObject?.id === object.id}
           onSelect={() => onSelect({ type: 'object', id: object.id })}
           onFocus={() => onFocus(object.id)}
           onTransformStart={onTransformInteractionStart}
@@ -253,6 +254,7 @@ export function SceneContent({
       {possessedObject ? (
         <CharacterDriveController
           possessedObject={possessedObject}
+          flySpeed={flySpeed}
           onObjectPatch={onObjectPatch}
           onLocomotionChange={onLocomotionChange}
         />
