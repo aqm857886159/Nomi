@@ -69,6 +69,9 @@ export function categorizeVendorFailure(
   if (code === 402) return { category: "balance", retryable: false };
   if (code === 429) return { category: "quota", retryable: true };
   if (code === 400 || code === 422) return { category: "input", retryable: false };
+  // 厂商业务码（≥1000，非 HTTP 状态码，如 RunningHub 1014/1007/1001）：是应用级拒绝（鉴权档/缺参/路径），
+  // 重试无意义 → 非 retryable。放在 ≥500 之前，免被误判成「服务端可重试」白白重试几次。
+  if (typeof httpStatus !== "number" && code >= 1000) return { category: "input", retryable: false };
   if (code >= 500) return { category: "server", retryable: true };
   return { category: "unknown", retryable: false };
 }
@@ -169,6 +172,8 @@ export async function requestJson(
       record.msg,
       record.message,
       record.error,
+      // RunningHub：业务错误在 errorMessage（如「标准模型API仅限企业级-共享API Key调用」）。
+      record.errorMessage,
       readNestedRecord(record, ["error", "message"]),
       readNestedRecord(record, ["data", "msg"]),
       // ModelScope（及同类）失败体是复数 `errors`：{ "errors": { "message": "..." } }——

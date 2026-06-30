@@ -158,6 +158,16 @@ describe("looksLikeLogicalError", () => {
     expect(looksLikeLogicalError({ code: 200 })).toBeNull();
     expect(looksLikeLogicalError({ data: {} })).toBeNull();
   });
+  it("detects RunningHub { errorCode, errorMessage } 200-envelopes（真机实测 1014/1007/1001）", () => {
+    expect(looksLikeLogicalError({ taskId: "", errorCode: "1014", errorMessage: "Access Denied: Enterprise key only" })).toBe(1014);
+    expect(looksLikeLogicalError({ errorCode: "1007", errorMessage: "field required" })).toBe(1007);
+    expect(looksLikeLogicalError({ errorCode: 1001 })).toBe(1001);
+  });
+  it("ignores RunningHub success errorCode 0/空", () => {
+    expect(looksLikeLogicalError({ taskId: "abc", errorCode: "0" })).toBeNull();
+    expect(looksLikeLogicalError({ taskId: "abc", errorCode: 0 })).toBeNull();
+    expect(looksLikeLogicalError({ taskId: "abc", errorCode: "" })).toBeNull();
+  });
 });
 
 describe("buildHttpRequest — the create POST (kie text_to_image)", () => {

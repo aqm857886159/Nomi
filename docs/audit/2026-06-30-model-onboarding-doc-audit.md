@@ -62,7 +62,35 @@
 
 ---
 
-## ❌ RunningHub —— 结构性问题，需用户提供资源（不许瞎改）
+## ✅ RunningHub —— 已用你配的 key 真机探测，路径全对、发现账号档位闸（2026-06-30 update）
+
+> `tests/transport-spike/runninghub-probe.cjs`（隔离 electron + safeStorage 解密真实 key + applySystemProxy），
+> 对每个 t2v/t2i 端点发最小 body，看服务端真实回包。**零额度**（全部在扣费前就被服务端拦下）。
+
+**真机结论（推翻审计 agent 的搜索索引猜测——正是没盲改的价值）：**
+1. **我们的路径全部正确**。`/alibaba/wan-2.7/...`、`/alibaba/qwen-image-2.0/...` 都到了服务端**档位校验**（errorCode 1014），
+   说明 model 存在；agent 猜的「裸 `/qwen-image-2.0/`」反而返回 **errorCode 1001「Invalid URL」=路径错**。agent 的 P0 怀疑是误报。
+2. **真正的「用不了」根因 = 账号档位闸**：多数标准模型（Seedance/Veo/Kling/Wan2.7/Seedream/Nano/GPT/Qwen）返回
+   **errorCode 1014「标准模型API仅限企业级-共享API Key调用 / restricted to Enterprise-Shared API Keys only」**——
+   **你当前的 RunningHub key 是普通 key，调不动这些标准模型**（和即梦的会员闸同类，是账号档位、非代码 bug）。
+   Sora2 / 海螺2.3 / wan-2.2 候选则过了档位闸（到参数校验），即这几个普通 key 可用。
+3. Sora2 的 `size` 档（`720x1280`/`1280x720`）经服务端确认**正好对**（archetype 本就这俩值）；海螺 `enablePromptExpansion` 必填，archetype 已提供。**无路径/参数 bug。**
+
+**已修（错误透传，治 RunningHub 版「用不了」黑洞，与即梦同类）：** RunningHub 的 1014 返回的是 HTTP 200 +
+`{taskId:"", errorCode:"1014", errorMessage}`，旧逻辑 `looksLikeLogicalError` 只认 `{code}` → 漏判 → 伪造本地 taskId
+轮询成谜之失败。已扩 `looksLikeLogicalError` 认 `errorCode`（非 0/空即逻辑错）+ `vendorHttp` 错误信息读 `errorMessage`
++ `categorizeVendorFailure` 把 ≥1000 业务码判非 retryable（免白重试）。现在非企业 key 调标准模型会**直接看到**
+「标准模型API仅限企业级-共享API Key调用」，而不是谜之失败。
+
+**仍 ⚠️ 无法验证（被 1014 档位闸挡住，需企业共享 key 才能过闸测）：** Seedance i2v 是否收 `lastFrameUrl`、
+GPT Image 是否要 `model` 字段、完成态结果字段是 `fileUrl` 还是 `url`——这些都在企业闸后面，普通 key 测不到。
+
+> **给你的决策**：若要让用户真正用上 RunningHub 标准模型，需要一把 **Enterprise-Shared API Key**（这是 RunningHub 的账号档位，
+> 不是我们能代码绕过的）。要么你换/升级这把 key，要么我们在「可用」判定里默认隐藏这些标准模型、只露普通 key 能用的（Sora2/海螺/wan-2.2）——你拍。
+
+---
+
+## （历史记录·已被上面真机结论取代）原「需用户提供资源」分析
 
 RunningHub 的 per-model 文档页是 SPA（WebFetch 一律 404），审计只逐字取到 wan-2.2 / suno 两页 + 搜索索引引文。
 **关键发现 + 为什么不能凭这点改：**

@@ -327,14 +327,21 @@ export function extractTaskId(raw: unknown, explicitPath?: string): string {
 }
 
 /**
- * Many providers (kie.ai and other Java/Spring backends) return HTTP 200 with a
- * logical-error envelope `{ code: 4xx/5xx, msg: "..." }` instead of a real error
- * status. Returns the logical error code if detected, else null.
+ * Many providers return HTTP 200 with a logical-error envelope instead of a real
+ * error status. Returns the logical error code if detected, else null. Two shapes:
+ *   - kie.ai / Java-Spring: `{ code: 4xx/5xx, msg: "..." }`
+ *   - RunningHub: `{ taskId:"", errorCode:"1014", errorMessage:"Access Denied..." }`
+ *     —— errorCode 非 0/空即逻辑错（2026-06-30 真机实测：1014=非企业共享key被拒、1007=缺参、1001=路径错）。
+ *     不限 <600（RunningHub 用 1xxx 业务码），否则非企业 key 的 1014 会被漏判 → 伪造本地 taskId 轮询成谜之失败。
  */
 export function looksLikeLogicalError(body: unknown): number | null {
   if (!isRecord(body)) return null;
   const code = body.code;
   if (typeof code === "number" && code >= 400 && code < 600) return code;
   if (typeof code === "string" && /^\d{3}$/.test(code) && Number(code) >= 400) return Number(code);
+  // RunningHub 风格：errorCode 存在且非「成功」值（0 / "0" / 空）即逻辑错。
+  const ec = body.errorCode;
+  if (typeof ec === "number" && ec !== 0) return ec;
+  if (typeof ec === "string" && ec.trim() !== "" && ec.trim() !== "0" && /^\d+$/.test(ec.trim())) return Number(ec);
   return null;
 }
