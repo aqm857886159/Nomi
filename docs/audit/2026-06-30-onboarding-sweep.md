@@ -97,7 +97,7 @@ text 全部(claude-fable-5/deepseek-v4-pro/gpt-5.5/moonshot/Qwen3 ×3)；apimart
 - **URL/磁盘目录口径**：asset url 用稳定 `workspace-<id>`，磁盘是 `名字-slug-hash`——**by design**（url 经 registry `resolveProjectRelativePath` 解析，便携抗改名）；不是 bug。但与 poison 共享「registry 解析 id」依赖。
 - 改词不标 node stale、CLI 无尺寸/比例参、同 prompt 家族画风漂移、无角色身份锁 → 都指向 Nomi 战略招牌「跨镜身份/显式版本」空白（产品级，非表面 bug）。
 - CLI 无参时报「项目不存在」误导（应打 usage）；失败留孤儿节点无回收（小 UX）。
-- **poison 未复现**：三 agent 各 3-4 次生成均未触发（仍非确定性）。
+- **poison「项目不存在」已钉死根因 + 修复（2026-06-30）**：根因=注册表 `recent-workspaces.json` 的无锁 read-modify-write（`rememberWorkspace`）——多个 headless host / app 并发建项目时各读旧表、各写自己那条 → 后写覆盖先写丢条目 → `readProject` 找不到。确定性复现（两进程各写 60 条→丢 60 条）。修=原子 mkdir 跨进程锁串行化读改写（3s 上限 + 陈旧锁兜底，绝不死等）；复测 0 丢。多 agent 并发驱动场景这条必中，故是真 bug 非环境噪声。回归测试起两真子进程并发猛写断言一条不丢。
 
 ## 结论
 - **UI 路视频正常**（档案在 UI 填好 model/duration）；本类只伤 **headless/MCP 视频**。
