@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Nomi 一页上手</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" />
+<style>
+  :root{--bg:#faf9f6;--paper:#fff;--ink:#1c1b19;--ink80:#3d3c39;--ink60:#6a6862;--ink40:#9b9990;--line:#e6e3db;--soft:#f1efe8;--accent:#534ab7;--accent-soft:#eeedfe}
+  @media (prefers-color-scheme: dark){:root{--bg:#161513;--paper:#1f1e1b;--ink:#f3f1ea;--ink80:#d6d3ca;--ink60:#a3a199;--ink40:#76746d;--line:#33312c;--soft:#26241f;--accent:#afa9ec;--accent-soft:#26215c}}
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:720px;margin:0 auto;padding:32px 24px}
+  .ti{vertical-align:-2px}
+  h1{font-size:24px;font-weight:600}
+  .sub{color:var(--ink40);font-size:13px;margin:4px 0 0}
+  .pipe{background:var(--soft);border-radius:12px;padding:14px 16px;margin:20px 0}
+  .pipe-h{font-size:12px;color:var(--ink40);margin-bottom:10px}
+  .pipe-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:13px}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;background:var(--paper);border:1px solid var(--line);color:var(--ink80)}
+  .chip-accent{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+  .arrow{color:var(--ink40)}
+  h2{font-size:16px;font-weight:600;margin-top:28px}
+  .note{color:var(--ink60);font-size:13px;margin:4px 0 12px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:560px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .card-h{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .num{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:600}
+  .card-t{font-size:13px;font-weight:500}
+  .card-b{font-size:12px;color:var(--ink60)}
+  .routes{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:4px}
+  .route{display:flex;gap:12px;padding:11px 14px;background:var(--paper);color:var(--ink60)}
+  .route:nth-child(even){background:var(--soft)}
+  .route+.route{border-top:1px solid var(--line)}
+  .route-warn{background:var(--soft) !important;color:var(--ink40)}
+  .route .ti{font-size:18px;margin-top:1px;flex:none}
+  .route-t{font-size:13px;font-weight:500;color:var(--ink)}
+  .route-warn .route-t{color:var(--ink60)}
+  .route-b{font-size:12px;color:var(--ink60)}
+  .route-warn .route-b{color:var(--ink40)}
+  .badge{font-size:11px;padding:1px 6px;border-radius:8px;background:var(--accent-soft);color:var(--accent);margin-left:8px;font-weight:400}
+  .gotcha{background:var(--soft);border-radius:12px;padding:12px}
+  .gotcha-t{font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px;margin-bottom:3px}
+  .gotcha-b{font-size:12px;color:var(--ink60)}
+  .foot{margin-top:28px;color:var(--ink40);font-size:12px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Nomi 一页上手</h1>
+  <p class="sub">本地优先的 AI 视频创作台 · 从一句话到一条成片</p>
+
+  <div class="pipe">
+    <div class="pipe-h">一条流水线，全程在你眼皮底下</div>
+    <div class="pipe-row"><span class="chip"><i class="ti ti-pencil" aria-hidden="true"></i>写故事</span><i class="ti ti-arrow-right arrow" aria-hidden="true"></i><span class="chip"><i class="ti ti-scissors" aria-hidden="true"></i>AI 拆分镜</span><i class="ti ti-arrow-right arrow" aria-hidden="true"></i><span class="chip"><i class="ti ti-layout-grid" aria-hidden="true"></i>落画布</span><i class="ti ti-arrow-right arrow" aria-hidden="true"></i><span class="chip"><i class="ti ti-wand" aria-hidden="true"></i>锁身份/运镜</span><i class="ti ti-arrow-right arrow" aria-hidden="true"></i><span class="chip"><i class="ti ti-timeline" aria-hidden="true"></i>时间轴</span><i class="ti ti-arrow-right arrow" aria-hidden="true"></i><span class="chip chip-accent"><i class="ti ti-movie" aria-hidden="true"></i>导出 MP4</span></div>
+  </div>
+
+  <h2>90 秒先尝到甜头</h2>
+  <p class="note">不用读完手册——先看一条片自己跑出来，再上手做你自己的。</p>
+  <div class="grid"><div class="card"><div class="card-h"><span class="num">1</span><span class="card-t">看回放</span></div><p class="card-b">首页点「60 秒看 Nomi 怎么出片」，零额度看整条流水线跑一遍。</p></div><div class="card"><div class="card-h"><span class="num">2</span><span class="card-t">接一个模型</span></div><p class="card-b">用自己的 Key，或接 Agnes 免费网关（文 / 图 / 视全解锁）。</p></div><div class="card"><div class="card-h"><span class="num">3</span><span class="card-t">写一句 + 拆镜</span></div><p class="card-b">在创作区写下故事，说「拆成镜头」，一键铺成画布。</p></div><div class="card"><div class="card-h"><span class="num">4</span><span class="card-t">生成 + 导出</span></div><p class="card-b">点镜头卡的生成出图，排进时间轴，右上导出 MP4。</p></div></div>
+
+  <h2>我想做 X → 走这条路</h2>
+  <p class="note">能做的指清楚路径，做不到的当场标，不让你撞墙找半天。</p>
+  <div class="routes"><div class="route"><i class="ti ti-user-check" aria-hidden="true"></i><div><div class="route-t">让同一个人每个镜头长一样</div><div class="route-b">用身份卡锁脸 → 连到每个镜头当参考。Nomi 的招牌能力。</div></div></div><div class="route"><i class="ti ti-box" aria-hidden="true"></i><div><div class="route-t">控制谁站哪、朝哪</div><div class="route-b">用 3D 站位图摆一下 → AI 照着画。</div></div></div><div class="route"><i class="ti ti-device-gamepad-2" aria-hidden="true"></i><div><div class="route-t">让角色走起来、做动作、要运镜<span class="badge">0.16 新</span></div><div class="route-b">游戏式 3D 操控：WASD 走位 + 动作库 + 摆相机，录一段 take 导出成参考视频喂生成。</div></div></div><div class="route"><i class="ti ti-gift" aria-hidden="true"></i><div><div class="route-t">没有 API 额度，想先白嫖试试<span class="badge">0.16 新</span></div><div class="route-b">模型设置接 Agnes AI，一个 Key 解锁文本 / 图 / 视频，无限期免费。</div></div></div><div class="route"><i class="ti ti-typography" aria-hidden="true"></i><div><div class="route-t">加字幕、标题卡</div><div class="route-b">进时间轴预览区，节奏你说了算。</div></div></div><div class="route route-warn"><i class="ti ti-alert-triangle" aria-hidden="true"></i><div><div class="route-t">想要精确对口型 / 唇形同步</div><div class="route-b">暂不支持，这段先跳过——不藏不糊弄。</div></div></div></div>
+
+  <h2>卡住了看这里</h2>
+  <div class="grid" style="margin-top:8px"><div class="gotcha"><div class="gotcha-t"><i class="ti ti-plug-connected-x" aria-hidden="true"></i>接了模型却不能生成</div><p class="gotcha-b">多半缺「文本大脑」。模型设置里加一个文本模型，拆镜 / 对话才转得起来。</p></div><div class="gotcha"><div class="gotcha-t"><i class="ti ti-mood-confuzed" aria-hidden="true"></i>每个镜头脸都不一样</div><p class="gotcha-b">把身份卡连到镜头当参考——没连，模型就分不清谁是谁。</p></div><div class="gotcha"><div class="gotcha-t"><i class="ti ti-alert-circle" aria-hidden="true"></i>模型「连了用不了」</div><p class="gotcha-b">看报错提示：多半是账号档位（要会员 / 企业 Key / 网页授权），按提示开通即可。</p></div><div class="gotcha"><div class="gotcha-t"><i class="ti ti-volume-off" aria-hidden="true"></i>导出后没声音</div><p class="gotcha-b">确认音频已在时间轴的音频轨上；最新版导出混音已修。</p></div></div>
+
+  <p class="foot">Nomi · 本地优先 AI 视频创作台 · nomiaqm.com</p>
+</div>
+</body>
+</html>

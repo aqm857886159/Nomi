@@ -32,6 +32,7 @@
     "check:dangling-tokens": "node ./scripts/check-dangling-tokens.mjs",
     "check:archetype-defaults": "tsx scripts/gen-archetype-wire-defaults.ts --check",
     "gen:archetype-defaults": "tsx scripts/gen-archetype-wire-defaults.ts",
+    "build:handbook": "tsx scripts/build-handbook-html.mjs",
     "check:audit": "node ./scripts/check-audit-cadence.mjs && node ./scripts/check-eval-cadence.mjs",
     "gates": "pnpm run check:filesize && pnpm run check:tokens && pnpm run check:dangling-tokens && pnpm run check:archetype-defaults && pnpm run lint:ci && pnpm run typecheck && pnpm run test && pnpm run build && mkdir -p .claude && touch .claude/.gates-ok && echo '✅ 全门通过，已盖 .claude/.gates-ok（push 闸放行）'",
     "typecheck": "tsc -p tsconfig.app.json && tsc -p electron/tsconfig.json",

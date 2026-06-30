@@ -68,6 +68,11 @@ const SkillLibraryPanel = lazyWithChunkBoundary("技能库", () =>
         default: module.SkillLibraryPanel,
     })),
 );
+const HandbookPanel = lazyWithChunkBoundary("上手手册", () =>
+    import("./onboarding/HandbookPanel").then((module) => ({
+        default: module.HandbookPanel,
+    })),
+);
 const GenerationCanvas = lazyWithChunkBoundary(
     "生成画布",
     () => import("./generationCanvas/components/GenerationCanvas"),
@@ -127,6 +132,7 @@ export default function NomiStudioApp(): JSX.Element {
     const [assetLibraryOpened, setAssetLibraryOpened] = React.useState(false);
     const [promptLibraryOpened, setPromptLibraryOpened] = React.useState(false);
     const [skillLibraryOpened, setSkillLibraryOpened] = React.useState(false);
+    const [handbookOpened, setHandbookOpened] = React.useState(false);
     const hasPendingSpendConfirm = useSpendConfirmStore(
         (state) => Boolean(state.pending),
     );
@@ -206,6 +212,13 @@ export default function NomiStudioApp(): JSX.Element {
                 "nomi-open-skill-library",
                 handleOpenSkillLibrary,
             );
+    }, []);
+
+    React.useEffect(() => {
+        const handleOpenHandbook = () => setHandbookOpened(true);
+        window.addEventListener("nomi-open-handbook", handleOpenHandbook);
+        return () =>
+            window.removeEventListener("nomi-open-handbook", handleOpenHandbook);
     }, []);
 
     const ensureProjectPersistenceService = React.useCallback(async () => {
@@ -740,6 +753,15 @@ export default function NomiStudioApp(): JSX.Element {
                     <SkillLibraryPanel
                         opened={skillLibraryOpened}
                         onClose={() => setSkillLibraryOpened(false)}
+                    />
+                </React.Suspense>
+            ) : null}
+
+            {handbookOpened ? (
+                <React.Suspense fallback={null}>
+                    <HandbookPanel
+                        opened={handbookOpened}
+                        onClose={() => setHandbookOpened(false)}
                     />
                 </React.Suspense>
             ) : null}
