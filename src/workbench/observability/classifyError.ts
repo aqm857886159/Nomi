@@ -132,6 +132,25 @@ function detectAccountGate(upstream: string | undefined, raw: string): boolean {
   )
 }
 
+/**
+ * 余额不足/欠费是文案信号——各家用不同业务码（RunningHub 605「账户余额不足」、1620「活动会员金额不支持 API
+ * 调用，请充值」），categorizeVendorFailure 按数值会派生成 server/input 误导成「服务商故障/参数错」。故文案优先判，
+ * 命中即归 balance（充值一个动作能解）。区别于 quota（限流·等待）。短语取得窄，避免误吞普通报错。
+ */
+function detectBalance(upstream: string | undefined, raw: string): boolean {
+  const text = `${upstream || ''} ${raw}`.toLowerCase()
+  return (
+    text.includes('余额不足') ||
+    text.includes('请充值') ||
+    text.includes('账户余额') ||
+    text.includes('欠费') ||
+    text.includes('不支持 api 调用') ||
+    text.includes('insufficient balance') ||
+    text.includes('please recharge') ||
+    text.includes('top up')
+  )
+}
+
 export function classifyGenerationError(message: string): GenerationErrorReport {
   // S4-2:structured 优先(VendorRequestError 经 IPC 标记穿透,源头保留的事实,不是猜);
   // 老数据/非 vendor 错误退回 legacy 正则识别。两条路只产 kind,文案统一出自 narrate 词表。
@@ -148,6 +167,12 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   // →「参数不被接受」误导，即梦会员被吞进 unknown。reason 出自 narrate，服务商原话单独提到可见区。
   if (detectAccountGate(structured?.upstreamMsg, cleanRaw)) {
     const { reason, hint } = narrateGenerationError('account-gate')
+    const providerMessage = pickProviderMessage(structured?.upstreamMsg ?? extractReadableErrorLine(cleanRaw), reason)
+    return { reason, hint, raw: cleanRaw, ...(providerMessage ? { providerMessage } : {}) }
+  }
+  // 余额不足/欠费先于 category 判——RunningHub 605/1620 数值会被派生成 server/input 误导。
+  if (detectBalance(structured?.upstreamMsg, cleanRaw)) {
+    const { reason, hint } = narrateGenerationError('balance')
     const providerMessage = pickProviderMessage(structured?.upstreamMsg ?? extractReadableErrorLine(cleanRaw), reason)
     return { reason, hint, raw: cleanRaw, ...(providerMessage ? { providerMessage } : {}) }
   }

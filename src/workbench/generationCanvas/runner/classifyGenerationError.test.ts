@@ -98,6 +98,17 @@ describe('classifyGenerationError — 已知分类', () => {
     expect(r.reason).not.toBe('账号权限不足')
   })
 
+  it('RunningHub 605/1620 余额错误 → 余额不足(不误导成「服务商故障/参数错」)', () => {
+    const mk = (code: number, msg: string, cat: string) =>
+      "NOMI_VENDOR_ERR_B64::" +
+      Buffer.from(JSON.stringify({ category: cat, upstreamMsg: msg, vendorKey: 'runninghub' }), 'utf8').toString('base64') +
+      `:: Provider request failed (code ${code}) at runninghub POST https://x: ${msg}`
+    const r605 = classifyGenerationError(mk(605, '您的账户余额不足，请充值。', 'server'))
+    expect(r605.reason).toBe('余额不足')
+    const r1620 = classifyGenerationError(mk(1620, '当前钱包剩余金额仅为活动会员下发金额，该类型金额不支持 API 调用，请充值。', 'input'))
+    expect(r1620.reason).toBe('余额不足')
+  })
+
   it('剪贴板网页媒体下载失败时优先提示下载到本地', () => {
     const r = classifyGenerationError('网页媒体下载失败：该站点可能禁止跨域请求或开启防盗链。请先下载到本地，再复制或拖入画布。')
     expect(r.reason).toBe('网页媒体下载失败')
@@ -151,7 +162,8 @@ describe('structured 路径(S4-2:VendorRequestError 经 IPC 标记穿透)', () =
   })
 
   it('中文 upstreamMsg 的 base64 roundtrip 不乱码', () => {
-    const r = classifyGenerationError(encode({ category: 'quota', upstreamMsg: '触发限流·稍后再试' }))
+    // tail 不能用默认（默认含「余额不足」会触发 balance 文案判定）——本例测 quota，给 quota 语义的 tail。
+    const r = classifyGenerationError(encode({ category: 'quota', upstreamMsg: '触发限流·稍后再试' }, 'Provider request failed (code 429) at kie POST https://x: rate limited'))
     expect(r.reason).toBe('配额或限流')
   })
 

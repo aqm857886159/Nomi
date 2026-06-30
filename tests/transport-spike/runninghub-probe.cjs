@@ -20,6 +20,8 @@ const BASE = "https://www.runninghub.cn/openapi/v2";
 const mask = (k) => (k ? k.slice(0, 4) + "…" + k.slice(-3) : "(空)");
 
 function loadKey(vendor) {
+  // env 覆盖：临时用企业 key 验证（不写盘、不入库、输出只掩码）。
+  if (process.env.RH_KEY_OVERRIDE) return process.env.RH_KEY_OVERRIDE.trim();
   for (const dir of ["nomi", "Nomi"]) {
     const p = path.join(app.getPath("appData"), dir, "model-catalog.json");
     try {
