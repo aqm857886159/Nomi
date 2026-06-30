@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconFolderPlus, IconLayoutGrid, IconPlayerPlay, IconX } from '@tabler/icons-react'
+import { EyeOff, Focus, FolderPlus, LayoutGrid, Map as MapIcon, Play, RotateCcw, X } from 'lucide-react'
 import { WorkbenchButton, WorkbenchIconButton } from '../../../design'
 import { toast } from '../../../ui/toast'
 import { cn } from '../../../utils/cn'
@@ -21,7 +21,7 @@ import { useCanvasShortcuts } from './useCanvasShortcuts'
 import { useCanvasPointerInteractions } from './useCanvasPointerInteractions'
 import { useDragToConnect } from './useDragToConnect'
 import { CanvasEmptyState } from './CanvasEmptyState'
-import { CanvasMinimap } from './CanvasMinimap'
+import { CanvasMinimap, MINIMAP_MIN_NODES } from './CanvasMinimap'
 import { CanvasGestureHint } from './CanvasGestureHint'
 import { useNodeAppearTracking } from './useNodeAppearTracking'
 import { useTidyCanvas } from './useTidyCanvas'
@@ -138,6 +138,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
   const activeEdgeId = activeEdge?.id ?? null
   const [focusFlashNodeId, setFocusFlashNodeId] = React.useState<string | null>(null)
   const [pendingFocusNodeId, setPendingFocusNodeId] = React.useState<string | null>(null)
+  const [minimapVisible, setMinimapVisible] = React.useState(true)
   const focusFlashTimerRef = React.useRef<number | null>(null)
 
   React.useEffect(() => {
@@ -537,6 +538,9 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
 
   const zoomPercent = Math.round(zoom * 100)
   const selectedCount = selectedNodeIds.length
+  const hasMinimapContent = nodes.length >= MINIMAP_MIN_NODES
+  const showMinimap = minimapVisible && hasMinimapContent
+  const MinimapToggleIcon = showMinimap ? EyeOff : MapIcon
 
   // E.2C-13: 删除 viewType 分支。5 个分类全部走同一画布底座。
   // 节点渲染样式差异由 NodeRenderKind 分发（E.2C-14/15+ 实现）。
@@ -639,13 +643,13 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
                   title="生成选中节点（参考先生成、镜头后生成；缺参考的会提示先生成参考卡）"
                   onClick={handleBatchGenerate}
                 >
-                  <IconPlayerPlay size={16} stroke={1.6} aria-hidden />
+                  <Play size={16} strokeWidth={1.8} aria-hidden />
                   生成 {selectedCount} 个
                 </button>
                 <span className={cn('w-px h-4 bg-nomi-line')} />
                 {/* 复制/剪切已移除（⌘C / ⌘X 覆盖，去重复）；保留编组 + 清除。 */}
-                <WorkbenchIconButton label="创建分组 (⌘G)" icon={<IconFolderPlus size={16} />} onClick={handleGroupSelectedNodes} />
-                <WorkbenchIconButton label="清除选择" icon={<IconX size={16} />} onClick={clearSelection} />
+                <WorkbenchIconButton label="创建分组 (⌘G)" icon={<FolderPlus size={16} strokeWidth={1.8} />} onClick={handleGroupSelectedNodes} />
+                <WorkbenchIconButton label="清除选择" icon={<X size={16} strokeWidth={1.8} />} onClick={clearSelection} />
               </div>
             ) : null}
           </div>
@@ -694,52 +698,73 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
         </div>
         <div
           className={cn(
-            'generation-canvas-v2__zoom-bar',
-            'absolute left-4 bottom-6 z-[8] inline-flex items-center gap-[2px]',
-            'min-h-9 p-1 border border-workbench-border rounded-nomi',
-            'bg-nomi-paper shadow-workbench-sm',
+            'generation-canvas-v2__navigation-stack',
+            'absolute right-4 bottom-3 z-[8] flex flex-col items-center gap-2 pointer-events-none',
           )}
-          aria-label="画布缩放"
+          aria-label="画布导航"
         >
-          <WorkbenchButton aria-label="适应视图" title={nodes.length === 0 ? '画布为空' : '适应视图'} disabled={nodes.length === 0} onClick={() => fitView(true)}>⌖</WorkbenchButton>
-          <WorkbenchButton
-            aria-label="重置视图"
-            title="重置视图"
-            onClick={() => animateViewportTo(1, { x: 0, y: 0 }, 200)}
-          >▦</WorkbenchButton>
-          <input
-            className="w-[78px] accent-workbench-accent"
-            type="range"
-            min="20"
-            max="300"
-            value={zoomPercent}
-            aria-label="缩放比例"
-            onChange={(event) => {
-              const nextZoom = Number(event.target.value) / 100
-              const rect = stageRef.current?.getBoundingClientRect()
-              if (!rect) {
-                setViewportTransform(nextZoom, offsetRef.current)
-                return
-              }
-              zoomAtStagePoint(nextZoom, { x: rect.width / 2, y: rect.height / 2 })
-            }}
-          />
-          {!readOnly ? (
-            <WorkbenchButton aria-label="整理画布" title="整理画布（散乱时一键收纳 · ⌘Z 撤销）" onClick={() => tidy(stageSize.width / Math.max(1, stageSize.height))}>
-              <IconLayoutGrid size={15} stroke={1.8} aria-hidden="true" />
-            </WorkbenchButton>
+          {showMinimap ? (
+            <CanvasMinimap
+              nodes={nodes}
+              selectedIds={selectedSet}
+              zoom={zoom}
+              offset={offset}
+              stageSize={stageSize}
+              onJumpToCanvasPoint={handleMinimapJump}
+            />
           ) : null}
-          <WorkbenchButton aria-label="画布帮助" title="画布帮助" onClick={() => toast('滚轮/双指 平移 · ⌘/Ctrl+滚轮 或 捏合 缩放 · 拖空白 框选 · 空格/中键/右键拖 平移 · Delete 删除', 'info')}>?</WorkbenchButton>
+          <div
+            className={cn(
+              'generation-canvas-v2__zoom-bar',
+              'inline-flex items-center gap-[2px] pointer-events-auto',
+              'min-h-9 p-1 border border-workbench-border rounded-nomi',
+              'bg-nomi-paper shadow-workbench-sm',
+            )}
+            aria-label="画布缩放"
+          >
+            <WorkbenchButton aria-label="适应视图" title={nodes.length === 0 ? '画布为空' : '适应视图'} disabled={nodes.length === 0} onClick={() => fitView(true)}>
+              <Focus size={15} strokeWidth={1.8} aria-hidden="true" />
+            </WorkbenchButton>
+            <WorkbenchButton
+              aria-label="重置视图"
+              title="重置视图"
+              onClick={() => animateViewportTo(1, { x: 0, y: 0 }, 200)}
+            >
+              <RotateCcw size={15} strokeWidth={1.8} aria-hidden="true" />
+            </WorkbenchButton>
+            <input
+              className="w-[78px] accent-workbench-accent"
+              type="range"
+              min="20"
+              max="300"
+              value={zoomPercent}
+              aria-label="缩放比例"
+              onChange={(event) => {
+                const nextZoom = Number(event.target.value) / 100
+                const rect = stageRef.current?.getBoundingClientRect()
+                if (!rect) {
+                  setViewportTransform(nextZoom, offsetRef.current)
+                  return
+                }
+                zoomAtStagePoint(nextZoom, { x: rect.width / 2, y: rect.height / 2 })
+              }}
+            />
+            {!readOnly ? (
+              <WorkbenchButton aria-label="整理画布" title="整理画布（散乱时一键收纳 · ⌘Z 撤销）" onClick={() => tidy(stageSize.width / Math.max(1, stageSize.height))}>
+                <LayoutGrid size={15} strokeWidth={1.8} aria-hidden="true" />
+              </WorkbenchButton>
+            ) : null}
+            <WorkbenchButton
+              aria-label={showMinimap ? '隐藏小地图' : '显示小地图'}
+              title={hasMinimapContent ? (showMinimap ? '隐藏小地图' : '显示小地图') : `至少 ${MINIMAP_MIN_NODES} 个节点后显示小地图`}
+              aria-pressed={showMinimap}
+              onClick={() => setMinimapVisible((visible) => !visible)}
+            >
+              <MinimapToggleIcon size={15} strokeWidth={1.8} aria-hidden="true" />
+            </WorkbenchButton>
+          </div>
         </div>
         {!readOnly ? <CanvasGestureHint /> : null}
-        <CanvasMinimap
-          nodes={nodes}
-          selectedIds={selectedSet}
-          zoom={zoom}
-          offset={offset}
-          stageSize={stageSize}
-          onJumpToCanvasPoint={handleMinimapJump}
-        />
       </div>
     </section>
   )

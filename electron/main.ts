@@ -118,6 +118,10 @@ protocol.registerSchemesAsPrivileged([
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL || process.env.NOMI_DESKTOP_DEV);
 const devRemoteDebuggingPort = process.env.NOMI_DESKTOP_REMOTE_DEBUGGING_PORT;
+const shouldOpenDevTools = isDev && (
+  process.env.NOMI_OPEN_DEVTOOLS === "1" ||
+  process.env.NOMI_DESKTOP_OPEN_DEVTOOLS === "1"
+);
 const DEV_RENDERER_LOAD_ATTEMPTS = 20;
 const DEV_RENDERER_LOAD_RETRY_MS = 500;
 
@@ -193,6 +197,8 @@ async function createWindow(): Promise<void> {
     minHeight: 720,
     backgroundColor: "#f6f3ee",
     title: "Nomi",
+    titleBarStyle: "hidden",
+    frame: process.platform === "darwin",
     icon: path.join(__dirname, "../build/icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -201,6 +207,15 @@ async function createWindow(): Promise<void> {
       sandbox: false,
     },
   });
+
+  ipcMain.handle("nomi:window:minimize", () => mainWindow.minimize());
+  ipcMain.handle("nomi:window:maximize", () => {
+    if (mainWindow.isMaximized()) mainWindow.unmaximize();
+    else mainWindow.maximize();
+  });
+  ipcMain.handle("nomi:window:close", () => mainWindow.close());
+  mainWindow.on("maximize", () => mainWindow.webContents.send("nomi:window:maximized", true));
+  mainWindow.on("unmaximize", () => mainWindow.webContents.send("nomi:window:maximized", false));
 
   // External http(s) links (e.g. the "get your API key" link → provider console)
   // open in the user's real browser, never as a new in-app Electron window.
@@ -237,7 +252,7 @@ async function createWindow(): Promise<void> {
   }
   await loadRendererWithRetry(mainWindow, rendererUrl);
 
-  if (isDev) {
+  if (shouldOpenDevTools) {
     mainWindow.webContents.openDevTools({ mode: "detach" });
   }
 }
@@ -450,17 +465,33 @@ function buildContentSecurityPolicy(): string {
 }
 
 // COOP/COEP 开 cross-origin isolation（ONNX 的 SharedArrayBuffer 需要），但它会让 Playwright 的
-// CDP target 握手卡死（_electron.launch / connectOverCDP 都连不上）——2026-06-27 起 R13 走查全挂的根因。
-// 仅 E2E 走查时（NOMI_E2E=1）跳过这两个头，让 Playwright 能附着；生产/正常运行不受影响。
-// 注：只关 isolation，CSP 仍照常注入（安全基线不降）。ONNX 多线程在 E2E 下退单线程，与走查无关。
-const SKIP_CROSS_ORIGIN_ISOLATION = process.env.NOMI_E2E === "1";
+// CDP target 握手卡死（_electron.launch / connectOverCDP 都连不上），并且在 Vite dev URL 下会让
+// Windows 的 app-region 原生拖拽命中后不进入系统拖拽循环。
+// 开发/E2E 跳过这两个头；生产/正常文件入口仍保持 isolation。CSP 仍照常注入（安全基线不降）。
+const SKIP_CROSS_ORIGIN_ISOLATION = isDev || process.env.NOMI_E2E === "1";
+
+function removeHeader(
+  headers: Record<string, string[] | string | undefined>,
+  name: string,
+): void {
+  for (const key of Object.keys(headers)) {
+    if (key.toLowerCase() === name.toLowerCase()) {
+      delete headers[key];
+    }
+  }
+}
 
 function installContentSecurityPolicy(targetSession: Electron.Session): void {
   const csp = buildContentSecurityPolicy();
   targetSession.webRequest.onHeadersReceived((details, callback) => {
+    const responseHeaders = { ...details.responseHeaders };
+    if (SKIP_CROSS_ORIGIN_ISOLATION) {
+      removeHeader(responseHeaders, "Cross-Origin-Opener-Policy");
+      removeHeader(responseHeaders, "Cross-Origin-Embedder-Policy");
+    }
     callback({
       responseHeaders: {
-        ...details.responseHeaders,
+        ...responseHeaders,
         "Content-Security-Policy": [csp],
         // ONNX Runtime Web 需要 SharedArrayBuffer 才能多线程推理（否则退回单线程阻塞主线程）。
         // SharedArrayBuffer 要求 cross-origin isolation，Electron renderer 需注入这两个头。

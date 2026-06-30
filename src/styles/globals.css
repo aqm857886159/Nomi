@@ -29,7 +29,37 @@ body,
 html,
 body {
   overscroll-behavior: none;
-  scrollbar-gutter: stable;
+  overflow: hidden;
+  scrollbar-gutter: auto;
+}
+
+/* frameless 窗口拖拽区域 */
+.app-drag {
+  -webkit-app-region: drag;
+  user-select: none;
+}
+.app-no-drag {
+  -webkit-app-region: no-drag;
+  user-select: auto;
+}
+
+/* 自定义滚动条（Chromium/Electron 专属，不影响 drag 区域） */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: oklch(0.55 0 0 / 0.25);
+  border-radius: 3px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.55 0 0 / 0.45);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 #root {

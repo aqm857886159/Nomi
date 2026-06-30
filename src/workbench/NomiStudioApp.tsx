@@ -30,6 +30,7 @@ import { DEMO_PROJECT_NAME, DEMO_PROJECT_SEED_KEY } from "./onboarding/demoProje
 import { buildStudioUrl } from "../utils/appRoutes";
 import { openWorkspaceFromLibrary } from "./library/openWorkspaceFlow";
 import { lazyWithChunkBoundary } from "../ui/chunkBoundary";
+import { useGenerationCanvasStore } from "./generationCanvas/store/generationCanvasStore";
 
 type AppView = "library" | "studio";
 
@@ -115,8 +116,9 @@ export default function NomiStudioApp(): JSX.Element {
     const { projects, refreshProjects } = useLocalProjects();
     const [activeProject, setActiveProject] =
         React.useState<LocalProjectSummary | null>(null);
-    const [generationAiCollapsed, setGenerationAiCollapsed] =
-        React.useState(true);
+    const generationAiCollapsed = useGenerationCanvasStore(
+        (state) => state.generationAiCollapsed,
+    );
     const [modelCatalogOpened, setModelCatalogOpened] = React.useState(false);
     const [assetLibraryOpened, setAssetLibraryOpened] = React.useState(false);
     const [promptLibraryOpened, setPromptLibraryOpened] = React.useState(false);
@@ -616,7 +618,6 @@ export default function NomiStudioApp(): JSX.Element {
                     <React.Suspense fallback={null}>
                         <CanvasAssistantPanel
                             defaultCollapsed
-                            onCollapsedChange={setGenerationAiCollapsed}
                         />
                     </React.Suspense>
                 }

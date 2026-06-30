@@ -173,10 +173,12 @@ export default defineConfig(async ({ command, mode }) => {
       port: 5273,
       host: true,
       cors: true,
-      headers: {
-        'Cross-Origin-Opener-Policy': 'same-origin',
-        'Cross-Origin-Embedder-Policy': 'require-corp',
-      },
+      headers: process.env.NOMI_DEV_CROSS_ORIGIN_ISOLATION === '1'
+        ? {
+          'Cross-Origin-Opener-Policy': 'same-origin',
+          'Cross-Origin-Embedder-Policy': 'require-corp',
+        }
+        : undefined,
       hmr: process.env.NOMI_DISABLE_VITE_HMR === '1' ? false : undefined,
       fs: {
         allow: [resolve(__dirname)],

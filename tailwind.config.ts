@@ -1,7 +1,24 @@
 import type { Config } from 'tailwindcss'
 import plugin from 'tailwindcss/plugin'
 
-const workbenchBasePlugin = plugin(({ addBase }) => {
+const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
+  addUtilities({
+    '.app-drag': { 'app-region': 'drag', '-webkit-app-region': 'drag' },
+    '.app-no-drag': { 'app-region': 'no-drag', '-webkit-app-region': 'no-drag' },
+    '.app-no-drag *': { 'app-region': 'no-drag', '-webkit-app-region': 'no-drag' },
+    '.app-drag button': { 'app-region': 'no-drag', '-webkit-app-region': 'no-drag' },
+    '.app-drag input': { 'app-region': 'no-drag', '-webkit-app-region': 'no-drag' },
+    '.app-drag textarea': { 'app-region': 'no-drag', '-webkit-app-region': 'no-drag' },
+    '.app-drag select': { 'app-region': 'no-drag', '-webkit-app-region': 'no-drag' },
+    '.app-drag a': { 'app-region': 'no-drag', '-webkit-app-region': 'no-drag' },
+    '.app-drag label': { 'app-region': 'no-drag', '-webkit-app-region': 'no-drag' },
+    '.app-drag summary': { 'app-region': 'no-drag', '-webkit-app-region': 'no-drag' },
+    '.app-drag [role="button"]': { 'app-region': 'no-drag', '-webkit-app-region': 'no-drag' },
+    '.app-drag [role="toolbar"]': { 'app-region': 'no-drag', '-webkit-app-region': 'no-drag' },
+    '.app-drag [role="navigation"]': { 'app-region': 'no-drag', '-webkit-app-region': 'no-drag' },
+    '.app-drag [contenteditable="true"]': { 'app-region': 'no-drag', '-webkit-app-region': 'no-drag' },
+  })
+
   addBase({
     ':root': {
       '--nomi-bg': 'oklch(0.985 0.003 90)',
@@ -159,6 +176,25 @@ const workbenchBasePlugin = plugin(({ addBase }) => {
     },
     '*': {
       'box-sizing': 'border-box',
+      'scrollbar-width': 'thin',
+      'scrollbar-color': 'color-mix(in srgb, var(--nomi-ink) 24%, transparent) transparent',
+    },
+    '*::-webkit-scrollbar': {
+      width: '6px',
+      height: '6px',
+    },
+    '*::-webkit-scrollbar-track': {
+      background: 'transparent',
+    },
+    '*::-webkit-scrollbar-thumb': {
+      background: 'color-mix(in srgb, var(--nomi-ink) 24%, transparent)',
+      'border-radius': '999px',
+    },
+    '*::-webkit-scrollbar-thumb:hover': {
+      background: 'color-mix(in srgb, var(--nomi-ink) 38%, transparent)',
+    },
+    '*::-webkit-scrollbar-corner': {
+      background: 'transparent',
     },
     // 全局焦点环根治（P2）：默认杀掉浏览器 :focus-visible 的 outline:auto（macOS 跟系统强调色＝橙环），
     // 交互控件统一用 accent 环。没人需要再往按钮上记着加 className——漏一个就冒橙环的问题从根上没了。
@@ -177,7 +213,8 @@ const workbenchBasePlugin = plugin(({ addBase }) => {
     },
     'html, body': {
       'overscroll-behavior': 'none',
-      'scrollbar-gutter': 'stable',
+      overflow: 'hidden',
+      'scrollbar-gutter': 'auto',
     },
     body: {
       margin: '0',
@@ -308,23 +345,9 @@ const workbenchBasePlugin = plugin(({ addBase }) => {
       border: 'none !important',
       'box-shadow': '0 15px 40px rgba(15, 23, 42, 0.08)',
     },
-    ':root[data-mantine-color-scheme="light"] *::-webkit-scrollbar': {
-      width: '8px',
-      height: '8px',
-    },
-    ':root[data-mantine-color-scheme="light"] *::-webkit-scrollbar-thumb': {
-      background: 'rgba(15, 23, 42, 0.14)',
-      'border-radius': '8px',
-    },
-    ':root[data-mantine-color-scheme="light"] *::-webkit-scrollbar-thumb:hover': {
-      background: 'rgba(15, 23, 42, 0.25)',
-    },
-    ':root[data-mantine-color-scheme="light"] *::-webkit-scrollbar-track': {
-      background: 'transparent',
-    },
     ':root[data-mantine-color-scheme="light"] [data-ux-panel]': {
       'scrollbar-width': 'thin',
-      'scrollbar-color': 'rgba(15, 23, 42, 0.25) transparent',
+      'scrollbar-color': 'color-mix(in srgb, var(--nomi-ink) 25%, transparent) transparent',
     },
     ':root[data-mantine-color-scheme="light"] [data-ux-panel] *::-webkit-scrollbar': {
       width: '6px',

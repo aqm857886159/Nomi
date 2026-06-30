@@ -12,6 +12,16 @@ function invokeSync<T>(channel: string, ...args: unknown[]): T {
 
 contextBridge.exposeInMainWorld("nomiDesktop", {
   platform: process.platform,
+  window: {
+    minimize: () => ipcRenderer.invoke('nomi:window:minimize'),
+    maximize: () => ipcRenderer.invoke('nomi:window:maximize'),
+    close: () => ipcRenderer.invoke('nomi:window:close'),
+    onMaximized: (cb: (maximized: boolean) => void) => {
+      const listener = (_: unknown, v: boolean) => cb(v)
+      ipcRenderer.on('nomi:window:maximized', listener)
+      return () => ipcRenderer.removeListener('nomi:window:maximized', listener)
+    },
+  },
   logRendererCrash: (message: unknown) => ipcRenderer.send("nomi:log:renderer-crash", message),
   workspace: {
     selectFolder: () => ipcRenderer.invoke("nomi:workspace:select-folder"),

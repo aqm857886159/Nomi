@@ -2,6 +2,30 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
+.app-drag {
+  app-region: drag;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.app-no-drag,
+.app-no-drag *,
+.app-drag button,
+.app-drag input,
+.app-drag textarea,
+.app-drag select,
+.app-drag a,
+.app-drag label,
+.app-drag summary,
+.app-drag [role="button"],
+.app-drag [role="toolbar"],
+.app-drag [role="navigation"],
+.app-drag [contenteditable="true"] {
+  app-region: no-drag;
+  -webkit-app-region: no-drag;
+  user-select: auto;
+}
+
 @keyframes remove-bg-pulse {
   0%, 100% { opacity: 0.5; }
   50% { opacity: 0.8; }

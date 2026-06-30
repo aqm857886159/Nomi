@@ -13,7 +13,9 @@
         width: 100%;
         height: 100%;
         margin: 0;
-        background: #f7f4ed;
+        overflow: hidden;
+        background: var(--nomi-bg, #f7f4ed);
+        color: var(--nomi-ink, #2a2118);
       }
 
       #nomi-boot-shell {
@@ -21,7 +23,7 @@
         height: 100%;
         display: grid;
         place-items: center;
-        color: #2a2118;
+        color: var(--nomi-ink, #2a2118);
         font-family:
           Inter,
           ui-sans-serif,

@@ -4,6 +4,7 @@ import { cn } from '../../utils/cn'
 import { ActionCard, NomiLogoMark, NomiWordmark, DesignEmptyState, DesignSearchInput } from '../../design'
 import { NomiImage } from '../../design/media'
 import { ThemeToggleButton } from '../../ui/theme/ThemeToggleButton'
+import { WindowControls } from '../../ui/app-shell/WindowControls'
 import type { LocalProjectSummary } from './localProjectStore'
 import type { ProjectTemplateId } from './projectTemplates'
 
@@ -79,49 +80,76 @@ export default function ProjectLibraryPage({ onOpenProject, onDeleteProject, onN
   const textModelMissing = hasTextModel === false
   // 单一入口互斥：缺文本模型时弱入口隐藏，模型入口 = 状态条（有项目）/ 主 CTA 自动带入（空库）
   const showModelEntry = Boolean(onOpenModelCatalog) && !textModelMissing
+  const isWindows = window.nomiDesktop?.platform === 'win32'
+
+  const libraryTopActions = (
+    <div className="app-no-drag inline-flex items-center gap-1 min-w-0" role="toolbar" aria-label="项目库操作">
+      {onReplaySplash ? (
+        <button
+          type="button"
+          onClick={onReplaySplash}
+          className={cn(
+            'inline-flex items-center gap-1.5 h-7 px-2 rounded-nomi-sm border-0 bg-transparent cursor-pointer font-inherit',
+            'text-caption text-nomi-ink-60 transition-colors hover:text-nomi-ink hover:bg-nomi-ink-05',
+          )}
+          data-replay-splash="true"
+          aria-label="看看 Nomi 能做什么"
+        >
+          <IconSparkles size={14} stroke={1.6} aria-hidden="true" />
+          <span className="max-[760px]:hidden">看看 Nomi</span>
+        </button>
+      ) : null}
+      {showModelEntry ? (
+        <button
+          type="button"
+          onClick={onOpenModelCatalog}
+          className={cn(
+            'inline-flex items-center gap-1.5 h-7 px-2 rounded-nomi-sm border-0 bg-transparent cursor-pointer font-inherit',
+            'text-caption text-nomi-ink-60 transition-colors hover:text-nomi-ink hover:bg-nomi-ink-05',
+          )}
+          aria-label="模型接入"
+        >
+          <IconPlugConnected size={14} stroke={1.6} aria-hidden="true" />
+          <span className="max-[760px]:hidden">模型接入</span>
+        </button>
+      ) : null}
+      <ThemeToggleButton className="size-7 rounded-nomi-sm" />
+    </div>
+  )
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-nomi-bg text-nomi-ink font-nomi-sans text-body-sm leading-normal antialiased">
-      <main className="flex-1 overflow-y-auto px-14 pt-[60px] pb-20 flex flex-col gap-5">
+    <div className="nomi-library-page flex flex-col h-screen w-full min-w-0 overflow-hidden bg-nomi-bg text-nomi-ink font-nomi-sans text-body-sm leading-normal antialiased">
+      {isWindows && (
+        <div
+          className="nomi-library-page__windowbar app-drag relative shrink-0 flex items-center h-8 w-full bg-nomi-bg"
+        >
+          <div className="app-drag absolute inset-0" data-window-drag-region="true" aria-hidden="true" />
+          <div className="relative z-[1] inline-flex h-full items-center gap-2 pl-4 pr-3 text-nomi-ink" aria-label="Nomi">
+            <NomiLogoMark size={18} />
+            <NomiWordmark fontSize={14} className="text-nomi-ink" />
+          </div>
+          <div className="pointer-events-none relative z-[1] h-full min-w-0 flex-1" aria-hidden="true" />
+          <div className="relative z-[2] inline-flex h-full shrink-0 items-center pt-0.5 pb-0.5">
+            {libraryTopActions}
+          </div>
+          <WindowControls className="relative z-[2]" />
+        </div>
+      )}
+      <main className="nomi-library-page__main flex-1 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden px-14 pt-8 pb-20 flex flex-col gap-5">
 
         {/* ── Header：品牌 + 右上弱入口（模型接入） ── */}
         <section className="shrink-0 flex items-start justify-between gap-6 mb-1">
           <h1 className="flex items-center gap-3 font-nomi-display text-display font-normal tracking-[-0.022em] text-nomi-ink leading-none m-0">
-            <NomiLogoMark size={28} />
-            <span><NomiWordmark /> 项目库</span>
+            {isWindows ? (
+              <span>项目库</span>
+            ) : (
+              <>
+                <NomiLogoMark size={28} />
+                <span><NomiWordmark /> 项目库</span>
+              </>
+            )}
           </h1>
-          <div className="flex items-center gap-1">
-            {onReplaySplash ? (
-              <button
-                type="button"
-                onClick={onReplaySplash}
-                className={cn(
-                  'inline-flex items-center gap-1.5 h-7 px-2 rounded-pill border-0 bg-transparent cursor-pointer font-inherit',
-                  'text-caption text-nomi-ink-60 transition-colors hover:text-nomi-ink',
-                )}
-                data-replay-splash="true"
-                aria-label="看看 Nomi 能做什么"
-              >
-                <IconSparkles size={14} stroke={1.6} aria-hidden="true" />
-                看看 Nomi
-              </button>
-            ) : null}
-            {showModelEntry ? (
-              <button
-                type="button"
-                onClick={onOpenModelCatalog}
-                className={cn(
-                  'inline-flex items-center gap-1.5 h-7 px-2 rounded-pill border-0 bg-transparent cursor-pointer font-inherit',
-                  'text-caption text-nomi-ink-60 transition-colors hover:text-nomi-ink',
-                )}
-                aria-label="模型接入"
-              >
-                <IconPlugConnected size={14} stroke={1.6} aria-hidden="true" />
-                模型接入
-              </button>
-            ) : null}
-            <ThemeToggleButton className="size-7 rounded-pill" />
-          </div>
+          {!isWindows ? libraryTopActions : null}
         </section>
 
         {/* 进来直接落项目库：空库与有项目走同一套布局（新建空白/打开文件夹 + 最近项目，空库显空态）。

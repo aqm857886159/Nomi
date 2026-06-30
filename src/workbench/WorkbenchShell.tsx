@@ -1,8 +1,9 @@
 import React from "react";
 import "./workbench.css";
 import "./workbench-ai.css";
-import { NomiLoadingMark } from "../design";
+import { NomiBrand, NomiLoadingMark } from "../design";
 import NomiAppBar from "../ui/app-shell/NomiAppBar";
+import { AboutNomiPopover } from "../ui/app-shell/AboutNomiPopover";
 import {
     isWorkspaceMode,
     useWorkbenchStore,
@@ -11,6 +12,8 @@ import {
 import { cn } from "../utils/cn";
 import ProjectExplorerSidebar from "./explorer/ProjectExplorerSidebar";
 import { lazyWithChunkBoundary } from "../ui/chunkBoundary";
+import { WindowControls } from "../ui/app-shell/WindowControls";
+import { OnboardingChecklist } from "./onboarding/OnboardingChecklist";
 
 // 工作区懒加载走容错域（审计 A5）：单个工作区 chunk 失败不拖死其余工作区。
 const CreationWorkspace = lazyWithChunkBoundary(
@@ -129,6 +132,8 @@ export default function WorkbenchShell({
     const [mountedWorkspaceModes, setMountedWorkspaceModes] = React.useState<
         WorkspaceMode[]
     >(() => [workspaceMode]);
+    const [aboutOpen, setAboutOpen] = React.useState(false);
+    const brandRef = React.useRef<HTMLButtonElement | null>(null);
 
     React.useEffect(() => {
         // store 是 workspaceMode 的唯一真相源：打开项目时各入口已显式设好模式
@@ -166,12 +171,48 @@ export default function WorkbenchShell({
         <div
             className={cn(
                 "workbench-shell",
-                "grid grid-rows-[var(--workbench-topbar-height)_minmax(0,1fr)]",
-                "w-full h-full min-h-0",
+                "flex flex-col w-full h-full min-h-0",
                 "bg-workbench-bg text-workbench-ink",
                 'font-nomi-sans [font-feature-settings:"cv02","cv03","cv04","tnum"]',
             )}
             data-workspace-mode={workspaceMode}>
+            {window.nomiDesktop?.platform === "win32" ? (
+                <div
+                    className={cn(
+                        "workbench-windowbar",
+                        "app-drag",
+                        "relative flex h-8 w-full shrink-0 items-center",
+                        "bg-workbench-surface text-workbench-ink",
+                    )}
+                    aria-label="窗口标题栏"
+                >
+                    <div className="app-drag absolute inset-0" data-window-drag-region="true" aria-hidden="true" />
+                    <button
+                        ref={brandRef}
+                        type="button"
+                        className={cn(
+                            "workbench-windowbar__brand",
+                            "app-no-drag relative z-[2] inline-flex h-full items-center pl-4 pr-3",
+                            "border-0 bg-transparent cursor-pointer rounded-none text-workbench-ink",
+                            "transition-[opacity] duration-[var(--nomi-transition-fast)] hover:opacity-80",
+                        )}
+                        aria-label="关于 Nomi · 检查更新"
+                        aria-haspopup="dialog"
+                        aria-expanded={aboutOpen}
+                        onClick={() => setAboutOpen((open) => !open)}
+                    >
+                        <NomiBrand markSize={18} wordSize={14} />
+                    </button>
+                    {aboutOpen ? (
+                        <AboutNomiPopover anchorEl={brandRef.current} onClose={() => setAboutOpen(false)} />
+                    ) : null}
+                    <div className="pointer-events-none relative z-[1] h-full min-w-0 flex-1" aria-hidden="true" />
+                    <div className="app-no-drag relative z-[2] inline-flex h-full items-center pt-0.5 pb-0.5">
+                        <OnboardingChecklist />
+                    </div>
+                    <WindowControls className="relative z-[2]" />
+                </div>
+            ) : null}
             <NomiAppBar
                 workspaceMode={workspaceMode}
                 onWorkspaceModeChange={handleWorkspaceModeChange}
@@ -186,7 +227,7 @@ export default function WorkbenchShell({
             <main
                 className={cn(
                     "workbench-shell__body",
-                    "relative min-w-0 min-h-0 overflow-hidden flex",
+                    "relative min-w-0 min-h-0 overflow-hidden flex flex-1",
                 )}>
                 {/* 文件树只在生成区显示：创作是纯文稿、预览/剪辑是回看时间轴，都不需要左侧资源树。 */}
                 {workspaceMode === "generation" ? (

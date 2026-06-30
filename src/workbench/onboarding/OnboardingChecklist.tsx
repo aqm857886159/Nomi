@@ -1,7 +1,7 @@
 /**
  * 上手 4 步进度（被动指示，不带走查——引导走查归首页触发的 JourneyTour）。
  *
- * 形态：**停靠在顶栏右簇**的一颗紧凑「上手 N/4」入口（始终高、不遮画布、不撞 AI 启动器/
+ * 形态：**停靠在窗口控制左侧**的一颗紧凑「上手 N/4」入口（始终高、不遮画布、不撞 AI 启动器/
  * 时间轴/创作助手——工作区每个角落都被占了，顶栏是唯一干净又显眼的位置）。点开是下拉清单，
  * 四步随**真实行为**自动打勾：
  *   1 接入模型   = 有可用文本模型（hasTextModel）
@@ -11,7 +11,7 @@
  *
  * 入口消失的三条退出路：① 4/4 全做完；② 用户点「不再提示」；③ 首次显示满 2 天仍未
  * 完成 → 自动永久关闭。后两条写 nomi:checklist-dismissed，关了不再回来（onboardingState）。
- * 打勾单调持久（localStorage）。渲染在 NomiAppBar 内（React 树内，保 --nomi-* token）。
+ * 打勾单调持久（localStorage）。渲染在 WorkbenchShell 标题栏内（React 树内，保 --nomi-* token）。
  */
 import React from 'react'
 import { IconCheck, IconChevronDown, IconListCheck } from '@tabler/icons-react'
@@ -166,7 +166,7 @@ export function OnboardingChecklist(): JSX.Element | null {
         aria-label={`上手 4 步，已完成 ${doneCount} / ${ALL_KEYS.length}`}
         aria-expanded={open}
         className={cn(
-          'inline-flex items-center gap-1.5 h-8 px-2.5 cursor-pointer font-inherit',
+          'inline-flex items-center gap-1.5 h-7 px-2.5 cursor-pointer font-inherit',
           'rounded-nomi-sm border border-transparent bg-transparent',
           'text-body-sm text-nomi-ink-80 transition-[background,color] duration-[var(--nomi-transition-fast)]',
           'hover:bg-nomi-ink-05 hover:text-nomi-ink',
@@ -186,7 +186,7 @@ export function OnboardingChecklist(): JSX.Element | null {
           aria-label="上手 4 步"
           style={{ top: anchor.top, right: anchor.right }}
           className={cn(
-            'fixed z-[60] w-64 overflow-hidden',
+            'fixed z-[180] w-64 overflow-hidden',
             'rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-lg',
           )}
         >

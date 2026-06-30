@@ -571,12 +571,13 @@ export default function CanvasAssistantPanel({
         'generation-canvas-v2-assistant',
         // flexbox 而非 grid-rows-[…minmax(0,1fr)…] 任意值——后者在本环境解析异常，
         // 把工具条行撑成 145px 留出 ~120px 空白（用户反馈"上面空这么大"的真凶）。
-        // 宽度撑满外层可拖拽的 grid 列（GenerationWorkspace 把列宽推到 assistantWidth），
-        // 之前写死 w-[340px] → 拖宽后右侧一大片空白、header 右簇被 overflow-hidden 裁断 token。
-        'relative flex flex-col w-full h-full',
-        'max-h-none min-w-0 min-h-0 overflow-hidden',
+        // 停靠展开时外层 grid 列宽从 0 动到目标宽；面板本体固定按目标宽排版并贴右侧，
+        // 只让外层裁切露出，避免文字在 20px→340px 的中间宽度里反复换行。
+        'relative flex flex-col w-[var(--generation-assistant-target-width,340px)] h-full justify-self-end',
+        'max-h-none min-w-[var(--generation-assistant-target-width,340px)] min-h-0 overflow-hidden',
         'border-0 rounded-none bg-nomi-paper shadow-none',
         'max-[900px]:w-[min(340px,calc(100vw-28px))]',
+        'max-[900px]:min-w-0',
         'max-[900px]:max-h-[calc(100vh-var(--workbench-topbar-height)-var(--workbench-timeline-height)-32px)]',
         'max-[900px]:border max-[900px]:border-nomi-line max-[900px]:rounded-nomi max-[900px]:shadow-nomi-lg',
       )}

@@ -1,5 +1,6 @@
 import React from 'react'
 import { IconChevronUp, IconLayoutList } from '@tabler/icons-react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { cn } from '../../utils/cn'
 import TimelinePanel from '../timeline/TimelinePanel'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -11,6 +12,13 @@ type GenerationWorkspaceProps = {
   aiLayout?: 'sidebar' | 'overlay'
 }
 
+const ASSISTANT_LAYOUT_SPRING = {
+  type: 'spring',
+  stiffness: 320,
+  damping: 34,
+  mass: 0.9,
+} as const
+
 export default function GenerationWorkspace({
   canvas,
   aiSidebar,
@@ -19,6 +27,7 @@ export default function GenerationWorkspace({
   const width = useWorkbenchStore((s) => s.assistantWidth)
   const setWidth = useWorkbenchStore((s) => s.setAssistantWidth)
   const timeline = useWorkbenchStore((s) => s.timeline)
+  const reduceMotion = useReducedMotion()
   const [timelineCollapsed, setTimelineCollapsed] = React.useState(false)
   // 折叠态悬浮把手的真实摘要：段数（含字幕/标题卡）+ 总时长，绝不编造。
   const timelineSummary = React.useMemo(() => {
@@ -45,23 +54,31 @@ export default function GenerationWorkspace({
     dragRef.current = null
     try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* noop */ }
   }, [])
-  const sidebarStyle = aiSidebar && aiLayout === 'sidebar'
-    ? {
-        gridTemplateColumns: `minmax(0,1fr) ${width}px`,
-        gridTemplateRows: `minmax(0,1fr) ${timelineCollapsed ? '0px' : 'var(--workbench-timeline-height)'}`,
-      } as React.CSSProperties
-    : {
-        gridTemplateRows: `minmax(0,1fr) ${timelineCollapsed ? '0px' : 'var(--workbench-timeline-height)'}`,
-      } as React.CSSProperties
+  const assistantTargetWidth = `${width}px`
+  const assistantColumnWidth = aiSidebar && aiLayout === 'sidebar' ? assistantTargetWidth : '0px'
+  const isDockedAssistant = Boolean(aiSidebar) && aiLayout === 'sidebar'
+  const workspaceStyle = {
+    '--generation-assistant-width': assistantColumnWidth,
+    '--generation-assistant-target-width': assistantTargetWidth,
+    gridTemplateColumns: isDockedAssistant ? 'minmax(0,1fr) var(--generation-assistant-width)' : 'minmax(0,1fr)',
+    gridTemplateRows: `minmax(0,1fr) ${timelineCollapsed ? '0px' : 'var(--workbench-timeline-height)'}`,
+  } as React.CSSProperties & {
+    '--generation-assistant-width': string
+    '--generation-assistant-target-width': string
+  }
+
   return (
-    <section
+    <motion.section
       className={cn(
         'workbench-generation',
         'grid grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)_var(--workbench-timeline-height)]',
         'w-full h-full overflow-hidden bg-[var(--workbench-bg)]',
-        aiSidebar && aiLayout === 'overlay' && 'relative grid-cols-[minmax(0,1fr)]',
+        aiSidebar && aiLayout === 'overlay' && 'relative',
       )}
-      style={sidebarStyle}
+      style={workspaceStyle}
+      initial={false}
+      animate={{ '--generation-assistant-width': assistantColumnWidth } as Record<string, string>}
+      transition={reduceMotion ? { duration: 0 } : ASSISTANT_LAYOUT_SPRING}
       data-has-ai={aiSidebar ? 'true' : 'false'}
       data-ai-layout={aiSidebar ? aiLayout : 'none'}
       aria-label="生成区"
@@ -102,8 +119,10 @@ export default function GenerationWorkspace({
           'grid min-w-0 min-h-0 overflow-hidden border-b border-[var(--workbench-border)]',
           aiLayout === 'overlay'
             ? 'absolute top-4 right-4 z-[80] block w-auto h-auto border-0 bg-transparent pointer-events-auto'
-            : 'border-l border-l-[var(--workbench-border)] bg-[var(--workbench-surface)]',
-        )} aria-label="生成区 AI 侧栏">
+            : 'justify-items-end border-l border-l-[var(--workbench-border)] bg-[var(--workbench-surface)]',
+        )}
+          aria-label="生成区 AI 侧栏"
+        >
           {/* 左缘拖手柄：仅停靠态显示。 */}
           {aiLayout === 'sidebar' ? (
             <div
@@ -138,6 +157,6 @@ export default function GenerationWorkspace({
           />
         )}
       </div>
-    </section>
+    </motion.section>
   )
 }

@@ -131,42 +131,6 @@
   box-shadow: 0 15px 40px rgba(15, 23, 42, 0.08);
 }
 
-/* ===== Light theme: Webkit scrollbar ===== */
-:root[data-mantine-color-scheme="light"] *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-:root[data-mantine-color-scheme="light"] *::-webkit-scrollbar-thumb {
-  background: rgba(15, 23, 42, 0.14);
-  border-radius: 8px;
-}
-:root[data-mantine-color-scheme="light"] *::-webkit-scrollbar-thumb:hover {
-  background: rgba(15, 23, 42, 0.25);
-}
-:root[data-mantine-color-scheme="light"] *::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-/* ===== Light theme: UX panel scrollbar ===== */
-:root[data-mantine-color-scheme="light"] [data-ux-panel] {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(15, 23, 42, 0.25) transparent;
-}
-:root[data-mantine-color-scheme="light"] [data-ux-panel] *::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-:root[data-mantine-color-scheme="light"] [data-ux-panel] *::-webkit-scrollbar-thumb {
-  background: rgba(15, 23, 42, 0.2);
-  border-radius: 8px;
-}
-:root[data-mantine-color-scheme="light"] [data-ux-panel] *::-webkit-scrollbar-thumb:hover {
-  background: rgba(15, 23, 42, 0.35);
-}
-:root[data-mantine-color-scheme="light"] [data-ux-panel] *::-webkit-scrollbar-track {
-  background: transparent;
-}
-
 /* ===== Light theme: compact data-attribute Mantine overrides ===== */
 [data-compact="true"] .mantine-Button-root {
   padding: 4px 8px !important;

@@ -83,6 +83,12 @@ export type DesktopUpdateEvent =
 
 export type DesktopBridge = {
   platform: string
+  window?: {
+    minimize: () => Promise<void>
+    maximize: () => Promise<void>
+    close: () => Promise<void>
+    onMaximized: (cb: (maximized: boolean) => void) => () => void
+  }
   startupProbe?: {
     enabled: boolean
     mark: (label: string, payload?: Record<string, unknown>) => void

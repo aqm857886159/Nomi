@@ -88,7 +88,7 @@ export const CanvasMinimap = React.memo(function CanvasMinimap({ nodes, selected
     <div
       className={cn(
         'generation-canvas-v2__minimap',
-        'absolute right-4 bottom-6 z-[8] overflow-hidden',
+        'relative overflow-hidden pointer-events-auto',
         'border border-nomi-line rounded-nomi bg-nomi-paper/95 shadow-nomi-md',
       )}
       style={{ width: MAP_W, height: MAP_H }}
