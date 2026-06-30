@@ -7,10 +7,10 @@
 import React, { Suspense } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { Mannequin, MannequinCrowd, MannequinAssetBoundary, ProceduralMannequin } from './scene3dObjects'
+import { Mannequin, MannequinCrowd, MannequinAssetBoundary, ProceduralMannequin, type MannequinLocomotionDriver } from './scene3dObjects'
 import { captureScene, applySceneCameraPose, aspectDimensions, capCameraMoveDimensions, applyMannequinSkeletonPose, groundMannequinModel } from './scene3dMath'
 import { cameraWithPlaybackPosition, objectWithPlaybackPose } from './scene3dPlayback'
-import { samplePoseKeyframe, poseKeyframeKey } from './scene3dPoseTrack'
+import { samplePoseKeyframe, poseKeyframeKey, frameMotionSource } from './scene3dPoseTrack'
 import { frameTimes } from './cameraMoveSchedule'
 import type { Scene3DState, Scene3DObject } from './scene3dTypes'
 import { Scene3DEnvironmentLayer } from './scene3dEnvironment'
@@ -27,13 +27,28 @@ export type CameraMoveCaptureResult = {
 // 只是物体先经 objectWithPlaybackPose 投影到时刻 t）。
 // 关键：每个 state.objects[i] **恒映射一个 group child**（即使内容为空），让 stepper 用
 // group.children[i] 直接对齐 state.objects[i]，不被「跳过的物体类型」打乱索引。
-function TrajectoryObjects({ objects }: { objects: Scene3DObject[] }): JSX.Element {
+// driverRefs：每个带 locomotionClip 的被操控假人对应一个 locomotion 驱动句柄 ref，由 stepper 在
+// capture 前 imperatively 定相位（确定性迈腿）。无 locomotionClip 的假人不传 activeClip → 走原静态路径（零回归）。
+function TrajectoryObjects({
+  objects,
+  driverRefs,
+}: {
+  objects: Scene3DObject[]
+  driverRefs: Map<string, React.MutableRefObject<MannequinLocomotionDriver | null>>
+}): JSX.Element {
   let roleStart = 0
   return (
     <>
       {objects.map((object) => {
         const content = object.type === 'mannequin'
-          ? <Mannequin color={object.color || '#808080'} pose={object.pose} />
+          ? (
+            <Mannequin
+              color={object.color || '#808080'}
+              pose={object.pose}
+              activeClip={object.locomotionClip}
+              driverRef={object.locomotionClip ? driverRefs.get(object.id) : undefined}
+            />
+          )
           : object.type === 'mannequinCrowd'
             ? <MannequinCrowd object={object} roleStartIndex={roleStart} />
             : null
@@ -67,6 +82,34 @@ function applyPoseOverTime(
   applyMannequinSkeletonPose(mannequinRoot, keyframe ? keyframe.pose : object.pose)
   groundMannequinModel(mannequinRoot)
   appliedPoseKey.set(object.id, key)
+}
+
+// 在时刻 t 决定被操控假人该帧的「动作来源」并落到骨架（locomotion 迈腿 vs 静态 pose 共存，单一判定 frameMotionSource）：
+// - locomotion：调 driver.setTime(t) 定相位 + 落地（确定性腿迈）。清掉该对象的 appliedPoseKey，
+//   使下次切回静态时强制重摆（mixer 期间骨架已被动画覆盖，缓存键失效）。
+// - 否则（static-pose / static-base）：走原 applyPoseOverTime（静态优先，含 base 落回 object.pose）。
+// 无 locomotionClip 的假人 → frameMotionSource 恒非 locomotion → 完全走原静态路径（零回归）。
+function applyMotionOverTime(
+  object: Scene3DObject,
+  t: number,
+  child: THREE.Object3D,
+  appliedPoseKey: Map<string, string>,
+  driverRefs: Map<string, React.MutableRefObject<MannequinLocomotionDriver | null>>,
+): void {
+  if (object.type !== 'mannequin') return
+  const source = frameMotionSource(object.poseTrack, object.locomotionClip, t)
+  if (source === 'locomotion') {
+    const driver = driverRefs.get(object.id)?.current
+    if (driver) {
+      driver.setTime(t)
+      const mannequinRoot = child.children[0]
+      if (mannequinRoot instanceof THREE.Group) groundMannequinModel(mannequinRoot)
+    }
+    // locomotion 接管期间静态缓存失效：清键，切回静态时强制重摆。
+    appliedPoseKey.delete(object.id)
+    return
+  }
+  applyPoseOverTime(object, t, child, appliedPoseKey)
 }
 
 function cameraBindingTimes(state: Scene3DState, frameCount: number): number[] {
@@ -104,6 +147,15 @@ function TrajectoryFrameStepper({
   // pose-over-time：每个假人「上次套用的关键帧 key」。step-hold 下只在动作切换边界重摆骨架，
   // 不每帧重摆（groundMannequinModel 含全顶点遍历，每帧跑会掉帧；其设计本就是「仅姿势变化时跑一次」）。
   const appliedPoseKeyRef = React.useRef<Map<string, string>>(new Map())
+  // 每个带 locomotionClip 的被操控假人对应一个 locomotion 驱动句柄 ref（Mannequin 发布，stepper 在 capture 前调）。
+  // 稳定身份：同一 object.id 复用同一 ref（避免每帧/每渲染换 ref 丢句柄）。
+  const driverRefsRef = React.useRef<Map<string, React.MutableRefObject<MannequinLocomotionDriver | null>>>(new Map())
+  const driverRefs = driverRefsRef.current
+  state.objects.forEach((object) => {
+    if (object.type === 'mannequin' && object.locomotionClip && !driverRefs.has(object.id)) {
+      driverRefs.set(object.id, { current: null })
+    }
+  })
 
   useFrame(() => {
     if (firedRef.current) return
@@ -133,7 +185,7 @@ function TrajectoryFrameStepper({
         child.position.set(posed.position[0], posed.position[1], posed.position[2])
         child.rotation.set(posed.rotation[0], posed.rotation[1], posed.rotation[2])
         child.visible = posed.visible
-        applyPoseOverTime(object, t, child, appliedPoseKeyRef.current)
+        applyMotionOverTime(object, t, child, appliedPoseKeyRef.current, driverRefs)
       })
       group.updateMatrixWorld(true)
     }
@@ -166,7 +218,7 @@ function TrajectoryFrameStepper({
 
   return (
     <group ref={objectGroupRef}>
-      <TrajectoryObjects objects={state.objects} />
+      <TrajectoryObjects objects={state.objects} driverRefs={driverRefs} />
     </group>
   )
 }

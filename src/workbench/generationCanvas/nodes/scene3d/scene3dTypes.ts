@@ -30,6 +30,11 @@ export type Scene3DObject = {
   // 动作随时间变化的轨道（录 take 用）。空/缺省 = 老行为（静态 pose）。
   // time 为绝对场景时间轴秒，与 trajectoryBinding.startTime/播放头同一时钟。
   poseTrack?: Scene3DPoseKeyframe[]
+  // 被操控角色「确定性迈腿」locomotion clip 名（与 mannequin-animations.glb 内 clip 名逐字一致，如 'walk'）。
+  // 录 take 离屏回放时据此让假人确定性地播该 clip（按帧时刻 setTime 取相位），导出 mp4 里腿就动。
+  // 缺省 = 老行为（不播 locomotion，只走静态 pose/poseTrack 路径 → 零回归）。
+  // 与 poseTrack 共存：某帧 poseTrack 命中非 base 关键帧（用户切了静态动作）→ 静态优先，不播 locomotion。
+  locomotionClip?: string
   children?: string[]
 }
 

@@ -107,9 +107,21 @@ function findSkinnedMesh(root: THREE.Object3D): THREE.SkinnedMesh | null {
   return found
 }
 
+// 离屏确定性驱动句柄：stepper 在自己的 useFrame 里（render/capture 之前）imperatively 调用，
+// 保证 setTime 后的骨架在同一帧被 captureScene 采到（无一帧滞后；与 applyPoseOverTime 同序）。
+// setTime(t)=按该时刻定相位（walk 循环自动取模）；suspend()=该帧被静态动作打断，locomotion 让位静态 pose。
+export type MannequinLocomotionDriver = {
+  setTime: (clipTime: number) => void
+}
+
 function useMannequinLocomotion(
   model: THREE.Object3D,
   activeClip: string | undefined,
+  // 给了此 ref（离屏）→ 组件不在自己的 useFrame 自动推进，改由 stepper 通过 ref.current.setTime
+  //   在 capture 前 imperatively 驱动（确定性，无一帧滞后）。某帧被静态动作打断时 stepper 不调 setTime，
+  //   该帧由 stepper 的 applyPoseOverTime 接管骨架（静态优先）。
+  // 缺省（LIVE possess）→ 组件自己的 useFrame 走 mixer.update(delta) 实时路径，行为不变。
+  driverRef?: React.MutableRefObject<MannequinLocomotionDriver | null>,
 ): void {
   // 只在真正要动画时才订阅动画 GLB（useGLTF 内部缓存，重复调用零额外加载）。
   const animationGltf = useGLTF(MANNEQUIN_ANIMATION_URL)
@@ -172,7 +184,16 @@ function useMannequinLocomotion(
       prevAction.crossFadeTo(nextAction, LOCOMOTION_CROSSFADE_SECONDS, false)
     }
     currentActionRef.current = nextAction
-  }, [activeClip, clips, targetSkinned])
+    // 离屏：mixer+action 就绪后发布驱动句柄，供 stepper 在 capture 前 imperatively 定相位。
+    if (driverRef) {
+      driverRef.current = {
+        setTime: (clipTime: number) => {
+          const m = mixerRef.current
+          if (m) m.setTime(clipTime)
+        },
+      }
+    }
+  }, [activeClip, clips, targetSkinned, driverRef])
 
   // 卸载（换对象/退出 possess 销毁组件）时停掉所有 action，释放 mixer。
   React.useEffect(() => () => {
@@ -181,11 +202,16 @@ function useMannequinLocomotion(
     mixerRef.current = null
     actionsRef.current.clear()
     currentActionRef.current = null
-  }, [])
+    if (driverRef) driverRef.current = null
+  }, [driverRef])
 
   useFrame((_, delta) => {
+    // 离屏（driverRef 在场）：不在此自动推进——由 stepper 在 capture 前调 driver.setTime + 自己落地，
+    // 保证「定相位 → 落地 → 采帧」同序无滞后。此处只负责 LIVE 实时路径。
+    if (driverRef) return
     const mixer = mixerRef.current
     if (!activeClip || !mixer || !currentActionRef.current) return
+    // LIVE 实时：用帧间 delta 推进动画（possess 走路，行为完全不变）。
     mixer.update(delta)
     // clip 让脚上下起伏，每帧按蒙皮最低点重新落地，保证脚踩地不飘（基准沿用现有 groundMannequinModel 逻辑）。
     groundMannequinModel(model as THREE.Group)
@@ -196,10 +222,14 @@ export function Mannequin({
   color,
   pose,
   activeClip,
+  driverRef,
 }: {
   color: string
   pose?: Record<string, Scene3DVector3>
   activeClip?: string
+  // 给了 driverRef（离屏）→ 发布 locomotion 驱动句柄，由 stepper 在 capture 前 imperatively 定相位（确定性，腿迈）；
+  // 缺省 → LIVE 实时推进（possess 走路不变）。
+  driverRef?: React.MutableRefObject<MannequinLocomotionDriver | null>
 }): JSX.Element {
   const { scene } = useGLTF(MANNEQUIN_MODEL_URL)
   const model = React.useMemo(() => {
@@ -250,7 +280,7 @@ export function Mannequin({
     groundMannequinModel(model.object)
   }, [model, pose, activeClip])
 
-  useMannequinLocomotion(model.object, activeClip)
+  useMannequinLocomotion(model.object, activeClip, driverRef)
 
   return <primitive object={model.object} />
 }

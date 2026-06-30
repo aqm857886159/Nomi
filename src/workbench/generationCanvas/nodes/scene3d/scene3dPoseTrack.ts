@@ -57,6 +57,26 @@ export function buildPoseTrack(events: ReadonlyArray<Scene3DPoseEvent>): Scene3D
   return track
 }
 
+// 某帧的「动作来源」判定（纯逻辑，离屏 locomotion 与 poseTrack 共存的单一真相）：
+// - 'static-pose'：该时刻 poseTrack 命中非 base 关键帧（用户切了静态动作，如下蹲）→ 静态姿势优先，
+//   打断走路动画（pose 取该关键帧的 pose）。
+// - 'locomotion'：有 locomotionClip 且当前未被静态动作打断 → 播 locomotion clip（腿迈）。
+// - 'static-base'：既无 locomotion 也未命中非 base 关键帧 → 老行为，落回静态基准 pose。
+// 复用 samplePoseKeyframe + poseKeyframeKey 判 base，不另立口径。
+export type Scene3DFrameMotionSource = 'locomotion' | 'static-pose' | 'static-base'
+
+export function frameMotionSource(
+  track: ReadonlyArray<Scene3DPoseKeyframe> | undefined,
+  locomotionClip: string | undefined,
+  time: number,
+): Scene3DFrameMotionSource {
+  const keyframe = track && track.length > 0 ? samplePoseKeyframe(track, time) : undefined
+  const poseInterrupts = poseKeyframeKey(keyframe) !== 'base'
+  if (poseInterrupts) return 'static-pose'
+  if (locomotionClip) return 'locomotion'
+  return 'static-base'
+}
+
 // 时刻 t 当前生效的关键帧（step-hold：time ≤ t 的最近一帧）。
 // t 早于首帧 / 空轨道 → undefined（调用方落回静态基准 pose）。不假设已排序。
 export function samplePoseKeyframe(

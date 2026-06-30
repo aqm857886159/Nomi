@@ -207,6 +207,7 @@ function normalizeObject(value: unknown, index: number): Scene3DObject | null {
     crowdSpacing: Math.min(10, Math.max(0.2, finiteNumber(raw.crowdSpacing, 1.2))),
     pose: poseValue(raw.pose),
     poseTrack: poseTrackValue(raw.poseTrack),
+    locomotionClip: typeof raw.locomotionClip === 'string' ? raw.locomotionClip : undefined,
     children: Array.isArray(raw.children) ? raw.children.filter((id): id is string => typeof id === 'string') : undefined,
   }
 }

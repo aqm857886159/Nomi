@@ -7,7 +7,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import os from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { mkdtempSync, mkdirSync, readdirSync, statSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readdirSync, statSync, copyFileSync } from 'node:fs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -126,7 +126,13 @@ try {
   }
   pass.mp4Made = mp4s.length > 0
   await win.screenshot({ path: path.join(outDir, 'tr-03-after-capture.png') })
-  log(`  ${pass.mp4Made ? '✓' : '✗'} 生成 mp4（${mp4s.length} 个）${mp4s[0] ? ' → ' + path.basename(mp4s[0]) : ''}`)
+  // 把出的 mp4 拷进持久 outDir（临时 projectsDir 跑完即清），方便用户抽帧看腿。
+  let savedMp4 = ''
+  if (mp4s[0]) {
+    savedMp4 = path.join(outDir, 'tr-walk-take.mp4')
+    try { copyFileSync(mp4s[0], savedMp4) } catch { savedMp4 = mp4s[0] }
+  }
+  log(`  ${pass.mp4Made ? '✓' : '✗'} 生成 mp4（${mp4s.length} 个）${savedMp4 ? ' → ' + savedMp4 : ''}`)
 
   log('\n═══ 结果 ═══')
   log(`  编辑器可开:      ${pass.editorOpen ? '✓' : '✗'}`)

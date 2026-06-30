@@ -139,6 +139,13 @@ describe('buildRecordedTakeScene', () => {
     expect(scene!.sceneTimeline.totalDuration).toBe(4)
   })
 
+  it('marks the recorded character with locomotionClip=walk so the offscreen mp4 has legs striding', () => {
+    const { state, characterId } = baseSceneWithCharacter()
+    const scene = buildRecordedTakeScene(state, take(characterId))
+    const character = scene!.objects.find((o) => o.id === characterId)
+    expect(character!.locomotionClip).toBe('walk')
+  })
+
   it('makes the offscreen capture camera (cameras[0]) follow the recorded character', () => {
     const { state, characterId } = baseSceneWithCharacter()
     const scene = buildRecordedTakeScene(state, take(characterId))

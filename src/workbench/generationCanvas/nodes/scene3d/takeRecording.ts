@@ -13,7 +13,7 @@ import {
   createScene3DTrajectoryBindingId,
   cloneScene3DState,
 } from './scene3dSerializer'
-import { ROLE_COLOR_SEQUENCE } from './scene3dConstants'
+import { ROLE_COLOR_SEQUENCE, LOCOMOTION_CLIP_WALK } from './scene3dConstants'
 import { buildPoseTrack, type Scene3DPoseEvent } from './scene3dPoseTrack'
 import type {
   Scene3DState,
@@ -160,6 +160,11 @@ export function buildRecordedTakeScene(base: Scene3DState, take: RecordedTake): 
   // 离屏 stepper 据此在每个关键帧边界把假人骨架重摆到该时刻动作（pose-over-time），与位移轨迹同一时间线。
   const poseTrack = buildPoseTrack(take.poseEvents ?? [])
   character.poseTrack = poseTrack.length >= 2 ? poseTrack : undefined
+
+  // 录的就是「走位 take」→ 标记被操控角色离屏确定性播 walk clip（腿迈）。整段 walk 而非按轨迹速度派生：
+  // 走位 take 本就是「走路」语义；按帧速度分桶易在轨迹近静止段 idle↔walk 抖动（曲线切线噪声），整段 walk
+  // 最简且可靠地满足「腿在迈」。中途切静态动作的那几帧由 frameMotionSource 判 static-pose 自动打断走路（静态优先）。
+  character.locomotionClip = LOCOMOTION_CLIP_WALK
 
   const trajectories: Scene3DTrajectory[] = [characterTrajectory]
   const bindings: Scene3DTrajectoryBinding[] = [

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildPoseTrack, samplePoseKeyframe, poseKeyframeKey } from './scene3dPoseTrack'
+import { buildPoseTrack, samplePoseKeyframe, poseKeyframeKey, frameMotionSource } from './scene3dPoseTrack'
 import type { Scene3DPoseKeyframe } from './scene3dTypes'
 
 const crouch = { mixamorigSpine: [10, 0, 0] as [number, number, number] }
@@ -128,6 +128,53 @@ describe('poseKeyframeKey（离屏「只在边界换 pose」判重身份键）',
 
   it('无 presetId 无 pose → base', () => {
     expect(poseKeyframeKey({ time: 1 })).toBe('base')
+  })
+})
+
+// locomotion 与 poseTrack 共存判定：静态动作打断走路；松开/没切就走路。
+describe('frameMotionSource（离屏：该帧播 locomotion 还是静态 pose）', () => {
+  const crouchTrack: Scene3DPoseKeyframe[] = buildPoseTrack([
+    { time: 1, presetId: 'crouch', pose: crouch }, // 1s 切下蹲
+  ])
+
+  it('有 locomotionClip、无 poseTrack → 全程 locomotion（腿迈）', () => {
+    expect(frameMotionSource(undefined, 'walk', 0)).toBe('locomotion')
+    expect(frameMotionSource([], 'walk', 5)).toBe('locomotion')
+  })
+
+  it('有 locomotionClip，t 在切下蹲前 → locomotion（还没打断）', () => {
+    expect(frameMotionSource(crouchTrack, 'walk', 0.5)).toBe('locomotion')
+  })
+
+  it('有 locomotionClip，t 落在下蹲段 → static-pose（静态优先，打断走路）', () => {
+    expect(frameMotionSource(crouchTrack, 'walk', 1)).toBe('static-pose')
+    expect(frameMotionSource(crouchTrack, 'walk', 3)).toBe('static-pose')
+  })
+
+  it('无 locomotionClip、无非 base 关键帧 → static-base（老行为零回归）', () => {
+    expect(frameMotionSource(undefined, undefined, 2)).toBe('static-base')
+    expect(frameMotionSource([], undefined, 2)).toBe('static-base')
+  })
+
+  it('无 locomotionClip 但命中非 base 关键帧 → static-pose（纯 poseTrack 路径不变）', () => {
+    expect(frameMotionSource(crouchTrack, undefined, 2)).toBe('static-pose')
+  })
+
+  it('命中 base 关键帧（rest：无 preset 无 pose）+ locomotionClip → 回到 locomotion（松开静态动作就走路）', () => {
+    const track = buildPoseTrack([
+      { time: 0, presetId: 'crouch', pose: crouch },
+      { time: 2 }, // 2s 松开回 rest（无 preset/无 pose = base）
+    ])
+    expect(frameMotionSource(track, 'walk', 1)).toBe('static-pose')
+    expect(frameMotionSource(track, 'walk', 2)).toBe('locomotion')
+    expect(frameMotionSource(track, 'walk', 3)).toBe('locomotion')
+  })
+
+  it('录制起点 seed 的 base 帧（presetId undefined）+ locomotionClip → 起步即 locomotion', () => {
+    // useScene3DTakeRecorder 录制起点 seed {presetId: undefined, pose: startPose}；
+    // 若 startPose 缺省（站立）则 key=base → 从 0s 起就走路。
+    const track = buildPoseTrack([{ time: 0 }])
+    expect(frameMotionSource(track, 'walk', 0)).toBe('locomotion')
   })
 })
 
