@@ -1,5 +1,5 @@
-// 画布右下角导航竖列（navigation-stack）：小地图 + 缩放条 + 显隐开关，从 GenerationCanvas 抽出
-// 以守住外壳 ≤800 行（R9）。容器负责定位（absolute right-4 bottom-3），minimap 改 relative 靠它定位。
+// 画布左下角导航竖列（navigation-stack）：小地图 + 缩放条 + 显隐开关，从 GenerationCanvas 抽出
+// 以守住外壳 ≤800 行（R9）。容器负责定位（absolute left-4 bottom-3），minimap 改 relative 靠它定位。
 import React from "react";
 import {
     IconEyeOff,
@@ -56,7 +56,7 @@ export function CanvasNavigationStack({
         <div
             className={cn(
                 "generation-canvas-v2__navigation-stack",
-                "absolute right-4 bottom-3 z-[8] flex flex-col items-center gap-2 pointer-events-none",
+                "absolute left-4 bottom-3 z-[8] flex flex-col items-start gap-2 pointer-events-none",
             )}
             aria-label="画布导航"
         >
