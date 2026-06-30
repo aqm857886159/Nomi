@@ -93,7 +93,7 @@ export function taskStatusFromResponse(response: unknown, responseMapping: JsonR
   }
   // 通用状态词表（供应商无关）。kie 用 waiting/generating/fail，故并入默认 —— 让所有走这套
   // 动词的供应商无需各自声明 statusMapping（避免每家一份并行映射）。
-  if (["queued", "pending", "waiting", "in_queue", "starting"].includes(fallbackStatus)) return "queued";
+  if (["queued", "queuing", "pending", "waiting", "in_queue", "starting"].includes(fallbackStatus)) return "queued";
   if (["running", "processing", "in_progress", "generating"].includes(fallbackStatus)) return "running";
   if (["succeeded", "success", "completed", "complete", "done", "stop", "length"].includes(fallbackStatus)) return "succeeded";
   if (["failed", "fail", "error", "timeout", "expired", "canceled", "cancelled"].includes(fallbackStatus)) return "failed";

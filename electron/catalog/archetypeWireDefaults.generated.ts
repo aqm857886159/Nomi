@@ -52,15 +52,14 @@ export const ARCHETYPE_WIRE_DEFAULTS: Record<string, Record<string, Record<strin
     },
     "image_edit": {
       "*": {
-        "image_size": "square_hd",
-        "image_resolution": "1K",
-        "max_images": 1,
-        "model": "bytedance/seedream-v4-edit"
+        "aspect_ratio": "1:1",
+        "quality": "basic",
+        "model": "seedream/4.5-edit"
       },
       "apimart": {
         "size": "1:1",
         "resolution": "2K",
-        "model": "bytedance/seedream-v4-edit"
+        "model": "seedream/4.5-edit"
       }
     }
   },

@@ -58,9 +58,9 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
     ]) {
       expect(resolveArchetypeForModel({ modelKey })?.id).toBe("seedance-2-apimart");
     }
-    // 档案声明 4 变体 + 默认 standard（apimart 无 mini）。
+    // 档案声明 5 变体 + 默认 standard（2026-06-30 照 docs.apimart.ai 补 mini）。
     const arch = resolveArchetypeForModel({ modelKey: "doubao-seedance-2.0" });
-    expect(arch?.variants?.map((v) => v.id)).toEqual(["standard", "fast", "face", "fast-face"]);
+    expect(arch?.variants?.map((v) => v.id)).toEqual(["standard", "fast", "face", "fast-face", "mini"]);
     expect(arch?.defaultVariantId).toBe("standard");
   });
 
