@@ -106,7 +106,8 @@ Nomi：本地优先 AI 视频创作工作台。
 
 ## 工作目录
 
-唯一工作树：`/Users/aoqimin/Desktop/Nomi/`，分支 `main`。
-操作文件用绝对路径；若用 worktree 将来扩展分支，务必放在仓库目录**同级**（非嵌套）。
+主工作树：`/Users/aoqimin/Desktop/Nomi/`，分支 `main`。操作文件用绝对路径；新建 worktree 放仓库目录**同级**（非嵌套）。
+
+**并行纪律（这台机器常 20+ worktree 同时改 main：当前分支会被从底下切走、文件会被并行整份 clobber、commit 会被 force-push 顶掉）**：① 动任何 git **第一步 `git branch --show-current`**——别假设自己在 main（栽过：以为 main 实为并行切过去的 pr-27，commit 落错分支）；② 要把自己的活落 main，**别在被狂改的共享树上 commit/切分支/reset**——开一条独立 sibling worktree 钉 `origin/main`（`git worktree add --detach ../Nomi-x origin/main` → cherry-pick 自己的改动 → `ln -s` 复用主仓 node_modules 跑 `pnpm run gates` → `git push origin HEAD:main` → `git worktree remove`），五门只评自己的干净基线、不被别人的巨壳/半成品连坐；③ e2e/测试用的 window 桥等 hook 放**低争用子系统文件**，别放 store 根/热门入口（会被并行覆盖）。详见记忆 `parallel-session-on-main-hazard`。
 
 ---
