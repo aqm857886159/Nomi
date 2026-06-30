@@ -71,6 +71,33 @@ describe('classifyGenerationError — 已知分类', () => {
     expect(raw.hint).not.toMatch(/API Key/)
   })
 
+  it('账号档位闸·即梦非会员 → 账号权限不足(不吞进 unknown「生成失败」)', () => {
+    const r = classifyGenerationError('当前即梦账号不是高级会员，无法生成。即梦免费试用已于 2026-05-01 结束——请在即梦开通会员后重试。')
+    expect(r.reason).toBe('账号权限不足')
+    expect(r.hint).toMatch(/会员|企业|授权/)
+  })
+
+  it('账号档位闸·RunningHub 1014 企业共享 Key → 账号权限不足(不误导成「参数不被接受」)', () => {
+    const message =
+      "NOMI_VENDOR_ERR_B64::" +
+      Buffer.from(JSON.stringify({ category: 'input', upstreamMsg: '标准模型API仅限企业级-共享API Key调用|Access Denied: Standard Model API is restricted to Enterprise-Shared API Keys only.', vendorKey: 'runninghub' }), 'utf8').toString('base64') +
+      ":: Provider request failed (code 1014) at runninghub POST https://x: 标准模型API仅限企业级-共享API Key调用"
+    const r = classifyGenerationError(message)
+    expect(r.reason).toBe('账号权限不足')
+    expect(r.reason).not.toBe('参数不被接受')
+    expect(r.providerMessage).toMatch(/企业级|Enterprise/)
+  })
+
+  it('账号档位闸·即梦首次需网页端授权 → 账号权限不足', () => {
+    const r = classifyGenerationError('即梦该模型首次使用需先在网页端完成一次性内容安全授权。请打开 jimeng.jianying.com 完成授权后重试。')
+    expect(r.reason).toBe('账号权限不足')
+  })
+
+  it('普通参数错不被误判成账号档位闸', () => {
+    const r = classifyGenerationError('invalid param: duration out of range')
+    expect(r.reason).not.toBe('账号权限不足')
+  })
+
   it('剪贴板网页媒体下载失败时优先提示下载到本地', () => {
     const r = classifyGenerationError('网页媒体下载失败：该站点可能禁止跨域请求或开启防盗链。请先下载到本地，再复制或拖入画布。')
     expect(r.reason).toBe('网页媒体下载失败')
