@@ -2,6 +2,15 @@
 // 档案参数默认值桥接：headless/MCP 生成缺参时 runtime 按 (archetypeId, taskKind) 兜底填，既有值优先。
 export const ARCHETYPE_WIRE_DEFAULTS: Record<string, Record<string, Record<string, Record<string, unknown>>>> = {
   "seedance-2": {
+    "text_to_video": {
+      "*": {
+        "resolution": "720p",
+        "aspect_ratio": "16:9",
+        "duration": 5,
+        "generate_audio": true,
+        "model": "bytedance/seedance-2"
+      }
+    },
     "image_to_video": {
       "*": {
         "resolution": "720p",

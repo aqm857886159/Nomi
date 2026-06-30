@@ -94,3 +94,18 @@ export const SEEDANCE_2_IMAGE_TO_VIDEO_MAPPING = {
   create: SEEDANCE_2_CREATE_OP,
   query: SEEDANCE_2_QUERY_OP,
 };
+
+/**
+ * (kie, text_to_video) 的 mapping 种子 —— 文生视频（纯 prompt）。
+ * 复用同一个 createTask op：kie 文档实证 first_frame_url 等图字段全 optional（只 prompt required），
+ * 文生模式下这些键值为 undefined 被模板整键丢弃 → body = { model, input:{ prompt, resolution, aspect_ratio,
+ * duration, generate_audio } }，正是官方文档的「text-to-video」请求。档案 t2v 模式 transportTaskKind=text_to_video
+ * 据此路由到本 mapping（i2v 桶不动）。此前漏接 → kie Seedance 做不了文生视频（apimart/RunningHub 本就有）。
+ */
+export const SEEDANCE_2_TEXT_TO_VIDEO_MAPPING = {
+  vendorKey: "kie",
+  taskKind: "text_to_video" as ProfileKind,
+  name: "Seedance 2.0 · 文生视频",
+  create: SEEDANCE_2_CREATE_OP,
+  query: SEEDANCE_2_QUERY_OP,
+};

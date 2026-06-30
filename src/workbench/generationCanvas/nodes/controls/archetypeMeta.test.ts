@@ -27,10 +27,11 @@ import {
 const SEEDANCE = getArchetypeById('seedance-2')!
 
 describe('archetype 档案 — Seedance 模式', () => {
-  it('档案有 首帧 / 首尾帧 / 全能参考 三模式（C3），分段标签用 vendor 真名（决策 #2）', () => {
-    expect(SEEDANCE.modes.map((m) => m.id)).toEqual(['first', 'firstlast', 'omni'])
+  it('档案有 文生视频 / 首帧 / 首尾帧 / 全能参考 四模式（2026-06-30 补文生视频），分段标签用 vendor 真名（决策 #2）', () => {
+    expect(SEEDANCE.modes.map((m) => m.id)).toEqual(['t2v', 'first', 'firstlast', 'omni'])
     // omni 显示「全能参考」而非「角色参考」——不把多模态能力说窄。
     expect(archetypeModeChoices(SEEDANCE)).toEqual([
+      { id: 't2v', vendorTerm: '文生视频', hint: '纯文字描述生成视频，无需参考图' },
       { id: 'first', vendorTerm: '首帧', hint: '单张首帧图驱动生成' },
       { id: 'firstlast', vendorTerm: '首尾帧', hint: '首帧 + 尾帧，过渡更可控' },
       { id: 'omni', vendorTerm: '全能参考', hint: '多模态参考；最多 9 角色 / 3 视频 / 3 音频' },
@@ -63,15 +64,15 @@ describe('archetypeModeSlots — 槽位映射到现有 flat 传输键', () => {
 
 describe('currentArchetypeMode — 当前模式解析', () => {
   it('无命名空间 meta → 落到默认模式', () => {
-    expect(currentArchetypeMode(SEEDANCE, {}).id).toBe('first')
+    expect(currentArchetypeMode(SEEDANCE, {}).id).toBe('t2v')
   })
   it('命名空间 meta 指定 firstlast → 命中', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'firstlast' } }
     expect(currentArchetypeMode(SEEDANCE, meta).id).toBe('firstlast')
   })
   it('modeId 失效 / 属于别的档案 → 回落默认模式', () => {
-    expect(currentArchetypeMode(SEEDANCE, { archetype: { id: 'other', modeId: 'firstlast' } }).id).toBe('first')
-    expect(currentArchetypeMode(SEEDANCE, { archetype: { id: 'seedance-2', modeId: 'ghost' } }).id).toBe('first')
+    expect(currentArchetypeMode(SEEDANCE, { archetype: { id: 'other', modeId: 'firstlast' } }).id).toBe('t2v')
+    expect(currentArchetypeMode(SEEDANCE, { archetype: { id: 'seedance-2', modeId: 'ghost' } }).id).toBe('t2v')
   })
 })
 
@@ -80,7 +81,7 @@ describe('ensureArchetypeNodeMeta — 初次落地', () => {
     const patch = ensureArchetypeNodeMeta({}, SEEDANCE)
     expect(patch).not.toBeNull()
     expect((patch!.archetype as { id: string; modeId: string }).id).toBe('seedance-2')
-    expect((patch!.archetype as { modeId: string }).modeId).toBe('first')
+    expect((patch!.archetype as { modeId: string }).modeId).toBe('t2v')
   })
   it('已是该档案（含 variantId）→ 幂等返回 null（不循环）', () => {
     expect(ensureArchetypeNodeMeta({ archetype: { id: 'seedance-2', modeId: 'firstlast', variantId: 'standard' } }, SEEDANCE)).toBeNull()
