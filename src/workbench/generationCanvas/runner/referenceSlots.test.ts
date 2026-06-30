@@ -98,22 +98,24 @@ describe('resolveReferenceSlots — 能力驱动单一真相源', () => {
     ])
   })
 
-  it('过载槽（gpt-image-2 i2i max4）：3 条 pending 边 + 3 个上传 → fills 封顶 4（pending 边也占位），多出的上传落不下', () => {
+  it('过载槽（gpt-image-2 i2i max16）：3 条 pending 边 + 15 个上传 → fills 封顶 16（pending 边也占位），多出的上传落不下', () => {
     // 这是 2026-06-25「参考图上不去/连线连不上」的根因场景：被「连了但源未生成」的 pending 边占满位置，
     // 容量必须按 fills.length（含 pending）算——不能只数有 url 的显示图 / meta 数组长度，否则槽满了还放行。
+    // 注：gpt-image-2 i2i 上限 2026-06-30 按官方文档抬到 16（旧值 4），故用 3 边 + 15 上传(共18>16)仍触发过载。
     const s1 = node('s1', 'image'); const s2 = node('s2', 'image'); const s3 = node('s3', 'image') // 无 url = pending
-    const tgt = target('image', 'gpt-image-2', 'i2i', { referenceImageUrls: ['https://cdn/u1.png', 'https://cdn/u2.png', 'https://cdn/u3.png'] })
+    const uploads = Array.from({ length: 15 }, (_, i) => `https://cdn/u${i}.png`)
+    const tgt = target('image', 'gpt-image-2', 'i2i', { referenceImageUrls: uploads })
     const edges: GenerationCanvasEdge[] = [
       { id: 'e1', source: 's1', target: 'tgt', mode: 'reference', order: 0 },
       { id: 'e2', source: 's2', target: 'tgt', mode: 'reference', order: 1 },
       { id: 'e3', source: 's3', target: 'tgt', mode: 'reference', order: 2 },
     ]
     const slots = resolveReferenceSlots(tgt, [s1, s2, s3, tgt], edges)
-    expect(slots[0].max).toBe(4)
-    expect(slots[0].fills).toHaveLength(4) // 占满：3 pending 边 + 1 上传；另 2 上传无位可落
+    expect(slots[0].max).toBe(16)
+    expect(slots[0].fills).toHaveLength(16) // 占满：3 pending 边 + 13 上传；另 2 上传无位可落
     expect(slots[0].fills.filter((f) => f.origin.type === 'edge')).toHaveLength(3)
     expect(slots[0].fills.filter((f) => f.status === 'pending-generation')).toHaveLength(3)
-    expect(slots[0].fills.filter((f) => f.origin.type === 'upload')).toHaveLength(1)
+    expect(slots[0].fills.filter((f) => f.origin.type === 'upload')).toHaveLength(13)
   })
 
   it('边与上传是同一 URL → 去重，只留一个', () => {

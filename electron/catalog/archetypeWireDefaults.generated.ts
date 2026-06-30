@@ -306,6 +306,11 @@ export const ARCHETYPE_WIRE_DEFAULTS: Record<string, Record<string, Record<strin
       "*": {
         "size": "2048x2048"
       }
+    },
+    "image_edit": {
+      "*": {
+        "size": "2048x2048"
+      }
     }
   },
   "volcengine-seedance-2": {

@@ -46,9 +46,10 @@ export const GPT_IMAGE_2_ARCHETYPE: ModelArchetype = {
       promptRequired: true,
       modelEnum: "gpt-image-2-image-to-image",
       transportTaskKind: "image_edit",
-      // 注：共享档案（kie+apimart）。slot max 取**更严 vendor** 的安全值（kie），避免抬到 apimart 的 16
-      // 让 kie 用户超限 400。apimart 的 16 张要靠 per-vendor slot 配置（未做，见 audit E2 延后）。
-      slots: [{ kind: "image_ref", label: "输入图", min: 1, max: 4, inputKey: "input_urls" }],
+      // 共享档案（kie+apimart）。2026-06-30 doc 复核：kie 与 apimart 的 gpt-image-2 image-to-image 现都是
+      // input_urls maxItems:16（docs.kie.ai gpt-image-2-image-to-image）——旧值 4 是当初「怕 kie 更严」的保守猜测，
+      // 已被官方文档证伪，抬到 16（两家一致，不再需要 per-vendor 收窄）。
+      slots: [{ kind: "image_ref", label: "输入图", min: 1, max: 16, inputKey: "input_urls" }],
       params: PARAMS,
     },
   ],

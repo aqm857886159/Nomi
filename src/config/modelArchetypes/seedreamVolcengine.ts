@@ -37,5 +37,18 @@ export const SEEDREAM_VOLCENGINE_ARCHETYPE: ModelArchetype = {
       slots: [],
       params: [SIZE_PARAM],
     },
+    {
+      // 图生图/改图（2026-06-30 补：火山官方统一生成-编辑架构，图传 image 字段数组；
+      // 真机验证 doubao-seedream-5-0-260128 + image:[url] → 服务端识别并下载该图，字段契约确认）。
+      // 多图融合也走这条（image 数组放多张参考图 → 主体一致重组）。输入图槽 inputKey=image_urls。
+      id: "edit",
+      intent: "edit",
+      vendorTerm: "改图",
+      hint: "给图（可多张）+ 提示词改图 / 多图融合",
+      promptRequired: true,
+      transportTaskKind: "image_edit",
+      slots: [{ kind: "image_ref", label: "输入图", min: 1, max: 10, inputKey: "image_urls" }],
+      params: [SIZE_PARAM],
+    },
   ],
 };

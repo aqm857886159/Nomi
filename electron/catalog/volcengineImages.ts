@@ -18,6 +18,28 @@ function seedreamCreateOp(): HttpOperation {
   };
 }
 
+/**
+ * 图生图/改图 create op（火山统一生成-编辑架构）。与文生图同端点同响应，仅多一个 `image` 字段（参考图 URL 数组）
+ * + sequential_image_generation:disabled（出单图）。2026-06-30 真机验证：image:[url] 被服务端识别并下载，字段契约确认。
+ * image 取档案改图模式的输入图数组（slot inputKey=image_urls，本地图经 ANON_UPLOAD 自动传公网）。
+ */
+function seedreamEditOp(): HttpOperation {
+  return {
+    method: "POST",
+    path: "/api/v3/images/generations",
+    headers: CREATE_HEADERS,
+    body: {
+      model: "{{model.modelKey}}",
+      prompt: "{{request.prompt}}",
+      image: "{{request.params.image_urls}}",
+      sequential_image_generation: "disabled",
+      size: "{{request.params.size}}",
+      watermark: false,
+    },
+    response_mapping: { image_url: "data.0.url" },
+  };
+}
+
 export type VolcengineImageModel = {
   modelKey: string;
   labelZh: string;
@@ -31,12 +53,20 @@ function seedreamModel(modelKey: string, labelZh: string, slug: string): Volceng
     modelKey,
     labelZh,
     archetypeId: "volcengine-seedream",
-    mappings: [{
-      id: `seed-volcengine-${slug}-text_to_image`,
-      taskKind: "text_to_image",
-      name: `${labelZh} · 文生图`,
-      create: seedreamCreateOp(),
-    }],
+    mappings: [
+      {
+        id: `seed-volcengine-${slug}-text_to_image`,
+        taskKind: "text_to_image",
+        name: `${labelZh} · 文生图`,
+        create: seedreamCreateOp(),
+      },
+      {
+        id: `seed-volcengine-${slug}-image_edit`,
+        taskKind: "image_edit",
+        name: `${labelZh} · 改图`,
+        create: seedreamEditOp(),
+      },
+    ],
   };
 }
 
