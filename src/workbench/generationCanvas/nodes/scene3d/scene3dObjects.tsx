@@ -1,7 +1,7 @@
 import React from 'react'
 import { Text, useGLTF } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
-import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js'
+import { clone as cloneSkeleton, retargetClip } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import * as THREE from 'three'
 import type {
   Scene3DGeometry,
@@ -99,13 +99,39 @@ export class MannequinAssetBoundary extends React.Component<MannequinAssetBounda
 // idle/walk/run clip 驱动骨骼（in-place 原地踏步，前进位移仍由 CharacterDriveController 直驱 group.position）。
 // 仅当 activeClip 有值时启用；为空时此 hook 不建 mixer、不每帧更新（静态 pose 路径完全不受影响 → 离屏/群众/不 possess 零回归）。
 // 切 clip 用 crossFadeTo 平滑过渡。每帧 mixer.update 后 groundMannequinModel 保证脚踩地不飘。
+function findSkinnedMesh(root: THREE.Object3D): THREE.SkinnedMesh | null {
+  let found: THREE.SkinnedMesh | null = null
+  root.traverse((object) => {
+    if (!found && object instanceof THREE.SkinnedMesh) found = object
+  })
+  return found
+}
+
 function useMannequinLocomotion(
   model: THREE.Object3D,
   activeClip: string | undefined,
 ): void {
   // 只在真正要动画时才订阅动画 GLB（useGLTF 内部缓存，重复调用零额外加载）。
   const animationGltf = useGLTF(MANNEQUIN_ANIMATION_URL)
-  const clips = animationGltf.animations as THREE.AnimationClip[]
+  // 假人的 SkinnedMesh：retarget 的目标 + 播放 mixer 的宿主都用它（绑到 SkinnedMesh 而非外层 group，
+  // 否则 PropertyBinding 报「node does not have a skeleton」刷控制台）。
+  const targetSkinned = React.useMemo(() => findSkinnedMesh(model), [model])
+  // 动画源(three Xbot)与我们假人「零点姿势」差~90°，clip 不能直接套（会躺平爆散，headless+R13 实证）。
+  // 用 retargetClip 按两套骨架的绑定差异把每条 clip 校正到我们假人骨架的局部空间，再播；只 retarget 一次后缓存。
+  // 源骨架用克隆（retarget 会临时驱动它采样，克隆免污染 useGLTF 共享场景）。失败的 clip 跳过（不假装在动）。
+  const clips = React.useMemo(() => {
+    const map = new Map<string, THREE.AnimationClip>()
+    const sourceSkinned = findSkinnedMesh(cloneSkeleton(animationGltf.scene))
+    if (!targetSkinned || !sourceSkinned) return map
+    for (const clip of animationGltf.animations as THREE.AnimationClip[]) {
+      try {
+        map.set(clip.name, retargetClip(targetSkinned, sourceSkinned, clip, { hip: 'mixamorigHips' }))
+      } catch (error) {
+        console.warn(`Mannequin clip retarget failed: ${clip.name}`, error)
+      }
+    }
+    return map
+  }, [animationGltf, targetSkinned])
   const mixerRef = React.useRef<THREE.AnimationMixer | null>(null)
   const currentActionRef = React.useRef<THREE.AnimationAction | null>(null)
   const actionsRef = React.useRef<Map<string, THREE.AnimationAction>>(new Map())
@@ -120,16 +146,16 @@ function useMannequinLocomotion(
     }
     let mixer = mixerRef.current
     if (!mixer) {
-      mixer = new THREE.AnimationMixer(model)
+      mixer = new THREE.AnimationMixer(targetSkinned ?? model)
       mixerRef.current = mixer
     }
     const actions = actionsRef.current
     let nextAction = actions.get(activeClip)
     if (!nextAction) {
-      const clip = clips.find((candidate) => candidate.name === activeClip)
+      const clip = clips.get(activeClip)
       if (!clip) {
-        // clip 名对不上（不该发生，constants 与 GLB 应一致）：诚实退出，回静态路径，别假装在动。
-        console.warn(`Mannequin locomotion clip not found: ${activeClip}`)
+        // clip 名对不上 / retarget 失败：诚实退出，回静态路径，别假装在动。
+        console.warn(`Mannequin locomotion clip unavailable: ${activeClip}`)
         return
       }
       nextAction = mixer.clipAction(clip)
@@ -146,7 +172,7 @@ function useMannequinLocomotion(
       prevAction.crossFadeTo(nextAction, LOCOMOTION_CROSSFADE_SECONDS, false)
     }
     currentActionRef.current = nextAction
-  }, [activeClip, clips, model])
+  }, [activeClip, clips, targetSkinned])
 
   // 卸载（换对象/退出 possess 销毁组件）时停掉所有 action，释放 mixer。
   React.useEffect(() => () => {
