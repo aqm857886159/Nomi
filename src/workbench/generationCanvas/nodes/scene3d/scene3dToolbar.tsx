@@ -4,6 +4,7 @@ import {
   IconBulb,
   IconCamera,
   IconChevronRight,
+  IconChevronUp,
   IconCylinder,
   IconMaximize,
   IconMinimize,
@@ -119,6 +120,8 @@ export function SceneAddToolbar({
   canvasFocusMode: boolean
   onToggleCanvasFocusMode: () => void
 }): JSX.Element {
+  const containerRef = React.useRef<HTMLDivElement>(null)
+  const [addMenuOpen, setAddMenuOpen] = React.useState(false)
   const [geometryOpen, setGeometryOpen] = React.useState(false)
   const [characterOpen, setCharacterOpen] = React.useState(false)
   const [crowdPopoverOpen, setCrowdPopoverOpen] = React.useState(false)
@@ -132,31 +135,44 @@ export function SceneAddToolbar({
     { kind: 'plane' as const, label: '平面', icon: IconPlane },
   ]
 
+  const closeAddMenu = React.useCallback(() => {
+    setAddMenuOpen(false)
+    setGeometryOpen(false)
+    setCharacterOpen(false)
+    setCrowdPopoverOpen(false)
+  }, [])
+
+  // 点菜单以外区域收起整组「添加」浮层（含几何/假人/群众子层）。
+  React.useEffect(() => {
+    if (!addMenuOpen) return undefined
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) closeAddMenu()
+    }
+    // 用 capture 阶段：3D 画布(r3f)会在冒泡阶段 stopPropagation，bubble 监听收不到画布上的点击。
+    document.addEventListener('pointerdown', handlePointerDown, true)
+    return () => document.removeEventListener('pointerdown', handlePointerDown, true)
+  }, [addMenuOpen, closeAddMenu])
+
   const addGeometry = React.useCallback((kind: Scene3DGeometry) => {
     onAddObject(kind)
-    setGeometryOpen(false)
-    setCharacterOpen(false)
-    setCrowdPopoverOpen(false)
-  }, [onAddObject])
+    closeAddMenu()
+  }, [closeAddMenu, onAddObject])
   const addSingleMannequin = React.useCallback(() => {
     onAddObject('mannequin')
-    setGeometryOpen(false)
-    setCharacterOpen(false)
-    setCrowdPopoverOpen(false)
-  }, [onAddObject])
+    closeAddMenu()
+  }, [closeAddMenu, onAddObject])
   const addCrowd = React.useCallback(() => {
     onAddCrowd({
       rows: crowdRowsValue,
       columns: crowdColumnsValue,
       spacing: crowdSpacingValue,
     })
-    setCrowdPopoverOpen(false)
-    setCharacterOpen(false)
-    setGeometryOpen(false)
-  }, [crowdColumnsValue, crowdRowsValue, crowdSpacingValue, onAddCrowd])
+    closeAddMenu()
+  }, [closeAddMenu, crowdColumnsValue, crowdRowsValue, crowdSpacingValue, onAddCrowd])
 
   return (
     <div
+      ref={containerRef}
       className={cn(
         'absolute bottom-5 left-1/2 z-[4] max-w-[calc(100%-32px)] -translate-x-1/2',
       )}
@@ -164,10 +180,97 @@ export function SceneAddToolbar({
       onPointerDown={(event) => event.stopPropagation()}
       onWheel={(event) => event.stopPropagation()}
     >
-      {geometryOpen ? (
+      {addMenuOpen ? (
         <div
           className={cn(
-            'absolute bottom-[calc(100%+8px)] left-10 z-[5] grid w-[168px] gap-1 p-[6px]',
+            'absolute bottom-[calc(100%+8px)] left-0 z-[5] grid w-[156px] gap-1 p-[6px]',
+            'rounded-nomi border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
+          )}
+          role="menu"
+          aria-label="添加 3D 节点"
+        >
+          <button
+            className={cn(
+              'inline-flex h-8 w-full items-center justify-start gap-2 rounded-nomi px-2',
+              'border-0 bg-transparent text-left text-caption text-[var(--nomi-ink-60)] transition',
+              'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+              geometryOpen && 'bg-[var(--nomi-ink-05)] text-[var(--nomi-ink)]',
+            )}
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setCharacterOpen(false)
+              setCrowdPopoverOpen(false)
+              setGeometryOpen((open) => !open)
+            }}
+          >
+            <IconBox size={15} />
+            <span className="min-w-0 flex-1">几何模型</span>
+            <IconChevronRight size={14} />
+          </button>
+          <button
+            className={cn(
+              'inline-flex h-8 w-full items-center justify-start gap-2 rounded-nomi px-2',
+              'border-0 bg-transparent text-left text-caption text-[var(--nomi-ink-60)] transition',
+              'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+              characterOpen && 'bg-[var(--nomi-ink-05)] text-[var(--nomi-ink)]',
+            )}
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setGeometryOpen(false)
+              if (characterOpen) setCrowdPopoverOpen(false)
+              setCharacterOpen((open) => !open)
+            }}
+          >
+            <IconUser size={15} />
+            <span className="min-w-0 flex-1">假人</span>
+            <IconChevronRight size={14} />
+          </button>
+          <button
+            className={cn(
+              'inline-flex h-8 w-full items-center justify-start gap-2 rounded-nomi px-2',
+              'border-0 bg-transparent text-left text-caption text-[var(--nomi-ink-60)] transition',
+              'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+            )}
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setGeometryOpen(false)
+              setCharacterOpen(false)
+              setCrowdPopoverOpen(false)
+              onAddObject('light')
+              setAddMenuOpen(false)
+            }}
+          >
+            <IconBulb size={15} />
+            <span className="min-w-0 flex-1">灯光</span>
+          </button>
+          <button
+            className={cn(
+              'inline-flex h-8 w-full items-center justify-start gap-2 rounded-nomi px-2',
+              'border-0 bg-transparent text-left text-caption text-[var(--nomi-ink-60)] transition',
+              'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+            )}
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setGeometryOpen(false)
+              setCharacterOpen(false)
+              setCrowdPopoverOpen(false)
+              onAddCamera()
+              setAddMenuOpen(false)
+            }}
+          >
+            <IconCamera size={15} />
+            <span className="min-w-0 flex-1">相机</span>
+          </button>
+        </div>
+      ) : null}
+      {addMenuOpen && geometryOpen ? (
+        <div
+          className={cn(
+            'absolute bottom-[calc(100%+8px)] left-[164px] z-[6] grid w-[168px] gap-1 p-[6px]',
             'rounded-nomi border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
           )}
           role="menu"
@@ -194,10 +297,10 @@ export function SceneAddToolbar({
           })}
         </div>
       ) : null}
-      {characterOpen ? (
+      {addMenuOpen && characterOpen ? (
         <div
           className={cn(
-            'absolute bottom-[calc(100%+8px)] left-[118px] z-[5] grid w-[168px] gap-1 p-[6px]',
+            'absolute bottom-[calc(100%+8px)] left-[164px] z-[6] grid w-[168px] gap-1 p-[6px]',
             'rounded-nomi border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
           )}
           role="menu"
@@ -233,10 +336,10 @@ export function SceneAddToolbar({
           </button>
         </div>
       ) : null}
-      {characterOpen && crowdPopoverOpen ? (
+      {addMenuOpen && characterOpen && crowdPopoverOpen ? (
         <div
           className={cn(
-            'absolute bottom-[calc(100%+8px)] left-[294px] z-[6] w-[240px] p-3',
+            'absolute bottom-[calc(100%+104px)] left-[164px] z-[7] w-[240px] p-3',
             'rounded-nomi border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
           )}
           role="dialog"
@@ -307,67 +410,45 @@ export function SceneAddToolbar({
         )}
         role="toolbar"
       >
-        <span className="grid size-8 shrink-0 place-items-center rounded-nomi bg-[var(--nomi-ink)] text-[var(--nomi-paper)]" title="添加">
-          <IconPlus size={17} />
-        </span>
+        <button
+          className={cn(
+            'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-nomi py-0 pl-1 pr-2 transition',
+            'border-0 bg-transparent text-caption text-[var(--nomi-ink-60)]',
+            'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+            addMenuOpen && 'bg-[var(--nomi-ink-05)] text-[var(--nomi-ink)]',
+          )}
+          type="button"
+          title="添加 3D 节点"
+          aria-haspopup="menu"
+          aria-expanded={addMenuOpen}
+          onClick={() => {
+            if (addMenuOpen) closeAddMenu()
+            else setAddMenuOpen(true)
+          }}
+        >
+          <span className="grid size-6 shrink-0 place-items-center rounded-nomi-sm bg-[var(--nomi-ink)] text-[var(--nomi-paper)]">
+            <IconPlus size={15} />
+          </span>
+          <span>添加</span>
+          <IconChevronUp size={13} className={cn('transition', addMenuOpen && 'rotate-180')} />
+        </button>
         <span className="h-5 w-px shrink-0 bg-[var(--workbench-border)]" />
-        <SceneAddButton
-          active={geometryOpen}
-          title="添加几何模型"
-          onClick={() => {
-            setCharacterOpen(false)
-            setCrowdPopoverOpen(false)
-            setGeometryOpen((open) => !open)
-          }}
-        >
-          <IconBox size={15} />
-          <span>几何模型</span>
-        </SceneAddButton>
-        <SceneAddButton
-          active={characterOpen}
-          title="添加假人"
-          onClick={() => {
-            setGeometryOpen(false)
-            if (characterOpen) setCrowdPopoverOpen(false)
-            setCharacterOpen((open) => !open)
-          }}
-        >
-          <IconUser size={15} />
-          <span>假人</span>
-        </SceneAddButton>
-        <SceneAddButton title="添加灯光" onClick={() => {
-          setGeometryOpen(false)
-          setCharacterOpen(false)
-          setCrowdPopoverOpen(false)
-          onAddObject('light')
-        }}><IconBulb size={15} /><span>灯光</span></SceneAddButton>
-        <SceneAddButton title="添加拍摄相机" onClick={() => {
-          setGeometryOpen(false)
-          setCharacterOpen(false)
-          setCrowdPopoverOpen(false)
-          onAddCamera()
-        }}><IconCamera size={15} /><span>相机</span></SceneAddButton>
         <SceneAddButton
           active={trajectoryMode}
           title={trajectoryMode ? '退出轨迹模式' : '进入轨迹模式'}
           onClick={() => {
-            setGeometryOpen(false)
-            setCharacterOpen(false)
-            setCrowdPopoverOpen(false)
+            closeAddMenu()
             onToggleTrajectoryMode()
           }}
         >
           <IconRoute size={15} />
           <span>轨迹</span>
         </SceneAddButton>
-        <span className="h-5 w-px shrink-0 bg-[var(--workbench-border)]" />
         <SceneAddButton
           active={canvasFocusMode}
           title={canvasFocusMode ? '退出全屏画布' : '全屏画布'}
           onClick={() => {
-            setGeometryOpen(false)
-            setCharacterOpen(false)
-            setCrowdPopoverOpen(false)
+            closeAddMenu()
             onToggleCanvasFocusMode()
           }}
         >
