@@ -15,6 +15,7 @@ import {
   KIE_VENDOR_SEED,
   SEEDANCE_2_CREATE_OP,
   SEEDANCE_2_IMAGE_TO_VIDEO_MAPPING,
+  SEEDANCE_2_TEXT_TO_VIDEO_MAPPING,
   SEEDANCE_2_MODEL_SEED,
   SEEDANCE_2_QUERY_OP,
 } from "./kieSeedance";
@@ -67,6 +68,7 @@ type CuratedMapping = {
 
 /** 稳定 id：按 (vendor, taskKind, model) 固定，便于幂等与排查。 */
 const SEEDANCE_MAPPING_ID = "seed-kie-seedance2-image_to_video";
+const SEEDANCE_T2V_MAPPING_ID = "seed-kie-seedance2-text_to_video";
 const HAPPYHORSE_MAPPING_ID = "seed-kie-happyhorse-text_to_video";
 const GPT_IMAGE_2_T2I_MAPPING_ID = "seed-kie-gpt-image-2-text_to_image";
 const GPT_IMAGE_2_I2I_MAPPING_ID = "seed-kie-gpt-image-2-image_edit";
@@ -91,6 +93,8 @@ const KIE_CURATED_MODELS: CuratedModel[] = [
 /** kie 的 curated mapping（单源；create/query/statusMapping = 代码所有，强制对账）。 */
 const KIE_CURATED_MAPPINGS: CuratedMapping[] = [
   { id: SEEDANCE_MAPPING_ID, taskKind: SEEDANCE_2_IMAGE_TO_VIDEO_MAPPING.taskKind, name: SEEDANCE_2_IMAGE_TO_VIDEO_MAPPING.name, create: SEEDANCE_2_CREATE_OP, query: SEEDANCE_2_QUERY_OP },
+  // 文生视频（2026-06-30 补：kie 文档实证 Seedance 支持纯 prompt 出片，此前漏接 → 无文生视频 tab）。复用同 create/query op。
+  { id: SEEDANCE_T2V_MAPPING_ID, taskKind: SEEDANCE_2_TEXT_TO_VIDEO_MAPPING.taskKind, name: SEEDANCE_2_TEXT_TO_VIDEO_MAPPING.name, create: SEEDANCE_2_CREATE_OP, query: SEEDANCE_2_QUERY_OP },
   { id: HAPPYHORSE_MAPPING_ID, taskKind: HAPPYHORSE_MAPPING.taskKind, modelKey: HAPPYHORSE_MODEL_SEED.modelKey, name: HAPPYHORSE_MAPPING.name, create: HAPPYHORSE_CREATE_OP, query: HAPPYHORSE_QUERY_OP },
   { id: GPT_IMAGE_2_T2I_MAPPING_ID, taskKind: GPT_IMAGE_2_T2I_MAPPING.taskKind, name: GPT_IMAGE_2_T2I_MAPPING.name, create: GPT_IMAGE_2_T2I_MAPPING.create, query: GPT_IMAGE_2_T2I_MAPPING.query, statusMapping: GPT_IMAGE_2_T2I_MAPPING.statusMapping },
   { id: GPT_IMAGE_2_I2I_MAPPING_ID, taskKind: GPT_IMAGE_2_I2I_MAPPING.taskKind, name: GPT_IMAGE_2_I2I_MAPPING.name, create: GPT_IMAGE_2_I2I_MAPPING.create, query: GPT_IMAGE_2_I2I_MAPPING.query, statusMapping: GPT_IMAGE_2_I2I_MAPPING.statusMapping },

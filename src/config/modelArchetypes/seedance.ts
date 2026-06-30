@@ -28,6 +28,20 @@ const FIRST_MODE_PARAMS: ModelParameterControl[] = [
 
 const SEEDANCE_2_MODES: ModelArchetype["modes"] = [
   {
+    // 文生视频（纯 prompt，无参考图）。kie 文档实证（docs.kie.ai/market/bytedance/seedance-2，2026-06-30 核对）：
+    //   "Generate videos directly from text descriptions without input images"——first_frame_url 等图字段全部 optional，
+    //   只 prompt required。此前本档案漏了这条模式（只有首帧/首尾帧/全能参考）→ kie Seedance 用户做不了文生视频，
+    //   即用户撞到的「Seedance 没有文生视频 tab」。transportTaskKind 单独标 text_to_video → 路由到 (kie,text_to_video) mapping。
+    id: "t2v",
+    intent: "text",
+    vendorTerm: "文生视频",
+    hint: "纯文字描述生成视频，无需参考图",
+    promptRequired: true,
+    slots: [],
+    params: FIRST_MODE_PARAMS,
+    transportTaskKind: "text_to_video",
+  },
+  {
     id: "first",
     intent: "single",
     vendorTerm: "首帧",
@@ -83,7 +97,9 @@ export const SEEDANCE_2_ARCHETYPE: ModelArchetype = {
   family: "seedance",
   label: "Seedance 2.0",
   kind: "video",
-  defaultModeId: "first",
+  // 默认进文生视频，与 apimart / RunningHub 的 Seedance 一致（P4 通用第一：同一模型跨家行为一致）；
+  // 新建节点只要打字就能生成（首帧/首尾帧/全能参考仍可切）。
+  defaultModeId: "t2v",
   transportTaskKind: "image_to_video",
   // 收纳标准 + Fast + Mini 变体 modelKey → 旧 fast/mini 节点仍解析到本档案（迁移层据 variant.identifierPatterns 归一）。
   identifierPatterns: ["bytedance/seedance-2", "seedance-2", "seedance2", "bytedance/seedance-2-fast", "seedance-2-fast", "seedance2fast", "bytedance/seedance-2-mini", "seedance-2-mini", "seedance2mini"],
