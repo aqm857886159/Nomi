@@ -32,4 +32,19 @@ describe('canRunGenerationNode — 视频节点参考判定', () => {
     expect(canRunGenerationNode({ kind: 'image' } as GenerationCanvasNode)).toBe(true)
     expect(canRunGenerationNode({ kind: 'text' } as GenerationCanvasNode)).toBe(true)
   })
+  it('文生视频（t2v，模式无参考槽）无参考也可生成（修复：原 video 一律要首帧→锁死 t2v 按钮）', () => {
+    // apimart Seedance t2v 模式 slots:[] → prompt-only 即可生成
+    const node = {
+      id: 'v1', kind: 'video', title: 'v', position: { x: 0, y: 0 }, prompt: '一只猫跳下沙发',
+      meta: { modelKey: 'doubao-seedance-2.0', archetype: { id: 'seedance-2-apimart', modeId: 't2v' } },
+    } as GenerationCanvasNode
+    expect(canRunGenerationNode(node, { nodes: [node], edges: [] })).toBe(true)
+  })
+  it('RunningHub Seedance 默认 text 模式（slots:[]）无参考可生成（用户反馈：C-Dance 按钮点不了）', () => {
+    const node = {
+      id: 'v1', kind: 'video', title: 'v', position: { x: 0, y: 0 }, prompt: '一只猫跳下沙发',
+      meta: { modelKey: 'bytedance/seedance-2.0-global', archetype: { id: 'runninghub-seedance', modeId: 'text' } },
+    } as GenerationCanvasNode
+    expect(canRunGenerationNode(node, { nodes: [node], edges: [] })).toBe(true)
+  })
 })

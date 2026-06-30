@@ -400,15 +400,21 @@ export function canRunGenerationNode(
   }
   if (executionKind !== 'video') return false
   if (!('id' in node) || !node.id) return false
-  const references = resolveGenerationReferences(node, context)
-  // omni（全能参考）不靠首/尾帧，靠参考数组——单看 resolveGenerationReferences 看不到 referenceImageUrls，
-  // 会把「已放参考的 omni 节点」误判为不可生成（锁死 ↑ 按钮、提示"需要首帧"）。补一条档案数组判断。
   const meta = node.meta || {}
   const archetype = resolveArchetypeForModel({
     modelKey: typeof meta.modelKey === 'string' ? meta.modelKey : undefined,
     modelAlias: typeof meta.modelAlias === 'string' ? meta.modelAlias : undefined,
     meta,
   })
+  // 当前模式无参考槽 = 纯文生视频（t2v）→ 只要 prompt 即可生成，同 text/image 节点（prompt 缺失下游兜底）。
+  // 不能因「video 一律要首帧」把 t2v 的生成按钮锁死——栽过：RunningHub Seedance 默认 text 模式（slots:[]）
+  // 按钮被置灰、误提示"需要首帧"，用户根本点不了文生视频（2026-06-30 用户反馈）。apimart/kie Seedance 同病，
+  // 只是用户多从图片边起步才没暴露。根因 = 此判定原本不分模式，一律要参考。
+  const mode = archetype ? currentArchetypeMode(archetype, meta) : null
+  if (mode && (mode.slots || []).length === 0) return true
+  // 有参考槽的模式（i2v/首尾帧/全能参考 omni）→ 需至少一个参考。omni 靠参考数组（referenceImageUrls 等），
+  // 单看 resolveGenerationReferences 看不到 → 补一条档案数组判断（否则已放参考的 omni 被误判不可生成）。
+  const references = resolveGenerationReferences(node, context)
   return Boolean(
     references.firstFrameUrl ||
     references.lastFrameUrl ||
