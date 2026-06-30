@@ -444,12 +444,13 @@ describe('变体轴 — currentArchetypeVariant 回落', () => {
     expect(currentArchetypeVariant(kie, {})?.id).toBe('standard')
     expect(currentArchetypeVariant(kie, { archetype: { id: 'seedance-2', modeId: 'first', variantId: 'fast' } })?.id).toBe('fast')
   })
-  it('archetypeVariantChoices 列出 4 变体（标签用变体自己的名字）', () => {
+  it('archetypeVariantChoices 列出 5 变体（标签用变体自己的名字）', () => {
     expect(archetypeVariantChoices(SEEDANCE_APIMART)).toEqual([
       { id: 'standard', label: '标准' },
       { id: 'fast', label: '快速' },
       { id: 'face', label: '真人' },
       { id: 'fast-face', label: '真人快速' },
+      { id: 'mini', label: 'Mini' },
     ])
     // kie Seedance 合并后 3 变体（标准 / 快速 / Mini）。
     expect(archetypeVariantChoices(getArchetypeById('seedance-2')!)).toEqual([

@@ -44,7 +44,7 @@ function seedreamModel(modelKey: string, labelZh: string, slug: string): Volceng
 // 同步图片 API 形状一致（5.0 已真实 E2E 出图验证；4.x 同端点同契约）。modelKey 取自 Ark /api/v3/models。
 // 3.0 已 Retiring，不放。Seedance 视频是异步族（另一形状），待单独接（见方案文档）。
 export const VOLCENGINE_IMAGE_MODELS: VolcengineImageModel[] = [
-  seedreamModel("doubao-seedream-5-0-260128", "Seedream 5.0", "seedream-5"),
+  seedreamModel("doubao-seedream-5-0-260128", "Seedream 5.0 lite", "seedream-5"),
   seedreamModel("doubao-seedream-4-5-251128", "Seedream 4.5", "seedream-4-5"),
   seedreamModel("doubao-seedream-4-0-250828", "Seedream 4.0", "seedream-4-0"),
 ];

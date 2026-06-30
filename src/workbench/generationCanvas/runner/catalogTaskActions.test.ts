@@ -344,7 +344,7 @@ describe('Seedream 档案（图像，改图输入图走 image_urls，与 GPT 同
     const built = buildCatalogTaskRequest(sdNode('edit', { referenceImageUrls: ['https://x/1.png', 'https://x/2.png'] }))
     expect(built.request.kind).toBe('image_edit')
     const ai = built.request.extras?.archetypeInput as Record<string, unknown>
-    expect(ai.model).toBe('bytedance/seedream-v4-edit')
+    expect(ai.model).toBe('seedream/4.5-edit')
     expect(ai.image_urls).toEqual(['https://x/1.png', 'https://x/2.png'])
     expect(ai).not.toHaveProperty('input_urls')
     expect(ai).not.toHaveProperty('reference_image_urls')

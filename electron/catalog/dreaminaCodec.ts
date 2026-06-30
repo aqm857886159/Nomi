@@ -418,5 +418,38 @@ export function parseAccountStatus(stdout: string, stderr = ""): DreaminaAccount
 
 /** dreamina 输出/报错里是否含「非高级会员」闸（生成被拒的诚实信号）。 */
 export function isNotMaestroVip(text: string): boolean {
-  return /not maestro vip|没有 dreamina_cli 使用权限/i.test(String(text || ""));
+  return /not maestro vip|maestro vip|没有 dreamina_cli 使用权限|会员|membership|subscrib/i.test(String(text || ""));
+}
+
+/**
+ * 是否命中「首次使用需在 Dreamina Web 端完成内容安全授权」闸。
+ * 现役 CLI（build 2026-06-18）每个生成子命令的 -h 都警告：部分高内容安全风险模型首次使用前，
+ * 需先在 Dreamina Web 端授权；若返回 AigcComplianceConfirmationRequired，请先完成授权后重试。
+ */
+export function isComplianceConfirmationRequired(text: string): boolean {
+  return /AigcComplianceConfirmationRequired|ComplianceConfirmationRequired|内容安全.*授权|授权确认/i.test(String(text || ""));
+}
+
+/**
+ * 把 dreamina CLI 的「调用失败」翻译成一句给用户看的人话（治「用不了」黑洞）。
+ *
+ * 真机实测（2026-06-30，CLI build 2026-06-18）：账号已登录、有积分(66)、但非会员时，generation 子命令
+ * **静默失败**——exit=1、stdout/stderr/日志全空、连任务记录都不建。旧 CLI 会打印 "not maestro vip"，
+ * 现役 CLI 什么都不打印。所以单看输出无从归因，必须按「最可能原因」给出可执行指引，而不是甩 "exit=1"。
+ *
+ * 试用期已于 2026-05-01 结束 → 生成现在需开通即梦会员（光登录/光充积分不够）。
+ */
+export function describeDreaminaFailure(code: number, stdout: string, stderr: string): string {
+  const text = `${String(stdout || "")}\n${String(stderr || "")}`.trim();
+  if (isComplianceConfirmationRequired(text)) {
+    return "即梦该模型首次使用需先在网页端完成一次性内容安全授权。请打开 jimeng.jianying.com 用同一账号生成一次（完成授权确认）后，再回 Nomi 重试。";
+  }
+  if (isNotMaestroVip(text)) {
+    return "当前即梦账号不是高级会员，无法生成。即梦免费试用已于 2026-05-01 结束——请在即梦开通会员后重试（光登录、光充积分不够）。";
+  }
+  if (!text) {
+    // 静默失败：CLI 给不出原因（最常见 = 非会员被拒 / 需网页端授权）。
+    return `即梦生成被拒，但 CLI 未返回任何原因（exit=${code}）。最常见两种原因：① 当前即梦账号不是高级会员（免费试用 2026-05-01 已结束，需开通即梦会员）；② 该模型首次使用需先在 jimeng.jianying.com 网页端授权一次。请确认会员状态 / 完成网页端授权后重试。`;
+  }
+  return `即梦 CLI 调用失败：${text.slice(0, 600)}`;
 }

@@ -1,9 +1,9 @@
 // Seedream（字节）图像档案的**传输塑形**（curated 单源，仿 kieGptImage2/kieSeedance）。
-// kie 文档（2026-06 实时核对）：
+// kie 文档（2026-06-30 实时核对 docs.kie.ai/market/seedream/*）：
 //   文生图 seedream/4.5-text-to-image：input {prompt, aspect_ratio(1:1默认/4:3/3:4/16:9/9:16/2:3/3:2/21:9),
 //     quality(basic=2K / high=4K)}。
-//   改图   bytedance/seedream-v4-edit：input {prompt, image_urls[≤10 输入图], image_size, image_resolution(1K/2K/4K),
-//     max_images(1-6)}。
+//   改图   seedream/4.5-edit：input {prompt(≤3000), image_urls[≤14 输入图], aspect_ratio(同上8档,默认1:1),
+//     quality(basic/high,默认basic)}（旧 bytedance/seedream-v4-edit 的 image_size/image_resolution/max_images 已弃用·本次升 4.5 同代）。
 // 伞档案 `seedream` 靠 per-mode modelEnum 分流（body model 读 {{request.params.model}}）；两模式 taskKind
 // 不同（text_to_image / image_edit），各带 modelKey=`seedream` 精确路由，与 GPT 同桶不撞（selectTaskMapping）。
 // 结果路径与 Seedance/GPT 一致：data.resultJson.resultUrls.0（kie 统一）。
@@ -11,7 +11,7 @@
 import type { HttpOperation, ProfileKind } from "./types";
 
 const KIE_STATUS_MAPPING: Record<string, string[]> = {
-  queued: ["waiting", "queued", "pending"],
+  queued: ["waiting", "queuing", "queued", "pending"],
   running: ["generating", "processing", "running"],
   succeeded: ["success", "succeeded", "completed"],
   failed: ["fail", "failed", "error", "expired"],
@@ -45,7 +45,8 @@ export const SEEDREAM_T2I_CREATE_OP: HttpOperation = {
   },
 };
 
-/** 改图 createTask（bytedance/seedream-v4-edit）：image_urls 取档案改图模式的输入图数组（slot inputKey=image_urls）。 */
+/** 改图 createTask（seedream/4.5-edit）：image_urls 取档案改图模式的输入图数组（slot inputKey=image_urls）；
+ *  4.5-edit 标量与文生图同形（aspect_ratio + quality），不再发旧版 image_size/image_resolution/max_images。 */
 export const SEEDREAM_EDIT_CREATE_OP: HttpOperation = {
   method: "POST",
   path: "/api/v1/jobs/createTask",
@@ -55,9 +56,8 @@ export const SEEDREAM_EDIT_CREATE_OP: HttpOperation = {
     input: {
       prompt: "{{request.prompt}}",
       image_urls: "{{request.params.image_urls}}",
-      image_size: "{{request.params.image_size}}",
-      image_resolution: "{{request.params.image_resolution}}",
-      max_images: "{{request.params.max_images}}",
+      aspect_ratio: "{{request.params.aspect_ratio}}",
+      quality: "{{request.params.quality}}",
     },
   },
 };

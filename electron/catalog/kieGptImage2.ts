@@ -43,7 +43,7 @@ export const GPT_IMAGE_2_QUERY_OP: HttpOperation = {
 };
 
 const KIE_STATUS_MAPPING: Record<string, string[]> = {
-  queued: ["waiting", "queued", "pending"],
+  queued: ["waiting", "queuing", "queued", "pending"],
   running: ["generating", "processing", "running"],
   succeeded: ["success", "succeeded", "completed"],
   failed: ["fail", "failed", "error", "expired"],

@@ -86,15 +86,18 @@ export const SEEDANCE_2_APIMART_ARCHETYPE: ModelArchetype = {
     "doubao-seedance-2.0-fast", "doubao-seedance-2-0-fast",
     "doubao-seedance-2.0-face", "doubao-seedance-2-0-face",
     "doubao-seedance-2.0-fast-face", "doubao-seedance-2-0-fast-face",
+    "doubao-seedance-2.0-mini", "doubao-seedance-2-0-mini",
   ],
   modes: SEEDANCE_2_APIMART_MODES,
-  // 4 变体：标准 / 快速 / 真人 / 真人快速。modelKey = 实际发请求的 model 字符串。
+  // 5 变体：标准 / 快速 / 真人 / 真人快速 / mini。modelKey = 实际发请求的 model 字符串。
   // identifierPatterns = 旧项目 modelKey（含无连字符变体 -2-0-*），迁移层据此归一到本变体。
+  // mini（2026-06-30 照 docs.apimart.ai 补）：「同标准版功能、无字数限制」，清晰度仅 480/720（同 fast）。
   variants: [
     { id: "standard", label: "标准", modelKey: "doubao-seedance-2.0", identifierPatterns: ["doubao-seedance-2-0"] },
     { id: "fast", label: "快速", modelKey: "doubao-seedance-2.0-fast", identifierPatterns: ["doubao-seedance-2-0-fast"], paramOverrides: FAST_OVERRIDES },
     { id: "face", label: "真人", modelKey: "doubao-seedance-2.0-face", identifierPatterns: ["doubao-seedance-2-0-face"], paramOverrides: FACE_OVERRIDES },
     { id: "fast-face", label: "真人快速", modelKey: "doubao-seedance-2.0-fast-face", identifierPatterns: ["doubao-seedance-2-0-fast-face"], paramOverrides: FAST_OVERRIDES },
+    { id: "mini", label: "Mini", modelKey: "doubao-seedance-2.0-mini", identifierPatterns: ["doubao-seedance-2-0-mini"], paramOverrides: FAST_OVERRIDES },
   ],
   defaultVariantId: "standard",
 };
