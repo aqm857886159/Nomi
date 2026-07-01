@@ -217,6 +217,7 @@ export const canvasToolNames = [
   "delete_canvas_nodes",
   "run_generation_batch",
   "arrange_storyboard_to_timeline",
+  "tidy_canvas",
   "create_staging_reference",
   "create_camera_move",
 ] as const;
@@ -296,6 +297,18 @@ export const canvasTools = {
         .describe(
           "Optional subset of shot node ids to arrange. Omit to arrange the entire storyboard in script order.",
         ),
+    }),
+  }),
+  // 一键整理画布:把当前子画布(默认用户正看的分类)的节点按分镜序/依赖收成整齐网格,消除多批生成+
+  // 手拖累积的「毛线球」。零扣费、非破坏、⌘Z 可撤销。用户说「整理一下/分一下/太乱了」时调它。
+  tidy_canvas: tool({
+    description:
+      "Tidy the canvas: neatly re-layout the nodes of one canvas category into an organized grid (materials on top, shots below in script/shot-number order, derived slices next to their source). Non-destructive, costs nothing, and the user can undo with ⌘Z. Use this when the user says the canvas is messy / piled up / asks you to 'arrange' or 'sort out' the nodes. Omit categoryId to tidy the category the user is currently viewing (the usual case).",
+    parameters: z.object({
+      categoryId: z
+        .string()
+        .optional()
+        .describe("Optional canvas category id to tidy. Omit to tidy the category the user is currently viewing."),
     }),
   }),
   // 站位参考：组装 3D 假人场景(站位+动作+机位)离屏出图 → 自动连 composition_ref 到镜头，

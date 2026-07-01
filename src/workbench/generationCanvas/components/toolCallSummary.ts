@@ -63,6 +63,10 @@ export function summarizeToolCall(toolName: string, args: unknown): string {
     const ids = Array.isArray(record.nodeIds) ? record.nodeIds : []
     return ids.length ? `把 ${ids.length} 个镜头按剧本时序排入时间轴` : '把整条故事板按剧本时序排入时间轴'
   }
+  if (toolName === 'tidy_canvas') {
+    const cat = typeof record.categoryId === 'string' && record.categoryId ? categoryLabelOf(record.categoryId) : '当前画布'
+    return `整理${cat}（按镜序归位 · ⌘Z 可撤销）`
+  }
   if (toolName === 'create_staging_reference') {
     const characters = Array.isArray(record.characters) ? record.characters : []
     const camera = record.camera && typeof record.camera === 'object' ? (record.camera as Record<string, unknown>) : {}
