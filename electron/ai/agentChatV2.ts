@@ -295,6 +295,11 @@ function buildCanvasToolsForV2(hooks: AgentChatV2Hooks) {
         nodeIds: z.array(z.string().min(1)).max(48).optional(),
       }),
     ),
+    tidy_canvas: makeTool(
+      "tidy_canvas",
+      "Tidy the canvas: re-layout one category's nodes into an organized grid in script/shot order. Non-destructive, free, undoable. Use when the user says the canvas is messy or asks to arrange/sort the nodes. Omit categoryId to tidy the category the user is viewing.",
+      z.object({ categoryId: z.string().optional() }),
+    ),
     create_staging_reference: makeTool(
       "create_staging_reference",
       "Create a 3D staging reference image locking character blocking + poses + camera for a shot (auto-connects to shotClientId as composition_ref). Use when ≥2 characters have a spatial relationship, a specific physical action is needed, or a director-specified camera angle. Not for simple single talking-head shots. Tiered rule: the vocab (characters/layout/pose/camera) is the precise first choice (3D staging render); if the blocking is OUTSIDE the vocab, do NOT force a wrong value — use customBlocking (prompt-guided into the keyframe image prompt, honest about lower fidelity).",

@@ -77,7 +77,7 @@ describe("canvasTools schemas", () => {
   });
 
   describe("canvasToolNames", () => {
-    it("enumerates all 10 tools", () => {
+    it("enumerates all 11 tools", () => {
       expect(canvasToolNames).toEqual([
         "read_canvas_state",
         "propose_storyboard_plan", // 分镜方案：产出结构化方案对象落创作区，确认后才落画布
@@ -87,6 +87,7 @@ describe("canvasTools schemas", () => {
         "delete_canvas_nodes",
         "run_generation_batch", // S6b 受理语义
         "arrange_storyboard_to_timeline", // 按剧本镜序排片到时间轴
+        "tidy_canvas", // 助手一键整理画布（复用 tidyCategory）
         "create_staging_reference", // 3D 站位参考图（站位+动作+机位）
         "create_camera_move", // 3D 运镜参考小片（喂 video_ref / 降级 prompt）
       ]);

@@ -469,5 +469,21 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
     }
   }
 
+  if (toolName === 'tidy_canvas') {
+    // 助手「整理画布」：复用 store 的 tidyCategory（与右下角整理按钮同一实现，P1 无并行版）。
+    // categoryId 缺省 = 用户当前正看的子画布（activeCategoryId 在 workbenchStore）；aspect 用视口比例兜底。
+    const categoryId =
+      (typeof record.categoryId === 'string' && record.categoryId.trim()) ||
+      useWorkbenchStore.getState().activeCategoryId ||
+      'shots'
+    const aspect =
+      typeof window !== 'undefined' && window.innerHeight > 0 ? window.innerWidth / window.innerHeight : 16 / 9
+    const count = useGenerationCanvasStore
+      .getState()
+      .nodes.filter((node) => (node.categoryId || 'shots') === categoryId).length
+    inCtx(() => useGenerationCanvasStore.getState().tidyCategory(categoryId, aspect))
+    return { tidied: categoryId, nodeCount: count }
+  }
+
   throw new Error(`unknown tool ${toolName}`)
 }
