@@ -19,6 +19,9 @@ export function resolveNodeRenderKind(
 ): string | undefined {
   if (node.kind === "asset") return undefined;
   const explicit = node.renderKind as string | undefined;
+  // 注：`shot-frame`（shots 分类默认 renderKind，历史迁移回填）不在 CARD_RENDER_KINDS，故按 explicit
+  // 返回后走「媒体预览」路径——镜头节点就该显生成出的图/视频，不套卡片。分镜序号由 BaseGenerationNode
+  // 的常显「镜头 N」角标提供（不依赖某个 ShotFrameNode 组件，那个组件从未存在，别再当它是死引用）。
   if (explicit) return explicit;
   if (node.kind === "whiteboard") return "whiteboard-card";
   if (node.kind === "audio") return "audio-strip";

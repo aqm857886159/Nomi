@@ -628,6 +628,14 @@ function BaseGenerationNodeImpl({
             prompt={node.prompt}
           />
         )}
+        {/* 分镜序号常显角标：镜头节点一旦生成出画面 / 被选中，占位卡就消失、编号随之不见（用户反馈「分镜没有
+            1/2/3、搞不清先后」）。这里在预览层叠一个 pointer-events-none 角标，补上「有结果 / 选中」两个缺口；
+            未生成未选中时由 PendingGenerationPlaceholder 自身显编号，二者互斥不重复。仅 shots 分类(shotIndex 非空)有。 */}
+        {shotIndex != null && (hasResult || selected) ? (
+          <span className="absolute top-1.5 left-1.5 z-[3] inline-flex items-center h-[18px] px-2 rounded-full bg-nomi-ink/85 text-nomi-paper text-micro font-bold tabular-nums pointer-events-none shadow-nomi-sm backdrop-blur-[2px]">
+            镜头 {shotIndex}
+          </span>
+        ) : null}
         {imageEditing.editGrid !== null &&
         (node.kind === 'image' || isAssetKind) &&
         node.result?.type === 'image' &&
