@@ -14,6 +14,12 @@ import {
   shouldRecordLocomotionResume,
   CHARACTER_DRIVE_FLY_SPEED_MIN,
   CHARACTER_DRIVE_FLY_SPEED_MAX,
+  groundSpeedMultiplier,
+  jumpArcOffset,
+  CHARACTER_DRIVE_RUN_SPEED_MULTIPLIER,
+  CHARACTER_DRIVE_CROUCH_SPEED_MULTIPLIER,
+  CHARACTER_DRIVE_JUMP_HEIGHT,
+  CHARACTER_DRIVE_JUMP_DURATION,
 } from './scene3dCharacterDrive'
 import {
   LOCOMOTION_RUN_SPEED_THRESHOLD,
@@ -276,5 +282,61 @@ describe('shouldRecordLocomotionResume（#4 走→蹲→走：恢复走路时补
 
   it('首次进入（prev undefined）→ 不补', () => {
     expect(shouldRecordLocomotionResume(undefined, 'walk')).toBe(false)
+  })
+})
+
+describe('groundSpeedMultiplier（#C Shift 加速 / C·Ctrl 下蹲）', () => {
+  it('都不按住 → 1（不缩放）', () => {
+    expect(groundSpeedMultiplier(false, false)).toBe(1)
+  })
+
+  it('只按住加速 → 加速倍率', () => {
+    expect(groundSpeedMultiplier(true, false)).toBe(CHARACTER_DRIVE_RUN_SPEED_MULTIPLIER)
+  })
+
+  it('只按住下蹲 → 下蹲倍率', () => {
+    expect(groundSpeedMultiplier(false, true)).toBe(CHARACTER_DRIVE_CROUCH_SPEED_MULTIPLIER)
+  })
+
+  it('两个都按住 → 下蹲优先（慢下来的意图更明确）', () => {
+    expect(groundSpeedMultiplier(true, true)).toBe(CHARACTER_DRIVE_CROUCH_SPEED_MULTIPLIER)
+  })
+
+  it('加速倍率 > 1、下蹲倍率 < 1（方向不能反）', () => {
+    expect(CHARACTER_DRIVE_RUN_SPEED_MULTIPLIER).toBeGreaterThan(1)
+    expect(CHARACTER_DRIVE_CROUCH_SPEED_MULTIPLIER).toBeLessThan(1)
+  })
+})
+
+describe('jumpArcOffset（#C Space 轻跳抛物线）', () => {
+  it('起跳/落地边界(t=0, t=duration) → 0（贴地）', () => {
+    expect(jumpArcOffset(0)).toBe(0)
+    expect(jumpArcOffset(CHARACTER_DRIVE_JUMP_DURATION)).toBe(0)
+  })
+
+  it('中点(t=duration/2) → 取最大高度', () => {
+    const mid = CHARACTER_DRIVE_JUMP_DURATION / 2
+    expect(jumpArcOffset(mid)).toBeCloseTo(CHARACTER_DRIVE_JUMP_HEIGHT, 5)
+  })
+
+  it('区间外（尚未起跳 / 已经落地过头）→ clamp 到 0', () => {
+    expect(jumpArcOffset(-0.1)).toBe(0)
+    expect(jumpArcOffset(CHARACTER_DRIVE_JUMP_DURATION + 0.2)).toBe(0)
+  })
+
+  it('区间内单调：0→中点递增，中点→duration 递减（抛物线形状，非线性台阶）', () => {
+    const quarter = CHARACTER_DRIVE_JUMP_DURATION * 0.25
+    const mid = CHARACTER_DRIVE_JUMP_DURATION * 0.5
+    const threeQuarter = CHARACTER_DRIVE_JUMP_DURATION * 0.75
+    expect(jumpArcOffset(quarter)).toBeGreaterThan(0)
+    expect(jumpArcOffset(quarter)).toBeLessThan(jumpArcOffset(mid))
+    expect(jumpArcOffset(threeQuarter)).toBeLessThan(jumpArcOffset(mid))
+    // 对称抛物线：t 和 duration-t 偏移相同。
+    expect(jumpArcOffset(quarter)).toBeCloseTo(jumpArcOffset(threeQuarter), 5)
+  })
+
+  it('自定义 height/duration 也成立', () => {
+    expect(jumpArcOffset(0.5, 1, 1)).toBeCloseTo(1, 5)
+    expect(jumpArcOffset(1, 1, 1)).toBe(0)
   })
 })

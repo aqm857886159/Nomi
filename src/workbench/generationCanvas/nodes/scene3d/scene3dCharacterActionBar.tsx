@@ -5,6 +5,7 @@ import {
   IconVideo,
   IconArmchair,
   IconArrowBarToDown,
+  IconArrowBarToUp,
   IconCircleFilled,
   IconPlayerStopFilled,
   IconX,
@@ -85,8 +86,12 @@ export function CharacterPossessButton({ drive }: { drive: CharacterDriveApi }):
 // 某动作没有对应预设就不会进列表（诚实，见 ACTION_LIBRARY 过滤）。
 // 注意：待机/行走/奔跑（idle/walk/run）已改由「移动自动播迈腿动画」驱动（possess 态按 WASD 速度自动切 clip），
 // 不再放进静态动作库——否则一个「行走」会有「静态摆腿姿势」和「真迈腿动画」两套心智、互相打架（P1）。
-// 这里只留 locomotion 之外的静态摆姿（下蹲/挥手/坐下）。
+// 这里只留 locomotion 之外的静态摆姿（下蹲/挥手/坐下/站立）。
+// 「站立」= #B 修复：此前点了挥手/坐下没有任何按钮能回站姿(除非重新走动触发 locomotion 接管，站着不动就
+// 永久卡住)。复用现成 standing 预设(pose 缺省=rest)，不新造姿势数据。另外——再点一次已激活的那个动作按钮
+// 也会自动顶成站立（toggle，见 useScene3DCharacterDrive.applyActionPreset），点它=顶它，不用特地找这个按钮。
 const ACTION_DEFS: Array<{ label: string; presetId: string; icon: typeof IconManFilled }> = [
+  { label: '站立', presetId: 'standing', icon: IconArrowBarToUp },
   { label: '下蹲', presetId: 'squat', icon: IconArrowBarToDown },
   { label: '挥手', presetId: 'wave', icon: IconHandStop },
   { label: '坐下', presetId: 'sit', icon: IconArmchair },
@@ -226,7 +231,7 @@ export function CharacterActionBar({
       <div className="mt-1.5 text-center text-micro text-[var(--nomi-ink-60)]">
         {recorder?.isRecording
           ? '录制中 · WASD 走位、绕看摆机位都会录进参考视频 · 点停止出片'
-          : 'WASD 走位 · 自动面向 · 点动作切换姿势 · 点「录 take」录成参考视频'}
+          : 'WASD 走位 · Shift 加速 · Space 跳 · C 蹲 · 自动面向 · 点动作切换姿势 · 点「录 take」录成参考视频'}
       </div>
     </div>
   )
@@ -285,7 +290,7 @@ export function CameraPossessActionBar({
       <div className="mt-1.5 text-center text-micro text-[var(--nomi-ink-60)]">
         {recorder?.isRecording
           ? '录制中 · WASD 飞镜头、鼠标转朝向、滚轮推拉都会录进运镜参考视频 · 点停止出片'
-          : 'WASD 飞镜头 · 鼠标转朝向 · 滚轮推拉 · 点「录 take」录成运镜参考视频'}
+          : 'WASD 飞镜头 · Shift 加速 · 鼠标转朝向 · 滚轮推拉 · 点「录 take」录成运镜参考视频'}
       </div>
     </div>
   )

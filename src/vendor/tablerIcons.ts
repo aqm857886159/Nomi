@@ -21,6 +21,7 @@ export { default as IconTimeline } from '@tabler/icons-react/dist/esm/icons/Icon
 export { default as IconUserCheck } from '@tabler/icons-react/dist/esm/icons/IconUserCheck.mjs'
 export { default as IconArrowBackUp } from '@tabler/icons-react/dist/esm/icons/IconArrowBackUp.mjs'
 export { default as IconArrowBarToDown } from '@tabler/icons-react/dist/esm/icons/IconArrowBarToDown.mjs'
+export { default as IconArrowBarToUp } from '@tabler/icons-react/dist/esm/icons/IconArrowBarToUp.mjs'
 export { default as IconArrowForwardUp } from '@tabler/icons-react/dist/esm/icons/IconArrowForwardUp.mjs'
 export { default as IconArrowLeft } from '@tabler/icons-react/dist/esm/icons/IconArrowLeft.mjs'
 export { default as IconArrowRight } from '@tabler/icons-react/dist/esm/icons/IconArrowRight.mjs'

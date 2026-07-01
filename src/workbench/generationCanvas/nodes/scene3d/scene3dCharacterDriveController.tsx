@@ -2,10 +2,12 @@ import React from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import {
+  MANNEQUIN_POSE_PRESETS,
   type Scene3DMovementCode,
 } from './scene3dConstants'
 import {
   clearMovementKeyState,
+  clonePoseValue,
   eulerToArray,
   findSceneObjectByRuntimeId,
   isEditableKeyboardTarget,
@@ -17,10 +19,16 @@ import {
   facingYawFromDirection,
   groundMoveDirection,
   groundSpeedForFlySpeed,
+  groundSpeedMultiplier,
+  jumpArcOffset,
   locomotionForSpeed,
+  CHARACTER_DRIVE_JUMP_DURATION,
 } from './scene3dCharacterDrive'
 import { LOCOMOTION_CLIP_IDLE } from './scene3dConstants'
 import type { Scene3DObject } from './scene3dTypes'
+
+// #C 下蹲复用现成的 squat 静态姿势预设（不新造姿势数据，同 ACTION_LIBRARY 的 squat 按钮共享同一份数据源，P1）。
+const CROUCH_POSE_PRESET = MANNEQUIN_POSE_PRESETS.find((preset) => preset.id === 'squat')
 
 const TURN_LAMBDA = 11 // 自动面向转身的阻尼系数（越大转身越快）
 const COMMIT_INTERVAL = 0.08 // 节流提交 state 的间隔(秒)，复用 CameraViewEditController 的 80ms
@@ -68,6 +76,18 @@ export function CharacterDriveController({
     ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
     Space: false, ShiftLeft: false, ShiftRight: false,
   })
+  // #C 下蹲（C / Ctrl，按住）：不走 Scene3DMovementCode 的共享 WASD/Space/Shift 管线（那套被相机 fly
+  // 复用、且 Ctrl 修饰键会撞现有"任何带 ctrlKey 的按键一律当系统组合键忽略"防护），单独一对 ref 本地跟踪，
+  // 只在这个控制器内生效——蹲下是角色专属语义，相机 fly 没有这个概念（P4：不强推不需要的通用）。
+  const crouchHeldRef = React.useRef(false)
+  // #C 跳跃（Space，按下沿触发一次）：jumpingRef=true 期间每帧按抛物线纯视觉抬升 group.position.y，
+  // 不写回 state（跳跃不是"新的落地基准"，落地即精确回到 groundYRef）。落地前 jumpingRef 挡住重复触发。
+  const jumpingRef = React.useRef(false)
+  const jumpElapsedRef = React.useRef(0)
+  // locomotionClip 最新值放 ref：C 松开时判断"现在是不是处于点击式静态动作(''）"，是则不动 pose——尊重
+  // 用户后点的动作库选择，不被蹲键释放顺手抹掉（#B 点击态 和 #C 按住态两套状态机的互斥点，见 keyup 里的用法）。
+  const locomotionClipRef = React.useRef(locomotionClip)
+  locomotionClipRef.current = locomotionClip
 
   // 换被操控对象 / 外部改了它的 transform（如属性面板）→ 重新对齐驱动基准。
   React.useLayoutEffect(() => {
@@ -81,6 +101,14 @@ export function CharacterDriveController({
     )
     groupRef.current = findSceneObjectByRuntimeId(scene, possessedObject.id) as THREE.Group | null
   }, [possessedObject.id, possessedObject.position, possessedObject.rotation, scene])
+
+  // #C：切到不同被操控对象 → 清跳跃/下蹲的瞬时态（不跟着上面那个 effect 一起清，那个在每次节流提交
+  // position/rotation 时都会重跑，若混在一起会把"正在进行中的跳跃/下蹲"每 80ms 打断一次）。只认 id 变化。
+  React.useLayoutEffect(() => {
+    crouchHeldRef.current = false
+    jumpingRef.current = false
+    jumpElapsedRef.current = 0
+  }, [possessedObject.id])
 
   // #8：locomotionClip 切到 '' = 用户点了静态动作 → 冻结位移 + 清键（停下做动作，不滑行）。
   // 切回 idle/walk/run（如本控制器或外部恢复）→ 解冻。
@@ -97,22 +125,61 @@ export function CharacterDriveController({
 
   React.useEffect(() => {
     const keyState = keyStateRef.current
-    const clearKeys = () => clearMovementKeyState(keyState)
+
+    // C 松开 → 若此刻不处于「点击式静态动作」冻结态（locomotionClip !== ''），把 pose 收回站姿（松手自愈，
+    // 见 #C）；若用户蹲着时又点了动作库（真冻结），那是用户后做的显式选择，不被这里的松键动作覆盖。
+    const releaseCrouch = () => {
+      if (!crouchHeldRef.current) return
+      crouchHeldRef.current = false
+      if (locomotionClipRef.current !== '') {
+        onObjectPatch(objectIdRef.current, { pose: undefined })
+      }
+    }
+
+    const clearKeys = () => {
+      clearMovementKeyState(keyState)
+      releaseCrouch()
+    }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (isEditableKeyboardTarget(event.target) || !isMovementCode(event.code)) return
+      if (isEditableKeyboardTarget(event.target)) return
+      // 下蹲（C 或 Ctrl，按住）：走独立分支，不进 isMovementCode 的共享 WASD/Space/Shift 管线（那套被相机
+      // fly 复用；且 Ctrl 修饰键本身会让下面通用的 event.ctrlKey 防护误判成系统组合键，见顶部注释）。
+      if (event.code === 'KeyC' || event.code === 'ControlLeft' || event.code === 'ControlRight') {
+        if (event.metaKey || event.altKey) return
+        event.preventDefault()
+        event.stopPropagation()
+        // #8/#C 统一规则：任何「动作类」按键的 keydown 都会解冻点击式静态动作（不止 WASD）——按了这些键
+        // 说明用户想动/想做别的，不该继续卡在之前点的挥手/坐下等姿势里（这也顺带彻底解掉 #B 那类卡住）。
+        staticActionFrozenRef.current = false
+        if (!crouchHeldRef.current) {
+          crouchHeldRef.current = true
+          if (CROUCH_POSE_PRESET) {
+            onObjectPatch(objectIdRef.current, { pose: clonePoseValue(CROUCH_POSE_PRESET.pose) })
+          }
+        }
+        invalidate()
+        return
+      }
+      if (!isMovementCode(event.code)) return
       if (event.ctrlKey || event.metaKey || event.altKey) return
-      // 只接走位键（WASD/方向键），Space/Shift 不抬升角色（贴地不飞行）。
-      if (event.code === 'Space' || event.code === 'ShiftLeft' || event.code === 'ShiftRight') return
       event.preventDefault()
       event.stopPropagation()
-      // #8：静态动作冻结中收到「新的」走位 keydown → 解冻，本次按键即起步接回走路（不再滑行残留）。
       staticActionFrozenRef.current = false
+      // 跳跃（Space，按下沿触发一次）：event.repeat 过滤系统自动重复；jumpingRef 挡住落地前重复触发。
+      if (event.code === 'Space' && !event.repeat && !jumpingRef.current) {
+        jumpingRef.current = true
+        jumpElapsedRef.current = 0
+      }
       keyState[event.code] = true
       invalidate()
     }
 
     const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code === 'KeyC' || event.code === 'ControlLeft' || event.code === 'ControlRight') {
+        releaseCrouch()
+        return
+      }
       if (!isMovementCode(event.code)) return
       keyState[event.code] = false
     }
@@ -127,7 +194,7 @@ export function CharacterDriveController({
       window.removeEventListener('blur', clearKeys)
       clearMovementKeyState(keyState)
     }
-  }, [invalidate])
+  }, [invalidate, onObjectPatch])
 
   useFrame((state, delta) => {
     const group = groupRef.current
@@ -146,7 +213,11 @@ export function CharacterDriveController({
       yawRef.current = dampYaw(yawRef.current, targetYaw, TURN_LAMBDA, delta)
     }
 
-    const groundSpeed = moving ? groundSpeedForFlySpeed(flySpeedRef.current) : 0
+    // #C 加速/下蹲倍率：共享 groundSpeedMultiplier（角色/相机 fly 同一套语义，见 scene3dCharacterDrive）。
+    // 下蹲优先于加速（同时按住时，蹲下更明确表达"慢下来"）。
+    const running = Boolean(keyStateRef.current.ShiftLeft || keyStateRef.current.ShiftRight)
+    const crouching = crouchHeldRef.current
+    const groundSpeed = moving ? groundSpeedForFlySpeed(flySpeedRef.current) * groundSpeedMultiplier(running, crouching) : 0
     if (moving) {
       const step = groundSpeed * delta
       positionRef.current.x += direction.x * step
@@ -156,8 +227,11 @@ export function CharacterDriveController({
     // locomotion 桶（idle/walk/run）：由实时地面速度分桶，仅在桶变化时上抛切动画 clip（非每帧，无渲染风暴）。
     // #8 冻结中不上抛——否则 groundSpeed=0→idle 会把 locomotionClip 从 '' 顶成 'idle'，立刻解掉静态动作。
     //   保持显示用户点的静态姿势，直到一次新的走位 keydown 解冻、下一帧再正常上抛 walk/run 接回。
+    // #C 下蹲中强制走 idle 桶（不管是否在移动）：没有蹲走混合动画素材，locomotionAnimationClip('idle')
+    //   走静态 pose 路径才能显示蹲姿（mixer 播 walk/run clip 时会整段接管骨骼、无视 object.pose，两条路径
+    //   打架）；蹲着移动因此是"蹲姿滑步"而非真正的蹲走循环——no 素材的诚实折中，非 bug。
     if (!frozen) {
-      const nextLocomotion = locomotionForSpeed(groundSpeed)
+      const nextLocomotion = crouching ? LOCOMOTION_CLIP_IDLE : locomotionForSpeed(groundSpeed)
       if (nextLocomotion !== locomotionRef.current) {
         locomotionRef.current = nextLocomotion
         onLocomotionChange?.(nextLocomotion)
@@ -165,18 +239,30 @@ export function CharacterDriveController({
       }
     }
 
+    // #C 跳跃：一次性抛物线纯视觉位移，只改 group.position.y、不写回 state（见 jumpingRef 注释）。
+    let jumpOffset = 0
+    if (jumpingRef.current) {
+      jumpElapsedRef.current += delta
+      jumpOffset = jumpArcOffset(jumpElapsedRef.current)
+      if (jumpElapsedRef.current >= CHARACTER_DRIVE_JUMP_DURATION) {
+        jumpingRef.current = false
+        jumpElapsedRef.current = 0
+        jumpOffset = 0
+      }
+    }
+
     // 相机跟随由 Scene3DControls 的 followObjectId useFrame 负责（#3）：orbit 轴心+相机每帧随本 group
     // 世界位置同步平移，角色不飞出框，用户照旧可绕看/拉近。本控制器只管直驱 group，不碰相机链路。
 
-    // 直驱 group（贴地：y 锁在落地时的基准）。
+    // 直驱 group（贴地基准 groundYRef + 跳跃抛物线偏移；地面基准本身不受跳跃影响，落地即精确回零）。
     if (group) {
-      group.position.set(positionRef.current.x, groundYRef.current, positionRef.current.z)
+      group.position.set(positionRef.current.x, groundYRef.current + jumpOffset, positionRef.current.z)
       group.rotation.y = yawRef.current
       group.updateMatrixWorld()
     }
 
     const turning = targetYaw !== null && Math.abs(group ? group.rotation.y - (targetYaw) : 0) > 1e-4
-    if (moving || turning) invalidate()
+    if (moving || turning || jumpingRef.current) invalidate()
 
     // 节流提交 state（dirty 由 updateEditorCamera/patchObject 上游兜底，这里只控频率）。
     if (!moving && targetYaw === null) return

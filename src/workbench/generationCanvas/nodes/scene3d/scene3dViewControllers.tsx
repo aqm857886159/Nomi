@@ -27,6 +27,7 @@ import {
   type CameraPoseSample,
 } from './scene3dMath'
 import { objectGroundFootprint, objectVisualHalfHeight } from './scene3dCrowd'
+import { groundSpeedMultiplier } from './scene3dCharacterDrive'
 import {
   type CaptureApi,
   type Scene3DCamera,
@@ -325,7 +326,11 @@ export function Scene3DControls({
     if (keys.Space) dir.y += 1
     if (keys.ShiftLeft || keys.ShiftRight) dir.y -= 1
     if (dir.lengthSq() > 0) {
-      dir.normalize().applyQuaternion(camera.quaternion).multiplyScalar(speed)
+      // #C Shift 加速：与角色操控（CharacterDriveController）共享同一套倍率语义（groundSpeedMultiplier，
+      // P4）。相机 fly 这条路径 Shift 键本身已经身兼「下降」（上面 dir.y -= 1），held 时两个效果自然叠加——
+      // 按住 Shift 移动会同时"更快"+"往下"，这是既有下降语义保留下的真实交互（只朝水平方向飞时不受影响）。
+      const running = Boolean(keys.ShiftLeft || keys.ShiftRight)
+      dir.normalize().applyQuaternion(camera.quaternion).multiplyScalar(speed * groundSpeedMultiplier(running, false))
       desiredVelocity.current.copy(dir)
     } else {
       desiredVelocity.current.set(0, 0, 0)

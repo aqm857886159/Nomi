@@ -21,6 +21,7 @@ export function useScene3DCharacterDrive({
   enterCameraViewEdit,
   exitCameraViewEdit,
   onLocomotionResume,
+  onBeforeExit,
 }: {
   objects: Scene3DObject[]
   cameras: Scene3DCamera[]
@@ -36,6 +37,11 @@ export function useScene3DCharacterDrive({
   exitCameraViewEdit: () => void
   // #4：locomotion 从静态动作('')恢复到 walk/run/idle 时回调（录制器借此补 base 关键帧，治「蹲到片尾」）。
   onLocomotionResume?: () => void
+  // #A：退出操控（角色/相机，任何触发路径——按钮/关闭编辑器/对象被删）前的收尾钩子。录制器借此在 possessTarget
+  // 真正变 null 之前把「正在进行的录制」flush 成 take（治「退出操控吞掉录制」，见 useScene3DTakeRecorder）。
+  // 与 onLocomotionResume 同一个 ref 转发范本，破 drive↔recorder 的初始化先后环（recorder 依赖 drive 的
+  // possessTarget，drive 反过来要在退出时通知 recorder，只能用 ref 转发，不能互相当参数传）。
+  onBeforeExit?: () => void
 }): {
   possessId: string | null
   possessedObject: Scene3DObject | undefined
@@ -46,7 +52,8 @@ export function useScene3DCharacterDrive({
   canPossess: (selection: Scene3DSelection) => boolean
   enterPossess: (objectId: string) => void
   exitPossess: () => void
-  applyActionPreset: (presetId: string) => void
+  // 返回实际生效的 presetId（toggle 命中已激活预设时会是 'standing'，非原始点击那个，见实现注释）。
+  applyActionPreset: (presetId: string) => string
   // 相机操控（运镜）：与角色操控互斥，同一套「操控」动词（P4）。
   cameraPossessId: string | null
   possessedCamera: Scene3DCamera | undefined
@@ -64,6 +71,9 @@ export function useScene3DCharacterDrive({
   // onLocomotionResume 放 ref，wrap 不随回调身份变（CharacterDriveController 拿到稳定的 setLocomotionClip）。
   const onLocomotionResumeRef = React.useRef(onLocomotionResume)
   onLocomotionResumeRef.current = onLocomotionResume
+  // #A：退出前收尾钩子同样放 ref（见形参处注释）。
+  const onBeforeExitRef = React.useRef(onBeforeExit)
+  onBeforeExitRef.current = onBeforeExit
 
   // 包一层：CharacterDriveController 上抛桶变化时，若是「从静态动作('')恢复到走/跑」→ 先通知录制器补 base
   // 关键帧（#4），再落 state。其余变化（walk↔run、进/退归 idle）只落 state。判定走纯函数，单一真相。
@@ -114,6 +124,9 @@ export function useScene3DCharacterDrive({
   }, [exitCameraViewEdit, exitTrajectoryMode, objects, readOnly, setFocusId, setSelection, setViewLocked])
 
   const exitPossess = React.useCallback(() => {
+    // #A：先收尾（若正在录 take 则 flush 出片），此时 possessId 还没清，possessTarget 仍指向真实目标，
+    // 录制器读得到「谁被操控」。stopRecording 幂等——非录制态调用是安全 no-op（见 useScene3DTakeRecorder）。
+    onBeforeExitRef.current?.()
     setPossessId(null)
     setViewLocked(false)
     setLocomotionClipState(LOCOMOTION_CLIP_IDLE)
@@ -133,6 +146,7 @@ export function useScene3DCharacterDrive({
   }, [cameras, enterCameraViewEdit, exitTrajectoryMode, readOnly])
 
   const exitCameraPossess = React.useCallback(() => {
+    onBeforeExitRef.current?.() // #A：同 exitPossess，先 flush 录制中的运镜 take。
     setCameraPossessId(null)
     exitCameraViewEdit()
   }, [exitCameraViewEdit])
@@ -144,6 +158,8 @@ export function useScene3DCharacterDrive({
   React.useEffect(() => {
     if (!possessId) return
     if (!possessedObject) {
+      // #A：对象消失前 possessTarget 仍是它（本 effect 触发时 possessId 还没清），录制器还来得及 flush。
+      onBeforeExitRef.current?.()
       setPossessId(null)
       setViewLocked(false)
       setLocomotionClipState(LOCOMOTION_CLIP_IDLE)
@@ -154,20 +170,27 @@ export function useScene3DCharacterDrive({
   React.useEffect(() => {
     if (!cameraPossessId) return
     if (!possessedCamera) {
+      onBeforeExitRef.current?.() // #A：同上，删除前先 flush 运镜录制。
       setCameraPossessId(null)
       exitCameraViewEdit()
     }
   }, [cameraPossessId, exitCameraViewEdit, possessedCamera])
 
-  const applyActionPreset = React.useCallback((presetId: string) => {
-    if (readOnly || !possessId) return
-    const preset = MANNEQUIN_POSE_PRESETS.find((candidate) => candidate.id === presetId)
-    if (!preset) return
+  // #B「点了摘不掉」根因修法：再点一次已激活的那个预设 = 顶成「站立」（toggle），不用用户特地去找站立按钮。
+  // 单一收口在这里（而不是 Scene3DFullscreen 的 handleApplyActionPreset 里再判一遍）——P1，同一个 toggle
+  // 判断只活一处。返回「实际生效的 presetId」，调用方（录制器 recordPoseEvent）据此打点，不是原始点击那个，
+  // 否则录出来的动作事件和实际显示的姿势对不上。
+  const applyActionPreset = React.useCallback((presetId: string): string => {
+    if (readOnly || !possessId) return presetId
+    const effectivePresetId = activePresetId === presetId ? 'standing' : presetId
+    const preset = MANNEQUIN_POSE_PRESETS.find((candidate) => candidate.id === effectivePresetId)
+    if (!preset) return presetId
     patchObject(possessId, { pose: clonePoseValue(preset.pose) })
-    // 点静态动作（下蹲/挥手/坐下）→ 让出 locomotion 动画，显示这个静态姿势（clip='' 走 Mannequin 静态 pose 路径）。
+    // 点静态动作（下蹲/挥手/坐下/站立）→ 让出 locomotion 动画，显示这个静态姿势（clip='' 走 Mannequin 静态 pose 路径）。
     // 再次 WASD 移动时 CharacterDriveController 会把 locomotion 桶上抛回 walk/run，自动接管迈腿动画。
     setLocomotionClipState('')
-  }, [patchObject, possessId, readOnly])
+    return effectivePresetId
+  }, [activePresetId, patchObject, possessId, readOnly])
 
   return {
     possessId,

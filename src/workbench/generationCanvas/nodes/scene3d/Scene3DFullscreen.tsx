@@ -374,6 +374,9 @@ export default function Scene3DFullscreen({
     })
 
   const recordPoseResumeRef = React.useRef<() => void>(() => {}) // #4 ref 转发破环 drive↔recorder 初始化先后
+  // #A ref 转发（同上一行范本）：退出操控前先收尾录制。takeRecorder 在 characterDrive 之后才创建（它需要
+  // characterDrive.possessTarget），只能用 ref 转发破环——drive 退出时调 ref，ref 内容等 takeRecorder 建好后填。
+  const stopRecordingBeforeExitRef = React.useRef<() => void>(() => {})
   const characterDrive = useScene3DCharacterDrive({
     objects: state.objects,
     cameras: state.cameras,
@@ -387,6 +390,7 @@ export default function Scene3DFullscreen({
     enterCameraViewEdit,
     exitCameraViewEdit,
     onLocomotionResume: React.useCallback(() => recordPoseResumeRef.current(), []),
+    onBeforeExit: React.useCallback(() => stopRecordingBeforeExitRef.current(), []),
   })
 
   const handleRecordTake = React.useCallback((recordedState: Scene3DState) => {
@@ -403,12 +407,16 @@ export default function Scene3DFullscreen({
     onRecorded: handleRecordTake,
   })
   recordPoseResumeRef.current = takeRecorder.recordPoseResume
+  // #A：stopRecording 内部幂等（ref 守卫，见 useScene3DTakeRecorder），无脑调用即可——非录制态是安全 no-op，
+  // 不用在这里判断「现在是否在录」（判断会撞过期闭包，见 stopRecording 注释）。
+  stopRecordingBeforeExitRef.current = takeRecorder.stopRecording
 
-  // 点动作库：即时改假人姿势（S1）+ 若正在录 take，记一条带时间戳的动作事件（pose-over-time 生产者）。
-  // 录制器内部 no-op 非录制态，故非录制时纯走 applyActionPreset，零副作用。
+  // 点动作库：即时改假人姿势（S1，命中已激活预设会 toggle 成站立）+ 若正在录 take，记一条带时间戳的动作事件
+  // （pose-over-time 生产者）。按「实际生效的 presetId」打点（可能是 toggle 后的 'standing'，见 #B），
+  // 不是原始点击那个，否则录出来的动作事件和画面显示的姿势对不上。录制器内部 no-op 非录制态，零副作用。
   const handleApplyActionPreset = React.useCallback((presetId: string) => {
-    characterDrive.applyActionPreset(presetId)
-    takeRecorder.recordPoseEvent(presetId)
+    const effectivePresetId = characterDrive.applyActionPreset(presetId)
+    takeRecorder.recordPoseEvent(effectivePresetId)
   }, [characterDrive, takeRecorder])
   const {
     selectTrajectoryForMode,

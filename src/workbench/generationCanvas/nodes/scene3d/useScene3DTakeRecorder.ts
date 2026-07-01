@@ -64,6 +64,10 @@ export function useScene3DTakeRecorder({
   const [isRecording, setIsRecording] = React.useState(false)
   const [elapsedSeconds, setElapsedSeconds] = React.useState(0)
 
+  // #A 治「退出操控吞掉录制」：isRecording(state) 只在下一次渲染才生效，靠它做「是否在录」的守卫在同一
+  // 调用栈里连续触发退出→收尾会撞上过期闭包（详见 stopRecording 注释）。isRecordingRef 永远读最新值，
+  // 让 stopRecording 变成「幂等」——谁调用、调几次都安全，退出路径不用再猜「现在到底在不在录」。
+  const isRecordingRef = React.useRef(false)
   const startMsRef = React.useRef(0)
   const characterSamplesRef = React.useRef<TakeSample[]>([])
   const cameraSamplesRef = React.useRef<TakeSample[]>([])
@@ -88,7 +92,8 @@ export function useScene3DTakeRecorder({
   }, [])
 
   const startRecording = React.useCallback(() => {
-    if (readOnly || !possessId || isRecording) return
+    if (readOnly || !possessId || isRecordingRef.current) return
+    isRecordingRef.current = true
     characterSamplesRef.current = []
     cameraSamplesRef.current = []
     cameraAimSamplesRef.current = []
@@ -108,7 +113,7 @@ export function useScene3DTakeRecorder({
     tickRef.current = window.setInterval(() => {
       setElapsedSeconds((performance.now() - startMsRef.current) / 1000)
     }, 100)
-  }, [clearTick, isRecording, possessId, readOnly, stateRef])
+  }, [clearTick, possessId, readOnly, stateRef])
 
   const sampleCharacter = React.useCallback((position: Scene3DVector3) => {
     if (!isRecording) return
@@ -149,7 +154,11 @@ export function useScene3DTakeRecorder({
   }, [isRecording])
 
   const stopRecording = React.useCallback(() => {
-    if (!isRecording) return
+    // #A 幂等收尾：guard 用 ref（永远读最新值），不用 state 闭包。谁调（停止按钮 / 退出操控 / 兜底 effect）、
+    // 调几次都安全——第二次调用直接 no-op，不会重复出片/重复 toast。这也是「退出操控前先收尾录制」能安全接线
+    // 到 exitPossess 而不用在每个调用点各自判断"现在是否在录"的关键（那样判断会撞过期闭包，见 #A 修复说明）。
+    if (!isRecordingRef.current) return
+    isRecordingRef.current = false
     clearTick()
     setIsRecording(false)
     // 即时反馈（用户反馈 #11）：点停止后按钮瞬间变回「录 take」，用户以为白录。先即时确认「已停止」，
@@ -197,11 +206,15 @@ export function useScene3DTakeRecorder({
       return
     }
     onRecorded(recordedState)
-  }, [clearTick, isRecording, onRecorded, stateRef])
+  }, [clearTick, onRecorded, stateRef])
 
-  // 退出操控（角色或相机）/ 卸载时若还在录 → 静默收尾，不留悬挂计时器。
+  // 兜底 only：正常「退出操控」现在由触发退出的动作本身先调 stopRecording()（见 Scene3DFullscreen 的
+  // onBeforeExit 接线），出片/toast/建 take 节点都已在那一步跑完，这里不会再赶上 isRecording=true。
+  // 这个 effect 只剩异常路径兜住——万一 possessTarget 变 null 时录制态真的还没清（如某条遗漏的退出路径），
+  // 静默清空计时器，不出片、不 toast，避免悬挂 interval，不是主链路。
   React.useEffect(() => {
     if (!possessTarget && isRecording) {
+      isRecordingRef.current = false
       clearTick()
       setIsRecording(false)
       setElapsedSeconds(0)

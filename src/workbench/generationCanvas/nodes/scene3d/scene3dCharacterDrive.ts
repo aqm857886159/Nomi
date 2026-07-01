@@ -156,3 +156,35 @@ export function locomotionForSpeed(speedMetersPerSec: number): Scene3DLocomotion
   if (speed >= LOCOMOTION_RUN_SPEED_THRESHOLD) return LOCOMOTION_CLIP_RUN
   return LOCOMOTION_CLIP_WALK
 }
+
+// #C 游戏式操控键：Shift 加速跑 / C·Ctrl 下蹲，角色操控（CharacterDriveController）与相机 fly
+// （Scene3DControls）共享同一套倍率语义（P4 通用第一，不要角色一个逻辑相机另一个）。
+// 1.7x：观感自然的"跑起来"提速——角色这边叠加到地面基速后自然越过 LOCOMOTION_RUN_SPEED_THRESHOLD，
+// 复用现有 locomotionForSpeed 分桶，不需要额外强制切 run（别做两套判断）。
+export const CHARACTER_DRIVE_RUN_SPEED_MULTIPLIER = 1.7
+// 蹲下时移动打折：允许蹲着挪动，但明显比走路慢（游戏惯例）。
+export const CHARACTER_DRIVE_CROUCH_SPEED_MULTIPLIER = 0.5
+// 轻跳的抛物线参数：无跳跃骨骼动画素材，纯粹靠 group.position.y 相对 groundY 的短抛物线模拟起伏。
+export const CHARACTER_DRIVE_JUMP_HEIGHT = 0.55 // 最高点相对 groundY 的抬升（米）
+export const CHARACTER_DRIVE_JUMP_DURATION = 0.5 // 起跳到落地的总时长（秒）
+
+// 由「加速/下蹲」两个互斥的按住态求地面速度倍率。下蹲优先于加速（同时按住时，蹲下更明确地表达"慢下来"的
+// 意图；现实里蹲着不太会同时想跑）。都不按住 → 1（不缩放）。纯函数，角色 CharacterDriveController 和
+// 相机 Scene3DControls（相机只传 crouching=false，无下蹲语义）共享同一份，避免出现两套倍率来源（P1）。
+export function groundSpeedMultiplier(running: boolean, crouching: boolean): number {
+  if (crouching) return CHARACTER_DRIVE_CROUCH_SPEED_MULTIPLIER
+  if (running) return CHARACTER_DRIVE_RUN_SPEED_MULTIPLIER
+  return 1
+}
+
+// 跳跃抛物线：给定「起跳后经过的时间」，返回相对 groundY 的向上偏移（米，>=0）。
+// 用一段抛物线 4h·t·(D-t)/D²：t=0 或 t=D 时偏移为 0（起跳/落地贴地），t=D/2 时取最大高度 h。
+// 落在区间外（尚未起跳 / 已经落地）一律 clamp 到 0——调用方靠这个天然可判断"是否已经落地"。纯函数、单测覆盖。
+export function jumpArcOffset(
+  elapsedSeconds: number,
+  height: number = CHARACTER_DRIVE_JUMP_HEIGHT,
+  duration: number = CHARACTER_DRIVE_JUMP_DURATION,
+): number {
+  if (elapsedSeconds <= 0 || elapsedSeconds >= duration || duration <= 0) return 0
+  return (4 * height * elapsedSeconds * (duration - elapsedSeconds)) / (duration * duration)
+}
