@@ -167,6 +167,23 @@ export function OnboardingDrawer(): JSX.Element {
     return set
   }, [models, vendorMeta])
 
+  // 其他（自定义中转）按 vendor 拆成每家一张卡，卡名用用户在接入时填的「来源名称」（vendorMeta.name）。
+  // 根因修复：此前全塞进单张「其他模型」卡、只按 kind 分组，多家糊一起分不清哪个 key 对哪家。
+  // name 字段本就存在（接入向导「来源名称」→ Vendor.name），这里只是把它显示出来、按家拆开。
+  const otherVendorGroups: Array<{ vendorKey: string; name: string; models: ChipModel[] }> = []
+  {
+    const indexByVendor = new Map<string, number>()
+    for (const m of otherModels) {
+      let idx = indexByVendor.get(m.vendorKey)
+      if (idx === undefined) {
+        idx = otherVendorGroups.length
+        indexByVendor.set(m.vendorKey, idx)
+        otherVendorGroups.push({ vendorKey: m.vendorKey, name: vendorMeta.get(m.vendorKey)?.name || m.vendorKey, models: [] })
+      }
+      otherVendorGroups[idx].models.push(m)
+    }
+  }
+
   const renderVendorCard = (card: typeof knownCards[number]) => (
     <VendorOnboardCard
       key={card.directory.vendorKey}
@@ -217,19 +234,20 @@ export function OnboardingDrawer(): JSX.Element {
           <>
             <div className="text-micro font-semibold text-nomi-ink-40 pt-1 px-0.5">已接入</div>
             {connectedKnown.map(renderVendorCard)}
-            {otherModels.length > 0 ? (
+            {otherVendorGroups.map((group) => (
               <FoldableModelCard
+                key={group.vendorKey}
                 glyph={<IconStack2 size={16} stroke={1.6} />}
                 glyphTone="soft"
-                name="其他模型"
-                subtitle={`${otherModels.length} 个自定义模型`}
+                name={group.name}
+                subtitle={`${group.models.length} 个模型`}
                 status="ok"
                 statusLabel="已配置"
                 defaultExpanded={false}
               >
-                <ModelChipGroups models={otherModels} connected onDelete={handleDelete} />
+                <ModelChipGroups models={group.models} connected onDelete={handleDelete} />
               </FoldableModelCard>
-            ) : null}
+            ))}
             {dreaminaAvailable && dreaminaConnected ? (
               <DreaminaMemberCard status={dreaminaStatus} onChanged={refresh} />
             ) : null}
