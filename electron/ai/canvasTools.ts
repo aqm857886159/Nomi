@@ -94,7 +94,13 @@ const storyboardAnchorSchema = z.object({
 
 const storyboardShotSchema = z.object({
   index: z.number().int().describe("1-based shot number in script order."),
-  durationSec: z.number().describe("Shot duration in seconds (clamped to the chosen model's max when it lands)."),
+  shotKind: z
+    .enum(["image", "video"])
+    .optional()
+    .describe(
+      "Shot kind: 'image' = still image-storyboard frame (image-to-image, no duration, no camera move / transition / dialogue), 'video' = video shot (has duration + camera motion). Match ALL shots to the storyboard mode requested by the user; default to 'image' unless the user explicitly wants video.",
+    ),
+  durationSec: z.number().describe("Shot duration in seconds (video shots only; for image shots emit 0). Clamped to the chosen model's max when it lands."),
   anchorIds: z.array(z.string()).describe("Which anchors this shot uses (by anchor.id) → visual anchors become reference edges, text anchors fold into the prompt."),
   prompt: z.string().describe("Directly-generatable prompt: camera move + action progression; do NOT restate the anchors' static descriptions."),
   // P0-9:让 AI 一并产出每镜的模型/模式/参数(含负面词)。取值必须来自用户消息里的「可用模型」清单,

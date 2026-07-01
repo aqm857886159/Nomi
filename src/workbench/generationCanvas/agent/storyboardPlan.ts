@@ -37,7 +37,13 @@ export type PlanAnchor = {
 
 export type PlanShot = {
   index: number
-  /** 该镜时长(秒)；落画布写进视频节点 duration 参数，按所选模型控件钳值。 */
+  /**
+   * 该镜种类：'image'=图片分镜（落 image 节点、无时长、绑图片模型）；'video'=视频分镜（落 video 节点、带时长）。
+   * 缺省（旧草稿无此字段）按 'video' 兜底以保持既有行为；新计划由拆镜头开关/planner 显式标注
+   * （用户拍板：拆镜头默认出图片分镜）。图片镜头满意后可经「转视频」升成视频镜头（S2）。
+   */
+  shotKind?: 'image' | 'video'
+  /** 该镜时长(秒)；仅视频镜头用——落画布写进视频节点 duration 参数，按所选模型控件钳值。图片镜头忽略。 */
   durationSec: number
   /** 这镜用到哪些锚（按 anchor.id 引用）→ 视觉锚连参考边、文本锚拼 prompt。 */
   anchorIds: string[]
@@ -80,6 +86,10 @@ export const planAnchorSchema = z.object({
 
 export const planShotSchema = z.object({
   index: z.number().int(),
+  shotKind: z
+    .enum(['image', 'video'])
+    .optional()
+    .describe("镜头种类:'image'=图片分镜(图生图静态画面,无时长),'video'=视频分镜(带时长运镜)。默认 image。"),
   durationSec: z.number(),
   anchorIds: z.array(z.string()),
   prompt: z.string(),
@@ -235,8 +245,9 @@ function buildShotPrompt(shot: PlanShot, anchorById: Map<string, PlanAnchor>): s
  * 确认后：把方案转成 create_canvas_nodes 参数，照常走 applyCanvasToolCall 落画布
  * （复用现有建节点+连边+依赖波次「参考层先生成」，零重写）。
  * - 视觉锚（character/scene/prop）→ 卡片节点（image）；文本锚（style 等）不建节点、描述拼进镜头 prompt。
- * - 每镜 → video 节点（用户拍板 B-clean：有时长就是视频）；时长写进 duration 参数；引用的视觉锚 → 参考边。
- *   模型：用户在编辑器为该镜选的 modelKey/modeId 优先，没选 → 默认视频模型兜底。
+ * - 每镜按 shotKind 分支：图片镜头 → image 节点（无时长、绑图片模型）；视频镜头 → video 节点（带时长、绑视频模型）。
+ *   缺省 shotKind 按 video 兜底（旧草稿兼容）；引用的视觉锚 → 参考边（图片/视频镜头都连，锁身份）。
+ *   模型：用户在编辑器为该镜选的 modelKey/modeId 优先，没选 → 按种类取默认图片/视频模型兜底。
  * - **不连 shot→shot 链**：视频→视频会落到尚未实现的「首帧接力抽帧」必裸跑；镜头连贯靠共享定妆卡/场景卡参考。
  */
 export function storyboardPlanToCreateNodesArgs(
@@ -270,26 +281,36 @@ export function storyboardPlanToCreateNodesArgs(
   const orderedShots = [...plan.shots].sort((a, b) => a.index - b.index)
   for (const shot of orderedShots) {
     const id = shotClientId(shot)
-    // 该镜引用的视觉锚（定妆卡）——连 character_ref/style_ref/reference 参考边（图→视频，i2v 参考）。
+    // 镜头种类分支（用户拍板：拆镜头默认图片分镜）。缺省无 shotKind → 按 video 兜底（旧草稿兼容）。
+    const isImageShot = shot.shotKind === 'image'
+    // 该镜引用的视觉锚（定妆卡）——连 character_ref/style_ref/reference 参考边。
+    // 视频镜头：图→视频 i2v 参考；图片镜头：图→图 参考（同样锁角色/场景身份，图片模型的参考槽）。
     const visualAnchorIds = shot.anchorIds.filter((anchorId) => {
       const anchor = anchorById.get(anchorId)
       return Boolean(anchor) && anchor!.carrier === 'visual' && VISUAL_KINDS.has(anchor!.kind)
     })
-    const modelKey = shot.modelKey || options.defaultVideoModelKey
+    // 图片镜头绑图片模型默认、视频镜头绑视频模型默认；用户在编辑器为该镜选的 modelKey 永远优先。
+    const defaultModelKey = isImageShot ? options.defaultImageModelKey : options.defaultVideoModelKey
+    const defaultModeId = isImageShot ? options.defaultImageModeId : options.defaultVideoModeId
+    const modelKey = shot.modelKey || defaultModelKey
     // 用户为该镜选了具体模型 → 不套默认模型的 modeId（会张冠李戴）；留空让 buildPlannedNodeMeta
     // 按所选模型自己取默认模式。只有用默认模型时才用默认 modeId。
-    const modeId = shot.modeId || (shot.modelKey ? undefined : options.defaultVideoModeId)
+    const modeId = shot.modeId || (shot.modelKey ? undefined : defaultModeId)
     nodes.push({
       clientId: id,
-      kind: 'video',
+      // 图片镜头 → image 节点（纯图生图静态画面，无 duration）；视频镜头 → video 节点（带 duration）。
+      kind: isImageShot ? 'image' : 'video',
       title: `镜头 ${shot.index}`,
       prompt: buildShotPrompt(shot, anchorById),
       ...(modelKey ? { modelKey } : {}),
       ...(modeId ? { modeId } : {}),
-      // duration 由卡的「时长」选择器管；其余模型参数（比例/清晰度/负向…）来自 shot.params。
-      params: { ...(shot.params || {}), ...(Number.isFinite(shot.durationSec) ? { duration: shot.durationSec } : {}) },
+      // duration 仅视频镜头写（由卡的「时长」选择器管）；图片镜头不写。其余模型参数（比例/清晰度/负向…）来自 shot.params。
+      params: {
+        ...(shot.params || {}),
+        ...(!isImageShot && Number.isFinite(shot.durationSec) ? { duration: shot.durationSec } : {}),
+      },
     })
-    // 定妆卡 → 这一镜参考边（角色 character_ref / 场景·风格 style_ref / 道具 reference）。
+    // 定妆卡 → 这一镜参考边（角色 character_ref / 场景·风格 style_ref / 道具 reference）。图片/视频镜头都连。
     for (const anchorId of visualAnchorIds) {
       const anchor = anchorById.get(anchorId)!
       edges.push({ sourceClientId: anchorId, targetClientId: id, mode: edgeModeForAnchor(anchor.kind) })
