@@ -21,10 +21,26 @@ export const STORYBOARD_PLANNER_SKILL = {
  * - 首次拆镜头：传 storyText，规划整份方案。
  * - 修改现方案：传 currentPlan + revisionRequest，规划师基于现方案按要求改、保留其余，重出整份。
  */
+/** 拆镜头模式：image=图片分镜（每镜静态画面，默认）；video=视频分镜（每镜带时长）。 */
+export type StoryboardShotMode = 'image' | 'video'
+
+/** 按模式给 planner 的镜头种类硬指令（首拆注入；改方案不注入——保留现方案里每镜已定的 shotKind）。 */
+function shotModeDirective(mode: StoryboardShotMode): string {
+  if (mode === 'video') {
+    return '本次拆的是**视频分镜**：每个 shot 的 shotKind 必须填 "video"，按方法论给时长（durationSec）、运镜与动作演进，modelKey 从可用清单里选视频模型。'
+  }
+  return [
+    '本次拆的是**图片分镜**（不是视频分镜）：每个 shot 的 shotKind 必须填 "image"，durationSec 一律填 0。',
+    'prompt 写**一张静态画面**——构图/景别/光线/人物姿态与表情/环境，**禁止**写运镜（推拉摇跟）、动作演进、转场、时长感、台词/字幕/声音。',
+    'modelKey 从可用模型清单里选**图片模型**（不是视频模型）；清单里没有合适的图片模型就留空（系统用默认图片模型兜底）。',
+  ].join('\n')
+}
+
 export function buildStoryboardPlanningMessage(input: {
   storyText?: string
   currentPlan?: StoryboardPlan | null
   revisionRequest?: string
+  shotMode?: StoryboardShotMode
 }): string {
   if (input.currentPlan && input.revisionRequest?.trim()) {
     return [
@@ -43,6 +59,8 @@ export function buildStoryboardPlanningMessage(input: {
   const trimmed = (input.storyText || '').trim()
   return [
     '请把下面这段故事规划成一份「分镜方案」（跨镜头要一致的角色/场景/道具/风格 + 每个镜头），通过 propose_storyboard_plan 产出结构化方案对象——先给用户在创作区审阅、修改，不要直接写画布。',
+    '',
+    shotModeDirective(input.shotMode ?? 'image'),
     '',
     '--- 故事正文 ---',
     trimmed,

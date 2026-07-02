@@ -171,3 +171,52 @@ describe('parseStoryboardPlan（落库前运行时守卫）', () => {
     expect(() => parseStoryboardPlan(bad)).toThrow()
   })
 })
+
+describe('图片分镜（shotKind=image，用户拍板 2026-07-02 image-first）', () => {
+  const IMAGE_PLAN: StoryboardPlan = {
+    title: '小说配图',
+    anchors: [
+      { id: 'a-ye', kind: 'character', name: '叶林', description: '十七岁少年，苍白清秀', carrier: 'visual' },
+      { id: 'a-market', kind: 'scene', name: '地下黑市', description: '潮湿地下通道，霓虹冷光', carrier: 'visual' },
+    ],
+    shots: [
+      { index: 1, shotKind: 'image', durationSec: 0, anchorIds: ['a-ye', 'a-market'], prompt: '叶林站在黑市入口，远景三分构图' },
+      { index: 2, shotKind: 'video', durationSec: 6, anchorIds: ['a-ye'], prompt: '手持跟拍叶林走进手术室' },
+    ],
+  }
+
+  it('图片镜头 → image 节点、无 duration、绑默认图片模型；视频镜头不受影响', () => {
+    const { nodes } = storyboardPlanToCreateNodesArgs(IMAGE_PLAN, {
+      defaultImageModelKey: 'img-model',
+      defaultImageModeId: 'img-mode',
+      defaultVideoModelKey: 'vid-model',
+      defaultVideoModeId: 'vid-mode',
+    })
+    const shot1 = nodes.find((n) => n.clientId === 'shot-1')!
+    expect(shot1.kind).toBe('image')
+    expect(shot1.modelKey).toBe('img-model')
+    expect(shot1.modeId).toBe('img-mode')
+    expect(shot1.params?.duration).toBeUndefined()
+    const shot2 = nodes.find((n) => n.clientId === 'shot-2')!
+    expect(shot2.kind).toBe('video')
+    expect(shot2.modelKey).toBe('vid-model')
+    expect(shot2.params?.duration).toBe(6)
+  })
+
+  it('图片镜头仍连定妆卡参考边（锁身份），与视频镜头同语义', () => {
+    const { edges } = storyboardPlanToCreateNodesArgs(IMAGE_PLAN)
+    expect(edges).toContainEqual({ sourceClientId: 'a-ye', targetClientId: 'shot-1', mode: 'character_ref' })
+    expect(edges).toContainEqual({ sourceClientId: 'a-market', targetClientId: 'shot-1', mode: 'style_ref' })
+  })
+
+  it('缺省 shotKind → 按 video 兜底（旧草稿兼容，行为不变）', () => {
+    const { nodes } = storyboardPlanToCreateNodesArgs(PLAN, { defaultVideoModelKey: 'vid-model' })
+    for (const n of nodes.filter((node) => node.clientId.startsWith('shot-'))) {
+      expect(n.kind).toBe('video')
+    }
+  })
+
+  it('parseStoryboardPlan 接受带 shotKind 的方案（schema 同步）', () => {
+    expect(() => parseStoryboardPlan(IMAGE_PLAN)).not.toThrow()
+  })
+})

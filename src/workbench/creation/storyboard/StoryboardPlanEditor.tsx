@@ -54,8 +54,9 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
   const [landing, setLanding] = React.useState(false)
-  // 视频模型清单拉一次，传给各镜卡的模型选择器 + 参数控件（完整 option 供解析 archetype 参数）。
+  // 图片/视频模型清单各拉一次，按镜头种类传给镜卡的模型选择器 + 参数控件（完整 option 供解析 archetype 参数）。
   const videoModelOptions = useModelOptionsState('video').options
+  const imageModelOptions = useModelOptionsState('image').options
 
   if (!plan) return null
 
@@ -184,7 +185,7 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
                 key={shot.index}
                 shot={shot}
                 anchors={plan.anchors}
-                modelOptions={videoModelOptions}
+                modelOptions={shot.shotKind === 'image' ? imageModelOptions : videoModelOptions}
                 danglingIds={danglingAnchorIdsForShot(plan, shot)}
                 promptInvalid={emptyPromptShots.has(shot.index)}
                 draggable

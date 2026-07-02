@@ -3,7 +3,7 @@ import { generationCanvasTools } from './generationCanvasTools'
 import { applyCanvasToolCall } from './applyCanvasToolCall'
 import { evaluateGate } from './gate'
 import { buildLockGateContext } from './lockGateContext'
-import { STORYBOARD_PLANNER_SKILL, buildStoryboardPlanningMessage } from './storyboardLauncher'
+import { STORYBOARD_PLANNER_SKILL, buildStoryboardPlanningMessage, type StoryboardShotMode } from './storyboardLauncher'
 import type { StoryboardPlan } from './storyboardPlan'
 
 /**
@@ -16,6 +16,8 @@ import type { StoryboardPlan } from './storyboardPlan'
 export async function runStoryboardPlanner(input: {
   /** 首次拆镜头：剧本正文。*/
   storyText?: string
+  /** 首拆的分镜模式（image=图片分镜默认 / video=视频分镜）；改方案不传（保留现方案每镜 shotKind）。*/
+  shotMode?: StoryboardShotMode
   /** 修改现方案（P0-9 Slice 3）：当前方案 + 修改要求。*/
   currentPlan?: StoryboardPlan | null
   revisionRequest?: string
@@ -27,6 +29,7 @@ export async function runStoryboardPlanner(input: {
       storyText: input.storyText,
       currentPlan: input.currentPlan,
       revisionRequest: input.revisionRequest,
+      ...(input.shotMode ? { shotMode: input.shotMode } : {}),
     }),
     snapshot: generationCanvasTools.read_canvas(),
     selectedNodes: [],

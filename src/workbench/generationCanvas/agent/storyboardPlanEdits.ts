@@ -74,7 +74,15 @@ function renumber(shots: PlanShot[]): PlanShot[] {
 }
 
 export function addShot(plan: StoryboardPlan): StoryboardPlan {
-  const shot: PlanShot = { index: plan.shots.length + 1, durationSec: 5, anchorIds: [], prompt: '' }
+  // 新镜头继承上一镜的种类（图片分镜方案里手加的镜头别突然变成视频镜头）；空方案默认视频（旧行为）。
+  const lastKind = plan.shots[plan.shots.length - 1]?.shotKind
+  const shot: PlanShot = {
+    index: plan.shots.length + 1,
+    ...(lastKind ? { shotKind: lastKind } : {}),
+    durationSec: lastKind === 'image' ? 0 : 5,
+    anchorIds: [],
+    prompt: '',
+  }
   return { ...plan, shots: [...plan.shots, shot] }
 }
 

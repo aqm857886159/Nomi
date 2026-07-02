@@ -23,8 +23,9 @@ export default function StoryboardPlanCard(): JSX.Element | null {
   const title = plan.title.trim() || '分镜方案'
   const shotCount = plan.shots.length
   const anchorCount = plan.anchors.length
-  const totalSec = Math.round(plan.shots.reduce((sum, shot) => sum + (shot.durationSec || 0), 0))
-  const meta = `${shotCount} 个镜头 · ${anchorCount} 个参考锚 · 约 ${totalSec}s`
+  // 图片分镜（全镜 durationSec=0）没有总时长——只报「图片分镜」，别显示误导的「约 0s」。
+  const totalSec = Math.round(plan.shots.reduce((sum, shot) => sum + (shot.shotKind === 'image' ? 0 : shot.durationSec || 0), 0))
+  const meta = `${shotCount} 个镜头 · ${anchorCount} 个参考锚 · ${totalSec > 0 ? `约 ${totalSec}s` : '图片分镜'}`
 
   const onDiscard = async () => {
     const ok = await confirmDialog({

@@ -162,7 +162,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     return <IconFilePlus size={13} />
   }, [])
 
-  const launchStoryboardPlanning = React.useCallback((displayPrompt = '🎬 拆镜头', revisionRequest?: string) => {
+  const launchStoryboardPlanning = React.useCallback((displayPrompt = '🎬 拆镜头', revisionRequest?: string, shotMode: 'image' | 'video' = 'image') => {
     // P0-9 Slice 3：已有未落画布的方案 + 用户给了修改要求 → 进「改方案」模式（基于现方案改，不从头拆）。
     const store = useWorkbenchStore.getState()
     const currentPlan = store.storyboardPlan
@@ -192,7 +192,8 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     void (async () => {
       try {
         const { text } = await runStoryboardPlanner({
-          ...(isRevision ? { currentPlan, revisionRequest } : { storyText }),
+          // 首拆带分镜模式（图片/视频，动作卡上选，默认图片）；改方案不带——保留现方案每镜已定的 shotKind。
+          ...(isRevision ? { currentPlan, revisionRequest } : { storyText, shotMode }),
           onContent: (streamed) => {
             if (!handle.isCurrent()) return
             pushStreamFrame(() =>
@@ -573,11 +574,11 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
                 <StoryboardActionCard
                   kind={message.action.kind}
                   resolved={resolvedActionIds.has(message.id)}
-                  onRun={() => {
+                  onRun={(shotMode) => {
                     if (resolvedActionIds.has(message.id)) return
                     setResolvedActionIds((prev) => new Set(prev).add(message.id))
                     const prompt = message.action!.prompt
-                    if (message.action!.kind === 'storyboard') launchStoryboardPlanning(prompt || '🎬 拆镜头')
+                    if (message.action!.kind === 'storyboard') launchStoryboardPlanning(prompt || '🎬 拆镜头', undefined, shotMode)
                     else launchFixationPlanning(prompt || '🎭 立角色卡')
                   }}
                 />
