@@ -216,7 +216,10 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
       const kind = plannedKinds[index]
       const positionRecord =
         node.position && typeof node.position === 'object' ? (node.position as Record<string, unknown>) : null
-      const meta = buildPlannedNodeMeta(node, entryByKey)
+      const plannedMeta = buildPlannedNodeMeta(node, entryByKey)
+      // 参考卡身份透传（分镜方案的角色/场景/道具锚）→ node.meta.referenceSheet，编号分配处据此跳过。
+      const meta =
+        node.referenceSheet === true ? { ...(plannedMeta ?? {}), referenceSheet: true } : plannedMeta
       // 单节点：尊重 agent 指定位置（增量添加可能要贴近某节点），否则同走避让布局。
       const position =
         total > 1

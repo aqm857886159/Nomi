@@ -129,6 +129,8 @@ export type PlanCreatedNode = {
   modelKey?: string
   modeId?: string
   params?: Record<string, string | number | boolean>
+  /** 参考卡身份（角色/场景/道具锚）：落画布写进 node.meta.referenceSheet → 永不占镜头编号（shotNumbering）。 */
+  referenceSheet?: true
 }
 
 export type PlanCreatedEdge = {
@@ -267,6 +269,8 @@ export function storyboardPlanToCreateNodesArgs(
       kind: anchorKindToNodeKind(anchor.kind),
       title: anchor.name,
       prompt: buildAnchorSheetPrompt(anchor),
+      // 参考卡永不占镜号（道具锚 kind=image 落 shots 分类，不标记会吃掉「镜头 1/2」，R13 抓出）。
+      referenceSheet: true,
       ...(options.defaultImageModelKey ? { modelKey: options.defaultImageModelKey } : {}),
       ...(options.defaultImageModeId ? { modeId: options.defaultImageModeId } : {}),
     })

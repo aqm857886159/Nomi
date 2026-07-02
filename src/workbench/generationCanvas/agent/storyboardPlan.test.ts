@@ -220,3 +220,15 @@ describe('图片分镜（shotKind=image，用户拍板 2026-07-02 image-first）
     expect(() => parseStoryboardPlan(IMAGE_PLAN)).not.toThrow()
   })
 })
+
+describe('参考卡身份标记（referenceSheet，防占镜号）', () => {
+  it('所有视觉锚节点带 referenceSheet:true；镜头节点不带', () => {
+    const { nodes } = storyboardPlanToCreateNodesArgs(PLAN)
+    for (const n of nodes.filter((node) => node.clientId.startsWith('a-'))) {
+      expect(n.referenceSheet).toBe(true)
+    }
+    for (const n of nodes.filter((node) => node.clientId.startsWith('shot-'))) {
+      expect(n.referenceSheet).toBeUndefined()
+    }
+  })
+})

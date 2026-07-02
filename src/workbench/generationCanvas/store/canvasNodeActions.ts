@@ -66,7 +66,7 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       ...(input.meta ? { meta: { ...input.meta } } : {}),
       ...(input.size ? { size: { ...input.size } } : {}),
       categoryId,
-      ...(isShotNumberedNode({ kind: input.kind, categoryId })
+      ...(isShotNumberedNode({ kind: input.kind, categoryId, meta: input.meta })
         ? { shotIndex: nextShotIndex(currentState.nodes) }
         : {}),
     }

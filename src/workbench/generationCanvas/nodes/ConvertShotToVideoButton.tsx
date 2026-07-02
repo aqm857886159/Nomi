@@ -2,55 +2,15 @@ import React from 'react'
 import { IconMovie } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { toast } from '../../../ui/toast'
-import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
+import { convertImageShotToVideo } from '../agent/convertShotToVideo'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-
-/**
- * 图片镜头 →「转视频」桥（image-first 收敛路，用户拍板 2026-07-02）：
- * 图片分镜先把画面定下来，满意后一键升成视频镜头——建一个派生视频节点，
- * 连 first_frame 边（这张图 = 视频首帧，复用现有 i2v 链路，P1 零新链路）。
- *
- * 语义要点：
- * - 视频节点**继承源图的镜号**（同一镜的两阶段，排片按视频镜位落在剧本位置 3 而非新号 13）；
- *   addNode 会先自动领新号，随即 updateNode 覆写回继承号（nextShotIndex 按 max 计算，空号无影响）。
- * - meta.sourceNodeId 指回源图 → 一键整理会把视频紧跟其源镜头摆放。
- * - 不写 modelKey：让 useNodeModelAutoSelect 的「modelKey 空时自动选默认视频模型」既有路径接管。
- * - 幂等：该图已转出过视频（存在 image→video 出边）→ 选中已有的，不重复建。
- */
-function convertImageShotToVideo(node: GenerationCanvasNode): void {
-  const state = useGenerationCanvasStore.getState()
-  const existing = state.nodes.find(
-    (candidate) =>
-      getGenerationNodeExecutionKind(candidate.kind) === 'video' &&
-      state.edges.some((edge) => edge.source === node.id && edge.target === candidate.id),
-  )
-  if (existing) {
-    state.selectNode(existing.id)
-    toast('这一镜已转过视频，已选中它', 'info')
-    return
-  }
-  const video = state.addNode({
-    kind: 'video',
-    title: node.title ? `${node.title} · 视频` : '',
-    prompt: node.prompt || '',
-    meta: { sourceNodeId: node.id },
-    position: { x: node.position.x + (node.size?.width ?? 320) + 80, y: node.position.y },
-    ...(node.categoryId ? { categoryId: node.categoryId } : {}),
-    select: true,
-  })
-  if (typeof node.shotIndex === 'number') {
-    state.updateNode(video.id, { shotIndex: node.shotIndex })
-  }
-  state.connectNodes(node.id, video.id, 'first_frame')
-  toast('已转出视频镜头 · 这张图作为首帧', 'info')
-}
 
 /**
  * 分镜预览层的两件 overlay（从 BaseGenerationNode 抽出，R9/R12 防巨壳）：
  * ① 「镜头 N」常显角标——补「生成出画面 / 选中」两个缺口（占位卡消失后编号不再蒸发，
  *    用户反馈「分镜没有 1/2/3」）；未生成未选中时由 PendingGenerationPlaceholder 自显，互斥不重复。
- * ② 图片镜头的「转视频」按钮（仅 shots 分类、已出图、非只读、非生成中）。
+ * ② 图片镜头的「转视频」按钮（仅 shots 分类、已出图、非只读、非生成中）——
+ *    image-first 桥，逻辑在 agent/convertShotToVideo（纯 store 编排，可单测）。
  */
 export function ShotPreviewOverlays({
   node,
@@ -81,7 +41,7 @@ export function ShotPreviewOverlays({
   )
 }
 
-/** 悬浮「转视频」按钮：仅分镜分类的图片镜头（有编号+已出图）显示；hover/选中浮现，不常驻挡画面。 */
+/** 悬浮「转视频」按钮：hover/选中浮现，不常驻挡画面。 */
 function ConvertShotToVideoButton({ node, selected }: { node: GenerationCanvasNode; selected: boolean }): JSX.Element {
   return (
     <button
@@ -99,7 +59,8 @@ function ConvertShotToVideoButton({ node, selected }: { node: GenerationCanvasNo
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => {
         event.stopPropagation()
-        convertImageShotToVideo(node)
+        const { existed } = convertImageShotToVideo(node)
+        toast(existed ? '这一镜已转过视频，已选中它' : '已转出视频镜头 · 这张图作为首帧', 'info')
       }}
     >
       <IconMovie size={12} stroke={1.8} />
