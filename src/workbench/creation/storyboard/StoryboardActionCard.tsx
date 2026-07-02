@@ -56,7 +56,7 @@ export default function StoryboardActionCard({
                 onClick={() => setMode(option.value)}
                 data-shot-mode={option.value}
                 className={cn(
-                  'inline-flex items-center gap-1 h-6 px-2.5 rounded-full text-caption border',
+                  'inline-flex items-center gap-1 h-6 px-2.5 rounded-full text-caption border whitespace-nowrap shrink-0',
                   active
                     ? 'border-nomi-ink bg-nomi-ink text-nomi-paper font-medium'
                     : 'border-nomi-line text-nomi-ink-60 hover:text-nomi-ink-80 hover:border-nomi-ink-20',
