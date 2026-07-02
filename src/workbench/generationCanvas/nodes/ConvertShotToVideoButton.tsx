@@ -46,8 +46,43 @@ function convertImageShotToVideo(node: GenerationCanvasNode): void {
   toast('已转出视频镜头 · 这张图作为首帧', 'info')
 }
 
+/**
+ * 分镜预览层的两件 overlay（从 BaseGenerationNode 抽出，R9/R12 防巨壳）：
+ * ① 「镜头 N」常显角标——补「生成出画面 / 选中」两个缺口（占位卡消失后编号不再蒸发，
+ *    用户反馈「分镜没有 1/2/3」）；未生成未选中时由 PendingGenerationPlaceholder 自显，互斥不重复。
+ * ② 图片镜头的「转视频」按钮（仅 shots 分类、已出图、非只读、非生成中）。
+ */
+export function ShotPreviewOverlays({
+  node,
+  selected,
+  readOnly,
+  shotIndex,
+  hasResult,
+  isGenerating,
+}: {
+  node: GenerationCanvasNode
+  selected: boolean
+  readOnly: boolean
+  shotIndex: number | null
+  hasResult: boolean
+  isGenerating: boolean
+}): JSX.Element | null {
+  if (shotIndex == null) return null
+  const showConvert = !readOnly && node.kind === 'image' && node.result?.type === 'image' && hasResult && !isGenerating
+  return (
+    <>
+      {hasResult || selected ? (
+        <span className="absolute top-1.5 left-1.5 z-[3] inline-flex items-center h-[18px] px-2 rounded-full bg-nomi-ink/85 text-nomi-paper text-micro font-bold tabular-nums pointer-events-none shadow-nomi-sm backdrop-blur-[2px]">
+          镜头 {shotIndex}
+        </span>
+      ) : null}
+      {showConvert ? <ConvertShotToVideoButton node={node} selected={selected} /> : null}
+    </>
+  )
+}
+
 /** 悬浮「转视频」按钮：仅分镜分类的图片镜头（有编号+已出图）显示；hover/选中浮现，不常驻挡画面。 */
-export function ConvertShotToVideoButton({ node, selected }: { node: GenerationCanvasNode; selected: boolean }): JSX.Element {
+function ConvertShotToVideoButton({ node, selected }: { node: GenerationCanvasNode; selected: boolean }): JSX.Element {
   return (
     <button
       type="button"

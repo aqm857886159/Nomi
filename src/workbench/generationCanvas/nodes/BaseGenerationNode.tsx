@@ -1,7 +1,7 @@
 import React from 'react'
 import { IconCheck, IconCopy, IconDownload, IconInfoCircle, IconMaximize, IconUpload } from '@tabler/icons-react'
 import ProvenancePanel from './ProvenancePanel'
-import { ConvertShotToVideoButton } from './ConvertShotToVideoButton'
+import { ShotPreviewOverlays } from './ConvertShotToVideoButton'
 import { resolveNodeRenderKind, isCardRenderKind } from './resolveRenderKind'
 import ShotMountBadges from './render/ShotMountBadges'
 import { getBuiltinCategoryById } from '../../project/projectCategories'
@@ -33,10 +33,7 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import {
-  encodeTimelineGenerationNodeDragPayload,
-  TIMELINE_GENERATION_NODE_DRAG_MIME,
-} from '../../timeline/timelineDragPayload'
+import { encodeTimelineGenerationNodeDragPayload, TIMELINE_GENERATION_NODE_DRAG_MIME } from '../../timeline/timelineDragPayload'
 import { getTrackTypeForClipType } from '../../timeline/timelineTypes'
 import { buildClipFromGenerationNode } from '../model/buildClipFromGenerationNode'
 import { toast } from '../../../ui/toast'
@@ -629,18 +626,7 @@ function BaseGenerationNodeImpl({
             prompt={node.prompt}
           />
         )}
-        {/* 分镜序号常显角标：镜头节点一旦生成出画面 / 被选中，占位卡就消失、编号随之不见（用户反馈「分镜没有
-            1/2/3、搞不清先后」）。这里在预览层叠一个 pointer-events-none 角标，补上「有结果 / 选中」两个缺口；
-            未生成未选中时由 PendingGenerationPlaceholder 自身显编号，二者互斥不重复。仅 shots 分类(shotIndex 非空)有。 */}
-        {shotIndex != null && (hasResult || selected) ? (
-          <span className="absolute top-1.5 left-1.5 z-[3] inline-flex items-center h-[18px] px-2 rounded-full bg-nomi-ink/85 text-nomi-paper text-micro font-bold tabular-nums pointer-events-none shadow-nomi-sm backdrop-blur-[2px]">
-            镜头 {shotIndex}
-          </span>
-        ) : null}
-        {/* 图片镜头 →「转视频」桥（image-first）：分镜分类的图片镜头出图后，一键升成视频镜头（首帧=这张图）。 */}
-        {!readOnly && shotIndex != null && node.kind === 'image' && node.result?.type === 'image' && hasResult && !isGenerating ? (
-          <ConvertShotToVideoButton node={node} selected={selected} />
-        ) : null}
+        <ShotPreviewOverlays node={node} selected={selected} readOnly={readOnly} shotIndex={shotIndex} hasResult={hasResult} isGenerating={isGenerating} />
         {imageEditing.editGrid !== null &&
         (node.kind === 'image' || isAssetKind) &&
         node.result?.type === 'image' &&
