@@ -1,6 +1,7 @@
 import React from 'react'
 import { IconCheck, IconCopy, IconDownload, IconInfoCircle, IconMaximize, IconUpload } from '@tabler/icons-react'
 import ProvenancePanel from './ProvenancePanel'
+import { ConvertShotToVideoButton } from './ConvertShotToVideoButton'
 import { resolveNodeRenderKind, isCardRenderKind } from './resolveRenderKind'
 import ShotMountBadges from './render/ShotMountBadges'
 import { getBuiltinCategoryById } from '../../project/projectCategories'
@@ -635,6 +636,10 @@ function BaseGenerationNodeImpl({
           <span className="absolute top-1.5 left-1.5 z-[3] inline-flex items-center h-[18px] px-2 rounded-full bg-nomi-ink/85 text-nomi-paper text-micro font-bold tabular-nums pointer-events-none shadow-nomi-sm backdrop-blur-[2px]">
             镜头 {shotIndex}
           </span>
+        ) : null}
+        {/* 图片镜头 →「转视频」桥（image-first）：分镜分类的图片镜头出图后，一键升成视频镜头（首帧=这张图）。 */}
+        {!readOnly && shotIndex != null && node.kind === 'image' && node.result?.type === 'image' && hasResult && !isGenerating ? (
+          <ConvertShotToVideoButton node={node} selected={selected} />
         ) : null}
         {imageEditing.editGrid !== null &&
         (node.kind === 'image' || isAssetKind) &&
