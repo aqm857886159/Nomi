@@ -35,7 +35,7 @@ export const HANDBOOK_PIPELINE: HandbookPipelineStep[] = [
 export const HANDBOOK_FIRST_WIN: HandbookFirstWinStep[] = [
   { n: 1, title: '看回放', body: '首页点「60 秒看 Nomi 怎么出片」，零额度看整条流水线跑一遍。' },
   { n: 2, title: '接一个模型', body: '用自己的 Key，或接 Agnes 免费网关（文 / 图 / 视全解锁）。' },
-  { n: 3, title: '写一句 + 拆镜', body: '在创作区写下故事，说「拆成镜头」，一键铺成画布。' },
+  { n: 3, title: '写一句 + 拆镜', body: '在创作区写下故事，说「拆成镜头」——可选图片分镜（先定画面，满意再转视频）或视频分镜，一键铺成画布。' },
   { n: 4, title: '生成 + 导出', body: '点镜头卡的生成出图，排进时间轴，右上导出 MP4。' },
 ]
 
