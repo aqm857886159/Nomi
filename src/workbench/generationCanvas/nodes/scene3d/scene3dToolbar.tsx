@@ -9,6 +9,7 @@ import {
   IconChevronUp,
   IconCylinder,
   IconLamp,
+  IconMap2,
   IconMaximize,
   IconMinimize,
   IconPackage,
@@ -25,6 +26,7 @@ import { cn } from '../../../../utils/cn'
 import { type Scene3DGeometry, type Scene3DPropKind } from './scene3dTypes'
 import { CROWD_MAX_AXIS, type CrowdAddOptions } from './scene3dConstants'
 import { PROP_KINDS, propKindLabel } from './scene3dProps'
+import { SCENE_TEMPLATES, SCENE_TEMPLATE_LABEL, type Scene3DSceneTemplate } from './scene3dSceneTemplates'
 
 const PROP_MENU_ICONS: Record<Scene3DPropKind, Icon> = {
   car: IconCar,
@@ -124,6 +126,7 @@ export function SceneAddToolbar({
   onAddProp,
   onAddCrowd,
   onAddCamera,
+  onApplySceneTemplate,
   trajectoryMode,
   onToggleTrajectoryMode,
   canvasFocusMode,
@@ -133,6 +136,7 @@ export function SceneAddToolbar({
   onAddProp: (kind: Scene3DPropKind) => void
   onAddCrowd: (options: CrowdAddOptions) => void
   onAddCamera: () => void
+  onApplySceneTemplate: (template: Scene3DSceneTemplate) => void
   trajectoryMode: boolean
   onToggleTrajectoryMode: () => void
   canvasFocusMode: boolean
@@ -141,6 +145,7 @@ export function SceneAddToolbar({
   const containerRef = React.useRef<HTMLDivElement>(null)
   const [addMenuOpen, setAddMenuOpen] = React.useState(false)
   const [geometryOpen, setGeometryOpen] = React.useState(false)
+  const [templatesOpen, setTemplatesOpen] = React.useState(false)
   const [propsOpen, setPropsOpen] = React.useState(false)
   const [characterOpen, setCharacterOpen] = React.useState(false)
   const [crowdPopoverOpen, setCrowdPopoverOpen] = React.useState(false)
@@ -157,6 +162,7 @@ export function SceneAddToolbar({
   const closeAddMenu = React.useCallback(() => {
     setAddMenuOpen(false)
     setGeometryOpen(false)
+    setTemplatesOpen(false)
     setPropsOpen(false)
     setCharacterOpen(false)
     setCrowdPopoverOpen(false)
@@ -214,6 +220,27 @@ export function SceneAddToolbar({
               'inline-flex h-8 w-full items-center justify-start gap-2 rounded-nomi px-2',
               'border-0 bg-transparent text-left text-caption text-[var(--nomi-ink-60)] transition',
               'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+              templatesOpen && 'bg-[var(--nomi-ink-05)] text-[var(--nomi-ink)]',
+            )}
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setGeometryOpen(false)
+              setCharacterOpen(false)
+              setCrowdPopoverOpen(false)
+              setPropsOpen(false)
+              setTemplatesOpen((open) => !open)
+            }}
+          >
+            <IconMap2 size={15} />
+            <span className="min-w-0 flex-1">场景模板</span>
+            <IconChevronRight size={14} />
+          </button>
+          <button
+            className={cn(
+              'inline-flex h-8 w-full items-center justify-start gap-2 rounded-nomi px-2',
+              'border-0 bg-transparent text-left text-caption text-[var(--nomi-ink-60)] transition',
+              'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
               geometryOpen && 'bg-[var(--nomi-ink-05)] text-[var(--nomi-ink)]',
             )}
             type="button"
@@ -222,6 +249,7 @@ export function SceneAddToolbar({
               setCharacterOpen(false)
               setCrowdPopoverOpen(false)
               setPropsOpen(false)
+              setTemplatesOpen(false)
               setGeometryOpen((open) => !open)
             }}
           >
@@ -242,6 +270,7 @@ export function SceneAddToolbar({
               setGeometryOpen(false)
               setCharacterOpen(false)
               setCrowdPopoverOpen(false)
+              setTemplatesOpen(false)
               setPropsOpen((open) => !open)
             }}
           >
@@ -261,6 +290,7 @@ export function SceneAddToolbar({
             onClick={() => {
               setGeometryOpen(false)
               setPropsOpen(false)
+              setTemplatesOpen(false)
               if (characterOpen) setCrowdPopoverOpen(false)
               setCharacterOpen((open) => !open)
             }}
@@ -278,12 +308,8 @@ export function SceneAddToolbar({
             type="button"
             role="menuitem"
             onClick={() => {
-              setGeometryOpen(false)
-              setPropsOpen(false)
-              setCharacterOpen(false)
-              setCrowdPopoverOpen(false)
+              closeAddMenu()
               onAddObject('light')
-              setAddMenuOpen(false)
             }}
           >
             <IconBulb size={15} />
@@ -298,12 +324,8 @@ export function SceneAddToolbar({
             type="button"
             role="menuitem"
             onClick={() => {
-              setGeometryOpen(false)
-              setPropsOpen(false)
-              setCharacterOpen(false)
-              setCrowdPopoverOpen(false)
+              closeAddMenu()
               onAddCamera()
-              setAddMenuOpen(false)
             }}
           >
             <IconCamera size={15} />
@@ -339,6 +361,37 @@ export function SceneAddToolbar({
               </button>
             )
           })}
+        </div>
+      ) : null}
+      {addMenuOpen && templatesOpen ? (
+        <div
+          className={cn(
+            'absolute bottom-[calc(100%+8px)] left-[164px] z-[6] grid w-[188px] gap-1 p-[6px]',
+            'rounded-nomi border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
+          )}
+          role="menu"
+          aria-label="套用场景模板"
+        >
+          {SCENE_TEMPLATES.map((template) => (
+            <button
+              key={template}
+              className={cn(
+                'inline-flex h-8 w-full items-center justify-start gap-2 rounded-nomi px-2',
+                'border-0 bg-transparent text-left text-caption text-[var(--nomi-ink-60)] transition',
+                'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+              )}
+              type="button"
+              role="menuitem"
+              title="灰模布景，追加进当前场景（不清已有内容）"
+              onClick={() => {
+                onApplySceneTemplate(template)
+                closeAddMenu()
+              }}
+            >
+              <IconMap2 size={15} />
+              <span>{SCENE_TEMPLATE_LABEL[template]}</span>
+            </button>
+          ))}
         </div>
       ) : null}
       {addMenuOpen && propsOpen ? (

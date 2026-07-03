@@ -14,6 +14,7 @@ import { cn } from '../../../../utils/cn'
 import { PanelButton, SceneAddToolbar } from './scene3dToolbar'
 import { MANNEQUIN_POSE_PRESETS, type CrowdAddOptions } from './scene3dConstants'
 import type { Scene3DCamera, Scene3DGeometry, Scene3DObject, Scene3DPropKind } from './scene3dTypes'
+import type { Scene3DSceneTemplate } from './scene3dSceneTemplates'
 
 type CharacterDriveApi = {
   possessId: string | null
@@ -311,6 +312,7 @@ export function Scene3DBottomBar({
   onAddProp,
   onAddCrowd,
   onAddCamera,
+  onApplySceneTemplate,
   trajectoryMode,
   onToggleTrajectoryMode,
   canvasFocusMode,
@@ -328,6 +330,7 @@ export function Scene3DBottomBar({
   onAddProp: (kind: Scene3DPropKind) => void
   onAddCrowd: (options: CrowdAddOptions) => void
   onAddCamera: () => void
+  onApplySceneTemplate: (template: Scene3DSceneTemplate) => void
   trajectoryMode: boolean
   onToggleTrajectoryMode: () => void
   canvasFocusMode: boolean
@@ -360,6 +363,7 @@ export function Scene3DBottomBar({
       onAddProp={onAddProp}
       onAddCrowd={onAddCrowd}
       onAddCamera={onAddCamera}
+      onApplySceneTemplate={onApplySceneTemplate}
       trajectoryMode={trajectoryMode}
       onToggleTrajectoryMode={onToggleTrajectoryMode}
       canvasFocusMode={canvasFocusMode}

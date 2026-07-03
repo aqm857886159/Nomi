@@ -258,7 +258,7 @@ export default function Scene3DFullscreen({
     setSelection((current) => (current?.type === target.type && current.id === target.id ? null : current))
   }, [readOnly])
 
-  const { addObject, addProp, addCamera, addCrowd } = useScene3DAddActions({
+  const { addObject, addProp, addCamera, addCrowd, applySceneTemplate } = useScene3DAddActions({
     readOnly,
     stateRef,
     setState,
@@ -750,6 +750,7 @@ export default function Scene3DFullscreen({
             onAddProp={addProp}
             onAddCrowd={addCrowd}
             onAddCamera={addCamera}
+            onApplySceneTemplate={applySceneTemplate}
             trajectoryMode={trajectoryMode}
             onToggleTrajectoryMode={toggleTrajectoryMode}
             canvasFocusMode={canvasFocusMode}

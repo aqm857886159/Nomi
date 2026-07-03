@@ -34,6 +34,7 @@ import { applyCameraMovePreset, type CameraMovePresetSpec } from './cameraMovePr
 import { CAMERA_MOVE_LABEL } from './cameraMoveVocab'
 import { cameraWithPlaybackPosition } from './scene3dPlayback'
 import { makePropObject } from './scene3dProps'
+import { buildSceneTemplateObjects, SCENE_TEMPLATE_LABEL, type Scene3DSceneTemplate } from './scene3dSceneTemplates'
 
 export type Scene3DClipboardItem =
   | { type: 'object'; item: Scene3DObject; pasteCount: number }
@@ -381,6 +382,7 @@ export function useScene3DAddActions({
   addProp: (kind: Scene3DPropKind) => void
   addCamera: () => void
   addCrowd: (options: CrowdAddOptions) => void
+  applySceneTemplate: (template: Scene3DSceneTemplate) => void
 } {
   // 语义道具：与 addObject 同结构（限流 + 避让摆位 + 选中），kind 走 spec 表。
   const addProp = React.useCallback((kind: Scene3DPropKind) => {
@@ -443,7 +445,22 @@ export function useScene3DAddActions({
     setViewLocked(false)
   }, [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked, stateRef])
 
-  return { addObject, addProp, addCamera, addCrowd }
+  // 场景模板：一键搭灰模布景。**追加**进当前场景（绝不清用户已摆的东西），超容量整组拒绝。
+  const applySceneTemplate = React.useCallback((template: Scene3DSceneTemplate) => {
+    if (readOnly) return
+    const additions = buildSceneTemplateObjects(template)
+    if (stateRef.current.objects.length + additions.length > OBJECT_LIMIT) {
+      toast(`场景对象将超过 ${OBJECT_LIMIT} 个上限，请先清理再套模板`, 'warning')
+      return
+    }
+    setState((current) => ({ ...current, objects: [...current.objects, ...additions] }))
+    setSelection(null)
+    exitTrajectoryMode()
+    setViewLocked(false)
+    toast(`已搭好「${SCENE_TEMPLATE_LABEL[template]}」（追加 ${additions.length} 个物体，未动原有内容）`, 'success')
+  }, [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked, stateRef])
+
+  return { addObject, addProp, addCamera, addCrowd, applySceneTemplate }
 }
 
 // 运镜首尾帧导出：把播放头钉到该相机全部运镜段的整体起点/终点，各截一张相机图（复用相机
