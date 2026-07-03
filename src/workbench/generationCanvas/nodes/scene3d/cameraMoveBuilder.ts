@@ -33,6 +33,7 @@ import {
   type CameraSpeed,
   type StagingShot,
 } from './cameraMoveVocab'
+import { dollyZoomDistanceScale, zoomFovRamp } from './cameraMovePreset'
 import { ENV_PRESET } from './stagingVocab'
 
 const DEG = Math.PI / 180
@@ -90,10 +91,23 @@ function cameraPathPoints(move: CameraMove, d: number, h: number): Scene3DVector
         [d * 0.45, h, d],
         [d * 0.9, h, d],
       ]
+    case 'zoom_in':
+    case 'zoom_out':
+      // 机位不动（变焦靠 binding 的 fov 渐变）；第二点 2mm epsilon 避免零长曲线。
+      return [
+        [0, h, d],
+        [0, h, d + 0.002],
+      ]
+    case 'dolly_zoom':
+      // 希区柯克：机位后拉（与 pull_out 同倍率），fov 由 zoomFovRamp 反解补偿。
+      return [
+        [0, h, d],
+        [0, h, d * dollyZoomDistanceScale(1)],
+      ]
     default:
       return [
         [0, h, d],
-        [0, h, d],
+        [0, h, d + 0.002],
       ]
   }
 }
@@ -173,7 +187,12 @@ function buildCamera(shot: StagingShot, startPosition: Scene3DVector3): Scene3DC
   }
 }
 
-function buildBinding(cameraId: string, trajectoryId: string, duration: number): Scene3DTrajectoryBinding {
+function buildBinding(
+  cameraId: string,
+  trajectoryId: string,
+  duration: number,
+  fovRamp: { fovFrom: number; fovTo: number } | null,
+): Scene3DTrajectoryBinding {
   return {
     id: createScene3DTrajectoryBindingId(),
     trajectoryId,
@@ -181,6 +200,7 @@ function buildBinding(cameraId: string, trajectoryId: string, duration: number):
     startTime: 0,
     endTime: duration,
     direction: 'forward',
+    ...(fovRamp ? { fovFrom: fovRamp.fovFrom, fovTo: fovRamp.fovTo } : {}),
   }
 }
 
@@ -194,7 +214,7 @@ export function buildCameraMoveScene(spec: CameraMoveSpec): Scene3DState {
   const points = cameraPathPoints(spec.move, framing.distance, EYE_Y)
   const trajectory = buildTrajectory(spec.move, points)
   const camera = buildCamera(shot, points[0])
-  const binding = buildBinding(camera.id, trajectory.id, duration)
+  const binding = buildBinding(camera.id, trajectory.id, duration, zoomFovRamp(spec.move, framing.fov, 1))
   const env = ENV_PRESET.studio
 
   return {

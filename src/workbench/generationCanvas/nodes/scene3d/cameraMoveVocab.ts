@@ -8,7 +8,7 @@ import { SHOT_FRAMING, type StagingShot } from './stagingVocab'
 export { SHOT_FRAMING }
 export type { StagingShot }
 
-// 运镜类型 = 10 个常用电影运镜。
+// 运镜类型 = 13 个常用电影运镜（10 个机位运动 + 3 个 FOV 参与动画的变焦族）。
 export type CameraMove =
   | 'orbit_left'
   | 'orbit_right'
@@ -20,6 +20,9 @@ export type CameraMove =
   | 'track_right'
   | 'arc_left'
   | 'arc_right'
+  | 'zoom_in'
+  | 'zoom_out'
+  | 'dolly_zoom'
 
 export const CAMERA_MOVES: CameraMove[] = [
   'orbit_left',
@@ -32,7 +35,13 @@ export const CAMERA_MOVES: CameraMove[] = [
   'track_right',
   'arc_left',
   'arc_right',
+  'zoom_in',
+  'zoom_out',
+  'dolly_zoom',
 ]
+
+// 变焦族（FOV 随段进度渐变，binding.fovFrom/fovTo）。
+export const ZOOM_MOVES = new Set<CameraMove>(['zoom_in', 'zoom_out', 'dolly_zoom'])
 
 // 运镜速度 → 时长（秒），落在 Seedance 3-8s 甜区内。
 export type CameraSpeed = 'slow' | 'medium' | 'fast'
@@ -50,6 +59,9 @@ export const CAMERA_MOVE_LABEL: Record<CameraMove, string> = {
   track_right: '右横移跟拍',
   arc_left: '左弧线',
   arc_right: '右弧线',
+  zoom_in: '变焦推',
+  zoom_out: '变焦拉',
+  dolly_zoom: '希区柯克变焦',
 }
 
 // 运镜专属景别（distance/fov）——**不复用站位的 SHOT_FRAMING**（那套为「主体占画面」收紧，
@@ -77,4 +89,7 @@ export const CAMERA_MOVE_DESC: Record<CameraMove, string> = {
   track_right: '相机在主体前方向右横移跟拍（平移），保持距离不变。',
   arc_left: '相机绕主体逆时针小角度弧线（约 90°），轻微换视角。',
   arc_right: '相机绕主体顺时针小角度弧线（约 90°），轻微换视角。',
+  zoom_in: '机位不动，镜头变焦推近（FOV 收窄），画面放大、空间压缩感。',
+  zoom_out: '机位不动，镜头变焦拉远（FOV 放宽），画面变广、揭示环境。',
+  dolly_zoom: '希区柯克变焦：机位后拉同时变焦推近，主体大小不变、背景被抽离拉伸（眩晕感）。',
 }

@@ -183,11 +183,12 @@ export const cameraMoveParamsSchema = z.object({
     .enum([
       "orbit_left", "orbit_right", "push_in", "pull_out", "crane_up", "crane_down",
       "track_left", "track_right", "arc_left", "arc_right",
+      "zoom_in", "zoom_out", "dolly_zoom",
     ])
     .optional()
     .describe(
-      "The single dominant camera move for this shot. orbit_left/right = camera circles the subject (~300°); push_in/pull_out = dolly toward/away; crane_up/down = boom up/down; track_left/right = lateral tracking; arc_left/right = short arc (~90°). " +
-        "Use ONE of these enum values ONLY when the intended move IS one of them (renders a precise 3D reference). If the move is NOT in this set (e.g. dolly-zoom/vertigo, whip-pan, handheld follow, a compound/sequenced move, or 'match this reference video'), DO NOT force a wrong enum — leave move empty and use customMove instead.",
+      "The single dominant camera move for this shot. orbit_left/right = camera circles the subject (~300°); push_in/pull_out = dolly toward/away; crane_up/down = boom up/down; track_left/right = lateral tracking; arc_left/right = short arc (~90°); zoom_in/zoom_out = lens zoom with the camera static (FOV ramp); dolly_zoom = Hitchcock/vertigo effect (camera pulls back while zooming in, subject size constant, background stretches away). " +
+        "Use ONE of these enum values ONLY when the intended move IS one of them (renders a precise 3D reference). If the move is NOT in this set (e.g. whip-pan, handheld follow, a compound/sequenced move, or 'match this reference video'), DO NOT force a wrong enum — leave move empty and use customMove instead.",
     ),
   // 词表外逃生口（运镜）：enum 是精确首选(确定性渲 3D 参考)，但意图不在 enum 里时
   // 不要硬塞最近的词——填自由文本，执行器不渲小片、把它当运镜指令追加进目标视频 prompt。
@@ -195,7 +196,7 @@ export const cameraMoveParamsSchema = z.object({
     .string()
     .optional()
     .describe(
-      "Natural-language camera-move description for moves OUTSIDE the enum (dolly-zoom/vertigo, whip pan, handheld follow, a compound/sequenced move like 'push in then whip to the window', or 'match this reference video's camerawork'). The tool will NOT 3D-render this — it injects it as a cinematography directive into the shot's video prompt (less precise than the rendered reference; the honest fallback). Use proper film terms. Set move OR customMove, never both for the same intent.",
+      "Natural-language camera-move description for moves OUTSIDE the enum (whip pan, handheld follow, a compound/sequenced move like 'push in then whip to the window', or 'match this reference video's camerawork'). The tool will NOT 3D-render this — it injects it as a cinematography directive into the shot's video prompt (less precise than the rendered reference; the honest fallback). Use proper film terms. Set move OR customMove, never both for the same intent.",
     ),
   speed: z
     .enum(["slow", "medium", "fast"])
