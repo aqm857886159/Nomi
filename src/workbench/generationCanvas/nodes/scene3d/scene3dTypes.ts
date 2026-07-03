@@ -5,7 +5,7 @@ export type Scene3DControlMode = 'edit' | 'fly'
 export type Scene3DObjectType = 'mesh' | 'model' | 'light' | 'group' | 'mannequin' | 'mannequinCrowd'
 export type Scene3DGeometry = 'box' | 'sphere' | 'cylinder' | 'plane'
 export type Scene3DLightType = 'point' | 'directional' | 'spot'
-export type Scene3DAspectRatio = '16:9' | '9:16' | '4:3' | '3:4' | '1:1'
+export type Scene3DAspectRatio = '16:9' | '9:16' | '4:3' | '3:4' | '1:1' | '2.39:1'
 export type Scene3DTrajectoryDirection = 'forward' | 'reverse'
 
 export type Scene3DObject = {
@@ -171,6 +171,7 @@ export const SCENE3D_ASPECT_RATIOS: Record<Scene3DAspectRatio, number> = {
   '4:3': 4 / 3,
   '3:4': 3 / 4,
   '1:1': 1,
+  '2.39:1': 2.39, // 宽银幕 cinemascope；下游尺寸(截图/运镜小片)全按比值派生，无需特判
 }
 
 export const SCENE3D_ASPECT_OPTIONS = Object.keys(SCENE3D_ASPECT_RATIOS) as Scene3DAspectRatio[]

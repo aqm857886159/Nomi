@@ -59,4 +59,34 @@ describe('normalizeScene3DState', () => {
     const state = normalizeScene3DState({ objects: [{ id: 'm1', type: 'mannequin' }] })
     expect(state.objects[0].poseTrack).toBeUndefined()
   })
+
+  it('相机新字段往返：2.39:1 画幅、fov 下限 6、手持抖动（0 不落字段）', () => {
+    const state = normalizeScene3DState({
+      cameras: [
+        { id: 'c1', aspectRatio: '2.39:1', fov: 7, shakeAmplitude: 55 },
+        { id: 'c2', aspectRatio: 'bogus', fov: 3, shakeAmplitude: 0 },
+      ],
+    })
+    expect(state.cameras[0].aspectRatio).toBe('2.39:1')
+    expect(state.cameras[0].fov).toBe(7)
+    expect(state.cameras[0].shakeAmplitude).toBe(55)
+    expect(state.cameras[1].aspectRatio).toBe('16:9')
+    expect(state.cameras[1].fov).toBe(6)
+    expect(state.cameras[1].shakeAmplitude).toBeUndefined()
+  })
+
+  it('binding 的 fov 渐变端点往返 + clamp；缺省不落字段（老数据零迁移）', () => {
+    const state = normalizeScene3DState({
+      trajectories: [{ id: 't1', points: [{ id: 'p1', position: [0, 0, 0] }, { id: 'p2', position: [1, 0, 0] }] }],
+      cameras: [{ id: 'c1' }],
+      trajectoryBindings: [
+        { id: 'b1', trajectoryId: 't1', objects: [{ objectId: 'c1' }], startTime: 0, endTime: 5, fovFrom: 40, fovTo: 200 },
+        { id: 'b2', trajectoryId: 't1', objects: [{ objectId: 'c1' }], startTime: 5, endTime: 8 },
+      ],
+    })
+    expect(state.trajectoryBindings[0].fovFrom).toBe(40)
+    expect(state.trajectoryBindings[0].fovTo).toBe(120)
+    expect(state.trajectoryBindings[1].fovFrom).toBeUndefined()
+    expect(state.trajectoryBindings[1].fovTo).toBeUndefined()
+  })
 })

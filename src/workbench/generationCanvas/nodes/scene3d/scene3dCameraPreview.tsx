@@ -235,7 +235,7 @@ export function CameraPreview({
               </Canvas>
             </div>
           </div>
-          <div className="mt-2 grid grid-cols-5 gap-1">
+          <div className="mt-2 grid grid-cols-6 gap-1">
             {SCENE3D_ASPECT_OPTIONS.map((option) => (
               <button
                 key={option}

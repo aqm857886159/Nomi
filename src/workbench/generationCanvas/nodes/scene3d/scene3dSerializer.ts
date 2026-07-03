@@ -1,26 +1,28 @@
-import type {
-  Scene3DAspectRatio,
-  Scene3DCamera,
-  Scene3DControlMode,
-  Scene3DEnvironmentMode,
-  Scene3DGeometry,
-  Scene3DLightType,
-  Scene3DObject,
-  Scene3DPoseKeyframe,
-  Scene3DState,
-  Scene3DTrajectory,
-  Scene3DTrajectoryBinding,
-  Scene3DTrajectoryCurveControl,
-  Scene3DTrajectoryDirection,
-  Scene3DTrajectoryGroup,
-  Scene3DTrajectoryPoint,
-  Scene3DVector3,
+import {
+  SCENE3D_ASPECT_OPTIONS,
+  type Scene3DAspectRatio,
+  type Scene3DCamera,
+  type Scene3DControlMode,
+  type Scene3DEnvironmentMode,
+  type Scene3DGeometry,
+  type Scene3DLightType,
+  type Scene3DObject,
+  type Scene3DPoseKeyframe,
+  type Scene3DState,
+  type Scene3DTrajectory,
+  type Scene3DTrajectoryBinding,
+  type Scene3DTrajectoryCurveControl,
+  type Scene3DTrajectoryDirection,
+  type Scene3DTrajectoryGroup,
+  type Scene3DTrajectoryPoint,
+  type Scene3DVector3,
 } from './scene3dTypes'
 import { buildPoseTrack } from './scene3dPoseTrack'
 
 const GEOMETRIES = new Set<Scene3DGeometry>(['box', 'sphere', 'cylinder', 'plane'])
 const LIGHT_TYPES = new Set<Scene3DLightType>(['point', 'directional', 'spot'])
-const ASPECT_RATIOS = new Set<Scene3DAspectRatio>(['16:9', '9:16', '4:3', '3:4', '1:1'])
+// 从比值表派生，不再手写第二份清单（新增画幅只改 SCENE3D_ASPECT_RATIOS 一处）。
+const ASPECT_RATIOS = new Set<Scene3DAspectRatio>(SCENE3D_ASPECT_OPTIONS)
 const CONTROL_MODES = new Set<Scene3DControlMode>(['edit', 'fly'])
 const ENVIRONMENT_MODES = new Set<Scene3DEnvironmentMode>(['panorama', 'sphere'])
 const TRAJECTORY_DIRECTIONS = new Set<Scene3DTrajectoryDirection>(['forward', 'reverse'])
