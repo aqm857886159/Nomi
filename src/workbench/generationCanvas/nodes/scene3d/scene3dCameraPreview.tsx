@@ -9,12 +9,11 @@ import type { Scene3DAspectRatio, Scene3DCamera, Scene3DObject, Scene3DState } f
 import { Scene3DEnvironmentLayer } from './scene3dEnvironment'
 import { attachWebGLContextRecovery } from './scene3dContextRecovery'
 import {
-  Scene3DMeshGeometry,
   ProceduralMannequin,
   Mannequin,
   ProceduralMannequinCrowd,
-  LightObject,
   MannequinAssetBoundary,
+  StaticObjectVisual,
 } from './scene3dObjects'
 import {
   cameraWithPlaybackPosition,
@@ -72,18 +71,8 @@ export function PreviewObjectView({
         </MannequinAssetBoundary>
       ) : object.type === 'mannequinCrowd' ? (
         <ProceduralMannequinCrowd object={object} roleStartIndex={roleStartIndex} />
-      ) : object.type === 'light' ? (
-        <LightObject object={object} />
       ) : (
-        <mesh>
-          <Scene3DMeshGeometry geometry={object.geometry} />
-          <meshStandardMaterial
-            color={object.color || '#808080'}
-            roughness={0.55}
-            metalness={0.04}
-            side={object.geometry === 'plane' ? THREE.DoubleSide : THREE.FrontSide}
-          />
-        </mesh>
+        <StaticObjectVisual object={object} />
       )}
     </group>
   )

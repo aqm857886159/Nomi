@@ -8,6 +8,7 @@ import {
   type Scene3DLightType,
   type Scene3DObject,
   type Scene3DPoseKeyframe,
+  type Scene3DPropKind,
   type Scene3DState,
   type Scene3DTrajectory,
   type Scene3DTrajectoryBinding,
@@ -20,6 +21,8 @@ import {
 import { buildPoseTrack } from './scene3dPoseTrack'
 
 const GEOMETRIES = new Set<Scene3DGeometry>(['box', 'sphere', 'cylinder', 'plane'])
+// 道具 kind 白名单（与 scene3dProps 的 spec 表同域；这里手列避免 serializer 拖进 React/three 依赖）。
+const PROP_KIND_SET = new Set<Scene3DPropKind>(['car', 'building', 'tree', 'streetlamp', 'wall'])
 const LIGHT_TYPES = new Set<Scene3DLightType>(['point', 'directional', 'spot'])
 // 从比值表派生，不再手写第二份清单（新增画幅只改 SCENE3D_ASPECT_RATIOS 一处）。
 const ASPECT_RATIOS = new Set<Scene3DAspectRatio>(SCENE3D_ASPECT_OPTIONS)
@@ -184,8 +187,10 @@ function normalizeObject(value: unknown, index: number): Scene3DObject | null {
   const raw = asRecord(value)
   const id = stringValue(raw.id, '')
   if (!id) return null
-  const type = raw.type === 'mannequin' || raw.type === 'mannequinCrowd' || raw.type === 'model' || raw.type === 'light' || raw.type === 'group'
-    ? raw.type
+  const rawPropKind = PROP_KIND_SET.has(raw.propKind as Scene3DPropKind) ? raw.propKind as Scene3DPropKind : undefined
+  // prop 但 kind 不认识 → 降级 mesh 盒（渲染器有得渲，不整对象丢弃）。
+  const type = raw.type === 'mannequin' || raw.type === 'mannequinCrowd' || raw.type === 'model' || raw.type === 'light' || raw.type === 'group' || (raw.type === 'prop' && rawPropKind)
+    ? raw.type as Scene3DObject['type']
     : 'mesh'
   const geometry = GEOMETRIES.has(raw.geometry as Scene3DGeometry) ? raw.geometry as Scene3DGeometry : 'box'
   const lightType = LIGHT_TYPES.has(raw.lightType as Scene3DLightType) ? raw.lightType as Scene3DLightType : 'point'
@@ -194,12 +199,14 @@ function normalizeObject(value: unknown, index: number): Scene3DObject | null {
     name: stringValue(raw.name, `${type === 'light' ? '灯光' : '对象'}${index + 1}`),
     type,
     visible: raw.visible !== false,
+    // prop 的 origin 在地面中心 → 默认落 y=0 贴地。
     position: finiteVector(raw.position, [0, type === 'mesh' ? 0.5 : (type === 'mannequin' || type === 'mannequinCrowd') ? MANNEQUIN_DEFAULT_SCALE[1] * 0.5 : 0, 0]),
     rotation: finiteVector(raw.rotation, [0, 0, 0]),
     scale: finiteVector(raw.scale, (type === 'mannequin' || type === 'mannequinCrowd') ? MANNEQUIN_DEFAULT_SCALE : [1, 1, 1]),
     parentId: typeof raw.parentId === 'string' ? raw.parentId : undefined,
     color: colorValue(raw.color, '#808080'),
     geometry,
+    propKind: type === 'prop' ? rawPropKind : undefined,
     modelUrl: typeof raw.modelUrl === 'string' ? raw.modelUrl : undefined,
     lightType,
     lightColor: colorValue(raw.lightColor, '#ffffff'),

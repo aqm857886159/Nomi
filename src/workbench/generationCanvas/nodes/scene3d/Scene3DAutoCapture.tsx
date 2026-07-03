@@ -4,7 +4,7 @@
 import React, { Suspense } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { Mannequin, MannequinCrowd, MannequinAssetBoundary, ProceduralMannequin } from './scene3dObjects'
+import { Mannequin, MannequinCrowd, MannequinAssetBoundary, ProceduralMannequin, StaticObjectVisual } from './scene3dObjects'
 import { captureScene, applySceneCameraPose, aspectDimensions } from './scene3dMath'
 import type { Scene3DState, Scene3DCaptureResult } from './scene3dTypes'
 import { Scene3DEnvironmentLayer } from './scene3dEnvironment'
@@ -32,7 +32,12 @@ function StagingObjects({ state }: { state: Scene3DState }): JSX.Element {
             </group>
           )
         }
-        return null
+        // 灯/道具/几何体也要进站位图（此前 null → 摆的场在定妆图里凭空消失）。
+        return (
+          <group key={object.id} position={object.position} rotation={object.rotation} scale={object.scale} visible={object.visible}>
+            <StaticObjectVisual object={object} />
+          </group>
+        )
       })}
     </>
   )

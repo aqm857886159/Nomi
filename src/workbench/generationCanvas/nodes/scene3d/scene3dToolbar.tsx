@@ -1,22 +1,38 @@
 import React from 'react'
 import {
   IconBox,
+  IconBuildingSkyscraper,
   IconBulb,
   IconCamera,
+  IconCar,
   IconChevronRight,
   IconChevronUp,
   IconCylinder,
+  IconLamp,
   IconMaximize,
   IconMinimize,
+  IconPackage,
   IconPlane,
   IconPlus,
   IconRoute,
   IconSphere,
+  IconTrees,
   IconUser,
+  IconWall,
+  type Icon,
 } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
-import { type Scene3DGeometry } from './scene3dTypes'
+import { type Scene3DGeometry, type Scene3DPropKind } from './scene3dTypes'
 import { CROWD_MAX_AXIS, type CrowdAddOptions } from './scene3dConstants'
+import { PROP_KINDS, propKindLabel } from './scene3dProps'
+
+const PROP_MENU_ICONS: Record<Scene3DPropKind, Icon> = {
+  car: IconCar,
+  building: IconBuildingSkyscraper,
+  tree: IconTrees,
+  streetlamp: IconLamp,
+  wall: IconWall,
+}
 
 export function PanelButton({
   children,
@@ -105,6 +121,7 @@ export function CanvasPanelRestoreButton({
 
 export function SceneAddToolbar({
   onAddObject,
+  onAddProp,
   onAddCrowd,
   onAddCamera,
   trajectoryMode,
@@ -113,6 +130,7 @@ export function SceneAddToolbar({
   onToggleCanvasFocusMode,
 }: {
   onAddObject: (kind: Scene3DGeometry | 'mannequin' | 'light') => void
+  onAddProp: (kind: Scene3DPropKind) => void
   onAddCrowd: (options: CrowdAddOptions) => void
   onAddCamera: () => void
   trajectoryMode: boolean
@@ -123,6 +141,7 @@ export function SceneAddToolbar({
   const containerRef = React.useRef<HTMLDivElement>(null)
   const [addMenuOpen, setAddMenuOpen] = React.useState(false)
   const [geometryOpen, setGeometryOpen] = React.useState(false)
+  const [propsOpen, setPropsOpen] = React.useState(false)
   const [characterOpen, setCharacterOpen] = React.useState(false)
   const [crowdPopoverOpen, setCrowdPopoverOpen] = React.useState(false)
   const [crowdRowsValue, setCrowdRowsValue] = React.useState(3)
@@ -138,6 +157,7 @@ export function SceneAddToolbar({
   const closeAddMenu = React.useCallback(() => {
     setAddMenuOpen(false)
     setGeometryOpen(false)
+    setPropsOpen(false)
     setCharacterOpen(false)
     setCrowdPopoverOpen(false)
   }, [])
@@ -201,11 +221,32 @@ export function SceneAddToolbar({
             onClick={() => {
               setCharacterOpen(false)
               setCrowdPopoverOpen(false)
+              setPropsOpen(false)
               setGeometryOpen((open) => !open)
             }}
           >
             <IconBox size={15} />
             <span className="min-w-0 flex-1">几何模型</span>
+            <IconChevronRight size={14} />
+          </button>
+          <button
+            className={cn(
+              'inline-flex h-8 w-full items-center justify-start gap-2 rounded-nomi px-2',
+              'border-0 bg-transparent text-left text-caption text-[var(--nomi-ink-60)] transition',
+              'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+              propsOpen && 'bg-[var(--nomi-ink-05)] text-[var(--nomi-ink)]',
+            )}
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setGeometryOpen(false)
+              setCharacterOpen(false)
+              setCrowdPopoverOpen(false)
+              setPropsOpen((open) => !open)
+            }}
+          >
+            <IconPackage size={15} />
+            <span className="min-w-0 flex-1">道具</span>
             <IconChevronRight size={14} />
           </button>
           <button
@@ -219,6 +260,7 @@ export function SceneAddToolbar({
             role="menuitem"
             onClick={() => {
               setGeometryOpen(false)
+              setPropsOpen(false)
               if (characterOpen) setCrowdPopoverOpen(false)
               setCharacterOpen((open) => !open)
             }}
@@ -237,6 +279,7 @@ export function SceneAddToolbar({
             role="menuitem"
             onClick={() => {
               setGeometryOpen(false)
+              setPropsOpen(false)
               setCharacterOpen(false)
               setCrowdPopoverOpen(false)
               onAddObject('light')
@@ -256,6 +299,7 @@ export function SceneAddToolbar({
             role="menuitem"
             onClick={() => {
               setGeometryOpen(false)
+              setPropsOpen(false)
               setCharacterOpen(false)
               setCrowdPopoverOpen(false)
               onAddCamera()
@@ -292,6 +336,39 @@ export function SceneAddToolbar({
               >
                 <Icon size={15} />
                 <span>{item.label}</span>
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+      {addMenuOpen && propsOpen ? (
+        <div
+          className={cn(
+            'absolute bottom-[calc(100%+8px)] left-[164px] z-[6] grid w-[168px] gap-1 p-[6px]',
+            'rounded-nomi border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
+          )}
+          role="menu"
+          aria-label="添加道具"
+        >
+          {PROP_KINDS.map((kind) => {
+            const Icon = PROP_MENU_ICONS[kind]
+            return (
+              <button
+                key={kind}
+                className={cn(
+                  'inline-flex h-8 w-full items-center justify-start gap-2 rounded-nomi px-2',
+                  'border-0 bg-transparent text-left text-caption text-[var(--nomi-ink-60)] transition',
+                  'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+                )}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onAddProp(kind)
+                  closeAddMenu()
+                }}
+              >
+                <Icon size={15} />
+                <span>{propKindLabel(kind)}</span>
               </button>
             )
           })}

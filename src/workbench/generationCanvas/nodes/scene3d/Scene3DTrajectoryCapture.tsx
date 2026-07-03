@@ -7,7 +7,7 @@
 import React, { Suspense } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { Mannequin, MannequinCrowd, MannequinAssetBoundary, ProceduralMannequin } from './scene3dObjects'
+import { Mannequin, MannequinCrowd, MannequinAssetBoundary, ProceduralMannequin, StaticObjectVisual } from './scene3dObjects'
 import type { MannequinLocomotionDriver } from './scene3dMannequinLocomotion'
 import { captureScene, applySceneCameraPose, aspectDimensions, capCameraMoveDimensions, applyMannequinSkeletonPose, applyMannequinArmDownPose, resetMannequinSkeletonToRest, groundMannequinModel } from './scene3dMath'
 import { cameraWithPlaybackPosition, objectWithPlaybackPose } from './scene3dPlayback'
@@ -54,7 +54,8 @@ function TrajectoryObjects({
           )
           : object.type === 'mannequinCrowd'
             ? <MannequinCrowd object={object} roleStartIndex={roleStart} />
-            : null
+            // 灯/道具/几何体也要进运镜小片（此前 null → 用户摆的场在 mp4 里凭空消失）。
+            : <StaticObjectVisual object={object} />
         if (object.type === 'mannequin') roleStart += 1
         return (
           <group key={object.id} position={object.position} rotation={object.rotation} scale={object.scale}>

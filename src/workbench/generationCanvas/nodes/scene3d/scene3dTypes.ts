@@ -2,7 +2,9 @@ export type Scene3DVector3 = [number, number, number]
 
 export type Scene3DTransformMode = 'translate' | 'rotate' | 'scale'
 export type Scene3DControlMode = 'edit' | 'fly'
-export type Scene3DObjectType = 'mesh' | 'model' | 'light' | 'group' | 'mannequin' | 'mannequinCrowd'
+export type Scene3DObjectType = 'mesh' | 'model' | 'light' | 'group' | 'mannequin' | 'mannequinCrowd' | 'prop'
+// 语义道具（灰模摆场件）。spec 数据在 scene3dProps.tsx，新增 kind 只加一条 spec。
+export type Scene3DPropKind = 'car' | 'building' | 'tree' | 'streetlamp' | 'wall'
 export type Scene3DGeometry = 'box' | 'sphere' | 'cylinder' | 'plane'
 export type Scene3DLightType = 'point' | 'directional' | 'spot'
 export type Scene3DAspectRatio = '16:9' | '9:16' | '4:3' | '3:4' | '1:1' | '2.39:1'
@@ -19,6 +21,8 @@ export type Scene3DObject = {
   parentId?: string
   color?: string
   geometry?: Scene3DGeometry
+  // type='prop' 时的道具种类（车/建筑/树/路灯/墙）；origin 在地面中心（y=0 即贴地）。
+  propKind?: Scene3DPropKind
   modelUrl?: string
   lightType?: Scene3DLightType
   lightColor?: string

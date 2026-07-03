@@ -8,6 +8,7 @@ import type {
   Scene3DObject,
   Scene3DVector3,
 } from './scene3dTypes'
+import { PropObject, propGroundFootprint } from './scene3dProps'
 import {
   CAMERA_HELPER_FLAG,
   OBJECT_GROUND_GUIDE_ELEVATION,
@@ -349,6 +350,25 @@ export function LightObject({ object }: { object: Scene3DObject }): JSX.Element 
   return <pointLight color={color} intensity={intensity} distance={12} />
 }
 
+// 非假人静态对象（灯/道具/几何）的统一内容渲染。四个渲染点（编辑器主视图之外的
+// 相机预览 / 运镜离屏采帧 / 站位离屏截图）共用这一份——此前离屏两处只渲假人，
+// 几何体和灯在运镜小片/站位图里凭空消失（根因：各写各的渲染分支漏了 else）。
+export function StaticObjectVisual({ object }: { object: Scene3DObject }): JSX.Element {
+  if (object.type === 'light') return <LightObject object={object} />
+  if (object.type === 'prop') return <PropObject object={object} />
+  return (
+    <mesh>
+      <Scene3DMeshGeometry geometry={object.geometry} />
+      <meshStandardMaterial
+        color={object.color || '#808080'}
+        roughness={0.55}
+        metalness={0.04}
+        side={object.geometry === 'plane' ? THREE.DoubleSide : THREE.FrontSide}
+      />
+    </mesh>
+  )
+}
+
 export function mannequinLabelHeight(object: Scene3DObject): number {
   return Math.max(0.8, Math.abs(object.scale[1] || 1) * MANNEQUIN_LABEL_BASE_HEIGHT)
 }
@@ -440,6 +460,10 @@ export function objectGroundFootprint(object: Scene3DObject): { width: number; d
     }
   }
   if (object.type === 'mannequin') return { width: 0.78 * scaleX, depth: 0.54 * scaleZ }
+  if (object.type === 'prop' && object.propKind) {
+    const footprint = propGroundFootprint(object.propKind)
+    return { width: footprint.width * scaleX, depth: footprint.depth * scaleZ }
+  }
   if (object.type === 'model' || object.type === 'group') return { width: 1 * scaleX, depth: 1 * scaleZ }
   if (object.geometry === 'sphere') return { width: 1.1 * scaleX, depth: 1.1 * scaleZ }
   if (object.geometry === 'cylinder') return { width: 0.92 * scaleX, depth: 0.92 * scaleZ }
@@ -450,6 +474,7 @@ export function objectGroundFootprint(object: Scene3DObject): { width: number; d
 export function objectVisualHalfHeight(object: Scene3DObject, scale: Scene3DVector3 = object.scale): number {
   const scaleY = Math.max(0.08, Math.abs(scale[1] || 1))
   if (object.type === 'light') return 0.12 * scaleY
+  if (object.type === 'prop') return 0 // origin 在地面中心：绑轨迹/落地时底面直接贴着走
   if (object.type === 'mannequin' || object.type === 'mannequinCrowd') return 0.5 * scaleY
   if (object.geometry === 'sphere') return 0.55 * scaleY
   if (object.geometry === 'cylinder') return 0.55 * scaleY

@@ -9,6 +9,7 @@ import {
   type Scene3DCaptureResult,
   type Scene3DGeometry,
   type Scene3DObject,
+  type Scene3DPropKind,
   type Scene3DSelection,
   type Scene3DState,
   type Scene3DTransformMode,
@@ -32,6 +33,7 @@ import { setScene3DPlayheadSeconds, trajectoryPointTimeRatio } from './trajector
 import { applyCameraMovePreset, type CameraMovePresetSpec } from './cameraMovePreset'
 import { CAMERA_MOVE_LABEL } from './cameraMoveVocab'
 import { cameraWithPlaybackPosition } from './scene3dPlayback'
+import { makePropObject } from './scene3dProps'
 
 export type Scene3DClipboardItem =
   | { type: 'object'; item: Scene3DObject; pasteCount: number }
@@ -376,9 +378,25 @@ export function useScene3DAddActions({
   exitTrajectoryMode: () => void
 }): {
   addObject: (kind: Scene3DGeometry | 'mannequin' | 'light') => void
+  addProp: (kind: Scene3DPropKind) => void
   addCamera: () => void
   addCrowd: (options: CrowdAddOptions) => void
 } {
+  // 语义道具：与 addObject 同结构（限流 + 避让摆位 + 选中），kind 走 spec 表。
+  const addProp = React.useCallback((kind: Scene3DPropKind) => {
+    if (readOnly) return
+    if (stateRef.current.objects.length >= OBJECT_LIMIT) {
+      toast('单个 3D 场景最多支持 100 个对象', 'warning')
+      return
+    }
+    const object = makePropObject(kind)
+    object.position = nextAvailableObjectPosition(object, stateRef.current.objects)
+    setState((current) => ({ ...current, objects: [...current.objects, object] }))
+    setSelection({ type: 'object', id: object.id })
+    exitTrajectoryMode()
+    setViewLocked(false)
+  }, [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked, stateRef])
+
   const addObject = React.useCallback((kind: Scene3DGeometry | 'mannequin' | 'light') => {
     if (readOnly) return
     if (stateRef.current.objects.length >= OBJECT_LIMIT) {
@@ -425,7 +443,7 @@ export function useScene3DAddActions({
     setViewLocked(false)
   }, [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked, stateRef])
 
-  return { addObject, addCamera, addCrowd }
+  return { addObject, addProp, addCamera, addCrowd }
 }
 
 // 运镜首尾帧导出：把播放头钉到该相机全部运镜段的整体起点/终点，各截一张相机图（复用相机

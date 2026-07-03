@@ -25,7 +25,6 @@ import {
 import { SCENE3D_ASPECT_RATIOS } from './scene3dTypes'
 import type { Scene3DCamera, Scene3DObject, Scene3DVector3, Scene3DTransformMode } from './scene3dTypes'
 import {
-  Scene3DMeshGeometry,
   ProceduralMannequin,
   Mannequin,
   MannequinCrowd,
@@ -34,6 +33,7 @@ import {
   MannequinRoleLabel,
   MannequinFootRings,
   MannequinAssetBoundary,
+  StaticObjectVisual,
   objectGroundFootprint,
   objectVisualHalfHeight,
   objectTransformAnchorPosition,
@@ -284,15 +284,7 @@ export function SceneObjectView({
           </mesh>
         </>
       ) : (
-        <mesh>
-          <Scene3DMeshGeometry geometry={object.geometry} />
-          <meshStandardMaterial
-            color={object.color || '#808080'}
-            roughness={0.55}
-            metalness={0.04}
-            side={object.geometry === 'plane' ? THREE.DoubleSide : THREE.FrontSide}
-          />
-        </mesh>
+        <StaticObjectVisual object={object} />
       )}
       {object.type === 'mannequinCrowd' ? (
         <mesh>

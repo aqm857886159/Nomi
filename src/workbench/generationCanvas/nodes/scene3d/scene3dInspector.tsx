@@ -544,7 +544,7 @@ export function PropertyPanel({
               ))}
             </div>
           ) : null}
-          {(selectedObject.type === 'mesh' || selectedObject.type === 'mannequin') ? (
+          {(selectedObject.type === 'mesh' || selectedObject.type === 'mannequin' || selectedObject.type === 'prop') ? (
             <ColorField
               label="颜色"
               value={selectedObject.color || '#808080'}
