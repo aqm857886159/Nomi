@@ -162,7 +162,8 @@ export function readWorkspaceManifest(rootPath: string): WorkspaceProjectRecordV
       readProjectJsonFileWithEmbeddedMediaSlimming(rootPath, filePath),
     );
   } catch (error) {
-    console.warn(`[workspace] failed to read workspace manifest: ${rootPath}`, error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[workspace] failed to read workspace manifest: ${rootPath} (${message})`);
     return null;
   }
 }
