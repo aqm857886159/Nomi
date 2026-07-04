@@ -135,6 +135,36 @@ describe("workspace repository", () => {
     expect(resolveWorkspaceProjectDir(created.id, repoDeps)).toBeNull();
   });
 
+  it("keeps readable projects available when one workspace manifest is broken", () => {
+    const brokenRoot = makeTempDir();
+    const healthyRoot = makeTempDir();
+    const repoDeps = deps();
+    const broken = createWorkspaceProject(
+      { rootPath: brokenRoot, record: { name: "Broken Manifest", payload: {} } },
+      repoDeps,
+    );
+    const healthy = createWorkspaceProject(
+      { rootPath: healthyRoot, record: { name: "Healthy", payload: { script: "ok" } } },
+      repoDeps,
+    );
+    fs.writeFileSync(workspaceProjectFile(brokenRoot), "{bad json");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    const projects = listWorkspaceProjects(repoDeps);
+
+    expect(projects.find((project) => project.id === healthy.id)).toMatchObject({
+      id: healthy.id,
+      missing: false,
+    });
+    expect(projects.find((project) => project.id === broken.id)).toMatchObject({
+      id: broken.id,
+      missing: true,
+    });
+    expect(readWorkspaceProject(healthy.id, repoDeps)).toMatchObject({ id: healthy.id });
+    expect(readWorkspaceProject(broken.id, repoDeps)).toBeNull();
+    warnSpy.mockRestore();
+  });
+
   it("returns null for stale registry entries whose manifest id does not match", () => {
     const staleRoot = makeTempDir();
     const actualRoot = makeTempDir();

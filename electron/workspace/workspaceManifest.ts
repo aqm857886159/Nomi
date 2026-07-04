@@ -152,13 +152,19 @@ export function readProjectJsonTopLevelFields(
 }
 
 export function readWorkspaceManifest(rootPath: string): WorkspaceProjectRecordV2 | null {
-  const filePath = workspaceProjectFile(rootPath);
-  if (!fs.existsSync(filePath)) {
+  let filePath: string;
+  try {
+    filePath = workspaceProjectFile(rootPath);
+    if (!fs.existsSync(filePath)) {
+      return null;
+    }
+    return normalizeWorkspaceProjectRecord(
+      readProjectJsonFileWithEmbeddedMediaSlimming(rootPath, filePath),
+    );
+  } catch (error) {
+    console.warn(`[workspace] failed to read workspace manifest: ${rootPath}`, error);
     return null;
   }
-  return normalizeWorkspaceProjectRecord(
-    readProjectJsonFileWithEmbeddedMediaSlimming(rootPath, filePath),
-  );
 }
 
 export function readWorkspaceManifestSummary(
