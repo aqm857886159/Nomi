@@ -19,7 +19,6 @@ import {
   type Scene3DVector3,
 } from './scene3dTypes'
 import { buildPoseTrack } from './scene3dPoseTrack'
-import { cameraAimBindingId } from './scene3dBindingIds'
 
 const GEOMETRIES = new Set<Scene3DGeometry>(['box', 'sphere', 'cylinder', 'plane'])
 // 道具 kind 白名单（与 scene3dProps 的 spec 表同域；这里手列避免 serializer 拖进 React/three 依赖）。
@@ -241,9 +240,6 @@ function normalizeCamera(value: unknown, index: number): Scene3DCamera | null {
     lensDepth: Math.min(100, Math.max(-100, finiteNumber(raw.lensDepth, 0))),
     near: Math.max(0.01, finiteNumber(raw.near, 0.1)),
     far: Math.max(1, finiteNumber(raw.far, 200)),
-    // 相机运镜 take 的「瞄准轨迹」标志：原样保留，是否指向真实轨迹在下方 normalizeScene3DState
-    // 统一校验（与 followTargetId 同批处理——那时 trajectoryIds 才算出）。缺省不落字段。
-    ...(stringValue(raw.aimTrajectoryId, '') ? { aimTrajectoryId: stringValue(raw.aimTrajectoryId, '') } : {}),
     // 手持抖动 0-100；0/缺省不落字段（老快照字节不变）。
     ...(finiteNumber(raw.shakeAmplitude, 0) > 0
       ? { shakeAmplitude: Math.min(100, Math.max(0, finiteNumber(raw.shakeAmplitude, 0))) }
@@ -382,18 +378,13 @@ export function normalizeScene3DState(value: unknown): Scene3DState {
     : []
   const trajectoryIds = new Set(trajectories.map((trajectory) => trajectory.id))
   const objectIds = new Set(objects.map((object) => object.id))
-  // followTargetId 指向已删物体、aimTrajectoryId 指向已删轨迹 → 清掉（悬空引用不留）。
-  const camerasWithValidRefs = cameras.map((camera) => {
-    let next = camera
-    if (camera.followTargetId && !objectIds.has(camera.followTargetId)) next = { ...next, followTargetId: undefined }
-    if (camera.aimTrajectoryId && !trajectoryIds.has(camera.aimTrajectoryId)) next = { ...next, aimTrajectoryId: undefined }
-    return next
-  })
-  const cameraIdList = camerasWithValidRefs.map((camera) => camera.id)
-  const cameraIds = new Set(cameraIdList)
-  // 相机运镜 take 的 aim 绑定用合成 objectId `${camId}:aim`（非真实节点）——把它们一并列入
-  // 可绑 id，否则 normalizeTrajectoryBinding 会把 aim 绑定的对象过滤空，回放时相机朝向退化到静态 target。
-  const bindableNodeIds = new Set([...objectIds, ...cameraIds, ...cameraIdList.map((id) => cameraAimBindingId(id))])
+  const camerasWithValidFollowTargets = cameras.map((camera) => (
+    camera.followTargetId && !objectIds.has(camera.followTargetId)
+      ? { ...camera, followTargetId: undefined }
+      : camera
+  ))
+  const cameraIds = new Set(camerasWithValidFollowTargets.map((camera) => camera.id))
+  const bindableNodeIds = new Set([...objectIds, ...cameraIds])
   const normalizedTrajectoryBindings = Array.isArray(raw.trajectoryBindings)
     ? raw.trajectoryBindings.flatMap((item) => {
       const binding = normalizeTrajectoryBinding(item, trajectoryIds, bindableNodeIds)
@@ -420,7 +411,7 @@ export function normalizeScene3DState(value: unknown): Scene3DState {
 
   return {
     objects,
-    cameras: camerasWithValidRefs,
+    cameras: camerasWithValidFollowTargets,
     trajectories,
     trajectoryBindings,
     trajectoryGroups,

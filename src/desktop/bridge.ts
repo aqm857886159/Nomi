@@ -294,6 +294,8 @@ export type DesktopBridge = {
   }
   modelCatalog: {
     listVendors: () => unknown[]
+    /** Read full detail of a vendor (name, baseUrl, providerKind, models, apiKey, extraHeaders). */
+    getVendorDetail: (vendorKey: string) => unknown
     listModels: (params?: unknown) => unknown[]
     listMappings: (params?: unknown) => unknown[]
     health: () => unknown
@@ -309,9 +311,6 @@ export type DesktopBridge = {
     importPackage: (payload: unknown) => unknown
     testMapping: (id: string, payload: unknown) => Promise<unknown>
     fetchDocs: (payload: unknown) => Promise<unknown>
-    probeComfyui: (baseUrl?: string) => Promise<
-      { ok: true; summary: string; version?: string } | { ok: false; error: string }
-    >
   }
   skill: {
     list: () => unknown[]

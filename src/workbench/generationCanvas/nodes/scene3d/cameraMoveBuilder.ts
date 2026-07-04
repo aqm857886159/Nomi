@@ -34,8 +34,6 @@ import {
   type StagingShot,
 } from './cameraMoveVocab'
 import { dollyZoomDistanceScale, zoomFovRamp } from './cameraMovePreset'
-import { buildPlacedProps, type ScenePropPlacement } from './scene3dPropSpecs'
-import { buildSceneTemplateObjects, type Scene3DSceneTemplate } from './scene3dSceneTemplates'
 import { ENV_PRESET } from './stagingVocab'
 
 const DEG = Math.PI / 180
@@ -49,10 +47,6 @@ export type CameraMoveSpec = {
   speed?: CameraSpeed
   shot?: StagingShot
   subjectPose?: string
-  // 灰模布景（走 UI/站位同一套 builder，P4 无并行版）：整套场景模板 + 单件道具，
-  // 让运镜小片的参考里带上环境/尺度（如「相机推近街上的人」）。相机仍绕主体运镜。
-  sceneTemplate?: Scene3DSceneTemplate
-  props?: ScenePropPlacement[]
 }
 
 // 各运镜的相机路径点（世界坐标位置）。相机靠静态 target 注视主体胸口，故只需定义位置。
@@ -222,13 +216,10 @@ export function buildCameraMoveScene(spec: CameraMoveSpec): Scene3DState {
   const camera = buildCamera(shot, points[0])
   const binding = buildBinding(camera.id, trajectory.id, duration, zoomFovRamp(spec.move, framing.fov, 1))
   const env = ENV_PRESET.studio
-  // 灰模布景铺主体下（backdrop）；相机仍绕原点主体运镜（路径按主体算，不受布景影响）。
-  const templateObjects = spec.sceneTemplate ? buildSceneTemplateObjects(spec.sceneTemplate) : []
-  const propObjects = buildPlacedProps(spec.props)
 
   return {
     ...base,
-    objects: [...templateObjects, ...propObjects, subject],
+    objects: [subject],
     cameras: [camera],
     trajectories: [trajectory],
     trajectoryBindings: [binding],

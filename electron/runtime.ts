@@ -16,7 +16,6 @@ import { runAudioTask } from "./audioTaskRunner";
 import { firstString, isJsonRecord, nowIso, trim, type JsonRecord } from "./jsonUtils";
 import { collectAssetUrls, firstMappedString, providerMetaFromResponse, taskStatusFromResponse, valuesFromMapping } from "./tasks/responseParsing";
 import { extractAssetUrl } from "./tasks/assetUrlExtract";
-import { applyResponseTransform } from "./tasks/responseTransforms";
 import { TtlLruCache } from "./tasks/taskCache";
 import { markTaskAdmitted } from "./tasks/taskAdmission";
 import { collectFilesRecursively, parseDataUrl } from "./assets/assetBytes";
@@ -463,7 +462,12 @@ export async function executeProfileOperation(input: {
   };
 }
 
-/** 归一上游响应成 TaskResult：命名响应变换（可选）→ 点路径 mapping（kie 等返 JSON 字符串已透明 parse）。 */
+/**
+ * If `value` is a string that looks like serialized JSON ({...} or [...]),
+ * parse it. Some providers (kie.ai) return nested results as JSON strings
+ * (e.g. `data.resultJson = "{\"resultUrls\":[...]}"`) and the mapping path
+ * `data.resultJson.resultUrls.0` only works if we transparently parse.
+ */
 export async function buildProfileTaskResult(input: {
   response: unknown;
   mapping: Mapping;
@@ -477,29 +481,27 @@ export async function buildProfileTaskResult(input: {
   vendor?: Vendor;
   model?: Model;
 }): Promise<{ result: TaskResult; providerMeta: JsonRecord }> {
-  // 命名响应变换（P4，如 ComfyUI /history 归一）：response_mapping 前对 raw response 应用一次；未声明→原样。
-  const response = applyResponseTransform(input.operation.response_transform, input.response, { baseUrl: String(input.vendor?.baseUrlHint || "") });
   const responseMapping = isJsonRecord(input.operation.response_mapping) ? input.operation.response_mapping : null;
   const providerMetaMapping = isJsonRecord(input.operation.provider_meta_mapping) ? input.operation.provider_meta_mapping : null;
-  const providerMeta = providerMetaFromResponse(response, providerMetaMapping);
+  const providerMeta = providerMetaFromResponse(input.response, providerMetaMapping);
   const taskId = firstString(
-    firstMappedString(response, responseMapping, "task_id"),
+    firstMappedString(input.response, responseMapping, "task_id"),
     providerMeta.task_id,
     providerMeta.query_id,
-    extractTaskIdShared(response),
+    extractTaskIdShared(input.response),
     input.taskIdFallback,
   );
   const mappedAssetValues = [
-    ...valuesFromMapping(response, responseMapping, "assets"),
-    ...valuesFromMapping(response, responseMapping, "image_url"),
-    ...valuesFromMapping(response, responseMapping, "video_url"),
-    ...valuesFromMapping(response, responseMapping, "model_url"),
+    ...valuesFromMapping(input.response, responseMapping, "assets"),
+    ...valuesFromMapping(input.response, responseMapping, "image_url"),
+    ...valuesFromMapping(input.response, responseMapping, "video_url"),
+    ...valuesFromMapping(input.response, responseMapping, "model_url"),
   ];
   const assetUrls = Array.from(new Set([
     ...mappedAssetValues.flatMap(collectAssetUrls),
-    ...collectAssetUrls(extractAssetUrl(response)),
+    ...collectAssetUrls(extractAssetUrl(input.response)),
   ]));
-  const status = taskStatusFromResponse(response, responseMapping, input.mapping.statusMapping, assetUrls);
+  const status = taskStatusFromResponse(input.response, responseMapping, input.mapping.statusMapping, assetUrls);
   const type: "image" | "video" | "model3d" = input.wantedKind === "video" ? "video" : input.wantedKind === "model3d" ? "model3d" : "image";
   const assets = input.projectId
     ? await Promise.all(assetUrls.map((url) => localizeTaskAsset(input.projectId || "", url, type, input.nodeId)))

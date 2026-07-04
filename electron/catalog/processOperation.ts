@@ -95,7 +95,8 @@ export async function executeProcessOperation(input: ProcessOperationInput): Pro
     // 现役 CLI（build 2026-06-18）非会员被拒时**静默失败**（exit=1、输出全空、不建任务记录），旧版会打印
     // "not maestro vip" 现在什么都不打印 → 不能甩 "exit=1"，按最可能原因给可执行指引（治「用不了」黑洞，P2）。
     if (ran.code !== 0 && !normalized.submitId && !normalized.genStatus) {
-      throw new Error(describeDreaminaFailure(ran.code, ran.stdout, ran.stderr));
+      const cliArgs = args.join(" ");
+      throw new Error(`${describeDreaminaFailure(ran.code, ran.stdout, ran.stderr)}\n[CLI 参数: dreamina ${cliArgs}]`);
     }
 
     // 本地下载文件导入项目素材 → nomi-local://；远端 URL 直接交给现有 buildProfileTaskResult 下载。

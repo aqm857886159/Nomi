@@ -213,6 +213,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   },
   modelCatalog: {
     listVendors: () => invokeSync("nomi:model-catalog:vendors:list"),
+    /** Read full vendor detail (name, baseUrl, providerKind, models, apiKey, extraHeaders). */
+    getVendorDetail: (vendorKey: string) => invokeSync("nomi:model-catalog:vendor:detail", vendorKey),
     listModels: (params?: unknown) => invokeSync("nomi:model-catalog:models:list", params),
     listMappings: (params?: unknown) => invokeSync("nomi:model-catalog:mappings:list", params),
     health: () => invokeSync("nomi:model-catalog:health"),
@@ -231,7 +233,6 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     importPackage: (payload: unknown) => invokeSync("nomi:model-catalog:import", payload),
     testMapping: (id: string, payload: unknown) => ipcRenderer.invoke("nomi:model-catalog:mapping:test", id, payload),
     fetchDocs: (payload: unknown) => ipcRenderer.invoke("nomi:model-catalog:docs:fetch", payload),
-    probeComfyui: (baseUrl?: string) => ipcRenderer.invoke("nomi:model-catalog:comfyui:probe", baseUrl),
   },
   skill: {
     list: () => invokeSync("nomi:skill:list"),

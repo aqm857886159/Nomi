@@ -107,32 +107,3 @@ export function makePropObject(kind: Scene3DPropKind): Scene3DObject {
     propKind: kind,
   }
 }
-
-// 语义道具摆位（AI 侧共享原语）：kind 必填，位置/朝向/缩放可选。站位工具与运镜工具共用同一份
-// （P4 一套能力两入口，无并行版）。position 省略 → 沿主体右侧(+X)铺开，不与原点主体堆叠。
-export type ScenePropPlacement = {
-  kind: Scene3DPropKind
-  position?: [number, number] // [x, z]，地面坐标
-  rotationY?: number // 度
-  scale?: number
-}
-
-const DEG_TO_RAD = Math.PI / 180
-
-export function buildPlacedProps(props: ScenePropPlacement[] | undefined): Scene3DObject[] {
-  if (!props || props.length === 0) return []
-  const known = props.filter((prop) => (prop.kind as string) in PROP_SPECS)
-  return known.map((prop, index) => {
-    const object = makePropObject(prop.kind)
-    const [x, z] = prop.position ?? [2.5 + index * 2.2, -0.5]
-    object.position = [x, 0, z]
-    if (typeof prop.rotationY === 'number' && Number.isFinite(prop.rotationY)) {
-      object.rotation = [0, prop.rotationY * DEG_TO_RAD, 0]
-    }
-    if (typeof prop.scale === 'number' && Number.isFinite(prop.scale) && prop.scale > 0) {
-      const s = Math.min(10, Math.max(0.1, prop.scale))
-      object.scale = [s, s, s]
-    }
-    return object
-  })
-}

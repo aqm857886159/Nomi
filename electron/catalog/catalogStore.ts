@@ -291,6 +291,38 @@ function filterByParams<T extends { vendorKey?: string; kind?: BillingModelKind;
   });
 }
 
+export function getVendorCatalogDetail(vendorKey: string): {
+  vendor: { key: string; name: string; baseUrlHint: string | null; providerKind: AiSdkProviderKind; meta?: unknown };
+  models: Array<{ modelKey: string; labelZh: string; kind: string }>;
+  hasApiKey: boolean;
+  apiKey: string;
+  extraHeaders: Record<string, string> | undefined;
+} | null {
+  const state = readCatalog();
+  const vendor = state.vendors.find((v) => v.key === vendorKey && v.enabled);
+  if (!vendor) return null;
+  const keyRec = state.apiKeysByVendor[vendorKey];
+  const apiKey = keyRec ? decryptApiKeyRecord(keyRec) : "";
+  const meta = (vendor.meta || {}) as JsonRecord;
+  const extraHeaders = meta.extraHeaders as Record<string, string> | undefined;
+  const models = state.models
+    .filter((m) => m.vendorKey === vendorKey && m.enabled)
+    .map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: m.kind }));
+  return {
+    vendor: {
+      key: vendor.key,
+      name: vendor.name,
+      baseUrlHint: vendor.baseUrlHint ?? null,
+      providerKind: vendor.providerKind || "openai-compatible",
+      meta: vendor.meta,
+    },
+    models,
+    hasApiKey: Boolean(keyRec?.apiKey && keyRec?.enabled !== false),
+    apiKey,
+    extraHeaders,
+  };
+}
+
 export function listModelCatalogVendors(): Vendor[] {
   return readCatalog().vendors;
 }

@@ -73,6 +73,12 @@ export function registerOnboardingIpc(): void {
   // path. No forced connectivity test (aligns with opencode; see test-connection).
   ipcMain.handle("nomi:onboarding:manual-commit", async (_event, payload: Record<string, unknown>) => {
     try {
+      const editVendorKey = payload?.editVendorKey ? String(payload.editVendorKey) : null;
+      // Edit mode: delete old vendor first so a BaseURL change creates a clean new entry.
+      if (editVendorKey) {
+        const { deleteModelCatalogVendor } = await import("../../catalog/catalogStore");
+        deleteModelCatalogVendor(editVendorKey);
+      }
       // R1：走唯一 normalizeProviderKind（接受 openai-responses），不再 2 值 clamp。
       const providerKind = normalizeProviderKind(payload?.providerKind);
       const { commitManualOpenAiCompatibleModels } = await import("../../catalog/catalogCommit");

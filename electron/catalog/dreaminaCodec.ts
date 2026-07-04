@@ -416,6 +416,19 @@ export function parseAccountStatus(stdout: string, stderr = ""): DreaminaAccount
   };
 }
 
+/**
+ * dreamina CLI 的 `login --headless` 在已有登录态时的输出特征。
+ * 此时不应发起新设备码流程，而是返回当前账户状态。
+ */
+export function isReusingLogin(text: string): boolean {
+  return /已复用.*登录态|already logged in|already authenticated|reusing.*login/i.test(String(text || ""));
+}
+
+/** 即梦输出/报错里是否含网络超时类错误（Go context deadline / ETIMEDOUT / fetch failed）。 */
+export function isNetworkTimeout(text: string): boolean {
+  return /context deadline exceeded|etimedout|und_err_headers_timeout|und_err_connect_timeout|timeout exceeded|fetch failed/i.test(String(text || ""));
+}
+
 /** dreamina 输出/报错里是否含「非高级会员」闸（生成被拒的诚实信号）。 */
 export function isNotMaestroVip(text: string): boolean {
   return /not maestro vip|maestro vip|没有 dreamina_cli 使用权限|会员|membership|subscrib/i.test(String(text || ""));
@@ -444,12 +457,17 @@ export function describeDreaminaFailure(code: number, stdout: string, stderr: st
   if (isComplianceConfirmationRequired(text)) {
     return "即梦该模型首次使用需先在网页端完成一次性内容安全授权。请打开 jimeng.jianying.com 用同一账号生成一次（完成授权确认）后，再回 Nomi 重试。";
   }
+  if (isNetworkTimeout(text)) {
+    return `即梦服务端响应超时：生成中图片已成功创建，但 Nomi 查询结果时超时。请稍后手动刷新「已生成」页面查看，或重试该任务。`;
+  }
   if (isNotMaestroVip(text)) {
     return "当前即梦账号不是高级会员，无法生成。即梦免费试用已于 2026-05-01 结束——请在即梦开通会员后重试（光登录、光充积分不够）。";
   }
   if (!text) {
-    // 静默失败：CLI 给不出原因（最常见 = 非会员被拒 / 需网页端授权）。
-    return `即梦生成被拒，但 CLI 未返回任何原因（exit=${code}）。最常见两种原因：① 当前即梦账号不是高级会员（免费试用 2026-05-01 已结束，需开通即梦会员）；② 该模型首次使用需先在 jimeng.jianying.com 网页端授权一次。请确认会员状态 / 完成网页端授权后重试。`;
+    // 静默失败：CLI 给不出原因。常见原因：参数组合不被该模型版本支持（如 resolution_type 与 model_version 不匹配）、
+    // 首次使用需网页端授权、或服务端临时异常。请尝试：① 换一个 model_version 或 resolution_type；② 在 jimeng.jianying.com
+    // 网页端用同一账号生成一次（完成授权确认）；③ 确认会员状态有效。
+    return `即梦生成被拒，但 CLI 未返回任何原因（exit=${code}）。可能原因：参数组合不被当前模型版本支持、需先在网页端授权、或服务端异常。请尝试更换 model/resolution 组合，或在 jimeng.jianying.com 完成一次网页端授权后重试。`;
   }
   return `即梦 CLI 调用失败：${text.slice(0, 600)}`;
 }

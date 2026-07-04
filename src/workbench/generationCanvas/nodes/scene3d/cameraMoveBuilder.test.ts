@@ -143,29 +143,4 @@ describe('camera-move framing regression (在框内不裁)', () => {
       }
     }
   })
-
-  it('灰模布景：sceneTemplate 铺主体下 + props 就位；主体仍是唯一假人，运镜路径不受布景影响', () => {
-    const plain = buildCameraMoveScene({ move: 'push_in' })
-    const withBackdrop = buildCameraMoveScene({
-      move: 'push_in',
-      sceneTemplate: 'street',
-      props: [{ kind: 'tree', position: [3, -1] }],
-    })
-    // 布景追加了对象；主体仍唯一假人（相机路径按主体算，不被楼块拉偏）。
-    expect(withBackdrop.objects.length).toBeGreaterThan(plain.objects.length)
-    expect(withBackdrop.objects.filter((o) => o.type === 'mannequin')).toHaveLength(1)
-    expect(withBackdrop.objects.some((o) => o.type === 'prop')).toBe(true)
-    // 运镜几何与无布景版一致（相机起终点相同——布景是纯背景）。
-    expect(startEnd(withBackdrop).start).toEqual(startEnd(plain).start)
-    expect(startEnd(withBackdrop).end).toEqual(startEnd(plain).end)
-    // 显式道具落在指定位置（街道模板本身也有树，故按坐标断言那棵显式树在场）。
-    expect(withBackdrop.objects.some((o) => o.propKind === 'tree'
-      && o.position[0] === 3 && o.position[1] === 0 && o.position[2] === -1)).toBe(true)
-  })
-
-  it('无布景字段 → 只有主体（老行为不变）', () => {
-    const state = buildCameraMoveScene({ move: 'orbit_left' })
-    expect(state.objects).toHaveLength(1)
-    expect(state.objects[0].type).toBe('mannequin')
-  })
 })

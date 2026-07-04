@@ -50,20 +50,12 @@ import { RUNNINGHUB_VENDOR_SEED, RUNNINGHUB_3D_CURATED_MODELS, RUNNINGHUB_3D_CUR
 import { RUNNINGHUB_VIDEO_CURATED_MODELS, RUNNINGHUB_VIDEO_CURATED_MAPPINGS } from "./runninghubVideos";
 import { RUNNINGHUB_IMAGE_CURATED_MODELS, RUNNINGHUB_IMAGE_CURATED_MAPPINGS } from "./runninghubImages";
 import { REPLICATE_VENDOR_SEED } from "./replicate";
-import { COMFYUI_VENDOR_SEED, COMFYUI_CURATED_MODELS, COMFYUI_CURATED_MAPPINGS } from "./comfyuiLocal";
 import { VOLCENGINE_IMAGE_MODELS } from "./volcengineImages";
 import { VOLCENGINE_AUDIO_MODELS } from "./volcengineAudios";
 import { VOLCENGINE_SEEDANCE_QUERY_OP, VOLCENGINE_SEEDANCE_STATUS_MAPPING, VOLCENGINE_VIDEO_MODELS } from "./volcengineVideos";
 
 /** curated 模型/mapping 的内部类型（reconcile 两函数的输入）。 */
-type CuratedModel = {
-  modelKey: string;
-  labelZh: string;
-  kind: Model["kind"];
-  archetypeId?: string;
-  /** 代码所有的额外 meta（如 ComfyUI 长尾 workflow 的 parameters 动态控件）；与 archetypeId 合并进 meta。 */
-  meta?: Record<string, unknown>;
-};
+type CuratedModel = { modelKey: string; labelZh: string; kind: Model["kind"]; archetypeId?: string };
 type CuratedMapping = {
   id: string;
   taskKind: Mapping["taskKind"];
@@ -256,13 +248,11 @@ function pruneRetiredMappings(mappings: Mapping[], retiredIds: readonly string[]
   return changed;
 }
 
-/** 供应商种子（裸 baseUrl + bearer）。存在即跳过（用户配置不覆盖）。返回是否变更。
- *  多数种子默认 enabled:true；无鉴权本地后端（ComfyUI）带 `enabled:false` → 默认关、用户显式启用（污染防护）。 */
-function seedVendor(vendors: Vendor[], seed: typeof KIE_VENDOR_SEED | typeof APIMART_VENDOR_SEED | typeof AGNES_VENDOR_SEED | typeof MODELSCOPE_VENDOR_SEED | typeof VOLCENGINE_VENDOR_SEED | typeof VOLCENGINE_SPEECH_VENDOR_SEED | typeof DREAMINA_VENDOR_SEED | typeof RUNNINGHUB_VENDOR_SEED | typeof REPLICATE_VENDOR_SEED | typeof COMFYUI_VENDOR_SEED, now: string): boolean {
+/** 供应商种子（裸 baseUrl + bearer）。存在即跳过（用户配置不覆盖）。返回是否变更。 */
+function seedVendor(vendors: Vendor[], seed: typeof KIE_VENDOR_SEED | typeof APIMART_VENDOR_SEED | typeof AGNES_VENDOR_SEED | typeof MODELSCOPE_VENDOR_SEED | typeof VOLCENGINE_VENDOR_SEED | typeof VOLCENGINE_SPEECH_VENDOR_SEED | typeof DREAMINA_VENDOR_SEED | typeof RUNNINGHUB_VENDOR_SEED | typeof REPLICATE_VENDOR_SEED, now: string): boolean {
   if (vendors.some((v) => v.key === seed.key)) return false;
-  const enabled = "enabled" in seed && (seed as { enabled?: boolean }).enabled === false ? false : true;
   vendors.push({
-    key: seed.key, name: seed.name, enabled,
+    key: seed.key, name: seed.name, enabled: true,
     baseUrlHint: seed.baseUrl, authType: seed.authType, authHeader: seed.authHeader,
     // 本地素材吞入声明（仅 Replicate 等声明了 assetIngestion 的 vendor 带；resolveAssetIngestionWithFallback 据此把本地图传文件 API）。
     ...("assetIngestion" in seed && seed.assetIngestion ? { assetIngestion: seed.assetIngestion } : {}),
@@ -278,29 +268,23 @@ function seedVendor(vendors: Vendor[], seed: typeof KIE_VENDOR_SEED | typeof API
 function reconcileModels(models: Model[], vendorKey: string, curated: CuratedModel[], now: string): boolean {
   let changed = false;
   for (const c of curated) {
-    // 代码所有的 meta = archetypeId（能力档案指针）+ c.meta（长尾 workflow 的 parameters 等）合并。
-    const curatedMeta: Record<string, unknown> = { ...(c.archetypeId ? { archetypeId: c.archetypeId } : {}), ...(c.meta || {}) };
     const i = models.findIndex((m) => m.modelKey === c.modelKey && m.vendorKey === vendorKey);
     if (i < 0) {
       models.push({
         modelKey: c.modelKey, vendorKey, labelZh: c.labelZh, kind: c.kind, enabled: true,
-        ...(Object.keys(curatedMeta).length > 0 ? { meta: curatedMeta } : {}),
+        ...(c.archetypeId ? { meta: { archetypeId: c.archetypeId } } : {}),
         createdAt: now, updatedAt: now,
       });
       changed = true;
       continue;
     }
     const ex = models[i];
-    const exMeta = (ex.meta || {}) as Record<string, unknown>;
-    const exArch = (exMeta as { archetypeId?: string }).archetypeId;
-    // parameters 是代码所有（workflow 契约），漂移强制对账（老装机自愈）。
-    const paramsDrift = c.meta?.parameters !== undefined && JSON.stringify(exMeta.parameters) !== JSON.stringify(c.meta.parameters);
-    const drift = ex.kind !== c.kind || (Boolean(c.archetypeId) && exArch !== c.archetypeId) || paramsDrift;
+    const exArch = (ex.meta as { archetypeId?: string } | undefined)?.archetypeId;
+    const drift = ex.kind !== c.kind || (Boolean(c.archetypeId) && exArch !== c.archetypeId);
     if (drift) {
-      const nextMeta = { ...exMeta, ...curatedMeta };
       models[i] = {
         ...ex, kind: c.kind,
-        ...(Object.keys(nextMeta).length > 0 ? { meta: nextMeta } : {}),
+        ...(c.archetypeId ? { meta: { ...(ex.meta || {}), archetypeId: c.archetypeId } } : {}),
         updatedAt: now,
       };
       changed = true;
@@ -361,7 +345,6 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (seedVendor(vendors, DREAMINA_VENDOR_SEED, now)) changed = true;
   if (seedVendor(vendors, RUNNINGHUB_VENDOR_SEED, now)) changed = true; // RunningHub aggregator（先接 3D 混元文生3D）
   if (seedVendor(vendors, REPLICATE_VENDOR_SEED, now)) changed = true; // Replicate（元素拆解 qwen-image-layered，按量付费）
-  if (seedVendor(vendors, COMFYUI_VENDOR_SEED, now)) changed = true; // 本地 ComfyUI（无鉴权本地后端，默认关、用户显式启用）
 
   // 退役 curated 记录清理（变体合并迁移：删 Seedance 旧变体模型 + mapping 孤儿，picker 收成 1 项）。
   if (pruneRetiredModels(models, APIMART_VENDOR_SEED.key, RETIRED_APIMART_VIDEO_MODEL_KEYS)) changed = true;
@@ -380,7 +363,6 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (reconcileModels(models, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_3D_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_VIDEO_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_IMAGE_CURATED_MODELS, now)) changed = true;
-  if (reconcileModels(models, COMFYUI_VENDOR_SEED.key, COMFYUI_CURATED_MODELS, now)) changed = true;
 
   // kie 历史包袱 repair：把视频形状的坏 (kie, text_to_image) 替换成正确的 GPT Image 2 文生图契约
   // （旧 onboarding 抽错留下的；契约见 kieGptImage2.ts 直连实测确认）。apimart 无此历史，不需要。
@@ -410,7 +392,6 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (reconcileMappings(mappings, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_3D_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_VIDEO_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_IMAGE_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, COMFYUI_VENDOR_SEED.key, COMFYUI_CURATED_MAPPINGS, now)) changed = true;
 
   if (!changed) return { state, changed: false };
   return { state: { ...state, vendors, models, mappings }, changed: true };

@@ -14,8 +14,6 @@ import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
 import { parseStoryboardPlan } from './storyboardPlan'
 import type { StagingSpec, StagingCharacterSpec } from '../nodes/scene3d/stagingBuilder'
 import type { CameraMoveSpec } from '../nodes/scene3d/cameraMoveBuilder'
-import type { ScenePropPlacement } from '../nodes/scene3d/scene3dPropSpecs'
-import type { Scene3DSceneTemplate } from '../nodes/scene3d/scene3dSceneTemplates'
 import type { CameraSpeed } from '../nodes/scene3d/cameraMoveVocab'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
@@ -102,39 +100,9 @@ function appendDirectiveToNodePrompt(
   return { found: true, applied: true, alreadyApplied: false }
 }
 
-const strValue = (value: unknown): string | undefined => (typeof value === 'string' && value.trim() ? value.trim() : undefined)
-
-/** 灰模布景字段（sceneTemplate + props）容错提取——站位/运镜两工具共用（P4）。 */
-function parseSceneBackdrop(record: Record<string, unknown>): {
-  sceneTemplate?: Scene3DSceneTemplate
-  props?: ScenePropPlacement[]
-} {
-  const rawProps = Array.isArray(record.props) ? record.props : []
-  const props: ScenePropPlacement[] = rawProps
-    .map((raw) => (raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}))
-    .flatMap((p) => {
-      const kind = strValue(p.kind)
-      if (!kind) return []
-      const pos = Array.isArray(p.position) && p.position.length >= 2
-        && typeof p.position[0] === 'number' && typeof p.position[1] === 'number'
-        ? [p.position[0], p.position[1]] as [number, number]
-        : undefined
-      return [{
-        kind: kind as ScenePropPlacement['kind'],
-        position: pos,
-        rotationY: typeof p.rotationY === 'number' ? p.rotationY : undefined,
-        scale: typeof p.scale === 'number' ? p.scale : undefined,
-      }]
-    })
-  return {
-    sceneTemplate: strValue(record.sceneTemplate) as Scene3DSceneTemplate | undefined,
-    props: props.length > 0 ? props : undefined,
-  }
-}
-
-/** create_staging_reference 的参数 → StagingSpec（容错提取；非法枚举值由 builder 兜默认）。导出供单测。 */
-export function parseStagingSpec(record: Record<string, unknown>): StagingSpec {
-  const str = strValue
+/** create_staging_reference 的参数 → StagingSpec（容错提取；非法枚举值由 builder 兜默认）。 */
+function parseStagingSpec(record: Record<string, unknown>): StagingSpec {
+  const str = (value: unknown): string | undefined => (typeof value === 'string' && value.trim() ? value.trim() : undefined)
   const rawChars = Array.isArray(record.characters) ? record.characters : []
   const characters: StagingCharacterSpec[] = rawChars
     .map((raw) => (raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}))
@@ -146,7 +114,6 @@ export function parseStagingSpec(record: Record<string, unknown>): StagingSpec {
   if (characters.length === 0) characters.push({})
   const cameraRaw = record.camera && typeof record.camera === 'object' ? (record.camera as Record<string, unknown>) : null
   const crowdRaw = record.crowd && typeof record.crowd === 'object' ? (record.crowd as Record<string, unknown>) : null
-  const backdrop = parseSceneBackdrop(record)
   return {
     characters,
     layout: str(record.layout) as StagingSpec['layout'],
@@ -162,8 +129,6 @@ export function parseStagingSpec(record: Record<string, unknown>): StagingSpec {
       crowdRaw && typeof crowdRaw.rows === 'number' && typeof crowdRaw.columns === 'number'
         ? { rows: crowdRaw.rows, columns: crowdRaw.columns }
         : undefined,
-    sceneTemplate: backdrop.sceneTemplate,
-    props: backdrop.props,
   }
 }
 
@@ -176,19 +141,14 @@ export function parseCameraMoveSpec(record: Record<string, unknown>): {
   shot?: CameraMoveSpec['shot']
   subjectPose?: string
   customMove?: string
-  sceneTemplate?: Scene3DSceneTemplate
-  props?: ScenePropPlacement[]
 } {
-  const str = strValue
-  const backdrop = parseSceneBackdrop(record)
+  const str = (value: unknown): string | undefined => (typeof value === 'string' && value.trim() ? value.trim() : undefined)
   return {
     move: str(record.move) as CameraMoveSpec['move'] | undefined,
     speed: str(record.speed) as CameraMoveSpec['speed'],
     shot: str(record.shot) as CameraMoveSpec['shot'],
     subjectPose: str(record.subjectPose),
     customMove: str(record.customMove),
-    sceneTemplate: backdrop.sceneTemplate,
-    props: backdrop.props,
   }
 }
 
@@ -403,8 +363,6 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
       speed: parsed.speed,
       shot: parsed.shot,
       subjectPose: parsed.subjectPose,
-      sceneTemplate: parsed.sceneTemplate,
-      props: parsed.props,
     }
     const [{ buildCameraMoveScene }, { CAMERA_SPEED_DURATION, CAMERA_MOVE_LABEL }] = await Promise.all([
       import('../nodes/scene3d/cameraMoveBuilder'),

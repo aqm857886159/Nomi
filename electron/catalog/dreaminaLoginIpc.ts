@@ -3,7 +3,7 @@
 // 解析全走 dreaminaCodec 纯函数（可单测）；spawn 走 dreaminaCli（统一 PATH 兜底 + 超时）。
 import { spawn } from "node:child_process";
 import { resolveDreaminaBin, isDreaminaInstalled, runDreaminaCli } from "./dreaminaCli";
-import { parseDeviceFlow, parseAccountStatus, isNotMaestroVip, type DreaminaDeviceFlow } from "./dreaminaCodec";
+import { parseDeviceFlow, parseAccountStatus, isNotMaestroVip, isReusingLogin, type DreaminaDeviceFlow } from "./dreaminaCodec";
 
 export type DreaminaStatus = {
   installed: boolean;
@@ -19,22 +19,44 @@ export async function dreaminaStatus(): Promise<DreaminaStatus> {
   if (!isDreaminaInstalled()) {
     return { installed: false, loggedIn: false, totalCredit: null, vipLevel: "", notMaestroVip: false };
   }
-  const ran = await runDreaminaCli(["user_credit"], { timeoutMs: 20_000 }).catch(() => null);
-  if (!ran) return { installed: true, loggedIn: false, totalCredit: null, vipLevel: "", notMaestroVip: false };
-  const status = parseAccountStatus(ran.stdout, ran.stderr);
-  return {
-    installed: true,
-    loggedIn: status.loggedIn,
-    totalCredit: status.totalCredit,
-    vipLevel: status.vipLevel,
-    notMaestroVip: isNotMaestroVip(`${ran.stdout}\n${ran.stderr}`),
-  };
+  // user_credit 带重试（网络瞬闪时自动恢复）。
+  const ran = await runDreaminaCli(["user_credit"], { timeoutMs: 20_000, retries: 1 }).catch(() => null);
+  if (ran && ran.code === 0) {
+    const status = parseAccountStatus(ran.stdout, ran.stderr);
+    return {
+      installed: true,
+      loggedIn: status.loggedIn,
+      totalCredit: status.totalCredit,
+      vipLevel: status.vipLevel,
+      notMaestroVip: isNotMaestroVip(`${ran.stdout}\n${ran.stderr}`),
+    };
+  }
+  // user_credit 失败：用 login --headless 做兜底检测（已登录时 CLI 会输出「已复用当前本地 OAuth 登录态」）。
+  // 这覆盖了「user_credit 网络超时但实际已登录」的场景，避免前端误显「待登录」。
+  const loginRan = await runDreaminaCli(["login", "--headless"], { timeoutMs: 15_000 }).catch(() => null);
+  if (loginRan && isReusingLogin(`${loginRan.stdout}\n${loginRan.stderr}`)) {
+    const status = parseAccountStatus(loginRan.stdout, loginRan.stderr);
+    return {
+      installed: true,
+      loggedIn: true,
+      totalCredit: status.totalCredit,
+      vipLevel: status.vipLevel,
+      notMaestroVip: isNotMaestroVip(`${loginRan.stdout}\n${loginRan.stderr}`),
+    };
+  }
+  return { installed: true, loggedIn: false, totalCredit: null, vipLevel: "", notMaestroVip: false };
 }
 
 /** 发起设备码登录，返回 verification_uri/user_code/device_code 供前端显二维码。 */
 export async function dreaminaLoginStart(): Promise<DreaminaDeviceFlow> {
   const ran = await runDreaminaCli(["login", "--headless"], { timeoutMs: 30_000 });
-  const flow = parseDeviceFlow(`${ran.stdout}\n${ran.stderr}`);
+  const text = `${ran.stdout}\n${ran.stderr}`;
+  // 已有登录态：CLI 报「已复用当前本地 OAuth 登录态」→ 不发起新流程，直接返回账户状态。
+  if (isReusingLogin(text)) {
+    const status = parseAccountStatus(ran.stdout, ran.stderr);
+    throw new Error(`已复用当前本地 OAuth 登录态。账户：${status.userId || "未知"}，积分：${status.totalCredit ?? "未知"}，会员：${status.vipLevel || "未知"}。如要切换账号，请先点「退出登录」。`);
+  }
+  const flow = parseDeviceFlow(text);
   if (!flow) throw new Error(`发起即梦登录失败：${(ran.stderr || ran.stdout || "").slice(0, 300)}`);
   return flow;
 }

@@ -6,7 +6,7 @@
  * 样张：docs/design/mockups/onboarding-panel-A.html；规范：docs/plan/2026-06-07-onboarding-panel-redesign.md §5.1
  */
 import React from 'react'
-import { IconChevronDown } from '@tabler/icons-react'
+import { IconChevronDown, IconPencil } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 
 type FoldableModelCardProps = {
@@ -21,6 +21,8 @@ type FoldableModelCardProps = {
   statusLabel?: string
   /** 名字右侧的软标（如「新手推荐」）；不传则不显。 */
   badge?: React.ReactNode
+  /** 头部右侧操作按钮（如编辑），放在 chevron 前面。 */
+  headerAction?: React.ReactNode
   defaultExpanded?: boolean
   children: React.ReactNode
 }
@@ -33,6 +35,7 @@ export function FoldableModelCard({
   status,
   statusLabel,
   badge,
+  headerAction,
   defaultExpanded = false,
   children,
 }: FoldableModelCardProps): JSX.Element {
@@ -79,6 +82,9 @@ export function FoldableModelCard({
           <span className={cn('w-1.5 h-1.5 rounded-full', status === 'ok' ? 'bg-workbench-success' : 'bg-nomi-ink-30')} />
           {statusLabel ?? (status === 'ok' ? '已连通' : '待接入')}
         </span>
+        {headerAction ? (
+          <span className="shrink-0" onClick={(e) => e.stopPropagation()}>{headerAction}</span>
+        ) : null}
         <IconChevronDown
           size={16}
           stroke={1.8}

@@ -14,7 +14,7 @@ import {
   cloneScene3DState,
 } from './scene3dSerializer'
 import { ROLE_COLOR_SEQUENCE, LOCOMOTION_CLIP_WALK } from './scene3dConstants'
-import { cameraAimBindingId } from './scene3dBindingIds'
+import { cameraAimBindingId } from './scene3dPlayback'
 import { buildPoseTrack, type Scene3DPoseEvent } from './scene3dPoseTrack'
 import type {
   Scene3DState,

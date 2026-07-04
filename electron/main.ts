@@ -1,5 +1,17 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, session, shell } from "electron";
 import type { Rectangle, WebContents } from "electron";
+
+// Force UTF-8 console output on Windows to prevent garbled Chinese characters.
+if (process.platform === "win32") {
+  try {
+    const { spawn } = require("child_process");
+    spawn("cmd", ["/c", "chcp", "65001", ">", "NUL"], {
+      windowsHide: true,
+      stdio: "ignore",
+      detached: true,
+    }).unref();
+  } catch {}
+}
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -18,6 +30,7 @@ import {
   ensureBuiltinModelSeeds,
   exportModelCatalogPackage,
   getModelCatalogHealth,
+  getVendorCatalogDetail,
   importModelCatalogPackage,
   listModelCatalogMappings,
   listModelCatalogModels,
@@ -458,6 +471,7 @@ function registerIpc(): void {
     recreateMainWindowFromSender(event.sender, { preserveRoute: true, reason: "hard reload window" });
   });
   registerSyncIpc("nomi:model-catalog:vendors:list", listModelCatalogVendors);
+  registerSyncIpc("nomi:model-catalog:vendor:detail", (vendorKey: string) => getVendorCatalogDetail(vendorKey));
   registerSyncIpc("nomi:model-catalog:models:list", listModelCatalogModels);
   registerSyncIpc("nomi:model-catalog:mappings:list", listModelCatalogMappings);
   registerSyncIpc("nomi:model-catalog:health", getModelCatalogHealth);
@@ -471,11 +485,6 @@ function registerIpc(): void {
   registerSyncIpc("nomi:model-catalog:mapping:delete", deleteModelCatalogMapping);
   registerSyncIpc("nomi:model-catalog:export", exportModelCatalogPackage);
   registerSyncIpc("nomi:model-catalog:import", importModelCatalogPackage);
-  // 本地 ComfyUI 健康探测（接入卡启用/重检调用；async，直连 localhost /system_stats）。
-  ipcMain.handle("nomi:model-catalog:comfyui:probe", (_event, baseUrl: unknown) => {
-    const { probeComfyuiSystemStats } = require("./comfyuiProbe") as typeof import("./comfyuiProbe");
-    return probeComfyuiSystemStats(String(baseUrl || ""));
-  });
 
   // Skill / Playbook 域（业务函数在 electron/skills/*，这里只接同步 IPC 管道）。
   registerSyncIpc("nomi:skill:list", () => {

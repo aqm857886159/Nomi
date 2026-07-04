@@ -12,7 +12,6 @@ import { buildTrajectoryCurve, clampRatio, remapTrajectoryTimeRatio, wrapRatio }
 import { cameraLookAtRotation, eulerToArray, vectorToArray } from './scene3dMath'
 import { objectVisualHalfHeight } from './scene3dCrowd'
 import { samplePoseKeyframe } from './scene3dPoseTrack'
-import { cameraAimBindingId } from './scene3dBindingIds'
 
 export function trajectoryIdsForPlaybackGroup(state: Scene3DState, groupId: string | null): Set<string> | null {
   if (!groupId) return null
@@ -105,6 +104,13 @@ export function sceneObjectCameraTargetPosition(
   return [...object.position]
 }
 
+// 相机运镜 take 的「瞄准轨迹」绑定 id 约定：相机 id + 此后缀。aim 轨迹用与相机轨迹同一套
+// sceneObjectTrajectorySample 采样（按这个合成 id 在 trajectoryBindings 里找），不引第二套采样机制。
+export const CAMERA_AIM_BINDING_SUFFIX = ':aim'
+
+export function cameraAimBindingId(cameraId: string): string {
+  return `${cameraId}${CAMERA_AIM_BINDING_SUFFIX}`
+}
 
 // ── 手持抖动：确定性多频正弦噪声。纯播放头 t 的函数、无随机源——预览逐帧与离屏采帧
 // （Scene3DTrajectoryCapture 同走本文件）必须严格一致，mp4 才可重现。──

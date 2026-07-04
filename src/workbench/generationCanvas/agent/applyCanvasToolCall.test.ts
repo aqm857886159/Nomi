@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // (本测试的 case 不带 modelKey,真实代码路径也不会调它)。
 vi.mock('./availableModels', () => ({ listAvailableModelsForAgent: vi.fn(async () => []) }))
 
-import { applyCanvasToolCall, parseCameraMoveSpec, parseStagingSpec, resetClientIdRegistry, resolveCanvasToolNodeId } from './applyCanvasToolCall'
+import { applyCanvasToolCall, parseCameraMoveSpec, resetClientIdRegistry, resolveCanvasToolNodeId } from './applyCanvasToolCall'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
 import type { StoryboardPlan } from './storyboardPlan'
@@ -209,58 +209,6 @@ describe('parseCameraMoveSpec — 容错解析运镜参数', () => {
       subjectPose: undefined,
       customMove: undefined,
     })
-  })
-
-  it('灰模布景字段：sceneTemplate + props 与站位同解析（共享 parseSceneBackdrop）', () => {
-    const spec = parseCameraMoveSpec({
-      move: 'push_in',
-      sceneTemplate: 'street',
-      props: [{ kind: 'car', position: [2, 1], rotationY: 30 }, { kind: 'tree' }],
-    })
-    expect(spec.sceneTemplate).toBe('street')
-    expect(spec.props).toEqual([
-      { kind: 'car', position: [2, 1], rotationY: 30, scale: undefined },
-      { kind: 'tree', position: undefined, rotationY: undefined, scale: undefined },
-    ])
-  })
-
-  it('无布景字段 → sceneTemplate/props 均 undefined（老行为）', () => {
-    const spec = parseCameraMoveSpec({ move: 'orbit_left' })
-    expect(spec.sceneTemplate).toBeUndefined()
-    expect(spec.props).toBeUndefined()
-  })
-})
-
-// T2 站位解析器：新增布景字段（sceneTemplate/props）容错提取。
-describe('parseStagingSpec — 灰模布景字段', () => {
-  it('sceneTemplate + props（含位置/朝向/缩放）原样落 spec', () => {
-    const spec = parseStagingSpec({
-      characters: [{ pose: 'standing' }],
-      sceneTemplate: 'street',
-      props: [
-        { kind: 'car', position: [3, -1], rotationY: 90, scale: 1.2 },
-        { kind: 'tree' },
-      ],
-    })
-    expect(spec.sceneTemplate).toBe('street')
-    expect(spec.props).toEqual([
-      { kind: 'car', position: [3, -1], rotationY: 90, scale: 1.2 },
-      { kind: 'tree', position: undefined, rotationY: undefined, scale: undefined },
-    ])
-  })
-
-  it('无布景字段 → sceneTemplate/props 均 undefined（老行为不变）', () => {
-    const spec = parseStagingSpec({ characters: [{ pose: 'standing' }] })
-    expect(spec.sceneTemplate).toBeUndefined()
-    expect(spec.props).toBeUndefined()
-  })
-
-  it('props 缺 kind / 位置非法 → 丢该件 / 位置置空，不抛', () => {
-    const spec = parseStagingSpec({
-      characters: [{}],
-      props: [{ rotationY: 10 }, { kind: 'wall', position: [1] }],
-    })
-    expect(spec.props).toEqual([{ kind: 'wall', position: undefined, rotationY: undefined, scale: undefined }])
   })
 })
 

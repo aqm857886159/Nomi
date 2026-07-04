@@ -23,8 +23,6 @@ import {
   type StagingShot,
   type StagingEnvironment,
 } from './stagingVocab'
-import { buildPlacedProps, type ScenePropPlacement } from './scene3dPropSpecs'
-import { buildSceneTemplateObjects, type Scene3DSceneTemplate } from './scene3dSceneTemplates'
 
 export type StagingCharacterSpec = {
   name?: string
@@ -38,9 +36,6 @@ export type StagingSpec = {
   camera?: { angle?: StagingCameraAngle; height?: StagingCameraHeight; shot?: StagingShot }
   environment?: StagingEnvironment
   crowd?: { rows: number; columns: number } | null
-  // 灰模布景（走 UI/运镜同一套 builder，P4 一套能力两入口）：整套场景模板 + 单件道具。
-  sceneTemplate?: Scene3DSceneTemplate
-  props?: ScenePropPlacement[]
 }
 
 const DEG = Math.PI / 180
@@ -187,11 +182,7 @@ export function buildStagingScene(spec: StagingSpec, spacingScale = 1): Scene3DS
   const centerX = objects.reduce((sum, o) => sum + o.position[0], 0) / Math.max(1, objects.length)
   const backZ = Math.min(...objects.map((o) => o.position[2]), 0)
   const crowd = buildCrowdObject(spec, centerX, backZ)
-  // 灰模布景（backdrop）铺在最前，角色/群众叠其上。相机取景只看角色位置（buildStagingCamera），
-  // 布景纯背景不影响构图。走 UI 同一套 builder（P4），无并行版。
-  const templateObjects = spec.sceneTemplate ? buildSceneTemplateObjects(spec.sceneTemplate) : []
-  const propObjects = buildPlacedProps(spec.props)
-  const allObjects = [...templateObjects, ...propObjects, ...objects, ...(crowd ? [crowd] : [])]
+  const allObjects = crowd ? [...objects, crowd] : objects
   const camera = buildStagingCamera(objects, spec.camera, layout)
   const env = ENV_PRESET[spec.environment ?? 'studio']
   return {

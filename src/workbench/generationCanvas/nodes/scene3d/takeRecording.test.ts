@@ -10,8 +10,8 @@ import {
   type RecordedTake,
   type RecordedCameraTake,
 } from './takeRecording'
-import { cameraAimBindingId } from './scene3dBindingIds'
-import { createDefaultScene3DState, normalizeScene3DState } from './scene3dSerializer'
+import { cameraAimBindingId } from './scene3dPlayback'
+import { createDefaultScene3DState } from './scene3dSerializer'
 
 const sample = (time: number, position: [number, number, number]): TakeSample => ({ time, position })
 
@@ -339,19 +339,5 @@ describe('buildRecordedCameraTakeScene', () => {
     const cameraId = state.cameras[0].id
     const scene = buildRecordedCameraTakeScene(state, cameraTake(cameraId))
     expect(scene!.objects).toHaveLength(state.objects.length)
-  })
-
-  it('survives serialize round-trip: aimTrajectoryId + `${cam}:aim` binding both persist (存盘重载后相机朝向不退化)', () => {
-    const base = createDefaultScene3DState()
-    const cameraId = base.cameras[0].id
-    const scene = buildRecordedCameraTakeScene(base, cameraTake(cameraId))!
-    const aimBindingId = cameraAimBindingId(cameraId)
-    // 归一（模拟存盘→重载）后：相机标志与 aim 绑定对象都还在（此前被 serializer 静默丢弃）。
-    const reloaded = normalizeScene3DState(scene)
-    const camera = reloaded.cameras.find((c) => c.id === cameraId)!
-    expect(camera.aimTrajectoryId).toBe(scene.cameras[0].aimTrajectoryId)
-    const aimBinding = reloaded.trajectoryBindings.find((b) => b.objects.some((o) => o.objectId === aimBindingId))
-    expect(aimBinding, 'aim 绑定应保留其合成对象 id').toBeTruthy()
-    expect(aimBinding!.trajectoryId).toBe(camera.aimTrajectoryId)
   })
 })

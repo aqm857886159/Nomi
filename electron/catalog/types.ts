@@ -201,14 +201,6 @@ export type HttpOperation = {
   response_mapping?: Record<string, unknown>;
   provider_meta_mapping?: Record<string, unknown>;
   /**
-   * **命名响应变换**（P4 声明驱动，不 hardcode vendor 进 runtime）。当上游响应形状不是点路径
-   * response_mapping 能直接读的（如 ComfyUI /history：顶层键是动态 prompt_id、取图要从
-   * filename+subfolder+type 拼 /view URL），声明一个已注册的变换名，buildProfileTaskResult 会在跑
-   * response_mapping **之前**对 raw response 应用它、归一成稳定形状。变换住各自 vendor 模块、注册进
-   * electron/tasks/responseTransforms.ts，runtime 只按名查表、不含 vendor 逻辑。
-   */
-  response_transform?: string;
-  /**
    * **wire 必填参数的兜底默认值**（headless/MCP 路专用）。UI 路由 NodeGenerationComposer 会按档案
    * (src/config/modelArchetypes) 把用户选的 size/voice/model 等填进 request.params；但 MCP/CLI 的
    * `generate` 不经 UI、调用方也无从知道每家 vendor 的必填参数（nomi_generate 根本不暴露 params）。
