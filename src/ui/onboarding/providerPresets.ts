@@ -43,6 +43,9 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   { id: 'kimi', label: 'Kimi', providerKind: 'openai-compatible', baseUrl: 'https://api.moonshot.cn/v1', keyUrl: 'https://platform.moonshot.cn/console/api-keys', group: 'official' },
   { id: 'zhipu', label: '智谱 GLM', providerKind: 'openai-compatible', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', keyUrl: 'https://open.bigmodel.cn/usercenter/apikeys', group: 'official' },
   { id: 'deepseek', label: 'DeepSeek', providerKind: 'openai-compatible', baseUrl: 'https://api.deepseek.com/v1', keyUrl: 'https://platform.deepseek.com/api_keys', group: 'official' },
+  // 阶跃星辰（中国区 OpenAI 兼容 base；官方迁移文档 platform.stepfun.com/docs/.../openai）。
+  // 注：Step Plan 订阅制账户需改用 https://api.stepfun.com/step_plan/v1、国际区用 .ai——预设填最常见的按量地址。
+  { id: 'stepfun', label: '阶跃星辰', providerKind: 'openai-compatible', baseUrl: 'https://api.stepfun.com/v1', keyUrl: 'https://platform.stepfun.com', group: 'official' },
   { id: 'volcengine', label: '火山 / Doubao', providerKind: 'openai-compatible', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', keyUrl: 'https://console.volcengine.com/ark', group: 'official' },
   { id: 'dashscope', label: '阿里百炼', providerKind: 'openai-compatible', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', keyUrl: 'https://bailian.console.aliyun.com', group: 'official' },
   { id: 'groq', label: 'Groq', providerKind: 'openai-compatible', baseUrl: 'https://api.groq.com/openai/v1', keyUrl: 'https://console.groq.com/keys', group: 'official' },

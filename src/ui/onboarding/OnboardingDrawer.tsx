@@ -21,6 +21,7 @@ import { VendorOnboardCard } from './VendorOnboardCard'
 import { AvailableGroup } from './AvailableGroup'
 import { type ChipModel } from './ModelChipGroups'
 import { ModelEnableEditor } from './ModelEnableEditor'
+import { CustomVendorManage } from './CustomVendorManage'
 import { ConnectAssistantCard, type McpInfo } from './ConnectAssistantCard'
 import { DreaminaMemberCard, type DreaminaStatus } from './DreaminaMemberCard'
 import { KNOWN_VENDORS, isKnownVendor } from '../../config/knownVendors'
@@ -255,6 +256,7 @@ export function OnboardingDrawer(): JSX.Element {
             {connectedKnown.map(renderVendorCard)}
             {otherVendorGroups.map((group) => {
               const enabledN = group.models.filter((m) => m.enabled).length
+              const meta = vendorMeta.get(group.vendorKey)
               return (
                 <FoldableModelCard
                   key={group.vendorKey}
@@ -267,6 +269,14 @@ export function OnboardingDrawer(): JSX.Element {
                   defaultExpanded={false}
                 >
                   <ModelEnableEditor models={group.models} onToggle={handleSetEnabled} onDelete={handleDelete} />
+                  <CustomVendorManage
+                    vendorKey={group.vendorKey}
+                    vendorName={group.name}
+                    baseUrl={meta?.baseUrl ?? ''}
+                    hasApiKey={meta?.hasApiKey ?? true}
+                    modelCount={group.models.length}
+                    onChanged={refresh}
+                  />
                 </FoldableModelCard>
               )
             })}
