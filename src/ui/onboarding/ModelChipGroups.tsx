@@ -12,6 +12,8 @@ export type ChipModel = {
   vendorKey: string
   labelZh: string
   kind: ModelChipKind
+  /** 是否启用（enabled:false 的模型不进生成下拉/runtime，供中转站批量启停编辑用）。 */
+  enabled: boolean
 }
 
 type ModelChipGroupsProps = {

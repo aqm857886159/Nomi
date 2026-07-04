@@ -19,7 +19,8 @@ import { OnboardingWizard } from './OnboardingWizard'
 import { FoldableModelCard } from './FoldableModelCard'
 import { VendorOnboardCard } from './VendorOnboardCard'
 import { AvailableGroup } from './AvailableGroup'
-import { ModelChipGroups, type ChipModel } from './ModelChipGroups'
+import { type ChipModel } from './ModelChipGroups'
+import { ModelEnableEditor } from './ModelEnableEditor'
 import { ConnectAssistantCard, type McpInfo } from './ConnectAssistantCard'
 import { DreaminaMemberCard, type DreaminaStatus } from './DreaminaMemberCard'
 import { KNOWN_VENDORS, isKnownVendor } from '../../config/knownVendors'
@@ -75,6 +76,8 @@ export function OnboardingDrawer(): JSX.Element {
         vendorKey: String(m.vendorKey),
         labelZh: String(m.labelZh || m.modelKey),
         kind: m.kind as ChipModel['kind'],
+        // enabled 缺省视为 true（老快照/DTO 未带时不误停用）。
+        enabled: m.enabled !== false,
       }))
       setVendorMeta(metaMap)
       setModels(rows)
@@ -114,7 +117,7 @@ export function OnboardingDrawer(): JSX.Element {
     if (!bridge) return
     const ok = await confirmDialog({
       title: '删除模型',
-      message: `删除「${row.labelZh}」？此操作不可恢复。`,
+      message: `删除「${row.labelZh}」？此操作不可恢复，之后要用需重新拉取。`,
       confirmLabel: '删除',
       danger: true,
     })
@@ -124,6 +127,22 @@ export function OnboardingDrawer(): JSX.Element {
       refresh()
     } catch (e) {
       void alertDialog({ title: '删除失败', message: e instanceof Error ? e.message : String(e) })
+    }
+  }, [refresh])
+
+  // 启用/停用模型（可逆，保留清单）：逐行只翻 enabled（upsert 保留其余字段），末尾一次 refresh。
+  // enabled:false 的模型天然从生成下拉/runtime 消失（selectExecutableModel 只选 enabled）。
+  // 单个 = 传 1 行；批量（全选/全不选）= 传多行，避免 N 次 refresh。
+  const handleSetEnabled = React.useCallback((rows: ChipModel[], enabled: boolean) => {
+    const bridge = getDesktopBridge()
+    if (!bridge || rows.length === 0) return
+    try {
+      for (const row of rows) {
+        bridge.modelCatalog.upsertModel({ vendorKey: row.vendorKey, modelKey: row.modelKey, enabled })
+      }
+      refresh()
+    } catch (e) {
+      void alertDialog({ title: '操作失败', message: e instanceof Error ? e.message : String(e) })
     }
   }, [refresh])
 
@@ -234,20 +253,23 @@ export function OnboardingDrawer(): JSX.Element {
           <>
             <div className="text-micro font-semibold text-nomi-ink-40 pt-1 px-0.5">已接入</div>
             {connectedKnown.map(renderVendorCard)}
-            {otherVendorGroups.map((group) => (
-              <FoldableModelCard
-                key={group.vendorKey}
-                glyph={<IconStack2 size={16} stroke={1.6} />}
-                glyphTone="soft"
-                name={group.name}
-                subtitle={`${group.models.length} 个模型`}
-                status="ok"
-                statusLabel="已配置"
-                defaultExpanded={false}
-              >
-                <ModelChipGroups models={group.models} connected onDelete={handleDelete} />
-              </FoldableModelCard>
-            ))}
+            {otherVendorGroups.map((group) => {
+              const enabledN = group.models.filter((m) => m.enabled).length
+              return (
+                <FoldableModelCard
+                  key={group.vendorKey}
+                  glyph={<IconStack2 size={16} stroke={1.6} />}
+                  glyphTone="soft"
+                  name={group.name}
+                  subtitle={`${enabledN} / ${group.models.length} 个模型已启用`}
+                  status="ok"
+                  statusLabel="已配置"
+                  defaultExpanded={false}
+                >
+                  <ModelEnableEditor models={group.models} onToggle={handleSetEnabled} onDelete={handleDelete} />
+                </FoldableModelCard>
+              )
+            })}
             {dreaminaAvailable && dreaminaConnected ? (
               <DreaminaMemberCard status={dreaminaStatus} onChanged={refresh} />
             ) : null}
