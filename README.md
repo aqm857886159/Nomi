@@ -26,7 +26,7 @@
 
 <p align="center">
   <a href="https://github.com/aqm857886159/Nomi/stargazers"><img src="https://img.shields.io/badge/GitHub-%E2%AD%90%20Star-2563eb?logo=github&logoColor=2563eb&labelColor=f1f5f9" alt="Star on GitHub" /></a>
-  <a href="https://github.com/aqm857886159/Nomi/releases/latest"><img src="https://img.shields.io/badge/release-v0.16.0-2563eb?labelColor=f1f5f9" alt="Latest release" /></a>
+  <a href="https://github.com/aqm857886159/Nomi/releases/latest"><img src="https://img.shields.io/badge/release-v0.16.1-2563eb?labelColor=f1f5f9" alt="Latest release" /></a>
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-2563eb?labelColor=f1f5f9" alt="Platform" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-2563eb?labelColor=f1f5f9" alt="License" /></a>
 </p>
@@ -43,7 +43,7 @@
 
 > 不知道自己哪种 Mac？左上角苹果图标 → 关于本机 → 看「芯片」。
 >
-> 🇨🇳 **打不开 GitHub / 下载慢？用夸克网盘**（当前 v0.16.0）：<https://pan.quark.cn/s/d3322c17e7b6>　·　🌐 也可上[官网](https://nomiaqm.com)自动识别系统下载。
+> 🇨🇳 **打不开 GitHub / 下载慢？用夸克网盘镜像**：<https://pan.quark.cn/s/d3322c17e7b6>　·　🌐 最新版以 [GitHub Releases](https://github.com/aqm857886159/Nomi/releases/latest) / [官网](https://nomiaqm.com)为准。
 
 <details>
 <summary><b>第一次打开提示「未知开发者 / 已损坏」？</b>（还没买签名证书，正常现象，点开看绕过方法）</summary>
@@ -60,7 +60,7 @@
 
 <img src="docs/media/nomi-canvas-group-wechat.png" alt="nomi 画布群二维码" width="200" />
 
-> 群二维码 **7 月 5 日前有效**；过期或扫不进，加作者微信 **TZ857886159**（长期有效）拉你进群。
+> 群二维码 **7 月 12 日前有效**；过期或扫不进，加作者微信 **TZ857886159**（长期有效）拉你进群。
 
 ---
 
@@ -83,7 +83,7 @@
 ## ✨ 它能做什么
 
 - 🤖 **AI 拆镜头 + 排片** — 写完故事点一下，AI 拆成一份**可改的分镜方案**（镜头 / 角色 / 提示词逐项可编辑）；你确认后自动铺到画布、规划「角色定妆 → 关键帧 → 视频」的生成顺序，还能按镜序排上时间轴。跨次打开它也记得这个项目聊过什么。
-- 🎬 **3D 导演台 + AI 运镜** — 在 3D 场景里摆角色姿势、架机位、设画幅，截机位画面当参考；也能让 AI 按你的描述自动搭好站位。**文字说不清的构图，直接「搭」出来**，锁住跨镜头的空间关系。再用一句话描述运镜，AI 沿相机轨迹渲一段运镜小片喂给视频模型，把镜头运动复刻到成片上。还能**文生 3D / 图生 3D**（混元 / Meshy / HiTem3D）直接生成 3D 模型资产。
+- 🎬 **3D 导演台 + AI 运镜** — 在 3D 场景里摆角色姿势、架机位、设画幅，截机位画面当参考；也能让 AI 按你的描述自动搭好站位。**文字说不清的构图，直接「搭」出来**，锁住跨镜头的空间关系。v0.16.1 重新校准了坐、蹲、半蹲、单膝跪、双膝跪、指向、举手等白模姿势，并用 front / side / q3 / back / top 多视角截图回归，参考图和参考视频更稳定。再用一句话描述运镜，AI 沿相机轨迹渲一段运镜小片喂给视频模型，把镜头运动复刻到成片上。还能**文生 3D / 图生 3D**（混元 / Meshy / HiTem3D）直接生成 3D 模型资产。
 - 🎨 **画布上直接修图，不用导去 PS** — 生成的图当场就能改：**抠图换背景、把元素拆出来单独调、改图里的文字**（对标 Lovart 的元素 / 文字编辑），还能往画布粘贴、派生新版本。素材一多，用「**找素材**」一键按成片 / 参考自动分组、缩略图识别，秒找到要的那张。
 - 🔗 **一键接入 Claude Code / Codex / Cursor** — Nomi 的创作能力抽成了一个**无头能力核**（MCP）；在「模型接入」面板一键写好接入，让编程助手用对话直接指挥 Nomi 建项目、加节点、连参考、触发生成——Nomi 里所见即所得。
 - 🔑 **一个 key、十几个模型全通** — 「模型接入」填一个 key（APIMart / kie），视频 **Sora 2 / Veo 3.1 / 可灵 / Seedance / Wan / Hailuo**、图像 **Seedream / Nano Banana / GPT Image / Qwen / Imagen** 等预置模型立即可用，**文生 / 图生 / 首尾帧补间 / 多图参考**模式齐全，同款模型的**标准 / 快速 / Pro 变体**一处切换；也可自定义接入任意中转站。
