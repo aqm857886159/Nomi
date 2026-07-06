@@ -101,7 +101,9 @@ function detectModelNotOpen(upstream: string | undefined, raw: string): boolean 
     text.includes('modelnotopen') ||
     text.includes('未开通') ||
     text.includes('开通管理') ||
-    (text.includes('开通') && text.includes('模型'))
+    // 「开通+模型」必须再有控制台语境才算——否则太宽：即梦 CLI 的会员兜底文案（「需开通即梦会员…
+    // 该模型首次使用…」）曾被这条误吞成「模型未开通/火山 Ark 指引」（2026-07-06 真机走查抓出）。
+    (text.includes('开通') && text.includes('模型') && (text.includes('控制台') || text.includes('console') || text.includes('ark') || text.includes('激活')))
   )
 }
 
@@ -155,18 +157,19 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   // S4-2:structured 优先(VendorRequestError 经 IPC 标记穿透,源头保留的事实,不是猜);
   // 老数据/非 vendor 错误退回 legacy 正则识别。两条路只产 kind,文案统一出自 narrate 词表。
   const structured = parseVendorErrorFromMessage(message)
-  // 模型未开通先于 category 判(理由见 detectModelNotOpen):reason 用 narrate 词表,
-  // 服务商原话(如「has not activated the model …」)单独提到 providerMessage 可见区。
   const cleanRaw = stripVendorErrorMarker(String(message || '')).split('\n→')[0].trim() || '生成失败'
-  if (detectModelNotOpen(structured?.upstreamMsg, cleanRaw)) {
-    const { reason, hint } = narrateGenerationError('model-not-open')
+  // 账号档位闸（会员/企业 Key/网页授权）**最先**判——它的关键词（会员/授权/开通即梦会员）比
+  // model-not-open 更具体；反过来放后面会被宽词抢走（即梦 CLI 兜底文案曾被判成「模型未开通」
+  // 并给出火山 Ark 指引，2026-07-06 真机走查抓出）。reason 出自 narrate，服务商原话单独提到可见区。
+  if (detectAccountGate(structured?.upstreamMsg, cleanRaw)) {
+    const { reason, hint } = narrateGenerationError('account-gate')
     const providerMessage = pickProviderMessage(structured?.upstreamMsg ?? extractReadableErrorLine(cleanRaw), reason)
     return { reason, hint, raw: cleanRaw, ...(providerMessage ? { providerMessage } : {}) }
   }
-  // 账号档位闸（会员/企业 Key/网页授权）先于 category 判——否则 RunningHub 1014 会被 categorize 成 input
-  // →「参数不被接受」误导，即梦会员被吞进 unknown。reason 出自 narrate，服务商原话单独提到可见区。
-  if (detectAccountGate(structured?.upstreamMsg, cleanRaw)) {
-    const { reason, hint } = narrateGenerationError('account-gate')
+  // 模型未开通先于 category 判(理由见 detectModelNotOpen):reason 用 narrate 词表,
+  // 服务商原话(如「has not activated the model …」)单独提到 providerMessage 可见区。
+  if (detectModelNotOpen(structured?.upstreamMsg, cleanRaw)) {
+    const { reason, hint } = narrateGenerationError('model-not-open')
     const providerMessage = pickProviderMessage(structured?.upstreamMsg ?? extractReadableErrorLine(cleanRaw), reason)
     return { reason, hint, raw: cleanRaw, ...(providerMessage ? { providerMessage } : {}) }
   }
