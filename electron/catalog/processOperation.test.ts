@@ -75,6 +75,22 @@ describe("executeProcessOperation", () => {
     await expect(call(["text2video", "--prompt=cat"])).rejects.toThrow(/会员.*授权|授权.*会员|开通即梦会员/);
   });
 
+  it("exit=0 但只吐错误行（登录态失效 authsdk）→ 抛登录指引，不再当「仍在生成」空转（2026-07-06 群反馈根因）", async () => {
+    runDreaminaCli.mockResolvedValue({ code: 0, stdout: "", stderr: "authsdk: refresh failed: protocol transport: do request" });
+    await expect(call(["text2video", "--prompt=cat"])).rejects.toThrow(/登录/);
+  });
+
+  it("exit=0 但输出是合规拦截（AigcComplianceConfirmationRequired）→ 抛网页授权指引", async () => {
+    runDreaminaCli.mockResolvedValue({ code: 0, stdout: "AigcComplianceConfirmationRequired", stderr: "" });
+    await expect(call(["text2video", "--prompt=cat"])).rejects.toThrow(/网页端|授权/);
+  });
+
+  it("只有 submit_id（无 gen_status）仍算有效受理，不误伤", async () => {
+    runDreaminaCli.mockResolvedValue({ code: 0, stdout: '{"submit_id":"u-9"}', stderr: "" });
+    const { response } = await call(["text2video", "--prompt=cat"]);
+    expect((response as JsonRecord).submit_id).toBe("u-9");
+  });
+
   it("未装 CLI → 抛安装引导错误", async () => {
     resolveDreaminaBin.mockReturnValue("");
     await expect(call(["text2video"])).rejects.toThrow(/未找到即梦 CLI|一键安装/);
