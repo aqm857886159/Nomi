@@ -440,6 +440,12 @@ export function isComplianceConfirmationRequired(text: string): boolean {
   return /AigcComplianceConfirmationRequired|ComplianceConfirmationRequired|内容安全.*授权|授权确认/i.test(String(text || ""));
 }
 
+/** 是否命中「登录态失效/未登录」签名。实测（2026-07-06）：token 刷新失败时 CLI **exit=0** 只打
+ *  `authsdk: refresh failed: protocol transport: do request` 一行——必须按文本识别，不能靠退出码。 */
+export function isLoginExpired(text: string): boolean {
+  return /authsdk|refresh failed|not logged in|please login|login required|未登录|登录已过期|token (expired|invalid)/i.test(String(text || ""));
+}
+
 /**
  * 把 dreamina CLI 的「调用失败」翻译成一句给用户看的人话（治「用不了」黑洞）。
  *
@@ -459,6 +465,9 @@ export function describeDreaminaFailure(code: number, stdout: string, stderr: st
   }
   if (isNotMaestroVip(text)) {
     return "当前即梦账号不是高级会员，无法生成。即梦免费试用已于 2026-05-01 结束——请在即梦开通会员后重试（光登录、光充积分不够）。";
+  }
+  if (isLoginExpired(text)) {
+    return "即梦登录态失效或未登录：请到「模型接入 · 即梦会员」卡重新登录（或终端运行 dreamina login），完成后重试。";
   }
   if (!text) {
     // 静默失败：CLI 给不出原因。保留会员/授权两条高频指引，同时补上参数组合与服务端异常的排查方向。

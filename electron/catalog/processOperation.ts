@@ -91,10 +91,17 @@ export async function executeProcessOperation(input: ProcessOperationInput): Pro
     const ran = await runDreaminaCli(args, { timeoutMs: input.timeoutMs ?? 300_000, bin });
     const normalized = normalizeDreaminaOutput(ran.stdout, ran.stderr);
 
-    // 退出码非 0 且连 submit_id/gen_status 都解析不到 = 真·调用失败。
-    // 现役 CLI（build 2026-06-18）非会员被拒时**静默失败**（exit=1、输出全空、不建任务记录），旧版会打印
-    // "not maestro vip" 现在什么都不打印 → 不能甩 "exit=1"，按最可能原因给可执行指引（治「用不了」黑洞，P2）。
-    if (ran.code !== 0 && !normalized.submitId && !normalized.genStatus) {
+    // 「三无」（submit_id / gen_status / 结果媒体全解析不到）= 这次调用没产生任何可用信息 = 真·调用失败，
+    // **不看退出码**。实测（2026-07-06）现役 CLI 会 exit=0 只吐一行错误文本——登录态失效
+    // （authsdk: refresh failed）、首用合规拦截（AigcComplianceConfirmationRequired）等；旧判定只拦
+    // exit≠0，这类被 taskStatusFromResponse 兜成 queued → 节点「仍在生成」空转到 20 分钟硬超时
+    // （群用户报「扣了积分一直生成不出来」的 Nomi 侧根因）。describeDreaminaFailure 按输出签名给
+    // 人话指引（会员/首用授权/登录态/网络），其余原话透传。非会员静默失败（exit=1、输出全空）同样
+    // 落在这里（旧 case 的超集）。
+    const hasAnySignal = Boolean(
+      normalized.submitId || normalized.genStatus || normalized.remoteUrls.length || normalized.localPaths.length,
+    );
+    if (!hasAnySignal) {
       throw new Error(describeDreaminaFailure(ran.code, ran.stdout, ran.stderr));
     }
 

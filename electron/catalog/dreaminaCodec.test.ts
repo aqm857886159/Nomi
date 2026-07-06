@@ -18,6 +18,7 @@ import {
   isReusingLogin,
   isComplianceConfirmationRequired,
   describeDreaminaFailure,
+  isLoginExpired,
 } from "./dreaminaCodec";
 
 describe("extractDreaminaJson", () => {
@@ -267,5 +268,16 @@ describe("describeDreaminaFailure（治「用不了」黑洞）", () => {
   it("isComplianceConfirmationRequired 识别授权闸", () => {
     expect(isComplianceConfirmationRequired("AigcComplianceConfirmationRequired")).toBe(true);
     expect(isComplianceConfirmationRequired("一切正常")).toBe(false);
+  });
+});
+
+describe("describeDreaminaFailure — 登录态失效签名（2026-07-06 实测 exit=0 只打一行）", () => {
+  it("authsdk refresh failed → 登录指引", () => {
+    expect(describeDreaminaFailure(0, "", "authsdk: refresh failed: protocol transport: do request")).toMatch(/登录/);
+  });
+  it("isLoginExpired 认 authsdk/未登录/token expired；不误伤普通输出", () => {
+    expect(isLoginExpired("authsdk: refresh failed")).toBe(true);
+    expect(isLoginExpired("please login first")).toBe(true);
+    expect(isLoginExpired('{"submit_id":"x"}')).toBe(false);
   });
 });
