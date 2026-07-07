@@ -13,6 +13,16 @@ function imageNode(id: string, url?: string): GenerationCanvasNode {
     ...(url ? { result: { id: `${id}-r`, url } } : {}),
   } as GenerationCanvasNode
 }
+function textNode(id: string, text = ''): GenerationCanvasNode {
+  return {
+    id,
+    kind: 'text',
+    title: id,
+    position: { x: 0, y: 0 },
+    prompt: '',
+    contentJson: { type: 'doc', content: text ? [{ type: 'paragraph', content: [{ type: 'text', text }] }] : [] },
+  } as GenerationCanvasNode
+}
 function omniVideoNode(id: string): GenerationCanvasNode {
   return {
     id, kind: 'video', title: id, position: { x: 400, y: 0 }, prompt: '',
@@ -76,6 +86,14 @@ describe('completeNodeConnection — 捷径 B（地基收口：数组参考也�
     completeNodeConnection('dst')
     expect(edgesTo('dst')).toMatchObject([{ source: 'src', target: 'dst', mode: 'character_ref' }])
     expect(refImages('dst')).toBeUndefined()
+    expect(useGenerationCanvasStore.getState().pendingConnectionSourceId).toBe('')
+  })
+
+  it('text source → image target：建 prompt 上下文边，不要求文本有参考结果', () => {
+    seed([textNode('txt', '画面说明'), imageNode('dst')])
+    useGenerationCanvasStore.getState().startConnection('txt')
+    completeNodeConnection('dst')
+    expect(edgesTo('dst')).toMatchObject([{ source: 'txt', target: 'dst', mode: 'reference' }])
     expect(useGenerationCanvasStore.getState().pendingConnectionSourceId).toBe('')
   })
 

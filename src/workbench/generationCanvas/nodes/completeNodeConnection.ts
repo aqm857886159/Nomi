@@ -7,10 +7,11 @@
 // 同一真相源（resolveReferenceSlots / resolveGenerationReferences 都按 order 落槽），不再分裂。
 // 旧的权宜 toast「已作为参考图添加（不画连线）」随 meta-only 路径一并删除（P1：不留并行版）。
 //
-// 连边能力校验（validateReferenceEdge）仍在 connectToNode 里做总闸——文本→图、错配参考槽等盲连
-// 在创建期就拦，不落库到生成期才被丢。本函数只负责把校验失败的人话反馈给手动连线的用户。
+// 连边能力校验（validateReferenceEdge）仍在 connectToNode 里做总闸——错配参考槽等盲连
+// 在创建期就拦；文本→图/视频作为 prompt 上下文边放行。本函数只负责把校验失败的人话反馈给手动连线的用户。
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { showInfoToast } from '../../../utils/showInfoToast'
+import { isTextPromptEdge } from '../agent/referenceEdgeCapability'
 import { resolveReferenceSlots } from '../runner/referenceSlots'
 
 export function completeNodeConnection(targetNodeId: string): void {
@@ -30,7 +31,9 @@ export function completeNodeConnection(targetNodeId: string): void {
   // 用 resolveReferenceSlots(单源)判断这条新边有没有落进任一槽 fill；没落=槽满，明着提示而非静默。
   if (verdict.ok && sourceNodeId) {
     const { nodes, edges } = useGenerationCanvasStore.getState()
+    const source = nodes.find((n) => n.id === sourceNodeId)
     const target = nodes.find((n) => n.id === targetNodeId)
+    if (source && target && isTextPromptEdge(source, target)) return
     if (target) {
       const slots = resolveReferenceSlots(target, nodes, edges)
       const landed = slots.some((s) => s.fills.some((f) => f.origin.type === 'edge' && f.origin.sourceNodeId === sourceNodeId))

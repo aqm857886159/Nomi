@@ -3,7 +3,7 @@ import { archetypeForNode, resolveTargetModeForEdge, selectConnectionEdgeMode, v
 import { applyArchetypeModeSwitch } from '../nodes/controls/archetypeMeta'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
 import { createGroupId } from './canvasIds'
-import { bumpPersistRevision, isCategoryId, shouldPersistCanvasMutation } from './canvasGuards'
+import { bumpPersistRevision, isCategoryId, shouldEmitCanvasMutation, shouldPersistCanvasMutation } from './canvasGuards'
 import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasUndoJournal'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import type { CanvasGraphActions, CanvasSliceCreator } from './canvasStoreTypes'
@@ -54,7 +54,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     const mode: GenerationCanvasEdge['mode'] = sourceNode && targetNode
       ? selectConnectionEdgeMode(sourceNode, targetNode, pre.edges.filter((e) => e.target === targetNodeId))
       : 'reference'
-    // 连边能力校验收口到此(手动连线总闸):文本→图片、错配参考槽等盲连在创建期就拦——
+    // 连边能力校验收口到此(手动连线总闸):错配参考槽等盲连在创建期就拦；文本→图片/视频作为 prompt 上下文边放行——
     // T8 此前只补了 agent 入口,手动拖把柄/点输入口的边落库后才在生成期被静默丢弃。
     // agent 路径已在 generationCanvasTools 预校验;这里防的是手动入口。
     if (sourceNode && targetNode) {
@@ -123,10 +123,12 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
   },
   moveGroupNodes: (groupId, delta, options) => {
     // 预判"会不会真的动"(与内嵌守卫同条件),动了才发事件
-    const pre = get()
-    const preGroup = pre.groups.find((candidate) => candidate.id === groupId)
-    const willMoveIds = preGroup?.nodeIds.length && (delta.x !== 0 || delta.y !== 0)
-      ? pre.nodes.filter((node) => preGroup.nodeIds.includes(node.id) && (node.categoryId || 'shots') === preGroup.categoryId).map((node) => node.id)
+    const shouldEmit = shouldEmitCanvasMutation(options)
+    const pre = shouldEmit ? get() : null
+    const preGroup = pre?.groups.find((candidate) => candidate.id === groupId)
+    const preNodeIds = preGroup?.nodeIds.length ? new Set(preGroup.nodeIds) : null
+    const willMoveIds = pre && preGroup && preNodeIds && (delta.x !== 0 || delta.y !== 0)
+      ? pre.nodes.filter((node) => preNodeIds.has(node.id) && (node.categoryId || 'shots') === preGroup.categoryId).map((node) => node.id)
       : []
     set((state) => {
       if (delta.x === 0 && delta.y === 0) return
@@ -146,7 +148,7 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
       group.updatedAt = Date.now()
       if (shouldPersistCanvasMutation(options)) bumpPersistRevision(state)
     })
-    if (willMoveIds.length) {
+    if (shouldEmit && willMoveIds.length) {
       const post = get()
       const postGroup = post.groups.find((candidate) => candidate.id === groupId)
       emitCanvasGesture([

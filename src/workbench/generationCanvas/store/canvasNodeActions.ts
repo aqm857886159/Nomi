@@ -5,7 +5,7 @@ import { getDefaultCategoryForNodeKind, type GenerationCanvasNode } from '../mod
 import { getNodeSize } from '../model/generationNodeKinds'
 import { isShotNumberedNode, nextShotIndex } from '../model/shotNumbering'
 import { CLIPBOARD_OFFSET, createClipboardNodeId, createNodeId } from './canvasIds'
-import { bumpPersistRevision, isCategoryId, shouldPersistCanvasMutation } from './canvasGuards'
+import { bumpPersistRevision, isCategoryId, shouldEmitCanvasMutation, shouldPersistCanvasMutation } from './canvasGuards'
 import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasUndoJournal'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -134,7 +134,9 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       node.position = position
       if (shouldPersistCanvasMutation(options)) bumpPersistRevision(state)
     })
-    emitCanvasGesture([{ type: 'canvas.node.moved', payload: { nodeId, position } }])
+    if (shouldEmitCanvasMutation(options)) {
+      emitCanvasGesture([{ type: 'canvas.node.moved', payload: { nodeId, position } }])
+    }
   },
   moveSelectedNodes: (delta, options) => {
     set((state) => {
@@ -152,8 +154,9 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
       if (moved && shouldPersistCanvasMutation(options)) bumpPersistRevision(state)
     })
     // 后态读取:每个被移动节点一条 moved,共享一个手势 txn
+    if (!shouldEmitCanvasMutation(options) || (delta.x === 0 && delta.y === 0)) return
     const selected = new Set(get().selectedNodeIds)
-    if (selected.size && (delta.x !== 0 || delta.y !== 0)) {
+    if (selected.size) {
       emitCanvasGesture(
         get().nodes
           .filter((node) => selected.has(node.id))
@@ -215,6 +218,17 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
         ? state.selectedNodeIds.filter((id) => id !== nodeId)
         : [...state.selectedNodeIds, nodeId]
       state.selectedNodeIds = nextIds
+    })
+  },
+  selectNodes: (nodeIds) => {
+    set((state) => {
+      const existing = new Set(state.nodes.map((node) => node.id))
+      const seen = new Set<string>()
+      state.selectedNodeIds = nodeIds.filter((nodeId) => {
+        if (!existing.has(nodeId) || seen.has(nodeId)) return false
+        seen.add(nodeId)
+        return true
+      })
     })
   },
   clearSelection: () => {

@@ -2,6 +2,7 @@
 // 把"谁参考谁"的边变成执行波次:无依赖并行(第 1 波),有依赖等前置完成(后续波)。
 // 纯函数:同一份计划既给确认 UI 画,也给调度器跑——显示的 ≡ 执行的(可断言)。
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
+import { isTextPromptEdge } from '../agent/referenceEdgeCapability'
 
 export type DependencyWavePlan = {
   /** 执行波次:waves[0] 全部并行,waves[n] 等 waves[n-1] 完成。 */
@@ -42,16 +43,19 @@ export function buildDependencyWaves(
   for (const id of selection) internalDeps.set(id, new Set())
   for (const edge of context.edges) {
     if (!selection.has(edge.target)) continue
+    const sourceNode = nodesById.get(edge.source)
+    const targetNode = nodesById.get(edge.target)
+    if (sourceNode && targetNode && isTextPromptEdge(sourceNode, targetNode)) continue
     if (selection.has(edge.source)) {
       internalDeps.get(edge.target)?.add(edge.source)
       edgesUsed.push(edge)
       continue
     }
     // 选择集外的上游:有结果=满足;无结果=拦下(这就是修"静默丢参考裸跑"的地方)
-    if (!hasUsableResult(nodesById.get(edge.source))) {
+    if (!hasUsableResult(sourceNode)) {
       if (!blockedIds.has(edge.target)) {
         blockedIds.add(edge.target)
-        const sourceTitle = nodesById.get(edge.source)?.title || edge.source
+        const sourceTitle = sourceNode?.title || edge.source
         blocked.push({ nodeId: edge.target, reason: 'missing-upstream', detail: `上游「${sourceTitle}」还没有生成结果` })
       }
     } else {

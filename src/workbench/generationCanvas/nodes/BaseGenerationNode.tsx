@@ -177,6 +177,37 @@ function BaseGenerationNodeImpl({
     if (patch) updateNode(node.id, patch)
   }
 
+  const playPreviewVideo = React.useCallback((host: HTMLElement): void => {
+    const video = host.querySelector<HTMLVideoElement>('[data-node-preview-video="true"]')
+    if (!video) return
+    video.muted = true
+    const playPromise = video.play()
+    if (playPromise && typeof playPromise.catch === 'function') {
+      void playPromise.catch(() => {})
+    }
+  }, [])
+
+  const stopPreviewVideo = React.useCallback((host: HTMLElement): void => {
+    const video = host.querySelector<HTMLVideoElement>('[data-node-preview-video="true"]')
+    if (!video) return
+    video.pause()
+    try {
+      video.currentTime = 0
+    } catch {
+      // Some browsers can reject seeking before metadata is ready.
+    }
+  }, [])
+
+  const handleVideoNodePointerEnter = React.useCallback((event: React.PointerEvent<HTMLElement>): void => {
+    if (node.result?.type !== 'video') return
+    playPreviewVideo(event.currentTarget)
+  }, [node.result?.type, playPreviewVideo])
+
+  const handleVideoNodePointerLeave = React.useCallback((event: React.PointerEvent<HTMLElement>): void => {
+    if (node.result?.type !== 'video') return
+    stopPreviewVideo(event.currentTarget)
+  }, [node.result?.type, stopPreviewVideo])
+
   const handleFocusSourceNode = React.useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       event.preventDefault()
@@ -236,7 +267,10 @@ function BaseGenerationNodeImpl({
     readOnly,
   })
   const showTimelineNotch =
-    canSendToTimeline && node.kind !== 'scene3d' && node.result?.type === 'image' && !imageStackOpen
+    canSendToTimeline &&
+    node.kind !== 'scene3d' &&
+    (node.result?.type === 'image' || node.result?.type === 'video') &&
+    !imageStackOpen
   const showSideTimelineDrag = canSendToTimeline && node.kind !== 'scene3d' && !showTimelineNotch
   // 失败态不再显示文字徽标——错误信息已铺满节点正文（NodeErrorReport），
   // 顶部再写一遍「生成失败」是重复噪音（2026-06-03 6 角色评审）。
@@ -300,6 +334,8 @@ function BaseGenerationNodeImpl({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onPointerEnter={handleVideoNodePointerEnter}
+      onPointerLeave={handleVideoNodePointerLeave}
     >
       {!readOnly && node.kind !== 'panorama' ? (
         selected && useMagneticConnectionHandles && !isPendingConnectionSource ? (
@@ -578,6 +614,7 @@ function BaseGenerationNodeImpl({
             </React.Suspense>
           ) : node.result.type === 'video' ? (
             <DeferredNodeVideo
+              data-node-preview-video="true"
               className={cn('w-full h-full min-h-0 object-contain pointer-events-auto', 'bg-nomi-ink-05 select-none')}
               src={buildVideoPlaybackUrl(node.result.url)}
               priority={mediaPreviewPriority}

@@ -43,6 +43,7 @@ export type CanvasNodeActions = {
   tidyCategory: (categoryId: string, targetAspect: number) => void
   deleteSelectedNodes: () => void
   selectNode: (nodeId: string, additive?: boolean) => void
+  selectNodes: (nodeIds: readonly string[]) => void
   clearSelection: () => void
   selectAllNodes: (categoryId?: string) => void
   /** 框选：选中与矩形（画布坐标）相交的当前分类节点；additive 时并入现有选区。 */

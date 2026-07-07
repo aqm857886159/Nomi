@@ -77,7 +77,8 @@ export const generationCanvasTools = {
     // 两道校验,放不行的边都带 reason 进 skipped——applyCanvasToolCall 原样回报给 LLM,它据此纠正:
     //   1. 端点必须真实存在(reason:'dangling')——吊边一旦入 store 会被持久化且永不渲染(连线静默丢失)。
     //   2. 目标模型必须支持这条参考(reason:'source_not_referenceable'/'unsupported_reference',T8)——
-    //      否则文本→图片、character_ref→纯文生模型这类盲连会落库后在生成期被静默丢弃。
+    //      否则 character_ref→纯文生模型这类盲连会落库后在生成期被静默丢弃。
+    //      文本→图片/视频是 prompt 上下文边,由 validateReferenceEdge 特判放行。
     const nodeById = new Map(useGenerationCanvasStore.getState().nodes.map((node) => [node.id, node]))
     const skipped: Array<Pick<GenerationCanvasEdge, 'source' | 'target'> & { reason: EdgeSkipReason }> = []
     let connected = 0

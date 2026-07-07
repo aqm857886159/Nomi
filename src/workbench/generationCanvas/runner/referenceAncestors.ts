@@ -1,4 +1,5 @@
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
+import { isTextPromptEdge } from '../agent/referenceEdgeCapability'
 
 /**
  * 单节点生成的「自动备齐参考」根治（对话 2026-06-14）：用户连了 角色→镜头，但镜头先生成时
@@ -26,11 +27,14 @@ export function collectUngeneratedReferenceAncestors(
   while (stack.length > 0 && steps < guard) {
     steps += 1
     const current = stack.pop() as string
+    const targetNode = byId.get(current)
     for (const edge of context.edges) {
       if (edge.target !== current) continue
       const source = edge.source
       if (collected.has(source)) continue
-      if (hasUsableResult(byId.get(source))) continue // 已出图 = 已满足，不纳入（不重复生成）
+      const sourceNode = byId.get(source)
+      if (sourceNode && targetNode && isTextPromptEdge(sourceNode, targetNode)) continue
+      if (hasUsableResult(sourceNode)) continue // 已出图 = 已满足，不纳入（不重复生成）
       collected.add(source)
       stack.push(source) // 该上游也没图 → 它自己的参考也要先备齐（传递闭包）
     }

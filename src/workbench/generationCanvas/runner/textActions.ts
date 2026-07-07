@@ -64,7 +64,7 @@ export async function generateText(
 }
 
 /** 把 Tiptap 文档拍平成纯文本（数据层，不需要 editor）——用于喂给模型做上下文。 */
-function docToPlainText(doc?: TiptapDocJson): string {
+export function docToPlainText(doc?: TiptapDocJson): string {
   const walk = (entry: unknown): string => {
     if (!entry || typeof entry !== 'object') return ''
     const node = entry as { type?: string; text?: string; content?: unknown[] }

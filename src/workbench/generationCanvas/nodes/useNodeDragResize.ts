@@ -8,6 +8,7 @@ import { clientXToFrame } from "../../timeline/timelineEdit";
 import { getTrackTypeForClipType } from "../../timeline/timelineTypes";
 import { buildClipFromGenerationNode } from "../model/buildClipFromGenerationNode";
 import { toast } from "../../../ui/toast";
+import { emitCanvasGesture } from "../events/canvasEventEmitter";
 import {
     clampNumber,
     findTimelineDropTarget,
@@ -30,8 +31,8 @@ type UseNodeDragResizeArgs = {
     visualSize: { width: number; height: number };
     selectNode: (nodeId: string, additive?: boolean) => void;
     captureHistory: () => void;
-    moveNode: (nodeId: string, position: { x: number; y: number }, options?: { persist?: boolean }) => void;
-    moveSelectedNodes: (delta: { x: number; y: number }, options?: { persist?: boolean }) => void;
+    moveNode: (nodeId: string, position: { x: number; y: number }, options?: { persist?: boolean; emit?: boolean }) => void;
+    moveSelectedNodes: (delta: { x: number; y: number }, options?: { persist?: boolean; emit?: boolean }) => void;
     updateNode: StoreUpdate;
     commitPersistedChange: () => void;
 };
@@ -58,6 +59,7 @@ export function useNodeDragResize({
         lastDeltaX: number;
         lastDeltaY: number;
         multi: boolean;
+        collapseSelectionOnClick: boolean;
         dragging: boolean;
     } | null>(null);
     const resizeStartRef = React.useRef<{
@@ -86,12 +88,24 @@ export function useNodeDragResize({
         pendingSelectedDeltaRef.current = null;
         pendingNodePositionRef.current = null;
         if (selectedDelta && (selectedDelta.x !== 0 || selectedDelta.y !== 0)) {
-            moveSelectedNodes(selectedDelta, { persist: false });
+            moveSelectedNodes(selectedDelta, { persist: false, emit: false });
         }
         if (nodePosition) {
-            moveNode(node.id, nodePosition, { persist: false });
+            moveNode(node.id, nodePosition, { persist: false, emit: false });
         }
     }, [moveNode, moveSelectedNodes, node.id]);
+
+    const emitDragSettled = React.useCallback((multi: boolean) => {
+        const state = useGenerationCanvasStore.getState();
+        const selectedIds = new Set(state.selectedNodeIds);
+        const movedEvents = state.nodes
+            .filter((candidate) => multi ? selectedIds.has(candidate.id) : candidate.id === node.id)
+            .map((candidate) => ({
+                type: "canvas.node.moved" as const,
+                payload: { nodeId: candidate.id, position: candidate.position },
+            }));
+        if (movedEvents.length) emitCanvasGesture(movedEvents);
+    }, [node.id]);
 
     const requestMoveFrame = React.useCallback(() => {
         if (moveFrameRef.current !== null) return;
@@ -154,6 +168,7 @@ export function useNodeDragResize({
             event.currentTarget.setPointerCapture(event.pointerId);
         }
         captureHistory();
+        const dragSelection = selected && isMultiSelectActive && !event.shiftKey;
         dragStartRef.current = {
             pointerX: event.clientX,
             pointerY: event.clientY,
@@ -161,10 +176,11 @@ export function useNodeDragResize({
             y: node.position.y,
             lastDeltaX: 0,
             lastDeltaY: 0,
-            multi: selected && isMultiSelectActive,
+            multi: dragSelection,
+            collapseSelectionOnClick: dragSelection,
             dragging: false,
         };
-        selectNode(node.id, event.shiftKey);
+        if (!dragSelection) selectNode(node.id, event.shiftKey);
     };
 
     const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -355,13 +371,17 @@ export function useNodeDragResize({
                             x: dragStart?.x ?? node.position.x,
                             y: dragStart?.y ?? node.position.y,
                         },
-                        { persist: false },
+                        { persist: false, emit: false },
                     );
                 }
             }
         }
         if (dragStart?.dragging || hadResize) {
+            if (dragStart?.dragging) emitDragSettled(dragStart.multi);
             commitPersistedChange();
+        }
+        if (dragStart && !dragStart.dragging && dragStart.collapseSelectionOnClick) {
+            selectNode(node.id, false);
         }
         dragStartRef.current = null;
         resizeStartRef.current = null;

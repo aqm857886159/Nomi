@@ -38,11 +38,29 @@
 }
 
 .generation-canvas-v2__edges {
+  z-index: 2;
   pointer-events: none;
   overflow: visible;
 }
 
+.generation-canvas-v2__selection-bounds {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in oklch, var(--nomi-ink) 32%, transparent);
+  border-radius: 14px;
+  background: color-mix(in oklch, var(--nomi-paper) 5%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--nomi-paper) 22%, transparent) inset,
+    0 14px 34px color-mix(in oklch, var(--nomi-ink) 10%, transparent);
+  pointer-events: auto;
+  cursor: move;
+}
+
 .generation-canvas-v2__nodes {
+  z-index: 3;
   pointer-events: none;
 }
 
@@ -331,6 +349,36 @@
 .generation-canvas-v2-node__handle[data-active='true'] .generation-canvas-v2-node__handle-dot {
   background: var(--workbench-accent);
   transform: scale(1.08);
+}
+
+.generation-canvas-v2-node__magnetic-handle-icon {
+  --connection-handle-reveal-x: 0px;
+  opacity: 0;
+  transform: translate(calc(-50% + var(--connection-handle-reveal-x)), -50%) scale(0.86);
+}
+
+.generation-canvas-v2-node__magnetic-handle[data-side='left'] .generation-canvas-v2-node__magnetic-handle-icon {
+  --connection-handle-reveal-x: 28px;
+}
+
+.generation-canvas-v2-node__magnetic-handle[data-side='right'] .generation-canvas-v2-node__magnetic-handle-icon {
+  --connection-handle-reveal-x: -28px;
+}
+
+.generation-canvas-v2-node:hover .generation-canvas-v2-node__magnetic-handle-icon,
+.generation-canvas-v2-node:focus-within .generation-canvas-v2-node__magnetic-handle-icon,
+.generation-canvas-v2-node__magnetic-handle:hover .generation-canvas-v2-node__magnetic-handle-icon,
+.generation-canvas-v2-node__magnetic-handle[data-active='true'] .generation-canvas-v2-node__magnetic-handle-icon,
+.generation-canvas-v2-node__magnetic-handle[data-following='true'] .generation-canvas-v2-node__magnetic-handle-icon {
+  --connection-handle-reveal-x: 0px;
+  opacity: 0.82;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.generation-canvas-v2-node:hover .generation-canvas-v2-node__magnetic-handle:hover .generation-canvas-v2-node__magnetic-handle-icon,
+.generation-canvas-v2-node__magnetic-handle[data-active='true'] .generation-canvas-v2-node__magnetic-handle-icon,
+.generation-canvas-v2-node__magnetic-handle[data-following='true'] .generation-canvas-v2-node__magnetic-handle-icon {
+  opacity: 1;
 }
 
 /* 布局/折叠态已迁到组件 Tailwind className（flex flex-col / data-collapsed 分支），

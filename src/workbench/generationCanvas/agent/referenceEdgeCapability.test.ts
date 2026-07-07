@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { referenceAssetKindForNode, validateReferenceEdge, partitionConnectableEdges, resolveTargetModeForEdge } from './referenceEdgeCapability'
+import { isTextPromptEdge, referenceAssetKindForNode, validateReferenceEdge, partitionConnectableEdges, resolveTargetModeForEdge } from './referenceEdgeCapability'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
 // archetypeId 显式命中内置档案(resolveArchetypeForModel/getArchetypeById 优先看它):
@@ -37,8 +37,19 @@ describe('referenceAssetKindForNode — 源能给哪种可参考资产', () => {
 })
 
 describe('validateReferenceEdge — 参考边能力校验', () => {
-  it('① 文本节点作参考源 → 拒(source_not_referenceable)', () => {
-    const verdict = validateReferenceEdge(node('t', 'text'), node('i', 'image', 'seedream'), 'reference')
+  it('文本→图片/视频作为 prompt 上下文边放行，但不变成参考资产', () => {
+    const text = node('t', 'text')
+    const image = node('i', 'image', 'imagen-4')
+    const video = node('v', 'video', 'seedance-2')
+    expect(referenceAssetKindForNode(text)).toBeNull()
+    expect(isTextPromptEdge(text, image)).toBe(true)
+    expect(isTextPromptEdge(text, video)).toBe(true)
+    expect(validateReferenceEdge(text, image, 'reference')).toEqual({ ok: true })
+    expect(validateReferenceEdge(text, video, 'reference')).toEqual({ ok: true })
+  })
+
+  it('文本→非图片/视频生成节点仍拒绝(source_not_referenceable)', () => {
+    const verdict = validateReferenceEdge(node('t', 'text'), node('a', 'audio'), 'reference')
     expect(verdict).toEqual({ ok: false, reason: 'source_not_referenceable' })
   })
 

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useGenerationCanvasStore } from './generationCanvasStore'
+import { setCanvasEventSinkForTests, type CanvasShadowEvent } from '../events/canvasEventEmitter'
 import type { GenerationCanvasNode, GenerationNodeResult, NodeGroup } from '../model/generationCanvasTypes'
 
 function node(id: string, categoryId: GenerationCanvasNode['categoryId'], groupId?: string): GenerationCanvasNode {
@@ -339,6 +340,31 @@ describe('generationCanvasStore sidebar grouping actions', () => {
     expect(state.nodes.find((candidate) => candidate.id === 'cast-1')?.position).toEqual({ x: 15, y: 10 })
     expect(state.nodes.find((candidate) => candidate.id === 'cast-2')?.position).toEqual({ x: 45, y: 50 })
     expect(state.nodes.find((candidate) => candidate.id === 'shot-1')?.position).toEqual({ x: 100, y: 120 })
+  })
+
+  it('can move a group without emitting drag preview events', () => {
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [
+        { ...node('cast-1', 'cast', 'cast-group'), position: { x: 10, y: 20 } },
+        { ...node('cast-2', 'cast', 'cast-group'), position: { x: 40, y: 60 } },
+      ],
+      edges: [],
+      selectedNodeIds: [],
+      groups: [group('cast-group', 'cast', ['cast-1', 'cast-2'])],
+    })
+
+    const captured: CanvasShadowEvent[] = []
+    setCanvasEventSinkForTests((events) => captured.push(...events))
+    try {
+      useGenerationCanvasStore.getState().moveGroupNodes('cast-group', { x: 5, y: -10 }, { persist: false, emit: false })
+      expect(useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === 'cast-1')?.position).toEqual({ x: 15, y: 10 })
+      expect(captured).toEqual([])
+
+      useGenerationCanvasStore.getState().moveGroupNodes('cast-group', { x: 1, y: 0 }, { persist: false })
+      expect(captured.some((event) => event.type === 'canvas.node.moved')).toBe(true)
+    } finally {
+      setCanvasEventSinkForTests(null)
+    }
   })
 
   it('moves legacy shots nodes without explicit category when grouped', () => {

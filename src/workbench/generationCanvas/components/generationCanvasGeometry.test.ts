@@ -44,16 +44,25 @@ describe('getNodeSize — 单一尺寸真相源', () => {
   })
 })
 
-describe('几何调用点收口到 getNodeSize', () => {
-  it('getSelectedBounds 用 per-kind 真实宽算右边界（video 比 300 宽）', () => {
-    const node = makeNode({ id: 'v', kind: 'video', position: { x: 100, y: 0 } })
+describe('几何调用点使用真实渲染尺寸', () => {
+  it('getSelectedBounds 用 per-kind 真实尺寸算包围盒（video 比 300×220 大）', () => {
+    const size = getGenerationNodeDefaultSize('video')
+    const node = makeNode({ id: 'v', kind: 'video', position: { x: 100, y: 0 }, size })
     const bounds = getSelectedBounds([node], ['v'])
-    // 右边界 = x + width(420)。旧实现内联 300 会得到 300。
-    expect(bounds?.width).toBe(getGenerationNodeDefaultSize('video').width)
+    // 右/下边界 = position + registry size。旧实现内联 300×220 会算小。
+    expect(bounds?.width).toBe(size.width)
+    expect(bounds?.height).toBe(size.height)
   })
 
-  it('getCanvasGroupBoxes 用 per-kind 真实尺寸算成员包围盒', () => {
-    const node = makeNode({ id: 'v', kind: 'video', position: { x: 0, y: 0 }, categoryId: 'shots' })
+  it('getSelectedBounds 用真实渲染尺寸算卡片包围盒（character-card 实际宽 200）', () => {
+    const node = makeNode({ id: 'c', kind: 'character', position: { x: 40, y: 50 }, size: getGenerationNodeDefaultSize('character') })
+    const bounds = getSelectedBounds([node], ['c'])
+    expect(bounds).toMatchObject({ minX: 40, minY: 50, width: 200, height: 190 })
+  })
+
+  it('getCanvasGroupBoxes 用真实渲染尺寸算成员包围盒', () => {
+    const visualSize = { width: 520, height: 410 }
+    const node = makeNode({ id: 'v', kind: 'video', position: { x: 0, y: 0 }, categoryId: 'shots', size: visualSize })
     const group: NodeGroup = {
       id: 'g1',
       name: 'G',
@@ -63,8 +72,8 @@ describe('几何调用点收口到 getNodeSize', () => {
       updatedAt: 0,
     }
     const [box] = getCanvasGroupBoxes([group], [node])
-    const size = getGenerationNodeDefaultSize('video')
-    // 包围盒宽 = 成员宽 + 2*padding(24)。验证用的是 video 真实宽 420 而非 320。
-    expect(box.width).toBe(size.width + 48)
+    // 包围盒 = 成员视觉尺寸 + 左右 padding(24*2)，高度再加顶部标签预留(28)。
+    expect(box.width).toBe(visualSize.width + 48)
+    expect(box.height).toBe(visualSize.height + 48 + 28)
   })
 })

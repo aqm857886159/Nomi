@@ -6,9 +6,15 @@ import type { DragEvent } from 'react'
 import { WORKSPACE_FILE_DRAG_MIME, buildWorkspaceFileUrl, parseWorkspaceFileDrag } from '../../explorer/workspaceFileDrag'
 import { ASSET_LIBRARY_DRAG_MIME, parseAssetLibraryDrag } from '../../assets/assetLibraryDrag'
 import { importLocalMediaFilesToGenerationCanvas } from '../adapters/assetImportAdapter'
+import { getGenerationNodeFootprintSize } from '../model/generationNodeKinds'
 import { dropKindFromMime } from '../model/nodeAssetDrop'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { toast } from '../../../ui/toast'
+import type { BrowserAssetCanvasImportItem } from '../../../ui/browser/globalAssetPopoverEvents'
+import type { TiptapDocJson } from '../model/generationCanvasTypes'
+
+export const BROWSER_ASSET_DRAG_MIME = 'application/x-nomi-assets'
+export const LEGACY_BROWSER_ASSET_DRAG_MIME = 'application/x-nomi-browser-assets'
 
 export type CanvasStageDropContext = {
   readOnly: boolean
@@ -17,8 +23,190 @@ export type CanvasStageDropContext = {
   activeCategoryId?: string
 }
 
+type BrowserAssetCanvasItem = {
+  id: string
+  type: 'image' | 'video' | 'prompt'
+  title: string
+  url?: string
+  prompt?: string
+}
+
 function clampNodePos(value: number): number {
   return Math.max(40, Math.round(value))
+}
+
+function layoutColumns(count: number): number {
+  if (count <= 1) return 1
+  return Math.min(4, Math.ceil(Math.sqrt(count)))
+}
+
+export function layoutBrowserAssetDropPositions(
+  basePosition: { x: number; y: number },
+  count: number,
+): Array<{ x: number; y: number }> {
+  if (count <= 0) return []
+  const columns = layoutColumns(count)
+  const footprint = getGenerationNodeFootprintSize('asset')
+  const cellWidth = footprint.width + 36
+  const cellHeight = footprint.height + 36
+  return Array.from({ length: count }, (_, index) => ({
+    x: clampNodePos(basePosition.x + (index % columns) * cellWidth),
+    y: clampNodePos(basePosition.y + Math.floor(index / columns) * cellHeight),
+  }))
+}
+
+function cleanBrowserAssetTitle(value: unknown, fallback: string): string {
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback
+}
+
+function cleanBrowserAssetPrompt(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function tiptapDocFromPlainText(text: string): TiptapDocJson {
+  const lines = text ? text.split(/\r?\n/) : ['']
+  return {
+    type: 'doc',
+    content: lines.map((line) => ({
+      type: 'paragraph',
+      ...(line ? { content: [{ type: 'text', text: line }] } : {}),
+    })),
+  }
+}
+
+function normalizeBrowserAssetCanvasItem(item: unknown): BrowserAssetCanvasItem | null {
+  if (!item || typeof item !== 'object') return null
+  const asset = item as {
+    id?: unknown
+    type?: unknown
+    title?: unknown
+    subtitle?: unknown
+    previewUrl?: unknown
+    url?: unknown
+    prompt?: unknown
+    text?: unknown
+    content?: unknown
+  }
+  const type = asset.type === 'video' ? 'video' : asset.type === 'image' ? 'image' : asset.type === 'prompt' ? 'prompt' : null
+  if (!type) return null
+  const title = cleanBrowserAssetTitle(
+    asset.title,
+    type === 'video' ? '参考视频' : type === 'image' ? '参考图片' : '提示词',
+  )
+  if (type === 'prompt') {
+    const prompt =
+      cleanBrowserAssetPrompt(asset.prompt) ||
+      cleanBrowserAssetPrompt(asset.text) ||
+      cleanBrowserAssetPrompt(asset.content) ||
+      cleanBrowserAssetPrompt(asset.subtitle) ||
+      title
+    return {
+      id: typeof asset.id === 'string' ? asset.id : `browser-prompt-${title}`,
+      type,
+      title,
+      prompt,
+    }
+  }
+  const url =
+    (typeof asset.previewUrl === 'string' ? asset.previewUrl.trim() : '') ||
+    (typeof asset.url === 'string' ? asset.url.trim() : '')
+  if (!url) return null
+  return {
+    id: typeof asset.id === 'string' ? asset.id : `browser-asset-${url}`,
+    type,
+    title,
+    url,
+  }
+}
+
+function parseBrowserAssetDrag(raw: string | null | undefined): BrowserAssetCanvasItem[] {
+  if (!raw) return []
+  try {
+    const value = JSON.parse(raw) as unknown
+    const items = Array.isArray(value) ? value : [value]
+    return items.flatMap((item) => {
+      const asset = normalizeBrowserAssetCanvasItem(item)
+      return asset ? [asset] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+export type BrowserAssetsToCanvasResult = {
+  createdCount: number
+  skippedCount: number
+  nodeIds: string[]
+}
+
+export function importBrowserAssetsToGenerationCanvas(
+  assets: readonly BrowserAssetCanvasImportItem[],
+  options: { basePosition: { x: number; y: number }; categoryId?: string },
+): BrowserAssetsToCanvasResult {
+  const normalized = assets.flatMap((asset) => {
+    const item = normalizeBrowserAssetCanvasItem(asset)
+    return item ? [item] : []
+  })
+  if (!normalized.length) return { createdCount: 0, skippedCount: assets.length, nodeIds: [] }
+
+  const store = useGenerationCanvasStore.getState()
+  const positions = layoutBrowserAssetDropPositions(options.basePosition, normalized.length)
+  const nodeIds: string[] = []
+
+  normalized.forEach((asset, index) => {
+    const sourceMeta = { source: 'browser-asset', browserAssetId: asset.id, fileName: asset.title }
+    if (asset.type === 'prompt') {
+      const prompt = asset.prompt || asset.title
+      const node = store.addNode({
+        kind: 'text',
+        title: asset.title.replace(/\.[^.]+$/, '') || '提示词',
+        prompt,
+        position: positions[index],
+        categoryId: options.categoryId,
+        exactPosition: true,
+        select: false,
+        meta: sourceMeta,
+      })
+      store.updateNode(node.id, { contentJson: tiptapDocFromPlainText(prompt) })
+      nodeIds.push(node.id)
+      return
+    }
+
+    if (!asset.url) return
+    const node = store.addNode({
+      kind: 'asset',
+      title: asset.title.replace(/\.[^.]+$/, '') || (asset.type === 'video' ? '参考视频' : '参考图片'),
+      prompt: '',
+      position: positions[index],
+      categoryId: options.categoryId,
+      exactPosition: true,
+      select: false,
+      meta: sourceMeta,
+    })
+    const result = {
+      id: `browser-asset-${node.id}-${Date.now()}`,
+      type: asset.type,
+      url: asset.url,
+      createdAt: Date.now(),
+    }
+    store.updateNode(node.id, {
+      result,
+      history: [result],
+      status: 'success',
+      meta: { ...(node.meta || {}), ...sourceMeta },
+    })
+    nodeIds.push(node.id)
+  })
+
+  if (nodeIds.length) {
+    nodeIds.forEach((nodeId, index) => store.selectNode(nodeId, index > 0))
+  }
+
+  return {
+    createdCount: nodeIds.length,
+    skippedCount: assets.length - nodeIds.length,
+    nodeIds,
+  }
 }
 
 export function handleCanvasStageDrop(event: DragEvent<HTMLDivElement>, ctx: CanvasStageDropContext): void {
@@ -85,7 +273,27 @@ export function handleCanvasStageDrop(event: DragEvent<HTMLDivElement>, ctx: Can
     return
   }
 
-  // 3) OS 文件拖入：复制进项目并上传，创建图片 / 视频素材节点（音频无可落节点，过滤）。
+  // 3) 浏览器素材盒拖入：图片/视频创建媒体 asset 节点；提示词创建 text 节点。
+  const browserAssets = parseBrowserAssetDrag(
+    event.dataTransfer.getData(BROWSER_ASSET_DRAG_MIME) || event.dataTransfer.getData(LEGACY_BROWSER_ASSET_DRAG_MIME),
+  )
+  if (browserAssets.length) {
+    event.preventDefault()
+    event.stopPropagation()
+    importBrowserAssetsToGenerationCanvas(browserAssets.map((asset) => ({
+      id: asset.id,
+      type: asset.type,
+      title: asset.title,
+      previewUrl: asset.url,
+      prompt: asset.prompt,
+    })), {
+      basePosition,
+      categoryId: ctx.activeCategoryId,
+    })
+    return
+  }
+
+  // 4) OS 文件拖入：复制进项目并上传，创建图片 / 视频素材节点（音频无可落节点，过滤）。
   const files = Array.from(event.dataTransfer.files || []).filter((file) => {
     const kind = dropKindFromMime(file.type)
     return kind === 'image' || kind === 'video'

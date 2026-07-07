@@ -3,10 +3,15 @@ import type { CategoryId } from '../model/generationCanvasTypes'
 
 export type CanvasMutationOptions = {
   persist?: boolean
+  emit?: boolean
 }
 
 export function shouldPersistCanvasMutation(options?: CanvasMutationOptions): boolean {
   return options?.persist !== false
+}
+
+export function shouldEmitCanvasMutation(options?: CanvasMutationOptions): boolean {
+  return options?.emit !== false
 }
 
 // 注意：这是 store 本地语义的 isCategoryId（自定义分类启用后不再限内置 5 个），

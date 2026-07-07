@@ -1,9 +1,9 @@
 // 参考边能力校验(T8 根治轨迹盲连)。纯函数,可单测。
 //
 // 根因:connect_nodes 过去只校验「两端节点存在」,不查目标模型支不支持这条参考——
-// 让 agent 凭故事结构盲连,连出两类静默无效边(连上了、落库了,生成期却被丢弃):
-//   ① 文本/镜头笔记节点 → 图片节点:文本不产可参考资产(生成 prompt 只取 node.prompt,
-//      不拼上游;resolver 只认源节点的 result URL),这条边在参考维度纯噪音。
+// 让 agent 凭故事结构盲连,连出静默无效边(连上了、落库了,生成期却被丢弃):
+//   ① 非素材节点(镜头笔记/输出等)→生成节点:源不产可参考资产,在参考维度纯噪音。
+//      文本节点是例外:文本→图片/视频会作为 prompt 上下文边,不落参考槽。
 //   ② character_ref → 不声明任何图片参考槽的纯文生模型(如 imagen-4):到 archetype
 //      input-builder 进不去(buildArchetypeInputParams 只发当前模式声明的槽键),静默丢弃。
 //
@@ -37,6 +37,16 @@ export function referenceAssetKindForNode(node: GenerationCanvasNode): Reference
   if (exec === 'video') return 'video'
   if (exec === 'image') return 'image'
   return getGenerationNodeDefinition(node.kind).providesImageReference ? 'image' : null
+}
+
+/**
+ * 文本节点的出边不是「参考素材」,而是下游生成 prompt 的上下文补充。
+ * 它只允许喂给图片/视频生成节点;参考槽解析与资产 URL resolver 都会忽略这类边。
+ */
+export function isTextPromptEdge(source: GenerationCanvasNode, target: GenerationCanvasNode): boolean {
+  if (source.kind !== 'text') return false
+  const targetExec = getGenerationNodeExecutionKind(target.kind)
+  return targetExec === 'image' || targetExec === 'video'
 }
 
 /** 每种参考槽能被哪种源资产喂。first_frame 收视频=尾帧接力(resolver 抽帧),故收 image+video。 */
@@ -122,7 +132,8 @@ function targetSlotKinds(node: GenerationCanvasNode): Set<ArchetypeReferenceSlot
 }
 
 /**
- * 这条参考边目标模型到底吃不吃。源无可参考资产(文本) → source_not_referenceable;
+ * 这条参考边目标模型到底吃不吃。文本→图片/视频作为 prompt 上下文放行;
+ * 其余源无可参考资产 → source_not_referenceable;
  * 目标声明了档案但任何模式都没有能消费「该 mode + 该源资产」的槽 → unsupported_reference;
  * 其余(含目标无档案)→ ok。
  */
@@ -131,6 +142,7 @@ export function validateReferenceEdge(
   target: GenerationCanvasNode,
   mode: GenerationCanvasEdgeMode | undefined,
 ): EdgeCapabilityResult {
+  if (isTextPromptEdge(source, target)) return { ok: true }
   const asset = referenceAssetKindForNode(source)
   if (!asset) return { ok: false, reason: 'source_not_referenceable' }
   const slotKinds = targetSlotKinds(target)

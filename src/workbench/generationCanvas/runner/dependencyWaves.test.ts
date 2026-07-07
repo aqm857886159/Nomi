@@ -33,6 +33,15 @@ describe('buildDependencyWaves', () => {
     expect(plan.blocked[0].detail).toContain('外部无果')
   })
 
+  it('文本→图片/视频 prompt 上下文边不参与参考依赖调度', () => {
+    const txt = { ...node('文本'), kind: 'text' as const, contentJson: { type: 'doc' as const, content: [] } }
+    const img = node('图片')
+    const plan = buildDependencyWaves(['图片'], { nodes: [txt, img], edges: [edge('文本', '图片')] })
+    expect(plan.waves).toEqual([['图片']])
+    expect(plan.blocked).toEqual([])
+    expect(plan.edgesUsed).toEqual([])
+  })
+
   it('环检测:循环引用的节点全部拦下,不死循环', () => {
     const nodes = [node('X'), node('Y'), node('独立')]
     const edges = [edge('X', 'Y'), edge('Y', 'X')]
