@@ -398,6 +398,8 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
     // 运镜参考:词汇 spec → 含相机轨迹的 3D 场景 → 建 scene3d 节点(带 cameraMoveAutoCapture)。
     // 节点挂载时常驻 Host(CameraMoveCaptureHost)离屏沿轨迹采帧拼 mp4 + 喂目标镜头视频参考(S3)。
     // 这里只建节点 + 打标志,不渲(S2 Host 异步出片),与 staging 执行结构对称。
+    // 建节点 + 标志的实现抽进 createCameraMoveReferenceNode(单一真相源)——手动运镜控件(B1)也调它,
+    // 两条产路共用 fps/frameCount/move 不变量,不再各自内联(P1/P4)。
     const spec: CameraMoveSpec = {
       move: parsed.move ?? 'push_in',
       speed: parsed.speed,
@@ -406,33 +408,12 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
       sceneTemplate: parsed.sceneTemplate,
       props: parsed.props,
     }
-    const [{ buildCameraMoveScene }, { CAMERA_SPEED_DURATION, CAMERA_MOVE_LABEL }] = await Promise.all([
-      import('../nodes/scene3d/cameraMoveBuilder'),
+    const [{ createCameraMoveReferenceNode }, { CAMERA_SPEED_DURATION, CAMERA_MOVE_LABEL }] = await Promise.all([
+      import('../nodes/scene3d/cameraMoveReferenceNode'),
       import('../nodes/scene3d/cameraMoveVocab'),
     ])
-    const state = buildCameraMoveScene(spec)
     const speed: CameraSpeed = spec.speed ?? 'medium'
-    const fps = 24 // Seedance 参考视频要求帧率 23.8–60 FPS（实测 12fps 被 InvalidParameter.FpsTooLow 拒）
-    const frameCount = Math.round(CAMERA_SPEED_DURATION[speed] * fps)
-    const existing = generationCanvasTools.read_canvas().nodes
-    const position = layoutPlannedNodes(['image'], existing)[0]
-    const created = inCtx(() =>
-      generationCanvasTools.create_nodes([
-        {
-          kind: 'scene3d',
-          categoryId: getDefaultCategoryForNodeKind('scene3d'),
-          title: '运镜参考',
-          prompt: '',
-          position,
-          meta: {
-            scene3dState: state,
-            // 标志带上 move(供 S3 Host 拼运镜 prompt directive 的人话/降级floor;不必从 3D 场景反推)。
-            cameraMoveAutoCapture: { ...(targetNodeId ? { targetNodeId } : {}), fps, frameCount, move: spec.move },
-          },
-        },
-      ]),
-    )
-    const cameraMoveNodeId = created[0]?.id ?? null
+    const { cameraMoveNodeId } = createCameraMoveReferenceNode({ spec, targetNodeId, inCtx })
     return {
       cameraMoveNodeId,
       targetNodeId: targetNodeId ?? null,

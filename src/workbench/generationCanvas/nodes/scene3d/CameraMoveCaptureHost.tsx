@@ -17,7 +17,8 @@ import {
 } from './cameraMoveCaptureRetry'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import type { CameraMove } from './cameraMoveVocab'
-import { attachCameraMoveToTarget } from './cameraMoveTargetAttach'
+import { computeAttachCameraMove } from './attachCameraMoveToTarget'
+import { toast } from '../../../../ui/toast'
 
 type CameraMoveAutoCapture = {
   targetNodeId?: string
@@ -90,6 +91,19 @@ function clampFps(value: number | undefined): number {
   const n = value ?? DEFAULT_FPS
   if (!Number.isFinite(n) || n <= 0) return DEFAULT_FPS
   return Math.min(60, Math.max(24, n)) // 下限 24：Seedance 参考视频帧率必须 ≥23.8 FPS
+}
+
+/**
+ * S3 喂入（薄壳）：读目标节点 → 交给纯核 computeAttachCameraMove 算 patch/跳过 → 写回 store + 弹提示。
+ * 替换语义、幂等、种类校验、模式切换全在纯核里（attachCameraMoveToTarget.ts，可单测）。这里只负责
+ * store I/O，不再内联任何附着逻辑（P1：AI 路与手动路共用同一核，无并行拷贝）。
+ */
+function attachCameraMoveToTarget(targetNodeId: string, mp4Url: string, move: CameraMove | undefined): void {
+  const store = useGenerationCanvasStore.getState()
+  const target = store.nodes.find((node) => node.id === targetNodeId)
+  const outcome = computeAttachCameraMove(target, mp4Url, move)
+  if (outcome.toast) toast(outcome.toast.message, outcome.toast.level)
+  if (outcome.kind === 'patch') store.updateNode(targetNodeId, outcome.patch)
 }
 
 /** 把成功产物写回 scene3d 节点 meta + 喂入目标镜头。清标志留给调用方（重试期间不清）。 */

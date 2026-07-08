@@ -13,6 +13,7 @@ import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
 import NodeParameterControls from './NodeParameterControls'
 import { GENERATE_BUTTON_CLASS } from './nodeComposerStyles'
 import { NodeLockBadge } from './NodeLockBadge'
+import NodeCameraMoveControl from './NodeCameraMoveControl'
 import { NodePromptOptimizer } from './NodePromptOptimizer'
 import { useNodeAssetDrop } from './useNodeAssetDrop'
 import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
@@ -292,6 +293,10 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
             selected 恒为真（composer 只在选中时挂载）→ 始终可见：未锁=描边开锁、已锁=实心锁。 */}
         <NodeLockBadge nodeId={node.id} locked={node.locked} selected />
         <NodeParameterControls node={node} section="parameters" />
+        {/* 手动运镜（B1）：视频镜头才有 video_ref 槽——运镜芯片仅对 video-like 节点显示（AI 工具 create_camera_move 的第二道门，共用同一产路）。 */}
+        {isVideoLikeGenerationNodeKind(node.kind) && !node.locked ? (
+          <NodeCameraMoveControl node={node} />
+        ) : null}
         {(nodeExecutionKind === 'image' || nodeExecutionKind === 'video') && !node.locked ? (
           <NodePromptOptimizer node={node} isVideo={nodeExecutionKind === 'video'} />
         ) : null}
