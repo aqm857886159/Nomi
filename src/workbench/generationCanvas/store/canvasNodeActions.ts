@@ -8,16 +8,16 @@ import { CLIPBOARD_OFFSET, createClipboardNodeId, createNodeId } from './canvasI
 import { bumpPersistRevision, isCategoryId, shouldPersistCanvasMutation } from './canvasGuards'
 import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasUndoJournal'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
-import { useWorkbenchStore } from '../../workbenchStore'
+import { reconcileTimelineForDeletedCanvasNodes } from '../../timeline/timelineNodeReconcileBridge'
 import type { CanvasNodeActions, CanvasSliceCreator } from './canvasStoreTypes'
 
 // 删节点 → 时间轴对账(数据一致性):clip 创建时把节点产物 url 快照冻结、无 node→clip 同步,
 // 删了节点时间轴仍引用悬空/过期素材(导出会渲染已删节点的旧帧)。删完节点单向通知 workbenchStore
-// 移除引用该 sourceNodeId 的 clip。跨 store 最小耦合:只在 action 运行时取 getState()(live binding,
-// 不在模块初始化期触碰,避免 workbenchStore→genStore→canvasNodeActions→workbenchStore 循环初始化)。
+// 移除引用该 sourceNodeId 的 clip。跨 store 最小耦合:经 timeline bridge 调运行时注册的 reconciler,
+// 避免 canvasNodeActions 静态 import workbenchStore 形成初始化回环。
 // 调用方缺失/无悬空 clip 时是 no-op,绝不影响画布删除本身。
 function reconcileTimelineForDeletedNodes(nodeIds: readonly string[]): void {
-  useWorkbenchStore.getState().reconcileTimelineForDeletedNodes(nodeIds)
+  reconcileTimelineForDeletedCanvasNodes(nodeIds)
 }
 
 // 编辑突发(burst)粒度的撤销点:提示词/参数是逐键连续写入,原先完全不打 barrier →

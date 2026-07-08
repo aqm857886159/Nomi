@@ -56,6 +56,29 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
         path?: string;
       }>,
   },
+  browserCapture: {
+    open: (payload: unknown) => ipcRenderer.invoke("nomi:browser-capture:open", payload),
+    navigate: (url: string) => ipcRenderer.invoke("nomi:browser-capture:navigate", { url }),
+    back: () => ipcRenderer.invoke("nomi:browser-capture:back"),
+    forward: () => ipcRenderer.invoke("nomi:browser-capture:forward"),
+    reload: () => ipcRenderer.invoke("nomi:browser-capture:reload"),
+    close: () => ipcRenderer.invoke("nomi:browser-capture:close"),
+    onState: (callback: (state: unknown) => void) => {
+      const listener = (_event: unknown, payload: unknown) => callback(payload);
+      ipcRenderer.on("nomi:browser-capture:state", listener);
+      return () => ipcRenderer.removeListener("nomi:browser-capture:state", listener);
+    },
+    onCaptureResult: (callback: (result: unknown) => void) => {
+      const listener = (_event: unknown, payload: unknown) => callback(payload);
+      ipcRenderer.on("nomi:browser-capture:result", listener);
+      return () => ipcRenderer.removeListener("nomi:browser-capture:result", listener);
+    },
+    onAssetImported: (callback: (event: unknown) => void) => {
+      const listener = (_event: unknown, payload: unknown) => callback(payload);
+      ipcRenderer.on("nomi:browser-capture:asset-imported", listener);
+      return () => ipcRenderer.removeListener("nomi:browser-capture:asset-imported", listener);
+    },
+  },
   video: {
     extractFrame: (payload: unknown) =>
       ipcRenderer.invoke("nomi:video:extract-frame", payload) as Promise<{ url: string }>,

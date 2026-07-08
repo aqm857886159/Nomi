@@ -50,5 +50,5 @@ export function stableAssetId(projectId: string, relativePath: string): string {
 
 export function assetBucketFromMeta(meta: JsonRecord): "generated" | "imported" {
   const kind = String(meta.kind || "").toLowerCase();
-  return kind === "upload" || kind === "imported" || kind === "local" ? "imported" : "generated";
+  return kind === "upload" || kind === "imported" || kind === "local" || kind === "browser-capture" ? "imported" : "generated";
 }

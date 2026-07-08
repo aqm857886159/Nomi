@@ -81,6 +81,24 @@ export type DesktopUpdateEvent =
   | { type: 'downloaded'; version: string }
   | { type: 'error'; message: string }
 
+export type DesktopBrowserCaptureState = {
+  url: string
+  title: string
+  loading: boolean
+  canGoBack: boolean
+  canGoForward: boolean
+  status: string
+  error: string | null
+}
+
+export type DesktopBrowserCaptureResult =
+  | { ok: true; name: string }
+  | { ok: false; error: string }
+
+export type DesktopBrowserCaptureAssetEvent = {
+  projectId: string
+}
+
 export type DesktopBridge = {
   platform: string
   /** 窗口控制（Windows 自绘标题栏用；mac 原生 chrome 时不调用）。老 preload 可能无此口。 */
@@ -140,6 +158,17 @@ export type DesktopBridge = {
       url: string
       suggestedName?: string
     }) => Promise<{ ok: boolean; canceled?: boolean; path?: string }>
+  }
+  browserCapture?: {
+    open: (payload: { projectId: string; url?: string }) => Promise<{ ok: boolean }>
+    navigate: (url: string) => Promise<{ ok: boolean }>
+    back: () => Promise<void>
+    forward: () => Promise<void>
+    reload: () => Promise<void>
+    close: () => Promise<void>
+    onState: (callback: (state: DesktopBrowserCaptureState) => void) => () => void
+    onCaptureResult: (callback: (result: DesktopBrowserCaptureResult) => void) => () => void
+    onAssetImported: (callback: (event: DesktopBrowserCaptureAssetEvent) => void) => () => void
   }
   video: {
     /** 视频抽帧（首/尾帧/指定秒）→ 项目素材 nomi-local:// URL。通用基建，见 electron/video/extractVideoFrame.ts。 */

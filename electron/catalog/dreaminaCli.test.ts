@@ -19,6 +19,10 @@ type FakeChild = EventEmitter & {
 const mockSpawn = vi.mocked(spawn);
 let envSnapshot: NodeJS.ProcessEnv;
 
+function normalizePathForAssert(value: unknown): string {
+  return String(value || "").replace(/\\/g, "/");
+}
+
 function restoreEnv(snapshot: NodeJS.ProcessEnv): void {
   for (const key of Object.keys(process.env)) delete process.env[key];
   Object.assign(process.env, snapshot);
@@ -89,7 +93,7 @@ describe("dreamina 子进程强制直连（buildDreaminaEnv）", () => {
     const env = buildDreaminaEnv(proxied);
     expect(env.HOME).toBe("/Users/tester");        // 无关变量不动
     expect(env.PATH).toContain("/usr/bin");         // 原 PATH 保留
-    expect(env.PATH).toContain(".local/bin");       // GUI Electron 极简 PATH 的兜底
+    expect(normalizePathForAssert(env.PATH)).toContain(".local/bin");       // GUI Electron 极简 PATH 的兜底
   });
 
   it("不改传入对象（返回新 env，不污染 process.env）", () => {
@@ -112,7 +116,7 @@ describe("runDreaminaCli", () => {
     expect(options?.env?.HTTPS_PROXY).toBeUndefined();
     expect(options?.env?.ALL_PROXY).toBeUndefined();
     expect(options?.env?.NO_PROXY).toBe("*");
-    expect(options?.env?.PATH).toContain(".local/bin");
+    expect(normalizePathForAssert(options?.env?.PATH)).toContain(".local/bin");
   });
 
   it("网络超时结果自动重试一次后返回成功结果", async () => {

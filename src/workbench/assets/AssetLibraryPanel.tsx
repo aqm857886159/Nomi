@@ -22,6 +22,7 @@ import { AssetThumb } from './AssetTile'
 import { DesignEmptyState, DesignSearchInput } from '../../design'
 import { acceptAttrForKinds, mediaKindFromExtension } from '../../../electron/assets/mediaTypes'
 import { toast } from '../../ui/toast'
+import { getDesktopBridge } from '../../desktop/bridge'
 
 const GRID_COLS = 3
 const ESTIMATED_ROW_HEIGHT = 121
@@ -150,6 +151,14 @@ export function AssetLibraryPanel({ opened, onClose, projectId }: Props): JSX.El
   const [query, setQuery] = React.useState('')
 
   const { assets, refresh } = useAssetPool(projectId)
+
+  React.useEffect(() => {
+    const browserCapture = getDesktopBridge()?.browserCapture
+    if (!opened || !projectId || !browserCapture?.onAssetImported) return undefined
+    return browserCapture.onAssetImported((event) => {
+      if (event.projectId === projectId) refresh()
+    })
+  }, [opened, projectId, refresh])
 
   const visible = React.useMemo(
     () => filterAssets(assets, { query, accept: filter === 'all' ? undefined : [filter] }),
