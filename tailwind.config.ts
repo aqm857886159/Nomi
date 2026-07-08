@@ -1,6 +1,16 @@
 import type { Config } from 'tailwindcss'
 import plugin from 'tailwindcss/plugin'
 
+/**
+ * token 色接入 Tailwind 透明度修饰符（`/85`、`/[0.78]`…）的唯一通道。
+ * 裸 var() 色 Tailwind 无法注入 alpha——带 `/` 修饰的类会被 JIT **静默丢弃**（连类都不生成，
+ * 元素无背景/描边裸奔）。Issue #32（手势提示条、场景卡信息条压在图上失读）root cause 即此，
+ * 当时全仓 60+ 处中招。color-mix 包一层 `<alpha-value>` 占位：不带修饰符时 calc(1*100%) 与原色
+ * 恒等；带修饰符按比例向 transparent 混。新增 token 色映射必须走这里，别再写裸 var()。
+ */
+const tokenColor = (cssVar: string): string =>
+  `color-mix(in oklch, var(${cssVar}) calc(<alpha-value> * 100%), transparent)`
+
 const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
   // 无边框窗口拖拽区（Windows 自绘标题栏）。.app-drag 整块可拖窗，内部交互元素自动 no-drag（否则按钮拖不动窗也点不动）。
   addUtilities({
@@ -507,50 +517,51 @@ export default {
     extend: {
       colors: {
         // 旧 --tc-color-* 暗色层已删(§14.1)+ 4 个过渡键的最后消费者(PanoramaViewer/dead surfaces)
-        // 已收口到 --nomi-* 类，过渡键随之删净。新增颜色一律进 nomi-tokens.css 的 --nomi-*。
+        // 已收口到 --nomi-* 类，过渡键随之删净。新增颜色一律进 nomi-tokens.css 的 --nomi-*，
+        // 映射必须走 tokenColor()（文件顶部）——否则 `/85` 类透明度类被 JIT 静默丢弃（Issue #32 根因）。
         nomi: {
-          bg: 'var(--nomi-bg)',
-          paper: 'var(--nomi-paper)',
-          ink: 'var(--nomi-ink)',
-          'ink-80': 'var(--nomi-ink-80)',
-          'ink-60': 'var(--nomi-ink-60)',
-          'ink-40': 'var(--nomi-ink-40)',
-          'ink-30': 'var(--nomi-ink-30)',
-          'ink-20': 'var(--nomi-ink-20)',
-          'ink-10': 'var(--nomi-ink-10)',
-          'ink-05': 'var(--nomi-ink-05)',
-          line: 'var(--nomi-line)',
-          'line-soft': 'var(--nomi-line-soft)',
-          accent: 'var(--nomi-accent)',
-          'accent-soft': 'var(--nomi-accent-soft)',
-          scrim: 'var(--nomi-scrim)',
-          'overlay-chip': 'var(--nomi-overlay-chip)',
-          'overlay-chip-strong': 'var(--nomi-overlay-chip-strong)',
-          'media-veil': 'var(--nomi-media-veil)',
+          bg: tokenColor('--nomi-bg'),
+          paper: tokenColor('--nomi-paper'),
+          ink: tokenColor('--nomi-ink'),
+          'ink-80': tokenColor('--nomi-ink-80'),
+          'ink-60': tokenColor('--nomi-ink-60'),
+          'ink-40': tokenColor('--nomi-ink-40'),
+          'ink-30': tokenColor('--nomi-ink-30'),
+          'ink-20': tokenColor('--nomi-ink-20'),
+          'ink-10': tokenColor('--nomi-ink-10'),
+          'ink-05': tokenColor('--nomi-ink-05'),
+          line: tokenColor('--nomi-line'),
+          'line-soft': tokenColor('--nomi-line-soft'),
+          accent: tokenColor('--nomi-accent'),
+          'accent-soft': tokenColor('--nomi-accent-soft'),
+          scrim: tokenColor('--nomi-scrim'),
+          'overlay-chip': tokenColor('--nomi-overlay-chip'),
+          'overlay-chip-strong': tokenColor('--nomi-overlay-chip-strong'),
+          'media-veil': tokenColor('--nomi-media-veil'),
         },
         workbench: {
-          bg: 'var(--workbench-bg)',
-          surface: 'var(--workbench-surface)',
-          'surface-solid': 'var(--workbench-surface-solid)',
-          'surface-soft': 'var(--workbench-surface-soft)',
-          border: 'var(--workbench-border)',
-          'border-soft': 'var(--workbench-border-soft)',
-          'border-strong': 'var(--workbench-border-strong)',
-          ink: 'var(--workbench-ink)',
-          muted: 'var(--workbench-muted)',
-          'muted-soft': 'var(--workbench-muted-soft)',
-          accent: 'var(--workbench-accent)',
-          'accent-soft': 'var(--workbench-accent-soft)',
-          success: 'var(--workbench-success)',
-          'success-soft': 'var(--workbench-success-soft)',
-          danger: 'var(--workbench-danger)',
-          'danger-soft': 'var(--workbench-danger-soft)',
-          hover: 'var(--workbench-hover)',
-          pressed: 'var(--workbench-pressed)',
-          overlay: 'var(--workbench-overlay)',
-          backdrop: 'var(--workbench-backdrop)',
-          'code-bg': 'var(--workbench-code-bg)',
-          'code-ink': 'var(--workbench-code-ink)',
+          bg: tokenColor('--workbench-bg'),
+          surface: tokenColor('--workbench-surface'),
+          'surface-solid': tokenColor('--workbench-surface-solid'),
+          'surface-soft': tokenColor('--workbench-surface-soft'),
+          border: tokenColor('--workbench-border'),
+          'border-soft': tokenColor('--workbench-border-soft'),
+          'border-strong': tokenColor('--workbench-border-strong'),
+          ink: tokenColor('--workbench-ink'),
+          muted: tokenColor('--workbench-muted'),
+          'muted-soft': tokenColor('--workbench-muted-soft'),
+          accent: tokenColor('--workbench-accent'),
+          'accent-soft': tokenColor('--workbench-accent-soft'),
+          success: tokenColor('--workbench-success'),
+          'success-soft': tokenColor('--workbench-success-soft'),
+          danger: tokenColor('--workbench-danger'),
+          'danger-soft': tokenColor('--workbench-danger-soft'),
+          hover: tokenColor('--workbench-hover'),
+          pressed: tokenColor('--workbench-pressed'),
+          overlay: tokenColor('--workbench-overlay'),
+          backdrop: tokenColor('--workbench-backdrop'),
+          'code-bg': tokenColor('--workbench-code-bg'),
+          'code-ink': tokenColor('--workbench-code-ink'),
         },
       },
       borderRadius: {

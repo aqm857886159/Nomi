@@ -104,6 +104,8 @@ Script → Generate → Edit → Preview → Export
 
 ### 2.1 颜色 token 全表
 
+> **透明度修饰符（2026-07-08 起可用）**：token 色类支持 Tailwind `/` 透明度修饰符——`bg-nomi-ink/85`、`text-nomi-paper/80`、`ring-nomi-accent/[0.5]` 都会正确生成（映射层 `tokenColor()` 用 `color-mix` 注入 alpha，见 `tailwind.config.ts` 顶部）。**此前这些类会被 JIT 静默丢弃**（元素无背景/描边裸奔，Issue #32「图上文字看不清」根因，全仓 60+ 处中招）。新增 token 色映射必须走 `tokenColor()`，别写裸 `var()`。图上小标/遮罩仍优先用语义 token（`--nomi-overlay-chip` / `--nomi-scrim` / `--nomi-media-veil`），`/alpha` 用于语义 token 覆盖不到的一次性透明度。
+
 > 值这里**给真实数值 + 一句话视觉**，AI 不用去翻 CSS 也能确定它长什么样。真相源仍是 `src/theme/nomi-tokens.css`（改值改那里，不改这表）。Nomi 是**暖中性**底（hue 80，微偏暖灰），强调色是**冷蓝紫**（hue 250）——冷暖对比是 Nomi 的色彩性格。
 
 #### 2.1.1 中性轴（ink 阶梯，hue 80 暖灰）
@@ -821,7 +823,7 @@ import IconX from '@/assets/some-svg.svg'
 | app-shell | `AboutNomiPopover.tsx:15-26` | 自定义 `PRIMARY_BTN/GHOST_BTN` 常量 6 处复用 → `WorkbenchButton` |
 | app-shell | `AboutNomiPopover.tsx:151` / `OnboardingChecklist.tsx:226` | 手拼进度条 → `DesignProgress` |
 | library | `ProjectLibraryPage.tsx:200` | 手写 inline svg 放大镜 → `IconSearch size={14} stroke={1.6}` |
-| library | `ProjectLibraryPage.tsx:266,284` | `hover:text-white`/`bg-white` 透明度类 → 需带 alpha 的 token 方案（paper 当前无 alpha 占位，不能直接 /opacity）|
+| library | `ProjectLibraryPage.tsx:266,284` | `hover:text-white`/`bg-white` 透明度类 → 改 `text-nomi-paper`/`bg-nomi-paper/NN`（2026-07-08 起 token 色已支持 /alpha 修饰符，见 §2.1 顶部）|
 | sidebar | `CategoryItem/NodeItem/GroupItem` | `rounded-md`+`text-nomi-ink-70` → `rounded-nomi-sm`+`text-nomi-ink-80` |
 | sidebar | `CategoryTree.tsx:349` | 右键菜单 `rounded-md/shadow-lg` → token |
 | creation | `StoryboardPlanCard.tsx:39` | 手写状态徽章 → `StatusBadge` |
