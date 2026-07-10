@@ -1,5 +1,6 @@
 export const APP_ROUTES = [
   { path: '/studio/*', component: 'NomiStudioApp' },
+  { path: '/reference-capture', component: 'ReferenceCaptureChrome' },
   { path: '/share/*', component: 'ShareFullPage' },
   { path: '/', component: 'RedirectToStudio' },
   { path: '/workspace/*', component: 'RedirectToStudio' },

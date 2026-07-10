@@ -6,6 +6,7 @@ import { getAppRoutePath } from './utils/routes'
 import { lazyWithChunkBoundary } from './ui/chunkBoundary'
 
 const NomiStudioApp = lazyWithChunkBoundary('应用主界面', () => import('./workbench/NomiStudioApp'))
+const ReferenceCaptureChrome = lazyWithChunkBoundary('网页捕捞', () => import('./ui/browser/ReferenceCaptureChrome'))
 
 function RedirectToStudio(): JSX.Element {
   const location = useLocation()
@@ -33,6 +34,14 @@ export default function NomiRouterApp(): JSX.Element {
           element={(
             <React.Suspense fallback={<RouteLoading />}>
               <NomiStudioApp />
+            </React.Suspense>
+          )}
+        />
+        <Route
+          path={getAppRoutePath('ReferenceCaptureChrome')}
+          element={(
+            <React.Suspense fallback={<RouteLoading />}>
+              <ReferenceCaptureChrome />
             </React.Suspense>
           )}
         />

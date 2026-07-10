@@ -44,6 +44,7 @@ import { catalogSecretsProvider } from "./events/secretsProvider";
 import { registerOnboardingIpc } from "./ai/onboarding/onboardingIpc";
 import { registerUpdaterIpc } from "./update/autoUpdater";
 import { setRendererTarget } from "./capabilityCore/rendererBridge";
+import { registerReferenceCaptureIpc } from "./browser/referenceCaptureWindow";
 import { readMcpInfo, installMcp, uninstallMcp } from "./capabilityCore/mcpConfig";
 
 // 尽早安装：捕获引导阶段起的 uncaughtException / unhandledRejection，落盘到 app logs（P0-8）。
@@ -636,6 +637,7 @@ function registerIpc(): void {
   registerPromptLibraryIpc();
   registerOnboardingIpc();
   registerUpdaterIpc();
+  registerReferenceCaptureIpc({ getRendererUrl, preloadPath: path.join(__dirname, "preload.js") });
   // S4-1 评测安全铁律:事件落盘前,已配置的 vendor key 精确匹配脱敏(形态兜底之外的地基)。
   setEventLogSecretsProvider(catalogSecretsProvider);
 }

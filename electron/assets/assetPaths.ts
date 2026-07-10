@@ -50,5 +50,6 @@ export function stableAssetId(projectId: string, relativePath: string): string {
 
 export function assetBucketFromMeta(meta: JsonRecord): "generated" | "imported" {
   const kind = String(meta.kind || "").toLowerCase();
-  return kind === "upload" || kind === "imported" || kind === "local" ? "imported" : "generated";
+  // browser-capture：网页捕捞的外来素材，与上传/导入同桶（imported），不冒充生成产物。
+  return kind === "upload" || kind === "imported" || kind === "local" || kind === "browser-capture" ? "imported" : "generated";
 }

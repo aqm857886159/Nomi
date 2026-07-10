@@ -11,7 +11,7 @@
 import React from 'react'
 import { Portal } from '@mantine/core'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { IconPhoto, IconPlus, IconX } from '@tabler/icons-react'
+import { IconPhoto, IconPlus, IconWorld, IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { useAssetPool } from './useAssetPool'
 import { filterAssets, type AssetKind, type AssetRef } from './assetTypes'
@@ -22,6 +22,7 @@ import { AssetThumb } from './AssetTile'
 import { DesignEmptyState, DesignSearchInput } from '../../design'
 import { acceptAttrForKinds, mediaKindFromExtension } from '../../../electron/assets/mediaTypes'
 import { toast } from '../../ui/toast'
+import { getDesktopBridge } from '../../desktop/bridge'
 
 const GRID_COLS = 3
 const ESTIMATED_ROW_HEIGHT = 121
@@ -151,6 +152,17 @@ export function AssetLibraryPanel({ opened, onClose, projectId }: Props): JSX.El
 
   const { assets, refresh } = useAssetPool(projectId)
 
+  // 网页捕捞回流：捕捞窗把素材写进项目后广播 → 这里刷新列表（本面板是唯一消费者，无并行真相源）。
+  React.useEffect(() => {
+    const bridge = getDesktopBridge()
+    if (!bridge?.browserCapture) return
+    return bridge.browserCapture.onImported((payload) => {
+      if (payload.projectId !== projectId) return
+      refresh()
+      toast(`已捕捞进素材库：${payload.name}`, 'success')
+    })
+  }, [projectId, refresh])
+
   const visible = React.useMemo(
     () => filterAssets(assets, { query, accept: filter === 'all' ? undefined : [filter] }),
     [assets, query, filter],
@@ -266,6 +278,20 @@ export function AssetLibraryPanel({ opened, onClose, projectId }: Props): JSX.El
           <b className={cn('text-title font-bold text-nomi-ink')}>素材库</b>
           <span className={cn('text-caption text-nomi-ink-40')}>· {assets.length}</span>
           <span className={cn('flex-1')} />
+          <button
+            type="button"
+            className={cn(
+              'inline-flex items-center gap-1.5 h-7 px-3 rounded-full cursor-pointer',
+              'bg-nomi-paper text-nomi-ink text-caption font-semibold border border-nomi-line',
+              'transition-[background] duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05',
+            )}
+            aria-label="网页捕捞"
+            title="打开捕捞窗：右键网页图片即可存进素材库"
+            onClick={() => { if (projectId) void getDesktopBridge()?.browserCapture?.open({ projectId }) }}
+          >
+            <IconWorld size={13} stroke={2} />
+            网页捕捞
+          </button>
           <button
             type="button"
             className={cn(

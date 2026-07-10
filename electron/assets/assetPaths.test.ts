@@ -86,6 +86,7 @@ describe("assetBucketFromMeta", () => {
     expect(assetBucketFromMeta({ kind: "upload" })).toBe("imported");
     expect(assetBucketFromMeta({ kind: "imported" })).toBe("imported");
     expect(assetBucketFromMeta({ kind: "local" })).toBe("imported");
+    expect(assetBucketFromMeta({ kind: "browser-capture" })).toBe("imported");
     expect(assetBucketFromMeta({ kind: "generated" })).toBe("generated");
     expect(assetBucketFromMeta({})).toBe("generated");
   });
