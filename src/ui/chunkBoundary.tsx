@@ -12,6 +12,9 @@ import { cn } from '../utils/cn'
 
 const AUTO_RETRIES = 2
 const RETRY_BASE_DELAY_MS = 300
+const CHUNK_AUTO_RELOAD_DELAY_MS = 600
+const CHUNK_AUTO_RELOAD_COOLDOWN_MS = 15_000
+const CHUNK_AUTO_RELOAD_STORAGE_PREFIX = 'nomi.chunk-boundary.auto-reload'
 type DesktopReloadBridge = { nomiDesktop?: { app?: { hardReloadWindow?: () => void } } }
 
 function reloadRendererWindow(): void {
@@ -42,6 +45,28 @@ export function importWithRetry<T>(
   return attempt(retries, baseDelayMs)
 }
 
+export function isChunkLoadNetworkError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error || '')
+  return (
+    /Failed to fetch dynamically imported module/i.test(message) ||
+    /Importing a module script failed/i.test(message) ||
+    /Loading chunk \S+ failed/i.test(message) ||
+    /ERR_NETWORK_CHANGED/i.test(message)
+  )
+}
+
+function canAutoReloadChunk(label: string, now = Date.now()): boolean {
+  try {
+    const key = `${CHUNK_AUTO_RELOAD_STORAGE_PREFIX}.${label}`
+    const lastReloadedAt = Number(window.sessionStorage.getItem(key) || 0)
+    if (Number.isFinite(lastReloadedAt) && now - lastReloadedAt < CHUNK_AUTO_RELOAD_COOLDOWN_MS) return false
+    window.sessionStorage.setItem(key, String(now))
+    return true
+  } catch {
+    return true
+  }
+}
+
 type BoundaryProps = {
   label: string
   children: React.ReactNode
@@ -49,6 +74,7 @@ type BoundaryProps = {
 
 class ChunkErrorBoundary extends React.Component<BoundaryProps, { error: Error | null }> {
   state: { error: Error | null } = { error: null }
+  private autoReloadTimer: number | null = null
 
   static getDerivedStateFromError(error: Error): { error: Error } {
     return { error }
@@ -63,6 +89,16 @@ class ChunkErrorBoundary extends React.Component<BoundaryProps, { error: Error |
       /* 日志旁路失败不影响降级 UI */
     }
     console.error(`[nomi] chunk boundary "${this.props.label}" caught:`, error)
+    if (isChunkLoadNetworkError(error) && canAutoReloadChunk(this.props.label)) {
+      this.autoReloadTimer = window.setTimeout(reloadRendererWindow, CHUNK_AUTO_RELOAD_DELAY_MS)
+    }
+  }
+
+  componentWillUnmount(): void {
+    if (this.autoReloadTimer !== null) {
+      window.clearTimeout(this.autoReloadTimer)
+      this.autoReloadTimer = null
+    }
   }
 
   render(): React.ReactNode {
@@ -77,7 +113,9 @@ class ChunkErrorBoundary extends React.Component<BoundaryProps, { error: Error |
         )}
       >
         <span className={cn('text-caption text-nomi-ink-80')}>{this.props.label}加载失败</span>
-        <span className={cn('text-micro text-nomi-ink-40')}>其余功能不受影响；可重新加载重试</span>
+        <span className={cn('text-micro text-nomi-ink-40')}>
+          {isChunkLoadNetworkError(this.state.error) ? '网络抖动中断加载，正在尝试恢复' : '其余功能不受影响；可重新加载重试'}
+        </span>
         <button
           type='button'
           className={cn(

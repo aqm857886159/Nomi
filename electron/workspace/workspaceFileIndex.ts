@@ -22,6 +22,7 @@ export type WorkspaceFileListResult = {
 
 const SKIPPED_NAMES = new Set([".git", "node_modules"]);
 const SKIPPED_RELATIVE_PATHS = new Set([".nomi/cache"]);
+const BROWSER_PRIVATE_ASSET_KINDS = new Set(["browser-capture", "browser-upload"]);
 
 // 从媒体类型单一真相源派生(不再手维护第二张表)。WorkspaceFileKind 无 model3d,
 // 故把 model3d 映射成 "file"(保持 .glb 在文件树仍是通用文件,行为不变)。
@@ -68,6 +69,20 @@ function classify(filePath: string): { kind: WorkspaceFileKind; contentType: str
   return CONTENT_TYPES[path.extname(filePath).toLowerCase()] || { kind: "file", contentType: "application/octet-stream" };
 }
 
+function readAssetSidecarKind(absolutePath: string): string {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(`${absolutePath}.meta`, "utf8")) as { kind?: unknown } | null;
+    return typeof parsed?.kind === "string" ? parsed.kind.trim().toLowerCase() : "";
+  } catch {
+    return "";
+  }
+}
+
+function shouldSkipWorkspaceFile(absolutePath: string, name: string): boolean {
+  if (name.endsWith(".meta")) return true;
+  return BROWSER_PRIVATE_ASSET_KINDS.has(readAssetSidecarKind(absolutePath));
+}
+
 function sortNodes(a: WorkspaceFileNode, b: WorkspaceFileNode): number {
   if (a.kind === "directory" && b.kind !== "directory") return -1;
   if (a.kind !== "directory" && b.kind === "directory") return 1;
@@ -100,6 +115,7 @@ export function listWorkspaceFiles(input: { rootPath: string; maxFiles?: number;
       const relativePath = toRelative(rootPath, absolutePath);
       if (SKIPPED_RELATIVE_PATHS.has(relativePath)) continue;
       if (entry.isSymbolicLink()) continue;
+      if (entry.isFile() && shouldSkipWorkspaceFile(absolutePath, entry.name)) continue;
       seen += 1;
       if (seen > maxFiles) {
         truncated = true;

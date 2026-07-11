@@ -227,7 +227,7 @@ export default defineConfig(async ({ command, mode }) => {
     },
     optimizeDeps: {
       entries: ['index.html', 'src/dev/optimizeDepsEntry.ts'],
-      force: command === 'serve',
+      force: command === 'serve' && process.env.NOMI_FORCE_VITE_OPTIMIZE_DEPS === '1',
       noDiscovery: true,
       holdUntilCrawlEnd: false,
       esbuildOptions: {
@@ -257,6 +257,7 @@ export default defineConfig(async ({ command, mode }) => {
         '@tiptap/suggestion',
         'clsx',
         'framer-motion',
+        'lucide-react',
         'react-markdown',
         '@photo-sphere-viewer/core',
         'tailwind-merge',

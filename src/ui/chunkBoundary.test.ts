@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { importWithRetry, lazyWithChunkBoundary } from './chunkBoundary'
+import { importWithRetry, isChunkLoadNetworkError, lazyWithChunkBoundary } from './chunkBoundary'
 
 // 审计 A5：chunk 加载的瞬时失败（构建竞态/IO 抖动）由工厂层自动重试吃掉，
 // 持久失败再交给 ChunkErrorBoundary 降级该区域（不再全 app 崩根错误页）。
@@ -41,5 +41,20 @@ describe('lazyWithChunkBoundary lazy 必须模块级创建', () => {
       Guarded({} as never)
       Guarded({} as never)
     }).not.toThrow()
+  })
+})
+
+describe('isChunkLoadNetworkError', () => {
+  it('识别动态 chunk 网络失败', () => {
+    expect(
+      isChunkLoadNetworkError(
+        new TypeError('Failed to fetch dynamically imported module: http://127.0.0.1:5274/src/workbench/NomiStudioApp.tsx'),
+      ),
+    ).toBe(true)
+    expect(isChunkLoadNetworkError(new Error('net::ERR_NETWORK_CHANGED'))).toBe(true)
+  })
+
+  it('普通渲染错误不触发 chunk 自动恢复', () => {
+    expect(isChunkLoadNetworkError(new Error('Cannot read properties of undefined'))).toBe(false)
   })
 })

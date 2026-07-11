@@ -82,11 +82,12 @@ describe("stableAssetId", () => {
 });
 
 describe("assetBucketFromMeta", () => {
-  it("routes upload/imported/local to imported, else generated", () => {
+  it("routes user-imported assets to imported, else generated", () => {
     expect(assetBucketFromMeta({ kind: "upload" })).toBe("imported");
     expect(assetBucketFromMeta({ kind: "imported" })).toBe("imported");
     expect(assetBucketFromMeta({ kind: "local" })).toBe("imported");
     expect(assetBucketFromMeta({ kind: "browser-capture" })).toBe("imported");
+    expect(assetBucketFromMeta({ kind: "browser-upload" })).toBe("imported");
     expect(assetBucketFromMeta({ kind: "generated" })).toBe("generated");
     expect(assetBucketFromMeta({})).toBe("generated");
   });

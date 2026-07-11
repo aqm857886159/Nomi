@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createProject, importRemoteAsset } from "./runtime";
+import { createProject, importRemoteAsset, listProjectAssets } from "./runtime";
 import { importLocalFile } from "./assets/localFileImport";
 
 type AssetRecord = {
@@ -87,6 +87,39 @@ describe("runtime workspace asset storage", () => {
     expect(asset.data.relativePath).toBe("assets/imported/2026-05-31/photo.png");
     expect(asset.data.absolutePath).toBe(path.join(workspace.rootPath, "assets", "imported", "2026-05-31", "photo.png"));
     expect([...fs.readFileSync(asset.data.absolutePath)]).toEqual([1, 2, 3]);
+  });
+
+  it("restores imported asset metadata when listing project assets", async () => {
+    const workspace = createWorkspace();
+
+    await importLocalFile({
+      projectId: workspace.id,
+      bytes: new Uint8Array([1, 2, 3]),
+      contentType: "image/png",
+      fileName: "photo.png",
+      kind: "upload",
+    });
+    await importRemoteAsset({
+      projectId: workspace.id,
+      url: "data:image/png;base64,aGVsbG8=",
+      fileName: "capture.png",
+      kind: "browser-capture",
+    });
+    await importLocalFile({
+      projectId: workspace.id,
+      bytes: new Uint8Array([4, 5, 6]),
+      contentType: "image/png",
+      fileName: "box.png",
+      kind: "browser-upload",
+    });
+
+    const listed = listProjectAssets({ projectId: workspace.id, limit: 20 });
+
+    expect(listed.items.map((item) => item.name).sort()).toEqual(["box.png", "capture.png", "photo.png"]);
+    expect(listed.items.find((item) => item.name === "photo.png")?.data.kind).toBe("upload");
+    expect(listed.items.find((item) => item.name === "capture.png")?.data.kind).toBe("browser-capture");
+    expect(listed.items.find((item) => item.name === "box.png")?.data.kind).toBe("browser-upload");
+    expect(listed.items.every((item) => !item.name.endsWith(".meta"))).toBe(true);
   });
 
   it("dedupes colliding generated asset filenames", async () => {

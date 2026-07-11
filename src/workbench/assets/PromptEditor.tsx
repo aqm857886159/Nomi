@@ -5,32 +5,12 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { cn } from '../../utils/cn'
 import { AssetMention } from './AssetMentionNode'
 import { createAssetMentionSuggestion } from './AssetMentionSuggestion'
-import { parsePromptSegments, encodeMention } from './promptMentions'
+import { promptToContent } from './promptEditorContent'
+import { encodeMention } from './promptMentions'
 
 // 生成节点的描述框(规范 §4):Tiptap 编辑器替换原 textarea —— 句中可放 18px 缩略图 chip(@ 内联引用),
 // 内容与 node.prompt 字符串双向同步(持久化用 @[asset:url] 标记,见 promptMentions)。
 // 纯文字 prompt 完全等价于以前的 textarea 体验;只有插入 chip 时才出现内联图。
-
-// node.prompt 字符串 → Tiptap doc(文字按 \n 切段;@[asset:url] 标记 → assetMention 节点)。
-function promptToContent(prompt: string): JSONContent {
-  const segments = parsePromptSegments(prompt)
-  const paragraphs: JSONContent[] = [{ type: 'paragraph', content: [] }]
-  const pushInline = (node: JSONContent) => { (paragraphs[paragraphs.length - 1].content as JSONContent[]).push(node) }
-  for (const seg of segments) {
-    if (seg.type === 'mention') { pushInline({ type: 'assetMention', attrs: { url: seg.url } }); continue }
-    seg.value.split('\n').forEach((line, index) => {
-      if (index > 0) paragraphs.push({ type: 'paragraph', content: [] })
-      if (line) pushInline({ type: 'text', text: line })
-    })
-  }
-  return {
-    type: 'doc',
-    content: paragraphs.map((p) => {
-      const inline = p.content as JSONContent[]
-      return inline.length ? { type: 'paragraph', content: inline } : { type: 'paragraph' }
-    }),
-  }
-}
 
 // Tiptap doc → node.prompt 字符串(assetMention → @[asset:url] 标记;段落 → \n)。
 function contentToPrompt(editor: Editor): string {

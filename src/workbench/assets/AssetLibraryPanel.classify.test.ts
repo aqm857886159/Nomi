@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { classifyUploadFiles } from './AssetLibraryPanel'
+import { assetsForLibraryDrag, classifyUploadFiles } from './AssetLibraryPanel'
+import type { AssetRef } from './assetTypes'
 
 function makeFile(name: string, type: string, size = 1024): File {
   return new File([new Uint8Array(size)], name, { type, lastModified: 1 })
@@ -46,5 +47,24 @@ describe('classifyUploadFiles', () => {
     expect(r.unsupported.map((f) => f.name)).toEqual(['doc.pdf', 'weird.xyz'])
     expect(r.mediaFiles).toHaveLength(0)
     expect(r.audioFiles).toHaveLength(0)
+  })
+})
+
+describe('assetsForLibraryDrag', () => {
+  const assets: AssetRef[] = ['a', 'b', 'c'].map((id) => ({
+    id,
+    kind: 'image',
+    name: `${id}.png`,
+    renderUrl: `nomi-local://project/assets/${id}.png`,
+    source: 'project',
+    origin: { source: 'project', projectId: 'project-1', relativePath: `assets/${id}.png` },
+  }))
+
+  it('drags the whole selection and keeps the grabbed asset first', () => {
+    expect(assetsForLibraryDrag(assets, new Set(['a', 'c']), assets[2]).map((asset) => asset.id)).toEqual(['c', 'a'])
+  })
+
+  it('drags only the grabbed asset when it is outside the selection', () => {
+    expect(assetsForLibraryDrag(assets, new Set(['a', 'c']), assets[1]).map((asset) => asset.id)).toEqual(['b'])
   })
 })

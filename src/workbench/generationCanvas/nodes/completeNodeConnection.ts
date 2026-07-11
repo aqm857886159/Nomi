@@ -9,6 +9,7 @@
 //
 // 连边能力校验（validateReferenceEdge）仍在 connectToNode 里做总闸——错配参考槽等盲连
 // 在创建期就拦；文本→图/视频的通用 reference 边作为 prompt 上下文放行。
+// 本函数只负责把校验失败的人话反馈给手动连线的用户。
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { showInfoToast } from '../../../utils/showInfoToast'
 import { isTextPromptEdge } from '../agent/referenceEdgeCapability'

@@ -72,6 +72,169 @@ export type { ExportJobEvent, ExportJobSnapshot }
 /** 应用信息（功能需求1 查看版本号）。canAutoInstall：未签名 mac 无法就地装，走手动下载兜底（真相源在主进程）。 */
 export type DesktopAppInfo = { version: string; platform: string; arch: string; canAutoInstall: boolean }
 
+export type DesktopBrowserViewBounds = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export type DesktopBrowserAssetOverlayDockMode = 'left' | 'right' | null
+
+export type DesktopBrowserChromeMenuItem = {
+  id?: string
+  label?: string
+  description?: string
+  type?: 'normal' | 'separator'
+  enabled?: boolean
+}
+
+export type DesktopBrowserChromeMenuResult = {
+  id: string | null
+}
+
+export type DesktopBrowserAssetOverlayRect = {
+  left: number
+  top: number
+  right: number
+  bottom: number
+  width: number
+  height: number
+}
+
+export type DesktopBrowserAssetOverlayCaptureRequest = {
+  requestId: string
+  url: string
+  mediaType?: 'image' | 'video'
+  title?: string
+  fileName?: string
+  sourceRect?: DesktopBrowserAssetOverlayRect
+}
+
+export type DesktopBrowserAssetOverlayConfig = {
+  opened: boolean
+  viewId: number | null
+  bounds: DesktopBrowserViewBounds | null
+  captureEnabled?: boolean
+  captureRequest?: DesktopBrowserAssetOverlayCaptureRequest | null
+  promptRequest?: unknown | null
+}
+
+export type DesktopBrowserAssetOverlayState = {
+  opened: boolean
+  dockMode?: DesktopBrowserAssetOverlayDockMode
+  popoverRect?: DesktopBrowserAssetOverlayRect | null
+  captureEnabled?: boolean
+}
+
+export type DesktopBrowserViewState = {
+  viewId: number
+  tabId: string
+  url: string
+  title: string
+  favicon?: string
+  canGoBack: boolean
+  canGoForward: boolean
+  loading: boolean
+}
+
+export type DesktopBrowserResourceCaptureRect = {
+  left: number
+  top: number
+  right: number
+  bottom: number
+  width: number
+  height: number
+}
+
+export type DesktopBrowserResourceCaptureEvent =
+  | {
+      ok: true
+      viewId: number
+      tabId: string
+      url: string
+      mediaType: 'image' | 'video'
+      title?: string
+      fileName?: string
+      pageUrl?: string
+      pageTitle?: string
+      sourceRect?: DesktopBrowserResourceCaptureRect
+    }
+  | {
+      ok: false
+      viewId: number
+      tabId: string
+      reason: 'empty' | 'error'
+      message?: string
+    }
+
+export type DesktopBrowserPromptCaptureEvent =
+  | {
+      ok: true
+      viewId: number
+      tabId: string
+      url: string
+      title?: string
+      fileName?: string
+      pageUrl?: string
+      pageTitle?: string
+      extractionMode?: 'replicate' | 'style'
+      sourceRect?: DesktopBrowserResourceCaptureRect
+    }
+  | {
+      ok: false
+      viewId: number
+      tabId: string
+      reason: 'empty' | 'error'
+      message?: string
+    }
+
+export type DesktopBrowserTextPromptSaveEvent =
+  | {
+      ok: true
+      viewId: number
+      tabId: string
+      prompt: string
+      promptType: string
+      pageUrl?: string
+      pageTitle?: string
+    }
+  | {
+      ok: false
+      viewId: number
+      tabId: string
+      reason: 'error'
+      message?: string
+    }
+
+export type DesktopBrowserPromptReferenceResult = {
+  dataUrl: string
+  referenceUrl: string
+  fileName: string
+  title?: string
+  sourceUrl?: string
+  pageUrl?: string
+  pageTitle?: string
+  asset?: DesktopAssetDto
+  sourceRect?: DesktopBrowserResourceCaptureRect
+}
+
+export type DesktopBrowserPromptScreenshotSelection =
+  | {
+      ok: true
+      rect: {
+        left: number
+        top: number
+        width: number
+        height: number
+      }
+    }
+  | {
+      ok: false
+      reason?: 'cancelled' | 'error'
+      message?: string
+    }
+
 /** 主进程更新状态广播（功能需求2/3）。renderer 状态机纯 derive 自此事件。 */
 export type DesktopUpdateEvent =
   | { type: 'checking' }
@@ -88,6 +251,9 @@ export type DesktopBridge = {
     minimize: () => Promise<void>
     maximize: () => Promise<void>
     close: () => Promise<void>
+    confirmClose?: (requestId: string) => void
+    cancelClose?: (requestId: string) => void
+    onCloseRequest?: (cb: (payload: { requestId: string }) => void) => () => void
     onMaximized: (cb: (maximized: boolean) => void) => () => void
   }
   app?: {
@@ -103,6 +269,10 @@ export type DesktopBridge = {
     openFolder: (payload: { rootPath: string; initialize?: boolean; name?: string }) => Promise<unknown>
     listFiles: (payload: { projectId: string; limit?: number }) => Promise<WorkspaceFileListResult>
     revealFile: (payload: { projectId: string; relativePath: string }) => Promise<{ ok: boolean }>
+    deleteFiles?: (payload: {
+      projectId: string
+      relativePaths: string[]
+    }) => Promise<{ ok: boolean; deletedCount: number; failedCount: number }>
     revealProjectFolder: (payload: { projectId: string }) => Promise<{ ok: boolean }>
   }
   projects: {
@@ -160,6 +330,98 @@ export type DesktopBridge = {
       url: string
       suggestedName?: string
     }) => Promise<{ ok: boolean; canceled?: boolean; path?: string }>
+  }
+  browser?: {
+    createView: (payload: { tabId: string; partition?: string }) => Promise<{ viewId: number }>
+    destroyView: (payload: { viewId: number }) => void
+    navigate: (payload: { viewId: number; url: string }) => void
+    back: (payload: { viewId: number }) => void
+    forward: (payload: { viewId: number }) => void
+    reload: (payload: { viewId: number }) => void
+    resize: (payload: { viewId: number; bounds: DesktopBrowserViewBounds }) => void
+    show: (payload: { viewId: number }) => void
+    hide: (payload: { viewId: number }) => void
+    importImage: (payload: {
+      viewId: number
+      projectId: string
+      url: string
+      fileName?: string
+      title?: string
+    }) => Promise<DesktopAssetDto>
+    importMedia?: (payload: {
+      viewId: number
+      projectId: string
+      url: string
+      fileName?: string
+      title?: string
+      mediaType?: 'image' | 'video'
+    }) => Promise<DesktopAssetDto>
+    capturePromptImage?: (payload: {
+      viewId: number
+      projectId?: string
+      url: string
+      fileName?: string
+      title?: string
+    }) => Promise<DesktopBrowserPromptReferenceResult>
+    capturePromptScreenshot?: (payload: {
+      viewId: number
+      projectId?: string
+      fileName?: string
+      title?: string
+      sourceRect?: {
+        left: number
+        top: number
+        width: number
+        height: number
+      }
+    }) => Promise<DesktopBrowserPromptReferenceResult>
+    readPromptExtractionSettings?: (payload: {
+      projectId: string
+    }) => Promise<{ ok: boolean; settings: unknown | null; error?: string }>
+    writePromptExtractionSettings?: (payload: {
+      projectId: string
+      settings: unknown
+    }) => Promise<{ ok: boolean; settings?: unknown; error?: string }>
+    selectPromptScreenshot?: (payload: { viewId: number }) => Promise<DesktopBrowserPromptScreenshotSelection>
+    setPromptCategories?: (payload: {
+      viewId: number
+      categories: Array<{ id: string; label: string }>
+    }) => void
+    setResourceCapture?: (payload: { viewId: number; enabled: boolean }) => void
+    captureResource?: (payload: { viewId: number }) => void
+    showChromeMenu?: (payload: {
+      x: number
+      y: number
+      width?: number
+      items: DesktopBrowserChromeMenuItem[]
+    }) => Promise<DesktopBrowserChromeMenuResult>
+    assetOverlay?: {
+      open: (payload: {
+        viewId: number | null
+        bounds: DesktopBrowserViewBounds
+        captureRequest?: DesktopBrowserAssetOverlayCaptureRequest
+        promptRequest?: unknown
+      }) => void
+      updateHost: (payload: { viewId?: number | null; bounds: DesktopBrowserViewBounds }) => void
+      close: () => void
+      captureRequest: (payload: DesktopBrowserAssetOverlayCaptureRequest) => void
+      promptRequest?: (payload: unknown) => void
+      ready?: () => void
+      setInteractive: (payload: { interactive: boolean }) => void
+      setState: (payload: {
+        dockMode?: DesktopBrowserAssetOverlayDockMode
+        popoverRect?: DesktopBrowserAssetOverlayRect | null
+        captureEnabled?: boolean
+      }) => void
+      importToCanvas?: (payload: { assets: unknown[] }) => void
+      onConfig: (callback: (config: DesktopBrowserAssetOverlayConfig) => void) => () => void
+      onState: (callback: (state: DesktopBrowserAssetOverlayState) => void) => () => void
+      onImportToCanvas?: (callback: (payload: { assets?: unknown[] }) => void) => () => void
+    }
+    onPromptCapture?: (callback: (event: DesktopBrowserPromptCaptureEvent) => void) => () => void
+    onTextPromptSave?: (callback: (event: DesktopBrowserTextPromptSaveEvent) => void) => () => void
+    onResourceCapture?: (callback: (event: DesktopBrowserResourceCaptureEvent) => void) => () => void
+    onState: (callback: (event: DesktopBrowserViewState) => void) => () => void
   }
   video: {
     /** 视频抽帧（首/尾帧/指定秒）→ 项目素材 nomi-local:// URL。通用基建，见 electron/video/extractVideoFrame.ts。 */
@@ -219,7 +481,10 @@ export type DesktopBridge = {
     cancelChatV2: (sessionId: string) => Promise<{ ok: boolean; error?: string }>
     clearChatV2Session: (sessionKey: string) => Promise<{ ok: boolean; error?: string }>
     /** 会话历史:从线程气泡重建模型工作缓存(翻回旧对话接着聊)。 */
-    seedChatV2Session?: (sessionKey: string, messages: Array<{ role: string; content: string }>) => Promise<{ ok: boolean }>
+    seedChatV2Session?: (
+      sessionKey: string,
+      messages: Array<{ role: string; content: string }>,
+    ) => Promise<{ ok: boolean }>
     /** S1b 诚实探针:LLM 是否还记得这个会话(气泡在而记忆空 → 必须画「新会话」分隔线)。 */
     chatV2SessionAlive?: (sessionKey: string) => Promise<{ alive: boolean }>
     onChatV2Event: (sessionId: string, callback: (event: unknown) => void) => () => void
@@ -232,7 +497,11 @@ export type DesktopBridge = {
   /** S9 项目记忆卡:get=增量提炼+读;update=pin/纠正(text→origin:user);remove=删+墓碑。 */
   memory?: {
     get: (projectId: string) => Promise<{ ok: boolean; facts: unknown[] }>
-    update: (projectId: string, factId: string, patch: { text?: string; pinned?: boolean }) => Promise<{ ok: boolean; facts: unknown[] }>
+    update: (
+      projectId: string,
+      factId: string,
+      patch: { text?: string; pinned?: boolean },
+    ) => Promise<{ ok: boolean; facts: unknown[] }>
     remove: (projectId: string, factId: string) => Promise<{ ok: boolean; facts: unknown[] }>
     add: (projectId: string, text: string, kind?: string) => Promise<{ ok: boolean; facts: unknown[] }>
   }
@@ -243,8 +512,15 @@ export type DesktopBridge = {
     textBrain: () => Promise<{ ok: boolean; brain: { vendor: string; modelKey: string } | null }>
     /** 我的库(用户级·跨项目):手写攒的提示词 CRUD,返回全量供渲染层本地过滤。 */
     userList: () => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
-    userAdd: (input: { title?: string; prompt: string; promptType: 'image' | 'video' }) => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
-    userUpdate: (id: string, patch: { title?: string; prompt?: string; promptType?: 'image' | 'video' }) => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
+    userAdd: (input: {
+      title?: string
+      prompt: string
+      promptType: 'image' | 'video'
+    }) => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
+    userUpdate: (
+      id: string,
+      patch: { title?: string; prompt?: string; promptType?: 'image' | 'video' },
+    ) => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
     userDelete: (id: string) => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
   }
   /** S4-2b 技术自检结果广播(主进程异步旁路 → 节点 ⚠ 投影)。 */
@@ -254,7 +530,14 @@ export type DesktopBridge = {
   /** S1b-3 对话持久化(conversation 域独立文件,不混画布 payload)。committedProposal=S6-5 事务回执(审计 A6),形状由画布层校验。 */
   conversations?: {
     read: (projectId: string) => Promise<{ ok: boolean; conversations: PersistedConversationsV2 | null }>
-    write: (projectId: string, payload: { creation: PersistedConversationArea; generation: PersistedConversationArea; committedProposal?: unknown }) => Promise<{ ok: boolean }>
+    write: (
+      projectId: string,
+      payload: {
+        creation: PersistedConversationArea
+        generation: PersistedConversationArea
+        committedProposal?: unknown
+      },
+    ) => Promise<{ ok: boolean }>
   }
   onboarding: {
     manualCommit: (payload: {
@@ -341,7 +624,13 @@ export type DesktopBridge = {
   }
   /** 即梦会员（dreamina CLI）：设备码登录/账户检测/安装（可选——老 preload 无此口）。 */
   dreamina?: {
-    status: () => Promise<{ installed: boolean; loggedIn: boolean; totalCredit: number | null; vipLevel: string; notMaestroVip: boolean }>
+    status: () => Promise<{
+      installed: boolean
+      loggedIn: boolean
+      totalCredit: number | null
+      vipLevel: string
+      notMaestroVip: boolean
+    }>
     loginStart: () => Promise<{ verificationUri: string; userCode: string; deviceCode: string; expiresAt: string }>
     loginPoll: (deviceCode: string) => Promise<{ status: 'success' | 'pending' | 'error'; message: string }>
     logout: () => Promise<{ ok: boolean }>

@@ -3,6 +3,7 @@
 import React from 'react'
 import { IconAlertTriangle, IconCheck, IconDownload, IconLock, IconMovie, IconTrash } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
+import { Tooltip, TooltipContent, TooltipTrigger } from '../../design'
 import {
   providerLabel,
   skillCapabilityFor,
@@ -71,33 +72,45 @@ export function SkillCard({
           在创作区用
         </button>
         <span className={cn('flex-1')} />
-        <button
-          type="button"
-          onClick={() => onExport(skill)}
-          title="导出技能包"
-          aria-label={`导出 ${skill.label}`}
-          className={cn('shrink-0 w-7 h-7 grid place-items-center rounded-nomi-sm text-nomi-ink-60 hover:text-nomi-ink hover:bg-nomi-ink-05 transition-colors')}
-        >
-          <IconDownload size={14} stroke={1.7} />
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => onExport(skill)}
+              aria-label={`导出 ${skill.label}`}
+              className={cn('shrink-0 w-7 h-7 grid place-items-center rounded-nomi-sm text-nomi-ink-60 hover:text-nomi-ink hover:bg-nomi-ink-05 transition-colors')}
+            >
+              <IconDownload size={14} stroke={1.7} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">导出技能包</TooltipContent>
+        </Tooltip>
         {isUser ? (
-          <button
-            type="button"
-            onClick={() => onDelete(skill)}
-            title="删除技能"
-            aria-label={`删除 ${skill.label}`}
-            className={cn('shrink-0 w-7 h-7 grid place-items-center rounded-nomi-sm text-nomi-ink-60 hover:text-workbench-danger hover:bg-nomi-ink-05 transition-colors')}
-          >
-            <IconTrash size={14} stroke={1.7} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => onDelete(skill)}
+                aria-label={`删除 ${skill.label}`}
+                className={cn('shrink-0 w-7 h-7 grid place-items-center rounded-nomi-sm text-nomi-ink-60 hover:text-workbench-danger hover:bg-nomi-ink-05 transition-colors')}
+              >
+                <IconTrash size={14} stroke={1.7} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">删除技能</TooltipContent>
+          </Tooltip>
         ) : (
-          <span
-            title="内置技能 · 只读"
-            aria-label="内置技能，只读"
-            className={cn('shrink-0 w-7 h-7 grid place-items-center text-nomi-ink-30')}
-          >
-            <IconLock size={14} stroke={1.7} />
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                aria-label="内置技能，只读"
+                className={cn('shrink-0 w-7 h-7 grid place-items-center text-nomi-ink-30')}
+              >
+                <IconLock size={14} stroke={1.7} />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top">内置技能 · 只读</TooltipContent>
+          </Tooltip>
         )}
       </div>
     </div>

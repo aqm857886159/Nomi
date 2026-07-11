@@ -1,6 +1,7 @@
 // confirmDialog 的指令层（与 ConfirmDialogHost 组件分文件：react-refresh 要求
 // 组件文件只导出组件）。API 说明见 confirmDialog.tsx 头注释。
 export type DialogKind = 'confirm' | 'alert' | 'prompt'
+export type DialogTone = 'default' | 'info' | 'danger'
 
 export type DialogRequest = {
   kind: DialogKind
@@ -10,6 +11,7 @@ export type DialogRequest = {
   cancelLabel?: string
   /** 危险动作（删除等）：确认键走警示色。 */
   danger?: boolean
+  tone?: DialogTone
   placeholder?: string
   initialValue?: string
   resolve: (value: boolean | string | null) => void
@@ -38,6 +40,7 @@ export function confirmDialog(options: {
   confirmLabel?: string
   cancelLabel?: string
   danger?: boolean
+  tone?: DialogTone
 }): Promise<boolean> {
   return new Promise((resolve) => {
     submit({ kind: 'confirm', ...options, resolve: (value) => resolve(value === true) })

@@ -73,6 +73,30 @@ describe("workspace file index", () => {
     expect(tree.map((node) => node.relativePath)).toEqual(["visible.txt"]);
   });
 
+  it("keeps browser asset box files out of the generic workspace file index", () => {
+    const root = makeTempDir();
+    write(root, "assets/imported/2026-07-05/photo.png", "png");
+    write(root, "assets/imported/2026-07-05/capture.png", "png");
+    write(root, "assets/imported/2026-07-05/capture.png.meta", JSON.stringify({ kind: "browser-capture" }));
+    write(root, "assets/imported/2026-07-05/box.png", "png");
+    write(root, "assets/imported/2026-07-05/box.png.meta", JSON.stringify({ kind: "browser-upload" }));
+
+    const paths: string[] = [];
+    const walk = (nodes: ReturnType<typeof listWorkspaceFiles>["items"]): void => {
+      for (const node of nodes) {
+        paths.push(node.relativePath);
+        if (node.children) walk(node.children);
+      }
+    };
+    walk(listWorkspaceFiles({ rootPath: root }).items);
+
+    expect(paths).toContain("assets/imported/2026-07-05/photo.png");
+    expect(paths).not.toContain("assets/imported/2026-07-05/capture.png");
+    expect(paths).not.toContain("assets/imported/2026-07-05/capture.png.meta");
+    expect(paths).not.toContain("assets/imported/2026-07-05/box.png");
+    expect(paths).not.toContain("assets/imported/2026-07-05/box.png.meta");
+  });
+
   (canCreateDirSymlink ? it : it.skip)("does not follow symlinks outside workspace by default", () => {
     const root = makeTempDir();
     const outside = makeTempDir();

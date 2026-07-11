@@ -1,5 +1,7 @@
 import React from 'react'
 import {
+  IconBooks,
+  IconBulb,
   IconFolder,
   IconFolderSearch,
   IconLayoutSidebarLeftCollapse,
@@ -8,12 +10,27 @@ import {
   IconTags,
 } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../design'
 import { type ProjectCategory } from '../project/projectCategories'
 import { useWorkbenchStore } from '../workbenchStore'
 import { lazyWithChunkBoundary } from '../../ui/chunkBoundary'
 
 const CategoryTree = lazyWithChunkBoundary('分类面板', () => import('../sidebar/CategoryTree'))
-const WorkspaceFileExplorerPanel = lazyWithChunkBoundary('项目文件面板', () => import('./WorkspaceFileExplorerPanel'))
+const PromptLibraryContent = lazyWithChunkBoundary('提示词库', () =>
+  import('../promptLibrary/PromptLibraryPanel').then((module) => ({
+    default: module.PromptLibraryContent,
+  })),
+)
+const SkillLibraryContent = lazyWithChunkBoundary('技能库', () =>
+  import('../skillLibrary/SkillLibraryPanel').then((module) => ({
+    default: module.SkillLibraryContent,
+  })),
+)
+const AssetLibraryContent = lazyWithChunkBoundary('素材库', () =>
+  import('../assets/AssetLibraryPanel').then((module) => ({
+    default: module.AssetLibraryContent,
+  })),
+)
 import AssetFinderPanel from '../assets/autoGroup/AssetFinderPanel'
 
 type Props = {
@@ -21,167 +38,251 @@ type Props = {
   projectId?: string | null
 }
 
+type ProjectSidebarTab = 'find' | 'categories' | 'prompt-library' | 'skill-library' | 'asset-library'
+
+const PROJECT_SIDEBAR_COLLAPSED_WIDTH = 60
+const PROJECT_SIDEBAR_EXPANDED_WIDTH = 300
+const PROJECT_LIBRARY_SIDEBAR_EXPANDED_WIDTH = 500
+const PROJECT_SIDEBAR_RAIL_WIDTH = 60
+
+const RAIL_BUTTON_CLASS = cn(
+  'grid size-8 place-items-center rounded-nomi-sm border-0 bg-transparent',
+  'cursor-pointer text-nomi-ink-40 transition-[background,color] duration-[var(--nomi-transition-fast)]',
+  'hover:bg-nomi-ink-05 hover:text-nomi-ink',
+  'disabled:cursor-not-allowed disabled:opacity-50',
+)
+
+const RAIL_BUTTON_ACTIVE_CLASS = 'bg-nomi-ink text-nomi-paper shadow-nomi-sm'
+
+const PANEL_ICON_BUTTON_CLASS = cn(
+  'grid size-8 place-items-center rounded-nomi-sm border-0 bg-transparent',
+  'cursor-pointer text-nomi-ink-40 transition-[background,border-color,color] duration-[var(--nomi-transition-fast)]',
+  'hover:bg-nomi-ink-05 hover:text-nomi-ink',
+)
+
+function sidebarPanelTitle(tab: ProjectSidebarTab): string {
+  if (tab === 'find') return '找素材'
+  if (tab === 'categories') return '分类'
+  if (tab === 'prompt-library') return '提示词库'
+  if (tab === 'skill-library') return '技能库'
+  return '素材库'
+}
+
+function isLibraryTab(tab: ProjectSidebarTab): boolean {
+  return tab === 'prompt-library' || tab === 'skill-library' || tab === 'asset-library'
+}
+
 export default function ProjectExplorerSidebar({ categories, projectId = null }: Props): JSX.Element {
-  const [tab, setTab] = React.useState<'find' | 'categories' | 'files'>('files')
+  const [tab, setTab] = React.useState<ProjectSidebarTab>('asset-library')
   const [createCategoryNonce, setCreateCategoryNonce] = React.useState(0)
   const collapsed = useWorkbenchStore((s) => s.sidebarCollapsed)
   const toggle = useWorkbenchStore((s) => s.toggleSidebarCollapsed)
   const setSidebarCollapsed = useWorkbenchStore((s) => s.setSidebarCollapsed)
 
-  // 加号 = 新建一个顶层分类。若停在「文件」tab，先切回「分类」让用户看见新建结果。
-  // （建子组改走分类行右键「新建子组」。）
+  // 加号 = 新建一个顶层分类（建子组改走分类行右键「新建子组」）。
   const handleAddCategory = React.useCallback(() => {
     setTab('categories')
+    setSidebarCollapsed(false)
     setCreateCategoryNonce((n) => n + 1)
-  }, [])
+  }, [setSidebarCollapsed])
 
-  // picker 的「浏览全部 →」→ 展开侧栏 + 切到文件面板(全量浏览在面板,弹层只做快速取,规范 §5)。
+  const selectTab = React.useCallback((nextTab: ProjectSidebarTab) => {
+    if (!collapsed && tab === nextTab) {
+      setSidebarCollapsed(true)
+      return
+    }
+    setTab(nextTab)
+    setSidebarCollapsed(false)
+  }, [collapsed, setSidebarCollapsed, tab])
+
+  // picker 的「浏览全部 →」→ 展开侧栏 + 切到素材库（弹层只做快速取）。
   React.useEffect(() => {
     const open = () => {
-      setTab('files')
+      setTab('asset-library')
       setSidebarCollapsed(false)
     }
     window.addEventListener('nomi-open-files-panel', open)
     return () => window.removeEventListener('nomi-open-files-panel', open)
   }, [setSidebarCollapsed])
 
+  const railItems = React.useMemo(
+    () => [
+      {
+        id: 'asset-library' as const,
+        label: '素材库',
+        icon: IconFolder,
+      },
+      {
+        id: 'find' as const,
+        label: '找素材',
+        icon: IconFolderSearch,
+      },
+      {
+        id: 'categories' as const,
+        label: '分类',
+        icon: IconTags,
+      },
+    ],
+    [],
+  )
+
+  const libraryRailItems = React.useMemo(
+    () => [
+      {
+        id: 'prompt-library' as const,
+        label: '提示词库',
+        icon: IconBulb,
+      },
+      {
+        id: 'skill-library' as const,
+        label: '技能库',
+        icon: IconBooks,
+      },
+    ],
+    [],
+  )
+
+  const panelTitle = sidebarPanelTitle(tab)
+  const expandedWidth = isLibraryTab(tab) ? PROJECT_LIBRARY_SIDEBAR_EXPANDED_WIDTH : PROJECT_SIDEBAR_EXPANDED_WIDTH
+
   return (
     <aside
       data-collapsed={collapsed ? 'true' : 'false'}
       className={cn(
-        'flex flex-col h-full min-h-0 border-r border-nomi-line bg-nomi-paper',
+        'flex h-full min-h-0 shrink-0 overflow-hidden border-r border-nomi-line bg-nomi-paper text-nomi-ink',
         'transition-[width] duration-150 ease-out',
-        collapsed ? 'w-[60px]' : 'w-[240px]',
       )}
+      style={{ width: collapsed ? PROJECT_SIDEBAR_COLLAPSED_WIDTH : expandedWidth }}
       aria-label="项目资源管理器"
     >
-      {collapsed ? (
-        <div className="flex items-center justify-center px-2 py-2 border-b border-nomi-line">
-          <button
-            type="button"
-            onClick={toggle}
-            className="text-nomi-ink-40 hover:text-nomi-ink p-1 rounded-nomi-sm"
-            aria-label="展开侧栏"
-            title="展开侧栏"
-          >
-            <IconLayoutSidebarLeftExpand size={16} stroke={1.5} />
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center px-2 py-2 border-b border-nomi-line">
-          <span aria-hidden />
-          <div className="flex items-center justify-center gap-1">
-            <div className="flex items-center gap-0.5 rounded-nomi-sm bg-nomi-bg p-0.5">
+      <TooltipProvider delayDuration={180} skipDelayDuration={80}>
+        <div
+          className="flex shrink-0 flex-col items-center border-r border-nomi-line-soft bg-nomi-paper px-2 py-3"
+          style={{ width: PROJECT_SIDEBAR_RAIL_WIDTH }}
+        >
+          <nav className="flex flex-1 flex-col items-center gap-2.5 pt-1" aria-label="项目侧栏导航">
+            {railItems.map((item) => {
+              const Icon = item.icon
+              const active = tab === item.id
+              return (
+                <Tooltip key={item.id}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className={cn(RAIL_BUTTON_CLASS, active && RAIL_BUTTON_ACTIVE_CLASS)}
+                      aria-label={item.label}
+                      aria-pressed={active}
+                      onClick={() => selectTab(item.id)}
+                    >
+                      <Icon size={22} stroke={1.85} aria-hidden="true" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">{item.label}</TooltipContent>
+                </Tooltip>
+              )
+            })}
+            <div className="my-1 h-px w-6 shrink-0 bg-nomi-line-soft" aria-hidden="true" />
+            {libraryRailItems.map((item) => {
+              const Icon = item.icon
+              const active = tab === item.id
+              return (
+                <Tooltip key={item.id}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className={cn(RAIL_BUTTON_CLASS, active && RAIL_BUTTON_ACTIVE_CLASS)}
+                      aria-label={item.label}
+                      aria-pressed={active}
+                      onClick={() => selectTab(item.id)}
+                    >
+                      <Icon size={22} stroke={1.85} aria-hidden="true" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">{item.label}</TooltipContent>
+                </Tooltip>
+              )
+            })}
+          </nav>
+          <div className="flex flex-col items-center gap-2 pb-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
               <button
                 type="button"
-                onClick={() => setTab('find')}
-                title="找素材"
-                className={cn(
-                  'flex items-center gap-1 px-2 py-1 text-micro rounded-nomi-sm',
-                  tab === 'find' ? 'bg-nomi-paper text-nomi-ink' : 'text-nomi-ink-40 hover:text-nomi-ink-60',
-                )}
+                onClick={toggle}
+                className={RAIL_BUTTON_CLASS}
+                aria-label={collapsed ? '展开侧栏' : '收起侧栏'}
               >
-                <IconFolderSearch size={14} stroke={1.7} />
-                {tab !== 'find' && '找'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab('categories')}
-                title="分类"
-                className={cn(
-                  'flex items-center gap-1 px-2 py-1 text-micro rounded-nomi-sm',
-                  tab === 'categories' ? 'bg-nomi-paper text-nomi-ink' : 'text-nomi-ink-40 hover:text-nomi-ink-60',
+                {collapsed ? (
+                  <IconLayoutSidebarLeftExpand size={20} stroke={1.85} aria-hidden="true" />
+                ) : (
+                  <IconLayoutSidebarLeftCollapse size={20} stroke={1.85} aria-hidden="true" />
                 )}
-              >
-                <IconTags size={14} stroke={1.7} />
-                {tab !== 'categories' && '分类'}
               </button>
-              <button
-                type="button"
-                onClick={() => setTab('files')}
-                title="文件"
-                className={cn(
-                  'flex items-center gap-1 px-2 py-1 text-micro rounded-nomi-sm',
-                  tab === 'files' ? 'bg-nomi-paper text-nomi-ink' : 'text-nomi-ink-40 hover:text-nomi-ink-60',
-                )}
-              >
-                <IconFolder size={14} stroke={1.7} />
-                {tab !== 'files' && '文件'}
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={handleAddCategory}
-              className="grid place-items-center w-7 h-7 rounded-nomi-sm text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-bg"
-              aria-label="新建分类"
-              title="新建一个顶层分类"
-            >
-              <IconPlus size={16} stroke={1.7} />
-            </button>
-          </div>
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={toggle}
-              className="text-nomi-ink-40 hover:text-nomi-ink p-1 rounded-nomi-sm"
-              aria-label="收起侧栏"
-              title="收起侧栏"
-            >
-              <IconLayoutSidebarLeftCollapse size={16} stroke={1.5} />
-            </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">{collapsed ? '展开侧栏' : '收起侧栏'}</TooltipContent>
+            </Tooltip>
           </div>
         </div>
-      )}
-      {collapsed ? (
-        <div className="flex flex-col items-center gap-1 py-2">
-          <button
-            type="button"
-            onClick={() => {
-              setTab('find')
-              toggle()
-            }}
-            className="w-9 h-8 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-bg"
-            aria-label="展开找素材面板"
-            title="找素材"
-          >
-            <IconFolderSearch size={16} stroke={1.7} />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setTab('categories')
-              toggle()
-            }}
-            className="w-9 h-8 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-bg"
-            aria-label="展开分类面板"
-            title="分类"
-          >
-            <IconTags size={16} stroke={1.7} />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setTab('files')
-              toggle()
-            }}
-            className="w-9 h-8 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-bg"
-            aria-label="展开文件面板"
-            title="文件"
-          >
-            <IconFolder size={16} stroke={1.7} />
-          </button>
-        </div>
-      ) : tab === 'find' ? (
-        <AssetFinderPanel />
-      ) : (
-        <React.Suspense fallback={null}>
-          {tab === 'files' ? (
-            <WorkspaceFileExplorerPanel projectId={projectId} />
-          ) : (
-            <CategoryTree categories={categories} createCategoryNonce={createCategoryNonce} />
-          )}
-        </React.Suspense>
-      )}
+
+        {!collapsed ? (
+          <section className="relative flex min-w-0 flex-1 flex-col bg-nomi-paper" aria-label={panelTitle}>
+            <>
+              <header className="flex h-12 shrink-0 items-center border-b border-nomi-line-soft px-3">
+                  <h2 className="m-0 min-w-0 flex-1 truncate text-body-sm font-bold leading-none text-nomi-ink">
+                    {panelTitle}
+                  </h2>
+                  {tab === 'categories' ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={handleAddCategory}
+                          className={PANEL_ICON_BUTTON_CLASS}
+                          aria-label="新建分类"
+                        >
+                          <IconPlus size={18} stroke={1.85} aria-hidden="true" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">新建分类</TooltipContent>
+                    </Tooltip>
+                  ) : null}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={toggle}
+                        className={PANEL_ICON_BUTTON_CLASS}
+                        aria-label="收起侧栏"
+                      >
+                        <IconLayoutSidebarLeftCollapse size={18} stroke={1.85} aria-hidden="true" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">收起侧栏</TooltipContent>
+                  </Tooltip>
+              </header>
+              {tab === 'find' ? (
+                  <AssetFinderPanel />
+                ) : tab === 'categories' ? (
+                  <React.Suspense fallback={null}>
+                    <CategoryTree categories={categories} createCategoryNonce={createCategoryNonce} />
+                  </React.Suspense>
+                ) : tab === 'prompt-library' ? (
+                  <React.Suspense fallback={null}>
+                    <PromptLibraryContent active compact showHeader={false} />
+                  </React.Suspense>
+                ) : tab === 'skill-library' ? (
+                  <React.Suspense fallback={null}>
+                    <SkillLibraryContent active compact showHeader={false} />
+                  </React.Suspense>
+                ) : (
+                  <React.Suspense fallback={null}>
+                    <AssetLibraryContent projectId={projectId} compact showHeader={false} />
+                  </React.Suspense>
+              )}
+            </>
+          </section>
+        ) : null}
+      </TooltipProvider>
     </aside>
   )
 }

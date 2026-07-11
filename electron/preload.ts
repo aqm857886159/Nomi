@@ -17,6 +17,15 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     minimize: () => ipcRenderer.invoke("nomi:window:minimize"),
     maximize: () => ipcRenderer.invoke("nomi:window:maximize"),
     close: () => ipcRenderer.invoke("nomi:window:close"),
+    confirmClose: (requestId: string) =>
+      ipcRenderer.send("nomi:window:close-response", { requestId, confirmed: true }),
+    cancelClose: (requestId: string) =>
+      ipcRenderer.send("nomi:window:close-response", { requestId, confirmed: false }),
+    onCloseRequest: (cb: (payload: { requestId: string }) => void) => {
+      const listener = (_: unknown, payload: { requestId: string }) => cb(payload);
+      ipcRenderer.on("nomi:window:close-request", listener);
+      return () => ipcRenderer.removeListener("nomi:window:close-request", listener);
+    },
     onMaximized: (cb: (maximized: boolean) => void) => {
       const listener = (_: unknown, v: boolean) => cb(v);
       ipcRenderer.on("nomi:window:maximized", listener);
@@ -28,11 +37,16 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     reopenLibraryWindow: () => ipcRenderer.send("nomi:app:reopen-library-window"),
     hardReloadWindow: () => ipcRenderer.send("nomi:app:hard-reload-window"),
   },
+  browserChromeMenu: {
+    select: (id: unknown) => ipcRenderer.send("browser:chrome-menu:select", id),
+    cancel: () => ipcRenderer.send("browser:chrome-menu:cancel"),
+  },
   workspace: {
     selectFolder: () => ipcRenderer.invoke("nomi:workspace:select-folder"),
     openFolder: (payload: unknown) => ipcRenderer.invoke("nomi:workspace:open-folder", payload),
     listFiles: (payload: unknown) => ipcRenderer.invoke("nomi:workspace:list-files", payload),
     revealFile: (payload: unknown) => ipcRenderer.invoke("nomi:workspace:reveal-file", payload),
+    deleteFiles: (payload: unknown) => ipcRenderer.invoke("nomi:workspace:delete-files", payload),
     revealProjectFolder: (payload: unknown) => ipcRenderer.invoke("nomi:workspace:reveal-project-folder", payload),
   },
   projects: {
@@ -42,7 +56,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     read: (projectId: string) => invokeSync("nomi:projects:read", projectId),
     readAsync: (projectId: string) => ipcRenderer.invoke("nomi:projects:read-async", projectId),
     save: (projectId: string, record: unknown) => invokeSync("nomi:projects:save", projectId, record),
-    saveAsync: (projectId: string, record: unknown) => ipcRenderer.invoke("nomi:projects:save-async", projectId, record),
+    saveAsync: (projectId: string, record: unknown) =>
+      ipcRenderer.invoke("nomi:projects:save-async", projectId, record),
     delete: (projectId: string) => invokeSync("nomi:projects:delete", projectId),
   },
   browserCapture: {
@@ -83,6 +98,92 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
         path?: string;
       }>,
   },
+  browser: {
+    createView: (payload: unknown) => ipcRenderer.invoke("browser:view:create", payload) as Promise<{ viewId: number }>,
+    destroyView: (payload: unknown) => ipcRenderer.send("browser:view:destroy", payload),
+    navigate: (payload: unknown) => ipcRenderer.send("browser:view:navigate", payload),
+    back: (payload: unknown) => ipcRenderer.send("browser:view:back", payload),
+    forward: (payload: unknown) => ipcRenderer.send("browser:view:forward", payload),
+    reload: (payload: unknown) => ipcRenderer.send("browser:view:reload", payload),
+    resize: (payload: unknown) => ipcRenderer.send("browser:view:resize", payload),
+    show: (payload: unknown) => ipcRenderer.send("browser:view:show", payload),
+    hide: (payload: unknown) => ipcRenderer.send("browser:view:hide", payload),
+    importImage: (payload: unknown) => ipcRenderer.invoke("browser:view:import-image", payload),
+    importMedia: (payload: unknown) => ipcRenderer.invoke("browser:view:import-media", payload),
+    capturePromptImage: (payload: unknown) => ipcRenderer.invoke("browser:view:capture-prompt-image", payload),
+    selectPromptScreenshot: (payload: unknown) =>
+      ipcRenderer.invoke("browser:view:select-prompt-screenshot", payload),
+    capturePromptScreenshot: (payload: unknown) =>
+      ipcRenderer.invoke("browser:view:capture-prompt-screenshot", payload),
+    readPromptExtractionSettings: (payload: unknown) =>
+      ipcRenderer.invoke("browser:prompt-extraction-settings:read", payload),
+    writePromptExtractionSettings: (payload: unknown) =>
+      ipcRenderer.invoke("browser:prompt-extraction-settings:write", payload),
+    setPromptCategories: (payload: unknown) => ipcRenderer.send("browser:view:set-prompt-categories", payload),
+    setResourceCapture: (payload: unknown) => ipcRenderer.send("browser:view:set-resource-capture", payload),
+    captureResource: (payload: unknown) => ipcRenderer.send("browser:view:capture-resource", payload),
+    showChromeMenu: (payload: unknown) => ipcRenderer.invoke("browser:chrome-menu:show", payload),
+    assetOverlay: {
+      open: (payload: unknown) => ipcRenderer.send("browser:asset-overlay:open", payload),
+      updateHost: (payload: unknown) => ipcRenderer.send("browser:asset-overlay:update-host", payload),
+      close: () => ipcRenderer.send("browser:asset-overlay:close"),
+      captureRequest: (payload: unknown) => ipcRenderer.send("browser:asset-overlay:capture-request", payload),
+      promptRequest: (payload: unknown) => ipcRenderer.send("browser:asset-overlay:prompt-request", payload),
+      ready: () => ipcRenderer.send("browser:asset-overlay:ready"),
+      setInteractive: (payload: unknown) => ipcRenderer.send("browser:asset-overlay:set-interactive", payload),
+      setState: (payload: unknown) => ipcRenderer.send("browser:asset-overlay:set-state", payload),
+      importToCanvas: (payload: unknown) => ipcRenderer.send("browser:asset-overlay:import-to-canvas", payload),
+      onConfig: (callback: (event: unknown) => void) => {
+        const listener = (_event: unknown, payload: unknown) => callback(payload);
+        ipcRenderer.on("browser:asset-overlay:config", listener as never);
+        return () => {
+          ipcRenderer.removeListener("browser:asset-overlay:config", listener as never);
+        };
+      },
+      onState: (callback: (event: unknown) => void) => {
+        const listener = (_event: unknown, payload: unknown) => callback(payload);
+        ipcRenderer.on("browser:asset-overlay:state", listener as never);
+        return () => {
+          ipcRenderer.removeListener("browser:asset-overlay:state", listener as never);
+        };
+      },
+      onImportToCanvas: (callback: (event: unknown) => void) => {
+        const listener = (_event: unknown, payload: unknown) => callback(payload);
+        ipcRenderer.on("browser:asset-overlay:import-to-canvas", listener as never);
+        return () => {
+          ipcRenderer.removeListener("browser:asset-overlay:import-to-canvas", listener as never);
+        };
+      },
+    },
+    onPromptCapture: (callback: (event: unknown) => void) => {
+      const listener = (_event: unknown, payload: unknown) => callback(payload);
+      ipcRenderer.on("browser:view:prompt-capture", listener as never);
+      return () => {
+        ipcRenderer.removeListener("browser:view:prompt-capture", listener as never);
+      };
+    },
+    onTextPromptSave: (callback: (event: unknown) => void) => {
+      const listener = (_event: unknown, payload: unknown) => callback(payload);
+      ipcRenderer.on("browser:view:text-prompt-save", listener as never);
+      return () => {
+        ipcRenderer.removeListener("browser:view:text-prompt-save", listener as never);
+      };
+    },
+    onResourceCapture: (callback: (event: unknown) => void) => {
+      const listener = (_event: unknown, payload: unknown) => callback(payload);
+      ipcRenderer.on("browser:view:resource-capture", listener as never);
+      return () => {
+        ipcRenderer.removeListener("browser:view:resource-capture", listener as never);
+      };
+    },
+    onState: (callback: (event: unknown) => void) => {
+      const listener = (_event: unknown, payload: unknown) => callback(payload);
+      ipcRenderer.on("browser:view:state", listener as never);
+      return () => {
+        ipcRenderer.removeListener("browser:view:state", listener as never);
+      };
+    },
+  },
   video: {
     extractFrame: (payload: unknown) =>
       ipcRenderer.invoke("nomi:video:extract-frame", payload) as Promise<{ url: string }>,
@@ -121,12 +222,12 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     run: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:run", payload),
     result: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:result", payload),
     // 付费守卫：真人确认后铸一次性令牌（绑 nodeIds），返回不透明 grantId 随生成请求下传。
-    grantSpend: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:grant-spend", payload) as Promise<{ grantId: string }>,
+    grantSpend: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:tasks:grant-spend", payload) as Promise<{ grantId: string }>,
     // 文本任务流式（逐 token）：start 返回 streamId，onTextEvent 收 delta/done/error。
     runTextStream: (payload: unknown) =>
       ipcRenderer.invoke("nomi:tasks:text:stream", payload) as Promise<{ streamId: string }>,
-    cancelTextStream: (streamId: string) =>
-      ipcRenderer.invoke("nomi:tasks:text:cancel", { streamId }),
+    cancelTextStream: (streamId: string) => ipcRenderer.invoke("nomi:tasks:text:cancel", { streamId }),
     onTextEvent: (streamId: string, callback: (event: unknown) => void) => {
       const listener = (_event: unknown, payload: { streamId: string; event: unknown }) => {
         if (payload && payload.streamId === streamId) callback(payload.event);
@@ -139,7 +240,11 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   },
   events: {
     append: (projectId: string, events: unknown[]) =>
-      ipcRenderer.invoke("nomi:events:append", { projectId, events }) as Promise<{ ok: boolean; count: number; lastSeq: number }>,
+      ipcRenderer.invoke("nomi:events:append", { projectId, events }) as Promise<{
+        ok: boolean;
+        count: number;
+        lastSeq: number;
+      }>,
     read: (projectId: string, fromSeq: number) =>
       ipcRenderer.invoke("nomi:events:read", { projectId, fromSeq }) as Promise<{ ok: boolean; events: unknown[] }>,
   },
@@ -147,22 +252,47 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     get: (projectId: string) =>
       ipcRenderer.invoke("nomi:memory:get", { projectId }) as Promise<{ ok: boolean; facts: unknown[] }>,
     update: (projectId: string, factId: string, patch: { text?: string; pinned?: boolean }) =>
-      ipcRenderer.invoke("nomi:memory:update", { projectId, factId, patch }) as Promise<{ ok: boolean; facts: unknown[] }>,
+      ipcRenderer.invoke("nomi:memory:update", { projectId, factId, patch }) as Promise<{
+        ok: boolean;
+        facts: unknown[];
+      }>,
     remove: (projectId: string, factId: string) =>
       ipcRenderer.invoke("nomi:memory:remove", { projectId, factId }) as Promise<{ ok: boolean; facts: unknown[] }>,
     add: (projectId: string, text: string, kind?: string) =>
       ipcRenderer.invoke("nomi:memory:add", { projectId, text, kind }) as Promise<{ ok: boolean; facts: unknown[] }>,
   },
   promptLibrary: {
-    list: () => ipcRenderer.invoke("nomi:prompt-library:list") as Promise<{ ok: boolean; prompts: unknown[]; error?: string }>,
-    textBrain: () => ipcRenderer.invoke("nomi:prompt-library:text-brain") as Promise<{ ok: boolean; brain: { vendor: string; modelKey: string } | null }>,
-    userList: () => ipcRenderer.invoke("nomi:prompt-library:user-list") as Promise<{ ok: boolean; prompts: unknown[]; error?: string }>,
+    list: () =>
+      ipcRenderer.invoke("nomi:prompt-library:list") as Promise<{ ok: boolean; prompts: unknown[]; error?: string }>,
+    textBrain: () =>
+      ipcRenderer.invoke("nomi:prompt-library:text-brain") as Promise<{
+        ok: boolean;
+        brain: { vendor: string; modelKey: string } | null;
+      }>,
+    userList: () =>
+      ipcRenderer.invoke("nomi:prompt-library:user-list") as Promise<{
+        ok: boolean;
+        prompts: unknown[];
+        error?: string;
+      }>,
     userAdd: (input: { title?: string; prompt: string; promptType: "image" | "video" }) =>
-      ipcRenderer.invoke("nomi:prompt-library:user-add", input) as Promise<{ ok: boolean; prompts: unknown[]; error?: string }>,
+      ipcRenderer.invoke("nomi:prompt-library:user-add", input) as Promise<{
+        ok: boolean;
+        prompts: unknown[];
+        error?: string;
+      }>,
     userUpdate: (id: string, patch: { title?: string; prompt?: string; promptType?: "image" | "video" }) =>
-      ipcRenderer.invoke("nomi:prompt-library:user-update", { id, patch }) as Promise<{ ok: boolean; prompts: unknown[]; error?: string }>,
+      ipcRenderer.invoke("nomi:prompt-library:user-update", { id, patch }) as Promise<{
+        ok: boolean;
+        prompts: unknown[];
+        error?: string;
+      }>,
     userDelete: (id: string) =>
-      ipcRenderer.invoke("nomi:prompt-library:user-delete", { id }) as Promise<{ ok: boolean; prompts: unknown[]; error?: string }>,
+      ipcRenderer.invoke("nomi:prompt-library:user-delete", { id }) as Promise<{
+        ok: boolean;
+        prompts: unknown[];
+        error?: string;
+      }>,
   },
   review: {
     onEvent: (callback: (payload: unknown) => void) => {
@@ -177,13 +307,12 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.invoke("nomi:conversations:write", { projectId, ...payload }),
   },
   agents: {
-    chatV2Start: (payload: unknown) => ipcRenderer.invoke("nomi:agents:chatV2:start", payload) as Promise<{ sessionId: string }>,
+    chatV2Start: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:agents:chatV2:start", payload) as Promise<{ sessionId: string }>,
     confirmTool: (sessionId: string, toolCallId: string, decision: unknown) =>
       ipcRenderer.invoke("nomi:agents:chatV2:confirmTool", { sessionId, toolCallId, decision }),
-    cancelChatV2: (sessionId: string) =>
-      ipcRenderer.invoke("nomi:agents:chatV2:cancel", { sessionId }),
-    clearChatV2Session: (sessionKey: string) =>
-      ipcRenderer.invoke("nomi:agents:chatV2:clearSession", { sessionKey }),
+    cancelChatV2: (sessionId: string) => ipcRenderer.invoke("nomi:agents:chatV2:cancel", { sessionId }),
+    clearChatV2Session: (sessionKey: string) => ipcRenderer.invoke("nomi:agents:chatV2:clearSession", { sessionKey }),
     seedChatV2Session: (sessionKey: string, messages: Array<{ role: string; content: string }>) =>
       ipcRenderer.invoke("nomi:agents:chatV2:seedSession", { sessionKey, messages }),
     chatV2SessionAlive: (sessionKey: string) =>
@@ -247,8 +376,7 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     deleteVendor: (key: string) => invokeSync("nomi:model-catalog:vendor:delete", key),
     upsertVendorApiKey: (vendorKey: string, payload: unknown) =>
       invokeSync("nomi:model-catalog:vendor-api-key:upsert", vendorKey, payload),
-    clearVendorApiKey: (vendorKey: string) =>
-      invokeSync("nomi:model-catalog:vendor-api-key:clear", vendorKey),
+    clearVendorApiKey: (vendorKey: string) => invokeSync("nomi:model-catalog:vendor-api-key:clear", vendorKey),
     upsertModel: (payload: unknown) => invokeSync("nomi:model-catalog:model:upsert", payload),
     deleteModel: (vendorKey: string, modelKey: string) =>
       invokeSync("nomi:model-catalog:model:delete", vendorKey, modelKey),

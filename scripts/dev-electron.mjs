@@ -118,6 +118,11 @@ async function waitForRenderer(
       );
     }
     if (await canConnect(hostname, numericPort)) return;
+    if (rendererProcess?.nomiExit?.exited) {
+      throw new Error(
+        `Renderer process exited before becoming ready${describeChildExit(rendererProcess.nomiExit)}: ${url}`,
+      );
+    }
     const elapsedMs = Date.now() - startedAt;
     if (elapsedMs >= nextProgressLogMs) {
       console.log(`▶  Waiting for renderer (${Math.round(elapsedMs / 1000)}s): ${url}`);

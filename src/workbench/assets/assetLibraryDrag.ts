@@ -12,28 +12,55 @@ export type AssetLibraryDragPayload = {
   name: string
   renderUrl: string
   origin: AssetOrigin
+  dragAnchor?: {
+    xRatio: number
+    yRatio: number
+  }
 }
 
-export function serializeAssetLibraryDrag(payload: AssetLibraryDragPayload): string {
+export function serializeAssetLibraryDrag(payload: AssetLibraryDragPayload | readonly AssetLibraryDragPayload[]): string {
   return JSON.stringify(payload)
 }
 
-export function parseAssetLibraryDrag(raw: string | null | undefined): AssetLibraryDragPayload | null {
-  if (!raw) return null
-  try {
-    const value = JSON.parse(raw) as Partial<AssetLibraryDragPayload>
-    const kind = value.kind
-    const renderUrl = typeof value.renderUrl === 'string' ? value.renderUrl.trim() : ''
-    if ((kind === 'image' || kind === 'video' || kind === 'audio') && renderUrl && value.origin && typeof value.origin === 'object') {
-      return {
-        kind,
-        name: typeof value.name === 'string' ? value.name : '',
-        renderUrl,
-        origin: value.origin as AssetOrigin,
-      }
+function normalizeAssetLibraryDragItem(value: unknown): AssetLibraryDragPayload | null {
+  if (!value || typeof value !== 'object') return null
+  const item = value as Partial<AssetLibraryDragPayload>
+  const kind = item.kind
+  const renderUrl = typeof item.renderUrl === 'string' ? item.renderUrl.trim() : ''
+  if ((kind === 'image' || kind === 'video' || kind === 'audio') && renderUrl && item.origin && typeof item.origin === 'object') {
+    const rawAnchor = item.dragAnchor
+    const dragAnchor = rawAnchor && typeof rawAnchor === 'object'
+      ? {
+          xRatio: Math.min(1, Math.max(0, Number(rawAnchor.xRatio) || 0)),
+          yRatio: Math.min(1, Math.max(0, Number(rawAnchor.yRatio) || 0)),
+        }
+      : undefined
+    return {
+      kind,
+      name: typeof item.name === 'string' ? item.name : '',
+      renderUrl,
+      origin: item.origin as AssetOrigin,
+      ...(dragAnchor ? { dragAnchor } : {}),
     }
+  }
+  return null
+}
+
+export function parseAssetLibraryDragItems(raw: string | null | undefined): AssetLibraryDragPayload[] {
+  if (!raw) return []
+  try {
+    const value = JSON.parse(raw) as unknown
+    const items = Array.isArray(value) ? value : [value]
+    return items.flatMap((item) => {
+      const normalized = normalizeAssetLibraryDragItem(item)
+      return normalized ? [normalized] : []
+    })
   } catch {
     // ignore malformed payloads
   }
-  return null
+  return []
+}
+
+export function parseAssetLibraryDrag(raw: string | null | undefined): AssetLibraryDragPayload | null {
+  return parseAssetLibraryDragItems(raw)[0] ?? null
 }

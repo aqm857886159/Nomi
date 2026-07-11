@@ -96,9 +96,9 @@ export function UserPromptComposer({ initial, onSubmit, onCancel }: Props): JSX.
         }}
       />
 
-      <div className={cn('flex items-center gap-2 mt-2.5')}>
-        {error ? <span className={cn('text-micro text-nomi-danger')}>{error}</span> : null}
-        <span className={cn('flex-1')} />
+      <div className={cn('flex flex-wrap items-center gap-2 mt-2.5')}>
+        {error ? <span className={cn('min-w-0 flex-1 text-micro text-nomi-danger')}>{error}</span> : null}
+        <span className={cn('min-w-4 flex-1')} />
         <button
           type="button"
           onClick={onCancel}

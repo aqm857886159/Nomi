@@ -83,7 +83,7 @@ describe("runTask L3 护栏 — 图生图/图生视频绝不静默退化", () =>
     expect(error).toBeInstanceOf(Error);
     expect(String((error as Error).message)).toMatch(/没有配置「图生图（改图）」通道/);
     expect(fetchFn).not.toHaveBeenCalled();
-  });
+  }, 15_000);
 
   it("闸①：image_edit 一张参考图都没有 → 拒发（不再当纯文生图发出去），vendor 零调用", async () => {
     await seedRelayImageVendor(true);

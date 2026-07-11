@@ -2,6 +2,19 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
+html[data-nomi-overlay="browserAsset"],
+html[data-nomi-overlay="browserAsset"] body,
+html[data-nomi-overlay="browserAsset"] #root {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+html[data-nomi-overlay="browserAsset"] #root::before {
+  content: none !important;
+  display: none !important;
+}
+
 @keyframes remove-bg-pulse {
   0%, 100% { opacity: 0.5; }
   50% { opacity: 0.8; }

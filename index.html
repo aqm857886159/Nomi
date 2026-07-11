@@ -6,6 +6,13 @@
     <link rel="icon" type="image/svg+xml" href="/nomi-logo.svg" />
     <link rel="stylesheet" href="/tailwind.generated.css" />
     <title>Nomi</title>
+    <script>
+      try {
+        if (new URL(window.location.href).searchParams.get('nomiOverlay') === 'browserAsset') {
+          document.documentElement.dataset.nomiOverlay = 'browserAsset'
+        }
+      } catch {}
+    </script>
     <style>
       html,
       body,
@@ -14,6 +21,17 @@
         height: 100%;
         margin: 0;
         background: #f7f4ed;
+      }
+
+      html[data-nomi-overlay="browserAsset"],
+      html[data-nomi-overlay="browserAsset"] body,
+      html[data-nomi-overlay="browserAsset"] #root {
+        background: transparent;
+      }
+
+      html[data-nomi-overlay="browserAsset"] #nomi-boot-shell {
+        display: none;
+        background: transparent;
       }
 
       #nomi-boot-shell {

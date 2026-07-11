@@ -24,10 +24,14 @@ export type AssetRef = {
   id: string
   kind: AssetKind
   name: string
+  createdAt?: string
+  updatedAt?: string
   /** 渲染地址：界面展示用（nomi-local:// 或 http），不保证 vendor 可达。 */
   renderUrl: string
   /** 可选小预览，缺省回落 renderUrl。 */
   thumbUrl?: string
+  /** 落盘素材所属的画布节点；用于从项目素材删除时同步清理全项目素材。 */
+  ownerNodeId?: string
   source: AssetSource
   /** 传输地址解析线索（见文件头 R1 说明）。 */
   origin: AssetOrigin
@@ -47,6 +51,8 @@ export function canvasNodeToAssetRef(node: GenerationCanvasNode): AssetRef | nul
     id: node.id,
     kind: result.type,
     name: String(node.title || '').trim() || result.type,
+    createdAt: result.createdAt ? new Date(result.createdAt).toISOString() : undefined,
+    updatedAt: result.createdAt ? new Date(result.createdAt).toISOString() : undefined,
     renderUrl,
     thumbUrl: thumbUrl || undefined,
     source: 'canvas',
@@ -61,6 +67,7 @@ export function workspaceNodeToAssetRef(node: WorkspaceFileNode, projectId: stri
     id: node.relativePath,
     kind: node.kind as AssetKind,
     name: node.name,
+    updatedAt: node.updatedAt,
     renderUrl: buildWorkspaceFileUrl(projectId, node.relativePath),
     source: 'project',
     origin: { source: 'project', projectId, relativePath: node.relativePath },

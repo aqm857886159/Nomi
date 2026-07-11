@@ -4,6 +4,7 @@
 // promise 风格 API（confirmDialog/alertDialog/promptDialog）在 confirmDialogStore.ts，
 // 谁写不可逆操作都走这里——原生三件套从此禁用（设计系统 §3.5）。
 import React from 'react'
+import { IconAlertTriangle, IconInfoCircle } from '@tabler/icons-react'
 import { DesignModal } from './overlays'
 import { WorkbenchButton } from './actions'
 import { cn } from '../utils/cn'
@@ -43,6 +44,8 @@ export function ConfirmDialogHost(): JSX.Element {
   }
 
   const cancelValue = active?.kind === 'prompt' ? null : false
+  const tone = active?.tone ?? 'default'
+  const ToneIcon = tone === 'info' ? IconInfoCircle : tone === 'danger' ? IconAlertTriangle : null
 
   return (
     <DesignModal
@@ -55,8 +58,25 @@ export function ConfirmDialogHost(): JSX.Element {
       data-confirm-dialog={active ? active.kind : undefined}
     >
       <div className={cn('flex flex-col gap-3')}>
-        {active?.message ? (
-          <p className={cn('m-0 text-caption text-nomi-ink-80 whitespace-pre-line')}>{active.message}</p>
+        {active?.message || ToneIcon ? (
+          <div className={cn('flex gap-3')}>
+            {ToneIcon ? (
+              <span
+                className={cn(
+                  'mt-0.5 grid size-8 shrink-0 place-items-center rounded-full',
+                  tone === 'danger'
+                    ? 'bg-workbench-danger-soft text-workbench-danger'
+                    : 'bg-nomi-accent-soft text-nomi-accent',
+                )}
+                aria-hidden="true"
+              >
+                <ToneIcon size={17} stroke={1.9} />
+              </span>
+            ) : null}
+            {active?.message ? (
+              <p className={cn('m-0 min-w-0 flex-1 text-caption text-nomi-ink-80 whitespace-pre-line')}>{active.message}</p>
+            ) : null}
+          </div>
         ) : null}
         {active?.kind === 'prompt' ? (
           <input

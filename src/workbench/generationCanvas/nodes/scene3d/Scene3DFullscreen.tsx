@@ -58,7 +58,6 @@ import {
   useScene3DMoveFrameExport,
   type Scene3DClipboardItem,
 } from './useScene3DFullscreenActions'
-
 type Scene3DFullscreenProps = {
   initialState: Scene3DState
   nodeTitle: string

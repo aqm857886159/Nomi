@@ -73,8 +73,8 @@ export default function FileTreeNode({ node, projectId, depth = 0 }: Props): JSX
         }}
         className={cn(
           'w-full h-7 flex items-center gap-1 rounded-nomi-sm px-1 text-left text-caption',
-          'text-nomi-ink-60 hover:text-nomi-ink hover:bg-nomi-bg',
-          selected && 'bg-nomi-bg text-nomi-ink',
+          'text-nomi-ink-60 hover:text-nomi-ink hover:bg-nomi-ink-05',
+          selected && 'bg-nomi-ink-05 text-nomi-ink',
           draggable && 'cursor-grab active:cursor-grabbing',
         )}
         style={{ paddingLeft: 6 + depth * 12 }}

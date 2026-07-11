@@ -8,7 +8,7 @@ import React from 'react'
 import { Portal } from '@mantine/core'
 import { IconBooks, IconUpload, IconWand, IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
-import { DesignEmptyState, DesignSearchInput, NomiWordmark } from '../../design'
+import { DesignEmptyState, DesignSearchInput, NomiWordmark, TooltipProvider } from '../../design'
 import { showInfoToast } from '../../utils/showInfoToast'
 import { showUndoToast } from '../../utils/showUndoToast'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -25,17 +25,32 @@ const SOURCE_OPTIONS: { value: Source; label: string }[] = [
 
 // 「让 AI 帮我写技能」激活的元 skill（与 ActiveSkillChip 的 SKILL_AUTHOR 同口径）。
 const SKILL_AUTHOR = { key: 'workbench.creation.skill-author', name: 'AI 写技能' }
+
 type Props = {
   opened: boolean
   onClose: () => void
 }
 
-export function SkillLibraryPanel({ opened, onClose }: Props): JSX.Element | null {
+type SkillLibraryContentProps = {
+  active: boolean
+  compact?: boolean
+  showHeader?: boolean
+  onClose?: () => void
+  className?: string
+}
+
+export function SkillLibraryContent({
+  active,
+  compact = false,
+  showHeader = true,
+  onClose,
+  className,
+}: SkillLibraryContentProps): JSX.Element {
   const [source, setSource] = React.useState<Source>('mine')
   const [query, setQuery] = React.useState('')
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  const { items, available, remove, importPackage, exportPackage } = useWorkbenchSkills(opened)
+  const { items, available, remove, importPackage, exportPackage } = useWorkbenchSkills(active)
   const setWorkspaceMode = useWorkbenchStore((s) => s.setWorkspaceMode)
   const setCreationActiveSkill = useWorkbenchStore((s) => s.setCreationActiveSkill)
 
@@ -49,20 +64,20 @@ export function SkillLibraryPanel({ opened, onClose }: Props): JSX.Element | nul
   }, [items, source, query])
 
   React.useEffect(() => {
-    if (!opened) return
+    if (!active || !onClose) return
     const handler = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [opened, onClose])
+  }, [active, onClose])
 
   // 在创作区锁定一个技能并切到创作区（与 ActiveSkillChip 的 onSelect 同口径）。
   const gotoCreationWith = React.useCallback(
     (skill: { key: string; name: string } | null) => {
       setCreationActiveSkill(skill)
       setWorkspaceMode('creation')
-      onClose()
+      onClose?.()
     },
     [setCreationActiveSkill, setWorkspaceMode, onClose],
   )
@@ -133,9 +148,175 @@ export function SkillLibraryPanel({ opened, onClose }: Props): JSX.Element | nul
     [importPackage],
   )
 
-  if (!opened) return null
-
   const showNewTile = source === 'mine' && !query.trim()
+
+  const sourceTabs = (
+    <div
+      className={cn('inline-flex bg-nomi-ink-05 rounded-full p-0.5', compact ? 'w-full' : 'shrink-0')}
+      role="tablist"
+      aria-label="技能来源"
+    >
+      {SOURCE_OPTIONS.map((option) => {
+        const activeOption = source === option.value
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="tab"
+            aria-selected={activeOption}
+            className={cn(
+              'rounded-full text-caption cursor-pointer border-0 bg-transparent whitespace-nowrap',
+              'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+              compact ? 'min-w-0 flex-1 px-2 py-1' : 'px-3 py-1',
+              activeOption
+                ? 'bg-nomi-paper text-nomi-ink font-semibold shadow-nomi-sm'
+                : 'text-nomi-ink-60 hover:text-nomi-ink',
+            )}
+            onClick={() => setSource(option.value)}
+          >
+            {option.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+
+  const importButton = (
+    <button
+      type="button"
+      onClick={() => fileInputRef.current?.click()}
+      className={cn(
+        'shrink-0 inline-flex items-center justify-center gap-1.5 h-8 rounded-full cursor-pointer',
+        'border border-nomi-line bg-transparent text-nomi-ink-80 text-caption hover:bg-nomi-ink-05 transition-colors',
+        compact ? 'px-2' : 'px-3',
+      )}
+    >
+      <IconUpload size={14} stroke={1.7} />
+      导入文件
+    </button>
+  )
+
+  const newWithAiButton = (
+    <button
+      type="button"
+      onClick={handleNewWithAi}
+      className={cn(
+        'shrink-0 inline-flex items-center justify-center gap-1.5 h-8 rounded-full cursor-pointer border-0',
+        'bg-nomi-ink text-nomi-paper text-caption hover:bg-nomi-accent transition-colors',
+        compact ? 'px-2' : 'px-3.5',
+      )}
+    >
+      <IconWand size={14} stroke={1.7} />
+      {compact ? 'AI 新建' : '用 AI 新建'}
+    </button>
+  )
+
+  return (
+    <TooltipProvider delayDuration={180} skipDelayDuration={80}>
+      <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', className)}>
+        {/* 头部 */}
+        {showHeader ? (
+          <div className={cn('flex items-center gap-2 px-5 pt-4 pb-3 border-b border-nomi-line')}>
+            <IconBooks size={18} stroke={1.6} className={cn('text-nomi-accent')} />
+            <b className={cn('text-title font-bold text-nomi-ink')}>技能库</b>
+            <NomiWordmark fontSize={13} className={cn('text-nomi-ink-40')} />
+            <span className={cn('text-caption text-nomi-ink-40')}>· {items.length}</span>
+            <span className={cn('flex-1')} />
+            {onClose ? (
+              <button
+                type="button"
+                className={cn('w-7 h-7 grid place-items-center rounded-nomi-sm cursor-pointer border-0 bg-transparent', 'text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-ink-05')}
+                aria-label="关闭技能库"
+                onClick={onClose}
+              >
+                <IconX size={16} stroke={2} />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* 工具行 */}
+        <div className={cn('flex gap-2', compact ? 'flex-col px-3 py-3' : 'items-center px-5 py-2.5')}>
+          {sourceTabs}
+          <DesignSearchInput
+            className={compact ? 'w-full' : 'flex-1'}
+            placeholder="搜技能…"
+            ariaLabel="搜索技能"
+            value={query}
+            onChange={setQuery}
+          />
+          {compact ? (
+            <div className={cn('grid grid-cols-2 gap-2')}>
+              {importButton}
+              {newWithAiButton}
+            </div>
+          ) : (
+            <>
+              {importButton}
+              {newWithAiButton}
+            </>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,.nomiskill,application/json"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) handleImportFile(file)
+              e.target.value = ''
+            }}
+          />
+        </div>
+
+        {/* 网格 */}
+        <div className={cn('flex-1 overflow-y-auto', compact ? 'px-3 pb-3' : 'px-5 pb-5')}>
+          {!visible.length && !showNewTile ? (
+            <DesignEmptyState
+              title={query.trim() ? '没有匹配的技能' : source === 'mine' ? '你还没有自己的技能' : '没有内置技能'}
+              description={
+                query.trim()
+                  ? '换个搜索词试试。'
+                  : source === 'mine'
+                    ? '点「用 AI 新建」让 AI 帮你写一个，或「导入文件」接别人的技能包。'
+                    : ''
+              }
+            />
+          ) : (
+            <div
+              className={cn('grid gap-3')}
+              style={{ gridTemplateColumns: compact ? 'minmax(0, 1fr)' : 'repeat(auto-fill, minmax(220px, 1fr))' }}
+            >
+              {showNewTile ? (
+                <button
+                  type="button"
+                  onClick={handleNewWithAi}
+                  className={cn('flex flex-col items-center justify-center gap-1.5 w-full min-h-[120px] cursor-pointer', 'rounded-nomi border border-dashed border-nomi-line bg-transparent text-nomi-ink-40', 'hover:border-nomi-accent hover:text-nomi-accent transition-colors')}
+                >
+                  <IconWand size={22} stroke={1.6} />
+                  <span className={cn('text-caption')}>用 AI 新建一个</span>
+                </button>
+              ) : null}
+              {visible.map((skill) => (
+                <SkillCard
+                  key={skill.directoryName}
+                  skill={skill}
+                  available={available}
+                  onUse={handleUse}
+                  onExport={handleExport}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </TooltipProvider>
+  )
+}
+
+export function SkillLibraryPanel({ opened, onClose }: Props): JSX.Element | null {
+  if (!opened) return null
 
   return (
     <Portal>
@@ -152,108 +333,7 @@ export function SkillLibraryPanel({ opened, onClose }: Props): JSX.Element | nul
           className={cn('w-[960px] max-w-full h-[86vh] flex flex-col overflow-hidden', 'bg-nomi-paper border border-nomi-line rounded-nomi-lg shadow-nomi-lg')}
           style={{ animation: 'nomi-panel-pop 160ms cubic-bezier(.2,.7,.3,1)' }}
         >
-          {/* 头部 */}
-          <div className={cn('flex items-center gap-2 px-5 pt-4 pb-3 border-b border-nomi-line')}>
-            <IconBooks size={18} stroke={1.6} className={cn('text-nomi-accent')} />
-            <b className={cn('text-title font-bold text-nomi-ink')}>技能库</b>
-            <NomiWordmark fontSize={13} className={cn('text-nomi-ink-40')} />
-            <span className={cn('text-caption text-nomi-ink-40')}>· {items.length}</span>
-            <span className={cn('flex-1')} />
-            <button
-              type="button"
-              className={cn('w-7 h-7 grid place-items-center rounded-nomi-sm cursor-pointer border-0 bg-transparent', 'text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-ink-05')}
-              aria-label="关闭技能库"
-              onClick={onClose}
-            >
-              <IconX size={16} stroke={2} />
-            </button>
-          </div>
-
-          {/* 工具行 */}
-          <div className={cn('flex items-center gap-2 px-5 py-2.5')}>
-            <div className={cn('shrink-0 inline-flex bg-nomi-ink-05 rounded-full p-0.5')} role="tablist" aria-label="技能来源">
-              {SOURCE_OPTIONS.map((option) => {
-                const active = source === option.value
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    className={cn('px-3 py-1 rounded-full text-caption cursor-pointer border-0 bg-transparent whitespace-nowrap', 'transition-[background,color] duration-[var(--nomi-transition-fast)]', active ? 'bg-nomi-paper text-nomi-ink font-semibold shadow-nomi-sm' : 'text-nomi-ink-60 hover:text-nomi-ink')}
-                    onClick={() => setSource(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                )
-              })}
-            </div>
-            <DesignSearchInput className="flex-1" placeholder="搜技能…" ariaLabel="搜索技能" value={query} onChange={setQuery} />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className={cn('shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-full cursor-pointer', 'border border-nomi-line bg-transparent text-nomi-ink-80 text-caption hover:bg-nomi-ink-05 transition-colors')}
-            >
-              <IconUpload size={14} stroke={1.7} />导入文件
-            </button>
-            <button
-              type="button"
-              onClick={handleNewWithAi}
-              className={cn('shrink-0 inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full cursor-pointer border-0', 'bg-nomi-ink text-nomi-paper text-caption hover:bg-nomi-accent transition-colors')}
-            >
-              <IconWand size={14} stroke={1.7} />用 AI 新建
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json,.nomiskill,application/json"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) handleImportFile(file)
-                e.target.value = ''
-              }}
-            />
-          </div>
-
-          {/* 网格 */}
-          <div className={cn('flex-1 overflow-y-auto px-5 pb-5')}>
-            {!visible.length && !showNewTile ? (
-              <DesignEmptyState
-                title={query.trim() ? '没有匹配的技能' : source === 'mine' ? '你还没有自己的技能' : '没有内置技能'}
-                description={
-                  query.trim()
-                    ? '换个搜索词试试。'
-                    : source === 'mine'
-                      ? '点「用 AI 新建」让 AI 帮你写一个，或「导入文件」接别人的技能包。'
-                      : ''
-                }
-              />
-            ) : (
-              <div className={cn('grid gap-3')} style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
-                {showNewTile ? (
-                  <button
-                    type="button"
-                    onClick={handleNewWithAi}
-                    className={cn('flex flex-col items-center justify-center gap-1.5 w-full min-h-[120px] cursor-pointer', 'rounded-nomi border border-dashed border-nomi-line bg-transparent text-nomi-ink-40', 'hover:border-nomi-accent hover:text-nomi-accent transition-colors')}
-                  >
-                    <IconWand size={22} stroke={1.6} />
-                    <span className={cn('text-caption')}>用 AI 新建一个</span>
-                  </button>
-                ) : null}
-                {visible.map((skill) => (
-                  <SkillCard
-                    key={skill.directoryName}
-                    skill={skill}
-                    available={available}
-                    onUse={handleUse}
-                    onExport={handleExport}
-                    onDelete={handleDelete}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+          <SkillLibraryContent active={opened} onClose={onClose} />
         </div>
 
         <style>{`

@@ -3,6 +3,7 @@
 
 import type { GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
 import { getNodeSize } from '../model/generationNodeKinds'
+import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import type { CanvasGroupBox } from './GroupFrame'
 
 // getNodeSize 的真相源在 model 层（generationNodeKinds），跨 store/components/fixation 共用。
@@ -49,17 +50,21 @@ export function getSelectedBounds(nodes: readonly GenerationCanvasNode[], select
   minX: number
   minY: number
   width: number
+  height: number
 } | null {
   const selected = new Set(selectedNodeIds)
   const selectedNodes = nodes.filter((node) => selected.has(node.id))
   if (!selectedNodes.length) return null
   const minX = Math.min(...selectedNodes.map((node) => node.position.x))
   const minY = Math.min(...selectedNodes.map((node) => node.position.y))
-  const maxX = Math.max(...selectedNodes.map((node) => node.position.x + getNodeSize(node).width))
+  const selectedNodeSizes = selectedNodes.map((node) => ({ node, size: resolveNodeVisualSize(node) }))
+  const maxX = Math.max(...selectedNodeSizes.map(({ node, size }) => node.position.x + size.width))
+  const maxY = Math.max(...selectedNodeSizes.map(({ node, size }) => node.position.y + size.height))
   return {
     minX,
     minY,
     width: Math.max(0, maxX - minX),
+    height: Math.max(0, maxY - minY),
   }
 }
 
@@ -81,8 +86,9 @@ export function getCanvasGroupBoxes(groups: readonly NodeGroup[], nodes: readonl
     if (!members.length) return []
     const minX = Math.min(...members.map((node) => node.position.x))
     const minY = Math.min(...members.map((node) => node.position.y))
-    const maxX = Math.max(...members.map((node) => node.position.x + getNodeSize(node).width))
-    const maxY = Math.max(...members.map((node) => node.position.y + getNodeSize(node).height))
+    const memberSizes = members.map((node) => ({ node, size: resolveNodeVisualSize(node) }))
+    const maxX = Math.max(...memberSizes.map(({ node, size }) => node.position.x + size.width))
+    const maxY = Math.max(...memberSizes.map(({ node, size }) => node.position.y + size.height))
     return [{
       group,
       left: minX - GROUP_BOX_PADDING,

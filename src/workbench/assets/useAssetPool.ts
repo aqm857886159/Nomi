@@ -14,9 +14,31 @@ import {
 
 export type AssetPool = {
   assets: AssetRef[]
+  /** 当前画布节点派生的素材；与项目落盘文件分开保留，避免来源筛选被去重结果污染。 */
+  canvasAssets: AssetRef[]
+  /** 当前项目落盘文件派生的素材。 */
+  projectAssets: AssetRef[]
   loading: boolean
   /** 重新拉取项目文件源（音频上传经项目文件落库，不像画布 store 自动反应，需手动刷新）。 */
   refresh: () => void
+}
+
+export function composeAssetPoolSources(
+  canvasAssets: readonly AssetRef[],
+  projectAssets: readonly AssetRef[],
+): Pick<AssetPool, 'assets' | 'canvasAssets' | 'projectAssets'> {
+  const byUrl = new Map<string, AssetRef>()
+  for (const asset of canvasAssets) {
+    if (!byUrl.has(asset.renderUrl)) byUrl.set(asset.renderUrl, asset)
+  }
+  for (const asset of projectAssets) {
+    if (!byUrl.has(asset.renderUrl)) byUrl.set(asset.renderUrl, asset)
+  }
+  return {
+    assets: Array.from(byUrl.values()),
+    canvasAssets: [...canvasAssets],
+    projectAssets: [...projectAssets],
+  }
 }
 
 export function useAssetPool(projectId: string | null): AssetPool {
@@ -24,20 +46,20 @@ export function useAssetPool(projectId: string | null): AssetPool {
   const { items, loading, refresh } = useWorkspaceFiles(projectId)
 
   return React.useMemo<AssetPool>(() => {
-    const byUrl = new Map<string, AssetRef>()
-
+    const canvasAssets: AssetRef[] = []
     for (const node of nodes) {
       const ref = canvasNodeToAssetRef(node)
-      if (ref && !byUrl.has(ref.renderUrl)) byUrl.set(ref.renderUrl, ref)
+      if (ref) canvasAssets.push(ref)
     }
 
+    const projectAssets: AssetRef[] = []
     if (projectId) {
       for (const file of flattenWorkspaceFiles(items)) {
         const ref = workspaceNodeToAssetRef(file, projectId)
-        if (ref && !byUrl.has(ref.renderUrl)) byUrl.set(ref.renderUrl, ref)
+        if (ref) projectAssets.push(ref)
       }
     }
 
-    return { assets: Array.from(byUrl.values()), loading, refresh }
+    return { ...composeAssetPoolSources(canvasAssets, projectAssets), loading, refresh }
   }, [nodes, items, projectId, loading, refresh])
 }
