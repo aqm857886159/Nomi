@@ -22,7 +22,8 @@ export default tseslint.config(
       'public/**',
       'marketing/**',
       'coverage/**',
-      '.tmp/**',
+      // 本地走查/探针输出目录（gitignored，含临时诊断 .mjs）——非源码，不 lint。
+      '.pose-lab/**',
       'scripts/**',
       'tests/ux/**',
       'tests/transport-spike/**',

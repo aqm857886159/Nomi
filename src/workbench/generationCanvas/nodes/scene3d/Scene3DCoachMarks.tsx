@@ -86,13 +86,9 @@ export function Scene3DCoachMarks({ onDone }: { onDone: () => void }): JSX.Eleme
 
   return (
     <div ref={hostRef} className="absolute inset-0 z-[6]">
-      {/* 压暗层：token 派生 color-mix 内联写——具名 bg-nomi-ink/45 类在打包态计算值正确但像素不上屏
-          （dim-stripe 实验：同容器内联 color-mix 必画，类不画；悬案另查，先保交付确定性）。 */}
-      <div
-        className="absolute inset-0"
-        style={{ backgroundColor: 'color-mix(in oklch, var(--nomi-ink) 45%, transparent)' }}
-        onClick={finish}
-      />
+      {/* 压暗层：2026-07-11 悬案已破——「类不上屏」真因是 r3f Canvas 初始化自 suspend 让 React 把整棵
+          外壳 display:none（hideInstance），类本身无辜；Canvas 已上 FencedCanvas 围栏，此处回归 token 类。 */}
+      <div className="absolute inset-0 bg-nomi-ink/45" onClick={finish} />
       <div
         className="pointer-events-none absolute rounded-nomi border-2 border-nomi-paper shadow-nomi-md"
         style={{ left: rect.left - 4, top: rect.top - 4, width: rect.width + 8, height: rect.height + 8 }}

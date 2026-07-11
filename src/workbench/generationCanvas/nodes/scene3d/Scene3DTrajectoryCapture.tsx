@@ -5,7 +5,8 @@
 //   + 每个物体 objectWithPlaybackPose(state, obj, t) 摆到该时刻 → render → captureScene 收一帧。
 // 全部采完回调一次 frames[]。供 CameraMoveCaptureHost → ffmpeg 拼运镜小片（S2）。
 import React, { Suspense } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
+import { FencedCanvas } from '../fencedCanvas'
 import * as THREE from 'three'
 import { Mannequin, MannequinCrowd, MannequinAssetBoundary, ProceduralMannequin, StaticObjectVisual } from './scene3dObjects'
 import type { MannequinLocomotionDriver } from './scene3dMannequinLocomotion'
@@ -266,7 +267,7 @@ export function Scene3DTrajectoryCapture({
 }): JSX.Element {
   return (
     <div aria-hidden style={{ position: 'absolute', left: -10000, top: 0, width: 480, height: 270, opacity: 0, pointerEvents: 'none' }}>
-      <Canvas
+      <FencedCanvas
         gl={{ preserveDrawingBuffer: true, antialias: true }}
         camera={{ position: [4, 2.4, 5], fov: 45 }}
         // 离屏出片的命门：一次 WebGL 上下文丢失（多 Electron 抢 context 配额）浏览器默认不补发 restore，
@@ -289,7 +290,7 @@ export function Scene3DTrajectoryCapture({
             />
           </Suspense>
         </MannequinAssetBoundary>
-      </Canvas>
+      </FencedCanvas>
     </div>
   )
 }

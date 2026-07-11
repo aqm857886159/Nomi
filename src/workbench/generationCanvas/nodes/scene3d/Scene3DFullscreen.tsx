@@ -1,12 +1,12 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
-import { Canvas } from '@react-three/fiber'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   IconArrowsMove, IconCube, IconListTree, IconPhoto, IconPlayerPause, IconPlayerPlay,
   IconRoute, IconRotate, IconSettings, IconWorld, IconX,
 } from '@tabler/icons-react'
 import { toast } from '../../../../ui/toast'
+import { FencedCanvas } from '../fencedCanvas'
 import { Scene3DWindowBar } from './Scene3DWindowBar'
 import { Scene3DCoachMarks, hasSeenScene3DCoach } from './Scene3DCoachMarks'
 import { cloneScene3DState } from './scene3dSerializer'
@@ -610,7 +610,8 @@ export default function Scene3DFullscreen({
         </AnimatePresence>
 
         <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--nomi-ink-05)]">
-          <Canvas
+          <FencedCanvas
+            fence={<div className="absolute inset-0 grid place-items-center text-caption text-[var(--nomi-ink-60)]">正在初始化 3D 视口…</div>}
             camera={canvasCamera}
             dpr={[1, 2]}
             frameloop={trajectory.isPlaying || trajectory.timelineOpen || takeRecorder.isRecording ? 'always' : 'demand'}
@@ -682,7 +683,7 @@ export default function Scene3DFullscreen({
               onSampleCamera={takeRecorder.sampleCamera}
               onSampleCameraAim={takeRecorder.sampleCameraAim}
             />
-          </Canvas>
+          </FencedCanvas>
           {!leftPanelOpen ? (
             <CanvasPanelRestoreButton side="left" title="显示场景节点" onClick={() => setLeftPanelOpen(true)}>
               <IconListTree size={18} />

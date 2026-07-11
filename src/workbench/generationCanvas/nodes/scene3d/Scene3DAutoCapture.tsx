@@ -2,7 +2,8 @@
 // GLB 加载(Suspense)+几帧落地后用 captureScene 出图，回调一次。供 create_staging_reference 工具用。
 // 复用 Mannequin(带自动落地) + captureScene，渲染==3D 编辑器。
 import React, { Suspense } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
+import { FencedCanvas } from '../fencedCanvas'
 import * as THREE from 'three'
 import { Mannequin, MannequinCrowd, MannequinAssetBoundary, ProceduralMannequin, StaticObjectVisual } from './scene3dObjects'
 import { captureScene, applySceneCameraPose, aspectDimensions } from './scene3dMath'
@@ -81,7 +82,7 @@ export function Scene3DAutoCapture({
 }): JSX.Element {
   return (
     <div aria-hidden style={{ position: 'absolute', left: -10000, top: 0, width: 480, height: 270, opacity: 0, pointerEvents: 'none' }}>
-      <Canvas gl={{ preserveDrawingBuffer: true, antialias: true }} camera={{ position: [4, 2.4, 5], fov: 45 }}>
+      <FencedCanvas gl={{ preserveDrawingBuffer: true, antialias: true }} camera={{ position: [4, 2.4, 5], fov: 45 }}>
         <Scene3DEnvironmentLayer environment={state.environment} ambientIntensity={0.7} />
         <directionalLight position={[4, 6, 5]} intensity={1.1} />
         <directionalLight position={[-4, 3, -3]} intensity={0.4} />
@@ -91,7 +92,7 @@ export function Scene3DAutoCapture({
             <CaptureTrigger state={state} onResult={onResult} />
           </Suspense>
         </MannequinAssetBoundary>
-      </Canvas>
+      </FencedCanvas>
     </div>
   )
 }

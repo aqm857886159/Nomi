@@ -1,5 +1,6 @@
 import React from 'react'
-import { Canvas, useThree } from '@react-three/fiber'
+import { useThree } from '@react-three/fiber'
+import { FencedCanvas } from '../fencedCanvas'
 import { IconCamera, IconEye, IconRotate, IconChevronUp, IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
 import { applySceneCameraPose, crowdCount, FOCAL_MM_MAX, FOCAL_MM_MIN, focalMmToFov, fovToFocalMm } from './scene3dMath'
@@ -201,7 +202,7 @@ export function CameraPreview({
         <>
           <div className="flex min-h-[126px] items-center justify-center rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] p-1">
             <div className="overflow-hidden rounded-nomi-sm bg-[var(--nomi-ink)]" style={previewStyle}>
-              <Canvas
+              <FencedCanvas
                 camera={{
                   fov: previewCamera.fov,
                   near: previewCamera.near,
@@ -220,7 +221,7 @@ export function CameraPreview({
                   playheadSeconds={playheadSeconds}
                   activeTrajectoryIds={activeTrajectoryIds}
                 />
-              </Canvas>
+              </FencedCanvas>
             </div>
           </div>
           <div className="mt-2 grid grid-cols-6 gap-1">
@@ -347,7 +348,7 @@ export const PlaybackCameraMonitor = React.memo(function PlaybackCameraMonitor({
       </div>
       <div className="flex min-h-[126px] items-center justify-center rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] p-1">
         <div className="overflow-hidden rounded-nomi-sm bg-[var(--nomi-ink)]" style={previewStyle}>
-          <Canvas
+          <FencedCanvas
             camera={{
               fov: previewCamera.fov,
               near: previewCamera.near,
@@ -365,7 +366,7 @@ export const PlaybackCameraMonitor = React.memo(function PlaybackCameraMonitor({
               playheadSeconds={playheadSeconds}
               activeTrajectoryIds={activeTrajectoryIds}
             />
-          </Canvas>
+          </FencedCanvas>
         </div>
       </div>
     </div>

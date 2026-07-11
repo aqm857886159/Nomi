@@ -1,5 +1,5 @@
 import React from 'react'
-import { Canvas } from '@react-three/fiber'
+import { FencedCanvas } from '../fencedCanvas'
 import { Bounds, Center, OrbitControls, useGLTF } from '@react-three/drei'
 import { cn } from '../../../../utils/cn'
 
@@ -46,7 +46,7 @@ export default function Model3DViewer({ url }: { url: string }): JSX.Element {
           </div>
         }
       >
-        <Canvas camera={{ position: [2.4, 1.8, 3.2], fov: 45 }} dpr={[1, 2]} frameloop="demand">
+        <FencedCanvas camera={{ position: [2.4, 1.8, 3.2], fov: 45 }} dpr={[1, 2]} frameloop="demand">
           <ambientLight intensity={0.75} />
           <directionalLight position={[3, 5, 2]} intensity={1.1} castShadow />
           <directionalLight position={[-3, 2, -2]} intensity={0.4} />
@@ -65,7 +65,7 @@ export default function Model3DViewer({ url }: { url: string }): JSX.Element {
             minDistance={1.2}
             maxDistance={14}
           />
-        </Canvas>
+        </FencedCanvas>
       </GlbBoundary>
     </div>
   )

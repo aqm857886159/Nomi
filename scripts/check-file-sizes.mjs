@@ -25,7 +25,7 @@ const SCAN_DIRS = ["src", "electron"];
 // 现存巨壳的基线行数（棘轮上限）。清空此表 = 巨壳债还清。
 // 改小某个数 = 你成功瘦身后锁定的新上限。新增条目应经人工评审。
 const ALLOWLIST = {
-  "electron/runtime.ts": 632, // 命名响应变换钩子接入时顺手压实注释（2026-07-04；棘轮只减不增）
+  "electron/runtime.ts": 629, // FencedCanvas 修复轮顺手锁棘轮（2026-07-11；棘轮只减不增）
   "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 741, // 抽 NodeConnectionHandles + NodeTimelineDragHandles（2026-06-27）→ 抽 useNodePanoramaHandlers（2026-06-28 PR#26）→ 抽 ShotPreviewOverlays 锁到 741（2026-07-03）
   // PR#21 白板节点引入（2026-06-25）：WhiteboardDrawingTool（1032）与 WhiteboardLeaferCanvas（3406）两巨壳
   // 已按 Rule 9 全部拆完、双双出白名单。LeaferCanvas → whiteboardCanvasTypes/Export/NodeOps/Geometry 四纯模块

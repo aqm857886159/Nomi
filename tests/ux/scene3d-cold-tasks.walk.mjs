@@ -24,7 +24,7 @@ const app = await electron.launch({
 })
 const errors = []
 const log = (m) => console.log(m)
-const pass = { coachStep1: false, coachStep2: false, coachStep3: false, coachGone: false, coachOnce: false, t1Pose: false }
+const pass = { shellVisibleFast: false, coachStep1: false, coachDimLaidOut: false, coachStep2: false, coachStep3: false, coachGone: false, coachOnce: false, t1Pose: false }
 
 try {
   const win = await app.firstWindow()
@@ -45,12 +45,25 @@ try {
   await win.getByRole('button', { name: '3D场景', exact: false }).first().click()
   await win.waitForTimeout(1500)
   await win.getByRole('button', { name: '打开 3D 编辑器', exact: false }).first().click()
-  await win.waitForTimeout(4000)
+  // 外壳必须点击后 ~800ms 内真实上屏（boundingBox 非零）。DOM 在场 ≠ 上屏：r3f Canvas 初始化
+  // 自 suspend 曾让 React 把已提交外壳整棵 display:none 隐身 1.8s+（2026-07-11 悬案，修=FencedCanvas）。
+  await win.waitForTimeout(800)
+  const shellBox = await win.locator('[role="dialog"][aria-label="3D 场景编辑器"]').boundingBox()
+  pass.shellVisibleFast = Boolean(shellBox && shellBox.width > 100 && shellBox.height > 100)
+  log(`  ${pass.shellVisibleFast ? '✓' : '✗'} 外壳 800ms 内真实上屏（非隐身）`)
+  await win.waitForTimeout(3200)
 
   // ① 三步教练标注
   pass.coachStep1 = (await win.getByText('点假人，人就归你管').count()) > 0
   await win.screenshot({ path: path.join(outDir, 'cold-01-coach-step1.png') })
   log(`  ${pass.coachStep1 ? '✓' : '✗'} 首次进入出现教练第 1 步`)
+  // 压暗层回归具名 token alpha 类（bg-nomi-ink/45），必须真实布局——悬案回归网的后半张。
+  const dimWidth = await win.evaluate(() => {
+    const el = document.querySelector('[role="dialog"][aria-label="3D 场景编辑器"] .bg-nomi-ink\\/45')
+    return el ? el.getBoundingClientRect().width : 0
+  })
+  pass.coachDimLaidOut = dimWidth > 100
+  log(`  ${pass.coachDimLaidOut ? '✓' : '✗'} 教练压暗层（token 类）已布局 (w=${dimWidth})`)
   await win.getByRole('button', { name: '下一步' }).click()
   await win.waitForTimeout(500)
   pass.coachStep2 = (await win.getByText('点相机，运镜归你调').count()) > 0
