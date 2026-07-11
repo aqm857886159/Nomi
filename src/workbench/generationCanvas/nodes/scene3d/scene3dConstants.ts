@@ -154,7 +154,10 @@ export const CAMERA_AIM_HANDLE_POSITIONS = new Float32Array([
 
 export const MANNEQUIN_DEFAULT_POSE: Record<string, Scene3DVector3> = {
   mixamorigSpine: [degreesToRadians(2), 0, 0],
-  mixamorigHead: [degreesToRadians(-2), 0, 0],
+  // 头颈基线：x-bot bind 头颈天然前倾（度量核实测默认头前俯 18.8°，人眼即「垂头丧气」G1）。
+  // 分摊到颈+头两节抬回自然平视（poseMetrics neckPitchFwd 目标 ≈ +2°～+6°）；轴向实测 −x = 抬头。
+  mixamorigNeck: [degreesToRadians(-8), 0, 0],
+  mixamorigHead: [degreesToRadians(-10), 0, 0],
   mixamorigLeftArm: [degreesToRadians(67.5), degreesToRadians(11.4), degreesToRadians(-6.8)],
   mixamorigRightArm: [degreesToRadians(67.5), degreesToRadians(-11.4), degreesToRadians(6.8)],
   mixamorigLeftForeArm: [degreesToRadians(8), degreesToRadians(-4), 0],
@@ -183,7 +186,7 @@ export const MANNEQUIN_POSE_SECTIONS: MannequinPoseSection[] = [
   {
     title: '头部',
     controls: [
-      { bone: 'mixamorigHead', axisIndex: 0, label: '点头', standingValue: -2, baseOffsetDeg: -2 },
+      { bone: 'mixamorigHead', axisIndex: 0, label: '点头', standingValue: -10, baseOffsetDeg: -10 },
       { bone: 'mixamorigHead', axisIndex: 1, label: '转头', standingValue: 0 },
       { bone: 'mixamorigHead', axisIndex: 2, label: '歪头', standingValue: 0 },
     ],
@@ -342,9 +345,9 @@ export const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
     pose: makePoseOffset({
       mixamorigHips: [8, -8, 0],
       mixamorigSpine: [10, 5, 0],
-      mixamorigHead: [6, 0, 0],
-      mixamorigLeftArm: [44, -10, 4],
-      mixamorigRightArm: [-32, 10, -4],
+      mixamorigHead: [-2, 0, 0],
+      mixamorigLeftArm: [44, -16, 4],
+      mixamorigRightArm: [-32, 16, -4],
       mixamorigLeftForeArm: [42, -4, 0],
       mixamorigRightForeArm: [48, 4, 0],
       mixamorigLeftUpLeg: [-44, 0, 0],
@@ -362,10 +365,11 @@ export const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
     // 2026-07-05 用 pose-lab 多视角复核，避免坐姿看起来像深蹲或手臂空垂穿腿。
     pose: makePoseOffset({
       mixamorigSpine: [4, 0, 0],
-      mixamorigLeftArm: [-4, -7, 0],
-      mixamorigRightArm: [-4, 7, 0],
-      mixamorigLeftForeArm: [58, -2, 0],
-      mixamorigRightForeArm: [58, 2, 0],
+      // 肘外张 + 前臂少屈：手落在大腿外上方而非插进大腿（度量核胶囊层曾抓出前臂×大腿穿插 85%）。
+      mixamorigLeftArm: [-4, -14, 0],
+      mixamorigRightArm: [-4, 14, 0],
+      mixamorigLeftForeArm: [46, -6, 0],
+      mixamorigRightForeArm: [46, 6, 0],
       mixamorigLeftHand: [2, 0, -4],
       mixamorigRightHand: [2, 0, 4],
       mixamorigLeftUpLeg: [86, 4, 0],
@@ -379,21 +383,24 @@ export const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
   {
     id: 'squat',
     label: '蹲下',
-    // 深蹲：髋/膝深屈、躯干前倾压在膝上、脚掌踩平，和坐姿拉开差异。
+    // 深蹲：髋/膝深屈、躯干前倾、脚掌踩平。
+    // ⚠️ 脚轴向（poseMetrics 实测锚定）：mixamorigFoot +x = 背屈（脚尖上翘）/ −x = 跖屈（绷脚）。
+    // 旧值 Foot −42 实为绷脚 42° → 脚跟离地 2.6% 身高、重心前出支撑面 10.5%（度量核抓出）；
+    // 深蹲小腿前倾 ≈30°，鞋底踩平需要背屈 +32。肘略外张让手垂在膝前，不插进大腿。
     pose: makePoseOffset({
-      mixamorigHips: [-2, 0, 0],
+      mixamorigHips: [-6, 0, 0],
       mixamorigSpine: [20, 0, 0],
       mixamorigHead: [-6, 0, 0],
-      mixamorigLeftArm: [12, -6, 0],
-      mixamorigRightArm: [12, 6, 0],
-      mixamorigLeftForeArm: [22, -4, 0],
-      mixamorigRightForeArm: [22, 4, 0],
-      mixamorigLeftUpLeg: [116, 8, 0],
-      mixamorigRightUpLeg: [116, -8, 0],
-      mixamorigLeftLeg: [132, 0, 0],
-      mixamorigRightLeg: [132, 0, 0],
-      mixamorigLeftFoot: [-42, 0, 0],
-      mixamorigRightFoot: [-42, 0, 0],
+      mixamorigLeftArm: [12, 28, 0],
+      mixamorigRightArm: [12, -28, 0],
+      mixamorigLeftForeArm: [44, -8, 0],
+      mixamorigRightForeArm: [44, 8, 0],
+      mixamorigLeftUpLeg: [98, 8, 0],
+      mixamorigRightUpLeg: [98, -8, 0],
+      mixamorigLeftLeg: [124, 0, 0],
+      mixamorigRightLeg: [124, 0, 0],
+      mixamorigLeftFoot: [-26, 0, 0],
+      mixamorigRightFoot: [-26, 0, 0],
     }),
   },
   {
@@ -402,53 +409,60 @@ export const MANNEQUIN_POSE_PRESETS: MannequinPosePreset[] = [
     // 多视角侧视校准（pose-lab side view）得到的关键规律：
     //  ① 上身要**略前倾**(Spine +12)——肩膀落在脚上方偏前才像自然半蹲/预备姿势；后仰(负值)会变「往后坐要摔倒」(用户实测「蹲反了」)、
     //     大幅前倾(如深蹲 +26)又会折成「深鞠躬」。+12 是「直立带一点前倾」的中间态。
-    //  ② 膝屈(Leg 78) 明显大于髋屈(UpLeg 46)：把重心压低而不是把臀往后坐；
-    //  ③ 膝一弯小腿前倾，脚必须大幅**背屈**(Foot −34，脚轴向 +跖屈/−背屈)才能整只脚掌踩平——背屈不够就踮脚尖；
+    //  ② 膝屈(Leg) 明显大于髋屈(UpLeg)：把重心压低而不是把臀往后坐；
+    //  ③ 膝一弯小腿前倾，脚必须大幅**背屈**才能整只脚掌踩平——背屈不够就踮脚尖。
+    //     ⚠️ 脚轴向（poseMetrics 实测锚定）：+x = 背屈（脚尖上翘）/ −x = 跖屈。旧值 −34 写反了方向。
     //  ④ Hips 不动（它是骨架根，动了整体歪身，蹲会变成坐/后仰）。蒙皮最低点自动落地(scene3dMath)。
     id: 'crouch',
     label: '半蹲',
     pose: makePoseOffset({
-      mixamorigSpine: [20, 0, 0],
+      mixamorigHips: [-4, 0, 0],
+      mixamorigSpine: [16, 0, 0],
       mixamorigHead: [-5, 0, 0],
       mixamorigLeftArm: [8, -4, 0],
       mixamorigRightArm: [8, 4, 0],
       mixamorigLeftUpLeg: [58, 5, 0],
       mixamorigRightUpLeg: [58, -5, 0],
-      mixamorigLeftLeg: [86, 0, 0],
-      mixamorigRightLeg: [86, 0, 0],
-      mixamorigLeftFoot: [-34, 0, 0],
-      mixamorigRightFoot: [-34, 0, 0],
+      mixamorigLeftLeg: [80, 0, 0],
+      mixamorigRightLeg: [80, 0, 0],
+      mixamorigLeftFoot: [-26, 0, 0],
+      mixamorigRightFoot: [-26, 0, 0],
     }),
   },
   {
     id: 'single-knee',
     label: '单膝跪',
-    // 前腿(左)：大腿水平、小腿垂直、脚掌踩平(foot +15)。后腿(右)：大腿略后、膝着地、小腿向后贴地、
-    // 脚背贴地——脚要大幅跖屈(foot +68，脚尖朝后压平)才不翘起；治此前 +38 致后脚翘起整条腿悬空。
-    // 脚轴向：+ 跖屈(脚尖下)/- 背屈(脚尖上)。蒙皮最低点自动落地。
+    // 前腿(左)：大腿近水平、小腿近垂直、脚掌踩平。后腿(右)：大腿近垂直略后、膝着地、小腿向后**平贴地面**、
+    // 脚背贴地（= 大幅跖屈）。
+    // ⚠️ 脚轴向（poseMetrics 实测锚定）：+x = 背屈（脚尖上翘）/ −x = 跖屈（脚背压平）。
+    // 旧值 Foot +74 实为把脚尖朝上抬 → 后小腿离地 10.7% 身高、整条后腿悬空（度量核抓出）。
+    // 后小腿要横平：膝屈 ≈ 90°+大腿后倾量（Leg 96 配 UpLeg −8）。
     pose: makePoseOffset({
       mixamorigHips: [-4, 0, 0],
       mixamorigSpine: [5, 0, 0],
-      mixamorigLeftUpLeg: [86, 4, 0],
-      mixamorigLeftLeg: [90, 0, 0],
-      mixamorigLeftFoot: [-14, 0, 0],
-      mixamorigRightUpLeg: [2, -2, 0],
-      mixamorigRightLeg: [122, 0, 0],
-      mixamorigRightFoot: [74, 0, 0],
+      mixamorigLeftUpLeg: [76, 4, 0],
+      mixamorigLeftLeg: [88, 0, 0],
+      mixamorigLeftFoot: [-20, 0, 0],
+      mixamorigRightUpLeg: [8, -2, 0],
+      mixamorigRightLeg: [80, 0, 0],
+      mixamorigRightFoot: [-54, 0, 0],
     }),
   },
   {
     id: 'double-knee',
     label: '双膝跪',
+    // 直身双膝跪（非跪坐/趴伏）：大腿近垂直略后，小腿向后平贴地、脚背贴地。
+    // ⚠️ 脚轴向（poseMetrics 实测锚定）：+x = 背屈 / −x = 跖屈；旧值 +66 把脚尖朝上抬
+    // → 双脚背离地 35.7% 身高（度量核抓出）。小腿横平：Leg ≈ 90°+大腿后倾量。
     pose: makePoseOffset({
       mixamorigHips: [-4, 0, 0],
-      mixamorigSpine: [2, 0, 0],
-      mixamorigLeftUpLeg: [-12, 4, 0],
-      mixamorigRightUpLeg: [-12, -4, 0],
-      mixamorigLeftLeg: [132, 0, 0],
-      mixamorigRightLeg: [132, 0, 0],
-      mixamorigLeftFoot: [66, 0, 0],
-      mixamorigRightFoot: [66, 0, 0],
+      mixamorigSpine: [6, 0, 0],
+      mixamorigLeftUpLeg: [8, 4, 0],
+      mixamorigRightUpLeg: [8, -4, 0],
+      mixamorigLeftLeg: [96, 0, 0],
+      mixamorigRightLeg: [96, 0, 0],
+      mixamorigLeftFoot: [-54, 0, 0],
+      mixamorigRightFoot: [-54, 0, 0],
     }),
   },
   {
