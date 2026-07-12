@@ -283,9 +283,11 @@ try {
       if (overlayPage) {
         await overlayPage.waitForTimeout(1500)
         await overlayPage.screenshot({ path: path.join(shotsDir, '00-overlay-after-capture.png') }).catch(() => {})
+        // 显示名断言：捕捞后素材盒卡片应显示网页标题「hero reference」(带空格)，而不是
+        // 原始文件名 hero-ref.png(哈希/连字符)——证明显示名优先用 sidecar.title(2026-07-13 修)。
         companionShowsAsset = await overlayPage.evaluate(() =>
-          document.body.innerText.includes('hero-ref') ||
-          Boolean(document.querySelector('[title*="hero-ref"], img[alt*="hero-ref"]')),
+          document.body.innerText.includes('hero reference') ||
+          Boolean(document.querySelector('[title="hero reference"], img[alt="hero reference"]')),
         ).catch(() => false)
       }
       console.log('  overlay after capture:', overlayPage ? 'found' : 'missing', 'companionShowsAsset:', companionShowsAsset)

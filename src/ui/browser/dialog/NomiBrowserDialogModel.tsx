@@ -379,11 +379,14 @@ export function browserAssetFromDesktopAsset(asset: DesktopAssetDto, fallbackTit
   const contentType = typeof asset.data.contentType === 'string' ? asset.data.contentType : ''
   const mediaType = asset.data.mediaType === 'video' || contentType.startsWith('video/') ? 'video' : 'image'
   const url = typeof asset.data.url === 'string' ? asset.data.url : ''
+  // 显示名人类标题优先(sidecar.title=捕捞时抓的 alt/网页标题 → 捕捞传入 title → 文件名)。
+  // 防盗链图 URL 文件名常是哈希，直接当名字认不出(用户 2026-07-13 抓出 263fcbf8…)。
+  const sidecarTitle = typeof asset.data.title === 'string' ? asset.data.title.trim() : ''
   return {
     id: asset.id,
     type: mediaType,
     source: 'my',
-    title: asset.name || fallbackTitle || '网页图片',
+    title: sidecarTitle || fallbackTitle || asset.name || '网页图片',
     subtitle: '网页素材',
     previewUrl: url,
     tags: ['网页素材'],

@@ -42,11 +42,15 @@ function browserAssetFromDesktopAsset(asset: DesktopAssetDto, fallbackTitle: str
   const contentType = typeof asset.data.contentType === 'string' ? asset.data.contentType : ''
   const mediaType = asset.data.mediaType === 'video' || contentType.startsWith('video/') ? 'video' : 'image'
   const url = typeof asset.data.url === 'string' ? asset.data.url : ''
+  // 显示名人类标题优先(sidecar.title=捕捞抓的 alt/网页标题 → 捕捞传入 title → 文件名)——
+  // 防盗链图 URL 文件名常是哈希，认不出(用户 2026-07-13 抓出 263fcbf8…)。⚠️同名映射有三份
+  // 平行版(此处 + NomiBrowserDialogModel + browserAssetPopoverUtils)，三处口径须一致，待收敛。
+  const sidecarTitle = typeof asset.data.title === 'string' ? asset.data.title.trim() : ''
   return {
     id: asset.id,
     type: mediaType,
     source: 'my',
-    title: asset.name || fallbackTitle || (mediaType === 'video' ? '网页视频' : '网页图片'),
+    title: sidecarTitle || fallbackTitle || asset.name || (mediaType === 'video' ? '网页视频' : '网页图片'),
     subtitle: '网页素材',
     previewUrl: url,
     previewMediaType: mediaType,

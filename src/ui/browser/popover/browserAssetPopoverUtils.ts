@@ -170,11 +170,14 @@ export function browserAssetFromDesktopAsset(asset: DesktopAssetDto): NomiBrowse
   if (!type) return null
   const url = typeof asset.data.url === 'string' ? asset.data.url : ''
   const subtitle = browserAssetSubtitleFromDesktopAsset(asset)
+  // 显示名优先用网页捕捞时抓到的人类标题(alt/title/文档标题，落在 sidecar.title)，
+  // 而不是原始文件名——防盗链图的 URL 文件名常是哈希(263fcbf8…)，直接当名字没法认(用户 2026-07-13 抓出)。
+  const sidecarTitle = typeof asset.data.title === 'string' ? asset.data.title.trim() : ''
   return {
     id: asset.id,
     type,
     source: 'my',
-    title: asset.name || (type === 'video' ? '项目视频' : type === 'image' ? '项目图片' : '本地文本'),
+    title: sidecarTitle || asset.name || (type === 'video' ? '项目视频' : type === 'image' ? '项目图片' : '本地文本'),
     subtitle,
     previewUrl: type === 'prompt' ? undefined : url || undefined,
     tags: [subtitle],
