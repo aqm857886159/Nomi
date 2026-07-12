@@ -133,7 +133,7 @@ export function createCustomCategoryId(existingIds: readonly string[]): string {
 export function createCustomCategory(input: { id: string; name: string; order: number }): ProjectCategory {
   return {
     id: input.id,
-    name: input.name.trim() || '新分类',
+    name: input.name.trim() || '新分组',
     icon: '',
     iconName: CUSTOM_CATEGORY_ICON_NAME,
     defaultNodeRenderKind: CUSTOM_CATEGORY_RENDER_KIND,
