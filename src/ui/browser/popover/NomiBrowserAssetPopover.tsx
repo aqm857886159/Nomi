@@ -77,6 +77,7 @@ export function NomiBrowserAssetPopover({
   sourceTabs = NOMI_BROWSER_ASSET_SOURCES,
   onOpenChange,
   onWindowRectChange,
+  onFullWindowModalChange,
   onDockModeChange,
   onAssetSelect,
   onCreateFolder,
@@ -104,6 +105,11 @@ export function NomiBrowserAssetPopover({
   const [blankContextMenu, setBlankContextMenu] = React.useState<BlankContextMenuState | null>(null)
   const [promptDetailAssetId, setPromptDetailAssetId] = React.useState<string | null>(null)
   const [promptExtractionSettingsOpen, setPromptExtractionSettingsOpen] = React.useState(false)
+  // 提示词提取设置是唯一 fixed inset-0 溢出整窗的模态——它开合时通知承载方扩/缩可点热区，
+  // 否则原生 overlay 承载态下它落在卡片外的死区，被点穿到网页（提示词详情用 absolute 不受影响）。
+  React.useEffect(() => {
+    onFullWindowModalChange?.(promptExtractionSettingsOpen)
+  }, [onFullWindowModalChange, promptExtractionSettingsOpen])
   const [canvasImportAvailable, setCanvasImportAvailable] = React.useState(false)
   const [promptExtractionSettings, setPromptExtractionSettings] = React.useState<BrowserPromptExtractionTemplateSettings>(
     () => createDefaultBrowserPromptExtractionTemplateSettings(),

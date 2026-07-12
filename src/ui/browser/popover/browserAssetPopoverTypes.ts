@@ -79,6 +79,12 @@ export type NomiBrowserAssetPopoverProps = {
   sourceTabs?: readonly NomiBrowserAssetSourceDefinition[]
   onOpenChange?: (opened: boolean) => void
   onWindowRectChange?: (rect: FloatingWindowBoundsRect | null) => void
+  /**
+   * 溢出整窗的模态（如提示词提取设置，fixed inset-0 居中）在场时触发。
+   * 原生 overlay 承载态下，可点热区默认只覆盖卡片矩形；这类模态铺满整个透明窗、
+   * 落在卡片外的死区里会被点穿到网页——overlay 收到此信号后把整窗上报为可点。
+   */
+  onFullWindowModalChange?: (present: boolean) => void
   onDockModeChange?: (dockMode: BrowserAssetPopoverDockMode) => void
   onAssetSelect?: (asset: NomiBrowserAsset) => void
   onCreateFolder?: (folder: NomiBrowserAsset) => void

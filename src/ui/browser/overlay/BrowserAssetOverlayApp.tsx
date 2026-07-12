@@ -205,6 +205,8 @@ export function BrowserAssetOverlayApp(): JSX.Element {
   })
   const [dockMode, setDockMode] = React.useState<DesktopBrowserAssetOverlayDockMode>(null)
   const [popoverRect, setPopoverRect] = React.useState<FloatingWindowBoundsRect | null>(null)
+  // 溢出整窗的模态（提示词提取设置）在场：热区从卡片矩形扩到整窗，否则点穿到网页。
+  const [fullWindowModal, setFullWindowModal] = React.useState(false)
   const [captureEnabled, setCaptureEnabled] = React.useState(false)
   const [browserCaptureRequest, setBrowserCaptureRequest] = React.useState<BrowserAssetCaptureRequest | null>(null)
   const [browserPromptCaptureRequest, setBrowserPromptCaptureRequest] =
@@ -280,7 +282,7 @@ export function BrowserAssetOverlayApp(): JSX.Element {
       lastSentStateKeyRef.current = null
       return
     }
-    const hostRect =
+    const cardRect =
       popoverLeft === null ||
       popoverTop === null ||
       popoverRight === null ||
@@ -298,6 +300,22 @@ export function BrowserAssetOverlayApp(): JSX.Element {
             width: popoverWidth,
             height: popoverHeight,
           }
+    // 溢出整窗的模态在场 → 整窗都是可交互内容，热区扩到整个 overlay 窗（= 承载 view 的 bounds）。
+    const fullWindowRect =
+      fullWindowModal && hostBoundsX !== null && hostBoundsY !== null && config.bounds
+        ? {
+            left: hostBoundsX,
+            top: hostBoundsY,
+            right: hostBoundsX + config.bounds.width,
+            bottom: hostBoundsY + config.bounds.height,
+            width: config.bounds.width,
+            height: config.bounds.height,
+          }
+        : null
+    const hostRect = fullWindowRect ?? cardRect
+    // 测试内省：把「上报给主进程的可点热区」挂到 window，供 R13 走查几何断言
+    //（DOM 合成点击测不到窗口穿透，只能靠热区矩形几何对账，见 reference-capture.walk）。
+    ;(window as unknown as { __nomiOverlayHitRect?: unknown }).__nomiOverlayHitRect = hostRect
     const stateKey = overlayStateKey(dockMode, hostRect, captureEnabled)
     if (lastSentStateKeyRef.current === stateKey) return
     lastSentStateKeyRef.current = stateKey
@@ -309,7 +327,9 @@ export function BrowserAssetOverlayApp(): JSX.Element {
   }, [
     captureEnabled,
     config.opened,
+    config.bounds,
     dockMode,
+    fullWindowModal,
     hostBoundsX,
     hostBoundsY,
     overlayBridge,
@@ -332,7 +352,10 @@ export function BrowserAssetOverlayApp(): JSX.Element {
 
   const pointInsidePopover = React.useCallback(
     (x: number, y: number): boolean => {
-      if (!popoverRect || !config.opened) return false
+      if (!config.opened) return false
+      // 整窗模态在场：整窗都是可交互内容，任意点都算命中（否则模态落在卡片外死区被点穿）。
+      if (fullWindowModal) return true
+      if (!popoverRect) return false
       const slop = 10
       return (
         x >= popoverRect.left - slop &&
@@ -341,7 +364,7 @@ export function BrowserAssetOverlayApp(): JSX.Element {
         y <= popoverRect.bottom + slop
       )
     },
-    [config.opened, popoverRect],
+    [config.opened, fullWindowModal, popoverRect],
   )
 
   React.useEffect(() => {
@@ -462,6 +485,7 @@ export function BrowserAssetOverlayApp(): JSX.Element {
         showTrigger={false}
         onOpenChange={handleOpenChange}
         onWindowRectChange={handlePopoverRectChange}
+        onFullWindowModalChange={setFullWindowModal}
         onDockModeChange={setDockMode}
         dockPresentation="edge"
         onImportRemoteAsset={importBrowserAssetToLibrary}
