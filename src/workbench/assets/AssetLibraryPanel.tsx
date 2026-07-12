@@ -22,6 +22,7 @@ import { importAudioFilesToLibrary, type AudioImportResult } from './importAudio
 import type { GenerationAssetImportResult } from '../generationCanvas/adapters/assetImportAdapter'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { confirmDialog, DesignEmptyState, DesignSearchInput, TooltipProvider } from '../../design'
+import AssetFinderPanel from './autoGroup/AssetFinderPanel'
 import { acceptAttrForKinds, mediaKindFromExtension } from '../../../electron/assets/mediaTypes'
 import { toast } from '../../ui/toast'
 import {
@@ -88,11 +89,13 @@ function reportAudioImport(result: AudioImportResult): void {
   if (skipped.length) toast(`已跳过：${skipped.join('、')}`, result.failedCount ? 'error' : 'warning')
 }
 
-type SourceFilterValue = 'all' | 'project'
+type SourceFilterValue = 'all' | 'project' | 'smart'
 
 const SOURCE_OPTIONS: { value: SourceFilterValue; label: string }[] = [
   { value: 'all', label: '全部素材' },
   { value: 'project', label: '项目素材' },
+  // 找素材并入素材库（2026-07-13 ③）：AI 自动分组是素材库的一个视图，不再独占左栏一格。
+  { value: 'smart', label: '智能分组' },
 ]
 
 const FILTER_LABEL_BY_VALUE = new Map<FilterValue, string>(
@@ -590,20 +593,26 @@ export function AssetLibraryContent({
           onChange={handleUploadFiles}
         />
 
-        {/* 工具行：筛选 + 搜索 */}
+        {/* 工具行：筛选 + 搜索（智能分组页签整体换身为找素材视图，自带搜索/分区） */}
         <div className={cn('grid gap-2', compact ? 'px-3 py-3' : 'px-3 py-2.5')}>
           <div className={cn('flex min-w-0 items-center gap-2')}>
             {sourceTabs}
             {uploadButton}
           </div>
-          <div className="flex min-w-0 items-center gap-2">
-            <DesignSearchInput className="min-w-0 flex-1" placeholder="搜索素材…" ariaLabel="搜索素材" value={query} onChange={setQuery} />
-            {deleteSelectedButton}
-            {categoryFilterButton}
-          </div>
+          {sourceFilter !== 'smart' ? (
+            <div className="flex min-w-0 items-center gap-2">
+              <DesignSearchInput className="min-w-0 flex-1" placeholder="搜索素材…" ariaLabel="搜索素材" value={query} onChange={setQuery} />
+              {deleteSelectedButton}
+              {categoryFilterButton}
+            </div>
+          ) : null}
         </div>
 
-        {/* 网格 / 空态 */}
+        {sourceFilter === 'smart' ? (
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <AssetFinderPanel />
+          </div>
+        ) : (
         <div ref={setScrollEl} className={cn('flex-1 overflow-y-auto', compact ? 'px-3 pb-3' : 'px-3.5 pb-4')}>
           {isEmpty ? (
             <DesignEmptyState
@@ -668,6 +677,7 @@ export function AssetLibraryContent({
             </div>
           )}
         </div>
+        )}
       </div>
     </TooltipProvider>
   )

@@ -3,7 +3,6 @@ import {
   IconBooks,
   IconBulb,
   IconFolder,
-  IconFolderSearch,
   IconLayoutSidebarLeftCollapse,
   IconLayoutSidebarLeftExpand,
   IconPlus,
@@ -31,14 +30,13 @@ const AssetLibraryContent = lazyWithChunkBoundary('素材库', () =>
     default: module.AssetLibraryContent,
   })),
 )
-import AssetFinderPanel from '../assets/autoGroup/AssetFinderPanel'
 
 type Props = {
   categories?: ProjectCategory[]
   projectId?: string | null
 }
 
-type ProjectSidebarTab = 'find' | 'categories' | 'prompt-library' | 'skill-library' | 'asset-library'
+type ProjectSidebarTab = 'categories' | 'prompt-library' | 'skill-library' | 'asset-library'
 
 const PROJECT_SIDEBAR_COLLAPSED_WIDTH = 60
 const PROJECT_SIDEBAR_EXPANDED_WIDTH = 300
@@ -69,8 +67,7 @@ const PANEL_ICON_BUTTON_CLASS = cn(
 )
 
 function sidebarPanelTitle(tab: ProjectSidebarTab): string {
-  if (tab === 'find') return '找素材'
-  if (tab === 'categories') return '分类'
+  if (tab === 'categories') return '分组'
   if (tab === 'prompt-library') return '提示词库'
   if (tab === 'skill-library') return '技能库'
   return '素材库'
@@ -121,14 +118,10 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
         icon: IconFolder,
       },
       {
-        id: 'find' as const,
-        label: '找素材',
-        icon: IconFolderSearch,
-      },
-      {
+        // ④ 2026-07-13：原名「分类」名实不符——它管的是画布画面的分组（搬家归下一轮设计）。
         id: 'categories' as const,
-        label: '分类',
-        railLabel: '分类',
+        label: '分组',
+        railLabel: '分组',
         icon: IconTags,
       },
     ],
@@ -252,12 +245,12 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
                           type="button"
                           onClick={handleAddCategory}
                           className={PANEL_ICON_BUTTON_CLASS}
-                          aria-label="新建分类"
+                          aria-label="新建分组"
                         >
                           <IconPlus size={18} stroke={1.8} aria-hidden="true" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom">新建分类</TooltipContent>
+                      <TooltipContent side="bottom">新建分组</TooltipContent>
                     </Tooltip>
                   ) : null}
                   <Tooltip>
@@ -274,9 +267,7 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
                     <TooltipContent side="bottom">收起侧栏</TooltipContent>
                   </Tooltip>
               </header>
-              {tab === 'find' ? (
-                  <AssetFinderPanel />
-                ) : tab === 'categories' ? (
+              {tab === 'categories' ? (
                   <React.Suspense fallback={null}>
                     <CategoryTree categories={categories} createCategoryNonce={createCategoryNonce} />
                   </React.Suspense>

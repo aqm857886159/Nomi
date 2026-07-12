@@ -245,7 +245,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     const current = get().categories
     const id = createCustomCategoryId(current.map((c) => c.id))
     const order = current.reduce((max, c) => Math.max(max, c.order), 0) + 1
-    const category = createCustomCategory({ id, name: (name || '').trim() || '新分类', order })
+    const category = createCustomCategory({ id, name: (name || '').trim() || '新分组', order })
     set((state) => ({
       categories: [...state.categories, category],
       persistRevision: state.persistRevision + 1,

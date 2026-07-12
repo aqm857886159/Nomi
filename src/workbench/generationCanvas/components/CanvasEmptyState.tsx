@@ -27,7 +27,7 @@ export function CanvasEmptyState({ activeCategoryId, onCreate }: CanvasEmptyStat
     )}>
       <strong className="text-body text-nomi-ink">这里还没有{activeCategoryName}</strong>
       <span className="text-caption text-nomi-ink-60 max-w-[300px]">
-        添加第一个节点开始创作，之后可以拖动、分组、跨分类复制。
+        添加第一个节点开始创作，之后可以拖动、分组、跨分组复制。
       </span>
       <WorkbenchButton
         className={cn(

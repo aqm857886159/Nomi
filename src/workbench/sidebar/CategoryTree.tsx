@@ -274,8 +274,8 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
     const label = category?.name || categoryId
     closeMenu()
     const confirmed = await confirmDialog({
-      title: '删除分类',
-      message: `删除分类「${label}」？里面的节点会移回「分镜」，不会丢失。`,
+      title: '删除分组',
+      message: `删除分组「${label}」？里面的节点会移回「分镜」，不会丢失。`,
       confirmLabel: '删除',
       danger: true,
     })
@@ -308,7 +308,7 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
     closeMenu()
     const confirmed = await confirmDialog({
       title: '删除节点',
-      message: `删除节点「${label}」？跨分类副本不会受影响。`,
+      message: `删除节点「${label}」？跨分组副本不会受影响。`,
       confirmLabel: '删除',
       danger: true,
     })
