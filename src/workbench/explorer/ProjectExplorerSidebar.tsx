@@ -10,7 +10,6 @@ import {
   IconTags,
   IconWorld,
 } from '@tabler/icons-react'
-import { getDesktopBridge } from '../../desktop/bridge'
 import { cn } from '../../utils/cn'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../design'
 import { type ProjectCategory } from '../project/projectCategories'
@@ -246,8 +245,8 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
                   <h2 className="m-0 min-w-0 flex-1 truncate text-body-sm font-bold leading-none text-nomi-ink">
                     {panelTitle}
                   </h2>
-                  {/* M0 捕捞窗入口原本住 AssetLibraryPanel 自己的 header——侧栏 showHeader={false}
-                      画瘦头后必须在这里补位，否则整个功能不可达（PR#36 合入走查抓出的回归）。 */}
+                  {/* 「网页捕捞」入口保留在素材库瘦头（找素材心智的门），但引擎已收敛到应用内
+                      浏览器（方案A 2026-07-12 拍板，M0 独立捕捞窗退役）——一个引擎两扇门。 */}
                   {tab === 'asset-library' ? (
                     <button
                       type="button"
@@ -258,9 +257,9 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
                       )}
                       disabled={!projectId}
                       aria-label="网页捕捞"
-                      title="打开捕捞窗：右键网页图片即可存进素材库"
+                      title="打开浏览器找参考：悬停图片点「捕捞」或直接拖进来"
                       onClick={() => {
-                        if (projectId) void getDesktopBridge()?.browserCapture?.open({ projectId })
+                        window.dispatchEvent(new CustomEvent('nomi-open-browser'))
                       }}
                     >
                       <IconWorld size={13} stroke={2} aria-hidden="true" />

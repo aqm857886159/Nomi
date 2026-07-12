@@ -48,14 +48,26 @@ export function stableAssetId(projectId: string, relativePath: string): string {
   return `asset-${digest}`;
 }
 
+// 浏览器捕捞/上传的 kind 族（单一真相源：workspaceFileIndex 等消费方从这里 import，别再抄本地副本）。
+export const BROWSER_CAPTURE_ASSET_KINDS: ReadonlySet<string> = new Set(["browser-capture", "browser-upload"]);
+
+export function isBrowserCaptureAssetKind(kind: unknown): boolean {
+  return BROWSER_CAPTURE_ASSET_KINDS.has(String(kind || "").toLowerCase());
+}
+
 export function assetBucketFromMeta(meta: JsonRecord): "generated" | "imported" {
   const kind = String(meta.kind || "").toLowerCase();
   // 网页捕捞和浏览器上传都属于外来素材，与上传/导入同桶，不冒充生成产物。
-  return kind === "upload" ||
-    kind === "imported" ||
-    kind === "local" ||
-    kind === "browser-capture" ||
-    kind === "browser-upload"
+  return kind === "upload" || kind === "imported" || kind === "local" || isBrowserCaptureAssetKind(kind)
     ? "imported"
     : "generated";
+}
+
+// 隐私不变量（M0 捕捞窗评审定案，收敛后对浏览器面同样生效）：网页捕捞类素材的
+// originalUrl 恒 null——否则 48h 信任窗会把用户浏览的网页 URL 当参考发给生成商
+// （泄露浏览记录 + 防盗链 URL 在厂商侧必挂）。generated/provider 素材不受影响，
+// 它们的 originalUrl=厂商临时链正是信任窗的设计本意。pageUrl 仅本地溯源、无读取方。
+export function sanitizeAssetMetaForKind(meta: JsonRecord): JsonRecord {
+  if (!isBrowserCaptureAssetKind(meta.kind)) return meta;
+  return { ...meta, originalUrl: null };
 }

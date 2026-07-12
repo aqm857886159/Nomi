@@ -5,7 +5,9 @@ import {
   contentTypeFromPath,
   extensionFromMime,
   extensionFromUrl,
+  isBrowserCaptureAssetKind,
   localAssetUrl,
+  sanitizeAssetMetaForKind,
   stableAssetId,
 } from "./assetPaths";
 
@@ -90,5 +92,34 @@ describe("assetBucketFromMeta", () => {
     expect(assetBucketFromMeta({ kind: "browser-upload" })).toBe("imported");
     expect(assetBucketFromMeta({ kind: "generated" })).toBe("generated");
     expect(assetBucketFromMeta({})).toBe("generated");
+  });
+});
+
+describe("isBrowserCaptureAssetKind", () => {
+  it("matches the capture family case-insensitively", () => {
+    expect(isBrowserCaptureAssetKind("browser-capture")).toBe(true);
+    expect(isBrowserCaptureAssetKind("Browser-Upload")).toBe(true);
+    expect(isBrowserCaptureAssetKind("generated")).toBe(false);
+    expect(isBrowserCaptureAssetKind(undefined)).toBe(false);
+  });
+});
+
+describe("sanitizeAssetMetaForKind", () => {
+  // 隐私不变量（M0 捕捞评审定案）：capture 族 sidecar 的 originalUrl 恒 null——
+  // 否则 48h 信任窗会把用户浏览的网页 URL 当参考发给生成商。
+  it("nulls originalUrl for browser-capture family regardless of input", () => {
+    expect(sanitizeAssetMetaForKind({ kind: "browser-capture", originalUrl: "https://evil.example/x.png" })).toEqual({
+      kind: "browser-capture",
+      originalUrl: null,
+    });
+    expect(sanitizeAssetMetaForKind({ kind: "browser-upload", originalUrl: "https://a/b.png", pageUrl: "https://a" })).toEqual({
+      kind: "browser-upload",
+      originalUrl: null,
+      pageUrl: "https://a",
+    });
+  });
+  it("leaves provider/generated meta untouched (trust-window by design)", () => {
+    const meta = { kind: "generated", originalUrl: "https://vendor.example/tmp.png" };
+    expect(sanitizeAssetMetaForKind(meta)).toBe(meta);
   });
 });

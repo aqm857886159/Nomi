@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { MEDIA_TYPES, type MediaKind } from "../assets/mediaTypes";
+import { isBrowserCaptureAssetKind } from "../assets/assetPaths";
 
 export type WorkspaceFileKind = "directory" | "text" | "image" | "video" | "audio" | "document" | "file";
 
@@ -22,7 +23,6 @@ export type WorkspaceFileListResult = {
 
 const SKIPPED_NAMES = new Set([".git", "node_modules"]);
 const SKIPPED_RELATIVE_PATHS = new Set([".nomi/cache"]);
-const BROWSER_PRIVATE_ASSET_KINDS = new Set(["browser-capture", "browser-upload"]);
 
 // 从媒体类型单一真相源派生(不再手维护第二张表)。WorkspaceFileKind 无 model3d,
 // 故把 model3d 映射成 "file"(保持 .glb 在文件树仍是通用文件,行为不变)。
@@ -80,7 +80,8 @@ function readAssetSidecarKind(absolutePath: string): string {
 
 function shouldSkipWorkspaceFile(absolutePath: string, name: string): boolean {
   if (name.endsWith(".meta")) return true;
-  return BROWSER_PRIVATE_ASSET_KINDS.has(readAssetSidecarKind(absolutePath));
+  // capture 族 kind 单一真相源在 assetPaths（原本地副本已收编）。
+  return isBrowserCaptureAssetKind(readAssetSidecarKind(absolutePath));
 }
 
 function sortNodes(a: WorkspaceFileNode, b: WorkspaceFileNode): number {

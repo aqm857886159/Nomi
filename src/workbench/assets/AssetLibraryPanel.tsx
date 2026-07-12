@@ -183,15 +183,15 @@ export function AssetLibraryContent({
     return next
   }, [filterBaseAssets])
 
-  // 网页捕捞回流：捕捞窗把素材写进项目后广播 → 这里刷新列表（本面板是唯一消费者，无并行真相源）。
+  // 素材回流：写入层（writeAsset/moveAssetFile）落盘即广播，捕捞/拖拽/上传/agent 任何导入路径
+  // 都触发本面板刷新（原 M0 捕捞窗私有 onImported 的接任者，收敛后信号挂在唯一咽喉）。
   React.useEffect(() => {
     const bridge = getDesktopBridge()
-    if (!bridge?.browserCapture) return
-    return bridge.browserCapture.onImported((payload) => {
-      if (payload.projectId !== projectId) return
+    if (!bridge?.assets?.onUpdated) return
+    return bridge.assets.onUpdated((payload) => {
+      if ((payload as { projectId?: string } | null)?.projectId !== projectId) return
       refreshProjectAssets()
       refreshAllProjectAssets()
-      toast(`已捕捞进素材库：${payload.name}`, 'success')
     })
   }, [projectId, refreshAllProjectAssets, refreshProjectAssets])
   const visible = React.useMemo(
@@ -571,9 +571,10 @@ export function AssetLibraryContent({
               )}
               disabled={!projectId}
               aria-label="网页捕捞"
-              title="打开捕捞窗：右键网页图片即可存进素材库"
+              title="打开浏览器找参考：悬停图片点「捕捞」或直接拖进来"
               onClick={() => {
-                if (projectId) void getDesktopBridge()?.browserCapture?.open({ projectId })
+                // 引擎收敛到应用内浏览器（方案A 2026-07-12），入口保留在素材库=找素材的门。
+                window.dispatchEvent(new CustomEvent('nomi-open-browser'))
               }}
             >
               <IconWorld size={13} stroke={2} aria-hidden="true" />

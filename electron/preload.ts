@@ -60,35 +60,15 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.invoke("nomi:projects:save-async", projectId, record),
     delete: (projectId: string) => invokeSync("nomi:projects:delete", projectId),
   },
-  browserCapture: {
-    open: (payload: unknown) => ipcRenderer.invoke("nomi:browser-capture:open", payload),
-    navigate: (payload: unknown) => ipcRenderer.invoke("nomi:browser-capture:navigate", payload),
-    back: () => ipcRenderer.invoke("nomi:browser-capture:back"),
-    forward: () => ipcRenderer.invoke("nomi:browser-capture:forward"),
-    reload: () => ipcRenderer.invoke("nomi:browser-capture:reload"),
-    screenshot: () => ipcRenderer.invoke("nomi:browser-capture:screenshot"),
-    openExternal: () => ipcRenderer.invoke("nomi:browser-capture:open-external"),
-    requestState: () => ipcRenderer.invoke("nomi:browser-capture:request-state"),
-    // E2E 钩子：handler 仅 NOMI_E2E=1 时存在（referenceCaptureWindow.ts），生产 invoke 会拒；正常 UI 永不调用。
-    e2eCapture: (payload: unknown) => ipcRenderer.invoke("nomi:browser-capture:e2e-capture", payload),
-    onState: (cb: (state: unknown) => void) => {
-      const listener = (_: unknown, v: unknown) => cb(v);
-      ipcRenderer.on("nomi:browser-capture:state", listener);
-      return () => ipcRenderer.removeListener("nomi:browser-capture:state", listener);
-    },
-    onCaptureDone: (cb: (payload: unknown) => void) => {
-      const listener = (_: unknown, v: unknown) => cb(v);
-      ipcRenderer.on("nomi:browser-capture:capture-done", listener);
-      return () => ipcRenderer.removeListener("nomi:browser-capture:capture-done", listener);
-    },
-    onImported: (cb: (payload: unknown) => void) => {
-      const listener = (_: unknown, v: unknown) => cb(v);
-      ipcRenderer.on("nomi:browser-capture:imported", listener);
-      return () => ipcRenderer.removeListener("nomi:browser-capture:imported", listener);
-    },
-  },
   assets: {
     list: (payload: unknown) => ipcRenderer.invoke("nomi:assets:list", payload),
+    // 素材写入层（writeAsset/moveAssetFile）落盘即广播——素材库面板/素材盒徽章的统一回流信号，
+    // 任何导入路径（浏览器捕捞/拖拽/上传/agent）免费获得刷新（M0 捕捞窗私有 onImported 的接任者）。
+    onUpdated: (cb: (payload: unknown) => void) => {
+      const listener = (_: unknown, v: unknown) => cb(v);
+      ipcRenderer.on("nomi:assets:updated", listener);
+      return () => ipcRenderer.removeListener("nomi:assets:updated", listener);
+    },
     importRemoteUrl: (payload: unknown) => ipcRenderer.invoke("nomi:assets:import-remote-url", payload),
     importFile: (payload: unknown) => ipcRenderer.invoke("nomi:assets:import-file", payload),
     download: (payload: unknown) =>

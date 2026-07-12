@@ -5,6 +5,7 @@ import { hardenedFetch } from "../hardenedFetch";
 import { isJsonRecord, nowIso, type JsonRecord } from "../jsonUtils";
 import { projectDirById, sanitizeName } from "../projects/repository";
 import { ensureDir } from "../runtimePaths";
+import { broadcastAssetsUpdated } from "./assetEvents";
 import { collectFilesRecursively, parseDataUrl } from "./assetBytes";
 import {
   assetBucketFromMeta,
@@ -13,6 +14,7 @@ import {
   extensionFromMime,
   extensionFromUrl,
   localAssetUrl,
+  sanitizeAssetMetaForKind,
   stableAssetId,
 } from "./assetPaths";
 
@@ -83,11 +85,14 @@ export function writeAsset(
   bytes: Buffer,
   fileName: string,
   contentType: string,
-  meta: JsonRecord,
+  rawMeta: JsonRecord,
 ): unknown {
+  // 唯一 sidecar 写入者之一：capture 族 originalUrl 恒 null 的不变量在此收口（见 assetPaths）。
+  const meta = sanitizeAssetMetaForKind(rawMeta);
   const { absolutePath, relativePath } = uniqueAssetPath(projectId, fileName, assetBucketFromMeta(meta));
   fs.writeFileSync(absolutePath, bytes);
   writeAssetSidecarMeta(absolutePath, meta);
+  broadcastAssetsUpdated(projectId);
   const url = localAssetUrl(projectId, relativePath);
   const t = nowIso();
   return {
@@ -113,8 +118,10 @@ export function moveAssetFile(
   sourcePath: string,
   fileName: string,
   contentType: string,
-  meta: JsonRecord,
+  rawMeta: JsonRecord,
 ): unknown {
+  // 唯一 sidecar 写入者之二：与 writeAsset 同一道 capture 族隐私收口。
+  const meta = sanitizeAssetMetaForKind(rawMeta);
   const { absolutePath, relativePath } = uniqueAssetPath(projectId, fileName, assetBucketFromMeta(meta));
   try {
     fs.renameSync(sourcePath, absolutePath);
@@ -125,6 +132,7 @@ export function moveAssetFile(
   }
   const stat = fs.statSync(absolutePath);
   writeAssetSidecarMeta(absolutePath, meta);
+  broadcastAssetsUpdated(projectId);
   const url = localAssetUrl(projectId, relativePath);
   const t = nowIso();
   return {

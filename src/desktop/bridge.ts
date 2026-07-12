@@ -285,26 +285,6 @@ export type DesktopBridge = {
     saveAsync?: (projectId: string, record: unknown) => Promise<unknown>
     delete: (projectId: string) => { id: string; deleted: boolean }
   }
-  browserCapture: {
-    open: (payload: { projectId: string }) => Promise<{ ok: boolean }>
-    navigate: (payload: { url: string }) => Promise<{ ok: boolean }>
-    back: () => Promise<{ ok: boolean }>
-    forward: () => Promise<{ ok: boolean }>
-    reload: () => Promise<{ ok: boolean }>
-    screenshot: () => Promise<{ ok: boolean }>
-    openExternal: () => Promise<{ ok: boolean }>
-    requestState: () => Promise<{ ok: boolean }>
-    e2eCapture: (payload: { url: string; kind?: string }) => Promise<{ ok: boolean; error?: string }>
-    onState: (cb: (state: {
-      url: string
-      title: string
-      loading: boolean
-      canGoBack: boolean
-      canGoForward: boolean
-    }) => void) => () => void
-    onCaptureDone: (cb: (payload: { ok: boolean; name?: string; error?: string }) => void) => () => void
-    onImported: (cb: (payload: { projectId: string; name: string }) => void) => () => void
-  }
   assets: {
     list: (payload: {
       projectId: string
@@ -312,6 +292,8 @@ export type DesktopBridge = {
       limit?: number
       kind?: string
     }) => Promise<{ items: DesktopAssetDto[]; cursor: string | null }>
+    /** 写入层落盘广播（nomi:assets:updated）——素材库面板/素材盒徽章的统一回流信号。 */
+    onUpdated?: (cb: (payload: { projectId: string }) => void) => () => void
     importRemoteUrl: (payload: {
       projectId: string
       url: string

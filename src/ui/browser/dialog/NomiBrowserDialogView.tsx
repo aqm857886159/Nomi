@@ -406,13 +406,9 @@ export function NomiBrowserDialogView({
                       style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}
                     >
                       {BROWSER_START_SHORTCUTS.map((site) => {
-                        let host = ''
-                        try {
-                          host = new URL(site.url).hostname
-                        } catch {
-                          // Keep the shortcut usable if a preset URL is malformed.
-                        }
-                        const faviconUrl = host ? `https://www.google.com/s2/favicons?domain=${host}&sz=64` : ''
+                        // 预设站图标不求第三方 favicon 服务（Google s2 对部分域 404、
+                        // 中国网络下每次开浏览器都刷 console 错）——首字母瓷贴，零网络零 flake。
+                        const initial = (site.label || '?').trim().slice(0, 1)
                         return (
                           <button
                             key={site.url}
@@ -427,20 +423,8 @@ export function NomiBrowserDialogView({
                             }}
                             title={site.url}
                           >
-                            <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-nomi-sm bg-nomi-ink-05 text-nomi-ink-40 transition-colors group-hover:bg-nomi-accent-soft group-hover:text-nomi-accent">
-                              {faviconUrl ? (
-                                <img
-                                  src={faviconUrl}
-                                  alt=""
-                                  className="size-4"
-                                  draggable={false}
-                                  onError={(event) => {
-                                    event.currentTarget.style.display = 'none'
-                                  }}
-                                />
-                              ) : (
-                                <IconWorld size={15} stroke={1.7} aria-hidden="true" />
-                              )}
+                            <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-nomi-sm bg-nomi-ink-05 text-caption font-bold text-nomi-ink-60 transition-colors group-hover:bg-nomi-accent-soft group-hover:text-nomi-accent">
+                              {initial || <IconWorld size={15} stroke={1.7} aria-hidden="true" />}
                             </span>
                             <span className="grid min-w-0 flex-1 gap-0.5">
                               <span className="truncate text-caption font-semibold text-nomi-ink">{site.label}</span>

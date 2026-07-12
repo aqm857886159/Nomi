@@ -84,9 +84,13 @@ export function useGlobalBrowserAssetCount(): number {
     }
     window.addEventListener(BROWSER_ASSET_LIBRARY_UPDATED_EVENT, update)
     window.addEventListener('storage', handleStorage)
+    // 写入层广播（nomi:assets:updated）：普通捕捞/导入不碰 localStorage，之前徽章会 stale——
+    // 订阅统一回流信号，任何路径落盘徽章即刷新。
+    const offAssetsUpdated = getDesktopBridge()?.assets?.onUpdated?.(update)
     return () => {
       window.removeEventListener(BROWSER_ASSET_LIBRARY_UPDATED_EVENT, update)
       window.removeEventListener('storage', handleStorage)
+      offAssetsUpdated?.()
     }
   }, [refresh])
 

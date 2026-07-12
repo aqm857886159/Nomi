@@ -328,7 +328,9 @@ export async function importBrowserMedia(record: BrowserViewRecord, payload: Bro
       download.contentType,
       {
         kind: "browser-capture",
-        originalUrl: mediaUrl,
+        // M0 捕捞评审定案：网页 URL 绝不进 originalUrl（48h 信任窗会把它发给生成商）。
+        // projectAssetStore 的 sanitizeAssetMetaForKind 对 capture 族有兜底，这里显式写明意图。
+        originalUrl: null,
         pageUrl: safeHeaderUrl(pageUrl) || null,
         title: payload.title || null,
         mediaType: download.mediaType || requestedMediaType || null,

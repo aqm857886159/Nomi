@@ -366,7 +366,9 @@ export function canDownloadFromBrowserView(url: string): boolean {
 }
 
 export function faviconForTab(tab: BrowserTab): JSX.Element {
-  if (tab.favicon) {
+  // 应用 CSP img-src 只放行 https:/data:/blob:——http 站的 favicon 加载会被拦并刷 console 错，
+  // 干脆不发起请求，直接回退世界图标。
+  if (tab.favicon && /^(https:|data:|blob:)/i.test(tab.favicon)) {
     return <img src={tab.favicon} alt="" className="size-4 rounded-nomi-sm" draggable={false} />
   }
   if (!tab.url) return <IconBrowser size={15} stroke={1.7} aria-hidden="true" />

@@ -40,7 +40,6 @@ import { catalogSecretsProvider } from "./events/secretsProvider";
 import { registerOnboardingIpc } from "./ai/onboarding/onboardingIpc";
 import { registerUpdaterIpc } from "./update/autoUpdater";
 import { setRendererTarget } from "./capabilityCore/rendererBridge";
-import { registerReferenceCaptureIpc } from "./browser/referenceCaptureWindow";
 import { readMcpInfo, installMcp, uninstallMcp } from "./capabilityCore/mcpConfig";
 import { registerLocalProtocol } from "./protocol/localProtocol";
 import { installWindowCloseConfirmation } from "./windowCloseConfirmation";
@@ -650,7 +649,7 @@ function registerIpc(): void {
   registerBrowserViewIpc(getRendererUrl);
   registerOnboardingIpc();
   registerUpdaterIpc();
-  registerReferenceCaptureIpc({ getRendererUrl, preloadPath: path.join(__dirname, "preload.js") });
+  // M0 独立捕捞窗已退役（方案A 2026-07-12）：捕捞面收敛到应用内浏览器（registerBrowserViewIpc）。
   // S4-1 评测安全铁律:事件落盘前,已配置的 vendor key 精确匹配脱敏(形态兜底之外的地基)。
   setEventLogSecretsProvider(catalogSecretsProvider);
 }
