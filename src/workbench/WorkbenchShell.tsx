@@ -2,7 +2,7 @@ import React from "react";
 import "./workbench.css";
 import "./workbench-ai.css";
 import { IconBrowser } from "@tabler/icons-react";
-import { Box as LucideBox } from "lucide-react";
+import { IconBox } from "@tabler/icons-react";
 import { NomiBrand, NomiLoadingMark } from "../design";
 import NomiAppBar from "../ui/app-shell/NomiAppBar";
 import { AboutNomiPopover } from "../ui/app-shell/AboutNomiPopover";
@@ -255,8 +255,9 @@ export default function WorkbenchShell({
                         <button
                             type="button"
                             className={cn(
-                                "inline-flex h-7 items-center gap-1 rounded-pill border-0 bg-transparent px-1.5",
-                                "cursor-pointer text-workbench-muted transition-colors hover:text-workbench-ink",
+                                "inline-flex h-7 items-center gap-1.5 rounded-pill border-0 bg-transparent px-2",
+                                "cursor-pointer font-inherit text-caption text-workbench-muted",
+                                "transition-colors hover:text-workbench-ink",
                             )}
                             aria-label="打开素材盒"
                             title="素材盒"
@@ -267,7 +268,8 @@ export default function WorkbenchShell({
                                 );
                             }}
                         >
-                            <LucideBox size={14} strokeWidth={1.8} aria-hidden="true" />
+                            <IconBox size={14} stroke={1.7} aria-hidden="true" />
+                            <span>素材盒</span>
                             {assetCount > 0 ? (
                                 <span
                                     className="inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-pill bg-nomi-accent-soft px-1.5 text-micro font-semibold leading-none text-nomi-accent"

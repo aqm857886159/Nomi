@@ -52,6 +52,14 @@ const RAIL_BUTTON_CLASS = cn(
   'disabled:cursor-not-allowed disabled:opacity-50',
 )
 
+// 方案A（2026-07-12 拍板）：rail 图标下带微字，治「一列孤图标认不出」；tooltip 保留全名。
+const RAIL_ITEM_BUTTON_CLASS = cn(
+  'flex w-11 flex-col items-center gap-0.5 rounded-nomi-sm border-0 bg-transparent py-1.5',
+  'cursor-pointer text-nomi-ink-40 transition-[background,color] duration-[var(--nomi-transition-fast)]',
+  'hover:bg-nomi-ink-05 hover:text-nomi-ink',
+  'disabled:cursor-not-allowed disabled:opacity-50',
+)
+
 const RAIL_BUTTON_ACTIVE_CLASS = 'bg-nomi-ink text-nomi-paper shadow-nomi-sm'
 
 const PANEL_ICON_BUTTON_CLASS = cn(
@@ -120,6 +128,7 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
       {
         id: 'categories' as const,
         label: '分类',
+        railLabel: '分类',
         icon: IconTags,
       },
     ],
@@ -131,11 +140,13 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
       {
         id: 'prompt-library' as const,
         label: '提示词库',
+        railLabel: '提示词',
         icon: IconBulb,
       },
       {
         id: 'skill-library' as const,
         label: '技能库',
+        railLabel: '技能',
         icon: IconBooks,
       },
     ],
@@ -169,12 +180,13 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      className={cn(RAIL_BUTTON_CLASS, active && RAIL_BUTTON_ACTIVE_CLASS)}
+                      className={cn(RAIL_ITEM_BUTTON_CLASS, active && RAIL_BUTTON_ACTIVE_CLASS)}
                       aria-label={item.label}
                       aria-pressed={active}
                       onClick={() => selectTab(item.id)}
                     >
-                      <Icon size={22} stroke={1.85} aria-hidden="true" />
+                      <Icon size={20} stroke={1.85} aria-hidden="true" />
+                      <span className="text-micro leading-none">{item.railLabel ?? item.label}</span>
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="right">{item.label}</TooltipContent>
@@ -190,12 +202,13 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      className={cn(RAIL_BUTTON_CLASS, active && RAIL_BUTTON_ACTIVE_CLASS)}
+                      className={cn(RAIL_ITEM_BUTTON_CLASS, active && RAIL_BUTTON_ACTIVE_CLASS)}
                       aria-label={item.label}
                       aria-pressed={active}
                       onClick={() => selectTab(item.id)}
                     >
-                      <Icon size={22} stroke={1.85} aria-hidden="true" />
+                      <Icon size={20} stroke={1.85} aria-hidden="true" />
+                      <span className="text-micro leading-none">{item.railLabel ?? item.label}</span>
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="right">{item.label}</TooltipContent>

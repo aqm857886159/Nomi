@@ -10,7 +10,7 @@ import {
   IconSparkles,
   IconTrash,
 } from '@tabler/icons-react'
-import { Box as LucideBox } from 'lucide-react'
+import { IconBox } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { ActionCard, NomiLogoMark, NomiWordmark, DesignEmptyState, DesignSearchInput } from '../../design'
 import { NomiImage } from '../../design/media'
@@ -172,13 +172,14 @@ export default function ProjectLibraryPage({
           dispatchContextualAssetPopoverOpen(true, getGlobalAssetPopoverAnchorRect(event.currentTarget))
         }}
         className={cn(
-          'inline-flex h-7 items-center gap-1 rounded-pill border-0 bg-transparent px-1.5 cursor-pointer font-inherit',
-          'text-nomi-ink-60 transition-colors hover:text-nomi-ink',
+          'inline-flex items-center gap-1.5 h-7 px-2 rounded-pill border-0 bg-transparent cursor-pointer font-inherit',
+          'text-caption text-nomi-ink-60 transition-colors hover:text-nomi-ink',
         )}
         aria-label="打开素材盒"
         title="素材盒"
       >
-        <LucideBox size={14} strokeWidth={1.8} aria-hidden="true" />
+        <IconBox size={14} stroke={1.6} aria-hidden="true" />
+        素材盒
         {assetCount > 0 ? (
           <span
             className="inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-pill bg-nomi-accent-soft px-1.5 text-micro font-semibold leading-none text-nomi-accent"

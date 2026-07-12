@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Camera as LucideCamera } from 'lucide-react'
+import { IconCamera } from '@tabler/icons-react'
 import {
   IconArrowLeft,
   IconArrowRight,
@@ -315,7 +315,7 @@ export function NomiBrowserDialogView({
                 disabled={!activeTab?.viewId}
                 onClick={openBrowserScreenshotPromptModePicker}
               >
-                <LucideCamera size={17} strokeWidth={1.8} aria-hidden="true" />
+                <IconCamera size={17} strokeWidth={1.8} aria-hidden="true" />
               </button>
             </div>
           </form>

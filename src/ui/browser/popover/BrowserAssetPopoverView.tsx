@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ScrollArea } from '@mantine/core'
 import { motion } from 'framer-motion'
-import { PanelLeftOpen, PanelRightClose, PanelRightOpen, ScanSearch, Settings2 } from 'lucide-react'
+import { IconLayoutSidebarLeftExpand, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpand, IconZoomScan, IconAdjustmentsHorizontal } from '@tabler/icons-react'
 import {
   IconArrowForwardUp,
   IconArrowLeft,
@@ -157,20 +157,20 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
               <span className="ml-auto" aria-hidden="true" />
               {onBrowserCaptureToggle ? (
                 <button type="button" className={cn(toolbarButtonClass, browserCaptureEnabled && 'bg-nomi-accent-soft text-nomi-accent hover:text-nomi-accent')} aria-label={browserCaptureEnabled ? '关闭资源捕捞' : '开启资源捕捞'} aria-pressed={browserCaptureEnabled} title={browserCaptureEnabled ? '关闭资源捕捞' : '资源捕捞：悬停资源后按 Ctrl+C 保存'} disabled={browserCaptureDisabled} onClick={onBrowserCaptureToggle}>
-                  <ScanSearch size={17} strokeWidth={1.8} aria-hidden="true" />
+                  <IconZoomScan size={17} strokeWidth={1.8} aria-hidden="true" />
                 </button>
               ) : null}
               <button type="button" className={cn(toolbarButtonClass, promptExtractionSettingsOpen && 'bg-nomi-ink-05 text-nomi-ink')} aria-label="提示词提取设置" title="提示词提取设置" aria-pressed={promptExtractionSettingsOpen} onClick={() => setPromptExtractionSettingsOpen(true)}>
-                <Settings2 size={17} strokeWidth={1.8} aria-hidden="true" />
+                <IconAdjustmentsHorizontal size={17} strokeWidth={1.8} aria-hidden="true" />
               </button>
               {canDock ? (
                 <button type="button" className={toolbarButtonClass} aria-label={dockMode ? '恢复浮动素材盒' : '吸附到右侧'} title={dockMode ? '恢复浮动' : '吸附到右侧'} disabled={!activeBounds} onClick={toggleDockMode}>
                   {dockMode === 'left' ? (
-                    <PanelLeftOpen size={17} strokeWidth={1.8} aria-hidden="true" />
+                    <IconLayoutSidebarLeftExpand size={17} strokeWidth={1.8} aria-hidden="true" />
                   ) : dockMode === 'right' ? (
-                    <PanelRightOpen size={17} strokeWidth={1.8} aria-hidden="true" />
+                    <IconLayoutSidebarRightExpand size={17} strokeWidth={1.8} aria-hidden="true" />
                   ) : (
-                    <PanelRightClose size={17} strokeWidth={1.8} aria-hidden="true" />
+                    <IconLayoutSidebarRightCollapse size={17} strokeWidth={1.8} aria-hidden="true" />
                   )}
                 </button>
               ) : null}

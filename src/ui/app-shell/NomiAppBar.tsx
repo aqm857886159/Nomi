@@ -1,6 +1,6 @@
 import React from 'react'
 import { IconBrowser, IconDownload, IconPlugConnected } from '@tabler/icons-react'
-import { Box as LucideBox } from 'lucide-react'
+import { IconBox } from '@tabler/icons-react'
 import type { WorkspaceMode } from '../../workbench/workbenchStore'
 import { NomiBrand, NomiStepper, WorkbenchButton } from '../../design'
 import { OnboardingChecklist } from '../../workbench/onboarding/OnboardingChecklist'
@@ -18,7 +18,7 @@ function AssetCountBadge({ count }: { count: number }): JSX.Element | null {
   if (count <= 0) return null
   return (
     <span
-      className="ml-1 inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-pill bg-nomi-accent-soft px-1.5 text-micro font-semibold leading-none text-nomi-accent"
+      className="inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-pill bg-nomi-accent-soft px-1.5 text-micro font-semibold leading-none text-nomi-accent max-[1400px]:hidden"
       aria-label={`${count} 个素材`}
     >
       {count > 99 ? '99+' : count}
@@ -238,15 +238,18 @@ export default function NomiAppBar({
               <span className={cn('nomi-appbar__action-text', 'max-[1400px]:hidden')}>浏览器</span>
             </WorkbenchButton>
             <div className="relative">
+              {/* 顶栏操作按钮统一解剖：图标 15/1.7 + 文字 + （可选）计数徽章，窄屏一起收成 30px 方块——
+                  别再回到孤图标（用户 2026-07-12 抓过「有的有字有的没字」）。 */}
               <WorkbenchButton
                 className={cn(
                   'nomi-appbar__ghost',
                   'app-no-drag',
-                  'inline-flex h-[30px] items-center justify-center gap-0 px-1.5',
+                  'inline-flex items-center gap-1.5 h-[30px] px-2.5',
                   'border border-transparent rounded-[var(--nomi-radius-sm)]',
-                  'bg-transparent text-[var(--nomi-ink-80)]',
+                  'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
                   'transition-[background,color] duration-[var(--nomi-transition-fast)]',
                   'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+                  'max-[1400px]:w-[30px] max-[1400px]:h-[30px] max-[1400px]:justify-center max-[1400px]:p-0',
                 )}
                 aria-label="打开素材盒"
                 title="素材盒"
@@ -254,7 +257,8 @@ export default function NomiAppBar({
                   dispatchContextualAssetPopoverOpen(true, getGlobalAssetPopoverAnchorRect(event.currentTarget))
                 }}
               >
-                <LucideBox size={15} strokeWidth={1.8} aria-hidden="true" />
+                <IconBox size={15} stroke={1.7} aria-hidden="true" />
+                <span className={cn('nomi-appbar__action-text', 'max-[1400px]:hidden')}>素材盒</span>
                 <AssetCountBadge count={assetCount} />
               </WorkbenchButton>
             </div>

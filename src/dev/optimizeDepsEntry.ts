@@ -17,7 +17,6 @@ import '@tiptap/starter-kit';
 import '@tiptap/suggestion';
 import 'clsx';
 import 'framer-motion';
-import 'lucide-react';
 import 'react-markdown';
 import '@photo-sphere-viewer/core';
 import 'tailwind-merge';
