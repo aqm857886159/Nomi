@@ -61,7 +61,8 @@
     "postinstall": "node ./scripts/install-git-hooks.cjs",
     "test:e2e": "node tests/ux/smoke.e2e.mjs",
     "test:site": "node tests/ux/marketing-quickstart.static.mjs",
-    "test:journeys": "node ./scripts/eval-journey.mjs --ci"
+    "test:journeys": "node ./scripts/eval-journey.mjs --ci",
+    "kill:zombies": "pkill -f \"$PWD/node_modules/.pnpm/electron\" || true"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",

@@ -110,5 +110,11 @@ try {
   log(errors.length ? `console errors: ${errors.length}\n${errors.slice(0, 5).join('\n')}` : 'no console errors')
   if (Object.values(pass).some((v) => !v)) process.exitCode = 1
 } finally {
-  await app.close().catch(() => {})
+  // close 挂死硬兜底（同 reference-capture.walk）：竞速 8s 后 SIGKILL，杜绝僵尸 Electron。
+  const electronProc = app.process()
+  await Promise.race([
+    app.close().catch(() => {}),
+    new Promise((resolve) => setTimeout(resolve, 8000)),
+  ])
+  try { electronProc?.kill('SIGKILL') } catch { /* 已退出 */ }
 }

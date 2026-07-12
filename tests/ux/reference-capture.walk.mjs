@@ -334,7 +334,16 @@ try {
 } catch (error) {
   console.error(`\n捕捞面收敛走查异常: ${error?.stack || error}`)
 } finally {
-  if (app) await app.close().catch(() => undefined)
+  // close 挂死硬兜底：overlay/子 view 悬着时 app.close() 偶发永不返回；外层 shell timeout
+  // 只杀 node、会孤儿整棵 Electron 树（僵尸一堆的根因）——竞速 8s 后直接 SIGKILL 根进程。
+  if (app) {
+    const electronProc = app.process()
+    await Promise.race([
+      app.close().catch(() => undefined),
+      new Promise((resolve) => setTimeout(resolve, 8000)),
+    ])
+    try { electronProc?.kill('SIGKILL') } catch { /* 已退出 */ }
+  }
   await new Promise((resolve) => server.close(resolve))
 }
 if (!allPassed) process.exitCode = 1
