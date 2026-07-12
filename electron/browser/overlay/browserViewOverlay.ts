@@ -318,7 +318,10 @@ function ensureBrowserAssetOverlay(owner: BrowserWindow): BrowserAssetOverlayRec
     skipTaskbar: true,
     title: "Nomi Browser Asset Overlay",
     webPreferences: {
-      preload: path.join(__dirname, "../preload.js"),
+      // 本文件编译到 dist-electron/browser/overlay/，preload 在 dist-electron 根——
+      // 差一级 ../ 会让 overlay 无 preload、window.nomiDesktop 为空，素材盒捕捞导入整链静默死
+      //（R13 捕捞走查抓出的 PR#36 构建态回归）。
+      preload: path.join(__dirname, "../../preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
