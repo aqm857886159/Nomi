@@ -1,5 +1,5 @@
 // R13 走查（参考捕捞窗 M0）：素材库「网页捕捞」→ 捕捞窗 → 地址栏导航本地测试页 →
-// 捕捞图片（e2e 钩子=与右键菜单同一产路）→ 素材落项目 imported 桶且无 .meta sidecar →
+// 捕捞图片（e2e 钩子=与右键菜单同一产路）→ 素材落项目 imported 桶且 sidecar originalUrl 恒 null →
 // 主窗素材库回流刷新。用法: node tests/ux/reference-capture.walk.mjs
 // 人眼判据（截图在 tests/ux/shots/reference-capture/）：
 //   ① 素材库 header 出现「网页捕捞」按钮
@@ -223,9 +223,18 @@ if (navigated) {
   const files = fs.existsSync(importedDir)
     ? fs.readdirSync(importedDir, { recursive: true }).map(String).filter((f) => !f.endsWith('.DS_Store'))
     : []
-  capturedFile = files.find((f) => f.includes('hero-ref')) || ''
+  capturedFile = files.find((f) => f.includes('hero-ref') && !f.endsWith('.meta')) || ''
   captured = !!capturedFile
-  sidecarLeak = files.some((f) => f.endsWith('.meta'))
+  // 不变量=捕捞素材绝不进 48h 信任窗：sidecar 允许存在（统一素材存储写溯源元数据），
+  // 但 originalUrl 必须为 null/缺失——localAssetFile 只信 http(s) 的 originalUrl。
+  for (const f of files.filter((x) => x.endsWith('.meta'))) {
+    try {
+      const sidecar = JSON.parse(fs.readFileSync(path.join(importedDir, f), 'utf8'))
+      if (typeof sidecar.originalUrl === 'string' && /^https?:\/\//i.test(sidecar.originalUrl)) sidecarLeak = true
+    } catch {
+      sidecarLeak = true
+    }
+  }
   await snapCaptureWin(app, 'after-capture-toast')
 }
 
@@ -249,7 +258,7 @@ console.log(`  ① 素材库有「网页捕捞」入口:   ${entryPresent ? 'PAS
 console.log(`  ② 捕捞窗打开(工具条就位):     ${chromeOk ? 'PASS' : 'FAIL'}`)
 console.log(`  ③ 地址栏导航本地页:           ${navigated ? 'PASS' : 'FAIL'}`)
 console.log(`  ④ 图片捕捞落 imported 桶:     ${captured ? `PASS (${capturedFile})` : 'FAIL'}`)
-console.log(`     无 .meta sidecar(不进信任窗): ${captured && !sidecarLeak ? 'PASS' : 'FAIL'}`)
+console.log(`     sidecar originalUrl 恒 null(不进信任窗): ${captured && !sidecarLeak ? 'PASS' : 'FAIL'}`)
 console.log(`  ⑤ 权限 deny-by-default:       ${permission.startsWith('denied') ? `PASS (${permission})` : `FAIL (${permission})`}`)
 console.log(`  ⑥ 主窗素材库回流可见:         ${mainSeesAsset ? 'PASS' : 'FAIL'}`)
 console.log(`  console errors: ${consoleErrors.length}`)

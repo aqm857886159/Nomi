@@ -8,7 +8,9 @@ import {
   IconLayoutSidebarLeftExpand,
   IconPlus,
   IconTags,
+  IconWorld,
 } from '@tabler/icons-react'
+import { getDesktopBridge } from '../../desktop/bridge'
 import { cn } from '../../utils/cn'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../design'
 import { type ProjectCategory } from '../project/projectCategories'
@@ -244,6 +246,27 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
                   <h2 className="m-0 min-w-0 flex-1 truncate text-body-sm font-bold leading-none text-nomi-ink">
                     {panelTitle}
                   </h2>
+                  {/* M0 捕捞窗入口原本住 AssetLibraryPanel 自己的 header——侧栏 showHeader={false}
+                      画瘦头后必须在这里补位，否则整个功能不可达（PR#36 合入走查抓出的回归）。 */}
+                  {tab === 'asset-library' ? (
+                    <button
+                      type="button"
+                      className={cn(
+                        'mr-1 inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-nomi-line bg-nomi-paper px-3',
+                        'cursor-pointer text-caption font-semibold text-nomi-ink transition-[background] duration-[var(--nomi-transition-fast)]',
+                        'hover:bg-nomi-ink-05 disabled:cursor-not-allowed disabled:opacity-40',
+                      )}
+                      disabled={!projectId}
+                      aria-label="网页捕捞"
+                      title="打开捕捞窗：右键网页图片即可存进素材库"
+                      onClick={() => {
+                        if (projectId) void getDesktopBridge()?.browserCapture?.open({ projectId })
+                      }}
+                    >
+                      <IconWorld size={13} stroke={2} aria-hidden="true" />
+                      网页捕捞
+                    </button>
+                  ) : null}
                   {tab === 'categories' ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
