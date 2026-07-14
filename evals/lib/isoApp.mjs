@@ -41,12 +41,23 @@ export function prepareIsolation(isoDir, { requireCatalog = true } = {}) {
   };
 }
 
+export function isolatedAppEnv(iso, baseEnv = process.env) {
+  return {
+    ...baseEnv,
+    NOMI_E2E: "1",
+    NOMI_E2E_ALLOW_MULTI_INSTANCE: "1",
+    NOMI_ELECTRON_USER_DATA_DIR: iso.chromiumDir,
+    NOMI_PROJECTS_DIR: iso.projectsDir,
+    NOMI_SETTINGS_DIR: iso.settingsDir,
+  };
+}
+
 export async function launchIsolatedApp(repoRoot, iso) {
   const app = await electron.launch({
     executablePath: require("electron"),
     args: [".", `--user-data-dir=${iso.chromiumDir}`],
     cwd: repoRoot,
-    env: { ...process.env, NOMI_PROJECTS_DIR: iso.projectsDir, NOMI_SETTINGS_DIR: iso.settingsDir },
+    env: isolatedAppEnv(iso),
   });
   const win = await app.firstWindow();
   await win.waitForLoadState("domcontentloaded");
