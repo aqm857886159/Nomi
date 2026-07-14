@@ -8,8 +8,11 @@
 // 用法:pnpm run build && node tests/ux/design-fidelity.e2e.mjs
 import { _electron as electron } from "playwright";
 import path from "node:path";
+import os from "node:os";
+import { mkdtempSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { isolatedElectronLaunchOptions } from "./helpers/electronFixture.mjs";
 
 const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -22,7 +25,8 @@ function assert(cond, label, detail) {
 }
 const px = (v) => `${Math.round(parseFloat(v))}px`;
 
-const app = await electron.launch({ executablePath: require("electron"), args: ["."], cwd: repoRoot, env: { ...process.env } });
+const launch = isolatedElectronLaunchOptions(repoRoot, mkdtempSync(path.join(os.tmpdir(), "nomi-design-fidelity-")));
+const app = await electron.launch({ executablePath: require("electron"), args: launch.args, cwd: launch.cwd, env: launch.env });
 const win = await app.firstWindow();
 await win.waitForLoadState("domcontentloaded");
 await win.waitForTimeout(1500);
@@ -148,6 +152,7 @@ try {
       cardPad: g(card, "paddingTop"),
       cardGap: g(card, "rowGap"),
       cardBorder: g(card, "borderTopColor"),
+      tokenLine: getComputedStyle(document.documentElement).getPropertyValue("--nomi-line").trim(),
       cardShadow: g(card, "boxShadow"),
       sendRadius: g(send, "borderTopLeftRadius"),
       // v3：参数横排内联（取代旧的设置弹层）——统计底栏项数 + 行数（同 top = 一行），验证拉宽不换行、全可见。
@@ -172,14 +177,14 @@ try {
   assert(px(m.promptFont) === "13px", "prompt 13px", m.promptFont);
   assert(Math.abs(parseFloat(m.promptLH) - 22.1) < 1.5, "prompt 行高 ~1.7(22px)", m.promptLH);
 
-  console.log("\n── composer 卡(规范:padding12 / gap11 / border-line / 非 lg 阴影) ──");
+  console.log("\n── composer 卡(当前 token:padding12 / gap10 / border-line) ──");
   assert(px(m.cardPad) === "12px", "卡 padding 12px", m.cardPad);
-  assert(px(m.cardGap) === "11px", "卡 gap 11px", m.cardGap);
-  assert(m.cardBorder.includes("0.91"), "卡边框 = nomi-line(0.91)", m.cardBorder);
+  assert(px(m.cardGap) === "10px", "卡 gap 10px（gap-2.5）", m.cardGap);
+  assert(m.cardBorder === m.tokenLine, "卡边框使用当前 nomi-line token", `${m.cardBorder}/${m.tokenLine}`);
 
   console.log("\n── 分隔线 / 底栏结构(用户点名问题) ──");
   assert(m.dividerPresent, "参考区与描述之间有分隔线(h-px)", "MISSING");
-  assert(m.badgeInModelChip, "模板徽标嵌在模型芯片内(非独立夹在中间)", `badgeInModelChip=${m.badgeInModelChip}`);
+  assert(!m.badgeInModelChip, "模板徽标按当前主次参数设计独立于模型芯片", `badgeInModelChip=${m.badgeInModelChip}`);
   assert(px(m.sendRadius) === "9999px" || parseFloat(m.sendRadius) >= 999, "send 按钮圆形(pill)", m.sendRadius);
   assert(m.paramItems >= 1, "参数横排内联（模型芯片 + 标量参数 pill）", `paramItems=${m.paramItems}`);
   assert(m.paramRows === 1, "参数全在一行（拉宽不换行，不再藏进设置弹层）", `paramRows=${m.paramRows}`);
@@ -277,13 +282,13 @@ try {
 
   // ── 本会话回归点 #C(生成区)：助手默认折叠；展开后 aside 是 flex 非 grid；模型选择器显具体名 ──
   const collapsed = await win.evaluate(() => {
-    const launcherEl = document.querySelector('[aria-label="生成区 AI 启动器"]');
-    const btn = document.querySelector('.generation-canvas-v2-assistant__launcher');
+    const launcherEl = Array.from(document.querySelectorAll('[aria-label="生成区 AI 启动器"]')).find((el) => el.getClientRects().length > 0);
+    const btn = launcherEl?.querySelector('.generation-canvas-v2-assistant__launcher');
     const r = btn ? btn.getBoundingClientRect() : null;
     const radius = btn ? parseFloat(getComputedStyle(btn).borderTopLeftRadius) : 0;
     return {
       launcher: Boolean(launcherEl),
-      asideMounted: Boolean(document.querySelector('[aria-label="生成区 AI 助手"]')),
+      asideMounted: Array.from(document.querySelectorAll('[aria-label="生成区 AI 助手"]')).some((el) => el.getClientRects().length > 0),
       // 收起胶囊应为整圆角（半径 ≥ 半高）；这锁住 cn() twMerge 让 rounded-full 压过组件基类
       // rounded-workbench-control 的修复——否则创作/生成胶囊外圆角会不一致。
       launcherFullPill: r ? radius >= r.height / 2 - 1 : false,
@@ -293,8 +298,8 @@ try {
   assert(collapsed.launcher && !collapsed.asideMounted, "生成助手默认折叠（启动器在、aside 未挂载）", JSON.stringify(collapsed));
   assert(collapsed.launcherFullPill, "收起胶囊为整圆角 rounded-full（cn twMerge 压过基类圆角）", `fullPill=${collapsed.launcherFullPill}`);
 
-  await win.locator('[aria-label="生成区 AI 启动器"]').first().click().catch(() => {});
-  await win.waitForTimeout(600);
+  await win.locator('[aria-label="生成区 AI 启动器"]:visible button').click();
+  await win.waitForSelector('[aria-label="生成区 AI 助手"]', { state: "visible", timeout: 3_000 });
   const asst = await win.evaluate(() => {
     const aside = document.querySelector('[aria-label="生成区 AI 助手"]');
     const picker = document.querySelector('[aria-label="助手模型"]');

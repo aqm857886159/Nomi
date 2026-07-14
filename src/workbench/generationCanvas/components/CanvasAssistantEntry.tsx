@@ -73,7 +73,6 @@ export default function CanvasAssistantEntry({
   return (
     <React.Suspense fallback={<CanvasAssistantLauncher onOpen={openPanel} />}>
       <CanvasAssistantPanel
-        defaultCollapsed={defaultCollapsed}
         onCollapsedChange={onCollapsedChange}
       />
     </React.Suspense>

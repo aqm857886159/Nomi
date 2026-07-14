@@ -1,7 +1,7 @@
 // 冷启动 J3 走查（全新安装模拟）——隔离 userData + 空 NOMI_PROJECTS_DIR 启动，验证：
 //   CS1：全新安装直接落标准项目库页（空库不再有介绍 hero），动作卡片可见、能新建项目。
-//   CS2：零文本模型时，缺模型状态条 [data-model-banner] 升权承载模型接入路径，
-//        点「接入文本模型」能打开模型接入面板（不是死路）。
+//   CS2：模型目录有可用文本模型时显示常态弱入口；确实为零时，缺模型状态条
+//        [data-model-banner] 升权承载恢复路径。两种合法初始状态都不能形成死路。
 // 空库 hero（「30 秒体验」主 CTA）已随空库介绍首屏一起删除，模型接入路径改由状态条承载。
 //
 // 用法：node tests/ux/cold-start.e2e.mjs
@@ -61,7 +61,7 @@ try {
   });
   console.log(`\n── 冷启动初始状态 ──\n  文本模型数=${initial.textModels}，项目卡数=${initial.projectCards}`);
   check("全新安装：项目库为空（0 张项目卡）", initial.projectCards === 0, `projectCards=${initial.projectCards}`);
-  check("全新安装：零文本模型预置", initial.textModels === 0, `textModels=${initial.textModels}`);
+  check("全新安装：模型目录查询成功", initial.textModels >= 0, `textModels=${initial.textModels}`);
 
   // CS1：空库直接落标准项目库页——动作卡片「新建空白项目 / 打开已有文件夹」可见可点。
   const libraryProbe = await win.evaluate(() => {
@@ -82,8 +82,8 @@ try {
   check("可见「打开已有文件夹」入口", libraryProbe.hasOpenFolder, `titles=${JSON.stringify(libraryProbe.titles)}`);
   check("旧空库介绍 hero / 「30 秒体验」CTA 已删除（不再渲染）", libraryProbe.heroGone);
 
-  // CS2：零文本模型 → 缺模型状态条升权承载模型接入路径。
-  // hasTextModel 异步查询，状态条在确证缺失后才出现 → 给它一点时间落地。
+  // CS2：目录状态决定入口形态。最新版可预置文本模型，不能再硬编码“新安装必为零”。
+  // hasTextModel 异步查询完成后，有模型显示弱入口；无模型显示升权恢复条。
   const banner = win.locator("[data-model-banner]").first();
   await banner.waitFor({ state: "visible", timeout: 4000 }).catch(() => {});
   const bannerProbe = await win.evaluate(() => {
@@ -92,11 +92,13 @@ try {
     const ctaBtn = Array.from(el.querySelectorAll("button")).find((b) => /接入文本模型/.test(b.textContent || ""));
     return { shown: true, hasCta: Boolean(ctaBtn) };
   });
-  console.log("\n── CS2：零文本模型时模型接入路径（状态条承载）──");
-  check("缺模型状态条 [data-model-banner] 升权显示", bannerProbe.shown);
-  check("状态条带「接入文本模型」按钮", bannerProbe.hasCta);
+  const normalEntryVisible = await win.locator('[aria-label="模型接入"]:visible').count() > 0;
+  console.log("\n── CS2：模型目录状态与接入入口互斥 ──");
+  check("模型入口与目录状态一致", initial.textModels > 0 ? normalEntryVisible && !bannerProbe.shown : bannerProbe.shown && !normalEntryVisible,
+    `models=${initial.textModels}, normal=${normalEntryVisible}, banner=${bannerProbe.shown}`);
+  if (initial.textModels === 0) check("状态条带「接入文本模型」按钮", bannerProbe.hasCta);
 
-  if (bannerProbe.shown && bannerProbe.hasCta) {
+  if (initial.textModels === 0 && bannerProbe.shown && bannerProbe.hasCta) {
     // 点状态条「接入文本模型」→ 应打开模型接入面板，让用户当场能填 key 往下走（不死路）。
     await win.locator("[data-model-banner] button", { hasText: "接入文本模型" }).first().click().catch(() => {});
     await win.waitForTimeout(1200);
@@ -105,6 +107,13 @@ try {
       Boolean(document.querySelector('[aria-label="模型设置"], [aria-label="模型接入"]')),
     );
     check("点「接入文本模型」打开模型接入面板（不死路）", onboardingOpen, `onboardingOpen=${onboardingOpen}`);
+  } else if (initial.textModels > 0) {
+    await win.locator('[aria-label="模型接入"]:visible').click();
+    await win.waitForTimeout(800);
+    const onboardingOpen = await win.evaluate(() =>
+      Boolean(document.querySelector('[aria-label="模型设置"], [aria-label="模型接入"]')),
+    );
+    check("常态「模型接入」入口可打开目录（不死路）", onboardingOpen, `onboardingOpen=${onboardingOpen}`);
   }
 
   console.log(`\n冷启动 J3：${passed} 项达标，${findings.length} 项断路/缺口`);
