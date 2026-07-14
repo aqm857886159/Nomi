@@ -321,12 +321,12 @@ export default {
     },
     {
       // 词表外：希区柯克眩晕变焦（dolly zoom）→ 期望 customMove 非空、且 NOT 被硬塞 push_in。
-      id: "out-of-vocab-dolly-zoom",
-      title: "词表外走 customMove 逃生口（不硬塞最近 enum）",
+      id: "out-of-vocab-whip-pan",
+      title: "词表外甩镜走 customMove 逃生口（不硬塞最近 enum）",
       async act(ctx) {
         ctx._outOfVocabBaseline = countCameraMoveProposals(ctx.events());
         const baselineTurnCount = countFinishedTurns(ctx.events());
-        await sendAgentMessage(ctx.win, "给它来个希区柯克式的眩晕变焦（dolly zoom）。");
+        await sendAgentMessage(ctx.win, "给它来个快速甩镜（whip pan），从女孩猛甩到窗外街景。");
         await approveLoop(ctx.win, ctx.projectDir, { timeoutMs: 180_000, baselineTurnCount, approveSet: new Set() });
       },
       verify(ctx) {

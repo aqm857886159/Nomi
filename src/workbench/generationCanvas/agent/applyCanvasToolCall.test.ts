@@ -300,7 +300,7 @@ describe('applyCanvasToolCall create_camera_move 执行', () => {
 
     const res = (await applyCanvasToolCall('create_camera_move', {
       shotClientId: 'v9',
-      customMove: '希区柯克式眩晕变焦（dolly zoom）',
+      customMove: '快速甩镜到窗外街景（whip pan）',
     })) as { cameraMoveNodeId: string | null; targetNodeId: string | null; degraded?: boolean }
 
     expect(res.cameraMoveNodeId).toBeNull() // 不渲、不建 scene3d 节点
@@ -308,14 +308,14 @@ describe('applyCanvasToolCall create_camera_move 执行', () => {
     const state = useGenerationCanvasStore.getState()
     expect(state.nodes.filter((n) => n.kind === 'scene3d')).toHaveLength(0)
     const target = state.nodes.find((n) => n.id === targetId)
-    expect(target?.prompt).toContain('希区柯克式眩晕变焦')
+    expect(target?.prompt).toContain('快速甩镜')
     expect(target?.prompt).toContain('女孩站在窗边的特写') // 不覆盖原 prompt，追加
-    expect((target?.meta as Record<string, unknown>)?.cameraMovePromptApplied).toBe('希区柯克式眩晕变焦（dolly zoom）')
+    expect((target?.meta as Record<string, unknown>)?.cameraMovePromptApplied).toBe('快速甩镜到窗外街景（whip pan）')
 
     // 幂等：同指令再来一次不重复追加
-    await applyCanvasToolCall('create_camera_move', { shotClientId: 'v9', customMove: '希区柯克式眩晕变焦（dolly zoom）' })
+    await applyCanvasToolCall('create_camera_move', { shotClientId: 'v9', customMove: '快速甩镜到窗外街景（whip pan）' })
     const after = useGenerationCanvasStore.getState().nodes.find((n) => n.id === targetId)
-    expect((after?.prompt.match(/希区柯克式眩晕变焦/g) || []).length).toBe(1)
+    expect((after?.prompt.match(/快速甩镜/g) || []).length).toBe(1)
   })
 
   it('move 与 customMove 都缺 → 抛错（不静默兜 push_in 硬塞运镜）', async () => {
@@ -324,6 +324,15 @@ describe('applyCanvasToolCall create_camera_move 执行', () => {
     })) as { clientIdToNodeId: Record<string, string> }
     void created
     await expect(applyCanvasToolCall('create_camera_move', { shotClientId: 'v8' })).rejects.toThrow()
+  })
+
+  it('move 与 customMove 同时存在 → 拒绝歧义请求（不静默优先错误 enum）', async () => {
+    await applyCanvasToolCall('create_canvas_nodes', {
+      nodes: [{ clientId: 'v10', kind: 'video', title: '镜头', prompt: 'p' }],
+    })
+    await expect(applyCanvasToolCall('create_camera_move', {
+      shotClientId: 'v10', move: 'push_in', customMove: '快速甩镜',
+    })).rejects.toThrow(/互斥/)
   })
 })
 
