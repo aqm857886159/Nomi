@@ -2,8 +2,14 @@ import { describe, expect, test } from "vitest";
 import { JOURNEYS } from "./index.mjs";
 
 describe("journey registry contracts", () => {
-  test("contains the current zero-cost baseline journeys", () => {
-    expect(JOURNEYS.map((journey) => journey.id)).toEqual(expect.arrayContaining(["j1-promo", "j3-first-success", "j5-edit-export"]));
+  test("contains all five standard product journeys", () => {
+    expect(JOURNEYS.map((journey) => journey.id)).toEqual(expect.arrayContaining([
+      "j1-promo",
+      "j2-story-styling",
+      "j3-first-success",
+      "j4-reference",
+      "j5-edit-export",
+    ]));
   });
 
   test("every journey has executable milestones and a success criterion", () => {
