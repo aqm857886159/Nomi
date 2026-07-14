@@ -7,14 +7,11 @@
 // (在改动前的原始 main 上同样 0/2),留着只会误报回归。待补:按当前流程重写零额度 journey。
 import j1 from "./j1-promo.mjs";
 import j6 from "./j6-camera-move.mjs";
+import { selectJourneys } from "../../scripts/eval-journey-selection.mjs";
 
 // J1(宣传片)/J6(AI 运镜)= agent 驱动(needsAgent)。零额度 CI journey 暂缺,按当前 UI 流程补。
 export const JOURNEYS = [j1, j6];
 
 export function getJourneys({ ids = null, ci = false, smoke = false } = {}) {
-  let list = JOURNEYS;
-  if (ci) list = list.filter((j) => !j.needsAgent); // CI 只跑零额度
-  if (smoke) list = list.filter((j) => j.smoke || !j.needsAgent);
-  if (ids && ids.size) list = list.filter((j) => ids.has(j.id));
-  return list;
+  return selectJourneys(JOURNEYS, { ids, ci, smoke }).selected;
 }
