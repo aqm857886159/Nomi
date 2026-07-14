@@ -12,6 +12,10 @@ describe("system test profiles", () => {
 
   test("release contains local, real-generation, and repository gates", () => {
     expect(expandProfile("release").map((stage) => stage.id)).toEqual(expect.arrayContaining(["gates", "e2e", "journeys-all", "real-generation"]));
+    expect(expandProfile("release").find((stage) => stage.id === "real-generation")).toMatchObject({
+      args: ["tests/ux/camera-move-render-e2e.mjs"],
+      env: { NOMI_SPEND_OK: "1" },
+    });
   });
 
   test("any failed required stage makes the run fail", () => {
