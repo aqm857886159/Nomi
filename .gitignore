@@ -55,6 +55,7 @@ tests/ux/shots/
 tests/ux/__shots__/
 tests/ux/_stagingshot/
 tests/ux/_marketing/
+tests/system/runs/
 
 # 3D 预设动作校准台的本地输出（pose-lab）
 .pose-lab/
