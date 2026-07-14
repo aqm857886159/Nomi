@@ -62,7 +62,11 @@
     "test:e2e": "node tests/ux/smoke.e2e.mjs",
     "test:site": "node tests/ux/marketing-quickstart.static.mjs",
     "test:journeys": "node ./scripts/eval-journey.mjs --ci",
-    "kill:zombies": "pkill -f \"$PWD/node_modules/.pnpm/electron\" || true"
+    "kill:zombies": "pkill -f \"$PWD/node_modules/.pnpm/electron\" || true",
+    "test:system": "node scripts/test-system.mjs",
+    "test:system:ci": "node scripts/test-system.mjs ci",
+    "test:system:full": "node scripts/test-system.mjs full-local",
+    "test:system:release": "node scripts/test-system.mjs release"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",
