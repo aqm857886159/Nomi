@@ -376,6 +376,9 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
     if (!parsed.move && !parsed.customMove) {
       throw new Error('create_camera_move 需要 move（词表内精确运镜）或 customMove（词表外自由描述）二选一')
     }
+    if (parsed.move && parsed.customMove) {
+      throw new Error('create_camera_move 的 move 与 customMove 互斥：词表内用 move，词表外只用 customMove')
+    }
 
     // 词表外逃生口：只有 customMove → 不渲运镜小片，把运镜意图当电影术语指令追加进
     // 目标「视频节点」prompt（i2v 文字通道，模型自己解；精度略低但不硬塞错的 enum）。
