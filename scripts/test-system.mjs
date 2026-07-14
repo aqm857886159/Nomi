@@ -27,7 +27,7 @@ export function runProfile(profile, { root = path.resolve(import.meta.dirname, "
   const stages = expandProfile(profile);
   for (const stage of stages) {
     const started = Date.now();
-    const result = spawnSync(stage.command, stage.args, { cwd: root, env, stdio: "inherit" });
+    const result = spawnSync(stage.command, stage.args, { cwd: root, env: { ...env, ...stage.env }, stdio: "inherit" });
     stage.durationMs = Date.now() - started;
     stage.exitCode = result.status ?? 1;
     stage.status = stage.exitCode === 0 ? "passed" : "failed";

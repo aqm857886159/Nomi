@@ -297,11 +297,16 @@ export default {
       // 词表内：缓慢推近 → 期望 move=push_in，customMove 留空（走 enum 精确路）。
       id: "in-vocab-push-in",
       title: "词表内运镜走 enum 精确路（推近→push_in）",
-      say: "给画布上那个视频镜头加一个缓慢推近的运镜。",
+      async act(ctx) {
+        ctx._inVocabBaseline = countCameraMoveProposals(ctx.events());
+        const baselineTurnCount = countFinishedTurns(ctx.events());
+        await sendAgentMessage(ctx.win, "给画布上那个视频镜头加一个缓慢推近的运镜。");
+        await approveLoop(ctx.win, ctx.projectDir, { timeoutMs: 180_000, baselineTurnCount, approveSet: new Set() });
+      },
       verify(ctx) {
         // approveUntilTurnEnds 已在确认卡上拒绝 create_camera_move（写盘工具不在白名单）= 捕获后拒。
         // 取证只读「本旅程出现过的最后一条」camera_move 提议（前面里程碑都没触发运镜，故等价于本轮的）。
-        const args = newCameraMoveArgs(ctx.events(), 0);
+        const args = newCameraMoveArgs(ctx.events(), ctx._inVocabBaseline ?? 0);
         const called = args !== null;
         const move = called ? args.move ?? null : null;
         const customMove = called ? args.customMove ?? null : null;
@@ -318,12 +323,16 @@ export default {
       // 词表外：希区柯克眩晕变焦（dolly zoom）→ 期望 customMove 非空、且 NOT 被硬塞 push_in。
       id: "out-of-vocab-dolly-zoom",
       title: "词表外走 customMove 逃生口（不硬塞最近 enum）",
-      say: "给它来个希区柯克式的眩晕变焦（dolly zoom）。",
+      async act(ctx) {
+        ctx._outOfVocabBaseline = countCameraMoveProposals(ctx.events());
+        const baselineTurnCount = countFinishedTurns(ctx.events());
+        await sendAgentMessage(ctx.win, "给它来个希区柯克式的眩晕变焦（dolly zoom）。");
+        await approveLoop(ctx.win, ctx.projectDir, { timeoutMs: 180_000, baselineTurnCount, approveSet: new Set() });
+      },
       verify(ctx) {
-        // 本里程碑之前已有 1 条 in-vocab 提议；只认「新增的那条」。
         const events = ctx.events();
         const all = events.filter((e) => e.type === "agent.tool.proposed" && e.payload?.toolName === "create_camera_move");
-        const args = all.length >= 2 ? all[all.length - 1].payload.args ?? {} : null;
+        const args = newCameraMoveArgs(events, ctx._outOfVocabBaseline ?? 0);
         const called = args !== null;
         const move = called ? args.move ?? null : null;
         const customMove = called ? args.customMove ?? null : null;
