@@ -17,8 +17,10 @@
 export type ModelQuirks = {
   /** Required fixed temperature value (e.g. some reasoning models require exactly 1). */
   requireTemperature?: number;
-  /** Default max_tokens if caller didn't set one (some providers default too low). */
-  defaultMaxTokens?: number;
+  // 注意：这里**没有** defaultMaxTokens——单轮输出上限是模型自身属性（4k~64k+ 差异巨大，且多数
+  // 服务商对超限值直接 400 不 clamp），不由代码编造。旧 fallback 注入的 max_tokens:4096 曾把
+  // 拆镜头这类「单发整份大 JSON」的轮次拦腰截断（2026-07-15 Mimo/Deepseek 真实事故，根因见
+  // agentError.ts）。需要上限时走目录 meta.maxOutputTokens（用户数据）→ agentChatV2 透传。
   /** Extra body fields to merge into every request (e.g. `enable_thinking: false`). */
   extraBody?: Record<string, unknown>;
   /** Whether this model is known to truncate tool-call JSON arguments mid-stream. */
@@ -41,13 +43,11 @@ const PROFILES: ProfileEntry[] = [
     description: "OpenAI reasoning models (o1, o3) require temperature: 1",
     match: (id) => /^(o1|o3)(-|$)/i.test(id),
     requireTemperature: 1,
-    defaultMaxTokens: 8192,
     agentSuitability: "good",
   },
   {
     description: "OpenAI GPT-4o / GPT-5 family — reliable agent",
     match: (id) => /^gpt-(4o|5)/i.test(id),
-    defaultMaxTokens: 4096,
     agentSuitability: "good",
   },
 
@@ -55,7 +55,6 @@ const PROFILES: ProfileEntry[] = [
   {
     description: "Anthropic Claude — reliable agent",
     match: (id) => /^claude-/i.test(id),
-    defaultMaxTokens: 8192,
     agentSuitability: "good",
   },
 
@@ -63,7 +62,6 @@ const PROFILES: ProfileEntry[] = [
   {
     description: "Google Gemini — reliable agent",
     match: (id) => /^(gemini-|models\/gemini-)/i.test(id),
-    defaultMaxTokens: 8192,
     agentSuitability: "good",
   },
 
@@ -87,7 +85,6 @@ const PROFILES: ProfileEntry[] = [
   {
     description: "Moonshot v1 (moonshot-v1-*, kimi-latest) — unreliable tool-call JSON",
     match: (id) => /^(moonshot-v1|kimi-latest|kimi-thinking)/i.test(id),
-    defaultMaxTokens: 4096,
     unreliableToolJson: true,
     agentSuitability: "poor",
     agentNote:
@@ -96,7 +93,6 @@ const PROFILES: ProfileEntry[] = [
 ];
 
 const FALLBACK_PROFILE: ModelQuirks = {
-  defaultMaxTokens: 4096,
   agentSuitability: "acceptable",
 };
 
@@ -126,9 +122,6 @@ export function applyProfileToRequestBody(
   const next: Record<string, unknown> = { ...body };
   if (profile.requireTemperature !== undefined) {
     next.temperature = profile.requireTemperature;
-  }
-  if (profile.defaultMaxTokens !== undefined && next.max_tokens == null) {
-    next.max_tokens = profile.defaultMaxTokens;
   }
   if (profile.extraBody) {
     Object.assign(next, profile.extraBody);

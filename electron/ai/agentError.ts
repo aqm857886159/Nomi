@@ -73,12 +73,12 @@ export type EmptyReplyModelInfo = {
  */
 export function describeEmptyAgentReply(finishReason: string, info: EmptyReplyModelInfo): string {
   const reason = String(finishReason || "").toLowerCase();
-  const guide = "建议换用通用对话模型（如 GPT-4o / Claude / Gemini）来跑创作助手——它们做 Agent 工具调用更稳。";
   if (reason === "length") {
     const parts = [`模型「${info.modelLabel}」这一轮达到了输出长度上限，内容被截断，没能完整返回。`];
     if (info.agentNote) parts.push(info.agentNote);
     else if (info.agentSuitability === "poor") parts.push("该模型做 Agent 工具调用本就不可靠。");
-    parts.push(guide);
+    // 截断是确定性的——原样重试必再撞。给真动作：缩短这轮任务，或换单轮输出上限更大的模型。
+    parts.push("原样重试会再次截断。请缩短这一轮的任务量（如剧本分段拆镜头、减少镜头数），或换用单轮输出上限更大的模型（如 GPT-4o / Claude / Gemini）。");
     return parts.join("\n");
   }
   if (reason === "content-filter") {

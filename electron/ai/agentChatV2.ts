@@ -535,6 +535,9 @@ export async function runAgentChatV2(
   const messages: CoreMessage[] = [...priorMessages, userMessage];
 
   const abortController = createLinkedAbortController(hooks.abortSignal);
+  // 单轮输出上限：只认目录 meta.maxOutputTokens（用户/档案数据）——有则透传，没有就不发 max_tokens、
+  // 用服务商该模型自身的默认。代码不编造上限（旧 fallback 注 4096 曾把拆镜头整份方案 JSON 拦腰截断）。
+  const metaMaxOutputTokens = Number((model.meta as Record<string, unknown> | undefined)?.maxOutputTokens);
   // 统一循环内核（S0）：maxSteps(skill)/retry/repair/prompt 缓存全在 agentLoop 一处。
   const result = runAgentLoop(
     {
@@ -544,6 +547,7 @@ export async function runAgentChatV2(
       tools,
       isAnthropic: normalizeProviderKind(vendor.providerKind) === "anthropic",
       temperature: typeof payload.temperature === "number" ? payload.temperature : 0.7,
+      ...(Number.isFinite(metaMaxOutputTokens) && metaMaxOutputTokens > 0 ? { maxTokens: Math.floor(metaMaxOutputTokens) } : {}),
       skillKey: resolvedSkillKey,
       abortSignal: abortController.signal,
     },

@@ -40,6 +40,13 @@ describe('classifyGenerationError — 已知分类', () => {
     expect(r.hint).not.toMatch(/网络/)
   })
 
+  it('输出截断(agent length 签名)不落 unknown 的「稍等重试」误导(2026-07-15 拆镜头事故)', () => {
+    const r = classifyGenerationError('模型「Mimo v2.5」这一轮达到了输出长度上限，内容被截断，没能完整返回。')
+    expect(r.reason).toBe('输出超长被截断')
+    expect(r.hint).toMatch(/分段|减少镜头|输出上限/)
+    expect(r.hint).not.toMatch(/临时故障|稍等重试/)
+  })
+
   it('模型未开通(火山 404,真实 structured IPC 形态):不当成「服务商临时故障」,指向控制台开通', () => {
     const upstreamMsg =
       'Your account 2126482930 has not activated the model doubao-seedream-4-5-251128. Please activate the model service in the Ark Console.'
