@@ -559,19 +559,19 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
       {/* 转写模式无台词输入（音频参考即输入）——隐藏 prompt，避免误导。 */}
       {audioIsTranscribe || isTextKind ? null : (
         // w-0 min-w-full：填满卡宽但**贡献 0** 到 max-content（长 prompt 在卡宽内换行，不把卡撑爆 → 卡宽由底栏定）。
-        <div className={cn('relative flex-1 min-h-[72px] w-0 min-w-full')}>
-          <div className="min-h-[72px] overflow-auto">
-            <PromptEditor
-              className={cn('min-h-[72px]')}
-              value={node.prompt || ''}
-              placeholder={isTextKind ? TEXT_MODE_PLACEHOLDER[textGenMode] : getGenerationNodePromptPlaceholder(node.kind)}
-              editable={!node.locked}
-              onChange={(next) => updateNode(node.id, { prompt: next })}
-              onBlur={() => { void persistActiveWorkbenchProjectNow().catch(() => {}) }}
-              onReady={setPromptEditor}
-              mentionCandidates={mentionCandidates}
-            />
-          </div>
+        // overflow-y-auto 必须挂在 flex-1 自身：它被卡的 maxHeight 压缩后才有确定高度，滚动才生效；
+        // 挂在无高度上限的内层 div 上 = 形同虚设，超长 prompt 溢出盖住底栏、生成钮点不到（2026-07-15 用户截图）。
+        <div className={cn('relative flex-1 min-h-[72px] w-0 min-w-full overflow-y-auto')}>
+          <PromptEditor
+            className={cn('min-h-[72px]')}
+            value={node.prompt || ''}
+            placeholder={isTextKind ? TEXT_MODE_PLACEHOLDER[textGenMode] : getGenerationNodePromptPlaceholder(node.kind)}
+            editable={!node.locked}
+            onChange={(next) => updateNode(node.id, { prompt: next })}
+            onBlur={() => { void persistActiveWorkbenchProjectNow().catch(() => {}) }}
+            onReady={setPromptEditor}
+            mentionCandidates={mentionCandidates}
+          />
         </div>
       )}
       {/* 底栏铺满卡宽（w-full）：生成钮 ml-auto 永远贴右。底栏恒单行——参数已主次分层（最常调的内联、

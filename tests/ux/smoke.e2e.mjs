@@ -83,6 +83,49 @@ try {
   }
   assert(/projectId=/.test(win.url()), "工作台 URL 含 projectId");
 
+  // 4) 生成画布 composer：超长提示词必须在编辑区内部滚动、底栏生成钮永远可点
+  //（回归 2026-07-15：滚动容器无高度上限 → 长 prompt 溢出盖住底栏，提交钮点不到）。
+  await win.getByRole("button", { name: "生成", exact: false }).first().click();
+  await win.waitForTimeout(800);
+  await win.locator('button[aria-label="添加图片节点"]').first().click();
+  const composer = win.locator(".generation-canvas-v2-node__composer-card").first();
+  await composer.waitFor({ timeout: 5000 });
+  const longPrompt = Array.from({ length: 14 }, (_, i) => `第${i + 1}段：超长提示词溢出回归压测，逐行填满编辑区直到超过卡片高度上限，验证底栏不被盖住。`).join("\n");
+  const promptInput = composer.locator(".generation-canvas-v2-node__prompt-input").first();
+  await promptInput.click();
+  await promptInput.fill(longPrompt);
+  await win.waitForTimeout(500);
+  // 画布平移：把 composer 拉进「AppBar 之下、窗口底之上」的可视带（节点落点随机，卡可能伸出窗口
+  // → elementFromPoint 打在视口外恒 null，误报被挡）。wheel 落在远离卡片的空白区。
+  for (let i = 0; i < 6; i++) {
+    const box = await composer.boundingBox();
+    if (!box) break;
+    const vp = await win.evaluate(() => ({
+      w: window.innerWidth,
+      h: window.innerHeight,
+      appbarBottom: document.querySelector(".nomi-appbar")?.getBoundingClientRect().bottom ?? 0,
+    }));
+    let dy = 0;
+    if (box.y < vp.appbarBottom + 8) dy = box.y - (vp.appbarBottom + 8);
+    else if (box.y + box.height > vp.h - 16) dy = Math.min(box.y + box.height - (vp.h - 16), box.y - (vp.appbarBottom + 8));
+    if (Math.abs(dy) < 4) break;
+    await win.mouse.move(vp.w - 80, Math.max(vp.appbarBottom + 40, 200));
+    await win.mouse.wheel(0, dy);
+    await win.waitForTimeout(250);
+  }
+  const composerCheck = await composer.evaluate((card) => {
+    const editorEl = card.querySelector(".generation-canvas-v2-node__prompt-input");
+    let scroller = editorEl;
+    while (scroller && scroller !== card && !/(auto|scroll)/.test(window.getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
+    const scrolls = Boolean(scroller && scroller !== card && scroller.scrollHeight > scroller.clientHeight);
+    const btn = card.querySelector('button[aria-label="生成素材"], button[aria-label="重新生成"]');
+    const r = btn?.getBoundingClientRect();
+    const hitEl = r ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) : null;
+    return { scrolls, btnClickable: Boolean(btn && hitEl && (btn === hitEl || btn.contains(hitEl))) };
+  });
+  assert(composerCheck.scrolls, "超长提示词在编辑区内部滚动（不撑爆卡片）");
+  assert(composerCheck.btnClickable, "超长提示词下生成钮 hit-test 可点（底栏未被溢出文字盖住）");
+
   console.log(`\nSMOKE PASS: ${passed} assertions`);
 } catch (error) {
   console.error(`\n${error?.message || error}`);
