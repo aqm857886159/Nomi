@@ -50,6 +50,62 @@ describe("comfyui-history 响应变换", () => {
     expect(res.image_url).toContain("subfolder=sub");
   });
 
+  it("视频：VHS gifs[0]（mp4 也落 gifs 键）→ video_url", () => {
+    const res = comfyuiHistoryTransform(
+      {
+        "vid-1": {
+          status: { status_str: "success", completed: true },
+          outputs: { "12": { gifs: [{ filename: "Nomi_00001.mp4", subfolder: "video", type: "output" }] } },
+        },
+      },
+      ctx,
+    ) as { video_url?: string; image_url?: string };
+    expect(res.video_url).toBe("http://127.0.0.1:8188/view?filename=Nomi_00001.mp4&subfolder=video&type=output");
+    expect(res.image_url).toBeUndefined();
+  });
+
+  it("视频：原生 SaveVideo 落 videos 键 → video_url", () => {
+    const res = comfyuiHistoryTransform(
+      { id: { outputs: { "20": { videos: [{ filename: "wan.webm", subfolder: "", type: "output" }] } } } },
+      ctx,
+    ) as { video_url?: string };
+    expect(res.video_url).toContain("filename=wan.webm");
+  });
+
+  it("视频+预览帧同时出 → video_url 与 image_url 各出各的（mapping 各取所需）", () => {
+    const res = comfyuiHistoryTransform(
+      {
+        id: {
+          outputs: {
+            "12": { gifs: [{ filename: "clip.mp4", subfolder: "v", type: "output" }] },
+            "9": { images: [{ filename: "preview.png", subfolder: "", type: "temp" }] },
+          },
+        },
+      },
+      ctx,
+    ) as { video_url?: string; image_url?: string };
+    expect(res.video_url).toContain("filename=clip.mp4");
+    expect(res.image_url).toContain("filename=preview.png");
+  });
+
+  it("纯图片路恒等：只有 images → 仅 image_url，无 video_url（不回归）", () => {
+    const res = comfyuiHistoryTransform(
+      { id: { outputs: { "9": { images: [{ filename: "x.png", subfolder: "", type: "output" }] } } } },
+      ctx,
+    ) as { image_url?: string; video_url?: string };
+    expect(res.image_url).toContain("filename=x.png");
+    expect(res.video_url).toBeUndefined();
+  });
+
+  it("有 outputs 但无 images/gifs/videos（如 latents）→ 原样（继续轮询）", () => {
+    const res = comfyuiHistoryTransform(
+      { id: { outputs: { "10": { latents: [{ filename: "l.latent" }] } } } },
+      ctx,
+    ) as { image_url?: string; video_url?: string };
+    expect(res.image_url).toBeUndefined();
+    expect(res.video_url).toBeUndefined();
+  });
+
   it("失败：status_str=error → { error }（fail fast，带 exception_message）", () => {
     const res = comfyuiHistoryTransform(
       {
