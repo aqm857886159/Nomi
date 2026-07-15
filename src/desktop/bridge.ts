@@ -598,6 +598,11 @@ export type DesktopBridge = {
     probeComfyui: (baseUrl?: string) => Promise<
       { ok: true; summary: string; version?: string } | { ok: false; error: string }
     >
+    /** 校验 + 识别 workflow_api.json 可绑定节点（同步）。analysis 结构见 comfyuiWorkflowImport.WorkflowAnalysis。 */
+    analyzeComfyWorkflow: (text: string) => { ok: true; analysis: unknown } | { ok: false; error: string }
+    /** 按绑定落库为用户自有 model+mapping（同步）。 */
+    importComfyWorkflow: (payload: { text: string; binding: unknown; labelZh: string }) =>
+      { ok: true; modelKey: string; kind: string; taskKind: string } | { ok: false; error: string }
   }
   skill: {
     list: () => unknown[]

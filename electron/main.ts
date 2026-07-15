@@ -21,6 +21,7 @@ import {
   upsertModelCatalogVendor,
   upsertModelCatalogVendorApiKey,
 } from "./catalog/catalogStore";
+import { analyzeComfyWorkflowText, importComfyWorkflowToCatalog } from "./catalog/comfyuiWorkflowImportStore";
 import { runTaskWithIdempotency } from "./submissionLedger";
 import { mintSpendGrant } from "./spendGrant";
 import { openWorkspaceFolder, selectWorkspaceFolder } from "./workspace/workspaceIpc";
@@ -477,6 +478,9 @@ function registerIpc(): void {
     const { probeComfyuiSystemStats } = require("./comfyuiProbe") as typeof import("./comfyuiProbe");
     return probeComfyuiSystemStats(String(baseUrl || ""));
   });
+  // 本地 ComfyUI 自定义 workflow 导入（S3）：analyze 识别可绑定节点、import 落库为用户自有 model+mapping。
+  registerSyncIpc("nomi:model-catalog:comfyui:analyze-workflow", (text: unknown) => analyzeComfyWorkflowText(text));
+  registerSyncIpc("nomi:model-catalog:comfyui:import-workflow", (payload: unknown) => importComfyWorkflowToCatalog(payload));
 
   // Skill / Playbook 域（业务函数在 electron/skills/*，这里只接同步 IPC 管道）。
   registerSyncIpc("nomi:skill:list", () => {

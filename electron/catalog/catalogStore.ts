@@ -624,11 +624,13 @@ function applyMappingUpsert(state: CatalogState, payload: unknown): Mapping {
   const vendorKey = String(raw.vendorKey || "").trim();
   const taskKind = (raw.taskKind as ProfileKind) || "chat";
   if (!vendorKey) throw new Error("vendorKey is required");
-  // One mapping per (vendor, taskKind). If id is supplied and matches, update
-  // that row; otherwise locate by (vendor, taskKind) so callers can upsert
-  // without tracking ids.
+  // 可选 modelKey：把 mapping 绑到特定模型。本地 ComfyUI 导入的每条 workflow 各一 mapping——同 vendor 同 taskKind
+  // 靠 modelKey 区分、不互相覆盖（selectTaskMapping：精确 modelKey > generic）。缺省=generic 桶模板（老行为不变）。
+  const modelKey = typeof raw.modelKey === "string" && raw.modelKey.trim() ? raw.modelKey.trim() : undefined;
+  // 定位既有行：给了 id 按 id；否则按 (vendor, taskKind, modelKey)——让调用方无需追 id 也能精确 upsert，
+  // 且带 modelKey 的与 generic 的、以及不同 modelKey 的互不覆盖。
   const existing = state.mappings.find((m) =>
-    raw.id ? m.id === raw.id : m.vendorKey === vendorKey && m.taskKind === taskKind,
+    raw.id ? m.id === raw.id : m.vendorKey === vendorKey && m.taskKind === taskKind && (m.modelKey || undefined) === modelKey,
   );
   const id = String(raw.id || existing?.id || `mapping-${crypto.randomUUID()}`);
   const t = nowIso();
@@ -643,6 +645,7 @@ function applyMappingUpsert(state: CatalogState, payload: unknown): Mapping {
     id,
     vendorKey,
     taskKind,
+    ...(modelKey ? { modelKey } : {}),
     name: String(raw.name || existing?.name || taskKind).trim(),
     enabled: normalizeEnabled(raw.enabled, existing?.enabled ?? true),
     create,
