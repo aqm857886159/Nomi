@@ -38,7 +38,6 @@ describe("modelProfiles.getModelProfile", () => {
   it("falls back to acceptable for unknown models", () => {
     const p = getModelProfile("some-new-model");
     expect(p.agentSuitability).toBe("acceptable");
-    expect(p.defaultMaxTokens).toBe(4096);
   });
 });
 
@@ -49,16 +48,16 @@ describe("modelProfiles.applyProfileToRequestBody", () => {
     expect(applyProfileToRequestBody(body, profile)).toMatchObject({ temperature: 1 });
   });
 
-  it("does not override caller-set max_tokens", () => {
-    const body = { max_tokens: 8000 };
-    const profile = { defaultMaxTokens: 4096 };
-    expect(applyProfileToRequestBody(body, profile).max_tokens).toBe(8000);
+  it("never invents max_tokens（单轮输出上限是模型属性，不由代码编造——2026-07-15 拆镜头截断事故）", () => {
+    const body = { messages: [] };
+    const profile = getModelProfile("some-unknown-relay-model");
+    expect(applyProfileToRequestBody(body, profile).max_tokens).toBeUndefined();
   });
 
-  it("sets default max_tokens when caller didn't", () => {
-    const body = {};
-    const profile = { defaultMaxTokens: 4096 };
-    expect(applyProfileToRequestBody(body, profile).max_tokens).toBe(4096);
+  it("preserves caller-set max_tokens untouched", () => {
+    const body = { max_tokens: 8000 };
+    const profile = getModelProfile("gpt-4o");
+    expect(applyProfileToRequestBody(body, profile).max_tokens).toBe(8000);
   });
 
   it("merges extraBody", () => {

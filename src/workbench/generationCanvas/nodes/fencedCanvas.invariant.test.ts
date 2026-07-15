@@ -25,7 +25,8 @@ describe('FencedCanvas 不变量', () => {
       const text = readFileSync(file, 'utf8')
       if (!text.includes("from '@react-three/fiber'")) continue
       if (!/<Canvas[\s>]/.test(text)) continue
-      const rel = path.relative(WORKBENCH_ROOT, file)
+      // Windows path.relative 产 `\`，白名单按 `/` 记——统一成 POSIX 再比对（跨平台）。
+      const rel = path.relative(WORKBENCH_ROOT, file).split(path.sep).join('/')
       if (!ALLOWED.has(rel)) offenders.push(rel)
     }
     expect(offenders, '裸 <Canvas> 会在初始化 suspend 时把宿主表面整棵 display:none，改用 FencedCanvas').toEqual([])

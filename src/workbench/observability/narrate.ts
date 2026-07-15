@@ -61,6 +61,7 @@ export type GenerationErrorKind =
   | 'content-policy'
   | 'server'
   | 'input'
+  | 'output-truncated'
   | 'unknown'
 
 const NARRATE_ERROR: Record<GenerationErrorKind, { reason: string; hint: string }> = {
@@ -86,6 +87,12 @@ const NARRATE_ERROR: Record<GenerationErrorKind, { reason: string; hint: string 
   'content-policy': { reason: '提示词被拦截', hint: '提示词触发了安全策略，请修改后重试。' },
   server: { reason: '服务商故障', hint: '服务商服务异常，请稍后重试，或换一个模型。' },
   input: { reason: '参数不被接受', hint: '服务商拒绝了请求参数，请检查比例/尺寸等设置，或换一个模型。' },
+  // 输出截断是**确定性**的（这轮要返回的内容超过模型单轮输出上限）——绝不能落 unknown 的
+  // 「稍等重试」误导（原样重试必再撞，2026-07-15 拆镜头 Mimo→Deepseek 连撞两次就是这么来的）。
+  'output-truncated': {
+    reason: '输出超长被截断',
+    hint: '这一轮要返回的内容超过了模型的单轮输出上限，原样重试只会再次截断。请缩短这轮任务（如剧本分段拆镜头、减少镜头数），或换单轮输出上限更大的模型。',
+  },
   unknown: { reason: '生成失败', hint: '可能是服务商临时故障或额度问题，建议稍等重试，或换一个模型。' },
 }
 
