@@ -53,6 +53,7 @@ type UseBrowserAssetActionsOptions = {
   setFiltersOpen: React.Dispatch<React.SetStateAction<boolean>>
   setActionsOpen: React.Dispatch<React.SetStateAction<boolean>>
   setPromptDetailAssetId: React.Dispatch<React.SetStateAction<string | null>>
+  setRenamingAssetId: React.Dispatch<React.SetStateAction<string | null>>
 }
 
 export function useBrowserAssetActions({
@@ -84,8 +85,12 @@ export function useBrowserAssetActions({
   setFiltersOpen,
   setActionsOpen,
   setPromptDetailAssetId,
+  setRenamingAssetId,
 }: UseBrowserAssetActionsOptions): {
   createFolder: () => void
+  beginRenameFolder: (folderId: string) => void
+  commitRenameFolder: (folderId: string, title: string) => void
+  cancelRenameFolder: () => void
   addLocalFiles: (files: readonly File[]) => void
   handleUploadFiles: (event: React.ChangeEvent<HTMLInputElement>) => void
   selectAsset: (asset: NomiBrowserAsset, event: React.MouseEvent<HTMLDivElement>) => void
@@ -125,8 +130,37 @@ export function useBrowserAssetActions({
     setActiveTab('all')
     updateLibraryState((current) => ({ ...current, folders: [folder, ...current.folders] }))
     setSelectedIds(new Set([folder.id]))
+    // 新建即进入重命名态（同 OS 文件管理器）：省一次「右键 → 重命名」。
+    setRenamingAssetId(folder.id)
     onCreateFolder?.(folder)
-  }, [activeFolderId, libraryState.folders.length, onCreateFolder, setActiveSource, setActiveTab, setAssetContextMenu, setBlankContextMenu, setSelectedIds, updateLibraryState])
+  }, [activeFolderId, libraryState.folders.length, onCreateFolder, setActiveSource, setActiveTab, setAssetContextMenu, setBlankContextMenu, setRenamingAssetId, setSelectedIds, updateLibraryState])
+
+  // 文件夹重命名：进入态（tile 标题原位变输入框）→ 提交写 libraryState（localStorage + 跨实例同步事件）。
+  const beginRenameFolder = React.useCallback((folderId: string): void => {
+    setAssetContextMenu(null)
+    setBlankContextMenu(null)
+    setSelectedIds(new Set([folderId]))
+    setRenamingAssetId(folderId)
+  }, [setAssetContextMenu, setBlankContextMenu, setRenamingAssetId, setSelectedIds])
+
+  const commitRenameFolder = React.useCallback((folderId: string, title: string): void => {
+    setRenamingAssetId(null)
+    const nextTitle = title.trim()
+    if (!nextTitle) return
+    updateLibraryState((current) => {
+      const target = current.folders.find((folder) => folder.id === folderId)
+      if (!target || target.title === nextTitle) return current
+      const updatedAt = new Date().toISOString()
+      return {
+        ...current,
+        folders: current.folders.map((folder) => (folder.id === folderId ? { ...folder, title: nextTitle, updatedAt } : folder)),
+      }
+    })
+  }, [setRenamingAssetId, updateLibraryState])
+
+  const cancelRenameFolder = React.useCallback((): void => {
+    setRenamingAssetId(null)
+  }, [setRenamingAssetId])
 
   const addLocalFiles = React.useCallback((files: readonly File[]): void => {
     const fileList = [...files]
@@ -426,6 +460,9 @@ export function useBrowserAssetActions({
 
   return {
     createFolder,
+    beginRenameFolder,
+    commitRenameFolder,
+    cancelRenameFolder,
     addLocalFiles,
     handleUploadFiles,
     selectAsset,

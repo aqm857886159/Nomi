@@ -14,6 +14,7 @@ import {
   IconLayoutGrid,
   IconList,
   IconMinus,
+  IconPencil,
   IconSortAscending2,
   IconSortDescending2,
   IconTrash,
@@ -48,6 +49,7 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
     rootRef, className, contained, placement, surface, showTrigger, popoverOpen, setPopoverOpen, windowRect, hostOrigin, isWindowInteracting, dockMode, handleWindowDragEnter, handleWindowDragOver, handleWindowDragLeave, handleWindowDrop, splitDocked, edgeDocked, dropActive, handleHeaderPointerDown, compactToolbar, sourceTabs, activeSource, selectAssetSource, onBrowserCaptureToggle, toolbarButtonClass, browserCaptureEnabled, browserCaptureDisabled, promptExtractionSettingsOpen, setPromptExtractionSettingsOpen, canDock, activeBounds, toggleDockMode, query, setQuery, singleTileToolbar, sourceTabGridStyle,
     actionsButtonRef, actionsOpen, setActionsOpen, actionsPopoverRef, listMode, setViewMode, sortAscending, setSortAscending, filterButtonRef, filtersOpen, filterActive, setFiltersOpen, showingPromptLibrary, activePromptCategory, promptCategories, promptCategoryCounts, filterPopoverRef, selectPromptCategory, addPromptCategory, showAllFilters, activeTab, filterCounts, tabs, selectFilterTab, uploadInputRef, createFolder, handleUploadFiles, currentFolder, exitCurrentFolder, activeSourceLabel, openAssetRoot, folderBreadcrumbs, openFolder,
     gridRef, handleGridPointerDown, handleGridPointerMove, handleGridPointerUp, openBlankContextMenu, filteredAssets, emptyStateCopy, promptMasonryStyle, selectedIds, setAssetNode, selectAsset, openPromptDetail, openAssetContextMenu, handleTileDragStart, gridCompact, viewMode, handleTileDragOver, handleTileDrop, assetGridStyle, marquee, promptDetailAsset, setPromptDetailAssetId, promptExtractionSettings, promptExtractionSettingsProjectAvailable, savePromptExtractionSettings, activeResizeEdges, startResize, assetContextMenu, assetContextMenuRef, canImportSelectedAssetsToCanvas, importSelectedAssetsToCanvas, deleteSelectedAssets, blankContextMenu, blankContextMenuRef,
+    renamingAssetId, canRenameSelectedFolder, beginRenameSelectedFolder, commitRenameFolder, cancelRenameFolder,
   } = props
 
   const popoverX = contained ? windowRect.left - (hostOrigin?.left ?? 0) : windowRect.left
@@ -303,14 +305,14 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
                       asset.promptCard ? (
                         <BrowserPromptAssetTile key={asset.id} asset={asset} selected={selectedIds.has(asset.id)} setNodeRef={(node) => setAssetNode(asset.id, node)} onClick={(event) => selectAsset(asset, event)} onDoubleClick={(event) => { event.preventDefault(); openPromptDetail(asset) }} onContextMenu={(event) => openAssetContextMenu(asset, event)} onDragStart={(event) => handleTileDragStart(asset, event)} />
                       ) : (
-                        <BrowserAssetTile key={asset.id} asset={asset} selected={selectedIds.has(asset.id)} compact={gridCompact} viewMode={viewMode} setNodeRef={(node) => setAssetNode(asset.id, node)} onClick={(event) => selectAsset(asset, event)} onDoubleClick={(event) => { event.preventDefault(); if (asset.type === 'folder') openFolder(asset) }} onContextMenu={(event) => openAssetContextMenu(asset, event)} onDragStart={(event) => handleTileDragStart(asset, event)} onDragOver={(event) => handleTileDragOver(asset, event)} onDrop={(event) => handleTileDrop(asset, event)} />
+                        <BrowserAssetTile key={asset.id} asset={asset} selected={selectedIds.has(asset.id)} compact={gridCompact} viewMode={viewMode} renaming={renamingAssetId === asset.id} setNodeRef={(node) => setAssetNode(asset.id, node)} onClick={(event) => selectAsset(asset, event)} onDoubleClick={(event) => { event.preventDefault(); if (asset.type === 'folder') openFolder(asset) }} onContextMenu={(event) => openAssetContextMenu(asset, event)} onDragStart={(event) => handleTileDragStart(asset, event)} onDragOver={(event) => handleTileDragOver(asset, event)} onDrop={(event) => handleTileDrop(asset, event)} onRenameCommit={(title) => commitRenameFolder(asset.id, title)} onRenameCancel={cancelRenameFolder} />
                       ),
                     )}
                   </div>
                 ) : (
                   <div className={cn('w-full select-none', listMode ? 'grid gap-1.5' : 'grid auto-rows-max content-start gap-x-3 gap-y-4')} style={assetGridStyle} aria-label={listMode ? '素材列表' : '素材网格'}>
                     {filteredAssets.map((asset: any) => (
-                      <BrowserAssetTile key={asset.id} asset={asset} selected={selectedIds.has(asset.id)} compact={gridCompact} viewMode={viewMode} setNodeRef={(node) => setAssetNode(asset.id, node)} onClick={(event) => selectAsset(asset, event)} onDoubleClick={(event) => { event.preventDefault(); if (asset.promptCard) openPromptDetail(asset); else if (asset.type === 'folder') openFolder(asset) }} onContextMenu={(event) => openAssetContextMenu(asset, event)} onDragStart={(event) => handleTileDragStart(asset, event)} onDragOver={(event) => handleTileDragOver(asset, event)} onDrop={(event) => handleTileDrop(asset, event)} />
+                      <BrowserAssetTile key={asset.id} asset={asset} selected={selectedIds.has(asset.id)} compact={gridCompact} viewMode={viewMode} renaming={renamingAssetId === asset.id} setNodeRef={(node) => setAssetNode(asset.id, node)} onClick={(event) => selectAsset(asset, event)} onDoubleClick={(event) => { event.preventDefault(); if (asset.promptCard) openPromptDetail(asset); else if (asset.type === 'folder') openFolder(asset) }} onContextMenu={(event) => openAssetContextMenu(asset, event)} onDragStart={(event) => handleTileDragStart(asset, event)} onDragOver={(event) => handleTileDragOver(asset, event)} onDrop={(event) => handleTileDrop(asset, event)} onRenameCommit={(title) => commitRenameFolder(asset.id, title)} onRenameCancel={cancelRenameFolder} />
                     ))}
                   </div>
                 )}
@@ -331,6 +333,12 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
                 <button type="button" className={cn('flex h-8 w-full items-center gap-2 rounded-nomi-sm border-0 bg-transparent px-2 text-left', 'cursor-pointer text-caption text-nomi-ink-75 transition-colors duration-[var(--nomi-transition-fast)]', 'hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:bg-nomi-ink-05 focus-visible:outline-none')} role="menuitem" onClick={importSelectedAssetsToCanvas}>
                   <IconArrowForwardUp size={15} stroke={1.8} aria-hidden="true" className="shrink-0" />
                   <span className="min-w-0 flex-1 truncate">导入画布</span>
+                </button>
+              ) : null}
+              {canRenameSelectedFolder ? (
+                <button type="button" className={cn('flex h-8 w-full items-center gap-2 rounded-nomi-sm border-0 bg-transparent px-2 text-left', 'cursor-pointer text-caption text-nomi-ink-75 transition-colors duration-[var(--nomi-transition-fast)]', 'hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:bg-nomi-ink-05 focus-visible:outline-none')} role="menuitem" onClick={beginRenameSelectedFolder}>
+                  <IconPencil size={15} stroke={1.8} aria-hidden="true" className="shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">重命名</span>
                 </button>
               ) : null}
               <button type="button" className={cn('flex h-8 w-full items-center gap-2 rounded-nomi-sm border-0 bg-transparent px-2 text-left', 'cursor-pointer text-caption text-workbench-danger transition-colors duration-[var(--nomi-transition-fast)]', 'hover:bg-workbench-danger-soft focus-visible:bg-workbench-danger-soft focus-visible:outline-none')} role="menuitem" onClick={deleteSelectedAssets}>

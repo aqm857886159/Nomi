@@ -102,6 +102,7 @@ export function NomiBrowserAssetPopover({
   const [dropActive, setDropActive] = React.useState(false)
   const [assetContextMenu, setAssetContextMenu] = React.useState<AssetContextMenuState | null>(null)
   const [blankContextMenu, setBlankContextMenu] = React.useState<BlankContextMenuState | null>(null)
+  const [renamingAssetId, setRenamingAssetId] = React.useState<string | null>(null)
   const [promptDetailAssetId, setPromptDetailAssetId] = React.useState<string | null>(null)
   const [promptExtractionSettingsOpen, setPromptExtractionSettingsOpen] = React.useState(false)
   const [canvasImportAvailable, setCanvasImportAvailable] = React.useState(false)
@@ -211,6 +212,7 @@ export function NomiBrowserAssetPopover({
     setPromptDetailAssetId(null)
     setAssetContextMenu(null)
     setBlankContextMenu(null)
+    setRenamingAssetId(null)
   }, [activeLibraryProjectId])
 
   React.useEffect(() => {
@@ -240,6 +242,11 @@ export function NomiBrowserAssetPopover({
         setPromptDetailAssetId(null)
         return
       }
+      // 重命名输入框优先：Esc 只取消重命名，不关素材盒（capture 先于 input 自身的 keydown）。
+      if (renamingAssetId) {
+        setRenamingAssetId(null)
+        return
+      }
       if (assetContextMenu) {
         setAssetContextMenu(null)
         return
@@ -252,7 +259,7 @@ export function NomiBrowserAssetPopover({
     }
     window.addEventListener('keydown', handleKeyDown, { capture: true })
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true })
-  }, [assetContextMenu, blankContextMenu, popoverOpen, promptDetailAssetId, promptExtractionSettingsOpen, setPopoverOpen])
+  }, [assetContextMenu, blankContextMenu, popoverOpen, promptDetailAssetId, promptExtractionSettingsOpen, renamingAssetId, setPopoverOpen])
 
   React.useEffect(() => {
     if (!popoverOpen) {
@@ -263,6 +270,7 @@ export function NomiBrowserAssetPopover({
       setPromptDetailAssetId(null)
       setPromptExtractionSettingsOpen(false)
       setCanvasImportAvailable(false)
+      setRenamingAssetId(null)
     }
   }, [popoverOpen])
 
@@ -396,6 +404,9 @@ export function NomiBrowserAssetPopover({
   } = useBrowserAssetMarquee({ popoverOpen, filteredAssets, setSelectedIds })
   const {
     createFolder,
+    beginRenameFolder,
+    commitRenameFolder,
+    cancelRenameFolder,
     addLocalFiles,
     handleUploadFiles,
     selectAsset,
@@ -439,7 +450,14 @@ export function NomiBrowserAssetPopover({
     setFiltersOpen,
     setActionsOpen,
     setPromptDetailAssetId,
+    setRenamingAssetId,
   })
+  // 右键菜单「重命名」只对**单选文件夹**出现（多选/普通素材不给，避免歧义）。
+  const renameTargetFolder = selectedAssets.length === 1 && selectedAssets[0].type === 'folder' ? selectedAssets[0] : null
+  const canRenameSelectedFolder = Boolean(renameTargetFolder)
+  const beginRenameSelectedFolder = React.useCallback((): void => {
+    if (renameTargetFolder) beginRenameFolder(renameTargetFolder.id)
+  }, [beginRenameFolder, renameTargetFolder])
   const selectedCanvasImportAssets = React.useMemo(
     () => selectedAssets.map(browserAssetToCanvasImportItem).filter(isBrowserAssetCanvasImportItem),
     [selectedAssets],
@@ -628,6 +646,7 @@ export function NomiBrowserAssetPopover({
         handleTileDragStart, gridCompact, viewMode, handleTileDragOver, handleTileDrop, assetGridStyle, marquee, promptDetailAsset, setPromptDetailAssetId,
         promptExtractionSettings, promptExtractionSettingsProjectAvailable, savePromptExtractionSettings, activeResizeEdges, startResize, assetContextMenu,
         assetContextMenuRef, canImportSelectedAssetsToCanvas, importSelectedAssetsToCanvas, deleteSelectedAssets, blankContextMenu, blankContextMenuRef,
+        renamingAssetId, canRenameSelectedFolder, beginRenameSelectedFolder, commitRenameFolder, cancelRenameFolder,
       }}
     />
   )

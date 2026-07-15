@@ -8,6 +8,8 @@ type AssetTileProps = {
   selected: boolean
   compact: boolean
   viewMode: 'grid' | 'list'
+  /** 文件夹重命名态：标题原位变输入框（右键「重命名」或新建文件夹进入）。 */
+  renaming?: boolean
   setNodeRef: (node: HTMLDivElement | null) => void
   onClick: (event: React.MouseEvent<HTMLDivElement>) => void
   onDoubleClick: (event: React.MouseEvent<HTMLDivElement>) => void
@@ -15,6 +17,63 @@ type AssetTileProps = {
   onDragStart: (event: React.DragEvent<HTMLDivElement>) => void
   onDragOver: (event: React.DragEvent<HTMLDivElement>) => void
   onDrop: (event: React.DragEvent<HTMLDivElement>) => void
+  onRenameCommit?: (title: string) => void
+  onRenameCancel?: () => void
+}
+
+/** 原位重命名输入框：挂载即聚焦全选；Enter/失焦提交，Esc 取消（外层 Esc capture 优先，这里兜底）。 */
+function TileRenameInput({
+  initialTitle,
+  className,
+  onCommit,
+  onCancel,
+}: {
+  initialTitle: string
+  className?: string
+  onCommit?: (title: string) => void
+  onCancel?: () => void
+}): JSX.Element {
+  const [value, setValue] = React.useState(initialTitle)
+  const inputRef = React.useRef<HTMLInputElement | null>(null)
+  const doneRef = React.useRef(false)
+  React.useEffect(() => {
+    inputRef.current?.focus()
+    inputRef.current?.select()
+  }, [])
+  const finish = (commit: boolean): void => {
+    if (doneRef.current) return
+    doneRef.current = true
+    if (commit) onCommit?.(value)
+    else onCancel?.()
+  }
+  return (
+    <input
+      ref={inputRef}
+      value={value}
+      aria-label="重命名文件夹"
+      className={cn(
+        'w-full min-w-0 rounded-nomi-sm border border-nomi-accent bg-nomi-paper px-1 py-0.5',
+        'text-caption font-medium leading-[1.2] text-nomi-ink outline-none',
+        className,
+      )}
+      onChange={(event) => setValue(event.target.value)}
+      onBlur={() => finish(true)}
+      onKeyDown={(event) => {
+        event.stopPropagation()
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          finish(true)
+        } else if (event.key === 'Escape') {
+          event.preventDefault()
+          finish(false)
+        }
+      }}
+      onClick={(event) => event.stopPropagation()}
+      onDoubleClick={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
+      onDragStart={(event) => event.preventDefault()}
+    />
+  )
 }
 
 type FilterPopoverProps = {
@@ -108,6 +167,7 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
   selected,
   compact,
   viewMode,
+  renaming = false,
   setNodeRef,
   onClick,
   onDoubleClick,
@@ -115,6 +175,8 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
   onDragStart,
   onDragOver,
   onDrop,
+  onRenameCommit,
+  onRenameCancel,
 }: AssetTileProps): JSX.Element {
   const hasVisualPreview = Boolean(asset.preview || asset.previewUrl)
   const isFolder = asset.type === 'folder'
@@ -138,7 +200,8 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
     ref: setNodeRef,
     role: 'button',
     tabIndex: 0,
-    draggable: true,
+    // 重命名时禁拖拽：否则输入框里选中文字的拖动会触发 tile 拖拽。
+    draggable: !renaming,
     'data-browser-asset-tile': 'true',
     'data-asset-id': asset.id,
     'aria-label': asset.title,
@@ -203,14 +266,18 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
           ) : null}
         </span>
         <span className="min-w-0 flex-1">
-          <span
-            className={cn(
-              'block truncate text-body-sm leading-[1.15]',
-              selected ? 'font-semibold text-nomi-ink' : 'font-medium text-nomi-ink-80',
-            )}
-          >
-            {asset.title}
-          </span>
+          {renaming ? (
+            <TileRenameInput initialTitle={asset.title} className="text-body-sm" onCommit={onRenameCommit} onCancel={onRenameCancel} />
+          ) : (
+            <span
+              className={cn(
+                'block truncate text-body-sm leading-[1.15]',
+                selected ? 'font-semibold text-nomi-ink' : 'font-medium text-nomi-ink-80',
+              )}
+            >
+              {asset.title}
+            </span>
+          )}
           <span className={cn('mt-0.5 block truncate text-micro leading-none', failed ? 'text-workbench-danger' : 'text-nomi-ink-40')}>
             {subtitle}
           </span>
@@ -312,14 +379,18 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
         </div>
       )}
       <div className={cn('min-w-0 px-0.5 pb-0.5 pt-2', compact && 'pt-1.5')}>
-        <div
-          className={cn(
-            'truncate text-caption leading-[1.2]',
-            selected ? 'font-semibold text-nomi-ink' : 'font-medium text-nomi-ink-80',
-          )}
-        >
-          {asset.title}
-        </div>
+        {renaming ? (
+          <TileRenameInput initialTitle={asset.title} onCommit={onRenameCommit} onCancel={onRenameCancel} />
+        ) : (
+          <div
+            className={cn(
+              'truncate text-caption leading-[1.2]',
+              selected ? 'font-semibold text-nomi-ink' : 'font-medium text-nomi-ink-80',
+            )}
+          >
+            {asset.title}
+          </div>
+        )}
         {!isFolder ? (
           <div className="mt-1 truncate text-micro leading-none text-nomi-ink-40">
             {subtitle}
