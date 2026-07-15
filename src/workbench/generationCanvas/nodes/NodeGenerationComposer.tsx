@@ -559,19 +559,21 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
       {/* 转写模式无台词输入（音频参考即输入）——隐藏 prompt，避免误导。 */}
       {audioIsTranscribe || isTextKind ? null : (
         // w-0 min-w-full：填满卡宽但**贡献 0** 到 max-content（长 prompt 在卡宽内换行，不把卡撑爆 → 卡宽由底栏定）。
-        <div className={cn('relative flex-1 min-h-[72px] w-0 min-w-full')}>
-          <div className="min-h-[72px] overflow-auto">
-            <PromptEditor
-              className={cn('min-h-[72px]')}
-              value={node.prompt || ''}
-              placeholder={isTextKind ? TEXT_MODE_PLACEHOLDER[textGenMode] : getGenerationNodePromptPlaceholder(node.kind)}
-              editable={!node.locked}
-              onChange={(next) => updateNode(node.id, { prompt: next })}
-              onBlur={() => { void persistActiveWorkbenchProjectNow().catch(() => {}) }}
-              onReady={setPromptEditor}
-              mentionCandidates={mentionCandidates}
-            />
-          </div>
+        // overflow-auto 直接挂在 flex-1 伸缩区上：该区高度被卡片 maxHeight 卡住后有界 → 超长 prompt 在本区内部
+        // 滚动，底栏（shrink-0）永远贴底可见。min-h-[72px] 保底 3 行。
+        // ⚠️ 别再往里套「无高度约束的内层块 + overflow-auto」：那样内层块按内容长到全高、overflow-auto 永不触发，
+        // 整片 prompt 下溢盖住底栏（= 截图里「文字太长盖住 选择模型/优化」的根因）。滚动容器必须自己有界。
+        <div className={cn('relative flex-1 min-h-[72px] w-0 min-w-full overflow-auto')}>
+          <PromptEditor
+            className={cn('min-h-[72px]')}
+            value={node.prompt || ''}
+            placeholder={isTextKind ? TEXT_MODE_PLACEHOLDER[textGenMode] : getGenerationNodePromptPlaceholder(node.kind)}
+            editable={!node.locked}
+            onChange={(next) => updateNode(node.id, { prompt: next })}
+            onBlur={() => { void persistActiveWorkbenchProjectNow().catch(() => {}) }}
+            onReady={setPromptEditor}
+            mentionCandidates={mentionCandidates}
+          />
         </div>
       )}
       {/* 底栏铺满卡宽（w-full）：生成钮 ml-auto 永远贴右。底栏恒单行——参数已主次分层（最常调的内联、
