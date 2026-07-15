@@ -110,6 +110,18 @@ export type AssetIngestion =
     }
   | {
       /**
+       * 本地 ComfyUI：POST /upload/image（multipart，file 字段名 "image"）把本地图传进 ComfyUI 的 input 目录，
+       * 取回 { name, subfolder, type } → 返回**文件名**（subfolder ? "subfolder/name" : name）给 LoadImage 的
+       * image 输入（LoadImage 只认 input 目录里的文件名、不认公网 URL，故也要跳过 trustedOriginalUrl 快路）。
+       * 端点由 vendor baseUrl 动态派生（用户可改地址）。实查 docs.comfy.org/api-reference + Comfy-Org server.py 2026-07。
+       */
+      strategy: "comfyui-upload";
+      /** 完整上传端点，如 http://127.0.0.1:8188/upload/image。 */
+      endpoint: string;
+      accepts?: ReadonlyArray<AssetMediaKind>;
+    }
+  | {
+      /**
        * 匿名上传 fallback 链:按顺序逐个 host 试,谁先返回合法 http(s) URL 就用谁。
        * 用于"零配置兜底"——bake-in 的免 key 免账号公共托管(litterbox → tmpfiles…),
        * 单 host 限速/宕机/封禁时自动切下一个,全失败才抛诚实错误。每个 chain 项都是
@@ -120,6 +132,9 @@ export type AssetIngestion =
       /** 该链接受的媒体类型;缺省 ['image']。匿名 host 收任意文件,声明全媒体类型。 */
       accepts?: ReadonlyArray<AssetMediaKind>;
     };
+
+/** 本地 ComfyUI 供应商固定 key（种子 + assetLocalization 识别它走自己的 /upload/image，单源防漂移）。 */
+export const COMFYUI_VENDOR_KEY = "comfyui-local";
 
 export type Vendor = {
   key: string;
