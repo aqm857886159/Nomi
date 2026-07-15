@@ -7,7 +7,10 @@ import { hasSeenCanvasGestureHint, markCanvasGestureHintSeen } from '../../onboa
 
 type GestureItem = { keys: string; label: string }
 
+// 平移放首位、且同时列出鼠标(滚轮/空格拖)与触控板(双指)两套——用户群反复反馈「画布只能缩放不能移动」，
+// 根因是旧图例只写「双指滑」，纯鼠标用户看不到任何平移手势(滚轮/空格拖其实都实现了，只是没告诉他)。
 const GESTURES: GestureItem[] = [
+  { keys: '滚轮 / 空格拖', label: '平移' },
   { keys: '双指滑', label: '平移' },
   { keys: '⌘ + 滚轮', label: '缩放' },
   { keys: '空白拖', label: '框选' },

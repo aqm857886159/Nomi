@@ -588,6 +588,7 @@ export type DesktopBridge = {
     clearVendorApiKey: (vendorKey: string) => unknown
     upsertModel: (payload: unknown) => unknown
     deleteModel: (vendorKey: string, modelKey: string) => void
+    deleteModels: (targets: { vendorKey: string; modelKey: string }[]) => void
     upsertMapping: (payload: unknown) => unknown
     deleteMapping: (id: string) => void
     exportPackage: (params?: unknown) => unknown

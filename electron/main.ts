@@ -7,6 +7,7 @@ import {
   clearModelCatalogVendorApiKey,
   deleteModelCatalogMapping,
   deleteModelCatalogModel,
+  deleteModelCatalogModels,
   deleteModelCatalogVendor,
   ensureBuiltinModelSeeds,
   exportModelCatalogPackage,
@@ -466,6 +467,7 @@ function registerIpc(): void {
   registerSyncIpc("nomi:model-catalog:vendor-api-key:clear", clearModelCatalogVendorApiKey);
   registerSyncIpc("nomi:model-catalog:model:upsert", upsertModelCatalogModel);
   registerSyncIpc("nomi:model-catalog:model:delete", deleteModelCatalogModel);
+  registerSyncIpc("nomi:model-catalog:models:delete", deleteModelCatalogModels);
   registerSyncIpc("nomi:model-catalog:mapping:upsert", upsertModelCatalogMapping);
   registerSyncIpc("nomi:model-catalog:mapping:delete", deleteModelCatalogMapping);
   registerSyncIpc("nomi:model-catalog:export", exportModelCatalogPackage);

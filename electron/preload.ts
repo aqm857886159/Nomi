@@ -360,6 +360,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     upsertModel: (payload: unknown) => invokeSync("nomi:model-catalog:model:upsert", payload),
     deleteModel: (vendorKey: string, modelKey: string) =>
       invokeSync("nomi:model-catalog:model:delete", vendorKey, modelKey),
+    deleteModels: (targets: { vendorKey: string; modelKey: string }[]) =>
+      invokeSync("nomi:model-catalog:models:delete", targets),
     upsertMapping: (payload: unknown) => invokeSync("nomi:model-catalog:mapping:upsert", payload),
     deleteMapping: (id: string) => invokeSync("nomi:model-catalog:mapping:delete", id),
     exportPackage: (params?: unknown) => invokeSync("nomi:model-catalog:export", params),

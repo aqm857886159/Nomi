@@ -605,6 +605,19 @@ export function deleteModelCatalogModel(vendorKey: string, modelKey: string): vo
   writeCatalog(state);
 }
 
+/**
+ * 批量删除：一次 read/write 删掉多行（用户群反馈 462 个自定义模型只能逐个删=鸡肋）。
+ * 逐行调 deleteModelCatalogModel 会是 N 次同步 read+writeAtomic 循环；这里合成一次，避免大目录时卡顿。
+ */
+export function deleteModelCatalogModels(targets: Array<{ vendorKey: string; modelKey: string }>): void {
+  const list = Array.isArray(targets) ? targets : [];
+  if (list.length === 0) return;
+  const keySet = new Set(list.map((t) => `${String(t?.vendorKey ?? "")} ${String(t?.modelKey ?? "")}`));
+  const state = readCatalog();
+  state.models = state.models.filter((model) => !keySet.has(`${model.vendorKey} ${model.modelKey}`));
+  writeCatalog(state);
+}
+
 /** 纯函数:把一次 mapping upsert 应用到内存 state(原地改 state.mappings)。见 applyVendorUpsert 同理。 */
 function applyMappingUpsert(state: CatalogState, payload: unknown): Mapping {
   const raw = payload as JsonRecord;

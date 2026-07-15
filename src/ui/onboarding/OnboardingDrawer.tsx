@@ -116,18 +116,22 @@ export function OnboardingDrawer(): JSX.Element {
     window.dispatchEvent(new CustomEvent('nomi-model-catalog-changed'))
   }, [])
 
-  const handleDelete = React.useCallback(async (row: ChipModel) => {
+  // 单删=1 行；批删=多行。一次确认框 + 一次 deleteModels（合成单次 read/write）+ 一次 refresh。
+  const handleDelete = React.useCallback(async (rows: ChipModel[]) => {
     const bridge = getDesktopBridge()
-    if (!bridge) return
+    if (!bridge || rows.length === 0) return
+    const single = rows.length === 1
     const ok = await confirmDialog({
-      title: '删除模型',
-      message: `删除「${row.labelZh}」？此操作不可恢复，之后要用需重新拉取。`,
+      title: single ? '删除模型' : `删除 ${rows.length} 个模型`,
+      message: single
+        ? `删除「${rows[0].labelZh}」？此操作不可恢复，之后要用需重新拉取。`
+        : `删除选中的 ${rows.length} 个模型？此操作不可恢复，之后要用需重新拉取。`,
       confirmLabel: '删除',
       danger: true,
     })
     if (!ok) return
     try {
-      bridge.modelCatalog.deleteModel(row.vendorKey, row.modelKey)
+      bridge.modelCatalog.deleteModels(rows.map((r) => ({ vendorKey: r.vendorKey, modelKey: r.modelKey })))
       refresh()
     } catch (e) {
       void alertDialog({ title: '删除失败', message: e instanceof Error ? e.message : String(e) })
