@@ -13,6 +13,7 @@ export { default as IconAdjustmentsHorizontal } from '@tabler/icons-react/dist/e
 export { default as IconAlertCircle } from '@tabler/icons-react/dist/esm/icons/IconAlertCircle.mjs'
 export { default as IconAlertTriangle } from '@tabler/icons-react/dist/esm/icons/IconAlertTriangle.mjs'
 export { default as IconArmchair } from '@tabler/icons-react/dist/esm/icons/IconArmchair.mjs'
+export { default as IconFileImport } from '@tabler/icons-react/dist/esm/icons/IconFileImport.mjs'
 export { default as IconDeviceGamepad2 } from '@tabler/icons-react/dist/esm/icons/IconDeviceGamepad2.mjs'
 export { default as IconGift } from '@tabler/icons-react/dist/esm/icons/IconGift.mjs'
 export { default as IconMoodConfuzed } from '@tabler/icons-react/dist/esm/icons/IconMoodConfuzed.mjs'
