@@ -39,6 +39,7 @@ import { StaleConversationDivider, useStaleConversationBoundary } from '../ai/st
 import { AutoGrowTextarea } from '../ai/composer/AutoGrowTextarea'
 import { COMPOSER_ATTACHMENT_ACCEPT, useComposerAttachments } from '../ai/composer/useComposerAttachments'
 import { useRafCoalesce } from '../ai/useRafCoalesce'
+import StoryboardNudge from './storyboard/StoryboardNudge'
 
 
 // The creation agent's write tools map 1:1 to the editor's document mutations.
@@ -527,6 +528,8 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
       <div className={cn('[grid-area:tools]')}>
         {/* 对齐画布助手:项目记忆「AI 记得 N 条」(N=0 不渲染);删工具条(与记忆条重复的灰杠)。 */}
         <MemoryFold refreshKey={memoryRefreshKey} />
+        {/* 情景卡自动浮现：写好故事还没拆镜头时，把「拆成镜头」入口在对的时机端到眼前（治「没有可点入口」）。 */}
+        <StoryboardNudge busy={sending} onRun={(shotMode) => launchStoryboardPlanning('🎬 拆镜头', undefined, shotMode)} />
       </div>
 
       <div

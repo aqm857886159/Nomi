@@ -33,7 +33,13 @@ describe('routeCreationIntent（删 chip 后自然语言是唯一入口，覆盖
     }
   })
 
-  it('不误伤：含「视频/片/画面」但非拆镜头意图 → null', () => {
+  it('放宽口径 2：补「规划镜头」「变成/拆成场景」（2026-07-15 用户群反馈仍难触发）', () => {
+    for (const text of ['帮我规划一下镜头', '规划镜头', '把故事变成一个个场景', '拆成几个场景', '分成场景']) {
+      expect(routeCreationIntent(text)).toBe('storyboard')
+    }
+  })
+
+  it('不误伤：含「视频/片/画面/场景」但非拆镜头意图 → null', () => {
     for (const text of [
       '这个视频模型怎么样',
       '看张照片',
@@ -43,6 +49,7 @@ describe('routeCreationIntent（删 chip 后自然语言是唯一入口，覆盖
       '看个视频',
       '给他打个视频通话',
       '这个画面描写得不错',
+      '这个场景描写不错',
     ]) {
       expect(routeCreationIntent(text)).toBeNull()
     }

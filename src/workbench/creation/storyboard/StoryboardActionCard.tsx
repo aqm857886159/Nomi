@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconArrowRight, IconMovie, IconPhoto, IconUserPlus } from '@tabler/icons-react'
+import { IconArrowRight, IconMovie, IconPhoto, IconUserPlus, IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { WorkbenchButton } from '../../../design'
 
@@ -29,18 +29,35 @@ export default function StoryboardActionCard({
   kind,
   resolved,
   onRun,
+  lead: leadOverride,
+  onDismiss,
 }: {
   kind: StoryboardActionKind
   resolved: boolean
   onRun: (shotMode: StoryboardShotMode) => void
+  /** 覆盖默认引导语（情景卡自动浮现复用同一张卡，只换措辞——避免并行版 P1）。 */
+  lead?: string
+  /** 传了才渲染右上角「收起」——主动浮现的情景卡可关，聊天流里识别意图弹的卡不可关。 */
+  onDismiss?: () => void
 }): JSX.Element {
-  const { lead, cta, Icon } = ACTION_COPY[kind]
+  const { lead: defaultLead, cta, Icon } = ACTION_COPY[kind]
+  const lead = leadOverride ?? defaultLead
   const [mode, setMode] = React.useState<StoryboardShotMode>('image')
   return (
     <div className={cn('flex flex-col gap-2 p-3 rounded-nomi border border-nomi-line bg-nomi-paper')} data-action-card={kind}>
       <div className={cn('flex items-center gap-2 min-w-0')}>
         <Icon size={15} stroke={1.6} className={cn('shrink-0 text-nomi-ink-60')} />
         <span className={cn('min-w-0 flex-1 text-body-sm text-nomi-ink-80 leading-relaxed')}>{lead}</span>
+        {onDismiss ? (
+          <button
+            type="button"
+            aria-label="不用了，收起"
+            onClick={onDismiss}
+            className={cn('shrink-0 -mr-1 -mt-0.5 p-1 rounded-nomi-sm text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-ink-05')}
+          >
+            <IconX size={13} stroke={1.8} />
+          </button>
+        ) : null}
       </div>
       {kind === 'storyboard' ? (
         <div className={cn('flex items-center gap-1')} role="radiogroup" aria-label="分镜类型">
