@@ -478,3 +478,63 @@ describe("sidecar originalUrl 新鲜度门（L2：参考图永不过期）", () 
     expect(out.startsWith("data:image/png;base64,")).toBe(true);
   });
 });
+
+describe("comfyui-upload（本地 ComfyUI 首帧上传，S2）", () => {
+  const comfyIngestion = (endpoint = "http://127.0.0.1:8188/upload/image"): AssetIngestion => ({ strategy: "comfyui-upload", endpoint, accepts: ["image"] });
+  const readFresh = (name = "a.png"): LocalAsset => ({ bytes: Buffer.from("x"), contentType: "image/png", fileName: name, originalUrl: "https://pub/" + name, ageMs: 0 });
+
+  it("resolveAssetIngestionWithFallback：comfyui-local 图片 → comfyui-upload，端点从 baseUrl 派生（默认 + 自定义 + 尾斜杠归一）", () => {
+    const def = resolveAssetIngestionWithFallback({ key: "comfyui-local" }, [], () => null, "image");
+    expect(def?.ingestion).toEqual({ strategy: "comfyui-upload", endpoint: "http://127.0.0.1:8188/upload/image", accepts: ["image"] });
+    const custom = resolveAssetIngestionWithFallback({ key: "comfyui-local", baseUrlHint: "http://192.168.1.9:8000/" }, [], () => null, "image");
+    expect((custom?.ingestion as { endpoint: string }).endpoint).toBe("http://192.168.1.9:8000/upload/image");
+  });
+
+  it("resolveAssetIngestionWithFallback：comfyui-local 视频不被 image-only 拦截（v2v 是另一套机制，暂走通用兜底）", () => {
+    // 拦截仅图片；视频落到通用匿名链兜底（strategy≠comfyui-upload）——v2v 支持是后续工作，非本次范围。
+    const vid = resolveAssetIngestionWithFallback({ key: "comfyui-local" }, [], () => null, "video");
+    expect(vid?.ingestion.strategy).not.toBe("comfyui-upload");
+  });
+
+  it("resolveLocalAsset comfyui-upload：POST /upload/image（field image + type/overwrite）→ 返回 subfolder/name", async () => {
+    const post = vi.fn().mockResolvedValue({ name: "input.png", subfolder: "nomi", type: "input" });
+    const out = await resolveLocalAsset(localUrl("a.png"), comfyIngestion(), "", read, vi.fn(), post);
+    expect(out).toBe("nomi/input.png");
+    const [url, headers, , fileName, contentType, extraFields, fileField] = post.mock.calls[0];
+    expect(url).toBe("http://127.0.0.1:8188/upload/image");
+    expect(headers).toEqual({});
+    expect(fileField).toBe("image");
+    expect(extraFields).toEqual({ type: "input", overwrite: "true" });
+    expect([fileName, contentType]).toEqual(["a.png", "image/png"]);
+  });
+
+  it("resolveLocalAsset comfyui-upload：无 subfolder → 只返回 name", async () => {
+    const post = vi.fn().mockResolvedValue({ name: "x.png", subfolder: "", type: "input" });
+    expect(await resolveLocalAsset(localUrl("x.png"), comfyIngestion(), "", read, vi.fn(), post)).toBe("x.png");
+  });
+
+  it("resolveLocalAsset comfyui-upload：响应缺 name → 诚实报错", async () => {
+    const post = vi.fn().mockResolvedValue({ error: "boom" });
+    await expect(resolveLocalAsset(localUrl("a.png"), comfyIngestion(), "", read, vi.fn(), post)).rejects.toThrow(/未返回文件名/);
+  });
+
+  it("resolveLocalAsset comfyui-upload：新鲜 sidecar originalUrl 也不短路（LoadImage 不认公网 URL，恒上传换文件名）", async () => {
+    const post = vi.fn().mockResolvedValue({ name: "up.png", subfolder: "", type: "input" });
+    const out = await resolveLocalAsset(localUrl("a.png"), comfyIngestion(), "", () => readFresh(), vi.fn(), post);
+    expect(out).toBe("up.png"); // 不是 https://pub/a.png
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it("localizeAssetsForVendor：comfyui-upload 传首帧 → extras 里替换成文件名（跳过 trusted 快路）", async () => {
+    const post = vi.fn().mockResolvedValue({ name: "frame.png", subfolder: "in", type: "input" });
+    const out = await localizeAssetsForVendor(
+      { firstFrameUrl: localUrl("f.png") },
+      () => ({ ingestion: comfyIngestion(), uploadApiKey: "" }),
+      () => readFresh("f.png"),
+      vi.fn(),
+      post,
+    );
+    expect((out.value as { firstFrameUrl: string }).firstFrameUrl).toBe("in/frame.png");
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+});

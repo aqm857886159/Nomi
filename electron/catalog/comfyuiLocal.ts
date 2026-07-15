@@ -18,7 +18,7 @@
 // 参数键刻意用 comfy_* 前缀（非 width/height/seed/steps/cfg/negative_prompt）：taskTemplateParams 会把这些
 // 标准键从 request 顶层字段**重新派生**、headless 下顶层为空会把它们清成 undefined → workflow 图里该数字节点
 // 丢键报错（实查 taskParams.ts:78-84）。用 comfy_* 走 `...extras` 直通、不被派生覆盖。
-import type { HttpOperation } from "./types";
+import { COMFYUI_VENDOR_KEY, type HttpOperation } from "./types";
 import { registerResponseTransform, type ResponseTransformFn } from "../tasks/responseTransforms";
 
 function isRec(value: unknown): value is Record<string, unknown> {
@@ -103,7 +103,7 @@ registerResponseTransform("comfyui-history", comfyuiHistoryTransform);
 // 供应商种子（无鉴权本地服务，默认关）
 // ─────────────────────────────────────────────────────────────────────────────
 export const COMFYUI_VENDOR_SEED = {
-  key: "comfyui-local",
+  key: COMFYUI_VENDOR_KEY,
   name: "本地 ComfyUI",
   baseUrl: "http://127.0.0.1:8188",
   authType: "none" as const,
