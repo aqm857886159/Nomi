@@ -21,6 +21,9 @@ type FoldableModelCardProps = {
   statusLabel?: string
   /** 名字右侧的软标（如「新手推荐」）；不传则不显。 */
   badge?: React.ReactNode
+  /** header 最右侧动作槽（如删除图标）。独立于展开 toggle——渲染成 toggle button 的兄弟节点，
+   *  避免 button 套 button（HTML/无障碍非法）；不传则不显，不影响其它卡。 */
+  headerAction?: React.ReactNode
   defaultExpanded?: boolean
   children: React.ReactNode
 }
@@ -33,6 +36,7 @@ export function FoldableModelCard({
   status,
   statusLabel,
   badge,
+  headerAction,
   defaultExpanded = false,
   children,
 }: FoldableModelCardProps): JSX.Element {
@@ -41,15 +45,16 @@ export function FoldableModelCard({
 
   return (
     <div className="border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden">
+      {/* header 行：展开 toggle（flex-1 button）+ 可选动作槽（兄弟节点，非嵌套）。 */}
+      <div className={cn('flex items-center', expanded && 'bg-nomi-ink-05')}>
       <button
         type="button"
         aria-expanded={expanded}
         aria-controls={bodyId}
         onClick={() => setExpanded((v) => !v)}
         className={cn(
-          'flex items-center gap-3 p-3 w-full text-left',
+          'flex items-center gap-3 p-3 flex-1 min-w-0 text-left',
           'hover:bg-nomi-ink-05',
-          expanded && 'bg-nomi-ink-05',
         )}
       >
         <span
@@ -85,6 +90,8 @@ export function FoldableModelCard({
           className={cn('shrink-0 text-nomi-ink-40 transition-transform duration-150', expanded && 'rotate-180')}
         />
       </button>
+      {headerAction ? <div className="flex items-center shrink-0 pl-0.5 pr-2">{headerAction}</div> : null}
+      </div>
       {expanded ? (
         <div id={bodyId} className="border-t border-nomi-line-soft p-3 flex flex-col gap-3">
           {children}

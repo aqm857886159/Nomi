@@ -12,6 +12,7 @@ import { IconKey, IconPencil, IconTrash } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { confirmDialog } from '../../design'
+import { confirmAndDeleteVendor } from './vendorDeleteAction'
 
 type CustomVendorManageProps = {
   vendorKey: string
@@ -87,21 +88,10 @@ export function CustomVendorManage({
   }, [urlDraft, vendorKey, onChanged])
 
   const handleDeleteVendor = React.useCallback(async () => {
-    const bridge = getDesktopBridge()
-    if (!bridge) return
-    const ok = await confirmDialog({
-      title: '删除整个供应商',
-      message: `删除「${vendorName}」及其全部 ${modelCount} 个模型？此操作不可恢复，之后要用需重新接入。`,
-      confirmLabel: '删除',
-      danger: true,
-    })
-    if (!ok) return
     setBusy(true); setError('')
-    try {
-      bridge.modelCatalog.deleteVendor(vendorKey); onChanged()
-    } catch (e) {
-      setError(`删除失败：${e instanceof Error ? e.message : String(e)}`)
-    } finally { setBusy(false) }
+    const res = await confirmAndDeleteVendor({ vendorKey, vendorName, modelCount, onChanged })
+    if (res.error) setError(res.error)
+    setBusy(false)
   }, [vendorKey, vendorName, modelCount, onChanged])
 
   return (
