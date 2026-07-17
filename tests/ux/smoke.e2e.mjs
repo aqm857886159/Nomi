@@ -127,10 +127,16 @@ try {
   assert(composerCheck.btnClickable, "超长提示词下生成钮 hit-test 可点（底栏未被溢出文字盖住）");
 
   console.log(`\nSMOKE PASS: ${passed} assertions`);
+  await finishAndExit(0);
 } catch (error) {
   console.error(`\n${error?.message || error}`);
-  await app.close();
-  process.exit(1);
-} finally {
-  await app.close().catch(() => undefined);
+  await finishAndExit(1);
+}
+
+// 断言已判定即成败——但 electron teardown 在部分环境会 hang（app.close() 永不 resolve）或让 node 带非零码
+// 收尾，两者都会让串跑（test:system release）误判本 stage：hang → 整条卡死，非零 → 挡掉后续 stage。
+// 故给 close 3s 超时兜底、随后强制退出确定的码：既尽量清干净 electron，又保证进程一定退、退出码可信。
+async function finishAndExit(code) {
+  await Promise.race([app.close().catch(() => undefined), new Promise((resolve) => setTimeout(resolve, 3000))]);
+  process.exit(code);
 }

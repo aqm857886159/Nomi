@@ -469,12 +469,19 @@ try {
   console.log(`STAGE 2（real gen + #6 + VLM）：${stage2Verdict}`);
   console.log("═══════════════════════════════════════════════════════");
 
-  await app.close();
   // 退出码：STAGE 1 必须过；STAGE 2 SKIP 不算失败，FAIL 才算。
   const ok = stage1Pass && stage2Verdict !== "FAIL";
+  await closeAppWithTimeout();
   process.exit(ok ? 0 : 1);
 } catch (err) {
   console.log(`\n✗ 致命错误：${err?.message || err}`);
-  if (app) await app.close().catch(() => undefined);
+  await closeAppWithTimeout();
   process.exit(1);
+}
+
+// electron teardown 在部分环境会 hang（app.close() 永不 resolve）——给 3s 超时兜底，保证进程一定退。
+// 同 smoke.e2e.mjs 的 finishAndExit：断言已判定即成败，不能让 close 卡死整条串跑（test:system release）。
+async function closeAppWithTimeout() {
+  if (!app) return;
+  await Promise.race([app.close().catch(() => undefined), new Promise((resolve) => setTimeout(resolve, 3000))]);
 }
