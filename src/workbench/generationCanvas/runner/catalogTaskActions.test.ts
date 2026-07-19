@@ -352,6 +352,38 @@ describe('Seedream 档案（图像，改图输入图走 image_urls，与 GPT 同
   })
 })
 
+describe('供应商真实 modelKey + 节点 meta.archetype.id：连线参考必须进入图生图字段', () => {
+  const SOURCE_URL = 'https://x/direct-source.png'
+  const source: GenerationCanvasNode = {
+    id: 'source', kind: 'image', title: '源图', position: { x: 0, y: 0 }, prompt: '',
+    result: { id: 'source-result', type: 'image', url: SOURCE_URL, createdAt: 0 },
+  }
+
+  it.each([
+    ['apimart', 'doubao-seedream-4.5', 'seedream', 'edit', 'image_urls'],
+    ['apimart', 'gemini-2.5-flash-image-preview', 'nano-banana', 'edit', 'image_urls'],
+    ['modelscope', 'Qwen/Qwen-Image-Edit-2511', 'modelscope-image-edit', 'edit', 'image_url'],
+    ['volcengine', 'doubao-seedream-5-0-260128', 'volcengine-seedream', 'edit', 'image_urls'],
+    ['volcengine', 'doubao-seedream-4-5-251128', 'volcengine-seedream', 'edit', 'image_urls'],
+    ['volcengine', 'doubao-seedream-4-0-250828', 'volcengine-seedream', 'edit', 'image_urls'],
+  ])('%s / %s（%s.%s）：直接参考边进入 %s', (vendor, modelKey, archetypeId, modeId, inputKey) => {
+    const target: GenerationCanvasNode = {
+      id: 'target', kind: 'image', title: '目标图', position: { x: 100, y: 0 }, prompt: '改成蓝色',
+      meta: {
+        modelKey, modelAlias: modelKey, modelVendor: vendor, vendor,
+        archetype: { id: archetypeId, modeId },
+      },
+    }
+    const references = resolveGenerationReferences(target, {
+      nodes: [source, target],
+      edges: [{ id: 'source-target', source: source.id, target: target.id, mode: 'reference', order: 0 }],
+    })
+    const request = buildCatalogTaskRequest(target, { references }).request
+    expect(request.kind).toBe('image_edit')
+    expect((request.extras?.archetypeInput as Record<string, unknown>)[inputKey]).toEqual([SOURCE_URL])
+  })
+})
+
 // ───────── 「接入即验证」零额度结构闸门 ─────────
 // 遍历**每个内置档案 × 每个模式**：把该模式声明的参考槽都填上 → 构建请求 → 断言每个填进去的参考值
 // 都真的到达了请求（extras.archetypeInput）。这正是 omni 参考图丢失那类 bug 的结构防线：以后任何模型/

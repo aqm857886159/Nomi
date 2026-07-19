@@ -48,7 +48,7 @@ describe('resolveGenerationReferences — T5 尾帧接力分流', () => {
 describe('resolveGenerationReferences — URL 优先级一致（#4 根因：providerUrl 图生成侧不能丢）', () => {
   // 只有 providerUrl（公网 CDN）、无 result.url 的上游图（很多生成图就是这形态）：
   // 显示侧（referenceUrl.resultUrl）读 providerUrl 能显示；生成侧若不读 providerUrl 会静默丢 →
-  // image_urls 空 → 模型纯文生出无关内容。修后 collectNodeContext 也优先 providerUrl，两侧一致。
+  // image_urls 空 → 模型纯文生出无关内容。修后直接参考边也统一读 referenceUrl，两侧一致。
   it('源图只有 providerUrl（无 result.url）→ 经任意边进 referenceImages（不再静默丢）', () => {
     const img = {
       id: 'img1', kind: 'image', title: 'img1', prompt: '', x: 0, y: 0, width: 100, height: 100,
@@ -58,6 +58,32 @@ describe('resolveGenerationReferences — URL 优先级一致（#4 根因：prov
     const edge = { id: 'e1', source: 'img1', target: 'v1', mode: 'reference' } as unknown as GenerationCanvasEdge
     const refs = resolveGenerationReferences(video, { nodes: [img, video], edges: [edge] })
     expect(refs.referenceImages).toContain('https://cdn/provider-only.png')
+  })
+})
+
+describe('resolveGenerationReferences — 图生图链只取直接参考，不递归串入祖先', () => {
+  it('A → B → C：C 只收到直接相连的 B，不把祖先 A 塞进参考数组', () => {
+    const a = node('a', 'image', 'https://cdn/a.png')
+    const b = node('b', 'image', 'https://cdn/b.png')
+    const c = node('c', 'image')
+    const edges: GenerationCanvasEdge[] = [
+      { id: 'ab', source: 'a', target: 'b', mode: 'reference', order: 0 },
+      { id: 'bc', source: 'b', target: 'c', mode: 'reference', order: 0 },
+    ]
+    expect(resolveGenerationReferences(c, { nodes: [a, b, c], edges }).referenceImages)
+      .toEqual(['https://cdn/b.png'])
+  })
+
+  it('多条直接参考边仍严格按 edge.order 排序', () => {
+    const a = node('a', 'image', 'https://cdn/a.png')
+    const b = node('b', 'image', 'https://cdn/b.png')
+    const c = node('c', 'image')
+    const edges: GenerationCanvasEdge[] = [
+      { id: 'bc', source: 'b', target: 'c', mode: 'reference', order: 1 },
+      { id: 'ac', source: 'a', target: 'c', mode: 'reference', order: 0 },
+    ]
+    expect(resolveGenerationReferences(c, { nodes: [a, b, c], edges }).referenceImages)
+      .toEqual(['https://cdn/a.png', 'https://cdn/b.png'])
   })
 })
 
