@@ -33,24 +33,23 @@ const AssetMentionSuggestionList = React.forwardRef<MentionSuggestionListRef, Pr
   }
   return (
     <div
-      className={cn('flex flex-wrap items-center gap-[6px] p-[6px] rounded-nomi-sm border border-nomi-line bg-nomi-paper shadow-nomi-sm')}
-      style={{ maxWidth: 'min(520px, calc(100vw - 16px))' }}
+      className={cn('flex flex-col p-1 rounded-nomi-sm border border-nomi-line bg-nomi-paper shadow-nomi-sm')}
+      style={{ width: 'min(140px, calc(100vw - 16px))' }}
     >
-      <span className={cn('text-nomi-ink-40 text-micro px-[2px]')}>引用</span>
       {items.map((item, i) => (
         <button
           key={item.url}
           type="button"
-          aria-label={`插入图片${item.index + 1}`}
+          aria-label={`插入参考图片${item.index + 1}`}
           onMouseEnter={() => setSelected(i)}
           onClick={() => command(item)}
           className={cn(
-            'relative inline-flex h-[34px] items-center gap-[5px] rounded-nomi-sm overflow-hidden border border-nomi-line bg-nomi-paper pr-[7px] cursor-pointer',
-            i === selected && 'outline outline-2 outline-offset-1 outline-nomi-accent',
+            'flex h-[30px] w-full items-center gap-2 rounded-nomi-sm border-0 bg-transparent px-1.5 text-left cursor-pointer',
+            i === selected && 'bg-nomi-ink-05',
           )}
         >
-          <img src={item.url} alt="" draggable={false} className={cn('w-[34px] h-[34px] object-cover select-none shrink-0')} />
-          <span className={cn('text-micro font-medium leading-none text-nomi-ink-70 whitespace-nowrap')}>图片{item.index + 1}</span>
+          <img src={item.url} alt="" draggable={false} className={cn('size-6 rounded-nomi-sm object-cover select-none shrink-0')} />
+          <span className={cn('min-w-0 truncate text-caption text-nomi-ink-80')}>参考图片{item.index + 1}</span>
         </button>
       ))}
     </div>
