@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { createExportTempDir, createSafeOutputPaths } from "./exportPaths";
+import { renameSyncWithRetry } from "../jsonFile";
 import { ensureExecutable } from "./ensureExecutable";
 import { buildWebmToMp4Args } from "./ffmpegCommandBuilder";
 import { parseFfmpegProgressChunk, progressFromOutTime } from "./ffmpegProgress";
@@ -310,7 +311,8 @@ export async function transcodeWebmFileToMp4(options: TranscodeWebmFileToMp4Opti
     if (!fs.existsSync(partialOutputPath)) throw new Error("导出失败：MP4 文件未生成");
     const stat = fs.statSync(partialOutputPath);
     if (stat.size <= 0) throw new Error("导出失败：MP4 文件为空");
-    fs.renameSync(partialOutputPath, outputPath);
+    // Windows：旧导出 MP4 被播放器/资源管理器预览持有会 EPERM，共享重试收口（P2）。
+    renameSyncWithRetry(partialOutputPath, outputPath);
     const finalStat = fs.statSync(outputPath);
     return {
       absolutePath: outputPath,
@@ -396,7 +398,8 @@ export async function renderFiltergraphToMp4(options: RenderFiltergraphToMp4Opti
     if (!fs.existsSync(partialOutputPath)) throw new Error("导出失败：MP4 文件未生成");
     const stat = fs.statSync(partialOutputPath);
     if (stat.size <= 0) throw new Error("导出失败：MP4 文件为空");
-    fs.renameSync(partialOutputPath, outputPath);
+    // Windows：旧导出 MP4 被播放器/资源管理器预览持有会 EPERM，共享重试收口（P2）。
+    renameSyncWithRetry(partialOutputPath, outputPath);
     const finalStat = fs.statSync(outputPath);
     return {
       absolutePath: outputPath,
