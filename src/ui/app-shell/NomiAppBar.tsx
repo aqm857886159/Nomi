@@ -1,11 +1,13 @@
 import React from 'react'
-import { IconBrowser, IconDownload, IconPlugConnected } from '@tabler/icons-react'
+import { IconBox, IconBrowser, IconDownload, IconPlugConnected } from '@tabler/icons-react'
 import type { WorkspaceMode } from '../../workbench/workbenchStore'
 import { NomiBrand, NomiStepper, WorkbenchButton } from '../../design'
 import { OnboardingChecklist } from '../../workbench/onboarding/OnboardingChecklist'
 import { AboutNomiPopover } from './AboutNomiPopover'
 import { cn } from '../../utils/cn'
 import { handleWindowTitlebarDoubleClick } from './windowTitlebarDoubleClick'
+import { dispatchGlobalAssetPopoverOpen, getGlobalAssetPopoverAnchorRect } from '../browser/overlay/globalAssetPopoverEvents'
+import { useGlobalBrowserAssetCount } from '../browser/assets/useGlobalBrowserAssets'
 
 // 平台分流：win32 下品牌/关于 + 上手清单都让位给 WorkbenchShell 的自绘标题栏（windowbar），
 // 本栏不重复渲染；非 win32（mac/Linux）保持原生窗口，品牌与清单仍住这里——两平台都有家、不丢失、不重复。
@@ -13,6 +15,18 @@ const isWindows = window.nomiDesktop?.platform === 'win32'
 
 function openBrowser(): void {
   window.dispatchEvent(new CustomEvent('nomi-open-browser'))
+}
+
+function AssetCountBadge({ count }: { count: number }): JSX.Element | null {
+  if (count <= 0) return null
+  return (
+    <span
+      className="inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-pill bg-nomi-accent-soft px-1.5 text-micro font-semibold leading-none text-nomi-accent max-[1400px]:hidden"
+      aria-label={`${count} 个素材`}
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  )
 }
 
 type NomiAppBarProps = {
@@ -36,6 +50,7 @@ export default function NomiAppBar({
   const [projectTitle, setProjectTitle] = React.useState(projectName || '未命名 Nomi 项目')
   const [aboutOpen, setAboutOpen] = React.useState(false)
   const brandRef = React.useRef<HTMLButtonElement | null>(null)
+  const assetCount = useGlobalBrowserAssetCount()
 
   React.useEffect(() => {
     if (!editingProjectName && projectName) setProjectTitle(projectName)
@@ -218,10 +233,30 @@ export default function NomiAppBar({
               title="浏览器"
               onClick={openBrowser}
             >
-              {/* 顶栏操作按钮统一解剖：图标 15/1.8 + 文字，窄屏一起收成 30px 方块。
-                  素材盒常驻入口已删（方案一 2026-07-12）：它只作浏览器伴生收件箱出现。 */}
+              {/* 顶栏操作按钮统一解剖：图标 15/1.8 + 文字，窄屏一起收成 30px 方块。 */}
               <IconBrowser size={15} stroke={1.8} />
               <span className={cn('nomi-appbar__action-text', 'max-[1400px]:hidden')}>浏览器</span>
+            </WorkbenchButton>
+            <WorkbenchButton
+              className={cn(
+                'nomi-appbar__ghost',
+                'app-no-drag',
+                'inline-flex items-center gap-1.5 h-[30px] px-2.5',
+                'border border-transparent rounded-[var(--nomi-radius-sm)]',
+                'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
+                'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+                'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
+                'max-[1400px]:w-[30px] max-[1400px]:h-[30px] max-[1400px]:justify-center max-[1400px]:p-0',
+              )}
+              aria-label="打开素材盒"
+              title="素材盒"
+              onClick={(event) => {
+                dispatchGlobalAssetPopoverOpen(true, getGlobalAssetPopoverAnchorRect(event.currentTarget))
+              }}
+            >
+              <IconBox size={15} stroke={1.7} aria-hidden="true" />
+              <span className={cn('nomi-appbar__action-text', 'max-[1400px]:hidden')}>素材盒</span>
+              <AssetCountBadge count={assetCount} />
             </WorkbenchButton>
           </>
         ) : null}

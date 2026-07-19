@@ -119,7 +119,9 @@ export function dedupeModelOptions(options: ModelOption[]): DedupedModel[] {
     }
     byId.set(canonicalId, {
       canonicalId,
-      label: option.label || canonicalId,
+      // 展示名去能力后缀（kie 把 GPT Image 2 拆「· 文生图/· 图生图」两行，合并成一条后
+      // 不该带着首家的后缀当组名）；无后缀的 label 原样。
+      label: (option.label || canonicalId).replace(CAPABILITY_SUFFIX_RE, '').trim() || canonicalId,
       recognized: isRecognizedModel(option),
       providers: [ref],
     })

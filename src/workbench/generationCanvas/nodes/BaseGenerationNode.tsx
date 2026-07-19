@@ -8,7 +8,6 @@ import { getBuiltinCategoryById } from '../../project/projectCategories'
 import { NodeCardBody } from './render/NodeCardBody'
 import ImageCropGridOverlay from './render/ImageCropGridOverlay'
 import NodeImageEditToolbar from './NodeImageEditToolbar'
-import NodeResultDownloadButton from './NodeResultDownloadButton'
 import { ImageResultStackControls } from './ImageResultStack'
 import { FloatingToolbarShell, TOOLBAR_ICON as TBI, ToolbarButton, ToolbarDivider } from './NodeFloatingToolbar'
 import { useNodeImageEditing } from './useNodeImageEditing'
@@ -61,6 +60,8 @@ import {
 } from './nodeSizing'
 import { useNodeVideoHoverPreview } from './useNodeVideoHoverPreview'
 import { NodeInlineImageTitle, NodeResultHeaderActions } from './NodeImagePreviewActions'
+import { useNodeDisplayPrompt } from './useNodeDisplayPrompt'
+import { useNodeMediaPreview } from './useNodeMediaPreview'
 
 export type BaseGenerationNodeProps = {
   node: GenerationCanvasNode
@@ -117,10 +118,10 @@ function BaseGenerationNodeImpl({
   const panoramaUploadInputRef = React.useRef<HTMLInputElement | null>(null)
   const [provenanceOpen, setProvenanceOpen] = React.useState(false)
   const [imageStackOpen, setImageStackOpen] = React.useState(false)
+  const { openMediaPreview, mediaPreviewControls } = useNodeMediaPreview(node, selected && !isMultiSelectActive && !imageStackOpen)
   const handleImageStackOpenChange = React.useCallback((nextOpen: boolean) => {
     setImageStackOpen(nextOpen)
   }, [])
-
   const sizeBounds = getNodeSizeBounds(node.kind)
 
   const handleTimelineDragStart = (event: React.DragEvent<HTMLElement>) => {
@@ -255,6 +256,7 @@ function BaseGenerationNodeImpl({
   const shotIndex = useShotIndex(node.id, node.categoryId)
   // 切片2：镜头「挂了哪些设定卡」——不选中也能一眼看出挂了林夏/咖啡馆（可审计，免数连线）。
   const mountedCards = useMountedCards(node.id)
+  const displayPrompt = useNodeDisplayPrompt(node)
   const hasFrameSourceEdge = useHasFrameSourceEdge(node.id, nodeExecutionKind === 'video') // A15：已连上游边时占位不再喊「拖图」
   const needsFirstFrame = nodeExecutionKind === 'video' && !canGenerate && !isGenerating
   const { handlePanoramaFileChange, handlePanoramaScreenshot } = useNodePanoramaHandlers(node, visualSize)
@@ -421,12 +423,10 @@ function BaseGenerationNodeImpl({
           onTransform={(op) => void imageEditing.handleImageTransform(op)}
           onRemoveBackground={() => void imageEditing.handleRemoveBackground()}
           removeBackgroundBusy={isRemoveBackgroundPending}
+          onPreview={openMediaPreview}
         />
       ) : null}
-
-      {/* 视频等无编辑工具条的结果：单独一条「下载」浮条；多选时藏（只留居中批量条，不糊一片）。 */}
-      <NodeResultDownloadButton node={node} selected={selected && !isMultiSelectActive && !imageStackOpen} />
-
+      {mediaPreviewControls}
       <header
         className={cn(
           'generation-canvas-v2-node__header',
@@ -613,7 +613,7 @@ function BaseGenerationNodeImpl({
             waitingUpstream={hasFrameSourceEdge}
             shotIndex={shotIndex}
             title={node.title}
-            prompt={node.prompt}
+            prompt={displayPrompt}
           />
         )}
         <ShotPreviewOverlays node={node} selected={selected} readOnly={readOnly} shotIndex={shotIndex} hasResult={hasResult} isGenerating={isGenerating} />

@@ -52,7 +52,7 @@ export default function PromptEditor({ value, onChange, placeholder, className, 
       AssetMention,
       suggestionExt,
     ],
-    content: promptToContent(value),
+    content: promptToContent(value, mentionCandidates),
     editable: editable !== false,
     editorProps: { attributes: { class: 'generation-canvas-v2-node__prompt-input outline-0' } },
     onUpdate: ({ editor: current }) => {
@@ -78,8 +78,27 @@ export default function PromptEditor({ value, onChange, placeholder, className, 
     if (!editor || editor.isDestroyed) return
     if (value === lastStringRef.current) return
     lastStringRef.current = value
-    editor.commands.setContent(promptToContent(value))
+    editor.commands.setContent(promptToContent(value, candidatesRef.current))
   }, [editor, value])
+
+  // 参考图拖拽重排后，prompt 字符串仍是同一批 url，但 chip 的「图片N」必须按最新列表立即刷新。
+  // 只改易失的 index 属性，不改持久化内容、不重建编辑器，也不打断当前光标。
+  React.useEffect(() => {
+    if (!editor || editor.isDestroyed) return
+    const orderedUrls = mentionCandidates || []
+    let transaction = editor.state.tr
+    let changed = false
+    editor.state.doc.descendants((docNode, pos) => {
+      if (docNode.type.name !== 'assetMention') return
+      const url = String(docNode.attrs.url || '')
+      const orderedIndex = orderedUrls.indexOf(url)
+      const nextIndex = orderedIndex >= 0 ? orderedIndex + 1 : null
+      if (docNode.attrs.index === nextIndex) return
+      transaction = transaction.setNodeMarkup(pos, undefined, { ...docNode.attrs, index: nextIndex })
+      changed = true
+    })
+    if (changed) editor.view.dispatch(transaction)
+  }, [editor, mentionCandidates])
 
   return (
     <EditorContent

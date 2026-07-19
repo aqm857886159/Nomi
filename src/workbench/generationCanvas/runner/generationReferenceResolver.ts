@@ -1,6 +1,5 @@
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { sortEdgesByOrder } from '../model/graphOps'
-import { collectNodeContext } from '../model/nodeContext'
 import { asUrl, findNodeResultUrl, resolveReferenceUrl } from './referenceUrl'
 
 export type ResolvedGenerationReferences = {
@@ -38,7 +37,6 @@ export function resolveGenerationReferences(
   const nodes = context.nodes || [node]
   const edges = context.edges || []
   const nodesById = new Map(nodes.map((candidate) => [candidate.id, candidate]))
-  const nodeContext = collectNodeContext(nodes, edges, node.id)
   const referenceImages: string[] = []
   const styleReferenceImages: string[] = []
   const characterReferenceImages: string[] = []
@@ -86,9 +84,13 @@ export function resolveGenerationReferences(
       if (nodesById.get(edge.source)?.meta?.stagingComposition === true) stagingComposition = true
       continue
     }
+    // 通用 reference（含旧快照 mode 缺失）只收**直接连到目标**的源结果。不能再借 collectNodeContext
+    // 递归扫祖先：A→B→C 时 C 的参考应是 B，而不是 [A,B]；单图模型若截 max=1 会错误发送 A。
+    if (!edge.mode || edge.mode === 'reference') {
+      pushUnique(referenceImages, sourceUrl)
+    }
   }
 
-  nodeContext.resultUrls.forEach((url) => pushUnique(referenceImages, url))
   ;(node.references || []).forEach((reference) => {
     const directUrl = asUrl(reference)
     pushUnique(referenceImages, directUrl || findNodeResultUrl(nodesById, reference))

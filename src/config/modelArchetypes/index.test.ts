@@ -10,6 +10,14 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
     expect(a?.id).toBe("seedance-2");
   });
 
+  it("画布节点持久化的 meta.archetype.id 直接命中，即使供应商 modelKey 不在 patterns", () => {
+    const a = resolveArchetypeForModel({
+      modelKey: "vendor-specific-key-not-in-patterns",
+      meta: { archetype: { id: "volcengine-seedream", modeId: "edit" } },
+    });
+    expect(a?.id).toBe("volcengine-seedream");
+  });
+
   it("无 meta，仅靠 modelKey 身份命中（用户自接、非 kie 也行）", () => {
     expect(resolveArchetypeForModel({ modelKey: "bytedance/seedance-2" })?.id).toBe("seedance-2");
   });
@@ -48,31 +56,43 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
     expect(base.defaultVariantId).toBe("standard");
   });
 
-  it("apimart Seedance 变体合并：4 个旧变体 modelKey 全解析到同一基础档案（迁移层据 variant 落到对应 variantId）", () => {
-    // 变体合并后只剩 1 个档案 seedance-2-apimart；4 个旧变体 modelKey 都命中它（identifierPatterns 收纳）。
+  it("apimart Seedance：当前三模式 + 旧 face 串都解析到同一基础档案", () => {
+    // catalog 只剩 1 行；当前三模式和历史 face/fast-face modelKey 都命中同一档案。
     for (const modelKey of [
       "doubao-seedance-2.0",
       "doubao-seedance-2.0-fast",
+      "doubao-seedance-2.0-mini",
       "doubao-seedance-2.0-face",
       "doubao-seedance-2.0-fast-face",
     ]) {
       expect(resolveArchetypeForModel({ modelKey })?.id).toBe("seedance-2-apimart");
     }
-    // 档案声明 5 变体 + 默认 standard（2026-06-30 照 docs.apimart.ai 补 mini）。
+    // UI 只声明三模式，默认 Fast；catalog 基础行仍是标准 modelKey。
     const arch = resolveArchetypeForModel({ modelKey: "doubao-seedance-2.0" });
-    expect(arch?.variants?.map((v) => v.id)).toEqual(["standard", "fast", "face", "fast-face", "mini"]);
-    expect(arch?.defaultVariantId).toBe("standard");
+    expect(arch?.variants?.map((v) => v.id)).toEqual(["standard", "fast", "mini"]);
+    expect(arch?.variants?.map((v) => v.label)).toEqual(["Seedance 2.0", "Fast", "Mini"]);
+    expect(arch?.defaultVariantId).toBe("fast");
+    expect(arch?.catalogModelKey).toBe("doubao-seedance-2.0");
   });
 
-  it("apimart Seedance 清晰度按变体约束：标准含 4k；face 留 1080 去 4k；fast/fast-face 仅 480/720", () => {
-    // apimart 官方约束：4k 仅基础档独占；1080p 仅基础档 + face。逐变体核实 UI 选项收窄与之一致。
+  it("apimart Seedance 清晰度按当前模式约束：标准含 4k；Fast/Mini 仅 480/720", () => {
     const base = getArchetypeById("seedance-2-apimart")!;
     const resOf = (variantId: string) =>
       specializeArchetypeForVariant(base, variantId).modes[0].params.find((p) => p.key === "resolution")!.options.map((o) => o.value);
     expect(resOf("standard")).toEqual(["480p", "720p", "1080p", "4k"]);
-    expect(resOf("face")).toEqual(["480p", "720p", "1080p"]);
     expect(resOf("fast")).toEqual(["480p", "720p"]);
+    expect(resOf("mini")).toEqual(["480p", "720p"]);
+    // 旧 fast-face id 在迁移完成前也按 Fast 收窄。
     expect(resOf("fast-face")).toEqual(["480p", "720p"]);
+  });
+
+  it("Grok Imagine 1.5：官方主键/兼容别名命中同一视频档案", () => {
+    expect(resolveArchetypeForModel({ modelKey: "grok-imagine-1.5-video-apimart" })?.id).toBe("grok-imagine-1.5-video");
+    expect(resolveArchetypeForModel({ modelKey: "grok-imagine-1.5-video-ext" })?.id).toBe("grok-imagine-1.5-video");
+    const arch = getArchetypeById("grok-imagine-1.5-video")!;
+    expect(arch.modes.map((m) => m.id)).toEqual(["t2v", "i2v"]);
+    expect(arch.modes.find((m) => m.id === "i2v")?.slots[0]).toMatchObject({ inputKey: "image_urls", max: 7 });
+    expect(arch.modes.find((m) => m.id === "i2v")?.params.map((p) => p.key)).toEqual(["quality", "duration"]);
   });
 
   it("火山方舟 Seedance 2.0：标准/Fast/Mini 解析到火山专属档案", () => {

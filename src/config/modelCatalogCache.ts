@@ -24,6 +24,7 @@ let catalogHealthCache: ModelCatalogHealthDto | null = null
 let catalogHealthPromise: Promise<ModelCatalogHealthDto> | null = null
 let enabledVendorKeysCache: Set<string> | null = null
 let enabledVendorKeysPromise: Promise<Set<string>> | null = null
+let vendorNamesCache: Map<string, string> | null = null
 
 const HIDDEN_IMAGE_MODEL_ID_RE = /^(gemini-.*-image(?:-(?:landscape|portrait))?|imagen-.*-(?:landscape|portrait))$/i
 
@@ -44,6 +45,7 @@ function invalidateAvailableCache() {
   catalogHealthPromise = null
   enabledVendorKeysCache = null
   enabledVendorKeysPromise = null
+  vendorNamesCache = null
 }
 
 export async function getCatalogHealth(): Promise<ModelCatalogHealthDto> {
@@ -84,6 +86,14 @@ async function getEnabledVendorKeys(): Promise<Set<string>> {
             .map((v) => String(v?.key || '').trim().toLowerCase())
             .filter(Boolean),
         )
+        // 顺手缓存 key→显示名（节点下拉标注厂商用；自定义中转 key 是 baseUrl 派生串不宜直显）。
+        const names = new Map<string, string>()
+        for (const v of Array.isArray(vendors) ? vendors : []) {
+          const key = String(v?.key || '').trim().toLowerCase()
+          const name = String(v?.name || '').trim()
+          if (key && name) names.set(key, name)
+        }
+        vendorNamesCache = names
         enabledVendorKeysCache = enabled
         return enabled
       } finally {
@@ -112,8 +122,16 @@ async function getCatalogModelOptions(kind?: NodeKind): Promise<ModelOption[]> {
         return enabledVendorKeys.has(vendorKey)
       })
       const normalized = toCatalogModelOptions(filteredRows)
-      catalogOptionsCache.set(cacheKey, normalized)
-      return normalized
+      // 回填厂商显示名（getEnabledVendorKeys 已顺手缓存 key→name）。
+      const names = vendorNamesCache
+      const withVendorName = names
+        ? normalized.map((opt) => {
+            const name = opt.vendor ? names.get(opt.vendor.toLowerCase()) : undefined
+            return name ? { ...opt, vendorName: name } : opt
+          })
+        : normalized
+      catalogOptionsCache.set(cacheKey, withVendorName)
+      return withVendorName
     } finally {
       catalogPromiseCache.delete(cacheKey)
     }

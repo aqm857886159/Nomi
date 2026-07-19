@@ -5,6 +5,21 @@ import {
 } from '../adapters/clipboardImagePaste'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 
+type CanvasZoomShortcutInput = {
+  key: string
+  code: string
+  ctrlKey: boolean
+  metaKey: boolean
+  altKey: boolean
+}
+
+export function canvasZoomShortcutDirection(input: CanvasZoomShortcutInput): -1 | 0 | 1 {
+  if ((!input.ctrlKey && !input.metaKey) || input.altKey) return 0
+  if (input.code === 'Equal' || input.code === 'NumpadAdd' || input.key === '+' || input.key === '=') return 1
+  if (input.code === 'Minus' || input.code === 'NumpadSubtract' || input.key === '-' || input.key === '_') return -1
+  return 0
+}
+
 /**
  * 画布全局快捷键（从 GenerationCanvas 抽出，R9 防巨壳）。
  *
@@ -30,6 +45,7 @@ export function useCanvasShortcuts(opts: {
   cutSelectedNodes: () => void
   pasteNodes: (basePosition?: { x: number; y: number }) => void
   getPastePosition: () => { x: number; y: number }
+  zoomByStep: (direction: -1 | 1) => void
   undo: () => void
   redo: () => void
 }): void {
@@ -48,6 +64,7 @@ export function useCanvasShortcuts(opts: {
     cutSelectedNodes,
     pasteNodes,
     getPastePosition,
+    zoomByStep,
     undo,
     redo,
   } = opts
@@ -85,6 +102,12 @@ export function useCanvasShortcuts(opts: {
         return
       }
       if (!mod) return
+      const zoomDirection = canvasZoomShortcutDirection(event)
+      if (zoomDirection !== 0) {
+        event.preventDefault()
+        zoomByStep(zoomDirection)
+        return
+      }
       if (key === 'g' && event.shiftKey) {
         if (!selectedGroupCount) return
         event.preventDefault()
@@ -155,12 +178,17 @@ export function useCanvasShortcuts(opts: {
         pasteNodes(pastePosition)
       })
     }
+    const offDesktopZoom = window.nomiDesktop?.window?.onCanvasZoomShortcut?.((direction) => {
+      if (!stageRef.current || stageRef.current.offsetParent === null) return
+      zoomByStep(direction)
+    })
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('paste', handlePaste)
     return () => {
       clearPasteFallback()
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('paste', handlePaste)
+      offDesktopZoom?.()
     }
   }, [
     activeCategoryId,
@@ -179,5 +207,6 @@ export function useCanvasShortcuts(opts: {
     stageRef,
     undo,
     ungroupSelectedNodes,
+    zoomByStep,
   ])
 }

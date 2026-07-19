@@ -439,6 +439,19 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     [getToolbarInsertionPosition],
   )
 
+  const handleZoomTo = React.useCallback((nextZoom: number) => {
+    const rect = stageRef.current?.getBoundingClientRect()
+    if (!rect) {
+      setViewportTransform(nextZoom, offsetRef.current)
+      return
+    }
+    zoomAtStagePoint(nextZoom, { x: rect.width / 2, y: rect.height / 2 })
+  }, [offsetRef, setViewportTransform, stageRef, zoomAtStagePoint])
+  const handleZoomByStep = React.useCallback((direction: -1 | 1) => {
+    const factor = direction > 0 ? 1.1 : 1 / 1.1
+    handleZoomTo(clampNumber((zoomRef.current || 1) * factor, 0.2, 3))
+  }, [handleZoomTo, zoomRef])
+
   useCanvasShortcuts({
     readOnly,
     stageRef,
@@ -454,6 +467,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     cutSelectedNodes,
     pasteNodes,
     getPastePosition,
+    zoomByStep: handleZoomByStep,
     undo,
     redo,
   })
@@ -553,16 +567,6 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     const z = zoomRef.current || 1
     setViewportTransform(z, { x: stageSize.width / 2 - point.x * z, y: stageSize.height / 2 - point.y * z })
   }, [setViewportTransform, stageSize.width, stageSize.height, zoomRef])
-
-  // 缩放条拖动：以画布中心为锚点缩放（无 rect 时退化为原地缩放，不丢手势）。
-  const handleZoomTo = React.useCallback((nextZoom: number) => {
-    const rect = stageRef.current?.getBoundingClientRect()
-    if (!rect) {
-      setViewportTransform(nextZoom, offsetRef.current)
-      return
-    }
-    zoomAtStagePoint(nextZoom, { x: rect.width / 2, y: rect.height / 2 })
-  }, [offsetRef, setViewportTransform, stageRef, zoomAtStagePoint])
 
   // 项目/分类首次加载时自动适应视图（含「历史视口框不住任何节点」的自愈式适应，
   // 防止图都在视口外、用户误以为「图消失」）。逻辑抽到 useAutoFitOnLoad（防巨壳）。

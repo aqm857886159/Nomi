@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeAspectRatioToWH, parseAspectRatioValue, readNodeAspectRatio } from "./aspectRatio";
+import { commonRatioSortKey, normalizeAspectRatioToWH, parseAspectRatioValue, preferredVideoAspect, readNodeAspectRatio } from "./aspectRatio";
 import type { GenerationCanvasNode } from "../model/generationCanvasTypes";
 
 describe("parseAspectRatioValue", () => {
@@ -64,5 +64,44 @@ describe("readNodeAspectRatio", () => {
   it("无比例参数返回 null", () => {
     expect(readNodeAspectRatio(nodeWithMeta({ resolution: "1080p" }))).toBeNull();
     expect(readNodeAspectRatio(nodeWithMeta({}))).toBeNull();
+  });
+});
+
+describe("preferredVideoAspect（2026-07-17：视频首选 16:9，输入全竖才 9:16）", () => {
+  it("无输入 → 16:9", () => {
+    expect(preferredVideoAspect([])).toBe("16:9");
+  });
+  it("输入全竖 → 9:16", () => {
+    expect(preferredVideoAspect([0.5625, 0.75])).toBe("9:16");
+  });
+  it("混合（有横有竖）→ 16:9", () => {
+    expect(preferredVideoAspect([0.5625, 1.777])).toBe("16:9");
+  });
+  it("全横 → 16:9；方图（=1）不算竖 → 16:9", () => {
+    expect(preferredVideoAspect([1.777])).toBe("16:9");
+    expect(preferredVideoAspect([1])).toBe("16:9");
+  });
+});
+
+describe("commonRatioSortKey（常用比例排最前）", () => {
+  const sort = (items: Array<{ v: string; l: string }>) =>
+    [...items].sort((a, b) => commonRatioSortKey(a.v, a.l) - commonRatioSortKey(b.v, b.l)).map((x) => x.l);
+  it("16:9 领头、9:16 次之；auto 恒最前；未知殿后", () => {
+    const items = [
+      { v: "2:3", l: "2:3" },
+      { v: "adaptive", l: "adaptive" },
+      { v: "9:16", l: "9:16" },
+      { v: "weird", l: "weird" },
+      { v: "16:9", l: "16:9" },
+    ];
+    expect(sort(items)).toEqual(["adaptive", "16:9", "9:16", "2:3", "weird"]);
+  });
+  it("像素值靠 label 归一参与排序（value=1024x1024 label=1:1）", () => {
+    const items = [
+      { v: "1536x1024", l: "3:2" },
+      { v: "1024x1024", l: "1:1" },
+      { v: "1024x1536", l: "9:16" },
+    ];
+    expect(sort(items)).toEqual(["9:16", "1:1", "3:2"]);
   });
 });

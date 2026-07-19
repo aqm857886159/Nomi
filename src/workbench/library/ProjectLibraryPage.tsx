@@ -1,6 +1,7 @@
 import React from 'react'
 import {
   IconBrowser,
+  IconBox,
   IconFolderOpen,
   IconFolderShare,
   IconMovie,
@@ -16,6 +17,8 @@ import { NomiImage } from '../../design/media'
 import { ThemeToggleButton } from '../../ui/theme/ThemeToggleButton'
 import { WindowControls } from '../../ui/app-shell/WindowControls'
 import { handleWindowTitlebarDoubleClick } from '../../ui/app-shell/windowTitlebarDoubleClick'
+import { dispatchGlobalAssetPopoverOpen, getGlobalAssetPopoverAnchorRect } from '../../ui/browser/overlay/globalAssetPopoverEvents'
+import { useGlobalBrowserAssetCount } from '../../ui/browser/assets/useGlobalBrowserAssets'
 import type { LocalProjectSummary } from './localProjectStore'
 import type { ProjectTemplateId } from './projectTemplates'
 
@@ -84,6 +87,7 @@ export default function ProjectLibraryPage({
 }: Props): JSX.Element {
   const [query, setQuery] = React.useState('')
   const [sourceFilter, setSourceFilter] = React.useState<'all' | 'native' | 'folder'>('all')
+  const assetCount = useGlobalBrowserAssetCount()
   const normalizedQuery = query.trim().toLowerCase()
   const searchedProjects = normalizedQuery
     ? projects.filter((project) => project.name.toLowerCase().includes(normalizedQuery))
@@ -156,9 +160,31 @@ export default function ProjectLibraryPage({
         )}
         aria-label="打开浏览器"
       >
-        {/* 素材盒常驻入口已删（方案一 2026-07-12）：只作浏览器伴生收件箱。 */}
         <IconBrowser size={14} stroke={1.8} aria-hidden="true" />
         浏览器
+      </button>
+      <button
+        type="button"
+        onClick={(event) => {
+          dispatchGlobalAssetPopoverOpen(true, getGlobalAssetPopoverAnchorRect(event.currentTarget))
+        }}
+        className={cn(
+          'inline-flex items-center gap-1.5 h-7 px-2 rounded-pill border-0 bg-transparent cursor-pointer font-inherit',
+          'text-caption text-nomi-ink-60 transition-colors hover:text-nomi-ink',
+        )}
+        aria-label="打开素材盒"
+        title="素材盒"
+      >
+        <IconBox size={14} stroke={1.7} aria-hidden="true" />
+        素材盒
+        {assetCount > 0 ? (
+          <span
+            className="inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-pill bg-nomi-accent-soft px-1.5 text-micro font-semibold leading-none text-nomi-accent"
+            aria-label={`${assetCount} 个素材`}
+          >
+            {assetCount > 99 ? '99+' : assetCount}
+          </span>
+        ) : null}
       </button>
       <ThemeToggleButton className="size-7 rounded-pill" />
     </div>

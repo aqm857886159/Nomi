@@ -66,7 +66,7 @@ export const HAPPYHORSE_ARCHETYPE: ModelArchetype = {
       id: "ref",
       intent: "character",
       vendorTerm: "角色参考",
-      hint: "1–9 张角色图 → prompt 里 character1…9",
+      hint: "1–9 张角色图 → prompt 里按顺序写 @image1…@image9",
       promptRequired: true,
       modelEnum: "happyhorse/reference-to-video",
       slots: [{ kind: "image_ref", label: "角色参考", min: 1, max: 9, inputKey: "reference_image", characterIndexed: true }],

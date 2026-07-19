@@ -176,6 +176,32 @@ describe("applyBuiltinSeeds", () => {
     expect((t2v?.create.body as { model: string }).model).toBe("{{request.params.model}}");
   });
 
+  it("APIMart Grok Imagine 1.5：播一个 catalog 模型 + 文生/图生两条视频 mapping", () => {
+    const { state } = applyBuiltinSeeds(emptyCatalog(), NOW);
+    const model = state.models.find((m) => m.vendorKey === "apimart" && m.modelKey === "grok-imagine-1.5-video-apimart");
+    expect(model).toMatchObject({ labelZh: "Grok Imagine 1.5", kind: "video", enabled: true });
+    expect(model?.meta).toMatchObject({ archetypeId: "grok-imagine-1.5-video" });
+
+    const t2v = state.mappings.find((m) => m.id === "seed-apimart-grok-imagine-1.5-video-text_to_video");
+    const i2v = state.mappings.find((m) => m.id === "seed-apimart-grok-imagine-1.5-video-image_to_video");
+    expect(t2v).toMatchObject({ modelKey: "grok-imagine-1.5-video-apimart", taskKind: "text_to_video" });
+    expect(i2v).toMatchObject({ modelKey: "grok-imagine-1.5-video-apimart", taskKind: "image_to_video" });
+    expect(t2v?.create.path).toBe("/v1/videos/generations");
+    expect(t2v?.create.body).toMatchObject({
+      model: "{{model.modelKey}}",
+      size: "{{request.params.size}}",
+      quality: "{{request.params.quality}}",
+      duration: "{{request.params.duration}}",
+    });
+    expect(i2v?.create.body).toMatchObject({
+      model: "{{model.modelKey}}",
+      quality: "{{request.params.quality}}",
+      duration: "{{request.params.duration}}",
+      image_urls: "{{request.params.image_urls}}",
+    });
+    expect((i2v?.create.body as Record<string, unknown>).size).toBeUndefined();
+  });
+
   it("变体合并迁移：老装机里残留的 3 个旧 Seedance 变体模型 + 6 mapping 被精确删除（picker 收成 1 项）", () => {
     // 模拟老装机：先 fresh seed 1 个基础模型，再手塞 3 个旧变体模型 + 它们的 6 条 mapping（旧 seed id）。
     const stale = applyBuiltinSeeds(emptyCatalog(), NOW).state;
@@ -274,5 +300,57 @@ describe("applyBuiltinSeeds", () => {
     expect(mappings.map((m) => m.id)).toEqual(["seed-volcengine-seedance-2-text_to_video", "seed-volcengine-seedance-2-image_to_video"]);
     expect(mappings.every((m) => m.query?.path === "/api/v3/contents/generations/tasks/{{providerMeta.task_id}}")).toBe(true);
     expect(mappings.every((m) => m.statusMapping?.succeeded?.includes("succeeded"))).toBe(true);
+  });
+});
+
+describe("canonicalModelId（跨供应商去重键，2026-07-17）", () => {
+  const canonicalOf = (s: CatalogState, vendorKey: string, modelKey: string): unknown =>
+    (s.models.find((m) => m.vendorKey === vendorKey && m.modelKey === modelKey)?.meta as Record<string, unknown> | undefined)
+      ?.canonicalModelId;
+
+  it("跨家同一逻辑模型 seed 后带同一个版本级 canonicalModelId", () => {
+    const { state } = applyBuiltinSeeds(emptyCatalog(), NOW);
+    // Seedream 4.5：kie / apimart / 火山 / RunningHub 四家同键。
+    expect(canonicalOf(state, "kie", "seedream")).toBe("seedream 4.5");
+    expect(canonicalOf(state, "apimart", "doubao-seedream-4.5")).toBe("seedream 4.5");
+    expect(canonicalOf(state, "volcengine", "doubao-seedream-4-5-251128")).toBe("seedream 4.5");
+    expect(canonicalOf(state, "runninghub", "seedream-v4.5")).toBe("seedream 4.5");
+    // Seedance 2.0 四家同键。
+    expect(canonicalOf(state, "kie", "bytedance/seedance-2")).toBe("seedance 2.0");
+    expect(canonicalOf(state, "apimart", "doubao-seedance-2.0")).toBe("seedance 2.0");
+    expect(canonicalOf(state, "volcengine", "doubao-seedance-2-0-260128")).toBe("seedance 2.0");
+    expect(canonicalOf(state, "runninghub", "bytedance/seedance-2.0-global")).toBe("seedance 2.0");
+    // kie 把 GPT Image 2 拆两行 → 同一 canonical（在 picker 合并成一条）。
+    expect(canonicalOf(state, "kie", "gpt-image-2-text-to-image")).toBe("gpt image 2");
+    expect(canonicalOf(state, "kie", "gpt-image-2-image-to-image")).toBe("gpt image 2");
+    expect(canonicalOf(state, "apimart", "gpt-image-2")).toBe("gpt image 2");
+  });
+
+  it("值 = normalizeModelLabel(labelZh) 产物：不进表的同名模型走 label 回退得到同键（不拆现有合并组）", () => {
+    const { state } = applyBuiltinSeeds(emptyCatalog(), NOW);
+    const seedream = state.models.find((m) => m.vendorKey === "kie" && m.modelKey === "seedream");
+    const norm = String(seedream?.labelZh || "").trim().toLowerCase().replace(/\s+/g, " ");
+    expect((seedream?.meta as Record<string, unknown>)?.canonicalModelId).toBe(norm);
+  });
+
+  it("版本级不合并：Seedream 5.0/4.0（火山单家版本）不带 4.5 的 canonical", () => {
+    const { state } = applyBuiltinSeeds(emptyCatalog(), NOW);
+    expect(canonicalOf(state, "volcengine", "doubao-seedream-5-0-260128")).toBeUndefined();
+    expect(canonicalOf(state, "volcengine", "doubao-seedream-4-0-250828")).toBeUndefined();
+  });
+
+  it("老装机自愈：已有条目缺 canonicalModelId → 再次 seed 补上（drift 对账），不动用户所有字段", () => {
+    const first = applyBuiltinSeeds(emptyCatalog(), NOW).state;
+    const idx = first.models.findIndex((m) => m.vendorKey === "kie" && m.modelKey === "seedream");
+    const meta = { ...(first.models[idx].meta as Record<string, unknown>) };
+    delete meta.canonicalModelId;
+    first.models[idx] = { ...first.models[idx], meta, labelZh: "我改过的名字", enabled: false };
+    const { state, changed } = applyBuiltinSeeds(first, "2026-07-17T00:00:00.000Z");
+    expect(changed).toBe(true);
+    expect(canonicalOf(state, "kie", "seedream")).toBe("seedream 4.5");
+    const healed = state.models.find((m) => m.vendorKey === "kie" && m.modelKey === "seedream");
+    // 用户所有字段保留（labelZh/enabled 不被 clobber）。
+    expect(healed?.labelZh).toBe("我改过的名字");
+    expect(healed?.enabled).toBe(false);
   });
 });

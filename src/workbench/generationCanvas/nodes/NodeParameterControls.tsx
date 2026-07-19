@@ -16,6 +16,7 @@ import {
   buildModelControls,
   defaultPatchForCatalogControl,
   defaultPatchForControls,
+  videoAspectDefaultPatch,
   edgeModeForGroup,
   getEdgeSourceForSlot,
   getSlotNodeRef,
@@ -52,7 +53,7 @@ import { showInfoToast } from '../../../utils/showInfoToast'
 import InlineParameterBar from './InlineParameterBar'
 import { useNodeModelAutoSelect } from './useNodeModelAutoSelect'
 import { resolveArchetypeForOption, resolveRenderedControls } from './nodeModelArchetype'
-import { ASPECT_RATIO_KEYS, normalizeAspectRatioToWH } from './aspectRatio'
+import { ASPECT_RATIO_KEYS, collectInputAspectRatios, normalizeAspectRatioToWH, preferredVideoAspect } from './aspectRatio'
 
 // 模块级常量：比例参数的 key 白名单（与 aspectRatio.ts 的 ASPECT_RATIO_KEYS 保持一致）。
 const ASPECT_RATIO_KEY_SET = new Set<string>(ASPECT_RATIO_KEYS)
@@ -62,6 +63,8 @@ type NodeParameterControlsProps = {
   section?: 'all' | 'references' | 'parameters' | 'model' | 'controls'
   /** 点参考 tile → 在描述框光标处插入 @ 引用 chip(主路径,由 composer 注入 editor 命令)。 */
   onInsertMention?: (url: string) => void
+  /** 参数面板开/合（透传给 InlineParameterBar → composer 冻结位置用）。 */
+  onParamPanelOpenChange?: (open: boolean) => void
 }
 
 
@@ -69,6 +72,7 @@ export default function NodeParameterControls({
   node,
   section = 'all',
   onInsertMention,
+  onParamPanelOpenChange,
 }: NodeParameterControlsProps): JSX.Element | null {
   const nodes = useGenerationCanvasStore((state) => state.nodes)
   const edges = useGenerationCanvasStore((state) => state.edges)
@@ -122,6 +126,10 @@ export default function NodeParameterControls({
     const nextOption = findModelOptionByIdentifier(modelOptions, value)
     const controls = buildModelControls(nextOption?.meta, isImageLike, isVideoLike)
     const defaultPatch = defaultPatchForControls(controls)
+    // 视频比例产品默认（覆盖档案默认）：首选 16:9，已连输入全竖才 9:16（2026-07-17 用户拍板）。
+    const aspectPatch = isVideoLike
+      ? videoAspectDefaultPatch(controls, preferredVideoAspect(collectInputAspectRatios(node.id, edges, nodes)))
+      : {}
     updateNode(node.id, {
       meta: {
         ...removePreviousControlParams(getLatestMeta(), renderedControls),
@@ -131,6 +139,7 @@ export default function NodeParameterControls({
         vendor: nextOption?.vendor || null,
         modelLabel: nextOption?.label || value || null,
         ...defaultPatch,
+        ...aspectPatch,
         ...(isVideoLike
           ? { videoModel: nextOption?.value || value || null, videoModelVendor: nextOption?.vendor || null }
           : { imageModel: nextOption?.value || value || null, imageModelVendor: nextOption?.vendor || null }),
@@ -151,6 +160,34 @@ export default function NodeParameterControls({
     updateNode,
   })
 
+  // 连边联动（2026-07-17 用户拍板）：视频比例产品默认 = 首选 16:9、已连输入**全竖**才 9:16。
+  // 输入边集合或模型变化时重算；用户显式选过比例（aspect_ratio_user_set）后不再自动改。
+  const inputAspectSignature = edges
+    .filter((e) => e.target === node.id)
+    .map((e) => `${e.source}:${String(e.mode || '')}`)
+    .sort()
+    .join('|')
+  React.useEffect(() => {
+    if (!isVideoLike) return
+    const latest = getLatestMeta()
+    if (latest.aspect_ratio_user_set === true) return
+    const state = useGenerationCanvasStore.getState()
+    const preferred = preferredVideoAspect(collectInputAspectRatios(node.id, state.edges, state.nodes))
+    const current = ((): string | null => {
+      for (const key of ASPECT_RATIO_KEYS) {
+        const wh = normalizeAspectRatioToWH(String(latest[key] ?? ''))
+        if (wh) return wh
+      }
+      return null
+    })()
+    if (current === preferred) return
+    const patch = videoAspectDefaultPatch(renderedControls, preferred)
+    if (Object.keys(patch).length > 0) updateMeta(patch)
+    // renderedControls/updateMeta 每渲染重建，入 deps 会令 effect 每次 meta 写都重跑；
+    // 触发时机只需「输入边集合 / 模型」变化，语义由下面两个签名精确表达。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputAspectSignature, isVideoLike, selectedModelValue, node.id])
+
   if (!isGenerationNode) return null
 
   const handleParameterControlChange = (control: ModelParameterControl, value: string) => {
@@ -162,12 +199,18 @@ export default function NodeParameterControls({
     if (ASPECT_RATIO_KEY_SET.has(control.key)) {
       const wh = normalizeAspectRatioToWH(parsed)
       if (wh) patch.aspect_ratio = wh
+      // 用户显式选过比例 → 打标记，连边联动不再自动改（用户选择优先于产品默认）。
+      patch.aspect_ratio_user_set = true
     }
     updateMeta(patch)
   }
 
   const handleCatalogControlChange = (control: DynamicCatalogControl, value: string) => {
-    updateMeta(defaultPatchForCatalogControl({ ...control, defaultValue: value }))
+    const isAspect = control.binding === 'size' || control.binding === 'aspectRatio' || ASPECT_RATIO_KEY_SET.has(control.key)
+    updateMeta({
+      ...defaultPatchForCatalogControl({ ...control, defaultValue: value }),
+      ...(isAspect ? { aspect_ratio_user_set: true } : {}),
+    })
   }
 
   // 切生成方式：只改 modeId，参考值全局保留（切回照片还在）；互斥发生在传输投影。
@@ -460,6 +503,7 @@ export default function NodeParameterControls({
         variantChoices={showVariantBar ? variantChoices : []}
         activeVariantId={activeVariantId}
         onVariantSelect={handleVariantSwitch}
+        onParamPanelOpenChange={onParamPanelOpenChange}
       />
     )
   }

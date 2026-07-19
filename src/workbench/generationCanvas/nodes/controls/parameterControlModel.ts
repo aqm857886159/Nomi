@@ -13,6 +13,7 @@ import {
   type VideoModelControlBinding,
 } from '../../../../config/modelCatalogMeta'
 import { normalizeOrientation, type Orientation } from '../../../../utils/orientation'
+import { normalizeAspectRatioToWH } from '../aspectRatio'
 import { resultUrl } from '../../runner/referenceUrl'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import type { WorkbenchAssetDto } from '../../../api/assetUploadApi'
@@ -526,6 +527,37 @@ export function defaultPatchForControls(controls: readonly DynamicModelControl[]
       ? defaultPatchForParameterControl(control)
       : defaultPatchForCatalogControl(control)),
   }), {})
+}
+
+/**
+ * 视频比例默认覆盖（2026-07-17 用户拍板：视频首选 16:9，输入全竖才 9:16——档案声明的默认让位于
+ * 这条产品规则）。在 controls 里找比例控件，匹配 preferred 的等价选项（normalize 后同 W:H），
+ * 生成写入 patch（含比例多键同步）。模型没有等价档位（如只有 1:1）→ 返回空，保留档案默认。
+ */
+export function videoAspectDefaultPatch(
+  controls: readonly DynamicModelControl[],
+  preferred: '16:9' | '9:16',
+): Record<string, unknown> {
+  for (const control of controls) {
+    if (isParameterControl(control)) {
+      if (!ASPECT_RATIO_ALIASES.includes(control.key)) continue
+      const matched = control.options.find(
+        (o) => normalizeAspectRatioToWH(controlValueToString(o.value)) === preferred || normalizeAspectRatioToWH(o.label) === preferred,
+      )
+      if (!matched) return {}
+      // 与 handleParameterControlChange 同语义：写控件 key + 规范化 W:H 进 aspect_ratio（最高优先级读取键）。
+      return { [control.key]: matched.value, aspect_ratio: preferred }
+    }
+    if (control.binding !== 'size' && control.binding !== 'aspectRatio') continue
+    const matched = control.options.find((o) => {
+      const value = normalizeAspectRatioToWH(optionValue(o))
+      const label = typeof o === 'string' ? value : normalizeAspectRatioToWH(o.label)
+      return value === preferred || label === preferred
+    })
+    if (!matched) return {}
+    return defaultPatchForCatalogControl({ ...control, defaultValue: optionValue(matched) })
+  }
+  return {}
 }
 
 export function removePreviousControlParams(

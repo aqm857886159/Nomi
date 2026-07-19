@@ -228,6 +228,21 @@ export const ARCHETYPE_WIRE_DEFAULTS: Record<string, Record<string, Record<strin
       }
     }
   },
+  "grok-imagine-1.5-video": {
+    "text_to_video": {
+      "*": {
+        "size": "16:9",
+        "quality": "480p",
+        "duration": 6
+      }
+    },
+    "image_to_video": {
+      "*": {
+        "quality": "480p",
+        "duration": 6
+      }
+    }
+  },
   "seedance-2-apimart": {
     "text_to_video": {
       "*": {
@@ -235,7 +250,7 @@ export const ARCHETYPE_WIRE_DEFAULTS: Record<string, Record<string, Record<strin
         "resolution": "720p",
         "duration": 5,
         "generate_audio": true,
-        "model": "doubao-seedance-2.0"
+        "model": "doubao-seedance-2.0-fast"
       }
     },
     "image_to_video": {
@@ -244,7 +259,7 @@ export const ARCHETYPE_WIRE_DEFAULTS: Record<string, Record<string, Record<strin
         "resolution": "720p",
         "duration": 5,
         "generate_audio": true,
-        "model": "doubao-seedance-2.0"
+        "model": "doubao-seedance-2.0-fast"
       }
     }
   },

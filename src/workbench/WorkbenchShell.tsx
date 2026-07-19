@@ -1,7 +1,7 @@
 import React from "react";
 import "./workbench.css";
 import "./workbench-ai.css";
-import { IconBrowser } from "@tabler/icons-react";
+import { IconBox, IconBrowser } from "@tabler/icons-react";
 import { NomiBrand, NomiLoadingMark } from "../design";
 import NomiAppBar from "../ui/app-shell/NomiAppBar";
 import { AboutNomiPopover } from "../ui/app-shell/AboutNomiPopover";
@@ -16,6 +16,11 @@ import { lazyWithChunkBoundary } from "../ui/chunkBoundary";
 import { WindowControls } from "../ui/app-shell/WindowControls";
 import { handleWindowTitlebarDoubleClick } from "../ui/app-shell/windowTitlebarDoubleClick";
 import { OnboardingChecklist } from "./onboarding/OnboardingChecklist";
+import {
+    dispatchGlobalAssetPopoverOpen,
+    getGlobalAssetPopoverAnchorRect,
+} from "../ui/browser/overlay/globalAssetPopoverEvents";
+import { useGlobalBrowserAssetCount } from "../ui/browser/assets/useGlobalBrowserAssets";
 
 // 工作区懒加载走容错域（审计 A5）：单个工作区 chunk 失败不拖死其余工作区。
 const CreationWorkspace = lazyWithChunkBoundary(
@@ -140,6 +145,7 @@ export default function WorkbenchShell({
     >(() => [workspaceMode]);
     const [aboutOpen, setAboutOpen] = React.useState(false);
     const brandRef = React.useRef<HTMLButtonElement | null>(null);
+    const assetCount = useGlobalBrowserAssetCount();
 
     // 仅 win32 自绘标题栏：mac/Linux 保持原生窗口 chrome，不渲染 windowbar（P4 通用·按平台分流）。
     const isWindows = window.nomiDesktop?.platform === "win32";
@@ -242,9 +248,35 @@ export default function WorkbenchShell({
                             title="浏览器"
                             onClick={openBrowser}
                         >
-                            {/* 素材盒常驻入口已删（方案一 2026-07-12）：只作浏览器伴生收件箱。 */}
                             <IconBrowser size={14} stroke={1.8} aria-hidden="true" />
                             <span>浏览器</span>
+                        </button>
+                        <button
+                            type="button"
+                            className={cn(
+                                "inline-flex h-7 items-center gap-1.5 rounded-pill border-0 bg-transparent px-2",
+                                "cursor-pointer font-inherit text-caption text-workbench-muted",
+                                "transition-colors hover:text-workbench-ink",
+                            )}
+                            aria-label="打开素材盒"
+                            title="素材盒"
+                            onClick={(event) => {
+                                dispatchGlobalAssetPopoverOpen(
+                                    true,
+                                    getGlobalAssetPopoverAnchorRect(event.currentTarget),
+                                );
+                            }}
+                        >
+                            <IconBox size={14} stroke={1.7} aria-hidden="true" />
+                            <span>素材盒</span>
+                            {assetCount > 0 ? (
+                                <span
+                                    className="inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-pill bg-nomi-accent-soft px-1.5 text-micro font-semibold leading-none text-nomi-accent"
+                                    aria-label={`${assetCount} 个素材`}
+                                >
+                                    {assetCount > 99 ? '99+' : assetCount}
+                                </span>
+                            ) : null}
                         </button>
                     </div>
                     <WindowControls className="relative z-[2]" />

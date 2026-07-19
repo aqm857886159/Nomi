@@ -27,7 +27,7 @@ vi.mock("electron", () => ({
   webContents: { getAllWebContents: () => [] },
 }));
 
-import { executeProfileOperation, buildProfileTaskResult, createProject } from "./runtime";
+import { executeProfileOperation, buildProfileTaskResult, createProject, listProjectAssets } from "./runtime";
 import { COMFYUI_CURATED_MAPPINGS, COMFYUI_CURATED_MODELS } from "./catalog/comfyuiLocal";
 import { applyWireDefaults } from "./catalog/taskParams";
 
@@ -132,6 +132,7 @@ describe("本地 ComfyUI 传输链（真 HTTP 端到端）", () => {
     const providerMeta = { ...createNorm.providerMeta, task_id: taskId, query_id: taskId };
     let status = createNorm.result.status;
     let assetUrl = "";
+    let providerUrl = "";
     for (let tries = 0; status !== "succeeded" && status !== "failed" && tries < 6; tries += 1) {
       const polled = await executeProfileOperation({ vendor, model, apiKey: "", request, operation: mapping.query, providerMeta });
       const norm = await buildProfileTaskResult({
@@ -140,15 +141,19 @@ describe("本地 ComfyUI 传输链（真 HTTP 端到端）", () => {
       });
       status = norm.result.status;
       assetUrl = norm.result.assets[0]?.url || "";
+      providerUrl = norm.result.assets[0]?.providerUrl || "";
     }
 
     expect(status).toBe("succeeded");
     expect(historyHits).toBeGreaterThanOrEqual(2); // 真轮询过（第一拍空、第二拍出图）
-    // 变换拼出的 /view URL 必须被回收并落进真实项目，而不是把 localhost URL 留给 renderer。
-    expect(assetUrl).toContain("nomi-local://asset/");
-    const generatedDir = path.join(projectRoot, "assets", "generated");
-    const generatedFiles = fs.readdirSync(generatedDir, { recursive: true }).map(String);
-    expect(generatedFiles.some((file) => /image-\d+\.png$/.test(file))).toBe(true);
+    // 变换先拼 /view URL，再从明确受信任的 ComfyUI origin 拉取并落到项目资产。
+    expect(providerUrl).toContain(`${baseUrl}/view?`);
+    expect(providerUrl).toContain("filename=Nomi_00001_.png");
+    expect(providerUrl).toContain("type=output");
+    expect(assetUrl).toMatch(/^nomi-local:\/\/asset\//);
+    const stored = listProjectAssets({ projectId: project.id, limit: 10 }).items;
+    expect(stored).toHaveLength(1);
+    expect(fs.readFileSync(stored[0].data.absolutePath)).toEqual(PNG_1x1);
     expect(viewHits).toBeGreaterThanOrEqual(1);
   });
 });

@@ -13,7 +13,7 @@
  * 不改后端 catalog / IPC / 三套 vendor 名单（不合并、不去重）。
  */
 import React from 'react'
-import { IconStack2, IconChevronRight, IconPlus, IconPhoto, IconVideo, IconMessageCircle, IconMusic } from '@tabler/icons-react'
+import { IconStack2, IconChevronRight, IconPlus, IconPhoto, IconVideo, IconMessageCircle, IconMusic, IconTrash } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { OnboardingWizard } from './OnboardingWizard'
 import { FoldableModelCard } from './FoldableModelCard'
@@ -22,6 +22,7 @@ import { AvailableGroup } from './AvailableGroup'
 import { type ChipModel } from './ModelChipGroups'
 import { ModelEnableEditor } from './ModelEnableEditor'
 import { CustomVendorManage } from './CustomVendorManage'
+import { confirmAndDeleteVendor } from './vendorDeleteAction'
 import { ConnectAssistantCard, type McpInfo } from './ConnectAssistantCard'
 import { DreaminaMemberCard, type DreaminaStatus } from './DreaminaMemberCard'
 import { ComfyuiLocalCard, COMFYUI_VENDOR_KEY } from './ComfyuiLocalCard'
@@ -154,6 +155,12 @@ export function OnboardingDrawer(): JSX.Element {
     }
   }, [refresh])
 
+  // 卡头快捷删除整家供应商（与 CustomVendorManage 的删除按钮共用 confirmAndDeleteVendor，P1）。
+  const handleDeleteVendor = React.useCallback(async (vendorKey: string, vendorName: string, modelCount: number) => {
+    const res = await confirmAndDeleteVendor({ vendorKey, vendorName, modelCount, onChanged: refresh })
+    if (res.error) void alertDialog({ title: '删除失败', message: res.error })
+  }, [refresh])
+
   // 已知供应商：catalog 里存在该 vendor 才渲染卡片。
   const knownCards = KNOWN_VENDORS
     .map((directory) => {
@@ -194,13 +201,17 @@ export function OnboardingDrawer(): JSX.Element {
     dreaminaConnected ||
     assistantConnected
 
-  // 能力覆盖：某 kind 有「已连通供应商（hasApiKey）」的模型 = 现在就能生成（诚实，未连通不算）。
-  const coveredKinds = React.useMemo(() => {
-    const set = new Set<string>()
+  // 能力覆盖：某 kind 有「已连通供应商（hasApiKey）+ 已启用」的模型 = 现在就能生成（诚实，未连通不算）。
+  // 计数 = 该 kind 下已启用且可用的模型数（用户 2026-07-17：能力条要显示选中的不同类型模型数量）。
+  const coveredKindCounts = React.useMemo(() => {
+    const counts = new Map<string, number>()
     for (const m of models) {
-      if (vendorMeta.get(m.vendorKey)?.hasApiKey) set.add(String(m.kind))
+      if (!m.enabled) continue
+      if (!vendorMeta.get(m.vendorKey)?.hasApiKey) continue
+      const k = String(m.kind)
+      counts.set(k, (counts.get(k) ?? 0) + 1)
     }
-    return set
+    return counts
   }, [models, vendorMeta])
 
   // 其他（自定义中转）按 vendor 拆成每家一张卡，卡名用用户在接入时填的「来源名称」（vendorMeta.name）。
@@ -228,6 +239,7 @@ export function OnboardingDrawer(): JSX.Element {
       baseUrl={card.meta.baseUrl}
       hasApiKey={card.meta.hasApiKey}
       models={card.vendorModels}
+      onToggleModel={(model, enabled) => handleSetEnabled([model], enabled)}
       onChanged={refresh}
     />
   )
@@ -243,7 +255,8 @@ export function OnboardingDrawer(): JSX.Element {
         <div className="text-micro text-nomi-ink-40 mb-1.5">你现在已经能生成</div>
         <div className="flex flex-wrap gap-1.5">
           {KIND_CAPS.map(({ kind, label, Icon }) => {
-            const on = coveredKinds.has(kind)
+            const count = coveredKindCounts.get(kind) ?? 0
+            const on = count > 0
             return (
               <span
                 key={kind}
@@ -254,7 +267,8 @@ export function OnboardingDrawer(): JSX.Element {
               >
                 <Icon size={13} stroke={1.7} />
                 {label}
-                {on ? null : <span className="text-nomi-ink-30">未接</span>}
+                {/* 数量 = 该类型下已启用且厂商已连通的模型数（用户 2026-07-17 要求）。 */}
+                {on ? <span className="font-semibold tabular-nums">{count}</span> : <span className="text-nomi-ink-30">未接</span>}
               </span>
             )
           })}
@@ -283,6 +297,20 @@ export function OnboardingDrawer(): JSX.Element {
                   status="ok"
                   statusLabel="已配置"
                   defaultExpanded={false}
+                  headerAction={
+                    <button
+                      type="button"
+                      aria-label={`删除供应商 ${group.name}`}
+                      title="删除该供应商"
+                      onClick={() => void handleDeleteVendor(group.vendorKey, group.name, group.models.length)}
+                      className={cn(
+                        'grid place-items-center size-7 rounded-nomi-sm text-nomi-ink-40 transition-colors',
+                        'hover:bg-[var(--workbench-danger-soft)] hover:text-workbench-danger',
+                      )}
+                    >
+                      <IconTrash size={15} stroke={1.7} />
+                    </button>
+                  }
                 >
                   <ModelEnableEditor models={group.models} onToggle={handleSetEnabled} onDelete={handleDelete} />
                   <CustomVendorManage

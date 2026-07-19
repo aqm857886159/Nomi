@@ -27,6 +27,8 @@ type VendorOnboardCardProps = {
   hasApiKey: boolean
   /** 该供应商的预置模型（从 catalog 派生）。 */
   models: ChipModel[]
+  /** 模型启停（选中=进节点模型列表；取消=隐藏）。传入则 chip 可点选。 */
+  onToggleModel?: (model: ChipModel, enabled: boolean) => void
   /** key 绑定/清除后刷新外层。 */
   onChanged: () => void
 }
@@ -37,6 +39,7 @@ export function VendorOnboardCard({
   baseUrl,
   hasApiKey,
   models,
+  onToggleModel,
   onChanged,
 }: VendorOnboardCardProps): JSX.Element {
   // 已连通默认折叠 key 输入（显「已保存」）；点「更换」展开输入。
@@ -342,7 +345,7 @@ export function VendorOnboardCard({
         </div>
       ) : null}
 
-      <ModelChipGroups models={models} connected={hasApiKey} />
+      <ModelChipGroups models={models} connected={hasApiKey} onToggle={hasApiKey ? onToggleModel : undefined} />
 
       {/* 推广位：移到 body 末尾，折叠态不显（减噪）；软话术、不营销 */}
       {directory.promo ? (

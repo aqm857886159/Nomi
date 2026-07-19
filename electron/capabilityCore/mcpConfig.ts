@@ -13,6 +13,7 @@ import { app } from 'electron'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { renameSyncWithRetry } from '../jsonFile'
 import { readToken } from './security'
 
 const SERVER_NAME = 'nomi'
@@ -65,7 +66,8 @@ function atomicWrite(target: string, content: string): string | null {
   }
   const tmp = `${target}.nomi-tmp`
   fs.writeFileSync(tmp, content, 'utf8')
-  fs.renameSync(tmp, target)
+  // Windows：目标（如 Claude/Cursor 配置）被杀毒/编辑器短暂持有会 EPERM，共享重试收口（P2）。
+  renameSyncWithRetry(tmp, target)
   return backupPath
 }
 

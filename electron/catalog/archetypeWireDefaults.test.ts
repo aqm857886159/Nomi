@@ -8,6 +8,13 @@ describe("ARCHETYPE_WIRE_DEFAULTS（headless 缺参兜底桥接）", () => {
     expect(sora.model).toBe("sora-2");
     expect(typeof sora.duration).toBe("number");
     expect(ARCHETYPE_WIRE_DEFAULTS["volcengine-seedance-2"].text_to_video["*"].model).toBe("doubao-seedance-2-0-260128");
+    expect(ARCHETYPE_WIRE_DEFAULTS["seedance-2-apimart"].text_to_video["*"].model).toBe("doubao-seedance-2.0-fast");
+    expect(ARCHETYPE_WIRE_DEFAULTS["grok-imagine-1.5-video"].text_to_video["*"]).toMatchObject({
+      size: "16:9",
+      quality: "480p",
+      duration: 6,
+    });
+    expect(ARCHETYPE_WIRE_DEFAULTS["grok-imagine-1.5-video"].text_to_video["*"].model).toBeUndefined();
   });
 
   it("vendorParams 分桶：apimart Kling duration=number，通用桶(kie)=string——不串台", () => {

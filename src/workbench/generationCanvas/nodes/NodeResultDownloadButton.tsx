@@ -11,15 +11,16 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 type Props = {
   node: GenerationCanvasNode
   selected: boolean
+  onPreview: () => void
 }
 
-export default function NodeResultDownloadButton({ node, selected }: Props): JSX.Element | null {
+export default function NodeResultDownloadButton({ node, selected, onPreview }: Props): JSX.Element | null {
   const { canDownload, downloading, download } = useResultDownload(node)
   if (!selected || !canDownload || node.result?.type === 'image') return null
 
   // 视频结果 → 专用浮条（抽首/尾帧 + 下载）。
   if (node.result?.type === 'video') {
-    return <NodeVideoFrameToolbar node={node} downloading={downloading} onDownload={download} />
+    return <NodeVideoFrameToolbar node={node} downloading={downloading} onDownload={download} onPreview={onPreview} />
   }
 
   return (

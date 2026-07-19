@@ -34,6 +34,7 @@ import { lazyWithChunkBoundary } from '../ui/chunkBoundary'
 import { releaseWorkbenchProjectRuntimeState } from './project/releaseWorkbenchProjectSession'
 import { useSpendConfirmStore } from './generationCanvas/spend/spendConfirm'
 import { useFilePreviewStore } from './explorer/useFilePreviewStore'
+import { dispatchGlobalAssetPopoverOpen } from '../ui/browser/overlay/globalAssetPopoverEvents'
 
 type AppView = 'library' | 'studio'
 
@@ -103,6 +104,11 @@ const FilePreviewPanel = lazyWithChunkBoundary('文件预览', () =>
 const NomiBrowserDialog = lazyWithChunkBoundary('浏览器', () =>
   import('../ui/browser/dialog/NomiBrowserDialog').then((module) => ({
     default: module.NomiBrowserDialog,
+  })),
+)
+const GlobalAssetFloatingWindow = lazyWithChunkBoundary('全局素材浮窗', () =>
+  import('../ui/browser/window/GlobalAssetFloatingWindow').then((module) => ({
+    default: module.GlobalAssetFloatingWindow,
   })),
 )
 
@@ -224,9 +230,8 @@ export default function NomiStudioApp(): JSX.Element {
   }, [])
 
   React.useEffect(() => {
-    // 素材盒常驻面已删（方案一 2026-07-12）：不再有主窗全局浮窗/contextual 路由，
-    // 素材盒只作为浏览器对话框的伴生弹层（工具条按钮 + 捕捞事件自动弹出）。
     const handleOpenBrowser = () => {
+      dispatchGlobalAssetPopoverOpen(false)
       setBrowserMounted(true)
       setBrowserOpened(true)
     }
@@ -605,6 +610,11 @@ export default function NomiStudioApp(): JSX.Element {
       <NomiBrowserDialog opened={browserOpened} onClose={closeBrowser} />
     </React.Suspense>
   ) : null
+  const globalAssetFloatingWindow = (
+    <React.Suspense key="global-asset-floating-window" fallback={null}>
+      <GlobalAssetFloatingWindow />
+    </React.Suspense>
+  )
 
   const viewContent = view === 'library' ? (
       <>
@@ -728,6 +738,7 @@ export default function NomiStudioApp(): JSX.Element {
   return (
     <>
       {globalBrowserDialog}
+      {globalAssetFloatingWindow}
       {viewContent}
     </>
   )

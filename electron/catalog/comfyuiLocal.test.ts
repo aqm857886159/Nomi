@@ -50,6 +50,42 @@ describe("comfyui-history 响应变换", () => {
     expect(res.image_url).toContain("subfolder=sub");
   });
 
+  it("成功：兼容 data/history 包装和额外顶层字段", () => {
+    const res = comfyuiHistoryTransform(
+      {
+        request_id: "req-1",
+        data: {
+          history: {
+            "abc-123": {
+              status: { status_str: "success", completed: true },
+              outputs: { "9": { images: [{ filename: "wrapped.png", subfolder: "nested", type: "output" }] } },
+            },
+          },
+        },
+      },
+      ctx,
+    ) as { image_url?: string };
+    expect(res.image_url).toContain("filename=wrapped.png");
+    expect(res.image_url).toContain("subfolder=nested");
+  });
+
+  it("成功：自定义输出键递归识别 filename，并按扩展名分类", () => {
+    const res = comfyuiHistoryTransform(
+      {
+        id: {
+          status: { status_str: "success", completed: true },
+          outputs: {
+            "42": { result: { files: [{ filename: "custom-output.webp", subfolder: "custom", type: "output" }] } },
+            "43": { saved_files: [{ filename: "custom-video.mp4", subfolder: "video", type: "output" }] },
+          },
+        },
+      },
+      ctx,
+    ) as { image_url?: string; video_url?: string };
+    expect(res.image_url).toContain("filename=custom-output.webp");
+    expect(res.video_url).toContain("filename=custom-video.mp4");
+  });
+
   it("视频：VHS gifs[0]（mp4 也落 gifs 键）→ video_url", () => {
     const res = comfyuiHistoryTransform(
       {
@@ -97,13 +133,22 @@ describe("comfyui-history 响应变换", () => {
     expect(res.video_url).toBeUndefined();
   });
 
-  it("有 outputs 但无 images/gifs/videos（如 latents）→ 原样（继续轮询）", () => {
+  it("未完成时有 outputs 但只有 latents → 原样（继续轮询）", () => {
     const res = comfyuiHistoryTransform(
-      { id: { outputs: { "10": { latents: [{ filename: "l.latent" }] } } } },
+      { id: { status: { status_str: "running", completed: false }, outputs: { "10": { latents: [{ filename: "l.latent" }] } } } },
       ctx,
     ) as { image_url?: string; video_url?: string };
     expect(res.image_url).toBeUndefined();
     expect(res.video_url).toBeUndefined();
+  });
+
+  it("已完成但没有可下载文件 → 明确失败，不再一直轮询", () => {
+    const res = comfyuiHistoryTransform(
+      { id: { status: { status_str: "success", completed: true }, outputs: { "10": { latents: [{ filename: "l.latent" }] } } } },
+      ctx,
+    ) as { error?: string; image_url?: string };
+    expect(res.error).toContain("没有返回可下载");
+    expect(res.image_url).toBeUndefined();
   });
 
   it("失败：status_str=error → { error }（fail fast，带 exception_message）", () => {

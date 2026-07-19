@@ -148,6 +148,17 @@ export type ModelArchetype = {
   variants?: ModelArchetypeVariant[];
   /** 默认选中的变体 id（无 meta.archetype.variantId 时回落）。声明 variants 时必填。 */
   defaultVariantId?: string;
+  /**
+   * 多个变体折叠为一个 catalog 行时，picker 中保留的基础 modelKey。缺省沿用默认变体 modelKey。
+   * 当「catalog 基础行」与「UI 默认变体」不同（如 APIMart Seedance 基础行=标准、默认=Fast）时必须声明，
+   * 供旧项目迁移把具体变体串归一回可被 picker 命中的基础行。
+   */
+  catalogModelKey?: string;
+  /**
+   * 已下线变体 id → 当前有效变体 id。用于旧节点无损迁移；例如 face→standard、fast-face→fast。
+   * UI 只展示 variants，别名不会重新出现在选项里。
+   */
+  variantIdAliases?: Record<string, string>;
   /** 该档案默认打到哪个 mapping 桶（显式，不靠启发式）。图像档案可被 mode.transportTaskKind 覆盖。 */
   transportTaskKind: ArchetypeTransportTaskKind;
   /**

@@ -255,6 +255,7 @@ export type DesktopBridge = {
     cancelClose?: (requestId: string) => void
     onCloseRequest?: (cb: (payload: { requestId: string }) => void) => () => void
     onMaximized: (cb: (maximized: boolean) => void) => () => void
+    onCanvasZoomShortcut?: (cb: (direction: -1 | 1) => void) => () => void
   }
   app?: {
     reopenLibraryWindow: () => void

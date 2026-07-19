@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>样张：节点参数面板（摘要 pill + 分段面板）— 2026-07-17</title>
+<style>
+  /* ===== Nomi tokens（真实值抄自 src/theme/nomi-tokens.css，暗色段）===== */
+  .dark {
+    --nomi-bg: oklch(0.18 0.006 80);
+    --nomi-paper: oklch(0.235 0.007 80);
+    --nomi-ink: oklch(0.93 0.006 85);
+    --nomi-ink-80: oklch(0.84 0.006 85);
+    --nomi-ink-60: oklch(0.70 0.006 85);
+    --nomi-ink-40: oklch(0.62 0.006 85);
+    --nomi-ink-30: oklch(0.50 0.006 85);
+    --nomi-ink-20: oklch(0.42 0.006 85);
+    --nomi-ink-10: oklch(0.34 0.006 85);
+    --nomi-ink-05: oklch(0.30 0.006 85);
+    --nomi-line: oklch(0.36 0.007 80);
+    --nomi-line-soft: oklch(0.31 0.007 80);
+    --nomi-accent: oklch(0.70 0.13 250);
+    --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 26%, var(--nomi-paper));
+  }
+  .light {
+    --nomi-bg: oklch(0.985 0.003 90);
+    --nomi-paper: oklch(1 0 0);
+    --nomi-ink: oklch(0.22 0.01 80);
+    --nomi-ink-80: oklch(0.32 0.01 80);
+    --nomi-ink-60: oklch(0.50 0.01 80);
+    --nomi-ink-40: oklch(0.68 0.01 80);
+    --nomi-ink-30: oklch(0.78 0.01 80);
+    --nomi-ink-20: oklch(0.88 0.005 80);
+    --nomi-ink-10: oklch(0.94 0.003 80);
+    --nomi-ink-05: oklch(0.97 0.003 80);
+    --nomi-line: oklch(0.91 0.004 80);
+    --nomi-line-soft: oklch(0.95 0.003 80);
+    --nomi-accent: oklch(0.55 0.13 250);
+    --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 12%, var(--nomi-paper));
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { display: flex; flex-wrap: wrap; gap: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  .stage { flex: 1 1 480px; min-height: 100vh; background: var(--nomi-bg); padding: 48px 40px; }
+  .stage h2 { font-size: 12px; color: var(--nomi-ink-40); font-weight: 600; margin-bottom: 20px; letter-spacing: .05em; }
+
+  /* ===== 节点 composer 卡（截取底栏区，真实布局）===== */
+  .card { width: 560px; background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: 14px; padding: 10px 12px; box-shadow: 0 8px 28px oklch(0 0 0 / .18); }
+  .prompt { color: var(--nomi-ink-30); font-size: 13px; line-height: 1.7; padding: 6px 2px 14px; }
+  .footer { display: flex; align-items: center; gap: 8px; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--nomi-line); background: var(--nomi-paper); color: var(--nomi-ink-80); font-size: 12px; cursor: pointer; white-space: nowrap; }
+  .pill .dim { color: var(--nomi-ink-40); font-size: 11px; }
+  .pill:hover { border-color: var(--nomi-ink-20); }
+  .chev { color: var(--nomi-ink-40); font-size: 9px; }
+  .lock { color: var(--nomi-ink-40); border: 0; background: none; font-size: 14px; }
+  .send { margin-left: auto; width: 30px; height: 30px; border-radius: 999px; background: var(--nomi-ink); color: var(--nomi-paper); display: grid; place-items: center; font-size: 14px; }
+  .opt { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--nomi-line); color: var(--nomi-ink-80); font-size: 12px; font-weight: 600; }
+
+  /* ★ 摘要 pill（本次新交互的触发器）：当前参数一句话 + 点开面板 */
+  .summary { border-color: var(--nomi-line); background: var(--nomi-ink-05); }
+  .summary b { font-weight: 500; color: var(--nomi-ink-80); }
+  .summary .sep { color: var(--nomi-ink-30); margin: 0 1px; }
+
+  /* ===== ★ 参数面板（点摘要 pill 展开，anchored 浮层）===== */
+  .panel-wrap { position: relative; margin-top: 10px; width: 560px; display: flex; justify-content: center; }
+  .panel { width: 320px; background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: 14px; box-shadow: 0 12px 36px oklch(0 0 0 / .22); padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+  .group { display: flex; flex-direction: column; gap: 6px; }
+  .group-label { font-size: 11px; color: var(--nomi-ink-40); font-weight: 600; display: flex; align-items: center; gap: 4px; }
+  .group-label .q { color: var(--nomi-ink-30); font-weight: 400; cursor: help; }
+
+  /* 分段选择器：容器 ink-05 圆角槽，选中项 paper 浮起 + 细边（复用面板 tablist 视觉语言） */
+  .seg { display: flex; gap: 2px; background: var(--nomi-ink-05); border-radius: 10px; padding: 3px; }
+  .seg button { flex: 1; height: 30px; border: 0; border-radius: 8px; background: transparent; color: var(--nomi-ink-60); font-size: 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-family: inherit; }
+  .seg button:hover { color: var(--nomi-ink-80); }
+  .seg button.on { background: var(--nomi-paper); color: var(--nomi-ink); font-weight: 600; box-shadow: 0 1px 3px oklch(0 0 0 / .16); }
+  .seg button:disabled { color: var(--nomi-ink-30); cursor: not-allowed; }
+  /* 比例段：上图形下文字（图形 = 描边小矩形按真实宽高比） */
+  .seg.ratio button { height: 40px; }
+  .shape { display: block; border: 1.4px solid currentColor; border-radius: 2px; }
+  .price { font-size: 10px; color: var(--nomi-ink-30); font-weight: 400; }
+  .seg button.on .price { color: var(--nomi-ink-60); }
+
+  /* 自由数值/文本参数：面板内一行输入（保留现交互） */
+  .row-input { display: flex; align-items: center; gap: 8px; height: 30px; border: 1px solid var(--nomi-line); border-radius: 10px; padding: 0 10px; }
+  .row-input span { font-size: 11px; color: var(--nomi-ink-40); flex-shrink: 0; }
+  .row-input input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: var(--nomi-ink-80); font-size: 12px; font-family: inherit; }
+
+  .note { margin-top: 28px; width: 560px; font-size: 12px; color: var(--nomi-ink-60); line-height: 1.9; border-top: 1px dashed var(--nomi-line); padding-top: 14px; }
+  .note b { color: var(--nomi-ink-80); }
+</style>
+</head>
+<body>
+
+<!-- ================= 暗色 ================= -->
+<div class="stage dark">
+  <h2>暗色 · 视频节点底栏（收起态 → 展开态）</h2>
+
+  <!-- 收起态：底栏 = 锁 + 模型 + 变体 + ★摘要 pill + 优化 + 发送 -->
+  <div class="card">
+    <div class="prompt">描述这一段视频的画面……</div>
+    <div class="footer">
+      <button class="lock">🔓</button>
+      <span class="pill">Seedance 2.0 <span class="dim">2 家</span> <span class="chev">▾</span></span>
+      <span class="pill"><span class="dim">变体</span> 快速 <span class="chev">▾</span></span>
+      <span class="pill summary"><b>首尾帧 · 16:9 · 1080p · 5s · 有声</b> <span class="chev">▾</span></span>
+      <span class="opt">N 优化</span>
+      <span class="send">↑</span>
+    </div>
+  </div>
+
+  <!-- 展开态：点摘要 pill，浮层面板（anchored 于 pill 上方/下方，自动翻向） -->
+  <div class="panel-wrap">
+    <div class="panel">
+      <div class="group">
+        <div class="group-label">生成方式</div>
+        <div class="seg">
+          <button>文生视频</button>
+          <button>图生视频</button>
+          <button class="on">首尾帧</button>
+        </div>
+      </div>
+      <div class="group">
+        <div class="group-label">比例</div>
+        <div class="seg ratio">
+          <button class="on"><span class="shape" style="width:18px;height:10px"></span>16:9</button>
+          <button><span class="shape" style="width:14px;height:10px"></span>4:3</button>
+          <button><span class="shape" style="width:11px;height:11px"></span>1:1</button>
+          <button><span class="shape" style="width:10px;height:13px"></span>3:4</button>
+          <button><span class="shape" style="width:8px;height:14px"></span>9:16</button>
+          <button><span class="shape" style="width:21px;height:9px"></span>21:9</button>
+        </div>
+      </div>
+      <div class="group">
+        <div class="group-label">清晰度</div>
+        <div class="seg">
+          <button>480p</button>
+          <button>720p</button>
+          <button class="on">1080p <span class="price">+0.2</span></button>
+        </div>
+      </div>
+      <div class="group">
+        <div class="group-label">生成时长</div>
+        <div class="seg">
+          <button class="on">5s</button>
+          <button disabled>10s</button>
+        </div>
+      </div>
+      <div class="group">
+        <div class="group-label">生成音频 <span class="q">?</span></div>
+        <div class="seg">
+          <button class="on">开启</button>
+          <button>关闭</button>
+        </div>
+      </div>
+      <div class="group">
+        <div class="group-label">种子（可选）</div>
+        <div class="row-input"><span>seed</span><input placeholder="随机" value=""></div>
+      </div>
+      <div class="group">
+        <div class="group-label">供应商</div>
+        <div class="seg">
+          <button class="on">Kie</button>
+          <button>APIMart</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>交互说明（对照你发的参考图）</b><br>
+    · 底栏「比例 auto ▾ / 清晰度 1K ▾ / 更多 ▾」一排小下拉 → 收敛成 <b>一个摘要 pill</b>：「首尾帧 · 16:9 · 1080p · 5s · 有声」，当前配置一眼读完。<br>
+    · 点摘要 pill 弹 <b>统一参数面板</b>：每个参数一组「小标题 + 分段选择器」，点即改、即时生效、面板不关（可连改多项），点外面或 Esc 收起。<br>
+    · 比例段带宽高比小图形；带差价的档位显示价签（如 1080p +0.2）；不可用档置灰（如该变体不支持 10s）。<br>
+    · 生成方式（文生/图生/首尾帧）也进面板首组 = 参考图的「生成方式」；模型/变体仍留底栏（身份级，不进面板）。<br>
+    · 供应商锁定（多家时）收进面板末组；自由数值（seed/负向提示）保留输入行。<br>
+    · 参数超高时面板内滚动；所有色/圆角/字号走 token，亮暗自动翻转（右侧对照）。
+  </div>
+</div>
+
+<!-- ================= 亮色对照 ================= -->
+<div class="stage light">
+  <h2>亮色 · 同一结构（token 自动翻转）</h2>
+  <div class="card">
+    <div class="prompt">描述这一段视频的画面……</div>
+    <div class="footer">
+      <button class="lock">🔓</button>
+      <span class="pill">Seedance 2.0 <span class="dim">2 家</span> <span class="chev">▾</span></span>
+      <span class="pill"><span class="dim">变体</span> 快速 <span class="chev">▾</span></span>
+      <span class="pill summary"><b>首尾帧 · 16:9 · 1080p · 5s · 有声</b> <span class="chev">▾</span></span>
+      <span class="opt">N 优化</span>
+      <span class="send">↑</span>
+    </div>
+  </div>
+  <div class="panel-wrap">
+    <div class="panel">
+      <div class="group">
+        <div class="group-label">生成方式</div>
+        <div class="seg"><button>文生视频</button><button>图生视频</button><button class="on">首尾帧</button></div>
+      </div>
+      <div class="group">
+        <div class="group-label">比例</div>
+        <div class="seg ratio">
+          <button class="on"><span class="shape" style="width:18px;height:10px"></span>16:9</button>
+          <button><span class="shape" style="width:14px;height:10px"></span>4:3</button>
+          <button><span class="shape" style="width:11px;height:11px"></span>1:1</button>
+          <button><span class="shape" style="width:10px;height:13px"></span>3:4</button>
+          <button><span class="shape" style="width:8px;height:14px"></span>9:16</button>
+          <button><span class="shape" style="width:21px;height:9px"></span>21:9</button>
+        </div>
+      </div>
+      <div class="group">
+        <div class="group-label">清晰度</div>
+        <div class="seg"><button>480p</button><button>720p</button><button class="on">1080p <span class="price">+0.2</span></button></div>
+      </div>
+      <div class="group">
+        <div class="group-label">生成时长</div>
+        <div class="seg"><button class="on">5s</button><button disabled>10s</button></div>
+      </div>
+      <div class="group">
+        <div class="group-label">生成音频 <span class="q">?</span></div>
+        <div class="seg"><button class="on">开启</button><button>关闭</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

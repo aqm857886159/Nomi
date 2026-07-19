@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { encodeMention, parsePromptSegments, hasMentions, projectPromptForSend, removeMention } from './promptMentions'
+import { encodeMention, parsePromptSegments, hasMentions, projectPromptForDisplay, projectPromptForSend, removeMention } from './promptMentions'
 
 const A = 'nomi-local://asset/p/a.png'
 const B = 'https://pub/b.png'
@@ -31,24 +31,29 @@ describe('projectPromptForSend (R6 单源)', () => {
     expect(projectPromptForSend('阳光下的猫', [A, B])).toBe('阳光下的猫')
   })
 
-  it('替换标记为 character{N},按有序数组定位', () => {
+  it('替换标记为 @imageN,按有序数组定位', () => {
     const prompt = `${encodeMention(A)} 牵着 ${encodeMention(B)} 走`
-    expect(projectPromptForSend(prompt, [A, B])).toBe('character1 牵着 character2 走')
+    expect(projectPromptForSend(prompt, [A, B])).toBe('@image1 牵着 @image2 走')
   })
 
   it('编号 = url 在数组中的位置(顺序变则编号变,单源一致)', () => {
     const prompt = `${encodeMention(A)} 和 ${encodeMention(B)}`
-    expect(projectPromptForSend(prompt, [B, A])).toBe('character2 和 character1')
+    expect(projectPromptForSend(prompt, [B, A])).toBe('@image2 和 @image1')
   })
 
   it('数组里没有的 url(tile 已删)→ 标记移除', () => {
     const prompt = `${encodeMention(A)} 牵着 ${encodeMention(B)}`
-    expect(projectPromptForSend(prompt, [B])).toBe('牵着 character1')
+    expect(projectPromptForSend(prompt, [B])).toBe('牵着 @image1')
   })
 
   it('同一素材多次引用 → 同一编号', () => {
     const prompt = `${encodeMention(A)} 再次 ${encodeMention(A)}`
-    expect(projectPromptForSend(prompt, [A])).toBe('character1 再次 character1')
+    expect(projectPromptForSend(prompt, [A])).toBe('@image1 再次 @image1')
+  })
+
+  it('非编辑态预览与最终发送使用同一 @imageN 口径，不泄露内部 URL 标记', () => {
+    const prompt = `${encodeMention(B)} 看向 ${encodeMention(A)}`
+    expect(projectPromptForDisplay(prompt, [A, B])).toBe('@image2 看向 @image1')
   })
 })
 

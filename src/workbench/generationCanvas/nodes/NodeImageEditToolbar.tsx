@@ -1,9 +1,9 @@
 import React from 'react'
-import { IconBrush, IconCrop, IconDownload, IconFlipHorizontal, IconFlipVertical, IconGrid3x3, IconGridDots, IconLayersSubtract, IconLayoutGrid, IconRotate2, IconRotateClockwise2, IconScissors, IconSparkles, IconTransform, IconTypography, IconWand } from '@tabler/icons-react'
+import { IconBrush, IconCrop, IconDownload, IconFlipHorizontal, IconFlipVertical, IconGrid3x3, IconGridDots, IconLayersSubtract, IconLayoutGrid, IconMaximize, IconRotate2, IconRotateClockwise2, IconScissors, IconSparkles, IconTransform, IconTypography, IconWand } from '@tabler/icons-react'
 import { IMAGE_TRANSFORM_LABEL, type ImageGridSize, type ImageTransformOp } from './useNodeImageEditing'
 import type { CropGridSize } from './render/ImageCropGridOverlay'
 import { useResultDownload } from './useResultDownload'
-import { FloatingToolbarShell, TOOLBAR_ICON as I, ToolbarButton, ToolbarDivider, ToolbarMenu } from './NodeFloatingToolbar'
+import { FloatingToolbarShell, TOOLBAR_ICON as I, ToolbarButton, ToolbarDivider, ToolbarIconButton, ToolbarMenu } from './NodeFloatingToolbar'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import WhiteboardModal from './whiteboard/WhiteboardModal'
 import { inferWhiteboardAspectRatio, readWhiteboardState } from './whiteboard/whiteboardState'
@@ -25,11 +25,13 @@ type Props = {
   onTransform: (op: ImageTransformOp) => void
   onRemoveBackground?: () => void
   removeBackgroundBusy?: boolean
+  /** 打开共享图片全屏预览。 */
+  onPreview: () => void
   /** Tier1「定妆」：基于当前图建一个预填身份板提示词的新节点（不自动生成）。缺省不渲染该按钮。 */
   onMakeup?: () => void
 }
 
-export default function NodeImageEditToolbar({ node, editGrid, imageOpBusy, onGridSplit, onCrop, onTransform, onRemoveBackground, removeBackgroundBusy = false, onMakeup }: Props): JSX.Element {
+export default function NodeImageEditToolbar({ node, editGrid, imageOpBusy, onGridSplit, onCrop, onTransform, onRemoveBackground, removeBackgroundBusy = false, onPreview, onMakeup }: Props): JSX.Element {
   const { downloading, download } = useResultDownload(node)
   const [whiteboardOpen, setWhiteboardOpen] = React.useState(false)
   const imageUrl = node.result?.type === 'image' ? node.result.url || '' : ''
@@ -42,6 +44,14 @@ export default function NodeImageEditToolbar({ node, editGrid, imageOpBusy, onGr
   return (
     <>
       <FloatingToolbarShell ariaLabel="图片操作">
+        <ToolbarIconButton
+          icon={<IconMaximize size={I.size} stroke={I.stroke} />}
+          title="全屏预览"
+          ariaLabel="全屏预览图片"
+          disabled={!imageUrl}
+          onClick={onPreview}
+        />
+        <ToolbarDivider />
         {onMakeup ? (
           <ToolbarButton
             icon={<IconSparkles size={I.size} stroke={I.stroke} />}

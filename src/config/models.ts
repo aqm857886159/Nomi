@@ -19,6 +19,8 @@ export interface ModelOption {
   value: string
   label: string
   vendor?: string
+  /** 厂商显示名（catalog vendor.name；自定义中转的 key 是派生串不宜直显）。节点下拉标注用。 */
+  vendorName?: string
   modelKey?: string
   modelAlias?: string | null
   meta?: unknown

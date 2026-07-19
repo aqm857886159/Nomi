@@ -100,6 +100,10 @@ export function NomiSelect({
           padding: '0 8px 0 9px',
           minHeight: 30,
           borderRadius: 'var(--nomi-radius-sm)',
+          // Mantine Option 是普通块级：minHeight 30 下内容顶在上沿（label/附注/对勾不垂直居中）。
+          // 自己 flex 居中；水平布局仍由内层 span 管。
+          display: 'flex',
+          alignItems: 'center',
         },
       }}
     >
@@ -147,7 +151,12 @@ export function NomiSelect({
                     {option.label}
                   </span>
                   {option.trailing ? (
-                    <span className={cn('ml-auto shrink-0 text-micro leading-none px-1.5 py-[1px] rounded-pill', toneClass(option.trailingTone, 'trailing'))}>
+                    // max-w + truncate：trailing 是附注（厂商名/价格），不许反客为主挤压 label
+                    //（曾被「即梦会员（本地 CLI）」10 字长名挤乱布局）；悬停 title 看全文。
+                    <span
+                      title={option.trailing}
+                      className={cn('ml-auto shrink-0 max-w-[96px] truncate text-micro leading-none px-1.5 py-[1px] rounded-pill', toneClass(option.trailingTone, 'trailing'))}
+                    >
                       {option.trailing}
                     </span>
                   ) : null}

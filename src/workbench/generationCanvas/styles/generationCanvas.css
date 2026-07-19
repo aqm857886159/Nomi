@@ -19,6 +19,19 @@
   cursor: grabbing;
 }
 
+/* 媒体预览使用 40% 黑色透明遮罩时，浮动控件不能透过遮罩继续露出；打开期间统一隐藏，
+   关闭后由 NodeMediaPreviewDialog 清掉 data 属性，原布局与交互自动恢复。 */
+.workbench-generation[data-media-preview-open='true'] .generation-canvas-v2-toolbar,
+.workbench-generation[data-media-preview-open='true'] .generation-canvas-v2__navigation-stack,
+.workbench-generation[data-media-preview-open='true'] .generation-canvas-v2__gesture-hint,
+.workbench-generation[data-media-preview-open='true'] .generation-canvas-v2__selection-toolbar,
+.workbench-generation[data-media-preview-open='true'] .generation-canvas-v2-node__composer,
+.workbench-generation[data-media-preview-open='true'] .generation-canvas-v2-node [role='toolbar'],
+.workbench-generation[data-media-preview-open='true'] .workbench-generation__timeline-handle,
+.workbench-generation[data-media-preview-open='true'] .workbench-generation__ai {
+  visibility: hidden;
+}
+
 .generation-canvas-v2__canvas {
   position: absolute;
   inset: 0;

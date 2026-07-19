@@ -5,19 +5,16 @@ import type { ModelArchetype } from "./types";
 // 数组（≤9），与 kie 的 first/last/omni 多槽分离键结构不同——这是 B/A 混用的合理边界（枚举差异用
 // vendorParams=B，能力结构差异用独立档案=A）。比例字段是 size；音频字段 generate_audio。
 //
-// **变体合并（2026-06-16，用户拍板方案 A）**：Seedance 一族原是 4 个独立 catalog 模型/档案
-// （标准 / fast / 真人(face) / 真人快速(fast-face)），picker 里散成 4 项。它们**同能力、仅 model 字符串不同**
-// （fast 另限清晰度 480/720），故用通用「变体轴」(types.ts ModelArchetypeVariant) 合成 1 个档案 +
-// 1 个 catalog 行 + 4 个变体。变体的 modelKey 决定实际发请求的 model（catalog body 用
+// **变体合并（2026-07-18）**：catalog 始终只有 1 个 Seedance 2.0 行，节点内用通用「变体轴」
+// 切换 Seedance 2.0 / Fast / Mini。变体的 modelKey 决定实际发请求的 model（catalog body 用
 // {{request.params.model}} 读它，同 happyhorse modelEnum 通道）。旧项目 node.meta.modelKey 钉的是具体变体串
-// → 各变体的 identifierPatterns 收纳旧串，迁移层 normalizeArchetypeVariantMeta 归一到 基 modelKey + variantId。
+// → identifierPatterns/variantIdAliases 收纳旧 face/fast-face 串，迁移层归一到当前有效变体。
 
 const opt = (values: string[]): ModelParameterControl["options"] => values.map((value) => ({ value, label: value }));
 
 const PARAMS: ModelParameterControl[] = [
   { key: "size", label: "比例", type: "select", options: opt(["16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"]), defaultValue: "16:9" },
-  // PARAMS = 全能力清晰度（含 4k）。apimart 约束：4k 仅基础档 doubao-seedance-2.0 支持，1080p 仅基础档 + face 支持。
-  // 沿用「PARAMS=max，变体往下收窄」既有范式：标准档不收窄（拿全集含 4k）；face 去 4k（留 1080）；fast/fast-face 仅 480/720。
+  // PARAMS = 标准版全能力清晰度（含 4k）；Fast/Mini 收窄到 480/720。
   { key: "resolution", label: "清晰度", type: "select", options: opt(["480p", "720p", "1080p", "4k"]), defaultValue: "720p" },
   { key: "duration", label: "时长(秒)", type: "number", options: [], min: 4, max: 15, defaultValue: 5 },
   { key: "seed", label: "种子", type: "number", options: [], placeholder: "随机" },
@@ -61,17 +58,13 @@ const SEEDANCE_2_APIMART_MODES: ModelArchetype["modes"] = [
 ];
 
 // 变体清晰度收窄（运行时按 variantId 叠加，specializeArchetypeForVariant；不档案级 spread——变体是正交轴）。
-// 两档收窄目标（官方约束）：
-//   fast / fast-face → 480/720（无 1080/4k）
-//   face            → 480/720/1080（有 1080，无 4k；4k 仅基础档独占）
+// Fast / Mini 仅支持 480/720；标准版保留 480/720/1080/4k。
 const makeResNarrower = (values: string[]) => {
   const res: ModelParameterControl = { key: "resolution", label: "清晰度", type: "select", options: opt(values), defaultValue: "720p" };
   return (params: ModelParameterControl[]): ModelParameterControl[] => params.map((p) => (p.key === "resolution" ? res : p));
 };
 const narrowResolutionToFast = makeResNarrower(["480p", "720p"]);
-const narrowResolutionToFace = makeResNarrower(["480p", "720p", "1080p"]);
 const FAST_OVERRIDES = Object.fromEntries(SEEDANCE_2_APIMART_MODES.map((m) => [m.id, narrowResolutionToFast] as const));
-const FACE_OVERRIDES = Object.fromEntries(SEEDANCE_2_APIMART_MODES.map((m) => [m.id, narrowResolutionToFace] as const));
 
 export const SEEDANCE_2_APIMART_ARCHETYPE: ModelArchetype = {
   id: "seedance-2-apimart",
@@ -80,7 +73,7 @@ export const SEEDANCE_2_APIMART_ARCHETYPE: ModelArchetype = {
   kind: "video",
   defaultModeId: "t2v",
   transportTaskKind: "text_to_video",
-  // 收纳全部 4 变体的旧 modelKey → 旧项目仍解析到本档案（迁移层据 variant.identifierPatterns 落到对应变体）。
+  // face/fast-face 已从当前文档下线，但继续收纳旧 modelKey，确保旧项目仍能解析并迁移。
   identifierPatterns: [
     "doubao-seedance-2.0", "doubao-seedance-2-0",
     "doubao-seedance-2.0-fast", "doubao-seedance-2-0-fast",
@@ -89,15 +82,24 @@ export const SEEDANCE_2_APIMART_ARCHETYPE: ModelArchetype = {
     "doubao-seedance-2.0-mini", "doubao-seedance-2-0-mini",
   ],
   modes: SEEDANCE_2_APIMART_MODES,
-  // 5 变体：标准 / 快速 / 真人 / 真人快速 / mini。modelKey = 实际发请求的 model 字符串。
-  // identifierPatterns = 旧项目 modelKey（含无连字符变体 -2-0-*），迁移层据此归一到本变体。
-  // mini（2026-06-30 照 docs.apimart.ai 补）：「同标准版功能、无字数限制」，清晰度仅 480/720（同 fast）。
+  // 当前官方三模式。旧 face → 标准版，旧 fast-face → Fast；它们只用于迁移，不再显示在 UI。
   variants: [
-    { id: "standard", label: "标准", modelKey: "doubao-seedance-2.0", identifierPatterns: ["doubao-seedance-2-0"] },
-    { id: "fast", label: "快速", modelKey: "doubao-seedance-2.0-fast", identifierPatterns: ["doubao-seedance-2-0-fast"], paramOverrides: FAST_OVERRIDES },
-    { id: "face", label: "真人", modelKey: "doubao-seedance-2.0-face", identifierPatterns: ["doubao-seedance-2-0-face"], paramOverrides: FACE_OVERRIDES },
-    { id: "fast-face", label: "真人快速", modelKey: "doubao-seedance-2.0-fast-face", identifierPatterns: ["doubao-seedance-2-0-fast-face"], paramOverrides: FAST_OVERRIDES },
+    {
+      id: "standard",
+      label: "Seedance 2.0",
+      modelKey: "doubao-seedance-2.0",
+      identifierPatterns: ["doubao-seedance-2-0", "doubao-seedance-2.0-face", "doubao-seedance-2-0-face"],
+    },
+    {
+      id: "fast",
+      label: "Fast",
+      modelKey: "doubao-seedance-2.0-fast",
+      identifierPatterns: ["doubao-seedance-2-0-fast", "doubao-seedance-2.0-fast-face", "doubao-seedance-2-0-fast-face"],
+      paramOverrides: FAST_OVERRIDES,
+    },
     { id: "mini", label: "Mini", modelKey: "doubao-seedance-2.0-mini", identifierPatterns: ["doubao-seedance-2-0-mini"], paramOverrides: FAST_OVERRIDES },
   ],
-  defaultVariantId: "standard",
+  defaultVariantId: "fast",
+  catalogModelKey: "doubao-seedance-2.0",
+  variantIdAliases: { face: "standard", "fast-face": "fast" },
 };

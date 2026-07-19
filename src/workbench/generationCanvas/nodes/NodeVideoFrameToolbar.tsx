@@ -1,6 +1,6 @@
 import React from 'react'
-import { IconDownload, IconPlayerTrackNext, IconPlayerTrackPrev } from '@tabler/icons-react'
-import { FloatingToolbarShell, TOOLBAR_ICON as I, ToolbarButton, ToolbarDivider } from './NodeFloatingToolbar'
+import { IconDownload, IconMaximize, IconPlayerTrackNext, IconPlayerTrackPrev } from '@tabler/icons-react'
+import { FloatingToolbarShell, TOOLBAR_ICON as I, ToolbarButton, ToolbarDivider, ToolbarIconButton } from './NodeFloatingToolbar'
 import { extractVideoFrameToNode } from './extractVideoFrameToNode'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
@@ -12,9 +12,10 @@ type Props = {
   node: GenerationCanvasNode
   downloading: boolean
   onDownload: (event: React.MouseEvent) => void
+  onPreview: () => void
 }
 
-export default function NodeVideoFrameToolbar({ node, downloading, onDownload }: Props): JSX.Element {
+export default function NodeVideoFrameToolbar({ node, downloading, onDownload, onPreview }: Props): JSX.Element {
   const [busy, setBusy] = React.useState<'first' | 'last' | null>(null)
   const extract = (which: 'first' | 'last') => {
     if (busy) return
@@ -23,6 +24,13 @@ export default function NodeVideoFrameToolbar({ node, downloading, onDownload }:
   }
   return (
     <FloatingToolbarShell ariaLabel="视频操作">
+      <ToolbarIconButton
+        icon={<IconMaximize size={I.size} stroke={I.stroke} />}
+        title="全屏预览"
+        ariaLabel="全屏预览视频"
+        onClick={onPreview}
+      />
+      <ToolbarDivider />
       <ToolbarButton
         icon={<IconPlayerTrackPrev size={I.size} stroke={I.stroke} />}
         label={busy === 'first' ? '抽帧中…' : '抽首帧'}

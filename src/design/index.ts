@@ -39,6 +39,8 @@ export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tool
 export { NomiBrand, NomiWordmark, NomiAILabel, NomiLoadingMark, NomiLogoMark, NomiStepper } from './identity'
 export { NomiSelect } from './NomiSelect'
 export type { NomiSelectProps, NomiSelectOption, NomiSelectTone } from './NomiSelect'
+export { NomiSegmented } from './NomiSegmented'
+export type { NomiSegmentedProps, NomiSegmentedOption } from './NomiSegmented'
 export { BodyPortal } from './portal'
 export { nomiDesignTokens } from './tokens'
 export { buildNomiTheme } from './theme'

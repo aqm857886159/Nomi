@@ -38,7 +38,7 @@ export function createAssetMentionSuggestion(options: { getCandidates: () => str
           items: (): MentionSuggestionItem[] => options.getCandidates().map((url, index) => ({ url, index })),
           command: ({ editor, range, props }) => {
             const item = props as MentionSuggestionItem
-            editor.chain().focus().deleteRange(range).insertAssetMention(item.url).run()
+            editor.chain().focus().deleteRange(range).insertAssetMention(item.url, item.index + 1).run()
           },
           render: () => {
             let renderer: ReactRenderer<MentionSuggestionListRef> | null = null

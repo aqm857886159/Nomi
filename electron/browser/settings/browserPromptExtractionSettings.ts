@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import fs from "node:fs";
 import path from "node:path";
+import { writeJsonFileAtomic } from "../../jsonFile";
 import { readProject } from "../../projects/repository";
 import { workspaceNomiDir } from "../../workspace/workspacePaths";
 
@@ -24,12 +25,6 @@ function normalizeSettingsPayload(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function writeJsonAtomic(filePath: string, payload: Record<string, unknown>): void {
-  const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-  fs.writeFileSync(tmpPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
-  fs.renameSync(tmpPath, filePath);
-}
-
 export function registerBrowserPromptExtractionSettingsIpc(): void {
   ipcMain.handle("browser:prompt-extraction-settings:read", async (_event, payload: { projectId?: unknown }) => {
     const filePath = browserPromptExtractionSettingsFile(String(payload?.projectId || ""));
@@ -41,7 +36,7 @@ export function registerBrowserPromptExtractionSettingsIpc(): void {
   ipcMain.handle("browser:prompt-extraction-settings:write", async (_event, payload: { projectId?: unknown; settings?: unknown }) => {
     const filePath = browserPromptExtractionSettingsFile(String(payload?.projectId || ""));
     const settings = normalizeSettingsPayload(payload?.settings);
-    writeJsonAtomic(filePath, settings);
+    writeJsonFileAtomic(filePath, settings);
     return { ok: true, settings };
   });
 }

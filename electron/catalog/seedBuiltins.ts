@@ -208,7 +208,7 @@ const VOLCENGINE_SPEECH_CURATED_MAPPINGS: CuratedMapping[] = VOLCENGINE_AUDIO_MO
 
 /**
  * **退役的 curated 记录（变体合并迁移，2026-06-16）**：Seedance 一族原是 4 个独立 catalog 行
- * （标准/fast/face/fast-face），合并成 1 行 + 4 变体后，老装机里残留 3 个变体模型 + 6 条 mapping 成孤儿
+ * （标准/fast/face/fast-face），合并成 1 行后，老装机里残留 3 个变体模型 + 6 条 mapping 成孤儿
  * （reconcile 只 insert/update 不删）→ picker 仍显示 4 项。这里**精确按我们当初种的 seed id / modelKey**
  * 把它们删掉（不碰用户自建/改名的记录：模型按 (vendorKey, modelKey) 命中、mapping 按 seed- 前缀的稳定 id）。
  * 节点侧的旧 modelKey 由 renderer 的 normalizeArchetypeVariantMeta 归一成 基 modelKey + variantId（正交，互不依赖）。
@@ -275,11 +275,68 @@ function seedVendor(vendors: Vendor[], seed: typeof KIE_VENDOR_SEED | typeof API
  * 某供应商的 curated 模型 insert + 启动对账（供应商无关）。代码所有：kind + meta.archetypeId（漂移强制对账，
  * 否则模型套错能力）；用户所有：enabled/labelZh/createdAt 保留。返回是否变更。
  */
+/**
+ * 跨供应商同一逻辑模型的**版本级** canonical 身份（modelKey → canonicalModelId，全局无键冲突）。
+ * 消费方：src/config/modelIdentity.deriveCanonicalModelId（priority-1 去重键）——填了它，节点模型
+ * 下拉的「同模型多家合并成一条 + N 家」不再赌 labelZh 字符串（label 漂移=不合并、撞名=错合并的根因）。
+ * 纪律：
+ *  - **版本级**（seedream 4.5 ≠ 5.0 ≠ 4.0），绝不用 archetype 家族级；
+ *  - 单家独有的模型（happyhorse/agnes/imagen…）不填——无叠加可治，缺省走 label 归一化回退；
+ *  - **值刻意 = normalizeModelLabel(labelZh) 的产物**（小写、空格分隔）：没进表的同名模型
+ *    （静态表条目 / 未来新家）走 label 回退会得到同一个键 → 永不把现有合并组拆开；
+ *    显式填表的价值只在「对抗 label 改名/漂移」，不在换一套 id 风格。
+ */
+const CANONICAL_MODEL_IDS: Record<string, string> = {
+  // Seedream 4.5（kie / apimart / 火山 / RunningHub 四家）
+  "seedream": "seedream 4.5",
+  "doubao-seedream-4.5": "seedream 4.5",
+  "doubao-seedream-4-5-251128": "seedream 4.5",
+  "seedream-v4.5": "seedream 4.5",
+  // Seedance 2.0（kie / apimart / 火山 / RunningHub；即梦 label 为「即梦 Seedance 2.0（会员）」本就独立，不填）
+  "bytedance/seedance-2": "seedance 2.0",
+  "doubao-seedance-2.0": "seedance 2.0",
+  "doubao-seedance-2-0-260128": "seedance 2.0",
+  "bytedance/seedance-2.0-global": "seedance 2.0",
+  // Nano Banana（kie / apimart / RunningHub；静态 gemini 表同名条目走 label 回退同键）
+  "nano-banana": "nano banana",
+  "gemini-2.5-flash-image-preview": "nano banana",
+  "rhart-image-v1": "nano banana",
+  // GPT Image 2（kie 拆「· 文生图 / · 图生图」两行 / apimart / RunningHub → 同一 canonical 合并成一条）
+  "gpt-image-2-text-to-image": "gpt image 2",
+  "gpt-image-2-image-to-image": "gpt image 2",
+  "gpt-image-2": "gpt image 2",
+  "rhart-image-g-2-official": "gpt image 2",
+  // 可灵 3.0（kie / apimart / RunningHub）
+  "kling-3.0": "可灵 3.0",
+  "kling-v3": "可灵 3.0",
+  "kling-v3.0-pro": "可灵 3.0",
+  // Qwen-Image 2.0（apimart / RunningHub）
+  "qwen-image-2.0": "qwen-image 2.0",
+  "rh-qwen-image-2.0": "qwen-image 2.0",
+  // Veo 3.1（apimart / RunningHub）
+  "veo3.1-fast": "veo 3.1",
+  "rhart-video-v3.1-pro-official": "veo 3.1",
+  // Sora 2（apimart / RunningHub）
+  "sora-2": "sora 2",
+  "rhart-video-s-official": "sora 2",
+  // Wan 2.7（apimart / RunningHub）
+  "wan2.7": "wan 2.7",
+  "rh-wan-2.7": "wan 2.7",
+  // Hailuo 2.3（apimart / RunningHub）
+  "MiniMax-Hailuo-2.3": "hailuo 2.3",
+  "rh-hailuo-2.3": "hailuo 2.3",
+};
+
 function reconcileModels(models: Model[], vendorKey: string, curated: CuratedModel[], now: string): boolean {
   let changed = false;
   for (const c of curated) {
-    // 代码所有的 meta = archetypeId（能力档案指针）+ c.meta（长尾 workflow 的 parameters 等）合并。
-    const curatedMeta: Record<string, unknown> = { ...(c.archetypeId ? { archetypeId: c.archetypeId } : {}), ...(c.meta || {}) };
+    const canonicalId = CANONICAL_MODEL_IDS[c.modelKey];
+    // 代码所有的 meta = archetypeId（能力档案指针）+ canonicalModelId（跨家去重键）+ c.meta 合并。
+    const curatedMeta: Record<string, unknown> = {
+      ...(c.archetypeId ? { archetypeId: c.archetypeId } : {}),
+      ...(canonicalId ? { canonicalModelId: canonicalId } : {}),
+      ...(c.meta || {}),
+    };
     const i = models.findIndex((m) => m.modelKey === c.modelKey && m.vendorKey === vendorKey);
     if (i < 0) {
       models.push({
@@ -295,7 +352,9 @@ function reconcileModels(models: Model[], vendorKey: string, curated: CuratedMod
     const exArch = (exMeta as { archetypeId?: string }).archetypeId;
     // parameters 是代码所有（workflow 契约），漂移强制对账（老装机自愈）。
     const paramsDrift = c.meta?.parameters !== undefined && JSON.stringify(exMeta.parameters) !== JSON.stringify(c.meta.parameters);
-    const drift = ex.kind !== c.kind || (Boolean(c.archetypeId) && exArch !== c.archetypeId) || paramsDrift;
+    // canonicalModelId 同为代码所有：缺失/漂移强制对账（老装机自愈，去重键才可靠）。
+    const canonicalDrift = canonicalId !== undefined && exMeta.canonicalModelId !== canonicalId;
+    const drift = ex.kind !== c.kind || (Boolean(c.archetypeId) && exArch !== c.archetypeId) || paramsDrift || canonicalDrift;
     if (drift) {
       const nextMeta = { ...exMeta, ...curatedMeta };
       models[i] = {

@@ -42,3 +42,9 @@ export function groupModelsByKind<T extends { kind: string }>(models: T[]): Chip
     models: byKind.get(kind)!,
   }))
 }
+
+/** 组内「已启用排前」的稳定排序（2026-07-17 用户要求：选中的模型自动往前排列）。
+ *  稳定：两段各自保持原有（catalog seed）相对顺序，不打乱同段内熟悉的位置。 */
+export function sortEnabledFirst<T extends { enabled: boolean }>(models: T[]): T[] {
+  return [...models].sort((a, b) => Number(b.enabled) - Number(a.enabled))
+}

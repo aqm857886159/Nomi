@@ -9,18 +9,31 @@ import type { ModelOption } from '../../config/models'
 import type { NomiSelectOption } from '../../design'
 import { dedupeModelOptions, resolveBestProvider, type DedupedModel } from '../../config/modelIdentity'
 
+import type { ModelProviderRef } from '../../config/modelIdentity'
+
 const VENDOR_LABELS: Record<string, string> = {
   volcengine: '火山方舟',
+  'volcengine-speech': '火山语音',
   modelscope: '魔搭',
   apimart: 'APIMart',
   kie: 'Kie',
   newapi: 'new-api',
   runninghub: 'RunningHub',
+  agnes: 'Agnes',
+  replicate: 'Replicate',
+  dreamina: '即梦',
+  'comfyui-local': '本地 ComfyUI',
 }
 
-function vendorLabel(vendor?: string): string {
-  if (!vendor) return '默认'
-  return VENDOR_LABELS[vendor.toLowerCase()] || vendor
+/** 厂商显示名：内置短名映射（下拉附注要短）> option.vendorName（自定义中转的真名）> key 原样。
+ *  短名优先：catalog 里内置家的 name 是接入卡全称（如「即梦会员（本地 CLI）」），当 trailing 太啰嗦。 */
+function providerLabel(provider?: ModelProviderRef | null): string {
+  if (!provider) return '默认'
+  const short = provider.vendor ? VENDOR_LABELS[provider.vendor.toLowerCase()] : undefined
+  if (short) return short
+  const fromCatalog = provider.option.vendorName?.trim()
+  if (fromCatalog) return fromCatalog
+  return provider.vendor || '默认'
 }
 
 export interface DedupedModelSelectView {
@@ -62,7 +75,8 @@ export function useDedupedModelSelect(
       deduped.map((m) => ({
         value: m.canonicalId,
         label: m.label,
-        trailing: m.providers.length > 1 ? `${m.providers.length} 家` : undefined,
+        // 厂商标注（用户 2026-07-17：模型来自哪家要看得见）：多家=「N 家」，单家=厂商短名。
+        trailing: m.providers.length > 1 ? `${m.providers.length} 家` : providerLabel(m.providers[0]),
       })),
     [deduped],
   )
@@ -84,7 +98,7 @@ export function useDedupedModelSelect(
     const byVendor = new Map<string, NomiSelectOption>()
     for (const p of selectedModel.providers) {
       const key = p.vendor || p.option.value
-      if (!byVendor.has(key)) byVendor.set(key, { value: p.option.value, label: vendorLabel(p.vendor) })
+      if (!byVendor.has(key)) byVendor.set(key, { value: p.option.value, label: providerLabel(p) })
     }
     return byVendor.size > 1 ? [...byVendor.values()] : []
   }, [selectedModel])

@@ -119,7 +119,7 @@ export function buildCatalogTaskRequest(
   const references = options.references || {}
   const kind = resolveTaskKind(node, references)
   const meta = node.meta || {}
-  // @ 内联引用投影(R6 单源 · option 2 · 2026-06-25):把 prompt 里的 @[asset:url] 标记转成 character{N}，
+  // @ 内联引用投影(R6 单源 · option 2):把 prompt 里的 @[asset:url] 标记转成 @imageN，
   // N = url 在「连线在前+上传」有序数组里的位置——**与实际发送的 reference_image 数组逐位一致**。此前只读
   // meta.referenceImageUrls，把连线进来的参考图当成「不在数组里」直接把 @ 标记删成空串（连线图 @ 不到/被
   // 删空的根因）。纯文字 prompt 无标记 → 原样(no-op)。无档案模型回退旧口径（仅上传）。

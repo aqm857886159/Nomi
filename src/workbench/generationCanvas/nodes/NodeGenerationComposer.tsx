@@ -260,6 +260,8 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   const audioIsTranscribe = audioMode?.transportTaskKind === 'transcribe'
   const textGenMode = getTextGenMode(node)
   const hasPromptPickerButton = Boolean(nodeExecutionKind) && !audioIsTranscribe && !isTextKind
+  const hasReferenceControls =
+    isImageLikeGenerationNodeKind(node.kind) || isVideoLikeGenerationNodeKind(node.kind) || isAudioKind
   // 持有 prompt 编辑器实例,供「点参考 tile → 在光标处插入 chip」(@ 内联引用主路径)。
   const [promptEditor, setPromptEditor] = React.useState<Editor | null>(null)
   const [promptPickerOpen, setPromptPickerOpen] = React.useState(false)
@@ -267,9 +269,6 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   const [promptPickerPosition, setPromptPickerPosition] = React.useState<PromptPickerPosition | null>(null)
   const promptPickerButtonRef = React.useRef<HTMLButtonElement | null>(null)
   const promptPickerPopoverRef = React.useRef<HTMLDivElement | null>(null)
-  const insertMention = React.useCallback((url: string) => {
-    if (promptEditor && !promptEditor.isDestroyed) promptEditor.commands.insertAssetMention(url)
-  }, [promptEditor])
   // 拖文件到卡 → 加为参考（捷径 A）。仅当当前模式有数组参考槽时接管拖拽。
   const { acceptsDrop, isDragOver, isUploading, dropHandlers } = useNodeAssetDrop(node)
   // @ 候选 = 当前模式 image_ref 槽的有序填充（连线在前+上传，option 2 单源），与面板编号①②③、
@@ -280,6 +279,11 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
     const imageSlot = resolveReferenceSlots(node, mentionNodes, mentionEdges).find((s) => s.slotKind === 'image_ref')
     return imageSlot ? imageSlot.fills.flatMap((f) => (f.url ? [f.url] : [])) : []
   }, [node, mentionNodes, mentionEdges])
+  const insertMention = React.useCallback((url: string) => {
+    if (!promptEditor || promptEditor.isDestroyed) return
+    const index = mentionCandidates.indexOf(url)
+    promptEditor.commands.insertAssetMention(url, index >= 0 ? index + 1 : undefined)
+  }, [mentionCandidates, promptEditor])
 
   const loadPromptPickerItems = React.useCallback((): BrowserPromptLibraryItem[] => {
     const items = readBrowserPromptLibraryItems(getDesktopActiveProjectId())
@@ -359,14 +363,14 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
     (item: BrowserPromptLibraryItem): void => {
       if (node.locked) return
       if (promptEditor && !promptEditor.isDestroyed) {
-        promptEditor.commands.setContent(promptToContent(item.prompt))
+        promptEditor.commands.setContent(promptToContent(item.prompt, mentionCandidates))
         promptEditor.commands.focus('end')
       }
       updateNode(node.id, { prompt: item.prompt })
       setPromptPickerOpen(false)
       void persistActiveWorkbenchProjectNow().catch(() => {})
     },
-    [node.id, node.locked, promptEditor, updateNode],
+    [mentionCandidates, node.id, node.locked, promptEditor, updateNode],
   )
 
   const handleGenerate = async (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -398,6 +402,23 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   const canvasOffset = useGenerationCanvasStore((state) => state.canvasOffset)
   const anchorRef = React.useRef<HTMLDivElement>(null)
   const [flipUp, setFlipUp] = React.useState(false)
+  // ── 参数面板打开期间冻结 composer 位置（2026-07-17 用户第四轮反馈的终解）──
+  // 动的源头：改比例 → 节点按新比例变形 → composer（anchored 节点下方）被推走 → 调参的两个框
+  // 全在跑、要重新找。冻结 = 面板打开时记录「节点锚边的屏幕坐标」基准，节点**纯变形**（zoom/
+  // offset/position 未变）导致锚边位移时，用屏幕像素补偿把 composer 钉回原地；用户主动平移/
+  // 缩放/拖节点则重置基准正常跟随（那是他自己要移动视角）。面板关闭 → 补偿归零回真实位置。
+  const [paramPanelOpen, setParamPanelOpen] = React.useState(false)
+  const [freezeShift, setFreezeShift] = React.useState({ x: 0, y: 0 })
+  const freezeBaseRef = React.useRef<{
+    edgeY: number
+    centerX: number
+    zoom: number
+    offsetX: number
+    offsetY: number
+    posX: number
+    posY: number
+    flipUp: boolean
+  } | null>(null)
   // 翻上时要避让的「节点上方图片编辑工具条」高度（节点坐标系 px）。否则参数框会压住那条
   // 浮动工具条（用户反馈：浮动条看不见/遮挡）。无工具条（如未生成、视频节点）则为 0。
   const [aboveClearance, setAboveClearance] = React.useState(0)
@@ -413,6 +434,39 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
     const recompute = () => {
       const stageRect = stage.getBoundingClientRect()
       const nodeRect = nodeEl.getBoundingClientRect()
+      // 参数面板打开期间：冻结分支——不重算 flip/shiftX，只算「锚边位移补偿」把 composer 钉住。
+      if (paramPanelOpen) {
+        const base = freezeBaseRef.current
+        const centerX = nodeRect.left + nodeRect.width / 2
+        const sameView =
+          base &&
+          base.zoom === canvasZoom &&
+          base.offsetX === canvasOffset.x &&
+          base.offsetY === canvasOffset.y &&
+          base.posX === (node.position?.x ?? 0) &&
+          base.posY === (node.position?.y ?? 0)
+        const edgeY = (base?.flipUp ?? flipUp) ? nodeRect.top : nodeRect.bottom
+        if (!sameView) {
+          // 首次记录，或用户主动平移/缩放/拖节点 → 重置基准（composer 跟视角走），补偿归零。
+          freezeBaseRef.current = {
+            edgeY,
+            centerX,
+            zoom: canvasZoom,
+            offsetX: canvasOffset.x,
+            offsetY: canvasOffset.y,
+            posX: node.position?.x ?? 0,
+            posY: node.position?.y ?? 0,
+            flipUp,
+          }
+          setFreezeShift((prev) => (prev.x || prev.y ? { x: 0, y: 0 } : prev))
+          return
+        }
+        // 视角未变而锚边动了 = 节点纯变形 → 屏幕像素补偿，钉回原地。
+        setFreezeShift({ x: Math.round(base.centerX - centerX), y: Math.round(base.edgeY - edgeY) })
+        return
+      }
+      freezeBaseRef.current = null
+      setFreezeShift((prev) => (prev.x || prev.y ? { x: 0, y: 0 } : prev))
       const neededScreenHeight = (anchor.offsetHeight || 280) + composerLayout.gap * canvasZoom
       const spaceBelow = stageRect.bottom - nodeRect.bottom
       const spaceAbove = nodeRect.top - stageRect.top
@@ -444,7 +498,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
     const ro = new ResizeObserver(recompute)
     ro.observe(anchor)
     return () => ro.disconnect()
-  }, [canvasZoom, canvasOffset, node.position?.x, node.position?.y, visualSize.width, visualSize.height, composerLayout.gap, node.result?.url])
+  }, [canvasZoom, canvasOffset, node.position?.x, node.position?.y, visualSize.width, visualSize.height, composerLayout.gap, node.result?.url, paramPanelOpen, flipUp])
 
   // 卡宽 = **内容驱动**（用户拍板 2026-06-16，推翻 06-13 的「按最宽模型恒定宽」）：
   // 卡片 **w-max**（max-content）跟着当前模型的「底栏一行」(锁+参数+生成钮)自然撑开。参数已主次分层
@@ -465,7 +519,8 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
         // 不缩这个参数框）。横向居中的 -translate-x-1/2 改写进 transform（否则被 scale 覆盖）。
         // transform-origin 贴住与节点相连的那条边（默认朝下=顶边、翻上=底边），缩放时锚点不漂移。
         // 最左的 translateX(shiftX px) 在屏幕空间生效（不被 scale 缩）→ 横向夹取把溢出视口的宽卡拉回。
-        transform: `translateX(${shiftX}px) translateX(-50%) scale(${1 / (canvasZoom || 1)})`,
+        // freezeShift 在最前（屏幕空间）：参数面板打开期间抵消节点变形位移，composer 钉在原地。
+        transform: `translate(${freezeShift.x}px, ${freezeShift.y}px) translateX(${shiftX}px) translateX(-50%) scale(${1 / (canvasZoom || 1)})`,
         transformOrigin: flipUp ? 'bottom center' : 'top center',
         ...(flipUp
           ? { bottom: `calc(100% + ${composerLayout.gap + aboveClearance}px)` }
@@ -487,50 +542,54 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
         )}
         style={{ maxHeight: composerLayout.maxHeight }}
       >
-      {hasPromptPickerButton ? (
-        <>
-          <button
-            ref={promptPickerButtonRef}
-            type="button"
-            className={cn(
-              'absolute right-3 top-3 z-[2] inline-flex h-7 items-center gap-1.5 rounded-nomi-sm border-0 bg-transparent px-2',
-              'cursor-pointer text-nomi-ink-45 transition-[background,color,transform] duration-[var(--nomi-transition-fast)]',
-              'hover:-translate-y-0.5 hover:bg-nomi-ink-05 hover:text-nomi-accent',
-              promptPickerOpen && 'bg-nomi-ink-05 text-nomi-accent',
-              node.locked && 'cursor-not-allowed opacity-45 hover:translate-y-0 hover:bg-transparent hover:text-nomi-ink-45',
-            )}
-            aria-label="打开素材盒提示词"
-            aria-haspopup="menu"
-            aria-expanded={promptPickerOpen}
-            title="素材盒提示词"
-            disabled={node.locked}
-            onClick={togglePromptPicker}
-          >
-            <IconFileText size={15} stroke={1.8} aria-hidden="true" />
-            <span className="text-caption font-medium leading-none">提示词</span>
-          </button>
-          <AnimatePresence initial={false}>
-            {promptPickerOpen ? (
-              <BrowserPromptPickerPopover
-                key="browser-prompt-picker"
-                items={promptPickerItems}
-                position={promptPickerPosition}
-                onSelect={applyPromptPickerItem}
-                setNodeRef={(popoverNode) => {
-                  promptPickerPopoverRef.current = popoverNode
-                }}
-              />
-            ) : null}
-          </AnimatePresence>
-        </>
+      {hasReferenceControls || hasPromptPickerButton ? (
+        <div className={cn('flex w-0 min-w-full items-start gap-3')}>
+          {hasReferenceControls ? (
+            <div className={cn('min-w-0 flex-1')}>
+              <NodeParameterControls node={node} section="references" onInsertMention={insertMention} />
+            </div>
+          ) : null}
+          {hasPromptPickerButton ? (
+            <button
+              ref={promptPickerButtonRef}
+              type="button"
+              className={cn(
+                'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-nomi-sm border-0 bg-transparent px-2',
+                'cursor-pointer text-nomi-ink-45 transition-[background,color,transform] duration-[var(--nomi-transition-fast)]',
+                'hover:-translate-y-0.5 hover:bg-nomi-ink-05 hover:text-nomi-accent',
+                promptPickerOpen && 'bg-nomi-ink-05 text-nomi-accent',
+                node.locked && 'cursor-not-allowed opacity-45 hover:translate-y-0 hover:bg-transparent hover:text-nomi-ink-45',
+              )}
+              aria-label="打开素材盒提示词"
+              aria-haspopup="menu"
+              aria-expanded={promptPickerOpen}
+              title="素材盒提示词"
+              disabled={node.locked}
+              onClick={togglePromptPicker}
+            >
+              <IconFileText size={15} stroke={1.8} aria-hidden="true" />
+              <span className="text-caption font-medium leading-none">提示词</span>
+            </button>
+          ) : null}
+        </div>
       ) : null}
+      <AnimatePresence initial={false}>
+        {hasPromptPickerButton && promptPickerOpen ? (
+          <BrowserPromptPickerPopover
+            key="browser-prompt-picker"
+            items={promptPickerItems}
+            position={promptPickerPosition}
+            onSelect={applyPromptPickerItem}
+            setNodeRef={(popoverNode) => {
+              promptPickerPopoverRef.current = popoverNode
+            }}
+          />
+        ) : null}
+      </AnimatePresence>
       {/* 参考区：图像/视频的参考槽，以及声音的「配音生成/转写」模式切换 + 转写的音频参考槽。 */}
-      {isImageLikeGenerationNodeKind(node.kind) || isVideoLikeGenerationNodeKind(node.kind) || isAudioKind ? (
-        <>
-          <NodeParameterControls node={node} section="references" onInsertMention={insertMention} />
-          {/* 样张 v4 .divider：参考区与描述之间一条极淡分隔线 */}
-          <div className={cn('h-px bg-nomi-line-soft')} />
-        </>
+      {hasReferenceControls ? (
+        // 样张 v4 .divider：参考区与描述之间一条极淡分隔线
+        <div className={cn('h-px bg-nomi-line-soft')} />
       ) : null}
       {isTextKind ? (
         <div className={cn('flex items-center gap-1')} role="group" aria-label="生成模式">
@@ -583,7 +642,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
         {/* 锁从节点卡片移到这里（编辑面板底栏）：卡片预览保持干净，锁定/解锁在选中编辑时就近可达。
             selected 恒为真（composer 只在选中时挂载）→ 始终可见：未锁=描边开锁、已锁=实心锁。 */}
         <NodeLockBadge nodeId={node.id} locked={node.locked} selected />
-        <NodeParameterControls node={node} section="parameters" />
+        <NodeParameterControls node={node} section="parameters" onParamPanelOpenChange={setParamPanelOpen} />
         {/* 手动运镜（B1）：视频镜头才有 video_ref 槽——运镜芯片仅对 video-like 节点显示（AI 工具 create_camera_move 的第二道门，共用同一产路）。 */}
         {isVideoLikeGenerationNodeKind(node.kind) && !node.locked ? (
           <NodeCameraMoveControl node={node} />

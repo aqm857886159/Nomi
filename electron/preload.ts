@@ -31,6 +31,11 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.on("nomi:window:maximized", listener);
       return () => ipcRenderer.removeListener("nomi:window:maximized", listener);
     },
+    onCanvasZoomShortcut: (cb: (direction: -1 | 1) => void) => {
+      const listener = (_: unknown, direction: -1 | 1) => cb(direction);
+      ipcRenderer.on("nomi:canvas:zoom-shortcut", listener);
+      return () => ipcRenderer.removeListener("nomi:canvas:zoom-shortcut", listener);
+    },
   },
   logRendererCrash: (message: unknown) => ipcRenderer.send("nomi:log:renderer-crash", message),
   app: {
