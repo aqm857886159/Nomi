@@ -1,12 +1,16 @@
 import type { JSONContent } from '@tiptap/react'
 import { parsePromptSegments } from './promptMentions'
 
-export function promptToContent(prompt: string): JSONContent {
+export function promptToContent(prompt: string, orderedImageUrls: readonly string[] = []): JSONContent {
   const segments = parsePromptSegments(prompt)
   const paragraphs: JSONContent[] = [{ type: 'paragraph', content: [] }]
   const pushInline = (node: JSONContent) => { (paragraphs[paragraphs.length - 1].content as JSONContent[]).push(node) }
   for (const seg of segments) {
-    if (seg.type === 'mention') { pushInline({ type: 'assetMention', attrs: { url: seg.url } }); continue }
+    if (seg.type === 'mention') {
+      const index = orderedImageUrls.indexOf(seg.url)
+      pushInline({ type: 'assetMention', attrs: { url: seg.url, index: index >= 0 ? index + 1 : null } })
+      continue
+    }
     seg.value.split('\n').forEach((line, index) => {
       if (index > 0) paragraphs.push({ type: 'paragraph', content: [] })
       if (line) pushInline({ type: 'text', text: line })

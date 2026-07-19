@@ -62,6 +62,8 @@ import {
 } from './nodeSizing'
 import { useNodeVideoHoverPreview } from './useNodeVideoHoverPreview'
 import { NodeInlineImageTitle, NodeResultHeaderActions } from './NodeImagePreviewActions'
+import { resolveReferenceSlots } from '../runner/referenceSlots'
+import { projectPromptForDisplay } from '../../assets/promptMentions'
 
 export type BaseGenerationNodeProps = {
   node: GenerationCanvasNode
@@ -259,6 +261,14 @@ function BaseGenerationNodeImpl({
   const shotIndex = useShotIndex(node.id, node.categoryId)
   // 切片2：镜头「挂了哪些设定卡」——不选中也能一眼看出挂了林夏/咖啡馆（可审计，免数连线）。
   const mountedCards = useMountedCards(node.id)
+  const promptReferenceNodes = useGenerationCanvasStore((state) => state.nodes)
+  const promptReferenceEdges = useGenerationCanvasStore((state) => state.edges)
+  const displayPrompt = React.useMemo(() => {
+    const imageSlot = resolveReferenceSlots(node, promptReferenceNodes, promptReferenceEdges)
+      .find((slot) => slot.slotKind === 'image_ref')
+    const orderedImageUrls = imageSlot?.fills.flatMap((fill) => (fill.url ? [fill.url] : [])) ?? []
+    return projectPromptForDisplay(node.prompt || '', orderedImageUrls)
+  }, [node, promptReferenceEdges, promptReferenceNodes])
   const hasFrameSourceEdge = useHasFrameSourceEdge(node.id, nodeExecutionKind === 'video') // A15：已连上游边时占位不再喊「拖图」
   const needsFirstFrame = nodeExecutionKind === 'video' && !canGenerate && !isGenerating
   const { handlePanoramaFileChange, handlePanoramaScreenshot } = useNodePanoramaHandlers(node, visualSize)
@@ -631,7 +641,7 @@ function BaseGenerationNodeImpl({
             waitingUpstream={hasFrameSourceEdge}
             shotIndex={shotIndex}
             title={node.title}
-            prompt={node.prompt}
+            prompt={displayPrompt}
           />
         )}
         <ShotPreviewOverlays node={node} selected={selected} readOnly={readOnly} shotIndex={shotIndex} hasResult={hasResult} isGenerating={isGenerating} />
