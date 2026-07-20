@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconAlertTriangle, IconGripVertical, IconPlus, IconTrash, IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { NomiSelect } from '../../../design'
@@ -38,6 +39,7 @@ type Props = {
 }
 
 export default function StoryboardShotCard(props: Props): JSX.Element {
+  const { t } = useTranslation()
   const { shot, anchors, modelOptions, danglingIds, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll } = props
   const [pickerOpen, setPickerOpen] = React.useState(false)
   // 参数抽屉 open 态提升到镜卡：inline 选择器并进 header 同一行，抽屉 full-width 落在下方（用户反馈「参数换行多」）。
@@ -60,7 +62,7 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
   const durationOptions = [...new Set([...DURATION_OPTIONS_SEC, shot.durationSec])]
     .filter((sec) => Number.isFinite(sec) && sec > 0)
     .sort((a, b) => a - b)
-    .map((sec) => ({ value: String(sec), label: `${sec} 秒` }))
+    .map((sec) => ({ value: String(sec), label: t('storyboardEditor.second', { count: sec }) }))
   // 模型选择器：空值=默认（落画布用默认视频模型兜底）。选了具体模型 → 写 modelKey，清 modeId
   // （由 buildPlannedNodeMeta 按所选模型自动取默认模式，避免把别的模型的 modeId 套错）。
   // 选具体模型 → 写 modelKey、清 modeId/params（由 buildPlannedNodeMeta 按所选模型取默认模式）。
@@ -72,7 +74,7 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
   const modelSelect = useDedupedModelSelect(modelOptions ?? [], shot.modelKey ?? '', onShotModelChange)
   // 模型下拉：「默认模型」空值项 + 去重后的模型（同模型只一条，多家标「N 家」）。
   const modelSelectOptions = modelOptions && modelOptions.length > 0
-    ? [{ value: '', label: '默认模型' }, ...modelSelect.modelOptions]
+    ? [{ value: '', label: t('storyboardEditor.defaultModel') }, ...modelSelect.modelOptions]
     : null
   const onModelSelect = (id: string): void => (id ? modelSelect.onModelPick(id) : onShotModelChange(''))
   // 选中模型的完整 option（带 archetype 信息）→ 给 ShotParamControls 解析参数。空值=默认模型（无参数）。
@@ -96,22 +98,22 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
           <span className="shrink-0 cursor-grab text-nomi-ink-20 active:cursor-grabbing" aria-hidden>
             <IconGripVertical size={15} stroke={1.6} />
           </span>
-          <span className="text-title font-semibold text-nomi-ink tabular-nums mr-0.5">镜 {shot.index}</span>
+          <span className="text-title font-semibold text-nomi-ink tabular-nums mr-0.5">{t('storyboardEditor.shotNumber', { index: shot.index })}</span>
           <NomiSelect
-            ariaLabel="镜头类型"
-            leadingLabel="类型"
+            ariaLabel={t('storyboardEditor.shotType')}
+            leadingLabel={t('storyboardEditor.type')}
             size="xs"
             value={shotKind}
             options={[
-              { value: 'image', label: '图片' },
-              { value: 'video', label: '视频' },
+              { value: 'image', label: t('storyboardEditor.image') },
+              { value: 'video', label: t('storyboardEditor.video') },
             ]}
             onChange={onKindChange}
           />
           {!isImageShot ? (
             <NomiSelect
-              ariaLabel="时长"
-              leadingLabel="时长"
+              ariaLabel={t('storyboardEditor.duration')}
+              leadingLabel={t('storyboardEditor.duration')}
               size="xs"
               value={String(shot.durationSec)}
               options={durationOptions}
@@ -120,8 +122,8 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
           ) : null}
           {modelSelectOptions ? (
             <NomiSelect
-              ariaLabel={isImageShot ? '图片模型' : '视频模型'}
-              leadingLabel="模型"
+              ariaLabel={isImageShot ? t('storyboardEditor.imageModel') : t('storyboardEditor.videoModel')}
+              leadingLabel={t('storyboardEditor.model')}
               size="xs"
               triggerMaxWidth={150}
               value={shot.modelKey ? modelSelect.modelValue : ''}
@@ -131,8 +133,8 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
           ) : null}
           {modelSelect.providerOptions.length > 1 ? (
             <NomiSelect
-              ariaLabel="供应商"
-              leadingLabel="供应商"
+              ariaLabel={t('storyboardEditor.provider')}
+              leadingLabel={t('storyboardEditor.provider')}
               size="xs"
               triggerMaxWidth={110}
               value={modelSelect.providerValue}
@@ -152,7 +154,7 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
         </div>
         <button
           type="button"
-          aria-label="删除镜头"
+          aria-label={t('storyboardEditor.deleteShot')}
           onClick={onRemove}
           className="shrink-0 size-7 grid place-items-center rounded-nomi-sm text-nomi-ink-30 hover:bg-nomi-ink-10 hover:text-nomi-ink-60"
         >
@@ -172,7 +174,7 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
       ) : null}
 
       <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
-        <span className="text-micro text-nomi-ink-40 mr-0.5">参考</span>
+        <span className="text-micro text-nomi-ink-40 mr-0.5">{t('storyboardEditor.reference')}</span>
         {selected.map((id) => {
           const anchor = byId.get(id)!
           // chip 本体不再点一下就删（误删源）；末尾加明确的 × 才移除引用。
@@ -181,11 +183,11 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
               key={id}
               className="h-6 pl-2.5 pr-1 rounded-full bg-nomi-ink-05 text-nomi-ink-80 text-caption inline-flex items-center gap-1"
             >
-              {anchor.name || '未命名'}
+              {anchor.name || t('storyboardEditor.unnamed')}
               <button
                 type="button"
-                aria-label={`移除参考 ${anchor.name || '该锚'}`}
-                title={`移除参考 ${anchor.name || '该锚'}`}
+                aria-label={t('storyboardEditor.removeReference', { name: anchor.name || t('storyboardEditor.thisAnchor') })}
+                title={t('storyboardEditor.removeReference', { name: anchor.name || t('storyboardEditor.thisAnchor') })}
                 onClick={() => onToggleAnchor(id)}
                 className="grid place-items-center size-4 rounded-full text-nomi-ink-40 hover:bg-nomi-ink-20 hover:text-nomi-ink-80"
               >
@@ -199,10 +201,10 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
             key={id}
             type="button"
             onClick={() => onToggleAnchor(id)}
-            title="引用已失效，点一下移除"
+            title={t('storyboardEditor.invalidReferenceHint')}
             className="h-6 px-2 rounded-full bg-workbench-danger-soft text-workbench-danger text-caption inline-flex items-center gap-1"
           >
-            <span className="line-through">失效引用</span>
+            <span className="line-through">{t('storyboardEditor.invalidReference')}</span>
             <IconX size={12} stroke={1.8} />
           </button>
         ))}
@@ -214,7 +216,7 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
             className="h-6 px-2.5 rounded-full border border-dashed border-nomi-ink-20 text-nomi-ink-60 text-caption inline-flex items-center gap-1 hover:text-nomi-ink-80"
           >
             <IconPlus size={12} stroke={1.8} />
-            参考
+            {t('storyboardEditor.reference')}
           </button>
         )}
       </div>
@@ -231,7 +233,7 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
               }}
               className="h-6 px-2.5 rounded-full border border-nomi-line text-nomi-ink-60 text-caption inline-flex items-center hover:border-nomi-ink-20 hover:text-nomi-ink-80"
             >
-              {anchor.name || '未命名'}
+              {anchor.name || t('storyboardEditor.unnamed')}
             </button>
           ))}
         </div>
@@ -240,15 +242,15 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
       {danglingIds.length > 0 && (
         <div className="text-micro text-workbench-danger mt-1.5 flex items-center gap-1">
           <IconAlertTriangle size={12} stroke={1.8} />
-          有引用的锚已被删除——移除失效标签，或回上面重新加锚
+          {t('storyboardEditor.danglingWarning')}
         </div>
       )}
 
       <AutoGrowTextarea
         value={shot.prompt}
         onChange={(event) => onUpdate({ prompt: event.target.value })}
-        aria-label={`镜 ${shot.index} 提示词`}
-        placeholder={isImageShot ? '这镜画什么：构图 + 景别 + 人物姿态/表情（静态画面，不写运镜）' : '这镜画什么：运镜 + 动作演进（不复述锚的静态描述）'}
+        aria-label={t('storyboardEditor.promptAria', { index: shot.index })}
+        placeholder={isImageShot ? t('storyboardEditor.imagePromptPlaceholder') : t('storyboardEditor.videoPromptPlaceholder')}
         className={cn(
           'mt-2.5 px-2 py-2 rounded-nomi-sm border bg-nomi-paper',
           'text-body-sm text-nomi-ink-80 leading-normal focus:border-nomi-accent',

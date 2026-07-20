@@ -7,6 +7,7 @@ import { enLibraries, zhLibraries } from './locales/libraries'
 import { enScene3d, zhScene3d } from './locales/scene3d'
 import { enTimelineEditor, zhTimelineEditor } from './locales/timelineEditor'
 import { enCreationAi, zhCreationAi } from './locales/creationAi'
+import { enStoryboardEditor, zhStoryboardEditor } from './locales/storyboardEditor'
 
 export const zhCN = {
   common: {
@@ -246,6 +247,7 @@ export const zhCN = {
   scene3d: zhScene3d,
   timelineEditor: zhTimelineEditor,
   creationAi: zhCreationAi,
+  storyboardEditor: zhStoryboardEditor,
 } as const
 
 type TranslationShape<T> = {
@@ -490,6 +492,7 @@ export const en = {
   scene3d: enScene3d,
   timelineEditor: enTimelineEditor,
   creationAi: enCreationAi,
+  storyboardEditor: enStoryboardEditor,
 } satisfies TranslationShape<typeof zhCN>
 
 export const resources = {

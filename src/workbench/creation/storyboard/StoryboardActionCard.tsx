@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconArrowRight, IconMovie, IconPhoto, IconUserPlus, IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { WorkbenchButton } from '../../../design'
@@ -15,14 +16,14 @@ import { WorkbenchButton } from '../../../design'
 type StoryboardActionKind = 'storyboard' | 'fixation'
 export type StoryboardShotMode = 'image' | 'video'
 
-const ACTION_COPY: Record<StoryboardActionKind, { lead: string; cta: string; Icon: typeof IconMovie }> = {
-  storyboard: { lead: '看起来你想把故事拆成镜头。', cta: '拆成镜头 · 落画布', Icon: IconMovie },
-  fixation: { lead: '看起来你想给角色立卡。', cta: '立角色卡', Icon: IconUserPlus },
+const ACTION_ICON: Record<StoryboardActionKind, typeof IconMovie> = {
+  storyboard: IconMovie,
+  fixation: IconUserPlus,
 }
 
-const MODE_OPTIONS: Array<{ value: StoryboardShotMode; label: string; Icon: typeof IconMovie }> = [
-  { value: 'image', label: '图片分镜', Icon: IconPhoto },
-  { value: 'video', label: '视频分镜', Icon: IconMovie },
+const MODE_OPTIONS: Array<{ value: StoryboardShotMode; labelKey: string; Icon: typeof IconMovie }> = [
+  { value: 'image', labelKey: 'storyboardEditor.action.imageMode', Icon: IconPhoto },
+  { value: 'video', labelKey: 'storyboardEditor.action.videoMode', Icon: IconMovie },
 ]
 
 export default function StoryboardActionCard({
@@ -40,7 +41,10 @@ export default function StoryboardActionCard({
   /** 传了才渲染右上角「收起」——主动浮现的情景卡可关，聊天流里识别意图弹的卡不可关。 */
   onDismiss?: () => void
 }): JSX.Element {
-  const { lead: defaultLead, cta, Icon } = ACTION_COPY[kind]
+  const { t } = useTranslation()
+  const Icon = ACTION_ICON[kind]
+  const defaultLead = kind === 'storyboard' ? t('storyboardEditor.action.storyboardLead') : t('storyboardEditor.action.fixationLead')
+  const cta = kind === 'storyboard' ? t('storyboardEditor.action.storyboardCta') : t('storyboardEditor.action.fixationCta')
   const lead = leadOverride ?? defaultLead
   const [mode, setMode] = React.useState<StoryboardShotMode>('image')
   return (
@@ -51,7 +55,7 @@ export default function StoryboardActionCard({
         {onDismiss ? (
           <button
             type="button"
-            aria-label="不用了，收起"
+            aria-label={t('storyboardEditor.action.dismiss')}
             onClick={onDismiss}
             className={cn('shrink-0 -mr-1 -mt-0.5 p-1 rounded-nomi-sm text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-ink-05')}
           >
@@ -60,7 +64,7 @@ export default function StoryboardActionCard({
         ) : null}
       </div>
       {kind === 'storyboard' ? (
-        <div className={cn('flex items-center gap-1')} role="radiogroup" aria-label="分镜类型">
+        <div className={cn('flex items-center gap-1')} role="radiogroup" aria-label={t('storyboardEditor.action.typeAria')}>
           {MODE_OPTIONS.map((option) => {
             const active = mode === option.value
             return (
@@ -80,12 +84,12 @@ export default function StoryboardActionCard({
                 )}
               >
                 <option.Icon size={12} stroke={1.8} />
-                {option.label}
+                {t(option.labelKey as 'storyboardEditor.action.imageMode')}
               </button>
             )
           })}
           <span className={cn('text-micro text-nomi-ink-40 ml-1 min-w-0 truncate')}>
-            {mode === 'image' ? '每镜一张静态画面，满意后可转视频' : '每镜一段带时长的视频'}
+            {mode === 'image' ? t('storyboardEditor.action.imageHint') : t('storyboardEditor.action.videoHint')}
           </span>
         </div>
       ) : null}
@@ -98,7 +102,7 @@ export default function StoryboardActionCard({
         data-action-run={kind}
       >
         <Icon size={14} stroke={1.7} />
-        {resolved ? '已开始' : cta}
+        {resolved ? t('storyboardEditor.action.started') : cta}
         {!resolved ? <IconArrowRight size={13} stroke={1.7} /> : null}
       </WorkbenchButton>
     </div>

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { extractWorkbenchDocumentText } from '../creationAiModes'
@@ -17,6 +18,7 @@ export default function StoryboardNudge({
   busy?: boolean
   onRun: (shotMode: StoryboardShotMode) => void
 }): JSX.Element | null {
+  const { t } = useTranslation()
   const workbenchDocument = useWorkbenchStore((state) => state.workbenchDocument)
   const storyboardPlan = useWorkbenchStore((state) => state.storyboardPlan)
   const [dismissed, setDismissed] = React.useState(false)
@@ -31,7 +33,7 @@ export default function StoryboardNudge({
       <StoryboardActionCard
         kind="storyboard"
         resolved={false}
-        lead="写好故事了？一键把它拆成一个个镜头、铺到画布。"
+        lead={t('storyboardEditor.action.nudgeLead')}
         onRun={(shotMode) => {
           setDismissed(true)
           onRun(shotMode)
