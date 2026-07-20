@@ -75,6 +75,21 @@ export const zhAssetLibrary = {
     referenceEmpty: '导入图片或拖入参考后出现在这里。',
     ungrouped: '未分组',
   },
+  picker: {
+    typeLimitReached: '已到该类型上限',
+    searchPlaceholder: '搜索素材名…',
+    searchAria: '搜索素材名',
+    canvas: '画布',
+    recentProjectAssets: '项目素材 · 最近',
+    browseAll: '浏览全部 →',
+    loading: '素材加载中',
+    noMatches: '没有匹配的素材',
+    empty: '还没有素材，上传或拖入开始',
+    uploading: '上传中',
+    uploadingEllipsis: '上传中…',
+    uploadLocal: '上传本地文件',
+    dropHint: '或把文件拖进来 · 从卡片拉条线 · 从素材面板拖到节点',
+  },
 } as const
 
 type TranslationShape<T> = {
@@ -158,5 +173,20 @@ export const enAssetLibrary = {
     filmEmpty: 'Shots generated in the generation workspace will appear here automatically.',
     referenceEmpty: 'Imported images and dragged references will appear here.',
     ungrouped: 'Ungrouped',
+  },
+  picker: {
+    typeLimitReached: 'This asset type has reached its limit',
+    searchPlaceholder: 'Search asset names…',
+    searchAria: 'Search asset names',
+    canvas: 'Canvas',
+    recentProjectAssets: 'Project assets · Recent',
+    browseAll: 'Browse all →',
+    loading: 'Loading assets',
+    noMatches: 'No matching assets',
+    empty: 'No assets yet. Upload or drag one here to begin.',
+    uploading: 'Uploading',
+    uploadingEllipsis: 'Uploading…',
+    uploadLocal: 'Upload local file',
+    dropHint: 'Or drag a file here · Draw a connection from a card · Drag from the asset panel to a node',
   },
 } satisfies TranslationShape<typeof zhAssetLibrary>
