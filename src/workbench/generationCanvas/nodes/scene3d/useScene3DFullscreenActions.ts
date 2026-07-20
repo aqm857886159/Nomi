@@ -3,6 +3,7 @@
 // 行为 100% 等价于原内联实现，仅做位置迁移（无并行版 P1）。
 import React from 'react'
 import { toast } from '../../../../ui/toast'
+import i18n from '../../../../i18n'
 import {
   type CaptureApi,
   type Scene3DCamera,
@@ -31,10 +32,9 @@ import { nextAvailableObjectPosition } from './scene3dObjects'
 import { useScene3DTrajectoryEditing } from './useScene3DTrajectoryEditing'
 import { setScene3DPlayheadSeconds, trajectoryPointTimeRatio } from './trajectory'
 import { applyCameraMovePreset, type CameraMovePresetSpec } from './cameraMovePreset'
-import { CAMERA_MOVE_LABEL } from './cameraMoveVocab'
 import { cameraWithPlaybackPosition } from './scene3dPlayback'
 import { makePropObject } from './scene3dPropSpecs'
-import { buildSceneTemplateObjects, SCENE_TEMPLATE_LABEL, type Scene3DSceneTemplate } from './scene3dSceneTemplates'
+import { buildSceneTemplateObjects, type Scene3DSceneTemplate } from './scene3dSceneTemplates'
 
 export type Scene3DClipboardItem =
   | { type: 'object'; item: Scene3DObject; pasteCount: number }
@@ -80,9 +80,10 @@ export function useScene3DClipboardActions({
     suspendedKeyboardSelectionRef.current = null
 
     const currentState = stateRef.current
-    const stillExists = suspendedSelection.type === 'object'
-      ? currentState.objects.some((object) => object.id === suspendedSelection.id)
-      : currentState.cameras.some((camera) => camera.id === suspendedSelection.id)
+    const stillExists =
+      suspendedSelection.type === 'object'
+        ? currentState.objects.some((object) => object.id === suspendedSelection.id)
+        : currentState.cameras.some((camera) => camera.id === suspendedSelection.id)
     setSelection(stillExists ? suspendedSelection : null)
   }, [stateRef, suspendedKeyboardSelectionRef, setSelection])
 
@@ -120,7 +121,7 @@ export function useScene3DClipboardActions({
     if (clipboard.type === 'object') {
       const current = stateRef.current
       if (current.objects.length >= OBJECT_LIMIT) {
-        toast('单个 3D 场景最多支持 100 个对象', 'warning')
+        toast(i18n.t('scene3d.fullscreen.objectLimit', { count: OBJECT_LIMIT }), 'warning')
         return true
       }
       const object = makePastedObject(clipboard.item, pasteCount)
@@ -174,106 +175,120 @@ export function useScene3DTrajectoryModeActions({
   setState,
   setSelection,
 }: TrajectoryModeActionsOptions) {
-  const selectTrajectoryForMode = React.useCallback((trajectoryId: string) => {
-    trajectory.selectTrajectory(trajectoryId)
-    enterTrajectoryMode()
-  }, [enterTrajectoryMode, trajectory])
+  const selectTrajectoryForMode = React.useCallback(
+    (trajectoryId: string) => {
+      trajectory.selectTrajectory(trajectoryId)
+      enterTrajectoryMode()
+    },
+    [enterTrajectoryMode, trajectory],
+  )
 
-  const selectSceneTrajectory = React.useCallback((trajectoryId: string) => {
-    if (trajectoryMode) {
-      selectTrajectoryForMode(trajectoryId)
-      return
-    }
-    trajectory.selectTrajectory(trajectoryId)
-    setSelection(null)
-  }, [selectTrajectoryForMode, trajectory, trajectoryMode, setSelection])
+  const selectSceneTrajectory = React.useCallback(
+    (trajectoryId: string) => {
+      if (trajectoryMode) {
+        selectTrajectoryForMode(trajectoryId)
+        return
+      }
+      trajectory.selectTrajectory(trajectoryId)
+      setSelection(null)
+    },
+    [selectTrajectoryForMode, trajectory, trajectoryMode, setSelection],
+  )
 
-  const selectTrajectoryPointForMode = React.useCallback((trajectoryId: string, pointId: string) => {
-    trajectory.selectPoint(trajectoryId, pointId)
-    enterTrajectoryMode()
-  }, [enterTrajectoryMode, trajectory])
+  const selectTrajectoryPointForMode = React.useCallback(
+    (trajectoryId: string, pointId: string) => {
+      trajectory.selectPoint(trajectoryId, pointId)
+      enterTrajectoryMode()
+    },
+    [enterTrajectoryMode, trajectory],
+  )
 
-  const createTrajectoryAtForMode = React.useCallback((position: Scene3DVector3) => {
-    trajectory.createTrajectoryAt(position)
-    enterTrajectoryMode()
-  }, [enterTrajectoryMode, trajectory])
+  const createTrajectoryAtForMode = React.useCallback(
+    (position: Scene3DVector3) => {
+      trajectory.createTrajectoryAt(position)
+      enterTrajectoryMode()
+    },
+    [enterTrajectoryMode, trajectory],
+  )
 
-  const insertTrajectoryPointForMode = React.useCallback((
-    trajectoryId: string,
-    position: Scene3DVector3,
-    targetPointId?: string | null,
-    placement?: 'before' | 'after',
-  ) => {
-    trajectory.insertPoint(trajectoryId, position, targetPointId, placement)
-    enterTrajectoryMode()
-  }, [enterTrajectoryMode, trajectory])
+  const insertTrajectoryPointForMode = React.useCallback(
+    (trajectoryId: string, position: Scene3DVector3, targetPointId?: string | null, placement?: 'before' | 'after') => {
+      trajectory.insertPoint(trajectoryId, position, targetPointId, placement)
+      enterTrajectoryMode()
+    },
+    [enterTrajectoryMode, trajectory],
+  )
 
-  const updateTrajectoryCurveControlForMode = React.useCallback((
-    trajectoryId: string,
-    segmentStartPointId: string,
-    position: Scene3DVector3 | null,
-  ) => {
-    trajectory.updateCurveControl(trajectoryId, segmentStartPointId, position)
-    enterTrajectoryMode()
-  }, [enterTrajectoryMode, trajectory])
+  const updateTrajectoryCurveControlForMode = React.useCallback(
+    (trajectoryId: string, segmentStartPointId: string, position: Scene3DVector3 | null) => {
+      trajectory.updateCurveControl(trajectoryId, segmentStartPointId, position)
+      enterTrajectoryMode()
+    },
+    [enterTrajectoryMode, trajectory],
+  )
 
-  const assignTrajectoryToGroup = React.useCallback((trajectoryId: string, groupId: string) => {
-    if (readOnly) return
-    const groupExists = stateRef.current.trajectoryGroups.some((group) => group.id === groupId)
-    const trajectoryExists = stateRef.current.trajectories.some((candidate) => candidate.id === trajectoryId)
-    if (!groupExists || !trajectoryExists) return
-    setState((current) => ({
-      ...current,
-      trajectoryGroups: current.trajectoryGroups.map((group) => {
-        const withoutTrajectory = group.trajectoryIds.filter((id) => id !== trajectoryId)
-        return group.id === groupId
-          ? { ...group, trajectoryIds: [...withoutTrajectory, trajectoryId] }
-          : { ...group, trajectoryIds: withoutTrajectory }
-      }),
-    }))
-    trajectory.selectTrajectory(trajectoryId)
-    trajectory.selectGroup(groupId)
-    trajectory.setTimelineOpen(true)
-    enterTrajectoryMode(false)
-  }, [enterTrajectoryMode, readOnly, trajectory, stateRef, setState])
+  const assignTrajectoryToGroup = React.useCallback(
+    (trajectoryId: string, groupId: string) => {
+      if (readOnly) return
+      const groupExists = stateRef.current.trajectoryGroups.some((group) => group.id === groupId)
+      const trajectoryExists = stateRef.current.trajectories.some((candidate) => candidate.id === trajectoryId)
+      if (!groupExists || !trajectoryExists) return
+      setState((current) => ({
+        ...current,
+        trajectoryGroups: current.trajectoryGroups.map((group) => {
+          const withoutTrajectory = group.trajectoryIds.filter((id) => id !== trajectoryId)
+          return group.id === groupId
+            ? { ...group, trajectoryIds: [...withoutTrajectory, trajectoryId] }
+            : { ...group, trajectoryIds: withoutTrajectory }
+        }),
+      }))
+      trajectory.selectTrajectory(trajectoryId)
+      trajectory.selectGroup(groupId)
+      trajectory.setTimelineOpen(true)
+      enterTrajectoryMode(false)
+    },
+    [enterTrajectoryMode, readOnly, trajectory, stateRef, setState],
+  )
 
-  const bindTargetToTrajectoryForMode = React.useCallback((
-    trajectoryId: string,
-    targetId: string,
-    pointId?: string | null,
-  ) => {
-    if (readOnly) return
-    const current = stateRef.current
-    const targetTrajectory = current.trajectories.find((candidate) => candidate.id === trajectoryId)
-    if (!targetTrajectory) return
-    const objectExists = current.objects.some((object) => object.id === targetId)
-    const cameraExists = current.cameras.some((camera) => camera.id === targetId)
-    if (!objectExists && !cameraExists) return
-    const alreadyBound = current.trajectoryBindings.some((binding) => (
-      binding.objects.some((boundObject) => boundObject.objectId === targetId)
-    ))
-    if (alreadyBound) {
-      toast('同一节点只能绑定一条轨迹', 'warning')
-      return
-    }
-    const pointIndex = pointId ? targetTrajectory.points.findIndex((point) => point.id === pointId) : -1
-    const offsetRatio = pointIndex >= 0 ? trajectoryPointTimeRatio(targetTrajectory, pointIndex) : 0
-    trajectory.bindObject(trajectoryId, targetId, offsetRatio)
-    trajectory.selectGroup(null)
-    trajectory.selectTrajectory(trajectoryId)
-    trajectory.setTimelineOpen(true)
-    enterTrajectoryMode(false)
-    setSelection(cameraExists ? { type: 'camera', id: targetId } : { type: 'object', id: targetId })
-  }, [enterTrajectoryMode, readOnly, trajectory, stateRef, setSelection])
+  const bindTargetToTrajectoryForMode = React.useCallback(
+    (trajectoryId: string, targetId: string, pointId?: string | null) => {
+      if (readOnly) return
+      const current = stateRef.current
+      const targetTrajectory = current.trajectories.find((candidate) => candidate.id === trajectoryId)
+      if (!targetTrajectory) return
+      const objectExists = current.objects.some((object) => object.id === targetId)
+      const cameraExists = current.cameras.some((camera) => camera.id === targetId)
+      if (!objectExists && !cameraExists) return
+      const alreadyBound = current.trajectoryBindings.some((binding) =>
+        binding.objects.some((boundObject) => boundObject.objectId === targetId),
+      )
+      if (alreadyBound) {
+        toast(i18n.t('scene3d.fullscreen.singleTrajectory'), 'warning')
+        return
+      }
+      const pointIndex = pointId ? targetTrajectory.points.findIndex((point) => point.id === pointId) : -1
+      const offsetRatio = pointIndex >= 0 ? trajectoryPointTimeRatio(targetTrajectory, pointIndex) : 0
+      trajectory.bindObject(trajectoryId, targetId, offsetRatio)
+      trajectory.selectGroup(null)
+      trajectory.selectTrajectory(trajectoryId)
+      trajectory.setTimelineOpen(true)
+      enterTrajectoryMode(false)
+      setSelection(cameraExists ? { type: 'camera', id: targetId } : { type: 'object', id: targetId })
+    },
+    [enterTrajectoryMode, readOnly, trajectory, stateRef, setSelection],
+  )
 
-  const requestTrajectoryPlayChange = React.useCallback((playing: boolean) => {
-    if (playing && !trajectory.hasPlayableBinding) {
-      toast('请先为轨迹绑定对象或相机', 'warning')
-      return
-    }
-    trajectory.setIsPlaying(playing)
-    if (playing) trajectory.setTimelineOpen(true)
-  }, [trajectory])
+  const requestTrajectoryPlayChange = React.useCallback(
+    (playing: boolean) => {
+      if (playing && !trajectory.hasPlayableBinding) {
+        toast(i18n.t('scene3d.trajectory.bindTargetFirst'), 'warning')
+        return
+      }
+      trajectory.setIsPlaying(playing)
+      if (playing) trajectory.setTimelineOpen(true)
+    },
+    [trajectory],
+  )
 
   return {
     selectTrajectoryForMode,
@@ -358,7 +373,16 @@ export function useScene3DKeyboardShortcuts({
     }
     window.addEventListener('keydown', handleKeyDown, { capture: true })
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true })
-  }, [cameraViewEditId, copySelection, deleteSceneItem, exitCameraViewEdit, handleClose, pasteClipboard, selectionRef, setTransformMode])
+  }, [
+    cameraViewEditId,
+    copySelection,
+    deleteSceneItem,
+    exitCameraViewEdit,
+    handleClose,
+    pasteClipboard,
+    selectionRef,
+    setTransformMode,
+  ])
 }
 
 // 「添加对象/相机/群众」三个动作（从 Scene3DFullscreen 抽出，防巨壳 R9）。行为与原内联实现等价：
@@ -385,42 +409,49 @@ export function useScene3DAddActions({
   applySceneTemplate: (template: Scene3DSceneTemplate) => void
 } {
   // 语义道具：与 addObject 同结构（限流 + 避让摆位 + 选中），kind 走 spec 表。
-  const addProp = React.useCallback((kind: Scene3DPropKind) => {
-    if (readOnly) return
-    if (stateRef.current.objects.length >= OBJECT_LIMIT) {
-      toast('单个 3D 场景最多支持 100 个对象', 'warning')
-      return
-    }
-    const object = makePropObject(kind)
-    object.position = nextAvailableObjectPosition(object, stateRef.current.objects)
-    setState((current) => ({ ...current, objects: [...current.objects, object] }))
-    setSelection({ type: 'object', id: object.id })
-    exitTrajectoryMode()
-    setViewLocked(false)
-  }, [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked, stateRef])
-
-  const addObject = React.useCallback((kind: Scene3DGeometry | 'mannequin' | 'light') => {
-    if (readOnly) return
-    if (stateRef.current.objects.length >= OBJECT_LIMIT) {
-      toast('单个 3D 场景最多支持 100 个对象', 'warning')
-      return
-    }
-    const roleIndex = kind === 'mannequin'
-      ? stateRef.current.objects.reduce((count, object) => {
-        if (object.type === 'mannequin') return count + 1
-        if (object.type === 'mannequinCrowd') return count + crowdCount(object)
-        return count
-      }, 0)
-      : 0
-    const object = makeObject(kind, roleIndex)
-    if (object.type === 'mannequin') {
+  const addProp = React.useCallback(
+    (kind: Scene3DPropKind) => {
+      if (readOnly) return
+      if (stateRef.current.objects.length >= OBJECT_LIMIT) {
+        toast(i18n.t('scene3d.fullscreen.objectLimit', { count: OBJECT_LIMIT }), 'warning')
+        return
+      }
+      const object = makePropObject(kind)
       object.position = nextAvailableObjectPosition(object, stateRef.current.objects)
-    }
-    setState((current) => ({ ...current, objects: [...current.objects, object] }))
-    setSelection({ type: 'object', id: object.id })
-    exitTrajectoryMode()
-    setViewLocked(false)
-  }, [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked, stateRef])
+      setState((current) => ({ ...current, objects: [...current.objects, object] }))
+      setSelection({ type: 'object', id: object.id })
+      exitTrajectoryMode()
+      setViewLocked(false)
+    },
+    [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked, stateRef],
+  )
+
+  const addObject = React.useCallback(
+    (kind: Scene3DGeometry | 'mannequin' | 'light') => {
+      if (readOnly) return
+      if (stateRef.current.objects.length >= OBJECT_LIMIT) {
+        toast(i18n.t('scene3d.fullscreen.objectLimit', { count: OBJECT_LIMIT }), 'warning')
+        return
+      }
+      const roleIndex =
+        kind === 'mannequin'
+          ? stateRef.current.objects.reduce((count, object) => {
+              if (object.type === 'mannequin') return count + 1
+              if (object.type === 'mannequinCrowd') return count + crowdCount(object)
+              return count
+            }, 0)
+          : 0
+      const object = makeObject(kind, roleIndex)
+      if (object.type === 'mannequin') {
+        object.position = nextAvailableObjectPosition(object, stateRef.current.objects)
+      }
+      setState((current) => ({ ...current, objects: [...current.objects, object] }))
+      setSelection({ type: 'object', id: object.id })
+      exitTrajectoryMode()
+      setViewLocked(false)
+    },
+    [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked, stateRef],
+  )
 
   const addCamera = React.useCallback(() => {
     if (readOnly) return
@@ -431,34 +462,46 @@ export function useScene3DAddActions({
     setViewLocked(false)
   }, [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked, stateRef])
 
-  const addCrowd = React.useCallback((options: CrowdAddOptions) => {
-    if (readOnly) return
-    if (stateRef.current.objects.length >= OBJECT_LIMIT) {
-      toast('单个 3D 场景最多支持 100 个对象', 'warning')
-      return
-    }
-    const crowd = makeCrowdObject(options)
-    crowd.position = nextAvailableObjectPosition(crowd, stateRef.current.objects)
-    setState((current) => ({ ...current, objects: [...current.objects, crowd] }))
-    setSelection({ type: 'object', id: crowd.id })
-    exitTrajectoryMode()
-    setViewLocked(false)
-  }, [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked, stateRef])
+  const addCrowd = React.useCallback(
+    (options: CrowdAddOptions) => {
+      if (readOnly) return
+      if (stateRef.current.objects.length >= OBJECT_LIMIT) {
+        toast(i18n.t('scene3d.fullscreen.objectLimit', { count: OBJECT_LIMIT }), 'warning')
+        return
+      }
+      const crowd = makeCrowdObject(options)
+      crowd.position = nextAvailableObjectPosition(crowd, stateRef.current.objects)
+      setState((current) => ({ ...current, objects: [...current.objects, crowd] }))
+      setSelection({ type: 'object', id: crowd.id })
+      exitTrajectoryMode()
+      setViewLocked(false)
+    },
+    [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked, stateRef],
+  )
 
   // 场景模板：一键搭灰模布景。**追加**进当前场景（绝不清用户已摆的东西），超容量整组拒绝。
-  const applySceneTemplate = React.useCallback((template: Scene3DSceneTemplate) => {
-    if (readOnly) return
-    const additions = buildSceneTemplateObjects(template)
-    if (stateRef.current.objects.length + additions.length > OBJECT_LIMIT) {
-      toast(`场景对象将超过 ${OBJECT_LIMIT} 个上限，请先清理再套模板`, 'warning')
-      return
-    }
-    setState((current) => ({ ...current, objects: [...current.objects, ...additions] }))
-    setSelection(null)
-    exitTrajectoryMode()
-    setViewLocked(false)
-    toast(`已搭好「${SCENE_TEMPLATE_LABEL[template]}」（追加 ${additions.length} 个物体，未动原有内容）`, 'success')
-  }, [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked, stateRef])
+  const applySceneTemplate = React.useCallback(
+    (template: Scene3DSceneTemplate) => {
+      if (readOnly) return
+      const additions = buildSceneTemplateObjects(template)
+      if (stateRef.current.objects.length + additions.length > OBJECT_LIMIT) {
+        toast(i18n.t('scene3d.fullscreen.templateLimit', { count: OBJECT_LIMIT }), 'warning')
+        return
+      }
+      setState((current) => ({ ...current, objects: [...current.objects, ...additions] }))
+      setSelection(null)
+      exitTrajectoryMode()
+      setViewLocked(false)
+      toast(
+        i18n.t('scene3d.fullscreen.templateApplied', {
+          template: i18n.t(`scene3d.toolbar.template.${template}` as 'scene3d.toolbar.template.street'),
+          count: additions.length,
+        }),
+        'success',
+      )
+    },
+    [exitTrajectoryMode, readOnly, setSelection, setState, setViewLocked, stateRef],
+  )
 
   return { addObject, addProp, addCamera, addCrowd, applySceneTemplate }
 }
@@ -477,40 +520,56 @@ export function useScene3DMoveFrameExport({
   trajectory: ReturnType<typeof useScene3DTrajectoryEditing>
   onScreenshot: (capture: Scene3DCaptureResult) => void
 }) {
-  return React.useCallback(async (cameraId: string) => {
-    const camera = stateRef.current.cameras.find((candidate) => candidate.id === cameraId)
-    if (!camera) return
-    const bindings = stateRef.current.trajectoryBindings.filter((binding) => (
-      binding.objects.some((bound) => bound.objectId === cameraId)
-    ))
-    if (bindings.length === 0) {
-      toast('该相机还没有运镜段：先点「运镜预设」或在轨迹模式绑定轨迹', 'warning')
-      return
-    }
-    const start = Math.min(...bindings.map((binding) => binding.startTime))
-    const end = Math.max(...bindings.map((binding) => binding.endTime))
-    const restore = trajectory.playheadRef.current
-    const waitTwoFrames = () => new Promise<void>((resolve) => {
-      window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()))
-    })
-    const captures: Scene3DCaptureResult[] = []
-    for (const [time, label] of [[start, '首帧'], [end, '尾帧']] as const) {
-      trajectory.playheadRef.current = time
-      setScene3DPlayheadSeconds(time)
-      await waitTwoFrames()
-      const playbackCamera = cameraWithPlaybackPosition(stateRef.current, camera, time, trajectory.activeTrajectoryIds)
-      const capture = captureApiRef.current?.captureCamera(playbackCamera)
-      if (capture) captures.push({ ...capture, title: `${camera.name} · 运镜${label}` })
-    }
-    trajectory.playheadRef.current = restore
-    setScene3DPlayheadSeconds(restore)
-    if (captures.length < 2) {
-      toast('首尾帧截图失败，请重试', 'error')
-      return
-    }
-    captures.forEach(onScreenshot)
-    toast('已把运镜首帧/尾帧导出为画布图片节点', 'success')
-  }, [captureApiRef, onScreenshot, stateRef, trajectory])
+  return React.useCallback(
+    async (cameraId: string) => {
+      const camera = stateRef.current.cameras.find((candidate) => candidate.id === cameraId)
+      if (!camera) return
+      const bindings = stateRef.current.trajectoryBindings.filter((binding) =>
+        binding.objects.some((bound) => bound.objectId === cameraId),
+      )
+      if (bindings.length === 0) {
+        toast(i18n.t('scene3d.fullscreen.cameraHasNoMove'), 'warning')
+        return
+      }
+      const start = Math.min(...bindings.map((binding) => binding.startTime))
+      const end = Math.max(...bindings.map((binding) => binding.endTime))
+      const restore = trajectory.playheadRef.current
+      const waitTwoFrames = () =>
+        new Promise<void>((resolve) => {
+          window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()))
+        })
+      const captures: Scene3DCaptureResult[] = []
+      for (const [time, label] of [
+        [start, i18n.t('scene3d.fullscreen.firstFrame')],
+        [end, i18n.t('scene3d.fullscreen.lastFrame')],
+      ] as const) {
+        trajectory.playheadRef.current = time
+        setScene3DPlayheadSeconds(time)
+        await waitTwoFrames()
+        const playbackCamera = cameraWithPlaybackPosition(
+          stateRef.current,
+          camera,
+          time,
+          trajectory.activeTrajectoryIds,
+        )
+        const capture = captureApiRef.current?.captureCamera(playbackCamera)
+        if (capture)
+          captures.push({
+            ...capture,
+            title: i18n.t('scene3d.fullscreen.cameraMoveFrameTitle', { camera: camera.name, frame: label }),
+          })
+      }
+      trajectory.playheadRef.current = restore
+      setScene3DPlayheadSeconds(restore)
+      if (captures.length < 2) {
+        toast(i18n.t('scene3d.fullscreen.frameExportFailed'), 'error')
+        return
+      }
+      captures.forEach(onScreenshot)
+      toast(i18n.t('scene3d.fullscreen.frameExported'), 'success')
+    },
+    [captureApiRef, onScreenshot, stateRef, trajectory],
+  )
 }
 
 // 运镜预设：按当前机位就地落一段轨迹并追加到时间轴末尾（连点串联）。在 stateRef 上算好再 setState
@@ -526,13 +585,24 @@ export function useScene3DCameraMoveAction({
   setState: React.Dispatch<React.SetStateAction<Scene3DState>>
   trajectory: ReturnType<typeof useScene3DTrajectoryEditing>
 }) {
-  return React.useCallback((cameraId: string, spec: CameraMovePresetSpec) => {
-    if (readOnly) return
-    const result = applyCameraMovePreset(stateRef.current, cameraId, spec)
-    if (!result) return
-    setState(result.state)
-    trajectory.setTimelineOpen(true)
-    const duration = result.endTime - result.startTime
-    toast(`已追加「${CAMERA_MOVE_LABEL[spec.move]} · ${duration}s」到时间轴（${result.startTime}s-${result.endTime}s）`, 'success')
-  }, [readOnly, setState, stateRef, trajectory])
+  return React.useCallback(
+    (cameraId: string, spec: CameraMovePresetSpec) => {
+      if (readOnly) return
+      const result = applyCameraMovePreset(stateRef.current, cameraId, spec)
+      if (!result) return
+      setState(result.state)
+      trajectory.setTimelineOpen(true)
+      const duration = result.endTime - result.startTime
+      toast(
+        i18n.t('scene3d.fullscreen.presetAppended', {
+          move: i18n.t(`generationCommon.cameraMove.move.${spec.move}` as 'generationCommon.cameraMove.move.push_in'),
+          duration,
+          start: result.startTime,
+          end: result.endTime,
+        }),
+        'success',
+      )
+    },
+    [readOnly, setState, stateRef, trajectory],
+  )
 }

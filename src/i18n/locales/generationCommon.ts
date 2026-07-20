@@ -313,6 +313,21 @@ export const zhGenerationCommon = {
     rejectAll: '全部拒绝',
     confirmAll: '确认全部',
   },
+  panorama: {
+    screenshotTitle: '全景截图',
+    screenshotPrompt: '全景取景框截图',
+    notReady: '全景还没准备好，请稍后再试',
+    capturing: '截图中…',
+    captureFailed: '截图失败，请重试',
+    created: '已创建全景截图节点',
+    capturingShort: '截图中',
+    captureFrame: '截图取景框',
+    closePreview: '关闭预览',
+    empty: '上传全景图或连接图片节点',
+    enterAria: '进入全景预览',
+    enter: '进入全景',
+    preview: '全景预览',
+  },
 } as const
 
 type TranslationShape<T> = {
@@ -641,5 +656,20 @@ export const enGenerationCommon = {
     pendingShots: 'Shots awaiting confirmation',
     rejectAll: 'Reject all',
     confirmAll: 'Confirm all',
+  },
+  panorama: {
+    screenshotTitle: 'Panorama screenshot',
+    screenshotPrompt: 'Framed panorama screenshot',
+    notReady: 'The panorama is not ready yet. Try again shortly.',
+    capturing: 'Capturing…',
+    captureFailed: 'Screenshot failed. Try again.',
+    created: 'Created a panorama screenshot node',
+    capturingShort: 'Capturing',
+    captureFrame: 'Capture framed view',
+    closePreview: 'Close preview',
+    empty: 'Upload a panorama or connect an image node',
+    enterAria: 'Open panorama preview',
+    enter: 'Open panorama',
+    preview: 'Panorama preview',
   },
 } satisfies TranslationShape<typeof zhGenerationCommon>
