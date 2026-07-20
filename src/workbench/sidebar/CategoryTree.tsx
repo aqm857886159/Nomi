@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { BUILTIN_CATEGORIES, getBuiltinCategoryById, type ProjectCategory } from '../project/projectCategories'
 import { showUndoToast } from '../../utils/showUndoToast'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -33,6 +34,7 @@ const DEFAULT_GROUP_COLOR = '#d8c3a5'
  * 仅在面板展开 + 「分类」tab 激活时挂载，故始终按展开态渲染。
  */
 export default function CategoryTree({ categories, createCategoryNonce = 0 }: Props): JSX.Element {
+  const { t } = useTranslation()
   const activeCategoryId = useWorkbenchStore((s) => s.activeCategoryId)
   const setActiveCategoryId = useWorkbenchStore((s) => s.setActiveCategoryId)
   const addCategory = useWorkbenchStore((s) => s.addCategory)
@@ -62,10 +64,13 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
   const visible = React.useMemo(() => {
     const list = (categories && categories.length ? categories : BUILTIN_CATEGORIES)
       .filter((c) => !c.isHidden)
+      .map((category) => category.isBuiltin
+        ? { ...category, name: t(`libraries.sidebar.builtinCategory.${category.id}` as 'libraries.sidebar.builtinCategory.shots') }
+        : category)
       .slice()
       .sort((a, b) => a.order - b.order)
     return list
-  }, [categories])
+  }, [categories, t])
 
   React.useEffect(() => {
     setExpandedCategoryIds((current) => {
@@ -193,13 +198,14 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
     // E.2C-26: 跨分类拖拽 → 创建独立副本 + 5 秒可撤销 toast
     const copied = copyNodeToCategory(nodeId, categoryId)
     if (copied) {
-      const targetName = getBuiltinCategoryById(categoryId)?.name || categoryId
+      const builtin = getBuiltinCategoryById(categoryId)
+      const targetName = builtin ? t(`libraries.sidebar.builtinCategory.${categoryId}` as 'libraries.sidebar.builtinCategory.shots') : categoryId
       showUndoToast({
-        message: `已复制到 ${targetName}`,
+        message: t('libraries.sidebar.copiedTo', { target: targetName }),
         onUndo: () => deleteNode(copied.id),
       })
     }
-  }, [copyNodeToCategory, deleteNode, nodeById, removeNodeFromGroup])
+  }, [copyNodeToCategory, deleteNode, nodeById, removeNodeFromGroup, t])
 
   const handleDropNodeOnGroup = React.useCallback((nodeId: string, groupId: string) => {
     const node = nodeById.get(nodeId)
@@ -213,13 +219,14 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
     const copied = copyNodeToCategory(nodeId, group.categoryId)
     if (copied) {
       moveNodeToGroup(copied.id, groupId)
-      const targetName = getBuiltinCategoryById(group.categoryId)?.name || group.categoryId
+      const builtin = getBuiltinCategoryById(group.categoryId)
+      const targetName = builtin ? t(`libraries.sidebar.builtinCategory.${group.categoryId}` as 'libraries.sidebar.builtinCategory.shots') : group.categoryId
       showUndoToast({
-        message: `已复制到 ${targetName} · ${group.name}`,
+        message: t('libraries.sidebar.copiedToGroup', { target: targetName, group: group.name }),
         onUndo: () => deleteNode(copied.id),
       })
     }
-  }, [copyNodeToCategory, deleteNode, groups, moveNodeToGroup, nodeById])
+  }, [copyNodeToCategory, deleteNode, groups, moveNodeToGroup, nodeById, t])
 
   const handleCreateGroup = React.useCallback((categoryId: string) => {
     const created = createGroup(categoryId)
@@ -274,13 +281,13 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
     const label = category?.name || categoryId
     closeMenu()
     const confirmed = await confirmDialog({
-      title: '删除分组',
-      message: `删除分组「${label}」？里面的节点会移回「分镜」，不会丢失。`,
-      confirmLabel: '删除',
+      title: t('libraries.sidebar.deleteCategoryTitle'),
+      message: t('libraries.sidebar.deleteCategoryMessage', { name: label }),
+      confirmLabel: t('common.delete'),
       danger: true,
     })
     if (confirmed) deleteCategory(categoryId)
-  }, [categories, closeMenu, deleteCategory])
+  }, [categories, closeMenu, deleteCategory, t])
 
   const handleCopyNode = React.useCallback((nodeId: string) => {
     const node = nodeById.get(nodeId)
@@ -293,9 +300,9 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
     const node = nodeById.get(nodeId)
     if (!node) return
     closeMenu()
-    const title = await promptDialog({ title: '节点名称', initialValue: node.title || node.id })
+    const title = await promptDialog({ title: t('libraries.sidebar.nodeName'), initialValue: node.title || node.id })
     if (title !== null && title.trim()) updateNode(nodeId, { title: title.trim() })
-  }, [closeMenu, nodeById, updateNode])
+  }, [closeMenu, nodeById, updateNode, t])
 
   const handleRegenerateDerivedNode = React.useCallback((nodeId: string) => {
     duplicateNodeForRegeneration(nodeId)
@@ -307,13 +314,13 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
     const label = node?.title || nodeId
     closeMenu()
     const confirmed = await confirmDialog({
-      title: '删除节点',
-      message: `删除节点「${label}」？跨分组副本不会受影响。`,
-      confirmLabel: '删除',
+      title: t('libraries.sidebar.deleteNodeTitle'),
+      message: t('libraries.sidebar.deleteNodeMessage', { name: label }),
+      confirmLabel: t('common.delete'),
       danger: true,
     })
     if (confirmed) deleteNode(nodeId)
-  }, [closeMenu, deleteNode, nodeById])
+  }, [closeMenu, deleteNode, nodeById, t])
 
   const handleRenameGroup = React.useCallback((groupId: string) => {
     setEditingGroupId(groupId) // 与新建走同一行内改名，不再弹 window.prompt
@@ -324,9 +331,9 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
     const group = groups.find((candidate) => candidate.id === groupId)
     if (!group) return
     closeMenu()
-    const color = await promptDialog({ title: '组颜色', message: '输入 CSS 颜色值', initialValue: group.color || DEFAULT_GROUP_COLOR })
+    const color = await promptDialog({ title: t('libraries.sidebar.groupColor'), message: t('libraries.sidebar.groupColorMessage'), initialValue: group.color || DEFAULT_GROUP_COLOR })
     if (color !== null) setGroupColor(groupId, color)
-  }, [closeMenu, groups, setGroupColor])
+  }, [closeMenu, groups, setGroupColor, t])
 
   const handleUngroup = React.useCallback((groupId: string) => {
     ungroup(groupId)
@@ -338,13 +345,13 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
     if (!group) return
     closeMenu()
     const confirmed = await confirmDialog({
-      title: '删除子组',
-      message: `删除子组「${group.name}」并删除其中 ${group.nodeIds.length} 个节点？`,
-      confirmLabel: '删除',
+      title: t('libraries.sidebar.deleteGroupTitle'),
+      message: t('libraries.sidebar.deleteGroupMessage', { name: group.name, count: group.nodeIds.length }),
+      confirmLabel: t('common.delete'),
       danger: true,
     })
     if (confirmed) deleteGroup(groupId, true)
-  }, [closeMenu, deleteGroup, groups])
+  }, [closeMenu, deleteGroup, groups, t])
 
   const renderContextMenu = () => {
     if (!menu) return null
@@ -363,12 +370,12 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
           const isCustom = category ? !category.isBuiltin : false
           return (
             <>
-              <button type="button" role="menuitem" className={buttonClass} onClick={() => handleCreateGroup(menu.categoryId)}>新建子组</button>
+              <button type="button" role="menuitem" className={buttonClass} onClick={() => handleCreateGroup(menu.categoryId)}>{t('libraries.sidebar.createGroup')}</button>
               {isCustom ? (
                 <>
-                  <button type="button" role="menuitem" className={buttonClass} onClick={() => handleRenameCategory(menu.categoryId)}>重命名</button>
+                  <button type="button" role="menuitem" className={buttonClass} onClick={() => handleRenameCategory(menu.categoryId)}>{t('libraries.sidebar.rename')}</button>
                   <div className="my-0.5 h-px bg-nomi-line" />
-                  <button type="button" role="menuitem" className={dangerClass} onClick={() => handleDeleteCategory(menu.categoryId)}>删除分类</button>
+                  <button type="button" role="menuitem" className={dangerClass} onClick={() => handleDeleteCategory(menu.categoryId)}>{t('libraries.sidebar.deleteCategory')}</button>
                 </>
               ) : null}
             </>
@@ -376,20 +383,20 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
         })() : null}
         {menu.type === 'node' ? (
           <>
-            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleCopyNode(menu.nodeId)}>复制</button>
-            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleRenameNode(menu.nodeId)}>重命名</button>
-            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleRegenerateDerivedNode(menu.nodeId)}>派生重新生成</button>
+            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleCopyNode(menu.nodeId)}>{t('libraries.sidebar.copy')}</button>
+            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleRenameNode(menu.nodeId)}>{t('libraries.sidebar.rename')}</button>
+            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleRegenerateDerivedNode(menu.nodeId)}>{t('libraries.sidebar.regenerateDerived')}</button>
             <div className="my-0.5 h-px bg-nomi-line" />
-            <button type="button" role="menuitem" className={dangerClass} onClick={() => handleDeleteNode(menu.nodeId)}>删除</button>
+            <button type="button" role="menuitem" className={dangerClass} onClick={() => handleDeleteNode(menu.nodeId)}>{t('common.delete')}</button>
           </>
         ) : null}
         {menu.type === 'group' ? (
           <>
-            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleRenameGroup(menu.groupId)}>重命名</button>
-            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleSetGroupColor(menu.groupId)}>改颜色</button>
-            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleUngroup(menu.groupId)}>解组（保留节点）</button>
+            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleRenameGroup(menu.groupId)}>{t('libraries.sidebar.rename')}</button>
+            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleSetGroupColor(menu.groupId)}>{t('libraries.sidebar.changeColor')}</button>
+            <button type="button" role="menuitem" className={buttonClass} onClick={() => handleUngroup(menu.groupId)}>{t('libraries.sidebar.ungroup')}</button>
             <div className="my-0.5 h-px bg-nomi-line" />
-            <button type="button" role="menuitem" className={dangerClass} onClick={() => handleDeleteGroup(menu.groupId)}>删除（连节点）</button>
+            <button type="button" role="menuitem" className={dangerClass} onClick={() => handleDeleteGroup(menu.groupId)}>{t('libraries.sidebar.deleteWithNodes')}</button>
           </>
         ) : null}
       </div>
@@ -454,7 +461,7 @@ export default function CategoryTree({ categories, createCategoryNonce = 0 }: Pr
                     )
                   })}
                   {!looseNodes.length && !categoryGroups.length ? (
-                    <div className="px-2 py-1.5 text-micro text-nomi-ink-30">暂无节点</div>
+                    <div className="px-2 py-1.5 text-micro text-nomi-ink-30">{t('libraries.sidebar.noNodes')}</div>
                   ) : null}
                 </div>
               ) : null}

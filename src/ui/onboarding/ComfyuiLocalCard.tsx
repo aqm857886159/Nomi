@@ -10,6 +10,7 @@
  * 是错的隐喻；本地后端要的是「启用/停用 + 健康状态」，同即梦会员卡一样各有专属卡（非并行版）。
  */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconServerBolt, IconPlugConnected, IconCircleCheck, IconAlertTriangle, IconPhoto, IconRefresh, IconExternalLink, IconCheck, IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
@@ -34,6 +35,7 @@ type ComfyuiLocalCardProps = {
 }
 
 export function ComfyuiLocalCard({ enabled, baseUrl, models, onChanged }: ComfyuiLocalCardProps): JSX.Element | null {
+  const { t } = useTranslation()
   const catalog = getDesktopBridge()?.modelCatalog
   const [health, setHealth] = React.useState<ComfyuiHealth | null>(null)
   const [checking, setChecking] = React.useState(false)
@@ -43,7 +45,7 @@ export function ComfyuiLocalCard({ enabled, baseUrl, models, onChanged }: Comfyu
   const shownAddr = baseUrl || 'http://127.0.0.1:8188'
 
   const probe = React.useCallback(async (): Promise<ComfyuiHealth> => {
-    if (!catalog?.probeComfyui) return { ok: false, error: '当前版本不支持探测' }
+    if (!catalog?.probeComfyui) return { ok: false, error: t('onboardingProviders.comfyLocal.unsupportedProbe') }
     setChecking(true)
     try {
       const r = await catalog.probeComfyui(baseUrl || undefined)
@@ -56,7 +58,7 @@ export function ComfyuiLocalCard({ enabled, baseUrl, models, onChanged }: Comfyu
     } finally {
       setChecking(false)
     }
-  }, [catalog, baseUrl])
+  }, [catalog, baseUrl, t])
 
   // 已启用则进卡时探一次，显示当前连接状态。
   React.useEffect(() => {
@@ -72,9 +74,9 @@ export function ComfyuiLocalCard({ enabled, baseUrl, models, onChanged }: Comfyu
       const r = await probe()
       catalog.upsertVendor({ key: COMFYUI_VENDOR_KEY, enabled: true }) // 只翻 enabled，applyVendorUpsert 保留 authType/baseUrl
       onChanged()
-      toast(r.ok ? '已启用本地 ComfyUI' : '已启用，但没探测到 ComfyUI（确认已在该地址启动）', r.ok ? 'success' : 'info')
+      toast(r.ok ? t('onboardingProviders.comfyLocal.enabled') : t('onboardingProviders.comfyLocal.enabledWithoutConnection'), r.ok ? 'success' : 'info')
     } catch (e) {
-      toast(e instanceof Error ? e.message : '启用失败', 'error')
+      toast(e instanceof Error ? e.message : t('onboardingProviders.comfyLocal.enableFailed'), 'error')
     } finally {
       setBusy(false)
     }
@@ -86,9 +88,9 @@ export function ComfyuiLocalCard({ enabled, baseUrl, models, onChanged }: Comfyu
       catalog.upsertVendor({ key: COMFYUI_VENDOR_KEY, enabled: false })
       setHealth(null)
       onChanged()
-      toast('已停用本地 ComfyUI', 'success')
+      toast(t('onboardingProviders.comfyLocal.disabled'), 'success')
     } catch (e) {
-      toast(e instanceof Error ? e.message : '停用失败', 'error')
+      toast(e instanceof Error ? e.message : t('onboardingProviders.comfyLocal.disableFailed'), 'error')
     } finally {
       setBusy(false)
     }
@@ -100,28 +102,34 @@ export function ComfyuiLocalCard({ enabled, baseUrl, models, onChanged }: Comfyu
     catalog.upsertVendor({ key: COMFYUI_VENDOR_KEY, baseUrlHint: next })
     setEditing(false)
     onChanged() // 父组件重查 → baseUrl 变 → useEffect 重探
-    toast('接入地址已更新', 'success')
+    toast(t('onboardingProviders.comfyLocal.addressUpdated'), 'success')
   }
 
   const cardStatus: 'ok' | 'todo' = enabled && health?.ok ? 'ok' : 'todo'
-  const statusLabel = !enabled ? '未启用' : checking && !health ? '检测中' : health?.ok ? '运行中' : '未连接'
+  const statusLabel = !enabled
+    ? t('onboardingProviders.comfyLocal.status.notEnabled')
+    : checking && !health
+      ? t('onboardingProviders.comfyLocal.status.checking')
+      : health?.ok
+        ? t('onboardingProviders.comfyLocal.status.running')
+        : t('onboardingProviders.comfyLocal.status.disconnected')
 
   const addrRow = (
     <div className="flex items-center gap-2">
-      <span className="text-caption text-nomi-ink-60 whitespace-nowrap">接入地址</span>
+      <span className="text-caption text-nomi-ink-60 whitespace-nowrap">{t('onboardingProviders.comfyLocal.address')}</span>
       {editing ? (
         <>
           <input
             value={addrDraft} onChange={(e) => setAddrDraft(e.target.value)} spellCheck={false}
             className="flex-1 h-8 px-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-caption font-mono text-nomi-ink focus:border-nomi-accent outline-none"
           />
-          <button type="button" onClick={handleSaveAddr} className="h-8 w-8 grid place-items-center rounded-nomi-sm text-workbench-success hover:bg-nomi-ink-05" aria-label="保存地址"><IconCheck size={15} stroke={1.8} /></button>
-          <button type="button" onClick={() => { setEditing(false); setAddrDraft(shownAddr) }} className="h-8 w-8 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05" aria-label="取消"><IconX size={15} stroke={1.8} /></button>
+          <button type="button" onClick={handleSaveAddr} className="h-8 w-8 grid place-items-center rounded-nomi-sm text-workbench-success hover:bg-nomi-ink-05" aria-label={t('onboardingProviders.comfyLocal.saveAddress')}><IconCheck size={15} stroke={1.8} /></button>
+          <button type="button" onClick={() => { setEditing(false); setAddrDraft(shownAddr) }} className="h-8 w-8 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05" aria-label={t('common.cancel')}><IconX size={15} stroke={1.8} /></button>
         </>
       ) : (
         <>
           <code className="flex-1 text-caption font-mono text-nomi-ink bg-nomi-ink-05 rounded-nomi-sm px-2 py-1.5 truncate">{shownAddr}</code>
-          <button type="button" onClick={() => { setAddrDraft(shownAddr); setEditing(true) }} className="h-8 px-2 text-caption text-nomi-ink-60 hover:text-nomi-accent">改</button>
+          <button type="button" onClick={() => { setAddrDraft(shownAddr); setEditing(true) }} className="h-8 px-2 text-caption text-nomi-ink-60 hover:text-nomi-accent">{t('onboardingProviders.comfyLocal.editAddress')}</button>
         </>
       )}
     </div>
@@ -131,8 +139,8 @@ export function ComfyuiLocalCard({ enabled, baseUrl, models, onChanged }: Comfyu
     <FoldableModelCard
       glyph={<IconServerBolt size={16} stroke={1.6} />}
       glyphTone="ink"
-      name="本地 ComfyUI"
-      subtitle="用本机 GPU 出图 · 无需 key、不花额度、数据不出本地"
+      name={t('onboardingProviders.comfyLocal.name')}
+      subtitle={t('onboardingProviders.comfyLocal.subtitle')}
       status={cardStatus}
       statusLabel={statusLabel}
       defaultExpanded={false}
@@ -140,7 +148,7 @@ export function ComfyuiLocalCard({ enabled, baseUrl, models, onChanged }: Comfyu
       {!enabled ? (
         <>
           <div className="text-caption text-nomi-ink-60 leading-relaxed">
-            在本机把 ComfyUI 跑起来（默认 <code className="font-mono text-nomi-ink">127.0.0.1:8188</code>），点下面启用即可。Nomi 已内置一个「文生图」工作流，启用后在生成画布直接选用。
+            {t('onboardingProviders.comfyLocal.setupBeforeAddress')} <code className="font-mono text-nomi-ink">127.0.0.1:8188</code>{t('onboardingProviders.comfyLocal.setupAfterAddress')}
           </div>
           {addrRow}
           <button
@@ -148,10 +156,10 @@ export function ComfyuiLocalCard({ enabled, baseUrl, models, onChanged }: Comfyu
             className={cn('w-full h-9 rounded-nomi-sm bg-nomi-ink text-nomi-paper text-body-sm font-semibold',
               'inline-flex items-center justify-center gap-1.5 hover:bg-nomi-accent disabled:opacity-50')}
           >
-            <IconPlugConnected size={15} stroke={1.8} />{checking ? '正在检测本机 ComfyUI…' : '启用本地 ComfyUI'}
+            <IconPlugConnected size={15} stroke={1.8} />{checking ? t('onboardingProviders.comfyLocal.checkingLocal') : t('onboardingProviders.comfyLocal.enable')}
           </button>
           <button type="button" onClick={() => window.open('https://github.com/comfyanonymous/ComfyUI', '_blank', 'noopener')} className="self-start inline-flex items-center gap-1 text-micro text-nomi-ink-30 hover:text-nomi-accent">
-            还没装？去 GitHub 装好并启动<IconExternalLink size={12} stroke={1.6} />
+            {t('onboardingProviders.comfyLocal.installOnGithub')}<IconExternalLink size={12} stroke={1.6} />
           </button>
         </>
       ) : (
@@ -160,7 +168,7 @@ export function ComfyuiLocalCard({ enabled, baseUrl, models, onChanged }: Comfyu
             <div className="flex items-start gap-2 rounded-nomi-sm bg-[var(--workbench-success-soft)] px-3 py-2.5">
               <IconCircleCheck size={17} className="shrink-0 mt-0.5 text-workbench-success" />
               <div className="min-w-0">
-                <div className="text-body-sm font-semibold text-nomi-ink">已连上 ComfyUI{health.version ? <span className="text-nomi-ink-60 font-normal"> · v{health.version}</span> : null}</div>
+                <div className="text-body-sm font-semibold text-nomi-ink">{t('onboardingProviders.comfyLocal.connected')}{health.version ? <span className="text-nomi-ink-60 font-normal"> · v{health.version}</span> : null}</div>
                 <div className="text-caption text-nomi-ink-60 mt-0.5">{health.summary}</div>
               </div>
             </div>
@@ -168,8 +176,8 @@ export function ComfyuiLocalCard({ enabled, baseUrl, models, onChanged }: Comfyu
             <div className="flex items-start gap-2 rounded-nomi-sm bg-nomi-ink-05 px-3 py-2.5">
               <IconAlertTriangle size={17} className="shrink-0 mt-0.5 text-nomi-accent" />
               <div className="min-w-0">
-                <div className="text-body-sm font-semibold text-nomi-ink">{checking ? '正在检测…' : '启用了，但没探测到本机 ComfyUI'}</div>
-                <div className="text-caption text-nomi-ink-60 mt-0.5">确认已在 <code className="font-mono">{shownAddr}</code> 启动，再点重新检测。生成前不通会直接报连不上，不会白跑。</div>
+                <div className="text-body-sm font-semibold text-nomi-ink">{checking ? t('onboardingProviders.comfyLocal.checkingShort') : t('onboardingProviders.comfyLocal.enabledButDisconnected')}</div>
+                <div className="text-caption text-nomi-ink-60 mt-0.5">{t('onboardingProviders.comfyLocal.reconnectBeforeAddress')} <code className="font-mono">{shownAddr}</code>{t('onboardingProviders.comfyLocal.reconnectAfterAddress')}</div>
               </div>
             </div>
           )}
@@ -177,8 +185,8 @@ export function ComfyuiLocalCard({ enabled, baseUrl, models, onChanged }: Comfyu
           {models.map((m) => (
             <div key={m.modelKey} className="flex items-center gap-2.5 px-3 py-2 bg-nomi-ink-05 rounded-nomi-sm">
               <IconPhoto size={16} className="text-nomi-ink-60" />
-              <div className="flex-1 min-w-0"><div className="text-body-sm text-nomi-ink truncate">{m.labelZh}</div><div className="text-micro text-nomi-ink-30">图片 · ComfyUI 工作流</div></div>
-              <span className="text-micro text-workbench-success bg-[var(--workbench-success-soft)] px-2 py-0.5 rounded-full">已启用</span>
+              <div className="flex-1 min-w-0"><div className="text-body-sm text-nomi-ink truncate">{m.labelZh}</div><div className="text-micro text-nomi-ink-30">{t('onboardingProviders.comfyLocal.workflowKind')}</div></div>
+              <span className="text-micro text-workbench-success bg-[var(--workbench-success-soft)] px-2 py-0.5 rounded-full">{t('onboardingProviders.comfyLocal.modelEnabled')}</span>
             </div>
           ))}
 
@@ -189,10 +197,10 @@ export function ComfyuiLocalCard({ enabled, baseUrl, models, onChanged }: Comfyu
 
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => void probe()} disabled={checking} className="inline-flex items-center gap-1 h-8 px-2.5 text-caption text-nomi-ink-60 rounded-nomi-sm border border-nomi-line hover:border-nomi-accent hover:text-nomi-accent disabled:opacity-50">
-              <IconRefresh size={13} stroke={1.7} className={checking ? 'animate-spin' : undefined} />{checking ? '检测中…' : '重新检测'}
+              <IconRefresh size={13} stroke={1.7} className={checking ? 'animate-spin' : undefined} />{checking ? t('onboardingProviders.comfyLocal.checkingShort') : t('onboardingProviders.comfyLocal.recheck')}
             </button>
             <span className="flex-1" />
-            <button type="button" onClick={handleDisable} disabled={busy} className="text-caption text-nomi-ink-40 hover:text-workbench-danger disabled:opacity-50">停用</button>
+            <button type="button" onClick={handleDisable} disabled={busy} className="text-caption text-nomi-ink-40 hover:text-workbench-danger disabled:opacity-50">{t('onboardingProviders.comfyLocal.disable')}</button>
           </div>
         </>
       )}

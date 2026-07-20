@@ -6,6 +6,7 @@
  * 配合搜索可精准删某一类（搜 flux → 全选 → 删除选中）。数据结构零改动——enabled 字段与生成侧过滤都现成。
  */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconSearch, IconTrash, IconCheck } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import type { ChipModel } from './ModelChipGroups'
@@ -23,6 +24,7 @@ type ModelEnableEditorProps = {
 const PILL = 'h-6 px-2.5 rounded-full border text-micro inline-flex items-center gap-1'
 
 export function ModelEnableEditor({ models, onToggle, onDelete }: ModelEnableEditorProps): JSX.Element {
+  const { t } = useTranslation()
   const [query, setQuery] = React.useState('')
   const [selectMode, setSelectMode] = React.useState(false)
   const [selected, setSelected] = React.useState<Set<string>>(() => new Set())
@@ -76,8 +78,8 @@ export function ModelEnableEditor({ models, onToggle, onDelete }: ModelEnableEdi
         <IconSearch size={14} stroke={1.7} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-nomi-ink-40" />
         <input
           type="text"
-          aria-label="搜索模型"
-          placeholder="搜索模型名…"
+          aria-label={t('onboardingProviders.modelControls.searchAria')}
+          placeholder={t('onboardingProviders.modelControls.searchPlaceholder')}
           value={query}
           onChange={(e) => setQuery(e.currentTarget.value)}
           className={cn(
@@ -93,21 +95,21 @@ export function ModelEnableEditor({ models, onToggle, onDelete }: ModelEnableEdi
           <>
             <div className="flex gap-1.5">
               <button type="button" onClick={toggleSelectAllVisible} className={cn(PILL, 'border-nomi-line text-nomi-ink-60 hover:border-nomi-ink-20')}>
-                {allVisibleSelected ? '全不选' : '全选'}
+                {allVisibleSelected ? t('onboardingProviders.modelControls.selectNone') : t('onboardingProviders.modelControls.selectAll')}
               </button>
               <button type="button" onClick={exitSelect} className={cn(PILL, 'border-nomi-line text-nomi-ink-60 hover:border-nomi-ink-20')}>
-                取消
+                {t('common.cancel')}
               </button>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-micro text-nomi-ink-40">已选 <b className="text-nomi-ink font-semibold">{selectedRows.length}</b></span>
+              <span className="text-micro text-nomi-ink-40">{t('onboardingProviders.modelControls.selectedCount', { count: selectedRows.length })}</span>
               <button
                 type="button"
                 disabled={selectedRows.length === 0}
                 onClick={handleDeleteSelected}
                 className={cn(PILL, 'border-[var(--workbench-danger-soft)] text-workbench-danger hover:bg-[var(--workbench-danger-soft)] disabled:opacity-40')}
               >
-                <IconTrash size={12} stroke={1.8} />删除选中
+                <IconTrash size={12} stroke={1.8} />{t('onboardingProviders.modelControls.deleteSelected')}
               </button>
             </div>
           </>
@@ -115,10 +117,10 @@ export function ModelEnableEditor({ models, onToggle, onDelete }: ModelEnableEdi
           <>
             <div className="flex gap-1.5">
               <button type="button" onClick={() => bulk(true)} className={cn(PILL, 'border-nomi-line text-nomi-ink-60 hover:border-nomi-ink-20')}>
-                全选
+                {t('onboardingProviders.modelControls.selectAll')}
               </button>
               <button type="button" onClick={() => bulk(false)} className={cn(PILL, 'border-nomi-line text-nomi-ink-60 hover:border-nomi-ink-20')}>
-                全不选
+                {t('onboardingProviders.modelControls.selectNone')}
               </button>
               {models.length > 0 ? (
                 <button
@@ -126,26 +128,24 @@ export function ModelEnableEditor({ models, onToggle, onDelete }: ModelEnableEdi
                   onClick={() => setSelectMode(true)}
                   className={cn(PILL, 'border-nomi-line text-nomi-ink-60 hover:text-workbench-danger hover:border-[var(--workbench-danger-soft)]')}
                 >
-                  <IconTrash size={12} stroke={1.8} />批量删除
+                  <IconTrash size={12} stroke={1.8} />{t('onboardingProviders.modelControls.bulkDelete')}
                 </button>
               ) : null}
             </div>
-            <span className="text-micro text-nomi-ink-40">
-              已启用 <b className="text-nomi-ink font-semibold">{enabledTotal}</b> / {models.length}
-            </span>
+            <span className="text-micro text-nomi-ink-40">{t('onboardingProviders.modelControls.enabledCount', { enabled: enabledTotal, total: models.length })}</span>
           </>
         )}
       </div>
 
       {/* 分组列表 */}
       {groups.length === 0 ? (
-        <div className="text-caption text-nomi-ink-40 text-center py-5">没有匹配「{query}」的模型</div>
+        <div className="text-caption text-nomi-ink-40 text-center py-5">{t('onboardingProviders.modelControls.noMatchQuery', { query })}</div>
       ) : (
         <div className="flex flex-col max-h-[300px] overflow-y-auto -mx-1 px-1">
           {groups.map((g) => (
             <div key={g.kind}>
               <div className="text-micro font-semibold text-nomi-ink-60 mt-2 mb-1 px-1">
-                {MODEL_CHIP_KIND_LABEL[g.kind] ?? g.kind}{' '}
+                {g.kind in MODEL_CHIP_KIND_LABEL ? t(`onboardingProviders.modelControls.kind.${g.kind}` as 'onboardingProviders.modelControls.kind.text') : g.kind}{' '}
                 <span className="font-normal text-nomi-ink-40">{enabledCount(g.models)}/{g.models.length}</span>
               </div>
               {g.models.map((m) => {
@@ -158,7 +158,7 @@ export function ModelEnableEditor({ models, onToggle, onDelete }: ModelEnableEdi
                       type="button"
                       role="checkbox"
                       aria-checked={isSelected}
-                      aria-label={`${isSelected ? '取消选择' : '选择'} ${m.labelZh}`}
+                      aria-label={t(isSelected ? 'onboardingProviders.modelControls.deselectModelAria' : 'onboardingProviders.modelControls.selectModelAria', { name: m.labelZh })}
                       onClick={() => toggleSelect(key)}
                       className={cn(
                         'w-full flex items-center gap-2.5 px-2 py-1.5 rounded-nomi-sm text-left hover:bg-nomi-ink-05',
@@ -193,7 +193,7 @@ export function ModelEnableEditor({ models, onToggle, onDelete }: ModelEnableEdi
                       type="button"
                       role="checkbox"
                       aria-checked={m.enabled}
-                      aria-label={`${m.enabled ? '停用' : '启用'} ${m.labelZh}`}
+                      aria-label={t(m.enabled ? 'onboardingProviders.modelControls.disableModelAria' : 'onboardingProviders.modelControls.enableModelAria', { name: m.labelZh })}
                       onClick={() => onToggle([m], !m.enabled)}
                       className={cn(
                         'w-[18px] h-[18px] rounded-nomi-sm shrink-0 grid place-items-center border',
@@ -213,8 +213,8 @@ export function ModelEnableEditor({ models, onToggle, onDelete }: ModelEnableEdi
                     </button>
                     <button
                       type="button"
-                      aria-label={`彻底删除 ${m.labelZh}`}
-                      title="彻底移除（需重拉才回来）"
+                      aria-label={t('onboardingProviders.modelControls.deleteModelAria', { name: m.labelZh })}
+                      title={t('onboardingProviders.modelControls.deleteModelTitle')}
                       onClick={() => onDelete([m])}
                       className="shrink-0 p-1 text-nomi-ink-30 hover:text-workbench-danger"
                     >

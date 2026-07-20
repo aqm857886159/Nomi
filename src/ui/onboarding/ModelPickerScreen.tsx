@@ -9,6 +9,7 @@
  * （candidates 为空）靠底部「手填 id」补充，保留手动录入逃生口（P1 不丢能力）。
  */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Stack, Group, Text } from '@mantine/core'
 import { IconArrowLeft, IconRefresh, IconMessage, IconPhoto, IconVideo, IconMicrophone, IconCube, IconPlus, IconCheck } from '@tabler/icons-react'
 import { DesignButton, DesignCheckbox, DesignSearchInput, DesignTextInput } from '../../design'
@@ -51,6 +52,7 @@ export function ModelPickerScreen({
   /** 手填未列出的 id 时，向宿主问类型（宿主包 bridge.guessKinds）；缺省按 text。 */
   onResolveKind?: (id: string) => Promise<string>
 }): JSX.Element {
+  const { t } = useTranslation()
   const [selected, setSelected] = React.useState<Set<string>>(() => new Set(initialSelected.map(m => m.id)))
   const [manual, setManual] = React.useState<PickerModel[]>([])
   const [manualInput, setManualInput] = React.useState('')
@@ -120,33 +122,33 @@ export function ModelPickerScreen({
           <button
             type="button"
             onClick={onBack}
-            aria-label="返回"
+            aria-label={t('common.back')}
             className="inline-flex text-nomi-ink-60 hover:text-nomi-ink"
           >
             <IconArrowLeft size={18} stroke={1.7} />
           </button>
-          <Text size="md" fw={600} c="var(--nomi-ink)">选择要添加的模型</Text>
+          <Text size="md" fw={600} c="var(--nomi-ink)">{t('onboardingProviders.modelControls.pickerTitle')}</Text>
         </Group>
         <DesignButton variant="subtle" leftSection={<IconRefresh size={13} />} onClick={onRefetch} loading={fetching}>
-          重新拉取
+          {t('onboardingProviders.modelControls.refetch')}
         </DesignButton>
       </Group>
 
       {/* 来源行：来源名 · host · 拉到 N 个 */}
       <Text size="xs" c="var(--nomi-ink-60)" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {sourceName ? `${sourceName} · ` : ''}{host}{total > 0 ? ` · 拉到 ${total} 个` : ''}
+        {sourceName ? `${sourceName} · ` : ''}{host}{total > 0 ? ` · ${t('onboardingProviders.modelControls.fetchedCount', { count: total })}` : ''}
       </Text>
 
-      <DesignSearchInput value={query} onChange={setQuery} placeholder="搜索模型 id…" className="w-full" />
+      <DesignSearchInput value={query} onChange={setQuery} placeholder={t('onboardingProviders.modelControls.searchIdPlaceholder')} className="w-full" />
 
       {/* 计数 + 清空 */}
       <Group justify="space-between" align="center">
         <Text size="sm" c="var(--nomi-ink-60)">
-          已选 <Text span fw={600} c="var(--nomi-ink)">{count}</Text>{total > 0 ? ` / 共 ${total}` : ''}
+          {t('onboardingProviders.modelControls.pickerSelected', { count })}{total > 0 ? t('onboardingProviders.modelControls.pickerTotal', { count: total }) : ''}
         </Text>
         {count > 0 && (
           <button type="button" onClick={() => setSelected(new Set())} className="text-body-sm text-nomi-ink-40 hover:text-nomi-ink-60">
-            清空
+            {t('onboardingProviders.modelControls.clear')}
           </button>
         )}
       </Group>
@@ -155,10 +157,10 @@ export function ModelPickerScreen({
       <Stack gap={4} mah={260} style={{ overflowY: 'auto' }}>
         {groups.length === 0 ? (
           <Text size="sm" c="var(--nomi-ink-40)" py={16} ta="center">
-            {pool.length === 0 ? '这个地址没列出模型，在下方手填模型 id' : '没有匹配的模型'}
+            {pool.length === 0 ? t('onboardingProviders.modelControls.endpointEmpty') : t('onboardingProviders.modelControls.noMatchingModels')}
           </Text>
         ) : (
-          groups.map(({ kind, label, models }) => {
+          groups.map(({ kind, models }) => {
             const ids = models.map(m => m.id)
             const allOn = ids.every(id => selected.has(id))
             const Icon = KIND_ICON[kind] ?? IconMessage
@@ -168,11 +170,11 @@ export function ModelPickerScreen({
                   <Group gap={5} align="center" wrap="nowrap">
                     <Icon size={14} stroke={1.6} style={{ color: 'var(--nomi-ink-60)' }} />
                     <Text size="xs" fw={600} c="var(--nomi-ink-60)">
-                      {label} <Text span fw={400} c="var(--nomi-ink-40)">{models.length}</Text>
+                      {kind in KIND_ICON ? t(`onboardingProviders.modelControls.kind.${kind}` as 'onboardingProviders.modelControls.kind.text') : kind} <Text span fw={400} c="var(--nomi-ink-40)">{models.length}</Text>
                     </Text>
                   </Group>
                   <button type="button" onClick={() => toggleGroup(ids)} className="text-micro text-nomi-accent hover:underline">
-                    {allOn ? '取消本组' : '全选本组'}
+                    {allOn ? t('onboardingProviders.modelControls.deselectGroup') : t('onboardingProviders.modelControls.selectGroup')}
                   </button>
                 </Group>
                 {models.map(m => {
@@ -209,19 +211,19 @@ export function ModelPickerScreen({
           value={manualInput}
           onChange={e => setManualInput(e.currentTarget.value)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void addManual() } }}
-          placeholder="没列出来的，输入模型 id 回车添加"
+          placeholder={t('onboardingProviders.modelControls.manualPlaceholder')}
           style={{ flex: 1 }}
         />
         <DesignButton variant="subtle" leftSection={<IconPlus size={14} />} onClick={() => void addManual()} disabled={!manualInput.trim()}>
-          添加
+          {t('onboardingProviders.modelControls.add')}
         </DesignButton>
       </Group>
 
       {/* 底：取消 + 添加 N */}
       <Group justify="flex-end" gap={8} pt={2}>
-        <DesignButton variant="subtle" onClick={onBack}>取消</DesignButton>
+        <DesignButton variant="subtle" onClick={onBack}>{t('common.cancel')}</DesignButton>
         <DesignButton variant="filled" leftSection={<IconCheck size={14} />} onClick={confirm} disabled={count === 0}>
-          添加 {count} 个模型
+          {t('onboardingProviders.modelControls.addModels', { count })}
         </DesignButton>
       </Group>
     </Stack>

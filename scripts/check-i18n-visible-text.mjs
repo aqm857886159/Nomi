@@ -7,16 +7,28 @@ const ROOT = process.cwd()
 const SRC_ROOT = path.join(ROOT, 'src')
 const BASELINE_PATH = path.join(ROOT, 'scripts', 'i18n-visible-text-baseline.json')
 const WRITE_BASELINE = process.argv.includes('--write-baseline')
+const REPORT = process.argv.includes('--report')
+const REQUIRE_ZERO = process.argv.includes('--require-zero')
 
 const VISIBLE_ATTRIBUTES = new Set([
   'alt',
   'aria-label',
+  'ariaLabel',
   'caption',
+  'cancelLabel',
+  'confirmLabel',
   'description',
+  'emptyDescription',
+  'emptyTitle',
   'emptyMessage',
   'helperText',
+  'hint',
   'label',
+  'leadingLabel',
+  'message',
   'placeholder',
+  'statusLabel',
+  'subtitle',
   'title',
   'tooltip',
 ])
@@ -74,6 +86,12 @@ function callName(expression) {
   return ''
 }
 
+function isNonVisibleJsxContainer(node) {
+  if (!ts.isJsxElement(node.parent)) return false
+  const tagName = node.parent.openingElement.tagName.getText().toLowerCase()
+  return tagName === 'style' || tagName === 'script'
+}
+
 function scanFile(fileName) {
   const sourceText = fs.readFileSync(fileName, 'utf8')
   const sourceFile = ts.createSourceFile(
@@ -103,7 +121,12 @@ function scanFile(fileName) {
       }
     }
 
-    if (ts.isJsxExpression(node) && node.expression && ts.isJsxElement(node.parent)) {
+    if (
+      ts.isJsxExpression(node) &&
+      node.expression &&
+      (ts.isJsxElement(node.parent) || ts.isJsxFragment(node.parent)) &&
+      !isNonVisibleJsxContainer(node)
+    ) {
       collectExpressionLiterals(node.expression, (text) => add('jsx-expression', text))
     }
 
@@ -149,6 +172,24 @@ function countFindings(findings) {
 
 const files = ts.sys.readDirectory(SRC_ROOT, ['.ts', '.tsx'], undefined, undefined).filter(isProductSource)
 const current = countFindings(files.flatMap(scanFile))
+
+if (REPORT) {
+  const counts = new Map()
+  for (const entry of current) counts.set(entry.file, (counts.get(entry.file) ?? 0) + entry.count)
+  for (const [file, count] of [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'en'))) {
+    console.log(`${String(count).padStart(4)} ${file}`)
+  }
+  console.log(`Total: ${current.reduce((sum, entry) => sum + entry.count, 0)} occurrences in ${counts.size} files`)
+  process.exit(0)
+}
+
+if (REQUIRE_ZERO && current.length > 0) {
+  console.error(`i18n visible-text gate requires zero literals; found ${current.reduce((sum, entry) => sum + entry.count, 0)}`)
+  for (const entry of current.slice(0, 100)) {
+    console.error(`- ${entry.file} [${entry.kind}] ${JSON.stringify(entry.text)} (x${entry.count})`)
+  }
+  process.exit(1)
+}
 
 if (WRITE_BASELINE) {
   const payload = { version: 1, generatedAt: new Date().toISOString(), entries: current }

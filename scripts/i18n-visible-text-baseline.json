@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-07-20T06:07:20.748Z",
+  "generatedAt": "2026-07-20T12:54:11.555Z",
   "entries": [
     {
       "file": "src/design/identity.tsx",
@@ -48,234 +48,6 @@
       "file": "src/ui/browser/dialog/NomiBrowserDialogModel.tsx",
       "kind": "jsx-expression",
       "text": "还原主体、构图、光影和细节",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "${…} 书签菜单",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "${…} 标签菜单",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "保存为书签",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "关闭 ${…}",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "关闭浏览器",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "刷新",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "前进",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "后退",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "地址栏",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "截图提取提示词",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "打开素材盒",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "搜 Bing 或输入网址",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "收起素材盒",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "新建标签页",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "浏览器",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "素材网站",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "素材网站列表",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "网页内容",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "选择提示词提取方式",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:placeholder",
-      "text": "搜 Bing 或输入网址",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:placeholder",
-      "text": "输入网址或搜索关键词",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:title",
-      "text": "截图提取提示词",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-attr:title",
-      "text": "素材盒：捕捞收件箱，可多选拖上画布",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-expression",
-      "text": "加载中...",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-expression",
-      "text": "已收藏",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-expression",
-      "text": "收藏",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-text",
-      "text": "关闭全部",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-text",
-      "text": "关闭标签",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-text",
-      "text": "删除",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-text",
-      "text": "右键标签或书签打开菜单",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-text",
-      "text": "常用参考站点",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-text",
-      "text": "打开",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-text",
-      "text": "打开网页参考",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-text",
-      "text": "视频",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-text",
-      "text": "素材盒",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-text",
-      "text": "素材网站",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-text",
-      "text": "输入网址直达，或用 Bing 搜索关键词",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
-      "kind": "jsx-text",
-      "text": "重命名",
       "count": 1
     },
     {
@@ -372,240 +144,6 @@
       "file": "src/ui/browser/popover/BrowserAssetPopoverParts.tsx",
       "kind": "jsx-text",
       "text": "视频",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "上传素材",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "关闭资源捕捞",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "最新优先",
-      "count": 2
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "最早优先",
-      "count": 2
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "切换素材布局",
-      "count": 2
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "并排显示素材盒",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "开启资源捕捞",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "恢复浮动素材盒",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "打开素材盒",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "提示词库瀑布流",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "提示词提取设置",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "收起素材盒",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "文件夹路径",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "新建文件夹",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "更多素材工具",
-      "count": 2
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "空白区域操作",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "筛选分类",
-      "count": 2
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "素材列表",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "素材操作",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "素材来源",
-      "count": 2
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "素材盒",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "素材网格",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "返回上一级文件夹",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "选择素材文件",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:placeholder",
-      "text": "搜索素材",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:title",
-      "text": "关闭资源捕捞",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:title",
-      "text": "最新优先",
-      "count": 2
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:title",
-      "text": "最早优先",
-      "count": 2
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:title",
-      "text": "并排显示",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:title",
-      "text": "恢复浮动",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:title",
-      "text": "提示词提取设置",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:title",
-      "text": "收起素材盒",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-attr:title",
-      "text": "资源捕捞：悬停资源后按 Ctrl+C 保存",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-text",
-      "text": "删除",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-text",
-      "text": "导入画布",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-text",
-      "text": "新建文件夹",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-text",
-      "text": "松开以保存到素材盒",
-      "count": 1
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-text",
-      "text": "素材盒",
-      "count": 2
-    },
-    {
-      "file": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
-      "kind": "jsx-text",
-      "text": "重命名",
       "count": 1
     },
     {
@@ -796,6 +334,12 @@
     },
     {
       "file": "src/ui/onboarding/ComfyuiLocalCard.tsx",
+      "kind": "jsx-attr:subtitle",
+      "text": "用本机 GPU 出图 · 无需 key、不花额度、数据不出本地",
+      "count": 1
+    },
+    {
+      "file": "src/ui/onboarding/ComfyuiLocalCard.tsx",
       "kind": "jsx-expression",
       "text": "启用了，但没探测到本机 ComfyUI",
       "count": 1
@@ -918,6 +462,24 @@
       "file": "src/ui/onboarding/ComfyuiWorkflowImportPanel.tsx",
       "kind": "jsx-attr:aria-label",
       "text": "收起",
+      "count": 1
+    },
+    {
+      "file": "src/ui/onboarding/ComfyuiWorkflowImportPanel.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "提示词节点",
+      "count": 1
+    },
+    {
+      "file": "src/ui/onboarding/ComfyuiWorkflowImportPanel.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "输出节点",
+      "count": 1
+    },
+    {
+      "file": "src/ui/onboarding/ComfyuiWorkflowImportPanel.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "首帧节点",
       "count": 1
     },
     {
@@ -1080,6 +642,12 @@
       "file": "src/ui/onboarding/ConnectAssistantCard.tsx",
       "kind": "call:toast",
       "text": "配置已复制",
+      "count": 1
+    },
+    {
+      "file": "src/ui/onboarding/ConnectAssistantCard.tsx",
+      "kind": "jsx-attr:subtitle",
+      "text": "让 Claude Code / Codex / Cursor 帮你建项目、出图",
       "count": 1
     },
     {
@@ -1255,186 +823,6 @@
       "kind": "jsx-text",
       "text": "更换",
       "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "call:toast",
-      "text": "即梦 CLI 安装完成",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "call:toast",
-      "text": "即梦已登录",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "call:toast",
-      "text": "即梦登录成功",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "call:toast",
-      "text": "已退出即梦登录",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "call:toast",
-      "text": "授权链接已复制",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-expression",
-      "text": "一键安装即梦 CLI",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-expression",
-      "text": "发起中…",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-expression",
-      "text": "复制链接",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-expression",
-      "text": "安装中…",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-expression",
-      "text": "已复制",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-expression",
-      "text": "扫码登录即梦",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-expression",
-      "text": "授权完成后稍候。",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-expression",
-      "text": "等待你确认授权…确认后自动接住。",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-text",
-      "text": "——非会员会被拒（光登录、光充积分不够）；部分模型首次使用还需先在 jimeng.jianying.com 网页端授权一次。",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-text",
-      "text": "· 积分",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-text",
-      "text": "即梦用官方命令行工具接入。一键装好后，扫码登录就能用你的会员积分在 Nomi 里出视频。",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-text",
-      "text": "取消",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-text",
-      "text": "在生成画布选「即梦 Seedance 2.0（会员）」出视频。注意：免费试用已于 2026-05-01 结束，生成需即梦",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-text",
-      "text": "官方源 jimeng.jianying.com，安装到 ~/.local/bin。",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-text",
-      "text": "已登录即梦",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-text",
-      "text": "打开授权页",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-text",
-      "text": "扫码 / 点链接授权",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-text",
-      "text": "扫码登录你的即梦账号，用会员积分在 Nomi 出视频。",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-text",
-      "text": "生成需高级会员（maestro vip）",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-text",
-      "text": "用即梦 App 或浏览器打开下面链接，确认授权。要登录有",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-text",
-      "text": "的账号。",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-text",
-      "text": "这一档。",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-text",
-      "text": "退出登录",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-text",
-      "text": "验证码",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/DreaminaMemberCard.tsx",
-      "kind": "jsx-text",
-      "text": "高级会员",
-      "count": 2
     },
     {
       "file": "src/ui/onboarding/ModelChipGroups.tsx",
@@ -1678,6 +1066,18 @@
     },
     {
       "file": "src/ui/onboarding/OnboardingDrawer.tsx",
+      "kind": "jsx-attr:statusLabel",
+      "text": "已配置",
+      "count": 1
+    },
+    {
+      "file": "src/ui/onboarding/OnboardingDrawer.tsx",
+      "kind": "jsx-attr:subtitle",
+      "text": "${…} / ${…} 个模型已启用",
+      "count": 1
+    },
+    {
+      "file": "src/ui/onboarding/OnboardingDrawer.tsx",
       "kind": "jsx-attr:title",
       "text": "删除该供应商",
       "count": 1
@@ -1761,60 +1161,6 @@
       "count": 1
     },
     {
-      "file": "src/ui/onboarding/OnboardingFloatingPanel.tsx",
-      "kind": "jsx-expression",
-      "text": "@keyframes nomi-panel-pop { from { opacity: 0; transform: translateY(-4px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "删除这一行请求头",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "移除 ${…}",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-attr:label",
-      "text": "你的 API Key",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-attr:label",
-      "text": "接入地址（BaseURL）",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-attr:label",
-      "text": "接口协议",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-attr:label",
-      "text": "来源名称",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-attr:placeholder",
-      "text": "Header 名，如 HTTP-Referer",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-attr:placeholder",
-      "text": "https://api.anthropic.com（可留空）",
-      "count": 1
-    },
-    {
       "file": "src/ui/onboarding/OnboardingWizard.tsx",
       "kind": "jsx-attr:placeholder",
       "text": "https://api.openai.com/v1",
@@ -1824,240 +1170,6 @@
       "file": "src/ui/onboarding/OnboardingWizard.tsx",
       "kind": "jsx-attr:placeholder",
       "text": "sk-...",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-attr:placeholder",
-      "text": "值",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-attr:placeholder",
-      "text": "如：TOAPI 中转",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-attr:title",
-      "text": "建议先点「测试连接」确认可连上；也可直接保存",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-attr:title",
-      "text": "未验证连接，再次点击将直接保存",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-attr:title",
-      "text": "添加一个 AI 模型",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-expression",
-      "text": "仍要保存",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-expression",
-      "text": "保存",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-expression",
-      "text": "保存时自动探测",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-expression",
-      "text": "确认保存（未验证连接）",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "个",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "个模型，还没选",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "修改所选 / 重新拉取",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "关闭",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "再添加一个",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "填中转地址 + Key，拉取它开放的模型；图片 / 视频 / 文本一次接入，类型自动判好可改。",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "填好接入地址和 Key，会自动拉取这个上游开放的模型",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "完成",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "官网获取 →",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "已添加",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "已选",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "手动指定",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "手动选择 →",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "拉到",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "拉取模型",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "接入地址已自动填好 ·",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "接口协议：",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "改一改重试",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "改回自动探测",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "模型",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "正在拉取这个地址开放的模型…",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "没有 Key？去",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "没能完成添加",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "测试连接",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "添加请求头（可选）",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "现在可以在节点里选择这个模型",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "自定义",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "自定义请求头",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "选择模型 →",
-      "count": 1
-    },
-    {
-      "file": "src/ui/onboarding/OnboardingWizard.tsx",
-      "kind": "jsx-text",
-      "text": "高级设置（接口协议 / 自定义请求头）",
       "count": 1
     },
     {
@@ -2118,6 +1230,12 @@
       "file": "src/ui/onboarding/VendorOnboardCard.tsx",
       "kind": "jsx-attr:placeholder",
       "text": "https://…",
+      "count": 1
+    },
+    {
+      "file": "src/ui/onboarding/VendorOnboardCard.tsx",
+      "kind": "jsx-attr:subtitle",
+      "text": "${…} 个模型可用",
       "count": 1
     },
     {
@@ -2272,6 +1390,12 @@
     },
     {
       "file": "src/workbench/ai/AssistantModelPicker.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "助手模型",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/ai/AssistantModelPicker.tsx",
       "kind": "jsx-attr:title",
       "text": "助手用哪个模型（建议选 GPT / Claude / DeepSeek 系，能稳定执行画布操作）",
       "count": 1
@@ -2370,228 +1494,6 @@
       "file": "src/workbench/ai/WorkbenchAiHeaderActions.tsx",
       "kind": "jsx-attr:aria-label",
       "text": "会话历史",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "call:confirmDialog.confirmLabel",
-      "text": "删除",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "call:confirmDialog.message",
-      "text": "对应画布节点与「全部素材」中的落盘文件会同步删除。项目文件会移到系统回收站。",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "call:confirmDialog.title",
-      "text": "删除 ${…} 个项目素材？",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "call:toast",
-      "text": "${…} 个落盘素材删除失败",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "call:toast",
-      "text": "删除失败：当前没有打开的项目",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "call:toast",
-      "text": "删除项目素材失败，请检查文件权限",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "call:toast",
-      "text": "已删除 ${…} 个落盘素材",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "call:toast",
-      "text": "已删除 ${…} 个项目素材",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "call:toast",
-      "text": "已导入 ${…} 个素材",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "call:toast",
-      "text": "已导入 ${…} 个音频",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "call:toast",
-      "text": "已跳过 ${…} 个不支持的文件",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "call:toast",
-      "text": "已跳过：${…}",
-      "count": 2
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "call:toast",
-      "text": "当前运行环境不支持删除项目素材",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "call:toast",
-      "text": "素材导入失败，请重试",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "call:toast",
-      "text": "请先选中要删除的项目素材",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "call:toast",
-      "text": "选中的素材暂时无法删除",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "call:toast",
-      "text": "音频导入失败，请重试",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "上传素材",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "关闭素材库",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "删除 ${…} 个项目素材",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "删除项目素材",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "筛选素材分类",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "素材库",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "素材文件选择器",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "素材来源筛选",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-attr:description",
-      "text": "换个筛选或搜索词试试。",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-attr:description",
-      "text": "点「上传」导入图片、视频或音频，或在生成区生成后会自动出现在这里。",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-attr:placeholder",
-      "text": "搜索素材…",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-attr:title",
-      "text": "分类：${…}",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-attr:title",
-      "text": "删除 ${…} 个项目素材",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-attr:title",
-      "text": "没有匹配的素材",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-attr:title",
-      "text": "请先选择项目素材",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-expression",
-      "text": "@keyframes nomi-panel-pop { from { opacity: 0; transform: translateY(-4px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-text",
-      "text": "上传",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanel.tsx",
-      "kind": "jsx-text",
-      "text": "素材库",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanelParts.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "素材分类",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/assets/AssetLibraryPanelParts.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "素材分类筛选",
       "count": 1
     },
     {
@@ -2728,6 +1630,12 @@
     },
     {
       "file": "src/workbench/assets/autoGroup/AssetFinderPanel.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "搜索素材",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/assets/autoGroup/AssetFinderPanel.tsx",
       "kind": "jsx-attr:description",
       "text": "在生成区生成镜头后会自动出现在这里。",
       "count": 1
@@ -2854,6 +1762,12 @@
     },
     {
       "file": "src/workbench/creation/CreationAiPanel.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "创作模式",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/creation/CreationAiPanel.tsx",
       "kind": "jsx-attr:label",
       "text": "停止",
       "count": 1
@@ -2886,6 +1800,12 @@
       "file": "src/workbench/creation/CreationAiPanel.tsx",
       "kind": "jsx-attr:label",
       "text": "缩小",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/creation/CreationAiPanel.tsx",
+      "kind": "jsx-attr:leadingLabel",
+      "text": "模式",
       "count": 1
     },
     {
@@ -2994,6 +1914,18 @@
       "file": "src/workbench/creation/SelectionGeneratePopover.tsx",
       "kind": "jsx-attr:label",
       "text": "生成视频",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/creation/storyboard/ShotParamControls.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "模式",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/creation/storyboard/ShotParamControls.tsx",
+      "kind": "jsx-attr:leadingLabel",
+      "text": "模式",
       "count": 1
     },
     {
@@ -3336,6 +2268,60 @@
       "file": "src/workbench/creation/storyboard/StoryboardShotCard.tsx",
       "kind": "jsx-attr:aria-label",
       "text": "镜 ${…} 提示词",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/creation/storyboard/StoryboardShotCard.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "供应商",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/creation/storyboard/StoryboardShotCard.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "图片模型",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/creation/storyboard/StoryboardShotCard.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "时长",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/creation/storyboard/StoryboardShotCard.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "视频模型",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/creation/storyboard/StoryboardShotCard.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "镜头类型",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/creation/storyboard/StoryboardShotCard.tsx",
+      "kind": "jsx-attr:leadingLabel",
+      "text": "供应商",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/creation/storyboard/StoryboardShotCard.tsx",
+      "kind": "jsx-attr:leadingLabel",
+      "text": "时长",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/creation/storyboard/StoryboardShotCard.tsx",
+      "kind": "jsx-attr:leadingLabel",
+      "text": "模型",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/creation/storyboard/StoryboardShotCard.tsx",
+      "kind": "jsx-attr:leadingLabel",
+      "text": "类型",
       "count": 1
     },
     {
@@ -3850,6 +2836,12 @@
     },
     {
       "file": "src/workbench/generationCanvas/components/CanvasAssistantPanel.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "AI 模式",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/components/CanvasAssistantPanel.tsx",
       "kind": "jsx-attr:label",
       "text": "停止",
       "count": 1
@@ -3870,6 +2862,12 @@
       "file": "src/workbench/generationCanvas/components/CanvasAssistantPanel.tsx",
       "kind": "jsx-attr:label",
       "text": "添加附件",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/components/CanvasAssistantPanel.tsx",
+      "kind": "jsx-attr:leadingLabel",
+      "text": "模式",
       "count": 1
     },
     {
@@ -4366,6 +3364,12 @@
     },
     {
       "file": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "全景图操作",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
       "kind": "jsx-attr:label",
       "text": "下载",
       "count": 1
@@ -4578,6 +3582,30 @@
       "file": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
       "kind": "jsx-attr:aria-label",
       "text": "生成参数面板",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "供应商",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "变体",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "模型",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+      "kind": "jsx-attr:leadingLabel",
+      "text": "变体",
       "count": 1
     },
     {
@@ -4806,6 +3834,18 @@
       "file": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
       "kind": "jsx-text",
       "text": "素材盒暂无可用提示词",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/NodeImageEditToolbar.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "全屏预览图片",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/NodeImageEditToolbar.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "图片操作",
       "count": 1
     },
     {
@@ -5146,6 +4186,12 @@
     },
     {
       "file": "src/workbench/generationCanvas/nodes/NodeResultDownloadButton.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "结果操作",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/NodeResultDownloadButton.tsx",
       "kind": "jsx-attr:label",
       "text": "下载",
       "count": 1
@@ -5160,6 +4206,18 @@
       "file": "src/workbench/generationCanvas/nodes/NodeTimelineDragHandles.tsx",
       "kind": "jsx-attr:title",
       "text": "${…}（长按拖拽）",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/NodeVideoFrameToolbar.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "全屏预览视频",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/NodeVideoFrameToolbar.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "视频操作",
       "count": 1
     },
     {
@@ -6196,6 +5254,18 @@
     },
     {
       "file": "src/workbench/generationCanvas/nodes/scene3d/scene3dInspector.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "灯光类型",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/scene3d/scene3dInspector.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "画幅比例",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/scene3d/scene3dInspector.tsx",
       "kind": "jsx-attr:label",
       "text": "位置 XYZ",
       "count": 1
@@ -6682,6 +5752,24 @@
     },
     {
       "file": "src/workbench/generationCanvas/nodes/scene3d/trajectory/TrajectoryPanel.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "方向",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/scene3d/trajectory/TrajectoryPanel.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "添加绑定节点",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/scene3d/trajectory/TrajectoryPanel.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "选择节点创建绑定",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/scene3d/trajectory/TrajectoryPanel.tsx",
       "kind": "jsx-attr:placeholder",
       "text": "添加绑定节点",
       "count": 1
@@ -7078,6 +6166,12 @@
     },
     {
       "file": "src/workbench/generationCanvas/nodes/Scene3DEditor.tsx",
+      "kind": "jsx-attr:hint",
+      "text": "摆放模型、相机并输出截图",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/Scene3DEditor.tsx",
       "kind": "jsx-attr:label",
       "text": "点击进入 3D 编辑器",
       "count": 1
@@ -7164,6 +6258,12 @@
       "file": "src/workbench/generationCanvas/nodes/useResultDownload.ts",
       "kind": "call:toast",
       "text": "已保存到本地",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardCardBody.tsx",
+      "kind": "jsx-attr:hint",
+      "text": "点击打开画板",
       "count": 1
     },
     {
@@ -7618,6 +6718,12 @@
     },
     {
       "file": "src/workbench/preview/TextClipStyleControls.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "字体",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/preview/TextClipStyleControls.tsx",
       "kind": "jsx-attr:label",
       "text": "减小字号",
       "count": 1
@@ -7630,224 +6736,14 @@
     },
     {
       "file": "src/workbench/preview/TextClipStyleControls.tsx",
+      "kind": "jsx-attr:leadingLabel",
+      "text": "字体",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/preview/TextClipStyleControls.tsx",
       "kind": "jsx-text",
       "text": "字号",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "call:toast",
-      "text": "已导出到项目 exports 文件夹：${…}",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "导出 MP4",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "当前缩放",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "添加文字",
-      "count": 2
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "音量",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "预览控制",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "预览播放器",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:aria-label",
-      "text": "预览构图",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:label",
-      "text": "上一帧",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:label",
-      "text": "下一帧",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:label",
-      "text": "全屏",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:label",
-      "text": "取消导出",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:label",
-      "text": "取消静音",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:label",
-      "text": "播放",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:label",
-      "text": "放大画面",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:label",
-      "text": "暂停",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:label",
-      "text": "缩小画面",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:label",
-      "text": "退出全屏",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:label",
-      "text": "重置画面",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:label",
-      "text": "静音",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:title",
-      "text": "上一帧（←）",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:title",
-      "text": "下一帧（→）",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:title",
-      "text": "全屏预览",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:title",
-      "text": "准备中，暂不可取消",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:title",
-      "text": "加字幕 / 标题卡（都是文字，可自由拖动缩放）",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:title",
-      "text": "取消导出",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:title",
-      "text": "取消静音",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:title",
-      "text": "拖动移动 · 四角缩放 · 双击改字",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:title",
-      "text": "时间轴为空",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:title",
-      "text": "点选 · 双击改字",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:title",
-      "text": "退出全屏",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-attr:title",
-      "text": "静音",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-expression",
-      "text": "从「生成区」拖入素材即可显示",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-expression",
-      "text": "准备中…",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-expression",
-      "text": "导出中 ${…}%",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-expression",
-      "text": "转码 MP4…",
       "count": 1
     },
     {
@@ -7860,48 +6756,6 @@
       "file": "src/workbench/preview/TimelinePreview.tsx",
       "kind": "jsx-text",
       "text": "s /",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-text",
-      "text": "字幕",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-text",
-      "text": "导出 MP4",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-text",
-      "text": "居中 · 大",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-text",
-      "text": "底部 · 小",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-text",
-      "text": "文字",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-text",
-      "text": "标题卡",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/preview/TimelinePreview.tsx",
-      "kind": "jsx-text",
-      "text": "画面预览",
       "count": 1
     },
     {
@@ -7942,6 +6796,12 @@
     },
     {
       "file": "src/workbench/promptLibrary/PromptLibraryPanel.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "搜索提示词",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/promptLibrary/PromptLibraryPanel.tsx",
       "kind": "jsx-attr:description",
       "text": "换个筛选或搜索词试试。",
       "count": 2
@@ -7963,12 +6823,6 @@
       "kind": "jsx-attr:title",
       "text": "没有匹配的提示词",
       "count": 2
-    },
-    {
-      "file": "src/workbench/promptLibrary/PromptLibraryPanel.tsx",
-      "kind": "jsx-expression",
-      "text": "@keyframes nomi-fade { from { opacity: 0 } to { opacity: 1 } } @keyframes nomi-panel-pop { from { opacity: 0; transform: translateY(-6px) scale(0.99) } to { opacity: 1; transform: translateY(0) scale(1) } }",
-      "count": 1
     },
     {
       "file": "src/workbench/promptLibrary/PromptLibraryPanel.tsx",
@@ -8004,12 +6858,6 @@
       "file": "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
       "kind": "jsx-attr:aria-label",
       "text": "复制提示词",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
-      "kind": "jsx-expression",
-      "text": "@keyframes nomi-fade { from { opacity: 0 } to { opacity: 1 } }",
       "count": 1
     },
     {
@@ -8386,6 +7234,12 @@
     },
     {
       "file": "src/workbench/skillLibrary/SkillLibraryPanel.tsx",
+      "kind": "jsx-attr:ariaLabel",
+      "text": "搜索技能",
+      "count": 1
+    },
+    {
+      "file": "src/workbench/skillLibrary/SkillLibraryPanel.tsx",
       "kind": "jsx-attr:description",
       "text": "换个搜索词试试。",
       "count": 1
@@ -8418,12 +7272,6 @@
       "file": "src/workbench/skillLibrary/SkillLibraryPanel.tsx",
       "kind": "jsx-attr:title",
       "text": "没有匹配的技能",
-      "count": 1
-    },
-    {
-      "file": "src/workbench/skillLibrary/SkillLibraryPanel.tsx",
-      "kind": "jsx-expression",
-      "text": "@keyframes nomi-fade { from { opacity: 0 } to { opacity: 1 } } @keyframes nomi-panel-pop { from { opacity: 0; transform: translateY(-6px) scale(0.99) } to { opacity: 1; transform: translateY(0) scale(1) } }",
       "count": 1
     },
     {

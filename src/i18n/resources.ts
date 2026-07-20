@@ -1,3 +1,10 @@
+import { enModelSetup, zhModelSetup } from './locales/modelSetup'
+import { enBrowserAssets, zhBrowserAssets } from './locales/browserAssets'
+import { enTimelinePreview, zhTimelinePreview } from './locales/timelinePreview'
+import { enAssetLibrary, zhAssetLibrary } from './locales/assetLibrary'
+import { enOnboardingProviders, zhOnboardingProviders } from './locales/onboardingProviders'
+import { enLibraries, zhLibraries } from './locales/libraries'
+
 export const zhCN = {
   common: {
     language: '语言',
@@ -11,6 +18,7 @@ export const zhCN = {
     initialize: '初始化',
     later: '稍后',
     loading: '加载中',
+    back: '返回',
   },
   theme: {
     appearance: '外观',
@@ -226,6 +234,12 @@ export const zhCN = {
       scene3d: '3D 场景',
     },
   },
+  modelSetup: zhModelSetup,
+  browserAssets: zhBrowserAssets,
+  timelinePreview: zhTimelinePreview,
+  assetLibrary: zhAssetLibrary,
+  onboardingProviders: zhOnboardingProviders,
+  libraries: zhLibraries,
 } as const
 
 type TranslationShape<T> = {
@@ -245,6 +259,7 @@ export const en = {
     initialize: 'Initialize',
     later: 'Later',
     loading: 'Loading',
+    back: 'Back',
   },
   theme: {
     appearance: 'Appearance',
@@ -460,6 +475,12 @@ export const en = {
       scene3d: '3D scene',
     },
   },
+  modelSetup: enModelSetup,
+  browserAssets: enBrowserAssets,
+  timelinePreview: enTimelinePreview,
+  assetLibrary: enAssetLibrary,
+  onboardingProviders: enOnboardingProviders,
+  libraries: enLibraries,
 } satisfies TranslationShape<typeof zhCN>
 
 export const resources = {
