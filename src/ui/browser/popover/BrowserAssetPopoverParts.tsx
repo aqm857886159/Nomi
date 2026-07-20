@@ -1,5 +1,14 @@
 import React from 'react'
-import { IconCheck, IconFileText, IconFolder, IconPhoto, IconPlayerPlayFilled, IconPlus, IconVideo } from '../../../vendor/tablerIcons'
+import { useTranslation } from 'react-i18next'
+import {
+  IconCheck,
+  IconFileText,
+  IconFolder,
+  IconPhoto,
+  IconPlayerPlayFilled,
+  IconPlus,
+  IconVideo,
+} from '../../../vendor/tablerIcons'
 import { cn } from '../../../utils/cn'
 import type { NomiBrowserAsset, NomiBrowserAssetTab, NomiBrowserAssetTabDefinition } from '../assets/browserAssetData'
 import { browserAssetDisplaySubtitle, isBrowserAssetDraggable } from './browserAssetPopoverUtils'
@@ -34,6 +43,7 @@ function TileRenameInput({
   onCommit?: (title: string) => void
   onCancel?: () => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const [value, setValue] = React.useState(initialTitle)
   const inputRef = React.useRef<HTMLInputElement | null>(null)
   const doneRef = React.useRef(false)
@@ -51,7 +61,7 @@ function TileRenameInput({
     <input
       ref={inputRef}
       value={value}
-      aria-label="重命名文件夹"
+      aria-label={t('browserAssets.renameFolder')}
       className={cn(
         'w-full min-w-0 rounded-nomi-sm border border-nomi-accent bg-nomi-paper px-1 py-0.5',
         'text-caption font-medium leading-[1.2] text-nomi-ink outline-none',
@@ -138,13 +148,6 @@ function FolderShape({ selected }: { selected: boolean }): JSX.Element {
   )
 }
 
-function getAssetTypeLabel(asset: NomiBrowserAsset): string {
-  if (asset.type === 'folder') return '文件夹'
-  if (asset.type === 'image') return '图片'
-  if (asset.type === 'video') return '视频'
-  return '提示词'
-}
-
 function renderAssetFallbackIcon(asset: NomiBrowserAsset, size = 26): JSX.Element {
   if (asset.type === 'folder') return <IconFolder size={size} stroke={1.7} />
   if (asset.type === 'image') return <IconPhoto size={size} stroke={1.5} />
@@ -155,7 +158,9 @@ function renderAssetFallbackIcon(asset: NomiBrowserAsset, size = 26): JSX.Elemen
 function renderAssetPreview(asset: NomiBrowserAsset, className: string): JSX.Element | null {
   if (asset.previewUrl) {
     if (asset.type === 'video' || asset.previewMediaType === 'video') {
-      return <video src={asset.previewUrl} muted playsInline preload="metadata" draggable={false} className={className} />
+      return (
+        <video src={asset.previewUrl} muted playsInline preload="metadata" draggable={false} className={className} />
+      )
     }
     return <img src={asset.previewUrl} alt="" draggable={false} className={className} />
   }
@@ -179,6 +184,7 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
   onRenameCommit,
   onRenameCancel,
 }: AssetTileProps): JSX.Element {
+  const { t } = useTranslation()
   const hasVisualPreview = Boolean(asset.preview || asset.previewUrl)
   const isFolder = asset.type === 'folder'
   const folderHasPreview = isFolder && hasVisualPreview && (asset.count ?? 0) > 0
@@ -186,7 +192,15 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
   const failed = asset.status === 'error'
   const isPromptCard = Boolean(asset.promptCard)
   const subtitle = browserAssetDisplaySubtitle(asset)
-  const listMeta = isFolder ? '文件夹' : asset.duration || getAssetTypeLabel(asset)
+  const assetTypeLabel =
+    asset.type === 'folder'
+      ? t('browserAssets.folder')
+      : asset.type === 'image'
+        ? t('browserAssets.image')
+        : asset.type === 'video'
+          ? t('browserAssets.video')
+          : t('browserAssets.prompt')
+  const listMeta = isFolder ? t('browserAssets.folder') : asset.duration || assetTypeLabel
   const isVideo = asset.type === 'video' || asset.previewMediaType === 'video'
 
   const commonProps = {
@@ -243,7 +257,7 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
             ? renderAssetPreview(asset, 'absolute inset-0 block size-full object-contain pointer-events-none')
             : renderAssetFallbackIcon(asset, 17)}
           {loading ? (
-              <span className="absolute inset-0 grid place-items-center bg-nomi-paper/70">
+            <span className="absolute inset-0 grid place-items-center bg-nomi-paper/70">
               <span className="size-3.5 animate-spin rounded-pill border-2 border-nomi-ink-20 border-t-nomi-accent" />
             </span>
           ) : null}
@@ -260,7 +274,12 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
         </span>
         <span className="min-w-0 flex-1">
           {renaming ? (
-            <TileRenameInput initialTitle={asset.title} className="text-body-sm" onCommit={onRenameCommit} onCancel={onRenameCancel} />
+            <TileRenameInput
+              initialTitle={asset.title}
+              className="text-body-sm"
+              onCommit={onRenameCommit}
+              onCancel={onRenameCancel}
+            />
           ) : (
             <span
               className={cn(
@@ -271,7 +290,12 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
               {asset.title}
             </span>
           )}
-          <span className={cn('mt-0.5 block truncate text-micro leading-none', failed ? 'text-workbench-danger' : 'text-nomi-ink-40')}>
+          <span
+            className={cn(
+              'mt-0.5 block truncate text-micro leading-none',
+              failed ? 'text-workbench-danger' : 'text-nomi-ink-40',
+            )}
+          >
             {subtitle}
           </span>
         </span>
@@ -319,9 +343,7 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
               : 'border-nomi-line group-hover:border-nomi-ink-20',
           )}
         >
-          {asset.previewUrl
-            ? renderAssetPreview(asset, 'absolute inset-0 block size-full object-contain')
-            : null}
+          {asset.previewUrl ? renderAssetPreview(asset, 'absolute inset-0 block size-full object-contain') : null}
           {asset.preview && !asset.previewUrl && !loading ? (
             <div className="absolute inset-0" style={{ background: asset.preview }} />
           ) : null}
@@ -333,7 +355,7 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
           {loading ? (
             <div
               className="absolute inset-0 grid place-items-center bg-nomi-paper/70 text-nomi-ink-40 backdrop-blur-[1px]"
-              aria-label={isPromptCard ? '提取中' : '下载中'}
+              aria-label={isPromptCard ? t('browserAssets.extracting') : t('browserAssets.downloading')}
             >
               <span
                 className="size-5 animate-spin rounded-pill border-2 border-nomi-ink-20 border-t-nomi-accent"
@@ -350,13 +372,11 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
               )}
             </div>
           ) : null}
-          {isVideo ? (
-            <span className="absolute inset-0 bg-[oklch(0.2_0.01_80/0.16)]" aria-hidden="true" />
-          ) : null}
+          {isVideo ? <span className="absolute inset-0 bg-[oklch(0.2_0.01_80/0.16)]" aria-hidden="true" /> : null}
           {isVideo && !failed ? (
             <span className="absolute right-1 top-1 inline-flex h-4 items-center gap-0.5 rounded-pill bg-nomi-accent px-1 text-micro font-semibold leading-none text-nomi-paper shadow-nomi-sm ring-1 ring-nomi-paper/80">
               <IconPlayerPlayFilled size={9} aria-hidden="true" />
-              视频
+              {t('browserAssets.video')}
             </span>
           ) : null}
           {asset.duration ? (
@@ -384,11 +404,7 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
             {asset.title}
           </div>
         )}
-        {!isFolder ? (
-          <div className="mt-1 truncate text-micro leading-none text-nomi-ink-40">
-            {subtitle}
-          </div>
-        ) : null}
+        {!isFolder ? <div className="mt-1 truncate text-micro leading-none text-nomi-ink-40">{subtitle}</div> : null}
       </div>
     </div>
   )
@@ -402,6 +418,7 @@ export const BrowserAssetFilterPopover = React.memo(function BrowserAssetFilterP
   onSelectTab,
   onShowAll,
 }: FilterPopoverProps): JSX.Element {
+  const { t } = useTranslation()
   return (
     <div
       ref={setNodeRef}
@@ -410,10 +427,10 @@ export const BrowserAssetFilterPopover = React.memo(function BrowserAssetFilterP
         'bg-nomi-paper p-2 shadow-nomi-lg',
       )}
       role="dialog"
-      aria-label="素材分类筛选"
+      aria-label={t('browserAssets.assetCategoryFilter')}
     >
       <div className="mb-1 flex h-7 items-center justify-between px-1.5">
-        <span className="text-micro font-semibold uppercase text-nomi-ink-40">显示</span>
+        <span className="text-micro font-semibold uppercase text-nomi-ink-40">{t('browserAssets.show')}</span>
         <button
           type="button"
           className={cn(
@@ -422,10 +439,10 @@ export const BrowserAssetFilterPopover = React.memo(function BrowserAssetFilterP
           )}
           onClick={onShowAll}
         >
-          显示全部
+          {t('browserAssets.showAll')}
         </button>
       </div>
-      <div className="grid gap-0.5" role="listbox" aria-label="素材分类">
+      <div className="grid gap-0.5" role="listbox" aria-label={t('browserAssets.assetCategories')}>
         {tabs
           .filter((tab) => tab.key !== 'all' && tab.key !== 'prompt')
           .map((tab) => {
@@ -449,21 +466,21 @@ export const BrowserAssetFilterPopover = React.memo(function BrowserAssetFilterP
                   active && 'bg-nomi-accent-soft font-semibold text-nomi-accent',
                 )}
                 onClick={() => onSelectTab(tab.key)}
+              >
+                <Icon size={15} stroke={1.8} aria-hidden="true" />
+                <span className="min-w-0 truncate">{tab.label}</span>
+                <span
+                  className={cn(
+                    'justify-self-end rounded-nomi-sm px-1.5 py-0.5 text-micro leading-none tabular-nums',
+                    active
+                      ? 'bg-nomi-paper text-nomi-accent'
+                      : disabled
+                        ? 'text-nomi-ink-30'
+                        : 'bg-nomi-ink-05 text-nomi-ink-40',
+                  )}
                 >
-                  <Icon size={15} stroke={1.8} aria-hidden="true" />
-                  <span className="min-w-0 truncate">{tab.label}</span>
-                  <span
-                    className={cn(
-                      'justify-self-end rounded-nomi-sm px-1.5 py-0.5 text-micro leading-none tabular-nums',
-                      active
-                        ? 'bg-nomi-paper text-nomi-accent'
-                        : disabled
-                          ? 'text-nomi-ink-30'
-                          : 'bg-nomi-ink-05 text-nomi-ink-40',
-                    )}
-                  >
-                    {count}
-                  </span>
+                  {count}
+                </span>
               </button>
             )
           })}
@@ -481,6 +498,7 @@ export const BrowserPromptCategoryFilterPopover = React.memo(function BrowserPro
   onAddCategory,
   onShowAll,
 }: PromptCategoryFilterPopoverProps): JSX.Element {
+  const { t } = useTranslation()
   const [draft, setDraft] = React.useState('')
   const [adding, setAdding] = React.useState(false)
   const inputRef = React.useRef<HTMLInputElement | null>(null)
@@ -490,14 +508,17 @@ export const BrowserPromptCategoryFilterPopover = React.memo(function BrowserPro
     inputRef.current?.focus()
   }, [adding])
 
-  const submit = React.useCallback((event: React.FormEvent<HTMLFormElement>): void => {
-    event.preventDefault()
-    const label = draft.trim()
-    if (!label) return
-    onAddCategory(label)
-    setDraft('')
-    setAdding(false)
-  }, [draft, onAddCategory])
+  const submit = React.useCallback(
+    (event: React.FormEvent<HTMLFormElement>): void => {
+      event.preventDefault()
+      const label = draft.trim()
+      if (!label) return
+      onAddCategory(label)
+      setDraft('')
+      setAdding(false)
+    },
+    [draft, onAddCategory],
+  )
 
   return (
     <div
@@ -507,10 +528,12 @@ export const BrowserPromptCategoryFilterPopover = React.memo(function BrowserPro
         'bg-nomi-paper p-2 shadow-nomi-lg',
       )}
       role="dialog"
-      aria-label="提示词分类筛选"
+      aria-label={t('browserAssets.promptCategoryFilter')}
     >
       <div className="mb-1 flex h-7 items-center justify-between px-1.5">
-        <span className="text-micro font-semibold uppercase text-nomi-ink-40">提示词分类</span>
+        <span className="text-micro font-semibold uppercase text-nomi-ink-40">
+          {t('browserAssets.promptCategories')}
+        </span>
         <button
           type="button"
           className={cn(
@@ -519,10 +542,10 @@ export const BrowserPromptCategoryFilterPopover = React.memo(function BrowserPro
           )}
           onClick={onShowAll}
         >
-          显示全部
+          {t('browserAssets.showAll')}
         </button>
       </div>
-      <div className="grid gap-0.5" role="listbox" aria-label="提示词分类">
+      <div className="grid gap-0.5" role="listbox" aria-label={t('browserAssets.promptCategories')}>
         {categories.map((category) => {
           const count = counts.get(category.id) ?? 0
           const active = activeCategoryId === category.id
@@ -568,7 +591,7 @@ export const BrowserPromptCategoryFilterPopover = React.memo(function BrowserPro
             ref={inputRef}
             className="min-w-0 flex-1 rounded-nomi-sm border border-nomi-line bg-nomi-bg px-2 py-1 text-caption text-nomi-ink outline-none"
             value={draft}
-            placeholder="输入分类名称"
+            placeholder={t('browserAssets.categoryNamePlaceholder')}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               if (event.key !== 'Escape') return
@@ -580,7 +603,7 @@ export const BrowserPromptCategoryFilterPopover = React.memo(function BrowserPro
           <button
             type="submit"
             className="grid size-7 place-items-center rounded-nomi-sm border-0 bg-nomi-ink-05 text-nomi-ink-60 hover:bg-nomi-accent-soft hover:text-nomi-accent"
-            aria-label="确认添加提示词分类"
+            aria-label={t('browserAssets.confirmAddPromptCategory')}
           >
             <IconPlus size={15} stroke={1.8} aria-hidden="true" />
           </button>
@@ -596,7 +619,7 @@ export const BrowserPromptCategoryFilterPopover = React.memo(function BrowserPro
           onClick={() => setAdding(true)}
         >
           <IconPlus size={15} stroke={1.8} aria-hidden="true" />
-          <span>添加分类</span>
+          <span>{t('browserAssets.addCategory')}</span>
         </button>
       )}
     </div>
