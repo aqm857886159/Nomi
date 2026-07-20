@@ -328,6 +328,32 @@ export const zhGenerationCommon = {
     enter: '进入全景',
     preview: '全景预览',
   },
+  batchPlan: {
+    waveTitle: '第 {{wave}} 波执行',
+    summary: '执行计划 · {{count}} 个节点 · {{waves}} 波',
+    firstWave: '第 1 波 {{count}} 个并行，确认前不调用不扣费',
+    blocked: ' · {{count}} 个被拦（看 ⚠）',
+    cancel: '取消',
+    generate: '按计划生成',
+  },
+  selection: {
+    aria: '选中区域操作',
+    count: '已选 {{count}} 个',
+    generateHint: '生成选中节点（参考先生成、镜头后生成；缺参考的会提示先生成参考卡）',
+    generate: '生成 {{count}} 个',
+    ungroup: '解除分组 (⇧⌘G)',
+    group: '创建分组 (⌘G)',
+    clear: '清除选择',
+  },
+  savePrompt: {
+    saved: '已保存到素材盒提示词库',
+    title: '保存提示词',
+    removeReference: '移除参考图',
+    type: '提示词类型',
+    selectedText: '选中文字',
+    cancel: '取消',
+    save: '保存',
+  },
 } as const
 
 type TranslationShape<T> = {
@@ -671,5 +697,32 @@ export const enGenerationCommon = {
     enterAria: 'Open panorama preview',
     enter: 'Open panorama',
     preview: 'Panorama preview',
+  },
+  batchPlan: {
+    waveTitle: 'Run in wave {{wave}}',
+    summary: 'Execution plan · {{count}} nodes · {{waves}} waves',
+    firstWave: 'Wave 1 runs {{count}} in parallel. Nothing is called or charged before confirmation.',
+    blocked: ' · {{count}} blocked (see ⚠)',
+    cancel: 'Cancel',
+    generate: 'Generate as planned',
+  },
+  selection: {
+    aria: 'Selected area actions',
+    count: '{{count}} selected',
+    generateHint:
+      'Generate selected nodes in dependency order; references run before shots and missing references are flagged',
+    generate: 'Generate {{count}}',
+    ungroup: 'Ungroup (⇧⌘G)',
+    group: 'Create group (⌘G)',
+    clear: 'Clear selection',
+  },
+  savePrompt: {
+    saved: 'Saved to the asset-box prompt library',
+    title: 'Save prompt',
+    removeReference: 'Remove reference image',
+    type: 'Prompt type',
+    selectedText: 'Selected text',
+    cancel: 'Cancel',
+    save: 'Save',
   },
 } satisfies TranslationShape<typeof zhGenerationCommon>
