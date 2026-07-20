@@ -14,10 +14,7 @@ import {
   type BrowserAssetRemoteImportInput,
 } from '../popover/NomiBrowserAssetPopover'
 import { subscribeBrowserAssetPopoverOpen } from '../overlay/globalAssetPopoverEvents'
-import {
-  BROWSER_PROMPT_EXTRACTION_MODE_LABELS,
-  type BrowserPromptExtractionMode,
-} from '../prompt/browserPromptExtraction'
+import type { BrowserPromptExtractionMode } from '../prompt/browserPromptExtraction'
 import type { NomiBrowserAsset } from '../assets/browserAssetData'
 import { saveBrowserPromptCard } from '../assets/browserAssetLibraryStorage'
 import type { FloatingWindowBoundsRect } from '../window/useResizableFloatingWindow'
@@ -442,13 +439,13 @@ export function useBrowserDialogActions({
             items: [
               {
                 id: 'replicate',
-                label: BROWSER_PROMPT_EXTRACTION_MODE_LABELS.replicate,
-                description: '还原主体、构图、光影和细节',
+                label: t('browserAssets.extraction.replicate'),
+                description: t('browserAssets.extraction.replicateDescription'),
               },
               {
                 id: 'style',
-                label: BROWSER_PROMPT_EXTRACTION_MODE_LABELS.style,
-                description: '提取配色、字体、构图、效果 JSON',
+                label: t('browserAssets.extraction.style'),
+                description: t('browserAssets.extraction.styleDescription'),
               },
             ],
           })

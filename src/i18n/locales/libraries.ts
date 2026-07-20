@@ -124,6 +124,18 @@ export const zhLibraries = {
     noNodes: '暂无节点',
     subgroupName: '子组名称',
     emptyGroup: '空组',
+    nodeKindShort: {
+      text: '文',
+      character: '角',
+      scene: '景',
+      image: '图',
+      keyframe: '帧',
+      video: '影',
+      shot: '镜',
+      output: '出',
+      panorama: '全',
+      fallback: '节',
+    },
   },
 } as const
 
@@ -258,5 +270,17 @@ export const enLibraries = {
     noNodes: 'No nodes',
     subgroupName: 'Subgroup name',
     emptyGroup: 'Empty group',
+    nodeKindShort: {
+      text: 'T',
+      character: 'Ch',
+      scene: 'Sc',
+      image: 'Im',
+      keyframe: 'KF',
+      video: 'V',
+      shot: 'Sh',
+      output: 'O',
+      panorama: 'P',
+      fallback: 'N',
+    },
   },
 } satisfies TranslationShape<typeof zhLibraries>

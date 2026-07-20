@@ -3,17 +3,17 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 
-const NODE_KIND_LABEL: Partial<Record<GenerationCanvasNode['kind'], string>> = {
-  text: '文',
-  character: '角',
-  scene: '景',
-  image: '图',
-  keyframe: '帧',
-  video: '影',
-  shot: '镜',
-  output: '出',
-  panorama: '全',
-}
+const SHORT_LABEL_KINDS = new Set<GenerationCanvasNode['kind']>([
+  'text',
+  'character',
+  'scene',
+  'image',
+  'keyframe',
+  'video',
+  'shot',
+  'output',
+  'panorama',
+])
 
 type Props = {
   node: GenerationCanvasNode
@@ -25,6 +25,7 @@ type Props = {
 
 export default function NodeItem({ node, active = false, depth = 0, onSelect, onContextMenu }: Props): JSX.Element {
   const { t } = useTranslation()
+  const shortKind = SHORT_LABEL_KINDS.has(node.kind) ? node.kind : 'fallback'
   const handleDragStart = React.useCallback(
     (event: React.DragEvent<HTMLButtonElement>) => {
       event.dataTransfer.setData('application/x-nomi-node-id', node.id)
@@ -58,7 +59,7 @@ export default function NodeItem({ node, active = false, depth = 0, onSelect, on
         className="grid place-items-center h-4 w-4 shrink-0 rounded-nomi-sm bg-nomi-ink-05 text-micro text-nomi-ink-40"
         aria-hidden
       >
-        {NODE_KIND_LABEL[node.kind] || '节'}
+        {t(`libraries.sidebar.nodeKindShort.${shortKind}`)}
       </span>
       <span className="min-w-0 flex-1 truncate">{node.title || node.id}</span>
       {node.derivedFrom ? (

@@ -34,6 +34,10 @@ export default function CategoryItem({
   onContextMenu,
 }: Props): JSX.Element {
   const { t } = useTranslation()
+  const builtinCategoryIds = new Set(['shots', 'cast', 'scene', 'prop', 'audio'])
+  const displayName = builtinCategoryIds.has(category.id)
+    ? t(`libraries.sidebar.builtinCategory.${category.id}`)
+    : category.name
   const [dragOver, setDragOver] = React.useState(false)
   const settledRef = React.useRef(false)
   React.useEffect(() => {
@@ -78,7 +82,7 @@ export default function CategoryItem({
         <Icon size={16} stroke={1.5} className="shrink-0" aria-hidden />
         <input
           autoFocus
-          defaultValue={category.name}
+          defaultValue={displayName}
           aria-label={t('sidebar.categoryName')}
           onFocus={(event) => event.currentTarget.select()}
           onClick={(event) => event.stopPropagation()}
@@ -113,7 +117,7 @@ export default function CategoryItem({
       onDrop={handleDrop}
       data-category-id={category.id}
       data-active={active ? 'true' : 'false'}
-      title={collapsed ? `${category.name} (${count})` : undefined}
+      title={collapsed ? `${displayName} (${count})` : undefined}
       className={cn(
         'w-full flex items-center gap-2 px-2 py-1.5 text-left rounded-nomi-sm transition-colors',
         'text-caption leading-tight border border-transparent',
@@ -134,14 +138,14 @@ export default function CategoryItem({
       {collapsed ? (
         count > 0 ? (
           <span className="sr-only">
-            {category.name} ({count})
+            {displayName} ({count})
           </span>
         ) : (
-          <span className="sr-only">{category.name}</span>
+          <span className="sr-only">{displayName}</span>
         )
       ) : (
         <>
-          <span className="flex-1 truncate">{category.name}</span>
+          <span className="flex-1 truncate">{displayName}</span>
           {count > 0 ? <span className="text-micro text-nomi-ink-40 tabular-nums">{count}</span> : null}
         </>
       )}

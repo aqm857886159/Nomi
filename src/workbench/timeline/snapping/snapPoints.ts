@@ -1,5 +1,6 @@
 import type { TimelineState } from '../timelineTypes'
 import type { SnapPoint } from './snapTypes'
+import i18n from '../../../i18n'
 
 export type BuildSnapPointsOptions = {
   /** 拖动中的 clip 自身（及成组成员）不作为吸附目标。 */
@@ -17,18 +18,32 @@ export type BuildSnapPointsOptions = {
  */
 export function buildSnapPoints(timeline: TimelineState, options: BuildSnapPointsOptions = {}): SnapPoint[] {
   const exclude = options.excludeClipIds ?? new Set<string>()
-  const points: SnapPoint[] = [{ frame: 0, type: 'origin', label: '起点' }]
+  const points: SnapPoint[] = [{ frame: 0, type: 'origin', label: i18n.t('timelineEditor.snap.start') }]
 
   if (options.includePlayhead !== false) {
-    points.push({ frame: timeline.playheadFrame, type: 'playhead', label: '播放头' })
+    points.push({
+      frame: timeline.playheadFrame,
+      type: 'playhead',
+      label: i18n.t('timelineEditor.snap.playhead'),
+    })
   }
 
   for (const track of timeline.tracks) {
     for (const clip of track.clips) {
       if (exclude.has(clip.id)) continue
-      const name = clip.label || clip.text || '片段'
-      points.push({ frame: clip.startFrame, type: 'clipStart', label: `${name}头`, clipId: clip.id })
-      points.push({ frame: clip.endFrame, type: 'clipEnd', label: `${name}尾`, clipId: clip.id })
+      const name = clip.label || clip.text || i18n.t('timelineEditor.snap.clip')
+      points.push({
+        frame: clip.startFrame,
+        type: 'clipStart',
+        label: i18n.t('timelineEditor.snap.clipStart', { clip: name }),
+        clipId: clip.id,
+      })
+      points.push({
+        frame: clip.endFrame,
+        type: 'clipEnd',
+        label: i18n.t('timelineEditor.snap.clipEnd', { clip: name }),
+        clipId: clip.id,
+      })
     }
   }
 

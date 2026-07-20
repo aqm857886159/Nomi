@@ -4,7 +4,7 @@ import type { BrowserAssetCanvasImportItem } from '../overlay/globalAssetPopover
 import type { BrowserAssetLibraryState } from '../assets/browserAssetLibraryStorage'
 import type { NomiBrowserAsset } from '../assets/browserAssetData'
 import type { BrowserPromptExtractionMode } from '../prompt/browserPromptExtraction'
-import { BROWSER_PROMPT_EXTRACTION_MODE_LABELS } from '../prompt/browserPromptExtraction'
+import { browserPromptExtractionModeLabel } from '../prompt/browserPromptExtraction'
 import type {
   AssetPopoverDockMode,
   BrowserAssetPromptCaptureRequest,
@@ -28,7 +28,11 @@ import {
   PROMPT_MASONRY_MAX_COLUMNS,
   PROMPT_MASONRY_MIN_COLUMN_WIDTH,
 } from './browserAssetPopoverConstants'
-import { FLOATING_WINDOW_MIN_WIDTH, type FloatingWindowBoundsRect, type FloatingWindowRect } from '../window/useResizableFloatingWindow'
+import {
+  FLOATING_WINDOW_MIN_WIDTH,
+  type FloatingWindowBoundsRect,
+  type FloatingWindowRect,
+} from '../window/useResizableFloatingWindow'
 
 export function clampNumber(value: number, min: number, max: number): number {
   if (max < min) return min
@@ -174,7 +178,10 @@ function browserAssetLibraryHasDesktopAsset(asset: DesktopAssetDto, libraryState
   )
 }
 
-export function shouldShowDesktopAssetInBrowserPopover(asset: DesktopAssetDto, libraryState?: BrowserAssetLibraryState): boolean {
+export function shouldShowDesktopAssetInBrowserPopover(
+  asset: DesktopAssetDto,
+  libraryState?: BrowserAssetLibraryState,
+): boolean {
   const kind = typeof asset.data.kind === 'string' ? asset.data.kind : ''
   if (asset.data.ownerNodeId) return false
   if (kind === 'browser-capture') return true
@@ -233,14 +240,22 @@ function promptTextFromBrowserAsset(asset: NomiBrowserAsset): string {
 export function browserAssetToCanvasImportItem(asset: NomiBrowserAsset): BrowserAssetCanvasImportItem | null {
   if (asset.type === 'folder' || asset.status === 'loading' || asset.status === 'error') return null
   if (asset.type === 'prompt') {
-    return { id: asset.id, type: 'prompt', title: asset.title, subtitle: asset.subtitle, prompt: promptTextFromBrowserAsset(asset) }
+    return {
+      id: asset.id,
+      type: 'prompt',
+      title: asset.title,
+      subtitle: asset.subtitle,
+      prompt: promptTextFromBrowserAsset(asset),
+    }
   }
   const previewUrl = asset.previewUrl?.trim()
   if (!previewUrl) return null
   return { id: asset.id, type: asset.type, title: asset.title, subtitle: asset.subtitle, previewUrl }
 }
 
-export function isBrowserAssetCanvasImportItem(asset: BrowserAssetCanvasImportItem | null): asset is BrowserAssetCanvasImportItem {
+export function isBrowserAssetCanvasImportItem(
+  asset: BrowserAssetCanvasImportItem | null,
+): asset is BrowserAssetCanvasImportItem {
   return Boolean(asset)
 }
 
@@ -266,7 +281,10 @@ export function upsertBrowserAsset(current: readonly NomiBrowserAsset[], asset: 
 }
 
 function firstUsableImageUrlFromText(text: string): string {
-  const candidates = text.split(/\r?\n/).map((line) => line.trim()).filter((line) => line && !line.startsWith('#'))
+  const candidates = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'))
   for (const candidate of candidates) {
     if (/^(https?:\/\/|data:image\/)/i.test(candidate)) return candidate
   }
@@ -285,7 +303,12 @@ function mediaUrlFromHtml(html: string): { url: string; title?: string; mediaTyp
     const doc = new DOMParser().parseFromString(html, 'text/html')
     const image = doc.querySelector('img')
     const imageUrl = image?.getAttribute('src') || image?.getAttribute('data-src') || ''
-    if (imageUrl) return { url: imageUrl, title: image?.getAttribute('alt') || image?.getAttribute('title') || undefined, mediaType: 'image' }
+    if (imageUrl)
+      return {
+        url: imageUrl,
+        title: image?.getAttribute('alt') || image?.getAttribute('title') || undefined,
+        mediaType: 'image',
+      }
     const video = doc.querySelector('video')
     const videoUrl = video?.getAttribute('src') || video?.querySelector('source')?.getAttribute('src') || ''
     if (videoUrl) return { url: videoUrl, title: video?.getAttribute('title') || undefined, mediaType: 'video' }
@@ -317,24 +340,37 @@ export function readBrowserImageDragPayload(dataTransfer: DataTransfer): Browser
       const parsed = JSON.parse(customPayload) as { url?: unknown; title?: unknown; mediaType?: unknown }
       const url = typeof parsed.url === 'string' ? parsed.url.trim() : ''
       if (url) {
-        const mediaType = parsed.mediaType === 'video' || parsed.mediaType === 'image'
-          ? parsed.mediaType
-          : mediaTypeFromRemoteUrl(url)
-        return { url, title: typeof parsed.title === 'string' ? parsed.title.trim() || undefined : undefined, fileName: fileNameFromRemoteAssetUrl(url), mediaType }
+        const mediaType =
+          parsed.mediaType === 'video' || parsed.mediaType === 'image' ? parsed.mediaType : mediaTypeFromRemoteUrl(url)
+        return {
+          url,
+          title: typeof parsed.title === 'string' ? parsed.title.trim() || undefined : undefined,
+          fileName: fileNameFromRemoteAssetUrl(url),
+          mediaType,
+        }
       }
     } catch {
       // Ignore malformed drag payloads and fall back to standard browser data.
     }
   }
   const uriListUrl = firstUsableImageUrlFromText(dataTransfer.getData('text/uri-list'))
-  if (uriListUrl) return { url: uriListUrl, fileName: fileNameFromRemoteAssetUrl(uriListUrl), mediaType: mediaTypeFromRemoteUrl(uriListUrl) }
+  if (uriListUrl)
+    return {
+      url: uriListUrl,
+      fileName: fileNameFromRemoteAssetUrl(uriListUrl),
+      mediaType: mediaTypeFromRemoteUrl(uriListUrl),
+    }
   const htmlMedia = mediaUrlFromHtml(dataTransfer.getData('text/html'))
   if (htmlMedia) return { ...htmlMedia, fileName: fileNameFromRemoteAssetUrl(htmlMedia.url) }
   const plainUrl = firstUsableImageUrlFromText(dataTransfer.getData('text/plain'))
-  return plainUrl ? { url: plainUrl, fileName: fileNameFromRemoteAssetUrl(plainUrl), mediaType: mediaTypeFromRemoteUrl(plainUrl) } : null
+  return plainUrl
+    ? { url: plainUrl, fileName: fileNameFromRemoteAssetUrl(plainUrl), mediaType: mediaTypeFromRemoteUrl(plainUrl) }
+    : null
 }
 
-export function promptReferenceImagesFromRequest(request: BrowserAssetPromptCaptureRequest): BrowserAssetPromptReference[] {
+export function promptReferenceImagesFromRequest(
+  request: BrowserAssetPromptCaptureRequest,
+): BrowserAssetPromptReference[] {
   const fromRequest = Array.isArray(request.referenceImages)
     ? request.referenceImages.reduce<BrowserAssetPromptReference[]>((items, reference) => {
         const url = reference.url.trim()
@@ -352,18 +388,21 @@ export function promptReferenceImagesFromRequest(request: BrowserAssetPromptCapt
   return sourceUrl ? [{ url: sourceUrl, title: request.title, sourceUrl }] : []
 }
 
-export function promptExtractionModeFromRequest(request: BrowserAssetPromptCaptureRequest): BrowserPromptExtractionMode {
+export function promptExtractionModeFromRequest(
+  request: BrowserAssetPromptCaptureRequest,
+): BrowserPromptExtractionMode {
   return request.extractionMode === 'style' ? 'style' : 'replicate'
 }
 
 function promptExtractionModeLabel(mode: BrowserPromptExtractionMode): string {
-  return BROWSER_PROMPT_EXTRACTION_MODE_LABELS[mode]
+  return browserPromptExtractionModeLabel(mode)
 }
 
 function promptAssetTitle(request: BrowserAssetPromptCaptureRequest, promptTitle?: string): string {
   const title = (promptTitle || request.title || request.pageTitle || '').trim()
   if (title) return title.slice(0, 48)
-  if (promptExtractionModeFromRequest(request) === 'style') return request.sourceType === 'screenshot' ? '网页截图风格' : '画面风格'
+  if (promptExtractionModeFromRequest(request) === 'style')
+    return request.sourceType === 'screenshot' ? '网页截图风格' : '画面风格'
   return request.sourceType === 'screenshot' ? '网页截图提示词' : '图片提示词'
 }
 

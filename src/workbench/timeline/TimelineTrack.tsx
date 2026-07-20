@@ -21,6 +21,12 @@ type TimelineTrackProps = {
 
 function TimelineTrack({ track, variant = 'primary' }: TimelineTrackProps): JSX.Element {
   const { t } = useTranslation()
+  const displayTrackLabel =
+    track.type === 'image'
+      ? t('timelineEditor.track.imageLabel')
+      : track.type === 'video'
+        ? t('timelineEditor.track.videoLabel')
+        : t('timelineEditor.track.audioLabel')
   const secondary = variant === 'secondary'
   // 只订阅渲染真正用到的 scale/fps，**不订阅整条 timeline**：播放推进每帧换 timeline 引用，
   // 订阅整条会让本轨道（连同所有 clip）每帧重渲；playhead 由独立 overlay 订阅 playheadFrame。
@@ -149,7 +155,7 @@ function TimelineTrack({ track, variant = 'primary' }: TimelineTrackProps): JSX.
             'min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap',
           )}
         >
-          {track.label}
+          {displayTrackLabel}
         </span>
         <span
           className={cn(

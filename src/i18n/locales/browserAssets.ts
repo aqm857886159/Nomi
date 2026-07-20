@@ -85,6 +85,8 @@ export const zhBrowserAssets = {
     style: '画面风格',
     replicateDescription: '还原主体、构图、光影和细节',
     styleDescription: '提取配色、字体、构图、效果 JSON',
+    unnamedTemplate: '未命名模板',
+    imagePrompt: '图片提示词',
     customTemplate: '自定义{{mode}}',
     settings: '提示词提取设置',
     settingsPath: '保存到当前项目 .nomi/browser-prompt-extraction.json',
@@ -109,7 +111,6 @@ export const zhBrowserAssets = {
     currentTextModel: '当前文本模型',
     copied: '已复制',
     copy: '复制',
-    imagePrompt: '图片提示词',
     videoPrompt: '视频提示词',
   },
 } as const
@@ -205,6 +206,8 @@ export const enBrowserAssets = {
     style: 'Extract style',
     replicateDescription: 'Recreate the subject, composition, lighting, and details',
     styleDescription: 'Extract color, typography, composition, and effects as JSON',
+    unnamedTemplate: 'Untitled template',
+    imagePrompt: 'Image prompt',
     customTemplate: 'Custom {{mode}}',
     settings: 'Prompt extraction settings',
     settingsPath: 'Saved to .nomi/browser-prompt-extraction.json in the current project',
@@ -229,7 +232,6 @@ export const enBrowserAssets = {
     currentTextModel: 'Current text model',
     copied: 'Copied',
     copy: 'Copy',
-    imagePrompt: 'Image prompt',
     videoPrompt: 'Video prompt',
   },
 } satisfies TranslationShape<typeof zhBrowserAssets>

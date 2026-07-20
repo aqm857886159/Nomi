@@ -125,6 +125,64 @@ export const zhGenerationCommon = {
     modelAccess: '去模型接入',
     technicalDetails: '技术详情',
   },
+  observability: {
+    progress: {
+      queued: '准备生成',
+      resolving: '正在确认模型与参数',
+      requesting: '正在把任务发给模型',
+      waiting: '模型已接单，排队中',
+      generating: '正在生成',
+      generatingElapsed: '正在生成，已等 {{seconds}} 秒',
+      stillGenerating: '仍在生成 · 已超常规时长',
+      stillGeneratingElapsed: '仍在生成 · 已超常规时长（已等 {{minutes}} 分钟）',
+      retrying: '网络波动，正在重试',
+      retryingAttempt: '网络波动，正在重试（{{attempt}}/{{maxAttempts}}）',
+      finalizing: '正在保存结果',
+    },
+    error: {
+      auth: { reason: 'API Key 无效', hint: '请在「模型接入」页检查这个模型的 API Key。' },
+      balance: {
+        reason: '余额不足',
+        hint: '服务商账户余额不足，请到服务商充值后重试，或在「模型接入」换一个模型。',
+      },
+      quota: {
+        reason: '配额或限流',
+        hint: '服务商配额已用尽或触发限流，请稍后重试，或在「模型接入」换一个模型。',
+      },
+      pollTimeout: {
+        reason: '生成超时',
+        hint: '视频生成较慢，等待超过上限。任务可能仍在进行，请稍后重新生成，或换更快的模型（如 Seedance Fast）。',
+      },
+      network: { reason: '网络超时', hint: '网络问题，请检查网络后重试。' },
+      modelConfig: { reason: '模型未配置', hint: '这个模型没配好，请去「模型接入」页设置。' },
+      modelNotOpen: {
+        reason: '模型未开通',
+        hint: '这个模型你的服务商账户还没开通。请到服务商控制台开通它（火山方舟：在 Ark 控制台「开通管理」激活对应模型），或在「模型接入」换一个已开通的模型。',
+      },
+      accountGate: {
+        reason: '账号权限不足',
+        hint: '这个模型需要更高的账号档位才能用——按下方「服务商原话」开通对应会员 / 换企业级 API Key / 先在服务商网页端完成授权；也可在「模型接入」换一个能用的模型。',
+      },
+      contentPolicy: { reason: '提示词被拦截', hint: '提示词触发了安全策略，请修改后重试。' },
+      server: { reason: '服务商故障', hint: '服务商服务异常，请稍后重试，或换一个模型。' },
+      input: {
+        reason: '参数不被接受',
+        hint: '服务商拒绝了请求参数，请检查比例/尺寸等设置，或换一个模型。',
+      },
+      outputTruncated: {
+        reason: '输出超长被截断',
+        hint: '这一轮要返回的内容超过了模型的单轮输出上限，原样重试只会再次截断。请缩短这轮任务（如剧本分段拆镜头、减少镜头数），或换单轮输出上限更大的模型。',
+      },
+      unknown: {
+        reason: '生成失败',
+        hint: '可能是服务商临时故障或额度问题，建议稍等重试，或换一个模型。',
+      },
+      webMedia: {
+        reason: '网页媒体下载失败',
+        hint: '部分站点会禁止跨域请求或开启防盗链。请先在浏览器中把图片/视频下载到本地，再复制或拖入画布。',
+      },
+    },
+  },
   imageToolbar: {
     aria: '图片操作',
     fullscreen: '全屏预览',
@@ -832,6 +890,67 @@ export const enGenerationCommon = {
     retry: 'Retry',
     modelAccess: 'Open model access',
     technicalDetails: 'Technical details',
+  },
+  observability: {
+    progress: {
+      queued: 'Preparing generation',
+      resolving: 'Checking the model and parameters',
+      requesting: 'Sending the task to the model',
+      waiting: 'The model accepted the task and queued it',
+      generating: 'Generating',
+      generatingElapsed: 'Generating · {{seconds}}s elapsed',
+      stillGenerating: 'Still generating · Taking longer than usual',
+      stillGeneratingElapsed: 'Still generating · Taking longer than usual ({{minutes}} min elapsed)',
+      retrying: 'Network issue · Retrying',
+      retryingAttempt: 'Network issue · Retrying ({{attempt}}/{{maxAttempts}})',
+      finalizing: 'Saving the result',
+    },
+    error: {
+      auth: { reason: 'Invalid API key', hint: 'Check this model’s API key in Model access.' },
+      balance: {
+        reason: 'Insufficient balance',
+        hint: 'Top up your provider account and try again, or choose another model in Model access.',
+      },
+      quota: {
+        reason: 'Quota or rate limit',
+        hint: 'The provider quota is exhausted or rate-limited. Try again later or choose another model.',
+      },
+      pollTimeout: {
+        reason: 'Generation timed out',
+        hint: 'Video generation exceeded the wait limit and may still be running. Try again later or use a faster model such as Seedance Fast.',
+      },
+      network: { reason: 'Network timeout', hint: 'Check your network connection and try again.' },
+      modelConfig: { reason: 'Model not configured', hint: 'Configure this model in Model access.' },
+      modelNotOpen: {
+        reason: 'Model not activated',
+        hint: 'Activate this model in the provider console, or choose an already activated model in Model access.',
+      },
+      accountGate: {
+        reason: 'Insufficient account access',
+        hint: 'This model requires a higher account tier, an enterprise API key, or web authorization. Follow the provider message below or choose another model.',
+      },
+      contentPolicy: { reason: 'Prompt blocked', hint: 'The prompt triggered a safety policy. Edit it and try again.' },
+      server: {
+        reason: 'Provider error',
+        hint: 'The provider is unavailable. Try again later or choose another model.',
+      },
+      input: {
+        reason: 'Parameters rejected',
+        hint: 'The provider rejected the request parameters. Check settings such as ratio and size, or choose another model.',
+      },
+      outputTruncated: {
+        reason: 'Output truncated',
+        hint: 'The response exceeded the model’s output limit. Shorten the task or choose a model with a larger output limit.',
+      },
+      unknown: {
+        reason: 'Generation failed',
+        hint: 'The provider may be temporarily unavailable or out of credit. Try again later or choose another model.',
+      },
+      webMedia: {
+        reason: 'Web media download failed',
+        hint: 'Some sites block cross-origin requests or hotlinking. Download the image or video locally, then copy or drag it onto the canvas.',
+      },
+    },
   },
   imageToolbar: {
     aria: 'Image actions',

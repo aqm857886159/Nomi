@@ -1,6 +1,7 @@
 import { canPlaceClip, frameToPixel, withClipStartFrame } from './timelineEdit'
 import type { TimelineClip, TimelineTrack } from './timelineTypes'
 import { getTrackTypeForClipType } from './timelineTypes'
+import i18n from '../../i18n'
 
 export type TimelineDropPreview = {
   clip: TimelineClip
@@ -14,10 +15,10 @@ export type TimelineDropPreview = {
 }
 
 function trackTypeLabel(type: TimelineClip['type']): string {
-  if (type === 'image') return '图片轨'
-  if (type === 'video') return '视频轨'
-  if (type === 'audio') return '音频轨'
-  return '对应轨道'
+  if (type === 'image') return i18n.t('timelineEditor.track.imageLabel')
+  if (type === 'video') return i18n.t('timelineEditor.track.videoLabel')
+  if (type === 'audio') return i18n.t('timelineEditor.track.audioLabel')
+  return i18n.t('timelineEditor.track.genericLabel')
 }
 
 export function formatTimelineDropTimecode(frame: number, fps: number): string {
@@ -43,8 +44,8 @@ export function buildTimelineDropPreview(params: {
   const reason = canPlace
     ? undefined
     : typeMatches
-      ? '这里已有片段，试试拖到空白位置'
-      : `这个素材需要放到${trackTypeLabel(placed.type)}`
+      ? i18n.t('timelineEditor.track.occupied')
+      : i18n.t('timelineEditor.track.wrongType', { track: trackTypeLabel(placed.type) })
 
   return {
     clip: placed,
