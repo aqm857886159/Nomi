@@ -9,6 +9,7 @@
 //   仅靠 remount 无法恢复，必须换新实例重新 import。
 import React from 'react'
 import { cn } from '../utils/cn'
+import i18n from '../i18n'
 
 const AUTO_RETRIES = 2
 const RETRY_BASE_DELAY_MS = 300
@@ -72,6 +73,29 @@ type BoundaryProps = {
   children: React.ReactNode
 }
 
+type ChunkTranslationKey =
+  | 'router.mainInterface'
+  | 'workspace.creation'
+  | 'workspace.generation'
+  | 'workspace.preview'
+  | 'studio.workbench'
+  | 'studio.modelSetupPanel'
+  | 'studio.assetLibrary'
+  | 'studio.promptLibrary'
+  | 'studio.skillLibrary'
+  | 'studio.handbook'
+  | 'studio.generationCanvas'
+  | 'studio.aiAssistantEntry'
+  | 'studio.spendConfirmation'
+  | 'studio.journeyTour'
+  | 'studio.filePreview'
+  | 'studio.browser'
+  | 'studio.globalAssetWindow'
+  | 'sidebar.categoryPanel'
+  | 'sidebar.promptLibrary'
+  | 'sidebar.skillLibrary'
+  | 'sidebar.assetLibrary'
+
 class ChunkErrorBoundary extends React.Component<BoundaryProps, { error: Error | null }> {
   state: { error: Error | null } = { error: null }
   private autoReloadTimer: number | null = null
@@ -103,6 +127,9 @@ class ChunkErrorBoundary extends React.Component<BoundaryProps, { error: Error |
 
   render(): React.ReactNode {
     if (!this.state.error) return this.props.children
+    const label = this.props.label.startsWith('i18n:')
+      ? i18n.t(this.props.label.slice('i18n:'.length) as ChunkTranslationKey)
+      : this.props.label
     return (
       <div
         role='alert'
@@ -112,9 +139,9 @@ class ChunkErrorBoundary extends React.Component<BoundaryProps, { error: Error |
           'rounded-nomi border border-nomi-line-soft bg-nomi-ink-05/60',
         )}
       >
-        <span className={cn('text-caption text-nomi-ink-80')}>{this.props.label}加载失败</span>
+        <span className={cn('text-caption text-nomi-ink-80')}>{i18n.t('errors.chunkFailed', { label })}</span>
         <span className={cn('text-micro text-nomi-ink-40')}>
-          {isChunkLoadNetworkError(this.state.error) ? '网络抖动中断加载，正在尝试恢复' : '其余功能不受影响；可重新加载重试'}
+          {isChunkLoadNetworkError(this.state.error) ? i18n.t('errors.chunkNetwork') : i18n.t('errors.chunkOther')}
         </span>
         <button
           type='button'
@@ -127,7 +154,7 @@ class ChunkErrorBoundary extends React.Component<BoundaryProps, { error: Error |
           // 在同一 JS 上下文里无法复活，只有 reload 拿到全新上下文才可能自愈。
           onClick={reloadRendererWindow}
         >
-          重新加载
+          {i18n.t('common.reload')}
         </button>
       </div>
     )

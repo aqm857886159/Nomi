@@ -1,4 +1,5 @@
 import type { CSSProperties, HTMLAttributes } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../utils/cn'
 
 type NomiBrandProps = {
@@ -94,11 +95,12 @@ export function NomiLogoMark({ size = 24, className }: NomiLogoMarkProps): JSX.E
   )
 }
 
-export function NomiLoadingMark({ size = 18, className, label = '加载中' }: NomiLoadingMarkProps): JSX.Element {
+export function NomiLoadingMark({ size = 18, className, label }: NomiLoadingMarkProps): JSX.Element {
+  const { t } = useTranslation()
   return (
     <span
       className={cn('nomi-loading-mark', 'inline-grid place-items-center flex-none leading-none animate-spin motion-reduce:animate-none', className)}
-      aria-label={label}
+      aria-label={label ?? t('common.loading')}
       role="status"
       style={{ '--nomi-loading-size': `${size}px`, width: `${size}px`, height: `${size}px` } as CSSProperties}
     >
@@ -119,16 +121,16 @@ export function NomiAILabel({ markSize = 22, wordSize = 14, className, suffix = 
   )
 }
 
-const NOMI_TABS: { mode: NomiStepperProps['value']; label: string }[] = [
-  { mode: 'creation', label: '创作' },
-  { mode: 'generation', label: '生成' },
-  { mode: 'preview', label: '预览' },
-]
-
 export function NomiStepper({ value, onChange }: NomiStepperProps): JSX.Element {
+  const { t } = useTranslation()
+  const tabs: { mode: NomiStepperProps['value']; label: string }[] = [
+    { mode: 'creation', label: t('workspace.creationTab') },
+    { mode: 'generation', label: t('workspace.generationTab') },
+    { mode: 'preview', label: t('workspace.previewTab') },
+  ]
   return (
-    <nav className={cn('nomi-stepper', 'inline-flex items-center gap-0.5 p-1 border border-nomi-line-soft rounded-full bg-[var(--nomi-ink-05)]')} aria-label="工作区切换">
-      {NOMI_TABS.map((tab) => (
+    <nav className={cn('nomi-stepper', 'inline-flex items-center gap-0.5 p-1 border border-nomi-line-soft rounded-full bg-[var(--nomi-ink-05)]')} aria-label={t('workspace.switchLabel')}>
+      {tabs.map((tab) => (
         <button
           key={tab.mode}
           className={cn(

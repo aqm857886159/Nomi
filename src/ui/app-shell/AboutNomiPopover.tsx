@@ -1,8 +1,10 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconAlertTriangle, IconChevronRight, IconCircleCheck, IconMap } from '@tabler/icons-react'
-import { BodyPortal, DesignProgress, NomiLoadingMark, NomiLogoMark, NomiWordmark, WorkbenchButton } from '../../design'
+import { BodyPortal, DesignProgress, NomiLoadingMark, NomiLogoMark, NomiSelect, NomiWordmark, WorkbenchButton } from '../../design'
 import { cn } from '../../utils/cn'
 import { useNomiColorScheme } from '../../theme/colorScheme'
+import { getAppLocale, isAppLocale, setAppLocale } from '../../i18n'
 import { ThemeToggleButton } from '../theme/ThemeToggleButton'
 import { useUpdater } from './useUpdater'
 
@@ -21,6 +23,7 @@ function platformLabel(info: { platform: string; arch: string } | null): string 
 }
 
 export function AboutNomiPopover({ anchorEl, onClose }: AboutNomiPopoverProps): JSX.Element {
+  const { t } = useTranslation()
   const updater = useUpdater()
   const { isDark } = useNomiColorScheme()
   const [pos, setPos] = React.useState<{ top: number; left: number } | null>(null)
@@ -65,7 +68,7 @@ export function AboutNomiPopover({ anchorEl, onClose }: AboutNomiPopoverProps): 
         )}
         style={{ top: pos?.top ?? -9999, left: pos?.left ?? -9999 }}
         role="dialog"
-        aria-label="关于 Nomi"
+        aria-label={t('about.dialogLabel')}
         onMouseDown={(event) => event.stopPropagation()}
       >
         {/* 品牌头：真实 Nomi logo（圆角方块 mark）+ 文字标志 No·m·i + 版本号 */}
@@ -74,7 +77,7 @@ export function AboutNomiPopover({ anchorEl, onClose }: AboutNomiPopoverProps): 
           <div className="min-w-0">
             <NomiWordmark fontSize={17} className="text-nomi-ink" />
             <p className="mt-0.5 text-micro text-[var(--nomi-ink-60)]">
-              当前版本 {updater.appInfo?.version ?? '…'}
+              {t('about.currentVersion', { version: updater.appInfo?.version ?? '…' })}
               {updater.appInfo ? ` · ${platformLabel(updater.appInfo)}` : ''}
             </p>
           </div>
@@ -92,23 +95,41 @@ export function AboutNomiPopover({ anchorEl, onClose }: AboutNomiPopoverProps): 
         >
           <IconMap size={18} stroke={1.6} className="shrink-0 text-[var(--nomi-accent)]" />
           <span className="min-w-0 flex-1">
-            <span className="block text-body-sm text-[var(--nomi-ink)]">上手手册</span>
-            <span className="block text-micro text-[var(--nomi-ink-40)]">流水线 · 90 秒首胜 · 能力对照 · 自查</span>
+            <span className="block text-body-sm text-[var(--nomi-ink)]">{t('about.handbook')}</span>
+            <span className="block text-micro text-[var(--nomi-ink-40)]">{t('about.handbookDescription')}</span>
           </span>
           <IconChevronRight size={16} stroke={1.8} className="shrink-0 text-[var(--nomi-ink-40)]" />
         </button>
 
         <div className="mb-3.5 flex min-h-9 items-center justify-between gap-3 rounded-nomi-sm bg-[var(--nomi-ink-05)] px-3 py-2">
           <div className="min-w-0">
-            <div className="text-body-sm text-[var(--nomi-ink)]">外观</div>
-            <div className="mt-0.5 text-micro text-[var(--nomi-ink-40)]">{isDark ? '深色模式' : '浅色模式'}</div>
+            <div className="text-body-sm text-[var(--nomi-ink)]">{t('theme.appearance')}</div>
+            <div className="mt-0.5 text-micro text-[var(--nomi-ink-40)]">
+              {isDark ? t('theme.dark') : t('theme.light')}
+            </div>
           </div>
           <ThemeToggleButton className="shrink-0 border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)]" />
         </div>
 
+        <div className="mb-3.5 flex min-h-9 items-center justify-between gap-3 rounded-nomi-sm bg-[var(--nomi-ink-05)] px-3 py-2">
+          <div className="text-body-sm text-[var(--nomi-ink)]">{t('common.language')}</div>
+          <NomiSelect
+            size="xs"
+            ariaLabel={t('common.language')}
+            value={getAppLocale()}
+            options={[
+              { value: 'zh-CN', label: t('common.chinese') },
+              { value: 'en', label: t('common.english') },
+            ]}
+            onChange={(value) => {
+              if (isAppLocale(value)) setAppLocale(value)
+            }}
+          />
+        </div>
+
         <div className="pt-3.5 border-t border-[var(--nomi-line-soft)]">
           {!updater.supported ? (
-            <p className="text-body-sm text-[var(--nomi-ink-60)]">桌面版支持检查更新与一键升级。</p>
+            <p className="text-body-sm text-[var(--nomi-ink-60)]">{t('about.desktopUpdateUnsupported')}</p>
           ) : (
             <UpdateBody updater={updater} />
           )}
@@ -119,13 +140,14 @@ export function AboutNomiPopover({ anchorEl, onClose }: AboutNomiPopoverProps): 
 }
 
 function UpdateBody({ updater }: { updater: ReturnType<typeof useUpdater> }): JSX.Element {
+  const { t } = useTranslation()
   const { phase } = updater
 
   if (phase === 'checking') {
     return (
       <div className="flex items-center gap-2 min-h-8 text-body-sm text-[var(--nomi-ink-80)]">
-        <NomiLoadingMark size={16} label="检查中" />
-        检查中…
+        <NomiLoadingMark size={16} label={t('about.checking')} />
+        {t('about.checkingEllipsis')}
       </div>
     )
   }
@@ -134,7 +156,7 @@ function UpdateBody({ updater }: { updater: ReturnType<typeof useUpdater> }): JS
     return (
       <div className="flex items-center gap-1.5 min-h-8 text-body-sm text-[var(--nomi-ink)]">
         <IconCircleCheck size={16} className="text-[var(--workbench-success)]" />
-        已是最新版本
+        {t('about.upToDate')}
       </div>
     )
   }
@@ -144,20 +166,20 @@ function UpdateBody({ updater }: { updater: ReturnType<typeof useUpdater> }): JS
       <div>
         <div className="flex items-center justify-between gap-3 min-h-8">
           <span className="text-body-sm text-[var(--nomi-ink)]">
-            发现新版 <b className="font-medium">{updater.latestVersion}</b>
+            {t('about.available')} <b className="font-medium">{updater.latestVersion}</b>
           </span>
           <div className="flex items-center gap-2 shrink-0">
-            <WorkbenchButton variant="default" onClick={updater.reset}>稍后</WorkbenchButton>
+            <WorkbenchButton variant="default" onClick={updater.reset}>{t('common.later')}</WorkbenchButton>
             {updater.canAutoInstall ? (
-              <WorkbenchButton variant="primary" onClick={updater.download}>下载更新</WorkbenchButton>
+              <WorkbenchButton variant="primary" onClick={updater.download}>{t('about.downloadUpdate')}</WorkbenchButton>
             ) : (
-              <WorkbenchButton variant="primary" onClick={updater.openRelease}>前往下载</WorkbenchButton>
+              <WorkbenchButton variant="primary" onClick={updater.openRelease}>{t('about.openDownload')}</WorkbenchButton>
             )}
           </div>
         </div>
         {!updater.canAutoInstall ? (
           <p className="mt-2 text-micro text-[var(--nomi-ink-40)]">
-            macOS 需手动下载安装包替换旧版（应用未签名，暂不支持就地自动更新）
+            {t('about.macManualUpdate')}
           </p>
         ) : null}
         {updater.notes ? (
@@ -172,9 +194,11 @@ function UpdateBody({ updater }: { updater: ReturnType<typeof useUpdater> }): JS
   if (phase === 'downloading') {
     return (
       <div>
-        <p className="text-body-sm text-[var(--nomi-ink)] mb-2">正在下载更新…</p>
+        <p className="text-body-sm text-[var(--nomi-ink)] mb-2">{t('about.downloading')}</p>
         <DesignProgress value={updater.percent} size="sm" />
-        <p className="mt-1.5 text-micro text-[var(--nomi-ink-40)]">后台下载，可继续创作 · {updater.percent}%</p>
+        <p className="mt-1.5 text-micro text-[var(--nomi-ink-40)]">
+          {t('about.downloadingHint', { percent: updater.percent })}
+        </p>
       </div>
     )
   }
@@ -184,11 +208,11 @@ function UpdateBody({ updater }: { updater: ReturnType<typeof useUpdater> }): JS
       <div className="flex items-center justify-between gap-3 min-h-8">
         <span className="flex items-center gap-1.5 text-body-sm text-[var(--nomi-ink)]">
           <IconCircleCheck size={16} className="text-[var(--workbench-success)]" />
-          下载完成
+          {t('about.downloaded')}
         </span>
         <div className="flex items-center gap-2 shrink-0">
-          <WorkbenchButton variant="default" onClick={updater.reset}>稍后</WorkbenchButton>
-          <WorkbenchButton variant="primary" onClick={updater.install}>重启并安装</WorkbenchButton>
+          <WorkbenchButton variant="default" onClick={updater.reset}>{t('common.later')}</WorkbenchButton>
+          <WorkbenchButton variant="primary" onClick={updater.install}>{t('about.restartInstall')}</WorkbenchButton>
         </div>
       </div>
     )
@@ -199,10 +223,10 @@ function UpdateBody({ updater }: { updater: ReturnType<typeof useUpdater> }): JS
       <div>
         <div className="flex items-start gap-1.5 text-body-sm text-[var(--workbench-danger)]">
           <IconAlertTriangle size={16} className="shrink-0 mt-0.5" />
-          <span className="min-w-0 break-words">{updater.errorMessage || '更新出错'}</span>
+          <span className="min-w-0 break-words">{updater.errorMessage || t('about.updateError')}</span>
         </div>
         <div className="mt-2.5 flex justify-end">
-          <WorkbenchButton variant="default" onClick={updater.check}>重试</WorkbenchButton>
+          <WorkbenchButton variant="default" onClick={updater.check}>{t('common.retry')}</WorkbenchButton>
         </div>
       </div>
     )
@@ -211,8 +235,8 @@ function UpdateBody({ updater }: { updater: ReturnType<typeof useUpdater> }): JS
   // idle
   return (
     <div className="flex items-center justify-between gap-3 min-h-8">
-      <span className="text-body-sm text-[var(--nomi-ink-60)]">检查是否有新版本可用</span>
-      <WorkbenchButton variant="primary" onClick={updater.check}>检查更新</WorkbenchButton>
+      <span className="text-body-sm text-[var(--nomi-ink-60)]">{t('about.checkAvailable')}</span>
+      <WorkbenchButton variant="primary" onClick={updater.check}>{t('about.checkUpdate')}</WorkbenchButton>
     </div>
   )
 }
