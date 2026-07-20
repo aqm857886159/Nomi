@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconAlertTriangle, IconChevronDown, IconChevronRight, IconRefresh } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { WorkbenchButton } from '../../../design'
@@ -15,6 +16,7 @@ import { classifyGenerationError } from '../runner/generationRunController'
  * 分类仍走 runner 的 `classifyGenerationError`（唯一真相源），UI 不自己解析错误。
  */
 export function NodeErrorReport({ message, onRetry }: { message: string; onRetry?: () => void }): JSX.Element {
+  const { t } = useTranslation()
   const report = React.useMemo(() => classifyGenerationError(message), [message])
   const [showRaw, setShowRaw] = React.useState(false)
   const [copied, setCopied] = React.useState(false)
@@ -44,7 +46,7 @@ export function NodeErrorReport({ message, onRetry }: { message: string; onRetry
   return (
     <div
       role="alert"
-      aria-label={`生成失败：${report.reason}`}
+      aria-label={t('generationCommon.error.failedAria', { reason: report.reason })}
       className={cn(
         'absolute inset-0 z-[5] flex flex-col rounded-nomi p-4',
         // 不透明浅红底：盖住下面的棋盘格占位，缩放时也一眼看出是失败态。
@@ -58,11 +60,13 @@ export function NodeErrorReport({ message, onRetry }: { message: string; onRetry
         <IconAlertTriangle size={16} stroke={1.6} className="mt-[1px] shrink-0 text-workbench-danger" />
         <span className="select-text cursor-text text-body font-bold leading-snug text-nomi-ink">{report.reason}</span>
       </div>
-      {report.hint ? <p className="mt-2 select-text cursor-text text-caption leading-relaxed text-nomi-ink-60">{report.hint}</p> : null}
+      {report.hint ? (
+        <p className="mt-2 select-text cursor-text text-caption leading-relaxed text-nomi-ink-60">{report.hint}</p>
+      ) : null}
       {/* 服务商真实原话——提到可见区，别再让用户去折叠的「技术详情」里挖（一脸懵逼的根源）。 */}
       {report.providerMessage ? (
         <p className="mt-2 select-text cursor-text rounded-nomi-sm bg-nomi-ink-05 p-2 text-caption leading-relaxed text-nomi-ink-60">
-          <span className="text-nomi-ink-40">服务商原话：</span>
+          <span className="text-nomi-ink-40">{t('generationCommon.error.providerMessage')}</span>
           {report.providerMessage}
         </p>
       ) : null}
@@ -83,19 +87,15 @@ export function NodeErrorReport({ message, onRetry }: { message: string; onRetry
           <WorkbenchButton
             size="sm"
             onClick={handleRetry}
-            aria-label="重试生成"
+            aria-label={t('generationCommon.error.retryAria')}
             className="bg-workbench-danger text-nomi-paper border-0 hover:bg-workbench-danger-soft"
           >
             <IconRefresh size={13} stroke={1.6} />
-            重试
+            {t('generationCommon.error.retry')}
           </WorkbenchButton>
         ) : null}
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="text-caption text-nomi-ink-40 hover:text-nomi-ink"
-        >
-          {copied ? '已复制' : '复制详情'}
+        <button type="button" onClick={handleCopy} className="text-caption text-nomi-ink-40 hover:text-nomi-ink">
+          {copied ? t('generationCommon.error.copied') : t('generationCommon.error.copyDetails')}
         </button>
         <div className="min-w-0 flex-1" />
         <button
@@ -107,7 +107,7 @@ export function NodeErrorReport({ message, onRetry }: { message: string; onRetry
           aria-expanded={showRaw}
           className="inline-flex items-center gap-0.5 text-micro text-nomi-ink-40 hover:text-nomi-ink-60"
         >
-          技术详情
+          {t('generationCommon.error.technicalDetails')}
           {showRaw ? <IconChevronDown size={13} stroke={1.6} /> : <IconChevronRight size={13} stroke={1.6} />}
         </button>
       </div>

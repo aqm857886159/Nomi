@@ -51,14 +51,60 @@ export const zhCreationAi = {
   stopAria: '停止生成',
   send: '发送',
   sendAria: '创作 AI 发送',
+  noTextModel: {
+    readyTitle: '大脑已就位',
+    readyDescription: '「模型设置」里多了一行「文本」。现在可以拆镜头、对话了——再发一次试试。',
+    title: '创作助手还缺一个文本大脑',
+    descriptionBefore: '你接的是图片 / 视频生成模型，负责出画面。拆镜头、对话、写文案需要一个',
+    textModel: '文本对话模型',
+    descriptionAfter: '当大脑。',
+    enable: '启用 {{model}}',
+    settings: '去模型设置',
+  },
   mode: {
-    general: { label: '通用问答', short: '通用', title: '通用助手', description: '像普通 AI 一样直接回答，不强制套创作模板、不写入文稿。' },
-    story: { label: '写故事', short: '故事', title: '故事开发', description: '从主题、片段或选区扩展为可拍的故事梗概。' },
-    script: { label: '写剧本', short: '剧本', title: '剧本创作', description: '按镜头、对白、OS/VO 和字幕格式生成剧本。' },
-    assets: { label: '素材规划', short: '素材', title: '角色/场景/道具', description: '拆出角色、场景、道具，并生成生图提示词。' },
-    storyboard: { label: '写分镜文字稿', short: '文字稿', title: '分镜文字稿', description: '在文稿里起草文字版分镜稿（15 秒一集，纯文字、不落画布）。想把故事结构化拆成镜头、落到画布生成，直接说「拆成镜头」或用浮现的卡片。' },
-    seedance: { label: '提示词', short: '提示词', title: 'Seedance 提示词', description: '生成可复制到 Seedance 2.0 的最终提示词。' },
-    review: { label: '审校优化', short: '审校', title: '连续性审校', description: '检查资产引用、时间轴、情绪弧和敏感风险。' },
+    general: {
+      label: '通用问答',
+      short: '通用',
+      title: '通用助手',
+      description: '像普通 AI 一样直接回答，不强制套创作模板、不写入文稿。',
+    },
+    story: {
+      label: '写故事',
+      short: '故事',
+      title: '故事开发',
+      description: '从主题、片段或选区扩展为可拍的故事梗概。',
+    },
+    script: {
+      label: '写剧本',
+      short: '剧本',
+      title: '剧本创作',
+      description: '按镜头、对白、OS/VO 和字幕格式生成剧本。',
+    },
+    assets: {
+      label: '素材规划',
+      short: '素材',
+      title: '角色/场景/道具',
+      description: '拆出角色、场景、道具，并生成生图提示词。',
+    },
+    storyboard: {
+      label: '写分镜文字稿',
+      short: '文字稿',
+      title: '分镜文字稿',
+      description:
+        '在文稿里起草文字版分镜稿（15 秒一集，纯文字、不落画布）。想把故事结构化拆成镜头、落到画布生成，直接说「拆成镜头」或用浮现的卡片。',
+    },
+    seedance: {
+      label: '提示词',
+      short: '提示词',
+      title: 'Seedance 提示词',
+      description: '生成可复制到 Seedance 2.0 的最终提示词。',
+    },
+    review: {
+      label: '审校优化',
+      short: '审校',
+      title: '连续性审校',
+      description: '检查资产引用、时间轴、情绪弧和敏感风险。',
+    },
   },
 } as const
 
@@ -86,7 +132,8 @@ export const enCreationAi = {
   skillSaveFailed: 'Failed to save skill',
   stopped: '(Stopped)',
   emptyResponse: '(Empty response: AI returned no text)',
-  truncated: '{{text}}\n\n⚠️ This response may be incomplete because it reached the model output limit. Say “continue” if needed.',
+  truncated:
+    '{{text}}\n\n⚠️ This response may be incomplete because it reached the model output limit. Say “continue” if needed.',
   callFailed: 'Creation AI request failed',
   errorPrefix: '(Error) ',
   suggestion: {
@@ -119,13 +166,61 @@ export const enCreationAi = {
   stopAria: 'Stop generation',
   send: 'Send',
   sendAria: 'Send to Creation AI',
+  noTextModel: {
+    readyTitle: 'Text model ready',
+    readyDescription:
+      'A text model is now enabled in Model setup. You can split shots, chat, and write copy—send your request again.',
+    title: 'The creation assistant needs a text model',
+    descriptionBefore:
+      'Your image and video models create visuals. Splitting shots, chatting, and writing copy require a ',
+    textModel: 'text conversation model',
+    descriptionAfter: ' as the assistant’s brain.',
+    enable: 'Enable {{model}}',
+    settings: 'Open model setup',
+  },
   mode: {
-    general: { label: 'General Q&A', short: 'General', title: 'General assistant', description: 'Answer directly like a general AI without forcing a creation template or editing the document.' },
-    story: { label: 'Write story', short: 'Story', title: 'Story development', description: 'Expand a theme, fragment, or selection into a filmable story outline.' },
-    script: { label: 'Write script', short: 'Script', title: 'Script writing', description: 'Generate a script with shots, dialogue, OS/VO, and subtitle formatting.' },
-    assets: { label: 'Plan assets', short: 'Assets', title: 'Characters / scenes / props', description: 'Identify characters, scenes, and props, then create image-generation prompts.' },
-    storyboard: { label: 'Write storyboard text', short: 'Storyboard', title: 'Storyboard text', description: 'Draft a text-only storyboard in the document. To split the story into canvas shots for generation, ask to “split into shots” or use the suggested card.' },
-    seedance: { label: 'Prompts', short: 'Prompts', title: 'Seedance prompts', description: 'Generate final prompts ready to copy into Seedance 2.0.' },
-    review: { label: 'Review and improve', short: 'Review', title: 'Continuity review', description: 'Check asset references, timeline, emotional arc, and sensitivity risks.' },
+    general: {
+      label: 'General Q&A',
+      short: 'General',
+      title: 'General assistant',
+      description: 'Answer directly like a general AI without forcing a creation template or editing the document.',
+    },
+    story: {
+      label: 'Write story',
+      short: 'Story',
+      title: 'Story development',
+      description: 'Expand a theme, fragment, or selection into a filmable story outline.',
+    },
+    script: {
+      label: 'Write script',
+      short: 'Script',
+      title: 'Script writing',
+      description: 'Generate a script with shots, dialogue, OS/VO, and subtitle formatting.',
+    },
+    assets: {
+      label: 'Plan assets',
+      short: 'Assets',
+      title: 'Characters / scenes / props',
+      description: 'Identify characters, scenes, and props, then create image-generation prompts.',
+    },
+    storyboard: {
+      label: 'Write storyboard text',
+      short: 'Storyboard',
+      title: 'Storyboard text',
+      description:
+        'Draft a text-only storyboard in the document. To split the story into canvas shots for generation, ask to “split into shots” or use the suggested card.',
+    },
+    seedance: {
+      label: 'Prompts',
+      short: 'Prompts',
+      title: 'Seedance prompts',
+      description: 'Generate final prompts ready to copy into Seedance 2.0.',
+    },
+    review: {
+      label: 'Review and improve',
+      short: 'Review',
+      title: 'Continuity review',
+      description: 'Check asset references, timeline, emotional arc, and sensitivity risks.',
+    },
   },
 } satisfies TranslationShape<typeof zhCreationAi>

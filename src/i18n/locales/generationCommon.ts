@@ -365,6 +365,23 @@ export const zhGenerationCommon = {
     cancel: '取消',
     save: '保存',
   },
+  error: {
+    failedAria: '生成失败：{{reason}}',
+    providerMessage: '服务商原话：',
+    retryAria: '重试生成',
+    retry: '重试',
+    copied: '已复制',
+    copyDetails: '复制详情',
+    technicalDetails: '技术详情',
+  },
+  recoverable: {
+    aria: '任务可能已在上游完成，可重新拉取结果',
+    title: '任务可能已在上游完成',
+    description: '等待已超上限，但上游可能仍出了片。点下面直接拉回，不用去服务商后台下载。',
+    recover: '重新拉取结果',
+    recovering: '正在拉取…',
+    dismiss: '标记为失败',
+  },
 } as const
 
 type TranslationShape<T> = {
@@ -746,5 +763,23 @@ export const enGenerationCommon = {
     selectedText: 'Selected text',
     cancel: 'Cancel',
     save: 'Save',
+  },
+  error: {
+    failedAria: 'Generation failed: {{reason}}',
+    providerMessage: 'Provider message: ',
+    retryAria: 'Retry generation',
+    retry: 'Retry',
+    copied: 'Copied',
+    copyDetails: 'Copy details',
+    technicalDetails: 'Technical details',
+  },
+  recoverable: {
+    aria: 'The upstream task may have completed; retrieve the result again',
+    title: 'The upstream task may have completed',
+    description:
+      'The wait timed out, but the provider may still have produced the result. Retrieve it here without downloading it from the provider dashboard.',
+    recover: 'Retrieve result',
+    recovering: 'Retrieving…',
+    dismiss: 'Mark as failed',
   },
 } satisfies TranslationShape<typeof zhGenerationCommon>
