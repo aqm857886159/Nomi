@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   IconFolderOpen,
   IconList,
@@ -48,17 +49,17 @@ function filterNoise(nodes: WorkspaceFileNode[]): WorkspaceFileNode[] {
   return out
 }
 
-function sortWorkspaceFileNodes(nodes: WorkspaceFileNode[], ascending: boolean): WorkspaceFileNode[] {
+function sortWorkspaceFileNodes(nodes: WorkspaceFileNode[], ascending: boolean, locale: string): WorkspaceFileNode[] {
   return nodes
     .slice()
     .sort((a, b) => {
       if (a.kind !== b.kind) return a.kind === 'directory' ? -1 : 1
-      const result = a.name.localeCompare(b.name, 'zh-Hans', { numeric: true, sensitivity: 'base' })
+      const result = a.name.localeCompare(b.name, locale, { numeric: true, sensitivity: 'base' })
       return ascending ? result : -result
     })
     .map((node) =>
       node.kind === 'directory'
-        ? { ...node, children: sortWorkspaceFileNodes(node.children || [], ascending) }
+        ? { ...node, children: sortWorkspaceFileNodes(node.children || [], ascending, locale) }
         : node,
     )
 }
@@ -68,6 +69,7 @@ function isFileDrag(event: React.DragEvent<HTMLElement>): boolean {
 }
 
 export default function WorkspaceFileExplorerPanel({ projectId }: Props): JSX.Element {
+  const { t, i18n } = useTranslation()
   const { items, loading, error, truncated, refresh } = useWorkspaceFiles(projectId)
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   const dragDepthRef = React.useRef(0)
@@ -76,8 +78,8 @@ export default function WorkspaceFileExplorerPanel({ projectId }: Props): JSX.El
   const [dropActive, setDropActive] = React.useState(false)
 
   const visibleItems = React.useMemo(
-    () => sortWorkspaceFileNodes(filterNoise(items), sortAscending),
-    [items, sortAscending],
+    () => sortWorkspaceFileNodes(filterNoise(items), sortAscending, i18n.resolvedLanguage || i18n.language),
+    [i18n.language, i18n.resolvedLanguage, items, sortAscending],
   )
 
   const handleImportClick = React.useCallback(() => {
@@ -141,15 +143,15 @@ export default function WorkspaceFileExplorerPanel({ projectId }: Props): JSX.El
     <div className="flex h-full min-h-0 flex-col bg-nomi-paper">
       <header className="flex h-12 shrink-0 items-center border-b border-nomi-line-soft px-3">
         <h2 className="m-0 min-w-0 flex-1 truncate text-body-sm font-bold leading-none text-nomi-ink">
-          素材
+          {t('fileExplorer.title')}
         </h2>
         <div className="ml-2 flex shrink-0 items-center gap-1">
           <button
             type="button"
             className={cn(ASSET_PANEL_ICON_BUTTON_CLASS, 'bg-nomi-ink-05 text-nomi-ink')}
-            aria-label="列表视图"
+            aria-label={t('fileExplorer.listView')}
             aria-pressed="true"
-            title="列表视图"
+            title={t('fileExplorer.listView')}
           >
             <IconList size={17} stroke={1.8} aria-hidden="true" />
           </button>
@@ -157,9 +159,9 @@ export default function WorkspaceFileExplorerPanel({ projectId }: Props): JSX.El
             type="button"
             className={ASSET_PANEL_ICON_BUTTON_CLASS}
             onClick={() => setSortAscending((value) => !value)}
-            aria-label="排序素材"
+            aria-label={t('fileExplorer.sort')}
             aria-pressed={!sortAscending}
-            title={sortAscending ? '升序排列' : '降序排列'}
+            title={sortAscending ? t('fileExplorer.ascending') : t('fileExplorer.descending')}
           >
             {sortAscending ? (
               <IconSortAscending2 size={17} stroke={1.8} aria-hidden="true" />
@@ -171,8 +173,8 @@ export default function WorkspaceFileExplorerPanel({ projectId }: Props): JSX.El
             type="button"
             onClick={refresh}
             className={ASSET_PANEL_ICON_BUTTON_CLASS}
-            aria-label="刷新项目文件"
-            title="刷新项目文件"
+            aria-label={t('fileExplorer.refresh')}
+            title={t('fileExplorer.refresh')}
           >
             <IconRefresh size={17} stroke={1.8} aria-hidden="true" />
           </button>
@@ -181,8 +183,8 @@ export default function WorkspaceFileExplorerPanel({ projectId }: Props): JSX.El
             onClick={handleImportClick}
             disabled={!projectId || importing}
             className={ASSET_PANEL_ICON_BUTTON_CLASS}
-            aria-label="导入素材"
-            title="导入素材"
+            aria-label={t('fileExplorer.import')}
+            title={t('fileExplorer.import')}
           >
             <IconUpload size={17} stroke={1.8} aria-hidden="true" />
           </button>
@@ -203,7 +205,7 @@ export default function WorkspaceFileExplorerPanel({ projectId }: Props): JSX.El
               dropActive && 'border-nomi-accent bg-nomi-accent-soft text-nomi-accent',
               importing && 'opacity-60 cursor-wait',
             )}
-            title="把本地文件拷贝进项目素材文件夹"
+            title={t('fileExplorer.importHint')}
             onDragEnter={handleDropZoneDragEnter}
             onDragOver={handleDropZoneDragOver}
             onDragLeave={handleDropZoneDragLeave}
@@ -211,24 +213,24 @@ export default function WorkspaceFileExplorerPanel({ projectId }: Props): JSX.El
           >
             <IconUpload size={30} stroke={1.6} aria-hidden="true" />
             <span className="mt-2 text-caption font-semibold leading-tight">
-              {importing ? '正在导入' : '导入素材'}
+              {importing ? t('fileExplorer.importing') : t('fileExplorer.import')}
             </span>
             <span className="mt-1 text-micro leading-tight text-nomi-ink-40">
-              图片、视频、音频
+              {t('fileExplorer.mediaTypes')}
             </span>
           </button>
         </div>
       ) : null}
       <div className="min-h-0 flex-1 overflow-auto px-2.5 py-3">
-        {!projectId ? <p className="px-2 py-4 text-caption text-nomi-ink-40">打开项目后显示文件</p> : null}
-        {loading ? <p className="px-2 py-4 text-caption text-nomi-ink-40">正在读取项目文件…</p> : null}
+        {!projectId ? <p className="px-2 py-4 text-caption text-nomi-ink-40">{t('fileExplorer.openProjectFirst')}</p> : null}
+        {loading ? <p className="px-2 py-4 text-caption text-nomi-ink-40">{t('fileExplorer.reading')}</p> : null}
         {error ? <p className="px-2 py-4 text-caption text-workbench-danger">{error}</p> : null}
         {!loading && !error && projectId && visibleItems.length === 0 ? (
           <DesignEmptyState
             density="inline"
             icon={<IconFolderOpen size={32} stroke={1.5} className="text-nomi-ink-30" />}
-            title="还没有文件"
-            description="点上方「导入本地文件」，或把文件拖进来。"
+            title={t('fileExplorer.emptyTitle')}
+            description={t('fileExplorer.emptyDescription')}
           />
         ) : null}
         {!loading && !error ? (
@@ -236,7 +238,7 @@ export default function WorkspaceFileExplorerPanel({ projectId }: Props): JSX.El
             {visibleItems.map((node) => <FileTreeNode key={node.id} node={node} projectId={projectId || ''} />)}
           </div>
         ) : null}
-        {truncated ? <p className="px-2 py-2 text-micro text-nomi-ink-40">文件较多，已显示前 500 个</p> : null}
+        {truncated ? <p className="px-2 py-2 text-micro text-nomi-ink-40">{t('fileExplorer.truncated')}</p> : null}
       </div>
     </div>
   )

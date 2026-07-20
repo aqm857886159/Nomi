@@ -8,6 +8,8 @@ import { enScene3d, zhScene3d } from './locales/scene3d'
 import { enTimelineEditor, zhTimelineEditor } from './locales/timelineEditor'
 import { enCreationAi, zhCreationAi } from './locales/creationAi'
 import { enStoryboardEditor, zhStoryboardEditor } from './locales/storyboardEditor'
+import { enFileExplorer, zhFileExplorer } from './locales/fileExplorer'
+import { enGenerationCommon, zhGenerationCommon } from './locales/generationCommon'
 
 export const zhCN = {
   common: {
@@ -248,6 +250,8 @@ export const zhCN = {
   timelineEditor: zhTimelineEditor,
   creationAi: zhCreationAi,
   storyboardEditor: zhStoryboardEditor,
+  fileExplorer: zhFileExplorer,
+  generationCommon: zhGenerationCommon,
 } as const
 
 type TranslationShape<T> = {
@@ -493,6 +497,8 @@ export const en = {
   timelineEditor: enTimelineEditor,
   creationAi: enCreationAi,
   storyboardEditor: enStoryboardEditor,
+  fileExplorer: enFileExplorer,
+  generationCommon: enGenerationCommon,
 } satisfies TranslationShape<typeof zhCN>
 
 export const resources = {
