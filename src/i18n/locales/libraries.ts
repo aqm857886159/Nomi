@@ -122,6 +122,8 @@ export const zhLibraries = {
     ungroup: '解组（保留节点）',
     deleteWithNodes: '删除（连节点）',
     noNodes: '暂无节点',
+    subgroupName: '子组名称',
+    emptyGroup: '空组',
   },
 } as const
 
@@ -254,5 +256,7 @@ export const enLibraries = {
     ungroup: 'Ungroup (keep nodes)',
     deleteWithNodes: 'Delete with nodes',
     noNodes: 'No nodes',
+    subgroupName: 'Subgroup name',
+    emptyGroup: 'Empty group',
   },
 } satisfies TranslationShape<typeof zhLibraries>

@@ -6,6 +6,7 @@
  * 不依赖 store；所有数据由调用方传入，便于将来虚拟化或换 dnd 后端。
  */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import type { NodeGroup } from '../model/generationCanvasTypes'
 
@@ -35,6 +36,7 @@ function getHexAlphaColor(color: string | undefined, alphaHex: string): string |
 }
 
 export default function GroupFrame({ box, onPointerDown }: GroupFrameProps): JSX.Element {
+  const { t } = useTranslation()
   const groupColor = box.group.color || undefined
   return (
     <div
@@ -56,8 +58,8 @@ export default function GroupFrame({ box, onPointerDown }: GroupFrameProps): JSX
       }}
       role="button"
       tabIndex={0}
-      aria-label={`拖动分组「${box.group.name}」`}
-      title="拖动分组"
+      aria-label={t('generationCommon.canvas.group.dragNamed', { name: box.group.name })}
+      title={t('generationCommon.canvas.group.drag')}
       onPointerDown={(event) => onPointerDown(event, box.group.id)}
     >
       <div

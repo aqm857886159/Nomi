@@ -81,7 +81,11 @@ export function VendorOnboardCard({
   const handleUnlock = React.useCallback(() => {
     const parts = fields.map((field) => (drafts[field.key] ?? '').trim())
     if (parts.some((part) => !part)) {
-      setError(isMulti ? t('onboardingProviders.vendorCard.fillAllCredentials') : t('onboardingProviders.vendorCard.pasteApiKeyFirst'))
+      setError(
+        isMulti
+          ? t('onboardingProviders.vendorCard.fillAllCredentials')
+          : t('onboardingProviders.vendorCard.pasteApiKeyFirst'),
+      )
       return
     }
     // 多段拼成单串存进唯一 key 槽（火山语音 → APP_ID:ACCESS_KEY）；后端按同一分隔符拆。
@@ -96,7 +100,9 @@ export function VendorOnboardCard({
       setEditing(false)
       onChanged()
     } catch (e) {
-      setError(t('onboardingProviders.vendorCard.unlockFailed', { message: e instanceof Error ? e.message : String(e) }))
+      setError(
+        t('onboardingProviders.vendorCard.unlockFailed', { message: e instanceof Error ? e.message : String(e) }),
+      )
     } finally {
       setBusy(false)
     }
@@ -118,7 +124,9 @@ export function VendorOnboardCard({
       bridge.modelCatalog.clearVendorApiKey(directory.vendorKey)
       onChanged()
     } catch (e) {
-      setError(t('onboardingProviders.vendorCard.disconnectFailed', { message: e instanceof Error ? e.message : String(e) }))
+      setError(
+        t('onboardingProviders.vendorCard.disconnectFailed', { message: e instanceof Error ? e.message : String(e) }),
+      )
     } finally {
       setBusy(false)
     }
@@ -151,16 +159,20 @@ export function VendorOnboardCard({
 
   return (
     <FoldableModelCard
-      glyph={directory.logo
-        ? <img src={directory.logo} alt="" className="w-full h-full object-contain" />
-        : directory.glyph}
+      glyph={
+        directory.logo ? <img src={directory.logo} alt="" className="w-full h-full object-contain" /> : directory.glyph
+      }
       glyphTone={directory.logo ? 'logo' : 'ink'}
       name={vendorName}
       subtitle={hasApiKey ? t('onboardingProviders.vendorCard.modelsAvailable', { count: total }) : directory.tagline}
       status={hasApiKey ? 'ok' : 'todo'}
-      badge={!hasApiKey && directory.recommended ? (
-        <span className="text-micro font-semibold text-nomi-accent bg-nomi-accent-soft rounded-full px-2 py-[2px] whitespace-nowrap">{t('onboardingProviders.vendorCard.recommended')}</span>
-      ) : undefined}
+      badge={
+        !hasApiKey && directory.recommended ? (
+          <span className="text-micro font-semibold text-nomi-accent bg-nomi-accent-soft rounded-full px-2 py-[2px] whitespace-nowrap">
+            {t('onboardingProviders.vendorCard.recommended')}
+          </span>
+        ) : undefined
+      }
       defaultExpanded={false}
     >
       {/* key 区 */}
@@ -184,7 +196,9 @@ export function VendorOnboardCard({
                     placeholder={field.placeholder}
                     value={drafts[field.key] ?? ''}
                     onChange={(e) => setDraft(field.key, e.currentTarget.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleUnlock() }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleUnlock()
+                    }}
                     disabled={busy}
                     className={cn(
                       'h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
@@ -206,7 +220,8 @@ export function VendorOnboardCard({
                     'hover:bg-nomi-accent disabled:opacity-50 disabled:cursor-not-allowed',
                   )}
                 >
-                  <IconKey size={14} stroke={1.6} />{t('onboardingProviders.vendorCard.unlock')}
+                  <IconKey size={14} stroke={1.6} />
+                  {t('onboardingProviders.vendorCard.unlock')}
                 </button>
                 {hasApiKey ? (
                   <button
@@ -226,11 +241,13 @@ export function VendorOnboardCard({
               <div className="flex gap-2">
                 <input
                   type={fields[0].secret ? 'password' : 'text'}
-                  aria-label={`${vendorName} API Key`}
+                  aria-label={t('onboardingProviders.vendorCard.apiKeyAria', { name: vendorName })}
                   placeholder={fields[0].placeholder}
                   value={drafts[fields[0].key] ?? ''}
                   onChange={(e) => setDraft(fields[0].key, e.currentTarget.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleUnlock() }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleUnlock()
+                  }}
                   disabled={busy}
                   className={cn(
                     'flex-1 min-w-0 h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
@@ -248,7 +265,8 @@ export function VendorOnboardCard({
                     'hover:bg-nomi-accent disabled:opacity-50 disabled:cursor-not-allowed',
                   )}
                 >
-                  <IconKey size={14} stroke={1.6} />{t('onboardingProviders.vendorCard.unlock')}
+                  <IconKey size={14} stroke={1.6} />
+                  {t('onboardingProviders.vendorCard.unlock')}
                 </button>
               </div>
               {hasApiKey ? (
@@ -263,7 +281,9 @@ export function VendorOnboardCard({
               ) : null}
             </>
           )}
-          <div className="text-caption text-nomi-ink-40">{directory.credentialHint ?? t('onboardingProviders.vendorCard.credentialHint')}</div>
+          <div className="text-caption text-nomi-ink-40">
+            {directory.credentialHint ?? t('onboardingProviders.vendorCard.credentialHint')}
+          </div>
         </div>
       ) : (
         <div className="flex items-center justify-between gap-2">
@@ -296,12 +316,15 @@ export function VendorOnboardCard({
           <input
             type="text"
             aria-label={t('onboardingProviders.vendorCard.addressAria', { name: vendorName })}
-            placeholder="https://…"
+            placeholder={t('onboardingProviders.vendorCard.addressPlaceholder')}
             value={urlDraft}
             onChange={(e) => setUrlDraft(e.currentTarget.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleSaveBaseUrl()
-              if (e.key === 'Escape') { setUrlEditing(false); setError('') }
+              if (e.key === 'Escape') {
+                setUrlEditing(false)
+                setError('')
+              }
             }}
             disabled={busy}
             autoFocus
@@ -325,7 +348,10 @@ export function VendorOnboardCard({
           </button>
           <button
             type="button"
-            onClick={() => { setUrlEditing(false); setError('') }}
+            onClick={() => {
+              setUrlEditing(false)
+              setError('')
+            }}
             disabled={busy}
             className="shrink-0 text-caption text-nomi-ink-40 hover:text-nomi-ink-60"
           >
@@ -334,11 +360,16 @@ export function VendorOnboardCard({
         </div>
       ) : baseUrl ? (
         <div className="flex items-center gap-1 min-w-0">
-          <span className="text-caption text-nomi-ink-30 truncate">{t('onboardingProviders.vendorCard.address', { address: baseUrl })}</span>
+          <span className="text-caption text-nomi-ink-30 truncate">
+            {t('onboardingProviders.vendorCard.address', { address: baseUrl })}
+          </span>
           <button
             type="button"
             aria-label={t('onboardingProviders.vendorCard.editAddressAria', { name: vendorName })}
-            onClick={() => { setUrlDraft(baseUrl); setUrlEditing(true) }}
+            onClick={() => {
+              setUrlDraft(baseUrl)
+              setUrlEditing(true)
+            }}
             disabled={busy}
             className="shrink-0 p-0.5 text-nomi-ink-30 hover:text-nomi-ink-60"
           >

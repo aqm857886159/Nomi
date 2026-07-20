@@ -28,6 +28,12 @@ export const zhCreationAi = {
     savedHint: '当前会存入历史',
     delete: '删除这段对话',
   },
+  assistantMessage: {
+    processing: '处理中',
+    stopped: '已停止',
+    modelAria: '助手模型',
+    modelHint: '助手使用的模型（建议选 GPT / Claude / DeepSeek 系，以稳定执行画布操作）',
+  },
   selection: {
     bold: '加粗',
     italic: '斜体',
@@ -181,6 +187,13 @@ export const enCreationAi = {
     newConversation: 'New conversation',
     savedHint: 'Current conversation will be saved to history',
     delete: 'Delete this conversation',
+  },
+  assistantMessage: {
+    processing: 'Processing',
+    stopped: 'Stopped',
+    modelAria: 'Assistant model',
+    modelHint:
+      'Model used by the assistant. GPT, Claude, and DeepSeek families are recommended for reliable canvas actions.',
   },
   selection: {
     bold: 'Bold',

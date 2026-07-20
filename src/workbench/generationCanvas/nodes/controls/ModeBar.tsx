@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../../../utils/cn'
 import type { ArchetypeModeChoice } from './archetypeMeta'
 
@@ -14,16 +15,19 @@ type ModeBarProps = {
 }
 
 export default function ModeBar({ choices, activeId, onSelect }: ModeBarProps): JSX.Element | null {
+  const { t } = useTranslation()
   // 只有 >1 模式时才显示分段（单模式无需切换）。
   if (choices.length <= 1) return null
   const active = choices.find((c) => c.id === activeId) ?? choices[0]
   return (
     <div className={cn('flex flex-col gap-1')}>
-      <span className={cn('text-nomi-ink-40 text-micro leading-none')}>生成方式</span>
+      <span className={cn('text-nomi-ink-40 text-micro leading-none')}>
+        {t('generationCommon.parameters.generationMode')}
+      </span>
       <div
         className={cn('inline-flex flex-wrap gap-0.5 p-0.5 rounded-nomi-sm bg-nomi-ink-05 self-start')}
         role="group"
-        aria-label="生成方式"
+        aria-label={t('generationCommon.parameters.generationMode')}
       >
         {choices.map((choice) => {
           const isActive = choice.id === active.id
@@ -49,9 +53,7 @@ export default function ModeBar({ choices, activeId, onSelect }: ModeBarProps): 
           )
         })}
       </div>
-      <div className={cn('text-nomi-ink-40 text-micro leading-[1.35]')}>
-        {active.hint}
-      </div>
+      <div className={cn('text-nomi-ink-40 text-micro leading-[1.35]')}>{active.hint}</div>
     </div>
   )
 }

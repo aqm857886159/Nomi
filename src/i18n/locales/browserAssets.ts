@@ -79,6 +79,8 @@ export const zhBrowserAssets = {
   extraction: {
     replicate: '画面复刻',
     style: '画面风格',
+    replicateDescription: '还原主体、构图、光影和细节',
+    styleDescription: '提取配色、字体、构图、效果 JSON',
     customTemplate: '自定义{{mode}}',
     settings: '提示词提取设置',
     settingsPath: '保存到当前项目 .nomi/browser-prompt-extraction.json',
@@ -193,6 +195,8 @@ export const enBrowserAssets = {
   extraction: {
     replicate: 'Recreate image',
     style: 'Extract style',
+    replicateDescription: 'Recreate the subject, composition, lighting, and details',
+    styleDescription: 'Extract color, typography, composition, and effects as JSON',
     customTemplate: 'Custom {{mode}}',
     settings: 'Prompt extraction settings',
     settingsPath: 'Saved to .nomi/browser-prompt-extraction.json in the current project',

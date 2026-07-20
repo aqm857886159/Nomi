@@ -97,6 +97,22 @@ export const zhGenerationCommon = {
       createAria: '新建一个{{category}}节点',
       create: '+ 新建{{category}}',
     },
+    gestureHint: {
+      aria: '画布手势提示',
+      dismiss: '知道了，关闭手势提示',
+      wheelOrSpace: '滚轮 / 空格拖',
+      twoFinger: '双指滑',
+      commandWheel: '⌘ + 滚轮',
+      blankDrag: '空白拖',
+      pan: '平移',
+      zoom: '缩放',
+      boxSelect: '框选',
+    },
+    audioToTimeline: '音频请拖到时间轴的「音频轨」当配乐',
+    group: {
+      dragNamed: '拖动分组「{{name}}」',
+      drag: '拖动分组',
+    },
   },
   assistantError: {
     provider: '服务商：{{message}}',
@@ -220,6 +236,11 @@ export const zhGenerationCommon = {
     firstFrame: '首帧',
     lastFrame: '尾帧',
     referencesAria: '参考素材',
+    generationMode: '生成方式',
+  },
+  assetReference: {
+    addNamed: '添加{{label}}',
+    add: '加参考',
   },
   resultDownload: {
     actions: '结果操作',
@@ -467,6 +488,14 @@ export const zhGenerationCommon = {
       unnamed: '未命名道具',
       ownedBy: '属于 {{owner}}',
       ownerLabel: '{{owner}}的',
+    },
+    character: {
+      image: '角色图',
+      unnamed: '未命名角色',
+    },
+    scene: {
+      image: '场景图',
+      unnamed: '未命名场景',
     },
   },
   optimizer: {
@@ -749,6 +778,22 @@ export const enGenerationCommon = {
       createAria: 'Create a {{category}} node',
       create: '+ New {{category}}',
     },
+    gestureHint: {
+      aria: 'Canvas gesture tips',
+      dismiss: 'Got it, close gesture tips',
+      wheelOrSpace: 'Wheel / Space-drag',
+      twoFinger: 'Two-finger swipe',
+      commandWheel: '⌘ + wheel',
+      blankDrag: 'Drag empty space',
+      pan: 'Pan',
+      zoom: 'Zoom',
+      boxSelect: 'Box select',
+    },
+    audioToTimeline: 'Drag audio to the timeline Audio track to use it as music',
+    group: {
+      dragNamed: 'Drag group “{{name}}”',
+      drag: 'Drag group',
+    },
   },
   assistantError: {
     provider: 'Provider: {{message}}',
@@ -874,6 +919,11 @@ export const enGenerationCommon = {
     firstFrame: 'First frame',
     lastFrame: 'Last frame',
     referencesAria: 'Reference assets',
+    generationMode: 'Generation mode',
+  },
+  assetReference: {
+    addNamed: 'Add {{label}}',
+    add: 'Add reference',
   },
   resultDownload: {
     actions: 'Result actions',
@@ -1126,6 +1176,14 @@ export const enGenerationCommon = {
       unnamed: 'Untitled prop',
       ownedBy: 'Owned by {{owner}}',
       ownerLabel: '{{owner}}’s',
+    },
+    character: {
+      image: 'Character image',
+      unnamed: 'Untitled character',
+    },
+    scene: {
+      image: 'Scene image',
+      unnamed: 'Untitled scene',
     },
   },
   optimizer: {

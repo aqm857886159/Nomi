@@ -41,20 +41,30 @@ export function CustomVendorManage({
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState('')
 
-  React.useEffect(() => { setKeyEditing(!hasApiKey) }, [hasApiKey])
+  React.useEffect(() => {
+    setKeyEditing(!hasApiKey)
+  }, [hasApiKey])
 
   const handleSaveKey = React.useCallback(() => {
     const apiKey = keyDraft.trim()
-    if (!apiKey) { setError(t('onboardingProviders.vendorCard.pasteApiKeyFirst')); return }
+    if (!apiKey) {
+      setError(t('onboardingProviders.vendorCard.pasteApiKeyFirst'))
+      return
+    }
     const bridge = getDesktopBridge()
     if (!bridge) return
-    setBusy(true); setError('')
+    setBusy(true)
+    setError('')
     try {
       bridge.modelCatalog.upsertVendorApiKey(vendorKey, { apiKey, enabled: true })
-      setKeyDraft(''); setKeyEditing(false); onChanged()
+      setKeyDraft('')
+      setKeyEditing(false)
+      onChanged()
     } catch (e) {
       setError(t('onboardingProviders.vendorCard.saveFailed', { message: e instanceof Error ? e.message : String(e) }))
-    } finally { setBusy(false) }
+    } finally {
+      setBusy(false)
+    }
   }, [keyDraft, vendorKey, onChanged, t])
 
   const handleDisconnect = React.useCallback(async () => {
@@ -67,30 +77,44 @@ export function CustomVendorManage({
       danger: true,
     })
     if (!ok) return
-    setBusy(true); setError('')
+    setBusy(true)
+    setError('')
     try {
-      bridge.modelCatalog.clearVendorApiKey(vendorKey); onChanged()
+      bridge.modelCatalog.clearVendorApiKey(vendorKey)
+      onChanged()
     } catch (e) {
-      setError(t('onboardingProviders.vendorCard.disconnectFailed', { message: e instanceof Error ? e.message : String(e) }))
-    } finally { setBusy(false) }
+      setError(
+        t('onboardingProviders.vendorCard.disconnectFailed', { message: e instanceof Error ? e.message : String(e) }),
+      )
+    } finally {
+      setBusy(false)
+    }
   }, [vendorKey, vendorName, onChanged, t])
 
   const handleSaveBaseUrl = React.useCallback(() => {
     const next = urlDraft.trim().replace(/\/+$/, '')
-    if (!/^https?:\/\/\S+$/.test(next)) { setError(t('onboardingProviders.vendorCard.invalidAddress')); return }
+    if (!/^https?:\/\/\S+$/.test(next)) {
+      setError(t('onboardingProviders.vendorCard.invalidAddress'))
+      return
+    }
     const bridge = getDesktopBridge()
     if (!bridge) return
-    setBusy(true); setError('')
+    setBusy(true)
+    setError('')
     try {
       bridge.modelCatalog.upsertVendor({ key: vendorKey, baseUrlHint: next })
-      setUrlEditing(false); onChanged()
+      setUrlEditing(false)
+      onChanged()
     } catch (e) {
       setError(t('onboardingProviders.vendorCard.saveFailed', { message: e instanceof Error ? e.message : String(e) }))
-    } finally { setBusy(false) }
+    } finally {
+      setBusy(false)
+    }
   }, [urlDraft, vendorKey, onChanged, t])
 
   const handleDeleteVendor = React.useCallback(async () => {
-    setBusy(true); setError('')
+    setBusy(true)
+    setError('')
     const res = await confirmAndDeleteVendor({ vendorKey, vendorName, modelCount, onChanged })
     if (res.error) setError(res.error)
     setBusy(false)
@@ -104,11 +128,13 @@ export function CustomVendorManage({
           <div className="flex gap-2">
             <input
               type="password"
-              aria-label={`${vendorName} API Key`}
+              aria-label={t('onboardingProviders.vendorCard.apiKeyAria', { name: vendorName })}
               placeholder={t('onboardingProviders.customVendor.newKeyPlaceholder')}
               value={keyDraft}
               onChange={(e) => setKeyDraft(e.currentTarget.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveKey() }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveKey()
+              }}
               disabled={busy}
               className={cn(
                 'flex-1 min-w-0 h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
@@ -124,19 +150,41 @@ export function CustomVendorManage({
                 'inline-flex items-center gap-1.5 hover:bg-nomi-accent disabled:opacity-50 disabled:cursor-not-allowed',
               )}
             >
-              <IconKey size={14} stroke={1.6} />{t('onboardingProviders.vendorCard.save')}
+              <IconKey size={14} stroke={1.6} />
+              {t('onboardingProviders.vendorCard.save')}
             </button>
           </div>
           {hasApiKey ? (
-            <button type="button" onClick={() => setKeyEditing(false)} disabled={busy} className="self-start text-caption text-nomi-ink-40 hover:text-nomi-ink-60">{t('common.cancel')}</button>
+            <button
+              type="button"
+              onClick={() => setKeyEditing(false)}
+              disabled={busy}
+              className="self-start text-caption text-nomi-ink-40 hover:text-nomi-ink-60"
+            >
+              {t('common.cancel')}
+            </button>
           ) : null}
         </div>
       ) : (
         <div className="flex items-center justify-between gap-2">
           <span className="text-caption text-nomi-ink-60">{t('onboardingProviders.vendorCard.credentialSaved')}</span>
           <div className="flex items-center gap-2 shrink-0">
-            <button type="button" onClick={() => setKeyEditing(true)} disabled={busy} className="text-caption text-nomi-ink-60 border border-nomi-line rounded-full px-2.5 py-[3px] hover:border-nomi-ink-20">{t('onboardingProviders.vendorCard.replace')}</button>
-            <button type="button" onClick={handleDisconnect} disabled={busy} className="text-caption text-nomi-ink-40 px-1 hover:text-workbench-danger">{t('onboardingProviders.vendorCard.disconnect')}</button>
+            <button
+              type="button"
+              onClick={() => setKeyEditing(true)}
+              disabled={busy}
+              className="text-caption text-nomi-ink-60 border border-nomi-line rounded-full px-2.5 py-[3px] hover:border-nomi-ink-20"
+            >
+              {t('onboardingProviders.vendorCard.replace')}
+            </button>
+            <button
+              type="button"
+              onClick={handleDisconnect}
+              disabled={busy}
+              className="text-caption text-nomi-ink-40 px-1 hover:text-workbench-danger"
+            >
+              {t('onboardingProviders.vendorCard.disconnect')}
+            </button>
           </div>
         </div>
       )}
@@ -147,10 +195,16 @@ export function CustomVendorManage({
           <input
             type="text"
             aria-label={t('onboardingProviders.vendorCard.addressAria', { name: vendorName })}
-            placeholder="https://…"
+            placeholder={t('onboardingProviders.vendorCard.addressPlaceholder')}
             value={urlDraft}
             onChange={(e) => setUrlDraft(e.currentTarget.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveBaseUrl(); if (e.key === 'Escape') { setUrlEditing(false); setError('') } }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSaveBaseUrl()
+              if (e.key === 'Escape') {
+                setUrlEditing(false)
+                setError('')
+              }
+            }}
             disabled={busy}
             autoFocus
             className={cn(
@@ -158,13 +212,43 @@ export function CustomVendorManage({
               'text-body-sm text-nomi-ink placeholder:text-nomi-ink-40 outline-none focus:border-nomi-accent',
             )}
           />
-          <button type="button" onClick={handleSaveBaseUrl} disabled={busy} className="shrink-0 h-8 px-3 rounded-nomi-sm bg-nomi-ink text-nomi-paper text-body-sm font-semibold hover:bg-nomi-accent disabled:opacity-50">{t('onboardingProviders.vendorCard.save')}</button>
-          <button type="button" onClick={() => { setUrlEditing(false); setError('') }} disabled={busy} className="shrink-0 text-caption text-nomi-ink-40 hover:text-nomi-ink-60">{t('common.cancel')}</button>
+          <button
+            type="button"
+            onClick={handleSaveBaseUrl}
+            disabled={busy}
+            className="shrink-0 h-8 px-3 rounded-nomi-sm bg-nomi-ink text-nomi-paper text-body-sm font-semibold hover:bg-nomi-accent disabled:opacity-50"
+          >
+            {t('onboardingProviders.vendorCard.save')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setUrlEditing(false)
+              setError('')
+            }}
+            disabled={busy}
+            className="shrink-0 text-caption text-nomi-ink-40 hover:text-nomi-ink-60"
+          >
+            {t('common.cancel')}
+          </button>
         </div>
       ) : (
         <div className="flex items-center gap-1 min-w-0">
-          <span className="text-caption text-nomi-ink-30 truncate">{t('onboardingProviders.vendorCard.address', { address: baseUrl || t('onboardingProviders.customVendor.notSet') })}</span>
-          <button type="button" aria-label={t('onboardingProviders.vendorCard.editAddressAria', { name: vendorName })} onClick={() => { setUrlDraft(baseUrl); setUrlEditing(true) }} disabled={busy} className="shrink-0 p-0.5 text-nomi-ink-30 hover:text-nomi-ink-60">
+          <span className="text-caption text-nomi-ink-30 truncate">
+            {t('onboardingProviders.vendorCard.address', {
+              address: baseUrl || t('onboardingProviders.customVendor.notSet'),
+            })}
+          </span>
+          <button
+            type="button"
+            aria-label={t('onboardingProviders.vendorCard.editAddressAria', { name: vendorName })}
+            onClick={() => {
+              setUrlDraft(baseUrl)
+              setUrlEditing(true)
+            }}
+            disabled={busy}
+            className="shrink-0 p-0.5 text-nomi-ink-30 hover:text-nomi-ink-60"
+          >
             <IconPencil size={13} stroke={1.6} />
           </button>
         </div>
@@ -183,7 +267,8 @@ export function CustomVendorManage({
           'hover:bg-[var(--workbench-danger-soft)] disabled:opacity-50',
         )}
       >
-        <IconTrash size={14} stroke={1.7} />{t('onboardingProviders.customVendor.deleteEntire')}
+        <IconTrash size={14} stroke={1.7} />
+        {t('onboardingProviders.customVendor.deleteEntire')}
       </button>
     </div>
   )

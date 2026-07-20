@@ -270,6 +270,7 @@ export const zhScene3d = {
     exitEdit: '退出编辑',
     enterEdit: '进入编辑',
     bindTargetFirst: '请先为轨迹绑定对象或相机',
+    connectNewPoint: '连接新轨迹点',
     list: {
       addToGroup: '加入轨迹组',
       delete: '删除',
@@ -607,6 +608,7 @@ export const enScene3d = {
     exitEdit: 'Exit edit mode',
     enterEdit: 'Enter edit mode',
     bindTargetFirst: 'Bind an object or camera to the trajectory first',
+    connectNewPoint: 'Connect a new trajectory point',
     list: {
       addToGroup: 'Add to trajectory group',
       delete: 'Delete',

@@ -1,9 +1,16 @@
 /* eslint-disable react-refresh/only-export-components */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconBrowser, IconBrush, IconPalette, IconWorld } from '../../../vendor/tablerIcons'
-import type { DesktopAssetDto, DesktopBrowserAssetOverlayCaptureRequest, DesktopBrowserPromptCaptureEvent, DesktopBrowserResourceCaptureEvent, DesktopBrowserViewBounds } from '../../../desktop/bridge'
+import type {
+  DesktopAssetDto,
+  DesktopBrowserAssetOverlayCaptureRequest,
+  DesktopBrowserPromptCaptureEvent,
+  DesktopBrowserResourceCaptureEvent,
+  DesktopBrowserViewBounds,
+} from '../../../desktop/bridge'
 import { cn } from '../../../utils/cn'
-import { BROWSER_PROMPT_EXTRACTION_MODE_LABELS, type BrowserPromptExtractionMode } from '../prompt/browserPromptExtraction'
+import type { BrowserPromptExtractionMode } from '../prompt/browserPromptExtraction'
 import type { NomiBrowserAsset } from '../assets/browserAssetData'
 import type { BrowserAssetPromptCaptureRequest } from '../popover/NomiBrowserAssetPopover'
 import type { FloatingWindowBoundsRect } from '../window/useResizableFloatingWindow'
@@ -211,12 +218,7 @@ export function sameBrowserViewBounds(
 ): boolean {
   if (left === right) return true
   if (!left || !right) return false
-  return (
-    left.x === right.x &&
-    left.y === right.y &&
-    left.width === right.width &&
-    left.height === right.height
-  )
+  return left.x === right.x && left.y === right.y && left.width === right.width && left.height === right.height
 }
 
 export function clampNumber(value: number, min: number, max: number): number {
@@ -333,7 +335,9 @@ export function fallbackCaptureFlyoutSourceRect(node: HTMLElement | null): Brows
   }
 }
 
-export function captureFlyoutTargetRectFromPopover(rect: FloatingWindowBoundsRect | null): BrowserCaptureFlyoutRect | null {
+export function captureFlyoutTargetRectFromPopover(
+  rect: FloatingWindowBoundsRect | null,
+): BrowserCaptureFlyoutRect | null {
   if (!rect || rect.width <= 0 || rect.height <= 0) return null
   const width = Math.round(clampNumber(CAPTURE_FLYOUT_TARGET_WIDTH, 52, Math.max(52, rect.width - 32)))
   const height = Math.round(width * 0.64)
@@ -370,7 +374,9 @@ export function TabFavicon({ tab }: { tab: BrowserTab }): JSX.Element {
   const loadable = Boolean(tab.favicon && /^(https:|data:|blob:)/i.test(tab.favicon))
   const [broken, setBroken] = React.useState(false)
   // 换标签页/换 URL 时重置失败态，让新 favicon 有机会加载。
-  React.useEffect(() => { setBroken(false) }, [tab.favicon])
+  React.useEffect(() => {
+    setBroken(false)
+  }, [tab.favicon])
   if (loadable && !broken) {
     return (
       <img
@@ -450,6 +456,7 @@ export function PromptModeOption({
   mode: BrowserPromptExtractionMode
   onSelect: (mode: BrowserPromptExtractionMode) => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const styleMode = mode === 'style'
   const Icon = styleMode ? IconPalette : IconBrush
   return (
@@ -469,13 +476,14 @@ export function PromptModeOption({
       </span>
       <span className="min-w-0 flex-1">
         <span className="block font-semibold leading-[1.25] text-nomi-ink">
-          {BROWSER_PROMPT_EXTRACTION_MODE_LABELS[mode]}
+          {t(`browserAssets.extraction.${mode}`)}
         </span>
         <span className="mt-0.5 block text-micro leading-snug text-nomi-ink-40">
-          {styleMode ? '提取配色、字体、构图、效果 JSON' : '还原主体、构图、光影和细节'}
+          {styleMode
+            ? t('browserAssets.extraction.styleDescription')
+            : t('browserAssets.extraction.replicateDescription')}
         </span>
       </span>
     </button>
   )
 }
-

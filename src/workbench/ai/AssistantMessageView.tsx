@@ -2,6 +2,7 @@
 // 保证两边「发言」长得完全一致——左对齐·一行 Nomi 身份·真 markdown·token 字号·极简状态标。
 // 纯展示组件：各面板把自己的状态模型（创作 message.status / 画布「处理中...」哨兵）映射成下面的 props。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconPlayerStopFilled } from '@tabler/icons-react'
 import { NomiLoadingMark, NomiLogoMark, NomiWordmark } from '../../design'
 import { cn } from '../../utils/cn'
@@ -57,6 +58,7 @@ export const AssistantMessageView = React.memo(function AssistantMessageView({
   pendingLabel,
   cancelled = false,
 }: AssistantMessageViewProps): JSX.Element {
+  const { t } = useTranslation()
   const hasContent = content.trim().length > 0
   return (
     <div className={cn('self-start w-full max-w-full')} data-role="assistant">
@@ -64,8 +66,10 @@ export const AssistantMessageView = React.memo(function AssistantMessageView({
       {attachments?.length ? <AttachmentRail attachments={attachments} readOnly className={cn('mb-1.5')} /> : null}
       {streaming && !hasContent ? (
         <div className={cn('flex items-center gap-2')}>
-          <NomiLoadingMark size={14} label="处理中" />
-          {pendingLabel ? <span className={cn('text-body-sm text-nomi-ink-60 leading-snug')}>{pendingLabel}</span> : null}
+          <NomiLoadingMark size={14} label={t('creationAi.assistantMessage.processing')} />
+          {pendingLabel ? (
+            <span className={cn('text-body-sm text-nomi-ink-60 leading-snug')}>{pendingLabel}</span>
+          ) : null}
         </div>
       ) : (
         <NomiMarkdown compact>{content}</NomiMarkdown>
@@ -74,12 +78,10 @@ export const AssistantMessageView = React.memo(function AssistantMessageView({
       {cancelled ? (
         <span className={cn('mt-1.5 inline-flex items-center gap-1 text-micro text-nomi-ink-40')}>
           <IconPlayerStopFilled size={11} />
-          已停止
+          {t('creationAi.assistantMessage.stopped')}
         </span>
       ) : null}
-      {!streaming && !cancelled && hasContent ? (
-        <AiReplyActionButton content={content} />
-      ) : null}
+      {!streaming && !cancelled && hasContent ? <AiReplyActionButton content={content} /> : null}
     </div>
   )
 })

@@ -11,6 +11,8 @@ export const zhModelSetup = {
   baseUrlAnthropicHint: '留空用官方地址；中转站填它给你的地址',
   baseUrlHint: '中转后台那个地址，带不带 /v1 都行',
   anthropicUrlPlaceholder: 'https://api.anthropic.com（可留空）',
+  openAiUrlPlaceholder: 'https://api.openai.com/v1',
+  apiKeyPlaceholder: 'sk-...',
   invalidUrl: '需以 http:// 或 https:// 开头',
   autoFilledUrl: '接入地址已自动填好 ·',
   customize: '自定义',
@@ -77,7 +79,8 @@ type TranslationShape<T> = {
 
 export const enModelSetup = {
   addModel: 'Add an AI model',
-  intro: 'Enter a gateway URL and key to fetch its models. Text, image, and video models are classified automatically and can be adjusted.',
+  intro:
+    'Enter a gateway URL and key to fetch its models. Text, image, and video models are classified automatically and can be adjusted.',
   relayGroup: 'Gateways (text / image / video)',
   officialGroup: 'Official providers (text)',
   relayHint: 'Enter the URL and key from your gateway dashboard to fetch all available models',
@@ -88,6 +91,8 @@ export const enModelSetup = {
   baseUrlAnthropicHint: 'Leave empty for the official endpoint, or enter your gateway URL',
   baseUrlHint: 'Enter the gateway URL; /v1 is optional',
   anthropicUrlPlaceholder: 'https://api.anthropic.com (optional)',
+  openAiUrlPlaceholder: 'https://api.openai.com/v1',
+  apiKeyPlaceholder: 'sk-...',
   invalidUrl: 'Must start with http:// or https://',
   autoFilledUrl: 'Base URL filled automatically ·',
   customize: 'Customize',
@@ -102,8 +107,10 @@ export const enModelSetup = {
   fetchedNotSelected: 'Fetched {{count}} models; none selected yet',
   chooseModels: 'Choose models →',
   noModelsListed: 'This endpoint did not list any models',
-  noModelsListedHint: 'This endpoint did not list models automatically. Enter an ID manually in Choose models, or fetch again.',
-  noModelsFetchedHint: 'Models could not be fetched automatically. Enter an ID manually in Choose models, or fetch again.',
+  noModelsListedHint:
+    'This endpoint did not list models automatically. Enter an ID manually in Choose models, or fetch again.',
+  noModelsFetchedHint:
+    'Models could not be fetched automatically. Enter an ID manually in Choose models, or fetch again.',
   manualSelect: 'Choose manually →',
   fetchHint: 'After you enter the Base URL and key, Nomi will fetch the models available from this upstream',
   fetchModels: 'Fetch models',
@@ -112,7 +119,8 @@ export const enModelSetup = {
   autoDetectOnSave: 'Detect automatically when saving',
   manualProtocol: 'Choose manually',
   protocol: 'Protocol',
-  protocolHint: 'Keep automatic detection if unsure. Use Responses for Codex gateways and Anthropic for Claude-native gateways.',
+  protocolHint:
+    'Keep automatic detection if unsure. Use Responses for Codex gateways and Anthropic for Claude-native gateways.',
   restoreAutoDetect: 'Restore automatic detection',
   customHeaders: 'Custom headers',
   headerNamePlaceholder: 'Header name, e.g. HTTP-Referer',

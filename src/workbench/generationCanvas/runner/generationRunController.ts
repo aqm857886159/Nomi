@@ -14,8 +14,13 @@ import { isRecoverableTimeoutError } from './recoverableTimeout'
 export { classifyGenerationError, type GenerationErrorReport } from '../../observability/classifyError'
 import type { DependencyWavePlan } from './dependencyWaves'
 import { resolveGenerationReferences } from './generationReferenceResolver'
-import { currentArchetypeMode, hasArchetypeArrayReferences, resolveArchetypeForModel } from '../nodes/controls/archetypeMeta'
+import {
+  currentArchetypeMode,
+  hasArchetypeArrayReferences,
+  resolveArchetypeForModel,
+} from '../nodes/controls/archetypeMeta'
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
+import i18n from '../../../i18n'
 
 /** 节点 kind → 付费预估用的产物口径（视频/配音/画面），喂给 describeGenerationCost 报对名词与时长。 */
 function spendCostKind(kind: GenerationNodeKind): 'image' | 'video' | 'audio' {
@@ -64,7 +69,13 @@ function isRetryableGenerationError(error: unknown): boolean {
   if (!(error instanceof Error)) return false
   const candidate = error as RetryableGenerationError
   if (typeof candidate.status === 'number') {
-    return candidate.status === 408 || candidate.status === 409 || candidate.status === 425 || candidate.status === 429 || candidate.status >= 500
+    return (
+      candidate.status === 408 ||
+      candidate.status === 409 ||
+      candidate.status === 425 ||
+      candidate.status === 429 ||
+      candidate.status >= 500
+    )
   }
   const message = candidate.message.trim().toLowerCase()
   return (
@@ -103,9 +114,11 @@ export async function runGenerationNode(
   const initialNode = initialState.nodes.find((node) => node.id === id)
   if (!initialNode) throw new Error('node not found')
   if (!canRunGenerationNode(initialNode, { nodes: initialState.nodes, edges: initialState.edges })) {
-    throw new Error(initialNode.kind === 'video'
-      ? '视频节点缺少上游真实图片或视频资产 URL。请先生成或选择首帧/参考图后再生成视频。'
-      : `暂不支持「${initialNode.kind}」类型节点的生成`)
+    throw new Error(
+      initialNode.kind === 'video'
+        ? '视频节点缺少上游真实图片或视频资产 URL。请先生成或选择首帧/参考图后再生成视频。'
+        : `暂不支持「${initialNode.kind}」类型节点的生成`,
+    )
   }
 
   const run = initialState.appendNodeRun(id, {
@@ -185,9 +198,8 @@ export type RunGenerationNodesBatchOptions = RunGenerationNodeOptions & {
    *  不再一个一个来）。有依赖的镜头仍按波次串行（锚先于镜头），这只调「同波内同时几个」。上限 8。 */
   concurrency?: number
   /** Called whenever a node finishes (success or failure) so the UI can update progress. */
-  onNodeResult?: (event:
-    | { ok: true; nodeId: string; result: GenerationNodeResult }
-    | { ok: false; nodeId: string; error: Error }
+  onNodeResult?: (
+    event: { ok: true; nodeId: string; result: GenerationNodeResult } | { ok: false; nodeId: string; error: Error },
   ) => void
 }
 
@@ -281,7 +293,8 @@ export async function runGenerationNodesByPlan(
       const failedDep = (internalDeps.get(nodeId) ?? []).find((dep) => failedIds.has(dep))
       if (failedDep) {
         failedIds.add(nodeId)
-        const depTitle = useGenerationCanvasStore.getState().nodes.find((node) => node.id === failedDep)?.title || failedDep
+        const depTitle =
+          useGenerationCanvasStore.getState().nodes.find((node) => node.id === failedDep)?.title || failedDep
         failNode(nodeId, `上游「${depTitle}」本批生成失败,本节点未执行`)
       } else {
         runnable.push(nodeId)
@@ -321,7 +334,12 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
   try {
     grantId = await mintSpendGrant([runId])
   } catch (error) {
-    toast(error instanceof Error && error.message ? error.message : '付费授权失败', 'error')
+    toast(
+      error instanceof Error && error.message
+        ? error.message
+        : i18n.t('generationCommon.batchPlan.authorizationFailed'),
+      'error',
+    )
     return
   }
   try {
@@ -364,7 +382,12 @@ export async function regenerateNodeInPlace(nodeId: string): Promise<void> {
   try {
     grantId = await mintSpendGrant([id])
   } catch (error) {
-    toast(error instanceof Error && error.message ? error.message : '付费授权失败', 'error')
+    toast(
+      error instanceof Error && error.message
+        ? error.message
+        : i18n.t('generationCommon.batchPlan.authorizationFailed'),
+      'error',
+    )
     return
   }
   try {

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconPlus } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
@@ -46,6 +47,7 @@ export function MagneticConnectionHandle({
   onStart,
   onComplete,
 }: MagneticConnectionHandleProps): JSX.Element {
+  const { t } = useTranslation()
   const homeX = side === 'left' ? 'calc(100% - 28px)' : '28px'
   return (
     <button
@@ -56,7 +58,7 @@ export function MagneticConnectionHandle({
         'touch-none cursor-crosshair border-0 bg-transparent p-0',
         side === 'left' ? 'left-[-112px]' : 'right-[-112px]',
       )}
-      aria-label={pendingTarget ? '连接到此节点' : '从此节点开始连线'}
+      aria-label={pendingTarget ? t('generationCommon.node.connectHere') : t('generationCommon.node.startConnection')}
       data-active={active ? 'true' : 'false'}
       data-home-x={homeX}
       data-side={side}

@@ -46,6 +46,7 @@ export const zhTimelinePreview = {
   cancelExport: '取消导出',
   preparingCannotCancel: '准备中，暂不可取消',
   exportMp4: '导出 MP4',
+  timeSummary: '{{current}}s / {{total}}s',
   textStyle: {
     aria: '文字样式',
     size: '字号',
@@ -115,6 +116,7 @@ export const enTimelinePreview = {
   cancelExport: 'Cancel export',
   preparingCannotCancel: 'Preparing; cancellation is not available yet',
   exportMp4: 'Export MP4',
+  timeSummary: '{{current}}s / {{total}}s',
   textStyle: {
     aria: 'Text style',
     size: 'Size',

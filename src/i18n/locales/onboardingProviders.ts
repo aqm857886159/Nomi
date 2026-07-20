@@ -135,6 +135,8 @@ export const zhOnboardingProviders = {
     save: '保存',
     address: '接入地址：{{address}}',
     editAddressAria: '编辑 {{name}} 接入地址',
+    apiKeyAria: '{{name}} API Key',
+    addressPlaceholder: 'https://…',
   },
   assistant: {
     example: '在 Nomi 新建项目「咖啡广告」，拆 3 个镜头加到画布，用我的图模型把第一个生成出来。',
@@ -470,6 +472,8 @@ export const enOnboardingProviders = {
     save: 'Save',
     address: 'Connection address: {{address}}',
     editAddressAria: 'Edit {{name}} connection address',
+    apiKeyAria: '{{name}} API key',
+    addressPlaceholder: 'https://…',
   },
   assistant: {
     example:
