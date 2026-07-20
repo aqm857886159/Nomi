@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { WorkbenchButton } from '../../../design'
 import {
@@ -23,12 +24,6 @@ type AgentPlanCardProps = {
   rejectCall: (toolCallId: string) => void
   /** 时间线内嵌(方案三):去外框,导轨提供视觉结构;标题/计数由步骤头承担。 */
   flat?: boolean
-}
-
-const LAYER_LABEL: Record<AgentPlanLayer, string> = {
-  reference: '参考',
-  keyframe: '关键帧',
-  video: '视频',
 }
 
 const edgeKey = (edge: PlannedEdge): string => `${edge.sourceClientId}→${edge.targetClientId}`
@@ -85,6 +80,7 @@ function PlanNodeRow({
   prompt: string
   onPromptChange: (value: string) => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = React.useState(false)
   return (
     <li
@@ -95,13 +91,20 @@ function PlanNodeRow({
         type="button"
         className={cn('flex items-center gap-2 min-w-0 border-0 bg-transparent p-0 text-left cursor-pointer')}
         aria-expanded={expanded}
-        aria-label={`${node.title}（点击${expanded ? '收起' : '编辑'}提示词）`}
+        aria-label={t(
+          expanded ? 'generationCommon.agentPlan.collapsePromptAria' : 'generationCommon.agentPlan.editPromptAria',
+          { title: node.title },
+        )}
         onClick={() => setExpanded((current) => !current)}
       >
         {numbered ? (
-          <span className={cn(
-            'inline-grid place-items-center w-5 h-5 rounded-full bg-nomi-ink text-nomi-paper text-micro font-medium shrink-0',
-          )}>{index + 1}</span>
+          <span
+            className={cn(
+              'inline-grid place-items-center w-5 h-5 rounded-full bg-nomi-ink text-nomi-paper text-micro font-medium shrink-0',
+            )}
+          >
+            {index + 1}
+          </span>
         ) : null}
         <span className={cn('text-nomi-ink text-body-sm font-medium truncate')}>{node.title}</span>
         {refTitles.length > 0 ? (
@@ -109,7 +112,9 @@ function PlanNodeRow({
             {refTitles.map((title) => (
               <span
                 key={title}
-                className={cn('inline-flex items-center h-[18px] px-[7px] rounded-full bg-nomi-ink-05 text-nomi-ink-60 text-micro font-semibold')}
+                className={cn(
+                  'inline-flex items-center h-[18px] px-[7px] rounded-full bg-nomi-ink-05 text-nomi-ink-60 text-micro font-semibold',
+                )}
               >
                 {title}
               </span>
@@ -121,8 +126,10 @@ function PlanNodeRow({
       {chips ? (
         <div className={cn('flex items-center gap-[6px] flex-wrap', numbered && 'pl-7')} data-plan-node-chips="true">
           <PendingChip value={chips.modelLabel} />
-          {chips.aspect ? <PendingChip label="比例" value={chips.aspect} /> : null}
-          {chips.resolution ? <PendingChip label="清晰度" value={chips.resolution} /> : null}
+          {chips.aspect ? <PendingChip label={t('generationCommon.agentPlan.aspect')} value={chips.aspect} /> : null}
+          {chips.resolution ? (
+            <PendingChip label={t('generationCommon.agentPlan.resolution')} value={chips.resolution} />
+          ) : null}
         </div>
       ) : null}
 
@@ -134,14 +141,17 @@ function PlanNodeRow({
             'hover:border-nomi-line focus:border-nomi-accent focus:text-nomi-ink',
             numbered && 'ml-7 w-[calc(100%-1.75rem)]',
           )}
-          aria-label={`编辑「${node.title}」的提示词`}
+          aria-label={t('generationCommon.agentPlan.editNamedPrompt', { title: node.title })}
           value={prompt}
           autoFocus
           onChange={(event) => onPromptChange(event.target.value)}
         />
       ) : (
         <div
-          className={cn('text-nomi-ink-60 text-caption overflow-hidden text-ellipsis whitespace-nowrap', numbered && 'pl-7')}
+          className={cn(
+            'text-nomi-ink-60 text-caption overflow-hidden text-ellipsis whitespace-nowrap',
+            numbered && 'pl-7',
+          )}
           aria-hidden="true"
         >
           {prompt}
@@ -158,9 +168,12 @@ function PlanNodeRow({
  * 单层计划保持原编号平铺。一次「确认全部」原子批准。
  */
 function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPlanCardProps): JSX.Element {
+  const { t } = useTranslation()
   const [editedPrompts, setEditedPrompts] = React.useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
-    plan.nodes.forEach((node) => { initial[node.clientId] = node.prompt })
+    plan.nodes.forEach((node) => {
+      initial[node.clientId] = node.prompt
+    })
     return initial
   })
   // 可用模型清单(把 modelKey 翻成模型名;chip 下拉改选项也用它,下一步)。
@@ -168,15 +181,18 @@ function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPl
   React.useEffect(() => {
     let alive = true
     listAvailableModelsForAgent()
-      .then((entries) => { if (alive) setEntryByKey(new Map(entries.map((e) => [e.modelKey, e]))) })
-      .catch(() => { /* 清单拉取失败:chip 退回显示 modelKey,不阻断确认 */ })
-    return () => { alive = false }
+      .then((entries) => {
+        if (alive) setEntryByKey(new Map(entries.map((e) => [e.modelKey, e])))
+      })
+      .catch(() => {
+        /* 清单拉取失败:chip 退回显示 modelKey,不阻断确认 */
+      })
+    return () => {
+      alive = false
+    }
   }, [])
 
-  const nodeByClientId = React.useMemo(
-    () => new Map(plan.nodes.map((node) => [node.clientId, node])),
-    [plan.nodes],
-  )
+  const nodeByClientId = React.useMemo(() => new Map(plan.nodes.map((node) => [node.clientId, node])), [plan.nodes])
   const kindByClientId = React.useMemo(
     () => new Map(plan.nodes.map((node) => [node.clientId, node.kind])),
     [plan.nodes],
@@ -203,16 +219,22 @@ function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPl
     : []
 
   // 节点行右上的引用 chip：进入该节点的参考类边的源节点标题（轨迹形态才展示）。
-  const refTitlesFor = React.useCallback((clientId: string): string[] => {
-    if (!layered) return []
-    return plan.edges
-      .filter((edge) => edge.targetClientId === clientId && edge.mode !== 'first_frame' && nodeByClientId.has(edge.sourceClientId))
-      .map((edge) => {
-        const title = nodeByClientId.get(edge.sourceClientId)?.title || edge.sourceClientId
-        // 「角色：男主」→「男主」——chip 空间小，留专名即可
-        return title.replace(/^(角色|场景|道具)[：:]\s*/, '').slice(0, 8)
-      })
-  }, [layered, plan.edges, nodeByClientId])
+  const refTitlesFor = React.useCallback(
+    (clientId: string): string[] => {
+      if (!layered) return []
+      return plan.edges
+        .filter(
+          (edge) =>
+            edge.targetClientId === clientId && edge.mode !== 'first_frame' && nodeByClientId.has(edge.sourceClientId),
+        )
+        .map((edge) => {
+          const title = nodeByClientId.get(edge.sourceClientId)?.title || edge.sourceClientId
+          // 「角色：男主」→「男主」——chip 空间小，留专名即可
+          return title.replace(/^(角色|场景|道具)[：:]\s*/, '').slice(0, 8)
+        })
+    },
+    [layered, plan.edges, nodeByClientId],
+  )
 
   const handleConfirmAll = React.useCallback(() => {
     const patchedNodes = plan.nodes.map((node) => ({
@@ -271,7 +293,7 @@ function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPl
         flat ? '' : 'p-3 rounded-nomi border border-nomi-accent-soft bg-nomi-accent-soft/40',
       )}
       data-agent-plan-card="true"
-      aria-label="Agent 故事板计划卡片"
+      aria-label={t('generationCommon.agentPlan.cardAria')}
     >
       {/* 定稿样张：头部只留一行摘要（计数在组头、蓝底 chip 可点自明，不再解释）。 */}
       {flat ? null : <div className={cn('text-nomi-ink text-body font-medium leading-snug')}>{plan.summary}</div>}
@@ -281,7 +303,8 @@ function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPl
           {groups.map((group) => (
             <section key={group.layer} className={cn('flex flex-col gap-[6px]')} data-plan-layer={group.layer}>
               <div className={cn('text-nomi-ink-60 text-micro font-semibold')}>
-                {LAYER_LABEL[group.layer]} <span className={cn('text-nomi-ink-40 font-medium')}>×{group.nodes.length}</span>
+                {t(`generationCommon.agentPlan.${group.layer}` as 'generationCommon.agentPlan.reference')}{' '}
+                <span className={cn('text-nomi-ink-40 font-medium')}>×{group.nodes.length}</span>
               </div>
               <ol className={cn('flex flex-col gap-2 list-none p-0 m-0')}>
                 {group.nodes.map((node, index) => renderRow(node, index, false))}
@@ -292,32 +315,45 @@ function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPl
           {relayEdges.length > 0 ? (
             <section className={cn('flex flex-col gap-[6px]')} data-plan-layer="relay">
               <div className={cn('text-nomi-ink-60 text-micro font-semibold')}>
-                尾帧接力 <span className={cn('text-nomi-ink-40 font-medium')}>可选</span>
+                {t('generationCommon.agentPlan.relay')}{' '}
+                <span className={cn('text-nomi-ink-40 font-medium')}>{t('generationCommon.agentPlan.optional')}</span>
               </div>
               {relayEdges.map((edge) => {
                 const key = edgeKey(edge)
                 const enabled = relayEnabled[key] !== false
                 const shortTitle = (clientId: string) =>
-                  (nodeByClientId.get(clientId)?.title || clientId).replace(/\s*视频.*$/, '')
+                  (nodeByClientId.get(clientId)?.title || clientId).replace(/\s*(视频|video).*$/i, '')
                 return (
                   <label
                     key={key}
-                    className={cn('flex items-start gap-2 p-2 rounded-nomi-sm bg-nomi-paper border border-nomi-line-soft cursor-pointer')}
+                    className={cn(
+                      'flex items-start gap-2 p-2 rounded-nomi-sm bg-nomi-paper border border-nomi-line-soft cursor-pointer',
+                    )}
                     data-plan-relay-edge={key}
                   >
                     <input
                       type="checkbox"
                       className={cn('mt-[2px] accent-[var(--nomi-accent)]')}
                       checked={enabled}
-                      aria-label={`启用 ${shortTitle(edge.sourceClientId)} 到 ${shortTitle(edge.targetClientId)} 尾帧接力`}
+                      aria-label={t('generationCommon.agentPlan.enableRelay', {
+                        source: shortTitle(edge.sourceClientId),
+                        target: shortTitle(edge.targetClientId),
+                      })}
                       onChange={(event) => setRelayEnabled((current) => ({ ...current, [key]: event.target.checked }))}
                     />
                     <span className={cn('flex flex-col gap-[2px] min-w-0')}>
-                      <span className={cn('text-caption font-semibold', enabled ? 'text-nomi-ink' : 'text-nomi-ink-40 line-through')}>
+                      <span
+                        className={cn(
+                          'text-caption font-semibold',
+                          enabled ? 'text-nomi-ink' : 'text-nomi-ink-40 line-through',
+                        )}
+                      >
                         {shortTitle(edge.sourceClientId)} → {shortTitle(edge.targetClientId)}
                       </span>
                       <span className={cn('text-micro text-nomi-ink-40')}>
-                        {enabled ? '尾帧接首帧，动作顺接' : '已取消，独立生成'}
+                        {enabled
+                          ? t('generationCommon.agentPlan.relayEnabled')
+                          : t('generationCommon.agentPlan.relayDisabled')}
                       </span>
                     </span>
                   </label>
@@ -327,7 +363,10 @@ function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPl
           ) : null}
         </div>
       ) : (
-        <ol className={cn('flex flex-col gap-2 list-none p-0 m-0')} aria-label="待确认的镜头列表">
+        <ol
+          className={cn('flex flex-col gap-2 list-none p-0 m-0')}
+          aria-label={t('generationCommon.agentPlan.pendingShots')}
+        >
           {plan.nodes.map((node, index) => renderRow(node, index, true))}
         </ol>
       )}
@@ -336,10 +375,16 @@ function AgentPlanCard({ plan, approveCalls, rejectCall, flat = false }: AgentPl
           按钮走设计系统 variant(default/primary)+size md(=h-8,零尺寸变化),不再手搓 className。 */}
       <div className={cn('flex flex-wrap items-center justify-end gap-2')}>
         <WorkbenchButton className={cn('shrink-0')} variant="default" size="md" onClick={handleRejectAll}>
-          全部拒绝
+          {t('generationCommon.agentPlan.rejectAll')}
         </WorkbenchButton>
-        <WorkbenchButton className={cn('shrink-0')} variant="primary" size="md" data-plan-confirm-all="true" onClick={handleConfirmAll}>
-          确认全部
+        <WorkbenchButton
+          className={cn('shrink-0')}
+          variant="primary"
+          size="md"
+          data-plan-confirm-all="true"
+          onClick={handleConfirmAll}
+        >
+          {t('generationCommon.agentPlan.confirmAll')}
         </WorkbenchButton>
       </div>
     </div>
