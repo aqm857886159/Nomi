@@ -39,9 +39,7 @@ export function importWithRetry<T>(
   const attempt = (remaining: number, delayMs: number): Promise<T> =>
     factory().catch((error: unknown) => {
       if (remaining <= 0) throw error
-      return new Promise((resolve) => setTimeout(resolve, delayMs)).then(() =>
-        attempt(remaining - 1, delayMs * 2),
-      )
+      return new Promise((resolve) => setTimeout(resolve, delayMs)).then(() => attempt(remaining - 1, delayMs * 2))
     })
   return attempt(retries, baseDelayMs)
 }
@@ -100,6 +98,7 @@ type ChunkTranslationKey =
   | 'generationCommon.chunk.textEditor'
   | 'generationCommon.chunk.panoramaViewer'
   | 'generationCommon.chunk.composer'
+  | 'scene3d.fullscreen.chunkTitle'
 
 class ChunkErrorBoundary extends React.Component<BoundaryProps, { error: Error | null }> {
   state: { error: Error | null } = { error: null }
@@ -111,7 +110,9 @@ class ChunkErrorBoundary extends React.Component<BoundaryProps, { error: Error |
 
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
     try {
-      ;(window as unknown as { nomiDesktop?: { logRendererCrash?: (m: string) => void } }).nomiDesktop?.logRendererCrash?.(
+      ;(
+        window as unknown as { nomiDesktop?: { logRendererCrash?: (m: string) => void } }
+      ).nomiDesktop?.logRendererCrash?.(
         `[chunk:${this.props.label}] ${error.name}: ${error.message}\n${error.stack || ''}\n--- componentStack ---\n${info.componentStack || ''}`,
       )
     } catch {
@@ -137,7 +138,7 @@ class ChunkErrorBoundary extends React.Component<BoundaryProps, { error: Error |
       : this.props.label
     return (
       <div
-        role='alert'
+        role="alert"
         data-chunk-boundary={this.props.label}
         className={cn(
           'flex h-full w-full min-h-24 flex-col items-center justify-center gap-2 p-4 text-center',
@@ -149,7 +150,7 @@ class ChunkErrorBoundary extends React.Component<BoundaryProps, { error: Error |
           {isChunkLoadNetworkError(this.state.error) ? i18n.t('errors.chunkNetwork') : i18n.t('errors.chunkOther')}
         </span>
         <button
-          type='button'
+          type="button"
           className={cn(
             'inline-flex h-6 items-center px-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper',
             'text-caption text-nomi-ink-80 cursor-pointer hover:bg-nomi-ink-05',
