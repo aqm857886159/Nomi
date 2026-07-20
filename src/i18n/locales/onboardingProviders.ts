@@ -1,4 +1,24 @@
 export const zhOnboardingProviders = {
+  splash: {
+    aria: 'Nomi 开屏介绍',
+    skip: '跳过 ›',
+    captions: {
+      write: '从你的一句话开始',
+      canvas: '几秒，铺成一张分镜画布',
+      control: '每一格，你说了算',
+      timeline: '排进时间轴，导出成片',
+      brand: '',
+    },
+    nodes: {
+      opening: '镜 1 · 开场',
+      closeup: '镜 2 · 特写',
+      ending: '镜 3 · 收尾',
+    },
+    sentence: '把你的一句话…',
+    visualTrack: '画面',
+    audioTrack: '声音',
+    slogan: 'AI 起草，你定稿',
+  },
   journey: {
     finaleAria: '引导结束',
     finaleTitle: '这就是全程，现在轮到你',
@@ -301,6 +321,26 @@ type TranslationShape<T> = {
 }
 
 export const enOnboardingProviders = {
+  splash: {
+    aria: 'Nomi introduction',
+    skip: 'Skip ›',
+    captions: {
+      write: 'Start with one sentence',
+      canvas: 'Turn it into a storyboard canvas in seconds',
+      control: 'You control every frame',
+      timeline: 'Arrange it on the timeline and export',
+      brand: '',
+    },
+    nodes: {
+      opening: 'Shot 1 · Opening',
+      closeup: 'Shot 2 · Close-up',
+      ending: 'Shot 3 · Ending',
+    },
+    sentence: 'Take one sentence…',
+    visualTrack: 'Visual',
+    audioTrack: 'Audio',
+    slogan: 'AI drafts. You decide.',
+  },
   journey: {
     finaleAria: 'Tour complete',
     finaleTitle: "That's the full workflow. Now it's your turn.",

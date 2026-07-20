@@ -25,6 +25,15 @@ export const zhTimelineEditor = {
   collapse: '{{prefix}}收起时间轴',
   ruler: '时间刻度',
   dragPlayhead: '拖动播放头',
+  textTrack: {
+    title: '文字轨',
+    emptyHint: '用上方「字幕 / 标题卡」添加',
+    titleCard: '标题卡',
+    caption: '字幕',
+    empty: '（空）',
+    resizeLeft: '向左调整时长',
+    resizeRight: '向右调整时长',
+  },
 } as const
 
 type TranslationShape<T> = {
@@ -37,7 +46,8 @@ export const enTimelineEditor = {
   alreadyArranged: 'All shots are already on the timeline',
   selectedClipActions: 'Selected clip actions',
   regenerate: 'Regenerate this shot',
-  regenerateHint: 'Regenerate this shot in place and keep its timeline position. Edit prompts and parameters on the canvas node.',
+  regenerateHint:
+    'Regenerate this shot in place and keep its timeline position. Edit prompts and parameters on the canvas node.',
   nudgeEarlier: 'Nudge clip earlier',
   duplicateClip: 'Duplicate clip',
   nudgeLater: 'Nudge clip later',
@@ -58,4 +68,13 @@ export const enTimelineEditor = {
   collapse: '{{prefix}}collapse timeline',
   ruler: 'Time ruler',
   dragPlayhead: 'Drag playhead',
+  textTrack: {
+    title: 'Text track',
+    emptyHint: 'Add a caption or title card above',
+    titleCard: 'Title card',
+    caption: 'Caption',
+    empty: '(Empty)',
+    resizeLeft: 'Adjust duration from the left',
+    resizeRight: 'Adjust duration from the right',
+  },
 } satisfies TranslationShape<typeof zhTimelineEditor>
