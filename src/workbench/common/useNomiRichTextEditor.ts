@@ -48,29 +48,33 @@ export function useNomiRichTextEditor(options: {
   // Keep callbacks in refs so changing them never re-creates the editor instance.
   const onChangeRef = React.useRef(onChange)
   const onSelectionChangeRef = React.useRef(onSelectionChange)
-  React.useEffect(() => { onChangeRef.current = onChange }, [onChange])
-  React.useEffect(() => { onSelectionChangeRef.current = onSelectionChange }, [onSelectionChange])
+  React.useEffect(() => {
+    onChangeRef.current = onChange
+  }, [onChange])
+  React.useEffect(() => {
+    onSelectionChangeRef.current = onSelectionChange
+  }, [onSelectionChange])
 
   // Guards against the controlled-content effect re-applying the editor's own edits.
   const lastEditorJsonRef = React.useRef('')
 
-  const editor = useEditor({
-    editable,
-    extensions: [
-      StarterKit,
-      Placeholder.configure({ placeholder: placeholder ?? '' }),
-    ],
-    content,
-    editorProps: { attributes: { class: 'workbench-editor__content' } },
-    onUpdate: ({ editor: current }) => {
-      const json = current.getJSON()
-      lastEditorJsonRef.current = JSON.stringify(json)
-      onChangeRef.current?.(json)
+  const editor = useEditor(
+    {
+      editable,
+      extensions: [StarterKit, Placeholder.configure({ placeholder: placeholder ?? '' })],
+      content,
+      editorProps: { attributes: { class: 'workbench-editor__content' } },
+      onUpdate: ({ editor: current }) => {
+        const json = current.getJSON()
+        lastEditorJsonRef.current = JSON.stringify(json)
+        onChangeRef.current?.(json)
+      },
+      onSelectionUpdate: ({ editor: current }) => {
+        onSelectionChangeRef.current?.(readSelectedText(current))
+      },
     },
-    onSelectionUpdate: ({ editor: current }) => {
-      onSelectionChangeRef.current?.(readSelectedText(current))
-    },
-  })
+    [placeholder],
+  )
 
   // Sync controlled content in (e.g. AI wrote into the doc, or node switched).
   React.useEffect(() => {

@@ -3,23 +3,24 @@
 // 姿势藏在属性第二个 tab、运镜预设要先选中相机才解锁；第一屏零提示。
 // 三步分别指向左列表假人行 / 相机行 / 底部「添加」，可跳过、只出现一次（onboardingState 持久化）。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { hasSeenScene3DCoach, markScene3DCoachSeen } from '../../../onboarding/onboardingState'
 
 const STEPS = [
   {
     coach: 'mannequin-row',
-    title: '点假人，人就归你管',
-    body: '右侧出「姿势」面板一键换姿势；头顶出「操控」——进去 WASD 走位、录 take。',
+    titleKey: 'scene3d.coach.mannequinTitle',
+    bodyKey: 'scene3d.coach.mannequinBody',
   },
   {
     coach: 'camera-row',
-    title: '点相机，运镜归你调',
-    body: '选中相机出画面预览和「运镜预设」——推近 / 环绕 / 希区柯克变焦，13 招一键落轨迹。',
+    titleKey: 'scene3d.coach.cameraTitle',
+    bodyKey: 'scene3d.coach.cameraBody',
   },
   {
     coach: 'add-button',
-    title: '场景不用自己搭',
-    body: '「添加」里有城市街道 / 室内房间场景模板，还有车、树、路灯这些道具。',
+    titleKey: 'scene3d.coach.sceneTitle',
+    bodyKey: 'scene3d.coach.sceneBody',
   },
 ] as const
 
@@ -33,6 +34,7 @@ interface TargetRect {
 }
 
 export function Scene3DCoachMarks({ onDone }: { onDone: () => void }): JSX.Element | null {
+  const { t } = useTranslation()
   const hostRef = React.useRef<HTMLDivElement | null>(null)
   const [step, setStep] = React.useState(0)
   const [rect, setRect] = React.useState<TargetRect | null>(null)
@@ -97,24 +99,26 @@ export function Scene3DCoachMarks({ onDone }: { onDone: () => void }): JSX.Eleme
         className="absolute w-64 rounded-nomi border border-nomi-line bg-nomi-paper p-3 shadow-nomi-lg"
         style={{ left: cardLeft, top: cardTop }}
       >
-        <div className="text-caption font-medium text-nomi-ink">{current.title}</div>
-        <div className="mt-1 text-micro leading-relaxed text-nomi-ink-60">{current.body}</div>
+        <div className="text-caption font-medium text-nomi-ink">{t(current.titleKey)}</div>
+        <div className="mt-1 text-micro leading-relaxed text-nomi-ink-60">{t(current.bodyKey)}</div>
         <div className="mt-2 flex items-center justify-between">
-          <span className="text-micro text-nomi-ink-40">{step + 1} / {STEPS.length}</span>
+          <span className="text-micro text-nomi-ink-40">
+            {step + 1} / {STEPS.length}
+          </span>
           <span className="flex items-center gap-3">
             <button
               className="border-0 bg-transparent p-0 text-micro text-nomi-ink-60 hover:text-nomi-ink"
               type="button"
               onClick={finish}
             >
-              跳过
+              {t('scene3d.coach.skip')}
             </button>
             <button
               className="rounded-nomi-sm border-0 bg-nomi-ink px-2.5 py-1 text-micro text-nomi-paper"
               type="button"
               onClick={() => (step < STEPS.length - 1 ? setStep(step + 1) : finish())}
             >
-              {step < STEPS.length - 1 ? '下一步' : '开始使用'}
+              {step < STEPS.length - 1 ? t('scene3d.coach.next') : t('scene3d.coach.start')}
             </button>
           </span>
         </div>

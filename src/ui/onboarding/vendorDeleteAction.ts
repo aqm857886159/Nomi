@@ -5,6 +5,7 @@
  */
 import { getDesktopBridge } from '../../desktop/bridge'
 import { confirmDialog } from '../../design'
+import i18n from '../../i18n'
 
 export async function confirmAndDeleteVendor(args: {
   vendorKey: string
@@ -15,9 +16,12 @@ export async function confirmAndDeleteVendor(args: {
   const bridge = getDesktopBridge()
   if (!bridge) return { deleted: false }
   const ok = await confirmDialog({
-    title: '删除整个供应商',
-    message: `删除「${args.vendorName}」及其全部 ${args.modelCount} 个模型？此操作不可恢复，之后要用需重新接入。`,
-    confirmLabel: '删除',
+    title: i18n.t('onboardingProviders.vendor.deleteVendorDialog.title'),
+    message: i18n.t('onboardingProviders.vendor.deleteVendorDialog.message', {
+      name: args.vendorName,
+      count: args.modelCount,
+    }),
+    confirmLabel: i18n.t('onboardingProviders.vendor.deleteVendorDialog.confirm'),
     danger: true,
   })
   if (!ok) return { deleted: false }
@@ -26,6 +30,11 @@ export async function confirmAndDeleteVendor(args: {
     args.onChanged()
     return { deleted: true }
   } catch (e) {
-    return { deleted: false, error: `删除失败：${e instanceof Error ? e.message : String(e)}` }
+    return {
+      deleted: false,
+      error: i18n.t('onboardingProviders.vendor.deleteVendorDialog.failed', {
+        message: e instanceof Error ? e.message : String(e),
+      }),
+    }
   }
 }

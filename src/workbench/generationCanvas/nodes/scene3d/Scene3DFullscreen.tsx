@@ -3,8 +3,17 @@ import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  IconArrowsMove, IconCube, IconListTree, IconPhoto, IconPlayerPause, IconPlayerPlay,
-  IconRoute, IconRotate, IconSettings, IconWorld, IconX,
+  IconArrowsMove,
+  IconCube,
+  IconListTree,
+  IconPhoto,
+  IconPlayerPause,
+  IconPlayerPlay,
+  IconRoute,
+  IconRotate,
+  IconSettings,
+  IconWorld,
+  IconX,
 } from '@tabler/icons-react'
 import { toast } from '../../../../ui/toast'
 import { FencedCanvas } from '../fencedCanvas'
@@ -23,11 +32,7 @@ import {
 } from './scene3dTypes'
 import { FULLSCREEN_Z_INDEX } from './scene3dConstants'
 import { PanelButton, CanvasPanelRestoreButton } from './scene3dToolbar'
-import {
-  levelEditorCameraRotation,
-  applyEditorCameraPose,
-  vectorAlmostEqual,
-} from './scene3dMath'
+import { levelEditorCameraRotation, applyEditorCameraPose, vectorAlmostEqual } from './scene3dMath'
 import { SceneObjectList } from './scene3dInspector'
 import { TrajectoryListPanel } from './scene3dTrajectoryListPanel'
 import { SceneContent } from './scene3dSceneContent'
@@ -114,9 +119,8 @@ export default function Scene3DFullscreen({
     () => ({ fov: 55, near: 0.1, far: 500, position: initialEditorCameraRef.current.position }),
     [],
   )
-  const selectedCamera = selection?.type === 'camera'
-    ? state.cameras.find((camera) => camera.id === selection.id)
-    : undefined
+  const selectedCamera =
+    selection?.type === 'camera' ? state.cameras.find((camera) => camera.id === selection.id) : undefined
   const cameraViewEditCamera = cameraViewEditId
     ? state.cameras.find((camera) => camera.id === cameraViewEditId)
     : undefined
@@ -127,14 +131,17 @@ export default function Scene3DFullscreen({
     setRightPanelOpen(true)
     setRightPanelTab('trajectory')
   }, [])
-  const enterTrajectoryMode = React.useCallback((showTimeline = true) => {
-    trajectory.setTrajectoryEditMode(true)
-    if (showTimeline) trajectory.setTimelineOpen(true)
-    setSelection(null)
-    setViewLocked(false)
-    setFocusId('')
-    enterTrajectoryPanel()
-  }, [enterTrajectoryPanel, trajectory])
+  const enterTrajectoryMode = React.useCallback(
+    (showTimeline = true) => {
+      trajectory.setTrajectoryEditMode(true)
+      if (showTimeline) trajectory.setTimelineOpen(true)
+      setSelection(null)
+      setViewLocked(false)
+      setFocusId('')
+      enterTrajectoryPanel()
+    },
+    [enterTrajectoryPanel, trajectory],
+  )
   const exitTrajectoryMode = React.useCallback(() => {
     trajectory.setTrajectoryEditMode(false)
     trajectory.setIsPlaying(false)
@@ -171,12 +178,15 @@ export default function Scene3DFullscreen({
     onStateChangeRef.current(state)
   }, [state])
 
-  React.useEffect(() => () => {
-    if (suppressCanvasMissedReleaseRef.current !== null) {
-      window.clearTimeout(suppressCanvasMissedReleaseRef.current)
-      suppressCanvasMissedReleaseRef.current = null
-    }
-  }, [])
+  React.useEffect(
+    () => () => {
+      if (suppressCanvasMissedReleaseRef.current !== null) {
+        window.clearTimeout(suppressCanvasMissedReleaseRef.current)
+        suppressCanvasMissedReleaseRef.current = null
+      }
+    },
+    [],
+  )
 
   React.useEffect(() => {
     if (typeof document === 'undefined') return undefined
@@ -191,12 +201,15 @@ export default function Scene3DFullscreen({
     }
   }, [])
 
-  const selectSceneItem = React.useCallback((nextSelection: Scene3DSelection) => {
-    exitTrajectoryMode()
-    setSelection(nextSelection)
-    setViewLocked(false)
-    setFocusId('')
-  }, [exitTrajectoryMode])
+  const selectSceneItem = React.useCallback(
+    (nextSelection: Scene3DSelection) => {
+      exitTrajectoryMode()
+      setSelection(nextSelection)
+      setViewLocked(false)
+      setFocusId('')
+    },
+    [exitTrajectoryMode],
+  )
 
   const clearSelection = React.useCallback(() => {
     if (suppressCanvasMissedSelectionRef.current) return
@@ -205,12 +218,15 @@ export default function Scene3DFullscreen({
     setFocusId('')
   }, [])
 
-  const focusSceneItem = React.useCallback((id: string) => {
-    if (cameraViewEditId) return
-    exitTrajectoryMode()
-    setViewLocked(false)
-    setFocusId(`${id}:${Date.now()}`)
-  }, [cameraViewEditId, exitTrajectoryMode])
+  const focusSceneItem = React.useCallback(
+    (id: string) => {
+      if (cameraViewEditId) return
+      exitTrajectoryMode()
+      setViewLocked(false)
+      setFocusId(`${id}:${Date.now()}`)
+    },
+    [cameraViewEditId, exitTrajectoryMode],
+  )
 
   const patchObject = React.useCallback((id: string, patch: Partial<Scene3DObject>) => {
     setState((current) => ({
@@ -229,31 +245,35 @@ export default function Scene3DFullscreen({
   const applyCameraMove = useScene3DCameraMoveAction({ readOnly, stateRef, setState, trajectory })
   const exportCameraMoveFrames = useScene3DMoveFrameExport({ stateRef, captureApiRef, trajectory, onScreenshot })
 
-  const deleteSceneItem = React.useCallback((target: Exclude<Scene3DSelection, null>) => {
-    if (readOnly) return
-    setState((current) => {
-      const nextState = target.type === 'object'
-        ? {
-            ...current,
-            objects: current.objects.filter((object) => object.id !== target.id),
-            cameras: current.cameras.map((camera) => (
-              camera.followTargetId === target.id ? { ...camera, followTargetId: undefined } : camera
-            )),
-          }
-        : {
-            ...current,
-            cameras: current.cameras.filter((camera) => camera.id !== target.id),
-          }
-      return removeTrajectoryBindingsForNode(nextState, target.id)
-    })
-    if (selectionRef.current?.type === target.type && selectionRef.current.id === target.id) {
-      setViewLocked(false)
-    }
-    if (target.type === 'camera') {
-      setCameraViewEditId((current) => (current === target.id ? null : current))
-    }
-    setSelection((current) => (current?.type === target.type && current.id === target.id ? null : current))
-  }, [readOnly])
+  const deleteSceneItem = React.useCallback(
+    (target: Exclude<Scene3DSelection, null>) => {
+      if (readOnly) return
+      setState((current) => {
+        const nextState =
+          target.type === 'object'
+            ? {
+                ...current,
+                objects: current.objects.filter((object) => object.id !== target.id),
+                cameras: current.cameras.map((camera) =>
+                  camera.followTargetId === target.id ? { ...camera, followTargetId: undefined } : camera,
+                ),
+              }
+            : {
+                ...current,
+                cameras: current.cameras.filter((camera) => camera.id !== target.id),
+              }
+        return removeTrajectoryBindingsForNode(nextState, target.id)
+      })
+      if (selectionRef.current?.type === target.type && selectionRef.current.id === target.id) {
+        setViewLocked(false)
+      }
+      if (target.type === 'camera') {
+        setCameraViewEditId((current) => (current === target.id ? null : current))
+      }
+      setSelection((current) => (current?.type === target.type && current.id === target.id ? null : current))
+    },
+    [readOnly],
+  )
 
   const { addObject, addProp, addCamera, addCrowd, applySceneTemplate } = useScene3DAddActions({
     readOnly,
@@ -264,8 +284,8 @@ export default function Scene3DFullscreen({
     exitTrajectoryMode,
   })
 
-  const { startKeyboardNavigation, stopKeyboardNavigation, copySelection, pasteClipboard } =
-    useScene3DClipboardActions({
+  const { startKeyboardNavigation, stopKeyboardNavigation, copySelection, pasteClipboard } = useScene3DClipboardActions(
+    {
       readOnly,
       stateRef,
       selectionRef,
@@ -275,7 +295,8 @@ export default function Scene3DFullscreen({
       setSelection,
       setViewLocked,
       setFocusId,
-    })
+    },
+  )
 
   const captureViewport = React.useCallback(() => {
     const capture = captureApiRef.current?.captureViewport()
@@ -327,11 +348,14 @@ export default function Scene3DFullscreen({
     })
   }, [])
 
-  const handleWheelNavigation = React.useCallback((editorCamera: Scene3DState['editorCamera']) => {
-    setViewLocked(false)
-    setFocusId('')
-    updateEditorCamera(editorCamera)
-  }, [updateEditorCamera])
+  const handleWheelNavigation = React.useCallback(
+    (editorCamera: Scene3DState['editorCamera']) => {
+      setViewLocked(false)
+      setFocusId('')
+      updateEditorCamera(editorCamera)
+    },
+    [updateEditorCamera],
+  )
 
   const unlockViewForSceneEdit = React.useCallback(() => {
     suppressCanvasMissedSelectionRef.current = true
@@ -395,12 +419,15 @@ export default function Scene3DFullscreen({
     onBeforeExit: React.useCallback(() => stopRecordingBeforeExitRef.current(), []),
   })
 
-  const handleRecordTake = React.useCallback((recordedState: Scene3DState) => {
-    // 停止已即时 toast（useScene3DTakeRecorder）；出片态由画布「录制走位参考」节点徽标接力（#1/#11 同链）。
-    onRecordTake?.(recordedState)
-    characterDrive.exitPossess()
-    characterDrive.exitCameraPossess()
-  }, [characterDrive, onRecordTake])
+  const handleRecordTake = React.useCallback(
+    (recordedState: Scene3DState) => {
+      // 停止已即时 toast（useScene3DTakeRecorder）；出片态由画布「录制走位参考」节点徽标接力（#1/#11 同链）。
+      onRecordTake?.(recordedState)
+      characterDrive.exitPossess()
+      characterDrive.exitCameraPossess()
+    },
+    [characterDrive, onRecordTake],
+  )
 
   const takeRecorder = useScene3DTakeRecorder({
     possessTarget: characterDrive.possessTarget,
@@ -416,10 +443,13 @@ export default function Scene3DFullscreen({
   // 点动作库：即时改假人姿势（S1，命中已激活预设会 toggle 成站立）+ 若正在录 take，记一条带时间戳的动作事件
   // （pose-over-time 生产者）。按「实际生效的 presetId」打点（可能是 toggle 后的 'standing'，见 #B），
   // 不是原始点击那个，否则录出来的动作事件和画面显示的姿势对不上。录制器内部 no-op 非录制态，零副作用。
-  const handleApplyActionPreset = React.useCallback((presetId: string) => {
-    const effectivePresetId = characterDrive.applyActionPreset(presetId)
-    takeRecorder.recordPoseEvent(effectivePresetId)
-  }, [characterDrive, takeRecorder])
+  const handleApplyActionPreset = React.useCallback(
+    (presetId: string) => {
+      const effectivePresetId = characterDrive.applyActionPreset(presetId)
+      takeRecorder.recordPoseEvent(effectivePresetId)
+    },
+    [characterDrive, takeRecorder],
+  )
   const {
     selectTrajectoryForMode,
     selectSceneTrajectory,
@@ -474,9 +504,12 @@ export default function Scene3DFullscreen({
     handleClose,
   })
 
-  React.useEffect(() => () => {
-    flushLatestState()
-  }, [flushLatestState])
+  React.useEffect(
+    () => () => {
+      flushLatestState()
+    },
+    [flushLatestState],
+  )
 
   const toggleCanvasFocusMode = React.useCallback(() => {
     if (leftPanelOpen && rightPanelOpen) {
@@ -520,10 +553,18 @@ export default function Scene3DFullscreen({
         </div>
         <div className="ml-auto flex min-w-0 max-w-[72vw] items-center gap-2 overflow-x-auto">
           <div className="flex items-center gap-1 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-0.5">
-            <PanelButton title={t('scene3d.fullscreen.move')} active={transformMode === 'translate'} onClick={() => setTransformMode('translate')}>
+            <PanelButton
+              title={t('scene3d.fullscreen.move')}
+              active={transformMode === 'translate'}
+              onClick={() => setTransformMode('translate')}
+            >
               <IconArrowsMove size={15} />
             </PanelButton>
-            <PanelButton title={t('scene3d.fullscreen.rotate')} active={transformMode === 'rotate'} onClick={() => setTransformMode('rotate')}>
+            <PanelButton
+              title={t('scene3d.fullscreen.rotate')}
+              active={transformMode === 'rotate'}
+              onClick={() => setTransformMode('rotate')}
+            >
               <IconRotate size={15} />
             </PanelButton>
           </div>
@@ -534,12 +575,18 @@ export default function Scene3DFullscreen({
             </PanelButton>
           </div>
           <div className="flex items-center gap-1 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-0.5">
-            <PanelButton title={trajectoryMode ? t('scene3d.toolbar.exitTrajectory') : t('scene3d.toolbar.enterTrajectory')} active={trajectoryMode} onClick={toggleTrajectoryMode}>
+            <PanelButton
+              title={trajectoryMode ? t('scene3d.toolbar.exitTrajectory') : t('scene3d.toolbar.enterTrajectory')}
+              active={trajectoryMode}
+              onClick={toggleTrajectoryMode}
+            >
               <IconRoute size={15} />
               <span>{t('scene3d.toolbar.trajectory')}</span>
             </PanelButton>
             <PanelButton
-              title={trajectory.isPlaying ? t('scene3d.fullscreen.pauseTrajectory') : t('scene3d.fullscreen.playTrajectory')}
+              title={
+                trajectory.isPlaying ? t('scene3d.fullscreen.pauseTrajectory') : t('scene3d.fullscreen.playTrajectory')
+              }
               active={trajectory.isPlaying}
               onClick={() => requestTrajectoryPlayChange(!trajectory.isPlaying)}
             >
@@ -612,10 +659,16 @@ export default function Scene3DFullscreen({
 
         <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--nomi-ink-05)]">
           <FencedCanvas
-            fence={<div className="absolute inset-0 grid place-items-center text-caption text-[var(--nomi-ink-60)]">{t('scene3d.fullscreen.initializing')}</div>}
+            fence={
+              <div className="absolute inset-0 grid place-items-center text-caption text-[var(--nomi-ink-60)]">
+                {t('scene3d.fullscreen.initializing')}
+              </div>
+            }
             camera={canvasCamera}
             dpr={[1, 2]}
-            frameloop={trajectory.isPlaying || trajectory.timelineOpen || takeRecorder.isRecording ? 'always' : 'demand'}
+            frameloop={
+              trajectory.isPlaying || trajectory.timelineOpen || takeRecorder.isRecording ? 'always' : 'demand'
+            }
             gl={{ antialias: true, preserveDrawingBuffer: false }}
             onCreated={({ camera, gl, invalidate }) => {
               applyEditorCameraPose(camera, initialEditorCameraRef.current)
@@ -686,12 +739,20 @@ export default function Scene3DFullscreen({
             />
           </FencedCanvas>
           {!leftPanelOpen ? (
-            <CanvasPanelRestoreButton side="left" title={t('scene3d.fullscreen.showSceneNodes')} onClick={() => setLeftPanelOpen(true)}>
+            <CanvasPanelRestoreButton
+              side="left"
+              title={t('scene3d.fullscreen.showSceneNodes')}
+              onClick={() => setLeftPanelOpen(true)}
+            >
               <IconListTree size={18} />
             </CanvasPanelRestoreButton>
           ) : null}
           {!rightPanelOpen ? (
-            <CanvasPanelRestoreButton side="right" title={t('scene3d.fullscreen.showProperties')} onClick={() => setRightPanelOpen(true)}>
+            <CanvasPanelRestoreButton
+              side="right"
+              title={t('scene3d.fullscreen.showProperties')}
+              onClick={() => setRightPanelOpen(true)}
+            >
               <IconSettings size={18} />
             </CanvasPanelRestoreButton>
           ) : null}
@@ -726,9 +787,9 @@ export default function Scene3DFullscreen({
           ) : null}
           <div className="pointer-events-none absolute bottom-4 left-4 grid size-20 place-items-center rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] text-micro text-[var(--nomi-ink-60)] shadow-[var(--nomi-shadow-md)]">
             <div className="grid gap-1">
-              <span className="text-[var(--nomi-axis-x)]">X</span>
-              <span className="text-[var(--nomi-axis-y)]">Y</span>
-              <span className="text-[var(--nomi-axis-z)]">Z</span>
+              <span className="text-[var(--nomi-axis-x)]">{t('scene3d.fullscreen.axisX')}</span>
+              <span className="text-[var(--nomi-axis-y)]">{t('scene3d.fullscreen.axisY')}</span>
+              <span className="text-[var(--nomi-axis-z)]">{t('scene3d.fullscreen.axisZ')}</span>
             </div>
           </div>
           <Scene3DBottomBar
@@ -736,12 +797,16 @@ export default function Scene3DFullscreen({
             possessedObject={characterDrive.possessedObject}
             possessedCamera={characterDrive.possessedCamera}
             activePresetId={characterDrive.activePresetId}
-            recorder={onRecordTake ? {
-              isRecording: takeRecorder.isRecording,
-              elapsedSeconds: takeRecorder.elapsedSeconds,
-              onStart: takeRecorder.startRecording,
-              onStop: takeRecorder.stopRecording,
-            } : undefined}
+            recorder={
+              onRecordTake
+                ? {
+                    isRecording: takeRecorder.isRecording,
+                    elapsedSeconds: takeRecorder.elapsedSeconds,
+                    onStart: takeRecorder.startRecording,
+                    onStop: takeRecorder.stopRecording,
+                  }
+                : undefined
+            }
             onApplyPreset={handleApplyActionPreset}
             onExitPossess={characterDrive.exitPossess}
             onExitCameraPossess={characterDrive.exitCameraPossess}
@@ -778,12 +843,16 @@ export default function Scene3DFullscreen({
                 onTabChange={setRightPanelTab}
                 onObjectPatch={patchObject}
                 onCameraPatch={patchCamera}
-                onEnvironmentPatch={(patch) => setState((current) => ({
-                  ...current,
-                  environment: { ...current.environment, ...patch },
-                }))}
+                onEnvironmentPatch={(patch) =>
+                  setState((current) => ({
+                    ...current,
+                    environment: { ...current.environment, ...patch },
+                  }))
+                }
                 onApplyCameraMove={applyCameraMove}
-                onExportCameraMoveFrames={(cameraId) => { void exportCameraMoveFrames(cameraId) }}
+                onExportCameraMoveFrames={(cameraId) => {
+                  void exportCameraMoveFrames(cameraId)
+                }}
                 referenceTarget={referenceTarget}
               />
             </motion.aside>

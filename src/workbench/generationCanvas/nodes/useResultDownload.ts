@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { toast } from '../../../ui/toast'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -11,6 +12,7 @@ export function useResultDownload(node: GenerationCanvasNode): {
   downloading: boolean
   download: () => void
 } {
+  const { t } = useTranslation()
   const [downloading, setDownloading] = React.useState(false)
   const url = node.result?.url
   const type = node.result?.type
@@ -20,18 +22,24 @@ export function useResultDownload(node: GenerationCanvasNode): {
     if (!url) return
     const bridge = getDesktopBridge()
     if (!bridge) return
-    const base = (node.title || '').trim() || (type === 'video' ? '视频' : '图片')
+    const base =
+      (node.title || '').trim() ||
+      (type === 'video'
+        ? t('generationCommon.resultDownload.defaultVideoName')
+        : t('generationCommon.resultDownload.defaultImageName'))
     const urlExt = /\.[a-z0-9]{1,5}(?:$|\?)/i.test(url) ? '' : type === 'video' ? '.mp4' : '.png'
     setDownloading(true)
     void bridge.assets
       .download({ url, suggestedName: base + urlExt })
       .then((res) => {
-        if (res.ok) toast('已保存到本地', 'success')
-        else if (!res.canceled) toast('下载失败', 'error')
+        if (res.ok) toast(t('generationCommon.resultDownload.saved'), 'success')
+        else if (!res.canceled) toast(t('generationCommon.resultDownload.failed'), 'error')
       })
-      .catch((error: unknown) => toast(error instanceof Error ? error.message : '下载失败', 'error'))
+      .catch((error: unknown) =>
+        toast(error instanceof Error ? error.message : t('generationCommon.resultDownload.failed'), 'error'),
+      )
       .finally(() => setDownloading(false))
-  }, [url, type, node.title])
+  }, [url, type, node.title, t])
 
   return { canDownload, downloading, download }
 }

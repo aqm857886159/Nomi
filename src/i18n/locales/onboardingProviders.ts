@@ -95,6 +95,12 @@ export const zhOnboardingProviders = {
     configured: '已配置',
     deleteVendorAria: '删除供应商 {{name}}',
     deleteVendorTitle: '删除该供应商',
+    deleteVendorDialog: {
+      title: '删除整个供应商',
+      message: '删除「{{name}}」及其全部 {{count}} 个模型？此操作不可恢复，之后要用需重新接入。',
+      confirm: '删除',
+      failed: '删除失败：{{message}}',
+    },
     connectGenerationModels: '接入生成模型',
     addModel: '添加模型 / 中转站',
     addModelHint: 'new-api 一次拉全图·视频·文本 · 也可接官方厂商 / 自定义接口',
@@ -248,6 +254,9 @@ export const zhOnboardingProviders = {
     login: '扫码登录即梦',
   },
   comfyWorkflow: {
+    exportCommand: 'Workflow → Export (API)',
+    fileName: 'workflow_api.json',
+    jsonPlaceholder: '{ "3": { "class_type": "KSampler", ... }, ... }',
     unsupported: '当前版本不支持导入',
     defaultName: '本地 ComfyUI 工作流',
     defaultShortName: '本地工作流',
@@ -419,6 +428,13 @@ export const enOnboardingProviders = {
     configured: 'Configured',
     deleteVendorAria: 'Delete provider {{name}}',
     deleteVendorTitle: 'Delete this provider',
+    deleteVendorDialog: {
+      title: 'Delete provider',
+      message:
+        'Delete “{{name}}” and all {{count}} of its models? This cannot be undone; reconnect it to use it again.',
+      confirm: 'Delete',
+      failed: 'Delete failed: {{message}}',
+    },
     connectGenerationModels: 'Connect generation models',
     addModel: 'Add model or gateway',
     addModelHint: 'Import image, video, and text models from new-api, or connect an official provider or custom API',
@@ -577,6 +593,9 @@ export const enOnboardingProviders = {
     login: 'Log in to Dreamina',
   },
   comfyWorkflow: {
+    exportCommand: 'Workflow → Export (API)',
+    fileName: 'workflow_api.json',
+    jsonPlaceholder: '{ "3": { "class_type": "KSampler", ... }, ... }',
     unsupported: 'Workflow import is unavailable in this version',
     defaultName: 'Local ComfyUI workflow',
     defaultShortName: 'Local workflow',

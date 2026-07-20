@@ -11,6 +11,7 @@
  * 复用唯一真相源 useNomiRichTextEditor。本组件只渲染 body，节点选中/拖动/缩放由 BaseGenerationNode 提供。
  */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconGripVertical } from '@tabler/icons-react'
 import { EditorContent, useEditorState, type JSONContent } from '@tiptap/react'
 import { cn } from '../../../../utils/cn'
@@ -20,8 +21,6 @@ import { useNomiRichTextEditor } from '../../../common/useNomiRichTextEditor'
 import { buildRichTextActions } from '../../../common/richTextActions'
 
 const EMPTY_DOC: JSONContent = { type: 'doc', content: [] }
-const TEXT_NODE_PLACEHOLDER = '在这里写文本……'
-
 type Props = {
   node: GenerationCanvasNode
 }
@@ -37,13 +36,11 @@ function isDocEmpty(doc?: TiptapDocJson): boolean {
 }
 
 function TextDocumentNodeImpl({ node }: Props): JSX.Element {
+  const { t } = useTranslation()
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
 
-  const content = React.useMemo<JSONContent>(
-    () => (node.contentJson ?? EMPTY_DOC) as JSONContent,
-    [node.contentJson],
-  )
+  const content = React.useMemo<JSONContent>(() => (node.contentJson ?? EMPTY_DOC) as JSONContent, [node.contentJson])
 
   const handleChange = React.useCallback(
     (json: JSONContent) => {
@@ -65,7 +62,7 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
 
   const { editor, tools } = useNomiRichTextEditor({
     content,
-    placeholder: TEXT_NODE_PLACEHOLDER,
+    placeholder: t('generationCommon.textDocument.placeholder'),
     onChange: handleChange,
     onSelectionChange: handleSelectionChange,
   })
@@ -90,7 +87,11 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
     if (text) tools.replaceSelection(text)
     const store = useGenerationCanvasStore.getState()
     const current = store.nodes.find((candidate) => candidate.id === node.id)
-    store.updateNode(node.id, { meta: { ...(current?.meta || {}), textPendingSelectionApply: null } }, { persist: false })
+    store.updateNode(
+      node.id,
+      { meta: { ...(current?.meta || {}), textPendingSelectionApply: null } },
+      { persist: false },
+    )
   }, [resultId, pendingApplyId, node.id, node.result?.text, tools])
 
   const showPlaceholder = isDocEmpty(node.contentJson)
@@ -103,7 +104,7 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
       {editor && isFocused ? (
         <div
           role="toolbar"
-          aria-label="文本格式"
+          aria-label={t('generationCommon.textDocument.formattingAria')}
           onPointerDown={(event) => event.stopPropagation()}
           className={cn(
             'absolute left-1/2 top-[-44px] z-[9] -translate-x-1/2',
@@ -143,9 +144,10 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
             'border-b border-nomi-line-soft text-nomi-ink-40',
             'cursor-grab select-none',
           )}
-          aria-label="拖动文本节点">
+          aria-label={t('generationCommon.textDocument.dragAria')}
+        >
           <IconGripVertical size={13} stroke={1.8} aria-hidden="true" />
-          <span className="text-micro font-medium tracking-[0.04em]">文本</span>
+          <span className="text-micro font-medium tracking-[0.04em]">{t('generationCommon.textDocument.label')}</span>
         </header>
 
         {/* 正文：ProseMirror 编辑区。stopPropagation 挡画布快捷键；select-text/touch-auto 覆盖
@@ -158,10 +160,11 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
           )}
           onKeyDown={(event) => event.stopPropagation()}
           onKeyUp={(event) => event.stopPropagation()}
-          onBlur={() => commitPersistedChange()}>
+          onBlur={() => commitPersistedChange()}
+        >
           {showPlaceholder ? (
             <span className="pointer-events-none absolute left-8 top-6 text-title leading-relaxed text-nomi-ink-40">
-              {TEXT_NODE_PLACEHOLDER}
+              {t('generationCommon.textDocument.placeholder')}
             </span>
           ) : null}
           <EditorContent editor={editor} />

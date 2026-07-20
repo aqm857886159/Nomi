@@ -9,6 +9,25 @@ export const zhCreationAi = {
     expandAssistant: '展开创作助手',
     assistantSuffix: '创作',
   },
+  editor: {
+    placeholder: '从这里开始写你的故事、脚本或文案……  选中文字，点右侧即可生成图片 / 视频节点。',
+    toolbarAria: '文本工具栏',
+    documentAria: '创作文档编辑区',
+  },
+  attachmentRail: {
+    remove: '移除附件',
+    uploadFailed: '上传失败',
+    aria: '已添加的附件',
+  },
+  conversationHistory: {
+    justNow: '刚刚',
+    minutesAgo: '{{count}} 分钟前',
+    hoursAgo: '{{count}} 小时前',
+    yesterday: '昨天',
+    newConversation: '新对话',
+    savedHint: '当前会存入历史',
+    delete: '删除这段对话',
+  },
   selection: {
     bold: '加粗',
     italic: '斜体',
@@ -143,6 +162,25 @@ export const enCreationAi = {
     draft: 'Draft · Not yet added to canvas',
     expandAssistant: 'Expand creation assistant',
     assistantSuffix: 'Create',
+  },
+  editor: {
+    placeholder: 'Start writing your story, script, or copy here… Select text to create an image or video node.',
+    toolbarAria: 'Text toolbar',
+    documentAria: 'Creation document editor',
+  },
+  attachmentRail: {
+    remove: 'Remove attachment',
+    uploadFailed: 'Upload failed',
+    aria: 'Added attachments',
+  },
+  conversationHistory: {
+    justNow: 'Just now',
+    minutesAgo: '{{count}} min ago',
+    hoursAgo: '{{count}} hr ago',
+    yesterday: 'Yesterday',
+    newConversation: 'New conversation',
+    savedHint: 'Current conversation will be saved to history',
+    delete: 'Delete this conversation',
   },
   selection: {
     bold: 'Bold',

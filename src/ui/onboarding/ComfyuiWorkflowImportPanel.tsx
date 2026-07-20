@@ -18,19 +18,26 @@ type Candidate = { nodeId: string; inputKey: string; classType: string; title?: 
 type OutputCand = { nodeId: string; classType: string; kind: 'image' | 'video' }
 type NumericParam = { nodeId: string; inputKey: string; paramKey: string; label: string; default: number }
 type Binding = {
-  promptNodeId?: string; promptInputKey?: string
-  firstFrameNodeId?: string; firstFrameInputKey?: string
-  outputNodeId?: string; outputKind?: 'image' | 'video'
+  promptNodeId?: string
+  promptInputKey?: string
+  firstFrameNodeId?: string
+  firstFrameInputKey?: string
+  outputNodeId?: string
+  outputKind?: 'image' | 'video'
   numeric: NumericParam[]
 }
 type Analysis = {
-  textInputs: Candidate[]; imageInputs: Candidate[]; outputNodes: OutputCand[]; numericInputs: Candidate[]
+  textInputs: Candidate[]
+  imageInputs: Candidate[]
+  outputNodes: OutputCand[]
+  numericInputs: Candidate[]
   suggested: Binding
 }
 
 const NONE = '__none__'
 const nodeOpt = (c: Candidate) => ({ value: `${c.nodeId}:${c.inputKey}`, label: `#${c.nodeId} ${c.classType}` })
-const preview = (v: string | number) => (typeof v === 'string' && v ? `「${v.slice(0, 18)}${v.length > 18 ? '…' : ''}」` : '')
+const preview = (v: string | number) =>
+  typeof v === 'string' && v ? `「${v.slice(0, 18)}${v.length > 18 ? '…' : ''}」` : ''
 
 export function ComfyuiWorkflowImportPanel({ onImported }: { onImported: () => void }): JSX.Element {
   const { t } = useTranslation()
@@ -44,14 +51,26 @@ export function ComfyuiWorkflowImportPanel({ onImported }: { onImported: () => v
   const [busy, setBusy] = React.useState(false)
 
   const reset = React.useCallback(() => {
-    setText(''); setAnalysis(null); setBinding(null); setLabelZh(''); setError('')
+    setText('')
+    setAnalysis(null)
+    setBinding(null)
+    setLabelZh('')
+    setError('')
   }, [])
 
   const analyze = React.useCallback(() => {
     setError('')
     const r = catalog?.analyzeComfyWorkflow?.(text)
-    if (!r) { setError(t('onboardingProviders.comfyWorkflow.unsupported')); return }
-    if (!r.ok) { setError(r.error); setAnalysis(null); setBinding(null); return }
+    if (!r) {
+      setError(t('onboardingProviders.comfyWorkflow.unsupported'))
+      return
+    }
+    if (!r.ok) {
+      setError(r.error)
+      setAnalysis(null)
+      setBinding(null)
+      return
+    }
     const a = r.analysis as Analysis
     setAnalysis(a)
     setBinding(a.suggested)
@@ -61,20 +80,31 @@ export function ComfyuiWorkflowImportPanel({ onImported }: { onImported: () => v
     if (!binding || !catalog?.importComfyWorkflow) return
     setBusy(true)
     try {
-      const r = catalog.importComfyWorkflow({ text, binding, labelZh: labelZh.trim() || t('onboardingProviders.comfyWorkflow.defaultName') })
-      if (!r.ok) { setError(r.error); return }
+      const r = catalog.importComfyWorkflow({
+        text,
+        binding,
+        labelZh: labelZh.trim() || t('onboardingProviders.comfyWorkflow.defaultName'),
+      })
+      if (!r.ok) {
+        setError(r.error)
+        return
+      }
       toast(
         t('onboardingProviders.comfyWorkflow.imported', {
           name: labelZh.trim() || t('onboardingProviders.comfyWorkflow.defaultShortName'),
-          kind: r.kind === 'video'
-            ? t('onboardingProviders.comfyWorkflow.video')
-            : t('onboardingProviders.comfyWorkflow.image'),
+          kind:
+            r.kind === 'video'
+              ? t('onboardingProviders.comfyWorkflow.video')
+              : t('onboardingProviders.comfyWorkflow.image'),
         }),
         'success',
       )
-      reset(); setOpen(false)
+      reset()
+      setOpen(false)
       onImported()
-    } finally { setBusy(false) }
+    } finally {
+      setBusy(false)
+    }
   }, [binding, catalog, text, labelZh, reset, onImported, t])
 
   if (!open) {
@@ -82,10 +112,13 @@ export function ComfyuiWorkflowImportPanel({ onImported }: { onImported: () => v
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={cn('self-start inline-flex items-center gap-1.5 h-8 px-3 rounded-nomi-sm border border-nomi-line',
-          'text-caption text-nomi-ink-60 hover:text-nomi-accent hover:border-nomi-accent')}
+        className={cn(
+          'self-start inline-flex items-center gap-1.5 h-8 px-3 rounded-nomi-sm border border-nomi-line',
+          'text-caption text-nomi-ink-60 hover:text-nomi-accent hover:border-nomi-accent',
+        )}
       >
-        <IconFileImport size={14} stroke={1.7} />{t('onboardingProviders.comfyWorkflow.importCustom')}
+        <IconFileImport size={14} stroke={1.7} />
+        {t('onboardingProviders.comfyWorkflow.importCustom')}
       </button>
     )
   }
@@ -112,20 +145,38 @@ export function ComfyuiWorkflowImportPanel({ onImported }: { onImported: () => v
     <div className="flex flex-col gap-2.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper p-3">
       <div className="flex items-center gap-2">
         <IconFileImport size={15} stroke={1.7} className="text-nomi-ink-60" />
-        <span className="text-body-sm font-semibold text-nomi-ink flex-1">{t('onboardingProviders.comfyWorkflow.title')}</span>
-        <button type="button" onClick={() => { reset(); setOpen(false) }} className="h-6 w-6 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05" aria-label={t('onboardingProviders.comfyWorkflow.collapse')}><IconX size={14} stroke={1.8} /></button>
+        <span className="text-body-sm font-semibold text-nomi-ink flex-1">
+          {t('onboardingProviders.comfyWorkflow.title')}
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            reset()
+            setOpen(false)
+          }}
+          className="h-6 w-6 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05"
+          aria-label={t('onboardingProviders.comfyWorkflow.collapse')}
+        >
+          <IconX size={14} stroke={1.8} />
+        </button>
       </div>
       <div className="text-caption text-nomi-ink-60 leading-relaxed">
-        {t('onboardingProviders.comfyWorkflow.instructionsBefore')} <code className="font-mono text-nomi-ink">Workflow → Export (API)</code> {t('onboardingProviders.comfyWorkflow.instructionsMiddle')} <code className="font-mono text-nomi-ink">workflow_api.json</code> {t('onboardingProviders.comfyWorkflow.instructionsAfter')}
+        {t('onboardingProviders.comfyWorkflow.instructionsBefore')}{' '}
+        <code className="font-mono text-nomi-ink">{t('onboardingProviders.comfyWorkflow.exportCommand')}</code>{' '}
+        {t('onboardingProviders.comfyWorkflow.instructionsMiddle')}{' '}
+        <code className="font-mono text-nomi-ink">{t('onboardingProviders.comfyWorkflow.fileName')}</code>{' '}
+        {t('onboardingProviders.comfyWorkflow.instructionsAfter')}
       </div>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         spellCheck={false}
         aria-label={t('onboardingProviders.comfyWorkflow.pasteArea')}
-        placeholder='{ "3": { "class_type": "KSampler", ... }, ... }'
-        className={cn('w-full min-h-[110px] max-h-[220px] rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5 py-2',
-          'font-mono text-caption text-nomi-ink placeholder:text-nomi-ink-30 focus:border-nomi-accent outline-none resize-y')}
+        placeholder={t('onboardingProviders.comfyWorkflow.jsonPlaceholder')}
+        className={cn(
+          'w-full min-h-[110px] max-h-[220px] rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5 py-2',
+          'font-mono text-caption text-nomi-ink placeholder:text-nomi-ink-30 focus:border-nomi-accent outline-none resize-y',
+        )}
       />
 
       {error ? (
@@ -137,17 +188,26 @@ export function ComfyuiWorkflowImportPanel({ onImported }: { onImported: () => v
 
       {!analysis ? (
         <button
-          type="button" onClick={analyze} disabled={!text.trim()}
-          className={cn('self-start inline-flex items-center gap-1.5 h-8 px-3 rounded-nomi-sm bg-nomi-ink text-nomi-paper',
-            'text-caption font-medium hover:bg-nomi-accent disabled:opacity-45')}
+          type="button"
+          onClick={analyze}
+          disabled={!text.trim()}
+          className={cn(
+            'self-start inline-flex items-center gap-1.5 h-8 px-3 rounded-nomi-sm bg-nomi-ink text-nomi-paper',
+            'text-caption font-medium hover:bg-nomi-accent disabled:opacity-45',
+          )}
         >
-          <IconWand size={14} stroke={1.8} />{t('onboardingProviders.comfyWorkflow.analyze')}
+          <IconWand size={14} stroke={1.8} />
+          {t('onboardingProviders.comfyWorkflow.analyze')}
         </button>
       ) : binding ? (
         <div className="flex flex-col gap-2.5">
           {/* 自动识别结果 + 可改绑定 */}
           <div className="flex items-center gap-1.5 text-caption text-nomi-ink-60">
-            {binding.outputKind === 'video' ? <IconMovie size={14} className="text-nomi-accent" /> : <IconPhoto size={14} className="text-nomi-accent" />}
+            {binding.outputKind === 'video' ? (
+              <IconMovie size={14} className="text-nomi-accent" />
+            ) : (
+              <IconPhoto size={14} className="text-nomi-accent" />
+            )}
             {t('onboardingProviders.comfyWorkflow.detectedBefore')}
             <b className="text-nomi-ink font-semibold">
               {binding.outputKind === 'video'
@@ -163,25 +223,37 @@ export function ComfyuiWorkflowImportPanel({ onImported }: { onImported: () => v
 
           <BindRow label={t('onboardingProviders.comfyWorkflow.promptNode')}>
             <NomiSelect
-              ariaLabel={t('onboardingProviders.comfyWorkflow.promptNodeAria')} size="sm"
+              ariaLabel={t('onboardingProviders.comfyWorkflow.promptNodeAria')}
+              size="sm"
               value={binding.promptNodeId ? `${binding.promptNodeId}:${binding.promptInputKey}` : NONE}
-              options={analysis.textInputs.map((t) => ({ ...nodeOpt(t), label: `${nodeOpt(t).label} ${preview(t.value)}` }))}
+              options={analysis.textInputs.map((t) => ({
+                ...nodeOpt(t),
+                label: `${nodeOpt(t).label} ${preview(t.value)}`,
+              }))}
               onChange={(v) => setRole('prompt', v)}
             />
           </BindRow>
           {analysis.imageInputs.length > 0 ? (
             <BindRow label={t('onboardingProviders.comfyWorkflow.firstFrameNode')}>
               <NomiSelect
-                ariaLabel={t('onboardingProviders.comfyWorkflow.firstFrameNodeAria')} size="sm"
+                ariaLabel={t('onboardingProviders.comfyWorkflow.firstFrameNodeAria')}
+                size="sm"
                 value={binding.firstFrameNodeId ? `${binding.firstFrameNodeId}:${binding.firstFrameInputKey}` : NONE}
-                options={[{ value: NONE, label: t('onboardingProviders.comfyWorkflow.noFirstFrame') }, ...analysis.imageInputs.map((candidate) => ({ ...nodeOpt(candidate), label: `${nodeOpt(candidate).label} ${preview(candidate.value)}` }))]}
+                options={[
+                  { value: NONE, label: t('onboardingProviders.comfyWorkflow.noFirstFrame') },
+                  ...analysis.imageInputs.map((candidate) => ({
+                    ...nodeOpt(candidate),
+                    label: `${nodeOpt(candidate).label} ${preview(candidate.value)}`,
+                  })),
+                ]}
                 onChange={(v) => setRole('firstFrame', v)}
               />
             </BindRow>
           ) : null}
           <BindRow label={t('onboardingProviders.comfyWorkflow.outputNode')}>
             <NomiSelect
-              ariaLabel={t('onboardingProviders.comfyWorkflow.outputNodeAria')} size="sm"
+              ariaLabel={t('onboardingProviders.comfyWorkflow.outputNodeAria')}
+              size="sm"
               value={binding.outputNodeId ?? ''}
               options={analysis.outputNodes.map((o) => ({
                 value: o.nodeId,
@@ -192,23 +264,31 @@ export function ComfyuiWorkflowImportPanel({ onImported }: { onImported: () => v
           </BindRow>
           {binding.numeric.length > 0 ? (
             <div className="text-micro text-nomi-ink-40">
-              {t('onboardingProviders.comfyWorkflow.adjustableParams', { params: binding.numeric.map((n) => n.label).join(' · ') })}
+              {t('onboardingProviders.comfyWorkflow.adjustableParams', {
+                params: binding.numeric.map((n) => n.label).join(' · '),
+              })}
               {t('onboardingProviders.comfyWorkflow.adjustableHint')}
             </div>
           ) : null}
 
           <div className="flex items-center gap-2 pt-0.5">
             <input
-              value={labelZh} onChange={(e) => setLabelZh(e.target.value)}
+              value={labelZh}
+              onChange={(e) => setLabelZh(e.target.value)}
               placeholder={t('onboardingProviders.comfyWorkflow.namePlaceholder')}
               className="flex-1 h-8 px-2.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-caption text-nomi-ink placeholder:text-nomi-ink-30 focus:border-nomi-accent outline-none"
             />
             <button
-              type="button" onClick={doImport} disabled={busy || !binding.outputNodeId}
-              className={cn('inline-flex items-center gap-1.5 h-8 px-3.5 rounded-nomi-sm bg-nomi-ink text-nomi-paper',
-                'text-caption font-medium hover:bg-nomi-accent disabled:opacity-45')}
+              type="button"
+              onClick={doImport}
+              disabled={busy || !binding.outputNodeId}
+              className={cn(
+                'inline-flex items-center gap-1.5 h-8 px-3.5 rounded-nomi-sm bg-nomi-ink text-nomi-paper',
+                'text-caption font-medium hover:bg-nomi-accent disabled:opacity-45',
+              )}
             >
-              <IconFileImport size={14} stroke={1.8} />{busy ? t('onboardingProviders.comfyWorkflow.importing') : t('onboardingProviders.comfyWorkflow.import')}
+              <IconFileImport size={14} stroke={1.8} />
+              {busy ? t('onboardingProviders.comfyWorkflow.importing') : t('onboardingProviders.comfyWorkflow.import')}
             </button>
           </div>
         </div>

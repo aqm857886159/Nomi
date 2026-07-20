@@ -1,11 +1,8 @@
 import { IconFile, IconFileText, IconPhoto, IconTable, IconX } from '@tabler/icons-react'
+import { useTranslation } from 'react-i18next'
 import { NomiLoadingMark } from '../../../design'
 import { cn } from '../../../utils/cn'
-import {
-  attachmentTypeLabel,
-  formatAttachmentSize,
-  type ComposerAttachment,
-} from './composerAttachmentTypes'
+import { attachmentTypeLabel, formatAttachmentSize, type ComposerAttachment } from './composerAttachmentTypes'
 
 function fileExt(fileName: string): string {
   const ext = (fileName.split('.').pop() || '').trim().toLowerCase()
@@ -20,15 +17,20 @@ function FileGlyph({ fileName }: { fileName: string }): JSX.Element {
 }
 
 function RemoveButton({ onRemove, className }: { onRemove: () => void; className?: string }): JSX.Element {
+  const { t } = useTranslation()
   return (
     <button
       type="button"
-      aria-label="移除附件"
+      aria-label={t('creationAi.attachmentRail.remove')}
       className={cn('grid size-6 place-items-center cursor-pointer', className)}
       onClick={onRemove}
     >
       {className?.includes('absolute') ? (
-        <span className={cn('grid size-4 place-items-center rounded-pill border border-nomi-paper bg-nomi-ink text-nomi-paper')}>
+        <span
+          className={cn(
+            'grid size-4 place-items-center rounded-pill border border-nomi-paper bg-nomi-ink text-nomi-paper',
+          )}
+        >
           <IconX size={10} stroke={2} />
         </span>
       ) : (
@@ -38,7 +40,16 @@ function RemoveButton({ onRemove, className }: { onRemove: () => void; className
   )
 }
 
-function AttachmentChip({ attachment, onRemove, readOnly }: { attachment: ComposerAttachment; onRemove: () => void; readOnly?: boolean }): JSX.Element {
+function AttachmentChip({
+  attachment,
+  onRemove,
+  readOnly,
+}: {
+  attachment: ComposerAttachment
+  onRemove: () => void
+  readOnly?: boolean
+}): JSX.Element {
+  const { t } = useTranslation()
   const uploading = attachment.status === 'uploading'
   const error = attachment.status === 'error'
 
@@ -53,12 +64,21 @@ function AttachmentChip({ attachment, onRemove, readOnly }: { attachment: Compos
         data-attachment-status={attachment.status}
       >
         {attachment.url || attachment.previewUrl ? (
-          <img src={attachment.url || attachment.previewUrl} alt={attachment.fileName} className="size-full select-none object-cover" draggable={false} />
+          <img
+            src={attachment.url || attachment.previewUrl}
+            alt={attachment.fileName}
+            className="size-full select-none object-cover"
+            draggable={false}
+          />
         ) : (
-          <span className="grid size-full place-items-center text-nomi-ink-40"><IconPhoto size={18} stroke={1.5} /></span>
+          <span className="grid size-full place-items-center text-nomi-ink-40">
+            <IconPhoto size={18} stroke={1.5} />
+          </span>
         )}
         {uploading ? (
-          <span className="absolute inset-0 grid place-items-center bg-nomi-paper/60"><NomiLoadingMark size={15} /></span>
+          <span className="absolute inset-0 grid place-items-center bg-nomi-paper/60">
+            <NomiLoadingMark size={15} />
+          </span>
         ) : null}
         {readOnly ? null : <RemoveButton onRemove={onRemove} className="absolute -right-1 -top-1" />}
       </div>
@@ -80,11 +100,21 @@ function AttachmentChip({ attachment, onRemove, readOnly }: { attachment: Compos
       <span className="flex min-w-0 flex-col">
         <span className="truncate text-body-sm text-nomi-ink">{attachment.fileName}</span>
         <span className="truncate text-micro text-nomi-ink-60">
-          {error ? '上传失败' : [attachmentTypeLabel(attachment.fileName, attachment.contentType), formatAttachmentSize(attachment.sizeBytes)].filter(Boolean).join(' · ')}
+          {error
+            ? t('creationAi.attachmentRail.uploadFailed')
+            : [
+                attachmentTypeLabel(attachment.fileName, attachment.contentType),
+                formatAttachmentSize(attachment.sizeBytes),
+              ]
+                .filter(Boolean)
+                .join(' · ')}
         </span>
       </span>
       {readOnly ? null : (
-        <RemoveButton onRemove={onRemove} className="ml-auto shrink-0 rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-10 hover:text-nomi-ink" />
+        <RemoveButton
+          onRemove={onRemove}
+          className="ml-auto shrink-0 rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-10 hover:text-nomi-ink"
+        />
       )}
     </div>
   )
@@ -101,9 +131,10 @@ export function AttachmentRail({
   readOnly?: boolean
   className?: string
 }): JSX.Element | null {
+  const { t } = useTranslation()
   if (!attachments.length) return null
   return (
-    <div className={cn('flex flex-wrap gap-2', className)} aria-label="已添加的附件">
+    <div className={cn('flex flex-wrap gap-2', className)} aria-label={t('creationAi.attachmentRail.aria')}>
       {attachments.map((attachment) => (
         <AttachmentChip
           key={attachment.id}
