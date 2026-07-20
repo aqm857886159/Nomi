@@ -1,11 +1,9 @@
 import { IconPaperclip, IconPlayerStopFilled, IconSend2, IconX } from '@tabler/icons-react'
 import { NomiAILabel, NomiLogoMark, NomiSelect, WorkbenchButton, WorkbenchIconButton } from '../../../design'
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
-import {
-  sendGenerationCanvasAgentMessage,
-  type ToolCallEvent,
-} from '../agent/generationCanvasAgentClient'
+import { sendGenerationCanvasAgentMessage, type ToolCallEvent } from '../agent/generationCanvasAgentClient'
 import { workbenchSessionKey } from '../../ai/workbenchAgentRunner'
 import { startNewConversation } from '../../ai/conversationPersistence'
 import { clearWorkbenchAgentSession } from '../../../api/desktopClient'
@@ -66,17 +64,11 @@ function createMessageId(): string {
 }
 
 // 文字里像「要动画布却没动」的意图特征——配合零工具发射判定「只说不做」，提示换模型。
-const AGENT_ACTION_INTENT = /创建|生成|添加|新增|修改|删除|替换|连接|拆镜头|分镜|节点|我将|我会|我来|计划|操作/
+const AGENT_ACTION_INTENT =
+  /创建|生成|添加|新增|修改|删除|替换|连接|拆镜头|分镜|节点|我将|我会|我来|计划|操作|create|generate|add|edit|delete|replace|connect|split|storyboard|node|plan/i
 
-// 「只说不做」提示:模型只回文字没发任何工具调用、但话里像要操作时追加。
-const ONLY_TALK_WARNING = '\n\n⚠️ 这一轮 AI 只回复了文字、没有真正动画布。如果你是想生成或修改节点，多半是当前模型不擅长工具调用——点上方「模型」换一个（推荐 GPT / Claude / DeepSeek 系）再试一次。'
-
-// 截断提示:finishReason=length 且有正文 = 模型这条输出到达单次上限被切断(别把半截当完整)。
-const TRUNCATED_WARNING = '\n\n⚠️ 这条回复可能没说完（达到模型单次输出上限被截断）。需要的话直接说「继续」。'
-
-export default function CanvasAssistantPanel({
-  onCollapsedChange,
-}: CanvasAssistantPanelProps): JSX.Element {
+export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssistantPanelProps): JSX.Element {
+  const { t } = useTranslation()
   const nodes = useGenerationCanvasStore((state) => state.nodes)
   const edges = useGenerationCanvasStore((state) => state.edges)
   const selectedNodeIds = useGenerationCanvasStore((state) => state.selectedNodeIds)
@@ -108,10 +100,7 @@ export default function CanvasAssistantPanel({
   const pendingByIdRef = React.useRef(new Map<string, PendingToolCall>())
 
   /** 拒绝/传输专用:把判决直接回给 LLM 并移除卡片(批准走 approveCalls 的事务批)。 */
-  const resolvePending = React.useCallback((
-    toolCallId: string,
-    decision: { ok: false; message?: string },
-  ) => {
+  const resolvePending = React.useCallback((toolCallId: string, decision: { ok: false; message?: string }) => {
     const target = pendingByIdRef.current.get(toolCallId)
     pendingByIdRef.current.delete(toolCallId)
     if (target) void target.confirm(decision)
@@ -149,7 +138,10 @@ export default function CanvasAssistantPanel({
   const draft = useGenerationCanvasStore((state) => state.generationAiDraft)
   const messages = useGenerationCanvasStore((state) => state.generationAiMessages)
   // S1b 诚实分隔线:气泡有历史而 LLM 记忆为空 → 在历史末尾画「以上对话 AI 已不再记得」。
-  const staleBoundaryId = useStaleConversationBoundary(messages.map((message) => message.id), 'generation')
+  const staleBoundaryId = useStaleConversationBoundary(
+    messages.map((message) => message.id),
+    'generation',
+  )
   const collapsed = useGenerationCanvasStore((state) => state.generationAiCollapsed)
   const setDraft = useGenerationCanvasStore((state) => state.setGenerationAiDraft)
   const setMessages = useGenerationCanvasStore((state) => state.setGenerationAiMessages)
@@ -192,306 +184,358 @@ export default function CanvasAssistantPanel({
     threadBottomRef.current?.scrollIntoView({ block: 'end' })
   }, [messages, pendingToolCalls, deviationReport, collapsed, stickToBottom])
 
-  const updateMessage = React.useCallback((id: string, content: string) => {
-    setMessages((current) => current.map((message) => (
-      message.id === id ? { ...message, content } : message
-    )))
-  }, [setMessages])
+  const updateMessage = React.useCallback(
+    (id: string, content: string) => {
+      setMessages((current) => current.map((message) => (message.id === id ? { ...message, content } : message)))
+    },
+    [setMessages],
+  )
 
-  const setMessageStatus = React.useCallback((id: string, status: WorkbenchAiMessage['status']) => {
-    setMessages((current) => current.map((message) => (
-      message.id === id ? { ...message, status } : message
-    )))
-  }, [setMessages])
+  const setMessageStatus = React.useCallback(
+    (id: string, status: WorkbenchAiMessage['status']) => {
+      setMessages((current) => current.map((message) => (message.id === id ? { ...message, status } : message)))
+    },
+    [setMessages],
+  )
 
-  const removeMessage = React.useCallback((id: string) => {
-    setMessages((current) => current.filter((message) => message.id !== id))
-  }, [setMessages])
+  const removeMessage = React.useCallback(
+    (id: string) => {
+      setMessages((current) => current.filter((message) => message.id !== id))
+    },
+    [setMessages],
+  )
 
   type SubmitMessageOptions = {
     skill?: { key: string; name: string }
     displayMessage?: string
   }
 
-  const submitAgentMessage = React.useCallback((text: string, options: SubmitMessageOptions = {}) => {
-    const readyAttachments = attachments.filter((item) => item.status === 'ready' && item.url)
-    if ((!text && !readyAttachments.length) || busy) return
-    setDraft('')
-    clearAttachments()
-    const attachmentPayload = readyAttachments.map((item) => ({
-      url: item.url as string,
-      contentType: item.contentType,
-      fileName: item.fileName,
-      kind: item.kind,
-    }))
-    // 时序内联:捕获用户消息 id(无前言时第一张卡锚定到它)+ 开一个占位「卡前气泡」。
-    const userMessageId = createMessageId()
-    const firstBubbleId = createMessageId()
-    setMessages((current) => [
-      ...current,
-      {
-        id: userMessageId,
-        role: 'user',
-        content: options.displayMessage || text || '请看这些附件',
-        ...(readyAttachments.length ? { attachments: readyAttachments } : {}),
-      },
-      { id: firstBubbleId, role: 'assistant', content: '处理中...', status: 'pending' },
-    ])
-    setBusy(true)
-    void (async () => {
-      let toolActionCount = 0
-      // 本轮模型是否发出过任何 tool 调用（含只读）。0 = 模型只回文字、没触发任何操作——
-      // 自动选模型撞到不会工具调用的模型时的典型「只说不做」（2026-06-07 走查 P0）。
-      let toolEmittedCount = 0
-      // S6-2 提议事务批:用户点「确认」后整批原子应用——全成 committed,中途失败补偿回滚
-      // (零半截)。先落地后回话:LLM 收到的每步成败与画布事实一致。
-      approveCallsRef.current = async (requests: ApproveCallRequest[]) => {
-        const items = requests
-          .map((request) => ({ request, call: pendingByIdRef.current.get(request.toolCallId) }))
-          .filter((item): item is { request: ApproveCallRequest; call: PendingToolCall } => Boolean(item.call))
-        if (items.length === 0) return
-        // 立即摘卡防双击;事务结果经 transport 回 LLM,卡不复原(与既有 resolve 即摘一致)。
-        const ids = new Set(items.map((item) => item.request.toolCallId))
-        items.forEach((item) => pendingByIdRef.current.delete(item.request.toolCallId))
-        setPendingToolCalls((current) => current.filter((item) => !ids.has(item.toolCallId)))
-        const rawSteps = items.map(({ request, call }) => {
-          const baseArgs = (call.args && typeof call.args === 'object') ? call.args as Record<string, unknown> : {}
-          return {
-            toolCallId: call.toolCallId,
-            toolName: call.toolName,
-            effectiveArgs: request.overrides ? { ...baseArgs, ...request.overrides } : baseArgs,
-            overridesDelta: request.overrides,
-            transport: call.confirm,
-          }
-        })
-        // 「批准 ≡ 执行」根治:批准前就把模型/参数按档案解析成执行后会真正写入的值(与执行端
-        // buildPlannedNodeMeta 同源),折进 effectiveArgs。否则 agent 写的非法参数(如给 Hailuo 配
-        // duration:5,档案只允许 6-10)执行时被静默回退 → 对账每次换个字段报「执行与批准有出入」。
-        const needsModels = rawSteps.some(
-          (step) =>
-            step.toolName === 'create_canvas_nodes' &&
-            Array.isArray((step.effectiveArgs as Record<string, unknown>).nodes) &&
-            ((step.effectiveArgs as { nodes: unknown[] }).nodes).some(
-              (node) => node && typeof node === 'object' && typeof (node as Record<string, unknown>).modelKey === 'string',
-            ),
-        )
-        const entryByKey = needsModels
-          ? new Map((await listAvailableModelsForAgent()).map((entry) => [entry.modelKey, entry]))
-          : new Map()
-        const nodeResolvedSteps = rawSteps.map((step) => {
-          const args = step.effectiveArgs as Record<string, unknown>
-          if (step.toolName !== 'create_canvas_nodes' || !Array.isArray(args.nodes)) return step
-          const nodes = (args.nodes as Record<string, unknown>[]).map((node) =>
-            node && typeof node === 'object' ? resolvePlannedNodeArgs(node, entryByKey) : node,
+  const submitAgentMessage = React.useCallback(
+    (text: string, options: SubmitMessageOptions = {}) => {
+      const readyAttachments = attachments.filter((item) => item.status === 'ready' && item.url)
+      if ((!text && !readyAttachments.length) || busy) return
+      setDraft('')
+      clearAttachments()
+      const attachmentPayload = readyAttachments.map((item) => ({
+        url: item.url as string,
+        contentType: item.contentType,
+        fileName: item.fileName,
+        kind: item.kind,
+      }))
+      // 时序内联:捕获用户消息 id(无前言时第一张卡锚定到它)+ 开一个占位「卡前气泡」。
+      const userMessageId = createMessageId()
+      const firstBubbleId = createMessageId()
+      setMessages((current) => [
+        ...current,
+        {
+          id: userMessageId,
+          role: 'user',
+          content: options.displayMessage || text || t('generationCommon.assistant.attachmentPrompt'),
+          ...(readyAttachments.length ? { attachments: readyAttachments } : {}),
+        },
+        {
+          id: firstBubbleId,
+          role: 'assistant',
+          content: t('generationCommon.assistant.processing'),
+          status: 'pending',
+        },
+      ])
+      setBusy(true)
+      void (async () => {
+        let toolActionCount = 0
+        // 本轮模型是否发出过任何 tool 调用（含只读）。0 = 模型只回文字、没触发任何操作——
+        // 自动选模型撞到不会工具调用的模型时的典型「只说不做」（2026-06-07 走查 P0）。
+        let toolEmittedCount = 0
+        // S6-2 提议事务批:用户点「确认」后整批原子应用——全成 committed,中途失败补偿回滚
+        // (零半截)。先落地后回话:LLM 收到的每步成败与画布事实一致。
+        approveCallsRef.current = async (requests: ApproveCallRequest[]) => {
+          const items = requests
+            .map((request) => ({ request, call: pendingByIdRef.current.get(request.toolCallId) }))
+            .filter((item): item is { request: ApproveCallRequest; call: PendingToolCall } => Boolean(item.call))
+          if (items.length === 0) return
+          // 立即摘卡防双击;事务结果经 transport 回 LLM,卡不复原(与既有 resolve 即摘一致)。
+          const ids = new Set(items.map((item) => item.request.toolCallId))
+          items.forEach((item) => pendingByIdRef.current.delete(item.request.toolCallId))
+          setPendingToolCalls((current) => current.filter((item) => !ids.has(item.toolCallId)))
+          const rawSteps = items.map(({ request, call }) => {
+            const baseArgs = call.args && typeof call.args === 'object' ? (call.args as Record<string, unknown>) : {}
+            return {
+              toolCallId: call.toolCallId,
+              toolName: call.toolName,
+              effectiveArgs: request.overrides ? { ...baseArgs, ...request.overrides } : baseArgs,
+              overridesDelta: request.overrides,
+              transport: call.confirm,
+            }
+          })
+          // 「批准 ≡ 执行」根治:批准前就把模型/参数按档案解析成执行后会真正写入的值(与执行端
+          // buildPlannedNodeMeta 同源),折进 effectiveArgs。否则 agent 写的非法参数(如给 Hailuo 配
+          // duration:5,档案只允许 6-10)执行时被静默回退 → 对账每次换个字段报「执行与批准有出入」。
+          const needsModels = rawSteps.some(
+            (step) =>
+              step.toolName === 'create_canvas_nodes' &&
+              Array.isArray((step.effectiveArgs as Record<string, unknown>).nodes) &&
+              (step.effectiveArgs as { nodes: unknown[] }).nodes.some(
+                (node) =>
+                  node && typeof node === 'object' && typeof (node as Record<string, unknown>).modelKey === 'string',
+              ),
           )
-          return { ...step, effectiveArgs: { ...args, nodes } }
-        })
-        // 同理把边按目标模型能力解析:连不上的(目标模型不吃这类参考,如 image_ref 槽吃不了视频
-        // 接力源)在批准时就剔除,执行端不再丢、对账不再报「执行与批准有出入」。节点查找=本批解析后的
-        // 计划节点(clientId)+ 画布已有节点(真实 id);查不到的边保守保留交执行端兜。
-        const plannedById = new Map<string, GenerationCanvasNode>()
-        for (const step of nodeResolvedSteps) {
-          const args = step.effectiveArgs as Record<string, unknown>
-          if (step.toolName !== 'create_canvas_nodes' || !Array.isArray(args.nodes)) continue
-          for (const node of args.nodes as Record<string, unknown>[]) {
-            if (node && typeof node === 'object' && typeof node.clientId === 'string') {
-              plannedById.set(node.clientId, {
-                id: node.clientId,
-                kind: node.kind,
-                meta: typeof node.modelKey === 'string' ? { modelKey: node.modelKey } : {},
-              } as GenerationCanvasNode)
+          const entryByKey = needsModels
+            ? new Map((await listAvailableModelsForAgent()).map((entry) => [entry.modelKey, entry]))
+            : new Map()
+          const nodeResolvedSteps = rawSteps.map((step) => {
+            const args = step.effectiveArgs as Record<string, unknown>
+            if (step.toolName !== 'create_canvas_nodes' || !Array.isArray(args.nodes)) return step
+            const nodes = (args.nodes as Record<string, unknown>[]).map((node) =>
+              node && typeof node === 'object' ? resolvePlannedNodeArgs(node, entryByKey) : node,
+            )
+            return { ...step, effectiveArgs: { ...args, nodes } }
+          })
+          // 同理把边按目标模型能力解析:连不上的(目标模型不吃这类参考,如 image_ref 槽吃不了视频
+          // 接力源)在批准时就剔除,执行端不再丢、对账不再报「执行与批准有出入」。节点查找=本批解析后的
+          // 计划节点(clientId)+ 画布已有节点(真实 id);查不到的边保守保留交执行端兜。
+          const plannedById = new Map<string, GenerationCanvasNode>()
+          for (const step of nodeResolvedSteps) {
+            const args = step.effectiveArgs as Record<string, unknown>
+            if (step.toolName !== 'create_canvas_nodes' || !Array.isArray(args.nodes)) continue
+            for (const node of args.nodes as Record<string, unknown>[]) {
+              if (node && typeof node === 'object' && typeof node.clientId === 'string') {
+                plannedById.set(node.clientId, {
+                  id: node.clientId,
+                  kind: node.kind,
+                  meta: typeof node.modelKey === 'string' ? { modelKey: node.modelKey } : {},
+                } as GenerationCanvasNode)
+              }
+            }
+          }
+          const existingById = new Map(generationCanvasTools.read_canvas().nodes.map((node) => [node.id, node]))
+          const resolveNodeForEdge = (id: string): GenerationCanvasNode | null =>
+            plannedById.get(id) ?? existingById.get(id) ?? null
+          const steps = nodeResolvedSteps.map((step) => {
+            const args = step.effectiveArgs as Record<string, unknown>
+            if (!Array.isArray(args.edges)) return step
+            const { connectable } = partitionConnectableEdges(args.edges as PlannedEdgeLike[], resolveNodeForEdge)
+            return { ...step, effectiveArgs: { ...args, edges: connectable } }
+          })
+          const outcome = await applyProposalBatch(
+            steps.map(({ toolCallId, toolName, effectiveArgs }) => ({ toolCallId, toolName, effectiveArgs })),
+          )
+          if (outcome.status === 'committed') {
+            toolActionCount += steps.length
+            // 时序内联:卡片锚定到本轮「卡前气泡」(入队时记在 pending call 上),committed/对账卡同源。
+            const cardAnchorId = items.map((item) => item.call.anchorMessageId).find(Boolean) ?? null
+            // S6-3 对账(N12):执行 ≠ 批准 → 弹偏差卡(per-field diff+一键整笔撤销);一致则零可见。
+            if (!outcome.reconciliation.ok) {
+              setDeviationReport(outcome.reconciliation.deviations)
+              setDeviationAnchorId(cardAnchorId)
+            }
+            // S6-5 整笔撤销唯一入口 = committed 卡(约束①,存活到下一笔)。落点回报靠卡内分类 chip。
+            // 旧实现额外弹一个「整笔撤销」toast 当第二入口——每次 commit 都弹、和卡内入口重复,
+            // 即用户反馈的「多余弹窗」,已删(单一入口,不再两套风格/两处冒泡)。
+            // 无可补偿的提议(如 run_generation_batch 受理——网络调用收不回)不出撤销入口,不误导。
+            if (outcome.compensation.length > 0) {
+              // 落点回报(审计 A1):跨分类创建的节点会落进默认折叠的分类面板,卡片
+              // 必须报「落在哪」并给跳转入口,否则用户视角=确认过的节点凭空消失。
+              const categoryCounts = countCreatedNodesByCategory(steps)
+              const record = {
+                proposalId: outcome.proposalId,
+                summary: steps.map((step) => summarizeToolCall(step.toolName, step.effectiveArgs)).join(' · '),
+                // A16:逐节点「标题 → 落点分类」明细,不再与 summary 同句重复。
+                stepLabels: steps.flatMap((step) => buildStepDetailLabels(step.toolName, step.effectiveArgs)),
+                ...(categoryCounts.length ? { categoryCounts } : {}),
+                compensation: outcome.compensation,
+                watchNodes: outcome.watchNodes,
+                reconciliationOk: outcome.reconciliation.ok,
+                ...(cardAnchorId ? { anchorMessageId: cardAnchorId } : {}),
+              }
+              setCommittedProposal(record)
+            }
+            for (let index = 0; index < steps.length; index += 1) {
+              const step = steps[index]
+              await step.transport({
+                ok: true,
+                result: outcome.results[index],
+                effectiveArgs: step.effectiveArgs,
+                ...(step.overridesDelta ? { overridesDelta: step.overridesDelta } : {}),
+                proposalId: outcome.proposalId,
+              })
+            }
+          } else {
+            // 整笔失败:每步如实回话(LLM 可重新规划),画布已由补偿回滚到提议前(I3)。
+            for (let index = 0; index < steps.length; index += 1) {
+              const message =
+                index === outcome.failedIndex
+                  ? outcome.reason
+                  : index < outcome.failedIndex
+                    ? t('generationCommon.assistant.rollbackFailed', {
+                        step: outcome.failedIndex + 1,
+                        tool: steps[outcome.failedIndex].toolName,
+                        reason: outcome.reason,
+                      })
+                    : t('generationCommon.assistant.batchRolledBack', { step: outcome.failedIndex + 1 })
+              await steps[index].transport({ ok: false, message })
             }
           }
         }
-        const existingById = new Map(generationCanvasTools.read_canvas().nodes.map((node) => [node.id, node]))
-        const resolveNodeForEdge = (id: string): GenerationCanvasNode | null =>
-          plannedById.get(id) ?? existingById.get(id) ?? null
-        const steps = nodeResolvedSteps.map((step) => {
-          const args = step.effectiveArgs as Record<string, unknown>
-          if (!Array.isArray(args.edges)) return step
-          const { connectable } = partitionConnectableEdges(args.edges as PlannedEdgeLike[], resolveNodeForEdge)
-          return { ...step, effectiveArgs: { ...args, edges: connectable } }
-        })
-        const outcome = await applyProposalBatch(
-          steps.map(({ toolCallId, toolName, effectiveArgs }) => ({ toolCallId, toolName, effectiveArgs })),
-        )
-        if (outcome.status === 'committed') {
-          toolActionCount += steps.length
-          // 时序内联:卡片锚定到本轮「卡前气泡」(入队时记在 pending call 上),committed/对账卡同源。
-          const cardAnchorId = items.map((item) => item.call.anchorMessageId).find(Boolean) ?? null
-          // S6-3 对账(N12):执行 ≠ 批准 → 弹偏差卡(per-field diff+一键整笔撤销);一致则零可见。
-          if (!outcome.reconciliation.ok) {
-            setDeviationReport(outcome.reconciliation.deviations)
-            setDeviationAnchorId(cardAnchorId)
-          }
-          // S6-5 整笔撤销唯一入口 = committed 卡(约束①,存活到下一笔)。落点回报靠卡内分类 chip。
-          // 旧实现额外弹一个「整笔撤销」toast 当第二入口——每次 commit 都弹、和卡内入口重复,
-          // 即用户反馈的「多余弹窗」,已删(单一入口,不再两套风格/两处冒泡)。
-          // 无可补偿的提议(如 run_generation_batch 受理——网络调用收不回)不出撤销入口,不误导。
-          if (outcome.compensation.length > 0) {
-            // 落点回报(审计 A1):跨分类创建的节点会落进默认折叠的分类面板,卡片
-            // 必须报「落在哪」并给跳转入口,否则用户视角=确认过的节点凭空消失。
-            const categoryCounts = countCreatedNodesByCategory(steps)
-            const record = {
-              proposalId: outcome.proposalId,
-              summary: steps.map((step) => summarizeToolCall(step.toolName, step.effectiveArgs)).join(' · '),
-              // A16:逐节点「标题 → 落点分类」明细,不再与 summary 同句重复。
-              stepLabels: steps.flatMap((step) => buildStepDetailLabels(step.toolName, step.effectiveArgs)),
-              ...(categoryCounts.length ? { categoryCounts } : {}),
-              compensation: outcome.compensation,
-              watchNodes: outcome.watchNodes,
-              reconciliationOk: outcome.reconciliation.ok,
-              ...(cardAnchorId ? { anchorMessageId: cardAnchorId } : {}),
-            }
-            setCommittedProposal(record)
-          }
-          for (let index = 0; index < steps.length; index += 1) {
-            const step = steps[index]
-            await step.transport({
-              ok: true,
-              result: outcome.results[index],
-              effectiveArgs: step.effectiveArgs,
-              ...(step.overridesDelta ? { overridesDelta: step.overridesDelta } : {}),
-              proposalId: outcome.proposalId,
-            })
-          }
-        } else {
-          // 整笔失败:每步如实回话(LLM 可重新规划),画布已由补偿回滚到提议前(I3)。
-          for (let index = 0; index < steps.length; index += 1) {
-            const message = index === outcome.failedIndex
-              ? outcome.reason
-              : index < outcome.failedIndex
-                ? `已回滚:第 ${outcome.failedIndex + 1} 步(${steps[outcome.failedIndex].toolName})失败——${outcome.reason}`
-                : `未执行:第 ${outcome.failedIndex + 1} 步失败,整批已回滚`
-            await steps[index].transport({ ok: false, message })
-          }
+        // 时序内联(根治「吐字顺序倒挂/确认卡在上面」):文字按工具调用边界分段——
+        // 卡前文字进「卡前气泡」,卡后总结进「卡后新气泡」,卡片锚定到它跟随的消息;渲染层据此把卡
+        // 排到卡前文字之下、卡后文字之上。token 高频到达合帧(每帧最多一次 updateMessage),避免每字重渲。
+        let activeId: string | null = firstBubbleId // 当前打开的文字气泡(null=未开)
+        let activeText = '' // 本段累积(按 delta,非 cumulative)
+        let anchorId = userMessageId // 下一张卡锚定到的消息(气泡收首字后升级为气泡 id)
+        let streamRaf: number | null = null
+        const flush = () => {
+          streamRaf = null
+          if (activeId !== null) updateMessage(activeId, activeText || t('generationCommon.assistant.processing'))
         }
-      }
-      // 时序内联(根治「吐字顺序倒挂/确认卡在上面」):文字按工具调用边界分段——
-      // 卡前文字进「卡前气泡」,卡后总结进「卡后新气泡」,卡片锚定到它跟随的消息;渲染层据此把卡
-      // 排到卡前文字之下、卡后文字之上。token 高频到达合帧(每帧最多一次 updateMessage),避免每字重渲。
-      let activeId: string | null = firstBubbleId  // 当前打开的文字气泡(null=未开)
-      let activeText = ''                           // 本段累积(按 delta,非 cumulative)
-      let anchorId = userMessageId                  // 下一张卡锚定到的消息(气泡收首字后升级为气泡 id)
-      let streamRaf: number | null = null
-      const flush = () => {
-        streamRaf = null
-        if (activeId !== null) updateMessage(activeId, activeText || '处理中...')
-      }
-      const openBubble = () => {
-        const id = createMessageId()
-        activeId = id
-        activeText = ''
-        setMessages((current) => [...current, { id, role: 'assistant', content: '处理中...', status: 'streaming' }])
-      }
-      // 收口当前气泡:有正文→标 done(后续卡锚到它);空壳→删除(不留占位)。
-      const sealBubble = () => {
-        if (activeId === null) return
-        if (streamRaf !== null) { cancelAnimationFrame(streamRaf); streamRaf = null }
-        if (activeText.trim() === '') {
-          removeMessage(activeId)
-        } else {
-          updateMessage(activeId, activeText)
-          setMessageStatus(activeId, 'done')
+        const openBubble = () => {
+          const id = createMessageId()
+          activeId = id
+          activeText = ''
+          setMessages((current) => [
+            ...current,
+            { id, role: 'assistant', content: t('generationCommon.assistant.processing'), status: 'streaming' },
+          ])
         }
-        activeId = null
-        activeText = ''
-      }
-      try {
-        const result = await sendGenerationCanvasAgentMessage({
-          message: text || '请看这些附件',
-          ...(attachmentPayload.length ? { attachments: attachmentPayload } : {}),
-          snapshot,
-          selectedNodes,
-          mode,
-          skill: options.skill,
-          onContent: (delta) => {
-            if (activeId === null) openBubble()
-            if (activeText === '') anchorId = activeId as string // 首字:后续卡锚到本气泡
-            activeText += delta
-            if (streamRaf === null) streamRaf = requestAnimationFrame(flush)
-          },
-          onCancelReady: (cancel) => {
-            cancelRef.current = cancel
-          },
-          onToolCall: (event: ToolCallEvent) => {
-            toolEmittedCount += 1
-            // 统一求值流(§6.1):一道门替代散落 if。allow=只读直通 / deny=校验/锁拒绝 / ask=等点头。
-            const decision = evaluateGate({ kind: 'tool-call', toolName: event.toolName, args: event.args }, buildLockGateContext())
-            if (decision.outcome === 'deny') {
-              // gate 拒绝(非用户拒):带 denied 标记 → 主进程记 gate.denied,人话回喂 LLM。
-              void event.confirm({ ok: false, message: decision.reason, denied: true })
-              return
-            }
-            if (decision.outcome === 'allow') {
-              // 只读直通:经单一真相源 applyCanvasToolCall 执行(它已处理 read_canvas_state);
-              // silent=不记 proposal.approved(纯噪声);try/catch 防读失败把 loop 卡在永不到来的确认。
-              void (async () => {
-                try {
-                  const result = await applyCanvasToolCall(event.toolName, event.args)
-                  await event.confirm({ ok: true, result, silent: true })
-                } catch (error: unknown) {
-                  await event.confirm({ ok: false, message: error instanceof Error ? error.message : String(error) })
-                }
-              })()
-              return
-            }
-            // ask:写/破坏性操作排队,等用户经 pending 卡显式点头。卡锚定到当前「卡前气泡」,
-            // 收口本段→卡后文字另起新气泡。confirm 纯传输,批准走 approveCalls 事务批(S6-2)。
-            pendingToolCallsRef.current.enqueue({
-              toolCallId: event.toolCallId,
-              toolName: event.toolName,
-              args: event.args,
-              confirm: event.confirm,
-              anchorMessageId: anchorId,
-            })
-            sealBubble()
-          },
-        })
-
-        // 流结束:收口尾段气泡 + 特例定稿(只说不做⚠️ / 空回复)。
-        if (streamRaf !== null) cancelAnimationFrame(streamRaf)
-        const finalText = result.response.text?.trim() || ''
-        const warn = toolEmittedCount === 0 && mode === 'agent' && AGENT_ACTION_INTENT.test(finalText)
-        // 截断只在「模型真出了正文又被切断」时提示(空文本+length 是弱模型空响应,backend 已另说人话)。
-        const truncated = result.response.finishReason === 'length' && finalText !== ''
-        const withNotes = (text: string): string =>
-          `${text}${warn ? ONLY_TALK_WARNING : ''}${truncated ? TRUNCATED_WARNING : ''}`
-        if (activeId !== null && activeText.trim() !== '') {
-          // 尾段有正文(纯聊天整段 / 卡后总结)。
-          updateMessage(activeId, withNotes(activeText))
-          setMessageStatus(activeId, 'done')
-        } else if (activeId !== null) {
-          // 尾段是空占位气泡。有动作但无收尾文字 → 已应用卡已叙述结果,删空壳;否则补「已完成。」。
-          if (toolActionCount > 0) {
+        // 收口当前气泡:有正文→标 done(后续卡锚到它);空壳→删除(不留占位)。
+        const sealBubble = () => {
+          if (activeId === null) return
+          if (streamRaf !== null) {
+            cancelAnimationFrame(streamRaf)
+            streamRaf = null
+          }
+          if (activeText.trim() === '') {
             removeMessage(activeId)
           } else {
-            updateMessage(activeId, withNotes(finalText || '已完成。'))
+            updateMessage(activeId, activeText)
             setMessageStatus(activeId, 'done')
           }
-        } else if (toolActionCount === 0) {
-          // 无打开气泡且整轮零动作零文字 → 补一条「已完成。」(末尾是卡时不补,卡已叙述)。
-          const id = createMessageId()
-          setMessages((current) => [...current, { id, role: 'assistant', content: withNotes(finalText || '已完成。'), status: 'done' }])
+          activeId = null
+          activeText = ''
         }
-      } catch (error: unknown) {
-        if (streamRaf !== null) cancelAnimationFrame(streamRaf)
-        const message = `生成区 Agent 执行失败：${error instanceof Error && error.message ? error.message : '未知错误'}`
-        if (activeId !== null) {
-          updateMessage(activeId, activeText ? `${activeText}\n\n${message}` : message)
-          setMessageStatus(activeId, 'error')
-        } else {
-          const id = createMessageId()
-          setMessages((current) => [...current, { id, role: 'assistant', content: message, status: 'error' }])
+        try {
+          const result = await sendGenerationCanvasAgentMessage({
+            message: text || t('generationCommon.assistant.attachmentPrompt'),
+            ...(attachmentPayload.length ? { attachments: attachmentPayload } : {}),
+            snapshot,
+            selectedNodes,
+            mode,
+            skill: options.skill,
+            onContent: (delta) => {
+              if (activeId === null) openBubble()
+              if (activeText === '') anchorId = activeId as string // 首字:后续卡锚到本气泡
+              activeText += delta
+              if (streamRaf === null) streamRaf = requestAnimationFrame(flush)
+            },
+            onCancelReady: (cancel) => {
+              cancelRef.current = cancel
+            },
+            onToolCall: (event: ToolCallEvent) => {
+              toolEmittedCount += 1
+              // 统一求值流(§6.1):一道门替代散落 if。allow=只读直通 / deny=校验/锁拒绝 / ask=等点头。
+              const decision = evaluateGate(
+                { kind: 'tool-call', toolName: event.toolName, args: event.args },
+                buildLockGateContext(),
+              )
+              if (decision.outcome === 'deny') {
+                // gate 拒绝(非用户拒):带 denied 标记 → 主进程记 gate.denied,人话回喂 LLM。
+                void event.confirm({ ok: false, message: decision.reason, denied: true })
+                return
+              }
+              if (decision.outcome === 'allow') {
+                // 只读直通:经单一真相源 applyCanvasToolCall 执行(它已处理 read_canvas_state);
+                // silent=不记 proposal.approved(纯噪声);try/catch 防读失败把 loop 卡在永不到来的确认。
+                void (async () => {
+                  try {
+                    const result = await applyCanvasToolCall(event.toolName, event.args)
+                    await event.confirm({ ok: true, result, silent: true })
+                  } catch (error: unknown) {
+                    await event.confirm({ ok: false, message: error instanceof Error ? error.message : String(error) })
+                  }
+                })()
+                return
+              }
+              // ask:写/破坏性操作排队,等用户经 pending 卡显式点头。卡锚定到当前「卡前气泡」,
+              // 收口本段→卡后文字另起新气泡。confirm 纯传输,批准走 approveCalls 事务批(S6-2)。
+              pendingToolCallsRef.current.enqueue({
+                toolCallId: event.toolCallId,
+                toolName: event.toolName,
+                args: event.args,
+                confirm: event.confirm,
+                anchorMessageId: anchorId,
+              })
+              sealBubble()
+            },
+          })
+
+          // 流结束:收口尾段气泡 + 特例定稿(只说不做⚠️ / 空回复)。
+          if (streamRaf !== null) cancelAnimationFrame(streamRaf)
+          const finalText = result.response.text?.trim() || ''
+          const warn = toolEmittedCount === 0 && mode === 'agent' && AGENT_ACTION_INTENT.test(finalText)
+          // 截断只在「模型真出了正文又被切断」时提示(空文本+length 是弱模型空响应,backend 已另说人话)。
+          const truncated = result.response.finishReason === 'length' && finalText !== ''
+          const withNotes = (text: string): string =>
+            `${text}${warn ? t('generationCommon.assistant.onlyTalkWarning') : ''}${truncated ? t('generationCommon.assistant.truncatedWarning') : ''}`
+          if (activeId !== null && activeText.trim() !== '') {
+            // 尾段有正文(纯聊天整段 / 卡后总结)。
+            updateMessage(activeId, withNotes(activeText))
+            setMessageStatus(activeId, 'done')
+          } else if (activeId !== null) {
+            // 尾段是空占位气泡。有动作但无收尾文字 → 已应用卡已叙述结果,删空壳;否则补「已完成。」。
+            if (toolActionCount > 0) {
+              removeMessage(activeId)
+            } else {
+              updateMessage(activeId, withNotes(finalText || t('generationCommon.assistant.completed')))
+              setMessageStatus(activeId, 'done')
+            }
+          } else if (toolActionCount === 0) {
+            // 无打开气泡且整轮零动作零文字 → 补一条「已完成。」(末尾是卡时不补,卡已叙述)。
+            const id = createMessageId()
+            setMessages((current) => [
+              ...current,
+              {
+                id,
+                role: 'assistant',
+                content: withNotes(finalText || t('generationCommon.assistant.completed')),
+                status: 'done',
+              },
+            ])
+          }
+        } catch (error: unknown) {
+          if (streamRaf !== null) cancelAnimationFrame(streamRaf)
+          const message = t('generationCommon.assistant.callFailed', {
+            message:
+              error instanceof Error && error.message ? error.message : t('generationCommon.assistant.unknownError'),
+          })
+          if (activeId !== null) {
+            updateMessage(activeId, activeText ? `${activeText}\n\n${message}` : message)
+            setMessageStatus(activeId, 'error')
+          } else {
+            const id = createMessageId()
+            setMessages((current) => [...current, { id, role: 'assistant', content: message, status: 'error' }])
+          }
+        } finally {
+          setBusy(false)
+          cancelRef.current = null
+          approveCallsRef.current = null
+          setMemoryRefreshKey((key) => key + 1) // S9:本轮事件可能提炼出新记忆
         }
-      } finally {
-        setBusy(false)
-        cancelRef.current = null
-        approveCallsRef.current = null
-        setMemoryRefreshKey((key) => key + 1) // S9:本轮事件可能提炼出新记忆
-      }
-    })()
-  }, [attachments, busy, clearAttachments, mode, removeMessage, selectedNodes, setDraft, setMessages, setMessageStatus, snapshot, updateMessage])
+      })()
+    },
+    [
+      attachments,
+      busy,
+      clearAttachments,
+      mode,
+      removeMessage,
+      selectedNodes,
+      setDraft,
+      setMessages,
+      setMessageStatus,
+      snapshot,
+      t,
+      updateMessage,
+    ],
+  )
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -512,12 +556,12 @@ export default function CanvasAssistantPanel({
       const message = buildFixationPlanningMessage(storyText)
       submitAgentMessage(message, {
         skill: FIXATION_PLANNER_SKILL,
-        displayMessage: `💄 定妆\n\n${storyText}`,
+        displayMessage: t('generationCommon.assistant.fixationDisplay', { story: storyText }),
       })
     }
     window.addEventListener(FIXATION_PLANNING_EVENT, handler as EventListener)
     return () => window.removeEventListener(FIXATION_PLANNING_EVENT, handler as EventListener)
-  }, [setCollapsed, submitAgentMessage])
+  }, [setCollapsed, submitAgentMessage, t])
 
   const handleNewConversation = React.useCallback(() => {
     pendingByIdRef.current.clear()
@@ -535,12 +579,9 @@ export default function CanvasAssistantPanel({
   if (collapsed) {
     return (
       <aside
-        className={cn(
-          'generation-canvas-v2-assistant',
-          'block w-auto h-auto rounded-full',
-        )}
+        className={cn('generation-canvas-v2-assistant', 'block w-auto h-auto rounded-full')}
         data-collapsed="true"
-        aria-label="生成区 AI 启动器"
+        aria-label={t('generationCommon.assistant.launcherAria')}
       >
         <WorkbenchButton
           className={cn(
@@ -553,7 +594,7 @@ export default function CanvasAssistantPanel({
           )}
           onClick={() => setCollapsed(false)}
         >
-          <NomiAILabel markSize={18} wordSize={13} suffix="生成" />
+          <NomiAILabel markSize={18} wordSize={13} suffix={t('generationCommon.assistant.launcherSuffix')} />
         </WorkbenchButton>
       </aside>
     )
@@ -576,7 +617,7 @@ export default function CanvasAssistantPanel({
         'max-[900px]:border max-[900px]:border-nomi-line max-[900px]:rounded-nomi max-[900px]:shadow-nomi-lg',
       )}
       data-collapsed="false"
-      aria-label="生成区 AI 助手"
+      aria-label={t('generationCommon.assistant.panelAria')}
       {...dragHandlers}
     >
       {isDragging ? (
@@ -589,24 +630,33 @@ export default function CanvasAssistantPanel({
           aria-hidden="true"
         >
           <IconPaperclip size={26} stroke={1.5} />
-          <div>拖到这里添加附件</div>
-          <div className={cn('text-micro font-normal text-nomi-ink-60')}>图片 / PDF / Word / Excel / txt · 单个上限 30MB</div>
+          <div>{t('generationCommon.assistant.dropAttachments')}</div>
+          <div className={cn('text-micro font-normal text-nomi-ink-60')}>
+            {t('generationCommon.assistant.attachmentLimits')}
+          </div>
         </div>
       ) : null}
       {/* 头部：Nomi 标 + 「助手」+ 动作（含 token 计数）+ 收起。 */}
-      <header className={cn(
-        'flex items-center justify-between gap-2 px-3 py-2',
-        'border-b border-nomi-line-soft bg-nomi-paper',
-      )}>
+      <header
+        className={cn(
+          'flex items-center justify-between gap-2 px-3 py-2',
+          'border-b border-nomi-line-soft bg-nomi-paper',
+        )}
+      >
         <div className={cn('flex items-center gap-2 min-w-0')}>
           <NomiLogoMark size={18} />
           {/* 审计 A14：与入口词「生成」一致，不再裸叫「助手」 */}
-          <span className={cn('text-body-sm font-semibold text-nomi-ink')}>生成助手</span>
+          <span className={cn('text-body-sm font-semibold text-nomi-ink')}>
+            {t('generationCommon.assistant.title')}
+          </span>
         </div>
         <div className={cn('inline-flex items-center gap-2 ml-auto min-w-0')}>
           <WorkbenchAiHeaderActions
             area="generation"
-            className={cn('generation-canvas-v2-assistant__shared-actions', 'inline-flex items-center flex-nowrap gap-1')}
+            className={cn(
+              'generation-canvas-v2-assistant__shared-actions',
+              'inline-flex items-center flex-nowrap gap-1',
+            )}
             actionClassName={cn(
               'size-6 inline-grid place-items-center',
               'p-0 border-0 rounded-nomi-sm bg-transparent text-nomi-ink-60 cursor-pointer',
@@ -620,7 +670,7 @@ export default function CanvasAssistantPanel({
               'p-0 border-0 rounded-nomi-sm bg-transparent text-nomi-ink-60 cursor-pointer',
               'hover:bg-nomi-ink-05 hover:text-nomi-ink',
             )}
-            label="收起 AI"
+            label={t('generationCommon.assistant.collapse')}
             onClick={() => setCollapsed(true)}
             icon={<IconX size={14} />}
           />
@@ -649,12 +699,13 @@ export default function CanvasAssistantPanel({
           const lastUser = [...messages].reverse().find((message) => message.role === 'user')
           if (lastUser) submitAgentMessage(lastUser.content)
         }}
-        onDeviationDismiss={() => { setDeviationReport(null); setDeviationAnchorId(null) }}
+        onDeviationDismiss={() => {
+          setDeviationReport(null)
+          setDeviationAnchorId(null)
+        }}
         onDeviationAiFix={() => {
           // 让 AI 读画布、用所选模型支持的方式把没接上的参考连接重连(或换支持的模型)。
-          submitAgentMessage(
-            '刚才有几条参考连接没接上（所选模型不支持那种连接方式）。请先读画布，把这些没连上的参考连接，用所选模型支持的连接方式重连；如果模型确实不支持，就换成支持的模型再连。',
-          )
+          submitAgentMessage(t('generationCommon.assistant.reconnectPrompt'))
           setDeviationReport(null)
           setDeviationAnchorId(null)
         }}
@@ -671,10 +722,7 @@ export default function CanvasAssistantPanel({
         onContentDismiss={() => clearVerify()}
         threadBottomRef={threadBottomRef}
       />
-      <form
-        className={cn('grid gap-1 p-3 border-t border-nomi-line-soft bg-nomi-paper')}
-        onSubmit={handleSubmit}
-      >
+      <form className={cn('grid gap-1 p-3 border-t border-nomi-line-soft bg-nomi-paper')} onSubmit={handleSubmit}>
         <input
           ref={inputRef}
           type="file"
@@ -694,13 +742,15 @@ export default function CanvasAssistantPanel({
             'bg-nomi-paper text-nomi-ink text-body-sm leading-[1.45]',
             'placeholder:text-nomi-ink-40',
           )}
-          aria-label="给生成助手发送消息"
-          placeholder="告诉我画布上想怎么搭..."
+          aria-label={t('generationCommon.assistant.inputAria')}
+          placeholder={t('generationCommon.assistant.placeholder')}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => handleAiComposerKeyDown(event, () => {
-            event.currentTarget.form?.requestSubmit()
-          })}
+          onKeyDown={(event) =>
+            handleAiComposerKeyDown(event, () => {
+              event.currentTarget.form?.requestSubmit()
+            })
+          }
           onPaste={handlePaste}
         />
         <div className={cn('flex items-center justify-between gap-2')}>
@@ -712,20 +762,20 @@ export default function CanvasAssistantPanel({
                 'border-0 rounded-nomi-sm bg-transparent text-nomi-ink-60 cursor-pointer',
                 'hover:bg-nomi-ink-05 hover:text-nomi-ink',
               )}
-              label="添加附件"
-              aria-label="添加附件（也可拖拽 / 粘贴）"
+              label={t('generationCommon.assistant.addAttachment')}
+              aria-label={t('generationCommon.assistant.addAttachmentAria')}
               onClick={openFilePicker}
               icon={<IconPaperclip size={16} />}
             />
             <NomiSelect
-              ariaLabel="AI 模式"
-              leadingLabel="模式"
+              ariaLabel={t('generationCommon.assistant.modeAria')}
+              leadingLabel={t('generationCommon.assistant.modeLeading')}
               size="sm"
               value={mode}
               options={[
                 { value: 'agent', label: 'Agent' },
-                { value: 'chat', label: '问答' },
-                { value: 'refine', label: '润色' },
+                { value: 'chat', label: t('generationCommon.assistant.chat') },
+                { value: 'refine', label: t('generationCommon.assistant.refine') },
               ]}
               onChange={(value) => setMode(value as 'agent' | 'chat' | 'refine')}
             />
@@ -740,8 +790,8 @@ export default function CanvasAssistantPanel({
                 'border-0 rounded-full bg-nomi-ink text-nomi-paper cursor-pointer',
                 'hover:enabled:bg-nomi-accent',
               )}
-              label="停止"
-              aria-label="停止生成"
+              label={t('generationCommon.assistant.stop')}
+              aria-label={t('generationCommon.assistant.stopAria')}
               icon={<IconPlayerStopFilled size={13} />}
             />
           ) : (
@@ -754,8 +804,8 @@ export default function CanvasAssistantPanel({
                 'disabled:bg-nomi-ink-20 disabled:text-nomi-ink-40 disabled:cursor-not-allowed',
               )}
               disabled={!draft.trim() && !attachments.some((item) => item.status === 'ready')}
-              label="发送"
-              aria-label="生成 AI 发送"
+              label={t('generationCommon.assistant.send')}
+              aria-label={t('generationCommon.assistant.sendAria')}
               icon={<IconSend2 size={15} />}
             />
           )}
