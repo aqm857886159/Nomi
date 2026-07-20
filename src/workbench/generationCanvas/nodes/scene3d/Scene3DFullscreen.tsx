@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -81,6 +82,7 @@ export default function Scene3DFullscreen({
   onRecordTake,
   referenceTarget,
 }: Scene3DFullscreenProps): JSX.Element {
+  const { t } = useTranslation()
   const [state, setState] = React.useState(() => cloneScene3DState(initialState))
   const [selection, setSelection] = React.useState<Scene3DSelection>(null)
   // 首次进入的三步教练标注（方案 A，2026-07-11 拍板）；只出现一次，localStorage 记忆。
@@ -278,15 +280,15 @@ export default function Scene3DFullscreen({
   const captureViewport = React.useCallback(() => {
     const capture = captureApiRef.current?.captureViewport()
     if (!capture) {
-      toast('截图失败，请重试', 'error')
+      toast(t('scene3d.fullscreen.screenshotFailed'), 'error')
       return
     }
     onScreenshot(capture)
-  }, [onScreenshot])
+  }, [onScreenshot, t])
 
   const captureSelectedCamera = React.useCallback(() => {
     if (!selectedCamera) {
-      toast('请先选中一个拍摄相机', 'warning')
+      toast(t('scene3d.fullscreen.selectCameraFirst'), 'warning')
       return
     }
     const captureCamera = cameraWithPlaybackPosition(
@@ -297,11 +299,11 @@ export default function Scene3DFullscreen({
     )
     const capture = captureApiRef.current?.captureCamera(captureCamera)
     if (!capture) {
-      toast('相机截图失败，请重试', 'error')
+      toast(t('scene3d.fullscreen.cameraScreenshotFailed'), 'error')
       return
     }
     onScreenshot(capture)
-  }, [onScreenshot, selectedCamera, trajectory.activeTrajectoryIds, trajectory.playheadRef])
+  }, [onScreenshot, selectedCamera, trajectory.activeTrajectoryIds, trajectory.playheadRef, t])
 
   const updateEditorCamera = React.useCallback((editorCamera: Scene3DState['editorCamera']) => {
     latestEditorCameraRef.current = editorCamera
@@ -502,7 +504,7 @@ export default function Scene3DFullscreen({
       }}
       role="dialog"
       aria-modal="true"
-      aria-label="3D 场景编辑器"
+      aria-label={t('scene3d.fullscreen.editorAria')}
       tabIndex={0}
       onContextMenu={(event) => event.preventDefault()}
       onKeyDown={(event) => event.stopPropagation()}
@@ -518,26 +520,26 @@ export default function Scene3DFullscreen({
         </div>
         <div className="ml-auto flex min-w-0 max-w-[72vw] items-center gap-2 overflow-x-auto">
           <div className="flex items-center gap-1 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-0.5">
-            <PanelButton title="移动" active={transformMode === 'translate'} onClick={() => setTransformMode('translate')}>
+            <PanelButton title={t('scene3d.fullscreen.move')} active={transformMode === 'translate'} onClick={() => setTransformMode('translate')}>
               <IconArrowsMove size={15} />
             </PanelButton>
-            <PanelButton title="旋转" active={transformMode === 'rotate'} onClick={() => setTransformMode('rotate')}>
+            <PanelButton title={t('scene3d.fullscreen.rotate')} active={transformMode === 'rotate'} onClick={() => setTransformMode('rotate')}>
               <IconRotate size={15} />
             </PanelButton>
           </div>
           <div className="flex items-center gap-1 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-0.5">
-            <PanelButton title="当前视口截图" onClick={captureViewport}>
+            <PanelButton title={t('scene3d.fullscreen.viewportScreenshot')} onClick={captureViewport}>
               <IconPhoto size={15} />
-              <span>截图</span>
+              <span>{t('scene3d.fullscreen.screenshot')}</span>
             </PanelButton>
           </div>
           <div className="flex items-center gap-1 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-0.5">
-            <PanelButton title={trajectoryMode ? '退出轨迹模式' : '进入轨迹模式'} active={trajectoryMode} onClick={toggleTrajectoryMode}>
+            <PanelButton title={trajectoryMode ? t('scene3d.toolbar.exitTrajectory') : t('scene3d.toolbar.enterTrajectory')} active={trajectoryMode} onClick={toggleTrajectoryMode}>
               <IconRoute size={15} />
-              <span>轨迹</span>
+              <span>{t('scene3d.toolbar.trajectory')}</span>
             </PanelButton>
             <PanelButton
-              title={trajectory.isPlaying ? '暂停轨迹播放' : '播放轨迹'}
+              title={trajectory.isPlaying ? t('scene3d.fullscreen.pauseTrajectory') : t('scene3d.fullscreen.playTrajectory')}
               active={trajectory.isPlaying}
               onClick={() => requestTrajectoryPlayChange(!trajectory.isPlaying)}
             >
@@ -547,7 +549,7 @@ export default function Scene3DFullscreen({
           {!readOnly ? <CharacterPossessButton drive={characterDrive} /> : null}
           <label className="inline-flex h-8 shrink-0 items-center gap-2 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--workbench-muted)]">
             <IconWorld size={14} />
-            <span>速度</span>
+            <span>{t('scene3d.fullscreen.speed')}</span>
             <input
               className="h-1.5 w-24 accent-[var(--nomi-ink)]"
               max={16}
@@ -561,7 +563,7 @@ export default function Scene3DFullscreen({
           <button
             className="grid size-8 shrink-0 place-items-center rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)]"
             type="button"
-            title="退出 3D 场景"
+            title={t('scene3d.fullscreen.exitScene')}
             onClick={handleClose}
           >
             <IconX size={16} />
@@ -610,7 +612,7 @@ export default function Scene3DFullscreen({
 
         <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--nomi-ink-05)]">
           <FencedCanvas
-            fence={<div className="absolute inset-0 grid place-items-center text-caption text-[var(--nomi-ink-60)]">正在初始化 3D 视口…</div>}
+            fence={<div className="absolute inset-0 grid place-items-center text-caption text-[var(--nomi-ink-60)]">{t('scene3d.fullscreen.initializing')}</div>}
             camera={canvasCamera}
             dpr={[1, 2]}
             frameloop={trajectory.isPlaying || trajectory.timelineOpen || takeRecorder.isRecording ? 'always' : 'demand'}
@@ -684,12 +686,12 @@ export default function Scene3DFullscreen({
             />
           </FencedCanvas>
           {!leftPanelOpen ? (
-            <CanvasPanelRestoreButton side="left" title="显示场景节点" onClick={() => setLeftPanelOpen(true)}>
+            <CanvasPanelRestoreButton side="left" title={t('scene3d.fullscreen.showSceneNodes')} onClick={() => setLeftPanelOpen(true)}>
               <IconListTree size={18} />
             </CanvasPanelRestoreButton>
           ) : null}
           {!rightPanelOpen ? (
-            <CanvasPanelRestoreButton side="right" title="显示属性" onClick={() => setRightPanelOpen(true)}>
+            <CanvasPanelRestoreButton side="right" title={t('scene3d.fullscreen.showProperties')} onClick={() => setRightPanelOpen(true)}>
               <IconSettings size={18} />
             </CanvasPanelRestoreButton>
           ) : null}

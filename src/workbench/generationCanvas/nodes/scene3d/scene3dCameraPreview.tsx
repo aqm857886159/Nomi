@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useThree } from '@react-three/fiber'
 import { FencedCanvas } from '../fencedCanvas'
 import { IconCamera, IconEye, IconRotate, IconChevronUp, IconChevronDown } from '@tabler/icons-react'
@@ -140,6 +141,7 @@ export function CameraPreview({
   onLevelCamera: () => void
   onScreenshot: () => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const playheadSeconds = useScene3DTrajectoryRuntimeStore((runtime) => runtime.playheadSeconds)
   const previewCamera = React.useMemo(
     () => cameraWithPlaybackPosition(state, camera, playheadSeconds, activeTrajectoryIds),
@@ -165,7 +167,7 @@ export function CameraPreview({
           <button
             className="grid size-7 place-items-center rounded-nomi-sm bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)]"
             type="button"
-            title={collapsed ? '展开相机预览' : '收起相机预览（不挡画面）'}
+            title={collapsed ? t('scene3d.cameraPreview.expand') : t('scene3d.cameraPreview.collapse')}
             aria-expanded={!collapsed}
             onClick={() => setCollapsed((value) => !value)}
           >
@@ -178,22 +180,22 @@ export function CameraPreview({
             )}
             disabled={readOnly}
             type="button"
-            title={cameraViewEditing ? '正在取景调整，按 Esc 或点击顶部退出' : '从相机视角调整'}
+            title={cameraViewEditing ? t('scene3d.cameraPreview.editingHint') : t('scene3d.cameraPreview.editFromCamera')}
             onClick={onToggleViewEdit}
           >
             <IconEye size={14} />
-            <span>取景</span>
+            <span>{t('scene3d.cameraPreview.framing')}</span>
           </button>
           <button
             className="grid size-7 place-items-center rounded-nomi-sm bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)] disabled:opacity-40"
             disabled={readOnly}
             type="button"
-            title="水平摆正"
+            title={t('scene3d.cameraPreview.level')}
             onClick={onLevelCamera}
           >
             <IconRotate size={14} />
           </button>
-          <button className="grid size-7 place-items-center rounded-nomi-sm bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)]" type="button" title="相机截图" onClick={onScreenshot}>
+          <button className="grid size-7 place-items-center rounded-nomi-sm bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)]" type="button" title={t('scene3d.cameraPreview.screenshot')} onClick={onScreenshot}>
             <IconCamera size={15} />
           </button>
         </div>
@@ -242,7 +244,7 @@ export function CameraPreview({
           </div>
           <div className="mt-3 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 py-2">
             <div className="mb-1 flex items-center justify-between gap-2 text-micro text-[var(--nomi-ink-60)]">
-              <span>焦段</span>
+              <span>{t('scene3d.cameraPreview.focalLength')}</span>
               <span className="font-medium text-[var(--nomi-ink)]">{fovToFocalMm(camera.fov)}mm · FOV {Math.round(camera.fov)}°</span>
             </div>
             <input
@@ -256,14 +258,14 @@ export function CameraPreview({
               onChange={(event) => onFovChange(focalMmToFov(Number(event.currentTarget.value)))}
             />
             <div className="mt-1 grid grid-cols-3 text-micro text-[var(--nomi-ink-40)]">
-              <span>{FOCAL_MM_MIN} 广角</span>
-              <span className="text-center">50 标准</span>
-              <span className="text-right">{FOCAL_MM_MAX} 长焦</span>
+              <span>{FOCAL_MM_MIN} {t('scene3d.cameraPreview.wide')}</span>
+              <span className="text-center">50 {t('scene3d.cameraPreview.standard')}</span>
+              <span className="text-right">{FOCAL_MM_MAX} {t('scene3d.cameraPreview.telephoto')}</span>
             </div>
           </div>
           <div className="mt-3 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 py-2">
             <div className="mb-1 flex items-center justify-between gap-2 text-micro text-[var(--nomi-ink-60)]">
-              <span>镜头深度</span>
+              <span>{t('scene3d.cameraPreview.lensDepth')}</span>
               <span className="font-medium text-[var(--nomi-ink)]">{Math.round(lensDepth)}%</span>
             </div>
             <input
@@ -284,8 +286,8 @@ export function CameraPreview({
           </div>
           <div className="mt-3 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 py-2">
             <div className="mb-1 flex items-center justify-between gap-2 text-micro text-[var(--nomi-ink-60)]">
-              <span>手持抖动</span>
-              <span className="font-medium text-[var(--nomi-ink)]">{shakeAmplitude > 0 ? `${Math.round(shakeAmplitude)}%` : '关'}</span>
+              <span>{t('scene3d.cameraPreview.handheldShake')}</span>
+              <span className="font-medium text-[var(--nomi-ink)]">{shakeAmplitude > 0 ? `${Math.round(shakeAmplitude)}%` : t('scene3d.cameraPreview.off')}</span>
             </div>
             <input
               className="block h-1.5 w-full accent-[var(--nomi-ink)]"
@@ -298,9 +300,9 @@ export function CameraPreview({
               onChange={(event) => onShakeAmplitudeChange(Number(event.currentTarget.value))}
             />
             <div className="mt-1 grid grid-cols-3 text-micro text-[var(--nomi-ink-40)]">
-              <span>关</span>
-              <span className="text-center">微晃</span>
-              <span className="text-right">剧烈</span>
+              <span>{t('scene3d.cameraPreview.off')}</span>
+              <span className="text-center">{t('scene3d.cameraPreview.slight')}</span>
+              <span className="text-right">{t('scene3d.cameraPreview.strong')}</span>
             </div>
           </div>
         </>

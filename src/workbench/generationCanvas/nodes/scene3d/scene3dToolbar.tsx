@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   IconBox,
   IconBuildingSkyscraper,
@@ -25,8 +26,8 @@ import {
 import { cn } from '../../../../utils/cn'
 import { type Scene3DGeometry, type Scene3DPropKind } from './scene3dTypes'
 import { CROWD_MAX_AXIS, type CrowdAddOptions } from './scene3dConstants'
-import { PROP_KINDS, propKindLabel } from './scene3dPropSpecs'
-import { SCENE_TEMPLATES, SCENE_TEMPLATE_LABEL, type Scene3DSceneTemplate } from './scene3dSceneTemplates'
+import { PROP_KINDS } from './scene3dPropSpecs'
+import { SCENE_TEMPLATES, type Scene3DSceneTemplate } from './scene3dSceneTemplates'
 
 const PROP_MENU_ICONS: Record<Scene3DPropKind, Icon> = {
   car: IconCar,
@@ -142,6 +143,7 @@ export function SceneAddToolbar({
   canvasFocusMode: boolean
   onToggleCanvasFocusMode: () => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const containerRef = React.useRef<HTMLDivElement>(null)
   const [addMenuOpen, setAddMenuOpen] = React.useState(false)
   const [geometryOpen, setGeometryOpen] = React.useState(false)
@@ -153,10 +155,10 @@ export function SceneAddToolbar({
   const [crowdColumnsValue, setCrowdColumnsValue] = React.useState(3)
   const [crowdSpacingValue, setCrowdSpacingValue] = React.useState(1.2)
   const geometryItems = [
-    { kind: 'box' as const, label: '立方体', icon: IconBox },
-    { kind: 'sphere' as const, label: '球体', icon: IconSphere },
-    { kind: 'cylinder' as const, label: '圆柱体', icon: IconCylinder },
-    { kind: 'plane' as const, label: '平面', icon: IconPlane },
+    { kind: 'box' as const, label: t('scene3d.toolbar.geometryKind.box'), icon: IconBox },
+    { kind: 'sphere' as const, label: t('scene3d.toolbar.geometryKind.sphere'), icon: IconSphere },
+    { kind: 'cylinder' as const, label: t('scene3d.toolbar.geometryKind.cylinder'), icon: IconCylinder },
+    { kind: 'plane' as const, label: t('scene3d.toolbar.geometryKind.plane'), icon: IconPlane },
   ]
 
   const closeAddMenu = React.useCallback(() => {
@@ -202,7 +204,7 @@ export function SceneAddToolbar({
       className={cn(
         'absolute bottom-5 left-1/2 z-[4] max-w-[calc(100%-32px)] -translate-x-1/2',
       )}
-      aria-label="添加 3D 节点"
+      aria-label={t('scene3d.toolbar.addNodeAria')}
       onPointerDown={(event) => event.stopPropagation()}
       onWheel={(event) => event.stopPropagation()}
     >
@@ -213,7 +215,7 @@ export function SceneAddToolbar({
             'rounded-nomi border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
           )}
           role="menu"
-          aria-label="添加 3D 节点"
+          aria-label={t('scene3d.toolbar.addNodeAria')}
         >
           <button
             className={cn(
@@ -233,7 +235,7 @@ export function SceneAddToolbar({
             }}
           >
             <IconMap2 size={15} />
-            <span className="min-w-0 flex-1">场景模板</span>
+            <span className="min-w-0 flex-1">{t('scene3d.toolbar.sceneTemplates')}</span>
             <IconChevronRight size={14} />
           </button>
           <button
@@ -254,7 +256,7 @@ export function SceneAddToolbar({
             }}
           >
             <IconBox size={15} />
-            <span className="min-w-0 flex-1">几何模型</span>
+            <span className="min-w-0 flex-1">{t('scene3d.toolbar.geometry')}</span>
             <IconChevronRight size={14} />
           </button>
           <button
@@ -275,7 +277,7 @@ export function SceneAddToolbar({
             }}
           >
             <IconPackage size={15} />
-            <span className="min-w-0 flex-1">道具</span>
+            <span className="min-w-0 flex-1">{t('scene3d.toolbar.props')}</span>
             <IconChevronRight size={14} />
           </button>
           <button
@@ -296,7 +298,7 @@ export function SceneAddToolbar({
             }}
           >
             <IconUser size={15} />
-            <span className="min-w-0 flex-1">假人</span>
+            <span className="min-w-0 flex-1">{t('scene3d.toolbar.mannequins')}</span>
             <IconChevronRight size={14} />
           </button>
           <button
@@ -313,7 +315,7 @@ export function SceneAddToolbar({
             }}
           >
             <IconBulb size={15} />
-            <span className="min-w-0 flex-1">灯光</span>
+            <span className="min-w-0 flex-1">{t('scene3d.toolbar.light')}</span>
           </button>
           <button
             className={cn(
@@ -329,7 +331,7 @@ export function SceneAddToolbar({
             }}
           >
             <IconCamera size={15} />
-            <span className="min-w-0 flex-1">相机</span>
+            <span className="min-w-0 flex-1">{t('scene3d.toolbar.camera')}</span>
           </button>
         </div>
       ) : null}
@@ -340,7 +342,7 @@ export function SceneAddToolbar({
             'rounded-nomi border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
           )}
           role="menu"
-          aria-label="添加几何模型"
+          aria-label={t('scene3d.toolbar.addGeometryAria')}
         >
           {geometryItems.map((item) => {
             const Icon = item.icon
@@ -370,7 +372,7 @@ export function SceneAddToolbar({
             'rounded-nomi border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
           )}
           role="menu"
-          aria-label="套用场景模板"
+          aria-label={t('scene3d.toolbar.applyTemplateAria')}
         >
           {SCENE_TEMPLATES.map((template) => (
             <button
@@ -382,14 +384,14 @@ export function SceneAddToolbar({
               )}
               type="button"
               role="menuitem"
-              title="灰模布景，追加进当前场景（不清已有内容）"
+              title={t('scene3d.toolbar.templateHint')}
               onClick={() => {
                 onApplySceneTemplate(template)
                 closeAddMenu()
               }}
             >
               <IconMap2 size={15} />
-              <span>{SCENE_TEMPLATE_LABEL[template]}</span>
+              <span>{t(`scene3d.toolbar.template.${template}` as 'scene3d.toolbar.template.street')}</span>
             </button>
           ))}
         </div>
@@ -401,7 +403,7 @@ export function SceneAddToolbar({
             'rounded-nomi border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
           )}
           role="menu"
-          aria-label="添加道具"
+          aria-label={t('scene3d.toolbar.addPropsAria')}
         >
           {PROP_KINDS.map((kind) => {
             const Icon = PROP_MENU_ICONS[kind]
@@ -421,7 +423,7 @@ export function SceneAddToolbar({
                 }}
               >
                 <Icon size={15} />
-                <span>{propKindLabel(kind)}</span>
+                <span>{t(`scene3d.toolbar.prop.${kind}` as 'scene3d.toolbar.prop.car')}</span>
               </button>
             )
           })}
@@ -434,7 +436,7 @@ export function SceneAddToolbar({
             'rounded-nomi border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
           )}
           role="menu"
-          aria-label="添加假人"
+          aria-label={t('scene3d.toolbar.addMannequinAria')}
         >
           <button
             className={cn(
@@ -447,7 +449,7 @@ export function SceneAddToolbar({
             onClick={addSingleMannequin}
           >
             <IconUser size={15} />
-            <span>单个假人</span>
+            <span>{t('scene3d.toolbar.singleMannequin')}</span>
           </button>
           <button
             className={cn(
@@ -461,7 +463,7 @@ export function SceneAddToolbar({
             onClick={() => setCrowdPopoverOpen((open) => !open)}
           >
             <IconUser size={15} />
-            <span className="min-w-0 flex-1">群众</span>
+            <span className="min-w-0 flex-1">{t('scene3d.toolbar.crowd')}</span>
             <IconChevronRight size={14} />
           </button>
         </div>
@@ -473,15 +475,15 @@ export function SceneAddToolbar({
             'rounded-nomi border border-[var(--workbench-border)] bg-[var(--nomi-paper)] text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]',
           )}
           role="dialog"
-          aria-label="添加群众"
+          aria-label={t('scene3d.toolbar.addCrowdAria')}
         >
           <div className="mb-3 flex items-center justify-between gap-2 text-caption text-[var(--nomi-ink-60)]">
-            <span className="font-medium text-[var(--nomi-ink)]">群众</span>
-            <span>最多10x10</span>
+            <span className="font-medium text-[var(--nomi-ink)]">{t('scene3d.toolbar.crowd')}</span>
+            <span>{t('scene3d.toolbar.crowdMax', { rows: CROWD_MAX_AXIS, columns: CROWD_MAX_AXIS })}</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <label className="grid gap-1 text-micro text-[var(--nomi-ink-60)]">
-              行数
+              {t('scene3d.toolbar.rows')}
               <input
                 className="h-8 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)]"
                 max={CROWD_MAX_AXIS}
@@ -492,7 +494,7 @@ export function SceneAddToolbar({
               />
             </label>
             <label className="grid gap-1 text-micro text-[var(--nomi-ink-60)]">
-              列数
+              {t('scene3d.toolbar.columns')}
               <input
                 className="h-8 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)]"
                 max={CROWD_MAX_AXIS}
@@ -504,7 +506,7 @@ export function SceneAddToolbar({
             </label>
           </div>
           <label className="mt-2 grid gap-1 text-micro text-[var(--nomi-ink-60)]">
-            圆间距
+            {t('scene3d.toolbar.spacing')}
             <input
               className="h-8 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)]"
               max={10}
@@ -521,14 +523,14 @@ export function SceneAddToolbar({
               type="button"
               onClick={() => setCrowdPopoverOpen(false)}
             >
-              取消
+              {t('common.cancel')}
             </button>
             <button
               className="h-8 rounded-nomi-sm bg-[var(--nomi-ink)] text-caption text-[var(--nomi-paper)] hover:opacity-90"
               type="button"
               onClick={addCrowd}
             >
-              生成
+              {t('scene3d.toolbar.generate')}
             </button>
           </div>
         </div>
@@ -548,7 +550,7 @@ export function SceneAddToolbar({
             addMenuOpen && 'bg-[var(--nomi-ink-05)] text-[var(--nomi-ink)]',
           )}
           type="button"
-          title="添加 3D 节点"
+          title={t('scene3d.toolbar.addNodeAria')}
           data-coach="add-button"
           aria-haspopup="menu"
           aria-expanded={addMenuOpen}
@@ -560,31 +562,31 @@ export function SceneAddToolbar({
           <span className="grid size-6 shrink-0 place-items-center rounded-nomi-sm bg-[var(--nomi-ink)] text-[var(--nomi-paper)]">
             <IconPlus size={15} />
           </span>
-          <span>添加</span>
+          <span>{t('scene3d.toolbar.add')}</span>
           <IconChevronUp size={13} className={cn('transition', addMenuOpen && 'rotate-180')} />
         </button>
         <span className="h-5 w-px shrink-0 bg-[var(--workbench-border)]" />
         <SceneAddButton
           active={trajectoryMode}
-          title={trajectoryMode ? '退出轨迹模式' : '进入轨迹模式'}
+          title={trajectoryMode ? t('scene3d.toolbar.exitTrajectory') : t('scene3d.toolbar.enterTrajectory')}
           onClick={() => {
             closeAddMenu()
             onToggleTrajectoryMode()
           }}
         >
           <IconRoute size={15} />
-          <span>轨迹</span>
+          <span>{t('scene3d.toolbar.trajectory')}</span>
         </SceneAddButton>
         <SceneAddButton
           active={canvasFocusMode}
-          title={canvasFocusMode ? '退出全屏画布' : '全屏画布'}
+          title={canvasFocusMode ? t('scene3d.toolbar.exitFullscreenCanvas') : t('scene3d.toolbar.fullscreenCanvas')}
           onClick={() => {
             closeAddMenu()
             onToggleCanvasFocusMode()
           }}
         >
           {canvasFocusMode ? <IconMinimize size={15} /> : <IconMaximize size={15} />}
-          <span>{canvasFocusMode ? '还原' : '全屏'}</span>
+          <span>{canvasFocusMode ? t('scene3d.toolbar.restore') : t('scene3d.toolbar.fullscreen')}</span>
         </SceneAddButton>
       </div>
     </div>
