@@ -46,6 +46,21 @@ export const zhTimelinePreview = {
   cancelExport: '取消导出',
   preparingCannotCancel: '准备中，暂不可取消',
   exportMp4: '导出 MP4',
+  textStyle: {
+    aria: '文字样式',
+    size: '字号',
+    decrease: '减小字号',
+    percentage: '字号百分比',
+    increase: '增大字号',
+    font: '字体',
+    fonts: {
+      default: '默认黑体',
+      songti: '宋体',
+      kaiti: '楷体',
+      yuanti: '圆体',
+      'serif-en': '英文衬线',
+    },
+  },
 } as const
 
 type TranslationShape<T> = {
@@ -100,4 +115,19 @@ export const enTimelinePreview = {
   cancelExport: 'Cancel export',
   preparingCannotCancel: 'Preparing; cancellation is not available yet',
   exportMp4: 'Export MP4',
+  textStyle: {
+    aria: 'Text style',
+    size: 'Size',
+    decrease: 'Decrease text size',
+    percentage: 'Text size percentage',
+    increase: 'Increase text size',
+    font: 'Font',
+    fonts: {
+      default: 'Default sans-serif',
+      songti: 'Song serif',
+      kaiti: 'Kai script',
+      yuanti: 'Rounded sans-serif',
+      'serif-en': 'English serif',
+    },
+  },
 } satisfies TranslationShape<typeof zhTimelinePreview>

@@ -1,4 +1,54 @@
 export const zhOnboardingProviders = {
+  journey: {
+    finaleAria: '引导结束',
+    finaleTitle: '这就是全程，现在轮到你',
+    finaleBody: '从一句话到成片，每一步都在你眼皮底下。要不要用你自己的故事走一遍？',
+    startOwnStory: '用我自己的故事走一遍',
+    browseFirst: '先逛逛',
+    step: '讲解 {{current}}/{{total}}',
+    complete: '完成',
+    next: '下一步',
+    autoplaying: '自动播放中',
+    skip: '跳过',
+    beats: {
+      write: {
+        title: '① 一切从你的一句话开始',
+        body: '在创作区写下你的故事，AI 一个字一个字陪你码。',
+      },
+      split: {
+        title: '② AI 把故事拆成镜头',
+        body: '跨镜的人物、场景一致项也帮你锁好。',
+      },
+      canvas: {
+        title: '③ 一键铺成画布',
+        body: '每个镜头一张卡，全在你眼皮底下。',
+      },
+      character: {
+        title: '同一个人，每镜长一样',
+        body: '靠这张身份卡锁住脸——小孩和小机器人每个镜头都不串。',
+      },
+      staging: {
+        title: '谁站哪、朝哪',
+        body: '用 3D 摆一下站位，AI 照着画——比如屋顶上两个并排坐。',
+      },
+      trajectory: {
+        title: '想要推拉摇移',
+        body: '画一条相机轨迹，AI 复刻这个运镜——比如夕阳下缓缓拉远。',
+      },
+      generate: {
+        title: '这就是出好的成片',
+        body: '示例已生成好——你自己用时，点每张卡的生成按钮出你的版本。',
+      },
+      captions: {
+        title: '排进时间轴',
+        body: '给镜头加字幕、标题卡，节奏你说了算。',
+      },
+      export: {
+        title: '成片拿走',
+        body: '一键导出 MP4，整条流水线就此走完。',
+      },
+    },
+  },
   handbook: {
     aria: '上手手册',
     closeAria: '关闭上手手册',
@@ -251,6 +301,57 @@ type TranslationShape<T> = {
 }
 
 export const enOnboardingProviders = {
+  journey: {
+    finaleAria: 'Tour complete',
+    finaleTitle: "That's the full workflow. Now it's your turn.",
+    finaleBody:
+      'Every step from a single sentence to the final video stays visible. Want to try it with your own story?',
+    startOwnStory: 'Try my own story',
+    browseFirst: 'Explore first',
+    step: 'Guide {{current}}/{{total}}',
+    complete: 'Finish',
+    next: 'Next',
+    autoplaying: 'Auto-playing',
+    skip: 'Skip',
+    beats: {
+      write: {
+        title: '① It starts with one sentence',
+        body: 'Write your story in Create, with AI helping as you go.',
+      },
+      split: {
+        title: '② AI turns the story into shots',
+        body: 'It also keeps characters and locations consistent across shots.',
+      },
+      canvas: {
+        title: '③ Lay it out on the canvas',
+        body: 'Each shot becomes a card, with every step visible.',
+      },
+      character: {
+        title: 'Keep characters consistent',
+        body: 'An identity card locks each face so the child and robot stay consistent in every shot.',
+      },
+      staging: {
+        title: 'Choose positions and directions',
+        body: 'Stage the scene in 3D and AI follows it—for example, two characters sitting side by side on a roof.',
+      },
+      trajectory: {
+        title: 'Design camera movement',
+        body: 'Draw a camera path for AI to reproduce, such as slowly pulling back at sunset.',
+      },
+      generate: {
+        title: 'Here is the finished result',
+        body: 'The demo is already generated. In your project, use each card’s Generate button to create your version.',
+      },
+      captions: {
+        title: 'Arrange it on the timeline',
+        body: 'Add captions and title cards, then shape the pacing your way.',
+      },
+      export: {
+        title: 'Take the finished video',
+        body: 'Export an MP4 in one click to complete the workflow.',
+      },
+    },
+  },
   handbook: {
     aria: 'Quick-start guide',
     closeAria: 'Close quick-start guide',
