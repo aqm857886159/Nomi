@@ -95,6 +95,11 @@ type ChunkTranslationKey =
   | 'sidebar.promptLibrary'
   | 'sidebar.skillLibrary'
   | 'sidebar.assetLibrary'
+  | 'generationCommon.chunk.scene3dEditor'
+  | 'generationCommon.chunk.model3dViewer'
+  | 'generationCommon.chunk.textEditor'
+  | 'generationCommon.chunk.panoramaViewer'
+  | 'generationCommon.chunk.composer'
 
 class ChunkErrorBoundary extends React.Component<BoundaryProps, { error: Error | null }> {
   state: { error: Error | null } = { error: null }

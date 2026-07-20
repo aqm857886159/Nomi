@@ -18,6 +18,26 @@ export const zhGenerationCommon = {
     requestId: '供应商请求 ID',
     regenerate: '用相同参数重生成',
   },
+  chunk: {
+    scene3dEditor: '3D 场景编辑器', model3dViewer: '3D 模型预览', textEditor: '文本节点编辑器', panoramaViewer: '全景预览', composer: '节点生成面板',
+  },
+  imageToolbar: {
+    aria: '图片操作', fullscreen: '全屏预览', fullscreenAria: '全屏预览图片', makeup: '定妆',
+    makeupHint: '定妆：基于这张图，预填一份角色/场景身份板提示词到新节点（不自动生成）',
+    decomposing: '拆解中', aiEdit: 'AI 编辑', decompose: '拆解元素（拆成可编辑图层）', editText: '改字（保留字体改文字）',
+    crop: '裁剪', cropHint: '裁剪（可拖取景框，加入堆叠并设为主图）', removingBackground: '抠图中', removeBackground: '抠图',
+    removeBackgroundHint: '抠图（去除背景，加入堆叠并设为主图）', split: '切图', fourView: '四视图（2×2）', gridNine: '九宫格（3×3）',
+    transform: '变换', rotateLeft: '向左旋转 90°', rotateRight: '向右旋转 90°', flipHorizontal: '水平翻转', flipVertical: '垂直翻转',
+    whiteboard: '画板', whiteboardHint: '在画板中编辑（自动导入当前图片）', download: '下载', downloadHint: '下载 / 另存到本地',
+    image: '图片', decomposeTitle: '拆解元素',
+  },
+  node: {
+    generateFirst: '该节点还没生成画面，先点「生成」', sourceMissing: '源节点已不在当前项目',
+    copyFromCategory: '独立副本（来自 {{category}}·{{source}}）', copyFrom: '独立副本（来自 {{source}}）', copySourceMissing: '独立副本（源节点已不存在）',
+    connectHere: '连接到此节点', startConnection: '从此节点开始连线', panoramaActions: '全景图操作', panoramaPreview: '全景预览',
+    reupload: '重新上传', reuploadPanorama: '重新上传全景图', locateSource: '定位源节点：{{source}}', sourceNoLongerExists: '源节点已不存在',
+    independentCopy: '独立副本', primaryImage: '主图', resizeAria: '从 {{direction}} 方向调整节点尺寸', resize: '调整节点尺寸',
+  },
 } as const
 
 type TranslationShape<T> = {
@@ -43,5 +63,25 @@ export const enGenerationCommon = {
     params: 'Parameters',
     requestId: 'Provider request ID',
     regenerate: 'Regenerate with same parameters',
+  },
+  chunk: {
+    scene3dEditor: '3D scene editor', model3dViewer: '3D model preview', textEditor: 'Text node editor', panoramaViewer: 'Panorama preview', composer: 'Node generation panel',
+  },
+  imageToolbar: {
+    aria: 'Image actions', fullscreen: 'Fullscreen preview', fullscreenAria: 'Preview image fullscreen', makeup: 'Create reference',
+    makeupHint: 'Create a new node prefilled with a character or scene identity-board prompt from this image, without generating automatically',
+    decomposing: 'Decomposing', aiEdit: 'AI edit', decompose: 'Decompose elements into editable layers', editText: 'Edit text while preserving the font',
+    crop: 'Crop', cropHint: 'Crop with a draggable frame, add it to the stack, and set it as primary', removingBackground: 'Removing background', removeBackground: 'Remove background',
+    removeBackgroundHint: 'Remove the background, add the result to the stack, and set it as primary', split: 'Split', fourView: 'Four views (2×2)', gridNine: 'Nine-grid (3×3)',
+    transform: 'Transform', rotateLeft: 'Rotate left 90°', rotateRight: 'Rotate right 90°', flipHorizontal: 'Flip horizontally', flipVertical: 'Flip vertically',
+    whiteboard: 'Whiteboard', whiteboardHint: 'Edit on the whiteboard and import the current image automatically', download: 'Download', downloadHint: 'Download or save locally',
+    image: 'Image', decomposeTitle: 'Decomposed elements',
+  },
+  node: {
+    generateFirst: 'This node has no generated visual yet. Generate it first.', sourceMissing: 'The source node is no longer in this project',
+    copyFromCategory: 'Independent copy (from {{category}} · {{source}})', copyFrom: 'Independent copy (from {{source}})', copySourceMissing: 'Independent copy (source node no longer exists)',
+    connectHere: 'Connect to this node', startConnection: 'Start a connection from this node', panoramaActions: 'Panorama actions', panoramaPreview: 'Panorama preview',
+    reupload: 'Upload again', reuploadPanorama: 'Upload panorama again', locateSource: 'Locate source node: {{source}}', sourceNoLongerExists: 'Source node no longer exists',
+    independentCopy: 'Independent copy', primaryImage: 'Primary image', resizeAria: 'Resize node from the {{direction}} direction', resize: 'Resize node',
   },
 } satisfies TranslationShape<typeof zhGenerationCommon>
