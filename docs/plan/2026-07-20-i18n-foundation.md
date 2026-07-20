@@ -18,6 +18,7 @@
   - `index.ts`：初始化、支持语言列表、默认值、localStorage 持久化、`document.lang` 同步。
   - `i18next.d.ts`：翻译 key 类型约束。
 - `NomiAppProviders` 注入 `I18nextProvider`，普通组件用 `useTranslation()`；React 外的 toast/命令用同一 i18n 实例 `i18n.t()`。
+- `i18next` / `react-i18next` 纳入 Vite 显式依赖预构建清单；项目启用了 `optimizeDeps.noDiscovery`，遗漏会让其 CommonJS 传递依赖在开发模式下被误当原生 ESM。
 - 不自动跟随操作系统语言，避免首次行为不可预测；没有存储值时一律 `zh-CN`。
 
 ## 规则与门禁
