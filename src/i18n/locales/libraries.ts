@@ -39,6 +39,14 @@ export const zhLibraries = {
       save: '保存',
       saveToMine: '存进我的库',
     },
+    card: {
+      mine: '我的',
+      video: '视频',
+      image: '图片',
+      unnamed: '未命名提示词',
+      edit: '编辑',
+      delete: '删除',
+    },
   },
   skill: {
     source: { mine: '我的技能', builtin: 'Nomi 内置' },
@@ -161,6 +169,14 @@ export const enLibraries = {
       cancel: 'Cancel',
       save: 'Save',
       saveToMine: 'Save to My library',
+    },
+    card: {
+      mine: 'Mine',
+      video: 'Video',
+      image: 'Image',
+      unnamed: 'Untitled prompt',
+      edit: 'Edit',
+      delete: 'Delete',
     },
   },
   skill: {

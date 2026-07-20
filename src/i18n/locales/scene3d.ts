@@ -260,6 +260,15 @@ export const zhScene3d = {
       points: '{{count}}点',
       more: '更多',
     },
+    menu: {
+      addTrajectory: '添加轨迹',
+      addControlPoint: '添加控制点',
+      edit: '编辑',
+      delete: '删除',
+      mannequin: '假人',
+      camera: '相机',
+      noTargets: '暂无可绑定节点',
+    },
   },
   cameraPreview: {
     expand: '展开相机预览',
@@ -567,6 +576,15 @@ export const enScene3d = {
       ungrouped: 'Ungrouped',
       points: '{{count}} points',
       more: 'More',
+    },
+    menu: {
+      addTrajectory: 'Add trajectory',
+      addControlPoint: 'Add control point',
+      edit: 'Edit',
+      delete: 'Delete',
+      mannequin: 'Mannequin',
+      camera: 'Camera',
+      noTargets: 'No nodes available to bind',
     },
   },
   cameraPreview: {
