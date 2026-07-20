@@ -98,6 +98,7 @@ type ChunkTranslationKey =
   | 'generationCommon.chunk.textEditor'
   | 'generationCommon.chunk.panoramaViewer'
   | 'generationCommon.chunk.composer'
+  | 'generationCommon.workspace.timelineChunk'
   | 'scene3d.fullscreen.chunkTitle'
 
 class ChunkErrorBoundary extends React.Component<BoundaryProps, { error: Error | null }> {

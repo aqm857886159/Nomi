@@ -251,6 +251,15 @@ export const zhScene3d = {
     exitEdit: '退出编辑',
     enterEdit: '进入编辑',
     bindTargetFirst: '请先为轨迹绑定对象或相机',
+    list: {
+      addToGroup: '加入轨迹组',
+      delete: '删除',
+      title: '轨迹列表',
+      empty: '双击空白创建轨迹',
+      ungrouped: '未分组',
+      points: '{{count}}点',
+      more: '更多',
+    },
   },
   cameraPreview: {
     expand: '展开相机预览',
@@ -550,6 +559,15 @@ export const enScene3d = {
     exitEdit: 'Exit edit mode',
     enterEdit: 'Enter edit mode',
     bindTargetFirst: 'Bind an object or camera to the trajectory first',
+    list: {
+      addToGroup: 'Add to trajectory group',
+      delete: 'Delete',
+      title: 'Trajectory list',
+      empty: 'Double-click empty space to create a trajectory',
+      ungrouped: 'Ungrouped',
+      points: '{{count}} points',
+      more: 'More',
+    },
   },
   cameraPreview: {
     expand: 'Expand camera preview',

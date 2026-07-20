@@ -1,4 +1,14 @@
 export const zhGenerationCommon = {
+  workspace: {
+    timelineChunk: '生成时间轴',
+    aria: '生成区',
+    expandTimeline: '展开生成时间轴',
+    timeline: '时间轴',
+    clipSummary: '{{count}} 段 · {{duration}}',
+    assistantSidebar: '生成区 AI 侧栏',
+    resizeAssistant: '拖动调整助手宽度',
+    timelineActionPrefix: '生成时间轴-',
+  },
   provenance: {
     dialogAria: '生成记录',
     title: '生成记录 · {{name}}',
@@ -54,6 +64,19 @@ export const zhGenerationCommon = {
     downloadHint: '下载 / 另存到本地',
     image: '图片',
     decomposeTitle: '拆解元素',
+  },
+  shotConversion: {
+    shot: '镜头 {{index}}',
+    aria: '把这张图转成视频镜头（作为首帧）',
+    title: '转视频镜头 · 这张图作为首帧',
+    existing: '这一镜已转过视频，已选中它',
+    created: '已转出视频镜头 · 这张图作为首帧',
+    action: '转视频',
+  },
+  cropGrid: {
+    cancel: '取消',
+    confirmCrop: '确认裁剪',
+    confirmSplit: '确认切图',
   },
   node: {
     generateFirst: '该节点还没生成画面，先点「生成」',
@@ -490,6 +513,16 @@ type TranslationShape<T> = {
 }
 
 export const enGenerationCommon = {
+  workspace: {
+    timelineChunk: 'Generation timeline',
+    aria: 'Generation workspace',
+    expandTimeline: 'Expand generation timeline',
+    timeline: 'Timeline',
+    clipSummary: '{{count}} clips · {{duration}}',
+    assistantSidebar: 'Generation AI sidebar',
+    resizeAssistant: 'Drag to resize assistant',
+    timelineActionPrefix: 'Generation timeline - ',
+  },
   provenance: {
     dialogAria: 'Generation record',
     title: 'Generation record · {{name}}',
@@ -546,6 +579,19 @@ export const enGenerationCommon = {
     downloadHint: 'Download or save locally',
     image: 'Image',
     decomposeTitle: 'Decomposed elements',
+  },
+  shotConversion: {
+    shot: 'Shot {{index}}',
+    aria: 'Convert this image into a video shot using it as the first frame',
+    title: 'Convert to video shot · Use this image as the first frame',
+    existing: 'This shot was already converted; its video shot is selected',
+    created: 'Video shot created · This image is the first frame',
+    action: 'Convert to video',
+  },
+  cropGrid: {
+    cancel: 'Cancel',
+    confirmCrop: 'Confirm crop',
+    confirmSplit: 'Confirm split',
   },
   node: {
     generateFirst: 'This node has no generated visual yet. Generate it first.',

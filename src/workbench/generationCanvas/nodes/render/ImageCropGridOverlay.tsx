@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconCheck, IconX } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
 
@@ -63,6 +64,7 @@ export default function ImageCropGridOverlay({
   onConfirm: (result: CropGridResult) => void
   onCancel: () => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const boxRef = React.useRef<HTMLDivElement>(null)
   const dragRef = React.useRef<ActiveDrag | null>(null)
   // 切图默认框接近整图（通常要切整张）；纯裁剪沿用原来的居中八分。
@@ -114,10 +116,22 @@ export default function ImageCropGridOverlay({
       let ny = s.y
       let nr = right
       let nb = bottom
-      if (t.corner === 'nw') { nx = clamp01(Math.min(s.x + dx, right - MIN_CROP)); ny = clamp01(Math.min(s.y + dy, bottom - MIN_CROP)) }
-      if (t.corner === 'ne') { nr = clamp01(Math.max(right + dx, s.x + MIN_CROP)); ny = clamp01(Math.min(s.y + dy, bottom - MIN_CROP)) }
-      if (t.corner === 'sw') { nx = clamp01(Math.min(s.x + dx, right - MIN_CROP)); nb = clamp01(Math.max(bottom + dy, s.y + MIN_CROP)) }
-      if (t.corner === 'se') { nr = clamp01(Math.max(right + dx, s.x + MIN_CROP)); nb = clamp01(Math.max(bottom + dy, s.y + MIN_CROP)) }
+      if (t.corner === 'nw') {
+        nx = clamp01(Math.min(s.x + dx, right - MIN_CROP))
+        ny = clamp01(Math.min(s.y + dy, bottom - MIN_CROP))
+      }
+      if (t.corner === 'ne') {
+        nr = clamp01(Math.max(right + dx, s.x + MIN_CROP))
+        ny = clamp01(Math.min(s.y + dy, bottom - MIN_CROP))
+      }
+      if (t.corner === 'sw') {
+        nx = clamp01(Math.min(s.x + dx, right - MIN_CROP))
+        nb = clamp01(Math.max(bottom + dy, s.y + MIN_CROP))
+      }
+      if (t.corner === 'se') {
+        nr = clamp01(Math.max(right + dx, s.x + MIN_CROP))
+        nb = clamp01(Math.max(bottom + dy, s.y + MIN_CROP))
+      }
       setRect({ x: nx, y: ny, w: Math.max(MIN_CROP, nr - nx), h: Math.max(MIN_CROP, nb - ny) })
       return
     }
@@ -171,10 +185,22 @@ export default function ImageCropGridOverlay({
     >
       <img src={imageUrl} alt="" className="w-full h-full object-fill pointer-events-none" draggable={false} />
       {/* 框外压暗：上/下/左/右四块 */}
-      <div className="absolute left-0 right-0 top-0 bg-nomi-ink/[0.55] pointer-events-none" style={{ height: pct(rect.y) }} />
-      <div className="absolute left-0 right-0 bottom-0 bg-nomi-ink/[0.55] pointer-events-none" style={{ height: pct(1 - rect.y - rect.h) }} />
-      <div className="absolute left-0 bg-nomi-ink/[0.55] pointer-events-none" style={{ top: pct(rect.y), height: pct(rect.h), width: pct(rect.x) }} />
-      <div className="absolute right-0 bg-nomi-ink/[0.55] pointer-events-none" style={{ top: pct(rect.y), height: pct(rect.h), width: pct(1 - rect.x - rect.w) }} />
+      <div
+        className="absolute left-0 right-0 top-0 bg-nomi-ink/[0.55] pointer-events-none"
+        style={{ height: pct(rect.y) }}
+      />
+      <div
+        className="absolute left-0 right-0 bottom-0 bg-nomi-ink/[0.55] pointer-events-none"
+        style={{ height: pct(1 - rect.y - rect.h) }}
+      />
+      <div
+        className="absolute left-0 bg-nomi-ink/[0.55] pointer-events-none"
+        style={{ top: pct(rect.y), height: pct(rect.h), width: pct(rect.x) }}
+      />
+      <div
+        className="absolute right-0 bg-nomi-ink/[0.55] pointer-events-none"
+        style={{ top: pct(rect.y), height: pct(rect.h), width: pct(1 - rect.x - rect.w) }}
+      />
       {/* 选区框 */}
       <div
         className="absolute border border-nomi-paper/90 cursor-move"
@@ -206,30 +232,52 @@ export default function ImageCropGridOverlay({
           </div>
         ))}
         {/* 外框四角 */}
-        <span className={cn(handleClass, 'left-0 top-0 cursor-nwse-resize')} onPointerDown={beginDrag({ kind: 'corner', corner: 'nw' })} />
-        <span className={cn(handleClass, 'right-0 top-0 cursor-nesw-resize')} onPointerDown={beginDrag({ kind: 'corner', corner: 'ne' })} />
-        <span className={cn(handleClass, 'left-0 bottom-0 cursor-nesw-resize')} onPointerDown={beginDrag({ kind: 'corner', corner: 'sw' })} />
-        <span className={cn(handleClass, 'right-0 bottom-0 cursor-nwse-resize')} onPointerDown={beginDrag({ kind: 'corner', corner: 'se' })} />
+        <span
+          className={cn(handleClass, 'left-0 top-0 cursor-nwse-resize')}
+          onPointerDown={beginDrag({ kind: 'corner', corner: 'nw' })}
+        />
+        <span
+          className={cn(handleClass, 'right-0 top-0 cursor-nesw-resize')}
+          onPointerDown={beginDrag({ kind: 'corner', corner: 'ne' })}
+        />
+        <span
+          className={cn(handleClass, 'left-0 bottom-0 cursor-nesw-resize')}
+          onPointerDown={beginDrag({ kind: 'corner', corner: 'sw' })}
+        />
+        <span
+          className={cn(handleClass, 'right-0 bottom-0 cursor-nwse-resize')}
+          onPointerDown={beginDrag({ kind: 'corner', corner: 'se' })}
+        />
       </div>
       {/* 确认 / 取消 */}
       <div className="absolute right-2 top-2 flex items-center gap-1.5">
         <button
           type="button"
-          aria-label="取消"
-          title="取消"
+          aria-label={t('generationCommon.cropGrid.cancel')}
+          title={t('generationCommon.cropGrid.cancel')}
           className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-nomi-paper text-nomi-ink-80 shadow-nomi-md"
           onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => { event.stopPropagation(); onCancel() }}
+          onClick={(event) => {
+            event.stopPropagation()
+            onCancel()
+          }}
         >
           <IconX size={16} stroke={1.8} />
         </button>
         <button
           type="button"
-          aria-label={gridSize === 1 ? '确认裁剪' : '确认切图'}
-          title={gridSize === 1 ? '确认裁剪' : '确认切图'}
+          aria-label={
+            gridSize === 1 ? t('generationCommon.cropGrid.confirmCrop') : t('generationCommon.cropGrid.confirmSplit')
+          }
+          title={
+            gridSize === 1 ? t('generationCommon.cropGrid.confirmCrop') : t('generationCommon.cropGrid.confirmSplit')
+          }
           className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-nomi-ink text-nomi-paper shadow-nomi-md hover:bg-nomi-accent"
           onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => { event.stopPropagation(); onConfirm({ rect, cols, rows }) }}
+          onClick={(event) => {
+            event.stopPropagation()
+            onConfirm({ rect, cols, rows })
+          }}
         >
           <IconCheck size={16} stroke={1.8} />
         </button>
