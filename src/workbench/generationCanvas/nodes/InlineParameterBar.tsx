@@ -1,5 +1,6 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import { Slider } from '@mantine/core'
 import { IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
@@ -77,19 +78,21 @@ function ratioShape(...candidates: string[]): JSX.Element | null {
 function shapedGroupLabel(text: string, shape: JSX.Element | null): React.ReactNode {
   return (
     <>
-      <span className="flex items-center justify-center" style={{ height: 18 }} aria-hidden>{shape}</span>
+      <span className="flex items-center justify-center" style={{ height: 18 }} aria-hidden>
+        {shape}
+      </span>
       <span className="leading-none">{text}</span>
     </>
   )
 }
 
 /** 摘要 pill 的单参数短文本：当前值的纯 label（不带价签）。boolean=开显示参数名/关跳过；空值跳过。 */
-function summaryPart(control: DynamicModelControl, meta: Record<string, unknown>): string {
+function summaryPart(control: DynamicModelControl, meta: Record<string, unknown>, autoLabel: string): string {
   if (!isParameterControl(control)) {
     const value = catalogControlInitialValue(control, meta)
     const matched = control.options.find((o) => optionValue(o) === value)
     if (!matched) return value
-    return typeof matched === 'string' ? (matched || '自动') : matched.label
+    return typeof matched === 'string' ? matched || autoLabel : matched.label
   }
   if (control.type === 'boolean') {
     return (controlInitialValue(control, meta) || 'false') === 'true' ? control.label : ''
@@ -114,11 +117,15 @@ export default function InlineParameterBar({
   onVariantSelect,
   onParamPanelOpenChange,
 }: InlineParameterBarProps): JSX.Element {
+  const { t } = useTranslation()
   // 去重选择 view-model（hook 必须在任何早返回前调用）。
   const modelSelect = useDedupedModelSelect(modelOptions, selectedModelOption?.value || '', onModelChange)
 
   // 摘要 pill 文本：各参数当前值串接（16:9 · 1080p · 5 · 音频）。
-  const summaryText = renderedControls.map((c) => summaryPart(c, meta)).filter(Boolean).join(' · ')
+  const summaryText = renderedControls
+    .map((c) => summaryPart(c, meta, t('generationCommon.parameters.auto')))
+    .filter(Boolean)
+    .join(' · ')
 
   // ── 参数浮层：静止定位（打开定位一次，绝不跟随）。 ──
   // 三轮用户反馈的终解（2026-07-17）：调参期间**两个框（composer + 面板）都不许动**——
@@ -126,7 +133,12 @@ export default function InlineParameterBar({
   // （经 onParamPanelOpenChange 通知，见 NodeGenerationComposer 冻结补偿），pill 不动 → 面板
   // 静止定位即天然贴合，无需跟随。打开期间摘要文本冻结（pill 宽度稳定）。
   const [panelOpen, setPanelOpen] = React.useState(false)
-  const [panelInit, setPanelInit] = React.useState<{ left: number; top: number; maxHeight: number; side: 'above' | 'below' } | null>(null)
+  const [panelInit, setPanelInit] = React.useState<{
+    left: number
+    top: number
+    maxHeight: number
+    side: 'above' | 'below'
+  } | null>(null)
   const [frozenSummary, setFrozenSummary] = React.useState('')
   const pillRef = React.useRef<HTMLButtonElement | null>(null)
   const panelRef = React.useRef<HTMLDivElement | null>(null)
@@ -158,7 +170,12 @@ export default function InlineParameterBar({
   }, [onParamPanelOpenChange])
 
   // 卸载兜底：面板开着时组件被卸（节点删除/取消选中）→ 通知 composer 解除冻结。
-  React.useEffect(() => () => { onParamPanelOpenChange?.(false) }, [onParamPanelOpenChange])
+  React.useEffect(
+    () => () => {
+      onParamPanelOpenChange?.(false)
+    },
+    [onParamPanelOpenChange],
+  )
 
   React.useEffect(() => {
     if (!panelOpen) return
@@ -196,12 +213,16 @@ export default function InlineParameterBar({
           'bg-nomi-accent-soft text-nomi-accent font-medium text-caption',
           'hover:bg-nomi-accent hover:text-nomi-paper transition-colors cursor-pointer',
         )}
-        aria-label="去配置模型"
-        title="点击打开模型接入页"
-        onClick={(event) => { event.preventDefault(); event.stopPropagation(); window.dispatchEvent(new CustomEvent('nomi-open-model-catalog')) }}
+        aria-label={t('generationCommon.parameters.configureModel')}
+        title={t('generationCommon.parameters.openModelCatalog')}
+        onClick={(event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          window.dispatchEvent(new CustomEvent('nomi-open-model-catalog'))
+        }}
       >
         <span className="truncate">{modelCatalogStatus.message}</span>
-        <span className="shrink-0">去配置 →</span>
+        <span className="shrink-0">{t('generationCommon.parameters.configure')}</span>
       </button>
     )
   }
@@ -296,15 +317,24 @@ export default function InlineParameterBar({
                 thumb: { borderColor: 'var(--nomi-accent)', background: 'var(--nomi-paper)' },
               }}
             />
-            <span className="shrink-0 text-right text-caption text-nomi-ink-80 tabular-nums" style={{ minWidth: 28 }}>{value}</span>
+            <span className="shrink-0 text-right text-caption text-nomi-ink-80 tabular-nums" style={{ minWidth: 28 }}>
+              {value}
+            </span>
           </div>
         )
       }
       // 自由数值/文本（无候选项、无范围）：面板内输入行。
       return (
-        <label className={cn('flex items-center gap-2 px-2.5 rounded-nomi border border-nomi-line min-w-0 focus-within:border-nomi-accent')} style={{ height: 30 }}>
+        <label
+          className={cn(
+            'flex items-center gap-2 px-2.5 rounded-nomi border border-nomi-line min-w-0 focus-within:border-nomi-accent',
+          )}
+          style={{ height: 30 }}
+        >
           <input
-            className={cn('flex-1 appearance-none bg-transparent border-0 outline-0 text-caption text-nomi-ink-80 min-w-0')}
+            className={cn(
+              'flex-1 appearance-none bg-transparent border-0 outline-0 text-caption text-nomi-ink-80 min-w-0',
+            )}
             aria-label={control.label}
             type={control.type === 'number' ? 'number' : 'text'}
             value={controlInitialValue(control, meta)}
@@ -331,8 +361,8 @@ export default function InlineParameterBar({
   return (
     <div className={cn('generation-canvas-v2-node__params--parameters', 'flex items-center gap-2 min-w-0')}>
       <NomiSelect
-        ariaLabel="模型"
-        placeholder="选择模型"
+        ariaLabel={t('generationCommon.parameters.model')}
+        placeholder={t('generationCommon.parameters.selectModel')}
         triggerMaxWidth={150}
         value={modelSelect.modelValue}
         options={modelSelect.modelOptions}
@@ -341,8 +371,8 @@ export default function InlineParameterBar({
       {/* 变体（型号）小下拉：紧跟模型芯片（身份级，恒内联）。有变体的模型才显示。 */}
       {variantChoices && variantChoices.length > 1 ? (
         <NomiSelect
-          ariaLabel="变体"
-          leadingLabel="变体"
+          ariaLabel={t('generationCommon.parameters.variant')}
+          leadingLabel={t('generationCommon.parameters.variant')}
           value={activeVariantId || ''}
           options={variantChoices.map((v) => ({ value: v.id, label: v.label }))}
           onChange={(v) => onVariantSelect?.(v)}
@@ -354,9 +384,9 @@ export default function InlineParameterBar({
           <button
             ref={pillRef}
             type="button"
-            aria-label="生成参数"
+            aria-label={t('generationCommon.parameters.generationParameters')}
             aria-expanded={panelOpen}
-            title={pillText || '生成参数'}
+            title={pillText || t('generationCommon.parameters.generationParameters')}
             onClick={() => (panelOpen ? closePanel() : openPanel())}
             className={cn(
               'inline-flex items-center gap-1 h-7 pl-2.5 pr-2 rounded-pill border border-nomi-line bg-nomi-ink-05',
@@ -364,8 +394,18 @@ export default function InlineParameterBar({
               'hover:border-nomi-ink-20 focus:outline-none focus-visible:border-nomi-accent',
             )}
           >
-            <span className="min-w-0 truncate" style={{ maxWidth: 240 }}>{pillText || '参数'}</span>
-            <IconChevronDown size={12} stroke={1.6} className={cn('shrink-0 text-nomi-ink-40 pointer-events-none transition-transform', panelOpen && 'rotate-180')} aria-hidden />
+            <span className="min-w-0 truncate" style={{ maxWidth: 240 }}>
+              {pillText || t('generationCommon.parameters.parameters')}
+            </span>
+            <IconChevronDown
+              size={12}
+              stroke={1.6}
+              className={cn(
+                'shrink-0 text-nomi-ink-40 pointer-events-none transition-transform',
+                panelOpen && 'rotate-180',
+              )}
+              aria-hidden
+            />
           </button>
           {/* 静止浮层（非 Popover）：打开定位一次绝不跟随——composer 已在打开期间冻结（两框皆不动）。 */}
           {panelOpen && panelInit
@@ -373,7 +413,7 @@ export default function InlineParameterBar({
                 <div
                   ref={panelRef}
                   role="group"
-                  aria-label="生成参数面板"
+                  aria-label={t('generationCommon.parameters.panel')}
                   // zIndex/尺寸全走 inline：z-[600] 这类新任意值类在 dev 的 tailwind 缓存里可能不存在
                   // → z 失效面板被透明层截胡「点击不了」（2026-07-17 用户 dev 实况，与图形隐身同根）。
                   className="fixed flex flex-col gap-3 overflow-y-auto rounded-nomi-lg border border-nomi-line bg-nomi-paper p-3"
@@ -389,9 +429,11 @@ export default function InlineParameterBar({
                   {renderedControls.map((control) => renderPanelGroup(control))}
                   {hasProvider ? (
                     <div className="flex flex-col gap-1.5">
-                      <div className="text-micro font-semibold leading-none text-nomi-ink-40">供应商</div>
+                      <div className="text-micro font-semibold leading-none text-nomi-ink-40">
+                        {t('generationCommon.parameters.provider')}
+                      </div>
                       <NomiSegmented
-                        ariaLabel="供应商"
+                        ariaLabel={t('generationCommon.parameters.provider')}
                         value={modelSelect.providerValue}
                         options={modelSelect.providerOptions.map((o) => ({ value: o.value, label: o.label }))}
                         onChange={modelSelect.onProviderPick}
