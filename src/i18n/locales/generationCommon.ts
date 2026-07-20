@@ -34,6 +34,15 @@ export const zhGenerationCommon = {
     textEditor: '文本节点编辑器',
     panoramaViewer: '全景预览',
     composer: '节点生成面板',
+    stagingCapture: '3D 站位捕获',
+    cameraMoveCapture: '3D 运镜捕获',
+    batchPlan: '批量生成面板',
+  },
+  canvas: {
+    aria: 'AI 影像创作画布',
+    noImportableAssets: '没有可导入画布的素材',
+    importedOne: '已导入画布',
+    importedMany: '已导入 {{count}} 个素材到画布',
   },
   imageToolbar: {
     aria: '图片操作',
@@ -554,6 +563,15 @@ export const enGenerationCommon = {
     textEditor: 'Text node editor',
     panoramaViewer: 'Panorama preview',
     composer: 'Node generation panel',
+    stagingCapture: '3D staging capture',
+    cameraMoveCapture: '3D camera-move capture',
+    batchPlan: 'Batch generation panel',
+  },
+  canvas: {
+    aria: 'AI visual creation canvas',
+    noImportableAssets: 'No assets can be imported to the canvas',
+    importedOne: 'Imported to canvas',
+    importedMany: 'Imported {{count}} assets to the canvas',
   },
   imageToolbar: {
     aria: 'Image actions',

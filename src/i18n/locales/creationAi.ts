@@ -1,4 +1,25 @@
 export const zhCreationAi = {
+  workspace: {
+    aria: '创作区',
+    surfacesAria: '创作工作面',
+    source: '原稿',
+    storyboard: '分镜方案',
+    committed: '已落画布',
+    draft: '草稿 · 尚未落画布',
+    expandAssistant: '展开创作助手',
+    assistantSuffix: '创作',
+  },
+  selection: {
+    bold: '加粗',
+    italic: '斜体',
+    heading1: '一级标题',
+    heading2: '二级标题',
+    toolbar: '选中文本工具',
+    formatting: '常用格式',
+    generate: '生成',
+    image: '生成图片',
+    video: '生成视频',
+  },
   writeTool: { insert: '插入到光标', replace: '替换选区', append: '追加到文末' },
   storyboardCommand: '🎬 拆镜头',
   fixationCommand: '🎭 立角色卡',
@@ -113,6 +134,27 @@ type TranslationShape<T> = {
 }
 
 export const enCreationAi = {
+  workspace: {
+    aria: 'Creation workspace',
+    surfacesAria: 'Creation surfaces',
+    source: 'Draft',
+    storyboard: 'Storyboard plan',
+    committed: 'Added to canvas',
+    draft: 'Draft · Not yet added to canvas',
+    expandAssistant: 'Expand creation assistant',
+    assistantSuffix: 'Create',
+  },
+  selection: {
+    bold: 'Bold',
+    italic: 'Italic',
+    heading1: 'Heading 1',
+    heading2: 'Heading 2',
+    toolbar: 'Selected text tools',
+    formatting: 'Common formatting',
+    generate: 'Generate',
+    image: 'Generate image',
+    video: 'Generate video',
+  },
   writeTool: { insert: 'Insert at cursor', replace: 'Replace selection', append: 'Append to document' },
   storyboardCommand: '🎬 Split into shots',
   fixationCommand: '🎭 Create reference cards',

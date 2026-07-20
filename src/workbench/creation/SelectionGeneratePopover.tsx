@@ -1,13 +1,7 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Editor } from '@tiptap/react'
-import {
-  IconBold,
-  IconH1,
-  IconH2,
-  IconItalic,
-  IconPhoto,
-  IconVideo,
-} from '@tabler/icons-react'
+import { IconBold, IconH1, IconH2, IconItalic, IconPhoto, IconVideo } from '@tabler/icons-react'
 import { WorkbenchIconButton } from '../../design/workbenchActions'
 import { cn } from '../../utils/cn'
 import { createNodeFromSelection, type SelectionGenerationKind } from './createNodeFromSelection'
@@ -69,6 +63,7 @@ export default function SelectionGeneratePopover({
   selectionVersion,
   onCreated,
 }: SelectionGeneratePopoverProps): JSX.Element | null {
+  const { t } = useTranslation()
   const normalizedText = selectedText.trim()
   const rootRef = React.useRef<HTMLDivElement | null>(null)
   const [position, setPosition] = React.useState<SelectionPopoverPosition | null>(null)
@@ -80,7 +75,8 @@ export default function SelectionGeneratePopover({
       setPosition(null)
       return
     }
-    const root = (rootRef.current?.closest('.workbench-editor') ?? editor.view.dom.closest('.workbench-editor')) as HTMLElement | null
+    const root = (rootRef.current?.closest('.workbench-editor') ??
+      editor.view.dom.closest('.workbench-editor')) as HTMLElement | null
     setPosition(resolveSelectionPosition(editor, root))
   }, [editor, normalizedText])
 
@@ -90,11 +86,16 @@ export default function SelectionGeneratePopover({
 
   React.useEffect(() => {
     if (!editor || !normalizedText) return
-    const root = (rootRef.current?.closest('.workbench-editor') ?? editor.view.dom.closest('.workbench-editor')) as HTMLElement | null
+    const root = (rootRef.current?.closest('.workbench-editor') ??
+      editor.view.dom.closest('.workbench-editor')) as HTMLElement | null
     const scrollRoot = root?.querySelector('.workbench-editor__scroll')
     const frame = () => window.requestAnimationFrame(updatePosition)
-    const onScroll = () => { frame() }
-    const onResize = () => { frame() }
+    const onScroll = () => {
+      frame()
+    }
+    const onResize = () => {
+      frame()
+    }
     scrollRoot?.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('resize', onResize)
     return () => {
@@ -114,28 +115,28 @@ export default function SelectionGeneratePopover({
   const formatActions: SelectionFormatAction[] = [
     {
       id: 'bold',
-      label: '加粗',
+      label: t('creationAi.selection.bold'),
       icon: <IconBold size={14} />,
       active: editor.isActive('bold'),
       onClick: () => editor.chain().focus().toggleBold().run(),
     },
     {
       id: 'italic',
-      label: '斜体',
+      label: t('creationAi.selection.italic'),
       icon: <IconItalic size={14} />,
       active: editor.isActive('italic'),
       onClick: () => editor.chain().focus().toggleItalic().run(),
     },
     {
       id: 'h1',
-      label: '一级标题',
+      label: t('creationAi.selection.heading1'),
       icon: <IconH1 size={15} />,
       active: editor.isActive('heading', { level: 1 }),
       onClick: () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
     },
     {
       id: 'h2',
-      label: '二级标题',
+      label: t('creationAi.selection.heading2'),
       icon: <IconH2 size={15} />,
       active: editor.isActive('heading', { level: 2 }),
       onClick: () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
@@ -155,16 +156,13 @@ export default function SelectionGeneratePopover({
         'origin-[50%_100%]',
       )}
       role="toolbar"
-      aria-label="选中文本工具"
+      aria-label={t('creationAi.selection.toolbar')}
       data-placement={position.placement}
       style={{ left: position.left, top: position.top }}
     >
       <div
-        className={cn(
-          'workbench-selection-popover__format-group',
-          'inline-flex items-center gap-[3px] shrink-0',
-        )}
-        aria-label="常用格式"
+        className={cn('workbench-selection-popover__format-group', 'inline-flex items-center gap-[3px] shrink-0')}
+        aria-label={t('creationAi.selection.formatting')}
       >
         {formatActions.map((action) => (
           <WorkbenchIconButton
@@ -193,11 +191,8 @@ export default function SelectionGeneratePopover({
         )}
       />
       <div
-        className={cn(
-          'workbench-selection-popover__generate-group',
-          'inline-flex items-center gap-[3px] shrink-0',
-        )}
-        aria-label="生成"
+        className={cn('workbench-selection-popover__generate-group', 'inline-flex items-center gap-[3px] shrink-0')}
+        aria-label={t('creationAi.selection.generate')}
       >
         <WorkbenchIconButton
           className={cn(
@@ -209,7 +204,7 @@ export default function SelectionGeneratePopover({
             'hover:border-[color-mix(in_srgb,var(--workbench-accent)_18%,transparent)]',
             'hover:bg-workbench-accent-soft hover:text-workbench-accent',
           )}
-          label="生成图片"
+          label={t('creationAi.selection.image')}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => handleCreate('image')}
           icon={<IconPhoto size={14} />}
@@ -224,7 +219,7 @@ export default function SelectionGeneratePopover({
             'hover:border-[color-mix(in_srgb,var(--workbench-accent)_18%,transparent)]',
             'hover:bg-workbench-accent-soft hover:text-workbench-accent',
           )}
-          label="生成视频"
+          label={t('creationAi.selection.video')}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => handleCreate('video')}
           icon={<IconVideo size={14} />}

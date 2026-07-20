@@ -98,6 +98,9 @@ type ChunkTranslationKey =
   | 'generationCommon.chunk.textEditor'
   | 'generationCommon.chunk.panoramaViewer'
   | 'generationCommon.chunk.composer'
+  | 'generationCommon.chunk.stagingCapture'
+  | 'generationCommon.chunk.cameraMoveCapture'
+  | 'generationCommon.chunk.batchPlan'
   | 'generationCommon.workspace.timelineChunk'
   | 'scene3d.fullscreen.chunkTitle'
 

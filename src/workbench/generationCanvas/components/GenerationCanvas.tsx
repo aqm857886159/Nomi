@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { toast } from '../../../ui/toast'
 import { cn } from '../../../utils/cn'
 import CanvasToolbar, { NodeAddMenu } from './CanvasToolbar'
@@ -53,13 +54,13 @@ import { CanvasSelectionToolbar } from './CanvasSelectionToolbar'
 import '../styles/generationCanvas.css'
 
 const FOCUS_GENERATION_NODE_EVENT = 'nomi-focus-generation-node'
-const StagingCaptureHost = lazyWithChunkBoundary('3D 站位捕获', () =>
+const StagingCaptureHost = lazyWithChunkBoundary('i18n:generationCommon.chunk.stagingCapture', () =>
   import('../nodes/scene3d/StagingCaptureHost').then((module) => ({ default: module.StagingCaptureHost })),
 )
-const CameraMoveCaptureHost = lazyWithChunkBoundary('3D 运镜捕获', () =>
+const CameraMoveCaptureHost = lazyWithChunkBoundary('i18n:generationCommon.chunk.cameraMoveCapture', () =>
   import('../nodes/scene3d/CameraMoveCaptureHost').then((module) => ({ default: module.CameraMoveCaptureHost })),
 )
-const BatchPlanOverlay = lazyWithChunkBoundary('批量生成面板', () =>
+const BatchPlanOverlay = lazyWithChunkBoundary('i18n:generationCommon.chunk.batchPlan', () =>
   import('./BatchPlanOverlay').then((module) => ({ default: module.BatchPlanOverlay })),
 )
 
@@ -71,12 +72,15 @@ type GenerationCanvasProps = {
 }
 
 export default function GenerationCanvas({ readOnly = false }: GenerationCanvasProps): JSX.Element {
+  const { t } = useTranslation()
   const isReady = useGenerationCanvasStore((state) => state.isReady)
   const allNodes = useGenerationCanvasStore((state) => state.nodes)
   const allEdges = useGenerationCanvasStore((state) => state.edges)
   const allGroups = useGenerationCanvasStore((state) => state.groups)
   const hasPendingStagingCapture = useGenerationCanvasStore((state) => hasPendingScene3DStagingCapture(state.nodes))
-  const hasPendingCameraMoveCapture = useGenerationCanvasStore((state) => hasPendingScene3DCameraMoveCapture(state.nodes))
+  const hasPendingCameraMoveCapture = useGenerationCanvasStore((state) =>
+    hasPendingScene3DCameraMoveCapture(state.nodes),
+  )
   const hasBatchPlanPreview = useBatchPlanPreviewStore((state) => Boolean(state.plan))
   const activeCategoryId = useWorkbenchStore((state) => state.activeCategoryId)
   const setActiveCategoryId = useWorkbenchStore((state) => state.setActiveCategoryId)
@@ -226,7 +230,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
       if (!nodeId) return
       const target = allNodesRef.current.find((node) => node.id === nodeId)
       if (!target) {
-        toast('源节点已不存在', 'warning')
+        toast(t('generationCommon.node.sourceMissing'), 'warning')
         return
       }
       const targetCategoryId = target.categoryId || 'shots'
@@ -242,7 +246,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
         focusFlashTimerRef.current = null
       }
     }
-  }, [selectNode, setActiveCategoryId])
+  }, [selectNode, setActiveCategoryId, t])
 
   React.useEffect(() => {
     if (!pendingFocusNodeId) return
@@ -372,37 +376,38 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
 
   const lastPastePositionRef = React.useRef<{ x: number; y: number } | null>(null)
 
-  const getCanvasPointFromClientPoint = React.useCallback((clientX: number, clientY: number) => {
-    if (!stageRef.current) return null
-    const rect = stageRef.current.getBoundingClientRect()
-    return {
-      x: (clientX - rect.left - offsetRef.current.x) / zoomRef.current,
-      y: (clientY - rect.top - offsetRef.current.y) / zoomRef.current,
-    }
-  }, [offsetRef, stageRef, zoomRef])
-
-  const rememberPastePositionFromClientPoint = React.useCallback((clientX: number, clientY: number) => {
-    const point = getCanvasPointFromClientPoint(clientX, clientY)
-    if (!point) return
-    lastPastePositionRef.current = {
-      x: Math.max(40, Math.round(point.x)),
-      y: Math.max(40, Math.round(point.y)),
-    }
-  }, [getCanvasPointFromClientPoint])
-
-  const getToolbarInsertionPosition = React.useCallback(
-    () => {
-      const rect = stageRef.current?.getBoundingClientRect()
-      const viewportAnchor = rect
-        ? { x: rect.width * 0.38, y: rect.height * 0.42 }
-        : { x: 360, y: 280 }
+  const getCanvasPointFromClientPoint = React.useCallback(
+    (clientX: number, clientY: number) => {
+      if (!stageRef.current) return null
+      const rect = stageRef.current.getBoundingClientRect()
       return {
-        x: Math.round((viewportAnchor.x - offset.x) / zoom),
-        y: Math.round((viewportAnchor.y - offset.y) / zoom),
+        x: (clientX - rect.left - offsetRef.current.x) / zoomRef.current,
+        y: (clientY - rect.top - offsetRef.current.y) / zoomRef.current,
       }
     },
-    [offset.x, offset.y, zoom, stageRef],
+    [offsetRef, stageRef, zoomRef],
   )
+
+  const rememberPastePositionFromClientPoint = React.useCallback(
+    (clientX: number, clientY: number) => {
+      const point = getCanvasPointFromClientPoint(clientX, clientY)
+      if (!point) return
+      lastPastePositionRef.current = {
+        x: Math.max(40, Math.round(point.x)),
+        y: Math.max(40, Math.round(point.y)),
+      }
+    },
+    [getCanvasPointFromClientPoint],
+  )
+
+  const getToolbarInsertionPosition = React.useCallback(() => {
+    const rect = stageRef.current?.getBoundingClientRect()
+    const viewportAnchor = rect ? { x: rect.width * 0.38, y: rect.height * 0.42 } : { x: 360, y: 280 }
+    return {
+      x: Math.round((viewportAnchor.x - offset.x) / zoom),
+      y: Math.round((viewportAnchor.y - offset.y) / zoom),
+    }
+  }, [offset.x, offset.y, zoom, stageRef])
 
   const handleBrowserAssetsImportToCanvas = React.useCallback(
     (assets: readonly BrowserAssetCanvasImportItem[]) => {
@@ -412,12 +417,17 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
         categoryId: activeCategoryId,
       })
       if (result.createdCount === 0) {
-        toast('没有可导入画布的素材', 'info')
+        toast(t('generationCommon.canvas.noImportableAssets'), 'info')
         return
       }
-      toast(result.createdCount === 1 ? '已导入画布' : `已导入 ${result.createdCount} 个素材到画布`, 'success')
+      toast(
+        result.createdCount === 1
+          ? t('generationCommon.canvas.importedOne')
+          : t('generationCommon.canvas.importedMany', { count: result.createdCount }),
+        'success',
+      )
     },
-    [activeCategoryId, getToolbarInsertionPosition, readOnly],
+    [activeCategoryId, getToolbarInsertionPosition, readOnly, t],
   )
 
   React.useEffect(
@@ -429,7 +439,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     const overlayBridge = getDesktopBridge()?.browser?.assetOverlay
     if (!overlayBridge?.onImportToCanvas) return undefined
     return overlayBridge.onImportToCanvas((payload) => {
-      const assets = Array.isArray(payload?.assets) ? payload.assets as BrowserAssetCanvasImportItem[] : []
+      const assets = Array.isArray(payload?.assets) ? (payload.assets as BrowserAssetCanvasImportItem[]) : []
       handleBrowserAssetsImportToCanvas(assets)
     })
   }, [handleBrowserAssetsImportToCanvas])
@@ -439,18 +449,24 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     [getToolbarInsertionPosition],
   )
 
-  const handleZoomTo = React.useCallback((nextZoom: number) => {
-    const rect = stageRef.current?.getBoundingClientRect()
-    if (!rect) {
-      setViewportTransform(nextZoom, offsetRef.current)
-      return
-    }
-    zoomAtStagePoint(nextZoom, { x: rect.width / 2, y: rect.height / 2 })
-  }, [offsetRef, setViewportTransform, stageRef, zoomAtStagePoint])
-  const handleZoomByStep = React.useCallback((direction: -1 | 1) => {
-    const factor = direction > 0 ? 1.1 : 1 / 1.1
-    handleZoomTo(clampNumber((zoomRef.current || 1) * factor, 0.2, 3))
-  }, [handleZoomTo, zoomRef])
+  const handleZoomTo = React.useCallback(
+    (nextZoom: number) => {
+      const rect = stageRef.current?.getBoundingClientRect()
+      if (!rect) {
+        setViewportTransform(nextZoom, offsetRef.current)
+        return
+      }
+      zoomAtStagePoint(nextZoom, { x: rect.width / 2, y: rect.height / 2 })
+    },
+    [offsetRef, setViewportTransform, stageRef, zoomAtStagePoint],
+  )
+  const handleZoomByStep = React.useCallback(
+    (direction: -1 | 1) => {
+      const factor = direction > 0 ? 1.1 : 1 / 1.1
+      handleZoomTo(clampNumber((zoomRef.current || 1) * factor, 0.2, 3))
+    },
+    [handleZoomTo, zoomRef],
+  )
 
   useCanvasShortcuts({
     readOnly,
@@ -472,19 +488,28 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     redo,
   })
 
-  const handleStageDrop = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    handleCanvasStageDrop(event, { readOnly, offset, zoom, activeCategoryId })
-  }, [activeCategoryId, offset, readOnly, zoom])
+  const handleStageDrop = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      handleCanvasStageDrop(event, { readOnly, offset, zoom, activeCategoryId })
+    },
+    [activeCategoryId, offset, readOnly, zoom],
+  )
 
-  const handleStagePointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    rememberPastePositionFromClientPoint(event.clientX, event.clientY)
-    pointer.onPointerDown(event)
-  }, [pointer, rememberPastePositionFromClientPoint])
+  const handleStagePointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      rememberPastePositionFromClientPoint(event.clientX, event.clientY)
+      pointer.onPointerDown(event)
+    },
+    [pointer, rememberPastePositionFromClientPoint],
+  )
 
-  const handleStagePointerMove = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    rememberPastePositionFromClientPoint(event.clientX, event.clientY)
-    pointer.onPointerMove(event)
-  }, [pointer, rememberPastePositionFromClientPoint])
+  const handleStagePointerMove = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      rememberPastePositionFromClientPoint(event.clientX, event.clientY)
+      pointer.onPointerMove(event)
+    },
+    [pointer, rememberPastePositionFromClientPoint],
+  )
 
   const handleStageContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
     if (readOnly || !stageRef.current) return
@@ -493,9 +518,11 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
       return
     }
     const target = event.target instanceof Element ? event.target : null
-    if (target?.closest(
-      '.generation-canvas-v2-node, .generation-canvas-v2-toolbar, .generation-canvas-v2__zoom-bar, .generation-canvas-v2__selection-toolbar, .generation-canvas-v2__edge, .generation-canvas-v2__edge-preview, button, input, textarea, select, [role="menu"], [role="menuitem"]',
-    )) {
+    if (
+      target?.closest(
+        '.generation-canvas-v2-node, .generation-canvas-v2-toolbar, .generation-canvas-v2__zoom-bar, .generation-canvas-v2__selection-toolbar, .generation-canvas-v2__edge, .generation-canvas-v2__edge-preview, button, input, textarea, select, [role="menu"], [role="menuitem"]',
+      )
+    ) {
       return
     }
     event.preventDefault()
@@ -543,30 +570,36 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
   }
 
   // animate=true：用户点「适应视图」按钮，平滑过渡；自动加载（useAutoFitOnLoad）传 false 即时定位，避免每次开项目都「飞入」。
-  const fitView = React.useCallback((animate = false) => {
-    if (!nodes.length || !stageRef.current) return
-    const rect = stageRef.current.getBoundingClientRect()
-    const padding = 80
-    const minX = Math.min(...nodes.map((n) => n.position.x))
-    const minY = Math.min(...nodes.map((n) => n.position.y))
-    const maxX = Math.max(...nodes.map((n) => n.position.x + getNodeSize(n).width))
-    const maxY = Math.max(...nodes.map((n) => n.position.y + getNodeSize(n).height))
-    const contentW = maxX - minX + padding * 2
-    const contentH = maxY - minY + padding * 2
-    const nextZoom = Math.min(1.2, Math.min(rect.width / contentW, rect.height / contentH))
-    const nextOffset = {
-      x: (rect.width - contentW * nextZoom) / 2 - (minX - padding) * nextZoom,
-      y: (rect.height - contentH * nextZoom) / 2 - (minY - padding) * nextZoom,
-    }
-    if (animate) animateViewportTo(nextZoom, nextOffset, 200)
-    else setViewportTransform(nextZoom, nextOffset)
-  }, [animateViewportTo, nodes, setViewportTransform, stageRef])
+  const fitView = React.useCallback(
+    (animate = false) => {
+      if (!nodes.length || !stageRef.current) return
+      const rect = stageRef.current.getBoundingClientRect()
+      const padding = 80
+      const minX = Math.min(...nodes.map((n) => n.position.x))
+      const minY = Math.min(...nodes.map((n) => n.position.y))
+      const maxX = Math.max(...nodes.map((n) => n.position.x + getNodeSize(n).width))
+      const maxY = Math.max(...nodes.map((n) => n.position.y + getNodeSize(n).height))
+      const contentW = maxX - minX + padding * 2
+      const contentH = maxY - minY + padding * 2
+      const nextZoom = Math.min(1.2, Math.min(rect.width / contentW, rect.height / contentH))
+      const nextOffset = {
+        x: (rect.width - contentW * nextZoom) / 2 - (minX - padding) * nextZoom,
+        y: (rect.height - contentH * nextZoom) / 2 - (minY - padding) * nextZoom,
+      }
+      if (animate) animateViewportTo(nextZoom, nextOffset, 200)
+      else setViewportTransform(nextZoom, nextOffset)
+    },
+    [animateViewportTo, nodes, setViewportTransform, stageRef],
+  )
 
   // memo 化 minimap 的跳转回调（内联会每渲染新建 → 废掉 CanvasMinimap 的 memo）。
-  const handleMinimapJump = React.useCallback((point: { x: number; y: number }) => {
-    const z = zoomRef.current || 1
-    setViewportTransform(z, { x: stageSize.width / 2 - point.x * z, y: stageSize.height / 2 - point.y * z })
-  }, [setViewportTransform, stageSize.width, stageSize.height, zoomRef])
+  const handleMinimapJump = React.useCallback(
+    (point: { x: number; y: number }) => {
+      const z = zoomRef.current || 1
+      setViewportTransform(z, { x: stageSize.width / 2 - point.x * z, y: stageSize.height / 2 - point.y * z })
+    },
+    [setViewportTransform, stageSize.width, stageSize.height, zoomRef],
+  )
 
   // 项目/分类首次加载时自动适应视图（含「历史视口框不住任何节点」的自愈式适应，
   // 防止图都在视口外、用户误以为「图消失」）。逻辑抽到 useAutoFitOnLoad（防巨壳）。
@@ -606,7 +639,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
         'generation-canvas-v2',
         'grid grid-rows-[minmax(0,1fr)] w-full h-full min-w-0 min-h-0 bg-workbench-bg text-workbench-ink',
       )}
-      aria-label="AI 影像创作画布"
+      aria-label={t('generationCommon.canvas.aria')}
       data-ready={isReady ? 'true' : undefined}
       data-nomi-generation-canvas-import-target={!readOnly ? 'true' : undefined}
     >
@@ -617,7 +650,9 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
             {hasPendingCameraMoveCapture ? <CameraMoveCaptureHost /> : null}
           </React.Suspense>
         ) : null}
-        {!readOnly ? <CanvasToolbar getInsertionPosition={getToolbarInsertionPosition} categoryId={activeCategoryId} /> : null}
+        {!readOnly ? (
+          <CanvasToolbar getInsertionPosition={getToolbarInsertionPosition} categoryId={activeCategoryId} />
+        ) : null}
         <div
           className="generation-canvas-v2__stage"
           ref={stageRef}
@@ -671,12 +706,19 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
               readOnly={readOnly}
               pendingConnectionSourceId={connectionCreateMenu?.sourceNodeId ?? pendingConnectionSourceId}
               pendingConnectionSourceSide={connectionCreateMenu?.sourceSide ?? pendingConnectionSourceSide}
-              pendingCursorPos={connectionCreateMenu ? { x: connectionCreateMenu.canvasX, y: connectionCreateMenu.canvasY } : pendingCursorPos}
+              pendingCursorPos={
+                connectionCreateMenu
+                  ? { x: connectionCreateMenu.canvasX, y: connectionCreateMenu.canvasY }
+                  : pendingCursorPos
+              }
               onSetActiveEdge={setActiveEdge}
               onDisconnectEdge={disconnectEdge}
               getCanvasPointFromClientPoint={getCanvasPointFromClientPoint}
             />
-            <div className={cn('generation-canvas-v2__nodes', 'absolute top-0 left-0 w-full h-full')} data-tidying={isTidying ? 'true' : undefined}>
+            <div
+              className={cn('generation-canvas-v2__nodes', 'absolute top-0 left-0 w-full h-full')}
+              data-tidying={isTidying ? 'true' : undefined}
+            >
               {/* E.2C-30: GroupFrame 抽离为独立组件 */}
               <GroupFrameList boxes={groupBoxes} onPointerDown={handleGroupFramePointerDown} />
               <React.Suspense fallback={null}>
@@ -739,7 +781,9 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
           {nodes.length === 0 ? (
             <CanvasEmptyState
               activeCategoryId={activeCategoryId}
-              onCreate={() => addNode({ kind: 'image', position: { x: 240, y: 240 }, categoryId: activeCategoryId, select: true })}
+              onCreate={() =>
+                addNode({ kind: 'image', position: { x: 240, y: 240 }, categoryId: activeCategoryId, select: true })
+              }
             />
           ) : null}
           {contextNodeMenu ? (

@@ -43,30 +43,30 @@ type NomiWordmarkProps = {
  * 任何要显示「Nomi」字标的地方都用它，别再手写 `No<span>m</span>i`。
  */
 export function NomiWordmark({ fontSize, className, ...rest }: NomiWordmarkProps): JSX.Element {
+  const { t } = useTranslation()
   return (
     <span
       className={cn('nomi-wordmark', 'font-nomi-display font-normal tracking-[-0.02em] leading-none', className)}
       style={fontSize ? { fontSize } : undefined}
       {...rest}
     >
-      No<span className={cn('nomi-wordmark__accent', 'text-nomi-accent')}>m</span>i
+      {t('brand.wordStart')}
+      <span className={cn('nomi-wordmark__accent', 'text-nomi-accent')}>{t('brand.wordAccent')}</span>
+      {t('brand.wordEnd')}
     </span>
   )
 }
 
 export function NomiBrand({ markSize = 26, wordSize = 17, className }: NomiBrandProps): JSX.Element {
+  const { t } = useTranslation()
   const rx = Math.round((markSize / 28) * 7)
 
   return (
-    <div className={cn('nomi-brand', 'inline-flex items-center gap-2 shrink-0', className)} aria-label="Nomi">
-      <svg
-        width={markSize}
-        height={markSize}
-        viewBox="0 0 28 28"
-        fill="none"
-        aria-hidden="true"
-        className="shrink-0"
-      >
+    <div
+      className={cn('nomi-brand', 'inline-flex items-center gap-2 shrink-0', className)}
+      aria-label={t('brand.name')}
+    >
+      <svg width={markSize} height={markSize} viewBox="0 0 28 28" fill="none" aria-hidden="true" className="shrink-0">
         <rect width="28" height="28" rx={rx} fill="var(--nomi-logo-ground)" />
         <rect x="5.5" y="5.5" width="4" height="17" rx="1.2" fill="white" />
         <rect x="18.5" y="5.5" width="4" height="17" rx="1.2" fill="white" />
@@ -99,7 +99,11 @@ export function NomiLoadingMark({ size = 18, className, label }: NomiLoadingMark
   const { t } = useTranslation()
   return (
     <span
-      className={cn('nomi-loading-mark', 'inline-grid place-items-center flex-none leading-none animate-spin motion-reduce:animate-none', className)}
+      className={cn(
+        'nomi-loading-mark',
+        'inline-grid place-items-center flex-none leading-none animate-spin motion-reduce:animate-none',
+        className,
+      )}
       aria-label={label ?? t('common.loading')}
       role="status"
       style={{ '--nomi-loading-size': `${size}px`, width: `${size}px`, height: `${size}px` } as CSSProperties}
@@ -110,12 +114,19 @@ export function NomiLoadingMark({ size = 18, className, label }: NomiLoadingMark
 }
 
 export function NomiAILabel({ markSize = 22, wordSize = 14, className, suffix = 'AI' }: NomiAILabelProps): JSX.Element {
+  const { t } = useTranslation()
   return (
-    <div className={cn('nomi-ai-label', 'inline-flex items-center gap-2 shrink-0', className)} aria-label={`Nomi ${suffix}`}>
+    <div
+      className={cn('nomi-ai-label', 'inline-flex items-center gap-2 shrink-0', className)}
+      aria-label={t('brand.aiLabel', { suffix })}
+    >
       <NomiLogoMark size={markSize} />
       <span className={cn('nomi-ai-label__text', 'leading-none')} style={{ fontSize: wordSize }}>
         <NomiWordmark className="nomi-ai-label__word text-nomi-ink" />
-        <span className={cn('nomi-ai-label__suffix', 'font-nomi-display text-nomi-ink-60 tracking-[-0.01em]')}> {suffix}</span>
+        <span className={cn('nomi-ai-label__suffix', 'font-nomi-display text-nomi-ink-60 tracking-[-0.01em]')}>
+          {' '}
+          {suffix}
+        </span>
       </span>
     </div>
   )
@@ -129,7 +140,13 @@ export function NomiStepper({ value, onChange }: NomiStepperProps): JSX.Element 
     { mode: 'preview', label: t('workspace.previewTab') },
   ]
   return (
-    <nav className={cn('nomi-stepper', 'inline-flex items-center gap-0.5 p-1 border border-nomi-line-soft rounded-full bg-[var(--nomi-ink-05)]')} aria-label={t('workspace.switchLabel')}>
+    <nav
+      className={cn(
+        'nomi-stepper',
+        'inline-flex items-center gap-0.5 p-1 border border-nomi-line-soft rounded-full bg-[var(--nomi-ink-05)]',
+      )}
+      aria-label={t('workspace.switchLabel')}
+    >
       {tabs.map((tab) => (
         <button
           key={tab.mode}

@@ -26,6 +26,13 @@ export const zhCN = {
     loading: '加载中',
     back: '返回',
   },
+  brand: {
+    name: 'Nomi',
+    wordStart: 'No',
+    wordAccent: 'm',
+    wordEnd: 'i',
+    aiLabel: 'Nomi {{suffix}}',
+  },
   theme: {
     appearance: '外观',
     dark: '深色模式',
@@ -273,6 +280,13 @@ export const en = {
     loading: 'Loading',
     back: 'Back',
   },
+  brand: {
+    name: 'Nomi',
+    wordStart: 'No',
+    wordAccent: 'm',
+    wordEnd: 'i',
+    aiLabel: 'Nomi {{suffix}}',
+  },
   theme: {
     appearance: 'Appearance',
     dark: 'Dark mode',
@@ -292,7 +306,8 @@ export const en = {
     available: 'New version available',
     downloadUpdate: 'Download update',
     openDownload: 'Open download page',
-    macManualUpdate: 'On macOS, download the package and replace the old app manually. In-place updates are unavailable for unsigned builds.',
+    macManualUpdate:
+      'On macOS, download the package and replace the old app manually. In-place updates are unavailable for unsigned builds.',
     downloading: 'Downloading update…',
     downloadingHint: 'Downloading in the background · {{percent}}%',
     downloaded: 'Download complete',
@@ -377,7 +392,8 @@ export const en = {
     watchHow: 'See how Nomi creates a video',
     modelStatus: 'Model status',
     textModelMissing: 'No text model connected',
-    textModelMissingHint: 'Writing stories and planning shots require one. Image and video models can be connected before generation.',
+    textModelMissingHint:
+      'Writing stories and planning shots require one. Image and video models can be connected before generation.',
     connectTextModel: 'Connect text model',
     sourceFilter: 'Filter project sources',
     noMatchNamed: 'No projects match “{{query}}”',
@@ -390,7 +406,8 @@ export const en = {
   },
   errors: {
     rootTitle: 'Something went wrong',
-    rootDescription: 'The interface encountered an error. Reload to continue, or copy the error details and send them to us.',
+    rootDescription:
+      'The interface encountered an error. Reload to continue, or copy the error details and send them to us.',
     copyDetails: 'Copy error details',
     chunkFailed: 'Failed to load {{label}}',
     chunkNetwork: 'A network interruption stopped loading. Attempting to recover.',
@@ -402,7 +419,8 @@ export const en = {
     referenceImage: 'Reference image {{index}}',
   },
   connection: {
-    sourceUnavailable: 'This node has no image or video available as a reference. Generate it first or choose another source.',
+    sourceUnavailable:
+      'This node has no image or video available as a reference. Generate it first or choose another source.',
     unsupported: 'The target model does not support this reference connection.',
     slotsFull: 'Reference slots are full (maximum {{max}}). Extra connections will not be used.',
     referenceFull: 'This reference input is full. Extra connections will not be used.',
@@ -428,15 +446,18 @@ export const en = {
     projectNotFound: 'The project file could not be found. It may have been deleted; refresh the project library.',
     migrationComplete: 'Project folder tree upgraded: {{count}} nodes categorized',
     initializeTitle: 'Initialize as a Nomi project',
-    initializeMessage: '{{path}}\n\nNomi will create .nomi/ and save generated images and videos in assets/ and exports/.',
+    initializeMessage:
+      '{{path}}\n\nNomi will create .nomi/ and save generated images and videos in assets/ and exports/.',
     folderUnsupported: 'Opening project folders is unavailable in this environment.',
     openFolderFailed: 'Could not open the project folder',
     newProjectFailed: 'Could not create the project. Check local disk permissions.',
     demoProjectFailed: 'Could not open the demo project. Check local disk permissions.',
     removeProjectTitle: 'Remove project from library',
     deleteProjectTitle: 'Delete project',
-    removeProjectMessage: 'Remove “{{name}}” from the project library? This only removes the link; the original folder and files will not be deleted.',
-    deleteProjectMessage: 'Delete “{{name}}”? Its project folder and local assets will be permanently deleted from disk and cannot be recovered.',
+    removeProjectMessage:
+      'Remove “{{name}}” from the project library? This only removes the link; the original folder and files will not be deleted.',
+    deleteProjectMessage:
+      'Delete “{{name}}”? Its project folder and local assets will be permanently deleted from disk and cannot be recovered.',
     removeProject: 'Remove from library',
     projectRemoved: 'Removed from library',
     projectDeleted: 'Project deleted',
