@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconCheck, IconChevronRight } from '@tabler/icons-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '../../../utils/cn'
@@ -41,6 +42,7 @@ export function ImageResultStackControls({
   visualHeight: number
   onOpenChange?: (open: boolean) => void
 }): JSX.Element | null {
+  const { t } = useTranslation()
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const [open, setOpen] = React.useState(false)
   const entries = React.useMemo(() => getImageResultStack(node), [node])
@@ -124,7 +126,7 @@ export function ImageResultStackControls({
         <button
           type="button"
           className="inline-flex h-7 w-9 items-center justify-center border-0 bg-transparent px-2.5 text-body-sm font-semibold tabular-nums text-inherit"
-          aria-label={`${entries.length} 张堆叠图片`}
+          aria-label={t('generationCommon.imagePreview.stackCount', { count: entries.length })}
           aria-expanded={open}
           onClick={(event) => {
             event.stopPropagation()
@@ -136,7 +138,9 @@ export function ImageResultStackControls({
         <button
           type="button"
           className="grid h-7 w-7 place-items-center border-0 border-l border-nomi-line bg-transparent text-inherit hover:bg-nomi-ink-05"
-          aria-label={open ? '收起堆叠图片' : '展开堆叠图片'}
+          aria-label={
+            open ? t('generationCommon.imagePreview.collapseStack') : t('generationCommon.imagePreview.expandStack')
+          }
           aria-expanded={open}
           onClick={(event) => {
             event.stopPropagation()
@@ -153,17 +157,14 @@ export function ImageResultStackControls({
       <AnimatePresence initial={false}>
         {open && selected ? (
           <motion.div
-            className={cn(
-              'absolute left-0 top-0 z-[12]',
-              'pointer-events-none',
-            )}
+            className={cn('absolute left-0 top-0 z-[12]', 'pointer-events-none')}
             style={{
               top: -mainSlotY,
               width: panelWidth,
               height: rows * tileHeight + (rows - 1) * panelGap,
             }}
             role="list"
-            aria-label="可切换的堆叠图片"
+            aria-label={t('generationCommon.imagePreview.switchableStack')}
             initial={{ opacity: 0, scale: 0.98, x: -10 }}
             animate={{ opacity: 1, scale: 1, x: 0 }}
             exit={{ opacity: 0, scale: 0.98, x: -10 }}
@@ -171,15 +172,19 @@ export function ImageResultStackControls({
             onPointerDown={(event) => event.stopPropagation()}
           >
             {otherEntries.map((entry) => {
-              const layoutIndex = entries.findIndex((candidate) => (candidate.id || candidate.url) === (entry.id || entry.url))
+              const layoutIndex = entries.findIndex(
+                (candidate) => (candidate.id || candidate.url) === (entry.id || entry.url),
+              )
               const normalizedIndex = Math.max(1, layoutIndex) - 1
               const bottomRowExtraSlots = Math.max(0, columns - 1)
-              const column = normalizedIndex < bottomRowExtraSlots
-                ? normalizedIndex + 1
-                : (normalizedIndex - bottomRowExtraSlots) % columns
-              const row = normalizedIndex < bottomRowExtraSlots
-                ? mainRow
-                : mainRow - 1 - Math.floor((normalizedIndex - bottomRowExtraSlots) / columns)
+              const column =
+                normalizedIndex < bottomRowExtraSlots
+                  ? normalizedIndex + 1
+                  : (normalizedIndex - bottomRowExtraSlots) % columns
+              const row =
+                normalizedIndex < bottomRowExtraSlots
+                  ? mainRow
+                  : mainRow - 1 - Math.floor((normalizedIndex - bottomRowExtraSlots) / columns)
               const tileX = column * (tileWidth + panelGap)
               const tileY = row * (tileHeight + panelGap)
               return (
@@ -254,7 +259,7 @@ export function ImageResultStackControls({
                     }}
                   >
                     <IconCheck size={13} stroke={2.2} />
-                    设为主图
+                    {t('generationCommon.imagePreview.setPrimary')}
                   </button>
                 </motion.div>
               )

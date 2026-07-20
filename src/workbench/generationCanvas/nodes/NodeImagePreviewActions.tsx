@@ -1,13 +1,15 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconInfoCircle, IconMaximize } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { NodeImageLightbox } from './NodeImageLightbox'
 import { EditableNodeTitle } from './render/EditableNodeTitle'
 
 export function NodeImagePreviewButton({ src, title }: { src: string; title?: string }): JSX.Element {
+  const { t } = useTranslation()
   const [open, setOpen] = React.useState(false)
   const close = React.useCallback(() => setOpen(false), [])
-  const label = title || '图片'
+  const label = title || t('generationCommon.imagePreview.image')
   return (
     <>
       <button
@@ -19,8 +21,8 @@ export function NodeImagePreviewButton({ src, title }: { src: string; title?: st
           'transition-colors duration-150',
           'focus-visible:outline-2 focus-visible:outline-nomi-accent focus-visible:outline-offset-2',
         )}
-        aria-label={`放大预览：${label}`}
-        title="放大预览"
+        aria-label={t('generationCommon.imagePreview.enlargeAria', { label })}
+        title={t('generationCommon.imagePreview.enlarge')}
         data-node-image-preview-open="true"
         onClick={(event) => {
           event.stopPropagation()
@@ -44,6 +46,7 @@ export function NodeResultHeaderActions({
   title?: string
   onOpenProvenance: () => void
 }): JSX.Element {
+  const { t } = useTranslation()
   return (
     <span className="ml-auto inline-flex items-center gap-1">
       {imageSrc ? <NodeImagePreviewButton src={imageSrc} title={title} /> : null}
@@ -56,8 +59,8 @@ export function NodeResultHeaderActions({
           'transition-colors duration-150',
           'focus-visible:outline-2 focus-visible:outline-nomi-accent focus-visible:outline-offset-2',
         )}
-        aria-label="查看生成记录"
-        title="生成记录 / Provenance"
+        aria-label={t('generationCommon.provenance.view')}
+        title={t('generationCommon.provenance.actionTitle')}
         onClick={(event) => {
           event.stopPropagation()
           onOpenProvenance()
@@ -79,6 +82,7 @@ export function NodeInlineImageTitle({
   value: string
   selected: boolean
 }): JSX.Element {
+  const { t } = useTranslation()
   return (
     <div
       className={cn(
@@ -93,7 +97,7 @@ export function NodeInlineImageTitle({
       <EditableNodeTitle
         nodeId={nodeId}
         value={value}
-        placeholder="未命名图片"
+        placeholder={t('generationCommon.imagePreview.untitled')}
         className="max-w-full text-caption font-semibold text-nomi-paper"
       />
     </div>
