@@ -272,6 +272,24 @@ export const zhScene3d = {
     adjustingNamed: '取景调整 · {{camera}}',
     exit: '退出',
   },
+  cameraMovePanel: {
+    title: '运镜预设',
+    referenceOutput: '参考输出',
+    notConnected: '未连接视频镜头',
+    videoRefRoute: '录 take → video_ref',
+    promptRoute: '录 take → 运镜文字',
+    pendingTarget: '待接目标',
+    bothFrames: '首帧 / 尾帧',
+    firstFrame: '首帧',
+    unsupportedFrames: '不可接帧槽',
+    duration: '时长（秒）',
+    amplitude: '幅度（%）',
+    dollyZoomHint: '机位后拉 + 变焦推，主体不变、背景抽离',
+    exportHint: '按运镜段的起点/终点各截一张相机图落画布，可作首尾帧参考',
+    exportFrames: '导出运镜首尾帧',
+    description:
+      '按当前机位与拍摄目标就地生成一段轨迹，追加到时间轴末尾；连点即串联多段，落段后可在轨迹模式里逐点精修。虚线三个是 FOV 参与动画的变焦运镜。',
+  },
 } as const
 
 type TranslationShape<T> = {
@@ -552,5 +570,23 @@ export const enScene3d = {
     strong: 'Strong',
     adjustingNamed: 'Adjusting framing · {{camera}}',
     exit: 'Exit',
+  },
+  cameraMovePanel: {
+    title: 'Camera move presets',
+    referenceOutput: 'Reference output',
+    notConnected: 'No video shot connected',
+    videoRefRoute: 'Record take → video_ref',
+    promptRoute: 'Record take → camera-move text',
+    pendingTarget: 'Waiting for target',
+    bothFrames: 'First / last frame',
+    firstFrame: 'First frame',
+    unsupportedFrames: 'No supported frame slot',
+    duration: 'Duration (seconds)',
+    amplitude: 'Amplitude (%)',
+    dollyZoomHint: 'Dolly backward while zooming in so the subject stays fixed and the background stretches',
+    exportHint: 'Capture the start and end of the camera move as canvas images for first/last-frame references',
+    exportFrames: 'Export first and last frames',
+    description:
+      'Create a trajectory from the current camera position and target, append it to the timeline, and click more presets to chain segments. Refine points later in trajectory mode. Dashed presets animate FOV.',
   },
 } satisfies TranslationShape<typeof zhScene3d>

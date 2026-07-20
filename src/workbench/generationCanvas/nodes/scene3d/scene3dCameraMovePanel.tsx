@@ -2,9 +2,10 @@
 // 点按 = 按当前机位/拍摄目标就地落一段轨迹并追加到时间轴末尾（cameraMovePreset 纯函数），
 // 连点即串联多段；落完仍可去轨迹模式逐点精修。样张：docs/design/mockups/scene3d-camera-directing-upgrade.html。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconLink, IconMovie, IconPhoto } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
-import { CAMERA_MOVES, CAMERA_MOVE_LABEL, ZOOM_MOVES, type CameraMove } from './cameraMoveVocab'
+import { CAMERA_MOVES, ZOOM_MOVES, type CameraMove } from './cameraMoveVocab'
 import {
   CAMERA_MOVE_AMPLITUDE_MAX,
   CAMERA_MOVE_AMPLITUDE_MIN,
@@ -12,10 +13,7 @@ import {
   CAMERA_MOVE_DURATION_MIN,
   type CameraMovePresetSpec,
 } from './cameraMovePreset'
-import {
-  scene3DReferenceTargetLabel,
-  type Scene3DReferenceTargetSummary,
-} from './scene3dReferenceDirector'
+import type { Scene3DReferenceTargetSummary } from './scene3dReferenceDirector'
 
 const DEFAULT_DURATION = 5 // Seedance 甜区中档（与 CAMERA_SPEED_DURATION.medium 一致）
 const DEFAULT_AMPLITUDE_PERCENT = 60
@@ -32,46 +30,56 @@ export function CameraMovePanel({
   onExportFrames: () => void
   referenceTarget?: Scene3DReferenceTargetSummary
 }): JSX.Element {
+  const { t } = useTranslation()
   const [durationValue, setDurationValue] = React.useState(DEFAULT_DURATION)
   const [amplitudePercent, setAmplitudePercent] = React.useState(DEFAULT_AMPLITUDE_PERCENT)
 
-  const applyMove = React.useCallback((move: CameraMove) => {
-    onApply({
-      move,
-      duration: durationValue,
-      amplitude: amplitudePercent / 100,
-    })
-  }, [amplitudePercent, durationValue, onApply])
+  const applyMove = React.useCallback(
+    (move: CameraMove) => {
+      onApply({
+        move,
+        duration: durationValue,
+        amplitude: amplitudePercent / 100,
+      })
+    },
+    [amplitudePercent, durationValue, onApply],
+  )
 
   const target = referenceTarget ?? {
     state: 'not-connected' as const,
     currentFrameSupport: { firstFrame: false, lastFrame: false },
     anyFrameSupport: { firstFrame: false, lastFrame: false },
   }
-  const videoRouteLabel = target.state === 'video-ref'
-    ? '录 take → video_ref'
-    : target.state === 'prompt-fallback'
-      ? '录 take → 运镜文字'
-      : '待接目标'
-  const frameRouteLabel = target.anyFrameSupport.firstFrame && target.anyFrameSupport.lastFrame
-    ? '首帧 / 尾帧'
-    : target.anyFrameSupport.firstFrame
-      ? '首帧'
-      : '不可接帧槽'
+  const videoRouteLabel =
+    target.state === 'video-ref'
+      ? t('scene3d.cameraMovePanel.videoRefRoute')
+      : target.state === 'prompt-fallback'
+        ? t('scene3d.cameraMovePanel.promptRoute')
+        : t('scene3d.cameraMovePanel.pendingTarget')
+  const frameRouteLabel =
+    target.anyFrameSupport.firstFrame && target.anyFrameSupport.lastFrame
+      ? t('scene3d.cameraMovePanel.bothFrames')
+      : target.anyFrameSupport.firstFrame
+        ? t('scene3d.cameraMovePanel.firstFrame')
+        : t('scene3d.cameraMovePanel.unsupportedFrames')
+  const targetLabel =
+    target.state === 'not-connected'
+      ? t('scene3d.cameraMovePanel.notConnected')
+      : `${target.state === 'video-ref' ? 'video_ref' : 'prompt'} · ${target.targetTitle}`
 
   return (
     <div className="grid gap-2 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-2">
-      <div className="text-caption font-medium text-[var(--nomi-ink)]">运镜预设</div>
+      <div className="text-caption font-medium text-[var(--nomi-ink)]">{t('scene3d.cameraMovePanel.title')}</div>
       <div
         className="grid gap-2 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] p-2"
         data-scene3d-reference-panel
       >
         <div className="flex min-w-0 items-center gap-1.5 text-caption font-medium text-[var(--nomi-ink)]">
           <IconLink size={14} stroke={1.6} />
-          <span>参考输出</span>
+          <span>{t('scene3d.cameraMovePanel.referenceOutput')}</span>
         </div>
         <div className="min-w-0 truncate text-micro text-[var(--nomi-ink-60)]" data-scene3d-reference-target>
-          {scene3DReferenceTargetLabel(target)}
+          {targetLabel}
         </div>
         <div className="grid grid-cols-2 gap-1.5">
           <div className="flex min-w-0 items-center gap-1 rounded-nomi-sm bg-[var(--nomi-paper)] px-1.5 py-1 text-micro text-[var(--nomi-ink-60)]">
@@ -86,7 +94,7 @@ export function CameraMovePanel({
       </div>
       <div className="grid grid-cols-2 gap-2">
         <label className="grid gap-1">
-          <span className="text-micro text-[var(--nomi-ink-60)]">时长（秒）</span>
+          <span className="text-micro text-[var(--nomi-ink-60)]">{t('scene3d.cameraMovePanel.duration')}</span>
           <input
             className="h-8 min-w-0 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)] disabled:opacity-50"
             disabled={readOnly}
@@ -99,7 +107,7 @@ export function CameraMovePanel({
           />
         </label>
         <label className="grid gap-1">
-          <span className="text-micro text-[var(--nomi-ink-60)]">幅度（%）</span>
+          <span className="text-micro text-[var(--nomi-ink-60)]">{t('scene3d.cameraMovePanel.amplitude')}</span>
           <input
             className="h-8 min-w-0 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)] disabled:opacity-50"
             disabled={readOnly}
@@ -125,10 +133,10 @@ export function CameraMovePanel({
             )}
             disabled={readOnly}
             type="button"
-            title={move === 'dolly_zoom' ? '机位后拉 + 变焦推，主体不变、背景抽离' : undefined}
+            title={move === 'dolly_zoom' ? t('scene3d.cameraMovePanel.dollyZoomHint') : undefined}
             onClick={() => applyMove(move)}
           >
-            {CAMERA_MOVE_LABEL[move]}
+            {t(`generationCommon.cameraMove.move.${move}` as 'generationCommon.cameraMove.move.push_in')}
           </button>
         ))}
       </div>
@@ -139,14 +147,12 @@ export function CameraMovePanel({
         )}
         disabled={readOnly}
         type="button"
-        title="按运镜段的起点/终点各截一张相机图落画布，可作首尾帧参考"
+        title={t('scene3d.cameraMovePanel.exportHint')}
         onClick={onExportFrames}
       >
-        导出运镜首尾帧
+        {t('scene3d.cameraMovePanel.exportFrames')}
       </button>
-      <div className="text-micro leading-4 text-[var(--nomi-ink-40)]">
-        按当前机位与拍摄目标就地生成一段轨迹，追加到时间轴末尾；连点即串联多段，落段后可在轨迹模式里逐点精修。虚线三个是 FOV 参与动画的变焦运镜。
-      </div>
+      <div className="text-micro leading-4 text-[var(--nomi-ink-40)]">{t('scene3d.cameraMovePanel.description')}</div>
     </div>
   )
 }
