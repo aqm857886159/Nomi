@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   IconArrowBackUp,
   IconArrowForwardUp,
@@ -77,6 +78,7 @@ type TimelinePanelProps = {
 }
 
 export default function TimelinePanel({ density = 'compact', regionLabel, actionLabelPrefix, showTextTrack = false, onCollapse }: TimelinePanelProps): JSX.Element {
+  const { t } = useTranslation()
   const timeline = useWorkbenchStore((state) => state.timeline)
   const selectedClipIds = useWorkbenchStore((state) => state.selectedTimelineClipIds)
   const selectedTextClipId = useWorkbenchStore((state) => state.selectedTextClipId)
@@ -110,11 +112,11 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
   const handleAiArrange = React.useCallback(() => {
     void import('../generationCanvas/agent/sendStoryboardToTimeline').then(({ arrangeStoryboardToTimeline }) => {
       const result = arrangeStoryboardToTimeline()
-      if (result.sent.length > 0) toast(`已把 ${result.sent.length} 个镜头按镜序排进时间轴`, 'success')
-      else if (result.total === 0) toast('生成区还没有镜头——先去生成区生成几个镜头再拼片', 'info')
-      else toast('镜头都已在时间轴上了', 'info')
+      if (result.sent.length > 0) toast(t('timelineEditor.arranged', { count: result.sent.length }), 'success')
+      else if (result.total === 0) toast(t('timelineEditor.noShots'), 'info')
+      else toast(t('timelineEditor.alreadyArranged'), 'info')
     })
-  }, [])
+  }, [t])
   const setTimelinePlayhead = useWorkbenchStore((state) => state.setTimelinePlayhead)
   const splitTimelineClip = useWorkbenchStore((state) => state.splitTimelineClip)
   const durationFrame = computeTimelineDuration(timeline)
@@ -279,12 +281,12 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
             <div className={cn(
               'workbench-timeline__clip-tools',
               'inline-flex items-center gap-0.5 pr-0 border-r-0',
-            )} aria-label="选中片段操作">
+            )} aria-label={t('timelineEditor.selectedClipActions')}>
               {primaryMediaClip ? (
                 <WorkbenchIconButton
                   className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-accent)] shadow-none cursor-pointer hover:bg-[var(--workbench-accent-soft)]')}
-                  label="重新生成这个镜头"
-                  title="重新生成这个镜头（就地重出、贴回原位；改 prompt/参数请去画布节点）"
+                  label={t('timelineEditor.regenerate')}
+                  title={t('timelineEditor.regenerateHint')}
                   icon={<IconSparkles size={14} />}
                   onClick={() => {
                     void import('../generationCanvas/runner/generationRunController')
@@ -292,16 +294,16 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
                   }}
                 />
               ) : null}
-              <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label="向前微调片段" icon={<IconArrowLeft size={14} />} onClick={() => nudgeTimelineClip(primaryClipId, -1)} />
-              <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label="复制片段" icon={<IconCopy size={14} />} onClick={() => duplicateTimelineClip(primaryClipId)} />
-              <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label="向后微调片段" icon={<IconArrowRight size={14} />} onClick={() => nudgeTimelineClip(primaryClipId, 1)} />
+              <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={t('timelineEditor.nudgeEarlier')} icon={<IconArrowLeft size={14} />} onClick={() => nudgeTimelineClip(primaryClipId, -1)} />
+              <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={t('timelineEditor.duplicateClip')} icon={<IconCopy size={14} />} onClick={() => duplicateTimelineClip(primaryClipId)} />
+              <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={t('timelineEditor.nudgeLater')} icon={<IconArrowRight size={14} />} onClick={() => nudgeTimelineClip(primaryClipId, 1)} />
             </div>
           ) : null}
           {/* C2 一键拼片：把画布镜头按镜序排进时间轴（accent，主操作权重）。 */}
           <WorkbenchIconButton
             className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-accent)] shadow-none cursor-pointer hover:bg-[var(--workbench-accent-soft)]')}
-            label="AI 拼片"
-            title="AI 拼片：把生成区的镜头按镜序排进时间轴（已在轨的跳过）"
+            label={t('timelineEditor.aiArrange')}
+            title={t('timelineEditor.aiArrangeHint')}
             icon={<IconWand size={14} />}
             onClick={handleAiArrange}
           />
@@ -313,26 +315,26 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
                 ? 'bg-[var(--workbench-accent-soft)] text-[var(--workbench-accent)] hover:bg-[var(--workbench-accent-soft)]'
                 : 'bg-transparent text-[var(--workbench-muted)] hover:bg-[var(--workbench-hover)]',
             )}
-            label={splitMode ? '退出剪刀模式' : '剪刀模式（点片段处分割）'}
-            title={splitMode ? '剪刀模式开启中：点片段即在光标处分割 · Esc 退出' : '剪刀：进入后点片段即可在该处分割'}
+            label={splitMode ? t('timelineEditor.exitSplitMode') : t('timelineEditor.splitMode')}
+            title={splitMode ? t('timelineEditor.splitModeActiveHint') : t('timelineEditor.splitModeHint')}
             icon={<IconCut size={14} />}
             onClick={() => setTimelineSplitMode(!splitMode)}
           />
           {canRedo ? (
-            <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label="重做时间轴编辑" title="重做（⇧⌘Z）" icon={<IconArrowForwardUp size={14} />} onClick={() => redoTimeline()} />
+            <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={t('timelineEditor.redo')} title={t('timelineEditor.redoShortcut')} icon={<IconArrowForwardUp size={14} />} onClick={() => redoTimeline()} />
           ) : null}
           {canUndo ? (
-            <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label="撤销时间轴编辑" title="撤销（⌘Z）" icon={<IconArrowBackUp size={14} />} onClick={() => undoTimeline()} />
+            <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={t('timelineEditor.undo')} title={t('timelineEditor.undoShortcut')} icon={<IconArrowBackUp size={14} />} onClick={() => undoTimeline()} />
           ) : null}
-          <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={`${actionLabelPrefix}缩小时间轴`} icon={<IconMinus size={14} />} onClick={() => setTimelineZoom(timeline.scale / 1.25)} />
+          <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={t('timelineEditor.zoomOut', { prefix: actionLabelPrefix })} icon={<IconMinus size={14} />} onClick={() => setTimelineZoom(timeline.scale / 1.25)} />
           <span className="text-micro opacity-60 min-w-[32px] text-center">{Math.round(timeline.scale * 100)}%</span>
-          <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label="重置缩放" icon={<IconRefresh size={14} />} onClick={() => setTimelineZoom(1)} />
-          <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={`${actionLabelPrefix}放大时间轴`} icon={<IconPlus size={14} />} onClick={() => setTimelineZoom(timeline.scale * 1.25)} />
-          <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={`${actionLabelPrefix}删除选中片段`} icon={<IconTrash size={14} />} disabled={!hasSelection} onClick={() => removeSelectedTimelineClips()} />
+          <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={t('timelineEditor.resetZoom')} icon={<IconRefresh size={14} />} onClick={() => setTimelineZoom(1)} />
+          <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={t('timelineEditor.zoomIn', { prefix: actionLabelPrefix })} icon={<IconPlus size={14} />} onClick={() => setTimelineZoom(timeline.scale * 1.25)} />
+          <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={t('timelineEditor.deleteSelected', { prefix: actionLabelPrefix })} icon={<IconTrash size={14} />} disabled={!hasSelection} onClick={() => removeSelectedTimelineClips()} />
           {onCollapse ? (
             <WorkbenchIconButton
               className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')}
-              label={`${actionLabelPrefix}收起时间轴`}
+              label={t('timelineEditor.collapse', { prefix: actionLabelPrefix })}
               icon={<IconChevronDown size={14} />}
               onClick={onCollapse}
             />
@@ -373,7 +375,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
               width: 'var(--workbench-timeline-content-width, 100%)',
               minWidth: 'var(--workbench-timeline-content-width, 100%)',
             }}
-            aria-label="时间刻度"
+            aria-label={t('timelineEditor.ruler')}
             onPointerDown={beginScrub}
           >
             {rulerTicks.map((tick) => (
@@ -432,8 +434,8 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
               'rounded-nomi-sm border-[1.5px] border-[var(--nomi-paper)] bg-[var(--workbench-accent)]',
               'shadow-[0_1px_2px_oklch(0_0_0/0.2)] cursor-ew-resize pointer-events-auto touch-none',
             )}
-            aria-label="拖动播放头"
-            title="拖动播放头"
+            aria-label={t('timelineEditor.dragPlayhead')}
+            title={t('timelineEditor.dragPlayhead')}
             onPointerDown={beginScrub}
           />
         </div>
