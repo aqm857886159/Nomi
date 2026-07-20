@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Html } from '@react-three/drei'
 import { IconManFilled, IconVideo } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
@@ -20,6 +21,7 @@ export function Scene3DPossessPrompt({
   object: Scene3DObject
   onPossess: (objectId: string) => void
 }): JSX.Element {
+  const { t } = useTranslation()
   return (
     <Html
       position={[object.position[0], object.position[1] + HEAD_OFFSET_Y, object.position[2]]}
@@ -31,7 +33,7 @@ export function Scene3DPossessPrompt({
     >
       <button
         type="button"
-        title="操控该角色（WASD 走位 + 动作库 + 录 take）"
+        title={t('scene3d.character.possessCharacterHint')}
         className={cn(
           'inline-flex select-none items-center gap-1.5 whitespace-nowrap rounded-nomi px-3 py-1.5',
           'border-0 bg-[var(--nomi-ink)] text-caption font-semibold text-[var(--nomi-paper)]',
@@ -45,7 +47,7 @@ export function Scene3DPossessPrompt({
         }}
       >
         <IconManFilled size={14} />
-        <span>操控</span>
+        <span>{t('scene3d.character.control')}</span>
       </button>
     </Html>
   )
@@ -60,6 +62,7 @@ export function Scene3DCameraPossessPrompt({
   camera: Scene3DCamera
   onPossess: (cameraId: string) => void
 }): JSX.Element {
+  const { t } = useTranslation()
   return (
     <Html
       position={[camera.position[0], camera.position[1] + 0.55, camera.position[2]]}
@@ -70,7 +73,7 @@ export function Scene3DCameraPossessPrompt({
     >
       <button
         type="button"
-        title="操控该镜头（WASD 飞 + 鼠标转朝向 + 滚轮推拉 → 录运镜）"
+        title={t('scene3d.character.possessCameraHint')}
         className={cn(
           'inline-flex select-none items-center gap-1.5 whitespace-nowrap rounded-nomi px-3 py-1.5',
           'border-0 bg-[var(--nomi-ink)] text-caption font-semibold text-[var(--nomi-paper)]',
@@ -84,7 +87,7 @@ export function Scene3DCameraPossessPrompt({
         }}
       >
         <IconVideo size={14} />
-        <span>操控</span>
+        <span>{t('scene3d.character.control')}</span>
       </button>
     </Html>
   )

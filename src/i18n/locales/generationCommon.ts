@@ -165,6 +165,22 @@ export const zhGenerationCommon = {
     primaryImage: '主图',
     resizeAria: '从 {{direction}} 方向调整节点尺寸',
     resize: '调整节点尺寸',
+    lock: {
+      unlockAria: '解锁节点（AI 将恢复可修改）',
+      lockAria: '锁定节点（AI 不能修改，仍可作为参考）',
+      unlockHint: '已锁定：AI 不能修改此节点 — 点击解锁',
+      lockHint: '锁定：AI 不能修改此节点（提示词、删除、接线），仍可作为参考',
+    },
+    extractFrame: {
+      first: '首帧',
+      last: '尾帧',
+      missingProject: '抽帧失败：找不到当前项目（请先保存项目后重试）',
+      desktopOnly: '抽帧失败：当前环境不支持（需桌面端）',
+      failed: '抽{{frame}}失败：{{message}}',
+      empty: '抽{{frame}}失败：未能从视频取到帧',
+      defaultVideoTitle: '视频',
+      nodeTitle: '{{title}}·{{frame}}',
+    },
     assetDrop: {
       full: '最多 {{max}} 个{{label}}',
       noSlot: '当前模式没有可放该类型的参考',
@@ -421,6 +437,12 @@ export const zhGenerationCommon = {
     upload: '+ 上传{{label}}',
     node: '节点',
     scene3dLoading: '3D 编辑器加载中',
+    prop: {
+      image: '道具图',
+      unnamed: '未命名道具',
+      ownedBy: '属于 {{owner}}',
+      ownerLabel: '{{owner}}的',
+    },
   },
   optimizer: {
     imageKind: '图像生成',
@@ -771,6 +793,23 @@ export const enGenerationCommon = {
     primaryImage: 'Primary image',
     resizeAria: 'Resize node from the {{direction}} direction',
     resize: 'Resize node',
+    lock: {
+      unlockAria: 'Unlock node (AI can edit it again)',
+      lockAria: 'Lock node (AI cannot edit it, but it can still be used as a reference)',
+      unlockHint: 'Locked: AI cannot edit this node — click to unlock',
+      lockHint:
+        'Lock: AI cannot edit this node (prompt, deletion, or connections), but it remains available as a reference',
+    },
+    extractFrame: {
+      first: 'first frame',
+      last: 'last frame',
+      missingProject: 'Frame extraction failed: no current project was found. Save the project and try again.',
+      desktopOnly: 'Frame extraction failed: this environment is unsupported. Use the desktop app.',
+      failed: 'Failed to extract the {{frame}}: {{message}}',
+      empty: 'Failed to extract the {{frame}}: no frame could be read from the video',
+      defaultVideoTitle: 'Video',
+      nodeTitle: '{{title}} · {{frame}}',
+    },
     assetDrop: {
       full: 'Up to {{max}} {{label}}',
       noSlot: 'The current mode has no reference slot for this asset type',
@@ -1032,6 +1071,12 @@ export const enGenerationCommon = {
     upload: '+ Upload {{label}}',
     node: 'Node',
     scene3dLoading: 'Loading 3D editor',
+    prop: {
+      image: 'Prop image',
+      unnamed: 'Untitled prop',
+      ownedBy: 'Owned by {{owner}}',
+      ownerLabel: '{{owner}}’s',
+    },
   },
   optimizer: {
     imageKind: 'image generation',

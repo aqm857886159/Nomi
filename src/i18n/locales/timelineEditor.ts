@@ -25,6 +25,23 @@ export const zhTimelineEditor = {
   collapse: '{{prefix}}收起时间轴',
   ruler: '时间刻度',
   dragPlayhead: '拖动播放头',
+  clip: {
+    resizeStart: '调整片段起点',
+    resizeEnd: '调整片段终点',
+  },
+  track: {
+    audioOnly: '只有音频素材能放到音频轨',
+    unavailable: '这里暂时不能放置素材',
+    emptyAudio: '从素材库拖入音频当配乐',
+    emptyVisual: '从生成区拖入素材',
+    placeAt: '放到 {{timecode}}',
+  },
+  secondary: {
+    addCaption: '添加字幕',
+    caption: '字幕',
+    overlay: '叠加层',
+    dropAudio: '拖音频到此当配乐',
+  },
   textTrack: {
     title: '文字轨',
     emptyHint: '用上方「字幕 / 标题卡」添加',
@@ -68,6 +85,23 @@ export const enTimelineEditor = {
   collapse: '{{prefix}}collapse timeline',
   ruler: 'Time ruler',
   dragPlayhead: 'Drag playhead',
+  clip: {
+    resizeStart: 'Adjust clip start',
+    resizeEnd: 'Adjust clip end',
+  },
+  track: {
+    audioOnly: 'Only audio assets can be placed on the audio track',
+    unavailable: 'This asset cannot be placed here yet',
+    emptyAudio: 'Drag audio from Assets to use as music',
+    emptyVisual: 'Drag media from Generation',
+    placeAt: 'Place at {{timecode}}',
+  },
+  secondary: {
+    addCaption: 'Add caption',
+    caption: 'Caption',
+    overlay: 'Overlay',
+    dropAudio: 'Drag audio here to use as music',
+  },
   textTrack: {
     title: 'Text track',
     emptyHint: 'Add a caption or title card above',

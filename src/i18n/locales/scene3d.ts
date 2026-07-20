@@ -143,6 +143,8 @@ export const zhScene3d = {
   },
   character: {
     control: '操控',
+    possessCharacterHint: '操控该角色（WASD 走位 + 动作库 + 录 take）',
+    possessCameraHint: '操控该镜头（WASD 飞 + 鼠标转朝向 + 滚轮推拉 → 录运镜）',
     exitCameraControl: '退出操控镜头',
     exitControl: '退出操控',
     controlCharacterHint: '操控该角色（WASD 走位 + 动作库）',
@@ -459,6 +461,8 @@ export const enScene3d = {
   },
   character: {
     control: 'Control',
+    possessCharacterHint: 'Control this character (WASD movement + action library + record a take)',
+    possessCameraHint: 'Control this camera (WASD flight + mouse look + wheel dolly → record camera movement)',
     exitCameraControl: 'Exit camera control',
     exitControl: 'Exit control',
     controlCharacterHint: 'Control this character (WASD movement + action library)',

@@ -8,33 +8,55 @@ import { getActiveWorkbenchProjectId } from '../../project/workbenchProjectSessi
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { toast } from '../../../ui/toast'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import i18n from '../../../i18n'
 
 export async function extractVideoFrameToNode(node: GenerationCanvasNode, which: 'first' | 'last'): Promise<void> {
   const videoUrl = node.result?.url
   if (node.result?.type !== 'video' || !videoUrl) return
-  const label = which === 'first' ? '首帧' : '尾帧'
+  const label = i18n.t(`generationCommon.node.extractFrame.${which}`)
 
   const projectId = getActiveWorkbenchProjectId()
-  if (!projectId) { toast('抽帧失败：找不到当前项目（请先保存项目后重试）', 'error'); return }
+  if (!projectId) {
+    toast(i18n.t('generationCommon.node.extractFrame.missingProject'), 'error')
+    return
+  }
   const extractFrame = getDesktopBridge()?.video?.extractFrame
-  if (!extractFrame) { toast('抽帧失败：当前环境不支持（需桌面端）', 'error'); return }
+  if (!extractFrame) {
+    toast(i18n.t('generationCommon.node.extractFrame.desktopOnly'), 'error')
+    return
+  }
 
   let url: string
   try {
     const result = await extractFrame({ videoUrl, which, projectId })
     url = result?.url || ''
   } catch (error) {
-    toast(`抽${label}失败：${error instanceof Error ? error.message : String(error)}`, 'error')
+    toast(
+      i18n.t('generationCommon.node.extractFrame.failed', {
+        frame: label,
+        message: error instanceof Error ? error.message : String(error),
+      }),
+      'error',
+    )
     return
   }
-  if (!url) { toast(`抽${label}失败：未能从视频取到帧`, 'error'); return }
+  if (!url) {
+    toast(i18n.t('generationCommon.node.extractFrame.empty', { frame: label }), 'error')
+    return
+  }
 
   const store = useGenerationCanvasStore.getState()
   const size = getNodeSize(node)
   const created = store.addNode({
     kind: 'image',
-    title: `${(node.title || '视频').trim()}·${label}`,
-    position: { x: node.position.x + size.width + 64, y: node.position.y + (which === 'last' ? size.height / 2 + 24 : 0) },
+    title: i18n.t('generationCommon.node.extractFrame.nodeTitle', {
+      title: (node.title || i18n.t('generationCommon.node.extractFrame.defaultVideoTitle')).trim(),
+      frame: label,
+    }),
+    position: {
+      x: node.position.x + size.width + 64,
+      y: node.position.y + (which === 'last' ? size.height / 2 + 24 : 0),
+    },
     categoryId: node.categoryId,
   })
   // 抽出的帧本身就是成品图 → 直接落 result，新节点立即可见、可当参考，无需再生成。
