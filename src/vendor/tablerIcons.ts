@@ -90,6 +90,7 @@ export { default as IconGripVertical } from '@tabler/icons-react/dist/esm/icons/
 export { default as IconH1 } from '@tabler/icons-react/dist/esm/icons/IconH1.mjs'
 export { default as IconH2 } from '@tabler/icons-react/dist/esm/icons/IconH2.mjs'
 export { default as IconHandStop } from '@tabler/icons-react/dist/esm/icons/IconHandStop.mjs'
+export { default as IconHelp } from '@tabler/icons-react/dist/esm/icons/IconHelp.mjs'
 export { default as IconHistory } from '@tabler/icons-react/dist/esm/icons/IconHistory.mjs'
 export { default as IconInfoCircle } from '@tabler/icons-react/dist/esm/icons/IconInfoCircle.mjs'
 export { default as IconItalic } from '@tabler/icons-react/dist/esm/icons/IconItalic.mjs'

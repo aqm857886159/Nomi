@@ -103,7 +103,8 @@ export function useScene3DTrajectoryEditing({
   const [activePointId, setActivePointId] = React.useState<string | null>(null)
   const [activeGroupId, setActiveGroupId] = React.useState<string | null>(null)
   const [trajectoryEditMode, setTrajectoryEditModeState] = React.useState(false)
-  const [timelineOpen, setTimelineOpen] = React.useState(false)
+  // P2：时间轴默认显示——让用户一进来就看到"整运镜后这里能预览效果"
+  const [timelineOpen, setTimelineOpen] = React.useState(true)
   const [isPlaying, setIsPlaying] = React.useState(false)
   const playheadRef = React.useRef(0)
 

@@ -32,7 +32,7 @@ import { useScene3DTrajectoryEditing } from './useScene3DTrajectoryEditing'
 import { setScene3DPlayheadSeconds, trajectoryPointTimeRatio } from './trajectory'
 import { applyCameraMovePreset, type CameraMovePresetSpec } from './cameraMovePreset'
 import { CAMERA_MOVE_LABEL } from './cameraMoveVocab'
-import { cameraWithPlaybackPosition } from './scene3dPlayback'
+import { cameraWithPlaybackPosition, isCameraMoveReady } from './scene3dPlayback'
 import { makePropObject } from './scene3dPropSpecs'
 import { buildSceneTemplateObjects, SCENE_TEMPLATE_LABEL, type Scene3DSceneTemplate } from './scene3dSceneTemplates'
 
@@ -535,4 +535,120 @@ export function useScene3DCameraMoveAction({
     const duration = result.endTime - result.startTime
     toast(`已追加「${CAMERA_MOVE_LABEL[spec.move]} · ${duration}s」到时间轴（${result.startTime}s-${result.endTime}s）`, 'success')
   }, [readOnly, setState, stateRef, trajectory])
+}
+
+// 出片动作（2026-07-20 出片旅程 P0）：出片面板开关、四个导出 handler、
+// 运镜就绪接力 toast（P0-5）、产物卡片生成中状态（P0-4）。
+// 行为等价自 Scene3DFullscreen 内联实现迁移（R9 防巨壳）。
+export function useScene3DExportActions({
+  state,
+  stateRef,
+  readOnly,
+  selectedCamera,
+  onRecordTake,
+  captureViewport,
+  captureSelectedCamera,
+  exportCameraMoveFrames,
+}: {
+  state: Scene3DState
+  stateRef: React.MutableRefObject<Scene3DState>
+  readOnly: boolean
+  selectedCamera: Scene3DCamera | undefined
+  onRecordTake?: (recordedState: Scene3DState) => void
+  captureViewport: () => void
+  captureSelectedCamera: () => void
+  exportCameraMoveFrames: (cameraId: string) => Promise<void>
+}) {
+  const [exportPanelOpen, setExportPanelOpen] = React.useState(false)
+  // P0-4：出片后右下角产物卡片（生成中提示）
+  const [exportingVideo, setExportingVideo] = React.useState(false)
+  const exportingTimerRef = React.useRef<number | null>(null)
+
+  // P0-5：运镜就绪接力 toast——轨迹+绑定就绪时提示用户去出片
+  // 用独立 ref 存 timer，不随 state 变化清理（否则拖点/调参 500ms 内会吞掉 toast）
+  const moveReadyRef = React.useRef(false)
+  const journeyToastTimerRef = React.useRef<number | null>(null)
+  React.useEffect(() => {
+    const ready = isCameraMoveReady(state)
+    const wasReady = moveReadyRef.current
+    moveReadyRef.current = ready
+    if (ready && !wasReady && !readOnly) {
+      if (journeyToastTimerRef.current) window.clearTimeout(journeyToastTimerRef.current)
+      journeyToastTimerRef.current = window.setTimeout(() => {
+        toast('运镜就绪 → 点顶部「出片」按钮生成参考视频', 'success')
+        journeyToastTimerRef.current = null
+      }, 500)
+    }
+  }, [state, readOnly])
+
+  React.useEffect(() => () => {
+    if (exportingTimerRef.current) window.clearTimeout(exportingTimerRef.current)
+    if (journeyToastTimerRef.current) window.clearTimeout(journeyToastTimerRef.current)
+  }, [])
+
+  const handleExportReferenceVideo = React.useCallback(() => {
+    if (!onRecordTake) {
+      toast('当前环境不支持导出参考视频', 'warning')
+      return
+    }
+    if (!isCameraMoveReady(stateRef.current)) {
+      toast('先整运镜——选中相机后点运镜预设，或画轨迹绑定相机', 'warning')
+      return
+    }
+    // 用当前 state（含已有轨迹）触发 take 录制流程 → 宿主建节点 + CameraMoveCaptureHost 渲染 mp4。
+    // 时长裁到真实运动终点：编辑器时间轴默认 10s（UI 宽度用），预设只落 3s 轨迹时若按 10s 渲染，
+    // mp4 会带 7s 定格尾巴——喂给下游的参考视频大半静止。录 take 路径不经此处（录多久写多久）。
+    const current = stateRef.current
+    const motionEnd = Math.max(
+      current.trajectoryBindings.reduce((max, binding) => Math.max(max, binding.endTime), 0),
+      current.objects.reduce((max, object) => (
+        (object.poseTrack ?? []).reduce((inner, keyframe) => Math.max(inner, keyframe.time), max)
+      ), 0),
+    )
+    const exportState = motionEnd > 0 && motionEnd < current.sceneTimeline.totalDuration
+      ? { ...current, sceneTimeline: { ...current.sceneTimeline, totalDuration: motionEnd } }
+      : current
+    onRecordTake(exportState)
+    setExportPanelOpen(false)
+    // P0-4：显示产物卡片（生成中提示）
+    setExportingVideo(true)
+    if (exportingTimerRef.current) window.clearTimeout(exportingTimerRef.current)
+    exportingTimerRef.current = window.setTimeout(() => setExportingVideo(false), 20_000)
+  }, [onRecordTake, stateRef])
+
+  const handleExportScreenshotViewport = React.useCallback(() => {
+    setExportPanelOpen(false)
+    captureViewport()
+  }, [captureViewport])
+
+  const handleExportScreenshotCamera = React.useCallback(() => {
+    if (!selectedCamera) {
+      toast('请先选中一个拍摄相机', 'warning')
+      return
+    }
+    setExportPanelOpen(false)
+    captureSelectedCamera()
+  }, [captureSelectedCamera, selectedCamera])
+
+  const handleExportKeyFrames = React.useCallback(() => {
+    // 首尾帧导出需要一个相机 ID：优先用选中的相机，否则用第一个相机
+    const cameraId = selectedCamera?.id || stateRef.current.cameras[0]?.id
+    if (!cameraId) {
+      toast('先加个相机才能导出首尾帧', 'warning')
+      return
+    }
+    setExportPanelOpen(false)
+    void exportCameraMoveFrames(cameraId)
+  }, [exportCameraMoveFrames, selectedCamera, stateRef])
+
+  return {
+    exportPanelOpen,
+    setExportPanelOpen,
+    exportingVideo,
+    setExportingVideo,
+    handleExportReferenceVideo,
+    handleExportScreenshotViewport,
+    handleExportScreenshotCamera,
+    handleExportKeyFrames,
+  }
 }

@@ -1,14 +1,12 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import {
-  IconArrowsMove, IconCube, IconListTree, IconPhoto, IconPlayerPause, IconPlayerPlay,
-  IconRoute, IconRotate, IconSettings, IconWorld, IconX,
-} from '@tabler/icons-react'
+import { IconListTree, IconSettings } from '@tabler/icons-react'
 import { toast } from '../../../../ui/toast'
 import { FencedCanvas } from '../fencedCanvas'
 import { Scene3DWindowBar } from './Scene3DWindowBar'
-import { Scene3DCoachMarks, hasSeenScene3DCoach } from './Scene3DCoachMarks'
+import { Scene3DCoachMarks } from './Scene3DCoachMarks'
+import { hasSeenScene3DCoach, resetScene3DCoachSeen } from '../../../onboarding/onboardingState'
 import { cloneScene3DState } from './scene3dSerializer'
 import {
   type CaptureApi,
@@ -21,7 +19,7 @@ import {
   type Scene3DTransformMode,
 } from './scene3dTypes'
 import { FULLSCREEN_Z_INDEX } from './scene3dConstants'
-import { PanelButton, CanvasPanelRestoreButton } from './scene3dToolbar'
+import { CanvasPanelRestoreButton } from './scene3dToolbar'
 import {
   levelEditorCameraRotation,
   applyEditorCameraPose,
@@ -31,13 +29,15 @@ import { SceneObjectList } from './scene3dInspector'
 import { TrajectoryListPanel } from './scene3dTrajectoryListPanel'
 import { SceneContent } from './scene3dSceneContent'
 import { attachWebGLContextRecovery } from './scene3dContextRecovery'
-import { CharacterPossessButton, Scene3DBottomBar } from './scene3dCharacterActionBar'
+import { Scene3DBottomBar } from './scene3dCharacterActionBar'
 import { useScene3DCharacterDrive } from './useScene3DCharacterDrive'
 import { useScene3DCameraViewEdit } from './useScene3DCameraViewEdit'
 import { useScene3DTakeRecorder } from './useScene3DTakeRecorder'
 import { Scene3DTakeSampler } from './Scene3DTakeSampler'
 import { CameraPreview, PlaybackCameraMonitor } from './scene3dCameraPreview'
 import { useScene3DTrajectoryEditing } from './useScene3DTrajectoryEditing'
+import Scene3DExportPanel, { Scene3DExportingCard } from './scene3dExportPanel'
+import { Scene3DFullscreenHeader } from './Scene3DFullscreenHeader'
 import {
   Scene3DTrajectoryLayer,
   Scene3DTrajectoryEditBanner,
@@ -47,7 +47,7 @@ import {
   type Scene3DRightPanelTab,
 } from './scene3dTrajectorySurfaces'
 import { removeTrajectoryBindingsForNode } from './scene3dTrajectoryState'
-import { cameraWithPlaybackPosition } from './scene3dPlayback'
+import { cameraWithPlaybackPosition, isCameraMoveReady } from './scene3dPlayback'
 import type { Scene3DReferenceTargetSummary } from './scene3dReferenceDirector'
 import {
   useScene3DClipboardActions,
@@ -56,6 +56,7 @@ import {
   useScene3DAddActions,
   useScene3DCameraMoveAction,
   useScene3DMoveFrameExport,
+  useScene3DExportActions,
   type Scene3DClipboardItem,
 } from './useScene3DFullscreenActions'
 type Scene3DFullscreenProps = {
@@ -286,7 +287,7 @@ export default function Scene3DFullscreen({
 
   const captureSelectedCamera = React.useCallback(() => {
     if (!selectedCamera) {
-      toast('请先选中一个拍摄相机', 'warning')
+      toast('请先在左侧列表选中一个相机', 'warning')
       return
     }
     const captureCamera = cameraWithPlaybackPosition(
@@ -302,6 +303,27 @@ export default function Scene3DFullscreen({
     }
     onScreenshot(capture)
   }, [onScreenshot, selectedCamera, trajectory.activeTrajectoryIds, trajectory.playheadRef])
+
+  // 出片动作（P0）：面板开关 + 四个导出 handler + 接力 toast + 产物卡片状态（R9 抽到 actions 文件）
+  const {
+    exportPanelOpen,
+    setExportPanelOpen,
+    exportingVideo,
+    setExportingVideo,
+    handleExportReferenceVideo,
+    handleExportScreenshotViewport,
+    handleExportScreenshotCamera,
+    handleExportKeyFrames,
+  } = useScene3DExportActions({
+    state,
+    stateRef,
+    readOnly,
+    selectedCamera,
+    onRecordTake,
+    captureViewport,
+    captureSelectedCamera,
+    exportCameraMoveFrames,
+  })
 
   const updateEditorCamera = React.useCallback((editorCamera: Scene3DState['editorCamera']) => {
     latestEditorCameraRef.current = editorCamera
@@ -511,63 +533,27 @@ export default function Scene3DFullscreen({
       onWheel={(event) => event.stopPropagation()}
     >
       <Scene3DWindowBar />
-      <header className="relative z-[2] flex min-h-[52px] shrink-0 items-center gap-3 border-b border-[var(--workbench-border)] bg-[var(--workbench-surface-solid)] px-4 shadow-nomi-sm">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <IconCube size={18} className="shrink-0 text-[var(--workbench-muted)]" />
-          <div className="min-w-0 truncate text-body-sm font-medium text-[var(--workbench-ink)]">{nodeTitle}</div>
-        </div>
-        <div className="ml-auto flex min-w-0 max-w-[72vw] items-center gap-2 overflow-x-auto">
-          <div className="flex items-center gap-1 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-0.5">
-            <PanelButton title="移动" active={transformMode === 'translate'} onClick={() => setTransformMode('translate')}>
-              <IconArrowsMove size={15} />
-            </PanelButton>
-            <PanelButton title="旋转" active={transformMode === 'rotate'} onClick={() => setTransformMode('rotate')}>
-              <IconRotate size={15} />
-            </PanelButton>
-          </div>
-          <div className="flex items-center gap-1 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-0.5">
-            <PanelButton title="当前视口截图" onClick={captureViewport}>
-              <IconPhoto size={15} />
-              <span>截图</span>
-            </PanelButton>
-          </div>
-          <div className="flex items-center gap-1 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-0.5">
-            <PanelButton title={trajectoryMode ? '退出轨迹模式' : '进入轨迹模式'} active={trajectoryMode} onClick={toggleTrajectoryMode}>
-              <IconRoute size={15} />
-              <span>轨迹</span>
-            </PanelButton>
-            <PanelButton
-              title={trajectory.isPlaying ? '暂停轨迹播放' : '播放轨迹'}
-              active={trajectory.isPlaying}
-              onClick={() => requestTrajectoryPlayChange(!trajectory.isPlaying)}
-            >
-              {trajectory.isPlaying ? <IconPlayerPause size={15} /> : <IconPlayerPlay size={15} />}
-            </PanelButton>
-          </div>
-          {!readOnly ? <CharacterPossessButton drive={characterDrive} /> : null}
-          <label className="inline-flex h-8 shrink-0 items-center gap-2 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--workbench-muted)]">
-            <IconWorld size={14} />
-            <span>速度</span>
-            <input
-              className="h-1.5 w-24 accent-[var(--nomi-ink)]"
-              max={16}
-              min={1}
-              step={0.5}
-              type="range"
-              value={flySpeed}
-              onChange={(event) => setFlySpeed(Number(event.currentTarget.value))}
-            />
-          </label>
-          <button
-            className="grid size-8 shrink-0 place-items-center rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)]"
-            type="button"
-            title="退出 3D 场景"
-            onClick={handleClose}
-          >
-            <IconX size={16} />
-          </button>
-        </div>
-      </header>
+      <Scene3DFullscreenHeader
+        nodeTitle={nodeTitle}
+        readOnly={readOnly}
+        transformMode={transformMode}
+        onTransformModeChange={setTransformMode}
+        onCaptureViewport={captureViewport}
+        trajectoryMode={trajectoryMode}
+        onToggleTrajectoryMode={toggleTrajectoryMode}
+        moveReady={isCameraMoveReady(state)}
+        isPlaying={trajectory.isPlaying}
+        onRequestPlayChange={requestTrajectoryPlayChange}
+        characterDrive={characterDrive}
+        flySpeed={flySpeed}
+        onFlySpeedChange={setFlySpeed}
+        onOpenExportPanel={() => setExportPanelOpen(true)}
+        onReplayCoach={() => {
+          resetScene3DCoachSeen()
+          setShowCoach(true)
+        }}
+        onClose={handleClose}
+      />
 
       <main className="relative flex min-h-0 flex-1 overflow-hidden bg-[var(--workbench-bg)]">
         <AnimatePresence initial={false}>
@@ -613,7 +599,7 @@ export default function Scene3DFullscreen({
             fence={<div className="absolute inset-0 grid place-items-center text-caption text-[var(--nomi-ink-60)]">正在初始化 3D 视口…</div>}
             camera={canvasCamera}
             dpr={[1, 2]}
-            frameloop={trajectory.isPlaying || trajectory.timelineOpen || takeRecorder.isRecording ? 'always' : 'demand'}
+            frameloop={trajectory.isPlaying || takeRecorder.isRecording ? 'always' : 'demand'}
             gl={{ antialias: true, preserveDrawingBuffer: false }}
             onCreated={({ camera, gl, invalidate }) => {
               applyEditorCameraPose(camera, initialEditorCameraRef.current)
@@ -789,6 +775,19 @@ export default function Scene3DFullscreen({
         </AnimatePresence>
       </main>
       {showCoach && !readOnly ? <Scene3DCoachMarks onDone={() => setShowCoach(false)} /> : null}
+      {/* P0-4：出片后右下角产物卡片（生成中提示） */}
+      <Scene3DExportingCard open={exportingVideo} onDismiss={() => setExportingVideo(false)} />
+      {/* 出片面板（P0-2）：右侧滑出，三选项 */}
+      <Scene3DExportPanel
+        open={exportPanelOpen}
+        onClose={() => setExportPanelOpen(false)}
+        state={state}
+        onExportReferenceVideo={handleExportReferenceVideo}
+        onScreenshotViewport={handleExportScreenshotViewport}
+        onScreenshotCamera={handleExportScreenshotCamera}
+        onExportKeyFrames={handleExportKeyFrames}
+        hasCamera={state.cameras.length > 0}
+      />
     </div>
   )
 

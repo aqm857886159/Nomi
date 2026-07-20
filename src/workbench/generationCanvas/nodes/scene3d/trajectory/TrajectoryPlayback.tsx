@@ -8,6 +8,7 @@ import {
   registerScene3DObjectRef,
   setScene3DObjectRuntimeRefsVisible,
   unregisterScene3DObjectRef,
+  useScene3DTrajectoryRuntimeStore,
 } from './trajectoryRuntimeStore'
 
 /**
@@ -56,6 +57,15 @@ export function TrajectoryPlayback({
 }): JSX.Element {
   const objectIds = React.useMemo(() => bindableObjectIds(bindings), [bindings])
   useTrajectoryAnimation({ isPlaying, setIsPlaying, playheadRef, activeTrajectoryIds })
+
+  // frameloop='demand' 下暂停拖播放头没有帧 → useTrajectoryAnimation 的 useFrame 不跑，
+  // 3D 对象停在旧位置（时间轴默认常显后不再靠 timelineOpen 强制 'always'）。订阅播放头
+  // 变化手动请一帧，让摆位逻辑应用新播放头；播放中（'always'）invalidate 是空操作，零成本。
+  const invalidate = useThree((state) => state.invalidate)
+  React.useEffect(() => useScene3DTrajectoryRuntimeStore.subscribe(
+    (state) => state.playheadSeconds,
+    () => invalidate(),
+  ), [invalidate])
 
   return (
     <>

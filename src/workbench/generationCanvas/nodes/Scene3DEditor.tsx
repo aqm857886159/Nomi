@@ -174,19 +174,24 @@ function Scene3DEditor({ node, width, height, readOnly = false }: Scene3DEditorP
     })
   }, [node.id, updateNode])
 
-  // 录过 take → 关编辑器后才请画布 fit（#1 闭环可见性根因：在全屏编辑器盖着画布时 fit 是白跑，
-  // 360ms 后 fitView 时画布不可见/stageRef 未就绪，nonce 又已消费 → 关掉后看到默认视图、找不到新节点。
-  // 改成关闭后再 fit，此时画布可见、新节点已就位，fitView 框全部节点把「录制走位参考」节点带进视口）。
-  const recordedTakeRef = React.useRef(false)
+  // 关编辑器后 fit + 高亮新节点（P3）：截图和录 take 都触发，不只录 take
+  // 原 bug：fitView 只在录 take 后触发，截图后关编辑器不 fit → 用户找不到截图节点
+  const pendingFitNodeIdRef = React.useRef<string | null>(null)
+  const selectNode = useGenerationCanvasStore((state) => state.selectNode)
 
   const handleCloseFullscreen = React.useCallback(() => {
     setFullscreen(false)
     void persistActiveWorkbenchProjectNow().catch(() => {})
-    if (recordedTakeRef.current) {
-      recordedTakeRef.current = false
-      requestCanvasFit()
+    const pendingId = pendingFitNodeIdRef.current
+    if (pendingId) {
+      pendingFitNodeIdRef.current = null
+      // 延迟一帧让画布渲染完再 fit + select
+      requestAnimationFrame(() => {
+        requestCanvasFit()
+        selectNode(pendingId)
+      })
     }
-  }, [requestCanvasFit])
+  }, [requestCanvasFit, selectNode])
 
   // 录 take（S2）：把录制好的（含角色/机位轨迹的）场景另建一个 scene3d 节点 + 打 cameraMoveAutoCapture 标志，
   // 整条出 mp4 + 喂目标镜头 video_ref 复用 AI 运镜常驻 Host（CameraMoveCaptureHost），不另起接缝（P1）。
@@ -230,9 +235,9 @@ function Scene3DEditor({ node, width, height, readOnly = false }: Scene3DEditorP
         },
       },
     })
-    // 闭环可见性（#1）：标记本次录过 take；真正的画布 fit 推迟到关闭编辑器后（handleCloseFullscreen），
-    // 因为此刻全屏编辑器盖着画布、fit 是白跑。关掉后画布可见再 fit，把新「录制走位参考」节点带进视口。
-    recordedTakeRef.current = true
+    // 闭环可见性（#1）：标记本次录过 take；真正的画布 fit + 高亮推迟到关闭编辑器后（handleCloseFullscreen），
+    // 因为此刻全屏编辑器盖着画布、fit 是白跑。关掉后画布可见再 fit + select，把新「录制走位参考」节点带进视口。
+    pendingFitNodeIdRef.current = takeNode.id
   }, [addNode, height, node.id, node.position.x, node.position.y, updateNode])
 
   const handleScreenshot = React.useCallback(async (capture: Scene3DCaptureResult) => {
@@ -297,6 +302,8 @@ function Scene3DEditor({ node, width, height, readOnly = false }: Scene3DEditorP
         },
       })
       toast('3D 截图已创建图片节点', 'success')
+      // P3：标记截图节点，关编辑器后 fit + 高亮
+      pendingFitNodeIdRef.current = screenshotNode.id
     } catch (error) {
       toast(error instanceof Error ? error.message : '截图失败，请重试', 'error')
     }

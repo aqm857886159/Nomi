@@ -599,6 +599,15 @@ export function PropertyPanel({
               onChange={(event) => onCameraPatch(selectedCamera.id, { name: event.currentTarget.value })}
             />
           </label>
+          {/* P2：运镜预设提到相机属性最顶（原来是最底部，用户找不到） */}
+          <div data-coach="camera-move-panel">
+            <CameraMovePanel
+              readOnly={readOnly}
+              onApply={(spec) => onApplyCameraMove(selectedCamera.id, spec)}
+              onExportFrames={() => onExportCameraMoveFrames(selectedCamera.id)}
+              referenceTarget={referenceTarget}
+            />
+          </div>
           <VectorInputs
             label="相机位置 XYZ"
             value={selectedCamera.position}
@@ -641,12 +650,7 @@ export function PropertyPanel({
               </label>
             ))}
           </div>
-          <CameraMovePanel
-            readOnly={readOnly}
-            onApply={(spec) => onApplyCameraMove(selectedCamera.id, spec)}
-            onExportFrames={() => onExportCameraMoveFrames(selectedCamera.id)}
-            referenceTarget={referenceTarget}
-          />
+          {/* CameraMovePanel 已移到上方（P2 运镜预设第一屏可见） */}
         </div>
       ) : (
         <Scene3DEnvironmentPanel

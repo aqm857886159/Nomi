@@ -38,6 +38,19 @@ export function hasPlayableTrajectoryBinding(state: Scene3DState, activeTrajecto
   ))
 }
 
+/**
+ * 判断"运镜就绪"：至少一条轨迹 >= 2 个点 + 至少一个绑定绑的是相机。
+ * 参考视频需要相机运镜才能渲染 mp4，仅绑角色走位不够。
+ */
+export function isCameraMoveReady(state: Scene3DState): boolean {
+  const hasUsableTrajectory = state.trajectories.some((t) => t.points.length >= 2)
+  const cameraIds = new Set(state.cameras.map((c) => c.id))
+  const hasCameraBinding = state.trajectoryBindings.some((binding) =>
+    binding.objects.some((obj) => cameraIds.has(obj.objectId)),
+  )
+  return hasUsableTrajectory && hasCameraBinding
+}
+
 export type Scene3DPlaybackSample = {
   position: THREE.Vector3
   tangent: THREE.Vector3 | null
