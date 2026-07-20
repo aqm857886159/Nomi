@@ -1,4 +1,14 @@
 export const zhOnboardingProviders = {
+  handbook: {
+    aria: '上手手册',
+    closeAria: '关闭上手手册',
+    pipeline: '一条流水线，全程在你眼皮底下',
+    firstWinTitle: '90 秒先尝到甜头',
+    firstWinDescription: '不用读完手册——先看一条片自己跑出来，再上手做你自己的。',
+    routesTitle: '我想做 X → 走这条路',
+    routesDescription: '能做的指清楚路径，做不到的当场标，不让你撞墙找半天。',
+    gotchasTitle: '卡住了看这里',
+  },
   drawer: {
     title: '模型设置',
     capabilities: '你现在已经能生成',
@@ -156,8 +166,10 @@ export const zhOnboardingProviders = {
     cancel: '取消',
     loggedInTitle: '已登录即梦',
     credits: '· 积分 {{count}}',
-    loggedInBeforePremium: '在生成画布选「即梦 Seedance 2.0（会员）」出视频。注意：免费试用已于 2026-05-01 结束，生成需即梦',
-    loggedInAfterPremium: '——非会员会被拒（光登录、光充积分不够）；部分模型首次使用还需先在 jimeng.jianying.com 网页端授权一次。',
+    loggedInBeforePremium:
+      '在生成画布选「即梦 Seedance 2.0（会员）」出视频。注意：免费试用已于 2026-05-01 结束，生成需即梦',
+    loggedInAfterPremium:
+      '——非会员会被拒（光登录、光充积分不够）；部分模型首次使用还需先在 jimeng.jianying.com 网页端授权一次。',
     logout: '退出登录',
     loginBeforeRequirement: '扫码登录你的即梦账号，用会员积分在 Nomi 出视频。',
     premiumRequirement: '生成需高级会员（maestro vip）',
@@ -239,6 +251,17 @@ type TranslationShape<T> = {
 }
 
 export const enOnboardingProviders = {
+  handbook: {
+    aria: 'Quick-start guide',
+    closeAria: 'Close quick-start guide',
+    pipeline: 'One visible workflow from start to finish',
+    firstWinTitle: 'Get your first result in 90 seconds',
+    firstWinDescription:
+      'Do not read the whole guide yet—watch one video run through the workflow, then make your own.',
+    routesTitle: 'What do you want to make?',
+    routesDescription: 'Use the recommended path for supported tasks and see limitations immediately.',
+    gotchasTitle: 'Troubleshooting',
+  },
   drawer: {
     title: 'Model settings',
     capabilities: 'You can currently generate',
@@ -264,7 +287,8 @@ export const enOnboardingProviders = {
     deleteModel: 'Delete model',
     deleteModels: 'Delete {{count}} models',
     deleteSingleMessage: 'Delete “{{name}}”? This cannot be undone. You will need to fetch it again to use it later.',
-    deleteMultipleMessage: 'Delete the selected {{count}} models? This cannot be undone. You will need to fetch them again to use them later.',
+    deleteMultipleMessage:
+      'Delete the selected {{count}} models? This cannot be undone. You will need to fetch them again to use them later.',
     deleteFailed: 'Delete failed',
     operationFailed: 'Operation failed',
   },
@@ -291,7 +315,8 @@ export const enOnboardingProviders = {
     editAddressAria: 'Edit {{name}} connection address',
   },
   assistant: {
-    example: 'Create a “Coffee Ad” project in Nomi, split it into three shots, add them to the canvas, and generate the first one with my image model.',
+    example:
+      'Create a “Coffee Ad” project in Nomi, split it into three shots, add them to the canvas, and generate the first one with my image model.',
     connectedToast: 'Connected to {{client}}. Restart it to apply the change.',
     connectFailed: 'Connection failed: {{message}}',
     disconnectedToast: 'Connection removed',
@@ -309,12 +334,14 @@ export const enOnboardingProviders = {
     restartClient: 'Restart {{client}} to apply the change.',
     sayNow: 'Now you can say:',
     disconnect: 'Remove connection',
-    description: 'Connect Nomi to {{client}} in one click. Then it can create projects, split shots, and generate images with your configured models.',
+    description:
+      'Connect Nomi to {{client}} in one click. Then it can create projects, split shots, and generate images with your configured models.',
     connect: 'Connect to {{client}}',
     copied: 'Copied',
     copyConfig: 'Copy configuration',
     guide: 'View guide',
-    otherClients: 'Using Cline, Windsurf, or another assistant? Copy the configuration and paste it into its MCP settings.',
+    otherClients:
+      'Using Cline, Windsurf, or another assistant? Copy the configuration and paste it into its MCP settings.',
   },
   customVendor: {
     newKeyPlaceholder: 'Paste a new API key (sk-…)',
@@ -379,7 +406,8 @@ export const enOnboardingProviders = {
     loggedOut: 'Logged out of Dreamina',
     linkCopied: 'Authorization link copied',
     loginTimeout: 'Login timed out. Start again.',
-    installDescription: 'Dreamina connects through its official command-line tool. Install it, then scan the code to use your membership credits in Nomi.',
+    installDescription:
+      'Dreamina connects through its official command-line tool. Install it, then scan the code to use your membership credits in Nomi.',
     installing: 'Installing…',
     install: 'Install Dreamina CLI',
     officialSource: 'Official source: jimeng.jianying.com. Installs to ~/.local/bin.',
@@ -396,8 +424,10 @@ export const enOnboardingProviders = {
     cancel: 'Cancel',
     loggedInTitle: 'Logged in to Dreamina',
     credits: '· {{count}} credits',
-    loggedInBeforePremium: 'Choose “Dreamina Seedance 2.0 (Membership)” on the generation canvas. The free trial ended on May 1, 2026, and generation requires ',
-    loggedInAfterPremium: '. Login or purchased credits alone are not enough; some models also require one-time authorization at jimeng.jianying.com.',
+    loggedInBeforePremium:
+      'Choose “Dreamina Seedance 2.0 (Membership)” on the generation canvas. The free trial ended on May 1, 2026, and generation requires ',
+    loggedInAfterPremium:
+      '. Login or purchased credits alone are not enough; some models also require one-time authorization at jimeng.jianying.com.',
     logout: 'Log out',
     loginBeforeRequirement: 'Scan the code to log in to Dreamina and use membership credits in Nomi. ',
     premiumRequirement: 'Generation requires Premium membership (maestro vip)',
@@ -458,7 +488,8 @@ export const enOnboardingProviders = {
     name: 'Local ComfyUI',
     subtitle: 'Generate with your local GPU · No key, credits, or data uploads',
     setupBeforeAddress: 'Start ComfyUI on this computer (default:',
-    setupAfterAddress: '), then enable it below. Nomi includes a text-to-image workflow that you can select directly on the generation canvas.',
+    setupAfterAddress:
+      '), then enable it below. Nomi includes a text-to-image workflow that you can select directly on the generation canvas.',
     checkingLocal: 'Checking local ComfyUI…',
     enable: 'Enable local ComfyUI',
     installOnGithub: 'Not installed? Get it from GitHub and start it',
@@ -466,7 +497,8 @@ export const enOnboardingProviders = {
     checkingShort: 'Checking…',
     enabledButDisconnected: 'Enabled, but local ComfyUI was not detected',
     reconnectBeforeAddress: 'Make sure ComfyUI is running at',
-    reconnectAfterAddress: ', then check again. If it is unavailable during generation, Nomi will stop with a connection error instead of wasting a run.',
+    reconnectAfterAddress:
+      ', then check again. If it is unavailable during generation, Nomi will stop with a connection error instead of wasting a run.',
     workflowKind: 'Image · ComfyUI workflow',
     modelEnabled: 'Enabled',
     recheck: 'Check again',
