@@ -2,6 +2,7 @@
 // 小矩形（选中=nomi-accent），叠一个当前视口取景框；点击/拖拽 → 把视口中心跳到对应画布点。
 // 仅在节点数 >= MINIMAP_MIN_NODES 时出现（小图全可见，minimap 是噪声，密度优先 R2）。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { getNodeSize } from './generationCanvasGeometry'
@@ -21,7 +22,15 @@ type CanvasMinimapProps = {
   onJumpToCanvasPoint: (point: { x: number; y: number }) => void
 }
 
-export const CanvasMinimap = React.memo(function CanvasMinimap({ nodes, selectedIds, zoom, offset, stageSize, onJumpToCanvasPoint }: CanvasMinimapProps): JSX.Element | null {
+export const CanvasMinimap = React.memo(function CanvasMinimap({
+  nodes,
+  selectedIds,
+  zoom,
+  offset,
+  stageSize,
+  onJumpToCanvasPoint,
+}: CanvasMinimapProps): JSX.Element | null {
+  const { t } = useTranslation()
   const draggingRef = React.useRef(false)
   const innerRef = React.useRef<HTMLDivElement>(null)
 
@@ -61,15 +70,18 @@ export const CanvasMinimap = React.memo(function CanvasMinimap({ nodes, selected
     return { minX, minY, scale, padX, padY }
   }, [nodeBbox, offset.x, offset.y, stageSize.width, stageSize.height, zoom])
 
-  const jumpFromClient = React.useCallback((clientX: number, clientY: number) => {
-    if (!geometry || !innerRef.current) return
-    const rect = innerRef.current.getBoundingClientRect()
-    const mx = clientX - rect.left
-    const my = clientY - rect.top
-    const canvasX = (mx - geometry.padX) / geometry.scale + geometry.minX
-    const canvasY = (my - geometry.padY) / geometry.scale + geometry.minY
-    onJumpToCanvasPoint({ x: canvasX, y: canvasY })
-  }, [geometry, onJumpToCanvasPoint])
+  const jumpFromClient = React.useCallback(
+    (clientX: number, clientY: number) => {
+      if (!geometry || !innerRef.current) return
+      const rect = innerRef.current.getBoundingClientRect()
+      const mx = clientX - rect.left
+      const my = clientY - rect.top
+      const canvasX = (mx - geometry.padX) / geometry.scale + geometry.minX
+      const canvasY = (my - geometry.padY) / geometry.scale + geometry.minY
+      onJumpToCanvasPoint({ x: canvasX, y: canvasY })
+    },
+    [geometry, onJumpToCanvasPoint],
+  )
 
   if (!geometry) return null
 
@@ -92,12 +104,16 @@ export const CanvasMinimap = React.memo(function CanvasMinimap({ nodes, selected
         'border border-nomi-line rounded-nomi bg-nomi-paper/95 shadow-nomi-md',
       )}
       style={{ width: MAP_W, height: MAP_H }}
-      aria-label="画布缩略导航"
+      aria-label={t('generationCommon.canvas.minimapAria')}
       onPointerDown={(event) => {
         event.stopPropagation()
         draggingRef.current = true
         jumpFromClient(event.clientX, event.clientY) // 先跳转，再尝试捕获（捕获失败不该吞掉跳转）
-        try { event.currentTarget.setPointerCapture(event.pointerId) } catch { /* 无活动指针时忽略 */ }
+        try {
+          event.currentTarget.setPointerCapture(event.pointerId)
+        } catch {
+          /* 无活动指针时忽略 */
+        }
       }}
       onPointerMove={(event) => {
         if (!draggingRef.current) return
@@ -105,7 +121,10 @@ export const CanvasMinimap = React.memo(function CanvasMinimap({ nodes, selected
       }}
       onPointerUp={(event) => {
         draggingRef.current = false
-        if (typeof event.currentTarget.releasePointerCapture === 'function' && event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+        if (
+          typeof event.currentTarget.releasePointerCapture === 'function' &&
+          event.currentTarget.hasPointerCapture?.(event.pointerId)
+        ) {
           event.currentTarget.releasePointerCapture(event.pointerId)
         }
       }}

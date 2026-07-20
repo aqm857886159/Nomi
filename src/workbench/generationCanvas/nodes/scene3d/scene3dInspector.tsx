@@ -155,9 +155,7 @@ export function SceneObjectList({
   const rows = React.useMemo(() => {
     let roleIndex = 0
     const objectRows = objects.map((object) => {
-      const roleStartIndex = object.type === 'mannequin' || object.type === 'mannequinCrowd'
-        ? roleIndex
-        : undefined
+      const roleStartIndex = object.type === 'mannequin' || object.type === 'mannequinCrowd' ? roleIndex : undefined
       if (object.type === 'mannequin') roleIndex += 1
       if (object.type === 'mannequinCrowd') roleIndex += crowdCount(object)
       return {
@@ -193,11 +191,13 @@ export function SceneObjectList({
           const selected = selection?.type === row.type && selection.id === row.id
           const rowObject = row.type === 'object' ? row.object : undefined
           const isCrowd = rowObject?.type === 'mannequinCrowd'
-          const crowdExpanded = isCrowd ? expandedCrowds[row.id] ?? true : false
+          const crowdExpanded = isCrowd ? (expandedCrowds[row.id] ?? true) : false
           return (
             <React.Fragment key={row.id}>
               <div
-                data-coach={rowObject?.type === 'mannequin' ? 'mannequin-row' : row.type === 'camera' ? 'camera-row' : undefined}
+                data-coach={
+                  rowObject?.type === 'mannequin' ? 'mannequin-row' : row.type === 'camera' ? 'camera-row' : undefined
+                }
                 className={cn(
                   'group grid grid-cols-[22px_24px_minmax(0,1fr)_28px_28px] items-center gap-1 rounded-nomi-sm px-1 py-1',
                   'text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-05)]',
@@ -302,7 +302,11 @@ export function SceneObjectList({
                             className="size-2 shrink-0 rounded-full ring-1 ring-black/10"
                             style={{ backgroundColor: roleColor }}
                           />
-                          <span className="min-w-0 truncate text-caption">{t('scene3d.inspector.role', { code: roleIndex < 26 ? String.fromCharCode(65 + roleIndex) : `A${roleIndex - 25}` })}</span>
+                          <span className="min-w-0 truncate text-caption">
+                            {t('scene3d.inspector.role', {
+                              code: roleIndex < 26 ? String.fromCharCode(65 + roleIndex) : `A${roleIndex - 25}`,
+                            })}
+                          </span>
                         </span>
                         <span className="justify-self-end rounded-nomi-sm bg-[var(--nomi-ink-05)] px-1.5 py-0.5 text-micro text-[var(--nomi-ink-40)]">
                           {t('scene3d.inspector.readonly')}
@@ -339,32 +343,56 @@ function MannequinPosePanel({
 }): JSX.Element {
   const { t } = useTranslation()
   const sectionLabels: Record<string, string> = {
-    身体: t('scene3d.inspector.poseSection.body'), 躯干: t('scene3d.inspector.poseSection.torso'), 头部: t('scene3d.inspector.poseSection.head'),
-    '手臂—肩': t('scene3d.inspector.poseSection.shoulder'), 肘部: t('scene3d.inspector.poseSection.elbow'), 手腕: t('scene3d.inspector.poseSection.wrist'),
-    大腿: t('scene3d.inspector.poseSection.thigh'), 膝盖: t('scene3d.inspector.poseSection.knee'), 脚踝: t('scene3d.inspector.poseSection.ankle'),
+    身体: t('scene3d.inspector.poseSection.body'),
+    躯干: t('scene3d.inspector.poseSection.torso'),
+    头部: t('scene3d.inspector.poseSection.head'),
+    '手臂—肩': t('scene3d.inspector.poseSection.shoulder'),
+    肘部: t('scene3d.inspector.poseSection.elbow'),
+    手腕: t('scene3d.inspector.poseSection.wrist'),
+    大腿: t('scene3d.inspector.poseSection.thigh'),
+    膝盖: t('scene3d.inspector.poseSection.knee'),
+    脚踝: t('scene3d.inspector.poseSection.ankle'),
   }
   const controlLabels: Record<string, string> = {
-    前倾: t('scene3d.inspector.poseControl.leanForward'), 转身: t('scene3d.inspector.poseControl.turnBody'), 侧倾: t('scene3d.inspector.poseControl.leanSide'),
-    扭转: t('scene3d.inspector.poseControl.twist'), 点头: t('scene3d.inspector.poseControl.nod'), 转头: t('scene3d.inspector.poseControl.turnHead'), 歪头: t('scene3d.inspector.poseControl.tiltHead'),
-    前举: t('scene3d.inspector.poseControl.raiseForward'), 外展: t('scene3d.inspector.poseControl.abduct'), 弯曲: t('scene3d.inspector.poseControl.bend'), 内收: t('scene3d.inspector.poseControl.adduct'),
-    下压: t('scene3d.inspector.poseControl.pressDown'), 侧摆: t('scene3d.inspector.poseControl.swaySide'), 放松: t('scene3d.inspector.poseControl.relax'), 前摆: t('scene3d.inspector.poseControl.swingForward'), 勾绷: t('scene3d.inspector.poseControl.flexFoot'),
+    前倾: t('scene3d.inspector.poseControl.leanForward'),
+    转身: t('scene3d.inspector.poseControl.turnBody'),
+    侧倾: t('scene3d.inspector.poseControl.leanSide'),
+    扭转: t('scene3d.inspector.poseControl.twist'),
+    点头: t('scene3d.inspector.poseControl.nod'),
+    转头: t('scene3d.inspector.poseControl.turnHead'),
+    歪头: t('scene3d.inspector.poseControl.tiltHead'),
+    前举: t('scene3d.inspector.poseControl.raiseForward'),
+    外展: t('scene3d.inspector.poseControl.abduct'),
+    弯曲: t('scene3d.inspector.poseControl.bend'),
+    内收: t('scene3d.inspector.poseControl.adduct'),
+    下压: t('scene3d.inspector.poseControl.pressDown'),
+    侧摆: t('scene3d.inspector.poseControl.swaySide'),
+    放松: t('scene3d.inspector.poseControl.relax'),
+    前摆: t('scene3d.inspector.poseControl.swingForward'),
+    勾绷: t('scene3d.inspector.poseControl.flexFoot'),
   }
-  const updatePoseControl = React.useCallback((control: MannequinPoseControl, degrees: number) => {
-    const currentRotation = object.pose?.[control.bone] || [0, 0, 0]
-    const scale = control.valueScale || 1
-    const offsetDegrees = (degrees - control.standingValue) * scale
-    const nextRotation = updateVectorValue(currentRotation, control.axisIndex, degreesToRadians(offsetDegrees))
-    onObjectPatch(object.id, {
-      pose: {
-        ...(object.pose || {}),
-        [control.bone]: nextRotation,
-      },
-    })
-  }, [object.id, object.pose, onObjectPatch])
+  const updatePoseControl = React.useCallback(
+    (control: MannequinPoseControl, degrees: number) => {
+      const currentRotation = object.pose?.[control.bone] || [0, 0, 0]
+      const scale = control.valueScale || 1
+      const offsetDegrees = (degrees - control.standingValue) * scale
+      const nextRotation = updateVectorValue(currentRotation, control.axisIndex, degreesToRadians(offsetDegrees))
+      onObjectPatch(object.id, {
+        pose: {
+          ...(object.pose || {}),
+          [control.bone]: nextRotation,
+        },
+      })
+    },
+    [object.id, object.pose, onObjectPatch],
+  )
 
-  const applyPosePreset = React.useCallback((preset: MannequinPosePreset) => {
-    onObjectPatch(object.id, { pose: clonePoseValue(preset.pose) })
-  }, [object.id, onObjectPatch])
+  const applyPosePreset = React.useCallback(
+    (preset: MannequinPosePreset) => {
+      onObjectPatch(object.id, { pose: clonePoseValue(preset.pose) })
+    },
+    [object.id, onObjectPatch],
+  )
 
   const activePosePresetId = MANNEQUIN_POSE_PRESETS.find((preset) => poseMatchesPreset(object.pose, preset))?.id
 
@@ -373,7 +401,10 @@ function MannequinPosePanel({
     const min = control.min ?? MANNEQUIN_POSE_MIN_DEG
     const max = control.max ?? MANNEQUIN_POSE_MAX_DEG
     return (
-      <label key={`${control.bone}-${control.axisIndex}-${control.label}`} className="grid grid-cols-[42px_1fr_58px] items-center gap-2 text-caption text-[var(--nomi-ink-60)]">
+      <label
+        key={`${control.bone}-${control.axisIndex}-${control.label}`}
+        className="grid grid-cols-[42px_1fr_58px] items-center gap-2 text-caption text-[var(--nomi-ink-60)]"
+      >
         <span>{controlLabels[control.label] ?? control.label}</span>
         <input
           className="h-1.5 w-full accent-[var(--nomi-ink)] disabled:opacity-50"
@@ -416,7 +447,8 @@ function MannequinPosePanel({
                 className={cn(
                   'h-8 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-1 text-caption text-[var(--nomi-ink-60)] transition',
                   'hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)] disabled:cursor-not-allowed disabled:opacity-40',
-                  active && 'border-[var(--nomi-ink)] bg-[var(--nomi-ink)] text-[var(--nomi-paper)] hover:bg-[var(--nomi-ink)] hover:text-[var(--nomi-paper)]',
+                  active &&
+                    'border-[var(--nomi-ink)] bg-[var(--nomi-ink)] text-[var(--nomi-paper)] hover:bg-[var(--nomi-ink)] hover:text-[var(--nomi-paper)]',
                 )}
                 disabled={readOnly}
                 type="button"
@@ -430,8 +462,13 @@ function MannequinPosePanel({
       </div>
       <div className="grid gap-3">
         {MANNEQUIN_POSE_SECTIONS.map((section) => (
-          <div key={section.title} className="grid gap-2 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-2">
-            <div className="text-caption font-medium text-[var(--nomi-ink)]">{sectionLabels[section.title] ?? section.title}</div>
+          <div
+            key={section.title}
+            className="grid gap-2 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-2"
+          >
+            <div className="text-caption font-medium text-[var(--nomi-ink)]">
+              {sectionLabels[section.title] ?? section.title}
+            </div>
             {section.controls ? (
               <div className="grid gap-2">{section.controls.map(renderControl)}</div>
             ) : (
@@ -439,7 +476,11 @@ function MannequinPosePanel({
                 {section.groups.map((group) => (
                   <div key={group.title} className="grid gap-2">
                     <div className="w-fit rounded-nomi-sm bg-[var(--nomi-ink-10)] px-1.5 py-0.5 text-micro font-medium text-[var(--nomi-ink-60)]">
-                      {group.title === '左' ? t('scene3d.inspector.poseSide.left') : group.title === '右' ? t('scene3d.inspector.poseSide.right') : group.title}
+                      {group.title === '左'
+                        ? t('scene3d.inspector.poseSide.left')
+                        : group.title === '右'
+                          ? t('scene3d.inspector.poseSide.right')
+                          : group.title}
                     </div>
                     <div className="grid gap-2">{group.controls.map(renderControl)}</div>
                   </div>
@@ -475,12 +516,10 @@ export function PropertyPanel({
   referenceTarget?: Scene3DReferenceTargetSummary
 }): JSX.Element {
   const { t } = useTranslation()
-  const selectedObject = selection?.type === 'object'
-    ? state.objects.find((object) => object.id === selection.id)
-    : undefined
-  const selectedCamera = selection?.type === 'camera'
-    ? state.cameras.find((camera) => camera.id === selection.id)
-    : undefined
+  const selectedObject =
+    selection?.type === 'object' ? state.objects.find((object) => object.id === selection.id) : undefined
+  const selectedCamera =
+    selection?.type === 'camera' ? state.cameras.find((camera) => camera.id === selection.id) : undefined
   const [objectInspectorTab, setObjectInspectorTab] = React.useState<SceneObjectInspectorTab>('properties')
   const selectedObjectHasPose = selectedObject?.type === 'mannequin' || selectedObject?.type === 'mannequinCrowd'
 
@@ -502,10 +541,12 @@ export function PropertyPanel({
         <div className="grid gap-3">
           {selectedObjectHasPose ? (
             <div className="grid grid-cols-2 gap-1 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] p-1">
-              {([
-                ['properties', t('scene3d.inspector.properties')],
-                ['pose', t('scene3d.inspector.pose')],
-              ] as const).map(([tab, label]) => (
+              {(
+                [
+                  ['properties', t('scene3d.inspector.properties')],
+                  ['pose', t('scene3d.inspector.pose')],
+                ] as const
+              ).map(([tab, label]) => (
                 <button
                   key={tab}
                   className={cn(
@@ -524,82 +565,115 @@ export function PropertyPanel({
             <MannequinPosePanel object={selectedObject} readOnly={readOnly} onObjectPatch={onObjectPatch} />
           ) : (
             <>
-          <label className="grid gap-1">
-            <span className="text-micro text-[var(--nomi-ink-60)]">{t('scene3d.inspector.name')}</span>
-            <input
-              className="h-8 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)] disabled:opacity-50"
-              disabled={readOnly}
-              value={selectedObject.name}
-              onChange={(event) => onObjectPatch(selectedObject.id, { name: event.currentTarget.value })}
-            />
-          </label>
-          <VectorInputs label={t('scene3d.inspector.position')} value={selectedObject.position} disabled={readOnly} onChange={(position) => onObjectPatch(selectedObject.id, { position })} />
-          <VectorInputs label={t('scene3d.inspector.rotation')} value={selectedObject.rotation} disabled={readOnly} onChange={(rotation) => onObjectPatch(selectedObject.id, { rotation })} />
-          <VectorInputs label={t('scene3d.inspector.scale')} value={selectedObject.scale} disabled={readOnly} onChange={(scale) => onObjectPatch(selectedObject.id, { scale })} />
-          {selectedObject.type === 'mannequinCrowd' ? (
-            <div className="grid grid-cols-3 gap-2">
-              {([
-                ['crowdRows', t('scene3d.toolbar.rows'), 1, CROWD_MAX_AXIS, 1],
-                ['crowdColumns', t('scene3d.toolbar.columns'), 1, CROWD_MAX_AXIS, 1],
-                ['crowdSpacing', t('scene3d.toolbar.spacing'), 0.2, 10, 0.1],
-              ] as const).map(([field, label, min, max, step]) => (
-                <label key={field} className="grid gap-1">
-                  <span className="text-micro text-[var(--nomi-ink-60)]">{label}</span>
-                  <input
-                    className="h-8 min-w-0 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none"
-                    disabled={readOnly}
-                    max={max}
-                    min={min}
-                    step={step}
-                    type="number"
-                    value={selectedObject[field] ?? (field === 'crowdSpacing' ? 1.2 : 1)}
-                    onChange={(event) => {
-                      const value = Number(event.currentTarget.value)
-                      if (field === 'crowdSpacing') onObjectPatch(selectedObject.id, { crowdSpacing: Math.min(10, Math.max(0.2, value)) })
-                      else onObjectPatch(selectedObject.id, { [field]: Math.min(CROWD_MAX_AXIS, Math.max(1, Math.round(value))) })
-                    }}
-                  />
-                </label>
-              ))}
-            </div>
-          ) : null}
-          {(selectedObject.type === 'mesh' || selectedObject.type === 'mannequin' || selectedObject.type === 'prop') ? (
-            <ColorField
-              label={t('scene3d.inspector.color')}
-              value={selectedObject.color || '#808080'}
-              disabled={readOnly}
-              onChange={(color) => onObjectPatch(selectedObject.id, { color })}
-            />
-          ) : null}
-          {selectedObject.type === 'light' ? (
-            <>
               <label className="grid gap-1">
-                <span className="text-micro text-[var(--nomi-ink-60)]">{t('scene3d.inspector.lightType')}</span>
-                <NomiSelect ariaLabel={t('scene3d.inspector.lightType')} className="w-full justify-between" disabled={readOnly}
-                  value={selectedObject.lightType || 'point'}
-                  options={[{ value: 'point', label: 'Point' }, { value: 'directional', label: 'Directional' }, { value: 'spot', label: 'Spot' }]}
-                  onChange={(value) => onObjectPatch(selectedObject.id, { lightType: value as Scene3DLightType })} />
-              </label>
-              <label className="grid gap-1">
-                <span className="text-micro text-[var(--nomi-ink-60)]">{t('scene3d.inspector.intensity')}</span>
+                <span className="text-micro text-[var(--nomi-ink-60)]">{t('scene3d.inspector.name')}</span>
                 <input
-                  className="h-8 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none"
+                  className="h-8 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)] disabled:opacity-50"
                   disabled={readOnly}
-                  min={0}
-                  step={0.1}
-                  type="number"
-                  value={selectedObject.lightIntensity ?? 2}
-                  onChange={(event) => onObjectPatch(selectedObject.id, { lightIntensity: Number(event.currentTarget.value) })}
+                  value={selectedObject.name}
+                  onChange={(event) => onObjectPatch(selectedObject.id, { name: event.currentTarget.value })}
                 />
               </label>
-              <ColorField
-                label={t('scene3d.inspector.lightColor')}
-                value={selectedObject.lightColor || '#ffffff'}
+              <VectorInputs
+                label={t('scene3d.inspector.position')}
+                value={selectedObject.position}
                 disabled={readOnly}
-                onChange={(lightColor) => onObjectPatch(selectedObject.id, { lightColor })}
+                onChange={(position) => onObjectPatch(selectedObject.id, { position })}
               />
-            </>
-          ) : null}
+              <VectorInputs
+                label={t('scene3d.inspector.rotation')}
+                value={selectedObject.rotation}
+                disabled={readOnly}
+                onChange={(rotation) => onObjectPatch(selectedObject.id, { rotation })}
+              />
+              <VectorInputs
+                label={t('scene3d.inspector.scale')}
+                value={selectedObject.scale}
+                disabled={readOnly}
+                onChange={(scale) => onObjectPatch(selectedObject.id, { scale })}
+              />
+              {selectedObject.type === 'mannequinCrowd' ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      ['crowdRows', t('scene3d.toolbar.rows'), 1, CROWD_MAX_AXIS, 1],
+                      ['crowdColumns', t('scene3d.toolbar.columns'), 1, CROWD_MAX_AXIS, 1],
+                      ['crowdSpacing', t('scene3d.toolbar.spacing'), 0.2, 10, 0.1],
+                    ] as const
+                  ).map(([field, label, min, max, step]) => (
+                    <label key={field} className="grid gap-1">
+                      <span className="text-micro text-[var(--nomi-ink-60)]">{label}</span>
+                      <input
+                        className="h-8 min-w-0 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none"
+                        disabled={readOnly}
+                        max={max}
+                        min={min}
+                        step={step}
+                        type="number"
+                        value={selectedObject[field] ?? (field === 'crowdSpacing' ? 1.2 : 1)}
+                        onChange={(event) => {
+                          const value = Number(event.currentTarget.value)
+                          if (field === 'crowdSpacing')
+                            onObjectPatch(selectedObject.id, { crowdSpacing: Math.min(10, Math.max(0.2, value)) })
+                          else
+                            onObjectPatch(selectedObject.id, {
+                              [field]: Math.min(CROWD_MAX_AXIS, Math.max(1, Math.round(value))),
+                            })
+                        }}
+                      />
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+              {selectedObject.type === 'mesh' ||
+              selectedObject.type === 'mannequin' ||
+              selectedObject.type === 'prop' ? (
+                <ColorField
+                  label={t('scene3d.inspector.color')}
+                  value={selectedObject.color || '#808080'}
+                  disabled={readOnly}
+                  onChange={(color) => onObjectPatch(selectedObject.id, { color })}
+                />
+              ) : null}
+              {selectedObject.type === 'light' ? (
+                <>
+                  <label className="grid gap-1">
+                    <span className="text-micro text-[var(--nomi-ink-60)]">{t('scene3d.inspector.lightType')}</span>
+                    <NomiSelect
+                      ariaLabel={t('scene3d.inspector.lightType')}
+                      className="w-full justify-between"
+                      disabled={readOnly}
+                      value={selectedObject.lightType || 'point'}
+                      options={[
+                        { value: 'point', label: 'Point' },
+                        { value: 'directional', label: 'Directional' },
+                        { value: 'spot', label: 'Spot' },
+                      ]}
+                      onChange={(value) => onObjectPatch(selectedObject.id, { lightType: value as Scene3DLightType })}
+                    />
+                  </label>
+                  <label className="grid gap-1">
+                    <span className="text-micro text-[var(--nomi-ink-60)]">{t('scene3d.inspector.intensity')}</span>
+                    <input
+                      className="h-8 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none"
+                      disabled={readOnly}
+                      min={0}
+                      step={0.1}
+                      type="number"
+                      value={selectedObject.lightIntensity ?? 2}
+                      onChange={(event) =>
+                        onObjectPatch(selectedObject.id, { lightIntensity: Number(event.currentTarget.value) })
+                      }
+                    />
+                  </label>
+                  <ColorField
+                    label={t('scene3d.inspector.lightColor')}
+                    value={selectedObject.lightColor || '#ffffff'}
+                    disabled={readOnly}
+                    onChange={(lightColor) => onObjectPatch(selectedObject.id, { lightColor })}
+                  />
+                </>
+              ) : null}
             </>
           )}
         </div>
@@ -618,31 +692,42 @@ export function PropertyPanel({
             label={t('scene3d.inspector.cameraPosition')}
             value={selectedCamera.position}
             disabled={readOnly}
-            onChange={(position) => onCameraPatch(selectedCamera.id, {
-              position,
-              rotation: cameraLookAtRotation(position, selectedCamera.target),
-            })}
+            onChange={(position) =>
+              onCameraPatch(selectedCamera.id, {
+                position,
+                rotation: cameraLookAtRotation(position, selectedCamera.target),
+              })
+            }
           />
           <VectorInputs
             label={t('scene3d.inspector.cameraTarget')}
             value={selectedCamera.target}
             disabled={readOnly}
-            onChange={(target) => onCameraPatch(selectedCamera.id, {
-              target,
-              rotation: cameraLookAtRotation(selectedCamera.position, target),
-            })}
+            onChange={(target) =>
+              onCameraPatch(selectedCamera.id, {
+                target,
+                rotation: cameraLookAtRotation(selectedCamera.position, target),
+              })
+            }
           />
           <label className="grid gap-1">
             <span className="text-micro text-[var(--nomi-ink-60)]">{t('scene3d.inspector.aspectRatio')}</span>
-            <NomiSelect ariaLabel={t('scene3d.inspector.aspectRatio')} className="w-full justify-between" disabled={readOnly}
-              value={selectedCamera.aspectRatio} options={SCENE3D_ASPECT_OPTIONS.map((option) => ({ value: option, label: option }))}
-              onChange={(value) => onCameraPatch(selectedCamera.id, { aspectRatio: value as Scene3DAspectRatio })} />
+            <NomiSelect
+              ariaLabel={t('scene3d.inspector.aspectRatio')}
+              className="w-full justify-between"
+              disabled={readOnly}
+              value={selectedCamera.aspectRatio}
+              options={SCENE3D_ASPECT_OPTIONS.map((option) => ({ value: option, label: option }))}
+              onChange={(value) => onCameraPatch(selectedCamera.id, { aspectRatio: value as Scene3DAspectRatio })}
+            />
           </label>
           <div className="grid grid-cols-3 gap-2">
             {(['fov', 'near', 'far'] as const).map((field) => (
               <label key={field} className="grid gap-1">
                 <span className="text-micro text-[var(--nomi-ink-60)]">
-                  {field === 'fov' ? `FOV ≈${fovToFocalMm(selectedCamera.fov)}mm` : field.toUpperCase()}
+                  {field === 'fov'
+                    ? t('scene3d.inspector.fovSummary', { focal: fovToFocalMm(selectedCamera.fov) })
+                    : field.toUpperCase()}
                 </span>
                 <input
                   className="h-8 min-w-0 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none"

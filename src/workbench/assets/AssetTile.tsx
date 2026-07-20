@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconPlayerPlayFilled, IconPlus } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { NomiImage } from '../../design/media'
@@ -28,20 +29,32 @@ const WAVE_HEIGHTS = [8, 16, 22, 12, 18, 9]
 
 function NumberBadge({ index }: { index: number }): JSX.Element {
   return (
-    <span className={cn('absolute -top-[5px] -left-[5px] min-w-[16px] h-[16px] px-[4px] rounded-pill bg-nomi-accent text-nomi-paper text-micro font-semibold flex items-center justify-center leading-none')}>
+    <span
+      className={cn(
+        'absolute -top-[5px] -left-[5px] min-w-[16px] h-[16px] px-[4px] rounded-pill bg-nomi-accent text-nomi-paper text-micro font-semibold flex items-center justify-center leading-none',
+      )}
+    >
       {index}
     </span>
   )
 }
 
 function RemoveButton({ label, onRemove }: { label: string; onRemove: () => void }): JSX.Element {
+  const { t } = useTranslation()
   return (
     <button
       type="button"
-      aria-label={`移除${label}`}
-      className={cn('absolute -top-[5px] -right-[5px] w-[16px] h-[16px] rounded-pill bg-nomi-paper border border-nomi-line text-nomi-ink-60 text-micro leading-none flex items-center justify-center cursor-pointer z-[2]')}
-      onClick={(event) => { event.stopPropagation(); onRemove() }}
-    >×</button>
+      aria-label={t('assetLibrary.removeNamed', { name: label })}
+      className={cn(
+        'absolute -top-[5px] -right-[5px] w-[16px] h-[16px] rounded-pill bg-nomi-paper border border-nomi-line text-nomi-ink-60 text-micro leading-none flex items-center justify-center cursor-pointer z-[2]',
+      )}
+      onClick={(event) => {
+        event.stopPropagation()
+        onRemove()
+      }}
+    >
+      ×
+    </button>
   )
 }
 
@@ -59,10 +72,15 @@ export function AssetThumb({ asset, playSize = 22 }: { asset: AssetRef; playSize
   if (asset.kind === 'video') {
     return (
       <>
-        {asset.thumbUrl ? <NomiImage className={cn('w-full h-full object-cover')} src={asset.thumbUrl} alt={asset.name} /> : null}
+        {asset.thumbUrl ? (
+          <NomiImage className={cn('w-full h-full object-cover')} src={asset.thumbUrl} alt={asset.name} />
+        ) : null}
         <span className={cn('absolute inset-0 bg-[oklch(0.2_0.01_80/0.28)]')} aria-hidden />
         <span className={cn('absolute inset-0 flex items-center justify-center z-[1]')} aria-hidden>
-          <IconPlayerPlayFilled size={playSize} className={cn('text-nomi-paper drop-shadow-[0_1px_2px_oklch(0_0_0/0.5)]')} />
+          <IconPlayerPlayFilled
+            size={playSize}
+            className={cn('text-nomi-paper drop-shadow-[0_1px_2px_oklch(0_0_0/0.5)]')}
+          />
         </span>
       </>
     )
@@ -81,21 +99,38 @@ export function AssetThumb({ asset, playSize = 22 }: { asset: AssetRef; playSize
   )
 }
 
-export default function AssetTile({ asset, index, onRemove, onClick, dragProps, className }: AssetTileProps): JSX.Element {
+export default function AssetTile({
+  asset,
+  index,
+  onRemove,
+  onClick,
+  dragProps,
+  className,
+}: AssetTileProps): JSX.Element {
   const clickable = Boolean(onClick)
   return (
     <div
       className={cn(
         'relative w-14 h-14 rounded-nomi-sm border border-nomi-line bg-nomi-ink-05 overflow-hidden flex items-center justify-center',
         clickable && 'cursor-pointer hover:outline hover:outline-2 hover:outline-offset-1 hover:outline-nomi-accent',
-        dragProps?.draggable && 'data-[dragover=true]:outline data-[dragover=true]:outline-2 data-[dragover=true]:outline-nomi-accent',
+        dragProps?.draggable &&
+          'data-[dragover=true]:outline data-[dragover=true]:outline-2 data-[dragover=true]:outline-nomi-accent',
         className,
       )}
       role={clickable ? 'button' : undefined}
       tabIndex={clickable ? 0 : undefined}
       aria-label={clickable ? asset.name : undefined}
       onClick={onClick}
-      onKeyDown={clickable ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick?.() } } : undefined}
+      onKeyDown={
+        clickable
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onClick?.()
+              }
+            }
+          : undefined
+      }
       {...dragProps}
     >
       <AssetThumb asset={asset} />
@@ -106,7 +141,17 @@ export default function AssetTile({ asset, index, onRemove, onClick, dragProps, 
 }
 
 // 空态/添加块:虚线「+」,点开统一选择器(样张 v4 的 .tile.add)。
-export function AssetAddTile({ onClick, selected, label = '加参考', className }: { onClick: () => void; selected?: boolean; label?: string; className?: string }): JSX.Element {
+export function AssetAddTile({
+  onClick,
+  selected,
+  label = '加参考',
+  className,
+}: {
+  onClick: () => void
+  selected?: boolean
+  label?: string
+  className?: string
+}): JSX.Element {
   return (
     <button
       type="button"

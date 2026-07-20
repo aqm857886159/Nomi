@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import {
   type DesktopBrowserChromeMenuItem,
@@ -13,7 +14,10 @@ import {
   type BrowserAssetRemoteImportInput,
 } from '../popover/NomiBrowserAssetPopover'
 import { subscribeBrowserAssetPopoverOpen } from '../overlay/globalAssetPopoverEvents'
-import { BROWSER_PROMPT_EXTRACTION_MODE_LABELS, type BrowserPromptExtractionMode } from '../prompt/browserPromptExtraction'
+import {
+  BROWSER_PROMPT_EXTRACTION_MODE_LABELS,
+  type BrowserPromptExtractionMode,
+} from '../prompt/browserPromptExtraction'
 import type { NomiBrowserAsset } from '../assets/browserAssetData'
 import { saveBrowserPromptCard } from '../assets/browserAssetLibraryStorage'
 import type { FloatingWindowBoundsRect } from '../window/useResizableFloatingWindow'
@@ -85,6 +89,7 @@ export function useBrowserDialogActions({
   setTabs,
   tabsRef,
 }: UseBrowserDialogActionsArgs): Record<string, any> {
+  const { t } = useTranslation()
   const createTab = React.useCallback(
     async (input?: string): Promise<void> => {
       if (tabsRef.current.length >= TAB_LIMIT) {
@@ -274,50 +279,48 @@ export function useBrowserDialogActions({
     [],
   )
 
-  const openTabContextMenu = React.useCallback((tab: BrowserTab, event: React.MouseEvent<HTMLDivElement>): void => {
-    event.preventDefault()
-    event.stopPropagation()
-    const itemCount = tabsRef.current.length > 1 ? 3 : 2
-    const position = clampTabContextMenuPosition(event.clientX, event.clientY, itemCount)
-    setPromptModePicker(null)
-    setMaterialSitesOpen(false)
-    setBookmarkContextMenu(null)
-    const bookmarked = Boolean(tab.url && bookmarks.some((bookmark) => bookmark.url === tab.url))
-    const items: DesktopBrowserChromeMenuItem[] = [
-      {
-        id: 'bookmark',
-        label: bookmarked ? '已收藏' : '收藏',
-        enabled: Boolean(tab.url && !bookmarked),
-      },
-      { id: 'close-tab', label: '关闭标签' },
-      ...(tabsRef.current.length > 1
-        ? [
-            { type: 'separator' as const },
-            { id: 'close-all', label: '关闭全部' },
-          ]
-        : []),
-    ]
-    if (browserBridge?.showChromeMenu) {
-      setTabContextMenu(null)
-      void (async () => {
-        const result = await browserBridge.showChromeMenu?.({
-          x: position.x,
-          y: position.y,
-          width: TAB_CONTEXT_MENU_WIDTH,
-          items,
-        })
-        if (result?.id === 'bookmark') saveBookmark(tab)
-        if (result?.id === 'close-tab') closeTab(tab.id)
-        if (result?.id === 'close-all') closeAllTabs()
-      })()
-      return
-    }
-    setTabContextMenu({
-      tabId: tab.id,
-      x: position.x,
-      y: position.y,
-    })
-  }, [bookmarks, browserBridge, closeAllTabs, closeTab, saveBookmark])
+  const openTabContextMenu = React.useCallback(
+    (tab: BrowserTab, event: React.MouseEvent<HTMLDivElement>): void => {
+      event.preventDefault()
+      event.stopPropagation()
+      const itemCount = tabsRef.current.length > 1 ? 3 : 2
+      const position = clampTabContextMenuPosition(event.clientX, event.clientY, itemCount)
+      setPromptModePicker(null)
+      setMaterialSitesOpen(false)
+      setBookmarkContextMenu(null)
+      const bookmarked = Boolean(tab.url && bookmarks.some((bookmark) => bookmark.url === tab.url))
+      const items: DesktopBrowserChromeMenuItem[] = [
+        {
+          id: 'bookmark',
+          label: bookmarked ? '已收藏' : '收藏',
+          enabled: Boolean(tab.url && !bookmarked),
+        },
+        { id: 'close-tab', label: '关闭标签' },
+        ...(tabsRef.current.length > 1 ? [{ type: 'separator' as const }, { id: 'close-all', label: '关闭全部' }] : []),
+      ]
+      if (browserBridge?.showChromeMenu) {
+        setTabContextMenu(null)
+        void (async () => {
+          const result = await browserBridge.showChromeMenu?.({
+            x: position.x,
+            y: position.y,
+            width: TAB_CONTEXT_MENU_WIDTH,
+            items,
+          })
+          if (result?.id === 'bookmark') saveBookmark(tab)
+          if (result?.id === 'close-tab') closeTab(tab.id)
+          if (result?.id === 'close-all') closeAllTabs()
+        })()
+        return
+      }
+      setTabContextMenu({
+        tabId: tab.id,
+        x: position.x,
+        y: position.y,
+      })
+    },
+    [bookmarks, browserBridge, closeAllTabs, closeTab, saveBookmark],
+  )
 
   const openPromptCaptureInAssetPopover = React.useCallback(
     (request: BrowserAssetPromptCaptureRequest): void => {
@@ -334,7 +337,9 @@ export function useBrowserDialogActions({
     return browserBridge.onPromptCapture((event: DesktopBrowserPromptCaptureEvent) => {
       if (event.tabId !== activeTabIdRef.current) return
       if (!event.ok) {
-        setLastError(event.reason === 'empty' ? '没有找到可提取提示词的图片。' : event.message || '图片提示词提取入口失败')
+        setLastError(
+          event.reason === 'empty' ? '没有找到可提取提示词的图片。' : event.message || '图片提示词提取入口失败',
+        )
         return
       }
       openPromptCaptureInAssetPopover(promptCaptureRequestFromBrowserEvent(event))
@@ -355,9 +360,9 @@ export function useBrowserDialogActions({
         promptType: event.promptType,
         title: event.pageTitle,
       })
-      if (saved) toast('已保存到素材盒提示词库', 'success')
+      if (saved) toast(t('browserAssets.savedToPromptLibrary'), 'success')
     })
-  }, [browserBridge])
+  }, [browserBridge, t])
 
   const runBrowserScreenshotPrompt = React.useCallback(
     (mode: BrowserPromptExtractionMode, tabSnapshot: BrowserTab): void => {
@@ -419,7 +424,10 @@ export function useBrowserDialogActions({
         clampNumber(
           rect.bottom + PROMPT_MODE_PICKER_MARGIN,
           PROMPT_MODE_PICKER_MARGIN,
-          Math.max(PROMPT_MODE_PICKER_MARGIN, window.innerHeight - PROMPT_MODE_PICKER_ESTIMATED_HEIGHT - PROMPT_MODE_PICKER_MARGIN),
+          Math.max(
+            PROMPT_MODE_PICKER_MARGIN,
+            window.innerHeight - PROMPT_MODE_PICKER_ESTIMATED_HEIGHT - PROMPT_MODE_PICKER_MARGIN,
+          ),
         ),
       )
       setLastError(null)
@@ -461,17 +469,20 @@ export function useBrowserDialogActions({
 
   // 开合的唯一门：native overlay 模式下必须真的叫 openNativeAssetPopover/close，
   // 只翻 React 状态弹层永远不会出现（工具条素材盒按钮点不开的根因，2026-07-13 用户抓出）。
-  const handleBrowserAssetPopoverOpenChange = React.useCallback((nextOpen: boolean): void => {
-    if (nextOpen && openNativeAssetPopover()) return
-    if (!nextOpen) browserBridge?.assetOverlay?.close()
-    setBrowserAssetPopoverOpen(nextOpen)
-    if (!nextOpen) {
-      setBrowserAssetPopoverRect(null)
-      setBrowserAssetPopoverDockMode(null)
-      setBrowserResourceCaptureEnabled(false)
-      setBrowserPromptCaptureRequest(null)
-    }
-  }, [browserBridge, openNativeAssetPopover])
+  const handleBrowserAssetPopoverOpenChange = React.useCallback(
+    (nextOpen: boolean): void => {
+      if (nextOpen && openNativeAssetPopover()) return
+      if (!nextOpen) browserBridge?.assetOverlay?.close()
+      setBrowserAssetPopoverOpen(nextOpen)
+      if (!nextOpen) {
+        setBrowserAssetPopoverRect(null)
+        setBrowserAssetPopoverDockMode(null)
+        setBrowserResourceCaptureEnabled(false)
+        setBrowserPromptCaptureRequest(null)
+      }
+    },
+    [browserBridge, openNativeAssetPopover],
+  )
 
   // 顶层/画布等处派来的开合事件也走同一扇门（原先这里有第二份 native-open 逻辑，已收敛）。
   React.useEffect(
@@ -515,7 +526,6 @@ export function useBrowserDialogActions({
     },
     [browserBridge],
   )
-
 
   return {
     closeAllTabs,

@@ -1,4 +1,5 @@
 import { Alert, Badge, Progress, type AlertProps, type BadgeProps, type ProgressProps } from '@mantine/core'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../utils/cn'
 
 type StatusBadgeTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger'
@@ -15,12 +16,13 @@ export type StatusBadgeProps = Omit<BadgeProps, 'color'> & {
   tone?: StatusBadgeTone
 }
 
-export function StatusBadge({ tone = 'neutral', className, variant = 'light', ...props }: StatusBadgeProps): JSX.Element {
-  const rootClassName = cn(
-    'tc-status-badge',
-    'tracking-[0.03em]',
-    className,
-  )
+export function StatusBadge({
+  tone = 'neutral',
+  className,
+  variant = 'light',
+  ...props
+}: StatusBadgeProps): JSX.Element {
+  const rootClassName = cn('tc-status-badge', 'tracking-[0.03em]', className)
 
   return (
     <Badge
@@ -36,34 +38,16 @@ export function StatusBadge({ tone = 'neutral', className, variant = 'light', ..
 
 export type DesignBadgeProps = BadgeProps
 
-export function DesignBadge({
-  className,
-  radius = 'sm',
-  variant = 'light',
-  ...props
-}: DesignBadgeProps): JSX.Element {
-  const rootClassName = cn(
-    'tc-design-badge',
-    className,
-  )
+export function DesignBadge({ className, radius = 'sm', variant = 'light', ...props }: DesignBadgeProps): JSX.Element {
+  const rootClassName = cn('tc-design-badge', className)
 
-  return (
-    <Badge
-      {...props}
-      className={rootClassName}
-      radius={radius}
-      variant={variant}
-    />
-  )
+  return <Badge {...props} className={rootClassName} radius={radius} variant={variant} />
 }
 
 export type DesignAlertProps = AlertProps
 
 export function DesignAlert({ className, radius = 'sm', variant = 'light', ...props }: DesignAlertProps): JSX.Element {
-  const rootClassName = cn(
-    'tc-design-alert',
-    className,
-  )
+  const rootClassName = cn('tc-design-alert', className)
 
   return <Alert {...props} className={rootClassName} radius={radius} variant={variant} />
 }
@@ -71,10 +55,7 @@ export function DesignAlert({ className, radius = 'sm', variant = 'light', ...pr
 export type DesignProgressProps = ProgressProps
 
 export function DesignProgress({ className, radius = 'sm', ...props }: DesignProgressProps): JSX.Element {
-  const rootClassName = cn(
-    'tc-design-progress',
-    className,
-  )
+  const rootClassName = cn('tc-design-progress', className)
 
   return <Progress {...props} className={rootClassName} radius={radius} />
 }
@@ -91,8 +72,9 @@ export type NomiSkeletonProps = {
  * return null / 空态文字」。token-only pulse 块;motion-reduce 不闪。
  */
 export function NomiSkeleton({ lines = 1, className }: NomiSkeletonProps): JSX.Element {
+  const { t } = useTranslation()
   return (
-    <div className={cn('flex flex-col gap-2')} role="status" aria-label="加载中" aria-busy="true">
+    <div className={cn('flex flex-col gap-2')} role="status" aria-label={t('common.loading')} aria-busy="true">
       {Array.from({ length: Math.max(1, lines) }).map((_, index) => (
         <div
           key={index}

@@ -8,6 +8,7 @@ import { readCharacterMeta } from '../model/nodeMetaFields'
 import { buildBasicCharacterFixation, buildBasicSceneFixation } from './fixationPromptTemplates'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { toast } from '../../../ui/toast'
+import i18n from '../../../i18n'
 
 export type FixationNodeSpec = {
   title: string
@@ -37,22 +38,21 @@ export function buildFixationNodeSpec(node: GenerationCanvasNode): FixationNodeS
   const isScene = node.categoryId === 'scene' || node.kind === 'scene'
   const name = (node.title || '').trim() || (isScene ? '场景' : '角色')
   const tagline = readCharacterMeta(node).tagline
-  const prompt = isScene
-    ? buildBasicSceneFixation(name, { tagline })
-    : buildBasicCharacterFixation(name, { tagline })
+  const prompt = isScene ? buildBasicSceneFixation(name, { tagline }) : buildBasicCharacterFixation(name, { tagline })
   // 复用源节点图像模型；源无模型（如上传图）才回退到已内置验证过的 GPT Image 2 图生图。
   const srcMeta = (node.meta || {}) as Record<string, unknown>
-  const modelMeta = typeof srcMeta.modelKey === 'string' && srcMeta.modelKey
-    ? {
-        modelKey: srcMeta.modelKey,
-        modelAlias: srcMeta.modelAlias,
-        modelVendor: srcMeta.modelVendor,
-        vendor: srcMeta.vendor,
-        modelLabel: srcMeta.modelLabel,
-        imageModel: srcMeta.imageModel,
-        imageModelVendor: srcMeta.imageModelVendor,
-      }
-    : GPT_IMAGE_2_FALLBACK_MODEL_META
+  const modelMeta =
+    typeof srcMeta.modelKey === 'string' && srcMeta.modelKey
+      ? {
+          modelKey: srcMeta.modelKey,
+          modelAlias: srcMeta.modelAlias,
+          modelVendor: srcMeta.modelVendor,
+          vendor: srcMeta.vendor,
+          modelLabel: srcMeta.modelLabel,
+          imageModel: srcMeta.imageModel,
+          imageModelVendor: srcMeta.imageModelVendor,
+        }
+      : GPT_IMAGE_2_FALLBACK_MODEL_META
   return {
     title: `${name}·定妆`,
     prompt,
@@ -67,9 +67,14 @@ export function applyFixationMakeup(node: GenerationCanvasNode): void {
   const spec = buildFixationNodeSpec(node)
   if (!spec) return
   const store = useGenerationCanvasStore.getState()
-  const created = store.addNode({ kind: 'image', title: spec.title, position: spec.position, categoryId: node.categoryId })
+  const created = store.addNode({
+    kind: 'image',
+    title: spec.title,
+    position: spec.position,
+    categoryId: node.categoryId,
+  })
   store.updateNode(created.id, { prompt: spec.prompt, references: spec.references, meta: spec.meta })
   store.selectNode(created.id)
   // 节点出现在画布即反馈，toast 只留有用的下一步引导（弹窗审计 R2）。
-  toast('检查提示词后点生成', 'info')
+  toast(i18n.t('generationCommon.derivative.fixationReady'), 'info')
 }

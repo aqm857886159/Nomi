@@ -25,6 +25,8 @@ export const zhTimelineEditor = {
   collapse: '{{prefix}}收起时间轴',
   ruler: '时间刻度',
   dragPlayhead: '拖动播放头',
+  dragToTimeline: '拖拽到时间轴',
+  dragToTimelineHold: '{{label}}（长按拖拽）',
   clip: {
     resizeStart: '调整片段起点',
     resizeEnd: '调整片段终点',
@@ -85,6 +87,8 @@ export const enTimelineEditor = {
   collapse: '{{prefix}}collapse timeline',
   ruler: 'Time ruler',
   dragPlayhead: 'Drag playhead',
+  dragToTimeline: 'Drag to timeline',
+  dragToTimelineHold: '{{label}} (press and hold to drag)',
   clip: {
     resizeStart: 'Adjust clip start',
     resizeEnd: 'Adjust clip end',

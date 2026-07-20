@@ -8,11 +8,12 @@
  * Workspace 在悬浮卡片打开时仍然可见 + 可操作（不 dim）。
  */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Portal } from '@mantine/core'
 import { OnboardingDrawer } from './OnboardingDrawer'
 
 const PANEL_WIDTH = 320
-const TOP_OFFSET = 64    // 留出 AppBar (56px) + 一点空隙
+const TOP_OFFSET = 64 // 留出 AppBar (56px) + 一点空隙
 const RIGHT_OFFSET = 12
 
 type Props = {
@@ -21,6 +22,7 @@ type Props = {
 }
 
 export function OnboardingFloatingPanel({ opened, onClose }: Props): JSX.Element | null {
+  const { t } = useTranslation()
   const panelRef = React.useRef<HTMLDivElement>(null)
 
   // ESC 关闭
@@ -44,12 +46,15 @@ export function OnboardingFloatingPanel({ opened, onClose }: Props): JSX.Element
       if (panelRef.current.contains(target)) return
       // 点击在 Mantine 浮层内（Modal / Drawer / Popover / Menu）→ 不关
       // 这些组件用独立 Portal，渲染在 body 顶层，不在面板里
-      if (target.closest(
-        '.mantine-Modal-root, .mantine-Modal-overlay, .mantine-Modal-content,' +
-        '.mantine-Drawer-root, .mantine-Drawer-overlay,' +
-        '.mantine-Popover-dropdown, .mantine-Menu-dropdown, .mantine-Tooltip-tooltip,' +
-        '[role="dialog"]'
-      )) return
+      if (
+        target.closest(
+          '.mantine-Modal-root, .mantine-Modal-overlay, .mantine-Modal-content,' +
+            '.mantine-Drawer-root, .mantine-Drawer-overlay,' +
+            '.mantine-Popover-dropdown, .mantine-Menu-dropdown, .mantine-Tooltip-tooltip,' +
+            '[role="dialog"]',
+        )
+      )
+        return
       onClose()
     }
     const id = window.requestAnimationFrame(() => {
@@ -68,7 +73,7 @@ export function OnboardingFloatingPanel({ opened, onClose }: Props): JSX.Element
       <div
         ref={panelRef}
         role="dialog"
-        aria-label="模型设置"
+        aria-label={t('studio.modelSetupPanel')}
         style={{
           position: 'fixed',
           top: TOP_OFFSET,

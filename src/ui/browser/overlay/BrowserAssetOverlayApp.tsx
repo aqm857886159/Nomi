@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { AnimatePresence, motion } from 'framer-motion'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import {
@@ -19,6 +20,7 @@ import {
 } from '../popover/NomiBrowserAssetPopover'
 import { subscribeBrowserAssetsImportToCanvas } from './globalAssetPopoverEvents'
 import type { FloatingWindowBoundsRect } from '../window/useResizableFloatingWindow'
+import i18n from '../../../i18n'
 
 type OverlayCaptureFlyoutRect = {
   left: number
@@ -50,11 +52,15 @@ function browserAssetFromDesktopAsset(asset: DesktopAssetDto, fallbackTitle: str
     id: asset.id,
     type: mediaType,
     source: 'my',
-    title: sidecarTitle || fallbackTitle || asset.name || (mediaType === 'video' ? '网页视频' : '网页图片'),
-    subtitle: '网页素材',
+    title:
+      sidecarTitle ||
+      fallbackTitle ||
+      asset.name ||
+      (mediaType === 'video' ? i18n.t('browserAssets.webVideo') : i18n.t('browserAssets.webImage')),
+    subtitle: i18n.t('browserAssets.webAsset'),
     previewUrl: url,
     previewMediaType: mediaType,
-    tags: ['网页素材'],
+    tags: [i18n.t('browserAssets.webAsset')],
     createdAt: asset.createdAt,
     updatedAt: asset.updatedAt,
   }
@@ -116,7 +122,8 @@ function promptRequestForPopover(request: unknown): BrowserAssetPromptCaptureReq
   const requestId = typeof raw.requestId === 'string' ? raw.requestId.trim() : ''
   const sourceType = raw.sourceType === 'screenshot' ? 'screenshot' : raw.sourceType === 'image' ? 'image' : null
   if (!requestId || !sourceType) return null
-  const rawSourceRect = raw.sourceRect && typeof raw.sourceRect === 'object' ? raw.sourceRect as Record<string, unknown> : null
+  const rawSourceRect =
+    raw.sourceRect && typeof raw.sourceRect === 'object' ? (raw.sourceRect as Record<string, unknown>) : null
   const sourceRect =
     rawSourceRect &&
     Number.isFinite(Number(rawSourceRect.left)) &&
@@ -133,21 +140,18 @@ function promptRequestForPopover(request: unknown): BrowserAssetPromptCaptureReq
         }
       : undefined
   const referenceImages: BrowserAssetPromptCaptureRequest['referenceImages'] = Array.isArray(raw.referenceImages)
-    ? raw.referenceImages.reduce<BrowserAssetPromptReference[]>(
-        (items, reference) => {
-          if (!reference || typeof reference !== 'object') return items
-          const item = reference as Record<string, unknown>
-          const url = typeof item.url === 'string' ? item.url.trim() : ''
-          if (!url) return items
-          items.push({
-            url,
-            ...(typeof item.title === 'string' ? { title: item.title } : {}),
-            ...(typeof item.sourceUrl === 'string' ? { sourceUrl: item.sourceUrl } : {}),
-          })
-          return items
-        },
-        [],
-      )
+    ? raw.referenceImages.reduce<BrowserAssetPromptReference[]>((items, reference) => {
+        if (!reference || typeof reference !== 'object') return items
+        const item = reference as Record<string, unknown>
+        const url = typeof item.url === 'string' ? item.url.trim() : ''
+        if (!url) return items
+        items.push({
+          url,
+          ...(typeof item.title === 'string' ? { title: item.title } : {}),
+          ...(typeof item.sourceUrl === 'string' ? { sourceUrl: item.sourceUrl } : {}),
+        })
+        return items
+      }, [])
     : undefined
   return {
     requestId,
@@ -197,6 +201,7 @@ function captureFlyoutScale(source: OverlayCaptureFlyoutRect, target: OverlayCap
 }
 
 export function BrowserAssetOverlayApp(): JSX.Element {
+  const { t } = useTranslation()
   const desktop = React.useMemo(() => getDesktopBridge(), [])
   const browserBridge = React.useMemo(() => desktop?.browser, [desktop])
   const overlayBridge = React.useMemo(() => browserBridge?.assetOverlay, [browserBridge])
@@ -438,7 +443,10 @@ export function BrowserAssetOverlayApp(): JSX.Element {
       const projectId = getDesktopActiveProjectId()
       if (!projectId) throw new Error('projectId is required')
       const viewId = config.viewId
-      const fallbackTitle = input.title || input.fileName || (input.mediaType === 'video' ? '网页视频' : '网页图片')
+      const fallbackTitle =
+        input.title ||
+        input.fileName ||
+        (input.mediaType === 'video' ? t('browserAssets.webVideo') : t('browserAssets.webImage'))
       // 原生素材盒只接受当前内置网页产生的拖拽；没有来源 WebContents 时不准换成另一套
       // 无 Cookie/Referer 的网络栈重抓 URL，否则既破坏防盗链，也会把真实错误掩盖掉。
       if (!viewId || !browserBridge?.importMedia || !canDownloadFromBrowserView(input.url)) {
@@ -454,7 +462,7 @@ export function BrowserAssetOverlayApp(): JSX.Element {
       })
       return browserAssetFromDesktopAsset(asset, fallbackTitle)
     },
-    [browserBridge, config.viewId],
+    [browserBridge, config.viewId, t],
   )
 
   const handleOpenChange = React.useCallback(
@@ -523,41 +531,23 @@ export function BrowserAssetOverlayApp(): JSX.Element {
               scale: 0.98,
             }}
             animate={{
-              x: [
-                flyout.sourceRect.left,
-                flyout.sourceRect.left,
-                flyout.targetRect.left,
-              ],
-              y: [
-                flyout.sourceRect.top,
-                flyout.sourceRect.top,
-                flyout.targetRect.top,
-              ],
-              width: [
-                flyout.sourceRect.width,
-                flyout.sourceRect.width,
-                flyout.targetRect.width,
-              ],
-              height: [
-                flyout.sourceRect.height,
-                flyout.sourceRect.height,
-                flyout.targetRect.height,
-              ],
+              x: [flyout.sourceRect.left, flyout.sourceRect.left, flyout.targetRect.left],
+              y: [flyout.sourceRect.top, flyout.sourceRect.top, flyout.targetRect.top],
+              width: [flyout.sourceRect.width, flyout.sourceRect.width, flyout.targetRect.width],
+              height: [flyout.sourceRect.height, flyout.sourceRect.height, flyout.targetRect.height],
               opacity: [0.78, 1, 0.08],
               scale: [0.98, 1.02, captureFlyoutScale(flyout.sourceRect, flyout.targetRect)],
             }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.74, times: CAPTURE_FLYOUT_KEYFRAME_TIMES, ease: [0.22, 1, 0.36, 1] }}
-            onAnimationComplete={() =>
-              setCaptureFlyouts((current) => current.filter((item) => item.id !== flyout.id))
-            }
+            onAnimationComplete={() => setCaptureFlyouts((current) => current.filter((item) => item.id !== flyout.id))}
             aria-hidden="true"
           >
             {flyout.mediaType === 'video' ? (
               <>
                 <video src={flyout.url} muted playsInline className="block size-full bg-nomi-ink object-contain" />
                 <span className="absolute right-1 top-1 rounded-pill bg-nomi-accent px-1.5 py-0.5 text-micro font-semibold leading-none text-nomi-paper shadow-nomi-sm">
-                  视频
+                  {t('browserAssets.video')}
                 </span>
               </>
             ) : (

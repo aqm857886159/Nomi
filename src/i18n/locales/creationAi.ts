@@ -27,6 +27,8 @@ export const zhCreationAi = {
     newConversation: '新对话',
     savedHint: '当前会存入历史',
     delete: '删除这段对话',
+    stale: '以上对话 AI 已不再记得',
+    aria: '会话历史',
   },
   assistantMessage: {
     processing: '处理中',
@@ -187,6 +189,8 @@ export const enCreationAi = {
     newConversation: 'New conversation',
     savedHint: 'Current conversation will be saved to history',
     delete: 'Delete this conversation',
+    stale: 'AI no longer remembers the conversation above',
+    aria: 'Conversation history',
   },
   assistantMessage: {
     processing: 'Processing',

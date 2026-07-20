@@ -24,7 +24,11 @@ type Props = {
 
 function copyToClipboard(text: string): void {
   if (!text) return
-  try { void navigator.clipboard?.writeText(text) } catch { /* ignore */ }
+  try {
+    void navigator.clipboard?.writeText(text)
+  } catch {
+    /* ignore */
+  }
 }
 
 export default function ProvenancePanel({ node, open, onClose, onRegenerate }: Props): JSX.Element | null {
@@ -47,13 +51,17 @@ export default function ProvenancePanel({ node, open, onClose, onRegenerate }: P
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-title font-medium text-nomi-ink m-0">{t('generationCommon.provenance.title', { name: node.title || node.kind })}</h2>
+          <h2 className="text-title font-medium text-nomi-ink m-0">
+            {t('generationCommon.provenance.title', { name: node.title || node.kind })}
+          </h2>
           <button
             type="button"
             onClick={onClose}
             className="text-nomi-ink-40 hover:text-nomi-ink text-h2 leading-none"
             aria-label={t('common.close')}
-          >×</button>
+          >
+            ×
+          </button>
         </div>
 
         {!provenance ? (
@@ -72,12 +80,17 @@ export default function ProvenancePanel({ node, open, onClose, onRegenerate }: P
           <div className="space-y-3 text-caption">
             <ProvenanceRow label={t('generationCommon.provenance.provider')} value={provenance.provider || '—'} />
             <ProvenanceRow label={t('generationCommon.provenance.model')} value={provenance.modelKey || '—'} />
-            <ProvenanceRow label={t('generationCommon.provenance.time')} value={new Date(provenance.timestamp).toLocaleString(i18n.resolvedLanguage || i18n.language)} />
+            <ProvenanceRow
+              label={t('generationCommon.provenance.time')}
+              value={new Date(provenance.timestamp).toLocaleString(i18n.resolvedLanguage || i18n.language)}
+            />
             {typeof provenance.seed === 'number' ? (
-              <ProvenanceRow label="Seed" value={String(provenance.seed)} mono />
+              <ProvenanceRow label={t('generationCommon.provenance.seed')} value={String(provenance.seed)} mono />
             ) : null}
             <div>
-              <div className="text-micro text-nomi-ink-40 uppercase tracking-wide mb-1">{t('generationCommon.provenance.prompt')}</div>
+              <div className="text-micro text-nomi-ink-40 uppercase tracking-wide mb-1">
+                {t('generationCommon.provenance.prompt')}
+              </div>
               <div className="bg-nomi-bg border border-nomi-line-soft rounded-nomi-sm p-2 text-caption font-mono leading-relaxed whitespace-pre-wrap break-words text-nomi-ink-80">
                 {provenance.prompt || t('generationCommon.provenance.empty')}
               </div>
@@ -93,7 +106,9 @@ export default function ProvenancePanel({ node, open, onClose, onRegenerate }: P
             </div>
             {provenance.negativePrompt ? (
               <div>
-                <div className="text-micro text-nomi-ink-40 uppercase tracking-wide mb-1">{t('generationCommon.provenance.negativePrompt')}</div>
+                <div className="text-micro text-nomi-ink-40 uppercase tracking-wide mb-1">
+                  {t('generationCommon.provenance.negativePrompt')}
+                </div>
                 <div className="bg-nomi-bg border border-nomi-line-soft rounded-nomi-sm p-2 text-caption font-mono">
                   {provenance.negativePrompt}
                 </div>
@@ -101,14 +116,21 @@ export default function ProvenancePanel({ node, open, onClose, onRegenerate }: P
             ) : null}
             {provenance.params && Object.keys(provenance.params).length > 0 ? (
               <div>
-                <div className="text-micro text-nomi-ink-40 uppercase tracking-wide mb-1">{t('generationCommon.provenance.params')}</div>
+                <div className="text-micro text-nomi-ink-40 uppercase tracking-wide mb-1">
+                  {t('generationCommon.provenance.params')}
+                </div>
                 <pre className="bg-nomi-bg border border-nomi-line-soft rounded-nomi-sm p-2 text-micro font-mono overflow-x-auto text-nomi-ink-80">
-{JSON.stringify(provenance.params, null, 2)}
+                  {JSON.stringify(provenance.params, null, 2)}
                 </pre>
               </div>
             ) : null}
             {provenance.vendorRequestId ? (
-              <ProvenanceRow label={t('generationCommon.provenance.requestId')} value={provenance.vendorRequestId} mono small />
+              <ProvenanceRow
+                label={t('generationCommon.provenance.requestId')}
+                value={provenance.vendorRequestId}
+                mono
+                small
+              />
             ) : null}
           </div>
         )}
@@ -128,18 +150,30 @@ export default function ProvenancePanel({ node, open, onClose, onRegenerate }: P
   )
 }
 
-function ProvenanceRow({ label, value, mono, small }: { label: string; value: string; mono?: boolean; small?: boolean }): JSX.Element {
+function ProvenanceRow({
+  label,
+  value,
+  mono,
+  small,
+}: {
+  label: string
+  value: string
+  mono?: boolean
+  small?: boolean
+}): JSX.Element {
   return (
     <div className="flex items-baseline gap-3">
-      <div className={cn(
-        'text-nomi-ink-40 shrink-0 w-[80px] text-micro',
-      )}>{label}</div>
-      <div className={cn(
-        'flex-1 text-nomi-ink-80',
-        mono ? 'font-mono' : '',
-        small ? 'text-micro' : 'text-caption',
-        'break-words',
-      )}>{value}</div>
+      <div className={cn('text-nomi-ink-40 shrink-0 w-[80px] text-micro')}>{label}</div>
+      <div
+        className={cn(
+          'flex-1 text-nomi-ink-80',
+          mono ? 'font-mono' : '',
+          small ? 'text-micro' : 'text-caption',
+          'break-words',
+        )}
+      >
+        {value}
+      </div>
     </div>
   )
 }

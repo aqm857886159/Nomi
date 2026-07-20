@@ -14,6 +14,7 @@
  * 渲染在 React 树内（不 BodyPortal，保 --nomi-* token 作用域）。
  */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconArrowRight } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 
@@ -78,6 +79,7 @@ export function OnboardingSpotlight({
   onNext,
   onDismiss,
 }: Props): JSX.Element | null {
+  const { t } = useTranslation()
   const selectorKey = selectors.join('|')
   const [rect, setRect] = React.useState<Rect | null>(null)
   const calloutRef = React.useRef<HTMLDivElement | null>(null)
@@ -169,7 +171,7 @@ export function OnboardingSpotlight({
               'text-caption text-nomi-ink-40 transition-colors hover:text-nomi-ink',
             )}
           >
-            跳过
+            {t('onboarding.skip')}
           </button>
           <button
             type="button"

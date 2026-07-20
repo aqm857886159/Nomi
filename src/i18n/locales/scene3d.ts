@@ -71,6 +71,7 @@ export const zhScene3d = {
     cameraPosition: '相机位置 XYZ',
     cameraTarget: '拍摄目标 XYZ',
     aspectRatio: '画幅比例',
+    fovSummary: 'FOV ≈{{focal}}mm',
     poseSection: {
       body: '身体',
       torso: '躯干',
@@ -299,6 +300,7 @@ export const zhScene3d = {
     level: '水平摆正',
     screenshot: '相机截图',
     focalLength: '焦段',
+    focalSummary: '{{focal}}mm · FOV {{fov}}°',
     wide: '广角',
     standard: '标准',
     telephoto: '长焦',
@@ -327,6 +329,9 @@ export const zhScene3d = {
     exportFrames: '导出运镜首尾帧',
     description:
       '按当前机位与拍摄目标就地生成一段轨迹，追加到时间轴末尾；连点即串联多段，落段后可在轨迹模式里逐点精修。虚线三个是 FOV 参与动画的变焦运镜。',
+  },
+  capture: {
+    cameraMoveReference: '运镜参考',
   },
 } as const
 
@@ -407,6 +412,7 @@ export const enScene3d = {
     cameraPosition: 'Camera position XYZ',
     cameraTarget: 'Camera target XYZ',
     aspectRatio: 'Aspect ratio',
+    fovSummary: 'FOV ≈{{focal}}mm',
     poseSection: {
       body: 'Body',
       torso: 'Torso',
@@ -637,6 +643,7 @@ export const enScene3d = {
     level: 'Level camera',
     screenshot: 'Camera screenshot',
     focalLength: 'Focal length',
+    focalSummary: '{{focal}}mm · FOV {{fov}}°',
     wide: 'Wide',
     standard: 'Standard',
     telephoto: 'Telephoto',
@@ -665,5 +672,8 @@ export const enScene3d = {
     exportFrames: 'Export first and last frames',
     description:
       'Create a trajectory from the current camera position and target, append it to the timeline, and click more presets to chain segments. Refine points later in trajectory mode. Dashed presets animate FOV.',
+  },
+  capture: {
+    cameraMoveReference: 'Camera movement reference',
   },
 } satisfies TranslationShape<typeof zhScene3d>

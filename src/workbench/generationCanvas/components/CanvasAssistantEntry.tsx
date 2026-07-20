@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { NomiAILabel } from '../../../design/identity'
 import { WorkbenchButton } from '../../../design/workbenchActions'
 import { cn } from '../../../utils/cn'
@@ -12,14 +13,12 @@ type CanvasAssistantEntryProps = {
 }
 
 function CanvasAssistantLauncher({ onOpen }: { onOpen: () => void }): JSX.Element {
+  const { t } = useTranslation()
   return (
     <aside
-      className={cn(
-        'generation-canvas-v2-assistant',
-        'block w-auto h-auto rounded-full',
-      )}
+      className={cn('generation-canvas-v2-assistant', 'block w-auto h-auto rounded-full')}
       data-collapsed="true"
-      aria-label="生成区 AI 启动器"
+      aria-label={t('generationCommon.canvas.assistantLauncher')}
     >
       <WorkbenchButton
         className={cn(
@@ -32,7 +31,7 @@ function CanvasAssistantLauncher({ onOpen }: { onOpen: () => void }): JSX.Elemen
         )}
         onClick={onOpen}
       >
-        <NomiAILabel markSize={18} wordSize={13} suffix="生成" />
+        <NomiAILabel markSize={18} wordSize={13} suffix={t('generationCommon.canvas.assistantSuffix')} />
       </WorkbenchButton>
     </aside>
   )
@@ -46,9 +45,9 @@ export default function CanvasAssistantEntry({
   const messagesLength = useGenerationCanvasStore((state) => state.generationAiMessages.length)
   const draft = useGenerationCanvasStore((state) => state.generationAiDraft)
   const setCollapsed = useGenerationCanvasStore((state) => state.setGenerationAiCollapsed)
-  const [shouldLoadPanel, setShouldLoadPanel] = React.useState(() => (
-    !defaultCollapsed || !collapsed || messagesLength > 0 || draft.trim().length > 0
-  ))
+  const [shouldLoadPanel, setShouldLoadPanel] = React.useState(
+    () => !defaultCollapsed || !collapsed || messagesLength > 0 || draft.trim().length > 0,
+  )
 
   React.useEffect(() => {
     if (shouldLoadPanel) return
@@ -72,9 +71,7 @@ export default function CanvasAssistantEntry({
 
   return (
     <React.Suspense fallback={<CanvasAssistantLauncher onOpen={openPanel} />}>
-      <CanvasAssistantPanel
-        onCollapsedChange={onCollapsedChange}
-      />
+      <CanvasAssistantPanel onCollapsedChange={onCollapsedChange} />
     </React.Suspense>
   )
 }

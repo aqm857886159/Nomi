@@ -24,6 +24,7 @@ export const zhCN = {
     initialize: '初始化',
     later: '稍后',
     loading: '加载中',
+    rendering: '正在渲染...',
     back: '返回',
   },
   brand: {
@@ -168,6 +169,7 @@ export const zhCN = {
     referenceFull: '该参考已满，多出的连线不会被使用',
   },
   studio: {
+    aria: 'Nomi Studio',
     workbench: '工作台',
     modelSetupPanel: '模型设置面板',
     assetLibrary: '素材库',
@@ -205,6 +207,7 @@ export const zhCN = {
     renameFailed: '项目重命名保存失败',
   },
   onboarding: {
+    skip: '跳过',
     trigger: '上手',
     progressLabel: '上手 4 步，已完成 {{done}} / {{total}}',
     panelLabel: '上手 4 步',
@@ -231,6 +234,8 @@ export const zhCN = {
     expand: '展开侧栏',
     collapse: '收起侧栏',
     newGroup: '新建分组',
+    categoryName: '分类名称',
+    derivedNode: '由其他节点派生',
   },
   canvas: {
     addNodeMenu: '添加节点菜单',
@@ -278,6 +283,7 @@ export const en = {
     initialize: 'Initialize',
     later: 'Later',
     loading: 'Loading',
+    rendering: 'Rendering...',
     back: 'Back',
   },
   brand: {
@@ -426,6 +432,7 @@ export const en = {
     referenceFull: 'This reference input is full. Extra connections will not be used.',
   },
   studio: {
+    aria: 'Nomi Studio',
     workbench: 'Workspace',
     modelSetupPanel: 'Model setup panel',
     assetLibrary: 'Asset library',
@@ -466,6 +473,7 @@ export const en = {
     renameFailed: 'Could not save the renamed project',
   },
   onboarding: {
+    skip: 'Skip',
     trigger: 'Getting started',
     progressLabel: 'Getting started: {{done}} of {{total}} steps complete',
     panelLabel: '4 steps to get started',
@@ -492,6 +500,8 @@ export const en = {
     expand: 'Expand sidebar',
     collapse: 'Collapse sidebar',
     newGroup: 'New group',
+    categoryName: 'Category name',
+    derivedNode: 'Derived from another node',
   },
   canvas: {
     addNodeMenu: 'Add node menu',

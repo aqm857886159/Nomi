@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconHistory } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { ConversationHistoryPopover } from './ConversationHistoryPopover'
@@ -22,6 +23,7 @@ export function WorkbenchAiHeaderActions({
   area,
   onNewConversation,
 }: WorkbenchAiHeaderActionsProps): JSX.Element {
+  const { t } = useTranslation()
   const [open, setOpen] = React.useState(false)
   const anchorRef = React.useRef<HTMLButtonElement>(null)
   return (
@@ -29,7 +31,7 @@ export function WorkbenchAiHeaderActions({
       <button
         ref={anchorRef}
         type="button"
-        aria-label="会话历史"
+        aria-label={t('creationAi.conversationHistory.aria')}
         aria-expanded={open}
         // stopPropagation:压住弹层的「document mousedown 外点关闭」,让本按钮独占 toggle 语义。
         onMouseDown={(event) => event.stopPropagation()}

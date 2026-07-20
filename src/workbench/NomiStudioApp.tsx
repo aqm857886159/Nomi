@@ -116,7 +116,10 @@ const GlobalAssetFloatingWindow = lazyWithChunkBoundary('i18n:studio.globalAsset
 function GenerationCanvasLoading(): JSX.Element {
   const { t } = useTranslation()
   return (
-    <div className={cn('w-full h-full bg-workbench-bg grid place-items-center')} aria-label={t('studio.generationCanvasLoading')}>
+    <div
+      className={cn('w-full h-full bg-workbench-bg grid place-items-center')}
+      aria-label={t('studio.generationCanvasLoading')}
+    >
       {/* pending 规范 #1:懒加载占位不再空白,给可见品牌 spinner */}
       <NomiLoadingMark size={28} label={t('studio.generationCanvasLoading')} />
     </div>
@@ -372,17 +375,20 @@ export default function NomiStudioApp(): JSX.Element {
     })
   }, [hydrateProject, refreshProjects, t])
 
-  const revealProjectFolder = React.useCallback((projectId: string) => {
-    const bridge = getDesktopBridge()
-    if (!bridge?.workspace?.revealProjectFolder) {
-      toast(t('studio.folderUnsupported'), 'error')
-      return
-    }
-    void bridge.workspace.revealProjectFolder({ projectId }).catch((error: unknown) => {
-      const message = error instanceof Error && error.message ? error.message : t('studio.openFolderFailed')
-      toast(message, 'error')
-    })
-  }, [t])
+  const revealProjectFolder = React.useCallback(
+    (projectId: string) => {
+      const bridge = getDesktopBridge()
+      if (!bridge?.workspace?.revealProjectFolder) {
+        toast(t('studio.folderUnsupported'), 'error')
+        return
+      }
+      void bridge.workspace.revealProjectFolder({ projectId }).catch((error: unknown) => {
+        const message = error instanceof Error && error.message ? error.message : t('studio.openFolderFailed')
+        toast(message, 'error')
+      })
+    },
+    [t],
+  )
 
   // 创建并打开项目的单一编排点（收口创建入口的重复拼装，P1）：
   // 落地视图 → 建项目 → 刷新库 → hydrate，按 spec 统一走一遍。落地视图是 spec 必填字段，
@@ -608,18 +614,20 @@ export default function NomiStudioApp(): JSX.Element {
     [activeProject, ensureProjectPersistenceService, t],
   )
 
-  const globalBrowserDialog = browserOpened || browserMounted ? (
-    <React.Suspense key="global-browser-dialog" fallback={null}>
-      <NomiBrowserDialog opened={browserOpened} onClose={closeBrowser} />
-    </React.Suspense>
-  ) : null
+  const globalBrowserDialog =
+    browserOpened || browserMounted ? (
+      <React.Suspense key="global-browser-dialog" fallback={null}>
+        <NomiBrowserDialog opened={browserOpened} onClose={closeBrowser} />
+      </React.Suspense>
+    ) : null
   const globalAssetFloatingWindow = (
     <React.Suspense key="global-asset-floating-window" fallback={null}>
       <GlobalAssetFloatingWindow />
     </React.Suspense>
   )
 
-  const viewContent = view === 'library' ? (
+  const viewContent =
+    view === 'library' ? (
       <>
         <ProjectLibraryPage
           projects={projects}
@@ -660,7 +668,7 @@ export default function NomiStudioApp(): JSX.Element {
         <ConfirmDialogHost />
       </>
     ) : (
-      <div className={cn('nomi-studio-app w-full h-screen min-h-0 bg-nomi-bg')} aria-label="Nomi Studio">
+      <div className={cn('nomi-studio-app w-full h-screen min-h-0 bg-nomi-bg')} aria-label={t('studio.aria')}>
         <WorkbenchShell
           generation={
             <React.Suspense fallback={<GenerationCanvasLoading />}>
