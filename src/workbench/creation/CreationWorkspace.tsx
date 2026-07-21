@@ -32,9 +32,9 @@ export default function CreationWorkspace(): JSX.Element {
         'pt-[22px] px-6 pb-6',
         'bg-workbench-bg',
         collapsed
-          ? 'grid grid-cols-[minmax(0,900px)] justify-center'
+          ? 'grid max-w-[900px] mx-auto'
           : cn(
-              'grid grid-cols-[minmax(0,900px)_344px] justify-center gap-5',
+              'grid grid-cols-[minmax(0,1fr)_344px] max-w-[1264px] mx-auto gap-5',
               'max-[1120px]:grid-cols-[minmax(0,1fr)] max-[1120px]:grid-rows-[minmax(420px,1fr)_minmax(320px,42vh)]',
             ),
       )}
