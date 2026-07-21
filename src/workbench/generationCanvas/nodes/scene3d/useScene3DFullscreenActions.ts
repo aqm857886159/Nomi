@@ -564,10 +564,13 @@ export function useScene3DCameraMoveAction({
   }, [readOnly, setState, stateRef, trajectory])
 }
 
-/** 出片产物卡状态（P3-14）：盯 take 节点 meta.cameraMoveVideo 从「渲染中」推进到「已生成 + 去向」 */
+/** 出片产物卡状态（P3-14）：盯 take 节点 meta.cameraMoveVideo 从「渲染中」推进到「已生成 + 去向」。
+ * kind='screenshot'：截图即时完成——产物落在被编辑器盖住的画布上，没有这张卡用户会以为
+ * 什么都没发生（2026-07-21 反馈「截了图没东西可拖」）。 */
 export type Scene3DExportCard = {
+  kind: 'video' | 'screenshot'
   phase: 'rendering' | 'slow' | 'done'
-  /** done 时：mp4 是否已自动喂给下游镜头（cameraMoveVideo.targetNodeId） */
+  /** video done 时：mp4 是否已自动喂给下游镜头（cameraMoveVideo.targetNodeId） */
   fedDownstream: boolean
 }
 
@@ -591,8 +594,8 @@ export function useScene3DExportActions({
   onRecordTake?: (recordedState: Scene3DState) => string | void
   /** 报错「先选中相机」时的一键跳转（P3-15） */
   onPickCamera?: (cameraId: string) => void
-  captureViewport: () => void
-  captureSelectedCamera: () => void
+  captureViewport: () => boolean
+  captureSelectedCamera: () => boolean
   exportCameraMoveFrames: (cameraId: string) => Promise<void>
 }) {
   const [exportPanelOpen, setExportPanelOpen] = React.useState(false)
@@ -607,17 +610,36 @@ export function useScene3DExportActions({
     exportingTakeId ? store.nodes.find((node) => node.id === exportingTakeId) ?? null : null
   ))
   const takeVideo = exportingTakeNode?.meta?.cameraMoveVideo as { url?: string; targetNodeId?: string } | undefined
+  // 截图完成卡：即时 done，10s 自动收（产物在编辑器后面的画布上，指条回家路）
+  const [screenshotDone, setScreenshotDone] = React.useState(false)
+  const screenshotTimerRef = React.useRef<number | null>(null)
+  const markScreenshotDone = React.useCallback(() => {
+    setScreenshotDone(true)
+    if (screenshotTimerRef.current) window.clearTimeout(screenshotTimerRef.current)
+    screenshotTimerRef.current = window.setTimeout(() => setScreenshotDone(false), 10_000)
+  }, [])
+  React.useEffect(() => () => {
+    if (screenshotTimerRef.current) window.clearTimeout(screenshotTimerRef.current)
+  }, [])
+
   const exportCard: Scene3DExportCard | null = exportingTakeId
     ? takeVideo?.url
-      ? { phase: 'done', fedDownstream: Boolean(takeVideo.targetNodeId) }
-      : { phase: slowHint ? 'slow' : 'rendering', fedDownstream: false }
-    : null
+      ? { kind: 'video', phase: 'done', fedDownstream: Boolean(takeVideo.targetNodeId) }
+      : { kind: 'video', phase: slowHint ? 'slow' : 'rendering', fedDownstream: false }
+    : screenshotDone
+      ? { kind: 'screenshot', phase: 'done', fedDownstream: false }
+      : null
   const dismissExportCard = React.useCallback(() => {
     setExportingTakeId(null)
     setSlowHint(false)
+    setScreenshotDone(false)
     if (exportingTimerRef.current) {
       window.clearTimeout(exportingTimerRef.current)
       exportingTimerRef.current = null
+    }
+    if (screenshotTimerRef.current) {
+      window.clearTimeout(screenshotTimerRef.current)
+      screenshotTimerRef.current = null
     }
   }, [])
 
@@ -675,9 +697,10 @@ export function useScene3DExportActions({
   }, [onRecordTake, stateRef])
 
   const handleExportScreenshotViewport = React.useCallback(() => {
+    const captured = captureViewport()
     setExportPanelOpen(false)
-    captureViewport()
-  }, [captureViewport])
+    if (captured) markScreenshotDone()
+  }, [captureViewport, markScreenshotDone])
 
   const handleExportScreenshotCamera = React.useCallback(() => {
     if (!selectedCamera) {
@@ -685,9 +708,10 @@ export function useScene3DExportActions({
       else toast('请先选中一个拍摄相机', 'warning')
       return
     }
+    const captured = captureSelectedCamera()
     setExportPanelOpen(false)
-    captureSelectedCamera()
-  }, [captureSelectedCamera, onPickCamera, selectedCamera, stateRef])
+    if (captured) markScreenshotDone()
+  }, [captureSelectedCamera, markScreenshotDone, onPickCamera, selectedCamera, stateRef])
 
   const handleExportKeyFrames = React.useCallback(() => {
     // 首尾帧导出需要一个相机 ID：优先用选中的相机，否则用第一个相机

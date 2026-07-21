@@ -257,6 +257,12 @@ try {
   await win.waitForTimeout(900)
   if ((await win.getByText('已创建图片节点', { exact: false }).count()) > 0) ok('出片面板>视口截图通（图片节点已建）')
   else fail('视口截图后没见「已创建图片节点」toast')
+  // 截图完成卡（2026-07-21「截了图没东西可拖」根治）：指明产物在编辑器后面的画布 + 回家路
+  if ((await win.getByText('截图已生成', { exact: false }).count()) > 0) ok('截图完成卡已出（产物去向 + 回画布查看）')
+  else fail('截图后没有完成卡（用户会以为什么都没发生）')
+  await shot('10b-screenshot-card.png')
+  await win.getByRole('button', { name: '知道了', exact: true }).first().click().catch(() => {})
+  await win.waitForTimeout(400)
   await exportBtn.first().click()
   await win.waitForTimeout(700)
 
@@ -338,33 +344,29 @@ try {
   if (!shotBefore) {
     fail('画布上找不到 3D 截图节点（前面截图路生成的）')
   } else {
-    const imgBox = await win.locator('img').first().boundingBox().catch(() => null)
+    const nodeSel = `[data-node-id="${shotBefore.id}"]`
+    const imgBox = await win.locator(`${nodeSel} img`).first().boundingBox().catch(() => null)
     if (imgBox) {
       const readPos = async () => win.evaluate((id) => {
         const store = window.__nomiCanvasStore
         const node = store?.getState().nodes.find((n) => n.id === id)
         return node ? { x: node.position.x, y: node.position.y } : null
       }, shotBefore.id).catch(() => null)
-      // 图区拖 = 送时间轴手势（data-timeline-draggable），预期不移动节点——先证实这层语义
+      const cover = await win.evaluate(({ x, y }) => {
+        const el = document.elementFromPoint(x, y)
+        return el ? { tag: el.tagName, cls: String(el.className).slice(0, 80) } : null
+      }, { x: imgBox.x + imgBox.width / 2, y: imgBox.y + imgBox.height / 2 }).catch(() => null)
+      console.log('  🔎 截图节点图区中心最上层元素：' + JSON.stringify(cover))
+      // 从截图节点自己的图区中心拖
       await win.mouse.move(imgBox.x + imgBox.width / 2, imgBox.y + imgBox.height / 2)
       await win.mouse.down()
       await win.mouse.move(imgBox.x + imgBox.width / 2 + 90, imgBox.y + imgBox.height / 2 + 60, { steps: 10 })
       await win.mouse.up()
-      await win.waitForTimeout(500)
+      await win.waitForTimeout(600)
       const afterImgDrag = await readPos()
-      // 抓节点外壳内的非图区（预览图在最上，标题条在图下方——用外壳 box 底部内侧 12px）
-      const nodeBox = await win.locator(`[data-node-id="${shotBefore.id}"]`).boundingBox().catch(() => null)
-      if (nodeBox) {
-        await win.mouse.move(nodeBox.x + nodeBox.width / 2, nodeBox.y + nodeBox.height - 12)
-        await win.mouse.down()
-        await win.mouse.move(nodeBox.x + nodeBox.width / 2 + 90, nodeBox.y + nodeBox.height - 12 + 60, { steps: 10 })
-        await win.mouse.up()
-        await win.waitForTimeout(600)
-      }
-      const afterFrameDrag = await readPos()
-      const moved = afterFrameDrag && (Math.abs(afterFrameDrag.x - shotBefore.x) > 20 || Math.abs(afterFrameDrag.y - shotBefore.y) > 20)
-      if (moved) ok(`截图节点抓标题/边框可拖动（(${Math.round(shotBefore.x)},${Math.round(shotBefore.y)})→(${Math.round(afterFrameDrag.x)},${Math.round(afterFrameDrag.y)})）；图区拖=送时间轴手势（位置不动=${JSON.stringify(afterImgDrag)}，与用户「拖不动」感知冲突→已记 UX 债）`)
-      else fail(`截图节点连标题区都拖不动（img拖后=${JSON.stringify(afterImgDrag)}，框拖后=${JSON.stringify(afterFrameDrag)}）`)
+      const imgMoved = afterImgDrag && (Math.abs(afterImgDrag.x - shotBefore.x) > 20 || Math.abs(afterImgDrag.y - shotBefore.y) > 20)
+      if (imgMoved) ok(`截图节点抓图区中心可拖动（(${Math.round(shotBefore.x)},${Math.round(shotBefore.y)})→(${Math.round(afterImgDrag.x)},${Math.round(afterImgDrag.y)})）`)
+      else fail(`截图节点抓图区中心拖不动（${JSON.stringify(afterImgDrag)}，中心覆盖层=${JSON.stringify(cover)}）`)
       await shot('14-screenshot-drag.png')
     } else {
       fail('找不到截图节点的 img 元素')

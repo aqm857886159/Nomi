@@ -275,19 +275,21 @@ export default function Scene3DFullscreen({
       setFocusId,
     })
 
-  const captureViewport = React.useCallback(() => {
+  // 返回是否截成：出片面板据此弹截图完成卡（产物落在被编辑器盖住的画布上，无卡=用户以为没发生）
+  const captureViewport = React.useCallback((): boolean => {
     const capture = captureApiRef.current?.captureViewport()
     if (!capture) {
       toast('截图失败，请重试', 'error')
-      return
+      return false
     }
     onScreenshot(capture)
+    return true
   }, [onScreenshot])
 
-  const captureSelectedCamera = React.useCallback(() => {
+  const captureSelectedCamera = React.useCallback((): boolean => {
     if (!selectedCamera) {
       toastPickCameraFirst(stateRef.current.cameras[0], (cameraId) => setSelection({ type: 'camera', id: cameraId }))
-      return
+      return false
     }
     const captureCamera = cameraWithPlaybackPosition(
       stateRef.current,
@@ -298,9 +300,10 @@ export default function Scene3DFullscreen({
     const capture = captureApiRef.current?.captureCamera(captureCamera)
     if (!capture) {
       toast('相机截图失败，请重试', 'error')
-      return
+      return false
     }
     onScreenshot(capture)
+    return true
   }, [onScreenshot, selectedCamera, trajectory.activeTrajectoryIds, trajectory.playheadRef])
 
   // 出片动作（P0）：面板开关 + 四个导出 handler + 接力 toast + 产物卡片状态（R9 抽到 actions 文件）

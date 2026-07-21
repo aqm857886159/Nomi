@@ -39,9 +39,13 @@ export function Scene3DExportingCard({ card, onGoCanvas, onDismiss }: {
       {card.phase === 'done' ? (
         <>
           <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="text-caption font-medium text-[var(--workbench-ink)]">✅ 参考视频已生成</span>
+            <span className="text-caption font-medium text-[var(--workbench-ink)]">
+              {card.kind === 'screenshot' ? '✅ 截图已生成' : '✅ 参考视频已生成'}
+            </span>
             <span className="text-micro text-[var(--workbench-muted)]">
-              {card.fedDownstream ? '已建画布节点 · 已自动喂给下游镜头' : '已建画布节点（没接下游镜头，先留档可复用）'}
+              {card.kind === 'screenshot'
+                ? '已建画布图片节点（在编辑器后面的画布上）'
+                : card.fedDownstream ? '已建画布节点 · 已自动喂给下游镜头' : '已建画布节点（没接下游镜头，先留档可复用）'}
             </span>
           </div>
           <button

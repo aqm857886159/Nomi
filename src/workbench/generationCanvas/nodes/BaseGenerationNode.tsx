@@ -535,7 +535,6 @@ function BaseGenerationNodeImpl({
           // [DESIGN-CARDS-07] 卡片模式隐藏 preview div；C5 文本节点同理。
           (isCardKind || isTextKind) && 'hidden',
         )}
-        data-timeline-draggable={canSendToTimeline ? 'true' : 'false'}
         draggable={false}
       >
         {node.kind === 'scene3d' ? (
