@@ -13,7 +13,7 @@
  * 不改后端 catalog / IPC / 三套 vendor 名单（不合并、不去重）。
  */
 import React from 'react'
-import { IconStack2, IconChevronRight, IconPlus, IconPhoto, IconVideo, IconMessageCircle, IconMusic, IconTrash } from '@tabler/icons-react'
+import { IconStack2, IconChevronRight, IconPlus, IconPhoto, IconVideo, IconMessageCircle, IconMusic, IconTrash, IconRefresh } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { OnboardingWizard } from './OnboardingWizard'
 import { FoldableModelCard } from './FoldableModelCard'
@@ -46,6 +46,11 @@ const KIND_CAPS = [
   { kind: 'audio', label: '配音', Icon: IconMusic },
 ] as const
 
+// Issue #42:后台桥（preload 注入的 window.nomiDesktop）偶发未就绪时，别把用户永久卡在「加载中…」。
+// 有界重试（总窗口 ≈ 5×400ms = 2s，覆盖启动竞态），仍拿不到才判真故障、给可操作错误态。
+const MAX_BRIDGE_RETRIES = 5
+const BRIDGE_RETRY_MS = 400
+
 export function OnboardingDrawer(): JSX.Element {
   const [wizardOpen, setWizardOpen] = React.useState(false)
   const [wizardPreset, setWizardPreset] = React.useState<string | undefined>(undefined)
@@ -58,11 +63,25 @@ export function OnboardingDrawer(): JSX.Element {
   // 同步数据就绪标志：分组折叠的「自适应默认」依赖 hasConnected，必须等目录/MCP 同步加载完再挂
   // AvailableGroup，否则它在首帧空态（hasConnected=false）就把默认展开态固定下来（plan §4.3 mount-before-load）。
   const [loaded, setLoaded] = React.useState(false)
+  // Issue #42:后台桥缺失（多为启动竞态/多窗口 preload 未挂）→ 有界重试；仍无则给可操作错误态，不无限「加载中…」。
+  const [bridgeMissing, setBridgeMissing] = React.useState(false)
+  const bridgeRetries = React.useRef(0)
   const [version, setVersion] = React.useState(0) // bump to refetch
 
   React.useEffect(() => {
     const bridge = getDesktopBridge()
-    if (!bridge) return
+    if (!bridge) {
+      if (bridgeRetries.current < MAX_BRIDGE_RETRIES) {
+        bridgeRetries.current += 1
+        const t = setTimeout(() => setVersion((v) => v + 1), BRIDGE_RETRY_MS)
+        return () => clearTimeout(t)
+      }
+      setBridgeMissing(true)
+      setLoaded(true) // 结束加载态，交给错误态渲染（下面 bridgeMissing 分支）。
+      return
+    }
+    bridgeRetries.current = 0
+    setBridgeMissing(false)
     // 生成模型目录（同步）。
     try {
       const ms = bridge.modelCatalog.listModels() as Array<Record<string, unknown>>
@@ -109,6 +128,14 @@ export function OnboardingDrawer(): JSX.Element {
     }
     return () => { alive = false }
   }, [version])
+
+  // Issue #42:错误态「重新加载」——清零重试计数，重新走一遍取桥流程。
+  const reloadFromError = React.useCallback(() => {
+    bridgeRetries.current = 0
+    setBridgeMissing(false)
+    setLoaded(false)
+    setVersion((v) => v + 1)
+  }, [])
 
   const refresh = React.useCallback(() => {
     notifyModelOptionsRefresh('all')
@@ -275,7 +302,24 @@ export function OnboardingDrawer(): JSX.Element {
         </div>
       </div>
 
-      {!loaded ? (
+      {bridgeMissing ? (
+        <div className="px-4 py-6 flex flex-col items-start gap-2">
+          <div className="text-body-sm font-semibold text-nomi-ink">暂时连不上 Nomi 后台</div>
+          <div className="text-caption text-nomi-ink-60 leading-relaxed">
+            应用后台可能还在启动。点下面重试；若多次无效，请重启 Nomi。
+          </div>
+          <button
+            type="button"
+            onClick={reloadFromError}
+            className={cn(
+              'mt-1 inline-flex items-center gap-1.5 h-8 px-3 rounded-nomi-sm',
+              'bg-nomi-ink text-nomi-paper text-caption font-semibold hover:bg-nomi-accent',
+            )}
+          >
+            <IconRefresh size={14} stroke={1.8} />重新加载
+          </button>
+        </div>
+      ) : !loaded ? (
         <div className="px-4 py-6 text-caption text-nomi-ink-40">加载中…</div>
       ) : (
       <div className="px-3 pb-3 pt-1 flex flex-col gap-2">
