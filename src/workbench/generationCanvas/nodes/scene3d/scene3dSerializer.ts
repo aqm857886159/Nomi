@@ -20,6 +20,7 @@ import {
 } from './scene3dTypes'
 import { buildPoseTrack } from './scene3dPoseTrack'
 import { cameraAimBindingId } from './scene3dBindingIds'
+import { fitEditorCameraToScene } from './scene3dFitView'
 
 const GEOMETRIES = new Set<Scene3DGeometry>(['box', 'sphere', 'cylinder', 'plane'])
 // 道具 kind 白名单（与 scene3dProps 的 spec 表同域；这里手列避免 serializer 拖进 React/three 依赖）。
@@ -130,8 +131,7 @@ export function createScene3DTrajectoryGroupId(): string {
 }
 
 export function createDefaultScene3DState(): Scene3DState {
-  return {
-    objects: [
+  const objects: Scene3DState['objects'] = [
       {
         id: createScene3DObjectId(),
         name: '假人',
@@ -142,8 +142,8 @@ export function createDefaultScene3DState(): Scene3DState {
         scale: [...MANNEQUIN_DEFAULT_SCALE],
         color: ROLE_COLOR_SEQUENCE[0],
       },
-    ],
-    cameras: [
+  ]
+  const cameras: Scene3DState['cameras'] = [
       {
         id: createScene3DCameraId(),
         name: '相机1',
@@ -157,7 +157,10 @@ export function createDefaultScene3DState(): Scene3DState {
         near: 0.1,
         far: 200,
       },
-    ],
+  ]
+  return {
+    objects,
+    cameras,
     trajectories: [],
     trajectoryBindings: [],
     trajectoryGroups: [],
@@ -176,8 +179,8 @@ export function createDefaultScene3DState(): Scene3DState {
       sphereRadius: 50,
     },
     editorCamera: {
-      position: [-5, 3.2, 6],
-      target: [0, 0.75, 0],
+      // 出厂机位 = 看全场取景（相机1 也要在画面里，见 scene3dFitView 与用户 2026-07-20 反馈）
+      ...fitEditorCameraToScene(objects, cameras),
       rotation: [0, 0, 0],
       mode: 'edit',
     },

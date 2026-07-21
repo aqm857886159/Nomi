@@ -29,6 +29,13 @@ describe('referenceAssetKindForNode — 源能给哪种可参考资产', () => {
   it('视频节点 → video', () => {
     expect(referenceAssetKindForNode(node('n', 'video'))).toBe('video')
   })
+  it('导入的**视频素材**(kind=asset 但 result.type=video)→ video(不是 image)', () => {
+    // 用户报的根因:一个 asset 种类同时装图和视频,只按 kind 判会把导入视频当图参考 → 加载失败。
+    const videoAsset = { ...node('n', 'asset'), result: { id: 'r', type: 'video', url: 'x.mp4', createdAt: 0 } } as GenerationCanvasNode
+    expect(referenceAssetKindForNode(videoAsset)).toBe('video')
+    const imageAsset = { ...node('n', 'asset'), result: { id: 'r', type: 'image', url: 'x.png', createdAt: 0 } } as GenerationCanvasNode
+    expect(referenceAssetKindForNode(imageAsset)).toBe('image')
+  })
   it('文本/镜头/输出节点 → null(无可参考产物)', () => {
     for (const kind of ['text', 'shot', 'output']) {
       expect(referenceAssetKindForNode(node('n', kind))).toBeNull()

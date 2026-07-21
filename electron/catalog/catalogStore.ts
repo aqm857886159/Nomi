@@ -317,6 +317,16 @@ function migrateCatalogForward(state: CatalogState): CatalogState {
     writeCatalog(s);
   }
 
+  if (s.version === 6) {
+    // v6 → v7：**重跑**协议分流。v6 迁移跑在「gpt-image/dall-e-2 还没接 OpenAI multipart edits」之前，
+    // 故存量 gpt-image-2 等被留在 chat/completions（图生图在只认 /v1/images/edits 的中转站接不上）。
+    // migrateRelayImageEditProtocols 幂等，重跑即按新智能默认把 gpt-image/dall-e-2 升到 multipart。
+    // 无版本 bump 就不会重跑（v6 已是终版）——所以必须 bump 到 v7 强制存量用户也升级。
+    const migrated = migrateRelayImageEditProtocols(s);
+    s = { ...migrated.state, version: 7 };
+    writeCatalog(s);
+  }
+
   if ((s.version as number) > CURRENT_CATALOG_VERSION) {
     // Newer file than this app understands — return it untouched so it stays
     // readable, and let `writeCatalog` REFUSE any write back (read-only guard).

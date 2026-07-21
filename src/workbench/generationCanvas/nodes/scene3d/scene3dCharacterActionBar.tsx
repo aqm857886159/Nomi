@@ -158,18 +158,32 @@ function TakeRecordButton({ recorder }: { recorder: ActionBarRecorder }): JSX.El
 
 // 操控态底部动作库工具栏。点动作 → 把对应预设的 pose 应用到被操控假人。
 // className 风格照搬 SceneAddToolbar 底部条。
+// WASD 速度就近放在真用 WASD 的地方（接控/录制条）；视口不再常驻小球滑杆
+// （2026-07-20 用户：不知道是啥、还挡 XYZ——XYZ 静态徽标也一并删了）。
+function SpeedSliderChip({ value, onChange }: { value: number; onChange: (speed: number) => void }): JSX.Element {
+  const { t } = useTranslation()
+  return (
+    <label className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-nomi bg-[var(--nomi-ink-05)] px-2 text-caption text-[var(--nomi-ink-60)]" title={t('scene3d.fullscreen.speedTitle')}>
+      <span>{t('scene3d.fullscreen.speed')}</span>
+      <input className="h-1.5 w-16 accent-[var(--nomi-ink)]" max={16} min={1} step={0.5} type="range" value={value} onChange={(event) => onChange(Number(event.currentTarget.value))} />
+    </label>
+  )
+}
+
 export function CharacterActionBar({
   characterName,
   activePresetId,
   onApplyPreset,
   onExit,
   recorder,
+  speed,
 }: {
   characterName: string
   activePresetId?: string
   onApplyPreset: (presetId: string) => void
   onExit: () => void
   recorder?: ActionBarRecorder
+  speed?: { value: number; onChange: (speed: number) => void }
 }): JSX.Element {
   const { t } = useTranslation()
   return (
@@ -218,6 +232,12 @@ export function CharacterActionBar({
             <TakeRecordButton recorder={recorder} />
           </>
         ) : null}
+        {speed ? (
+          <>
+            <span className="h-5 w-px shrink-0 bg-[var(--workbench-border)]" />
+            <SpeedSliderChip value={speed.value} onChange={speed.onChange} />
+          </>
+        ) : null}
         <span className="h-5 w-px shrink-0 bg-[var(--workbench-border)]" />
         <button
           className={cn(
@@ -248,10 +268,12 @@ export function CameraPossessActionBar({
   cameraName,
   onExit,
   recorder,
+  speed,
 }: {
   cameraName: string
   onExit: () => void
   recorder?: ActionBarRecorder
+  speed?: { value: number; onChange: (speed: number) => void }
 }): JSX.Element {
   const { t } = useTranslation()
   return (
@@ -276,6 +298,12 @@ export function CameraPossessActionBar({
           <>
             <span className="h-5 w-px shrink-0 bg-[var(--workbench-border)]" />
             <TakeRecordButton recorder={recorder} />
+          </>
+        ) : null}
+        {speed ? (
+          <>
+            <span className="h-5 w-px shrink-0 bg-[var(--workbench-border)]" />
+            <SpeedSliderChip value={speed.value} onChange={speed.onChange} />
           </>
         ) : null}
         <span className="h-5 w-px shrink-0 bg-[var(--workbench-border)]" />
@@ -313,13 +341,12 @@ export function Scene3DBottomBar({
   onApplyPreset,
   onExitPossess,
   onExitCameraPossess,
+  speed,
   onAddObject,
   onAddProp,
   onAddCrowd,
   onAddCamera,
   onApplySceneTemplate,
-  trajectoryMode,
-  onToggleTrajectoryMode,
   canvasFocusMode,
   onToggleCanvasFocusMode,
 }: {
@@ -331,19 +358,19 @@ export function Scene3DBottomBar({
   onApplyPreset: (presetId: string) => void
   onExitPossess: () => void
   onExitCameraPossess: () => void
+  speed?: { value: number; onChange: (speed: number) => void }
   onAddObject: (kind: Scene3DGeometry | 'mannequin' | 'light') => void
   onAddProp: (kind: Scene3DPropKind) => void
   onAddCrowd: (options: CrowdAddOptions) => void
   onAddCamera: () => void
   onApplySceneTemplate: (template: Scene3DSceneTemplate) => void
-  trajectoryMode: boolean
-  onToggleTrajectoryMode: () => void
   canvasFocusMode: boolean
   onToggleCanvasFocusMode: () => void
 }): JSX.Element | null {
   if (possessedObject) {
     return (
       <CharacterActionBar
+        speed={speed}
         characterName={possessedObject.name}
         activePresetId={activePresetId}
         onApplyPreset={onApplyPreset}
@@ -355,6 +382,7 @@ export function Scene3DBottomBar({
   if (possessedCamera) {
     return (
       <CameraPossessActionBar
+        speed={speed}
         cameraName={possessedCamera.name}
         onExit={onExitCameraPossess}
         recorder={recorder}
@@ -369,8 +397,6 @@ export function Scene3DBottomBar({
       onAddCrowd={onAddCrowd}
       onAddCamera={onAddCamera}
       onApplySceneTemplate={onApplySceneTemplate}
-      trajectoryMode={trajectoryMode}
-      onToggleTrajectoryMode={onToggleTrajectoryMode}
       canvasFocusMode={canvasFocusMode}
       onToggleCanvasFocusMode={onToggleCanvasFocusMode}
     />

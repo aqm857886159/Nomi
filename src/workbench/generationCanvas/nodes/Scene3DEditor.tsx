@@ -180,150 +180,142 @@ function Scene3DEditor({ node, width, height, readOnly = false }: Scene3DEditorP
     [node.id, updateNode],
   )
 
-  // 录过 take → 关编辑器后才请画布 fit（#1 闭环可见性根因：在全屏编辑器盖着画布时 fit 是白跑，
-  // 360ms 后 fitView 时画布不可见/stageRef 未就绪，nonce 又已消费 → 关掉后看到默认视图、找不到新节点。
-  // 改成关闭后再 fit，此时画布可见、新节点已就位，fitView 框全部节点把「录制走位参考」节点带进视口）。
-  const recordedTakeRef = React.useRef(false)
+  // 关编辑器后 fit + 高亮新节点（P3）：截图和录 take 都触发，不只录 take
+  // 原 bug：fitView 只在录 take 后触发，截图后关编辑器不 fit → 用户找不到截图节点
+  const pendingFitNodeIdRef = React.useRef<string | null>(null)
+  const selectNode = useGenerationCanvasStore((state) => state.selectNode)
 
   const handleCloseFullscreen = React.useCallback(() => {
     setFullscreen(false)
     void persistActiveWorkbenchProjectNow().catch(() => {})
-    if (recordedTakeRef.current) {
-      recordedTakeRef.current = false
-      requestCanvasFit()
+    const pendingId = pendingFitNodeIdRef.current
+    if (pendingId) {
+      pendingFitNodeIdRef.current = null
+      // 延迟一帧让画布渲染完再 fit + select
+      requestAnimationFrame(() => {
+        requestCanvasFit()
+        selectNode(pendingId)
+      })
     }
-  }, [requestCanvasFit])
+  }, [requestCanvasFit, selectNode])
 
   // 录 take（S2）：把录制好的（含角色/机位轨迹的）场景另建一个 scene3d 节点 + 打 cameraMoveAutoCapture 标志，
   // 整条出 mp4 + 喂目标镜头 video_ref 复用 AI 运镜常驻 Host（CameraMoveCaptureHost），不另起接缝（P1）。
   // 另建节点而非覆写本节点 → 非破坏：用户原本编排好的 3D 场景保持原样。
   // 目标镜头 = 本 scene3d 节点下游连到的视频节点（无则只出 mp4 留痕，不挂）。
-  const handleRecordTake = React.useCallback(
-    (recordedState: Scene3DState) => {
-      const store = useGenerationCanvasStore.getState()
-      const downstreamVideoTarget = store.edges
-        .filter((edge) => edge.source === node.id)
-        .map((edge) => store.nodes.find((candidate) => candidate.id === edge.target))
-        .find((candidate) => candidate && isVideoLikeGenerationNodeKind(candidate.kind))
-      const fps = 24 // Seedance 参考视频要求 23.8–60 FPS（与 AI 运镜一致）
-      const duration = recordedState.sceneTimeline?.totalDuration ?? 1
-      const frameCount = frameCountForDuration(duration, fps)
-      const takeNode = addNode({
-        kind: 'scene3d',
-        title: t('scene3d.fullscreen.recordedTakeTitle'),
-        prompt: '',
-        // #1 闭环可见性根因：scene3d 的默认分类是 'scene'，但用户正看着的子画布
-        // （source 节点所在分类，常是 'shots'）未必是 'scene'。漏传 categoryId →
-        // 新节点落到另一个子画布 → 既不进当前 activeCategoryId 过滤后的 nodes、也不渲染 DOM，
-        // fitView 只框当前分类的 nodes 永远带不进它（用户看到的就是「录完节点人间蒸发」）。
-        // 让 take 节点继承 source 节点「实际显示所在」的分类，确保它和 source 同屏、fit 能框到。
-        // 用 (node.categoryId || 'shots') 而非裸 node.categoryId：source 是 legacy 无分类节点时
-        // 它按 'shots' 兜底渲染（见 GenerationCanvas 过滤），但 addNode 对 undefined 会退到
-        // scene3d 默认分类 'scene'——直接传 undefined 仍会错位，必须用同一套兜底口径。
-        categoryId: node.categoryId || 'shots',
+  // 返回 take 节点 id：出片产物卡靠它盯 meta.cameraMoveVideo 等渲染完成（P3-14）。
+  const handleRecordTake = React.useCallback((recordedState: Scene3DState): string => {
+    const store = useGenerationCanvasStore.getState()
+    const downstreamVideoTarget = store.edges
+      .filter((edge) => edge.source === node.id)
+      .map((edge) => store.nodes.find((candidate) => candidate.id === edge.target))
+      .find((candidate) => candidate && isVideoLikeGenerationNodeKind(candidate.kind))
+    const fps = 24 // Seedance 参考视频要求 23.8–60 FPS（与 AI 运镜一致）
+    const duration = recordedState.sceneTimeline?.totalDuration ?? 1
+    const frameCount = frameCountForDuration(duration, fps)
+    const takeNode = addNode({
+      kind: 'scene3d',
+      title: t('scene3d.fullscreen.recordedTakeTitle'),
+      prompt: '',
+      // #1 闭环可见性根因：scene3d 的默认分类是 'scene'，但用户正看着的子画布
+      // （source 节点所在分类，常是 'shots'）未必是 'scene'。漏传 categoryId →
+      // 新节点落到另一个子画布 → 既不进当前 activeCategoryId 过滤后的 nodes、也不渲染 DOM，
+      // fitView 只框当前分类的 nodes 永远带不进它（用户看到的就是「录完节点人间蒸发」）。
+      // 让 take 节点继承 source 节点「实际显示所在」的分类，确保它和 source 同屏、fit 能框到。
+      // 用 (node.categoryId || 'shots') 而非裸 node.categoryId：source 是 legacy 无分类节点时
+      // 它按 'shots' 兜底渲染（见 GenerationCanvas 过滤），但 addNode 对 undefined 会退到
+      // scene3d 默认分类 'scene'——直接传 undefined 仍会错位，必须用同一套兜底口径。
+      categoryId: node.categoryId || 'shots',
+      position: {
+        x: Math.round(node.position.x),
+        y: Math.round(node.position.y + height + 80),
+      },
+    })
+    updateNode(takeNode.id, {
+      meta: {
+        ...(takeNode.meta || {}),
+        scene3dState: recordedState,
+        cameraMoveAutoCapture: {
+          ...(downstreamVideoTarget ? { targetNodeId: downstreamVideoTarget.id } : {}),
+          fps,
+          frameCount,
+        },
+      },
+    })
+    // 闭环可见性（#1）：标记本次录过 take；真正的画布 fit + 高亮推迟到关闭编辑器后（handleCloseFullscreen），
+    // 因为此刻全屏编辑器盖着画布、fit 是白跑。关掉后画布可见再 fit + select，把新「录制走位参考」节点带进视口。
+    pendingFitNodeIdRef.current = takeNode.id
+    return takeNode.id
+  }, [addNode, height, node.categoryId, node.id, node.position.x, node.position.y, t, updateNode])
+
+  const handleScreenshot = React.useCallback(async (capture: Scene3DCaptureResult) => {
+    try {
+      const persisted = await persistScene3DScreenshot(capture.dataUrl, node.id, capture.title)
+      const createdAt = Date.now()
+      const screenshotNode = addNode({
+        kind: 'image',
+        title: capture.title,
+        prompt: t('scene3d.fullscreen.screenshotPrompt'),
         position: {
-          x: Math.round(node.position.x),
-          y: Math.round(node.position.y + height + 80),
+          x: Math.round(node.position.x + width + 80),
+          y: Math.round(node.position.y),
         },
       })
-      updateNode(takeNode.id, {
-        meta: {
-          ...(takeNode.meta || {}),
-          scene3dState: recordedState,
-          cameraMoveAutoCapture: {
-            ...(downstreamVideoTarget ? { targetNodeId: downstreamVideoTarget.id } : {}),
-            fps,
-            frameCount,
-          },
-        },
-      })
-      // 闭环可见性（#1）：标记本次录过 take；真正的画布 fit 推迟到关闭编辑器后（handleCloseFullscreen），
-      // 因为此刻全屏编辑器盖着画布、fit 是白跑。关掉后画布可见再 fit，把新「录制走位参考」节点带进视口。
-      recordedTakeRef.current = true
-    },
-    [addNode, height, node.categoryId, node.id, node.position.x, node.position.y, t, updateNode],
-  )
-
-  const handleScreenshot = React.useCallback(
-    async (capture: Scene3DCaptureResult) => {
-      try {
-        const persisted = await persistScene3DScreenshot(capture.dataUrl, node.id, capture.title)
-        const createdAt = Date.now()
-        const screenshotNode = addNode({
-          kind: 'image',
-          title: capture.title,
-          prompt: t('scene3d.fullscreen.screenshotPrompt'),
-          position: {
-            x: Math.round(node.position.x + width + 80),
-            y: Math.round(node.position.y),
-          },
-        })
-        const result = {
-          id: `scene3d-shot-${screenshotNode.id}-${createdAt}`,
-          type: 'image' as const,
-          url: persisted.url,
-          assetId: persisted.assetId,
-          raw: persisted.raw,
-          createdAt,
-        }
-        const size = imageNodeSize(capture.width, capture.height)
-        updateNode(screenshotNode.id, {
-          result,
-          history: [result],
-          status: 'success',
-          size: { width: size.width, height: size.height },
-          meta: {
-            ...(screenshotNode.meta || {}),
-            source: capture.source,
-            sourceNodeId: node.id,
-            localOnly: persisted.localOnly,
-            imageWidth: capture.width,
-            imageHeight: capture.height,
-            imageAspectRatio: capture.width / Math.max(1, capture.height),
-            previewHeight: size.previewHeight,
-          },
-        })
-        connectNodes(node.id, screenshotNode.id, 'reference')
-        const targetSlot = referenceSlotForScene3DCaptureTitle(capture.title)
-        if (
-          targetSlot &&
-          referenceTarget.state !== 'not-connected' &&
-          shouldAttachScene3DFrameReference(referenceTarget, targetSlot)
-        ) {
-          connectNodes(screenshotNode.id, referenceTarget.targetNodeId, targetSlot)
-        }
-
-        const current = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)
-        const nextSceneState = persistableScene3DState({
-          ...normalizeScene3DState(current?.meta?.scene3dState),
-          lastThumbnail: persisted.url,
-        })
-        lastThumbnailRef.current = persisted.url
-        persistedSceneStateKeyRef.current = scene3DStateKey(nextSceneState)
-        updateNode(node.id, {
-          meta: {
-            ...(current?.meta || node.meta || {}),
-            scene3dState: nextSceneState,
-          },
-        })
-        toast(t('scene3d.fullscreen.screenshotCreated'), 'success')
-      } catch (error) {
-        toast(error instanceof Error ? error.message : t('scene3d.fullscreen.screenshotFailed'), 'error')
+      const result = {
+        id: `scene3d-shot-${screenshotNode.id}-${createdAt}`,
+        type: 'image' as const,
+        url: persisted.url,
+        assetId: persisted.assetId,
+        raw: persisted.raw,
+        createdAt,
       }
-    },
-    [
-      addNode,
-      connectNodes,
-      node.id,
-      node.meta,
-      node.position.x,
-      node.position.y,
-      referenceTarget,
-      t,
-      updateNode,
-      width,
-    ],
-  )
+      const size = imageNodeSize(capture.width, capture.height)
+      updateNode(screenshotNode.id, {
+        result,
+        history: [result],
+        status: 'success',
+        size: { width: size.width, height: size.height },
+        meta: {
+          ...(screenshotNode.meta || {}),
+          source: capture.source,
+          sourceNodeId: node.id,
+          localOnly: persisted.localOnly,
+          imageWidth: capture.width,
+          imageHeight: capture.height,
+          imageAspectRatio: capture.width / Math.max(1, capture.height),
+          previewHeight: size.previewHeight,
+        },
+      })
+      connectNodes(node.id, screenshotNode.id, 'reference')
+      const targetSlot = referenceSlotForScene3DCaptureTitle(capture.title)
+      if (
+        targetSlot &&
+        referenceTarget.state !== 'not-connected' &&
+        shouldAttachScene3DFrameReference(referenceTarget, targetSlot)
+      ) {
+        connectNodes(screenshotNode.id, referenceTarget.targetNodeId, targetSlot)
+      }
+
+      const current = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)
+      const nextSceneState = persistableScene3DState({
+        ...normalizeScene3DState(current?.meta?.scene3dState),
+        lastThumbnail: persisted.url,
+      })
+      lastThumbnailRef.current = persisted.url
+      persistedSceneStateKeyRef.current = scene3DStateKey(nextSceneState)
+      updateNode(node.id, {
+        meta: {
+          ...(current?.meta || node.meta || {}),
+          scene3dState: nextSceneState,
+        },
+      })
+      toast(t('scene3d.fullscreen.screenshotCreated'), 'success')
+      // P3：标记截图节点，关编辑器后 fit + 高亮
+      pendingFitNodeIdRef.current = screenshotNode.id
+    } catch (error) {
+      toast(error instanceof Error ? error.message : t('scene3d.fullscreen.screenshotFailed'), 'error')
+    }
+  }, [addNode, connectNodes, node.id, node.meta, node.position.x, node.position.y, referenceTarget, t, updateNode, width])
 
   const takeCaptureStatus = readTakeCaptureStatus(node)
 

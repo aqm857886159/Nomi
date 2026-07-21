@@ -1,5 +1,7 @@
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { sortEdgesByOrder } from '../model/graphOps'
+import { archetypeForNode, referenceAssetKindForNode } from '../agent/referenceEdgeCapability'
+import { currentArchetypeMode } from '../nodes/controls/archetypeMeta'
 import { asUrl, findNodeResultUrl, resolveReferenceUrl } from './referenceUrl'
 
 export type ResolvedGenerationReferences = {
@@ -30,6 +32,23 @@ function pushUnique(output: string[], value: unknown) {
   if (url && !output.includes(url)) output.push(url)
 }
 
+/**
+ * 目标当前模式是否把「通用 reference 的视频源」当**首帧接力**消费（而非参考视频）。
+ * 与显示侧 assignEdgeToSlot 的视频落槽序 ['video_ref','source_video','first_frame'] 同口径：
+ * 有专门视频槽（video_ref/source_video）→ 当参考视频（false）；只有 first_frame 槽 → 走首帧接力（true）。
+ * 无档案 → false（不知道 i2v 语义，保持「视频进 referenceVideos」现行为）。
+ * 存在意义：封死「显示侧落 first_frame 槽显示待抽帧，发送侧却把视频当参考视频丢掉」的分裂
+ * （reference-mode 视频连 first-frame-only i2v，手动连线默认就走这条 → 会永远待抽帧、发不出）。
+ */
+function targetRelaysVideoToFirstFrame(target: GenerationCanvasNode): boolean {
+  const archetype = archetypeForNode(target)
+  if (!archetype) return false
+  const mode = currentArchetypeMode(archetype, (target.meta || {}) as Record<string, unknown>)
+  const kinds = new Set(mode.slots.map((slot) => slot.kind))
+  if (kinds.has('video_ref') || kinds.has('source_video')) return false
+  return kinds.has('first_frame')
+}
+
 export function resolveGenerationReferences(
   node: GenerationCanvasNode,
   context: { nodes?: GenerationCanvasNode[]; edges?: GenerationCanvasEdge[] } = {},
@@ -53,9 +72,13 @@ export function resolveGenerationReferences(
     const sourceUrl = findNodeResultUrl(nodesById, edge.source)
     if (!sourceUrl) continue
     if (edge.mode === 'first_frame') {
-      // 源是 video 节点 → 尾帧接力：标记待抽帧，绝不把视频 URL/封面当首帧塞进去
+      // 源是视频 → 尾帧接力：标记待抽帧，绝不把视频 URL/封面当首帧塞进去
       // （封死「用封面冒充尾帧」的静默回退，评审必改①）。源是 image → 现行为不变。
-      if (nodesById.get(edge.source)?.kind === 'video') {
+      // 媒体类型按 referenceAssetKindForNode（result.type 单源）判，不按 node.kind：导入的视频素材
+      // kind='asset'（图/视频同种类），按 kind 会漏判 → 把视频 URL 当首帧发出去。video-gen 节点无 result
+      // 时 kind='video' 仍返回 video（exec==='video'），覆盖不丢。
+      const ffSource = nodesById.get(edge.source)
+      if (ffSource && referenceAssetKindForNode(ffSource) === 'video') {
         relayFromVideoUrl = relayFromVideoUrl || sourceUrl
         continue
       }
@@ -87,6 +110,14 @@ export function resolveGenerationReferences(
     // 通用 reference（含旧快照 mode 缺失）只收**直接连到目标**的源结果。不能再借 collectNodeContext
     // 递归扫祖先：A→B→C 时 C 的参考应是 B，而不是 [A,B]；单图模型若截 max=1 会错误发送 A。
     if (!edge.mode || edge.mode === 'reference') {
+      // 视频源 + 目标只有首帧槽（无参考视频槽）→ 首帧接力，与显示侧 resolveReferenceSlots 落 first_frame
+      // 槽（pending-extraction）同一口径。否则会「显示待抽帧、发送却把视频当参考视频丢掉」= 永远待抽帧、
+      // 发不出（reference-mode 视频连 first-frame-only i2v 的陷阱，手动连线的默认路径就撞这条）。
+      const src = nodesById.get(edge.source)
+      if (src && referenceAssetKindForNode(src) === 'video' && targetRelaysVideoToFirstFrame(node)) {
+        relayFromVideoUrl = relayFromVideoUrl || sourceUrl
+        continue
+      }
       pushUnique(referenceImages, sourceUrl)
     }
   }

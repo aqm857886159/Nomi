@@ -214,7 +214,9 @@ export function SceneContent({
           object={object}
           selected={selection?.type === 'object' && selection.id === object.id}
           readOnly={readOnly || trajectoryMode || possessedObject?.id === object.id}
-          interactionDisabled={trajectoryMode}
+          // 轨迹编辑态不再把对象设成死区（模式陷阱：用户点人没反应以为全坏了，2026-07-20 反馈）。
+          // 点对象由宿主 selectSceneItem 统一「退出轨迹模式 + 选中」；变换手柄仍按 readOnly 关闭。
+          interactionDisabled={false}
           transformMode={transformMode}
           orbitControlsActive={!freeLook}
           navigationLockedRef={navigationLockedRef}

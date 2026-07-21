@@ -1,6 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { OrbitControls } from '@react-three/drei'
+import { SCENE_FIT_FOCUS_ID, fitEditorCameraToScene } from './scene3dFitView'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import {
@@ -456,7 +457,23 @@ export function FocusController({
     const targetId = focusId.split(':')[0] || focusId
     const object = objects.find((candidate) => candidate.id === targetId)
     const sceneCamera = cameras.find((candidate) => candidate.id === targetId)
-    if (!object && !sceneCamera) return
+    if (!object && !sceneCamera) {
+      // 「看全场」哨兵：把全部对象+相机框回视锥（迷路一键回家，同 fit 数学治「进门看不见相机」）
+      if (targetId !== SCENE_FIT_FOCUS_ID) return
+      lastFocusRef.current = focusId
+      const pose = fitEditorCameraToScene(objects, cameras)
+      applyEditorCameraPose(camera, pose)
+      syncOrbitControlsTarget(controls, new THREE.Vector3(...pose.target))
+      onCameraChange({
+        position: pose.position,
+        target: pose.target,
+        rotation: eulerToArray(camera.rotation),
+        mode: 'fly',
+      })
+      onFocusConsumed()
+      invalidate()
+      return
+    }
     lastFocusRef.current = focusId
     const target = object ? objectFocusTarget(object) : cameraFocusTarget(sceneCamera!)
     const distance = object ? objectFocusDistance(object) : cameraFocusDistance(sceneCamera!)

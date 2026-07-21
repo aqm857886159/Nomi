@@ -76,28 +76,46 @@ export function registerOnboardingIpc(): void {
       // R1：走唯一 normalizeProviderKind（接受 openai-responses），不再 2 值 clamp。
       const providerKind = normalizeProviderKind(payload?.providerKind);
       const { commitManualOpenAiCompatibleModels } = await import("../../catalog/catalogCommit");
+      const { smartDefaultImageEditProtocol } = await import("../../catalog/newapiTransport");
+      const { probeImageEditProtocol } = await import("../../catalog/imageEditProbe");
       const headers: Record<string, string> = {};
       if (payload?.headers && typeof payload.headers === "object") {
         for (const [k, v] of Object.entries(payload.headers as Record<string, unknown>)) {
           headers[String(k)] = String(v ?? "");
         }
       }
+      const baseUrl = String(payload?.baseUrl || "").trim();
+      const apiKey = String(payload?.apiKey || "").trim();
+      const rawModels = Array.isArray(payload?.models) ? (payload.models as Array<Record<string, unknown>>) : [];
+      // 改图协议判定（探测优先 → 智能默认 → chat 兜底）。只对**图片模型且智能默认落 chat（歧义）**的做免费
+      // 探测（gpt-image/dall-e/grok 已由智能默认判定、无需探）；用户/UI 显式给了 imageEditProtocol 则直接用。
+      // 探测发 multipart 缺 image 的请求读报错形状，**不触发付费生成**；带超时兜底，永不阻塞保存。
+      const models = await Promise.all(rawModels.map(async (m) => {
+        const id = String(m?.id || "");
+        const k = m?.kind;
+        const kind = (k === "image" || k === "video" || k === "text" || k === "audio" ? k : undefined) as "text" | "image" | "video" | "audio" | undefined;
+        const displayName = m?.displayName ? String(m.displayName) : undefined;
+        const explicit = typeof m?.imageEditProtocol === "string" ? (m.imageEditProtocol as "chat-completions-image-url" | "xai-json-edits" | "openai-multipart-edits") : undefined;
+        const effectiveKind = kind || (id ? guessModelKind(id) : undefined);
+        if (effectiveKind !== "image" || !id) return { id, displayName, kind };
+        if (explicit) return { id, displayName, kind, imageEditProtocol: explicit };
+        if (smartDefaultImageEditProtocol(id) !== "chat-completions-image-url") return { id, displayName, kind };
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 6000);
+        try {
+          const probed = await probeImageEditProtocol({ baseUrl, apiKey, modelKey: id, headers, signal: controller.signal });
+          return probed ? { id, displayName, kind, imageEditProtocol: probed } : { id, displayName, kind };
+        } finally {
+          clearTimeout(timer);
+        }
+      }));
       const result = commitManualOpenAiCompatibleModels({
         vendorName: String(payload?.vendorName || ""),
-        baseUrl: String(payload?.baseUrl || ""),
-        apiKey: String(payload?.apiKey || ""),
+        baseUrl,
+        apiKey,
         providerKind,
         headers,
-        models: Array.isArray(payload?.models)
-          ? (payload.models as Array<Record<string, unknown>>).map((m) => {
-              const k = m?.kind;
-              return {
-                id: String(m?.id || ""),
-                displayName: m?.displayName ? String(m.displayName) : undefined,
-                kind: (k === "image" || k === "video" || k === "text" ? k : undefined) as "text" | "image" | "video" | undefined,
-              };
-            })
-          : [],
+        models,
       });
       return { ok: true, vendorKey: result.vendorKey, committed: result.committed };
     } catch (error) {

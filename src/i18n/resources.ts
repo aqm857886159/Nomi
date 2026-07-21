@@ -5,6 +5,7 @@ import { enAssetLibrary, zhAssetLibrary } from './locales/assetLibrary'
 import { enOnboardingProviders, zhOnboardingProviders } from './locales/onboardingProviders'
 import { enLibraries, zhLibraries } from './locales/libraries'
 import { enScene3d, zhScene3d } from './locales/scene3d'
+import { enScene3dJourney, zhScene3dJourney } from './locales/scene3dJourney'
 import { enTimelineEditor, zhTimelineEditor } from './locales/timelineEditor'
 import { enCreationAi, zhCreationAi } from './locales/creationAi'
 import { enStoryboardEditor, zhStoryboardEditor } from './locales/storyboardEditor'
@@ -267,7 +268,14 @@ export const zhCN = {
   assetLibrary: zhAssetLibrary,
   onboardingProviders: zhOnboardingProviders,
   libraries: zhLibraries,
-  scene3d: zhScene3d,
+  scene3d: {
+    ...zhScene3d,
+    coach: { ...zhScene3d.coach, ...zhScene3dJourney.coach },
+    fullscreen: { ...zhScene3d.fullscreen, ...zhScene3dJourney.fullscreen },
+    trajectory: { ...zhScene3d.trajectory, ...zhScene3dJourney.trajectory },
+    export: zhScene3dJourney.export,
+    moveHub: zhScene3dJourney.moveHub,
+  },
   timelineEditor: zhTimelineEditor,
   creationAi: zhCreationAi,
   storyboardEditor: zhStoryboardEditor,
@@ -542,7 +550,14 @@ export const en = {
   assetLibrary: enAssetLibrary,
   onboardingProviders: enOnboardingProviders,
   libraries: enLibraries,
-  scene3d: enScene3d,
+  scene3d: {
+    ...enScene3d,
+    coach: { ...enScene3d.coach, ...enScene3dJourney.coach },
+    fullscreen: { ...enScene3d.fullscreen, ...enScene3dJourney.fullscreen },
+    trajectory: { ...enScene3d.trajectory, ...enScene3dJourney.trajectory },
+    export: enScene3dJourney.export,
+    moveHub: enScene3dJourney.moveHub,
+  },
   timelineEditor: enTimelineEditor,
   creationAi: enCreationAi,
   storyboardEditor: enStoryboardEditor,

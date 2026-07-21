@@ -8,6 +8,14 @@
   // if GSAP later fails to load, the closing script removes this class so nothing stays hidden.
   if (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     document.documentElement.classList.add('anim');
+    // Safety net so the pre-hide can NEVER strand the page blank. If GSAP hasn't
+    // defined itself within 3s (broken/slow script, or a future CDN regression),
+    // reveal everything anyway — first paint must not depend on any hangable fetch.
+    // Vendor JS is now same-origin so this practically never fires; it exists to make
+    // the whole "content stuck hidden" class structurally impossible, not just today's.
+    window.setTimeout(function () {
+      if (!window.gsap) document.documentElement.classList.remove('anim');
+    }, 3000);
   }
 </script>
 <title>Nomi — 本地优先的开源 AI 视频创作平台</title>
@@ -81,7 +89,11 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@300;400;600;900&display=swap" rel="stylesheet">
+<!-- Fonts load non-render-blocking (media=print flipped to all onload): first paint uses the
+     system fallback stack immediately and swaps to the web fonts when they arrive, so a slow or
+     blocked fonts.googleapis.com (common in mainland China) can never blank or delay first paint. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@300;400;600;900&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@300;400;600;900&display=swap"></noscript>
 <style>
   :root {
     --paper: #F2EFE8;
@@ -1370,7 +1382,7 @@
         <div class="dl-eyebrow">/ 04.7 · 加入用户群</div>
         <h2 class="comm-h"><span class="it">进群</span>，<br>一起把 Nomi 做好。</h2>
         <p class="comm-sub">正在招种子用户——扫右边的码进「nomi 画布群」：反馈直达、更新和新功能第一时间收到，也能看别人怎么用 Nomi。</p>
-        <div class="comm-note">群二维码 <strong>7 月 20 日前有效</strong>；过期或扫不进，加作者微信 <strong>TZ857886159</strong>（长期有效）拉你进群。</div>
+        <div class="comm-note">群二维码 <strong>7 月 27 日前有效</strong>；过期或扫不进，加作者微信 <strong>TZ857886159</strong>（长期有效）拉你进群。</div>
       </div>
       <div class="comm-qr">
         <img src="assets/group-wechat.png" alt="nomi 画布群微信二维码" width="200" loading="lazy">
@@ -1476,9 +1488,12 @@
   </div>
 </footer>
 
-<!-- GSAP (CDN, no build step). ScrollTrigger drives the scroll reveals. -->
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+<!-- GSAP 3.12.5, self-hosted (no build step, no third-party CDN). Served same-origin from
+     Cloudflare so first paint never waits on jsdelivr, which frequently hangs (not fast-fails)
+     in mainland China. ScrollTrigger drives the scroll reveals. To bump: replace the two files
+     in /assets/vendor/ and update the version in this comment + the head safety-net note. -->
+<script src="/assets/vendor/gsap.min.js"></script>
+<script src="/assets/vendor/ScrollTrigger.min.js"></script>
 <script>
   (function () {
     var root = document.documentElement;

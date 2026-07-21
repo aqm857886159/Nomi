@@ -1,18 +1,14 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconCamera, IconRoute, IconSettings } from '@tabler/icons-react'
-import { toast } from '../../../../ui/toast'
+import { IconCamera, IconRoute } from '@tabler/icons-react'
 import type { Scene3DCamera, Scene3DObject, Scene3DSelection, Scene3DState } from './scene3dTypes'
 import type { Scene3DTrajectoryEditing } from './useScene3DTrajectoryEditing'
 import type { CameraMovePresetSpec } from './cameraMovePreset'
-import { PanelButton } from './scene3dToolbar'
 import { PropertyPanel } from './scene3dInspector'
-import { TrajectoryPanel } from './trajectory/TrajectoryPanel'
 import { TrajectoryTimeline } from './trajectory/TrajectoryTimeline'
 import { TrajectoryPlayback } from './trajectory/TrajectoryPlayback'
+import { Scene3DMoveHub, type Scene3DMoveHubTab } from './scene3dMoveHub'
 import type { Scene3DReferenceTargetSummary } from './scene3dReferenceDirector'
-
-export type Scene3DRightPanelTab = 'properties' | 'trajectory'
 
 /** In-<Canvas> trajectory path + control points + live playback driver. */
 export function Scene3DTrajectoryLayer({
@@ -96,57 +92,49 @@ export function Scene3DTrajectoryEditBanner({
 }
 
 /** Right inspector body: Properties / Trajectory tab switcher + active tab content. */
+// 右栏 = 属性（上，随选中滚动）+ 整运镜常驻分区（下）。原「属性/轨迹」两 tab 已删：
+// 轨迹不是与属性平级的另一类东西，它是整运镜的三种方式之一（IA 重排一期，加新删旧 P1）。
 export function Scene3DRightPanelBody({
   state,
   trajectory,
   selection,
   readOnly,
-  tab,
-  onTabChange,
+  hubTab,
+  onHubTabChange,
   onObjectPatch,
   onCameraPatch,
   onEnvironmentPatch,
   onApplyCameraMove,
   onExportCameraMoveFrames,
   referenceTarget,
+  onPickCamera,
+  onEnterTrajectoryMode,
+  canRecordTake,
+  onPossessTarget,
 }: {
   state: Scene3DState
   trajectory: Scene3DTrajectoryEditing
   selection: Scene3DSelection
   readOnly: boolean
-  tab: Scene3DRightPanelTab
-  onTabChange: (tab: Scene3DRightPanelTab) => void
+  hubTab: Scene3DMoveHubTab
+  onHubTabChange: (tab: Scene3DMoveHubTab) => void
   onObjectPatch: (id: string, patch: Partial<Scene3DObject>) => void
   onCameraPatch: (id: string, patch: Partial<Scene3DCamera>) => void
   onEnvironmentPatch: (patch: Partial<Scene3DState['environment']>) => void
   onApplyCameraMove: (cameraId: string, spec: CameraMovePresetSpec) => void
   onExportCameraMoveFrames: (cameraId: string) => void
   referenceTarget?: Scene3DReferenceTargetSummary
+  onPickCamera: (cameraId: string) => void
+  onEnterTrajectoryMode: () => void
+  canRecordTake: boolean
+  onPossessTarget: (target: { kind: 'mannequin' | 'camera'; id: string }) => void
 }): JSX.Element {
-  const { t } = useTranslation()
+  const selectedCamera = selection?.type === 'camera'
+    ? state.cameras.find((camera) => camera.id === selection.id)
+    : undefined
   return (
     <>
-      <div className="flex shrink-0 items-center gap-1 border-b border-[var(--workbench-border)] bg-[var(--workbench-surface-solid)] px-2 py-2">
-        <PanelButton
-          title={t('scene3d.inspector.properties')}
-          active={tab === 'properties'}
-          onClick={() => onTabChange('properties')}
-        >
-          <IconSettings size={14} />
-          <span>{t('scene3d.inspector.properties')}</span>
-        </PanelButton>
-        <PanelButton
-          title={t('scene3d.toolbar.trajectory')}
-          active={tab === 'trajectory'}
-          onClick={() => onTabChange('trajectory')}
-        >
-          <IconRoute size={14} />
-          <span>{t('scene3d.toolbar.trajectory')}</span>
-        </PanelButton>
-      </div>
-      {tab === 'trajectory' ? (
-        <Scene3DTrajectoryInspector state={state} trajectory={trajectory} readOnly={readOnly} />
-      ) : (
+      <div className="min-h-0 flex-1 overflow-y-auto">
         <PropertyPanel
           state={state}
           selection={selection}
@@ -154,51 +142,24 @@ export function Scene3DRightPanelBody({
           onObjectPatch={onObjectPatch}
           onCameraPatch={onCameraPatch}
           onEnvironmentPatch={onEnvironmentPatch}
-          onApplyCameraMove={onApplyCameraMove}
-          onExportCameraMoveFrames={onExportCameraMoveFrames}
-          referenceTarget={referenceTarget}
         />
-      )}
+      </div>
+      <Scene3DMoveHub
+        state={state}
+        trajectory={trajectory}
+        readOnly={readOnly}
+        tab={hubTab}
+        onTabChange={onHubTabChange}
+        selectedCamera={selectedCamera}
+        onPickCamera={onPickCamera}
+        onApplyCameraMove={onApplyCameraMove}
+        onExportCameraMoveFrames={onExportCameraMoveFrames}
+        referenceTarget={referenceTarget}
+        onEnterTrajectoryMode={onEnterTrajectoryMode}
+        canRecordTake={canRecordTake}
+        onPossessTarget={onPossessTarget}
+      />
     </>
-  )
-}
-
-/** Right-inspector trajectory tab body (add/select/patch trajectory + bindings). */
-export function Scene3DTrajectoryInspector({
-  state,
-  trajectory,
-  readOnly,
-}: {
-  state: Scene3DState
-  trajectory: Scene3DTrajectoryEditing
-  readOnly: boolean
-}): JSX.Element {
-  return (
-    <TrajectoryPanel
-      state={state}
-      activeTrajectoryId={trajectory.activeTrajectoryId}
-      activePointId={trajectory.activePointId}
-      readOnly={readOnly}
-      onAddTrajectory={() => {
-        trajectory.setTimelineOpen(true)
-        trajectory.createTrajectory()
-      }}
-      onSelectTrajectory={(trajectoryId) => {
-        trajectory.selectTrajectory(trajectoryId)
-        trajectory.setTrajectoryEditMode(true)
-      }}
-      onDeleteTrajectory={trajectory.deleteTrajectory}
-      onPatchTrajectory={trajectory.patchTrajectory}
-      onAddPoint={trajectory.addPoint}
-      onSelectPoint={trajectory.selectPoint}
-      onUpdatePoint={trajectory.updatePoint}
-      onDeletePoint={trajectory.deletePoint}
-      onBindObject={trajectory.bindObject}
-      onPatchBinding={trajectory.patchBinding}
-      onPatchBoundObject={trajectory.patchBoundObject}
-      onUnbindObject={trajectory.unbindObject}
-      onDeleteBinding={trajectory.deleteBinding}
-    />
   )
 }
 
@@ -206,11 +167,13 @@ export function Scene3DTrajectoryInspector({
 export function Scene3DTrajectoryTimelineBar({
   trajectory,
   readOnly,
+  onRequestPlayChange,
 }: {
   trajectory: Scene3DTrajectoryEditing
   readOnly: boolean
+  /** 播放门（含未绑定的可跳转报错）单源在 useScene3DTrajectoryModeActions，这里不再各写一份 */
+  onRequestPlayChange: (playing: boolean) => void
 }): JSX.Element {
-  const { t } = useTranslation()
   return (
     <TrajectoryTimeline
       visible={trajectory.timelineOpen}
@@ -218,13 +181,7 @@ export function Scene3DTrajectoryTimelineBar({
       readOnly={readOnly}
       activeGroupId={trajectory.activeGroupId}
       playheadRef={trajectory.playheadRef}
-      onPlayChange={(playing) => {
-        if (playing && !trajectory.hasPlayableBinding) {
-          toast(t('scene3d.trajectory.bindTargetFirst'), 'warning')
-          return
-        }
-        trajectory.setIsPlaying(playing)
-      }}
+      onPlayChange={onRequestPlayChange}
       onSelectGroup={trajectory.selectGroup}
       onSelectTrajectory={trajectory.selectTrajectory}
       onClose={() => {

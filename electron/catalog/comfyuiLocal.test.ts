@@ -86,6 +86,87 @@ describe("comfyui-history 响应变换", () => {
     expect(res.video_url).toContain("filename=custom-video.mp4");
   });
 
+  it("扩展名权威：视频挂在非 gifs/videos 的自定义键仍判成视频（治视频路读 video_url 读空 → 漏拉）", () => {
+    const res = comfyuiHistoryTransform(
+      {
+        id: {
+          status: { status_str: "success", completed: true },
+          // 某第三方保存节点把 mp4 放在自定义键 media 下（既非 gifs 也非 videos）
+          outputs: { "31": { media: [{ filename: "shot_0001.mp4", subfolder: "clips", type: "output" }] } },
+        },
+      },
+      ctx,
+    ) as { image_url?: string; video_url?: string };
+    expect(res.video_url).toContain("filename=shot_0001.mp4");
+    expect(res.image_url).toBeUndefined();
+  });
+
+  it("放宽扩展名：少见格式 heic(图) / ts(视频) 各自识别到对应 url", () => {
+    const res = comfyuiHistoryTransform(
+      {
+        id: {
+          outputs: {
+            "40": { saved: [{ filename: "portrait.heic", subfolder: "", type: "output" }] },
+            "41": { clip: [{ filename: "take.ts", subfolder: "v", type: "output" }] },
+          },
+        },
+      },
+      ctx,
+    ) as { image_url?: string; video_url?: string };
+    expect(res.image_url).toContain("filename=portrait.heic");
+    expect(res.video_url).toContain("filename=take.ts");
+  });
+
+  it("不漏兜底：未知扩展名但带完整 /view 三元组 → 当图片拉（新图片格式不因未枚举而漏）", () => {
+    const res = comfyuiHistoryTransform(
+      {
+        id: {
+          status: { status_str: "success", completed: true },
+          outputs: { "50": { result: [{ filename: "render_0001.qoi", subfolder: "sub", type: "output" }] } },
+        },
+      },
+      ctx,
+    ) as { image_url?: string };
+    expect(res.image_url).toBe("http://127.0.0.1:8188/view?filename=render_0001.qoi&subfolder=sub&type=output");
+  });
+
+  it("保守守卫：latent 也带 /view 三元组，但按中间产物挡住（不被兜底误当图）", () => {
+    const res = comfyuiHistoryTransform(
+      {
+        id: {
+          status: { status_str: "success", completed: true },
+          outputs: { "10": { result: [{ filename: "sample_0001.latent", subfolder: "", type: "output" }] } },
+        },
+      },
+      ctx,
+    ) as { error?: string; image_url?: string };
+    expect(res.error).toContain("没有返回可下载");
+    expect(res.image_url).toBeUndefined();
+  });
+
+  it("保守守卫：未知扩展名但缺 subfolder/type 三元组 → 不误抓（判 null）", () => {
+    const res = comfyuiHistoryTransform(
+      {
+        id: {
+          status: { status_str: "success", completed: true },
+          outputs: { "5": { data: [{ filename: "notes.xyz" }] } },
+        },
+      },
+      ctx,
+    ) as { error?: string; image_url?: string };
+    expect(res.error).toContain("没有返回可下载");
+    expect(res.image_url).toBeUndefined();
+  });
+
+  it("SaveImageWebsocket 式：完成但输出节点为空（图走 websocket 未落盘）→ 明确失败、提示补保存节点，不静默轮询到超时", () => {
+    const res = comfyuiHistoryTransform(
+      { id: { status: { status_str: "success", completed: true }, outputs: { "14": {} } } },
+      ctx,
+    ) as { error?: string; image_url?: string };
+    expect(res.error).toContain("没有返回可下载");
+    expect(res.image_url).toBeUndefined();
+  });
+
   it("视频：VHS gifs[0]（mp4 也落 gifs 键）→ video_url", () => {
     const res = comfyuiHistoryTransform(
       {

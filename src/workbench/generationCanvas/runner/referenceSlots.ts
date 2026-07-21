@@ -112,7 +112,10 @@ export function resolveReferenceSlots(
     const assignment = assignEdgeToSlot(edge.mode, assetKind, slots)
     if (!assignment) continue
     const slot = slots[assignment.slotIndex]
-    const isRelay = slot.kind === 'first_frame' && source.kind === 'video'
+    // 待抽帧接力判据必须按**媒体类型**（assetKind，line 110 已按 result.type 算），不能按 source.kind：
+    // 导入的视频素材 kind='asset'（图/视频同种类），按 kind 判会漏判 → 视频 URL 落 first_frame 图槽
+    // 渲染成 <img src=video.mp4> 加载失败（与「导入视频当参考被判成图」同一根因，只是换到 i2v 单首帧入口）。
+    const isRelay = slot.kind === 'first_frame' && assetKind === 'video'
     const rawUrl = findNodeResultUrl(nodesById, edge.source)
     const status: ReferenceFillStatus = isRelay ? 'pending-extraction' : rawUrl ? 'resolved' : 'pending-generation'
     placeAt(assignment.slotIndex, {

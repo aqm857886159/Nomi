@@ -80,6 +80,33 @@ describe("通用中转 image_edit 按模型协议精确分流", () => {
     expect(profile.protocol).toBe("chat-completions-image-url");
     expect(profile.operation).toBe(NEWAPI_IMAGE_EDIT_OP);
   });
+
+  it("GPT Image 2 → OpenAI multipart /v1/images/edits（image[] 文件字段，非 chat/非 JSON）", () => {
+    const profile = newapiImageEditProfileForModel("gpt-image-2");
+    expect(profile.protocol).toBe("openai-multipart-edits");
+    expect(profile.operation.path).toBe("/v1/images/edits");
+    expect(profile.operation.multipart?.imageField).toBe("image[]");
+    expect(profile.operation.multipart?.multiple).toBe(true);
+    // 不设 Content-Type（multipart 由 fetch 加 boundary）；body 走 multipart.fields 不走 JSON body。
+    expect(profile.operation.body).toBeUndefined();
+    expect(profile.operation.headers?.["Content-Type"]).toBeUndefined();
+  });
+
+  it("dall-e-2 也走 multipart edits；带路径前缀的 gpt-image 仍命中", () => {
+    expect(newapiImageEditProfileForModel("dall-e-2").protocol).toBe("openai-multipart-edits");
+    expect(newapiImageEditProfileForModel("openai/gpt-image-1").protocol).toBe("openai-multipart-edits");
+  });
+
+  it("override（探测/手动选）压过智能默认：把 gpt-image 强判成 chat", () => {
+    const profile = newapiImageEditProfileForModel("gpt-image-2", null, "chat-completions-image-url");
+    expect(profile.protocol).toBe("chat-completions-image-url");
+    expect(profile.operation).toBe(NEWAPI_IMAGE_EDIT_OP);
+  });
+
+  it("非法 override 被忽略，回落智能默认", () => {
+    const profile = newapiImageEditProfileForModel("gpt-image-2", null, "bogus" as never);
+    expect(profile.protocol).toBe("openai-multipart-edits");
+  });
 });
 
 describe("通用中转 text_to_image 分辨率派生（治「只能出 1K」）", () => {

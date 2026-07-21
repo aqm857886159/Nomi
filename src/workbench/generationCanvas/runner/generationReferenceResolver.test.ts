@@ -36,6 +36,59 @@ describe('resolveGenerationReferences — T5 尾帧接力分流', () => {
     expect(refs.relayFromVideoUrl).toBe('nomi-local://asset/p/v1.mp4')
   })
 
+  it('导入的**视频素材**(kind=asset,result.type=video)经 first_frame 边 → 也标 relayFromVideoUrl（按 result.type 判，不按 node.kind）', () => {
+    // kind='asset' 图/视频同种类，按 node.kind==='video' 会漏判 → 把视频 URL 当首帧发。referenceAssetKindForNode
+    // 看 result.type → video → 接力。与显示侧 referenceSlots 的 pending-extraction 同一口径。
+    const videoAsset = {
+      id: 'v1', kind: 'asset', title: 'v1', prompt: '', x: 0, y: 0, width: 100, height: 100,
+      result: { type: 'video', url: 'nomi-local://asset/p/tom.mp4' },
+    } as unknown as GenerationCanvasNode
+    const nextVideo = node('v2', 'video')
+    const edges: GenerationCanvasEdge[] = [{ id: 'e1', source: 'v1', target: 'v2', mode: 'first_frame' }]
+    const refs = resolveGenerationReferences(nextVideo, { nodes: [videoAsset, nextVideo], edges })
+    expect(refs.firstFrameUrl).toBeUndefined()
+    expect(refs.relayFromVideoUrl).toBe('nomi-local://asset/p/tom.mp4')
+    expect(refs.referenceImages).toEqual([])
+    expect(refs.referenceVideos).toEqual([]) // 不当参考视频，是首帧接力源
+  })
+
+  it('导入的**视频素材**经**通用 reference 边**连 first-frame-only i2v(hailuo) → 首帧接力，不当参考视频丢掉（治「永远待抽帧、发不出」陷阱）', () => {
+    // 手动拖连给的是 reference 边。目标 hailuo i2v 只有 first_frame 槽（无 video_ref）→ 视频只能当首帧接力。
+    // 修前：reference 分支把视频推进 referenceImages→分流进 referenceVideos→模型无 video_ref 槽丢弃，
+    // 但显示侧已显示 pending-extraction → 永远待抽帧、发不出。修后：发送侧也接力，两侧一致。
+    const videoAsset = {
+      id: 'v1', kind: 'asset', title: 'v1', prompt: '', x: 0, y: 0, width: 100, height: 100,
+      result: { type: 'video', url: 'nomi-local://asset/p/tom.mp4' },
+    } as unknown as GenerationCanvasNode
+    const tgt = {
+      id: 't1', kind: 'video', title: 't1', prompt: '', x: 0, y: 0, width: 100, height: 100,
+      meta: { archetype: { id: 'hailuo-2.3', modeId: 'i2v' } },
+    } as unknown as GenerationCanvasNode
+    const edges: GenerationCanvasEdge[] = [{ id: 'e1', source: 'v1', target: 't1', mode: 'reference' }]
+    const refs = resolveGenerationReferences(tgt, { nodes: [videoAsset, tgt], edges })
+    expect(refs.relayFromVideoUrl).toBe('nomi-local://asset/p/tom.mp4')
+    expect(refs.firstFrameUrl).toBeUndefined()
+    expect(refs.referenceVideos).toEqual([])
+    expect(refs.referenceImages).toEqual([])
+  })
+
+  it('导入的**视频素材**经 reference 边连有 video_ref 槽的模型(Seedance 全能参考) → 仍当参考视频，不接力', () => {
+    // 回归护栏：有专门参考视频槽的模型，视频该进 referenceVideos（video_ref），不能误判成首帧接力。
+    const videoAsset = {
+      id: 'v1', kind: 'asset', title: 'v1', prompt: '', x: 0, y: 0, width: 100, height: 100,
+      result: { type: 'video', url: 'nomi-local://asset/p/tom.mp4' },
+    } as unknown as GenerationCanvasNode
+    const tgt = {
+      id: 't1', kind: 'video', title: 't1', prompt: '', x: 0, y: 0, width: 100, height: 100,
+      meta: { archetype: { id: 'dreamina-seedance-2', modeId: 'multimodal' } },
+    } as unknown as GenerationCanvasNode
+    const edges: GenerationCanvasEdge[] = [{ id: 'e1', source: 'v1', target: 't1', mode: 'reference' }]
+    const refs = resolveGenerationReferences(tgt, { nodes: [videoAsset, tgt], edges })
+    expect(refs.referenceVideos).toEqual(['nomi-local://asset/p/tom.mp4'])
+    expect(refs.relayFromVideoUrl).toBeUndefined()
+    expect(refs.referenceImages).toEqual([])
+  })
+
   it('nomi-local:// 资源 URL 被放行（抽帧 IPC 返回值不再被丢弃）', () => {
     const kf = node('kf1', 'image', 'nomi-local://asset/p/frame.png')
     const video = node('v1', 'video')

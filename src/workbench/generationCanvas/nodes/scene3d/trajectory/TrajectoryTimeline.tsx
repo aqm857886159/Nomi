@@ -340,8 +340,8 @@ export function TrajectoryTimeline({
           </div>
           <div className="mt-2 grid max-h-[calc(34vh-54px)] gap-1 overflow-auto pr-1">
             {rows.length === 0 ? (
-              <div className="grid h-12 place-items-center rounded-nomi-sm border border-dashed border-[var(--nomi-line-soft)] text-micro text-[var(--nomi-ink-40)]">
-                {t('scene3d.trajectory.empty')}
+              <div className="grid h-12 place-items-center rounded-nomi-sm border border-dashed border-[var(--nomi-line-soft)] px-2 text-center text-micro leading-relaxed text-[var(--nomi-ink-40)]">
+                {t('scene3d.trajectory.emptyHint')}
               </div>
             ) : rows.map((row) => {
               if (row.type !== 'group') {
@@ -437,7 +437,9 @@ export function TrajectoryTimeline({
             className="relative mt-2 grid max-h-[calc(34vh-54px)] min-w-0 gap-1 overflow-auto pr-1"
           >
             {rows.length === 0 ? (
-              <div className="grid h-12 place-items-center text-micro text-[var(--nomi-ink-40)]">{t('scene3d.trajectory.noBindingRanges')}</div>
+              <div className="grid h-12 place-items-center text-micro text-[var(--nomi-ink-40)]">
+                {t('scene3d.trajectory.noBindingHint')}
+              </div>
             ) : rows.map((row) => row.type === 'group' ? (
               <div key={row.id} className="h-7 rounded-nomi-sm bg-[var(--nomi-paper)]/70" />
             ) : (

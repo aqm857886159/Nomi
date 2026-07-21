@@ -46,9 +46,6 @@ import {
   numberInputValue,
 } from './scene3dMath'
 import { Scene3DEnvironmentPanel } from './scene3dEnvironmentPanel'
-import { CameraMovePanel } from './scene3dCameraMovePanel'
-import type { CameraMovePresetSpec } from './cameraMovePreset'
-import type { Scene3DReferenceTargetSummary } from './scene3dReferenceDirector'
 
 function VectorInputs({
   label,
@@ -501,9 +498,6 @@ export function PropertyPanel({
   onObjectPatch,
   onCameraPatch,
   onEnvironmentPatch,
-  onApplyCameraMove,
-  onExportCameraMoveFrames,
-  referenceTarget,
 }: {
   state: Scene3DState
   selection: Scene3DSelection
@@ -511,9 +505,6 @@ export function PropertyPanel({
   onObjectPatch: (id: string, patch: Partial<Scene3DObject>) => void
   onCameraPatch: (id: string, patch: Partial<Scene3DCamera>) => void
   onEnvironmentPatch: (patch: Partial<Scene3DState['environment']>) => void
-  onApplyCameraMove: (cameraId: string, spec: CameraMovePresetSpec) => void
-  onExportCameraMoveFrames: (cameraId: string) => void
-  referenceTarget?: Scene3DReferenceTargetSummary
 }): JSX.Element {
   const { t } = useTranslation()
   const selectedObject =
@@ -688,6 +679,7 @@ export function PropertyPanel({
               onChange={(event) => onCameraPatch(selectedCamera.id, { name: event.currentTarget.value })}
             />
           </label>
+          {/* 运镜预设已迁入右栏下方常驻「整运镜」区（scene3dMoveHub，IA 重排一期） */}
           <VectorInputs
             label={t('scene3d.inspector.cameraPosition')}
             value={selectedCamera.position}
@@ -741,19 +733,21 @@ export function PropertyPanel({
               </label>
             ))}
           </div>
-          <CameraMovePanel
-            readOnly={readOnly}
-            onApply={(spec) => onApplyCameraMove(selectedCamera.id, spec)}
-            onExportFrames={() => onExportCameraMoveFrames(selectedCamera.id)}
-            referenceTarget={referenceTarget}
-          />
         </div>
       ) : (
-        <Scene3DEnvironmentPanel
-          environment={state.environment}
-          readOnly={readOnly}
-          onEnvironmentPatch={onEnvironmentPatch}
-        />
+        <>
+          {/* 未选中时右栏首屏是环境开关，对新手不是下一步——顶部给一条旅程指路（P1-7 空态） */}
+          {!readOnly ? (
+            <div className="rounded-nomi border border-dashed border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] p-3 text-caption leading-relaxed text-[var(--nomi-ink-60)]">
+              {t('scene3d.fullscreen.inspectorJourneyHint')}
+            </div>
+          ) : null}
+          <Scene3DEnvironmentPanel
+            environment={state.environment}
+            readOnly={readOnly}
+            onEnvironmentPatch={onEnvironmentPatch}
+          />
+        </>
       )}
     </section>
   )

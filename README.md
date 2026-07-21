@@ -28,7 +28,7 @@
 
 <p align="center">
   <a href="https://github.com/aqm857886159/Nomi/stargazers"><img src="https://img.shields.io/badge/GitHub-%E2%AD%90%20Star-2563eb?logo=github&logoColor=2563eb&labelColor=f1f5f9" alt="Star on GitHub" /></a>
-  <a href="https://github.com/aqm857886159/Nomi/releases/latest"><img src="https://img.shields.io/badge/release-v0.16.8-2563eb?labelColor=f1f5f9" alt="Latest release" /></a>
+  <a href="https://github.com/aqm857886159/Nomi/releases/latest"><img src="https://img.shields.io/badge/release-v0.16.9-2563eb?labelColor=f1f5f9" alt="Latest release" /></a>
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-2563eb?labelColor=f1f5f9" alt="Platform" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-2563eb?labelColor=f1f5f9" alt="License" /></a>
 </p>
@@ -62,7 +62,7 @@
 
 <img src="docs/media/nomi-canvas-group-wechat.png" alt="nomi 画布群二维码" width="200" />
 
-> 群二维码 **7 月 20 日前有效**；过期或扫不进，加作者微信 **TZ857886159**（长期有效）拉你进群。
+> 群二维码 **7 月 27 日前有效**；过期或扫不进，加作者微信 **TZ857886159**（长期有效）拉你进群。
 
 ---
 

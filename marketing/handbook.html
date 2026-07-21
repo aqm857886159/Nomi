@@ -4,7 +4,12 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Nomi 一页上手</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<!-- Icon font loads non-render-blocking (media=print flipped to all onload) so a slow or blocked
+     jsdelivr (common in mainland China) can't blank first paint. Every icon below sits next to a
+     text label, so the page reads fine even if the icon font never arrives. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" media="print" onload="this.media='all'" />
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" /></noscript>
 <style>
   :root{--bg:#faf9f6;--paper:#fff;--ink:#1c1b19;--ink80:#3d3c39;--ink60:#6a6862;--ink40:#9b9990;--line:#e6e3db;--soft:#f1efe8;--accent:#534ab7;--accent-soft:#eeedfe}
   @media (prefers-color-scheme: dark){:root{--bg:#161513;--paper:#1f1e1b;--ink:#f3f1ea;--ink80:#d6d3ca;--ink60:#a3a199;--ink40:#76746d;--line:#33312c;--soft:#26241f;--accent:#afa9ec;--accent-soft:#26215c}}

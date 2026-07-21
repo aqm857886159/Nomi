@@ -53,6 +53,15 @@ export function markScene3DCoachSeen(): void {
   }
 }
 
+/** 重看引导：清除记忆，下次进编辑器会重新出 Coach Marks */
+export function resetScene3DCoachSeen(): void {
+  try {
+    window.localStorage.removeItem(SCENE3D_COACH_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
 export type ChecklistStep = 'model' | 'storyboard' | 'generated' | 'exported'
 export type ChecklistState = Record<ChecklistStep, boolean>
 

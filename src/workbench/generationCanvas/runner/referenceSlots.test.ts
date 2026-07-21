@@ -79,6 +79,48 @@ describe('resolveReferenceSlots — 能力驱动单一真相源', () => {
     ])
   })
 
+  it('导入的**视频素材**(kind=asset,result.type=video)经 first_frame 边连 i2v(只有首帧槽) → pending-extraction，不落成 <img src=video>', () => {
+    // 与 line 71「video-gen 节点」同一类，泛化到导入视频素材：kind='asset'（图/视频同种类），媒体类型
+    // 必看 result.type。修前 isRelay 按 source.kind（'asset'≠'video'）→ 视频 URL 落 first_frame 图槽显示成
+    // 加载失败的图；修后按 assetKind（result.type=video）→ pending-extraction（待抽帧接力）。
+    const videoAsset = { ...node('v1', 'asset'), result: { id: 'r', type: 'video', url: 'nomi-local://asset/p/tom.mp4', createdAt: 0 } } as GenerationCanvasNode
+    const tgt = target('video', 'hailuo-2.3', 'i2v')
+    const edges: GenerationCanvasEdge[] = [{ id: 'e1', source: 'v1', target: 'tgt', mode: 'first_frame' }]
+    const slots = resolveReferenceSlots(tgt, [videoAsset, tgt], edges)
+    expect(slots[0].slotKind).toBe('first_frame')
+    expect(slots[0].fills).toEqual([
+      { position: 0, url: null, status: 'pending-extraction', origin: { type: 'edge', sourceNodeId: 'v1', semantic: 'first_frame' } },
+    ])
+  })
+
+  it('导入的**视频素材**经**通用 reference 边**连 first-frame-only i2v → 也落 first_frame 槽 pending-extraction（手动连线默认走 reference-mode）', () => {
+    // 手动拖连视频→i2v 时 selectConnectionEdgeMode 给的是 reference（非 first_frame）。assignEdgeToSlot 视频序
+    // ['video_ref','source_video','first_frame'] → 落 first_frame，同样必须显示待抽帧（配合发送侧接力，见 resolver 测）。
+    const videoAsset = { ...node('v1', 'asset'), result: { id: 'r', type: 'video', url: 'nomi-local://asset/p/tom.mp4', createdAt: 0 } } as GenerationCanvasNode
+    const tgt = target('video', 'hailuo-2.3', 'i2v')
+    const edges: GenerationCanvasEdge[] = [{ id: 'e1', source: 'v1', target: 'tgt', mode: 'reference' }]
+    const slots = resolveReferenceSlots(tgt, [videoAsset, tgt], edges)
+    expect(slots[0].slotKind).toBe('first_frame')
+    expect(slots[0].fills).toEqual([
+      { position: 0, url: null, status: 'pending-extraction', origin: { type: 'edge', sourceNodeId: 'v1', semantic: 'reference' } },
+    ])
+  })
+
+  it('导入的**视频素材**(kind=asset,result.type=video)连进 Seedance 全能参考 → 落 video_ref「参考视频」槽(不是角色图槽)', () => {
+    // 用户报的根因:导入视频被当图参考,落「角色参考」图槽,显示成 <img src=video.mp4> 加载失败。
+    // 修后:按 result.type 判成 video → assignEdgeToSlot 走视频序 → 落 video_ref,显示成视频块。
+    const videoAsset = { ...node('v1', 'asset'), result: { id: 'r', type: 'video', url: 'nomi-local://asset/p/tom.mp4', createdAt: 0 } } as GenerationCanvasNode
+    const tgt = target('video', 'dreamina-seedance-2', 'multimodal')
+    const edges: GenerationCanvasEdge[] = [{ id: 'e1', source: 'v1', target: 'tgt', mode: 'reference' }]
+    const slots = resolveReferenceSlots(tgt, [videoAsset, tgt], edges)
+    const videoSlot = slots.find((s) => s.slotKind === 'video_ref')
+    const imageSlot = slots.find((s) => s.slotKind === 'image_ref')
+    expect(videoSlot?.fills).toEqual([
+      { position: 0, url: 'nomi-local://asset/p/tom.mp4', status: 'resolved', origin: { type: 'edge', sourceNodeId: 'v1', semantic: 'reference' } },
+    ])
+    expect(imageSlot?.fills).toEqual([]) // 绝不落角色图槽(那会渲染成加载失败的图)
+  })
+
   it('meta 上传（无源节点）也在槽里可见，origin=upload', () => {
     const tgt = target('video', 'sora-2', 'i2v', { referenceImageUrls: ['https://cdn/up.png'] })
     const slots = resolveReferenceSlots(tgt, [tgt], [])

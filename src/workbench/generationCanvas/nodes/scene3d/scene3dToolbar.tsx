@@ -16,15 +16,15 @@ import {
   IconPackage,
   IconPlane,
   IconPlus,
-  IconRoute,
   IconSphere,
   IconTrees,
   IconUser,
   IconWall,
   type Icon,
 } from '@tabler/icons-react'
+import { IconArrowsMove, IconRotate, IconZoomScan } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
-import { type Scene3DGeometry, type Scene3DPropKind } from './scene3dTypes'
+import { type Scene3DGeometry, type Scene3DPropKind, type Scene3DTransformMode } from './scene3dTypes'
 import { CROWD_MAX_AXIS, type CrowdAddOptions } from './scene3dConstants'
 import { PROP_KINDS } from './scene3dPropSpecs'
 import { SCENE_TEMPLATES, type Scene3DSceneTemplate } from './scene3dSceneTemplates'
@@ -128,8 +128,6 @@ export function SceneAddToolbar({
   onAddCrowd,
   onAddCamera,
   onApplySceneTemplate,
-  trajectoryMode,
-  onToggleTrajectoryMode,
   canvasFocusMode,
   onToggleCanvasFocusMode,
 }: {
@@ -138,8 +136,6 @@ export function SceneAddToolbar({
   onAddCrowd: (options: CrowdAddOptions) => void
   onAddCamera: () => void
   onApplySceneTemplate: (template: Scene3DSceneTemplate) => void
-  trajectoryMode: boolean
-  onToggleTrajectoryMode: () => void
   canvasFocusMode: boolean
   onToggleCanvasFocusMode: () => void
 }): JSX.Element {
@@ -566,17 +562,7 @@ export function SceneAddToolbar({
           <IconChevronUp size={13} className={cn('transition', addMenuOpen && 'rotate-180')} />
         </button>
         <span className="h-5 w-px shrink-0 bg-[var(--workbench-border)]" />
-        <SceneAddButton
-          active={trajectoryMode}
-          title={trajectoryMode ? t('scene3d.toolbar.exitTrajectory') : t('scene3d.toolbar.enterTrajectory')}
-          onClick={() => {
-            closeAddMenu()
-            onToggleTrajectoryMode()
-          }}
-        >
-          <IconRoute size={15} />
-          <span>{t('scene3d.toolbar.trajectory')}</span>
-        </SceneAddButton>
+        {/* 底部「轨迹」钮已删：入口收进右栏整运镜>轨迹（IA 重排一期，同一功能一个家 P1） */}
         <SceneAddButton
           active={canvasFocusMode}
           title={canvasFocusMode ? t('scene3d.toolbar.exitFullscreenCanvas') : t('scene3d.toolbar.fullscreenCanvas')}
@@ -589,6 +575,40 @@ export function SceneAddToolbar({
           <span>{canvasFocusMode ? t('scene3d.toolbar.restore') : t('scene3d.toolbar.fullscreen')}</span>
         </SceneAddButton>
       </div>
+    </div>
+  )
+}
+
+/** 视口左上角工具（IA 重排：变换贴近操作对象 + 看全场一键回家；只读态只留看全场）。
+ * 速度滑杆已移入接控/录制条（只在真开 WASD 时出现）；XYZ 静态徽标已删（用户 2026-07-20：没用还挡地方）。 */
+export function Scene3DViewportToolPill({
+  readOnly,
+  transformMode,
+  onTransformModeChange,
+  onFitView,
+}: {
+  readOnly: boolean
+  transformMode: Scene3DTransformMode
+  onTransformModeChange: (mode: Scene3DTransformMode) => void
+  onFitView: () => void
+}): JSX.Element {
+  const { t } = useTranslation()
+  return (
+    <div className="pointer-events-auto absolute left-4 top-4 z-[3] flex items-center gap-1 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-0.5 shadow-[var(--nomi-shadow-md)]">
+      {!readOnly ? (
+        <>
+          <PanelButton title={t('scene3d.fullscreen.moveTransformHint')} active={transformMode === 'translate'} onClick={() => onTransformModeChange('translate')}>
+            <IconArrowsMove size={15} />
+          </PanelButton>
+          <PanelButton title={t('scene3d.fullscreen.rotateTransformHint')} active={transformMode === 'rotate'} onClick={() => onTransformModeChange('rotate')}>
+            <IconRotate size={15} />
+          </PanelButton>
+          <span className="h-5 w-px shrink-0 bg-[var(--workbench-border)]" />
+        </>
+      ) : null}
+      <PanelButton title={t('scene3d.fullscreen.fitViewHint')} onClick={onFitView}>
+        <IconZoomScan size={15} />
+      </PanelButton>
     </div>
   )
 }

@@ -103,6 +103,10 @@ export function useScene3DTrajectoryEditing({
   const [activePointId, setActivePointId] = React.useState<string | null>(null)
   const [activeGroupId, setActiveGroupId] = React.useState<string | null>(null)
   const [trajectoryEditMode, setTrajectoryEditModeState] = React.useState(false)
+  // 时间轴按旅程时机出现，默认收起：进门底部要先见「添加」工具栏（摆场景是旅程第 1 步），
+  // 默认展开会把它整个盖住（2026-07-20 用户真机反馈「一进来懵逼，关掉时间轴才看到添加」——
+  // 凌晨方案里"时间轴默认开"与"添加移左栏"是一对，只落一半就是这个冲突）。
+  // 预设落轨 / 进轨迹模式 / 绑定 / 播放四条路都会 setTimelineOpen(true)——第一段运镜诞生那刻它自己出现。
   const [timelineOpen, setTimelineOpen] = React.useState(false)
   const [isPlaying, setIsPlaying] = React.useState(false)
   const playheadRef = React.useRef(0)
