@@ -79,6 +79,21 @@ describe('resolveReferenceSlots — 能力驱动单一真相源', () => {
     ])
   })
 
+  it('导入的**视频素材**(kind=asset,result.type=video)连进 Seedance 全能参考 → 落 video_ref「参考视频」槽(不是角色图槽)', () => {
+    // 用户报的根因:导入视频被当图参考,落「角色参考」图槽,显示成 <img src=video.mp4> 加载失败。
+    // 修后:按 result.type 判成 video → assignEdgeToSlot 走视频序 → 落 video_ref,显示成视频块。
+    const videoAsset = { ...node('v1', 'asset'), result: { id: 'r', type: 'video', url: 'nomi-local://asset/p/tom.mp4', createdAt: 0 } } as GenerationCanvasNode
+    const tgt = target('video', 'dreamina-seedance-2', 'multimodal')
+    const edges: GenerationCanvasEdge[] = [{ id: 'e1', source: 'v1', target: 'tgt', mode: 'reference' }]
+    const slots = resolveReferenceSlots(tgt, [videoAsset, tgt], edges)
+    const videoSlot = slots.find((s) => s.slotKind === 'video_ref')
+    const imageSlot = slots.find((s) => s.slotKind === 'image_ref')
+    expect(videoSlot?.fills).toEqual([
+      { position: 0, url: 'nomi-local://asset/p/tom.mp4', status: 'resolved', origin: { type: 'edge', sourceNodeId: 'v1', semantic: 'reference' } },
+    ])
+    expect(imageSlot?.fills).toEqual([]) // 绝不落角色图槽(那会渲染成加载失败的图)
+  })
+
   it('meta 上传（无源节点）也在槽里可见，origin=upload', () => {
     const tgt = target('video', 'sora-2', 'i2v', { referenceImageUrls: ['https://cdn/up.png'] })
     const slots = resolveReferenceSlots(tgt, [tgt], [])

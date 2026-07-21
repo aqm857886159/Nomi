@@ -36,7 +36,13 @@ export function referenceAssetKindForNode(node: GenerationCanvasNode): Reference
   const exec = getGenerationNodeExecutionKind(node.kind)
   if (exec === 'video') return 'video'
   if (exec === 'image') return 'image'
-  return getGenerationNodeDefinition(node.kind).providesImageReference ? 'image' : null
+  if (!getGenerationNodeDefinition(node.kind).providesImageReference) return null
+  // 素材节点(kind='asset')**一个种类同时承载导入的图和视频**——真实媒体类型必须看产物 result.type，
+  // 不能一律当图参考。否则导入的视频被判 image → 连成 character_ref → 落「角色参考」图槽 →
+  // 显示成 <img src=video.mp4> 加载失败(用户报的「上传视频却显示图片/加载失败」)，且与发送侧
+  // (generationReferenceResolver 按 result.type 把视频分流进 referenceVideos)口径分裂。看 result.type
+  // 后:视频 → video_ref 槽(显示成视频块)+ 边语义 reference(不再冒充角色图)。无产物(上传中)默认 image。
+  return node.result?.type === 'video' ? 'video' : 'image'
 }
 
 /**
