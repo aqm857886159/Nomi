@@ -1,6 +1,6 @@
 import { firstString, isJsonRecord, nowIso, trim, type JsonRecord } from "../jsonUtils";
 import { humanizeModelKey } from "./modelLabel";
-import { newapiImageEditProfileForModel, newapiTransportFor } from "./newapiTransport";
+import { newapiImageEditProfileForModel, newapiTransportFor, type NewapiImageEditProtocol } from "./newapiTransport";
 import { consumedCanonicalKeys } from "./paramTranslate";
 import { guessModelKind } from "./modelKindHeuristic";
 import { hardenedFetchText } from "../hardenedFetch";
@@ -135,12 +135,15 @@ export function commitOnboardedModelToCatalog(payload: {
   const mappingCreate = draft.mappingCreate as HttpOperation | undefined;
   const mappingEdit = draft.mappingEdit as HttpOperation | undefined;
   const mappingQuery = draft.mappingQuery as HttpOperation | undefined;
+  // 协议判定：multipart 与 xai-json 都落 /images/edits，靠 op.multipart 分辨（multipart 描述符=二进制文件上传）。
   const imageEditProtocol = targetKind === "image" && mappingEdit
-    ? (/\/chat\/completions$/.test(mappingEdit.path)
-        ? "chat-completions-image-url"
-        : /\/images\/edits$/.test(mappingEdit.path)
-          ? "xai-json-edits"
-          : "custom")
+    ? (mappingEdit.multipart
+        ? "openai-multipart-edits"
+        : /\/chat\/completions$/.test(mappingEdit.path)
+          ? "chat-completions-image-url"
+          : /\/images\/edits$/.test(mappingEdit.path)
+            ? "xai-json-edits"
+            : "custom")
     : undefined;
   // reconcile 只补「body 缺、又没被 paramMap 消费」的字段。被 paramMap 转成 wire 键的 canonical 键
   // （如 aspect_ratio/resolution → size）不该再以裸键注入 body——否则通用中转会收到无用的 aspect_ratio
@@ -285,7 +288,11 @@ function paramsToOnboardingFields(
 
 /** 按 kind 给出 commit draft 的 targetKind + 标准参数 + 传输 mapping（图片同步无 query / 视频异步带 query；
  *  图片另带 image_edit 改图 op = 图生图）。 */
-function draftShapeForKind(kind: "text" | "image" | "video" | "audio", modelKey = ""): {
+function draftShapeForKind(
+  kind: "text" | "image" | "video" | "audio",
+  modelKey = "",
+  imageEditProtocol?: NewapiImageEditProtocol | null,
+): {
   targetKind: "text" | "image" | "video" | "audio";
   modelFields: JsonRecord[];
   mappingCreate?: HttpOperation;
@@ -294,7 +301,8 @@ function draftShapeForKind(kind: "text" | "image" | "video" | "audio", modelKey 
 } {
   if (kind === "image") {
     const t = newapiTransportFor("image");
-    const edit = newapiImageEditProfileForModel(modelKey).operation;
+    // 改图协议：探测/手动 override 优先，否则按模型族智能默认（gpt-image/dall-e → multipart edits）。
+    const edit = newapiImageEditProfileForModel(modelKey, null, imageEditProtocol).operation;
     return { targetKind: "image", modelFields: paramsToOnboardingFields(t.params), mappingCreate: t.create, mappingEdit: edit };
   }
   if (kind === "video") {
@@ -313,7 +321,8 @@ export function commitManualOpenAiCompatibleModels(payload: {
   vendorName: string;
   baseUrl: string;
   apiKey: string;
-  models: Array<{ id: string; displayName?: string; kind?: "text" | "image" | "video" | "audio" }>;
+  /** 每个模型可带 imageEditProtocol（来自免费探测或用户手选），图片模型据此选改图 wire；缺省=智能默认。 */
+  models: Array<{ id: string; displayName?: string; kind?: "text" | "image" | "video" | "audio"; imageEditProtocol?: NewapiImageEditProtocol }>;
   /** Endpoint shape. Defaults to "openai-compatible" (the common case). "anthropic"
    *  routes text/chat through the Messages API (createAnthropic, x-api-key). */
   providerKind?: AiSdkProviderKind;
@@ -358,6 +367,7 @@ export function commitManualOpenAiCompatibleModels(payload: {
         id,
         displayName: String(m?.displayName || "").trim(),
         kind: (k === "image" || k === "video" || k === "text" || k === "audio" ? k : guessModelKind(id)) as "text" | "image" | "video" | "audio",
+        imageEditProtocol: m?.imageEditProtocol,
       };
     })
     .filter((m) => {
@@ -371,7 +381,7 @@ export function commitManualOpenAiCompatibleModels(payload: {
   for (const m of cleanModels) {
     const displayName = m.displayName || humanizeModelKey(m.id);
     // 图片/视频走 new-api 标准传输模板（per-model kind）；文本不带 mapping（chat 直连）。
-    const shape = draftShapeForKind(m.kind, m.id);
+    const shape = draftShapeForKind(m.kind, m.id, m.imageEditProtocol);
     const outcome = {
       status: "success",
       trialId: "",

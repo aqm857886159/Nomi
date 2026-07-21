@@ -279,6 +279,25 @@ export type HttpOperation = {
     }>;
   };
   /**
+   * **multipart/form-data transport 声明**（P4 声明驱动不 hardcode vendor）。当端点收的是二进制文件上传
+   * 而非 URL-in-JSON（OpenAI 官方 /v1/images/edits 图生图：image[] 文件字段 + 文本字段），create op 声明
+   * multipart，executeProfileOperation 据此分流到 FormData 分支（而非 requestJson）：
+   *  - fields      ：文本 form 字段（值走 renderTemplateValue，与 body 同一套模板）。undefined/空值丢弃。
+   *  - imageField  ：二进制图片文件字段名（多图 "image[]" / 单图 "image"）。
+   *  - imageSource ：解析出参考图 URL（string 或 string[]）的模板；发送时把每个 URL 取成字节当文件上传
+   *                  （nomi-local 读本地字节零网络；http/data 取字节）。
+   *  - multiple    ：true=多图（每 URL 一个 imageField 项）；false=只取首图。
+   *  - filename    ：上传文件名前缀（默认 "image"）。
+   * 可序列化（持久化进 catalog JSON）：纯数据模板。
+   */
+  multipart?: {
+    fields?: Record<string, string>;
+    imageField: string;
+    imageSource: string;
+    multiple?: boolean;
+    filename?: string;
+  };
+  /**
    * 参数翻译表（铁律：模型身份决定参数，与渠道无关）。档案声明**中性 canonical 参数**（全站一致），
    * 这里把它们翻译成本 codec 的 wire 字段（改名 / 值转换 / 显式 drop）——见 paramTranslate.ts。
    * runtime 渲染 body 前 applyParamMap 注入 wire 键。**改名/identity 透传不必写**（canonical 键 =

@@ -110,8 +110,46 @@ export const XAI_JSON_IMAGE_EDIT_OP: HttpOperation = {
   },
 };
 
-export type NewapiImageEditProtocol = "chat-completions-image-url" | "xai-json-edits";
+// OpenAI 官方图像编辑契约（gpt-image-1/1.5/2、dall-e-2；R5 核 OpenAI 官方 developers.openai.com +
+// new-api doc.newapi.pro + apiyi 文档，2026-07）：**multipart/form-data** POST /v1/images/edits，参考图走
+// image[] 文件字段（多图，官方上限 16），文本字段 model/prompt/size/quality/n，返回 data[*].url|b64_json。
+// 这是 chat/completions 之外一大类中转站唯一认的图生图线缆（packyapi 等明确不支持 chat 出图）——补上它 =
+// 通用覆盖所有走 OpenAI 标准 images/edits 的模型，不止 gpt-image。v1 不做 mask（Nomi 节点无 mask 概念；
+// gpt-image mask 本可选，纯 prompt 改图能用）。参考图来自 request.params.reference_images（taskParams 聚合）。
+export const OPENAI_MULTIPART_IMAGE_EDIT_OP: HttpOperation = {
+  method: "POST",
+  path: "/v1/images/edits",
+  headers: { Authorization: "Bearer {{user_api_key}}" }, // 不设 Content-Type：multipart 由 fetch 自动加 boundary
+  multipart: {
+    fields: {
+      model: "{{model.modelKey}}",
+      prompt: "{{request.prompt}}",
+      size: "{{request.params.size}}",
+      quality: "{{request.params.quality}}",
+      n: "{{request.params.n}}",
+      response_format: "url",
+    },
+    imageField: "image[]",
+    imageSource: "{{request.params.reference_images}}",
+    multiple: true,
+  },
+  response_mapping: { image_url: "data[*].url" },
+  paramMap: NEWAPI_IMAGE_PARAM_MAP,
+};
+
+export type NewapiImageEditProtocol = "chat-completions-image-url" | "xai-json-edits" | "openai-multipart-edits";
 export type NewapiImageEditProfile = { protocol: NewapiImageEditProtocol; operation: HttpOperation };
+
+// 协议 → 真实 wire op（单一真相源；commit/migration/probe 都按协议名查这张表拿 op）。
+const OP_BY_PROTOCOL: Record<NewapiImageEditProtocol, HttpOperation> = {
+  "chat-completions-image-url": NEWAPI_IMAGE_EDIT_OP,
+  "xai-json-edits": XAI_JSON_IMAGE_EDIT_OP,
+  "openai-multipart-edits": OPENAI_MULTIPART_IMAGE_EDIT_OP,
+};
+
+// 智能默认按模型族猜协议（B1，探测/手动缺位时的兜底）：只匹配**确有 /v1/images/edits 端点**的模型族——
+// gpt-image 全系 + dall-e-2。dall-e-3 是纯生成、无编辑端点，故意不匹配（避免误判成 multipart 后撞 404）。
+const OPENAI_MULTIPART_EDIT_MODEL_RE = /(^|[/_-])gpt[_-]?image|(^|[/_-])dall-?e-2(?![0-9])/i;
 
 // 模型级协议档案，而非 vendor 级开关：同一个中转站可以同时挂 Nano Banana(chat 多模态)与
 // Grok Imagine(JSON edits)。匹配只认完整模型身份/末段，避免把普通 grok 文本模型误判成图片端点。
@@ -127,12 +165,29 @@ function normalizedModelId(modelKey: string): string {
   return value.slice(value.lastIndexOf("/") + 1);
 }
 
-/** 中转 image_edit 按模型身份选择真实 wire；未知模型保留既有 chat 兼容口径。 */
-export function newapiImageEditProfileForModel(modelKey: string, modelAlias?: string | null): NewapiImageEditProfile {
-  const usesXaiJson = [modelKey, modelAlias].some((value) => value && XAI_JSON_EDIT_MODEL_IDS.has(normalizedModelId(value)));
-  return usesXaiJson
-    ? { protocol: "xai-json-edits", operation: XAI_JSON_IMAGE_EDIT_OP }
-    : { protocol: "chat-completions-image-url", operation: NEWAPI_IMAGE_EDIT_OP };
+/**
+ * 中转 image_edit 选真实 wire。三层（探测优先 → 智能默认 → chat 兜底）：
+ *  - override：来自免费端点探测（probeImageEditProtocol）或用户在模型编辑面板手选的协议，最高优先；
+ *  - 智能默认：grok-imagine → xai-json；gpt-image 系 / dall-e 系 → openai-multipart-edits；
+ *  - 兜底：其余（gemini/nano-banana 系）→ chat/completions 多模态。
+ * 只认完整模型身份，避免把普通文本模型误判成图片端点。
+ */
+export function newapiImageEditProfileForModel(
+  modelKey: string,
+  modelAlias?: string | null,
+  override?: NewapiImageEditProtocol | null,
+): NewapiImageEditProfile {
+  const forced = override && OP_BY_PROTOCOL[override] ? override : null;
+  const protocol = forced ?? smartDefaultImageEditProtocol(modelKey, modelAlias);
+  return { protocol, operation: OP_BY_PROTOCOL[protocol] };
+}
+
+/** 按模型族猜协议（无探测/手动时的默认）。 */
+export function smartDefaultImageEditProtocol(modelKey: string, modelAlias?: string | null): NewapiImageEditProtocol {
+  const identities = [modelKey, modelAlias].filter((v): v is string => Boolean(v));
+  if (identities.some((value) => XAI_JSON_EDIT_MODEL_IDS.has(normalizedModelId(value)))) return "xai-json-edits";
+  if (identities.some((value) => OPENAI_MULTIPART_EDIT_MODEL_RE.test(value))) return "openai-multipart-edits";
+  return "chat-completions-image-url";
 }
 
 // ── 视频：异步 create（返回 task_id 进轮询）──

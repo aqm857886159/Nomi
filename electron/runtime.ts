@@ -3,15 +3,15 @@ import { localizeAssetsForVendor, resolveAssetIngestionWithFallback, trustedLoca
 import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload } from "./assets/localAssetFile";
 import { importRemoteAsset, writeAsset } from "./assets/projectAssetStore";
 import { endpoint } from "./vendorEndpoint";
-import { requestJson } from "./vendor/vendorHttp";
+import { requestJson, requestMultipart } from "./vendor/vendorHttp";
+import { runMultipartProfileOperation } from "./catalog/multipartOperation";
+import { templateContext, buildProfileHttpRequest } from "./catalog/profileHttpRequest";
 import { buildNormalizedRecipe, buildTaskProvenance } from "./vendor/provenance";
 import { traceVendorCompleted, traceVendorRequested } from "./events/vendorCallTrace";
 import { scheduleTechnicalReview } from "./review/reviewTrace";
 import {
   type AuthType,
   authHeaders as buildAuthHeaders,
-  buildHttpRequest,
-  buildTemplateContext,
   extractTaskId as extractTaskIdShared,
 } from "./ai/requestPipeline";
 import { executeProcessOperation } from "./catalog/processOperation";
@@ -49,8 +49,7 @@ import { extractVendorExtraHeaders, readCatalog } from "./catalog/catalogStore";
 
 import type { BillingModelKind, HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./catalog/types";
 import { billingKindForTaskKind, selectExecutableModel, selectTaskMapping } from "./catalog/types";
-import { applyHeadlessParamDefaults, imageEditGuardError, taskTemplateParams } from "./catalog/taskParams";
-import { applyParamMap, type ParamMap } from "./catalog/paramTranslate";
+import { applyHeadlessParamDefaults, imageEditGuardError } from "./catalog/taskParams";
 import { assertAndConsumeSpendGrant } from "./spendGrant";
 export type {
   AiSdkProviderKind,
@@ -255,58 +254,8 @@ export function findTaskMapping(vendorKey: string, taskKind: ProfileKind, modelK
   return selectTaskMapping(readCatalog().mappings, vendorKey, taskKind, modelKey);
 }
 
-// 共享 requestPipeline context 构造（wizard 测试与生产同一份；params 经 taskTemplateParams 归一）。
-function templateContext(
-  request: TaskRequest,
-  model: Model,
-  apiKey: string,
-  providerMeta: JsonRecord = {},
-  paramMap?: ParamMap,
-): JsonRecord {
-  // 铁律翻译层：渲染 body 前按本 codec 的 paramMap 把档案中性参数译成该站 wire 字段（见 catalog/paramTranslate）。
-  return buildTemplateContext({
-    request: request as unknown as JsonRecord,
-    params: applyParamMap(paramMap, taskTemplateParams(request)),
-    model: model as unknown as JsonRecord,
-    modelKey: model.modelAlias || model.modelKey,
-    apiKey,
-    providerMeta,
-  });
-}
-
-export function buildProfileHttpRequest(input: {
-  vendor: Vendor;
-  model: Model;
-  apiKey: string;
-  request: TaskRequest;
-  operation: HttpOperation;
-  providerMeta?: JsonRecord;
-}): {
-  method: string;
-  url: string;
-  headers: Record<string, string>;
-  query: Record<string, unknown>;
-  body: unknown;
-  preview: unknown;
-} {
-  // 共享 requestPipeline 构造请求；extraHeaders（relay/网关自定义鉴权头）透传进 profile 路径（与文本路径同源，修 P1）。
-  const extraHeaders = extractVendorExtraHeaders(input.vendor);
-  return buildHttpRequest({
-    baseUrl: String(input.vendor.baseUrlHint || ""),
-    authType: input.vendor.authType as AuthType,
-    authHeaderName: input.vendor.authHeader ?? undefined,
-    apiKey: input.apiKey,
-    context: templateContext(
-      input.request,
-      input.model,
-      input.apiKey,
-      input.providerMeta || {},
-      input.operation.paramMap,
-    ),
-    operation: input.operation,
-    ...(extraHeaders ? { extraHeaders } : {}),
-  });
-}
+// 请求构造层已抽到 catalog/profileHttpRequest（减负 giant shell）；re-export 保持 audioTaskRunner/catalogCommit 从 ./runtime 导入不变。
+export { buildProfileHttpRequest };
 
 export async function executeProfileOperation(input: {
   vendor: Vendor;
@@ -333,6 +282,10 @@ export async function executeProfileOperation(input: {
       writeAsset,
     });
   }
+
+  // multipart transport（P4）：op 声明 multipart（/v1/images/edits 图生图文件上传）→ 全套分发在 multipartOperation
+  // （localize 前分流：要参考图原始字节，不先上传换 URL）。requestMultipart 注入以带 vendor 计费上下文。
+  if (input.operation.multipart) return runMultipartProfileOperation(input, (u, h, q, f) => requestMultipart(input.vendor, input.apiKey, u, h, q, f));
 
   // R1：发送前把本地素材(nomi-local://)按策略变成 vendor 可达值。带跨供应商 fallback + 内容类型感知：
   // 每素材按媒体类型挑通道(图→apimart/KIE base64;视频→KIE stream,apimart image-only 跳过)。上传 key 可异于生成 key。
