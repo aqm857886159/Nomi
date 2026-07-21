@@ -332,6 +332,12 @@ export const zhScene3d = {
   },
   capture: {
     cameraMoveReference: '运镜参考',
+    stagingReference: '站位参考',
+    stagingPrompt: '3D 站位参考（站位 + 动作 + 机位）',
+    viewportTitle: '3D截图 - 当前视口',
+    cameraTitle: '3D截图 - {{name}}',
+    videoTargetRequired: '运镜参考只能喂给视频镜头节点，已跳过（目标不是视频节点）',
+    switchedToOmni: '已切换到全能参考模式以注入运镜参考视频（该模式无首/尾帧，原首帧不再生效）',
   },
 } as const
 
@@ -675,5 +681,11 @@ export const enScene3d = {
   },
   capture: {
     cameraMoveReference: 'Camera movement reference',
+    stagingReference: 'Staging reference',
+    stagingPrompt: '3D staging reference (position + action + camera)',
+    viewportTitle: '3D screenshot - Current viewport',
+    cameraTitle: '3D screenshot - {{name}}',
+    videoTargetRequired: 'Camera movement references can only be attached to video shot nodes. The target was skipped.',
+    switchedToOmni: 'Switched to omni-reference mode to attach the camera movement video. This mode has no first/last-frame slots, so the previous first frame no longer applies.',
   },
 } satisfies TranslationShape<typeof zhScene3d>

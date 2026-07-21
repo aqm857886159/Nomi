@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconCheck, IconClipboard } from '@tabler/icons-react'
 import { WorkbenchIconButton } from '../../design/workbenchActions'
 import { cn } from '../../utils/cn'
@@ -28,6 +29,7 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
 }
 
 export function AiReplyActionButton({ content }: AiReplyActionButtonProps): JSX.Element | null {
+  const { t } = useTranslation()
   const documentTools = useWorkbenchStore((state) => state.creationDocumentTools)
   const [done, setDone] = React.useState(false)
   const text = content.trim()
@@ -55,8 +57,8 @@ export function AiReplyActionButton({ content }: AiReplyActionButtonProps): JSX.
   if (!text) return null
 
   const label = documentTools
-    ? done ? '已粘贴到文档' : '粘贴到文档'
-    : done ? '已复制' : '复制回复'
+    ? done ? t('creationAi.replyAction.pasted') : t('creationAi.replyAction.paste')
+    : done ? t('creationAi.replyAction.copied') : t('creationAi.replyAction.copy')
 
   return (
     <WorkbenchIconButton

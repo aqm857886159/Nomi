@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../utils/cn'
 import { IconPhoto } from '../vendor/tablerIcons'
 
@@ -36,6 +37,7 @@ export function NomiImage({
   fallbackTitle,
   ...rest
 }: NomiImageProps): JSX.Element {
+  const { t } = useTranslation()
   const resolvedSrc = thumbnailSrc || src
   const [failed, setFailed] = React.useState(false)
   // src 变化（重新生成 / 重新导入 / 换图）→ 清掉上一次的失败态，给新 URL 一次机会。
@@ -48,10 +50,13 @@ export function NomiImage({
           'flex flex-col items-center justify-center gap-1 bg-nomi-ink-05 text-nomi-ink-40 select-none',
           className,
         )}
-        title={fallbackTitle ?? (resolvedSrc ? `图片加载失败：${resolvedSrc}` : '无图片')}
-        aria-label={fallbackLabel ?? '图片加载失败'}>
+        title={
+          fallbackTitle ??
+          (resolvedSrc ? t('media.imageLoadFailedWithSource', { source: resolvedSrc }) : t('media.noImage'))
+        }
+        aria-label={fallbackLabel ?? t('media.imageLoadFailed')}>
         <IconPhoto size={18} stroke={1.6} />
-        <span className='text-body-sm'>{fallbackLabel ?? '加载失败'}</span>
+        <span className='text-body-sm'>{fallbackLabel ?? t('media.loadFailed')}</span>
       </div>
     )
   }

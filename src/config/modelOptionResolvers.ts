@@ -1,4 +1,5 @@
 import type { ModelOption } from './models'
+import i18n from '../i18n'
 
 function normalizeModelId(value: string): string {
   if (!value) return ''
@@ -29,11 +30,7 @@ export function inferImageModelVendor(value: string | null | undefined): string 
   if (normalized.includes('qwen')) {
     return 'qwen'
   }
-  if (
-    normalized.includes('gemini') ||
-    normalized.includes('banana') ||
-    normalized.includes('imagen')
-  ) {
+  if (normalized.includes('gemini') || normalized.includes('banana') || normalized.includes('imagen')) {
     return 'gemini'
   }
   return null
@@ -66,10 +63,7 @@ export function findModelOptionByIdentifier(
   )
 }
 
-export function getModelOptionRequestAlias(
-  options: readonly ModelOption[],
-  value: string | null | undefined,
-): string {
+export function getModelOptionRequestAlias(options: readonly ModelOption[], value: string | null | undefined): string {
   const identifier = trimModelIdentifier(value)
   const matched = findModelOptionByIdentifier(options, identifier)
   const alias = trimModelIdentifier(matched?.modelAlias)
@@ -116,14 +110,11 @@ export function resolveExecutableImageModelFromOptions(
   if (requestedOption) {
     const resolvedValue = trimModelIdentifier(requestedOption.value)
     const resolvedVendor = resolveModelOptionVendor(requestedOption, requestedVendor || null, resolvedValue)
-    const reason =
-      requestedValue && requestedValue !== resolvedValue
-        ? 'canonicalized'
-        : null
-      return {
-        value: resolvedValue,
-        vendor: resolvedVendor,
-        didFallback: false,
+    const reason = requestedValue && requestedValue !== resolvedValue ? 'canonicalized' : null
+    return {
+      value: resolvedValue,
+      vendor: resolvedVendor,
+      didFallback: false,
       shouldWriteBack: reason !== null || requestedVendor !== trimVendorIdentifier(resolvedVendor),
       reason,
       source: 'requested',
@@ -131,12 +122,12 @@ export function resolveExecutableImageModelFromOptions(
   }
 
   if (options.length === 0) {
-    throw new Error('未找到可用图片模型：请先在系统模型管理中启用 image 模型。')
+    throw new Error(i18n.t('runtime.modelCatalog.noImageModel'))
   }
 
   if (!requestedValue) {
-    throw new Error('未选择图片模型：请在节点参数中选择一个已启用的 image 模型。')
+    throw new Error(i18n.t('runtime.modelCatalog.imageModelUnselected'))
   }
 
-  throw new Error(`图片模型不可用：${requestedValue}。请在系统模型管理中启用该模型，或在节点参数中重新选择模型。`)
+  throw new Error(i18n.t('runtime.modelCatalog.imageModelUnavailable', { model: requestedValue }))
 }

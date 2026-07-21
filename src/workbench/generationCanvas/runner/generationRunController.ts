@@ -318,9 +318,13 @@ export async function runGenerationNodesByPlan(
 export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean } = {}): Promise<void> {
   const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === nodeId)
   const ok = await useSpendConfirmStore.getState().requestConfirm({
-    title: opts.rerun ? '生成变体' : '开始生成',
+    title: opts.rerun
+      ? i18n.t('generationCommon.spend.generateVariant')
+      : i18n.t('generationCommon.spend.startGeneration'),
     message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image'),
-    confirmLabel: opts.rerun ? '生成变体' : '生成',
+    confirmLabel: opts.rerun
+      ? i18n.t('generationCommon.spend.generateVariant')
+      : i18n.t('generationCommon.spend.generate'),
     light: true,
   })
   if (!ok) return
@@ -372,9 +376,9 @@ export async function regenerateNodeInPlace(nodeId: string): Promise<void> {
   if (!id) return
   const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === id)
   const ok = await useSpendConfirmStore.getState().requestConfirm({
-    title: '重新生成',
+    title: i18n.t('generationCommon.composer.regenerate'),
     message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image'),
-    confirmLabel: '重新生成',
+    confirmLabel: i18n.t('generationCommon.composer.regenerate'),
     light: true,
   })
   if (!ok) return

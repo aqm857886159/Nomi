@@ -5,6 +5,7 @@ import { narrateProgress } from '../../observability/narrate'
 import { resolveGenerationReferences } from './generationReferenceResolver'
 import { asTrimmedString, resolveTaskKind, selectedModelKey, selectedVendor } from './catalogTaskResolve'
 import { normalizeCatalogTaskResult } from './catalogTaskResultParse'
+import i18n from '../../../i18n'
 
 const TERMINAL_STATUSES = new Set(['succeeded', 'failed'])
 const RECOVER_POLL_INTERVAL_MS = 3000
@@ -46,7 +47,7 @@ export async function recoverNodeResult(nodeId: string): Promise<void> {
   const payload = buildRecoverPayload(id)
   const store = useGenerationCanvasStore.getState()
   if (!payload) {
-    store.setNodeStatus(id, 'error', '无法找回：缺少任务标识（taskId）或模型信息，请重新生成。')
+    store.setNodeStatus(id, 'error', i18n.t('generationCommon.recoverable.missingTask'))
     return
   }
 
@@ -58,7 +59,7 @@ export async function recoverNodeResult(nodeId: string): Promise<void> {
   store.setNodeProgress(id, {
     runId,
     phase: 'still-generating',
-    message: '正在重新拉取结果…',
+    message: i18n.t('generationCommon.recoverable.retrievingResult'),
     taskId: payload.taskId,
   })
 
@@ -77,7 +78,11 @@ export async function recoverNodeResult(nodeId: string): Promise<void> {
       if (TERMINAL_STATUSES.has(current.status)) break
       if (Date.now() - startedAt > RECOVER_POLL_TIMEOUT_MS) {
         // 仍没出来 → 退回可找回态，按钮重现，稍后可再拉。
-        useGenerationCanvasStore.getState().setNodeStatus(id, 'recoverable', '任务仍在上游进行，请稍后再次拉取。')
+        useGenerationCanvasStore.getState().setNodeStatus(
+          id,
+          'recoverable',
+          i18n.t('generationCommon.recoverable.stillUpstream'),
+        )
         return
       }
       useGenerationCanvasStore.getState().setNodeProgress(id, {

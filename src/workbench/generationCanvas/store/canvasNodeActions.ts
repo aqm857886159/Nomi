@@ -10,6 +10,7 @@ import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasUndoJournal'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import { useWorkbenchStore } from '../../workbenchStore'
 import type { CanvasNodeActions, CanvasSliceCreator } from './canvasStoreTypes'
+import i18n from '../../../i18n'
 
 // 删节点 → 时间轴对账(数据一致性):clip 创建时把节点产物 url 快照冻结、无 node→clip 同步,
 // 删了节点时间轴仍引用悬空/过期素材(导出会渲染已删节点的旧帧)。删完节点单向通知 workbenchStore
@@ -369,7 +370,7 @@ export const createCanvasNodeActions: CanvasSliceCreator<CanvasNodeActions> = (s
     const copiedNode: GenerationCanvasNode = {
       ...rest,
       id: createClipboardNodeId(source.id),
-      title: source.title ? `${source.title} 副本` : source.title,
+      title: source.title ? i18n.t('generationCommon.whiteboard.copyName', { name: source.title }) : source.title,
       position: copyPosition,
       categoryId: id,
       // 跨分类副本是新身份：落分镜则领新号，不复制原号（编号唯一）。

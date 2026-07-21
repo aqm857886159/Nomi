@@ -18,8 +18,8 @@ import { markJourneyTourSeen } from './onboardingState'
 import { setJourneyTourActive } from './journeyTourActivity'
 import {
   buildDemoStoryboardPlan,
-  DEMO_STORY,
-  DEMO_PROJECT_NAME,
+  getDemoStory,
+  getDemoProjectName,
   DEMO_CANVAS_SPOTLIGHTS,
   DEMO_NODE_IMAGES,
 } from './demoProject'
@@ -78,8 +78,8 @@ export const useJourneyTourStore = create<JourneyTourState>((set) => {
     if (aborted()) return
     cinematic('write')
     await playTypewriter({
-      story: DEMO_STORY,
-      title: DEMO_PROJECT_NAME,
+      story: getDemoStory(),
+      title: getDemoProjectName(),
       setDocument: (doc) => ws().setWorkbenchDocument(doc),
       shouldAbort: aborted,
     })

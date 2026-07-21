@@ -5,10 +5,8 @@ import ts from 'typescript'
 
 const ROOT = process.cwd()
 const SRC_ROOT = path.join(ROOT, 'src')
-const BASELINE_PATH = path.join(ROOT, 'scripts', 'i18n-visible-text-baseline.json')
-const WRITE_BASELINE = process.argv.includes('--write-baseline')
+const ELECTRON_ROOT = path.join(ROOT, 'electron')
 const REPORT = process.argv.includes('--report')
-const REQUIRE_ZERO = process.argv.includes('--require-zero')
 
 const VISIBLE_ATTRIBUTES = new Set([
   'alt',
@@ -34,12 +32,52 @@ const VISIBLE_ATTRIBUTES = new Set([
 ])
 const DIALOG_PROPERTIES = new Set(['title', 'message', 'confirmLabel', 'cancelLabel'])
 const TOAST_CALLS = new Set(['toast', 'showInfoToast', 'showUndoToast'])
+const VISIBLE_OBJECT_PROPERTIES = new Set([
+  ...VISIBLE_ATTRIBUTES,
+  'actionLabel',
+  'ariaLabel',
+  'displayName',
+  'emptyText',
+  'fallbackLabel',
+  'fallbackTitle',
+  'reason',
+])
+
+// These files intentionally keep stable source values or non-UI prompt/protocol text.
+// Their actual display boundaries are localized; keep each exemption narrow and documented.
+const EXCLUDED_PREFIXES = [
+  'src/config/modelArchetypes/', // translated by translateModelDisplayText at the renderer boundary
+  'src/i18n/', // translation resources themselves
+  'src/devlab/',
+  'electron/capabilityCore/', // MCP/RPC schemas and agent-facing protocol text
+]
+const EXCLUDED_FILES = new Set([
+  'src/config/knownVendors.ts', // getLocalizedKnownVendors translates every displayed field
+  'src/config/models.ts', // curated model labels use the model display-text boundary
+  'src/ui/onboarding/providerPresets.ts', // legacy endpoint metadata; not rendered
+  'src/workbench/creation/creationAiModes.ts', // UI uses creationAi.mode keys; source labels feed AI prompts
+  'src/workbench/generationCanvas/agent/applyCanvasToolCall.ts', // agent tool protocol/result prose
+  'src/workbench/generationCanvas/agent/generationCanvasTools.ts', // agent tool result prose
+  'src/workbench/generationCanvas/agent/runStoryboardPlanner.ts', // agent-only instruction
+  'src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts', // translated in nodeModelArchetype/archetypeMeta
+  'src/workbench/generationCanvas/nodes/scene3d/scene3dConstants.ts', // translated by scene3dInspector mappings
+  'src/workbench/generationCanvas/nodes/scene3d/scene3dPropSpecs.ts', // stable object defaults; toolbar uses scene3d keys
+  'src/workbench/library/projectTemplates.ts', // getProjectTemplate selects localized template data
+  'src/workbench/library/tryNowExamples.ts', // dormant authored examples, not rendered
+  'src/workbench/onboarding/demoProject.ts', // explicitly contains parallel zh-CN/en authored demo data
+  'src/workbench/onboarding/handbookContent.ts', // handbookContentForLocale selects parallel localized content
+  'src/workbench/timeline/timelineTypes.ts', // persisted stable labels; TimelineTrack displays by type key
+  'electron/catalog/comfyuiLocal.ts', // translated by renderer model display-text boundary
+  'electron/catalog/newapiTransport.ts', // translated by renderer model display-text boundary
+  'electron/ai/canvasTools.ts', // tool schemas and multilingual examples are agent-facing protocol text
+  'electron/promptLibrary/promptSources.ts', // external curated source names
+])
 
 function isProductSource(fileName) {
-  const relative = path.relative(SRC_ROOT, fileName).replaceAll('\\', '/')
+  const relative = path.relative(ROOT, fileName).replaceAll('\\', '/')
   return (
-    !relative.startsWith('i18n/') &&
-    !relative.startsWith('devlab/') &&
+    !EXCLUDED_PREFIXES.some((prefix) => relative.startsWith(prefix)) &&
+    !EXCLUDED_FILES.has(relative) &&
     !relative.includes('/__tests__/') &&
     !/\.(?:test|spec|stories)\.[cm]?[jt]sx?$/.test(relative)
   )
@@ -51,6 +89,10 @@ function normalizeText(value) {
 
 function hasVisibleWords(value) {
   return /\p{L}/u.test(value) && !value.startsWith('i18n:')
+}
+
+function hasHan(value) {
+  return /[\u3400-\u9fff]/u.test(value)
 }
 
 function literalText(node) {
@@ -121,6 +163,16 @@ function scanFile(fileName) {
       }
     }
 
+    if (ts.isPropertyAssignment(node)) {
+      const propertyName =
+        ts.isIdentifier(node.name) || ts.isStringLiteral(node.name) ? node.name.text : ''
+      if (VISIBLE_OBJECT_PROPERTIES.has(propertyName)) {
+        collectExpressionLiterals(node.initializer, (text) => {
+          if (hasHan(text)) add(`object-prop:${propertyName}`, text)
+        })
+      }
+    }
+
     if (
       ts.isJsxExpression(node) &&
       node.expression &&
@@ -170,7 +222,9 @@ function countFindings(findings) {
   return [...counts.values()].sort((a, b) => fingerprint(a).localeCompare(fingerprint(b), 'en'))
 }
 
-const files = ts.sys.readDirectory(SRC_ROOT, ['.ts', '.tsx'], undefined, undefined).filter(isProductSource)
+const files = [SRC_ROOT, ELECTRON_ROOT]
+  .flatMap((root) => ts.sys.readDirectory(root, ['.ts', '.tsx'], undefined, undefined))
+  .filter(isProductSource)
 const current = countFindings(files.flatMap(scanFile))
 
 if (REPORT) {
@@ -183,44 +237,11 @@ if (REPORT) {
   process.exit(0)
 }
 
-if (REQUIRE_ZERO && current.length > 0) {
+if (current.length > 0) {
   console.error(`i18n visible-text gate requires zero literals; found ${current.reduce((sum, entry) => sum + entry.count, 0)}`)
   for (const entry of current.slice(0, 100)) {
     console.error(`- ${entry.file} [${entry.kind}] ${JSON.stringify(entry.text)} (x${entry.count})`)
   }
   process.exit(1)
 }
-
-if (WRITE_BASELINE) {
-  const payload = { version: 1, generatedAt: new Date().toISOString(), entries: current }
-  fs.writeFileSync(BASELINE_PATH, `${JSON.stringify(payload, null, 2)}\n`)
-  console.log(`i18n visible-text baseline written: ${current.length} fingerprints`)
-  process.exit(0)
-}
-
-if (!fs.existsSync(BASELINE_PATH)) {
-  console.error('Missing scripts/i18n-visible-text-baseline.json; run pnpm run check:i18n:baseline')
-  process.exit(1)
-}
-
-const baselinePayload = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'))
-if (baselinePayload.version !== 1 || !Array.isArray(baselinePayload.entries)) {
-  console.error('Unsupported i18n visible-text baseline format')
-  process.exit(1)
-}
-
-const baseline = new Map(baselinePayload.entries.map((entry) => [fingerprint(entry), entry.count]))
-const violations = current.filter((entry) => entry.count > (baseline.get(fingerprint(entry)) ?? 0))
-
-if (violations.length > 0) {
-  console.error('New user-visible literals must use src/i18n resources:')
-  for (const entry of violations) {
-    const previous = baseline.get(fingerprint(entry)) ?? 0
-    console.error(`- ${entry.file} [${entry.kind}] ${JSON.stringify(entry.text)} (${previous} -> ${entry.count})`)
-  }
-  console.error('Use t(...) / i18n.t(...). Update the baseline only when intentionally accepting existing legacy debt.')
-  process.exit(1)
-}
-
-const legacyCount = current.reduce((sum, entry) => sum + entry.count, 0)
-console.log(`i18n visible-text gate passed (${legacyCount} legacy occurrences; no new literals)`)
+console.log('i18n visible-text gate passed (zero visible literals)')

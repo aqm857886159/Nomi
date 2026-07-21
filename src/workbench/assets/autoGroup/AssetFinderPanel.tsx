@@ -165,7 +165,7 @@ export default function AssetFinderPanel(): JSX.Element {
       const node = nodes.find((n) => n.id === nodeId)
       if (!node) return
       const meta = (node.meta as Record<string, unknown> | undefined) || {}
-      updateNode(nodeId, { meta: { ...meta, mark: meta.mark ? undefined : '主镜' } })
+      updateNode(nodeId, { meta: { ...meta, mark: meta.mark ? undefined : 'primary' } })
     },
     [nodes, updateNode],
   )

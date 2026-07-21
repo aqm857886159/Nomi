@@ -1,5 +1,6 @@
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import type { WorkspaceMode } from '../workbenchStore'
+import i18n from '../../i18n'
 
 export type SelectionGenerationKind = 'image' | 'video'
 
@@ -23,7 +24,9 @@ export function createNodeFromSelection(input: CreateNodeFromSelectionInput): bo
   const prompt = typeof input.selectedText === 'string' ? input.selectedText.trim() : ''
   if (!prompt) return false
 
-  const label = input.kind === 'image' ? '图片' : '视频'
+  const label = i18n.t(
+    input.kind === 'image' ? 'runtime.nodeRegistry.image.title' : 'runtime.nodeRegistry.video.title',
+  )
   input.addGenerationNode({
     kind: input.kind,
     title: label,

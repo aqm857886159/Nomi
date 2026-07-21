@@ -6,9 +6,14 @@
  * 两个固定角色（小孩 + 小机器人）正好演「身份锁」卖点；屋顶夕阳镜演站位 + 运镜。
  */
 import type { StoryboardPlan } from '../generationCanvas/agent/storyboardPlan'
+import { getAppLocale } from '../../i18n'
 
 /** 示例项目名（带「示例：」前缀，和用户真项目一眼区分）。 */
 export const DEMO_PROJECT_NAME = '示例：修好一个小机器人'
+
+export function getDemoProjectName(): string {
+  return getAppLocale() === 'en' ? 'Example: Fixing a Little Robot' : DEMO_PROJECT_NAME
+}
 
 /** seedKey：带它的项目永不被空壳 GC 回收，且与真项目隔离（projectRepository 机制）。 */
 export const DEMO_PROJECT_SEED_KEY = 'example:robot-rescue'
@@ -22,12 +27,62 @@ export const DEMO_STORY = [
   '两个人爬上屋顶，并排坐着，看夕阳一点点沉下去。',
 ].join('\n')
 
+const EN_DEMO_STORY = [
+  'At dusk in a quiet alley, a broken little robot slumps against a wall with its parts scattered nearby.',
+  'A child walking home from school crouches down and looks at it curiously.',
+  'He carries the robot home and repairs it one screw at a time under a desk lamp.',
+  'As the last screw tightens, the robot’s eyes light up with a cheerful chime.',
+  'The two climb onto the rooftop and sit side by side as the sun slowly disappears.',
+].join('\n')
+
+export function getDemoStory(): string {
+  return getAppLocale() === 'en' ? EN_DEMO_STORY : DEMO_STORY
+}
+
 /**
  * 分镜方案：2 个角色锚（小孩 / 小机器人）+ 1 个场景锚（屋顶）+ 8 个镜头。
  * clientId 稳定（kid / robot / rooftop / shot-N），落画布后控制器靠 clientIdToNodeId
  * 拿到真实节点 id 给聚光精准指向。
  */
 export function buildDemoStoryboardPlan(): StoryboardPlan {
+  if (getAppLocale() === 'en') {
+    return {
+      title: 'Fixing a Little Robot',
+      anchors: [
+        {
+          id: 'kid',
+          kind: 'character',
+          name: 'Child',
+          description: 'A curious, gentle ten-year-old boy with short hair, a yellow hoodie, and a worn school backpack.',
+          carrier: 'visual',
+        },
+        {
+          id: 'robot',
+          kind: 'character',
+          name: 'Little robot',
+          description: 'A palm-sized old robot with a round head, worn silver casing, a warm yellow chest light, and endearingly clumsy movements.',
+          carrier: 'visual',
+        },
+        {
+          id: 'rooftop',
+          kind: 'scene',
+          name: 'Rooftop at dusk',
+          description: 'The roof of an old city apartment building, with a water tank and clotheslines against an orange-gold sunset skyline.',
+          carrier: 'visual',
+        },
+      ],
+      shots: [
+        { index: 1, durationSec: 4, anchorIds: ['robot'], prompt: 'Wide shot of a dusk alley: a broken little robot leans against a wall, scattered parts catching the warm side light.' },
+        { index: 2, durationSec: 3, anchorIds: ['kid', 'robot'], prompt: 'Medium shot of the child crouching to study the little robot curiously.' },
+        { index: 3, durationSec: 4, anchorIds: ['kid', 'robot'], prompt: 'Rear tracking shot as the child carries the little robot home.' },
+        { index: 4, durationSec: 4, anchorIds: ['kid', 'robot'], prompt: 'Close-up of the child carefully repairing the robot with a screwdriver under a desk lamp.' },
+        { index: 5, durationSec: 3, anchorIds: ['robot'], prompt: 'Close-up as the robot’s warm yellow chest light and eyes flicker to life.' },
+        { index: 6, durationSec: 3, anchorIds: ['kid', 'robot'], prompt: 'Two-shot: the child and robot look at each other, and the robot tilts its head.' },
+        { index: 7, durationSec: 4, anchorIds: ['kid', 'robot', 'rooftop'], prompt: 'Medium rear shot of the child and robot sitting side by side on the rooftop, looking into the distance.' },
+        { index: 8, durationSec: 5, anchorIds: ['kid', 'robot', 'rooftop'], prompt: 'Hold on their silhouettes beneath an orange-gold sky as the camera slowly pulls back.' },
+      ],
+    }
+  }
   return {
     title: '修好一个小机器人',
     anchors: [

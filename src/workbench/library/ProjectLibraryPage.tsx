@@ -21,7 +21,10 @@ import { ThemeToggleButton } from '../../ui/theme/ThemeToggleButton'
 import { WindowControls } from '../../ui/app-shell/WindowControls'
 import { AboutNomiPopover } from '../../ui/app-shell/AboutNomiPopover'
 import { handleWindowTitlebarDoubleClick } from '../../ui/app-shell/windowTitlebarDoubleClick'
-import { dispatchGlobalAssetPopoverOpen, getGlobalAssetPopoverAnchorRect } from '../../ui/browser/overlay/globalAssetPopoverEvents'
+import {
+  dispatchGlobalAssetPopoverOpen,
+  getGlobalAssetPopoverAnchorRect,
+} from '../../ui/browser/overlay/globalAssetPopoverEvents'
 import { useGlobalBrowserAssetCount } from '../../ui/browser/assets/useGlobalBrowserAssets'
 import type { LocalProjectSummary } from './localProjectStore'
 import type { ProjectTemplateId } from './projectTemplates'
@@ -55,6 +58,13 @@ function formatUpdatedAt(value: number, t: TFunction, locale: string): string {
   const days = Math.floor(hours / 24)
   if (days < 30) return t('library.daysAgo', { count: days })
   return new Date(value).toLocaleDateString(locale)
+}
+
+function localizedProjectName(name: string, t: TFunction): string {
+  const trimmed = name.trim()
+  const match = trimmed.match(/^(?:未命名项目|Untitled project)(?:\s+(.+))?$/i)
+  if (!match) return name
+  return match[1] ? t('runtime.project.untitledWithTime', { time: match[1] }) : t('runtime.project.untitled')
 }
 
 // memo 化：搜索/筛选触发父组件重渲时，urls 未变的封面不重渲（图多时省下整片缩略图重建）。
@@ -97,7 +107,7 @@ export default function ProjectLibraryPage({
   const assetCount = useGlobalBrowserAssetCount()
   const normalizedQuery = query.trim().toLowerCase()
   const searchedProjects = normalizedQuery
-    ? projects.filter((project) => project.name.toLowerCase().includes(normalizedQuery))
+    ? projects.filter((project) => localizedProjectName(project.name, t).toLowerCase().includes(normalizedQuery))
     : projects
   const sourceCounts = React.useMemo(
     () => ({
@@ -228,9 +238,7 @@ export default function ProjectLibraryPage({
           <WindowControls className="relative z-[2]" />
         </div>
       ) : null}
-      {aboutOpen ? (
-        <AboutNomiPopover anchorEl={aboutButtonRef.current} onClose={() => setAboutOpen(false)} />
-      ) : null}
+      {aboutOpen ? <AboutNomiPopover anchorEl={aboutButtonRef.current} onClose={() => setAboutOpen(false)} /> : null}
       <main className="nomi-library-page__main flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-14 pt-[60px] pb-20 flex flex-col gap-5">
         {/* ── Header：品牌 + 右上弱入口（模型接入；Windows 时移到自绘标题栏） ── */}
         <section className="shrink-0 flex items-start justify-between gap-6 mb-1">
@@ -285,9 +293,7 @@ export default function ProjectLibraryPage({
             >
               <div>
                 <div className="text-body-sm font-semibold text-nomi-ink">{t('library.textModelMissing')}</div>
-                <div className="mt-0.5 text-caption text-nomi-ink-60">
-                  {t('library.textModelMissingHint')}
-                </div>
+                <div className="mt-0.5 text-caption text-nomi-ink-60">{t('library.textModelMissingHint')}</div>
               </div>
               <button
                 type="button"
@@ -341,7 +347,9 @@ export default function ProjectLibraryPage({
             // 审计 A10：库非空但「搜索 × 来源 tab」过滤后为空——给空态与出路（统一空态组件）。
             <DesignEmptyState
               density="inline"
-              title={normalizedQuery ? t('library.noMatchNamed', { query: query.trim() }) : t('library.noProjectsInCategory')}
+              title={
+                normalizedQuery ? t('library.noMatchNamed', { query: query.trim() }) : t('library.noProjectsInCategory')
+              }
               action={
                 normalizedQuery ? (
                   <button
@@ -358,6 +366,7 @@ export default function ProjectLibraryPage({
           <div className="shrink-0 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
             {filteredProjects.map((project) => {
               const urls = project.thumbnailUrls || (project.thumbnail ? [project.thumbnail] : [])
+              const displayName = localizedProjectName(project.name, t)
               return (
                 <div
                   key={project.id}
@@ -394,7 +403,7 @@ export default function ProjectLibraryPage({
                           'hover:bg-workbench-danger hover:text-nomi-paper',
                         )}
                         type="button"
-                        aria-label={t('library.deleteNamedProject', { name: project.name })}
+                        aria-label={t('library.deleteNamedProject', { name: displayName })}
                         title={t('library.deleteProject')}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -427,7 +436,7 @@ export default function ProjectLibraryPage({
                   </div>
                   <div className="px-3 pt-2.5 pb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
                     <div className="min-w-0">
-                      <div className="text-body-sm font-medium text-nomi-ink truncate mb-0.5">{project.name}</div>
+                      <div className="text-body-sm font-medium text-nomi-ink truncate mb-0.5">{displayName}</div>
                       <div className="text-micro text-nomi-ink-40">
                         {formatUpdatedAt(project.updatedAt, t, i18n.resolvedLanguage || 'zh-CN')}
                       </div>
@@ -435,7 +444,7 @@ export default function ProjectLibraryPage({
                     {onRevealProjectFolder && project.rootPath ? (
                       <button
                         type="button"
-                        aria-label={t('library.openProjectFolder', { name: project.name })}
+                        aria-label={t('library.openProjectFolder', { name: displayName })}
                         title={t('library.revealProjectFolder')}
                         onClick={(e) => {
                           e.stopPropagation()

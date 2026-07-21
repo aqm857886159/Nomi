@@ -6,6 +6,7 @@ import {
   IconVideo,
   type Icon as TablerIcon,
 } from '../../../vendor/tablerIcons'
+import i18n from '../../../i18n'
 
 export type NomiBrowserAssetKind = 'image' | 'video' | 'prompt' | 'folder'
 export type NomiBrowserAssetTab = 'all' | NomiBrowserAssetKind
@@ -43,25 +44,27 @@ export type NomiBrowserAsset = {
 export type NomiBrowserAssetTabDefinition = {
   key: NomiBrowserAssetTab
   label: string
+  labelKey?: string
   icon: TablerIcon
 }
 
 export type NomiBrowserAssetSourceDefinition = {
   key: NomiBrowserAssetSource
   label: string
+  labelKey?: string
 }
 
 export const NOMI_BROWSER_ASSET_TABS: readonly NomiBrowserAssetTabDefinition[] = [
-  { key: 'all', label: '全部', icon: IconLayoutGrid },
-  { key: 'image', label: '图片', icon: IconPhoto },
-  { key: 'video', label: '视频', icon: IconVideo },
-  { key: 'prompt', label: '提示词', icon: IconFileText },
-  { key: 'folder', label: '文件夹', icon: IconFolder },
+  { key: 'all', label: '', labelKey: 'browserAssets.all', icon: IconLayoutGrid },
+  { key: 'image', label: '', labelKey: 'browserAssets.image', icon: IconPhoto },
+  { key: 'video', label: '', labelKey: 'browserAssets.video', icon: IconVideo },
+  { key: 'prompt', label: '', labelKey: 'browserAssets.prompt', icon: IconFileText },
+  { key: 'folder', label: '', labelKey: 'browserAssets.folder', icon: IconFolder },
 ]
 
 export const NOMI_BROWSER_ASSET_SOURCES: readonly NomiBrowserAssetSourceDefinition[] = [
-  { key: 'my', label: '项目素材' },
-  { key: 'transcript', label: '提示词库' },
+  { key: 'my', label: '', labelKey: 'browserAssets.projectAssets' },
+  { key: 'transcript', label: '', labelKey: 'browserAssets.promptLibrary' },
 ]
 
 export const NOMI_BROWSER_ASSETS: readonly NomiBrowserAsset[] = []
@@ -91,7 +94,11 @@ export function filterNomiBrowserAssets(
       promptCard?.prompt,
       promptCard?.promptType,
       promptCard?.extractionMode,
-      promptCard?.extractionMode === 'style' ? '画面风格' : promptCard?.extractionMode === 'replicate' ? '画面复刻' : '',
+      promptCard?.extractionMode === 'style'
+        ? i18n.t('browserAssets.extraction.style')
+        : promptCard?.extractionMode === 'replicate'
+          ? i18n.t('browserAssets.extraction.replicate')
+          : '',
       ...(promptCard?.referenceImages.map((reference) => `${reference.title ?? ''} ${reference.sourceUrl ?? ''}`) ?? []),
       ...(asset.tags ?? []),
     ]

@@ -14,13 +14,11 @@ export default function ShotMountBadges({ cards }: { cards: readonly MountedCard
   if (cards.length === 0) return null
   const rest = cards.slice(2)
   // +N 悬浮列表：截断名字唯一的可读回退，但别甩出整屏长串——超 5 个收成「…等 N 个」。
-  const restTitle =
-    rest.length > 5
-      ? `${rest
-          .slice(0, 5)
-          .map((card) => card.title)
-          .join('、')}…等 ${rest.length} 个`
-      : rest.map((card) => card.title).join('、')
+  const visibleRestTitles = rest.slice(0, 5).map((card) => card.title)
+  const formattedRestTitles = visibleRestTitles.join(t('generationCommon.node.mountSeparator'))
+  const restTitle = rest.length > 5
+    ? t('generationCommon.node.mountOverflow', { names: formattedRestTitles, count: rest.length })
+    : formattedRestTitles
   return (
     // 行本身 pointer-events-none（空隙不挡画布拖拽/选中）；每个 chip 单独放开指针事件，
     // 否则截断名字 / +N 的 title 悬浮提示永远不触发（截断的唯一查看回退就失效了）。

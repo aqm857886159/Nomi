@@ -419,13 +419,13 @@ export default function NomiStudioApp(): JSX.Element {
   const playJourneyTour = React.useCallback(() => {
     setJourneyTourControllerMounted(true)
     void (async () => {
-      const [{ DEMO_PROJECT_NAME, DEMO_PROJECT_SEED_KEY }, { useJourneyTourStore }] = await Promise.all([
+      const [{ getDemoProjectName, DEMO_PROJECT_SEED_KEY }, { useJourneyTourStore }] = await Promise.all([
         import('./onboarding/demoProject'),
         import('./onboarding/journeyTourStore'),
       ])
       const result = await createAndOpenProject({
         workspaceMode: 'creation',
-        name: DEMO_PROJECT_NAME,
+        name: getDemoProjectName(),
         seedKey: DEMO_PROJECT_SEED_KEY,
       })
       if (result.opened) useJourneyTourStore.getState().start()

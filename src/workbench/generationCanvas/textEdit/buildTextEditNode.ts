@@ -41,7 +41,7 @@ const NANO_BANANA_EDIT_FALLBACK_META: Record<string, unknown> = {
 export function buildTextEditNodeSpec(node: GenerationCanvasNode): TextEditNodeSpec | null {
   const srcUrl = node.result?.url
   if (!srcUrl) return null
-  const name = (node.title || '').trim() || '图片'
+  const name = (node.title || '').trim() || i18n.t('generationCommon.derivative.image')
   const srcMeta = (node.meta || {}) as Record<string, unknown>
   const modelMeta =
     typeof srcMeta.modelKey === 'string' && srcMeta.modelKey
@@ -56,7 +56,7 @@ export function buildTextEditNodeSpec(node: GenerationCanvasNode): TextEditNodeS
         }
       : NANO_BANANA_EDIT_FALLBACK_META
   return {
-    title: `${name}·改字`,
+    title: i18n.t('generationCommon.derivative.textEditTitle', { name }),
     prompt: buildTextEditPrompt(),
     references: [srcUrl],
     meta: { ...modelMeta, referenceImages: [srcUrl], referenceImageUrls: [srcUrl] },

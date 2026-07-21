@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import type { BrowserAssetLibraryState } from '../assets/browserAssetLibraryStorage'
@@ -107,6 +108,7 @@ export function useBrowserAssetActions({
   handleTileDragOver: (asset: NomiBrowserAsset, event: React.DragEvent<HTMLDivElement>) => void
   handleTileDrop: (asset: NomiBrowserAsset, event: React.DragEvent<HTMLDivElement>) => void
 } {
+  const { t } = useTranslation()
   const folderCountRef = React.useRef(0)
 
   const createFolder = React.useCallback(() => {
@@ -119,10 +121,13 @@ export function useBrowserAssetActions({
       id: `local-folder-${Date.now()}-${folderCountRef.current}`,
       type: 'folder',
       source: 'my',
-      title: nextFolderIndex === 1 ? '新建文件夹' : `新建文件夹 ${nextFolderIndex}`,
-      subtitle: '文件夹',
+      title:
+        nextFolderIndex === 1
+          ? t('browserAssets.newFolder')
+          : t('browserAssets.newFolderIndexed', { index: nextFolderIndex }),
+      subtitle: t('browserAssets.folder'),
       count: 0,
-      tags: ['文件夹'],
+      tags: [t('browserAssets.folder')],
       parentFolderId: activeFolderId,
       createdAt: now,
       updatedAt: now,
@@ -134,7 +139,7 @@ export function useBrowserAssetActions({
     // 新建即进入重命名态（同 OS 文件管理器）：省一次「右键 → 重命名」。
     setRenamingAssetId(folder.id)
     onCreateFolder?.(folder)
-  }, [activeFolderId, libraryState.folders.length, onCreateFolder, setActiveSource, setActiveTab, setAssetContextMenu, setBlankContextMenu, setRenamingAssetId, setSelectedIds, updateLibraryState])
+  }, [activeFolderId, libraryState.folders.length, onCreateFolder, setActiveSource, setActiveTab, setAssetContextMenu, setBlankContextMenu, setRenamingAssetId, setSelectedIds, t, updateLibraryState])
 
   // 文件夹重命名：进入态（tile 标题原位变输入框）→ 提交写 libraryState（localStorage + 跨实例同步事件）。
   const beginRenameFolder = React.useCallback((folderId: string): void => {
@@ -182,10 +187,14 @@ export function useBrowserAssetActions({
         id: `local-upload-${batchTime}-${index}`,
         type,
         source: 'my',
-        title: file.name || '未命名素材',
-        subtitle: persistImport ? '保存中...' : type === 'prompt' ? '本地文本' : '本地导入',
+        title: file.name || t('browserAssets.unnamedAsset'),
+        subtitle: persistImport
+          ? t('browserAssets.saving')
+          : type === 'prompt'
+            ? t('browserAssets.localText')
+            : t('browserAssets.localImport'),
         previewUrl,
-        tags: ['本地导入'],
+        tags: [t('browserAssets.localImport')],
         parentFolderId: activeFolderId,
         status: persistImport ? 'loading' : undefined,
         createdAt: now,
@@ -214,7 +223,9 @@ export function useBrowserAssetActions({
             ...(mapped ?? pendingAsset),
             parentFolderId: activeFolderId,
             status: 'ready',
-            subtitle: mapped?.subtitle ?? (pendingAsset.type === 'prompt' ? '本地文本' : '本地导入'),
+            subtitle:
+              mapped?.subtitle ??
+              (pendingAsset.type === 'prompt' ? t('browserAssets.localText') : t('browserAssets.localImport')),
           }
           setLocalAssets((current) => current.map((asset) => (asset.id === pendingAsset.id ? readyAsset : asset)))
           setPersistedAssets((current) => upsertBrowserAsset(current, readyAsset))
@@ -230,11 +241,15 @@ export function useBrowserAssetActions({
             return next
           })
         } catch {
-          setLocalAssets((current) => current.map((asset) => asset.id === pendingAsset.id ? { ...asset, subtitle: '保存失败', status: 'error' } : asset))
+          setLocalAssets((current) =>
+            current.map((asset) =>
+              asset.id === pendingAsset.id ? { ...asset, subtitle: t('browserAssets.saveFailed'), status: 'error' } : asset,
+            ),
+          )
         }
       })()
     })
-  }, [activeFolderId, previewUrlsRef, setActiveSource, setActiveTab, setLocalAssets, setPersistedAssets, setSelectedIds, updateLibraryState])
+  }, [activeFolderId, previewUrlsRef, setActiveSource, setActiveTab, setLocalAssets, setPersistedAssets, setSelectedIds, t, updateLibraryState])
 
   const handleUploadFiles = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.currentTarget.files ?? [])

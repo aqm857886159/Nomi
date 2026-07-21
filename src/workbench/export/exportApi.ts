@@ -1,6 +1,7 @@
 import { getDesktopActiveProjectId } from '../../desktop/activeProject'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { DesktopMp4ExportResult } from '../../desktop/bridge'
+import i18n from '../../i18n'
 import type { TimelineState } from '../timeline/timelineTypes'
 import type { PreviewAspectRatio } from '../workbenchTypes'
 import { createTimelineExportFilename, downloadTimelineBlob, exportTimelineToWebm } from './timelineWebmExport'
@@ -25,10 +26,10 @@ export type StartTimelineMp4ExportJobOptions = Omit<ExportTimelineToMp4Options, 
 export async function startTimelineMp4ExportJob(options: StartTimelineMp4ExportJobOptions): Promise<{ jobId: string }> {
   const desktop = getDesktopBridge()
   if (!desktop?.exports?.startJob) {
-    throw new Error('导出任务需要 Electron 桌面运行时')
+    throw new Error(i18n.t('runtime.export.jobRequiresDesktop'))
   }
   const projectId = (options.projectId || getDesktopActiveProjectId()).trim()
-  if (!projectId) throw new Error('导出失败：缺少项目 ID')
+  if (!projectId) throw new Error(i18n.t('runtime.export.missingProjectId'))
 
   const manifest = buildRenderManifestRequest({
     projectId,
@@ -50,10 +51,10 @@ export async function startTimelineMp4ExportJob(options: StartTimelineMp4ExportJ
 export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): Promise<DesktopMp4ExportResult> {
   const desktop = getDesktopBridge()
   if (!desktop?.exports?.startJob || !desktop.exports.writeTempInput || !desktop.exports.finishTempInput) {
-    throw new Error('导出 MP4 需要 Electron 桌面运行时')
+    throw new Error(i18n.t('runtime.export.mp4RequiresDesktop'))
   }
   const projectId = (options.projectId || getDesktopActiveProjectId()).trim()
-  if (!projectId) throw new Error('导出失败：缺少项目 ID')
+  if (!projectId) throw new Error(i18n.t('runtime.export.missingProjectId'))
   const resolution = options.resolution || '1080p'
   const quality = options.quality || 'standard'
   const manifest = buildRenderManifestRequest({
@@ -123,13 +124,13 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
         console.warn('Failed to cancel MP4 export job after renderer-side failure', cancelError)
       }
     }
-    const message = error instanceof Error ? error.message : 'MP4 导出失败'
+    const message = error instanceof Error ? error.message : i18n.t('runtime.export.mp4Failed')
     if (!webmBlob) {
       throw new Error(message)
     }
     const fallbackName = createTimelineExportFilename('webm')
     downloadTimelineBlob(webmBlob, fallbackName)
-    throw new Error(`${message}。已自动下载 WebM 备用文件：${fallbackName}`)
+    throw new Error(i18n.t('runtime.export.webmFallbackDownloaded', { message, file: fallbackName }))
   } finally {
     unsubscribe?.()
   }

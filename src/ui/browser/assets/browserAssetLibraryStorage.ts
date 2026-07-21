@@ -1,4 +1,5 @@
 import type { NomiBrowserAsset } from './browserAssetData'
+import i18n from '../../../i18n'
 
 export type BrowserAssetLibraryState = {
   folders: NomiBrowserAsset[]
@@ -35,10 +36,12 @@ export type SaveBrowserPromptCardInput = {
 const BROWSER_ASSET_LIBRARY_STATE_VERSION = 1
 const BROWSER_ASSET_LIBRARY_STORAGE_PREFIX = 'nomi.browser.asset-library.v1'
 export const BROWSER_ASSET_LIBRARY_UPDATED_EVENT = 'nomi-browser-asset-library-updated'
-export const DEFAULT_BROWSER_PROMPT_CATEGORIES: readonly BrowserPromptCategory[] = [
-  { id: 'image', label: '图片提示词', createdAt: 'default' },
-  { id: 'video', label: '视频提示词', createdAt: 'default' },
-]
+export function defaultBrowserPromptCategories(): readonly BrowserPromptCategory[] {
+  return [
+    { id: 'image', label: i18n.t('browserAssets.imagePromptCategory'), createdAt: 'default' },
+    { id: 'video', label: i18n.t('browserAssets.videoPromptCategory'), createdAt: 'default' },
+  ]
+}
 
 export const EMPTY_BROWSER_ASSET_LIBRARY_STATE: BrowserAssetLibraryState = {
   folders: [],
@@ -162,9 +165,10 @@ export function readBrowserPromptLibraryItems(projectId: string): BrowserPromptL
 
 export function readBrowserPromptCategories(projectId: string): BrowserPromptCategory[] {
   const custom = readBrowserAssetLibraryState(projectId).promptCategories
-  const seen = new Set(DEFAULT_BROWSER_PROMPT_CATEGORIES.map((category) => category.id))
+  const defaults = defaultBrowserPromptCategories()
+  const seen = new Set(defaults.map((category) => category.id))
   return [
-    ...DEFAULT_BROWSER_PROMPT_CATEGORIES,
+    ...defaults,
     ...custom.filter((category) => {
       if (seen.has(category.id)) return false
       seen.add(category.id)
@@ -197,14 +201,16 @@ export function promptTypeLabel(
 ): string {
   const category = categories?.find((item) => item.id === promptType)
   if (category) return category.label
-  return promptType === 'video' ? '视频提示词' : '图片提示词'
+  return promptType === 'video'
+    ? i18n.t('browserAssets.videoPromptCategory')
+    : i18n.t('browserAssets.imagePromptCategory')
 }
 
 function promptCardTitle(prompt: string, title?: string): string {
   const normalizedTitle = title?.trim()
   if (normalizedTitle) return normalizedTitle.slice(0, 48)
   const normalizedPrompt = prompt.trim().replace(/\s+/g, ' ')
-  return normalizedPrompt ? normalizedPrompt.slice(0, 48) : '保存的提示词'
+  return normalizedPrompt ? normalizedPrompt.slice(0, 48) : i18n.t('browserAssets.savedPrompt')
 }
 
 function createPromptCardId(): string {
@@ -232,7 +238,7 @@ export function saveBrowserPromptCard(input: SaveBrowserPromptCardInput): NomiBr
     source: 'transcript',
     title: promptCardTitle(prompt, input.title),
     subtitle: label,
-    tags: [label, '手动保存'],
+    tags: [label, i18n.t('browserAssets.manualSave')],
     previewUrl,
     previewMediaType: previewUrl ? 'image' : undefined,
     status: 'ready',

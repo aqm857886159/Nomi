@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { getTextBrain } from '../../../workbench/api/promptLibraryApi'
@@ -63,13 +64,14 @@ export function useBrowserAssetCaptureImport({
 }: UseBrowserAssetCaptureImportOptions): {
   importRemoteAssetToLibrary: (input: BrowserAssetRemoteImportInput) => Promise<void>
 } {
+  const { t } = useTranslation()
   const handledCaptureRequestIdRef = React.useRef<string | null>(null)
   const handledPromptRequestIdRef = React.useRef<string | null>(null)
 
   const importRemoteAssetToLibrary = React.useCallback(
     async (input: BrowserAssetRemoteImportInput): Promise<void> => {
       const mediaType = input.mediaType === 'video' ? 'video' : 'image'
-      const sourceLabel = 'requestId' in input ? '网页捕捞' : '网页拖拽'
+      const sourceLabel = 'requestId' in input ? t('runtime.browser.webCapture') : t('runtime.browser.webDrop')
       const now = new Date().toISOString()
       const pendingId = `browser-${mediaType}-import-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       const title = input.title || input.fileName || fileNameFromRemoteAssetUrl(input.url)
@@ -78,7 +80,7 @@ export function useBrowserAssetCaptureImport({
         type: mediaType,
         source: 'my',
         title,
-        subtitle: '下载中...',
+        subtitle: t('runtime.browser.downloading'),
         tags: [sourceLabel],
         parentFolderId: activeFolderId,
         status: 'loading',
@@ -91,7 +93,9 @@ export function useBrowserAssetCaptureImport({
       setSelectedIds(new Set([pendingId]))
       if (!onImportRemoteAsset) {
         setLocalAssets((current) =>
-          current.map((asset) => asset.id === pendingId ? { ...asset, subtitle: '无法导入网页素材', status: 'error' } : asset),
+          current.map((asset) =>
+            asset.id === pendingId ? { ...asset, subtitle: t('runtime.browser.cannotImport'), status: 'error' } : asset,
+          ),
         )
         return
       }
@@ -118,11 +122,23 @@ export function useBrowserAssetCaptureImport({
         console.error('[nomi:browser] 网页素材导入失败:', reason, input.url)
         const shortReason = browserAssetImportErrorMessage(reason, input.url)
         setLocalAssets((current) =>
-          current.map((asset) => asset.id === pendingId ? { ...asset, subtitle: shortReason, status: 'error' } : asset),
+          current.map((asset) =>
+            asset.id === pendingId ? { ...asset, subtitle: shortReason, status: 'error' } : asset,
+          ),
         )
       }
     },
-    [activeFolderId, onImportRemoteAsset, setActiveSource, setActiveTab, setLocalAssets, setPersistedAssets, setSelectedIds, updateLibraryState],
+    [
+      activeFolderId,
+      onImportRemoteAsset,
+      setActiveSource,
+      setActiveTab,
+      setLocalAssets,
+      setPersistedAssets,
+      setSelectedIds,
+      t,
+      updateLibraryState,
+    ],
   )
 
   const upsertPromptCardAsset = React.useCallback(
@@ -152,7 +168,9 @@ export function useBrowserAssetCaptureImport({
         const referenceUrl = referenceResultUrl(captured) || referenceResultDataUrl(captured)
         const dataUrl = referenceResultDataUrl(captured) || referenceUrl
         return {
-          references: referenceUrl ? [{ url: referenceUrl, title: request.title, sourceUrl: sourceUrl || request.pageUrl }] : [...initialReferences],
+          references: referenceUrl
+            ? [{ url: referenceUrl, title: request.title, sourceUrl: sourceUrl || request.pageUrl }]
+            : [...initialReferences],
           modelImageUrl: dataUrl || request.modelImageUrl || referenceUrl || sourceUrl,
         }
       }
@@ -171,16 +189,19 @@ export function useBrowserAssetCaptureImport({
           modelImageUrl: dataUrl || request.modelImageUrl || referenceUrl || sourceUrl,
         }
       }
-      return { references: [...initialReferences], modelImageUrl: request.modelImageUrl || sourceUrl || initialReferences[0]?.url || '' }
+      return {
+        references: [...initialReferences],
+        modelImageUrl: request.modelImageUrl || sourceUrl || initialReferences[0]?.url || '',
+      }
     },
     [],
   )
 
   const runPromptExtraction = React.useCallback(
     async (modelImageUrl: string, mode: BrowserPromptExtractionMode): Promise<{ title: string; prompt: string }> => {
-      if (!modelImageUrl) throw new Error('没有可分析的参考图')
+      if (!modelImageUrl) throw new Error(t('browserAssets.promptReferenceMissing'))
       const brain = await getTextBrain()
-      if (!brain) throw new Error('请先在「模型接入」里启用一个支持图片输入的文本模型')
+      if (!brain) throw new Error(t('browserAssets.promptVisionModelMissing'))
       const result = await runWorkbenchTaskByVendor(brain.vendor, {
         kind: 'image_to_prompt',
         prompt: browserPromptExtractionPromptFromSettings(promptExtractionSettings, mode),
@@ -192,12 +213,12 @@ export function useBrowserAssetCaptureImport({
         },
       })
       const text = extractTextFromTaskResult(result)
-      if (!text) throw new Error('模型没有返回提示词')
+      if (!text) throw new Error(t('browserAssets.promptModelEmpty'))
       const parsed = parseBrowserPromptExtraction(text, mode)
-      if (!parsed.prompt) throw new Error('模型没有返回可用提示词')
+      if (!parsed.prompt) throw new Error(t('browserAssets.promptModelInvalid'))
       return parsed
     },
-    [promptExtractionSettings],
+    [promptExtractionSettings, t],
   )
 
   const extractPromptToAssetCard = React.useCallback(
@@ -205,7 +226,13 @@ export function useBrowserAssetCaptureImport({
       const cardId = `browser-prompt-${request.requestId}`
       const extractionMode = promptExtractionModeFromRequest(request)
       const initialReferences = promptReferenceImagesFromRequest(request)
-      const pendingAsset = createPromptCardAsset({ id: cardId, request, references: initialReferences, prompt: '', status: 'loading' })
+      const pendingAsset = createPromptCardAsset({
+        id: cardId,
+        request,
+        references: initialReferences,
+        prompt: '',
+        status: 'loading',
+      })
       setActiveSource('transcript')
       setActiveTab('prompt')
       setActiveFolderId(null)
@@ -216,23 +243,53 @@ export function useBrowserAssetCaptureImport({
       try {
         const prepared = await preparePromptReference(request, initialReferences)
         latestReferences = prepared.references
-        upsertPromptCardAsset(createPromptCardAsset({ id: cardId, request, references: prepared.references, prompt: '', status: 'loading', savedAt: pendingAsset.promptCard?.savedAt }))
+        upsertPromptCardAsset(
+          createPromptCardAsset({
+            id: cardId,
+            request,
+            references: prepared.references,
+            prompt: '',
+            status: 'loading',
+            savedAt: pendingAsset.promptCard?.savedAt,
+          }),
+        )
         const extracted = await runPromptExtraction(prepared.modelImageUrl, extractionMode)
-        upsertPromptCardAsset(createPromptCardAsset({ id: cardId, request, references: prepared.references, prompt: extracted.prompt, status: 'ready', title: extracted.title, savedAt: pendingAsset.promptCard?.savedAt }))
+        upsertPromptCardAsset(
+          createPromptCardAsset({
+            id: cardId,
+            request,
+            references: prepared.references,
+            prompt: extracted.prompt,
+            status: 'ready',
+            title: extracted.title,
+            savedAt: pendingAsset.promptCard?.savedAt,
+          }),
+        )
         setSelectedIds(new Set([cardId]))
       } catch (error) {
-        upsertPromptCardAsset(createPromptCardAsset({
-          id: cardId,
-          request,
-          references: latestReferences,
-          prompt: error instanceof Error ? error.message : '提示词提取失败',
-          status: 'error',
-          savedAt: pendingAsset.promptCard?.savedAt,
-        }))
+        upsertPromptCardAsset(
+          createPromptCardAsset({
+            id: cardId,
+            request,
+            references: latestReferences,
+            prompt: error instanceof Error ? error.message : '提示词提取失败',
+            status: 'error',
+            savedAt: pendingAsset.promptCard?.savedAt,
+          }),
+        )
         setSelectedIds(new Set([cardId]))
       }
     },
-    [preparePromptReference, runPromptExtraction, setActiveFolderId, setActiveSource, setActiveTab, setPopoverOpen, setSelectedIds, upsertPromptCardAsset],
+    [
+      preparePromptReference,
+      runPromptExtraction,
+      setActiveFolderId,
+      setActiveSource,
+      setActiveTab,
+      setPopoverOpen,
+      setSelectedIds,
+      upsertPromptCardAsset,
+    ],
   )
 
   React.useEffect(() => {

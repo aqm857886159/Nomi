@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Combobox, useCombobox } from '@mantine/core'
 import { IconCheck, IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../utils/cn'
@@ -59,7 +60,7 @@ export function NomiSelect({
   onChange,
   ariaLabel,
   leadingLabel,
-  placeholder = '选择',
+  placeholder,
   triggerBadge,
   size = 'sm',
   triggerMaxWidth,
@@ -67,9 +68,10 @@ export function NomiSelect({
   title,
   className,
 }: NomiSelectProps): JSX.Element {
+  const { t } = useTranslation()
   const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() })
   const selected = options.find((option) => option.value === value)
-  const triggerText = selected?.label ?? placeholder
+  const triggerText = selected?.label ?? placeholder ?? t('common.select')
   const heightClass = size === 'xs' ? 'h-6' : 'h-7'
 
   return (

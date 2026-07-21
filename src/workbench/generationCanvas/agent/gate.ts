@@ -2,6 +2,7 @@
 // 把散落的"只读自动放行"硬编码约定声明化成一张工具 meta 表 + 一个纯函数。
 // 三步:① policy(只读→allow)② invariant(校验/锁→deny)③ ask(其余→等用户点头)。
 // SDK 的 hook registry / permission mode / 规则 DSL 一律不抄(单用户桌面无配置面)。
+import i18n from '../../../i18n'
 
 /** 三种 intent = 同一管道的三种入口(每工具 / 批量计划 / 预算)。 */
 export type GateIntent =
@@ -56,7 +57,12 @@ export function evaluateGate(intent: GateIntent, ctx: GateContext = {}): GateDec
   if (intent.kind === 'tool-call') {
     const meta = TOOL_META[intent.toolName]
     // ② invariant(校验):不认识的工具 = 注定失败的计划,不让用户批准(§6.5)。
-    if (!meta) return { outcome: 'deny', reason: `不支持的操作「${intent.toolName}」` }
+    if (!meta) {
+      return {
+        outcome: 'deny',
+        reason: i18n.t('generationCommon.agentRuntime.unsupportedOperation', { operation: intent.toolName }),
+      }
+    }
     // ① policy:只读直通,零摩擦(M1)。花钱的(costy)即使不写画布也必问(S6b 受理语义)。
     if (!meta.writes && !meta.costy) return { outcome: 'allow' }
     // ② invariant(锁):写操作命中锁住的节点 → deny(N11:AI 硬禁,用户软门)。
@@ -83,21 +89,24 @@ function evaluateLock(toolName: string, args: unknown, ctx: GateContext): GateDe
   const resolve = ctx.resolveNodeId ?? ((id: string) => id)
   const record = asRecord(args)
 
-  const denyFor = (nodeId: string, what: string): GateDecision => ({
+  const denyFor = (nodeId: string, actionKey: 'editPrompt' | 'deleteNode' | 'regenerateNode' | 'addIncomingEdge'): GateDecision => ({
     outcome: 'deny',
-    reason: `节点「${locked.get(nodeId) || nodeId}」已被你锁定,AI 不能${what}(点节点上的锁标可一键解锁)`,
+    reason: i18n.t('generationCommon.agentRuntime.lockedNode', {
+      node: locked.get(nodeId) || nodeId,
+      action: i18n.t(`generationCommon.agentRuntime.${actionKey}`),
+    }),
   })
 
   if (toolName === 'set_node_prompt') {
     const nodeId = resolve(String(record.nodeId || '').trim())
-    if (locked.has(nodeId)) return denyFor(nodeId, '改写它的提示词')
+    if (locked.has(nodeId)) return denyFor(nodeId, 'editPrompt')
     return null
   }
   if (toolName === 'delete_canvas_nodes') {
     const nodeIds = Array.isArray(record.nodeIds) ? record.nodeIds : []
     for (const raw of nodeIds) {
       const nodeId = resolve(String(raw || '').trim())
-      if (locked.has(nodeId)) return denyFor(nodeId, '删除它')
+      if (locked.has(nodeId)) return denyFor(nodeId, 'deleteNode')
     }
     return null
   }
@@ -106,7 +115,7 @@ function evaluateLock(toolName: string, args: unknown, ctx: GateContext): GateDe
     const nodeIds = Array.isArray(record.nodeIds) ? record.nodeIds : []
     for (const raw of nodeIds) {
       const nodeId = resolve(String(raw || '').trim())
-      if (locked.has(nodeId)) return denyFor(nodeId, '重新生成它(会覆盖已锁定的结果)')
+      if (locked.has(nodeId)) return denyFor(nodeId, 'regenerateNode')
     }
     return null
   }
@@ -116,7 +125,7 @@ function evaluateLock(toolName: string, args: unknown, ctx: GateContext): GateDe
       const edge = asRecord(raw)
       // 只看 target(入边改变锁节点的生成输入);source 是出边=被引用,放行。
       const target = resolve(String(edge.targetClientId || edge.target || '').trim())
-      if (locked.has(target)) return denyFor(target, '给它接入新的输入边')
+      if (locked.has(target)) return denyFor(target, 'addIncomingEdge')
     }
     return null
   }

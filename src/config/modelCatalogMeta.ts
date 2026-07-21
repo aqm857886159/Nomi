@@ -1,5 +1,6 @@
 import { normalizeOrientation, type Orientation } from '../utils/orientation'
 import { normalizeVideoResolution } from '../utils/videoGenerationSpec'
+import i18n from '../i18n'
 
 type UnknownRecord = Record<string, unknown>
 
@@ -69,10 +70,7 @@ export type ImageModelResolutionOption = {
 
 export type ImageModelControlBinding = 'aspectRatio' | 'imageSize' | 'resolution'
 
-export type ImageModelControlOptionSource =
-  | 'aspectRatioOptions'
-  | 'imageSizeOptions'
-  | 'resolutionOptions'
+export type ImageModelControlOptionSource = 'aspectRatioOptions' | 'imageSizeOptions' | 'resolutionOptions'
 
 export type ImageModelControlConfig = {
   key: string
@@ -154,7 +152,14 @@ function parseParameterControlType(value: unknown): ModelParameterControlType {
   if (raw === 'number' || raw === 'integer' || raw === 'float') return 'number'
   if (raw === 'boolean' || raw === 'bool' || raw === 'switch' || raw === 'checkbox') return 'boolean'
   if (raw === 'text' || raw === 'string' || raw === 'input' || raw === 'textarea') return 'text'
-  if (raw === 'image-url' || raw === 'imageurl' || raw === 'image_url' || raw === 'image-ref' || raw === 'image-reference') return 'image-url'
+  if (
+    raw === 'image-url' ||
+    raw === 'imageurl' ||
+    raw === 'image_url' ||
+    raw === 'image-ref' ||
+    raw === 'image-reference'
+  )
+    return 'image-url'
   return 'select'
 }
 
@@ -240,9 +245,7 @@ function parseImageSizeOption(value: unknown): ImageModelSizeOption | null {
     return { value: normalized, label: normalized }
   }
   if (!isRecord(value)) return null
-  const size = normalizeCompactString(
-    value.value ?? value.size ?? value.imageSize ?? value.image_size,
-  )
+  const size = normalizeCompactString(value.value ?? value.size ?? value.imageSize ?? value.image_size)
   if (!size) return null
   const label = asTrimmedString(value.label) || size
   const priceLabel = asTrimmedString(value.priceLabel ?? value.price)
@@ -279,12 +282,7 @@ function parseImageControlBinding(value: unknown): ImageModelControlBinding | nu
   if (raw === 'aspectratio' || raw === 'aspect' || raw === 'ratio') {
     return 'aspectRatio'
   }
-  if (
-    raw === 'imagesize' ||
-    raw === 'size' ||
-    raw === 'outputsize' ||
-    raw === 'dimensions'
-  ) {
+  if (raw === 'imagesize' || raw === 'size' || raw === 'outputsize' || raw === 'dimensions') {
     return 'imageSize'
   }
   if (raw === 'resolution' || raw === 'imageresolution' || raw === 'outputresolution') {
@@ -294,14 +292,12 @@ function parseImageControlBinding(value: unknown): ImageModelControlBinding | nu
 }
 
 function defaultImageControlLabel(binding: ImageModelControlBinding): string {
-  if (binding === 'aspectRatio') return '比例'
-  if (binding === 'resolution') return '分辨率'
-  return '尺寸'
+  if (binding === 'aspectRatio') return i18n.t('runtime.modelCatalog.control.aspectRatio')
+  if (binding === 'resolution') return i18n.t('runtime.modelCatalog.control.resolution')
+  return i18n.t('runtime.modelCatalog.control.size')
 }
 
-function defaultImageControlOptionSource(
-  binding: ImageModelControlBinding,
-): ImageModelControlOptionSource {
+function defaultImageControlOptionSource(binding: ImageModelControlBinding): ImageModelControlOptionSource {
   if (binding === 'aspectRatio') return 'aspectRatioOptions'
   if (binding === 'resolution') return 'resolutionOptions'
   return 'imageSizeOptions'
@@ -315,12 +311,7 @@ function parseImageControlOptionSource(
   if (raw === 'aspectratiooptions' || raw === 'aspectratio' || raw === 'ratio') {
     return 'aspectRatioOptions'
   }
-  if (
-    raw === 'imagesizeoptions' ||
-    raw === 'imagesize' ||
-    raw === 'size' ||
-    raw === 'outputsize'
-  ) {
+  if (raw === 'imagesizeoptions' || raw === 'imagesize' || raw === 'size' || raw === 'outputsize') {
     return 'imageSizeOptions'
   }
   if (raw === 'resolutionoptions' || raw === 'resolution' || raw === 'outputresolution') {
@@ -329,10 +320,7 @@ function parseImageControlOptionSource(
   return defaultImageControlOptionSource(binding)
 }
 
-function parseImageControlConfig(
-  key: string,
-  value: unknown,
-): ImageModelControlConfig | null {
+function parseImageControlConfig(key: string, value: unknown): ImageModelControlConfig | null {
   if (typeof value === 'string') {
     const binding = parseImageControlBinding(value)
     if (!binding) return null
@@ -351,10 +339,7 @@ function parseImageControlConfig(
     key: asTrimmedString(value.key) || key || binding,
     label,
     binding,
-    optionSource: parseImageControlOptionSource(
-      value.optionSource ?? value.options ?? value.source,
-      binding,
-    ),
+    optionSource: parseImageControlOptionSource(value.optionSource ?? value.options ?? value.source, binding),
   }
 }
 
@@ -411,8 +396,7 @@ function parseSizeOption(value: unknown): VideoModelSizeOption | null {
   const aspectRatio = asTrimmedString(value.aspectRatio ?? value.aspect_ratio)
   const priceLabel = asTrimmedString(value.priceLabel ?? value.price)
   const orientationRaw = value.orientation ?? value.direction
-  const orientation =
-    typeof orientationRaw === 'undefined' ? undefined : normalizeOrientation(orientationRaw)
+  const orientation = typeof orientationRaw === 'undefined' ? undefined : normalizeOrientation(orientationRaw)
   return {
     value: size,
     label,
@@ -427,7 +411,10 @@ function parseOrientationOption(value: unknown): VideoModelOrientationOption | n
     const normalized = normalizeOrientation(value)
     return {
       value: normalized,
-      label: normalized === 'portrait' ? '竖屏' : '横屏',
+      label:
+        normalized === 'portrait'
+          ? i18n.t('runtime.modelCatalog.control.portrait')
+          : i18n.t('runtime.modelCatalog.control.landscape'),
     }
   }
   if (!isRecord(value)) return null
@@ -435,7 +422,10 @@ function parseOrientationOption(value: unknown): VideoModelOrientationOption | n
   if (typeof orientationRaw === 'undefined') return null
   const normalized = normalizeOrientation(orientationRaw)
   const label =
-    asTrimmedString(value.label) || (normalized === 'portrait' ? '竖屏' : '横屏')
+    asTrimmedString(value.label) ||
+    (normalized === 'portrait'
+      ? i18n.t('runtime.modelCatalog.control.portrait')
+      : i18n.t('runtime.modelCatalog.control.landscape'))
   const size = asTrimmedString(value.size).replace(/\s+/g, '')
   const aspectRatio = asTrimmedString(value.aspectRatio ?? value.aspect_ratio)
   return {
@@ -467,19 +457,10 @@ function parseResolutionOption(value: unknown): VideoModelResolutionOption | nul
 function parseControlBinding(value: unknown): VideoModelControlBinding | null {
   const raw = asTrimmedString(value).toLowerCase()
   if (!raw) return null
-  if (
-    raw === 'duration' ||
-    raw === 'durationseconds' ||
-    raw === 'videoDurationSeconds'.toLowerCase()
-  ) {
+  if (raw === 'duration' || raw === 'durationseconds' || raw === 'videoDurationSeconds'.toLowerCase()) {
     return 'durationSeconds'
   }
-  if (
-    raw === 'size' ||
-    raw === 'videosize' ||
-    raw === 'ratio' ||
-    raw === 'aspectratio'
-  ) {
+  if (raw === 'size' || raw === 'videosize' || raw === 'ratio' || raw === 'aspectratio') {
     return 'size'
   }
   if (raw === 'resolution' || raw === 'videoresolution' || raw === 'outputresolution') {
@@ -492,10 +473,10 @@ function parseControlBinding(value: unknown): VideoModelControlBinding | null {
 }
 
 function defaultControlLabel(binding: VideoModelControlBinding): string {
-  if (binding === 'durationSeconds') return '时长'
-  if (binding === 'resolution') return '分辨率'
-  if (binding === 'orientation') return '方向'
-  return '画幅'
+  if (binding === 'durationSeconds') return i18n.t('runtime.modelCatalog.control.duration')
+  if (binding === 'resolution') return i18n.t('runtime.modelCatalog.control.resolution')
+  if (binding === 'orientation') return i18n.t('runtime.modelCatalog.control.orientation')
+  return i18n.t('runtime.modelCatalog.control.frame')
 }
 
 function defaultControlOptionSource(binding: VideoModelControlBinding): VideoModelControlOptionSource {
@@ -505,10 +486,7 @@ function defaultControlOptionSource(binding: VideoModelControlBinding): VideoMod
   return 'sizeOptions'
 }
 
-function parseControlOptionSource(
-  value: unknown,
-  binding: VideoModelControlBinding,
-): VideoModelControlOptionSource {
+function parseControlOptionSource(value: unknown, binding: VideoModelControlBinding): VideoModelControlOptionSource {
   const raw = asTrimmedString(value).toLowerCase()
   if (raw === 'durationoptions' || raw === 'duration') return 'durationOptions'
   if (raw === 'resolutionoptions' || raw === 'resolution' || raw === 'outputresolution') {
@@ -521,10 +499,7 @@ function parseControlOptionSource(
   return defaultControlOptionSource(binding)
 }
 
-function parseControlConfig(
-  key: string,
-  value: unknown,
-): VideoModelControlConfig | null {
+function parseControlConfig(key: string, value: unknown): VideoModelControlConfig | null {
   if (typeof value === 'string') {
     const binding = parseControlBinding(value)
     if (!binding) return null
@@ -543,10 +518,7 @@ function parseControlConfig(
     key: asTrimmedString(value.key) || key || binding,
     label,
     binding,
-    optionSource: parseControlOptionSource(
-      value.optionSource ?? value.options ?? value.source,
-      binding,
-    ),
+    optionSource: parseControlOptionSource(value.optionSource ?? value.options ?? value.source, binding),
   }
 }
 
@@ -555,7 +527,10 @@ function parseVideoControlConfigs(root: UnknownRecord): VideoModelControlConfig[
   const controlsFromArray = controlsSource
     .map((value, index) => parseControlConfig(`control_${index + 1}`, value))
     .filter((item): item is VideoModelControlConfig => item !== null)
-  if (controlsFromArray.length) return dedupeByValue(controlsFromArray.map((item) => ({ ...item, value: item.key }))).map(({ value: _value, ...rest }) => rest)
+  if (controlsFromArray.length)
+    return dedupeByValue(controlsFromArray.map((item) => ({ ...item, value: item.key }))).map(
+      ({ value: _value, ...rest }) => rest,
+    )
 
   const mappingSource = isRecord(root.controlMappings)
     ? root.controlMappings
@@ -606,9 +581,7 @@ export function parseImageModelCatalogConfig(meta: unknown): ImageModelCatalogCo
       .filter((item): item is ImageModelAspectRatioOption => item !== null),
   )
   const imageSizeOptions = dedupeByValue(
-    imageSizeSource
-      .map(parseImageSizeOption)
-      .filter((item): item is ImageModelSizeOption => item !== null),
+    imageSizeSource.map(parseImageSizeOption).filter((item): item is ImageModelSizeOption => item !== null),
   )
   const resolutionOptions = dedupeByValue(
     resolutionSource
@@ -616,9 +589,7 @@ export function parseImageModelCatalogConfig(meta: unknown): ImageModelCatalogCo
       .filter((item): item is ImageModelResolutionOption => item !== null),
   )
 
-  const defaultAspectRatio = normalizeCompactString(
-    root.defaultAspectRatio ?? root.defaultAspect ?? root.aspectRatio,
-  )
+  const defaultAspectRatio = normalizeCompactString(root.defaultAspectRatio ?? root.defaultAspect ?? root.aspectRatio)
   const defaultImageSize = normalizeCompactString(
     root.defaultImageSize ?? root.defaultSize ?? root.imageSize ?? root.image_size,
   )
@@ -674,24 +645,16 @@ export function parseVideoModelCatalogConfig(meta: unknown): VideoModelCatalogCo
   const orientationSource = Array.isArray(root.orientationOptions) ? root.orientationOptions : []
 
   const durationOptions = dedupeByValue(
-    durationSource
-      .map(parseDurationOption)
-      .filter((item): item is VideoModelDurationOption => item !== null),
+    durationSource.map(parseDurationOption).filter((item): item is VideoModelDurationOption => item !== null),
   )
   const sizeOptions = dedupeByValue(
-    sizeSource
-      .map(parseSizeOption)
-      .filter((item): item is VideoModelSizeOption => item !== null),
+    sizeSource.map(parseSizeOption).filter((item): item is VideoModelSizeOption => item !== null),
   )
   const resolutionOptions = dedupeByValue(
-    resolutionSource
-      .map(parseResolutionOption)
-      .filter((item): item is VideoModelResolutionOption => item !== null),
+    resolutionSource.map(parseResolutionOption).filter((item): item is VideoModelResolutionOption => item !== null),
   )
   const orientationOptions = dedupeByValue(
-    orientationSource
-      .map(parseOrientationOption)
-      .filter((item): item is VideoModelOrientationOption => item !== null),
+    orientationSource.map(parseOrientationOption).filter((item): item is VideoModelOrientationOption => item !== null),
   )
 
   const defaultDuration = asPositiveNumber(root.defaultDurationSeconds ?? root.defaultDuration)
@@ -701,12 +664,20 @@ export function parseVideoModelCatalogConfig(meta: unknown): VideoModelCatalogCo
   )
   const defaultOrientationRaw = root.defaultOrientation
   const defaultOrientation =
-    typeof defaultOrientationRaw === 'undefined'
-      ? undefined
-      : normalizeOrientation(defaultOrientationRaw)
+    typeof defaultOrientationRaw === 'undefined' ? undefined : normalizeOrientation(defaultOrientationRaw)
   const controls = parseVideoControlConfigs(root)
 
-  if (!durationOptions.length && !sizeOptions.length && !resolutionOptions.length && !orientationOptions.length && !controls.length && defaultDuration == null && !defaultSize && !defaultResolution && !defaultOrientation) {
+  if (
+    !durationOptions.length &&
+    !sizeOptions.length &&
+    !resolutionOptions.length &&
+    !orientationOptions.length &&
+    !controls.length &&
+    defaultDuration == null &&
+    !defaultSize &&
+    !defaultResolution &&
+    !defaultOrientation
+  ) {
     return null
   }
 

@@ -3,6 +3,7 @@
 // → 写回缩略图 + 清标志。把 auto-capture 从「依赖节点在视口」的 Scene3DEditor 里抽出来（根因修复：
 // 自研画布会剔除离屏节点，挂在节点里的截图永不触发）。create_staging_reference 工具的执行下半场。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
 import { normalizeScene3DState } from './scene3dSerializer'
 import { persistScene3DScreenshot } from './scene3dScreenshot'
@@ -25,6 +26,7 @@ function imageNodeSize(width: number, height: number): { width: number; height: 
 }
 
 export function StagingCaptureHost(): JSX.Element | null {
+  const { t } = useTranslation()
   const pendingNode = useGenerationCanvasStore((state) =>
     state.nodes.find((node) => node.kind === 'scene3d' && readStaging(node) !== null) ?? null,
   )
@@ -48,8 +50,8 @@ export function StagingCaptureHost(): JSX.Element | null {
         const createdAt = Date.now()
         const imageNode = store.addNode({
           kind: 'image',
-          title: '站位参考',
-          prompt: '3D 站位参考（站位 + 动作 + 机位）',
+          title: t('scene3d.capture.stagingReference'),
+          prompt: t('scene3d.capture.stagingPrompt'),
           position: { x: Math.round(node.position.x + 380), y: Math.round(node.position.y) },
         })
         const size = imageNodeSize(capture.width, capture.height)
@@ -96,7 +98,7 @@ export function StagingCaptureHost(): JSX.Element | null {
         processingRef.current = null
       }
     },
-    [],
+    [t],
   )
 
   if (!pendingNode) return null

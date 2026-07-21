@@ -4,6 +4,7 @@ import type { BrowserAssetCanvasImportItem } from '../overlay/globalAssetPopover
 import type { BrowserAssetLibraryState } from '../assets/browserAssetLibraryStorage'
 import type { NomiBrowserAsset } from '../assets/browserAssetData'
 import type { BrowserPromptExtractionMode } from '../prompt/browserPromptExtraction'
+import i18n from '../../../i18n'
 import { browserPromptExtractionModeLabel } from '../prompt/browserPromptExtraction'
 import type {
   AssetPopoverDockMode,
@@ -124,13 +125,20 @@ export function browserAssetTimeValue(asset: NomiBrowserAsset): number {
 
 export function browserAssetDisplaySubtitle(asset: NomiBrowserAsset): string {
   const concreteSubtitle = asset.subtitle?.trim()
-  if (asset.status === 'loading') return asset.promptCard ? '提取中...' : '下载中...'
-  if (asset.status === 'error') return concreteSubtitle || (asset.promptCard ? '提取失败' : '下载失败')
+  if (asset.status === 'loading') {
+    return asset.promptCard ? i18n.t('runtime.browser.extracting') : i18n.t('runtime.browser.downloading')
+  }
+  if (asset.status === 'error') {
+    return (
+      concreteSubtitle ||
+      (asset.promptCard ? i18n.t('runtime.browser.extractionFailed') : i18n.t('runtime.browser.downloadFailed'))
+    )
+  }
   if (concreteSubtitle) return concreteSubtitle
-  if (asset.type === 'folder') return '文件夹'
-  if (asset.type === 'image') return '图片'
-  if (asset.type === 'video') return '视频'
-  return '提示词'
+  if (asset.type === 'folder') return i18n.t('runtime.browser.folder')
+  if (asset.type === 'image') return i18n.t('runtime.browser.image')
+  if (asset.type === 'video') return i18n.t('runtime.browser.video')
+  return i18n.t('runtime.browser.prompt')
 }
 
 export function isBrowserAssetDraggable(asset: NomiBrowserAsset, renaming: boolean): boolean {
@@ -138,14 +146,18 @@ export function isBrowserAssetDraggable(asset: NomiBrowserAsset, renaming: boole
 }
 
 export function browserAssetImportErrorMessage(reason: string, url: string): string {
-  if (/来源页面会话|source page session/i.test(reason)) return '来源网页已关闭，请重新拖入'
-  if (/timed out|超时/i.test(reason)) return '下载超时，请重试'
-  if (/HTTP\s*(401|403)|forbidden|hotlink|referer/i.test(reason)) return '网站拒绝下载（可能需要登录）'
-  if (/HTTP\s*(404|410)/i.test(reason)) return '网页素材已失效'
-  if (/不是图片或视频|not supported media|media type/i.test(reason)) return '网站返回的不是图片或视频'
-  if (/too large|200\s*MiB|超过.*MB/i.test(reason)) return '素材超过 200MB'
-  if (/^blob:/i.test(url)) return '网页临时资源已失效'
-  return '下载失败，请重试'
+  if (/来源页面会话|source page session/i.test(reason)) return i18n.t('runtime.browser.errors.sourceClosed')
+  if (/timed out|超时/i.test(reason)) return i18n.t('runtime.browser.errors.timeout')
+  if (/HTTP\s*(401|403)|forbidden|hotlink|referer/i.test(reason)) {
+    return i18n.t('runtime.browser.errors.rejected')
+  }
+  if (/HTTP\s*(404|410)/i.test(reason)) return i18n.t('runtime.browser.errors.expired')
+  if (/不是图片或视频|not supported media|media type/i.test(reason)) {
+    return i18n.t('runtime.browser.errors.invalidMedia')
+  }
+  if (/too large|200\s*MiB|超过.*MB/i.test(reason)) return i18n.t('runtime.browser.errors.tooLarge')
+  if (/^blob:/i.test(url)) return i18n.t('runtime.browser.errors.temporaryExpired')
+  return i18n.t('runtime.browser.errors.retry')
 }
 
 function isPromptAssetFileName(fileName: string): boolean {
@@ -191,10 +203,10 @@ export function shouldShowDesktopAssetInBrowserPopover(
 
 function browserAssetSubtitleFromDesktopAsset(asset: DesktopAssetDto): string {
   const kind = typeof asset.data.kind === 'string' ? asset.data.kind : ''
-  if (kind === 'browser-capture') return '网页素材'
-  if (kind === 'browser-upload') return '本地导入'
-  if (kind === 'upload') return '本地导入'
-  return '项目素材'
+  if (kind === 'browser-capture') return i18n.t('runtime.browser.webAsset')
+  if (kind === 'browser-upload') return i18n.t('runtime.browser.localImport')
+  if (kind === 'upload') return i18n.t('runtime.browser.localImport')
+  return i18n.t('runtime.browser.projectAsset')
 }
 
 export function browserAssetFromDesktopAsset(asset: DesktopAssetDto): NomiBrowserAsset | null {
@@ -210,7 +222,14 @@ export function browserAssetFromDesktopAsset(asset: DesktopAssetDto): NomiBrowse
     id: asset.id,
     type,
     source: 'my',
-    title: sidecarTitle || asset.name || (type === 'video' ? '项目视频' : type === 'image' ? '项目图片' : '本地文本'),
+    title:
+      sidecarTitle ||
+      asset.name ||
+      (type === 'video'
+        ? i18n.t('runtime.browser.projectVideo')
+        : type === 'image'
+          ? i18n.t('runtime.browser.projectImage')
+          : i18n.t('runtime.browser.localText')),
     subtitle,
     previewUrl: type === 'prompt' ? undefined : url || undefined,
     tags: [subtitle],
@@ -233,7 +252,17 @@ function promptTextFromBrowserAsset(asset: NomiBrowserAsset): string {
   const promptCardPrompt = asset.promptCard?.prompt.trim()
   if (promptCardPrompt) return promptCardPrompt
   const subtitle = asset.subtitle?.trim() ?? ''
-  if (subtitle && !['本地文本', '本地导入', '网页素材', '项目素材'].includes(subtitle)) return subtitle
+  const genericSubtitles = [
+    '本地文本',
+    '本地导入',
+    '网页素材',
+    '项目素材',
+    'Local text',
+    'Local import',
+    'Web asset',
+    'Project asset',
+  ]
+  if (subtitle && !genericSubtitles.includes(subtitle)) return subtitle
   return asset.title
 }
 

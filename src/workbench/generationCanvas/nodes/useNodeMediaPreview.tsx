@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import NodeMediaPreviewDialog from './NodeMediaPreviewDialog'
 import NodeResultDownloadButton from './NodeResultDownloadButton'
@@ -8,6 +9,7 @@ export function useNodeMediaPreview(
   node: GenerationCanvasNode,
   resultActionsSelected: boolean,
 ): { openMediaPreview: () => void; mediaPreviewControls: JSX.Element } {
+  const { t } = useTranslation()
   const [open, setOpen] = React.useState(false)
   const openMediaPreview = React.useCallback(() => setOpen(true), [])
   const closeMediaPreview = React.useCallback(() => setOpen(false), [])
@@ -21,7 +23,12 @@ export function useNodeMediaPreview(
           <NodeMediaPreviewDialog
             mediaType={result.type}
             url={result.url}
-            title={node.title || (result.type === 'video' ? '视频' : '图片')}
+            title={
+              node.title ||
+              (result.type === 'video'
+                ? t('generationCommon.imagePreview.video')
+                : t('generationCommon.imagePreview.image'))
+            }
             onClose={closeMediaPreview}
           />
         ) : null}

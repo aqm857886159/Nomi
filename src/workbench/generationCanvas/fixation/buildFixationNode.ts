@@ -36,7 +36,9 @@ export function buildFixationNodeSpec(node: GenerationCanvasNode): FixationNodeS
   const srcUrl = node.result?.url
   if (!srcUrl) return null
   const isScene = node.categoryId === 'scene' || node.kind === 'scene'
-  const name = (node.title || '').trim() || (isScene ? '场景' : '角色')
+  const name =
+    (node.title || '').trim() ||
+    i18n.t(isScene ? 'generationCommon.derivative.scene' : 'generationCommon.derivative.character')
   const tagline = readCharacterMeta(node).tagline
   const prompt = isScene ? buildBasicSceneFixation(name, { tagline }) : buildBasicCharacterFixation(name, { tagline })
   // 复用源节点图像模型；源无模型（如上传图）才回退到已内置验证过的 GPT Image 2 图生图。
@@ -54,7 +56,7 @@ export function buildFixationNodeSpec(node: GenerationCanvasNode): FixationNodeS
         }
       : GPT_IMAGE_2_FALLBACK_MODEL_META
   return {
-    title: `${name}·定妆`,
+    title: i18n.t('generationCommon.derivative.fixationTitle', { name }),
     prompt,
     references: [srcUrl],
     meta: { ...modelMeta, referenceImages: [srcUrl], referenceImageUrls: [srcUrl] },

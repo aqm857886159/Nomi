@@ -34,24 +34,24 @@ function detailLine(d: ReconcileDeviation, t: TFunction): string {
   }
   if (d.field === '引用边') {
     return d.reason
-      ? t('generationCommon.reconcile.edgeReason', { reason: d.reason })
+      ? t('generationCommon.reconcile.edgeReason', { reason: localizedReason(d.reason, t) })
       : t('generationCommon.reconcile.edgeMissing')
   }
   if (d.field === '边语义') {
     return t('generationCommon.reconcile.edgeSemantics', {
-      actual: trunc(d.actual),
-      expected: trunc(d.expected),
+      actual: localizedValue(d.actual, t),
+      expected: localizedValue(d.expected, t),
     })
   }
   if (d.field === '节点') {
     return t('generationCommon.reconcile.nodeChange', {
-      expected: trunc(d.expected),
-      actual: trunc(d.actual),
+      expected: localizedValue(d.expected, t),
+      actual: localizedValue(d.actual, t),
     })
   }
   return t('generationCommon.reconcile.approvedActual', {
-    expected: trunc(d.expected),
-    actual: trunc(d.actual),
+    expected: localizedValue(d.expected, t),
+    actual: localizedValue(d.actual, t),
   })
 }
 
@@ -59,7 +59,57 @@ function fieldLabel(field: string, t: TFunction): string {
   if (field === '引用边') return t('generationCommon.reconcile.fields.referenceEdge')
   if (field === '边语义') return t('generationCommon.reconcile.fields.edgeSemantics')
   if (field === '节点') return t('generationCommon.reconcile.fields.node')
+  if (field === '类型') return t('generationCommon.reconcile.fields.type')
+  if (field === '提示词') return t('generationCommon.reconcile.fields.prompt')
+  if (field === '标题') return t('generationCommon.reconcile.fields.title')
+  if (field === '模型') return t('generationCommon.reconcile.fields.model')
+  if (field.startsWith('参数 ')) {
+    return t('generationCommon.reconcile.fields.parameter', { name: field.slice('参数 '.length) })
+  }
+  if (field.startsWith('数组参考槽 ')) {
+    return t('generationCommon.reconcile.fields.arrayReferenceSlot', { name: field.slice('数组参考槽 '.length) })
+  }
   return field
+}
+
+const DEVIATION_VALUE_KEYS: Record<string, string> = {
+  已连接: 'connected',
+  未连接: 'notConnected',
+  '(通用参考)': 'genericReference',
+  已创建: 'created',
+  不存在: 'missing',
+  '(回退自动选)': 'autoFallback',
+  '(默认值)': 'defaultValue',
+  存在: 'exists',
+  已删除: 'deleted',
+  仍存在: 'stillExists',
+  有对应已提交边: 'committedEdge',
+  画布内来源应建成有序边: 'edgeBackedSource',
+  显示出边参考但无边: 'orphanEdgeReference',
+  'meta-only 残留（无边有图）': 'orphanMeta',
+}
+
+const DEVIATION_REASON_KEYS: Record<string, string> = {
+  所选模型不支持这种参考连接: 'unsupportedReference',
+  源节点没有可作参考的产物: 'sourceNotReferenceable',
+  连接的一端节点找不到: 'dangling',
+}
+
+function localizedValue(value: unknown, t: TFunction): string {
+  const text = trunc(value)
+  const valueKey = DEVIATION_VALUE_KEYS[text]
+  if (valueKey) {
+    return t(`generationCommon.reconcile.values.${valueKey}` as 'generationCommon.reconcile.values.connected')
+  }
+  return text
+}
+
+function localizedReason(reason: unknown, t: TFunction): string {
+  const text = String(reason ?? '')
+  const reasonKey = DEVIATION_REASON_KEYS[text]
+  return reasonKey
+    ? t(`generationCommon.reconcile.reasons.${reasonKey}` as 'generationCommon.reconcile.reasons.unsupportedReference')
+    : text
 }
 
 /**

@@ -1,6 +1,21 @@
 // English display equivalents for curated model metadata. The Chinese source
 // values remain stable because old projects and catalog mappings may persist them.
 export const enModelDisplayText: Readonly<Record<string, string>> = {
+  'CFG 提示词强度': 'CFG prompt strength',
+  'checkpoint 文件名': 'Checkpoint filename',
+  '不想出现的内容（可留空）': 'Content to exclude (optional)',
+  '你 ComfyUI/models/checkpoints 目录里的文件名': 'Filename in your ComfyUI/models/checkpoints directory',
+  '模型权重（checkpoint 文件名）': 'Model weights (checkpoint filename)',
+  '宽度': 'Width',
+  '高度': 'Height',
+  '采样步数': 'Sampling steps',
+  '采样器': 'Sampler',
+  '随机种子': 'Random seed',
+  '负向提示词': 'Negative prompt',
+  '张数': 'Image count',
+  '音色 ID': 'Voice ID',
+  '比例 / 尺寸': 'Aspect ratio / size',
+  '首帧图(图生视频，可选)': 'First-frame image (optional for image-to-video)',
   '1 或 3 张参考图驱动（2 张不支持）': 'Use 1 or 3 reference images (2 images are not supported)',
   '1–9 张角色图 → prompt 里按顺序写 @image1…@image9':
     'Use 1–9 character images and reference them as @image1…@image9 in prompt order',

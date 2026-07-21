@@ -10,6 +10,7 @@ import { enCreationAi, zhCreationAi } from './locales/creationAi'
 import { enStoryboardEditor, zhStoryboardEditor } from './locales/storyboardEditor'
 import { enFileExplorer, zhFileExplorer } from './locales/fileExplorer'
 import { enGenerationCommon, zhGenerationCommon } from './locales/generationCommon'
+import { enRuntime, zhRuntime } from './locales/runtime'
 
 export const zhCN = {
   common: {
@@ -26,6 +27,14 @@ export const zhCN = {
     loading: '加载中',
     rendering: '正在渲染...',
     back: '返回',
+    select: '选择',
+    undo: '撤销',
+  },
+  media: {
+    imageLoadFailedWithSource: '图片加载失败：{{source}}',
+    noImage: '无图片',
+    imageLoadFailed: '图片加载失败',
+    loadFailed: '加载失败',
   },
   brand: {
     name: 'Nomi',
@@ -264,6 +273,7 @@ export const zhCN = {
   storyboardEditor: zhStoryboardEditor,
   fileExplorer: zhFileExplorer,
   generationCommon: zhGenerationCommon,
+  runtime: zhRuntime,
 } as const
 
 type TranslationShape<T> = {
@@ -285,6 +295,14 @@ export const en = {
     loading: 'Loading',
     rendering: 'Rendering...',
     back: 'Back',
+    select: 'Select',
+    undo: 'Undo',
+  },
+  media: {
+    imageLoadFailedWithSource: 'Image failed to load: {{source}}',
+    noImage: 'No image',
+    imageLoadFailed: 'Image failed to load',
+    loadFailed: 'Load failed',
   },
   brand: {
     name: 'Nomi',
@@ -530,6 +548,7 @@ export const en = {
   storyboardEditor: enStoryboardEditor,
   fileExplorer: enFileExplorer,
   generationCommon: enGenerationCommon,
+  runtime: enRuntime,
 } satisfies TranslationShape<typeof zhCN>
 
 export const resources = {

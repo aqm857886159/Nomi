@@ -1,3 +1,5 @@
+import i18n from '../../../i18n'
+
 export type PendingToolCallLike = {
   toolCallId: string
   toolName: string
@@ -88,7 +90,10 @@ export function summarizeAgentPlan(calls: readonly PendingToolCallLike[]): Agent
         ? node.clientId
         : `n${index + 1}`,
       kind: typeof node.kind === 'string' ? node.kind : 'image',
-      title: typeof node.title === 'string' ? node.title : `镜头 ${index + 1}`,
+      title:
+        typeof node.title === 'string'
+          ? node.title
+          : i18n.t('generationCommon.agentRuntime.shotTitle', { index: index + 1 }),
       prompt: typeof node.prompt === 'string' ? node.prompt : '',
       ...(position && typeof position.x === 'number' && typeof position.y === 'number'
         ? { position: { x: position.x, y: position.y } }

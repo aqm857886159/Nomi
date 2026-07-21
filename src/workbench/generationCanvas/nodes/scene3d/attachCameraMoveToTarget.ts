@@ -14,6 +14,7 @@ import { archetypeForNode, findVideoRefMode } from '../../agent/referenceEdgeCap
 import { applyArchetypeModeSwitch, readArchetypeArray } from '../controls/archetypeMeta'
 import { CAMERA_MOVE_LABEL, CAMERA_MOVE_DESC, type CameraMove } from './cameraMoveVocab'
 import { isVideoLikeGenerationNodeKind } from '../../model/generationNodeKinds'
+import i18n from '../../../../i18n'
 
 /** 目标节点里记「当前已附的运镜 mp4」的 meta 键（替换判据；替代旧的一次性布尔 cameraMoveAttached）。 */
 export const CAMERA_MOVE_ATTACHED_URL_KEY = 'cameraMoveAttachedUrl'
@@ -57,7 +58,10 @@ export function computeAttachCameraMove(
   // P2-A 校验目标节点种类：运镜参考只能喂视频生成节点。指到图片节点没有 video_ref 槽，
   // 旧逻辑会静默把无用的运镜 prompt 追加到图片上（图片模型不懂「镜头运动」）。诚实跳过并提示。
   if (!isVideoLikeGenerationNodeKind(target.kind)) {
-    return { kind: 'noop', toast: { message: '运镜参考只能喂给视频镜头节点，已跳过（目标不是视频节点）', level: 'warning' } }
+    return {
+      kind: 'noop',
+      toast: { message: i18n.t('scene3d.capture.videoTargetRequired'), level: 'warning' },
+    }
   }
   const meta = { ...(target.meta || {}) } as Record<string, unknown>
   const trimmedNew = mp4Url.trim()
@@ -88,7 +92,7 @@ export function computeAttachCameraMove(
       kind: 'patch',
       patch: { meta: nextMeta, prompt },
       ...(hadFirstOrLast && !targetHasFrameSlot
-        ? { toast: { message: '已切换到全能参考模式以注入运镜参考视频（该模式无首/尾帧，原首帧不再生效）', level: 'warning' as const } }
+        ? { toast: { message: i18n.t('scene3d.capture.switchedToOmni'), level: 'warning' as const } }
         : {}),
     }
   }

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import {
   filterNomiBrowserAssets,
@@ -9,7 +10,7 @@ import {
 } from '../assets/browserAssetData'
 import {
   BROWSER_ASSET_LIBRARY_UPDATED_EVENT,
-  DEFAULT_BROWSER_PROMPT_CATEGORIES,
+  defaultBrowserPromptCategories,
   EMPTY_BROWSER_ASSET_LIBRARY_STATE,
   readBrowserAssetLibraryState,
   writeBrowserAssetLibraryState,
@@ -77,6 +78,7 @@ export function useBrowserAssetLibraryModel({
   filterActive: boolean
   emptyStateCopy: { title: string; description: string }
 } {
+  const { t } = useTranslation()
   const [persistedAssets, setPersistedAssets] = React.useState<NomiBrowserAsset[]>([])
   const [libraryState, setLibraryState] = React.useState<BrowserAssetLibraryState>(EMPTY_BROWSER_ASSET_LIBRARY_STATE)
   const activeProjectId = projectId.trim()
@@ -181,9 +183,16 @@ export function useBrowserAssetLibraryModel({
       const previewMediaType: NomiBrowserAsset['previewMediaType'] =
         previewChild?.previewMediaType ??
         (previewChild?.type === 'video' ? 'video' : previewChild?.type === 'image' || previewChild?.promptCard ? 'image' : undefined)
-      return { ...asset, count: children.length, subtitle: '文件夹', previewUrl: previewChild?.previewUrl, preview: previewChild?.preview, previewMediaType }
+      return {
+        ...asset,
+        count: children.length,
+        subtitle: t('browserAssets.folder'),
+        previewUrl: previewChild?.previewUrl,
+        preview: previewChild?.preview,
+        previewMediaType,
+      }
     })
-  }, [activeSource, mergedAssets])
+  }, [activeSource, mergedAssets, t])
 
   const currentFolder = React.useMemo(
     () => assetsWithFolderSummaries.find((asset) => asset.type === 'folder' && asset.id === activeFolderId) ?? null,
@@ -209,21 +218,22 @@ export function useBrowserAssetLibraryModel({
     [activeFolderId, assetsWithFolderSummaries],
   )
   const promptLibrarySourceKey = React.useMemo(
-    () => sourceTabs.find((source) => source.label === '提示词库')?.key ?? 'transcript',
+    () => sourceTabs.find((source) => source.key === 'transcript')?.key ?? 'transcript',
     [sourceTabs],
   )
   const showingPromptLibrary = activeSource === promptLibrarySourceKey
-  const promptCategories = React.useMemo(() => {
-    const seen = new Set(DEFAULT_BROWSER_PROMPT_CATEGORIES.map((category) => category.id))
+  const promptCategories = (() => {
+    const defaults = defaultBrowserPromptCategories()
+    const seen = new Set(defaults.map((category) => category.id))
     return [
-      ...DEFAULT_BROWSER_PROMPT_CATEGORIES,
+      ...defaults,
       ...libraryState.promptCategories.filter((category) => {
         if (seen.has(category.id)) return false
         seen.add(category.id)
         return true
       }),
     ]
-  }, [libraryState.promptCategories])
+  })()
   const filterBaseAssets = React.useMemo(
     () => filterNomiBrowserAssets(folderScopedAssets, { source: activeSource, activeTab: 'all', query }),
     [activeSource, folderScopedAssets, query],
@@ -273,15 +283,24 @@ export function useBrowserAssetLibraryModel({
     const asset = assetById.get(promptDetailAssetId)
     return asset?.promptCard ? asset : null
   }, [assetById, promptDetailAssetId])
-  const activeSourceLabel = React.useMemo(() => sourceTabs.find((source) => source.key === activeSource)?.label || '素材', [activeSource, sourceTabs])
+  const activeSourceLabel = React.useMemo(
+    () => sourceTabs.find((source) => source.key === activeSource)?.label || t('browserAssets.asset'),
+    [activeSource, sourceTabs, t],
+  )
   const filterActive = showingPromptLibrary ? activePromptCategory !== 'all' : activeTab !== 'all'
   const emptyStateCopy = React.useMemo(() => {
     const filtered = Boolean(query.trim()) || filterActive
-    if (filtered) return { title: '没有匹配的素材', description: '换个分类或搜索词试试。' }
-    if (currentFolder) return { title: '文件夹还是空的', description: '拖入素材，或把已选素材移动到这里。' }
-    if (showingPromptLibrary) return { title: '还没有提示词', description: '从浏览器图片或截图提取提示词后会出现在这里。' }
-    return { title: '还没有素材', description: '上传本地文件，或在浏览器里捕捞图片和视频。' }
-  }, [currentFolder, filterActive, query, showingPromptLibrary])
+    if (filtered) {
+      return { title: t('browserAssets.empty.noMatchTitle'), description: t('browserAssets.empty.noMatchDescription') }
+    }
+    if (currentFolder) {
+      return { title: t('browserAssets.empty.folderTitle'), description: t('browserAssets.empty.folderDescription') }
+    }
+    if (showingPromptLibrary) {
+      return { title: t('browserAssets.empty.promptTitle'), description: t('browserAssets.empty.promptDescription') }
+    }
+    return { title: t('browserAssets.empty.assetTitle'), description: t('browserAssets.empty.assetDescription') }
+  }, [currentFolder, filterActive, query, showingPromptLibrary, t])
 
   return {
     libraryState,

@@ -103,7 +103,7 @@ export function TextClipStyleControls({ timeline, selectedTextClipId }: Props): 
           value={selectedTextFontId}
           options={TEXT_FONTS.map((font) => ({
             value: font.id,
-            label: t(`timelinePreview.textStyle.fonts.${font.id}`, { defaultValue: font.label }),
+            label: t(`timelinePreview.textStyle.fonts.${font.id}` as 'timelinePreview.textStyle.fonts.default'),
           }))}
           onChange={(value) => {
             if (selectedTextClipId) updateTimelineTextClipFont(selectedTextClipId, value)

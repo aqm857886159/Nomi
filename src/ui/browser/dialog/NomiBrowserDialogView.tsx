@@ -158,7 +158,9 @@ export function NomiBrowserDialogView({
                     }}
                     onContextMenu={(event) => openTabContextMenu(tab, event)}
                   >
-                    <span className="grid size-4 place-items-center text-nomi-ink-40"><TabFavicon tab={tab} /></span>
+                    <span className="grid size-4 place-items-center text-nomi-ink-40">
+                      <TabFavicon tab={tab} />
+                    </span>
                     <span className="min-w-0 truncate text-caption font-medium">
                       {tab.loading ? t('browserAssets.loading') : tab.title}
                     </span>
@@ -195,7 +197,12 @@ export function NomiBrowserDialogView({
               </button>
             </div>
             <span className="mx-1 h-5 w-px bg-nomi-line-soft" aria-hidden="true" />
-            <button type="button" className={TOOL_BUTTON_CLASS} aria-label={t('browserAssets.closeBrowser')} onClick={onClose}>
+            <button
+              type="button"
+              className={TOOL_BUTTON_CLASS}
+              aria-label={t('browserAssets.closeBrowser')}
+              onClick={onClose}
+            >
               <IconX size={18} stroke={1.8} aria-hidden="true" />
             </button>
           </div>
@@ -304,7 +311,12 @@ export function NomiBrowserDialogView({
                       >
                         <IconWorld size={15} stroke={1.7} className="shrink-0 text-nomi-ink-40" aria-hidden="true" />
                         <span className="min-w-0 flex-1 truncate">{site.name}</span>
-                        <IconExternalLink size={13} stroke={1.7} className="shrink-0 text-nomi-ink-30" aria-hidden="true" />
+                        <IconExternalLink
+                          size={13}
+                          stroke={1.7}
+                          className="shrink-0 text-nomi-ink-30"
+                          aria-hidden="true"
+                        />
                       </button>
                     ))}
                   </div>
@@ -330,7 +342,9 @@ export function NomiBrowserDialogView({
                   'hover:bg-nomi-ink-05 hover:text-nomi-ink',
                   browserAssetPopoverOpen && 'bg-nomi-ink-05 text-nomi-ink',
                 )}
-                aria-label={browserAssetPopoverOpen ? t('browserAssets.collapseAssetBox') : t('browserAssets.openAssetBox')}
+                aria-label={
+                  browserAssetPopoverOpen ? t('browserAssets.collapseAssetBox') : t('browserAssets.openAssetBox')
+                }
                 aria-pressed={browserAssetPopoverOpen}
                 title={t('browserAssets.assetBoxHint')}
                 onClick={() => handleBrowserAssetPopoverOpenChange(!browserAssetPopoverOpen)}
@@ -382,88 +396,98 @@ export function NomiBrowserDialogView({
                 localBrowserAssetPopoverSplit ? 'min-h-0 min-w-0 flex-1' : 'absolute inset-0',
               )}
             >
-            {!activeTab?.viewId ? (
-              <div className="absolute inset-0 grid place-items-center overflow-auto p-8">
-                <div className="grid w-full max-w-[880px] gap-8">
-                  <div className="text-center">
-                    <div className="mx-auto mb-4 grid size-12 place-items-center">
-                      <NomiLogoMark size={40} />
+              {!activeTab?.viewId ? (
+                <div className="absolute inset-0 grid place-items-center overflow-auto p-8">
+                  <div className="grid w-full max-w-[880px] gap-8">
+                    <div className="text-center">
+                      <div className="mx-auto mb-4 grid size-12 place-items-center">
+                        <NomiLogoMark size={40} />
+                      </div>
+                      <h3 className="m-0 text-h2 font-semibold text-nomi-ink">{t('browserAssets.openWebReference')}</h3>
+                      <p className="m-0 mt-2 text-body-sm text-nomi-ink-40">{t('browserAssets.openWebDescription')}</p>
                     </div>
-                    <h3 className="m-0 text-h2 font-semibold text-nomi-ink">{t('browserAssets.openWebReference')}</h3>
-                    <p className="m-0 mt-2 text-body-sm text-nomi-ink-40">
-                      {t('browserAssets.openWebDescription')}
-                    </p>
-                  </div>
-                  <form
-                    className="mx-auto w-full max-w-[560px]"
-                    onSubmit={(event) => {
-                      event.preventDefault()
-                      navigateActiveTab()
-                    }}
-                  >
-                    <div className="flex items-center gap-2 rounded-pill border border-nomi-line bg-nomi-paper p-1.5 pl-5 shadow-nomi-sm transition-[border-color,box-shadow] focus-within:border-nomi-accent focus-within:shadow-nomi-md">
-                      <IconSearch size={19} stroke={1.7} className="shrink-0 text-nomi-ink-40" aria-hidden="true" />
-                      <input
-                        value={addressValue}
-                        onFocus={handleAddressFocus}
-                        onBlur={handleAddressBlur}
-                        onChange={handleAddressChange}
-                        placeholder={t('browserAssets.searchBing')}
-                        aria-label={t('browserAssets.searchBing')}
-                        className="h-11 min-w-0 flex-1 border-0 bg-transparent text-body leading-[44px] outline-none ring-0 placeholder:text-nomi-ink-30 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
-                      />
-                      <button
-                        type="submit"
-                        className="h-11 rounded-pill border-0 bg-nomi-ink px-5 text-body-sm font-semibold text-nomi-paper transition-colors hover:bg-nomi-accent"
-                      >
-                        {t('browserAssets.open')}
-                      </button>
-                    </div>
-                  </form>
-                  <div>
-                    <div className="mb-3 text-caption font-semibold text-nomi-ink-40">{t('browserAssets.commonSites')}</div>
-                    <div
-                      className="grid gap-2"
-                      style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}
+                    <form
+                      className="mx-auto w-full max-w-[560px]"
+                      onSubmit={(event) => {
+                        event.preventDefault()
+                        navigateActiveTab()
+                      }}
                     >
-                      {BROWSER_START_SHORTCUTS.map((site) => {
-                        // 预设站图标不求第三方 favicon 服务（Google s2 对部分域 404、
-                        // 中国网络下每次开浏览器都刷 console 错）——首字母瓷贴，零网络零 flake。
-                        const initial = (site.label || '?').trim().slice(0, 1)
-                        return (
-                          <button
-                            key={site.url}
-                            type="button"
-                            className={cn(
-                              'group flex items-center gap-2.5 rounded-nomi border border-nomi-line bg-nomi-paper p-2.5 text-left',
-                              'cursor-pointer transition-[background,border-color,transform,box-shadow] duration-[var(--nomi-transition-fast)]',
-                              'hover:-translate-y-px hover:border-nomi-accent hover:shadow-nomi-md',
-                            )}
-                            onClick={() => {
-                              void createTab(site.url)
-                            }}
-                            title={site.url}
-                          >
-                            <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-nomi-sm bg-nomi-ink-05 text-caption font-bold text-nomi-ink-60 transition-colors group-hover:bg-nomi-accent-soft group-hover:text-nomi-accent">
-                              {initial || <IconWorld size={15} stroke={1.7} aria-hidden="true" />}
-                            </span>
-                            <span className="grid min-w-0 flex-1 gap-0.5">
-                              <span className="truncate text-caption font-semibold text-nomi-ink">{site.label}</span>
-                              <span className="truncate text-micro text-nomi-ink-40">{site.hint}</span>
-                            </span>
-                          </button>
-                        )
-                      })}
+                      <div className="flex items-center gap-2 rounded-pill border border-nomi-line bg-nomi-paper p-1.5 pl-5 shadow-nomi-sm transition-[border-color,box-shadow] focus-within:border-nomi-accent focus-within:shadow-nomi-md">
+                        <IconSearch size={19} stroke={1.7} className="shrink-0 text-nomi-ink-40" aria-hidden="true" />
+                        <input
+                          value={addressValue}
+                          onFocus={handleAddressFocus}
+                          onBlur={handleAddressBlur}
+                          onChange={handleAddressChange}
+                          placeholder={t('browserAssets.searchBing')}
+                          aria-label={t('browserAssets.searchBing')}
+                          className="h-11 min-w-0 flex-1 border-0 bg-transparent text-body leading-[44px] outline-none ring-0 placeholder:text-nomi-ink-30 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+                        />
+                        <button
+                          type="submit"
+                          className="h-11 rounded-pill border-0 bg-nomi-ink px-5 text-body-sm font-semibold text-nomi-paper transition-colors hover:bg-nomi-accent"
+                        >
+                          {t('browserAssets.open')}
+                        </button>
+                      </div>
+                    </form>
+                    <div>
+                      <div className="mb-3 text-caption font-semibold text-nomi-ink-40">
+                        {t('browserAssets.commonSites')}
+                      </div>
+                      <div
+                        className="grid gap-2"
+                        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}
+                      >
+                        {BROWSER_START_SHORTCUTS.map((site) => {
+                          // 预设站图标不求第三方 favicon 服务（Google s2 对部分域 404、
+                          // 中国网络下每次开浏览器都刷 console 错）——首字母瓷贴，零网络零 flake。
+                          const label = String(
+                            t(
+                              `runtime.browser.shortcuts.${site.id}.label` as 'runtime.browser.shortcuts.pinterest.label',
+                            ),
+                          )
+                          const hint = String(
+                            t(
+                              `runtime.browser.shortcuts.${site.id}.hint` as 'runtime.browser.shortcuts.pinterest.hint',
+                            ),
+                          )
+                          const initial = (label || '?').trim().slice(0, 1)
+                          return (
+                            <button
+                              key={site.url}
+                              type="button"
+                              className={cn(
+                                'group flex items-center gap-2.5 rounded-nomi border border-nomi-line bg-nomi-paper p-2.5 text-left',
+                                'cursor-pointer transition-[background,border-color,transform,box-shadow] duration-[var(--nomi-transition-fast)]',
+                                'hover:-translate-y-px hover:border-nomi-accent hover:shadow-nomi-md',
+                              )}
+                              onClick={() => {
+                                void createTab(site.url)
+                              }}
+                              title={site.url}
+                            >
+                              <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-nomi-sm bg-nomi-ink-05 text-caption font-bold text-nomi-ink-60 transition-colors group-hover:bg-nomi-accent-soft group-hover:text-nomi-accent">
+                                {initial || <IconWorld size={15} stroke={1.7} aria-hidden="true" />}
+                              </span>
+                              <span className="grid min-w-0 flex-1 gap-0.5">
+                                <span className="truncate text-caption font-semibold text-nomi-ink">{label}</span>
+                                <span className="truncate text-micro text-nomi-ink-40">{hint}</span>
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ) : null}
-            {lastError ? (
-              <div className="absolute left-1/2 top-4 z-[2] -translate-x-1/2 rounded-pill border border-nomi-line bg-nomi-paper px-3 py-1.5 text-caption text-workbench-danger shadow-nomi-sm">
-                {lastError}
-              </div>
-            ) : null}
+              ) : null}
+              {lastError ? (
+                <div className="absolute left-1/2 top-4 z-[2] -translate-x-1/2 rounded-pill border border-nomi-line bg-nomi-paper px-3 py-1.5 text-caption text-workbench-danger shadow-nomi-sm">
+                  {lastError}
+                </div>
+              ) : null}
             </div>
             {!useNativeBrowserAssetOverlay ? (
               <div
@@ -540,26 +564,10 @@ export function NomiBrowserDialogView({
                 scale: 0.98,
               }}
               animate={{
-                x: [
-                  flyout.sourceRect.left,
-                  flyout.sourceRect.left,
-                  flyout.targetRect.left,
-                ],
-                y: [
-                  flyout.sourceRect.top,
-                  flyout.sourceRect.top,
-                  flyout.targetRect.top,
-                ],
-                width: [
-                  flyout.sourceRect.width,
-                  flyout.sourceRect.width,
-                  flyout.targetRect.width,
-                ],
-                height: [
-                  flyout.sourceRect.height,
-                  flyout.sourceRect.height,
-                  flyout.targetRect.height,
-                ],
+                x: [flyout.sourceRect.left, flyout.sourceRect.left, flyout.targetRect.left],
+                y: [flyout.sourceRect.top, flyout.sourceRect.top, flyout.targetRect.top],
+                width: [flyout.sourceRect.width, flyout.sourceRect.width, flyout.targetRect.width],
+                height: [flyout.sourceRect.height, flyout.sourceRect.height, flyout.targetRect.height],
                 opacity: [0.78, 1, 0.08],
                 scale: [0.98, 1.02, captureFlyoutScale(flyout.sourceRect, flyout.targetRect)],
               }}
@@ -614,7 +622,9 @@ export function NomiBrowserDialogView({
               ) : (
                 <IconStar size={15} stroke={1.8} aria-hidden="true" className="shrink-0 text-nomi-ink-40" />
               )}
-              <span className="min-w-0 flex-1 truncate">{contextMenuTabBookmarked ? t('browserAssets.bookmarked') : t('browserAssets.bookmark')}</span>
+              <span className="min-w-0 flex-1 truncate">
+                {contextMenuTabBookmarked ? t('browserAssets.bookmarked') : t('browserAssets.bookmark')}
+              </span>
             </button>
             <button
               type="button"

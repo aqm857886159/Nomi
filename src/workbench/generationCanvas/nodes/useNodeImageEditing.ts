@@ -317,7 +317,7 @@ export function useNodeImageEditing(
         runId: `remove-bg-${nodeId}-${createdAt}`,
         taskKind: 'asset',
         phase: 'remove-background',
-        message: '抠图中',
+      message: i18n.t('generationCommon.imageToolbar.removingBackground'),
         percent: 0,
         updatedAt: createdAt,
       },

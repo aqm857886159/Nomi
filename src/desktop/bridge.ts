@@ -246,6 +246,9 @@ export type DesktopUpdateEvent =
 
 export type DesktopBridge = {
   platform: string
+  i18n?: {
+    setLocale: (locale: 'zh-CN' | 'en') => void
+  }
   /** 窗口控制（Windows 自绘标题栏用；mac 原生 chrome 时不调用）。老 preload 可能无此口。 */
   window?: {
     minimize: () => Promise<void>

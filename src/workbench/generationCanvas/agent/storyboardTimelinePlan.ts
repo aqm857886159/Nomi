@@ -1,6 +1,7 @@
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import { isShotNumberedNode } from '../model/shotNumbering'
+import i18n from '../../../i18n'
 
 /**
  * 把一张「分镜画布」规划成「时间轴排片清单」——给 Agent 的 arrange_storyboard_to_timeline
@@ -103,7 +104,9 @@ export function planStoryboardTimeline(
     } else {
       skipped.push({
         nodeId: video.id,
-        reason: keyframe ? '视频与关键帧都未生成' : '视频未生成且无关键帧可占位',
+        reason: keyframe
+          ? i18n.t('generationCommon.agentRuntime.videoAndKeyframeMissing')
+          : i18n.t('generationCommon.agentRuntime.videoAndPlaceholderMissing'),
       })
     }
   }
@@ -116,7 +119,7 @@ export function planStoryboardTimeline(
     if (hasUsableResult(node)) {
       units.push({ nodeId: node.id, shotIndex: shotOrder(node), role: 'still' })
     } else {
-      skipped.push({ nodeId: node.id, reason: '镜头未生成' })
+      skipped.push({ nodeId: node.id, reason: i18n.t('generationCommon.agentRuntime.shotNotGenerated') })
     }
   }
 

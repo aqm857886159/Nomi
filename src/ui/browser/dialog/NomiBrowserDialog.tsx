@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import {
   getDesktopBridge,
@@ -49,6 +50,7 @@ import {
   type NomiBrowserDialogProps,
 } from './NomiBrowserDialogModel'
 export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): JSX.Element | null {
+  const { t, i18n } = useTranslation()
   const browserBridge = getDesktopBridge()?.browser
   const [tabs, setTabs] = React.useState<BrowserTab[]>(() => {
     const tab = createBlankTab()
@@ -91,9 +93,23 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
   const pendingCaptureFlyoutRef = React.useRef<Extract<DesktopBrowserResourceCaptureEvent, { ok: true }> | null>(null)
   const lastShownBrowserViewIdRef = React.useRef<number | null>(null)
   const lastBrowserViewBoundsRef = React.useRef<{ viewId: number; bounds: DesktopBrowserViewBounds } | null>(null)
-  const lastBrowserAssetOverlayHostRef = React.useRef<{ viewId: number | null; bounds: DesktopBrowserViewBounds } | null>(null)
+  const lastBrowserAssetOverlayHostRef = React.useRef<{
+    viewId: number | null
+    bounds: DesktopBrowserViewBounds
+  } | null>(null)
 
   escapeLayerRef.current = { materialSitesOpen, promptModePicker, tabContextMenu, bookmarkContextMenu }
+
+  React.useEffect(() => {
+    setTabs((current) =>
+      current.map((tab) => (!tab.url && !tab.viewId ? { ...tab, title: t('runtime.browser.newTab') } : tab)),
+    )
+    setBookmarks((current) =>
+      current.map((bookmark) =>
+        bookmark.id === 'default-nomi' ? { ...bookmark, title: t('runtime.browser.nomiWebsite') } : bookmark,
+      ),
+    )
+  }, [i18n.resolvedLanguage, t])
 
   React.useEffect(() => {
     tabsRef.current = tabs
@@ -275,17 +291,21 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
     }
     const containerRect = toViewportRect(node.getBoundingClientRect())
     const localAssetPopoverOpen = browserAssetPopoverOpen && !useNativeBrowserAssetOverlay
-    const localSplitDocked =
-      localAssetPopoverOpen && Boolean(browserAssetPopoverDockMode)
+    const localSplitDocked = localAssetPopoverOpen && Boolean(browserAssetPopoverDockMode)
     const nativeSplitDocked =
       browserAssetPopoverOpen && Boolean(browserAssetPopoverDockMode) && useNativeBrowserAssetOverlay
     const popoverRect = nativeSplitDocked
-      ? browserAssetPopoverRect ?? createFallbackAssetPopoverRect(containerRect)
+      ? (browserAssetPopoverRect ?? createFallbackAssetPopoverRect(containerRect))
       : null
     const browserRect = localSplitDocked
       ? browserViewHostRef.current
         ? toViewportRect(browserViewHostRef.current.getBoundingClientRect())
-        : viewportRectFromEdges(containerRect.left, containerRect.top, containerRect.right - dockPanelWidth, containerRect.bottom)
+        : viewportRectFromEdges(
+            containerRect.left,
+            containerRect.top,
+            containerRect.right - dockPanelWidth,
+            containerRect.bottom,
+          )
       : popoverRect
         ? browserViewRectAroundPopover(containerRect, popoverRect, nativeSplitDocked ? 0 : BROWSER_VIEW_POPOVER_GAP)
         : containerRect
@@ -472,9 +492,7 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
       setBrowserAssetPopoverOpen((current) => (current === nextOpened ? current : nextOpened))
       setBrowserAssetPopoverDockMode((current) => (current === nextDockMode ? current : nextDockMode))
       setBrowserAssetPopoverRect((current) => (sameBoundsRect(current, nextPopoverRect) ? current : nextPopoverRect))
-      setBrowserResourceCaptureEnabled((current) =>
-        current === nextCaptureEnabled ? current : nextCaptureEnabled,
-      )
+      setBrowserResourceCaptureEnabled((current) => (current === nextCaptureEnabled ? current : nextCaptureEnabled))
       if (!state.opened) {
         setBrowserCaptureRequest(null)
         setBrowserPromptCaptureRequest(null)
@@ -494,8 +512,8 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
       if (!event.ok) {
         setLastError(
           event.reason === 'empty'
-            ? '先将鼠标悬停在图片或视频上，再按 Ctrl+C 保存。'
-            : event.message || '网页素材捕捞失败',
+            ? t('runtime.browser.hoverBeforeCapture')
+            : event.message || t('runtime.browser.captureFailed'),
         )
         return
       }
@@ -512,7 +530,7 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
         fileName: event.fileName || undefined,
       })
     })
-  }, [browserBridge, openNativeAssetPopover, startCaptureFlyout])
+  }, [browserBridge, openNativeAssetPopover, startCaptureFlyout, t])
 
   React.useEffect(() => {
     const viewId =
@@ -595,12 +613,15 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
     setCaptureFlyouts((current) => (current.length === 0 ? current : []))
   }, [browserBridge, hideTabView, opened])
 
-  const handleDockResizeStart = React.useCallback((event: React.PointerEvent<HTMLDivElement>): void => {
-    if (event.button !== 0) return
-    event.preventDefault()
-    event.currentTarget.setPointerCapture(event.pointerId)
-    dockResizingRef.current = { startX: event.clientX, startWidth: dockPanelWidth }
-  }, [dockPanelWidth])
+  const handleDockResizeStart = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>): void => {
+      if (event.button !== 0) return
+      event.preventDefault()
+      event.currentTarget.setPointerCapture(event.pointerId)
+      dockResizingRef.current = { startX: event.clientX, startWidth: dockPanelWidth }
+    },
+    [dockPanelWidth],
+  )
 
   const handleDockResizeMove = React.useCallback((event: React.PointerEvent<HTMLDivElement>): void => {
     if (!dockResizingRef.current) return

@@ -2,11 +2,14 @@ import { BrowserWindow } from "electron";
 import type { Rectangle, WebContents } from "electron";
 import { browserViews, browserViewsByWindow } from "./browserViewState";
 import type { BrowserPromptCategory, BrowserViewIdPayload, BrowserViewRecord } from "./browserViewTypes";
+import { desktopT } from "../../i18n";
 
-const DEFAULT_BROWSER_PROMPT_CATEGORIES: readonly BrowserPromptCategory[] = [
-  { id: "image", label: "图片提示词" },
-  { id: "video", label: "视频提示词" },
-];
+function defaultBrowserPromptCategories(): readonly BrowserPromptCategory[] {
+  return [
+    { id: "image", label: desktopT("browser.promptCategory.image") },
+    { id: "video", label: desktopT("browser.promptCategory.video") },
+  ];
+}
 
 export function clampNumber(value: number, min: number, max: number): number {
   if (max < min) return min;
@@ -80,7 +83,7 @@ export function normalizePromptCategories(input: unknown): BrowserPromptCategory
     normalized.push({ id, label });
   };
 
-  for (const category of DEFAULT_BROWSER_PROMPT_CATEGORIES) pushCategory(category.id, category.label);
+  for (const category of defaultBrowserPromptCategories()) pushCategory(category.id, category.label);
   if (Array.isArray(input)) {
     for (const category of input) {
       if (!category || typeof category !== "object") continue;

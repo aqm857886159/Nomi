@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { OrbitControls } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
@@ -502,6 +503,7 @@ export function CaptureBinder({
   cameras: Scene3DCamera[]
   setApi: (api: CaptureApi | null) => void
 }): null {
+  const { t } = useTranslation()
   const { gl, scene, camera, size } = useThree()
 
   React.useLayoutEffect(() => {
@@ -509,7 +511,15 @@ export function CaptureBinder({
       captureViewport: () => {
         const width = Math.max(1, Math.round(gl.domElement.width || size.width))
         const height = Math.max(1, Math.round(gl.domElement.height || size.height))
-        return captureScene(gl, scene, camera, width, height, '3D截图 - 当前视口', 'scene3d-viewport')
+        return captureScene(
+          gl,
+          scene,
+          camera,
+          width,
+          height,
+          t('scene3d.capture.viewportTitle'),
+          'scene3d-viewport',
+        )
       },
       captureCamera: (sceneCamera) => {
         const dimensions = aspectDimensions(sceneCamera.aspectRatio)
@@ -526,14 +536,14 @@ export function CaptureBinder({
           captureCamera,
           dimensions.width,
           dimensions.height,
-          `3D截图 - ${sceneCamera.name}`,
+          t('scene3d.capture.cameraTitle', { name: sceneCamera.name }),
           'scene3d-camera',
           true,
         )
       },
     })
     return () => setApi(null)
-  }, [camera, cameras, gl, scene, setApi, size.height, size.width])
+  }, [camera, cameras, gl, scene, setApi, size.height, size.width, t])
 
   return null
 }

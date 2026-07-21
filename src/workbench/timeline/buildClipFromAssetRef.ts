@@ -1,5 +1,6 @@
 import type { AssetRef } from '../assets/assetTypes'
 import type { TimelineClip } from './timelineTypes'
+import i18n from '../../i18n'
 
 const DEFAULT_AUDIO_SECONDS = 10
 
@@ -23,7 +24,8 @@ export function buildAudioClipFromAssetRef(
 
   const fps = options.fps > 0 ? options.fps : 30
   const startFrame = Math.max(0, Math.floor(options.startFrame))
-  const seconds = options.durationSeconds && options.durationSeconds > 0 ? options.durationSeconds : DEFAULT_AUDIO_SECONDS
+  const seconds =
+    options.durationSeconds && options.durationSeconds > 0 ? options.durationSeconds : DEFAULT_AUDIO_SECONDS
   const frameCount = Math.max(1, Math.round(seconds * fps))
   const sourceNodeId = `asset:${asset.id}`
 
@@ -31,7 +33,7 @@ export function buildAudioClipFromAssetRef(
     id: `clip-${sourceNodeId}-audio-${startFrame}`,
     type: 'audio',
     sourceNodeId,
-    label: asset.name || '音频',
+    label: asset.name || i18n.t('runtime.timeline.audio'),
     startFrame,
     endFrame: startFrame + frameCount,
     frameCount,

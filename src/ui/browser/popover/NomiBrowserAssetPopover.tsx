@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { getDesktopActiveProjectId, subscribeDesktopActiveProjectIdChange } from '../../../desktop/activeProject'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import {
@@ -88,6 +89,19 @@ export function NomiBrowserAssetPopover({
   browserPromptCaptureRequest,
   onBrowserCaptureToggle,
 }: NomiBrowserAssetPopoverProps): JSX.Element {
+  const { t } = useTranslation()
+  const localizedTabs = React.useMemo(
+    () => tabs.map((tab) => ({ ...tab, label: tab.labelKey ? t(tab.labelKey as 'browserAssets.all') : tab.label })),
+    [t, tabs],
+  )
+  const localizedSourceTabs = React.useMemo(
+    () =>
+      sourceTabs.map((source) => ({
+        ...source,
+        label: source.labelKey ? t(source.labelKey as 'browserAssets.projectAssets') : source.label,
+      })),
+    [sourceTabs, t],
+  )
   const [internalOpen, setInternalOpen] = React.useState(defaultOpened)
   const [activeSource, setActiveSource] = React.useState<NomiBrowserAssetSource>(defaultSource)
   const [activeTab, setActiveTab] = React.useState<NomiBrowserAssetTab>(defaultTab)
@@ -157,8 +171,8 @@ export function NomiBrowserAssetPopover({
   const assetGridColumnCount = getAssetGridColumnCount(windowRect.width, gridCompact)
   const promptMasonryColumnCount = getPromptMasonryColumnCount(windowRect.width)
   const sourceTabGridStyle = React.useMemo<React.CSSProperties>(
-    () => ({ gridTemplateColumns: `repeat(${Math.max(sourceTabs.length, 1)}, minmax(0, 1fr))` }),
-    [sourceTabs.length],
+    () => ({ gridTemplateColumns: `repeat(${Math.max(localizedSourceTabs.length, 1)}, minmax(0, 1fr))` }),
+    [localizedSourceTabs.length],
   )
   const assetGridStyle = React.useMemo<React.CSSProperties | undefined>(
     () =>
@@ -379,7 +393,7 @@ export function NomiBrowserAssetPopover({
     popoverOpen,
     assets,
     localAssets,
-    sourceTabs,
+    sourceTabs: localizedSourceTabs,
     activeSource,
     activeTab,
     activePromptCategory,
@@ -482,10 +496,10 @@ export function NomiBrowserAssetPopover({
   }, [canImportSelectedAssetsToCanvas, selectedCanvasImportAssets])
 
   React.useEffect(() => {
-    if (sourceTabs.some((source) => source.key === activeSource)) return
-    const fallbackSource = sourceTabs[0]?.key
+    if (localizedSourceTabs.some((source) => source.key === activeSource)) return
+    const fallbackSource = localizedSourceTabs[0]?.key
     if (fallbackSource) setActiveSource(fallbackSource)
-  }, [activeSource, sourceTabs])
+  }, [activeSource, localizedSourceTabs])
 
   React.useEffect(() => {
     if (!filtersOpen) return
@@ -643,11 +657,11 @@ export function NomiBrowserAssetPopover({
       {...{
         rootRef, className, contained, placement, surface, showTrigger, popoverOpen, setPopoverOpen, windowRect, hostOrigin, isWindowInteracting, dockMode,
         handleWindowDragEnter, handleWindowDragOver, handleWindowDragLeave, handleWindowDrop, splitDocked, edgeDocked, dropActive, handleHeaderPointerDown,
-        compactToolbar, sourceTabs, activeSource, selectAssetSource, onBrowserCaptureToggle, toolbarButtonClass, browserCaptureEnabled, browserCaptureDisabled,
+        compactToolbar, sourceTabs: localizedSourceTabs, activeSource, selectAssetSource, onBrowserCaptureToggle, toolbarButtonClass, browserCaptureEnabled, browserCaptureDisabled,
         promptExtractionSettingsOpen, setPromptExtractionSettingsOpen, canDock, activeBounds, toggleDockMode, query, setQuery, singleTileToolbar, sourceTabGridStyle,
         actionsButtonRef, actionsOpen, setActionsOpen, actionsPopoverRef, listMode, setViewMode, sortAscending, setSortAscending, filterButtonRef, filtersOpen,
         filterActive, setFiltersOpen, showingPromptLibrary, activePromptCategory, promptCategories, promptCategoryCounts, filterPopoverRef, selectPromptCategory,
-        addPromptCategory, showAllFilters, activeTab, filterCounts, tabs, selectFilterTab, uploadInputRef, createFolder, handleUploadFiles, currentFolder,
+        addPromptCategory, showAllFilters, activeTab, filterCounts, tabs: localizedTabs, selectFilterTab, uploadInputRef, createFolder, handleUploadFiles, currentFolder,
         exitCurrentFolder, activeSourceLabel, openAssetRoot, folderBreadcrumbs, openFolder, gridRef, handleGridPointerDown, handleGridPointerMove, handleGridPointerUp,
         openBlankContextMenu, filteredAssets, emptyStateCopy, promptMasonryStyle, selectedIds, setAssetNode, selectAsset, openPromptDetail, openAssetContextMenu,
         handleTileDragStart, gridCompact, viewMode, handleTileDragOver, handleTileDrop, assetGridStyle, marquee, promptDetailAsset, setPromptDetailAssetId,

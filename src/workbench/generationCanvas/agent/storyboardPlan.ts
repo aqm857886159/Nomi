@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { BuiltinCanvasCategoryId, GenerationCanvasEdgeMode } from '../model/generationCanvasTypes'
+import i18n from '../../../i18n'
 
 /**
  * 「分镜方案」中间表示（IR）—— 剧本→方案文档→确认→落画布 主链路的中枢。
@@ -304,7 +305,7 @@ export function storyboardPlanToCreateNodesArgs(
       clientId: id,
       // 图片镜头 → image 节点（纯图生图静态画面，无 duration）；视频镜头 → video 节点（带 duration）。
       kind: isImageShot ? 'image' : 'video',
-      title: `镜头 ${shot.index}`,
+      title: i18n.t('generationCommon.agentRuntime.shotTitle', { index: shot.index }),
       prompt: buildShotPrompt(shot, anchorById),
       ...(modelKey ? { modelKey } : {}),
       ...(modeId ? { modeId } : {}),

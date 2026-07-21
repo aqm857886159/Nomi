@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { desktopT } from "../i18n";
 
 // 版本号 + 检查更新 + 一键更新（功能需求 1/2/3）。
 // GitHub Releases provider 由 package.json build.publish 自动派生，无需额外服务器。
@@ -30,7 +31,7 @@ function broadcast(payload: Record<string, unknown>): void {
 }
 
 function describeError(error: unknown): string {
-  if (error == null) return "未知错误";
+  if (error == null) return desktopT("common.unknownError");
   if (error instanceof Error) return error.message || String(error);
   return String(error);
 }
@@ -100,7 +101,7 @@ export function registerUpdaterIpc(): void {
   ipcMain.handle("nomi:update:check", async () => {
     // 未打包（dev）时 electron-updater 不可用——诚实回错，不假装能更新。
     if (!app.isPackaged) {
-      broadcast({ type: "error", message: "开发模式下不可用，请在安装版中检查更新" });
+      broadcast({ type: "error", message: desktopT("updater.devUnavailable") });
       return { ok: false, reason: "not-packaged" };
     }
     try {

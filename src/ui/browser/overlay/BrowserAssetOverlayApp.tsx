@@ -450,7 +450,7 @@ export function BrowserAssetOverlayApp(): JSX.Element {
       // 原生素材盒只接受当前内置网页产生的拖拽；没有来源 WebContents 时不准换成另一套
       // 无 Cookie/Referer 的网络栈重抓 URL，否则既破坏防盗链，也会把真实错误掩盖掉。
       if (!viewId || !browserBridge?.importMedia || !canDownloadFromBrowserView(input.url)) {
-        throw new Error('来源页面会话已失效，请回到原网页重新拖入')
+        throw new Error(t('runtime.browser.errors.sourceSessionExpired'))
       }
       const asset = await browserBridge.importMedia({
         viewId,
