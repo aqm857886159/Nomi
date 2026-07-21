@@ -134,17 +134,17 @@ export function ComfyuiLocalCard({ enabled, baseUrl, models, onChanged }: Comfyu
       glyph={<IconServerBolt size={16} stroke={1.6} />}
       glyphTone="ink"
       name="ComfyUI · 本地或云端"
-      subtitle="接本机 GPU 或云平台 ComfyUI 出图 · 本地不花额度、数据不出本地"
+      subtitle="本机或云端 ComfyUI 出图 · 无需 key"
       status={cardStatus}
       statusLabel={statusLabel}
       defaultExpanded={false}
     >
       {!enabled ? (
         <>
-          <div className="text-caption text-nomi-ink-60 leading-relaxed">
-            把 ComfyUI 地址填进来即可：本机默认 <code className="font-mono text-nomi-ink">127.0.0.1:8188</code>；也支持云平台 ComfyUI（如 cnb.cool、cloudstudio.net），把云端给的地址粘到下面。Nomi 已内置一个「文生图」工作流，启用后在生成画布直接选用。
-          </div>
           {addrRow}
+          <div className="text-micro text-nomi-ink-30 leading-relaxed">
+            本机默认 <code className="font-mono">127.0.0.1:8188</code>；云端填 cnb.cool / cloudstudio.net 等平台给的地址。
+          </div>
           <button
             type="button" onClick={handleEnable} disabled={busy || checking}
             className={cn('w-full h-9 rounded-nomi-sm bg-nomi-ink text-nomi-paper text-body-sm font-semibold',
@@ -171,7 +171,7 @@ export function ComfyuiLocalCard({ enabled, baseUrl, models, onChanged }: Comfyu
               <IconAlertTriangle size={17} className="shrink-0 mt-0.5 text-nomi-accent" />
               <div className="min-w-0">
                 <div className="text-body-sm font-semibold text-nomi-ink">{checking ? '正在检测…' : '启用了，但没探测到 ComfyUI'}</div>
-                <div className="text-caption text-nomi-ink-60 mt-0.5">确认已在 <code className="font-mono">{shownAddr}</code>（本机或云平台）起好，再点重新检测。生成前不通会直接报连不上，不会白跑。</div>
+                <div className="text-caption text-nomi-ink-60 mt-0.5">确认已在 <code className="font-mono">{shownAddr}</code> 起好，再点重新检测。</div>
               </div>
             </div>
           )}
