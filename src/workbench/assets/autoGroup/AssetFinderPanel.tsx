@@ -8,6 +8,7 @@
  * 设计 docs/plan/2026-06-28-canvas-auto-grouping-and-find.md。
  */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconStar, IconStarFilled, IconMovie, IconPhotoStar, IconSparkles } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { NomiImage } from '../../../design/media'
@@ -36,6 +37,7 @@ function StackCell({
   onOpen: (id: string) => void
   onToggleStar: (id: string) => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const { cover } = stack
   const count = stack.items.length
   const marked = Boolean(cover.mark)
@@ -49,19 +51,38 @@ function StackCell({
       )}
       title={cover.title}
       onClick={() => onOpen(cover.nodeId)}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(cover.nodeId) } }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpen(cover.nodeId)
+        }
+      }}
     >
       <span className="block aspect-square">
-        <NomiImage className="w-full h-full object-cover" thumbnailSrc={cover.thumbUrl} src={cover.thumbUrl} alt={cover.title} />
+        <NomiImage
+          className="w-full h-full object-cover"
+          thumbnailSrc={cover.thumbUrl}
+          src={cover.thumbUrl}
+          alt={cover.title}
+        />
       </span>
       {count > 1 ? (
-        <span className={cn('absolute top-1 right-1 px-1.5 py-px rounded-full text-micro leading-none bg-nomi-ink text-nomi-paper')}>×{count}</span>
+        <span
+          className={cn(
+            'absolute top-1 right-1 px-1.5 py-px rounded-full text-micro leading-none bg-nomi-ink text-nomi-paper',
+          )}
+        >
+          ×{count}
+        </span>
       ) : null}
       <button
         type="button"
-        aria-label={marked ? '取消标记' : '标为主镜'}
-        title={marked ? '取消标记' : '标为主镜'}
-        onClick={(e) => { e.stopPropagation(); onToggleStar(cover.nodeId) }}
+        aria-label={marked ? t('assetLibrary.finder.unmark') : t('assetLibrary.finder.markPrimary')}
+        title={marked ? t('assetLibrary.finder.unmark') : t('assetLibrary.finder.markPrimary')}
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggleStar(cover.nodeId)
+        }}
         className={cn(
           'absolute top-1 left-1 w-[18px] h-[18px] grid place-items-center rounded-full border-0 cursor-pointer',
           marked
@@ -107,6 +128,7 @@ function SectionGrid({
 }
 
 export default function AssetFinderPanel(): JSX.Element {
+  const { t } = useTranslation()
   const nodes = useGenerationCanvasStore((s) => s.nodes)
   const edges = useGenerationCanvasStore((s) => s.edges)
   const selectNode = useGenerationCanvasStore((s) => s.selectNode)
@@ -129,10 +151,7 @@ export default function AssetFinderPanel(): JSX.Element {
       .filter((s) => matches(s, query))
       .sort((a, b) => b.cover.createdAt - a.cover.createdAt) // 最近生成置顶
   }, [items, zone, starOnly, query])
-  const filmGrouped = React.useMemo(
-    () => (zone === 'film' ? groupFilmStacksByCards(filtered) : null),
-    [zone, filtered],
-  )
+  const filmGrouped = React.useMemo(() => (zone === 'film' ? groupFilmStacksByCards(filtered) : null), [zone, filtered])
 
   const open = React.useCallback(
     (nodeId: string) => {
@@ -146,7 +165,7 @@ export default function AssetFinderPanel(): JSX.Element {
       const node = nodes.find((n) => n.id === nodeId)
       if (!node) return
       const meta = (node.meta as Record<string, unknown> | undefined) || {}
-      updateNode(nodeId, { meta: { ...meta, mark: meta.mark ? undefined : '主镜' } })
+      updateNode(nodeId, { meta: { ...meta, mark: meta.mark ? undefined : 'primary' } })
     },
     [nodes, updateNode],
   )
@@ -161,7 +180,9 @@ export default function AssetFinderPanel(): JSX.Element {
     if (aiCandidates.length < 2 || grouping) return
     setGrouping(true)
     try {
-      const res = await runContentGrouping(aiCandidates.map((c) => ({ nodeId: c.nodeId, prompt: c.prompt, title: c.title })))
+      const res = await runContentGrouping(
+        aiCandidates.map((c) => ({ nodeId: c.nodeId, prompt: c.prompt, title: c.title })),
+      )
       let n = 0
       for (const g of res.groups) {
         for (const id of g.nodeIds) {
@@ -172,13 +193,18 @@ export default function AssetFinderPanel(): JSX.Element {
           n += 1
         }
       }
-      toast(n ? `已归好 ${res.groups.length} 组（${n} 张）` : '没找到能确定归类的，已保持未分组', n ? 'success' : 'info')
+      toast(
+        n
+          ? t('assetLibrary.finder.grouped', { groups: res.groups.length, count: n })
+          : t('assetLibrary.finder.noCertainGroup'),
+        n ? 'success' : 'info',
+      )
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'AI 分组失败', 'error')
+      toast(e instanceof Error ? e.message : t('assetLibrary.finder.aiGroupingFailed'), 'error')
     } finally {
       setGrouping(false)
     }
-  }, [aiCandidates, grouping, nodes, updateNode])
+  }, [aiCandidates, grouping, nodes, t, updateNode])
 
   const tab = (value: FindZone, label: string, count: number, Icon: typeof IconMovie) => (
     <button
@@ -189,7 +215,8 @@ export default function AssetFinderPanel(): JSX.Element {
         zone === value ? 'bg-nomi-paper text-nomi-ink shadow-nomi-sm' : 'text-nomi-ink-40 hover:text-nomi-ink-60',
       )}
     >
-      <Icon size={14} stroke={1.5} />{label} <span className="text-nomi-ink-30">{count}</span>
+      <Icon size={14} stroke={1.5} />
+      {label} <span className="text-nomi-ink-30">{count}</span>
     </button>
   )
 
@@ -200,19 +227,27 @@ export default function AssetFinderPanel(): JSX.Element {
     <div className="flex flex-col h-full min-h-0">
       <div className="px-2 pt-2 pb-1.5 flex flex-col gap-2">
         <div className="flex items-center gap-0.5 rounded-nomi-sm bg-nomi-bg p-0.5">
-          {tab('film', '成片', counts.film, IconMovie)}
-          {tab('reference', '参考', counts.reference, IconPhotoStar)}
+          {tab('film', t('assetLibrary.finder.film'), counts.film, IconMovie)}
+          {tab('reference', t('assetLibrary.finder.reference'), counts.reference, IconPhotoStar)}
         </div>
         <div className="flex items-center gap-1.5">
-          <DesignSearchInput className="flex-1" placeholder="搜素材…" ariaLabel="搜索素材" value={query} onChange={setQuery} />
+          <DesignSearchInput
+            className="flex-1"
+            placeholder={t('assetLibrary.finder.search')}
+            ariaLabel={t('assetLibrary.finder.searchAria')}
+            value={query}
+            onChange={setQuery}
+          />
           <button
             type="button"
             aria-pressed={starOnly}
-            title="只看标记过的"
+            title={t('assetLibrary.finder.markedOnly')}
             onClick={() => setStarOnly((v) => !v)}
             className={cn(
               'shrink-0 inline-flex items-center justify-center w-[30px] h-[30px] rounded-full border',
-              starOnly ? 'bg-nomi-accent text-nomi-paper border-nomi-accent' : 'bg-nomi-paper text-nomi-ink-40 border-nomi-line hover:text-nomi-ink',
+              starOnly
+                ? 'bg-nomi-accent text-nomi-paper border-nomi-accent'
+                : 'bg-nomi-paper text-nomi-ink-40 border-nomi-line hover:text-nomi-ink',
             )}
           >
             <IconStar size={14} stroke={1.5} />
@@ -230,37 +265,54 @@ export default function AssetFinderPanel(): JSX.Element {
               'border border-nomi-line bg-nomi-paper text-nomi-ink-80 hover:border-nomi-accent hover:text-nomi-ink',
               'disabled:opacity-60 disabled:cursor-default',
             )}
-            title="读没归好那些的提示词，用 AI 归成命名组"
+            title={t('assetLibrary.finder.aiGroupHint')}
           >
             <IconSparkles size={14} stroke={1.5} className="text-nomi-accent" />
-            {grouping ? '正在用 AI 归类…' : `用 AI 整理未分组的 ${aiCandidates.length} 张`}
+            {grouping
+              ? t('assetLibrary.finder.grouping')
+              : t('assetLibrary.finder.groupUngrouped', { count: aiCandidates.length })}
           </button>
         ) : null}
         {isEmpty ? (
           <DesignEmptyState
             density="inline"
             icon={
-              zone === 'film'
-                ? <IconMovie size={32} stroke={1.5} className="text-nomi-ink-30" />
-                : <IconPhotoStar size={32} stroke={1.5} className="text-nomi-ink-30" />
+              zone === 'film' ? (
+                <IconMovie size={32} stroke={1.5} className="text-nomi-ink-30" />
+              ) : (
+                <IconPhotoStar size={32} stroke={1.5} className="text-nomi-ink-30" />
+              )
             }
-            title={zoneCount === 0 ? (zone === 'film' ? '还没有成片' : '还没有参考') : '没有匹配的素材'}
+            title={
+              zoneCount === 0
+                ? zone === 'film'
+                  ? t('assetLibrary.finder.noFilm')
+                  : t('assetLibrary.finder.noReference')
+                : t('assetLibrary.finder.noMatches')
+            }
             description={
               query || starOnly
-                ? '换个搜索或清掉星标筛选。'
+                ? t('assetLibrary.finder.filteredEmpty')
                 : zone === 'film'
-                  ? '在生成区生成镜头后会自动出现在这里。'
-                  : '导入图片或拖入参考后出现在这里。'
+                  ? t('assetLibrary.finder.filmEmpty')
+                  : t('assetLibrary.finder.referenceEmpty')
             }
           />
         ) : zone === 'film' && filmGrouped ? (
           <>
             {filmGrouped.groups.map((g) => (
-              <SectionGrid key={g.key} title={g.name} count={g.stacks.length} stacks={g.stacks} onOpen={open} onToggleStar={toggleStar} />
+              <SectionGrid
+                key={g.key}
+                title={g.name}
+                count={g.stacks.length}
+                stacks={g.stacks}
+                onOpen={open}
+                onToggleStar={toggleStar}
+              />
             ))}
             {filmGrouped.ungrouped.length > 0 ? (
               <SectionGrid
-                title={filmGrouped.groups.length > 0 ? '未分组' : undefined}
+                title={filmGrouped.groups.length > 0 ? t('assetLibrary.finder.ungrouped') : undefined}
                 count={filmGrouped.groups.length > 0 ? filmGrouped.ungrouped.length : undefined}
                 stacks={filmGrouped.ungrouped}
                 onOpen={open}

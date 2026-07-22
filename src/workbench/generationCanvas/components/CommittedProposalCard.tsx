@@ -2,24 +2,26 @@ import React from 'react'
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { WorkbenchButton } from '../../../design'
+import { useTranslation } from 'react-i18next'
 import { useWorkbenchStore } from '../../workbenchStore'
-import {
-  detectLostUserEdits,
-  runProposalUndo,
-  type CommittedProposalRecord,
-} from '../agent/proposalUndo'
+import { detectLostUserEdits, runProposalUndo, type CommittedProposalRecord } from '../agent/proposalUndo'
 
 /**
  * 已应用提议卡(S6-5):commit 后存活到下一笔提议或本会话结束(约束①)。
  * 「查看步骤」= 最小轨迹视图(本笔事务的人话步骤+对账状态);
  * 「整笔撤销」= 补偿事务回退本笔,期间用户工作保留;用户改过提议节点时先列明再丢(N13)。
  */
-export default function CommittedProposalCard({ record, onUndone, flat = false }: {
+export default function CommittedProposalCard({
+  record,
+  onUndone,
+  flat = false,
+}: {
   record: CommittedProposalRecord
   onUndone?: () => void
   /** 时间线内嵌(方案三):去外框,导轨提供视觉结构。 */
   flat?: boolean
 }): JSX.Element {
+  const { t } = useTranslation()
   const [stepsOpen, setStepsOpen] = React.useState(false)
   const [lostEdits, setLostEdits] = React.useState<string[] | null>(null)
   const setActiveCategoryId = useWorkbenchStore((state) => state.setActiveCategoryId)
@@ -40,17 +42,22 @@ export default function CommittedProposalCard({ record, onUndone, flat = false }
 
   return (
     <div
-      className={cn('flex flex-col gap-2', flat ? '' : 'p-3 rounded-nomi border border-nomi-line-soft bg-nomi-ink-05/60')}
+      className={cn(
+        'flex flex-col gap-2',
+        flat ? '' : 'p-3 rounded-nomi border border-nomi-line-soft bg-nomi-ink-05/60',
+      )}
       data-committed-proposal-card={record.proposalId}
     >
       {/* 摘要独占一行(可换行不挤);按钮另起一行 → 窄面板里也放得下,不再逼 flex 压缩按钮致竖排。 */}
       <div className={cn('flex items-start gap-1.5 min-w-0')}>
         <span className={cn('shrink-0 text-caption text-workbench-success-ink')}>✓</span>
         <span className={cn('min-w-0 text-caption text-nomi-ink-80 leading-[1.55]')}>
-          已应用：{record.summary}
+          {t('generationCommon.committedProposal.applied', { summary: record.summary })}
         </span>
         {!record.reconciliationOk ? (
-          <span className={cn('shrink-0 text-caption text-[var(--nomi-snap-tag)]')}>有出入</span>
+          <span className={cn('shrink-0 text-caption text-[var(--nomi-snap-tag)]')}>
+            {t('generationCommon.committedProposal.mismatch')}
+          </span>
         ) : null}
       </div>
       {jumpTargets.length > 0 ? (
@@ -58,7 +65,7 @@ export default function CommittedProposalCard({ record, onUndone, flat = false }
           {jumpTargets.map((item) => (
             <button
               key={item.categoryId}
-              type='button'
+              type="button"
               data-proposal-category-jump={item.categoryId}
               className={cn(
                 'inline-flex items-center h-5 px-2 rounded-full border text-micro cursor-pointer',
@@ -76,7 +83,7 @@ export default function CommittedProposalCard({ record, onUndone, flat = false }
       {/* 动作行:两个按钮各自一行排开,shrink-0 + 底座 nowrap → 永不竖排。 */}
       <div className={cn('flex items-center gap-2')}>
         <button
-          type='button'
+          type="button"
           className={cn(
             'inline-flex items-center gap-1 border-0 bg-transparent p-0 cursor-pointer whitespace-nowrap',
             'text-caption text-nomi-ink-60 hover:text-nomi-ink',
@@ -84,16 +91,16 @@ export default function CommittedProposalCard({ record, onUndone, flat = false }
           onClick={() => setStepsOpen((open) => !open)}
         >
           {stepsOpen ? <IconChevronDown size={12} stroke={1.8} /> : <IconChevronRight size={12} stroke={1.8} />}
-          查看步骤
+          {t('generationCommon.committedProposal.viewSteps')}
         </button>
         <WorkbenchButton
           className={cn('ml-auto shrink-0')}
-          variant='default'
-          size='sm'
-          data-proposal-undo-all='true'
+          variant="default"
+          size="sm"
+          data-proposal-undo-all="true"
           onClick={handleUndo}
         >
-          撤销这次改动
+          {t('generationCommon.committedProposal.undo')}
         </WorkbenchButton>
       </div>
       {stepsOpen ? (
@@ -108,17 +115,19 @@ export default function CommittedProposalCard({ record, onUndone, flat = false }
       {lostEdits ? (
         <div className={cn('flex flex-col gap-2 p-2 rounded-nomi-sm bg-nomi-paper border border-nomi-line')}>
           <span className={cn('text-caption font-medium text-[var(--nomi-snap-tag)]')}>
-            撤销将一并丢失你 commit 后的修改：
+            {t('generationCommon.committedProposal.lostEdits')}
           </span>
           {lostEdits.map((line, index) => (
-            <span key={index} className={cn('text-caption text-nomi-ink-80')}>· {line}</span>
+            <span key={index} className={cn('text-caption text-nomi-ink-80')}>
+              · {line}
+            </span>
           ))}
           <div className={cn('flex items-center justify-end gap-2')}>
-            <WorkbenchButton variant='default' size='sm' onClick={() => setLostEdits(null)}>
-              取消
+            <WorkbenchButton variant="default" size="sm" onClick={() => setLostEdits(null)}>
+              {t('generationCommon.committedProposal.cancel')}
             </WorkbenchButton>
-            <WorkbenchButton variant='primary' size='sm' data-proposal-undo-confirm='true' onClick={handleUndo}>
-              仍要撤销
+            <WorkbenchButton variant="primary" size="sm" data-proposal-undo-confirm="true" onClick={handleUndo}>
+              {t('generationCommon.committedProposal.confirmUndo')}
             </WorkbenchButton>
           </div>
         </div>

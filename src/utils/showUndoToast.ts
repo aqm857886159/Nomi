@@ -7,6 +7,7 @@
  *
  */
 import { useToastStore } from '../ui/toast'
+import i18n from '../i18n'
 
 export type UndoToastOptions = {
   message: string
@@ -23,7 +24,7 @@ export function showUndoToast({ message, onUndo, durationMs = DEFAULT_DURATION_M
     message,
     type: 'success',
     ttl: durationMs,
-    actionLabel: '撤销',
+    actionLabel: i18n.t('common.undo'),
     onAction: () => {
       if (consumed) return
       consumed = true

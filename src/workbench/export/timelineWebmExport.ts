@@ -4,6 +4,7 @@ import type { PreviewAspectRatio } from '../workbenchTypes'
 import { resolveVideoClipMediaTimeSeconds } from '../player/timelinePlayback'
 import { drawTextBox } from '../timeline/textOverlayCanvas'
 import { computeFramedRect, resolveClipFraming } from '../timeline/clipFraming'
+import i18n from '../../i18n'
 
 export type ExportStatus = 'idle' | 'preparing' | 'recording' | 'done' | 'error'
 
@@ -200,7 +201,7 @@ export function drawTimelineFrame(input: DrawTimelineFrameInput): void {
 function resolveRecorderMimeType(explicitMimeType?: string): string | undefined {
   if (explicitMimeType) {
     if (!MediaRecorder.isTypeSupported(explicitMimeType)) {
-      throw new Error(`当前浏览器不支持导出格式：${explicitMimeType}`)
+      throw new Error(i18n.t('runtime.export.unsupportedFormat', { format: explicitMimeType }))
     }
     return explicitMimeType
   }
@@ -231,11 +232,11 @@ export function createTimelineExportFilename(extension: 'webm' | 'mp4' = 'webm')
 }
 
 export async function exportTimelineToWebm(options: TimelineWebmExportOptions): Promise<Blob> {
-  if (typeof document === 'undefined') throw new Error('导出只能在浏览器环境执行')
-  if (typeof MediaRecorder === 'undefined') throw new Error('当前浏览器不支持 MediaRecorder，无法导出 WebM')
+  if (typeof document === 'undefined') throw new Error(i18n.t('runtime.export.browserOnly'))
+  if (typeof MediaRecorder === 'undefined') throw new Error(i18n.t('runtime.export.mediaRecorderUnsupported'))
 
   const durationFrame = computeTimelineDuration(options.timeline)
-  if (durationFrame <= 0) throw new Error('时间轴为空，无法导出')
+  if (durationFrame <= 0) throw new Error(i18n.t('runtime.export.emptyTimeline'))
 
   const size = resolveExportCanvasSize(options.aspectRatio, options.width)
   options.onProgress?.({ status: 'preparing', frame: 0, totalFrames: durationFrame, ratio: 0 })
@@ -245,7 +246,7 @@ export async function exportTimelineToWebm(options: TimelineWebmExportOptions): 
   canvas.width = size.width
   canvas.height = size.height
   const context = canvas.getContext('2d')
-  if (!context) throw new Error('无法创建导出画布')
+  if (!context) throw new Error(i18n.t('runtime.export.canvasUnavailable'))
 
   const stream = canvas.captureStream(options.timeline.fps)
   const mimeType = resolveRecorderMimeType(options.mimeType)
@@ -322,7 +323,7 @@ export async function exportTimelineToWebm(options: TimelineWebmExportOptions): 
     video.pause()
   }
   const blob = await recording
-  if (blob.size <= 0) throw new Error('导出结果为空')
+  if (blob.size <= 0) throw new Error(i18n.t('runtime.export.emptyResult'))
   options.onProgress?.({ status: 'done', frame: durationFrame, totalFrames: durationFrame, ratio: 1 })
   const filename = createTimelineExportFilename('webm')
   if (options.autoDownload !== false) {

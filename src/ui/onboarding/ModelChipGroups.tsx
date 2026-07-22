@@ -7,6 +7,7 @@
  * 传 onToggle 即开启交互（chip 变 button + aria-pressed）；不传保持纯展示（老用法零影响）。
  */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconCheck, IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { groupModelsByKind, sortEnabledFirst, type ModelChipKind } from './modelChipGrouping'
@@ -33,18 +34,21 @@ type ModelChipGroupsProps = {
 }
 
 export function ModelChipGroups({ models, connected, onToggle, onDelete }: ModelChipGroupsProps): JSX.Element | null {
+  const { t } = useTranslation()
   if (models.length === 0) return null
 
   return (
     <>
-      {groupModelsByKind(models).map(({ kind, label, models: list }) => {
+      {groupModelsByKind(models).map(({ kind, models: list }) => {
         const enabledN = list.filter((m) => m.enabled).length
         // 可切换模式下已启用排前（用户 2026-07-17）；纯展示卡保持 seed 原序。
         const ordered = onToggle ? sortEnabledFirst(list) : list
         return (
           <div key={kind} className="flex flex-col gap-2">
             <div className="text-micro font-semibold text-nomi-ink-60">
-              {label}{' '}
+              {kind in { text: 1, image: 1, video: 1, audio: 1, model3d: 1 }
+                ? t(`onboardingProviders.modelControls.kind.${kind}` as 'onboardingProviders.modelControls.kind.text')
+                : kind}{' '}
               <span className="font-normal text-nomi-ink-40">
                 {onToggle ? `${enabledN} / ${list.length}` : list.length}
               </span>
@@ -64,7 +68,7 @@ export function ModelChipGroups({ models, connected, onToggle, onDelete }: Model
                       <span
                         role="button"
                         tabIndex={0}
-                        aria-label={`删除 ${m.labelZh}`}
+                        aria-label={t('onboardingProviders.modelControls.removeModelAria', { name: m.labelZh })}
                         onClick={(event) => {
                           event.stopPropagation()
                           onDelete(m)
@@ -98,7 +102,7 @@ export function ModelChipGroups({ models, connected, onToggle, onDelete }: Model
                     key={`${m.vendorKey}-${m.modelKey}`}
                     type="button"
                     aria-pressed={m.enabled}
-                    title={m.enabled ? '已启用 · 点击隐藏（不再出现在节点模型列表）' : '已隐藏 · 点击启用（出现在节点模型列表）'}
+                    title={m.enabled ? t('onboardingProviders.modelControls.enabledTitle') : t('onboardingProviders.modelControls.hiddenTitle')}
                     onClick={() => onToggle(m, !m.enabled)}
                     className={cn(
                       'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-caption cursor-pointer',

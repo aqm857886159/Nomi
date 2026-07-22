@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   IconBrush,
   IconCamera,
@@ -11,13 +12,7 @@ import {
 import { cn } from '../../../../utils/cn'
 import { toast } from '../../../../ui/toast'
 import { persistNodeImageFile } from '../../adapters/persistNodeImage'
-import {
-  COMMON_COLORS,
-  clampBrushSize,
-  getCanvasDimensions,
-  type AspectRatioKey,
-  type ToolKey,
-} from './lib/canvas'
+import { COMMON_COLORS, clampBrushSize, getCanvasDimensions, type AspectRatioKey, type ToolKey } from './lib/canvas'
 import {
   LeaferCanvas,
   type CanvasObjectTarget,
@@ -65,7 +60,7 @@ type WhiteboardDrawingToolProps = {
   onScreenshot?: () => void
 }
 
-function fileToDataUrl(file: File): Promise<string> {
+function fileToDataUrl(file: File, errorMessage: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => {
@@ -73,15 +68,20 @@ function fileToDataUrl(file: File): Promise<string> {
         resolve(reader.result)
         return
       }
-      reject(new Error('图片读取失败'))
+      reject(new Error(errorMessage))
     }
-    reader.onerror = () => reject(reader.error || new Error('图片读取失败'))
+    reader.onerror = () => reject(reader.error || new Error(errorMessage))
     reader.readAsDataURL(file)
   })
 }
 
-function getInitialState(initialState: WhiteboardState | undefined, initialImage: WhiteboardInitialImage | undefined): WhiteboardState {
-  return initialState ? serializeWhiteboardState(initialState) : createDefaultWhiteboardState(initialImage?.aspectRatio || '16:9')
+function getInitialState(
+  initialState: WhiteboardState | undefined,
+  initialImage: WhiteboardInitialImage | undefined,
+): WhiteboardState {
+  return initialState
+    ? serializeWhiteboardState(initialState)
+    : createDefaultWhiteboardState(initialImage?.aspectRatio || '16:9')
 }
 
 function normalizeHexColor(value: string): string {
@@ -100,17 +100,22 @@ function getSwatchForeground(hexColor: string): string {
 }
 
 const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, WhiteboardDrawingToolProps>(
-  function WhiteboardDrawingTool({
-    ownerNodeId,
-    initialState,
-    initialImage,
-    canvasImageItems = [],
-    resultItems = [],
-    screenshotBusy = false,
-    screenshotLabel = '截图并创建图片节点',
-    focusResultsOnScreenshot = true,
-    onScreenshot,
-  }, ref) {
+  function WhiteboardDrawingTool(
+    {
+      ownerNodeId,
+      initialState,
+      initialImage,
+      canvasImageItems = [],
+      resultItems = [],
+      screenshotBusy = false,
+      screenshotLabel,
+      focusResultsOnScreenshot = true,
+      onScreenshot,
+    },
+    ref,
+  ) {
+    const { t } = useTranslation()
+    const effectiveScreenshotLabel = screenshotLabel ?? t('generationCommon.whiteboard.screenshotAndCreateNode')
     const [activeTool, setActiveTool] = React.useState<ToolKey>('brush')
     const [selectedColor, setSelectedColor] = React.useState('#2563eb')
     const [brushSize, setBrushSize] = React.useState(10)
@@ -128,83 +133,91 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
     const importedInitialImageRef = React.useRef('')
     const [isFullscreen, setIsFullscreen] = React.useState(false)
 
-    const canvasDimensions = React.useMemo(
-      () => getCanvasDimensions(state.activeRatio, 1280),
-      [state.activeRatio],
-    )
+    const canvasDimensions = React.useMemo(() => getCanvasDimensions(state.activeRatio, 1280), [state.activeRatio])
     const assetPanelItems = React.useMemo(
       () => getAssetPanelItems(state.layers, state.canvasAssets).reverse(),
       [state.canvasAssets, state.layers],
     )
     const boardLibraryItemCount = assetPanelItems.length + canvasImageItems.length
-    const resultItemById = React.useMemo(() => new Map(
-      [...canvasImageItems, ...resultItems].map((item) => [item.id, item]),
-    ), [canvasImageItems, resultItems])
+    const resultItemById = React.useMemo(
+      () => new Map([...canvasImageItems, ...resultItems].map((item) => [item.id, item])),
+      [canvasImageItems, resultItems],
+    )
 
-    React.useImperativeHandle(ref, () => ({
-      captureViewportFile: (filename?: string) => {
-        if (!leaferCanvasRef.current) throw new Error('画布还未准备好')
-        return leaferCanvasRef.current.captureViewportFile(filename)
-      },
-      getState: () => serializeWhiteboardState(state),
-    }), [state])
+    React.useImperativeHandle(
+      ref,
+      () => ({
+        captureViewportFile: (filename?: string) => {
+          if (!leaferCanvasRef.current) throw new Error(t('generationCommon.whiteboard.canvasNotReady'))
+          return leaferCanvasRef.current.captureViewportFile(filename)
+        },
+        getState: () => serializeWhiteboardState(state),
+      }),
+      [state, t],
+    )
 
     const setActiveRatio = React.useCallback((activeRatio: AspectRatioKey) => {
       setState((current) => ({ ...current, activeRatio }))
     }, [])
 
-    const commitStroke = React.useCallback((stroke: CanvasStroke) => {
-      setState((current) => {
-        if (stroke.tool !== 'brush') {
-          return { ...current, strokes: [...current.strokes, stroke] }
-        }
-        const layerId = createWhiteboardId('stroke-layer')
-        const nextStroke = { ...stroke, layerId }
-        const strokeIndex = current.layers.filter((layer) => layer.id.startsWith('stroke-layer')).length + 1
-        return {
-          ...current,
-          activeLayerId: layerId,
-          strokes: [...current.strokes, nextStroke],
-          layers: [
-            ...current.layers,
-            {
-              id: layerId,
-              name: `画笔路径 ${strokeIndex}`,
-              visible: true,
-              locked: false,
-              opacity: 1,
-              kind: 'drawing',
-              thumbnail: 'checker',
-            },
-          ],
-        }
-      })
-      setActiveCanvasObject({ kind: 'stroke', id: stroke.id })
-    }, [])
+    const commitStroke = React.useCallback(
+      (stroke: CanvasStroke) => {
+        setState((current) => {
+          if (stroke.tool !== 'brush') {
+            return { ...current, strokes: [...current.strokes, stroke] }
+          }
+          const layerId = createWhiteboardId('stroke-layer')
+          const nextStroke = { ...stroke, layerId }
+          const strokeIndex = current.layers.filter((layer) => layer.id.startsWith('stroke-layer')).length + 1
+          return {
+            ...current,
+            activeLayerId: layerId,
+            strokes: [...current.strokes, nextStroke],
+            layers: [
+              ...current.layers,
+              {
+                id: layerId,
+                name: t('generationCommon.whiteboard.brushPath', { index: strokeIndex }),
+                visible: true,
+                locked: false,
+                opacity: 1,
+                kind: 'drawing',
+                thumbnail: 'checker',
+              },
+            ],
+          }
+        })
+        setActiveCanvasObject({ kind: 'stroke', id: stroke.id })
+      },
+      [t],
+    )
 
-    const addImageToCanvas = React.useCallback(async (url: string, name = '导入图片') => {
-      const imageSize = await loadImageSize(url)
-      const { asset, layer } = createImageAssetForCanvas({
-        url,
-        name,
-        ratio: state.activeRatio,
-        imageSize,
-      })
-      setState((current) => ({
-        ...current,
-        canvasAssets: [...current.canvasAssets, asset],
-        layers: [...current.layers, layer],
-        activeLayerId: layer.id,
-      }))
-      setActiveCanvasObject({ kind: 'asset', id: asset.id })
-      setActiveTool('select')
-    }, [state.activeRatio])
+    const addImageToCanvas = React.useCallback(
+      async (url: string, name?: string) => {
+        const imageSize = await loadImageSize(url)
+        const { asset, layer } = createImageAssetForCanvas({
+          url,
+          name: name ?? t('generationCommon.whiteboard.importedImage'),
+          ratio: state.activeRatio,
+          imageSize,
+        })
+        setState((current) => ({
+          ...current,
+          canvasAssets: [...current.canvasAssets, asset],
+          layers: [...current.layers, layer],
+          activeLayerId: layer.id,
+        }))
+        setActiveCanvasObject({ kind: 'asset', id: asset.id })
+        setActiveTool('select')
+      },
+      [state.activeRatio, t],
+    )
 
     React.useEffect(() => {
       if (!initialImage?.url || importedInitialImageRef.current === initialImage.url || initialState) return
       importedInitialImageRef.current = initialImage.url
-      void addImageToCanvas(initialImage.url, '原图')
-    }, [addImageToCanvas, initialImage?.url, initialState])
+      void addImageToCanvas(initialImage.url, t('generationCommon.whiteboard.originalImage'))
+    }, [addImageToCanvas, initialImage?.url, initialState, t])
 
     React.useEffect(() => {
       if (typeof document === 'undefined') return undefined
@@ -215,23 +228,29 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
       return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
     }, [])
 
-    const handleUploadImage = React.useCallback(async (file: File | null | undefined) => {
-      if (!file) return
-      if (!file.type.startsWith('image/')) {
-        toast('请选择图片文件', 'warning')
-        return
-      }
-      setUploading(true)
-      try {
-        const localUrl = await persistNodeImageFile(file, ownerNodeId)
-        const url = localUrl || await fileToDataUrl(file)
-        await addImageToCanvas(url, file.name || '导入图片')
-      } catch (error) {
-        toast(error instanceof Error && error.message ? error.message : '导入图片失败', 'error')
-      } finally {
-        setUploading(false)
-      }
-    }, [addImageToCanvas, ownerNodeId])
+    const handleUploadImage = React.useCallback(
+      async (file: File | null | undefined) => {
+        if (!file) return
+        if (!file.type.startsWith('image/')) {
+          toast(t('generationCommon.whiteboard.selectImageFile'), 'warning')
+          return
+        }
+        setUploading(true)
+        try {
+          const localUrl = await persistNodeImageFile(file, ownerNodeId)
+          const url = localUrl || (await fileToDataUrl(file, t('generationCommon.whiteboard.imageReadFailed')))
+          await addImageToCanvas(url, file.name || t('generationCommon.whiteboard.importedImage'))
+        } catch (error) {
+          toast(
+            error instanceof Error && error.message ? error.message : t('generationCommon.whiteboard.importFailed'),
+            'error',
+          )
+        } finally {
+          setUploading(false)
+        }
+      },
+      [addImageToCanvas, ownerNodeId, t],
+    )
 
     const handleColorSelect = React.useCallback((color: string) => {
       setSelectedColor(color)
@@ -241,9 +260,7 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
     const toggleLayerVisibility = React.useCallback((layerId: string) => {
       setState((current) => ({
         ...current,
-        layers: current.layers.map((layer) => (
-          layer.id === layerId ? { ...layer, visible: !layer.visible } : layer
-        )),
+        layers: current.layers.map((layer) => (layer.id === layerId ? { ...layer, visible: !layer.visible } : layer)),
       }))
     }, [])
 
@@ -253,92 +270,105 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
       setActiveTool('select')
     }, [])
 
-    const addLibraryImageToCanvasPoint = React.useCallback((input: {
-      url: string
-      name: string
-      width: number
-      height: number
-      point: { x: number; y: number }
-    }) => {
-      const layerId = createWhiteboardId('asset-layer')
-      const assetIdCopy = createWhiteboardId('asset')
-      const aspectRatio = input.height > 0 ? input.width / input.height : 1
-      const maxW = canvasDimensions.width
-      const maxH = canvasDimensions.height
-      let width = Math.max(1, input.width)
-      let height = Math.max(1, input.height)
-      if (width > maxW) { width = maxW; height = Math.round(width / aspectRatio) }
-      if (height > maxH) { height = maxH; width = Math.round(height * aspectRatio) }
-      width = Math.max(1, width)
-      height = Math.max(1, height)
-      const x = clampCanvasPosition(Math.round(input.point.x - width / 2), width, canvasDimensions.width)
-      const y = clampCanvasPosition(Math.round(input.point.y - height / 2), height, canvasDimensions.height)
-      const baseName = stripFileExtension(input.name || '素材')
+    const addLibraryImageToCanvasPoint = React.useCallback(
+      (input: { url: string; name: string; width: number; height: number; point: { x: number; y: number } }) => {
+        const layerId = createWhiteboardId('asset-layer')
+        const assetIdCopy = createWhiteboardId('asset')
+        const aspectRatio = input.height > 0 ? input.width / input.height : 1
+        const maxW = canvasDimensions.width
+        const maxH = canvasDimensions.height
+        let width = Math.max(1, input.width)
+        let height = Math.max(1, input.height)
+        if (width > maxW) {
+          width = maxW
+          height = Math.round(width / aspectRatio)
+        }
+        if (height > maxH) {
+          height = maxH
+          width = Math.round(height * aspectRatio)
+        }
+        width = Math.max(1, width)
+        height = Math.max(1, height)
+        const x = clampCanvasPosition(Math.round(input.point.x - width / 2), width, canvasDimensions.width)
+        const y = clampCanvasPosition(Math.round(input.point.y - height / 2), height, canvasDimensions.height)
+        const baseName = stripFileExtension(input.name || t('generationCommon.whiteboard.asset'))
+        const copyName = t('generationCommon.whiteboard.copyName', { name: baseName })
 
-      setState((current) => ({
-        ...current,
-        canvasAssets: [
-          ...current.canvasAssets,
-          {
-            id: assetIdCopy,
-            layerId,
-            name: `${baseName} 副本`,
-            url: input.url,
-            source: 'upload',
-            x,
-            y,
-            width,
-            height,
-          },
-        ],
-        layers: [
-          ...current.layers,
-          {
-            id: layerId,
-            name: `${baseName} 副本`,
-            visible: true,
-            locked: false,
-            opacity: 1,
-            kind: 'asset',
-            thumbnail: 'image',
-          },
-        ],
-        activeLayerId: layerId,
-      }))
-      setActiveCanvasObject({ kind: 'asset', id: assetIdCopy })
-      setActiveTool('select')
-    }, [canvasDimensions.height, canvasDimensions.width])
+        setState((current) => ({
+          ...current,
+          canvasAssets: [
+            ...current.canvasAssets,
+            {
+              id: assetIdCopy,
+              layerId,
+              name: copyName,
+              url: input.url,
+              source: 'upload',
+              x,
+              y,
+              width,
+              height,
+            },
+          ],
+          layers: [
+            ...current.layers,
+            {
+              id: layerId,
+              name: copyName,
+              visible: true,
+              locked: false,
+              opacity: 1,
+              kind: 'asset',
+              thumbnail: 'image',
+            },
+          ],
+          activeLayerId: layerId,
+        }))
+        setActiveCanvasObject({ kind: 'asset', id: assetIdCopy })
+        setActiveTool('select')
+      },
+      [canvasDimensions.height, canvasDimensions.width, t],
+    )
 
-    const duplicateAssetToCanvasPoint = React.useCallback((assetId: string, point: { x: number; y: number }) => {
-      const sourceAsset = state.canvasAssets.find((asset) => asset.id === assetId)
-      if (!sourceAsset) return
-      addLibraryImageToCanvasPoint({
-        url: sourceAsset.url,
-        name: sourceAsset.name || '素材',
-        width: sourceAsset.width,
-        height: sourceAsset.height,
-        point,
-      })
-    }, [addLibraryImageToCanvasPoint, state.canvasAssets])
+    const duplicateAssetToCanvasPoint = React.useCallback(
+      (assetId: string, point: { x: number; y: number }) => {
+        const sourceAsset = state.canvasAssets.find((asset) => asset.id === assetId)
+        if (!sourceAsset) return
+        addLibraryImageToCanvasPoint({
+          url: sourceAsset.url,
+          name: sourceAsset.name || t('generationCommon.whiteboard.asset'),
+          width: sourceAsset.width,
+          height: sourceAsset.height,
+          point,
+        })
+      },
+      [addLibraryImageToCanvasPoint, state.canvasAssets, t],
+    )
 
-    const addResultToCanvasPoint = React.useCallback((itemId: string, point: { x: number; y: number }) => {
-      const item = resultItemById.get(itemId)
-      if (!item) return
-      addLibraryImageToCanvasPoint({
-        url: item.url,
-        name: item.name || '结果图片',
-        width: item.width || Math.round(canvasDimensions.width * 0.72),
-        height: item.height || Math.round(canvasDimensions.width * 0.72),
-        point,
-      })
-    }, [addLibraryImageToCanvasPoint, canvasDimensions.width, resultItemById])
+    const addResultToCanvasPoint = React.useCallback(
+      (itemId: string, point: { x: number; y: number }) => {
+        const item = resultItemById.get(itemId)
+        if (!item) return
+        addLibraryImageToCanvasPoint({
+          url: item.url,
+          name: item.name || t('generationCommon.whiteboard.resultImage'),
+          width: item.width || Math.round(canvasDimensions.width * 0.72),
+          height: item.height || Math.round(canvasDimensions.width * 0.72),
+          point,
+        })
+      },
+      [addLibraryImageToCanvasPoint, canvasDimensions.width, resultItemById, t],
+    )
 
-    const handleAssetDragStart = React.useCallback((event: React.DragEvent<HTMLElement>, payload: LibraryDragPayload) => {
-      event.dataTransfer.effectAllowed = 'copy'
-      const serialized = JSON.stringify(payload)
-      event.dataTransfer.setData(ASSET_DRAG_MIME, serialized)
-      event.dataTransfer.setData('text/plain', payload.source === 'board' ? payload.assetId : payload.itemId)
-    }, [])
+    const handleAssetDragStart = React.useCallback(
+      (event: React.DragEvent<HTMLElement>, payload: LibraryDragPayload) => {
+        event.dataTransfer.effectAllowed = 'copy'
+        const serialized = JSON.stringify(payload)
+        event.dataTransfer.setData(ASSET_DRAG_MIME, serialized)
+        event.dataTransfer.setData('text/plain', payload.source === 'board' ? payload.assetId : payload.itemId)
+      },
+      [],
+    )
 
     const handleCanvasAssetDragOver = React.useCallback((event: React.DragEvent<HTMLElement>) => {
       if (!isWhiteboardAssetDrag(event.dataTransfer)) return
@@ -347,16 +377,19 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
       setAssetDragOver(true)
     }, [])
 
-    const handleCanvasAssetDrop = React.useCallback((event: React.DragEvent<HTMLElement>) => {
-      if (!isWhiteboardAssetDrag(event.dataTransfer)) return
-      event.preventDefault()
-      const payload = parseLibraryDragPayload(event.dataTransfer)
-      const point = leaferCanvasRef.current?.clientPointToCanvasPoint(event.clientX, event.clientY)
-      setAssetDragOver(false)
-      if (!payload || !point) return
-      if (payload.source === 'board') duplicateAssetToCanvasPoint(payload.assetId, point)
-      else addResultToCanvasPoint(payload.itemId, point)
-    }, [addResultToCanvasPoint, duplicateAssetToCanvasPoint])
+    const handleCanvasAssetDrop = React.useCallback(
+      (event: React.DragEvent<HTMLElement>) => {
+        if (!isWhiteboardAssetDrag(event.dataTransfer)) return
+        event.preventDefault()
+        const payload = parseLibraryDragPayload(event.dataTransfer)
+        const point = leaferCanvasRef.current?.clientPointToCanvasPoint(event.clientX, event.clientY)
+        setAssetDragOver(false)
+        if (!payload || !point) return
+        if (payload.source === 'board') duplicateAssetToCanvasPoint(payload.assetId, point)
+        else addResultToCanvasPoint(payload.itemId, point)
+      },
+      [addResultToCanvasPoint, duplicateAssetToCanvasPoint],
+    )
 
     const groupCanvasObjects = React.useCallback((targets: CanvasObjectTarget[]) => {
       setState((current) => groupTargetsIntoLayer(current, targets))
@@ -382,44 +415,43 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
       onScreenshot?.()
     }, [focusResultsOnScreenshot, onScreenshot])
 
-    const handleRemoveBackground = React.useCallback((target: CanvasObjectTarget) => {
-      if (removeBgBusy || target.kind !== 'asset') return
-      const asset = state.canvasAssets.find((a) => a.id === target.id)
-      if (!asset?.url) return
-      const createdAt = Date.now()
-      setRemoveBgBusy(true)
-      setRemoveBgTargetId(asset.id)
-      setRemoveBgProgress(0)
-      void (async () => {
-        try {
-          const blob = await removeBackgroundBlob(asset.url, ({ current, total }) => {
-            if (total > 0) setRemoveBgProgress(Math.round((current / total) * 100))
-          })
-          const file = new File(
-            [blob],
-            `rmbg-${asset.id}-${createdAt}.png`,
-            { type: 'image/png' },
-          )
-          const localUrl = await persistNodeImageFile(file, ownerNodeId)
-          const finalUrl = localUrl ?? await blobToDataUrl(blob)
-          setState((current) => ({
-            ...current,
-            canvasAssets: current.canvasAssets.map((item) => (
-              item.id === asset.id ? { ...item, url: finalUrl } : item
-            )),
-          }))
-          setActiveCanvasObject({ kind: 'asset', id: asset.id })
-          setActiveTool('select')
-          toast('已替换为抠图结果', 'success')
-        } catch {
-          toast('抠图失败，请检查网络连接后重试', 'error')
-        } finally {
-          setRemoveBgBusy(false)
-          setRemoveBgTargetId(null)
-          setRemoveBgProgress(null)
-        }
-      })()
-    }, [ownerNodeId, removeBgBusy, state.canvasAssets])
+    const handleRemoveBackground = React.useCallback(
+      (target: CanvasObjectTarget) => {
+        if (removeBgBusy || target.kind !== 'asset') return
+        const asset = state.canvasAssets.find((a) => a.id === target.id)
+        if (!asset?.url) return
+        const createdAt = Date.now()
+        setRemoveBgBusy(true)
+        setRemoveBgTargetId(asset.id)
+        setRemoveBgProgress(0)
+        void (async () => {
+          try {
+            const blob = await removeBackgroundBlob(asset.url, ({ current, total }) => {
+              if (total > 0) setRemoveBgProgress(Math.round((current / total) * 100))
+            })
+            const file = new File([blob], `rmbg-${asset.id}-${createdAt}.png`, { type: 'image/png' })
+            const localUrl = await persistNodeImageFile(file, ownerNodeId)
+            const finalUrl = localUrl ?? (await blobToDataUrl(blob))
+            setState((current) => ({
+              ...current,
+              canvasAssets: current.canvasAssets.map((item) =>
+                item.id === asset.id ? { ...item, url: finalUrl } : item,
+              ),
+            }))
+            setActiveCanvasObject({ kind: 'asset', id: asset.id })
+            setActiveTool('select')
+            toast(t('generationCommon.whiteboard.backgroundRemoved'), 'success')
+          } catch {
+            toast(t('generationCommon.whiteboard.removeBackgroundFailed'), 'error')
+          } finally {
+            setRemoveBgBusy(false)
+            setRemoveBgTargetId(null)
+            setRemoveBgProgress(null)
+          }
+        })()
+      },
+      [ownerNodeId, removeBgBusy, state.canvasAssets, t],
+    )
 
     return (
       <div
@@ -433,12 +465,12 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
         style={isFullscreen ? { width: '100vw', height: '100vh' } : undefined}
       >
         <div className="flex h-full min-h-0 w-full overflow-hidden">
-          <section
-            className="grid min-h-0 min-w-0 flex-[1_1_0] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden border-r border-nomi-line-soft bg-nomi-ink-05"
-          >
+          <section className="grid min-h-0 min-w-0 flex-[1_1_0] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden border-r border-nomi-line-soft bg-nomi-ink-05">
             <header className="flex min-h-[54px] shrink-0 items-center gap-3 border-b border-nomi-line-soft bg-nomi-paper px-4 shadow-nomi-sm">
               <div className="flex min-w-0 items-center gap-2">
-                <div className="truncate text-title font-semibold text-nomi-ink">画板</div>
+                <div className="truncate text-title font-semibold text-nomi-ink">
+                  {t('generationCommon.whiteboard.title')}
+                </div>
                 <span className="rounded-full border border-nomi-line bg-nomi-ink-05 px-2.5 py-1 text-caption font-medium tabular-nums text-nomi-ink-60">
                   {state.activeRatio}
                 </span>
@@ -446,26 +478,34 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
                   <span
                     className="rounded-full bg-nomi-ink-10 px-2.5 py-1 text-caption font-medium text-nomi-ink-60"
                     role="status"
-                    aria-label="抠图处理中"
+                    aria-label={t('generationCommon.whiteboard.removingBackgroundAria')}
                     aria-busy="true"
                   >
-                    抠图中
+                    {t('generationCommon.whiteboard.removingBackground')}
                   </span>
                 ) : null}
               </div>
 
               <div className="ml-auto flex shrink-0 items-center gap-1">
                 <ToolIconButton
-                  title={screenshotLabel}
-                  aria-label={screenshotLabel}
+                  title={effectiveScreenshotLabel}
+                  aria-label={effectiveScreenshotLabel}
                   disabled={!onScreenshot || screenshotBusy}
                   onClick={handleScreenshotClick}
                 >
                   <IconCamera size={17} stroke={1.7} />
                 </ToolIconButton>
                 <ToolIconButton
-                  title={isFullscreen ? '退出全屏' : '全屏'}
-                  aria-label={isFullscreen ? '退出全屏' : '全屏'}
+                  title={
+                    isFullscreen
+                      ? t('generationCommon.whiteboard.exitFullscreen')
+                      : t('generationCommon.whiteboard.fullscreen')
+                  }
+                  aria-label={
+                    isFullscreen
+                      ? t('generationCommon.whiteboard.exitFullscreen')
+                      : t('generationCommon.whiteboard.fullscreen')
+                  }
                   onClick={toggleFullscreen}
                 >
                   {isFullscreen ? <IconMinimize size={17} stroke={1.7} /> : <IconMaximize size={17} stroke={1.7} />}
@@ -477,7 +517,8 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
               className={cn(
                 'relative grid min-h-0 place-items-center overflow-hidden bg-nomi-ink-05 [container-type:size]',
                 isFullscreen ? 'p-0' : 'p-4',
-                assetDragOver && 'after:pointer-events-none after:absolute after:inset-3 after:rounded-nomi after:border after:border-dashed after:border-nomi-accent after:bg-nomi-accent-soft/40',
+                assetDragOver &&
+                  'after:pointer-events-none after:absolute after:inset-3 after:rounded-nomi after:border after:border-dashed after:border-nomi-accent after:bg-nomi-accent-soft/40',
               )}
               onDragOver={handleCanvasAssetDragOver}
               onDragLeave={(event) => {
@@ -519,8 +560,10 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
                     <ToolIconButton
                       key={item.key}
                       active={activeTool === item.key}
-                      title={item.label}
-                      aria-label={item.label}
+                      title={t(`generationCommon.whiteboard.${item.labelKey}` as 'generationCommon.whiteboard.brush')}
+                      aria-label={t(
+                        `generationCommon.whiteboard.${item.labelKey}` as 'generationCommon.whiteboard.brush',
+                      )}
                       disabled={item.disabled}
                       onClick={() => {
                         if (!item.disabled) setActiveTool(item.key)
@@ -537,8 +580,8 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
                     'grid size-9 shrink-0 place-items-center rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-ink-60',
                     'transition-colors hover:bg-nomi-ink-05 hover:text-nomi-ink disabled:cursor-not-allowed disabled:opacity-40',
                   )}
-                  title="导入图片"
-                  aria-label="导入图片"
+                  title={t('generationCommon.whiteboard.importImage')}
+                  aria-label={t('generationCommon.whiteboard.importImage')}
                   disabled={uploading}
                   onClick={() => fileInputRef.current?.click()}
                 >
@@ -551,14 +594,17 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
                       'relative grid size-9 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-paper shadow-nomi-sm',
                       'transition-colors hover:border-nomi-ink-20 hover:bg-nomi-paper focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-nomi-accent',
                     )}
-                    title="自定义画笔颜色"
-                    aria-label="自定义画笔颜色"
+                    title={t('generationCommon.whiteboard.customBrushColor')}
+                    aria-label={t('generationCommon.whiteboard.customBrushColor')}
                   >
                     <span
                       className="pointer-events-none absolute inset-1 rounded-nomi-sm border"
                       style={{
                         backgroundColor: selectedColor,
-                        borderColor: normalizeHexColor(selectedColor) === '#ffffff' ? 'rgba(17, 24, 39, 0.28)' : 'rgba(255, 255, 255, 0.28)',
+                        borderColor:
+                          normalizeHexColor(selectedColor) === '#ffffff'
+                            ? 'rgba(17, 24, 39, 0.28)'
+                            : 'rgba(255, 255, 255, 0.28)',
                       }}
                       aria-hidden
                     />
@@ -566,14 +612,17 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
                       size={14}
                       stroke={2}
                       className="pointer-events-none relative z-[1]"
-                      style={{ color: getSwatchForeground(selectedColor), filter: 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35))' }}
+                      style={{
+                        color: getSwatchForeground(selectedColor),
+                        filter: 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35))',
+                      }}
                       aria-hidden
                     />
                     <input
                       className="absolute inset-0 z-[2] h-full w-full cursor-pointer opacity-0"
                       type="color"
                       value={selectedColor}
-                      aria-label="自定义画笔颜色"
+                      aria-label={t('generationCommon.whiteboard.customBrushColor')}
                       onChange={(event) => handleColorSelect(event.currentTarget.value)}
                     />
                   </label>
@@ -591,16 +640,23 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
                         )}
                         data-active={active ? 'true' : 'false'}
                         title={color}
-                        aria-label={`颜色 ${color}`}
+                        aria-label={t('generationCommon.whiteboard.colorAria', { color })}
                         aria-pressed={active}
-                        style={{ boxShadow: active ? '0 0 0 2px var(--nomi-accent), 0 1px 4px rgba(15, 23, 42, 0.16)' : undefined }}
+                        style={{
+                          boxShadow: active
+                            ? '0 0 0 2px var(--nomi-accent), 0 1px 4px rgba(15, 23, 42, 0.16)'
+                            : undefined,
+                        }}
                         onClick={() => handleColorSelect(color)}
                       >
                         <span
                           className="absolute inset-[3px] rounded-full border"
                           style={{
                             backgroundColor: color,
-                            borderColor: normalizeHexColor(color) === '#ffffff' ? 'rgba(17, 24, 39, 0.28)' : 'rgba(255, 255, 255, 0.18)',
+                            borderColor:
+                              normalizeHexColor(color) === '#ffffff'
+                                ? 'rgba(17, 24, 39, 0.28)'
+                                : 'rgba(255, 255, 255, 0.18)',
                           }}
                           aria-hidden
                         />
@@ -609,7 +665,10 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
                             size={15}
                             stroke={2.5}
                             className="relative z-[1]"
-                            style={{ color: getSwatchForeground(color), filter: 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45))' }}
+                            style={{
+                              color: getSwatchForeground(color),
+                              filter: 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45))',
+                            }}
                             aria-hidden
                           />
                         ) : null}
@@ -638,8 +697,8 @@ const WhiteboardDrawingTool = React.forwardRef<WhiteboardDrawingToolHandle, Whit
                     'grid size-9 shrink-0 place-items-center rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-ink-60',
                     'transition-colors hover:bg-workbench-danger-soft hover:text-workbench-danger disabled:cursor-not-allowed disabled:opacity-40',
                   )}
-                  title="删除选中元素"
-                  aria-label="删除选中元素"
+                  title={t('generationCommon.whiteboard.deleteSelected')}
+                  aria-label={t('generationCommon.whiteboard.deleteSelected')}
                   disabled={!activeCanvasObject}
                   onClick={() => {
                     if (activeCanvasObject) deleteCanvasObject(activeCanvasObject)

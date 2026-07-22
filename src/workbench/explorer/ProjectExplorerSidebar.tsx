@@ -1,4 +1,6 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
   IconBooks,
   IconBulb,
@@ -14,18 +16,18 @@ import { type ProjectCategory } from '../project/projectCategories'
 import { useWorkbenchStore } from '../workbenchStore'
 import { lazyWithChunkBoundary } from '../../ui/chunkBoundary'
 
-const CategoryTree = lazyWithChunkBoundary('分类面板', () => import('../sidebar/CategoryTree'))
-const PromptLibraryContent = lazyWithChunkBoundary('提示词库', () =>
+const CategoryTree = lazyWithChunkBoundary('i18n:sidebar.categoryPanel', () => import('../sidebar/CategoryTree'))
+const PromptLibraryContent = lazyWithChunkBoundary('i18n:sidebar.promptLibrary', () =>
   import('../promptLibrary/PromptLibraryPanel').then((module) => ({
     default: module.PromptLibraryContent,
   })),
 )
-const SkillLibraryContent = lazyWithChunkBoundary('技能库', () =>
+const SkillLibraryContent = lazyWithChunkBoundary('i18n:sidebar.skillLibrary', () =>
   import('../skillLibrary/SkillLibraryPanel').then((module) => ({
     default: module.SkillLibraryContent,
   })),
 )
-const AssetLibraryContent = lazyWithChunkBoundary('素材库', () =>
+const AssetLibraryContent = lazyWithChunkBoundary('i18n:sidebar.assetLibrary', () =>
   import('../assets/AssetLibraryPanel').then((module) => ({
     default: module.AssetLibraryContent,
   })),
@@ -66,11 +68,11 @@ const PANEL_ICON_BUTTON_CLASS = cn(
   'hover:bg-nomi-ink-05 hover:text-nomi-ink',
 )
 
-function sidebarPanelTitle(tab: ProjectSidebarTab): string {
-  if (tab === 'categories') return '分组'
-  if (tab === 'prompt-library') return '提示词库'
-  if (tab === 'skill-library') return '技能库'
-  return '素材库'
+function sidebarPanelTitle(tab: ProjectSidebarTab, t: TFunction): string {
+  if (tab === 'categories') return t('sidebar.groups')
+  if (tab === 'prompt-library') return t('sidebar.promptLibrary')
+  if (tab === 'skill-library') return t('sidebar.skillLibrary')
+  return t('sidebar.assetLibrary')
 }
 
 function isLibraryTab(tab: ProjectSidebarTab): boolean {
@@ -78,6 +80,7 @@ function isLibraryTab(tab: ProjectSidebarTab): boolean {
 }
 
 export default function ProjectExplorerSidebar({ categories, projectId = null }: Props): JSX.Element {
+  const { t } = useTranslation()
   const [tab, setTab] = React.useState<ProjectSidebarTab>('asset-library')
   const [createCategoryNonce, setCreateCategoryNonce] = React.useState(0)
   const collapsed = useWorkbenchStore((s) => s.sidebarCollapsed)
@@ -114,39 +117,39 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
     () => [
       {
         id: 'asset-library' as const,
-        label: '素材库',
+        label: t('sidebar.assetLibrary'),
         icon: IconFolder,
       },
       {
         // ④ 2026-07-13：原名「分类」名实不符——它管的是画布画面的分组（搬家归下一轮设计）。
         id: 'categories' as const,
-        label: '分组',
-        railLabel: '分组',
+        label: t('sidebar.groups'),
+        railLabel: t('sidebar.groups'),
         icon: IconTags,
       },
     ],
-    [],
+    [t],
   )
 
   const libraryRailItems = React.useMemo(
     () => [
       {
         id: 'prompt-library' as const,
-        label: '提示词库',
-        railLabel: '提示词',
+        label: t('sidebar.promptLibrary'),
+        railLabel: t('sidebar.prompts'),
         icon: IconBulb,
       },
       {
         id: 'skill-library' as const,
-        label: '技能库',
-        railLabel: '技能',
+        label: t('sidebar.skillLibrary'),
+        railLabel: t('sidebar.skills'),
         icon: IconBooks,
       },
     ],
-    [],
+    [t],
   )
 
-  const panelTitle = sidebarPanelTitle(tab)
+  const panelTitle = sidebarPanelTitle(tab, t)
   const expandedWidth = isLibraryTab(tab) ? PROJECT_LIBRARY_SIDEBAR_EXPANDED_WIDTH : PROJECT_SIDEBAR_EXPANDED_WIDTH
 
   return (
@@ -157,14 +160,14 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
         'transition-[width] duration-150 ease-out',
       )}
       style={{ width: collapsed ? PROJECT_SIDEBAR_COLLAPSED_WIDTH : expandedWidth }}
-      aria-label="项目资源管理器"
+      aria-label={t('sidebar.explorer')}
     >
       <TooltipProvider delayDuration={180} skipDelayDuration={80}>
         <div
           className="flex shrink-0 flex-col items-center border-r border-nomi-line-soft bg-nomi-paper px-2 py-3"
           style={{ width: PROJECT_SIDEBAR_RAIL_WIDTH }}
         >
-          <nav className="flex flex-1 flex-col items-center gap-2.5 pt-1" aria-label="项目侧栏导航">
+          <nav className="flex flex-1 flex-col items-center gap-2.5 pt-1" aria-label={t('sidebar.navigation')}>
             {railItems.map((item) => {
               const Icon = item.icon
               const active = tab === item.id
@@ -216,7 +219,7 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
                 type="button"
                 onClick={toggle}
                 className={RAIL_BUTTON_CLASS}
-                aria-label={collapsed ? '展开侧栏' : '收起侧栏'}
+                aria-label={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
               >
                 {collapsed ? (
                   <IconLayoutSidebarLeftExpand size={18} stroke={1.8} aria-hidden="true" />
@@ -225,7 +228,7 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
                 )}
               </button>
               </TooltipTrigger>
-              <TooltipContent side="right">{collapsed ? '展开侧栏' : '收起侧栏'}</TooltipContent>
+              <TooltipContent side="right">{collapsed ? t('sidebar.expand') : t('sidebar.collapse')}</TooltipContent>
             </Tooltip>
           </div>
         </div>
@@ -245,12 +248,12 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
                           type="button"
                           onClick={handleAddCategory}
                           className={PANEL_ICON_BUTTON_CLASS}
-                          aria-label="新建分组"
+                          aria-label={t('sidebar.newGroup')}
                         >
                           <IconPlus size={18} stroke={1.8} aria-hidden="true" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom">新建分组</TooltipContent>
+                      <TooltipContent side="bottom">{t('sidebar.newGroup')}</TooltipContent>
                     </Tooltip>
                   ) : null}
                   <Tooltip>
@@ -259,12 +262,12 @@ export default function ProjectExplorerSidebar({ categories, projectId = null }:
                         type="button"
                         onClick={toggle}
                         className={PANEL_ICON_BUTTON_CLASS}
-                        aria-label="收起侧栏"
+                        aria-label={t('sidebar.collapse')}
                       >
                         <IconLayoutSidebarLeftCollapse size={18} stroke={1.8} aria-hidden="true" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">收起侧栏</TooltipContent>
+                    <TooltipContent side="bottom">{t('sidebar.collapse')}</TooltipContent>
                   </Tooltip>
               </header>
               {tab === 'categories' ? (

@@ -1,4 +1,5 @@
 import type { LeaferApp, LeaferEditorOverlay, LeaferEditorOverlayState } from './whiteboardCanvasTypes'
+import i18n from '../../../../i18n'
 
 export function fitLeaferCanvasToHost(app: LeaferApp): void {
   const canvasView = app.canvas?.view as HTMLElement | undefined
@@ -44,11 +45,13 @@ export async function exportViewportFileWithoutEditorOverlays(app: LeaferApp, fi
     })
 
     if (result.error) {
-      throw result.error instanceof Error ? result.error : new Error('截图失败')
+      throw result.error instanceof Error
+        ? result.error
+        : new Error(i18n.t('generationCommon.whiteboard.imageReadFailed'))
     }
 
     if (!(result.data instanceof Blob)) {
-      throw new Error('截图失败')
+      throw new Error(i18n.t('generationCommon.whiteboard.imageReadFailed'))
     }
 
     return new File([result.data], ensurePngFilename(filename), {

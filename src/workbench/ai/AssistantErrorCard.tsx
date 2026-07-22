@@ -3,18 +3,23 @@
 // 出自 classifyGenerationError（与生成节点错误同一真相源，P1），按错误类给一键出路，原始报错收进
 // 可展开「技术详情」。版式镜像 NoTextModelRecoveryCard（身份行 + 卡），两张错误态卡长得一致。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconAlertTriangle, IconRefresh, IconSettings, IconChevronDown, IconChevronRight } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { WorkbenchButton } from '../../design'
 import { classifyGenerationError } from '../observability/classifyError'
 import { NomiIdentityRow } from './AssistantMessageView'
 
-export function AssistantErrorCard({ error, onRetry }: {
+export function AssistantErrorCard({
+  error,
+  onRetry,
+}: {
   /** 原始错误文本（message.content）；卡内部分类成人话，调用方不用预处理。 */
   error: string
   /** 提供则显示「重试」= 重发上一条用户消息。 */
   onRetry?: () => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const [detailOpen, setDetailOpen] = React.useState(false)
   const report = React.useMemo(() => classifyGenerationError(error), [error])
   const openCatalog = React.useCallback(() => {
@@ -26,7 +31,9 @@ export function AssistantErrorCard({ error, onRetry }: {
   return (
     <div className={cn('self-start w-full max-w-full')} data-role="assistant" data-assistant-error="true">
       <NomiIdentityRow />
-      <div className={cn('flex flex-col gap-3 p-3 rounded-nomi border border-workbench-danger bg-workbench-danger-soft')}>
+      <div
+        className={cn('flex flex-col gap-3 p-3 rounded-nomi border border-workbench-danger bg-workbench-danger-soft')}
+      >
         <div className={cn('flex items-start gap-2')}>
           <IconAlertTriangle size={17} stroke={1.8} className={cn('mt-0.5 shrink-0 text-workbench-danger')} />
           <div className={cn('flex flex-col gap-1 min-w-0')}>
@@ -35,7 +42,9 @@ export function AssistantErrorCard({ error, onRetry }: {
               <span className={cn('text-caption text-nomi-ink-80 leading-snug')}>{report.hint}</span>
             ) : null}
             {report.providerMessage ? (
-              <span className={cn('text-caption text-nomi-ink-60 leading-snug')}>服务商：{report.providerMessage}</span>
+              <span className={cn('text-caption text-nomi-ink-60 leading-snug')}>
+                {t('generationCommon.assistantError.provider', { message: report.providerMessage })}
+              </span>
             ) : null}
           </div>
         </div>
@@ -43,14 +52,20 @@ export function AssistantErrorCard({ error, onRetry }: {
         {/* flex-wrap + shrink-0：窄面板放不下时整组优雅换行，不挤压不竖排。 */}
         <div className={cn('flex flex-wrap items-center gap-2')}>
           {onRetry ? (
-            <WorkbenchButton className={cn('shrink-0')} variant="default" size="sm" data-assistant-error-retry="true" onClick={onRetry}>
+            <WorkbenchButton
+              className={cn('shrink-0')}
+              variant="default"
+              size="sm"
+              data-assistant-error-retry="true"
+              onClick={onRetry}
+            >
               <IconRefresh size={14} stroke={1.8} />
-              重试
+              {t('generationCommon.assistantError.retry')}
             </WorkbenchButton>
           ) : null}
           <WorkbenchButton className={cn('shrink-0')} variant="default" size="sm" onClick={openCatalog}>
             <IconSettings size={14} stroke={1.8} />
-            去模型接入
+            {t('generationCommon.assistantError.modelAccess')}
           </WorkbenchButton>
           {hasDetail ? (
             <button
@@ -62,13 +77,17 @@ export function AssistantErrorCard({ error, onRetry }: {
               onClick={() => setDetailOpen((open) => !open)}
             >
               {detailOpen ? <IconChevronDown size={12} stroke={1.8} /> : <IconChevronRight size={12} stroke={1.8} />}
-              技术详情
+              {t('generationCommon.assistantError.technicalDetails')}
             </button>
           ) : null}
         </div>
 
         {detailOpen && hasDetail ? (
-          <pre className={cn('m-0 p-2 rounded-nomi-sm bg-nomi-paper border border-nomi-line text-micro text-nomi-ink-60 whitespace-pre-wrap [overflow-wrap:anywhere]')}>
+          <pre
+            className={cn(
+              'm-0 p-2 rounded-nomi-sm bg-nomi-paper border border-nomi-line text-micro text-nomi-ink-60 whitespace-pre-wrap [overflow-wrap:anywhere]',
+            )}
+          >
             {report.raw}
           </pre>
         ) : null}

@@ -10,6 +10,8 @@
  * （apimart → APIMART_VENDOR_SEED.key、kie → KIE_VENDOR_SEED.key）。
  */
 
+import i18n from '../i18n'
+
 export type KnownVendorPromo = {
   /** 卡片底部话术正文。 */
   text: string
@@ -90,7 +92,8 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
     glyph: 'Ag',
     tagline: '全模态免费 · 一个 key 解锁文本/图片/视频',
     credentialPlaceholder: '粘贴 Agnes API Key',
-    credentialHint: '免费：去 platform.agnes-ai.com 邮箱注册（不绑卡）→ 创建 API Key。免费层有速率上限（RPM 20），个人/原型够用。凭证本地加密存储。',
+    credentialHint:
+      '免费：去 platform.agnes-ai.com 邮箱注册（不绑卡）→ 创建 API Key。免费层有速率上限（RPM 20），个人/原型够用。凭证本地加密存储。',
     promo: {
       text: 'Agnes AI（新加坡 Sapiens AI）把文本/图片/视频三模态 API 无限期免费开放，OpenAI 兼容。邮箱注册不绑卡即可拿 Key。',
       ctaLabel: '去 Agnes 注册（免费）',
@@ -138,7 +141,8 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
     glyph: 'R',
     tagline: '一个 key，解锁 355+ 标准模型（Seedance / 可灵 / 混元3D / Meshy…）',
     credentialPlaceholder: '粘贴 RunningHub API Key（32 位）',
-    credentialHint: '⚠️ 标准模型 API 需「Enterprise-Shared（企业级-共享）」API Key；个人/Consumer key 会报「访问被拒绝（1014）」。登录 RunningHub → API 设置里拿。凭证本地加密存储。',
+    credentialHint:
+      '⚠️ 标准模型 API 需「Enterprise-Shared（企业级-共享）」API Key；个人/Consumer key 会报「访问被拒绝（1014）」。登录 RunningHub → API 设置里拿。凭证本地加密存储。',
     promo: {
       text: 'RunningHub 聚合 355+ 主流模型（按量付费）。标准模型 API 需企业级-共享 key——登录后在控制台 API 设置里获取。',
       ctaLabel: '去 RunningHub',
@@ -184,7 +188,8 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
     glyph: 'R',
     tagline: '一个 token，解锁「元素拆解」（一张图拆成可编辑图层）',
     credentialPlaceholder: '粘贴 Replicate API Token（r8_…）',
-    credentialHint: '用于「元素拆解」(qwen-image-layered，约 $0.05/张，按量付费)。登录 Replicate → Account → API tokens 里拿。凭证本地加密存储、只在调用时使用。',
+    credentialHint:
+      '用于「元素拆解」(qwen-image-layered，约 $0.05/张，按量付费)。登录 Replicate → Account → API tokens 里拿。凭证本地加密存储、只在调用时使用。',
     promo: {
       text: 'Replicate 托管 qwen-image-layered（开源 Apache 2.0），把一张图拆成前景/背景/元素多个可编辑图层。注册后在 Account 里拿 API token，按量付费。',
       ctaLabel: '去 Replicate 拿 token',
@@ -193,12 +198,50 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
   },
 ] as const
 
-const KNOWN_VENDOR_BY_KEY = new Map<string, KnownVendor>(
-  KNOWN_VENDORS.map((vendor) => [vendor.vendorKey, vendor]),
-)
+const KNOWN_VENDOR_BY_KEY = new Map<string, KnownVendor>(KNOWN_VENDORS.map((vendor) => [vendor.vendorKey, vendor]))
 
 export function getKnownVendor(vendorKey: string): KnownVendor | undefined {
-  return KNOWN_VENDOR_BY_KEY.get(vendorKey)
+  const vendor = KNOWN_VENDOR_BY_KEY.get(vendorKey)
+  return vendor ? localizeKnownVendor(vendor) : undefined
+}
+
+function translateKnownVendor(key: string, field: string, fallback: string): string {
+  const path = `onboardingProviders.knownVendors.${key}.${field}`
+  return i18n.exists(path) ? i18n.t(path) : fallback
+}
+
+function localizeKnownVendor(vendor: KnownVendor): KnownVendor {
+  const key = vendor.vendorKey
+  const credentialFields = vendor.credentialFields?.map((field) => ({
+    ...field,
+    ...(field.placeholder
+      ? { placeholder: translateKnownVendor(key, `fields.${field.key}.placeholder`, field.placeholder) }
+      : {}),
+    ...(field.hint ? { hint: translateKnownVendor(key, `fields.${field.key}.hint`, field.hint) } : {}),
+  }))
+  const promo = vendor.promo
+    ? {
+        ...vendor.promo,
+        text: translateKnownVendor(key, 'promoText', vendor.promo.text),
+        ctaLabel: translateKnownVendor(key, 'promoCta', vendor.promo.ctaLabel),
+      }
+    : undefined
+  return {
+    ...vendor,
+    tagline: translateKnownVendor(key, 'tagline', vendor.tagline),
+    ...(vendor.credentialPlaceholder
+      ? { credentialPlaceholder: translateKnownVendor(key, 'credentialPlaceholder', vendor.credentialPlaceholder) }
+      : {}),
+    ...(vendor.credentialHint
+      ? { credentialHint: translateKnownVendor(key, 'credentialHint', vendor.credentialHint) }
+      : {}),
+    ...(credentialFields ? { credentialFields } : {}),
+    ...(promo ? { promo } : {}),
+  }
+}
+
+export function getLocalizedKnownVendors(): readonly KnownVendor[] {
+  return KNOWN_VENDORS.map(localizeKnownVendor)
 }
 
 export function isKnownVendor(vendorKey: string): boolean {

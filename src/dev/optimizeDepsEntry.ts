@@ -17,6 +17,8 @@ import '@tiptap/starter-kit';
 import '@tiptap/suggestion';
 import 'clsx';
 import 'framer-motion';
+import 'i18next';
+import 'react-i18next';
 import 'react-markdown';
 import '@photo-sphere-viewer/core';
 import 'tailwind-merge';

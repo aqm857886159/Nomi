@@ -14,6 +14,7 @@ import { layoutPlannedNodes } from '../../agent/trajectoryLayout'
 import { getDefaultCategoryForNodeKind } from '../../model/generationNodeKinds'
 import { buildCameraMoveScene, type CameraMoveSpec } from './cameraMoveBuilder'
 import { CAMERA_SPEED_DURATION } from './cameraMoveVocab'
+import i18n from '../../../../i18n'
 
 // Seedance 参考视频要求帧率 23.8–60 FPS（实测 12fps 被 InvalidParameter.FpsTooLow 拒）。
 export const CAMERA_MOVE_CAPTURE_FPS = 24
@@ -57,7 +58,7 @@ export function createCameraMoveReferenceNode(
       {
         kind: 'scene3d',
         categoryId: getDefaultCategoryForNodeKind('scene3d'),
-        title: '运镜参考',
+        title: i18n.t('scene3d.capture.cameraMoveReference'),
         prompt: '',
         position,
         meta: {

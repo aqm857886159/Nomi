@@ -1,4 +1,5 @@
 import { cloneBuiltinCategories, type ProjectCategory } from '../project/projectCategories'
+import { getAppLocale } from '../../i18n'
 
 export type ProjectTemplateId = 'manga-short' | 'product-demo' | 'free-form'
 
@@ -45,9 +46,32 @@ export const PROJECT_TEMPLATE_LIST: ProjectTemplate[] = [
   PROJECT_TEMPLATES['free-form'],
 ]
 
+const EN_PROJECT_TEMPLATES: Record<ProjectTemplateId, ProjectTemplate> = {
+  'manga-short': {
+    ...PROJECT_TEMPLATES['manga-short'],
+    name: 'AI Animated Short',
+    description: 'A five-minute animated short with shot, character, scene, prop, and audio categories.',
+    seedDocument:
+      '# Act One\n\n@Character Protagonist { appearance / personality / goal }\n\n# Act Two\n\n# Act Three\n',
+  },
+  'product-demo': {
+    ...PROJECT_TEMPLATES['product-demo'],
+    name: 'Product Demo',
+    description: 'A 30–60 second SaaS introduction with shot, scene, prop, and audio categories.',
+    seedDocument:
+      '# 30-second Product Demo Script\n\n1. Problem (5s):\n2. Solution (10s):\n3. Demo (10s):\n4. CTA (5s):\n',
+  },
+  'free-form': {
+    ...PROJECT_TEMPLATES['free-form'],
+    name: 'Freeform',
+    description: 'All five categories enabled with no preset content.',
+  },
+}
+
 export function getProjectTemplate(id: string | null | undefined): ProjectTemplate {
-  if (id && (id in PROJECT_TEMPLATES)) return PROJECT_TEMPLATES[id as ProjectTemplateId]
-  return PROJECT_TEMPLATES['free-form']
+  const templates = getAppLocale() === 'en' ? EN_PROJECT_TEMPLATES : PROJECT_TEMPLATES
+  if (id && (id in templates)) return templates[id as ProjectTemplateId]
+  return templates['free-form']
 }
 
 /** Builds the categories array for a template: builtins, with non-enabled marked hidden. */

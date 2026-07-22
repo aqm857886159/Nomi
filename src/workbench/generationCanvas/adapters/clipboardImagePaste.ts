@@ -13,6 +13,7 @@ import {
   type ImportImageFilesOptions,
 } from './assetImportAdapter'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import i18n from '../../../i18n'
 
 const IMAGE_URL_EXTENSION = /\.(?:png|jpe?g|webp|gif|avif|bmp|svg)(?:[?#].*)?$/i
 const VIDEO_URL_EXTENSION = /\.(?:mp4|m4v|mov|webm|ogv|ogg|avi)(?:[?#].*)?$/i
@@ -401,7 +402,7 @@ function createPendingClipboardMediaNode(candidate: ClipboardMediaUrlCandidate, 
     error: undefined,
     progress: {
       phase: 'clipboard-import',
-      message: '下载中',
+        message: i18n.t('generationCommon.clipboard.downloading'),
       updatedAt: Date.now(),
     },
     status: 'running',

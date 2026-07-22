@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconMovie } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { toast } from '../../../ui/toast'
@@ -27,13 +28,14 @@ export function ShotPreviewOverlays({
   hasResult: boolean
   isGenerating: boolean
 }): JSX.Element | null {
+  const { t } = useTranslation()
   if (shotIndex == null) return null
   const showConvert = !readOnly && node.kind === 'image' && node.result?.type === 'image' && hasResult && !isGenerating
   return (
     <>
       {hasResult || selected ? (
         <span className="absolute top-1.5 left-1.5 z-[3] inline-flex items-center h-[18px] px-2 rounded-full bg-nomi-ink/85 text-nomi-paper text-micro font-bold tabular-nums pointer-events-none shadow-nomi-sm backdrop-blur-[2px]">
-          镜头 {shotIndex}
+          {t('generationCommon.shotConversion.shot', { index: shotIndex })}
         </span>
       ) : null}
       {showConvert ? <ConvertShotToVideoButton node={node} selected={selected} /> : null}
@@ -43,11 +45,12 @@ export function ShotPreviewOverlays({
 
 /** 悬浮「转视频」按钮：hover/选中浮现，不常驻挡画面。 */
 function ConvertShotToVideoButton({ node, selected }: { node: GenerationCanvasNode; selected: boolean }): JSX.Element {
+  const { t } = useTranslation()
   return (
     <button
       type="button"
-      aria-label="把这张图转成视频镜头（作为首帧）"
-      title="转视频镜头 · 这张图作为首帧"
+      aria-label={t('generationCommon.shotConversion.aria')}
+      title={t('generationCommon.shotConversion.title')}
       data-convert-shot-to-video={node.id}
       className={cn(
         'absolute bottom-1.5 right-1.5 z-[4] inline-flex items-center gap-1 h-6 px-2 rounded-full',
@@ -60,11 +63,14 @@ function ConvertShotToVideoButton({ node, selected }: { node: GenerationCanvasNo
       onClick={(event) => {
         event.stopPropagation()
         const { existed } = convertImageShotToVideo(node)
-        toast(existed ? '这一镜已转过视频，已选中它' : '已转出视频镜头 · 这张图作为首帧', 'info')
+        toast(
+          existed ? t('generationCommon.shotConversion.existing') : t('generationCommon.shotConversion.created'),
+          'info',
+        )
       }}
     >
       <IconMovie size={12} stroke={1.8} />
-      转视频
+      {t('generationCommon.shotConversion.action')}
     </button>
   )
 }

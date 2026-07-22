@@ -5,6 +5,7 @@
  * 复用现成文本流式管线(runWorkbenchTextTaskStream + prompt_refine),不新建改写通道。
  */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { NomiLogoMark, WorkbenchButton } from '../../../design'
@@ -13,19 +14,26 @@ import { runWorkbenchTextTaskStream } from '../../api/taskApi'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { diffPromptWords } from './promptDiff'
+import i18n from '../../../i18n'
 
 function buildOptimizePrompt(original: string, idea: string, isVideo: boolean): string {
-  const kind = isVideo ? '视频生成' : '图像生成'
+  const kind = i18n.t(isVideo ? 'generationCommon.optimizer.videoKind' : 'generationCommon.optimizer.imageKind')
   return [
-    `你是${kind}提示词专家。请优化下面这条${kind}提示词，让它更具体、更易出好${isVideo ? '片' : '图'}：`,
-    `"""\n${original || '(空白，请根据想法补全)'}\n"""`,
-    idea ? `结合用户的想法：${idea}` : '',
-    isVideo ? '补充镜头运动、节奏、光影、画质等要点；' : '补充光线、构图、风格、画质等要点；',
-    '保持原意，只输出优化后的提示词本身，不要解释、不要加引号、不要分点。',
-  ].filter(Boolean).join('\n')
+    i18n.t('generationCommon.optimizer.intro', {
+      kind,
+      resultType: i18n.t(isVideo ? 'generationCommon.optimizer.videoResult' : 'generationCommon.optimizer.imageResult'),
+    }),
+    `"""\n${original || i18n.t('generationCommon.optimizer.blank')}\n"""`,
+    idea ? i18n.t('generationCommon.optimizer.idea', { idea }) : '',
+    i18n.t(isVideo ? 'generationCommon.optimizer.videoDetails' : 'generationCommon.optimizer.imageDetails'),
+    i18n.t('generationCommon.optimizer.outputRule'),
+  ]
+    .filter(Boolean)
+    .join('\n')
 }
 
 export function NodePromptOptimizer({ node, isVideo }: { node: GenerationCanvasNode; isVideo: boolean }): JSX.Element {
+  const { t } = useTranslation()
   const [open, setOpen] = React.useState(false)
   const [idea, setIdea] = React.useState('')
   const [running, setRunning] = React.useState(false)
@@ -52,7 +60,7 @@ export function NodePromptOptimizer({ node, isVideo }: { node: GenerationCanvasN
     try {
       const brain = await getTextBrain()
       if (!brain) {
-        setError('请先在「模型接入」里启用一个文本模型')
+        setError(t('generationCommon.optimizer.configureTextModel'))
         return
       }
       const prompt = buildOptimizePrompt(originalRef.current, idea.trim(), isVideo)
@@ -70,15 +78,15 @@ export function NodePromptOptimizer({ node, isVideo }: { node: GenerationCanvasN
       )
       const final = acc.trim()
       if (final) setResult(final)
-      else setError('没拿到优化结果，请重试')
+      else setError(t('generationCommon.optimizer.emptyResult'))
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return
-      setError(e instanceof Error ? e.message : '优化失败')
+      setError(e instanceof Error ? e.message : t('generationCommon.optimizer.failed'))
     } finally {
       setRunning(false)
       abortRef.current = null
     }
-  }, [node.prompt, idea, isVideo])
+  }, [node.prompt, idea, isVideo, t])
 
   const apply = React.useCallback(() => {
     if (!result) return
@@ -104,47 +112,70 @@ export function NodePromptOptimizer({ node, isVideo }: { node: GenerationCanvasN
   return (
     <div className={cn('relative ml-auto')}>
       {open ? (
-        <div className={cn('absolute bottom-full right-0 mb-2 w-[280px] z-10', 'bg-nomi-paper border border-nomi-line rounded-nomi shadow-nomi-md p-2.5')}>
+        <div
+          className={cn(
+            'absolute bottom-full right-0 mb-2 w-[280px] z-10',
+            'bg-nomi-paper border border-nomi-line rounded-nomi shadow-nomi-md p-2.5',
+          )}
+        >
           <div className={cn('flex items-center gap-1.5 mb-2 text-caption text-nomi-ink-60')}>
             <NomiLogoMark size={14} />
-            {result != null ? 'Nomi 优化版（高亮=改动）' : '说一句想法，Nomi 帮你改这条'}
+            {result != null
+              ? t('generationCommon.optimizer.optimizedTitle')
+              : t('generationCommon.optimizer.ideaTitle')}
           </div>
 
           {result != null ? (
             <>
-              <div className={cn('max-h-[160px] overflow-y-auto rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1.5 text-body-sm leading-relaxed text-nomi-ink')}>
+              <div
+                className={cn(
+                  'max-h-[160px] overflow-y-auto rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1.5 text-body-sm leading-relaxed text-nomi-ink',
+                )}
+              >
                 {diff!.map((seg, i) => (
-                  <span key={i} className={seg.added ? cn('bg-nomi-accent-soft text-nomi-accent rounded-nomi-sm px-px') : undefined}>
+                  <span
+                    key={i}
+                    className={seg.added ? cn('bg-nomi-accent-soft text-nomi-accent rounded-nomi-sm px-px') : undefined}
+                  >
                     {seg.text}
                   </span>
                 ))}
               </div>
               <div className={cn('mt-2 flex gap-2')}>
                 <WorkbenchButton variant="primary" className="flex-1" onClick={apply}>
-                  应用到提示词
+                  {t('generationCommon.optimizer.apply')}
                 </WorkbenchButton>
                 <WorkbenchButton variant="default" onClick={() => void run()}>
-                  重新优化
+                  {t('generationCommon.optimizer.retry')}
                 </WorkbenchButton>
               </div>
             </>
           ) : running ? (
-            <div className={cn('rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1.5 min-h-[52px] text-body-sm leading-relaxed text-nomi-ink-80 whitespace-pre-wrap')}>
-              {streamed || '正在优化…'}
+            <div
+              className={cn(
+                'rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1.5 min-h-[52px] text-body-sm leading-relaxed text-nomi-ink-80 whitespace-pre-wrap',
+              )}
+            >
+              {streamed || t('generationCommon.optimizer.optimizing')}
             </div>
           ) : (
             <>
               <textarea
-                className={cn('w-full h-[52px] resize-none rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1.5', 'text-body-sm text-nomi-ink placeholder:text-nomi-ink-40 outline-none focus:border-nomi-accent')}
+                className={cn(
+                  'w-full h-[52px] resize-none rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1.5',
+                  'text-body-sm text-nomi-ink placeholder:text-nomi-ink-40 outline-none focus:border-nomi-accent',
+                )}
                 value={idea}
-                placeholder="如：换成黄昏、情绪更紧张、加点雾气…（留空也能优化）"
-                aria-label="优化想法"
+                placeholder={t('generationCommon.optimizer.placeholder')}
+                aria-label={t('generationCommon.optimizer.ideaAria')}
                 onChange={(e) => setIdea(e.currentTarget.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void run() }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void run()
+                }}
               />
               {error ? <div className={cn('mt-1.5 text-micro text-workbench-danger')}>{error}</div> : null}
               <WorkbenchButton variant="primary" className="mt-2 w-full" onClick={() => void run()}>
-                优化这条提示词
+                {t('generationCommon.optimizer.optimizePrompt')}
               </WorkbenchButton>
             </>
           )}
@@ -153,12 +184,12 @@ export function NodePromptOptimizer({ node, isVideo }: { node: GenerationCanvasN
 
       <WorkbenchButton
         variant="default"
-        aria-label="用 Nomi 优化提示词"
-        title="用 Nomi 优化提示词"
+        aria-label={t('generationCommon.optimizer.aria')}
+        title={t('generationCommon.optimizer.aria')}
         onClick={toggle}
       >
         {open ? <IconX size={14} stroke={1.6} /> : <NomiLogoMark size={14} />}
-        {running ? '优化中…' : '优化'}
+        {running ? t('generationCommon.optimizer.running') : t('generationCommon.optimizer.optimize')}
       </WorkbenchButton>
     </div>
   )

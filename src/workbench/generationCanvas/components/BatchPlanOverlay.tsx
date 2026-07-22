@@ -3,6 +3,7 @@
 // 外挂 overlay,不喂 GenerationCanvas/BaseGenerationNode 两个白名单巨壳(R12);
 // 坐标随 store 的 zoom/offset 实时换算(screen = pos*zoom + offset),徽标不随缩放变大。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { IconListCheck } from '@tabler/icons-react'
 import { WorkbenchButton } from '../../../design'
@@ -11,6 +12,7 @@ import { waveIndexByNode } from '../runner/dependencyWaves'
 import { useBatchPlanPreviewStore } from './batchPlanPreview'
 
 export function BatchPlanOverlay() {
+  const { t } = useTranslation()
   const plan = useBatchPlanPreviewStore((state) => state.plan)
   const cancel = useBatchPlanPreviewStore((state) => state.cancel)
   const confirm = useBatchPlanPreviewStore((state) => state.confirm)
@@ -43,7 +45,7 @@ export function BatchPlanOverlay() {
                 : 'bg-nomi-accent-soft text-nomi-accent border-nomi-accent',
             )}
             style={{ left, top }}
-            title={blockedInfo ? blockedInfo.detail : `第 ${wave} 波执行`}
+            title={blockedInfo ? blockedInfo.detail : t('generationCommon.batchPlan.waveTitle', { wave })}
           >
             {blockedInfo ? '⚠' : wave}
           </span>
@@ -57,21 +59,23 @@ export function BatchPlanOverlay() {
       >
         <IconListCheck size={16} className={cn('shrink-0 text-nomi-accent')} aria-hidden />
         <span className={cn('text-body-sm font-medium text-nomi-ink whitespace-nowrap')}>
-          执行计划 · {planCount} 个节点 · {plan.waves.length} 波
+          {t('generationCommon.batchPlan.summary', { count: planCount, waves: plan.waves.length })}
         </span>
         <span className={cn('text-caption text-nomi-ink-60 whitespace-nowrap')}>
-          第 1 波 {firstWaveCount} 个并行,确认前不调用不扣费
-          {plan.blocked.length > 0 ? ` · ${plan.blocked.length} 个被拦(看 ⚠)` : ''}
+          {t('generationCommon.batchPlan.firstWave', { count: firstWaveCount })}
+          {plan.blocked.length > 0 ? t('generationCommon.batchPlan.blocked', { count: plan.blocked.length }) : ''}
         </span>
         <WorkbenchButton className={cn('h-7 min-h-7 px-3 cursor-pointer')} onClick={cancel}>
-          取消
+          {t('generationCommon.batchPlan.cancel')}
         </WorkbenchButton>
         <WorkbenchButton
-          className={cn('h-7 min-h-7 px-3 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-ink hover:text-nomi-paper')}
+          className={cn(
+            'h-7 min-h-7 px-3 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-ink hover:text-nomi-paper',
+          )}
           onClick={() => void confirm()}
           disabled={planCount === 0}
         >
-          按计划生成
+          {t('generationCommon.batchPlan.generate')}
         </WorkbenchButton>
       </div>
     </div>

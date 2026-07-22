@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconDownload } from '@tabler/icons-react'
 import { useResultDownload } from './useResultDownload'
 import { FloatingToolbarShell, TOOLBAR_ICON as I, ToolbarButton } from './NodeFloatingToolbar'
@@ -15,6 +16,7 @@ type Props = {
 }
 
 export default function NodeResultDownloadButton({ node, selected, onPreview }: Props): JSX.Element | null {
+  const { t } = useTranslation()
   const { canDownload, downloading, download } = useResultDownload(node)
   if (!selected || !canDownload || node.result?.type === 'image') return null
 
@@ -24,11 +26,11 @@ export default function NodeResultDownloadButton({ node, selected, onPreview }: 
   }
 
   return (
-    <FloatingToolbarShell ariaLabel="结果操作">
+    <FloatingToolbarShell ariaLabel={t('generationCommon.resultDownload.actions')}>
       <ToolbarButton
         icon={<IconDownload size={I.size} stroke={I.stroke} />}
-        label="下载"
-        title="下载 / 另存到本地"
+        label={t('generationCommon.resultDownload.download')}
+        title={t('generationCommon.resultDownload.downloadHint')}
         disabled={downloading}
         onClick={download}
       />

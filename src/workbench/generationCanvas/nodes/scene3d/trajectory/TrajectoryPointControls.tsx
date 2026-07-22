@@ -1,13 +1,11 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Html, Line, TransformControls } from '@react-three/drei'
 import { IconPlus } from '@tabler/icons-react'
 import { useThree, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Scene3DTrajectory, Scene3DTrajectoryPoint, Scene3DVector3 } from '../scene3dTypes'
-import {
-  TRAJECTORY_CONTROL_POINT_RADIUS,
-  trajectorySegmentControlPosition,
-} from './trajectoryUtils'
+import { TRAJECTORY_CONTROL_POINT_RADIUS, trajectorySegmentControlPosition } from './trajectoryUtils'
 import {
   endpointExtensionPosition,
   endpointPlacement,
@@ -53,14 +51,17 @@ export function TrajectoryPointTransformControls({
     controlsEnabledBeforeDragRef.current = null
   }, [controls])
 
-  const updatePointFromAnchor = React.useCallback((options?: { force?: boolean }) => {
-    if (!draggingRef.current && !options?.force) return
-    const anchor = anchorRef.current
-    if (!anchor) return
-    const position = vectorToScene(anchor.position)
-    if (sceneVectorAlmostEqual(point.position, position)) return
-    onUpdatePoint?.(trajectoryId, point.id, position)
-  }, [onUpdatePoint, point.id, point.position, trajectoryId])
+  const updatePointFromAnchor = React.useCallback(
+    (options?: { force?: boolean }) => {
+      if (!draggingRef.current && !options?.force) return
+      const anchor = anchorRef.current
+      if (!anchor) return
+      const position = vectorToScene(anchor.position)
+      if (sceneVectorAlmostEqual(point.position, position)) return
+      onUpdatePoint?.(trajectoryId, point.id, position)
+    },
+    [onUpdatePoint, point.id, point.position, trajectoryId],
+  )
 
   const startTransform = React.useCallback(() => {
     onSelectPoint?.(trajectoryId, point.id)
@@ -176,36 +177,42 @@ export function TrajectoryControlPoint({
     return hit ? hit.clone() : null
   }, [])
 
-  const projectClientPointer = React.useCallback((event: PointerEvent) => {
-    const camera = cameraRef.current
-    if (!camera) return null
-    const canvas = gl.domElement
-    if (!canvas) return null
-    const rect = canvas.getBoundingClientRect()
-    if (rect.width <= 0 || rect.height <= 0) return null
-    const ndc = new THREE.Vector2(
-      ((event.clientX - rect.left) / rect.width) * 2 - 1,
-      -(((event.clientY - rect.top) / rect.height) * 2 - 1),
-    )
-    const raycaster = new THREE.Raycaster()
-    raycaster.setFromCamera(ndc, camera)
-    const hit = raycaster.ray.intersectPlane(xzPlaneRef.current, hitRef.current)
-    return hit ? hit.clone() : null
-  }, [gl])
+  const projectClientPointer = React.useCallback(
+    (event: PointerEvent) => {
+      const camera = cameraRef.current
+      if (!camera) return null
+      const canvas = gl.domElement
+      if (!canvas) return null
+      const rect = canvas.getBoundingClientRect()
+      if (rect.width <= 0 || rect.height <= 0) return null
+      const ndc = new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -(((event.clientY - rect.top) / rect.height) * 2 - 1),
+      )
+      const raycaster = new THREE.Raycaster()
+      raycaster.setFromCamera(ndc, camera)
+      const hit = raycaster.ray.intersectPlane(xzPlaneRef.current, hitRef.current)
+      return hit ? hit.clone() : null
+    },
+    [gl],
+  )
 
-  const commitDraft = React.useCallback((end: THREE.Vector3, pointerId: number) => {
-    draggingRef.current = false
-    pointerIdRef.current = null
-    const target = pointerTargetRef.current
-    pointerTargetRef.current = null
-    target?.releasePointerCapture?.(pointerId)
-    if (controls && 'enabled' in controls && controlsEnabledBeforeDraftRef.current !== null) {
-      ;(controls as { enabled: boolean }).enabled = controlsEnabledBeforeDraftRef.current
-      controlsEnabledBeforeDraftRef.current = null
-    }
-    const moved = movedRef.current || end.distanceTo(pointStartRef.current) >= MIN_DRAG_DISTANCE
-    if (moved) onUpdatePoint?.(trajectory.id, point.id, vectorToScene(end, point.position[1]))
-  }, [controls, onUpdatePoint, point.id, point.position, trajectory.id])
+  const commitDraft = React.useCallback(
+    (end: THREE.Vector3, pointerId: number) => {
+      draggingRef.current = false
+      pointerIdRef.current = null
+      const target = pointerTargetRef.current
+      pointerTargetRef.current = null
+      target?.releasePointerCapture?.(pointerId)
+      if (controls && 'enabled' in controls && controlsEnabledBeforeDraftRef.current !== null) {
+        ;(controls as { enabled: boolean }).enabled = controlsEnabledBeforeDraftRef.current
+        controlsEnabledBeforeDraftRef.current = null
+      }
+      const moved = movedRef.current || end.distanceTo(pointStartRef.current) >= MIN_DRAG_DISTANCE
+      if (moved) onUpdatePoint?.(trajectory.id, point.id, vectorToScene(end, point.position[1]))
+    },
+    [controls, onUpdatePoint, point.id, point.position, trajectory.id],
+  )
 
   React.useEffect(() => {
     const handleWindowPointerMove = (event: PointerEvent) => {
@@ -249,58 +256,80 @@ export function TrajectoryControlPoint({
     }
   }, [commitDraft, onUpdatePoint, point.id, point.position, projectClientPointer, trajectory.id])
 
-  const handlePointPointerOver = React.useCallback((event: ThreeEvent<PointerEvent>) => {
-    event.stopPropagation()
-    onPointerHover?.()
-  }, [onPointerHover])
+  const handlePointPointerOver = React.useCallback(
+    (event: ThreeEvent<PointerEvent>) => {
+      event.stopPropagation()
+      onPointerHover?.()
+    },
+    [onPointerHover],
+  )
 
-  const handlePointPointerOut = React.useCallback((event: ThreeEvent<PointerEvent>) => {
-    event.stopPropagation()
-    onPointerUnhover?.()
-  }, [onPointerUnhover])
+  const handlePointPointerOut = React.useCallback(
+    (event: ThreeEvent<PointerEvent>) => {
+      event.stopPropagation()
+      onPointerUnhover?.()
+    },
+    [onPointerUnhover],
+  )
 
-  const handlePointPointerDown = React.useCallback((event: ThreeEvent<PointerEvent>) => {
-    if (event.nativeEvent.button !== 0) return
-    if (transformPointerIdRef.current === event.pointerId) return
-    event.stopPropagation()
-    onSelectTrajectory?.(trajectory.id)
-    if (!editable) {
-      onWholePointerDown?.(event)
-      return
-    }
-    cameraRef.current = event.camera
-    pointerIdRef.current = event.pointerId
-    if (controls && 'enabled' in controls && controlsEnabledBeforeDraftRef.current === null) {
-      controlsEnabledBeforeDraftRef.current = (controls as { enabled: boolean }).enabled
-      ;(controls as { enabled: boolean }).enabled = false
-    }
-    onSelectPoint?.(trajectory.id, point.id)
-    draggingRef.current = true
-    movedRef.current = false
-    lastUpdateTimeRef.current = event.nativeEvent.timeStamp
-    const target = pointerCaptureHost(event.nativeEvent.target) ?? pointerCaptureHost(event.target)
-    pointerTargetRef.current = target
-    target?.setPointerCapture?.(event.pointerId)
-    const pointStart = vectorFromScene(point.position)
-    const pointerStart = projectPointer(event) ?? pointStart.clone()
-    dragStartRef.current = pointerStart
-    pointStartRef.current = pointStart
-    lastEndRef.current = pointStart
-  }, [controls, editable, onSelectPoint, onSelectTrajectory, onWholePointerDown, point.id, point.position, projectPointer, trajectory.id])
+  const handlePointPointerDown = React.useCallback(
+    (event: ThreeEvent<PointerEvent>) => {
+      if (event.nativeEvent.button !== 0) return
+      if (transformPointerIdRef.current === event.pointerId) return
+      event.stopPropagation()
+      onSelectTrajectory?.(trajectory.id)
+      if (!editable) {
+        onWholePointerDown?.(event)
+        return
+      }
+      cameraRef.current = event.camera
+      pointerIdRef.current = event.pointerId
+      if (controls && 'enabled' in controls && controlsEnabledBeforeDraftRef.current === null) {
+        controlsEnabledBeforeDraftRef.current = (controls as { enabled: boolean }).enabled
+        ;(controls as { enabled: boolean }).enabled = false
+      }
+      onSelectPoint?.(trajectory.id, point.id)
+      draggingRef.current = true
+      movedRef.current = false
+      lastUpdateTimeRef.current = event.nativeEvent.timeStamp
+      const target = pointerCaptureHost(event.nativeEvent.target) ?? pointerCaptureHost(event.target)
+      pointerTargetRef.current = target
+      target?.setPointerCapture?.(event.pointerId)
+      const pointStart = vectorFromScene(point.position)
+      const pointerStart = projectPointer(event) ?? pointStart.clone()
+      dragStartRef.current = pointerStart
+      pointStartRef.current = pointStart
+      lastEndRef.current = pointStart
+    },
+    [
+      controls,
+      editable,
+      onSelectPoint,
+      onSelectTrajectory,
+      onWholePointerDown,
+      point.id,
+      point.position,
+      projectPointer,
+      trajectory.id,
+    ],
+  )
 
-  const handlePointPointerUp = React.useCallback((event: ThreeEvent<PointerEvent>) => {
-    if (transformPointerIdRef.current === event.pointerId) return
-    if (!draggingRef.current) return
-    event.stopPropagation()
-    const pointerEnd = projectPointer(event)
-    const end = pointerEnd
-      ? pointStartRef.current.clone().add(pointerEnd.clone().sub(dragStartRef.current))
-      : lastEndRef.current
-    if (pointerEnd && pointerEnd.distanceTo(dragStartRef.current) >= MIN_DRAG_DISTANCE) {
-      movedRef.current = true
-    }
-    commitDraft(end, event.pointerId)
-  }, [commitDraft, projectPointer])
+  const handlePointPointerUp = React.useCallback(
+    (event: ThreeEvent<PointerEvent>) => {
+      if (transformPointerIdRef.current === event.pointerId) return
+      if (!draggingRef.current) return
+      event.stopPropagation()
+      const pointerEnd = projectPointer(event)
+      const end = pointerEnd
+        ? pointStartRef.current.clone().add(pointerEnd.clone().sub(dragStartRef.current))
+        : lastEndRef.current
+      if (pointerEnd && pointerEnd.distanceTo(dragStartRef.current) >= MIN_DRAG_DISTANCE) {
+        movedRef.current = true
+      }
+      commitDraft(end, event.pointerId)
+    },
+    [commitDraft, projectPointer],
+  )
 
   const handlePointDoubleClick = React.useCallback((event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation()
@@ -334,19 +363,12 @@ export function TrajectoryControlPoint({
           onContextMenu?.(trajectory.id, vectorToScene(event.point, point.position[1]))
         }}
       >
-        <sphereGeometry args={[selected ? SELECTED_TRAJECTORY_POINT_HIT_RADIUS : TRAJECTORY_POINT_HIT_RADIUS, 18, 12]} />
-        <meshBasicMaterial
-          color="#ffffff"
-          depthWrite={false}
-          opacity={0}
-          transparent
-          toneMapped={false}
+        <sphereGeometry
+          args={[selected ? SELECTED_TRAJECTORY_POINT_HIT_RADIUS : TRAJECTORY_POINT_HIT_RADIUS, 18, 12]}
         />
+        <meshBasicMaterial color="#ffffff" depthWrite={false} opacity={0} transparent toneMapped={false} />
       </mesh>
-      <mesh
-        position={point.position}
-        renderOrder={5}
-      >
+      <mesh position={point.position} renderOrder={5}>
         <sphereGeometry args={[TRAJECTORY_CONTROL_POINT_RADIUS, 18, 12]} />
         <meshBasicMaterial
           color={color}
@@ -393,6 +415,7 @@ export function TrajectoryEndpointAddButton({
     placement?: 'before' | 'after',
   ) => void
 }): JSX.Element | null {
+  const { t } = useTranslation()
   const point = trajectory.points[pointIndex]
   const addPosition = React.useMemo(() => endpointExtensionPosition(trajectory, pointIndex), [trajectory, pointIndex])
   const placement = endpointPlacement(trajectory, pointIndex)
@@ -410,17 +433,11 @@ export function TrajectoryEndpointAddButton({
         depthTest={false}
         renderOrder={1}
       />
-      <Html
-        center
-        distanceFactor={8}
-        position={addPosition}
-        style={{ pointerEvents: 'auto' }}
-        zIndexRange={[20, 0]}
-      >
+      <Html center distanceFactor={8} position={addPosition} style={{ pointerEvents: 'auto' }} zIndexRange={[20, 0]}>
         <button
           type="button"
-          aria-label="连接新轨迹点"
-          title="连接新轨迹点"
+          aria-label={t('scene3d.trajectory.connectNewPoint')}
+          title={t('scene3d.trajectory.connectNewPoint')}
           className="grid size-8 place-items-center rounded-full border border-nomi-paper/85 bg-[var(--nomi-ink)] text-[var(--nomi-paper)] shadow-nomi-md transition hover:scale-105"
           onClick={(event) => {
             event.preventDefault()
@@ -467,8 +484,13 @@ export function TrajectoryCurveControlHandle({
 }): JSX.Element | null {
   const startPoint = trajectory.points[segmentIndex]
   const endPoint = trajectory.points[(segmentIndex + 1) % trajectory.points.length]
-  const controlPosition = React.useMemo(() => trajectorySegmentControlPosition(trajectory, segmentIndex), [trajectory, segmentIndex])
-  const stored = Boolean(startPoint && trajectory.curveControls?.some((control) => control.segmentStartPointId === startPoint.id))
+  const controlPosition = React.useMemo(
+    () => trajectorySegmentControlPosition(trajectory, segmentIndex),
+    [trajectory, segmentIndex],
+  )
+  const stored = Boolean(
+    startPoint && trajectory.curveControls?.some((control) => control.segmentStartPointId === startPoint.id),
+  )
   const [hovered, setHovered] = React.useState(false)
   const draggingRef = React.useRef(false)
   const movedRef = React.useRef(false)
@@ -487,32 +509,38 @@ export function TrajectoryCurveControlHandle({
     return hit ? hit.clone() : null
   }, [])
 
-  const projectClientPointer = React.useCallback((event: PointerEvent) => {
-    const camera = cameraRef.current
-    if (!camera) return null
-    const rect = gl.domElement.getBoundingClientRect()
-    if (rect.width <= 0 || rect.height <= 0) return null
-    const ndc = new THREE.Vector2(
-      ((event.clientX - rect.left) / rect.width) * 2 - 1,
-      -(((event.clientY - rect.top) / rect.height) * 2 - 1),
-    )
-    const raycaster = new THREE.Raycaster()
-    raycaster.setFromCamera(ndc, camera)
-    const hit = raycaster.ray.intersectPlane(xzPlaneRef.current, hitRef.current)
-    return hit ? hit.clone() : null
-  }, [gl])
+  const projectClientPointer = React.useCallback(
+    (event: PointerEvent) => {
+      const camera = cameraRef.current
+      if (!camera) return null
+      const rect = gl.domElement.getBoundingClientRect()
+      if (rect.width <= 0 || rect.height <= 0) return null
+      const ndc = new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -(((event.clientY - rect.top) / rect.height) * 2 - 1),
+      )
+      const raycaster = new THREE.Raycaster()
+      raycaster.setFromCamera(ndc, camera)
+      const hit = raycaster.ray.intersectPlane(xzPlaneRef.current, hitRef.current)
+      return hit ? hit.clone() : null
+    },
+    [gl],
+  )
 
-  const stopDrag = React.useCallback((pointerId: number) => {
-    draggingRef.current = false
-    pointerIdRef.current = null
-    const target = pointerTargetRef.current
-    pointerTargetRef.current = null
-    target?.releasePointerCapture?.(pointerId)
-    if (controls && 'enabled' in controls && controlsEnabledBeforeDragRef.current !== null) {
-      ;(controls as { enabled: boolean }).enabled = controlsEnabledBeforeDragRef.current
-      controlsEnabledBeforeDragRef.current = null
-    }
-  }, [controls])
+  const stopDrag = React.useCallback(
+    (pointerId: number) => {
+      draggingRef.current = false
+      pointerIdRef.current = null
+      const target = pointerTargetRef.current
+      pointerTargetRef.current = null
+      target?.releasePointerCapture?.(pointerId)
+      if (controls && 'enabled' in controls && controlsEnabledBeforeDragRef.current !== null) {
+        ;(controls as { enabled: boolean }).enabled = controlsEnabledBeforeDragRef.current
+        controlsEnabledBeforeDragRef.current = null
+      }
+    },
+    [controls],
+  )
 
   React.useEffect(() => {
     const handleWindowPointerMove = (event: PointerEvent) => {

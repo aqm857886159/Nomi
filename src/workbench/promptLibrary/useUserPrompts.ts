@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   addUserPrompt as apiAdd,
   deleteUserPrompt as apiDelete,
@@ -24,6 +25,7 @@ export type UseUserPrompts = State & {
 
 /** 我的库(用户级)数据 + CRUD;首次打开拉取,写操作后用返回的全量刷新缓存。 */
 export function useUserPrompts(opened: boolean): UseUserPrompts {
+  const { t } = useTranslation()
   const [state, setState] = React.useState<State>({ items: cached ?? [], loading: false, error: null })
 
   const apply = React.useCallback((items: LibraryPrompt[]) => {
@@ -41,10 +43,14 @@ export function useUserPrompts(opened: boolean): UseUserPrompts {
       fetchUserPrompts()
         .then(apply)
         .catch((error: unknown) =>
-          setState({ items: cached ?? [], loading: false, error: error instanceof Error ? error.message : '加载失败' }),
+          setState({
+            items: cached ?? [],
+            loading: false,
+            error: error instanceof Error ? error.message : t('runtime.promptLibrary.loadFailed'),
+          }),
         )
     },
-    [apply],
+    [apply, t],
   )
 
   React.useEffect(() => {
@@ -52,7 +58,10 @@ export function useUserPrompts(opened: boolean): UseUserPrompts {
   }, [opened, load])
 
   const add = React.useCallback(async (draft: UserPromptDraft) => apply(await apiAdd(draft)), [apply])
-  const update = React.useCallback(async (id: string, patch: Partial<UserPromptDraft>) => apply(await apiUpdate(id, patch)), [apply])
+  const update = React.useCallback(
+    async (id: string, patch: Partial<UserPromptDraft>) => apply(await apiUpdate(id, patch)),
+    [apply],
+  )
   const remove = React.useCallback(async (id: string) => apply(await apiDelete(id)), [apply])
 
   return { ...state, reload: () => load(true), add, update, remove }

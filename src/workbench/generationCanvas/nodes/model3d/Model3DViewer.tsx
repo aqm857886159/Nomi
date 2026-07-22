@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { FencedCanvas } from '../fencedCanvas'
 import { Bounds, Center, OrbitControls, useGLTF } from '@react-three/drei'
 import { cn } from '../../../../utils/cn'
@@ -37,12 +38,13 @@ class GlbBoundary extends React.Component<
 }
 
 export default function Model3DViewer({ url }: { url: string }): JSX.Element {
+  const { t } = useTranslation()
   return (
     <div className={cn('w-full h-full bg-nomi-ink-05')}>
       <GlbBoundary
         fallback={
           <div className={cn('flex h-full w-full items-center justify-center text-caption text-nomi-ink-40')}>
-            模型加载失败
+            {t('generationCommon.node.model3dLoadFailed')}
           </div>
         }
       >

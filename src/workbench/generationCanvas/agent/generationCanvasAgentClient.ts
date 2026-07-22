@@ -7,6 +7,7 @@ import { evaluateGate } from './gate'
 import { buildLockGateContext } from './lockGateContext'
 import { listAvailableModelsForAgent, formatAvailableModelsForPrompt } from './availableModels'
 import { formatCanvasForAgent } from './canvasPromptContext'
+import i18n from '../../../i18n'
 
 export type { ToolCallEvent } from '../../ai/workbenchAgentRunner'
 
@@ -138,7 +139,7 @@ async function defaultExecuteToolCall(event: ToolCallEvent): Promise<void> {
   await confirm({
     ok: false,
     denied: true,
-    message: '该操作需用户在确认面板批准后才能执行（自动放行路径已禁用）',
+    message: i18n.t('generationCommon.agentRuntime.approvalRequired'),
   })
 }
 

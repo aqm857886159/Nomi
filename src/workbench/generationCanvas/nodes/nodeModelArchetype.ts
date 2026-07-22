@@ -15,6 +15,7 @@ import {
   currentArchetypeVariant,
   resolveArchetypeForModel,
 } from './controls/archetypeMeta'
+import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 
 export function chooseDefaultModelOption(
   options: readonly ModelOption[],
@@ -30,13 +31,20 @@ export function chooseDefaultModelOption(
   // 同时跳过「图生图/编辑」类（空节点默认它 = 没参考图就不能生成，生成钮一直灰）——
   // 新建空节点该默认到「文生图/文生视频」这类无需参考就能直接生成的模型。
   const needsReference = (option: ModelOption): boolean =>
-    /image-to-image|img2img|i2i|image2video|edit|inpaint/i.test(`${option.value} ${option.modelKey || ''} ${option.modelAlias || ''}`)
+    /image-to-image|img2img|i2i|image2video|edit|inpaint/i.test(
+      `${option.value} ${option.modelKey || ''} ${option.modelAlias || ''}`,
+    )
   const recognized = options.filter((option) => Boolean(resolveArchetypeForOption(option)))
   return recognized.find((option) => !needsReference(option)) || recognized[0] || options[0]
 }
 
 export function resolveArchetypeForOption(option: ModelOption | null) {
-  return resolveArchetypeForModel({ modelKey: option?.modelKey, modelAlias: option?.modelAlias, vendorKey: option?.vendor, meta: option?.meta })
+  return resolveArchetypeForModel({
+    modelKey: option?.modelKey,
+    modelAlias: option?.modelAlias,
+    vendorKey: option?.vendor,
+    meta: option?.meta,
+  })
 }
 
 /**
@@ -55,19 +63,48 @@ export function resolveRenderedControls(
     // 变体特化：选中变体可能收窄某 mode 的参数（如 Seedance fast 的 resolution 仅 480/720）。
     // 收窄发生在 params 这层，故先按 variantId 特化档案再取当前模式的 params。
     const specialized = specializeArchetypeForVariant(archetype, currentArchetypeVariant(archetype, meta)?.id)
-    return buildDynamicControls({
-      parameterControls: archetypeModeParams(currentArchetypeMode(specialized, meta)),
-      imageCatalogConfig: null,
-      videoCatalogConfig: null,
+    return localizeDynamicControls(
+      buildDynamicControls({
+        parameterControls: archetypeModeParams(currentArchetypeMode(specialized, meta)),
+        imageCatalogConfig: null,
+        videoCatalogConfig: null,
+        isImageLike,
+        isVideoLike,
+      }),
+    )
+  }
+  return localizeDynamicControls(
+    buildDynamicControls({
+      parameterControls: parseModelParameterControls(option?.meta),
+      imageCatalogConfig: buildEffectiveImageCatalogConfig(option?.meta),
+      videoCatalogConfig: buildEffectiveVideoCatalogConfig(option?.meta),
       isImageLike,
       isVideoLike,
-    })
-  }
-  return buildDynamicControls({
-    parameterControls: parseModelParameterControls(option?.meta),
-    imageCatalogConfig: buildEffectiveImageCatalogConfig(option?.meta),
-    videoCatalogConfig: buildEffectiveVideoCatalogConfig(option?.meta),
-    isImageLike,
-    isVideoLike,
+    }),
+  )
+}
+
+function localizeDynamicControls(controls: DynamicModelControl[]): DynamicModelControl[] {
+  return controls.map((control): DynamicModelControl => {
+    if ('type' in control) {
+      return {
+        ...control,
+        label: translateModelDisplayText(control.label),
+        ...(control.placeholder ? { placeholder: translateModelDisplayText(control.placeholder) } : {}),
+        options: control.options.map((option) => ({
+          ...option,
+          label: translateModelDisplayText(option.label),
+        })),
+      }
+    }
+    return {
+      ...control,
+      label: translateModelDisplayText(control.label),
+      options: control.options.map((option) =>
+        typeof option === 'string'
+          ? translateModelDisplayText(option)
+          : { ...option, label: translateModelDisplayText(option.label) },
+      ),
+    }
   })
 }

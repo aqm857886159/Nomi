@@ -4,6 +4,7 @@
 import { spawn } from "node:child_process";
 import { resolveDreaminaBin, isDreaminaInstalled, runDreaminaCli } from "./dreaminaCli";
 import { parseDeviceFlow, parseAccountStatus, isNotMaestroVip, isReusingLogin, type DreaminaDeviceFlow } from "./dreaminaCodec";
+import { desktopT } from "../i18n";
 
 export type DreaminaStatus = {
   installed: boolean;
@@ -36,10 +37,10 @@ export async function dreaminaLoginStart(): Promise<DreaminaDeviceFlow> {
   const ran = await runDreaminaCli(["login", "--headless"], { timeoutMs: 30_000 });
   const text = `${ran.stdout}\n${ran.stderr}`;
   if (isReusingLogin(text)) {
-    throw new Error("即梦已复用本机登录态，无需重新扫码。Nomi 会刷新当前登录状态。");
+    throw new Error(desktopT("dreamina.reusedLogin"));
   }
   const flow = parseDeviceFlow(text);
-  if (!flow) throw new Error(`发起即梦登录失败：${(ran.stderr || ran.stdout || "").slice(0, 300)}`);
+  if (!flow) throw new Error(desktopT("dreamina.loginStartFailed", { message: (ran.stderr || ran.stdout || "").slice(0, 300) }));
   return flow;
 }
 
@@ -51,14 +52,14 @@ export type DreaminaLoginPoll = { status: "success" | "pending" | "error"; messa
  */
 export async function dreaminaLoginPoll(deviceCode: string): Promise<DreaminaLoginPoll> {
   const code = String(deviceCode || "").trim();
-  if (!code) return { status: "error", message: "缺少 device_code" };
+  if (!code) return { status: "error", message: desktopT("dreamina.missingDeviceCode") };
   const ran = await runDreaminaCli(["login", "checklogin", `--device_code=${code}`, "--poll=60"], { timeoutMs: 75_000 }).catch(
     (e: unknown) => ({ code: -1, stdout: "", stderr: e instanceof Error ? e.message : String(e) }),
   );
   const text = `${ran.stdout}\n${ran.stderr}`;
-  if (/登录成功|oauth\s*登录成功|login\s*success/i.test(text)) return { status: "success", message: "登录成功" };
-  if (/超时|timeout|等待登录/i.test(text)) return { status: "pending", message: "等待授权中…" };
-  return { status: "error", message: (ran.stderr || ran.stdout || "登录失败").slice(0, 300) };
+  if (/登录成功|oauth\s*登录成功|login\s*success/i.test(text)) return { status: "success", message: desktopT("dreamina.loginSuccess") };
+  if (/超时|timeout|等待登录/i.test(text)) return { status: "pending", message: desktopT("dreamina.waiting") };
+  return { status: "error", message: (ran.stderr || ran.stdout || desktopT("dreamina.loginFailed")).slice(0, 300) };
 }
 
 /** 退出登录（仅清本地 OAuth 态，不删任务记录）。 */
@@ -74,22 +75,24 @@ export type DreaminaInstallResult = { ok: boolean; message: string };
  * 官方源 jimeng.jianying.com，用户主动发起；不 bundle（跟官方更新走）。
  */
 export function dreaminaInstall(): Promise<DreaminaInstallResult> {
-  if (isDreaminaInstalled()) return Promise.resolve({ ok: true, message: "即梦 CLI 已安装" });
+  if (isDreaminaInstalled()) return Promise.resolve({ ok: true, message: desktopT("dreamina.installed") });
   if (process.platform === "win32") {
-    return Promise.resolve({ ok: false, message: "Windows 暂请在 WSL 或手动安装即梦 CLI（curl -fsSL https://jimeng.jianying.com/cli | bash）。" });
+    return Promise.resolve({ ok: false, message: desktopT("dreamina.windowsInstall") });
   }
   return new Promise<DreaminaInstallResult>((resolve) => {
     // 即梦是国内服务：curl 强制 --noproxy '*' 直连，别让梯子把安装源分流到海外（与 dreaminaCli.buildDreaminaEnv 同理）。
     const child = spawn("/bin/bash", ["-lc", "curl --noproxy '*' -fsSL https://jimeng.jianying.com/cli | bash"], { windowsHide: true });
     let out = "";
-    const timer = setTimeout(() => { try { child.kill("SIGKILL"); } catch { /* gone */ } resolve({ ok: false, message: "安装超时，请稍后重试或终端手动安装。" }); }, 120_000);
+    const timer = setTimeout(() => { try { child.kill("SIGKILL"); } catch { /* gone */ } resolve({ ok: false, message: desktopT("dreamina.installTimeout") }); }, 120_000);
     child.stdout?.on("data", (c) => { out += String(c); });
     child.stderr?.on("data", (c) => { out += String(c); });
-    child.on("error", (e) => { clearTimeout(timer); resolve({ ok: false, message: `安装失败：${e instanceof Error ? e.message : String(e)}` }); });
+    child.on("error", (e) => { clearTimeout(timer); resolve({ ok: false, message: desktopT("dreamina.installFailed", { message: e instanceof Error ? e.message : String(e) }) }); });
     child.on("close", () => {
       clearTimeout(timer);
       // 安装脚本可能改 PATH——直接探文件存在性判定成功，比退出码可靠。
-      resolve(resolveDreaminaBin() ? { ok: true, message: "即梦 CLI 安装完成。" } : { ok: false, message: `安装未完成：${out.slice(-300)}` });
+      resolve(resolveDreaminaBin()
+        ? { ok: true, message: desktopT("dreamina.installComplete") }
+        : { ok: false, message: desktopT("dreamina.installIncomplete", { message: out.slice(-300) }) });
     });
   });
 }

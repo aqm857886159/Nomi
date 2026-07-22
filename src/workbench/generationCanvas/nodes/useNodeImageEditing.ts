@@ -5,11 +5,18 @@ import { dataUrlToFile, persistNodeImageFile } from '../adapters/persistNodeImag
 import type { CropGridResult, CropGridSize } from './render/ImageCropGridOverlay'
 import { computeGridCells } from './render/cropGridGeometry'
 import { blobToDataUrl, removeBackgroundBlob } from '../../../lib/removeBackground'
+import i18n from '../../../i18n'
 
 // 裁切 / 旋转 / 网格切分都用 canvas.toDataURL 产出 PNG base64。先用 base64 给即时预览，
 // 紧接着把它落盘换成 nomi-local:// 替换掉对应 result —— 避免 PNG base64 永久挂在 store（图多即卡）。
 // 落盘失败则保留 base64 兜底（可持久化、不丢图）。
-function persistEditedNodeImageToLocal(nodeId: string, resultId: string, dataUrl: string, createdAt: number, index = 0): void {
+function persistEditedNodeImageToLocal(
+  nodeId: string,
+  resultId: string,
+  dataUrl: string,
+  createdAt: number,
+  index = 0,
+): void {
   const file = dataUrlToFile(dataUrl, `edit-${nodeId}-${createdAt}-${index}.png`)
   if (!file) return
   void persistNodeImageFile(file, nodeId).then((localUrl) => {
@@ -84,7 +91,11 @@ function removeBackgroundProgressMessage(key: string): string {
   return '抠图中'
 }
 
-function imageGridTileNodeSize(width: number, height: number, preferredWidth: number): { width: number; height: number; previewHeight: number } | null {
+function imageGridTileNodeSize(
+  width: number,
+  height: number,
+  preferredWidth: number,
+): { width: number; height: number; previewHeight: number } | null {
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null
   const aspectRatio = width / height
   const nodeWidth = clampNumber(preferredWidth, MIN_NODE_WIDTH, MAX_NODE_WIDTH)
@@ -187,100 +198,112 @@ export function useNodeImageEditing(
 
   // 裁剪 / 切图统一走可调框确认：computeGridCells 把「外框 + 框内线」换算成 N 个 image 归一化
   // cell，逐 cell cropImageRegion 产出结果后写回当前节点 history。1 cell = 裁剪；N cell = 切图堆叠。
-  const handleEditConfirm = React.useCallback(async (confirmed: CropGridResult) => {
-    const imageUrl = nodeResult?.type === 'image' ? nodeResult.url : undefined
-    const grid = editGrid
-    cancelEdit()
-    if (!imageUrl || grid == null || imageOpBusy) return
-    setImageOpBusy(true)
-    try {
-      const cells = computeGridCells(confirmed.rect, confirmed.cols, confirmed.rows)
-      const isSplit = cells.length > 1
-      const createdAt = Date.now()
-      const crops = await Promise.all(cells.map((cell) => cropImageRegion(imageUrl, cell)))
-      const outputs = cells
-        .map((cell, index) => {
-          const crop = crops[index]
-          if (!crop) return null
-          const result: GenerationNodeResult = {
-            id: `image-${isSplit ? 'split' : 'crop'}-${nodeId}-${createdAt}-${index}`,
-            type: 'image' as const,
-            url: crop.dataUrl,
-            createdAt,
-          }
-          return { cell, crop, index, result }
+  const handleEditConfirm = React.useCallback(
+    async (confirmed: CropGridResult) => {
+      const imageUrl = nodeResult?.type === 'image' ? nodeResult.url : undefined
+      const grid = editGrid
+      cancelEdit()
+      if (!imageUrl || grid == null || imageOpBusy) return
+      setImageOpBusy(true)
+      try {
+        const cells = computeGridCells(confirmed.rect, confirmed.cols, confirmed.rows)
+        const isSplit = cells.length > 1
+        const createdAt = Date.now()
+        const crops = await Promise.all(cells.map((cell) => cropImageRegion(imageUrl, cell)))
+        const outputs = cells
+          .map((cell, index) => {
+            const crop = crops[index]
+            if (!crop) return null
+            const result: GenerationNodeResult = {
+              id: `image-${isSplit ? 'split' : 'crop'}-${nodeId}-${createdAt}-${index}`,
+              type: 'image' as const,
+              url: crop.dataUrl,
+              createdAt,
+            }
+            return { cell, crop, index, result }
+          })
+          .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+        const main = outputs[0]
+        if (!main) return
+        const preferredWidth = clampNumber(visualWidth, MIN_NODE_WIDTH, MAX_NODE_WIDTH)
+        const newSize = imageGridTileNodeSize(main.crop.width, main.crop.height, preferredWidth)
+        const results = outputs.map((entry) => entry.result)
+        updateNode(nodeId, {
+          result: main.result,
+          history: mergeNodeImageHistory(nodeResult, nodeHistory, results),
+          status: 'success',
+          error: undefined,
+          ...(newSize && nodeMeta?.userResized !== true
+            ? { size: { width: newSize.width, height: newSize.height } }
+            : {}),
+          meta: {
+            ...(nodeMeta || {}),
+            source: isSplit ? `image-grid-split-${grid}x${grid}` : 'image-crop',
+            localOnly: true,
+            ...(isSplit ? { gridSize: grid, gridRow: main.cell.row, gridColumn: main.cell.column } : {}),
+            imageWidth: main.crop.width,
+            imageHeight: main.crop.height,
+            imageAspectRatio: main.crop.width / Math.max(1, main.crop.height),
+            previewHeight: newSize?.previewHeight,
+          },
         })
-        .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
-      const main = outputs[0]
-      if (!main) return
-      const preferredWidth = clampNumber(visualWidth, MIN_NODE_WIDTH, MAX_NODE_WIDTH)
-      const newSize = imageGridTileNodeSize(main.crop.width, main.crop.height, preferredWidth)
-      const results = outputs.map((entry) => entry.result)
-      updateNode(nodeId, {
-        result: main.result,
-        history: mergeNodeImageHistory(nodeResult, nodeHistory, results),
-        status: 'success',
-        error: undefined,
-        ...(newSize && nodeMeta?.userResized !== true ? { size: { width: newSize.width, height: newSize.height } } : {}),
-        meta: {
-          ...(nodeMeta || {}),
-          source: isSplit ? `image-grid-split-${grid}x${grid}` : 'image-crop',
-          localOnly: true,
-          ...(isSplit ? { gridSize: grid, gridRow: main.cell.row, gridColumn: main.cell.column } : {}),
-          imageWidth: main.crop.width,
-          imageHeight: main.crop.height,
-          imageAspectRatio: main.crop.width / Math.max(1, main.crop.height),
-          previewHeight: newSize?.previewHeight,
-        },
-      })
-      outputs.forEach((entry) => persistEditedNodeImageToLocal(nodeId, entry.result.id, entry.crop.dataUrl, createdAt, entry.index))
-    } catch {
-      // 裁剪/切图可能因 CORS 无法把源图读进 canvas 而失败。
-    } finally {
-      setImageOpBusy(false)
-    }
-  }, [cancelEdit, editGrid, imageOpBusy, nodeHistory, nodeId, nodeMeta, nodeResult, updateNode, visualWidth])
+        outputs.forEach((entry) =>
+          persistEditedNodeImageToLocal(nodeId, entry.result.id, entry.crop.dataUrl, createdAt, entry.index),
+        )
+      } catch {
+        // 裁剪/切图可能因 CORS 无法把源图读进 canvas 而失败。
+      } finally {
+        setImageOpBusy(false)
+      }
+    },
+    [cancelEdit, editGrid, imageOpBusy, nodeHistory, nodeId, nodeMeta, nodeResult, updateNode, visualWidth],
+  )
 
   // 旋转 / 翻转：写回当前节点历史堆叠，并切换为当前主图。
-  const handleImageTransform = React.useCallback(async (op: ImageTransformOp) => {
-    const imageUrl = nodeResult?.type === 'image' ? nodeResult.url : undefined
-    if (!imageUrl || imageOpBusy) return
-    setImageOpBusy(true)
-    try {
-      const out = await transformImage(imageUrl, op)
-      if (!out) return
-      const createdAt = Date.now()
-      const preferredWidth = clampNumber(visualWidth, MIN_NODE_WIDTH, MAX_NODE_WIDTH)
-      const newSize = imageGridTileNodeSize(out.width, out.height, preferredWidth)
-      const result: GenerationNodeResult = {
-        id: `image-${op}-${nodeId}-${createdAt}`,
-        type: 'image' as const,
-        url: out.dataUrl,
-        createdAt,
+  const handleImageTransform = React.useCallback(
+    async (op: ImageTransformOp) => {
+      const imageUrl = nodeResult?.type === 'image' ? nodeResult.url : undefined
+      if (!imageUrl || imageOpBusy) return
+      setImageOpBusy(true)
+      try {
+        const out = await transformImage(imageUrl, op)
+        if (!out) return
+        const createdAt = Date.now()
+        const preferredWidth = clampNumber(visualWidth, MIN_NODE_WIDTH, MAX_NODE_WIDTH)
+        const newSize = imageGridTileNodeSize(out.width, out.height, preferredWidth)
+        const result: GenerationNodeResult = {
+          id: `image-${op}-${nodeId}-${createdAt}`,
+          type: 'image' as const,
+          url: out.dataUrl,
+          createdAt,
+        }
+        updateNode(nodeId, {
+          result,
+          history: mergeNodeImageHistory(nodeResult, nodeHistory, [result]),
+          status: 'success',
+          error: undefined,
+          ...(newSize && nodeMeta?.userResized !== true
+            ? { size: { width: newSize.width, height: newSize.height } }
+            : {}),
+          meta: {
+            ...(nodeMeta || {}),
+            source: `image-${op}`,
+            localOnly: true,
+            imageWidth: out.width,
+            imageHeight: out.height,
+            imageAspectRatio: out.width / Math.max(1, out.height),
+            previewHeight: newSize?.previewHeight,
+          },
+        })
+        persistEditedNodeImageToLocal(nodeId, result.id, out.dataUrl, createdAt)
+      } catch {
+        // Transform can fail if the source image cannot be loaded into a canvas due to CORS.
+      } finally {
+        setImageOpBusy(false)
       }
-      updateNode(nodeId, {
-        result,
-        history: mergeNodeImageHistory(nodeResult, nodeHistory, [result]),
-        status: 'success',
-        error: undefined,
-        ...(newSize && nodeMeta?.userResized !== true ? { size: { width: newSize.width, height: newSize.height } } : {}),
-        meta: {
-          ...(nodeMeta || {}),
-          source: `image-${op}`,
-          localOnly: true,
-          imageWidth: out.width,
-          imageHeight: out.height,
-          imageAspectRatio: out.width / Math.max(1, out.height),
-          previewHeight: newSize?.previewHeight,
-        },
-      })
-      persistEditedNodeImageToLocal(nodeId, result.id, out.dataUrl, createdAt)
-    } catch {
-      // Transform can fail if the source image cannot be loaded into a canvas due to CORS.
-    } finally {
-      setImageOpBusy(false)
-    }
-  }, [imageOpBusy, nodeHistory, nodeId, nodeMeta, nodeResult, updateNode, visualWidth])
+    },
+    [imageOpBusy, nodeHistory, nodeId, nodeMeta, nodeResult, updateNode, visualWidth],
+  )
 
   const handleRemoveBackground = React.useCallback(async () => {
     const imageUrl = nodeResult?.type === 'image' ? nodeResult.url : undefined
@@ -294,7 +317,7 @@ export function useNodeImageEditing(
         runId: `remove-bg-${nodeId}-${createdAt}`,
         taskKind: 'asset',
         phase: 'remove-background',
-        message: '抠图中',
+      message: i18n.t('generationCommon.imageToolbar.removingBackground'),
         percent: 0,
         updatedAt: createdAt,
       },
@@ -306,20 +329,24 @@ export function useNodeImageEditing(
     try {
       const blob = await removeBackgroundBlob(imageUrl, ({ key, current, total }) => {
         const percent = total > 0 ? Math.round((current / total) * 100) : undefined
-        updateNode(nodeId, {
-          progress: {
-            runId: `remove-bg-${nodeId}-${createdAt}`,
-            taskKind: 'asset',
-            phase: 'remove-background',
-            message: removeBackgroundProgressMessage(key),
-            percent,
-            updatedAt: Date.now(),
+        updateNode(
+          nodeId,
+          {
+            progress: {
+              runId: `remove-bg-${nodeId}-${createdAt}`,
+              taskKind: 'asset',
+              phase: 'remove-background',
+              message: removeBackgroundProgressMessage(key),
+              percent,
+              updatedAt: Date.now(),
+            },
           },
-        }, { persist: false })
+          { persist: false },
+        )
       })
       const file = new File([blob], `remove-bg-${nodeId}-${createdAt}.png`, { type: 'image/png' })
       const localUrl = await persistNodeImageFile(file, nodeId)
-      const finalUrl = localUrl ?? await blobToDataUrl(blob)
+      const finalUrl = localUrl ?? (await blobToDataUrl(blob))
       const result: GenerationNodeResult = {
         id: `image-remove-bg-${nodeId}-${createdAt}`,
         type: 'image' as const,
@@ -346,7 +373,7 @@ export function useNodeImageEditing(
         progress: undefined,
       })
       const { toast } = await import('../../../ui/toast')
-      toast('抠图失败，请检查网络连接后重试', 'error')
+      toast(i18n.t('generationCommon.whiteboard.removeBackgroundFailed'), 'error')
     } finally {
       setImageOpBusy(false)
     }

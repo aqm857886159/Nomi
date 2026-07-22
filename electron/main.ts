@@ -46,14 +46,12 @@ import { setRendererTarget } from "./capabilityCore/rendererBridge";
 import { readMcpInfo, installMcp, uninstallMcp } from "./capabilityCore/mcpConfig";
 import { registerLocalProtocol } from "./protocol/localProtocol";
 import { installMainWindowInteractions } from "./mainWindowInteractions";
-// 尽早安装：捕获引导阶段起的 uncaughtException / unhandledRejection，落盘到 app logs（P0-8）。
+import { desktopT, setDesktopLocale } from "./i18n";
 installCrashHandlers();
 
 const configuredUserDataDir = String(process.env.NOMI_ELECTRON_USER_DATA_DIR || "").trim();
 if (configuredUserDataDir) {
-  // dev-electron.mjs 会按 renderer 端口分配独立 profile；这里若不真正切到该目录，
-  // Electron 仍会复用全局 userData，把旧的 Vite chunk/code cache 吃回来，出现
-  // 「主界面加载失败但纯 Vite 页面正常」这类很像灵异事件的缓存串味。
+  // dev-electron.mjs 按 renderer 端口隔离 profile，避免复用旧 Vite chunk/code cache。
   app.setPath("userData", configuredUserDataDir);
 }
 
@@ -425,6 +423,7 @@ async function runTaskIpcGuard<T>(payload: unknown, thunk: () => Promise<T>): Pr
 
 function registerIpc(): void {
   const selectedWorkspaceRoots = new Set<string>();
+  ipcMain.on("nomi:i18n:set-locale", (_event, locale: unknown) => setDesktopLocale(locale));
   // 渲染层崩溃（RootErrorBoundary）也落到同一崩溃日志（P0-8）。
   ipcMain.on("nomi:log:renderer-crash", (_event, message: unknown) => logCrash("renderer", String(message)));
   // 窗口控制（Windows 自绘标题栏）：只注册一次，作用于发起请求的那个窗口（fromWebContents），
@@ -542,11 +541,11 @@ function registerIpc(): void {
       confirmInitialize: async (rootPath) => {
         const result = await dialog.showMessageBox({
           type: "question",
-          buttons: ["取消", "初始化"],
+          buttons: [desktopT("common.cancel"), desktopT("common.initialize")],
           defaultId: 1,
           cancelId: 0,
-          message: "初始化 Nomi 项目文件夹？",
-          detail: `Nomi 会在此文件夹创建 .nomi/，并把生成的图片、视频保存到 assets/ 和 exports/.\n\n${rootPath}`,
+          message: desktopT("workspace.initializeTitle"),
+          detail: desktopT("workspace.initializeDetail", { path: rootPath }),
         });
         return result.response === 1;
       },
@@ -731,6 +730,7 @@ if (hasSingleInstanceLock)
   app
     .whenReady()
     .then(async () => {
+      setDesktopLocale(app.getLocale());
       registerLocalProtocol();
       installContentSecurityPolicy(session.defaultSession);
       // 写入内置模型种子（Seedance 等主流模型档案）；幂等、存在即跳过，不覆盖用户已有记录。

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { hasWorkspaceManifest } from "./workspaceManifest";
+import { desktopT } from "../i18n";
 
 export type WorkspaceFolderSelection =
   | { canceled: true }
@@ -103,7 +104,7 @@ function isProtectedSystemPath(rawPath: string, resolved: string, homedir: strin
 export function assessWorkspaceFolderSafety(rootPath: string, options: SafetyOptions = {}): WorkspaceFolderSafety {
   const rawRootPath = String(rootPath || "").trim();
   if (!rawRootPath) {
-    return { ok: false, reason: "未选择有效的文件夹" };
+    return { ok: false, reason: desktopT("workspace.invalidFolder") };
   }
   const homedir = path.resolve(options.homedir ?? os.homedir());
   const platform = options.platform ?? process.platform;
@@ -112,7 +113,7 @@ export function assessWorkspaceFolderSafety(rootPath: string, options: SafetyOpt
   if (isProtectedSystemPath(rawRootPath, resolved, homedir, platform)) {
     return {
       ok: false,
-      reason: `“${resolved}” 是主目录或系统关键目录，不能作为 Nomi 项目文件夹（会污染你的照片/音乐/系统文件）。请新建或另选一个空文件夹。`,
+      reason: desktopT("workspace.protectedFolder", { path: resolved }),
     };
   }
 
@@ -164,8 +165,8 @@ export async function selectWorkspaceFolder(
   options: { homedir?: string } = {},
 ): Promise<WorkspaceFolderSelection> {
   const result = await dialog.showOpenDialog({
-    title: "选择 Nomi 项目文件夹",
-    buttonLabel: "打开文件夹",
+    title: desktopT("workspace.selectTitle"),
+    buttonLabel: desktopT("workspace.openButton"),
     properties: ["openDirectory", "createDirectory"],
   });
   if (result.canceled || !result.filePaths[0]) {

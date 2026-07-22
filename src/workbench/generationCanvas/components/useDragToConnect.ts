@@ -6,6 +6,18 @@ import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
 
 type Offset = { x: number; y: number }
 
+function findConnectionTargetNodeId(clientX: number, clientY: number, sourceNodeId: string): string | null {
+  const hitStack = document.elementsFromPoint(clientX, clientY)
+  let sourceHit = false
+  for (const hit of hitStack) {
+    const nodeId = hit.closest<HTMLElement>('[data-node-id]')?.dataset.nodeId
+    if (!nodeId) continue
+    if (nodeId !== sourceNodeId) return nodeId
+    sourceHit = true
+  }
+  return sourceHit ? sourceNodeId : null
+}
+
 type UseDragToConnectArgs = {
   readOnly: boolean
   pendingConnectionSourceId: string
@@ -56,12 +68,12 @@ export function useDragToConnect({
       })
     }
     const handleUp = (event: PointerEvent) => {
-      // 命中用**真实渲染的节点 DOM**（松手处指针下的元素），不再用名义尺寸算 AABB——
+      // 命中用**真实渲染的节点 DOM**（松手处完整元素栈），不再用名义尺寸算 AABB——
       // 节点真实渲染高（resolvePreviewHeight：生成后按图比例、卡片类固定高）常比名义尺寸高，
       // 旧 AABB 命中盒比可见卡矮 → 松手落在卡片可见下半区时 find 落空、静默取消（「线连不上」R1）。
-      // 用 elementFromPoint 命中即所见即所得；连线预览线 pointer-events:none 不挡。
-      const hit = document.elementFromPoint(event.clientX, event.clientY)
-      const targetId = (hit?.closest('[data-node-id]') as HTMLElement | null)?.dataset.nodeId
+      // elementsFromPoint 会穿过节点上的浮层/工具条/透明交互层，找到下方第一张非源节点卡；
+      // 用户只要把线拉到可落节点的任意可见区域即可，不必精确命中连接点。
+      const targetId = findConnectionTargetNodeId(event.clientX, event.clientY, pendingConnectionSourceId)
       if (targetId === pendingConnectionSourceId) {
         cancelConnection()
       } else if (targetId) {

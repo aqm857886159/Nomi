@@ -7,6 +7,7 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { getNodeSize } from '../model/generationNodeKinds'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { toast } from '../../../ui/toast'
+import i18n from '../../../i18n'
 
 export type TextEditNodeSpec = {
   title: string
@@ -40,21 +41,22 @@ const NANO_BANANA_EDIT_FALLBACK_META: Record<string, unknown> = {
 export function buildTextEditNodeSpec(node: GenerationCanvasNode): TextEditNodeSpec | null {
   const srcUrl = node.result?.url
   if (!srcUrl) return null
-  const name = (node.title || '').trim() || '图片'
+  const name = (node.title || '').trim() || i18n.t('generationCommon.derivative.image')
   const srcMeta = (node.meta || {}) as Record<string, unknown>
-  const modelMeta = typeof srcMeta.modelKey === 'string' && srcMeta.modelKey
-    ? {
-        modelKey: srcMeta.modelKey,
-        modelAlias: srcMeta.modelAlias,
-        modelVendor: srcMeta.modelVendor,
-        vendor: srcMeta.vendor,
-        modelLabel: srcMeta.modelLabel,
-        imageModel: srcMeta.imageModel,
-        imageModelVendor: srcMeta.imageModelVendor,
-      }
-    : NANO_BANANA_EDIT_FALLBACK_META
+  const modelMeta =
+    typeof srcMeta.modelKey === 'string' && srcMeta.modelKey
+      ? {
+          modelKey: srcMeta.modelKey,
+          modelAlias: srcMeta.modelAlias,
+          modelVendor: srcMeta.modelVendor,
+          vendor: srcMeta.vendor,
+          modelLabel: srcMeta.modelLabel,
+          imageModel: srcMeta.imageModel,
+          imageModelVendor: srcMeta.imageModelVendor,
+        }
+      : NANO_BANANA_EDIT_FALLBACK_META
   return {
-    title: `${name}·改字`,
+    title: i18n.t('generationCommon.derivative.textEditTitle', { name }),
     prompt: buildTextEditPrompt(),
     references: [srcUrl],
     meta: { ...modelMeta, referenceImages: [srcUrl], referenceImageUrls: [srcUrl] },
@@ -67,8 +69,13 @@ export function applyTextEdit(node: GenerationCanvasNode): void {
   const spec = buildTextEditNodeSpec(node)
   if (!spec) return
   const store = useGenerationCanvasStore.getState()
-  const created = store.addNode({ kind: 'image', title: spec.title, position: spec.position, categoryId: node.categoryId })
+  const created = store.addNode({
+    kind: 'image',
+    title: spec.title,
+    position: spec.position,
+    categoryId: node.categoryId,
+  })
   store.updateNode(created.id, { prompt: spec.prompt, references: spec.references, meta: spec.meta })
   store.selectNode(created.id)
-  toast('填入原文与新文字后点生成', 'info')
+  toast(i18n.t('generationCommon.derivative.textEditReady'), 'info')
 }

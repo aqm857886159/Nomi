@@ -1,4 +1,5 @@
 import { IconFolderMinus, IconFolderPlus, IconPlayerPlay, IconX } from '@tabler/icons-react'
+import { useTranslation } from 'react-i18next'
 import { WorkbenchIconButton } from '../../../design'
 import { cn } from '../../../utils/cn'
 
@@ -21,6 +22,7 @@ export function CanvasSelectionToolbar({
   onUngroupSelectedNodes,
   onClearSelection,
 }: CanvasSelectionToolbarProps): JSX.Element {
+  const { t } = useTranslation()
   return (
     <div
       className={cn(
@@ -30,10 +32,12 @@ export function CanvasSelectionToolbar({
         'bg-nomi-paper/[0.96] shadow-nomi-md pointer-events-auto',
       )}
       style={{ transform }}
-      aria-label="选中区域操作"
+      aria-label={t('generationCommon.selection.aria')}
       onPointerDown={(event) => event.stopPropagation()}
     >
-      <span className={cn('pl-1.5 pr-1 text-nomi-ink-60 text-body-sm whitespace-nowrap')}>已选 {selectedCount} 个</span>
+      <span className={cn('pl-1.5 pr-1 text-nomi-ink-60 text-body-sm whitespace-nowrap')}>
+        {t('generationCommon.selection.count', { count: selectedCount })}
+      </span>
       <button
         type="button"
         data-storyboard-run-all="true"
@@ -42,19 +46,31 @@ export function CanvasSelectionToolbar({
           'bg-nomi-ink text-nomi-paper text-body font-medium hover:bg-nomi-accent',
           'transition-colors duration-[var(--nomi-transition-fast)]',
         )}
-        title="生成选中节点（参考先生成、镜头后生成；缺参考的会提示先生成参考卡）"
+        title={t('generationCommon.selection.generateHint')}
         onClick={onBatchGenerate}
       >
         <IconPlayerPlay size={16} stroke={1.6} aria-hidden />
-        生成 {selectedCount} 个
+        {t('generationCommon.selection.generate', { count: selectedCount })}
       </button>
       <span className={cn('w-px h-4 bg-nomi-line')} />
       {selectedGroupCount > 0 ? (
-        <WorkbenchIconButton label="解除分组 (⇧⌘G)" icon={<IconFolderMinus size={16} />} onClick={onUngroupSelectedNodes} />
+        <WorkbenchIconButton
+          label={t('generationCommon.selection.ungroup')}
+          icon={<IconFolderMinus size={16} />}
+          onClick={onUngroupSelectedNodes}
+        />
       ) : (
-        <WorkbenchIconButton label="创建分组 (⌘G)" icon={<IconFolderPlus size={16} />} onClick={onGroupSelectedNodes} />
+        <WorkbenchIconButton
+          label={t('generationCommon.selection.group')}
+          icon={<IconFolderPlus size={16} />}
+          onClick={onGroupSelectedNodes}
+        />
       )}
-      <WorkbenchIconButton label="清除选择" icon={<IconX size={16} />} onClick={onClearSelection} />
+      <WorkbenchIconButton
+        label={t('generationCommon.selection.clear')}
+        icon={<IconX size={16} />}
+        onClick={onClearSelection}
+      />
     </div>
   )
 }

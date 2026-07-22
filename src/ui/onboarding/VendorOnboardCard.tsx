@@ -9,6 +9,7 @@
  * 样张：docs/design/mockups/onboarding-panel-A.html
  */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconKey, IconExternalLink, IconPencil } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
@@ -42,6 +43,7 @@ export function VendorOnboardCard({
   onToggleModel,
   onChanged,
 }: VendorOnboardCardProps): JSX.Element {
+  const { t } = useTranslation()
   // 已连通默认折叠 key 输入（显「已保存」）；点「更换」展开输入。
   const [editing, setEditing] = React.useState(!hasApiKey)
   // 多段凭证（如火山语音 App ID + Access Token）的草稿，按字段 key 存；单段家只有一个字段。
@@ -64,11 +66,11 @@ export function VendorOnboardCard({
         {
           key: 'apiKey',
           label: '',
-          placeholder: directory.credentialPlaceholder ?? '粘贴你的 API Key（sk-…）',
+          placeholder: directory.credentialPlaceholder ?? t('onboardingProviders.vendorCard.defaultKeyPlaceholder'),
           secret: true,
         },
       ],
-    [directory.credentialFields, directory.credentialPlaceholder],
+    [directory.credentialFields, directory.credentialPlaceholder, t],
   )
   const isMulti = fields.length > 1
 
@@ -79,7 +81,11 @@ export function VendorOnboardCard({
   const handleUnlock = React.useCallback(() => {
     const parts = fields.map((field) => (drafts[field.key] ?? '').trim())
     if (parts.some((part) => !part)) {
-      setError(isMulti ? '请把上面每一项都填上。' : '请先粘贴 API Key。')
+      setError(
+        isMulti
+          ? t('onboardingProviders.vendorCard.fillAllCredentials')
+          : t('onboardingProviders.vendorCard.pasteApiKeyFirst'),
+      )
       return
     }
     // 多段拼成单串存进唯一 key 槽（火山语音 → APP_ID:ACCESS_KEY）；后端按同一分隔符拆。
@@ -94,19 +100,21 @@ export function VendorOnboardCard({
       setEditing(false)
       onChanged()
     } catch (e) {
-      setError(`解锁失败：${e instanceof Error ? e.message : String(e)}`)
+      setError(
+        t('onboardingProviders.vendorCard.unlockFailed', { message: e instanceof Error ? e.message : String(e) }),
+      )
     } finally {
       setBusy(false)
     }
-  }, [fields, drafts, isMulti, directory.vendorKey, directory.credentialJoin, onChanged])
+  }, [fields, drafts, isMulti, directory.vendorKey, directory.credentialJoin, onChanged, t])
 
   const handleDisconnect = React.useCallback(async () => {
     const bridge = getDesktopBridge()
     if (!bridge) return
     const ok = await confirmDialog({
-      title: '断开供应商',
-      message: `断开「${vendorName}」？该家模型会回到"未连通"，需重新填 key。`,
-      confirmLabel: '断开',
+      title: t('onboardingProviders.vendorCard.disconnectTitle'),
+      message: t('onboardingProviders.vendorCard.disconnectMessage', { name: vendorName }),
+      confirmLabel: t('onboardingProviders.vendorCard.disconnect'),
       danger: true,
     })
     if (!ok) return
@@ -116,16 +124,18 @@ export function VendorOnboardCard({
       bridge.modelCatalog.clearVendorApiKey(directory.vendorKey)
       onChanged()
     } catch (e) {
-      setError(`断开失败：${e instanceof Error ? e.message : String(e)}`)
+      setError(
+        t('onboardingProviders.vendorCard.disconnectFailed', { message: e instanceof Error ? e.message : String(e) }),
+      )
     } finally {
       setBusy(false)
     }
-  }, [directory.vendorKey, vendorName, onChanged])
+  }, [directory.vendorKey, vendorName, onChanged, t])
 
   const handleSaveBaseUrl = React.useCallback(() => {
     const next = urlDraft.trim().replace(/\/+$/, '')
     if (!/^https?:\/\/\S+$/.test(next)) {
-      setError('接入地址需以 http(s):// 开头。')
+      setError(t('onboardingProviders.vendorCard.invalidAddress'))
       return
     }
     const bridge = getDesktopBridge()
@@ -137,11 +147,11 @@ export function VendorOnboardCard({
       setUrlEditing(false)
       onChanged()
     } catch (e) {
-      setError(`保存失败：${e instanceof Error ? e.message : String(e)}`)
+      setError(t('onboardingProviders.vendorCard.saveFailed', { message: e instanceof Error ? e.message : String(e) }))
     } finally {
       setBusy(false)
     }
-  }, [urlDraft, directory.vendorKey, onChanged])
+  }, [urlDraft, directory.vendorKey, onChanged, t])
 
   const openPromo = React.useCallback(() => {
     if (directory.promo) window.open(directory.promo.url, '_blank', 'noopener')
@@ -149,16 +159,20 @@ export function VendorOnboardCard({
 
   return (
     <FoldableModelCard
-      glyph={directory.logo
-        ? <img src={directory.logo} alt="" className="w-full h-full object-contain" />
-        : directory.glyph}
+      glyph={
+        directory.logo ? <img src={directory.logo} alt="" className="w-full h-full object-contain" /> : directory.glyph
+      }
       glyphTone={directory.logo ? 'logo' : 'ink'}
       name={vendorName}
-      subtitle={hasApiKey ? `${total} 个模型可用` : directory.tagline}
+      subtitle={hasApiKey ? t('onboardingProviders.vendorCard.modelsAvailable', { count: total }) : directory.tagline}
       status={hasApiKey ? 'ok' : 'todo'}
-      badge={!hasApiKey && directory.recommended ? (
-        <span className="text-micro font-semibold text-nomi-accent bg-nomi-accent-soft rounded-full px-2 py-[2px] whitespace-nowrap">新手推荐</span>
-      ) : undefined}
+      badge={
+        !hasApiKey && directory.recommended ? (
+          <span className="text-micro font-semibold text-nomi-accent bg-nomi-accent-soft rounded-full px-2 py-[2px] whitespace-nowrap">
+            {t('onboardingProviders.vendorCard.recommended')}
+          </span>
+        ) : undefined
+      }
       defaultExpanded={false}
     >
       {/* key 区 */}
@@ -182,7 +196,9 @@ export function VendorOnboardCard({
                     placeholder={field.placeholder}
                     value={drafts[field.key] ?? ''}
                     onChange={(e) => setDraft(field.key, e.currentTarget.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleUnlock() }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleUnlock()
+                    }}
                     disabled={busy}
                     className={cn(
                       'h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
@@ -204,7 +220,8 @@ export function VendorOnboardCard({
                     'hover:bg-nomi-accent disabled:opacity-50 disabled:cursor-not-allowed',
                   )}
                 >
-                  <IconKey size={14} stroke={1.6} />解锁
+                  <IconKey size={14} stroke={1.6} />
+                  {t('onboardingProviders.vendorCard.unlock')}
                 </button>
                 {hasApiKey ? (
                   <button
@@ -213,7 +230,7 @@ export function VendorOnboardCard({
                     disabled={busy}
                     className="text-caption text-nomi-ink-40 hover:text-nomi-ink-60"
                   >
-                    取消
+                    {t('common.cancel')}
                   </button>
                 ) : null}
               </div>
@@ -224,11 +241,13 @@ export function VendorOnboardCard({
               <div className="flex gap-2">
                 <input
                   type={fields[0].secret ? 'password' : 'text'}
-                  aria-label={`${vendorName} API Key`}
+                  aria-label={t('onboardingProviders.vendorCard.apiKeyAria', { name: vendorName })}
                   placeholder={fields[0].placeholder}
                   value={drafts[fields[0].key] ?? ''}
                   onChange={(e) => setDraft(fields[0].key, e.currentTarget.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleUnlock() }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleUnlock()
+                  }}
                   disabled={busy}
                   className={cn(
                     'flex-1 min-w-0 h-8 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
@@ -246,7 +265,8 @@ export function VendorOnboardCard({
                     'hover:bg-nomi-accent disabled:opacity-50 disabled:cursor-not-allowed',
                   )}
                 >
-                  <IconKey size={14} stroke={1.6} />解锁
+                  <IconKey size={14} stroke={1.6} />
+                  {t('onboardingProviders.vendorCard.unlock')}
                 </button>
               </div>
               {hasApiKey ? (
@@ -256,16 +276,18 @@ export function VendorOnboardCard({
                   disabled={busy}
                   className="self-start text-caption text-nomi-ink-40 hover:text-nomi-ink-60"
                 >
-                  取消
+                  {t('common.cancel')}
                 </button>
               ) : null}
             </>
           )}
-          <div className="text-caption text-nomi-ink-40">{directory.credentialHint ?? '填一次即可，密钥本地加密存储、只在调用时使用。'}</div>
+          <div className="text-caption text-nomi-ink-40">
+            {directory.credentialHint ?? t('onboardingProviders.vendorCard.credentialHint')}
+          </div>
         </div>
       ) : (
         <div className="flex items-center justify-between gap-2">
-          <span className="text-caption text-nomi-ink-60">凭证已保存</span>
+          <span className="text-caption text-nomi-ink-60">{t('onboardingProviders.vendorCard.credentialSaved')}</span>
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
@@ -273,7 +295,7 @@ export function VendorOnboardCard({
               disabled={busy}
               className="text-caption text-nomi-ink-60 border border-nomi-line rounded-full px-2.5 py-[3px] hover:border-nomi-ink-20"
             >
-              更换
+              {t('onboardingProviders.vendorCard.replace')}
             </button>
             <button
               type="button"
@@ -281,7 +303,7 @@ export function VendorOnboardCard({
               disabled={busy}
               className="text-caption text-nomi-ink-40 px-1 hover:text-workbench-danger"
             >
-              断开
+              {t('onboardingProviders.vendorCard.disconnect')}
             </button>
           </div>
         </div>
@@ -293,13 +315,16 @@ export function VendorOnboardCard({
         <div className="flex gap-2">
           <input
             type="text"
-            aria-label={`${vendorName} 接入地址`}
-            placeholder="https://…"
+            aria-label={t('onboardingProviders.vendorCard.addressAria', { name: vendorName })}
+            placeholder={t('onboardingProviders.vendorCard.addressPlaceholder')}
             value={urlDraft}
             onChange={(e) => setUrlDraft(e.currentTarget.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleSaveBaseUrl()
-              if (e.key === 'Escape') { setUrlEditing(false); setError('') }
+              if (e.key === 'Escape') {
+                setUrlEditing(false)
+                setError('')
+              }
             }}
             disabled={busy}
             autoFocus
@@ -319,24 +344,32 @@ export function VendorOnboardCard({
               'hover:bg-nomi-accent disabled:opacity-50 disabled:cursor-not-allowed',
             )}
           >
-            保存
+            {t('onboardingProviders.vendorCard.save')}
           </button>
           <button
             type="button"
-            onClick={() => { setUrlEditing(false); setError('') }}
+            onClick={() => {
+              setUrlEditing(false)
+              setError('')
+            }}
             disabled={busy}
             className="shrink-0 text-caption text-nomi-ink-40 hover:text-nomi-ink-60"
           >
-            取消
+            {t('common.cancel')}
           </button>
         </div>
       ) : baseUrl ? (
         <div className="flex items-center gap-1 min-w-0">
-          <span className="text-caption text-nomi-ink-30 truncate">接入地址：{baseUrl}</span>
+          <span className="text-caption text-nomi-ink-30 truncate">
+            {t('onboardingProviders.vendorCard.address', { address: baseUrl })}
+          </span>
           <button
             type="button"
-            aria-label={`编辑 ${vendorName} 接入地址`}
-            onClick={() => { setUrlDraft(baseUrl); setUrlEditing(true) }}
+            aria-label={t('onboardingProviders.vendorCard.editAddressAria', { name: vendorName })}
+            onClick={() => {
+              setUrlDraft(baseUrl)
+              setUrlEditing(true)
+            }}
             disabled={busy}
             className="shrink-0 p-0.5 text-nomi-ink-30 hover:text-nomi-ink-60"
           >

@@ -1,5 +1,6 @@
 import { TtlLruCache } from "./taskCache";
 import type { JsonRecord } from "../jsonUtils";
+import { desktopT } from "../i18n";
 
 // 「曾受理 taskId」账本（修 P1·把驱逐误当从不存在）。只存 id 字符串（极轻），故容量更大、
 // 存活更久：高并发(>200)把仍在轮询的条目从工作缓存 LRU 驱逐后，这里仍记得它「曾被受理」，
@@ -30,7 +31,7 @@ export function classifyTaskCacheMiss(taskId: string, wasAdmitted: boolean): { s
       status: "failed",
       raw: {
         code: "task_tracking_lost",
-        message: "本地任务追踪已丢失（可能因并发过高被清理）。该任务可能已在供应商侧完成——请稍后重试或在供应商后台查看。",
+        message: desktopT("tasks.trackingLost"),
         taskId,
       },
     };
@@ -39,7 +40,7 @@ export function classifyTaskCacheMiss(taskId: string, wasAdmitted: boolean): { s
     status: "failed",
     raw: {
       code: "task_unknown",
-      message: "未知任务：该任务不在本地待办缓存中（可能从未受理或 id 有误）。",
+      message: desktopT("tasks.unknown"),
       taskId,
     },
   };

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { getNodeSize } from './generationCanvasGeometry'
@@ -16,18 +17,19 @@ export function LightweightGenerationNode({
   appear: boolean
   onSelect: (nodeId: string, additive: boolean) => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const size = getNodeSize(node)
   const status = node.status || 'idle'
   const statusLabel =
     status === 'queued'
-      ? '排队中'
+      ? t('generationCommon.lightweightNode.queued')
       : status === 'running'
-        ? node.progress?.message || '生成中'
+        ? node.progress?.message || t('generationCommon.lightweightNode.running')
         : status === 'error'
-          ? '失败'
+          ? t('generationCommon.lightweightNode.error')
           : status === 'success'
-            ? '已生成'
-            : '待生成'
+            ? t('generationCommon.lightweightNode.success')
+            : t('generationCommon.lightweightNode.idle')
   return (
     <article
       className={cn(
@@ -72,7 +74,7 @@ export function LightweightGenerationNode({
         />
         <div className="min-w-0 min-h-0 p-3 flex flex-col justify-between gap-2">
           <div className="min-w-0 truncate text-body-sm font-medium text-nomi-ink">
-            {node.title || '未命名节点'}
+            {node.title || t('generationCommon.lightweightNode.untitled')}
           </div>
           <div className="min-w-0 truncate text-micro text-nomi-ink-50">
             {statusLabel}

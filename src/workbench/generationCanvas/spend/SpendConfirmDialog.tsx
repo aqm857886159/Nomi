@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { IconCoin, IconRobot } from '@tabler/icons-react'
 import { WorkbenchButton } from '../../../design'
@@ -10,6 +11,7 @@ import { useSpendConfirmStore } from './spendConfirm'
 // - agent 受理（不 light）：每次必确认。
 // - 外部 AI 助手（MCP，source='agent'）：换机器人图标 + 明细行 + 倒计时（到点自动按未确认返回，不死等）。
 export function SpendConfirmDialog() {
+  const { t } = useTranslation()
   const pending = useSpendConfirmStore((state) => state.pending)
   const resolvePending = useSpendConfirmStore((state) => state.resolvePending)
   const [suppress, setSuppress] = React.useState(false)
@@ -57,7 +59,9 @@ export function SpendConfirmDialog() {
         if (event.target === event.currentTarget) resolvePending(false)
       }}
     >
-      <div className={cn('w-[380px] max-w-[88%] rounded-nomi-lg border border-nomi-line bg-nomi-paper p-4 shadow-nomi-md')}>
+      <div
+        className={cn('w-[380px] max-w-[88%] rounded-nomi-lg border border-nomi-line bg-nomi-paper p-4 shadow-nomi-md')}
+      >
         <div className={cn('flex items-center gap-2.5 mb-2')}>
           <span
             className={cn(
@@ -69,7 +73,9 @@ export function SpendConfirmDialog() {
           </span>
           <div className={cn('min-w-0')}>
             <p className={cn('text-title font-medium text-nomi-ink truncate')}>{pending.title}</p>
-            {isAgent ? <p className={cn('text-micro text-nomi-ink-60')}>经 AI 助手（MCP）驱动 · 需你确认花费</p> : null}
+            {isAgent ? (
+              <p className={cn('text-micro text-nomi-ink-60')}>{t('generationCommon.spend.agentNotice')}</p>
+            ) : null}
           </div>
         </div>
 
@@ -94,26 +100,32 @@ export function SpendConfirmDialog() {
                 style={{ width: `${remainingPct}%` }}
               />
             </div>
-            <span className={cn('text-micro text-nomi-ink-60 tabular-nums shrink-0 w-[88px] text-right')}>{remainingSec}s 后自动忽略</span>
+            <span className={cn('text-micro text-nomi-ink-60 tabular-nums shrink-0 w-[88px] text-right')}>
+              {t('generationCommon.spend.autoIgnore', { seconds: remainingSec })}
+            </span>
           </div>
         ) : null}
 
         {pending.light ? (
-          <label className={cn('flex items-center gap-2 mb-4 cursor-pointer select-none text-caption text-nomi-ink-60')}>
+          <label
+            className={cn('flex items-center gap-2 mb-4 cursor-pointer select-none text-caption text-nomi-ink-60')}
+          >
             <input type="checkbox" checked={suppress} onChange={(event) => setSuppress(event.target.checked)} />
-            本次会话不再提示
+            {t('generationCommon.spend.suppressSession')}
           </label>
         ) : null}
 
         <div className={cn('flex items-center justify-end gap-2')}>
           <WorkbenchButton className={cn('h-8 px-4 cursor-pointer')} onClick={() => resolvePending(false)}>
-            {isAgent ? '忽略' : '取消'}
+            {isAgent ? t('generationCommon.spend.ignore') : t('generationCommon.spend.cancel')}
           </WorkbenchButton>
           <WorkbenchButton
-            className={cn('h-8 px-4 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-accent hover:text-nomi-paper')}
+            className={cn(
+              'h-8 px-4 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-accent hover:text-nomi-paper',
+            )}
             onClick={() => resolvePending(true, suppress)}
           >
-            {pending.confirmLabel || '确认生成'}
+            {pending.confirmLabel || t('generationCommon.spend.confirm')}
           </WorkbenchButton>
         </div>
       </div>

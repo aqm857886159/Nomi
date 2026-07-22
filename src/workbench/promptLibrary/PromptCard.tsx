@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconPlayerPlayFilled, IconPhoto, IconVideo } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../design'
@@ -11,6 +12,7 @@ type Props = {
 
 // 单张提示词卡:封面(图<img>/视频<video 首帧>)+标题渐变压字+类型角标。memo 化(搜索/滚动重渲不重建)。
 export const PromptCard = React.memo(function PromptCard({ prompt, onSelect }: Props): JSX.Element {
+  const { t } = useTranslation()
   const [broken, setBroken] = React.useState(false)
   const isVideo = prompt.mediaType === 'video'
   const hasMedia = Boolean(prompt.mediaUrl) && !broken
@@ -53,18 +55,22 @@ export const PromptCard = React.memo(function PromptCard({ prompt, onSelect }: P
             </div>
           )}
 
-          <span className={cn(
-            'absolute top-1.5 left-1.5 inline-flex items-center gap-1 px-1.5 py-px rounded-full text-micro leading-none',
-            'bg-nomi-overlay-chip text-nomi-paper backdrop-blur-sm',
-          )}>
+          <span
+            className={cn(
+              'absolute top-1.5 left-1.5 inline-flex items-center gap-1 px-1.5 py-px rounded-full text-micro leading-none',
+              'bg-nomi-overlay-chip text-nomi-paper backdrop-blur-sm',
+            )}
+          >
             {isVideo ? <IconPlayerPlayFilled size={9} /> : null}
-            {isVideo ? '视频' : '图片'}
+            {isVideo ? t('libraries.prompt.card.video') : t('libraries.prompt.card.image')}
           </span>
 
-          <span className={cn(
-            'absolute left-0 right-0 bottom-0 px-2 pt-3 pb-1.5',
-            'bg-gradient-to-t from-nomi-media-veil to-transparent',
-          )}>
+          <span
+            className={cn(
+              'absolute left-0 right-0 bottom-0 px-2 pt-3 pb-1.5',
+              'bg-gradient-to-t from-nomi-media-veil to-transparent',
+            )}
+          >
             <span className={cn('block text-caption text-nomi-paper font-medium truncate')}>{prompt.title}</span>
             <span className={cn('block text-micro text-nomi-paper/70 truncate')}>{prompt.source}</span>
           </span>

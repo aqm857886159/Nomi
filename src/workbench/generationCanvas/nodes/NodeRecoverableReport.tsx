@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconClockSearch, IconRefresh } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { WorkbenchButton } from '../../../design'
@@ -18,6 +19,7 @@ export function NodeRecoverableReport({
   onRecover?: () => void
   onDismiss?: () => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const [pending, setPending] = React.useState(false)
 
   const handleRecover = React.useCallback(
@@ -41,7 +43,7 @@ export function NodeRecoverableReport({
   return (
     <div
       role="status"
-      aria-label="任务可能已在上游完成，可重新拉取结果"
+      aria-label={t('generationCommon.recoverable.aria')}
       className={cn(
         'absolute inset-0 z-[5] flex flex-col rounded-nomi p-4',
         // 不透明纸底盖住棋盘格占位；细描边用中性 line（非 danger）——一眼是「等待中/可找回」不是「失败」。
@@ -51,11 +53,11 @@ export function NodeRecoverableReport({
       <div className="flex items-start gap-2">
         <IconClockSearch size={16} stroke={1.6} className="mt-[1px] shrink-0 text-nomi-ink-60" />
         <span className="select-text cursor-text text-body font-bold leading-snug text-nomi-ink">
-          任务可能已在上游完成
+          {t('generationCommon.recoverable.title')}
         </span>
       </div>
       <p className="mt-2 select-text cursor-text text-caption leading-relaxed text-nomi-ink-60">
-        等待已超上限，但上游可能仍出了片。点下面直接拉回，不用去服务商后台下载。
+        {t('generationCommon.recoverable.description')}
       </p>
 
       <div className="min-h-0 flex-1" />
@@ -65,21 +67,17 @@ export function NodeRecoverableReport({
           <WorkbenchButton
             onClick={handleRecover}
             disabled={pending}
-            aria-label="重新拉取结果"
+            aria-label={t('generationCommon.recoverable.recover')}
             className="bg-nomi-ink text-nomi-paper border-0 hover:bg-nomi-accent disabled:opacity-50"
           >
             <IconRefresh size={13} stroke={1.6} className={cn(pending && 'animate-spin')} />
-            {pending ? '正在拉取…' : '重新拉取结果'}
+            {pending ? t('generationCommon.recoverable.recovering') : t('generationCommon.recoverable.recover')}
           </WorkbenchButton>
         ) : null}
         <div className="min-w-0 flex-1" />
         {onDismiss ? (
-          <button
-            type="button"
-            onClick={handleDismiss}
-            className="text-caption text-nomi-ink-40 hover:text-nomi-ink"
-          >
-            标记为失败
+          <button type="button" onClick={handleDismiss} className="text-caption text-nomi-ink-40 hover:text-nomi-ink">
+            {t('generationCommon.recoverable.dismiss')}
           </button>
         ) : null}
       </div>

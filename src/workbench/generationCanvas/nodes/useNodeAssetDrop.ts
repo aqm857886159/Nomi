@@ -4,6 +4,7 @@
 // ② stopPropagation + preventDefault，否则冒泡到 stage.handleStageDrop 会新建独立 asset 卡；
 // ③ 统一经 addAssetUrlToNode 单源写入（含去重/上限）。
 import React from 'react'
+import i18n from '../../../i18n'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { importWorkbenchLocalAssetFile } from '../../api/assetUploadApi'
 import { assetUrl } from './controls/parameterControlModel'
@@ -31,8 +32,11 @@ export type NodeAssetDrop = {
 }
 
 function reportOutcome(outcome: AddAssetOutcome): void {
-  if (outcome.status === 'full') showInfoToast(`最多 ${outcome.max} 个${outcome.label}`)
-  else if (outcome.status === 'no-slot') showInfoToast('当前模式没有可放该类型的参考')
+  if (outcome.status === 'full') {
+    showInfoToast(i18n.t('generationCommon.node.assetDrop.full', { max: outcome.max, label: outcome.label }))
+  } else if (outcome.status === 'no-slot') {
+    showInfoToast(i18n.t('generationCommon.node.assetDrop.noSlot'))
+  }
 }
 
 export function useNodeAssetDrop(node: GenerationCanvasNode): NodeAssetDrop {
@@ -71,8 +75,13 @@ export function useNodeAssetDrop(node: GenerationCanvasNode): NodeAssetDrop {
       const workspace = parseWorkspaceFileDrag(dt.getData(WORKSPACE_FILE_DRAG_MIME))
       if (workspace) {
         const kind = dropKindFromWorkspaceKind(workspace.kind)
-        if (!kind) { showInfoToast('当前模式没有可放该类型的参考'); return }
-        reportOutcome(addAssetUrlToNode(node.id, kind, buildWorkspaceFileUrl(workspace.projectId, workspace.relativePath)))
+        if (!kind) {
+          showInfoToast(i18n.t('generationCommon.node.assetDrop.noSlot'))
+          return
+        }
+        reportOutcome(
+          addAssetUrlToNode(node.id, kind, buildWorkspaceFileUrl(workspace.projectId, workspace.relativePath)),
+        )
         return
       }
 
@@ -83,17 +92,26 @@ export function useNodeAssetDrop(node: GenerationCanvasNode): NodeAssetDrop {
       try {
         for (const file of files) {
           const kind = dropKindFromMime(file.type)
-          if (!kind) { showInfoToast('不支持的文件类型'); continue }
+          if (!kind) {
+            showInfoToast(i18n.t('generationCommon.node.assetDrop.unsupported'))
+            continue
+          }
           try {
-            const uploaded = await importWorkbenchLocalAssetFile(file, file.name || '拖入素材', {
-              ownerNodeId: node.id,
-              taskKind: 'image_edit',
-            })
+            const uploaded = await importWorkbenchLocalAssetFile(
+              file,
+              file.name || i18n.t('generationCommon.node.assetDrop.defaultName'),
+              {
+                ownerNodeId: node.id,
+                taskKind: 'image_edit',
+              },
+            )
             const url = assetUrl(uploaded)
-            if (!url) throw new Error('服务器没有返回素材 URL')
+            if (!url) throw new Error(i18n.t('generationCommon.node.assetDrop.missingUrl'))
             reportOutcome(addAssetUrlToNode(node.id, kind, url))
           } catch (error) {
-            showInfoToast(error instanceof Error ? error.message : '上传失败')
+            showInfoToast(
+              error instanceof Error ? error.message : i18n.t('generationCommon.node.assetDrop.uploadFailed'),
+            )
           }
         }
       } finally {

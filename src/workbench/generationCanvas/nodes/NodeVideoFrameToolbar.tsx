@@ -1,6 +1,13 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconDownload, IconMaximize, IconPlayerTrackNext, IconPlayerTrackPrev } from '@tabler/icons-react'
-import { FloatingToolbarShell, TOOLBAR_ICON as I, ToolbarButton, ToolbarDivider, ToolbarIconButton } from './NodeFloatingToolbar'
+import {
+  FloatingToolbarShell,
+  TOOLBAR_ICON as I,
+  ToolbarButton,
+  ToolbarDivider,
+  ToolbarIconButton,
+} from './NodeFloatingToolbar'
 import { extractVideoFrameToNode } from './extractVideoFrameToNode'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
@@ -16,6 +23,7 @@ type Props = {
 }
 
 export default function NodeVideoFrameToolbar({ node, downloading, onDownload, onPreview }: Props): JSX.Element {
+  const { t } = useTranslation()
   const [busy, setBusy] = React.useState<'first' | 'last' | null>(null)
   const extract = (which: 'first' | 'last') => {
     if (busy) return
@@ -23,33 +31,39 @@ export default function NodeVideoFrameToolbar({ node, downloading, onDownload, o
     void extractVideoFrameToNode(node, which).finally(() => setBusy(null))
   }
   return (
-    <FloatingToolbarShell ariaLabel="视频操作">
+    <FloatingToolbarShell ariaLabel={t('generationCommon.videoToolbar.aria')}>
       <ToolbarIconButton
         icon={<IconMaximize size={I.size} stroke={I.stroke} />}
-        title="全屏预览"
-        ariaLabel="全屏预览视频"
+        title={t('generationCommon.videoToolbar.fullscreen')}
+        ariaLabel={t('generationCommon.videoToolbar.fullscreenAria')}
         onClick={onPreview}
       />
       <ToolbarDivider />
       <ToolbarButton
         icon={<IconPlayerTrackPrev size={I.size} stroke={I.stroke} />}
-        label={busy === 'first' ? '抽帧中…' : '抽首帧'}
-        title="抽取这段视频的第一帧 → 落成独立图片节点（可当首帧/参考）"
+        label={
+          busy === 'first'
+            ? t('generationCommon.videoToolbar.extracting')
+            : t('generationCommon.videoToolbar.firstFrame')
+        }
+        title={t('generationCommon.videoToolbar.firstFrameHint')}
         disabled={busy !== null}
         onClick={() => extract('first')}
       />
       <ToolbarButton
         icon={<IconPlayerTrackNext size={I.size} stroke={I.stroke} />}
-        label={busy === 'last' ? '抽帧中…' : '抽尾帧'}
-        title="抽取这段视频的最后一帧 → 落成独立图片节点（可当尾帧/接力源/参考）"
+        label={
+          busy === 'last' ? t('generationCommon.videoToolbar.extracting') : t('generationCommon.videoToolbar.lastFrame')
+        }
+        title={t('generationCommon.videoToolbar.lastFrameHint')}
         disabled={busy !== null}
         onClick={() => extract('last')}
       />
       <ToolbarDivider />
       <ToolbarButton
         icon={<IconDownload size={I.size} stroke={I.stroke} />}
-        label="下载"
-        title="下载 / 另存到本地"
+        label={t('generationCommon.imageToolbar.download')}
+        title={t('generationCommon.imageToolbar.downloadHint')}
         disabled={downloading}
         onClick={onDownload}
       />

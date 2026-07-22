@@ -5,14 +5,14 @@
  */
 export type TextFontId = 'default' | 'songti' | 'kaiti' | 'yuanti' | 'serif-en'
 
-export type TextFontOption = { id: TextFontId; label: string; stack: string }
+export type TextFontOption = { id: TextFontId; stack: string }
 
 export const TEXT_FONTS: TextFontOption[] = [
-  { id: 'default', label: '默认黑体', stack: 'Inter, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif' },
-  { id: 'songti', label: '宋体', stack: '"Songti SC", "STSong", "SimSun", "Source Han Serif SC", serif' },
-  { id: 'kaiti', label: '楷体', stack: '"Kaiti SC", "STKaiti", "KaiTi", serif' },
-  { id: 'yuanti', label: '圆体', stack: '"Yuanti SC", "PingFang SC", system-ui, sans-serif' },
-  { id: 'serif-en', label: '英文衬线', stack: 'Georgia, "Times New Roman", "Songti SC", serif' },
+  { id: 'default', stack: 'Inter, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif' },
+  { id: 'songti', stack: '"Songti SC", "STSong", "SimSun", "Source Han Serif SC", serif' },
+  { id: 'kaiti', stack: '"Kaiti SC", "STKaiti", "KaiTi", serif' },
+  { id: 'yuanti', stack: '"Yuanti SC", "PingFang SC", system-ui, sans-serif' },
+  { id: 'serif-en', stack: 'Georgia, "Times New Roman", "Songti SC", serif' },
 ]
 
 export const DEFAULT_TEXT_FONT_ID: TextFontId = 'default'

@@ -1,6 +1,7 @@
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import i18n from '../../../i18n'
 
 /**
  * 图片镜头 → 视频镜头（image-first 桥，用户拍板 2026-07-02）：
@@ -28,7 +29,7 @@ export function convertImageShotToVideo(node: GenerationCanvasNode): { nodeId: s
   }
   const video = state.addNode({
     kind: 'video',
-    title: node.title ? `${node.title} · 视频` : '',
+    title: node.title ? i18n.t('generationCommon.shotConversion.videoTitle', { name: node.title }) : '',
     prompt: node.prompt || '',
     meta: { sourceNodeId: node.id },
     position: { x: node.position.x + (node.size?.width ?? 320) + 80, y: node.position.y },

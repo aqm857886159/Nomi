@@ -1,15 +1,11 @@
 // 技能库单卡（画廊式，对齐提示词库的卡片语言）。token-only：颜色/圆角/字号全走设计系统。
 // 用户技能可删；内置技能只读（删除位显「内置 · 只读」）。能力缺口用 ⚠️ 标，点「在创作区用」锁定该技能。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconAlertTriangle, IconCheck, IconDownload, IconLock, IconMovie, IconTrash } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../design'
-import {
-  providerLabel,
-  skillCapabilityFor,
-  type SkillListItemDto,
-  type SkillProviderKind,
-} from '../api/skillApi'
+import { skillCapabilityFor, type SkillListItemDto, type SkillProviderKind } from '../api/skillApi'
 export function SkillCard({
   skill,
   available,
@@ -23,6 +19,9 @@ export function SkillCard({
   onExport: (skill: SkillListItemDto) => void
   onDelete: (skill: SkillListItemDto) => void
 }): JSX.Element {
+  const { t } = useTranslation()
+  const providerName = (kind: SkillProviderKind): string =>
+    t(`libraries.skill.provider.${kind}` as 'libraries.skill.provider.text')
   const cap = skillCapabilityFor(skill, available)
   const isUser = skill.origin === 'user'
 
@@ -33,17 +32,19 @@ export function SkillCard({
         <span className={cn('flex-1 min-w-0 truncate text-body-sm font-medium text-nomi-ink')}>{skill.label}</span>
         {skill.isPlaybook ? (
           <span className={cn('shrink-0 rounded-full bg-nomi-accent-soft px-2 py-0.5 text-micro text-nomi-accent')}>
-            playbook · {skill.stageLabels.length} 段
+            {t('libraries.skill.playbookStages', { count: skill.stageLabels.length })}
           </span>
         ) : (
-          <span className={cn('shrink-0 rounded-full bg-nomi-ink-05 px-2 py-0.5 text-micro text-nomi-ink-60')}>助手</span>
+          <span className={cn('shrink-0 rounded-full bg-nomi-ink-05 px-2 py-0.5 text-micro text-nomi-ink-60')}>
+            {t('libraries.skill.assistant')}
+          </span>
         )}
       </div>
 
       {skill.description ? (
         <p className={cn('text-caption text-nomi-ink-60 line-clamp-2')}>{skill.description}</p>
       ) : (
-        <p className={cn('text-caption text-nomi-ink-40')}>暂无说明</p>
+        <p className={cn('text-caption text-nomi-ink-40')}>{t('libraries.skill.noDescription')}</p>
       )}
 
       {skill.neededProviders.length > 0 && (
@@ -53,10 +54,13 @@ export function SkillCard({
             return (
               <span
                 key={kind}
-                className={cn('inline-flex items-center gap-0.5 text-micro', ok ? 'text-workbench-success' : 'text-nomi-ink-40')}
+                className={cn(
+                  'inline-flex items-center gap-0.5 text-micro',
+                  ok ? 'text-workbench-success' : 'text-nomi-ink-40',
+                )}
               >
                 {ok ? <IconCheck size={11} stroke={2} /> : <IconAlertTriangle size={11} stroke={2} />}
-                {providerLabel(kind)}
+                {providerName(kind)}
               </span>
             )
           })}
@@ -67,9 +71,11 @@ export function SkillCard({
         <button
           type="button"
           onClick={() => onUse(skill)}
-          className={cn('shrink-0 whitespace-nowrap rounded-nomi-sm px-2 py-1 text-caption text-nomi-accent hover:bg-nomi-accent-soft transition-colors')}
+          className={cn(
+            'shrink-0 whitespace-nowrap rounded-nomi-sm px-2 py-1 text-caption text-nomi-accent hover:bg-nomi-accent-soft transition-colors',
+          )}
         >
-          在创作区用
+          {t('libraries.skill.useInCreation')}
         </button>
         <span className={cn('flex-1')} />
         <Tooltip>
@@ -77,13 +83,15 @@ export function SkillCard({
             <button
               type="button"
               onClick={() => onExport(skill)}
-              aria-label={`导出 ${skill.label}`}
-              className={cn('shrink-0 w-7 h-7 grid place-items-center rounded-nomi-sm text-nomi-ink-60 hover:text-nomi-ink hover:bg-nomi-ink-05 transition-colors')}
+              aria-label={t('libraries.skill.exportAria', { name: skill.label })}
+              className={cn(
+                'shrink-0 w-7 h-7 grid place-items-center rounded-nomi-sm text-nomi-ink-60 hover:text-nomi-ink hover:bg-nomi-ink-05 transition-colors',
+              )}
             >
               <IconDownload size={14} stroke={1.7} />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="top">导出技能包</TooltipContent>
+          <TooltipContent side="top">{t('libraries.skill.exportPackage')}</TooltipContent>
         </Tooltip>
         {isUser ? (
           <Tooltip>
@@ -91,25 +99,27 @@ export function SkillCard({
               <button
                 type="button"
                 onClick={() => onDelete(skill)}
-                aria-label={`删除 ${skill.label}`}
-                className={cn('shrink-0 w-7 h-7 grid place-items-center rounded-nomi-sm text-nomi-ink-60 hover:text-workbench-danger hover:bg-nomi-ink-05 transition-colors')}
+                aria-label={t('libraries.skill.deleteAria', { name: skill.label })}
+                className={cn(
+                  'shrink-0 w-7 h-7 grid place-items-center rounded-nomi-sm text-nomi-ink-60 hover:text-workbench-danger hover:bg-nomi-ink-05 transition-colors',
+                )}
               >
                 <IconTrash size={14} stroke={1.7} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top">删除技能</TooltipContent>
+            <TooltipContent side="top">{t('libraries.skill.deleteSkill')}</TooltipContent>
           </Tooltip>
         ) : (
           <Tooltip>
             <TooltipTrigger asChild>
               <span
-                aria-label="内置技能，只读"
+                aria-label={t('libraries.skill.builtinReadonlyAria')}
                 className={cn('shrink-0 w-7 h-7 grid place-items-center text-nomi-ink-30')}
               >
                 <IconLock size={14} stroke={1.7} />
               </span>
             </TooltipTrigger>
-            <TooltipContent side="top">内置技能 · 只读</TooltipContent>
+            <TooltipContent side="top">{t('libraries.skill.builtinReadonly')}</TooltipContent>
           </Tooltip>
         )}
       </div>

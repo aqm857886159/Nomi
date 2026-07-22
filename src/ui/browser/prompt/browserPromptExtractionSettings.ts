@@ -1,20 +1,20 @@
 import {
   BROWSER_IMAGE_REPLICATE_PROMPT_EXTRACTION_PROMPT,
   BROWSER_IMAGE_STYLE_PROMPT_EXTRACTION_PROMPT,
-  BROWSER_PROMPT_EXTRACTION_MODE_LABELS,
+  browserPromptExtractionModeLabel,
   browserPromptExtractionPromptForMode,
   type BrowserPromptExtractionMode,
 } from './browserPromptExtraction'
-import type { BrowserPromptExtractionTemplate, BrowserPromptExtractionTemplateSettings } from '../popover/browserAssetPopoverTypes'
+import type {
+  BrowserPromptExtractionTemplate,
+  BrowserPromptExtractionTemplateSettings,
+} from '../popover/browserAssetPopoverTypes'
+import i18n from '../../../i18n'
 
 const BROWSER_PROMPT_EXTRACTION_SETTINGS_VERSION = 1
 const BROWSER_PROMPT_TEMPLATE_DEFAULT_IDS: Record<BrowserPromptExtractionMode, string> = {
   replicate: 'default:replicate',
   style: 'default:style',
-}
-const BROWSER_PROMPT_TEMPLATE_DEFAULT_TITLES: Record<BrowserPromptExtractionMode, string> = {
-  replicate: BROWSER_PROMPT_EXTRACTION_MODE_LABELS.replicate,
-  style: BROWSER_PROMPT_EXTRACTION_MODE_LABELS.style,
 }
 const BROWSER_PROMPT_TEMPLATE_DEFAULT_PROMPTS: Record<BrowserPromptExtractionMode, string> = {
   replicate: BROWSER_IMAGE_REPLICATE_PROMPT_EXTRACTION_PROMPT,
@@ -46,26 +46,31 @@ function normalizeBrowserPromptExtractionTemplate(input: unknown): BrowserPrompt
   if (!id || id.startsWith('default:')) return null
   return {
     id,
-    title: title || '未命名模板',
+    title: title || i18n.t('browserAssets.extraction.unnamedTemplate'),
     prompt,
     createdAt: typeof record.createdAt === 'string' ? record.createdAt : new Date().toISOString(),
     updatedAt: typeof record.updatedAt === 'string' ? record.updatedAt : undefined,
   }
 }
 
-export function normalizeBrowserPromptExtractionTemplateSettings(input: unknown): BrowserPromptExtractionTemplateSettings {
+export function normalizeBrowserPromptExtractionTemplateSettings(
+  input: unknown,
+): BrowserPromptExtractionTemplateSettings {
   const defaults = createDefaultBrowserPromptExtractionTemplateSettings()
   if (!input || typeof input !== 'object' || Array.isArray(input)) return defaults
   const record = input as Record<string, unknown>
-  const selected = record.selectedTemplateIds && typeof record.selectedTemplateIds === 'object'
-    ? record.selectedTemplateIds as Partial<Record<BrowserPromptExtractionMode, unknown>>
-    : {}
-  const rawOverrides = record.defaultOverrides && typeof record.defaultOverrides === 'object'
-    ? record.defaultOverrides as Partial<Record<BrowserPromptExtractionMode, unknown>>
-    : {}
-  const rawCustom = record.customTemplates && typeof record.customTemplates === 'object'
-    ? record.customTemplates as Partial<Record<BrowserPromptExtractionMode, unknown>>
-    : {}
+  const selected =
+    record.selectedTemplateIds && typeof record.selectedTemplateIds === 'object'
+      ? (record.selectedTemplateIds as Partial<Record<BrowserPromptExtractionMode, unknown>>)
+      : {}
+  const rawOverrides =
+    record.defaultOverrides && typeof record.defaultOverrides === 'object'
+      ? (record.defaultOverrides as Partial<Record<BrowserPromptExtractionMode, unknown>>)
+      : {}
+  const rawCustom =
+    record.customTemplates && typeof record.customTemplates === 'object'
+      ? (record.customTemplates as Partial<Record<BrowserPromptExtractionMode, unknown>>)
+      : {}
   const defaultOverrides: BrowserPromptExtractionTemplateSettings['defaultOverrides'] = {}
   const customTemplates: BrowserPromptExtractionTemplateSettings['customTemplates'] = {}
   for (const mode of ['replicate', 'style'] as const) {
@@ -83,11 +88,18 @@ export function normalizeBrowserPromptExtractionTemplateSettings(input: unknown)
       }
     }
     customTemplates[mode] = Array.isArray(rawCustom[mode])
-      ? rawCustom[mode].map(normalizeBrowserPromptExtractionTemplate).filter((item): item is BrowserPromptExtractionTemplate => Boolean(item))
+      ? rawCustom[mode]
+          .map(normalizeBrowserPromptExtractionTemplate)
+          .filter((item): item is BrowserPromptExtractionTemplate => Boolean(item))
       : []
     const selectedId = typeof selected[mode] === 'string' ? selected[mode]!.trim() : ''
-    const validIds = new Set([BROWSER_PROMPT_TEMPLATE_DEFAULT_IDS[mode], ...customTemplates[mode]!.map((template) => template.id)])
-    defaults.selectedTemplateIds[mode] = validIds.has(selectedId) ? selectedId : BROWSER_PROMPT_TEMPLATE_DEFAULT_IDS[mode]
+    const validIds = new Set([
+      BROWSER_PROMPT_TEMPLATE_DEFAULT_IDS[mode],
+      ...customTemplates[mode]!.map((template) => template.id),
+    ])
+    defaults.selectedTemplateIds[mode] = validIds.has(selectedId)
+      ? selectedId
+      : BROWSER_PROMPT_TEMPLATE_DEFAULT_IDS[mode]
   }
   return { ...defaults, defaultOverrides, customTemplates }
 }
@@ -100,7 +112,7 @@ export function browserPromptExtractionTemplatesForMode(
   return [
     {
       id: BROWSER_PROMPT_TEMPLATE_DEFAULT_IDS[mode],
-      title: override?.title || BROWSER_PROMPT_TEMPLATE_DEFAULT_TITLES[mode],
+      title: override?.title || browserPromptExtractionModeLabel(mode),
       prompt: override?.prompt || BROWSER_PROMPT_TEMPLATE_DEFAULT_PROMPTS[mode],
       builtin: true,
       updatedAt: override?.updatedAt,

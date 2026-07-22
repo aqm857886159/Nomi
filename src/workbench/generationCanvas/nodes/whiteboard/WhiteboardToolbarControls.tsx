@@ -1,19 +1,19 @@
 import React from 'react'
-import {
-  IconBrush,
-  IconChevronDown,
-  IconEraser,
-  IconPointer,
-  IconSquare,
-} from '@tabler/icons-react'
+import { useTranslation } from 'react-i18next'
+import { IconBrush, IconChevronDown, IconEraser, IconPointer, IconSquare } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
 import { ASPECT_RATIOS, type AspectRatioKey, type ToolKey } from './lib/canvas'
 
-export const TOOL_ITEMS: Array<{ key: ToolKey; label: string; icon: React.ReactNode; disabled?: boolean }> = [
-  { key: 'brush', label: '画笔', icon: <IconBrush size={17} stroke={1.7} /> },
-  { key: 'select', label: '选择', icon: <IconPointer size={17} stroke={1.7} /> },
-  { key: 'eraser', label: '橡皮', icon: <IconEraser size={17} stroke={1.7} /> },
-  { key: 'shape', label: '形状', icon: <IconSquare size={17} stroke={1.7} />, disabled: true },
+export const TOOL_ITEMS: Array<{
+  key: ToolKey
+  labelKey: 'brush' | 'select' | 'eraser' | 'shape'
+  icon: React.ReactNode
+  disabled?: boolean
+}> = [
+  { key: 'brush', labelKey: 'brush', icon: <IconBrush size={17} stroke={1.7} /> },
+  { key: 'select', labelKey: 'select', icon: <IconPointer size={17} stroke={1.7} /> },
+  { key: 'eraser', labelKey: 'eraser', icon: <IconEraser size={17} stroke={1.7} /> },
+  { key: 'shape', labelKey: 'shape', icon: <IconSquare size={17} stroke={1.7} />, disabled: true },
 ]
 
 type AspectRatioPopoverProps = {
@@ -22,6 +22,7 @@ type AspectRatioPopoverProps = {
 }
 
 export function AspectRatioPopover({ value, onChange }: AspectRatioPopoverProps): JSX.Element {
+  const { t } = useTranslation()
   const [open, setOpen] = React.useState(false)
   const rootRef = React.useRef<HTMLDivElement | null>(null)
 
@@ -53,11 +54,11 @@ export function AspectRatioPopover({ value, onChange }: AspectRatioPopoverProps)
         )}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={`画板比例 ${value}`}
-        title="画板比例"
+        aria-label={t('generationCommon.whiteboard.ratioAria', { value })}
+        title={t('generationCommon.whiteboard.ratioAria', { value })}
         onClick={() => setOpen((current) => !current)}
       >
-        <span className="text-nomi-ink-40">比例</span>
+        <span className="text-nomi-ink-40">{t('generationCommon.whiteboard.ratio')}</span>
         <span className="tabular-nums">{value}</span>
         <IconChevronDown size={14} stroke={1.7} className="ml-auto text-nomi-ink-40" aria-hidden />
       </button>
@@ -67,7 +68,7 @@ export function AspectRatioPopover({ value, onChange }: AspectRatioPopoverProps)
             'absolute bottom-[calc(100%+8px)] left-1/2 z-[30] w-[138px] -translate-x-1/2 rounded-nomi border border-nomi-line bg-nomi-paper p-1 shadow-nomi-md',
           )}
           role="listbox"
-          aria-label="选择画板比例"
+          aria-label={t('generationCommon.whiteboard.selectRatio')}
           onPointerDown={(event) => event.stopPropagation()}
         >
           {ASPECT_RATIOS.map((ratio) => {
@@ -80,7 +81,9 @@ export function AspectRatioPopover({ value, onChange }: AspectRatioPopoverProps)
                 aria-selected={active}
                 className={cn(
                   'flex h-8 w-full items-center gap-2 rounded-nomi-sm px-2 text-left text-caption transition-colors',
-                  active ? 'bg-nomi-accent-soft font-semibold text-nomi-accent' : 'text-nomi-ink-80 hover:bg-nomi-ink-05 hover:text-nomi-ink',
+                  active
+                    ? 'bg-nomi-accent-soft font-semibold text-nomi-accent'
+                    : 'text-nomi-ink-80 hover:bg-nomi-ink-05 hover:text-nomi-ink',
                 )}
                 onClick={() => {
                   onChange(ratio.label)
@@ -89,7 +92,10 @@ export function AspectRatioPopover({ value, onChange }: AspectRatioPopoverProps)
               >
                 <span className="min-w-0 flex-1 tabular-nums">{ratio.label}</span>
                 <span
-                  className={cn('grid h-4 w-6 place-items-center rounded-sm border border-nomi-line bg-nomi-ink-05', active && 'border-nomi-accent')}
+                  className={cn(
+                    'grid h-4 w-6 place-items-center rounded-sm border border-nomi-line bg-nomi-ink-05',
+                    active && 'border-nomi-accent',
+                  )}
                   aria-hidden
                 >
                   <span
@@ -114,7 +120,12 @@ type ToolIconButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   active?: boolean
 }
 
-export function ToolIconButton({ active = false, className, type = 'button', ...props }: ToolIconButtonProps): JSX.Element {
+export function ToolIconButton({
+  active = false,
+  className,
+  type = 'button',
+  ...props
+}: ToolIconButtonProps): JSX.Element {
   return (
     <button
       {...props}

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconCheck, IconCopy, IconDownload, IconMaximize, IconUpload } from '@tabler/icons-react'
 import ProvenancePanel from './ProvenancePanel'
 import { ShotPreviewOverlays } from './ConvertShotToVideoButton'
@@ -70,11 +71,11 @@ export type BaseGenerationNodeProps = {
   focusFlash?: boolean
   appear?: boolean
 }
-const Scene3DEditor = lazyWithChunkBoundary('3D 场景编辑器', () => import('./Scene3DEditor')) // A5：chunk 失败只降级本卡
-const Model3DViewer = lazyWithChunkBoundary('3D 模型预览', () => import('./model3d/Model3DViewer')) // 生成出的 .glb 卡内可旋转预览（R3F）
-const TextDocumentNode = lazyWithChunkBoundary('文本节点编辑器', () => import('./render/TextDocumentNode'))
-const PanoramaViewer = lazyWithChunkBoundary('全景预览', () => import('./PanoramaViewer'))
-const NodeGenerationComposer = lazyWithChunkBoundary('节点生成面板', () => import('./NodeGenerationComposer'))
+const Scene3DEditor = lazyWithChunkBoundary('i18n:generationCommon.chunk.scene3dEditor', () => import('./Scene3DEditor')) // A5：chunk 失败只降级本卡
+const Model3DViewer = lazyWithChunkBoundary('i18n:generationCommon.chunk.model3dViewer', () => import('./model3d/Model3DViewer')) // 生成出的 .glb 卡内可旋转预览（R3F）
+const TextDocumentNode = lazyWithChunkBoundary('i18n:generationCommon.chunk.textEditor', () => import('./render/TextDocumentNode'))
+const PanoramaViewer = lazyWithChunkBoundary('i18n:generationCommon.chunk.panoramaViewer', () => import('./PanoramaViewer'))
+const NodeGenerationComposer = lazyWithChunkBoundary('i18n:generationCommon.chunk.composer', () => import('./NodeGenerationComposer'))
 
 function NodeBodyLoading(): JSX.Element {
   return <div className="h-full w-full rounded-nomi bg-nomi-paper shadow-nomi-md ring-1 ring-inset ring-nomi-line" />
@@ -87,6 +88,7 @@ function BaseGenerationNodeImpl({
   focusFlash = false,
   appear = false,
 }: BaseGenerationNodeProps): JSX.Element {
+  const { t } = useTranslation()
   const selectNode = useGenerationCanvasStore((state) => state.selectNode)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
@@ -152,7 +154,7 @@ function BaseGenerationNodeImpl({
       startFrame,
     })
     if (!clip) {
-      toast('该节点还没生成画面，先点「生成」', 'info')
+      toast(t('generationCommon.node.generateFirst'), 'info')
       return
     }
     useWorkbenchStore.getState().addTimelineClipAtFrame(clip, getTrackTypeForClipType(clip.type), startFrame)
@@ -243,14 +245,17 @@ function BaseGenerationNodeImpl({
   const showStatusBadge = status === 'queued' || status === 'running'
 
   const sourceNodeLabel =
-    sourceNodeTitle || (node.derivedFrom && !sourceNodeExists ? '源节点已不在当前项目' : node.derivedFrom || '')
-  const sourceCategoryName = sourceNodeCategoryId ? getBuiltinCategoryById(sourceNodeCategoryId)?.name : null
+    sourceNodeTitle || (node.derivedFrom && !sourceNodeExists ? t('generationCommon.node.sourceMissing') : node.derivedFrom || '')
+  const sourceCategory = sourceNodeCategoryId ? getBuiltinCategoryById(sourceNodeCategoryId) : null
+  const sourceCategoryName = sourceCategory
+    ? t(`libraries.sidebar.builtinCategory.${sourceCategory.id}` as 'libraries.sidebar.builtinCategory.shots')
+    : null
   const independentCopyLabel =
     sourceCategoryName && sourceNodeExists
-      ? `独立副本（来自 ${sourceCategoryName}·${sourceNodeLabel}）`
+      ? t('generationCommon.node.copyFromCategory', { category: sourceCategoryName, source: sourceNodeLabel })
       : sourceNodeExists
-        ? `独立副本（来自 ${sourceNodeLabel}）`
-        : '独立副本（源节点已不存在）'
+        ? t('generationCommon.node.copyFrom', { source: sourceNodeLabel })
+        : t('generationCommon.node.copySourceMissing')
   const nodeExecutionKind = getGenerationNodeExecutionKind(node.kind)
   // L3：待生成卡给镜头序号，让未选中的占位卡也能一眼分清哪个镜头（非 shots 返回 null）。
   const shotIndex = useShotIndex(node.id, node.categoryId)
@@ -337,7 +342,7 @@ function BaseGenerationNodeImpl({
                 'opacity-80 transition-opacity duration-150 hover:opacity-100',
                 'data-[active=true]:opacity-100',
               )}
-              aria-label={isPendingConnectionTarget ? '连接到此节点' : '从此节点开始连线'}
+              aria-label={isPendingConnectionTarget ? t('generationCommon.node.connectHere') : t('generationCommon.node.startConnection')}
               data-active={isPendingConnectionTarget ? 'true' : 'false'}
               onPointerDown={(event) => {
                 if (isPendingConnectionTarget) {
@@ -362,7 +367,7 @@ function BaseGenerationNodeImpl({
                 'opacity-80 transition-opacity duration-150 hover:opacity-100',
                 'data-[active=true]:opacity-100',
               )}
-              aria-label="从此节点开始连线"
+              aria-label={t('generationCommon.node.startConnection')}
               data-active={isPendingConnectionSource ? 'true' : 'false'}
               onPointerDown={(event) => handleConnectionDragStart(event, 'right')}
             >
@@ -373,25 +378,25 @@ function BaseGenerationNodeImpl({
       ) : null}
 
       {node.kind === 'panorama' && selected && !isMultiSelectActive && !readOnly && node.result?.url ? (
-        <FloatingToolbarShell ariaLabel="全景图操作">
+        <FloatingToolbarShell ariaLabel={t('generationCommon.node.panoramaActions')}>
           <ToolbarButton
             icon={<IconMaximize size={TBI.size} stroke={TBI.stroke} />}
-            label="全景预览"
-            title="全景预览"
+            label={t('generationCommon.node.panoramaPreview')}
+            title={t('generationCommon.node.panoramaPreview')}
             onClick={() => panoramaFullscreenRef.current?.()}
           />
           <ToolbarDivider />
           <ToolbarButton
             icon={<IconUpload size={TBI.size} stroke={TBI.stroke} />}
-            label="重新上传"
-            title="重新上传全景图"
+            label={t('generationCommon.node.reupload')}
+            title={t('generationCommon.node.reuploadPanorama')}
             onClick={() => panoramaUploadInputRef.current?.click()}
           />
           <ToolbarDivider />
           <ToolbarButton
             icon={<IconDownload size={TBI.size} stroke={TBI.stroke} />}
-            label="下载"
-            title="下载 / 另存到本地"
+            label={t('generationCommon.imageToolbar.download')}
+            title={t('generationCommon.imageToolbar.downloadHint')}
             disabled={panoramaDownloading}
             onClick={downloadPanorama}
           />
@@ -456,14 +461,14 @@ function BaseGenerationNodeImpl({
           <button
             type="button"
             className="generation-canvas-v2-node__derived-badge"
-            aria-label={sourceNodeExists ? `定位源节点：${sourceNodeLabel}` : '源节点已不存在'}
+            aria-label={sourceNodeExists ? t('generationCommon.node.locateSource', { source: sourceNodeLabel }) : t('generationCommon.node.sourceNoLongerExists')}
             title={independentCopyLabel}
             disabled={!sourceNodeExists}
             onClick={handleFocusSourceNode}
             onPointerDown={(event) => event.stopPropagation()}
           >
             <IconCopy size={13} stroke={1.8} aria-hidden="true" />
-            <span>独立副本</span>
+            <span>{t('generationCommon.node.independentCopy')}</span>
           </button>
         ) : null}
         {hasResult && !imageStackOpen ? (
@@ -655,7 +660,7 @@ function BaseGenerationNodeImpl({
           )}
         >
           <IconCheck size={13} stroke={2.2} />
-          主图
+          {t('generationCommon.node.primaryImage')}
         </span>
       ) : null}
 
@@ -708,8 +713,8 @@ function BaseGenerationNodeImpl({
                 direction === 'se' && 'right-[-8px] bottom-[-8px]',
                 direction === 'sw' && 'bottom-[-8px] left-[-8px]',
               )}
-              aria-label={`从${direction}方向调整节点尺寸`}
-              title="调整节点尺寸"
+              aria-label={t('generationCommon.node.resizeAria', { direction })}
+              title={t('generationCommon.node.resize')}
               onPointerDown={handleResizePointerDown(direction)}
             />
           ))

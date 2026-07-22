@@ -2,14 +2,15 @@
 // 从组件抽出为 hook：默认选模型 / vendor 同步 / 供应商断开自愈 / archetype meta 初始化。
 // 行为与原组件逐字节一致——仅把 effect 体平移进来，依赖数组原样保留。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import type { ModelOption } from '../../../config/models'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import { buildModelControls, defaultPatchForControls, readMeta } from './controls/parameterControlModel'
 import {
-  buildModelControls,
-  defaultPatchForControls,
-  readMeta,
-} from './controls/parameterControlModel'
-import { ensureArchetypeNodeMeta, normalizeArchetypeVariantMeta, resolveArchetypeForModel } from './controls/archetypeMeta'
+  ensureArchetypeNodeMeta,
+  normalizeArchetypeVariantMeta,
+  resolveArchetypeForModel,
+} from './controls/archetypeMeta'
 import { remapArchetypeMode } from '../runner/usableVendorModel'
 import { showInfoToast } from '../../../utils/showInfoToast'
 import { chooseDefaultModelOption, resolveArchetypeForOption } from './nodeModelArchetype'
@@ -39,6 +40,7 @@ export function useNodeModelAutoSelect({
   isVideoLike,
   updateNode,
 }: UseNodeModelAutoSelectArgs): void {
+  const { t } = useTranslation()
   React.useEffect(() => {
     if (!isGenerationNode) return
     if (selectedModelValue) return
@@ -130,7 +132,11 @@ export function useNodeModelAutoSelect({
     if (!target?.value || !optionVendor) return
     const targetArchetype = resolveArchetypeForOption(target)
     const remapped = targetArchetype
-      ? remapArchetypeMode(sourceArchetype, (meta.archetype as { modeId?: string } | undefined)?.modeId, targetArchetype)
+      ? remapArchetypeMode(
+          sourceArchetype,
+          (meta.archetype as { modeId?: string } | undefined)?.modeId,
+          targetArchetype,
+        )
       : null
     updateNode(node.id, {
       meta: {
@@ -146,8 +152,19 @@ export function useNodeModelAutoSelect({
           : { imageModel: target.value, imageModelVendor: optionVendor }),
       },
     })
-    showInfoToast(`原供应商已断开，已自动切换到「${target.label}」`)
-  }, [isGenerationNode, isVideoLike, meta, modelOptions, node.id, node.meta, selectedModelOption, selectedModelValue, updateNode])
+    showInfoToast(t('generationCommon.node.providerDisconnectedSwitched', { model: target.label }))
+  }, [
+    isGenerationNode,
+    isVideoLike,
+    meta,
+    modelOptions,
+    node.id,
+    node.meta,
+    selectedModelOption,
+    selectedModelValue,
+    t,
+    updateNode,
+  ])
 
   // 选到一个有内置档案的模型、还没有命名空间 meta 时，初始化 node.meta.archetype（落到默认模式）。
   // 幂等：已是该档案则 no-op，不会循环。

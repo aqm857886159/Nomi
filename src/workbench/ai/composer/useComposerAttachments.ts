@@ -1,4 +1,5 @@
 import React from 'react'
+import i18n from '../../../i18n'
 import { importWorkbenchLocalAssetFile } from '../../api/assetUploadApi'
 import {
   COMPOSER_ATTACHMENT_MAX_BYTES,
@@ -58,7 +59,7 @@ export function useComposerAttachments(opts: {
     try {
       const asset = await importWorkbenchLocalAssetFile(file)
       const url = readAssetUrl(asset)
-      if (!url) throw new Error('上传未返回地址')
+      if (!url) throw new Error(i18n.t('runtime.attachments.uploadNoUrl'))
       setAttachments((prev) =>
         prev.map((item) => {
           if (item.id !== id) return item
@@ -69,11 +70,11 @@ export function useComposerAttachments(opts: {
         }),
       )
     } catch (caught: unknown) {
-      const message = caught instanceof Error ? caught.message : '附件上传失败'
+      const message = caught instanceof Error ? caught.message : i18n.t('runtime.attachments.uploadFailed')
       setAttachments((prev) =>
         prev.map((item) => (item.id === id ? { ...item, status: 'error', error: message } : item)),
       )
-      onErrorRef.current?.(`附件「${file.name}」上传失败：${message}`)
+      onErrorRef.current?.(i18n.t('runtime.attachments.uploadFailedWithName', { name: file.name, message }))
     }
   }, [setAttachments])
 
@@ -84,7 +85,12 @@ export function useComposerAttachments(opts: {
     const nextAttachments: ComposerAttachment[] = []
     for (const file of list) {
       if (file.size > COMPOSER_ATTACHMENT_MAX_BYTES) {
-        onErrorRef.current?.(`附件「${file.name}」超过 ${formatAttachmentSize(COMPOSER_ATTACHMENT_MAX_BYTES)} 上限。`)
+        onErrorRef.current?.(
+          i18n.t('runtime.attachments.tooLarge', {
+            name: file.name,
+            limit: formatAttachmentSize(COMPOSER_ATTACHMENT_MAX_BYTES),
+          }),
+        )
         continue
       }
       const id = nextAttachmentId()

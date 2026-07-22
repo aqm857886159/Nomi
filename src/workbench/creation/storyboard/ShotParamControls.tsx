@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconAdjustmentsHorizontal, IconChevronDown, IconChevronUp } from '@tabler/icons-react'
 import { NomiSelect } from '../../../design'
 import { cn } from '../../../utils/cn'
@@ -67,7 +68,11 @@ function makeParamIO(params: ParamIO['params'], onUpdate: ParamIO['onUpdate']) {
   return { valueOf, setParam }
 }
 
-function ParamSelect({ control, params, onUpdate }: { control: ModelParameterControl } & Pick<ParamIO, 'params' | 'onUpdate'>): JSX.Element {
+function ParamSelect({
+  control,
+  params,
+  onUpdate,
+}: { control: ModelParameterControl } & Pick<ParamIO, 'params' | 'onUpdate'>): JSX.Element {
   const { valueOf, setParam } = makeParamIO(params, onUpdate)
   return (
     <NomiSelect
@@ -93,6 +98,7 @@ export function ShotParamsInline({
   open,
   onToggleOpen,
 }: ParamIO & { open: boolean; onToggleOpen: () => void }): JSX.Element | null {
+  const { t } = useTranslation()
   const resolved = resolveShotParams(modelOption, modeId)
   if (!resolved) return null
   const { inline, hasDrawer } = resolved
@@ -109,12 +115,18 @@ export function ShotParamsInline({
           aria-expanded={open}
           className={cn(
             'h-6 px-2.5 rounded-full border text-caption inline-flex items-center gap-1',
-            open ? 'border-nomi-accent text-nomi-ink-80 bg-nomi-ink-05' : 'border-nomi-line text-nomi-ink-60 hover:text-nomi-ink-80',
+            open
+              ? 'border-nomi-accent text-nomi-ink-80 bg-nomi-ink-05'
+              : 'border-nomi-line text-nomi-ink-60 hover:text-nomi-ink-80',
           )}
         >
           <IconAdjustmentsHorizontal size={12} stroke={1.8} aria-hidden />
-          参数
-          {open ? <IconChevronUp size={12} stroke={1.8} aria-hidden /> : <IconChevronDown size={12} stroke={1.8} aria-hidden />}
+          {t('storyboardEditor.shotParams.parameters')}
+          {open ? (
+            <IconChevronUp size={12} stroke={1.8} aria-hidden />
+          ) : (
+            <IconChevronDown size={12} stroke={1.8} aria-hidden />
+          )}
         </button>
       ) : null}
     </>
@@ -132,6 +144,7 @@ export function ShotParamsDrawer({
   onUpdate,
   onApplyToAll,
 }: ParamIO & { onApplyToAll?: () => void }): JSX.Element | null {
+  const { t } = useTranslation()
   const { valueOf, setParam } = makeParamIO(params, onUpdate)
   const resolved = resolveShotParams(modelOption, modeId)
   if (!resolved) return null
@@ -141,8 +154,8 @@ export function ShotParamsDrawer({
     <div className="w-full mt-2 p-2.5 rounded-nomi-sm bg-nomi-ink-05 flex flex-col gap-2">
       {modes.length > 1 ? (
         <NomiSelect
-          ariaLabel="模式"
-          leadingLabel="模式"
+          ariaLabel={t('storyboardEditor.shotParams.mode')}
+          leadingLabel={t('storyboardEditor.shotParams.mode')}
           size="xs"
           value={mode.id}
           options={modes.map((m) => ({ value: m.id, label: m.vendorTerm || m.id }))}
@@ -156,7 +169,11 @@ export function ShotParamsDrawer({
             if (c.type === 'boolean') {
               return (
                 <label key={c.key} className="inline-flex items-center gap-1.5 text-caption text-nomi-ink-60">
-                  <input type="checkbox" checked={valueOf(c) === 'true'} onChange={(event) => setParam(c, event.target.checked)} />
+                  <input
+                    type="checkbox"
+                    checked={valueOf(c) === 'true'}
+                    onChange={(event) => setParam(c, event.target.checked)}
+                  />
                   {c.label}
                 </label>
               )
@@ -177,8 +194,12 @@ export function ShotParamsDrawer({
         </div>
       ) : null}
       {onApplyToAll ? (
-        <button type="button" onClick={onApplyToAll} className="self-start text-caption text-nomi-accent hover:underline">
-          套用到全部镜头
+        <button
+          type="button"
+          onClick={onApplyToAll}
+          className="self-start text-caption text-nomi-accent hover:underline"
+        >
+          {t('storyboardEditor.shotParams.applyAll')}
         </button>
       ) : null}
     </div>

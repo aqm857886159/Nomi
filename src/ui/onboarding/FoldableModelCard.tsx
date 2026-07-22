@@ -6,6 +6,7 @@
  * 样张：docs/design/mockups/onboarding-panel-A.html；规范：docs/plan/2026-06-07-onboarding-panel-redesign.md §5.1
  */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 
@@ -40,6 +41,7 @@ export function FoldableModelCard({
   defaultExpanded = false,
   children,
 }: FoldableModelCardProps): JSX.Element {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = React.useState(defaultExpanded)
   const bodyId = React.useId()
 
@@ -82,7 +84,7 @@ export function FoldableModelCard({
           )}
         >
           <span className={cn('w-1.5 h-1.5 rounded-full', status === 'ok' ? 'bg-workbench-success' : 'bg-nomi-ink-30')} />
-          {statusLabel ?? (status === 'ok' ? '已连通' : '待接入')}
+          {statusLabel ?? (status === 'ok' ? t('onboardingProviders.modelControls.connected') : t('onboardingProviders.modelControls.pending'))}
         </span>
         <IconChevronDown
           size={16}

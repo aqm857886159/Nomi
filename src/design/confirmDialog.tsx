@@ -9,12 +9,14 @@ import { DesignModal } from './overlays'
 import { WorkbenchButton } from './actions'
 import { cn } from '../utils/cn'
 import { bindConfirmDialogHost, type DialogRequest } from './confirmDialogStore'
+import { useTranslation } from 'react-i18next'
 
 /**
  * 全局宿主：App 根部挂一次（与 ToastHost 同级）。多请求按序排队逐个展示。
  * zIndex 高于模型设置浮卡（4000）——确认可能从浮卡内部发起。
  */
 export function ConfirmDialogHost(): JSX.Element {
+  const { t } = useTranslation()
   const [active, setActive] = React.useState<DialogRequest | null>(null)
   const [inputValue, setInputValue] = React.useState('')
   const pendingRef = React.useRef<DialogRequest[]>([])
@@ -53,7 +55,7 @@ export function ConfirmDialogHost(): JSX.Element {
       onClose={() => settle(cancelValue)}
       title={active?.title ?? ''}
       centered
-      size='sm'
+      size="sm"
       zIndex={5000}
       data-confirm-dialog={active ? active.kind : undefined}
     >
@@ -74,7 +76,9 @@ export function ConfirmDialogHost(): JSX.Element {
               </span>
             ) : null}
             {active?.message ? (
-              <p className={cn('m-0 min-w-0 flex-1 text-caption text-nomi-ink-80 whitespace-pre-line')}>{active.message}</p>
+              <p className={cn('m-0 min-w-0 flex-1 text-caption text-nomi-ink-80 whitespace-pre-line')}>
+                {active.message}
+              </p>
             ) : null}
           </div>
         ) : null}
@@ -83,7 +87,7 @@ export function ConfirmDialogHost(): JSX.Element {
             autoFocus
             value={inputValue}
             placeholder={active.placeholder}
-            data-confirm-dialog-input='true'
+            data-confirm-dialog-input="true"
             className={cn(
               'h-8 px-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper',
               'text-caption text-nomi-ink outline-none focus:border-nomi-ink-40',
@@ -100,10 +104,10 @@ export function ConfirmDialogHost(): JSX.Element {
               className={cn(
                 'h-7 px-3 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-nomi-ink-80 text-caption cursor-pointer hover:bg-nomi-ink-05',
               )}
-              data-confirm-dialog-cancel='true'
+              data-confirm-dialog-cancel="true"
               onClick={() => settle(cancelValue)}
             >
-              {active?.cancelLabel ?? '取消'}
+              {active?.cancelLabel ?? t('runtime.design.cancel')}
             </WorkbenchButton>
           ) : null}
           <WorkbenchButton
@@ -113,10 +117,11 @@ export function ConfirmDialogHost(): JSX.Element {
                 ? 'bg-[var(--nomi-snap-tag)] text-[var(--nomi-paper)] hover:bg-[var(--nomi-snap-tag)] hover:text-[var(--nomi-paper)] hover:shadow-nomi-sm'
                 : 'bg-nomi-ink text-nomi-paper hover:bg-nomi-accent',
             )}
-            data-confirm-dialog-confirm='true'
+            data-confirm-dialog-confirm="true"
             onClick={() => settle(active?.kind === 'prompt' ? inputValue : true)}
           >
-            {active?.confirmLabel ?? (active?.kind === 'alert' ? '知道了' : '确认')}
+            {active?.confirmLabel ??
+              (active?.kind === 'alert' ? t('runtime.design.gotIt') : t('runtime.design.confirm'))}
           </WorkbenchButton>
         </div>
       </div>

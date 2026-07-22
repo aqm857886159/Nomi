@@ -1,6 +1,7 @@
 import { ipcMain, webContents as electronWebContents } from "electron";
 import type { WebContents } from "electron";
 import { beginTurnTrace, traceChatEvent, traceGateDenied, traceToolDecision } from "../events/agentChatTrace";
+import { desktopT } from "../i18n";
 
 // ---------------------------------------------------------------------------
 // Agent chat V2 — real streaming + tool-call confirmation
@@ -80,7 +81,7 @@ export function registerAgentChatV2Ipc(): void {
           abortSignal: session.abortController.signal,
           awaitToolConfirmation: ({ toolCallId, toolName, args }) => new Promise((resolve) => {
             if (session.cancelled) {
-              resolve({ ok: false, message: "session cancelled" });
+              resolve({ ok: false, message: desktopT("agent.sessionCancelled") });
               return;
             }
             // 兜底超时：渲染层若永不回话（崩溃/事件丢失），到点自动按拒绝收口并清理。
@@ -89,7 +90,7 @@ export function registerAgentChatV2Ipc(): void {
               if (!pending) return;
               session.pendingConfirmations.delete(toolCallId);
               console.error(`[agentv2] 工具确认 ${CONFIRM_TIMEOUT_MS / 60_000} 分钟无响应，自动跳过（${toolName}）`);
-              pending.resolve({ ok: false, message: "工具确认超时（长时间无响应，已自动跳过）" });
+              pending.resolve({ ok: false, message: desktopT("agent.confirmTimeout") });
             }, CONFIRM_TIMEOUT_MS);
             session.pendingConfirmations.set(toolCallId, { resolve, timeout });
             sendChatV2Event(session, {

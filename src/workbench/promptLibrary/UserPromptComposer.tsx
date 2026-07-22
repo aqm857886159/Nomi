@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconX, IconDeviceFloppy } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import type { LibraryPrompt, PromptMediaType } from '../api/promptLibraryApi'
@@ -11,13 +12,11 @@ type Props = {
   onCancel: () => void
 }
 
-const TYPE_OPTIONS: { value: PromptMediaType; label: string }[] = [
-  { value: 'image', label: '图片' },
-  { value: 'video', label: '视频' },
-]
+const TYPE_OPTIONS: PromptMediaType[] = ['image', 'video']
 
 // 我的库新建/编辑表单(内联在画廊顶部)。标题选填、提示词必填、图/视频自选。
 export function UserPromptComposer({ initial, onSubmit, onCancel }: Props): JSX.Element {
+  const { t } = useTranslation()
   const [title, setTitle] = React.useState(initial?.title ?? '')
   const [prompt, setPrompt] = React.useState(initial?.prompt ?? '')
   const [promptType, setPromptType] = React.useState<PromptMediaType>(initial?.promptType ?? 'image')
@@ -32,7 +31,7 @@ export function UserPromptComposer({ initial, onSubmit, onCancel }: Props): JSX.
   const submit = async () => {
     const trimmed = prompt.trim()
     if (!trimmed) {
-      setError('提示词不能为空')
+      setError(t('libraries.prompt.composer.required'))
       promptRef.current?.focus()
       return
     }
@@ -41,7 +40,7 @@ export function UserPromptComposer({ initial, onSubmit, onCancel }: Props): JSX.
     try {
       await onSubmit({ title: title.trim() || undefined, prompt: trimmed, promptType })
     } catch (e) {
-      setError(e instanceof Error ? e.message : '保存失败')
+      setError(e instanceof Error ? e.message : t('libraries.prompt.composer.saveFailed'))
       setSaving(false)
     }
   }
@@ -54,24 +53,32 @@ export function UserPromptComposer({ initial, onSubmit, onCancel }: Props): JSX.
   return (
     <div className={cn('mb-3 p-3.5 rounded-nomi-lg border border-nomi-line bg-nomi-ink-02')}>
       <div className={cn('flex items-center gap-2 mb-2.5')}>
-        <b className={cn('text-caption font-semibold text-nomi-ink')}>{initial ? '编辑提示词' : '新建提示词'}</b>
+        <b className={cn('text-caption font-semibold text-nomi-ink')}>
+          {initial ? t('libraries.prompt.composer.edit') : t('libraries.prompt.composer.create')}
+        </b>
         <span className={cn('flex-1')} />
-        <div className={cn('inline-flex bg-nomi-ink-05 rounded-full p-0.5')} role="tablist" aria-label="提示词类型">
+        <div
+          className={cn('inline-flex bg-nomi-ink-05 rounded-full p-0.5')}
+          role="tablist"
+          aria-label={t('libraries.prompt.composer.typeAria')}
+        >
           {TYPE_OPTIONS.map((option) => {
-            const active = promptType === option.value
+            const active = promptType === option
             return (
               <button
-                key={option.value}
+                key={option}
                 type="button"
                 role="tab"
                 aria-selected={active}
                 className={cn(
                   'px-3 py-0.5 rounded-full text-caption cursor-pointer border-0 bg-transparent',
-                  active ? 'bg-nomi-paper text-nomi-ink font-semibold shadow-nomi-sm' : 'text-nomi-ink-60 hover:text-nomi-ink',
+                  active
+                    ? 'bg-nomi-paper text-nomi-ink font-semibold shadow-nomi-sm'
+                    : 'text-nomi-ink-60 hover:text-nomi-ink',
                 )}
-                onClick={() => setPromptType(option.value)}
+                onClick={() => setPromptType(option)}
               >
-                {option.label}
+                {t(`libraries.prompt.category.${option}` as 'libraries.prompt.category.image')}
               </button>
             )
           })}
@@ -80,7 +87,7 @@ export function UserPromptComposer({ initial, onSubmit, onCancel }: Props): JSX.
 
       <input
         className={cn(inputCls, 'mb-2')}
-        placeholder="标题（选填，如「黄昏剪影」）"
+        placeholder={t('libraries.prompt.composer.titlePlaceholder')}
         value={title}
         maxLength={60}
         onChange={(e) => setTitle(e.target.value)}
@@ -88,7 +95,7 @@ export function UserPromptComposer({ initial, onSubmit, onCancel }: Props): JSX.
       <textarea
         ref={promptRef}
         className={cn(inputCls, 'resize-none h-24 leading-relaxed')}
-        placeholder="把验证过好用的提示词粘进来…"
+        placeholder={t('libraries.prompt.composer.promptPlaceholder')}
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
         onKeyDown={(e) => {
@@ -102,17 +109,24 @@ export function UserPromptComposer({ initial, onSubmit, onCancel }: Props): JSX.
         <button
           type="button"
           onClick={onCancel}
-          className={cn('inline-flex items-center gap-1 h-8 px-3 rounded-full cursor-pointer border-0 bg-transparent text-caption text-nomi-ink-60 hover:text-nomi-ink hover:bg-nomi-ink-05')}
+          className={cn(
+            'inline-flex items-center gap-1 h-8 px-3 rounded-full cursor-pointer border-0 bg-transparent text-caption text-nomi-ink-60 hover:text-nomi-ink hover:bg-nomi-ink-05',
+          )}
         >
-          <IconX size={14} stroke={1.8} />取消
+          <IconX size={14} stroke={1.8} />
+          {t('libraries.prompt.composer.cancel')}
         </button>
         <button
           type="button"
           onClick={() => void submit()}
           disabled={saving}
-          className={cn('inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full cursor-pointer border-0', 'bg-nomi-accent text-nomi-paper text-caption font-medium hover:opacity-90 disabled:opacity-50')}
+          className={cn(
+            'inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full cursor-pointer border-0',
+            'bg-nomi-accent text-nomi-paper text-caption font-medium hover:opacity-90 disabled:opacity-50',
+          )}
         >
-          <IconDeviceFloppy size={14} stroke={1.8} />{initial ? '保存' : '存进我的库'}
+          <IconDeviceFloppy size={14} stroke={1.8} />
+          {initial ? t('libraries.prompt.composer.save') : t('libraries.prompt.composer.saveToMine')}
         </button>
       </div>
     </div>

@@ -3,6 +3,7 @@
 // 一个固定的家给全三条路。替代并删除：右栏顶层「轨迹」tab、顶栏轨迹 toggle、底部轨迹钮
 // （同一功能只有一个家，P1）。录 take tab 一键进入操控（仍走现有接控+REC 流程，三跳变两跳）。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconRoute, IconVideo, IconManFilled, IconPlayerRecord } from '@tabler/icons-react'
 import type { Scene3DCamera, Scene3DState } from './scene3dTypes'
 import type { Scene3DTrajectoryEditing } from './useScene3DTrajectoryEditing'
@@ -45,13 +46,22 @@ export function Scene3DMoveHub({
   canRecordTake: boolean
   onPossessTarget: (target: { kind: 'mannequin' | 'camera'; id: string }) => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const mannequins = state.objects.filter((object) => object.type === 'mannequin')
   const moveReady = isCameraMoveReady(state)
   // 录 take 目标：默认选中的相机 > 第一个假人 > 第一个相机
   const [takeTargetId, setTakeTargetId] = React.useState<string>('')
   const takeTargets = [
-    ...mannequins.map((object) => ({ kind: 'mannequin' as const, id: object.id, label: `假人 · ${object.name}` })),
-    ...state.cameras.map((camera) => ({ kind: 'camera' as const, id: camera.id, label: `相机 · ${camera.name}` })),
+    ...mannequins.map((object) => ({
+      kind: 'mannequin' as const,
+      id: object.id,
+      label: t('scene3d.moveHub.mannequinLabel', { name: object.name }),
+    })),
+    ...state.cameras.map((camera) => ({
+      kind: 'camera' as const,
+      id: camera.id,
+      label: t('scene3d.moveHub.cameraLabel', { name: camera.name }),
+    })),
   ]
   const effectiveTakeTarget = takeTargets.find((target) => target.id === takeTargetId)
     ?? takeTargets.find((target) => target.id === selectedCamera?.id)
@@ -60,25 +70,25 @@ export function Scene3DMoveHub({
   return (
     <div className="flex min-h-0 shrink-0 flex-col gap-2 border-t border-[var(--workbench-border)] p-3" data-coach="camera-move-panel">
       <div className="flex items-center gap-2">
-        <span className="text-caption font-medium text-[var(--nomi-ink)]">整运镜</span>
+        <span className="text-caption font-medium text-[var(--nomi-ink)]">{t('scene3d.moveHub.title')}</span>
         {moveReady ? (
-          <span className="text-micro text-[var(--nomi-ink-60)]">✓ 运镜就绪 → 点顶部「出片」</span>
+          <span className="text-micro text-[var(--nomi-ink-60)]">{t('scene3d.moveHub.ready')}</span>
         ) : (
-          <span className="text-micro text-[var(--nomi-ink-40)]">三选一，落轨即就绪</span>
+          <span className="text-micro text-[var(--nomi-ink-40)]">{t('scene3d.moveHub.chooseOne')}</span>
         )}
       </div>
       <div className="flex items-center gap-1 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-0.5">
-        <PanelButton title="运镜预设：13 招一键落轨迹" active={tab === 'preset'} onClick={() => onTabChange('preset')}>
+        <PanelButton title={t('scene3d.moveHub.presetTitle')} active={tab === 'preset'} onClick={() => onTabChange('preset')}>
           <IconVideo size={14} />
-          <span>预设</span>
+          <span>{t('scene3d.moveHub.preset')}</span>
         </PanelButton>
-        <PanelButton title="手动轨迹：加点/拖点/绑定" active={tab === 'trajectory'} onClick={() => onTabChange('trajectory')}>
+        <PanelButton title={t('scene3d.moveHub.trajectoryTitle')} active={tab === 'trajectory'} onClick={() => onTabChange('trajectory')}>
           <IconRoute size={14} />
-          <span>轨迹</span>
+          <span>{t('scene3d.moveHub.trajectory')}</span>
         </PanelButton>
-        <PanelButton title="录 take：实时操控录成参考视频" active={tab === 'take'} onClick={() => onTabChange('take')}>
+        <PanelButton title={t('scene3d.moveHub.takeTitle')} active={tab === 'take'} onClick={() => onTabChange('take')}>
           <IconPlayerRecord size={14} />
-          <span>录 take</span>
+          <span>{t('scene3d.moveHub.take')}</span>
         </PanelButton>
       </div>
       <div className="min-h-0 overflow-y-auto">
@@ -92,14 +102,14 @@ export function Scene3DMoveHub({
             />
           ) : (
             <div className="grid gap-2 rounded-nomi border border-dashed border-[var(--nomi-line-soft)] p-3 text-caption text-[var(--nomi-ink-60)]">
-              <span>运镜预设作用在相机上——先选中一个相机</span>
+              <span>{t('scene3d.moveHub.presetRequiresCamera')}</span>
               {state.cameras[0] && !readOnly ? (
                 <button
                   type="button"
                   className="h-8 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 text-caption text-[var(--nomi-ink)] hover:bg-[var(--nomi-ink-10)]"
                   onClick={() => onPickCamera(state.cameras[0].id)}
                 >
-                  选中「{state.cameras[0].name}」
+                  {t('scene3d.moveHub.selectCamera', { camera: state.cameras[0].name })}
                 </button>
               ) : null}
             </div>
@@ -111,10 +121,10 @@ export function Scene3DMoveHub({
               <button
                 type="button"
                 className="h-8 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 text-caption text-[var(--nomi-ink)] hover:bg-[var(--nomi-ink-10)]"
-                title="进入视口画点模式：点选轨迹后拖点，双击空地加点"
+                title={t('scene3d.moveHub.enterTrajectoryTitle')}
                 onClick={onEnterTrajectoryMode}
               >
-                进入视口编辑（双击空地可加点）
+                {t('scene3d.moveHub.enterTrajectory')}
               </button>
             ) : null}
             <TrajectoryPanel
@@ -146,11 +156,11 @@ export function Scene3DMoveHub({
         ) : null}
         {tab === 'take' ? (
           <div className="grid gap-2 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-2 text-caption text-[var(--nomi-ink-60)]">
-            <span>实时操控录制：WASD 走位/飞镜头，整段录成参考视频</span>
+            <span>{t('scene3d.moveHub.takeDescription')}</span>
             {canRecordTake && !readOnly ? (
               <>
                 <label className="grid gap-1">
-                  <span className="text-micro text-[var(--nomi-ink-60)]">操控对象</span>
+                  <span className="text-micro text-[var(--nomi-ink-60)]">{t('scene3d.moveHub.target')}</span>
                   <select
                     className="h-8 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none"
                     value={effectiveTakeTarget?.id ?? ''}
@@ -165,18 +175,18 @@ export function Scene3DMoveHub({
                   type="button"
                   disabled={!effectiveTakeTarget}
                   className="inline-flex h-8 items-center justify-center gap-1.5 rounded-nomi-sm bg-[var(--nomi-ink)] px-2 text-caption font-medium text-[var(--nomi-paper)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                  title="进入操控后，底部按 ● 开录"
+                  title={t('scene3d.moveHub.enterControlTitle')}
                   onClick={() => {
                     if (!effectiveTakeTarget) return
                     onPossessTarget({ kind: effectiveTakeTarget.kind, id: effectiveTakeTarget.id })
                   }}
                 >
                   <IconManFilled size={14} />
-                  进入操控（底部按 ● 开录）
+                  {t('scene3d.moveHub.enterControl')}
                 </button>
               </>
             ) : (
-              <span className="text-micro text-[var(--nomi-ink-40)]">当前环境不支持录 take</span>
+              <span className="text-micro text-[var(--nomi-ink-40)]">{t('scene3d.moveHub.takeUnsupported')}</span>
             )}
           </div>
         ) : null}

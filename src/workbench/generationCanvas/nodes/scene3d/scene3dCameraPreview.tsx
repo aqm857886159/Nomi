@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useThree } from '@react-three/fiber'
 import { FencedCanvas } from '../fencedCanvas'
 import { IconCamera, IconEye, IconRotate, IconChevronUp, IconChevronDown } from '@tabler/icons-react'
@@ -15,11 +16,7 @@ import {
   MannequinAssetBoundary,
   StaticObjectVisual,
 } from './scene3dObjects'
-import {
-  cameraWithPlaybackPosition,
-  objectWithPlaybackPose,
-  playbackCameraAtPlayhead,
-} from './scene3dPlayback'
+import { cameraWithPlaybackPosition, objectWithPlaybackPose, playbackCameraAtPlayhead } from './scene3dPlayback'
 import { clampRatio, useScene3DTrajectoryRuntimeStore } from './trajectory'
 
 export function cameraPreviewViewportStyle(aspectRatio: Scene3DAspectRatio): React.CSSProperties {
@@ -57,12 +54,7 @@ export function PreviewObjectView({
   roleStartIndex?: number
 }): JSX.Element {
   return (
-    <group
-      visible={object.visible}
-      position={object.position}
-      rotation={object.rotation}
-      scale={object.scale}
-    >
+    <group visible={object.visible} position={object.position} rotation={object.rotation} scale={object.scale}>
       {object.type === 'mannequin' ? (
         <MannequinAssetBoundary fallback={<ProceduralMannequin color={object.color || '#808080'} />}>
           <React.Suspense fallback={<ProceduralMannequin color={object.color || '#808080'} />}>
@@ -140,6 +132,7 @@ export function CameraPreview({
   onLevelCamera: () => void
   onScreenshot: () => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const playheadSeconds = useScene3DTrajectoryRuntimeStore((runtime) => runtime.playheadSeconds)
   const previewCamera = React.useMemo(
     () => cameraWithPlaybackPosition(state, camera, playheadSeconds, activeTrajectoryIds),
@@ -160,12 +153,14 @@ export function CameraPreview({
       )}
     >
       <div className={cn('flex items-center justify-between gap-2', collapsed ? '' : 'mb-2')}>
-        <div className="min-w-0 truncate text-caption font-medium">{camera.name} · {camera.aspectRatio}</div>
+        <div className="min-w-0 truncate text-caption font-medium">
+          {camera.name} · {camera.aspectRatio}
+        </div>
         <div className="flex shrink-0 items-center gap-1">
           <button
             className="grid size-7 place-items-center rounded-nomi-sm bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)]"
             type="button"
-            title={collapsed ? '展开相机预览' : '收起相机预览（不挡画面）'}
+            title={collapsed ? t('scene3d.cameraPreview.expand') : t('scene3d.cameraPreview.collapse')}
             aria-expanded={!collapsed}
             onClick={() => setCollapsed((value) => !value)}
           >
@@ -174,26 +169,35 @@ export function CameraPreview({
           <button
             className={cn(
               'inline-flex h-7 items-center gap-1 rounded-nomi-sm px-2 text-micro hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)] disabled:opacity-40',
-              cameraViewEditing ? 'bg-[var(--nomi-ink)] text-[var(--nomi-paper)]' : 'bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-60)]',
+              cameraViewEditing
+                ? 'bg-[var(--nomi-ink)] text-[var(--nomi-paper)]'
+                : 'bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-60)]',
             )}
             disabled={readOnly}
             type="button"
-            title={cameraViewEditing ? '正在取景调整，按 Esc 或点击顶部退出' : '从相机视角调整'}
+            title={
+              cameraViewEditing ? t('scene3d.cameraPreview.editingHint') : t('scene3d.cameraPreview.editFromCamera')
+            }
             onClick={onToggleViewEdit}
           >
             <IconEye size={14} />
-            <span>取景</span>
+            <span>{t('scene3d.cameraPreview.framing')}</span>
           </button>
           <button
             className="grid size-7 place-items-center rounded-nomi-sm bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)] disabled:opacity-40"
             disabled={readOnly}
             type="button"
-            title="水平摆正"
+            title={t('scene3d.cameraPreview.level')}
             onClick={onLevelCamera}
           >
             <IconRotate size={14} />
           </button>
-          <button className="grid size-7 place-items-center rounded-nomi-sm bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)]" type="button" title="相机截图" onClick={onScreenshot}>
+          <button
+            className="grid size-7 place-items-center rounded-nomi-sm bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)]"
+            type="button"
+            title={t('scene3d.cameraPreview.screenshot')}
+            onClick={onScreenshot}
+          >
             <IconCamera size={15} />
           </button>
         </div>
@@ -242,8 +246,13 @@ export function CameraPreview({
           </div>
           <div className="mt-3 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 py-2">
             <div className="mb-1 flex items-center justify-between gap-2 text-micro text-[var(--nomi-ink-60)]">
-              <span>焦段</span>
-              <span className="font-medium text-[var(--nomi-ink)]">{fovToFocalMm(camera.fov)}mm · FOV {Math.round(camera.fov)}°</span>
+              <span>{t('scene3d.cameraPreview.focalLength')}</span>
+              <span className="font-medium text-[var(--nomi-ink)]">
+                {t('scene3d.cameraPreview.focalSummary', {
+                  focal: fovToFocalMm(camera.fov),
+                  fov: Math.round(camera.fov),
+                })}
+              </span>
             </div>
             <input
               className="block h-1.5 w-full accent-[var(--nomi-ink)]"
@@ -256,14 +265,18 @@ export function CameraPreview({
               onChange={(event) => onFovChange(focalMmToFov(Number(event.currentTarget.value)))}
             />
             <div className="mt-1 grid grid-cols-3 text-micro text-[var(--nomi-ink-40)]">
-              <span>{FOCAL_MM_MIN} 广角</span>
-              <span className="text-center">50 标准</span>
-              <span className="text-right">{FOCAL_MM_MAX} 长焦</span>
+              <span>
+                {FOCAL_MM_MIN} {t('scene3d.cameraPreview.wide')}
+              </span>
+              <span className="text-center">50 {t('scene3d.cameraPreview.standard')}</span>
+              <span className="text-right">
+                {FOCAL_MM_MAX} {t('scene3d.cameraPreview.telephoto')}
+              </span>
             </div>
           </div>
           <div className="mt-3 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 py-2">
             <div className="mb-1 flex items-center justify-between gap-2 text-micro text-[var(--nomi-ink-60)]">
-              <span>镜头深度</span>
+              <span>{t('scene3d.cameraPreview.lensDepth')}</span>
               <span className="font-medium text-[var(--nomi-ink)]">{Math.round(lensDepth)}%</span>
             </div>
             <input
@@ -284,8 +297,10 @@ export function CameraPreview({
           </div>
           <div className="mt-3 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 py-2">
             <div className="mb-1 flex items-center justify-between gap-2 text-micro text-[var(--nomi-ink-60)]">
-              <span>手持抖动</span>
-              <span className="font-medium text-[var(--nomi-ink)]">{shakeAmplitude > 0 ? `${Math.round(shakeAmplitude)}%` : '关'}</span>
+              <span>{t('scene3d.cameraPreview.handheldShake')}</span>
+              <span className="font-medium text-[var(--nomi-ink)]">
+                {shakeAmplitude > 0 ? `${Math.round(shakeAmplitude)}%` : t('scene3d.cameraPreview.off')}
+              </span>
             </div>
             <input
               className="block h-1.5 w-full accent-[var(--nomi-ink)]"
@@ -298,9 +313,9 @@ export function CameraPreview({
               onChange={(event) => onShakeAmplitudeChange(Number(event.currentTarget.value))}
             />
             <div className="mt-1 grid grid-cols-3 text-micro text-[var(--nomi-ink-40)]">
-              <span>关</span>
-              <span className="text-center">微晃</span>
-              <span className="text-right">剧烈</span>
+              <span>{t('scene3d.cameraPreview.off')}</span>
+              <span className="text-center">{t('scene3d.cameraPreview.slight')}</span>
+              <span className="text-right">{t('scene3d.cameraPreview.strong')}</span>
             </div>
           </div>
         </>
@@ -342,9 +357,7 @@ export const PlaybackCameraMonitor = React.memo(function PlaybackCameraMonitor({
         <div className="min-w-0 truncate text-caption font-medium">
           {activeCamera.camera.name} · {activeCamera.trajectory.name}
         </div>
-        <div className="shrink-0 text-micro tabular-nums text-[var(--nomi-ink-40)]">
-          {Math.round(progress * 100)}%
-        </div>
+        <div className="shrink-0 text-micro tabular-nums text-[var(--nomi-ink-40)]">{Math.round(progress * 100)}%</div>
       </div>
       <div className="flex min-h-[126px] items-center justify-center rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] p-1">
         <div className="overflow-hidden rounded-nomi-sm bg-[var(--nomi-ink)]" style={previewStyle}>

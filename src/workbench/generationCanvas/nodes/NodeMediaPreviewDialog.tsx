@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { IconX } from '@tabler/icons-react'
 import { NomiImage } from '../../../design/media'
@@ -15,11 +16,10 @@ type Props = {
 // 图片 / 视频节点共用的画布内预览。Portal 到生成画布外层（而非 document.body），只覆盖红框区域，
 // 同时能压住该区域内独立挂载的助手、时间轴把手和导航工具栏。
 export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose }: Props): JSX.Element {
+  const { t } = useTranslation()
   const closeButtonRef = React.useRef<HTMLButtonElement | null>(null)
   const canvasViewport =
-    typeof document === 'undefined'
-      ? null
-      : document.querySelector<HTMLElement>('.workbench-generation__canvas')
+    typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('.workbench-generation__canvas')
   const generationWorkspace = canvasViewport?.closest<HTMLElement>('.workbench-generation') ?? null
 
   React.useEffect(() => {
@@ -42,7 +42,9 @@ export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose 
     }
   }, [generationWorkspace, onClose])
 
-  const dialogTitle = title.trim() || (mediaType === 'video' ? '视频' : '图片')
+  const mediaTypeLabel =
+    mediaType === 'video' ? t('generationCommon.imagePreview.video') : t('generationCommon.imagePreview.image')
+  const dialogTitle = title.trim() || mediaTypeLabel
 
   if (!canvasViewport) return <></>
 
@@ -54,7 +56,7 @@ export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose 
       )}
       role="dialog"
       aria-modal="true"
-      aria-label={`${dialogTitle}预览`}
+      aria-label={t('generationCommon.imagePreview.mediaAria', { title: dialogTitle })}
       onPointerDown={(event) => {
         event.stopPropagation()
         if (event.target === event.currentTarget) onClose()
@@ -66,7 +68,7 @@ export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose 
           'bg-nomi-overlay-chip text-caption font-medium text-nomi-paper backdrop-blur-sm',
         )}
       >
-        {mediaType === 'video' ? '视频' : '图片'} · {dialogTitle}
+        {t('generationCommon.imagePreview.mediaHeader', { type: mediaTypeLabel, title: dialogTitle })}
       </span>
       <button
         ref={closeButtonRef}
@@ -76,8 +78,8 @@ export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose 
           'bg-nomi-overlay-chip text-nomi-paper hover:bg-nomi-overlay-chip-strong',
           'focus-visible:outline-2 focus-visible:outline-nomi-paper focus-visible:outline-offset-2',
         )}
-        aria-label="关闭预览"
-        title="关闭预览（Esc）"
+        aria-label={t('generationCommon.imagePreview.closeMedia')}
+        title={t('generationCommon.imagePreview.closeMediaEsc')}
         onClick={onClose}
       >
         <IconX size={18} stroke={1.8} />

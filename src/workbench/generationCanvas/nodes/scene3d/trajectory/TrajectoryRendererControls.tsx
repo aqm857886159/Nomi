@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Html, Line, TransformControls } from '@react-three/drei'
 import type { ThreeEvent } from '@react-three/fiber'
 import { useThree } from '@react-three/fiber'
@@ -19,10 +20,7 @@ import {
   vectorFromScene,
   vectorToScene,
 } from './trajectoryRendererShared'
-import {
-  TRAJECTORY_CONTROL_POINT_RADIUS,
-  trajectorySegmentControlPosition,
-} from './trajectoryUtils'
+import { TRAJECTORY_CONTROL_POINT_RADIUS, trajectorySegmentControlPosition } from './trajectoryUtils'
 
 function TrajectoryPointTransformControls({
   trajectoryId,
@@ -365,19 +363,9 @@ export function TrajectoryControlPoint({
         }}
       >
         <sphereGeometry
-          args={[
-            selected ? SELECTED_TRAJECTORY_POINT_HIT_RADIUS : TRAJECTORY_POINT_HIT_RADIUS,
-            18,
-            12,
-          ]}
+          args={[selected ? SELECTED_TRAJECTORY_POINT_HIT_RADIUS : TRAJECTORY_POINT_HIT_RADIUS, 18, 12]}
         />
-        <meshBasicMaterial
-          color="#ffffff"
-          depthWrite={false}
-          opacity={0}
-          transparent
-          toneMapped={false}
-        />
+        <meshBasicMaterial color="#ffffff" depthWrite={false} opacity={0} transparent toneMapped={false} />
       </mesh>
       <mesh position={point.position} renderOrder={5}>
         <sphereGeometry args={[TRAJECTORY_CONTROL_POINT_RADIUS, 18, 12]} />
@@ -426,11 +414,9 @@ export function TrajectoryEndpointAddButton({
     placement?: 'before' | 'after',
   ) => void
 }): JSX.Element | null {
+  const { t } = useTranslation()
   const point = trajectory.points[pointIndex]
-  const addPosition = React.useMemo(
-    () => endpointExtensionPosition(trajectory, pointIndex),
-    [trajectory, pointIndex],
-  )
+  const addPosition = React.useMemo(() => endpointExtensionPosition(trajectory, pointIndex), [trajectory, pointIndex])
   const placement = endpointPlacement(trajectory, pointIndex)
 
   if (!point || !visible) return null
@@ -446,17 +432,11 @@ export function TrajectoryEndpointAddButton({
         depthTest={false}
         renderOrder={1}
       />
-      <Html
-        center
-        distanceFactor={8}
-        position={addPosition}
-        style={{ pointerEvents: 'auto' }}
-        zIndexRange={[20, 0]}
-      >
+      <Html center distanceFactor={8} position={addPosition} style={{ pointerEvents: 'auto' }} zIndexRange={[20, 0]}>
         <button
           type="button"
-          aria-label="连接新轨迹点"
-          title="连接新轨迹点"
+          aria-label={t('scene3d.trajectory.connectNewPoint')}
+          title={t('scene3d.trajectory.connectNewPoint')}
           className="grid size-8 place-items-center rounded-full border border-white/85 bg-[var(--nomi-ink)] text-[var(--nomi-paper)] shadow-[0_8px_20px_rgba(18,24,38,0.24)] transition hover:scale-105"
           onClick={(event) => {
             event.preventDefault()
@@ -499,11 +479,7 @@ export function TrajectoryCurveControlHandle({
   segmentIndex: number
   visible: boolean
   onSelectTrajectory?: (trajectoryId: string) => void
-  onUpdateCurveControl?: (
-    trajectoryId: string,
-    segmentStartPointId: string,
-    position: Scene3DVector3 | null,
-  ) => void
+  onUpdateCurveControl?: (trajectoryId: string, segmentStartPointId: string, position: Scene3DVector3 | null) => void
 }): JSX.Element | null {
   const startPoint = trajectory.points[segmentIndex]
   const endPoint = trajectory.points[(segmentIndex + 1) % trajectory.points.length]
@@ -512,8 +488,7 @@ export function TrajectoryCurveControlHandle({
     [trajectory, segmentIndex],
   )
   const stored = Boolean(
-    startPoint &&
-      trajectory.curveControls?.some((control) => control.segmentStartPointId === startPoint.id),
+    startPoint && trajectory.curveControls?.some((control) => control.segmentStartPointId === startPoint.id),
   )
   const [hovered, setHovered] = React.useState(false)
   const draggingRef = React.useRef(false)

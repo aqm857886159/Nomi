@@ -22,6 +22,7 @@ import {
   specializeArchetypeForVariant,
 } from '../../../../config/modelArchetypes'
 import type { ImageUrlSlot } from './parameterControlModel'
+import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
 
 export { resolveArchetypeForModel }
 export type { ModelArchetype, ArchetypeMode, ModelArchetypeVariant }
@@ -30,7 +31,9 @@ export type { ModelArchetype, ArchetypeMode, ModelArchetypeVariant }
  * 单图 frame 槽 → 现有 flat 传输键映射（首/尾帧，走画布边 + 单缩略图）。url 键即传输读取的键
  * （runtime taskTemplateParams 读 extras.firstFrameUrl/lastFrameUrl）；ref 键记住来源节点 id。
  */
-const FRAME_SLOT_FLAT: Partial<Record<ArchetypeReferenceSlotKind, { urlKey: string; refKey: string; group: ImageUrlSlot['group'] }>> = {
+const FRAME_SLOT_FLAT: Partial<
+  Record<ArchetypeReferenceSlotKind, { urlKey: string; refKey: string; group: ImageUrlSlot['group'] }>
+> = {
   first_frame: { urlKey: 'firstFrameUrl', refKey: 'firstFrameRef', group: 'first_frame' },
   last_frame: { urlKey: 'lastFrameUrl', refKey: 'lastFrameRef', group: 'last_frame' },
 }
@@ -79,26 +82,34 @@ function canonicalVariantIdOf(archetype: ModelArchetype, variantId: string | nul
 }
 
 /** 当前激活的模式（无命名空间 meta 或 modeId 失效时落到 defaultModeId）。 */
-export function currentArchetypeMode(archetype: ModelArchetype, meta: Record<string, unknown> | undefined): ArchetypeMode {
+export function currentArchetypeMode(
+  archetype: ModelArchetype,
+  meta: Record<string, unknown> | undefined,
+): ArchetypeMode {
   const stored = readArchetypeNodeMeta(meta)
   const modeId = stored?.id === archetype.id ? stored.modeId : ''
-  return archetype.modes.find((m) => m.id === modeId)
-    ?? archetype.modes.find((m) => m.id === archetype.defaultModeId)
-    ?? archetype.modes[0]
+  return (
+    archetype.modes.find((m) => m.id === modeId) ??
+    archetype.modes.find((m) => m.id === archetype.defaultModeId) ??
+    archetype.modes[0]
+  )
 }
 
 /**
  * 当前激活的变体（对称 currentArchetypeMode）。读 `meta.archetype.variantId`，回落 defaultVariantId，
  * 再回落 variants[0]。无 variants 档案 → null（UI 不显示变体段，传输不带变体 model）。
  */
-export function currentArchetypeVariant(archetype: ModelArchetype, meta: Record<string, unknown> | undefined): ModelArchetypeVariant | null {
+export function currentArchetypeVariant(
+  archetype: ModelArchetype,
+  meta: Record<string, unknown> | undefined,
+): ModelArchetypeVariant | null {
   const variants = archetype.variants
   if (!variants || variants.length === 0) return null
   const stored = readArchetypeNodeMeta(meta)
   const variantId = stored?.id === archetype.id ? canonicalVariantIdOf(archetype, stored.variantId) : ''
-  return variants.find((v) => v.id === variantId)
-    ?? variants.find((v) => v.id === archetype.defaultVariantId)
-    ?? variants[0]
+  return (
+    variants.find((v) => v.id === variantId) ?? variants.find((v) => v.id === archetype.defaultVariantId) ?? variants[0]
+  )
 }
 
 export type ArchetypeVariantChoice = { id: string; label: string }
@@ -107,7 +118,7 @@ export type ArchetypeVariantChoice = { id: string; label: string }
 export function archetypeVariantChoices(archetype: ModelArchetype): ArchetypeVariantChoice[] {
   const variants = archetype.variants
   if (!variants || variants.length <= 1) return []
-  return variants.map((v) => ({ id: v.id, label: v.label }))
+  return variants.map((v) => ({ id: v.id, label: translateModelDisplayText(v.label) }))
 }
 
 export type ArchetypeModeChoice = { id: string; vendorTerm: string; hint: string }
@@ -116,8 +127,8 @@ export type ArchetypeModeChoice = { id: string; vendorTerm: string; hint: string
 export function archetypeModeChoices(archetype: ModelArchetype): ArchetypeModeChoice[] {
   return archetype.modes.map((mode) => ({
     id: mode.id,
-    vendorTerm: mode.vendorTerm,
-    hint: mode.hint,
+    vendorTerm: translateModelDisplayText(mode.vendorTerm),
+    hint: translateModelDisplayText(mode.hint),
   }))
 }
 
@@ -126,7 +137,7 @@ export function archetypeModeSlots(mode: ArchetypeMode): ImageUrlSlot[] {
   return mode.slots.flatMap((slot): ImageUrlSlot[] => {
     const flat = FRAME_SLOT_FLAT[slot.kind]
     if (!flat) return []
-    return [{ key: flat.urlKey, label: slot.label, group: flat.group }]
+    return [{ key: flat.urlKey, label: translateModelDisplayText(slot.label), group: flat.group }]
   })
 }
 
@@ -149,16 +160,18 @@ export function archetypeModeArraySlots(mode: ArchetypeMode): ArchetypeArraySlot
     const route = ARRAY_SLOT_ROUTE[slot.kind]
     if (!route) return []
     const numbered = Boolean(slot.characterIndexed)
-    return [{
-      metaKey: route.metaKey,
-      label: slot.label,
-      min: slot.min,
-      max: slot.max,
-      accept: route.accept,
-      numbered,
-      // 编号语义靠 tile 上的 ①②③ 徽标自明（样张 v4）；character1..N 是发送前投影，用户永不可见。
-      ...(numbered ? { caption: '按放入顺序编号 ①②③' } : {}),
-    }]
+    return [
+      {
+        metaKey: route.metaKey,
+        label: translateModelDisplayText(slot.label),
+        min: slot.min,
+        max: slot.max,
+        accept: route.accept,
+        numbered,
+        // 编号语义靠 tile 上的 ①②③ 徽标自明（样张 v4）；character1..N 是发送前投影，用户永不可见。
+        ...(numbered ? { caption: translateModelDisplayText('按放入顺序编号 ①②③') } : {}),
+      },
+    ]
   })
 }
 
@@ -172,7 +185,10 @@ export function modeHasCharacterSlot(mode: ArchetypeMode): boolean {
  * video 节点据此判断「可生成」——omni 不靠首/尾帧，靠参考数组；缺它会被误判为「需要首帧」而锁死生成。
  * 接受任意非空字符串（含 nomi-local://，传输前 R1 会本地化），不做 http 过滤——这只是「有没有参考」的判断。
  */
-export function hasArchetypeArrayReferences(meta: Record<string, unknown> | undefined, archetype: ModelArchetype): boolean {
+export function hasArchetypeArrayReferences(
+  meta: Record<string, unknown> | undefined,
+  archetype: ModelArchetype,
+): boolean {
   const mode = currentArchetypeMode(archetype, meta)
   return archetypeModeArraySlots(mode).some((slot) => readArchetypeArray(meta, slot.metaKey).length > 0)
 }
@@ -180,7 +196,7 @@ export function hasArchetypeArrayReferences(meta: Record<string, unknown> | unde
 /** 当前模式的「源视频」单槽（HappyHorse video-edit）。返回 meta 存储键 + 标签；无则 null。 */
 export function archetypeModeSourceVideoSlot(mode: ArchetypeMode): { metaKey: string; label: string } | null {
   const slot = mode.slots.find((s) => s.kind === 'source_video')
-  return slot ? { metaKey: 'sourceVideoUrl', label: slot.label } : null
+  return slot ? { metaKey: 'sourceVideoUrl', label: translateModelDisplayText(slot.label) } : null
 }
 
 /** 读 meta 里某数组槽的当前 URL 列表（健壮：非数组 / 含空串都过滤掉）。 */
@@ -217,11 +233,30 @@ export function appendArchetypeArrayValue(
 
 /** 当前模式的标量参数（复用现有 ModelParameterControl 渲染路径）。 */
 export function archetypeModeParams(mode: ArchetypeMode): ModelParameterControl[] {
-  return mode.params
+  return mode.params.map(localizeModelParameterControl)
+}
+
+export function localizeModelParameterControl(control: ModelParameterControl): ModelParameterControl {
+  return {
+    ...control,
+    label: translateModelDisplayText(control.label),
+    ...(control.placeholder ? { placeholder: translateModelDisplayText(control.placeholder) } : {}),
+    ...(control.options
+      ? {
+          options: control.options.map((option) => ({
+            ...option,
+            label: translateModelDisplayText(option.label),
+          })),
+        }
+      : {}),
+  }
 }
 
 /** 当前模式的 per-mode model enum（HappyHorse 4 端点合 1 靠它；Seedance 各模式同 model → null）。 */
-export function archetypeModeModelEnum(archetype: ModelArchetype, meta: Record<string, unknown> | undefined): string | null {
+export function archetypeModeModelEnum(
+  archetype: ModelArchetype,
+  meta: Record<string, unknown> | undefined,
+): string | null {
   return currentArchetypeMode(archetype, meta).modelEnum ?? null
 }
 
@@ -259,7 +294,10 @@ export function applyArchetypeModeSwitch(
  * 不 hardcode 任何 key）。根治 D1：标准变体选了 4k → 切到「快速」变体（清晰度只剩 480/720）→ 存量 4k
  * 仍被发出 → 供应商 400/422。变体只收窄「选项」，本函数顺带收窄「已存的值」，让 UI 与发送一致。
  */
-function clampMetaToModeParams(meta: Record<string, unknown>, modeParams: ModelParameterControl[]): Record<string, unknown> {
+function clampMetaToModeParams(
+  meta: Record<string, unknown>,
+  modeParams: ModelParameterControl[],
+): Record<string, unknown> {
   let next = meta
   for (const param of modeParams) {
     if (param.type !== 'select' || !param.options || param.options.length === 0) continue
@@ -287,12 +325,18 @@ export function applyArchetypeVariantSwitch(
   const variants = archetype.variants
   if (!variants || variants.length === 0) return meta
   const stored = readArchetypeNodeMeta(meta)
-  const modeId = (stored?.id === archetype.id && stored.modeId) ? stored.modeId : archetype.defaultModeId
+  const modeId = stored?.id === archetype.id && stored.modeId ? stored.modeId : archetype.defaultModeId
   const canonicalNextId = canonicalVariantIdOf(archetype, nextVariantId)
-  const nextVariant = variants.find((v) => v.id === canonicalNextId) ?? variants.find((v) => v.id === archetype.defaultVariantId) ?? variants[0]
+  const nextVariant =
+    variants.find((v) => v.id === canonicalNextId) ??
+    variants.find((v) => v.id === archetype.defaultVariantId) ??
+    variants[0]
   // 按新变体特化出当前模式的参数声明，把存量越界的 select 值夹回默认（D1：4k→fast 变体不再漏发）。
   const specialized = specializeArchetypeForVariant(archetype, nextVariant.id)
-  const mode = specialized.modes.find((m) => m.id === modeId) ?? specialized.modes.find((m) => m.id === specialized.defaultModeId) ?? specialized.modes[0]
+  const mode =
+    specialized.modes.find((m) => m.id === modeId) ??
+    specialized.modes.find((m) => m.id === specialized.defaultModeId) ??
+    specialized.modes[0]
   const clamped = mode ? clampMetaToModeParams(meta, mode.params) : meta
   return { ...clamped, archetype: { id: archetype.id, modeId, variantId: nextVariant.id } }
 }
@@ -321,7 +365,8 @@ export function normalizeArchetypeVariantMeta(
   // 否则变体全串(doubao-seedance-2.0-fast)在 picker(只有基础选项 + findModelOptionByIdentifier 精确匹配)
   // 命中不到 → 选择显示空（这正是「最大风险点」）。变体信息只由 variantId 承载（与 applyArchetypeVariantSwitch
   // 一致：切变体只改 variantId、不动 modelKey）。
-  const baseModelKey = archetype.catalogModelKey ?? (variants.find((v) => v.id === archetype.defaultVariantId) ?? variants[0]).modelKey
+  const baseModelKey =
+    archetype.catalogModelKey ?? (variants.find((v) => v.id === archetype.defaultVariantId) ?? variants[0]).modelKey
   // modelKey 已是基础 → variantId 是权威（缺则 currentArchetypeVariant 回落默认），无需迁移、幂等 no-op。
   // **绝不能用基础串反推变体**——基础串映射到 standard 会把已选的 fast/face 冲掉。
   const stored = readArchetypeNodeMeta(meta)
@@ -329,16 +374,21 @@ export function normalizeArchetypeVariantMeta(
     const canonicalStoredId = stored?.id === archetype.id ? canonicalVariantIdOf(archetype, stored.variantId) : ''
     // 已下线 variantId（face/fast-face）即使 modelKey 已折叠，也要改写成当前有效 id，避免节点默默回默认。
     if (canonicalStoredId && canonicalStoredId !== stored?.variantId) {
-      return { modelKey: baseModelKey, archetype: { id: archetype.id, modeId: stored!.modeId, variantId: canonicalStoredId } }
+      return {
+        modelKey: baseModelKey,
+        archetype: { id: archetype.id, modeId: stored!.modeId, variantId: canonicalStoredId },
+      }
     }
     return null
   }
   // modelKey 是变体全串（旧项目钉死的具体变体）→ 折叠成基础 modelKey + 从串 derive variantId。
-  const matched = variants.find((variant) =>
-    norm(variant.modelKey) === norm(currentKey) || (variant.identifierPatterns ?? []).some((p) => norm(p) === norm(currentKey)),
+  const matched = variants.find(
+    (variant) =>
+      norm(variant.modelKey) === norm(currentKey) ||
+      (variant.identifierPatterns ?? []).some((p) => norm(p) === norm(currentKey)),
   )
   if (!matched) return null
-  const modeId = (stored?.id === archetype.id && stored.modeId) ? stored.modeId : archetype.defaultModeId
+  const modeId = stored?.id === archetype.id && stored.modeId ? stored.modeId : archetype.defaultModeId
   return { modelKey: baseModelKey, archetype: { id: archetype.id, modeId, variantId: matched.id } }
 }
 
@@ -378,8 +428,12 @@ const DEFAULT_INPUT_KEY: Record<ArchetypeReferenceSlotKind, string> = {
   source_video: 'video_url',
 }
 const DEFAULT_AS_ARRAY: Record<ArchetypeReferenceSlotKind, boolean> = {
-  first_frame: false, last_frame: false, source_video: false,
-  image_ref: true, video_ref: true, audio_ref: true,
+  first_frame: false,
+  last_frame: false,
+  source_video: false,
+  image_ref: true,
+  video_ref: true,
+  audio_ref: true,
 }
 /** 角色数组合并（combineSlotsInto）时 slot.kind → 缺省 role；slot.roleName 可覆盖。
  *  单一真相源：role 默认派生自 kind，避免 role 与 kind 两条平行真相源（P1）。 */
@@ -390,7 +444,12 @@ const DEFAULT_ROLE_FOR_KIND: Partial<Record<ArchetypeReferenceSlotKind, string>>
 }
 
 /** 构造层产出的通用 input 值：标量 / 数组 / 角色对象数组（combineSlotsInto）。模板引擎原样透传。 */
-type ArchetypeInputValue = string | Record<string, unknown> | string[] | Array<{ url: string; role: string }> | Array<Record<string, unknown>>
+type ArchetypeInputValue =
+  | string
+  | Record<string, unknown>
+  | string[]
+  | Array<{ url: string; role: string }>
+  | Array<Record<string, unknown>>
 
 /** 一个声明槽在 meta 里的存储形态（单一真相源：槽→存储键 的知识只在这里）。无存储映射 → null。 */
 export type ReferenceSlotStorage = { metaKey: string; isArray: boolean }
@@ -414,9 +473,12 @@ function volcengineImageContentItem(url: string, role: string): Record<string, u
 }
 
 function volcengineContentItem(inputKey: string, url: string): Record<string, unknown> | null {
-  if (inputKey === 'volcengine_first_image_content') return volcengineImageContentItem(url, DEFAULT_ROLE_FOR_KIND.first_frame ?? 'first_frame')
-  if (inputKey === 'volcengine_first_role_image_content') return volcengineImageContentItem(url, DEFAULT_ROLE_FOR_KIND.first_frame ?? 'first_frame')
-  if (inputKey === 'volcengine_last_role_image_content') return volcengineImageContentItem(url, DEFAULT_ROLE_FOR_KIND.last_frame ?? 'last_frame')
+  if (inputKey === 'volcengine_first_image_content')
+    return volcengineImageContentItem(url, DEFAULT_ROLE_FOR_KIND.first_frame ?? 'first_frame')
+  if (inputKey === 'volcengine_first_role_image_content')
+    return volcengineImageContentItem(url, DEFAULT_ROLE_FOR_KIND.first_frame ?? 'first_frame')
+  if (inputKey === 'volcengine_last_role_image_content')
+    return volcengineImageContentItem(url, DEFAULT_ROLE_FOR_KIND.last_frame ?? 'last_frame')
   return null
 }
 
@@ -488,10 +550,13 @@ export function buildArchetypeInputParams(
       const metaList = readArchetypeArray(meta, arr.metaKey)
       // 按槽资产类型喂对应的连线参考（B4：video_ref/audio_ref 槽此前只收 meta 上传，连线的视频/音频被丢）。
       const edgeList =
-        arr.accept === 'image' ? (references?.referenceImages ?? [])
-        : arr.accept === 'video' ? (references?.referenceVideos ?? [])
-        : arr.accept === 'audio' ? (references?.referenceAudios ?? [])
-        : []
+        arr.accept === 'image'
+          ? (references?.referenceImages ?? [])
+          : arr.accept === 'video'
+            ? (references?.referenceVideos ?? [])
+            : arr.accept === 'audio'
+              ? (references?.referenceAudios ?? [])
+              : []
       const capped = mergeOrderedReferenceImageUrls(edgeList, metaList, slot.max)
       if (capped.length) {
         if (inputKey === 'volcengine_image_contents') {
@@ -515,11 +580,18 @@ export function buildArchetypeInputParams(
     }
     const metaKey = SINGLE_SLOT_META_KEY[slot.kind]
     if (!metaKey) continue
-    const fromRef = metaKey === 'firstFrameUrl' ? references?.firstFrameUrl
-      : metaKey === 'lastFrameUrl' ? references?.lastFrameUrl
-      : undefined
-    const raw = (typeof fromRef === 'string' && fromRef.trim()) ? fromRef.trim()
-      : (typeof meta[metaKey] === 'string' ? (meta[metaKey] as string).trim() : '')
+    const fromRef =
+      metaKey === 'firstFrameUrl'
+        ? references?.firstFrameUrl
+        : metaKey === 'lastFrameUrl'
+          ? references?.lastFrameUrl
+          : undefined
+    const raw =
+      typeof fromRef === 'string' && fromRef.trim()
+        ? fromRef.trim()
+        : typeof meta[metaKey] === 'string'
+          ? (meta[metaKey] as string).trim()
+          : ''
     if (raw) {
       out[inputKey] = volcengineContentItem(inputKey, raw) ?? (asArray ? [raw] : raw)
     }
@@ -537,9 +609,15 @@ export function buildArchetypeInputParams(
       if (!flat && !role) continue
       const inputKey = slotInputKey(slot)
       const value = out[inputKey]
-      const push = (url: string) => { if (flat) combinedFlat.push(url); else combinedRoles.push({ url, role: role as string }) }
+      const push = (url: string) => {
+        if (flat) combinedFlat.push(url)
+        else combinedRoles.push({ url, role: role as string })
+      }
       if (typeof value === 'string') push(value)
-      else if (Array.isArray(value)) value.forEach((item) => { if (typeof item === 'string') push(item) })
+      else if (Array.isArray(value))
+        value.forEach((item) => {
+          if (typeof item === 'string') push(item)
+        })
       delete out[inputKey]
     }
     const combined = flat ? combinedFlat : combinedRoles

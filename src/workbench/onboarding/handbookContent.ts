@@ -35,7 +35,11 @@ export const HANDBOOK_PIPELINE: HandbookPipelineStep[] = [
 export const HANDBOOK_FIRST_WIN: HandbookFirstWinStep[] = [
   { n: 1, title: '看回放', body: '首页点「60 秒看 Nomi 怎么出片」，零额度看整条流水线跑一遍。' },
   { n: 2, title: '接一个模型', body: '用自己的 Key，或接 Agnes 免费网关（文 / 图 / 视全解锁）。' },
-  { n: 3, title: '写一句 + 拆镜', body: '在创作区写下故事，说「拆成镜头」——可选图片分镜（先定画面，满意再转视频）或视频分镜，一键铺成画布。' },
+  {
+    n: 3,
+    title: '写一句 + 拆镜',
+    body: '在创作区写下故事，说「拆成镜头」——可选图片分镜（先定画面，满意再转视频）或视频分镜，一键铺成画布。',
+  },
   { n: 4, title: '生成 + 导出', body: '点镜头卡的生成出图，排进时间轴，右上导出 MP4。' },
 ]
 
@@ -102,3 +106,115 @@ export const HANDBOOK_GOTCHAS: HandbookGotcha[] = [
 
 export const HANDBOOK_TITLE = 'Nomi 一页上手'
 export const HANDBOOK_SUBTITLE = '本地优先的 AI 视频创作台 · 从一句话到一条成片'
+
+const EN_HANDBOOK_PIPELINE: HandbookPipelineStep[] = [
+  { iconKey: 'pencil', label: 'Write story' },
+  { iconKey: 'scissors', label: 'AI splits shots' },
+  { iconKey: 'layout-grid', label: 'Build canvas' },
+  { iconKey: 'wand', label: 'Lock identity / camera' },
+  { iconKey: 'timeline', label: 'Timeline' },
+  { iconKey: 'movie', label: 'Export MP4', accent: true },
+]
+
+const EN_HANDBOOK_FIRST_WIN: HandbookFirstWinStep[] = [
+  {
+    n: 1,
+    title: 'Watch the replay',
+    body: 'From Home, open “See how Nomi makes a video in 60 seconds” to watch the whole workflow without spending credits.',
+  },
+  {
+    n: 2,
+    title: 'Connect one model',
+    body: 'Use your own API key or connect the free Agnes gateway to unlock text, image, and video models.',
+  },
+  {
+    n: 3,
+    title: 'Write one line and split shots',
+    body: 'Write a story in Creation and ask to “split into shots.” Choose image storyboards to lock visuals first or video storyboards to go directly to motion.',
+  },
+  {
+    n: 4,
+    title: 'Generate and export',
+    body: 'Generate from the shot cards, arrange the results on the timeline, then export MP4 from the top right.',
+  },
+]
+
+const EN_HANDBOOK_INTENT_ROUTES: HandbookIntentRoute[] = [
+  {
+    iconKey: 'user-check',
+    title: 'Keep the same person consistent across shots',
+    body: 'Use an identity card to lock the face, then connect it to every shot as a reference.',
+  },
+  {
+    iconKey: 'box',
+    title: 'Control where people stand and face',
+    body: 'Create a 3D staging image and let the model follow that layout.',
+  },
+  {
+    iconKey: 'device-gamepad-2',
+    title: 'Move characters, direct actions, and add camera movement',
+    body: 'Use game-style 3D controls: WASD movement, action presets, and camera placement. Record a take and use the resulting reference video for generation.',
+    badge: 'New in 0.16',
+  },
+  {
+    iconKey: 'gift',
+    title: 'Try it without API credits',
+    body: 'Connect Agnes AI in Model setup. One key unlocks text, image, and video models for free.',
+    badge: 'New in 0.16',
+  },
+  {
+    iconKey: 'typography',
+    title: 'Add subtitles and title cards',
+    body: 'Use the timeline preview workspace to control timing and presentation.',
+  },
+  {
+    iconKey: 'alert-triangle',
+    title: 'Need precise lip sync',
+    body: 'Not supported yet. Skip this step for now—Nomi will not pretend otherwise.',
+    warn: true,
+  },
+]
+
+const EN_HANDBOOK_GOTCHAS: HandbookGotcha[] = [
+  {
+    iconKey: 'plug-connected-x',
+    title: 'Models are connected but generation does not work',
+    body: 'A text model is usually missing. Add one in Model setup so shot planning and chat can run.',
+  },
+  {
+    iconKey: 'mood-confuzed',
+    title: 'The face changes in every shot',
+    body: 'Connect the identity card to each shot as a reference. Without it, the model cannot reliably identify the character.',
+  },
+  {
+    iconKey: 'alert-circle',
+    title: 'A connected model is unavailable',
+    body: 'Read the error message. The provider may require a paid tier, enterprise key, or one-time web authorization.',
+  },
+  {
+    iconKey: 'volume-off',
+    title: 'The exported video has no sound',
+    body: 'Make sure audio clips are placed on an audio track in the timeline.',
+  },
+]
+
+export function handbookContentForLocale(locale: string) {
+  if (locale !== 'en') {
+    return {
+      title: HANDBOOK_TITLE,
+      subtitle: HANDBOOK_SUBTITLE,
+      pipeline: HANDBOOK_PIPELINE,
+      firstWin: HANDBOOK_FIRST_WIN,
+      intentRoutes: HANDBOOK_INTENT_ROUTES,
+      gotchas: HANDBOOK_GOTCHAS,
+    }
+  }
+  return {
+    title: 'Nomi quick-start guide',
+    subtitle: 'A local-first AI video studio · From one sentence to a finished video',
+    pipeline: EN_HANDBOOK_PIPELINE,
+    firstWin: EN_HANDBOOK_FIRST_WIN,
+    intentRoutes: EN_HANDBOOK_INTENT_ROUTES,
+    gotchas: EN_HANDBOOK_GOTCHAS,
+  }
+}

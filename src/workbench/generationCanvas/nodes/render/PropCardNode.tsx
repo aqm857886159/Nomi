@@ -5,6 +5,7 @@
  * - 道具名 inline 可编辑。
  */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconLink } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
@@ -20,6 +21,7 @@ type Props = {
 }
 
 function PropCardNodeImpl({ node }: Props): JSX.Element {
+  const { t } = useTranslation()
   const meta = readPropMeta(node)
   const usageCount = useNodeUsageCount(node.id, node.title)
   const hasImage = Boolean(node.result?.url)
@@ -39,7 +41,7 @@ function PropCardNodeImpl({ node }: Props): JSX.Element {
             className="w-full h-full object-contain object-center select-none pointer-events-none"
           />
         ) : (
-          <UploadFallback accept="image/*" label="道具图" onUpload={handleUpload} />
+          <UploadFallback accept="image/*" label={t('generationCommon.card.prop.image')} onUpload={handleUpload} />
         )}
       </div>
 
@@ -49,15 +51,15 @@ function PropCardNodeImpl({ node }: Props): JSX.Element {
             <EditableNodeTitle
               nodeId={node.id}
               value={node.title || ''}
-              placeholder="未命名道具"
+              placeholder={t('generationCommon.card.prop.unnamed')}
             />
             <UsageDot count={usageCount} />
           </div>
           {hasOwner ? (
             <span className="inline-flex items-center gap-1 text-caption font-medium text-nomi-accent">
               <IconLink size={13} stroke={1.8} aria-hidden />
-              <span className="truncate" title={`属于 ${meta.ownedBy}`}>
-                {meta.ownedBy}的
+              <span className="truncate" title={t('generationCommon.card.prop.ownedBy', { owner: meta.ownedBy })}>
+                {t('generationCommon.card.prop.ownerLabel', { owner: meta.ownedBy })}
               </span>
             </span>
           ) : null}

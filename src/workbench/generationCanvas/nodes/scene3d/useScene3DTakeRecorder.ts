@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { toast } from '../../../../ui/toast'
 import {
   buildRecordedTakeScene,
@@ -70,6 +71,7 @@ export function useScene3DTakeRecorder({
   stateRef: React.MutableRefObject<Scene3DState>
   onRecorded: (recordedState: Scene3DState) => void
 }): TakeRecorder {
+  const { t } = useTranslation()
   const [isRecording, setIsRecording] = React.useState(false)
   const [elapsedSeconds, setElapsedSeconds] = React.useState(0)
 
@@ -128,37 +130,49 @@ export function useScene3DTakeRecorder({
     }, 100)
   }, [clearTick, readOnly, stateRef])
 
-  const sampleCharacter = React.useCallback((position: Scene3DVector3) => {
-    if (!isRecording) return
-    const now = performance.now()
-    if (now - lastCharacterSampleMsRef.current < SAMPLE_INTERVAL_MS && characterSamplesRef.current.length > 0) return
-    lastCharacterSampleMsRef.current = now
-    characterSamplesRef.current.push({ time: now, position: [...position] as Scene3DVector3 })
-  }, [isRecording])
+  const sampleCharacter = React.useCallback(
+    (position: Scene3DVector3) => {
+      if (!isRecording) return
+      const now = performance.now()
+      if (now - lastCharacterSampleMsRef.current < SAMPLE_INTERVAL_MS && characterSamplesRef.current.length > 0) return
+      lastCharacterSampleMsRef.current = now
+      characterSamplesRef.current.push({ time: now, position: [...position] as Scene3DVector3 })
+    },
+    [isRecording],
+  )
 
-  const sampleCamera = React.useCallback((position: Scene3DVector3) => {
-    if (!isRecording) return
-    const now = performance.now()
-    if (now - lastCameraSampleMsRef.current < SAMPLE_INTERVAL_MS && cameraSamplesRef.current.length > 0) return
-    lastCameraSampleMsRef.current = now
-    cameraSamplesRef.current.push({ time: now, position: [...position] as Scene3DVector3 })
-  }, [isRecording])
+  const sampleCamera = React.useCallback(
+    (position: Scene3DVector3) => {
+      if (!isRecording) return
+      const now = performance.now()
+      if (now - lastCameraSampleMsRef.current < SAMPLE_INTERVAL_MS && cameraSamplesRef.current.length > 0) return
+      lastCameraSampleMsRef.current = now
+      cameraSamplesRef.current.push({ time: now, position: [...position] as Scene3DVector3 })
+    },
+    [isRecording],
+  )
 
-  const sampleCameraAim = React.useCallback((target: Scene3DVector3) => {
-    if (!isRecording) return
-    const now = performance.now()
-    if (now - lastCameraAimSampleMsRef.current < SAMPLE_INTERVAL_MS && cameraAimSamplesRef.current.length > 0) return
-    lastCameraAimSampleMsRef.current = now
-    cameraAimSamplesRef.current.push({ time: now, position: [...target] as Scene3DVector3 })
-  }, [isRecording])
+  const sampleCameraAim = React.useCallback(
+    (target: Scene3DVector3) => {
+      if (!isRecording) return
+      const now = performance.now()
+      if (now - lastCameraAimSampleMsRef.current < SAMPLE_INTERVAL_MS && cameraAimSamplesRef.current.length > 0) return
+      lastCameraAimSampleMsRef.current = now
+      cameraAimSamplesRef.current.push({ time: now, position: [...target] as Scene3DVector3 })
+    },
+    [isRecording],
+  )
 
-  const recordPoseEvent = React.useCallback((presetId: string) => {
-    if (!isRecording) return
-    const preset = MANNEQUIN_POSE_PRESETS.find((candidate) => candidate.id === presetId)
-    if (!preset) return
-    // pose 缺省（如「站立」）= rest 姿势；clonePoseValue(undefined) → undefined，由采样落回基准。
-    poseEventsRef.current.push({ ms: performance.now(), presetId, pose: clonePoseValue(preset.pose) })
-  }, [isRecording])
+  const recordPoseEvent = React.useCallback(
+    (presetId: string) => {
+      if (!isRecording) return
+      const preset = MANNEQUIN_POSE_PRESETS.find((candidate) => candidate.id === presetId)
+      if (!preset) return
+      // pose 缺省（如「站立」）= rest 姿势；clonePoseValue(undefined) → undefined，由采样落回基准。
+      poseEventsRef.current.push({ ms: performance.now(), presetId, pose: clonePoseValue(preset.pose) })
+    },
+    [isRecording],
+  )
 
   const recordPoseResume = React.useCallback(() => {
     if (!isRecording) return
@@ -176,7 +190,7 @@ export function useScene3DTakeRecorder({
     setIsRecording(false)
     // 即时反馈（用户反馈 #11）：点停止后按钮瞬间变回「录 take」，用户以为白录。先即时确认「已停止」，
     // 出片是异步的，结果状态由画布上「录制走位参考」节点的徽标接力（生成中 → 已生成 ✓，见 Scene3DEditor）。
-    toast('已停止录制，正在生成参考视频…', 'success')
+    toast(t('scene3d.character.recordingStopped'), 'success')
     const endMs = performance.now()
     const target = possessTargetRef.current
     const characterSamples = characterSamplesRef.current
@@ -204,7 +218,7 @@ export function useScene3DTakeRecorder({
       }
       const recordedState = buildRecordedCameraTakeScene(stateRef.current, cameraTake)
       if (!recordedState) {
-        toast('没录到运镜（镜头全程没动），请 WASD 飞镜头 / 转朝向后再录', 'warning')
+        toast(t('scene3d.character.noCameraMove'), 'warning')
         return
       }
       onRecorded(recordedState)
@@ -212,15 +226,21 @@ export function useScene3DTakeRecorder({
     }
 
     // 角色操控 take：录走位（角色位移主轨迹 + 可选机位绕拍）。
-    const take: RecordedTake = { possessedObjectId: target.id, characterSamples, cameraSamples, poseEvents, durationSeconds }
+    const take: RecordedTake = {
+      possessedObjectId: target.id,
+      characterSamples,
+      cameraSamples,
+      poseEvents,
+      durationSeconds,
+    }
     const recordedState = buildRecordedTakeScene(stateRef.current, take)
     if (!recordedState) {
-      toast('没录到走位（角色全程没移动），请操控角色走动后再录', 'warning')
+      toast(t('scene3d.character.noCharacterMove'), 'warning')
       return
     }
     stashRecordedTakeForE2E(recordedState)
     onRecorded(recordedState)
-  }, [clearTick, onRecorded, stateRef])
+  }, [clearTick, onRecorded, stateRef, t])
 
   // 兜底 only：正常「退出操控」现在由触发退出的动作本身先调 stopRecording()（见 Scene3DFullscreen 的
   // onBeforeExit 接线），出片/toast/建 take 节点都已在那一步跑完，这里不会再赶上 isRecording=true。

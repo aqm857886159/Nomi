@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { IconX, IconExternalLink } from '@tabler/icons-react'
 import type { WorkspaceFileNode } from '../../../electron/workspace/workspaceFileIndex'
@@ -14,6 +15,7 @@ import { buildWorkspaceFileUrl } from './workspaceFileDrag'
  * protocol, so text is fetched and PDFs/images load directly; no new IPC.
  */
 export function FilePreviewPanel(): JSX.Element | null {
+  const { t } = useTranslation()
   const open = useFilePreviewStore((s) => s.open)
   const projectId = useFilePreviewStore((s) => s.projectId)
   const node = useFilePreviewStore((s) => s.node)
@@ -44,16 +46,16 @@ export function FilePreviewPanel(): JSX.Element | null {
     <div
       ref={panelRef}
       role="dialog"
-      aria-label={`预览 ${node.name}`}
+      aria-label={t('fileExplorer.previewAria', { name: node.name })}
       className="bg-nomi-paper shadow-nomi-lg border-l border-nomi-line flex flex-col"
       style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 440, zIndex: 4000 }}
     >
       <div className="flex items-center gap-1 px-3 border-b border-nomi-line shrink-0" style={{ height: 44 }}>
         <span className="flex-1 truncate text-body text-nomi-ink" title={node.relativePath}>{node.name}</span>
-        <button type="button" onClick={reveal} title="在 Finder 打开" className="p-1 text-nomi-ink-60 hover:text-nomi-ink">
+        <button type="button" onClick={reveal} title={t('fileExplorer.reveal')} className="p-1 text-nomi-ink-60 hover:text-nomi-ink">
           <IconExternalLink size={16} stroke={1.6} />
         </button>
-        <button type="button" onClick={close} aria-label="关闭" className="p-1 text-nomi-ink-60 hover:text-nomi-ink">
+        <button type="button" onClick={close} aria-label={t('common.close')} className="p-1 text-nomi-ink-60 hover:text-nomi-ink">
           <IconX size={16} stroke={1.6} />
         </button>
       </div>
@@ -66,6 +68,7 @@ export function FilePreviewPanel(): JSX.Element | null {
 }
 
 function PreviewBody({ node, url }: { node: WorkspaceFileNode; url: string }): JSX.Element {
+  const { t } = useTranslation()
   switch (node.kind) {
     case 'image':
       return <img src={url} alt={node.name} className="mx-auto max-w-full object-contain" />
@@ -80,14 +83,15 @@ function PreviewBody({ node, url }: { node: WorkspaceFileNode; url: string }): J
     default:
       return (
         <div className="flex flex-col items-center justify-center gap-1 py-10 text-center">
-          <span className="text-body-sm text-nomi-ink-60">这种格式暂不支持预览</span>
-          <span className="text-caption text-nomi-ink-40">用上方「在 Finder 打开」查看</span>
+          <span className="text-body-sm text-nomi-ink-60">{t('fileExplorer.unsupported')}</span>
+          <span className="text-caption text-nomi-ink-40">{t('fileExplorer.unsupportedHint')}</span>
         </div>
       )
   }
 }
 
 function TextPreview({ url, markdown }: { url: string; markdown: boolean }): JSX.Element {
+  const { t } = useTranslation()
   const [state, setState] = React.useState<{ loading: boolean; text: string; error: string }>({ loading: true, text: '', error: '' })
   React.useEffect(() => {
     let alive = true
@@ -99,8 +103,8 @@ function TextPreview({ url, markdown }: { url: string; markdown: boolean }): JSX
     return () => { alive = false }
   }, [url])
 
-  if (state.loading) return <div className="text-body-sm text-nomi-ink-40">加载中…</div>
-  if (state.error) return <div className="text-body-sm text-workbench-danger">读取失败：{state.error}</div>
+  if (state.loading) return <div className="text-body-sm text-nomi-ink-40">{t('common.loading')}…</div>
+  if (state.error) return <div className="text-body-sm text-workbench-danger">{t('fileExplorer.readFailed', { message: state.error })}</div>
   if (markdown) return <NomiMarkdown>{state.text}</NomiMarkdown>
   return <pre className="whitespace-pre-wrap break-words font-nomi-mono text-caption leading-relaxed text-nomi-ink-80">{state.text}</pre>
 }

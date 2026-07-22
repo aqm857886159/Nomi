@@ -2,6 +2,7 @@ import { useGenerationCanvasStore } from '../generationCanvas/store/generationCa
 import { getActiveWorkbenchProjectId } from '../project/workbenchProjectSession'
 import { useSpendConfirmStore } from '../generationCanvas/spend/spendConfirm'
 import { getDesktopBridge } from '../../desktop/bridge'
+import i18n from '../../i18n'
 
 // 能力核 A 模式实时桥 · 渲染层处理器。
 // 主进程把外部 MCP 的画布读/写/付费确认转发到这里（只在该项目正打开时路由），处理后回结果。
@@ -18,36 +19,44 @@ type SpendConfirmPayload = {
   prompt?: string
 }
 
-const INTENT_LABEL: Record<string, string> = {
-  image: '一张画面',
-  video: '一段视频',
-  audio: '一段音频',
-  text: '一段文本',
-}
-
 function describeIntent(intent: string | undefined): string {
-  return INTENT_LABEL[String(intent || '')] || '一个素材'
+  const normalized = String(intent || '')
+  if (normalized === 'image' || normalized === 'video' || normalized === 'audio' || normalized === 'text') {
+    return i18n.t(`runtime.capability.intent.${normalized}`)
+  }
+  return i18n.t('runtime.capability.intent.fallback')
 }
 
 /** 外部 MCP 付费确认：弹全仓唯一的确认对话框（agent 来源 + 明细 + 60s 倒计时），真人点了才回 confirmed。 */
 async function confirmSpendForAgent(info: SpendConfirmPayload): Promise<{ confirmed: boolean }> {
   const store = useGenerationCanvasStore.getState()
   const node = store.nodes.find((item) => item.id === info.nodeId)
-  const nodeLabel = node?.title?.trim() || (typeof node?.prompt === 'string' && node.prompt.trim() ? node.prompt.trim().slice(0, 24) : '新节点')
+  const nodeLabel =
+    node?.title?.trim() ||
+    (typeof node?.prompt === 'string' && node.prompt.trim()
+      ? node.prompt.trim().slice(0, 24)
+      : i18n.t('runtime.capability.newNode'))
   const promptPreview = typeof info.prompt === 'string' && info.prompt.trim() ? info.prompt.trim().slice(0, 60) : ''
   const projectName = typeof info.projectName === 'string' ? info.projectName.trim() : ''
   const ok = await useSpendConfirmStore.getState().requestConfirm({
-    title: `AI 助手想生成${describeIntent(info.intent)}`,
-    message: promptPreview ? `提示词：「${promptPreview}${info.prompt && info.prompt.length > 60 ? '…' : ''}」。确认后将消耗模型额度生成。` : '确认后将消耗模型额度生成。',
-    confirmLabel: '确认生成',
+    title: i18n.t('runtime.capability.spendTitle', { intent: describeIntent(info.intent) }),
+    message: promptPreview
+      ? i18n.t('runtime.capability.spendMessageWithPrompt', {
+          prompt: `${promptPreview}${info.prompt && info.prompt.length > 60 ? '…' : ''}`,
+        })
+      : i18n.t('runtime.capability.spendMessage'),
+    confirmLabel: i18n.t('runtime.capability.confirmGenerate'),
     source: 'agent',
     countdownMs: 60_000,
     details: [
       // 项目行放第一位：用户可能不在这个项目里，先让他知道花在哪个项目。
-      ...(projectName ? [{ label: '项目', value: projectName }] : []),
-      { label: '节点', value: nodeLabel },
-      { label: '模型', value: [info.vendor, info.modelKey].filter(Boolean).join(' · ') || '默认模型' },
-      { label: '产物', value: describeIntent(info.intent) },
+      ...(projectName ? [{ label: i18n.t('runtime.capability.project'), value: projectName }] : []),
+      { label: i18n.t('runtime.capability.node'), value: nodeLabel },
+      {
+        label: i18n.t('runtime.capability.model'),
+        value: [info.vendor, info.modelKey].filter(Boolean).join(' · ') || i18n.t('runtime.capability.defaultModel'),
+      },
+      { label: i18n.t('runtime.capability.output'), value: describeIntent(info.intent) },
     ],
   })
   return { confirmed: Boolean(ok) }
@@ -62,7 +71,7 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
   // 付费确认（spend.confirm）不在此限：用户拍板 A——AI 想在「非当前项目」生成时也弹全局卡，
   // 卡里标明项目名，确认后走盘落地（不动非活动 store）。这正是治静默黑洞的关键放开。
   if (op !== 'spend.confirm' && projectId && activeId && projectId !== activeId) {
-    throw new Error('项目已切换，无法实时应用')
+    throw new Error(i18n.t('runtime.capability.projectChanged'))
   }
 
   switch (op) {
@@ -74,7 +83,7 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
     case 'spend.confirm':
       return confirmSpendForAgent(data as SpendConfirmPayload)
     default:
-      throw new Error(`未知 capability 操作: ${op}`)
+      throw new Error(i18n.t('runtime.capability.unknownOperation', { operation: op }))
   }
 }
 

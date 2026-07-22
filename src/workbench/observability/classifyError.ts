@@ -4,6 +4,7 @@
 // 对话 bundle；generationRunController 改 re-export 保持既有 import 不破。
 import { narrateGenerationError, type GenerationErrorKind } from './narrate'
 import { parseVendorErrorFromMessage, stripVendorErrorMarker } from '../generationCanvas/runner/vendorErrorIpc'
+import i18n from '../../i18n'
 
 export type GenerationErrorReport = {
   /** Short human reason, e.g. 配额或限流. */
@@ -22,7 +23,9 @@ export type GenerationErrorReport = {
 
 /** 上游原话提到可见区前的清洗：去掉占位、与 reason 重复、过长。 */
 function pickProviderMessage(candidate: string | undefined, reason: string): string {
-  const msg = String(candidate || '').replace(/\s+/g, ' ').trim()
+  const msg = String(candidate || '')
+    .replace(/\s+/g, ' ')
+    .trim()
   if (!msg || msg === '(no detail from provider)' || msg === reason) return ''
   return msg.length > 200 ? `${msg.slice(0, 199)}…` : msg
 }
@@ -56,7 +59,10 @@ function extractReadableErrorLine(raw: string): string {
     // 不是 JSON，走纯文本路径
   }
   // 2) 纯文本：取第一行非空内容
-  const firstLine = source.split('\n').map((line) => line.trim()).find(Boolean)
+  const firstLine = source
+    .split('\n')
+    .map((line) => line.trim())
+    .find(Boolean)
   return firstLine ? truncateLine(firstLine) : ''
 }
 
@@ -78,16 +84,41 @@ function detectLegacyErrorKind(raw: string): GenerationErrorKind | null {
   // 输出截断（agentError.describeEmptyAgentReply 的 length 签名）最先判——它是确定性失败，
   // 落进 unknown 会给出「稍等重试」的误导（重试必再撞）。短语来自我们自己的文案，单一来源。
   if (raw.includes('输出长度上限') || raw.includes('内容被截断')) return 'output-truncated'
-  if (lower.includes('api key') || lower.includes('apikey') || lower.includes('unauthorized') || lower.includes('401')) return 'auth'
+  if (lower.includes('api key') || lower.includes('apikey') || lower.includes('unauthorized') || lower.includes('401'))
+    return 'auth'
   // 余额不足要和限流分开——用户动作不同(充值 vs 等待)。只匹配明确指向余额/欠费的词,
   // 避免把 OpenAI 的 insufficient_quota(配额)误判成余额。
-  if (raw.includes('余额') || lower.includes('balance') || raw.includes('欠费') || lower.includes('arrears') || lower.includes('402')) return 'balance'
-  if (lower.includes('quota') || lower.includes('rate limit') || lower.includes('429') || lower.includes('insufficient')) return 'quota'
+  if (
+    raw.includes('余额') ||
+    lower.includes('balance') ||
+    raw.includes('欠费') ||
+    lower.includes('arrears') ||
+    lower.includes('402')
+  )
+    return 'balance'
+  if (
+    lower.includes('quota') ||
+    lower.includes('rate limit') ||
+    lower.includes('429') ||
+    lower.includes('insufficient')
+  )
+    return 'quota'
   // 我们自己的轮询超时(视频长任务常见)——不是网络问题,任务多半还在服务商侧跑。
   if (raw.includes('轮询超时') || lower.includes('task poll timeout')) return 'poll-timeout'
-  if (lower.includes('timeout') || lower.includes('etimedout') || lower.includes('econnreset') || lower.includes('network')) return 'network'
-  if (lower.includes('model') && (lower.includes('not found') || lower.includes('未找到') || lower.includes('not configured'))) return 'model-config'
-  if (lower.includes('content') && (lower.includes('policy') || lower.includes('safety') || lower.includes('filter'))) return 'content-policy'
+  if (
+    lower.includes('timeout') ||
+    lower.includes('etimedout') ||
+    lower.includes('econnreset') ||
+    lower.includes('network')
+  )
+    return 'network'
+  if (
+    lower.includes('model') &&
+    (lower.includes('not found') || lower.includes('未找到') || lower.includes('not configured'))
+  )
+    return 'model-config'
+  if (lower.includes('content') && (lower.includes('policy') || lower.includes('safety') || lower.includes('filter')))
+    return 'content-policy'
   return null
 }
 
@@ -106,7 +137,9 @@ function detectModelNotOpen(upstream: string | undefined, raw: string): boolean 
     text.includes('开通管理') ||
     // 「开通+模型」必须再有控制台语境才算——否则太宽：即梦 CLI 的会员兜底文案（「需开通即梦会员…
     // 该模型首次使用…」）曾被这条误吞成「模型未开通/火山 Ark 指引」（2026-07-06 真机走查抓出）。
-    (text.includes('开通') && text.includes('模型') && (text.includes('控制台') || text.includes('console') || text.includes('ark') || text.includes('激活')))
+    (text.includes('开通') &&
+      text.includes('模型') &&
+      (text.includes('控制台') || text.includes('console') || text.includes('ark') || text.includes('激活')))
   )
 }
 
@@ -160,7 +193,10 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   // S4-2:structured 优先(VendorRequestError 经 IPC 标记穿透,源头保留的事实,不是猜);
   // 老数据/非 vendor 错误退回 legacy 正则识别。两条路只产 kind,文案统一出自 narrate 词表。
   const structured = parseVendorErrorFromMessage(message)
-  const cleanRaw = stripVendorErrorMarker(String(message || '')).split('\n→')[0].trim() || '生成失败'
+  const cleanRaw =
+    stripVendorErrorMarker(String(message || ''))
+      .split('\n→')[0]
+      .trim() || i18n.t('generationCommon.observability.error.unknown.reason')
   // 账号档位闸（会员/企业 Key/网页授权）**最先**判——它的关键词（会员/授权/开通即梦会员）比
   // model-not-open 更具体；反过来放后面会被宽词抢走（即梦 CLI 兜底文案曾被判成「模型未开通」
   // 并给出火山 Ark 指引，2026-07-06 真机走查抓出）。reason 出自 narrate，服务商原话单独提到可见区。
@@ -188,11 +224,14 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
     return { reason, hint, raw: stripVendorErrorMarker(message), ...(providerMessage ? { providerMessage } : {}) }
   }
   // Strip any legacy "\n→ hint" tail that older builds baked into node.error.
-  const raw = stripVendorErrorMarker(String(message || '')).split('\n→')[0].trim() || '生成失败'
+  const raw =
+    stripVendorErrorMarker(String(message || ''))
+      .split('\n→')[0]
+      .trim() || i18n.t('generationCommon.observability.error.unknown.reason')
   if (raw.includes('网页媒体下载失败')) {
     return {
-      reason: '网页媒体下载失败',
-      hint: '部分站点会禁止跨域请求或开启防盗链。请先在浏览器中把图片/视频下载到本地，再复制或拖入画布。',
+      reason: i18n.t('generationCommon.observability.error.webMedia.reason'),
+      hint: i18n.t('generationCommon.observability.error.webMedia.hint'),
       raw,
     }
   }

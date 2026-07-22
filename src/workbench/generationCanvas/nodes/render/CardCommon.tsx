@@ -8,27 +8,33 @@
  * - 数据缺失时隐藏对应行（spec §3.4 Level 0）
  */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../../../utils/cn'
 import { NomiLoadingMark } from '../../../../design'
+import i18n from '../../../../i18n'
 
 export const STRIPED_BG_CLASS =
   'bg-[repeating-linear-gradient(45deg,var(--nomi-ink-05)_0_23px,var(--nomi-ink-20)_23px_24px)]'
-
-/** 空态统一文案常量（措辞单源，避免「等待生成/待生成」各处不一）。 */
-export const PENDING_HINT_LABEL = '等待生成'
 
 /**
  * 节点 body 左上角标题行（统一规格：可选「镜头 N」徽标 + text-body-sm font-semibold 标题）。
  * 收口占位卡 / 画板 / 音频等非图片 body 的标题——此前各写一套字号字重，扫节点找标题没稳定落点。
  * 图片卡（角色/场景/道具）的标题压在图上/图下是刻意沉浸式，不走这里（仅字号字重经 EditableNodeTitle 对齐）。
  */
-export function NodeBodyHeader({ title, shotIndex }: { title?: string; shotIndex?: number | null }): JSX.Element | null {
+export function NodeBodyHeader({
+  title,
+  shotIndex,
+}: {
+  title?: string
+  shotIndex?: number | null
+}): JSX.Element | null {
+  const { t } = useTranslation()
   if (shotIndex == null && !title) return null
   return (
     <div className="flex flex-col gap-1 min-w-0">
       {shotIndex != null ? (
         <span className="self-start inline-flex items-center h-[18px] px-2 rounded-full bg-nomi-ink text-nomi-paper text-micro font-bold tabular-nums">
-          镜头 {shotIndex}
+          {t('generationCommon.card.shot', { index: shotIndex })}
         </span>
       ) : null}
       {title ? <span className="text-body-sm font-semibold text-nomi-ink-80 truncate">{title}</span> : null}
@@ -59,6 +65,7 @@ export function EmptyStateLauncher({
   onPreload?: () => void
   activateAriaLabel?: string
 }): JSX.Element {
+  const { t } = useTranslation()
   const cluster = (
     <>
       <span className="grid size-12 place-items-center rounded-full bg-nomi-ink text-nomi-paper">{icon}</span>
@@ -72,13 +79,16 @@ export function EmptyStateLauncher({
   return (
     <button
       type="button"
-      aria-label={activateAriaLabel || label || '打开'}
+      aria-label={activateAriaLabel || label || t('generationCommon.card.open')}
       className={cn(
         'flex flex-col items-center justify-center gap-2 text-center rounded-nomi px-4 py-3 bg-transparent border-0 cursor-pointer',
         'transition-[background] duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05',
         'focus-visible:outline-2 focus-visible:outline-nomi-accent focus-visible:outline-offset-2',
       )}
-      onClick={(event) => { event.stopPropagation(); onActivate() }}
+      onClick={(event) => {
+        event.stopPropagation()
+        onActivate()
+      }}
       onPointerDown={(event) => event.stopPropagation()}
       onPointerEnter={onPreload}
       onFocus={onPreload}
@@ -99,6 +109,7 @@ export function UsageDot({ count }: { count: number }): JSX.Element | null {
 }
 
 export function VariantChip({ count }: { count: number }): JSX.Element | null {
+  const { t } = useTranslation()
   if (count <= 0) return null
   return (
     <span
@@ -108,16 +119,17 @@ export function VariantChip({ count }: { count: number }): JSX.Element | null {
         'text-micro px-2 py-[1px] tabular-nums',
       )}
     >
-      ⊕{count}变体
+      {t('generationCommon.card.variants', { count })}
     </span>
   )
 }
 
 export function PlaceholderCenter({ label }: { label: string }): JSX.Element {
+  const { t } = useTranslation()
   return (
     <div className={cn('flex flex-col items-center justify-center w-full h-full gap-1 pointer-events-none')}>
       <span className="text-body-sm font-medium text-nomi-ink-60 tabular-nums">{label}</span>
-      <span className="text-micro text-nomi-ink-40">{PENDING_HINT_LABEL}</span>
+      <span className="text-micro text-nomi-ink-40">{t('generationCommon.card.pending')}</span>
     </div>
   )
 }
@@ -145,6 +157,7 @@ export function PendingGenerationPlaceholder({
   title?: string
   prompt?: string
 }): JSX.Element | null {
+  const { t } = useTranslation()
   if (selected) return null
   if (needsFirstFrame) {
     return (
@@ -152,15 +165,15 @@ export function PendingGenerationPlaceholder({
         <span className="text-micro text-nomi-ink-40 leading-relaxed">
           {waitingUpstream ? (
             <>
-              已连接上游画面
+              {t('generationCommon.card.upstreamConnected')}
               <br />
-              等待其生成完成
+              {t('generationCommon.card.waitingUpstream')}
             </>
           ) : (
             <>
-              把图片节点拖过来
+              {t('generationCommon.card.dragImage')}
               <br />
-              作为首帧
+              {t('generationCommon.card.asFirstFrame')}
             </>
           )}
         </span>
@@ -180,7 +193,7 @@ export function PendingGenerationPlaceholder({
           {prompt}
         </span>
       ) : null}
-      <span className="mt-auto text-micro text-nomi-ink-40">{PENDING_HINT_LABEL}</span>
+      <span className="mt-auto text-micro text-nomi-ink-40">{t('generationCommon.card.pending')}</span>
     </div>
   )
 }
@@ -204,15 +217,7 @@ function RemoveBackgroundProgressMark({ progress }: { progress?: number }): JSX.
       aria-hidden="true"
     >
       <svg className="size-10" viewBox="0 0 44 44">
-        <circle
-          cx="22"
-          cy="22"
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="4"
-          opacity="0.16"
-        />
+        <circle cx="22" cy="22" r={radius} fill="none" stroke="currentColor" strokeWidth="4" opacity="0.16" />
         <circle
           className={isDeterminate ? undefined : 'origin-center animate-spin motion-reduce:animate-none'}
           cx="22"
@@ -231,20 +236,42 @@ function RemoveBackgroundProgressMark({ progress }: { progress?: number }): JSX.
   )
 }
 
-function RemoveBackgroundPendingStatus({ title, message = '抠图中', progress }: { title?: string; message?: string; progress?: number }): JSX.Element {
+function RemoveBackgroundPendingStatus({
+  title,
+  message,
+  progress,
+}: {
+  title?: string
+  message?: string
+  progress?: number
+}): JSX.Element {
+  const { t } = useTranslation()
   const percent = clampProgressPercent(progress)
+  const statusMessage = message || t('generationCommon.card.removingBackground')
+  const statusTitle = title || t('generationCommon.card.removeBackgroundNode')
   return (
-    <div className="grid place-items-center gap-2" role="status" aria-label="抠图中" aria-busy="true">
+    <div
+      className="grid place-items-center gap-2"
+      role="status"
+      aria-label={t('generationCommon.card.removingBackground')}
+      aria-busy="true"
+    >
       <RemoveBackgroundProgressMark progress={progress} />
       <span className="rounded-full bg-nomi-paper/[0.88] px-2.5 py-1 text-micro font-medium text-nomi-ink-80 shadow-nomi-sm backdrop-blur-[8px]">
-        {percent !== null && percent > 0 ? `${message} ${percent}%` : message}
+        {percent !== null && percent > 0 ? `${statusMessage} ${percent}%` : statusMessage}
       </span>
-      <span className="sr-only">{title || '抠图节点'} 正在生成透明 PNG</span>
+      <span className="sr-only">{t('generationCommon.card.generatingTransparentPng', { title: statusTitle })}</span>
     </div>
   )
 }
 
-export function RemoveBackgroundPendingPlaceholder({ title, progress }: { title?: string; progress?: number }): JSX.Element {
+export function RemoveBackgroundPendingPlaceholder({
+  title,
+  progress,
+}: {
+  title?: string
+  progress?: number
+}): JSX.Element {
   return (
     <div className="grid h-full w-full place-items-center overflow-hidden bg-nomi-ink-05 p-4">
       <RemoveBackgroundPendingStatus title={title} progress={progress} />
@@ -252,16 +279,19 @@ export function RemoveBackgroundPendingPlaceholder({ title, progress }: { title?
   )
 }
 
-export function RemoveBackgroundPendingOverlay({ message, progress }: { message?: string; progress?: number }): JSX.Element {
+export function RemoveBackgroundPendingOverlay({
+  message,
+  progress,
+}: {
+  message?: string
+  progress?: number
+}): JSX.Element {
+  const { t } = useTranslation()
   const percent = clampProgressPercent(progress)
+  const statusMessage = message || t('generationCommon.card.removingBackground')
   return (
-    <span
-      className="sr-only"
-      role="status"
-      aria-label="抠图中"
-      aria-busy="true"
-    >
-      {percent !== null && percent > 0 ? `${message || '抠图中'} ${percent}%` : (message || '抠图中')}
+    <span className="sr-only" role="status" aria-label={t('generationCommon.card.removingBackground')} aria-busy="true">
+      {percent !== null && percent > 0 ? `${statusMessage} ${percent}%` : statusMessage}
     </span>
   )
 }
@@ -272,6 +302,7 @@ export function RemoveBackgroundPendingOverlay({ message, progress }: { message?
  * header 的状态文字徽标（z-[2]，仍显「生成中」），pointer-events-none 不挡交互。
  */
 export function GeneratingOverlay(): JSX.Element {
+  const { t } = useTranslation()
   return (
     <div
       className={cn(
@@ -281,7 +312,7 @@ export function GeneratingOverlay(): JSX.Element {
       )}
       aria-hidden="true"
     >
-      <NomiLoadingMark size={32} label="生成中" />
+      <NomiLoadingMark size={32} label={t('generationCommon.card.generating')} />
     </div>
   )
 }
@@ -301,6 +332,7 @@ export function UploadFallback({
   label: string
   onUpload: (dataUrl: string, file: File) => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const handleChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.currentTarget.files?.[0]
@@ -325,7 +357,9 @@ export function UploadFallback({
         'text-nomi-ink-60 hover:text-nomi-ink hover:bg-nomi-ink-05/50 transition-colors',
       )}
     >
-      <span className="text-body-sm font-medium tabular-nums pointer-events-none">+ 上传{label}</span>
+      <span className="text-body-sm font-medium tabular-nums pointer-events-none">
+        {t('generationCommon.card.upload', { label })}
+      </span>
       <input className="hidden" type="file" accept={accept} onChange={handleChange} />
     </label>
   )
@@ -337,14 +371,15 @@ export function UploadFallback({
  * 其它 → 分类名 / fallback title
  */
 export function placeholderLabel(categoryName: string | undefined, title: string | undefined): string {
-  return categoryName || title || '节点'
+  return categoryName || title || i18n.t('generationCommon.card.node')
 }
 
 /** Scene3DEditor 懒加载期间的占位（React.Suspense fallback）。 */
 export function Scene3DEditorLoading(): JSX.Element {
+  const { t } = useTranslation()
   return (
     <div className={cn('flex w-full h-full items-center justify-center bg-nomi-ink-05 text-caption text-nomi-ink-40')}>
-      3D 编辑器加载中
+      {t('generationCommon.card.scene3dLoading')}
     </div>
   )
 }

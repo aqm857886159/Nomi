@@ -9,6 +9,7 @@ import {
   useState,
   type CSSProperties
 } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type { AspectRatioKey, CanvasAsset, CanvasDimensions, LayerItem, ToolKey } from './lib/canvas'
 import { getCanvasPointFromClient } from './lib/pointer'
@@ -113,6 +114,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
   onObjectDelete,
   onRemoveBackground
 }: LeaferCanvasProps, ref) {
+  const { t } = useTranslation()
   const hostRef = useRef<HTMLDivElement | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
   const pointerLayerRef = useRef<HTMLDivElement | null>(null)
@@ -176,19 +178,19 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
       async captureViewport(filename = createViewportScreenshotFilename()) {
         const app = appRef.current
         if (!app) {
-          throw new Error('画布还未准备好')
+          throw new Error(t('generationCommon.whiteboard.canvasNotReady'))
         }
 
         const result = await exportViewportWithoutEditorOverlays(app, filename)
 
         if (result.error) {
-          throw result.error instanceof Error ? result.error : new Error('截图失败')
+          throw result.error instanceof Error ? result.error : new Error(t('generationCommon.whiteboard.screenshotFailed'))
         }
       },
       async captureViewportFile(filename = createViewportScreenshotFilename()) {
         const app = appRef.current
         if (!app) {
-          throw new Error('画布还未准备好')
+          throw new Error(t('generationCommon.whiteboard.canvasNotReady'))
         }
 
         return exportViewportFileWithoutEditorOverlays(app, filename)
@@ -200,7 +202,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
         return { x: point[0], y: point[1] }
       }
     }),
-    []
+    [t]
   )
 
   const updateSelectedObjectTargets = useCallback((targets: CanvasObjectTarget[]) => {
@@ -638,7 +640,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
         <div
           ref={hostRef}
           className="h-full w-full overflow-hidden [&_.leafer-app-view]:!block [&_.leafer-app-view]:!h-full [&_.leafer-app-view]:!max-h-full [&_.leafer-app-view]:!max-w-full [&_.leafer-app-view]:!w-full [&_canvas]:!block [&_canvas]:!h-full [&_canvas]:!max-h-full [&_canvas]:!max-w-full [&_canvas]:!w-full"
-          aria-label="Leafer 画板"
+          aria-label={t('generationCommon.whiteboard.canvasAria')}
         />
         <svg
           className="pointer-events-none absolute inset-0 h-full w-full"
@@ -715,7 +717,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
             activeTool === 'select' ? 'pointer-events-none cursor-default' : ''
           } ${activeTool === 'eraser' ? 'cursor-none' : ''}`}
           role="application"
-          aria-label="绘图操作层"
+          aria-label={t('generationCommon.whiteboard.drawingLayerAria')}
           onPointerDown={handlePointerDown}
           onPointerEnter={updateToolCursor}
           onPointerLeave={hideToolCursor}
@@ -744,16 +746,16 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
                 onMouseDown={handleGroupMenuMouseDown}
                 onClick={handleGroupMenuClick}
               >
-                组合
+                {t('generationCommon.whiteboard.group')}
               </button>
             ) : null}
             {contextMenu.targets.length === 1 ? (
               <>
                 <button type="button" role="menuitem" onClick={() => flipSelectedTarget('x')}>
-                  水平翻转
+                  {t('generationCommon.whiteboard.flipHorizontal')}
                 </button>
                 <button type="button" role="menuitem" onClick={() => flipSelectedTarget('y')}>
-                  垂直翻转
+                  {t('generationCommon.whiteboard.flipVertical')}
                 </button>
                 {contextMenu.targets[0].kind === 'asset' && onRemoveBackground ? (
                   <button
@@ -761,7 +763,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
                     role="menuitem"
                     onClick={() => { onRemoveBackground(contextMenu.targets[0]); setContextMenu(null) }}
                   >
-                    抠图
+                    {t('generationCommon.whiteboard.removeBackground')}
                   </button>
                 ) : null}
               </>

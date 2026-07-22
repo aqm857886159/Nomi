@@ -21,6 +21,7 @@ import {
   type GenerationNodeKind,
   type GenerationNodePlugin,
 } from './registry'
+import i18n from '../../../i18n'
 
 export type { GenerationNodeRenderProps, GenerationNodeComponent } from './registry'
 
@@ -29,6 +30,7 @@ export type GenerationNodeIcon = React.ComponentType<any>
 export type GenerationNodeRenderPlugin = Omit<GenerationNodePlugin, 'component' | 'icon'> & {
   icon: GenerationNodeIcon
   component: React.LazyExoticComponent<GenerationNodeComponent>
+  promptPlaceholder?: string
 }
 
 const NODE_ICONS: Record<GenerationNodeIconKey, GenerationNodeIcon> = {
@@ -49,7 +51,9 @@ const NODE_ICONS: Record<GenerationNodeIconKey, GenerationNodeIcon> = {
 
 const lazyComponents = new Map<GenerationNodeKind, React.LazyExoticComponent<GenerationNodeComponent>>()
 
-function getLazyGenerationNodeComponent(plugin: GenerationNodePlugin): React.LazyExoticComponent<GenerationNodeComponent> {
+function getLazyGenerationNodeComponent(
+  plugin: GenerationNodePlugin,
+): React.LazyExoticComponent<GenerationNodeComponent> {
   const cached = lazyComponents.get(plugin.kind)
   if (cached) return cached
   const component = React.lazy(plugin.component)
@@ -61,6 +65,10 @@ export function getGenerationNodePlugin(kind: GenerationNodeKind): GenerationNod
   const plugin = GENERATION_NODE_PLUGIN_BY_KIND[kind]
   return {
     ...plugin,
+    label: i18n.t(`runtime.nodeRegistry.${kind}.menu` as 'runtime.nodeRegistry.text.menu'),
+    menuLabel: i18n.t(`runtime.nodeRegistry.${kind}.menu` as 'runtime.nodeRegistry.text.menu'),
+    defaultTitle: i18n.t(`runtime.nodeRegistry.${kind}.title` as 'runtime.nodeRegistry.text.title'),
+    promptPlaceholder: i18n.t(`runtime.nodeRegistry.${kind}.placeholder` as 'runtime.nodeRegistry.text.placeholder'),
     icon: NODE_ICONS[plugin.icon],
     component: getLazyGenerationNodeComponent(plugin),
   }
@@ -71,7 +79,7 @@ export function getGenerationNodeComponent(kind: GenerationNodeKind): Generation
 }
 
 export function getQuickAddGenerationNodePlugins(): GenerationNodeRenderPlugin[] {
-  return GENERATION_NODE_PLUGINS
-    .filter((plugin): boolean => (plugin as { quickAdd?: boolean }).quickAdd !== false)
-    .map((plugin) => getGenerationNodePlugin(plugin.kind))
+  return GENERATION_NODE_PLUGINS.filter((plugin): boolean => (plugin as { quickAdd?: boolean }).quickAdd !== false).map(
+    (plugin) => getGenerationNodePlugin(plugin.kind),
+  )
 }

@@ -4,6 +4,7 @@
 // ——两个助手从此长得一致(用户反馈:小点时间轴 vs 气泡两套设计不一致)。提议卡用 flat 去框。
 // 卡片按 anchorMessageId 时序内联:锚定到某条消息的卡紧跟该消息之后渲染(叙述→卡→总结,位置=时间)。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { IconCornerDownLeft } from '@tabler/icons-react'
 import { WorkbenchButton } from '../../../design'
@@ -72,10 +73,14 @@ export type AssistantTimelineProps = {
   threadBottomRef: React.RefObject<HTMLDivElement>
 }
 
-const EMPTY_SUGGESTIONS = ['列 3 个镜头铺到画布', '给选中的镜头写一版提示词', '把镜头按先后顺序连起来']
-
 export default function AssistantTimeline(props: AssistantTimelineProps): JSX.Element {
+  const { t } = useTranslation()
   const { messages, staleBoundaryId, pendingToolCalls } = props
+  const emptySuggestions = [
+    t('generationCommon.assistant.suggestionShots'),
+    t('generationCommon.assistant.suggestionPrompt'),
+    t('generationCommon.assistant.suggestionConnect'),
+  ]
   // memo:流式吐字会每帧重渲染本组件,但计划只随 pendingToolCalls 变——不 memo 则每帧重算 +
   // 产出新 plan 引用,连带 React.memo(AgentPlanCard) 失效、8 节点计划卡每帧重画(卡顿放大)。
   const plan = React.useMemo(() => summarizeAgentPlan(pendingToolCalls), [pendingToolCalls])
@@ -90,7 +95,11 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
       anchor: props.deviationAnchorId ?? undefined,
       render: () => (
         <div className={cn('flex flex-col gap-1')}>
-          <StepHeader title={`这次有 ${props.deviationReport!.length} 处没按计划生效`} badge="⚠" badgeTone="warn" />
+          <StepHeader
+            title={t('generationCommon.assistant.deviationTitle', { count: props.deviationReport!.length })}
+            badge="⚠"
+            badgeTone="warn"
+          />
           <ReconcileDeviationCard
             flat
             deviations={props.deviationReport!}
@@ -114,7 +123,11 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
       key: 'content-deviation',
       render: () => (
         <div className={cn('flex flex-col gap-1')}>
-          <StepHeader title={`画面校验：${props.contentDeviations!.length} 处和设定对不上`} badge="⚠" badgeTone="warn" />
+          <StepHeader
+            title={t('generationCommon.assistant.contentDeviationTitle', { count: props.contentDeviations!.length })}
+            badge="⚠"
+            badgeTone="warn"
+          />
           <ReconcileDeviationCard
             flat
             deviations={props.contentDeviations!}
@@ -132,7 +145,11 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
       anchor: pendingToolCalls.find((call) => call.toolCallId === plan.createCallId)?.anchorMessageId,
       render: () => (
         <div className={cn('flex flex-col gap-2')}>
-          <StepHeader title={`创建 ${plan.nodes.length} 个镜头节点`} badge="等你确认" badgeTone="active" />
+          <StepHeader
+            title={t('generationCommon.assistant.createShots', { count: plan.nodes.length })}
+            badge={t('generationCommon.assistant.awaitingConfirmation')}
+            badgeTone="active"
+          />
           <AgentPlanCard flat plan={plan} approveCalls={props.approveCalls} rejectCall={props.rejectPending} />
         </div>
       ),
@@ -145,14 +162,22 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
       anchor: call.anchorMessageId,
       render: () => (
         <div className={cn('flex flex-col gap-2')} data-tool-call-id={call.toolCallId}>
-          <StepHeader title={summarizeToolCall(call.toolName, call.args)} badge="等你确认" badgeTone="active" />
+          <StepHeader
+            title={summarizeToolCall(call.toolName, call.args)}
+            badge={t('generationCommon.assistant.awaitingConfirmation')}
+            badgeTone="active"
+          />
           {detail ? <div className={cn('text-nomi-ink-60 text-caption leading-[1.6]')}>{detail}</div> : null}
           <div className={cn('flex items-center gap-2')}>
             <WorkbenchButton variant="default" size="sm" onClick={() => props.rejectPending(call.toolCallId)}>
-              拒绝
+              {t('generationCommon.assistant.reject')}
             </WorkbenchButton>
-            <WorkbenchButton variant="primary" size="sm" onClick={() => props.approveCalls([{ toolCallId: call.toolCallId }])}>
-              确认
+            <WorkbenchButton
+              variant="primary"
+              size="sm"
+              onClick={() => props.approveCalls([{ toolCallId: call.toolCallId }])}
+            >
+              {t('generationCommon.assistant.confirm')}
             </WorkbenchButton>
           </div>
         </div>
@@ -163,13 +188,19 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
   if (messages.length === 0 && pendingToolCalls.length === 0) {
     return (
       <div className={cn('flex flex-1 flex-col min-h-0 overflow-auto p-4')}>
-        <div className={cn('flex flex-1 flex-col items-center justify-center gap-2 max-w-[240px] mx-auto py-6 px-3 text-center')}>
-          <div className={cn('text-nomi-ink font-nomi-display text-title font-medium')}>我帮你搭画布</div>
+        <div
+          className={cn(
+            'flex flex-1 flex-col items-center justify-center gap-2 max-w-[240px] mx-auto py-6 px-3 text-center',
+          )}
+        >
+          <div className={cn('text-nomi-ink font-nomi-display text-title font-medium')}>
+            {t('generationCommon.assistant.emptyTitle')}
+          </div>
           <div className={cn('text-nomi-ink-60 text-body-sm leading-relaxed')}>
-            铺镜头、改提示词、连节点都交给我；出图按节点上的「生成」键。
+            {t('generationCommon.assistant.emptyDescription')}
           </div>
           <div className={cn('flex flex-col gap-1.5 w-full mt-2')}>
-            {EMPTY_SUGGESTIONS.map((suggestion) => (
+            {emptySuggestions.map((suggestion) => (
               <WorkbenchButton
                 key={suggestion}
                 className={cn(
@@ -198,10 +229,11 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
 
   const renderAssistantMessage = (message: WorkbenchAiMessage): JSX.Element => {
     // 画布无独立 streaming 状态字段:'处理中...' 哨兵 = 等首 token(pending);有真内容 = 已到 token。
-    const isPending = message.content === '处理中...'
+    const isPending = message.content === '处理中...' || message.content === t('generationCommon.assistant.processing')
     // status 是错误真相源(旧 session 用「（错误）」前缀兜底)。错误分流到红色错误卡(人话+一键出路),
     // 不再当普通回复渲染。
-    const isErrorMsg = message.status === 'error' || message.content.startsWith('（错误）')
+    const isErrorMsg =
+      message.status === 'error' || message.content.startsWith('（错误）') || message.content.startsWith('(Error)')
     return (
       <React.Fragment key={message.id}>
         {isErrorMsg ? (
@@ -211,7 +243,7 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
             content={isPending ? '' : message.content}
             attachments={message.attachments}
             streaming={isPending}
-            pendingLabel={isPending ? '处理中' : undefined}
+            pendingLabel={isPending ? t('generationCommon.assistant.processingShort') : undefined}
             cancelled={message.status === 'cancelled'}
           />
         )}

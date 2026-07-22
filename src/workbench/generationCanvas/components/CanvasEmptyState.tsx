@@ -1,16 +1,9 @@
 // 画布空状态 CTA（E.2C-24，从 GenerationCanvas 抽出，R9/R12 防巨壳）。
 // 分类感知的引导按钮：根据当前分类显示「这里还没有 X / + 新建 X」，点一下落一个空节点。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { WorkbenchButton } from '../../../design'
 import { cn } from '../../../utils/cn'
-
-const CATEGORY_NAME_BY_ID: Record<string, string> = {
-  shots: '画面',
-  cast: '角色',
-  scene: '场景',
-  prop: '道具',
-  audio: '声音',
-}
 
 type CanvasEmptyStateProps = {
   activeCategoryId: string
@@ -18,16 +11,23 @@ type CanvasEmptyStateProps = {
 }
 
 export function CanvasEmptyState({ activeCategoryId, onCreate }: CanvasEmptyStateProps): JSX.Element {
-  const activeCategoryName = CATEGORY_NAME_BY_ID[activeCategoryId] || '节点'
+  const { t } = useTranslation()
+  const supportedCategories = new Set(['shots', 'cast', 'scene', 'prop', 'audio'])
+  const categoryKey = supportedCategories.has(activeCategoryId) ? activeCategoryId : 'fallback'
+  const activeCategoryName = t(`generationCommon.canvas.empty.categories.${categoryKey}`)
   return (
-    <div className={cn(
-      'absolute top-[44%] left-1/2 grid gap-3 place-items-center',
-      'text-workbench-muted text-body-sm text-center',
-      '-translate-x-1/2 -translate-y-1/2',
-    )}>
-      <strong className="text-body text-nomi-ink">这里还没有{activeCategoryName}</strong>
+    <div
+      className={cn(
+        'absolute top-[44%] left-1/2 grid gap-3 place-items-center',
+        'text-workbench-muted text-body-sm text-center',
+        '-translate-x-1/2 -translate-y-1/2',
+      )}
+    >
+      <strong className="text-body text-nomi-ink">
+        {t('generationCommon.canvas.empty.title', { category: activeCategoryName })}
+      </strong>
       <span className="text-caption text-nomi-ink-60 max-w-[300px]">
-        添加第一个节点开始创作，之后可以拖动、分组、跨分组复制。
+        {t('generationCommon.canvas.empty.description')}
       </span>
       <WorkbenchButton
         className={cn(
@@ -36,10 +36,10 @@ export function CanvasEmptyState({ activeCategoryId, onCreate }: CanvasEmptyStat
           'font-[inherit] text-caption font-medium',
           'hover:enabled:bg-nomi-accent',
         )}
-        aria-label={`新建一个${activeCategoryName}节点`}
+        aria-label={t('generationCommon.canvas.empty.createAria', { category: activeCategoryName })}
         onClick={onCreate}
       >
-        + 新建{activeCategoryName}
+        {t('generationCommon.canvas.empty.create', { category: activeCategoryName })}
       </WorkbenchButton>
     </div>
   )

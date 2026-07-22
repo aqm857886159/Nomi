@@ -12,6 +12,9 @@ function invokeSync<T>(channel: string, ...args: unknown[]): T {
 
 contextBridge.exposeInMainWorld("nomiDesktop", {
   platform: process.platform,
+  i18n: {
+    setLocale: (locale: "zh-CN" | "en") => ipcRenderer.send("nomi:i18n:set-locale", locale),
+  },
   // 窗口控制（Windows 自绘标题栏用；mac 原生 chrome 不调用）。窄面：仅 min/max/close + 最大化态订阅。
   window: {
     minimize: () => ipcRenderer.invoke("nomi:window:minimize"),

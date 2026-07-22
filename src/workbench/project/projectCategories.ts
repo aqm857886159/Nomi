@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import i18n from '../../i18n'
 
 // viewType 系统已删除 (E.2C-13)：5 个分类全部基于同一画布底座，
 // 仅节点渲染样式按分类不同。详见 docs/plans/2026-05-25-phase-e2-completion-and-tech-uplift.md §3 决策 4。
@@ -8,24 +9,18 @@ import { z } from 'zod'
 // 每个分类有 defaultNodeRenderKind，新建节点默认走该 kind 的 React 组件。
 // 5 个 kind 对应 5 个分类的默认渲染样式；后续可扩展到节点级 override。
 export const NODE_RENDER_KINDS = [
-  'shot-frame',      // 分镜默认：图像 + 内嵌 composer + 编号
-  'character-card',  // 角色默认：缩略图 + 名字 + 设定
-  'scene-card',      // 场景默认：环境图 + 名字 + 关联角色
-  'prop-card',       // 道具默认：道具图 + 名字 + 关联标签
-  'audio-strip',     // 声音默认：波形 + 时长
+  'shot-frame', // 分镜默认：图像 + 内嵌 composer + 编号
+  'character-card', // 角色默认：缩略图 + 名字 + 设定
+  'scene-card', // 场景默认：环境图 + 名字 + 关联角色
+  'prop-card', // 道具默认：道具图 + 名字 + 关联标签
+  'audio-strip', // 声音默认：波形 + 时长
 ] as const
 
 export type NodeRenderKind = (typeof NODE_RENDER_KINDS)[number]
 
 // Tabler 图标名映射，详见 src/workbench/sidebar/categoryIcons.ts
 // (categoryIcons 模块按 iconName 字符串查实际组件，避免 zod schema 持久化函数引用)
-export type TablerIconName =
-  | 'IconLayoutRows'
-  | 'IconUser'
-  | 'IconPhoto'
-  | 'IconBox'
-  | 'IconChartBar'
-  | 'IconTag' // 自定义顶层分类统一用的通用图标
+export type TablerIconName = 'IconLayoutRows' | 'IconUser' | 'IconPhoto' | 'IconBox' | 'IconChartBar' | 'IconTag' // 自定义顶层分类统一用的通用图标
 
 export type ProjectCategory = {
   id: string
@@ -43,13 +38,7 @@ export type ProjectCategory = {
   isHidden?: boolean
 }
 
-export const BUILTIN_CATEGORY_IDS = [
-  'shots',
-  'cast',
-  'scene',
-  'prop',
-  'audio',
-] as const
+export const BUILTIN_CATEGORY_IDS = ['shots', 'cast', 'scene', 'prop', 'audio'] as const
 
 export type BuiltinCategoryId = (typeof BUILTIN_CATEGORY_IDS)[number]
 
@@ -104,14 +93,7 @@ export const BUILTIN_CATEGORIES: ProjectCategory[] = [
 export const DEFAULT_CATEGORY_ID: BuiltinCategoryId = 'shots'
 export const FALLBACK_CATEGORY_ID: BuiltinCategoryId = 'shots'
 
-const tablerIconNameSchema = z.enum([
-  'IconLayoutRows',
-  'IconUser',
-  'IconPhoto',
-  'IconBox',
-  'IconChartBar',
-  'IconTag',
-])
+const tablerIconNameSchema = z.enum(['IconLayoutRows', 'IconUser', 'IconPhoto', 'IconBox', 'IconChartBar', 'IconTag'])
 
 /** 自定义顶层分类的默认外观：通用图标 + 通用「分镜帧」节点样式（用户已拍板：通用第一）。 */
 export const CUSTOM_CATEGORY_ICON_NAME: TablerIconName = 'IconTag'
@@ -133,7 +115,7 @@ export function createCustomCategoryId(existingIds: readonly string[]): string {
 export function createCustomCategory(input: { id: string; name: string; order: number }): ProjectCategory {
   return {
     id: input.id,
-    name: input.name.trim() || '新分组',
+    name: input.name.trim() || i18n.t('runtime.project.newGroup'),
     icon: '',
     iconName: CUSTOM_CATEGORY_ICON_NAME,
     defaultNodeRenderKind: CUSTOM_CATEGORY_RENDER_KIND,

@@ -1,7 +1,7 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconGripVertical } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import { TIMELINE_DRAG_HANDLE_LABEL } from '../model/timelineDragAffordance'
 
 type AddToTimelineEvent = React.MouseEvent<HTMLElement> | React.KeyboardEvent<HTMLElement>
 
@@ -19,10 +19,9 @@ function handleKeyboardAdd(
   onAddAtPlayhead(event)
 }
 
-export function TimelineNotchDragHandle({
-  onAddAtPlayhead,
-  onDragStart,
-}: TimelineDragHandleProps): JSX.Element {
+export function TimelineNotchDragHandle({ onAddAtPlayhead, onDragStart }: TimelineDragHandleProps): JSX.Element {
+  const { t } = useTranslation()
+  const label = t('timelineEditor.dragToTimeline')
   return (
     <div
       role="button"
@@ -40,8 +39,8 @@ export function TimelineNotchDragHandle({
         'active:translate-y-0 active:scale-[0.98]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--workbench-accent)] focus-visible:ring-offset-2',
       )}
-      aria-label={TIMELINE_DRAG_HANDLE_LABEL}
-      title={`${TIMELINE_DRAG_HANDLE_LABEL}（长按拖拽）`}
+      aria-label={label}
+      title={t('timelineEditor.dragToTimelineHold', { label })}
       draggable
       onClick={(event) => event.stopPropagation()}
       onDragStart={onDragStart}
@@ -49,15 +48,14 @@ export function TimelineNotchDragHandle({
       onPointerDown={(event) => event.stopPropagation()}
     >
       <IconGripVertical size={13} stroke={1.8} aria-hidden="true" />
-      <span className="sr-only">{TIMELINE_DRAG_HANDLE_LABEL}</span>
+      <span className="sr-only">{label}</span>
     </div>
   )
 }
 
-export function SideTimelineDragHandle({
-  onAddAtPlayhead,
-  onDragStart,
-}: TimelineDragHandleProps): JSX.Element {
+export function SideTimelineDragHandle({ onAddAtPlayhead, onDragStart }: TimelineDragHandleProps): JSX.Element {
+  const { t } = useTranslation()
+  const label = t('timelineEditor.dragToTimeline')
   return (
     <div
       role="button"
@@ -74,8 +72,8 @@ export function SideTimelineDragHandle({
         'hover:bg-nomi-paper hover:text-nomi-ink hover:shadow-nomi-lg',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--workbench-accent)] focus-visible:ring-offset-2',
       )}
-      aria-label={TIMELINE_DRAG_HANDLE_LABEL}
-      title={TIMELINE_DRAG_HANDLE_LABEL}
+      aria-label={label}
+      title={label}
       draggable
       onClick={onAddAtPlayhead}
       onDragStart={onDragStart}
@@ -92,7 +90,7 @@ export function SideTimelineDragHandle({
           'group-hover:opacity-100 group-hover:translate-x-0 group-focus-visible:opacity-100 group-focus-visible:translate-x-0',
         )}
       >
-        {TIMELINE_DRAG_HANDLE_LABEL}
+        {label}
       </span>
     </div>
   )

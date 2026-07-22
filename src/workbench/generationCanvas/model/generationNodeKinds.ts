@@ -6,25 +6,29 @@ import {
   type GenerationNodePluginDefinition,
 } from '../nodes/registry'
 import type { GenerationCanvasNode } from './generationCanvasTypes'
+import i18n from '../../../i18n'
 
 export { GENERATION_NODE_KINDS }
 export type { GenerationNodeExecutionKind, GenerationNodeKind }
 
 export type GenerationNodeDefinition = Omit<GenerationNodePluginDefinition<GenerationNodeKind>, 'component' | 'icon'>
 
-export const GENERATION_NODE_DEFINITIONS: Record<GenerationNodeKind, GenerationNodeDefinition> =
-  Object.fromEntries(GENERATION_NODE_PLUGINS.map((plugin) => {
+export const GENERATION_NODE_DEFINITIONS: Record<GenerationNodeKind, GenerationNodeDefinition> = Object.fromEntries(
+  GENERATION_NODE_PLUGINS.map((plugin) => {
     const { component: _component, icon: _icon, ...definition } = plugin
     return [plugin.kind, definition]
-  })) as Record<GenerationNodeKind, GenerationNodeDefinition>
+  }),
+) as Record<GenerationNodeKind, GenerationNodeDefinition>
 
 const NODE_KIND_SET = new Set<GenerationNodeKind>(GENERATION_NODE_KINDS)
 
-export const DEFAULT_NODE_SIZE: Record<GenerationNodeKind, { width: number; height: number }> =
-  Object.fromEntries(GENERATION_NODE_KINDS.map((kind) => [kind, GENERATION_NODE_DEFINITIONS[kind].defaultSize])) as Record<GenerationNodeKind, { width: number; height: number }>
+export const DEFAULT_NODE_SIZE: Record<GenerationNodeKind, { width: number; height: number }> = Object.fromEntries(
+  GENERATION_NODE_KINDS.map((kind) => [kind, GENERATION_NODE_DEFINITIONS[kind].defaultSize]),
+) as Record<GenerationNodeKind, { width: number; height: number }>
 
-export const NODE_KIND_LABEL: Record<GenerationNodeKind, string> =
-  Object.fromEntries(GENERATION_NODE_KINDS.map((kind) => [kind, GENERATION_NODE_DEFINITIONS[kind].label])) as Record<GenerationNodeKind, string>
+export const NODE_KIND_LABEL: Record<GenerationNodeKind, string> = Object.fromEntries(
+  GENERATION_NODE_KINDS.map((kind) => [kind, GENERATION_NODE_DEFINITIONS[kind].label]),
+) as Record<GenerationNodeKind, string>
 
 export function isGenerationNodeKind(value: unknown): value is GenerationNodeKind {
   return typeof value === 'string' && NODE_KIND_SET.has(value as GenerationNodeKind)
@@ -67,16 +71,16 @@ export function getGenerationNodeFootprintSize(
 }
 
 export function getGenerationNodeLabel(kind: GenerationNodeKind): string {
-  return getGenerationNodeDefinition(kind).label
+  return i18n.t(`runtime.nodeRegistry.${kind}.menu` as 'runtime.nodeRegistry.text.menu')
 }
 
 export function getGenerationNodeDefaultTitle(kind: GenerationNodeKind): string {
-  const definition = getGenerationNodeDefinition(kind)
-  return definition.defaultTitle || definition.label
+  return i18n.t(`runtime.nodeRegistry.${kind}.title` as 'runtime.nodeRegistry.text.title')
 }
 
 export function getGenerationNodePromptPlaceholder(kind: GenerationNodeKind): string {
-  return getGenerationNodeDefinition(kind).promptPlaceholder || '描述节点内容...'
+  const key = `runtime.nodeRegistry.${kind}.placeholder` as 'runtime.nodeRegistry.text.placeholder'
+  return i18n.exists(key) ? i18n.t(key) : i18n.t('runtime.nodeRegistry.fallbackPlaceholder')
 }
 
 export function getAgentCreatableGenerationNodeKinds(): GenerationNodeKind[] {
@@ -92,7 +96,10 @@ export function getGenerationNodeExecutionKind(kind: GenerationNodeKind): Genera
 }
 
 export function isImageLikeGenerationNodeKind(kind: GenerationNodeKind): boolean {
-  return getGenerationNodeExecutionKind(kind) === 'image' || getGenerationNodeDefinition(kind).providesImageReference === true
+  return (
+    getGenerationNodeExecutionKind(kind) === 'image' ||
+    getGenerationNodeDefinition(kind).providesImageReference === true
+  )
 }
 
 export function isVideoLikeGenerationNodeKind(kind: GenerationNodeKind): boolean {

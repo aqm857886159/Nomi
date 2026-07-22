@@ -96,6 +96,7 @@ export { default as IconHistory } from '@tabler/icons-react/dist/esm/icons/IconH
 export { default as IconInfoCircle } from '@tabler/icons-react/dist/esm/icons/IconInfoCircle.mjs'
 export { default as IconItalic } from '@tabler/icons-react/dist/esm/icons/IconItalic.mjs'
 export { default as IconKey } from '@tabler/icons-react/dist/esm/icons/IconKey.mjs'
+export { default as IconLanguage } from '@tabler/icons-react/dist/esm/icons/IconLanguage.mjs'
 export { default as IconLayersSubtract } from '@tabler/icons-react/dist/esm/icons/IconLayersSubtract.mjs'
 export { default as IconLayoutBoard } from '@tabler/icons-react/dist/esm/icons/IconLayoutBoard.mjs'
 export { default as IconLayoutGrid } from '@tabler/icons-react/dist/esm/icons/IconLayoutGrid.mjs'
