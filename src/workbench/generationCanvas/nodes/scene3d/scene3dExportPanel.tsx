@@ -23,12 +23,18 @@ export function Scene3DExportingCard({ card, onGoCanvas, onReplayTake, onDismiss
         <>
           <div className="flex min-w-0 flex-col gap-0.5">
             <span className="text-caption font-medium text-[var(--workbench-ink)]">
-              {card.kind === 'screenshot' ? t('scene3d.export.screenshotDone') : t('scene3d.export.referenceVideoDone')}
+              {card.kind === 'screenshot'
+                ? t('scene3d.export.screenshotDone')
+                : card.kind === 'keyframes'
+                  ? ((card.count ?? 0) >= 2 ? t('scene3d.export.keyframesDone') : t('scene3d.export.keyframesPartial'))
+                  : t('scene3d.export.referenceVideoDone')}
             </span>
             <span className="text-micro text-[var(--workbench-muted)]">
               {card.kind === 'screenshot'
                 ? t('scene3d.export.screenshotDestination')
-                : card.fedDownstream ? t('scene3d.export.downstreamDestination') : t('scene3d.export.archiveDestination')}
+                : card.kind === 'keyframes'
+                  ? t('scene3d.export.keyframesDestination')
+                  : card.fedDownstream ? t('scene3d.export.downstreamDestination') : t('scene3d.export.archiveDestination')}
             </span>
           </div>
           {card.kind === 'video' && onReplayTake ? (

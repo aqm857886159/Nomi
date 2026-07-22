@@ -27,7 +27,7 @@ const SCAN_DIRS = ["src", "electron"];
 const ALLOWLIST = {
   "electron/runtime.ts": 555, // …抽 projectAssetStore 锁到 602（2026-07-08 PR#36）→ 抽 profileHttpRequest（templateContext+buildProfileHttpRequest）到 catalog 锁到 558（2026-07-21 multipart 图生图）→ 555（2026-07-22 锁定）
   "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 743, // …→ 733（2026-07-21）→ 743（2026-07-22 全量 i18n：useTranslation import+hook+可见串 t() 化，+10；main 结构未变）
-  "src/workbench/generationCanvas/nodes/scene3d/Scene3DFullscreen.tsx": 802, // 曾 3822 巨壳拆到 771 出白名单；main 已回长到 800（任务优先重构），i18n 化 +2 到 802（2026-07-22 全量 i18n，人工评审：无法在不拆分下更小）
+  "src/workbench/generationCanvas/nodes/scene3d/Scene3DFullscreen.tsx": 800, // 曾 3822 巨壳拆到 771 出白名单；i18n 化到 802；F1/F2 抽出 useScene3DCameraFraming 回到 800（2026-07-22 安全画幅+首尾帧卡）
   // PR#21 白板节点引入（2026-06-25）：WhiteboardDrawingTool（1032）与 WhiteboardLeaferCanvas（3406）两巨壳
   // 已按 Rule 9 全部拆完、双双出白名单。LeaferCanvas → whiteboardCanvasTypes/Export/NodeOps/Geometry 四纯模块
   // + whiteboardSceneRender（渲染树）+ useWhiteboardDrawing/BoxSelection/SelectionActions/SceneSync 四交互 hook，

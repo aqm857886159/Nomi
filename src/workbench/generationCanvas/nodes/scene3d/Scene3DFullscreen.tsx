@@ -26,6 +26,7 @@ import {
   applyEditorCameraPose,
   vectorAlmostEqual,
 } from './scene3dMath'
+import { useScene3DCameraFraming } from './useScene3DCameraFraming'
 import { SceneObjectList } from './scene3dInspector'
 import { TrajectoryListPanel } from './scene3dTrajectoryListPanel'
 import { SceneContent } from './scene3dSceneContent'
@@ -220,15 +221,9 @@ export default function Scene3DFullscreen({
     }))
   }, [])
 
-  const patchCamera = React.useCallback((id: string, patch: Partial<Scene3DCamera>) => {
-    setState((current) => ({
-      ...current,
-      cameras: current.cameras.map((camera) => (camera.id === id ? { ...camera, ...patch } : camera)),
-    }))
-  }, [])
+  const { patchCamera, handleCameraAspectChange } = useScene3DCameraFraming({ setState, stateRef })
 
   const applyCameraMove = useScene3DCameraMoveAction({ readOnly, stateRef, setState, trajectory })
-  const { exportCameraMoveFrames, moveFrameCapture } = useScene3DMoveFrameExport({ stateRef, onScreenshot })
 
   const deleteSceneItem = useScene3DDeleteAction({
     readOnly,
@@ -279,6 +274,7 @@ export default function Scene3DFullscreen({
     handleExportScreenshotViewport,
     handleExportScreenshotCamera,
     trackTakeExport,
+    markKeyframesExported,
   } = useScene3DExportActions({
     state,
     stateRef,
@@ -289,6 +285,8 @@ export default function Scene3DFullscreen({
     captureViewport,
     captureSelectedCamera,
   })
+  // 首尾帧离屏导出（F2：两张节点建好 → markKeyframesExported 弹持久结果卡）。放在 exportActions 后拿其回调。
+  const { exportCameraMoveFrames, moveFrameCapture } = useScene3DMoveFrameExport({ stateRef, onScreenshot, onKeyframesExported: markKeyframesExported })
 
   const updateEditorCamera = React.useCallback((editorCamera: Scene3DState['editorCamera']) => {
     latestEditorCameraRef.current = editorCamera
@@ -684,7 +682,7 @@ export default function Scene3DFullscreen({
               readOnly={readOnly}
               cameraViewEditing={cameraViewEditId === selectedCamera.id}
               rightPanelCollapsed={!rightPanelOpen}
-              onAspectChange={(aspectRatio) => patchCamera(selectedCamera.id, { aspectRatio })}
+              onAspectChange={(aspectRatio) => handleCameraAspectChange(selectedCamera, aspectRatio)}
               onFovChange={(fov) => patchCamera(selectedCamera.id, { fov })}
               onLensDepthChange={(lensDepth) => patchCamera(selectedCamera.id, { lensDepth })}
               onShakeAmplitudeChange={(shakeAmplitude) => patchCamera(selectedCamera.id, { shakeAmplitude })}

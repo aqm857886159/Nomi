@@ -42,7 +42,7 @@ try {
   await win.getByRole('button', { name: '生成', exact: false }).first().click()
   await win.waitForTimeout(1500)
 
-  // 真实入口加 scene3d 节点：画布工具栏「添加3D场景节点」
+  // 真实入口加 scene3d 节点：画布工具栏「添加3D 场景节点」
   await win.getByRole('button', { name: /添加.*3D.*场景.*节点/ }).first().click()
   await win.waitForTimeout(1000)
   ok('已通过工具栏添加 3D场景 节点')

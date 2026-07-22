@@ -15,6 +15,9 @@ import { applyCameraMovePreset } from './cameraMovePreset'
 import { CAMERA_MOVE_LABEL } from './cameraMoveVocab'
 import { frameMotionSource, poseKeyframeKey } from './scene3dPoseTrack'
 import { createDefaultScene3DState, normalizeScene3DState } from './scene3dSerializer'
+import { cameraWithPlaybackPosition, sceneObjectTrajectorySample } from './scene3dPlayback'
+import { objectSubjectAabb, projectAabbScreenRect } from './scene3dSafeFrame'
+import { SCENE3D_ASPECT_RATIOS } from './scene3dTypes'
 
 const sample = (time: number, position: [number, number, number]): TakeSample => ({ time, position })
 
@@ -305,6 +308,47 @@ describe('buildRecordedTakeScene', () => {
     }))!
     expect(scene.trajectories.some((t) => t.name === '机位路径')).toBe(true)
     expect(scene.cameras[0].followTargetId).toBe(characterId)
+  })
+
+  // ── E：位置-only 预选运镜必须 follow 被录角色（不只断言轨迹名，投影主体验「持续看住」）──
+  it('位置-only 预选运镜继承后 follow 被录角色（朝向单源不回退静态 target）', () => {
+    const state = createDefaultScene3DState()
+    const characterId = state.objects[0].id
+    const withMove = applyCameraMovePreset(state, state.cameras[0].id, { move: 'track_right', duration: 5, amplitude: 1 })!.state
+    const scene = buildRecordedTakeScene(withMove, take(characterId))!
+    expect(scene.cameras[0].followTargetId).toBe(characterId)
+    expect(scene.cameras[0].aimTrajectoryId).toBeUndefined()
+  })
+
+  it('E 真投影：右横移跟拍 take 首/中/尾角色完整可见 + 中心横向漂移 ≤ 画宽 10%', () => {
+    const state = createDefaultScene3DState()
+    const characterId = state.objects[0].id
+    const withMove = applyCameraMovePreset(state, state.cameras[0].id, { move: 'track_right', duration: 5, amplitude: 1 })!.state
+    // 角色沿 Z 向前走一段（右横移跟拍应始终看住它）。
+    const scene = buildRecordedTakeScene(withMove, take(characterId, {
+      characterSamples: [sample(0, [0, 1.25, 0]), sample(2500, [0, 1.25, 2.5]), sample(5000, [0, 1.25, 5])],
+    }))!
+    const camera0 = scene.cameras[0]
+    const character = scene.objects.find((o) => o.id === characterId)!
+    const aspect = SCENE3D_ASPECT_RATIOS[camera0.aspectRatio]
+    let centerX0: number | null = null
+    for (const frac of [0, 0.5, 1]) {
+      const tSec = frac * scene.sceneTimeline.totalDuration
+      const cam = cameraWithPlaybackPosition(scene, camera0, tSec)
+      // 角色 AABB 从脚底（轨迹采样点）建——objectSubjectAabb 内部 +halfHeight 求中心，与相机 follow 瞄准点同口径。
+      const feet = sceneObjectTrajectorySample(scene, characterId, tSec)!.position
+      const aabb = objectSubjectAabb({ ...character, position: [feet.x, feet.y, feet.z] })!
+      const rect = projectAabbScreenRect(aabb, cam.position, cam.target, cam.fov, aspect)
+      expect(rect, `t=${frac} 角色应在相机前方`).not.toBeNull()
+      // 完整可见（真渲染 8% 容差；求解线 10%）——头脚左右都不裁。
+      expect(rect!.minX, `t=${frac} 左`).toBeGreaterThanOrEqual(0.08 - 1e-6)
+      expect(rect!.maxX, `t=${frac} 右`).toBeLessThanOrEqual(0.92 + 1e-6)
+      expect(rect!.minY, `t=${frac} 上(头)`).toBeGreaterThanOrEqual(0.08 - 1e-6)
+      expect(rect!.maxY, `t=${frac} 下(脚)`).toBeLessThanOrEqual(0.92 + 1e-6)
+      const centerX = (rect!.minX + rect!.maxX) / 2
+      if (centerX0 === null) centerX0 = centerX
+      else expect(Math.abs(centerX - centerX0), `t=${frac} 中心横向漂移`).toBeLessThanOrEqual(0.1)
+    }
   })
 })
 

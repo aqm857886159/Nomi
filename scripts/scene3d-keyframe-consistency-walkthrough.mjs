@@ -61,7 +61,7 @@ try {
   await win.waitForTimeout(2500)
   await win.getByRole('button', { name: '生成', exact: false }).first().click()
   await win.waitForTimeout(1500)
-  await win.locator('[aria-label="添加3D场景节点"]').first().click()
+  await win.locator('[aria-label="添加3D 场景节点"]').first().click()
   await win.waitForTimeout(1000)
   await win.locator('[aria-label="打开 3D 编辑器"]').first().click()
   await win.waitForTimeout(3000)

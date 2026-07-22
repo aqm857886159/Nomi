@@ -72,9 +72,12 @@ export function useScene3DCaptureActions({
 export function useScene3DMoveFrameExport({
   stateRef,
   onScreenshot,
+  onKeyframesExported,
 }: {
   stateRef: React.MutableRefObject<Scene3DState>
   onScreenshot: (capture: Scene3DCaptureResult) => void
+  /** F2：首尾帧两张节点都建好后回调（count=生成张数），宿主据此弹持久结果卡（替代瞬时 toast）。 */
+  onKeyframesExported?: (count: number) => void
 }): {
   exportCameraMoveFrames: (cameraId: string) => Promise<void>
   /** 有导出请求时挂在编辑器 JSX 里的隐藏离屏捕获元素 */
@@ -118,8 +121,10 @@ export function useScene3DMoveFrameExport({
       title: i18n.t('scene3d.fullscreen.cameraMoveFrameTitle', { camera: cameraName, frame: label }),
       source: 'scene3d-camera',
     }))
-    toast(i18n.t('scene3d.fullscreen.frameExported'), 'success')
-  }, [onScreenshot])
+    // F2：两张节点已建 → 弹持久结果卡（替代瞬时 toast，用户能回看/回画布）。无宿主回调时退回 toast。
+    if (onKeyframesExported) onKeyframesExported(labeled.length)
+    else toast(i18n.t('scene3d.fullscreen.frameExported'), 'success')
+  }, [onKeyframesExported, onScreenshot])
 
   // 看门狗：离屏 WebGL 出不来（上下文丢失等）不能让导出永远悬着。
   React.useEffect(() => {

@@ -155,7 +155,7 @@ function inheritCameraMove(
   baseTrajectories: readonly Scene3DTrajectory[],
   baseBindings: readonly Scene3DTrajectoryBinding[],
   durationSeconds: number,
-): { trajectories: Scene3DTrajectory[]; bindings: Scene3DTrajectoryBinding[] } | null {
+): { trajectories: Scene3DTrajectory[]; bindings: Scene3DTrajectoryBinding[]; hasAim: boolean } | null {
   const aimId = cameraAimBindingId(cameraId)
   const cameraBindings = baseBindings.filter((binding) =>
     binding.objects.some((entry) => entry.objectId === cameraId || entry.objectId === aimId),
@@ -164,6 +164,8 @@ function inheritCameraMove(
   const trajectoryIds = new Set(cameraBindings.map((binding) => binding.trajectoryId))
   const trajectories = baseTrajectories.filter((trajectory) => trajectoryIds.has(trajectory.id))
   if (trajectories.length === 0) return null
+  // 该运镜是否自带逐帧朝向（aim 轨迹绑到 `${camId}:aim`）——决定继承后朝向单源：有 aim 用 aim、无 aim 用 follow。
+  const hasAim = cameraBindings.some((binding) => binding.objects.some((entry) => entry.objectId === aimId))
   // base 相机时间线跨度 → 等比映射到 [0,duration]，保留多段编排顺序（单预设 [0,d] 即整段铺满录制时长）。
   const camMin = Math.min(...cameraBindings.map((binding) => binding.startTime))
   const camMax = Math.max(...cameraBindings.map((binding) => binding.endTime))
@@ -174,7 +176,7 @@ function inheritCameraMove(
     startTime: remap(binding.startTime),
     endTime: remap(binding.endTime),
   }))
-  return { trajectories, bindings }
+  return { trajectories, bindings, hasAim }
 }
 
 /**
@@ -219,9 +221,13 @@ export function buildRecordedTakeScene(base: Scene3DState, take: RecordedTake): 
   if (camera) {
     const inherited = inheritCameraMove(camera.id, next.trajectories, next.trajectoryBindings, take.durationSeconds)
     if (inherited) {
-      // E：继承已有运镜（右横移跟拍等），保留其轨迹与绑定，不覆盖 followTargetId、不再重采样机位路径。
+      // E：继承已有运镜（右横移跟拍等），保留其轨迹与绑定，不重采样机位路径。
       trajectories.push(...inherited.trajectories)
       bindings.push(...inherited.bindings)
+      // 朝向单源（治「右横移跟拍只剩右横移、主体漂出画面」）：预设自带 aim → aim 唯一来源清 follow；
+      // 位置-only 运镜（如 applyCameraMovePreset 只落位置轨迹）→ **follow 被录角色**，镜头持续看住移动主体，
+      // 绝不回退静态 target（scene3dPlayback 朝向优先级 aim→follow→静态 target）。
+      camera.followTargetId = inherited.hasAim ? undefined : character.id
     } else {
       // 无预选运镜：老行为——相机跟拍被操控角色 + 采样用户绕拍的机位路径。
       camera.followTargetId = character.id

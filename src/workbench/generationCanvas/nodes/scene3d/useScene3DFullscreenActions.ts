@@ -565,10 +565,12 @@ export function useScene3DCameraMoveAction({
  * kind='screenshot'：截图即时完成——产物落在被编辑器盖住的画布上，没有这张卡用户会以为
  * 什么都没发生（2026-07-21 反馈「截了图没东西可拖」）。 */
 export type Scene3DExportCard = {
-  kind: 'video' | 'screenshot'
+  kind: 'video' | 'screenshot' | 'keyframes'
   phase: 'rendering' | 'slow' | 'done'
   /** video done 时：mp4 是否已自动喂给下游镜头（cameraMoveVideo.targetNodeId） */
   fedDownstream: boolean
+  /** keyframes：实际生成的张数（2=首尾全成 / 1=partial 仅一张）。 */
+  count?: number
 }
 
 // 出片动作（2026-07-20 出片旅程 → 2026-07-22 任务优先重构）：三个导出 handler、
@@ -613,21 +615,35 @@ export function useScene3DExportActions({
     if (screenshotTimerRef.current) window.clearTimeout(screenshotTimerRef.current)
     screenshotTimerRef.current = window.setTimeout(() => setScreenshotDone(false), 10_000)
   }, [])
+  // F2 首尾帧持久结果卡：文件+节点已建，但此前只有瞬时 toast——给持久卡（10s，两张都成才 done，
+  // 只成一张显示 partial 1/2），带「回画布查看」。count=0 = 全失败（不出成功卡）。
+  const [keyframesCount, setKeyframesCount] = React.useState(0)
+  const keyframesTimerRef = React.useRef<number | null>(null)
+  const markKeyframesExported = React.useCallback((count: number) => {
+    if (count <= 0) return
+    setKeyframesCount(count)
+    if (keyframesTimerRef.current) window.clearTimeout(keyframesTimerRef.current)
+    keyframesTimerRef.current = window.setTimeout(() => setKeyframesCount(0), 10_000)
+  }, [])
   React.useEffect(() => () => {
     if (screenshotTimerRef.current) window.clearTimeout(screenshotTimerRef.current)
+    if (keyframesTimerRef.current) window.clearTimeout(keyframesTimerRef.current)
   }, [])
 
   const exportCard: Scene3DExportCard | null = exportingTakeId
     ? takeVideo?.url
       ? { kind: 'video', phase: 'done', fedDownstream: Boolean(takeVideo.targetNodeId) }
       : { kind: 'video', phase: slowHint ? 'slow' : 'rendering', fedDownstream: false }
-    : screenshotDone
-      ? { kind: 'screenshot', phase: 'done', fedDownstream: false }
-      : null
+    : keyframesCount > 0
+      ? { kind: 'keyframes', phase: 'done', fedDownstream: false, count: keyframesCount }
+      : screenshotDone
+        ? { kind: 'screenshot', phase: 'done', fedDownstream: false }
+        : null
   const dismissExportCard = React.useCallback(() => {
     setExportingTakeId(null)
     setSlowHint(false)
     setScreenshotDone(false)
+    setKeyframesCount(0)
     if (exportingTimerRef.current) {
       window.clearTimeout(exportingTimerRef.current)
       exportingTimerRef.current = null
@@ -635,6 +651,10 @@ export function useScene3DExportActions({
     if (screenshotTimerRef.current) {
       window.clearTimeout(screenshotTimerRef.current)
       screenshotTimerRef.current = null
+    }
+    if (keyframesTimerRef.current) {
+      window.clearTimeout(keyframesTimerRef.current)
+      keyframesTimerRef.current = null
     }
   }, [])
 
@@ -717,5 +737,6 @@ export function useScene3DExportActions({
     handleExportScreenshotViewport,
     handleExportScreenshotCamera,
     trackTakeExport,
+    markKeyframesExported,
   }
 }

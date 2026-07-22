@@ -6,6 +6,8 @@ import { toast } from '../../../../ui/toast'
 import { cloneScene3DState } from './scene3dSerializer'
 import { setScene3DPlayheadSeconds } from './trajectory'
 import { cameraWithPlaybackPosition } from './scene3dPlayback'
+import { reframeAutoCameraPose } from './scene3dSafeFrame'
+import { cameraLookAtRotation } from './scene3dMath'
 import {
   scene3dStatusSentence,
   scene3dTaskCta,
@@ -130,11 +132,29 @@ export function useScene3DTaskFlow({
       toast(t('scene3d.taskFlow.addCameraForOutputView'), 'warning')
       return
     }
+    // F1：auto 相机在进「输出画面」前按当前主体重解安全画幅（头脚不裁）；manual 相机原样不动。
+    let outputCamera = camera
+    const reframed = reframeAutoCameraPose(camera, stateRef.current.objects)
+    if (reframed) {
+      outputCamera = {
+        ...camera,
+        position: reframed.position,
+        target: reframed.target,
+        rotation: cameraLookAtRotation(reframed.position, reframed.target),
+      }
+      setState((current) => ({
+        ...current,
+        cameras: current.cameras.map((item) => (item.id === camera.id ? outputCamera : item)),
+      }))
+    }
     if (selectionRef.current?.type !== 'camera' || selectionRef.current.id !== camera.id) {
       setSelection({ type: 'camera', id: camera.id })
     }
-    enterCameraViewEdit(cameraWithPlaybackPosition(stateRef.current, camera, trajectory.playheadRef.current, trajectory.activeTrajectoryIds))
-  }, [cameraViewEditCamera, enterCameraViewEdit, exitCameraViewEdit, selectedCamera, selectionRef, setSelection, stateRef, trajectory.activeTrajectoryIds, trajectory.playheadRef, t])
+    const outputState = reframed
+      ? { ...stateRef.current, cameras: stateRef.current.cameras.map((item) => (item.id === camera.id ? outputCamera : item)) }
+      : stateRef.current
+    enterCameraViewEdit(cameraWithPlaybackPosition(outputState, outputCamera, trajectory.playheadRef.current, trajectory.activeTrajectoryIds))
+  }, [cameraViewEditCamera, enterCameraViewEdit, exitCameraViewEdit, selectedCamera, selectionRef, setSelection, setState, stateRef, trajectory.activeTrajectoryIds, trajectory.playheadRef, t])
 
   // —— 任务 CTA：完成按钮就是产物动作（构图=相机截图 / 动作=录 take / 运镜=参考视频）——
   const handleTaskCta = React.useCallback(() => {

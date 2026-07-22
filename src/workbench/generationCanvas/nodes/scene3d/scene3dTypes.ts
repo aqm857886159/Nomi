@@ -71,6 +71,9 @@ export type Scene3DCamera = {
   // 手持抖动强度 0-100（0/缺省 = 关）。播放/离屏采帧时在 cameraWithPlaybackPosition 叠
   // 确定性多频正弦噪声（纯播放头 t 的函数，逐帧可重现），经运镜小片 video_ref 真传进成片。
   shakeAmplitude?: number
+  // 构图所有权（F1）：'auto' = 系统按主体安全画幅自动取景（默认/模板/切画幅重解）；'manual' = 用户手动
+  // orbit/pan/dolly/改机位/改 target 后接管，自动取景不再覆盖。缺省（老项目/未标）按 manual 处理，绝不动用户已有构图。
+  framing?: 'auto' | 'manual'
 }
 
 export type Scene3DTrajectoryPoint = {
