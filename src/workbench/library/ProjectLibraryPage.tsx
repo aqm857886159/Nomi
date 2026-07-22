@@ -16,6 +16,7 @@ import { cn } from '../../utils/cn'
 import { ActionCard, NomiLogoMark, NomiWordmark, DesignEmptyState, DesignSearchInput } from '../../design'
 import { NomiImage } from '../../design/media'
 import { ThemeToggleButton } from '../../ui/theme/ThemeToggleButton'
+import { LanguageMenuButton } from '../../ui/app-shell/LanguageMenuButton'
 import { WindowControls } from '../../ui/app-shell/WindowControls'
 import { handleWindowTitlebarDoubleClick } from '../../ui/app-shell/windowTitlebarDoubleClick'
 import type { LocalProjectSummary } from './localProjectStore'
@@ -162,6 +163,7 @@ export default function ProjectLibraryPage({
         <IconBrowser size={14} stroke={1.8} aria-hidden="true" />
         {t('library.browser')}
       </button>
+      <LanguageMenuButton className="size-7 rounded-pill" />
       <ThemeToggleButton className="size-7 rounded-pill" />
     </div>
   )
