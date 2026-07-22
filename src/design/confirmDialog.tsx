@@ -110,7 +110,7 @@ export function ConfirmDialogHost(): JSX.Element {
             className={cn(
               'h-7 px-3 rounded-nomi-sm border-0 text-caption cursor-pointer',
               active?.danger
-                ? 'bg-[var(--nomi-snap-tag)] text-nomi-paper hover:opacity-90'
+                ? 'bg-[var(--nomi-snap-tag)] text-[var(--nomi-paper)] hover:bg-[var(--nomi-snap-tag)] hover:text-[var(--nomi-paper)] hover:shadow-nomi-sm'
                 : 'bg-nomi-ink text-nomi-paper hover:bg-nomi-accent',
             )}
             data-confirm-dialog-confirm='true'

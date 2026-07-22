@@ -26,6 +26,12 @@ const videoWorkflow = (promptText: string) => JSON.stringify({
   "4": { class_type: "KSampler", inputs: { seed: 1, steps: 10, positive: ["2", 0], model: ["3", 0] } },
   "5": { class_type: "VHS_VideoCombine", inputs: { images: ["4", 0], frame_rate: 24 } },
 });
+const textToVideoWorkflow = (promptText: string) => JSON.stringify({
+  "2": { class_type: "CLIPTextEncode", inputs: { text: promptText, clip: ["3", 0] } },
+  "3": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: "m.safetensors" } },
+  "4": { class_type: "KSampler", inputs: { seed: 2, steps: 12, positive: ["2", 0], model: ["3", 0] } },
+  "5": { class_type: "CreateVideo", inputs: { images: ["4", 0], fps: 16 } },
+});
 
 beforeEach(() => {
   mockedUserDataRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-comfy-import-"));
@@ -55,6 +61,21 @@ describe("importComfyWorkflowToCatalog（S3 落库）", () => {
     expect(mine?.modelKey).toBe("comfy-wan-i2v-a-aaa");
   });
 
+  it("导入时保存原始 workflow + binding 草稿，供 UI 重新编辑", async () => {
+    emptyCatalog();
+    const { analyzeComfyWorkflowText, importComfyWorkflowToCatalog } = await import("./comfyuiWorkflowImportStore");
+    const { listModelCatalogModels } = await import("./catalogStore");
+    const text = videoWorkflow("editable dragon");
+    const binding = (analyzeComfyWorkflowText(text) as { analysis: { suggested: unknown } }).analysis.suggested;
+    const r = importComfyWorkflowToCatalog({ text, binding, labelZh: "WAN editable" }, "edit1");
+    const modelKey = (r as { modelKey: string }).modelKey;
+
+    const models = listModelCatalogModels({ vendorKey: "comfyui-local" }) as Array<{ modelKey: string; meta?: { comfyWorkflowImport?: { text?: string; binding?: unknown } } }>;
+    const model = models.find((m) => m.modelKey === modelKey);
+    expect(model?.meta?.comfyWorkflowImport?.text).toBe(text);
+    expect(model?.meta?.comfyWorkflowImport?.binding).toEqual(binding);
+  });
+
   it("同 vendor 同 taskKind 两条导入靠 modelKey 不互相覆盖，selectTaskMapping 各取各的", async () => {
     emptyCatalog();
     const { analyzeComfyWorkflowText, importComfyWorkflowToCatalog } = await import("./comfyuiWorkflowImportStore");
@@ -78,6 +99,50 @@ describe("importComfyWorkflowToCatalog（S3 落库）", () => {
     expect(pickA?.modelKey).toBe(keyA);
     expect(pickB?.modelKey).toBe(keyB);
     expect(JSON.stringify(pickA?.create.body)).toContain("{{request.prompt}}"); // 提示词已注参
+  });
+
+  it("删除导入 workflow 模型时级联删除同 modelKey 的 mapping，不影响其他导入", async () => {
+    emptyCatalog();
+    const { analyzeComfyWorkflowText, importComfyWorkflowToCatalog } = await import("./comfyuiWorkflowImportStore");
+    const { deleteModelCatalogModels, listModelCatalogModels, listModelCatalogMappings } = await import("./catalogStore");
+    const textA = videoWorkflow("dragon A");
+    const textB = videoWorkflow("dragon B");
+    const bindA = (analyzeComfyWorkflowText(textA) as { analysis: { suggested: unknown } }).analysis.suggested;
+    const bindB = (analyzeComfyWorkflowText(textB) as { analysis: { suggested: unknown } }).analysis.suggested;
+    const keyA = (importComfyWorkflowToCatalog({ text: textA, binding: bindA, labelZh: "WAN A" }, "a1") as { modelKey: string }).modelKey;
+    const keyB = (importComfyWorkflowToCatalog({ text: textB, binding: bindB, labelZh: "WAN B" }, "b2") as { modelKey: string }).modelKey;
+
+    deleteModelCatalogModels([{ vendorKey: "comfyui-local", modelKey: keyA }]);
+
+    const models = listModelCatalogModels({ vendorKey: "comfyui-local" }) as Array<{ modelKey: string }>;
+    const mappings = listModelCatalogMappings({ vendorKey: "comfyui-local" }) as Array<{ modelKey?: string }>;
+    expect(models.map((m) => m.modelKey)).not.toContain(keyA);
+    expect(mappings.map((m) => m.modelKey)).not.toContain(keyA);
+    expect(models.map((m) => m.modelKey)).toContain(keyB);
+    expect(mappings.map((m) => m.modelKey)).toContain(keyB);
+  });
+
+  it("编辑已导入 workflow 时保留 modelKey，并替换旧 taskKind mapping", async () => {
+    emptyCatalog();
+    const { analyzeComfyWorkflowText, importComfyWorkflowToCatalog, updateComfyWorkflowInCatalog } = await import("./comfyuiWorkflowImportStore");
+    const { listModelCatalogModels, listModelCatalogMappings } = await import("./catalogStore");
+    const oldText = videoWorkflow("old i2v");
+    const oldBinding = (analyzeComfyWorkflowText(oldText) as { analysis: { suggested: unknown } }).analysis.suggested;
+    const modelKey = (importComfyWorkflowToCatalog({ text: oldText, binding: oldBinding, labelZh: "WAN edit me" }, "same") as { modelKey: string }).modelKey;
+    expect(listModelCatalogMappings({ vendorKey: "comfyui-local" }) as Array<{ taskKind: string; modelKey?: string }>)
+      .toContainEqual(expect.objectContaining({ modelKey, taskKind: "image_to_video" }));
+
+    const nextText = textToVideoWorkflow("new t2v");
+    const nextBinding = (analyzeComfyWorkflowText(nextText) as { analysis: { suggested: unknown } }).analysis.suggested;
+    const r = updateComfyWorkflowInCatalog({ modelKey, text: nextText, binding: nextBinding, labelZh: "WAN edited" });
+    expect(r).toMatchObject({ ok: true, modelKey, taskKind: "text_to_video" });
+
+    const models = listModelCatalogModels({ vendorKey: "comfyui-local" }) as Array<{ modelKey: string; labelZh: string; meta?: { comfyWorkflowImport?: { text?: string } } }>;
+    expect(models.find((m) => m.modelKey === modelKey)).toMatchObject({ labelZh: "WAN edited", meta: { comfyWorkflowImport: { text: nextText } } });
+    const mappings = listModelCatalogMappings({ vendorKey: "comfyui-local" }) as Array<{ taskKind: string; modelKey?: string }>;
+    expect(mappings.filter((m) => m.modelKey === modelKey)).toHaveLength(1);
+    expect(mappings).not.toContainEqual(expect.objectContaining({ modelKey, taskKind: "image_to_video" }));
+    expect(mappings).toContainEqual(expect.objectContaining({ modelKey, taskKind: "text_to_video" }));
   });
 
   it("坏 workflow → { ok:false, error }，不落库", async () => {
