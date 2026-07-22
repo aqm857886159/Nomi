@@ -1,10 +1,9 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconAlertTriangle, IconChevronRight, IconCircleCheck, IconMap } from '@tabler/icons-react'
-import { BodyPortal, DesignProgress, NomiLoadingMark, NomiLogoMark, NomiSelect, NomiWordmark, WorkbenchButton } from '../../design'
+import { BodyPortal, DesignProgress, NomiLoadingMark, NomiLogoMark, NomiWordmark, WorkbenchButton } from '../../design'
 import { cn } from '../../utils/cn'
 import { useNomiColorScheme } from '../../theme/colorScheme'
-import { getAppLocale, isAppLocale, setAppLocale } from '../../i18n'
 import { ThemeToggleButton } from '../theme/ThemeToggleButton'
 import { useUpdater } from './useUpdater'
 
@@ -56,14 +55,14 @@ export function AboutNomiPopover({ anchorEl, onClose }: AboutNomiPopoverProps): 
   return (
     <BodyPortal>
       <div
-        className="fixed inset-0 z-[200]"
+        className="fixed inset-0 z-[600]"
         onMouseDown={onClose}
         aria-hidden="true"
       />
       <div
         className={cn(
           'about-nomi-popover',
-          'fixed z-[201] w-[360px] p-4',
+          'fixed z-[601] w-[360px] p-4',
           'bg-[var(--nomi-paper)] border border-[var(--nomi-line)] rounded-nomi shadow-nomi-lg',
         )}
         style={{ top: pos?.top ?? -9999, left: pos?.left ?? -9999 }}
@@ -109,22 +108,6 @@ export function AboutNomiPopover({ anchorEl, onClose }: AboutNomiPopoverProps): 
             </div>
           </div>
           <ThemeToggleButton className="shrink-0 border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)]" />
-        </div>
-
-        <div className="mb-3.5 flex min-h-9 items-center justify-between gap-3 rounded-nomi-sm bg-[var(--nomi-ink-05)] px-3 py-2">
-          <div className="text-body-sm text-[var(--nomi-ink)]">{t('common.language')}</div>
-          <NomiSelect
-            size="xs"
-            ariaLabel={t('common.language')}
-            value={getAppLocale()}
-            options={[
-              { value: 'zh-CN', label: t('common.chinese') },
-              { value: 'en', label: t('common.english') },
-            ]}
-            onChange={(value) => {
-              if (isAppLocale(value)) setAppLocale(value)
-            }}
-          />
         </div>
 
         <div className="pt-3.5 border-t border-[var(--nomi-line-soft)]">

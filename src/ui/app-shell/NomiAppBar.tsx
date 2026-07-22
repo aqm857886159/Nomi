@@ -5,6 +5,7 @@ import type { WorkspaceMode } from '../../workbench/workbenchStore'
 import { NomiBrand, NomiStepper, WorkbenchButton } from '../../design'
 import { OnboardingChecklist } from '../../workbench/onboarding/OnboardingChecklist'
 import { AboutNomiPopover } from './AboutNomiPopover'
+import { LanguageMenuButton } from './LanguageMenuButton'
 import { cn } from '../../utils/cn'
 import { handleWindowTitlebarDoubleClick } from './windowTitlebarDoubleClick'
 import { dispatchGlobalAssetPopoverOpen, getGlobalAssetPopoverAnchorRect } from '../browser/overlay/globalAssetPopoverEvents'
@@ -262,6 +263,7 @@ export default function NomiAppBar({
               <span className={cn('nomi-appbar__action-text', 'max-[1400px]:hidden')}>{t('appBar.assetBox')}</span>
               <AssetCountBadge count={assetCount} />
             </WorkbenchButton>
+            <LanguageMenuButton className="size-[30px]" />
           </>
         ) : null}
         <WorkbenchButton

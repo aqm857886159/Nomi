@@ -289,6 +289,12 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
       if (tab) hideTabView(tab)
       return
     }
+    // 「素材网站」下拉是 DOM 浮层，网页是 Electron 原生 view（恒压在 DOM 之上）——下拉展开时若不避让，
+    // 就被网页盖住/穿透。下拉开着时先隐藏当前网页 view（用户在选站、网页暂不看），关闭后本回调会 show 回来。
+    if (materialSitesOpen) {
+      hideTabView(tab)
+      return
+    }
     const containerRect = toViewportRect(node.getBoundingClientRect())
     const localAssetPopoverOpen = browserAssetPopoverOpen && !useNativeBrowserAssetOverlay
     const localSplitDocked = localAssetPopoverOpen && Boolean(browserAssetPopoverDockMode)
@@ -335,6 +341,7 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
     browserBridge,
     dockPanelWidth,
     hideTabView,
+    materialSitesOpen,
     useNativeBrowserAssetOverlay,
   ])
 

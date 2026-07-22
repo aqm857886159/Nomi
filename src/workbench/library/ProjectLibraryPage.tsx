@@ -6,7 +6,6 @@ import {
   IconBox,
   IconFolderOpen,
   IconFolderShare,
-  IconInfoCircle,
   IconMovie,
   IconPlayerPlay,
   IconPlugConnected,
@@ -15,11 +14,12 @@ import {
   IconTrash,
 } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
-import { ActionCard, NomiLogoMark, NomiWordmark, DesignEmptyState, DesignSearchInput } from '../../design'
+import { ActionCard, NomiBrand, NomiWordmark, DesignEmptyState, DesignSearchInput } from '../../design'
 import { NomiImage } from '../../design/media'
 import { ThemeToggleButton } from '../../ui/theme/ThemeToggleButton'
 import { WindowControls } from '../../ui/app-shell/WindowControls'
 import { AboutNomiPopover } from '../../ui/app-shell/AboutNomiPopover'
+import { LanguageMenuButton } from '../../ui/app-shell/LanguageMenuButton'
 import { handleWindowTitlebarDoubleClick } from '../../ui/app-shell/windowTitlebarDoubleClick'
 import {
   dispatchGlobalAssetPopoverOpen,
@@ -139,21 +139,6 @@ export default function ProjectLibraryPage({
 
   const libraryTopActions = (
     <div className="app-no-drag flex items-center gap-1">
-      <button
-        ref={aboutButtonRef}
-        type="button"
-        onClick={() => setAboutOpen((open) => !open)}
-        className={cn(
-          'inline-flex items-center gap-1.5 h-7 px-2 rounded-pill border-0 bg-transparent cursor-pointer font-inherit',
-          'text-caption text-nomi-ink-60 transition-colors hover:text-nomi-ink',
-        )}
-        aria-label={t('appBar.aboutAndUpdate')}
-        aria-haspopup="dialog"
-        aria-expanded={aboutOpen}
-      >
-        <IconInfoCircle size={14} stroke={1.8} aria-hidden="true" />
-        {t('about.dialogLabel')}
-      </button>
       {onReplaySplash ? (
         <button
           type="button"
@@ -218,6 +203,7 @@ export default function ProjectLibraryPage({
           </span>
         ) : null}
       </button>
+      <LanguageMenuButton className="size-7" />
       <ThemeToggleButton className="size-7 rounded-pill" />
     </div>
   )
@@ -229,6 +215,20 @@ export default function ProjectLibraryPage({
           className="nomi-library-page__windowbar app-drag relative shrink-0 flex items-center gap-2 h-8 w-full bg-nomi-bg pl-3"
           onDoubleClick={handleWindowTitlebarDoubleClick}
         >
+          <button
+            ref={aboutButtonRef}
+            type="button"
+            className={cn(
+              'app-no-drag relative z-[2] inline-flex h-full items-center pr-2 border-0 bg-transparent cursor-pointer',
+              'text-nomi-ink transition-[opacity] duration-[var(--nomi-transition-fast)] hover:opacity-80',
+            )}
+            aria-label={t('appBar.aboutAndUpdate')}
+            aria-haspopup="dialog"
+            aria-expanded={aboutOpen}
+            onClick={() => setAboutOpen((open) => !open)}
+          >
+            <NomiBrand markSize={18} wordSize={14} />
+          </button>
           <div
             className="app-drag relative z-[1] h-full min-w-0 flex-1"
             data-window-drag-region="true"
@@ -240,14 +240,32 @@ export default function ProjectLibraryPage({
       ) : null}
       {aboutOpen ? <AboutNomiPopover anchorEl={aboutButtonRef.current} onClose={() => setAboutOpen(false)} /> : null}
       <main className="nomi-library-page__main flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-14 pt-[60px] pb-20 flex flex-col gap-5">
-        {/* ── Header：品牌 + 右上弱入口（模型接入；Windows 时移到自绘标题栏） ── */}
+        {/* ── Header：左上 logo→关于菜单（同画布；Windows 移到自绘标题栏）＋ 大标题去 logo 只留字标 ── */}
         <section className="shrink-0 flex items-start justify-between gap-6 mb-1">
-          <h1 className="flex items-center gap-3 font-nomi-display text-display font-normal tracking-[-0.022em] text-nomi-ink leading-none m-0">
-            <NomiLogoMark size={28} />
-            <span>
+          <div className="flex items-center gap-3 min-w-0">
+            {!isWindows ? (
+              <>
+                <button
+                  ref={aboutButtonRef}
+                  type="button"
+                  className={cn(
+                    'inline-flex items-center border-0 bg-transparent p-0 cursor-pointer',
+                    'transition-[opacity] duration-[var(--nomi-transition-fast)] hover:opacity-80',
+                  )}
+                  aria-label={t('appBar.aboutAndUpdate')}
+                  aria-haspopup="dialog"
+                  aria-expanded={aboutOpen}
+                  onClick={() => setAboutOpen((open) => !open)}
+                >
+                  <NomiBrand markSize={22} wordSize={16} />
+                </button>
+                <span className="w-px h-6 bg-nomi-line" aria-hidden="true" />
+              </>
+            ) : null}
+            <h1 className="flex items-center gap-3 font-nomi-display text-display font-normal tracking-[-0.022em] text-nomi-ink leading-none m-0">
               <NomiWordmark /> {t('appBar.projectLibrary')}
-            </span>
-          </h1>
+            </h1>
+          </div>
           {!isWindows ? libraryTopActions : null}
         </section>
 

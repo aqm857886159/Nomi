@@ -6,6 +6,7 @@ import { IconBox, IconBrowser } from "@tabler/icons-react";
 import { NomiBrand, NomiLoadingMark } from "../design";
 import NomiAppBar from "../ui/app-shell/NomiAppBar";
 import { AboutNomiPopover } from "../ui/app-shell/AboutNomiPopover";
+import { LanguageMenuButton } from "../ui/app-shell/LanguageMenuButton";
 import {
     isWorkspaceMode,
     useWorkbenchStore,
@@ -282,6 +283,7 @@ export default function WorkbenchShell({
                                 </span>
                             ) : null}
                         </button>
+                        <LanguageMenuButton />
                     </div>
                     <WindowControls className="relative z-[2]" />
                 </div>
