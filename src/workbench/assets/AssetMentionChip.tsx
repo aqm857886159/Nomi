@@ -1,17 +1,13 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
 import { cn } from '../../utils/cn'
 
 // @ 内联引用 chip 的 nodeview 组件:句中一个 18px 缩略图(样张 v4 .atChip)。
 // 单独成文件,让 AssetMentionNode 只导出 Tiptap Node(非组件)——避免 react-refresh/only-export-components 警告。
 export default function AssetMentionChip({ node }: NodeViewProps): JSX.Element {
-  const { t } = useTranslation()
   const url = String(node.attrs.url || '')
   const index = Number(node.attrs.index)
-  const label = Number.isInteger(index) && index > 0
-    ? t('assetLibrary.referenceImageIndexed', { index })
-    : t('assetLibrary.referenceImage')
+  const label = Number.isInteger(index) && index > 0 ? `图片${index}` : '参考图'
   return (
     <NodeViewWrapper
       as="span"

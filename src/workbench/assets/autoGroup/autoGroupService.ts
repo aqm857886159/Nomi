@@ -7,7 +7,6 @@
 import { getTextBrain } from '../../api/promptLibraryApi'
 import { runWorkbenchTextTaskStream } from '../../api/taskApi'
 import { buildGroupingPrompt, parseGroupingResult, type GroupingResult } from './autoGroup'
-import i18n from '../../../i18n'
 
 export type GroupingInput = { nodeId: string; prompt?: string; title?: string }
 
@@ -19,7 +18,7 @@ export async function runContentGrouping(items: GroupingInput[], signal?: AbortS
   const ids = items.map((i) => i.nodeId)
   if (items.length < 2) return { groups: [], ungroupedIds: ids }
   const brain = await getTextBrain()
-  if (!brain) throw new Error(i18n.t('generationCommon.optimizer.configureTextModel'))
+  if (!brain) throw new Error('请先在「模型接入」里启用一个文本模型')
   const prompt = buildGroupingPrompt(items)
   let acc = ''
   await runWorkbenchTextTaskStream(

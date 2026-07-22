@@ -1,5 +1,4 @@
 import type { TaskResultDto } from '../../../workbench/api/taskApi'
-import i18n from '../../../i18n'
 
 export type BrowserPromptExtraction = {
   title: string
@@ -8,8 +7,9 @@ export type BrowserPromptExtraction = {
 
 export type BrowserPromptExtractionMode = 'replicate' | 'style'
 
-export function browserPromptExtractionModeLabel(mode: BrowserPromptExtractionMode): string {
-  return i18n.t(`browserAssets.extraction.${mode}`)
+export const BROWSER_PROMPT_EXTRACTION_MODE_LABELS: Record<BrowserPromptExtractionMode, string> = {
+  replicate: '画面复刻',
+  style: '画面风格',
 }
 
 export const BROWSER_IMAGE_REPLICATE_PROMPT_EXTRACTION_PROMPT = [
@@ -195,16 +195,14 @@ export function parseBrowserPromptExtraction(
       return {
         title:
           firstText(parsed.title, (parsed.localizedTitles as Record<string, unknown> | undefined)?.['zh-CN']) ||
-          (mode === 'style'
-            ? i18n.t('browserAssets.extraction.style')
-            : i18n.t('browserAssets.extraction.imagePrompt')),
+          (mode === 'style' ? '画面风格' : '图片提示词'),
         prompt,
       }
     }
   }
   const fallback = text.trim()
   return {
-    title: mode === 'style' ? i18n.t('browserAssets.extraction.style') : i18n.t('browserAssets.extraction.imagePrompt'),
+    title: mode === 'style' ? '画面风格' : '图片提示词',
     prompt: fallback,
   }
 }

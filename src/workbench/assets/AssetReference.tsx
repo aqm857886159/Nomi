@@ -1,5 +1,4 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
 import AssetTile, { AssetAddTile } from './AssetTile'
 import AssetPicker from './AssetPicker'
@@ -51,14 +50,7 @@ type AssetReferenceProps = {
 const MERGED_ARRAY_KEY = '__refs__'
 
 function displayRef(url: string, kind: AssetKind, name: string): AssetRef {
-  return {
-    id: url,
-    kind,
-    name,
-    renderUrl: url,
-    source: 'project',
-    origin: { source: 'project', projectId: '', relativePath: '' },
-  }
+  return { id: url, kind, name, renderUrl: url, source: 'project', origin: { source: 'project', projectId: '', relativePath: '' } }
 }
 
 function kindFromFile(file: File): AssetKind {
@@ -68,21 +60,9 @@ function kindFromFile(file: File): AssetKind {
 }
 
 export default function AssetReference({
-  slots,
-  valuesByKey,
-  occupiedByKey,
-  projectId,
-  openSlotKey,
-  uploadingSlotKey,
-  onTogglePicker,
-  onPick,
-  onUpload,
-  onRemove,
-  onInsertMention,
-  onReorder,
-  onBrowseAll,
+  slots, valuesByKey, occupiedByKey, projectId, openSlotKey, uploadingSlotKey,
+  onTogglePicker, onPick, onUpload, onRemove, onInsertMention, onReorder, onBrowseAll,
 }: AssetReferenceProps): JSX.Element {
-  const { t } = useTranslation()
   const dragRef = React.useRef<{ key: string; index: number } | null>(null)
   const singleSlots = slots.filter((s) => s.form === 'single')
   const arraySlots = slots.filter((s) => s.form === 'array')
@@ -105,7 +85,9 @@ export default function AssetReference({
   const arrayCanAdd = arraySlots.some((slot) => occupiedOf(slot) < slot.max)
   const arrayUploading = arraySlots.some((slot) => uploadingSlotKey === slot.key)
   // 已到上限的类型(该数组满)→ 在合并 picker 里灰显;点击仍走 onPick→handleArrayAdd 出「最多 N」toast。
-  const atLimitKinds = arraySlots.filter((slot) => occupiedOf(slot) >= slot.max).map((slot) => slot.accept)
+  const atLimitKinds = arraySlots
+    .filter((slot) => occupiedOf(slot) >= slot.max)
+    .map((slot) => slot.accept)
 
   const routeByKind = (kind: AssetKind): AssetSlot => arraySlots.find((s) => s.accept === kind) ?? arraySlots[0]
 
@@ -120,18 +102,10 @@ export default function AssetReference({
             const isOpen = openSlotKey === slot.key
             return (
               <div key={slot.key} className={cn('relative flex flex-col gap-[4px]')}>
-                {labelSingles ? (
-                  <span className={cn('text-nomi-ink-60 text-micro leading-none')}>{slot.label}</span>
-                ) : null}
-                {url ? (
-                  <AssetTile asset={displayRef(url, slot.accept, slot.label)} onRemove={() => onRemove(slot, 0)} />
-                ) : (
-                  <AssetAddTile
-                    label={t('generationCommon.assetReference.addNamed', { label: slot.label })}
-                    selected={isOpen}
-                    onClick={() => onTogglePicker(slot.key)}
-                  />
-                )}
+                {labelSingles ? <span className={cn('text-nomi-ink-60 text-micro leading-none')}>{slot.label}</span> : null}
+                {url
+                  ? <AssetTile asset={displayRef(url, slot.accept, slot.label)} onRemove={() => onRemove(slot, 0)} />
+                  : <AssetAddTile label={`添加${slot.label}`} selected={isOpen} onClick={() => onTogglePicker(slot.key)} />}
                 {isOpen ? (
                   <AssetPickerPopover onClose={() => onTogglePicker(slot.key)}>
                     <AssetPicker
@@ -161,42 +135,25 @@ export default function AssetReference({
                 index={slot.numbered ? index + 1 : undefined}
                 onRemove={() => onRemove(slot, index)}
                 onClick={slot.accept === 'image' && onInsertMention ? () => onInsertMention(url) : undefined}
-                dragProps={
-                  onReorder
-                    ? {
-                        draggable: true,
-                        onDragStart: () => {
-                          dragRef.current = { key: slot.key, index }
-                        },
-                        onDragOver: (e) => {
-                          e.preventDefault()
-                          e.currentTarget.setAttribute('data-dragover', 'true')
-                        },
-                        onDragLeave: (e) => {
-                          e.currentTarget.removeAttribute('data-dragover')
-                        },
-                        onDrop: (e) => {
-                          e.preventDefault()
-                          e.currentTarget.removeAttribute('data-dragover')
-                          const d = dragRef.current
-                          dragRef.current = null
-                          // 同 metaKey 守卫:只在同一槽(image/video/audio 各自数组)内重排,禁跨槽(合并行视觉相邻 ≠ 同数组)
-                          if (d && d.key === slot.key && d.index !== index) onReorder(slot, d.index, index)
-                        },
-                        onDragEnd: () => {
-                          dragRef.current = null
-                        },
-                      }
-                    : undefined
-                }
+                dragProps={onReorder ? {
+                  draggable: true,
+                  onDragStart: () => { dragRef.current = { key: slot.key, index } },
+                  onDragOver: (e) => { e.preventDefault(); e.currentTarget.setAttribute('data-dragover', 'true') },
+                  onDragLeave: (e) => { e.currentTarget.removeAttribute('data-dragover') },
+                  onDrop: (e) => {
+                    e.preventDefault()
+                    e.currentTarget.removeAttribute('data-dragover')
+                    const d = dragRef.current
+                    dragRef.current = null
+                    // 同 metaKey 守卫:只在同一槽(image/video/audio 各自数组)内重排,禁跨槽(合并行视觉相邻 ≠ 同数组)
+                    if (d && d.key === slot.key && d.index !== index) onReorder(slot, d.index, index)
+                  },
+                  onDragEnd: () => { dragRef.current = null },
+                } : undefined}
               />
             ))}
             {arrayCanAdd ? (
-              <AssetAddTile
-                label={t('generationCommon.assetReference.add')}
-                selected={openSlotKey === MERGED_ARRAY_KEY}
-                onClick={() => onTogglePicker(MERGED_ARRAY_KEY)}
-              />
+              <AssetAddTile label="加参考" selected={openSlotKey === MERGED_ARRAY_KEY} onClick={() => onTogglePicker(MERGED_ARRAY_KEY)} />
             ) : null}
           </div>
           {openSlotKey === MERGED_ARRAY_KEY ? (
