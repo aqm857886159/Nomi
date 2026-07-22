@@ -610,6 +610,9 @@ export type DesktopBridge = {
     /** 按绑定落库为用户自有 model+mapping（同步）。 */
     importComfyWorkflow: (payload: { text: string; binding: unknown; labelZh: string }) =>
       { ok: true; modelKey: string; kind: string; taskKind: string } | { ok: false; error: string }
+    /** 用同一 modelKey 更新已导入 workflow（同步）。 */
+    updateComfyWorkflow?: (payload: { modelKey: string; text: string; binding: unknown; labelZh: string }) =>
+      { ok: true; modelKey: string; kind: string; taskKind: string } | { ok: false; error: string }
   }
   skill: {
     list: () => unknown[]

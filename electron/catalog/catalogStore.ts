@@ -620,6 +620,7 @@ export function upsertModelCatalogModel(payload: unknown): Model {
 export function deleteModelCatalogModel(vendorKey: string, modelKey: string): void {
   const state = readCatalog();
   state.models = state.models.filter((model) => !(model.vendorKey === vendorKey && model.modelKey === modelKey));
+  state.mappings = state.mappings.filter((mapping) => !(mapping.vendorKey === vendorKey && mapping.modelKey === modelKey));
   writeCatalog(state);
 }
 
@@ -633,6 +634,7 @@ export function deleteModelCatalogModels(targets: Array<{ vendorKey: string; mod
   const keySet = new Set(list.map((t) => `${String(t?.vendorKey ?? "")} ${String(t?.modelKey ?? "")}`));
   const state = readCatalog();
   state.models = state.models.filter((model) => !keySet.has(`${model.vendorKey} ${model.modelKey}`));
+  state.mappings = state.mappings.filter((mapping) => !mapping.modelKey || !keySet.has(`${mapping.vendorKey} ${mapping.modelKey}`));
   writeCatalog(state);
 }
 
@@ -753,6 +755,7 @@ export type CatalogMutation = {
   upsertApiKey: (vendorKey: string, payload: unknown) => void;
   upsertModel: (payload: unknown) => Model;
   upsertMapping: (payload: unknown) => Mapping;
+  deleteModelMappings: (vendorKey: string, modelKey: string) => void;
 };
 
 /**
@@ -768,6 +771,9 @@ export function mutateCatalog<T>(fn: (tx: CatalogMutation) => T): T {
     upsertApiKey: (vendorKey, payload) => applyApiKeyUpsert(state, vendorKey, payload),
     upsertModel: (payload) => applyModelUpsert(state, payload),
     upsertMapping: (payload) => applyMappingUpsert(state, payload),
+    deleteModelMappings: (vendorKey, modelKey) => {
+      state.mappings = state.mappings.filter((mapping) => !(mapping.vendorKey === vendorKey && mapping.modelKey === modelKey));
+    },
   };
   const result = fn(tx);
   writeCatalog(state);

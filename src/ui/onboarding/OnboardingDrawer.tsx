@@ -56,6 +56,7 @@ export function OnboardingDrawer(): JSX.Element {
   const [wizardPreset, setWizardPreset] = React.useState<string | undefined>(undefined)
   const openWizard = React.useCallback((preset?: string) => { setWizardPreset(preset); setWizardOpen(true) }, [])
   const [models, setModels] = React.useState<ChipModel[]>([])
+  const [mappings, setMappings] = React.useState<Array<Record<string, unknown>>>([])
   const [vendorMeta, setVendorMeta] = React.useState<Map<string, VendorMeta>>(new Map())
   // 即梦 / 编程助手的连接状态上提到父组件（单一来源，plan §4.1）。null = 不可用/加载中（卡不显）。
   const [dreaminaStatus, setDreaminaStatus] = React.useState<DreaminaStatus | null>(null)
@@ -86,6 +87,7 @@ export function OnboardingDrawer(): JSX.Element {
     try {
       const ms = bridge.modelCatalog.listModels() as Array<Record<string, unknown>>
       const vs = bridge.modelCatalog.listVendors() as Array<Record<string, unknown>>
+      const maps = bridge.modelCatalog.listMappings({ vendorKey: COMFYUI_VENDOR_KEY }) as Array<Record<string, unknown>>
       const metaMap = new Map<string, VendorMeta>()
       for (const v of vs) {
         metaMap.set(String(v.key), {
@@ -102,12 +104,15 @@ export function OnboardingDrawer(): JSX.Element {
         kind: m.kind as ChipModel['kind'],
         // enabled 缺省视为 true（老快照/DTO 未带时不误停用）。
         enabled: m.enabled !== false,
+        meta: m.meta,
       }))
       setVendorMeta(metaMap)
       setModels(rows)
+      setMappings(maps)
     } catch {
       setVendorMeta(new Map())
       setModels([])
+      setMappings([])
     }
     // 编程助手 MCP 状态（同步）。
     try {
@@ -369,7 +374,7 @@ export function OnboardingDrawer(): JSX.Element {
               )
             })}
             {comfyuiAvailable && comfyuiEnabled ? (
-              <ComfyuiLocalCard enabled={comfyuiEnabled} baseUrl={comfyuiMeta?.baseUrl ?? ''} models={comfyuiModels} onChanged={refresh} />
+              <ComfyuiLocalCard enabled={comfyuiEnabled} baseUrl={comfyuiMeta?.baseUrl ?? ''} models={comfyuiModels} mappings={mappings} onChanged={refresh} />
             ) : null}
             {dreaminaAvailable && dreaminaConnected ? (
               <DreaminaMemberCard status={dreaminaStatus} onChanged={refresh} />
@@ -403,7 +408,7 @@ export function OnboardingDrawer(): JSX.Element {
 
         {comfyuiAvailable && !comfyuiEnabled ? (
           <AvailableGroup title="有本地 ComfyUI？" count={1} defaultExpanded={false}>
-            <ComfyuiLocalCard enabled={comfyuiEnabled} baseUrl={comfyuiMeta?.baseUrl ?? ''} models={comfyuiModels} onChanged={refresh} />
+            <ComfyuiLocalCard enabled={comfyuiEnabled} baseUrl={comfyuiMeta?.baseUrl ?? ''} models={comfyuiModels} mappings={mappings} onChanged={refresh} />
           </AvailableGroup>
         ) : null}
 

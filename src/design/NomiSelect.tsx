@@ -46,6 +46,7 @@ export type NomiSelectProps = {
 }
 
 const SURFACE_SHADOW = 'var(--workbench-shadow-pop)'
+const DROPDOWN_Z_INDEX = 4500
 
 function toneClass(tone: NomiSelectTone | undefined, kind: 'badge' | 'trailing'): string {
   if (tone === 'accent') return 'bg-nomi-accent-soft text-nomi-accent'
@@ -82,6 +83,7 @@ export function NomiSelect({
       width="max-content"
       position="bottom-start"
       offset={6}
+      zIndex={DROPDOWN_Z_INDEX}
       middlewares={{ flip: true, shift: true }}
       onOptionSubmit={(val) => {
         onChange(val)

@@ -23,6 +23,7 @@ export type WorkflowNumericParam = { nodeId: string; inputKey: string; paramKey:
 export type WorkflowBinding = {
   promptNodeId?: string; promptInputKey?: string;         // → {{request.prompt}}
   firstFrameNodeId?: string; firstFrameInputKey?: string; // → {{request.params.first_frame_url}}（S2 上传后是 ComfyUI 文件名）
+  lastFrameNodeId?: string; lastFrameInputKey?: string;   // → {{request.params.last_frame_url}}
   outputNodeId?: string; outputKind?: "image" | "video";
   numeric: WorkflowNumericParam[];                        // → {{request.params.comfy_X}}
 };
@@ -37,6 +38,7 @@ export type WorkflowAnalysis = {
 
 export type ParamControl = { key: string; label: string; type: "number" | "text" | "select"; default: number | string };
 export type ImportedWorkflow = { templatedGraph: ComfyGraph; parameters: ParamControl[]; kind: "image" | "video"; taskKind: "text_to_image" | "image_edit" | "text_to_video" | "image_to_video" };
+export type ComfyWorkflowImportDraft = { text: string; binding: WorkflowBinding };
 
 // 节点类型识别（R5：class_type 命名——CLIPTextEncode/LoadImage/VHS_VideoCombine/SaveVideo/SaveImage/
 // WanVideoWrapper 系；宽松正则容社区变体）。
@@ -44,6 +46,11 @@ const TEXT_ENCODE_RE = /textencode|encode.*text|cliptext/i;
 const LOAD_IMAGE_RE = /loadimage/i;
 const VIDEO_OUT_RE = /videocombine|savevideo|saveanimated|savewebp|createvideo/i;
 const IMAGE_OUT_RE = /saveimage/i;
+const STRING_SOURCE_RE = /primitive.*string|string.*multiline|stringinput|textinput/i;
+const SWITCH_RE = /switch/i;
+const PREVIEW_ANY_RE = /previewany/i;
+const STRING_CONCAT_RE = /string.*concat|concat.*string/i;
+const TEXT_GENERATE_RE = /textgenerate/i;
 // 常见可暴露的数值 widget（按优先序去重，避免一张 WAN 图几十个数值全暴露成噪音）。
 const NUMERIC_PRIORITY = ["seed", "steps", "cfg", "denoise", "width", "height", "length", "frames", "num_frames", "fps", "frame_rate", "batch_size"];
 const NUMERIC_LABEL: Record<string, string> = {
@@ -53,6 +60,72 @@ const NUMERIC_LABEL: Record<string, string> = {
 
 function isLink(v: unknown): v is [string, number] {
   return Array.isArray(v) && v.length === 2 && typeof v[0] === "string" && typeof v[1] === "number";
+}
+
+function candidateFromInput(graph: ComfyGraph, nodeId: string, inputKey: string): NodeInputCandidate | undefined {
+  const node = graph[nodeId];
+  const value = node?.inputs?.[inputKey];
+  if (!node || typeof value !== "string") return undefined;
+  return { nodeId, inputKey, classType: node.class_type ?? "", title: node._meta?.title, value };
+}
+
+function resolveBooleanInput(graph: ComfyGraph, value: unknown): boolean | undefined {
+  if (typeof value === "boolean") return value;
+  if (!isLink(value)) return undefined;
+  const node = graph[value[0]];
+  const linkedValue = node?.inputs?.value;
+  return typeof linkedValue === "boolean" ? linkedValue : undefined;
+}
+
+function resolveTextSourceFromInput(graph: ComfyGraph, value: unknown, visited: Set<string>): NodeInputCandidate | undefined {
+  if (!isLink(value)) return undefined;
+  return resolveTextSourceFromNode(graph, value[0], visited);
+}
+
+function resolveFirstTextSource(graph: ComfyGraph, nodeId: string, inputKeys: string[], visited: Set<string>): NodeInputCandidate | undefined {
+  for (const inputKey of inputKeys) {
+    const direct = candidateFromInput(graph, nodeId, inputKey);
+    if (direct) return direct;
+    const linked = resolveTextSourceFromInput(graph, graph[nodeId]?.inputs?.[inputKey], visited);
+    if (linked) return linked;
+  }
+  return undefined;
+}
+
+function resolveTextSourceFromNode(graph: ComfyGraph, nodeId: string, visited: Set<string>): NodeInputCandidate | undefined {
+  if (visited.has(nodeId)) return undefined;
+  visited.add(nodeId);
+  const node = graph[nodeId];
+  const classType = node?.class_type ?? "";
+  const inputs = node?.inputs;
+  if (!node || !inputs || typeof inputs !== "object") return undefined;
+
+  if (STRING_SOURCE_RE.test(classType)) return candidateFromInput(graph, nodeId, "value");
+
+  if (SWITCH_RE.test(classType)) {
+    const branch = resolveBooleanInput(graph, inputs.switch) === true ? "on_true" : "on_false";
+    return (
+      resolveTextSourceFromInput(graph, inputs[branch], visited)
+      ?? resolveTextSourceFromInput(graph, inputs.on_false, visited)
+      ?? resolveTextSourceFromInput(graph, inputs.on_true, visited)
+    );
+  }
+
+  if (PREVIEW_ANY_RE.test(classType)) return resolveTextSourceFromInput(graph, inputs.source, visited);
+
+  if (STRING_CONCAT_RE.test(classType)) {
+    return resolveFirstTextSource(graph, nodeId, ["string_b", "string_a"], visited);
+  }
+
+  if (TEXT_GENERATE_RE.test(classType)) return resolveTextSourceFromInput(graph, inputs.prompt, visited);
+
+  return resolveFirstTextSource(graph, nodeId, ["text", "prompt", "value", "string", "source"], visited);
+}
+
+function pushUniqueCandidate(candidates: NodeInputCandidate[], candidate: NodeInputCandidate | undefined): void {
+  if (!candidate) return;
+  if (candidates.some((c) => c.nodeId === candidate.nodeId && c.inputKey === candidate.inputKey)) return;
+  candidates.push(candidate);
 }
 
 /** 解析 + 校验 workflow_api.json。非 API 格式（UI 保存格式）给明确可行动的提示。 */
@@ -88,6 +161,21 @@ function findPositiveTargetId(graph: ComfyGraph): string | undefined {
   return undefined;
 }
 
+function candidateForNodeInput(candidates: NodeInputCandidate[], nodeId: string | undefined, inputKey: string): NodeInputCandidate | undefined {
+  return candidates.find((c) => c.nodeId === nodeId && c.inputKey === inputKey);
+}
+
+function findLinkedInputTargetId(graph: ComfyGraph, inputKeys: string[]): string | undefined {
+  for (const node of Object.values(graph)) {
+    const inputs = node.inputs || {};
+    for (const inputKey of inputKeys) {
+      const value = inputs[inputKey];
+      if (isLink(value)) return value[0];
+    }
+  }
+  return undefined;
+}
+
 /** 扫全图，识别可绑定输入 + 给出建议绑定。 */
 export function analyzeComfyWorkflow(graph: ComfyGraph): WorkflowAnalysis {
   const textInputs: NodeInputCandidate[] = [];
@@ -99,7 +187,11 @@ export function analyzeComfyWorkflow(graph: ComfyGraph): WorkflowAnalysis {
     const classType = node.class_type ?? "";
     const inputs = node.inputs && typeof node.inputs === "object" ? node.inputs : {};
     for (const [inputKey, value] of Object.entries(inputs)) {
-      if (isLink(value)) continue; // 连线不可参数化
+      if (TEXT_ENCODE_RE.test(classType) && (inputKey === "text" || inputKey === "prompt") && isLink(value)) {
+        pushUniqueCandidate(textInputs, resolveTextSourceFromInput(graph, value, new Set([nodeId])));
+        continue;
+      }
+      if (isLink(value)) continue; // 连线不可参数化；提示词连线已在上方追溯到可注入源
       if (typeof value === "string" && TEXT_ENCODE_RE.test(classType) && (inputKey === "text" || inputKey === "prompt")) {
         textInputs.push({ nodeId, inputKey, classType, title: node._meta?.title, value });
       } else if (typeof value === "string" && LOAD_IMAGE_RE.test(classType) && inputKey === "image") {
@@ -114,6 +206,10 @@ export function analyzeComfyWorkflow(graph: ComfyGraph): WorkflowAnalysis {
 
   const positiveId = findPositiveTargetId(graph);
   const suggestedPrompt = textInputs.find((t) => t.nodeId === positiveId) ?? textInputs[0];
+  const startImageId = findLinkedInputTargetId(graph, ["start_image", "first_image", "first_frame", "image"]);
+  const endImageId = findLinkedInputTargetId(graph, ["end_image", "last_image", "last_frame"]);
+  const suggestedFirstFrame = candidateForNodeInput(imageInputs, startImageId, "image") ?? imageInputs[0];
+  const suggestedLastFrame = candidateForNodeInput(imageInputs, endImageId, "image");
   // 视频输出优先（有视频节点就当视频工作流）；否则图片。
   const suggestedOutput = outputNodes.find((o) => o.kind === "video") ?? outputNodes[0];
   // 建议数值参数：按优先序每个 inputKey 只取第一个（去重，clean）。
@@ -131,7 +227,8 @@ export function analyzeComfyWorkflow(graph: ComfyGraph): WorkflowAnalysis {
     textInputs, imageInputs, outputNodes, numericInputs,
     suggested: {
       promptNodeId: suggestedPrompt?.nodeId, promptInputKey: suggestedPrompt?.inputKey,
-      firstFrameNodeId: imageInputs[0]?.nodeId, firstFrameInputKey: imageInputs[0]?.inputKey,
+      firstFrameNodeId: suggestedFirstFrame?.nodeId, firstFrameInputKey: suggestedFirstFrame?.inputKey,
+      lastFrameNodeId: suggestedLastFrame?.nodeId, lastFrameInputKey: suggestedLastFrame?.inputKey,
       outputNodeId: suggestedOutput?.nodeId, outputKind: suggestedOutput?.kind,
       numeric: suggestedNumeric,
     },
@@ -153,6 +250,9 @@ export function buildImportedWorkflow(graph: ComfyGraph, binding: WorkflowBindin
     // first_frame_url：S2 的 comfyui-upload 把本地首帧传进 ComfyUI 后，这个 param 里是 ComfyUI 的文件名。
     setInput(templated, binding.firstFrameNodeId, binding.firstFrameInputKey, "{{request.params.first_frame_url}}");
   }
+  if (binding.lastFrameNodeId && binding.lastFrameInputKey) {
+    setInput(templated, binding.lastFrameNodeId, binding.lastFrameInputKey, "{{request.params.last_frame_url}}");
+  }
   const parameters: ParamControl[] = [];
   const seen = new Set<string>();
   for (const np of binding.numeric) {
@@ -163,11 +263,14 @@ export function buildImportedWorkflow(graph: ComfyGraph, binding: WorkflowBindin
     parameters.push({ key: paramKey, label: np.label || np.inputKey, type: "number", default: np.default });
   }
   const outputKind = binding.outputKind ?? "image";
-  const hasFirstFrame = Boolean(binding.firstFrameNodeId && binding.firstFrameInputKey);
+  const hasFrameInput = Boolean(
+    (binding.firstFrameNodeId && binding.firstFrameInputKey) ||
+    (binding.lastFrameNodeId && binding.lastFrameInputKey),
+  );
   const taskKind =
     outputKind === "video"
-      ? hasFirstFrame ? "image_to_video" : "text_to_video"
-      : hasFirstFrame ? "image_edit" : "text_to_image";
+      ? hasFrameInput ? "image_to_video" : "text_to_video"
+      : hasFrameInput ? "image_edit" : "text_to_image";
   return { templatedGraph: templated, parameters, kind: outputKind, taskKind };
 }
 
@@ -177,7 +280,7 @@ export function buildImportedWorkflow(graph: ComfyGraph, binding: WorkflowBindin
  */
 export function buildComfyImportModelMapping(
   imported: ImportedWorkflow,
-  opts: { modelKey: string; labelZh: string },
+  opts: { modelKey: string; labelZh: string; draft?: ComfyWorkflowImportDraft },
 ): { model: Record<string, unknown>; mapping: Record<string, unknown> } {
   const create: HttpOperation = {
     method: "POST",
@@ -197,7 +300,17 @@ export function buildComfyImportModelMapping(
         : { image_url: "image_url", error_message: "error" },
   };
   return {
-    model: { modelKey: opts.modelKey, vendorKey: COMFYUI_VENDOR_KEY, labelZh: opts.labelZh, kind: imported.kind, enabled: true, meta: { parameters: imported.parameters } },
+    model: {
+      modelKey: opts.modelKey,
+      vendorKey: COMFYUI_VENDOR_KEY,
+      labelZh: opts.labelZh,
+      kind: imported.kind,
+      enabled: true,
+      meta: {
+        parameters: imported.parameters,
+        ...(opts.draft ? { comfyWorkflowImport: opts.draft } : {}),
+      },
+    },
     mapping: { vendorKey: COMFYUI_VENDOR_KEY, taskKind: imported.taskKind, modelKey: opts.modelKey, name: opts.labelZh, create, query },
   };
 }
@@ -216,7 +329,11 @@ export function importComfyWorkflow(
 ): { modelKey: string; kind: "image" | "video"; taskKind: string } {
   const graph = parseComfyApiWorkflow(payload.text);
   const built = buildImportedWorkflow(graph, payload.binding);
-  const { model, mapping } = buildComfyImportModelMapping(built, { modelKey: payload.modelKey, labelZh: payload.labelZh });
+  const { model, mapping } = buildComfyImportModelMapping(built, {
+    modelKey: payload.modelKey,
+    labelZh: payload.labelZh,
+    draft: { text: payload.text, binding: payload.binding },
+  });
   upsertModel(model);
   upsertMapping(mapping);
   return { modelKey: payload.modelKey, kind: built.kind, taskKind: built.taskKind };
