@@ -18,6 +18,8 @@ export type ChipModel = {
   kind: ModelChipKind
   /** 是否启用（enabled:false 的模型不进生成下拉/runtime，供中转站批量启停编辑用）。 */
   enabled: boolean
+  /** 后端模型扩展信息；通用 chip 不消费，专用卡可透传读取。 */
+  meta?: unknown
 }
 
 type ModelChipGroupsProps = {

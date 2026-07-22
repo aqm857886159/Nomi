@@ -377,6 +377,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     analyzeComfyWorkflow: (text: string) => invokeSync("nomi:model-catalog:comfyui:analyze-workflow", text),
     importComfyWorkflow: (payload: { text: string; binding: unknown; labelZh: string }) =>
       invokeSync("nomi:model-catalog:comfyui:import-workflow", payload),
+    updateComfyWorkflow: (payload: { modelKey: string; text: string; binding: unknown; labelZh: string }) =>
+      invokeSync("nomi:model-catalog:comfyui:update-workflow", payload),
   },
   skill: {
     list: () => invokeSync("nomi:skill:list"),

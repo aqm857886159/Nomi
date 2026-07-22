@@ -47,7 +47,7 @@ export function OnboardingFloatingPanel({ opened, onClose }: Props): JSX.Element
       if (target.closest(
         '.mantine-Modal-root, .mantine-Modal-overlay, .mantine-Modal-content,' +
         '.mantine-Drawer-root, .mantine-Drawer-overlay,' +
-        '.mantine-Popover-dropdown, .mantine-Menu-dropdown, .mantine-Tooltip-tooltip,' +
+        '.mantine-Popover-dropdown, .mantine-Menu-dropdown, .mantine-Combobox-dropdown, .mantine-Tooltip-tooltip,' +
         '[role="dialog"]'
       )) return
       onClose()
