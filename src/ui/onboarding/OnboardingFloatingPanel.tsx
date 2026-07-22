@@ -8,6 +8,7 @@
  * Workspace 在悬浮卡片打开时仍然可见 + 可操作（不 dim）。
  */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Portal } from '@mantine/core'
 import { OnboardingDrawer } from './OnboardingDrawer'
 
@@ -21,6 +22,7 @@ type Props = {
 }
 
 export function OnboardingFloatingPanel({ opened, onClose }: Props): JSX.Element | null {
+  const { t } = useTranslation()
   const panelRef = React.useRef<HTMLDivElement>(null)
 
   // ESC 关闭
@@ -68,7 +70,7 @@ export function OnboardingFloatingPanel({ opened, onClose }: Props): JSX.Element
       <div
         ref={panelRef}
         role="dialog"
-        aria-label="模型设置"
+        aria-label={t('onboardingProviders.drawer.title')}
         style={{
           position: 'fixed',
           top: TOP_OFFSET,

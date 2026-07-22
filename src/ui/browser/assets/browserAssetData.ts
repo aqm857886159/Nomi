@@ -31,14 +31,15 @@ export type NomiBrowserAsset = {
 
 export type NomiBrowserAssetTabDefinition = {
   key: NomiBrowserAssetTab
-  label: string
+  /** i18n 键（渲染处 t() 解析）——标签随语言切换，故不在此存成品文案。 */
+  labelKey: string
   icon: TablerIcon
 }
 
 export const NOMI_BROWSER_ASSET_TABS: readonly NomiBrowserAssetTabDefinition[] = [
-  { key: 'all', label: '全部', icon: IconLayoutGrid },
-  { key: 'image', label: '图片', icon: IconPhoto },
-  { key: 'video', label: '视频', icon: IconVideo },
+  { key: 'all', labelKey: 'browserAssets.all', icon: IconLayoutGrid },
+  { key: 'image', labelKey: 'browserAssets.image', icon: IconPhoto },
+  { key: 'video', labelKey: 'browserAssets.video', icon: IconVideo },
 ]
 
 export type NomiBrowserAssetFilter = {

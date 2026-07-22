@@ -16,12 +16,12 @@ export async function confirmAndDeleteVendor(args: {
   const bridge = getDesktopBridge()
   if (!bridge) return { deleted: false }
   const ok = await confirmDialog({
-    title: i18n.t('onboardingProviders.vendor.deleteVendorDialog.title'),
-    message: i18n.t('onboardingProviders.vendor.deleteVendorDialog.message', {
+    title: i18n.t('onboardingProviders.drawer.deleteVendorDialog.title'),
+    message: i18n.t('onboardingProviders.drawer.deleteVendorDialog.message', {
       name: args.vendorName,
       count: args.modelCount,
     }),
-    confirmLabel: i18n.t('onboardingProviders.vendor.deleteVendorDialog.confirm'),
+    confirmLabel: i18n.t('onboardingProviders.drawer.deleteVendorDialog.confirm'),
     danger: true,
   })
   if (!ok) return { deleted: false }
@@ -32,7 +32,7 @@ export async function confirmAndDeleteVendor(args: {
   } catch (e) {
     return {
       deleted: false,
-      error: i18n.t('onboardingProviders.vendor.deleteVendorDialog.failed', {
+      error: i18n.t('onboardingProviders.drawer.deleteVendorDialog.failed', {
         message: e instanceof Error ? e.message : String(e),
       }),
     }

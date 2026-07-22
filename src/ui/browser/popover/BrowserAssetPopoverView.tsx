@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { useTranslation } from 'react-i18next'
 import { ScrollArea } from '@mantine/core'
 import { motion } from 'framer-motion'
 import { IconLayoutSidebarLeftExpand, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpand, IconZoomScan, IconAdjustmentsHorizontal } from '@tabler/icons-react'
@@ -37,6 +38,7 @@ function resizeHandleClass(edge: FloatingWindowResizeEdge, edgeDocked: boolean):
 }
 
 export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JSX.Element {
+  const { t } = useTranslation()
   const {
     rootRef, className, contained, placement, surface, popoverOpen, setPopoverOpen, windowRect, hostOrigin, isWindowInteracting, dockMode,
     handleWindowDragEnter, handleWindowDragOver, handleWindowDragLeave, handleWindowDrop, splitDocked, edgeDocked, dropActive, handleHeaderPointerDown,
@@ -97,7 +99,7 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
                 : { type: 'spring', stiffness: 420, damping: 30, mass: 0.8 }
           }
           role="dialog"
-          aria-label="素材盒"
+          aria-label={t('browserAssets.assetBox')}
           data-dock-mode={dockMode ?? 'floating'}
           onMouseDown={(event) => event.stopPropagation()}
           onDragEnter={handleWindowDragEnter}
@@ -124,21 +126,21 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
               onPointerDown={handleHeaderPointerDown}
             >
               <div className="flex min-w-0 flex-1 items-center gap-2">
-                <div className="truncate text-body-sm font-bold text-nomi-ink">素材盒</div>
+                <div className="truncate text-body-sm font-bold text-nomi-ink">{t('browserAssets.assetBox')}</div>
                 <span className="inline-flex h-5 shrink-0 items-center rounded-pill bg-nomi-ink-05 px-2 text-micro font-semibold text-nomi-ink-55">
-                  捕捞收件箱
+                  {t('browserAssets.captureInbox')}
                 </span>
               </div>
               {onBrowserCaptureToggle ? (
-                <button type="button" className={cn(TOOL_BUTTON_CLASS, browserCaptureEnabled && 'bg-nomi-accent-soft text-nomi-accent hover:text-nomi-accent')} aria-label={browserCaptureEnabled ? '关闭资源捕捞' : '开启资源捕捞'} aria-pressed={browserCaptureEnabled} title={browserCaptureEnabled ? '关闭资源捕捞' : '资源捕捞：悬停资源后按 Ctrl+C 保存'} disabled={browserCaptureDisabled} onClick={onBrowserCaptureToggle}>
+                <button type="button" className={cn(TOOL_BUTTON_CLASS, browserCaptureEnabled && 'bg-nomi-accent-soft text-nomi-accent hover:text-nomi-accent')} aria-label={browserCaptureEnabled ? t('browserAssets.disableCapture') : t('browserAssets.enableCapture')} aria-pressed={browserCaptureEnabled} title={browserCaptureEnabled ? t('browserAssets.disableCapture') : t('browserAssets.captureHint')} disabled={browserCaptureDisabled} onClick={onBrowserCaptureToggle}>
                   <IconZoomScan size={17} strokeWidth={1.8} aria-hidden="true" />
                 </button>
               ) : null}
-              <button type="button" className={cn(TOOL_BUTTON_CLASS, promptExtractionSettingsOpen && 'bg-nomi-ink-05 text-nomi-ink')} aria-label="提示词提取设置" title="提示词提取设置" aria-pressed={promptExtractionSettingsOpen} onClick={() => setPromptExtractionSettingsOpen(true)}>
+              <button type="button" className={cn(TOOL_BUTTON_CLASS, promptExtractionSettingsOpen && 'bg-nomi-ink-05 text-nomi-ink')} aria-label={t('browserAssets.promptExtractionSettings')} title={t('browserAssets.promptExtractionSettings')} aria-pressed={promptExtractionSettingsOpen} onClick={() => setPromptExtractionSettingsOpen(true)}>
                 <IconAdjustmentsHorizontal size={17} strokeWidth={1.8} aria-hidden="true" />
               </button>
               {canDock ? (
-                <button type="button" className={TOOL_BUTTON_CLASS} aria-label={dockMode ? '恢复浮动素材盒' : '并排显示素材盒'} title={dockMode ? '恢复浮动' : '并排显示'} disabled={!activeBounds} onClick={toggleDockMode}>
+                <button type="button" className={TOOL_BUTTON_CLASS} aria-label={dockMode ? t('browserAssets.restoreFloatingAssetBox') : t('browserAssets.showSideBySideAssetBox')} title={dockMode ? t('browserAssets.restoreFloating') : t('browserAssets.showSideBySide')} disabled={!activeBounds} onClick={toggleDockMode}>
                   {dockMode === 'left' ? (
                     <IconLayoutSidebarLeftExpand size={17} strokeWidth={1.8} aria-hidden="true" />
                   ) : dockMode === 'right' ? (
@@ -148,22 +150,22 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
                   )}
                 </button>
               ) : null}
-              <button type="button" className={TOOL_BUTTON_CLASS} aria-label="收起素材盒" title="收起素材盒" onClick={() => setPopoverOpen(false)}>
+              <button type="button" className={TOOL_BUTTON_CLASS} aria-label={t('browserAssets.collapseAssetBox')} title={t('browserAssets.collapseAssetBox')} onClick={() => setPopoverOpen(false)}>
                 <IconMinus size={17} stroke={1.8} aria-hidden="true" />
               </button>
             </div>
 
             <div className={cn('relative grid shrink-0 items-center gap-2.5 border-b border-nomi-line-soft/60 bg-nomi-bg/45 px-4 py-3', compactToolbar ? 'grid-cols-1 px-3.5' : 'grid-cols-[minmax(0,1fr)_auto]')}>
-              <DesignSearchInput value={query} onChange={setQuery} placeholder="搜索素材" ariaLabel="搜索素材" size="sm" className="min-w-0 w-full bg-nomi-paper" />
+              <DesignSearchInput value={query} onChange={setQuery} placeholder={t('browserAssets.searchAssets')} ariaLabel={t('browserAssets.searchAssets')} size="sm" className="min-w-0 w-full bg-nomi-paper" />
               <div className={cn('flex shrink-0 items-center gap-1 rounded-nomi bg-nomi-ink-05/70 p-0.5', compactToolbar && 'justify-self-end')}>
-                <button type="button" className={cn(TOOL_BUTTON_CLASS, listMode && 'bg-nomi-ink-05 text-nomi-ink')} aria-label="切换素材布局" aria-pressed={listMode} onClick={() => setViewMode((value: string) => (value === 'grid' ? 'list' : 'grid'))}>
+                <button type="button" className={cn(TOOL_BUTTON_CLASS, listMode && 'bg-nomi-ink-05 text-nomi-ink')} aria-label={t('browserAssets.switchLayout')} aria-pressed={listMode} onClick={() => setViewMode((value: string) => (value === 'grid' ? 'list' : 'grid'))}>
                   {listMode ? <IconLayoutGrid size={17} stroke={1.8} aria-hidden="true" /> : <IconList size={17} stroke={1.8} aria-hidden="true" />}
                 </button>
-                <button type="button" className={cn(TOOL_BUTTON_CLASS, !sortAscending && 'bg-nomi-ink-05 text-nomi-ink')} aria-label={sortAscending ? '最早优先' : '最新优先'} title={sortAscending ? '最早优先' : '最新优先'} aria-pressed={!sortAscending} onClick={() => setSortAscending((value: boolean) => !value)}>
+                <button type="button" className={cn(TOOL_BUTTON_CLASS, !sortAscending && 'bg-nomi-ink-05 text-nomi-ink')} aria-label={sortAscending ? t('browserAssets.oldestFirst') : t('browserAssets.newestFirst')} title={sortAscending ? t('browserAssets.oldestFirst') : t('browserAssets.newestFirst')} aria-pressed={!sortAscending} onClick={() => setSortAscending((value: boolean) => !value)}>
                   {sortAscending ? <IconSortAscending2 size={17} stroke={1.8} aria-hidden="true" /> : <IconSortDescending2 size={17} stroke={1.8} aria-hidden="true" />}
                 </button>
                 <div className="relative">
-                  <button type="button" ref={filterButtonRef} className={cn(TOOL_BUTTON_CLASS, (filtersOpen || filterActive) && 'bg-nomi-ink-05 text-nomi-ink')} aria-label="筛选分类" aria-haspopup="dialog" aria-expanded={filtersOpen} aria-pressed={filterActive} onClick={() => setFiltersOpen((value: boolean) => !value)}>
+                  <button type="button" ref={filterButtonRef} className={cn(TOOL_BUTTON_CLASS, (filtersOpen || filterActive) && 'bg-nomi-ink-05 text-nomi-ink')} aria-label={t('browserAssets.filterCategories')} aria-haspopup="dialog" aria-expanded={filtersOpen} aria-pressed={filterActive} onClick={() => setFiltersOpen((value: boolean) => !value)}>
                     <IconFilter size={17} stroke={1.8} aria-hidden="true" />
                   </button>
                   {filtersOpen ? (
@@ -175,7 +177,7 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
 
             {/* 捕捞临时条：下载中/失败卡不混进 ready 素材网格（审计 P1）——失败给唯一下一步 [重试]/[移除] */}
             {(captureTransients?.length ?? 0) > 0 ? (
-              <div className="mx-3 mt-2 grid gap-1.5" aria-label="捕捞进行中或失败">
+              <div className="mx-3 mt-2 grid gap-1.5" aria-label={t('browserAssets.captureBusyOrFailed')}>
                 {captureTransients.map((asset: any) => (
                   <div
                     key={asset.id}
@@ -193,8 +195,8 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
                     </span>
                     {asset.status === 'error' ? (
                       <>
-                        <button type="button" className="shrink-0 rounded-nomi-sm px-1.5 py-0.5 text-micro font-semibold text-nomi-accent hover:bg-nomi-ink-05" onClick={() => retryCaptureImport?.(asset.id)}>重试</button>
-                        <button type="button" className="shrink-0 rounded-nomi-sm px-1.5 py-0.5 text-micro text-nomi-ink-40 hover:bg-nomi-ink-05" onClick={() => dismissCaptureTransient?.(asset.id)}>移除</button>
+                        <button type="button" className="shrink-0 rounded-nomi-sm px-1.5 py-0.5 text-micro font-semibold text-nomi-accent hover:bg-nomi-ink-05" onClick={() => retryCaptureImport?.(asset.id)}>{t('common.retry')}</button>
+                        <button type="button" className="shrink-0 rounded-nomi-sm px-1.5 py-0.5 text-micro text-nomi-ink-40 hover:bg-nomi-ink-05" onClick={() => dismissCaptureTransient?.(asset.id)}>{t('browserAssets.remove')}</button>
                       </>
                     ) : null}
                   </div>
@@ -206,7 +208,7 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
                 {filteredAssets.length === 0 ? (
                   <DesignEmptyState density="inline" icon={<IconCards size={32} stroke={1.45} className="text-nomi-ink-30" aria-hidden="true" />} title={emptyStateCopy.title} description={emptyStateCopy.description} className="min-h-[220px] rounded-nomi bg-nomi-ink-05/40" />
                 ) : (
-                  <div className={cn('w-full select-none', listMode ? 'grid gap-1.5' : 'grid auto-rows-max content-start gap-x-3 gap-y-4')} style={assetGridStyle} aria-label={listMode ? '素材列表' : '素材网格'}>
+                  <div className={cn('w-full select-none', listMode ? 'grid gap-1.5' : 'grid auto-rows-max content-start gap-x-3 gap-y-4')} style={assetGridStyle} aria-label={listMode ? t('browserAssets.assetList') : t('browserAssets.assetGrid')}>
                     {filteredAssets.map((asset: any) => (
                       <BrowserAssetTile key={asset.id} asset={asset} selected={selectedIds.has(asset.id)} compact={gridCompact} viewMode={viewMode} setNodeRef={(node) => setAssetNode(asset.id, node)} onClick={(event) => selectAsset(asset, event)} onContextMenu={(event) => openAssetContextMenu(asset, event)} onDragStart={(event) => handleTileDragStart(asset, event)} />
                     ))}
@@ -222,11 +224,11 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
                 {canvasImportedFeedback ? (
                   <span className="flex min-w-0 flex-1 items-center gap-1.5 text-caption font-medium text-nomi-accent">
                     <IconCheck size={15} stroke={2} aria-hidden="true" className="shrink-0" />
-                    <span className="truncate">已放到画布 · 关闭浏览器查看</span>
+                    <span className="truncate">{t('browserAssets.placedOnCanvasHint')}</span>
                   </span>
                 ) : (
                   <span className="min-w-0 flex-1 truncate text-caption text-nomi-ink-55">
-                    {canvasImportSelectedCount > 0 ? `已选 ${canvasImportSelectedCount} 个素材` : '选中素材放到画布'}
+                    {canvasImportSelectedCount > 0 ? t('browserAssets.selectedCount', { count: canvasImportSelectedCount }) : t('browserAssets.selectedToCanvas')}
                   </span>
                 )}
                 <DesignButton
@@ -235,27 +237,27 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
                   onClick={importSelectedAssetsToCanvas}
                   leftSection={<IconArrowForwardUp size={15} stroke={1.8} aria-hidden="true" />}
                 >
-                  放到画布
+                  {t('browserAssets.placeOnCanvas')}
                 </DesignButton>
               </div>
             ) : null}
-            {dropActive ? <div className="pointer-events-none absolute inset-2 z-[8] grid place-items-center rounded-nomi border border-dashed border-nomi-accent bg-nomi-accent-soft/75 text-caption font-semibold text-nomi-accent">松开以保存到素材盒</div> : null}
+            {dropActive ? <div className="pointer-events-none absolute inset-2 z-[8] grid place-items-center rounded-nomi border border-dashed border-nomi-accent bg-nomi-accent-soft/75 text-caption font-semibold text-nomi-accent">{t('browserAssets.dropToSave')}</div> : null}
             {promptExtractionSettingsOpen ? <BrowserPromptExtractionSettingsModal settings={promptExtractionSettings} projectAvailable={promptExtractionSettingsProjectAvailable} onSave={savePromptExtractionSettings} onClose={() => setPromptExtractionSettingsOpen(false)} /> : null}
           </div>
           {(activeResizeEdges as readonly FloatingWindowResizeEdge[]).map((edge) => (
             <div key={edge} data-nomi-window-resize-handle="true" className={cn('absolute z-[7] touch-none', resizeHandleClass(edge, Boolean(edgeDocked)))} onPointerDown={(event) => startResize(edge, event)} aria-hidden="true" />
           ))}
           {assetContextMenu && selectedIds.size > 0 ? (
-            <div ref={assetContextMenuRef} className="absolute z-[9] rounded-nomi border border-nomi-line bg-nomi-paper p-1 shadow-nomi-lg" style={{ left: assetContextMenu.x, top: assetContextMenu.y, width: ASSET_CONTEXT_MENU_WIDTH }} role="menu" aria-label="素材操作" onContextMenu={(event) => event.preventDefault()} onMouseDown={(event) => event.stopPropagation()}>
+            <div ref={assetContextMenuRef} className="absolute z-[9] rounded-nomi border border-nomi-line bg-nomi-paper p-1 shadow-nomi-lg" style={{ left: assetContextMenu.x, top: assetContextMenu.y, width: ASSET_CONTEXT_MENU_WIDTH }} role="menu" aria-label={t('browserAssets.assetActions')} onContextMenu={(event) => event.preventDefault()} onMouseDown={(event) => event.stopPropagation()}>
               {canImportSelectedAssetsToCanvas ? (
                 <button type="button" className={cn('flex h-8 w-full items-center gap-2 rounded-nomi-sm border-0 bg-transparent px-2 text-left', 'cursor-pointer text-caption text-nomi-ink-80 transition-colors duration-[var(--nomi-transition-fast)]', 'hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:bg-nomi-ink-05 focus-visible:outline-none')} role="menuitem" onClick={importSelectedAssetsToCanvas}>
                   <IconArrowForwardUp size={15} stroke={1.8} aria-hidden="true" className="shrink-0" />
-                  <span className="min-w-0 flex-1 truncate">导入画布</span>
+                  <span className="min-w-0 flex-1 truncate">{t('browserAssets.importToCanvas')}</span>
                 </button>
               ) : null}
               <button type="button" className={cn('flex h-8 w-full items-center gap-2 rounded-nomi-sm border-0 bg-transparent px-2 text-left', 'cursor-pointer text-caption text-workbench-danger transition-colors duration-[var(--nomi-transition-fast)]', 'hover:bg-workbench-danger-soft focus-visible:bg-workbench-danger-soft focus-visible:outline-none')} role="menuitem" onClick={deleteSelectedAssets}>
                 <IconTrash size={15} stroke={1.8} aria-hidden="true" className="shrink-0" />
-                <span className="min-w-0 flex-1 truncate">删除</span>
+                <span className="min-w-0 flex-1 truncate">{t('browserAssets.delete')}</span>
               </button>
             </div>
           ) : null}

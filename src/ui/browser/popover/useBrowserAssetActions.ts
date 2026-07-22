@@ -2,6 +2,7 @@
 // 删除从「localStorage 软删」改为真删——落盘文件经 workspace.deleteFiles 进系统回收站，
 // 素材库同步消失（与 AssetLibraryPanel 同一口径），不再有「托盘删了库里还在」的分裂。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { confirmDialog } from '../../../design'
@@ -66,6 +67,7 @@ export function useBrowserAssetActions({
   deleteSelectedAssets: () => void
   handleTileDragStart: (asset: NomiBrowserAsset, event: React.DragEvent<HTMLDivElement>) => void
 } {
+  const { t } = useTranslation()
   const addLocalFiles = React.useCallback((files: readonly File[]): void => {
     // 收件箱只收图/视频；其他类型（文本等）去素材库上传，不在这里静默变卡。
     const mediaFiles = [...files].flatMap((file) => {
@@ -73,7 +75,7 @@ export function useBrowserAssetActions({
       return type ? [{ file, type }] : []
     })
     if (mediaFiles.length === 0) {
-      if (files.length > 0) toast('素材盒只收图片和视频', 'warning')
+      if (files.length > 0) toast(t('browserAssets.onlyImagesAndVideos'), 'warning')
       return
     }
     const projectId = getDesktopActiveProjectId()
@@ -91,8 +93,8 @@ export function useBrowserAssetActions({
         id: `local-upload-${batchTime}-${index}`,
         type,
         source: 'my',
-        title: file.name || '未命名素材',
-        subtitle: persistImport ? '保存中...' : '本地导入',
+        title: file.name || t('browserAssets.unnamedAsset'),
+        subtitle: persistImport ? t('browserAssets.saving') : t('browserAssets.localImport'),
         previewUrl,
         tags: ['本地导入'],
         status: persistImport ? 'loading' : undefined,
@@ -120,7 +122,7 @@ export function useBrowserAssetActions({
           const readyAsset: NomiBrowserAsset = {
             ...(mapped ?? pendingAsset),
             status: 'ready',
-            subtitle: mapped?.subtitle ?? '本地导入',
+            subtitle: mapped?.subtitle ?? t('browserAssets.localImport'),
           }
           setLocalAssets((current) => current.map((asset) => (asset.id === pendingAsset.id ? readyAsset : asset)))
           setPersistedAssets((current) => upsertBrowserAsset(current, readyAsset))
@@ -132,11 +134,11 @@ export function useBrowserAssetActions({
             return next
           })
         } catch {
-          setLocalAssets((current) => current.map((asset) => asset.id === pendingAsset.id ? { ...asset, subtitle: '保存失败', status: 'error' } : asset))
+          setLocalAssets((current) => current.map((asset) => asset.id === pendingAsset.id ? { ...asset, subtitle: t('browserAssets.saveFailed'), status: 'error' } : asset))
         }
       })()
     })
-  }, [previewUrlsRef, setActiveTab, setLocalAssets, setPersistedAssets, setSelectedIds])
+  }, [previewUrlsRef, setActiveTab, setLocalAssets, setPersistedAssets, setSelectedIds, t])
 
   const selectAsset = React.useCallback((asset: NomiBrowserAsset, event: React.MouseEvent<HTMLDivElement>) => {
     setAssetContextMenu(null)
@@ -176,9 +178,9 @@ export function useBrowserAssetActions({
         // 确认弹窗溢出整卡片：开合期间通知承载方扩热区（原生 overlay 下否则点不到）。
         setDeleteConfirmOpen(true)
         const confirmed = await confirmDialog({
-          title: `删除 ${assetsToDelete.length} 个素材？`,
-          message: '文件会移到系统回收站，素材库中同步消失。',
-          confirmLabel: '删除',
+          title: t('browserAssets.confirmDeleteCount', { count: assetsToDelete.length }),
+          message: t('browserAssets.deleteToTrashHint'),
+          confirmLabel: t('browserAssets.delete'),
           danger: true,
         }).finally(() => setDeleteConfirmOpen(false))
         if (!confirmed) return
@@ -188,11 +190,11 @@ export function useBrowserAssetActions({
           const projectId = getDesktopActiveProjectId()
           const deleteFiles = getDesktopBridge()?.workspace?.deleteFiles
           if (!projectId || !deleteFiles) {
-            toast('当前运行环境不支持删除落盘素材', 'error')
+            toast(t('browserAssets.deleteUnsupported'), 'error')
             return
           }
           const result = await deleteFiles({ projectId, relativePaths })
-          if (result.failedCount > 0) toast(`${result.failedCount} 个素材删除失败`, 'warning')
+          if (result.failedCount > 0) toast(t('browserAssets.deleteCountFailed', { count: result.failedCount }), 'warning')
         }
         // 会话内临时卡（无落盘文件）直接从本地状态移除；落盘桶重拉对账真实盘面
         // （deleteFiles 不广播 nomi:assets:updated，必须手动重拉）。
@@ -202,12 +204,12 @@ export function useBrowserAssetActions({
         if (relativePaths.length > 0) await refreshPersistedAssets()
       } catch (error) {
         console.error('[nomi:browser] 删除素材失败:', error)
-        toast('删除素材失败，请检查文件权限', 'error')
+        toast(t('browserAssets.deleteFailedPermission'), 'error')
       } finally {
         deleteInFlightRef.current = false
       }
     })()
-  }, [refreshPersistedAssets, selectedAssets, setAssetContextMenu, setDeleteConfirmOpen, setLocalAssets, setPersistedAssets, setSelectedIds])
+  }, [refreshPersistedAssets, selectedAssets, setAssetContextMenu, setDeleteConfirmOpen, setLocalAssets, setPersistedAssets, setSelectedIds, t])
 
   const selectAllVisibleAssets = React.useCallback((): void => {
     if (filteredAssets.length > 0) setSelectedIds(new Set(filteredAssets.map((asset) => asset.id)))

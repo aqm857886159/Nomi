@@ -1,4 +1,6 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
+import i18n from '../../../i18n'
 import { IconCheck, IconPhoto, IconPlayerPlayFilled, IconVideo } from '../../../vendor/tablerIcons'
 import { cn } from '../../../utils/cn'
 import type { NomiBrowserAsset, NomiBrowserAssetTab, NomiBrowserAssetTabDefinition } from '../assets/browserAssetData'
@@ -24,8 +26,8 @@ type FilterPopoverProps = {
   onShowAll: () => void
 }
 
-function getAssetTypeLabel(asset: NomiBrowserAsset): string {
-  return asset.type === 'image' ? '图片' : '视频'
+function getAssetTypeLabel(asset: NomiBrowserAsset, t: typeof i18n.t = i18n.t): string {
+  return asset.type === 'image' ? t('browserAssets.image') : t('browserAssets.video')
 }
 
 function renderAssetFallbackIcon(asset: NomiBrowserAsset, size = 26): JSX.Element {
@@ -51,11 +53,12 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
   onContextMenu,
   onDragStart,
 }: AssetTileProps): JSX.Element {
+  const { t } = useTranslation()
   const hasVisualPreview = Boolean(asset.previewUrl)
   const loading = asset.status === 'loading'
   const failed = asset.status === 'error'
   const subtitle = browserAssetDisplaySubtitle(asset)
-  const listMeta = asset.duration || getAssetTypeLabel(asset)
+  const listMeta = asset.duration || getAssetTypeLabel(asset, t)
   const isVideo = asset.type === 'video' || asset.previewMediaType === 'video'
 
   const commonProps = {
@@ -178,7 +181,7 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
         {loading ? (
           <div
             className="absolute inset-0 grid place-items-center bg-nomi-paper/70 text-nomi-ink-40 backdrop-blur-[1px]"
-            aria-label="下载中"
+            aria-label={t('browserAssets.downloading')}
           >
             <span
               className="size-5 animate-spin rounded-pill border-2 border-nomi-ink-20 border-t-nomi-accent"
@@ -201,7 +204,7 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
         {isVideo && !failed ? (
           <span className="absolute right-1 top-1 inline-flex h-4 items-center gap-0.5 rounded-pill bg-nomi-accent px-1 text-micro font-semibold leading-none text-nomi-paper shadow-nomi-sm ring-1 ring-nomi-paper/80">
             <IconPlayerPlayFilled size={9} aria-hidden="true" />
-            视频
+            {t('browserAssets.video')}
           </span>
         ) : null}
         {asset.duration ? (
@@ -240,6 +243,7 @@ export const BrowserAssetFilterPopover = React.memo(function BrowserAssetFilterP
   onSelectTab,
   onShowAll,
 }: FilterPopoverProps): JSX.Element {
+  const { t } = useTranslation()
   return (
     <div
       ref={setNodeRef}
@@ -248,10 +252,10 @@ export const BrowserAssetFilterPopover = React.memo(function BrowserAssetFilterP
         'bg-nomi-paper p-2 shadow-nomi-lg',
       )}
       role="dialog"
-      aria-label="素材分类筛选"
+      aria-label={t('browserAssets.assetCategoryFilter')}
     >
       <div className="mb-1 flex h-7 items-center justify-between px-1.5">
-        <span className="text-micro font-semibold uppercase text-nomi-ink-40">显示</span>
+        <span className="text-micro font-semibold uppercase text-nomi-ink-40">{t('browserAssets.show')}</span>
         <button
           type="button"
           className={cn(
@@ -260,10 +264,10 @@ export const BrowserAssetFilterPopover = React.memo(function BrowserAssetFilterP
           )}
           onClick={onShowAll}
         >
-          显示全部
+          {t('browserAssets.showAll')}
         </button>
       </div>
-      <div className="grid gap-0.5" role="listbox" aria-label="素材分类">
+      <div className="grid gap-0.5" role="listbox" aria-label={t('browserAssets.assetCategories')}>
         {tabs
           .filter((tab) => tab.key !== 'all')
           .map((tab) => {
@@ -289,7 +293,7 @@ export const BrowserAssetFilterPopover = React.memo(function BrowserAssetFilterP
                 onClick={() => onSelectTab(tab.key)}
                 >
                   <Icon size={15} stroke={1.8} aria-hidden="true" />
-                  <span className="min-w-0 truncate">{tab.label}</span>
+                  <span className="min-w-0 truncate">{t(tab.labelKey)}</span>
                   <span
                     className={cn(
                       'justify-self-end rounded-nomi-sm px-1.5 py-0.5 text-micro leading-none tabular-nums',

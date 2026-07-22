@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconPlayerPlayFilled, IconPlus } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { NomiImage } from '../../design/media'
@@ -35,10 +36,11 @@ function NumberBadge({ index }: { index: number }): JSX.Element {
 }
 
 function RemoveButton({ label, onRemove }: { label: string; onRemove: () => void }): JSX.Element {
+  const { t } = useTranslation()
   return (
     <button
       type="button"
-      aria-label={`移除${label}`}
+      aria-label={t('assetLibrary.removeNamed', { name: label })}
       className={cn('absolute -top-[5px] -right-[5px] w-[16px] h-[16px] rounded-pill bg-nomi-paper border border-nomi-line text-nomi-ink-60 text-micro leading-none flex items-center justify-center cursor-pointer z-[2]')}
       onClick={(event) => { event.stopPropagation(); onRemove() }}
     >×</button>
@@ -47,6 +49,7 @@ function RemoveButton({ label, onRemove }: { label: string; onRemove: () => void
 
 // 形态自明的内层渲染,被 56px 参考块和 48px picker 项共用(单一真相源,避免两份渲染逻辑)。
 export function AssetThumb({ asset, playSize = 22 }: { asset: AssetRef; playSize?: number }): JSX.Element {
+  const { t } = useTranslation()
   if (asset.kind === 'audio') {
     return (
       <span className={cn('flex items-center gap-[2px] h-[22px]')} aria-hidden>
@@ -75,8 +78,8 @@ export function AssetThumb({ asset, playSize = 22 }: { asset: AssetRef; playSize
       alt={asset.name}
       // 参考语境的失效占位说「怎么办」：泛化的「加载失败」会被当成无害缩略图问题忽略，
       // 而这张图随后就是发不出去（预览与发送同一份 URL 口径）。
-      fallbackLabel="图已失效"
-      fallbackTitle={`参考图已失效（源文件缺失或链接过期）：${asset.renderUrl}。点「×」移除后重新添加，或重新生成源节点。`}
+      fallbackLabel={t('assetLibrary.expiredReference')}
+      fallbackTitle={t('assetLibrary.expiredReferenceDetail', { url: asset.renderUrl })}
     />
   )
 }
@@ -106,11 +109,12 @@ export default function AssetTile({ asset, index, onRemove, onClick, dragProps, 
 }
 
 // 空态/添加块:虚线「+」,点开统一选择器(样张 v4 的 .tile.add)。
-export function AssetAddTile({ onClick, selected, label = '加参考', className }: { onClick: () => void; selected?: boolean; label?: string; className?: string }): JSX.Element {
+export function AssetAddTile({ onClick, selected, label, className }: { onClick: () => void; selected?: boolean; label?: string; className?: string }): JSX.Element {
+  const { t } = useTranslation()
   return (
     <button
       type="button"
-      aria-label={label}
+      aria-label={label ?? t('assetLibrary.addReference')}
       onClick={onClick}
       className={cn(
         'w-14 h-14 rounded-nomi-sm border border-dashed border-nomi-ink-20 bg-nomi-ink-05 text-nomi-ink-40 flex items-center justify-center cursor-pointer hover:border-nomi-accent hover:text-nomi-accent',

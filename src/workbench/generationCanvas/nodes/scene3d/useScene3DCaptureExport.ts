@@ -1,6 +1,7 @@
 // 出片捕获动作（从 Scene3DFullscreen / useScene3DFullscreenActions 抽出，防巨壳 R9）：
 // 视口截图、相机截图、运镜首尾帧离屏导出——「把画面变成产物」的动作集中一处。
 import React from 'react'
+import i18n from '../../../../i18n'
 import { toast } from '../../../../ui/toast'
 import {
   type CaptureApi,
@@ -33,7 +34,7 @@ export function useScene3DCaptureActions({
   const captureViewport = React.useCallback((): boolean => {
     const capture = captureApiRef.current?.captureViewport()
     if (!capture) {
-      toast('截图失败，请重试', 'error')
+      toast(i18n.t('scene3d.fullscreen.screenshotFailed'), 'error')
       return false
     }
     onScreenshot(capture)
@@ -53,7 +54,7 @@ export function useScene3DCaptureActions({
     )
     const capture = captureApiRef.current?.captureCamera(captureCamera)
     if (!capture) {
-      toast('相机截图失败，请重试', 'error')
+      toast(i18n.t('scene3d.fullscreen.cameraScreenshotFailed'), 'error')
       return false
     }
     onScreenshot(capture)
@@ -89,7 +90,7 @@ export function useScene3DMoveFrameExport({
       binding.objects.some((bound) => bound.objectId === cameraId)
     ))
     if (!hasBinding) {
-      toast('该相机还没有运镜段：先点「运镜预设」或在轨迹模式绑定轨迹', 'warning')
+      toast(i18n.t('scene3d.fullscreen.cameraHasNoMove'), 'warning')
       return
     }
     // 与 MP4 同口径：离屏采样器恒用 cameras[0]（同 takeRecording 的重排），把选定相机排到首位。
@@ -103,21 +104,21 @@ export function useScene3DMoveFrameExport({
   const handleResult = React.useCallback((result: CameraMoveCaptureResult | null, cameraName: string) => {
     setRequest(null)
     if (!result || result.frames.length < 2) {
-      toast('首尾帧导出失败，请重试', 'error')
+      toast(i18n.t('scene3d.fullscreen.frameExportFailed'), 'error')
       return
     }
     const labeled: Array<[string, string]> = [
-      [result.frames[0], '首帧'],
-      [result.frames[result.frames.length - 1], '尾帧'],
+      [result.frames[0], i18n.t('scene3d.fullscreen.firstFrame')],
+      [result.frames[result.frames.length - 1], i18n.t('scene3d.fullscreen.lastFrame')],
     ]
     labeled.forEach(([dataUrl, label]) => onScreenshot({
       dataUrl,
       width: result.width,
       height: result.height,
-      title: `${cameraName} · 运镜${label}`,
+      title: i18n.t('scene3d.fullscreen.cameraMoveFrameTitle', { camera: cameraName, frame: label }),
       source: 'scene3d-camera',
     }))
-    toast('已把运镜首帧/尾帧导出为画布图片节点', 'success')
+    toast(i18n.t('scene3d.fullscreen.frameExported'), 'success')
   }, [onScreenshot])
 
   // 看门狗：离屏 WebGL 出不来（上下文丢失等）不能让导出永远悬着。
@@ -125,7 +126,7 @@ export function useScene3DMoveFrameExport({
     if (!request) return undefined
     const timer = window.setTimeout(() => {
       setRequest(null)
-      toast('首尾帧导出超时，请重试', 'error')
+      toast(i18n.t('scene3d.fullscreen.frameExportTimeout'), 'error')
     }, 30_000)
     return () => window.clearTimeout(timer)
   }, [request])
@@ -136,7 +137,7 @@ export function useScene3DMoveFrameExport({
       state: request.state,
       frameCount: 2,
       fps: 24,
-      title: `${request.cameraName} · 运镜首尾帧`,
+      title: i18n.t('scene3d.fullscreen.cameraMoveFramesTitle', { camera: request.cameraName }),
       sizeMode: 'still-frame',
       onResult: (result) => handleResult(result, request.cameraName),
     })

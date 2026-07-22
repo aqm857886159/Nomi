@@ -1,6 +1,7 @@
 // 网页提示词提取 runner（素材面收敛 2026-07-22）：产物只此一家=主提示词库「我的库」。
 // 此前提取在素材盒弹层内跑、结果存 localStorage 私账卡（正牌提示词库找不到、顶栏浮窗恒空）；
 // 收敛后提取由浏览器侧直接驱动：toast 反馈进度，成品 addUserPrompt 入主库（带参考图+模式标签）。
+import i18n from '../../../i18n'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { addUserPrompt, getTextBrain } from '../../../workbench/api/promptLibraryApi'
@@ -111,14 +112,14 @@ function fallbackTitle(request: BrowserAssetPromptCaptureRequest, extractedTitle
   const title = (extractedTitle || request.title || request.pageTitle || '').trim()
   if (title) return title.slice(0, 48)
   const mode = promptExtractionModeFromRequest(request)
-  if (mode === 'style') return request.sourceType === 'screenshot' ? '网页截图风格' : '画面风格'
-  return request.sourceType === 'screenshot' ? '网页截图提示词' : '图片提示词'
+  if (mode === 'style') return request.sourceType === 'screenshot' ? i18n.t('browserAssets.screenshotStyle') : i18n.t('browserAssets.extraction.style')
+  return request.sourceType === 'screenshot' ? i18n.t('browserAssets.screenshotPromptTitle') : i18n.t('browserAssets.extraction.imagePrompt')
 }
 
 /** 浏览器截图/图片右键 → 提取提示词 → 直存主提示词库。fire-and-forget，进度/结果全走 toast。 */
 export async function runBrowserPromptExtractionToLibrary(request: BrowserAssetPromptCaptureRequest): Promise<void> {
   const mode = promptExtractionModeFromRequest(request)
-  toast(`正在提取${BROWSER_PROMPT_EXTRACTION_MODE_LABELS[mode]}提示词…`)
+  toast(i18n.t('browserAssets.extractingPrompt', { mode: BROWSER_PROMPT_EXTRACTION_MODE_LABELS[mode] }))
   try {
     const settings = await loadExtractionSettings()
     const initialReferences = promptReferenceImagesFromRequest(request)
@@ -132,10 +133,10 @@ export async function runBrowserPromptExtractionToLibrary(request: BrowserAssetP
       tags: ['网页提取', BROWSER_PROMPT_EXTRACTION_MODE_LABELS[mode]],
       referenceImages: prepared.references,
     })
-    toast(`已存入提示词库：${title}`, 'success')
+    toast(i18n.t('browserAssets.savedToPromptLibraryNamed', { name: title }), 'success')
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
     console.error('[nomi:browser] 提示词提取失败:', reason)
-    toast(`提示词提取失败：${reason}`, 'error')
+    toast(i18n.t('browserAssets.promptExtractionFailedToast', { error: reason }), 'error')
   }
 }

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Editor } from '@tiptap/react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -33,16 +34,16 @@ import { resolveArchetypeForModel } from '../../../config/modelArchetypes'
 import { currentArchetypeMode } from './controls/archetypeMeta'
 import { getTextGenMode, type TextGenMode } from '../runner/textActions'
 
-// C5 P2：文本节点的三种生成模式。
-const TEXT_GEN_MODES: { value: TextGenMode; label: string }[] = [
-  { value: 'append', label: '续写' },
-  { value: 'rewrite', label: '改写' },
-  { value: 'replace', label: '重写' },
+// C5 P2：文本节点的三种生成模式（label 由 composer.append/rewrite/replace 在渲染处翻译）。
+const TEXT_GEN_MODES: { value: TextGenMode; labelKey: string }[] = [
+  { value: 'append', labelKey: 'composer.append' },
+  { value: 'rewrite', labelKey: 'composer.rewrite' },
+  { value: 'replace', labelKey: 'composer.replace' },
 ]
-const TEXT_MODE_PLACEHOLDER: Record<TextGenMode, string> = {
-  append: '续写要求…（留空＝直接接着往下写）',
-  rewrite: '改写要求…（先在正文里选中要改的文字）',
-  replace: '重写要求…（替换整篇）',
+const TEXT_MODE_PLACEHOLDER_KEY: Record<TextGenMode, string> = {
+  append: 'composer.appendPlaceholder',
+  rewrite: 'composer.rewritePlaceholder',
+  replace: 'composer.replacePlaceholder',
 }
 
 // 翻转滞回带（屏幕 px）：已翻上后要等下方明显够放才切回朝下，杜绝边界反复横跳（用户反馈①）。
@@ -110,6 +111,7 @@ function BrowserPromptPickerPopover({
   onSelect,
   setNodeRef,
 }: BrowserPromptPickerPopoverProps): React.ReactPortal | null {
+  const { t } = useTranslation()
   const [hoveredPromptId, setHoveredPromptId] = React.useState<string | null>(null)
   const [previewTop, setPreviewTop] = React.useState(0)
   const [previewAnchorCenter, setPreviewAnchorCenter] = React.useState(0)
@@ -152,7 +154,7 @@ function BrowserPromptPickerPopover({
       exit={{ opacity: 0, y: -4, scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.7 }}
       role="menu"
-      aria-label="素材盒提示词"
+      aria-label={t('generationCommon.composer.promptLibrary')}
       onPointerDown={(event) => event.stopPropagation()}
       onMouseLeave={() => setHoveredPromptId(null)}
     >
@@ -160,7 +162,7 @@ function BrowserPromptPickerPopover({
         <div className="min-w-0 overflow-y-auto py-1">
           {items.length === 0 ? (
             <div className="grid min-h-24 place-items-center px-4 text-center text-caption text-nomi-ink-40">
-              素材盒暂无可用提示词
+              {t('generationCommon.composer.emptyPromptLibrary')}
             </div>
           ) : (
             items.map((item) => (
@@ -231,6 +233,7 @@ function BrowserPromptPickerPopover({
 }
 
 export default function NodeGenerationComposer({ node, visualSize }: Props): JSX.Element {
+  const { t } = useTranslation()
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const status = node.status || 'idle'
   const isGenerating = status === 'queued' || status === 'running'
@@ -576,15 +579,15 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
                 promptPickerOpen && 'bg-nomi-ink-05 text-nomi-accent',
                 node.locked && 'cursor-not-allowed opacity-45 hover:translate-y-0 hover:bg-transparent hover:text-nomi-ink-45',
               )}
-              aria-label="打开素材盒提示词"
+              aria-label={t('generationCommon.composer.openPromptLibrary')}
               aria-haspopup="menu"
               aria-expanded={promptPickerOpen}
-              title="素材盒提示词"
+              title={t('generationCommon.composer.promptLibrary')}
               disabled={node.locked}
               onClick={togglePromptPicker}
             >
               <IconFileText size={15} stroke={1.8} aria-hidden="true" />
-              <span className="text-caption font-medium leading-none">提示词</span>
+              <span className="text-caption font-medium leading-none">{t('generationCommon.composer.prompt')}</span>
             </button>
           ) : null}
         </div>
@@ -608,7 +611,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
         <div className={cn('h-px bg-nomi-line-soft')} />
       ) : null}
       {isTextKind ? (
-        <div className={cn('flex items-center gap-1')} role="group" aria-label="生成模式">
+        <div className={cn('flex items-center gap-1')} role="group" aria-label={t('generationCommon.composer.generationMode')}>
           {TEXT_GEN_MODES.map((option) => (
             <button
               key={option.value}
@@ -624,7 +627,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
                 'data-[active=true]:bg-nomi-accent-soft data-[active=true]:text-nomi-accent',
               )}
             >
-              {option.label}
+              {t(`generationCommon.${option.labelKey}`)}
             </button>
           ))}
         </div>
@@ -646,7 +649,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
           <PromptEditor
             className={cn('min-h-[72px]')}
             value={node.prompt || ''}
-            placeholder={isTextKind ? TEXT_MODE_PLACEHOLDER[textGenMode] : getGenerationNodePromptPlaceholder(node.kind)}
+            placeholder={isTextKind ? t(`generationCommon.${TEXT_MODE_PLACEHOLDER_KEY[textGenMode]}`) : getGenerationNodePromptPlaceholder(node.kind)}
             editable={!node.locked}
             onChange={(next) => updateNode(node.id, { prompt: next })}
             onBlur={() => { void persistActiveWorkbenchProjectNow().catch(() => {}) }}
@@ -673,16 +676,22 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
           const disabledReason = !canGenerateNow && !isGenerating
             ? nodeExecutionKind === 'video'
               ? acceptsDrop
-                ? '需要先添加参考素材（拖入 / 连线 / 点 +）'
-                : '需要先连接一个图片节点作为首帧'
+                ? t('generationCommon.composer.videoReferenceRequired')
+                : t('generationCommon.composer.videoFirstFrameRequired')
               : nodeExecutionKind === 'image'
                 ? acceptsDrop
-                  ? '图生图需要参考图（拖入 / 连线 / 点 +），或切回「文生图」'
-                  : '图生图需要参考图：请连接图片节点或添加参考，或切回「文生图」'
-                : `「${node.kind}」类型暂不支持直接生成`
+                  ? t('generationCommon.composer.imageReferenceRequired')
+                  : t('generationCommon.composer.imageConnectionRequired')
+                : t('generationCommon.composer.unsupportedKind', { kind: node.kind })
             : undefined
           const title = disabledReason
-            ?? (isGenerating ? '生成中…' : hasPendingRefs ? '先生成参考，再生成本镜' : hasResult ? '重新生成' : '生成')
+            ?? (isGenerating
+              ? t('generationCommon.composer.generating')
+              : hasPendingRefs
+                ? t('generationCommon.composer.generateReferencesFirst')
+                : hasResult
+                  ? t('generationCommon.composer.regenerate')
+                  : t('generationCommon.composer.generate'))
           return (
             <span title={title} style={{ display: 'contents' }}>
               {/* 原生 button：避开 WorkbenchButton(Mantine)对 radius/bg 的覆盖,确保样张 v4 的深色圆形主行动钮。
@@ -690,7 +699,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
               <button
                 type="button"
                 className={cn(GENERATE_BUTTON_CLASS, 'ml-auto')}
-                aria-label={hasResult ? '重新生成' : '生成素材'}
+                aria-label={hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset')}
                 disabled={!canGenerateNow}
                 onClick={handleGenerate}
               >
@@ -712,8 +721,8 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
         >
           {/* pending 规范 #1:上传中统一品牌转圈,不再纯文字 */}
           <span className={cn('inline-flex items-center gap-1.5 text-caption text-nomi-ink-60')}>
-            {isUploading ? <NomiLoadingMark size={14} label="上传中" /> : null}
-            {isUploading ? '上传中…' : '松手添加为参考'}
+            {isUploading ? <NomiLoadingMark size={14} label={t('generationCommon.composer.uploading')} /> : null}
+            {isUploading ? t('generationCommon.composer.uploadingEllipsis') : t('generationCommon.composer.dropToAddReference')}
           </span>
         </div>
       ) : null}

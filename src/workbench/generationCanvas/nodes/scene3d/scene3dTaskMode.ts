@@ -1,26 +1,20 @@
 // 任务优先重构（2026-07-22 审计 §6 + 用户拍板样张）：进 3D 不先学系统，先选产物。
 // 三个任务入口共用同一套编辑器状态（绝不另造并行导演台）；本文件是纯函数层——
 // 任务词汇、CTA 文案、全局状态句推导，配单测。
+import i18n from '../../../../i18n'
+
 export type Scene3DTaskMode = 'compose' | 'act' | 'move'
 
 export const SCENE3D_TASK_ORDER: Scene3DTaskMode[] = ['compose', 'act', 'move']
 
-export const SCENE3D_TASK_LABEL: Record<Scene3DTaskMode, string> = {
-  compose: '摆一张构图图',
-  act: '录一段人物动作',
-  move: '做一段运镜参考',
-}
-
-export const SCENE3D_TASK_SHORT_LABEL: Record<Scene3DTaskMode, string> = {
-  compose: '构图图',
-  act: '人物动作',
-  move: '运镜参考',
-}
+// 任务标签用函数取（不是模块级 const）——否则切换语言后旧值不更新。
+export const scene3dTaskLabel = (task: Scene3DTaskMode): string => i18n.t(`scene3d.taskFlow.taskLabel.${task}`)
+export const scene3dTaskShortLabel = (task: Scene3DTaskMode): string => i18n.t(`scene3d.taskFlow.taskShortLabel.${task}`)
 
 // CTA 随任务与录制态变：act 任务在录制中变成「完成这段动作」。
 export function scene3dTaskCta(task: Scene3DTaskMode, recording: boolean): string {
-  if (task === 'act') return recording ? '完成这段动作' : '开始录制'
-  return task === 'compose' ? '使用这张构图' : '生成参考视频'
+  if (task === 'act') return recording ? i18n.t('scene3d.taskFlow.actCtaFinish') : i18n.t('scene3d.taskFlow.actCtaStart')
+  return task === 'compose' ? i18n.t('scene3d.taskFlow.composeCta') : i18n.t('scene3d.taskFlow.moveCta')
 }
 
 export type Scene3DStatusInput = {
@@ -40,21 +34,24 @@ export type Scene3DStatusInput = {
 // 用户在任何截图里都能从这一句说出「现在控制谁」。
 export function scene3dStatusSentence(input: Scene3DStatusInput): string {
   if (input.recording) {
-    const owner = input.possessedName || input.possessedCameraName || '场景'
-    return `正在录制：${owner} · 键盘归${input.possessedCameraName && !input.possessedName ? '镜头' : '角色'}`
+    const owner = input.possessedName || input.possessedCameraName || i18n.t('scene3d.taskFlow.status.ownerScene')
+    const driver = input.possessedCameraName && !input.possessedName
+      ? i18n.t('scene3d.taskFlow.status.driverCamera')
+      : i18n.t('scene3d.taskFlow.status.driverCharacter')
+    return i18n.t('scene3d.taskFlow.status.recording', { owner, driver })
   }
-  if (input.countdownRemaining !== null) return `${input.countdownRemaining} 秒后开录——就位`
-  if (input.possessedName) return `正在操控：${input.possessedName}（WASD 走位 · C 蹲 · Space 跳）`
-  if (input.possessedCameraName) return `正在操控镜头：${input.possessedCameraName}（WASD 飞行取景）`
-  if (input.cameraViewEditName) return `正在取景：${input.cameraViewEditName} · 这就是最终画面`
-  if (input.isPlaying) return '正在预览最终镜头'
-  if (input.trajectoryMode) return '正在编辑轨迹（点空白处新建点）'
+  if (input.countdownRemaining !== null) return i18n.t('scene3d.taskFlow.status.countdown', { seconds: input.countdownRemaining })
+  if (input.possessedName) return i18n.t('scene3d.taskFlow.status.possessCharacter', { name: input.possessedName })
+  if (input.possessedCameraName) return i18n.t('scene3d.taskFlow.status.possessCamera', { name: input.possessedCameraName })
+  if (input.cameraViewEditName) return i18n.t('scene3d.taskFlow.status.framing', { name: input.cameraViewEditName })
+  if (input.isPlaying) return i18n.t('scene3d.taskFlow.status.playing')
+  if (input.trajectoryMode) return i18n.t('scene3d.taskFlow.status.trajectory')
   if (input.selectionName) {
     return input.selectionKind === 'camera'
-      ? `已选中镜头：${input.selectionName}`
-      : `正在移动：${input.selectionName}`
+      ? i18n.t('scene3d.taskFlow.status.selectedCamera', { name: input.selectionName })
+      : i18n.t('scene3d.taskFlow.status.movingObject', { name: input.selectionName })
   }
-  return '点左侧或画面里的对象开始'
+  return i18n.t('scene3d.taskFlow.status.idle')
 }
 
 // 场景树分段：连续同 templateGroup 的对象聚成一段（组折叠渲染），散件保持原序透传。
@@ -78,7 +75,8 @@ export function scene3dViewIdentityLabel(
   cameraAspect: string | null,
 ): { label: string; isOutput: boolean } {
   if (cameraViewEditName) {
-    return { label: `${cameraViewEditName}${cameraAspect ? ` · ${cameraAspect}` : ''} · 输出画面`, isOutput: true }
+    const name = `${cameraViewEditName}${cameraAspect ? ` · ${cameraAspect}` : ''}`
+    return { label: i18n.t('scene3d.taskFlow.outputViewLabel', { name }), isOutput: true }
   }
-  return { label: '工作视图 · 不会出片', isOutput: false }
+  return { label: i18n.t('scene3d.taskFlow.workViewLabel'), isOutput: false }
 }

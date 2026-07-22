@@ -1,6 +1,7 @@
 // 任务优先状态机（从 Scene3DFullscreen 抽出，防巨壳 R9）：任务切换 / 录制倒计时 /
 // 主视图身份切换 / 全局状态句 / 任务 CTA / 原位重播。行为与原内联实现等价（P1 无并行版）。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { toast } from '../../../../ui/toast'
 import { cloneScene3DState } from './scene3dSerializer'
 import { setScene3DPlayheadSeconds } from './trajectory'
@@ -57,6 +58,7 @@ export function useScene3DTaskFlow({
   handleExportReferenceVideo: () => void
   handleExportScreenshotCamera: () => void
 }) {
+  const { t } = useTranslation()
   // 任务优先（2026-07-22 拍板样张）：当前任务持续可见，三任务共用同一套编辑器状态（无并行版）。
   const [taskMode, setTaskMode] = React.useState<Scene3DTaskMode>('compose')
   // 录制前 3 秒倒计时（审计 §6.3：给用户就位时间），Esc/再点 CTA 可取消。
@@ -79,7 +81,7 @@ export function useScene3DTaskFlow({
       // effect-first：act 任务 CTA 直达——没在操控就替用户接管第一个角色。
       const firstMannequin = stateRef.current.objects.find((object) => object.type === 'mannequin')
       if (!firstMannequin) {
-        toast('先加一个角色（底部「添加」>「假人」）再录动作', 'warning')
+        toast(t('scene3d.taskFlow.addCharacterBeforeRecord'), 'warning')
         return
       }
       setSelection({ type: 'object', id: firstMannequin.id })
@@ -100,7 +102,7 @@ export function useScene3DTaskFlow({
         return current - 1
       })
     }, 1000)
-  }, [enterPossess, hasPossessTarget, setSelection, stateRef, takeRecorder])
+  }, [enterPossess, hasPossessTarget, setSelection, stateRef, takeRecorder, t])
 
   React.useEffect(() => {
     if (recordCountdown === null) return undefined
@@ -125,14 +127,14 @@ export function useScene3DTaskFlow({
     }
     const camera = selectedCamera ?? stateRef.current.cameras[0]
     if (!camera) {
-      toast('先加一个相机（底部「添加」>「相机」）', 'warning')
+      toast(t('scene3d.taskFlow.addCameraForOutputView'), 'warning')
       return
     }
     if (selectionRef.current?.type !== 'camera' || selectionRef.current.id !== camera.id) {
       setSelection({ type: 'camera', id: camera.id })
     }
     enterCameraViewEdit(cameraWithPlaybackPosition(stateRef.current, camera, trajectory.playheadRef.current, trajectory.activeTrajectoryIds))
-  }, [cameraViewEditCamera, enterCameraViewEdit, exitCameraViewEdit, selectedCamera, selectionRef, setSelection, stateRef, trajectory.activeTrajectoryIds, trajectory.playheadRef])
+  }, [cameraViewEditCamera, enterCameraViewEdit, exitCameraViewEdit, selectedCamera, selectionRef, setSelection, stateRef, trajectory.activeTrajectoryIds, trajectory.playheadRef, t])
 
   // —— 任务 CTA：完成按钮就是产物动作（构图=相机截图 / 动作=录 take / 运镜=参考视频）——
   const handleTaskCta = React.useCallback(() => {
@@ -178,12 +180,12 @@ export function useScene3DTaskFlow({
     trajectory.setIsPlaying(true)
   }, [setState, trajectory])
 
-  const taskCtaLabel = recordCountdown !== null ? '取消倒计时' : scene3dTaskCta(taskMode, takeRecorder.isRecording)
+  const taskCtaLabel = recordCountdown !== null ? t('scene3d.taskFlow.cancelCountdown') : scene3dTaskCta(taskMode, takeRecorder.isRecording)
   const taskCtaTitle = taskMode === 'compose'
-    ? '把当前相机取景截成构图图，落画布图片节点'
+    ? t('scene3d.taskFlow.composeCtaTitle')
     : taskMode === 'act'
-      ? (takeRecorder.isRecording ? '停止录制并生成参考视频' : '接管角色，3 秒倒计时后开录')
-      : '沿已编排的运镜渲染参考视频（720p，可喂给下游镜头）'
+      ? (takeRecorder.isRecording ? t('scene3d.taskFlow.actCtaRecordingTitle') : t('scene3d.taskFlow.actCtaTitle'))
+      : t('scene3d.taskFlow.moveCtaTitle')
   const viewIdentity = scene3dViewIdentityLabel(cameraViewEditCamera?.name ?? null, cameraViewEditCamera?.aspectRatio ?? null)
   const statusSentence = scene3dStatusSentence({
     recording: takeRecorder.isRecording,

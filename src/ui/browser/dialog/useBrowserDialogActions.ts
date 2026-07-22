@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import {
   type DesktopBrowserChromeMenuItem,
@@ -83,10 +84,11 @@ export function useBrowserDialogActions({
   setTabs,
   tabsRef,
 }: UseBrowserDialogActionsArgs): Record<string, any> {
+  const { t } = useTranslation()
   const createTab = React.useCallback(
     async (input?: string): Promise<void> => {
       if (tabsRef.current.length >= TAB_LIMIT) {
-        setLastError(`最多只能打开 ${TAB_LIMIT} 个标签页`)
+        setLastError(t('browserAssets.tabLimit', { count: TAB_LIMIT }))
         return
       }
       const tabId = createTabId()
@@ -103,13 +105,13 @@ export function useBrowserDialogActions({
           }
           setLastError(null)
         } catch (error) {
-          setLastError(error instanceof Error ? error.message : '浏览器视图创建失败')
+          setLastError(error instanceof Error ? error.message : t('browserAssets.viewCreateFailed'))
         }
       }
       const tab: BrowserTab = {
         id: tabId,
         viewId,
-        title: url ? browserUrlDisplayTitle(url) : '新建标签页',
+        title: url ? browserUrlDisplayTitle(url) : t('browserAssets.newTab'),
         url,
         canGoBack: false,
         canGoForward: false,
@@ -284,14 +286,14 @@ export function useBrowserDialogActions({
     const items: DesktopBrowserChromeMenuItem[] = [
       {
         id: 'bookmark',
-        label: bookmarked ? '已收藏' : '收藏',
+        label: bookmarked ? t('browserAssets.bookmarked') : t('browserAssets.bookmark'),
         enabled: Boolean(tab.url && !bookmarked),
       },
-      { id: 'close-tab', label: '关闭标签' },
+      { id: 'close-tab', label: t('browserAssets.closeTab') },
       ...(tabsRef.current.length > 1
         ? [
             { type: 'separator' as const },
-            { id: 'close-all', label: '关闭全部' },
+            { id: 'close-all', label: t('browserAssets.closeAllTabs') },
           ]
         : []),
     ]
@@ -343,7 +345,7 @@ export function useBrowserDialogActions({
     return browserBridge.onTextPromptSave((event: DesktopBrowserTextPromptSaveEvent) => {
       if (event.tabId !== activeTabIdRef.current) return
       if (!event.ok) {
-        setLastError(event.message || '保存网页选中文字失败')
+        setLastError(event.message || t('browserAssets.saveSelectionFailed'))
         return
       }
       void addUserPrompt({
@@ -352,8 +354,8 @@ export function useBrowserDialogActions({
         promptType: event.promptType === 'video' ? 'video' : 'image',
         tags: ['网页选中文字'],
       })
-        .then(() => toast('已存入提示词库', 'success'))
-        .catch((error) => toast(`存入提示词库失败：${error instanceof Error ? error.message : String(error)}`, 'error'))
+        .then(() => toast(t('browserAssets.savedToPromptLibraryToast'), 'success'))
+        .catch((error) => toast(t('browserAssets.saveToPromptLibraryFailed', { error: error instanceof Error ? error.message : String(error) }), 'error'))
     })
   }, [browserBridge])
 
@@ -361,7 +363,7 @@ export function useBrowserDialogActions({
     (mode: BrowserPromptExtractionMode, tabSnapshot: BrowserTab): void => {
       const viewId = tabSnapshot.viewId
       if (!viewId) {
-        setLastError('打开网页后才能截图提取提示词。')
+        setLastError(t('browserAssets.openPageBeforeScreenshot'))
         return
       }
       setPromptModePicker(null)
@@ -401,7 +403,7 @@ export function useBrowserDialogActions({
   const openBrowserScreenshotPromptModePicker = React.useCallback(
     (event: React.MouseEvent<HTMLButtonElement>): void => {
       if (!activeTab?.viewId) {
-        setLastError('打开网页后才能截图提取提示词。')
+        setLastError(t('browserAssets.openPageBeforeScreenshot'))
         return
       }
       const rect = event.currentTarget.getBoundingClientRect()
@@ -432,12 +434,12 @@ export function useBrowserDialogActions({
               {
                 id: 'replicate',
                 label: BROWSER_PROMPT_EXTRACTION_MODE_LABELS.replicate,
-                description: '还原主体、构图、光影和细节',
+                description: t('browserAssets.extraction.replicateDescription'),
               },
               {
                 id: 'style',
                 label: BROWSER_PROMPT_EXTRACTION_MODE_LABELS.style,
-                description: '提取配色、字体、构图、效果 JSON',
+                description: t('browserAssets.extraction.styleDescription'),
               },
             ],
           })
@@ -475,7 +477,7 @@ export function useBrowserDialogActions({
 
   const toggleBrowserResourceCapture = React.useCallback((): void => {
     if (!activeTab?.viewId || !browserBridge?.setResourceCapture) {
-      setLastError('打开网页后才能使用资源捕捞。')
+      setLastError(t('browserAssets.openPageBeforeCapture'))
       return
     }
     setLastError(null)

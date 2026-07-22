@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   IconBrowser,
   IconFolderOpen,
@@ -82,6 +83,7 @@ export default function ProjectLibraryPage({
   hasTextModel = null,
   projects,
 }: Props): JSX.Element {
+  const { t } = useTranslation()
   const [query, setQuery] = React.useState('')
   const [sourceFilter, setSourceFilter] = React.useState<'all' | 'native' | 'folder'>('all')
   const normalizedQuery = query.trim().toLowerCase()
@@ -103,9 +105,9 @@ export default function ProjectLibraryPage({
           sourceFilter === 'folder' ? project.source === 'folder' : project.source !== 'folder',
         )
   const sourceOptions: Array<{ id: 'all' | 'native' | 'folder'; label: string; count: number }> = [
-    { id: 'all', label: '全部', count: sourceCounts.all },
-    { id: 'native', label: '本地新建', count: sourceCounts.native },
-    { id: 'folder', label: '外部文件夹', count: sourceCounts.folder },
+    { id: 'all', label: t('library.all'), count: sourceCounts.all },
+    { id: 'native', label: t('library.local'), count: sourceCounts.native },
+    { id: 'folder', label: t('library.folders'), count: sourceCounts.folder },
   ]
   const textModelMissing = hasTextModel === false
   // 单一入口互斥：缺文本模型时弱入口隐藏，模型入口 = 状态条（有项目）/ 主 CTA 自动带入（空库）
@@ -127,10 +129,10 @@ export default function ProjectLibraryPage({
             'text-caption text-nomi-ink-60 transition-colors hover:text-nomi-ink',
           )}
           data-replay-splash="true"
-          aria-label="看看 Nomi 能做什么"
+          aria-label={t('library.replaySplash')}
         >
           <IconSparkles size={14} stroke={1.8} aria-hidden="true" />
-          看看 Nomi
+          {t('library.watchNomi')}
         </button>
       ) : null}
       {showModelEntry ? (
@@ -141,10 +143,10 @@ export default function ProjectLibraryPage({
             'inline-flex items-center gap-1.5 h-7 px-2 rounded-pill border-0 bg-transparent cursor-pointer font-inherit',
             'text-caption text-nomi-ink-60 transition-colors hover:text-nomi-ink',
           )}
-          aria-label="模型接入"
+          aria-label={t('library.connectModel')}
         >
           <IconPlugConnected size={14} stroke={1.8} aria-hidden="true" />
-          模型接入
+          {t('library.connectModel')}
         </button>
       ) : null}
       <button
@@ -154,10 +156,10 @@ export default function ProjectLibraryPage({
           'inline-flex items-center gap-1.5 h-7 px-2 rounded-pill border-0 bg-transparent cursor-pointer font-inherit',
           'text-caption text-nomi-ink-60 transition-colors hover:text-nomi-ink',
         )}
-        aria-label="打开浏览器"
+        aria-label={t('library.openBrowser')}
       >
         <IconBrowser size={14} stroke={1.8} aria-hidden="true" />
-        浏览器
+        {t('library.browser')}
       </button>
       <ThemeToggleButton className="size-7 rounded-pill" />
     </div>
@@ -185,7 +187,7 @@ export default function ProjectLibraryPage({
           <h1 className="flex items-center gap-3 font-nomi-display text-display font-normal tracking-[-0.022em] text-nomi-ink leading-none m-0">
             <NomiLogoMark size={28} />
             <span>
-              <NomiWordmark /> 项目库
+              <NomiWordmark /> {t('library.wordmarkSuffix')}
             </span>
           </h1>
           {!isWindows ? libraryTopActions : null}
@@ -195,27 +197,27 @@ export default function ProjectLibraryPage({
             产品理念交给开屏动画 + 顶栏「上手」引导，不再来一整屏介绍页。 */}
         <>
           {/* ── 主入口：动作卡片（O2 拍板，尺寸/形态/位置三重区隔） ── */}
-          <section className="shrink-0 flex items-center gap-3" aria-label="开始一个项目">
+          <section className="shrink-0 flex items-center gap-3" aria-label={t('library.startProject')}>
             <ActionCard
               variant="primary"
               icon={<IconPlus size={18} stroke={1.8} />}
-              title="新建空白项目"
-              description="从一段文字或想法开始"
+              title={t('library.newBlankProject')}
+              description={t('library.newBlankProjectDescription')}
               onClick={() => onNewProject()}
             />
             {onOpenFolder ? (
               <ActionCard
                 icon={<IconFolderOpen size={18} stroke={1.6} />}
-                title="打开已有文件夹"
-                description="把素材文件夹变成项目"
+                title={t('library.openFolder')}
+                description={t('library.openFolderDescription')}
                 onClick={onOpenFolder}
               />
             ) : null}
             {onPlayJourneyTour ? (
               <ActionCard
                 icon={<IconPlayerPlay size={18} stroke={1.6} />}
-                title={journeyTourSeen ? '重看一遍引导' : '看 Nomi 怎么出片'}
-                description="60 秒预览，从一句话到成片"
+                title={journeyTourSeen ? t('library.replayGuide') : t('library.watchHow')}
+                description={t('library.watchNomiDescription')}
                 onClick={onPlayJourneyTour}
               />
             ) : null}
@@ -228,13 +230,13 @@ export default function ProjectLibraryPage({
                 'shrink-0 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3',
                 'border border-nomi-line rounded-nomi bg-nomi-paper shadow-nomi-sm',
               )}
-              aria-label="模型状态"
+              aria-label={t('library.modelStatus')}
               data-model-banner="true"
             >
               <div>
-                <div className="text-body-sm font-semibold text-nomi-ink">文本模型未接入</div>
+                <div className="text-body-sm font-semibold text-nomi-ink">{t('library.textModelMissing')}</div>
                 <div className="mt-0.5 text-caption text-nomi-ink-60">
-                  写故事、拆镜头都需要它；图片 / 视频模型可以等到生成前再接。
+                  {t('library.textModelMissingHint')}
                 </div>
               </div>
               <button
@@ -245,7 +247,7 @@ export default function ProjectLibraryPage({
                   'bg-nomi-ink text-nomi-paper text-body-sm font-medium transition-colors hover:bg-nomi-accent',
                 )}
               >
-                接入文本模型
+                {t('library.connectTextModel')}
               </button>
             </section>
           ) : null}
@@ -253,10 +255,10 @@ export default function ProjectLibraryPage({
           {/* ── 最近项目：标题 + 来源筛选（名词，与动作动词区隔）｜搜索同行 ── */}
           <div className="shrink-0 flex items-center justify-between gap-4 flex-wrap">
             <div className="inline-flex items-center gap-8 flex-wrap">
-              <h2 className="m-0 text-caption font-medium text-nomi-ink-60">最近项目</h2>
+              <h2 className="m-0 text-caption font-medium text-nomi-ink-60">{t('library.recentProjects')}</h2>
               <div
                 className="inline-flex items-center gap-1 p-1 rounded-full border border-nomi-line bg-nomi-paper"
-                aria-label="筛选项目来源"
+                aria-label={t('library.sourceFilter')}
               >
                 {sourceOptions.map((option) => (
                   <button
@@ -279,7 +281,7 @@ export default function ProjectLibraryPage({
             <DesignSearchInput
               size="md"
               className="w-[280px]"
-              placeholder="搜索项目"
+              placeholder={t('library.searchPlaceholder')}
               value={query}
               onChange={setQuery}
             />
@@ -289,7 +291,11 @@ export default function ProjectLibraryPage({
             // 审计 A10：库非空但「搜索 × 来源 tab」过滤后为空——给空态与出路（统一空态组件）。
             <DesignEmptyState
               density="inline"
-              title={normalizedQuery ? `没有匹配「${query.trim()}」的项目` : '这个分类下还没有项目'}
+              title={
+                normalizedQuery
+                  ? t('library.noMatchNamed', { query: query.trim() })
+                  : t('library.noProjectsInCategory')
+              }
               action={
                 normalizedQuery ? (
                   <button
@@ -297,7 +303,7 @@ export default function ProjectLibraryPage({
                     className="inline-flex h-7 items-center px-3 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-caption text-nomi-ink-80 cursor-pointer hover:bg-nomi-ink-05"
                     onClick={() => setQuery('')}
                   >
-                    清除搜索
+                    {t('library.clearSearch')}
                   </button>
                 ) : undefined
               }
@@ -342,8 +348,8 @@ export default function ProjectLibraryPage({
                           'hover:bg-workbench-danger hover:text-nomi-paper',
                         )}
                         type="button"
-                        aria-label={`删除项目 ${project.name}`}
-                        title="删除项目"
+                        aria-label={t('library.deleteNamedProject', { name: project.name })}
+                        title={t('library.deleteProject')}
                         onClick={(e) => {
                           e.stopPropagation()
                           onDeleteProject(project)
@@ -353,7 +359,7 @@ export default function ProjectLibraryPage({
                       </button>
                       {project.missing ? (
                         <span className="h-8 px-3 rounded-nomi-sm text-caption font-medium text-nomi-paper/80 flex items-center">
-                          文件夹暂不可用
+                          {t('library.folderUnavailable')}
                         </span>
                       ) : (
                         <button
@@ -368,7 +374,7 @@ export default function ProjectLibraryPage({
                             onOpenProject(project.id)
                           }}
                         >
-                          继续创作
+                          {t('library.continueCreating')}
                         </button>
                       )}
                     </div>
@@ -381,8 +387,8 @@ export default function ProjectLibraryPage({
                     {onRevealProjectFolder && project.rootPath ? (
                       <button
                         type="button"
-                        aria-label={`打开项目文件夹 ${project.name}`}
-                        title="在访达中显示项目文件夹"
+                        aria-label={t('library.openProjectFolder', { name: project.name })}
+                        title={t('library.revealProjectFolderTitle')}
                         onClick={(e) => {
                           e.stopPropagation()
                           onRevealProjectFolder(project.id)

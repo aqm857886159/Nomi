@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
 import AssetTile, { AssetAddTile } from './AssetTile'
 import AssetPicker from './AssetPicker'
@@ -63,6 +64,7 @@ export default function AssetReference({
   slots, valuesByKey, occupiedByKey, projectId, openSlotKey, uploadingSlotKey,
   onTogglePicker, onPick, onUpload, onRemove, onInsertMention, onReorder, onBrowseAll,
 }: AssetReferenceProps): JSX.Element {
+  const { t } = useTranslation()
   const dragRef = React.useRef<{ key: string; index: number } | null>(null)
   const singleSlots = slots.filter((s) => s.form === 'single')
   const arraySlots = slots.filter((s) => s.form === 'array')
@@ -105,7 +107,7 @@ export default function AssetReference({
                 {labelSingles ? <span className={cn('text-nomi-ink-60 text-micro leading-none')}>{slot.label}</span> : null}
                 {url
                   ? <AssetTile asset={displayRef(url, slot.accept, slot.label)} onRemove={() => onRemove(slot, 0)} />
-                  : <AssetAddTile label={`添加${slot.label}`} selected={isOpen} onClick={() => onTogglePicker(slot.key)} />}
+                  : <AssetAddTile label={t('assetLibrary.addNamed', { label: slot.label })} selected={isOpen} onClick={() => onTogglePicker(slot.key)} />}
                 {isOpen ? (
                   <AssetPickerPopover onClose={() => onTogglePicker(slot.key)}>
                     <AssetPicker
@@ -153,7 +155,7 @@ export default function AssetReference({
               />
             ))}
             {arrayCanAdd ? (
-              <AssetAddTile label="加参考" selected={openSlotKey === MERGED_ARRAY_KEY} onClick={() => onTogglePicker(MERGED_ARRAY_KEY)} />
+              <AssetAddTile label={t('assetLibrary.addReference')} selected={openSlotKey === MERGED_ARRAY_KEY} onClick={() => onTogglePicker(MERGED_ARRAY_KEY)} />
             ) : null}
           </div>
           {openSlotKey === MERGED_ARRAY_KEY ? (

@@ -2,12 +2,13 @@
 // 标题 ｜ 三个任务入口（构图图 / 人物动作 / 运镜参考，同一套编辑器状态，绝非并行版）｜
 // 精调（右栏开合）· 重看引导 · 任务 CTA（原「出片」面板已删，三产物由任务 CTA 直达）· 关闭。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconCube, IconHelp, IconPhoto, IconRun, IconVideo, IconX } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
 import {
   SCENE3D_TASK_ORDER,
-  SCENE3D_TASK_LABEL,
-  SCENE3D_TASK_SHORT_LABEL,
+  scene3dTaskLabel,
+  scene3dTaskShortLabel,
   type Scene3DTaskMode,
 } from './scene3dTaskMode'
 
@@ -42,6 +43,7 @@ export function Scene3DFullscreenHeader({
   onReplayCoach,
   onClose,
 }: Scene3DFullscreenHeaderProps): JSX.Element {
+  const { t } = useTranslation()
   return (
     <header className="relative z-[2] flex min-h-[52px] shrink-0 items-center gap-3 border-b border-[var(--workbench-border)] bg-[var(--workbench-surface-solid)] px-4 shadow-nomi-sm">
       <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -49,7 +51,7 @@ export function Scene3DFullscreenHeader({
         <div className="min-w-0 truncate text-body-sm font-medium text-[var(--workbench-ink)]">{nodeTitle}</div>
       </div>
       {/* 任务入口：先选产物、不先学系统（审计 §6.1）。当前任务持续可见。 */}
-      <div className="flex shrink-0 items-center gap-1 rounded-pill bg-[var(--nomi-ink-05)] p-0.5" role="tablist" aria-label="任务入口">
+      <div className="flex shrink-0 items-center gap-1 rounded-pill bg-[var(--nomi-ink-05)] p-0.5" role="tablist" aria-label={t('scene3d.taskFlow.taskEntry')}>
         {SCENE3D_TASK_ORDER.map((candidate) => {
           const Icon = TASK_ICON[candidate]
           const active = candidate === task
@@ -59,7 +61,7 @@ export function Scene3DFullscreenHeader({
               type="button"
               role="tab"
               aria-selected={active}
-              title={SCENE3D_TASK_LABEL[candidate]}
+              title={scene3dTaskLabel(candidate)}
               onClick={() => onTaskChange(candidate)}
               className={cn(
                 'inline-flex h-7 items-center gap-1.5 rounded-pill px-2.5 text-caption transition-colors',
@@ -69,7 +71,7 @@ export function Scene3DFullscreenHeader({
               )}
             >
               <Icon size={14} />
-              <span>{SCENE3D_TASK_SHORT_LABEL[candidate]}</span>
+              <span>{scene3dTaskShortLabel(candidate)}</span>
             </button>
           )
         })}
@@ -77,7 +79,7 @@ export function Scene3DFullscreenHeader({
       <div className="ml-auto flex min-w-0 items-center gap-2">
         <button
           type="button"
-          title={refineOpen ? '收起精调（右栏属性 / 整运镜）' : '精调：完整属性 / 轨迹 / 录 take 都在右栏'}
+          title={refineOpen ? t('scene3d.taskFlow.collapseRefine') : t('scene3d.taskFlow.refineHint')}
           aria-pressed={refineOpen}
           onClick={onToggleRefine}
           className={cn(
@@ -87,11 +89,11 @@ export function Scene3DFullscreenHeader({
               : 'bg-[var(--nomi-paper)] text-[var(--workbench-muted)] hover:bg-[var(--nomi-ink-05)] hover:text-[var(--workbench-ink)]',
           )}
         >
-          精调
+          {t('scene3d.taskFlow.refine')}
         </button>
         <button
           type="button"
-          title="重看新手引导"
+          title={t('scene3d.export.replayCoach')}
           onClick={onReplayCoach}
           className="grid size-8 shrink-0 place-items-center rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] text-[var(--workbench-muted)] hover:bg-[var(--nomi-ink-05)] hover:text-[var(--workbench-ink)]"
         >
@@ -110,7 +112,7 @@ export function Scene3DFullscreenHeader({
         <button
           className="grid size-8 shrink-0 place-items-center rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)]"
           type="button"
-          title="退出 3D 场景"
+          title={t('scene3d.fullscreen.exitScene')}
           onClick={onClose}
         >
           <IconX size={16} />

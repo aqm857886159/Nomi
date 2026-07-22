@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { AnimatePresence, motion } from 'framer-motion'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import {
@@ -121,6 +122,7 @@ function captureFlyoutScale(source: OverlayCaptureFlyoutRect, target: OverlayCap
 }
 
 export function BrowserAssetOverlayApp(): JSX.Element {
+  const { t } = useTranslation()
   const desktop = React.useMemo(() => getDesktopBridge(), [])
   const browserBridge = React.useMemo(() => desktop?.browser, [desktop])
   const overlayBridge = React.useMemo(() => browserBridge?.assetOverlay, [browserBridge])
@@ -480,7 +482,7 @@ export function BrowserAssetOverlayApp(): JSX.Element {
               <>
                 <video src={flyout.url} muted playsInline className="block size-full bg-nomi-ink object-contain" />
                 <span className="absolute right-1 top-1 rounded-pill bg-nomi-accent px-1.5 py-0.5 text-micro font-semibold leading-none text-nomi-paper shadow-nomi-sm">
-                  视频
+                  {t('browserAssets.video')}
                 </span>
               </>
             ) : (

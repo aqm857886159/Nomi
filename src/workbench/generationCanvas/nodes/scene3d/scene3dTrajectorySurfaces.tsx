@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { IconRoute } from '@tabler/icons-react'
 import type { Scene3DCamera, Scene3DObject, Scene3DSelection, Scene3DState } from './scene3dTypes'
 import type { Scene3DTrajectoryEditing } from './useScene3DTrajectoryEditing'
@@ -45,10 +46,11 @@ export function Scene3DTrajectoryEditBanner({
   trajectory: Scene3DTrajectoryEditing
   onEnterEdit: () => void
 }): JSX.Element {
+  const { t } = useTranslation()
   return (
     <div className="pointer-events-auto absolute left-1/2 top-4 z-[3] flex -translate-x-1/2 items-center gap-2 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] px-3 py-2 text-caption text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]">
       <IconRoute size={15} className="text-[var(--nomi-ink-60)]" />
-      <span>{trajectory.trajectoryEditMode ? '轨迹编辑中 · 双击空地加点' : '轨迹查看'}</span>
+      <span>{trajectory.trajectoryEditMode ? t('scene3d.trajectory.editingHint') : t('scene3d.trajectory.viewing')}</span>
       <button
         className="rounded-nomi-sm bg-[var(--nomi-ink-05)] px-2 py-1 text-micro text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)]"
         type="button"
@@ -58,7 +60,7 @@ export function Scene3DTrajectoryEditBanner({
           if (next) onEnterEdit()
         }}
       >
-        {trajectory.trajectoryEditMode ? '退出编辑' : '进入编辑'}
+        {trajectory.trajectoryEditMode ? t('scene3d.trajectory.exitEdit') : t('scene3d.trajectory.enterEdit')}
       </button>
     </div>
   )

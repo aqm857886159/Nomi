@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import "./workbench.css";
 import "./workbench-ai.css";
 import { IconBrowser } from "@tabler/icons-react";
@@ -60,16 +61,18 @@ type WorkspaceSlotProps = {
 };
 
 function WorkspaceLoading({ label }: { label: string }): JSX.Element {
+    const { t } = useTranslation();
+    const loadingLabel = t("workspace.loading", { label });
     return (
         <div
             className={cn(
                 "workbench-shell__loading",
                 "w-full h-full bg-workbench-bg grid place-items-center",
             )}
-            aria-label={`${label}加载中`}
+            aria-label={loadingLabel}
         >
             {/* pending 规范 #1:懒加载占位不再是空白色块,给可见品牌 spinner */}
-            <NomiLoadingMark size={28} label={`${label}加载中`} />
+            <NomiLoadingMark size={28} label={loadingLabel} />
         </div>
     );
 }
@@ -130,6 +133,7 @@ export default function WorkbenchShell({
     onOpenModelCatalog,
     onRenameProject,
 }: WorkbenchShellProps): JSX.Element {
+    const { t } = useTranslation();
     const workspaceMode = useWorkbenchStore((state) => state.workspaceMode);
     const setWorkspaceMode = useWorkbenchStore(
         (state) => state.setWorkspaceMode,
@@ -193,7 +197,7 @@ export default function WorkbenchShell({
                         "relative flex h-8 w-full shrink-0 items-center",
                         "bg-workbench-surface text-workbench-ink",
                     )}
-                    aria-label="窗口标题栏"
+                    aria-label={t("appBar.windowTitleBar")}
                     onDoubleClick={handleWindowTitlebarDoubleClick}
                 >
                     <button
@@ -205,7 +209,7 @@ export default function WorkbenchShell({
                             "border-0 bg-transparent cursor-pointer rounded-none text-workbench-ink",
                             "transition-[opacity] duration-[var(--nomi-transition-fast)] hover:opacity-80",
                         )}
-                        aria-label="关于 Nomi · 检查更新"
+                        aria-label={t("appBar.aboutAndUpdate")}
                         aria-haspopup="dialog"
                         aria-expanded={aboutOpen}
                         onClick={() => setAboutOpen((open) => !open)}
@@ -229,7 +233,7 @@ export default function WorkbenchShell({
                             "text-workbench-muted",
                         )}
                         role="toolbar"
-                        aria-label="项目快捷操作"
+                        aria-label={t("appBar.projectQuickActions")}
                     >
                         <button
                             type="button"
@@ -238,12 +242,12 @@ export default function WorkbenchShell({
                                 "cursor-pointer font-inherit text-caption text-workbench-muted",
                                 "transition-colors hover:text-workbench-ink",
                             )}
-                            aria-label="打开浏览器"
-                            title="浏览器"
+                            aria-label={t("appBar.openBrowser")}
+                            title={t("appBar.browser")}
                             onClick={openBrowser}
                         >
                             <IconBrowser size={14} stroke={1.8} aria-hidden="true" />
-                            <span>浏览器</span>
+                            <span>{t("appBar.browser")}</span>
                         </button>
                     </div>
                     <WindowControls className="relative z-[2]" />
@@ -273,14 +277,14 @@ export default function WorkbenchShell({
                     {mountedWorkspaceModes.includes("creation") ? (
                         <WorkspaceSlot
                             active={workspaceMode === "creation"}
-                            label='创作区'>
+                            label={t("workspace.creation")}>
                             <CreationWorkspace />
                         </WorkspaceSlot>
                     ) : null}
                     {mountedWorkspaceModes.includes("generation") ? (
                         <WorkspaceSlot
                             active={workspaceMode === "generation"}
-                            label='生成区'>
+                            label={t("workspace.generation")}>
                             <GenerationWorkspace
                                 canvas={generation}
                                 aiSidebar={generationAi}
@@ -291,7 +295,7 @@ export default function WorkbenchShell({
                     {mountedWorkspaceModes.includes("preview") ? (
                         <WorkspaceSlot
                             active={workspaceMode === "preview"}
-                            label='预览区'>
+                            label={t("workspace.preview")}>
                             <PreviewWorkspace />
                         </WorkspaceSlot>
                     ) : null}

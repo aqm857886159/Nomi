@@ -3,42 +3,43 @@
 // 改成 5 步：摆场景 → 摆角色 → 摆相机 → 整运镜 → 出片，每步讲清"下一步干什么"。
 // 角落可重看（不只第一次）。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { markScene3DCoachSeen } from '../../../onboarding/onboardingState'
 
 type CoachStep = {
   coach: string
   /** 主目标不在场时的兜底锚点（如整运镜面板要选中相机才渲染，兜底指相机行） */
   fallback?: string
-  title: string
-  body: string
+  titleKey: string
+  bodyKey: string
 }
 
 const STEPS: readonly CoachStep[] = [
   {
     coach: 'add-button',
-    title: '第 1 步 · 摆场景',
-    body: '点「添加」选场景模板（城市街道/室内房间），再加道具和假人。场景是出片的地基。',
+    titleKey: 'scene3d.coach.sceneStepTitle',
+    bodyKey: 'scene3d.coach.sceneStepBody',
   },
   {
     coach: 'mannequin-row',
-    title: '第 2 步 · 摆角色',
-    body: '选中假人 → 头顶出「操控」→ WASD 走位、换姿势。角色是你运镜的焦点。',
+    titleKey: 'scene3d.coach.characterStepTitle',
+    bodyKey: 'scene3d.coach.characterStepBody',
   },
   {
     coach: 'camera-row',
-    title: '第 3 步 · 摆相机',
-    body: '加个相机 → 选中 → 右侧出运镜预设和画面预览。相机决定观众看到什么。',
+    titleKey: 'scene3d.coach.cameraStepTitle',
+    bodyKey: 'scene3d.coach.cameraStepBody',
   },
   {
     coach: 'camera-move-panel',
     fallback: 'camera-row',
-    title: '第 4 步 · 整运镜',
-    body: '选中相机后，右侧「运镜预设」13 招一键落轨迹（环绕/推近/希区柯克…），也可手动画轨迹、或录 take。',
+    titleKey: 'scene3d.coach.cameraMoveStepTitle',
+    bodyKey: 'scene3d.coach.cameraMoveStepBody',
   },
   {
     coach: 'export-button',
-    title: '第 5 步 · 完成产物',
-    body: '顶部选好任务（构图图 / 人物动作 / 运镜参考），这颗完成按钮就是产物：截构图、录动作、或沿运镜渲染 mp4 自动喂给下游镜头。',
+    titleKey: 'scene3d.coach.completeStepTitle',
+    bodyKey: 'scene3d.coach.completeStepBody',
   },
 ]
 
@@ -52,6 +53,7 @@ interface TargetRect {
 }
 
 export function Scene3DCoachMarks({ onDone }: { onDone: () => void }): JSX.Element | null {
+  const { t } = useTranslation()
   const hostRef = React.useRef<HTMLDivElement | null>(null)
   const [step, setStep] = React.useState(0)
   const [rect, setRect] = React.useState<TargetRect | null>(null)
@@ -115,8 +117,8 @@ export function Scene3DCoachMarks({ onDone }: { onDone: () => void }): JSX.Eleme
         className="absolute rounded-nomi border border-nomi-line bg-nomi-paper p-3 shadow-nomi-lg"
         style={{ left: cardLeft, top: cardTop, width: CARD_W }}
       >
-        <div className="text-caption font-medium text-nomi-ink">{current.title}</div>
-        <div className="mt-1 text-micro leading-relaxed text-nomi-ink-60">{current.body}</div>
+        <div className="text-caption font-medium text-nomi-ink">{t(current.titleKey)}</div>
+        <div className="mt-1 text-micro leading-relaxed text-nomi-ink-60">{t(current.bodyKey)}</div>
         <div className="mt-2 flex items-center justify-between">
           <span className="text-micro text-nomi-ink-40">{step + 1} / {STEPS.length}</span>
           <span className="flex items-center gap-3">
@@ -125,14 +127,14 @@ export function Scene3DCoachMarks({ onDone }: { onDone: () => void }): JSX.Eleme
               type="button"
               onClick={finish}
             >
-              跳过
+              {t('scene3d.coach.skip')}
             </button>
             <button
               className="rounded-nomi-sm border-0 bg-nomi-ink px-2.5 py-1 text-micro text-nomi-paper"
               type="button"
               onClick={() => (step < STEPS.length - 1 ? setStep(step + 1) : finish())}
             >
-              {step < STEPS.length - 1 ? '下一步' : '开始使用'}
+              {step < STEPS.length - 1 ? t('scene3d.coach.next') : t('scene3d.coach.start')}
             </button>
           </span>
         </div>

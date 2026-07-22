@@ -71,11 +71,11 @@ export type BaseGenerationNodeProps = {
   focusFlash?: boolean
   appear?: boolean
 }
-const Scene3DEditor = lazyWithChunkBoundary('i18n:generationCommon.chunk.scene3dEditor', () => import('./Scene3DEditor')) // A5：chunk 失败只降级本卡
-const Model3DViewer = lazyWithChunkBoundary('i18n:generationCommon.chunk.model3dViewer', () => import('./model3d/Model3DViewer')) // 生成出的 .glb 卡内可旋转预览（R3F）
-const TextDocumentNode = lazyWithChunkBoundary('i18n:generationCommon.chunk.textEditor', () => import('./render/TextDocumentNode'))
-const PanoramaViewer = lazyWithChunkBoundary('i18n:generationCommon.chunk.panoramaViewer', () => import('./PanoramaViewer'))
-const NodeGenerationComposer = lazyWithChunkBoundary('i18n:generationCommon.chunk.composer', () => import('./NodeGenerationComposer'))
+const Scene3DEditor = lazyWithChunkBoundary('3D 场景编辑器', () => import('./Scene3DEditor')) // A5：chunk 失败只降级本卡
+const Model3DViewer = lazyWithChunkBoundary('3D 模型预览', () => import('./model3d/Model3DViewer')) // 生成出的 .glb 卡内可旋转预览（R3F）
+const TextDocumentNode = lazyWithChunkBoundary('文本节点编辑器', () => import('./render/TextDocumentNode'))
+const PanoramaViewer = lazyWithChunkBoundary('全景预览', () => import('./PanoramaViewer'))
+const NodeGenerationComposer = lazyWithChunkBoundary('节点生成面板', () => import('./NodeGenerationComposer'))
 
 function NodeBodyLoading(): JSX.Element {
   return <div className="h-full w-full rounded-nomi bg-nomi-paper shadow-nomi-md ring-1 ring-inset ring-nomi-line" />
@@ -245,17 +245,14 @@ function BaseGenerationNodeImpl({
   const showStatusBadge = status === 'queued' || status === 'running'
 
   const sourceNodeLabel =
-    sourceNodeTitle || (node.derivedFrom && !sourceNodeExists ? t('generationCommon.node.sourceMissing') : node.derivedFrom || '')
-  const sourceCategory = sourceNodeCategoryId ? getBuiltinCategoryById(sourceNodeCategoryId) : null
-  const sourceCategoryName = sourceCategory
-    ? t(`libraries.sidebar.builtinCategory.${sourceCategory.id}` as 'libraries.sidebar.builtinCategory.shots')
-    : null
+    sourceNodeTitle || (node.derivedFrom && !sourceNodeExists ? '源节点已不在当前项目' : node.derivedFrom || '')
+  const sourceCategoryName = sourceNodeCategoryId ? getBuiltinCategoryById(sourceNodeCategoryId)?.name : null
   const independentCopyLabel =
     sourceCategoryName && sourceNodeExists
-      ? t('generationCommon.node.copyFromCategory', { category: sourceCategoryName, source: sourceNodeLabel })
+      ? `独立副本（来自 ${sourceCategoryName}·${sourceNodeLabel}）`
       : sourceNodeExists
-        ? t('generationCommon.node.copyFrom', { source: sourceNodeLabel })
-        : t('generationCommon.node.copySourceMissing')
+        ? `独立副本（来自 ${sourceNodeLabel}）`
+        : '独立副本（源节点已不存在）'
   const nodeExecutionKind = getGenerationNodeExecutionKind(node.kind)
   // L3：待生成卡给镜头序号，让未选中的占位卡也能一眼分清哪个镜头（非 shots 返回 null）。
   const shotIndex = useShotIndex(node.id, node.categoryId)
@@ -342,7 +339,11 @@ function BaseGenerationNodeImpl({
                 'opacity-80 transition-opacity duration-150 hover:opacity-100',
                 'data-[active=true]:opacity-100',
               )}
-              aria-label={isPendingConnectionTarget ? t('generationCommon.node.connectHere') : t('generationCommon.node.startConnection')}
+              aria-label={
+                isPendingConnectionTarget
+                  ? t('generationCommon.node.connectHere')
+                  : t('generationCommon.node.startConnection')
+              }
               data-active={isPendingConnectionTarget ? 'true' : 'false'}
               onPointerDown={(event) => {
                 if (isPendingConnectionTarget) {
@@ -395,8 +396,8 @@ function BaseGenerationNodeImpl({
           <ToolbarDivider />
           <ToolbarButton
             icon={<IconDownload size={TBI.size} stroke={TBI.stroke} />}
-            label={t('generationCommon.imageToolbar.download')}
-            title={t('generationCommon.imageToolbar.downloadHint')}
+            label={t('generationCommon.resultDownload.download')}
+            title={t('generationCommon.resultDownload.downloadHint')}
             disabled={panoramaDownloading}
             onClick={downloadPanorama}
           />
@@ -461,7 +462,11 @@ function BaseGenerationNodeImpl({
           <button
             type="button"
             className="generation-canvas-v2-node__derived-badge"
-            aria-label={sourceNodeExists ? t('generationCommon.node.locateSource', { source: sourceNodeLabel }) : t('generationCommon.node.sourceNoLongerExists')}
+            aria-label={
+              sourceNodeExists
+                ? t('generationCommon.node.locateSource', { source: sourceNodeLabel })
+                : t('generationCommon.node.sourceNoLongerExists')
+            }
             title={independentCopyLabel}
             disabled={!sourceNodeExists}
             onClick={handleFocusSourceNode}

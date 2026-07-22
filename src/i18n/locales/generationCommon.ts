@@ -779,7 +779,10 @@ export const zhGenerationCommon = {
     clear: '清除选择',
   },
   savePrompt: {
-    saved: '已保存到素材盒提示词库',
+    saved: '已存入提示词库',
+    saveFailed: '存入提示词库失败：{{message}}',
+    imageType: '图片提示词',
+    videoType: '视频提示词',
     title: '保存提示词',
     removeReference: '移除参考图',
     type: '提示词类型',
@@ -1625,7 +1628,10 @@ export const enGenerationCommon = {
     clear: 'Clear selection',
   },
   savePrompt: {
-    saved: 'Saved to the asset-box prompt library',
+    saved: 'Saved to prompt library',
+    saveFailed: 'Failed to save to prompt library: {{message}}',
+    imageType: 'Image prompt',
+    videoType: 'Video prompt',
     title: 'Save prompt',
     removeReference: 'Remove reference image',
     type: 'Prompt type',

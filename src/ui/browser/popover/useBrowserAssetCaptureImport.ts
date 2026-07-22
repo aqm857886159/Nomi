@@ -2,6 +2,7 @@
 // 提取由浏览器侧 browserPromptExtractionRunner 直驱、产物入主提示词库，托盘只管接素材；
 // 文件夹归属（folderAssignments）随切片C/D 退役，导入不再写任何 localStorage 私账）。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import type { NomiBrowserAsset } from '../assets/browserAssetData'
 import type { BrowserAssetCaptureRequest, BrowserAssetRemoteImportInput } from './browserAssetPopoverTypes'
 import {
@@ -31,6 +32,7 @@ export function useBrowserAssetCaptureImport({
   retryCaptureImport: (assetId: string) => void
   dismissCaptureTransient: (assetId: string) => void
 } {
+  const { t } = useTranslation()
   const handledCaptureRequestIdRef = React.useRef<string | null>(null)
   // 失败卡的原始输入留档：错误项不进 ready 列表、只在临时条里给 [重试]/[移除]（审计 P1）。
   const transientInputsRef = React.useRef(new Map<string, BrowserAssetRemoteImportInput>())
@@ -47,7 +49,7 @@ export function useBrowserAssetCaptureImport({
         type: mediaType,
         source: 'my',
         title,
-        subtitle: '下载中...',
+        subtitle: t('browserAssets.downloadingEllipsis'),
         tags: [sourceLabel],
         status: 'loading',
         createdAt: now,
@@ -59,7 +61,7 @@ export function useBrowserAssetCaptureImport({
       setSelectedIds(new Set([pendingId]))
       if (!onImportRemoteAsset) {
         setLocalAssets((current) =>
-          current.map((asset) => asset.id === pendingId ? { ...asset, subtitle: '无法导入网页素材', status: 'error' } : asset),
+          current.map((asset) => asset.id === pendingId ? { ...asset, subtitle: t('browserAssets.webAssetImportFailed'), status: 'error' } : asset),
         )
         return
       }
@@ -86,7 +88,7 @@ export function useBrowserAssetCaptureImport({
         )
       }
     },
-    [onImportRemoteAsset, setActiveTab, setLocalAssets, setPersistedAssets, setSelectedIds],
+    [onImportRemoteAsset, setActiveTab, setLocalAssets, setPersistedAssets, setSelectedIds, t],
   )
 
   // 失败卡「重试」：用原始输入重新走完整导入（新卡替旧卡）；「移除」：临时卡直接消失。

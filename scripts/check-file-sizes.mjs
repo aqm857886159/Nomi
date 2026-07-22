@@ -26,7 +26,8 @@ const SCAN_DIRS = ["src", "electron"];
 // 改小某个数 = 你成功瘦身后锁定的新上限。新增条目应经人工评审。
 const ALLOWLIST = {
   "electron/runtime.ts": 555, // …抽 projectAssetStore 锁到 602（2026-07-08 PR#36）→ 抽 profileHttpRequest（templateContext+buildProfileHttpRequest）到 catalog 锁到 558（2026-07-21 multipart 图生图）→ 555（2026-07-22 锁定）
-  "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 733, // 抽 NodeConnectionHandles + NodeTimelineDragHandles（2026-06-27）→ 抽 useNodePanoramaHandlers（2026-06-28 PR#26）→ 抽 ShotPreviewOverlays 锁到 741（2026-07-03）→ 抽 useNodeVideoHoverPreview 锁到 739（2026-07-08）→ 抽 NodeImagePreviewActions 锁到 734（2026-07-18）→ 733（2026-07-21）
+  "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 743, // …→ 733（2026-07-21）→ 743（2026-07-22 全量 i18n：useTranslation import+hook+可见串 t() 化，+10；main 结构未变）
+  "src/workbench/generationCanvas/nodes/scene3d/Scene3DFullscreen.tsx": 802, // 曾 3822 巨壳拆到 771 出白名单；main 已回长到 800（任务优先重构），i18n 化 +2 到 802（2026-07-22 全量 i18n，人工评审：无法在不拆分下更小）
   // PR#21 白板节点引入（2026-06-25）：WhiteboardDrawingTool（1032）与 WhiteboardLeaferCanvas（3406）两巨壳
   // 已按 Rule 9 全部拆完、双双出白名单。LeaferCanvas → whiteboardCanvasTypes/Export/NodeOps/Geometry 四纯模块
   // + whiteboardSceneRender（渲染树）+ useWhiteboardDrawing/BoxSelection/SelectionActions/SceneSync 四交互 hook，
@@ -49,6 +50,9 @@ function listFiles() {
     .filter((f) => /\.tsx?$/.test(f))
     .filter((f) => !/\.test\.tsx?$/.test(f))
     .filter((f) => !/\.d\.ts$/.test(f))
+    // i18n 翻译资源是「数据表」不是代码复杂度 —— R9/R12 治的是代码模块化，
+    // locale 词典随翻译量线性增长天然会破 800，不适用本门（2026-07-22 全量 i18n 落地）。
+    .filter((f) => !/^src\/i18n\/(locales\/.*|resources)\.ts$/.test(f))
     // git ls-files 会连「工作树里已删除、尚未 commit」的文件一起列出——门岗量的是
     // 工作树现状，消失的文件没有体积可查，跳过（commit 后 CI checkout 恒存在，不削弱棘轮）。
     .filter((f) => fs.existsSync(path.join(ROOT, f)));

@@ -1,6 +1,7 @@
 // 素材文件夹 hook（素材面收敛 2026-07-22 转正）：读写 per-project `.nomi/folders.json`（IPC），
 // 乐观更新+写穿。归属键=素材 renderUrl（素材池双源身份）。素材库「项目素材」tab 唯一消费者。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { getDesktopBridge, type DesktopAssetFoldersState } from '../../desktop/bridge'
 import { confirmDialog } from '../../design'
 import {
@@ -134,6 +135,7 @@ export function useAssetFolderInteractions<T extends DraggableAssetLike>(args: {
   handleDeleteFolder: (folderId: string) => void
 } {
   const { folderApi, visibleAssetsRef, selectedIdsRef, setSelectedIds, lastSelectedIdRef, setActiveFolderId, collectSelection } = args
+  const { t } = useTranslation()
 
   const handleFolderAssignDragStart = React.useCallback((asset: T, event: React.DragEvent<HTMLElement>): void => {
     const currentSelection = selectedIdsRef.current
@@ -159,16 +161,16 @@ export function useAssetFolderInteractions<T extends DraggableAssetLike>(args: {
     const folder = folderApi.state.folders.find((item) => item.id === folderId)
     if (!folder) return
     void confirmDialog({
-      title: `删除文件夹「${folder.label}」？`,
-      message: '夹内素材回到未分类，不会删除任何文件。',
-      confirmLabel: '删除',
+      title: t('assetLibrary.confirmDeleteFolderTitle', { label: folder.label }),
+      message: t('assetLibrary.confirmDeleteFolderMessage'),
+      confirmLabel: t('assetLibrary.delete'),
       danger: true,
     }).then((confirmed) => {
       if (!confirmed) return
       folderApi.deleteFolder(folderId)
       setActiveFolderId((current) => (current === folderId ? null : current))
     })
-  }, [folderApi, setActiveFolderId])
+  }, [folderApi, setActiveFolderId, t])
 
   return { handleFolderAssignDragStart, handleFolderDropAssets, handleDeleteFolder }
 }

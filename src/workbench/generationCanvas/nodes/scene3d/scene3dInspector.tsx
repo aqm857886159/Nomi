@@ -1,6 +1,7 @@
 // Scene3D 检视面板：左侧场景节点列表 + 右侧属性/姿势编辑。
 // 从 Scene3DFullscreen.tsx 抽出，纯展示组件；计算依赖 scene3dMath.ts，常量依赖 scene3dConstants.ts。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { NomiSelect } from '../../../../design'
 import {
   IconChevronDown,
@@ -90,6 +91,7 @@ function ColorField({
   disabled?: boolean
   onChange: (value: string) => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const color = /^#[0-9a-f]{6}$/i.test(value) ? value : '#808080'
   const displayValue = color.toUpperCase()
 
@@ -102,7 +104,7 @@ function ColorField({
             'relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-nomi-sm border border-[var(--nomi-line)]',
             disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-[var(--nomi-accent)]',
           )}
-          title={disabled ? undefined : '选择颜色'}
+          title={disabled ? undefined : t('scene3d.inspector.selectColor')}
         >
           <span className="absolute inset-0" style={{ backgroundColor: color }} />
           <input
@@ -114,7 +116,7 @@ function ColorField({
           />
         </label>
         <input
-          aria-label={`${label}值`}
+          aria-label={t('scene3d.inspector.colorValueAria', { label })}
           className="h-8 min-w-0 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-ink-05)] px-2 font-mono text-caption font-medium uppercase text-[var(--nomi-ink)] outline-none disabled:opacity-50"
           disabled={disabled}
           readOnly
@@ -146,6 +148,7 @@ export function SceneObjectList({
   onCameraPatch: (id: string, patch: Partial<Scene3DCamera>) => void
   onDelete: (selection: Exclude<Scene3DSelection, null>) => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const [renaming, setRenaming] = React.useState<string>('')
   const [expandedCrowds, setExpandedCrowds] = React.useState<Record<string, boolean>>({})
   // 模板组默认折叠（审计 §6.3：城市街道一次 28 个平铺节点把树变成对象清单）——需要时再展开。
@@ -201,7 +204,7 @@ export function SceneObjectList({
   return (
     <section className="flex h-full min-h-0 flex-col bg-[var(--nomi-paper)]">
       <div className="flex shrink-0 items-center justify-between px-3 py-2">
-        <h3 className="m-0 text-caption font-medium text-[var(--nomi-ink)]">场景节点</h3>
+        <h3 className="m-0 text-caption font-medium text-[var(--nomi-ink)]">{t('scene3d.inspector.sceneNodes')}</h3>
         <span className="text-micro text-[var(--nomi-ink-60)]">{totalCount}</span>
       </div>
       <div className="min-h-0 flex-1 overflow-auto px-2 pb-2">
@@ -213,14 +216,14 @@ export function SceneObjectList({
                 key={entry.key}
                 className="grid w-full grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-1 rounded-nomi-sm px-1 py-1 text-left text-[var(--nomi-ink)] hover:bg-[var(--nomi-ink-05)]"
                 type="button"
-                title={expanded ? '收起这组布景' : '展开这组布景'}
+                title={expanded ? t('scene3d.inspector.collapseTemplateGroup') : t('scene3d.inspector.expandTemplateGroup')}
                 onClick={() => setExpandedGroups((current) => ({ ...current, [entry.group]: !expanded }))}
               >
                 <span className="grid size-6 place-items-center text-[var(--nomi-ink-40)]">
                   {expanded ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
                 </span>
                 <span className="min-w-0 truncate text-caption font-medium">{entry.group}</span>
-                <span className="rounded-pill bg-[var(--nomi-ink-05)] px-1.5 py-0.5 text-micro text-[var(--nomi-ink-60)]">{entry.count} 个对象</span>
+                <span className="rounded-pill bg-[var(--nomi-ink-05)] px-1.5 py-0.5 text-micro text-[var(--nomi-ink-60)]">{t('scene3d.inspector.objectCount', { count: entry.count })}</span>
               </button>
             )
           }
@@ -247,7 +250,7 @@ export function SceneObjectList({
                   <button
                     className="grid size-6 place-items-center rounded-nomi-sm text-[var(--nomi-ink-40)] hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]"
                     type="button"
-                    title={crowdExpanded ? '收起群众' : '展开群众'}
+                    title={crowdExpanded ? t('scene3d.inspector.collapseCrowd') : t('scene3d.inspector.expandCrowd')}
                     onClick={() => setExpandedCrowds((current) => ({ ...current, [row.id]: !crowdExpanded }))}
                   >
                     {crowdExpanded ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
@@ -258,7 +261,7 @@ export function SceneObjectList({
                 <button
                   className="grid size-6 place-items-center rounded-nomi-sm text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]"
                   type="button"
-                  title="聚焦"
+                  title={t('scene3d.inspector.focus')}
                   onClick={() => onFocus(row.id)}
                 >
                   <IconFocusCentered size={14} />
@@ -294,7 +297,7 @@ export function SceneObjectList({
                   className="grid size-7 place-items-center rounded-nomi-sm text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)] disabled:opacity-40"
                   disabled={readOnly}
                   type="button"
-                  title={row.visible ? '隐藏' : '显示'}
+                  title={row.visible ? t('scene3d.inspector.hide') : t('scene3d.inspector.show')}
                   onClick={() => {
                     if (row.type === 'object') onObjectPatch(row.id, { visible: !row.visible })
                     else onCameraPatch(row.id, { visible: !row.visible })
@@ -306,7 +309,7 @@ export function SceneObjectList({
                   className="grid size-7 place-items-center rounded-nomi-sm text-[var(--nomi-ink-40)] hover:bg-[var(--workbench-danger-soft)] hover:text-[var(--workbench-danger)] disabled:opacity-40"
                   disabled={readOnly}
                   type="button"
-                  title="删除"
+                  title={t('common.delete')}
                   onClick={() => onDelete({ type: row.type, id: row.id })}
                 >
                   <IconTrash size={14} />
@@ -326,7 +329,7 @@ export function SceneObjectList({
                           selected && 'text-[var(--nomi-ink)]',
                         )}
                         type="button"
-                        title="群众成员不可单独调整"
+                        title={t('scene3d.inspector.crowdMemberReadonly')}
                         onClick={() => onSelect({ type: 'object', id: row.id })}
                       >
                         <span className="grid size-6 place-items-center rounded-nomi-sm text-[var(--nomi-ink-40)]">
@@ -340,7 +343,7 @@ export function SceneObjectList({
                           <span className="min-w-0 truncate text-caption">{mannequinRoleLabel(roleIndex)}</span>
                         </span>
                         <span className="justify-self-end rounded-nomi-sm bg-[var(--nomi-ink-05)] px-1.5 py-0.5 text-micro text-[var(--nomi-ink-40)]">
-                          只读
+                          {t('scene3d.inspector.readonly')}
                         </span>
                       </button>
                     )
@@ -372,6 +375,7 @@ function MannequinPosePanel({
   readOnly: boolean
   onObjectPatch: (id: string, patch: Partial<Scene3DObject>) => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const updatePoseControl = React.useCallback((control: MannequinPoseControl, degrees: number) => {
     const currentRotation = object.pose?.[control.bone] || [0, 0, 0]
     const scale = control.valueScale || 1
@@ -425,11 +429,11 @@ function MannequinPosePanel({
   return (
     <div className="grid gap-3">
       <div className="rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] px-2 py-2 text-micro leading-5 text-[var(--nomi-ink-60)]">
-        <div className="font-medium text-[var(--nomi-ink)]">姿势调节</div>
-        <div>默认值为站立参数，调整会实时映射到模型骨骼。</div>
+        <div className="font-medium text-[var(--nomi-ink)]">{t('scene3d.inspector.poseAdjust')}</div>
+        <div>{t('scene3d.inspector.poseHint')}</div>
       </div>
       <div className="grid gap-2 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] p-2">
-        <div className="text-caption font-medium text-[var(--nomi-ink)]">姿势预设</div>
+        <div className="text-caption font-medium text-[var(--nomi-ink)]">{t('scene3d.inspector.posePresets')}</div>
         <div className="grid grid-cols-4 gap-1.5">
           {MANNEQUIN_POSE_PRESETS.map((preset) => {
             const active = activePosePresetId === preset.id
@@ -491,6 +495,7 @@ export function PropertyPanel({
   onCameraPatch: (id: string, patch: Partial<Scene3DCamera>) => void
   onEnvironmentPatch: (patch: Partial<Scene3DState['environment']>) => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const selectedObject = selection?.type === 'object'
     ? state.objects.find((object) => object.id === selection.id)
     : undefined
@@ -512,15 +517,15 @@ export function PropertyPanel({
     <section className="min-h-0 flex-1 overflow-auto bg-[var(--nomi-paper)] px-3 py-3">
       <div className="mb-3 flex items-center gap-2 text-caption font-medium text-[var(--nomi-ink)]">
         <IconSettings size={15} />
-        属性
+        {t('scene3d.inspector.properties')}
       </div>
       {selectedObject ? (
         <div className="grid gap-3">
           {selectedObjectHasPose ? (
             <div className="grid grid-cols-2 gap-1 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] p-1">
               {([
-                ['properties', '属性'],
-                ['pose', '姿势'],
+                ['properties', t('scene3d.inspector.properties')],
+                ['pose', t('scene3d.inspector.pose')],
               ] as const).map(([tab, label]) => (
                 <button
                   key={tab}
@@ -541,7 +546,7 @@ export function PropertyPanel({
           ) : (
             <>
           <label className="grid gap-1">
-            <span className="text-micro text-[var(--nomi-ink-60)]">名称</span>
+            <span className="text-micro text-[var(--nomi-ink-60)]">{t('scene3d.inspector.name')}</span>
             <input
               className="h-8 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)] disabled:opacity-50"
               disabled={readOnly}
@@ -549,15 +554,15 @@ export function PropertyPanel({
               onChange={(event) => onObjectPatch(selectedObject.id, { name: event.currentTarget.value })}
             />
           </label>
-          <VectorInputs label="位置 XYZ" value={selectedObject.position} disabled={readOnly} onChange={(position) => onObjectPatch(selectedObject.id, { position })} />
-          <VectorInputs label="旋转 XYZ" value={selectedObject.rotation} disabled={readOnly} onChange={(rotation) => onObjectPatch(selectedObject.id, { rotation })} />
-          <VectorInputs label="缩放 XYZ" value={selectedObject.scale} disabled={readOnly} onChange={(scale) => onObjectPatch(selectedObject.id, { scale })} />
+          <VectorInputs label={t('scene3d.inspector.position')} value={selectedObject.position} disabled={readOnly} onChange={(position) => onObjectPatch(selectedObject.id, { position })} />
+          <VectorInputs label={t('scene3d.inspector.rotation')} value={selectedObject.rotation} disabled={readOnly} onChange={(rotation) => onObjectPatch(selectedObject.id, { rotation })} />
+          <VectorInputs label={t('scene3d.inspector.scale')} value={selectedObject.scale} disabled={readOnly} onChange={(scale) => onObjectPatch(selectedObject.id, { scale })} />
           {selectedObject.type === 'mannequinCrowd' ? (
             <div className="grid grid-cols-3 gap-2">
               {([
-                ['crowdRows', '行数', 1, CROWD_MAX_AXIS, 1],
-                ['crowdColumns', '列数', 1, CROWD_MAX_AXIS, 1],
-                ['crowdSpacing', '圆间距', 0.2, 10, 0.1],
+                ['crowdRows', t('scene3d.toolbar.rows'), 1, CROWD_MAX_AXIS, 1],
+                ['crowdColumns', t('scene3d.toolbar.columns'), 1, CROWD_MAX_AXIS, 1],
+                ['crowdSpacing', t('scene3d.toolbar.spacing'), 0.2, 10, 0.1],
               ] as const).map(([field, label, min, max, step]) => (
                 <label key={field} className="grid gap-1">
                   <span className="text-micro text-[var(--nomi-ink-60)]">{label}</span>
@@ -581,7 +586,7 @@ export function PropertyPanel({
           ) : null}
           {(selectedObject.type === 'mesh' || selectedObject.type === 'mannequin' || selectedObject.type === 'prop') ? (
             <ColorField
-              label="颜色"
+              label={t('scene3d.inspector.color')}
               value={selectedObject.color || '#808080'}
               disabled={readOnly}
               onChange={(color) => onObjectPatch(selectedObject.id, { color })}
@@ -590,14 +595,14 @@ export function PropertyPanel({
           {selectedObject.type === 'light' ? (
             <>
               <label className="grid gap-1">
-                <span className="text-micro text-[var(--nomi-ink-60)]">灯光类型</span>
-                <NomiSelect ariaLabel="灯光类型" className="w-full justify-between" disabled={readOnly}
+                <span className="text-micro text-[var(--nomi-ink-60)]">{t('scene3d.inspector.lightType')}</span>
+                <NomiSelect ariaLabel={t('scene3d.inspector.lightType')} className="w-full justify-between" disabled={readOnly}
                   value={selectedObject.lightType || 'point'}
                   options={[{ value: 'point', label: 'Point' }, { value: 'directional', label: 'Directional' }, { value: 'spot', label: 'Spot' }]}
                   onChange={(value) => onObjectPatch(selectedObject.id, { lightType: value as Scene3DLightType })} />
               </label>
               <label className="grid gap-1">
-                <span className="text-micro text-[var(--nomi-ink-60)]">强度</span>
+                <span className="text-micro text-[var(--nomi-ink-60)]">{t('scene3d.inspector.intensity')}</span>
                 <input
                   className="h-8 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none"
                   disabled={readOnly}
@@ -609,7 +614,7 @@ export function PropertyPanel({
                 />
               </label>
               <ColorField
-                label="灯光颜色"
+                label={t('scene3d.inspector.lightColor')}
                 value={selectedObject.lightColor || '#ffffff'}
                 disabled={readOnly}
                 onChange={(lightColor) => onObjectPatch(selectedObject.id, { lightColor })}
@@ -622,7 +627,7 @@ export function PropertyPanel({
       ) : selectedCamera ? (
         <div className="grid gap-3">
           <label className="grid gap-1">
-            <span className="text-micro text-[var(--nomi-ink-60)]">名称</span>
+            <span className="text-micro text-[var(--nomi-ink-60)]">{t('scene3d.inspector.name')}</span>
             <input
               className="h-8 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none focus:border-[var(--nomi-accent)] disabled:opacity-50"
               disabled={readOnly}
@@ -632,7 +637,7 @@ export function PropertyPanel({
           </label>
           {/* 运镜预设已迁入右栏下方常驻「整运镜」区（scene3dMoveHub，IA 重排一期） */}
           <VectorInputs
-            label="相机位置 XYZ"
+            label={t('scene3d.inspector.cameraPosition')}
             value={selectedCamera.position}
             disabled={readOnly}
             onChange={(position) => onCameraPatch(selectedCamera.id, {
@@ -641,7 +646,7 @@ export function PropertyPanel({
             })}
           />
           <VectorInputs
-            label="拍摄目标 XYZ"
+            label={t('scene3d.inspector.cameraTarget')}
             value={selectedCamera.target}
             disabled={readOnly}
             onChange={(target) => onCameraPatch(selectedCamera.id, {
@@ -650,8 +655,8 @@ export function PropertyPanel({
             })}
           />
           <label className="grid gap-1">
-            <span className="text-micro text-[var(--nomi-ink-60)]">画幅比例</span>
-            <NomiSelect ariaLabel="画幅比例" className="w-full justify-between" disabled={readOnly}
+            <span className="text-micro text-[var(--nomi-ink-60)]">{t('scene3d.inspector.aspectRatio')}</span>
+            <NomiSelect ariaLabel={t('scene3d.inspector.aspectRatio')} className="w-full justify-between" disabled={readOnly}
               value={selectedCamera.aspectRatio} options={SCENE3D_ASPECT_OPTIONS.map((option) => ({ value: option, label: option }))}
               onChange={(value) => onCameraPatch(selectedCamera.id, { aspectRatio: value as Scene3DAspectRatio })} />
           </label>
@@ -659,7 +664,7 @@ export function PropertyPanel({
             {(['fov', 'near', 'far'] as const).map((field) => (
               <label key={field} className="grid gap-1">
                 <span className="text-micro text-[var(--nomi-ink-60)]">
-                  {field === 'fov' ? `FOV ≈${fovToFocalMm(selectedCamera.fov)}mm` : field.toUpperCase()}
+                  {field === 'fov' ? t('scene3d.inspector.fovSummary', { focal: fovToFocalMm(selectedCamera.fov) }) : field.toUpperCase()}
                 </span>
                 <input
                   className="h-8 min-w-0 rounded-nomi-sm border border-[var(--nomi-line)] bg-[var(--nomi-paper)] px-2 text-caption text-[var(--nomi-ink)] outline-none"
@@ -679,7 +684,7 @@ export function PropertyPanel({
           {/* 未选中时右栏首屏是环境开关，对新手不是下一步——顶部给一条旅程指路（P1-7 空态） */}
           {!readOnly ? (
             <div className="rounded-nomi border border-dashed border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] p-3 text-caption leading-relaxed text-[var(--nomi-ink-60)]">
-              选中左侧假人/相机调姿势和运镜；底部「添加」摆场景。整完运镜点顶部「出片」出参考视频。
+              {t('scene3d.fullscreen.inspectorJourneyHint')}
             </div>
           ) : null}
           <Scene3DEnvironmentPanel

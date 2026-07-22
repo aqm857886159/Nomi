@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 
 /**
  * 出片产物卡片（P0-4/P3-14 → 任务优先重构 2026-07-22）：渲染中 → 完成（带去向）。
@@ -14,6 +15,7 @@ export function Scene3DExportingCard({ card, onGoCanvas, onReplayTake, onDismiss
   onReplayTake?: () => void
   onDismiss: () => void
 }): JSX.Element | null {
+  const { t } = useTranslation()
   if (!card) return null
   return (
     <div className="fixed bottom-6 right-6 z-[59] flex max-w-[480px] items-center gap-3 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--workbench-surface-solid)] px-4 py-3 shadow-workbench-pop">
@@ -21,12 +23,12 @@ export function Scene3DExportingCard({ card, onGoCanvas, onReplayTake, onDismiss
         <>
           <div className="flex min-w-0 flex-col gap-0.5">
             <span className="text-caption font-medium text-[var(--workbench-ink)]">
-              {card.kind === 'screenshot' ? '✅ 截图已生成' : '✅ 参考视频已生成'}
+              {card.kind === 'screenshot' ? t('scene3d.export.screenshotDone') : t('scene3d.export.referenceVideoDone')}
             </span>
             <span className="text-micro text-[var(--workbench-muted)]">
               {card.kind === 'screenshot'
-                ? '已建画布图片节点（在编辑器后面的画布上）'
-                : card.fedDownstream ? '已建画布节点 · 已自动喂给下游镜头' : '已建画布节点（没接下游镜头，先留档可复用）'}
+                ? t('scene3d.export.screenshotDestination')
+                : card.fedDownstream ? t('scene3d.export.downstreamDestination') : t('scene3d.export.archiveDestination')}
             </span>
           </div>
           {card.kind === 'video' && onReplayTake ? (
@@ -35,7 +37,7 @@ export function Scene3DExportingCard({ card, onGoCanvas, onReplayTake, onDismiss
               onClick={onReplayTake}
               className="shrink-0 rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] px-2.5 py-1.5 text-caption text-[var(--workbench-ink)] hover:bg-[var(--nomi-ink-05)]"
             >
-              原位重播
+              {t('scene3d.exportCard.replayInPlace')}
             </button>
           ) : null}
           <button
@@ -43,14 +45,14 @@ export function Scene3DExportingCard({ card, onGoCanvas, onReplayTake, onDismiss
             onClick={onGoCanvas}
             className="shrink-0 rounded-nomi-sm bg-[var(--nomi-ink)] px-2.5 py-1.5 text-caption font-medium text-[var(--nomi-paper)] transition-opacity hover:opacity-90"
           >
-            回画布查看
+            {t('scene3d.export.goCanvas')}
           </button>
           <button
             type="button"
             onClick={onDismiss}
             className="shrink-0 text-caption text-[var(--workbench-muted)] hover:text-[var(--workbench-ink)]"
           >
-            知道了
+            {t('scene3d.export.acknowledge')}
           </button>
         </>
       ) : (
@@ -58,18 +60,18 @@ export function Scene3DExportingCard({ card, onGoCanvas, onReplayTake, onDismiss
           <div className="flex items-center gap-2">
             <div className="size-2 animate-pulse rounded-full bg-[var(--nomi-accent)]" />
             <span className="text-caption font-medium text-[var(--workbench-ink)]">
-              {card.phase === 'slow' ? '参考视频渲染较慢…' : '参考视频生成中…'}
+              {card.phase === 'slow' ? t('scene3d.export.renderingSlow') : t('scene3d.export.generating')}
             </span>
           </div>
           <span className="text-caption text-[var(--workbench-muted)]">
-            {card.phase === 'slow' ? '可先回画布，渲染在后台继续' : '完成后这里会提示去向'}
+            {card.phase === 'slow' ? t('scene3d.export.renderingSlowHint') : t('scene3d.export.generatingHint')}
           </span>
           <button
             type="button"
             onClick={onDismiss}
             className="ml-2 text-caption text-[var(--workbench-muted)] hover:text-[var(--workbench-ink)]"
           >
-            知道了
+            {t('scene3d.export.acknowledge')}
           </button>
         </>
       )}

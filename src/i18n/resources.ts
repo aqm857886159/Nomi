@@ -117,6 +117,10 @@ export const zhCN = {
   },
   library: {
     title: 'Nomi 项目库',
+    wordmarkSuffix: '项目库',
+    openBrowser: '打开浏览器',
+    browser: '浏览器',
+    revealProjectFolderTitle: '在访达中显示项目文件夹',
     newBlankProject: '新建空白项目',
     newBlankProjectDescription: '从一段文字或想法开始',
     openFolder: '打开已有文件夹',
@@ -393,6 +397,10 @@ export const en = {
   },
   library: {
     title: 'Nomi Projects',
+    wordmarkSuffix: 'Projects',
+    openBrowser: 'Open browser',
+    browser: 'Browser',
+    revealProjectFolderTitle: 'Show project folder in Finder',
     newBlankProject: 'New blank project',
     newBlankProjectDescription: 'Start from a line of text or an idea',
     openFolder: 'Open existing folder',

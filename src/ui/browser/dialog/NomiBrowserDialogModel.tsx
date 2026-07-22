@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React from 'react'
+import i18n from '../../../i18n'
 import { IconBrowser, IconBrush, IconPalette, IconWorld } from '../../../vendor/tablerIcons'
 import type { DesktopBrowserAssetOverlayCaptureRequest, DesktopBrowserPromptCaptureEvent, DesktopBrowserResourceCaptureEvent, DesktopBrowserViewBounds } from '../../../desktop/bridge'
 import { cn } from '../../../utils/cn'
@@ -91,7 +92,7 @@ export const USE_NATIVE_BROWSER_ASSET_OVERLAY = true
 export const DEFAULT_BOOKMARKS: BrowserBookmark[] = [
   {
     id: 'default-nomi',
-    title: 'Nomi 官网',
+    title: i18n.t('browserAssets.sites.nomiOfficial'),
     url: 'http://nomiaqm.com/',
     createdAt: 1,
   },
@@ -105,16 +106,23 @@ export const MATERIAL_SITE_SHORTCUTS = [
 ] as const
 
 // 创作参考类快捷站点——空态页网格。8 张卡是最舒服的 4×2 密度：太少显得空，太多变站点堆。
-export const BROWSER_START_SHORTCUTS = [
-  { label: 'Pinterest', url: 'https://www.pinterest.com/', hint: '视觉灵感' },
-  { label: 'Behance', url: 'https://www.behance.net/', hint: '设计作品集' },
-  { label: 'Dribbble', url: 'https://dribbble.com/', hint: 'UI 灵感' },
-  { label: 'ArtStation', url: 'https://www.artstation.com/', hint: '概念美术' },
-  { label: '小红书', url: 'https://www.xiaohongshu.com/', hint: '中文种草' },
-  { label: 'YouTube', url: 'https://www.youtube.com/', hint: '视频参考' },
-  { label: 'Film Grab', url: 'https://film-grab.com/', hint: '电影分镜' },
-  { label: 'X', url: 'https://x.com/', hint: '创作者动态' },
-] as const
+// label/labelKey：拉丁站名直接显示；小红书等需本地化的走 labelKey。hintKey 恒为 i18n 键，渲染处 t()。
+export type BrowserStartShortcut = {
+  label: string
+  labelKey?: string
+  url: string
+  hintKey: string
+}
+export const BROWSER_START_SHORTCUTS: readonly BrowserStartShortcut[] = [
+  { label: 'Pinterest', url: 'https://www.pinterest.com/', hintKey: 'browserAssets.sites.pinterestHint' },
+  { label: 'Behance', url: 'https://www.behance.net/', hintKey: 'browserAssets.sites.behanceHint' },
+  { label: 'Dribbble', url: 'https://dribbble.com/', hintKey: 'browserAssets.sites.dribbbleHint' },
+  { label: 'ArtStation', url: 'https://www.artstation.com/', hintKey: 'browserAssets.sites.artstationHint' },
+  { label: 'Xiaohongshu', labelKey: 'browserAssets.sites.xiaohongshu', url: 'https://www.xiaohongshu.com/', hintKey: 'browserAssets.sites.xiaohongshuHint' },
+  { label: 'YouTube', url: 'https://www.youtube.com/', hintKey: 'browserAssets.sites.youtubeHint' },
+  { label: 'Film Grab', url: 'https://film-grab.com/', hintKey: 'browserAssets.sites.filmGrabHint' },
+  { label: 'X', url: 'https://x.com/', hintKey: 'browserAssets.sites.xHint' },
+]
 
 export const TOOL_BUTTON_CLASS = cn(
   'inline-grid size-8 shrink-0 place-items-center rounded-nomi-sm border-0 bg-transparent',
@@ -140,7 +148,7 @@ export function createBlankTab(): BrowserTab {
   return {
     id: createTabId(),
     viewId: null,
-    title: '新建标签页',
+    title: i18n.t('browserAssets.newTab'),
     url: '',
     canGoBack: false,
     canGoForward: false,
@@ -451,7 +459,9 @@ export function PromptModeOption({
           {BROWSER_PROMPT_EXTRACTION_MODE_LABELS[mode]}
         </span>
         <span className="mt-0.5 block text-micro leading-snug text-nomi-ink-40">
-          {styleMode ? '提取配色、字体、构图、效果 JSON' : '还原主体、构图、光影和细节'}
+          {styleMode
+            ? i18n.t('browserAssets.extraction.styleDescription')
+            : i18n.t('browserAssets.extraction.replicateDescription')}
         </span>
       </span>
     </button>

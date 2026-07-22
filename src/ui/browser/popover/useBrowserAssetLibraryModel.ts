@@ -2,6 +2,7 @@
 // 只合并两桶：persisted assets（desktop.assets.list 当前项目落盘）+ localAssets（会话内 pending/error 卡）。
 // localStorage 私账（旧文件夹/提示词卡/软删名单）已随 B/C/D 三切片全部退役。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import {
   filterNomiBrowserAssets,
@@ -44,6 +45,7 @@ export function useBrowserAssetLibraryModel({
   filterActive: boolean
   emptyStateCopy: { title: string; description: string }
 } {
+  const { t } = useTranslation()
   const [persistedAssets, setPersistedAssets] = React.useState<NomiBrowserAsset[]>([])
   const activeProjectId = projectId.trim()
   // 单调递增序号防竞态：真删后手动重拉 与 开盒自动加载 可能并发，只认最后一次发起的结果。
@@ -108,9 +110,9 @@ export function useBrowserAssetLibraryModel({
   const selectedAssets = React.useMemo(() => mergedAssets.filter((asset) => selectedIds.has(asset.id)), [mergedAssets, selectedIds])
   const filterActive = activeTab !== 'all'
   const emptyStateCopy = React.useMemo(() => {
-    if (Boolean(query.trim()) || filterActive) return { title: '没有匹配的素材', description: '换个分类或搜索词试试。' }
-    return { title: '还没有捕捞素材', description: '开启捕捞后悬停网页素材按 Ctrl+C，或把图片、视频直接拖进来。' }
-  }, [filterActive, query])
+    if (Boolean(query.trim()) || filterActive) return { title: t('browserAssets.empty.noMatchTitle'), description: t('browserAssets.empty.noMatchDescription') }
+    return { title: t('browserAssets.empty.captureTitle'), description: t('browserAssets.empty.captureDescription') }
+  }, [filterActive, query, t])
 
   return {
     setPersistedAssets,
