@@ -72,7 +72,7 @@ try {
   const beforeVideos = await getWin().evaluate(() => document.querySelectorAll('.workbench-canvas video, [data-node-id] video, video').length).catch(() => 0)
 
   // 打开素材库 → setInputFiles 喂真 mp4（绕原生对话框）
-  await getWin().evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-asset-library')))
+  await getWin().evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-files-panel')))
   await getWin().waitForTimeout(900)
   const accept = await getWin().locator('input[aria-label="素材文件选择器"]').getAttribute('accept').catch(() => null)
   check('素材库上传 accept 含 video', (accept || '').includes('video/'), `accept="${accept}"`)

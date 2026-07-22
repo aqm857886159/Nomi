@@ -1,15 +1,13 @@
 /**
- * 素材库面板（真实库）。
+ * 素材库内容（唯一素材面 · 挂在左侧栏「素材库」tab）。
  *
- * 「素材库」从前只是个上传按钮（名不副实）。这里把它做成真正的库：
- * 右侧浮动抽屉，复用 useAssetPool（画布节点 + 项目文件去重合流，单一真相源），
+ * 复用 useAssetPool（画布节点 + 项目文件去重合流，单一真相源），
  * 块复用 AssetThumb（形态自明：图=缩略图、视频=播放三角、音频=波形）。
  *
- * 挂载/关闭仿 OnboardingFloatingPanel：Mantine Portal 固定面板 + Escape / 点外关闭。
- * v1 范围：浏览 + 分段筛选 + 搜索 + 上传。拖到画布 / 删除留 v1.1（pool 合并源，删哪个源要单独想）。
+ * 右侧浮动抽屉壳已删（2026-07-22 方案一重执行）：`nomi-open-asset-library` 事件全仓无发送方，
+ * 是素材库 v1 纯抽屉时代的孤儿面——素材库唯一的门＝侧栏 tab（一个能力一个门）。
  */
 import React from 'react'
-import { Portal } from '@mantine/core'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { IconFilter, IconPhoto, IconPlus, IconTrash, IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
@@ -35,10 +33,6 @@ import { buildAssetLibraryDeletePlan, filterImageVideoAssets } from './assetLibr
 const DEFAULT_GRID_COLS = 3
 const ESTIMATED_ROW_HEIGHT = 121
 const COMPACT_ESTIMATED_ROW_HEIGHT = 113
-
-const PANEL_WIDTH = 380
-const TOP_OFFSET = 64
-const RIGHT_OFFSET = 12
 
 // 从媒体类型单一真相源派生（通配 + 显式扩展名，见 mediaTypes.acceptAttrForKinds 注释）。
 // 素材库三类：图 / 视频 / 音频。accept 放行的每个格式下游都接得住（同源,不再漂移）。
@@ -130,12 +124,6 @@ type AssetLibraryContentProps = {
   showHeader?: boolean
   onClose?: () => void
   className?: string
-}
-
-type Props = {
-  opened: boolean
-  onClose: () => void
-  projectId: string | null
 }
 
 export function AssetLibraryContent({
@@ -683,74 +671,3 @@ export function AssetLibraryContent({
   )
 }
 
-export function AssetLibraryPanel({ opened, onClose, projectId }: Props): JSX.Element | null {
-  const panelRef = React.useRef<HTMLDivElement>(null)
-
-  // ESC 关闭
-  React.useEffect(() => {
-    if (!opened) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [opened, onClose])
-
-  // 点击外部关闭（避开 Mantine 浮层 / 文件对话框）
-  React.useEffect(() => {
-    if (!opened) return
-    const handler = (e: MouseEvent) => {
-      if (!panelRef.current) return
-      const target = e.target as Element | null
-      if (!target) return
-      if (panelRef.current.contains(target)) return
-      if (target.closest(
-        '.mantine-Modal-root, .mantine-Modal-overlay, .mantine-Modal-content,' +
-        '.mantine-Drawer-root, .mantine-Drawer-overlay,' +
-        '.mantine-Popover-dropdown, .mantine-Menu-dropdown, .mantine-Tooltip-tooltip,' +
-        '[role="dialog"]'
-      )) return
-      onClose()
-    }
-    const id = window.requestAnimationFrame(() => {
-      window.addEventListener('mousedown', handler)
-    })
-    return () => {
-      window.cancelAnimationFrame(id)
-      window.removeEventListener('mousedown', handler)
-    }
-  }, [opened, onClose])
-
-  if (!opened) return null
-
-  return (
-    <Portal>
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-label="素材库"
-        className={cn(
-          'fixed flex flex-col overflow-hidden',
-          'bg-nomi-paper border border-nomi-line rounded-nomi-lg shadow-nomi-lg',
-        )}
-        style={{
-          top: TOP_OFFSET,
-          right: RIGHT_OFFSET,
-          width: PANEL_WIDTH,
-          height: `calc(100vh - ${TOP_OFFSET + 16}px)`,
-          maxHeight: `calc(100vh - ${TOP_OFFSET + 16}px)`,
-          zIndex: 4000,
-          animation: 'nomi-panel-pop 140ms cubic-bezier(.2, .7, .3, 1)',
-        }}
-      >
-        <AssetLibraryContent projectId={projectId} onClose={onClose} />
-        <style>{`
-          @keyframes nomi-panel-pop {
-            from { opacity: 0; transform: translateY(-4px) scale(0.985); }
-            to   { opacity: 1; transform: translateY(0) scale(1); }
-          }
-        `}</style>
-      </div>
-    </Portal>
-  )
-}

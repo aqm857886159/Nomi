@@ -34,7 +34,6 @@ import { lazyWithChunkBoundary } from '../ui/chunkBoundary'
 import { releaseWorkbenchProjectRuntimeState } from './project/releaseWorkbenchProjectSession'
 import { useSpendConfirmStore } from './generationCanvas/spend/spendConfirm'
 import { useFilePreviewStore } from './explorer/useFilePreviewStore'
-import { dispatchGlobalAssetPopoverOpen } from '../ui/browser/overlay/globalAssetPopoverEvents'
 
 type AppView = 'library' | 'studio'
 
@@ -56,11 +55,6 @@ const WorkbenchShell = lazyWithChunkBoundary('工作台', () => import('./Workbe
 const OnboardingFloatingPanel = lazyWithChunkBoundary('模型设置面板', () =>
   import('../ui/onboarding/OnboardingFloatingPanel').then((module) => ({
     default: module.OnboardingFloatingPanel,
-  })),
-)
-const AssetLibraryPanel = lazyWithChunkBoundary('素材库', () =>
-  import('./assets/AssetLibraryPanel').then((module) => ({
-    default: module.AssetLibraryPanel,
   })),
 )
 const PromptLibraryPanel = lazyWithChunkBoundary('提示词库', () =>
@@ -106,12 +100,6 @@ const NomiBrowserDialog = lazyWithChunkBoundary('浏览器', () =>
     default: module.NomiBrowserDialog,
   })),
 )
-const GlobalAssetFloatingWindow = lazyWithChunkBoundary('全局素材浮窗', () =>
-  import('../ui/browser/window/GlobalAssetFloatingWindow').then((module) => ({
-    default: module.GlobalAssetFloatingWindow,
-  })),
-)
-
 function GenerationCanvasLoading(): JSX.Element {
   return (
     <div className={cn('w-full h-full bg-workbench-bg grid place-items-center')} aria-label="生成画布加载中">
@@ -138,7 +126,6 @@ export default function NomiStudioApp(): JSX.Element {
   const [activeProject, setActiveProject] = React.useState<LocalProjectSummary | null>(null)
   const generationAiCollapsed = useGenerationCanvasStore((state) => state.generationAiCollapsed)
   const [modelCatalogOpened, setModelCatalogOpened] = React.useState(false)
-  const [assetLibraryOpened, setAssetLibraryOpened] = React.useState(false)
   const [promptLibraryOpened, setPromptLibraryOpened] = React.useState(false)
   const [skillLibraryOpened, setSkillLibraryOpened] = React.useState(false)
   const [handbookOpened, setHandbookOpened] = React.useState(false)
@@ -206,12 +193,6 @@ export default function NomiStudioApp(): JSX.Element {
   }, [])
 
   React.useEffect(() => {
-    const handleOpenAssetLibrary = () => setAssetLibraryOpened(true)
-    window.addEventListener('nomi-open-asset-library', handleOpenAssetLibrary)
-    return () => window.removeEventListener('nomi-open-asset-library', handleOpenAssetLibrary)
-  }, [])
-
-  React.useEffect(() => {
     const handleOpenPromptLibrary = () => setPromptLibraryOpened(true)
     window.addEventListener('nomi-open-prompt-library', handleOpenPromptLibrary)
     return () => window.removeEventListener('nomi-open-prompt-library', handleOpenPromptLibrary)
@@ -231,7 +212,6 @@ export default function NomiStudioApp(): JSX.Element {
 
   React.useEffect(() => {
     const handleOpenBrowser = () => {
-      dispatchGlobalAssetPopoverOpen(false)
       setBrowserMounted(true)
       setBrowserOpened(true)
     }
@@ -610,12 +590,6 @@ export default function NomiStudioApp(): JSX.Element {
       <NomiBrowserDialog opened={browserOpened} onClose={closeBrowser} />
     </React.Suspense>
   ) : null
-  const globalAssetFloatingWindow = (
-    <React.Suspense key="global-asset-floating-window" fallback={null}>
-      <GlobalAssetFloatingWindow />
-    </React.Suspense>
-  )
-
   const viewContent = view === 'library' ? (
       <>
         <ProjectLibraryPage
@@ -691,16 +665,6 @@ export default function NomiStudioApp(): JSX.Element {
           </React.Suspense>
         ) : null}
 
-        {assetLibraryOpened ? (
-          <React.Suspense fallback={null}>
-            <AssetLibraryPanel
-              opened={assetLibraryOpened}
-              onClose={() => setAssetLibraryOpened(false)}
-              projectId={activeProject?.id ?? null}
-            />
-          </React.Suspense>
-        ) : null}
-
         {promptLibraryOpened ? (
           <React.Suspense fallback={null}>
             <PromptLibraryPanel opened={promptLibraryOpened} onClose={() => setPromptLibraryOpened(false)} />
@@ -738,7 +702,6 @@ export default function NomiStudioApp(): JSX.Element {
   return (
     <>
       {globalBrowserDialog}
-      {globalAssetFloatingWindow}
       {viewContent}
     </>
   )

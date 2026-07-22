@@ -325,11 +325,13 @@ try {
   assert(railIcons.catOk, "收起栏「分类」是 svg 图标（非文字「类」）", railIcons.catText);
   assert(railIcons.fileOk, "收起栏「文件」是 svg 图标（非文字「文」）", railIcons.fileText);
 
-  // ── 本会话回归点 #C(#A 素材库)：分段筛选 4 标签同一行不折行 + 面板 flex 列 ──
-  await win.evaluate(() => window.dispatchEvent(new CustomEvent("nomi-open-asset-library")));
+  // ── 本会话回归点 #C(#A 素材库)：来源 3 标签同一行不折行 + 面板 flex 列 ──
+  // 2026-07-22 方案一重执行：右侧抽屉已删，素材库唯一门=侧栏 tab（nomi-open-files-panel 展开）；
+  // 老断言「4 标签」是分类还是 role=tab 时代的，现来源 tab 3 个、分类筛选是菜单。
+  await win.evaluate(() => window.dispatchEvent(new CustomEvent("nomi-open-files-panel")));
   await win.waitForTimeout(700);
   const assetLib = await win.evaluate(() => {
-    const panel = document.querySelector('[aria-label="素材库"]');
+    const panel = document.querySelector('section[aria-label="素材库"]');
     const tabs = Array.from(panel?.querySelectorAll('[role="tab"]') || []);
     const tops = new Set(tabs.map((t) => Math.round(t.getBoundingClientRect().top)));
     const pr = panel ? panel.getBoundingClientRect() : null;
@@ -341,10 +343,10 @@ try {
       inViewport: pr ? (pr.top >= -1 && pr.bottom <= window.innerHeight + 1 && pr.right <= window.innerWidth + 1) : false,
     };
   });
-  console.log("\n── 素材库面板(#A：分段筛选单行 + flex 列 + 不溢出) ──");
-  assert(assetLib.panelMounted, "素材库面板挂载（dispatch nomi-open-asset-library 打开）", JSON.stringify(assetLib));
+  console.log("\n── 素材库面板(#A：来源标签单行 + flex 列 + 不溢出) ──");
+  assert(assetLib.panelMounted, "素材库侧栏面板挂载（dispatch nomi-open-files-panel 展开）", JSON.stringify(assetLib));
   assert(assetLib.panelDisplay === "flex", "素材库面板 display:flex 列布局", assetLib.panelDisplay);
-  assert(assetLib.tabCount === 4 && assetLib.tabRows === 1, "分段筛选 4 标签同一行（不折行）", `tabs=${assetLib.tabCount}/rows=${assetLib.tabRows}`);
+  assert(assetLib.tabCount === 3 && assetLib.tabRows === 1, "来源 3 标签同一行（不折行）", `tabs=${assetLib.tabCount}/rows=${assetLib.tabRows}`);
   assert(assetLib.inViewport, "素材库面板完整在视口内（不溢出/不被裁）", `inViewport=${assetLib.inViewport}`);
 
   // ── 本会话回归点 #C(预览控制条)：导出MP4 单行(高28不折行) + 画幅/显示 select 值不截断(无 …) ──

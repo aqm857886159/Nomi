@@ -12,7 +12,6 @@ import {
   type BrowserAssetPromptCaptureRequest,
   type BrowserAssetRemoteImportInput,
 } from '../popover/NomiBrowserAssetPopover'
-import { subscribeBrowserAssetPopoverOpen } from '../overlay/globalAssetPopoverEvents'
 import { BROWSER_PROMPT_EXTRACTION_MODE_LABELS, type BrowserPromptExtractionMode } from '../prompt/browserPromptExtraction'
 import type { NomiBrowserAsset } from '../assets/browserAssetData'
 import { saveBrowserPromptCard } from '../assets/browserAssetLibraryStorage'
@@ -472,12 +471,6 @@ export function useBrowserDialogActions({
       setBrowserPromptCaptureRequest(null)
     }
   }, [browserBridge, openNativeAssetPopover])
-
-  // 顶层/画布等处派来的开合事件也走同一扇门（原先这里有第二份 native-open 逻辑，已收敛）。
-  React.useEffect(
-    () => subscribeBrowserAssetPopoverOpen((nextOpened) => handleBrowserAssetPopoverOpenChange(nextOpened)),
-    [handleBrowserAssetPopoverOpenChange],
-  )
 
   const handleBrowserAssetPopoverRectChange = React.useCallback((nextRect: FloatingWindowBoundsRect | null): void => {
     setBrowserAssetPopoverRect((current) => (sameBoundsRect(current, nextRect) ? current : nextRect))

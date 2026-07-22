@@ -1,25 +1,7 @@
-// 素材盒事件：主窗全局浮窗、浏览器伴生弹层和拖上画布各用独立事件，避免两个宿主串台。
-const GLOBAL_ASSET_POPOVER_EVENT = 'nomi-global-asset-popover-open'
-const BROWSER_ASSET_POPOVER_EVENT = 'nomi-browser-asset-popover-open'
+// 素材盒「拖上画布」事件（托盘 → 画布主链路）。
+// 2026-07-22 方案一重执行：全局浮窗（宿主A）三件套与 browser-popover 开合事件对已删——
+// 前者随顶栏/库页入口一起退役，后者是订阅在、发送方为零的双向死线（P1 清理）。
 const BROWSER_ASSET_IMPORT_TO_CANVAS_EVENT = 'nomi-browser-asset-import-to-canvas'
-
-export type GlobalAssetPopoverAnchorRect = {
-  left: number
-  top: number
-  right: number
-  bottom: number
-  width: number
-  height: number
-}
-
-export type GlobalAssetPopoverEventDetail = {
-  opened: boolean
-  anchorRect?: GlobalAssetPopoverAnchorRect | null
-}
-
-export type BrowserAssetPopoverEventDetail = {
-  opened: boolean
-}
 
 export type BrowserAssetCanvasImportItem = {
   id: string
@@ -34,67 +16,12 @@ export type BrowserAssetCanvasImportEventDetail = {
   assets: BrowserAssetCanvasImportItem[]
 }
 
-export function getGlobalAssetPopoverAnchorRect(element: HTMLElement | null): GlobalAssetPopoverAnchorRect | null {
-  if (!element) return null
-  const rect = element.getBoundingClientRect()
-  return {
-    left: rect.left,
-    top: rect.top,
-    right: rect.right,
-    bottom: rect.bottom,
-    width: rect.width,
-    height: rect.height,
-  }
-}
-
-export function dispatchGlobalAssetPopoverOpen(
-  opened: boolean,
-  anchorRect?: GlobalAssetPopoverAnchorRect | null,
-): void {
-  window.dispatchEvent(
-    new CustomEvent<GlobalAssetPopoverEventDetail>(GLOBAL_ASSET_POPOVER_EVENT, {
-      detail: { opened, anchorRect },
-    }),
-  )
-}
-
-export function dispatchBrowserAssetPopoverOpen(opened: boolean): void {
-  window.dispatchEvent(
-    new CustomEvent<BrowserAssetPopoverEventDetail>(BROWSER_ASSET_POPOVER_EVENT, { detail: { opened } }),
-  )
-}
-
 export function dispatchBrowserAssetsImportToCanvas(assets: readonly BrowserAssetCanvasImportItem[]): void {
   window.dispatchEvent(
     new CustomEvent<BrowserAssetCanvasImportEventDetail>(BROWSER_ASSET_IMPORT_TO_CANVAS_EVENT, {
       detail: { assets: [...assets] },
     }),
   )
-}
-
-export function subscribeBrowserAssetPopoverOpen(
-  callback: (opened: boolean, detail: BrowserAssetPopoverEventDetail) => void,
-): () => void {
-  const listener = (event: Event): void => {
-    const detail = (event as CustomEvent<BrowserAssetPopoverEventDetail>).detail
-    callback(Boolean(detail?.opened), { opened: Boolean(detail?.opened) })
-  }
-  window.addEventListener(BROWSER_ASSET_POPOVER_EVENT, listener)
-  return () => window.removeEventListener(BROWSER_ASSET_POPOVER_EVENT, listener)
-}
-
-export function subscribeGlobalAssetPopoverOpen(
-  callback: (opened: boolean, detail: GlobalAssetPopoverEventDetail) => void,
-): () => void {
-  const listener = (event: Event): void => {
-    const detail = (event as CustomEvent<GlobalAssetPopoverEventDetail>).detail
-    callback(Boolean(detail?.opened), {
-      opened: Boolean(detail?.opened),
-      anchorRect: detail?.anchorRect ?? null,
-    })
-  }
-  window.addEventListener(GLOBAL_ASSET_POPOVER_EVENT, listener)
-  return () => window.removeEventListener(GLOBAL_ASSET_POPOVER_EVENT, listener)
 }
 
 export function subscribeBrowserAssetsImportToCanvas(

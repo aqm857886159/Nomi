@@ -73,8 +73,8 @@ try {
   await dismiss()
   check('进入项目', /projectId=/.test(getWin().url()), getWin().url().slice(-40))
 
-  // 打开素材库
-  await getWin().evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-asset-library')))
+  // 打开素材库（2026-07-22 起唯一门=侧栏 tab，nomi-open-files-panel 展开）
+  await getWin().evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-files-panel')))
   await getWin().waitForTimeout(900)
   const accept = await getWin().locator('input[aria-label="素材文件选择器"]').getAttribute('accept').catch(() => null)
   const a = accept || ''
@@ -88,11 +88,10 @@ try {
   await getWin().waitForTimeout(6000) // 落盘 + workspace 重拉
   await snap('after-audio-upload')
 
-  // 切到「音频」tab，确认每个格式都出现（含曾静默蒸发的 .flac/.m4a）
-  await clickText('[role="tab"]', '音频', 1200)
+  // 确认每个格式都出现在面板网格（含曾静默蒸发的 .flac/.m4a）；音频 kind 以瓦片「音频」角标为证
   await getWin().waitForTimeout(1200)
   const probe = await getWin().evaluate(() => {
-    const dialog = document.querySelector('[role="dialog"][aria-label="素材库"]')
+    const dialog = document.querySelector('section[aria-label="素材库"]')
     if (!dialog) return { found: false, why: 'no panel' }
     const spans = Array.from(dialog.querySelectorAll('span')).map((s) => (s.textContent || '').trim())
     const badgeCount = spans.filter((t) => t === '音频').length

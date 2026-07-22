@@ -67,7 +67,7 @@ try {
   check('新建并进入项目', Boolean(projectId), decodeURIComponent(projectId).slice(-28))
 
   // 上传 mp3 进库（音频走项目文件源）
-  await getWin().evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-asset-library')))
+  await getWin().evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-files-panel')))
   await getWin().waitForTimeout(800)
   await getWin().locator('input[aria-label="素材文件选择器"]').setInputFiles(AUDIO).catch((e) => console.log('upload err', e.message))
   await getWin().waitForTimeout(4000)
