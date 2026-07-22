@@ -119,7 +119,8 @@ describe('browserAssetImportErrorMessage 结构化错误码', () => {
 describe('browserAssetFromDesktopAsset (single source)', () => {
   it('prefers the human sidecar title over the hash file name', () => {
     const mapped = browserAssetFromDesktopAsset(desktopAsset({ data: { mediaType: 'image', title: '插画参考' } }))
-    expect(mapped).toMatchObject({ type: 'image', title: '插画参考', subtitle: '网页素材' })
+    // 副标题走来源质量诚实标注（审计 L4）：无 captureQuality 的捕捞=原图下载路 →「网页原图」。
+    expect(mapped).toMatchObject({ type: 'image', title: '插画参考', subtitle: '网页原图' })
   })
 
   it('falls back to the caller supplied title, then the file name', () => {
