@@ -538,6 +538,9 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
         ...(flipUp
           ? { bottom: `calc(100% + ${composerLayout.gap + aboveClearance}px)` }
           : { top: `calc(100% + ${composerLayout.gap}px)` }),
+        cursor: 'default',
+        userSelect: 'auto',
+        touchAction: 'auto',
       }}
       onPointerDown={(event) => event.stopPropagation()}
       {...(acceptsDrop ? dropHandlers : {})}
@@ -553,7 +556,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
           'transition-[outline-color] duration-150',
           isDragOver && 'outline-2 outline-dashed outline-nomi-accent outline-offset-[-2px]',
         )}
-        style={{ maxHeight: composerLayout.maxHeight }}
+        style={{ maxHeight: composerLayout.maxHeight, cursor: 'default', userSelect: 'auto', touchAction: 'auto' }}
       >
       {hasReferenceControls || hasPromptPickerButton ? (
         <div className={cn('flex w-0 min-w-full items-start gap-3')}>
