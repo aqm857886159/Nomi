@@ -126,24 +126,27 @@ export default function NodeParameterControls({
     const nextOption = findModelOptionByIdentifier(modelOptions, value)
     const controls = buildModelControls(nextOption?.meta, isImageLike, isVideoLike)
     const defaultPatch = defaultPatchForControls(controls)
+    const nextArchetype = resolveArchetypeForOption(nextOption)
     // 视频比例产品默认（覆盖档案默认）：首选 16:9，已连输入全竖才 9:16（2026-07-17 用户拍板）。
     const aspectPatch = isVideoLike
       ? videoAspectDefaultPatch(controls, preferredVideoAspect(collectInputAspectRatios(node.id, edges, nodes)))
       : {}
+    const nextMeta = {
+      ...removePreviousControlParams(getLatestMeta(), renderedControls),
+      modelKey: nextOption?.modelKey || nextOption?.value || value || null,
+      modelAlias: nextOption?.modelAlias || nextOption?.value || value || null,
+      modelVendor: nextOption?.vendor || null,
+      vendor: nextOption?.vendor || null,
+      modelLabel: nextOption?.label || value || null,
+      ...defaultPatch,
+      ...aspectPatch,
+      ...(isVideoLike
+        ? { videoModel: nextOption?.value || value || null, videoModelVendor: nextOption?.vendor || null }
+        : { imageModel: nextOption?.value || value || null, imageModelVendor: nextOption?.vendor || null }),
+    }
+    if (!nextArchetype) delete (nextMeta as Record<string, unknown>).archetype
     updateNode(node.id, {
-      meta: {
-        ...removePreviousControlParams(getLatestMeta(), renderedControls),
-        modelKey: nextOption?.modelKey || nextOption?.value || value || null,
-        modelAlias: nextOption?.modelAlias || nextOption?.value || value || null,
-        modelVendor: nextOption?.vendor || null,
-        vendor: nextOption?.vendor || null,
-        modelLabel: nextOption?.label || value || null,
-        ...defaultPatch,
-        ...aspectPatch,
-        ...(isVideoLike
-          ? { videoModel: nextOption?.value || value || null, videoModelVendor: nextOption?.vendor || null }
-          : { imageModel: nextOption?.value || value || null, imageModelVendor: nextOption?.vendor || null }),
-      },
+      meta: nextMeta,
     })
   }
 

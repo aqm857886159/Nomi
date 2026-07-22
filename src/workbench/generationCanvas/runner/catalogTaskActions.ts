@@ -12,7 +12,6 @@ import type {
 } from '../model/generationCanvasTypes'
 import type { ResolvedGenerationReferences } from './generationReferenceResolver'
 import { narrateProgress, type GenerationProgressPhase, type ProgressNarrationContext } from '../../observability/narrate'
-import { resolveArchetypeForModel } from '../../../config/modelArchetypes'
 import { buildArchetypeInputParams, orderedSentImageReferenceUrls } from '../nodes/controls/archetypeMeta'
 import { projectPromptForSend } from '../../assets/promptMentions'
 import {
@@ -20,6 +19,7 @@ import {
   asFiniteNumber,
   asTrimmedString,
   readStringArray,
+  resolveTaskArchetype,
   resolveExecutableNodeFromCatalog,
   resolveTaskKind,
   selectedModelKey,
@@ -68,11 +68,7 @@ function buildReferenceExtras(
   // 认得档案的模型 → renderer 据**当前模式**把参考值打成完整 snake input（含 per-mode enum），放进
   // extras.archetypeInput，runtime 原样铺进 params（M1/M2/M3）。别的模式的残留键根本不进结果（互斥）。
   // 认不出 → 现有无条件带首/尾帧（非档案模型走老路）。
-  const archetype = resolveArchetypeForModel({
-    modelKey: asTrimmedString(meta.modelKey),
-    modelAlias: asTrimmedString(meta.modelAlias),
-    meta,
-  })
+  const archetype = resolveTaskArchetype(meta)
   if (archetype) {
     const archetypeInput = buildArchetypeInputParams(meta, archetype, {
       firstFrameUrl: asTrimmedString(references.firstFrameUrl) || null,
@@ -123,11 +119,7 @@ export function buildCatalogTaskRequest(
   // N = url 在「连线在前+上传」有序数组里的位置——**与实际发送的 reference_image 数组逐位一致**。此前只读
   // meta.referenceImageUrls，把连线进来的参考图当成「不在数组里」直接把 @ 标记删成空串（连线图 @ 不到/被
   // 删空的根因）。纯文字 prompt 无标记 → 原样(no-op)。无档案模型回退旧口径（仅上传）。
-  const promptRefArchetype = resolveArchetypeForModel({
-    modelKey: asTrimmedString(meta.modelKey),
-    modelAlias: asTrimmedString(meta.modelAlias),
-    meta,
-  })
+  const promptRefArchetype = resolveTaskArchetype(meta)
   const orderedReferenceUrls = promptRefArchetype
     ? orderedSentImageReferenceUrls(meta, promptRefArchetype, references.referenceImages || [])
     : readStringArray(meta.referenceImageUrls)
