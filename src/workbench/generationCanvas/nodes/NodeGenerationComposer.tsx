@@ -538,6 +538,9 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
         ...(flipUp
           ? { bottom: `calc(100% + ${composerLayout.gap + aboveClearance}px)` }
           : { top: `calc(100% + ${composerLayout.gap}px)` }),
+        cursor: 'default',
+        userSelect: 'auto',
+        touchAction: 'auto',
       }}
       onPointerDown={(event) => event.stopPropagation()}
       {...(acceptsDrop ? dropHandlers : {})}
@@ -553,7 +556,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
           'transition-[outline-color] duration-150',
           isDragOver && 'outline-2 outline-dashed outline-nomi-accent outline-offset-[-2px]',
         )}
-        style={{ maxHeight: composerLayout.maxHeight }}
+        style={{ maxHeight: composerLayout.maxHeight, cursor: 'default', userSelect: 'auto', touchAction: 'auto' }}
       >
       {hasReferenceControls || hasPromptPickerButton ? (
         <div className={cn('flex w-0 min-w-full items-start gap-3')}>
@@ -636,7 +639,10 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
         // ⚠️ 别再往里套「无高度约束的内层块 + overflow-y-auto」：那样内层块按内容长到全高、滚动永不触发，
         // 整片 prompt 下溢盖住底栏（= 截图里「文字太长盖住 选择模型/优化」的根因）。滚动容器必须自己有界。
         // 用 overflow-y-auto 而非 overflow-auto：卡宽已被 w-0 min-w-full 锁死、prompt 在卡宽内换行，横向永不溢出，明确关掉横向滚动条。
-        <div className={cn('relative flex-1 min-h-[72px] w-0 min-w-full overflow-y-auto')}>
+        <div
+          className={cn('relative flex-1 min-h-[72px] w-0 min-w-full overflow-y-auto')}
+          style={{ cursor: node.locked ? 'default' : 'text', userSelect: node.locked ? 'auto' : 'text' }}
+        >
           <PromptEditor
             className={cn('min-h-[72px]')}
             value={node.prompt || ''}
