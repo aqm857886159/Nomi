@@ -138,3 +138,77 @@ describe('assetSurfaceMigration · 提示词卡并入主库', () => {
     expect(parseLegacyPromptCards(bucket([{ promptCard: { prompt: '   ' } }]))).toEqual([])
   })
 })
+
+import { FOLDERS_MIGRATED_PREFIX, migrateLegacyFolders, parseLegacyFolders } from './assetSurfaceMigration'
+import type { DesktopAssetFoldersState } from '../../desktop/bridge'
+
+const folderBucket = (folders: unknown[], folderAssignments: Record<string, string>) =>
+  JSON.stringify({ version: 1, promptCards: [], promptCategories: [], folders, folderAssignments, deletedAssetKeys: [] })
+
+describe('assetSurfaceMigration · 文件夹转正进素材库', () => {
+  it('url: 键映射成 renderUrl 归属；id:/prompt: 键丢弃计数；合并不覆盖现有', async () => {
+    const storage = makeStorage({
+      [`${LEGACY_BUCKET_PREFIX}proj-a`]: folderBucket(
+        [
+          { id: 'f1', type: 'folder', source: 'my', title: '主角参考' },
+          { id: 'f-existing', type: 'folder', source: 'my', title: '重名夹' },
+        ],
+        { 'url:nomi-local://a.png': 'f1', 'url:nomi-local://b.png': 'f-existing', 'id:xyz': 'f1' },
+      ),
+    })
+    const saves: Record<string, DesktopAssetFoldersState> = {}
+    const existing: DesktopAssetFoldersState = {
+      version: 1,
+      folders: [{ id: 'f-existing', label: '已有夹', order: 0 }],
+      assignments: { 'nomi-local://b.png': 'f-existing' },
+    }
+    const result = await migrateLegacyFolders({
+      storage,
+      getFolders: async (projectId) => (projectId === 'proj-a' ? existing : null),
+      saveFolders: async (projectId, state) => {
+        saves[projectId] = state
+        return true
+      },
+      now: () => '2026-07-22T00:00:00.000Z',
+    })
+    expect(result.migratedFolders).toBe(1)
+    expect(result.migratedAssignments).toBe(1)
+    expect(result.droppedAssignmentKeys).toBe(1)
+    expect(saves['proj-a'].folders.map((folder) => folder.label)).toEqual(['已有夹', '主角参考'])
+    expect(saves['proj-a'].assignments['nomi-local://a.png']).toBe('f1')
+    expect(saves['proj-a'].assignments['nomi-local://b.png']).toBe('f-existing')
+    expect(storage.getItem(`${FOLDERS_MIGRATED_PREFIX}proj-a`)).toBe('2026-07-22T00:00:00.000Z')
+  })
+
+  it("'global' 桶等无家可归 → 跳过计数并标记（不无限重试）；保存失败不标记可重试", async () => {
+    const storage = makeStorage({
+      [`${LEGACY_BUCKET_PREFIX}global`]: folderBucket([{ id: 'g1', type: 'folder', source: 'my', title: '全局夹' }], {}),
+      [`${LEGACY_BUCKET_PREFIX}proj-fail`]: folderBucket([{ id: 'f1', type: 'folder', source: 'my', title: '会失败' }], {}),
+    })
+    const result = await migrateLegacyFolders({
+      storage,
+      getFolders: async (projectId) => (projectId === 'proj-fail' ? { version: 1, folders: [], assignments: {} } : null),
+      saveFolders: async () => false,
+    })
+    expect(result.unmappableBuckets).toBe(1)
+    expect(result.errors).toBe(1)
+    expect(storage.getItem(`${FOLDERS_MIGRATED_PREFIX}global`)).not.toBeNull()
+    expect(storage.getItem(`${FOLDERS_MIGRATED_PREFIX}proj-fail`)).toBeNull()
+  })
+
+  it('幂等：标记后二跑零扫描；parseLegacyFolders 容错', async () => {
+    const storage = makeStorage({
+      [`${LEGACY_BUCKET_PREFIX}proj-a`]: folderBucket([{ id: 'f1', type: 'folder', source: 'my', title: '夹' }], {}),
+    })
+    const deps = {
+      storage,
+      getFolders: async () => ({ version: 1, folders: [], assignments: {} }) as DesktopAssetFoldersState,
+      saveFolders: async () => true,
+    }
+    await migrateLegacyFolders(deps)
+    const second = await migrateLegacyFolders(deps)
+    expect(second.scannedBuckets).toBe(0)
+    expect(parseLegacyFolders('{oops')).toEqual({ folders: [], assignments: {}, droppedAssignmentKeys: 0 })
+    expect(parseLegacyFolders(null).folders).toEqual([])
+  })
+})

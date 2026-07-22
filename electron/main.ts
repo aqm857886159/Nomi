@@ -3,6 +3,7 @@ import type { Rectangle, WebContents } from "electron";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { createProject, deleteProject, listProjects, readProject, saveProject } from "./projects/repository";
+import { registerAssetsIpc } from "./assets/assetsIpc";
 import {
   clearModelCatalogVendorApiKey,
   deleteModelCatalogMapping,
@@ -594,18 +595,11 @@ function registerIpc(): void {
     const { importRemoteAsset } = await loadRuntimeModule();
     return importRemoteAsset(payload);
   });
-  ipcMain.handle("nomi:assets:import-file", async (_event, payload) => {
-    const { importLocalFile } = await import("./assets/localFileImport");
-    return importLocalFile(payload);
-  });
   ipcMain.handle("nomi:assets:list", async (_event, payload) => {
     const { listProjectAssets } = await loadRuntimeModule();
     return listProjectAssets(payload);
   });
-  ipcMain.handle("nomi:assets:download", async (_event, payload) => {
-    const { downloadAssetToDisk } = await import("./assets/downloadAsset");
-    return downloadAssetToDisk(payload);
-  });
+  registerAssetsIpc();
   ipcMain.handle("nomi:video:extract-frame", async (_event, payload) => {
     const { extractVideoFrameToAsset } = await import("./video/extractVideoFrame");
     return extractVideoFrameToAsset(payload);

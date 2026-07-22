@@ -67,6 +67,9 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   },
   assets: {
     list: (payload: unknown) => ipcRenderer.invoke("nomi:assets:list", payload),
+    // 素材文件夹（素材面收敛 2026-07-22 转正）：per-project 落盘,素材库唯一消费者。
+    foldersGet: (payload: unknown) => ipcRenderer.invoke("nomi:assets:folders-get", payload),
+    foldersSave: (payload: unknown) => ipcRenderer.invoke("nomi:assets:folders-save", payload),
     // 素材写入层（writeAsset/moveAssetFile）落盘即广播——素材库面板/素材盒徽章的统一回流信号，
     // 任何导入路径（浏览器捕捞/拖拽/上传/agent）免费获得刷新（M0 捕捞窗私有 onImported 的接任者）。
     onUpdated: (cb: (payload: unknown) => void) => {

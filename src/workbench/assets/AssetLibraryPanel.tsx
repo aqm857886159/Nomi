@@ -9,11 +9,12 @@
  */
 import React from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { IconFilter, IconPhoto, IconPlus, IconTrash, IconX } from '@tabler/icons-react'
+import { IconChevronLeft, IconFilter, IconFolderPlus, IconPhoto, IconPlus, IconTrash, IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { useAssetPool } from './useAssetPool'
 import { useAllProjectAssets } from './useAllProjectAssets'
+import { assetsForFolderScope, folderCountsForAssets, useAssetFolderInteractions, useAssetFolders } from './useAssetFolders'
 import { filterAssets, type AssetKind, type AssetRef } from './assetTypes'
 import { ASSET_LIBRARY_DRAG_MIME, serializeAssetLibraryDrag, type AssetLibraryDragPayload } from './assetLibraryDrag'
 import { importAudioFilesToLibrary, type AudioImportResult } from './importAudioToLibrary'
@@ -26,6 +27,8 @@ import { toast } from '../../ui/toast'
 import {
   AssetGridCell,
   AssetKindFilterMenu,
+  FolderGridCell,
+  NewFolderInput,
 } from './AssetLibraryPanelParts'
 import { ASSET_KIND_FILTER_VALUES, FILTER_OPTIONS, type FilterValue } from './assetLibraryPanelFilters'
 import { buildAssetLibraryDeletePlan, filterImageVideoAssets } from './assetLibrarySources'
@@ -141,6 +144,9 @@ export function AssetLibraryContent({
   const [filterOpen, setFilterOpen] = React.useState(false)
   const [query, setQuery] = React.useState('')
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => new Set())
+  // 文件夹（素材面收敛 2026-07-22 转正）：只在「项目素材」tab 生效,搜索时退成全量平铺。
+  const [activeFolderId, setActiveFolderId] = React.useState<string | null>(null)
+  const [newFolderOpen, setNewFolderOpen] = React.useState(false)
   const lastSelectedIdRef = React.useRef<string | null>(null)
   const selectedIdsRef = React.useRef(selectedIds)
   selectedIdsRef.current = selectedIds
@@ -150,6 +156,7 @@ export function AssetLibraryContent({
     refresh: refreshProjectAssets,
   } = useAssetPool(projectId)
   const { assets: allProjectAssets, refresh: refreshAllProjectAssets } = useAllProjectAssets()
+  const folderApi = useAssetFolders(projectId)
   const allSourceAssets = React.useMemo(
     () => filterImageVideoAssets(allProjectAssets),
     [allProjectAssets],
@@ -189,19 +196,34 @@ export function AssetLibraryContent({
     () => filterBaseAssets.filter((asset) => visibleKinds.has(asset.kind)),
     [filterBaseAssets, visibleKinds],
   )
-  const visibleAssetsRef = React.useRef(visible)
-  visibleAssetsRef.current = visible
+  const projectSelectionEnabled = sourceFilter === 'project'
+  // 文件夹作用域：项目素材 tab + 无搜索词时生效（root=未分类;夹内=归属素材;搜索=全量平铺）。
+  const folderViewActive = projectSelectionEnabled && query.trim() === ''
+  const scopedAssets = React.useMemo(
+    () => (folderViewActive ? assetsForFolderScope(visible, folderApi.state.assignments, activeFolderId) : visible),
+    [activeFolderId, folderApi.state.assignments, folderViewActive, visible],
+  )
+  const folderCounts = React.useMemo(
+    () => folderCountsForAssets(projectSourceAssets, folderApi.state.assignments),
+    [folderApi.state.assignments, projectSourceAssets],
+  )
+  const visibleFolders = folderViewActive && !activeFolderId ? folderApi.state.folders : []
+  const activeFolder = activeFolderId ? folderApi.state.folders.find((folder) => folder.id === activeFolderId) ?? null : null
+  React.useEffect(() => {
+    if (activeFolderId && !activeFolder) setActiveFolderId(null)
+  }, [activeFolder, activeFolderId])
+  const visibleAssetsRef = React.useRef(scopedAssets)
+  visibleAssetsRef.current = scopedAssets
   const selectedKindValues = React.useMemo(
     () => ASSET_KIND_FILTER_VALUES.filter((kind) => visibleKinds.has(kind)),
     [visibleKinds],
   )
   const allKindsSelected = selectedKindValues.length === ASSET_KIND_FILTER_VALUES.length
   const filterActive = !allKindsSelected
-  const projectSelectionEnabled = sourceFilter === 'project'
-  const visibleIds = React.useMemo(() => visible.map((asset) => asset.id), [visible])
+  const visibleIds = React.useMemo(() => scopedAssets.map((asset) => asset.id), [scopedAssets])
   const selectedAssets = React.useMemo(
-    () => visible.filter((asset) => selectedIds.has(asset.id)),
-    [selectedIds, visible],
+    () => scopedAssets.filter((asset) => selectedIds.has(asset.id)),
+    [selectedIds, scopedAssets],
   )
   const selectedProjectAssets = React.useMemo(
     () => (projectSelectionEnabled ? selectedAssets : []),
@@ -219,7 +241,7 @@ export function AssetLibraryContent({
   const [scrollEl, setScrollEl] = React.useState<HTMLDivElement | null>(null)
   const gridCols = compact ? 2 : DEFAULT_GRID_COLS
   const estimatedRowHeight = compact ? COMPACT_ESTIMATED_ROW_HEIGHT : ESTIMATED_ROW_HEIGHT
-  const rowCount = Math.ceil(visible.length / gridCols)
+  const rowCount = Math.ceil(scopedAssets.length / gridCols)
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => scrollEl,
@@ -262,7 +284,7 @@ export function AssetLibraryContent({
     }
   }, [projectId, refreshAllProjectAssets, refreshProjectAssets])
 
-  const isEmpty = visible.length === 0
+  const isEmpty = scopedAssets.length === 0 && visibleFolders.length === 0
   const sourceEmpty = sourceFilteredAssets.length === 0
   const activeFilterLabel = allKindsSelected
     ? '全部'
@@ -358,6 +380,18 @@ export function AssetLibraryContent({
     event.dataTransfer.effectAllowed = 'copy'
     event.dataTransfer.setData('text/plain', payloads.length > 1 ? `${payloads.length} 个素材` : asset.name)
   }, [])
+
+  // 项目素材 tab 的格子拖拽=归类进夹（独立 MIME,画布 drop 端不认识,不会误建重复节点）。
+  // 三件套 handler 抽在 useAssetFolderInteractions（R9 防巨壳）。
+  const { handleFolderAssignDragStart, handleFolderDropAssets, handleDeleteFolder } = useAssetFolderInteractions({
+    folderApi,
+    visibleAssetsRef,
+    selectedIdsRef,
+    setSelectedIds,
+    lastSelectedIdRef,
+    setActiveFolderId,
+    collectSelection: assetsForLibraryDrag,
+  })
 
   const deleteSelectedProjectAssets = React.useCallback(async (): Promise<void> => {
     if (!projectId) {
@@ -499,6 +533,8 @@ export function AssetLibraryContent({
               lastSelectedIdRef.current = null
               showAllAssetKinds()
               setFilterOpen(false)
+              setActiveFolderId(null)
+              setNewFolderOpen(false)
             }}
           >
             {option.label}
@@ -591,7 +627,49 @@ export function AssetLibraryContent({
             <div className="flex min-w-0 items-center gap-2">
               <DesignSearchInput className="min-w-0 flex-1" placeholder="搜索素材…" ariaLabel="搜索素材" value={query} onChange={setQuery} />
               {deleteSelectedButton}
+              {projectSelectionEnabled ? (
+                newFolderOpen ? (
+                  <NewFolderInput onCreate={folderApi.createFolder} onCancel={() => setNewFolderOpen(false)} />
+                ) : (
+                  <button
+                    type="button"
+                    className={cn(
+                      'inline-flex h-8 shrink-0 items-center justify-center rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
+                      'cursor-pointer text-nomi-ink-65 transition-[background,color,border-color] duration-[var(--nomi-transition-fast)]',
+                      'hover:border-nomi-ink-20 hover:bg-nomi-ink-05 hover:text-nomi-ink',
+                    )}
+                    aria-label="新建文件夹"
+                    title="新建文件夹"
+                    onClick={() => setNewFolderOpen(true)}
+                  >
+                    <IconFolderPlus size={15} stroke={1.8} aria-hidden="true" />
+                  </button>
+                )
+              ) : null}
               {categoryFilterButton}
+            </div>
+          ) : null}
+          {folderViewActive && activeFolder ? (
+            <div className="flex min-w-0 items-center gap-1.5">
+              <button
+                type="button"
+                className={cn(
+                  'inline-flex shrink-0 items-center gap-0.5 rounded-nomi-sm border-0 bg-transparent px-1.5 py-1',
+                  'cursor-pointer text-caption text-nomi-accent transition-colors duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05',
+                )}
+                aria-label="返回全部项目素材"
+                title="返回（把素材拖到这里＝移出文件夹）"
+                onClick={() => setActiveFolderId(null)}
+                onDragOver={(event) => {
+                  event.preventDefault()
+                  event.dataTransfer.dropEffect = 'copy'
+                }}
+                onDrop={(event) => handleFolderDropAssets(null, event)}
+              >
+                <IconChevronLeft size={14} stroke={2} aria-hidden="true" />
+                返回
+              </button>
+              <span className="min-w-0 truncate text-caption text-nomi-ink-40">／ {activeFolder.label} · {scopedAssets.length}</span>
             </div>
           ) : null}
         </div>
@@ -602,6 +680,26 @@ export function AssetLibraryContent({
           </div>
         ) : (
         <div ref={setScrollEl} className={cn('flex-1 overflow-y-auto', compact ? 'px-3 pb-3' : 'px-3.5 pb-4')}>
+          {visibleFolders.length > 0 ? (
+            <div
+              className="grid gap-2.5 pb-2.5"
+              style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}
+              role="list"
+              aria-label="素材文件夹"
+            >
+              {visibleFolders.map((folder) => (
+                <FolderGridCell
+                  key={folder.id}
+                  id={folder.id}
+                  label={folder.label}
+                  count={folderCounts.get(folder.id) ?? 0}
+                  onOpen={setActiveFolderId}
+                  onDelete={handleDeleteFolder}
+                  onDropAssets={(folderId, event) => handleFolderDropAssets(folderId, event)}
+                />
+              ))}
+            </div>
+          ) : null}
           {isEmpty ? (
             <DesignEmptyState
               density="inline"
@@ -615,16 +713,17 @@ export function AssetLibraryContent({
             />
           ) : compact ? (
             <div style={{ columnCount: 3, columnGap: '10px' }}>
-              {visible.map((asset) => (
+              {scopedAssets.map((asset) => (
                 <AssetGridCell
                   key={asset.id}
                   asset={asset}
                   compact
                   selectable
-                  draggable={!projectSelectionEnabled}
+                  draggable
                   selected={selectedIds.has(asset.id)}
+                  dragHint={projectSelectionEnabled ? '拖到文件夹归类；选中后可删除' : undefined}
                   onSelect={selectAsset}
-                  onDragStartAsset={projectSelectionEnabled ? undefined : handleAssetDragStart}
+                  onDragStartAsset={projectSelectionEnabled ? handleFolderAssignDragStart : handleAssetDragStart}
                 />
               ))}
             </div>
@@ -632,7 +731,7 @@ export function AssetLibraryContent({
             <div style={{ height: rowVirtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                 const start = virtualRow.index * gridCols
-                const rowAssets = visible.slice(start, start + gridCols)
+                const rowAssets = scopedAssets.slice(start, start + gridCols)
                 return (
                   <div
                     key={virtualRow.key}
@@ -653,10 +752,11 @@ export function AssetLibraryContent({
                         key={asset.id}
                         asset={asset}
                         selectable
-                        draggable={!projectSelectionEnabled}
+                        draggable
                         selected={selectedIds.has(asset.id)}
+                        dragHint={projectSelectionEnabled ? '拖到文件夹归类；选中后可删除' : undefined}
                         onSelect={selectAsset}
-                        onDragStartAsset={projectSelectionEnabled ? undefined : handleAssetDragStart}
+                        onDragStartAsset={projectSelectionEnabled ? handleFolderAssignDragStart : handleAssetDragStart}
                       />
                     ))}
                   </div>

@@ -64,3 +64,23 @@ export function parseAssetLibraryDragItems(raw: string | null | undefined): Asse
 export function parseAssetLibraryDrag(raw: string | null | undefined): AssetLibraryDragPayload | null {
   return parseAssetLibraryDragItems(raw)[0] ?? null
 }
+
+// —— 文件夹归属拖拽（素材面收敛 2026-07-22）——
+// 「项目素材」tab 的格子拖拽只用于归类进夹，用独立 MIME：画布 drop 端不认识它,
+// 不会把项目画布素材误建成重复节点(项目 tab 格子历来不拖上画布,该口径不变)。
+export const ASSET_FOLDER_ASSIGN_MIME = 'application/x-nomi-folder-assign'
+
+export function serializeFolderAssignDrag(renderUrls: readonly string[]): string {
+  return JSON.stringify(renderUrls.filter(Boolean))
+}
+
+export function parseFolderAssignDrag(raw: string | null | undefined): string[] {
+  if (!raw) return []
+  try {
+    const value = JSON.parse(raw) as unknown
+    if (!Array.isArray(value)) return []
+    return value.filter((item): item is string => typeof item === 'string' && item.length > 0)
+  } catch {
+    return []
+  }
+}

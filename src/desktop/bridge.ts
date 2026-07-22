@@ -35,6 +35,19 @@ export type DesktopAssetDto = {
   data: Record<string, unknown>
 }
 
+export type DesktopAssetFolder = {
+  id: string
+  label: string
+  order: number
+}
+
+export type DesktopAssetFoldersState = {
+  version: 1
+  folders: DesktopAssetFolder[]
+  /** 素材 renderUrl → folderId。 */
+  assignments: Record<string, string>
+}
+
 export type DesktopMp4ExportResult = {
   absolutePath: string
   relativePath: string
@@ -292,6 +305,9 @@ export type DesktopBridge = {
       limit?: number
       kind?: string
     }) => Promise<{ items: DesktopAssetDto[]; cursor: string | null }>
+    /** 素材文件夹（素材面收敛 2026-07-22 转正）：per-project 落盘 .nomi/folders.json,归属键=renderUrl。 */
+    foldersGet?: (payload: { projectId: string }) => Promise<{ ok: boolean; state: DesktopAssetFoldersState; error?: string }>
+    foldersSave?: (payload: { projectId: string; state: DesktopAssetFoldersState }) => Promise<{ ok: boolean; state: DesktopAssetFoldersState; error?: string }>
     /** 写入层落盘广播（nomi:assets:updated）——素材库面板/素材盒徽章的统一回流信号。 */
     onUpdated?: (cb: (payload: { projectId: string }) => void) => () => void
     importRemoteUrl: (payload: {
