@@ -18,6 +18,7 @@ import {
   type BrowserAssetRemoteImportInput,
 } from '../popover/NomiBrowserAssetPopover'
 import { subscribeBrowserAssetsImportToCanvas } from './globalAssetPopoverEvents'
+import { browserAssetSubtitleFromDesktopAsset } from '../popover/browserAssetPopoverUtils'
 import type { FloatingWindowBoundsRect } from '../window/useResizableFloatingWindow'
 
 type OverlayCaptureFlyoutRect = {
@@ -44,17 +45,18 @@ function browserAssetFromDesktopAsset(asset: DesktopAssetDto, fallbackTitle: str
   const url = typeof asset.data.url === 'string' ? asset.data.url : ''
   // 显示名人类标题优先(sidecar.title=捕捞抓的 alt/网页标题 → 捕捞传入 title → 文件名)——
   // 防盗链图 URL 文件名常是哈希，认不出(用户 2026-07-13 抓出 263fcbf8…)。⚠️同名映射有三份
-  // 平行版(此处 + NomiBrowserDialogModel + browserAssetPopoverUtils)，三处口径须一致，待收敛。
+  // 平行版(此处 + NomiBrowserDialogModel + browserAssetPopoverUtils)，副标题已收敛单源，整体收敛待办。
   const sidecarTitle = typeof asset.data.title === 'string' ? asset.data.title.trim() : ''
+  const subtitle = browserAssetSubtitleFromDesktopAsset(asset)
   return {
     id: asset.id,
     type: mediaType,
     source: 'my',
     title: sidecarTitle || fallbackTitle || asset.name || (mediaType === 'video' ? '网页视频' : '网页图片'),
-    subtitle: '网页素材',
+    subtitle,
     previewUrl: url,
     previewMediaType: mediaType,
-    tags: ['网页素材'],
+    tags: [subtitle],
     createdAt: asset.createdAt,
     updatedAt: asset.updatedAt,
   }
@@ -200,6 +202,12 @@ export function BrowserAssetOverlayApp(): JSX.Element {
   const desktop = React.useMemo(() => getDesktopBridge(), [])
   const browserBridge = React.useMemo(() => desktop?.browser, [desktop])
   const overlayBridge = React.useMemo(() => browserBridge?.assetOverlay, [browserBridge])
+  // 稳定身份：内联 lambda 会让 popover 的探测 effect 每次渲染重跑（拖拽期间高频打 IPC，实测拖入被打断）。
+  const probeCanvasImportAvailable = React.useMemo(() => (
+    overlayBridge?.canvasImportAvailable
+      ? () => overlayBridge.canvasImportAvailable!()
+      : undefined
+  ), [overlayBridge])
   const [config, setConfig] = React.useState<DesktopBrowserAssetOverlayConfig>({
     opened: false,
     viewId: null,
@@ -507,11 +515,7 @@ export function BrowserAssetOverlayApp(): JSX.Element {
         browserCaptureRequest={browserCaptureRequest}
         browserPromptCaptureRequest={browserPromptCaptureRequest}
         onBrowserCaptureToggle={toggleBrowserResourceCapture}
-        probeCanvasImportAvailable={
-          overlayBridge?.canvasImportAvailable
-            ? () => overlayBridge.canvasImportAvailable!()
-            : undefined
-        }
+        probeCanvasImportAvailable={probeCanvasImportAvailable}
       />
       <AnimatePresence>
         {captureFlyouts.map((flyout) => (

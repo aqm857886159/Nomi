@@ -199,7 +199,8 @@ export function shouldShowDesktopAssetInBrowserPopover(asset: DesktopAssetDto, l
   return browserAssetLibraryHasDesktopAsset(asset, libraryState)
 }
 
-function browserAssetSubtitleFromDesktopAsset(asset: DesktopAssetDto): string {
+// 素材卡副标题单源（三处 mapper 共用——overlay/dialog/popover 不许各写一份「网页素材」）。
+export function browserAssetSubtitleFromDesktopAsset(asset: DesktopAssetDto): string {
   const kind = typeof asset.data.kind === 'string' ? asset.data.kind : ''
   if (kind === 'browser-capture') {
     // 来源质量诚实标注（审计 L4）：页面截图/视频当前帧不冒充原图——后续模型也据此知道输入质量。

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BrowserViewRecord } from "../core/browserViewTypes";
 import {
   assertPromptReferenceDataUrlSize,
+  browserMediaReferrer,
   downloadBrowserMediaFromPageView,
 } from "./browserViewMedia";
 import { streamBrowserMediaResponseToFile } from "./browserMediaValidation";
@@ -32,10 +33,10 @@ function makeRecord(fetchResponse: Response | (() => Promise<Response>)): { reco
 }
 
 describe("browser media session download", () => {
-  // 2026-07-22 审计 P0 根因：手写跨源完整 URL Referer（Electron net-fetch 不过滤 forbidden header）
+  // 2026-07-22 审计 P0 根因：手写**跨源完整 URL** Referer（Electron net-fetch 不过滤 forbidden header）
   // 与 strict-origin-when-cross-origin 政策相抵触 → Chromium 拦成 net::ERR_BLOCKED_BY_CLIENT。
-  // 15 站实测：同 URL 无 Referer 直测 200。此测试钉死「任何 referrer 形态都不进请求」。
-  it("downloads through the source page session with credentials and media accept — never a hand-written Referer", async () => {
+  // 修法=只发策略一致形态：跨源仅 origin/，同源才给完整页面 URL（防盗链要路径的站点仍通）。
+  it("downloads with credentials and a policy-consistent Referer — cross-origin gets origin only, never the full page URL", async () => {
     const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
     const { record, fetch } = makeRecord(new Response(png, { status: 200, headers: { "content-type": "image/png" } }));
 
@@ -50,17 +51,22 @@ describe("browser media session download", () => {
         referrerPolicy: "strict-origin-when-cross-origin",
         headers: expect.objectContaining({
           Accept: expect.stringContaining("image/"),
+          Referer: "https://dribbble.com/",
         }),
       }),
     );
     const init = fetch.mock.calls[0]?.[1] as (RequestInit & { referrer?: string }) | undefined;
     expect(init && "referrer" in init).toBe(false);
-    const headerNames = Object.keys((init?.headers ?? {}) as Record<string, string>).map((name) => name.toLowerCase());
-    expect(headerNames).not.toContain("referer");
     expect(init?.signal).toBeInstanceOf(AbortSignal);
     expect(result.contentType).toBe("image/png");
     expect(result.mediaType).toBe("image");
     expect(fs.readFileSync(result.absolutePath)).toEqual(Buffer.from(png));
+  });
+
+  it("browserMediaReferrer: 同源完整页面 URL / 跨源仅 origin / 非 http 页面为空", () => {
+    expect(browserMediaReferrer("https://dribbble.com/shots/123", "https://cdn.dribbble.com/a.png")).toBe("https://dribbble.com/");
+    expect(browserMediaReferrer("http://127.0.0.1:8080/page.html", "http://127.0.0.1:8080/protected/a.png")).toBe("http://127.0.0.1:8080/page.html");
+    expect(browserMediaReferrer("about:blank", "https://cdn.example/a.png")).toBe("");
   });
 
   it("rejects an HTML anti-hotlink response instead of importing it as the requested image", async () => {

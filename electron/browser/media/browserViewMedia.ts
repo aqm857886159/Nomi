@@ -85,21 +85,40 @@ function acceptHeaderForMediaType(mediaType: "image" | "video" | null): string {
   return "image/avif,image/webp,image/apng,image/svg+xml,image/*,video/webm,video/mp4,video/*,*/*;q=0.8";
 }
 
-// 会话内媒体请求 init 单源：cookies/cache/credentials 走页面 session，referrer 交给 Chromium 按
-// strict-origin-when-cross-origin 规范推导。**绝不手写 Referer**——Electron v31 net-fetch 不过滤
-// forbidden header，跨源完整 URL 的 Referer 直通 Chromium 网络栈、与 referrer 政策相抵触，
-// 被拦成 net::ERR_BLOCKED_BY_CLIENT（2026-07-22 审计 15 站实测根因：同 URL 无 Referer 直测 200，
-// 带手写 Referer 全军覆没）。`referrer` 选项同样不传：net-fetch 源码只转发 referrerPolicy、丢弃 referrer。
+// Referer 只发「策略一致形态」（strict-origin-when-cross-origin 的手工等价）：
+// 同源 → 完整页面 URL（防盗链校验路径的站点需要，如 Dribbble 类 302 链）；跨源 → 仅 origin/。
+// 2026-07-22 审计 15 站实测根因：旧代码把**跨源完整 URL** 硬塞进 Referer——Electron v31 net-fetch
+// 不过滤 forbidden header，这种与 referrer 政策相抵触的值被 Chromium 拦成 ERR_BLOCKED_BY_CLIENT
+//（同 URL 无 Referer 直测 200）。`referrer` 选项则被 net-fetch 源码丢弃（只转发 referrerPolicy），不传。
+export function browserMediaReferrer(pageUrl: string, mediaUrl: string): string {
+  try {
+    const page = new URL(pageUrl);
+    if (page.protocol !== "http:" && page.protocol !== "https:") return "";
+    const media = new URL(mediaUrl);
+    if (media.origin === page.origin) return page.toString();
+    return `${page.origin}/`;
+  } catch {
+    return "";
+  }
+}
+
+// 会话内媒体请求 init 单源：cookies/cache/credentials 走页面 session + 策略一致 Referer。
 export function browserMediaFetchInit(
+  pageUrl: string,
+  mediaUrl: string,
   requestedMediaType: "image" | "video" | null,
   signal?: AbortSignal,
 ): RequestInit {
+  const referrer = browserMediaReferrer(pageUrl, mediaUrl);
   return {
     credentials: "include",
     redirect: "follow",
     referrerPolicy: "strict-origin-when-cross-origin",
     ...(signal ? { signal } : {}),
-    headers: { Accept: acceptHeaderForMediaType(requestedMediaType) },
+    headers: {
+      Accept: acceptHeaderForMediaType(requestedMediaType),
+      ...(referrer ? { Referer: referrer } : {}),
+    },
   };
 }
 
@@ -178,7 +197,10 @@ async function downloadHttpBrowserMediaFromPageSession(
   }, 120_000);
 
   try {
-    const response = await contents.session.fetch(mediaUrl, browserMediaFetchInit(requestedMediaType, abortController.signal));
+    const response = await contents.session.fetch(
+      mediaUrl,
+      browserMediaFetchInit(contents.getURL(), mediaUrl, requestedMediaType, abortController.signal),
+    );
     if (!response.ok) throw new Error(`网页素材下载失败（HTTP ${response.status}）`);
     const stagingPath = path.join(tempDir, "download.part");
     const header = await streamBrowserMediaResponseToFile(response, stagingPath);

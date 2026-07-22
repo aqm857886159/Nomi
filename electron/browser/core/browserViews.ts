@@ -481,9 +481,9 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
     try {
       const owner = getOwnerWindowForSender(event.sender);
       if (owner.isDestroyed()) return false;
+      // 不传 userGesture：这是每 3s 的后台探测，绝不能在父窗合成用户手势（会干扰进行中的拖拽/焦点）。
       const available = await owner.webContents.executeJavaScript(
         "!!document.querySelector('[data-nomi-generation-canvas-import-target=\"true\"]')",
-        true,
       );
       return Boolean(available);
     } catch {

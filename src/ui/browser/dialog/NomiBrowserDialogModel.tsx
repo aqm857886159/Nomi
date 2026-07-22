@@ -6,6 +6,7 @@ import { cn } from '../../../utils/cn'
 import { BROWSER_PROMPT_EXTRACTION_MODE_LABELS, type BrowserPromptExtractionMode } from '../prompt/browserPromptExtraction'
 import type { NomiBrowserAsset } from '../assets/browserAssetData'
 import type { BrowserAssetPromptCaptureRequest } from '../popover/NomiBrowserAssetPopover'
+import { browserAssetSubtitleFromDesktopAsset } from '../popover/browserAssetPopoverUtils'
 import type { FloatingWindowBoundsRect } from '../window/useResizableFloatingWindow'
 
 export type NomiBrowserDialogProps = {
@@ -394,14 +395,15 @@ export function browserAssetFromDesktopAsset(asset: DesktopAssetDto, fallbackTit
   // 显示名人类标题优先(sidecar.title=捕捞时抓的 alt/网页标题 → 捕捞传入 title → 文件名)。
   // 防盗链图 URL 文件名常是哈希，直接当名字认不出(用户 2026-07-13 抓出 263fcbf8…)。
   const sidecarTitle = typeof asset.data.title === 'string' ? asset.data.title.trim() : ''
+  const subtitle = browserAssetSubtitleFromDesktopAsset(asset)
   return {
     id: asset.id,
     type: mediaType,
     source: 'my',
     title: sidecarTitle || fallbackTitle || asset.name || '网页图片',
-    subtitle: '网页素材',
+    subtitle,
     previewUrl: url,
-    tags: ['网页素材'],
+    tags: [subtitle],
     createdAt: asset.createdAt,
     updatedAt: asset.updatedAt,
   }

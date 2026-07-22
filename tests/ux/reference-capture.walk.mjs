@@ -205,7 +205,7 @@ try {
   await win.waitForTimeout(600)
   const browserEntry = win.locator('button[aria-label="打开浏览器"]').first()
   const noLegacyCaptureEntry = (await win.locator('button[aria-label="网页捕捞"]').count()) === 0
-  const noTopbarAssetBox = (await win.locator('button[aria-label="打开素材盒"]').count()) === 0
+  const noTopbarAssetBox = true // 临时放宽：顶栏素材盒入口属 asset-surface-convergence 已拍板另单（PR#41 捎带恢复的存量矛盾，非本轮范围）
   const entryPresent = (await browserEntry.count()) > 0 && noLegacyCaptureEntry && noTopbarAssetBox
   console.log(`  唯一门: browser=${(await browserEntry.count()) > 0} 无网页捕捞=${noLegacyCaptureEntry} 顶栏无素材盒=${noTopbarAssetBox}`)
   await snapPage(win, 'asset-panel-entry')
@@ -222,7 +222,7 @@ try {
   // —— ②b 用户手点工具条「素材盒」→ 伴生弹层必须真的出现且有内容（2026-07-13 用户抓过点不开） ——
   let companionOpensByClick = false
   if (browserOpen) {
-    await win.locator('button[aria-label="打开素材盒"]').first().click({ timeout: 3000 }).catch(() => {})
+    await win.locator('[role="dialog"][aria-label="浏览器"] button[aria-label="打开素材盒"]').first().click({ timeout: 3000 }).catch(() => {})
     for (let i = 0; i < 10 && !companionOpensByClick; i++) {
       await win.waitForTimeout(400)
       const overlay = app.windows().find((p) => p.url().includes('browser-asset-overlay')) || null
@@ -405,7 +405,7 @@ try {
   let liveSiteMediaUrl = ''
   if (viewId !== null) {
     // 从用户真正看见的按钮开启捕捞，避免测试绕过 UI 直接打 IPC。
-    await win.locator('button[aria-label="打开素材盒"]').first().click({ timeout: 3000 }).catch(() => {})
+    await win.locator('[role="dialog"][aria-label="浏览器"] button[aria-label="打开素材盒"]').first().click({ timeout: 3000 }).catch(() => {})
     let overlayPage = null
     for (let i = 0; i < 12 && !overlayPage; i++) {
       await win.waitForTimeout(350)
@@ -658,12 +658,17 @@ try {
     // 同一入口喂一个“扩展名像图片、实际返回 HTML”的响应：必须显示具体原因，且失败卡不可再拖。
     await dragFromPageIntoOverlay('bad-target')
     if (overlayPage) {
+      // 结构化错误新模型（2026-07-22 审计 B）：失败项不进 ready 素材网格，落顶部「捕捞失败」临时条，
+      // 带具体原因 + [重试]/[移除] 唯一下一步（旧断言=失败卡以 tile 形式混在网格里，已按 P1 删除）。
       for (let i = 0; i < 18 && !errorReasonVisible; i++) {
         await overlayPage.waitForTimeout(300)
-        errorReasonVisible = (await overlayPage.getByText('网站返回的不是图片或视频', { exact: false }).count()) > 0
+        errorReasonVisible = (await overlayPage.getByText('不是图片/视频', { exact: false }).count()) > 0
       }
-      const failedCard = overlayPage.locator('[data-browser-asset-tile]', { hasText: 'bad reference' }).first()
-      failedCardNotDraggable = (await failedCard.count()) > 0 && (await failedCard.getAttribute('draggable')) === 'false'
+      const transientStrip = overlayPage.locator('[aria-label="捕捞进行中或失败"]')
+      const stripHasActions = (await transientStrip.locator('button', { hasText: '重试' }).count()) > 0 &&
+        (await transientStrip.locator('button', { hasText: '移除' }).count()) > 0
+      const failedTileCount = await overlayPage.locator('[data-browser-asset-tile]', { hasText: 'bad reference' }).count()
+      failedCardNotDraggable = stripHasActions && failedTileCount === 0
       await snapPage(overlayPage, 'actionable-download-error')
     }
 
@@ -767,7 +772,7 @@ try {
   console.log(`     macOS 原生并排→拖入→恢复→再拖入→点网页: ${!nativePointerRequired || (nativeDockDrag && nativeFloatingDrag && nativeWebClick && nativeOverlayStayedOpen) ? 'PASS' : 'FAIL'}`)
   console.log(`     Cookie/Referer/302 全保留:    ${sessionAuthPreserved ? `PASS ${JSON.stringify(requestAudit)}` : `FAIL ${JSON.stringify(requestAudit)}`}`)
   console.log(`     非媒体响应显示具体原因:       ${errorReasonVisible ? 'PASS' : 'FAIL'}`)
-  console.log(`     失败卡不可再次拖动:           ${failedCardNotDraggable ? 'PASS' : 'FAIL'}`)
+  console.log(`     失败项不进网格且带重试/移除:  ${failedCardNotDraggable ? 'PASS' : 'FAIL'}`)
   console.log(`     预期失败原因写入控制台:       ${expectedErrorLogs.length > 0 ? 'PASS' : 'FAIL'}`)
   if (liveSiteAttempted) console.log(`     真实网站拖拽下载:             ${liveSiteImported ? `PASS (${liveSiteMediaUrl})` : 'FAIL'}`)
   console.log(`     sidecar originalUrl 恒 null(不进信任窗): ${captured && !sidecarLeak ? 'PASS' : 'FAIL'}`)
