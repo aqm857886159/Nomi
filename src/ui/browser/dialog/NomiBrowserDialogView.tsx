@@ -49,7 +49,6 @@ export function NomiBrowserDialogView({
   browserAssetPopoverOpen,
   browserBridge,
   browserCaptureRequest,
-  browserPromptCaptureRequest,
   browserResourceCaptureEnabled,
   browserViewHostRef,
   captureFlyouts,
@@ -486,7 +485,6 @@ export function NomiBrowserDialogView({
                   browserCaptureEnabled={browserResourceCaptureEnabled}
                   browserCaptureDisabled={!activeTab?.viewId || !browserBridge?.setResourceCapture}
                   browserCaptureRequest={browserCaptureRequest}
-                  browserPromptCaptureRequest={browserPromptCaptureRequest}
                   onBrowserCaptureToggle={toggleBrowserResourceCapture}
                 />
                 {localBrowserAssetPopoverSplit ? (

@@ -5,11 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { IconFileText } from '../../../vendor/tablerIcons'
 import { NomiLoadingMark } from '../../../design'
 import { cn } from '../../../utils/cn'
-import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
-import {
-  readBrowserPromptLibraryItems,
-  type BrowserPromptLibraryItem,
-} from '../../../ui/browser/assets/browserAssetLibraryStorage'
+import { fetchUserPrompts, type PromptMediaType, type PromptReferenceImage } from '../../api/promptLibraryApi'
 import PromptEditor from '../../assets/PromptEditor'
 import { promptToContent } from '../../assets/promptEditorContent'
 import { resolveReferenceSlots } from '../runner/referenceSlots'
@@ -92,10 +88,19 @@ function floatingComposerLayout(width: number, _height: number, kind: Generation
   return { maxHeight, gap }
 }
 
+// 提示词只此一家（素材面收敛 2026-07-22）：picker 读主提示词库「我的库」（原素材盒 localStorage 私账已并入）。
+type PromptPickerItem = {
+  id: string
+  title: string
+  prompt: string
+  promptType: PromptMediaType
+  referenceImages: PromptReferenceImage[]
+}
+
 type BrowserPromptPickerPopoverProps = {
-  items: BrowserPromptLibraryItem[]
+  items: PromptPickerItem[]
   position: PromptPickerPosition | null
-  onSelect: (item: BrowserPromptLibraryItem) => void
+  onSelect: (item: PromptPickerItem) => void
   setNodeRef: (node: HTMLDivElement | null) => void
 }
 
@@ -265,7 +270,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   // 持有 prompt 编辑器实例,供「点参考 tile → 在光标处插入 chip」(@ 内联引用主路径)。
   const [promptEditor, setPromptEditor] = React.useState<Editor | null>(null)
   const [promptPickerOpen, setPromptPickerOpen] = React.useState(false)
-  const [promptPickerItems, setPromptPickerItems] = React.useState<BrowserPromptLibraryItem[]>([])
+  const [promptPickerItems, setPromptPickerItems] = React.useState<PromptPickerItem[]>([])
   const [promptPickerPosition, setPromptPickerPosition] = React.useState<PromptPickerPosition | null>(null)
   const promptPickerButtonRef = React.useRef<HTMLButtonElement | null>(null)
   const promptPickerPopoverRef = React.useRef<HTMLDivElement | null>(null)
@@ -285,10 +290,18 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
     promptEditor.commands.insertAssetMention(url, index >= 0 ? index + 1 : undefined)
   }, [mentionCandidates, promptEditor])
 
-  const loadPromptPickerItems = React.useCallback((): BrowserPromptLibraryItem[] => {
-    const items = readBrowserPromptLibraryItems(getDesktopActiveProjectId())
-    setPromptPickerItems(items)
-    return items
+  const loadPromptPickerItems = React.useCallback((): void => {
+    void fetchUserPrompts()
+      .then((prompts) => {
+        setPromptPickerItems(prompts.map((prompt) => ({
+          id: prompt.id,
+          title: prompt.title,
+          prompt: prompt.prompt,
+          promptType: prompt.promptType,
+          referenceImages: prompt.referenceImages ?? [],
+        })))
+      })
+      .catch(() => setPromptPickerItems([]))
   }, [])
 
   const updatePromptPickerPosition = React.useCallback((): void => {
@@ -360,7 +373,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   }, [loadPromptPickerItems, promptPickerOpen, updatePromptPickerPosition])
 
   const applyPromptPickerItem = React.useCallback(
-    (item: BrowserPromptLibraryItem): void => {
+    (item: PromptPickerItem): void => {
       if (node.locked) return
       if (promptEditor && !promptEditor.isDestroyed) {
         promptEditor.commands.setContent(promptToContent(item.prompt, mentionCandidates))

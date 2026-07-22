@@ -85,7 +85,6 @@ export function NomiBrowserAssetPopover({
   browserCaptureEnabled = false,
   browserCaptureDisabled = false,
   browserCaptureRequest,
-  browserPromptCaptureRequest,
   onBrowserCaptureToggle,
   probeCanvasImportAvailable,
 }: NomiBrowserAssetPopoverProps): JSX.Element {
@@ -425,14 +424,10 @@ export function NomiBrowserAssetPopover({
   })
   const { importRemoteAssetToLibrary, retryCaptureImport, dismissCaptureTransient } = useBrowserAssetCaptureImport({
     activeFolderId,
-    promptExtractionSettings,
     browserCaptureRequest,
-    browserPromptCaptureRequest,
     onImportRemoteAsset,
-    setPopoverOpen,
     setActiveSource,
     setActiveTab,
-    setActiveFolderId,
     setLocalAssets,
     setPersistedAssets,
     setSelectedIds,

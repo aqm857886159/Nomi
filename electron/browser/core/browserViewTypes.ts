@@ -137,15 +137,9 @@ export type BrowserAssetOverlayCaptureRequest = {
   sourceRect?: Partial<BrowserAssetOverlayRect>;
 };
 
-export type BrowserAssetOverlayPromptRequest = {
-  requestId?: unknown;
-  sourceType?: unknown;
-};
-
 export type BrowserAssetOverlayPayload = BrowserViewIdPayload & {
   bounds?: Partial<Rectangle>;
   captureRequest?: BrowserAssetOverlayCaptureRequest;
-  promptRequest?: BrowserAssetOverlayPromptRequest;
 };
 
 export type BrowserAssetOverlayStatePayload = {
@@ -163,7 +157,6 @@ export type BrowserAssetOverlayRecord = {
   rendererReady: boolean;
   pendingShow: boolean;
   pendingCaptureRequest: BrowserAssetOverlayCaptureRequest | null;
-  pendingPromptRequest: BrowserAssetOverlayPromptRequest | null;
   dockMode: BrowserAssetOverlayDockMode;
   popoverRect: BrowserAssetOverlayRect | null;
   /** True only when a native window shape was actually applied on a supported platform. */

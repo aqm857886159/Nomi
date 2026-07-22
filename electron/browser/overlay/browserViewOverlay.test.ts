@@ -27,7 +27,6 @@ function makeRecord(setShape: ReturnType<typeof vi.fn>): BrowserAssetOverlayReco
     rendererReady: true,
     pendingShow: false,
     pendingCaptureRequest: null,
-    pendingPromptRequest: null,
     dockMode: "right",
     popoverRect: { left: 800, top: 0, right: 1200, bottom: 800, width: 400, height: 800 },
     shapeInteractive: false,

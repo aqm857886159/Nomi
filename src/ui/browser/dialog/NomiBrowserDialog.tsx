@@ -9,10 +9,7 @@ import {
   type DesktopBrowserViewState,
 } from '../../../desktop/bridge'
 import { browserUrlDisplayTitle } from './browserUrl'
-import {
-  type BrowserAssetCaptureRequest,
-  type BrowserAssetPromptCaptureRequest,
-} from '../popover/NomiBrowserAssetPopover'
+import { type BrowserAssetCaptureRequest } from '../popover/NomiBrowserAssetPopover'
 import { NomiBrowserDialogView } from './NomiBrowserDialogView'
 import {
   BROWSER_ASSET_LIBRARY_UPDATED_EVENT,
@@ -66,8 +63,6 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
   const dockResizingRef = React.useRef<{ startX: number; startWidth: number } | null>(null)
   const [browserResourceCaptureEnabled, setBrowserResourceCaptureEnabled] = React.useState(false)
   const [browserCaptureRequest, setBrowserCaptureRequest] = React.useState<BrowserAssetCaptureRequest | null>(null)
-  const [browserPromptCaptureRequest, setBrowserPromptCaptureRequest] =
-    React.useState<BrowserAssetPromptCaptureRequest | null>(null)
   const [tabContextMenu, setTabContextMenu] = React.useState<BrowserTabContextMenu | null>(null)
   const [bookmarkContextMenu, setBookmarkContextMenu] = React.useState<BrowserBookmarkContextMenu | null>(null)
   const [lastError, setLastError] = React.useState<string | null>(null)
@@ -336,21 +331,16 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
   }, [browserBridge])
 
   const openNativeAssetPopover = React.useCallback(
-    (
-      captureRequest?: DesktopBrowserAssetOverlayCaptureRequest,
-      promptRequest?: BrowserAssetPromptCaptureRequest,
-    ): boolean => {
+    (captureRequest?: DesktopBrowserAssetOverlayCaptureRequest): boolean => {
       const tab = tabsRef.current.find((item) => item.id === activeTabIdRef.current)
       const node = webContainerRef.current
       if (!useNativeBrowserAssetOverlay || !browserBridge?.assetOverlay || !tab || !node) return false
-      if (promptRequest && !browserBridge.assetOverlay.promptRequest) return false
       const wasPopoverOpen = browserAssetPopoverOpen
       const bounds = browserBoundsFromRect(toViewportRect(node.getBoundingClientRect()))
       browserBridge.assetOverlay.open({
         viewId: tab.viewId ?? null,
         bounds,
         ...(captureRequest ? { captureRequest } : {}),
-        ...(promptRequest ? { promptRequest } : {}),
       })
       setBrowserAssetPopoverOpen(true)
       if (!wasPopoverOpen) {
@@ -477,7 +467,6 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
       )
       if (!state.opened) {
         setBrowserCaptureRequest(null)
-        setBrowserPromptCaptureRequest(null)
       }
     })
   }, [browserBridge, useNativeBrowserAssetOverlay])
@@ -666,7 +655,6 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
     setBrowserAssetPopoverDockMode,
     setBrowserAssetPopoverOpen,
     setBrowserAssetPopoverRect,
-    setBrowserPromptCaptureRequest,
     setBrowserResourceCaptureEnabled,
     setLastError,
     setMaterialSitesOpen,
@@ -692,7 +680,6 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
       browserAssetPopoverOpen={browserAssetPopoverOpen}
       browserBridge={browserBridge}
       browserCaptureRequest={browserCaptureRequest}
-      browserPromptCaptureRequest={browserPromptCaptureRequest}
       browserResourceCaptureEnabled={browserResourceCaptureEnabled}
       browserViewHostRef={browserViewHostRef}
       captureFlyouts={captureFlyouts}

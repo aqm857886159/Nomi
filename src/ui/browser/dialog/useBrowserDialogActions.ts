@@ -14,7 +14,8 @@ import {
 } from '../popover/NomiBrowserAssetPopover'
 import { BROWSER_PROMPT_EXTRACTION_MODE_LABELS, type BrowserPromptExtractionMode } from '../prompt/browserPromptExtraction'
 import type { NomiBrowserAsset } from '../assets/browserAssetData'
-import { saveBrowserPromptCard } from '../assets/browserAssetLibraryStorage'
+import { addUserPrompt } from '../../../workbench/api/promptLibraryApi'
+import { runBrowserPromptExtractionToLibrary } from '../prompt/browserPromptExtractionRunner'
 import type { FloatingWindowBoundsRect } from '../window/useResizableFloatingWindow'
 import {
   PROMPT_MODE_PICKER_ESTIMATED_HEIGHT,
@@ -42,7 +43,7 @@ type UseBrowserDialogActionsArgs = {
   addressValue: string
   bookmarks: BrowserBookmark[]
   browserBridge: any
-  openNativeAssetPopover: (captureRequest?: any, promptRequest?: BrowserAssetPromptCaptureRequest) => boolean
+  openNativeAssetPopover: (captureRequest?: any) => boolean
   setActiveTabId: React.Dispatch<React.SetStateAction<string>>
   setAddressValue: React.Dispatch<React.SetStateAction<string>>
   setBookmarkContextMenu: (value: any) => void
@@ -50,7 +51,6 @@ type UseBrowserDialogActionsArgs = {
   setBrowserAssetPopoverDockMode: (value: any) => void
   setBrowserAssetPopoverOpen: (value: boolean) => void
   setBrowserAssetPopoverRect: React.Dispatch<React.SetStateAction<FloatingWindowBoundsRect | null>>
-  setBrowserPromptCaptureRequest: (value: BrowserAssetPromptCaptureRequest | null) => void
   setBrowserResourceCaptureEnabled: React.Dispatch<React.SetStateAction<boolean>>
   setLastError: (value: string | null) => void
   setMaterialSitesOpen: (value: boolean) => void
@@ -75,7 +75,6 @@ export function useBrowserDialogActions({
   setBrowserAssetPopoverDockMode,
   setBrowserAssetPopoverOpen,
   setBrowserAssetPopoverRect,
-  setBrowserPromptCaptureRequest,
   setBrowserResourceCaptureEnabled,
   setLastError,
   setMaterialSitesOpen,
@@ -318,14 +317,13 @@ export function useBrowserDialogActions({
     })
   }, [bookmarks, browserBridge, closeAllTabs, closeTab, saveBookmark])
 
-  const openPromptCaptureInAssetPopover = React.useCallback(
+  // 素材面收敛 2026-07-22：提取不再进素材盒弹层跑，浏览器侧直接驱动，产物只此一家=主提示词库。
+  const startBrowserPromptExtraction = React.useCallback(
     (request: BrowserAssetPromptCaptureRequest): void => {
       setLastError(null)
-      if (openNativeAssetPopover(undefined, request)) return
-      setBrowserAssetPopoverOpen(true)
-      setBrowserPromptCaptureRequest(request)
+      void runBrowserPromptExtractionToLibrary(request)
     },
-    [openNativeAssetPopover],
+    [],
   )
 
   React.useEffect(() => {
@@ -336,9 +334,9 @@ export function useBrowserDialogActions({
         setLastError(event.reason === 'empty' ? '没有找到可提取提示词的图片。' : event.message || '图片提示词提取入口失败')
         return
       }
-      openPromptCaptureInAssetPopover(promptCaptureRequestFromBrowserEvent(event))
+      startBrowserPromptExtraction(promptCaptureRequestFromBrowserEvent(event))
     })
-  }, [browserBridge, openPromptCaptureInAssetPopover])
+  }, [browserBridge, startBrowserPromptExtraction])
 
   React.useEffect(() => {
     if (!browserBridge?.onTextPromptSave) return undefined
@@ -348,13 +346,14 @@ export function useBrowserDialogActions({
         setLastError(event.message || '保存网页选中文字失败')
         return
       }
-      const saved = saveBrowserPromptCard({
-        projectId: getDesktopActiveProjectId(),
-        prompt: event.prompt,
-        promptType: event.promptType,
+      void addUserPrompt({
         title: event.pageTitle,
+        prompt: event.prompt,
+        promptType: event.promptType === 'video' ? 'video' : 'image',
+        tags: ['网页选中文字'],
       })
-      if (saved) toast('已保存到素材盒提示词库', 'success')
+        .then(() => toast('已存入提示词库', 'success'))
+        .catch((error) => toast(`存入提示词库失败：${error instanceof Error ? error.message : String(error)}`, 'error'))
     })
   }, [browserBridge])
 
@@ -372,7 +371,6 @@ export function useBrowserDialogActions({
         setBrowserAssetPopoverRect(null)
         setBrowserAssetPopoverDockMode(null)
         setBrowserResourceCaptureEnabled(false)
-        setBrowserPromptCaptureRequest(null)
         await new Promise((resolve) => window.setTimeout(resolve, 80))
         const selection = await browserBridge?.selectPromptScreenshot?.({ viewId })
         if (!selection) {
@@ -384,7 +382,7 @@ export function useBrowserDialogActions({
           return
         }
         setLastError(null)
-        openPromptCaptureInAssetPopover({
+        startBrowserPromptExtraction({
           requestId: `browser-prompt-screenshot-${viewId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           sourceType: 'screenshot',
           extractionMode: mode,
@@ -397,7 +395,7 @@ export function useBrowserDialogActions({
         })
       })()
     },
-    [browserBridge, openPromptCaptureInAssetPopover],
+    [browserBridge, startBrowserPromptExtraction],
   )
 
   const openBrowserScreenshotPromptModePicker = React.useCallback(
@@ -468,7 +466,6 @@ export function useBrowserDialogActions({
       setBrowserAssetPopoverRect(null)
       setBrowserAssetPopoverDockMode(null)
       setBrowserResourceCaptureEnabled(false)
-      setBrowserPromptCaptureRequest(null)
     }
   }, [browserBridge, openNativeAssetPopover])
 

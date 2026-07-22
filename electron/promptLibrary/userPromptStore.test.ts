@@ -87,3 +87,38 @@ describe("userPromptStore", () => {
     vi.useRealTimers();
   });
 });
+
+describe("userPromptStore · 素材面收敛随迁字段(2026-07-22)", () => {
+  it("referenceImages/tags 落盘,封面 mediaUrl 取首图", () => {
+    const item = addUserPrompt({
+      title: "赛博雨夜",
+      prompt: "cyberpunk city, rainy night",
+      promptType: "image",
+      tags: ["网页提取", "画面复刻"],
+      referenceImages: [
+        { url: "nomi-local://asset/p1/a.png", title: "参考A", sourceUrl: "https://example.com/a" },
+        { url: "nomi-local://asset/p1/b.png" },
+      ],
+    });
+    expect(item.mediaUrl).toBe("nomi-local://asset/p1/a.png");
+    expect(item.referenceImages).toHaveLength(2);
+    expect(item.tags).toEqual(["网页提取", "画面复刻"]);
+    resetUserPromptCache();
+    const hydrated = listUserPrompts()[0];
+    expect(hydrated?.referenceImages?.[0]?.url).toBe("nomi-local://asset/p1/a.png");
+    expect(hydrated?.tags).toEqual(["网页提取", "画面复刻"]);
+  });
+
+  it("非法 referenceImages/超量 tags 被清洗,不落脏数据", () => {
+    const item = addUserPrompt({
+      prompt: "sanitize check",
+      promptType: "video",
+      tags: [" a ", "", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
+      referenceImages: [{ url: "" } as { url: string }, { url: "ok://x" }, null as unknown as { url: string }],
+    });
+    expect(item.referenceImages).toHaveLength(1);
+    expect(item.mediaUrl).toBe("ok://x");
+    expect(item.tags).toHaveLength(8);
+    expect(item.tags?.[0]).toBe("a");
+  });
+});

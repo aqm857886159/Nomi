@@ -5,11 +5,35 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { writeJsonFileAtomic } from "../jsonFile";
 import { getSettingsRoot, readJson } from "../runtimePaths";
-import type { LibraryPrompt, PromptMediaType } from "./promptLibraryTypes";
+import type { LibraryPrompt, PromptMediaType, PromptReferenceImage } from "./promptLibraryTypes";
 
 const FILE = "prompt-library-user.json"; // 落 userData(NOMI_SETTINGS_DIR 可覆盖,隔离 eval/测试)
 
-type UserPromptInput = { title?: string; prompt: string; promptType: PromptMediaType };
+type UserPromptInput = {
+  title?: string;
+  prompt: string;
+  promptType: PromptMediaType;
+  /** 可选:分类/来源标签(素材面收敛 2026-07-22:网页提取/自定义分类迁移落这)。 */
+  tags?: string[];
+  /** 可选:参考图(多张;封面 mediaUrl 缺省取首图)。 */
+  referenceImages?: PromptReferenceImage[];
+};
+
+function sanitizeReferenceImages(raw: unknown): PromptReferenceImage[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((item): item is PromptReferenceImage => Boolean(item) && typeof item === "object" && typeof (item as PromptReferenceImage).url === "string" && (item as PromptReferenceImage).url.length > 0)
+    .map((item) => ({
+      url: item.url,
+      ...(typeof item.title === "string" && item.title ? { title: item.title } : {}),
+      ...(typeof item.sourceUrl === "string" && item.sourceUrl ? { sourceUrl: item.sourceUrl } : {}),
+    }));
+}
+
+function sanitizeTags(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((tag) => String(tag).trim()).filter(Boolean).slice(0, 8);
+}
 
 let cache: LibraryPrompt[] | null = null;
 
@@ -50,11 +74,14 @@ export function addUserPrompt(input: UserPromptInput): LibraryPrompt {
   if (!prompt) throw new Error("提示词不能为空");
   const now = new Date().toISOString();
   const promptType = makePromptType(input.promptType);
+  const referenceImages = sanitizeReferenceImages(input.referenceImages);
+  const tags = sanitizeTags(input.tags);
   const item: LibraryPrompt = {
     id: `user-${crypto.randomUUID()}`,
     title: String(input.title ?? "").trim() || "未命名提示词",
     prompt,
-    mediaUrl: "",
+    // 封面缺省取首张参考图(网页提取卡带截图/原图,进库即有封面)。
+    mediaUrl: referenceImages[0]?.url ?? "",
     mediaType: promptType,
     promptType,
     origin: "user",
@@ -62,6 +89,8 @@ export function addUserPrompt(input: UserPromptInput): LibraryPrompt {
     sourceId: "user",
     sourceUrl: "",
     updatedAt: now,
+    ...(tags.length ? { tags } : {}),
+    ...(referenceImages.length ? { referenceImages } : {}),
   };
   persist([item, ...load()]);
   return item;

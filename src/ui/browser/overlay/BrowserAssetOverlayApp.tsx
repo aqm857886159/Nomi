@@ -13,8 +13,6 @@ import type { NomiBrowserAsset } from '../assets/browserAssetData'
 import {
   NomiBrowserAssetPopover,
   type BrowserAssetCaptureRequest,
-  type BrowserAssetPromptCaptureRequest,
-  type BrowserAssetPromptReference,
   type BrowserAssetRemoteImportInput,
 } from '../popover/NomiBrowserAssetPopover'
 import { subscribeBrowserAssetsImportToCanvas } from './globalAssetPopoverEvents'
@@ -112,61 +110,6 @@ function captureRequestForPopover(
   }
 }
 
-function promptRequestForPopover(request: unknown): BrowserAssetPromptCaptureRequest | null {
-  if (!request || typeof request !== 'object') return null
-  const raw = request as Record<string, unknown>
-  const requestId = typeof raw.requestId === 'string' ? raw.requestId.trim() : ''
-  const sourceType = raw.sourceType === 'screenshot' ? 'screenshot' : raw.sourceType === 'image' ? 'image' : null
-  if (!requestId || !sourceType) return null
-  const rawSourceRect = raw.sourceRect && typeof raw.sourceRect === 'object' ? raw.sourceRect as Record<string, unknown> : null
-  const sourceRect =
-    rawSourceRect &&
-    Number.isFinite(Number(rawSourceRect.left)) &&
-    Number.isFinite(Number(rawSourceRect.top)) &&
-    Number.isFinite(Number(rawSourceRect.width)) &&
-    Number.isFinite(Number(rawSourceRect.height)) &&
-    Number(rawSourceRect.width) > 0 &&
-    Number(rawSourceRect.height) > 0
-      ? {
-          left: Math.round(Number(rawSourceRect.left)),
-          top: Math.round(Number(rawSourceRect.top)),
-          width: Math.round(Number(rawSourceRect.width)),
-          height: Math.round(Number(rawSourceRect.height)),
-        }
-      : undefined
-  const referenceImages: BrowserAssetPromptCaptureRequest['referenceImages'] = Array.isArray(raw.referenceImages)
-    ? raw.referenceImages.reduce<BrowserAssetPromptReference[]>(
-        (items, reference) => {
-          if (!reference || typeof reference !== 'object') return items
-          const item = reference as Record<string, unknown>
-          const url = typeof item.url === 'string' ? item.url.trim() : ''
-          if (!url) return items
-          items.push({
-            url,
-            ...(typeof item.title === 'string' ? { title: item.title } : {}),
-            ...(typeof item.sourceUrl === 'string' ? { sourceUrl: item.sourceUrl } : {}),
-          })
-          return items
-        },
-        [],
-      )
-    : undefined
-  return {
-    requestId,
-    sourceType,
-    extractionMode: raw.extractionMode === 'style' ? 'style' : 'replicate',
-    viewId: typeof raw.viewId === 'number' ? raw.viewId : undefined,
-    title: typeof raw.title === 'string' ? raw.title : undefined,
-    fileName: typeof raw.fileName === 'string' ? raw.fileName : undefined,
-    pageUrl: typeof raw.pageUrl === 'string' ? raw.pageUrl : undefined,
-    pageTitle: typeof raw.pageTitle === 'string' ? raw.pageTitle : undefined,
-    sourceUrl: typeof raw.sourceUrl === 'string' ? raw.sourceUrl : undefined,
-    modelImageUrl: typeof raw.modelImageUrl === 'string' ? raw.modelImageUrl : undefined,
-    sourceRect,
-    referenceImages,
-  }
-}
-
 function localSourceRectFromCapture(
   request: DesktopBrowserAssetOverlayCaptureRequest,
   config: DesktopBrowserAssetOverlayConfig,
@@ -221,12 +164,9 @@ export function BrowserAssetOverlayApp(): JSX.Element {
   const [fullWindowModal, setFullWindowModal] = React.useState(false)
   const [captureEnabled, setCaptureEnabled] = React.useState(false)
   const [browserCaptureRequest, setBrowserCaptureRequest] = React.useState<BrowserAssetCaptureRequest | null>(null)
-  const [browserPromptCaptureRequest, setBrowserPromptCaptureRequest] =
-    React.useState<BrowserAssetPromptCaptureRequest | null>(null)
   const [captureFlyouts, setCaptureFlyouts] = React.useState<OverlayCaptureFlyout[]>([])
   const pendingCaptureFlyoutRef = React.useRef<DesktopBrowserAssetOverlayCaptureRequest | null>(null)
   const handledCaptureRequestIdRef = React.useRef<string | null>(null)
-  const handledPromptRequestIdRef = React.useRef<string | null>(null)
   const lastSentStateKeyRef = React.useRef<string | null>(null)
   const pointerDownRef = React.useRef(false)
   const interactiveRef = React.useRef<boolean | null>(null)
@@ -262,7 +202,6 @@ export function BrowserAssetOverlayApp(): JSX.Element {
         setDockMode(null)
         setPopoverRect(null)
         setBrowserCaptureRequest(null)
-        setBrowserPromptCaptureRequest(null)
       }
       const request = nextConfig.captureRequest
       const requestId = typeof request?.requestId === 'string' ? request.requestId : ''
@@ -271,11 +210,6 @@ export function BrowserAssetOverlayApp(): JSX.Element {
         const popoverRequest = captureRequestForPopover(request)
         if (popoverRequest) setBrowserCaptureRequest(popoverRequest)
         pendingCaptureFlyoutRef.current = request
-      }
-      const promptRequest = promptRequestForPopover(nextConfig.promptRequest)
-      if (promptRequest && handledPromptRequestIdRef.current !== promptRequest.requestId) {
-        handledPromptRequestIdRef.current = promptRequest.requestId
-        setBrowserPromptCaptureRequest(promptRequest)
       }
     })
     overlayBridge.ready?.()
@@ -513,7 +447,6 @@ export function BrowserAssetOverlayApp(): JSX.Element {
         browserCaptureEnabled={captureEnabled}
         browserCaptureDisabled={!config.viewId}
         browserCaptureRequest={browserCaptureRequest}
-        browserPromptCaptureRequest={browserPromptCaptureRequest}
         onBrowserCaptureToggle={toggleBrowserResourceCapture}
         probeCanvasImportAvailable={probeCanvasImportAvailable}
       />

@@ -23,7 +23,7 @@ export function registerPromptLibraryIpc(): void {
     }
   });
 
-  ipcMain.handle("nomi:prompt-library:user-add", async (_e, input: { title?: string; prompt: string; promptType: "image" | "video" }) => {
+  ipcMain.handle("nomi:prompt-library:user-add", async (_e, input: { title?: string; prompt: string; promptType: "image" | "video"; tags?: string[]; referenceImages?: { url: string; title?: string; sourceUrl?: string }[] }) => {
     try {
       addUserPrompt(input);
       return { ok: true, prompts: listUserPrompts() };

@@ -6,6 +6,8 @@ export type PromptMediaType = 'image' | 'video'
 
 export type PromptOrigin = 'public' | 'user'
 
+export type PromptReferenceImage = { url: string; title?: string; sourceUrl?: string }
+
 export type LibraryPrompt = {
   id: string
   title: string
@@ -21,6 +23,8 @@ export type LibraryPrompt = {
   origin: PromptOrigin
   /** 我的库条目的更新时间(ISO);public 无。 */
   updatedAt?: string
+  /** 参考图(网页提取的截图/原图;素材面收敛 2026-07-22 随迁字段,封面 mediaUrl=首图)。 */
+  referenceImages?: PromptReferenceImage[]
 }
 
 function requireDesktopRuntime(feature: string): DesktopBridge {
@@ -50,6 +54,11 @@ function toPrompt(raw: unknown): LibraryPrompt | null {
     sourceUrl: String(r.sourceUrl ?? ''),
     origin: r.origin === 'user' ? 'user' : 'public',
     updatedAt: typeof r.updatedAt === 'string' ? r.updatedAt : undefined,
+    referenceImages: Array.isArray(r.referenceImages)
+      ? (r.referenceImages as unknown[])
+          .filter((img): img is PromptReferenceImage =>
+            Boolean(img) && typeof img === 'object' && typeof (img as PromptReferenceImage).url === 'string' && (img as PromptReferenceImage).url.length > 0)
+      : undefined,
   }
 }
 
@@ -72,7 +81,13 @@ export async function fetchUserPrompts(): Promise<LibraryPrompt[]> {
   return mapUserPrompts(await desktop.promptLibrary!.userList())
 }
 
-export async function addUserPrompt(input: { title?: string; prompt: string; promptType: PromptMediaType }): Promise<LibraryPrompt[]> {
+export async function addUserPrompt(input: {
+  title?: string
+  prompt: string
+  promptType: PromptMediaType
+  tags?: string[]
+  referenceImages?: PromptReferenceImage[]
+}): Promise<LibraryPrompt[]> {
   const desktop = requireDesktopRuntime('add prompt')
   const res = await desktop.promptLibrary!.userAdd(input)
   if (!res?.ok) throw new Error(res?.error || '保存失败')

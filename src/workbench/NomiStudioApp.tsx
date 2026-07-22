@@ -34,6 +34,7 @@ import { lazyWithChunkBoundary } from '../ui/chunkBoundary'
 import { releaseWorkbenchProjectRuntimeState } from './project/releaseWorkbenchProjectSession'
 import { useSpendConfirmStore } from './generationCanvas/spend/spendConfirm'
 import { useFilePreviewStore } from './explorer/useFilePreviewStore'
+import { runAssetSurfaceMigrations } from './assets/assetSurfaceMigration'
 
 type AppView = 'library' | 'studio'
 
@@ -184,6 +185,11 @@ export default function NomiStudioApp(): JSX.Element {
           if (pendingCloseRequestRef.current === requestId) pendingCloseRequestRef.current = null
         })
     })
+  }, [])
+
+  // 素材面收敛一次性迁移（幂等）：旧素材盒 localStorage 提示词卡并入主提示词库。
+  React.useEffect(() => {
+    runAssetSurfaceMigrations()
   }, [])
 
   React.useEffect(() => {

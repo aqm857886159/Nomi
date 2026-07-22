@@ -62,7 +62,6 @@ import {
 import type {
   BrowserAssetOverlayCaptureRequest,
   BrowserAssetOverlayPayload,
-  BrowserAssetOverlayPromptRequest,
   BrowserAssetOverlayStatePayload,
   BrowserChromeMenuPayload,
   BrowserPromptCategoriesPayload,
@@ -381,12 +380,7 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
 
   ipcMain.on("browser:asset-overlay:open", (event, payload: BrowserAssetOverlayPayload) => {
     const owner = getOwnerWindowForSender(event.sender);
-    openBrowserAssetOverlay(
-      owner,
-      payload,
-      payload.captureRequest ?? null,
-      payload.promptRequest ?? null,
-    );
+    openBrowserAssetOverlay(owner, payload, payload.captureRequest ?? null);
   });
 
   ipcMain.on("browser:asset-overlay:update-host", (event, payload: BrowserAssetOverlayPayload) => {
@@ -413,13 +407,6 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
     const record = browserAssetOverlaysByWindow.get(owner.id);
     if (!record) return;
     showBrowserAssetOverlay(record, payload);
-  });
-
-  ipcMain.on("browser:asset-overlay:prompt-request", (event, payload: BrowserAssetOverlayPromptRequest) => {
-    const owner = getOwnerWindowForSender(event.sender);
-    const record = browserAssetOverlaysByWindow.get(owner.id);
-    if (!record) return;
-    showBrowserAssetOverlay(record, null, payload);
   });
 
   ipcMain.on("browser:asset-overlay:ready", (event) => {

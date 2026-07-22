@@ -117,7 +117,6 @@ export type DesktopBrowserAssetOverlayConfig = {
   bounds: DesktopBrowserViewBounds | null
   captureEnabled?: boolean
   captureRequest?: DesktopBrowserAssetOverlayCaptureRequest | null
-  promptRequest?: unknown | null
 }
 
 export type DesktopBrowserAssetOverlayState = {
@@ -376,12 +375,10 @@ export type DesktopBridge = {
         viewId: number | null
         bounds: DesktopBrowserViewBounds
         captureRequest?: DesktopBrowserAssetOverlayCaptureRequest
-        promptRequest?: unknown
       }) => void
       updateHost: (payload: { viewId?: number | null; bounds: DesktopBrowserViewBounds }) => void
       close: () => void
       captureRequest: (payload: DesktopBrowserAssetOverlayCaptureRequest) => void
-      promptRequest?: (payload: unknown) => void
       ready?: () => void
       setInteractive: (payload: { interactive: boolean }) => void
       finishDrag?: () => void
@@ -494,6 +491,8 @@ export type DesktopBridge = {
       title?: string
       prompt: string
       promptType: 'image' | 'video'
+      tags?: string[]
+      referenceImages?: { url: string; title?: string; sourceUrl?: string }[]
     }) => Promise<{ ok: boolean; prompts: unknown[]; error?: string }>
     userUpdate: (
       id: string,

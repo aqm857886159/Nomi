@@ -10,6 +10,13 @@ export type ParsedPrompt = {
   mediaType: PromptMediaType;
 };
 
+/** 提示词的参考图（网页提取的截图/原图；2026-07-22 素材面收敛随迁字段）。 */
+export type PromptReferenceImage = {
+  url: string;
+  title?: string;
+  sourceUrl?: string;
+};
+
 /** 对外的完整提示词条目。 */
 export type LibraryPrompt = ParsedPrompt & {
   id: string;
@@ -24,4 +31,8 @@ export type LibraryPrompt = ParsedPrompt & {
   sourceUrl: string;
   /** 用户条目最近更新时间(ISO);public 条目无。 */
   updatedAt?: string;
+  /** 分类/来源标签(如「网页提取」「画面复刻」;素材盒自定义分类迁移也落这)。 */
+  tags?: string[];
+  /** 参考图(可多张;mediaUrl 取首图当封面)。 */
+  referenceImages?: PromptReferenceImage[];
 };

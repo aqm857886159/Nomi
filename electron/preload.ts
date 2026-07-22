@@ -112,7 +112,6 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       updateHost: (payload: unknown) => ipcRenderer.send("browser:asset-overlay:update-host", payload),
       close: () => ipcRenderer.send("browser:asset-overlay:close"),
       captureRequest: (payload: unknown) => ipcRenderer.send("browser:asset-overlay:capture-request", payload),
-      promptRequest: (payload: unknown) => ipcRenderer.send("browser:asset-overlay:prompt-request", payload),
       ready: () => ipcRenderer.send("browser:asset-overlay:ready"),
       setInteractive: (payload: unknown) => ipcRenderer.send("browser:asset-overlay:set-interactive", payload),
       finishDrag: () => ipcRenderer.send("browser:asset-overlay:finish-drag"),
@@ -261,7 +260,7 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
         prompts: unknown[];
         error?: string;
       }>,
-    userAdd: (input: { title?: string; prompt: string; promptType: "image" | "video" }) =>
+    userAdd: (input: { title?: string; prompt: string; promptType: "image" | "video"; tags?: string[]; referenceImages?: { url: string; title?: string; sourceUrl?: string }[] }) =>
       ipcRenderer.invoke("nomi:prompt-library:user-add", input) as Promise<{
         ok: boolean;
         prompts: unknown[];

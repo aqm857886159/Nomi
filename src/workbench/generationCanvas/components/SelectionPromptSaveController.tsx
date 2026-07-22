@@ -2,13 +2,7 @@ import React from 'react'
 import { createPortal } from 'react-dom'
 import { IconX } from '@tabler/icons-react'
 import { NomiLogoMark } from '../../../design'
-import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
-import {
-  BROWSER_ASSET_LIBRARY_UPDATED_EVENT,
-  readBrowserPromptCategories,
-  saveBrowserPromptCard,
-  type SaveBrowserPromptCardInput,
-} from '../../../ui/browser/assets/browserAssetLibraryStorage'
+import { addUserPrompt, type PromptMediaType, type PromptReferenceImage } from '../../api/promptLibraryApi'
 import { toast } from '../../../ui/toast'
 import { cn } from '../../../utils/cn'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -21,10 +15,16 @@ type SelectionToolbarState = {
   top: number
 }
 
+// 提示词只此一家（素材面收敛 2026-07-22）：画布选中文字直存主提示词库，类型收敛 image|video。
+const PROMPT_TYPE_OPTIONS: { id: PromptMediaType; label: string }[] = [
+  { id: 'image', label: '图片提示词' },
+  { id: 'video', label: '视频提示词' },
+]
+
 type DraftState = {
   text: string
-  promptType: SaveBrowserPromptCardInput['promptType']
-  referenceImages: NonNullable<SaveBrowserPromptCardInput['referenceImages']>
+  promptType: PromptMediaType
+  referenceImages: PromptReferenceImage[]
 }
 
 type Props = {
@@ -46,7 +46,7 @@ function rectFromSelection(selection: Selection): DOMRect | null {
   return first ?? null
 }
 
-function promptTypeFromNode(node: GenerationCanvasNode | null): SaveBrowserPromptCardInput['promptType'] {
+function promptTypeFromNode(node: GenerationCanvasNode | null): PromptMediaType {
   return node && getGenerationNodeExecutionKind(node.kind) === 'video' ? 'video' : 'image'
 }
 
@@ -65,13 +65,6 @@ export function SelectionPromptSaveController({ nodes, disabled = false }: Props
   const nodeById = React.useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes])
   const [toolbar, setToolbar] = React.useState<SelectionToolbarState | null>(null)
   const [draft, setDraft] = React.useState<DraftState | null>(null)
-  const [promptCategories, setPromptCategories] = React.useState(() => readBrowserPromptCategories(getDesktopActiveProjectId()))
-
-  React.useEffect(() => {
-    const refresh = (): void => setPromptCategories(readBrowserPromptCategories(getDesktopActiveProjectId()))
-    window.addEventListener(BROWSER_ASSET_LIBRARY_UPDATED_EVENT, refresh)
-    return () => window.removeEventListener(BROWSER_ASSET_LIBRARY_UPDATED_EVENT, refresh)
-  }, [])
 
   React.useEffect(() => {
     if (disabled) return undefined
@@ -124,7 +117,6 @@ export function SelectionPromptSaveController({ nodes, disabled = false }: Props
   const openDraft = React.useCallback(() => {
     if (!toolbar) return
     const node = nodeById.get(toolbar.nodeId) ?? null
-    setPromptCategories(readBrowserPromptCategories(getDesktopActiveProjectId()))
     setDraft({
       text: toolbar.text,
       promptType: promptTypeFromNode(node),
@@ -137,19 +129,24 @@ export function SelectionPromptSaveController({ nodes, disabled = false }: Props
   }, [])
 
   const saveDraft = React.useCallback(() => {
-    if (!draft?.text.trim()) return
-    const saved = saveBrowserPromptCard({
-      projectId: getDesktopActiveProjectId(),
-      prompt: draft.text,
+    const text = draft?.text.trim()
+    if (!draft || !text) return
+    void addUserPrompt({
+      title: text.slice(0, 24),
+      prompt: text,
       promptType: draft.promptType,
+      tags: ['画布选中'],
       referenceImages: draft.referenceImages,
     })
-    if (saved) {
-      toast('已保存到素材盒提示词库', 'success')
-      setDraft(null)
-      setToolbar(null)
-      window.getSelection()?.removeAllRanges()
-    }
+      .then(() => {
+        toast('已存入提示词库', 'success')
+        setDraft(null)
+        setToolbar(null)
+        window.getSelection()?.removeAllRanges()
+      })
+      .catch((error) => {
+        toast(`存入提示词库失败：${error instanceof Error ? error.message : String(error)}`, 'error')
+      })
   }, [draft])
 
   if (typeof document === 'undefined') return null
@@ -215,11 +212,11 @@ export function SelectionPromptSaveController({ nodes, disabled = false }: Props
                   className="h-11 rounded-nomi-sm border border-nomi-line bg-nomi-bg px-3 text-body-sm text-nomi-ink outline-none"
                   value={draft.promptType}
                   onChange={(event) =>
-                    setDraft((current) => current ? { ...current, promptType: event.target.value } : current)
+                    setDraft((current) => current ? { ...current, promptType: event.target.value === 'video' ? 'video' : 'image' } : current)
                   }
                 >
-                  {promptCategories.map((category) => (
-                    <option key={category.id} value={category.id}>{category.label}</option>
+                  {PROMPT_TYPE_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
                   ))}
                 </select>
               </label>
