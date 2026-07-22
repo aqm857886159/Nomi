@@ -72,7 +72,6 @@ export function NomiImage({
       className={cn(className)}
       onError={(event) => {
         // 诊断单源：失败 URL 打进控制台（区分 404/协议/跨项目），再切占位。
-        // eslint-disable-next-line no-console
         console.warn('[NomiImage] 图片加载失败', resolvedSrc)
         setFailed(true)
         onError?.(event)
