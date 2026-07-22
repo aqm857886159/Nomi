@@ -124,6 +124,16 @@ try {
   }
   if (frameNodes.length >= 2 && frameNodes.every((n) => n.url)) ok(`首尾帧节点已建: ${frameNodes.map((n) => n.title).join(' / ')}`)
   else fail(`首尾帧节点缺失: ${JSON.stringify(frameNodes)}`)
+  // F2：首尾帧完成后必须有持久结果卡（不是瞬时 toast）+「回画布查看」，≥6s 仍在。
+  const cardNow = await win.getByText('首尾帧已生成', { exact: false }).count()
+  const goCanvasNow = await win.getByText('回画布查看', { exact: false }).count()
+  await shot('01b-f2-keyframes-result-card.png')
+  await win.waitForTimeout(6500)
+  const cardAfter6s = await win.getByText('首尾帧已生成', { exact: false }).count()
+  if (cardNow > 0 && goCanvasNow > 0) ok('F2：首尾帧持久结果卡 +「回画布查看」在场')
+  else fail(`F2：首尾帧结果卡缺失（card=${cardNow} goCanvas=${goCanvasNow}）`)
+  if (cardAfter6s > 0) ok('F2：结果卡 6s 后仍在（非瞬时 toast）')
+  else fail('F2：结果卡 6s 内就消失了（像瞬时 toast）')
   await shot('01-after-keyframes.png')
 
   // —— 产物 3：选中相机（轨迹线/白点/相机辅助线全部在场）状态下的相机截图（live 路径隐藏集验证）。
