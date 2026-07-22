@@ -4,9 +4,7 @@ import { getDesktopBridge } from '../../../desktop/bridge'
 import type { NomiBrowserAsset, NomiBrowserAssetTab } from '../assets/browserAssetData'
 import { dispatchBrowserAssetsImportToCanvas } from '../overlay/globalAssetPopoverEvents'
 import {
-  BROWSER_DIALOG_ROOT_SELECTOR,
   BROWSER_IMAGE_DRAG_MIME,
-  CANVAS_IMPORT_TARGET_SELECTOR,
   LEGACY_BROWSER_ASSET_DRAG_MIME,
   NOMI_ASSET_DRAG_MIME,
   PROMPT_EXTRACTION_SETTINGS_DIALOG_SELECTOR,
@@ -23,6 +21,7 @@ import {
 } from '../prompt/browserPromptExtractionSettings'
 import { useBrowserAssetPopoverWindow } from '../window/useBrowserAssetPopoverWindow'
 import { useBrowserAssetMarquee } from './useBrowserAssetMarquee'
+import { useCanvasImportAvailability } from './useCanvasImportAvailability'
 import { useBrowserAssetCaptureImport } from './useBrowserAssetCaptureImport'
 import { useBrowserAssetLibraryModel } from './useBrowserAssetLibraryModel'
 import { useBrowserAssetActions } from './useBrowserAssetActions'
@@ -64,6 +63,7 @@ export function NomiBrowserAssetPopover({
   browserCaptureDisabled = false,
   browserCaptureRequest,
   onBrowserCaptureToggle,
+  probeCanvasImportAvailable,
 }: NomiBrowserAssetPopoverProps): JSX.Element {
   const [internalOpen, setInternalOpen] = React.useState(defaultOpened)
   const [activeTab, setActiveTab] = React.useState<NomiBrowserAssetTab>(defaultTab)
@@ -92,7 +92,8 @@ export function NomiBrowserAssetPopover({
   React.useEffect(() => {
     onFullWindowModalChange?.(promptExtractionSettingsOpen || deleteConfirmOpen)
   }, [deleteConfirmOpen, onFullWindowModalChange, promptExtractionSettingsOpen])
-  const [canvasImportAvailable, setCanvasImportAvailable] = React.useState(false)
+  // 「已放到画布」就地成功反馈（导入是跨窗 fire-and-forget，乐观显示一小段，超时自清）。
+  const [canvasImportedFeedback, setCanvasImportedFeedback] = React.useState(false)
   const [promptExtractionSettings, setPromptExtractionSettings] = React.useState<BrowserPromptExtractionTemplateSettings>(
     () => createDefaultBrowserPromptExtractionTemplateSettings(),
   )
@@ -130,6 +131,10 @@ export function NomiBrowserAssetPopover({
     onWindowRectChange,
     onDockModeChange,
   })
+
+  // 「能不能放到画布」的可用性信号：应用内浮窗查本窗 DOM；contained overlay 窗消费跨窗探针
+  // （回归 dfc47477 = contained 分支曾无条件 false、从不调探针，ready 素材永远送不进画布，P0）。
+  const canvasImportAvailable = useCanvasImportAvailability({ popoverOpen, contained, probeCanvasImportAvailable })
 
   const compactToolbar = windowRect.width <= 560
   const listMode = viewMode === 'list'
@@ -229,31 +234,9 @@ export function NomiBrowserAssetPopover({
       setFiltersOpen(false)
       setAssetContextMenu(null)
       setPromptExtractionSettingsOpen(false)
-      setCanvasImportAvailable(false)
+      setCanvasImportedFeedback(false)
     }
   }, [popoverOpen])
-
-  React.useEffect(() => {
-    if (!popoverOpen || contained || typeof document === 'undefined') {
-      setCanvasImportAvailable(false)
-      return undefined
-    }
-    const updateCanvasImportAvailability = (): void => {
-      setCanvasImportAvailable(
-        Boolean(document.querySelector(CANVAS_IMPORT_TARGET_SELECTOR)) &&
-          !document.querySelector(BROWSER_DIALOG_ROOT_SELECTOR),
-      )
-    }
-    updateCanvasImportAvailability()
-    const observer = new MutationObserver(updateCanvasImportAvailability)
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class', 'data-nomi-generation-canvas-import-target'],
-    })
-    return () => observer.disconnect()
-  }, [contained, popoverOpen])
 
   const loadPromptExtractionSettings = React.useCallback(async (): Promise<void> => {
     const projectId = getDesktopActiveProjectId()
@@ -364,10 +347,23 @@ export function NomiBrowserAssetPopover({
     [selectedAssets],
   )
   const canImportSelectedAssetsToCanvas = canvasImportAvailable && selectedCanvasImportAssets.length > 0
+  // ready 素材有可见主动作即显示「放到画布」入口（不再只藏右键菜单）；有画布目标但没选素材时提示先选。
+  const showCanvasImportAction = canvasImportAvailable && readyLocalAssets.length + selectedAssets.length > 0
+  const importFeedbackTimerRef = React.useRef<number | null>(null)
+  React.useEffect(
+    () => () => {
+      if (importFeedbackTimerRef.current !== null) window.clearTimeout(importFeedbackTimerRef.current)
+    },
+    [],
+  )
   const importSelectedAssetsToCanvas = React.useCallback((): void => {
     if (!canImportSelectedAssetsToCanvas) return
     setAssetContextMenu(null)
     dispatchBrowserAssetsImportToCanvas(selectedCanvasImportAssets)
+    // 跨窗导入 fire-and-forget（主窗 GenerationCanvas 收 IPC 真加节点），乐观就地确认「已放到画布」。
+    setCanvasImportedFeedback(true)
+    if (importFeedbackTimerRef.current !== null) window.clearTimeout(importFeedbackTimerRef.current)
+    importFeedbackTimerRef.current = window.setTimeout(() => setCanvasImportedFeedback(false), 4000)
   }, [canImportSelectedAssetsToCanvas, selectedCanvasImportAssets])
 
   React.useEffect(() => {
@@ -493,6 +489,7 @@ export function NomiBrowserAssetPopover({
         selectAsset, openAssetContextMenu, handleTileDragStart, gridCompact, viewMode, assetGridStyle, marquee,
         promptExtractionSettings, promptExtractionSettingsProjectAvailable, savePromptExtractionSettings, activeResizeEdges, startResize,
         assetContextMenu, assetContextMenuRef, canImportSelectedAssetsToCanvas, importSelectedAssetsToCanvas, deleteSelectedAssets,
+        showCanvasImportAction, canvasImportedFeedback, canvasImportSelectedCount: selectedCanvasImportAssets.length,
         captureTransients, retryCaptureImport, dismissCaptureTransient,
       }}
     />

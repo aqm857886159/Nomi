@@ -13,6 +13,7 @@ export type BrowserCaptureErrorCode =
   | "timeout" // 下载超时
   | "blocked-by-client" // 客户端安全策略拦截
   | "mse-stream" // MediaSource 流媒体——没有可下载原件
+  | "black-frame" // 当前帧是黑屏/无画面——不落假成功卡，提示先播放到有效画面
   | "network" // 连接层失败（DNS/断网/重置/中断）
   | "unknown";
 

@@ -46,6 +46,8 @@ export function SceneContent({
   trajectoryMode,
   possessedObject,
   possessedLocomotionClip,
+  onPoseTransition,
+  onPoseResume,
   cameraPossessId,
   onLocomotionChange,
   onPossess,
@@ -92,6 +94,9 @@ export function SceneContent({
   // 当前被操控相机 id（用于「正在操控这台相机时不再显其操控浮层」）。
   cameraPossessId?: string | null
   onLocomotionChange?: (clip: string) => void
+  // 统一 semantic pose transition（D）：C 键下蹲/恢复经此上抛，Scene3DFullscreen 同一入口更新实时画面 + 录制打点。
+  onPoseTransition?: (presetId: string) => void
+  onPoseResume?: () => void
   // 画布内「操控」浮层入口的点击回调（#6）。缺省 = 不显浮层（如只读）。
   onPossess?: (objectId: string) => void
   // 画布内「操控镜头」浮层入口的点击回调。缺省 = 不显（如只读）。
@@ -298,6 +303,8 @@ export function SceneContent({
           locomotionClip={possessedLocomotionClip}
           onObjectPatch={onObjectPatch}
           onLocomotionChange={onLocomotionChange}
+          onPoseTransition={onPoseTransition}
+          onPoseResume={onPoseResume}
         />
       ) : null}
       <CaptureBinder cameras={state.cameras} setApi={setCaptureApi} />

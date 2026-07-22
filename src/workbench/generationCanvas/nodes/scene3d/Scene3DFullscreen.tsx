@@ -33,6 +33,7 @@ import { CharacterPossessButton, Scene3DBottomBar } from './scene3dCharacterActi
 import { useScene3DCharacterDrive } from './useScene3DCharacterDrive'
 import { useScene3DCameraViewEdit } from './useScene3DCameraViewEdit'
 import { useScene3DTakeRecorder } from './useScene3DTakeRecorder'
+import { useScene3DSemanticPose } from './useScene3DSemanticPose'
 import { Scene3DTakeSampler } from './Scene3DTakeSampler'
 import { CameraPreview, PlaybackCameraMonitor } from './scene3dCameraPreview'
 import { useScene3DTrajectoryEditing } from './useScene3DTrajectoryEditing'
@@ -429,6 +430,9 @@ export default function Scene3DFullscreen({
     const effectivePresetId = characterDrive.applyActionPreset(presetId)
     takeRecorder.recordPoseEvent(effectivePresetId)
   }, [characterDrive, takeRecorder])
+
+  // 统一 semantic pose transition（D）：C 键与动作库共用同一录制入口（详见 useScene3DSemanticPose）。
+  const { handlePoseTransition, handlePoseResume } = useScene3DSemanticPose({ possessId: characterDrive.possessId, patchObject, recordPoseEvent: takeRecorder.recordPoseEvent, recordPoseResume: takeRecorder.recordPoseResume })
   const {
     selectTrajectoryForMode,
     selectSceneTrajectory,
@@ -604,6 +608,8 @@ export default function Scene3DFullscreen({
               possessedLocomotionClip={characterDrive.locomotionClip}
               cameraPossessId={characterDrive.cameraPossessId}
               onLocomotionChange={characterDrive.setLocomotionClip}
+              onPoseTransition={readOnly ? undefined : handlePoseTransition}
+              onPoseResume={readOnly ? undefined : handlePoseResume}
               onPossess={readOnly ? undefined : characterDrive.enterPossess}
               onCameraPossess={readOnly ? undefined : characterDrive.enterCameraPossess}
               onSelect={selectSceneItem}

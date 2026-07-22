@@ -7,7 +7,6 @@ import {
 } from './scene3dConstants'
 import {
   clearMovementKeyState,
-  clonePoseValue,
   eulerToArray,
   findSceneObjectByRuntimeId,
   isEditableKeyboardTarget,
@@ -45,6 +44,8 @@ export function CharacterDriveController({
   locomotionClip,
   onObjectPatch,
   onLocomotionChange,
+  onPoseTransition,
+  onPoseResume,
 }: {
   possessedObject: Scene3DObject
   // header「速度」滑块(1–16，与相机 fly 同一个)。高档 → 地面速度越过 run 阈值播奔跑，低档走路。
@@ -55,8 +56,18 @@ export function CharacterDriveController({
   onObjectPatch: (id: string, patch: Partial<Scene3DObject>) => void
   // 当 locomotion 桶（idle/walk/run）变化时上抛——驱动被操控假人切迈腿动画 clip。仅在桶变化时调用（非每帧）。
   onLocomotionChange?: (clip: string) => void
+  // 统一 semantic pose transition（D）：C 按下 → onPoseTransition('crouch')；C 松开/失焦（非点击静态动作冻结态）
+  // → onPoseResume()。上层（Scene3DFullscreen）在同一入口里**同时**更新实时画面 + 录制中打点，
+  // 与动作库点击共用录制入口（不写 crouch 特例）。控制器只发意图、不再直接 patch crouch pose。
+  onPoseTransition?: (presetId: string) => void
+  onPoseResume?: () => void
 }): null {
   const { camera, scene, invalidate } = useThree()
+  // 稳定身份：pose 回调放 ref，键盘 effect 不因回调换身份而重订阅（重订阅会漏掉按住中的 keyup）。
+  const onPoseTransitionRef = React.useRef(onPoseTransition)
+  onPoseTransitionRef.current = onPoseTransition
+  const onPoseResumeRef = React.useRef(onPoseResume)
+  onPoseResumeRef.current = onPoseResume
   // 滑块值放 ref，useFrame 每帧读最新值；改滑块不重订阅、不重挂键盘。
   const flySpeedRef = React.useRef(flySpeed)
   flySpeedRef.current = flySpeed
@@ -133,8 +144,10 @@ export function CharacterDriveController({
     const releaseCrouch = () => {
       if (!crouchHeldRef.current) return
       crouchHeldRef.current = false
+      // 松手自愈回站姿走 onPoseResume（同时更新实时画面 + 录制中补 base 关键帧）；若用户蹲着时又点了
+      // 动作库（真冻结，locomotionClip===''），那是后做的显式选择，不被这里的松键覆盖（也不打录制点）。
       if (locomotionClipRef.current !== '') {
-        onObjectPatch(objectIdRef.current, { pose: undefined })
+        onPoseResumeRef.current?.()
       }
     }
 
@@ -156,9 +169,8 @@ export function CharacterDriveController({
         staticActionFrozenRef.current = false
         if (!crouchHeldRef.current) {
           crouchHeldRef.current = true
-          if (CROUCH_POSE_PRESET) {
-            onObjectPatch(objectIdRef.current, { pose: clonePoseValue(CROUCH_POSE_PRESET.pose) })
-          }
+          // 统一入口发「进入 crouch」意图（重复 keydown 被 crouchHeldRef 挡住，不重复打点）。
+          if (CROUCH_POSE_PRESET) onPoseTransitionRef.current?.(CROUCH_POSE_PRESET.id)
         }
         invalidate()
         return
@@ -196,7 +208,7 @@ export function CharacterDriveController({
       window.removeEventListener('blur', clearKeys)
       clearMovementKeyState(keyState)
     }
-  }, [invalidate, onObjectPatch])
+  }, [invalidate])
 
   useFrame((state, delta) => {
     const group = groupRef.current

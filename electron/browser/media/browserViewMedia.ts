@@ -4,9 +4,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { captureFileName } from "../captureNaming";
-import { BROWSER_MEDIA_MAX_BYTES, mediaTypeFromContentType, resolveBrowserMediaContentType, streamBrowserMediaResponseToFile } from "./browserMediaValidation";
+import { BROWSER_MEDIA_MAX_BYTES, detectAnimatedImage, mediaTypeFromContentType, resolveBrowserMediaContentType, streamBrowserMediaResponseToFile } from "./browserMediaValidation";
 import {
   captureError,
+  captureErrorCode,
   classifyBrowserMediaSource,
   classifyDownloadError,
   decodeDataUrlMedia,
@@ -440,7 +441,11 @@ export async function importBrowserMedia(record: BrowserViewRecord, payload: Bro
     const code = classifyDownloadError(reason);
     if (code === "mse-stream") {
       // MSE 流媒体没有原件——「保存当前帧」是诚实兑现（验收：不再谎称「临时资源已失效」）。
-      const frame = await captureVideoCurrentFrame(record, mediaUrl).catch(() => null);
+      // 黑帧是可行动终态（不落假成功卡），带 code 抛到渲染层给唯一下一步，不折叠成通用截取失败。
+      const frame = await captureVideoCurrentFrame(record, mediaUrl).catch((frameError: unknown) => {
+        if (frameError instanceof Error && captureErrorCode(frameError.message) === "black-frame") throw frameError;
+        return null;
+      });
       if (!frame) {
         throw captureError("mse-stream", "流媒体视频没有可下载的原件，当前帧截取也失败了——回到视频页面、让画面可见后重试", downloadError);
       }
@@ -455,6 +460,23 @@ export async function importBrowserMedia(record: BrowserViewRecord, payload: Bro
       captureQuality = "screenshot";
     } else {
       throw captureError(code, reason, downloadError);
+    }
+  }
+
+  // 动图（GIF/动画 WebP）诚实标注：读原件 header 检测，落 sidecar，素材卡显示「动态图」而非静态「网页原图」。
+  let animatedImage = false;
+  if (captureQuality === "original" && (download.mediaType || requestedMediaType) === "image") {
+    try {
+      const fd = await fs.promises.open(download.absolutePath, "r");
+      try {
+        const header = Buffer.alloc(65536);
+        const { bytesRead } = await fd.read(header, 0, header.length, 0);
+        animatedImage = detectAnimatedImage(header.subarray(0, bytesRead), download.contentType);
+      } finally {
+        await fd.close();
+      }
+    } catch {
+      // 检测失败不影响导入，只是少了「动态图」标注。
     }
   }
 
@@ -480,6 +502,7 @@ export async function importBrowserMedia(record: BrowserViewRecord, payload: Bro
         mediaType: download.mediaType || requestedMediaType || null,
         // 来源质量诚实标注（sidecar 持久化，素材卡显示「网页原图/页面截图/视频当前帧」）。
         ...(captureQuality !== "original" ? { captureQuality } : {}),
+        ...(animatedImage ? { animated: true } : {}),
       },
     );
   } finally {

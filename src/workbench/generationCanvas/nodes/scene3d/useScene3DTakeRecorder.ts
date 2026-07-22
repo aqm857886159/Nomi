@@ -27,6 +27,15 @@ type RawPoseEvent = { ms: number; presetId?: string; pose?: Record<string, Scene
 
 const SAMPLE_INTERVAL_MS = 50 // 采样节流：20Hz，足够还原走位曲线，又不撑爆 buffer/离屏帧数
 
+// R13 走查读取口（仅 NOMI_E2E）：刚录成的 take 状态挂 window，供走查断言 poseTrack/继承运镜轨迹
+// （治「现场蹲、成片站」与「预选运镜被采样机位覆盖」的最终产物验证）。生产环境不置任何全局。
+function stashRecordedTakeForE2E(state: Scene3DState): void {
+  if (typeof window === 'undefined') return
+  if ((window as unknown as { __nomiE2E?: boolean }).__nomiE2E) {
+    ;(window as unknown as { __nomiLastRecordedTake?: Scene3DState }).__nomiLastRecordedTake = state
+  }
+}
+
 export type TakeRecorder = {
   isRecording: boolean
   elapsedSeconds: number
@@ -81,7 +90,6 @@ export function useScene3DTakeRecorder({
   const possessTargetRef = React.useRef<PossessTarget>(possessTarget)
   possessTargetRef.current = possessTarget
 
-  const possessId = possessTarget?.id ?? null
   const canRecord = !readOnly && Boolean(possessTarget) && !isRecording
 
   const clearTick = React.useCallback(() => {
@@ -92,7 +100,12 @@ export function useScene3DTakeRecorder({
   }, [])
 
   const startRecording = React.useCallback(() => {
-    if (readOnly || !possessId || isRecordingRef.current) return
+    // #C 根因修：守卫/种子读**实时** possessTargetRef.current，不读渲染期快照 possessTarget?.id。
+    //   倒计时里「先接管角色，再排 3s 定时器开录」时，定时器闭包持有的 startRecording 是接管前那次渲染的
+    //   版本；若它守卫在当时快照的 possessId(=null) 上就早退，isRecording 不翻、CTA 退回「开始录制」，必须
+    //   二次点击。改读 ref（每渲染即时更新）后，任何时机调用都用已落定的接管目标，一次点击直达录制。
+    const activePossessId = possessTargetRef.current?.id ?? null
+    if (readOnly || !activePossessId || isRecordingRef.current) return
     isRecordingRef.current = true
     characterSamplesRef.current = []
     cameraSamplesRef.current = []
@@ -104,7 +117,7 @@ export function useScene3DTakeRecorder({
     lastCameraAimSampleMsRef.current = 0
     // 种一个 t=0 的起始姿势：applyActionPreset 会即时改 object.pose，停止时克隆到的是「最后那个姿势」，
     // 没有这个种子，回放第一段会落回末尾姿势而非录制起点姿势。读被操控角色当前 pose 当起点（相机 take 无 pose，无害）。
-    const startPose = stateRef.current.objects.find((object) => object.id === possessId)?.pose
+    const startPose = stateRef.current.objects.find((object) => object.id === activePossessId)?.pose
     poseEventsRef.current = [{ ms: now, presetId: undefined, pose: clonePoseValue(startPose) }]
     setElapsedSeconds(0)
     setIsRecording(true)
@@ -113,7 +126,7 @@ export function useScene3DTakeRecorder({
     tickRef.current = window.setInterval(() => {
       setElapsedSeconds((performance.now() - startMsRef.current) / 1000)
     }, 100)
-  }, [clearTick, possessId, readOnly, stateRef])
+  }, [clearTick, readOnly, stateRef])
 
   const sampleCharacter = React.useCallback((position: Scene3DVector3) => {
     if (!isRecording) return
@@ -205,6 +218,7 @@ export function useScene3DTakeRecorder({
       toast('没录到走位（角色全程没移动），请操控角色走动后再录', 'warning')
       return
     }
+    stashRecordedTakeForE2E(recordedState)
     onRecorded(recordedState)
   }, [clearTick, onRecorded, stateRef])
 

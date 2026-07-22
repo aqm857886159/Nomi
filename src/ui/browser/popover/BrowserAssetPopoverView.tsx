@@ -5,6 +5,7 @@ import { IconLayoutSidebarLeftExpand, IconLayoutSidebarRightCollapse, IconLayout
 import {
   IconArrowForwardUp,
   IconCards,
+  IconCheck,
   IconFilter,
   IconLayoutGrid,
   IconList,
@@ -13,7 +14,7 @@ import {
   IconSortDescending2,
   IconTrash,
 } from '../../../vendor/tablerIcons'
-import { DesignEmptyState, DesignSearchInput } from '../../../design'
+import { DesignButton, DesignEmptyState, DesignSearchInput } from '../../../design'
 import { cn } from '../../../utils/cn'
 import { NOMI_BROWSER_ASSET_TABS } from '../assets/browserAssetData'
 import { BrowserAssetFilterPopover, BrowserAssetTile } from './BrowserAssetPopoverParts'
@@ -47,6 +48,7 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
     selectAsset, openAssetContextMenu, handleTileDragStart, gridCompact, viewMode, assetGridStyle, marquee,
     promptExtractionSettings, promptExtractionSettingsProjectAvailable, savePromptExtractionSettings, activeResizeEdges, startResize,
     assetContextMenu, assetContextMenuRef, canImportSelectedAssetsToCanvas, importSelectedAssetsToCanvas, deleteSelectedAssets,
+    showCanvasImportAction, canvasImportedFeedback, canvasImportSelectedCount,
     captureTransients, retryCaptureImport, dismissCaptureTransient,
   } = props
 
@@ -214,6 +216,29 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
 
               {marquee ? <div className="pointer-events-none absolute z-[2] rounded-nomi-sm border border-nomi-accent bg-nomi-accent-soft/70" style={normalizeMarqueeRect(marquee)} aria-hidden="true" /> : null}
             </ScrollArea>
+            {/* ready 素材的可见主动作「放到画布」（不再只藏右键菜单）——contained/应用内共用同一真实导入动作。 */}
+            {showCanvasImportAction ? (
+              <div className="flex shrink-0 items-center gap-2 border-t border-nomi-line-soft bg-nomi-bg/45 px-4 py-2.5">
+                {canvasImportedFeedback ? (
+                  <span className="flex min-w-0 flex-1 items-center gap-1.5 text-caption font-medium text-nomi-accent">
+                    <IconCheck size={15} stroke={2} aria-hidden="true" className="shrink-0" />
+                    <span className="truncate">已放到画布 · 关闭浏览器查看</span>
+                  </span>
+                ) : (
+                  <span className="min-w-0 flex-1 truncate text-caption text-nomi-ink-55">
+                    {canvasImportSelectedCount > 0 ? `已选 ${canvasImportSelectedCount} 个素材` : '选中素材放到画布'}
+                  </span>
+                )}
+                <DesignButton
+                  variant="primary"
+                  disabled={!canImportSelectedAssetsToCanvas}
+                  onClick={importSelectedAssetsToCanvas}
+                  leftSection={<IconArrowForwardUp size={15} stroke={1.8} aria-hidden="true" />}
+                >
+                  放到画布
+                </DesignButton>
+              </div>
+            ) : null}
             {dropActive ? <div className="pointer-events-none absolute inset-2 z-[8] grid place-items-center rounded-nomi border border-dashed border-nomi-accent bg-nomi-accent-soft/75 text-caption font-semibold text-nomi-accent">松开以保存到素材盒</div> : null}
             {promptExtractionSettingsOpen ? <BrowserPromptExtractionSettingsModal settings={promptExtractionSettings} projectAvailable={promptExtractionSettingsProjectAvailable} onSave={savePromptExtractionSettings} onClose={() => setPromptExtractionSettingsOpen(false)} /> : null}
           </div>

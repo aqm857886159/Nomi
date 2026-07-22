@@ -5,10 +5,21 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { WebContents } from "electron";
+import { nativeImage, type WebContents } from "electron";
 import { captureFileName } from "../captureNaming";
 import type { BrowserDownloadResult, BrowserResourceCaptureRectPayload, BrowserViewRecord } from "../core/browserViewTypes";
-import { decodeDataUrlMedia, normalizeLocalCaptureRect, safeTempFileName } from "./browserCaptureSource";
+import { captureError, decodeDataUrlMedia, normalizeLocalCaptureRect, safeTempFileName } from "./browserCaptureSource";
+import { bgraLumaStats, isBlankFrameLuma } from "./browserMediaValidation";
+
+// 纯黑/纯色空帧（如 B站首轮阻断画面）不落库——否则是「假成功卡」（复测 P1）。落库前分析产物像素。
+function rejectBlankCurrentFrame(image: Electron.NativeImage): void {
+  const size = image.getSize();
+  if (size.width <= 0 || size.height <= 0) return;
+  const stats = bgraLumaStats(image.getBitmap());
+  if (isBlankFrameLuma(stats.mean, stats.variance)) {
+    throw captureError("black-frame", "视频当前是黑屏/无画面——先在页面里播放到有清晰画面的一帧，再保存当前帧");
+  }
+}
 
 // 普通 blob（File/Blob 对象 URL）页面内 fetch 立刻成功；MediaSource 的对象 URL fetch 必然 TypeError——
 // 这是无站点特判区分「可下载 blob」与「MSE 流」的通用探针。超时按可下载处理（下载路自有失败分类）。
@@ -160,8 +171,11 @@ export async function captureVideoCurrentFrame(
   if (typeof probe.dataUrl === "string" && probe.dataUrl.startsWith("data:image/")) {
     try {
       const { buffer } = decodeDataUrlMedia(probe.dataUrl);
+      // 黑帧拒绝在解码后、落库前（canvas 路能拿到真实视频像素，最可靠）。black-frame 错误往上抛，不吞。
+      rejectBlankCurrentFrame(nativeImage.createFromBuffer(buffer));
       return saveCapturedPngToTemp(mediaUrl, buffer, "frame.png");
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && /\[nomi-capture:black-frame\]/i.test(error.message)) throw error;
       // dataURL 解码异常 → 退 capturePage
     }
   }
@@ -169,5 +183,6 @@ export async function captureVideoCurrentFrame(
   if (!rect) return null;
   const image = await contents.capturePage(rect);
   if (image.isEmpty()) return null;
+  rejectBlankCurrentFrame(image);
   return saveCapturedPngToTemp(mediaUrl, image.toPNG(), "frame.png");
 }

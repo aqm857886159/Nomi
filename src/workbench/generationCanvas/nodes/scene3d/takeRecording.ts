@@ -145,12 +145,45 @@ export type RecordedCameraTake = {
 }
 
 /**
+ * 继承 base 中已应用到该相机的运镜（E：右横移跟拍等 = applyCameraMovePreset 落的 trajectory+binding），
+ * 按录制时长等比重定时到 [0,duration]，让预选运镜与人物动作同步跑、在最终 take 保留，
+ * 不被重采样「机位路径」覆盖。没有已有运镜 → null（调用方走采样机位老路）。
+ * 位置绑定认 objectId===cameraId；朝向（aim）绑定认合成 id `${cameraId}:aim`，两者一并继承。
+ */
+function inheritCameraMove(
+  cameraId: string,
+  baseTrajectories: readonly Scene3DTrajectory[],
+  baseBindings: readonly Scene3DTrajectoryBinding[],
+  durationSeconds: number,
+): { trajectories: Scene3DTrajectory[]; bindings: Scene3DTrajectoryBinding[] } | null {
+  const aimId = cameraAimBindingId(cameraId)
+  const cameraBindings = baseBindings.filter((binding) =>
+    binding.objects.some((entry) => entry.objectId === cameraId || entry.objectId === aimId),
+  )
+  if (cameraBindings.length === 0) return null
+  const trajectoryIds = new Set(cameraBindings.map((binding) => binding.trajectoryId))
+  const trajectories = baseTrajectories.filter((trajectory) => trajectoryIds.has(trajectory.id))
+  if (trajectories.length === 0) return null
+  // base 相机时间线跨度 → 等比映射到 [0,duration]，保留多段编排顺序（单预设 [0,d] 即整段铺满录制时长）。
+  const camMin = Math.min(...cameraBindings.map((binding) => binding.startTime))
+  const camMax = Math.max(...cameraBindings.map((binding) => binding.endTime))
+  const span = camMax - camMin
+  const remap = (time: number): number => (span > 0 ? ((time - camMin) / span) * durationSeconds : 0)
+  const bindings = cameraBindings.map((binding) => ({
+    ...binding,
+    startTime: remap(binding.startTime),
+    endTime: remap(binding.endTime),
+  }))
+  return { trajectories, bindings }
+}
+
+/**
  * 录制结果 → 一个可被现有离屏捕获管线（Scene3DTrajectoryCapture / CameraMoveCaptureHost）回放的
  * Scene3DState：
  * - 复制基础场景（保留所有物体/环境）；
  * - 被操控角色 → 录制位移轨迹 + binding（整段 [0,duration] 正向）；
- * - cameras[0] → 录制机位轨迹 + binding（若用户绕看过），并把 followTargetId 指向被操控角色，
- *   让回放时相机朝向忠实跟住主体（相机轨迹只带位置，朝向由 follow 求出；用户没动相机时相机静止但仍跟拍）；
+ * - cameras[0]：**若 base 已有该相机的运镜预设（右横移跟拍等）→ 继承保留**（E，不覆盖、不重采样）；
+ *   否则退回老行为——采样用户绕拍的机位轨迹 + followTargetId 指向被操控角色（相机轨迹只带位置，朝向由 follow 求）；
  * - sceneTimeline.totalDuration = 录制时长。
  * 角色全程没动 → 无角色轨迹（samplesToTrajectory 返回 null），返回 null（无可回放内容，调用方提示）。
  */
@@ -181,18 +214,26 @@ export function buildRecordedTakeScene(base: Scene3DState, take: RecordedTake): 
     buildTakeBinding(characterTrajectory.id, character.id, 0, take.durationSeconds),
   ]
 
-  // 离屏捕获器固定取 cameras[0]，故把录制机位落到 cameras[0]。
+  // 离屏捕获器固定取 cameras[0]。
   const camera = next.cameras[0]
   if (camera) {
-    camera.followTargetId = character.id
-    const cameraTrajectory = samplesToTrajectory(
-      take.cameraSamples,
-      ROLE_COLOR_SEQUENCE[2] ?? characterTrajectory.color,
-      '机位路径',
-    )
-    if (cameraTrajectory) {
-      trajectories.push(cameraTrajectory)
-      bindings.push(buildTakeBinding(cameraTrajectory.id, camera.id, 0, take.durationSeconds))
+    const inherited = inheritCameraMove(camera.id, next.trajectories, next.trajectoryBindings, take.durationSeconds)
+    if (inherited) {
+      // E：继承已有运镜（右横移跟拍等），保留其轨迹与绑定，不覆盖 followTargetId、不再重采样机位路径。
+      trajectories.push(...inherited.trajectories)
+      bindings.push(...inherited.bindings)
+    } else {
+      // 无预选运镜：老行为——相机跟拍被操控角色 + 采样用户绕拍的机位路径。
+      camera.followTargetId = character.id
+      const cameraTrajectory = samplesToTrajectory(
+        take.cameraSamples,
+        ROLE_COLOR_SEQUENCE[2] ?? characterTrajectory.color,
+        '机位路径',
+      )
+      if (cameraTrajectory) {
+        trajectories.push(cameraTrajectory)
+        bindings.push(buildTakeBinding(cameraTrajectory.id, camera.id, 0, take.durationSeconds))
+      }
     }
   }
 

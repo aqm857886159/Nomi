@@ -123,6 +123,7 @@ const CAPTURE_ERROR_CODE_MESSAGES: Record<string, string> = {
   'timeout': '下载超时——网络慢或站点限流，稍后重试',
   'blocked-by-client': '请求被浏览器安全策略拦截——重新捕捞一次',
   'mse-stream': '这是流媒体视频（边播边传），没有可下载的原件——回到视频页让画面可见后重试保存当前帧',
+  'black-frame': '视频当前是黑屏/无画面——先在页面里播放到有清晰画面的一帧，再保存当前帧',
   'network': '网络连接失败——检查网络后重试',
 }
 
@@ -161,6 +162,8 @@ function browserAssetSubtitleFromDesktopAsset(asset: DesktopAssetDto): string {
     const quality = typeof asset.data.captureQuality === 'string' ? asset.data.captureQuality : ''
     if (quality === 'screenshot') return '页面截图'
     if (quality === 'frame') return '视频当前帧'
+    // 动图（GIF/动画 WebP）诚实标注为「动态图」，不笼统当静态「网页原图」（后续用户/模型据此知道是动态参考）。
+    if (asset.data.animated === true) return '动态图'
     return '网页原图'
   }
   if (kind === 'browser-upload') return '本地导入'
