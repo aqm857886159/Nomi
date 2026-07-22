@@ -1,3 +1,5 @@
+import { app, ipcMain } from "electron";
+
 export type DesktopLocale = "zh-CN" | "en";
 
 const translations = {
@@ -77,4 +79,18 @@ export function desktopT(key: DesktopTranslationKey, values: Record<string, stri
     text = text.replaceAll(`{{${name}}}`, String(value));
   }
   return text;
+}
+
+// i18n 相关 IPC 一处收口（避免主进程巨壳继续膨胀，R9）：
+//  · set-locale：渲染层切语言 → 同步桌面侧（原生菜单/对话框文案）。
+//  · get-system-locale：首启无存储偏好时，渲染层同步探测 OS 语言（app.getLocale() 由 --lang/系统设定）。
+export function registerI18nIpc(): void {
+  ipcMain.on("nomi:i18n:set-locale", (_event, locale: unknown) => setDesktopLocale(locale));
+  ipcMain.on("nomi:i18n:get-system-locale", (event) => {
+    try {
+      event.returnValue = { ok: true, value: app.getLocale() };
+    } catch (error) {
+      event.returnValue = { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
 }

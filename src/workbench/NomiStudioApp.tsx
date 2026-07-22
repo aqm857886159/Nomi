@@ -572,7 +572,7 @@ export default function NomiStudioApp(): JSX.Element {
   const handleRenameProject = React.useCallback(
     (newName: string) => {
       if (!activeProject) return
-      const trimmed = newName.trim() || '未命名 Nomi 项目'
+      const trimmed = newName.trim() || t('appBar.untitledProject')
       if (trimmed === activeProject.name) return
       const renamed: LocalProjectSummary = {
         ...activeProject,

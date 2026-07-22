@@ -14,6 +14,17 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   platform: process.platform,
   i18n: {
     setLocale: (locale: "zh-CN" | "en") => ipcRenderer.send("nomi:i18n:set-locale", locale),
+    // 首启探测系统语言用；拿不到就返回 ""（渲染层据此回落默认语言，绝不抛断首帧）。
+    // 测试铁律：E2E/走查默认关探测（否则跟随 CI 机器系统语言 → 全批中文选择器测试崩），
+    // 回落默认中文；仅「首启语言探测」专项走查显式 NOMI_TEST_SYSTEM_LOCALE=1 才真探测。
+    getSystemLocale: (): string => {
+      if (process.env.NOMI_E2E === "1" && process.env.NOMI_TEST_SYSTEM_LOCALE !== "1") return "";
+      try {
+        return invokeSync<string>("nomi:i18n:get-system-locale");
+      } catch {
+        return "";
+      }
+    },
   },
   // 窗口控制（Windows 自绘标题栏用；mac 原生 chrome 不调用）。窄面：仅 min/max/close + 最大化态订阅。
   window: {

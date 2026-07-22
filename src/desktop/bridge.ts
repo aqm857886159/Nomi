@@ -260,6 +260,8 @@ export type DesktopBridge = {
   platform: string
   i18n?: {
     setLocale: (locale: 'zh-CN' | 'en') => void
+    /** OS 原生 locale（如 'en-US' / 'zh-CN'）；仅真 Electron 有，jsdom/测试无 → 首启回落默认语言。老 preload 可能无此口。 */
+    getSystemLocale?: () => string
   }
   /** 窗口控制（Windows 自绘标题栏用；mac 原生 chrome 时不调用）。老 preload 可能无此口。 */
   window?: {

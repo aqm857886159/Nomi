@@ -1,5 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
+import i18n, { getAppLocale } from '../../i18n'
 import {
   IconBrowser,
   IconFolderOpen,
@@ -42,13 +43,13 @@ function formatUpdatedAt(value: number): string {
   if (!Number.isFinite(value)) return ''
   const deltaMs = Math.max(0, Date.now() - value)
   const minutes = Math.floor(deltaMs / 60_000)
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes} 分钟前`
+  if (minutes < 1) return i18n.t('library.relativeJustNow')
+  if (minutes < 60) return i18n.t('library.relativeMinutesAgo', { count: minutes })
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} 小时前`
+  if (hours < 24) return i18n.t('library.relativeHoursAgo', { count: hours })
   const days = Math.floor(hours / 24)
-  if (days < 30) return `${days} 天前`
-  return new Date(value).toLocaleDateString('zh-CN')
+  if (days < 30) return i18n.t('library.relativeDaysAgo', { count: days })
+  return new Date(value).toLocaleDateString(getAppLocale())
 }
 
 // memo 化：搜索/筛选触发父组件重渲时，urls 未变的封面不重渲（图多时省下整片缩略图重建）。

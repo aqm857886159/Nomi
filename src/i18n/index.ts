@@ -13,13 +13,36 @@ export function isAppLocale(value: unknown): value is AppLocale {
   return typeof value === 'string' && (SUPPORTED_LOCALES as readonly string[]).includes(value)
 }
 
-export function readStoredLocale(): AppLocale {
+/** 已存储的用户语言偏好；从未存过（首启）返回 null，交由系统语言探测。 */
+function readStoredLocaleRaw(): AppLocale | null {
   try {
     const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY)
-    return isAppLocale(stored) ? stored : DEFAULT_LOCALE
+    return isAppLocale(stored) ? stored : null
   } catch {
-    return DEFAULT_LOCALE
+    return null
   }
+}
+
+export function readStoredLocale(): AppLocale {
+  return readStoredLocaleRaw() ?? DEFAULT_LOCALE
+}
+
+// 首启（无存储偏好）探测系统语言：中文系统留中文，其余一律给英文（#40 国际可达性——
+// 非中文系统进中文界面等于换一种语言的「语言墙」，英文是唯一另一支持语言、也是国际通用兜底）。
+// 仅真 Electron 经桥能拿到 OS locale；jsdom/无桥环境（含 vitest）返回 null → 回落默认中文，测试不受影响。
+function detectSystemLocale(): AppLocale | null {
+  try {
+    const raw = getDesktopBridge()?.i18n?.getSystemLocale?.()
+    if (!raw) return null
+    return raw.toLowerCase().startsWith('zh') ? 'zh-CN' : 'en'
+  } catch {
+    return null
+  }
+}
+
+function resolveInitialLocale(): AppLocale {
+  if (typeof window === 'undefined') return DEFAULT_LOCALE
+  return readStoredLocaleRaw() ?? detectSystemLocale() ?? DEFAULT_LOCALE
 }
 
 function syncDocumentLocale(locale: AppLocale): void {
@@ -30,7 +53,7 @@ function syncDesktopLocale(locale: AppLocale): void {
   if (typeof window !== 'undefined') getDesktopBridge()?.i18n?.setLocale(locale)
 }
 
-const initialLocale = typeof window === 'undefined' ? DEFAULT_LOCALE : readStoredLocale()
+const initialLocale = resolveInitialLocale()
 
 void i18n.use(initReactI18next).init({
   resources,

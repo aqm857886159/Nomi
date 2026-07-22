@@ -46,7 +46,7 @@ import { setRendererTarget } from "./capabilityCore/rendererBridge";
 import { readMcpInfo, installMcp, uninstallMcp } from "./capabilityCore/mcpConfig";
 import { registerLocalProtocol } from "./protocol/localProtocol";
 import { installMainWindowInteractions } from "./mainWindowInteractions";
-import { desktopT, setDesktopLocale } from "./i18n";
+import { desktopT, registerI18nIpc, setDesktopLocale } from "./i18n";
 installCrashHandlers();
 
 const configuredUserDataDir = String(process.env.NOMI_ELECTRON_USER_DATA_DIR || "").trim();
@@ -423,7 +423,7 @@ async function runTaskIpcGuard<T>(payload: unknown, thunk: () => Promise<T>): Pr
 
 function registerIpc(): void {
   const selectedWorkspaceRoots = new Set<string>();
-  ipcMain.on("nomi:i18n:set-locale", (_event, locale: unknown) => setDesktopLocale(locale));
+  registerI18nIpc();
   // 渲染层崩溃（RootErrorBoundary）也落到同一崩溃日志（P0-8）。
   ipcMain.on("nomi:log:renderer-crash", (_event, message: unknown) => logCrash("renderer", String(message)));
   // 窗口控制（Windows 自绘标题栏）：只注册一次，作用于发起请求的那个窗口（fromWebContents），
