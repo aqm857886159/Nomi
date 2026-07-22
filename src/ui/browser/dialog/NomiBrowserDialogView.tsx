@@ -476,7 +476,6 @@ export function NomiBrowserDialogView({
                   placement="absolute"
                   opened={browserAssetPopoverOpen}
                   boundsRect={browserAssetPopoverBounds}
-                  showTrigger={false}
                   onOpenChange={handleBrowserAssetPopoverOpenChange}
                   onWindowRectChange={handleBrowserAssetPopoverRectChange}
                   onDockModeChange={setBrowserAssetPopoverDockMode}

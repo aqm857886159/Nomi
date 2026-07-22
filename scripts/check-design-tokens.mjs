@@ -53,7 +53,10 @@ function listFiles() {
     .filter((f) => /\.tsx?$/.test(f))
     .filter((f) => !/\.test\.tsx?$/.test(f))
     // 3D 预设动作校准台：仅 dev 工具（独立 Three.js 渲染页，非产品 UI），不纳入设计 token 门禁。
-    .filter((f) => !f.startsWith("src/devlab/"));
+    .filter((f) => !f.startsWith("src/devlab/"))
+    // git ls-files 连「工作树已删除、尚未 commit」的文件一起列出——门岗量的是工作树现状，
+    // 消失的文件没有内容可查，跳过（commit 后 CI checkout 恒存在，不削弱棘轮）。
+    .filter((f) => fs.existsSync(path.join(ROOT, f)));
 }
 
 const files = listFiles();

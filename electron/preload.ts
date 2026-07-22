@@ -106,7 +106,6 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.invoke("browser:prompt-extraction-settings:read", payload),
     writePromptExtractionSettings: (payload: unknown) =>
       ipcRenderer.invoke("browser:prompt-extraction-settings:write", payload),
-    setPromptCategories: (payload: unknown) => ipcRenderer.send("browser:view:set-prompt-categories", payload),
     setResourceCapture: (payload: unknown) => ipcRenderer.send("browser:view:set-resource-capture", payload),
     captureResource: (payload: unknown) => ipcRenderer.send("browser:view:capture-resource", payload),
     showChromeMenu: (payload: unknown) => ipcRenderer.invoke("browser:chrome-menu:show", payload),

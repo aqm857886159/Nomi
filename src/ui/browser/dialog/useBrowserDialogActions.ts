@@ -15,6 +15,7 @@ import {
 import { BROWSER_PROMPT_EXTRACTION_MODE_LABELS, type BrowserPromptExtractionMode } from '../prompt/browserPromptExtraction'
 import type { NomiBrowserAsset } from '../assets/browserAssetData'
 import { addUserPrompt } from '../../../workbench/api/promptLibraryApi'
+import { browserAssetFromDesktopAsset } from '../popover/browserAssetPopoverUtils'
 import { runBrowserPromptExtractionToLibrary } from '../prompt/browserPromptExtractionRunner'
 import type { FloatingWindowBoundsRect } from '../window/useResizableFloatingWindow'
 import {
@@ -23,7 +24,6 @@ import {
   PROMPT_MODE_PICKER_WIDTH,
   TAB_CONTEXT_MENU_WIDTH,
   TAB_LIMIT,
-  browserAssetFromDesktopAsset,
   canDownloadFromBrowserView,
   clampNumber,
   clampTabContextMenuPosition,
@@ -501,7 +501,9 @@ export function useBrowserDialogActions({
         title: input.title,
         mediaType: input.mediaType,
       })
-      return browserAssetFromDesktopAsset(asset, fallbackTitle)
+      const mapped = browserAssetFromDesktopAsset(asset, fallbackTitle)
+      if (!mapped) throw new Error('导入的素材无法识别为图片或视频')
+      return mapped
     },
     [browserBridge],
   )

@@ -1,38 +1,31 @@
 // 托盘捕捞导入（素材面收敛 2026-07-22：提示词提取半边已迁出——
-// 提取由浏览器侧 browserPromptExtractionRunner 直驱、产物入主提示词库，托盘只管接素材）。
+// 提取由浏览器侧 browserPromptExtractionRunner 直驱、产物入主提示词库，托盘只管接素材；
+// 文件夹归属（folderAssignments）随切片C/D 退役，导入不再写任何 localStorage 私账）。
 import React from 'react'
-import type { BrowserAssetLibraryState } from '../assets/browserAssetLibraryStorage'
 import type { NomiBrowserAsset } from '../assets/browserAssetData'
 import type { BrowserAssetCaptureRequest, BrowserAssetRemoteImportInput } from './browserAssetPopoverTypes'
 import {
-  browserAssetStorageKey,
   browserAssetImportErrorMessage,
   fileNameFromRemoteAssetUrl,
   upsertBrowserAsset,
 } from './browserAssetPopoverUtils'
 
 type UseBrowserAssetCaptureImportOptions = {
-  activeFolderId: string | null
   browserCaptureRequest?: BrowserAssetCaptureRequest | null
   onImportRemoteAsset?: (input: BrowserAssetRemoteImportInput) => Promise<NomiBrowserAsset>
-  setActiveSource: React.Dispatch<React.SetStateAction<NomiBrowserAsset['source']>>
   setActiveTab: React.Dispatch<React.SetStateAction<NomiBrowserAsset['type'] | 'all'>>
   setLocalAssets: React.Dispatch<React.SetStateAction<NomiBrowserAsset[]>>
   setPersistedAssets: React.Dispatch<React.SetStateAction<NomiBrowserAsset[]>>
   setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>
-  updateLibraryState: (updater: (current: BrowserAssetLibraryState) => BrowserAssetLibraryState) => void
 }
 
 export function useBrowserAssetCaptureImport({
-  activeFolderId,
   browserCaptureRequest,
   onImportRemoteAsset,
-  setActiveSource,
   setActiveTab,
   setLocalAssets,
   setPersistedAssets,
   setSelectedIds,
-  updateLibraryState,
 }: UseBrowserAssetCaptureImportOptions): {
   importRemoteAssetToLibrary: (input: BrowserAssetRemoteImportInput) => Promise<void>
   retryCaptureImport: (assetId: string) => void
@@ -56,13 +49,11 @@ export function useBrowserAssetCaptureImport({
         title,
         subtitle: '下载中...',
         tags: [sourceLabel],
-        parentFolderId: activeFolderId,
         status: 'loading',
         createdAt: now,
         updatedAt: now,
       }
       transientInputsRef.current.set(pendingId, input)
-      setActiveSource('my')
       setActiveTab('all')
       setLocalAssets((current) => [pendingAsset, ...current])
       setSelectedIds(new Set([pendingId]))
@@ -77,17 +68,12 @@ export function useBrowserAssetCaptureImport({
         transientInputsRef.current.delete(pendingId)
         const readyAsset: NomiBrowserAsset = {
           ...imported,
-          parentFolderId: activeFolderId,
           status: 'ready',
           createdAt: imported.createdAt ?? pendingAsset.createdAt,
           updatedAt: imported.updatedAt ?? pendingAsset.updatedAt,
         }
         setLocalAssets((current) => current.map((asset) => (asset.id === pendingId ? readyAsset : asset)))
         setPersistedAssets((current) => upsertBrowserAsset(current, readyAsset))
-        updateLibraryState((current) => ({
-          ...current,
-          folderAssignments: { ...current.folderAssignments, [browserAssetStorageKey(readyAsset)]: activeFolderId },
-        }))
         setSelectedIds(new Set([readyAsset.id]))
       } catch (error) {
         // 错误透明(别再吞成无信息的「下载失败」——用户 2026-07-13 报 Dribbble 图下载失败无从诊断)：
@@ -100,7 +86,7 @@ export function useBrowserAssetCaptureImport({
         )
       }
     },
-    [activeFolderId, onImportRemoteAsset, setActiveSource, setActiveTab, setLocalAssets, setPersistedAssets, setSelectedIds, updateLibraryState],
+    [onImportRemoteAsset, setActiveTab, setLocalAssets, setPersistedAssets, setSelectedIds],
   )
 
   // 失败卡「重试」：用原始输入重新走完整导入（新卡替旧卡）；「移除」：临时卡直接消失。

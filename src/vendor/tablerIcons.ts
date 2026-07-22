@@ -50,6 +50,7 @@ export { default as IconChartBar } from '@tabler/icons-react/dist/esm/icons/Icon
 export { default as IconCheck } from '@tabler/icons-react/dist/esm/icons/IconCheck.mjs'
 export { default as IconChevronUp } from '@tabler/icons-react/dist/esm/icons/IconChevronUp.mjs'
 export { default as IconChevronDown } from '@tabler/icons-react/dist/esm/icons/IconChevronDown.mjs'
+export { default as IconChevronLeft } from '@tabler/icons-react/dist/esm/icons/IconChevronLeft.mjs'
 export { default as IconChevronRight } from '@tabler/icons-react/dist/esm/icons/IconChevronRight.mjs'
 export { default as IconCircleCheck } from '@tabler/icons-react/dist/esm/icons/IconCircleCheck.mjs'
 export { default as IconCircleFilled } from '@tabler/icons-react/dist/esm/icons/IconCircleFilled.mjs'

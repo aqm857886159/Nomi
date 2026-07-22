@@ -1,24 +1,24 @@
+// 托盘动作（素材面收敛 2026-07-22 切片D）：文件夹/提示词动作已随各自切片退役；
+// 删除从「localStorage 软删」改为真删——落盘文件经 workspace.deleteFiles 进系统回收站，
+// 素材库同步消失（与 AssetLibraryPanel 同一口径），不再有「托盘删了库里还在」的分裂。
 import React from 'react'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import { getDesktopBridge } from '../../../desktop/bridge'
-import type { BrowserAssetLibraryState } from '../assets/browserAssetLibraryStorage'
-import type { NomiBrowserAsset, NomiBrowserAssetSource, NomiBrowserAssetTab } from '../assets/browserAssetData'
-import type { AssetContextMenuState, BlankContextMenuState } from './browserAssetPopoverTypes'
+import { confirmDialog } from '../../../design'
+import { toast } from '../../toast'
+import type { NomiBrowserAsset, NomiBrowserAssetTab } from '../assets/browserAssetData'
+import type { AssetContextMenuState } from './browserAssetPopoverTypes'
 import type { FloatingWindowRect } from '../window/useResizableFloatingWindow'
 import {
   ASSET_CONTEXT_MENU_ESTIMATED_HEIGHT,
   ASSET_CONTEXT_MENU_MARGIN,
   ASSET_CONTEXT_MENU_WIDTH,
-  BLANK_CONTEXT_MENU_ESTIMATED_HEIGHT,
-  BLANK_CONTEXT_MENU_WIDTH,
   LEGACY_BROWSER_ASSET_DRAG_MIME,
   NOMI_ASSET_DRAG_MIME,
 } from './browserAssetPopoverConstants'
 import {
-  assetDragPayloadToIds,
   assetTypeFromFile,
   browserAssetFromDesktopAsset,
-  browserAssetStorageKey,
   clampNumber,
   contentTypeFromFile,
   isBrowserAssetDraggable,
@@ -26,12 +26,6 @@ import {
 } from './browserAssetPopoverUtils'
 
 type UseBrowserAssetActionsOptions = {
-  activeFolderId: string | null
-  currentFolder: NomiBrowserAsset | null
-  libraryState: BrowserAssetLibraryState
-  promptLibrarySourceKey: NomiBrowserAssetSource
-  assetById: ReadonlyMap<string, NomiBrowserAsset>
-  mergedAssets: readonly NomiBrowserAsset[]
   filteredAssets: readonly NomiBrowserAsset[]
   selectedAssets: readonly NomiBrowserAsset[]
   selectedIds: ReadonlySet<string>
@@ -39,31 +33,17 @@ type UseBrowserAssetActionsOptions = {
   popoverOpen: boolean
   rootRef: React.RefObject<HTMLDivElement | null>
   previewUrlsRef: React.MutableRefObject<string[]>
-  onCreateFolder?: (folder: NomiBrowserAsset) => void
-  onAssetSelect?: (asset: NomiBrowserAsset) => void
-  updateLibraryState: (updater: (current: BrowserAssetLibraryState) => BrowserAssetLibraryState) => void
-  setActiveSource: React.Dispatch<React.SetStateAction<NomiBrowserAssetSource>>
+  refreshPersistedAssets: () => Promise<void>
   setActiveTab: React.Dispatch<React.SetStateAction<NomiBrowserAssetTab>>
-  setActivePromptCategory: React.Dispatch<React.SetStateAction<string>>
-  setActiveFolderId: React.Dispatch<React.SetStateAction<string | null>>
   setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>
   setLocalAssets: React.Dispatch<React.SetStateAction<NomiBrowserAsset[]>>
   setPersistedAssets: React.Dispatch<React.SetStateAction<NomiBrowserAsset[]>>
   setAssetContextMenu: React.Dispatch<React.SetStateAction<AssetContextMenuState | null>>
-  setBlankContextMenu: React.Dispatch<React.SetStateAction<BlankContextMenuState | null>>
   setFiltersOpen: React.Dispatch<React.SetStateAction<boolean>>
-  setActionsOpen: React.Dispatch<React.SetStateAction<boolean>>
-  setPromptDetailAssetId: React.Dispatch<React.SetStateAction<string | null>>
-  setRenamingAssetId: React.Dispatch<React.SetStateAction<string | null>>
+  setDeleteConfirmOpen: React.Dispatch<React.SetStateAction<boolean>>
 }
 
 export function useBrowserAssetActions({
-  activeFolderId,
-  currentFolder,
-  libraryState,
-  promptLibrarySourceKey,
-  assetById,
-  mergedAssets,
   filteredAssets,
   selectedAssets,
   selectedIds,
@@ -71,107 +51,36 @@ export function useBrowserAssetActions({
   popoverOpen,
   rootRef,
   previewUrlsRef,
-  onCreateFolder,
-  onAssetSelect,
-  updateLibraryState,
-  setActiveSource,
+  refreshPersistedAssets,
   setActiveTab,
-  setActivePromptCategory,
-  setActiveFolderId,
   setSelectedIds,
   setLocalAssets,
   setPersistedAssets,
   setAssetContextMenu,
-  setBlankContextMenu,
   setFiltersOpen,
-  setActionsOpen,
-  setPromptDetailAssetId,
-  setRenamingAssetId,
+  setDeleteConfirmOpen,
 }: UseBrowserAssetActionsOptions): {
-  createFolder: () => void
-  beginRenameFolder: (folderId: string) => void
-  commitRenameFolder: (folderId: string, title: string) => void
-  cancelRenameFolder: () => void
   addLocalFiles: (files: readonly File[]) => void
-  handleUploadFiles: (event: React.ChangeEvent<HTMLInputElement>) => void
   selectAsset: (asset: NomiBrowserAsset, event: React.MouseEvent<HTMLDivElement>) => void
   openAssetContextMenu: (asset: NomiBrowserAsset, event: React.MouseEvent<HTMLDivElement>) => void
-  openBlankContextMenu: (event: React.MouseEvent<HTMLDivElement>) => void
-  openPromptDetail: (asset: NomiBrowserAsset) => void
-  openFolder: (folder: NomiBrowserAsset) => void
-  openAssetRoot: () => void
-  exitCurrentFolder: () => void
-  selectAssetSource: (source: NomiBrowserAssetSource) => void
   deleteSelectedAssets: () => void
   handleTileDragStart: (asset: NomiBrowserAsset, event: React.DragEvent<HTMLDivElement>) => void
-  handleTileDragOver: (asset: NomiBrowserAsset, event: React.DragEvent<HTMLDivElement>) => void
-  handleTileDrop: (asset: NomiBrowserAsset, event: React.DragEvent<HTMLDivElement>) => void
 } {
-  const folderCountRef = React.useRef(0)
-
-  const createFolder = React.useCallback(() => {
-    setBlankContextMenu(null)
-    setAssetContextMenu(null)
-    folderCountRef.current += 1
-    const now = new Date().toISOString()
-    const nextFolderIndex = libraryState.folders.length + folderCountRef.current
-    const folder: NomiBrowserAsset = {
-      id: `local-folder-${Date.now()}-${folderCountRef.current}`,
-      type: 'folder',
-      source: 'my',
-      title: nextFolderIndex === 1 ? '新建文件夹' : `新建文件夹 ${nextFolderIndex}`,
-      subtitle: '文件夹',
-      count: 0,
-      tags: ['文件夹'],
-      parentFolderId: activeFolderId,
-      createdAt: now,
-      updatedAt: now,
-    }
-    setActiveSource('my')
-    setActiveTab('all')
-    updateLibraryState((current) => ({ ...current, folders: [folder, ...current.folders] }))
-    setSelectedIds(new Set([folder.id]))
-    // 新建即进入重命名态（同 OS 文件管理器）：省一次「右键 → 重命名」。
-    setRenamingAssetId(folder.id)
-    onCreateFolder?.(folder)
-  }, [activeFolderId, libraryState.folders.length, onCreateFolder, setActiveSource, setActiveTab, setAssetContextMenu, setBlankContextMenu, setRenamingAssetId, setSelectedIds, updateLibraryState])
-
-  // 文件夹重命名：进入态（tile 标题原位变输入框）→ 提交写 libraryState（localStorage + 跨实例同步事件）。
-  const beginRenameFolder = React.useCallback((folderId: string): void => {
-    setAssetContextMenu(null)
-    setBlankContextMenu(null)
-    setSelectedIds(new Set([folderId]))
-    setRenamingAssetId(folderId)
-  }, [setAssetContextMenu, setBlankContextMenu, setRenamingAssetId, setSelectedIds])
-
-  const commitRenameFolder = React.useCallback((folderId: string, title: string): void => {
-    setRenamingAssetId(null)
-    const nextTitle = title.trim()
-    if (!nextTitle) return
-    updateLibraryState((current) => {
-      const target = current.folders.find((folder) => folder.id === folderId)
-      if (!target || target.title === nextTitle) return current
-      const updatedAt = new Date().toISOString()
-      return {
-        ...current,
-        folders: current.folders.map((folder) => (folder.id === folderId ? { ...folder, title: nextTitle, updatedAt } : folder)),
-      }
-    })
-  }, [setRenamingAssetId, updateLibraryState])
-
-  const cancelRenameFolder = React.useCallback((): void => {
-    setRenamingAssetId(null)
-  }, [setRenamingAssetId])
-
   const addLocalFiles = React.useCallback((files: readonly File[]): void => {
-    const fileList = [...files]
-    if (fileList.length === 0) return
+    // 收件箱只收图/视频；其他类型（文本等）去素材库上传，不在这里静默变卡。
+    const mediaFiles = [...files].flatMap((file) => {
+      const type = assetTypeFromFile(file)
+      return type ? [{ file, type }] : []
+    })
+    if (mediaFiles.length === 0) {
+      if (files.length > 0) toast('素材盒只收图片和视频', 'warning')
+      return
+    }
     const projectId = getDesktopActiveProjectId()
     const desktopAssets = getDesktopBridge()?.assets
     const persistImport = projectId && desktopAssets?.importFile ? { projectId, importFile: desktopAssets.importFile } : null
     const batchTime = Date.now()
-    const uploaded = fileList.map((file, index): NomiBrowserAsset => {
-      const type = assetTypeFromFile(file)
+    const uploaded = mediaFiles.map(({ file, type }, index): NomiBrowserAsset => {
       const now = new Date(batchTime + index).toISOString()
       let previewUrl: string | undefined
       if (type === 'image') {
@@ -183,22 +92,20 @@ export function useBrowserAssetActions({
         type,
         source: 'my',
         title: file.name || '未命名素材',
-        subtitle: persistImport ? '保存中...' : type === 'prompt' ? '本地文本' : '本地导入',
+        subtitle: persistImport ? '保存中...' : '本地导入',
         previewUrl,
         tags: ['本地导入'],
-        parentFolderId: activeFolderId,
         status: persistImport ? 'loading' : undefined,
         createdAt: now,
         updatedAt: now,
       }
     })
-    setActiveSource('my')
     setActiveTab('all')
     setLocalAssets((current) => [...uploaded, ...current])
     setSelectedIds(new Set(uploaded.map((asset) => asset.id)))
     if (!persistImport) return
     uploaded.forEach((pendingAsset, index) => {
-      const file = fileList[index]
+      const file = mediaFiles[index]?.file
       if (!file) return
       void (async () => {
         try {
@@ -212,16 +119,11 @@ export function useBrowserAssetActions({
           const mapped = browserAssetFromDesktopAsset(persisted)
           const readyAsset: NomiBrowserAsset = {
             ...(mapped ?? pendingAsset),
-            parentFolderId: activeFolderId,
             status: 'ready',
-            subtitle: mapped?.subtitle ?? (pendingAsset.type === 'prompt' ? '本地文本' : '本地导入'),
+            subtitle: mapped?.subtitle ?? '本地导入',
           }
           setLocalAssets((current) => current.map((asset) => (asset.id === pendingAsset.id ? readyAsset : asset)))
           setPersistedAssets((current) => upsertBrowserAsset(current, readyAsset))
-          updateLibraryState((current) => ({
-            ...current,
-            folderAssignments: { ...current.folderAssignments, [browserAssetStorageKey(readyAsset)]: activeFolderId },
-          }))
           setSelectedIds((current) => {
             if (!current.has(pendingAsset.id)) return current
             const next = new Set(current)
@@ -234,17 +136,10 @@ export function useBrowserAssetActions({
         }
       })()
     })
-  }, [activeFolderId, previewUrlsRef, setActiveSource, setActiveTab, setLocalAssets, setPersistedAssets, setSelectedIds, updateLibraryState])
-
-  const handleUploadFiles = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.currentTarget.files ?? [])
-    event.currentTarget.value = ''
-    addLocalFiles(files)
-  }, [addLocalFiles])
+  }, [previewUrlsRef, setActiveTab, setLocalAssets, setPersistedAssets, setSelectedIds])
 
   const selectAsset = React.useCallback((asset: NomiBrowserAsset, event: React.MouseEvent<HTMLDivElement>) => {
     setAssetContextMenu(null)
-    setBlankContextMenu(null)
     setSelectedIds((current) => {
       if (event.metaKey || event.ctrlKey || event.shiftKey) {
         const next = new Set(current)
@@ -254,147 +149,65 @@ export function useBrowserAssetActions({
       }
       return new Set([asset.id])
     })
-    onAssetSelect?.(asset)
-  }, [onAssetSelect, setAssetContextMenu, setBlankContextMenu, setSelectedIds])
+  }, [setAssetContextMenu, setSelectedIds])
 
   const openAssetContextMenu = React.useCallback((asset: NomiBrowserAsset, event: React.MouseEvent<HTMLDivElement>): void => {
     event.preventDefault()
     event.stopPropagation()
     setFiltersOpen(false)
-    setActionsOpen(false)
-    setBlankContextMenu(null)
     setSelectedIds((current) => (current.has(asset.id) ? current : new Set([asset.id])))
-    onAssetSelect?.(asset)
     setAssetContextMenu({
       assetId: asset.id,
       x: clampNumber(event.clientX - windowRect.left, ASSET_CONTEXT_MENU_MARGIN, Math.max(ASSET_CONTEXT_MENU_MARGIN, windowRect.width - ASSET_CONTEXT_MENU_WIDTH - ASSET_CONTEXT_MENU_MARGIN)),
       y: clampNumber(event.clientY - windowRect.top, ASSET_CONTEXT_MENU_MARGIN, Math.max(ASSET_CONTEXT_MENU_MARGIN, windowRect.height - ASSET_CONTEXT_MENU_ESTIMATED_HEIGHT - ASSET_CONTEXT_MENU_MARGIN)),
     })
-  }, [onAssetSelect, setActionsOpen, setAssetContextMenu, setBlankContextMenu, setFiltersOpen, setSelectedIds, windowRect.height, windowRect.left, windowRect.top, windowRect.width])
+  }, [setAssetContextMenu, setFiltersOpen, setSelectedIds, windowRect.height, windowRect.left, windowRect.top, windowRect.width])
 
-  const openBlankContextMenu = React.useCallback((event: React.MouseEvent<HTMLDivElement>): void => {
-    const target = event.target as HTMLElement | null
-    if (target?.closest('[data-browser-asset-tile="true"],button,input,textarea,select,[contenteditable="true"]')) return
-    event.preventDefault()
-    event.stopPropagation()
-    setFiltersOpen(false)
-    setActionsOpen(false)
-    setAssetContextMenu(null)
-    setSelectedIds(new Set())
-    setBlankContextMenu({
-      x: clampNumber(event.clientX - windowRect.left, ASSET_CONTEXT_MENU_MARGIN, Math.max(ASSET_CONTEXT_MENU_MARGIN, windowRect.width - BLANK_CONTEXT_MENU_WIDTH - ASSET_CONTEXT_MENU_MARGIN)),
-      y: clampNumber(event.clientY - windowRect.top, ASSET_CONTEXT_MENU_MARGIN, Math.max(ASSET_CONTEXT_MENU_MARGIN, windowRect.height - BLANK_CONTEXT_MENU_ESTIMATED_HEIGHT - ASSET_CONTEXT_MENU_MARGIN)),
-    })
-  }, [setActionsOpen, setAssetContextMenu, setBlankContextMenu, setFiltersOpen, setSelectedIds, windowRect.height, windowRect.left, windowRect.top, windowRect.width])
-
-  const openPromptDetail = React.useCallback((asset: NomiBrowserAsset): void => {
-    if (asset.promptCard) setPromptDetailAssetId(asset.id)
-  }, [setPromptDetailAssetId])
-
-  const openFolder = React.useCallback((folder: NomiBrowserAsset): void => {
-    if (folder.type !== 'folder') return
-    setActiveFolderId(folder.id)
-    setActiveTab('all')
-    setSelectedIds(new Set())
-    setAssetContextMenu(null)
-    setBlankContextMenu(null)
-  }, [setActiveFolderId, setActiveTab, setAssetContextMenu, setBlankContextMenu, setSelectedIds])
-
-  const openAssetRoot = React.useCallback((): void => {
-    setActiveFolderId(null)
-    setActiveTab('all')
-    setSelectedIds(new Set())
-    setAssetContextMenu(null)
-    setBlankContextMenu(null)
-  }, [setActiveFolderId, setActiveTab, setAssetContextMenu, setBlankContextMenu, setSelectedIds])
-
-  const exitCurrentFolder = React.useCallback((): void => {
-    setActiveFolderId(currentFolder?.parentFolderId ?? null)
-    setActiveTab('all')
-    setActivePromptCategory('all')
-    setSelectedIds(new Set())
-    setAssetContextMenu(null)
-    setBlankContextMenu(null)
-  }, [currentFolder?.parentFolderId, setActiveFolderId, setActivePromptCategory, setActiveTab, setAssetContextMenu, setBlankContextMenu, setSelectedIds])
-
-  const selectAssetSource = React.useCallback((source: NomiBrowserAssetSource): void => {
-    setActiveSource(source)
-    setActiveTab(source === promptLibrarySourceKey ? 'prompt' : 'all')
-    setActivePromptCategory('all')
-    setActiveFolderId(null)
-    setSelectedIds(new Set())
-    setAssetContextMenu(null)
-    setBlankContextMenu(null)
-  }, [promptLibrarySourceKey, setActiveFolderId, setActivePromptCategory, setActiveSource, setActiveTab, setAssetContextMenu, setBlankContextMenu, setSelectedIds])
-
+  const deleteInFlightRef = React.useRef(false)
   const deleteSelectedAssets = React.useCallback((): void => {
-    if (selectedIds.size === 0) return
+    if (selectedAssets.length === 0) return
+    // 确认弹窗期间再按 Delete/再点删除不重入（否则确认请求排队、二次确认会重复删）。
+    if (deleteInFlightRef.current) return
     setAssetContextMenu(null)
-    setBlankContextMenu(null)
-    const selectedIdSet = new Set(selectedIds)
-    const folderIdsToDelete = new Set<string>()
-    const collectFolder = (folderId: string): void => {
-      if (folderIdsToDelete.has(folderId)) return
-      folderIdsToDelete.add(folderId)
-      for (const asset of mergedAssets) if (asset.type === 'folder' && (asset.parentFolderId ?? null) === folderId) collectFolder(asset.id)
-    }
-    for (const id of selectedIdSet) {
-      const asset = assetById.get(id)
-      if (asset?.type === 'folder') collectFolder(asset.id)
-    }
-    const deletedKeys = new Set<string>()
-    for (const asset of mergedAssets) {
-      if (selectedIdSet.has(asset.id) && asset.type !== 'folder') deletedKeys.add(browserAssetStorageKey(asset))
-      if (asset.parentFolderId && folderIdsToDelete.has(asset.parentFolderId) && asset.type !== 'folder') deletedKeys.add(browserAssetStorageKey(asset))
-    }
-    updateLibraryState((current) => {
-      const nextDeletedKeys = new Set(current.deletedAssetKeys)
-      deletedKeys.forEach((key) => nextDeletedKeys.add(key))
-      const nextAssignments = { ...current.folderAssignments }
-      deletedKeys.forEach((key) => delete nextAssignments[key])
-      return {
-        folders: current.folders.filter((folder) => !folderIdsToDelete.has(folder.id) && !selectedIdSet.has(folder.id)),
-        promptCards: current.promptCards.filter((asset) => !selectedIdSet.has(asset.id) && !deletedKeys.has(browserAssetStorageKey(asset))),
-        promptCategories: current.promptCategories,
-        folderAssignments: nextAssignments,
-        deletedAssetKeys: [...nextDeletedKeys],
+    const assetsToDelete = [...selectedAssets]
+    void (async () => {
+      deleteInFlightRef.current = true
+      try {
+        // 确认弹窗溢出整卡片：开合期间通知承载方扩热区（原生 overlay 下否则点不到）。
+        setDeleteConfirmOpen(true)
+        const confirmed = await confirmDialog({
+          title: `删除 ${assetsToDelete.length} 个素材？`,
+          message: '文件会移到系统回收站，素材库中同步消失。',
+          confirmLabel: '删除',
+          danger: true,
+        }).finally(() => setDeleteConfirmOpen(false))
+        if (!confirmed) return
+        const selectedIdSet = new Set(assetsToDelete.map((asset) => asset.id))
+        const relativePaths = assetsToDelete.flatMap((asset) => (asset.relativePath ? [asset.relativePath] : []))
+        if (relativePaths.length > 0) {
+          const projectId = getDesktopActiveProjectId()
+          const deleteFiles = getDesktopBridge()?.workspace?.deleteFiles
+          if (!projectId || !deleteFiles) {
+            toast('当前运行环境不支持删除落盘素材', 'error')
+            return
+          }
+          const result = await deleteFiles({ projectId, relativePaths })
+          if (result.failedCount > 0) toast(`${result.failedCount} 个素材删除失败`, 'warning')
+        }
+        // 会话内临时卡（无落盘文件）直接从本地状态移除；落盘桶重拉对账真实盘面
+        // （deleteFiles 不广播 nomi:assets:updated，必须手动重拉）。
+        setLocalAssets((current) => current.filter((asset) => !selectedIdSet.has(asset.id)))
+        setPersistedAssets((current) => current.filter((asset) => !selectedIdSet.has(asset.id)))
+        setSelectedIds(new Set())
+        if (relativePaths.length > 0) await refreshPersistedAssets()
+      } catch (error) {
+        console.error('[nomi:browser] 删除素材失败:', error)
+        toast('删除素材失败，请检查文件权限', 'error')
+      } finally {
+        deleteInFlightRef.current = false
       }
-    })
-    setLocalAssets((current) => current.filter((asset) => !selectedIdSet.has(asset.id) && !deletedKeys.has(browserAssetStorageKey(asset))))
-    setPersistedAssets((current) => current.filter((asset) => !selectedIdSet.has(asset.id) && !deletedKeys.has(browserAssetStorageKey(asset))))
-    if (activeFolderId && folderIdsToDelete.has(activeFolderId)) setActiveFolderId(null)
-    setSelectedIds(new Set())
-  }, [activeFolderId, assetById, mergedAssets, selectedIds, setActiveFolderId, setAssetContextMenu, setBlankContextMenu, setLocalAssets, setPersistedAssets, setSelectedIds, updateLibraryState])
-
-  const moveAssetsToFolder = React.useCallback((assetIds: readonly string[], targetFolderId: string): void => {
-    const targetFolder = assetById.get(targetFolderId)
-    if (targetFolder?.type !== 'folder') return
-    const movingIds = new Set(assetIds.filter((id) => id !== targetFolderId))
-    if (movingIds.size === 0) return
-    const isFolderDescendant = (folderId: string, possibleAncestorId: string): boolean => {
-      let current = assetById.get(folderId)?.parentFolderId ?? null
-      while (current) {
-        if (current === possibleAncestorId) return true
-        current = assetById.get(current)?.parentFolderId ?? null
-      }
-      return false
-    }
-    updateLibraryState((current) => {
-      const nextAssignments = { ...current.folderAssignments }
-      const nextFolders = current.folders.map((folder) => {
-        if (!movingIds.has(folder.id)) return folder
-        if (folder.id === targetFolderId || isFolderDescendant(targetFolderId, folder.id)) return folder
-        return { ...folder, parentFolderId: targetFolderId }
-      })
-      for (const id of movingIds) {
-        const asset = assetById.get(id)
-        if (!asset || asset.type === 'folder') continue
-        nextAssignments[browserAssetStorageKey(asset)] = targetFolderId
-      }
-      return { ...current, folders: nextFolders, folderAssignments: nextAssignments }
-    })
-    setSelectedIds(new Set([...movingIds]))
-  }, [assetById, setSelectedIds, updateLibraryState])
+    })()
+  }, [refreshPersistedAssets, selectedAssets, setAssetContextMenu, setDeleteConfirmOpen, setLocalAssets, setPersistedAssets, setSelectedIds])
 
   const selectAllVisibleAssets = React.useCallback((): void => {
     if (filteredAssets.length > 0) setSelectedIds(new Set(filteredAssets.map((asset) => asset.id)))
@@ -433,7 +246,7 @@ export function useBrowserAssetActions({
   }, [filteredAssets.length, popoverOpen, rootRef, selectAllVisibleAssets])
 
   const handleTileDragStart = React.useCallback((asset: NomiBrowserAsset, event: React.DragEvent<HTMLDivElement>) => {
-    if (!isBrowserAssetDraggable(asset, false)) {
+    if (!isBrowserAssetDraggable(asset)) {
       event.preventDefault()
       return
     }
@@ -445,42 +258,11 @@ export function useBrowserAssetActions({
     event.dataTransfer.effectAllowed = 'copyMove'
   }, [selectedAssets, selectedIds])
 
-  const handleTileDragOver = React.useCallback((asset: NomiBrowserAsset, event: React.DragEvent<HTMLDivElement>) => {
-    if (asset.type !== 'folder') return
-    const types = Array.from(event.dataTransfer.types)
-    if (!types.includes(NOMI_ASSET_DRAG_MIME) && !types.includes(LEGACY_BROWSER_ASSET_DRAG_MIME)) return
-    event.preventDefault()
-    event.stopPropagation()
-    event.dataTransfer.dropEffect = 'move'
-  }, [])
-
-  const handleTileDrop = React.useCallback((asset: NomiBrowserAsset, event: React.DragEvent<HTMLDivElement>) => {
-    if (asset.type !== 'folder') return
-    const draggedIds = assetDragPayloadToIds(event.dataTransfer)
-    if (draggedIds.length === 0) return
-    event.preventDefault()
-    event.stopPropagation()
-    moveAssetsToFolder(draggedIds, asset.id)
-  }, [moveAssetsToFolder])
-
   return {
-    createFolder,
-    beginRenameFolder,
-    commitRenameFolder,
-    cancelRenameFolder,
     addLocalFiles,
-    handleUploadFiles,
     selectAsset,
     openAssetContextMenu,
-    openBlankContextMenu,
-    openPromptDetail,
-    openFolder,
-    openAssetRoot,
-    exitCurrentFolder,
-    selectAssetSource,
     deleteSelectedAssets,
     handleTileDragStart,
-    handleTileDragOver,
-    handleTileDrop,
   }
 }

@@ -94,7 +94,9 @@ export async function installBrowserImageDragBridge(record: BrowserViewRecord): 
 }
 
 // 提示词/划词桥脚本抽成纯函数：单测钉死「零 innerHTML sink」（Trusted Types 站点上桥必须活着）。
-export function promptHoverBridgeScript(promptCategories: BrowserViewRecord["promptCategories"]): string {
+// 素材面收敛 2026-07-22：自定义分类数据源（素材盒 localStorage 私账）已亡，恒喂 []——
+// 注入版 normalize 前置内置 图片/视频 两默认项，页内「保存提示词」面板照常可用。
+export function promptHoverBridgeScript(promptCategories: { id: string; label: string }[] = []): string {
   return `
 (() => {
   const consolePrefix = ${JSON.stringify(BROWSER_IMAGE_PROMPT_CONSOLE_PREFIX)};
@@ -555,7 +557,7 @@ export async function installBrowserPromptHoverBridge(record: BrowserViewRecord)
   const contents = record.view.webContents;
   if (contents.isDestroyed()) return;
   try {
-    await contents.executeJavaScript(promptHoverBridgeScript(record.promptCategories), true);
+    await contents.executeJavaScript(promptHoverBridgeScript(), true);
   } catch {
     // The next DOM-ready/load event retries.
   }

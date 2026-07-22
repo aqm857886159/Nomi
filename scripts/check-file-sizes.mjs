@@ -48,7 +48,10 @@ function listFiles() {
     .filter(Boolean)
     .filter((f) => /\.tsx?$/.test(f))
     .filter((f) => !/\.test\.tsx?$/.test(f))
-    .filter((f) => !/\.d\.ts$/.test(f));
+    .filter((f) => !/\.d\.ts$/.test(f))
+    // git ls-files 会连「工作树里已删除、尚未 commit」的文件一起列出——门岗量的是
+    // 工作树现状，消失的文件没有体积可查，跳过（commit 后 CI checkout 恒存在，不削弱棘轮）。
+    .filter((f) => fs.existsSync(path.join(ROOT, f)));
 }
 
 function countLines(absPath) {

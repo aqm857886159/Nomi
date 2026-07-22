@@ -53,7 +53,6 @@ import {
   getSenderWindow,
   normalizeBounds,
   normalizeBrowserUrl,
-  normalizePromptCategories,
   normalizePromptExtractionMode,
   readViewId,
   sameRectangle,
@@ -64,7 +63,6 @@ import type {
   BrowserAssetOverlayPayload,
   BrowserAssetOverlayStatePayload,
   BrowserChromeMenuPayload,
-  BrowserPromptCategoriesPayload,
   BrowserResourceCapturePayload,
   BrowserViewCreatePayload,
   BrowserViewIdPayload,
@@ -269,7 +267,6 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
       view,
       lastBounds: { x: 0, y: 0, width: 0, height: 0 },
       resourceCaptureEnabled: false,
-      promptCategories: normalizePromptCategories([]),
     };
     browserViews.set(record.viewId, record);
     trackBrowserView(win, record);
@@ -351,12 +348,6 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
     const record = getBrowserViewForSender(event.sender, payload);
     record.resourceCaptureEnabled = Boolean(payload.enabled);
     void installBrowserResourceCaptureBridge(record, record.resourceCaptureEnabled);
-  });
-
-  ipcMain.on("browser:view:set-prompt-categories", (event, payload: BrowserPromptCategoriesPayload) => {
-    const record = getBrowserViewForSender(event.sender, payload);
-    record.promptCategories = normalizePromptCategories(payload.categories);
-    void installBrowserPromptHoverBridge(record);
   });
 
   ipcMain.on("browser:view:capture-resource", (event, payload: BrowserViewIdPayload) => {

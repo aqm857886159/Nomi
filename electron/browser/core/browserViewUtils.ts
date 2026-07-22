@@ -1,12 +1,7 @@
 import { BrowserWindow } from "electron";
 import type { Rectangle, WebContents } from "electron";
 import { browserViews, browserViewsByWindow } from "./browserViewState";
-import type { BrowserPromptCategory, BrowserViewIdPayload, BrowserViewRecord } from "./browserViewTypes";
-
-const DEFAULT_BROWSER_PROMPT_CATEGORIES: readonly BrowserPromptCategory[] = [
-  { id: "image", label: "图片提示词" },
-  { id: "video", label: "视频提示词" },
-];
+import type { BrowserViewIdPayload, BrowserViewRecord } from "./browserViewTypes";
 
 export function clampNumber(value: number, min: number, max: number): number {
   if (max < min) return min;
@@ -67,28 +62,6 @@ export function normalizeBrowserUrl(url: unknown): string {
 
 export function normalizePromptExtractionMode(value: unknown): "replicate" | "style" {
   return value === "style" ? "style" : "replicate";
-}
-
-export function normalizePromptCategories(input: unknown): BrowserPromptCategory[] {
-  const normalized: BrowserPromptCategory[] = [];
-  const seen = new Set<string>();
-  const pushCategory = (idValue: unknown, labelValue: unknown): void => {
-    const id = typeof idValue === "string" ? idValue.trim() : "";
-    const label = typeof labelValue === "string" ? labelValue.trim() : "";
-    if (!id || !label || seen.has(id)) return;
-    seen.add(id);
-    normalized.push({ id, label });
-  };
-
-  for (const category of DEFAULT_BROWSER_PROMPT_CATEGORIES) pushCategory(category.id, category.label);
-  if (Array.isArray(input)) {
-    for (const category of input) {
-      if (!category || typeof category !== "object") continue;
-      const candidate = category as { id?: unknown; label?: unknown };
-      pushCategory(candidate.id, candidate.label);
-    }
-  }
-  return normalized;
 }
 
 export function sendBrowserViewState(record: BrowserViewRecord): void {

@@ -374,10 +374,6 @@ export type DesktopBridge = {
       settings: unknown
     }) => Promise<{ ok: boolean; settings?: unknown; error?: string }>
     selectPromptScreenshot?: (payload: { viewId: number }) => Promise<DesktopBrowserPromptScreenshotSelection>
-    setPromptCategories?: (payload: {
-      viewId: number
-      categories: Array<{ id: string; label: string }>
-    }) => void
     setResourceCapture?: (payload: { viewId: number; enabled: boolean }) => void
     captureResource?: (payload: { viewId: number }) => void
     showChromeMenu?: (payload: {

@@ -1,15 +1,16 @@
+// 素材盒（捕捞收件箱）数据模型。素材面收敛 2026-07-22 切片D：
+// 提示词卡已迁主提示词库、文件夹已转正素材库，托盘只剩图/视频两类捕捞产物；
+// source tab（项目素材/提示词库）概念随之整个退役，'my' 是唯一来源。
 import {
-  IconFolder,
-  IconFileText,
   IconLayoutGrid,
   IconPhoto,
   IconVideo,
   type Icon as TablerIcon,
 } from '../../../vendor/tablerIcons'
 
-export type NomiBrowserAssetKind = 'image' | 'video' | 'prompt' | 'folder'
+export type NomiBrowserAssetKind = 'image' | 'video'
 export type NomiBrowserAssetTab = 'all' | NomiBrowserAssetKind
-export type NomiBrowserAssetSource = 'my' | 'transcript'
+export type NomiBrowserAssetSource = 'my'
 
 export type NomiBrowserAsset = {
   id: string
@@ -18,26 +19,14 @@ export type NomiBrowserAsset = {
   title: string
   subtitle?: string
   duration?: string
-  count?: number
   tags?: readonly string[]
-  preview?: string
   previewUrl?: string
   previewMediaType?: 'image' | 'video'
-  parentFolderId?: string | null
+  /** 项目内落盘相对路径（desktop.assets.list 带回）；真删走 workspace.deleteFiles 用它定位文件。 */
+  relativePath?: string
   status?: 'loading' | 'ready' | 'error'
   createdAt?: string
   updatedAt?: string
-  promptCard?: {
-    referenceImages: readonly {
-      url: string
-      title?: string
-      sourceUrl?: string
-    }[]
-    prompt: string
-    promptType: string
-    extractionMode?: 'replicate' | 'style'
-    savedAt: string
-  }
 }
 
 export type NomiBrowserAssetTabDefinition = {
@@ -46,28 +35,13 @@ export type NomiBrowserAssetTabDefinition = {
   icon: TablerIcon
 }
 
-export type NomiBrowserAssetSourceDefinition = {
-  key: NomiBrowserAssetSource
-  label: string
-}
-
 export const NOMI_BROWSER_ASSET_TABS: readonly NomiBrowserAssetTabDefinition[] = [
   { key: 'all', label: '全部', icon: IconLayoutGrid },
   { key: 'image', label: '图片', icon: IconPhoto },
   { key: 'video', label: '视频', icon: IconVideo },
-  { key: 'prompt', label: '提示词', icon: IconFileText },
-  { key: 'folder', label: '文件夹', icon: IconFolder },
 ]
-
-export const NOMI_BROWSER_ASSET_SOURCES: readonly NomiBrowserAssetSourceDefinition[] = [
-  { key: 'my', label: '项目素材' },
-  { key: 'transcript', label: '提示词库' },
-]
-
-export const NOMI_BROWSER_ASSETS: readonly NomiBrowserAsset[] = []
 
 export type NomiBrowserAssetFilter = {
-  source?: NomiBrowserAssetSource
   activeTab?: NomiBrowserAssetTab
   query?: string
 }
@@ -80,21 +54,9 @@ export function filterNomiBrowserAssets(
   const query = filter.query ?? ''
   const normalizedQuery = query.trim().toLowerCase()
   return assets.filter((asset) => {
-    if (filter.source && asset.source !== filter.source) return false
     if (activeTab !== 'all' && asset.type !== activeTab) return false
     if (!normalizedQuery) return true
-    const promptCard = asset.promptCard
-    const haystack = [
-      asset.title,
-      asset.subtitle,
-      asset.type,
-      promptCard?.prompt,
-      promptCard?.promptType,
-      promptCard?.extractionMode,
-      promptCard?.extractionMode === 'style' ? '画面风格' : promptCard?.extractionMode === 'replicate' ? '画面复刻' : '',
-      ...(promptCard?.referenceImages.map((reference) => `${reference.title ?? ''} ${reference.sourceUrl ?? ''}`) ?? []),
-      ...(asset.tags ?? []),
-    ]
+    const haystack = [asset.title, asset.subtitle, asset.type, ...(asset.tags ?? [])]
       .filter(Boolean)
       .join(' ')
       .toLowerCase()

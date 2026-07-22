@@ -4,33 +4,24 @@ import { motion } from 'framer-motion'
 import { IconLayoutSidebarLeftExpand, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpand, IconZoomScan, IconAdjustmentsHorizontal } from '@tabler/icons-react'
 import {
   IconArrowForwardUp,
-  IconArrowLeft,
   IconCards,
-  IconChevronRight,
-  IconDotsVertical,
   IconFilter,
-  IconFolderOpen,
-  IconFolderPlus,
   IconLayoutGrid,
   IconList,
   IconMinus,
-  IconPencil,
   IconSortAscending2,
   IconSortDescending2,
   IconTrash,
-  IconUpload,
 } from '../../../vendor/tablerIcons'
 import { DesignEmptyState, DesignSearchInput } from '../../../design'
 import { cn } from '../../../utils/cn'
-import { BrowserAssetFilterPopover, BrowserAssetTile, BrowserPromptCategoryFilterPopover } from './BrowserAssetPopoverParts'
-import { BrowserPromptAssetTile, BrowserPromptDetailModal } from '../prompt/BrowserPromptAssetCards'
+import { NOMI_BROWSER_ASSET_TABS } from '../assets/browserAssetData'
+import { BrowserAssetFilterPopover, BrowserAssetTile } from './BrowserAssetPopoverParts'
 import { BrowserPromptExtractionSettingsModal } from '../prompt/BrowserPromptExtractionSettingsModal'
 import {
   ASSET_CONTEXT_MENU_WIDTH,
-  BLANK_CONTEXT_MENU_WIDTH,
   RESIZE_HANDLE_CLASS,
   TOOL_BUTTON_CLASS,
-  TOOL_BUTTON_COMPACT_CLASS,
 } from './browserAssetPopoverConstants'
 import { browserAssetDisplaySubtitle, normalizeMarqueeRect } from './browserAssetPopoverUtils'
 import type { FloatingWindowResizeEdge } from '../window/useResizableFloatingWindow'
@@ -46,10 +37,16 @@ function resizeHandleClass(edge: FloatingWindowResizeEdge, edgeDocked: boolean):
 
 export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JSX.Element {
   const {
-    rootRef, className, contained, placement, surface, showTrigger, popoverOpen, setPopoverOpen, windowRect, hostOrigin, isWindowInteracting, dockMode, handleWindowDragEnter, handleWindowDragOver, handleWindowDragLeave, handleWindowDrop, splitDocked, edgeDocked, dropActive, handleHeaderPointerDown, compactToolbar, sourceTabs, activeSource, selectAssetSource, onBrowserCaptureToggle, toolbarButtonClass, browserCaptureEnabled, browserCaptureDisabled, promptExtractionSettingsOpen, setPromptExtractionSettingsOpen, canDock, activeBounds, toggleDockMode, query, setQuery, singleTileToolbar, sourceTabGridStyle,
-    actionsButtonRef, actionsOpen, setActionsOpen, actionsPopoverRef, listMode, setViewMode, sortAscending, setSortAscending, filterButtonRef, filtersOpen, filterActive, setFiltersOpen, showingPromptLibrary, activePromptCategory, promptCategories, promptCategoryCounts, filterPopoverRef, selectPromptCategory, addPromptCategory, showAllFilters, activeTab, filterCounts, tabs, selectFilterTab, uploadInputRef, createFolder, handleUploadFiles, currentFolder, exitCurrentFolder, activeSourceLabel, openAssetRoot, folderBreadcrumbs, openFolder,
-    gridRef, handleGridPointerDown, handleGridPointerMove, handleGridPointerUp, openBlankContextMenu, filteredAssets, emptyStateCopy, promptMasonryStyle, selectedIds, setAssetNode, selectAsset, openPromptDetail, openAssetContextMenu, handleTileDragStart, gridCompact, viewMode, handleTileDragOver, handleTileDrop, assetGridStyle, marquee, promptDetailAsset, setPromptDetailAssetId, promptExtractionSettings, promptExtractionSettingsProjectAvailable, savePromptExtractionSettings, activeResizeEdges, startResize, assetContextMenu, assetContextMenuRef, canImportSelectedAssetsToCanvas, importSelectedAssetsToCanvas, deleteSelectedAssets, blankContextMenu, blankContextMenuRef,
-    renamingAssetId, canRenameSelectedFolder, beginRenameSelectedFolder, commitRenameFolder, cancelRenameFolder,
+    rootRef, className, contained, placement, surface, popoverOpen, setPopoverOpen, windowRect, hostOrigin, isWindowInteracting, dockMode,
+    handleWindowDragEnter, handleWindowDragOver, handleWindowDragLeave, handleWindowDrop, splitDocked, edgeDocked, dropActive, handleHeaderPointerDown,
+    compactToolbar, onBrowserCaptureToggle, browserCaptureEnabled, browserCaptureDisabled,
+    promptExtractionSettingsOpen, setPromptExtractionSettingsOpen, canDock, activeBounds, toggleDockMode, query, setQuery,
+    listMode, setViewMode, sortAscending, setSortAscending, filterButtonRef, filtersOpen, filterActive, setFiltersOpen,
+    activeTab, filterCounts, filterPopoverRef, selectFilterTab, showAllFilters,
+    gridRef, handleGridPointerDown, handleGridPointerMove, handleGridPointerUp, filteredAssets, emptyStateCopy, selectedIds, setAssetNode,
+    selectAsset, openAssetContextMenu, handleTileDragStart, gridCompact, viewMode, assetGridStyle, marquee,
+    promptExtractionSettings, promptExtractionSettingsProjectAvailable, savePromptExtractionSettings, activeResizeEdges, startResize,
+    assetContextMenu, assetContextMenuRef, canImportSelectedAssetsToCanvas, importSelectedAssetsToCanvas, deleteSelectedAssets,
     captureTransients, retryCaptureImport, dismissCaptureTransient,
   } = props
 
@@ -77,22 +74,6 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
       data-placement={placement}
       data-surface={surface}
     >
-      {showTrigger ? (
-        <button
-          type="button"
-          className={cn(
-            'nomi-browser-asset-popover__floating inline-grid size-11 place-items-center rounded-pill border border-nomi-line',
-            'cursor-pointer bg-nomi-ink text-nomi-paper shadow-nomi-md',
-            'transition-[background,transform] duration-[var(--nomi-transition-fast)] hover:-translate-y-px hover:bg-nomi-accent',
-          )}
-          aria-label="打开素材盒"
-          aria-expanded={popoverOpen}
-          onClick={() => setPopoverOpen(!popoverOpen)}
-        >
-          <IconCards size={20} stroke={1.8} aria-hidden="true" />
-        </button>
-      ) : null}
-
       {popoverOpen ? (
         <motion.div
           className={cn(
@@ -140,34 +121,22 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
               )}
               onPointerDown={handleHeaderPointerDown}
             >
-              {compactToolbar ? (
-                <div className="min-w-0 flex-1 truncate text-body-sm font-bold text-nomi-ink">素材盒</div>
-              ) : (
-                <div className="flex min-w-0 shrink-0 items-center gap-3">
-                  <div className="shrink-0 text-body-sm font-bold text-nomi-ink">素材盒</div>
-                  <div className="inline-flex min-w-0 items-center gap-0.5 rounded-nomi bg-nomi-ink-05 p-0.5" role="tablist" aria-label="素材来源">
-                    {sourceTabs.map((source: any) => {
-                      const active = activeSource === source.key
-                      return (
-                        <button key={source.key} type="button" role="tab" aria-selected={active} className={cn('h-8 rounded-nomi-sm border-0 bg-transparent px-3 text-caption font-semibold', 'cursor-pointer whitespace-nowrap transition-[background,color,box-shadow] duration-[var(--nomi-transition-fast)]', active ? 'bg-nomi-paper text-nomi-ink shadow-nomi-sm' : 'text-nomi-ink-60 hover:text-nomi-ink')} onClick={() => selectAssetSource(source.key)}>
-                          {source.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-              <span className="ml-auto" aria-hidden="true" />
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <div className="truncate text-body-sm font-bold text-nomi-ink">素材盒</div>
+                <span className="inline-flex h-5 shrink-0 items-center rounded-pill bg-nomi-ink-05 px-2 text-micro font-semibold text-nomi-ink-55">
+                  捕捞收件箱
+                </span>
+              </div>
               {onBrowserCaptureToggle ? (
-                <button type="button" className={cn(toolbarButtonClass, browserCaptureEnabled && 'bg-nomi-accent-soft text-nomi-accent hover:text-nomi-accent')} aria-label={browserCaptureEnabled ? '关闭资源捕捞' : '开启资源捕捞'} aria-pressed={browserCaptureEnabled} title={browserCaptureEnabled ? '关闭资源捕捞' : '资源捕捞：悬停资源后按 Ctrl+C 保存'} disabled={browserCaptureDisabled} onClick={onBrowserCaptureToggle}>
+                <button type="button" className={cn(TOOL_BUTTON_CLASS, browserCaptureEnabled && 'bg-nomi-accent-soft text-nomi-accent hover:text-nomi-accent')} aria-label={browserCaptureEnabled ? '关闭资源捕捞' : '开启资源捕捞'} aria-pressed={browserCaptureEnabled} title={browserCaptureEnabled ? '关闭资源捕捞' : '资源捕捞：悬停资源后按 Ctrl+C 保存'} disabled={browserCaptureDisabled} onClick={onBrowserCaptureToggle}>
                   <IconZoomScan size={17} strokeWidth={1.8} aria-hidden="true" />
                 </button>
               ) : null}
-              <button type="button" className={cn(toolbarButtonClass, promptExtractionSettingsOpen && 'bg-nomi-ink-05 text-nomi-ink')} aria-label="提示词提取设置" title="提示词提取设置" aria-pressed={promptExtractionSettingsOpen} onClick={() => setPromptExtractionSettingsOpen(true)}>
+              <button type="button" className={cn(TOOL_BUTTON_CLASS, promptExtractionSettingsOpen && 'bg-nomi-ink-05 text-nomi-ink')} aria-label="提示词提取设置" title="提示词提取设置" aria-pressed={promptExtractionSettingsOpen} onClick={() => setPromptExtractionSettingsOpen(true)}>
                 <IconAdjustmentsHorizontal size={17} strokeWidth={1.8} aria-hidden="true" />
               </button>
               {canDock ? (
-                <button type="button" className={toolbarButtonClass} aria-label={dockMode ? '恢复浮动素材盒' : '并排显示素材盒'} title={dockMode ? '恢复浮动' : '并排显示'} disabled={!activeBounds} onClick={toggleDockMode}>
+                <button type="button" className={TOOL_BUTTON_CLASS} aria-label={dockMode ? '恢复浮动素材盒' : '并排显示素材盒'} title={dockMode ? '恢复浮动' : '并排显示'} disabled={!activeBounds} onClick={toggleDockMode}>
                   {dockMode === 'left' ? (
                     <IconLayoutSidebarLeftExpand size={17} strokeWidth={1.8} aria-hidden="true" />
                   ) : dockMode === 'right' ? (
@@ -177,124 +146,30 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
                   )}
                 </button>
               ) : null}
-              <button type="button" className={toolbarButtonClass} aria-label="收起素材盒" title="收起素材盒" onClick={() => setPopoverOpen(false)}>
+              <button type="button" className={TOOL_BUTTON_CLASS} aria-label="收起素材盒" title="收起素材盒" onClick={() => setPopoverOpen(false)}>
                 <IconMinus size={17} stroke={1.8} aria-hidden="true" />
               </button>
             </div>
 
-            <div className={cn('relative grid shrink-0 items-center gap-2.5 border-b border-nomi-line-soft/60 bg-nomi-bg/45 px-4 py-3', compactToolbar && 'grid-cols-1 gap-2.5 px-3.5 py-3', singleTileToolbar && 'gap-2', !compactToolbar && 'grid-cols-[minmax(0,1fr)_auto]')}>
+            <div className={cn('relative grid shrink-0 items-center gap-2.5 border-b border-nomi-line-soft/60 bg-nomi-bg/45 px-4 py-3', compactToolbar ? 'grid-cols-1 px-3.5' : 'grid-cols-[minmax(0,1fr)_auto]')}>
               <DesignSearchInput value={query} onChange={setQuery} placeholder="搜索素材" ariaLabel="搜索素材" size="sm" className="min-w-0 w-full bg-nomi-paper" />
-              <div className={cn('flex min-w-0 items-center gap-2', compactToolbar ? singleTileToolbar ? 'flex-col items-stretch gap-2' : 'flex-row justify-between' : 'justify-end')}>
-                {compactToolbar ? (
-                  <div className={cn('grid min-w-0 gap-0.5 rounded-nomi bg-nomi-ink-05 p-0.5', !singleTileToolbar && 'flex-1')} style={sourceTabGridStyle} role="tablist" aria-label="素材来源">
-                    {sourceTabs.map((source: any) => {
-                      const active = activeSource === source.key
-                      return (
-                        <button key={source.key} type="button" role="tab" aria-selected={active} className={cn('h-8 min-w-0 rounded-nomi-sm border-0 bg-transparent px-2.5 text-caption font-semibold', 'cursor-pointer truncate transition-[background,color,box-shadow] duration-[var(--nomi-transition-fast)]', active ? 'bg-nomi-paper text-nomi-ink shadow-nomi-sm' : 'text-nomi-ink-60 hover:text-nomi-ink')} onClick={() => selectAssetSource(source.key)}>
-                          {source.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                ) : null}
-                <div className={cn('flex shrink-0 items-center gap-1 rounded-nomi bg-nomi-ink-05/70 p-0.5', compactToolbar && (singleTileToolbar ? 'justify-end self-end' : 'self-auto'))}>
-                  <button type="button" className={toolbarButtonClass} aria-label="上传素材" onClick={() => uploadInputRef.current?.click()}>
-                    <IconUpload size={17} stroke={1.8} aria-hidden="true" />
+              <div className={cn('flex shrink-0 items-center gap-1 rounded-nomi bg-nomi-ink-05/70 p-0.5', compactToolbar && 'justify-self-end')}>
+                <button type="button" className={cn(TOOL_BUTTON_CLASS, listMode && 'bg-nomi-ink-05 text-nomi-ink')} aria-label="切换素材布局" aria-pressed={listMode} onClick={() => setViewMode((value: string) => (value === 'grid' ? 'list' : 'grid'))}>
+                  {listMode ? <IconLayoutGrid size={17} stroke={1.8} aria-hidden="true" /> : <IconList size={17} stroke={1.8} aria-hidden="true" />}
+                </button>
+                <button type="button" className={cn(TOOL_BUTTON_CLASS, !sortAscending && 'bg-nomi-ink-05 text-nomi-ink')} aria-label={sortAscending ? '最早优先' : '最新优先'} title={sortAscending ? '最早优先' : '最新优先'} aria-pressed={!sortAscending} onClick={() => setSortAscending((value: boolean) => !value)}>
+                  {sortAscending ? <IconSortAscending2 size={17} stroke={1.8} aria-hidden="true" /> : <IconSortDescending2 size={17} stroke={1.8} aria-hidden="true" />}
+                </button>
+                <div className="relative">
+                  <button type="button" ref={filterButtonRef} className={cn(TOOL_BUTTON_CLASS, (filtersOpen || filterActive) && 'bg-nomi-ink-05 text-nomi-ink')} aria-label="筛选分类" aria-haspopup="dialog" aria-expanded={filtersOpen} aria-pressed={filterActive} onClick={() => setFiltersOpen((value: boolean) => !value)}>
+                    <IconFilter size={17} stroke={1.8} aria-hidden="true" />
                   </button>
-                  <button type="button" className={toolbarButtonClass} aria-label="新建文件夹" onClick={createFolder}>
-                    <IconFolderPlus size={17} stroke={1.8} aria-hidden="true" />
-                  </button>
-                  {compactToolbar ? (
-                    <div className="relative">
-                      <button type="button" ref={actionsButtonRef} className={cn(TOOL_BUTTON_COMPACT_CLASS, actionsOpen && 'bg-nomi-ink-05 text-nomi-ink')} aria-label="更多素材工具" aria-haspopup="dialog" aria-expanded={actionsOpen} onClick={() => setActionsOpen((value: boolean) => !value)}>
-                        <IconDotsVertical size={17} stroke={1.8} aria-hidden="true" />
-                      </button>
-                      {actionsOpen ? (
-                        <div ref={actionsPopoverRef} className="absolute right-0 top-[calc(100%+6px)] z-[6] flex items-center gap-1 rounded-nomi border border-nomi-line bg-nomi-paper p-1 shadow-nomi-lg" role="dialog" aria-label="更多素材工具">
-                          <button type="button" className={cn(TOOL_BUTTON_COMPACT_CLASS, listMode && 'bg-nomi-ink-05 text-nomi-ink')} aria-label="切换素材布局" aria-pressed={listMode} onClick={() => setViewMode((value: string) => (value === 'grid' ? 'list' : 'grid'))}>
-                            {listMode ? <IconLayoutGrid size={17} stroke={1.8} aria-hidden="true" /> : <IconList size={17} stroke={1.8} aria-hidden="true" />}
-                          </button>
-                          <button type="button" className={cn(TOOL_BUTTON_COMPACT_CLASS, !sortAscending && 'bg-nomi-ink-05 text-nomi-ink')} aria-label={sortAscending ? '最早优先' : '最新优先'} title={sortAscending ? '最早优先' : '最新优先'} aria-pressed={!sortAscending} onClick={() => setSortAscending((value: boolean) => !value)}>
-                            {sortAscending ? <IconSortAscending2 size={17} stroke={1.8} aria-hidden="true" /> : <IconSortDescending2 size={17} stroke={1.8} aria-hidden="true" />}
-                          </button>
-                          <div className="relative">
-                            <button type="button" ref={filterButtonRef} className={cn(TOOL_BUTTON_COMPACT_CLASS, (filtersOpen || filterActive) && 'bg-nomi-ink-05 text-nomi-ink')} aria-label="筛选分类" aria-haspopup="dialog" aria-expanded={filtersOpen} aria-pressed={filterActive} onClick={() => setFiltersOpen((value: boolean) => !value)}>
-                              <IconFilter size={17} stroke={1.8} aria-hidden="true" />
-                            </button>
-                            {filtersOpen ? (
-                              showingPromptLibrary ? (
-                                <BrowserPromptCategoryFilterPopover activeCategoryId={activePromptCategory} categories={promptCategories} counts={promptCategoryCounts} setNodeRef={(node) => { filterPopoverRef.current = node }} onSelectCategory={selectPromptCategory} onAddCategory={addPromptCategory} onShowAll={showAllFilters} />
-                              ) : (
-                                <BrowserAssetFilterPopover activeTab={activeTab} counts={filterCounts} tabs={tabs} setNodeRef={(node) => { filterPopoverRef.current = node }} onSelectTab={selectFilterTab} onShowAll={showAllFilters} />
-                              )
-                            ) : null}
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <>
-                      <button type="button" className={cn(TOOL_BUTTON_CLASS, listMode && 'bg-nomi-ink-05 text-nomi-ink')} aria-label="切换素材布局" aria-pressed={listMode} onClick={() => setViewMode((value: string) => (value === 'grid' ? 'list' : 'grid'))}>
-                        {listMode ? <IconLayoutGrid size={17} stroke={1.8} aria-hidden="true" /> : <IconList size={17} stroke={1.8} aria-hidden="true" />}
-                      </button>
-                      <button type="button" className={cn(TOOL_BUTTON_CLASS, !sortAscending && 'bg-nomi-ink-05 text-nomi-ink')} aria-label={sortAscending ? '最早优先' : '最新优先'} title={sortAscending ? '最早优先' : '最新优先'} aria-pressed={!sortAscending} onClick={() => setSortAscending((value: boolean) => !value)}>
-                        {sortAscending ? <IconSortAscending2 size={17} stroke={1.8} aria-hidden="true" /> : <IconSortDescending2 size={17} stroke={1.8} aria-hidden="true" />}
-                      </button>
-                      <div className="relative">
-                        <button type="button" ref={filterButtonRef} className={cn(TOOL_BUTTON_CLASS, (filtersOpen || filterActive) && 'bg-nomi-ink-05 text-nomi-ink')} aria-label="筛选分类" aria-haspopup="dialog" aria-expanded={filtersOpen} aria-pressed={filterActive} onClick={() => setFiltersOpen((value: boolean) => !value)}>
-                          <IconFilter size={17} stroke={1.8} aria-hidden="true" />
-                        </button>
-                        {filtersOpen ? (
-                          showingPromptLibrary ? (
-                            <BrowserPromptCategoryFilterPopover activeCategoryId={activePromptCategory} categories={promptCategories} counts={promptCategoryCounts} setNodeRef={(node) => { filterPopoverRef.current = node }} onSelectCategory={selectPromptCategory} onAddCategory={addPromptCategory} onShowAll={showAllFilters} />
-                          ) : (
-                            <BrowserAssetFilterPopover activeTab={activeTab} counts={filterCounts} tabs={tabs} setNodeRef={(node) => { filterPopoverRef.current = node }} onSelectTab={selectFilterTab} onShowAll={showAllFilters} />
-                          )
-                        ) : null}
-                      </div>
-                    </>
-                  )}
-                  <input ref={uploadInputRef} type="file" className="sr-only" multiple accept="image/*,video/*,.txt,.md" aria-label="选择素材文件" onChange={handleUploadFiles} />
+                  {filtersOpen ? (
+                    <BrowserAssetFilterPopover activeTab={activeTab} counts={filterCounts} tabs={NOMI_BROWSER_ASSET_TABS} setNodeRef={(node) => { filterPopoverRef.current = node }} onSelectTab={selectFilterTab} onShowAll={showAllFilters} />
+                  ) : null}
                 </div>
               </div>
             </div>
-
-            {!showingPromptLibrary ? (
-              <div className="flex min-h-9 shrink-0 items-center gap-2 bg-nomi-paper px-4 text-caption text-nomi-ink-60">
-                {currentFolder ? (
-                  <button type="button" className={cn(toolbarButtonClass, 'shrink-0')} aria-label="返回上一级文件夹" onClick={exitCurrentFolder}>
-                    <IconArrowLeft size={17} stroke={1.8} aria-hidden="true" />
-                  </button>
-                ) : null}
-                <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden" aria-label="文件夹路径">
-                  <IconFolderOpen size={15} stroke={1.7} className="shrink-0 text-nomi-ink-40" aria-hidden="true" />
-                  <ol className="flex min-w-0 flex-1 items-center overflow-hidden">
-                    <li className={cn('flex min-w-0 items-center gap-1', currentFolder ? 'shrink-0' : 'flex-1')}>
-                      {currentFolder ? (
-                        <button type="button" className={cn('max-w-28 truncate rounded-nomi-sm border-0 bg-transparent px-1 py-0.5 text-caption', 'cursor-pointer font-semibold text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink')} title={activeSourceLabel} onClick={openAssetRoot}>
-                          {activeSourceLabel}
-                        </button>
-                      ) : (
-                        <span className="min-w-0 truncate font-semibold text-nomi-ink-80" aria-current="page" title={activeSourceLabel}>{activeSourceLabel}</span>
-                      )}
-                    </li>
-                    {folderBreadcrumbs.map((folder: any, index: number) => {
-                      const current = index === folderBreadcrumbs.length - 1
-                      return (
-                        <li key={folder.id} className={cn('flex min-w-0 items-center gap-1', current ? 'flex-1' : 'shrink-0')}>
-                          <IconChevronRight size={13} stroke={1.8} className="shrink-0 text-nomi-ink-30" aria-hidden="true" />
-                          {current ? (
-                            <span className="min-w-0 truncate font-semibold text-nomi-ink-80" aria-current="page" title={folder.title}>{folder.title}</span>
-                          ) : (
-                            <button type="button" className={cn('max-w-28 truncate rounded-nomi-sm border-0 bg-transparent px-1 py-0.5 text-caption', 'cursor-pointer font-semibold text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink')} title={folder.title} onClick={() => openFolder(folder)}>{folder.title}</button>
-                          )}
-                        </li>
-                      )
-                    })}
-                  </ol>
-                </nav>
-              </div>
-            ) : null}
 
             {/* 捕捞临时条：下载中/失败卡不混进 ready 素材网格（审计 P1）——失败给唯一下一步 [重试]/[移除] */}
             {(captureTransients?.length ?? 0) > 0 ? (
@@ -324,24 +199,14 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
                 ))}
               </div>
             ) : null}
-            <ScrollArea className="min-h-0 flex-1" viewportRef={gridRef} type="hover" scrollbars="y" scrollbarSize={6} offsetScrollbars="y" scrollHideDelay={500} overscrollBehavior="contain" classNames={{ viewport: 'relative', scrollbar: 'rounded-pill bg-transparent p-0.5', thumb: 'rounded-pill bg-nomi-ink-20 hover:bg-nomi-ink-30' }} viewportProps={{ onPointerDown: handleGridPointerDown, onPointerMove: handleGridPointerMove, onPointerUp: handleGridPointerUp, onPointerCancel: handleGridPointerUp, onContextMenu: openBlankContextMenu }}>
+            <ScrollArea className="min-h-0 flex-1" viewportRef={gridRef} type="hover" scrollbars="y" scrollbarSize={6} offsetScrollbars="y" scrollHideDelay={500} overscrollBehavior="contain" classNames={{ viewport: 'relative', scrollbar: 'rounded-pill bg-transparent p-0.5', thumb: 'rounded-pill bg-nomi-ink-20 hover:bg-nomi-ink-30' }} viewportProps={{ onPointerDown: handleGridPointerDown, onPointerMove: handleGridPointerMove, onPointerUp: handleGridPointerUp, onPointerCancel: handleGridPointerUp }}>
               <div className={cn('px-4 pb-5 pt-4', compactToolbar && 'px-4 pt-4')}>
                 {filteredAssets.length === 0 ? (
                   <DesignEmptyState density="inline" icon={<IconCards size={32} stroke={1.45} className="text-nomi-ink-30" aria-hidden="true" />} title={emptyStateCopy.title} description={emptyStateCopy.description} className="min-h-[220px] rounded-nomi bg-nomi-ink-05/40" />
-                ) : showingPromptLibrary ? (
-                  <div className="w-full select-none" style={promptMasonryStyle} aria-label="提示词库瀑布流">
-                    {filteredAssets.map((asset: any) =>
-                      asset.promptCard ? (
-                        <BrowserPromptAssetTile key={asset.id} asset={asset} selected={selectedIds.has(asset.id)} setNodeRef={(node) => setAssetNode(asset.id, node)} onClick={(event) => selectAsset(asset, event)} onDoubleClick={(event) => { event.preventDefault(); openPromptDetail(asset) }} onContextMenu={(event) => openAssetContextMenu(asset, event)} onDragStart={(event) => handleTileDragStart(asset, event)} />
-                      ) : (
-                        <BrowserAssetTile key={asset.id} asset={asset} selected={selectedIds.has(asset.id)} compact={gridCompact} viewMode={viewMode} renaming={renamingAssetId === asset.id} setNodeRef={(node) => setAssetNode(asset.id, node)} onClick={(event) => selectAsset(asset, event)} onDoubleClick={(event) => { event.preventDefault(); if (asset.type === 'folder') openFolder(asset) }} onContextMenu={(event) => openAssetContextMenu(asset, event)} onDragStart={(event) => handleTileDragStart(asset, event)} onDragOver={(event) => handleTileDragOver(asset, event)} onDrop={(event) => handleTileDrop(asset, event)} onRenameCommit={(title) => commitRenameFolder(asset.id, title)} onRenameCancel={cancelRenameFolder} />
-                      ),
-                    )}
-                  </div>
                 ) : (
                   <div className={cn('w-full select-none', listMode ? 'grid gap-1.5' : 'grid auto-rows-max content-start gap-x-3 gap-y-4')} style={assetGridStyle} aria-label={listMode ? '素材列表' : '素材网格'}>
                     {filteredAssets.map((asset: any) => (
-                      <BrowserAssetTile key={asset.id} asset={asset} selected={selectedIds.has(asset.id)} compact={gridCompact} viewMode={viewMode} renaming={renamingAssetId === asset.id} setNodeRef={(node) => setAssetNode(asset.id, node)} onClick={(event) => selectAsset(asset, event)} onDoubleClick={(event) => { event.preventDefault(); if (asset.promptCard) openPromptDetail(asset); else if (asset.type === 'folder') openFolder(asset) }} onContextMenu={(event) => openAssetContextMenu(asset, event)} onDragStart={(event) => handleTileDragStart(asset, event)} onDragOver={(event) => handleTileDragOver(asset, event)} onDrop={(event) => handleTileDrop(asset, event)} onRenameCommit={(title) => commitRenameFolder(asset.id, title)} onRenameCancel={cancelRenameFolder} />
+                      <BrowserAssetTile key={asset.id} asset={asset} selected={selectedIds.has(asset.id)} compact={gridCompact} viewMode={viewMode} setNodeRef={(node) => setAssetNode(asset.id, node)} onClick={(event) => selectAsset(asset, event)} onContextMenu={(event) => openAssetContextMenu(asset, event)} onDragStart={(event) => handleTileDragStart(asset, event)} />
                     ))}
                   </div>
                 )}
@@ -350,7 +215,6 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
               {marquee ? <div className="pointer-events-none absolute z-[2] rounded-nomi-sm border border-nomi-accent bg-nomi-accent-soft/70" style={normalizeMarqueeRect(marquee)} aria-hidden="true" /> : null}
             </ScrollArea>
             {dropActive ? <div className="pointer-events-none absolute inset-2 z-[8] grid place-items-center rounded-nomi border border-dashed border-nomi-accent bg-nomi-accent-soft/75 text-caption font-semibold text-nomi-accent">松开以保存到素材盒</div> : null}
-            {promptDetailAsset ? <BrowserPromptDetailModal asset={promptDetailAsset} promptCategories={promptCategories} onClose={() => setPromptDetailAssetId(null)} /> : null}
             {promptExtractionSettingsOpen ? <BrowserPromptExtractionSettingsModal settings={promptExtractionSettings} projectAvailable={promptExtractionSettingsProjectAvailable} onSave={savePromptExtractionSettings} onClose={() => setPromptExtractionSettingsOpen(false)} /> : null}
           </div>
           {(activeResizeEdges as readonly FloatingWindowResizeEdge[]).map((edge) => (
@@ -364,23 +228,9 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
                   <span className="min-w-0 flex-1 truncate">导入画布</span>
                 </button>
               ) : null}
-              {canRenameSelectedFolder ? (
-                <button type="button" className={cn('flex h-8 w-full items-center gap-2 rounded-nomi-sm border-0 bg-transparent px-2 text-left', 'cursor-pointer text-caption text-nomi-ink-80 transition-colors duration-[var(--nomi-transition-fast)]', 'hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:bg-nomi-ink-05 focus-visible:outline-none')} role="menuitem" onClick={beginRenameSelectedFolder}>
-                  <IconPencil size={15} stroke={1.8} aria-hidden="true" className="shrink-0" />
-                  <span className="min-w-0 flex-1 truncate">重命名</span>
-                </button>
-              ) : null}
               <button type="button" className={cn('flex h-8 w-full items-center gap-2 rounded-nomi-sm border-0 bg-transparent px-2 text-left', 'cursor-pointer text-caption text-workbench-danger transition-colors duration-[var(--nomi-transition-fast)]', 'hover:bg-workbench-danger-soft focus-visible:bg-workbench-danger-soft focus-visible:outline-none')} role="menuitem" onClick={deleteSelectedAssets}>
                 <IconTrash size={15} stroke={1.8} aria-hidden="true" className="shrink-0" />
                 <span className="min-w-0 flex-1 truncate">删除</span>
-              </button>
-            </div>
-          ) : null}
-          {blankContextMenu ? (
-            <div ref={blankContextMenuRef} className="absolute z-[9] rounded-nomi border border-nomi-line bg-nomi-paper p-1 shadow-nomi-lg" style={{ left: blankContextMenu.x, top: blankContextMenu.y, width: BLANK_CONTEXT_MENU_WIDTH }} role="menu" aria-label="空白区域操作" onContextMenu={(event) => event.preventDefault()} onMouseDown={(event) => event.stopPropagation()}>
-              <button type="button" className={cn('flex h-8 w-full items-center gap-2 rounded-nomi-sm border-0 bg-transparent px-2 text-left', 'cursor-pointer text-caption text-nomi-ink-80 transition-colors duration-[var(--nomi-transition-fast)]', 'hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:bg-nomi-ink-05 focus-visible:outline-none')} role="menuitem" onClick={createFolder}>
-                <IconFolderPlus size={15} stroke={1.8} aria-hidden="true" className="shrink-0" />
-                <span className="min-w-0 flex-1 truncate">新建文件夹</span>
               </button>
             </div>
           ) : null}

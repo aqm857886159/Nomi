@@ -34,7 +34,10 @@ function gitFiles(globs) {
 }
 
 // 扫描范围：src 下的 ts/tsx/css + 仓库根的 tailwind.config.ts。
-const SRC_FILES = gitFiles("src").filter((f) => /\.(tsx?|css)$/.test(f));
+const SRC_FILES = gitFiles("src")
+  .filter((f) => /\.(tsx?|css)$/.test(f))
+  // git ls-files 连「工作树已删、未 commit」的文件一起列出——量工作树现状，消失的跳过（不削弱棘轮）。
+  .filter((f) => fs.existsSync(path.join(ROOT, f)));
 const CONFIG_FILES = ["tailwind.config.ts"].filter((f) => fs.existsSync(path.join(ROOT, f)));
 const ALL_FILES = [...SRC_FILES, ...CONFIG_FILES];
 

@@ -1,5 +1,4 @@
 import React from 'react'
-import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import {
   getDesktopBridge,
   type DesktopBrowserAssetOverlayCaptureRequest,
@@ -11,11 +10,6 @@ import {
 import { browserUrlDisplayTitle } from './browserUrl'
 import { type BrowserAssetCaptureRequest } from '../popover/NomiBrowserAssetPopover'
 import { NomiBrowserDialogView } from './NomiBrowserDialogView'
-import {
-  BROWSER_ASSET_LIBRARY_UPDATED_EVENT,
-  browserAssetLibraryKey,
-  readBrowserPromptCategories,
-} from '../assets/browserAssetLibraryStorage'
 import type { FloatingWindowBoundsRect } from '../window/useResizableFloatingWindow'
 import { useBrowserDialogActions } from './useBrowserDialogActions'
 
@@ -70,9 +64,6 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
   const [materialSitesOpen, setMaterialSitesOpen] = React.useState(false)
   const [dialogTopOffset, setDialogTopOffset] = React.useState(0)
   const [captureFlyouts, setCaptureFlyouts] = React.useState<BrowserCaptureFlyout[]>([])
-  const [promptCategories, setPromptCategories] = React.useState(() =>
-    readBrowserPromptCategories(getDesktopActiveProjectId()),
-  )
   const webContainerRef = React.useRef<HTMLDivElement | null>(null)
   const browserViewHostRef = React.useRef<HTMLDivElement | null>(null)
   const tabContextMenuRef = React.useRef<HTMLDivElement | null>(null)
@@ -97,27 +88,6 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
   React.useEffect(() => {
     activeTabIdRef.current = activeTabId
   }, [activeTabId])
-
-  React.useEffect(() => {
-    const refresh = (): void => {
-      setPromptCategories(readBrowserPromptCategories(getDesktopActiveProjectId()))
-    }
-    const handleStorage = (event: StorageEvent): void => {
-      if (event.key && event.key !== browserAssetLibraryKey(getDesktopActiveProjectId())) return
-      refresh()
-    }
-    window.addEventListener(BROWSER_ASSET_LIBRARY_UPDATED_EVENT, refresh)
-    window.addEventListener('storage', handleStorage)
-    return () => {
-      window.removeEventListener(BROWSER_ASSET_LIBRARY_UPDATED_EVENT, refresh)
-      window.removeEventListener('storage', handleStorage)
-    }
-  }, [])
-
-  React.useEffect(() => {
-    if (!opened) return
-    setPromptCategories(readBrowserPromptCategories(getDesktopActiveProjectId()))
-  }, [opened])
 
   React.useEffect(() => {
     if (!promptModePicker) return undefined
@@ -192,19 +162,7 @@ export function NomiBrowserDialog({ opened, onClose }: NomiBrowserDialogProps): 
     () => Boolean(contextMenuTab?.url && bookmarks.some((bookmark) => bookmark.url === contextMenuTab.url)),
     [bookmarks, contextMenuTab],
   )
-  const browserPromptCategoryOptions = React.useMemo(
-    () => promptCategories.map((category) => ({ id: category.id, label: category.label })),
-    [promptCategories],
-  )
   const useNativeBrowserAssetOverlay = Boolean(USE_NATIVE_BROWSER_ASSET_OVERLAY && browserBridge?.assetOverlay)
-
-  React.useEffect(() => {
-    if (!browserBridge?.setPromptCategories) return
-    for (const tab of tabs) {
-      if (tab.viewId === null) continue
-      browserBridge.setPromptCategories({ viewId: tab.viewId, categories: browserPromptCategoryOptions })
-    }
-  }, [browserBridge, browserPromptCategoryOptions, tabs])
 
   const syncWebContentBounds = React.useCallback((): void => {
     const node = webContainerRef.current

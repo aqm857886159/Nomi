@@ -1,12 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 import React from 'react'
 import { IconBrowser, IconBrush, IconPalette, IconWorld } from '../../../vendor/tablerIcons'
-import type { DesktopAssetDto, DesktopBrowserAssetOverlayCaptureRequest, DesktopBrowserPromptCaptureEvent, DesktopBrowserResourceCaptureEvent, DesktopBrowserViewBounds } from '../../../desktop/bridge'
+import type { DesktopBrowserAssetOverlayCaptureRequest, DesktopBrowserPromptCaptureEvent, DesktopBrowserResourceCaptureEvent, DesktopBrowserViewBounds } from '../../../desktop/bridge'
 import { cn } from '../../../utils/cn'
 import { BROWSER_PROMPT_EXTRACTION_MODE_LABELS, type BrowserPromptExtractionMode } from '../prompt/browserPromptExtraction'
-import type { NomiBrowserAsset } from '../assets/browserAssetData'
 import type { BrowserAssetPromptCaptureRequest } from '../popover/NomiBrowserAssetPopover'
-import { browserAssetSubtitleFromDesktopAsset } from '../popover/browserAssetPopoverUtils'
 import type { FloatingWindowBoundsRect } from '../window/useResizableFloatingWindow'
 
 export type NomiBrowserDialogProps = {
@@ -386,27 +384,6 @@ export function TabFavicon({ tab }: { tab: BrowserTab }): JSX.Element {
   }
   if (!tab.url) return <IconBrowser size={15} stroke={1.7} aria-hidden="true" />
   return <IconWorld size={15} stroke={1.7} aria-hidden="true" />
-}
-
-export function browserAssetFromDesktopAsset(asset: DesktopAssetDto, fallbackTitle: string): NomiBrowserAsset {
-  const contentType = typeof asset.data.contentType === 'string' ? asset.data.contentType : ''
-  const mediaType = asset.data.mediaType === 'video' || contentType.startsWith('video/') ? 'video' : 'image'
-  const url = typeof asset.data.url === 'string' ? asset.data.url : ''
-  // 显示名人类标题优先(sidecar.title=捕捞时抓的 alt/网页标题 → 捕捞传入 title → 文件名)。
-  // 防盗链图 URL 文件名常是哈希，直接当名字认不出(用户 2026-07-13 抓出 263fcbf8…)。
-  const sidecarTitle = typeof asset.data.title === 'string' ? asset.data.title.trim() : ''
-  const subtitle = browserAssetSubtitleFromDesktopAsset(asset)
-  return {
-    id: asset.id,
-    type: mediaType,
-    source: 'my',
-    title: sidecarTitle || fallbackTitle || asset.name || '网页图片',
-    subtitle,
-    previewUrl: url,
-    tags: [subtitle],
-    createdAt: asset.createdAt,
-    updatedAt: asset.updatedAt,
-  }
 }
 
 export function overlayCaptureRequestFromBrowserEvent(

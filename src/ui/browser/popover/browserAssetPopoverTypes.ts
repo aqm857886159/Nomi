@@ -1,4 +1,4 @@
-import type { NomiBrowserAsset, NomiBrowserAssetSource, NomiBrowserAssetSourceDefinition, NomiBrowserAssetTab, NomiBrowserAssetTabDefinition } from '../assets/browserAssetData'
+import type { NomiBrowserAsset, NomiBrowserAssetTab } from '../assets/browserAssetData'
 import type { BrowserPromptExtractionMode } from '../prompt/browserPromptExtraction'
 import type { FloatingWindowAnchorRect, FloatingWindowBoundsRect } from '../window/useResizableFloatingWindow'
 
@@ -69,25 +69,18 @@ export type NomiBrowserAssetPopoverProps = {
   dockable?: boolean
   dockPresentation?: 'overlay' | 'edge' | 'split'
   defaultOpened?: boolean
-  defaultSource?: NomiBrowserAssetSource
   defaultTab?: NomiBrowserAssetTab
-  showTrigger?: boolean
   /** 素材盒的数据桶；undefined 跟随当前项目，空字符串表示全局桶。 */
   libraryProjectId?: string | null
-  assets?: readonly NomiBrowserAsset[]
-  tabs?: readonly NomiBrowserAssetTabDefinition[]
-  sourceTabs?: readonly NomiBrowserAssetSourceDefinition[]
   onOpenChange?: (opened: boolean) => void
   onWindowRectChange?: (rect: FloatingWindowBoundsRect | null) => void
   /**
-   * 溢出整窗的模态（如提示词提取设置，fixed inset-0 居中）在场时触发。
+   * 溢出整窗的模态（提示词提取设置 / 删除确认，fixed inset-0 居中）在场时触发。
    * 原生 overlay 承载态下，可点热区默认只覆盖卡片矩形；这类模态铺满整个透明窗、
    * 落在卡片外的死区里会被点穿到网页——overlay 收到此信号后把整窗上报为可点。
    */
   onFullWindowModalChange?: (present: boolean) => void
   onDockModeChange?: (dockMode: BrowserAssetPopoverDockMode) => void
-  onAssetSelect?: (asset: NomiBrowserAsset) => void
-  onCreateFolder?: (folder: NomiBrowserAsset) => void
   onImportRemoteAsset?: (input: BrowserAssetRemoteImportInput) => Promise<NomiBrowserAsset>
   browserCaptureEnabled?: boolean
   browserCaptureDisabled?: boolean
@@ -102,11 +95,6 @@ export type AssetPopoverViewMode = 'grid' | 'list'
 
 export type AssetContextMenuState = {
   assetId: string
-  x: number
-  y: number
-}
-
-export type BlankContextMenuState = {
   x: number
   y: number
 }

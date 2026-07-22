@@ -3,20 +3,22 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import {
   getDesktopBridge,
-  type DesktopAssetDto,
   type DesktopBrowserAssetOverlayCaptureRequest,
   type DesktopBrowserAssetOverlayConfig,
   type DesktopBrowserAssetOverlayDockMode,
   type DesktopBrowserAssetOverlayRect,
 } from '../../../desktop/bridge'
+// 素材盒真删走 confirmDialog；overlay 是独立 React root，必须自挂宿主，
+// 否则确认请求进 preMountQueue 永不 resolve（主窗宿主在 NomiStudioApp，跨窗口不共享）。
+import { ConfirmDialogHost } from '../../../design'
 import type { NomiBrowserAsset } from '../assets/browserAssetData'
+import { browserAssetFromDesktopAsset } from '../popover/browserAssetPopoverUtils'
 import {
   NomiBrowserAssetPopover,
   type BrowserAssetCaptureRequest,
   type BrowserAssetRemoteImportInput,
 } from '../popover/NomiBrowserAssetPopover'
 import { subscribeBrowserAssetsImportToCanvas } from './globalAssetPopoverEvents'
-import { browserAssetSubtitleFromDesktopAsset } from '../popover/browserAssetPopoverUtils'
 import type { FloatingWindowBoundsRect } from '../window/useResizableFloatingWindow'
 
 type OverlayCaptureFlyoutRect = {
@@ -36,29 +38,6 @@ type OverlayCaptureFlyout = {
 
 const CAPTURE_FLYOUT_TARGET_WIDTH = 96
 const CAPTURE_FLYOUT_KEYFRAME_TIMES = [0, 0.18, 1]
-
-function browserAssetFromDesktopAsset(asset: DesktopAssetDto, fallbackTitle: string): NomiBrowserAsset {
-  const contentType = typeof asset.data.contentType === 'string' ? asset.data.contentType : ''
-  const mediaType = asset.data.mediaType === 'video' || contentType.startsWith('video/') ? 'video' : 'image'
-  const url = typeof asset.data.url === 'string' ? asset.data.url : ''
-  // 显示名人类标题优先(sidecar.title=捕捞抓的 alt/网页标题 → 捕捞传入 title → 文件名)——
-  // 防盗链图 URL 文件名常是哈希，认不出(用户 2026-07-13 抓出 263fcbf8…)。⚠️同名映射有三份
-  // 平行版(此处 + NomiBrowserDialogModel + browserAssetPopoverUtils)，副标题已收敛单源，整体收敛待办。
-  const sidecarTitle = typeof asset.data.title === 'string' ? asset.data.title.trim() : ''
-  const subtitle = browserAssetSubtitleFromDesktopAsset(asset)
-  return {
-    id: asset.id,
-    type: mediaType,
-    source: 'my',
-    title: sidecarTitle || fallbackTitle || asset.name || (mediaType === 'video' ? '网页视频' : '网页图片'),
-    subtitle,
-    previewUrl: url,
-    previewMediaType: mediaType,
-    tags: [subtitle],
-    createdAt: asset.createdAt,
-    updatedAt: asset.updatedAt,
-  }
-}
 
 function canDownloadFromBrowserView(url: string): boolean {
   return /^(https?:\/\/|blob:)/i.test(url)
@@ -394,7 +373,9 @@ export function BrowserAssetOverlayApp(): JSX.Element {
         title: input.title,
         mediaType: input.mediaType,
       })
-      return browserAssetFromDesktopAsset(asset, fallbackTitle)
+      const mapped = browserAssetFromDesktopAsset(asset, fallbackTitle)
+      if (!mapped) throw new Error('导入的素材无法识别为图片或视频')
+      return mapped
     },
     [browserBridge, config.viewId],
   )
@@ -437,7 +418,6 @@ export function BrowserAssetOverlayApp(): JSX.Element {
         surface="contained"
         placement="absolute"
         opened={config.opened}
-        showTrigger={false}
         onOpenChange={handleOpenChange}
         onWindowRectChange={handlePopoverRectChange}
         onFullWindowModalChange={setFullWindowModal}
@@ -450,6 +430,7 @@ export function BrowserAssetOverlayApp(): JSX.Element {
         onBrowserCaptureToggle={toggleBrowserResourceCapture}
         probeCanvasImportAvailable={probeCanvasImportAvailable}
       />
+      <ConfirmDialogHost />
       <AnimatePresence>
         {captureFlyouts.map((flyout) => (
           <motion.div

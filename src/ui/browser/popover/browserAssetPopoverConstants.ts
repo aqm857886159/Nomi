@@ -18,24 +18,13 @@ export const ASSET_GRID_MIN_COLUMN_WIDTH = 112
 export const ASSET_GRID_COMPACT_MIN_COLUMN_WIDTH = 128
 export const ASSET_GRID_COMPACT_MAX_COLUMNS = 3
 export const ASSET_CONTEXT_MENU_WIDTH = 168
-// 3 项（导入画布/重命名/删除）满配估高：3×32 + padding。clamp 用，宁高勿低。
-export const ASSET_CONTEXT_MENU_ESTIMATED_HEIGHT = 110
+// 2 项（导入画布/删除）满配估高：2×32 + padding。clamp 用，宁高勿低。
+export const ASSET_CONTEXT_MENU_ESTIMATED_HEIGHT = 78
 export const ASSET_CONTEXT_MENU_MARGIN = 8
-export const BLANK_CONTEXT_MENU_WIDTH = 168
-export const BLANK_CONTEXT_MENU_ESTIMATED_HEIGHT = 42
-export const PROMPT_MASONRY_COLUMN_GAP = 10
-export const PROMPT_MASONRY_MIN_COLUMN_WIDTH = 136
-export const PROMPT_MASONRY_MAX_COLUMNS = 5
 export const MARQUEE_AUTO_SCROLL_EDGE_SIZE = 44
 export const MARQUEE_AUTO_SCROLL_MAX_SPEED = 22
 
 export const TOOL_BUTTON_CLASS = cn(
-  'inline-grid size-8 place-items-center rounded-nomi-sm border-0 bg-transparent',
-  'cursor-pointer text-nomi-ink-60 transition-[background,color] duration-[var(--nomi-transition-fast)]',
-  'hover:bg-nomi-ink-05 hover:text-nomi-ink',
-)
-
-export const TOOL_BUTTON_COMPACT_CLASS = cn(
   'inline-grid size-8 place-items-center rounded-nomi-sm border-0 bg-transparent',
   'cursor-pointer text-nomi-ink-60 transition-[background,color] duration-[var(--nomi-transition-fast)]',
   'hover:bg-nomi-ink-05 hover:text-nomi-ink',
