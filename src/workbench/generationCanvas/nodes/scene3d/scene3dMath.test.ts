@@ -107,3 +107,49 @@ describe("焦段 mm ↔ 竖直 FOV（35mm 全幅等效）", async () => {
     expect(focalMmToFov(999)).toBe(focalMmToFov(FOCAL_MM_MAX));
   });
 });
+
+// ——— 2026-07-22 审计 P0：导出产物零 editor-only 元素（结构保证） ———
+import * as THREE from "three";
+import { collectCaptureHiddenObjects, tagEditorOnlySubtree, captureDimensions } from "./scene3dMath";
+import { SCENE3D_EDITOR_ONLY_FLAG, SCENE3D_GRID_FLAG } from "./scene3dConstants";
+
+describe("collectCaptureHiddenObjects（captureScene 隐藏集单源）", () => {
+  it("收齐 editor-only flag 对象；网格仅 hideGrid 时收（视口截图保网格的语义不变）", () => {
+    const scene = new THREE.Scene();
+    const keep = new THREE.Mesh();
+    scene.add(keep);
+    const gizmo = new THREE.Group();
+    gizmo.userData[SCENE3D_EDITOR_ONLY_FLAG] = true;
+    gizmo.add(new THREE.Mesh());
+    scene.add(gizmo);
+    const grid = new THREE.Group();
+    grid.userData[SCENE3D_GRID_FLAG] = true;
+    scene.add(grid);
+    expect(collectCaptureHiddenObjects(scene, false)).toEqual([gizmo]);
+    expect(collectCaptureHiddenObjects(scene, true)).toEqual([gizmo, grid]);
+  });
+
+  it("tagEditorOnlySubtree 整树打标：TransformControls 式库私有网格全部进隐藏集（蓝球/轴/白点不再烧进导出）", () => {
+    const scene = new THREE.Scene();
+    const controls = new THREE.Group();
+    const inner = new THREE.Group();
+    const handleMesh = new THREE.Mesh();
+    inner.add(handleMesh);
+    controls.add(inner);
+    scene.add(controls);
+    tagEditorOnlySubtree(controls);
+    const hidden = collectCaptureHiddenObjects(scene, false);
+    expect(hidden).toContain(controls);
+    expect(hidden).toContain(inner);
+    expect(hidden).toContain(handleMesh);
+  });
+});
+
+describe("captureDimensions（首尾帧全分辨率 vs 参考视频 720p 封顶）", () => {
+  it("still-frame 不套 cap：16:9 → 1920×1080（与相机截图同分辨率）", () => {
+    expect(captureDimensions("16:9", "still-frame")).toEqual({ width: 1920, height: 1080 });
+  });
+  it("reference-video 封顶 720p：16:9 → 1280×720（Seedance 参考视频约束零回归）", () => {
+    expect(captureDimensions("16:9", "reference-video")).toEqual({ width: 1280, height: 720 });
+  });
+});

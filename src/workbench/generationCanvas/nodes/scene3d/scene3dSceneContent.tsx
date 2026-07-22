@@ -3,6 +3,7 @@ import { Grid } from '@react-three/drei'
 import { crowdCount, mannequinRoleLabel } from './scene3dMath'
 import {
   SCENE3D_GRID_FLAG,
+  SCENE3D_EDITOR_ONLY_FLAG,
   GRID_CELL_COLOR,
   GRID_SECTION_COLOR,
   DARK_GRID_CELL_COLOR,
@@ -187,8 +188,12 @@ export function SceneContent({
           />
         </group>
       ) : null}
-      {state.environment.showAxes && !cameraViewEditing ? <axesHelper args={[2]} /> : null}
+      {state.environment.showAxes && !cameraViewEditing
+        ? <axesHelper args={[2]} userData={{ [SCENE3D_EDITOR_ONLY_FLAG]: true }} />
+        : null}
+      {/* 轨迹线/控制点/加点按钮整组 editor-only：捕获时一律隐藏（审计 P0：首尾帧烧进白点/绿线）。 */}
       {(trajectoryMode || state.trajectories.length > 0) && !cameraViewEditing ? (
+        <group userData={{ [SCENE3D_EDITOR_ONLY_FLAG]: true }}>
         <TrajectoryRenderer
           trajectories={state.trajectories}
           activeTrajectoryId={activeTrajectoryId}
@@ -207,6 +212,7 @@ export function SceneContent({
           onDeleteTrajectory={onDeleteTrajectory}
           onBindTargetToTrajectory={onBindTargetToTrajectory}
         />
+        </group>
       ) : null}
       {state.objects.map((object) => (
         <SceneObjectView

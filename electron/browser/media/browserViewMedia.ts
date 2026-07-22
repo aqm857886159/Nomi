@@ -86,6 +86,24 @@ function acceptHeaderForMediaType(mediaType: "image" | "video" | null): string {
   return "image/avif,image/webp,image/apng,image/svg+xml,image/*,video/webm,video/mp4,video/*,*/*;q=0.8";
 }
 
+// 会话内媒体请求 init 单源：cookies/cache/credentials 走页面 session，referrer 交给 Chromium 按
+// strict-origin-when-cross-origin 规范推导。**绝不手写 Referer**——Electron v31 net-fetch 不过滤
+// forbidden header，跨源完整 URL 的 Referer 直通 Chromium 网络栈、与 referrer 政策相抵触，
+// 被拦成 net::ERR_BLOCKED_BY_CLIENT（2026-07-22 审计 15 站实测根因：同 URL 无 Referer 直测 200，
+// 带手写 Referer 全军覆没）。`referrer` 选项同样不传：net-fetch 源码只转发 referrerPolicy、丢弃 referrer。
+export function browserMediaFetchInit(
+  requestedMediaType: "image" | "video" | null,
+  signal?: AbortSignal,
+): RequestInit {
+  return {
+    credentials: "include",
+    redirect: "follow",
+    referrerPolicy: "strict-origin-when-cross-origin",
+    ...(signal ? { signal } : {}),
+    headers: { Accept: acceptHeaderForMediaType(requestedMediaType) },
+  };
+}
+
 function urlsMatch(left: string, right: string): boolean {
   try {
     return new URL(left).href === new URL(right).href;
@@ -192,7 +210,6 @@ async function downloadHttpBrowserMediaFromPageSession(
   requestedMediaType: "image" | "video" | null,
 ): Promise<BrowserDownloadResult> {
   const contents = record.view.webContents;
-  const referrer = safeHeaderUrl(contents.getURL());
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-browser-capture-"));
   const abortController = new AbortController();
   let timedOut = false;
@@ -202,16 +219,7 @@ async function downloadHttpBrowserMediaFromPageSession(
   }, 120_000);
 
   try {
-    const response = await contents.session.fetch(mediaUrl, {
-      credentials: "include",
-      redirect: "follow",
-      signal: abortController.signal,
-      ...(referrer ? { referrer } : {}),
-      headers: {
-        Accept: acceptHeaderForMediaType(requestedMediaType),
-        ...(referrer ? { Referer: referrer } : {}),
-      },
-    });
+    const response = await contents.session.fetch(mediaUrl, browserMediaFetchInit(requestedMediaType, abortController.signal));
     if (!response.ok) throw new Error(`网页素材下载失败（HTTP ${response.status}）`);
     const stagingPath = path.join(tempDir, "download.part");
     const header = await streamBrowserMediaResponseToFile(response, stagingPath);
@@ -252,7 +260,6 @@ async function downloadBrowserBlobFromPageViewUnqueued(
   const contents = record.view.webContents;
   if (contents.isDestroyed()) throw new Error("Browser view is unavailable");
 
-  const referrer = safeHeaderUrl(contents.getURL());
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-browser-capture-"));
   let activeItem: DownloadItem | null = null;
   let downloadExceededLimit = false;
@@ -371,12 +378,8 @@ async function downloadBrowserBlobFromPageViewUnqueued(
 
     contents.session.on("will-download", handleWillDownload);
     try {
-      contents.downloadURL(mediaUrl, {
-        headers: {
-          Accept: acceptHeaderForMediaType(requestedMediaType),
-          ...(referrer ? { Referer: referrer } : null),
-        },
-      });
+      // blob: 是页面本地对象 URL，不走网络——不需要也不该带任何请求头（Referer 见 browserMediaFetchInit 注释）。
+      contents.downloadURL(mediaUrl);
     } catch (error) {
       finish(error instanceof Error ? error : new Error(String(error)));
     }

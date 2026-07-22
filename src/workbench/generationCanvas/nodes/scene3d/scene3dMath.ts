@@ -12,7 +12,7 @@ import {
 } from './scene3dTypes'
 import {
   CAMERA_DEFAULT_TARGET,
-  CAMERA_HELPER_FLAG,
+  SCENE3D_EDITOR_ONLY_FLAG,
   CAMERA_LENS_DEPTH_MAX_FACTOR,
   CLIPBOARD_PASTE_OFFSET,
   CROWD_MAX_AXIS,
@@ -454,6 +454,37 @@ export function capCameraMoveDimensions(dimensions: { width: number; height: num
   }
 }
 
+// 采集本次捕获需要隐藏的 editor-only 对象：带 SCENE3D_EDITOR_ONLY_FLAG 的（gizmo/辅助线/名牌/脚环/轨迹点），
+// 及 hideGrid 时的网格。抽成纯函数配单测——「导出产物零 editor-only 元素」是结构保证，不靠逐控件特判
+// （2026-07-22 审计 P0：首尾帧把 TransformControls 烧进成片，根因就是该控件没进隐藏集）。
+export function collectCaptureHiddenObjects(scene: THREE.Object3D, hideGrid: boolean): THREE.Object3D[] {
+  const hidden: THREE.Object3D[] = []
+  scene.traverse((object) => {
+    if (object.userData?.[SCENE3D_EDITOR_ONLY_FLAG] === true || (hideGrid && object.userData?.[SCENE3D_GRID_FLAG] === true)) {
+      hidden.push(object)
+    }
+  })
+  return hidden
+}
+
+// 把整棵子树打成 editor-only。TransformControls 这类第三方控件的内部网格由库私有构造，
+// 没法在 JSX 上逐个挂 userData——挂载处拿到根后整树打标，captureScene 一律隐藏。
+export function tagEditorOnlySubtree(root: THREE.Object3D): void {
+  root.traverse((object) => {
+    object.userData[SCENE3D_EDITOR_ONLY_FLAG] = true
+  })
+}
+
+// 捕获尺寸单源：参考视频受 Seedance 720p 上限（capCameraMoveDimensions），静帧（首尾帧）
+// 用全分辨率——首尾帧与 MP4 同源采样后，只差分辨率、构图必须一致。
+export function captureDimensions(
+  aspectRatio: Scene3DAspectRatio,
+  sizeMode: 'reference-video' | 'still-frame',
+): { width: number; height: number } {
+  const dimensions = aspectDimensions(aspectRatio)
+  return sizeMode === 'still-frame' ? dimensions : capCameraMoveDimensions(dimensions)
+}
+
 export function captureScene(
   gl: THREE.WebGLRenderer,
   scene: THREE.Scene,
@@ -464,12 +495,10 @@ export function captureScene(
   source: Scene3DCaptureResult['source'],
   hideGrid = false,
 ): Scene3DCaptureResult | null {
-  const helpers: Array<{ object: THREE.Object3D; visible: boolean }> = []
-  scene.traverse((object) => {
-    if (object.userData?.[CAMERA_HELPER_FLAG] === true || (hideGrid && object.userData?.[SCENE3D_GRID_FLAG] === true)) {
-      helpers.push({ object, visible: object.visible })
-      object.visible = false
-    }
+  const helpers = collectCaptureHiddenObjects(scene, hideGrid).map((object) => {
+    const entry = { object, visible: object.visible }
+    object.visible = false
+    return entry
   })
 
   const previousRenderTarget = gl.getRenderTarget()

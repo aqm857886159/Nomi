@@ -11,7 +11,7 @@ import type {
 import { PropObject } from './scene3dProps'
 import { propGroundFootprint } from './scene3dPropSpecs'
 import {
-  CAMERA_HELPER_FLAG,
+  SCENE3D_EDITOR_ONLY_FLAG,
   OBJECT_GROUND_GUIDE_ELEVATION,
   MANNEQUIN_FOOT_RING_COLOR,
   MANNEQUIN_LABEL_BASE_HEIGHT,
@@ -388,7 +388,7 @@ export function MannequinRoleLabel({ position, label }: { position: Scene3DVecto
       ref={ref}
       position={position}
       raycast={() => null}
-      userData={{ [CAMERA_HELPER_FLAG]: true }}
+      userData={{ [SCENE3D_EDITOR_ONLY_FLAG]: true }}
     >
       <mesh position={[0, 0, -0.012]} raycast={() => null} renderOrder={7}>
         <planeGeometry args={[backgroundWidth, 0.38]} />
@@ -580,7 +580,7 @@ export function FootRing({
       raycast={() => null}
       renderOrder={3}
       rotation={[-Math.PI / 2, 0, 0]}
-      userData={{ [CAMERA_HELPER_FLAG]: true }}
+      userData={{ [SCENE3D_EDITOR_ONLY_FLAG]: true }}
     >
       <FootRingSurface radius={radius} />
     </mesh>
@@ -617,7 +617,7 @@ export function LiveFootRing({ runtimeId, radius }: { runtimeId: string; radius:
       raycast={() => null}
       renderOrder={3}
       rotation={[-Math.PI / 2, 0, 0]}
-      userData={{ [CAMERA_HELPER_FLAG]: true }}
+      userData={{ [SCENE3D_EDITOR_ONLY_FLAG]: true }}
     >
       <FootRingSurface radius={radius} />
     </mesh>
@@ -657,7 +657,7 @@ export function InstancedFootRings({
       args={[undefined, undefined, Math.max(1, count)]}
       raycast={() => null}
       renderOrder={3}
-      userData={{ [CAMERA_HELPER_FLAG]: true }}
+      userData={{ [SCENE3D_EDITOR_ONLY_FLAG]: true }}
     >
       <FootRingSurface radius={radius} segments={CROWD_FOOT_RING_SEGMENTS} />
     </instancedMesh>

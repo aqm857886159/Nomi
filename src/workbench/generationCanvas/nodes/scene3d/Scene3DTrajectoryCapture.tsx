@@ -10,7 +10,7 @@ import { FencedCanvas } from '../fencedCanvas'
 import * as THREE from 'three'
 import { Mannequin, MannequinCrowd, MannequinAssetBoundary, ProceduralMannequin, StaticObjectVisual } from './scene3dObjects'
 import type { MannequinLocomotionDriver } from './scene3dMannequinLocomotion'
-import { captureScene, applySceneCameraPose, aspectDimensions, capCameraMoveDimensions, applyMannequinSkeletonPose, applyMannequinArmDownPose, resetMannequinSkeletonToRest, groundMannequinModel } from './scene3dMath'
+import { captureScene, applySceneCameraPose, captureDimensions, applyMannequinSkeletonPose, applyMannequinArmDownPose, resetMannequinSkeletonToRest, groundMannequinModel } from './scene3dMath'
 import { cameraWithPlaybackPosition, objectWithPlaybackPose } from './scene3dPlayback'
 import { samplePoseKeyframe, poseKeyframeKey, frameMotionSource } from './scene3dPoseTrack'
 import { locomotionAnimationClip } from './scene3dCharacterDrive'
@@ -155,12 +155,14 @@ function TrajectoryFrameStepper({
   frameCount,
   fps,
   title,
+  sizeMode,
   onResult,
 }: {
   state: Scene3DState
   frameCount: number
   fps: number
   title: string
+  sizeMode: 'reference-video' | 'still-frame'
   onResult: (result: CameraMoveCaptureResult | null) => void
 }): JSX.Element {
   const { gl, scene } = useThree()
@@ -220,8 +222,8 @@ function TrajectoryFrameStepper({
     }
 
     const playbackCamera = cameraWithPlaybackPosition(state, camera, t)
-    // Seedance video_urls 要求参考视频 480P–720P → 运镜捕获封顶 720p(不动 aspectDimensions 全局)。
-    const dims = capCameraMoveDimensions(aspectDimensions(playbackCamera.aspectRatio))
+    // 尺寸单源 captureDimensions：参考视频封顶 720p（Seedance 要求），静帧（首尾帧）全分辨率。
+    const dims = captureDimensions(playbackCamera.aspectRatio, sizeMode)
     const captureCamera = new THREE.PerspectiveCamera(
       playbackCamera.fov,
       dims.width / dims.height,
@@ -240,7 +242,7 @@ function TrajectoryFrameStepper({
         onResult(null)
         return
       }
-      const dims2 = capCameraMoveDimensions(aspectDimensions(camera.aspectRatio))
+      const dims2 = captureDimensions(camera.aspectRatio, sizeMode)
       onResult({ frames: framesRef.current, width: dims2.width, height: dims2.height, fps, title })
     }
   })
@@ -257,12 +259,15 @@ export function Scene3DTrajectoryCapture({
   frameCount,
   fps,
   title,
+  sizeMode = 'reference-video',
   onResult,
 }: {
   state: Scene3DState
   frameCount: number
   fps: number
   title: string
+  /** reference-video=720p 封顶（默认，MP4 管线零回归）；still-frame=全分辨率（首尾帧 PNG）。 */
+  sizeMode?: 'reference-video' | 'still-frame'
   onResult: (result: CameraMoveCaptureResult | null) => void
 }): JSX.Element {
   return (
@@ -286,6 +291,7 @@ export function Scene3DTrajectoryCapture({
               frameCount={frameCount}
               fps={fps}
               title={title}
+              sizeMode={sizeMode}
               onResult={onResult}
             />
           </Suspense>

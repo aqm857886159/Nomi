@@ -10,10 +10,11 @@ import {
   cameraAimSpherical,
   mannequinRoleLabel,
   pointerCaptureTarget,
+  tagEditorOnlySubtree,
   type PointerCaptureTarget,
 } from './scene3dMath'
 import {
-  CAMERA_HELPER_FLAG,
+  SCENE3D_EDITOR_ONLY_FLAG,
   CAMERA_MARKER_COLOR,
   CAMERA_MARKER_ACCENT_COLOR,
   CAMERA_HELPER_VISUAL_FAR,
@@ -72,7 +73,7 @@ export function CameraFrustumLines({
   }, [cameraData.aspectRatio, cameraData.far, cameraData.fov, cameraData.near])
 
   return (
-    <lineSegments frustumCulled={false} raycast={() => null} userData={{ [CAMERA_HELPER_FLAG]: true }}>
+    <lineSegments frustumCulled={false} raycast={() => null} userData={{ [SCENE3D_EDITOR_ONLY_FLAG]: true }}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
@@ -106,13 +107,13 @@ export function CameraTargetFeedback({ cameraData }: { cameraData: Scene3DCamera
 
   return (
     <>
-      <lineSegments frustumCulled={false} raycast={() => null} userData={{ [CAMERA_HELPER_FLAG]: true }}>
+      <lineSegments frustumCulled={false} raycast={() => null} userData={{ [SCENE3D_EDITOR_ONLY_FLAG]: true }}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[positions, 3]} />
         </bufferGeometry>
         <lineBasicMaterial color="#facc15" opacity={0.62} transparent toneMapped={false} />
       </lineSegments>
-      <mesh position={endpoint} raycast={() => null} userData={{ [CAMERA_HELPER_FLAG]: true }}>
+      <mesh position={endpoint} raycast={() => null} userData={{ [SCENE3D_EDITOR_ONLY_FLAG]: true }}>
         <sphereGeometry args={[0.055, 18, 12]} />
         <meshBasicMaterial color="#facc15" toneMapped={false} />
       </mesh>
@@ -204,6 +205,10 @@ export function SceneObjectView({
   React.useEffect(() => {
     const tc = transformRef.current
     if (!tc) return
+    // gizmo 整树打 editor-only 标（2026-07-22 审计 P0：首尾帧/相机截图把操控球烧进导出）。
+    // three-stdlib 的 TransformControls 自身是 Object3D；新版 three 则经 getHelper() 拿可视根。
+    const gizmoRoot = typeof tc.getHelper === 'function' ? tc.getHelper() : tc
+    if (gizmoRoot && typeof gizmoRoot.traverse === 'function') tagEditorOnlySubtree(gizmoRoot)
     const handler = (event: any) => {
       const dragging = Boolean(event.value)
       const wasDragging = transformDraggingRef.current
@@ -567,7 +572,7 @@ export function CameraHelperView({
   const marker = (
     <group
       ref={markerRef}
-      userData={{ [CAMERA_HELPER_FLAG]: true, [SCENE3D_RUNTIME_ID_KEY]: cameraData.id }}
+      userData={{ [SCENE3D_EDITOR_ONLY_FLAG]: true, [SCENE3D_RUNTIME_ID_KEY]: cameraData.id }}
       visible={cameraData.visible}
       position={cameraData.position}
       rotation={cameraRotation}

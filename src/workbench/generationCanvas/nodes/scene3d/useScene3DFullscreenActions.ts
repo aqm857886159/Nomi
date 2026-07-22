@@ -5,9 +5,7 @@ import React from 'react'
 import { toast, useToastStore } from '../../../../ui/toast'
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
 import {
-  type CaptureApi,
   type Scene3DCamera,
-  type Scene3DCaptureResult,
   type Scene3DGeometry,
   type Scene3DObject,
   type Scene3DPropKind,
@@ -30,10 +28,10 @@ import {
 } from './scene3dMath'
 import { nextAvailableObjectPosition } from './scene3dObjects'
 import { useScene3DTrajectoryEditing } from './useScene3DTrajectoryEditing'
-import { setScene3DPlayheadSeconds, trajectoryPointTimeRatio } from './trajectory'
+import { trajectoryPointTimeRatio } from './trajectory'
 import { applyCameraMovePreset, type CameraMovePresetSpec } from './cameraMovePreset'
 import { CAMERA_MOVE_LABEL } from './cameraMoveVocab'
-import { cameraWithPlaybackPosition, isCameraMoveReady } from './scene3dPlayback'
+import { isCameraMoveReady } from './scene3dPlayback'
 import { makePropObject } from './scene3dPropSpecs'
 import { buildSceneTemplateObjects, SCENE_TEMPLATE_LABEL, type Scene3DSceneTemplate } from './scene3dSceneTemplates'
 
@@ -490,55 +488,7 @@ export function useScene3DAddActions({
   return { addObject, addProp, addCamera, addCrowd, applySceneTemplate }
 }
 
-// 运镜首尾帧导出：把播放头钉到该相机全部运镜段的整体起点/终点，各截一张相机图（复用相机
-// 截图管线 onScreenshot → 落画布图片节点，可连去镜头的 first_frame 槽）。每次截图前等两帧，
-// 让 demand 渲染把视口对象/相机位姿追上播放头——截到的才是该时刻的真画面（含 fov 渐变/抖动）。
-export function useScene3DMoveFrameExport({
-  stateRef,
-  captureApiRef,
-  trajectory,
-  onScreenshot,
-}: {
-  stateRef: React.MutableRefObject<Scene3DState>
-  captureApiRef: React.MutableRefObject<CaptureApi | null>
-  trajectory: ReturnType<typeof useScene3DTrajectoryEditing>
-  onScreenshot: (capture: Scene3DCaptureResult) => void
-}) {
-  return React.useCallback(async (cameraId: string) => {
-    const camera = stateRef.current.cameras.find((candidate) => candidate.id === cameraId)
-    if (!camera) return
-    const bindings = stateRef.current.trajectoryBindings.filter((binding) => (
-      binding.objects.some((bound) => bound.objectId === cameraId)
-    ))
-    if (bindings.length === 0) {
-      toast('该相机还没有运镜段：先点「运镜预设」或在轨迹模式绑定轨迹', 'warning')
-      return
-    }
-    const start = Math.min(...bindings.map((binding) => binding.startTime))
-    const end = Math.max(...bindings.map((binding) => binding.endTime))
-    const restore = trajectory.playheadRef.current
-    const waitTwoFrames = () => new Promise<void>((resolve) => {
-      window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()))
-    })
-    const captures: Scene3DCaptureResult[] = []
-    for (const [time, label] of [[start, '首帧'], [end, '尾帧']] as const) {
-      trajectory.playheadRef.current = time
-      setScene3DPlayheadSeconds(time)
-      await waitTwoFrames()
-      const playbackCamera = cameraWithPlaybackPosition(stateRef.current, camera, time, trajectory.activeTrajectoryIds)
-      const capture = captureApiRef.current?.captureCamera(playbackCamera)
-      if (capture) captures.push({ ...capture, title: `${camera.name} · 运镜${label}` })
-    }
-    trajectory.playheadRef.current = restore
-    setScene3DPlayheadSeconds(restore)
-    if (captures.length < 2) {
-      toast('首尾帧截图失败，请重试', 'error')
-      return
-    }
-    captures.forEach(onScreenshot)
-    toast('已把运镜首帧/尾帧导出为画布图片节点', 'success')
-  }, [captureApiRef, onScreenshot, stateRef, trajectory])
-}
+// 运镜首尾帧导出已移居 useScene3DCaptureExport.ts（与视口/相机截图同一「出片捕获」模块）。
 
 // 运镜预设：按当前机位就地落一段轨迹并追加到时间轴末尾（连点串联）。在 stateRef 上算好再 setState
 // （applyCameraMovePreset 内生成随机 id，不能塞进 updater——StrictMode 双调用会得到两套 id）。

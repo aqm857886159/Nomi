@@ -509,10 +509,10 @@ export async function installBrowserPromptHoverBridge(record: BrowserViewRecord)
   }
 }
 
-export async function installBrowserResourceCaptureBridge(record: BrowserViewRecord, enabled: boolean): Promise<void> {
-  const contents = record.view.webContents;
-  if (contents.isDestroyed()) return;
-  const script = `
+// 资源捕捞桥脚本抽成纯函数：jsdom 单测可直接 eval 验证「候选冻结」不变量
+// （2026-07-22 审计 L0：保存时重新 pickAt 会让用户保存到与所见不同的资源）。
+export function resourceCaptureBridgeScript(enabled: boolean): string {
+  return `
 (() => {
   const enabled = ${enabled ? "true" : "false"};
   const imagePattern = /\\.(?:png|jpe?g|gif|webp|avif|svg)(?:[?#]|$)/i;
@@ -522,7 +522,6 @@ export async function installBrowserResourceCaptureBridge(record: BrowserViewRec
     enabled: false,
     current: null,
     target: null,
-    lastPoint: null,
   };
   const absoluteUrl = (value) => {
     const raw = String(value || '').trim();
@@ -667,7 +666,6 @@ export async function installBrowserResourceCaptureBridge(record: BrowserViewRec
     state.current = candidate?.payload || null;
   };
   const pickAt = (clientX, clientY) => {
-    state.lastPoint = { clientX, clientY };
     const elements = document.elementsFromPoint(clientX, clientY);
     for (const element of elements) {
       const candidate = candidateFromElement(element, clientX, clientY);
@@ -696,14 +694,20 @@ export async function installBrowserResourceCaptureBridge(record: BrowserViewRec
   if (!enabled) setTarget(null);
   window.__nomiBrowserResourceCaptureBridge = state;
   window.__nomiReadBrowserResourceCapture = () => {
-    if (state.enabled && state.lastPoint) setTarget(pickAt(state.lastPoint.clientX, state.lastPoint.clientY));
+    // 候选冻结（审计 L0）：保存读的是高亮那一刻的候选，绝不按坐标重新 pick——
+    // hover 换图站点（YouTube 动图缩略等）重拾会拿到与用户所见不同的 URL。
     return state.current ? { ...state.current } : null;
   };
   return true;
 })()
 `;
+}
+
+export async function installBrowserResourceCaptureBridge(record: BrowserViewRecord, enabled: boolean): Promise<void> {
+  const contents = record.view.webContents;
+  if (contents.isDestroyed()) return;
   try {
-    await contents.executeJavaScript(script, true);
+    await contents.executeJavaScript(resourceCaptureBridgeScript(enabled), true);
   } catch {
     // Pages can be between navigations; dom-ready and load events reinstall while the mode remains active.
   }

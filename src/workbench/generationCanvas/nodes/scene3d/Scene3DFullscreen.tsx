@@ -48,7 +48,6 @@ import {
 } from './scene3dTrajectorySurfaces'
 import type { Scene3DMoveHubTab } from './scene3dMoveHub'
 import { removeTrajectoryBindingsForNode } from './scene3dTrajectoryState'
-import { cameraWithPlaybackPosition } from './scene3dPlayback'
 import type { Scene3DReferenceTargetSummary } from './scene3dReferenceDirector'
 import {
   useScene3DClipboardActions,
@@ -56,11 +55,10 @@ import {
   useScene3DKeyboardShortcuts,
   useScene3DAddActions,
   useScene3DCameraMoveAction,
-  useScene3DMoveFrameExport,
   useScene3DExportActions,
-  toastPickCameraFirst,
   type Scene3DClipboardItem,
 } from './useScene3DFullscreenActions'
+import { useScene3DCaptureActions, useScene3DMoveFrameExport } from './useScene3DCaptureExport'
 type Scene3DFullscreenProps = {
   initialState: Scene3DState
   nodeTitle: string
@@ -225,7 +223,7 @@ export default function Scene3DFullscreen({
   }, [])
 
   const applyCameraMove = useScene3DCameraMoveAction({ readOnly, stateRef, setState, trajectory })
-  const exportCameraMoveFrames = useScene3DMoveFrameExport({ stateRef, captureApiRef, trajectory, onScreenshot })
+  const { exportCameraMoveFrames, moveFrameCapture } = useScene3DMoveFrameExport({ stateRef, onScreenshot })
 
   const deleteSceneItem = React.useCallback((target: Exclude<Scene3DSelection, null>) => {
     if (readOnly) return
@@ -275,36 +273,15 @@ export default function Scene3DFullscreen({
       setFocusId,
     })
 
-  // 返回是否截成：出片面板据此弹截图完成卡（产物落在被编辑器盖住的画布上，无卡=用户以为没发生）
-  const captureViewport = React.useCallback((): boolean => {
-    const capture = captureApiRef.current?.captureViewport()
-    if (!capture) {
-      toast('截图失败，请重试', 'error')
-      return false
-    }
-    onScreenshot(capture)
-    return true
-  }, [onScreenshot])
-
-  const captureSelectedCamera = React.useCallback((): boolean => {
-    if (!selectedCamera) {
-      toastPickCameraFirst(stateRef.current.cameras[0], (cameraId) => setSelection({ type: 'camera', id: cameraId }))
-      return false
-    }
-    const captureCamera = cameraWithPlaybackPosition(
-      stateRef.current,
-      selectedCamera,
-      trajectory.playheadRef.current,
-      trajectory.activeTrajectoryIds,
-    )
-    const capture = captureApiRef.current?.captureCamera(captureCamera)
-    if (!capture) {
-      toast('相机截图失败，请重试', 'error')
-      return false
-    }
-    onScreenshot(capture)
-    return true
-  }, [onScreenshot, selectedCamera, trajectory.activeTrajectoryIds, trajectory.playheadRef])
+  // 视口/相机截图（返回是否截成：出片面板据此弹截图完成卡）——动作体在 useScene3DCaptureExport.ts
+  const { captureViewport, captureSelectedCamera } = useScene3DCaptureActions({
+    stateRef,
+    captureApiRef,
+    trajectory,
+    selectedCamera,
+    onScreenshot,
+    onPickCamera: (cameraId) => setSelection({ type: 'camera', id: cameraId }),
+  })
 
   // 出片动作（P0）：面板开关 + 四个导出 handler + 接力 toast + 产物卡片状态（R9 抽到 actions 文件）
   const {
@@ -793,6 +770,8 @@ export default function Scene3DFullscreen({
         onExportKeyFrames={handleExportKeyFrames}
         hasCamera={state.cameras.length > 0}
       />
+      {/* 运镜首尾帧的离屏同源采样（有导出请求时才挂；隐藏元素，不进布局） */}
+      {moveFrameCapture}
     </div>
   )
 
