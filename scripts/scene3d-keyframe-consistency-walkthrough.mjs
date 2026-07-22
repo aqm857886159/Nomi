@@ -92,10 +92,10 @@ try {
 
   const exportBtn = win.locator('[data-coach="export-button"]')
 
-  // —— 产物 1：参考视频 MP4 ——
+  // —— 产物 1：参考视频 MP4（任务优先 IA：切「运镜参考」任务 → CTA 直达）——
+  await win.getByRole('tab', { name: /运镜参考/ }).first().click()
+  await win.waitForTimeout(500)
   await exportBtn.first().click()
-  await win.waitForTimeout(700)
-  await win.getByRole('button', { name: /参考视频/ }).first().click()
   await win.waitForTimeout(800)
   let videoUrl = null
   for (let i = 0; i < 90 && !videoUrl; i += 1) {
@@ -109,11 +109,9 @@ try {
   if (videoUrl) ok(`参考视频已生成: ${String(videoUrl).slice(0, 80)}`)
   else fail('90s 内参考视频没生成')
 
-  // —— 产物 2：首尾帧 PNG（离屏同源采样）——
+  // —— 产物 2：首尾帧 PNG（离屏同源采样；入口在整运镜>预设区）——
   await win.getByRole('button', { name: '知道了', exact: true }).first().click().catch(() => {})
-  await exportBtn.first().click()
-  await win.waitForTimeout(700)
-  await win.locator('[role="dialog"][aria-label="出片"]').getByRole('button', { name: /首尾帧/ }).first().click()
+  await win.getByRole('button', { name: '导出运镜首尾帧', exact: true }).first().click()
   let frameNodes = []
   for (let i = 0; i < 45 && frameNodes.length < 2; i += 1) {
     frameNodes = await win.evaluate(() => {
@@ -135,9 +133,10 @@ try {
   await win.getByText('相机1', { exact: true }).first().click()
   await win.waitForTimeout(800)
   await shot('02-camera-selected-trajectory-visible.png')
+  // 构图任务 CTA=「使用这张构图」=相机截图（任务优先 IA）
+  await win.getByRole('tab', { name: /构图图/ }).first().click()
+  await win.waitForTimeout(400)
   await exportBtn.first().click()
-  await win.waitForTimeout(700)
-  await win.locator('[role="dialog"][aria-label="出片"]').getByRole('button', { name: '相机截图', exact: true }).first().click()
   // 等相机截图的图片节点真正落 result.url（importRemoteUrl 异步）
   let cameraShotUrl = null
   for (let i = 0; i < 20 && !cameraShotUrl; i += 1) {

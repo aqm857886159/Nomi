@@ -130,7 +130,7 @@ try {
 
   // 先开始录制（frameloop=always）→ WebGL 截图变实时（demand 模式静止时截图陈旧，测不出移动）。
   const recBtn = win.locator('[title^="录 take"]').first()
-  if ((await recBtn.count()) > 0) { await recBtn.click(); await win.waitForTimeout(500) }
+  if ((await recBtn.count()) > 0) { await recBtn.click(); await win.locator('[title="停止录制并生成参考视频"]').first().waitFor({ timeout: 8000 }).catch(() => {}); await win.waitForTimeout(200) }
   const stopBtn = win.locator('[title="停止录制并生成参考视频"]')
   pass.recStarted = (await stopBtn.count()) > 0
   log(`  ${pass.recStarted ? '✓' : '✗'} 开始录制（frameloop=always，截图实时）`)

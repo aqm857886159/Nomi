@@ -40,6 +40,8 @@ export type Scene3DObject = {
   // 与 poseTrack 共存：某帧 poseTrack 命中非 base 关键帧（用户切了静态动作）→ 静态优先，不播 locomotion。
   locomotionClip?: string
   children?: string[]
+  /** 场景模板一键铺出的对象带组标（如「城市街道」）：场景树按组折叠，不再 30 个平铺节点（审计 §6.3）。 */
+  templateGroup?: string
 }
 
 // pose-over-time 单帧：在时刻 time 把该假人切到 pose（presetId 仅留痕/UI 高亮）。

@@ -250,7 +250,7 @@ export function CharacterActionBar({
       </div>
       <div className="mt-1.5 text-center text-micro text-[var(--nomi-ink-60)]">
         {recorder?.isRecording
-          ? '录制中 · WASD 走位、绕看摆机位都会录进参考视频 · 点停止出片'
+          ? `录制中 · 键盘归「${characterName}」：WASD 走位 · Shift 加速 · C 蹲 —— 绕看摆机位也会录进参考视频`
           : 'WASD 走位 · Shift 加速 · Space 跳 · C 蹲 · 自动面向 · 点动作切换姿势 · 点「录 take」录成参考视频'}
       </div>
     </div>

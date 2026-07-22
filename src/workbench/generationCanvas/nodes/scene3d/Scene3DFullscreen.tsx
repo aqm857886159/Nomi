@@ -36,17 +36,17 @@ import { useScene3DTakeRecorder } from './useScene3DTakeRecorder'
 import { Scene3DTakeSampler } from './Scene3DTakeSampler'
 import { CameraPreview, PlaybackCameraMonitor } from './scene3dCameraPreview'
 import { useScene3DTrajectoryEditing } from './useScene3DTrajectoryEditing'
-import Scene3DExportPanel, { Scene3DExportingCard } from './scene3dExportPanel'
+import { useScene3DTaskFlow } from './useScene3DTaskFlow'
+import { Scene3DTaskOverlays } from './Scene3DTaskOverlays'
+import { Scene3DExportingCard } from './scene3dExportPanel'
 import { Scene3DFullscreenHeader } from './Scene3DFullscreenHeader'
 import {
   Scene3DTrajectoryLayer,
   Scene3DTrajectoryEditBanner,
-  Scene3DCameraViewBanner,
   Scene3DRightPanelBody,
   Scene3DTrajectoryTimelineBar,
 } from './scene3dTrajectorySurfaces'
 import type { Scene3DMoveHubTab } from './scene3dMoveHub'
-import { removeTrajectoryBindingsForNode } from './scene3dTrajectoryState'
 import type { Scene3DReferenceTargetSummary } from './scene3dReferenceDirector'
 import {
   useScene3DClipboardActions,
@@ -54,6 +54,7 @@ import {
   useScene3DKeyboardShortcuts,
   useScene3DAddActions,
   useScene3DCameraMoveAction,
+  useScene3DDeleteAction,
   useScene3DExportActions,
   type Scene3DClipboardItem,
 } from './useScene3DFullscreenActions'
@@ -66,8 +67,8 @@ type Scene3DFullscreenProps = {
   onStateChange: (state: Scene3DState) => void
   onScreenshot: (capture: Scene3DCaptureResult) => void
   // 录 take（S2）：把录制好的（含角色/机位轨迹的）场景交回宿主建 scene3d 节点 + 打捕获标志。
-  // 可选——未传则不出现「录 take」按钮（如样张/只读环境）。
-  onRecordTake?: (recordedState: Scene3DState) => void
+  // 可选——未传则不出现「录 take」按钮（如样张/只读环境）。返回新建节点 id 供产物卡追踪。
+  onRecordTake?: (recordedState: Scene3DState) => string | void
   referenceTarget?: Scene3DReferenceTargetSummary
 }
 
@@ -96,6 +97,8 @@ export default function Scene3DFullscreen({
   const [focusId, setFocusId] = React.useState('')
   const fitNonceRef = React.useRef(0)
   const [cameraViewEditId, setCameraViewEditId] = React.useState<string | null>(null)
+  // 录完的 take 转交任务状态机（takeRecorder 与 taskFlow 初始化互相依赖 → ref 转发破环，同 #4 范本）。
+  const rememberLastTakeRef = React.useRef<(recordedState: Scene3DState) => void>(() => {})
   const captureApiRef = React.useRef<CaptureApi | null>(null)
   const initialEditorCameraRef = React.useRef<Scene3DState['editorCamera']>({
     ...initialState.editorCamera,
@@ -224,31 +227,14 @@ export default function Scene3DFullscreen({
   const applyCameraMove = useScene3DCameraMoveAction({ readOnly, stateRef, setState, trajectory })
   const { exportCameraMoveFrames, moveFrameCapture } = useScene3DMoveFrameExport({ stateRef, onScreenshot })
 
-  const deleteSceneItem = React.useCallback((target: Exclude<Scene3DSelection, null>) => {
-    if (readOnly) return
-    setState((current) => {
-      const nextState = target.type === 'object'
-        ? {
-            ...current,
-            objects: current.objects.filter((object) => object.id !== target.id),
-            cameras: current.cameras.map((camera) => (
-              camera.followTargetId === target.id ? { ...camera, followTargetId: undefined } : camera
-            )),
-          }
-        : {
-            ...current,
-            cameras: current.cameras.filter((camera) => camera.id !== target.id),
-          }
-      return removeTrajectoryBindingsForNode(nextState, target.id)
-    })
-    if (selectionRef.current?.type === target.type && selectionRef.current.id === target.id) {
-      setViewLocked(false)
-    }
-    if (target.type === 'camera') {
-      setCameraViewEditId((current) => (current === target.id ? null : current))
-    }
-    setSelection((current) => (current?.type === target.type && current.id === target.id ? null : current))
-  }, [readOnly])
+  const deleteSceneItem = useScene3DDeleteAction({
+    readOnly,
+    selectionRef,
+    setState,
+    setSelection,
+    setViewLocked,
+    setCameraViewEditId,
+  })
 
   const { addObject, addProp, addCamera, addCrowd, applySceneTemplate } = useScene3DAddActions({
     readOnly,
@@ -282,16 +268,14 @@ export default function Scene3DFullscreen({
     onPickCamera: (cameraId) => setSelection({ type: 'camera', id: cameraId }),
   })
 
-  // 出片动作（P0）：面板开关 + 四个导出 handler + 接力 toast + 产物卡片状态（R9 抽到 actions 文件）
+  // 出片动作（任务优先重构）：三个导出 handler + 接力 toast + 产物卡片状态（R9 抽到 actions 文件）
   const {
-    exportPanelOpen,
-    setExportPanelOpen,
     exportCard,
     dismissExportCard,
     handleExportReferenceVideo,
     handleExportScreenshotViewport,
     handleExportScreenshotCamera,
-    handleExportKeyFrames,
+    trackTakeExport,
   } = useScene3DExportActions({
     state,
     stateRef,
@@ -301,7 +285,6 @@ export default function Scene3DFullscreen({
     onPickCamera: (cameraId) => setSelection({ type: 'camera', id: cameraId }),
     captureViewport,
     captureSelectedCamera,
-    exportCameraMoveFrames,
   })
 
   const updateEditorCamera = React.useCallback((editorCamera: Scene3DState['editorCamera']) => {
@@ -395,11 +378,13 @@ export default function Scene3DFullscreen({
   })
 
   const handleRecordTake = React.useCallback((recordedState: Scene3DState) => {
-    // 停止已即时 toast（useScene3DTakeRecorder）；出片态由画布「录制走位参考」节点徽标接力（#1/#11 同链）。
-    onRecordTake?.(recordedState)
+    // 停止后闭环（审计 §6.3）：产物卡追踪渲染进度 + 留档 take 场景供「原位重播」。
+    rememberLastTakeRef.current(recordedState)
+    const takeId = onRecordTake?.(recordedState)
+    trackTakeExport(typeof takeId === 'string' ? takeId : null)
     characterDrive.exitPossess()
     characterDrive.exitCameraPossess()
-  }, [characterDrive, onRecordTake])
+  }, [characterDrive, onRecordTake, trackTakeExport])
 
   const takeRecorder = useScene3DTakeRecorder({
     possessTarget: characterDrive.possessTarget,
@@ -411,6 +396,31 @@ export default function Scene3DFullscreen({
   // #A：stopRecording 内部幂等（ref 守卫，见 useScene3DTakeRecorder），无脑调用即可——非录制态是安全 no-op，
   // 不用在这里判断「现在是否在录」（判断会撞过期闭包，见 stopRecording 注释）。
   stopRecordingBeforeExitRef.current = takeRecorder.stopRecording
+
+  // 任务优先状态机（拍板样张 2026-07-22）：任务切换 / 倒计时录制 / 主视图身份 / 状态句 / CTA / 原位重播
+  const taskFlow = useScene3DTaskFlow({
+    stateRef,
+    selection,
+    selectionRef,
+    selectedCamera,
+    cameraViewEditCamera,
+    trajectory,
+    trajectoryMode,
+    takeRecorder,
+    possessedObjectName: characterDrive.possessedObject?.name ?? null,
+    possessedCameraName: characterDrive.possessedCamera?.name ?? null,
+    hasPossessTarget: Boolean(characterDrive.possessedObject || characterDrive.possessedCamera),
+    enterPossess: characterDrive.enterPossess,
+    setSelection,
+    setState,
+    setRightPanelOpen,
+    openMovePresetHub: () => setMoveHubTab('preset'),
+    enterCameraViewEdit,
+    exitCameraViewEdit,
+    handleExportReferenceVideo,
+    handleExportScreenshotCamera,
+  })
+  rememberLastTakeRef.current = taskFlow.rememberLastTake
 
   // 点动作库：即时改假人姿势（S1，命中已激活预设会 toggle 成站立）+ 若正在录 take，记一条带时间戳的动作事件
   // （pose-over-time 生产者）。按「实际生效的 presetId」打点（可能是 toggle 后的 'standing'，见 #B），
@@ -514,7 +524,13 @@ export default function Scene3DFullscreen({
       <Scene3DWindowBar />
       <Scene3DFullscreenHeader
         nodeTitle={nodeTitle}
-        onOpenExportPanel={() => setExportPanelOpen(true)}
+        task={taskFlow.taskMode}
+        ctaLabel={taskFlow.taskCtaLabel}
+        ctaTitle={taskFlow.taskCtaTitle}
+        refineOpen={rightPanelOpen}
+        onTaskChange={taskFlow.handleTaskChange}
+        onCta={taskFlow.handleTaskCta}
+        onToggleRefine={() => setRightPanelOpen((current) => !current)}
         onReplayCoach={() => {
           resetScene3DCoachSeen()
           setShowCoach(true)
@@ -672,9 +688,14 @@ export default function Scene3DFullscreen({
           {!readOnly && state.trajectories.length > 0 && !cameraViewEditCamera ? (
             <Scene3DTrajectoryEditBanner trajectory={trajectory} onEnterEdit={() => enterTrajectoryMode(false)} />
           ) : null}
-          {cameraViewEditCamera && !characterDrive.cameraPossessId ? (
-            <Scene3DCameraViewBanner cameraName={cameraViewEditCamera.name} onExit={exitCameraViewEdit} />
-          ) : null}
+          {/* 任务优先覆盖层：主视图身份 chip + 视口截图 + 全局状态句 + 录制倒计时（审计 §6.2/§6.3） */}
+          <Scene3DTaskOverlays
+            viewIdentity={taskFlow.viewIdentity}
+            statusSentence={taskFlow.statusSentence}
+            recordCountdown={taskFlow.recordCountdown}
+            onToggleOutputView={taskFlow.handleToggleOutputView}
+            onSnapshotViewport={handleExportScreenshotViewport}
+          />
           <Scene3DViewportToolPill
             readOnly={readOnly}
             transformMode={transformMode}
@@ -692,7 +713,8 @@ export default function Scene3DFullscreen({
             recorder={onRecordTake ? {
               isRecording: takeRecorder.isRecording,
               elapsedSeconds: takeRecorder.elapsedSeconds,
-              onStart: takeRecorder.startRecording,
+              // 单一开录路（P1）：底部 ●REC 与任务 CTA 同走 3 秒倒计时。
+              onStart: taskFlow.beginCountdownRecording,
               onStop: takeRecorder.stopRecording,
             } : undefined}
             onApplyPreset={handleApplyActionPreset}
@@ -756,18 +778,12 @@ export default function Scene3DFullscreen({
         </AnimatePresence>
       </main>
       {showCoach && !readOnly ? <Scene3DCoachMarks onDone={() => setShowCoach(false)} /> : null}
-      {/* P0-4/P3-14：出片产物卡片（渲染中→完成+去向；回画布查看=关编辑器，fit+高亮已排队） */}
-      <Scene3DExportingCard card={exportCard} onGoCanvas={handleClose} onDismiss={dismissExportCard} />
-      {/* 出片面板（P0-2）：右侧滑出，三选项 */}
-      <Scene3DExportPanel
-        open={exportPanelOpen}
-        onClose={() => setExportPanelOpen(false)}
-        state={state}
-        onExportReferenceVideo={handleExportReferenceVideo}
-        onScreenshotViewport={handleExportScreenshotViewport}
-        onScreenshotCamera={handleExportScreenshotCamera}
-        onExportKeyFrames={handleExportKeyFrames}
-        hasCamera={state.cameras.length > 0}
+      {/* 出片产物卡片（渲染中→完成+去向+原位重播；回画布查看=关编辑器，fit+高亮已排队） */}
+      <Scene3DExportingCard
+        card={exportCard}
+        onGoCanvas={handleClose}
+        onReplayTake={taskFlow.lastTakeStateRef.current ? taskFlow.replayLastTake : undefined}
+        onDismiss={dismissExportCard}
       />
       {/* 运镜首尾帧的离屏同源采样（有导出请求时才挂；隐藏元素，不进布局） */}
       {moveFrameCapture}

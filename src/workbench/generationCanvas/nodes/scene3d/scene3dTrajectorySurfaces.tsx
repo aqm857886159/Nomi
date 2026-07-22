@@ -1,5 +1,5 @@
 import React from 'react'
-import { IconCamera, IconRoute } from '@tabler/icons-react'
+import { IconRoute } from '@tabler/icons-react'
 import type { Scene3DCamera, Scene3DObject, Scene3DSelection, Scene3DState } from './scene3dTypes'
 import type { Scene3DTrajectoryEditing } from './useScene3DTrajectoryEditing'
 import type { CameraMovePresetSpec } from './cameraMovePreset'
@@ -34,28 +34,8 @@ export function Scene3DTrajectoryLayer({
   )
 }
 
-/** Top-center pill shown while adjusting a camera's framing. */
-export function Scene3DCameraViewBanner({
-  cameraName,
-  onExit,
-}: {
-  cameraName: string
-  onExit: () => void
-}): JSX.Element {
-  return (
-    <div className="pointer-events-auto absolute left-1/2 top-4 z-[3] flex -translate-x-1/2 items-center gap-2 rounded-nomi border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] px-3 py-2 text-caption text-[var(--nomi-ink)] shadow-[var(--nomi-shadow-md)]">
-      <IconCamera size={15} className="text-[var(--nomi-ink-60)]" />
-      <span className="max-w-[220px] truncate">取景调整 · {cameraName}</span>
-      <button
-        className="rounded-nomi-sm bg-[var(--nomi-ink-05)] px-2 py-1 text-micro text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)]"
-        type="button"
-        onClick={onExit}
-      >
-        退出
-      </button>
-    </div>
-  )
-}
+// Scene3DCameraViewBanner（取景调整顶部横幅）已删：主视图身份 chip（Scene3DFullscreen）
+// 常驻标明「输出画面/工作视图」并承担进出取景，横幅是重复入口（任务优先重构 2026-07-22，P1）。
 
 /** Top-center pill that toggles trajectory edit mode (mirrors camera-view edit). */
 export function Scene3DTrajectoryEditBanner({

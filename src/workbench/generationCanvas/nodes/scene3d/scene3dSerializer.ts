@@ -222,6 +222,7 @@ function normalizeObject(value: unknown, index: number): Scene3DObject | null {
     poseTrack: poseTrackValue(raw.poseTrack),
     locomotionClip: typeof raw.locomotionClip === 'string' ? raw.locomotionClip : undefined,
     children: Array.isArray(raw.children) ? raw.children.filter((id): id is string => typeof id === 'string') : undefined,
+    ...(typeof raw.templateGroup === 'string' && raw.templateGroup ? { templateGroup: raw.templateGroup } : {}),
   }
 }
 

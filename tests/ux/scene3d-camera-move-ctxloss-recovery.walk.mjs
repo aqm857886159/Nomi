@@ -82,7 +82,7 @@ try {
   if ((await possessBtn.count()) > 0) { await possessBtn.click(); await win.waitForTimeout(1000) }
 
   const recBtn = win.locator('[title^="录 take"]').first()
-  if ((await recBtn.count()) > 0) { await recBtn.click(); await win.waitForTimeout(400) }
+  if ((await recBtn.count()) > 0) { await recBtn.click(); await win.locator('[title="停止录制并生成参考视频"]').first().waitFor({ timeout: 8000 }).catch(() => {}); await win.waitForTimeout(200) }
   const stopBtn = win.locator('[title="停止录制并生成参考视频"]')
   pass.recStarted = (await stopBtn.count()) > 0
   log(`  ${pass.recStarted ? '✓' : '✗'} 开始录制`)

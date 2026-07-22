@@ -13,6 +13,7 @@ import {
   IconUser,
 } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
+import { templateGroupSegments } from './scene3dTaskMode'
 import {
   SCENE3D_ASPECT_OPTIONS,
   type Scene3DAspectRatio,
@@ -147,7 +148,9 @@ export function SceneObjectList({
 }): JSX.Element {
   const [renaming, setRenaming] = React.useState<string>('')
   const [expandedCrowds, setExpandedCrowds] = React.useState<Record<string, boolean>>({})
-  const rows = React.useMemo(() => {
+  // 模板组默认折叠（审计 §6.3：城市街道一次 28 个平铺节点把树变成对象清单）——需要时再展开。
+  const [expandedGroups, setExpandedGroups] = React.useState<Record<string, boolean>>({})
+  const entries = React.useMemo(() => {
     let roleIndex = 0
     const objectRows = objects.map((object) => {
       const roleStartIndex = object.type === 'mannequin' || object.type === 'mannequinCrowd'
@@ -161,30 +164,67 @@ export function SceneObjectList({
         name: object.name,
         visible: object.visible,
         object,
+        camera: undefined,
         roleStartIndex,
       }
     })
-    return [
-      ...objectRows,
-      ...cameras.map((camera) => ({
-        id: camera.id,
-        type: 'camera' as const,
-        name: camera.name,
-        visible: camera.visible,
-        camera,
-        roleStartIndex: undefined,
-      })),
-    ]
-  }, [cameras, objects])
+    const cameraRows = cameras.map((camera) => ({
+      id: camera.id,
+      type: 'camera' as const,
+      name: camera.name,
+      visible: camera.visible,
+      object: undefined,
+      camera,
+      roleStartIndex: undefined,
+    }))
+    type SceneRow = (typeof objectRows)[number] | (typeof cameraRows)[number]
+    const output: Array<
+      | { kind: 'header'; group: string; count: number; key: string }
+      | { kind: 'row'; row: SceneRow }
+    > = []
+    for (const segment of templateGroupSegments(objects)) {
+      const segmentRows = segment.items
+        .map((object) => objectRows.find((row) => row.id === object.id))
+        .filter((row): row is (typeof objectRows)[number] => Boolean(row))
+      if (!segment.group) {
+        segmentRows.forEach((row) => output.push({ kind: 'row', row }))
+        continue
+      }
+      output.push({ kind: 'header', group: segment.group, count: segmentRows.length, key: `group-${segmentRows[0]?.id ?? segment.group}` })
+      if (expandedGroups[segment.group] ?? false) segmentRows.forEach((row) => output.push({ kind: 'row', row }))
+    }
+    cameraRows.forEach((row) => output.push({ kind: 'row', row }))
+    return output
+  }, [cameras, expandedGroups, objects])
+  const totalCount = objects.length + cameras.length
 
   return (
     <section className="flex h-full min-h-0 flex-col bg-[var(--nomi-paper)]">
       <div className="flex shrink-0 items-center justify-between px-3 py-2">
         <h3 className="m-0 text-caption font-medium text-[var(--nomi-ink)]">场景节点</h3>
-        <span className="text-micro text-[var(--nomi-ink-60)]">{rows.length}</span>
+        <span className="text-micro text-[var(--nomi-ink-60)]">{totalCount}</span>
       </div>
       <div className="min-h-0 flex-1 overflow-auto px-2 pb-2">
-        {rows.map((row) => {
+        {entries.map((entry) => {
+          if (entry.kind === 'header') {
+            const expanded = expandedGroups[entry.group] ?? false
+            return (
+              <button
+                key={entry.key}
+                className="grid w-full grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-1 rounded-nomi-sm px-1 py-1 text-left text-[var(--nomi-ink)] hover:bg-[var(--nomi-ink-05)]"
+                type="button"
+                title={expanded ? '收起这组布景' : '展开这组布景'}
+                onClick={() => setExpandedGroups((current) => ({ ...current, [entry.group]: !expanded }))}
+              >
+                <span className="grid size-6 place-items-center text-[var(--nomi-ink-40)]">
+                  {expanded ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+                </span>
+                <span className="min-w-0 truncate text-caption font-medium">{entry.group}</span>
+                <span className="rounded-pill bg-[var(--nomi-ink-05)] px-1.5 py-0.5 text-micro text-[var(--nomi-ink-60)]">{entry.count} 个对象</span>
+              </button>
+            )
+          }
+          const row = entry.row
           const selected = selection?.type === row.type && selection.id === row.id
           const rowObject = row.type === 'object' ? row.object : undefined
           const isCrowd = rowObject?.type === 'mannequinCrowd'

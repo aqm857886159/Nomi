@@ -73,8 +73,8 @@ try {
 
   // — 默认态：出片主按钮在场；时间轴默认收起（否则盖住底部「添加」，2026-07-20 用户真机反馈）—
   const exportBtn = win.locator('[data-coach="export-button"]')
-  if ((await exportBtn.count()) > 0) ok('顶栏「出片」主按钮在场')
-  else fail('顶栏「出片」主按钮缺席')
+  if ((await exportBtn.count()) > 0) ok('顶栏任务 CTA（data-coach=export-button）在场')
+  else fail('顶栏任务 CTA 缺席')
   const playheadHandle = win.locator('[title="拖动播放头"]')
   if ((await playheadHandle.count()) === 0) ok('时间轴默认收起（不盖底部添加工具栏）')
   else fail('时间轴默认展开——会盖住底部「添加」，旅程第 1 步被挡')
@@ -244,18 +244,19 @@ try {
     fail('找不到播放头拖柄')
   }
 
-  // — 出片面板：就绪态 —
-  await exportBtn.first().click()
-  await win.waitForTimeout(700)
-  const readyText = await win.getByText('运镜就绪（', { exact: false }).count()
-  if (readyText > 0) ok('出片面板：参考视频显示就绪态（轨迹/绑定计数）')
-  else fail('出片面板就绪态缺席')
-  await shot('10-export-panel.png')
+  // — 任务优先 IA：主视图身份 chip + 全局状态句在场（审计 §6.2）—
+  if ((await win.getByText('工作视图 · 不会出片', { exact: false }).count()) > 0) ok('主视图身份 chip 在场（工作视图 · 不会出片）')
+  else fail('主视图身份 chip 缺席')
+  if ((await win.getByRole('button', { name: '预览最终画面', exact: true }).count()) > 0) ok('全局状态句 + 预览最终画面在场')
+  else fail('状态句/预览最终画面缺席')
+  if ((await win.locator('[title^="展开这组布景"]').count()) > 0) ok('场景树模板组折叠头在场（不再 30 平铺节点）')
+  else fail('场景树模板组折叠头缺席')
+  await shot('10-task-first-overlays.png')
 
-  // — 出片面板>截图路：视口截图 → toast 证图片节点已建 —
-  await win.getByRole('button', { name: '视口截图', exact: true }).first().click()
+  // — 视口截图（工作视图记录）：视图身份 chip 旁的相机图标 —
+  await win.locator('button[title^="视口截图"]').first().click()
   await win.waitForTimeout(900)
-  if ((await win.getByText('已创建图片节点', { exact: false }).count()) > 0) ok('出片面板>视口截图通（图片节点已建）')
+  if ((await win.getByText('已创建图片节点', { exact: false }).count()) > 0) ok('视口截图通（图片节点已建）')
   else fail('视口截图后没见「已创建图片节点」toast')
   // 截图完成卡（2026-07-21「截了图没东西可拖」根治）：指明产物在编辑器后面的画布 + 回家路
   if ((await win.getByText('截图已生成', { exact: false }).count()) > 0) ok('截图完成卡已出（产物去向 + 回画布查看）')
@@ -263,11 +264,14 @@ try {
   await shot('10b-screenshot-card.png')
   await win.getByRole('button', { name: '知道了', exact: true }).first().click().catch(() => {})
   await win.waitForTimeout(400)
-  await exportBtn.first().click()
-  await win.waitForTimeout(700)
 
-  // — 出片：参考视频 → 产物卡片 + take 节点（frameCount 已裁剪）—
-  await win.getByRole('button', { name: /参考视频/ }).first().click()
+  // — 出片：切「运镜参考」任务 → CTA=生成参考视频 → 产物卡片 + take 节点（frameCount 已裁剪）—
+  await win.getByRole('tab', { name: /运镜参考/ }).first().click()
+  await win.waitForTimeout(500)
+  const ctaText = (await exportBtn.first().textContent()) || ''
+  if (ctaText.includes('生成参考视频')) ok('运镜任务 CTA=生成参考视频')
+  else fail(`运镜任务 CTA 文案异常: ${ctaText}`)
+  await exportBtn.first().click()
   await win.waitForTimeout(1000)
   const exportingCard = await win.getByText('参考视频生成中', { exact: false }).count()
   if (exportingCard > 0) ok('右下角产物卡片（生成中）已出')

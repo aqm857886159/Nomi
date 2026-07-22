@@ -115,7 +115,7 @@ try {
   // 点「录 take」开始
   const recBtn = win.locator('[title^="录 take"]').first()
   const recCount = await recBtn.count()
-  if (recCount > 0) { await recBtn.click(); await win.waitForTimeout(400) }
+  if (recCount > 0) { await recBtn.click(); await win.locator('[title="停止录制并生成参考视频"]').first().waitFor({ timeout: 8000 }).catch(() => {}); await win.waitForTimeout(200) }
   // 录制态出现「停止」按钮（title 停止录制并生成参考视频）
   const stopBtn = win.locator('[title="停止录制并生成参考视频"]')
   pass.recStarted = (await stopBtn.count()) > 0

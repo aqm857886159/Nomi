@@ -27,6 +27,7 @@ import {
   makeCamera,
 } from './scene3dMath'
 import { nextAvailableObjectPosition } from './scene3dObjects'
+import { removeTrajectoryBindingsForNode } from './scene3dTrajectoryState'
 import { useScene3DTrajectoryEditing } from './useScene3DTrajectoryEditing'
 import { trajectoryPointTimeRatio } from './trajectory'
 import { applyCameraMovePreset, type CameraMovePresetSpec } from './cameraMovePreset'
@@ -488,6 +489,50 @@ export function useScene3DAddActions({
   return { addObject, addProp, addCamera, addCrowd, applySceneTemplate }
 }
 
+// 删除场景项（从 Scene3DFullscreen 抽出，防巨壳 R9）：连带清 followTargetId / 轨迹绑定 /
+// 取景态 / 选中态。行为与原内联实现等价（P1 无并行版）。
+export function useScene3DDeleteAction({
+  readOnly,
+  selectionRef,
+  setState,
+  setSelection,
+  setViewLocked,
+  setCameraViewEditId,
+}: {
+  readOnly: boolean
+  selectionRef: React.MutableRefObject<Scene3DSelection>
+  setState: React.Dispatch<React.SetStateAction<Scene3DState>>
+  setSelection: React.Dispatch<React.SetStateAction<Scene3DSelection>>
+  setViewLocked: React.Dispatch<React.SetStateAction<boolean>>
+  setCameraViewEditId: React.Dispatch<React.SetStateAction<string | null>>
+}) {
+  return React.useCallback((target: Exclude<Scene3DSelection, null>) => {
+    if (readOnly) return
+    setState((current) => {
+      const nextState = target.type === 'object'
+        ? {
+            ...current,
+            objects: current.objects.filter((object) => object.id !== target.id),
+            cameras: current.cameras.map((camera) => (
+              camera.followTargetId === target.id ? { ...camera, followTargetId: undefined } : camera
+            )),
+          }
+        : {
+            ...current,
+            cameras: current.cameras.filter((camera) => camera.id !== target.id),
+          }
+      return removeTrajectoryBindingsForNode(nextState, target.id)
+    })
+    if (selectionRef.current?.type === target.type && selectionRef.current.id === target.id) {
+      setViewLocked(false)
+    }
+    if (target.type === 'camera') {
+      setCameraViewEditId((current) => (current === target.id ? null : current))
+    }
+    setSelection((current) => (current?.type === target.type && current.id === target.id ? null : current))
+  }, [readOnly, selectionRef, setCameraViewEditId, setSelection, setState, setViewLocked])
+}
+
 // 运镜首尾帧导出已移居 useScene3DCaptureExport.ts（与视口/相机截图同一「出片捕获」模块）。
 
 // 运镜预设：按当前机位就地落一段轨迹并追加到时间轴末尾（连点串联）。在 stateRef 上算好再 setState
@@ -524,8 +569,9 @@ export type Scene3DExportCard = {
   fedDownstream: boolean
 }
 
-// 出片动作（2026-07-20 出片旅程 P0）：出片面板开关、四个导出 handler、
+// 出片动作（2026-07-20 出片旅程 → 2026-07-22 任务优先重构）：三个导出 handler、
 // 运镜就绪接力 toast（P0-5）、产物卡片（P0-4 生成中 → P3-14 完成态+去向）。
+// 原出片面板已删（P1）：产物由任务 CTA 直达；trackTakeExport 供录 take 停止后接上同一张产物卡。
 export function useScene3DExportActions({
   state,
   stateRef,
@@ -535,7 +581,6 @@ export function useScene3DExportActions({
   onPickCamera,
   captureViewport,
   captureSelectedCamera,
-  exportCameraMoveFrames,
 }: {
   state: Scene3DState
   stateRef: React.MutableRefObject<Scene3DState>
@@ -546,9 +591,7 @@ export function useScene3DExportActions({
   onPickCamera?: (cameraId: string) => void
   captureViewport: () => boolean
   captureSelectedCamera: () => boolean
-  exportCameraMoveFrames: (cameraId: string) => Promise<void>
 }) {
-  const [exportPanelOpen, setExportPanelOpen] = React.useState(false)
   // P3-14：正在出片的 take 节点 id——产物卡盯它的 meta.cameraMoveVideo 等渲染完成
   const [exportingTakeId, setExportingTakeId] = React.useState<string | null>(null)
   // 渲染超过 60s 还没出结果 → 卡片降级为「渲染较慢」提示（捕获宿主自带 watchdog+重试，这里只管告知）
@@ -615,6 +658,15 @@ export function useScene3DExportActions({
     if (journeyToastTimerRef.current) window.clearTimeout(journeyToastTimerRef.current)
   }, [])
 
+  // 产物卡进「渲染中」态并盯 take 节点等完成；60s 未出降级「渲染较慢」。
+  // CTA 出参考视频与录 take 停止共用（录完不再把用户丢进无反馈区，审计 §6.3 闭环）。
+  const trackTakeExport = React.useCallback((takeId: string | null) => {
+    setExportingTakeId(takeId)
+    setSlowHint(false)
+    if (exportingTimerRef.current) window.clearTimeout(exportingTimerRef.current)
+    exportingTimerRef.current = window.setTimeout(() => setSlowHint(true), 60_000)
+  }, [])
+
   const handleExportReferenceVideo = React.useCallback(() => {
     if (!onRecordTake) {
       toast('当前环境不支持导出参考视频', 'warning')
@@ -638,17 +690,11 @@ export function useScene3DExportActions({
       ? { ...current, sceneTimeline: { ...current.sceneTimeline, totalDuration: motionEnd } }
       : current
     const takeId = onRecordTake(exportState)
-    setExportPanelOpen(false)
-    // P0-4/P3-14：产物卡片进「渲染中」态，盯 take 节点等完成；60s 未出降级「渲染较慢」
-    setExportingTakeId(typeof takeId === 'string' ? takeId : null)
-    setSlowHint(false)
-    if (exportingTimerRef.current) window.clearTimeout(exportingTimerRef.current)
-    exportingTimerRef.current = window.setTimeout(() => setSlowHint(true), 60_000)
-  }, [onRecordTake, stateRef])
+    trackTakeExport(typeof takeId === 'string' ? takeId : null)
+  }, [onRecordTake, stateRef, trackTakeExport])
 
   const handleExportScreenshotViewport = React.useCallback(() => {
     const captured = captureViewport()
-    setExportPanelOpen(false)
     if (captured) markScreenshotDone()
   }, [captureViewport, markScreenshotDone])
 
@@ -659,29 +705,15 @@ export function useScene3DExportActions({
       return
     }
     const captured = captureSelectedCamera()
-    setExportPanelOpen(false)
     if (captured) markScreenshotDone()
   }, [captureSelectedCamera, markScreenshotDone, onPickCamera, selectedCamera, stateRef])
 
-  const handleExportKeyFrames = React.useCallback(() => {
-    // 首尾帧导出需要一个相机 ID：优先用选中的相机，否则用第一个相机
-    const cameraId = selectedCamera?.id || stateRef.current.cameras[0]?.id
-    if (!cameraId) {
-      toast('先加个相机才能导出首尾帧', 'warning')
-      return
-    }
-    setExportPanelOpen(false)
-    void exportCameraMoveFrames(cameraId)
-  }, [exportCameraMoveFrames, selectedCamera, stateRef])
-
   return {
-    exportPanelOpen,
-    setExportPanelOpen,
     exportCard,
     dismissExportCard,
     handleExportReferenceVideo,
     handleExportScreenshotViewport,
     handleExportScreenshotCamera,
-    handleExportKeyFrames,
+    trackTakeExport,
   }
 }

@@ -1,19 +1,44 @@
-// 3D 导演台顶部工具栏（IA 重排后 = 身份与出口：标题 ｜ 出片 · 重看引导 · 关闭）。
-// 10→4 的去处（docs/plan/2026-07-20-scene3d-ia-redesign.md §4）：截图/播放/轨迹 toggle=重复入口删；
-// 移动/旋转→视口左上悬浮 pill；速度→视口左下；接控→右栏随选中出现。
+// 3D 导演台顶部工具栏（任务优先重构 2026-07-22 拍板样张）：
+// 标题 ｜ 三个任务入口（构图图 / 人物动作 / 运镜参考，同一套编辑器状态，绝非并行版）｜
+// 精调（右栏开合）· 重看引导 · 任务 CTA（原「出片」面板已删，三产物由任务 CTA 直达）· 关闭。
 import React from 'react'
-import { IconCube, IconHelp, IconUpload, IconX } from '@tabler/icons-react'
+import { IconCube, IconHelp, IconPhoto, IconRun, IconVideo, IconX } from '@tabler/icons-react'
+import { cn } from '../../../../utils/cn'
+import {
+  SCENE3D_TASK_ORDER,
+  SCENE3D_TASK_LABEL,
+  SCENE3D_TASK_SHORT_LABEL,
+  type Scene3DTaskMode,
+} from './scene3dTaskMode'
+
+const TASK_ICON: Record<Scene3DTaskMode, typeof IconPhoto> = {
+  compose: IconPhoto,
+  act: IconRun,
+  move: IconVideo,
+}
 
 type Scene3DFullscreenHeaderProps = {
   nodeTitle: string
-  onOpenExportPanel: () => void
+  task: Scene3DTaskMode
+  ctaLabel: string
+  ctaTitle: string
+  refineOpen: boolean
+  onTaskChange: (task: Scene3DTaskMode) => void
+  onCta: () => void
+  onToggleRefine: () => void
   onReplayCoach: () => void
   onClose: () => void
 }
 
 export function Scene3DFullscreenHeader({
   nodeTitle,
-  onOpenExportPanel,
+  task,
+  ctaLabel,
+  ctaTitle,
+  refineOpen,
+  onTaskChange,
+  onCta,
+  onToggleRefine,
   onReplayCoach,
   onClose,
 }: Scene3DFullscreenHeaderProps): JSX.Element {
@@ -23,19 +48,47 @@ export function Scene3DFullscreenHeader({
         <IconCube size={18} className="shrink-0 text-[var(--workbench-muted)]" />
         <div className="min-w-0 truncate text-body-sm font-medium text-[var(--workbench-ink)]">{nodeTitle}</div>
       </div>
+      {/* 任务入口：先选产物、不先学系统（审计 §6.1）。当前任务持续可见。 */}
+      <div className="flex shrink-0 items-center gap-1 rounded-pill bg-[var(--nomi-ink-05)] p-0.5" role="tablist" aria-label="任务入口">
+        {SCENE3D_TASK_ORDER.map((candidate) => {
+          const Icon = TASK_ICON[candidate]
+          const active = candidate === task
+          return (
+            <button
+              key={candidate}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              title={SCENE3D_TASK_LABEL[candidate]}
+              onClick={() => onTaskChange(candidate)}
+              className={cn(
+                'inline-flex h-7 items-center gap-1.5 rounded-pill px-2.5 text-caption transition-colors',
+                active
+                  ? 'bg-[var(--nomi-paper)] font-medium text-[var(--nomi-ink)] shadow-nomi-sm'
+                  : 'text-[var(--nomi-ink-60)] hover:text-[var(--nomi-ink)]',
+              )}
+            >
+              <Icon size={14} />
+              <span>{SCENE3D_TASK_SHORT_LABEL[candidate]}</span>
+            </button>
+          )
+        })}
+      </div>
       <div className="ml-auto flex min-w-0 items-center gap-2">
-        {/* 出片主按钮（P0-1）：顶部工具栏最右，显眼的主色调 */}
         <button
           type="button"
-          data-coach="export-button"
-          onClick={onOpenExportPanel}
-          title="出片：导出参考视频 / 截图 / 首尾帧"
-          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-nomi bg-[var(--nomi-ink)] px-3 text-caption font-medium text-[var(--nomi-paper)] transition-opacity hover:opacity-90"
+          title={refineOpen ? '收起精调（右栏属性 / 整运镜）' : '精调：完整属性 / 轨迹 / 录 take 都在右栏'}
+          aria-pressed={refineOpen}
+          onClick={onToggleRefine}
+          className={cn(
+            'inline-flex h-8 shrink-0 items-center rounded-nomi-sm border border-[var(--nomi-line-soft)] px-2.5 text-caption transition-colors',
+            refineOpen
+              ? 'bg-[var(--nomi-ink-05)] text-[var(--nomi-ink)]'
+              : 'bg-[var(--nomi-paper)] text-[var(--workbench-muted)] hover:bg-[var(--nomi-ink-05)] hover:text-[var(--workbench-ink)]',
+          )}
         >
-          <IconUpload size={15} />
-          <span>出片</span>
+          精调
         </button>
-        {/* P1：重看引导按钮 */}
         <button
           type="button"
           title="重看新手引导"
@@ -43,6 +96,16 @@ export function Scene3DFullscreenHeader({
           className="grid size-8 shrink-0 place-items-center rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-paper)] text-[var(--workbench-muted)] hover:bg-[var(--nomi-ink-05)] hover:text-[var(--workbench-ink)]"
         >
           <IconHelp size={15} />
+        </button>
+        {/* 任务 CTA：完成按钮就是产物动作（coach 第 5 步仍锚在这，data-coach 沿用） */}
+        <button
+          type="button"
+          data-coach="export-button"
+          onClick={onCta}
+          title={ctaTitle}
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-nomi bg-[var(--nomi-ink)] px-3 text-caption font-medium text-[var(--nomi-paper)] transition-opacity hover:opacity-90"
+        >
+          <span>{ctaLabel}</span>
         </button>
         <button
           className="grid size-8 shrink-0 place-items-center rounded-nomi-sm border border-[var(--nomi-line-soft)] bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-60)] hover:bg-[var(--nomi-ink-10)] hover:text-[var(--nomi-ink)]"

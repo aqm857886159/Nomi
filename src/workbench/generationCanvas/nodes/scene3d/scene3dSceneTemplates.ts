@@ -116,5 +116,7 @@ function buildRoom(): Scene3DObject[] {
 }
 
 export function buildSceneTemplateObjects(template: Scene3DSceneTemplate): Scene3DObject[] {
-  return template === 'street' ? buildStreet() : buildRoom()
+  // 整组打模板标：场景树按组折叠显示（「城市街道 · 28」），不再把布景摊成 30 个平铺节点。
+  const label = SCENE_TEMPLATE_LABEL[template]
+  return (template === 'street' ? buildStreet() : buildRoom()).map((object) => ({ ...object, templateGroup: label }))
 }

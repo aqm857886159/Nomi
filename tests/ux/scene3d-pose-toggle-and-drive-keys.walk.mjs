@@ -93,7 +93,7 @@ async function repossess(win) {
 async function recordWalk(win, { shift = false, crouch = false, ms = 1000, label }) {
   const recBtn = win.locator('[title^="录 take"]').first()
   await recBtn.click()
-  await win.waitForTimeout(300)
+  await win.locator('[title="停止录制并生成参考视频"]').first().waitFor({ timeout: 8000 }).catch(() => {}); await win.waitForTimeout(200)
   if (shift) await win.keyboard.down('ShiftLeft')
   if (crouch) await win.keyboard.down('KeyC')
   await win.waitForTimeout(80)
@@ -113,7 +113,7 @@ async function recordWalk(win, { shift = false, crouch = false, ms = 1000, label
 async function recordStationaryJump(win) {
   const recBtn = win.locator('[title^="录 take"]').first()
   await recBtn.click()
-  await win.waitForTimeout(300)
+  await win.locator('[title="停止录制并生成参考视频"]').first().waitFor({ timeout: 8000 }).catch(() => {}); await win.waitForTimeout(200)
   await win.keyboard.press('Space')
   await win.waitForTimeout(750) // 跳跃总时长 0.5s，留余量
   const stopBtn = win.locator('[aria-label="角色操控动作库"] [title="停止录制并生成参考视频"]').first()

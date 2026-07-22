@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SCENE_TEMPLATES, buildSceneTemplateObjects } from './scene3dSceneTemplates'
+import { SCENE_TEMPLATES, SCENE_TEMPLATE_LABEL, buildSceneTemplateObjects } from './scene3dSceneTemplates'
 import { normalizeScene3DState } from './scene3dSerializer'
 
 describe('场景模板 builder', () => {
@@ -34,5 +34,25 @@ describe('场景模板 builder', () => {
     // 没有一面墙挡在 +z 正面（正面 z>1 区域留空给机位）。
     walls.forEach((wall) => expect(wall.position[2]).toBeLessThanOrEqual(0.001))
     expect(objects.some((o) => o.type === 'light')).toBe(true)
+  })
+})
+
+// ——— 任务优先重构（2026-07-22）：模板对象整组打标，场景树按组折叠 ———
+describe('buildSceneTemplateObjects templateGroup', () => {
+  it('街道/房间模板每个对象都带模板组标', () => {
+    for (const template of ['street', 'room'] as const) {
+      const objects = buildSceneTemplateObjects(template)
+      expect(objects.length).toBeGreaterThan(0)
+      for (const object of objects) expect(object.templateGroup).toBe(SCENE_TEMPLATE_LABEL[template])
+    }
+  })
+})
+
+describe('templateGroup 序列化往返', () => {
+  it('normalizeScene3DState 保留 templateGroup（组折叠跨保存/加载存活）', () => {
+    const objects = buildSceneTemplateObjects('street')
+    const normalized = normalizeScene3DState({ objects, cameras: [], trajectories: [], trajectoryBindings: [] })
+    expect(normalized.objects.length).toBe(objects.length)
+    for (const object of normalized.objects) expect(object.templateGroup).toBe(SCENE_TEMPLATE_LABEL.street)
   })
 })

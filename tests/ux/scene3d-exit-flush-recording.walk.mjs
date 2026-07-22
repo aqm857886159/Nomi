@@ -119,7 +119,7 @@ try {
   await win.screenshot({ path: path.join(outDir, 'ef-01-possessed.png') })
 
   const recBtn = win.locator('[title^="录 take"]').first()
-  if ((await recBtn.count()) > 0) { await recBtn.click(); await win.waitForTimeout(400) }
+  if ((await recBtn.count()) > 0) { await recBtn.click(); await win.locator('[title="停止录制并生成参考视频"]').first().waitFor({ timeout: 8000 }).catch(() => {}); await win.waitForTimeout(200) }
   const stopBtn = win.locator('[aria-label="角色操控动作库"] [title="停止录制并生成参考视频"]')
   pass.recStarted = (await stopBtn.count()) > 0
   log(`  ${pass.recStarted ? '✓' : '✗'} 开始录制`)
