@@ -452,7 +452,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     <aside
       className={cn(
         'workbench-creation-ai',
-        'relative grid grid-rows-[44px_auto_minmax(0,1fr)_auto_auto]',
+        'relative grid grid-cols-[minmax(0,1fr)] grid-rows-[44px_auto_minmax(0,1fr)_auto_auto]',
         '[grid-template-areas:"header"_"tools"_"messages"_"error"_"composer"]',
         'min-w-0 min-h-0 overflow-hidden',
         expanded && 'h-[86vh] w-[min(760px,92vw)] rounded-nomi-lg border border-nomi-line bg-nomi-paper shadow-nomi-lg',
@@ -525,7 +525,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         </div>
       </header>
 
-      <div className={cn('[grid-area:tools]')}>
+      <div className={cn('[grid-area:tools] min-w-0')}>
         {/* 对齐画布助手:项目记忆「AI 记得 N 条」(N=0 不渲染);删工具条(与记忆条重复的灰杠)。 */}
         <MemoryFold refreshKey={memoryRefreshKey} />
         {/* 情景卡自动浮现：写好故事还没拆镜头时，把「拆成镜头」入口在对的时机端到眼前（治「没有可点入口」）。 */}
@@ -662,7 +662,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         <div
           className={cn(
             'workbench-creation-ai__error',
-            '[grid-area:error] py-2 px-3',
+            '[grid-area:error] py-2 px-3 min-w-0',
             'border-t border-[color-mix(in_srgb,var(--workbench-danger)_16%,transparent)]',
             'bg-workbench-danger-soft text-workbench-danger',
             'text-caption leading-[1.45]',
@@ -672,7 +672,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         </div>
       ) : null}
 
-      <footer className={cn('workbench-creation-ai__composer', '[grid-area:composer]')}>
+      <footer className={cn('workbench-creation-ai__composer', '[grid-area:composer] min-w-0')}>
         <input
           ref={inputRef}
           type="file"
