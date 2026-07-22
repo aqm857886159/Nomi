@@ -87,6 +87,7 @@ export function NomiBrowserAssetPopover({
   browserCaptureRequest,
   browserPromptCaptureRequest,
   onBrowserCaptureToggle,
+  probeCanvasImportAvailable,
 }: NomiBrowserAssetPopoverProps): JSX.Element {
   const [internalOpen, setInternalOpen] = React.useState(defaultOpened)
   const [activeSource, setActiveSource] = React.useState<NomiBrowserAssetSource>(defaultSource)
@@ -94,6 +95,15 @@ export function NomiBrowserAssetPopover({
   const [activePromptCategory, setActivePromptCategory] = React.useState('all')
   const [query, setQuery] = React.useState('')
   const [localAssets, setLocalAssets] = React.useState<NomiBrowserAsset[]>([])
+  // 捕捞临时卡（下载中/失败）不进 ready 素材网格——单列在弹层顶部状态条（审计 P1：错误项混进素材列表）。
+  const captureTransients = React.useMemo(
+    () => localAssets.filter((asset) => !asset.promptCard && (asset.status === 'loading' || asset.status === 'error')),
+    [localAssets],
+  )
+  const readyLocalAssets = React.useMemo(
+    () => localAssets.filter((asset) => asset.promptCard || (asset.status !== 'loading' && asset.status !== 'error')),
+    [localAssets],
+  )
   const [activeFolderId, setActiveFolderId] = React.useState<string | null>(null)
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => new Set())
   const [filtersOpen, setFiltersOpen] = React.useState(false)
@@ -286,9 +296,32 @@ export function NomiBrowserAssetPopover({
   }, [popoverOpen])
 
   React.useEffect(() => {
-    if (!popoverOpen || contained || typeof document === 'undefined') {
+    if (!popoverOpen || typeof document === 'undefined') {
       setCanvasImportAvailable(false)
       return undefined
+    }
+    if (contained) {
+      // contained 弹层是独立透明窗，父窗画布 DOM 探不到——经 IPC 问主进程「父窗有没有画布目标」。
+      // 管道本来就通（overlay 转发 import-to-canvas 事件），此前只是被一刀切禁用（审计 P0：
+      // 唯一两份成功落库的素材也到不了画布）。3s 轮询：画布随父窗页面切换出现/消失。
+      if (!probeCanvasImportAvailable) {
+        setCanvasImportAvailable(false)
+        return undefined
+      }
+      let cancelled = false
+      const probe = (): void => {
+        void probeCanvasImportAvailable().then((available) => {
+          if (!cancelled) setCanvasImportAvailable(Boolean(available))
+        }).catch(() => {
+          if (!cancelled) setCanvasImportAvailable(false)
+        })
+      }
+      probe()
+      const timer = window.setInterval(probe, 3000)
+      return () => {
+        cancelled = true
+        window.clearInterval(timer)
+      }
     }
     const updateCanvasImportAvailability = (): void => {
       setCanvasImportAvailable(
@@ -305,7 +338,7 @@ export function NomiBrowserAssetPopover({
       attributeFilter: ['class', 'data-nomi-generation-canvas-import-target'],
     })
     return () => observer.disconnect()
-  }, [contained, popoverOpen])
+  }, [contained, popoverOpen, probeCanvasImportAvailable])
 
   const loadPromptExtractionSettings = React.useCallback(async (): Promise<void> => {
     const projectId = getDesktopActiveProjectId()
@@ -378,7 +411,7 @@ export function NomiBrowserAssetPopover({
     projectId: activeLibraryProjectId,
     popoverOpen,
     assets,
-    localAssets,
+    localAssets: readyLocalAssets,
     sourceTabs,
     activeSource,
     activeTab,
@@ -390,7 +423,7 @@ export function NomiBrowserAssetPopover({
     sortAscending,
     setActiveFolderId,
   })
-  const { importRemoteAssetToLibrary } = useBrowserAssetCaptureImport({
+  const { importRemoteAssetToLibrary, retryCaptureImport, dismissCaptureTransient } = useBrowserAssetCaptureImport({
     activeFolderId,
     promptExtractionSettings,
     browserCaptureRequest,
@@ -654,6 +687,7 @@ export function NomiBrowserAssetPopover({
         promptExtractionSettings, promptExtractionSettingsProjectAvailable, savePromptExtractionSettings, activeResizeEdges, startResize, assetContextMenu,
         assetContextMenuRef, canImportSelectedAssetsToCanvas, importSelectedAssetsToCanvas, deleteSelectedAssets, blankContextMenu, blankContextMenuRef,
         renamingAssetId, canRenameSelectedFolder, beginRenameSelectedFolder, commitRenameFolder, cancelRenameFolder,
+        captureTransients, retryCaptureImport, dismissCaptureTransient,
       }}
     />
   )

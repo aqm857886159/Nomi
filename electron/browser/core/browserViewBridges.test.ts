@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import vm from "node:vm";
-import { resourceCaptureBridgeScript } from "./browserViewBridges";
+import { promptHoverBridgeScript, resourceCaptureBridgeScript } from "./browserViewBridges";
 
 // 2026-07-22 审计 L0 根因测试：保存时绝不按坐标重新 pick——候选在高亮那一刻冻结。
 // hover 换图站点（YouTube 缩略图 hover 切动图）在旧实现下会保存到与用户所见不同的 URL。
@@ -105,5 +105,12 @@ describe("resourceCaptureBridgeScript 候选冻结", () => {
     const { bridgeWindow, listeners } = installBridge(img, false);
     listeners.get("pointermove")!({ clientX: 40, clientY: 40, target: img });
     expect(bridgeWindow.__nomiReadBrowserResourceCapture!()).toBeNull();
+  });
+});
+
+describe("Trusted Types 安全（2026-07-22 审计 P1：YouTube 强制 TT 时 innerHTML 抛异常整桥失效）", () => {
+  it("注入脚本零 innerHTML sink——DOM 全走 createElement/textContent 构造", () => {
+    expect(promptHoverBridgeScript([{ id: "image", label: "图片提示词" }])).not.toMatch(/\.innerHTML\s*=/);
+    expect(resourceCaptureBridgeScript(true)).not.toMatch(/\.innerHTML\s*=/);
   });
 });

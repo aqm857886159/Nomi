@@ -32,7 +32,7 @@ import {
   TOOL_BUTTON_CLASS,
   TOOL_BUTTON_COMPACT_CLASS,
 } from './browserAssetPopoverConstants'
-import { normalizeMarqueeRect } from './browserAssetPopoverUtils'
+import { browserAssetDisplaySubtitle, normalizeMarqueeRect } from './browserAssetPopoverUtils'
 import type { FloatingWindowResizeEdge } from '../window/useResizableFloatingWindow'
 
 type BrowserAssetPopoverViewProps = Record<string, any>
@@ -50,6 +50,7 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
     actionsButtonRef, actionsOpen, setActionsOpen, actionsPopoverRef, listMode, setViewMode, sortAscending, setSortAscending, filterButtonRef, filtersOpen, filterActive, setFiltersOpen, showingPromptLibrary, activePromptCategory, promptCategories, promptCategoryCounts, filterPopoverRef, selectPromptCategory, addPromptCategory, showAllFilters, activeTab, filterCounts, tabs, selectFilterTab, uploadInputRef, createFolder, handleUploadFiles, currentFolder, exitCurrentFolder, activeSourceLabel, openAssetRoot, folderBreadcrumbs, openFolder,
     gridRef, handleGridPointerDown, handleGridPointerMove, handleGridPointerUp, openBlankContextMenu, filteredAssets, emptyStateCopy, promptMasonryStyle, selectedIds, setAssetNode, selectAsset, openPromptDetail, openAssetContextMenu, handleTileDragStart, gridCompact, viewMode, handleTileDragOver, handleTileDrop, assetGridStyle, marquee, promptDetailAsset, setPromptDetailAssetId, promptExtractionSettings, promptExtractionSettingsProjectAvailable, savePromptExtractionSettings, activeResizeEdges, startResize, assetContextMenu, assetContextMenuRef, canImportSelectedAssetsToCanvas, importSelectedAssetsToCanvas, deleteSelectedAssets, blankContextMenu, blankContextMenuRef,
     renamingAssetId, canRenameSelectedFolder, beginRenameSelectedFolder, commitRenameFolder, cancelRenameFolder,
+    captureTransients, retryCaptureImport, dismissCaptureTransient,
   } = props
 
   const popoverX = contained ? windowRect.left - (hostOrigin?.left ?? 0) : windowRect.left
@@ -295,6 +296,34 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
               </div>
             ) : null}
 
+            {/* 捕捞临时条：下载中/失败卡不混进 ready 素材网格（审计 P1）——失败给唯一下一步 [重试]/[移除] */}
+            {(captureTransients?.length ?? 0) > 0 ? (
+              <div className="mx-3 mt-2 grid gap-1.5" aria-label="捕捞进行中或失败">
+                {captureTransients.map((asset: any) => (
+                  <div
+                    key={asset.id}
+                    className={cn(
+                      'flex min-w-0 items-center gap-2 rounded-nomi-sm border px-2.5 py-1.5',
+                      asset.status === 'error' ? 'border-workbench-danger/30 bg-nomi-ink-05/60' : 'border-nomi-ink-10 bg-nomi-ink-05/60',
+                    )}
+                  >
+                    <span className={cn('block h-1.5 w-1.5 shrink-0 rounded-pill', asset.status === 'error' ? 'bg-workbench-danger' : 'animate-pulse bg-nomi-accent')} aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate">
+                      <span className="block truncate text-caption font-medium text-nomi-ink-80">{asset.title}</span>
+                      <span className={cn('block truncate text-micro', asset.status === 'error' ? 'text-workbench-danger' : 'text-nomi-ink-40')}>
+                        {browserAssetDisplaySubtitle(asset)}
+                      </span>
+                    </span>
+                    {asset.status === 'error' ? (
+                      <>
+                        <button type="button" className="shrink-0 rounded-nomi-sm px-1.5 py-0.5 text-micro font-semibold text-nomi-accent hover:bg-nomi-ink-05" onClick={() => retryCaptureImport?.(asset.id)}>重试</button>
+                        <button type="button" className="shrink-0 rounded-nomi-sm px-1.5 py-0.5 text-micro text-nomi-ink-40 hover:bg-nomi-ink-05" onClick={() => dismissCaptureTransient?.(asset.id)}>移除</button>
+                      </>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <ScrollArea className="min-h-0 flex-1" viewportRef={gridRef} type="hover" scrollbars="y" scrollbarSize={6} offsetScrollbars="y" scrollHideDelay={500} overscrollBehavior="contain" classNames={{ viewport: 'relative', scrollbar: 'rounded-pill bg-transparent p-0.5', thumb: 'rounded-pill bg-nomi-ink-20 hover:bg-nomi-ink-30' }} viewportProps={{ onPointerDown: handleGridPointerDown, onPointerMove: handleGridPointerMove, onPointerUp: handleGridPointerUp, onPointerCancel: handleGridPointerUp, onContextMenu: openBlankContextMenu }}>
               <div className={cn('px-4 pb-5 pt-4', compactToolbar && 'px-4 pt-4')}>
                 {filteredAssets.length === 0 ? (

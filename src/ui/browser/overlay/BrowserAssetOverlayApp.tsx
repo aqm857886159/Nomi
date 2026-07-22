@@ -507,6 +507,11 @@ export function BrowserAssetOverlayApp(): JSX.Element {
         browserCaptureRequest={browserCaptureRequest}
         browserPromptCaptureRequest={browserPromptCaptureRequest}
         onBrowserCaptureToggle={toggleBrowserResourceCapture}
+        probeCanvasImportAvailable={
+          overlayBridge?.canvasImportAvailable
+            ? () => overlayBridge.canvasImportAvailable!()
+            : undefined
+        }
       />
       <AnimatePresence>
         {captureFlyouts.map((flyout) => (

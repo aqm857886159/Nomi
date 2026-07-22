@@ -132,4 +132,29 @@ describe("browser media session download", () => {
     expect(() => assertPromptReferenceDataUrlSize(16 * 1024 * 1024)).not.toThrow();
     expect(() => assertPromptReferenceDataUrlSize(16 * 1024 * 1024 + 1)).toThrow(/提示词|过大/);
   });
+
+  // 2026-07-22 审计：data: 契约不再自相矛盾——命名层声明支持、主进程真的吃（就地解码 + magic 校验）。
+  it("data:image URL decodes in place with magic-verified type", async () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+    const { record } = makeRecord(new Response("ignored"));
+    const result = await downloadBrowserMediaFromPageView(
+      record,
+      `data:image/png;base64,${Buffer.from(png).toString("base64")}`,
+      "inline.png",
+      "image",
+    );
+    cleanupDirs.push(result.cleanupDir);
+    expect(result.contentType).toBe("image/png");
+    expect(result.mediaType).toBe("image");
+    expect(fs.readFileSync(result.absolutePath)).toEqual(Buffer.from(png));
+  });
+
+  // MSE 流媒体（B站/YouTube）：blob 页面探针判定无原件 → 结构化错误码，不再假下载后谎称「临时资源失效」。
+  it("MSE blob is classified as a stream with a structured error code", async () => {
+    const { record } = makeRecord(new Response("ignored"));
+    (record.view.webContents as unknown as { executeJavaScript: unknown }).executeJavaScript = vi.fn(async () => "mse");
+    await expect(
+      downloadBrowserMediaFromPageView(record, "blob:https://www.bilibili.com/some-uuid", "video", "video"),
+    ).rejects.toThrow(/nomi-capture:mse-stream/);
+  });
 });

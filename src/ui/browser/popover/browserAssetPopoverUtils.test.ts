@@ -69,3 +69,35 @@ describe('browser asset tile status', () => {
     expect(browserAssetImportErrorMessage('anything', 'blob:https://example.com/id')).toBe('网页临时资源已失效')
   })
 })
+
+// ——— 2026-07-22 审计 P1：结构化错误码 → 文案 + 唯一下一步（通用「请重试」只留给 unknown） ———
+import { browserAssetImportErrorMessage } from './browserAssetPopoverUtils'
+
+describe('browserAssetImportErrorMessage 结构化错误码', () => {
+  it('IPC 包裹后的 code 前缀仍能解析（不锚行首）', () => {
+    const wrapped = "Error invoking remote method 'browser:view:import-media': Error: [nomi-capture:mse-stream] 流媒体视频（MediaSource）没有可下载的原件"
+    expect(browserAssetImportErrorMessage(wrapped, 'blob:https://www.bilibili.com/x')).toContain('流媒体视频')
+    expect(browserAssetImportErrorMessage(wrapped, 'blob:https://www.bilibili.com/x')).not.toContain('临时资源已失效')
+  })
+
+  it('每个 code 都映射到带下一步的具体文案，不再折叠成「请重试」', () => {
+    const cases: Array<[string, RegExp]> = [
+      ['[nomi-capture:forbidden] HTTP 403', /登录/],
+      ['[nomi-capture:not-found] HTTP 404', /失效|重新选/],
+      ['[nomi-capture:html-not-media] text/html', /防盗链|人机验证/],
+      ['[nomi-capture:too-large] 超限', /200MB/],
+      ['[nomi-capture:blocked-by-client] ERR_BLOCKED_BY_CLIENT', /安全策略/],
+      ['[nomi-capture:network] ERR_NAME_NOT_RESOLVED', /网络/],
+    ]
+    for (const [reason, expected] of cases) {
+      const message = browserAssetImportErrorMessage(reason, 'https://cdn.example/a.jpg')
+      expect(message).toMatch(expected)
+      expect(message).not.toBe('下载失败，请重试')
+    }
+  })
+
+  it('无 code 的旧字符串走原归类（零回归）', () => {
+    expect(browserAssetImportErrorMessage('Media download timed out', 'https://x/a.jpg')).toBe('下载超时，请重试')
+    expect(browserAssetImportErrorMessage('完全未知的报错', 'https://x/a.jpg')).toBe('下载失败，请重试')
+  })
+})

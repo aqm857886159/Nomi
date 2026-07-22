@@ -133,7 +133,24 @@ export function isBrowserAssetDraggable(asset: NomiBrowserAsset, renaming: boole
   return !renaming && asset.status !== 'loading' && asset.status !== 'error'
 }
 
+// 结构化错误码（主进程 [nomi-capture:<code>] 前缀）→ 文案 + 唯一下一步。
+// 每种失败必须映射到一个可行动动作（2026-07-22 审计 P1：通用「请重试」让用户重复必败动作）。
+const CAPTURE_ERROR_CODE_MESSAGES: Record<string, string> = {
+  'forbidden': '网站拒绝了下载（可能要登录）——先在浏览器里登录该网站再捕捞',
+  'not-found': '素材链接已失效——回到页面重新选一次',
+  'html-not-media': '网站返回的是网页而不是图片/视频（防盗链或人机验证）——通过验证后重试',
+  'too-large': '素材超过 200MB 上限——换小一点的素材',
+  'timeout': '下载超时——网络慢或站点限流，稍后重试',
+  'blocked-by-client': '请求被浏览器安全策略拦截——重新捕捞一次',
+  'mse-stream': '这是流媒体视频（边播边传），没有可下载的原件——回到视频页让画面可见后重试保存当前帧',
+  'network': '网络连接失败——检查网络后重试',
+}
+
 export function browserAssetImportErrorMessage(reason: string, url: string): string {
+  // 不锚行首：渲染层拿到的是 IPC 包裹后的 message（Error invoking remote method …: Error: [nomi-capture:…]）。
+  const code = /\[nomi-capture:([a-z-]+)\]/i.exec(reason)?.[1]?.toLowerCase()
+  if (code && CAPTURE_ERROR_CODE_MESSAGES[code]) return CAPTURE_ERROR_CODE_MESSAGES[code]
+  // 旧构建/渲染层自产错误没有 code——按字符串归类（保留旧口径）。
   if (/来源页面会话|source page session/i.test(reason)) return '来源网页已关闭，请重新拖入'
   if (/timed out|超时/i.test(reason)) return '下载超时，请重试'
   if (/HTTP\s*(401|403)|forbidden|hotlink|referer/i.test(reason)) return '网站拒绝下载（可能需要登录）'
@@ -184,7 +201,13 @@ export function shouldShowDesktopAssetInBrowserPopover(asset: DesktopAssetDto, l
 
 function browserAssetSubtitleFromDesktopAsset(asset: DesktopAssetDto): string {
   const kind = typeof asset.data.kind === 'string' ? asset.data.kind : ''
-  if (kind === 'browser-capture') return '网页素材'
+  if (kind === 'browser-capture') {
+    // 来源质量诚实标注（审计 L4）：页面截图/视频当前帧不冒充原图——后续模型也据此知道输入质量。
+    const quality = typeof asset.data.captureQuality === 'string' ? asset.data.captureQuality : ''
+    if (quality === 'screenshot') return '页面截图'
+    if (quality === 'frame') return '视频当前帧'
+    return '网页原图'
+  }
   if (kind === 'browser-upload') return '本地导入'
   if (kind === 'upload') return '本地导入'
   return '项目素材'

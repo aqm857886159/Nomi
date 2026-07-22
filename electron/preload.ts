@@ -118,6 +118,7 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       finishDrag: () => ipcRenderer.send("browser:asset-overlay:finish-drag"),
       setState: (payload: unknown) => ipcRenderer.send("browser:asset-overlay:set-state", payload),
       importToCanvas: (payload: unknown) => ipcRenderer.send("browser:asset-overlay:import-to-canvas", payload),
+      canvasImportAvailable: () => ipcRenderer.invoke("browser:asset-overlay:canvas-import-available"),
       onConfig: (callback: (event: unknown) => void) => {
         const listener = (_event: unknown, payload: unknown) => callback(payload);
         ipcRenderer.on("browser:asset-overlay:config", listener as never);

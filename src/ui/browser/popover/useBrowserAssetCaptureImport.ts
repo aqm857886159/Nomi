@@ -62,9 +62,13 @@ export function useBrowserAssetCaptureImport({
   updateLibraryState,
 }: UseBrowserAssetCaptureImportOptions): {
   importRemoteAssetToLibrary: (input: BrowserAssetRemoteImportInput) => Promise<void>
+  retryCaptureImport: (assetId: string) => void
+  dismissCaptureTransient: (assetId: string) => void
 } {
   const handledCaptureRequestIdRef = React.useRef<string | null>(null)
   const handledPromptRequestIdRef = React.useRef<string | null>(null)
+  // 失败卡的原始输入留档：错误项不进 ready 列表、只在临时条里给 [重试]/[移除]（审计 P1）。
+  const transientInputsRef = React.useRef(new Map<string, BrowserAssetRemoteImportInput>())
 
   const importRemoteAssetToLibrary = React.useCallback(
     async (input: BrowserAssetRemoteImportInput): Promise<void> => {
@@ -85,6 +89,7 @@ export function useBrowserAssetCaptureImport({
         createdAt: now,
         updatedAt: now,
       }
+      transientInputsRef.current.set(pendingId, input)
       setActiveSource('my')
       setActiveTab('all')
       setLocalAssets((current) => [pendingAsset, ...current])
@@ -97,6 +102,7 @@ export function useBrowserAssetCaptureImport({
       }
       try {
         const imported = await onImportRemoteAsset(input)
+        transientInputsRef.current.delete(pendingId)
         const readyAsset: NomiBrowserAsset = {
           ...imported,
           parentFolderId: activeFolderId,
@@ -124,6 +130,19 @@ export function useBrowserAssetCaptureImport({
     },
     [activeFolderId, onImportRemoteAsset, setActiveSource, setActiveTab, setLocalAssets, setPersistedAssets, setSelectedIds, updateLibraryState],
   )
+
+  // 失败卡「重试」：用原始输入重新走完整导入（新卡替旧卡）；「移除」：临时卡直接消失。
+  const dismissCaptureTransient = React.useCallback((assetId: string): void => {
+    transientInputsRef.current.delete(assetId)
+    setLocalAssets((current) => current.filter((asset) => asset.id !== assetId))
+  }, [setLocalAssets])
+
+  const retryCaptureImport = React.useCallback((assetId: string): void => {
+    const input = transientInputsRef.current.get(assetId)
+    if (!input) return
+    dismissCaptureTransient(assetId)
+    void importRemoteAssetToLibrary(input)
+  }, [dismissCaptureTransient, importRemoteAssetToLibrary])
 
   const upsertPromptCardAsset = React.useCallback(
     (asset: NomiBrowserAsset): void => {
@@ -249,5 +268,5 @@ export function useBrowserAssetCaptureImport({
     void extractPromptToAssetCard(browserPromptCaptureRequest)
   }, [browserPromptCaptureRequest, extractPromptToAssetCard])
 
-  return { importRemoteAssetToLibrary }
+  return { importRemoteAssetToLibrary, retryCaptureImport, dismissCaptureTransient }
 }

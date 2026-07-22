@@ -19,9 +19,9 @@ import {
   captureBrowserPromptScreenshot,
   captureBrowserResource,
   importBrowserMedia,
-  normalizeCaptureSourceRect,
-  selectBrowserPromptScreenshotRect,
 } from "../media/browserViewMedia";
+import { normalizeCaptureSourceRect } from "../media/browserCaptureSource";
+import { selectBrowserPromptScreenshotRect } from "../media/browserPromptScreenshotSelection";
 import {
   applyBrowserAssetOverlayMouseEvents,
   applyBrowserAssetOverlayShape,
@@ -473,5 +473,21 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
     const owner = getOwnerWindowForSender(event.sender);
     if (owner.isDestroyed()) return;
     owner.webContents.send("browser:asset-overlay:import-to-canvas", payload);
+  });
+
+  // contained 素材盒问「父窗现在有没有画布导入目标」——overlay 是独立窗口，DOM 探针跨窗探不到。
+  // 选择器与渲染层 browserAssetPopoverConstants.CANVAS_IMPORT_TARGET_SELECTOR 同义（跨进程无法共享常量）。
+  ipcMain.handle("browser:asset-overlay:canvas-import-available", async (event) => {
+    try {
+      const owner = getOwnerWindowForSender(event.sender);
+      if (owner.isDestroyed()) return false;
+      const available = await owner.webContents.executeJavaScript(
+        "!!document.querySelector('[data-nomi-generation-canvas-import-target=\"true\"]')",
+        true,
+      );
+      return Boolean(available);
+    } catch {
+      return false;
+    }
   });
 }

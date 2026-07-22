@@ -8,6 +8,13 @@ export type BrowserViewRecord = {
   lastBounds: Rectangle;
   resourceCaptureEnabled: boolean;
   promptCategories: BrowserPromptCategory[];
+  // 捕捞触发那一刻记下的候选快照（url+元素矩形）：capturePage 视觉降级按 url 匹配复用（120s 新鲜窗）。
+  lastResourceCapture?: {
+    url: string;
+    mediaType: "image" | "video";
+    sourceRect?: BrowserResourceCaptureRectPayload;
+    capturedAt: number;
+  };
 };
 
 export type BrowserViewCreatePayload = {

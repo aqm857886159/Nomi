@@ -94,6 +94,8 @@ export type NomiBrowserAssetPopoverProps = {
   browserCaptureRequest?: BrowserAssetCaptureRequest | null
   browserPromptCaptureRequest?: BrowserAssetPromptCaptureRequest | null
   onBrowserCaptureToggle?: () => void
+  /** contained（独立透明窗）模式下经 IPC 探测父窗有没有画布导入目标——DOM 探针跨窗探不到。 */
+  probeCanvasImportAvailable?: () => Promise<boolean>
 }
 
 export type AssetPopoverDockMode = BrowserAssetPopoverDockMode

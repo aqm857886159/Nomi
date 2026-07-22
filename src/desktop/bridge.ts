@@ -391,6 +391,7 @@ export type DesktopBridge = {
         captureEnabled?: boolean
       }) => void
       importToCanvas?: (payload: { assets: unknown[] }) => void
+      canvasImportAvailable?: () => Promise<boolean>
       onConfig: (callback: (config: DesktopBrowserAssetOverlayConfig) => void) => () => void
       onState: (callback: (state: DesktopBrowserAssetOverlayState) => void) => () => void
       onImportToCanvas?: (callback: (payload: { assets?: unknown[] }) => void) => () => void
