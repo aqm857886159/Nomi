@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconArrowRight, IconMovie, IconPhoto, IconUserPlus, IconX } from '@tabler/icons-react'
+import { IconArrowRight, IconMovie, IconPhoto, IconPhotoPlus, IconUserPlus, IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { WorkbenchButton } from '../../../design'
 
@@ -9,12 +9,12 @@ import { WorkbenchButton } from '../../../design'
  * 而是在对话流里推这张可见的卡，用户点按钮才真正落画布（治隐形）。
  * 纯视图——文案/图标按 kind 派生（P4 通用，不为两种动作写两套），点击回调与消费态由父组件持有。
  *
- * 拆镜头带「图片分镜 / 视频分镜」二选一（默认图片，用户拍板 2026-07-02 image-first）：
- * 图片分镜 = 每镜一张静态画面（图生图，无时长/运镜）；视频分镜 = 每镜一段视频（带时长）。
+ * 拆镜头带「图片 / 视频 / 图片+视频」三选一（默认图片，用户拍板 2026-07-02 image-first）：
+ * 图片分镜 = 每镜一张静态画面；视频分镜 = 每镜一段视频；图片+视频 = 每镜首帧图→视频。
  * 模式在点按钮那一刻随 onRun 传出 → 注入 planner 的拆镜头指令。
  */
 type StoryboardActionKind = 'storyboard' | 'fixation'
-export type StoryboardShotMode = 'image' | 'video'
+export type StoryboardShotMode = 'image' | 'video' | 'image-video'
 
 const ACTION_ICON: Record<StoryboardActionKind, typeof IconMovie> = {
   storyboard: IconMovie,
@@ -24,6 +24,7 @@ const ACTION_ICON: Record<StoryboardActionKind, typeof IconMovie> = {
 const MODE_OPTIONS: Array<{ value: StoryboardShotMode; labelKey: string; Icon: typeof IconMovie }> = [
   { value: 'image', labelKey: 'storyboardEditor.action.imageMode', Icon: IconPhoto },
   { value: 'video', labelKey: 'storyboardEditor.action.videoMode', Icon: IconMovie },
+  { value: 'image-video', labelKey: 'storyboardEditor.action.imageVideoMode', Icon: IconPhotoPlus },
 ]
 
 export default function StoryboardActionCard({
@@ -89,7 +90,11 @@ export default function StoryboardActionCard({
             )
           })}
           <span className={cn('text-micro text-nomi-ink-40 ml-1 min-w-0 truncate')}>
-            {mode === 'image' ? t('storyboardEditor.action.imageHint') : t('storyboardEditor.action.videoHint')}
+            {mode === 'image'
+              ? t('storyboardEditor.action.imageHint')
+              : mode === 'image-video'
+                ? t('storyboardEditor.action.imageVideoHint')
+                : t('storyboardEditor.action.videoHint')}
           </span>
         </div>
       ) : null}

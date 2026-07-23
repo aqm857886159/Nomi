@@ -5,6 +5,7 @@ import {
   canvasTools,
   plannedEdgeSchema,
   plannedNodeSchema,
+  storyboardPlanParamsSchema,
 } from "./canvasTools";
 
 const makeValidNode = (overrides: Partial<Record<string, unknown>> = {}) => ({
@@ -119,6 +120,70 @@ describe("canvasTools schemas", () => {
       const nodes = [makeValidNode()];
       // zod object passthrough: missing summary fails because schema is z.object({summary: z.string(), ...})
       expect(schema.safeParse({ nodes }).success).toBe(false);
+    });
+  });
+
+  describe("propose_storyboard_plan parameters", () => {
+    it("accepts an image+video logical shot with an embedded keyframe plan", () => {
+      const parsed = storyboardPlanParamsSchema.safeParse({
+        title: "首帧驱动视频",
+        anchors: [],
+        shots: [
+          {
+            index: 1,
+            shotKind: "video",
+            durationSec: 6,
+            anchorIds: [],
+            prompt: "镜头缓慢推近，人物抬头",
+            keyframe: {
+              enabled: true,
+              prompt: "人物坐在电脑前，冷蓝屏幕光，中近景静态构图",
+              modelKey: "image-model",
+              params: { aspect_ratio: "16:9" },
+            },
+          },
+        ],
+      });
+      expect(parsed.success).toBe(true);
+    });
+
+    it("accepts a valid JSON-stringified shots array as defensive compatibility", () => {
+      const parsed = storyboardPlanParamsSchema.safeParse({
+        title: "字符串化数组兜底",
+        anchors: [],
+        shots: JSON.stringify([
+          {
+            index: 1,
+            shotKind: "video",
+            durationSec: 6,
+            anchorIds: [],
+            prompt: "镜头缓慢推近，人物抬头",
+            keyframe: { enabled: true, prompt: "人物坐在电脑前，冷蓝屏幕光，中近景静态构图" },
+          },
+        ]),
+      });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) expect(parsed.data.shots).toHaveLength(1);
+    });
+
+    it("rejects malformed JSON-stringified shots instead of guessing a repair", () => {
+      const parsed = storyboardPlanParamsSchema.safeParse({
+        title: "坏字符串",
+        anchors: [],
+        shots: '[{"index":1,"shotKind":"video","durationSec":6,"anchorIds":[],"prompt":"p","keyframe":{"enabled":true,"prompt":"k"}}',
+      });
+      expect(parsed.success).toBe(false);
+    });
+
+    it("still rejects more than 24 logical shots", () => {
+      const shots = Array.from({ length: 25 }, (_, i) => ({
+        index: i + 1,
+        shotKind: "video",
+        durationSec: 5,
+        anchorIds: [],
+        prompt: `shot ${i + 1}`,
+      }));
+      expect(storyboardPlanParamsSchema.safeParse({ title: "too many", anchors: [], shots }).success).toBe(false);
     });
   });
 
