@@ -22,6 +22,7 @@ import {
   type ImageUrlSlot,
   assetUrl,
   buildEffectiveImageCatalogConfig,
+  buildComfyWorkflowImageUrlSlots,
   buildImageUrlSlots,
   buildModelControls,
   defaultPatchForCatalogControl,
@@ -36,6 +37,7 @@ import {
   readMeta,
   removePreviousControlParams,
   resultPreviewUrl,
+  shouldUseVideoFrameSlotFallback,
 } from './controls/parameterControlModel'
 import {
   type ArchetypeArraySlot,
@@ -145,24 +147,27 @@ export default function NodeParameterControls({
     const nextOption = findModelOptionByIdentifier(modelOptions, value)
     const controls = buildModelControls(nextOption?.meta, isImageLike, isVideoLike)
     const defaultPatch = defaultPatchForControls(controls)
+    const nextArchetype = resolveArchetypeForOption(nextOption)
     // 视频比例产品默认（覆盖档案默认）：首选 16:9，已连输入全竖才 9:16（2026-07-17 用户拍板）。
     const aspectPatch = isVideoLike
       ? videoAspectDefaultPatch(controls, preferredVideoAspect(collectInputAspectRatios(node.id, edges, nodes)))
       : {}
+    const nextMeta = {
+      ...removePreviousControlParams(getLatestMeta(), renderedControls),
+      modelKey: nextOption?.modelKey || nextOption?.value || value || null,
+      modelAlias: nextOption?.modelAlias || nextOption?.value || value || null,
+      modelVendor: nextOption?.vendor || null,
+      vendor: nextOption?.vendor || null,
+      modelLabel: nextOption?.label || value || null,
+      ...defaultPatch,
+      ...aspectPatch,
+      ...(isVideoLike
+        ? { videoModel: nextOption?.value || value || null, videoModelVendor: nextOption?.vendor || null }
+        : { imageModel: nextOption?.value || value || null, imageModelVendor: nextOption?.vendor || null }),
+    }
+    if (!nextArchetype) delete (nextMeta as Record<string, unknown>).archetype
     updateNode(node.id, {
-      meta: {
-        ...removePreviousControlParams(getLatestMeta(), renderedControls),
-        modelKey: nextOption?.modelKey || nextOption?.value || value || null,
-        modelAlias: nextOption?.modelAlias || nextOption?.value || value || null,
-        modelVendor: nextOption?.vendor || null,
-        vendor: nextOption?.vendor || null,
-        modelLabel: nextOption?.label || value || null,
-        ...defaultPatch,
-        ...aspectPatch,
-        ...(isVideoLike
-          ? { videoModel: nextOption?.value || value || null, videoModelVendor: nextOption?.vendor || null }
-          : { imageModel: nextOption?.value || value || null, imageModelVendor: nextOption?.vendor || null }),
-      },
+      meta: nextMeta,
     })
   }
 
@@ -429,9 +434,13 @@ export default function NodeParameterControls({
     }
   }
 
+  const comfyImageUrlSlots = buildComfyWorkflowImageUrlSlots(selectedModelOption?.meta, {
+    firstFrame: t('generationCommon.parameters.firstFrame'),
+    lastFrame: t('generationCommon.parameters.lastFrame'),
+  })
   const modelImageUrlSlots = [
-    ...buildImageUrlSlots(selectedModelOption?.meta),
-    ...imageCatalogReferenceSlot(imageCatalogConfig),
+    ...(comfyImageUrlSlots ?? buildImageUrlSlots(selectedModelOption?.meta)),
+    ...(comfyImageUrlSlots ? [] : imageCatalogReferenceSlot(imageCatalogConfig)),
   ].filter(
     (slot, index, slots) => slots.findIndex((item) => item.key === slot.key && item.group === slot.group) === index,
   )
@@ -439,7 +448,12 @@ export default function NodeParameterControls({
   // 认不出 → 现有启发式槽 + 视频模型 首/尾帧 兜底。
   const imageUrlSlots: ImageUrlSlot[] = archMode
     ? archetypeModeSlots(archMode)
-    : isVideoLike && modelImageUrlSlots.length === 0
+    : shouldUseVideoFrameSlotFallback({
+        isVideoLike,
+        modelImageUrlSlots,
+        comfyImageUrlSlots,
+        vendor: selectedModelOption?.vendor,
+      })
       ? [
           { key: 'firstFrameUrl', label: t('generationCommon.parameters.firstFrame'), group: 'first_frame' },
           { key: 'lastFrameUrl', label: t('generationCommon.parameters.lastFrame'), group: 'last_frame' },

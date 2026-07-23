@@ -55,6 +55,11 @@ export type ImageUrlSlot = {
   group: ImageUrlGroup
 }
 
+export type FrameSlotLabels = {
+  firstFrame: string
+  lastFrame: string
+}
+
 const FIRST_FRAME_KEY_FRAGMENTS = ['firstframe', 'firstimage', 'startframe', 'startimage', 'initialframe']
 const LAST_FRAME_KEY_FRAGMENTS = ['lastframe', 'lastimage', 'endframe', 'endimage', 'finalframe']
 
@@ -105,6 +110,40 @@ export function buildImageUrlSlots(meta: unknown): ImageUrlSlot[] {
   return controls
     .filter(looksLikeImageUrlControl)
     .map((c) => ({ key: c.key, label: c.label, group: inferImageUrlGroup(c.key) }))
+}
+
+function readComfyWorkflowBinding(meta: unknown): Record<string, unknown> | null {
+  if (!meta || typeof meta !== 'object') return null
+  const draft = (meta as Record<string, unknown>).comfyWorkflowImport
+  if (!draft || typeof draft !== 'object') return null
+  const binding = (draft as Record<string, unknown>).binding
+  return binding && typeof binding === 'object' ? binding as Record<string, unknown> : null
+}
+
+export function buildComfyWorkflowImageUrlSlots(meta: unknown, labels: FrameSlotLabels): ImageUrlSlot[] | null {
+  const binding = readComfyWorkflowBinding(meta)
+  if (!binding) return null
+  const slots: ImageUrlSlot[] = []
+  if (typeof binding.firstFrameNodeId === 'string' && typeof binding.firstFrameInputKey === 'string') {
+    slots.push({ key: 'firstFrameUrl', label: labels.firstFrame, group: 'first_frame' })
+  }
+  if (typeof binding.lastFrameNodeId === 'string' && typeof binding.lastFrameInputKey === 'string') {
+    slots.push({ key: 'lastFrameUrl', label: labels.lastFrame, group: 'last_frame' })
+  }
+  return slots
+}
+
+export function shouldUseVideoFrameSlotFallback(input: {
+  isVideoLike: boolean
+  modelImageUrlSlots: readonly ImageUrlSlot[]
+  comfyImageUrlSlots: ImageUrlSlot[] | null
+  vendor?: string | null
+}): boolean {
+  if (!input.isVideoLike || input.modelImageUrlSlots.length > 0) return false
+  // ComfyUI imported workflows are graph-defined. If their saved binding is absent
+  // or says no frame inputs, guessing first+last-frame creates invalid requests.
+  if (String(input.vendor || '').trim() === 'comfyui-local') return false
+  return !input.comfyImageUrlSlots
 }
 
 export function imageCatalogReferenceSlot(config: ImageModelCatalogConfig | null): ImageUrlSlot[] {

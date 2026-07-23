@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import type { ModelParameterControl } from '../../../../config/modelCatalogMeta'
-import { parseControlInput, videoAspectDefaultPatch, type DynamicModelControl } from './parameterControlModel'
+import {
+  buildComfyWorkflowImageUrlSlots,
+  parseControlInput,
+  shouldUseVideoFrameSlotFallback,
+  videoAspectDefaultPatch,
+  type DynamicModelControl,
+} from './parameterControlModel'
 
 // parseControlInput 按控件类型回类型。关键修复（2026-06-16）：select 按选中 option 的声明类型回类型——
 // 数值 option（如 duration 离散枚举 4/8/12）回 number 整数，避免发字符串 "8" 被 vendor 400。
@@ -69,5 +75,72 @@ describe('videoAspectDefaultPatch（2026-07-17：视频首选 16:9 / 输入全�
   it('无比例控件 → 空 patch', () => {
     const duration: DynamicModelControl = { key: 'durationSeconds', label: '时长', binding: 'durationSeconds', options: [{ value: '5', label: '5s' }] }
     expect(videoAspectDefaultPatch([duration], '16:9')).toEqual({})
+  })
+})
+
+describe('buildComfyWorkflowImageUrlSlots — 按导入 binding 显示 Comfy 图像槽', () => {
+  const labels = { firstFrame: '首帧', lastFrame: '尾帧' }
+
+  it('只绑定首帧的 i2v workflow → 只显示首帧槽', () => {
+    const slots = buildComfyWorkflowImageUrlSlots({
+      comfyWorkflowImport: {
+        binding: { firstFrameNodeId: '57', firstFrameInputKey: 'image', outputKind: 'video' },
+      },
+    }, labels)
+    expect(slots).toEqual([{ key: 'firstFrameUrl', label: '首帧', group: 'first_frame' }])
+  })
+
+  it('首尾帧 workflow → 显示首帧和尾帧槽', () => {
+    const slots = buildComfyWorkflowImageUrlSlots({
+      comfyWorkflowImport: {
+        binding: {
+          firstFrameNodeId: '80',
+          firstFrameInputKey: 'image',
+          lastFrameNodeId: '89',
+          lastFrameInputKey: 'image',
+        },
+      },
+    }, labels)
+    expect(slots).toEqual([
+      { key: 'firstFrameUrl', label: '首帧', group: 'first_frame' },
+      { key: 'lastFrameUrl', label: '尾帧', group: 'last_frame' },
+    ])
+  })
+
+  it('Comfy 文生视频 workflow 无帧绑定 → 返回空槽数组，调用方不应再用视频首尾帧兜底', () => {
+    expect(buildComfyWorkflowImageUrlSlots({ comfyWorkflowImport: { binding: { outputKind: 'video' } } }, labels)).toEqual([])
+  })
+
+  it('非 Comfy 导入模型 → 返回 null，调用方继续走通用参数解析和视频兜底', () => {
+    expect(buildComfyWorkflowImageUrlSlots({ parameters: [] }, labels)).toBeNull()
+  })
+})
+
+describe('shouldUseVideoFrameSlotFallback — 未识别视频模型兜底不套到 ComfyUI', () => {
+  it('普通未知视频模型 → 兜底显示首尾帧槽', () => {
+    expect(shouldUseVideoFrameSlotFallback({
+      isVideoLike: true,
+      modelImageUrlSlots: [],
+      comfyImageUrlSlots: null,
+      vendor: 'custom-relay',
+    })).toBe(true)
+  })
+
+  it('ComfyUI 视频 workflow 缺 binding → 不凭空补尾帧', () => {
+    expect(shouldUseVideoFrameSlotFallback({
+      isVideoLike: true,
+      modelImageUrlSlots: [],
+      comfyImageUrlSlots: null,
+      vendor: 'comfyui-local',
+    })).toBe(false)
+  })
+
+  it('ComfyUI 文生视频 binding 明确无帧槽 → 不兜底首尾帧', () => {
+    expect(shouldUseVideoFrameSlotFallback({
+      isVideoLike: true,
+      modelImageUrlSlots: [],
+      comfyImageUrlSlots: [],
+      vendor: 'comfyui-local',
+    })).toBe(false)
   })
 })
