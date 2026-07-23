@@ -48,15 +48,28 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
   const selected = shot.anchorIds.filter((id) => byId.has(id))
   const unselected = anchors.filter((anchor) => !shot.anchorIds.includes(anchor.id))
 
-  // 镜头种类：image=静态画面（无时长、图片模型）；video=带时长运镜。缺省（旧方案无字段）按 video。
+  // 镜头种类：image=静态画面；video=直出视频；image-video=先出首帧图再用 first_frame 生视频。
+  // 底层仍保持 shotKind 二值，image-video 用 shotKind=video + keyframe.enabled 表达，避免历史方案变形。
   // 切种类清掉模型/模式/参数——两种类的模型目录不通用，留着会张冠李戴（落画布按种类取默认兜底）；
   // 切回 video 时时长兜底 5s（图片镜头的 durationSec 是 0）。
   const shotKind = shot.shotKind ?? 'video'
   const isImageShot = shotKind === 'image'
+  const shotTypeValue = isImageShot ? 'image' : shot.keyframe?.enabled === true ? 'image-video' : 'video'
   const onKindChange = (value: string): void => {
-    if (value === shotKind) return
-    if (value === 'image') onUpdate({ shotKind: 'image', modelKey: undefined, modeId: undefined, params: undefined })
-    else onUpdate({ shotKind: 'video', durationSec: shot.durationSec > 0 ? shot.durationSec : 5, modelKey: undefined, modeId: undefined, params: undefined })
+    if (value === shotTypeValue) return
+    if (value === 'image') onUpdate({ shotKind: 'image', keyframe: undefined, modelKey: undefined, modeId: undefined, params: undefined })
+    else if (value === 'image-video') {
+      onUpdate({
+        shotKind: 'video',
+        durationSec: shot.durationSec > 0 ? shot.durationSec : 5,
+        keyframe: { ...(shot.keyframe || {}), enabled: true, prompt: shot.keyframe?.prompt || '' },
+        modelKey: undefined,
+        modeId: undefined,
+        params: undefined,
+      })
+    } else {
+      onUpdate({ shotKind: 'video', keyframe: undefined, durationSec: shot.durationSec > 0 ? shot.durationSec : 5, modelKey: undefined, modeId: undefined, params: undefined })
+    }
   }
 
   const durationOptions = [...new Set([...DURATION_OPTIONS_SEC, shot.durationSec])]
@@ -103,10 +116,11 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
             ariaLabel={t('storyboardEditor.shotType')}
             leadingLabel={t('storyboardEditor.type')}
             size="xs"
-            value={shotKind}
+            value={shotTypeValue}
             options={[
               { value: 'image', label: t('storyboardEditor.image') },
               { value: 'video', label: t('storyboardEditor.video') },
+              { value: 'image-video', label: t('storyboardEditor.imageVideo') },
             ]}
             onChange={onKindChange}
           />
@@ -246,6 +260,22 @@ export default function StoryboardShotCard(props: Props): JSX.Element {
         </div>
       )}
 
+      {shotTypeValue === 'image-video' ? (
+        <div className="mt-2.5">
+          <div className="mb-1 text-micro text-nomi-ink-40">{t('storyboardEditor.keyframePrompt')}</div>
+          <AutoGrowTextarea
+            value={shot.keyframe?.prompt || ''}
+            onChange={(event) => onUpdate({ keyframe: { ...(shot.keyframe || {}), enabled: true, prompt: event.target.value } })}
+            aria-label={t('storyboardEditor.keyframePromptAria', { index: shot.index })}
+            placeholder={t('storyboardEditor.keyframePromptPlaceholder')}
+            className="px-2 py-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper text-body-sm text-nomi-ink-80 leading-normal focus:border-nomi-accent"
+          />
+        </div>
+      ) : null}
+
+      {shotTypeValue === 'image-video' ? (
+        <div className="mt-2.5 mb-1 text-micro text-nomi-ink-40">{t('storyboardEditor.videoPrompt')}</div>
+      ) : null}
       <AutoGrowTextarea
         value={shot.prompt}
         onChange={(event) => onUpdate({ prompt: event.target.value })}

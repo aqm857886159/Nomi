@@ -21,13 +21,24 @@ export const STORYBOARD_PLANNER_SKILL = {
  * - 首次拆镜头：传 storyText，规划整份方案。
  * - 修改现方案：传 currentPlan + revisionRequest，规划师基于现方案按要求改、保留其余，重出整份。
  */
-/** 拆镜头模式：image=图片分镜（每镜静态画面，默认）；video=视频分镜（每镜带时长）。 */
-export type StoryboardShotMode = 'image' | 'video'
+/** 拆镜头模式：image=图片；video=视频；image-video=图片+视频（首帧图→视频）。 */
+export type StoryboardShotMode = 'image' | 'video' | 'image-video'
 
 /** 按模式给 planner 的镜头种类硬指令（首拆注入；改方案不注入——保留现方案里每镜已定的 shotKind）。 */
 function shotModeDirective(mode: StoryboardShotMode): string {
   if (mode === 'video') {
     return '本次拆的是**视频分镜**：每个 shot 的 shotKind 必须填 "video"，按方法论给时长（durationSec）、运镜与动作演进，modelKey 从可用清单里选视频模型。'
+  }
+  if (mode === 'image-video') {
+    return [
+      '本次拆的是**图片+视频分镜**：每个逻辑镜头只允许输出一个 shot，不要把首帧图另拆成一条 image shot。',
+      '每个 shot 的 shotKind 必须填 "video"，durationSec 按视频镜头填写。',
+      '每个 shot 必须填 keyframe: { enabled: true, prompt: "..." }；keyframe.prompt 写一张静态首帧图：构图/景别/光线/人物姿态与表情/环境，禁止写运镜、动作演进、转场、时长感、台词/字幕/声音。',
+      'shot.prompt 写视频部分：从这张首帧继续发生的动作演进、运镜、节奏与时长感，不要复述锚的静态外貌。',
+      'keyframe.modelKey 从可用模型清单里选图片模型；shot.modelKey 从可用模型清单里选视频模型。拿不准就留空，系统用默认模型兜底。',
+      'anchorIds 只引用 anchors 里的 id，绝对不要引用 image-1、shot-1-keyframe 等系统派生 id；系统会自动创建首帧图并把它用 first_frame 连到视频。',
+      'propose_storyboard_plan 的 shots 字段必须是**数组本体**，形如 shots: [{...}, {...}]；绝对不要写成字符串，禁止 shots: "[{...}]" 或任何转义 JSON 文本。',
+    ].join('\n')
   }
   return [
     '本次拆的是**图片分镜**（不是视频分镜）：每个 shot 的 shotKind 必须填 "image"，durationSec 一律填 0。',
@@ -61,6 +72,8 @@ export function buildStoryboardPlanningMessage(input: {
     '请把下面这段故事规划成一份「分镜方案」（跨镜头要一致的角色/场景/道具/风格 + 每个镜头），通过 propose_storyboard_plan 产出结构化方案对象——先给用户在创作区审阅、修改，不要直接写画布。',
     '',
     shotModeDirective(input.shotMode ?? 'image'),
+    '',
+    '结构化工具调用硬约束：propose_storyboard_plan 参数必须是对象本体，anchors/shots 必须是数组本体；不要把任何数组序列化成字符串。',
     '',
     '--- 故事正文 ---',
     trimmed,

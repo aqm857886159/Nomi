@@ -76,9 +76,11 @@ function renumber(shots: PlanShot[]): PlanShot[] {
 export function addShot(plan: StoryboardPlan): StoryboardPlan {
   // 新镜头继承上一镜的种类（图片分镜方案里手加的镜头别突然变成视频镜头）；空方案默认视频（旧行为）。
   const lastKind = plan.shots[plan.shots.length - 1]?.shotKind
+  const lastKeyframeEnabled = plan.shots[plan.shots.length - 1]?.keyframe?.enabled === true
   const shot: PlanShot = {
     index: plan.shots.length + 1,
     ...(lastKind ? { shotKind: lastKind } : {}),
+    ...(lastKind === 'video' && lastKeyframeEnabled ? { keyframe: { enabled: true, prompt: '' } } : {}),
     durationSec: lastKind === 'image' ? 0 : 5,
     anchorIds: [],
     prompt: '',

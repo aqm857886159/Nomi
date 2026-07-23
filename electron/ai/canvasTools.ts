@@ -108,12 +108,34 @@ const storyboardShotSchema = z.object({
   modelKey: z.string().optional().describe("Video model key for this shot, chosen from the 「可用模型」 list in the user message. Omit to use the default video model."),
   modeId: z.string().optional().describe("Model mode/variant id (paired with modelKey), from the same list. Omit to use the model's default mode."),
   params: z.record(z.unknown()).optional().describe("Per-shot generation params keyed exactly as the chosen model exposes them in the 「可用模型」 list (e.g. aspect_ratio, resolution, and negative_prompt where the model supports it). Only use param keys that model actually lists; omit unknowns."),
+  keyframe: z
+    .object({
+      enabled: z.boolean().optional().describe("Set true only for 图片+视频 mode: create a first-frame image before the video."),
+      prompt: z.string().optional().describe("Static first-frame image prompt: composition, shot size, light, character pose/expression, environment. No camera movement, action progression, dialogue, subtitles, or sound."),
+      modelKey: z.string().optional().describe("Image model key for the first-frame image, chosen from the available image models. Omit to use the default image model."),
+      modeId: z.string().optional().describe("Image model mode id for the first-frame image. Prefer an image_ref/edit mode when this shot references visual anchors."),
+      params: z.record(z.unknown()).optional().describe("First-frame image params, using only keys supported by the chosen image model/mode."),
+    })
+    .optional()
+    .describe("Optional first-frame plan. In 图片+视频 mode keep this as part of the same logical shot instead of emitting a separate image shot."),
 })
+
+function parseJsonArrayString(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) return value;
+  try {
+    const parsed = JSON.parse(trimmed);
+    return Array.isArray(parsed) ? parsed : value;
+  } catch {
+    return value;
+  }
+}
 
 export const storyboardPlanParamsSchema = z.object({
   title: z.string().describe("Short plan title in the user's language."),
   anchors: z.array(storyboardAnchorSchema).max(24),
-  shots: z.array(storyboardShotSchema).min(1).max(24),
+  shots: z.preprocess(parseJsonArrayString, z.array(storyboardShotSchema).min(1).max(24)),
 })
 
 // ── 站位参考 schema（create_staging_reference 的参数；镜像渲染层 stagingBuilder 的 StagingSpec，

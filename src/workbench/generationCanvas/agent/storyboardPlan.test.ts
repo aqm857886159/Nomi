@@ -221,6 +221,99 @@ describe('图片分镜（shotKind=image，用户拍板 2026-07-02 image-first）
   })
 })
 
+describe('图片+视频分镜（video shot + keyframe.enabled）', () => {
+  const IMAGE_VIDEO_PLAN: StoryboardPlan = {
+    title: '首帧驱动视频',
+    anchors: [
+      { id: 'a-hero', kind: 'character', name: '主角', description: '黑色风衣，疲惫神情', carrier: 'visual' },
+      { id: 'a-room', kind: 'scene', name: '书房', description: '夜间书房，电脑冷光', carrier: 'visual' },
+      { id: 'a-style', kind: 'style', name: '全片风格', description: '低饱和电影感', carrier: 'text', scope: 'all' },
+    ],
+    shots: [
+      {
+        index: 1,
+        shotKind: 'video',
+        durationSec: 6,
+        anchorIds: ['a-hero', 'a-room', 'a-style'],
+        keyframe: {
+          enabled: true,
+          prompt: '主角坐在电脑前，冷蓝屏幕光照亮侧脸，中近景静态构图',
+          params: { aspect_ratio: '16:9' },
+        },
+        prompt: '镜头从电脑屏幕缓慢推近主角侧脸，他抬手点击连接',
+      },
+      {
+        index: 2,
+        shotKind: 'video',
+        durationSec: 6,
+        anchorIds: ['a-hero', 'a-style'],
+        keyframe: { enabled: true, prompt: '主角眼眶湿润的面部特写，背景全黑' },
+        prompt: '固定近景，主角喉结微动，眼神从克制到崩溃',
+      },
+    ],
+  }
+
+  it('每个逻辑 video shot 派生首帧 image + video，并用 first_frame 串起来', () => {
+    const { nodes, edges, anchorCount } = storyboardPlanToCreateNodesArgs(IMAGE_VIDEO_PLAN, {
+      defaultImageModelKey: 'img-model',
+      defaultImageModeId: 'img-t2i',
+      defaultImageRefModeId: 'img-i2i',
+      defaultVideoModelKey: 'vid-model',
+      defaultVideoModeId: 'vid-i2v',
+    })
+    expect(anchorCount).toBe(2)
+    const created = nodes.slice(anchorCount)
+    expect(created.map((node) => [node.clientId, node.kind, node.title])).toEqual([
+      ['shot-1-keyframe', 'image', '镜头 1 首帧'],
+      ['shot-1', 'video', '镜头 1'],
+      ['shot-2-keyframe', 'image', '镜头 2 首帧'],
+      ['shot-2', 'video', '镜头 2'],
+    ])
+    expect(nodes.find((node) => node.clientId === 'shot-1-keyframe')).toMatchObject({
+      modelKey: 'img-model',
+      modeId: 'img-i2i',
+      params: { aspect_ratio: '16:9' },
+    })
+    expect(nodes.find((node) => node.clientId === 'shot-1')).toMatchObject({
+      modelKey: 'vid-model',
+      modeId: 'vid-i2v',
+      params: { duration: 6 },
+    })
+    expect(edges).toEqual([
+      { sourceClientId: 'a-hero', targetClientId: 'shot-1-keyframe', mode: 'character_ref' },
+      { sourceClientId: 'a-room', targetClientId: 'shot-1-keyframe', mode: 'style_ref' },
+      { sourceClientId: 'shot-1-keyframe', targetClientId: 'shot-1', mode: 'first_frame' },
+      { sourceClientId: 'a-hero', targetClientId: 'shot-2-keyframe', mode: 'character_ref' },
+      { sourceClientId: 'shot-2-keyframe', targetClientId: 'shot-2', mode: 'first_frame' },
+    ])
+  })
+
+  it('文本锚同时拼进首帧 prompt 和视频 prompt', () => {
+    const { nodes } = storyboardPlanToCreateNodesArgs(IMAGE_VIDEO_PLAN)
+    expect(nodes.find((node) => node.clientId === 'shot-1-keyframe')?.prompt).toContain('全片风格：低饱和电影感')
+    expect(nodes.find((node) => node.clientId === 'shot-1')?.prompt).toContain('全片风格：低饱和电影感')
+  })
+
+  it('parseStoryboardPlan 接受 keyframe 字段', () => {
+    expect(() => parseStoryboardPlan(IMAGE_VIDEO_PLAN)).not.toThrow()
+  })
+
+  it('parseStoryboardPlan 兼容合法的 shots 字符串化数组', () => {
+    const parsed = parseStoryboardPlan({ ...IMAGE_VIDEO_PLAN, shots: JSON.stringify(IMAGE_VIDEO_PLAN.shots) })
+    expect(parsed.shots).toHaveLength(2)
+    expect(parsed.shots[0].keyframe?.enabled).toBe(true)
+  })
+
+  it('parseStoryboardPlan 拒绝残缺的 shots 字符串，避免猜修坏方案', () => {
+    expect(() =>
+      parseStoryboardPlan({
+        ...IMAGE_VIDEO_PLAN,
+        shots: '[{"index":1,"shotKind":"video","durationSec":6,"anchorIds":[],"prompt":"p","keyframe":{"enabled":true,"prompt":"k"}}',
+      }),
+    ).toThrow()
+  })
+})
+
 describe('参考卡身份标记（referenceSheet，防占镜号）', () => {
   it('所有视觉锚节点带 referenceSheet:true；镜头节点不带', () => {
     const { nodes } = storyboardPlanToCreateNodesArgs(PLAN)

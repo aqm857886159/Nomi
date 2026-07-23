@@ -217,6 +217,15 @@ describe('Phase C storyboard happy path', () => {
       expect(message).not.toContain('--- 故事正文 ---')
     })
 
+    it('图片+视频模式：要求单条逻辑 shot 内嵌 keyframe，不另拆 image shot', () => {
+      const message = buildStoryboardPlanningMessage({ storyText: '父子在书房视频通话。', shotMode: 'image-video' })
+      expect(message).toContain('图片+视频分镜')
+      expect(message).toContain('keyframe')
+      expect(message).toContain('enabled: true')
+      expect(message).toContain('不要把首帧图另拆成一条 image shot')
+      expect(message).toContain('绝对不要引用 image-1')
+    })
+
     it('exports the planner skill descriptor for the canvas assistant', () => {
       expect(STORYBOARD_PLANNER_SKILL).toEqual({
         key: 'workbench.storyboard.planner',

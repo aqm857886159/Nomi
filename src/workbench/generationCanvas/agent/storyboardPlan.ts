@@ -56,6 +56,17 @@ export type PlanShot = {
   modeId?: string
   /** 用户为该镜调的模型参数（archetype 控件键 → 值，如 aspect_ratio/resolution）；落画布铺进节点 meta。留空=用模型默认。 */
   params?: Record<string, unknown>
+  /**
+   * 图片+视频模式：逻辑上仍是一条 video shot，但落画布时先建一张首帧 image 节点，再用 first_frame
+   * 边喂给视频节点。这样 shots[] 仍按真实镜头数计数，不用把「首帧图」伪装成另一条镜头。
+   */
+  keyframe?: {
+    enabled?: boolean
+    prompt?: string
+    modelKey?: string
+    modeId?: string
+    params?: Record<string, unknown>
+  }
 }
 
 export type StoryboardPlan = {
@@ -97,12 +108,34 @@ export const planShotSchema = z.object({
   modelKey: z.string().optional(),
   modeId: z.string().optional(),
   params: z.record(z.unknown()).optional(),
+  keyframe: z
+    .object({
+      enabled: z.boolean().optional(),
+      prompt: z.string().optional(),
+      modelKey: z.string().optional(),
+      modeId: z.string().optional(),
+      params: z.record(z.unknown()).optional(),
+    })
+    .optional()
+    .describe('图片+视频模式的首帧图计划。仅 video shot 使用；enabled=true 时系统先生成首帧 image，再用 first_frame 喂视频。'),
 })
+
+function parseJsonArrayString(value: unknown): unknown {
+  if (typeof value !== 'string') return value
+  const trimmed = value.trim()
+  if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) return value
+  try {
+    const parsed = JSON.parse(trimmed)
+    return Array.isArray(parsed) ? parsed : value
+  } catch {
+    return value
+  }
+}
 
 export const storyboardPlanSchema = z.object({
   title: z.string(),
   anchors: z.array(planAnchorSchema),
-  shots: z.array(planShotSchema),
+  shots: z.preprocess(parseJsonArrayString, z.array(planShotSchema)),
 })
 
 // 编译期漂移守卫：仅当 zod 推断类型 ⟺ 手写类型互相可赋值时才编译通过（零运行时）。
@@ -129,7 +162,7 @@ export type PlanCreatedNode = {
   prompt: string
   modelKey?: string
   modeId?: string
-  params?: Record<string, string | number | boolean>
+  params?: Record<string, unknown>
   /** 参考卡身份（角色/场景/道具锚）：落画布写进 node.meta.referenceSheet → 永不占镜头编号（shotNumbering）。 */
   referenceSheet?: true
 }
@@ -196,6 +229,10 @@ function shotClientId(shot: PlanShot): string {
   return `shot-${shot.index}`
 }
 
+function shotKeyframeClientId(shot: PlanShot): string {
+  return `shot-${shot.index}-keyframe`
+}
+
 /**
  * 定妆卡/场景卡提示词构造（R6 调研落地：把图当「版面/网格」描述，先锁身份再列视图，
  * 中性背景+平光+小标签，多视图+多变体集中一张图，整张喂参考视频）。GPT Image 2 尤擅此类多面板版面。
@@ -244,6 +281,18 @@ function buildShotPrompt(shot: PlanShot, anchorById: Map<string, PlanAnchor>): s
   return textBits.length ? [base, ...textBits].filter(Boolean).join('\n') : base
 }
 
+function buildKeyframePrompt(shot: PlanShot, anchorById: Map<string, PlanAnchor>): string {
+  const keyframePrompt = typeof shot.keyframe?.prompt === 'string' && shot.keyframe.prompt.trim()
+    ? shot.keyframe.prompt.trim()
+    : shot.prompt.trim()
+  const textBits = shot.anchorIds
+    .map((id) => anchorById.get(id))
+    .filter((anchor): anchor is PlanAnchor => Boolean(anchor) && anchor!.carrier === 'text')
+    .map((anchor) => `${anchor.name}：${anchor.description}`.trim())
+    .filter(Boolean)
+  return textBits.length ? [keyframePrompt, ...textBits].filter(Boolean).join('\n') : keyframePrompt
+}
+
 /**
  * 确认后：把方案转成 create_canvas_nodes 参数，照常走 applyCanvasToolCall 落画布
  * （复用现有建节点+连边+依赖波次「参考层先生成」，零重写）。
@@ -280,7 +329,7 @@ export function storyboardPlanToCreateNodesArgs(
   // 锚已全部 push 完，此刻节点数 = 参考卡数（镜头随后 push）→ 落画布布局的角色边界。
   const anchorCount = nodes.length
 
-  // 镜头 → video 节点（用户拍板 B-clean）+ 定妆卡参考边。时长写进 duration 参数。
+  // 镜头 → image/video 节点 + 定妆卡参考边。图片+视频模式会派生首帧图节点，再用 first_frame 喂视频。
   // 按 shot.index 排序后再建节点（审计 A5 防御）：布局按数组顺序排格子，若 LLM 把镜头
   // 乱序吐出来，画布空间顺序就会与镜头编号错位（镜6 排在镜5 前）。这里钉死「数组序=镜序」。
   const orderedShots = [...plan.shots].sort((a, b) => a.index - b.index)
@@ -288,6 +337,8 @@ export function storyboardPlanToCreateNodesArgs(
     const id = shotClientId(shot)
     // 镜头种类分支（用户拍板：拆镜头默认图片分镜）。缺省无 shotKind → 按 video 兜底（旧草稿兼容）。
     const isImageShot = shot.shotKind === 'image'
+    const hasKeyframe = !isImageShot && shot.keyframe?.enabled === true
+    const referenceTargetId = hasKeyframe ? shotKeyframeClientId(shot) : id
     // 该镜引用的视觉锚（定妆卡）——连 character_ref/style_ref/reference 参考边。
     // 视频镜头：图→视频 i2v 参考；图片镜头：图→图 参考（同样锁角色/场景身份，图片模型的参考槽）。
     const visualAnchorIds = shot.anchorIds.filter((anchorId) => {
@@ -301,6 +352,19 @@ export function storyboardPlanToCreateNodesArgs(
     // 用户为该镜选了具体模型 → 不套默认模型的 modeId（会张冠李戴）；留空让 buildPlannedNodeMeta
     // 按所选模型自己取默认模式。只有用默认模型时才用默认 modeId。
     const modeId = shot.modeId || (shot.modelKey ? undefined : defaultModeId)
+    if (hasKeyframe) {
+      const keyframeModelKey = shot.keyframe?.modelKey || options.defaultImageModelKey
+      const keyframeModeId = shot.keyframe?.modeId || (shot.keyframe?.modelKey ? undefined : (visualAnchorIds.length > 0 ? options.defaultImageRefModeId || options.defaultImageModeId : options.defaultImageModeId))
+      nodes.push({
+        clientId: referenceTargetId,
+        kind: 'image',
+        title: i18n.t('generationCommon.agentRuntime.shotKeyframeTitle', { index: shot.index }),
+        prompt: buildKeyframePrompt(shot, anchorById),
+        ...(keyframeModelKey ? { modelKey: keyframeModelKey } : {}),
+        ...(keyframeModeId ? { modeId: keyframeModeId } : {}),
+        ...(shot.keyframe?.params ? { params: shot.keyframe.params } : {}),
+      })
+    }
     nodes.push({
       clientId: id,
       // 图片镜头 → image 节点（纯图生图静态画面，无 duration）；视频镜头 → video 节点（带 duration）。
@@ -318,7 +382,10 @@ export function storyboardPlanToCreateNodesArgs(
     // 定妆卡 → 这一镜参考边（角色 character_ref / 场景·风格 style_ref / 道具 reference）。图片/视频镜头都连。
     for (const anchorId of visualAnchorIds) {
       const anchor = anchorById.get(anchorId)!
-      edges.push({ sourceClientId: anchorId, targetClientId: id, mode: edgeModeForAnchor(anchor.kind) })
+      edges.push({ sourceClientId: anchorId, targetClientId: referenceTargetId, mode: edgeModeForAnchor(anchor.kind) })
+    }
+    if (hasKeyframe) {
+      edges.push({ sourceClientId: referenceTargetId, targetClientId: id, mode: 'first_frame' })
     }
     // B-clean：不连 shot→shot 链（视频→视频参考会落到尚未实现的首帧接力抽帧 → 必裸跑）。
     // 镜头连贯靠共享的定妆卡/场景卡参考（同一批镜头引用同一组锚 → 视觉一致）。

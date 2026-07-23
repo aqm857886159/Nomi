@@ -165,7 +165,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     return <IconFilePlus size={13} />
   }, [])
 
-  const launchStoryboardPlanning = React.useCallback((displayPrompt: string = t('creationAi.storyboardCommand'), revisionRequest?: string, shotMode: 'image' | 'video' = 'image') => {
+  const launchStoryboardPlanning = React.useCallback((displayPrompt: string = t('creationAi.storyboardCommand'), revisionRequest?: string, shotMode: 'image' | 'video' | 'image-video' = 'image') => {
     // P0-9 Slice 3：已有未落画布的方案 + 用户给了修改要求 → 进「改方案」模式（基于现方案改，不从头拆）。
     const store = useWorkbenchStore.getState()
     const currentPlan = store.storyboardPlan

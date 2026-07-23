@@ -62,6 +62,16 @@ describe('storyboardPlanEdits — 镜头', () => {
     expect(p.shots.at(-1)).toMatchObject({ index: 3, durationSec: 5, anchorIds: [], prompt: '' })
   })
 
+  it('addShot 继承图片+视频模式', () => {
+    const p = addShot({
+      ...base(),
+      shots: [
+        { index: 1, shotKind: 'video', keyframe: { enabled: true, prompt: '首帧' }, durationSec: 5, anchorIds: [], prompt: '视频' },
+      ],
+    })
+    expect(p.shots.at(-1)).toMatchObject({ index: 2, shotKind: 'video', keyframe: { enabled: true, prompt: '' }, durationSec: 5 })
+  })
+
   it('removeShotAt 删除后镜号重排连续', () => {
     const p = removeShotAt(base(), 0)
     expect(p.shots.map((s) => s.index)).toEqual([1])
