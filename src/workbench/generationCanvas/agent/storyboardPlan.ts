@@ -165,6 +165,12 @@ export type PlanCreatedNode = {
   params?: Record<string, unknown>
   /** 参考卡身份（角色/场景/道具锚）：落画布写进 node.meta.referenceSheet → 永不占镜头编号（shotNumbering）。 */
   referenceSheet?: true
+  /**
+   * 图片+视频分镜的首帧图身份：落画布写进 node.meta.storyboardKeyframe → 创建时不自动领号
+   * （shotNumbering 跳过），随后由落地层把所属视频的镜号写回（与手动「转视频」桥共号同语义）。
+   * 否则 18 镜落出 1..36 交错编号，角标与「镜头 N」标题对不上（A2 类编号错位）。
+   */
+  storyboardKeyframe?: true
 }
 
 export type PlanCreatedEdge = {
@@ -360,6 +366,7 @@ export function storyboardPlanToCreateNodesArgs(
         kind: 'image',
         title: i18n.t('generationCommon.agentRuntime.shotKeyframeTitle', { index: shot.index }),
         prompt: buildKeyframePrompt(shot, anchorById),
+        storyboardKeyframe: true,
         ...(keyframeModelKey ? { modelKey: keyframeModelKey } : {}),
         ...(keyframeModeId ? { modeId: keyframeModeId } : {}),
         ...(shot.keyframe?.params ? { params: shot.keyframe.params } : {}),

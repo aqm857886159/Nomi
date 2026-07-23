@@ -138,6 +138,42 @@ describe('applyCanvasToolCall clientId 翻译', () => {
   })
 })
 
+// 图片+视频分镜落画布的镜号语义：首帧图带 storyboardKeyframe 标记不自动领号，
+// 落地后按 first_frame 边共用所属视频的镜号（与手动「转视频」桥继承号同语义）——
+// 否则 N 镜领出 1..2N 交错编号，角标与「镜头 N 首帧」标题错位（A2 类编号 bug）。
+describe('applyCanvasToolCall 图片+视频分镜镜号', () => {
+  beforeEach(resetCanvas)
+
+  it('首帧图不占号：视频连续编号 1..N，首帧图与所属视频共号', async () => {
+    const result = (await applyCanvasToolCall('create_canvas_nodes', {
+      nodes: [
+        { clientId: 'shot-1-keyframe', kind: 'image', title: '镜头 1 首帧', prompt: 'k1', storyboardKeyframe: true },
+        { clientId: 'shot-1', kind: 'video', title: '镜头 1', prompt: 'v1' },
+        { clientId: 'shot-2-keyframe', kind: 'image', title: '镜头 2 首帧', prompt: 'k2', storyboardKeyframe: true },
+        { clientId: 'shot-2', kind: 'video', title: '镜头 2', prompt: 'v2' },
+      ],
+      edges: [
+        { sourceClientId: 'shot-1-keyframe', targetClientId: 'shot-1', mode: 'first_frame' },
+        { sourceClientId: 'shot-2-keyframe', targetClientId: 'shot-2', mode: 'first_frame' },
+      ],
+      anchorCount: 0,
+    })) as { clientIdToNodeId: Record<string, string> }
+
+    const byRealId = new Map(useGenerationCanvasStore.getState().nodes.map((n) => [n.id, n]))
+    const kf1 = byRealId.get(result.clientIdToNodeId['shot-1-keyframe'])
+    const video1 = byRealId.get(result.clientIdToNodeId['shot-1'])
+    const kf2 = byRealId.get(result.clientIdToNodeId['shot-2-keyframe'])
+    const video2 = byRealId.get(result.clientIdToNodeId['shot-2'])
+
+    // 视频是镜位本体：连续 1..2，不被首帧图挤号
+    expect([video1?.shotIndex, video2?.shotIndex]).toEqual([1, 2])
+    // 首帧图与所属视频共用镜号；身份标记落进 meta（isShotNumberedNode 据此长期跳过）
+    expect(kf1?.shotIndex).toBe(1)
+    expect(kf2?.shotIndex).toBe(2)
+    expect((kf1?.meta as Record<string, unknown>)?.storyboardKeyframe).toBe(true)
+  })
+})
+
 // S2:propose_storyboard_plan 不碰画布——把结构化方案落创作 store 并切回创作区(规划免费可改)。
 describe('applyCanvasToolCall propose_storyboard_plan', () => {
   const PLAN: StoryboardPlan = {

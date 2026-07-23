@@ -294,6 +294,12 @@ describe('图片+视频分镜（video shot + keyframe.enabled）', () => {
     expect(nodes.find((node) => node.clientId === 'shot-1')?.prompt).toContain('全片风格：低饱和电影感')
   })
 
+  it('首帧图带 storyboardKeyframe 身份标记（不占镜号，落地后共用所属视频镜号）；视频不带', () => {
+    const { nodes } = storyboardPlanToCreateNodesArgs(IMAGE_VIDEO_PLAN)
+    expect(nodes.find((node) => node.clientId === 'shot-1-keyframe')?.storyboardKeyframe).toBe(true)
+    expect(nodes.find((node) => node.clientId === 'shot-1')?.storyboardKeyframe).toBeUndefined()
+  })
+
   it('parseStoryboardPlan 接受 keyframe 字段', () => {
     expect(() => parseStoryboardPlan(IMAGE_VIDEO_PLAN)).not.toThrow()
   })

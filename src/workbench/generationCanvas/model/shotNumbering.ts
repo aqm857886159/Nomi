@@ -30,6 +30,9 @@ export function isShotNumberedNode(
   // 与镜头节点同 kind 无法靠 kind 区分,靠落画布时打的 meta.referenceSheet 身份标记
   // (R13 走查抓出:道具卡吃掉「镜头 1/2」,真镜头从 3 起编,编号与方案镜号错位)。
   if (node.meta && (node.meta as Record<string, unknown>).referenceSheet === true) return false
+  // 图片+视频分镜的首帧图不自动领号——它与所属视频共用一个镜号（落地层按 first_frame 边
+  // 把视频的编号写回，语义同手动「转视频」桥的继承号），否则 18 镜领出 1..36 交错编号。
+  if (node.meta && (node.meta as Record<string, unknown>).storyboardKeyframe === true) return false
   return (node.categoryId ?? 'shots') === 'shots' && SHOT_NUMBERED_KINDS.has(node.kind)
 }
 

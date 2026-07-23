@@ -258,8 +258,12 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
         node.position && typeof node.position === 'object' ? (node.position as Record<string, unknown>) : null
       const plannedMeta = buildPlannedNodeMeta(node, entryByKey)
       // 参考卡身份透传（分镜方案的角色/场景/道具锚）→ node.meta.referenceSheet，编号分配处据此跳过。
-      const meta =
-        node.referenceSheet === true ? { ...(plannedMeta ?? {}), referenceSheet: true } : plannedMeta
+      // 首帧图身份同机制 → node.meta.storyboardKeyframe：创建时不领号，随后共用所属视频的镜号（见下）。
+      const identityMarks = {
+        ...(node.referenceSheet === true ? { referenceSheet: true } : {}),
+        ...(node.storyboardKeyframe === true ? { storyboardKeyframe: true } : {}),
+      }
+      const meta = Object.keys(identityMarks).length ? { ...(plannedMeta ?? {}), ...identityMarks } : plannedMeta
       // 单节点：尊重 agent 指定位置（增量添加可能要贴近某节点），否则同走避让布局。
       const position =
         total > 1
@@ -302,6 +306,30 @@ export async function applyCanvasToolCall(toolName: string, args: unknown, gestu
       const outcome = inCtx(() => generationCanvasTools.connect_nodes(normalizePlannedEdges(rawPlanEdges)))
       connectedCount = outcome.connected
       skippedEdges = outcome.skipped
+    }
+    // 图片+视频分镜：首帧图与所属视频共用镜号（同手动「转视频」桥的继承号语义，见 convertShotToVideo）。
+    // 首帧图带 meta.storyboardKeyframe 创建时不自动领号（shotNumbering 跳过），此处按计划里的
+    // first_frame 边把视频已领的编号写回 → 18 镜就是 1..18，角标与「镜头 N 首帧」标题一致。
+    const keyframeClientIds = new Set(
+      incoming
+        .filter((raw) => raw && typeof raw === 'object' && (raw as Record<string, unknown>).storyboardKeyframe === true)
+        .map((raw) => String((raw as Record<string, unknown>).clientId || '')),
+    )
+    if (keyframeClientIds.size) {
+      const canvasStore = useGenerationCanvasStore.getState()
+      const nodeById = new Map(canvasStore.nodes.map((node) => [node.id, node]))
+      for (const rawEdge of rawPlanEdges) {
+        const edge = rawEdge && typeof rawEdge === 'object' ? (rawEdge as Record<string, unknown>) : {}
+        if (edge.mode !== 'first_frame') continue
+        const sourceClientId = String(edge.sourceClientId || '')
+        if (!keyframeClientIds.has(sourceClientId)) continue
+        const keyframeId = clientIdToNodeId[sourceClientId]
+        const videoId = clientIdToNodeId[String(edge.targetClientId || '')]
+        const videoShotIndex = videoId ? nodeById.get(videoId)?.shotIndex : undefined
+        if (keyframeId && typeof videoShotIndex === 'number') {
+          canvasStore.updateNode(keyframeId, { shotIndex: videoShotIndex })
+        }
+      }
     }
     return {
       createdNodeIds: created.map((node) => node.id),

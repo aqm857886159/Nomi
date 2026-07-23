@@ -38,6 +38,13 @@ describe('shotNumbering（镜头编号 = 存储身份，审计 A2）', () => {
     expect(isShotNumberedNode(makeNode({ id: 'img', kind: 'image', categoryId: 'scene' }))).toBe(false)
   })
 
+  it('身份标记不占号：referenceSheet（参考卡）与 storyboardKeyframe（图片+视频首帧图）都跳过', () => {
+    const ref = { ...makeNode({ id: 'ref', kind: 'image' }), meta: { referenceSheet: true } }
+    const keyframe = { ...makeNode({ id: 'kf', kind: 'image' }), meta: { storyboardKeyframe: true } }
+    expect(isShotNumberedNode(ref)).toBe(false)
+    expect(isShotNumberedNode(keyframe)).toBe(false)
+  })
+
   it('nextShotIndex = 现存最大编号 + 1，删除留空号不复用', () => {
     expect(nextShotIndex([])).toBe(1)
     const nodes = [
