@@ -27,6 +27,7 @@ import { confirmAndDeleteVendor } from './vendorDeleteAction'
 import { ConnectAssistantCard, type McpInfo } from './ConnectAssistantCard'
 import { DreaminaMemberCard, type DreaminaStatus } from './DreaminaMemberCard'
 import { ComfyuiLocalCard, COMFYUI_VENDOR_KEY } from './ComfyuiLocalCard'
+import { CODEX_LOCAL_VENDOR_KEY } from './codexLocalProvider'
 import { KNOWN_VENDORS, isKnownVendor } from '../../config/knownVendors'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { notifyModelOptionsRefresh } from '../../config/useModelOptions'
@@ -37,6 +38,7 @@ type VendorMeta = {
   hasApiKey: boolean
   baseUrl: string
   enabled: boolean
+  authType: string
 }
 
 // 能力概览：四类产物 → 图标/文案。covered 由已连通供应商的模型 kind 派生（derive 不 hardcode）。
@@ -91,6 +93,20 @@ export function OnboardingDrawer(): JSX.Element {
       const ms = bridge.modelCatalog.listModels() as Array<Record<string, unknown>>
       const vs = bridge.modelCatalog.listVendors() as Array<Record<string, unknown>>
       const maps = bridge.modelCatalog.listMappings({ vendorKey: COMFYUI_VENDOR_KEY }) as Array<Record<string, unknown>>
+      let currentMcpInfo: McpInfo | null = null
+      try {
+        currentMcpInfo = (bridge.capability?.mcpInfo?.() as McpInfo | undefined) ?? null
+      } catch {
+        currentMcpInfo = null
+      }
+      const codexInstalled = currentMcpInfo?.clients.codex?.installed === true
+      const codexVendor = vs.find((v) => String(v.key) === CODEX_LOCAL_VENDOR_KEY)
+      if (codexVendor && (codexVendor.enabled !== false) !== codexInstalled) {
+        bridge.modelCatalog.upsertVendor({ key: CODEX_LOCAL_VENDOR_KEY, enabled: codexInstalled })
+        codexVendor.enabled = codexInstalled
+        notifyModelOptionsRefresh('all')
+        window.dispatchEvent(new CustomEvent('nomi-model-catalog-changed'))
+      }
       const metaMap = new Map<string, VendorMeta>()
       for (const v of vs) {
         metaMap.set(String(v.key), {
@@ -98,6 +114,7 @@ export function OnboardingDrawer(): JSX.Element {
           hasApiKey: Boolean(v.hasApiKey),
           baseUrl: String(v.baseUrlHint || ''),
           enabled: v.enabled !== false,
+          authType: String(v.authType || ''),
         })
       }
       const rows: ChipModel[] = ms.map((m) => ({
@@ -212,9 +229,15 @@ export function OnboardingDrawer(): JSX.Element {
   // 其他模型：用户自定义接入（有 key 才存在）→ 视为已接入。排除有专属卡的内置家：
   // 5 个 KNOWN_VENDORS + 即梦 dreamina（走 DreaminaMemberCard，其 seeded 模型不是"自定义"，
   // 否则与即梦会员卡重复且被误标"已配置"——真机走查抓到，dreamina 种了 4 个模型）。
-  // 排除有专属卡的内置家：dreamina（会员卡）+ comfyui-local（本地后端启用卡）。否则本地 ComfyUI 会落进
+  // 排除有专属卡/派生状态的内置家：dreamina（会员卡）+ comfyui-local（本地后端启用卡）+
+  // codex-local（由「接入 AI 编程助手」里的 Codex 接入状态派生）。否则本地 provider 会落进
   // 通用「自定义中转」卡（那卡的 key/BaseURL 手填隐喻对无 key 本地后端是错的）。
-  const otherModels = models.filter((m) => !isKnownVendor(m.vendorKey) && m.vendorKey !== 'dreamina' && m.vendorKey !== COMFYUI_VENDOR_KEY)
+  const otherModels = models.filter((m) =>
+    !isKnownVendor(m.vendorKey) &&
+    m.vendorKey !== 'dreamina' &&
+    m.vendorKey !== COMFYUI_VENDOR_KEY &&
+    m.vendorKey !== CODEX_LOCAL_VENDOR_KEY,
+  )
 
   // 本地 ComfyUI（无 key 本地后端，专属卡）：种子存在才显；enabled 决定归「已接入 / 可接入」。
   const comfyuiMeta = vendorMeta.get(COMFYUI_VENDOR_KEY)
@@ -242,7 +265,8 @@ export function OnboardingDrawer(): JSX.Element {
     const counts = new Map<string, number>()
     for (const m of models) {
       if (!m.enabled) continue
-      if (!vendorMeta.get(m.vendorKey)?.hasApiKey) continue
+      const meta = vendorMeta.get(m.vendorKey)
+      if (!meta?.hasApiKey && !(m.vendorKey === CODEX_LOCAL_VENDOR_KEY && meta?.authType === 'none' && meta.enabled)) continue
       const k = String(m.kind)
       counts.set(k, (counts.get(k) ?? 0) + 1)
     }

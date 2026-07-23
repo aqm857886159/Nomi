@@ -219,6 +219,8 @@ export const zhOnboardingProviders = {
     configWritten: '已写入 {{client}} 配置',
     restartClient: '重启 {{client}} 后生效。',
     sayNow: '现在可以对它说：',
+    codexImageReadyTitle: 'Codex 生图模型已可用',
+    codexImageReadyBody: '图片节点里会显示「{{model}}」。',
     disconnect: '撤销接入',
     description: '一键把 Nomi 接进 {{client}}——之后你一句话，它就能在 Nomi 里建项目、拆镜头、用你配好的模型真出图。',
     connect: '一键接入 {{client}}',
@@ -660,6 +662,8 @@ export const enOnboardingProviders = {
     configWritten: '{{client}} configuration updated',
     restartClient: 'Restart {{client}} to apply the change.',
     sayNow: 'Now you can say:',
+    codexImageReadyTitle: 'Codex image model is available',
+    codexImageReadyBody: 'Image nodes will show “{{model}}”.',
     disconnect: 'Remove connection',
     description:
       'Connect Nomi to {{client}} in one click. Then it can create projects, split shots, and generate images with your configured models.',
