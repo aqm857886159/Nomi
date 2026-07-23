@@ -52,16 +52,53 @@ type LiveCodexJob = {
 
 const liveJobs = new Map<string, LiveCodexJob>();
 
-function candidateCodexBins(): string[] {
-  const home = os.homedir();
-  if (process.platform !== "win32") return ["codex"];
+/** nvm 各 node 版本的 bin 目录（新版本在前）——npm -g 在 nvm 机器上就落在这，静态表探不到。 */
+function nvmBinDirs(home: string): string[] {
+  const versionsDir = path.join(home, ".nvm", "versions", "node");
+  try {
+    return readdirSync(versionsDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort((a, b) => {
+        const parse = (v: string) => v.replace(/^v/, "").split(".").map((n) => Number(n) || 0);
+        const [a0, a1, a2] = parse(a);
+        const [b0, b1, b2] = parse(b);
+        return b0 - a0 || b1 - a1 || b2 - a2;
+      })
+      .map((version) => path.join(versionsDir, version, "bin"));
+  } catch {
+    return [];
+  }
+}
+
+/** codex 全局安装的常见落点（npm -g → /usr/local/bin、/opt/homebrew/bin、nvm；pnpm/bun/volta 各有家目录）。 */
+function codexInstallDirs(platform: NodeJS.Platform, home: string): string[] {
+  if (platform === "win32") return [];
   return [
-    process.env.CODEX_BIN || "",
-    path.join(home, "AppData", "Local", "Microsoft", "WindowsApps", "codex.exe"),
-    "codex.cmd",
-    "codex.exe",
-    "codex",
-  ].filter(Boolean);
+    path.join(home, ".local", "bin"),
+    "/usr/local/bin",
+    "/opt/homebrew/bin",
+    path.join(home, "bin"),
+    path.join(home, ".bun", "bin"),
+    path.join(home, ".volta", "bin"),
+    platform === "darwin" ? path.join(home, "Library", "pnpm") : path.join(home, ".local", "share", "pnpm"),
+    ...nvmBinDirs(home),
+  ];
+}
+
+/** GUI Electron 的 PATH 极简（同 dreaminaCli 的坑）：mac 从 Finder 启动不含用户 shell PATH，
+ *  裸 spawn("codex") 必 ENOENT——先探已知安装位拿绝对路径，探不到再回退裸名 + spawn 时补 PATH。 */
+export function candidateCodexBins(platform: NodeJS.Platform = process.platform, home: string = os.homedir()): string[] {
+  if (platform === "win32") {
+    return [
+      process.env.CODEX_BIN || "",
+      path.join(home, "AppData", "Local", "Microsoft", "WindowsApps", "codex.exe"),
+      "codex.cmd",
+      "codex.exe",
+      "codex",
+    ].filter(Boolean);
+  }
+  return [...codexInstallDirs(platform, home).map((dir) => path.join(dir, "codex")), "codex"];
 }
 
 export function resolveCodexBin(): string {
@@ -71,6 +108,16 @@ export function resolveCodexBin(): string {
     if (candidate.includes(path.sep) && existsSync(candidate)) return candidate;
   }
   return process.platform === "win32" ? "codex.cmd" : "codex";
+}
+
+/** codex 子进程 env：把已知安装位并进 PATH 兜底（裸名回退时也能命中终端里装的 codex）。 */
+export function buildCodexSpawnEnv(
+  base: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+  home: string = os.homedir(),
+): NodeJS.ProcessEnv {
+  const mergedPath = [...codexInstallDirs(platform, home), base.PATH || ""].filter(Boolean).join(path.delimiter);
+  return { ...base, PATH: mergedPath };
 }
 
 function codexHome(): string {
@@ -284,7 +331,7 @@ export async function startCodexImageOperation(input: CodexImageInput): Promise<
     cwd: workDir,
     windowsHide: true,
     windowsVerbatimArguments: needsCmdWrapper(bin),
-    env: process.env,
+    env: buildCodexSpawnEnv(),
   });
   liveJobs.set(jobId, { child, record });
   patchJob(jobId, { status: "running" });
@@ -307,7 +354,11 @@ export async function startCodexImageOperation(input: CodexImageInput): Promise<
   child.stderr?.on("data", (chunk) => { absorbOutput("stderr", chunk); });
   child.stdin?.end(buildCodexImagePrompt(input.prompt, imagePaths.length > 0));
   child.on("error", (error) => {
-    markJobFailed(jobId, error.message || String(error));
+    // ENOENT = 机器上定位不到 codex（GUI PATH 极简 + 安装位不在候选表）——给人话指引而不是裸报 spawn 错。
+    const failure = (error as NodeJS.ErrnoException).code === "ENOENT"
+      ? "未找到 Codex CLI（codex）。请确认本机已安装并登录（npm i -g @openai/codex 后运行 codex login），或设置 CODEX_BIN 指向可执行文件。"
+      : error.message || String(error);
+    markJobFailed(jobId, failure);
     liveJobs.delete(jobId);
     try { rmSync(workDir, { recursive: true, force: true }); } catch { /* best-effort cleanup */ }
   });

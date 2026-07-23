@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync 
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { buildCodexImagePrompt, buildCodexSpawnInvocation, latestGeneratedImageForThread, parseCodexThreadId, queryCodexImageOperation } from "./codexCli";
+import { buildCodexImagePrompt, buildCodexSpawnEnv, buildCodexSpawnInvocation, candidateCodexBins, latestGeneratedImageForThread, parseCodexThreadId, queryCodexImageOperation } from "./codexCli";
 
 const envSnapshot = { ...process.env };
 const tempRoots: string[] = [];
@@ -27,6 +27,36 @@ describe("Codex CLI image bridge", () => {
   it("非 cmd/bat 可执行文件保持直接 spawn", () => {
     const invocation = buildCodexSpawnInvocation("codex", ["--version"], "linux");
     expect(invocation).toEqual({ command: "codex", args: ["--version"] });
+  });
+
+  it("mac 候选表探真实安装位（GUI PATH 极简，裸 spawn 必 ENOENT）：静态位 + nvm 版本目录，末位裸名兜底", () => {
+    const root = path.join(os.tmpdir(), `nomi-codex-bins-${Date.now()}-${process.pid}`);
+    tempRoots.push(root);
+    const nvmBin = path.join(root, ".nvm", "versions", "node", "v24.13.1", "bin");
+    const nvmBinOld = path.join(root, ".nvm", "versions", "node", "v9.2.0", "bin");
+    mkdirSync(nvmBin, { recursive: true });
+    mkdirSync(nvmBinOld, { recursive: true });
+
+    const candidates = candidateCodexBins("darwin", root);
+    expect(candidates).toContain("/opt/homebrew/bin/codex");
+    expect(candidates).toContain("/usr/local/bin/codex");
+    expect(candidates).toContain(path.join(root, ".local", "bin", "codex"));
+    // nvm 各版本 bin 都在候选里，且数值降序（v24 在 v9 前，不许按字典序）
+    const nvmIdx = candidates.indexOf(path.join(nvmBin, "codex"));
+    const nvmOldIdx = candidates.indexOf(path.join(nvmBinOld, "codex"));
+    expect(nvmIdx).toBeGreaterThan(-1);
+    expect(nvmOldIdx).toBeGreaterThan(nvmIdx);
+    // 裸名兜底恒在末位
+    expect(candidates[candidates.length - 1]).toBe("codex");
+  });
+
+  it("spawn env 把安装位并进 PATH（裸名回退时也能命中终端里装的 codex）", () => {
+    const root = path.join(os.tmpdir(), `nomi-codex-env-${Date.now()}-${process.pid}`);
+    tempRoots.push(root);
+    const env = buildCodexSpawnEnv({ PATH: "/usr/bin" }, "darwin", root);
+    const dirs = String(env.PATH).split(path.delimiter);
+    expect(dirs).toContain("/opt/homebrew/bin");
+    expect(dirs[dirs.length - 1]).toBe("/usr/bin");
   });
 
   it("从 codex exec --json 的 JSONL 里提取 thread_id", () => {
