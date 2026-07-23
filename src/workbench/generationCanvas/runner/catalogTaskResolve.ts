@@ -70,6 +70,20 @@ export function uniqueStrings(values: readonly string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)))
 }
 
+export function resolveTaskArchetype(meta: Record<string, unknown>) {
+  const vendor = asTrimmedString(meta.modelVendor) || asTrimmedString(meta.vendor)
+  const modelKey = asTrimmedString(meta.modelKey) || asTrimmedString(meta.modelAlias)
+  // 本地 ComfyUI workflow 是用户导入的通用图，不是内置档案模型。旧节点可能残留上一模型的
+  // meta.archetype，若继续信它，参考图会被投到 archetypeInput 而不是 workflow 的 flat 参数。
+  if (vendor === 'comfyui-local') return null
+  return resolveArchetypeForModel({
+    modelKey,
+    modelAlias: asTrimmedString(meta.modelAlias),
+    vendorKey: vendor,
+    meta,
+  })
+}
+
 export function selectedVendor(node: GenerationCanvasNode): string {
   const meta = node.meta || {}
   return (
@@ -174,7 +188,7 @@ export function resolveTaskKind(node: GenerationCanvasNode, references: Partial<
   // 不靠参考启发式猜——否则 Seedance omni（无首帧）会被误判 text_to_video 撞到别的模型；图像档案的文生图/改图
   // taskKind 也得各走各的桶。modelKey 精确路由（findTaskMapping）再保证打到本模型的 mapping。
   if (executionKind === 'video' || executionKind === 'image' || executionKind === 'audio') {
-    const archetype = resolveArchetypeForModel({ modelKey: asTrimmedString(meta.modelKey), modelAlias: asTrimmedString(meta.modelAlias), meta })
+    const archetype = resolveTaskArchetype(meta)
     if (archetype) return currentArchetypeMode(archetype, meta).transportTaskKind ?? archetype.transportTaskKind
   }
   if (executionKind === 'video') {
