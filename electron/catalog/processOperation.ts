@@ -15,6 +15,7 @@ import { renderTemplateValue } from "../ai/requestPipeline";
 import { contentTypeFromPath } from "../assets/assetPaths";
 import { materializeInputFiles } from "./dreaminaInputFiles";
 import type { JsonRecord } from "../jsonUtils";
+import { queryCodexImageOperation, startCodexImageOperation } from "./codexCli";
 
 /** runtime 注入的写资产原语（写本地字节进项目素材，返回含 data.url 的记录）。 */
 export type WriteAsset = (projectId: string, bytes: Buffer, fileName: string, contentType: string, meta: JsonRecord) => unknown;
@@ -42,6 +43,26 @@ export type ProcessResponse = {
 };
 
 export async function executeProcessOperation(input: ProcessOperationInput): Promise<{ response: unknown; request: unknown }> {
+  if (input.process.parser === "codex-cli-image") {
+    const request = (input.context.request as JsonRecord) ?? {};
+    const params = (request.params as JsonRecord) ?? {};
+    const providerMeta = (input.context.providerMeta as JsonRecord) ?? {};
+    const prompt = String(request.prompt ?? "");
+    if (input.process.args[0] === "query_result") {
+      return queryCodexImageOperation({
+        taskId: String(providerMeta.task_id ?? providerMeta.query_id ?? ""),
+        projectId: input.projectId,
+        writeAsset: input.writeAsset,
+      });
+    }
+    return startCodexImageOperation({
+      prompt,
+      referenceImages: params.reference_images,
+      projectId: input.projectId,
+      writeAsset: input.writeAsset,
+    });
+  }
+
   const bin = resolveDreaminaBin();
   if (!bin) {
     throw new Error("未找到即梦 CLI（dreamina）。请在「模型设置 · 即梦会员」卡里一键安装，或终端运行 curl -fsSL https://jimeng.jianying.com/cli | bash。");

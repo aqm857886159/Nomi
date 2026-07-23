@@ -51,6 +51,7 @@ import { RUNNINGHUB_VIDEO_CURATED_MODELS, RUNNINGHUB_VIDEO_CURATED_MAPPINGS } fr
 import { RUNNINGHUB_IMAGE_CURATED_MODELS, RUNNINGHUB_IMAGE_CURATED_MAPPINGS } from "./runninghubImages";
 import { REPLICATE_VENDOR_SEED } from "./replicate";
 import { COMFYUI_VENDOR_SEED, COMFYUI_CURATED_MODELS, COMFYUI_CURATED_MAPPINGS } from "./comfyuiLocal";
+import { CODEX_LOCAL_VENDOR_SEED, CODEX_IMAGE_CURATED_MODELS, CODEX_IMAGE_CURATED_MAPPINGS } from "./codexImages";
 import { VOLCENGINE_IMAGE_MODELS } from "./volcengineImages";
 import { VOLCENGINE_AUDIO_MODELS } from "./volcengineAudios";
 import { VOLCENGINE_SEEDANCE_QUERY_OP, VOLCENGINE_SEEDANCE_STATUS_MAPPING, VOLCENGINE_VIDEO_MODELS } from "./volcengineVideos";
@@ -256,16 +257,26 @@ function pruneRetiredMappings(mappings: Mapping[], retiredIds: readonly string[]
   return changed;
 }
 
+type VendorSeed = {
+  key: string;
+  name: string;
+  baseUrl: string;
+  authType: Vendor["authType"];
+  authHeader?: string | null;
+  enabled?: boolean;
+  assetIngestion?: Vendor["assetIngestion"];
+};
+
 /** 供应商种子（裸 baseUrl + bearer）。存在即跳过（用户配置不覆盖）。返回是否变更。
  *  多数种子默认 enabled:true；无鉴权本地后端（ComfyUI）带 `enabled:false` → 默认关、用户显式启用（污染防护）。 */
-function seedVendor(vendors: Vendor[], seed: typeof KIE_VENDOR_SEED | typeof APIMART_VENDOR_SEED | typeof AGNES_VENDOR_SEED | typeof MODELSCOPE_VENDOR_SEED | typeof VOLCENGINE_VENDOR_SEED | typeof VOLCENGINE_SPEECH_VENDOR_SEED | typeof DREAMINA_VENDOR_SEED | typeof RUNNINGHUB_VENDOR_SEED | typeof REPLICATE_VENDOR_SEED | typeof COMFYUI_VENDOR_SEED, now: string): boolean {
+function seedVendor(vendors: Vendor[], seed: VendorSeed, now: string): boolean {
   if (vendors.some((v) => v.key === seed.key)) return false;
-  const enabled = "enabled" in seed && (seed as { enabled?: boolean }).enabled === false ? false : true;
+  const enabled = seed.enabled === false ? false : true;
   vendors.push({
     key: seed.key, name: seed.name, enabled,
     baseUrlHint: seed.baseUrl, authType: seed.authType, authHeader: seed.authHeader,
     // 本地素材吞入声明（仅 Replicate 等声明了 assetIngestion 的 vendor 带；resolveAssetIngestionWithFallback 据此把本地图传文件 API）。
-    ...("assetIngestion" in seed && seed.assetIngestion ? { assetIngestion: seed.assetIngestion } : {}),
+    ...(seed.assetIngestion ? { assetIngestion: seed.assetIngestion } : {}),
     createdAt: now, updatedAt: now,
   });
   return true;
@@ -421,6 +432,7 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (seedVendor(vendors, RUNNINGHUB_VENDOR_SEED, now)) changed = true; // RunningHub aggregator（先接 3D 混元文生3D）
   if (seedVendor(vendors, REPLICATE_VENDOR_SEED, now)) changed = true; // Replicate（元素拆解 qwen-image-layered，按量付费）
   if (seedVendor(vendors, COMFYUI_VENDOR_SEED, now)) changed = true; // 本地 ComfyUI（无鉴权本地后端，默认关、用户显式启用）
+  if (seedVendor(vendors, CODEX_LOCAL_VENDOR_SEED, now)) changed = true; // Codex 本地生图（实验，默认关）
 
   // 退役 curated 记录清理（变体合并迁移：删 Seedance 旧变体模型 + mapping 孤儿，picker 收成 1 项）。
   if (pruneRetiredModels(models, APIMART_VENDOR_SEED.key, RETIRED_APIMART_VIDEO_MODEL_KEYS)) changed = true;
@@ -440,6 +452,7 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (reconcileModels(models, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_VIDEO_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_IMAGE_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, COMFYUI_VENDOR_SEED.key, COMFYUI_CURATED_MODELS, now)) changed = true;
+  if (reconcileModels(models, CODEX_LOCAL_VENDOR_SEED.key, CODEX_IMAGE_CURATED_MODELS, now)) changed = true;
 
   // kie 历史包袱 repair：把视频形状的坏 (kie, text_to_image) 替换成正确的 GPT Image 2 文生图契约
   // （旧 onboarding 抽错留下的；契约见 kieGptImage2.ts 直连实测确认）。apimart 无此历史，不需要。
@@ -470,6 +483,7 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (reconcileMappings(mappings, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_VIDEO_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_IMAGE_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, COMFYUI_VENDOR_SEED.key, COMFYUI_CURATED_MAPPINGS, now)) changed = true;
+  if (reconcileMappings(mappings, CODEX_LOCAL_VENDOR_SEED.key, CODEX_IMAGE_CURATED_MAPPINGS, now)) changed = true;
 
   if (!changed) return { state, changed: false };
   return { state: { ...state, vendors, models, mappings }, changed: true };
