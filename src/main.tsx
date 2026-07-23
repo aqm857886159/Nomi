@@ -6,6 +6,13 @@ import { BrowserAssetOverlayApp } from './ui/browser/overlay/BrowserAssetOverlay
 // 变量字体族名为 'Inter Variable' / 'Fraunces Variable'，已在 nomi-tokens.css 字栈置首。
 import '@fontsource-variable/inter/wght.css'
 import '@fontsource-variable/fraunces/wght.css'
+// Mantine v7 组件样式是独立 CSS，必须显式导入——toast 三合一迁 @mantine/notifications 时漏了这步，
+// 容器没有 position:fixed/z-index，全 App toast 一度渲染在页面流底部肉眼不可见（v0.16.7~v0.17.0）。
+// 只引 toast 用到的三份（Notification 卡片 + 关闭钮 + 通知容器），不引全量 core styles。
+import '@mantine/core/styles/UnstyledButton.css'
+import '@mantine/core/styles/CloseButton.css'
+import '@mantine/core/styles/Notification.css'
+import '@mantine/notifications/styles.css'
 import './styles/index.css'
 import { NomiAppProviders } from './NomiAppProviders'
 import { NomiColorSchemeProvider } from './theme/NomiColorSchemeProvider'

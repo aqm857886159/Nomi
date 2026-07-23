@@ -87,7 +87,10 @@ export const OBJECT_LIMIT = 100
 export const SCENE3D_EDITOR_ONLY_FLAG = 'scene3dCameraHelper'
 export const SCENE3D_GRID_FLAG = 'scene3dGridHelper'
 export const SCENE3D_RUNTIME_ID_KEY = 'scene3dId'
-export const FULLSCREEN_Z_INDEX = 2147483647
+// 全屏编辑器需盖过工作台常规 UI（≤2000 区间），但必须低于全局模态层（3400+：付费确认 3500、
+// 库面板 4000、灯箱 4200）与反馈层（src/ui/feedbackLayer.ts）——曾设 int32 最大值，导致编辑器
+// 打开期间 toast/付费确认全部被压在底下不可见。不变量测试见 src/ui/feedbackLayer.test.ts。
+export const FULLSCREEN_Z_INDEX = 3000
 export const CAMERA_MARKER_COLOR = '#8b5e34'
 export const CAMERA_MARKER_ACCENT_COLOR = '#a97946'
 export const CAMERA_HELPER_VISUAL_FAR = 1.2

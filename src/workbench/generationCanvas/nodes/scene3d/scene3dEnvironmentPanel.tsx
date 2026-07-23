@@ -14,15 +14,11 @@ import {
   SPHERE_RADIUS_MIN,
 } from './scene3dConstants'
 import type { Scene3DState } from './scene3dTypes'
-
-const PANORAMA_IMPORT_MAX_BYTES = 80 * 1024 * 1024
-const PANORAMA_STANDARD_RATIO = 2
-const PANORAMA_RATIO_TOLERANCE = 0.03
-
-type ImageDimensions = {
-  width: number
-  height: number
-}
+import {
+  isStandardPanoramaDimensions,
+  PANORAMA_IMPORT_MAX_BYTES,
+  type ImageDimensions,
+} from './panoramaImport'
 
 function readImageFileDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -50,11 +46,6 @@ function readImageDimensions(src: string): Promise<ImageDimensions> {
     image.onerror = () => reject(new Error('failed to inspect panorama image'))
     image.src = src
   })
-}
-
-function isStandardPanoramaDimensions(dimensions: ImageDimensions): boolean {
-  if (dimensions.height <= 0) return false
-  return Math.abs(dimensions.width / dimensions.height - PANORAMA_STANDARD_RATIO) <= PANORAMA_RATIO_TOLERANCE
 }
 
 function EnvironmentColorField({
@@ -116,6 +107,12 @@ export function Scene3DEnvironmentPanel({
   const { t } = useTranslation()
   const panoramaInputRef = React.useRef<HTMLInputElement | null>(null)
   const panoramaImportRunRef = React.useRef(0)
+  // 从预览 img 的 naturalWidth/Height 派生（不进持久化状态），给非 2:1 图挂常驻「可能拉伸」提示。
+  const [previewDimensions, setPreviewDimensions] = React.useState<ImageDimensions | null>(null)
+
+  React.useEffect(() => {
+    setPreviewDimensions(null)
+  }, [environment.panoramaUrl])
 
   const handlePanoramaFile = React.useCallback((file: File) => {
     if (readOnly) return
@@ -142,9 +139,10 @@ export function Scene3DEnvironmentPanel({
           return
         }
         if (panoramaImportRunRef.current !== importRunId) return
-        if (!isStandardPanoramaDimensions(dimensions)) {
-          toast(t('scene3d.environment.invalidRatio', { width: dimensions.width, height: dimensions.height }), 'warning')
-          return
+        // 非 2:1 不拒收（equirect 对任意比例渲染安全），降级为「可能拉伸」警告照常导入。
+        const standardRatio = isStandardPanoramaDimensions(dimensions)
+        if (!standardRatio) {
+          toast(t('scene3d.environment.nonStandardImported', { width: dimensions.width, height: dimensions.height }), 'warning')
         }
 
         onEnvironmentPatch({
@@ -162,7 +160,7 @@ export function Scene3DEnvironmentPanel({
           panoramaUrl: hostedUrl,
           panoramaFileName: file.name || t('scene3d.environment.defaultName'),
         })
-        toast(t('scene3d.environment.imported'), 'success')
+        if (standardRatio) toast(t('scene3d.environment.imported'), 'success')
       } catch {
         try {
           const dataUrl = await readImageFileDataUrl(file)
@@ -273,11 +271,25 @@ export function Scene3DEnvironmentPanel({
                 src={environment.panoramaUrl}
                 alt=""
                 draggable={false}
+                onLoad={(event) => {
+                  const { naturalWidth, naturalHeight } = event.currentTarget
+                  if (naturalWidth > 0 && naturalHeight > 0) {
+                    setPreviewDimensions({ width: naturalWidth, height: naturalHeight })
+                  }
+                }}
               />
             </div>
             <div className="min-w-0 truncate text-micro text-[var(--nomi-ink-60)]">
               {environment.panoramaFileName || t('scene3d.environment.defaultName')}
             </div>
+            {previewDimensions && !isStandardPanoramaDimensions(previewDimensions) ? (
+              <div className="text-micro text-[var(--nomi-ink-60)]">
+                {t('scene3d.environment.nonStandardHint', {
+                  width: previewDimensions.width,
+                  height: previewDimensions.height,
+                })}
+              </div>
+            ) : null}
             <label className="grid gap-1">
               <span className="text-micro text-[var(--nomi-ink-60)]">{t('scene3d.environment.horizontalRotation')}</span>
               <div className="grid grid-cols-[1fr_48px] items-center gap-2">
