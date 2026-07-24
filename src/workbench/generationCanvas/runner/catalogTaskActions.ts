@@ -12,7 +12,7 @@ import type {
 } from '../model/generationCanvasTypes'
 import type { ResolvedGenerationReferences } from './generationReferenceResolver'
 import { narrateProgress, type GenerationProgressPhase, type ProgressNarrationContext } from '../../observability/narrate'
-import { buildArchetypeInputParams, orderedSentImageReferenceUrls } from '../nodes/controls/archetypeMeta'
+import { buildArchetypeInputParams, currentArchetypeMode, orderedSentImageReferenceUrls } from '../nodes/controls/archetypeMeta'
 import { projectPromptForSend } from '../../assets/promptMentions'
 import {
   type CatalogTaskActionOptions,
@@ -80,8 +80,25 @@ function buildReferenceExtras(
       referenceVideos: references.referenceVideos || [],
       referenceAudios: references.referenceAudios || [],
     })
+    // 标准参考面（camelCase firstFrameUrl/lastFrameUrl/referenceImages）**与档案投影并存**——
+    // electron 侧的标准键（reference_images/chat_image_parts/image_url…）由它派生，通用中转模板
+    // 只认标准键。旧实现档案分支把 firstFrameUrl/lastFrameUrl 丢掉、archetypeInput 独占参考通道 →
+    // 中转上撞档案名的模型改图不带图/i2v 首帧到不了 wire（2026-07-24 群反馈根因）。
+    // M2 互斥同样约束标准面：首/尾帧只在**当前模式声明了对应槽**时才带（活边优先、meta 兜底），
+    // 否则「首帧模式残留尾帧」的 §2 坑2 会从标准键复活（kie 同名 token 渲进 body）。
+    const mode = currentArchetypeMode(archetype, meta)
+    const modeHasFirst = (mode.slots || []).some((slot) => slot.kind === 'first_frame')
+    const modeHasLast = (mode.slots || []).some((slot) => slot.kind === 'last_frame')
+    const firstFrameUrl = modeHasFirst
+      ? asTrimmedString(references.firstFrameUrl) || asTrimmedString(meta.firstFrameUrl)
+      : ''
+    const lastFrameUrl = modeHasLast
+      ? asTrimmedString(references.lastFrameUrl) || asTrimmedString(meta.lastFrameUrl)
+      : ''
     return {
       ...(referenceImages.length ? { referenceImages } : {}),
+      ...(firstFrameUrl ? { firstFrameUrl } : {}),
+      ...(lastFrameUrl ? { lastFrameUrl } : {}),
       archetypeInput,
       ...(styleReferenceImages.length ? { styleReferenceImages } : {}),
       ...(characterReferenceImages.length ? { characterReferenceImages } : {}),

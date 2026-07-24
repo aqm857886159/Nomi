@@ -22,9 +22,6 @@ function stringArray(value: unknown): string[] {
  * 是单一来源。非档案模型：从 camelCase extras 现场映射（兼容既有 onboarding 模型，不破坏）。
  */
 export function referenceInputParams(extras: JsonRecord): JsonRecord {
-  if (isJsonRecord(extras.archetypeInput)) {
-    return { ...extras.archetypeInput };
-  }
   const out: JsonRecord = {};
   const firstFrame = firstString(extras.firstFrameUrl);
   const lastFrame = firstString(extras.lastFrameUrl);
@@ -39,5 +36,12 @@ export function referenceInputParams(extras: JsonRecord): JsonRecord {
   if (audioUrls.length) out.reference_audio_urls = audioUrls;
 
   out.reference_images = Array.isArray(extras.referenceImages) ? extras.referenceImages : [];
+  // 档案投影**叠加**在标准键之上（同名键档案权威）——绝不替代整包。旧实现 archetypeInput 独占返回，
+  // 标准键（reference_images/chat_image_parts 的原料/first_frame_url）被吞 → 通用中转模板拿不到参考：
+  // multipart 改图空图被拒、chat 多模态丢图、i2v 首帧到不了 wire（2026-07-24 群反馈根因）。
+  // 内置家零影响：它们的 body 只引用各自声明的键（input_urls/volcengine_* …），多出的标准键不进 body。
+  if (isJsonRecord(extras.archetypeInput)) {
+    Object.assign(out, extras.archetypeInput);
+  }
   return out;
 }

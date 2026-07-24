@@ -261,6 +261,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
     const archetype = resolveArchetypeForModel({
       modelKey: typeof meta.modelKey === 'string' ? meta.modelKey : undefined,
       modelAlias: typeof meta.modelAlias === 'string' ? meta.modelAlias : undefined,
+      vendorKey: typeof meta.modelVendor === 'string' ? meta.modelVendor : typeof meta.vendor === 'string' ? meta.vendor : null,
       meta,
     })
     return archetype ? currentArchetypeMode(archetype, meta) : null

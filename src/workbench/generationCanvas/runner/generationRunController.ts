@@ -17,8 +17,8 @@ import { resolveGenerationReferences } from './generationReferenceResolver'
 import {
   currentArchetypeMode,
   hasArchetypeArrayReferences,
-  resolveArchetypeForModel,
 } from '../nodes/controls/archetypeMeta'
+import { resolveTaskArchetype } from './catalogTaskResolve'
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 import i18n from '../../../i18n'
 
@@ -416,11 +416,7 @@ export function canRunGenerationNode(
     // 连了线但源未生成不在此禁——composer 的「备齐参考」波次接管。
     if (!('id' in node) || !node.id) return true
     const meta = node.meta || {}
-    const imageArchetype = resolveArchetypeForModel({
-      modelKey: typeof meta.modelKey === 'string' ? meta.modelKey : undefined,
-      modelAlias: typeof meta.modelAlias === 'string' ? meta.modelAlias : undefined,
-      meta,
-    })
+    const imageArchetype = resolveTaskArchetype(meta)
     const imageMode = imageArchetype ? currentArchetypeMode(imageArchetype, meta) : null
     if (!imageMode || imageMode.transportTaskKind !== 'image_edit' || (imageMode.slots || []).length === 0) return true
     const references = resolveGenerationReferences(node, context)
@@ -436,11 +432,7 @@ export function canRunGenerationNode(
   if (executionKind === 'audio') {
     if (!('meta' in node)) return true
     const meta = node.meta || {}
-    const audioArchetype = resolveArchetypeForModel({
-      modelKey: typeof meta.modelKey === 'string' ? meta.modelKey : undefined,
-      modelAlias: typeof meta.modelAlias === 'string' ? meta.modelAlias : undefined,
-      meta,
-    })
+    const audioArchetype = resolveTaskArchetype(meta)
     const mode = audioArchetype ? currentArchetypeMode(audioArchetype, meta) : null
     const needsAudioRef = (mode?.slots || []).some((slot) => slot.kind === 'audio_ref')
     if (!needsAudioRef) return true
@@ -449,11 +441,7 @@ export function canRunGenerationNode(
   if (executionKind !== 'video') return false
   if (!('id' in node) || !node.id) return false
   const meta = node.meta || {}
-  const archetype = resolveArchetypeForModel({
-    modelKey: typeof meta.modelKey === 'string' ? meta.modelKey : undefined,
-    modelAlias: typeof meta.modelAlias === 'string' ? meta.modelAlias : undefined,
-    meta,
-  })
+  const archetype = resolveTaskArchetype(meta)
   // 当前模式无参考槽 = 纯文生视频（t2v）→ 只要 prompt 即可生成，同 text/image 节点（prompt 缺失下游兜底）。
   // 不能因「video 一律要首帧」把 t2v 的生成按钮锁死——栽过：RunningHub Seedance 默认 text 模式（slots:[]）
   // 按钮被置灰、误提示"需要首帧"，用户根本点不了文生视频（2026-06-30 用户反馈）。apimart/kie Seedance 同病，

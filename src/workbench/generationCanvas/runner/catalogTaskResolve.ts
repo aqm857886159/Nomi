@@ -79,7 +79,7 @@ export function resolveTaskArchetype(meta: Record<string, unknown>) {
   return resolveArchetypeForModel({
     modelKey,
     modelAlias: asTrimmedString(meta.modelAlias),
-    vendorKey: vendor,
+    vendorKey: vendor || null,
     meta,
   })
 }

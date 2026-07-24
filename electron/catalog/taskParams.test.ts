@@ -37,6 +37,50 @@ describe("taskTemplateParams — 档案参考输入（omni）", () => {
   });
 });
 
+// 根因回归（2026-07-24 群反馈）：档案投影曾**独占**参考通道（archetypeInput 整包替换标准键）——
+// 中转 gpt-image-2 的参考只剩 kie 键 input_urls，multipart 模板读 reference_images、chat 多模态读
+// chat_image_parts、i2v 读 image_url，全空 → 改图不带图被拒/首帧到不了 wire。不变量：标准键先建、
+// 档案键叠加其上（同名键档案权威）；内置家 body 只引用自家声明键，多出的标准键不进 body。
+describe("referenceInputParams/taskTemplateParams — 标准键与档案键并存（中转不丢参考）", () => {
+  it("档案模型（kie input_urls 键）+ 标准 referenceImages：两面并存，chat_image_parts/image_url 可派生", () => {
+    const params = taskTemplateParams({
+      extras: {
+        archetypeInput: { input_urls: ["ref.png"], model: "gpt-image-2-image-to-image" },
+        referenceImages: ["ref.png"],
+      },
+    });
+    // 档案键照旧（kie/apimart body 读它）
+    expect(params.input_urls).toEqual(["ref.png"]);
+    // 标准键不再被吞（中转 multipart 模板读 reference_images）
+    expect(params.reference_images).toEqual(["ref.png"]);
+    // chat 多模态参考件由标准键派生（中转 chat/completions 图生图）
+    expect(params.chat_image_parts).toEqual([{ type: "image_url", image_url: { url: "ref.png" } }]);
+    // i2v/单图口径由标准面派生
+    expect(params.image_url).toBe("ref.png");
+  });
+
+  it("档案首帧（标准 firstFrameUrl 并存）→ first_frame_url 与 image_url 都在场；同名键档案权威", () => {
+    const params = taskTemplateParams({
+      extras: {
+        archetypeInput: { first_frame_url: "frame-A.png" },
+        firstFrameUrl: "frame-A.png",
+      },
+    });
+    expect(params.first_frame_url).toBe("frame-A.png");
+    expect(params.image_url).toBe("frame-A.png");
+  });
+
+  it("同名键冲突时档案权威覆盖标准值（构造层投影是单一真相）", () => {
+    const params = taskTemplateParams({
+      extras: {
+        archetypeInput: { first_frame_url: "mode-filtered.png" },
+        firstFrameUrl: "raw-standard.png",
+      },
+    });
+    expect(params.first_frame_url).toBe("mode-filtered.png");
+  });
+});
+
 describe("firstReferenceImage — 单图首选", () => {
   it("按 image_url → imageUrl → firstFrameUrl → lastFrameUrl → referenceImages[0] 顺序取第一个非空", () => {
     expect(firstReferenceImage({ extras: { firstFrameUrl: "f.png" } })).toBe("f.png");

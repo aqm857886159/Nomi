@@ -207,6 +207,69 @@ describe('buildCatalogTaskRequest — ComfyUI 本地 workflow 不吃旧档案 ar
   })
 })
 
+// 根因回归（2026-07-24 群反馈）：档案分支曾让 archetypeInput **独占**参考通道——标准 camelCase 面
+// （firstFrameUrl/lastFrameUrl）被丢，参考只剩 kie 键 `input_urls`；而通用中转模板读的是标准键
+// （multipart `{{request.params.reference_images}}` / chat `chat_image_parts` / i2v `image_url`），
+// → 中转上撞档案名的模型改图不带图被拒（「未开启生图功能」类）、i2v 首帧到不了 wire；接入测试
+// （t2i 不吃参考键）却能过。收口后不变量：**标准参考面永远在场，档案投影叠加其上**（两面并存，
+// 内置家 body 只引用自家声明键、多出的标准键不进 body → 零影响）。
+describe('buildCatalogTaskRequest — 标准参考面与档案投影并存（中转不丢参考）', () => {
+  const relayNode = (vendor: string): GenerationCanvasNode => ({
+    id: 'relay-i2i',
+    kind: 'image',
+    title: '',
+    position: { x: 0, y: 0 },
+    prompt: '把它改成蓝色',
+    meta: {
+      modelKey: 'gpt-image-2',
+      modelVendor: vendor,
+      vendor,
+      archetype: { id: 'gpt-image-2', modeId: 'i2i' },
+    },
+  })
+
+  it('中转 vendor：archetypeInput 照常（档案是通用能力面），且标准 referenceImages 同时在场', () => {
+    const built = buildCatalogTaskRequest(relayNode('my-relay'), {
+      references: { referenceImages: ['nomi-local://asset/ref.png'] },
+    })
+    expect(built.request.kind).toBe('image_edit')
+    const archetypeInput = built.request.extras?.archetypeInput as Record<string, unknown>
+    expect(archetypeInput.input_urls).toEqual(['nomi-local://asset/ref.png'])
+    // 关键不变量：标准面不被档案吞——中转 multipart/chat 模板由它派生 reference_images/chat_image_parts。
+    expect(built.request.extras?.referenceImages).toEqual(['nomi-local://asset/ref.png'])
+  })
+
+  it('kie 行为零变化：档案投影仍在（input_urls + kie 模式枚举），标准面并存不进 kie body', () => {
+    const built = buildCatalogTaskRequest(relayNode('kie'), {
+      references: { referenceImages: ['nomi-local://asset/ref.png'] },
+    })
+    expect(built.request.kind).toBe('image_edit')
+    const archetypeInput = built.request.extras?.archetypeInput as Record<string, unknown>
+    expect(archetypeInput.input_urls).toEqual(['nomi-local://asset/ref.png'])
+    expect(archetypeInput.model).toBe('gpt-image-2-image-to-image')
+    expect(built.request.extras?.referenceImages).toEqual(['nomi-local://asset/ref.png'])
+  })
+
+  it('档案视频节点的 i2v 首帧：标准 firstFrameUrl 不再被档案分支丢掉（中转 image_url 由它派生）', () => {
+    const node: GenerationCanvasNode = {
+      id: 'relay-i2v',
+      kind: 'video',
+      title: '',
+      position: { x: 0, y: 0 },
+      prompt: '镜头缓慢推近',
+      // 首帧模式（真实链路：连 first_frame 边时 useNodeModelAutoSelect 自动切到该模式）。
+      meta: { modelKey: 'bytedance/seedance-2', modelVendor: 'my-relay', vendor: 'my-relay', archetype: { id: 'seedance-2', modeId: 'first' } },
+    }
+    const built = buildCatalogTaskRequest(node, {
+      references: { firstFrameUrl: 'nomi-local://asset/first.png' },
+    })
+    expect(built.request.extras?.archetypeInput).toBeTruthy()
+    expect(built.request.extras?.firstFrameUrl).toBe('nomi-local://asset/first.png')
+    // M2 互斥在标准面同样生效：当前模式无尾帧槽 → 标准 lastFrameUrl 不带。
+    expect(built.request.extras?.lastFrameUrl).toBeUndefined()
+  })
+})
+
 // 根因回归（2026-06-08）：断开 kie、连 apimart 后，钉死在 kie 的老节点运行时必须自动迁到
 // apimart 的同款模型，而不是抛 `API key missing: kie`。
 describe('runCatalogGenerationTask — 断开 kie 后老节点自动迁移到已连接供应商', () => {

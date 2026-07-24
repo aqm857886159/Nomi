@@ -37,13 +37,15 @@ export function dropKindFromNodeKind(kind: GenerationNodeKind): AssetDropKind | 
 
 /**
  * 节点当前模型档案 + 当前模式声明的数组参考槽（无档案 / 当前模式无数组槽 → []）。
- * 供应商无关（resolveArchetypeForModel 只看模型身份）；从持久化的 node.meta 解析（单源真相）。
+ * 内置家之内供应商无关；自定义中转不套档案（vendor 门在 resolveArchetypeForModel）。从持久化的
+ * node.meta 解析（单源真相）。
  */
 export function resolveNodeArraySlots(meta: Record<string, unknown> | undefined): ArchetypeArraySlot[] {
   const m = meta || {}
   const archetype = resolveArchetypeForModel({
     modelKey: typeof m.modelKey === 'string' ? m.modelKey : undefined,
     modelAlias: typeof m.modelAlias === 'string' ? m.modelAlias : undefined,
+    vendorKey: typeof m.modelVendor === 'string' ? m.modelVendor : typeof m.vendor === 'string' ? m.vendor : null,
     meta: m,
   })
   if (!archetype) return []

@@ -71,8 +71,15 @@ function identifierMatchesPattern(identifier: string, pattern: string): boolean 
 export type ArchetypeModelLike = {
   modelKey?: string | null;
   modelAlias?: string | null;
-  /** B 档案分层：按供应商特化 params（见 specializeArchetypeForVendor）。缺省=不特化（向后兼容）。 */
-  vendorKey?: string | null;
+  /**
+   * 模型所属供应商 —— **必传**（值可为 null=未知）。B 档案分层按它特化 params
+   * （见 specializeArchetypeForVendor）。必传是结构保证：曾有 5 个调用点漏传 →
+   * 发送路拿到的是未特化档案、与 UI 侧（传了 vendor）分裂；类型层逼所有调用点显式表态。
+   * 注意：vendor **不改变**解析结果（供应商无关识别是设计特性——seed-tts/中转 Seedance
+   * 等档案就是给任意中转用的）；中转与内置家的传输差异由「标准参考面永远在场」不变量吸收
+   * （见 catalogTaskActions.buildReferenceExtras / electron referenceInputParams，2026-07-24）。
+   */
+  vendorKey: string | null | undefined;
   meta?: unknown;
 };
 
@@ -98,6 +105,10 @@ function readArchetypeIdFromMeta(meta: unknown): string | null {
  *   2. 否则按模型身份（modelKey / 别名）匹配 identifierPatterns —— 任何人经任何供应商接入
  *      同一个模型都会命中，不依赖 kie。
  *   3. 都不中 → null（渲染层走「通用」回退，按接入文档原样展示，不藏能力）。
+ * 传输侧前提（2026-07-24 修正）：档案投影**叠加**在标准参考面之上、不得独占参考通道——
+ * 自定义中转的模板只认标准键（reference_images/chat_image_parts/image_url），吞掉它们会让
+ * 中转上撞档案名的模型改图不带图（群反馈根因）。该不变量钉在 buildReferenceExtras +
+ * referenceInputParams，两处测试锁死；本函数保持纯识别、不做 vendor 门。
  */
 export function resolveArchetypeForModel(model: ArchetypeModelLike | null | undefined): ModelArchetype | null {
   if (!model) return null;

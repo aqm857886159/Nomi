@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { getArchetypeById, resolveArchetypeForModel, specializeArchetypeForVariant } from "./index";
 
-// 钉死「通用第一」：同一个模型，经任意供应商接入，都解析到同一套档案 —— 解析器**不看 vendor**。
+// 钉死「通用第一」：同一个模型，经任意供应商接入，都解析到同一套档案 —— 解析器**不看 vendor**
+// （供应商无关识别是设计特性：seed-tts / 中转 Seedance 等档案就是给任意中转用的）。中转与内置家的
+// 传输差异不在识别层解决，而由「标准参考面永远在场」不变量吸收（buildReferenceExtras +
+// referenceInputParams，各自测试锁死，2026-07-24 根因收口）。
 // 认不出的模型 → null（渲染层走通用回退）。'seedance-2' 不误命中 'seedance-2-fast'。
 
 describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
@@ -123,5 +126,18 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
     const first = a?.modes.find((m) => m.id === "first");
     expect(first?.params.map((p) => p.key)).toEqual(["resolution", "aspect_ratio", "duration", "generate_audio"]);
     expect(first?.slots).toEqual([{ kind: "first_frame", label: "首帧", min: 1, max: 1 }]);
+  });
+});
+
+describe("resolveArchetypeForModel — vendorKey 只做 B 层特化，不改变解析（2026-07-24 钉死）", () => {
+  it("自定义中转 vendor 照常按身份命中（seed-tts/中转 Seedance 类档案就是给中转用的）", () => {
+    expect(resolveArchetypeForModel({ modelKey: "gpt-image-2", vendorKey: "my-relay" })?.id).toBe("gpt-image-2");
+    expect(resolveArchetypeForModel({ modelKey: "bytedance/seedance-2", vendorKey: "one-api-xx" })?.id).toBe("seedance-2");
+  });
+
+  it("vendorKey null/undefined/空串与传内置家一致命中（必传只为逼调用点显式表态）", () => {
+    expect(resolveArchetypeForModel({ modelKey: "gpt-image-2", vendorKey: null })?.id).toBe("gpt-image-2");
+    expect(resolveArchetypeForModel({ modelKey: "gpt-image-2", vendorKey: undefined })?.id).toBe("gpt-image-2");
+    expect(resolveArchetypeForModel({ modelKey: "gpt-image-2", vendorKey: "kie" })?.id).toBe("gpt-image-2");
   });
 });
