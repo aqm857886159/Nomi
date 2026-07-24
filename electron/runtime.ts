@@ -6,6 +6,7 @@ import { endpoint } from "./vendorEndpoint";
 import { requestJson, requestMultipart } from "./vendor/vendorHttp";
 import { runMultipartProfileOperation } from "./catalog/multipartOperation";
 import { templateContext, buildProfileHttpRequest } from "./catalog/profileHttpRequest";
+import { chatImageFallbackOperation } from "./catalog/imageRouteFallback";
 import { buildNormalizedRecipe, buildTaskProvenance } from "./vendor/provenance";
 import { traceVendorCompleted, traceVendorRequested } from "./events/vendorCallTrace";
 import { scheduleTechnicalReview } from "./review/reviewTrace";
@@ -176,33 +177,9 @@ export type CachedTask = {
   fingerprint?: string;
 };
 
-export function findExecutableModel(
-  vendorKey: string,
-  modelKey: string,
-  kind?: BillingModelKind,
-): { vendor: Vendor; model: Model; apiKey: string } {
-  const state = readCatalog();
-  const vendor = state.vendors.find((item) => item.key === vendorKey && item.enabled);
-  if (!vendor) throw new Error(`Vendor is not enabled: ${vendorKey}`);
-  // 精确 modelKey 优先于 alias（修双键 OR 误路由，selectExecutableModel 纯函数单测覆盖）。
-  const model = selectExecutableModel(state.models, vendorKey, modelKey, kind);
-  if (!model) throw new Error(`Model is not enabled: ${modelKey}`);
-  const apiKey = decryptApiKeyRecord(state.apiKeysByVendor[vendorKey]);
-  if (vendor.authType !== "none" && !apiKey) throw new Error(`API key missing: ${vendorKey}`);
-  return { vendor, model, apiKey };
-}
-
-export function findExecutableModelForTask(
-  vendorKey: string,
-  modelKey: string,
-  kind: BillingModelKind,
-): { vendor: Vendor; model: Model; apiKey: string } {
-  if (modelKey) return findExecutableModel(vendorKey, modelKey, kind);
-  const state = readCatalog();
-  const model = state.models.find((item) => item.vendorKey === vendorKey && item.enabled && item.kind === kind);
-  if (!model) throw new Error(`No enabled ${kind} model for vendor: ${vendorKey}`);
-  return findExecutableModel(vendorKey, model.modelKey, kind);
-}
+// 可执行模型解析下沉到 catalog/executableModel（R12 净减）；re-export 保住 textTaskRunner/taskResultQuery 既有 import 面。
+export { findExecutableModel, findExecutableModelForTask } from "./catalog/executableModel";
+import { findExecutableModel } from "./catalog/executableModel";
 
 // Thin Vendor→primitive adapters over the shared requestPipeline auth logic
 // (the shared module is electron-free and doesn't know the Vendor shape).
@@ -432,11 +409,23 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
     const cachedHit = readCachedTaskResult({ projectId, fingerprint, nodeId, extras: request.extras });
     if (cachedHit) return cachedHit as TaskResult;
     assertAndConsumeSpendGrant(grantId, nodeId); // 付费守卫：缓存未命中=真发 vendor，发前校验消费令牌
-    const executed = await executeProfileOperation({ vendor, model, apiKey, request, operation: mapping.create });
+    // 中转生图路由回退（y7api 403 定案）：OpenAI images 端点被「分组未开通」类确定性拒绝（403 命中
+    // 窄短语 / 404/405，未创建任务未扣费）→ 换 chat/completions 多模态 op 重发一次；结果归一按
+    // 实际执行的 op 走（chat 同步返回，extractChatImageUrl 兜底解析）。详见 catalog/imageRouteFallback。
+    let createOperation = mapping.create;
+    let executed;
+    try {
+      executed = await executeProfileOperation({ vendor, model, apiKey, request, operation: createOperation });
+    } catch (error) {
+      const fallbackOp = chatImageFallbackOperation(error, createOperation, kind);
+      if (!fallbackOp) throw error;
+      createOperation = fallbackOp;
+      executed = await executeProfileOperation({ vendor, model, apiKey, request, operation: createOperation });
+    }
     const normalized = await buildProfileTaskResult({
       response: executed.response,
       mapping,
-      operation: mapping.create,
+      operation: createOperation,
       request,
       taskIdFallback: taskId,
       wantedKind,

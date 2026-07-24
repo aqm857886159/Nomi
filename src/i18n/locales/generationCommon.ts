@@ -163,6 +163,10 @@ export const zhGenerationCommon = {
         reason: '账号权限不足',
         hint: '这个模型需要更高的账号档位才能用——按下方「服务商原话」开通对应会员 / 换企业级 API Key / 先在服务商网页端完成授权；也可在「模型接入」换一个能用的模型。',
       },
+      imageRouteDisabled: {
+        reason: '中转分组未开通生图路由',
+        hint: '这家中转给你的令牌分组没开 OpenAI 生图端点（/v1/images/*）。Nomi 已自动改走聊天路由出图；若仍失败，说明分组连聊天出图也没开——去中转控制台给令牌换分组或开通生图，或换一个模型。',
+      },
       contentPolicy: { reason: '提示词被拦截', hint: '提示词触发了安全策略，请修改后重试。' },
       server: { reason: '服务商故障', hint: '服务商服务异常，请稍后重试，或换一个模型。' },
       input: {
@@ -997,6 +1001,10 @@ export const enGenerationCommon = {
       accountGate: {
         reason: 'Insufficient account access',
         hint: 'This model requires a higher account tier, an enterprise API key, or web authorization. Follow the provider message below or choose another model.',
+      },
+      imageRouteDisabled: {
+        reason: 'Image route not enabled for this relay group',
+        hint: 'Your relay token group has no access to the OpenAI image endpoints (/v1/images/*). Nomi already retried via the chat route; if it still fails, the group lacks chat image output too — switch the token group or enable image generation in the relay console, or pick another model.',
       },
       contentPolicy: { reason: 'Prompt blocked', hint: 'The prompt triggered a safety policy. Edit it and try again.' },
       server: {

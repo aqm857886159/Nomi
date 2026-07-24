@@ -67,6 +67,7 @@ export type GenerationErrorKind =
   | 'network'
   | 'model-config'
   | 'model-not-open'
+  | 'image-route-disabled'
   | 'account-gate'
   | 'content-policy'
   | 'server'
@@ -82,6 +83,7 @@ const ERROR_KEY_BY_KIND: Record<GenerationErrorKind, string> = {
   network: 'network',
   'model-config': 'modelConfig',
   'model-not-open': 'modelNotOpen',
+  'image-route-disabled': 'imageRouteDisabled',
   'account-gate': 'accountGate',
   'content-policy': 'contentPolicy',
   server: 'server',

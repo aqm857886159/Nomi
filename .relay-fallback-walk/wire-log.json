@@ -1,0 +1,10 @@
+[
+  {
+    "path": "/v1/images/generations",
+    "status": 403
+  },
+  {
+    "path": "/v1/chat/completions",
+    "status": 403
+  }
+]

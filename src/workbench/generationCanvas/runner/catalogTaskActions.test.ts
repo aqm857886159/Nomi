@@ -250,6 +250,27 @@ describe('buildCatalogTaskRequest — 标准参考面与档案投影并存（中
     expect(built.request.extras?.referenceImages).toEqual(['nomi-local://asset/ref.png'])
   })
 
+  it('档案图槽上传（meta.referenceImageUrls）同样进标准面；t2i 模式的残留不复活', () => {
+    const uploaded: GenerationCanvasNode = {
+      id: 'relay-upload', kind: 'image', title: '', position: { x: 0, y: 0 }, prompt: '改成蓝色调',
+      meta: {
+        modelKey: 'gpt-image-2', modelVendor: 'y7-mock', vendor: 'y7-mock',
+        archetype: { id: 'gpt-image-2', modeId: 'i2i' },
+        referenceImageUrls: ['nomi-local://asset/up.png'],
+      },
+    }
+    const built = buildCatalogTaskRequest(uploaded, { references: {} })
+    expect(built.request.kind).toBe('image_edit')
+    // 走查 B 段抓出的第二个吞点：上传住档案槽键，从没进过标准面 → multipart 0 张图被抛。
+    expect(built.request.extras?.referenceImages).toEqual(['nomi-local://asset/up.png'])
+    // t2i 模式（无 image_ref 槽）→ 残留不复活进标准面（否则 chat 回退的 t2i body 会带旧图）。
+    const t2i: GenerationCanvasNode = {
+      ...uploaded,
+      meta: { ...uploaded.meta, archetype: { id: 'gpt-image-2', modeId: 't2i' } },
+    }
+    expect(buildCatalogTaskRequest(t2i, { references: {} }).request.extras?.referenceImages).toBeUndefined()
+  })
+
   it('档案视频节点的 i2v 首帧：标准 firstFrameUrl 不再被档案分支丢掉（中转 image_url 由它派生）', () => {
     const node: GenerationCanvasNode = {
       id: 'relay-i2v',

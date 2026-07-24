@@ -95,8 +95,16 @@ function buildReferenceExtras(
     const lastFrameUrl = modeHasLast
       ? asTrimmedString(references.lastFrameUrl) || asTrimmedString(meta.lastFrameUrl)
       : ''
+    // 档案图槽的上传住 meta.referenceImageUrls（ARRAY_SLOT_ROUTE.image_ref.metaKey）——它同样必须进
+    // 标准面，否则中转 multipart 的 params.reference_images 恒空、0 张图被诚实抛（走查 B 段抓出的
+    // 第二个吞点）。同样按当前模式门控（声明了 image_ref 槽才带，防 t2i 残留复活进 chat 回退 body）。
+    const modeHasImageArray = (mode.slots || []).some((slot) => slot.kind === 'image_ref')
+    const standardReferenceImages = uniqueStrings([
+      ...referenceImages,
+      ...(modeHasImageArray ? readStringArray(meta.referenceImageUrls) : []),
+    ])
     return {
-      ...(referenceImages.length ? { referenceImages } : {}),
+      ...(standardReferenceImages.length ? { referenceImages: standardReferenceImages } : {}),
       ...(firstFrameUrl ? { firstFrameUrl } : {}),
       ...(lastFrameUrl ? { lastFrameUrl } : {}),
       archetypeInput,

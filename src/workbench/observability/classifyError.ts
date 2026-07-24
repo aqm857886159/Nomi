@@ -144,6 +144,23 @@ function detectModelNotOpen(upstream: string | undefined, raw: string): boolean 
 }
 
 /**
+ * 「中转生图路由未开通」文案信号（2026-07-24 y7api 403 定案："Image generation is not enabled
+ * for this group"）——one-api/new-api 的令牌分组没开 /v1/images/* 路由。electron 侧同短语用于
+ * 自动回退 chat 路由（catalog/imageRouteFallback，改短语两处同步）；走到这里=回退也失败，
+ * 指引去中转控制台开分组，而不是误导成「查 API Key」。短语取窄，不吞普通 403。
+ */
+function detectImageRouteDisabled(upstream: string | undefined, raw: string): boolean {
+  const text = `${upstream || ''} ${raw}`.toLowerCase()
+  if (text.includes('not enabled for this group')) return true
+  if (text.includes('image generation is not enabled')) return true
+  if (text.includes('images api is not enabled') || text.includes('endpoint is disabled')) return true
+  return (
+    (text.includes('分组') || text.includes('group')) &&
+    (text.includes('未开通') || text.includes('无权限') || text.includes('not enabled') || text.includes('no permission'))
+  )
+}
+
+/**
  * 「账号档位闸」是文案信号，不是状态码信号——会员/企业 Key/网页授权各家用不同码（即梦静默 exit≠0、
  * RunningHub 200+errorCode 1014、即梦 compliance 文本），分别会被派生成 unknown/input，把「开会员/换企业
  * Key/去授权」误导成「查参数」。故在 category 分类前先按文案判定，命中即压过 structured.category。
@@ -209,6 +226,13 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   // 服务商原话(如「has not activated the model …」)单独提到 providerMessage 可见区。
   if (detectModelNotOpen(structured?.upstreamMsg, cleanRaw)) {
     const { reason, hint } = narrateGenerationError('model-not-open')
+    const providerMessage = pickProviderMessage(structured?.upstreamMsg ?? extractReadableErrorLine(cleanRaw), reason)
+    return { reason, hint, raw: cleanRaw, ...(providerMessage ? { providerMessage } : {}) }
+  }
+  // 中转生图路由未开通先于 category 判——403 会被派生成 auth（「API Key 无效」），把「去中转
+  // 控制台开分组」误导成「查密钥」（2026-07-24 y7api 真实报错定案）。
+  if (detectImageRouteDisabled(structured?.upstreamMsg, cleanRaw)) {
+    const { reason, hint } = narrateGenerationError('image-route-disabled')
     const providerMessage = pickProviderMessage(structured?.upstreamMsg ?? extractReadableErrorLine(cleanRaw), reason)
     return { reason, hint, raw: cleanRaw, ...(providerMessage ? { providerMessage } : {}) }
   }
