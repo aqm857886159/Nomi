@@ -5,7 +5,6 @@ import { IconCoin, IconFileText, IconRobot, IconMovie, IconPhoto } from '@tabler
 import { WorkbenchButton } from '../../../design'
 import { useSpendConfirmStore } from './spendConfirm'
 import { ProductionContractSummary } from './ProductionContractSummary'
-import { PRODUCTION_BUDGET_SETTINGS_TARGET } from '../../production/productionBudgetGuard'
 
 // 付费生成确认对话框（单一收口，挂一次于工作区根）。极简：标题 + 一句人话 + 取消/确认。
 // 三种来源共用这一个对话框（不另造并行卡，P1）：
@@ -149,8 +148,9 @@ export function SpendConfirmDialog() {
             <WorkbenchButton
               className={cn('h-8 px-4 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-accent hover:text-nomi-paper')}
               onClick={() => {
+                const openBudgetSettings = pending.onOpenBudgetSettings
                 resolvePending(false)
-                window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: PRODUCTION_BUDGET_SETTINGS_TARGET }))
+                openBudgetSettings?.()
               }}
             >
               {t('generationCommon.production.gate.openBudgetSettings')}

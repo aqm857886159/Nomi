@@ -170,6 +170,7 @@ export function useProductionStatus() {
           }
         }
         const gateCopy = localizedGateCopy(gate, (key) => t(key))
+        let openingBudgetSettings = false
         const approved = await useSpendConfirmStore.getState().requestConfirm({
           title: gateCopy.title,
           message: gateCopy.message,
@@ -177,8 +178,15 @@ export function useProductionStatus() {
           source: activeRun.origin.host === 'nomi' ? 'user' : 'agent',
           kind: gate.scope === 'stage' ? 'plan' : 'contract',
           ...(gate.scope === 'stage' ? {} : { contract: buildProductionContractView(activeRun, gate) }),
+          ...(gate.scope === 'budget_envelope' && activeRun.policy.maxSpend === null ? {
+            onOpenBudgetSettings: () => {
+              openingBudgetSettings = true
+              window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: PRODUCTION_BUDGET_SETTINGS_TARGET }))
+            },
+          } : {}),
         })
         if (!approved) {
+          if (openingBudgetSettings) return
           if (gate.scope !== 'budget_envelope') return
           try {
             await executeCommand(activeRun.projectId, activeRun.runId, {

@@ -16,7 +16,7 @@ describe('production budget UX structure', () => {
   it('turns an unset hard budget into a direct settings action', () => {
     expect(dialogSource).toContain('missingHardBudget')
     expect(dialogSource).toContain('openBudgetSettings')
-    expect(dialogSource).toContain('PRODUCTION_BUDGET_SETTINGS_TARGET')
+    expect(dialogSource).toContain('pending.onOpenBudgetSettings')
     expect(guardSource).toContain("section: 'hard-budget'")
   })
 

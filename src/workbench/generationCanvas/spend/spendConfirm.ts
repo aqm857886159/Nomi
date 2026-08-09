@@ -26,6 +26,8 @@ export type SpendConfirmRequest = {
   kind?: 'generation' | 'reference' | 'plan' | 'contract'
   /** Durable production summary shown inside the existing confirmation shell. */
   contract?: ProductionContractView
+  /** Recovery for an incomplete contract. Closing through this action is not a rejection. */
+  onOpenBudgetSettings?: () => void
   /** 明细行（节点 / 模型 / 预估），让用户一眼看懂谁要花钱、花在哪。 */
   details?: Array<{ label: string; value: string }>
   /**

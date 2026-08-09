@@ -26,7 +26,7 @@ export function getProductionRunService(): ProductionRunService {
           trustedHosts: ['nomi'],
           allowedProviders: [PRODUCTION_E2E_FIXTURE_PROVIDER],
           allowedModels: [PRODUCTION_E2E_FIXTURE_MODEL],
-          maxSpend: 0,
+          maxSpend: process.env.NOMI_E2E_PRODUCTION_MISSING_BUDGET === '1' ? null : 0,
           maxAttemptsPerJob: 1,
           minimizeUploads: true,
         }),
