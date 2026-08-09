@@ -1,4 +1,4 @@
-import { IconAlertTriangle, IconCheck, IconMinus } from '@tabler/icons-react'
+import { IconAlertTriangle, IconCheck } from '@tabler/icons-react'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -90,10 +90,14 @@ export function ProductionContractSummary({ view }: { view: ProductionContractVi
         </div>
         <div className={cn('shrink-0 text-right')}>
           <div className={cn('text-micro text-nomi-ink-40')}>{t('generationCommon.production.contract.hardLimit')}</div>
-          <div className={cn('mt-0.5 text-body-sm font-semibold tabular-nums text-nomi-ink')}>
-            {view.cost.hardLimit === null
-              ? <IconMinus size={16} stroke={1.5} aria-label={t('generationCommon.production.contract.notSet')} />
-              : `≤ ${formatMoney(view.cost.hardLimit, view.cost.currency, i18n.language)}`}
+          <div
+            data-production-hard-budget={view.cost.hardLimit === null ? 'missing' : 'set'}
+            className={cn(
+              'mt-0.5 inline-flex items-center justify-end gap-1 text-body-sm font-semibold tabular-nums',
+              view.cost.hardLimit === null ? 'text-nomi-warning' : 'text-nomi-ink',
+            )}
+          >
+            {view.cost.hardLimit === null ? <><IconAlertTriangle size={15} stroke={1.7} aria-hidden />{t('generationCommon.production.contract.notSet')}</> : `≤ ${formatMoney(view.cost.hardLimit, view.cost.currency, i18n.language)}`}
           </div>
         </div>
       </div>

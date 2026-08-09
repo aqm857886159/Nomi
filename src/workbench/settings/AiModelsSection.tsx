@@ -88,10 +88,12 @@ export function AiModelsSection({ settings, onChange }: Props): JSX.Element {
           <div className="mt-0.5 text-caption leading-relaxed text-nomi-ink-40">{t('settings.ai.policy.mediaHint')}</div>
         </div>
         <div className="mt-3 grid gap-3 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 p-3">
-          <label className="grid gap-1.5">
+          <label htmlFor="settings-hard-budget" className="grid gap-1.5">
             <span className="text-caption font-medium text-nomi-ink-80">{t('settings.ai.policy.hardBudget')}</span>
             <span className="text-micro text-nomi-ink-40">{t('settings.ai.policy.hardBudgetHint')}</span>
             <input
+              data-settings-field="hard-budget"
+              id="settings-hard-budget"
               type="number"
               min={0}
               step="0.01"

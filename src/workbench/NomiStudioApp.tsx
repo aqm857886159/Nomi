@@ -197,9 +197,11 @@ export default function NomiStudioApp(): JSX.Element {
     const handleOpenSettings = (event: Event) => {
       const detail = (event as CustomEvent<{ tab?: string; section?: string }>).detail
       const tab = detail?.tab
-      setSettingsInitialTab(tab === 'automation' ? 'automation' : 'file')
+      setSettingsInitialTab(tab === 'automation' || tab === 'ai' ? tab : 'file')
       setSettingsInitialSection(
-        detail?.section === 'cursor-host' ? 'cursor-host' : detail?.section === 'automation' ? 'automation' : null,
+        detail?.section === 'cursor-host' || detail?.section === 'automation' || detail?.section === 'ai-models' || detail?.section === 'hard-budget'
+          ? detail.section
+          : null,
       )
       setSettingsOpened(true)
     }

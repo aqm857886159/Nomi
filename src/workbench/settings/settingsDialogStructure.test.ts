@@ -14,6 +14,8 @@ describe('settings dialog structure', () => {
     expect(settingsSource).toContain('<AutomationPermissionsSection')
     expect(settingsSource).toContain('sm:flex-row')
     expect(settingsSource).toContain('overflow-x-auto')
+    expect(settingsSource).toContain("'hard-budget'")
+    expect(settingsSource).toContain('data-settings-field="hard-budget"')
   })
 
   it('keeps notification policy in settings instead of duplicating it in task center', () => {

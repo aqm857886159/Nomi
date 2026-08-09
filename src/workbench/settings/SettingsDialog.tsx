@@ -23,7 +23,7 @@ const LOCALE_LABEL_KEY: Record<AppLocale, string> = { 'zh-CN': 'common.chinese',
 // 集中设置页（2026-08-01 用户拍板样张）：左 tab 右内容。首批「文件与保存」做实——自动另存开关+目录；
 // 其余 tab 占位。复用 OnboardingFloatingPanel 的外壳交互（Portal + Esc + 点遮罩关），布局是居中大 modal。
 type SettingsTab = 'file' | 'ai' | 'automation' | 'general' | 'about'
-export type SettingsInitialSection = 'automation' | 'cursor-host' | null
+export type SettingsInitialSection = 'automation' | 'cursor-host' | 'ai-models' | 'hard-budget' | null
 
 const TABS: { id: SettingsTab; icon: typeof IconFolder; labelKey: string }[] = [
   { id: 'file', icon: IconFolder, labelKey: 'settings.tab.file' },
@@ -58,13 +58,17 @@ export function SettingsDialog({
   React.useEffect(() => setTab(initialTab), [initialTab])
 
   React.useEffect(() => {
-    if (tab !== 'automation' || !initialSection) return
+    if (!initialSection) return
     const frame = window.requestAnimationFrame(() => {
-      const section = contentRef.current
-        ?.querySelector<HTMLElement>(`[data-settings-section="${initialSection}"]`)
+      const section = initialSection === 'hard-budget'
+        ? contentRef.current?.querySelector<HTMLElement>('[data-settings-field="hard-budget"]')
+        : contentRef.current?.querySelector<HTMLElement>(`[data-settings-section="${initialSection}"]`)
       section?.scrollIntoView({ block: 'center' })
-      if (initialSection === 'cursor-host' && automationPolicyLoaded) {
-        section?.querySelector<HTMLElement>('button, input, [tabindex]')?.focus({ preventScroll: true })
+      if (automationPolicyLoaded) {
+        const focusTarget = initialSection === 'hard-budget'
+          ? section
+          : section?.querySelector<HTMLElement>('button, input, [tabindex]')
+        focusTarget?.focus({ preventScroll: true })
       }
     })
     return () => window.cancelAnimationFrame(frame)

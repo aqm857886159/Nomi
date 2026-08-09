@@ -5,6 +5,7 @@ import { IconCoin, IconFileText, IconRobot, IconMovie, IconPhoto } from '@tabler
 import { WorkbenchButton } from '../../../design'
 import { useSpendConfirmStore } from './spendConfirm'
 import { ProductionContractSummary } from './ProductionContractSummary'
+import { PRODUCTION_BUDGET_SETTINGS_TARGET } from '../../production/productionBudgetGuard'
 
 // 付费生成确认对话框（单一收口，挂一次于工作区根）。极简：标题 + 一句人话 + 取消/确认。
 // 三种来源共用这一个对话框（不另造并行卡，P1）：
@@ -46,6 +47,7 @@ export function SpendConfirmDialog() {
   if (!pending) return null
 
   const isAgent = pending.source === 'agent'
+  const missingHardBudget = pending.kind === 'contract' && pending.contract?.cost.hardLimit === null
   // 图标按门类派生（Phase B）：方案门=分镜、参考图门=相机、生成门=机器人(agent)/金币(用户直发)。
   const Icon = pending.kind === 'contract'
     ? IconFileText
@@ -99,6 +101,12 @@ export function SpendConfirmDialog() {
           <ProductionContractSummary view={pending.contract} />
         ) : null}
 
+        {missingHardBudget ? (
+          <div className={cn('mt-3 rounded-nomi-sm border border-nomi-warning/40 bg-nomi-warning/10 px-3 py-2 text-caption leading-relaxed text-nomi-ink-80')}>
+            {t('generationCommon.production.gate.missingBudgetMessage')}
+          </div>
+        ) : null}
+
         {pending.kind !== 'contract' && pending.details?.length ? (
           <div className={cn('mb-3 rounded-nomi-sm border border-nomi-line-soft divide-y divide-nomi-line-soft')}>
             {pending.details.map((row) => (
@@ -137,14 +145,26 @@ export function SpendConfirmDialog() {
           <WorkbenchButton className={cn('h-8 px-4 cursor-pointer')} onClick={() => resolvePending(false)}>
             {isAgent ? t('generationCommon.spend.ignore') : t('generationCommon.spend.cancel')}
           </WorkbenchButton>
-          <WorkbenchButton
-            className={cn(
-              'h-8 px-4 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-accent hover:text-nomi-paper',
-            )}
-            onClick={() => resolvePending(true, suppress)}
-          >
-            {pending.confirmLabel || t('generationCommon.spend.confirm')}
-          </WorkbenchButton>
+          {missingHardBudget ? (
+            <WorkbenchButton
+              className={cn('h-8 px-4 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-accent hover:text-nomi-paper')}
+              onClick={() => {
+                resolvePending(false)
+                window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: PRODUCTION_BUDGET_SETTINGS_TARGET }))
+              }}
+            >
+              {t('generationCommon.production.gate.openBudgetSettings')}
+            </WorkbenchButton>
+          ) : (
+            <WorkbenchButton
+              className={cn(
+                'h-8 px-4 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-accent hover:text-nomi-paper',
+              )}
+              onClick={() => resolvePending(true, suppress)}
+            >
+              {pending.confirmLabel || t('generationCommon.spend.confirm')}
+            </WorkbenchButton>
+          )}
         </div>
       </div>
     </div>
