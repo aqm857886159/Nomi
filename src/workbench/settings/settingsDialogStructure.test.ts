@@ -3,6 +3,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const settingsSource = fs.readFileSync(path.join(process.cwd(), 'src/workbench/settings/SettingsDialog.tsx'), 'utf8')
+const aiModelsSource = fs.readFileSync(path.join(process.cwd(), 'src/workbench/settings/AiModelsSection.tsx'), 'utf8')
 const taskCenterSource = fs.readFileSync(path.join(process.cwd(), 'src/workbench/taskCenter/TaskCenterPanel.tsx'), 'utf8')
 
 describe('settings dialog structure', () => {
@@ -14,8 +15,8 @@ describe('settings dialog structure', () => {
     expect(settingsSource).toContain('<AutomationPermissionsSection')
     expect(settingsSource).toContain('sm:flex-row')
     expect(settingsSource).toContain('overflow-x-auto')
-    expect(settingsSource).toContain("'hard-budget'")
-    expect(settingsSource).toContain('data-settings-field="hard-budget"')
+    expect(settingsSource).toContain("'production-policy'")
+    expect(aiModelsSource).toContain('data-settings-field="hard-budget"')
   })
 
   it('keeps notification policy in settings instead of duplicating it in task center', () => {

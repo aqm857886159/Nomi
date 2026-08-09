@@ -7,6 +7,7 @@ import { getWorkspaceRepositoryDeps } from "../runtimePaths";
 import { resolveWorkspaceProjectDir } from "../workspace/workspaceRepository";
 import { productionRunPaths, productionRunsRoot } from "./productionRunPaths";
 import { applyProductionCommand, type ProductionCommandEffect } from "./productionRunReducer";
+import { assertProductionPolicyReady } from "./productionPolicyReadiness";
 import {
   applyBudgetEntry,
   createBudgetLedger,
@@ -331,18 +332,13 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
       if (!gate) throw new Error(`Production gate not found: ${gateId}`);
       if (Date.parse(timestamp) >= Date.parse(gate.expiresAt)) throw new Error("Production gate has expired");
       if (gate.jobIds.length > 0) {
-        const maxSpend = current.policy.maxSpend;
-        if (maxSpend === null || !Number.isFinite(maxSpend) || maxSpend < 0) {
-          throw new Error("Production approval requires a hard spend limit");
-        }
         const jobs = gate.jobIds.map((jobId) => {
           const job = current.jobs.find((item) => item.jobId === jobId);
           if (!job) throw new Error(`Production job not found: ${jobId}`);
-          if (!current.policy.allowedProviders.includes(job.provider) || !current.policy.allowedModels.includes(job.model)) {
-            throw new Error(`Production job is outside the current policy: ${jobId}`);
-          }
           return job;
         });
+        assertProductionPolicyReady(current.policy, jobs);
+        const maxSpend = current.policy.maxSpend!;
         const approval: Approval = {
           approvalId: `approval:${gate.gateId}`,
           runId,

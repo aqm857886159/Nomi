@@ -67,9 +67,26 @@ export function ProductionContractSummary({ view }: { view: ProductionContractVi
         <div>
           <div className={cn('text-micro text-nomi-ink-40')}>{t('generationCommon.production.contract.models')}</div>
           <div className={cn('mt-1 grid gap-1')}>
-            {view.providerModels.length ? view.providerModels.map((item) => (
-              <span key={`${item.provider}:${item.model}`} className={cn('truncate text-caption text-nomi-ink-80')}>{item.provider} · {item.model}</span>
-            )) : <span className={cn('text-caption text-nomi-ink-40')}>{t('generationCommon.production.contract.noneRecorded')}</span>}
+            {view.providerModels.length ? view.providerModels.map((item) => {
+              const allowed = !view.policy.missingProviders.includes(item.provider) && !view.policy.missingModels.includes(item.model)
+              return (
+                <div
+                  key={`${item.provider}:${item.model}`}
+                  data-production-provider-model-status={allowed ? 'allowed' : 'missing'}
+                  className={cn('grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5')}
+                >
+                  {allowed
+                    ? <IconCheck size={13} stroke={1.8} className={cn('text-workbench-success')} aria-hidden />
+                    : <IconAlertTriangle size={13} stroke={1.8} className={cn('text-nomi-warning')} aria-hidden />}
+                  <span className={cn('truncate text-caption text-nomi-ink-80')}>{item.provider} · {item.model}</span>
+                  <span className={cn('text-micro', allowed ? 'text-workbench-success' : 'text-nomi-warning')}>
+                    {t(allowed
+                      ? 'generationCommon.production.contract.policyAllowed'
+                      : 'generationCommon.production.contract.policyMissing')}
+                  </span>
+                </div>
+              )
+            }) : <span className={cn('text-caption text-nomi-ink-40')}>{t('generationCommon.production.contract.noneRecorded')}</span>}
           </div>
         </div>
       </div>

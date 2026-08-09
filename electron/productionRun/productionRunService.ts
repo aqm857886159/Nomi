@@ -18,6 +18,7 @@ import {
 import { buildProductionDeepLink } from './productionDeepLink'
 import { safeExternalText, safeProductionContract } from './productionRunProjectionSanitizer'
 import { readAutomationPolicySettings } from '../settings/automationPolicySettings'
+import { assertProductionPolicyReady } from './productionPolicyReadiness'
 import type {
   AutomationPolicy,
   CreateProductionRunInput,
@@ -656,17 +657,10 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
         throw new Error('请先完成粗剪审看，再单独批准导出')
       }
       if (gate?.scope === 'budget_envelope' && gate.jobIds.length > 0) {
-        if (current.policy.maxSpend === null) {
-          throw new Error('制作合同暂不能批准：请在 Nomi 设置中填写硬预算上限')
-        }
-        const missingProvider = gate.jobIds
+        const jobs = gate.jobIds
           .map((jobId) => current.jobs.find((job) => job.jobId === jobId))
-          .find((job) => job && !current.policy.allowedProviders.includes(job.provider))
-        if (missingProvider) throw new Error(`制作合同暂不能批准：provider「${missingProvider.provider}」未加入 Nomi 设置白名单`)
-        const missingModel = gate.jobIds
-          .map((jobId) => current.jobs.find((job) => job.jobId === jobId))
-          .find((job) => job && !current.policy.allowedModels.includes(job.model))
-        if (missingModel) throw new Error(`制作合同暂不能批准：model「${missingModel.model}」未加入 Nomi 设置白名单`)
+          .filter((job): job is ProductionRun['jobs'][number] => Boolean(job))
+        assertProductionPolicyReady(current.policy, jobs)
       }
     }
     const result = repository.execute(safeProjectId, safeRunId, runCommand)

@@ -11,6 +11,21 @@ const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-production-budget-u
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/production-budget-recovery')
+const locale = process.env.NOMI_E2E_LOCALE === 'en' ? 'en' : 'zh-CN'
+const shotPrefix = locale === 'en' ? 'en-' : ''
+const labels = locale === 'en'
+  ? {
+      newProject: 'New blank project',
+      openPolicy: 'Complete production policy',
+      close: 'Close',
+      approve: 'Approve and continue',
+    }
+  : {
+      newProject: '新建空白项目',
+      openPolicy: '完善制作策略',
+      close: '关闭',
+      approve: '批准并继续',
+    }
 fs.mkdirSync(projectsDir, { recursive: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
@@ -18,7 +33,7 @@ const env = {
   ...process.env,
   NOMI_E2E: '1',
   NOMI_E2E_PRODUCTION_FIXTURE: '1',
-  NOMI_E2E_PRODUCTION_MISSING_BUDGET: '1',
+  NOMI_E2E_PRODUCTION_MISSING_POLICY: '1',
   NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
   NOMI_ELECTRON_USER_DATA_DIR: userDataDir,
   NOMI_SETTINGS_DIR: userDataDir,
@@ -64,7 +79,12 @@ try {
   const window = await app.firstWindow()
   await window.waitForLoadState('domcontentloaded')
   await window.setViewportSize({ width: 1280, height: 820 })
-  await window.getByText('新建空白项目', { exact: false }).first().click()
+  if (locale === 'en') {
+    await window.evaluate(() => window.localStorage.setItem('nomi:locale:v1', 'en'))
+    await window.reload()
+    await window.waitForLoadState('domcontentloaded')
+  }
+  await window.getByText(labels.newProject, { exact: false }).first().click()
   await window.waitForFunction(() => window.location.hash.includes('projectId='), undefined, { timeout: 10_000 })
   const projectId = await window.evaluate(() =>
     new URLSearchParams(window.location.hash.split('?')[1] || '').get('projectId'),
@@ -80,8 +100,8 @@ try {
       brief: { goal: 'Test a truthful Nomi production budget recovery', durationSeconds: 60 },
       policy: {
         maxSpend: null,
-        allowedProviders: ['nomi-e2e-fixture'],
-        allowedModels: ['nomi-e2e-fixture-video'],
+        allowedProviders: [],
+        allowedModels: [],
       },
     })
   }, projectId)
@@ -119,8 +139,8 @@ try {
           bindings: [
             {
               nodeId: 'shot-1',
-              provider: 'nomi-e2e-fixture',
-              model: 'nomi-e2e-fixture-video',
+              provider: 'kie',
+              model: 'gpt-image-2-text-to-image',
               stageId: 'generate',
             },
           ],
@@ -134,10 +154,13 @@ try {
   await openRunFromTaskCenter(window)
   await window.locator('[data-production-primary-action]').click()
   await window.locator('[data-production-hard-budget="missing"]').waitFor({ timeout: 5_000 })
-  await window.getByRole('button', { name: '去设置预算' }).waitFor({ timeout: 5_000 })
-  await window.screenshot({ path: path.join(shotsDir, '01-missing-budget-contract.png') })
+  await window.locator('[data-production-policy-issue="budget"]').waitFor({ timeout: 5_000 })
+  await window.locator('[data-production-policy-issue="providers"]', { hasText: 'kie' }).waitFor({ timeout: 5_000 })
+  await window.locator('[data-production-policy-issue="models"]', { hasText: 'gpt-image-2-text-to-image' }).waitFor({ timeout: 5_000 })
+  await window.getByRole('button', { name: labels.openPolicy }).waitFor({ timeout: 5_000 })
+  await window.screenshot({ path: path.join(shotsDir, `${shotPrefix}01-incomplete-policy-contract.png`) })
 
-  await window.getByRole('button', { name: '去设置预算' }).click()
+  await window.getByRole('button', { name: labels.openPolicy }).click()
   const budgetInput = window.locator('[data-settings-field="hard-budget"]')
   await budgetInput.waitFor({ timeout: 5_000 })
   const focused = await budgetInput.evaluate((element) => document.activeElement === element)
@@ -147,19 +170,53 @@ try {
     { pid: projectId, rid: runId },
   )
   const contractGate = waitingRun.gates.find((gate) => gate.scope === 'budget_envelope')
-  if (contractGate?.status !== 'waiting') throw new Error('Opening budget settings rejected the production contract')
-  await window.screenshot({ path: path.join(shotsDir, '02-budget-setting-focused.png') })
+  if (contractGate?.status !== 'waiting') throw new Error('Opening production policy settings rejected the contract')
+  await window.locator('[data-production-policy-context]', { hasText: 'kie · gpt-image-2-text-to-image' }).waitFor({ timeout: 5_000 })
+  const providerInput = window.locator('[data-settings-field="production-provider"][data-policy-key="kie"]')
+  const modelInput = window.locator('[data-settings-field="production-model"][data-policy-key="kie:gpt-image-2-text-to-image"]')
+  await providerInput.waitFor({ timeout: 5_000 })
+  await modelInput.waitFor({ timeout: 5_000 })
+  await window.screenshot({ path: path.join(shotsDir, `${shotPrefix}02-policy-settings-focused.png`) })
 
   await budgetInput.fill('25')
   await window.waitForFunction(
     async () => (await window.nomiDesktop?.settings?.automationPolicy?.get())?.maxSpend === 25,
   )
-  const run = await window.evaluate(({ pid, rid }) => window.nomiDesktop?.productionRuns?.read(pid, rid), {
+  await providerInput.check()
+  await window.waitForFunction(
+    async () => (await window.nomiDesktop?.settings?.automationPolicy?.get())?.allowedProviders.includes('kie'),
+  )
+  await modelInput.check()
+  await window.waitForFunction(
+    async () => (await window.nomiDesktop?.settings?.automationPolicy?.get())?.allowedModels.includes('gpt-image-2-text-to-image'),
+  )
+  let run = await window.evaluate(({ pid, rid }) => window.nomiDesktop?.productionRuns?.read(pid, rid), {
     pid: projectId,
     rid: runId,
   })
-  if (run.budget.authorized !== 0) throw new Error('Budget recovery unexpectedly authorized spend')
-  console.log(`PRODUCTION BUDGET RECOVERY WALK PASS: ${shotsDir}`)
+  if (run.budget.authorized !== 0) throw new Error('Policy recovery unexpectedly authorized spend before approval')
+
+  await window.getByRole('button', { name: labels.close }).click()
+  await window.locator('[data-production-primary-action]').click()
+  await window.locator('[data-production-hard-budget="set"]').waitFor({ timeout: 5_000 })
+  await window.locator('[data-production-provider-model-status="allowed"]').waitFor({ timeout: 5_000 })
+  if (await window.locator('[data-production-policy-readiness="incomplete"]').count()) {
+    throw new Error('Completed policy still rendered as incomplete')
+  }
+  await window.screenshot({ path: path.join(shotsDir, `${shotPrefix}03-ready-contract.png`) })
+
+  run = await window.evaluate(({ pid, rid }) => window.nomiDesktop?.productionRuns?.read(pid, rid), {
+    pid: projectId,
+    rid: runId,
+  })
+  if (run.budget.authorized !== 0) throw new Error('Reviewing the ready contract authorized spend before approval')
+  await window.getByRole('button', { name: labels.approve }).click()
+  run = await waitForRun(window, projectId, runId, (candidate) => candidate.budget.authorized === 25)
+  if (run.gates.find((gate) => gate.scope === 'budget_envelope')?.status !== 'approved') {
+    throw new Error('Ready contract was not approved')
+  }
+  await window.screenshot({ path: path.join(shotsDir, `${shotPrefix}04-approved-production.png`) })
+  console.log(`PRODUCTION POLICY RECOVERY WALK PASS (${locale}): ${shotsDir}`)
 } catch (error) {
   console.error(error?.stack || error)
   exitCode = 1

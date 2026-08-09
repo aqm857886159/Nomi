@@ -9,6 +9,7 @@ import {
   PRODUCTION_E2E_FIXTURE_MODEL,
   PRODUCTION_E2E_FIXTURE_PROVIDER,
 } from './productionRunE2eFixture'
+import { readAutomationPolicySettings } from '../settings/automationPolicySettings'
 
 let shared: ProductionRunService | null = null
 
@@ -18,18 +19,33 @@ export function getProductionRunService(): ProductionRunService {
     const fixtureEnabled = isProductionRunE2eFixtureEnabled(process.env, Boolean(app?.isPackaged))
     if (fixtureEnabled) {
       const projectRootResolver = (projectId: string) => resolveWorkspaceProjectDir(projectId, getWorkspaceRepositoryDeps())
+      const recoverIncompletePolicy = process.env.NOMI_E2E_PRODUCTION_MISSING_POLICY === '1'
       shared = createProductionRunService({
         projectRootResolver,
         requestRenderer: createProductionRunE2eRenderer({ projectRootResolver }),
-        policyResolver: () => ({
-          mode: 'balanced',
-          trustedHosts: ['nomi'],
-          allowedProviders: [PRODUCTION_E2E_FIXTURE_PROVIDER],
-          allowedModels: [PRODUCTION_E2E_FIXTURE_MODEL],
-          maxSpend: process.env.NOMI_E2E_PRODUCTION_MISSING_BUDGET === '1' ? null : 0,
-          maxAttemptsPerJob: 1,
-          minimizeUploads: true,
-        }),
+        policyResolver: () => {
+          if (recoverIncompletePolicy) {
+            const settings = readAutomationPolicySettings()
+            return {
+              mode: settings.mode,
+              trustedHosts: [...settings.trustedHosts],
+              allowedProviders: [...settings.allowedProviders],
+              allowedModels: [...settings.allowedModels],
+              maxSpend: settings.maxSpend,
+              maxAttemptsPerJob: settings.maxAttemptsPerJob,
+              minimizeUploads: settings.minimizeUploads,
+            }
+          }
+          return {
+            mode: 'balanced',
+            trustedHosts: ['nomi'],
+            allowedProviders: [PRODUCTION_E2E_FIXTURE_PROVIDER],
+            allowedModels: [PRODUCTION_E2E_FIXTURE_MODEL],
+            maxSpend: 0,
+            maxAttemptsPerJob: 1,
+            minimizeUploads: true,
+          }
+        },
       })
     } else {
       shared = createProductionRunService()

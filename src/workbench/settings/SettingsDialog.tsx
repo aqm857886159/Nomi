@@ -16,6 +16,7 @@ import { AiModelsSection } from './AiModelsSection'
 import { AutomationPermissionsSection } from './AutomationPermissionsSection'
 import { defaultAutomationPolicySettings } from './settingsAutomationView'
 import type { AutomationPolicySettings } from '../../../electron/settings/automationPolicyContract'
+import type { ProductionPolicyRequirement } from '../production/productionPolicyRecovery'
 
 // 语言用「母语名」直读，不随界面语言翻译——换语言时两个名字都稳定可认（沿用 PR#50 的判断）。
 const LOCALE_LABEL_KEY: Record<AppLocale, string> = { 'zh-CN': 'common.chinese', en: 'common.english' }
@@ -23,7 +24,7 @@ const LOCALE_LABEL_KEY: Record<AppLocale, string> = { 'zh-CN': 'common.chinese',
 // 集中设置页（2026-08-01 用户拍板样张）：左 tab 右内容。首批「文件与保存」做实——自动另存开关+目录；
 // 其余 tab 占位。复用 OnboardingFloatingPanel 的外壳交互（Portal + Esc + 点遮罩关），布局是居中大 modal。
 type SettingsTab = 'file' | 'ai' | 'automation' | 'general' | 'about'
-export type SettingsInitialSection = 'automation' | 'cursor-host' | 'ai-models' | 'hard-budget' | null
+export type SettingsInitialSection = 'automation' | 'cursor-host' | 'ai-models' | 'production-policy' | null
 
 const TABS: { id: SettingsTab; icon: typeof IconFolder; labelKey: string }[] = [
   { id: 'file', icon: IconFolder, labelKey: 'settings.tab.file' },
@@ -38,11 +39,15 @@ export function SettingsDialog({
   initialSection = null,
   onClose,
   onReplaySplash,
+  productionPolicyRequirement = null,
+  onOpenModelCatalog,
 }: {
   initialTab?: SettingsTab
   initialSection?: SettingsInitialSection
   onClose: () => void
   onReplaySplash?: () => void
+  productionPolicyRequirement?: ProductionPolicyRequirement | null
+  onOpenModelCatalog?: () => void
 }): JSX.Element {
   const { t } = useTranslation()
   const { isDark } = useNomiColorScheme()
@@ -60,14 +65,10 @@ export function SettingsDialog({
   React.useEffect(() => {
     if (!initialSection) return
     const frame = window.requestAnimationFrame(() => {
-      const section = initialSection === 'hard-budget'
-        ? contentRef.current?.querySelector<HTMLElement>('[data-settings-field="hard-budget"]')
-        : contentRef.current?.querySelector<HTMLElement>(`[data-settings-section="${initialSection}"]`)
+      const section = contentRef.current?.querySelector<HTMLElement>(`[data-settings-section="${initialSection}"]`)
       section?.scrollIntoView({ block: 'center' })
-      if (automationPolicyLoaded) {
-        const focusTarget = initialSection === 'hard-budget'
-          ? section
-          : section?.querySelector<HTMLElement>('button, input, [tabindex]')
+      if (automationPolicyLoaded && initialSection !== 'production-policy') {
+        const focusTarget = section?.querySelector<HTMLElement>('button, input, [tabindex]')
         focusTarget?.focus({ preventScroll: true })
       }
     })
@@ -232,7 +233,13 @@ export function SettingsDialog({
                 title={!automationPolicyLoaded ? t('settings.automation.loading') : undefined}
                 className="m-0 min-w-0 border-0 p-0"
               >
-                <AiModelsSection settings={automationPolicy} onChange={updateAutomationPolicy} />
+                <AiModelsSection
+                  settings={automationPolicy}
+                  onChange={updateAutomationPolicy}
+                  productionPolicyRequirement={productionPolicyRequirement}
+                  focusEnabled={automationPolicyLoaded}
+                  onOpenModelCatalog={onOpenModelCatalog}
+                />
               </fieldset>
             ) : tab === 'automation' ? (
               <fieldset

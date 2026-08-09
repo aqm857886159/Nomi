@@ -8,7 +8,7 @@ import { buildProductionContractView } from '../generationCanvas/spend/productio
 import { useWorkbenchStore } from '../workbenchStore'
 import { productionRunApi } from './productionRunApi'
 import { executeProductionRunCommand } from './productionRunCommands'
-import { isMissingHardBudgetError, PRODUCTION_BUDGET_SETTINGS_TARGET } from './productionBudgetGuard'
+import { buildProductionPolicySettingsTarget, isProductionPolicyError } from './productionPolicyRecovery'
 import { useProductionRunStore } from './productionRunStore'
 import { buildProductionRunView, type ProductionRunPrimaryAction } from './productionRunView'
 import { useActiveProductionRun } from './useActiveProductionRun'
@@ -170,23 +170,26 @@ export function useProductionStatus() {
           }
         }
         const gateCopy = localizedGateCopy(gate, (key) => t(key))
-        let openingBudgetSettings = false
+        const contract = gate.scope === 'stage' ? undefined : buildProductionContractView(activeRun, gate)
+        let openingPolicySettings = false
         const approved = await useSpendConfirmStore.getState().requestConfirm({
           title: gateCopy.title,
           message: gateCopy.message,
           confirmLabel: t('generationCommon.production.gate.approve'),
           source: activeRun.origin.host === 'nomi' ? 'user' : 'agent',
           kind: gate.scope === 'stage' ? 'plan' : 'contract',
-          ...(gate.scope === 'stage' ? {} : { contract: buildProductionContractView(activeRun, gate) }),
-          ...(gate.scope === 'budget_envelope' && activeRun.policy.maxSpend === null ? {
-            onOpenBudgetSettings: () => {
-              openingBudgetSettings = true
-              window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: PRODUCTION_BUDGET_SETTINGS_TARGET }))
+          ...(contract ? { contract } : {}),
+          ...(gate.scope === 'budget_envelope' && contract && !contract.policy.ready ? {
+            onOpenPolicySettings: () => {
+              openingPolicySettings = true
+              window.dispatchEvent(new CustomEvent('nomi-open-settings', {
+                detail: buildProductionPolicySettingsTarget(contract.policy),
+              }))
             },
           } : {}),
         })
         if (!approved) {
-          if (openingBudgetSettings) return
+          if (openingPolicySettings) return
           if (gate.scope !== 'budget_envelope') return
           try {
             await executeCommand(activeRun.projectId, activeRun.runId, {
@@ -215,24 +218,24 @@ export function useProductionStatus() {
           })
           await useProductionRunStore.getState().loadRun(activeRun.projectId, activeRun.runId)
         } catch (error) {
-          const missingHardBudget = isMissingHardBudgetError(error)
+          const incompletePolicy = isProductionPolicyError(error)
           const openSettings = await confirmDialog({
-            title: missingHardBudget
-              ? t('generationCommon.production.gate.missingBudgetTitle')
+            title: incompletePolicy
+              ? t('generationCommon.production.gate.missingPolicyFallbackTitle')
               : t('generationCommon.production.gate.failed'),
-            message: missingHardBudget
-              ? t('generationCommon.production.gate.missingBudgetMessage')
+            message: incompletePolicy
+              ? t('generationCommon.production.gate.missingPolicyMessage')
               : error instanceof Error ? error.message : String(error),
-            confirmLabel: missingHardBudget
-              ? t('generationCommon.production.gate.openBudgetSettings')
+            confirmLabel: incompletePolicy
+              ? t('generationCommon.production.gate.openProductionPolicy')
               : t('generationCommon.production.gate.openSettings'),
             cancelLabel: t('common.cancel'),
           })
           if (openSettings)
             window.dispatchEvent(
               new CustomEvent('nomi-open-settings', {
-                detail: missingHardBudget
-                  ? PRODUCTION_BUDGET_SETTINGS_TARGET
+                detail: incompletePolicy && contract
+                  ? buildProductionPolicySettingsTarget(contract.policy)
                   : { tab: 'automation', section: 'automation' },
               }),
             )

@@ -1,4 +1,8 @@
 import type { ProductionGate, ProductionRun } from '../../../../electron/productionRun/productionRunTypes'
+import {
+  evaluateProductionPolicyReadiness,
+  type ProductionPolicyReadiness,
+} from '../../../../electron/productionRun/productionPolicyReadiness'
 
 export type ProductionContractView = {
   planVersion: number
@@ -12,6 +16,7 @@ export type ProductionContractView = {
   claims: Array<{ text: string; evidenceCount: number; verified: boolean }>
   skills: Array<{ name: string; version: string }>
   providerModels: Array<{ provider: string; model: string }>
+  policy: ProductionPolicyReadiness
   maxAttemptsPerJob: number
   cost: {
     known: boolean
@@ -30,11 +35,10 @@ function finiteNonNegative(value: unknown): number | null {
 export function buildProductionContractView(run: ProductionRun, gate: ProductionGate): ProductionContractView {
   const contract = gate.contract
   const evidenceIds = new Set((contract?.evidence ?? []).map((item) => item.evidenceId))
-  const providerModels = gate.jobIds
+  const jobs = gate.jobIds
     .map((jobId) => run.jobs.find((job) => job.jobId === jobId))
     .filter((job): job is NonNullable<typeof job> => Boolean(job))
-    .map((job) => ({ provider: job.provider, model: job.model }))
-    .filter((item, index, values) => values.findIndex((other) => other.provider === item.provider && other.model === item.model) === index)
+  const policy = evaluateProductionPolicyReadiness(run.policy, jobs)
   const minimum = finiteNonNegative(contract?.estimatedCost?.minimum)
   const maximum = finiteNonNegative(contract?.estimatedCost?.maximum)
   const known = minimum !== null && maximum !== null && minimum <= maximum
@@ -57,7 +61,8 @@ export function buildProductionContractView(run: ProductionRun, gate: Production
       }
     }),
     skills: contract?.skills ?? [],
-    providerModels,
+    providerModels: policy.requiredProviderModels,
+    policy,
     maxAttemptsPerJob: run.policy.maxAttemptsPerJob,
     cost: {
       known,

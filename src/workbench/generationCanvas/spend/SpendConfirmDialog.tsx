@@ -46,7 +46,7 @@ export function SpendConfirmDialog() {
   if (!pending) return null
 
   const isAgent = pending.source === 'agent'
-  const missingHardBudget = pending.kind === 'contract' && pending.contract?.cost.hardLimit === null
+  const incompletePolicy = pending.kind === 'contract' && pending.contract && !pending.contract.policy.ready
   // 图标按门类派生（Phase B）：方案门=分镜、参考图门=相机、生成门=机器人(agent)/金币(用户直发)。
   const Icon = pending.kind === 'contract'
     ? IconFileText
@@ -100,9 +100,32 @@ export function SpendConfirmDialog() {
           <ProductionContractSummary view={pending.contract} />
         ) : null}
 
-        {missingHardBudget ? (
-          <div className={cn('mt-3 rounded-nomi-sm border border-nomi-warning/40 bg-nomi-warning/10 px-3 py-2 text-caption leading-relaxed text-nomi-ink-80')}>
-            {t('generationCommon.production.gate.missingBudgetMessage')}
+        {incompletePolicy ? (
+          <div
+            data-production-policy-readiness="incomplete"
+            className={cn('mt-3 rounded-nomi-sm border border-nomi-warning/40 bg-nomi-warning/10 px-3 py-2 text-caption leading-relaxed text-nomi-ink-80')}
+          >
+            <div className={cn('font-semibold text-nomi-ink')}>
+              {t('generationCommon.production.gate.missingPolicyTitle', { count: pending.contract!.policy.issueCount })}
+            </div>
+            <div className={cn('mt-1 grid gap-0.5')}>
+              {pending.contract!.policy.missingHardBudget ? (
+                <div data-production-policy-issue="budget">{t('generationCommon.production.gate.missingPolicyBudget')}</div>
+              ) : null}
+              {pending.contract!.policy.missingProviders.length ? (
+                <div data-production-policy-issue="providers">
+                  {t('generationCommon.production.gate.missingPolicyProviders', { providers: pending.contract!.policy.missingProviders.join(', ') })}
+                </div>
+              ) : null}
+              {pending.contract!.policy.missingModels.length ? (
+                <div data-production-policy-issue="models">
+                  {t('generationCommon.production.gate.missingPolicyModels', { models: pending.contract!.policy.missingModels.join(', ') })}
+                </div>
+              ) : null}
+            </div>
+            <div className={cn('mt-1 text-nomi-ink-60')}>
+              {t('generationCommon.production.gate.missingPolicyMessage')}
+            </div>
           </div>
         ) : null}
 
@@ -144,16 +167,16 @@ export function SpendConfirmDialog() {
           <WorkbenchButton className={cn('h-8 px-4 cursor-pointer')} onClick={() => resolvePending(false)}>
             {isAgent ? t('generationCommon.spend.ignore') : t('generationCommon.spend.cancel')}
           </WorkbenchButton>
-          {missingHardBudget ? (
+          {incompletePolicy ? (
             <WorkbenchButton
               className={cn('h-8 px-4 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-accent hover:text-nomi-paper')}
               onClick={() => {
-                const openBudgetSettings = pending.onOpenBudgetSettings
+                const openPolicySettings = pending.onOpenPolicySettings
                 resolvePending(false)
-                openBudgetSettings?.()
+                openPolicySettings?.()
               }}
             >
-              {t('generationCommon.production.gate.openBudgetSettings')}
+              {t('generationCommon.production.gate.openProductionPolicy')}
             </WorkbenchButton>
           ) : (
             <WorkbenchButton
