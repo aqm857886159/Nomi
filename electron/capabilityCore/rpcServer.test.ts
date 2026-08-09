@@ -4,7 +4,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { startRpcServer, type RpcServerHandle } from './rpcServer'
-import { ensureToken } from './security'
+import { ensureToken, signMcpClient, type AuthenticatedMcpClient } from './security'
 
 const tempRoots: string[] = []
 let mockedDocumentsRoot = ''
@@ -42,10 +42,21 @@ function makeTempDir(name = 'nomi-rpc-test-'): string {
   return dir
 }
 
-async function rpc(method: string, params: Record<string, unknown> = {}, auth = token) {
+async function rpc(
+  method: string,
+  params: Record<string, unknown> = {},
+  auth = token,
+  identity?: { client: AuthenticatedMcpClient; proof: string },
+) {
   const res = await fetch(`http://127.0.0.1:${server!.port}/rpc`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', ...(auth ? { authorization: `Bearer ${auth}` } : {}) },
+    headers: {
+      'content-type': 'application/json',
+      ...(auth ? { authorization: `Bearer ${auth}` } : {}),
+      ...(identity
+        ? { 'x-nomi-mcp-client': identity.client, 'x-nomi-mcp-client-proof': identity.proof }
+        : {}),
+    },
     body: JSON.stringify({ method, params }),
   })
   return { status: res.status, body: (await res.json()) as { ok: boolean; result?: unknown; error?: string } }
@@ -89,6 +100,27 @@ describe('capabilityCore/rpcServer', () => {
     const res = await rpc('ping')
     expect(res.status).toBe(200)
     expect(res.body.ok).toBe(true)
+  })
+
+  it('accepts only a Nomi-signed MCP client as Production Run authority', async () => {
+    const created = await rpc('project.create', { name: 'signed-origin' })
+    const projectId = (created.body.result as { id: string }).id
+    const codexProof = signMcpClient('codex')!
+    const signed = await rpc('production.start', {
+      projectId,
+      playbook: 'brand.promo',
+      host: 'cursor',
+      brief: { goal: 'signed origin' },
+    }, token, { client: 'codex', proof: codexProof })
+    expect((signed.body.result as { origin: { host: string } }).origin.host).toBe('codex')
+
+    const forged = await rpc('production.start', {
+      projectId,
+      playbook: 'brand.promo',
+      host: 'codex',
+      brief: { goal: 'forged origin' },
+    }, token, { client: 'cursor', proof: codexProof })
+    expect((forged.body.result as { origin: { host: string } }).origin.host).toBe('external')
   })
 
   it('全链路：建项目 → 加节点 → 读画布', async () => {

@@ -28,6 +28,7 @@ export const zhSettings = {
   },
   automation: {
     title: '自动化与权限',
+    loading: '正在读取自动化设置…',
     always: '始终确认',
     mode: {
       title: '默认制作模式',
@@ -135,6 +136,7 @@ export const enSettings = {
   },
   automation: {
     title: 'Automation & permissions',
+    loading: 'Loading automation settings…',
     always: 'Always confirm',
     mode: {
       title: 'Default production mode',

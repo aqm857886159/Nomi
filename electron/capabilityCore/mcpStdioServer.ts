@@ -17,6 +17,12 @@ import { mintSpendGrant } from '../spendGrant'
 import { applySystemProxy } from '../systemProxy'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
 import { startArtifactPreviewHttpServer } from '../productionRun/artifactPreviewHttpServer'
+import {
+  MCP_CLIENT_ENV,
+  MCP_CLIENT_PROOF_ENV,
+  resolveMcpOrigin,
+  type CapabilityOriginHost,
+} from './security'
 
 const productionRuns = getProductionRunService()
 
@@ -37,7 +43,12 @@ function makeConfirmedGateway(projectId: string): ProjectGateway {
   }
 }
 
-async function callViaRpc(instance: InstanceAdvertisement, method: string, params: Record<string, unknown>): Promise<unknown> {
+async function callViaRpc(
+  instance: InstanceAdvertisement,
+  method: string,
+  params: Record<string, unknown>,
+  origin: CapabilityOriginHost,
+): Promise<unknown> {
   const timeoutMs = transportTimeoutMs()
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -45,7 +56,16 @@ async function callViaRpc(instance: InstanceAdvertisement, method: string, param
   try {
     res = await fetch(`http://127.0.0.1:${instance.port}/rpc`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${instance.token}` },
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${instance.token}`,
+        ...(origin !== 'external' && origin !== 'nomi'
+          ? {
+              'x-nomi-mcp-client': origin,
+              'x-nomi-mcp-client-proof': String(process.env[MCP_CLIENT_PROOF_ENV] || ''),
+            }
+          : {}),
+      },
       body: JSON.stringify({ method, params }),
       signal: controller.signal,
     })
@@ -67,10 +87,11 @@ async function callViaRpc(instance: InstanceAdvertisement, method: string, param
 
 /** 进程内调能力核：GUI 开着→转发 RPC（实时 + 应用内确认卡）；关着→进程内 dispatch（磁盘网关）。 */
 async function invoke(method: string, params: Record<string, unknown>, options?: McpInvokeOptions): Promise<unknown> {
+  const origin = resolveMcpOrigin(process.env[MCP_CLIENT_ENV], process.env[MCP_CLIENT_PROOF_ENV])
   const instance = readLiveInstance()
-  if (instance) return callViaRpc(instance, method, params)
+  if (instance) return callViaRpc(instance, method, params, origin)
   const makeGateway = options?.spendConfirmed ? makeConfirmedGateway : createDiskGateway
-  return dispatch(method, params, { runTask, fetchTaskResult, makeGateway, productionRuns, origin: { host: 'external' } })
+  return dispatch(method, params, { runTask, fetchTaskResult, makeGateway, productionRuns, origin: { host: origin } })
 }
 
 /** 启动 stdio JSON-RPC server。main.ts 在 NOMI_MCP_STDIO 模式的 app.whenReady 后调；不开窗、不抢单实例锁。 */

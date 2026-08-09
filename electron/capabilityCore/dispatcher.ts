@@ -18,6 +18,7 @@ import { listSkillSummaries, readSkillContent } from '../skills/skillStore'
 import type { ProductionRunService } from '../productionRun/productionRunService'
 import type { ProductionBrief } from '../productionRun/productionRunTypes'
 import type { ProjectGateway } from './gateway'
+import type { CapabilityOriginHost } from './security'
 
 export class RpcError extends Error {
   constructor(message: string, readonly httpStatus: number) {
@@ -39,7 +40,7 @@ export type DispatchContext = {
   makeGateway: (projectId: string) => ProjectGateway
   productionRuns: Pick<ProductionRunService, 'createDraft' | 'readProjection' | 'readEvents' | 'readArtifactProjection'>
   /** Transport-owned authority. Request bodies may provide only an audit label, never trust. */
-  origin?: { host: 'external' | 'nomi'; actorId?: string }
+  origin?: { host: CapabilityOriginHost; actorId?: string }
 }
 
 const PRODUCTION_START_FIELDS = new Set([

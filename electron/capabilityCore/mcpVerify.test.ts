@@ -19,6 +19,13 @@ vi.mock('node:os', async (importOriginal) => {
 })
 
 import { verifyMcp } from './mcpVerify'
+import {
+  MCP_CLIENT_ENV,
+  MCP_CLIENT_PROOF_ENV,
+  ensureToken,
+  signMcpClient,
+  type AuthenticatedMcpClient,
+} from './security'
 
 const roots: string[] = []
 function tempHome(): string {
@@ -28,8 +35,16 @@ function tempHome(): string {
 }
 
 /** 往 ~/.claude.json 写一条 nomi 条目（模拟「已接入」写下的配置）。 */
-function writeClaudeEntry(command: string, args: string[] = []): void {
-  fs.writeFileSync(path.join(homeDir, '.claude.json'), JSON.stringify({ mcpServers: { nomi: { command, args } } }))
+function signedEnv(client: AuthenticatedMcpClient): Record<string, string> {
+  return {
+    NOMI_MCP_STDIO: '1',
+    [MCP_CLIENT_ENV]: client,
+    [MCP_CLIENT_PROOF_ENV]: signMcpClient(client)!,
+  }
+}
+
+function writeClaudeEntry(command: string, args: string[] = [], env = signedEnv('claude')): void {
+  fs.writeFileSync(path.join(homeDir, '.claude.json'), JSON.stringify({ mcpServers: { nomi: { command, args, env } } }))
 }
 
 /** 造一个最小 stdio MCP server 脚本：回 initialize + tools/list。用它验「真握上手」这一路。 */
@@ -52,6 +67,7 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
 
 beforeEach(() => {
   homeDir = tempHome()
+  ensureToken()
 })
 afterEach(() => {
   for (const r of roots.splice(0)) fs.rmSync(r, { recursive: true, force: true })
@@ -82,6 +98,18 @@ describe('capabilityCore/mcpVerify', () => {
     expect(res.reason).toBe('handshake-failed')
   })
 
+  it('当前 Nomi 启动器缺少签名客户端身份 → 要求重新接入，不能假报完整可用', async () => {
+    writeClaudeEntry(process.execPath, ['/fake/repo'], { NOMI_MCP_STDIO: '1' })
+    const res = await verifyMcp('claude')
+    expect(res).toMatchObject({ ok: false, reason: 'client-auth-missing', stale: true })
+  })
+
+  it('仍能握手的旧启动方式缺少签名身份也必须重新接入', async () => {
+    writeClaudeEntry('node', [fakeServerScript(4)], { NOMI_MCP_STDIO: '1' })
+    const res = await verifyMcp('claude')
+    expect(res).toMatchObject({ ok: false, reason: 'client-auth-missing', stale: true })
+  })
+
   // 真机走查抓到的误报：用户的老配置是 command:"node"（裸命令名靠 PATH 解析），
   // 早先版本用 existsSync(command) 判存在 → 恒 false → 每份走 PATH 的配置都被误报「程序不在了」。
   // 单测此前全喂绝对路径，五门全绿也照样放过去。这条专门钉住裸命令名不许被误判。
@@ -107,7 +135,7 @@ describe('capabilityCore/mcpVerify', () => {
     fs.mkdirSync(path.join(homeDir, '.codex'), { recursive: true })
     fs.writeFileSync(
       path.join(homeDir, '.codex', 'config.toml'),
-      `[mcp_servers.other]\ncommand = "x"\n\n[mcp_servers.nomi]\ncommand = "${process.execPath}"\nargs = ["${script}"]\nstartup_timeout_sec = 60\ntool_timeout_sec = 600\ndefault_tools_approval_mode = "writes"\nenv = { NOMI_MCP_STDIO = "1" }\n`,
+      `[mcp_servers.other]\ncommand = "x"\n\n[mcp_servers.nomi]\ncommand = "${process.execPath}"\nargs = ["${script}"]\nstartup_timeout_sec = 60\ntool_timeout_sec = 600\ndefault_tools_approval_mode = "writes"\nenv = { NOMI_MCP_STDIO = "1", ${MCP_CLIENT_ENV} = "codex", ${MCP_CLIENT_PROOF_ENV} = "${signMcpClient('codex')}" }\n`,
     )
     const res = await verifyMcp('codex')
     expect(res.ok).toBe(true)

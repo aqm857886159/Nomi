@@ -14,7 +14,7 @@ import type { FetchTaskResultFn, RunTaskFn } from './core'
 import { dispatch, RpcError } from './dispatcher'
 import { createDiskGateway, createHybridGateway, createRendererGateway, type ProjectGateway } from './gateway'
 import { isRendererAvailable } from './rendererBridge'
-import { verifyToken } from './security'
+import { resolveMcpOrigin, verifyToken } from './security'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
 import { handleArtifactPreviewHttpRequest } from '../productionRun/artifactPreviewHttpServer'
 import { setArtifactPreviewHttpOrigin } from '../productionRun/artifactProjection'
@@ -52,6 +52,10 @@ function bearerToken(req: http.IncomingMessage): string {
   const header = req.headers.authorization || ''
   const match = /^Bearer\s+(.+)$/i.exec(Array.isArray(header) ? header[0] : header)
   return match ? match[1].trim() : ''
+}
+
+function firstHeader(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? value[0] ?? '' : value ?? ''
 }
 
 export type RpcServerHandle = {
@@ -92,12 +96,16 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
         }
         const method = String(parsed.method || '')
         const params = (parsed.params && typeof parsed.params === 'object' ? parsed.params : {}) as Record<string, unknown>
+        const origin = resolveMcpOrigin(
+          firstHeader(req.headers['x-nomi-mcp-client']),
+          firstHeader(req.headers['x-nomi-mcp-client-proof']),
+        )
         const result = await dispatch(method, params, {
           runTask: options.runTask,
           fetchTaskResult: options.fetchTaskResult,
           makeGateway,
           productionRuns,
-          origin: { host: 'external' },
+          origin: { host: origin },
         })
         send(200, { ok: true, result })
       } catch (error) {

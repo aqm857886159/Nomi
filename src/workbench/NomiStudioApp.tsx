@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ConfirmDialogHost, confirmDialog, NomiLoadingMark } from '../design'
 import ProjectLibraryPage from './library/ProjectLibraryPage'
-import { SettingsDialog } from './settings/SettingsDialog'
+import { SettingsDialog, type SettingsInitialSection } from './settings/SettingsDialog'
 import {
   createLocalProject,
   deleteLocalProject,
@@ -124,7 +124,7 @@ export default function NomiStudioApp(): JSX.Element {
   const [modelCatalogOpened, setModelCatalogOpened] = React.useState(false)
   const [settingsOpened, setSettingsOpened] = React.useState(false)
   const [settingsInitialTab, setSettingsInitialTab] = React.useState<'file' | 'ai' | 'automation' | 'general' | 'about'>('file')
-  const [settingsInitialSection, setSettingsInitialSection] = React.useState<'automation' | null>(null)
+  const [settingsInitialSection, setSettingsInitialSection] = React.useState<SettingsInitialSection>(null)
   const [handbookOpened, setHandbookOpened] = React.useState(false)
   const [browserOpened, setBrowserOpened] = React.useState(false)
   const [browserMounted, setBrowserMounted] = React.useState(false)
@@ -198,7 +198,9 @@ export default function NomiStudioApp(): JSX.Element {
       const detail = (event as CustomEvent<{ tab?: string; section?: string }>).detail
       const tab = detail?.tab
       setSettingsInitialTab(tab === 'automation' ? 'automation' : 'file')
-      setSettingsInitialSection(detail?.section === 'automation' ? 'automation' : null)
+      setSettingsInitialSection(
+        detail?.section === 'cursor-host' ? 'cursor-host' : detail?.section === 'automation' ? 'automation' : null,
+      )
       setSettingsOpened(true)
     }
     window.addEventListener('nomi-open-settings', handleOpenSettings)

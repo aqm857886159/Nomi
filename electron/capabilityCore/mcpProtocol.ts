@@ -462,9 +462,8 @@ export function createMcpProtocol(transport: McpTransport) {
       try {
         const built = tool.build(args) as Record<string, unknown>
         if (tool.name === 'nomi_start_playbook') {
-          // initialize.clientInfo is self-declared and cannot grant a trusted-host approval.
-          // Keep the detected client only as an audit label; the authority boundary is `external`.
-          built.host = 'external'
+          // initialize.clientInfo is self-declared, so it remains an audit label only. The stdio/RPC
+          // transport supplies authority from Nomi's signed per-client configuration capability.
           built.actorId = clientHost
         }
         // 付费生成 + Nomi 没开（无应用内确认卡可弹）→ 在 Claude 这一侧弹 elicitation 让真人确认。

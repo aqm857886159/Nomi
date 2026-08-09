@@ -10,11 +10,19 @@ export type McpInfo = {
   tokenReady: boolean
   rpcRunning: boolean
   server: { command: string; args: string[]; env?: Record<string, string> }
+  trustedHosts: string[]
   clients: Record<McpClientKey, McpClientInfo>
 }
 
 /** 实连验证的失败原因。UI 文案按它走 i18n（主进程不回中文——R15）。 */
-export type McpVerifyReason = 'ok' | 'not-installed' | 'command-missing' | 'spawn-failed' | 'timeout' | 'handshake-failed'
+export type McpVerifyReason =
+  | 'ok'
+  | 'not-installed'
+  | 'command-missing'
+  | 'spawn-failed'
+  | 'timeout'
+  | 'handshake-failed'
+  | 'client-auth-missing'
 
 export type McpVerifyResult = {
   ok: boolean

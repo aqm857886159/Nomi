@@ -23,6 +23,7 @@ const LOCALE_LABEL_KEY: Record<AppLocale, string> = { 'zh-CN': 'common.chinese',
 // 集中设置页（2026-08-01 用户拍板样张）：左 tab 右内容。首批「文件与保存」做实——自动另存开关+目录；
 // 其余 tab 占位。复用 OnboardingFloatingPanel 的外壳交互（Portal + Esc + 点遮罩关），布局是居中大 modal。
 type SettingsTab = 'file' | 'ai' | 'automation' | 'general' | 'about'
+export type SettingsInitialSection = 'automation' | 'cursor-host' | null
 
 const TABS: { id: SettingsTab; icon: typeof IconFolder; labelKey: string }[] = [
   { id: 'file', icon: IconFolder, labelKey: 'settings.tab.file' },
@@ -39,7 +40,7 @@ export function SettingsDialog({
   onReplaySplash,
 }: {
   initialTab?: SettingsTab
-  initialSection?: 'automation' | null
+  initialSection?: SettingsInitialSection
   onClose: () => void
   onReplaySplash?: () => void
 }): JSX.Element {
@@ -51,6 +52,7 @@ export function SettingsDialog({
   const [enabled, setEnabled] = React.useState(false)
   const [dir, setDir] = React.useState('')
   const [automationPolicy, setAutomationPolicy] = React.useState<AutomationPolicySettings>(defaultAutomationPolicySettings)
+  const [automationPolicyLoaded, setAutomationPolicyLoaded] = React.useState(false)
   const contentRef = React.useRef<HTMLElement>(null)
 
   React.useEffect(() => setTab(initialTab), [initialTab])
@@ -58,12 +60,15 @@ export function SettingsDialog({
   React.useEffect(() => {
     if (tab !== 'automation' || !initialSection) return
     const frame = window.requestAnimationFrame(() => {
-      contentRef.current
+      const section = contentRef.current
         ?.querySelector<HTMLElement>(`[data-settings-section="${initialSection}"]`)
-        ?.scrollIntoView({ block: 'start' })
+      section?.scrollIntoView({ block: 'center' })
+      if (initialSection === 'cursor-host' && automationPolicyLoaded) {
+        section?.querySelector<HTMLElement>('button, input, [tabindex]')?.focus({ preventScroll: true })
+      }
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [initialSection, tab])
+  }, [automationPolicyLoaded, initialSection, tab])
 
   // 打开时读当前偏好（主进程 download-prefs.json）。
   React.useEffect(() => {
@@ -78,12 +83,23 @@ export function SettingsDialog({
   }, [])
 
   React.useEffect(() => {
-    void getDesktopBridge()
-      ?.settings?.automationPolicy?.get()
+    let active = true
+    const policy = getDesktopBridge()?.settings?.automationPolicy
+    if (!policy?.get) {
+      setAutomationPolicyLoaded(true)
+      return
+    }
+    void policy.get()
       .then((value) => {
-        if (value) setAutomationPolicy(value)
+        if (active && value) setAutomationPolicy(value)
       })
       .catch(() => undefined)
+      .finally(() => {
+        if (active) setAutomationPolicyLoaded(true)
+      })
+    return () => {
+      active = false
+    }
   }, [])
 
   // capture 阶段拦 Esc：先于画布/素材库的 window keydown 关自己（不误触删节点等）。
@@ -115,17 +131,21 @@ export function SettingsDialog({
   }
 
   const updateAutomationPolicy = React.useCallback((patch: Partial<AutomationPolicySettings>): void => {
+    if (!automationPolicyLoaded) return
     setAutomationPolicy((current) => {
       const next = { ...current, ...patch }
       void getDesktopBridge()
         ?.settings?.automationPolicy?.set(next)
         .then((stored) => {
-          if (stored) setAutomationPolicy(stored)
+          if (stored) {
+            setAutomationPolicy(stored)
+            window.dispatchEvent(new CustomEvent('nomi-automation-policy-changed'))
+          }
         })
         .catch(() => undefined)
       return next
     })
-  }, [])
+  }, [automationPolicyLoaded])
 
   return (
     <Portal>
@@ -202,9 +222,23 @@ export function SettingsDialog({
                 <ProjectLocationSection />
               </div>
             ) : tab === 'ai' ? (
-              <AiModelsSection settings={automationPolicy} onChange={updateAutomationPolicy} />
+              <fieldset
+                disabled={!automationPolicyLoaded}
+                aria-busy={!automationPolicyLoaded}
+                title={!automationPolicyLoaded ? t('settings.automation.loading') : undefined}
+                className="m-0 min-w-0 border-0 p-0"
+              >
+                <AiModelsSection settings={automationPolicy} onChange={updateAutomationPolicy} />
+              </fieldset>
             ) : tab === 'automation' ? (
-              <AutomationPermissionsSection settings={automationPolicy} onChange={updateAutomationPolicy} />
+              <fieldset
+                disabled={!automationPolicyLoaded}
+                aria-busy={!automationPolicyLoaded}
+                title={!automationPolicyLoaded ? t('settings.automation.loading') : undefined}
+                className="m-0 min-w-0 border-0 p-0"
+              >
+                <AutomationPermissionsSection settings={automationPolicy} onChange={updateAutomationPolicy} />
+              </fieldset>
             ) : tab === 'general' ? (
               <div>
                 <div className="mb-4 text-body font-medium text-nomi-ink">{t('settings.general.title')}</div>

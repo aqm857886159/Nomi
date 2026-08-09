@@ -14,7 +14,15 @@ import os from 'node:os'
 import path from 'node:path'
 
 export const CAPABILITY_DIR_ENV = 'NOMI_CAPABILITY_DIR'
+export const MCP_CLIENT_ENV = 'NOMI_MCP_CLIENT'
+export const MCP_CLIENT_PROOF_ENV = 'NOMI_MCP_CLIENT_PROOF'
 const TOKEN_FILE = 'token'
+const MCP_CLIENT_PROOF_CONTEXT = 'nomi-mcp-client:v1'
+
+export type AuthenticatedMcpClient = 'claude' | 'codex' | 'cursor'
+export type CapabilityOriginHost = 'external' | 'nomi' | AuthenticatedMcpClient
+
+const MCP_CLIENTS = new Set<AuthenticatedMcpClient>(['claude', 'codex', 'cursor'])
 
 export function capabilityCoreDir(): string {
   const configured = String(process.env[CAPABILITY_DIR_ENV] || '').trim()
@@ -65,4 +73,39 @@ export function verifyToken(provided: unknown): boolean {
   const b = Buffer.from(expected)
   if (a.length !== b.length) return false
   return crypto.timingSafeEqual(a, b)
+}
+
+function mcpClient(value: unknown): AuthenticatedMcpClient | null {
+  return typeof value === 'string' && MCP_CLIENTS.has(value as AuthenticatedMcpClient)
+    ? value as AuthenticatedMcpClient
+    : null
+}
+
+/**
+ * A scoped capability written by Nomi into one client's MCP config. It proves that Nomi installed
+ * that client entry without exposing the capability-core bearer token itself.
+ */
+export function signMcpClient(client: AuthenticatedMcpClient): string | null {
+  const token = readToken()
+  if (!token) return null
+  return crypto
+    .createHmac('sha256', token)
+    .update(`${MCP_CLIENT_PROOF_CONTEXT}:${client}`)
+    .digest('base64url')
+}
+
+export function verifyMcpClient(clientValue: unknown, proofValue: unknown): AuthenticatedMcpClient | null {
+  const client = mcpClient(clientValue)
+  if (!client || typeof proofValue !== 'string' || !proofValue) return null
+  const expected = signMcpClient(client)
+  if (!expected) return null
+  const actualBytes = Buffer.from(proofValue)
+  const expectedBytes = Buffer.from(expected)
+  if (actualBytes.length !== expectedBytes.length) return null
+  return crypto.timingSafeEqual(actualBytes, expectedBytes) ? client : null
+}
+
+/** Self-declared or invalid client labels remain external and never gain trusted-host authority. */
+export function resolveMcpOrigin(clientValue: unknown, proofValue: unknown): CapabilityOriginHost {
+  return verifyMcpClient(clientValue, proofValue) ?? 'external'
 }

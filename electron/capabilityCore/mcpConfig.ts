@@ -14,11 +14,18 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { renameSyncWithRetry } from '../jsonFile'
-import { readToken } from './security'
+import {
+  MCP_CLIENT_ENV,
+  MCP_CLIENT_PROOF_ENV,
+  readToken,
+  signMcpClient,
+  type AuthenticatedMcpClient,
+} from './security'
+import { readAutomationPolicySettings } from '../settings/automationPolicySettings'
 
 const SERVER_NAME = 'nomi'
 
-export type McpClientKey = 'claude' | 'codex' | 'cursor'
+export type McpClientKey = AuthenticatedMcpClient
 
 type ClientSpec = {
   label: string
@@ -45,11 +52,17 @@ export type McpServerEntry = { command: string; args: string[]; env?: Record<str
  * 打包版 process.execPath = `/Applications/Nomi.app/Contents/MacOS/Nomi`（包内永远存在、无 node 依赖）。
  * dev 下 execPath = node_modules 的 electron，需 args 指明 app 路径（repo 根）让它找到 main。三客户端共用。
  */
-export function mcpServerEntry(): McpServerEntry {
+export function mcpServerEntry(client?: McpClientKey): McpServerEntry {
+  const env: Record<string, string> = { NOMI_MCP_STDIO: '1' }
+  const proof = client ? signMcpClient(client) : null
+  if (client && proof) {
+    env[MCP_CLIENT_ENV] = client
+    env[MCP_CLIENT_PROOF_ENV] = proof
+  }
   return {
     command: process.execPath,
     args: app.isPackaged ? [] : [app.getAppPath()],
-    env: { NOMI_MCP_STDIO: '1' },
+    env,
   }
 }
 
@@ -91,13 +104,13 @@ function jsonSnippet(server: McpServerEntry): string {
   return JSON.stringify({ mcpServers: { [SERVER_NAME]: server } }, null, 2)
 }
 
-function jsonInstall(target: string): string | null {
+function jsonInstall(target: string, client: McpClientKey): string | null {
   const backupPath = fs.existsSync(target) ? `${target}.nomi-backup` : null
   const config = readJsonConfig(target)
   const servers = (config.mcpServers && typeof config.mcpServers === 'object' && !Array.isArray(config.mcpServers)
     ? (config.mcpServers as Record<string, unknown>)
     : {}) as Record<string, unknown>
-  servers[SERVER_NAME] = mcpServerEntry()
+  servers[SERVER_NAME] = mcpServerEntry(client)
   config.mcpServers = servers
   atomicWrite(target, JSON.stringify(config, null, 2))
   return backupPath
@@ -116,7 +129,9 @@ function jsonUninstall(target: string): void {
 
 // ── TOML 客户端（Codex）：[mcp_servers.nomi]，块级合并不引依赖 ──────────────
 
-const CODEX_HEADER_RE = /^\s*\[mcp_servers\.nomi\]\s*$/
+const CODEX_HEADER_RE = /^\s*\[\s*mcp_servers\s*\.\s*(?:nomi|"nomi"|'nomi')\s*\]\s*(?:#.*)?$/
+const CODEX_TABLE_HEADER_RE = /^\s*(?:\[[^\]]+\]|\[\[[^\]]+\]\])\s*(?:#.*)?$/
+const CODEX_FAMILY_HEADER_RE = /^\s*\[\s*mcp_servers\s*\.\s*(?:nomi|"nomi"|'nomi')\s*(?:\.\s*[^\]]+)?\]\s*(?:#.*)?$/
 
 function tomlEscape(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
@@ -163,25 +178,30 @@ function codexInstalled(target: string): boolean {
   return readText(target).split('\n').some((line) => CODEX_HEADER_RE.test(line))
 }
 
-/** 删掉现有 [mcp_servers.nomi] 块（从该表头到下一个 [表头] 或 EOF），其它内容原样保留。 */
+/**
+ * 删掉现有 [mcp_servers.nomi] 及其子表块，其他内容原样保留。
+ *
+ * Codex 也接受 `[mcp_servers.nomi.env]`。如果只删父表、留下 env 子表，再写
+ * `env = { ... }`，整个 config.toml 会因重复 env 键而无法解析。
+ */
 function removeCodexBlock(text: string): string {
   const out: string[] = []
   let skipping = false
   for (const line of text.split('\n')) {
-    if (CODEX_HEADER_RE.test(line)) {
+    if (CODEX_FAMILY_HEADER_RE.test(line)) {
       skipping = true
       continue
     }
-    if (skipping && /^\s*\[/.test(line)) skipping = false
+    if (skipping && CODEX_TABLE_HEADER_RE.test(line)) skipping = false
     if (!skipping) out.push(line)
   }
   return out.join('\n')
 }
 
-function codexInstall(target: string): string | null {
+function codexInstall(target: string, client: McpClientKey): string | null {
   const backupPath = fs.existsSync(target) ? `${target}.nomi-backup` : null
   const base = removeCodexBlock(readText(target)).replace(/\s*$/, '')
-  const next = (base ? `${base}\n\n` : '') + codexBlock(mcpServerEntry())
+  const next = (base ? `${base}\n\n` : '') + codexBlock(mcpServerEntry(client))
   atomicWrite(target, next)
   return backupPath
 }
@@ -201,13 +221,15 @@ export type McpInfo = {
   tokenReady: boolean
   rpcRunning: boolean
   server: McpServerEntry
+  trustedHosts: string[]
   /** 每个可一键接入的客户端的状态 + 可复制片段（卡片据此显示 + 默认选已接入的）。 */
   clients: Record<McpClientKey, McpClientInfo>
 }
 
-function clientInfo(client: McpClientKey, server: McpServerEntry): McpClientInfo {
+function clientInfo(client: McpClientKey): McpClientInfo {
   const spec = CLIENTS[client]
   const target = spec.configPath()
+  const server = mcpServerEntry(client)
   const installed = spec.format === 'toml' ? codexInstalled(target) : jsonInstalled(target)
   const snippet = spec.format === 'toml' ? codexBlock(server) : jsonSnippet(server)
   return { installed, configPath: target, snippet }
@@ -216,14 +238,16 @@ function clientInfo(client: McpClientKey, server: McpServerEntry): McpClientInfo
 /** 读接入状态 + 各客户端配置片段。rpcPort 由调用方（appIntegration）传入。 */
 export function readMcpInfo(rpcPort: number | null): McpInfo {
   const server = mcpServerEntry()
+  const trustedHosts = readAutomationPolicySettings().trustedHosts
   return {
     tokenReady: readToken() !== null,
     rpcRunning: typeof rpcPort === 'number' && rpcPort > 0,
     server,
+    trustedHosts,
     clients: {
-      claude: clientInfo('claude', server),
-      codex: clientInfo('codex', server),
-      cursor: clientInfo('cursor', server),
+      claude: clientInfo('claude'),
+      codex: clientInfo('codex'),
+      cursor: clientInfo('cursor'),
     },
   }
 }
@@ -286,7 +310,7 @@ export function installMcp(client?: string): { ok: boolean; client: McpClientKey
   const key = resolveClient(client)
   const spec = CLIENTS[key]
   const target = spec.configPath()
-  const backupPath = spec.format === 'toml' ? codexInstall(target) : jsonInstall(target)
+  const backupPath = spec.format === 'toml' ? codexInstall(target, key) : jsonInstall(target, key)
   return { ok: true, client: key, configPath: target, backupPath }
 }
 

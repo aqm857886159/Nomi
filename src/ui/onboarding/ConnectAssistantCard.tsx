@@ -9,17 +9,19 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   IconTerminal2, IconPlugConnected, IconCopy, IconCheck, IconCircleCheck, IconExternalLink,
-  IconAlertTriangle, IconRefresh,
+  IconAlertTriangle, IconRefresh, IconLock,
 } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
-import { toast } from '../toast'
+import { toast, useToastStore } from '../toast'
 import { FoldableModelCard } from './FoldableModelCard'
 import { DesignSegmentedControl } from '../../design'
 import type { McpInfo, McpVerifyReason } from '../../desktop/mcpBridgeTypes'
+import { resolveAssistantActivationState, type AssistantClientKey } from './assistantActivationState'
 
 const GUIDE_URL = 'https://github.com/aqm857886159/Nomi/blob/main/docs/guide/capability-core-cli-mcp.md'
-type ClientKey = 'claude' | 'codex' | 'cursor'
+const CURSOR_CONNECTED_TOAST_ID = 'mcp:cursor-connected'
+type ClientKey = AssistantClientKey
 const CLIENT_LABEL: Record<ClientKey, string> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor' }
 const CLIENT_ORDER: ClientKey[] = ['claude', 'codex', 'cursor']
 
@@ -33,7 +35,7 @@ const CLIENT_ORDER: ClientKey[] = ['claude', 'codex', 'cursor']
  */
 // 卡头徽章只放「已接入 / 配置已失效 / 检测中」。曾试过在徽章里带握手耗时当证据，真机走查发现
 // 卡头本来就窄，多这一截会把标题挤成「接入 AI 编程...」，且实测常是 0.0s（读起来像没算出来）。
-// 「真的连上了」的证据改由展开后的「9 个工具可用」承担——那句更具体，也不跟标题抢位置。
+// 「服务真的能握手」的证据改由展开后的工具数承担——那句更具体，也不跟标题抢位置。
 type VerifyState = {
   phase: 'checking' | 'ok' | 'broken'
   toolCount: number | null
@@ -45,6 +47,7 @@ const REASON_I18N: Partial<Record<McpVerifyReason, string>> = {
   'spawn-failed': 'spawnFailed',
   timeout: 'timeout',
   'handshake-failed': 'handshakeFailed',
+  'client-auth-missing': 'clientAuthMissing',
 }
 
 // 桥类型单一真相源在 desktop/mcpBridgeTypes（此前这里手抄过一份，两处会各自漂移）。
@@ -68,6 +71,11 @@ export function ConnectAssistantCard({ info, onChanged }: ConnectAssistantCardPr
   const [checkNonce, setCheckNonce] = React.useState(0)
 
   const capability = getDesktopBridge()?.capability
+
+  React.useEffect(() => {
+    window.addEventListener('nomi-automation-policy-changed', onChanged)
+    return () => window.removeEventListener('nomi-automation-policy-changed', onChanged)
+  }, [onChanged])
 
   // 首次拿到 info 时默认选已接入的客户端（没有则保持 Claude Code）。只挑一次，不抢用户后续切换。
   React.useEffect(() => {
@@ -116,7 +124,16 @@ export function ConnectAssistantCard({ info, onChanged }: ConnectAssistantCardPr
       capability.installMcp(target)
       onChanged()
       setCheckNonce((n) => n + 1) // 重连后立刻复验，别让刚修好的还挂着「已失效」。
-      toast(t('onboardingProviders.assistant.connectedToast', { client: label }), 'success')
+      const message = t(target === 'cursor'
+          ? info.trustedHosts?.includes('cursor')
+            ? 'onboardingProviders.assistant.cursorConnectedTrustedToast'
+            : 'onboardingProviders.assistant.cursorConnectedToast'
+          : 'onboardingProviders.assistant.connectedToast', { client: label })
+      if (target === 'cursor') {
+        useToastStore.getState().push({ id: CURSOR_CONNECTED_TOAST_ID, message, type: 'success' })
+      } else {
+        toast(message, 'success')
+      }
     } catch (e) {
       setError(t('onboardingProviders.assistant.connectFailed', { message: e instanceof Error ? e.message : String(e) }))
     } finally {
@@ -147,8 +164,25 @@ export function ConnectAssistantCard({ info, onChanged }: ConnectAssistantCardPr
     })
   }
 
+  const openAutomationPermissions = () => {
+    useToastStore.getState().remove(CURSOR_CONNECTED_TOAST_ID)
+    window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'automation', section: 'cursor-host' } }))
+  }
+
   // 状态以**实连结果**为准；没验证能力（老 preload）才退回「配置里有这行字」的老口径。
-  const broken = client.installed && verify?.phase === 'broken'
+  const activation = resolveAssistantActivationState({
+    target,
+    installed: client.installed,
+    verifyPhase: verify?.phase ?? null,
+    trustedHosts: info.trustedHosts ?? [],
+  })
+  const { broken, cursorConfiguration: cursorActivationNotice, cursorTrusted } = activation
+  // Cursor 还有宿主自己的批准门。Nomi 直接握手只能证明配置命令可用，不能替 Cursor 批准自己。
+  const cursorConnectionValue = verify?.phase === 'ok' && typeof verify.toolCount === 'number'
+    ? t('onboardingProviders.assistant.cursorConnectionVerified', { count: verify.toolCount })
+    : verify?.phase === 'checking'
+      ? t('onboardingProviders.assistant.cursorConnectionChecking')
+      : t('onboardingProviders.assistant.cursorConnectionUnknown')
   const statusLabel = !client.installed
     ? info.tokenReady
       ? t('onboardingProviders.assistant.status.ready')
@@ -157,7 +191,9 @@ export function ConnectAssistantCard({ info, onChanged }: ConnectAssistantCardPr
       ? t('onboardingProviders.assistant.status.checking')
       : broken
         ? t('onboardingProviders.assistant.status.broken')
-        : t('onboardingProviders.assistant.status.connected')
+        : verify?.phase === 'ok' && target !== 'cursor'
+          ? t('onboardingProviders.assistant.status.connected')
+          : t('onboardingProviders.assistant.status.configured')
 
   return (
     <FoldableModelCard
@@ -167,7 +203,7 @@ export function ConnectAssistantCard({ info, onChanged }: ConnectAssistantCardPr
       subtitle={t('onboardingProviders.assistant.subtitle')}
       // 徽章绿只认「真接入且握手没断」：此前 anyInstalled || tokenReady 就 ok——
       // 配置残留/broken 也亮绿「已接入」，用户「什么都没整却显示已接入」（2026-08-08 反馈）。
-      status={client.installed && !broken ? 'ok' : 'todo'}
+      status={activation.headerStatus}
       statusLabel={statusLabel}
       defaultExpanded={false}
     >
@@ -221,22 +257,66 @@ export function ConnectAssistantCard({ info, onChanged }: ConnectAssistantCardPr
           ) : client.installed ? (
             <>
               <div className="flex items-start gap-2 rounded-nomi-sm bg-nomi-ink-05 px-3 py-2.5">
-                <IconCircleCheck size={17} className="shrink-0 mt-0.5 text-workbench-success-ink" />
+                {cursorActivationNotice ? (
+                  <IconLock size={17} className="shrink-0 mt-0.5 text-nomi-ink-60" />
+                ) : verify?.phase === 'ok' ? (
+                  <IconCircleCheck size={17} className="shrink-0 mt-0.5 text-workbench-success-ink" />
+                ) : (
+                  <IconPlugConnected size={17} className="shrink-0 mt-0.5 text-nomi-ink-60" />
+                )}
                 <div className="min-w-0">
-                  {/* 验证通过就报「已连通」并给出证据（几个工具可用）；没验证能力时退回「已写入配置」。 */}
                   <div className="text-body-sm font-semibold text-nomi-ink">
-                    {verify?.phase === 'ok'
-                      ? t('onboardingProviders.assistant.verified', { client: label })
+                    {cursorActivationNotice
+                      ? t('onboardingProviders.assistant.cursorConfigured')
+                      : verify?.phase === 'ok'
+                        ? t('onboardingProviders.assistant.verified', { client: label })
                       : t('onboardingProviders.assistant.configWritten', { client: label })}
                   </div>
-                  <div className="text-caption text-nomi-ink-60 mt-0.5">
-                    {verify?.phase === 'ok' && typeof verify.toolCount === 'number'
-                      ? t('onboardingProviders.assistant.verifiedBody', { count: verify.toolCount })
-                      : t('onboardingProviders.assistant.restartClient', { client: label })}
-                  </div>
+                  {cursorActivationNotice ? (
+                    <div className="mt-2 grid gap-1 text-caption">
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-nomi-ink-40">{t('onboardingProviders.assistant.cursorConnection')}</span>
+                        <span className="text-right text-nomi-ink-80">{cursorConnectionValue}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-nomi-ink-40">{t('onboardingProviders.assistant.cursorNomiPermission')}</span>
+                        <span className={cursorTrusted ? 'text-workbench-success-ink' : 'text-nomi-warning'}>
+                          {t(cursorTrusted
+                            ? 'onboardingProviders.assistant.cursorNomiAllowed'
+                            : 'onboardingProviders.assistant.cursorNomiRequired')}
+                        </span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-nomi-ink-40">{t('onboardingProviders.assistant.cursorHostPermission')}</span>
+                        <span className="text-right text-nomi-ink-60">
+                          {t('onboardingProviders.assistant.cursorHostPermissionUnknown')}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-0.5 text-caption text-nomi-ink-60">
+                      {verify?.phase === 'ok' && typeof verify.toolCount === 'number'
+                        ? t('onboardingProviders.assistant.verifiedBody', { count: verify.toolCount })
+                        : t('onboardingProviders.assistant.restartClient', { client: label })}
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="text-caption text-nomi-ink-40">{t('onboardingProviders.assistant.sayNow')}</div>
+              {activation.showCursorPermissionAction ? (
+                <button
+                  type="button"
+                  onClick={openAutomationPermissions}
+                  className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-nomi-sm border border-nomi-line px-2.5 text-caption text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink"
+                >
+                  <IconLock size={14} stroke={1.7} />
+                  {t('onboardingProviders.assistant.openCursorPermissions')}
+                </button>
+              ) : null}
+              <div className="text-caption text-nomi-ink-40">
+                {t(cursorActivationNotice
+                  ? 'onboardingProviders.assistant.sayAfterApproval'
+                  : 'onboardingProviders.assistant.sayNow')}
+              </div>
               <div className="text-body-sm text-nomi-ink-80 leading-relaxed rounded-nomi-sm border border-nomi-line bg-nomi-paper px-3 py-2.5">
                 “{t('onboardingProviders.assistant.example')}”
               </div>

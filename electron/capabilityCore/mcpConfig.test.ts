@@ -14,6 +14,12 @@ vi.mock('node:os', async (importOriginal) => {
 })
 
 import { installMcp, readMcpInfo, uninstallMcp } from './mcpConfig'
+import {
+  MCP_CLIENT_ENV,
+  MCP_CLIENT_PROOF_ENV,
+  ensureToken,
+  verifyMcpClient,
+} from './security'
 
 const roots: string[] = []
 function tempHome(): string {
@@ -27,6 +33,7 @@ function claudeJson(): string {
 
 beforeEach(() => {
   homeDir = tempHome()
+  ensureToken()
 })
 afterEach(() => {
   for (const r of roots.splice(0)) fs.rmSync(r, { recursive: true, force: true })
@@ -49,6 +56,11 @@ describe('capabilityCore/mcpConfig', () => {
     // 启动条目 = app 自身二进制 + env NOMI_MCP_STDIO=1（不再是 node + asar 里的脚本）。
     expect(after.mcpServers.nomi.command).toBe(process.execPath)
     expect(after.mcpServers.nomi.env.NOMI_MCP_STDIO).toBe('1')
+    expect(after.mcpServers.nomi.env[MCP_CLIENT_ENV]).toBe('claude')
+    expect(verifyMcpClient(
+      after.mcpServers.nomi.env[MCP_CLIENT_ENV],
+      after.mcpServers.nomi.env[MCP_CLIENT_PROOF_ENV],
+    )).toBe('claude')
     expect(after.mcpServers.nomi.args[0]).toBe('/fake/repo') // dev（isPackaged=false）下指明 app 路径
   })
 
@@ -87,7 +99,9 @@ describe('capabilityCore/mcpConfig', () => {
     installMcp('codex')
     let text = fs.readFileSync(codexPath, 'utf8')
     expect(text).toContain('[mcp_servers.nomi]')
-    expect(text).toContain('env = { NOMI_MCP_STDIO = "1" }')
+    expect(text).toContain('NOMI_MCP_STDIO = "1"')
+    expect(text).toContain(`${MCP_CLIENT_ENV} = "codex"`)
+    expect(text).toContain(`${MCP_CLIENT_PROOF_ENV} = "`)
     expect(text).toContain('[mcp_servers.other]') // 别人的块没被动
     expect(readMcpInfo(0).clients.codex.installed).toBe(true)
     uninstallMcp('codex')
@@ -95,6 +109,42 @@ describe('capabilityCore/mcpConfig', () => {
     expect(text).not.toContain('[mcp_servers.nomi]')
     expect(text).toContain('[mcp_servers.other]')
     expect(readMcpInfo(0).clients.codex.installed).toBe(false)
+  })
+
+  it('codex：升级旧 env 子表时删净整个 nomi 表族，避免生成不可解析的重复 env 键', () => {
+    const codexPath = path.join(homeDir, '.codex', 'config.toml')
+    fs.mkdirSync(path.dirname(codexPath), { recursive: true })
+    fs.writeFileSync(
+      codexPath,
+      [
+        '[mcp_servers.nomi]',
+        'command = "/Applications/Old Nomi.app/Contents/MacOS/Nomi"',
+        '',
+        '[mcp_servers.nomi.env]',
+        'NOMI_MCP_STDIO = "1"',
+        '',
+        '[[notifications]]',
+        'kind = "desktop"',
+        '',
+        '[projects."/Users/example"]',
+        'trust_level = "trusted"',
+        '',
+      ].join('\n'),
+    )
+
+    installMcp('codex')
+    let text = fs.readFileSync(codexPath, 'utf8')
+    expect(text.match(/^\s*\[\s*mcp_servers\.nomi\s*\]\s*$/gm)).toHaveLength(1)
+    expect(text).not.toContain('[mcp_servers.nomi.env]')
+    expect(text.match(/^env\s*=/gm)).toHaveLength(1)
+    expect(text).toContain('[[notifications]]\nkind = "desktop"')
+    expect(text).toContain('[projects."/Users/example"]')
+
+    uninstallMcp('codex')
+    text = fs.readFileSync(codexPath, 'utf8')
+    expect(text).not.toContain('[mcp_servers.nomi')
+    expect(text).toContain('[[notifications]]\nkind = "desktop"')
+    expect(text).toContain('[projects."/Users/example"]')
   })
 
   // Codex 的三个默认值对 Nomi 都不成立，漏写任何一个 = 一种「看着接上了其实用不了」：
@@ -117,7 +167,20 @@ describe('capabilityCore/mcpConfig', () => {
     const after = JSON.parse(fs.readFileSync(cursorPath, 'utf8'))
     expect(after.mcpServers.nomi.command).toBe(process.execPath)
     expect(after.mcpServers.nomi.env.NOMI_MCP_STDIO).toBe('1')
+    expect(after.mcpServers.nomi.env[MCP_CLIENT_ENV]).toBe('cursor')
+    expect(verifyMcpClient(
+      after.mcpServers.nomi.env[MCP_CLIENT_ENV],
+      after.mcpServers.nomi.env[MCP_CLIENT_PROOF_ENV],
+    )).toBe('cursor')
     expect(readMcpInfo(0).clients.cursor.installed).toBe(true)
     expect(readMcpInfo(0).clients.claude.installed).toBe(false) // 各客户端独立
+  })
+
+  it('binds each installed entry to its client instead of trusting a renamed label', () => {
+    installMcp('cursor')
+    const cursorPath = path.join(homeDir, '.cursor', 'mcp.json')
+    const entry = JSON.parse(fs.readFileSync(cursorPath, 'utf8')).mcpServers.nomi
+    expect(verifyMcpClient('cursor', entry.env[MCP_CLIENT_PROOF_ENV])).toBe('cursor')
+    expect(verifyMcpClient('codex', entry.env[MCP_CLIENT_PROOF_ENV])).toBeNull()
   })
 })

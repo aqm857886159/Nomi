@@ -1,4 +1,4 @@
-# 用户指南：用 Claude Code / Codex 在本地驱动 Nomi（CLI + MCP）
+# 用户指南：用 Claude Code / Codex / Cursor 在本地驱动 Nomi（CLI + MCP）
 
 > 让你电脑上的 AI 编程助手（Claude Code、Codex、Cursor…）直接操作你的 Nomi：建项目、往画布加镜头、改提示词、用你配好的模型**真生成图 / 视频 / 文本**，结果落进 Nomi 项目，打开就能看。
 >
@@ -120,33 +120,18 @@ node scripts/nomi.mjs generate workspace-xxxx modelscope "Tongyi-MAI/Z-Image-Tur
 
 打开 Nomi 的「模型接入」→「接入 AI 编程助手」，选择 Claude Code、Codex 或 Cursor，点击接入。Nomi 会只合并自己的 `nomi` 条目、保留其它 MCP server，并在改写前留下 `.nomi-backup`。接入卡会真正启动配置中的命令做握手，不会只凭“配置里有一行”显示成功。
 
-手工配置时，MCP server 必须启动 **Nomi 应用自身**，并传入 `NOMI_MCP_STDIO=1`。不要再使用旧版 `scripts/nomi-mcp.mjs`；该脚本已经退役。例如安装版 macOS 的 Claude Code / Cursor 配置为：
+不要照文档手写一份只有 `NOMI_MCP_STDIO=1` 的配置。当前版本还会为 Claude Code、Codex、Cursor 分别生成本机签名的 `NOMI_MCP_CLIENT` 与 `NOMI_MCP_CLIENT_PROOF`；证明绑定当前电脑和具体客户端，不能写死在公开文档，也不能跨客户端复用。缺少证明的配置可以列工具，但正式 Production Run 会被安全地视为 `external`，无法越过 Nomi 的可信宿主门。
 
-```json
-{
-  "mcpServers": {
-    "nomi": {
-      "command": "/Applications/Nomi.app/Contents/MacOS/Nomi",
-      "args": [],
-      "env": { "NOMI_MCP_STDIO": "1" }
-    }
-  }
-}
-```
+需要手工接入时，先在卡片里选择目标客户端，再点「复制配置」，把 **Nomi 当机生成的完整片段** 合并到对应客户端。不要使用旧版 `scripts/nomi-mcp.mjs`，也不要从另一个客户端复制 proof。Codex 的生成片段已经包含 Electron 冷启动、长视频任务和写操作审批所需的超时与审批配置。
 
-Codex 使用 `~/.codex/config.toml`，还需要为 Electron 冷启动和视频任务保留足够超时：
+从旧版升级后，即使卡片显示已有配置，也应点一次「重新接入」来补齐签名。
 
-```toml
-[mcp_servers.nomi]
-command = "/Applications/Nomi.app/Contents/MacOS/Nomi"
-args = []
-startup_timeout_sec = 60
-tool_timeout_sec = 600
-default_tools_approval_mode = "writes"
-env = { NOMI_MCP_STDIO = "1" }
-```
+**② 完成两侧权限并重启对应客户端**：
 
-**② 重启对应客户端**，确认 `nomi` 这组 13 个工具出现了，包括 `nomi_list_models`、`nomi_create_project`、`nomi_generate` 和 `nomi_start_playbook`。
+- Claude Code / Codex：卡片真实握手成功后，确认 `nomi` 的 13 个工具出现。
+- Cursor：先在 Nomi「设置 → 自动化与权限」允许 Cursor 发起草稿；首次在 Cursor 调用 Nomi 时，Cursor 自己仍可能要求你批准本地 MCP。Nomi 不会代替你静默批准 Cursor。
+
+13 个工具包括 `nomi_list_models`、`nomi_create_project`、`nomi_generate` 和 `nomi_start_playbook`。
 
 **③ 直接说人话**，它自己挑工具完成：
 
@@ -156,16 +141,15 @@ Claude Code 会依次调 `nomi_create_project` → `nomi_list_models` → `nomi_
 
 ---
 
-## 4. 开着 vs 关着 —— 一条要知道的限制
+## 4. 开着 vs 关着 —— Nomi 会自动选安全路径
 
-如果 Nomi **正开着、而且正打开着你要改的那个项目**，外部的「改画布」命令（加节点 / 连线 / 改提示词 / 删节点）会被**拒绝**并提示原因：
+| 当前状态 | Nomi 的处理 | 你的体验 |
+|---|---|---|
+| 目标项目正在前台打开 | 通过渲染层应用改动 | 画布立即刷新，确认卡在当前界面出现 |
+| Nomi 开着，但目标项目不在前台 | 对该项目安全落盘，确认仍由 Nomi 全局展示 | 不会把后台项目灌进当前画布，也不会漏掉人工门 |
+| Nomi 关着 | 无窗口进程直接操作项目文件 | 结果落进项目，下次打开即可看到 |
 
-> `该项目正在 Nomi 中打开；图变更请在 app 内操作，或关闭项目后再用外部调用`
-
-原因：那一刻 app 内存里的状态才是真相，外部直接改文件会被它防抖回盘覆盖掉（防止你的改动丢失）。
-
-**应对**：在 app 里手动改，或先关掉那个项目再用外部命令。**读取、列模型、生成不受此限制。**
-（「外部改动实时反映到打开着的画布」是后续切片。）
+你不需要为了让 MCP 工作而关闭项目。Nomi 会按项目是否在前台和渲染层是否可用选择路径，避免外部写盘与内存状态互相覆盖。
 
 ---
 
@@ -209,15 +193,17 @@ Claude Code 会依次调 `nomi_create_project` → `nomi_list_models` → `nomi_
 | `未找到 token` | 没生成过 token | 启动一次 Nomi（见 §1.2） |
 | `API key missing: <vendor>` | 该渠道没填 key，或 key 没解开 | 在 Nomi 里给该渠道填 API Key；确认用的是你平时启动的那个 Nomi（key 按 app 身份加密，换身份解不开） |
 | `Model is not enabled: <model>` | 模型没启用 | 先 `nomi models` 看可用列表，用列出来的 vendor/modelKey |
-| `该项目正在 Nomi 中打开` | 该项目正在 app 里开着 | 关掉那个项目，或在 app 内改（见 §4） |
 | `headless host 未构建` | dev 下没 build | 先 `pnpm run build:electron` |
 | `vendor and request are required` | 命令参数不全 | 对照 §5 补齐 vendor / modelKey / intent / 提示词 |
+| `旧配置缺少客户端身份凭据` | 升级前配置只有 stdio 开关，没有本机客户端签名 | 在 Nomi 接入卡对该客户端点「重新接入」 |
+| `untrusted-host` | 当前客户端没有有效签名，或尚未在 Nomi 设置中获准发起草稿 | 重新接入对应客户端，再到「自动化与权限」开启该客户端 |
 
 ---
 
 ## 7. 安全
 
 - 本地服务**只监听 `127.0.0.1`**（外网 / 局域网够不着）+ **token 校验**。
+- Nomi 生成的 MCP 客户端证明按 Claude Code / Codex / Cursor 隔离；自报客户端名、伪造证明和跨客户端复用都只获得 `external` 权限。
 - **付费生成不能只凭 token 启动**——方向和制作合同必须在 Nomi 里由真人批准，支出上限、模型和任务集合会绑定到本次授权；外部 MCP 客户端不能伪造批准。
 - 外部调用只能做 Nomi 的领域操作（建工程 / 改画布 / 生成），**不是**任意文件读写。
 - 项目、素材、提示词、密钥和编排状态保存在本机。使用外部模型 API 时，完成任务所需的输入仍会发送给你配置的供应商；“本地优先”不等于“所有推理都离线”。

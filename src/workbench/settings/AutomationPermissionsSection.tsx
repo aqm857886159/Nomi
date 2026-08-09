@@ -14,14 +14,16 @@ type Props = {
 function SettingRow({
   title,
   hint,
+  section,
   children,
 }: {
   title: string
   hint: string
+  section?: string
   children: React.ReactNode
 }): JSX.Element {
   return (
-    <div className="flex min-h-12 items-center justify-between gap-4 py-2">
+    <div data-settings-section={section} className="flex min-h-12 items-center justify-between gap-4 py-2">
       <div className="min-w-0">
         <div className="text-body-sm text-nomi-ink">{title}</div>
         <div className="mt-0.5 text-caption leading-relaxed text-nomi-ink-40">{hint}</div>
@@ -99,6 +101,7 @@ export function AutomationPermissionsSection({ settings, onChange }: Props): JSX
         {view.hosts.map((host) => (
           <SettingRow
             key={host.key}
+            section={host.key === 'cursor' ? 'cursor-host' : undefined}
             title={t(`settings.automation.hosts.${host.key}.name`)}
             hint={t(`settings.automation.hosts.${host.key}.hint`)}
           >

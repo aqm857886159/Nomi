@@ -108,7 +108,7 @@ describe('production run MCP tools', () => {
     expect(subscribe?.inputSchema.required).toEqual(['projectId', 'runId'])
   })
 
-  it('infers the host from initialize and starts only a draft', async () => {
+  it('keeps initialize clientInfo as an audit label and starts only a draft', async () => {
     const harness = new ProductionHarness()
     await harness.call(1, 'initialize', {
       protocolVersion: '2025-11-25',
@@ -127,7 +127,6 @@ describe('production run MCP tools', () => {
       projectId: 'project-1',
       playbook: 'brand.promo',
       playbookVersion: undefined,
-      host: 'external',
       actorId: 'codex',
       brief: { goal: '介绍 Nomi', durationSeconds: 60, sellingPoints: ['本地保存'] },
     })
