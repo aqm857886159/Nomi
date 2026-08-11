@@ -5,14 +5,12 @@
 // 空库 hero（「30 秒体验」主 CTA）已随空库介绍首屏一起删除，模型接入路径改由状态条承载。
 //
 // 用法：node tests/ux/cold-start.e2e.mjs
-import { _electron as electron } from "playwright";
+import { launchNomiApp } from "./_launchApp.mjs";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
 
-const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 // 每次跑都用全新的隔离目录（带时间戳），确保是「全新安装」状态，不被上次残留污染。
@@ -27,15 +25,12 @@ console.log(`隔离 projects: ${projectsDir}`);
 const shotsDir = path.join(repoRoot, "tests/ux/shots");
 fs.mkdirSync(shotsDir, { recursive: true });
 
-const app = await electron.launch({
-  executablePath: require("electron"),
-  args: [".", `--user-data-dir=${userDataDir}`],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_PROJECTS_DIR: projectsDir },
+const { app, win } = await launchNomiApp({
+  name: "cold-start",
+  userDataDir,
+  projectsDir,
+  settleMs: 2000,
 });
-const win = await app.firstWindow();
-await win.waitForLoadState("domcontentloaded");
-await win.waitForTimeout(2000);
 
 let passed = 0;
 const findings = [];

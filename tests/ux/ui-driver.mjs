@@ -10,14 +10,12 @@
 //   关闭：      node tests/ux/ui.mjs quit
 //
 // Electron 专用（Nomi 要主进程+IPC 桥，普通浏览器预览工具附不上去）。
-import { _electron as electron } from "playwright";
+import { launchNomiApp } from "./_launchApp.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
 import { UI_DIR } from "./uiDir.mjs";
 
-const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 // 按 worktree 派生的唯一 IPC 目录（不再写死 /tmp/nomi-ui，根治多会话串台，见 uiDir.mjs）。
 const DIR = UI_DIR;
@@ -30,13 +28,16 @@ for (const f of fs.readdirSync(DIR)) fs.rmSync(path.join(DIR, f), { force: true 
 // （单会话便利:能开已有/示例项目）；设 NOMI_UI_USER_DATA（兼容 main 早先的 NOMI_UI_USERDATA）
 // 则用隔离 userData 起一份全新实例——多会话同时跑时必须用它，否则抢默认 userData 的锁会起不来。
 const isolateUserData = process.env.NOMI_UI_USER_DATA || process.env.NOMI_UI_USERDATA;
-const isolateArgs = isolateUserData ? [`--user-data-dir=${isolateUserData}`] : [];
-const app = await electron.launch({ executablePath: require("electron"), args: [".", ...isolateArgs], cwd: repoRoot, env: { ...process.env } });
+// 未设隔离路径时走 isolate:false = 系统默认 userData（保住上面那条「能开已有/示例项目」的设计，
+// 且不把 macOS 路径写死——各平台交给 Electron 自己解析）。
+const { app, win: _win } = isolateUserData
+  ? await launchNomiApp({ name: "ui-driver", userDataDir: isolateUserData, settleMs: 0 })
+  : await launchNomiApp({ name: "ui-driver", isolate: false, settleMs: 0 });
 const ERRLOG = path.join(DIR, "errors.log");
 const logErr = (kind, msg) => { try { fs.appendFileSync(ERRLOG, `[${kind}] ${msg}\n`); } catch { /* ignore */ } };
 // 多窗口（v0.10.13+）：打开项目会新开一个 studio 窗口、关掉起始窗口。固定 firstWindow 引用会失效。
 // 改成始终追最新一个「活着」的窗口：新窗口出现即接管，命令前用 getWin() 取活窗口。
-let win = await app.firstWindow();
+let win = _win;
 function wireWin(w) {
   w.on("pageerror", (e) => logErr("pageerror", (e && e.stack) || String(e)));
   w.on("console", (m) => { if (m.type() === "error") logErr("console.error", m.text()); });

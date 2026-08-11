@@ -3,7 +3,7 @@
 //
 // 关键断言不是「有没有出一个节点」，而是**拼出来的那张图对不对**：
 // 尺寸符合排版公式、四张源图的颜色真的出现在各自格子里（去成品图上采样比色）。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -53,14 +53,12 @@ for (const c of COLORS) {
 }
 console.log('  → 源图:', COLORS.map((c) => c.name).join('/'))
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${userData}`, '--no-proxy-server'],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_E2E: '1', NOMI_E2E_ALLOW_MULTI_INSTANCE: '1' },
+const { app, win } = await launchNomiApp({
+  name: 'contact-sheet',
+  userDataDir: userData,
+  args: ['--no-proxy-server'],
+  settleMs: 0,
 })
-const win = await app.firstWindow()
-await win.waitForLoadState('domcontentloaded')
 await win.evaluate(() => {
   window.localStorage.setItem('__nomiE2E', '1')
   for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) {

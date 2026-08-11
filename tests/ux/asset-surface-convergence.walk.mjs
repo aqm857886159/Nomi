@@ -7,13 +7,11 @@
 //   ⑤ 软删解散：旧「软删」素材在素材库照常可见（文件本就没删，属预期）
 // 用法: pnpm build && node tests/ux/asset-surface-convergence.walk.mjs
 // 判据=断言 + 截图（tests/ux/shots/asset-surface-convergence/）人眼过。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/asset-surface-convergence')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -74,23 +72,15 @@ async function snap(page, name) {
   console.log(`  [shot] ${name}`)
 }
 
-let app
+let app, win
 try {
-  app = await electron.launch({
-    executablePath: require('electron'),
-    args: ['.', `--user-data-dir=${path.join(base, 'udata')}`],
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      NOMI_E2E: '1',
-      NOMI_E2E_SMOKE: '1',
-      NOMI_PROJECTS_DIR: projectsDir,
-      NOMI_SETTINGS_DIR: settingsDir,
-    },
-  })
-  const win = await app.firstWindow()
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForTimeout(1500)
+  ;({ app, win } = await launchNomiApp({
+    name: 'asset-surface-convergence',
+    userDataDir: path.join(base, 'udata'),
+    settingsDir,
+    projectsDir,
+    env: { NOMI_E2E_SMOKE: '1' },
+  }))
   await win.evaluate(({ bucketKey, bucketValue }) => {
     for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) window.localStorage.setItem(k, 'seen')
     window.localStorage.setItem('__nomiE2E', '1')

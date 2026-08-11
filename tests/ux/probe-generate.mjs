@@ -1,12 +1,10 @@
 // 生成探针（规则13）：开示例项目 → 生成画布 → 选中单个节点 → 找单节点生成控件 →
 // 点单个生成（避开"全部生成"批量）→ 观察 loading/结果。会真实调 AI、花额度（用户已授权"都跑"）。
-import { _electron as electron } from "playwright";
+import { launchNomiApp } from "./_launchApp.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
 
-const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const shotsDir = path.join(repoRoot, "tests/ux/shots");
 fs.mkdirSync(shotsDir, { recursive: true });
@@ -24,11 +22,8 @@ function onboardingEnv() {
   return out;
 }
 
-const app = await electron.launch({ executablePath: require("electron"), args: ["."], cwd: repoRoot, env: { ...process.env, ...onboardingEnv() } });
+const { app, win } = await launchNomiApp({ name: "probe-generate", env: onboardingEnv() });
 try {
-  const win = await app.firstWindow();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(1500);
   await win.locator('[role="button"]', { hasText: "示例：30 秒产品介绍" }).first().click();
   await win.waitForTimeout(2500);
   // 确保在生成 tab

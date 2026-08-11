@@ -9,15 +9,13 @@
 //   · 下蹲姿势：按住 C（不移动）→ 截图看蹲姿；松开 C → 截图看回到站姿（松手自愈）。
 // 零额度：纯本地 3D 渲染/离屏 take 录制，不碰生成 API。
 // 用法：pnpm run build && node tests/ux/scene3d-pose-toggle-and-drive-keys.walk.mjs
-import { _electron as electron } from 'playwright'
+import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import os from 'node:os'
-import { fileURLToPath } from 'node:url'
 import { mkdtempSync, mkdirSync, readFileSync } from 'node:fs'
 
 const require = createRequire(import.meta.url)
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, '.scene3d-pose-drive-keys-lab')
 mkdirSync(outDir, { recursive: true })
 const tmp = mkdtempSync(path.join(os.tmpdir(), 'nomi-pose-drive-walk-'))
@@ -61,11 +59,12 @@ function pathLength(points) {
   return total
 }
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${path.join(tmp, 'udata')}`],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_E2E: '1', NOMI_E2E_SMOKE: '1', NOMI_PROJECTS_DIR: projectsDir },
+const { app, win } = await launchNomiApp({
+  name: 'scene3d-pose-toggle-and-drive-keys',
+  userDataDir: path.join(tmp, 'udata'),
+  projectsDir,
+  env: { NOMI_E2E_SMOKE: '1' },
+  settleMs: 1800,
 })
 
 const errors = []
@@ -123,11 +122,8 @@ async function recordStationaryJump(win) {
 }
 
 try {
-  const win = await app.firstWindow()
   win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
   win.on('pageerror', (e) => errors.push(String(e)))
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForTimeout(1800)
   const splashSkip = win.locator('[data-splash-skip="true"]').first()
   if ((await splashSkip.count()) > 0) await splashSkip.click().catch(() => {})
   await win.keyboard.press('Escape').catch(() => {})

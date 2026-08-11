@@ -5,14 +5,11 @@
 //  贯穿：全程零 console error / 零 pageerror（CSP/worker 接线错会在 preload/抠图时抛）
 // DEV 模式：脚本内起 vite(127.0.0.1:5273) → electron 以 NOMI_DESKTOP_DEV 连 dev（vite 提供 /src，真 import 才解析）
 // 用法: node tests/ux/remove-background.walk.mjs
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import http from 'node:http'
-import { createRequire } from 'node:module'
-
-const require = createRequire(import.meta.url)
 const repoRoot = process.cwd()
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/remove-background')
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -42,13 +39,14 @@ const vite = spawn('node', ['node_modules/vite/bin/vite.js', '--host', '127.0.0.
 await waitForUrl('http://127.0.0.1:5273', 60000).catch((e) => { console.error('vite 启动失败', e); })
 
 const consoleErrors = []
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${userData}`],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_DESKTOP_DEV: '1', VITE_DEV_SERVER_URL: 'http://127.0.0.1:5273', NOMI_PROJECTS_DIR: projectsDir },
+const { app, win: _win } = await launchNomiApp({
+  name: 'remove-background',
+  userDataDir: userData,
+  projectsDir,
+  env: { NOMI_DESKTOP_DEV: '1', VITE_DEV_SERVER_URL: 'http://127.0.0.1:5273' },
+  settleMs: 2000,
 })
-let win = await app.firstWindow()
+let win = _win
 const getWin = () => {
   // dev 模式 openDevTools({mode:'detach'}) 会多出 devtools:// 窗口，必须排除否则误点到它上
   const live = app.windows().filter((w) => { try { return !w.isClosed() && !w.url().startsWith('devtools://') } catch { return false } })
@@ -72,9 +70,6 @@ async function dismiss() {
 }
 
 try {
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForTimeout(2000)
-
   // A1 跨源隔离：COOP/COEP 头若没落地，crossOriginIsolated=false → ONNX 退单线程（本 PR 专门加的头）
   const isolated = await win.evaluate(() => self.crossOriginIsolated === true)
   check('跨源隔离生效 crossOriginIsolated=true（COOP/COEP 头落地）', isolated, `crossOriginIsolated=${isolated}`)

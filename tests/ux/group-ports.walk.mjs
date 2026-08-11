@@ -3,13 +3,10 @@
 //
 // 验的是**用户真会做的那串动作**：编组 → 组标签上点运行 → 从一个节点拉线 → 落到组框上 → 组内每个成员各得一根边。
 // 断言不只看 DOM 有没有：边数、组框高亮的 computed 颜色、按钮几何（会不会把标签挤爆）都对账。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
-
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/group-ports')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -39,14 +36,12 @@ async function snapNear(win, name, locator, pad = 30) {
   return box
 }
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${userData}`, '--no-proxy-server'],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_E2E: '1', NOMI_E2E_ALLOW_MULTI_INSTANCE: '1' },
+const { app, win } = await launchNomiApp({
+  name: 'group-ports',
+  userDataDir: userData,
+  args: ['--no-proxy-server'],
+  settleMs: 0,
 })
-const win = await app.firstWindow()
-await win.waitForLoadState('domcontentloaded')
 await win.evaluate(() => {
   window.localStorage.setItem('__nomiE2E', '1')
   for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) {

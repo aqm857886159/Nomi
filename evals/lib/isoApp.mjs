@@ -4,13 +4,10 @@
 //
 // 安全铁律(评审后端#7):自动批准必须过工具白名单;白名单外一律拒绝;
 // eval:score 兜底断言 zeroVendorCalls(评测环境绝不烧生成额度)。
-import { _electron as electron } from "playwright";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
+import { buildNomiLaunchEnv, launchNomiApp } from "../../tests/ux/_launchApp.mjs";
 
 /** 今天全部 5 个画布工具都免额度;将来出现 costy 工具(如 run_generation_batch)默认就被拒。 */
 export const TOOL_WHITELIST = new Set([
@@ -42,26 +39,23 @@ export function prepareIsolation(isoDir, { requireCatalog = true } = {}) {
 }
 
 export function isolatedAppEnv(iso, baseEnv = process.env) {
-  return {
-    ...baseEnv,
-    NOMI_E2E: "1",
-    NOMI_E2E_ALLOW_MULTI_INSTANCE: "1",
-    NOMI_ELECTRON_USER_DATA_DIR: iso.chromiumDir,
-    NOMI_PROJECTS_DIR: iso.projectsDir,
-    NOMI_SETTINGS_DIR: iso.settingsDir,
-  };
+  // 单一真相源在 tests/ux/_launchApp.mjs——那套 env 少一条窗口就起不来，不能有第二份定义。
+  return buildNomiLaunchEnv({
+    baseEnv,
+    userDataDir: iso.chromiumDir,
+    projectsDir: iso.projectsDir,
+    settingsDir: iso.settingsDir,
+  });
 }
 
+/** repoRoot 参数保留（评测各处都这么调），实际根路径由启动器自己派生。 */
 export async function launchIsolatedApp(repoRoot, iso) {
-  const app = await electron.launch({
-    executablePath: require("electron"),
-    args: [".", `--user-data-dir=${iso.chromiumDir}`],
-    cwd: repoRoot,
-    env: isolatedAppEnv(iso),
+  const { app, win } = await launchNomiApp({
+    name: "eval-iso",
+    userDataDir: iso.chromiumDir,
+    projectsDir: iso.projectsDir,
+    settingsDir: iso.settingsDir,
   });
-  const win = await app.firstWindow();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(1500);
   return { app, win };
 }
 

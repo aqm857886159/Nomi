@@ -3,7 +3,7 @@
 // Default: isolated HOME/settings/projects, safe to rerun.
 // Real upgrade: `node tests/ux/mcp-client-activation.walk.mjs --real-connect`
 // reconnects stale `nomi` entries through Nomi's UI, verifies current entries in place, and enables Cursor in Nomi.
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -27,20 +27,16 @@ for (const dir of [testHome, settingsDir, projectsDir, capabilityDir]) {
   if (dir) fs.mkdirSync(dir, { recursive: true })
 }
 
-const launchEnv = {
-  ...process.env,
-  NOMI_E2E: '1',
-  NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
-  ...(tempRoot
-    ? {
-        HOME: testHome,
-        NOMI_ELECTRON_USER_DATA_DIR: settingsDir,
-        NOMI_SETTINGS_DIR: settingsDir,
-        NOMI_PROJECTS_DIR: projectsDir,
-        NOMI_CAPABILITY_DIR: capabilityDir,
-      }
-    : {}),
-}
+// 隔离模式把 HOME/能力目录也换掉（MCP 配置写在 HOME 下，不能污染真机）；--real-connect 要的
+// 就是真 HOME 与真配置，故走 isolate:false。NOMI_E2E 那两条由启动器强制，这里不再重复。
+const launchOptions = tempRoot
+  ? {
+      userDataDir: settingsDir,
+      settingsDir,
+      projectsDir,
+      env: { HOME: testHome, NOMI_CAPABILITY_DIR: capabilityDir },
+    }
+  : { isolate: false }
 
 function assert(condition, message) {
   if (!condition) throw new Error(`MCP ACTIVATION WALK FAIL: ${message}`)
@@ -210,15 +206,15 @@ async function assertNoCompactOverflow(panel) {
   assert(overflowing.length === 0, `compact layout has clipped text: ${overflowing.join(' | ')}`)
 }
 
-const app = await electron.launch({
+const { app, win } = await launchNomiApp({
+  name: 'mcp-client-activation',
   executablePath,
-  args: tempRoot ? [`--user-data-dir=${settingsDir}`] : [],
-  env: launchEnv,
+  settleMs: 0,
+  ...launchOptions,
 })
 
 let passed = false
 try {
-  const win = await app.firstWindow()
   console.log('window ready')
   if (!realConnect) await win.setViewportSize({ width: 1180, height: 780 })
   await prepareWindow(win)

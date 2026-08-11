@@ -4,15 +4,11 @@
 // 流程：1x1 PNG 走 assetIngestion(upload-url) 上传 → 拿回 data.downloadUrl → 再 GET 确认公网可达。
 // 验证 R1 最关键、单测覆盖不到的外部假设：本地素材真能变成 vendor 够得着的 URL。
 // 用法：pnpm run build && node tests/ux/r1-upload-verify.mjs   （无 KIE key 时自动跳过,不失败）
-import { _electron as electron } from "playwright";
+import { launchNomiApp } from "./_launchApp.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
 
-const require = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 // catalog 落在 userData/nomi/model-catalog.json（macOS: ~/Library/Application Support/nomi）。
 const catalogPath = path.join(os.homedir(), "Library", "Application Support", "nomi", "model-catalog.json");
@@ -29,11 +25,9 @@ if (!rec || !rec.apiKey) {
 
 const ONE_PX_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==";
 
-const app = await electron.launch({ executablePath: require("electron"), args: ["."], cwd: repoRoot, env: { ...process.env } });
+const { app } = await launchNomiApp({ name: "r1-upload-verify" });
 
 try {
-  await app.firstWindow();
-  await new Promise((r) => setTimeout(r, 1500));
 
   const result = await app.evaluate(async ({ safeStorage }, args) => {
     let key = "";

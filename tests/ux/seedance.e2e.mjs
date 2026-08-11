@@ -5,13 +5,8 @@
 // **会花真实额度**，故用 KIE_API_KEY 环境变量门控：没设就跳过（CI 不跑、文件里无密钥）。
 // 用法：pnpm run build && KIE_API_KEY=xxxx node tests/ux/seedance.e2e.mjs
 //   可选 SEEDANCE_FIRST_FRAME=<图片URL> 指定首帧（默认用一张公开测试图）。720p + generate_audio:false 省额度。
-import { _electron as electron } from "playwright";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
+import { launchNomiApp } from "./_launchApp.mjs";
 
-const require = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 const KEY = process.env.KIE_API_KEY;
 if (!KEY) {
@@ -27,17 +22,12 @@ function assert(cond, label) {
   console.log(`  ✓ ${label}`);
 }
 
-const app = await electron.launch({
-  executablePath: require("electron"),
-  args: ["."],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_E2E_SMOKE: "1" },
+const { app, win } = await launchNomiApp({
+  name: "seedance",
+  env: { NOMI_E2E_SMOKE: "1" },
 });
 
 try {
-  const win = await app.firstWindow();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(1500);
 
   // 1) 启动即 seed 生效（内置 Seedance 在目录里）
   const seeded = await win.evaluate(() => {

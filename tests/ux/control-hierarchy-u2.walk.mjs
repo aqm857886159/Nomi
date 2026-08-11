@@ -6,14 +6,12 @@
 //   ④ studio 顶栏（生成页）：右簇分 3 组 + 主行动叫「去出片」
 //   ⑤ 预览页顶栏：「去出片」整颗消失，控制条的「导出 MP4」是唯一导出入口
 // 用法: pnpm run build && node tests/ux/control-hierarchy-u2.walk.mjs
-import { _electron as electron } from 'playwright'
-import { createRequire } from 'node:module'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-02-u2-after')
 fs.mkdirSync(outDir, { recursive: true })
@@ -29,21 +27,16 @@ fs.mkdirSync(projectsDir, { recursive: true })
 const checks = []
 const note = (name, detail = '') => { checks.push({ name, detail }); console.log(`  · ${name}${detail ? ` — ${detail}` : ''}`) }
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${settingsDir}`, '--no-proxy-server'],
-  cwd: repoRoot,
-  env: {
-    ...process.env,
-    NOMI_E2E: '1',
-    NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
-    NOMI_ELECTRON_USER_DATA_DIR: settingsDir,
-    NOMI_SETTINGS_DIR: settingsDir,
-    NOMI_PROJECTS_DIR: projectsDir,
-  },
+const { app, win: _initialWin } = await launchNomiApp({
+  name: 'control-hierarchy-u2',
+  userDataDir: settingsDir,
+  settingsDir,
+  projectsDir,
+  args: ['--no-proxy-server'],
+  settleMs: 0,
 })
 
-let win = await app.firstWindow()
+let win = _initialWin
 const getWin = () => {
   const live = app.windows().filter((w) => !w.isClosed())
   win = live.find((w) => { try { return /projectId=/.test(w.url()) } catch { return false } }) || live[live.length - 1] || win

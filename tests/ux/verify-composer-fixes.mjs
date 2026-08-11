@@ -1,19 +1,14 @@
 // 验证 ①③④（人眼判断，规则 13）：图片节点默认模型 + 视频/图片 composer 提示词高度 + 生成钮是否被裁。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots')
 fs.mkdirSync(shotsDir, { recursive: true })
 
-const app = await electron.launch({ executablePath: require('electron'), args: ['.'], cwd: repoRoot, env: { ...process.env } })
-const win = await app.firstWindow()
-await win.waitForLoadState('domcontentloaded')
-await win.waitForTimeout(1500)
+const { app, win } = await launchNomiApp({ name: 'verify-composer-fixes' })
 
 async function addNode(label) {
   await win.getByRole('button', { name: `添加${label}节点`, exact: false }).first().click().catch(async () => {

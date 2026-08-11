@@ -4,13 +4,7 @@
 //   ② 视频(Wan)：POST /v1/videos/generations 异步 + 轮询 /v1/tasks/{id}(X-ModelScope-Task-Type:video_generation)
 //      → output_video_url 出片
 // 用法：MODELSCOPE_E2E=1 pnpm run build && node tests/ux/modelscope-expand.e2e.mjs
-import { _electron as electron } from "playwright";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+import { launchNomiApp } from "./_launchApp.mjs";
 
 if (!process.env.MODELSCOPE_E2E) {
   console.log("SKIP modelscope-expand: 会花魔搭额度。MODELSCOPE_E2E=1 node tests/ux/modelscope-expand.e2e.mjs 才跑（用 app 已配魔搭 key）。");
@@ -36,14 +30,11 @@ const VIDEO_QUERY = {
 };
 const STATUS_MAPPING = { queued: ["pending", "queued"], running: ["running", "processing"], succeeded: ["succeed", "succeeded", "success"], failed: ["failed", "fail", "error", "canceled", "cancelled", "timeout", "revoked"] };
 
-const app = await electron.launch({ executablePath: require("electron"), args: [".", "--disable-gpu"], cwd: repoRoot, env: { ...process.env } });
+const { app, win } = await launchNomiApp({ name: "modelscope-expand", args: ["--disable-gpu"], settleMs: 1200 });
 const results = [];
 const ok = (n, v, d) => { results.push({ n, v }); console.log(`  ${v ? "✓" : "✗"} ${n}${d ? " — " + d : ""}`); };
 
 try {
-  const win = await app.firstWindow();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(1200);
 
   // 前置：魔搭已配 key？
   const vendors = await win.evaluate(() => window.nomiDesktop.modelCatalog.listVendors());

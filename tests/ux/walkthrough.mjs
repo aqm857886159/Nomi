@@ -4,13 +4,11 @@
 //
 // 真实用户旅程逐步驱动；每步截图 + dump 交互元素，由多模态判断体感。
 // 真实外呼/花额度步骤（调 AI 生成、导出）默认不跑。
-import { _electron as electron } from "playwright";
+import { launchNomiApp } from "./_launchApp.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
 
-const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const shotsDir = path.join(repoRoot, "tests/ux/shots");
 fs.mkdirSync(shotsDir, { recursive: true });
@@ -56,17 +54,9 @@ async function snap(win, name) {
   return info;
 }
 
-const app = await electron.launch({
-  executablePath: require("electron"),
-  args: ["."],
-  cwd: repoRoot,
-  env: { ...process.env, ...onboardingEnv() },
-});
+const { app, win } = await launchNomiApp({ name: "walkthrough", env: onboardingEnv() });
 
 try {
-  const win = await app.firstWindow();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(1500); // 让首屏数据/渲染稳定
 
   // ===== 走查路径（逐步加深；每次按上一轮截图所见扩展）=====
   await snap(win, "library");

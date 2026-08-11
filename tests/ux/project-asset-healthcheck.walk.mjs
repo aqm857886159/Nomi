@@ -9,7 +9,7 @@
 // 这同时证明结构闸（生成出口）用的同一条 importRemoteUrl IPC 真能把 http 下载成本地。
 // 零额度：不调任何模型，视频用本地 ffmpeg 造。
 // 用法：pnpm run build && node tests/ux/project-asset-healthcheck.walk.mjs
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import { createRequire } from 'node:module'
 import { spawnSync } from 'node:child_process'
 import http from 'node:http'
@@ -75,32 +75,26 @@ const project = {
 fs.writeFileSync(path.join(projectRoot, 'project.json'), JSON.stringify(project, null, 2))
 fs.writeFileSync(path.join(projectRoot, '.nomi', 'project.json'), JSON.stringify(project, null, 2))
 
-const app = await electron.launch({
-  executablePath: require('electron'),
+const { app, win } = await launchNomiApp({
+  name: 'project-asset-healthcheck',
+  userDataDir: settingsDir,
+  settingsDir,
+  projectsDir,
   // --no-proxy-server：开发机若配了系统代理，主进程 applySystemProxy 会用 ProxyAgent 套住全局 fetch，
   // 把 127.0.0.1 请求也发给代理 → loopback 夹具服务器收不到。这个 switch 让 session 直连，探测到
   // DIRECT 就不套代理。真实厂商 CDN 是公网 https、经代理正常，此 switch 只为让本地夹具走查跑通。
-  args: ['.', '--no-proxy-server', `--user-data-dir=${settingsDir}`],
-  cwd: repoRoot,
+  args: ['--no-proxy-server'],
   env: {
-    ...process.env,
-    NOMI_E2E: '1',
-    NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
-    NOMI_ELECTRON_USER_DATA_DIR: settingsDir,
-    NOMI_SETTINGS_DIR: settingsDir,
-    NOMI_PROJECTS_DIR: projectsDir,
     // 走查用 127.0.0.1 冒充厂商 CDN，SSRF 闸默认拦 loopback；这个 lab-only 逃生口放行本地夹具服务器。
     // 真实厂商 CDN 是公网、不吃这个开关，生产绝不设它（见 hardenedFetch.isPrivateHost）。
     LAB_ALLOW_LOCALHOST: '1',
     HTTP_PROXY: '', HTTPS_PROXY: '', http_proxy: '', https_proxy: '',
     NO_PROXY: '127.0.0.1,localhost', no_proxy: '127.0.0.1,localhost',
   },
+  settleMs: 2000,
 })
 
 try {
-  const win = await app.firstWindow()
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForTimeout(2000)
 
   await win.getByText('开项目体检回归').first().click()
   await win.waitForTimeout(1500)

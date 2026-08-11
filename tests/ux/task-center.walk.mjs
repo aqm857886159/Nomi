@@ -5,13 +5,11 @@
 //
 // 队列状态经 window.__nomiQueueStore（仅 localStorage.__nomiE2E==='1' 暴露）用**真 store 的真 action**摆出来，
 // 渲染的是真组件读真状态；「runner 会不会把状态填成这样」由 generationQueue.test.ts 那几条不变量单测把关。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/task-center')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -36,14 +34,12 @@ async function snap(win, name) {
   }
 }
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${userData}`, '--no-proxy-server'],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_E2E: '1', NOMI_E2E_ALLOW_MULTI_INSTANCE: '1' },
+const { app, win } = await launchNomiApp({
+  name: 'task-center',
+  userDataDir: userData,
+  args: ['--no-proxy-server'],
+  settleMs: 0,
 })
-const win = await app.firstWindow()
-await win.waitForLoadState('domcontentloaded')
 
 // 压掉首启 splash / 引导旅途 / 手势提示，并开 E2E 桥，然后 reload 让它们生效。
 await win.evaluate(() => {

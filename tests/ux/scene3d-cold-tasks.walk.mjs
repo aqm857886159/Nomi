@@ -1,37 +1,31 @@
 // 导演台冷用户走查（R13）：① 首次进入三步教练标注按拍板样张出现/推进/结束；② 只出现一次（持久化）；
 // ③ T1 可见路径：冷用户只点「可见带文案控件」完成 选假人→姿势→套蹲下。零额度，隔离 userData。
 // 用法：pnpm run build && node tests/ux/scene3d-cold-tasks.walk.mjs
-import { _electron as electron } from 'playwright'
-import { createRequire } from 'node:module'
+import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import path from 'node:path'
 import os from 'node:os'
-import { fileURLToPath } from 'node:url'
 import { mkdtempSync, mkdirSync } from 'node:fs'
 
-const require = createRequire(import.meta.url)
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, '.pose-lab')
 mkdirSync(outDir, { recursive: true })
 const tmp = mkdtempSync(path.join(os.tmpdir(), 'nomi-cold-walk-'))
 const projectsDir = path.join(tmp, 'projects')
 mkdirSync(projectsDir, { recursive: true })
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${path.join(tmp, 'udata')}`],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_E2E: '1', NOMI_E2E_SMOKE: '1', NOMI_PROJECTS_DIR: projectsDir },
+const { app, win } = await launchNomiApp({
+  name: 'scene3d-cold-tasks',
+  userDataDir: path.join(tmp, 'udata'),
+  projectsDir,
+  env: { NOMI_E2E_SMOKE: '1' },
+  settleMs: 1800,
 })
 const errors = []
 const log = (m) => console.log(m)
 const pass = { shellVisibleFast: false, coachStep1: false, coachDimLaidOut: false, coachStep2: false, coachStep3: false, coachGone: false, coachOnce: false, t1Pose: false }
 
 try {
-  const win = await app.firstWindow()
   win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
   win.on('pageerror', (e) => errors.push(String(e)))
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForTimeout(1800)
   await win.keyboard.press('Escape').catch(() => {})
 
   const card = win.locator('[data-project-card]').first()

@@ -2,13 +2,11 @@
 // 用法: node tests/ux/at-mention-edge.walk.mjs
 // 隔离 userData + 临时 NOMI_PROJECT_ROOT（构造一个含场景的项目，不碰用户真实数据）。
 // 产出: tests/ux/shots/at-mention/*.png —— 人眼判断：@ 下拉里有那张连线图、broken 图显示「加载失败」。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/at-mention')
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -78,15 +76,12 @@ const snap = async (win, name) => {
   console.log(`  · shot ${tag}`)
 }
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${settingsDir}`],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_SETTINGS_DIR: settingsDir, NOMI_PROJECTS_DIR: projectsDir },
+const { app, win } = await launchNomiApp({
+  name: 'at-mention-edge',
+  userDataDir: settingsDir,
+  settingsDir,
+  projectsDir,
 })
-const win = await app.firstWindow()
-await win.waitForLoadState('domcontentloaded')
-await win.waitForTimeout(1500)
 await win.evaluate(() => {
   for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) window.localStorage.setItem(k, 'seen')
 })

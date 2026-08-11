@@ -2,15 +2,11 @@
 // 现有离屏捕获管线出 mp4。最硬证据 = 隔离项目目录里真生成出 .mp4 文件。
 // 零额度：纯本地 3D 离屏渲染 + 本地 ffmpeg，不碰生成 API。
 // 用法：pnpm run build && node tests/ux/scene3d-take-record.walk.mjs
-import { _electron as electron } from 'playwright'
-import { createRequire } from 'node:module'
+import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import path from 'node:path'
 import os from 'node:os'
-import { fileURLToPath } from 'node:url'
 import { mkdtempSync, mkdirSync, readdirSync, statSync, copyFileSync } from 'node:fs'
 
-const require = createRequire(import.meta.url)
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, '.take-record-lab')
 mkdirSync(outDir, { recursive: true })
 const tmp = mkdtempSync(path.join(os.tmpdir(), 'nomi-take-walk-'))
@@ -31,12 +27,13 @@ function findMp4s(dir) {
   return out
 }
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${path.join(tmp, 'udata')}`],
-  cwd: repoRoot,
-  // NOMI_E2E=1 关 COOP/COEP（否则 Playwright launch timeout，见 electron/main.ts:661）。
-  env: { ...process.env, NOMI_E2E: '1', NOMI_E2E_SMOKE: '1', NOMI_PROJECTS_DIR: projectsDir },
+// NOMI_E2E=1 关 COOP/COEP（否则 Playwright launch timeout，见 electron/main.ts:661）——launcher 已强制。
+const { app, win } = await launchNomiApp({
+  name: 'scene3d-take-record',
+  userDataDir: path.join(tmp, 'udata'),
+  projectsDir,
+  env: { NOMI_E2E_SMOKE: '1' },
+  settleMs: 1800,
 })
 
 const errors = []
@@ -63,11 +60,8 @@ async function closeApp() {
 }
 
 try {
-  const win = await app.firstWindow()
   win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
   win.on('pageerror', (e) => errors.push(String(e)))
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForTimeout(1800)
   await win.keyboard.press('Escape').catch(() => {})
 
   const card = win.locator('[data-project-card]').first()

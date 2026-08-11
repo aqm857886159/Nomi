@@ -1,13 +1,10 @@
 // R13 走查：从目标节点左输入端拖到两图编组，编组成员应成为目标参考，而不是反向连边。
 // 用法：node tests/ux/group-reference-direction.walk.mjs
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import { spawn } from 'node:child_process'
-import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
-
-const require = createRequire(import.meta.url)
 const repoRoot = process.cwd()
 const port = 5287
 const baseUrl = `http://127.0.0.1:${port}`
@@ -41,22 +38,18 @@ const vite = spawn('node', ['node_modules/vite/bin/vite.js', '--host', '127.0.0.
 let app
 try {
   await waitForUrl(baseUrl)
-  app = await electron.launch({
-    executablePath: require('electron'),
-    args: ['.', `--user-data-dir=${path.join(tempRoot, 'user-data')}`],
-    cwd: repoRoot,
+  let win
+  ;({ app, win } = await launchNomiApp({
+    name: 'group-reference-direction',
+    userDataDir: path.join(tempRoot, 'user-data'),
+    settingsDir: path.join(tempRoot, 'settings'),
+    projectsDir: path.join(tempRoot, 'projects'),
     env: {
-      ...process.env,
       NOMI_DESKTOP_DEV: '1',
       VITE_DEV_SERVER_URL: baseUrl,
-      NOMI_E2E: '1',
-      NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
-      NOMI_PROJECTS_DIR: path.join(tempRoot, 'projects'),
-      NOMI_SETTINGS_DIR: path.join(tempRoot, 'settings'),
     },
-  })
-  const win = await app.firstWindow()
-  await win.waitForLoadState('domcontentloaded')
+    settleMs: 0,
+  }))
   await win.evaluate(() => {
     localStorage.setItem('__nomiE2E', '1')
     localStorage.setItem('nomi-color-scheme', 'dark')

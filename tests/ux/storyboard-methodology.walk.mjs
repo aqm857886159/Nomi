@@ -10,15 +10,11 @@
 //
 // **只到方案阶段**（收到 propose 即拒绝、不写画布、不生成），只花极少文本额度。
 // 额度闸：不显式 NOMI_R16=1 就 SKIP。用法：pnpm run build && NOMI_R16=1 node tests/ux/storyboard-methodology.walk.mjs
-import { _electron as electron } from "playwright";
+import { launchNomiApp } from "./_launchApp.mjs";
 import { mkdirSync, mkdtempSync, copyFileSync, existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
 
-const require = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 if (!process.env.NOMI_R16) {
   console.log("SKIP storyboard-methodology.walk: 会花少量文本额度。NOMI_R16=1 node tests/ux/storyboard-methodology.walk.mjs 才跑（用 app 已连文本模型）。");
@@ -43,26 +39,15 @@ const STORY =
   "老陈手一顿，抬头，声音发颤：「你……回来了。这些年，你过得好不好？」" +
   "女儿站在门口没动，眼眶红了，喉咙动了动却没说出话。镜头从老陈颤抖的手缓缓推近到他湿润的眼睛。";
 
-const app = await electron.launch({
-  executablePath: require("electron"),
-  args: [".", `--user-data-dir=${userDataDir}`, "--disable-gpu", "--disable-software-rasterizer"],
-  cwd: repoRoot,
-  env: {
-    ...process.env,
-    // NOMI_E2E=1 = 关 COOP/COEP（否则卡 Playwright CDP 握手 → firstWindow 超时）；它**不** stub
-    // agent/vendor/生成（仅 COOP/COEP + locale + 几个读钩子），故真模型照跑。+ 解单实例锁 + 隔离目录。
-    NOMI_E2E: "1",
-    NOMI_E2E_ALLOW_MULTI_INSTANCE: "1",
-    NOMI_ELECTRON_USER_DATA_DIR: userDataDir,
-    NOMI_SETTINGS_DIR: userDataDir,
-    NOMI_PROJECTS_DIR: projectsDir,
-  },
+const { app, win } = await launchNomiApp({
+  name: "storyboard-methodology",
+  userDataDir: userDataDir,
+  settingsDir: userDataDir,
+  projectsDir: projectsDir,
+  args: ["--disable-gpu", "--disable-software-rasterizer"],
 });
 
 try {
-  const win = await app.firstWindow();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(1500);
 
   // 找一个已连的文本模型（vendor+modelKey）当 agent 主控。
   const brain = await win.evaluate(() => {

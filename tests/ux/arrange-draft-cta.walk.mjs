@@ -3,14 +3,12 @@
 // 「有 3 个镜头可拼成初稿 [一键拼成初稿]」；点它 → 镜头排进时间轴、提示行随即隐去（纯增益空态）。
 // 不生成、不连模型 → 零额度。每步 screenshot 供人眼复核（眼见链）。
 // 用法：pnpm run build && node tests/ux/arrange-draft-cta.walk.mjs
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/arrange-cta')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -63,28 +61,19 @@ const snap = async (win, name) => {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${settingsDir}`, '--disable-gpu', '--disable-software-rasterizer'],
-  cwd: repoRoot,
-  timeout: 300000, // 本机常 15+ Electron 并行，冷启动在负载下会 >180s
-  env: {
-    ...process.env,
-    NOMI_E2E: '1',
-    NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
-    NOMI_ELECTRON_USER_DATA_DIR: settingsDir,
-    NOMI_SETTINGS_DIR: settingsDir,
-    NOMI_PROJECTS_DIR: projectsDir,
-    NOMI_CAPABILITY_DIR: path.join(settingsDir, 'capability-core'),
-  },
+const { app, win } = await launchNomiApp({
+  name: 'arrange-draft-cta',
+  userDataDir: settingsDir,
+  settingsDir,
+  projectsDir,
+  args: ['--disable-gpu', '--disable-software-rasterizer'],
+  env: { NOMI_CAPABILITY_DIR: path.join(settingsDir, 'capability-core') },
+  timeout: 300000,
 })
 
 let exitCode = 0
 try {
-  const win = await app.firstWindow({ timeout: 120000 })
   win.on('pageerror', (e) => console.log('  [pageerror]', e.message.slice(0, 200)))
-  await win.waitForLoadState('domcontentloaded')
-  await sleep(1500)
   await win.evaluate(() => {
     for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) window.localStorage.setItem(k, 'seen')
   })

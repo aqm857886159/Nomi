@@ -10,13 +10,8 @@
 //
 // **会花真实额度（仅文本，极少）**。额度闸：不显式 APIMART_E2E=1 / APIMART_API_KEY 就 SKIP。
 // 用法：pnpm run build && APIMART_E2E=1 node tests/ux/apimart-text-brain.e2e.mjs
-import { _electron as electron } from "playwright";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
+import { launchNomiApp } from "./_launchApp.mjs";
 
-const require = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 if (!process.env.APIMART_E2E && !process.env.APIMART_API_KEY) {
   console.log("SKIP apimart-text-brain.e2e: 会花额度。APIMART_E2E=1 node tests/ux/apimart-text-brain.e2e.mjs 才跑（用 app 已配 apimart key）。");
@@ -27,12 +22,12 @@ const MODEL_KEY = process.env.APIMART_TEXT_MODEL || "deepseek-v4-pro";
 const ENV_KEY = process.env.APIMART_API_KEY;
 const STORY = "一个程序员深夜加班，灵感突现，敲下最后一行代码，窗外天亮了。";
 
-const app = await electron.launch({ executablePath: require("electron"), args: [".", "--disable-gpu", "--disable-software-rasterizer"], cwd: repoRoot, env: { ...process.env } });
+const { app, win } = await launchNomiApp({
+  name: "apimart-text-brain",
+  args: ["--disable-gpu", "--disable-software-rasterizer"],
+});
 
 try {
-  const win = await app.firstWindow();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(1500);
 
   // key：env 覆盖否则用已存的（自解密）。未配 → SKIP。
   if (ENV_KEY) {

@@ -6,14 +6,9 @@
 // 不需要真实付费中转。真实 vendor 字段差异由防御式 extractAssetUrl + reporter 探测确认。
 //
 // 用法：pnpm run build && node tests/ux/newapi-relay.e2e.mjs
-import { _electron as electron } from "playwright";
+import { launchNomiApp, repoRoot } from "./_launchApp.mjs";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const MOCK_PORT = 8799;
 const MOCK_BASE = `http://localhost:${MOCK_PORT}`;
 
@@ -28,17 +23,11 @@ const mock = startMock();
 await new Promise((r) => setTimeout(r, 800));
 
 // 隔离 user-data-dir：不污染开发者真实 catalog（fresh 实例，本测自己 commit mock 中转）。
-import os from "node:os";
-import fs from "node:fs";
-const isolatedUserData = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-e2e-newapi-"));
-const app = await electron.launch({ executablePath: require("electron"), args: [".", "--disable-gpu", `--user-data-dir=${isolatedUserData}`], cwd: repoRoot, env: { ...process.env } });
+const { app, win } = await launchNomiApp({ name: "newapi-relay", args: ["--disable-gpu"], settleMs: 1200 });
 const results = [];
 function check(name, ok, detail) { results.push({ name, ok, detail }); console.log(`  ${ok ? "✓" : "✗"} ${name}${detail ? " — " + detail : ""}`); }
 
 try {
-  const win = await app.firstWindow();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(1200);
 
   // ⓪ 拉取模型：裸地址（不带 /v1）也能拉到（listModels 兜底重试 /v1/models）。
   console.log("\n▶ ⓪ 拉取模型（裸地址兜底 /v1/models）");

@@ -2,13 +2,8 @@
 // create_staging_reference spec，打印它选的 characters/poses/layout/facing/camera —— 人眼判断
 // agent 是否对多角色/多站位/朝向「选得对」。纯文本额度。gated APIMART_E2E。
 // 用法：pnpm run build && APIMART_E2E=1 node tests/ux/staging-agent-eval.e2e.mjs
-import { _electron as electron } from "playwright";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
+import { launchNomiApp } from "./_launchApp.mjs";
 
-const require = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 if (!process.env.APIMART_E2E && !process.env.APIMART_API_KEY) {
   console.log("SKIP staging-agent-eval: 会花文本额度。APIMART_E2E=1 才跑。");
@@ -27,11 +22,8 @@ const SCENARIOS = [
   "一个人在前面走，另一个人在后面悄悄跟踪他。",
 ];
 
-const app = await electron.launch({ executablePath: require("electron"), args: ["."], cwd: repoRoot, env: { ...process.env } });
+const { app, win } = await launchNomiApp({ name: "staging-agent-eval" });
 try {
-  const win = await app.firstWindow();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(1500);
   if (process.env.APIMART_API_KEY) {
     await win.evaluate((key) => window.nomiDesktop.modelCatalog.upsertVendorApiKey("apimart", { apiKey: key, enabled: true }), process.env.APIMART_API_KEY);
   }

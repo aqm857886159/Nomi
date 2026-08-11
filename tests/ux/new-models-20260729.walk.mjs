@@ -1,14 +1,9 @@
 // R13：2026-07-29 新接 5 个 apimart 模型的真机走查——每个节点选中后截图，人眼验：
 //   模型名/模式段（Vidu 参考生 · HH1.1 三模式 · Wan 角色参考）/变体段（Vidu 标准|Mix）/参数条/参考槽。
 // 用法: node tests/ux/new-models-20260729.walk.mjs（先 pnpm build，走 dist 产物）
-import { _electron as electron } from 'playwright'
+import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
-
-const require = createRequire(import.meta.url)
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/new-models-20260729')
 fs.mkdirSync(shotsDir, { recursive: true })
 
@@ -38,8 +33,7 @@ fs.writeFileSync(path.join(projDir, '.nomi', 'project.json'), JSON.stringify(tmp
 let n = 0
 const snap = async (win, name) => { n += 1; await win.screenshot({ path: path.join(shotsDir, `${String(n).padStart(2,'0')}-${name}.png`) }); console.log(`  · shot ${name}`) }
 
-const app = await electron.launch({ executablePath: require('electron'), args: ['.', `--user-data-dir=${settingsDir}`], cwd: repoRoot, env: { ...process.env, NOMI_SETTINGS_DIR: settingsDir, NOMI_PROJECTS_DIR: projectsDir, NOMI_E2E: '1' } })
-const win = await app.firstWindow(); await win.waitForLoadState('domcontentloaded'); await win.waitForTimeout(1500)
+const { app, win } = await launchNomiApp({ name: 'new-models-20260729', userDataDir: settingsDir, settingsDir, projectsDir })
 await win.evaluate(() => { for (const k of ['nomi:splash:v1','nomi:journey-tour:v1','nomi:canvas-gesture-hint:v1']) window.localStorage.setItem(k,'seen') })
 await win.reload(); await win.waitForTimeout(1500)
 for (let i=0;i<6;i++){ const s=win.locator('button,[role="button"],a',{hasText:/跳过|开始创作|进入|完成/}).first(); if(await s.count()) await s.click({timeout:1200}).catch(()=>{}); await win.keyboard.press('Escape').catch(()=>{}); await win.waitForTimeout(300) }

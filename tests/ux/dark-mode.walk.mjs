@@ -1,13 +1,11 @@
 // 暗黑模式 R13 走查 —— Playwright _electron 驱动真 app（隔离 userData 绕开打包版单实例锁）。
 // 用法: NOMI_UI_USER_DATA=/tmp/nomi-dark node tests/ux/dark-mode.walk.mjs
 // 产出: tests/ux/shots/dark/*.png —— light/dark 两版对照，人眼判断有无塌陷/低对比/残留亮块。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/dark')
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -43,15 +41,7 @@ async function clickByText(win, sel, text) {
   return false
 }
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${userData}`],
-  cwd: repoRoot,
-  env: { ...process.env },
-})
-const win = await app.firstWindow()
-await win.waitForLoadState('domcontentloaded')
-await win.waitForTimeout(1500)
+const { app, win } = await launchNomiApp({ name: 'dark-mode', userDataDir: userData })
 
 console.log('— LIGHT baseline —')
 await setScheme(win, 'light')

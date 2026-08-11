@@ -2,13 +2,11 @@
 // 真实 app：开示例项目 → 生成画布 → 加视频节点 → 选 Seedance 2.0 →
 // 断言「生成方式」分段条出现（单图首帧 / 首尾帧）→ 点「首尾帧」→ 断言尾帧参考槽出现 +
 // node.meta.archetype.modeId=firstlast。每步截图。
-import { _electron as electron } from "playwright";
+import { launchNomiApp } from "./_launchApp.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
 
-const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const shotsDir = path.join(repoRoot, "tests/ux/shots");
 fs.mkdirSync(shotsDir, { recursive: true });
@@ -20,10 +18,7 @@ function assert(cond, label) {
   console.log(`  ✓ ${label}`);
 }
 
-const app = await electron.launch({ executablePath: require("electron"), args: ["."], cwd: repoRoot, env: { ...process.env } });
-const win = await app.firstWindow();
-await win.waitForLoadState("domcontentloaded");
-await win.waitForTimeout(1500);
+const { app, win } = await launchNomiApp({ name: "archetype-modebar" });
 
 async function shot(tag) { await win.screenshot({ path: path.join(shotsDir, `modebar-${tag}.png`) }); }
 

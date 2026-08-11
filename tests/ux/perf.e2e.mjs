@@ -8,14 +8,9 @@
 // 用法（先 pnpm run build；fixture 先 node tests/ux/fixtures/gen-perf-fixture.mjs）：
 //   node tests/ux/perf.e2e.mjs <label>     label 默认 "run"，结果写 tests/ux/perf-results/<label>.json
 // before/after：改前 `node tests/ux/perf.e2e.mjs baseline`，改后 `... after-A`，diff 两个 JSON。
-import { _electron as electron } from "playwright";
+import { launchNomiApp, repoRoot } from "./_launchApp.mjs";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const label = process.argv[2] || "run";
 const outDir = path.join(repoRoot, "tests/ux/perf-results");
 fs.mkdirSync(outDir, { recursive: true });
@@ -42,9 +37,8 @@ const PROBE = `(() => {
 // 隔离启动（多会话/多 worktree 并存时避免抢默认 userData 单实例锁）：设 NOMI_PERF_USER_DATA
 // + NOMI_PROJECTS_DIR(env 透传)即用独立实例 + 独立项目库。不设则用默认(单会话便利)。
 const isoUserData = process.env.NOMI_PERF_USER_DATA;
-const launchArgs = isoUserData ? [".", `--user-data-dir=${isoUserData}`] : ["."];
-const app = await electron.launch({ executablePath: require("electron"), args: launchArgs, cwd: repoRoot, env: { ...process.env } });
-let win = await app.firstWindow();
+const { app, win: _win } = await launchNomiApp({ name: "perf", ...(isoUserData ? { userDataDir: isoUserData } : {}), settleMs: 0 });
+let win = _win;
 const live = () => app.windows().filter((w) => !w.isClosed());
 const getWin = () => (win && !win.isClosed() ? win : (win = live().find((w) => /studio|library|#\//.test(w.url())) || live().slice(-1)[0] || win));
 

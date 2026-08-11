@@ -6,14 +6,12 @@
 // DEV 模式：起 vite(127.0.0.1:5273) → electron 连 dev（真 import /src 才能注入 store 造图片节点，
 //   绕开「普通图片节点只能生成不能上传」）。
 // 用法: REPLICATE_API_TOKEN=r8_... node tests/ux/decompose-ui.walk.mjs
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import http from 'node:http'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = process.cwd()
 const TOKEN = process.env.REPLICATE_API_TOKEN || ''
 const FIXTURE = path.join(repoRoot, '.tmp', 'decompose-fixture.jpg')
@@ -46,14 +44,14 @@ const vite = spawn('node', ['node_modules/vite/bin/vite.js', '--host', '127.0.0.
 await waitForUrl('http://127.0.0.1:5273', 60000).catch((e) => console.error('vite 启动失败', e))
 
 const consoleErrors = []
-// NOMI_E2E=1：关 COOP/COEP 跨源隔离，否则卡死 Playwright CDP 握手 → launch timeout。
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${userData}`],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_DESKTOP_DEV: '1', VITE_DEV_SERVER_URL: 'http://127.0.0.1:5273', NOMI_PROJECTS_DIR: projectsDir, NOMI_E2E: '1' },
+const { app, win: _initialWin } = await launchNomiApp({
+  name: 'decompose-ui',
+  userDataDir: userData,
+  projectsDir,
+  settleMs: 0,
+  env: { NOMI_DESKTOP_DEV: '1', VITE_DEV_SERVER_URL: 'http://127.0.0.1:5273' },
 })
-let win = await app.firstWindow()
+let win = _initialWin
 const getWin = () => {
   const live = app.windows().filter((w) => { try { return !w.isClosed() && !w.url().startsWith('devtools://') } catch { return false } })
   win = live.find((w) => { try { return /projectId=/.test(w.url()) } catch { return false } }) || live[live.length - 1] || win

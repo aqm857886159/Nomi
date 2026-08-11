@@ -1,12 +1,10 @@
 // 暗色设计审计：每个界面双主题截图，喂设计/用户 Agent 逐张人眼审。
 // 用法: NOMI_AUDIT_THEME=dark node tests/ux/dark-audit.walk.mjs  (再跑 light)
 // 产出: tests/ux/shots/audit-<theme>/*.png
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = process.cwd()
 const THEME = process.env.NOMI_AUDIT_THEME === 'light' ? 'light' : 'dark'
 const shots = path.join(repoRoot, 'tests/ux/shots', `audit-${THEME}`)
@@ -34,9 +32,7 @@ async function dismissTour(win) {
   }
 }
 
-const app = await electron.launch({ executablePath: require('electron'), args: ['.', `--user-data-dir=${userData}`], cwd: repoRoot, env: { ...process.env } })
-const win = await app.firstWindow()
-await win.waitForLoadState('domcontentloaded'); await win.waitForTimeout(1500)
+const { app, win } = await launchNomiApp({ name: 'dark-audit', userDataDir: userData })
 await win.evaluate((t) => { localStorage.setItem('nomi-color-scheme', t); for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(k, 'seen') }, THEME)
 await win.reload(); await win.waitForTimeout(1500)
 

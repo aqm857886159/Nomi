@@ -6,13 +6,11 @@
 //   ① 设置面板 → 真开关 → 主进程真 globalShortcut.register，用 electron.evaluate 读主进程状态对账；
 //   ② 抓屏落地链路 → 直接调主进程的 captureScreenToCanvas（热键回调调的就是它），验「抓到 → 选区面板 → 落节点」。
 // 热键那一下真按下去的手感，留给用户在真机上试——这里不假装验过。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/screenshot-hotkey')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -33,14 +31,13 @@ async function snap(win, name, clip) {
   console.log(`  · shot ${String(n).padStart(2, '0')}-${name}`)
 }
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${userData}`, '--no-proxy-server'],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_E2E: '1', NOMI_E2E_ALLOW_MULTI_INSTANCE: '1', NOMI_SETTINGS_DIR: userData },
+const { app, win } = await launchNomiApp({
+  name: 'screenshot-hotkey',
+  userDataDir: userData,
+  settingsDir: userData,
+  args: ['--no-proxy-server'],
+  settleMs: 0,
 })
-const win = await app.firstWindow()
-await win.waitForLoadState('domcontentloaded')
 await win.evaluate(() => {
   window.localStorage.setItem('__nomiE2E', '1')
   for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) {

@@ -10,13 +10,8 @@
 // 额度闸：不显式 APIMART_E2E=1 / APIMART_API_KEY 就 SKIP。
 // 用法：pnpm run build && APIMART_E2E=1 node tests/ux/apimart-params.e2e.mjs
 //   可选 ONLY=sora-pro,veo-frame,... 只跑指定用例省额度。全 720p / 最短时长 / 无音频省额度。
-import { _electron as electron } from "playwright";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
+import { launchNomiApp } from "./_launchApp.mjs";
 
-const require = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 if (!process.env.APIMART_E2E && !process.env.APIMART_API_KEY) {
   console.log("SKIP apimart-params.e2e: 会花额度。APIMART_E2E=1 node tests/ux/apimart-params.e2e.mjs 才跑（用 app 已配 apimart key）。");
@@ -72,13 +67,10 @@ const CASES = [
 
 const cases = ONLY.length ? CASES.filter((c) => ONLY.includes(c.id)) : CASES;
 
-const app = await electron.launch({ executablePath: require("electron"), args: ["."], cwd: repoRoot, env: { ...process.env } });
+const { app, win } = await launchNomiApp({ name: "apimart-params" });
 const results = [];
 
 try {
-  const win = await app.firstWindow();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(1500);
 
   // key：env 覆盖否则用已存的（自解密）。未配 → SKIP。
   if (ENV_KEY) {

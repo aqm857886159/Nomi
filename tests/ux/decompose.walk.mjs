@@ -4,13 +4,11 @@
 //   ④ 抓一张层确认是合法 RGBA PNG（拆解真出图，非空壳）
 // **会花真实额度**（约 $0.05/次）。key：REPLICATE_API_TOKEN 必填，否则 SKIP。
 // 用法：pnpm run build && REPLICATE_API_TOKEN=r8_... node tests/ux/decompose.walk.mjs
-import { _electron as electron } from "playwright";
+import { launchNomiApp } from "./_launchApp.mjs";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
 
-const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const TOKEN = process.env.REPLICATE_API_TOKEN || "";
 const IMG = process.env.DECOMPOSE_IMG || "https://picsum.photos/seed/nomi-decompose/896/1200";
@@ -25,12 +23,9 @@ fs.mkdirSync(SHOT_DIR, { recursive: true });
 const userData = process.env.NOMI_UI_USER_DATA || path.join(repoRoot, ".tmp", "nomi-decompose-userdata");
 fs.mkdirSync(userData, { recursive: true });
 
-const app = await electron.launch({ executablePath: require("electron"), args: [".", `--user-data-dir=${userData}`], cwd: repoRoot, env: { ...process.env } });
+const { win, close } = await launchNomiApp({ name: "decompose", userDataDir: userData });
 let ok = true;
 try {
-  const win = await app.firstWindow();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(1500);
 
   // ① 注入 Replicate key（= 接入页填 key 的同一条 upsert 链路）
   await win.evaluate((key) => window.nomiDesktop.modelCatalog.upsertVendorApiKey("replicate", { apiKey: key, enabled: true }), TOKEN);
@@ -82,7 +77,7 @@ try {
   ok = false;
   console.log(`✗ 走查异常：${err?.message || err}`);
 } finally {
-  await app.close().catch(() => undefined);
+  await close();
 }
 console.log(`\n═══ decompose 真机走查：${ok ? "通过" : "未通过"} ═══`);
 process.exit(ok ? 0 : 1);

@@ -2,12 +2,10 @@
 // 用法: node tests/ux/dark-journey.walk.mjs
 // 产出: tests/ux/shots/dark-journey/*.png + stdout 每步诊断。
 // 隔离 userData 绕开打包版单实例锁；强制 dark + 压 splash/tour。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = process.cwd()
 const shots = path.join(repoRoot, 'tests/ux/shots/dark-journey')
 fs.mkdirSync(shots, { recursive: true })
@@ -49,10 +47,7 @@ async function dismissTour(win) {
   }
 }
 
-const app = await electron.launch({ executablePath: require('electron'), args: ['.', `--user-data-dir=${userData}`], cwd: repoRoot, env: { ...process.env } })
-const win = await app.firstWindow()
-await win.waitForLoadState('domcontentloaded')
-await win.waitForTimeout(1500)
+const { app, win } = await launchNomiApp({ name: 'dark-journey', userDataDir: userData })
 await win.evaluate(() => {
   localStorage.setItem('nomi-color-scheme', 'dark')
   for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(k, 'seen')

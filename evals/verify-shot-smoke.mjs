@@ -5,10 +5,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 function loadCatalog() {
@@ -57,11 +55,14 @@ async function main() {
   const cfg = pickVision(loadCatalog())
   if (!cfg) { console.log('❌ 无 enabled 视觉模型(带 key)→ verify 本机降级仅结构校验'); return null }
   console.log('视觉模型:', cfg.modelKey, '@', cfg.root)
-  const app = await electron.launch({
-    executablePath: require('electron'),
-    args: ['.', '--disable-gpu', '--disable-software-rasterizer', '--disable-dev-shm-usage'],
-    cwd: repoRoot,
-    env: { ...process.env, NOMI_SMOKE_NO_WINDOW: '1' },
+  // 不开窗（verify 只要主进程 safeStorage 解密 + fetch）→ waitForWindow:false，否则白等到超时。
+  // isolate:false：key 是 safeStorage 加密、绑 app 身份，换隔离 userData 就解不开了。
+  const { app } = await launchNomiApp({
+    name: 'verify-shot-smoke',
+    args: ['--disable-gpu', '--disable-software-rasterizer', '--disable-dev-shm-usage'],
+    env: { NOMI_SMOKE_NO_WINDOW: '1' },
+    isolate: false,
+    waitForWindow: false,
   })
   try {
     // 不开窗:直接在主进程 evaluate 解密 + 抓图 + 调模型。

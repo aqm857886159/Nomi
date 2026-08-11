@@ -7,16 +7,14 @@
 //   ③ 放大只剩一个入口，且点得开
 //   ④ 双击画面 = 放大（新增手势）
 // 断言用几何/属性，不靠人眼——「按钮压在图上」这件事恰恰是几何问题。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { createRequire } from 'node:module'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-04-node-after')
 fs.mkdirSync(outDir, { recursive: true })
 
@@ -32,21 +30,14 @@ if (spawnSync(ffmpegPath, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0x
   throw new Error('夹具编码失败')
 }
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${settingsDir}`, '--no-proxy-server'],
-  cwd: repoRoot,
-  env: {
-    ...process.env,
-    NOMI_E2E: '1',
-    NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
-    NOMI_ELECTRON_USER_DATA_DIR: settingsDir,
-    NOMI_SETTINGS_DIR: settingsDir,
-    NOMI_PROJECTS_DIR: projectsDir,
-  },
+let { app, win } = await launchNomiApp({
+  name: 'node-actions-off-image',
+  userDataDir: settingsDir,
+  settingsDir,
+  projectsDir,
+  args: ['--no-proxy-server'],
+  settleMs: 0,
 })
-
-let win = await app.firstWindow()
 const getWin = () => {
   const live = app.windows().filter((w) => !w.isClosed())
   win = live.find((w) => { try { return /projectId=/.test(w.url()) } catch { return false } }) || live[live.length - 1] || win

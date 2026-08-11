@@ -1,12 +1,10 @@
 // 创作区双工作面回归：原稿与分镜方案不是互相覆盖，用户可见入口必须能往返，重载后两份数据仍在。
-import { _electron as electron } from 'playwright'
-import { createRequire } from 'node:module'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-creation-surfaces-'))
 const settingsDir = path.join(root, 'settings')
@@ -49,11 +47,12 @@ const project = {
 fs.writeFileSync(path.join(projectRoot, 'project.json'), JSON.stringify(project, null, 2))
 fs.writeFileSync(path.join(projectRoot, '.nomi', 'project.json'), JSON.stringify(project, null, 2))
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${settingsDir}`],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_SETTINGS_DIR: settingsDir, NOMI_PROJECTS_DIR: projectsDir, NOMI_E2E: '1' },
+const { app, win: _launchedWin } = await launchNomiApp({
+  name: 'creation-work-surfaces',
+  userDataDir: settingsDir,
+  settingsDir,
+  projectsDir,
+  settleMs: 1200,
 })
 
 async function closeApp() {
@@ -91,9 +90,7 @@ async function openFixtureCreationSurface(win) {
 }
 
 try {
-  const win = await app.firstWindow()
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForTimeout(1200)
+  const win = _launchedWin
   await win.evaluate(() => {
     for (const key of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(key, 'seen')
   })

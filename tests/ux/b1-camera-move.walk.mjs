@@ -7,13 +7,11 @@
 //   ③ 改运镜/速度 → 读出与芯片实时更新
 //   ④ 点「应用」→ 画布出现「运镜参考」scene3d 节点、无 console error
 //   ⑤ 选中图片节点 → composer 无「运镜」芯片（video-only 门）
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/b1-camera-move')
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -69,17 +67,14 @@ const snap = async (win, name) => {
 }
 
 const consoleErrors = []
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${settingsDir}`],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_SETTINGS_DIR: settingsDir, NOMI_PROJECTS_DIR: projectsDir, NOMI_E2E: '1' },
+const { app, win } = await launchNomiApp({
+  name: 'b1-camera-move',
+  userDataDir: settingsDir,
+  settingsDir,
+  projectsDir,
 })
-const win = await app.firstWindow()
 win.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()) })
 win.on('pageerror', (e) => consoleErrors.push('pageerror: ' + e.message))
-await win.waitForLoadState('domcontentloaded')
-await win.waitForTimeout(1500)
 await win.evaluate(() => {
   for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) window.localStorage.setItem(k, 'seen')
   window.localStorage.setItem('__nomiE2E', '1')

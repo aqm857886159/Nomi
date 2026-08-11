@@ -5,15 +5,12 @@
 //   ③ 剪辑/预览页整屏（左侧素材来源面板 + 播放器 + 控制条 + 时间轴）
 //   ④ 3D 导演台全屏态（顶栏任务页签 + 左栏 + 右栏 + 底栏）
 // 用法: pnpm run build && node tests/ux/ia-audit-shots.walk.mjs
-import { _electron as electron } from 'playwright'
-import { createRequire } from 'node:module'
+import { launchNomiApp } from './_launchApp.mjs'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-02-real-ui')
 fs.mkdirSync(outDir, { recursive: true })
@@ -114,21 +111,16 @@ seedProject({
   nodes: [mkNode('s-still', 'still.png', `nomi-local://asset/${encodeURIComponent(SECOND_ID)}/assets/imported/still.png`, 'image', 160, 160)],
 })
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${settingsDir}`, '--no-proxy-server'],
-  cwd: repoRoot,
-  env: {
-    ...process.env,
-    NOMI_E2E: '1',
-    NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
-    NOMI_ELECTRON_USER_DATA_DIR: settingsDir,
-    NOMI_SETTINGS_DIR: settingsDir,
-    NOMI_PROJECTS_DIR: projectsDir,
-  },
+const { app, win: _initialWin } = await launchNomiApp({
+  name: 'ia-audit-shots',
+  userDataDir: settingsDir,
+  settingsDir,
+  projectsDir,
+  args: ['--no-proxy-server'],
+  settleMs: 0,
 })
 
-let win = await app.firstWindow()
+let win = _initialWin
 const getWin = () => {
   const live = app.windows().filter((w) => !w.isClosed())
   win = live.find((w) => { try { return /projectId=/.test(w.url()) } catch { return false } }) || live[live.length - 1] || win

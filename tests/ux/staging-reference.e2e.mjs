@@ -4,13 +4,8 @@
 // 纯文本额度（不触发任何图像/视频生成；站位出图是本地离屏、零 API）。
 // 额度闸：不显式 APIMART_E2E=1 / APIMART_API_KEY 就 SKIP。
 // 用法：pnpm run build && APIMART_E2E=1 node tests/ux/staging-reference.e2e.mjs
-import { _electron as electron } from "playwright";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
+import { launchNomiApp } from "./_launchApp.mjs";
 
-const require = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 if (!process.env.APIMART_E2E && !process.env.APIMART_API_KEY) {
   console.log("SKIP staging-reference.e2e: 会花文本额度。APIMART_E2E=1 node tests/ux/staging-reference.e2e.mjs 才跑。");
@@ -22,13 +17,9 @@ const ENV_KEY = process.env.APIMART_API_KEY;
 const PROMPT =
   "帮我把这个镜头落到画布上：男主角单膝跪地向女主角求婚，女主角站在他正前方，用低机位仰拍的中景。请用合适的工具，把这两个人的站位、动作和机位锁定好，别让生成时人物关系跑偏。";
 
-const app = await electron.launch({ executablePath: require("electron"), args: ["."], cwd: repoRoot, env: { ...process.env } });
+const { app, win } = await launchNomiApp({ name: "staging-reference" });
 
 try {
-  const win = await app.firstWindow();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(1500);
-
   if (ENV_KEY) {
     await win.evaluate((key) => window.nomiDesktop.modelCatalog.upsertVendorApiKey("apimart", { apiKey: key, enabled: true }), ENV_KEY);
   } else {

@@ -2,13 +2,7 @@
 // 验证：app 启动后，被搬走的 export / onboarding / catalog IPC handler 仍注册、
 // 仍路由到新模块（exportJobs / exportJobIpc / onboardingIpc / catalogStore /
 // catalogCommit）。只验「接线通」——深层逻辑由 792 个单测覆盖；不发真实网络、不写真目录。
-import { _electron as electron } from "playwright";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+import { launchNomiApp } from "./_launchApp.mjs";
 
 let passed = 0;
 function assert(cond, label) {
@@ -17,17 +11,9 @@ function assert(cond, label) {
   console.log(`  ✓ ${label}`);
 }
 
-const app = await electron.launch({
-  executablePath: require("electron"),
-  args: ["."],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_E2E_SMOKE: "1" },
-});
+const { app, win } = await launchNomiApp({ name: "ipc-split-smoke", env: { NOMI_E2E_SMOKE: "1" } });
 
 try {
-  const win = await app.firstWindow();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(1500);
 
   const r = await win.evaluate(async () => {
     const d = window.nomiDesktop;

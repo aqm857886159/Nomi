@@ -4,17 +4,15 @@
 // GUI，经 RPC 转发）：stdio 发 nomi_add_nodes(3 节点) → 主进程经 hybrid 网关 requestRenderer('plan.confirm')
 // → GUI 弹方案卡 → 截图人眼看 → 点「落到画布」→ stdio 拿到 ids。全程**不花额度**（只建节点，不生成）。
 // 用法：pnpm run build && node tests/ux/plan-gate.walk.mjs
-import { _electron as electron } from 'playwright'
+import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { createRequire } from 'node:module'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import readline from 'node:readline'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/plan-gate')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -41,11 +39,14 @@ let passed = 0
 const ok = (c, l) => { if (!c) throw new Error(`FAIL: ${l}`); passed += 1; console.log(`  ✓ ${l}`) }
 
 // ── 起 GUI app（真窗口，写 instance 广告供 stdio 探测）───────────────────
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${settingsDir}`, '--disable-gpu', '--disable-software-rasterizer'],
-  cwd: repoRoot,
-  env: { ...process.env, ...sharedEnv },
+const { app } = await launchNomiApp({
+  name: 'plan-gate',
+  userDataDir: settingsDir,
+  settingsDir,
+  projectsDir,
+  env: { NOMI_CAPABILITY_DIR: capDir },
+  args: ['--disable-gpu', '--disable-software-rasterizer'],
+  settleMs: 0,
 })
 
 // ── stdio MCP 子进程（外部 agent 真路径；同 capDir → 转发到运行中的 GUI）─────
@@ -69,7 +70,7 @@ async function callTool(name, args, timeoutMs = 30000) {
 
 let exitCode = 0
 try {
-  const win = await app.firstWindow()
+  const win = app.windows().filter((w) => !w.isClosed()).slice(-1)[0]
   win.on('pageerror', (e) => console.log('  [pageerror]', e.message.slice(0, 160)))
   await win.waitForLoadState('domcontentloaded')
   await sleep(1500)

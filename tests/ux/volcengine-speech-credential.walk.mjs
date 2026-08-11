@@ -1,13 +1,11 @@
 // 火山豆包语音「两字段凭证」R13 走查 —— 验 App ID / Access Token 拆成两个独立框（2026-06-25）。
 // 用法: node tests/ux/volcengine-speech-credential.walk.mjs
 // 产出: tests/ux/shots/volc-speech/*.png —— 人眼判断两个标注框 + 各自说明 + 解锁按钮 + 暗色。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/volc-speech')
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -47,15 +45,7 @@ async function openVolcCard(win) {
   return true
 }
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${userData}`],
-  cwd: repoRoot,
-  env: { ...process.env },
-})
-const win = await app.firstWindow()
-await win.waitForLoadState('domcontentloaded')
-await win.waitForTimeout(1500)
+const { app, win } = await launchNomiApp({ name: 'volcengine-speech-credential', userDataDir: userData })
 
 await win.evaluate(() => {
   for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) {

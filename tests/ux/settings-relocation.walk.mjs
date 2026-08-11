@@ -7,14 +7,12 @@
 //   ② 设置「通用」页签里有语言分段控件（zh-CN / en 两颗，当前档 aria-pressed=true）
 //   ③ 设置「通用」页签里有外观切换
 //   ④ 设置「关于」页签里有版本号 / 上手手册 / 重看开屏 / 检查更新
-import { _electron as electron } from 'playwright'
-import { createRequire } from 'node:module'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-04-settings-after')
 fs.mkdirSync(outDir, { recursive: true })
@@ -25,21 +23,16 @@ const projectsDir = path.join(root, 'projects')
 fs.mkdirSync(settingsDir, { recursive: true })
 fs.mkdirSync(projectsDir, { recursive: true })
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${settingsDir}`, '--no-proxy-server'],
-  cwd: repoRoot,
-  env: {
-    ...process.env,
-    NOMI_E2E: '1',
-    NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
-    NOMI_ELECTRON_USER_DATA_DIR: settingsDir,
-    NOMI_SETTINGS_DIR: settingsDir,
-    NOMI_PROJECTS_DIR: projectsDir,
-  },
+const { app, win: _win } = await launchNomiApp({
+  name: 'settings-relocation',
+  userDataDir: settingsDir,
+  settingsDir: settingsDir,
+  projectsDir: projectsDir,
+  args: ['--no-proxy-server'],
+  settleMs: 0,
 })
 
-let win = await app.firstWindow()
+let win = _win
 const getWin = () => {
   const live = app.windows().filter((w) => !w.isClosed())
   win = live[live.length - 1] || win

@@ -9,16 +9,14 @@
 //   J3 失败态：指向真实中转 + 假 key → 期望失败指路 + 协议覆盖区自动展开（逃生口）。
 //
 // 用法：pnpm run build && node tests/ux/wire-protocol-walkthrough.mjs
-import { _electron as electron } from "playwright";
+import { launchNomiApp } from "./_launchApp.mjs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
+import fs from "node:fs";
 
-const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const shotDir = path.join(repoRoot, "tests/ux/__shots__");
-import fs from "node:fs";
 fs.mkdirSync(shotDir, { recursive: true });
 
 // ---- 本地 mock 中转：按 behavior 决定 /chat/completions 与 /responses 各自行为 ----
@@ -61,10 +59,7 @@ console.log(`mock responses-only → http://127.0.0.1:${mockResp.port}/v1`);
 console.log(`mock openai-compat  → http://127.0.0.1:${mockChat.port}/v1`);
 console.log(`mock auth-fail      → http://127.0.0.1:${mockFail.port}/v1`);
 
-const app = await electron.launch({ executablePath: require("electron"), args: ["."], cwd: repoRoot, env: { ...process.env } });
-const win = await app.firstWindow();
-await win.waitForLoadState("domcontentloaded");
-await win.waitForTimeout(1800);
+const { app, win } = await launchNomiApp({ name: "wire-protocol-walkthrough", settleMs: 1800 });
 
 async function enterStudioOnce() {
   // app 开在项目库首页：用户点一个项目进 studio（模型设置浮层只在 studio 内）。

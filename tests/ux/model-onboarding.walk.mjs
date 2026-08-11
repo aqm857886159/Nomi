@@ -1,13 +1,10 @@
 // 模型接入面板 R13 走查 —— 已接入/可接入分层 + 方案2分组折叠 + 自适应默认（2026-06-25）。
 // 用法: node tests/ux/model-onboarding.walk.mjs
 // 产出: tests/ux/shots/onboarding/*.png —— 人眼判断分层/折叠/自适应默认/连通后浮顶。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
-
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/onboarding')
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -30,15 +27,10 @@ async function openPanel(win) {
   return (await win.locator('text=模型设置').count()) > 0
 }
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${userData}`],
-  cwd: repoRoot,
-  env: { ...process.env },
+const { app, win } = await launchNomiApp({
+  name: 'model-onboarding',
+  userDataDir: userData,
 })
-const win = await app.firstWindow()
-await win.waitForLoadState('domcontentloaded')
-await win.waitForTimeout(1500)
 
 // 清场：跳过 splash + 引导旅途。
 await win.evaluate(() => {

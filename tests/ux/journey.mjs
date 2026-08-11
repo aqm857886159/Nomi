@@ -1,12 +1,9 @@
 // 真·用户旅程穿透走查（规则 13）—— 我以真实用户视角把核心创作流程点一遍，每步截图（全窗 + 节点特写），
 // 零额度（不真生成、不导出）。产出 tests/ux/shots/journey-*.png 供多模态体感判断。
-import { _electron as electron } from "playwright";
+import { launchNomiApp } from "./_launchApp.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const shotsDir = path.join(repoRoot, "tests/ux/shots");
 fs.mkdirSync(shotsDir, { recursive: true });
@@ -23,10 +20,7 @@ async function snap(win, name, { composer = false } = {}) {
   console.log(`  · ${tag}`);
 }
 
-const app = await electron.launch({ executablePath: require("electron"), args: ["."], cwd: repoRoot, env: { ...process.env } });
-const win = await app.firstWindow();
-await win.waitForLoadState("domcontentloaded");
-await win.waitForTimeout(1500);
+const { app, win } = await launchNomiApp({ name: "journey" });
 
 try {
   // 1) 第一印象：项目库

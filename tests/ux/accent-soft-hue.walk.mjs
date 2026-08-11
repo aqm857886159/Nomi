@@ -7,13 +7,11 @@
 // 用法: NOMI_E2E=1 node tests/ux/accent-soft-hue.walk.mjs
 // 产出: tests/ux/shots/accent-soft/*.png + 控制台打印每个模式下 token 的真实解析值与消费点数量。
 //       截图必须人眼 Read 确认（R13 眼见链），控制台数字只是佐证。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/accent-soft')
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -108,15 +106,12 @@ async function clickByText(win, sel, text) {
   return false
 }
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${userData}`, '--no-proxy-server'],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_E2E: '1' },
+const { app, win } = await launchNomiApp({
+  name: 'accent-soft-hue',
+  userDataDir: userData,
+  args: ['--no-proxy-server'],
+  settleMs: 1800,
 })
-const win = await app.firstWindow()
-await win.waitForLoadState('domcontentloaded')
-await win.waitForTimeout(1800)
 
 for (let i = 0; i < 8; i++) {
   const skip = win.locator('button, [role="button"], a', { hasText: /跳过|开始创作|进入|完成/ }).first()

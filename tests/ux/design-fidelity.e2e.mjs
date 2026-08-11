@@ -6,16 +6,7 @@
 // 规范:docs/design/2026-06-06-reference-v4-implementation-spec.md。改任何参考区设计后必须跑这条绿。
 //
 // 用法:pnpm run build && node tests/ux/design-fidelity.e2e.mjs
-import { _electron as electron } from "playwright";
-import path from "node:path";
-import os from "node:os";
-import { mkdtempSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
-import { isolatedElectronLaunchOptions } from "./helpers/electronFixture.mjs";
-
-const require = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+import { launchNomiApp } from "./_launchApp.mjs";
 
 let passed = 0;
 const fails = [];
@@ -25,11 +16,7 @@ function assert(cond, label, detail) {
 }
 const px = (v) => `${Math.round(parseFloat(v))}px`;
 
-const launch = isolatedElectronLaunchOptions(repoRoot, mkdtempSync(path.join(os.tmpdir(), "nomi-design-fidelity-")));
-const app = await electron.launch({ executablePath: require("electron"), args: launch.args, cwd: launch.cwd, env: launch.env });
-const win = await app.firstWindow();
-await win.waitForLoadState("domcontentloaded");
-await win.waitForTimeout(1500);
+const { app, win } = await launchNomiApp({ name: "design-fidelity" });
 
 // 首启开屏(SplashIntro)会全屏覆盖挡住库页 → 标记已看过并 reload，让后续库页断言可见。
 await win.evaluate(() => window.localStorage.setItem("nomi:splash:v1", "seen"));
@@ -451,5 +438,5 @@ try {
   console.error(`\nERROR: ${error?.message || error}`);
   process.exitCode = 1;
 } finally {
-  await app.close().catch(() => {});
+  await app.close().catch(() => undefined);
 }

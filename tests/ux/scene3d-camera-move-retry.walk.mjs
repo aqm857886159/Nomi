@@ -4,14 +4,12 @@
 // 这条比「注入上下文丢失」更硬地证明了重试逻辑会重来出片（上下文丢失的时序不可靠时的兜底证明）。
 // 零额度：纯本地渲染 + ffmpeg。生产从不置该标志 → coerceOutcomeForE2E 恒 no-op。
 // 用法：pnpm run build && node tests/ux/scene3d-camera-move-retry.walk.mjs
-import { _electron as electron } from 'playwright'
-import { createRequire } from 'node:module'
+import { launchNomiApp } from './_launchApp.mjs'
 import path from 'node:path'
 import os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { mkdtempSync, mkdirSync, readdirSync, statSync, copyFileSync } from 'node:fs'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, '.camera-move-explore')
 mkdirSync(outDir, { recursive: true })
@@ -33,11 +31,12 @@ function findMp4s(dir) {
   return out
 }
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${path.join(tmp, 'udata')}`],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_E2E: '1', NOMI_E2E_SMOKE: '1', NOMI_PROJECTS_DIR: projectsDir },
+const { app, win } = await launchNomiApp({
+  name: 'scene3d-camera-move-retry',
+  userDataDir: path.join(tmp, 'udata'),
+  projectsDir,
+  env: { NOMI_E2E_SMOKE: '1' },
+  settleMs: 0,
 })
 
 const log = (m) => console.log(m)
@@ -45,10 +44,8 @@ const errors = []
 const pass = { editorOpen: false, recStarted: false, mp4Made: false }
 
 try {
-  const win = await app.firstWindow()
   win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
   win.on('pageerror', (e) => errors.push(String(e)))
-  await win.waitForLoadState('domcontentloaded')
   // 尽早置故障注入标志：强制第 1 次离屏捕获尝试失败。
   await win.evaluate(() => { try { window.localStorage.setItem('__nomiForceCameraMoveFail', '1') } catch {} })
   await win.waitForTimeout(1800)

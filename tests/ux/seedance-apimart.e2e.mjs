@@ -7,13 +7,8 @@
 // 无需明文）；若设了 APIMART_API_KEY 则覆盖写入。apimart 未配 key → SKIP（不失败）。
 // 用法：pnpm run build && node tests/ux/seedance-apimart.e2e.mjs
 //   可选 APIMART_API_KEY=xxx（覆盖）/ SEEDANCE_FF=<首帧URL> / SEEDANCE_LF=<尾帧URL>。720p + 无音频省额度。
-import { _electron as electron } from "playwright";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
+import { launchNomiApp } from "./_launchApp.mjs";
 
-const require = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 // 额度安全闸（opt-in）：默认跳过，防跑 e2e 套件时误烧额度。显式 APIMART_E2E=1（用 app 已配的 key）
 // 或设 APIMART_API_KEY=xxx 才真跑。对齐 seedance.e2e 的「不显式就不花钱」。
@@ -32,17 +27,9 @@ function assert(cond, label) {
   console.log(`  ✓ ${label}`);
 }
 
-const app = await electron.launch({
-  executablePath: require("electron"),
-  args: ["."],
-  cwd: repoRoot,
-  env: { ...process.env },
-});
+const { app, win } = await launchNomiApp({ name: "seedance-apimart" });
 
 try {
-  const win = await app.firstWindow();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(1500);
 
   // 1) apimart Seedance 在目录、带 apimart 档案（M-C seed 生效）。
   //    变体合并（2026-06-16）后：fast/face/fast-face 不再是独立 catalog 行，而是档案 variants

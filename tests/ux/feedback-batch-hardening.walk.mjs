@@ -1,13 +1,11 @@
 // 2026-08-06 feedback batch: real Electron journey for edge semantics, multi-result lifecycle,
 // critical canvas text surfaces in both themes, and corrupt-manifest recovery.
-import { _electron as electron } from 'playwright'
-import { createRequire } from 'node:module'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const outDir = path.join(repoRoot, '.feedback-batch-walk')
 const settingsDir = path.join(os.tmpdir(), 'nomi-feedback-batch-walk-settings')
@@ -19,28 +17,19 @@ const png = Buffer.from(
   '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da62f80f0400009f01012f713ba40000000049454e44ae426082',
   'hex',
 )
-const launch = () => electron.launch({
-  executablePath: require('electron'),
-  args: ['.'],
-  cwd: repoRoot,
-  env: {
-    ...process.env,
-    NOMI_E2E: '1',
-    NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
-    NOMI_RENDERER_URL: `file://${path.join(repoRoot, 'dist', 'index.html')}`,
-    NOMI_SETTINGS_DIR: settingsDir,
-    NOMI_PROJECTS_DIR: projectsDir,
-  },
-})
-const prepareWindow = async (app) => {
-  const win = await app.firstWindow()
-  const browserWindow = await app.browserWindow(win)
+const launch = async () => {
+  const result = await launchNomiApp({
+    name: 'feedback-batch',
+    settingsDir,
+    projectsDir,
+    env: { NOMI_RENDERER_URL: `file://${path.join(repoRoot, 'dist', 'index.html')}` },
+    settleMs: 1600,
+  })
+  const browserWindow = await result.app.browserWindow(result.win)
   await browserWindow.evaluate((window) => window.setBounds({ x: 0, y: 0, width: 1600, height: 1000 })).catch(() => {})
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForTimeout(1600)
-  const skip = win.getByText('跳过', { exact: true }).first()
+  const skip = result.win.getByText('跳过', { exact: true }).first()
   if (await skip.isVisible().catch(() => false)) await skip.click()
-  return win
+  return result
 }
 const shot = async (win, name) => {
   await win.screenshot({ path: path.join(outDir, name) })
@@ -49,8 +38,7 @@ const shot = async (win, name) => {
 
 // First boot creates a real registered workspace; the fixture then only replaces canvas content.
 {
-  const app = await launch()
-  const win = await prepareWindow(app)
+  const { app, win } = await launch()
   await win.getByText('新建空白项目', { exact: false }).first().click()
   await win.waitForTimeout(1700)
   await win.keyboard.press('Escape').catch(() => {})
@@ -98,8 +86,7 @@ fs.writeFileSync(projectFile, `${JSON.stringify(project, null, 2)}\n`)
 
 // Visual and interaction journey.
 {
-  const app = await launch()
-  const win = await prepareWindow(app)
+  const { app, win } = await launch()
   const continueButton = win.getByText('继续创作', { exact: true }).first()
   if (await continueButton.isVisible().catch(() => false)) await continueButton.click()
   await win.waitForTimeout(2200)
@@ -188,8 +175,7 @@ fs.writeFileSync(projectFile, `${JSON.stringify(project, null, 2)}\n`)
 // Corrupt only the primary manifest. The valid backup must keep the library card alive and recover in-app.
 fs.writeFileSync(projectFile, '{bad json')
 {
-  const app = await launch()
-  const win = await prepareWindow(app)
+  const { app, win } = await launch()
   const continueButton = win.getByText('继续创作', { exact: true }).first()
   if (!(await continueButton.isVisible().catch(() => false))) throw new Error('corrupt project disappeared from the library')
   await continueButton.click()

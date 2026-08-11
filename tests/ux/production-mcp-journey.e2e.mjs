@@ -8,7 +8,7 @@ import path from 'node:path'
 import readline from 'node:readline'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -29,6 +29,17 @@ const sharedEnv = {
   NOMI_SETTINGS_DIR: userDataDir,
   NOMI_PROJECTS_DIR: projectsDir,
   NOMI_CAPABILITY_DIR: capabilityDir,
+}
+
+const launchGuiOptions = {
+  name: 'production-mcp-journey',
+  userDataDir,
+  settingsDir: userDataDir,
+  projectsDir,
+  env: {
+    NOMI_E2E_PRODUCTION_FIXTURE: '1',
+    NOMI_CAPABILITY_DIR: capabilityDir,
+  },
 }
 
 let passed = 0
@@ -53,16 +64,8 @@ async function terminateOwnedChild(child, graceMs = 2_000) {
 }
 
 async function launchGui() {
-  const app = await electron.launch({
-    executablePath: require('electron'),
-    args: ['.', `--user-data-dir=${userDataDir}`],
-    cwd: repoRoot,
-    env: sharedEnv,
-  })
-  const window = await app.firstWindow()
-  await window.waitForLoadState('domcontentloaded')
+  const { app, win: window } = await launchNomiApp(launchGuiOptions)
   await window.setViewportSize({ width: 1440, height: 900 })
-  await window.waitForTimeout(1_500)
   return { app, window }
 }
 

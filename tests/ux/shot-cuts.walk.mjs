@@ -3,7 +3,7 @@
 //
 // 用一段**真的有硬切**的视频（现造：4 段不同画面拼接 → 3 个切点），走完整条链：
 // 传视频 → 点「按镜头拆」→ 真 ffmpeg 检测 → 面板出缩略图 → 拖灵敏度看数量变 → 勾选 → 落画布 → 自动成一组。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -51,14 +51,12 @@ await new Promise((resolve, reject) => {
 })
 console.log('  → 夹具视频:', FIXTURE, fs.statSync(FIXTURE).size, 'bytes（预期 3 个切点：2s/4s/6s）')
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${userData}`, '--no-proxy-server'],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_E2E: '1', NOMI_E2E_ALLOW_MULTI_INSTANCE: '1' },
+const { app, win } = await launchNomiApp({
+  name: 'shot-cuts',
+  userDataDir: userData,
+  args: ['--no-proxy-server'],
+  settleMs: 0,
 })
-const win = await app.firstWindow()
-await win.waitForLoadState('domcontentloaded')
 await win.evaluate(() => {
   window.localStorage.setItem('__nomiE2E', '1')
   for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) {

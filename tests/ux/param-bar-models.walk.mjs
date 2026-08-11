@@ -1,14 +1,9 @@
 // R13：验证「主次分层」底栏对其它参数多的模型同样统一生效（seedream 7参数 / wan 含负向提示 / kling）。
 // 用法: node tests/ux/param-bar-models.walk.mjs
 // 隔离真 catalog + 构造含 3 个参数多模型节点的项目,逐个选中量底栏宽度+点「更多」截图。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
-
-const require = createRequire(import.meta.url)
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/parambar-models')
 fs.mkdirSync(shotsDir, { recursive: true })
 
@@ -37,8 +32,7 @@ fs.writeFileSync(path.join(projDir, '.nomi', 'project.json'), JSON.stringify(tmp
 let n = 0
 const snap = async (win, name) => { n += 1; await win.screenshot({ path: path.join(shotsDir, `${String(n).padStart(2,'0')}-${name}.png`) }); console.log(`  · shot ${name}`) }
 
-const app = await electron.launch({ executablePath: require('electron'), args: ['.', `--user-data-dir=${settingsDir}`], cwd: repoRoot, env: { ...process.env, NOMI_SETTINGS_DIR: settingsDir, NOMI_PROJECTS_DIR: projectsDir } })
-const win = await app.firstWindow(); await win.waitForLoadState('domcontentloaded'); await win.waitForTimeout(1500)
+const { app, win } = await launchNomiApp({ name: 'param-bar-models', userDataDir: settingsDir, settingsDir, projectsDir })
 await win.evaluate(() => { for (const k of ['nomi:splash:v1','nomi:journey-tour:v1','nomi:canvas-gesture-hint:v1']) window.localStorage.setItem(k,'seen') })
 await win.reload(); await win.waitForTimeout(1500)
 for (let i=0;i<6;i++){ const s=win.locator('button,[role="button"],a',{hasText:/跳过|开始创作|进入|完成/}).first(); if(await s.count()) await s.click({timeout:1200}).catch(()=>{}); await win.keyboard.press('Escape').catch(()=>{}); await win.waitForTimeout(300) }

@@ -1,12 +1,10 @@
 // R13 走查 —— 自动 API 适配器在现有模型设置卡中的亮/暗模式状态。
 // 用法: NOMI_ADAPTER_UI_USERDATA=/tmp/nomi-provider-adapter-live.xxxxxx node tests/ux/provider-adapter-doctor.walk.mjs
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const userData = process.env.NOMI_ADAPTER_UI_USERDATA
 if (!userData || !fs.existsSync(path.join(userData, 'provider-adapters.json'))) {
@@ -21,16 +19,14 @@ const check = (name, ok, detail = '') => {
   if (!ok) failures.push(name)
 }
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', '--disable-gpu', `--user-data-dir=${userData}`],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_E2E: '1', NOMI_E2E_ALLOW_MULTI_INSTANCE: '1' },
+const { app, win } = await launchNomiApp({
+  name: 'provider-adapter-doctor',
+  userDataDir: userData,
+  args: ['--disable-gpu'],
+  settleMs: 0,
 })
 
 try {
-  const win = await app.firstWindow()
-  await win.waitForLoadState('domcontentloaded')
   await win.evaluate(() => {
     window.localStorage.setItem('__nomiE2E', '1')
     window.localStorage.setItem('nomi-color-scheme', 'light')

@@ -3,16 +3,11 @@
 // 再粘带全角字符的 key 测连接 → 显示人话而非原始 ByteString。
 // 用法: pnpm run build && node tests/ux/onboarding-auto-fetch.walk.mjs
 // 产出: tests/ux/shots/onboarding-auto-fetch/*.png —— 人眼判断。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
-
-const require = createRequire(import.meta.url)
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/onboarding-auto-fetch')
 fs.mkdirSync(shotsDir, { recursive: true })
 
@@ -29,17 +24,13 @@ const check = (name, ok, detail) => { results.push({ name, ok }); console.log(` 
 let n = 0
 const snap = async (win, name) => { n += 1; const tag = `${String(n).padStart(2, '0')}-${name}`; await win.screenshot({ path: path.join(shotsDir, `${tag}.png`) }); console.log(`  · shot ${tag}`) }
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', '--disable-gpu', `--user-data-dir=${userData}`],
-  cwd: repoRoot,
-  env: { ...process.env },
+const { app, win } = await launchNomiApp({
+  name: 'onboarding-auto-fetch',
+  userDataDir: userData,
+  args: ['--disable-gpu'],
 })
 
 try {
-  const win = await app.firstWindow()
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForTimeout(1500)
   await win.evaluate(() => {
     for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) window.localStorage.setItem(k, 'seen')
   })

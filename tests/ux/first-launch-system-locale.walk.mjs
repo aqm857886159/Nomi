@@ -9,11 +9,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { _electron as electron } from 'playwright'
-import { createRequire } from 'node:module'
-import { prepareIsolation, isolatedAppEnv, dismissSplashIfPresent } from '../../evals/lib/isoApp.mjs'
-
-const require = createRequire(import.meta.url)
+import { launchNomiApp } from './_launchApp.mjs'
+import { prepareIsolation, dismissSplashIfPresent } from '../../evals/lib/isoApp.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, '.first-launch-walk')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -28,16 +25,15 @@ const check = (name, ok, detail = '') => {
 // 伪造系统语言启动一个全新隔离实例（无存储偏好）。
 async function launchWithSystemLang(tag, lang) {
   const iso = prepareIsolation(path.join(os.tmpdir(), `nomi-fl-${tag}`), { requireCatalog: false })
-  const app = await electron.launch({
-    executablePath: require('electron'),
-    args: ['.', `--lang=${lang}`, `--user-data-dir=${iso.chromiumDir}`],
-    cwd: repoRoot,
+  const { app, win } = await launchNomiApp({
+    name: `first-launch-system-locale-${tag}`,
+    userDataDir: iso.chromiumDir,
+    settingsDir: iso.settingsDir,
+    projectsDir: iso.projectsDir,
+    args: [`--lang=${lang}`],
     // NOMI_TEST_SYSTEM_LOCALE=1：显式开启系统语言探测（其余走查默认关，保中文选择器确定性）。
-    env: { ...isolatedAppEnv(iso), NOMI_TEST_SYSTEM_LOCALE: '1' },
+    env: { NOMI_TEST_SYSTEM_LOCALE: '1' },
   })
-  const win = await app.firstWindow()
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForTimeout(1500)
   await dismissSplashIfPresent(win)
   return { app, win, iso }
 }

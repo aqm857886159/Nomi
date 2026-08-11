@@ -6,20 +6,18 @@
 //
 // 可选环境变量：NOMI_CANVAS_PERF_RUNS、NOMI_CANVAS_PERF_SCALES、NOMI_CANVAS_PERF_SCENARIOS。
 // 结果写入 tests/ux/perf-results/canvas-<label>.json。零额度、零网络媒体依赖。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 import {
   CANVAS_PERF_SCALES,
   createCanvasPerformanceFixture,
   defaultPerfTempRoot,
 } from './fixtures/canvas-performance-fixture.mjs'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const outputDir = path.join(repoRoot, 'tests/ux/perf-results')
 const args = process.argv.slice(2)
@@ -822,28 +820,22 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
   }
   const startedAt = Date.now()
   try {
-    app = await electron.launch({
-      executablePath: require('electron'),
-      args: ['.', `--user-data-dir=${userDataDir}`, '--no-proxy-server'],
-      cwd: repoRoot,
+    ;({ app, win: page } = await launchNomiApp({
+      name: 'canvas-perf-benchmark',
+      userDataDir,
+      settingsDir: userDataDir,
+      projectsDir,
+      args: ['--no-proxy-server'],
       timeout: launchTimeoutMs,
+      settleMs: 900,
       env: {
-        ...process.env,
-        NOMI_E2E: '1',
-        NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
         // Capability core is orthogonal to canvas rendering and can add a
         // local RPC process during startup; keep it out of interaction samples.
         NOMI_DISABLE_CAPABILITY_CORE: process.env.NOMI_DISABLE_CAPABILITY_CORE || '1',
-        NOMI_ELECTRON_USER_DATA_DIR: userDataDir,
-        NOMI_SETTINGS_DIR: userDataDir,
-        NOMI_PROJECTS_DIR: projectsDir,
       },
-    })
-    page = await app.firstWindow({ timeout: launchTimeoutMs })
+    }))
     attachDiagnostics(page)
     app.on('window', attachDiagnostics)
-    await page.waitForLoadState('domcontentloaded')
-    await sleep(page, 900)
     page = getTargetWindow(app, page)
     const browserWindow = await app.browserWindow(page)
     await browserWindow.evaluate((target) => {

@@ -10,16 +10,14 @@
 //   ④ 开捕捞 + 悬停 + Ctrl+C → 文件落 assets/imported/；sidecar originalUrl === null
 //   ⑤ 权限探针：浏览器 view session 里 geolocation 被拒（deny-by-default 双拒）
 //   ⑥ 关浏览器后主窗素材库列表出现捕捞素材 + 顶栏素材盒徽章 ≥1
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const execFileAsync = promisify(execFile)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/reference-capture')
@@ -138,18 +136,15 @@ let allPassed = false
 let app = null
 const consoleErrors = []
 try {
-  app = await electron.launch({
-    executablePath: require('electron'),
-    args: ['.', `--user-data-dir=${path.join(base, 'udata')}`],
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      NOMI_E2E: '1',
-      NOMI_E2E_SMOKE: '1',
-      NOMI_PROJECTS_DIR: projectsDir,
-      NOMI_SETTINGS_DIR: settingsDir,
-    },
-  })
+  let win
+  ;({ app, win } = await launchNomiApp({
+    name: 'reference-capture',
+    userDataDir: path.join(base, 'udata'),
+    settingsDir,
+    projectsDir,
+    env: { NOMI_E2E_SMOKE: '1' },
+    settleMs: 0,
+  }))
   // favicon 类网络 404 是第三方 favicon 服务噪音（有 onError 兜底），按来源 URL 精准放行；
   // 其余 console error（含素材/资源 404）照常计为红。
   const isFaviconNoise = (m) => {
@@ -167,7 +162,6 @@ try {
     page.on('console', (m) => { if (m.type() === 'error' && !isFaviconNoise(m)) consoleErrors.push(`${tag}: ` + m.text()) })
     page.on('pageerror', (e) => consoleErrors.push(`${tag} pageerror: ` + e.message))
   })
-  const win = await app.firstWindow()
   win.on('console', (m) => { if (m.type() === 'error' && !isFaviconNoise(m)) consoleErrors.push('main: ' + m.text()) })
   win.on('pageerror', (e) => consoleErrors.push('main pageerror: ' + e.message))
   // 404 来源探针：console 的「Failed to load resource 404」不带 URL，从响应层钉出真实来源。

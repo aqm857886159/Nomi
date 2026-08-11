@@ -3,12 +3,10 @@
 //  ② setInputFiles 喂真 mp3 → 落项目文件 → 刷新后出现在「音频」tab（音频不经画布节点）
 // 用法: node tests/ux/asset-audio-upload.walk.mjs （先 .tmp/probe-tone-3s.mp3 必须存在）
 // 产出: tests/ux/shots/asset-audio/*.png + stdout 断言。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = process.cwd()
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/asset-audio')
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -30,10 +28,8 @@ function check(name, ok, detail) {
   console.log(`  ${ok ? '✓' : '✗'} ${name}${detail ? ` — ${detail}` : ''}`)
 }
 
-// NOMI_E2E=1：跳过 COOP/COEP cross-origin isolation。该 isolation(2026-06-27 为 ONNX SharedArrayBuffer 引入)
-// 会卡死 Playwright 的 CDP target 握手 → electron.launch 永远 timeout。仅走查时关,生产不受影响。
-const app = await electron.launch({ executablePath: require('electron'), args: ['.', `--user-data-dir=${userData}`], cwd: repoRoot, env: { ...process.env, NOMI_E2E: '1' } })
-let win = await app.firstWindow()
+// NOMI_E2E=1：由 launcher 强制注入，无需脚本重复设置。
+let { app, win } = await launchNomiApp({ name: 'asset-audio-upload', userDataDir: userData })
 const getWin = () => {
   const live = app.windows().filter((w) => !w.isClosed())
   const proj = live.find((w) => { try { return /projectId=/.test(w.url()) } catch { return false } })
@@ -60,8 +56,6 @@ async function clickText(sel, text, ms = 1400) {
 }
 
 try {
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForTimeout(1500)
   await win.evaluate(() => { localStorage.setItem('nomi-color-scheme', 'light') })
   await win.reload(); await win.waitForTimeout(1600)
   await dismiss()

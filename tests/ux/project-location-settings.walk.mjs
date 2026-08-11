@@ -1,13 +1,11 @@
 // 新项目默认位置真机旅程：设置页可见 → 新项目落到自定义根 → 恢复默认不搬旧项目。
 // 目录选择器本身由主进程单测覆盖；本旅程预写同一设置文件，避免自动化操纵系统原生对话框。
-import { _electron as electron } from 'playwright'
-import { createRequire } from 'node:module'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-07-project-location')
 fs.mkdirSync(outDir, { recursive: true })
@@ -24,21 +22,16 @@ fs.writeFileSync(
   'utf8',
 )
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${settingsRoot}`, '--no-proxy-server'],
-  cwd: repoRoot,
-  env: {
-    ...process.env,
-    NOMI_E2E: '1',
-    NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
-    NOMI_ELECTRON_USER_DATA_DIR: settingsRoot,
-    NOMI_SETTINGS_DIR: settingsRoot,
-  },
+const { app, win: _win } = await launchNomiApp({
+  name: 'project-location-settings',
+  userDataDir: settingsRoot,
+  settingsDir: settingsRoot,
+  args: ['--no-proxy-server'],
+  settleMs: 0,
 })
 await app.evaluate(({ app }, documentsRoot) => app.setPath('documents', documentsRoot), defaultDocumentsRoot)
 
-let win = await app.firstWindow()
+let win = _win
 const currentWindow = () => {
   const live = app.windows().filter((candidate) => !candidate.isClosed())
   win = live[live.length - 1] || win

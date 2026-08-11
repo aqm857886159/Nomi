@@ -5,13 +5,7 @@
 // **会花真实额度**，故 KIE_API_KEY 门控：没设就跳过。
 // 用法：pnpm run build && KIE_API_KEY=xxxx node tests/ux/happyhorse.e2e.mjs
 //   可选 HAPPYHORSE_MODE=ref + HAPPYHORSE_REF_IMAGE=<url> 验角色参考（reference_image 尾随空格键）。
-import { _electron as electron } from "playwright";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+import { launchNomiApp } from "./_launchApp.mjs";
 
 const KEY = process.env.KIE_API_KEY;
 if (!KEY) {
@@ -24,11 +18,8 @@ const REF_IMAGE = process.env.HAPPYHORSE_REF_IMAGE || "https://picsum.photos/see
 let passed = 0;
 function assert(cond, label) { if (!cond) throw new Error(`E2E FAIL: ${label}`); passed += 1; console.log(`  ✓ ${label}`); }
 
-const app = await electron.launch({ executablePath: require("electron"), args: ["."], cwd: repoRoot, env: { ...process.env, NOMI_E2E_SMOKE: "1" } });
+const { app, win } = await launchNomiApp({ name: "happyhorse", env: { NOMI_E2E_SMOKE: "1" } });
 try {
-  const win = await app.firstWindow();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(1500);
 
   const seeded = await win.evaluate(() => {
     const m = window.nomiDesktop?.modelCatalog?.listModels({ kind: "video", enabled: true })?.find((x) => x.modelKey === "happyhorse");

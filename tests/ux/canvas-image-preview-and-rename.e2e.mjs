@@ -1,14 +1,12 @@
 // 微信反馈回归：画布图片要能放大；普通图片节点名字要能直接在图上修改并持久化。
 // 零额度：使用隔离项目 + data URL 图片，不调用任何模型。
 // 用法：pnpm run build && node tests/ux/canvas-image-preview-and-rename.e2e.mjs
-import { _electron as electron } from 'playwright'
-import { createRequire } from 'node:module'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-canvas-image-preview-'))
 const settingsDir = path.join(root, 'settings')
@@ -71,11 +69,12 @@ const project = {
 fs.writeFileSync(path.join(projectRoot, 'project.json'), JSON.stringify(project, null, 2))
 fs.writeFileSync(path.join(projectRoot, '.nomi', 'project.json'), JSON.stringify(project, null, 2))
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${settingsDir}`],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_SETTINGS_DIR: settingsDir, NOMI_PROJECTS_DIR: projectsDir, NOMI_E2E: '1' },
+const { app, win: _launchedWin } = await launchNomiApp({
+  name: 'canvas-image-preview-and-rename',
+  userDataDir: settingsDir,
+  settingsDir,
+  projectsDir,
+  settleMs: 1200,
 })
 
 async function closeApp() {
@@ -115,9 +114,7 @@ async function openFixtureCanvas(win) {
 }
 
 try {
-  const win = await app.firstWindow()
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForTimeout(1200)
+  const win = _launchedWin
   await dismissOnboarding(win)
   await win.reload()
   await win.waitForTimeout(1000)

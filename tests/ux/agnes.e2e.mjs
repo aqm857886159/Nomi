@@ -10,13 +10,8 @@
 // AGNES 免费（零额度），但仍设闸保持一致：AGNES_E2E=1 或 AGNES_API_KEY 才跑。
 // 用法：pnpm run build && AGNES_API_KEY=sk-xxx node tests/ux/agnes.e2e.mjs
 //   可选 ONLY=t2i,edit,t2v,i2v 只跑指定用例。视频用 480p/3s 最省时。
-import { _electron as electron } from "playwright";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
+import { launchNomiApp } from "./_launchApp.mjs";
 
-const require = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 if (!process.env.AGNES_E2E && !process.env.AGNES_API_KEY) {
   console.log("SKIP agnes.e2e: AGNES_E2E=1 或 AGNES_API_KEY=sk-xxx node tests/ux/agnes.e2e.mjs 才跑。");
@@ -43,13 +38,10 @@ const ALL_CASES = [
 ];
 const cases = ONLY.length ? ALL_CASES.filter((c) => ONLY.includes(c.id)) : ALL_CASES;
 
-const app = await electron.launch({ executablePath: require("electron"), args: ["."], cwd: repoRoot, env: { ...process.env } });
+const { app, win } = await launchNomiApp({ name: "agnes" });
 const results = [];
 
 try {
-  const win = await app.firstWindow();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(1500);
 
   if (ENV_KEY) {
     await win.evaluate((key) => window.nomiDesktop.modelCatalog.upsertVendorApiKey("agnes", { apiKey: key, enabled: true }), ENV_KEY);

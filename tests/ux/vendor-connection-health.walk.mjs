@@ -10,14 +10,12 @@
 // 回归底线（旧实现的两个 bug）：
 //   ② 关掉面板重开，已连通的家不许退回「检查中/未测试」
 //   ④ 整个界面不许再出现「未测试」「暂不支持自动测试」
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/vendor-health')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -90,24 +88,13 @@ async function pillOf(win, vendorName) {
   return (await card.innerText().catch(() => '')).replace(/\s+/g, ' ')
 }
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${userData}`],
-  cwd: repoRoot,
-  env: {
-    ...process.env,
-    // 照 smoke.e2e.mjs 的启动姿势。少了 NOMI_E2E=1 窗口起不来（firstWindow 干等 180s 超时），
-    // 少了 ALLOW_MULTI_INSTANCE 会被用户本机在跑的 Nomi 用单实例锁挡住——两条都栽过。
-    NOMI_E2E: '1',
-    NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
-    NOMI_ELECTRON_USER_DATA_DIR: userData,
-    NOMI_SETTINGS_DIR: userData,
-    NOMI_PROJECTS_DIR: projectsDir,
-  },
+// 必需 env（NOMI_E2E + NOMI_E2E_ALLOW_MULTI_INSTANCE）由 _launchApp.mjs 统一注入。
+const { app, win } = await launchNomiApp({
+  name: 'vendor-connection-health',
+  userDataDir: userData,
+  settingsDir: userData,
+  projectsDir,
 })
-const win = await app.firstWindow()
-await win.waitForLoadState('domcontentloaded')
-await win.waitForTimeout(1500)
 
 await win.evaluate(() => {
   for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) {

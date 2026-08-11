@@ -1,14 +1,12 @@
 // Real Electron journey for canvas batch production. The UI, spend gate, IPC, queue, HTTP transport,
 // persistence, retry, and screenshots are real; only the remote vendor is replaced by a loopback fixture.
-import { _electron as electron } from 'playwright'
-import { createRequire } from 'node:module'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-batch-production')
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-canvas-batch-'))
@@ -231,29 +229,22 @@ function findProjectJson(root) {
 
 const pageErrors = []
 const consoleErrors = []
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${userDataDir}`],
-  cwd: repoRoot,
+const { app, win } = await launchNomiApp({
+  name: 'canvas-batch-production',
+  userDataDir,
+  settingsDir,
+  projectsDir,
+  settleMs: 1200,
   env: {
-    ...process.env,
-    NOMI_E2E: '1',
-    NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
-    NOMI_ELECTRON_USER_DATA_DIR: userDataDir,
-    NOMI_SETTINGS_DIR: settingsDir,
-    NOMI_PROJECTS_DIR: projectsDir,
     NOMI_RENDERER_URL: `file://${path.join(repoRoot, 'dist/index.html')}`,
   },
 })
 
 try {
-  const win = await app.firstWindow()
   const browserWindow = await app.browserWindow(win)
   await browserWindow.evaluate((window) => window.setBounds({ x: 0, y: 0, width: 1680, height: 1020 }))
   win.on('pageerror', (error) => pageErrors.push(String(error)))
   win.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()) })
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForTimeout(1200)
   await dismissFirstRun(win)
 
   await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: 5000 })

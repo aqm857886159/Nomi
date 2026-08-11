@@ -9,7 +9,7 @@
 //   ② 点开大图：此前连 onError 都没有（纯黑零提示）→ 现在同样自愈并播出画面
 // 零额度：不调用任何模型，只用本地 ffmpeg 造夹具。
 // 用法：pnpm run build && node tests/ux/video-playback-heal.walk.mjs
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import { createRequire } from 'node:module'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -70,24 +70,15 @@ const project = {
 fs.writeFileSync(path.join(projectRoot, 'project.json'), JSON.stringify(project, null, 2))
 fs.writeFileSync(path.join(projectRoot, '.nomi', 'project.json'), JSON.stringify(project, null, 2))
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${settingsDir}`],
-  cwd: repoRoot,
-  env: {
-    ...process.env,
-    NOMI_E2E: '1',
-    NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
-    NOMI_ELECTRON_USER_DATA_DIR: settingsDir,
-    NOMI_SETTINGS_DIR: settingsDir,
-    NOMI_PROJECTS_DIR: projectsDir,
-  },
+const { app, win } = await launchNomiApp({
+  name: 'video-playback-heal',
+  userDataDir: settingsDir,
+  settingsDir,
+  projectsDir,
+  settleMs: 2000,
 })
 
 try {
-  const win = await app.firstWindow()
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForTimeout(2000)
 
   // 先钉住前提：这段 AVI 在本 Electron 里确实解不了——否则本走查什么也没证明。
   const baseline = await win.evaluate(async (src) => await new Promise((resolve) => {

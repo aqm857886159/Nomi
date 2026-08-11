@@ -2,12 +2,10 @@
 // 入轨取真实时长(非5s) / 播放轴 scrub。
 // 用法: node tests/ux/video-ops.walk.mjs  （先 .tmp/probe-12s.mp4 必须存在）
 // 产出: tests/ux/shots/video-ops/*.png + stdout 断言。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = process.cwd()
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/video-ops')
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -25,8 +23,8 @@ function check(name, ok, detail) {
   console.log(`  ${ok ? '✓' : '✗'} ${name}${detail ? ` — ${detail}` : ''}`)
 }
 
-const app = await electron.launch({ executablePath: require('electron'), args: ['.', `--user-data-dir=${userData}`], cwd: repoRoot, env: { ...process.env } })
-let win = await app.firstWindow()
+const { app, win: _win } = await launchNomiApp({ name: 'video-ops', userDataDir: userData, settleMs: 0 })
+let win = _win
 const getWin = () => {
   const live = app.windows().filter((w) => !w.isClosed())
   const proj = live.find((w) => { try { return /projectId=/.test(w.url()) } catch { return false } })

@@ -1,11 +1,9 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-production-budget-ux-'))
 const userDataDir = path.join(tempRoot, 'user-data')
@@ -28,18 +26,6 @@ const labels = locale === 'en'
     }
 fs.mkdirSync(projectsDir, { recursive: true })
 fs.mkdirSync(shotsDir, { recursive: true })
-
-const env = {
-  ...process.env,
-  NOMI_E2E: '1',
-  NOMI_E2E_PRODUCTION_FIXTURE: '1',
-  NOMI_E2E_PRODUCTION_MISSING_POLICY: '1',
-  NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
-  NOMI_ELECTRON_USER_DATA_DIR: userDataDir,
-  NOMI_SETTINGS_DIR: userDataDir,
-  NOMI_PROJECTS_DIR: projectsDir,
-  NOMI_CAPABILITY_DIR: path.join(tempRoot, 'capability'),
-}
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -70,14 +56,19 @@ async function openRunFromTaskCenter(window) {
 let app
 let exitCode = 0
 try {
-  app = await electron.launch({
-    executablePath: require('electron'),
-    args: ['.', `--user-data-dir=${userDataDir}`],
-    cwd: repoRoot,
-    env,
-  })
-  const window = await app.firstWindow()
-  await window.waitForLoadState('domcontentloaded')
+  let window
+  ;({ app, win: window } = await launchNomiApp({
+    name: 'production-budget-recovery',
+    userDataDir,
+    settingsDir: userDataDir,
+    projectsDir,
+    env: {
+      NOMI_E2E_PRODUCTION_FIXTURE: '1',
+      NOMI_E2E_PRODUCTION_MISSING_POLICY: '1',
+      NOMI_CAPABILITY_DIR: path.join(tempRoot, 'capability'),
+    },
+    settleMs: 0,
+  }))
   await window.setViewportSize({ width: 1280, height: 820 })
   if (locale === 'en') {
     await window.evaluate(() => window.localStorage.setItem('nomi:locale:v1', 'en'))

@@ -3,14 +3,12 @@
 // 根因：overflow-auto 曾挂在「无高度约束的内层静态块」上 → 该块按内容长到全高、overflow-auto 永不触发。
 // 修：overflow-auto 挂到 flex-1 有界伸缩区（被卡片 maxHeight 卡住 → 有界 → 真滚动），底栏 shrink-0 恒贴底。
 // DEV 模式（真 import /src 造节点 + 注入长 prompt）。用法: node tests/ux/composer-long-prompt.walk.mjs
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import http from 'node:http'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = process.cwd()
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/composer-long-prompt')
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -40,15 +38,15 @@ const LONG_PROMPT = '你是顶尖游戏/动漫概念美术大师，擅长详尽�
 
 // 跑「构建产物」（非 dev server）：避开 vite 按需编译 lazy chunk 的偶发失败（节点生成面板加载失败），
 // 且更贴近用户实际运行的打包渲染层。需先 pnpm run build（dist 反映最新 src 改动）。
-// NOMI_E2E=1：关 COOP/COEP 跨源隔离，否则卡死 Playwright CDP 握手 → launch timeout。
 console.log('  … 启动构建产物（Electron）…')
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${userData}`],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_PROJECTS_DIR: projectsDir, NOMI_E2E: '1', NOMI_E2E_ALLOW_MULTI_INSTANCE: '1', NOMI_ELECTRON_USER_DATA_DIR: userData, NOMI_SETTINGS_DIR: userData },
+const { app, win: _initialWin } = await launchNomiApp({
+  name: 'composer-long-prompt',
+  userDataDir: userData,
+  settingsDir: userData,
+  projectsDir,
+  settleMs: 0,
 })
-let win = await app.firstWindow()
+let win = _initialWin
 const consoleErrors = []
 win.on('console', (m) => { try { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 240)) } catch {} })
 win.on('pageerror', (e) => { try { consoleErrors.push('PAGEERR: ' + String(e?.message || e).slice(0, 240)) } catch {} })

@@ -1,32 +1,21 @@
 // R13 走查截图：验本次「顶栏/窗口刷新」的跨平台可见改动（mac 上跑）。
 // 截：① 项目库（mac 原生窗口 + 右上操作在原位）② 工作台（侧栏激活 Tab 只显 icon + 画布导航栏右下 + AI 面板）。
-import { _electron as electron } from "playwright";
+import { launchNomiApp } from "./_launchApp.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
 
-const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const outDir = process.env.NOMI_SHOT_DIR || path.join(repoRoot, ".tmp", "header-refresh-shots");
 
-const app = await electron.launch({
-  executablePath: require("electron"),
-  args: ["."],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_E2E: "1", NOMI_E2E_SMOKE: "1" },
-});
+const { app, win } = await launchNomiApp({ name: "header-refresh-capture", env: { NOMI_E2E_SMOKE: "1" }, settleMs: 1800 });
 
-async function shot(win, name) {
+async function shot(w, name) {
   const p = path.join(outDir, `${name}.png`);
-  await win.screenshot({ path: p });
+  await w.screenshot({ path: p });
   console.log(`  📸 ${p}`);
 }
 
 try {
-  const win = await app.firstWindow();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(1800);
-
   // ① 项目库
   await win.getByText("项目库", { exact: false }).first().waitFor({ timeout: 8000 });
   await shot(win, "01-library");

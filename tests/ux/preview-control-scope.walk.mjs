@@ -6,7 +6,7 @@
 //   ② 选中一个片段后，那组亮起并**写出片段名**（改之前界面完全不写作用对象）
 //   ③ 控制条分成 4 组、每组有名字（改之前 15 个横铺一行、只有 5 道看不见的分隔线）
 // 断言用属性/几何，不靠人眼——人眼看静态截图恰恰看不出「作用域跟着谁走」。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import { createRequire } from 'node:module'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -33,21 +33,16 @@ const stills = ['0x2E6E6B', '0xE8A33D'].map((color, i) => {
   return out
 })
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${settingsDir}`, '--no-proxy-server'],
-  cwd: repoRoot,
-  env: {
-    ...process.env,
-    NOMI_E2E: '1',
-    NOMI_E2E_ALLOW_MULTI_INSTANCE: '1',
-    NOMI_ELECTRON_USER_DATA_DIR: settingsDir,
-    NOMI_SETTINGS_DIR: settingsDir,
-    NOMI_PROJECTS_DIR: projectsDir,
-  },
+const { app, win: _win } = await launchNomiApp({
+  name: 'preview-control-scope',
+  userDataDir: settingsDir,
+  settingsDir,
+  projectsDir,
+  args: ['--no-proxy-server'],
+  settleMs: 0,
 })
 
-let win = await app.firstWindow()
+let win = _win
 const getWin = () => {
   const live = app.windows().filter((w) => !w.isClosed())
   win = live.find((w) => { try { return /projectId=/.test(w.url()) } catch { return false } }) || live[live.length - 1] || win

@@ -6,18 +6,14 @@
 // 录 take 出片后目标视频节点拿到 referenceVideoUrls。
 // 零额度：纯本地 3D 截图，不碰任何生成 API。
 // 用法：pnpm run build && node tests/ux/scene3d-reference-pack.walk.mjs
-import { _electron as electron } from 'playwright'
-import { createRequire } from 'node:module'
+import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import path from 'node:path'
 import os from 'node:os'
-import { fileURLToPath } from 'node:url'
 import { mkdtempSync, mkdirSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import http from 'node:http'
 import net from 'node:net'
 
-const require = createRequire(import.meta.url)
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, '.scene3d-reference-pack-lab')
 mkdirSync(outDir, { recursive: true })
 const tmp = mkdtempSync(path.join(os.tmpdir(), 'nomi-scene3d-ref-pack-'))
@@ -63,18 +59,16 @@ const vite = spawn('node', ['node_modules/vite/bin/vite.js', '--host', '127.0.0.
 })
 await waitForUrl(devUrl, 60000)
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${path.join(tmp, 'udata')}`],
-  cwd: repoRoot,
+const { app, win } = await launchNomiApp({
+  name: 'scene3d-reference-pack',
+  userDataDir: path.join(tmp, 'udata'),
+  projectsDir,
   env: {
-    ...process.env,
     NOMI_DESKTOP_DEV: '1',
     VITE_DEV_SERVER_URL: devUrl,
-    NOMI_E2E: '1',
     NOMI_E2E_SMOKE: '1',
-    NOMI_PROJECTS_DIR: projectsDir,
   },
+  settleMs: 0,
 })
 
 const log = (m) => console.log(m)
@@ -126,10 +120,8 @@ async function waitForCanvasStore(win) {
 }
 
 try {
-  const win = await app.firstWindow()
   win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
   win.on('pageerror', (e) => errors.push(String(e)))
-  await win.waitForLoadState('domcontentloaded')
   await win.evaluate(() => {
     try {
       localStorage.setItem('__nomiE2E', '1')

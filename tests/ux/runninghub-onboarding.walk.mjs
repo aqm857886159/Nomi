@@ -1,9 +1,8 @@
 // RunningHub 接入 + 模型选择器去重 R13 走查。bridge 直连(绕UI)+ Playwright 直驱 DOM(绕多屏OS点击)。
 // 用法: RH_KEY=xxx node tests/ux/runninghub-onboarding.walk.mjs
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'; import path from 'node:path'
-import { fileURLToPath } from 'node:url'; import { createRequire } from 'node:module'
-const require = createRequire(import.meta.url)
+import { fileURLToPath } from 'node:url'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/runninghub'); fs.mkdirSync(shotsDir, { recursive: true })
 const userData = path.join(repoRoot, '.tmp', 'nomi-rh-userdata'); fs.mkdirSync(userData, { recursive: true })
@@ -13,9 +12,7 @@ const snap = async (w, name) => { n += 1; const t = `${String(n).padStart(2,'0')
 const tryClick = async (w, sel, label, ms = 3000) => { try { const el = w.locator(sel).first(); if (await el.count()) { await el.click({ timeout: ms }); console.log(`  ✓ ${label}`); return true } } catch (e) { console.log(`  ✗ ${label}: ${String(e.message).split('\n')[0]}`) } return false }
 const dumpButtons = async (w) => { const t = await w.locator('button, [role=button], [aria-label]').allInnerTexts().catch(() => []); console.log('  buttons:', JSON.stringify([...new Set(t.filter(Boolean))].slice(0, 30))) }
 
-const app = await electron.launch({ executablePath: require('electron'), args: ['.', `--user-data-dir=${userData}`], cwd: repoRoot, env: { ...process.env } })
-const win = await app.firstWindow()
-await win.waitForTimeout(1500)
+const { app, win } = await launchNomiApp({ name: 'runninghub-onboarding', userDataDir: userData })
 // 直接 bridge 连 RunningHub（绕 UI）
 if (KEY) {
   const r = await win.evaluate((k) => { try { window.nomiDesktop.modelCatalog.upsertVendorApiKey('runninghub', { apiKey: k, enabled: true }); return 'ok' } catch (e) { return String(e) } }, KEY)

@@ -2,7 +2,7 @@
 // 种一个图片节点 + 一个视频节点，分别选中让浮动工具栏出现，截图人眼核对全屏新位置。
 // 零额度：nomi-local SVG/本地 mp4，不调模型。
 // 用法：pnpm run build && node tests/ux/toolbar-order.walk.mjs
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import { createRequire } from 'node:module'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -51,17 +51,15 @@ const project = { id: projectId, name: '工具栏梳理回归', version: 2, crea
 fs.writeFileSync(path.join(projectRoot, 'project.json'), JSON.stringify(project))
 fs.writeFileSync(path.join(projectRoot, '.nomi', 'project.json'), JSON.stringify(project))
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${settingsDir}`],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_E2E: '1', NOMI_E2E_ALLOW_MULTI_INSTANCE: '1', NOMI_ELECTRON_USER_DATA_DIR: settingsDir, NOMI_SETTINGS_DIR: settingsDir, NOMI_PROJECTS_DIR: projectsDir },
+const { app, win } = await launchNomiApp({
+  name: 'toolbar-order',
+  userDataDir: settingsDir,
+  settingsDir: settingsDir,
+  projectsDir: projectsDir,
+  settleMs: 2000,
 })
 
 try {
-  const win = await app.firstWindow()
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForTimeout(2000)
   await win.getByText('工具栏梳理回归').first().click()
   await win.waitForTimeout(2000)
 

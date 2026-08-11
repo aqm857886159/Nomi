@@ -6,13 +6,11 @@
 // 用法: node tests/ux/storyboard-trigger.walk.mjs
 // 隔离 userData + NOMI_PROJECTS_DIR，构造一个含故事正文的项目，不碰真实数据。
 // 产出: tests/ux/shots/storyboard-trigger/*.png —— 人眼判断动作卡的出现/点击转场。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/storyboard-trigger')
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -54,13 +52,13 @@ const snap = async (win, name) => {
 }
 const bodyHas = (win, re) => win.evaluate((src) => new RegExp(src).test(document.body.innerText), re.source)
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${settingsDir}`],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_SETTINGS_DIR: settingsDir, NOMI_PROJECTS_DIR: projectsDir },
+const { app, win } = await launchNomiApp({
+  name: 'storyboard-trigger',
+  userDataDir: settingsDir,
+  settingsDir: settingsDir,
+  projectsDir: projectsDir,
+  settleMs: 0,
 })
-const win = await app.firstWindow()
 win.on('console', (m) => { const t = m.text(); if (/error|fail|载|open|project|打不开|无法/i.test(t)) console.log('  [console]', t.slice(0, 160)) })
 win.on('pageerror', (e) => console.log('  [pageerror]', e.message.slice(0, 160)))
 await win.waitForLoadState('domcontentloaded')

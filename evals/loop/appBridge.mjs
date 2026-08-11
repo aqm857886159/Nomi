@@ -2,15 +2,11 @@
 // 机制(照 tests/ux/r1-upload-verify.mjs):key 是 safeStorage 加密、绑 app 身份,纯 Node 解不开 →
 //   启真 app,密文传进主进程 safeStorage 解密 + 主进程内 fetch(明文 key 不回传 Node)。
 //   ⚠️ 启真 app → 运行时 Nomi 必须关着(单实例锁)。effect-first:自动从 catalog 挑 enabled 模型,免手填。
-import { _electron as electron } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
+import { launchNomiApp } from "../../tests/ux/_launchApp.mjs";
 
-const require = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 function loadCatalog() {
   const p = path.join(os.homedir(), "Library", "Application Support", "nomi", "model-catalog.json");
@@ -59,9 +55,8 @@ export function resolveModels() {
 let _app = null;
 async function ensureApp() {
   if (_app) return;
-  _app = await electron.launch({ executablePath: require("electron"), args: ["."], cwd: repoRoot, env: { ...process.env } });
-  await _app.firstWindow();
-  await new Promise((r) => setTimeout(r, 1200));
+  // isolate:false：key 是 safeStorage 加密、绑 app 身份（见文件头），换隔离 userData 就解不开。
+  ({ app: _app } = await launchNomiApp({ name: "eval-app-bridge", isolate: false, settleMs: 1200 }));
 }
 export async function closeApp() {
   if (_app) {

@@ -11,13 +11,11 @@
 // 修=溢出整窗的模态在场时热区扩到整窗。本走查断言修复生效 + 顺带遍历浮层控件。
 //
 // 用法: pnpm build && node tests/ux/browser-overlay-interaction.walk.mjs
-import { _electron as electron } from 'playwright'
+import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/browser-overlay')
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -44,17 +42,16 @@ function centerInside(elemScreen, rectScreen) {
 }
 
 try {
-  app = await electron.launch({
-    executablePath: require('electron'),
-    args: ['.', `--user-data-dir=${path.join(base, 'udata')}`],
-    cwd: repoRoot,
-    env: { ...process.env, NOMI_E2E: '1', NOMI_E2E_SMOKE: '1', NOMI_PROJECTS_DIR: path.join(base, 'projects') },
-  })
-  const win = await app.firstWindow()
+  let win
+  ;({ app, win } = await launchNomiApp({
+    name: 'browser-overlay-interaction',
+    userDataDir: path.join(base, 'udata'),
+    projectsDir: path.join(base, 'projects'),
+    env: { NOMI_E2E_SMOKE: '1' },
+    settleMs: 1800,
+  }))
   win.on('console', (m) => { if (m.type() === 'error') consoleErrors.push('main: ' + m.text()) })
   win.on('pageerror', (e) => consoleErrors.push('main pageerror: ' + e.message))
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForTimeout(1800)
   await win.keyboard.press('Escape').catch(() => {})
   const skip = win.getByText('跳过').first()
   if (await skip.count()) { await skip.click().catch(() => {}); await win.waitForTimeout(700) }

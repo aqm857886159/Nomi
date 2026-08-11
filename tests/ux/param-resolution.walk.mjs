@@ -1,14 +1,9 @@
 // R13 走查：gpt-image-2 在自建中转(code-newcli-com)上现在显示「清晰度」控件 + 存量 catalog 迁移补 paramMap。
 // 用法: node tests/ux/param-resolution.walk.mjs
 // 隔离 settings/projects（拷贝用户真实数据，迁移只动副本，不碰真实 catalog）。产出截图 + 迁移后 catalog 校验。
-import { _electron as electron } from 'playwright'
+import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
-
-const require = createRequire(import.meta.url)
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/paramfix')
 fs.mkdirSync(shotsDir, { recursive: true })
 
@@ -23,15 +18,12 @@ const snap = async (win, name) => {
   console.log(`  · shot ${tag}`)
 }
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${settingsDir}`],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_SETTINGS_DIR: settingsDir, NOMI_PROJECT_ROOT: projectsDir },
+const { app, win } = await launchNomiApp({
+  name: 'param-resolution',
+  userDataDir: settingsDir,
+  settingsDir,
+  env: { NOMI_PROJECT_ROOT: projectsDir },
 })
-const win = await app.firstWindow()
-await win.waitForLoadState('domcontentloaded')
-await win.waitForTimeout(1500)
 
 // 压掉 splash + 引导旅途
 await win.evaluate(() => {

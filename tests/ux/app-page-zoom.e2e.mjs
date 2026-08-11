@@ -1,24 +1,22 @@
 // Electron 主窗口页面缩放回归：Cmd/Ctrl +/-/0 不能改变应用壳 zoom factor。
 // 画布有自己的缩放模型；这里锁的是 Chromium 页面级缩放，避免整个 UI 越缩越小。
 // 用法：pnpm run build && node tests/ux/app-page-zoom.e2e.mjs
-import { _electron as electron } from 'playwright'
-import { createRequire } from 'node:module'
+import { launchNomiApp } from './_launchApp.mjs'
 import path from 'node:path'
 import os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { mkdtempSync, mkdirSync } from 'node:fs'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tmp = mkdtempSync(path.join(os.tmpdir(), 'nomi-page-zoom-'))
 const outDir = path.join(repoRoot, '.page-zoom-lab')
 mkdirSync(outDir, { recursive: true })
 
-const app = await electron.launch({
-  executablePath: require('electron'),
-  args: ['.', `--user-data-dir=${path.join(tmp, 'udata')}`],
-  cwd: repoRoot,
-  env: { ...process.env, NOMI_E2E: '1', NOMI_E2E_SMOKE: '1' },
+const { app, win: _launchedWin } = await launchNomiApp({
+  name: 'app-page-zoom',
+  userDataDir: path.join(tmp, 'udata'),
+  env: { NOMI_E2E_SMOKE: '1' },
+  settleMs: 1200,
 })
 
 async function readMainZoomFactor() {
@@ -75,9 +73,7 @@ async function closeApp() {
 }
 
 try {
-  const win = await app.firstWindow()
-  await win.waitForLoadState('domcontentloaded')
-  await win.waitForTimeout(1200)
+  const win = _launchedWin
   await win.bringToFront()
   await app.evaluate(({ BrowserWindow }) => {
     BrowserWindow.getAllWindows().find((window) => !window.isDestroyed() && window.getTitle() === 'Nomi')?.focus()
