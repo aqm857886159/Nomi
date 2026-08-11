@@ -8,24 +8,31 @@
  *
  * 旧实现把桶硬编码成固定 4 类 Record 后直接 `byKind[m.kind].push(m)`，runninghub 种子里的 model3d
  * 模型（混元3D/HiTem3D/Meshy）一进来就白屏。这里改成动态 Map + 未知 kind 兜底，单一真相源收口在此。
+ *
+ * 本模块只管「kind 有哪些、按什么序」，**不产出展示文案**：分组标题一律由渲染侧
+ * `t('onboardingProviders.modelControls.kind.*')` 出（R15 可见文字走 i18n）。此前这里挂着一份中文
+ * `MODEL_CHIP_KIND_LABEL` 并往每个分组塞 `label`，但三个消费方都各自 `t()`、没一个读它——死数据，
+ * 已连同 `label` 字段一并删除（P1 加新必删旧）。「未知 kind 用原始字符串兜底」的判据收口成
+ * `isKnownModelChipKind`，渲染侧统一调它，不再各写一份已知 kind 清单。
  */
 
 export type ModelChipKind = 'text' | 'image' | 'video' | 'audio' | 'model3d'
 
-export const MODEL_CHIP_KIND_LABEL: Record<string, string> = {
-  text: '文本',
-  image: '图片',
-  video: '视频',
-  audio: '音频',
-  model3d: '3D',
+/**
+ * 已知 kind 的唯一清单，三个用途同源：① 分组展示顺序；② 「这个 kind 有没有 i18n 标题」的判据
+ * （见 isKnownModelChipKind）；③ 类型选择器的选项（ModelEnableEditor / ModelPickerScreen）。
+ * 不在表内的 kind 一律追加在分组队尾（不丢、不崩）。加第六类只改这一行。
+ */
+export const MODEL_CHIP_KINDS: ModelChipKind[] = ['text', 'image', 'video', 'audio', 'model3d']
+
+/** 该 kind 是否已登记（= 有 i18n 标题可用）。false 时渲染侧原样显示后端给的字符串，宁可丑也不崩。 */
+export function isKnownModelChipKind(kind: string): kind is ModelChipKind {
+  return MODEL_CHIP_KINDS.some((known) => known === kind)
 }
 
-// 已知 kind 的展示顺序；不在表内的 kind 一律追加在后（不丢、不崩）。
-const KIND_ORDER: string[] = ['text', 'image', 'video', 'audio', 'model3d']
+export type ChipKindGroup<T> = { kind: string; models: T[] }
 
-export type ChipKindGroup<T> = { kind: string; label: string; models: T[] }
-
-/** 按 kind 分桶并排序。缺失/空 kind 兜底为 text；未知 kind 保留原值、用原始字符串当标签。 */
+/** 按 kind 分桶并排序。缺失/空 kind 兜底为 text；未知 kind 保留原值、追加在队尾。 */
 export function groupModelsByKind<T extends { kind: string }>(models: T[]): ChipKindGroup<T>[] {
   const byKind = new Map<string, T[]>()
   for (const m of models) {
@@ -34,13 +41,9 @@ export function groupModelsByKind<T extends { kind: string }>(models: T[]): Chip
     if (list) list.push(m)
     else byKind.set(k, [m])
   }
-  const knownFirst = KIND_ORDER.filter((k) => byKind.has(k))
-  const unknownTail = [...byKind.keys()].filter((k) => !KIND_ORDER.includes(k))
-  return [...knownFirst, ...unknownTail].map((kind) => ({
-    kind,
-    label: MODEL_CHIP_KIND_LABEL[kind] ?? kind, // 未知 kind：原始字符串当标签，宁可丑也不崩
-    models: byKind.get(kind)!,
-  }))
+  const knownFirst: string[] = MODEL_CHIP_KINDS.filter((k) => byKind.has(k))
+  const unknownTail = [...byKind.keys()].filter((k) => !isKnownModelChipKind(k))
+  return [...knownFirst, ...unknownTail].map((kind) => ({ kind, models: byKind.get(kind)! }))
 }
 
 /** 组内「已启用排前」的稳定排序（2026-07-17 用户要求：选中的模型自动往前排列）。

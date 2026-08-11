@@ -13,13 +13,10 @@ import { useTranslation } from 'react-i18next'
 import { Stack, Group, Text } from '@mantine/core'
 import { IconArrowLeft, IconRefresh, IconMessage, IconPhoto, IconVideo, IconMicrophone, IconCube, IconPlus, IconCheck } from '@tabler/icons-react'
 import { DesignButton, DesignCheckbox, DesignSearchInput, DesignTextInput, NomiSelect } from '../../design'
-import { groupModelsByKind } from './modelChipGrouping'
+import { groupModelsByKind, isKnownModelChipKind, MODEL_CHIP_KINDS } from './modelChipGrouping'
 import { cn } from '../../utils/cn'
 
 export type PickerModel = { id: string; kind: string }
-
-/** 行内可选类型（与模型抽屉、目录 BillingModelKind 同一套，别在这儿另起一份）。 */
-const PICKER_KINDS = ['text', 'image', 'video', 'audio', 'model3d']
 
 const KIND_ICON: Record<string, typeof IconMessage> = {
   text: IconMessage,
@@ -188,7 +185,7 @@ export function ModelPickerScreen({
                   <Group gap={5} align="center" wrap="nowrap">
                     <Icon size={14} stroke={1.6} style={{ color: 'var(--nomi-ink-60)' }} />
                     <Text size="xs" fw={600} c="var(--nomi-ink-60)">
-                      {kind in KIND_ICON ? t(`onboardingProviders.modelControls.kind.${kind}` as 'onboardingProviders.modelControls.kind.text') : kind} <Text span fw={400} c="var(--nomi-ink-40)">{models.length}</Text>
+                      {isKnownModelChipKind(kind) ? t(`onboardingProviders.modelControls.kind.${kind}` as 'onboardingProviders.modelControls.kind.text') : kind} <Text span fw={400} c="var(--nomi-ink-40)">{models.length}</Text>
                     </Text>
                     {/* 3D 能被正确登记（不再冒充文本模型），但中转侧没有通用 3D 调用端点——
                         接进来暂时跑不了。明着标出来，别让用户勾完才发现（D4 缺口明标）。 */}
@@ -227,7 +224,7 @@ export function ModelPickerScreen({
                           「这是可以改的」。猜错在这里改一下，比落库后再去别处找便宜得多。 */}
                       <NomiSelect
                         value={m.kind}
-                        options={PICKER_KINDS.map(k => ({
+                        options={MODEL_CHIP_KINDS.map(k => ({
                           value: k,
                           label: t(`onboardingProviders.modelControls.kind.${k}` as 'onboardingProviders.modelControls.kind.text'),
                         }))}

@@ -11,7 +11,7 @@ import { IconSearch, IconTrash, IconCheck, IconCode } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { NomiSelect } from '../../design'
 import type { ChipModel } from './ModelChipGroups'
-import { groupModelsByKind, MODEL_CHIP_KIND_LABEL, type ModelChipKind } from './modelChipGrouping'
+import { groupModelsByKind, isKnownModelChipKind, MODEL_CHIP_KINDS } from './modelChipGrouping'
 import { bulkToggleTargets, enabledCount, filterModelsByQuery, modelRowKey, selectedModelRows } from './modelEnableEditing'
 import { isAdapterModelLocked } from './adapterVerificationViewModel'
 
@@ -31,9 +31,6 @@ type ModelEnableEditorProps = {
    */
   onRetype?: (row: ChipModel, kind: string) => void
 }
-
-/** 可选类型（顺序 = 分组展示序，单源自 modelChipGrouping 的已知 kind）。 */
-const RETYPE_KINDS: ModelChipKind[] = ['text', 'image', 'video', 'audio', 'model3d']
 
 const PILL = 'h-6 px-2.5 rounded-full border text-micro inline-flex items-center gap-1'
 
@@ -159,7 +156,7 @@ export function ModelEnableEditor({ models, onToggle, onDelete, onCustomCall, on
           {groups.map((g) => (
             <div key={g.kind}>
               <div className="text-micro font-semibold text-nomi-ink-60 mt-2 mb-1 px-1">
-                {g.kind in MODEL_CHIP_KIND_LABEL ? t(`onboardingProviders.modelControls.kind.${g.kind}` as 'onboardingProviders.modelControls.kind.text') : g.kind}{' '}
+                {isKnownModelChipKind(g.kind) ? t(`onboardingProviders.modelControls.kind.${g.kind}` as 'onboardingProviders.modelControls.kind.text') : g.kind}{' '}
                 <span className="font-normal text-nomi-ink-40">{enabledCount(g.models)}/{g.models.length}</span>
               </div>
               {g.models.map((m) => {
@@ -236,7 +233,7 @@ export function ModelEnableEditor({ models, onToggle, onDelete, onCustomCall, on
                     {onRetype && m.canRetype ? (
                       <NomiSelect
                         value={m.kind}
-                        options={RETYPE_KINDS.map((k) => ({
+                        options={MODEL_CHIP_KINDS.map((k) => ({
                           value: k,
                           label: t(`onboardingProviders.modelControls.kind.${k}` as 'onboardingProviders.modelControls.kind.text'),
                         }))}

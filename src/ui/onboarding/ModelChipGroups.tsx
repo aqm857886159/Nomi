@@ -10,7 +10,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconCheck, IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
-import { groupModelsByKind, sortEnabledFirst, type ModelChipKind } from './modelChipGrouping'
+import { groupModelsByKind, isKnownModelChipKind, sortEnabledFirst, type ModelChipKind } from './modelChipGrouping'
 
 export type ChipModel = {
   modelKey: string
@@ -54,7 +54,7 @@ export function ModelChipGroups({ models, connected, onToggle, onDelete }: Model
         return (
           <div key={kind} className="flex flex-col gap-2">
             <div className="text-micro font-semibold text-nomi-ink-60">
-              {kind in { text: 1, image: 1, video: 1, audio: 1, model3d: 1 }
+              {isKnownModelChipKind(kind)
                 ? t(`onboardingProviders.modelControls.kind.${kind}` as 'onboardingProviders.modelControls.kind.text')
                 : kind}{' '}
               <span className="font-normal text-nomi-ink-40">
