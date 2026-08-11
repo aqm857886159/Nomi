@@ -18,14 +18,6 @@ vi.mock("../runtime", async () => {
   };
 });
 
-// 第二个（也是唯一另一个）边界桩：catalog 的磁盘读。真 readCatalog() 首次调用会**落盘**
-// （electron 桩的 getPath() 返回 ""，于是 model-catalog.json 写进仓库根目录）。这里只有
-// 「create 已带产物」那条分支会读它（取 vendor 提示给 SSRF 白名单），返回空 vendors 即可。
-vi.mock("../catalog/catalogStore", async () => {
-  const actual = await vi.importActual<typeof import("../catalog/catalogStore")>("../catalog/catalogStore");
-  return { ...actual, readCatalog: () => ({ vendors: [], models: [], mappings: [] }) };
-});
-
 /** 同步图像 mapping：只有 create，没有 query（与 newapiTransport.newapiTransportFor("image") 同形）。 */
 const SYNC_IMAGE_MAPPING = {
   name: "relay image",
