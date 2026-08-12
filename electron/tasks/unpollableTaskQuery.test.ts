@@ -19,8 +19,10 @@ vi.mock("../runtime", async () => {
 });
 
 // 第二个（也是唯一另一个）边界桩：catalog 的磁盘读。真 readCatalog() 首次调用会**落盘**
-// （electron 桩的 getPath() 返回 ""，于是 model-catalog.json 写进仓库根目录）。这里只有
-// 「create 已带产物」那条分支会读它（取 vendor 提示给 SSRF 白名单），返回空 vendors 即可。
+// （落 electron 桩给的按进程临时 userData 目录 —— 从前桩的 getPath() 返回 ""，那会写进
+// 仓库根目录，见 settings/settingsRoot.test.ts 钉的绝对路径不变量）。桩掉是为了不让本
+// 用例依赖磁盘状态：这里只有「create 已带产物」那条分支会读它（取 vendor 提示给 SSRF
+// 白名单），返回空 vendors 即可。
 vi.mock("../catalog/catalogStore", async () => {
   const actual = await vi.importActual<typeof import("../catalog/catalogStore")>("../catalog/catalogStore");
   return { ...actual, readCatalog: () => ({ vendors: [], models: [], mappings: [] }) };
