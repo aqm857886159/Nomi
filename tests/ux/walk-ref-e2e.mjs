@@ -14,7 +14,7 @@ import {
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const OUT = process.env.DIAG_OUT || "/private/tmp/claude-501/-Users-aoqimin-Desktop-Nomi/a40aa704-6391-4244-8ad0-0fe798cdc10d/scratchpad";
-const MODEL_PREF = { vendorKey: "apimart", modelKey: "deepseek-v4-pro" };
+const MODEL_PREF = { vendorKey: "apimart", modelKey: "deepseek-v3.1-250821" };
 const isoDir = path.join(os.tmpdir(), "nomi-walk-ref-e2e");
 
 function readNodes(projectDir) { return readProjectPayload(projectDir)?.payload?.generationCanvas?.nodes || []; }

@@ -34,7 +34,7 @@ fs.writeFileSync(
       authType: 'bearer', providerKind: 'openai-compatible', meta: {}, createdAt: now, updatedAt: now,
     }],
     models: [{
-      vendorKey, modelKey: 'deepseek-v4-pro', labelZh: 'deepseek-v4-pro', kind: 'text',
+      vendorKey, modelKey: 'deepseek-v3.1-250821', labelZh: 'deepseek-v3.1-250821', kind: 'text',
       enabled: true, createdAt: now, updatedAt: now, meta: { adapter: { state: 'failed', runId: 'r', updatedAt: now } },
     }],
     mappings: [],

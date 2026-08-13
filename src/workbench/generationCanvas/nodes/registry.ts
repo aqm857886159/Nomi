@@ -26,6 +26,7 @@ export type GenerationNodeIconKey =
   | 'model3d'
   | 'whiteboard'
   | 'audio'
+  | 'clip'
 
 export type GenerationNodePluginDefinition<TKind extends string = string> = {
   kind: TKind
@@ -157,6 +158,19 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: true,
     agentCreatable: true,
     promptPlaceholder: 'Enter dialogue or narration...',
+  },
+  {
+    kind: 'clip',
+    label: 'Clip',
+    menuLabel: 'Clip',
+    component: () => import('./ClipNode'),
+    icon: 'clip',
+    defaultTitle: '剪辑',
+    defaultSize: { width: 560, height: 360 },
+    catalogKind: 'video',
+    quickAdd: true,
+    agentCreatable: false,
+    promptPlaceholder: 'Add media to edit...',
   },
   {
     kind: 'shot',

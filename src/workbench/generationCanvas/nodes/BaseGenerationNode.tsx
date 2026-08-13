@@ -615,7 +615,7 @@ function BaseGenerationNodeImpl({
             prompt={displayPrompt}
           />
         )}
-        <ShotPreviewOverlays node={node} selected={selected} readOnly={readOnly} shotIndex={shotIndex} hasResult={hasResult} isGenerating={isGenerating} />
+        <ShotPreviewOverlays selected={selected} shotIndex={shotIndex} hasResult={hasResult} />
         {canOpenImagePreview && !isCardKind && !readOnly && !imageStackOpen && imageEditing.editGrid === null ? (
           <NodeInlineImageTitle nodeId={node.id} value={node.title || ''} selected={selected} />
         ) : null}

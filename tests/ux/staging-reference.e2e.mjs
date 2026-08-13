@@ -12,7 +12,7 @@ if (!process.env.APIMART_E2E && !process.env.APIMART_API_KEY) {
   process.exit(0);
 }
 
-const MODEL_KEY = process.env.APIMART_TEXT_MODEL || "deepseek-v4-pro";
+const MODEL_KEY = process.env.APIMART_TEXT_MODEL || "deepseek-v3.1-250821";
 const ENV_KEY = process.env.APIMART_API_KEY;
 const PROMPT =
   "帮我把这个镜头落到画布上：男主角单膝跪地向女主角求婚，女主角站在他正前方，用低机位仰拍的中景。请用合适的工具，把这两个人的站位、动作和机位锁定好，别让生成时人物关系跑偏。";

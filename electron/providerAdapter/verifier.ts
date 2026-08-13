@@ -16,7 +16,7 @@ import { redactAdapterSecrets } from "./redaction";
 // 文本探测的额度上限。**上限不是花费**——模型答完 "ready" 就停，实际只出几十 token，
 // 设大不多花一分钱；设小却会把整类思考型模型判死：DeepSeek V4 / R1 / o 系默认先思考，
 // 思考的 token 同样计入 max_tokens，而 AI SDK 的 textStream 只含正文。旧值 24 被思考
-// 全部吃光 → 正文为空 → 误判「模型不可用」（2026-08-11 用户接 deepseek-v4-pro/flash
+// 全部吃光 → 正文为空 → 误判「模型不可用」（2026-08-11 用户接 deepseek-v3.1-250821/flash
 // 实测：max_tokens=24 → finish_reason=length、content=""；=2048 → "ready"，仅用 35 token）。
 const TEXT_PROBE_MAX_TOKENS = 2_048;
 

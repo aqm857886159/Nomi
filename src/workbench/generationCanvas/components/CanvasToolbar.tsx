@@ -29,6 +29,7 @@ function nodeKindLabel(kind: GenerationNodeKind, t: TFunction): string {
   if (kind === 'text') return t('canvas.nodeKinds.text')
   if (kind === 'image') return t('canvas.nodeKinds.image')
   if (kind === 'video') return t('canvas.nodeKinds.video')
+  if (kind === 'clip') return t('canvas.nodeKinds.clip')
   if (kind === 'audio') return t('canvas.nodeKinds.audio')
   if (kind === 'model3d') return t('canvas.nodeKinds.model3d')
   if (kind === 'whiteboard') return t('canvas.nodeKinds.whiteboard')

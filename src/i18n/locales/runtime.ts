@@ -38,6 +38,7 @@ export const zhRuntime = {
     keyframe: { menu: '关键帧', title: '关键帧', placeholder: '描述关键帧画面、动作瞬间和镜头状态...' },
     video: { menu: '视频', title: '视频', placeholder: '描述这一段视频的镜头、动作和节奏...' },
     audio: { menu: '声音', title: '声音', placeholder: '输入台词或旁白...' },
+    clip: { menu: '剪辑', title: '剪辑', placeholder: '添加图片或视频开始剪辑...' },
     shot: { menu: '镜头', title: '镜头', placeholder: '记录镜头设计、调度、对白或拍摄说明...' },
     output: { menu: '输出', title: '输出', placeholder: '整理最终输出说明或交付备注...' },
     panorama: { menu: '全景图', title: '全景图', placeholder: '上传或截取全景参考图...' },
@@ -249,6 +250,7 @@ export const enRuntime = {
       placeholder: 'Describe the 3D model, including shape, material, and style...',
     },
     asset: { menu: 'Asset', title: 'Asset', placeholder: 'Describe the asset...' },
+    clip: { menu: 'Clip', title: 'Clip', placeholder: 'Add image or video to start editing...' },
   },
   browser: {
     nomiWebsite: 'Nomi website',

@@ -26,10 +26,18 @@ function openModelCatalog(): void {
 export default function ActiveSkillChip({
   activeSkill,
   autoLabel,
+  autoDescription,
+  autoPrompt,
+  autoModeId,
+  onModeChange,
   onSelect,
 }: {
   activeSkill: ActiveSkill | null
   autoLabel: string
+  autoDescription?: string
+  autoPrompt?: string
+  autoModeId?: string
+  onModeChange?: (modeId: string) => void
   onSelect: (skill: ActiveSkill | null) => void
 }): JSX.Element {
   const { t } = useTranslation()
@@ -102,14 +110,46 @@ export default function ActiveSkillChip({
               ].join(' ')}
             >
               <IconWand size={16} stroke={1.5} className="shrink-0" />
-              <span className="flex-1 min-w-0">
-                <span className="block font-medium">{t('libraries.skill.auto')}</span>
-                <span className="block text-micro text-nomi-ink-60">
-                  {t('libraries.skill.followsMode', { mode: autoLabel })}
+                <span className="flex-1 min-w-0">
+                  <span className="block font-medium">{t('libraries.skill.auto')}</span>
+                  <span className="block text-micro text-nomi-ink-60">
+                  {autoDescription || t('libraries.skill.followsMode', { mode: autoLabel })}
+                  </span>
                 </span>
-              </span>
               {!activeSkill && <IconCheck size={15} stroke={1.8} className="shrink-0" />}
             </button>
+
+            {onModeChange ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onSelect(null)
+                  onModeChange('assets')
+                  setOpen(false)
+                }}
+                className={[
+                  'flex w-full items-start gap-2 rounded-nomi-sm px-2.5 py-2 text-left transition-colors',
+                  'duration-[var(--nomi-transition-fast)]',
+                  !activeSkill && autoModeId === 'assets' ? 'bg-nomi-accent-soft text-nomi-accent' : 'hover:bg-nomi-ink-05',
+                ].join(' ')}
+              >
+                <IconSparkles size={16} stroke={1.5} className="mt-0.5 shrink-0" />
+                <span className="flex-1 min-w-0">
+                  <span className="block font-medium">{t('libraries.skill.featuredAssets')}</span>
+                  <span className="block text-micro text-nomi-ink-60">{t('libraries.skill.featuredAssetsDescription')}</span>
+                </span>
+                {!activeSkill && autoModeId === 'assets' ? <IconCheck size={15} stroke={1.8} className="mt-0.5 shrink-0" /> : null}
+              </button>
+            ) : null}
+
+            {!activeSkill && autoPrompt ? (
+              <div className="mx-1 mt-1 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-2.5 py-2">
+                <div className="mb-1 text-micro font-medium text-nomi-ink-70">{t('libraries.skill.systemPrompt')}</div>
+                <div className="max-h-16 overflow-y-auto whitespace-pre-wrap text-micro leading-relaxed text-nomi-ink-60">
+                  {autoPrompt.slice(0, 360)}{autoPrompt.length > 360 ? '…' : ''}
+                </div>
+              </div>
+            ) : null}
 
             {skills.length > 0 && <div className="my-1 border-t border-nomi-line-soft" />}
 

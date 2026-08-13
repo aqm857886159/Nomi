@@ -14,8 +14,8 @@ import { APIMART_CREATE_TASK_ID_PATH, APIMART_STATUS_MAPPING } from "./apimartVe
 // buildLanguageModelForVendor（apimart 默认 providerKind=openai-compatible → baseURL=/v1 → AI SDK
 // 自动补 /chat/completions）。catalog 只需一条 kind="text" 的 Model 记录，modelKey 即 chat model id。
 //
-// 默认大脑 = deepseek-v4-pro：apimart 真实 id、便宜、中文好、tool_use 可用（接入即验证见
-// docs/plan/2026-06-19-text-brain-onboarding-gap.md 验收门 S2）。用户可在「模型设置」自行加别的
+// 默认大脑 = deepseek-v3.1-250821：使用 APIMart 官方文档当前列出的 DeepSeek V3.1 变体。
+// 用户可在「模型设置」自行加别的
 // 文本模型（gpt-5 / claude-opus-4-8 等），chooseTextModel 会把用户启用的一并纳入选择池。
 
 /** 一个 apimart 文本模型的 curated 定义（无 archetype / 无 mapping；modelKey = chat model id）。 */
@@ -29,7 +29,7 @@ export type ApimartTextModel = {
 /**
  * apimart 的 curated 文本模型（单源）。
  *
- * - `deepseek-v4-pro`：默认大脑，纯文本、便宜、中文好、tool_use 可用 → Agent 主控。
+ * - `deepseek-v3.1-250821`：默认大脑，纯文本、中文创作与工具调用的主控入口。
  * - `gemini-3.5-flash`：**看得见的那个**。图进文字出（image_to_prompt）走它——浏览器「画面复刻/画面风格」
  *   提取、以及视频拆解读帧，都需要一个能读图的文本模型；deepseek 读不了图。
  *
@@ -46,7 +46,7 @@ export type ApimartTextModel = {
  *      单镜分镜提取实测：1178 token 进（图片占 1058）/ 1160 出 / 10.4s。
  */
 export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
-  { modelKey: "deepseek-v4-pro", labelZh: "DeepSeek V4 Pro" },
+  { modelKey: "deepseek-v3.1-250821", labelZh: "DeepSeek V3.1" },
   { modelKey: "gemini-3.5-flash", labelZh: "Gemini 3.5 Flash", meta: { supportsImageInput: true } },
   { modelKey: "MiniMax-H3-Context-IR", labelZh: "MiniMax H3 · Context-IR 提示词增强", meta: { promptRefineOnly: true } },
 ];

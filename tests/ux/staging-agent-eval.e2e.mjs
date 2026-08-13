@@ -9,7 +9,7 @@ if (!process.env.APIMART_E2E && !process.env.APIMART_API_KEY) {
   console.log("SKIP staging-agent-eval: 会花文本额度。APIMART_E2E=1 才跑。");
   process.exit(0);
 }
-const MODEL_KEY = process.env.APIMART_TEXT_MODEL || "deepseek-v4-pro";
+const MODEL_KEY = process.env.APIMART_TEXT_MODEL || "deepseek-v3.1-250821";
 
 const SCENARIOS = [
   "男主角单膝跪地向女主角求婚，女主角站在他正前方。",

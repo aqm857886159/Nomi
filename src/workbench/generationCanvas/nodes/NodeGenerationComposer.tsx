@@ -43,6 +43,7 @@ import {
   type GenerationVariantCount,
 } from './generationVariantCount'
 import { useComposerViewportPlacement } from './useComposerViewportPlacement'
+import { stopPromptWheelPropagation } from './promptScrollContainment'
 
 // C5 P2：文本节点的三种生成模式（label 由 composer.append/rewrite/replace 在渲染处翻译）。
 const TEXT_GEN_MODES: { value: TextGenMode; labelKey: string }[] = [
@@ -595,7 +596,8 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
         // 整片 prompt 下溢盖住底栏（= 截图里「文字太长盖住 选择模型/优化」的根因）。滚动容器必须自己有界。
         // 用 overflow-y-auto 而非 overflow-auto：卡宽已被 w-0 min-w-full 锁死、prompt 在卡宽内换行，横向永不溢出，明确关掉横向滚动条。
         <div
-          className={cn('relative flex-1 min-h-[72px] w-0 min-w-full overflow-y-auto')}
+          className={cn('relative flex-1 min-h-[72px] w-0 min-w-full overflow-y-auto overscroll-contain')}
+          onWheel={stopPromptWheelPropagation}
           style={{ cursor: node.locked ? 'default' : 'text', userSelect: node.locked ? 'auto' : 'text' }}
         >
           <PromptEditor

@@ -137,7 +137,7 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onSendToCanv
             <span
               className={cn(
                 'absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full text-micro',
-                'bg-nomi-overlay-chip text-nomi-paper backdrop-blur-sm',
+                'bg-nomi-overlay-chip-strong border border-nomi-paper/20 text-nomi-paper shadow-nomi-sm backdrop-blur-sm',
               )}
             >
               {isVideo ? t('libraries.prompt.category.video') : t('libraries.prompt.category.image')} · {prompt.source}
@@ -147,8 +147,9 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onSendToCanv
               aria-label={t('libraries.prompt.preview.close')}
               onClick={close}
               className={cn(
-                'absolute top-2 right-2 w-7 h-7 grid place-items-center rounded-full cursor-pointer border-0',
-                'bg-nomi-overlay-chip text-nomi-paper hover:bg-nomi-overlay-chip-strong',
+                'absolute top-2 right-2 w-7 h-7 grid place-items-center rounded-full cursor-pointer',
+                'border border-nomi-paper/20 bg-nomi-overlay-chip-strong text-nomi-paper shadow-nomi-sm hover:bg-nomi-overlay-chip',
+                'focus-visible:outline-2 focus-visible:outline-nomi-paper focus-visible:outline-offset-2',
               )}
             >
               <IconX size={16} stroke={2} />

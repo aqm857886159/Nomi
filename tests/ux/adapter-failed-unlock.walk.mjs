@@ -33,7 +33,7 @@ fs.writeFileSync(
     }],
     models: [
       {
-        vendorKey, modelKey: 'deepseek-v4-pro', labelZh: 'deepseek-v4-pro', kind: 'text',
+        vendorKey, modelKey: 'deepseek-v3.1-250821', labelZh: 'deepseek-v3.1-250821', kind: 'text',
         enabled: true, createdAt: now, updatedAt: now,
         meta: { adapter: { state: 'failed', runId: 'run-x', updatedAt: now } },
       },
@@ -103,13 +103,13 @@ for (const label of [/DeepSeek/i, /管理|Manage/i]) {
 await snap(win, 'vendor-expanded')
 
 // 关键判据：失败模型那行的勾选框，是不是真的可点。
-const failedRow = win.locator('text=deepseek-v4-pro').first()
+const failedRow = win.locator('text=deepseek-v3.1-250821').first()
 if (await failedRow.count()) {
   await failedRow.scrollIntoViewIfNeeded().catch(() => {})
   await win.waitForTimeout(400)
   await snap(win, 'failed-model-row')
   // 精确定位「那一行」的勾选框：ModelEnableEditor 把模型名写进了 aria-label。
-  const toggle = win.locator('[role="checkbox"][aria-label*="deepseek-v4-pro"]').first()
+  const toggle = win.locator('[role="checkbox"][aria-label*="deepseek-v3.1-250821"]').first()
   if (await toggle.count()) {
     const before = await toggle.getAttribute('aria-checked')
     const cls = (await toggle.getAttribute('class')) || ''
@@ -120,14 +120,14 @@ if (await failedRow.count()) {
     console.log(`  · 点击后 aria-checked: ${before} -> ${after}  ${before !== after ? '✅ 可点（锁已解除）' : '❌ 没反应（还锁着）'}`)
     await snap(win, 'after-toggle-click')
   } else {
-    console.log('  · 没找到 deepseek-v4-pro 的勾选框')
+    console.log('  · 没找到 deepseek-v3.1-250821 的勾选框')
   }
 } else {
-  console.log('  · 列表里没出现 deepseek-v4-pro')
+  console.log('  · 列表里没出现 deepseek-v3.1-250821')
 }
 
 // 打开「自定义调用」编辑器，确认新注入的 config 变量在可用变量里、且有中文说明（不是裸 key）。
-const codeBtn = win.locator('button[aria-label*="deepseek-v4-pro"]').filter({ hasNot: win.locator('[role="checkbox"]') }).first()
+const codeBtn = win.locator('button[aria-label*="deepseek-v3.1-250821"]').filter({ hasNot: win.locator('[role="checkbox"]') }).first()
 const anyCode = win.locator('button[title="自定义调用"], button[title="Custom call"]').first()
 const target = (await anyCode.count()) ? anyCode : codeBtn
 if (await target.count()) {

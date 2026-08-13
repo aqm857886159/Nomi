@@ -84,7 +84,7 @@ await snap(win, 'picker-empty')
 
 // 手填四类 id，验证自动归类到 文本/图片/视频/配音
 const manual = win.getByPlaceholder(/没列出来的/).first()
-for (const id of ['gpt-5.5', 'flux-2-flex', 'kling-v3', 'doubao-tts-2.0', 'deepseek-v4-pro']) {
+for (const id of ['gpt-5.5', 'flux-2-flex', 'kling-v3', 'doubao-tts-2.0', 'deepseek-v3.1-250821']) {
   await manual.fill(id)
   await manual.press('Enter')
   await win.waitForTimeout(500)
@@ -94,7 +94,7 @@ console.log('— 第二屏：五个 id 自动按 文本·图片·视频·配音 
 await snap(win, 'picker-grouped')
 
 // 取消一个（点 gpt-5.5 行）测试勾选交互 + 计数
-const row = win.locator('button', { hasText: 'deepseek-v4-pro' }).first()
+const row = win.locator('button', { hasText: 'deepseek-v3.1-250821' }).first()
 if (await row.count()) await row.click().catch(() => {})
 await win.waitForTimeout(400)
 console.log('— 取消一个 → 计数 / 按钮数字应 -1 —')

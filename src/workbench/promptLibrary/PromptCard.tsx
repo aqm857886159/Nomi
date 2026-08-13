@@ -58,7 +58,7 @@ export const PromptCard = React.memo(function PromptCard({ prompt, onSelect }: P
           <span
             className={cn(
               'absolute top-1.5 left-1.5 inline-flex items-center gap-1 px-1.5 py-px rounded-full text-micro leading-none',
-              'bg-nomi-overlay-chip text-nomi-paper backdrop-blur-sm',
+              'bg-nomi-overlay-chip-strong border border-nomi-paper/20 text-nomi-paper shadow-nomi-sm backdrop-blur-sm',
             )}
           >
             {isVideo ? <IconPlayerPlayFilled size={9} /> : null}

@@ -4,7 +4,7 @@
 // 结构上根本点不出工具——运镜的触发规则住在渲染层 system prompt（generationCanvasAgentClient）
 // 与工具自身 schema 描述里，RAW 路径两者皆无，且画布没有可指的视频节点 → 8/8 误判 0 调用。
 //
-// 这版走「真·应用内 agent 路径」：隔离真 Electron 实例 + 真 catalog（apimart key + deepseek-v4-pro）
+// 这版走「真·应用内 agent 路径」：隔离真 Electron 实例 + 真 catalog（apimart key + DeepSeek V3.1）
 // → 新建项目 → 先用一轮 agent 建出一个 kind=video 的镜头节点当靶子（create_canvas_nodes 在
 // 白名单内，自动批准、零额度）→ 落盘确认视频节点存在 → 再逐条发运镜请求，经真实 UI 面板
 // （openGenerationAiPanel + sendAgentMessage）让 agent 拿到带触发规则的真 system prompt。
@@ -40,7 +40,7 @@ if (!process.env.APIMART_E2E) {
 
 const MODEL_PREF = {
   vendorKey: process.env.APIMART_VENDOR || "apimart",
-  modelKey: process.env.APIMART_TEXT_MODEL || "deepseek-v4-pro",
+  modelKey: process.env.APIMART_TEXT_MODEL || "deepseek-v3.1-250821",
 };
 
 // 场景三类（kind 字段决定打分口径）：
@@ -91,7 +91,7 @@ function countCameraMoveProposals(events) {
 const isoDir = path.join(os.tmpdir(), "nomi-camera-move-eval");
 let app = null;
 try {
-  // 1) 隔离环境 + 真 catalog（apimart key 同机可解密 + deepseek-v4-pro 可用）。
+  // 1) 隔离环境 + 真 catalog（apimart key 同机可解密 + deepseek-v3.1-250821 可用）。
   const iso = prepareIsolation(isoDir, { requireCatalog: true });
   const launched = await launchIsolatedApp(repoRoot, iso);
   app = launched.app;

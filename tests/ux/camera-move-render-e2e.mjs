@@ -58,7 +58,7 @@ if (!process.env.APIMART_E2E) {
 
 const MODEL_PREF = {
   vendorKey: process.env.APIMART_VENDOR || "apimart",
-  modelKey: process.env.APIMART_TEXT_MODEL || "deepseek-v4-pro",
+  modelKey: process.env.APIMART_TEXT_MODEL || "deepseek-v3.1-250821",
 };
 
 // 本次请求的运镜意图（人话 + VLM 核验用的英文短语）。推近 = push_in。

@@ -2,7 +2,7 @@
 //
 // 思考型模型（DeepSeek V4 / R1 / o 系…）先花 token 思考再写正文，思考的 token 同样计入
 // max_tokens，而 AI SDK 的 textStream **只含正文**。旧值 maxTokens: 24 被思考全部吃光 →
-// 正文为空 → 探测判「模型不可用」，把完全正常的模型判死（实测 deepseek-v4-pro：
+// 正文为空 → 探测判「模型不可用」，把完全正常的模型判死（实测 deepseek-v3.1-250821：
 // max_tokens=24 → finish_reason=length、content=""；=2048 → "ready"，只用 35 token）。
 //
 // 这里不测「等于某个具体数值」（阈值可以调），测的是**不能再回到饿死思考模型的量级**。
@@ -27,8 +27,8 @@ const vendor: Vendor = {
 };
 const model: Model = {
   vendorKey: vendor.key,
-  modelKey: "deepseek-v4-pro",
-  labelZh: "deepseek-v4-pro",
+  modelKey: "deepseek-v3.1-250821",
+  labelZh: "deepseek-v3.1-250821",
   kind: "text",
   enabled: false,
   createdAt: now,

@@ -2,7 +2,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { IconCornerDownLeft, IconCursorText, IconFilePlus, IconMaximize, IconMinimize, IconPaperclip, IconPlayerStopFilled, IconReplace, IconSend2, IconX } from '@tabler/icons-react'
-import { NomiLogoMark, NomiSelect, WorkbenchButton, WorkbenchIconButton } from '../../design'
+import { NomiLogoMark, WorkbenchButton, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
 import { runWorkbenchAgent, workbenchSessionKey, type ToolCallEvent } from '../ai/workbenchAgentRunner'
 import { startNewConversation } from '../ai/conversationPersistence'
@@ -26,7 +26,6 @@ import { runStoryboardPlanner } from '../generationCanvas/agent/runStoryboardPla
 import { requestFixationPlanning } from '../generationCanvas/agent/fixationLauncher'
 import {
   buildCreationAiPrompt,
-  CREATION_AI_MODES,
   extractWorkbenchDocumentText,
   getCreationAiMode,
   modeAllowsWriteTools,
@@ -107,12 +106,12 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   const [resolvedActionIds, setResolvedActionIds] = React.useState<ReadonlySet<string>>(() => new Set())
   const attachments = useWorkbenchStore((state) => state.creationAiAttachments)
   const error = useWorkbenchStore((state) => state.creationAiError)
-  const setModeId = useWorkbenchStore((state) => state.setCreationAiModeId)
   const setDraft = useWorkbenchStore((state) => state.setCreationAiDraft)
   const setMessages = useWorkbenchStore((state) => state.setCreationAiMessages)
   const setAttachments = useWorkbenchStore((state) => state.setCreationAiAttachments)
   const setError = useWorkbenchStore((state) => state.setCreationAiError)
   const setWorkspaceMode = useWorkbenchStore((state) => state.setWorkspaceMode)
+  const setModeId = useWorkbenchStore((state) => state.setCreationAiModeId)
 
   const {
     isDragging,
@@ -493,7 +492,15 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
           <span className={cn('text-body-sm font-semibold text-nomi-ink')}>{t('creationAi.title')}</span>
         </div>
         <div className={cn('inline-flex items-center gap-2 ml-auto min-w-0')}>
-          <ActiveSkillChip activeSkill={activeSkill} autoLabel={t(`creationAi.mode.${activeMode.id}.title` as 'creationAi.mode.general.title')} onSelect={setActiveSkill} />
+          <ActiveSkillChip
+            activeSkill={activeSkill}
+            autoLabel={t(`creationAi.mode.${activeMode.id}.title` as 'creationAi.mode.general.title')}
+            autoDescription={t(`creationAi.mode.${activeMode.id}.description` as 'creationAi.mode.general.description')}
+            autoPrompt={activeMode.prompt}
+            autoModeId={activeMode.id}
+            onModeChange={setModeId}
+            onSelect={setActiveSkill}
+          />
           <WorkbenchAiHeaderActions
             area="creation"
             className={cn('inline-flex items-center flex-nowrap gap-1')}
@@ -708,7 +715,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
           onPaste={handlePaste}
         />
         <div className={cn('workbench-creation-ai__actions', 'flex items-center justify-between')}>
-          {/* 左侧：附件 + 模式 + 模型选择 */}
+          {/* 左侧：附件 + 工作方式 + 模型选择。内部模式不再占一个难懂的下拉。 */}
           <div className={cn('flex items-center gap-1.5 flex-1 min-w-0')}>
             <WorkbenchIconButton
               className={cn(
@@ -720,15 +727,6 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
               aria-label={t('creationAi.addAttachmentAria')}
               onClick={openFilePicker}
               icon={<IconPaperclip size={16} />}
-            />
-            <NomiSelect
-              ariaLabel={t('creationAi.modeAria')}
-              leadingLabel={t('creationAi.modeLeading')}
-              size="sm"
-              title={t(`creationAi.mode.${activeMode.id}.description` as 'creationAi.mode.general.description')}
-              value={activeMode.id}
-              options={CREATION_AI_MODES.map((mode) => ({ value: mode.id, label: t(`creationAi.mode.${mode.id}.short` as 'creationAi.mode.general.short') }))}
-              onChange={(value) => setModeId(value as CreationAiModeId)}
             />
             <AssistantModelPicker />
           </div>

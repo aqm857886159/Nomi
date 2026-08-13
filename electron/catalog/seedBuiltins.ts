@@ -262,6 +262,9 @@ const RETIRED_KIE_VIDEO_MODEL_KEYS: readonly string[] = [
  */
 const RETIRED_APIMART_IMAGE_MODEL_KEYS: readonly string[] = ["imagen-4.0-apimart"];
 const RETIRED_APIMART_IMAGE_MAPPING_IDS: readonly string[] = ["seed-apimart-imagen-4-text_to_image"];
+// APIMart 早期误种的 DeepSeek V4 Pro 不在当前官方模型目录中；精确清理旧 curated 行，
+// 再由 APIMART_TEXT_MODELS 种入官方 V3.1 变体。只命中 apimart vendor，不碰用户其它供应商。
+const RETIRED_APIMART_TEXT_MODEL_KEYS: readonly string[] = ["deepseek-v4-pro"];
 
 const RETIRED_APIMART_VIDEO_MAPPING_IDS: readonly string[] = [
   "seed-apimart-seedance-2-apimart-fast-text_to_video",
@@ -480,6 +483,7 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   // 只有走 prune 才摘得掉已经落在用户 catalog 里的那条。
   if (pruneRetiredModels(models, APIMART_VENDOR_SEED.key, RETIRED_APIMART_IMAGE_MODEL_KEYS)) changed = true;
   if (pruneRetiredMappings(mappings, RETIRED_APIMART_IMAGE_MAPPING_IDS)) changed = true;
+  if (pruneRetiredModels(models, APIMART_VENDOR_SEED.key, RETIRED_APIMART_TEXT_MODEL_KEYS)) changed = true;
   if (pruneRetiredModels(models, KIE_VENDOR_SEED.key, RETIRED_KIE_VIDEO_MODEL_KEYS)) changed = true;
 
   // 模型 insert + 对账（两家各跑同一套逻辑）。
