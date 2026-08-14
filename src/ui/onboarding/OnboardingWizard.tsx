@@ -380,9 +380,6 @@ export function OnboardingWizard({ opened, onClose, onCommitted, initialPreset, 
       title={t('modelSetup.addModel')}
       size={480}
       centered
-      // 模型设置浮卡（OnboardingFloatingPanel）zIndex=4000；本对话框从浮卡里弹出，
-      // 必须高于浮卡，否则遮罩压不住面板、两层都活着（2026-08-07 飞书反馈「存在遮挡」根因）。
-      zIndex={4100}
       closeOnClickOutside={phase !== 'running'}
       closeOnEscape={phase !== 'running'}
     >

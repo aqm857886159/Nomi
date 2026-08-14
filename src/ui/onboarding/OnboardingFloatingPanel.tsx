@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next'
 import { Portal } from '@mantine/core'
 import { OnboardingDrawer } from './OnboardingDrawer'
 import { currentWorkbenchFloatingTopOffset } from '../app-shell/windowChrome'
+import { NOMI_OVERLAY_Z_INDEX } from '../../design'
 
 const PANEL_WIDTH = 320
 const RIGHT_OFFSET = 12
@@ -99,7 +100,7 @@ export function OnboardingFloatingPanel({ opened, onClose }: Props): JSX.Element
           background: 'var(--nomi-paper)',
           borderRadius: 'var(--nomi-radius-lg)',
           boxShadow: 'var(--nomi-shadow-lg)',
-          zIndex: 4000,
+          zIndex: NOMI_OVERLAY_Z_INDEX.floatingPanel,
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',

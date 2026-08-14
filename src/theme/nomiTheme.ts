@@ -1,4 +1,5 @@
 import { createTheme } from '@mantine/core'
+import { NOMI_OVERLAY_Z_INDEX } from '../design/overlayLayers'
 
 export const nomiDesignTokens = {
   radius: {
@@ -181,13 +182,15 @@ export function buildNomiTheme() {
       Select: {
         defaultProps: {
           radius: 'xs',
-          size: 'sm'
+          size: 'sm',
+          comboboxProps: { zIndex: NOMI_OVERLAY_Z_INDEX.popover }
         }
       },
       MultiSelect: {
         defaultProps: {
           radius: 'xs',
-          size: 'sm'
+          size: 'sm',
+          comboboxProps: { zIndex: NOMI_OVERLAY_Z_INDEX.popover }
         }
       },
       Card: {
@@ -204,25 +207,29 @@ export function buildNomiTheme() {
       Modal: {
         defaultProps: {
           radius: 'md',
-          shadow: 'lg'
+          shadow: 'lg',
+          zIndex: NOMI_OVERLAY_Z_INDEX.dialog
         }
       },
       Drawer: {
         defaultProps: {
           radius: 'sm',
-          shadow: 'lg'
+          shadow: 'lg',
+          zIndex: NOMI_OVERLAY_Z_INDEX.dialog
         }
       },
       Menu: {
         defaultProps: {
           radius: 'sm',
-          shadow: 'md'
+          shadow: 'md',
+          zIndex: NOMI_OVERLAY_Z_INDEX.popover
         }
       },
       Popover: {
         defaultProps: {
           radius: 'sm',
-          shadow: 'md'
+          shadow: 'md',
+          zIndex: NOMI_OVERLAY_Z_INDEX.popover
         }
       },
       Tabs: {

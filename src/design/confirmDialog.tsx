@@ -10,10 +10,11 @@ import { WorkbenchButton } from './actions'
 import { cn } from '../utils/cn'
 import { bindConfirmDialogHost, type DialogRequest } from './confirmDialogStore'
 import { useTranslation } from 'react-i18next'
+import { NOMI_OVERLAY_Z_INDEX } from './overlayLayers'
 
 /**
  * 全局宿主：App 根部挂一次。多请求按序排队逐个展示。
- * zIndex 高于模型设置浮卡（4000）——确认可能从浮卡内部发起。
+ * Confirmation is the final decision layer and must stay above every application dialog/page.
  */
 export function ConfirmDialogHost(): JSX.Element {
   const { t } = useTranslation()
@@ -56,7 +57,7 @@ export function ConfirmDialogHost(): JSX.Element {
       title={active?.title ?? ''}
       centered
       size="sm"
-      zIndex={5000}
+      zIndex={NOMI_OVERLAY_Z_INDEX.confirmation}
       data-confirm-dialog={active ? active.kind : undefined}
     >
       <div className={cn('flex flex-col gap-3')}>

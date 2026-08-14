@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Combobox, useCombobox } from '@mantine/core'
 import { IconCheck, IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../utils/cn'
+import { NOMI_OVERLAY_Z_INDEX } from './overlayLayers'
 
 /**
  * NomiSelect —— 全仓统一的「选择面板」通用组件（规则 1/5：一个来源，别散落原生 <select>）。
@@ -49,8 +50,6 @@ export type NomiSelectProps = {
 }
 
 const SURFACE_SHADOW = 'var(--workbench-shadow-pop)'
-const DROPDOWN_Z_INDEX = 4500
-
 function toneClass(tone: NomiSelectTone | undefined, kind: 'badge' | 'trailing'): string {
   if (tone === 'accent') return 'bg-nomi-accent-soft text-nomi-accent'
   if (tone === 'danger') return 'text-workbench-danger'
@@ -88,7 +87,7 @@ export function NomiSelect({
       width="max-content"
       position="bottom-start"
       offset={6}
-      zIndex={DROPDOWN_Z_INDEX}
+      zIndex={NOMI_OVERLAY_Z_INDEX.popover}
       middlewares={{ flip: true, shift: true }}
       onOptionSubmit={(val) => {
         onChange(val)

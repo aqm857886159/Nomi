@@ -17,7 +17,7 @@ import { useTranslation } from 'react-i18next'
 import { Portal } from '@mantine/core'
 import { IconAlertTriangle, IconArrowLeft, IconTrash, IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import { alertDialog, confirmDialog } from '../../../design'
+import { alertDialog, confirmDialog, NOMI_OVERLAY_Z_INDEX } from '../../../design'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { toast } from '../../toast'
 import { buildWorkflowGraphView, type GraphInput } from '../comfyuiWorkflowGraphView'
@@ -310,7 +310,8 @@ export function ComfyuiWorkflowSettingsPage({
   return (
     <Portal>
       <div
-        className="fixed inset-0 z-[9100] flex flex-col bg-nomi-bg"
+        className="fixed inset-0 flex flex-col bg-nomi-bg"
+        style={{ zIndex: NOMI_OVERLAY_Z_INDEX.dialog }}
         role="dialog"
         aria-modal="true"
         aria-label={t('comfyuiWorkflowPage.aria')}

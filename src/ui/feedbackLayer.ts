@@ -4,4 +4,6 @@
  * 都不得高于它，否则浮层打开期间 toast 全部渲染在浮层底下、肉眼不可见
  * （2026-07-24 全景图导入「点了没反应」的根因之一）。结构保证见 feedbackLayer.test.ts。
  */
-export const FEEDBACK_LAYER_Z_INDEX = 2147483647
+import { NOMI_OVERLAY_Z_INDEX } from '../design/overlayLayers'
+
+export const FEEDBACK_LAYER_Z_INDEX = NOMI_OVERLAY_Z_INDEX.feedback

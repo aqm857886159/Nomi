@@ -42,5 +42,6 @@ export type { NomiSelectProps, NomiSelectOption, NomiSelectTone } from './NomiSe
 export { NomiSegmented } from './NomiSegmented'
 export type { NomiSegmentedProps, NomiSegmentedOption } from './NomiSegmented'
 export { BodyPortal } from './portal'
+export { hasOpenDialogAbove, NOMI_OVERLAY_Z_INDEX } from './overlayLayers'
 export { nomiDesignTokens } from './tokens'
 export { buildNomiTheme } from './theme'

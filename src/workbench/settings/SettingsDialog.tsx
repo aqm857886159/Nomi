@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Portal } from '@mantine/core'
 import { IconAdjustmentsHorizontal, IconBrain, IconFolder, IconInfoCircle, IconLock, IconPlugConnected, IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
-import { DesignSwitch } from '../../design'
+import { DesignSwitch, hasOpenDialogAbove, NOMI_OVERLAY_Z_INDEX } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { useNomiColorScheme } from '../../theme/colorScheme'
 import { getAppLocale, setAppLocale, SUPPORTED_LOCALES, type AppLocale } from '../../i18n'
@@ -75,6 +75,7 @@ export function SettingsDialog({
   const [dir, setDir] = React.useState('')
   const [automationPolicy, setAutomationPolicy] = React.useState<AutomationPolicySettings>(defaultAutomationPolicySettings)
   const [automationPolicyLoaded, setAutomationPolicyLoaded] = React.useState(false)
+  const dialogRef = React.useRef<HTMLDivElement>(null)
   const contentRef = React.useRef<HTMLElement>(null)
 
   React.useEffect(() => setTab(initialTab), [initialTab])
@@ -128,6 +129,7 @@ export function SettingsDialog({
   React.useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
+        if (dialogRef.current && hasOpenDialogAbove(dialogRef.current)) return
         event.stopPropagation()
         onClose()
       }
@@ -172,7 +174,9 @@ export function SettingsDialog({
   return (
     <Portal>
       <div
-        className="fixed inset-0 z-[9000] flex items-center justify-center bg-black/45 p-2 sm:p-6"
+        ref={dialogRef}
+        className="fixed inset-0 flex items-center justify-center bg-black/45 p-2 sm:p-6"
+        style={{ zIndex: NOMI_OVERLAY_Z_INDEX.applicationModal }}
         role="dialog"
         aria-modal="true"
         aria-label={t('settings.title')}
