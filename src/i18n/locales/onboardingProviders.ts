@@ -371,7 +371,7 @@ export const zhOnboardingProviders = {
     resultSummary: '{{verified}} / {{total}} 个模型已有可用能力',
     repairing: '第 {{attempt}} 次自动修复',
     backgroundHint: '可以关闭弹窗，Nomi 会在后台继续；通过的能力会自动出现在画布里。',
-    partialHint: '只有验证通过的能力已开启，未通过的模式不会进入画布。',
+    partialHint: '所选模型都已开启，也会出现在画布的模型列表里；没通过自检的调用方式请自行试用，或点“我自己接”调整。',
     runInBackground: '转到后台',
     // 结果页的立场（2026-08-12 改）：模型**已经加进来了**，自检只是我们的自查。
     // 旧文案把「未通过」摆在最前，用户读到的是「你的东西错了」——而多数情况是我们没猜对接法。
@@ -1178,7 +1178,7 @@ export const enOnboardingProviders = {
     rawErrorToggle: 'Show raw error',
     repairing: 'Automatic repair {{attempt}}',
     backgroundHint: 'You can close this dialog. Nomi will continue in the background and add passed capabilities to the canvas.',
-    partialHint: 'Only verified capabilities are enabled. Failed modes stay out of the canvas.',
+    partialHint: 'All selected models are enabled and remain available in the canvas model list. Try failed call modes there, or use “Connect it myself” to adjust them.',
     runInBackground: 'Run in background',
     stage: {
       queued: 'Waiting to start…',

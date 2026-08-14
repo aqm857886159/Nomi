@@ -59,6 +59,9 @@ const gateway = http.createServer((req, res) => {
       // 图生图：请求里带了参考图 → 回 message.images[0].url（通用中转的图生图口径）。
       const hasImage = JSON.stringify(body.messages || []).includes('image_url')
       if (hasImage && !body.stream) {
+        if (body.model === 'gpt-image-2') {
+          return send(422, { error: { message: 'deliberate image verification failure' } })
+        }
         return send(200, { choices: [{ index: 0, message: { role: 'assistant', images: [{ url: `${assetBase()}/asset/edit.png` }] }, finish_reason: 'stop' }] })
       }
       // 文本验证走 AI SDK，默认要 SSE 流；非流式请求仍回普通 JSON。
@@ -76,6 +79,9 @@ const gateway = http.createServer((req, res) => {
       return send(200, { id: 'c1', object: 'chat.completion', created: 1, model: body.model, choices: [{ index: 0, message: { role: 'assistant', content: 'ready' }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } })
     }
     if (url.startsWith('/v1/images/generations')) {
+      if (body.model === 'gpt-image-2') {
+        return send(422, { error: { message: 'deliberate image verification failure' } })
+      }
       return send(200, { created: 1, data: [{ url: `${assetBase()}/asset/a.png` }] })
     }
     // 视频轮询：GET /v1/video/generations/<task_id>
@@ -203,12 +209,15 @@ await win.waitForTimeout(1200)
 await snap(win, 'pick-models')
 await dumpClickables('选择模型屏')
 const groupAll = win.locator('button', { hasText: /全选本组/ })
-const groups = await groupAll.count()
-console.log(`  · 有 ${groups} 个「全选本组」`)
-for (let g = 0; g < groups; g += 1) {
-  await groupAll.nth(g).click({ timeout: 2000 }).catch(() => {})
+const initialGroups = await groupAll.count()
+console.log(`  · 有 ${initialGroups} 个「全选本组」`)
+for (let g = 0; g < initialGroups; g += 1) {
+  // 点击后按钮会变成「取消本组」，locator 会立即缩短，所以每轮都点当前 first。
+  await groupAll.first().click({ timeout: 2000 })
   await win.waitForTimeout(250)
 }
+const remainingGroups = await groupAll.count()
+if (remainingGroups !== 0) throw new Error(`仍有 ${remainingGroups} 个模型分组没有选中`)
 await win.waitForTimeout(600)
 await snap(win, 'picked-all')
 await clickFirst([/接入并验证 [1-9]/, /接入并验证/], '接入并验证')
@@ -226,11 +235,43 @@ console.log(`  屏幕含 "Invalid URL": ${hasInvalidUrl}`)
 const docsHostLeak = /docs\.\d/.test(bodyText)
 console.log(`  屏幕含 "docs.<数字>" 畸形域名: ${docsHostLeak}`)
 
+// 失败不能再是准入闸：故意失败的图片模型仍需启用、出现在 kind=image 列表；
+// 同时，排在它后面的视频模型必须完成验证并落下可执行 mapping。
+const catalog = await win.evaluate((baseUrl) => {
+  const bridge = window.nomiDesktop.modelCatalog
+  const vendor = (bridge.listVendors() || []).find((item) => item.baseUrlHint === baseUrl)
+  if (!vendor) return { vendor: null, models: [], imageModels: [], videoModels: [], mappings: [] }
+  const own = (rows) => (rows || []).filter((item) => item.vendorKey === vendor.key)
+  return {
+    vendor,
+    models: bridge.listModels({ vendorKey: vendor.key }) || [],
+    imageModels: own(bridge.listModels({ kind: 'image', enabled: true })),
+    videoModels: own(bridge.listModels({ kind: 'video', enabled: true })),
+    mappings: bridge.listMappings({ vendorKey: vendor.key, enabled: true }) || [],
+  }
+}, gatewayBase)
+fs.writeFileSync(path.join(shotsDir, 'catalog.json'), JSON.stringify(catalog, null, 2))
+
+const failedImage = catalog.models.find((model) => model.modelKey === 'gpt-image-2')
+const laterVideo = catalog.models.find((model) => model.modelKey === 'kling-v2-master')
+const checks = {
+  resultCopyMatchesUnlockedBehavior: bodyText.includes('所选模型都已开启，也会出现在画布的模型列表里'),
+  allFourModelsCommitted: MODELS.every((id) => catalog.models.some((model) => model.modelKey === id)),
+  failedImageEnabled: failedImage?.enabled === true,
+  failedImageMarkedFailed: failedImage?.meta?.adapter?.state === 'failed',
+  failedImageVisibleByKind: catalog.imageModels.some((model) => model.modelKey === 'gpt-image-2'),
+  laterVideoVerified: laterVideo?.meta?.adapter?.state === 'verified',
+  laterVideoVisibleByKind: catalog.videoModels.some((model) => model.modelKey === 'kling-v2-master'),
+  laterVideoHasMapping: catalog.mappings.some((mapping) =>
+    mapping.modelKey === 'kling-v2-master' && mapping.taskKind === 'text_to_video'),
+}
+for (const [name, passed] of Object.entries(checks)) console.log(`  ${passed ? '✓' : '✗'} ${name}`)
+
 await app.close()
 await new Promise((resolve) => gateway.close(resolve))
 
-if (hasInvalidUrl || docsHostLeak) {
-  console.error('\nWALK FAIL: 本地网关接入仍出现 Invalid URL / 畸形文档域名')
+if (hasInvalidUrl || docsHostLeak || Object.values(checks).some((passed) => !passed)) {
+  console.error('\nWALK FAIL: 本地网关接入或失败后继续验证回归')
   process.exit(1)
 }
-console.log('\nWALK DONE：截图在 tests/ux/shots/local-gateway/，请人眼确认接入结果。')
+console.log('\nWALK DONE：HTTP 本地网关、失败后继续验证、失败模型仍可选均通过。')
