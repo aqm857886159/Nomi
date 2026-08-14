@@ -12,7 +12,7 @@ import type {
 } from '../model/generationCanvasTypes'
 import type { ResolvedGenerationReferences } from './generationReferenceResolver'
 import { narrateProgress, type GenerationProgressPhase, type ProgressNarrationContext } from '../../observability/narrate'
-import { buildArchetypeInputParams, currentArchetypeMode, orderedSentImageReferenceUrls } from '../nodes/controls/archetypeMeta'
+import { buildArchetypeInputParams, currentArchetypeMode, missingRequiredArchetypeSlots, orderedSentImageReferenceUrls } from '../nodes/controls/archetypeMeta'
 import { projectPromptForSend } from '../../assets/promptMentions'
 import {
   type CatalogTaskActionOptions,
@@ -235,6 +235,22 @@ export function buildCatalogTaskRequest(
   // meta.referenceImageUrls，把连线进来的参考图当成「不在数组里」直接把 @ 标记删成空串（连线图 @ 不到/被
   // 删空的根因）。纯文字 prompt 无标记 → 原样(no-op)。无档案模型回退旧口径（仅上传）。
   const promptRefArchetype = resolveTaskArchetype(meta)
+  if (promptRefArchetype) {
+    const missingSlots = missingRequiredArchetypeSlots(meta, promptRefArchetype, {
+      firstFrameUrl: references.firstFrameUrl,
+      lastFrameUrl: references.lastFrameUrl,
+      referenceImages: uniqueStrings([
+        ...readStringArray(meta.referenceImages),
+        ...(references.referenceImages || []),
+      ]),
+      referenceVideos: references.referenceVideos,
+      referenceAudios: references.referenceAudios,
+    })
+    if (missingSlots.length > 0) {
+      const mode = currentArchetypeMode(promptRefArchetype, meta)
+      throw new Error(`「${mode.vendorTerm}」缺少必需素材：${missingSlots.join(' / ')}。请补齐后再生成。`)
+    }
+  }
   const orderedReferenceUrls = promptRefArchetype
     ? orderedSentImageReferenceUrls(meta, promptRefArchetype, references.referenceImages || [])
     : readStringArray(meta.referenceImageUrls)

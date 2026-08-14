@@ -649,14 +649,22 @@ describe('接入即验证（零额度）：每个档案/模式声明的参考槽
           modelVendor: 'kie', vendor: 'kie',
           archetype: { id: archetype.id, modeId: mode.id },
         }
-        for (const s of refSlots) meta[SLOT_FILL[s.kind].key] = SLOT_FILL[s.kind].value
+        const expectedBySlot = new Map<(typeof refSlots)[number], string[]>()
+        for (const s of refSlots) {
+          const fill = SLOT_FILL[s.kind]
+          const values = Array.isArray(fill.value) && s.min > 1
+            ? Array.from({ length: s.min }, (_, index) => `${fill.flat[0]}?required=${index + 1}`)
+            : fill.flat
+          meta[fill.key] = Array.isArray(fill.value) ? values : fill.value
+          expectedBySlot.set(s, values)
+        }
         const nodeKind = archetype.kind === 'image' ? 'image' : 'video'
         const node: GenerationCanvasNode = { id: 'g1', kind: nodeKind, title: '', position: { x: 0, y: 0 }, prompt: 'p', meta }
         const ai = buildCatalogTaskRequest(node).request.extras?.archetypeInput as Record<string, unknown>
         expect(ai, '档案模型必须产出 archetypeInput').toBeTruthy()
         const present = new Set(flattenValues(ai))
         for (const s of refSlots) {
-          for (const v of SLOT_FILL[s.kind].flat) {
+          for (const v of expectedBySlot.get(s) ?? []) {
             expect(present.has(v), `${archetype.id}/${mode.id} 的槽 ${s.kind} 值未进请求体（会像 omni 参考图那样静默丢）`).toBe(true)
           }
         }

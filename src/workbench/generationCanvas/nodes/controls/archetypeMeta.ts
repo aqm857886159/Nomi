@@ -15,6 +15,7 @@
 import type { ModelParameterControl } from '../../../../config/modelCatalogMeta'
 import {
   type ArchetypeMode,
+  type ArchetypeReferenceSlot,
   type ArchetypeReferenceSlotKind,
   type ModelArchetype,
   type ModelArchetypeVariant,
@@ -305,15 +306,16 @@ export function applyArchetypeModeSwitch(
   archetype: ModelArchetype,
   nextModeId: string,
 ): Record<string, unknown> {
-  const nextMode = archetype.modes.find((m) => m.id === nextModeId) ?? archetype.modes[0]
   const variantId = preservedVariantId(meta, archetype)
-  return { ...meta, archetype: { id: archetype.id, modeId: nextMode.id, ...(variantId ? { variantId } : {}) } }
+  const specialized = specializeArchetypeForVariant(archetype, variantId)
+  const nextMode = specialized.modes.find((m) => m.id === nextModeId) ?? specialized.modes[0]
+  const clamped = clampMetaToModeParams(meta, nextMode.params)
+  return { ...clamped, archetype: { id: archetype.id, modeId: nextMode.id, ...(variantId ? { variantId } : {}) } }
 }
 
 /**
- * 把存量 meta 里「已不在新变体允许选项内」的 select 参数夹回该参数的 defaultValue（通用·按档案声明派生，
- * 不 hardcode 任何 key）。根治 D1：标准变体选了 4k → 切到「快速」变体（清晰度只剩 480/720）→ 存量 4k
- * 仍被发出 → 供应商 400/422。变体只收窄「选项」，本函数顺带收窄「已存的值」，让 UI 与发送一致。
+ * 把存量 meta 里不满足新模式/变体约束的参数回退到 defaultValue（无默认则删键）。不 hardcode key；
+ * select 检查枚举，number 检查类型和 min/max。这样模式或变体收窄后，UI 与下一次发送仍一致。
  */
 function clampMetaToModeParams(
   meta: Record<string, unknown>,
@@ -321,16 +323,75 @@ function clampMetaToModeParams(
 ): Record<string, unknown> {
   let next = meta
   for (const param of modeParams) {
-    if (param.type !== 'select' || !param.options || param.options.length === 0) continue
     if (!(param.key in next)) continue
-    const allowed = param.options.map((o) => o.value)
-    if (allowed.includes(next[param.key] as string)) continue
+    const value = next[param.key]
+    const invalidOption = param.options.length > 0 && !param.options.some((option) => option.value === value)
+    const invalidNumber =
+      param.type === 'number' &&
+      (typeof value !== 'number' ||
+        !Number.isFinite(value) ||
+        (param.min !== undefined && value < param.min) ||
+        (param.max !== undefined && value > param.max))
+    if (!invalidOption && !invalidNumber) continue
     // 存量值越界 → 回落该参数 defaultValue（无 default 则删键，由下游取档案默认）。
     next = { ...next }
     if (param.defaultValue !== undefined) next[param.key] = param.defaultValue
     else delete next[param.key]
   }
   return next
+}
+
+type ArchetypeReferenceInputs = {
+  firstFrameUrl?: string | null
+  lastFrameUrl?: string | null
+  referenceImages?: readonly string[]
+  referenceVideos?: readonly string[]
+  referenceAudios?: readonly string[]
+}
+
+/** 当前槽实际会投影出去的 URL。构建请求与必填校验共用，避免两套“有没有素材”的判断漂移。 */
+function referenceUrlsForSlot(
+  meta: Record<string, unknown>,
+  slot: ArchetypeReferenceSlot,
+  references?: ArchetypeReferenceInputs,
+): string[] {
+  const route = ARRAY_SLOT_ROUTE[slot.kind]
+  if (route) {
+    const edgeList =
+      route.accept === 'image'
+        ? (references?.referenceImages ?? [])
+        : route.accept === 'video'
+          ? (references?.referenceVideos ?? [])
+          : (references?.referenceAudios ?? [])
+    return mergeOrderedReferenceImageUrls(edgeList, readArchetypeArray(meta, route.metaKey), slot.max)
+  }
+  const metaKey = SINGLE_SLOT_META_KEY[slot.kind]
+  if (!metaKey) return []
+  const fromRef =
+    metaKey === 'firstFrameUrl'
+      ? references?.firstFrameUrl
+      : metaKey === 'lastFrameUrl'
+        ? references?.lastFrameUrl
+        : undefined
+  const raw =
+    typeof fromRef === 'string' && fromRef.trim()
+      ? fromRef.trim()
+      : typeof meta[metaKey] === 'string'
+        ? (meta[metaKey] as string).trim()
+        : ''
+  return raw ? [raw] : []
+}
+
+/** 当前模式缺失的必填参考槽。min 是可执行契约，不再只是 UI 提示。 */
+export function missingRequiredArchetypeSlots(
+  meta: Record<string, unknown>,
+  archetype: ModelArchetype,
+  references?: ArchetypeReferenceInputs,
+): string[] {
+  const mode = currentArchetypeMode(archetype, meta)
+  return mode.slots
+    .filter((slot) => referenceUrlsForSlot(meta, slot, references).length < slot.min)
+    .map((slot) => slot.label)
 }
 
 /**
@@ -551,13 +612,7 @@ export function orderedSentImageReferenceUrls(
 export function buildArchetypeInputParams(
   meta: Record<string, unknown>,
   archetype: ModelArchetype,
-  references?: {
-    firstFrameUrl?: string | null
-    lastFrameUrl?: string | null
-    referenceImages?: readonly string[]
-    referenceVideos?: readonly string[]
-    referenceAudios?: readonly string[]
-  },
+  references?: ArchetypeReferenceInputs,
 ): Record<string, ArchetypeInputValue> {
   const mode = currentArchetypeMode(archetype, meta)
   const out: Record<string, ArchetypeInputValue> = {}
@@ -570,17 +625,7 @@ export function buildArchetypeInputParams(
       // **连线在前、上传在后**（option 2 · 2026-06-25 拍板），去重、截到 slot.max——与面板编号①②③、
       // @ 候选、@ 投影 character{N} 同一顺序，杜绝张冠李戴。仅 image 槽收图片边（video/audio 槽不污染，
       // edgeList=[]）；cap 顺带封死手动超额导致的 vendor 422。
-      const metaList = readArchetypeArray(meta, arr.metaKey)
-      // 按槽资产类型喂对应的连线参考（B4：video_ref/audio_ref 槽此前只收 meta 上传，连线的视频/音频被丢）。
-      const edgeList =
-        arr.accept === 'image'
-          ? (references?.referenceImages ?? [])
-          : arr.accept === 'video'
-            ? (references?.referenceVideos ?? [])
-            : arr.accept === 'audio'
-              ? (references?.referenceAudios ?? [])
-              : []
-      const capped = mergeOrderedReferenceImageUrls(edgeList, metaList, slot.max)
+      const capped = referenceUrlsForSlot(meta, slot, references)
       if (capped.length) {
         if (inputKey === 'volcengine_image_contents') {
           const role = DEFAULT_ROLE_FOR_KIND.image_ref ?? 'reference_image'
@@ -603,20 +648,7 @@ export function buildArchetypeInputParams(
       }
       continue
     }
-    const metaKey = SINGLE_SLOT_META_KEY[slot.kind]
-    if (!metaKey) continue
-    const fromRef =
-      metaKey === 'firstFrameUrl'
-        ? references?.firstFrameUrl
-        : metaKey === 'lastFrameUrl'
-          ? references?.lastFrameUrl
-          : undefined
-    const raw =
-      typeof fromRef === 'string' && fromRef.trim()
-        ? fromRef.trim()
-        : typeof meta[metaKey] === 'string'
-          ? (meta[metaKey] as string).trim()
-          : ''
+    const raw = referenceUrlsForSlot(meta, slot, references)[0] ?? ''
     if (raw) {
       out[inputKey] = volcengineContentItem(inputKey, raw) ?? (asArray ? [raw] : raw)
     }

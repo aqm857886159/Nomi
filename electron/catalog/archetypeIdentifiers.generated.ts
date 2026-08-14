@@ -287,5 +287,23 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "agnes-video",
     "agnes-video-v2.0",
     "agnes-video-v2"
+  ],
+  "replicate-flux-schnell": [
+    "black-forest-labs/flux-schnell"
+  ],
+  "replicate-flux-kontext-pro": [
+    "black-forest-labs/flux-kontext-pro"
+  ],
+  "replicate-qwen-image-edit": [
+    "qwen/qwen-image-edit"
+  ],
+  "replicate-nano-banana": [
+    "google/nano-banana"
+  ],
+  "replicate-minimax-video-01": [
+    "minimax/video-01"
+  ],
+  "replicate-seedance-1-pro": [
+    "bytedance/seedance-1-pro"
   ]
 };

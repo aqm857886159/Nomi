@@ -58,6 +58,7 @@ import { RUNNINGHUB_VENDOR_SEED, RUNNINGHUB_3D_CURATED_MODELS, RUNNINGHUB_3D_CUR
 import { RUNNINGHUB_VIDEO_CURATED_MODELS, RUNNINGHUB_VIDEO_CURATED_MAPPINGS } from "./runninghubVideos";
 import { RUNNINGHUB_IMAGE_CURATED_MODELS, RUNNINGHUB_IMAGE_CURATED_MAPPINGS } from "./runninghubImages";
 import { REPLICATE_VENDOR_SEED } from "./replicate";
+import { REPLICATE_CURATED_MAPPINGS, REPLICATE_CURATED_MODELS } from "./replicateModels";
 import { COMFYUI_VENDOR_SEED, COMFYUI_CURATED_MODELS, COMFYUI_CURATED_MAPPINGS } from "./comfyuiLocal";
 import { CODEX_LOCAL_VENDOR_SEED, CODEX_IMAGE_CURATED_MODELS, CODEX_IMAGE_CURATED_MAPPINGS } from "./codexImages";
 import { VOLCENGINE_IMAGE_MODELS } from "./volcengineImages";
@@ -498,6 +499,7 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (reconcileModels(models, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_3D_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_VIDEO_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_IMAGE_CURATED_MODELS, now)) changed = true;
+  if (reconcileModels(models, REPLICATE_VENDOR_SEED.key, REPLICATE_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, COMFYUI_VENDOR_SEED.key, COMFYUI_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, CODEX_LOCAL_VENDOR_SEED.key, CODEX_IMAGE_CURATED_MODELS, now)) changed = true;
 
@@ -529,6 +531,7 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (reconcileMappings(mappings, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_3D_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_VIDEO_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_IMAGE_CURATED_MAPPINGS, now)) changed = true;
+  if (reconcileMappings(mappings, REPLICATE_VENDOR_SEED.key, REPLICATE_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, COMFYUI_VENDOR_SEED.key, COMFYUI_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, CODEX_LOCAL_VENDOR_SEED.key, CODEX_IMAGE_CURATED_MAPPINGS, now)) changed = true;
 

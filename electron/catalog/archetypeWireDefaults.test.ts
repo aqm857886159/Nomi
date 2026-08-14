@@ -27,5 +27,11 @@ describe("ARCHETYPE_WIRE_DEFAULTS（headless 缺参兜底桥接）", () => {
     expect(ARCHETYPE_WIRE_DEFAULTS["volcengine-seedream"].text_to_image["*"].size).toBe("2048x2048");
     expect(ARCHETYPE_WIRE_DEFAULTS["nomi-audio"].text_to_audio["*"].model).toBeTruthy();
     expect(ARCHETYPE_WIRE_DEFAULTS["volcengine-doubao-tts"].text_to_audio["*"].voice).toBeTruthy();
+    expect(ARCHETYPE_WIRE_DEFAULTS["replicate-seedance-1-pro"].text_to_video["*"]).toMatchObject({
+      duration: 5,
+      resolution: "1080p",
+      aspect_ratio: "16:9",
+    });
+    expect(ARCHETYPE_WIRE_DEFAULTS["replicate-seedance-1-pro"].image_to_video["*"].aspect_ratio).toBeUndefined();
   });
 });
