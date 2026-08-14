@@ -48,4 +48,27 @@ describe("collectCustomCallText", () => {
     });
     expect(outcome.assets).toEqual(["data:video/mp4;base64,AQID"]);
   });
+
+  it("uses model kind to accept a plain text response without confusing image URLs", async () => {
+    const outcome = await runCustomCallScript({
+      vendor: { key: "custom", baseUrlHint: "https://example.com" } as never,
+      model: { modelKey: "m", kind: "text" } as never,
+      apiKey: "",
+      prompt: "p",
+      params: {},
+      script: "return 'plain text response'",
+    });
+    expect(outcome).toMatchObject({ assets: [], text: "plain text response" });
+  });
+
+  it("does not treat a 200 HTML login page as a successful text response", async () => {
+    await expect(runCustomCallScript({
+      vendor: { key: "custom", baseUrlHint: "https://example.com" } as never,
+      model: { modelKey: "m", kind: "text" } as never,
+      apiKey: "",
+      prompt: "p",
+      params: {},
+      script: "return '<!doctype html><html>sign in</html>'",
+    })).rejects.toThrow(/HTML.*地址|地址.*HTML/);
+  });
 });

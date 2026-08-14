@@ -638,7 +638,14 @@ export type DesktopBridge = DesktopMediaBridge & {
       lastError?: string
     }) => string
     /** 试跑：真调一次最小请求，返回产物 + 请求/响应 transcript（Authorization 已脱敏）。 */
-    customCallTestRun?: (payload: { vendorKey: string; modelKey: string; script: string }) => Promise<{
+    customCallTestRun?: (payload: {
+      vendorKey: string
+      modelKey: string
+      script: string
+      prompt?: string
+      params?: Record<string, unknown>
+      customConfig?: Record<string, string>
+    }) => Promise<{
       ok: boolean
       assets: string[]
       text?: string

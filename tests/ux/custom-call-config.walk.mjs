@@ -5,7 +5,8 @@
 // 要人眼判的三条：
 //   ① 没填过时**折叠**成一行，标题写用途（「这家还要别的密钥或参数？」）而不是功能名
 //   ② 展开后有说明 + 可加/删行，「可用变量」里能看到 config
-//   ③ 填过之后重开，标题变成「自定义配置 · N 条」且默认展开、值还在（存的是 vendor 不是 model）
+//   ③ 真实模式试跑可带 prompt + 任意 JSON 参数，桌面/窄窗都不横向溢出
+//   ④ 填过之后重开，标题变成「自定义配置 · N 条」且默认展开、值还在（存的是 vendor 不是 model）
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -110,6 +111,36 @@ const valInput = win.locator('input[aria-label*="的值"], input[aria-label*="Va
 await valInput.fill('sk-second-secret').catch(() => {})
 await win.waitForTimeout(400)
 await snap(win, 'config-filled')
+
+// 无文档时不能只测固定文生样例：展开真实模式输入，覆盖首尾帧 + 多参考参数。
+const testInputSummary = win.locator('summary').filter({ hasText: /试跑真实模式|Test a real mode/ }).first()
+if (!(await testInputSummary.count())) throw new Error('没有找到“试跑真实模式”入口')
+await testInputSummary.click({ timeout: 3000 })
+const testPrompt = win.locator('input[aria-label="自定义调用试跑提示词"], input[aria-label="Custom call test prompt"]').first()
+const testParams = win.locator('textarea[aria-label="自定义调用试跑参数 JSON"], textarea[aria-label="Custom call test params JSON"]').first()
+await testPrompt.fill('keep the character and camera motion')
+await testParams.fill(JSON.stringify({
+  first_frame_url: 'https://cdn.example/first.png',
+  last_frame_url: 'https://cdn.example/last.png',
+  reference_image_urls: ['https://cdn.example/character.png', 'https://cdn.example/style.png'],
+}, null, 2))
+await snap(win, 'real-mode-test-input-desktop')
+
+const desktopOverflow = await win.locator('[role="dialog"]').first().evaluate((el) => el.scrollWidth > el.clientWidth)
+if (desktopOverflow) throw new Error('自定义调用弹窗在桌面宽度发生横向溢出')
+await app.evaluate(({ BrowserWindow }) => {
+  const w = BrowserWindow.getAllWindows()[0]
+  if (w) w.setSize(760, 900)
+})
+await win.waitForTimeout(500)
+const narrowOverflow = await win.locator('[role="dialog"]').first().evaluate((el) => el.scrollWidth > el.clientWidth)
+if (narrowOverflow) throw new Error('自定义调用弹窗在 760px 窄窗发生横向溢出')
+await snap(win, 'real-mode-test-input-narrow')
+await app.evaluate(({ BrowserWindow }) => {
+  const w = BrowserWindow.getAllWindows()[0]
+  if (w) w.setSize(1500, 1000)
+})
+await win.waitForTimeout(400)
 
 // 「可用变量」里应能看到 config。
 const varsLine = win.locator('summary').filter({ hasText: /可用变量|Variables/ }).first()

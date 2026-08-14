@@ -139,7 +139,7 @@ export function buildCustomCallAiInstruction(input: {
     `You are writing the body of an async JavaScript function that calls a generation API for the model "${input.modelKey}" (capability: ${input.kind}; base URL: ${input.baseUrl}).`,
     `Available variables (already in scope — do NOT redeclare them):\n${vars}`,
     CUSTOM_CALL_RETURN_CONTRACT,
-    `Rules: output ONLY the raw function body statements — no markdown fences, no function wrapper, no explanations. Use await directly. Prefer \`http\` for Bearer-auth JSON APIs; use \`request\` when auth or content type is non-standard. Never invent endpoints not present in the material; if the material is insufficient, still produce the best guess and put open questions in a leading // comment.`,
-    `API material provided by the user:\n${input.material || "(none — fall back to the most common OpenAI-compatible shape for this capability)"}`,
+    `Rules: output ONLY the raw function body statements — no markdown fences, no function wrapper, no explanations. Use await directly. Prefer \`http\` for Bearer-auth JSON APIs; use \`request\` when auth or content type is non-standard. Do not invent or guess an endpoint, HTTP method, auth scheme, request field, response path, or polling route. A base URL or model name alone is not enough evidence. If the material is insufficient for an exact call, put the missing facts in leading // comments, then \`throw new Error('接口材料不足：请补充实际 curl、请求样例或一次脱敏响应')\` before any call. In that case, do not make any network request.`,
+    `API material provided by the user:\n${input.material || "(none)"}`,
   ].join("\n\n") + repair;
 }

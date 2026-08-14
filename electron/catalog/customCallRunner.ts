@@ -9,6 +9,8 @@
 // transcript：http/request 每次调用记一条（Authorization/apiKey 脱敏），试跑面板摊开
 // 「实际发了什么」——参考图第三闸对脚本失明的补偿（plan §10）。
 import { isJsonRecord, type JsonRecord } from "../jsonUtils";
+import { extractTaskId } from "../ai/requestPipeline";
+import { extractAssetUrl } from "../tasks/assetUrlExtract";
 import { requestJson, requestMultipart } from "../vendor/vendorHttp";
 import { CUSTOM_CALL_INJECTED_KEYS } from "./customCallContract";
 import type { Model, Vendor } from "./types";
@@ -65,35 +67,58 @@ export function collectCustomCallText(result: unknown): string | undefined {
     const value = record[key];
     if (typeof value === "string" && value.trim()) return value;
   }
+  const choices = Array.isArray(record.choices) ? record.choices : [];
+  const firstChoice = isJsonRecord(choices[0]) ? choices[0] : undefined;
+  const message = firstChoice && isJsonRecord(firstChoice.message) ? firstChoice.message : undefined;
+  if (message && typeof message.content === "string" && message.content.trim()) return message.content;
+  if (isJsonRecord(record.data)) return collectCustomCallText(record.data);
   return undefined;
 }
 
 /** 脚本返回值 → 产物列表。宽松归一（与 infinite-canvas 同精神），空产出=人话报错。 */
 export function collectCustomCallAssets(result: unknown): string[] {
-  const items = Array.isArray(result) ? result : [result];
   const out: string[] = [];
-  for (const item of items) {
-    if (typeof item === "string" && item.trim()) {
-      out.push(item.trim());
-      continue;
+  const seen = new Set<unknown>();
+  const add = (value: unknown, allowBare = false) => {
+    if (typeof value !== "string" || !value.trim()) return;
+    const text = value.trim();
+    if (!allowBare && !/^(https?:\/\/|data:|nomi-local:\/\/)/i.test(text)) return;
+    if (!out.includes(text)) out.push(text);
+  };
+  const visit = (item: unknown, depth: number, allowBareString: boolean) => {
+    if (depth > 5 || item === null || typeof item === "undefined") return;
+    if (typeof item === "string") {
+      add(item, allowBareString);
+      return;
     }
-    if (!isJsonRecord(item)) continue;
+    if (Array.isArray(item)) {
+      for (const entry of item) visit(entry, depth + 1, allowBareString);
+      return;
+    }
+    if (!isJsonRecord(item) || seen.has(item)) return;
+    seen.add(item);
     const record = item as JsonRecord;
     const single = [record.url, record.video_url, record.image_url, record.dataUrl].find(
       (v) => typeof v === "string" && v.trim(),
     );
     if (typeof single === "string") {
-      out.push(single.trim());
-      continue;
+      add(single);
     }
     if (typeof record.b64_json === "string" && record.b64_json.trim()) {
-      out.push(`data:image/png;base64,${record.b64_json.trim()}`);
-      continue;
+      add(`data:image/png;base64,${record.b64_json.trim()}`, true);
     }
     if (Array.isArray(record.urls)) {
-      for (const u of record.urls) if (typeof u === "string" && u.trim()) out.push(u.trim());
+      for (const u of record.urls) add(u);
     }
-  }
+    // 用户没有文档时最常见的做法是直接 return 原始响应。只递归已知产物外壳，避免把
+    // error.docs_url / callback_url 之类“也是 URL 但不是产物”的字段误当成功。
+    for (const key of ["data", "output", "outputs", "result", "results", "assets", "images", "videos", "artifacts", "files"]) {
+      if (key in record) visit(record[key], depth + 1, false);
+    }
+    // chat/completions 的图片可能藏在 choices[0].message.content/images，复用主路径现有解析器。
+    add(extractAssetUrl(record));
+  };
+  visit(result, 0, false);
   return out;
 }
 
@@ -104,7 +129,10 @@ export function collectCustomCallAssets(result: unknown): string[] {
  */
 export function customConfigOf(vendor: Vendor): Record<string, string> {
   const meta = vendor.meta && typeof vendor.meta === "object" ? (vendor.meta as JsonRecord) : {};
-  const raw = meta.customConfig;
+  return normalizeCustomConfig(meta.customConfig);
+}
+
+function normalizeCustomConfig(raw: unknown): Record<string, string> {
   if (!isJsonRecord(raw)) return {};
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(raw)) {
@@ -114,6 +142,13 @@ export function customConfigOf(vendor: Vendor): Record<string, string> {
     else if (typeof value === "number" || typeof value === "boolean") out[name] = String(value);
   }
   return out;
+}
+
+function secretConfigValues(config: Record<string, string>): string[] {
+  const secretName = /(^|[_-])(ak|sk)($|[_-])|key|secret|token|password|credential|authorization/i;
+  return Object.entries(config)
+    .filter(([name, value]) => secretName.test(name) && value.length >= 3)
+    .map(([, value]) => value);
 }
 
 /** params 里的标准参考键 → 便捷视图（键名与 archetypeInput 标准键一一对应，单源在那边）。 */
@@ -148,6 +183,8 @@ export async function runCustomCallScript(input: {
   script: string;
   prompt: string;
   params: JsonRecord;
+  /** 试跑时可覆盖尚未保存的配置；真实任务省略时读取 vendor.meta.customConfig。 */
+  customConfig?: Record<string, unknown>;
   signal?: AbortSignal;
   timeoutMs?: number;
   /**
@@ -167,9 +204,13 @@ export async function runCustomCallScript(input: {
     if (input.signal.aborted) controller.abort(input.signal.reason);
     else input.signal.addEventListener("abort", () => controller.abort(input.signal?.reason), { once: true });
   }
+  const config = input.customConfig ? normalizeCustomConfig(input.customConfig) : customConfigOf(input.vendor);
+  const secrets = [...new Set([apiKey, ...secretConfigValues(config)].filter((value) => value.length >= 3))]
+    .sort((a, b) => b.length - a.length);
   const redact = (text: string): string => {
-    if (!apiKey) return text;
-    return text.split(apiKey).join("•••");
+    let redacted = text;
+    for (const secret of secrets) redacted = redacted.split(secret).join("•••");
+    return redacted;
   };
 
   const record = async <T>(method: string, url: string, body: unknown, run: () => Promise<T>): Promise<T> => {
@@ -277,7 +318,7 @@ export async function runCustomCallScript(input: {
     apiKey,
     // 用户在「自定义配置」里填的任意键值。Nomi 只准备了一个密钥槽，而腾讯要 SecretId+SecretKey、
     // Kling 要 AK+SK 每 30 分钟重签——与其我们一个个猜着加字段（永远追不上），不如给一张空白表。
-    config: customConfigOf(input.vendor),
+    config,
     http,
     request: doRequest,
     poll,
@@ -314,11 +355,26 @@ export async function runCustomCallScript(input: {
       ),
     ]);
     // 文本先看：文本模型 return { text } 不产出资产，走 assets 那条会被当成 URL 去下载。
-    const text = collectCustomCallText(raw);
+    const rawText = typeof raw === "string" ? raw.trim() : "";
+    const isHtml = Boolean(rawText && /^\s*(?:<!doctype\s+html|<html\b)/i.test(rawText));
+    if (isHtml) {
+      throw new Error("上游返回了 HTML 页面而不是模型结果；通常是接入地址/接口路径写错，或请求被登录鉴权页拦截");
+    }
+    const text = input.model.kind === "text"
+      ? (rawText && !/^(https?:\/\/|data:|nomi-local:\/\/)/i.test(rawText) ? rawText : collectCustomCallText(raw))
+      : undefined;
     if (text) return { assets: [], text, transcript };
     const assets = collectCustomCallAssets(raw);
-    if (assets.length === 0)
+    if (assets.length === 0) {
+      const taskId = extractTaskId(raw);
+      if (taskId) {
+        throw new Error(`上游只返回了异步任务 ID ${taskId}，还没有产物；请在脚本里用 poll(...) 查询任务状态并 return 最终结果`);
+      }
+      if (rawText) {
+        throw new Error("上游返回了纯文本，但它不是可用的资产 URL；请检查接口路径和返回内容，或在脚本中提取真正的结果字段");
+      }
       throw new Error("自定义调用脚本没有返回产物（资产请 return URL / dataURL / 它们的数组；文本模型请 return { text: '…' }）");
+    }
     return { assets, transcript };
   } catch (error) {
     const message = redact(error instanceof Error ? error.message : String(error));

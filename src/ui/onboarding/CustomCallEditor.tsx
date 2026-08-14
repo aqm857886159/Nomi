@@ -15,6 +15,7 @@ import { getTextBrain } from '../../workbench/api/promptLibraryApi'
 import { runWorkbenchTextTaskStream } from '../../workbench/api/taskApi'
 import { stripCodeFences } from './customCallIntent'
 import { configRecordFromRows, configRowsFromRecord, hasCustomConfig, type CustomConfigRow } from './customCallConfig'
+import { formatCustomCallDiagnosticContext, parseCustomCallTestParams } from './customCallDiagnostics'
 
 export type CustomCallTarget = {
   vendorKey: string
@@ -69,6 +70,8 @@ export function CustomCallEditor({
   const [saveError, setSaveError] = React.useState('')
   const [configRows, setConfigRows] = React.useState<CustomConfigRow[]>([])
   const [briefCopied, setBriefCopied] = React.useState(false)
+  const [testPrompt, setTestPrompt] = React.useState('')
+  const [testParamsText, setTestParamsText] = React.useState('')
   const abortRef = React.useRef<AbortController | null>(null)
 
   // 打开时装载既有脚本 + 该供应商已存的自定义配置；关闭清态。
@@ -79,6 +82,8 @@ export function CustomCallEditor({
       setAiError('')
       setSaveError('')
       setBriefCopied(false)
+      setTestPrompt('')
+      setTestParamsText('')
       setTest({ phase: 'idle' })
       // 配置存在 vendor 上（同一供应商下所有模型共用），所以从 vendor 读、不从 model 读。
       const vendors = (getDesktopBridge()?.modelCatalog.listVendors?.() ?? []) as VendorRow[]
@@ -151,10 +156,15 @@ export function CustomCallEditor({
     if (!target || !bridge?.modelCatalog.customCallTestRun || test.phase === 'running') return
     setTest({ phase: 'running' })
     try {
+      const params = parseCustomCallTestParams(testParamsText)
+      const customConfig = configRecordFromRows(configRows)
       const result = await bridge.modelCatalog.customCallTestRun({
         vendorKey: target.vendorKey,
         modelKey: target.modelKey,
         script,
+        ...(testPrompt.trim() ? { prompt: testPrompt.trim() } : {}),
+        ...(Object.keys(params).length ? { params } : {}),
+        ...(customConfig ? { customConfig } : {}),
       })
       setTest({ phase: 'done', ...result })
     } catch (e) {
@@ -167,7 +177,7 @@ export function CustomCallEditor({
         durationMs: 0,
       })
     }
-  }, [target, bridge, script, test.phase])
+  }, [target, bridge, script, test.phase, testPrompt, testParamsText, configRows])
 
   const save = React.useCallback(() => {
     if (!target || !bridge) return
@@ -226,9 +236,7 @@ export function CustomCallEditor({
    */
   const copyBrief = React.useCallback(async () => {
     if (!target || !bridge) return
-    const lastError = test.phase === 'done' && !test.ok
-      ? [test.errorMessage, ...test.transcript.map((e) => e.errorMessage)].filter(Boolean).join('\n')
-      : ''
+    const lastError = test.phase === 'done' && !test.ok ? formatCustomCallDiagnosticContext(test) : ''
     const instruction = bridge.modelCatalog.customCallAiInstruction?.({
       vendorKey: target.vendorKey,
       modelKey: target.modelKey,
@@ -414,6 +422,29 @@ export function CustomCallEditor({
 
           {/* ③ 试跑 */}
           <div className="flex flex-col gap-2">
+            <details className="text-caption text-nomi-ink-60">
+              <summary className="cursor-pointer select-none text-micro text-nomi-ink-40">
+                {t('onboardingProviders.customCall.testInputLabel')}
+              </summary>
+              <div className="mt-1.5 flex flex-col gap-1.5">
+                <input
+                  className={cn(inputCls, 'font-nomi-mono text-caption')}
+                  placeholder={t('onboardingProviders.customCall.testPromptPlaceholder')}
+                  aria-label={t('onboardingProviders.customCall.testPromptAria')}
+                  value={testPrompt}
+                  onChange={(e) => setTestPrompt(e.currentTarget.value)}
+                />
+                <textarea
+                  rows={4}
+                  spellCheck={false}
+                  className={cn(inputCls, 'resize-y font-nomi-mono text-caption leading-relaxed')}
+                  placeholder={t('onboardingProviders.customCall.testParamsPlaceholder')}
+                  aria-label={t('onboardingProviders.customCall.testParamsAria')}
+                  value={testParamsText}
+                  onChange={(e) => setTestParamsText(e.currentTarget.value)}
+                />
+              </div>
+            </details>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -527,7 +558,7 @@ export function CustomCallEditor({
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => void runAi({ lastError: [test.errorMessage, ...test.transcript.map((e) => e.errorMessage)].filter(Boolean).join('\n') })}
+                      onClick={() => void runAi({ lastError: formatCustomCallDiagnosticContext(test) })}
                       className="inline-flex h-7 items-center gap-1.5 rounded-nomi-sm bg-nomi-ink px-2.5 text-caption font-semibold text-nomi-paper hover:bg-nomi-accent"
                     >
                       <IconSparkles size={13} stroke={1.7} />

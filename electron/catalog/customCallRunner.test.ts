@@ -19,6 +19,7 @@ vi.mock("electron", () => ({
 import { CUSTOM_CALL_INJECTED_KEYS, CUSTOM_CALL_VARIABLES } from "./customCallContract";
 import {
   collectCustomCallAssets,
+  collectCustomCallText,
   CustomCallScriptError,
   referencesViewFromParams,
   runCustomCallScript,
@@ -66,6 +67,37 @@ describe("collectCustomCallAssets 归一", () => {
     expect(collectCustomCallAssets(null)).toEqual([]);
     expect(collectCustomCallAssets({ nothing: 1 })).toEqual([]);
     expect(collectCustomCallAssets(["", "  "])).toEqual([]);
+    expect(collectCustomCallAssets("<html><title>Sign in</title></html>")).toEqual([]);
+    expect(collectCustomCallAssets("success")).toEqual([]);
+  });
+
+  it("用户直接 return 原始响应时，兼容常见 data/output/result 外壳", () => {
+    expect(collectCustomCallAssets({ data: [{ url: "https://a/openai.png" }] })).toEqual(["https://a/openai.png"]);
+    expect(collectCustomCallAssets({ output: ["https://a/replicate-1.png", "https://a/replicate-2.png"] })).toEqual([
+      "https://a/replicate-1.png",
+      "https://a/replicate-2.png",
+    ]);
+    expect(collectCustomCallAssets({ data: { result: { video_url: "https://a/nested.mp4" } } })).toEqual([
+      "https://a/nested.mp4",
+    ]);
+  });
+});
+
+describe("缺文档时的返回诊断", () => {
+  it("文本模型可以直接 return OpenAI 兼容原始响应", () => {
+    expect(collectCustomCallText({ choices: [{ message: { content: "真实回答" } }] })).toBe("真实回答");
+  });
+
+  it("图片模型不能把普通 content 文本当成成功产物", async () => {
+    await expect(run("return { content: 'not an image' }")).rejects.toThrow(/没有返回产物/);
+  });
+
+  it("只拿到异步任务 ID 时指出需要 poll，而不是只说没有产物", async () => {
+    await expect(run("return { id: 'task-123', status: 'queued' }")).rejects.toThrow(/task-123.*poll|poll.*task-123/i);
+  });
+
+  it("错地址返回 200 HTML 时指出地址或鉴权问题，不能显示试跑成功", async () => {
+    await expect(run("return '<html><title>Sign in</title></html>'")).rejects.toThrow(/HTML.*地址|地址.*HTML/);
   });
 });
 
@@ -100,6 +132,21 @@ describe("失败姿态", () => {
     const err = await run(`throw new Error('bad key sk-secret-123 rejected')`).catch((e) => e);
     expect(err).toBeInstanceOf(CustomCallScriptError);
     expect(String(err.message)).not.toContain("sk-secret-123");
+    expect(String(err.message)).toContain("•••");
+  });
+  it("当前试跑填写的第二密钥会注入 config，且错误消息不得泄漏它", async () => {
+    const err = await runCustomCallScript({
+      vendor,
+      model,
+      apiKey: "sk-secret-123",
+      customConfig: { api_secret: "secondary-secret-456", region: "cn-east-1" },
+      script: `if (config.region !== 'cn-east-1') throw new Error('missing region')
+throw new Error('rejected ' + config.api_secret)`,
+      prompt: "p",
+      params: {},
+    }).catch((e) => e);
+    expect(err).toBeInstanceOf(CustomCallScriptError);
+    expect(String(err.message)).not.toContain("secondary-secret-456");
     expect(String(err.message)).toContain("•••");
   });
   it("超时中断 sleep 中的脚本", async () => {
