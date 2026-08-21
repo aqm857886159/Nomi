@@ -18,6 +18,7 @@ import { verifyShotsAndReport, useShotVerifyStore, isShotVerifyEnabled } from '.
 import { isAnchorFrozen, isVisualAnchorNode } from '../generationCanvas/model/anchorBibleKeys'
 import { assertDraftFilmReady, draftFilmTimelineFromState } from '../preview/timelineSubtitleTransitionContract'
 import {
+  assertProductionStoryboardPlan,
   parseStoryboardPlan,
   storyboardPlanToCreateNodesArgs,
 } from '../generationCanvas/agent/storyboardPlan'
@@ -71,7 +72,7 @@ async function runProductionTextPlanner(input: {
     ? [
         '你是分镜规划师。请根据下面的原分镜方案和修改要求，输出一份完整、可执行的 StoryboardPlan JSON。',
         '只输出 JSON，不要 Markdown、解释或代码围栏。必须包含 title、anchors、shots；每个 shot 必须包含 index、durationSec、anchorIds、prompt。',
-        '允许的 shot 字段：shotId、shotKind(image|video)、durationSec、anchorIds、prompt、modelKey、modeId、params、ffDesc、motionDesc、lfDesc、subtitle、dialogue、variationType(large|medium|small)、camIdx、continuity、transition({type:cut|dissolve|fade|match_cut|whip_pan,durationFrames?})、keyframe。',
+        '允许的 shot 字段：shotId、shotKind(image|video)、durationSec、anchorIds、prompt、narrativeGoal、actionChain、dramaticBeat、continuityLocks、previousShotId、firstFrameRef、modelKey、modeId、params、ffDesc、motionDesc、lfDesc、subtitle、dialogue、variationType(large|medium|small)、camIdx、continuity、transition({type:cut|dissolve|fade|match_cut|whip_pan,durationFrames?})、keyframe。',
         `修改要求：${input.instruction || '保持原方案，只修正明显问题。'}`,
         '原分镜方案：',
         input.source || '',
@@ -309,6 +310,7 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       })
       const plan = useWorkbenchStore.getState().storyboardPlan
       if (!plan) throw new Error(i18n.t('runtime.capability.storyboardPlanMissing'))
+      assertProductionStoryboardPlan(plan)
       return { text: result.text, plan }
     }
     case 'production.materialize-storyboard': {
@@ -318,6 +320,7 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       // real Zustand mutation/edge wiring/layout. The service performs all
       // project/run/version/provenance checks before this operation is reached.
       const plan = parseStoryboardPlan(data.plan)
+      assertProductionStoryboardPlan(plan)
       const materializationOperationId = typeof data.materializationOperationId === 'string'
         && /^[A-Za-z0-9._:-]{1,240}$/.test(data.materializationOperationId)
         ? data.materializationOperationId

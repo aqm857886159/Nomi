@@ -59,6 +59,18 @@ export type PlanShot = {
   shotKind?: 'image' | 'video'
   /** 该镜时长(秒)；仅视频镜头用——落画布写进视频节点 duration 参数，按所选模型控件钳值。图片镜头忽略。 */
   durationSec: number
+  /** Story contract: what this shot changes in the story, not a slogan/subtitle. */
+  narrativeGoal?: string
+  /** Visible action chain with an observable result. */
+  actionChain?: string
+  /** Dramatic beat/turn carried into review and timeline evidence. */
+  dramaticBeat?: string
+  /** Immutable visual/state locks that must survive the cut. */
+  continuityLocks?: string | string[]
+  /** Explicit causal predecessor; required for every shot after the first in a production run. */
+  previousShotId?: string
+  /** First-frame candidate: anchor id or previous shot tail reference. */
+  firstFrameRef?: string
   /** 这镜用到哪些锚（按 anchor.id 引用）→ 视觉锚连参考边、文本锚拼 prompt。 */
   anchorIds: string[]
   /** 可直接生成的提示词（运镜+动作演进，不复述锚的静态描述）。 */
@@ -167,6 +179,12 @@ export const planShotSchema = z.object({
     .optional()
     .describe("镜头种类:'image'=图片分镜(图生图静态画面,无时长),'video'=视频分镜(带时长运镜)。默认 image。"),
   durationSec: z.number(),
+  narrativeGoal: z.string().min(1).optional().describe('该镜在故事中完成的目标/变化，不要写口号。'),
+  actionChain: z.string().min(1).optional().describe('可见动作链：谁做什么→作用到什么→画面结果。'),
+  dramaticBeat: z.string().min(1).optional().describe('该镜的戏剧节拍/转折。'),
+  continuityLocks: z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]).optional().describe('跨剪辑必须保持的角色、空间、道具和状态。'),
+  previousShotId: z.string().min(1).optional().describe('上一镜 shotId；第 2 镜起必须有。'),
+  firstFrameRef: z.string().min(1).optional().describe('首帧来自 anchor 或上一镜尾帧的引用。'),
   anchorIds: z.array(z.string()),
   prompt: z.string(),
   modelKey: z.string().optional(),
@@ -232,6 +250,35 @@ void _planTypeToSchema
  */
 export function parseStoryboardPlan(raw: unknown): StoryboardPlan {
   return storyboardPlanSchema.parse(raw)
+}
+
+/**
+ * Production-only guard. The editor still accepts short legacy plans for
+ * experimentation, but a paid multi-shot ProductionRun must not silently turn
+ * six independent pretty prompts into a “story”.
+ */
+export function assertProductionStoryboardPlan(plan: StoryboardPlan): void {
+  const shots = plan.shots
+  if (shots.length < 6) throw new Error('Production storyboard needs at least 6 causal shots')
+  shots.forEach((shot, index) => {
+    const label = `shot ${index + 1}`
+    if (!shot.shotId?.trim()) throw new Error(`Production ${label} missing shotId`)
+    if (!Number.isFinite(shot.durationSec) || shot.durationSec <= 0) throw new Error(`Production ${label} needs positive durationSec`)
+    if (!Array.isArray(shot.anchorIds) || shot.anchorIds.length === 0) throw new Error(`Production ${label} needs anchorIds`)
+    for (const [field, value] of [
+      ['narrativeGoal', shot.narrativeGoal], ['actionChain', shot.actionChain], ['dramaticBeat', shot.dramaticBeat],
+      ['continuityLocks', shot.continuityLocks], ['ffDesc', shot.ffDesc], ['motionDesc', shot.motionDesc], ['lfDesc', shot.lfDesc],
+    ] as const) {
+      if (value === undefined || (typeof value === 'string' && !value.trim())) throw new Error(`Production ${label} missing ${field}`)
+    }
+    if (!shot.prompt.trim() || shot.prompt.trim().length < 24) throw new Error(`Production ${label} prompt is too short to carry visible action`)
+    if (index > 0) {
+      if (!shot.previousShotId) throw new Error(`Production ${label} missing previousShotId`)
+      if (!shot.firstFrameRef) throw new Error(`Production ${label} missing firstFrameRef`)
+      if (shot.previousShotId !== shots[index - 1].shotId) throw new Error(`Production ${label} previousShotId must point to the prior shot`)
+    }
+  })
+  if (plan.anchors.length === 0) throw new Error('Production storyboard needs persistent anchors')
 }
 
 // ── 落画布转换器：StoryboardPlan → create_canvas_nodes 参数（纯函数，可单测）──
@@ -359,6 +406,12 @@ function storyboardShotMetadata(
     metadata.sourceScriptHash = plan.sourceScriptHash.trim()
   }
   if (typeof shot.ffDesc === 'string' && shot.ffDesc.trim()) metadata.ffDesc = shot.ffDesc.trim()
+  if (typeof shot.narrativeGoal === 'string' && shot.narrativeGoal.trim()) metadata.narrativeGoal = shot.narrativeGoal.trim()
+  if (typeof shot.actionChain === 'string' && shot.actionChain.trim()) metadata.actionChain = shot.actionChain.trim()
+  if (typeof shot.dramaticBeat === 'string' && shot.dramaticBeat.trim()) metadata.dramaticBeat = shot.dramaticBeat.trim()
+  if (shot.continuityLocks !== undefined) metadata.continuityLocks = shot.continuityLocks
+  if (typeof shot.previousShotId === 'string' && shot.previousShotId.trim()) metadata.previousShotId = shot.previousShotId.trim()
+  if (typeof shot.firstFrameRef === 'string' && shot.firstFrameRef.trim()) metadata.firstFrameRef = shot.firstFrameRef.trim()
   if (typeof shot.motionDesc === 'string' && shot.motionDesc.trim()) metadata.motionDesc = shot.motionDesc.trim()
   if (typeof shot.subtitle === 'string' && shot.subtitle.trim()) metadata.subtitle = shot.subtitle.trim()
   if (typeof shot.dialogue === 'string' && shot.dialogue.trim()) metadata.dialogue = shot.dialogue.trim()

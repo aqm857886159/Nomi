@@ -71,6 +71,8 @@ export function buildStoryboardPlanningMessage(input: {
   return [
     '请把下面这段故事规划成一份「分镜方案」（跨镜头要一致的角色/场景/道具/风格 + 每个镜头），通过 propose_storyboard_plan 产出结构化方案对象——先给用户在创作区审阅、修改，不要直接写画布。',
     '',
+    '故事完整性硬约束：先把故事拆成目标→行动→可见结果→下一镜因果，不要把六个漂亮画面并排。至少 6 个镜头，镜 1 建立目标，镜 2-5 推进行动/转折，最后一镜给结果。每个 shot 必须填写 narrativeGoal、actionChain、dramaticBeat、continuityLocks、ffDesc、motionDesc、lfDesc；第 2 镜起必须填写 previousShotId 与 firstFrameRef（值为上一镜尾帧或明确状态锚）。',
+    'actionChain 要写物理可见的动作（谁的哪只手作用于哪个物体，结果发生在哪里），禁止只写“感到、意识到、走进新场景”等抽象词。continuityLocks 要锁住空间拓扑、角色身份、服装、关键道具和状态；相邻镜头不能无解释地换地点或重置道具。',
     shotModeDirective(input.shotMode ?? 'image'),
     '',
     '结构化工具调用硬约束：propose_storyboard_plan 参数必须是对象本体，anchors/shots 必须是数组本体；不要把任何数组序列化成字符串。',

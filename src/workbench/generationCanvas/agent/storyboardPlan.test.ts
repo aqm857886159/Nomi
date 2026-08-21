@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildAnchorSheetPrompt, parseStoryboardPlan, storyboardPlanSchema, storyboardPlanToCreateNodesArgs, type StoryboardPlan } from './storyboardPlan'
+import { assertProductionStoryboardPlan, buildAnchorSheetPrompt, parseStoryboardPlan, storyboardPlanSchema, storyboardPlanToCreateNodesArgs, type StoryboardPlan } from './storyboardPlan'
 
 const PLAN: StoryboardPlan = {
   title: '雨夜追凶',
@@ -178,6 +178,33 @@ describe('storyboardPlanToCreateNodesArgs', () => {
 })
 
 describe('parseStoryboardPlan（落库前运行时守卫）', () => {
+  it('production gate rejects the old six-independent-prompt shape', () => {
+    expect(() => assertProductionStoryboardPlan({
+      title: '拼接稿', anchors: [], shots: Array.from({ length: 6 }, (_, index) => ({ index: index + 1, shotId: `shot-${index + 1}`, durationSec: 5, anchorIds: ['hero'], prompt: `漂亮镜头 ${index + 1}` })),
+    })).toThrow(/missing narrativeGoal|missing actionChain/)
+  })
+
+  it('保留故事因果和跨镜状态字段，而不是只保存好看的 prompt', () => {
+    const parsed = parseStoryboardPlan({
+      title: '连续故事',
+      anchors: [{ id: 'hero', kind: 'character', name: '主角', description: '黄色雨衣', carrier: 'visual' }],
+      shots: [{
+        index: 1, shotId: 'shot-1', durationSec: 5, anchorIds: ['hero'], prompt: '主角捡起纸条并走向门。',
+        narrativeGoal: '目标建立', actionChain: '弯腰捡起纸条 → 看见门的线稿', dramaticBeat: '发现线索',
+        continuityLocks: '黄色雨衣、暖灯、湿纸条', ffDesc: '雨夜街口，主角在画面右侧', motionDesc: '弯腰捡起纸条',
+        lfDesc: '纸条举到门前', previousShotId: undefined, firstFrameRef: 'anchor:street',
+      }],
+    })
+    expect(parsed.shots[0]).toMatchObject({
+      narrativeGoal: '目标建立', actionChain: '弯腰捡起纸条 → 看见门的线稿', dramaticBeat: '发现线索',
+      continuityLocks: '黄色雨衣、暖灯、湿纸条', previousShotId: undefined, firstFrameRef: 'anchor:street',
+    })
+    const { nodes } = storyboardPlanToCreateNodesArgs(parsed)
+    expect(nodes.find((node) => node.clientId === 'shot-1')?.metadata).toMatchObject({
+      narrativeGoal: '目标建立', actionChain: '弯腰捡起纸条 → 看见门的线稿', dramaticBeat: '发现线索',
+      continuityLocks: '黄色雨衣、暖灯、湿纸条', firstFrameRef: 'anchor:street',
+    })
+  })
   it('合法方案对象原样解析', () => {
     expect(parseStoryboardPlan(PLAN)).toEqual(PLAN)
   })
