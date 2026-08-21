@@ -4,13 +4,13 @@
 
 这次验收使用 Nomi 已配置的 APIMart key，通过 Nomi capability core 真生成 Seedream 4.5 静态首帧和 Seedance 2.0 I2V。最终片子位于：
 
-`/Users/aoqimin/Documents/Nomi Projects/真实连续性片 2026-08-21-mt2gt25u-c8f3544b/exports/nomi-real-continuity-30s.mp4`
+`/Users/aoqimin/Documents/Nomi Projects/真实连续性片 2026-08-21-mt2gt25u-c8f3544b/exports/nomi-real-continuity-30s-sound.mp4`
 
 项目证据目录：
 
 `/Users/aoqimin/Documents/Nomi Projects/真实连续性片 2026-08-21-mt2gt25u-c8f3544b/.nomi/runs/run-real-continuity-a1f5911d/`
 
-最终验收：29.4 秒、H.264/AAC、字幕流 29.32 秒；6 镜、5 个有意编排的边界转场；抽帧后的 18 张镜头帧和 15 张边界帧均落在项目目录内。真实验收命令 1/1 通过。
+最终验收：29.4 秒、H.264/AAC、字幕流 29.32 秒；6 镜、5 个有意编排的边界转场；6 条由 Nomi/APIMart `nomi-audio` 真生成的定时旁白。平均响度 -17.8 dB、峰值 -1.5 dB、静音占比 2.1%；抽帧后的 18 张镜头帧、15 张边界帧和音频波形均落在项目目录内。真实验收命令 1/1 通过。
 
 ## 旧片的真实失败，不是“播放器能不能打开”
 
@@ -30,6 +30,7 @@
 | 每镜各自生成，故事变成拼接稿 | 少于 6 镜、缺 `narrativeGoal/actionChain/dramaticBeat` | `storyboard-v1.json` 逐镜保存目标、动作链、戏剧结果 |
 | 跨镜状态蒸发 | 镜头 2+ 缺 `previousShotId` 或 `firstFrameRef` | `generation-record-v1.json` 的每个视频请求带前镜、首帧、尾帧和 references |
 | 片长/字幕假绿 | MP4 不是约 30 秒，或字幕流超出视频 | ffprobe 实测 29.4/29.32 秒；验收断言二者对齐 |
+| AAC 存在但实际全静音 | 平均响度低于 -45 dB、峰值低于 -12 dB 或静音占比高于 65% | 真生成 6 条旁白并定时混音；实测 -17.8/-1.5 dB、静音占比 2.1%，同时保存波形证据 |
 | 只看文件能播放，不看画面 | 抽帧缺 early/middle/late 或边界 verdict 不是 pass | `frame-analysis.json` 记录 18 张镜头帧、15 张边界帧和逐边界 verdict |
 | 供应商动作提示产生空间幻觉 | 真实抽帧发现第 4 镜桌下出现第二张脸 | 只重试第 4 镜；记录 `retryCount=1`、`parentUrl`、`retryReason`，重试 prompt 明确“桌下为空” |
 
@@ -61,6 +62,18 @@ node scripts/analyze-real-film.mjs --film "$FILM" --run "$RUN" --out "$RUN/frame
 
 重新生成后的 `frame-analysis.json` 会回到 `pending-human-review`，这是刻意设计的：不能把上一轮人工结论自动冒充下一轮证据。
 
+## 音频假绿的追加修复
+
+第一版验收只断言 `audioCodec === AAC`，组片脚本却使用 `anullsrc` 注入全零音频。播放器因此显示有音轨，但用户听不到声音。这是一次真实的假绿。
+
+修复后：
+
+- 6 句字幕分别通过 Nomi capability core 调用 APIMart `nomi-audio` 生成 `shimmer` 女声；
+- 每句记录 `startSeconds/endSeconds/sourceDurationSeconds/playbackRate`，测试保证相邻旁白不重叠且最后一句不越界；
+- 混入前半段雨声和贯穿全片的低频氛围垫；
+- analyzer 实测平均响度、峰值和静音占比，并输出 `audio-waveform.png`；
+- AAC 容器存在但样本全零时，验收测试现在必定失败。
+
 ## 限制
 
-这次是通过 Nomi capability core 的真实供应商生成和项目目录证据包，验证了“生成—抽帧—发现根因—定向重试—再验收”链路；它不是把项目 UI 的每个点击都自动化录制，也没有把静音 AAC 轨道冒充真实配乐。下一步如果要做可发布样片，应再接真实音频/对白和最终导出 UI 走查，但这不影响本次连续性合同的结论。
+这次是通过 Nomi capability core 的真实供应商生成和项目目录证据包，验证了“生成—抽帧/波形—发现根因—定向重试—再验收”链路；它不是把项目 UI 的每个点击都自动化录制。当前声音是旁白、雨声和轻氛围垫，不是完整的电影级拟音/原创配乐制作。

@@ -13,6 +13,7 @@ import { invoke } from './lib/nomiClient.mjs'
 
 const require = createRequire(import.meta.url)
 const ffmpeg = require('@ffmpeg-installer/ffmpeg').path
+const ffprobe = require('@ffprobe-installer/ffprobe').path
 const spendOptions = { spawnEnv: { NOMI_LOOP_SPEND_OK: '1', NOMI_POLL_TIMEOUT_MS: '900000' } }
 const provider = 'apimart'
 const imageModel = 'doubao-seedream-4.5'
@@ -154,6 +155,34 @@ function assemble(projectDir, runDir, videoFiles) {
   return { output, srt, durationSeconds: currentDuration }
 }
 
+function mediaDuration(file) {
+  return Number(execFileSync(ffprobe, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', file], { encoding: 'utf8' }).trim())
+}
+
+function mixNarration(projectDir, runDir, sourceFilm, narrationFiles, durationSeconds) {
+  const output = path.join(projectDir, 'exports', 'nomi-real-continuity-30s-sound.mp4')
+  const args = ['-y', '-i', sourceFilm]
+  narrationFiles.forEach((file) => args.push('-i', file))
+  const filters = []
+  const clipStarts = timelineClips().map((clip) => clip.startFrame / 30)
+  const playbackRate = 1.25
+  const cueTimings = narrationFiles.map((file, index) => {
+    const delay = Math.round((clipStarts[index] + 0.25) * 1000)
+    const sourceDurationSeconds = mediaDuration(file)
+    const startSeconds = delay / 1000
+    const endSeconds = startSeconds + sourceDurationSeconds / playbackRate
+    filters.push(`[${index + 1}:a]aresample=48000,atempo=${playbackRate},volume=1.35,adelay=${delay}|${delay}[voice${index}]`)
+    return { startSeconds, endSeconds, sourceDurationSeconds, playbackRate }
+  })
+  filters.push(`anoisesrc=color=pink:duration=${durationSeconds.toFixed(3)}:amplitude=0.018:r=48000,highpass=f=90,lowpass=f=3200,afade=t=out:st=13:d=3[rain]`)
+  filters.push(`aevalsrc=0.012*sin(2*PI*110*t)+0.007*sin(2*PI*164.81*t):s=48000:d=${durationSeconds.toFixed(3)},lowpass=f=520,afade=t=in:d=2,afade=t=out:st=26:d=3[pad]`)
+  const voiceInputs = narrationFiles.map((_file, index) => `[voice${index}]`).join('')
+  filters.push(`${voiceInputs}[rain][pad]amix=inputs=${narrationFiles.length + 2}:duration=longest:dropout_transition=0,loudnorm=I=-18:LRA=7:TP=-1.5[aout]`)
+  args.push('-filter_complex', filters.join(';'), '-map', '0:v:0', '-map', '[aout]', '-map', '0:s?', '-t', durationSeconds.toFixed(3), '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-c:s', 'copy', '-movflags', '+faststart', output)
+  execFileSync(ffmpeg, args, { stdio: 'ignore' })
+  return { output, cueTimings, playbackRate }
+}
+
 function timelineClips() {
   const overlapFrames = Math.round(0.12 * 30)
   let cursor = 0
@@ -217,6 +246,62 @@ async function retryShot(projectDir, runDir, shotNumber, reason) {
   return { shotId: shot.shotId, previousUrl, replacementUrl: generated.url, film: assembled.output, durationSeconds: assembled.durationSeconds }
 }
 
+async function addAudio(projectDir, runDir) {
+  const recordPath = path.join(runDir, 'generation-record-v1.json')
+  const record = JSON.parse(fs.readFileSync(recordPath, 'utf8'))
+  const sourceFilm = path.join(projectDir, 'exports', 'nomi-real-continuity-30s.mp4')
+  if (!fs.existsSync(sourceFilm)) throw new Error(`silent picture master not found: ${sourceFilm}`)
+  const narration = Array.isArray(record.audio?.narration) && record.audio.narration.length === record.plan.shots.length
+    ? record.audio.narration.map((cue) => ({ ...cue }))
+    : []
+  if (!narration.length) {
+    for (let index = 0; index < record.plan.shots.length; index += 1) {
+      const shot = record.plan.shots[index]
+      const prompt = shot.subtitle || shots[index]?.subtitle
+      if (!prompt) throw new Error(`missing narration text for ${shot.shotId || index + 1}`)
+      const generated = await generate({
+        projectId: record.projectId,
+        intent: 'audio',
+        vendor: 'apimart',
+        modelKey: 'nomi-audio',
+        modeId: 'speech',
+        title: `旁白 ${shot.shotId}`,
+        prompt,
+        params: { voice: 'shimmer', speed: 0.92 },
+      })
+      narration.push({ shotId: shot.shotId, prompt, url: generated.url, vendor: 'apimart', modelKey: 'nomi-audio', modeId: 'speech', voice: 'shimmer', speed: 0.92 })
+    }
+  }
+  const durationSeconds = Number(record.export.durationSeconds || 29.4)
+  const narrationFiles = narration.map((cue) => localAssetPath(projectDir, cue.url))
+  const mixed = mixNarration(projectDir, runDir, sourceFilm, narrationFiles, durationSeconds)
+  mixed.cueTimings.forEach((timing, index) => Object.assign(narration[index], timing))
+  record.audio = {
+    narration,
+    mix: {
+      sourcePictureMaster: path.relative(projectDir, sourceFilm),
+      ambience: ['rain-pink-noise-first-half', 'low-warm-pad'],
+      durationSeconds,
+      output: path.relative(projectDir, mixed.output),
+      playbackRate: mixed.playbackRate,
+    },
+  }
+  record.export.relativePath = path.relative(projectDir, mixed.output)
+  writeJson(recordPath, record)
+  const timelinePath = path.join(runDir, 'timeline-v1.json')
+  const timeline = JSON.parse(fs.readFileSync(timelinePath, 'utf8'))
+  timeline.media.relativePath = path.relative(projectDir, mixed.output)
+  timeline.audio = record.audio
+  writeJson(timelinePath, timeline)
+  const runPath = path.join(runDir, 'run.json')
+  const run = JSON.parse(fs.readFileSync(runPath, 'utf8'))
+  const exportArtifact = run.artifacts?.find((artifact) => artifact.kind === 'export')
+  if (exportArtifact) exportArtifact.projectRelativePath = path.relative(projectDir, mixed.output)
+  run.audio = { narrationCueCount: narration.length, output: path.relative(projectDir, mixed.output) }
+  writeJson(runPath, run)
+  return { output: mixed.output, narrationCueCount: narration.length, durationSeconds, playbackRate: mixed.playbackRate }
+}
+
 function reassembleExisting(projectDir, runDir) {
   const recordPath = path.join(runDir, 'generation-record-v1.json')
   const record = JSON.parse(fs.readFileSync(recordPath, 'utf8'))
@@ -234,6 +319,13 @@ function reassembleExisting(projectDir, runDir) {
 }
 
 async function main() {
+  if (process.argv.includes('--add-audio')) {
+    const projectDir = path.resolve(process.env.NOMI_REAL_FILM_PROJECT || '')
+    const runDir = path.resolve(process.env.NOMI_REAL_FILM_RUN || '')
+    if (!projectDir || !runDir) throw new Error('NOMI_REAL_FILM_PROJECT and NOMI_REAL_FILM_RUN are required for --add-audio')
+    console.log(JSON.stringify(await addAudio(projectDir, runDir), null, 2))
+    return
+  }
   if (process.argv.includes('--normalize-record')) {
     const runDir = path.resolve(process.env.NOMI_REAL_FILM_RUN || '')
     if (!runDir) throw new Error('NOMI_REAL_FILM_RUN is required for --normalize-record')

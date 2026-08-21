@@ -7,7 +7,7 @@
  * sheets and fill the boundary/narrative verdicts before the acceptance test can
  * pass.
  */
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
@@ -30,6 +30,22 @@ function probe(film) {
   return JSON.parse(execFileSync(ffprobe, [
     '-v', 'error', '-show_entries', 'format=duration:stream=index,codec_type,codec_name,duration', '-of', 'json', film,
   ], { encoding: 'utf8' }))
+}
+
+function measureAudio(film, duration) {
+  const volume = spawnSync(ffmpeg, ['-i', film, '-map', '0:a:0', '-af', 'volumedetect', '-f', 'null', '-'], { encoding: 'utf8' })
+  const volumeLog = `${volume.stdout || ''}\n${volume.stderr || ''}`
+  const meanVolumeDb = Number(volumeLog.match(/mean_volume:\s*(-?[\d.]+)\s*dB/i)?.[1])
+  const maxVolumeDb = Number(volumeLog.match(/max_volume:\s*(-?[\d.]+)\s*dB/i)?.[1])
+  const silence = spawnSync(ffmpeg, ['-i', film, '-map', '0:a:0', '-af', 'silencedetect=noise=-50dB:d=0.5', '-f', 'null', '-'], { encoding: 'utf8' })
+  const silenceLog = `${silence.stdout || ''}\n${silence.stderr || ''}`
+  const silenceDurations = Array.from(silenceLog.matchAll(/silence_duration:\s*([\d.]+)/gi), (match) => Number(match[1])).filter(Number.isFinite)
+  const silentSeconds = silenceDurations.reduce((sum, value) => sum + value, 0)
+  return {
+    audioMeanVolumeDb: Number.isFinite(meanVolumeDb) ? meanVolumeDb : null,
+    audioMaxVolumeDb: Number.isFinite(maxVolumeDb) ? maxVolumeDb : null,
+    silenceRatio: duration > 0 ? Math.min(1, silentSeconds / duration) : null,
+  }
 }
 
 function readJson(file) {
@@ -70,6 +86,10 @@ function makeTile(inputGlob, target, columns) {
   execFileSync(ffmpeg, ['-y', '-pattern_type', 'glob', '-i', inputGlob, '-vf', `scale=320:-2,tile=${columns}x${Math.ceil(files.length / columns)}:padding=8:margin=8`, '-frames:v', '1', '-q:v', '3', target], { stdio: 'ignore' })
 }
 
+function makeWaveform(film, target) {
+  execFileSync(ffmpeg, ['-y', '-i', film, '-filter_complex', '[0:a:0]aformat=channel_layouts=mono,showwavespic=s=1200x240:colors=0x22c55e[wave]', '-map', '[wave]', '-frames:v', '1', target], { stdio: 'ignore' })
+}
+
 function main() {
   const film = path.resolve(arg('--film') || '')
   const runDir = path.resolve(arg('--run') || '')
@@ -81,7 +101,9 @@ function main() {
   const duration = Number(metadata.format?.duration || 0)
   const streams = Array.isArray(metadata.streams) ? metadata.streams : []
   const storyboard = findRunArtifact(runDir, 'storyboard')
+  const generationRecord = findRunArtifact(runDir, 'real-provider-generation-record')
   const clips = timelineFor(runDir, storyboard, duration)
+  const audioMetrics = measureAudio(film, duration)
   const framesDir = path.join(outDir, 'frames')
   const boundariesDir = path.join(outDir, 'boundaries')
   fs.mkdirSync(framesDir, { recursive: true })
@@ -135,6 +157,8 @@ function main() {
   }
   makeTile(path.join(framesDir, '*.jpg'), path.join(outDir, 'shot-contact-sheet.jpg'), 3)
   makeTile(path.join(boundariesDir, '*.jpg'), path.join(outDir, 'boundary-contact-sheet.jpg'), 3)
+  const waveformFile = path.join(outDir, 'audio-waveform.png')
+  makeWaveform(film, waveformFile)
   const analysis = {
     schemaVersion: 1,
     generatedAt: new Date().toISOString(),
@@ -144,6 +168,12 @@ function main() {
       videoCodec: streams.find((stream) => stream.codec_type === 'video')?.codec_name || '',
       audioCodec: streams.find((stream) => stream.codec_type === 'audio')?.codec_name || '',
       subtitleDurationSeconds: Number(streams.find((stream) => stream.codec_type === 'subtitle')?.duration || 0) || null,
+      ...audioMetrics,
+    },
+    audio: {
+      narrationCueCount: Array.isArray(generationRecord?.audio?.narration) ? generationRecord.audio.narration.length : 0,
+      waveform: path.basename(waveformFile),
+      verdict: 'pending-human-review',
     },
     shots: shotEntries,
     boundaries,

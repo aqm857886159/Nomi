@@ -12,7 +12,7 @@
 
 1. 生产计划：至少 6 镜；每镜有 `shotId`、`narrativeGoal`、`actionChain`、`dramaticBeat`、`continuityLocks`、`ffDesc`、`motionDesc`、`lfDesc`；第 2 镜起必须声明 `previousShotId` 和上一镜尾帧/状态引用。
 2. 请求守恒：每个视频请求必须携带镜头 ID、前镜 ID、参考资产、首/尾帧描述或显式状态回退说明；不能用裸的低级 `image_to_video` 请求冒充生产批次。
-3. 真实媒体：最终 MP4 可解码，视频约 30 秒，字幕流不越界，音频存在，镜头时间连续。
+3. 真实媒体：最终 MP4 可解码，视频约 30 秒，字幕流不越界；音频不仅存在，还必须达到可听响度、低静音占比，并保存 6 条定时旁白与波形证据。
 4. 抽帧证据：每镜保存早/中/晚三帧，每个边界保存前镜尾帧—切点—后镜首帧三联图；`frame-analysis.json` 必须逐边界记录 `spatialContinuity`、`causalHandoff`、`characterState` 和 `verdict`，不能只记录 ffprobe 数字。
 5. 叙事质量：开场目标、发展行动、转折/决定、结果收束至少各出现一次；相邻镜头不得出现未经计划的空间倒退、道具消失或角色状态重置。
 6. 项目可恢复：剧本、分镜、请求记录、抽帧证据、QA/重试 lineage、时间轴和导出都在同一个 Nomi 项目目录中。

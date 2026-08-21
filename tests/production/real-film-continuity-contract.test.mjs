@@ -74,7 +74,16 @@ function goodGenerationRecord() {
 
 function goodFrameAnalysis() {
   return {
-    film: { durationSeconds: 30, videoCodec: 'h264', audioCodec: 'aac', subtitleDurationSeconds: 29.9 },
+    film: {
+      durationSeconds: 30,
+      videoCodec: 'h264',
+      audioCodec: 'aac',
+      subtitleDurationSeconds: 29.9,
+      audioMeanVolumeDb: -21,
+      audioMaxVolumeDb: -2.2,
+      silenceRatio: 0.08,
+    },
+    audio: { narrationCueCount: 6, waveform: 'audio-waveform.png', verdict: 'pass' },
     shots: Array.from({ length: 6 }, (_, index) => ({ shotId: `shot-${index + 1}`, frames: { early: 'x', middle: 'x', late: 'x' } })),
     boundaries: Array.from({ length: 5 }, (_, index) => ({
       fromShotId: `shot-${index + 1}`,
@@ -123,5 +132,16 @@ describe('real film continuity contract', () => {
 
   it('accepts frame analysis only when all technical and visual evidence is present', () => {
     assert.deepEqual(validateFrameAnalysis(goodFrameAnalysis()), { ok: true, errors: [] })
+  })
+
+  it('rejects an AAC container whose samples are actually silent', () => {
+    const analysis = goodFrameAnalysis()
+    analysis.film.audioMeanVolumeDb = -91
+    analysis.film.audioMaxVolumeDb = -91
+    analysis.film.silenceRatio = 1
+    analysis.audio.verdict = 'fail'
+    const result = validateFrameAnalysis(analysis)
+    assert.equal(result.ok, false)
+    assert.ok(result.errors.some((error) => /audible|silence|audio/i.test(error)))
   })
 })
