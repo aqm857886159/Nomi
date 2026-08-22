@@ -9,13 +9,14 @@
 import path from 'node:path'
 import { app, session } from 'electron'
 
-import { dispatch, RpcError } from './dispatcher'
+import { dispatch } from './dispatcher'
 import { createDiskGateway } from './gateway'
 import { ensureBuiltinModelSeeds } from '../catalog/catalogStore'
 import { runTask, fetchTaskResult } from '../runtime'
 import { verifyToken } from './security'
 import { applySystemProxy } from '../systemProxy'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
+import { rpcErrorWirePayload } from './mcpRpcError'
 
 const productionRuns = getProductionRunService()
 
@@ -76,8 +77,7 @@ async function run(): Promise<number> {
     emit({ ok: true, result })
     return 0
   } catch (error) {
-    const message = error instanceof RpcError ? error.message : error instanceof Error ? error.message : String(error)
-    emit({ ok: false, error: message })
+    emit({ ok: false, error: rpcErrorWirePayload(error) })
     return 1
   }
 }
@@ -101,7 +101,7 @@ app.whenReady().then(async () => {
     }
     code = await run()
   } catch (error) {
-    emit({ ok: false, error: error instanceof Error ? error.message : String(error) })
+    emit({ ok: false, error: rpcErrorWirePayload(error) })
   } finally {
     app.exit(code)
   }

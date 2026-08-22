@@ -4,6 +4,9 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createProductionRunRepository } from "./productionRunRepository";
+import { productionRunPaths } from "./productionRunPaths";
+import { createProductionRunIntentLog } from "./productionRunIntentLog";
+import { createProductionRunLock } from "./productionRunLock";
 import {
   SubmissionNotDispatchedError,
   SubmissionReceiptUnknownError,
@@ -185,6 +188,35 @@ describe("SubmissionOutbox", () => {
 
     await expect(submissionOutbox.submit(request)).rejects.toBeInstanceOf(SubmissionReconciliationRequiredError);
     expect(dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists a Run-owned provider claim and refuses a restart resubmit after receipt loss", async () => {
+    const repository = setup();
+    const paths = productionRunPaths(root, "run-1");
+    const intentLog = createProductionRunIntentLog({ filePath: paths.intents, macKey: "test-app-owned-key" });
+    const firstDispatch = vi.fn(async () => ({ providerTaskId: "provider-task-1" }));
+    const first = outbox({
+      repository,
+      dispatch: firstDispatch,
+      intentLog,
+      lock: createProductionRunLock({ filePath: paths.lock, epochPath: paths.lockEpoch, ownerId: "worker-a" }),
+      afterDispatch: () => { throw new Error("crash after provider acceptance"); },
+    });
+
+    await expect(first.submit(request)).rejects.toBeInstanceOf(SubmissionReceiptUnknownError);
+    expect(firstDispatch).toHaveBeenCalledTimes(1);
+    expect(intentLog.list()).toHaveLength(1);
+    expect(intentLog.list()[0].status).toBe("committed");
+
+    const restartedDispatch = vi.fn(async () => ({ providerTaskId: "provider-task-2" }));
+    const restarted = outbox({
+      repository,
+      dispatch: restartedDispatch,
+      intentLog: createProductionRunIntentLog({ filePath: paths.intents, macKey: "test-app-owned-key" }),
+      lock: createProductionRunLock({ filePath: paths.lock, epochPath: paths.lockEpoch, ownerId: "worker-b" }),
+    });
+    await expect(restarted.submit(request)).rejects.toBeInstanceOf(SubmissionReconciliationRequiredError);
+    expect(restartedDispatch).not.toHaveBeenCalled();
   });
 
   it("coalesces concurrent process-local calls while durable state remains authoritative", async () => {

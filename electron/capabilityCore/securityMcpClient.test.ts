@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import {
   CAPABILITY_DIR_ENV,
+  ensureCapabilitySigningKey,
   ensureToken,
   resolveMcpOrigin,
   signMcpClient,
@@ -39,5 +40,17 @@ describe('signed MCP client identity', () => {
     expect(resolveMcpOrigin('cursor', undefined)).toBe('external')
     expect(resolveMcpOrigin('cursor', tampered)).toBe('external')
     expect(resolveMcpOrigin('evil-client', proof)).toBe('external')
+  })
+})
+
+describe('app-owned signing keys', () => {
+  it('persists separate opaque keys without reusing the bearer token', () => {
+    const leaseKey = ensureCapabilitySigningKey('project-lease')
+    const receiptKey = ensureCapabilitySigningKey('approval-receipt')
+    expect(leaseKey).toHaveLength(32)
+    expect(receiptKey).toHaveLength(32)
+    expect(leaseKey.equals(receiptKey)).toBe(false)
+    expect(ensureCapabilitySigningKey('project-lease')).toEqual(leaseKey)
+    expect(fs.readFileSync(path.join(root, 'keys', 'project-lease.key'))).toEqual(leaseKey)
   })
 })

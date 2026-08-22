@@ -5,9 +5,11 @@
 > B. 我们的评测体系是怎么设计的——以及它和业界共识的对应关系;
 > C. 相关论文与开源设计导读——每条标注「我们抄了什么 / 没抄什么 / 为什么」。
 >
-> **和已有文档的关系**：本文是**讲义**（解释为什么），不是真相源。施工真相源仍是
-> `docs/plan/2026-06-11-nomi-harness-master-plan.md`（harness）和
-> `docs/plan/2026-06-11-eval-system-master-plan.md`（评测）。两边冲突以那两份为准。
+> **和已有文档的关系**：本文是**历史讲义**（解释当时为什么），不是当前真相源，
+> 其中 EventLog/NomiEvent 只作研究语汇。当前 runtime 施工真相是
+> `docs/superpowers/specs/2026-08-22-runtime-ownership-adr.md` 与
+> `docs/superpowers/plans/2026-08-22-mcp-ai-generation-vertical-slice.md`；
+> 任何冲突以最新 ownership ADR 为准。
 > 日期：2026-06-13。代码引用以当日 main（`5c7eab9`）为准。
 
 ---

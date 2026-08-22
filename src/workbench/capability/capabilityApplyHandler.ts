@@ -24,6 +24,7 @@ import {
 import { resolveStoryboardImageDefault, resolveStoryboardVideoDefault } from '../generationCanvas/agent/availableModels'
 import { applyCanvasToolCall, resolveCanvasToolNodeId } from '../generationCanvas/agent/applyCanvasToolCall'
 import { generationCanvasTools } from '../generationCanvas/agent/generationCanvasTools'
+import { hasGenerationBinding } from '../../../electron/capabilityCore/generationBindingGuard'
 
 // 能力核 A 模式实时桥 · 渲染层处理器。
 // 主进程把外部 MCP 的画布读/写/付费确认转发到这里（只在该项目正打开时路由），处理后回结果。
@@ -47,6 +48,32 @@ type PlanConfirmPayload = {
   projectId?: string
   nodeCount?: number
   titles?: string[]
+}
+
+type GenerationGateConfirmPayload = {
+  challengeId?: string
+  projectName?: string
+  shotSummary?: string
+  model?: string
+  referenceCount?: number
+  maximumCost?: number
+  currency?: string
+  expiresAt?: string
+}
+
+export class LegacyPathForbiddenError extends Error {
+  readonly code = 'legacy_path_forbidden' as const
+
+  constructor() {
+    super('legacy_path_forbidden')
+    this.name = 'LegacyPathForbiddenError'
+  }
+}
+
+/** Pure renderer-side firewall for the direct legacy generation bridge. */
+export function assertLegacyGenerationPayload(payload: Record<string, unknown>): void {
+  if (!hasGenerationBinding(payload)) return
+  throw new LegacyPathForbiddenError()
 }
 
 function describeIntent(intent: string | undefined): string {
@@ -151,6 +178,32 @@ async function confirmSpendForAgent(info: SpendConfirmPayload): Promise<{ confir
   return { confirmed: Boolean(ok) }
 }
 
+/** One user-facing confirmation card for the semantic generation challenge. */
+async function confirmGenerationGateForAgent(info: GenerationGateConfirmPayload): Promise<{ confirmed: boolean; challengeId?: string }> {
+  const model = typeof info.model === 'string' && info.model.trim() ? info.model.trim() : i18n.t('runtime.capability.defaultModel')
+  const shot = typeof info.shotSummary === 'string' && info.shotSummary.trim()
+    ? info.shotSummary.trim()
+    : i18n.t('runtime.capability.generationGateShotFallback')
+  const maximumCost = Number.isFinite(info.maximumCost) ? Number(info.maximumCost) : 0
+  const cost = `${typeof info.currency === 'string' ? info.currency : ''}${maximumCost}`
+  const ok = await useSpendConfirmStore.getState().requestConfirm({
+    kind: 'generation',
+    title: i18n.t('runtime.capability.generationGateTitle'),
+    message: i18n.t('runtime.capability.generationGateMessage', { model, cost, shot }),
+    confirmLabel: i18n.t('runtime.capability.confirmGenerate'),
+    source: 'agent',
+    countdownMs: 60_000,
+    details: [
+      ...(info.projectName ? [{ label: i18n.t('runtime.capability.generationGateProject'), value: info.projectName }] : []),
+      { label: i18n.t('runtime.capability.generationGateModel'), value: model },
+      ...(Number.isInteger(info.referenceCount) ? [{ label: i18n.t('runtime.capability.generationGateReferences'), value: String(info.referenceCount) }] : []),
+      { label: i18n.t('runtime.capability.generationGateCost'), value: cost },
+      ...(info.expiresAt ? [{ label: i18n.t('runtime.capability.generationGateExpires'), value: info.expiresAt }] : []),
+    ],
+  })
+  return { confirmed: Boolean(ok), ...(info.challengeId ? { challengeId: info.challengeId } : {}) }
+}
+
 /** 外部 MCP 方案门（Phase B）：agent 要往画布落一套节点（≥2）前弹确认卡（免费可撤），复用同一漏斗（P1）。 */
 async function confirmPlanForAgent(info: PlanConfirmPayload): Promise<{ confirmed: boolean }> {
   const count = typeof info.nodeCount === 'number' ? info.nodeCount : 0
@@ -228,6 +281,7 @@ async function verifyShotsForProduction(shotNodeIds: readonly string[]): Promise
 /** 处理一条主进程转发来的能力操作。未知操作抛错（主进程会把错误透传给 agent）。 */
 export async function handleCapabilityApply(op: string, payload: unknown): Promise<unknown> {
   const data = (payload && typeof payload === 'object' ? payload : {}) as Record<string, unknown>
+  if (op === 'production.generate-node') assertLegacyGenerationPayload(data)
   const projectId = typeof data.projectId === 'string' ? data.projectId : ''
   const activeId = getActiveWorkbenchProjectId()
   // 画布读写**只能**作用于当前打开的项目（动 store → 必须是活动项目，否则串台）；目标≠活动 → 拒。
@@ -245,6 +299,8 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       return { ok: true }
     case 'spend.confirm':
       return confirmSpendForAgent(data as SpendConfirmPayload)
+    case 'generation.gate.confirm':
+      return confirmGenerationGateForAgent(data as GenerationGateConfirmPayload)
     case 'plan.confirm':
       return confirmPlanForAgent(data as PlanConfirmPayload)
     case 'production.plan-directions': {

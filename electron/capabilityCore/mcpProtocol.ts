@@ -26,11 +26,39 @@ import { createProgressReporter } from './mcpProgress'
 import { createPlanTrustStore, planConfirmElicit } from './mcpPlanTrust'
 import { createSpendTrustStore, spendConfirmElicit } from './mcpSpendTrust'
 import { buildIntakeMessage, buildIntakeQuestions, buildIntakeSchema, resolveIntake, summarizeIntake } from './mcpBriefIntake'
+import type { AuthenticatedMcpClient } from './security'
 
 // spendConfirmed=真人已在 Claude 侧确认付费；planConfirmed=真人已在聊天里批准这批方案节点
 // （elicitation-first 画布确认，见 mcpPlanTrust.ts）——透传给传输层，让最终跑 confirmPlan 的网关预批准、
 // 不再弹 App 卡（免双问）。因方案 elicitation 发生在 App 开着时，planConfirmed 需跨 RPC 边界到达渲染层网关。
 export type McpInvokeOptions = { spendConfirmed?: boolean; planConfirmed?: boolean }
+
+export type GenerationGateChallengeProjection = {
+  challengeId: string
+  nonce?: string
+  projectName?: string
+  shotSummary?: string
+  model: string
+  referenceCount?: number
+  costScope: string
+  maximumCost: number
+  currency?: string
+  expiresAt: string
+  confirmationText?: string
+  /** Opaque server handoff data. It never belongs in user-facing copy. */
+  handoff?: Record<string, unknown>
+}
+
+export type GenerationGateConfirmation = {
+  challengeId: string
+  confirmed: boolean
+  surface: 'client' | 'nomi' | 'none'
+  nextAction: 'in_client' | 'in_nomi' | 'wait_for_reconciliation'
+  receiptId?: string
+  receiptToken?: string
+}
+
+export type GenerationGateVerificationResult = Pick<GenerationGateConfirmation, 'confirmed' | 'receiptId' | 'receiptToken'>
 
 // 哪些工具挂活 widget（tool.name → ui:// 资源）：单次生成与 production Run 共用一张活面板。
 const TOOL_UI_RESOURCE: Record<string, string> = {
@@ -51,6 +79,12 @@ export interface McpTransport {
    * 确认优先弹在调用方（客户端声明 elicitation 即可）；本标志只用于回答「客户端问不了时，还有谁能问」。
    */
   isAppOpen(): boolean
+  /** Main-process proof that this connection was installed for a known MCP client. */
+  getAuthenticatedClient?(): AuthenticatedMcpClient | null
+  /** Optional per-challenge verifier. A static client proof is not enough to mint a receipt. */
+  verifyClientGenerationConfirmation?(challenge: GenerationGateChallengeProjection, attestation: unknown): Promise<boolean | GenerationGateVerificationResult>
+  /** GUI fallback for the exact server-owned challenge. It must return only the gesture result. */
+  confirmGenerationInNomi?(challenge: GenerationGateChallengeProjection): Promise<boolean | GenerationGateVerificationResult>
   /** 结果/进度文案语言（可选；缺省 zh-CN，跟 App 语言设置走）。 */
   getLocale?(): ResultLocale
 }
@@ -115,6 +149,7 @@ export function createMcpProtocol(transport: McpTransport) {
   // 服务端→客户端请求自管 id 与 pending，等客户端回响应。
   let serverReqSeq = 0
   const pendingServerReqs = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>()
+  const generationConfirmationInFlight = new Map<string, Promise<GenerationGateConfirmation>>()
 
   function send(message: unknown): void {
     transport.send(message)
@@ -189,7 +224,7 @@ export function createMcpProtocol(transport: McpTransport) {
     message: string
     title: string
     description: string
-  }): Promise<{ supported: boolean; confirmed?: boolean }> {
+  }): Promise<{ supported: boolean; confirmed?: boolean; action?: 'accept' | 'decline' | 'cancel' | 'timeout'; attestation?: unknown }> {
     if (!clientSupportsElicitation) return { supported: false }
     try {
       const res = (await sendServerRequest('elicitation/create', {
@@ -201,13 +236,109 @@ export function createMcpProtocol(transport: McpTransport) {
           },
           required: ['confirm'],
         },
-      })) as { action?: string; content?: { confirm?: boolean } } | null
+      })) as { action?: string; content?: { confirm?: boolean; attestation?: unknown; confirmationAttestation?: unknown } } | null
       // 三态：accept / decline / cancel。只有明确 accept + confirm=true 才能跨过服务端边界。
       const confirmed = res?.action === 'accept' && res?.content?.confirm === true
-      return { supported: true, confirmed }
+      return {
+        supported: true,
+        confirmed,
+        action: res?.action === 'accept' || res?.action === 'decline' || res?.action === 'cancel' ? res.action : 'cancel',
+        attestation: res?.content?.attestation ?? res?.content?.confirmationAttestation,
+      }
     } catch {
       // 超时/异常 → 当作未确认（不死等、不偷偷花钱）。
-      return { supported: true, confirmed: false }
+      return { supported: true, confirmed: false, action: 'timeout' }
+    }
+  }
+
+  /**
+   * Answer one server-owned generation challenge on exactly one surface. The
+   * challenge is deliberately passed unchanged to the GUI fallback so a
+   * client timeout/reconnect cannot mint a second prompt or nonce.
+   */
+  async function resolveGenerationConfirmation(
+    challenge: GenerationGateChallengeProjection,
+  ): Promise<GenerationGateConfirmation> {
+    if (!challenge.challengeId || !challenge.model || !challenge.costScope || !Number.isFinite(challenge.maximumCost)
+      || !challenge.expiresAt) throw new Error('Invalid generation gate challenge')
+    const authenticatedClient = transport.getAuthenticatedClient?.() ?? null
+    if (clientSupportsElicitation && authenticatedClient) {
+      const elicited = await elicitBooleanConfirm({
+        message: challenge.confirmationText || [
+          `允许 Nomi 在${challenge.projectName ? `项目《${challenge.projectName}》` : '当前项目'}使用模型 ${challenge.model}`,
+          `最多花费 ${challenge.currency || ''}${challenge.maximumCost}，${challenge.shotSummary || '生成这一镜'}吗？`,
+        ].join('，'),
+        title: '确认这次生成',
+        description: [
+          challenge.referenceCount === undefined ? '' : `参考图 ${challenge.referenceCount} 张`,
+          `有效期至 ${challenge.expiresAt}`,
+        ].filter(Boolean).join(' · '),
+      })
+      if (!elicited.confirmed) {
+        // A deliberate decline/cancel is a completed human decision; do not ask
+        // the same person again on a second surface. A timeout is also kept on
+        // the client surface so a reconnect can reuse the unexpired challenge.
+        return {
+          challengeId: challenge.challengeId,
+          confirmed: false,
+          surface: 'client',
+          nextAction: 'wait_for_reconciliation',
+        }
+      }
+      if (elicited.attestation && typeof transport.verifyClientGenerationConfirmation === 'function') {
+        const verified = await transport.verifyClientGenerationConfirmation(challenge, elicited.attestation)
+        const result = typeof verified === 'boolean' ? { confirmed: verified } : verified
+        if (result.confirmed === true) {
+          return {
+            challengeId: challenge.challengeId,
+            confirmed: true,
+            surface: 'client',
+            nextAction: 'in_client',
+            ...(result.receiptId ? { receiptId: result.receiptId } : {}),
+            ...(result.receiptToken ? { receiptToken: result.receiptToken } : {}),
+          }
+        }
+      }
+      // Standard MCP elicitation has no portable click attestation. A bare
+      // accept therefore falls through to the same GUI challenge, never to a
+      // provider or spend path.
+    }
+    if (typeof transport.confirmGenerationInNomi === 'function' && transport.isAppOpen()) {
+      const fallback = await transport.confirmGenerationInNomi(challenge)
+      const confirmed = typeof fallback === 'boolean' ? fallback : fallback.confirmed === true
+      return {
+        challengeId: challenge.challengeId,
+        confirmed,
+        surface: 'nomi',
+        nextAction: confirmed ? 'in_nomi' : 'wait_for_reconciliation',
+        ...(typeof fallback === 'object' ? {
+          ...(fallback.receiptId ? { receiptId: fallback.receiptId } : {}),
+          ...(fallback.receiptToken ? { receiptToken: fallback.receiptToken } : {}),
+        } : {}),
+      }
+    }
+    return {
+      challengeId: challenge.challengeId,
+      confirmed: false,
+      surface: 'none',
+      nextAction: 'in_nomi',
+    }
+  }
+
+  async function requestGenerationConfirmation(
+    challenge: GenerationGateChallengeProjection,
+  ): Promise<GenerationGateConfirmation> {
+    const existing = generationConfirmationInFlight.get(challenge.challengeId)
+    if (existing) return existing
+    const pending = resolveGenerationConfirmation(challenge)
+    generationConfirmationInFlight.set(challenge.challengeId, pending)
+    try {
+      const result = await pending
+      if (!result.confirmed) generationConfirmationInFlight.delete(challenge.challengeId)
+      return result
+    } catch (error) {
+      generationConfirmationInFlight.delete(challenge.challengeId)
+      throw error
     }
   }
 
@@ -645,6 +776,7 @@ export function createMcpProtocol(transport: McpTransport) {
       void handle(message).catch((error) => {
         if (message && message.id != null) replyError(message.id, -32603, error instanceof Error ? error.message : String(error))
       })
-    },
+      },
+    requestGenerationConfirmation,
   }
 }

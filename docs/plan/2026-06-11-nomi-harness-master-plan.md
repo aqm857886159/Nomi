@@ -1,6 +1,14 @@
 # Nomi Harness 总体方案(模块定义 × 施工合同)
 
-> **文档体系**:本文是 harness 的**唯一执行真相源**,按框架模块组织。上游三份保留:
+> **历史文档 / 已废止施工入口（2026-08-22）**：本文保留作研究考据，不能
+> 作为当前 runtime 的执行计划或“唯一执行真相源”。当前唯一事实 owner 是
+> `ProductionRun`、Run intent/WAL、`RuntimeEnvelope`、outbox 和
+> materialization receipt；本文的 per-project `EventLog`/`NomiEvent` 模型不应
+> 再新建实现。请改读
+> `docs/superpowers/specs/2026-08-22-runtime-ownership-adr.md` 与
+> `docs/superpowers/plans/2026-08-22-mcp-ai-generation-vertical-slice.md`。
+
+> **历史文档体系**:本文曾是 harness 的执行草案，现仅作研究记录，按框架模块组织。上游三份保留:
 > `2026-06-10-nomi-harness-requirements.md`(要什么:24 需求点/簇 A-F/可控的透明)
 > `2026-06-10-nomi-harness-framework-research.md`(为什么自建:框架选型证据)
 > `2026-06-10-nomi-harness-teardown-reference-pool.md`(抄谁:参考池+ViMax 论文层)

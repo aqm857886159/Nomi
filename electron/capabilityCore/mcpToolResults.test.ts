@@ -298,6 +298,36 @@ describe('buildToolErrorOutcome (A6 错误契约)', () => {
     expect(text).toContain('已完成的内容安全')
     expect(outcome).toMatchObject({ errorCode: null, message: 'ECONNRESET boom' })
   })
+
+  it('preserves typed generation policy codes in structured MCP outcomes', () => {
+    const error = Object.assign(new Error('generation.single-shot phase_not_ready'), {
+      code: 'phase_not_ready', nextAction: 'finish P0', phase: 'schema_only', capability: 'start',
+    })
+    const { outcome } = buildToolErrorOutcome('nomi_start_generation', error)
+    expect(outcome).toMatchObject({
+      kind: 'error', errorCode: 'phase_not_ready', nextAction: 'finish P0', phase: 'schema_only', capability: 'start',
+    })
+  })
+
+  it('turns authorization failures into one simple user action while retaining machine fields', () => {
+    const error = Object.assign(new Error('A main-process receipt is required'), {
+      code: 'human_approval_required', nextAction: 'nomi://settings/automation', phase: 'e1_paid', capability: 'gate_decide',
+    })
+    const { text, outcome } = buildToolErrorOutcome('nomi_decide_generation_gate', error)
+    expect(text).toContain('请在 Nomi 确认这次生成')
+    expect(text).not.toContain('human_approval_required')
+    expect(outcome).toMatchObject({ errorCode: 'human_approval_required', nextActions: ['in_nomi'], nextAction: 'nomi://settings/automation' })
+  })
+
+  it('turns submission_unknown into reconcile-only user language', () => {
+    const { text, outcome } = buildToolOutcome('nomi_get_run', { projectId: 'p1', runId: 'run-1' }, {
+      runId: 'run-1', status: 'needs_attention', stageId: 'generate',
+      budget: { authorized: 5, actual: 0 }, jobs: [{ jobId: 'job-1', status: 'submission_unknown' }],
+    })
+    expect(text).toContain('等待对账')
+    expect(text).not.toContain('retry')
+    expect(outcome).toMatchObject({ nextActions: ['wait_reconciliation'] })
+  })
 })
 
 describe('buildProgressStartMessage (A1 起始帧参数回显)', () => {

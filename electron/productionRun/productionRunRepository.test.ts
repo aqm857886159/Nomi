@@ -114,10 +114,26 @@ describe("ProductionRunRepository", () => {
     const paths = productionRunPaths(root, "run-1");
     const envelope = JSON.parse(fs.readFileSync(paths.snapshot, "utf8")) as Record<string, unknown>;
     fs.writeFileSync(paths.snapshot, JSON.stringify({ ...envelope, checksum: "wrong" }), "utf8");
+    const beforeBytes = fs.readFileSync(paths.snapshot);
+    const beforeEntries = fs.readdirSync(paths.dir).sort();
 
     // 快照坏掉时从事件重建：重建出的 run 必须自报最后一条事件的游标（2），否则每次 read 都判过期。
     expect(repository().read("project-1", "run-1")).toMatchObject({ status: "awaiting_direction", snapshotCursor: 2 });
-    expect(fs.readdirSync(paths.dir).some((name) => name.startsWith("run.corrupt-"))).toBe(true);
+    expect(fs.readFileSync(paths.snapshot)).toEqual(beforeBytes);
+    expect(fs.readdirSync(paths.dir).sort()).toEqual(beforeEntries);
+  });
+
+  it("rebuilds a stale snapshot in memory without rewriting the snapshot or directory", () => {
+    createRun();
+    const paths = productionRunPaths(root, "run-1");
+    const latest = repository().readEvents("project-1", "run-1").at(-1)!;
+    fs.appendFileSync(paths.events, `${JSON.stringify({ ...latest, eventId: "evt-stale", cursor: 3 })}\n`, "utf8");
+    const beforeBytes = fs.readFileSync(paths.snapshot);
+    const beforeEntries = fs.readdirSync(paths.dir).sort();
+
+    expect(repository().read("project-1", "run-1")).toMatchObject({ status: "awaiting_direction", snapshotCursor: 2 });
+    expect(fs.readFileSync(paths.snapshot)).toEqual(beforeBytes);
+    expect(fs.readdirSync(paths.dir).sort()).toEqual(beforeEntries);
   });
 
   it("ignores a torn final event and keeps cursor ordering after restart", () => {

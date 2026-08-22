@@ -8,6 +8,10 @@ export const workspaceProjectRecordSchema = z.object({
   updatedAt: z.number().finite(),
   savedAt: z.number().finite().optional(),
   revision: z.number().int().nonnegative().optional(),
+  /** Stable identity for lease/contract bindings. Old manifests remain readable until maintenance migration. */
+  immutableProjectUuid: z.string().uuid().optional(),
+  /** Monotonic identity generation; deleting/recreating a project must never reuse the old generation. */
+  projectGeneration: z.number().int().positive().optional(),
   lastKnownRootPath: z.string().min(1).optional(),
   /** 播种来源幂等键（如「一键示例」）。随 manifest 持久化，list 摘要原样带回。 */
   seedKey: z.string().min(1).optional(),

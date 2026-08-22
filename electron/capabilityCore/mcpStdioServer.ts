@@ -20,14 +20,30 @@ import { resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import { getProjectLocationState, getWorkspaceRepositoryDeps } from '../runtimePaths'
 import { dispatchAndEnrich } from './mcpResultEnrichLive'
 import { makeShotVerifyDeps } from './shotVerifyDeps'
+import { rpcErrorFromPayload } from './mcpRpcError'
 import {
   MCP_CLIENT_ENV,
   MCP_CLIENT_PROOF_ENV,
   resolveMcpOrigin,
   type CapabilityOriginHost,
 } from './security'
+import type { ProjectLeaseAuthority } from './projectLease'
+import type { ApprovalReceiptAuthority } from './approvalReceipt'
+import type { McpGenerationPolicy } from './mcpGenerationPolicy'
+import type { DispatchContext } from './dispatcher'
 
 const productionRuns = getProductionRunService()
+
+export type McpStdioServerOptions = {
+  projectLeaseAuthority?: ProjectLeaseAuthority
+  resolveCurrentProject?: DispatchContext['resolveCurrentProject']
+  approvalReceiptAuthority?: ApprovalReceiptAuthority
+  requestGenerationGate?: DispatchContext['requestGenerationGate']
+  authorizeGeneration?: DispatchContext['authorizeGeneration']
+  generationPolicy?: McpGenerationPolicy
+  generationContext?: (params: Record<string, unknown>) => unknown | Promise<unknown>
+  projectRevisionResolver?: (projectId: string) => number | undefined
+}
 
 /**
  * 本进程（in-Electron stdio）服务的库 → 传给 readLiveInstance 读**对应命名空间**的广告文件。与 appIntegration
@@ -100,13 +116,18 @@ async function callViaRpc(
   } finally {
     clearTimeout(timer)
   }
-  const body = (await res.json()) as { ok?: boolean; error?: string; result?: unknown }
-  if (!body.ok) throw new Error(body.error || `RPC ${res.status}`)
+  const body = (await res.json()) as { ok?: boolean; error?: unknown; result?: unknown }
+  if (!body.ok) throw rpcErrorFromPayload(body, res.status)
   return body.result
 }
 
 /** 进程内调能力核：GUI 开着→转发 RPC（实时 + 应用内确认卡）；关着→进程内 dispatch（磁盘网关）。 */
-async function invoke(method: string, params: Record<string, unknown>, options?: McpInvokeOptions): Promise<unknown> {
+async function invoke(
+  method: string,
+  params: Record<string, unknown>,
+  options: McpInvokeOptions | undefined,
+  authorities: McpStdioServerOptions,
+): Promise<unknown> {
   const origin = resolveMcpOrigin(process.env[MCP_CLIENT_ENV], process.env[MCP_CLIENT_PROOF_ENV])
   const instance = readLiveInstance(currentLibrary())
   // GUI 开着 → RPC 转发，rpcServer 侧已做生成结果富化（缩略图/签名链），此处不再重复富化。
@@ -120,6 +141,7 @@ async function invoke(method: string, params: Record<string, unknown>, options?:
     makeGateway,
     productionRuns,
     origin: { host: origin },
+    ...authorities,
     ...(options?.planConfirmed ? { planConfirmed: true } : {}),
     // 审片环（W1）：headless 路的真实 deps——judge 走 runTask 文本路（不花生成额度）、抽帧走主进程 ffmpeg、
     // 重试复用首发 grantId+同 nodeId 直发。judge 模型无可用 text 模型时 visionAvailable=false → 整体跳过。
@@ -128,7 +150,7 @@ async function invoke(method: string, params: Record<string, unknown>, options?:
 }
 
 /** 启动 stdio JSON-RPC server。main.ts 在 NOMI_MCP_STDIO 模式的 app.whenReady 后调；不开窗、不抢单实例锁。 */
-export async function startMcpStdioServer(): Promise<void> {
+export async function startMcpStdioServer(authorities: McpStdioServerOptions = {}): Promise<void> {
   // 无窗口进程：mac 别在 dock 弹图标。
   app.dock?.hide?.()
   const previewServer = await startArtifactPreviewHttpServer(
@@ -161,8 +183,23 @@ export async function startMcpStdioServer(): Promise<void> {
 
   const protocol = createMcpProtocol({
     send: (message) => process.stdout.write(JSON.stringify(message) + '\n'),
-    invoke,
+    invoke: (method, params, options) => invoke(method, params, options, authorities),
     isAppOpen: () => Boolean(readLiveInstance(currentLibrary())),
+    getAuthenticatedClient: () => {
+      const origin = resolveMcpOrigin(process.env[MCP_CLIENT_ENV], process.env[MCP_CLIENT_PROOF_ENV])
+      return origin === 'external' || origin === 'nomi' ? null : origin
+    },
+    confirmGenerationInNomi: async (challenge) => {
+      const challengeToken = challenge.handoff && typeof challenge.handoff.challengeToken === 'string'
+        ? challenge.handoff.challengeToken
+        : ''
+      const instance = readLiveInstance(currentLibrary())
+      if (!challengeToken || !instance) return { confirmed: false }
+      const origin = resolveMcpOrigin(process.env[MCP_CLIENT_ENV], process.env[MCP_CLIENT_PROOF_ENV])
+      const result = await callViaRpc(instance, 'nomi_confirm_generation_gate', { challengeToken }, origin)
+      const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
+      return { confirmed: typed.confirmed === true, ...(typed.receiptId ? { receiptId: typed.receiptId } : {}), ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}) }
+    },
     getLocale: () => getDesktopLocale(),
   })
 

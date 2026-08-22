@@ -9,6 +9,8 @@
 import { ACTIVE_JOB_STATUSES } from '../productionRun/productionRunControl'
 import { stripInternalEnrichFields } from './mcpResultEnrich'
 
+export { buildToolErrorOutcome } from './mcpToolErrorResults'
+
 export type ResultLocale = 'zh-CN' | 'en'
 
 type Ctx = { locale: ResultLocale }
@@ -36,25 +38,6 @@ const RUN_STATUS_HINT: Record<string, { zh: string; en: string; nextZh: string; 
   needs_attention: { zh: '需要处理', en: 'needs attention', nextZh: '有任务卡住了，看错误详情选恢复动作', nextEn: 'A job is stuck; check the error details for recovery actions', action: 'recover' },
   completed: { zh: '已完成', en: 'completed', nextZh: '产物已保存到项目，可在 Nomi 里查看', nextEn: 'Artifacts are saved to the project; open them in Nomi', action: 'open_in_nomi' },
   cancelled: { zh: '已取消', en: 'cancelled', nextZh: '未提交的任务不计费', nextEn: 'Unsubmitted jobs are not charged', action: 'none' },
-}
-
-/** A6 已知错误码 → 人话原因 + 恢复动作（只登记确证的码，不编造；未知码原样透传）。 */
-const ERROR_HINT: Record<string, { zh: string; en: string; recover: Array<{ zh: string; en: string }> }> = {
-  asset_not_localized: {
-    zh: '参考素材还没落到本地，生成端拿不到它',
-    en: 'A referenced asset is not localized yet, so the generator cannot read it',
-    recover: [
-      { zh: '在 Nomi 里打开该节点让素材完成本地化后重试', en: 'Open the node in Nomi to finish localizing the asset, then retry' },
-    ],
-  },
-  renderer_or_provider_unknown: {
-    zh: '找不到能执行这次生成的渲染器或供应商配置',
-    en: 'No renderer or provider configuration can execute this generation',
-    recover: [
-      { zh: '用 nomi_list_models 核对可用模型后换一个', en: 'Check available models with nomi_list_models and switch' },
-      { zh: '在 Nomi 设置里补齐该供应商的接入', en: 'Complete the provider setup in Nomi settings' },
-    ],
-  },
 }
 
 function str(value: unknown): string {
@@ -468,6 +451,14 @@ export function buildToolOutcome(
         `  ${shotTarget ? `${shotTarget}；` : ''}批准前不会调用供应商，也不会产生这镜的费用。请回 Nomi 决定。`,
         `  ${shotTarget ? `${shotTarget}; ` : ''}no provider call or charge occurs before approval. Decide in Nomi.`),
     ] : []
+    const jobsArr = Array.isArray(value.jobs) ? (value.jobs as Array<Record<string, unknown>>) : []
+    const unknownJobs = jobsArr.filter((job) => str(job.status) === 'submission_unknown')
+    const reconciliationLines = unknownJobs.length ? [
+      L(ctx,
+        `有 ${unknownJobs.length} 个任务的供应商状态还没核实；Nomi 不会自动重提，正在等待对账。`,
+        `${unknownJobs.length} job(s) have an unverified provider state; Nomi will not resubmit automatically and is waiting for reconciliation.`,
+      ),
+    ] : []
     // B3：状态转述带当前信任档位（非默认时才占一行，避免默认档噪音）。
     const trustLevel = str(value.trustLevel) || 'key_confirm'
     const text = [
@@ -478,6 +469,7 @@ export function buildToolOutcome(
       ...candidateLines,
       ...sampleLines,
       ...shotLines,
+      ...reconciliationLines,
       hint ? L(ctx, hint.nextZh, hint.nextEn) : null,
     ].filter(Boolean).join('\n') + openLine
     return {
@@ -489,7 +481,9 @@ export function buildToolOutcome(
         ...(direction && direction.candidates.length ? { directionGateId: direction.gateId, directionCandidates: direction.candidates } : {}),
         ...(sampleGateId ? { sampleGateId } : {}),
         ...(shotGate ? { shotGateId: shotGate.gateId, shotJobId: shotGate.jobId } : {}),
-        nextActions: direction && direction.candidates.length
+        nextActions: unknownJobs.length
+          ? ['wait_reconciliation']
+          : direction && direction.candidates.length
           ? ['decide_direction']
           : sampleGateId
             ? ['review_sample']
@@ -748,29 +742,4 @@ export function buildProgressStartMessage(
       .filter(Boolean).join(' · ')
   }
   return null
-}
-
-/** A6 · 错误 → 人话原因 + 恢复动作 + 诊断信息（未知错误不编内容，原样透传 message）。 */
-export function buildToolErrorOutcome(
-  toolName: string,
-  error: unknown,
-  locale: ResultLocale = 'zh-CN',
-): { text: string; outcome: Record<string, unknown> } {
-  const ctx: Ctx = { locale }
-  const message = error instanceof Error ? error.message : String(error)
-  const code = Object.keys(ERROR_HINT).find((key) => message.includes(key)) || null
-  const hint = code ? ERROR_HINT[code] : null
-  const recover = hint ? hint.recover.map((r) => L(ctx, r.zh, r.en)) : []
-  const text = [
-    `✗ ${hint ? L(ctx, hint.zh, hint.en) : message}`,
-    code ? `${L(ctx, '诊断', 'diagnostic')} ${code}` : null,
-    ...recover.map((line, index) => `${index + 1}. ${line}`),
-    !hint && toolName === 'nomi_generate'
-      ? L(ctx, '已完成的内容安全；确认模型服务与 API Key 后可重试。', 'Finished work is safe; verify the model service and API key, then retry.')
-      : null,
-  ].filter(Boolean).join('\n')
-  return {
-    text,
-    outcome: { kind: 'error', tool: toolName, errorCode: code, message, recoveryActions: recover },
-  }
 }

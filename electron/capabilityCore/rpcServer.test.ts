@@ -61,7 +61,7 @@ async function rpc(
     },
     body: JSON.stringify({ method, params }),
   })
-  return { status: res.status, body: (await res.json()) as { ok: boolean; result?: unknown; error?: string } }
+  return { status: res.status, body: (await res.json()) as { ok: boolean; result?: unknown; error?: unknown } }
 }
 
 /** 发原始请求体：用于测顶层旁路标志（planConfirmed / spendConfirmed），它们不在 params 里。 */
@@ -236,5 +236,32 @@ describe('capabilityCore/rpcServer', () => {
   it('未知方法 → 404', async () => {
     const res = await rpc('nope')
     expect(res.status).toBe(404)
+  })
+
+  it('keeps typed generation policy details in the local RPC error payload', async () => {
+    const res = await rpc('nomi_operation_create', {})
+    expect(res.status).toBe(403)
+    expect(res.body.error).toMatchObject({
+      code: 'feature_disabled', nextAction: expect.any(String), phase: 'schema_only', capability: 'create',
+    })
+  })
+
+  it('allows only a signed MCP client to request the GUI fallback for one challenge', async () => {
+    await server!.close()
+    const confirmGenerationInNomi = vi.fn(async (input: { challengeToken: string }) => ({
+      confirmed: true,
+      challengeToken: input.challengeToken,
+      receiptId: 'receipt-1',
+    }))
+    server = await startRpcServer({
+      runTask: async () => ({ id: 't', status: 'succeeded', assets: [] }),
+      confirmGenerationInNomi,
+    })
+    const proof = signMcpClient('codex')!
+    const accepted = await rpc('nomi_confirm_generation_gate', { challengeToken: 'signed-challenge-token' }, token, { client: 'codex', proof })
+    expect(accepted.body).toMatchObject({ ok: true, result: { confirmed: true, receiptId: 'receipt-1' } })
+    const forged = await rpc('nomi_confirm_generation_gate', { challengeToken: 'signed-challenge-token' })
+    expect(forged.status).toBe(403)
+    expect(confirmGenerationInNomi).toHaveBeenCalledTimes(1)
   })
 })

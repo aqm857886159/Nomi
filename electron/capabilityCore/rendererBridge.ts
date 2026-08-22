@@ -42,6 +42,12 @@ export function isRendererAvailable(): boolean {
   return Boolean(target && !target.isDestroyed())
 }
 
+/** Main-process identity used when a renderer gesture is attested for a challenge. */
+export function rendererTargetIdentity(): { webContentsId: number; frameId: number; origin: string } | null {
+  if (!target || target.isDestroyed()) return null
+  return { webContentsId: target.id, frameId: 0, origin: 'app://nomi' }
+}
+
 function ensureReplyListener(): void {
   if (replyListenerBound) return
   replyListenerBound = true

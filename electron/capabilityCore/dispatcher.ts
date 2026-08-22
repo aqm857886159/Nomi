@@ -22,12 +22,13 @@ import type { ProductionBrief } from '../productionRun/productionRunTypes'
 import { withPreApprovedPlan, type ProjectGateway } from './gateway'
 import { INTAKE_MAX_QUESTIONS, buildIntakeMessage, buildIntakeQuestions } from './mcpBriefIntake'
 import type { CapabilityOriginHost } from './security'
-
-export class RpcError extends Error {
-  constructor(message: string, readonly httpStatus: number) {
-    super(message)
-  }
-}
+import { createMcpGenerationPolicy, type McpGenerationPolicy } from './mcpGenerationPolicy'
+import { dispatchSemanticGeneration, guardLegacyGenerationRoute, isSemanticGenerationRoute } from './generationDispatcher'
+import { RpcError } from './rpcError'
+export { RpcError } from './rpcError'
+export type { RpcPolicyErrorCode, RpcPolicyErrorDetails } from './rpcError'
+import type { ProjectLeaseAuthority, ProjectLeaseV1, ProjectSelectionHandleV1 } from './projectLease'
+import type { ApprovalReceiptAuthority, HumanApprovalReceiptV1 } from './approvalReceipt'
 
 export function projectIdOf(params: Record<string, unknown>): string {
   return typeof params.projectId === 'string' ? params.projectId : ''
@@ -50,6 +51,58 @@ export type DispatchContext = {
   }>
   /** Transport-owned authority. Request bodies may provide only an audit label, never trust. */
   origin?: { host: CapabilityOriginHost; actorId?: string }
+  /** The frozen server-side generation policy. Omit in legacy callers to build the default snapshot. */
+  generationPolicy?: McpGenerationPolicy
+  /** Optional read-only context seam. No semantic route may fall through to a legacy service. */
+  generationContext?: (params: Record<string, unknown>) => unknown | Promise<unknown>
+  /** Main-process project-lease authority. Semantic routes never trust body.projectId without this verifier. */
+  projectLeaseAuthority?: ProjectLeaseAuthority
+  /** Main-process resolver for a signed selection handle. It supplies current project identity and connection binding. */
+  resolveProjectSelection?: (handle: ProjectSelectionHandleV1) => {
+    projectId: string
+    leasePrincipal: string
+    sessionId: string
+    connectionNonce: string
+    serverNonce: string
+  }
+  /**
+   * Server-owned current-project bootstrap for a client that Nomi installed and
+   * authenticated. The callback must derive identity from main-process state;
+   * it receives no projectId/path from the request.
+   */
+  resolveCurrentProject?: (request: {
+    client: Extract<CapabilityOriginHost, 'claude' | 'codex' | 'cursor'>
+    clientSessionNonce: string
+  }) => {
+    projectId: string
+    immutableProjectUuid: string
+    projectGeneration: number
+    canonicalRootDigest: string
+    manifestDigest: string
+    revocationEpoch?: number
+    leasePrincipal: string
+    sessionId: string
+    connectionNonce: string
+    serverNonce: string
+  }
+  /** Main-process approval-receipt authority. Gate routes verify receipts here; the Run owner consumes them. */
+  approvalReceiptAuthority?: ApprovalReceiptAuthority
+  /** Run-owned challenge projection. It must recompute model/cost/contract from main-process state. */
+  requestGenerationGate?: (input: { params: Record<string, unknown>; lease: ProjectLeaseV1 }) => unknown | Promise<unknown>
+  /** Main-process GUI fallback for the exact challenge; it may return the receipt minted from the gesture. */
+  confirmGenerationInNomi?: (input: { challengeToken: string }) => Promise<unknown>
+  /**
+   * Run-owned generation authorization seam. It receives already verified
+   * lease/receipt bindings; the dispatcher never persists a second gate or
+   * mints a spend grant itself.
+   */
+  authorizeGeneration?: (input: {
+    params: Record<string, unknown>
+    lease: ProjectLeaseV1
+    receipt: HumanApprovalReceiptV1
+  }) => unknown | Promise<unknown>
+  /** Project-owner revision lookup. Receipt bindings never trust a revision supplied by the caller. */
+  projectRevisionResolver?: (projectId: string) => number | undefined
   /**
    * 方案已由协议层 elicitation-first 拿到真人 accept（画布确认，见 mcpProtocol.ts）→ canvas.addNodes 预批准
    * 方案门、不再弹渲染层卡（免双问）。只作用于 addNodes 的 confirmPlan，钱路（confirmSpend）不受影响。
@@ -174,6 +227,16 @@ function productionStartInput(params: Record<string, unknown>, authority: Dispat
 }
 
 export async function dispatch(method: string, params: Record<string, unknown>, ctx: DispatchContext): Promise<unknown> {
+  const generationPolicy = ctx.generationPolicy ?? createMcpGenerationPolicy()
+  const classifiedRoute = generationPolicy.classifyRoute(method)
+  const legacyRoute = classifiedRoute.kind === 'legacy'
+    ? classifiedRoute.route
+    : method.startsWith('production.')
+      ? method
+      : null
+  if (legacyRoute) guardLegacyGenerationRoute(generationPolicy, legacyRoute, params)
+  if (isSemanticGenerationRoute(method)) return dispatchSemanticGeneration(method, params, ctx)
+
   switch (method) {
     case 'ping':
       return { ok: true }

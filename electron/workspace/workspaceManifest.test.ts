@@ -66,6 +66,12 @@ describe("workspace manifest", () => {
       lastKnownRootPath: path.resolve(root),
     });
     expect(record.id).toMatch(/^workspace-/);
+    expect(record.immutableProjectUuid).toMatch(/^[0-9a-f-]{36}$/);
+    expect(record.projectGeneration).toBe(1);
+    expect(readWorkspaceManifest(root)).toMatchObject({
+      immutableProjectUuid: record.immutableProjectUuid,
+      projectGeneration: 1,
+    });
     expect(raw.rootPath).toBeUndefined();
     expect(hasWorkspaceManifest(root)).toBe(true);
   });

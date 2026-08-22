@@ -17,6 +17,7 @@ export const CAPABILITY_DIR_ENV = 'NOMI_CAPABILITY_DIR'
 export const MCP_CLIENT_ENV = 'NOMI_MCP_CLIENT'
 export const MCP_CLIENT_PROOF_ENV = 'NOMI_MCP_CLIENT_PROOF'
 const TOKEN_FILE = 'token'
+const KEY_DIR = 'keys'
 const MCP_CLIENT_PROOF_CONTEXT = 'nomi-mcp-client:v1'
 
 export type AuthenticatedMcpClient = 'claude' | 'codex' | 'cursor'
@@ -35,6 +36,54 @@ function ensureDir(dir: string): void {
 
 function tokenPath(): string {
   return path.join(capabilityCoreDir(), TOKEN_FILE)
+}
+
+function signingKeyPath(name: string): string {
+  const normalized = String(name || '').trim()
+  if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(normalized)) throw new Error('Capability signing key name is invalid')
+  return path.join(capabilityCoreDir(), KEY_DIR, `${normalized}.key`)
+}
+
+function invalidSigningKey(): never {
+  throw new Error('Capability signing key has invalid length')
+}
+
+/**
+ * App-owned HMAC material for durable authorities. This is deliberately a
+ * different file from the bearer token: a local client proof must not also be
+ * able to mint project leases or approval receipts.
+ */
+export function ensureCapabilitySigningKey(name: string): Buffer {
+  const filePath = signingKeyPath(name)
+  try {
+    const existing = fs.readFileSync(filePath)
+    if (existing.length !== 32) invalidSigningKey()
+    return existing
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('invalid length')) throw error
+  }
+  const dir = path.dirname(filePath)
+  ensureDir(dir)
+  const key = crypto.randomBytes(32)
+  let fd: number
+  try {
+    fd = fs.openSync(filePath, 'wx', 0o600)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === 'EEXIST') {
+      const raced = fs.readFileSync(filePath)
+      if (raced.length !== 32) invalidSigningKey()
+      return raced
+    }
+    throw error
+  }
+  try {
+    fs.writeSync(fd, key)
+    try { fs.fsyncSync(fd) } catch { /* best effort on filesystems without fsync */ }
+  } finally {
+    fs.closeSync(fd)
+  }
+  try { fs.chmodSync(filePath, 0o600) } catch { /* Windows has no POSIX mode */ }
+  return key
 }
 
 /** 读取已存在的 token（无则 null，不自动生成——读路径不该有副作用）。 */

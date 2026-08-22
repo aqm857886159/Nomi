@@ -25,6 +25,8 @@ import { assertStoryboardSourceApproved } from './productionRunReducer'
 import { readAutomationPolicySettings } from '../settings/automationPolicySettings'
 import { assertProductionPolicyReady } from './productionPolicyReadiness'
 import { normalizeTrustLevel, trustLevelOf } from './productionRunTypes'
+import { approvalReceiptForGate } from './productionRunApprovalReceipt'
+import type { ApprovalReceiptAuthority } from '../capabilityCore/approvalReceipt'
 import {
   metadataProjection,
   storyboardMetadata,
@@ -103,6 +105,10 @@ type ServiceDeps = {
   }>
   /** A5：每批持久化事件的旁路监听（系统通知等）。异常被吞，绝不影响制作主流程。 */
   onEvents?: (events: RunEvent[], run: ProductionRun) => void
+  /** Optional main-process receipt owner. When supplied, gate.decide must verify and consume a receipt. */
+  approvalReceiptAuthority?: ApprovalReceiptAuthority
+  /** Current project document revision, resolved by the project owner rather than the command body. */
+  projectRevisionResolver?: (projectId: string) => number | undefined
 }
 
 const MEANINGFUL_EVENT_TYPES = new Set([
@@ -519,6 +525,13 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
         return { run: current, events: [] }
       }
     }
+    const gateReceipt = approvalReceiptForGate(
+      deps.approvalReceiptAuthority,
+      safeProjectId,
+      safeRunId,
+      runCommand,
+      deps.projectRevisionResolver,
+    )
     if (runCommand.type === 'gate.decide' && runCommand.payload.status === 'approved') {
       const current = requireRun(safeProjectId, safeRunId)
       const gateId = typeof runCommand.payload.gateId === 'string' ? runCommand.payload.gateId.trim() : ''
@@ -534,6 +547,11 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       }
     }
     const result = repository.execute(safeProjectId, safeRunId, runCommand)
+    if (gateReceipt && deps.approvalReceiptAuthority) {
+      // The Run event is durable before receipt consumption. A crash can only leave
+      // a replayable receipt against an already-decided gate; it cannot reopen it.
+      deps.approvalReceiptAuthority.consumeReceipt(gateReceipt.token)
+    }
     if (runCommand.type === 'gate.decide' && runCommand.payload.status === 'approved' && runCommand.payload.gateId === 'gate-direction-v1') {
       void proposeScript(result.run)
     }
@@ -679,7 +697,6 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
   }
 
   function readProjection(projectId: string, runId: string): ProductionRunProjection {
-    void resumeUnfinishedRuns(projectId)
     return runProjection(requireRun(projectId, runId), projectRootResolver, previewSecret)
   }
 

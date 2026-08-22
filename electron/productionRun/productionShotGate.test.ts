@@ -160,7 +160,7 @@ describe('confirm_all per-shot provider boundary', () => {
     expect(submissions).toEqual([])
 
     const restarted = makeRuntime(root, submissions).service
-    restarted.readProjection('project-1', runId)
+    await restarted.resumeUnfinishedRuns('project-1')
     await new Promise((resolve) => setTimeout(resolve, 30))
     expect(submissions).toEqual([])
     const current = restarted.readFull('project-1', runId)!
@@ -191,7 +191,7 @@ describe('confirm_all per-shot provider boundary', () => {
     expect(submissions).toEqual([])
 
     const restarted = makeRuntime(root, submissions).service
-    restarted.readProjection('project-1', runId)
+    await restarted.resumeUnfinishedRuns('project-1')
     await waitFor(() => submissions.length === 1)
     expect(submissions).toEqual([current.jobs[0].jobId])
   })

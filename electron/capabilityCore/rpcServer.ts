@@ -22,6 +22,10 @@ import { resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import { getWorkspaceRepositoryDeps } from '../runtimePaths'
 import { dispatchAndEnrich } from './mcpResultEnrichLive'
 import { makeShotVerifyDeps } from './shotVerifyDeps'
+import { rpcErrorWirePayload } from './mcpRpcError'
+import type { ProjectLeaseAuthority } from './projectLease'
+import type { ApprovalReceiptAuthority } from './approvalReceipt'
+import type { McpGenerationPolicy } from './mcpGenerationPolicy'
 
 export type RpcServerOptions = {
   /** 真实生成入口（runtime.runTask）。注入式：headless host 与 app 各自传同一份。 */
@@ -31,6 +35,17 @@ export type RpcServerOptions = {
   /** 该 projectId 是否正在某个 app 窗口里打开（命中则拒绝直写图变更）。headless: ()=>false。 */
   isProjectOpen?: (projectId: string) => boolean
   productionRuns?: ReturnType<typeof getProductionRunService>
+  /** Optional main-process lease/receipt authorities. Omitted callers remain fail-closed for semantic routes. */
+  projectLeaseAuthority?: ProjectLeaseAuthority
+  resolveCurrentProject?: import('./dispatcher').DispatchContext['resolveCurrentProject']
+  approvalReceiptAuthority?: ApprovalReceiptAuthority
+  requestGenerationGate?: import('./dispatcher').DispatchContext['requestGenerationGate']
+  authorizeGeneration?: import('./dispatcher').DispatchContext['authorizeGeneration']
+  /** Internal client→GUI fallback. The callback must verify the challenge before prompting. */
+  confirmGenerationInNomi?: (input: { challengeToken: string }) => Promise<unknown>
+  generationPolicy?: McpGenerationPolicy
+  generationContext?: (params: Record<string, unknown>) => unknown | Promise<unknown>
+  projectRevisionResolver?: (projectId: string) => number | undefined
 }
 
 function readBody(req: http.IncomingMessage): Promise<string> {
@@ -106,6 +121,15 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           firstHeader(req.headers['x-nomi-mcp-client']),
           firstHeader(req.headers['x-nomi-mcp-client-proof']),
         )
+        if (method === 'nomi_confirm_generation_gate') {
+          if (origin === 'external' || origin === 'nomi') throw new RpcError('Registered MCP client proof is required', 403)
+          const challengeToken = typeof params.challengeToken === 'string' ? params.challengeToken.trim() : ''
+          if (!challengeToken) throw new RpcError('Generation challenge is required', 400)
+          if (typeof options.confirmGenerationInNomi !== 'function') throw new RpcError('Nomi confirmation is unavailable', 501)
+          const result = await options.confirmGenerationInNomi({ challengeToken })
+          send(200, { ok: true, result })
+          return
+        }
         // 付费已在**调用方客户端**经 elicitation 被真人确认（协议层 mcpProtocol.ts 只在收到
         // `action:'accept' + confirm:true` 后才置位）→ 预批准付费门，App 不再弹第二张确认卡。
         //
@@ -129,6 +153,14 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           makeGateway: preApprovedSpend ? (projectId: string) => withPreApprovedSpend(makeGateway(projectId)) : makeGateway,
           productionRuns,
           origin: { host: origin },
+          generationPolicy: options.generationPolicy,
+          generationContext: options.generationContext,
+          projectRevisionResolver: options.projectRevisionResolver,
+          projectLeaseAuthority: options.projectLeaseAuthority,
+          resolveCurrentProject: options.resolveCurrentProject,
+          approvalReceiptAuthority: options.approvalReceiptAuthority,
+          requestGenerationGate: options.requestGenerationGate,
+          authorizeGeneration: options.authorizeGeneration,
           // 审片环（W1）：GUI-开着的 RPC 路复用同一份主进程 deps（judge/抽帧/重试都在主进程跑，与 headless 同实现，
           // 无并行版 P1）。生成在主进程 core、判分也在主进程，路径①两条传输吃同一 makeShotVerifyDeps。
           makeVerifyDeps: (verifyCtx) => makeShotVerifyDeps(verifyCtx),
@@ -143,7 +175,9 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
         send(200, { ok: true, result })
       } catch (error) {
         const status = error instanceof RpcError ? error.httpStatus : 500
-        send(status, { ok: false, error: error instanceof Error ? error.message : String(error) })
+        // Keep ordinary errors as legacy strings; policy errors preserve their
+        // typed recovery contract for local RPC clients.
+        send(status, { ok: false, error: rpcErrorWirePayload(error) })
       }
     })()
   })

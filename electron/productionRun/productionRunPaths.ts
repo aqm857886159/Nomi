@@ -21,6 +21,9 @@ export function productionRunPaths(projectDir: string, runId: string) {
     commands: path.join(dir, "commands.ndjson"),
     approvals: path.join(dir, "approvals.ndjson"),
     budgetLedger: path.join(dir, "budget-ledger.ndjson"),
+    intents: path.join(dir, "intents.ndjson"),
+    lock: path.join(dir, "run.lock"),
+    lockEpoch: path.join(dir, "run.lock.epoch"),
     jobsDir: path.join(dir, "jobs"),
   };
 }

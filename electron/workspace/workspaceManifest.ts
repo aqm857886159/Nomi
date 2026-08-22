@@ -219,6 +219,8 @@ export function initializeWorkspace(
     updatedAt: now,
     savedAt: now,
     revision: 0,
+    immutableProjectUuid: crypto.randomUUID(),
+    projectGeneration: 1,
     lastKnownRootPath: resolvedRoot,
     payload: input.payload,
   });

@@ -196,13 +196,10 @@ export function createProductionRunRepository(deps: ProductionRunRepositoryDeps 
     const latestEvent = events.at(-1);
     const snapshot = fs.existsSync(paths.snapshot) ? validSnapshot(paths.snapshot) : null;
     if (snapshot && snapshot.snapshotCursor === (latestEvent?.cursor ?? snapshot.snapshotCursor)) return snapshot.run;
-    if (fs.existsSync(paths.snapshot) && !snapshot) {
-      const backup = path.join(paths.dir, `run.corrupt-${Date.now()}-${randomId().slice(0, 8)}.json`);
-      fs.copyFileSync(paths.snapshot, backup);
-    }
-    const recovered = runFromEvent(latestEvent);
-    if (recovered) writeJsonFileAtomic(paths.snapshot, envelopeFor(recovered));
-    return recovered;
+    // Reads may rebuild an in-memory projection for callers, but never repair
+    // durable bytes. Backup/migration/rewrite belongs to an explicit command;
+    // a projection read must be safe to retry after a crash and side-effect free.
+    return runFromEvent(latestEvent);
   }
 
   function create(input: CreateProductionRunInput): ProductionRun {

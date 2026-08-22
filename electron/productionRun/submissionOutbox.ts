@@ -1,6 +1,8 @@
 import { dedupeSubmission } from "../submissionLedger";
 import { authorizeSubmission } from "./approvalPolicy";
 import type { ProductionRunRepository } from "./productionRunRepository";
+import type { ProductionRunIntentLog } from "./productionRunIntentLog";
+import type { ProductionRunLock } from "./productionRunLock";
 import type { ProductionJob, ProductionRun } from "./productionRunTypes";
 
 export class SubmissionNotDispatchedError extends Error {
@@ -55,6 +57,10 @@ export type ProviderDispatchResult = {
 export type SubmissionOutboxDependencies = {
   repository: ProductionRunRepository;
   dispatch: (input: ProviderDispatchInput) => Promise<ProviderDispatchResult>;
+  /** Optional Run-owned durable claim. Legacy callers without it retain their existing behavior. */
+  intentLog?: ProductionRunIntentLog;
+  /** Optional cross-process fencing lease. The durable claim carries its epoch. */
+  lock?: ProductionRunLock;
   now?: () => string;
   beforeDispatch?: (input: ProviderDispatchInput) => void | Promise<void>;
   afterDispatch?: (result: ProviderDispatchResult, input: ProviderDispatchInput) => void | Promise<void>;
@@ -124,7 +130,7 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
     return run;
   }
 
-  async function submitOnce(request: SubmissionOutboxRequest): Promise<SubmissionOutboxResult> {
+  async function submitOnce(request: SubmissionOutboxRequest, fencingEpoch = 0): Promise<SubmissionOutboxResult> {
     let run = requiredRun(deps.repository, request.projectId, request.runId);
     let job = requiredJob(run, request.jobId);
     if (job.status === "provider_accepted" && job.providerTaskId) {
@@ -139,6 +145,13 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
     }
     if (job.status !== "authorized" && job.status !== "submit_intent_persisted") {
       throw new Error(`Production job cannot be submitted from status: ${job.status}`);
+    }
+
+    const intentKey = `${request.runId}:${request.jobId}:${job.attempt}`;
+    const committedIntent = deps.intentLog?.list().find((intent) => intent.key === intentKey && intent.status === "committed");
+    if (committedIntent) {
+      markSubmissionUnknown(request);
+      throw new SubmissionReconciliationRequiredError();
     }
 
     const approval = deps.repository.readApprovals(request.projectId, request.runId)
@@ -187,12 +200,49 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
     dispatchInput.run = run;
     dispatchInput.job = requiredJob(run, request.jobId);
 
+    let submitIntent = deps.intentLog?.prepare({
+      runId: request.runId,
+      kind: "provider.submit",
+      key: intentKey,
+      payload: {
+        projectId: request.projectId,
+        runId: request.runId,
+        jobId: request.jobId,
+        attempt: dispatchInput.job.attempt,
+        provider: dispatchInput.job.provider,
+        model: dispatchInput.job.model,
+        idempotencyKey: dispatchInput.idempotencyKey,
+      },
+      fencingEpoch,
+    });
+    if (submitIntent) submitIntent = deps.intentLog!.commit(submitIntent.intentId, { fencingEpoch });
+
     let response: ProviderDispatchResult;
     try {
       try {
         response = await deps.dispatch(dispatchInput);
       } catch (error) {
         if (!(error instanceof SubmissionNotDispatchedError)) throw error;
+        if (submitIntent) {
+          deps.intentLog!.abort(submitIntent.intentId, { fencingEpoch });
+          submitIntent = deps.intentLog!.prepare({
+            runId: request.runId,
+            kind: "provider.submit",
+            key: intentKey,
+            payload: {
+              projectId: request.projectId,
+              runId: request.runId,
+              jobId: request.jobId,
+              attempt: dispatchInput.job.attempt,
+              provider: dispatchInput.job.provider,
+              model: dispatchInput.job.model,
+              idempotencyKey: dispatchInput.idempotencyKey,
+            },
+            fencingEpoch,
+            allowRetryAfterAbort: true,
+          });
+          submitIntent = deps.intentLog!.commit(submitIntent.intentId, { fencingEpoch });
+        }
         response = await deps.dispatch(dispatchInput);
       }
       if (!response.providerTaskId.trim()) throw new Error("Provider returned an empty task id");
@@ -214,7 +264,10 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
 
   function submit(request: SubmissionOutboxRequest): Promise<SubmissionOutboxResult> {
     const key = `${request.projectId}:${request.runId}:${request.jobId}`;
-    return dedupeSubmission(inflight, key, () => submitOnce(request), { ttlMs: 0 });
+    const execute = () => deps.lock
+      ? deps.lock.withLock((lease) => submitOnce(request, lease.fencingEpoch))
+      : submitOnce(request);
+    return dedupeSubmission(inflight, key, execute, { ttlMs: 0 });
   }
 
   return { submit };
