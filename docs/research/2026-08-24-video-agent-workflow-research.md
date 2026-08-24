@@ -480,3 +480,392 @@ Agent 的内部思考、工具链、WAL、fencing、provider raw response 进入
    - 推荐：暂缓。先支持内部受审核的 Workflow Pack 和 Skill manifest；等第二条 workflow 复用验证通过再开放。
 4. **是否引入 LangGraph/AutoGen/OpenAI Agents SDK 作为 orchestration runtime。**
    - 推荐：暂不替换 Nomi Runtime。先借鉴它们的 checkpoint/HITL/guardrail 机制；如后续接入，只作为 Agent graph adapter，ProductionRun 仍是唯一执行事实源。
++
+
+---
+
+# 第二轮扩大调研：同类产品不止 DramaClaw
+
+上一版已经能支持架构判断，但同类产品样本确实不够。本轮补充了三类产品：
+
+1. **端到端叙事生产平台**：目标是从小说/剧本/创意走到短剧或成片。
+2. **通用创意画布/工作流产品**：目标是把模型、素材和多个生成步骤串起来。
+3. **Agent/工作流/渲染开源基础设施**：目标是提供持久执行、人工审批、节点编辑或确定性导出。
+
+重要说明：以下“支持什么”以官方产品页/官方文档为依据；产品宣传页的质量、速度和商业效果属于厂商自述，不把它们当作 Nomi 已验证的能力。
+
+## 13. 端到端叙事生产平台对比
+
+| 产品 | 官方定位/入口 | 真实主线 | 用户能编辑什么 | 对 Nomi 的启示 |
+|---|---|---|---|---|
+| DramaClaw | [产品手册](https://neo-flying.feishu.cn/docx/JGNTdsjJuo748TxJkxecoYs2nth) | 文本 → 资产 → 脚本/Beat → 镜头 → 合成 | 角色、场景、道具、声线、画布候选、写回目标 | 主线 + 自由画布 + AI 助理是可复用结构 |
+| LTX Studio | [AI Movie Maker](https://ltx.io/studio/platform/ai-movie-maker) | Script/Idea → Storyboard → Shot → Retake → Timeline | 场景、shot type、角色元素、prompt、声音、单镜头重做 | 计划和实体记忆必须在视频生成前出现 |
+| InVideo AI | [Script to Video](https://help.invideo.io/en/articles/9382180-how-can-i-create-a-video-using-my-script) | Script → 对话式 Agent 或 Autopilot → 视频 | 脚本、媒体、音乐、字幕、语言和后续修改 | 探索模式和一次执行模式都要有 |
+| PopShort.AI | [官方中文产品页](https://popshort.ai/zh) | Idea/小说/剧本 → AI Director → Story Bible/分集/资产/分镜 → 视频 | 生产资产、分集、模型、视频和 Editing Agent | “故事资产先于视频生成”已经是市场共识 |
+| 文镜画师 | [官方产品页](https://wenjing.art/) | 剧本 → 角色/场景/分镜 → 图片/视频/配音/成片 | 影视画布、角色参考、多镜头一致性、模型和项目资产 | 入口应从内容任务开始，而不是模型列表 |
+| OranTV | [官方产品页](https://www.orantv.com/) | 项目 → 剧本 → 资产 → 分镜 → 成片 | 项目资产、分镜、整集创作、用量 | 国内产品普遍采用项目/资产/分镜/成片主线 |
+| SmartFrame | [官方产品页](https://www.smartframe.com.cn/) | 剧本 → 智能分镜 → 多角色配音 → 一键成片 → 分发 | 剧本、分镜、角色声音、成片和海报 | 垂直流程能快速交付，但可能把步骤固化成黑盒 |
+| Zeshot | [官方产品页](https://www.zeshot.com/) | 系列短剧 → 多集成片 → 多语言/分发 | 作品、集数、模型组合、克隆剧和分发 | 系列化是 Nomi 从单镜走向多镜的真实方向 |
+| Katalist | [官方产品页](https://www.katalist.ai/) | Script/Idea → 自动场景/镜头 → Story Canvas → Video | 脚本、场景、shot、角色 cast、故事画布 | 角色身份应是显式实体，不应藏在 prompt 里 |
+
+### 13.1 共同结构
+
+这些产品虽然面向不同市场，但都重复这一条依赖链：
+
+~~~text
+内容输入
+  → 结构化故事/脚本
+  → 角色/场景/道具/风格资产
+  → 镜头或 storyboard
+  → 图片/视频/音频生成
+  → 局部修改
+  → 合成/时间线/导出
+~~~
+
+原因很简单：
+
+- 没有故事结构，就不知道要生成哪些镜头。
+- 没有角色/场景/风格资产，跨镜一致性无法稳定。
+- 没有 storyboard 或镜头计划，用户无法判断是否值得花钱。
+- 没有候选和局部重做，用户只能整集返工。
+- 没有时间线和交付层，生成素材不能变成成片。
+
+### 13.2 三种产品取向
+
+**工厂型**：PopShort、SmartFrame、OranTV、Zeshot。
+
+- 入口直接，强调小说/剧本、集数、并发、配音、分发。
+- 适合想快速批量产出的用户。
+- 风险是中间步骤和决策容易被黑盒化。
+
+**导演型**：LTX Studio、DramaClaw、Katalist、文镜画师。
+
+- 强调 storyboard、角色 cast、画布和镜头级修改。
+- 用户可以在中间阶段停下来审片和改动。
+- 更适合精品镜头和协作。
+
+**模型工作流型**：Runway、Higgsfield Canvas、ComfyUI。
+
+- 强项是多个模型、素材和生成步骤的组合。
+- 适合视觉实验、分支、批量和重复任务。
+- 不会自动替用户决定故事结构和最终交付。
+
+Nomi 应处在工厂型和导演型之间：从内容目标开始，但中间过程必须可编辑、可比较、可写回。
+
+## 14. 通用创意画布和工作流产品
+
+### 14.1 Runway Workflows
+
+官方文档：[Introduction to Workflows](https://help.runwayml.com/hc/en-us/articles/45763528999699-Introduction-to-Workflows)。
+
+Runway 的关键机制：
+
+- 节点有输入和输出。
+- Text、Image、Audio、Video 类型必须兼容连接。
+- Media model、LLM、media utility 可以组合。
+- 有模板、分支、模型替换和批量编辑。
+- 节点可以 lock，避免重跑时改变已经认可的结果。
+
+可以迁移到 Nomi：
+
+- ModuleManifest 的输入/输出必须类型化。
+- 节点需要 locked、proposed、ready、failed 等状态。
+- Agent 生成的是受约束的 graph proposal，而不是直接执行所有节点。
+- 批量编辑只能暴露真正共同的字段。
+
+不能直接照搬：
+
+- Runway credit/执行系统不是 Nomi 的 ProductionRun。
+- Nomi 必须保留 lease、receipt、budget、outbox、reconcile。
+- provider 不支持某能力时，必须显示 unsupported、translated 或 unknown。
+
+### 14.2 Higgsfield Canvas
+
+官方产品页：[AI Canvas](https://higgsfield.ai/canvas-intro)。
+
+官方描述：
+
+- prompt、reference、generation 在一张无限画布上。
+- prompt 生成 image，image 继续生成 video。
+- style 可以分支成多个 variation。
+- 多个模型共存于一条可视 pipeline。
+
+可以迁移到 Nomi：
+
+- 画布要展示“这个结果如何产生”，而不是孤立的素材卡。
+- 换模型或参考图时保留上游上下文，并创建新候选分支。
+- 模型组合由真实 catalog 驱动。
+
+不能直接照搬：
+
+- “任何模型都能连”不是安全抽象。
+- 不同 provider 的参数和输入格式不能直接摊平。
+- 生成节点仍须经过 ExecutionContract 和 ProductionRun。
+
+### 14.3 Google Flow
+
+官方资料：
+
+- [产品介绍](https://blog.google/innovation-and-ai/products/google-flow-veo-ai-filmmaking-tool/)
+- [帮助文档](https://support.google.com/flow/answer/16353334?hl=en)
+- [更新说明](https://blog.google/innovation-and-ai/models-and-research/google-labs/flow-updates-february-2026/)
+
+官方强调 scene image、camera controls、局部场景修改和 scene/story 组织。
+
+对 Nomi 的启示：
+
+- “场景”应成为比单个 prompt 更稳定的上下文容器。
+- 修改场景中的一个主体时，不应重新生成无关内容。
+- camera intent、subject motion、scene continuity 应保持不同语义。
+
+不能照搬的地方：
+
+- Flow 主要围绕 Google 自有模型栈设计。
+- Nomi 是多 provider、多 model、多 mode，不能把 Flow 的 camera controls 当成所有模型通用字段。
+
+### 14.4 Adobe Firefly Boards 与 Boords
+
+官方资料：[Firefly Boards 教程](https://www.adobe.com/learn/firefly/web/create-commercial-storyboard-firefly-boards?src=helpx)、[Firefly Workspace](https://helpx.adobe.com/firefly/web/get-started/access-the-app/firefly-workspace-overview.html)、[Boords Storyboard](https://boords.com/docs/creating-storyboards)。
+
+它们共同说明：
+
+- storyboard/Board 是创作讨论空间，不是最终时间轴。
+- script 可以转成结构化镜头板。
+- 用户需要看到素材、风格、候选和关系。
+- 视频生成可以后置，先交付一个可讨论的 storyboard 或 editable first cut。
+
+## 15. 中国市场产品的共同信号
+
+本轮额外查看了：
+
+- [OranTV](https://www.orantv.com/)
+- [SmartFrame](https://www.smartframe.com.cn/)
+- [PopShort.AI](https://popshort.ai/zh)
+- [文镜画师](https://wenjing.art/)
+- [Zeshot](https://www.zeshot.com/)
+- [知漫剧](https://www.zmj.net/)
+- [漫映 AI](https://www.m-ying.com/)
+
+公开页面反复出现：
+
+- 小说/剧本到成片。
+- 角色、场景、道具资产。
+- 自动拆分镜。
+- 多角色配音。
+- 一站式工作空间。
+- 系列化、批量化、多模型。
+
+这说明市场需求已经不是“再做一个文生视频按钮”，而是：
+
+> 用户希望把自己的内容交给一个项目空间，持续推进，过程中不丢角色、场景、镜头和成片上下文。
+
+但公开资料很少说明：
+
+- 合同冻结。
+- provider 已接受后的未知处理。
+- 重启恢复和重复提交防护。
+- 写回全局资产的影响范围。
+- 时间轴修改的撤销语义。
+
+这正是 Nomi 可以建立差异的地方：不是只接更多模型，而是提供可编辑、可解释、可恢复的生产控制面。
+
+## 16. Agent 和工作流开源基础设施
+
+| 项目 | 解决的问题 | 可借鉴机制 | 不应成为 Nomi 的 owner |
+|---|---|---|---|
+| LangGraph | 长流程、checkpoint、HITL、恢复 | pause/resume、time travel、checkpoint | Project/Run/Asset/Timeline 事实 |
+| AutoGen | 多 Agent team、反馈、状态保存 | agent role、team feedback、save/load | provider budget、receipt、项目写回 |
+| CrewAI | Flows、state、router、持久化、HITL | 事件驱动 workflow、条件分支 | 生产合同和资产 identity |
+| OpenAI Agents SDK | tools、handoff、guardrails、sessions | allowlist、handoff、tool guardrail | Nomi 的 provider-neutral 安全边界 |
+| Temporal | crash-proof durable execution | 长时间运行、自动恢复、人工等待 | Nomi 的项目语义和用户可见对象 |
+| n8n | 工具编排和工具级人工审批 | 某个工具调用前暂停 | 视频实体记忆、镜头语义、质量模型 |
+| ComfyUI | 生成节点和推理工作流 | 可组合模型、可保存 graph | Nomi 的叙事规划和生产交付 |
+| React Flow | 节点编辑器 UI | 节点、边、选择、工具栏 | 业务状态 |
+| Remotion | 参数化确定性渲染 | React preview、server render、MP4 | Agent 任意代码执行 |
+| OpenTimelineIO | 时间线交换和编辑数据 | EDL/Timeline interchange | Nomi 当前 Timeline owner |
+
+官方参考：
+
+- [LangGraph Persistence](https://docs.langchain.com/oss/python/langgraph/persistence)
+- [AutoGen HITL](https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/tutorial/human-in-the-loop.html)
+- [CrewAI Flows](https://docs.crewai.com/index)
+- [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/agents/)
+- [Temporal](https://docs.temporal.io/)
+- [n8n HITL](https://github.com/n8n-io/n8n-docs/blob/main/docs/build/integrate-ai/ai-examples/human-in-the-loop-for-tools.md)
+- [ComfyUI](https://docs.comfy.org/)
+- [React Flow](https://reactflow.dev/)
+- [Remotion](https://remotion-dev.github.io/remotion/)
+- [OpenTimelineIO](https://opentimelineio.readthedocs.io/en/latest/)
+
+### 16.1 不要因为看到 Agent 框架就替换 Nomi Runtime
+
+这些框架解决：
+
+- Agent 如何对话。
+- Agent 如何分工。
+- Agent 如何暂停/继续。
+- Tool call 如何做 guard。
+
+Nomi 已经有并且必须保留：
+
+- ProductionRun。
+- ExecutionContract。
+- lease/receipt。
+- budget。
+- outbox。
+- provider query/reconcile。
+- Asset identity。
+- Artifact。
+- Timeline proposal/apply/undo。
+
+未来如果引入外部 framework，正确关系是：
+
+~~~text
+外部 Agent/Graph
+  → 读取 Nomi context
+  → 产生 PlanCandidate / CheckResult / EditProposal
+  → Nomi 主进程编译和校验
+  → ProductionRun 执行
+~~~
+
+不是：
+
+~~~text
+外部 Agent
+  → 直接调用 provider
+  → 直接写 Nomi Canvas
+  → 直接写 Timeline
+  → 自己保存第二份任务状态
+~~~
+
+## 17. Nomi 的真正定位
+
+Nomi 不应该只拼：
+
+- 接入模型数量。
+- 生成按钮数量。
+- 一键生成宣传语。
+- 单个镜头画质排名。
+- 让用户看更多底层参数。
+
+这些会把 Nomi 带向模型聚合器或低层工作流工具。
+
+Nomi 应该拼：
+
+1. **Connected context**：故事、角色、场景、道具、镜头、素材和时间轴不丢上下文。
+2. **Editable plan**：用户能自由换模型、variant、mode、参数和参考素材。
+3. **Capability-honest**：不同模型真实支持什么就显示什么，不把其它模型能力硬套过来。
+4. **Recoverable production**：失败、断线、重启、provider unknown 都有可解释路径。
+5. **Safe writeback**：候选不会静默污染正式资产或时间轴，用户知道影响范围且能撤销。
+6. **MCP + GUI 一个控制面**：可以从 MCP 开始，也可以在 Nomi 内确认和修改，不重复确认、不丢上下文。
+
+## 18. 一个真实用户例子
+
+用户在创作区输入：
+
+> “把这本悬疑小说先做成第一集 60 秒竖屏短剧，主角是林晚，保留雨夜车站和红色雨伞，先不要生成视频，给我看制作方案。”
+
+Nomi 不应该立即生成，也不应该只回复一长段文字，而应展示可编辑计划：
+
+~~~text
+目标：第一集 / 60 秒 / 竖屏 / 悬疑
+预估镜头：8 个
+主要角色：林晚
+核心场景：雨夜车站
+关键道具：红色雨伞
+建议风格：写实电影感
+需要确认：角色参考图、场景参考图、视频模式
+当前 provider calls：0
+~~~
+
+用户可以直接：
+
+- 换林晚的参考图。
+- 把 8 个镜头改成 6 个。
+- 把一个镜头从文生视频改成图生视频。
+- 选择另一个真实可用的 variant。
+- 换掉红色雨伞参考素材。
+- 修改一个镜头时长。
+- 只生成首帧，不生成视频。
+
+每次修改后都重新计算：
+
+- 当前模型是否支持该 mode。
+- variant 是否支持该参数。
+- 参考素材是否满足输入约束。
+- 预算和请求数量。
+- 哪些镜头会受到全局资产修改影响。
+
+用户确认后，才编译 ExecutionContract 并进入 ProductionRun。
+
+用户感受到的是“我在导演一个项目”，而不是“我在填写供应商 API 表单”。
+
+## 19. 真实 UI 自由度才是通用性的验收
+
+不能用固定 fixture 证明 Video Agent 通用。真实用户会中途改变：
+
+- 模型、供应商、variant、输入模式。
+- 参考素材、画幅、时长。
+- 角色形象、场景风格、镜头动作。
+- 某一个镜头是否重做。
+
+至少要覆盖：
+
+### J1：小说到一集
+
+导入短小说，生成结构和镜头计划，用户修改角色、场景和一个镜头，看到可编辑画布。
+
+### J2：模型/模式/参数替换
+
+切换到另一个真实 catalog model，切换 variant，文生视频改图生视频或首尾帧；不支持项必须在付费前阻止。
+
+### J3：参考素材替换
+
+删除、增加、重排和替换参考图；其它有效字段不能被偷偷清掉。
+
+### J4：只重做坏镜头
+
+第 3 个镜头失败时，只重做第 3 个镜头，已经锁定的镜头和实体不重新提交。
+
+### J5：写回和撤销
+
+画布候选写回角色、Beat 或时间轴；用户能看到影响范围，Apply 后预览变化，Undo 后恢复。
+
+### J6：异常和恢复
+
+覆盖 provider 超时、已接受但本地丢 task ID、进程重启、query 不支持、materialize 不支持；所有情况都不能盲重提或假装完成。
+
+## 20. 修订后的路线
+
+现在应该：
+
+1. 保留 P1–P3 单镜 Runtime/Run/Contract/Asset。
+2. 加 Video Agent orchestrator，但只允许提出 PlanCandidate、CheckResult、EditProposal。
+3. 先做“小说/剧本 → 一集 → 可编辑镜头 → 时间轴”的 Workflow Pack。
+4. Agent 作为三个现有界面的上下文面板，不增加第四个大页面。
+5. 用真实 UI 变更矩阵验证通用性。
+6. 等第二条不同类型 workflow 复用同一底座后，再考虑开放自定义 Workflow Builder。
+
+现在不应该：
+
+- 先做任意图形 Workflow Builder。
+- 先引入多 Agent swarm。
+- 把 LangGraph/AutoGen/CrewAI 作为 Nomi 业务事实源。
+- 把 Seedance 的模式和参数抽成所有模型共有字段。
+- 让 Agent 直接调用 provider 或写 Timeline。
+- 因为宣传中的“一键成片”跳过中间计划和可撤销边界。
+
+## 21. 后续决策点
+
+1. 第一条 Workflow Pack 是否正式选“小说/剧本到一集成片”？
+   - 推荐：选。
+2. Agent 是否作为创作区、生成画布、时间轴三个界面的上下文面板？
+   - 推荐：不新增第四页。
+3. 是否现在开放用户自定义 Workflow Builder？
+   - 推荐：暂缓，先做内部审核的 Workflow Pack。
+4. 是否引入 LangGraph/AutoGen/CrewAI/Temporal 等外部 orchestration runtime？
+   - 推荐：暂不替换 Nomi Runtime；先借鉴机制，未来只接 Agent graph adapter。
+
+当前最重要的不是选哪一个 Agent 框架，而是证明：
+
+> 用户可以带着真实变化，把故事从文本推进到可编辑初稿，再推进到可撤销的时间轴成片；过程中不丢上下文、不重复扣费、不被模型参数差异欺骗。
