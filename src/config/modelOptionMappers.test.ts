@@ -35,6 +35,32 @@ describe('toCatalogModelOptions — 同名 modelKey 跨厂商不互吞', () => {
   })
 })
 
+describe('toCatalogModelOptions — pricing keeps credit decimals', () => {
+  it('does not floor APIMart/KIE decimal credit values', () => {
+    const mapped = toCatalogModelOptions([{
+      ...dto('seedance', 'apimart'),
+      pricing: {
+        cost: 8.52,
+        enabled: true,
+        specCosts: [{ specKey: 'duration:6', cost: 1.42, enabled: true }],
+      },
+    }])
+    expect(mapped[0]?.pricing).toEqual({
+      cost: 8.52,
+      enabled: true,
+      specCosts: [{ specKey: 'duration:6', cost: 1.42, enabled: true }],
+    })
+  })
+
+  it('does not turn an invalid pricing row into a fake zero-credit estimate', () => {
+    const mapped = toCatalogModelOptions([{
+      ...dto('unpriced', 'kie'),
+      pricing: { cost: Number.NaN, enabled: true, specCosts: [] },
+    }])
+    expect(mapped[0]?.pricing).toBeUndefined()
+  })
+})
+
 describe('findModelOptionByIdentifier — vendor 二次寻址', () => {
   const options = toCatalogModelOptions([dto('gpt-image-2', 'relay-b'), dto('gpt-image-2', 'relay-a')])
 

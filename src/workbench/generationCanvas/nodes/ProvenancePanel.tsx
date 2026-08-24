@@ -2,6 +2,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { cn } from '../../../utils/cn'
+import { formatGenerationCredits } from '../spend/generationCost'
 
 /**
  * Phase E Task E11 — Provenance viewer.
@@ -78,6 +79,13 @@ export default function ProvenancePanel({ node, open, onClose }: Props): JSX.Ele
           <div className="space-y-3 text-caption">
             <ProvenanceRow label={t('generationCommon.provenance.provider')} value={provenance.provider || '—'} />
             <ProvenanceRow label={t('generationCommon.provenance.model')} value={provenance.modelKey || '—'} />
+            {provenance.cost?.unit === 'actual' ? (
+              <ProvenanceRow
+                label={t('generationCommon.provenance.actualCost')}
+                value={`${formatGenerationCredits(provenance.cost.amount)} ${provenance.cost.currency}`}
+                mono
+              />
+            ) : null}
             <ProvenanceRow
               label={t('generationCommon.provenance.time')}
               value={new Date(provenance.timestamp).toLocaleString(i18n.resolvedLanguage || i18n.language)}

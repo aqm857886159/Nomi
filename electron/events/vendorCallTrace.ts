@@ -5,6 +5,7 @@ import crypto from "node:crypto";
 import { appendEvents } from "./eventLogRepository";
 import type { NormalizedRecipe } from "../vendor/provenance";
 import type { VendorErrorStructured } from "../vendor/vendorHttp";
+import type { ProviderCostActual } from "../vendor/cost";
 
 const mintId = () => `evt_${crypto.randomUUID().slice(0, 12)}`;
 
@@ -43,7 +44,14 @@ export function traceVendorCached(
 
 export function traceVendorCompleted(
   projectId: string | undefined,
-  payload: { runId: string; nodeId?: string; status: "succeeded" | "failed"; assetCount: number; error?: VendorErrorStructured },
+  payload: {
+    runId: string;
+    nodeId?: string;
+    status: "succeeded" | "failed";
+    assetCount: number;
+    error?: VendorErrorStructured;
+    cost?: ProviderCostActual;
+  },
 ): void {
   const id = String(projectId || "").trim();
   if (!id) return;
@@ -58,6 +66,7 @@ export function traceVendorCompleted(
         status: payload.status,
         assetCount: payload.assetCount,
         ...(payload.error ? { error: payload.error } : {}),
+        ...(payload.cost ? { cost: payload.cost } : {}),
       },
     },
   ]);

@@ -9,6 +9,7 @@ import { runMultipartProfileOperation } from "./catalog/multipartOperation";
 import { templateContext, buildProfileHttpRequest } from "./catalog/profileHttpRequest";
 import { chatImageFallbackOperation } from "./catalog/imageRouteFallback";
 import { buildNormalizedRecipe, buildTaskProvenance } from "./vendor/provenance";
+import { extractProviderCostActual, type ProviderCostActual } from "./vendor/cost";
 import { traceVendorCompleted, traceVendorRequested } from "./events/vendorCallTrace";
 import { scheduleTechnicalReview } from "./review/reviewTrace";
 import { localizedTaskAssetFileName, probeLocalizedDurationSeconds } from "./assets/localizedAsset";
@@ -151,6 +152,7 @@ export type TaskResult = {
     seed?: number;
     params?: Record<string, unknown>;
     vendorRequestId?: string;
+    cost?: { amount: number; currency: "credits"; unit: "actual" | "estimate" };
     timestamp: number;
   };
 };
@@ -303,7 +305,7 @@ export async function buildProfileTaskResult(input: {
   vendor?: Vendor;
   model?: Model;
   // unrecognizedStatus 随返回对象带出，**不进 TaskResult 公共类型**：判定只在 tasks/taskResultQuery 收口。
-}): Promise<{ result: TaskResult; providerMeta: JsonRecord; unrecognizedStatus: string }> {
+}): Promise<{ result: TaskResult; providerMeta: JsonRecord; unrecognizedStatus: string; actualCost?: ProviderCostActual }> {
   // 命名响应变换（P4，如 ComfyUI /history 归一）：response_mapping 前对 raw response 应用一次；未声明→原样。
   const response = applyResponseTransform(input.operation.response_transform, input.response, {
     baseUrl: String(input.vendor?.baseUrlHint || ""),
@@ -331,9 +333,11 @@ export async function buildProfileTaskResult(input: {
   const assets = input.projectId
     ? await Promise.all(assetUrls.map((url) => localizeTaskAsset(input.projectId || "", url, type, input.nodeId, input.vendor)))
     : assetUrls.map((url) => unlocalizedTaskAsset(type, url));
+  const actualCost = extractProviderCostActual(input.vendor?.key || "", input.response);
   return {
     providerMeta,
     unrecognizedStatus,
+    ...(actualCost ? { actualCost } : {}),
     result: {
       id: taskId,
       kind: input.request.kind,
@@ -341,7 +345,6 @@ export async function buildProfileTaskResult(input: {
       assets,
       raw: input.response,
       ...(status === "failed" ? { error: taskFailureMessageFromResponse(response, responseMapping) } : {}),
-      // S4-1:profile 主路径补 provenance(与 fallback 共用 buildTaskProvenance,单一真相)。
       ...(status === "succeeded" && input.vendor && input.model
         ? {
             provenance: buildTaskProvenance({
@@ -349,6 +352,7 @@ export async function buildProfileTaskResult(input: {
               model: input.model,
               request: input.request,
               vendorRequestId: taskId,
+              actualCost,
             }),
           }
         : {}),
@@ -432,12 +436,7 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
     });
     traceVendorRequested(projectId, { runId: normalized.result.id, nodeId, recipe });
     if (["succeeded", "failed"].includes(normalized.result.status)) {
-      traceVendorCompleted(projectId, {
-        runId: normalized.result.id,
-        nodeId,
-        status: normalized.result.status as "succeeded" | "failed",
-        assetCount: normalized.result.assets.length,
-      });
+      traceVendorCompleted(projectId, { runId: normalized.result.id, nodeId, status: normalized.result.status as "succeeded" | "failed", assetCount: normalized.result.assets.length, ...(normalized.actualCost ? { cost: normalized.actualCost } : {}) });
       rememberTaskResult(projectId, fingerprint, normalized.result);
     }
     if (!["succeeded", "failed"].includes(normalized.result.status)) {
@@ -519,8 +518,9 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
   const asset: TaskResult["assets"][number] = projectId
     ? await localizeTaskAsset(projectId, assetUrl, type, nodeId, vendor) : unlocalizedTaskAsset(type, assetUrl);
   // E11 provenance + S4-1 终态事件:与 profile 路径共用 vendor/provenance 模块(单一真相)。
-  const provenance = buildTaskProvenance({ vendor, model, request, vendorRequestId: upstreamTaskId });
-  traceVendorCompleted(projectId, { runId: upstreamTaskId, nodeId, status: "succeeded", assetCount: 1 });
+  const actualCost = extractProviderCostActual(vendor.key, providerResponse);
+  const provenance = buildTaskProvenance({ vendor, model, request, vendorRequestId: upstreamTaskId, actualCost });
+  traceVendorCompleted(projectId, { runId: upstreamTaskId, nodeId, status: "succeeded", assetCount: 1, ...(actualCost ? { cost: actualCost } : {}) });
   const finalResult: TaskResult = {
     id: upstreamTaskId,
     kind,

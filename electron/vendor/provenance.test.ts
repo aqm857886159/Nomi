@@ -49,4 +49,15 @@ describe("buildTaskProvenance(profile/fallback 两路径共用,修主路径漏�
     });
     expect(typeof provenance.timestamp).toBe("number");
   });
+
+  it("仅在供应商给出可靠证据时把实际积分带进 provenance", () => {
+    const provenance = buildTaskProvenance({
+      vendor,
+      model,
+      request: { kind: "text_to_image", prompt: "a cat" },
+      vendorRequestId: "task-credit",
+      actualCost: { amount: 8.52, unit: "credits", provider: "apimart" },
+    });
+    expect(provenance.cost).toEqual({ amount: 8.52, currency: "credits", unit: "actual" });
+  });
 });

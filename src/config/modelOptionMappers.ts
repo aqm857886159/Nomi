@@ -4,17 +4,17 @@ import { archetypeParameterControls } from './modelArchetypes'
 
 function toCatalogModelPricing(pricing: ModelCatalogModelDto['pricing']): ModelOptionPricing | undefined {
   if (!pricing) return undefined
-  const cost = typeof pricing.cost === 'number' && Number.isFinite(pricing.cost)
-    ? Math.max(0, Math.floor(pricing.cost))
-    : 0
+  const cost = typeof pricing.cost === 'number' && Number.isFinite(pricing.cost) && pricing.cost >= 0
+    ? Math.max(0, pricing.cost)
+    : null
+  if (cost === null) return undefined
   const specCosts = Array.isArray(pricing.specCosts)
     ? pricing.specCosts
         .map((spec) => {
           const specKey = typeof spec?.specKey === 'string' ? spec.specKey.trim() : ''
           if (!specKey) return null
-          const specCost = typeof spec.cost === 'number' && Number.isFinite(spec.cost)
-            ? Math.max(0, Math.floor(spec.cost))
-            : 0
+          if (typeof spec.cost !== 'number' || !Number.isFinite(spec.cost) || spec.cost < 0) return null
+          const specCost = Math.max(0, spec.cost)
           return {
             specKey,
             cost: specCost,

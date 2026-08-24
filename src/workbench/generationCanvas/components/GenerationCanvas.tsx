@@ -707,6 +707,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
                 contactSheetCount={contactSheetCount}
                 onConcurrencyChange={production.setConcurrency}
                 onGenerate={production.generate}
+                costEstimate={production.costEstimate}
                 onApplyModel={production.applyModel}
                 onGroupSelectedNodes={handleGroupSelectedNodes}
                 onUngroupSelectedNodes={handleUngroupSelectedNodes}

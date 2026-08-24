@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { ModelOption } from '../../../config/models'
 import { NomiSelect, WorkbenchIconButton } from '../../../design'
 import { cn } from '../../../utils/cn'
+import { formatGenerationCredits, type GenerationCostEstimate } from '../spend/generationCost'
 import BulkModelPicker from '../../common/BulkModelPicker'
 import { useGenerationModelOptionsState } from '../adapters/modelOptionsAdapter'
 import type { CanvasGenerationExecutionGroup } from './canvasProductionScope'
@@ -71,6 +72,7 @@ type CanvasSelectionToolbarProps = {
   onUngroupSelectedNodes: () => void
   onBuildContactSheet: () => void
   onClearSelection: () => void
+  costEstimate?: GenerationCostEstimate | null
 }
 
 export function CanvasSelectionToolbar({
@@ -88,6 +90,7 @@ export function CanvasSelectionToolbar({
   onUngroupSelectedNodes,
   onBuildContactSheet,
   onClearSelection,
+  costEstimate,
 }: CanvasSelectionToolbarProps): JSX.Element {
   const { t } = useTranslation()
   const generateLabel = t('generationCommon.production.generateSelected', { count: eligibleCount })
@@ -126,6 +129,11 @@ export function CanvasSelectionToolbar({
         <IconPlayerPlay size={16} stroke={1.6} aria-hidden />
         {generateLabel}
       </button>
+      {costEstimate ? (
+        <span className={cn('shrink-0 text-caption font-medium text-nomi-ink-60')} data-selection-cost-estimate="true">
+          {t('generationCommon.production.estimateCredits', { credits: formatGenerationCredits(costEstimate.amount) })}
+        </span>
+      ) : null}
       <NomiSelect
         ariaLabel={t('generationCommon.production.concurrency')}
         leadingLabel={t('generationCommon.production.concurrency')}

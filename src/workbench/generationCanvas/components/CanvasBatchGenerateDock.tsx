@@ -2,6 +2,7 @@ import { IconPlayerPlay, IconX } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { NomiSelect, WorkbenchIconButton } from '../../../design'
 import { cn } from '../../../utils/cn'
+import { formatGenerationCredits, type GenerationCostEstimate } from '../spend/generationCost'
 
 const CONCURRENCY_OPTIONS = [1, 2, 4, 6, 8].map((value) => ({ value: String(value), label: String(value) }))
 
@@ -12,6 +13,7 @@ export function CanvasBatchGenerateDock(props: {
   generate: () => void
   onDismiss: () => void
   timelineCollapsed: boolean
+  costEstimate?: GenerationCostEstimate | null
 }): JSX.Element {
   const { t } = useTranslation()
   const eligibleCount = props.eligibleIds.length
@@ -45,6 +47,11 @@ export function CanvasBatchGenerateDock(props: {
         <IconPlayerPlay size={16} stroke={1.6} aria-hidden />
         {generateLabel}
       </button>
+      {props.costEstimate ? (
+        <span className={cn('shrink-0 text-caption font-medium text-nomi-ink-60')} data-batch-cost-estimate="true">
+          {t('generationCommon.production.estimateCredits', { credits: formatGenerationCredits(props.costEstimate.amount) })}
+        </span>
+      ) : null}
       <NomiSelect
         ariaLabel={t('generationCommon.production.concurrency')}
         leadingLabel={t('generationCommon.production.concurrency')}

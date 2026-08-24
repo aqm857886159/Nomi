@@ -3,6 +3,7 @@
 // 纯函数零依赖;P2 修根因:provenance 此前只有 fallback 路径写、profile 主路径漏写,
 // 两条路径从此共用本模块(单一真相)。
 import type { Model, Vendor } from "../catalog/types";
+import type { ProviderCostActual } from "./cost";
 
 /** 与 runtime.TaskResult["provenance"] 结构兼容(该类型为 runtime 私有,这里结构化对齐)。 */
 export type TaskProvenance = {
@@ -13,6 +14,7 @@ export type TaskProvenance = {
   seed?: number;
   params?: Record<string, unknown>;
   vendorRequestId?: string;
+  cost?: { amount: number; currency: "credits"; unit: "actual" };
   timestamp: number;
 };
 
@@ -81,6 +83,7 @@ export function buildTaskProvenance(input: {
   model: Model;
   request: RecipeRequestFields;
   vendorRequestId: string;
+  actualCost?: ProviderCostActual;
 }): TaskProvenance {
   const { request } = input;
   return {
@@ -97,6 +100,9 @@ export function buildTaskProvenance(input: {
       ...(request.extras ? { extras: request.extras } : {}),
     },
     vendorRequestId: input.vendorRequestId,
+    ...(input.actualCost
+      ? { cost: { amount: input.actualCost.amount, currency: input.actualCost.unit, unit: "actual" as const } }
+      : {}),
     timestamp: Date.now(),
   };
 }

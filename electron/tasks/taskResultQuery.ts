@@ -9,6 +9,7 @@ import { classifyTaskCacheMiss, wasTaskAdmitted } from "./taskAdmission";
 import { taskFailureMessageFromResponse } from "./responseParsing";
 import { activeTaskProjectFallback, unlocalizedTaskAsset } from "./activeProjectFallback";
 import { traceVendorCompleted } from "../events/vendorCallTrace";
+import { extractProviderCostActual } from "../vendor/cost";
 import { rememberTaskResult } from "../vendor/fingerprintCache";
 import {
   type CachedTask,
@@ -162,7 +163,13 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
 
     if (result.status === "succeeded" || result.status === "failed") {
       // 终态才入日志(轮询 tick 不记);cache.delete 保证单次触发
-      traceVendorCompleted(cached.projectId, { runId: taskId, nodeId: cached.nodeId, status: result.status, assetCount: result.assets.length });
+      traceVendorCompleted(cached.projectId, {
+        runId: taskId,
+        nodeId: cached.nodeId,
+        status: result.status,
+        assetCount: result.assets.length,
+        ...(normalized.actualCost ? { cost: normalized.actualCost } : {}),
+      });
       rememberTaskResult(cached.projectId || "", cached.fingerprint, result);
       taskCache.delete(taskId);
     } else {
@@ -220,7 +227,14 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
       desktopT("tasks.noQueryOperation") +
       (upstreamReason ? desktopT("tasks.upstreamSaid", { detail: upstreamReason }) : ""),
   };
-  traceVendorCompleted(cached.projectId, { runId: taskId, nodeId: cached.nodeId, status: "failed", assetCount: 0 });
+  const actualCost = extractProviderCostActual(cached.vendor, cached.raw);
+  traceVendorCompleted(cached.projectId, {
+    runId: taskId,
+    nodeId: cached.nodeId,
+    status: "failed",
+    assetCount: 0,
+    ...(actualCost ? { cost: actualCost } : {}),
+  });
   // 与其它终态一致地清缓存；额外好处：用户之后「重新拉取」会走无状态重建，那条路**重读 catalog**，
   // 模型若后来补上了 query op 就真能查出来（留着旧快照反而钉死在「永远查不了」）。
   taskCache.delete(taskId);

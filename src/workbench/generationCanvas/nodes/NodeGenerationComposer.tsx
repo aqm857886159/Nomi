@@ -50,6 +50,7 @@ import {
 } from '../adapters/modelOptionsAdapter'
 import { nodeSelectedModelAddress } from './controls/parameterControlModel'
 import { comfyWorkflowTakesPrompt } from '../runner/promptRequirement'
+import { estimateGenerationCost, formatGenerationCredits } from '../spend/generationCost'
 
 // C5 P2：文本节点的三种生成模式（label 由 composer.append/rewrite/replace 在渲染处翻译）。
 const TEXT_GEN_MODES: { value: TextGenMode; labelKey: string }[] = [
@@ -315,6 +316,10 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   const [promptPickerItems, setPromptPickerItems] = React.useState<PromptPickerItem[]>([])
   // 变体张数是会话态、不落盘；显式列出 1–4，避免循环按钮让用户猜下一档。
   const [variantCount, setVariantCount] = React.useState<GenerationVariantCount>(1)
+  const costEstimate = React.useMemo(
+    () => estimateGenerationCost({ option: selectedModelOption, params: node.meta, multiplier: variantCount }),
+    [node.meta, selectedModelOption, variantCount],
+  )
   const [promptPickerPosition, setPromptPickerPosition] = React.useState<PromptPickerPosition | null>(null)
   const promptPickerButtonRef = React.useRef<HTMLButtonElement | null>(null)
   const promptPickerPopoverRef = React.useRef<HTMLDivElement | null>(null)
@@ -722,12 +727,22 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
                   ml-auto：把生成钮推到底栏最右 = 卡片右下角（卡宽恒定 → 屏幕位置锁死）。 */}
               <button
                 type="button"
-                className={cn(GENERATE_BUTTON_CLASS, 'ml-auto')}
+                className={cn(
+                  costEstimate
+                    ? 'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border-0 bg-nomi-ink px-3 text-caption font-medium text-nomi-paper transition-colors duration-[var(--nomi-transition-fast)] hover:bg-nomi-accent disabled:cursor-not-allowed disabled:opacity-45'
+                    : GENERATE_BUTTON_CLASS,
+                  'ml-auto',
+                )}
                 aria-label={hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset')}
+                data-cost-estimate={costEstimate ? formatGenerationCredits(costEstimate.amount) : undefined}
                 disabled={!canGenerateNow}
                 onClick={handleGenerate}
               >
-                {isGenerating ? '···' : '↑'}
+                {isGenerating
+                  ? '···'
+                  : costEstimate
+                    ? <><span>{t('generationCommon.composer.estimateCredits', { credits: formatGenerationCredits(costEstimate.amount) })}</span><span aria-hidden="true">↑</span></>
+                    : '↑'}
               </button>
             </span>
           )

@@ -10,6 +10,10 @@ import { WorkbenchButton } from '../../../design'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { waveIndexByNode } from '../runner/dependencyWaves'
 import { useBatchPlanPreviewStore } from './batchPlanPreview'
+import { findModelOptionByIdentifier, useGenerationModelOptionsState } from '../adapters/modelOptionsAdapter'
+import { getGenerationNodeCatalogKind } from '../model/generationNodeKinds'
+import { nodeSelectedModelAddress } from '../nodes/controls/parameterControlModel'
+import { estimateBatchGenerationCost, formatGenerationCredits } from '../spend/generationCost'
 
 export function BatchPlanOverlay() {
   const { t } = useTranslation()
@@ -19,6 +23,23 @@ export function BatchPlanOverlay() {
   const nodes = useGenerationCanvasStore((state) => state.nodes)
   const zoom = useGenerationCanvasStore((state) => state.canvasZoom)
   const offset = useGenerationCanvasStore((state) => state.canvasOffset)
+  const textOptions = useGenerationModelOptionsState('text').options
+  const imageOptions = useGenerationModelOptionsState('image').options
+  const videoOptions = useGenerationModelOptionsState('video').options
+  const audioOptions = useGenerationModelOptionsState('audio').options
+  const model3dOptions = useGenerationModelOptionsState('model3d').options
+  const costEstimate = React.useMemo(() => {
+    if (!plan) return null
+    const optionsByKind = { text: textOptions, image: imageOptions, video: videoOptions, audio: audioOptions, model3d: model3dOptions }
+    const nodeById = new Map(nodes.map((node) => [node.id, node]))
+    return estimateBatchGenerationCost(plan.waves.flat().map((id) => {
+      const node = nodeById.get(id)
+      if (!node) return { option: undefined, params: undefined }
+      const options = optionsByKind[getGenerationNodeCatalogKind(node.kind)]
+      const address = nodeSelectedModelAddress(node.meta || {})
+      return { option: findModelOptionByIdentifier(options, address.modelKey, address.vendorKey), params: node.meta }
+    }))
+  }, [audioOptions, imageOptions, model3dOptions, nodes, plan, textOptions, videoOptions])
   if (!plan) return null
 
   const waveByNode = waveIndexByNode(plan)
@@ -65,6 +86,11 @@ export function BatchPlanOverlay() {
           {t('generationCommon.batchPlan.firstWave', { count: firstWaveCount })}
           {plan.blocked.length > 0 ? t('generationCommon.batchPlan.blocked', { count: plan.blocked.length }) : ''}
         </span>
+        {costEstimate ? (
+          <span className={cn('text-caption font-medium text-nomi-ink-60 whitespace-nowrap')} data-plan-cost-estimate="true">
+            {t('generationCommon.production.estimateCredits', { credits: formatGenerationCredits(costEstimate.amount) })}
+          </span>
+        ) : null}
         <WorkbenchButton className={cn('h-7 min-h-7 px-3 cursor-pointer')} onClick={cancel}>
           {t('generationCommon.batchPlan.cancel')}
         </WorkbenchButton>

@@ -171,6 +171,13 @@ function extractProvenanceFromTaskResult(result: TaskResultDto): GenerationProve
     ...(typeof rec.seed === 'number' ? { seed: rec.seed } : {}),
     ...(rec.params && typeof rec.params === 'object' ? { params: rec.params as Record<string, unknown> } : {}),
     ...(typeof rec.vendorRequestId === 'string' ? { vendorRequestId: rec.vendorRequestId } : {}),
+    ...(rec.cost && typeof rec.cost === 'object'
+      && typeof (rec.cost as Record<string, unknown>).amount === 'number'
+      && Number.isFinite((rec.cost as Record<string, unknown>).amount)
+      && typeof (rec.cost as Record<string, unknown>).currency === 'string'
+      && ((rec.cost as Record<string, unknown>).unit === 'actual' || (rec.cost as Record<string, unknown>).unit === 'estimate')
+      ? { cost: rec.cost as GenerationProvenance['cost'] }
+      : {}),
     ...(typeof rec.agentRunId === 'string' ? { agentRunId: rec.agentRunId } : {}),
   }
 }
