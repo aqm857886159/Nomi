@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>统一 Agent 工作面 · 交互方案样张</title>
+  <style>
+    :root {
+      --nomi-bg: oklch(0.985 0.003 90);
+      --nomi-paper: oklch(1 0 0);
+      --nomi-ink: oklch(0.22 0.01 80);
+      --nomi-ink-80: oklch(0.32 0.01 80);
+      --nomi-ink-60: oklch(0.50 0.01 80);
+      --nomi-ink-40: oklch(0.68 0.01 80);
+      --nomi-ink-20: oklch(0.88 0.005 80);
+      --nomi-line: oklch(0.91 0.004 80);
+      --nomi-line-soft: oklch(0.95 0.003 80);
+      --nomi-accent: oklch(0.55 0.13 250);
+      --nomi-accent-soft: color-mix(in oklch, var(--nomi-accent) 11%, var(--nomi-paper));
+      --nomi-warning: oklch(0.62 0.14 75);
+      --nomi-success: oklch(0.61 0.16 150);
+      --nomi-video: oklch(0.64 0.13 160);
+      --nomi-shadow: 0 18px 48px color-mix(in oklch, var(--nomi-ink) 12%, transparent);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --sans: "Avenir Next", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+      --serif: "Iowan Old Style", "Songti SC", serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--nomi-ink);
+      background: var(--nomi-bg);
+      font: 14px/1.5 var(--sans);
+    }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    .page { max-width: 1540px; margin: 0 auto; padding: 40px 36px 56px; }
+    .eyebrow { color: var(--nomi-accent); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 8px 0 10px; font-size: clamp(28px, 4vw, 48px); line-height: 1.08; letter-spacing: -.04em; }
+    .lede { max-width: 780px; margin: 0; color: var(--nomi-ink-60); font-size: 16px; }
+    .principle {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: center;
+      margin: 28px 0 24px; padding: 18px 20px; border: 1px solid var(--nomi-line); border-radius: var(--radius-md);
+      background: color-mix(in oklch, var(--nomi-accent-soft) 60%, var(--nomi-paper));
+    }
+    .principle strong { display: block; margin-bottom: 3px; font-size: 15px; }
+    .principle span { color: var(--nomi-ink-60); }
+    .principle-mark { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; color: var(--nomi-paper); background: var(--nomi-accent); font-weight: 800; font-size: 20px; }
+    .options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 22px; }
+    .option {
+      position: relative; text-align: left; padding: 16px; min-height: 146px; cursor: pointer;
+      border: 1px solid var(--nomi-line); border-radius: var(--radius-md); background: var(--nomi-paper);
+      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+    .option:hover { transform: translateY(-2px); box-shadow: var(--nomi-shadow); }
+    .option.is-active { border-color: var(--nomi-accent); box-shadow: 0 0 0 3px var(--nomi-accent-soft); }
+    .option-recommended { position: absolute; top: 12px; right: 12px; padding: 3px 7px; color: var(--nomi-accent); border-radius: 999px; background: var(--nomi-accent-soft); font-size: 11px; font-weight: 700; }
+    .option-kicker { color: var(--nomi-ink-40); font-size: 11px; font-weight: 700; }
+    .option h2 { margin: 8px 0 5px; font-size: 17px; letter-spacing: -.02em; }
+    .option p { margin: 0; color: var(--nomi-ink-60); font-size: 12px; }
+    .option .micro { display: flex; gap: 4px; margin-top: 13px; }
+    .micro i { display: block; height: 4px; border-radius: 999px; background: var(--nomi-line); }
+    .micro i:nth-child(1) { width: 32%; background: var(--nomi-accent); }
+    .micro i:nth-child(2) { width: 48%; }
+    .micro i:nth-child(3) { width: 20%; background: var(--nomi-video); }
+    .showcase {
+      overflow: hidden; border: 1px solid var(--nomi-line); border-radius: var(--radius-lg); background: var(--nomi-paper); box-shadow: var(--nomi-shadow);
+    }
+    .showcase-head { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--nomi-line); }
+    .showcase-title { display: flex; gap: 10px; align-items: center; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--nomi-success); box-shadow: 0 0 0 4px color-mix(in oklch, var(--nomi-success) 16%, transparent); }
+    .head-note { color: var(--nomi-ink-60); font-size: 12px; }
+    .head-actions { display: flex; gap: 7px; }
+    .small-btn, .primary-btn, .ghost-btn { border: 1px solid var(--nomi-line); border-radius: 9px; padding: 7px 10px; cursor: pointer; background: var(--nomi-paper); }
+    .small-btn:hover, .ghost-btn:hover { background: var(--nomi-line-soft); }
+    .primary-btn { color: var(--nomi-paper); border-color: var(--nomi-ink); background: var(--nomi-ink); }
+    .primary-btn:hover { background: var(--nomi-accent); border-color: var(--nomi-accent); }
+    .app-shell { display: grid; grid-template-columns: 286px minmax(0, 1fr); min-height: 690px; }
+    .rail, .inspector { background: color-mix(in oklch, var(--nomi-bg) 72%, var(--nomi-paper)); }
+    .rail { display: flex; flex-direction: column; border-right: 1px solid var(--nomi-line); }
+    .rail-top { padding: 18px 16px 12px; }
+    .agent-id { display: flex; align-items: center; gap: 10px; }
+    .agent-avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; color: var(--nomi-paper); background: linear-gradient(145deg, var(--nomi-ink), var(--nomi-accent)); font-weight: 800; }
+    .agent-id strong { display: block; font-size: 13px; }
+    .agent-id small { color: var(--nomi-ink-60); font-size: 11px; }
+    .context-chip { display: flex; align-items: center; gap: 7px; margin-top: 14px; padding: 8px 10px; border: 1px solid var(--nomi-line); border-radius: 9px; background: var(--nomi-paper); color: var(--nomi-ink-80); font-size: 11px; }
+    .context-chip b { color: var(--nomi-accent); }
+    .thread { display: flex; flex-direction: column; gap: 13px; flex: 1; padding: 10px 16px; overflow: auto; }
+    .msg { max-width: 94%; font-size: 12px; }
+    .msg p { margin: 0; }
+    .msg.user { align-self: flex-end; padding: 9px 10px; border-radius: 11px 11px 3px 11px; color: var(--nomi-paper); background: var(--nomi-ink); }
+    .msg.agent { padding: 9px 10px; border: 1px solid var(--nomi-line); border-radius: 3px 11px 11px 11px; background: var(--nomi-paper); }
+    .msg-label { display: block; margin-bottom: 3px; color: var(--nomi-ink-40); font-size: 10px; }
+    .proposal { margin-top: 8px; padding: 9px; border-left: 3px solid var(--nomi-accent); border-radius: 0 8px 8px 0; background: var(--nomi-accent-soft); }
+    .proposal strong { display: block; margin-bottom: 2px; font-size: 11px; }
+    .proposal span { color: var(--nomi-ink-60); font-size: 11px; }
+    .thread-input { margin: 0 12px 14px; padding: 8px; border: 1px solid var(--nomi-line); border-radius: 11px; background: var(--nomi-paper); }
+    .thread-input input { width: 100%; padding: 3px 2px 8px; border: 0; outline: 0; color: var(--nomi-ink); background: transparent; font-size: 12px; }
+    .input-row { display: flex; justify-content: space-between; align-items: center; color: var(--nomi-ink-40); font-size: 11px; }
+    .send { display: grid; place-items: center; width: 25px; height: 25px; border: 0; border-radius: 8px; color: var(--nomi-paper); background: var(--nomi-accent); cursor: pointer; }
+    .stage { min-width: 0; background: var(--nomi-paper); }
+    .stage-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px 12px; border-bottom: 1px solid var(--nomi-line); }
+    .stage-title { min-width: 0; }
+    .stage-title strong { display: block; font-size: 15px; }
+    .stage-title small { color: var(--nomi-ink-60); font-size: 11px; }
+    .view-switch { display: flex; gap: 3px; padding: 3px; border-radius: 10px; background: var(--nomi-line-soft); }
+    .view-switch button { border: 0; border-radius: 7px; padding: 6px 8px; cursor: pointer; color: var(--nomi-ink-60); background: transparent; font-size: 11px; }
+    .view-switch button.is-active { color: var(--nomi-ink); background: var(--nomi-paper); box-shadow: 0 1px 4px color-mix(in oklch, var(--nomi-ink) 10%, transparent); }
+    .stage-body { padding: 16px; }
+    .sync-banner { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 9px 11px; border: 1px solid color-mix(in oklch, var(--nomi-success) 28%, var(--nomi-line)); border-radius: 10px; background: color-mix(in oklch, var(--nomi-success) 7%, var(--nomi-paper)); color: var(--nomi-ink-80); font-size: 11px; }
+    .sync-banner b { color: var(--nomi-success); }
+    .surface { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: minmax(340px, 1fr) 154px; gap: 10px; min-height: 516px; }
+    .surface > .pane[data-pane="canvas"] { grid-column: 1 / -1; grid-row: 1; }
+    .surface > .pane[data-pane="script"] { grid-column: 1; grid-row: 2; }
+    .surface > .pane[data-pane="timeline"] { grid-column: 2; grid-row: 2; }
+    .surface.focus-script { grid-template-columns: 1fr 1fr; grid-template-rows: minmax(340px, 1fr) 154px; }
+    .surface.focus-script > .pane[data-pane="script"] { grid-column: 1 / -1; grid-row: 1; }
+    .surface.focus-script > .pane[data-pane="canvas"] { grid-column: 1; grid-row: 2; }
+    .surface.focus-script > .pane[data-pane="timeline"] { grid-column: 2; grid-row: 2; }
+    .surface.focus-canvas { grid-template-columns: 1fr 1fr; grid-template-rows: minmax(340px, 1fr) 154px; }
+    .surface.focus-canvas > .pane[data-pane="canvas"] { grid-column: 1 / -1; grid-row: 1; }
+    .surface.focus-canvas > .pane[data-pane="script"] { grid-column: 1; grid-row: 2; }
+    .surface.focus-canvas > .pane[data-pane="timeline"] { grid-column: 2; grid-row: 2; }
+    .surface.focus-timeline { grid-template-columns: 1fr 1fr; grid-template-rows: minmax(340px, 1fr) 154px; }
+    .surface.focus-timeline > .pane[data-pane="timeline"] { grid-column: 1 / -1; grid-row: 1; }
+    .surface.focus-timeline > .pane[data-pane="script"] { grid-column: 1; grid-row: 2; }
+    .surface.focus-timeline > .pane[data-pane="canvas"] { grid-column: 2; grid-row: 2; }
+    .surface.triad { display: flex; flex-direction: column; }
+    .surface.triad .pane { min-height: 148px; }
+    .pane { min-width: 0; border: 1px solid var(--nomi-line); border-radius: var(--radius-md); background: var(--nomi-bg); overflow: hidden; transition: flex .2s ease; }
+    .pane.is-active { border-color: color-mix(in oklch, var(--nomi-accent) 72%, var(--nomi-line)); box-shadow: 0 0 0 3px var(--nomi-accent-soft); }
+    .pane-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 11px; border-bottom: 1px solid var(--nomi-line); background: var(--nomi-paper); }
+    .pane-title { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .pane-title b { font-size: 12px; }
+    .pane-title span { overflow: hidden; color: var(--nomi-ink-40); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    .pane-action { border: 0; color: var(--nomi-accent); background: transparent; cursor: pointer; font-size: 10px; }
+    .pane-content { padding: 11px; }
+    .surface:not(.triad) > .pane:not([data-pane="canvas"]) .pane-content { max-height: 112px; overflow: hidden; }
+    .surface.focus-script > .pane:not([data-pane="script"]) .pane-content,
+    .surface.focus-timeline > .pane:not([data-pane="timeline"]) .pane-content { max-height: 112px; overflow: hidden; }
+    .script-line { display: grid; grid-template-columns: 30px 1fr; gap: 7px; margin-bottom: 10px; font-family: var(--serif); font-size: 12px; }
+    .script-line em { color: var(--nomi-accent); font: 700 10px var(--sans); font-style: normal; }
+    .script-line p { margin: 0; }
+    .script-line.muted { color: var(--nomi-ink-40); }
+    .shot-card { display: grid; grid-template-columns: 54px 1fr; gap: 9px; align-items: center; margin-bottom: 9px; padding: 7px; border: 1px solid var(--nomi-line); border-radius: 9px; background: var(--nomi-paper); cursor: pointer; }
+    .shot-card:hover, .shot-card.is-selected { border-color: var(--nomi-accent); }
+    .shot-thumb { display: grid; place-items: center; height: 39px; border-radius: 6px; color: var(--nomi-paper); background: linear-gradient(135deg, var(--nomi-ink), var(--nomi-accent)); font-size: 10px; }
+    .shot-card:nth-child(3) .shot-thumb { background: linear-gradient(135deg, oklch(.48 .09 175), oklch(.72 .12 205)); }
+    .shot-card:nth-child(4) .shot-thumb { background: linear-gradient(135deg, oklch(.52 .11 30), oklch(.75 .12 75)); }
+    .shot-meta strong { display: block; font-size: 11px; }
+    .shot-meta small { color: var(--nomi-ink-60); font-size: 10px; }
+    .canvas-map { position: relative; height: 192px; overflow: hidden; border-radius: 9px; background: radial-gradient(circle at 22% 35%, color-mix(in oklch, var(--nomi-accent) 13%, transparent) 0 7%, transparent 8%), linear-gradient(120deg, var(--nomi-bg), var(--nomi-line-soft)); }
+    .canvas-map::before, .canvas-map::after { content: ""; position: absolute; background: var(--nomi-line); transform-origin: left center; }
+    .canvas-map::before { width: 125px; height: 1px; left: 72px; top: 77px; transform: rotate(-13deg); }
+    .canvas-map::after { width: 122px; height: 1px; left: 72px; top: 77px; transform: rotate(24deg); }
+    .node { position: absolute; width: 94px; padding: 8px; border: 1px solid var(--nomi-line); border-radius: 8px; background: var(--nomi-paper); box-shadow: 0 5px 14px color-mix(in oklch, var(--nomi-ink) 8%, transparent); font-size: 10px; }
+    .node b { display: block; margin-bottom: 3px; font-size: 10px; }
+    .node span { display: block; color: var(--nomi-ink-60); font-size: 9px; }
+    .node.story { left: 10px; top: 62px; border-top: 3px solid var(--nomi-accent); }
+    .node.ref { left: 112px; top: 19px; border-top: 3px solid var(--nomi-warning); }
+    .node.gen { right: 10px; top: 63px; border-top: 3px solid var(--nomi-video); }
+    .node.out { left: 111px; bottom: 17px; border-top: 3px solid var(--nomi-success); }
+    .timeline { position: relative; padding-top: 4px; }
+    .time-ruler { display: flex; justify-content: space-between; margin: 0 0 10px 34px; color: var(--nomi-ink-40); font-size: 9px; }
+    .track { display: grid; grid-template-columns: 28px 1fr; gap: 6px; align-items: center; margin-bottom: 8px; }
+    .track-label { color: var(--nomi-ink-60); font-size: 9px; }
+    .track-line { position: relative; height: 29px; border-radius: 6px; background: repeating-linear-gradient(90deg, var(--nomi-line-soft) 0 48px, var(--nomi-line) 49px 50px); }
+    .clip { position: absolute; top: 4px; bottom: 4px; display: flex; align-items: center; overflow: hidden; padding: 0 8px; border-radius: 5px; color: var(--nomi-paper); background: var(--nomi-accent); font-size: 9px; white-space: nowrap; }
+    .clip.video { background: var(--nomi-video); }
+    .clip.audio { background: var(--nomi-warning); }
+    .playhead { position: absolute; top: 34px; bottom: 0; left: 44%; width: 1px; background: var(--nomi-accent); }
+    .playhead::before { content: ""; position: absolute; top: -4px; left: -4px; border: 4px solid transparent; border-top-color: var(--nomi-accent); }
+    .pane-foot { margin-top: 12px; color: var(--nomi-ink-60); font-size: 10px; }
+    .inspector { display: none; padding: 18px 14px; border-left: 1px solid var(--nomi-line); }
+    .inspector h3 { margin: 0 0 4px; font-size: 13px; }
+    .inspector-sub { color: var(--nomi-ink-60); font-size: 11px; }
+    .inspector-section { padding: 15px 0; border-bottom: 1px solid var(--nomi-line); }
+    .field { display: flex; justify-content: space-between; gap: 8px; margin: 9px 0; color: var(--nomi-ink-60); font-size: 11px; }
+    .field b { color: var(--nomi-ink); font-weight: 600; text-align: right; }
+    .tag-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .tag { padding: 4px 6px; border-radius: 6px; color: var(--nomi-ink-80); background: var(--nomi-line-soft); font-size: 10px; }
+    .tag.active { color: var(--nomi-accent); background: var(--nomi-accent-soft); }
+    .apply-card { margin-top: 14px; padding: 10px; border: 1px solid var(--nomi-line); border-radius: 10px; background: var(--nomi-paper); }
+    .apply-card strong { display: block; margin-bottom: 5px; font-size: 11px; }
+    .apply-card p { margin: 0 0 9px; color: var(--nomi-ink-60); font-size: 10px; }
+    .apply-actions { display: flex; gap: 6px; }
+    .apply-actions button { flex: 1; padding: 6px 5px; border-radius: 7px; cursor: pointer; font-size: 10px; }
+    .apply-actions .primary-btn { border: 1px solid var(--nomi-ink); }
+    .selection-bar { display: flex; align-items: center; gap: 7px; margin-bottom: 12px; padding: 8px 10px; border: 1px solid var(--nomi-line); border-radius: 10px; background: var(--nomi-bg); }
+    .selection-label { margin-right: 2px; color: var(--nomi-ink-60); font-size: 10px; white-space: nowrap; }
+    .selection-pill { padding: 4px 7px; border-radius: 6px; color: var(--nomi-ink-80); background: var(--nomi-paper); font-size: 10px; }
+    .selection-pill strong { color: var(--nomi-ink); }
+    .selection-edit { margin-left: auto; border: 0; color: var(--nomi-accent); background: transparent; cursor: pointer; font-size: 10px; white-space: nowrap; }
+    .callout-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px; }
+    .callout { padding: 15px; border: 1px solid var(--nomi-line); border-radius: var(--radius-md); background: var(--nomi-paper); }
+    .callout h3 { margin: 0 0 6px; font-size: 13px; }
+    .callout p { margin: 0; color: var(--nomi-ink-60); font-size: 12px; }
+    .toast { position: fixed; right: 24px; bottom: 24px; z-index: 4; padding: 11px 14px; border: 1px solid var(--nomi-line); border-radius: 10px; color: var(--nomi-ink); background: var(--nomi-paper); box-shadow: var(--nomi-shadow); opacity: 0; transform: translateY(8px); pointer-events: none; transition: .2s ease; font-size: 12px; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    @media (max-width: 1120px) { .app-shell { grid-template-columns: 255px minmax(0, 1fr); } .inspector { display: none; } }
+    @media (max-width: 760px) { .page { padding: 24px 14px 40px; } .options, .callout-grid { grid-template-columns: 1fr; } .principle { grid-template-columns: 1fr; } .app-shell { display: block; } .rail { min-height: 320px; border-right: 0; border-bottom: 1px solid var(--nomi-line); } .thread { max-height: 220px; } .surface, .surface.focus-script, .surface.focus-canvas, .surface.focus-timeline { display: flex; flex-direction: column; } .pane { min-height: 260px; } .surface .pane:not(.is-active) { min-height: 150px; } .stage-head { align-items: flex-start; flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="eyebrow">NOMI · INTERACTION MOCKUP</div>
+    <h1>一个 Agent，三个工作面，<br />不再切换对话。</h1>
+    <p class="lede">这是把 OmniBoard 的“故事到成片”路径放进 Nomi 的统一工作区后的三种交互方式。重点不是把三个页面塞在一起，而是让 Agent 永远拥有同一段上下文，用户只是在同一个工作面里查看和编辑不同层。</p>
+    <section class="principle">
+      <div><strong>核心用户价值：用户只需要说一次，之后一直在同一条创作线上推进。</strong><span>剧本、镜头、生成参数和时间轴共享项目事实；Agent 的建议先进入“待应用”，用户可以一键应用或撤销。</span></div>
+      <div class="principle-mark">1→3</div>
+    </section>
+
+    <div class="options" aria-label="交互方案选择">
+      <button class="option is-active" data-layout="overview">
+        <span class="option-recommended">推荐</span><span class="option-kicker">方案 A · 统一工作面</span><h2>固定 Agent + 中央三联视图</h2><p>Agent 永远不动；中间同时看到剧本、生成画布、时间轴，点击对象就把上下文带给 Agent。</p><div class="micro"><i></i><i></i><i></i></div>
+      </button>
+      <button class="option" data-layout="focus">
+        <span class="option-kicker">方案 B · 聚焦工作面</span><h2>固定 Agent + 一个主视图</h2><p>当前任务的页面放大，另外两个页面变成可展开的上下文条；适合复杂剪辑和精细改镜头。</p><div class="micro"><i></i><i></i><i></i></div>
+      </button>
+      <button class="option" data-layout="triad">
+        <span class="option-kicker">方案 C · 三层流水线</span><h2>固定 Agent + 三段纵向轨道</h2><p>把故事、镜头、时间轴按生产顺序纵向排开；适合从小说一路推进，但单个页面面积更小。</p><div class="micro"><i></i><i></i><i></i></div>
+      </button>
+    </div>
+
+    <section class="showcase" aria-label="统一工作面交互样张">
+      <header class="showcase-head"><div class="showcase-title"><span class="dot"></span><strong>统一工作面 · 第一集 / 第 01 镜</strong><span class="head-note" id="layout-note">三层上下文已同步</span></div><div class="head-actions"><button class="small-btn" data-action="save">保存工作面</button><button class="primary-btn" data-action="export">预览成片</button></div></header>
+      <div class="app-shell">
+        <aside class="rail">
+          <div class="rail-top"><div class="agent-id"><div class="agent-avatar">N</div><div><strong>创作 Agent</strong><small>一条持续对话 · 已连接 3 个能力</small></div></div><div class="context-chip"><b>当前上下文</b><span id="context-label">第 01 镜 · 雨夜街口</span></div></div>
+          <div class="thread" id="thread">
+            <div class="msg agent"><span class="msg-label">创作 Agent · 刚刚</span><p>我把故事中的“雨夜追逐”拆成了 3 个镜头，并保留了角色“沈砚”的参考图。你可以直接改镜头、换模型或拖动时间轴。</p><div class="proposal"><strong>待应用建议</strong><span>镜 1：用首帧参考固定人物外观；镜 2：沿用同一角色资产。</span></div></div>
+            <div class="msg user"><p>把第一个镜头改成更近的半身，节奏快一点。</p></div>
+            <div class="msg agent"><span class="msg-label">创作 Agent · 正在准备</span><p>我会只改镜 1，不动后面两个镜头。预计 4 秒 → 3 秒，并把景别从全景改为中近景。</p></div>
+          </div>
+          <div class="thread-input"><input id="agent-input" placeholder="继续告诉 Agent 你想怎么改…" /><div class="input-row"><span>已带入：镜 1 · 模型 · 参考资产</span><button class="send" data-action="send" aria-label="发送">↑</button></div></div>
+        </aside>
+
+        <section class="stage">
+          <div class="stage-head"><div class="stage-title"><strong>正在编辑：雨夜追逐 · 初稿</strong><small>Agent 的建议不会自动写入，点击“应用”才会改变项目事实</small></div><div class="view-switch" aria-label="工作面视图"><button class="is-active" data-view="all">总览</button><button data-view="script">剧本</button><button data-view="canvas">生成画布</button><button data-view="timeline">时间轴</button></div></div>
+          <div class="stage-body"><div class="sync-banner"><b>已同步</b><span>剧本段落、镜头节点和时间轴均指向同一个“镜 1”；切换视图不会切换 Agent。</span></div>
+            <div class="selection-bar"><span class="selection-label">当前镜头属性</span><span class="selection-pill"><strong>Seedance 2.5</strong></span><span class="selection-pill">首帧 + 全能参考</span><span class="selection-pill">3 秒 · 16:9</span><span class="selection-pill">沈砚 · 雨夜</span><button class="selection-edit" data-action="edit">编辑参数 →</button></div>
+            <div class="surface" id="surface">
+              <section class="pane" data-pane="script"><header class="pane-head"><div class="pane-title"><b>剧本摘要</b><span>上下文预览</span></div><button class="pane-action" data-pane-select="script">展开剧本</button></header><div class="pane-content"><div class="script-line"><em>镜 01</em><p>中近景。沈砚抬眼，雨水沿着发梢滑落。镜头向前推。</p></div><div class="pane-foot">不离开当前工作面，也能继续改这一段。</div></div></section>
+              <section class="pane is-active" data-pane="canvas"><header class="pane-head"><div class="pane-title"><b>生成画布</b><span>主工作面 · 镜头、参考、模型</span></div><button class="pane-action" data-pane-select="canvas">当前工作面</button></header><div class="pane-content"><div class="canvas-map"><div class="node story"><b>镜 1 · 描述</b><span>中近景 / 推镜</span></div><div class="node ref"><b>角色参考</b><span>沈砚 · 2 张</span></div><div class="node gen"><b>Seedance 2.5</b><span>首帧 + 全能参考</span></div><div class="node out"><b>待生成</b><span>3 秒 · 16:9</span></div></div><div class="tag-row"><span class="tag active">首帧参考</span><span class="tag active">角色锁定</span><span class="tag">自动选参</span></div><div class="pane-foot">主工作面给空间，其他层只提供判断所需的上下文。</div></div></section>
+              <section class="pane" data-pane="timeline"><header class="pane-head"><div class="pane-title"><b>时间轴摘要</b><span>上下文预览</span></div><button class="pane-action" data-pane-select="timeline">展开时间轴</button></header><div class="pane-content"><div class="timeline"><div class="time-ruler"><span>00:00</span><span>00:02</span><span>00:04</span><span>00:06</span></div><div class="track"><span class="track-label">画面</span><div class="track-line"><span class="clip video" style="left:2%;width:31%">镜 1 · 待生成</span><span class="clip video" style="left:35%;width:27%;opacity:.45">镜 2</span><span class="clip video" style="left:64%;width:31%;opacity:.45">镜 3</span></div></div><div class="playhead"></div></div><div class="pane-foot">播放头只负责预览，不会偷偷改变编辑对象。</div></div></section>
+            </div>
+          </div>
+        </section>
+
+        <aside class="inspector"><h3>镜 1 · 雨夜街口</h3><div class="inspector-sub">你选中的对象，Agent 也看得到</div><div class="inspector-section"><div class="field"><span>模型</span><b>Seedance 2.5</b></div><div class="field"><span>模式</span><b>首帧 + 全能参考</b></div><div class="field"><span>时长</span><b>3 秒</b></div><div class="field"><span>画幅</span><b>16:9 · 720p</b></div></div><div class="inspector-section"><div class="inspector-sub">已绑定参考</div><div class="tag-row"><span class="tag active">沈砚 · 角色</span><span class="tag active">雨夜 · 场景</span><span class="tag">+ 替换</span></div></div><div class="apply-card"><strong>Agent 建议改动</strong><p>景别：全景 → 中近景<br />时长：4 秒 → 3 秒<br />只影响：镜 1</p><div class="apply-actions"><button class="primary-btn" data-action="apply">应用</button><button class="ghost-btn" data-action="undo">撤销</button></div></div></aside>
+      </div>
+    </section>
+
+    <div class="callout-grid"><article class="callout"><h3>用户只和谁说话？</h3><p>永远是同一个“创作 Agent”。剧本、画布、时间轴是它能读写的三类工作面，不再各自维护一段对话。</p></article><article class="callout"><h3>用户什么时候看到复杂参数？</h3><p>默认只看到 Agent 推荐的结果；点击具体镜头后，右侧才出现该模型真实支持的模式和参数，避免把 Seedance 的字段硬套给所有模型。</p></article><article class="callout"><h3>用户如何避免被自动改坏？</h3><p>Agent 先给局部变更预览；应用、撤销、复制版本都在当前工作面完成。生成和付费仍经过明确确认，不会因为聊天而隐式执行。</p></article></div>
+  </main>
+  <div class="toast" id="toast" role="status"></div>
+  <script>
+    const toast = document.querySelector('#toast');
+    let toastTimer;
+    function notify(message) { toast.textContent = message; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 2200); }
+    const surface = document.querySelector('#surface');
+    const layoutNote = document.querySelector('#layout-note');
+    const layoutNotes = { overview: '三层上下文已同步', focus: '当前镜头已聚焦，其他层仍保持可见', triad: '按生产顺序排列，滚动即可推进' };
+    document.querySelectorAll('[data-layout]').forEach(button => button.addEventListener('click', () => {
+      document.querySelectorAll('[data-layout]').forEach(item => item.classList.toggle('is-active', item === button));
+      surface.className = 'surface ' + (button.dataset.layout === 'focus' ? 'focus-canvas' : button.dataset.layout === 'triad' ? 'triad' : '');
+      layoutNote.textContent = layoutNotes[button.dataset.layout];
+      notify(button.querySelector('h2').textContent + ' · 已切换');
+    }));
+    document.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => {
+      document.querySelectorAll('[data-view]').forEach(item => item.classList.toggle('is-active', item === button));
+      const view = button.dataset.view;
+      surface.className = 'surface ' + (view === 'script' ? 'focus-script' : view === 'canvas' ? 'focus-canvas' : view === 'timeline' ? 'focus-timeline' : '');
+      document.querySelectorAll('[data-pane]').forEach(pane => pane.classList.toggle('is-active', view === 'all' ? pane.dataset.pane === 'canvas' : pane.dataset.pane === view));
+      notify(view === 'all' ? '回到三层总览 · 对话没有切换' : '已聚焦 ' + button.textContent + ' · 对话仍在左侧');
+    }));
+    document.querySelectorAll('[data-pane-select]').forEach(button => button.addEventListener('click', () => {
+      const view = button.dataset.paneSelect;
+      document.querySelector(`[data-view="${view}"]`).click();
+    }));
+    document.querySelectorAll('.shot-card').forEach(card => card.addEventListener('click', () => {
+      document.querySelectorAll('.shot-card').forEach(item => item.classList.remove('is-selected'));
+      card.classList.add('is-selected');
+      document.querySelector('#context-label').textContent = card.dataset.context || '镜头 · 当前选中对象';
+      notify('Agent 上下文已跟随选中对象更新');
+    }));
+    document.querySelector('[data-action="apply"]').addEventListener('click', () => notify('已应用到镜 1 · 可随时撤销'));
+    document.querySelector('[data-action="undo"]').addEventListener('click', () => notify('已撤销建议 · 项目事实未改变'));
+    document.querySelector('[data-action="save"]').addEventListener('click', () => notify('工作面已保存，下一次打开仍保留这条对话'));
+    document.querySelector('[data-action="export"]').addEventListener('click', () => notify('预览已准备 · 当前仍未扣费生成'));
+    document.querySelector('[data-action="edit"]').addEventListener('click', () => notify('参数抽屉应在这里展开 · 不离开当前工作面'));
+    document.querySelector('[data-action="send"]').addEventListener('click', () => {
+      const input = document.querySelector('#agent-input');
+      if (!input.value.trim()) { notify('先告诉 Agent 想改哪一处'); return; }
+      const thread = document.querySelector('#thread');
+      const message = document.createElement('div'); message.className = 'msg user'; message.innerHTML = '<p></p>'; message.querySelector('p').textContent = input.value.trim(); thread.appendChild(message); input.value = ''; thread.scrollTop = thread.scrollHeight; notify('已在同一条对话中提交');
+    });
+  </script>
+</body>
+</html>
