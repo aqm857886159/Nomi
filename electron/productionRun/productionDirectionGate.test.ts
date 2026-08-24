@@ -6,17 +6,13 @@ import { describe, expect, it } from 'vitest'
 import { createProductionRunRepository } from './productionRunRepository'
 import { createProductionRunService } from './productionRunService'
 import { normalizeDirectionCandidates } from './productionRunDriverOps'
-import { approveLatestScript, waitForProduction } from './productionRunTestHelpers'
+import { approveLatestScript, waitForProduction, PRODUCTION_DRIVER_TEST_TIMEOUT_MS } from './productionRunTestHelpers'
 
 // B1 创意方向门带方案（plan 2026-08-11-mcp-conversation-native-phase-b）：
 // driver 拟 2-3 个候选挂上方向门 → 投影透出 directionCandidates → 批准带 choiceKey 留痕。
 // GUI 关着（拟方向失败）→ 保持现状 gate 兜底，不硬塞空候选、不炸主流程。
 
-async function waitFor(check: () => boolean, timeoutMs = 3000): Promise<void> {
-  const deadline = Date.now() + timeoutMs
-  while (!check() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5))
-  if (!check()) throw new Error('waitFor timed out')
-}
+const WAIT_MS = 3000
 
 function makeService(requestRenderer: (op: string) => Promise<unknown>) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-direction-gate-'))
@@ -30,7 +26,7 @@ function makeService(requestRenderer: (op: string) => Promise<unknown>) {
   return { service, root }
 }
 
-describe('normalizeDirectionCandidates (B1 候选清洗)', () => {
+describe('normalizeDirectionCandidates (B1 候选清洗)', { timeout: PRODUCTION_DRIVER_TEST_TIMEOUT_MS }, () => {
   it('保留 2-3 个合法候选、截断超长、补齐缺失 key', () => {
     const out = normalizeDirectionCandidates([
       { key: 'a', title: 'A 城市烟火气', oneLiner: '清晨街市的陪伴感' },
@@ -48,7 +44,7 @@ describe('normalizeDirectionCandidates (B1 候选清洗)', () => {
   })
 })
 
-describe('direction gate with candidates (B1 全链)', () => {
+describe('direction gate with candidates (B1 全链)', { timeout: PRODUCTION_DRIVER_TEST_TIMEOUT_MS }, () => {
   it('草稿建好 → driver 拟候选挂门 → 投影透出 → 批准带 choiceKey 留痕', async () => {
     const { service } = makeService(async (op) => {
       if (op === 'production.plan-directions') {
@@ -71,10 +67,10 @@ describe('direction gate with candidates (B1 全链)', () => {
     })
 
     // driver 异步拟候选并挂到方向门上。
-    await waitFor(() => {
+    await waitForProduction(() => {
       const gate = service.readFull('project-1', runId)?.gates.find((item) => item.gateId === 'gate-direction-v1')
       return (gate?.directionCandidates?.length ?? 0) === 3
-    })
+    }, WAIT_MS)
 
     // 投影透出候选（经 sanitizer），供 MCP 转述。
     const projection = service.readProjection('project-1', runId)
@@ -122,7 +118,7 @@ describe('direction gate with candidates (B1 全链)', () => {
       runId, projectId: 'project-1', playbook: { name: 'brand.promo', version: '1.0.0' },
       origin: { host: 'codex' }, brief: { goal: 'bad choice', durationSeconds: 30 },
     })
-    await waitFor(() => (service.readFull('project-1', runId)?.gates[0]?.directionCandidates?.length ?? 0) === 2)
+    await waitForProduction(() => (service.readFull('project-1', runId)?.gates[0]?.directionCandidates?.length ?? 0) === 2, WAIT_MS)
     const current = service.readFull('project-1', runId)!
     await service.command('project-1', runId, {
       commandId: 'approve-bad-choice', expectedRevision: current.revision, type: 'gate.decide',

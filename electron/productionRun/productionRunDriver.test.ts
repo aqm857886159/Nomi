@@ -5,18 +5,15 @@ import { describe, expect, it } from 'vitest'
 
 import { createProductionRunRepository } from './productionRunRepository'
 import { createProductionRunService } from './productionRunService'
-import { approveLatestScript, approveLatestStoryboard } from './productionRunTestHelpers'
+import { approveLatestScript, approveLatestStoryboard, waitForProduction, PRODUCTION_DRIVER_TEST_TIMEOUT_MS } from './productionRunTestHelpers'
 
 function makeRoot(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-production-driver-'))
 }
 
-async function waitFor(check: () => boolean, timeoutMs = 500): Promise<void> {
-  const deadline = Date.now() + timeoutMs
-  while (!check() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5))
-}
+const WAIT_MS = 500
 
-describe('ProductionRunService driver round 1', () => {
+describe('ProductionRunService driver round 1', { timeout: PRODUCTION_DRIVER_TEST_TIMEOUT_MS }, () => {
   it('initializes direction gate with zero paid work at draft time, safe even if direction planning cannot run', () => {
     const root = makeRoot()
     const repository = createProductionRunRepository({ projectDirResolver: () => root })
@@ -192,12 +189,12 @@ describe('ProductionRunService driver round 1', () => {
     const contract = await service.command('project-1', 'run-driver-3', { commandId: 'contract-3', expectedRevision: attached.run.revision, type: 'gate.decide', payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
     expect(contract.run.budget.authorized).toBe(10)
     // B2 样片门：首镜落地后停一次；批准后才继续到编排。
-    await waitFor(() => service.readFull('project-1', 'run-driver-3').gates.some((gate) => gate.gateId === 'gate-sample-v1' && gate.status === 'waiting'))
+    await waitForProduction(() => service.readFull('project-1', 'run-driver-3').gates.some((gate) => gate.gateId === 'gate-sample-v1' && gate.status === 'waiting'), WAIT_MS)
     const atSample = service.readFull('project-1', 'run-driver-3')
     expect(atSample.status).toBe('running')
     expect(calls).not.toContain('production.arrange') // 样片门期间未进编排
     await service.command('project-1', 'run-driver-3', { commandId: 'sample-3', expectedRevision: atSample.revision, type: 'gate.decide', payload: { gateId: 'gate-sample-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
-    await waitFor(() => calls.includes('production.arrange'))
+    await waitForProduction(() => calls.includes('production.arrange'), WAIT_MS)
     const roughCut = service.readFull('project-1', 'run-driver-3')
     expect(roughCut.status).toBe('awaiting_rough_cut_review')
     expect(roughCut.jobs[0].status).toBe('adopted')
@@ -211,8 +208,8 @@ describe('ProductionRunService driver round 1', () => {
     await expect(service.command('project-1', 'run-driver-3', { commandId: 'export-too-early-3', expectedRevision: roughCut.revision, type: 'gate.decide', payload: { gateId: exportGate?.gateId, status: 'approved' }, issuedAt: new Date().toISOString() })).rejects.toThrow(/粗剪/)
     const reviewed = await service.command('project-1', 'run-driver-3', { commandId: 'rough-cut-3', expectedRevision: roughCut.revision, type: 'run.status', payload: { status: 'awaiting_export' }, issuedAt: new Date().toISOString() })
     await service.command('project-1', 'run-driver-3', { commandId: 'export-3', expectedRevision: reviewed.run.revision, type: 'gate.decide', payload: { gateId: exportGate?.gateId, status: 'approved' }, issuedAt: new Date().toISOString() })
-    await waitFor(() => calls.includes('production.export'))
-    await waitFor(() => service.readFull('project-1', 'run-driver-3').status === 'completed')
+    await waitForProduction(() => calls.includes('production.export'), WAIT_MS)
+    await waitForProduction(() => service.readFull('project-1', 'run-driver-3').status === 'completed', WAIT_MS)
     const completed = service.readFull('project-1', 'run-driver-3')
     expect(completed.status).toBe('completed')
     expect(completed.artifacts.find((item) => item.kind === 'export')?.projectRelativePath).toBe('exports/nomi-run-driver-3.mp4')
@@ -257,7 +254,7 @@ describe('ProductionRunService driver round 1', () => {
     })
     // 合同批准 → driveGeneration 触发；但有未冻结锚 → 停在冻结门，绝不提交（零 generate-node）。
     await service.command('project-1', 'run-freeze', { commandId: 'contract-f', expectedRevision: attached.run.revision, type: 'gate.decide', payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
-    await waitFor(() => service.readFull('project-1', 'run-freeze').gates.some((gate) => gate.gateId === 'gate-freeze-v1' && gate.status === 'waiting'))
+    await waitForProduction(() => service.readFull('project-1', 'run-freeze').gates.some((gate) => gate.gateId === 'gate-freeze-v1' && gate.status === 'waiting'), WAIT_MS)
     const atFreeze = service.readFull('project-1', 'run-freeze')
     const freezeGate = atFreeze.gates.find((gate) => gate.gateId === 'gate-freeze-v1')
     expect(freezeGate?.scope).toBe('stage')
@@ -267,7 +264,7 @@ describe('ProductionRunService driver round 1', () => {
     expect(atFreeze.budget.actual).toBe(0)
     // 冻结确认走创意门 seam（视觉确认），批准 → 重踢 driver → 首镜提交。
     await service.command('project-1', 'run-freeze', { commandId: 'freeze-f', expectedRevision: atFreeze.revision, type: 'gate.decide', payload: { gateId: 'gate-freeze-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
-    await waitFor(() => service.readFull('project-1', 'run-freeze').jobs.some((job) => job.status === 'adopted' || job.status === 'submitting'), 1_000)
+    await waitForProduction(() => service.readFull('project-1', 'run-freeze').jobs.some((job) => job.status === 'adopted' || job.status === 'submitting'), 1_000)
     expect(calls).toContain('production.generate-node') // 冻结放行后才提交
     // 冻结桥只在放行前问一次（放行后 hasApprovedFreezeGate 短路）。
     expect(calls.filter((op) => op === 'production.check-frozen')).toHaveLength(1)
@@ -309,7 +306,7 @@ describe('ProductionRunService driver round 1', () => {
     })
     await service.command('project-1', 'run-frozen-ok', { commandId: 'contract-ok', expectedRevision: attached.run.revision, type: 'gate.decide', payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
     // 全冻结 → 无冻结门、直接进首镜（会停在样片门，证明已越过冻结门）。
-    await waitFor(() => service.readFull('project-1', 'run-frozen-ok').gates.some((gate) => gate.gateId === 'gate-sample-v1' && gate.status === 'waiting'), 1_000)
+    await waitForProduction(() => service.readFull('project-1', 'run-frozen-ok').gates.some((gate) => gate.gateId === 'gate-sample-v1' && gate.status === 'waiting'), 1_000)
     const state = service.readFull('project-1', 'run-frozen-ok')
     expect(state.gates.some((gate) => gate.gateId === 'gate-freeze-v1')).toBe(false)
     expect(calls).toContain('production.generate-node')
@@ -357,7 +354,7 @@ describe('ProductionRunService driver round 1', () => {
     await service.command('project-1', 'run-driver-recovery', {
       commandId: 'reconcile-found-1', expectedRevision: recovered.revision, type: 'job.reconcile', payload: { jobId: 'job-recovery', outcome: 'found' }, issuedAt: new Date().toISOString(),
     })
-    await waitFor(() => service.readFull('project-1', 'run-driver-recovery').jobs[0].status === 'adopted')
+    await waitForProduction(() => service.readFull('project-1', 'run-driver-recovery').jobs[0].status === 'adopted', WAIT_MS)
     expect(service.readFull('project-1', 'run-driver-recovery').artifacts.some((artifact) => artifact.kind === 'video')).toBe(true)
     expect(rendererCalls).not.toContain('production.generate-node')
   })

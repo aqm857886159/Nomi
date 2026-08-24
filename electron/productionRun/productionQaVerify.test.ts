@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import { createProductionRunRepository } from './productionRunRepository'
 import { createProductionRunService } from './productionRunService'
-import { approveLatestScript, approveLatestStoryboard } from './productionRunTestHelpers'
+import { approveLatestScript, approveLatestStoryboard, waitForProduction, PRODUCTION_DRIVER_TEST_TIMEOUT_MS } from './productionRunTestHelpers'
 import { buildQaRetryPlans, buildQaStageOutcome, adoptedGenerationShotNodeIds } from './productionQaVerdict'
 
 // W1.5 · 把审片接进 production run 路径②的 qa 阶段。
@@ -13,11 +13,7 @@ import { buildQaRetryPlans, buildQaStageOutcome, adoptedGenerationShotNodeIds } 
 // 先红后绿：qa 阶段此前只 markComplete、零判分事件；接线后 qa 会发 production.verify-shots，
 // 把 per-shot 判决落成 qa.verdict 事件 + qa 阶段摘要（判分失败/无镜头 → 诚实降级「审片跳过」，不阻断）。
 
-async function waitFor(check: () => boolean, timeoutMs = 5000): Promise<void> {
-  const deadline = Date.now() + timeoutMs
-  while (!check() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5))
-  if (!check()) throw new Error('waitFor timed out')
-}
+const WAIT_MS = 5000
 
 /** 走到「合同已批准、样片门已批准」→ driver 会跑完两镜、进 qa、再进 assemble 的公共前置。 */
 async function driveToRoughCut(
@@ -49,7 +45,7 @@ async function driveToRoughCut(
     payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
   })
   // 样片门：首镜落地后停一次 → 批准续跑剩余镜头 → qa → assemble → 粗剪。
-  await waitFor(() => service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-sample-v1' && g.status === 'waiting'))
+  await waitForProduction(() => service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-sample-v1' && g.status === 'waiting'), WAIT_MS)
   const atSample = service.readFull('project-1', runId)!
   await service.command('project-1', runId, {
     commandId: 'approve-sample', expectedRevision: atSample.revision, type: 'gate.decide',
@@ -91,7 +87,7 @@ function makeTwoShotService(root: string, verifyResponse: (shotNodeIds: string[]
   return service
 }
 
-describe('production qa 审片接线（W1.5 · 路径②）', () => {
+describe('production qa 审片接线（W1.5 · 路径②）', { timeout: PRODUCTION_DRIVER_TEST_TIMEOUT_MS }, () => {
   it('qa 阶段对已生成镜头调 production.verify-shots，并把 per-shot 判决落成 qa.verdict 事件 + qa 摘要', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-qa-verdict-'))
     const seen: string[] = []
@@ -104,7 +100,7 @@ describe('production qa 审片接线（W1.5 · 路径②）', () => {
     }), seen)
     const runId = 'run-qa-1'
     await driveToRoughCut(service, runId)
-    await waitFor(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review')
+    await waitForProduction(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review', WAIT_MS)
 
     // 确实走了审片 IPC（在 arrange 之前）。
     expect(seen).toContain('production.verify-shots')
@@ -141,7 +137,7 @@ describe('production qa 审片接线（W1.5 · 路径②）', () => {
     const runId = 'run-qa-2'
     await driveToRoughCut(service, runId)
     // 判分抛错被吞 → qa 仍 completed → 照常进 assemble → 粗剪。
-    await waitFor(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review')
+    await waitForProduction(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review', WAIT_MS)
 
     const events = await service.readEvents('project-1', runId, 0, 0)
     const verdictEvents = events.events.filter((e) => (e as { type?: string }).type === 'qa.verdict')
@@ -154,7 +150,7 @@ describe('production qa 审片接线（W1.5 · 路径②）', () => {
   })
 })
 
-describe('buildQaStageOutcome / adoptedGenerationShotNodeIds（纯逻辑）', () => {
+describe('buildQaStageOutcome / adoptedGenerationShotNodeIds（纯逻辑）', { timeout: PRODUCTION_DRIVER_TEST_TIMEOUT_MS }, () => {
   it('无镜头 / 主动跳过 → 单条审片跳过事件，不误报为全过', () => {
     expect(buildQaStageOutcome(null)).toMatchObject({ events: [{ summary: expect.stringContaining('审片跳过') }] })
     expect(buildQaStageOutcome({ skipped: true, skipReason: '关了' }).stageSummary).toContain('关了')

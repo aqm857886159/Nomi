@@ -5,12 +5,9 @@ import { describe, expect, it } from 'vitest'
 
 import { createProductionRunRepository } from './productionRunRepository'
 import { createProductionRunService } from './productionRunService'
+import { PRODUCTION_DRIVER_TEST_TIMEOUT_MS, waitForProduction } from './productionRunTestHelpers'
 
-async function waitFor(check: () => boolean, timeoutMs = 1000): Promise<void> {
-  const deadline = Date.now() + timeoutMs
-  while (!check() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5))
-  if (!check()) throw new Error('waitFor timed out')
-}
+const WAIT_MS = 1000
 
 function createFixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-script-review-'))
@@ -33,14 +30,14 @@ function createFixture() {
   return { root, service, calls }
 }
 
-describe('ProductionRun script review', () => {
+describe('ProductionRun script review', { timeout: PRODUCTION_DRIVER_TEST_TIMEOUT_MS }, () => {
   it('creates only a script candidate after direction approval and plans storyboard after adoption', async () => {
     const { root, service, calls } = createFixture()
     await service.command('project-1', 'run-script-review', {
       commandId: 'direction-approved', expectedRevision: 0, type: 'gate.decide',
       payload: { gateId: 'gate-direction-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
     })
-    await waitFor(() => service.readFull('project-1', 'run-script-review').artifacts.some((artifact) => artifact.kind === 'script'))
+    await waitForProduction(() => service.readFull('project-1', 'run-script-review').artifacts.some((artifact) => artifact.kind === 'script'), WAIT_MS)
 
     const candidate = service.readFull('project-1', 'run-script-review')
     expect(candidate.status).toBe('awaiting_script_review')
@@ -60,7 +57,7 @@ describe('ProductionRun script review', () => {
       payload: { artifactId: script.artifactId, decision: 'approved' }, issuedAt: new Date().toISOString(),
     })
     expect(approved.run.artifacts.find((artifact) => artifact.kind === 'script')).toMatchObject({ status: 'adopted', reviewStatus: 'approved' })
-    await waitFor(() => calls.includes('production.plan-storyboard'))
+    await waitForProduction(() => calls.includes('production.plan-storyboard'), WAIT_MS)
     expect(service.readFull('project-1', 'run-script-review').artifacts.some((artifact) => artifact.kind === 'storyboard')).toBe(true)
     expect(fs.existsSync(path.join(root, '.nomi/runs/run-script-review/script-v1.json'))).toBe(true)
   })
@@ -71,7 +68,7 @@ describe('ProductionRun script review', () => {
       commandId: 'direction-changes', expectedRevision: 0, type: 'gate.decide',
       payload: { gateId: 'gate-direction-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
     })
-    await waitFor(() => service.readFull('project-1', 'run-script-review').artifacts.some((artifact) => artifact.kind === 'script'))
+    await waitForProduction(() => service.readFull('project-1', 'run-script-review').artifacts.some((artifact) => artifact.kind === 'script'), WAIT_MS)
     const candidate = service.readFull('project-1', 'run-script-review')
     const script = candidate.artifacts.find((artifact) => artifact.kind === 'script')!
     await service.command('project-1', 'run-script-review', {
@@ -88,7 +85,7 @@ describe('ProductionRun script review', () => {
       commandId: 'direction-read', expectedRevision: 0, type: 'gate.decide',
       payload: { gateId: 'gate-direction-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
     })
-    await waitFor(() => service.readFull('project-1', 'run-script-review').artifacts.some((artifact) => artifact.kind === 'script'))
+    await waitForProduction(() => service.readFull('project-1', 'run-script-review').artifacts.some((artifact) => artifact.kind === 'script'), WAIT_MS)
     const run = service.readFull('project-1', 'run-script-review')
     const script = run.artifacts.find((artifact) => artifact.kind === 'script')!
     expect(service.readScriptDraft('project-1', 'run-script-review', script.artifactId)).toMatchObject({

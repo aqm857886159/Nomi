@@ -5,18 +5,14 @@ import { describe, expect, it } from 'vitest'
 
 import { createProductionRunRepository } from './productionRunRepository'
 import { createProductionRunService } from './productionRunService'
-import { approveLatestScript, approveLatestStoryboard } from './productionRunTestHelpers'
+import { approveLatestScript, approveLatestStoryboard, waitForProduction, PRODUCTION_DRIVER_TEST_TIMEOUT_MS } from './productionRunTestHelpers'
 import { buildToolOutcome } from '../capabilityCore/mcpToolResults'
 
 // B2 样片门 + 窗口化定档（plan 2026-08-11-mcp-conversation-native-phase-b）：
 // 首镜落地后停一次样片门 → 剩余镜头在过目期间不提交（喊停最多亏样片这一镜）→
 // 批准续跑到粗剪 / 否决暂停 run（改提示词后可继续，不作废已生成样片）。
 
-async function waitFor(check: () => boolean, timeoutMs = 4000): Promise<void> {
-  const deadline = Date.now() + timeoutMs
-  while (!check() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5))
-  if (!check()) throw new Error('waitFor timed out')
-}
+const WAIT_MS = 4000
 
 function makeTwoShotRun(root: string, trackCalls: { count: number }) {
   fs.mkdirSync(path.join(root, 'assets/generated'), { recursive: true })
@@ -80,7 +76,7 @@ async function driveToContract(service: ReturnType<typeof createProductionRunSer
   })
 }
 
-describe('sample gate (B2 · 首镜停门 + 窗口化)', () => {
+describe('sample gate (B2 · 首镜停门 + 窗口化)', { timeout: PRODUCTION_DRIVER_TEST_TIMEOUT_MS }, () => {
   it('2 镜批次：镜 1 落地 → 样片门停 → 批准 → 镜 2 才提交 → 走到粗剪', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-sample-approve-'))
     const calls = { count: 0 }
@@ -89,7 +85,7 @@ describe('sample gate (B2 · 首镜停门 + 窗口化)', () => {
     await driveToContract(service, runId)
 
     // 首镜跑完 → 样片门 waiting；此刻镜 2 未提交（窗口化）。
-    await waitFor(() => service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-sample-v1' && g.status === 'waiting'))
+    await waitForProduction(() => service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-sample-v1' && g.status === 'waiting'), WAIT_MS)
     const atSample = service.readFull('project-1', runId)!
     expect(calls.count).toBe(1) // 只提交了镜 1
     expect(atSample.status).toBe('running') // run 保持 running + gate.waiting（不新增状态）
@@ -110,7 +106,7 @@ describe('sample gate (B2 · 首镜停门 + 窗口化)', () => {
       commandId: 'approve-sample', expectedRevision: atSample.revision, type: 'gate.decide',
       payload: { gateId: 'gate-sample-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
     })
-    await waitFor(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review', 5000)
+    await waitForProduction(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review', 5000)
     expect(calls.count).toBe(2) // 镜 2 提交了；镜 1 没重复提交
     const done = service.readFull('project-1', runId)!
     expect(done.jobs.every((j) => j.status === 'adopted')).toBe(true)
@@ -123,14 +119,14 @@ describe('sample gate (B2 · 首镜停门 + 窗口化)', () => {
     const runId = 'run-sample-2'
     await driveToContract(service, runId)
 
-    await waitFor(() => service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-sample-v1' && g.status === 'waiting'))
+    await waitForProduction(() => service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-sample-v1' && g.status === 'waiting'), WAIT_MS)
     const atSample = service.readFull('project-1', runId)!
     await service.command('project-1', runId, {
       commandId: 'reject-sample', expectedRevision: atSample.revision, type: 'gate.decide',
       payload: { gateId: 'gate-sample-v1', status: 'rejected' }, issuedAt: new Date().toISOString(),
     })
     // 否决 → run 落 paused（首镜无在途任务，直接落停）；镜 2 从未提交。
-    await waitFor(() => service.readFull('project-1', runId)!.status === 'paused')
+    await waitForProduction(() => service.readFull('project-1', runId)!.status === 'paused', WAIT_MS)
     const paused = service.readFull('project-1', runId)!
     expect(calls.count).toBe(1)
     expect(paused.gates.find((g) => g.gateId === 'gate-sample-v1')!.status).toBe('rejected')

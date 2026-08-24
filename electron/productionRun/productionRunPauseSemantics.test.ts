@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import { createProductionRunRepository } from './productionRunRepository'
 import { createProductionRunService } from './productionRunService'
-import { approveLatestScript, approveLatestStoryboard } from './productionRunTestHelpers'
+import { approveLatestScript, approveLatestStoryboard, waitForProduction, PRODUCTION_DRIVER_TEST_TIMEOUT_MS } from './productionRunTestHelpers'
 
 // 暂停的花钱语义（2026-08-11 用户质疑「中转已提交的收不回」后补的三洞修复）：
 // ① 提交门：pausing/paused 后 driver 不再提交新任务（能守住的唯一花钱边界）；
@@ -13,13 +13,9 @@ import { approveLatestScript, approveLatestStoryboard } from './productionRunTes
 // ③ resume 重踢：恢复后剩余任务从断点继续提交，不重做不重付。
 // 已提交的任务无法撤回=物理现实，测试同时断言它「跑完并保留产物」。
 
-async function waitFor(check: () => boolean, timeoutMs = 3000): Promise<void> {
-  const deadline = Date.now() + timeoutMs
-  while (!check() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5))
-  if (!check()) throw new Error('waitFor timed out')
-}
+const WAIT_MS = 3000
 
-describe('pause spend semantics (提交门 + 收尾落停 + resume 重踢)', () => {
+describe('pause spend semantics (提交门 + 收尾落停 + resume 重踢)', { timeout: PRODUCTION_DRIVER_TEST_TIMEOUT_MS }, () => {
   it('两镜批次中途暂停：镜 2 不提交；镜 1 跑完保留；落 paused；resume 后镜 2 续跑到粗剪', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-pause-semantics-'))
     fs.mkdirSync(path.join(root, 'assets/generated'), { recursive: true })
@@ -94,7 +90,7 @@ describe('pause spend semantics (提交门 + 收尾落停 + resume 重踢)', () 
     })
 
     // 镜 1 已提交（driver 停在供应商窗口期），此刻用户喊停。
-    await waitFor(() => generateCalls === 1)
+    await waitForProduction(() => generateCalls === 1, WAIT_MS)
     const midFlight = service.readFull('project-1', runId)!
     const paused = await service.command('project-1', runId, {
       commandId: 'user-pause', expectedRevision: midFlight.revision, type: 'run.control',
@@ -103,7 +99,7 @@ describe('pause spend semantics (提交门 + 收尾落停 + resume 重踢)', () 
     expect(paused.run.status).toBe('pausing') // 有在途任务 → 停在 pausing，不谎称已停
 
     releaseFirst() // 供应商跑完镜 1（钱已花、结果保留）
-    await waitFor(() => service.readFull('project-1', runId)!.status === 'paused')
+    await waitForProduction(() => service.readFull('project-1', runId)!.status === 'paused', WAIT_MS)
     const settled = service.readFull('project-1', runId)!
     expect(generateCalls).toBe(1) // ① 提交门：镜 2 从未提交
     expect(settled.jobs.find((j) => j.nodeId === 'shot-1')?.status).toBe('adopted') // 已提交的跑完保留
@@ -115,7 +111,7 @@ describe('pause spend semantics (提交门 + 收尾落停 + resume 重踢)', () 
       commandId: 'user-resume', expectedRevision: settled.revision, type: 'run.control',
       payload: { action: 'resume' }, issuedAt: new Date().toISOString(),
     })
-    await waitFor(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review', 5000)
+    await waitForProduction(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review', 5000)
     expect(generateCalls).toBe(2) // 不重做不重付：镜 1 没有被重新提交
     const done = service.readFull('project-1', runId)!
     expect(done.jobs.every((j) => j.status === 'adopted')).toBe(true)

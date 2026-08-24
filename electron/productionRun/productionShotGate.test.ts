@@ -6,13 +6,9 @@ import { describe, expect, it } from 'vitest'
 import { buildToolOutcome } from '../capabilityCore/mcpToolResults'
 import { createProductionRunRepository } from './productionRunRepository'
 import { createProductionRunService } from './productionRunService'
-import { approveLatestScript, approveLatestStoryboard } from './productionRunTestHelpers'
+import { approveLatestScript, approveLatestStoryboard, waitForProduction, PRODUCTION_DRIVER_TEST_TIMEOUT_MS } from './productionRunTestHelpers'
 
-async function waitFor(check: () => boolean, timeoutMs = 5_000): Promise<void> {
-  const deadline = Date.now() + timeoutMs
-  while (!check() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5))
-  if (!check()) throw new Error('waitFor timed out')
-}
+const WAIT_MS = 5000
 
 function makeRuntime(root: string, submissions: string[]) {
   fs.mkdirSync(path.join(root, 'assets/generated'), { recursive: true })
@@ -63,8 +59,8 @@ async function driveToFirstShotGate(
     brief: { goal: 'Confirm every shot', durationSeconds: 30 },
     policy: { trustLevel: 'confirm_all' },
   })
-  await waitFor(() => (service.readFull('project-1', runId)?.gates
-    .find((gate) => gate.gateId === 'gate-direction-v1')?.directionCandidates?.length ?? 0) === 2)
+  await waitForProduction(() => (service.readFull('project-1', runId)?.gates
+    .find((gate) => gate.gateId === 'gate-direction-v1')?.directionCandidates?.length ?? 0) === 2, WAIT_MS)
   let current = service.readFull('project-1', runId)!
   await service.command('project-1', runId, {
     commandId: 'approve-direction', expectedRevision: current.revision, type: 'gate.decide',
@@ -88,11 +84,11 @@ async function driveToFirstShotGate(
     commandId: 'approve-contract', expectedRevision: attached.run.revision, type: 'gate.decide',
     payload: { gateId: contract.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
   })
-  await waitFor(() => service.readFull('project-1', runId)!.gates
-    .some((gate) => gate.gateId.startsWith('gate-shot-') && gate.status === 'waiting'))
+  await waitForProduction(() => service.readFull('project-1', runId)!.gates
+    .some((gate) => gate.gateId.startsWith('gate-shot-') && gate.status === 'waiting'), WAIT_MS)
 }
 
-describe('confirm_all per-shot provider boundary', () => {
+describe('confirm_all per-shot provider boundary', { timeout: PRODUCTION_DRIVER_TEST_TIMEOUT_MS }, () => {
   it('stops before every submission and one approval submits exactly one shot', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-shot-gate-'))
     const submissions: string[] = []
@@ -118,8 +114,8 @@ describe('confirm_all per-shot provider boundary', () => {
       commandId: 'approve-shot-1', expectedRevision: current.revision, type: 'gate.decide',
       payload: { gateId: shotGate.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
     })
-    await waitFor(() => service.readFull('project-1', runId)!.gates
-      .some((gate) => gate.gateId.startsWith('gate-sample-') && gate.status === 'waiting'))
+    await waitForProduction(() => service.readFull('project-1', runId)!.gates
+      .some((gate) => gate.gateId.startsWith('gate-sample-') && gate.status === 'waiting'), WAIT_MS)
     expect(submissions).toEqual([current.jobs[0].jobId])
 
     current = service.readFull('project-1', runId)!
@@ -128,8 +124,8 @@ describe('confirm_all per-shot provider boundary', () => {
       commandId: 'approve-sample', expectedRevision: current.revision, type: 'gate.decide',
       payload: { gateId: sampleGate.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
     })
-    await waitFor(() => service.readFull('project-1', runId)!.gates
-      .filter((gate) => gate.gateId.startsWith('gate-shot-') && gate.status === 'waiting').length === 1)
+    await waitForProduction(() => service.readFull('project-1', runId)!.gates
+      .filter((gate) => gate.gateId.startsWith('gate-shot-') && gate.status === 'waiting').length === 1, WAIT_MS)
 
     current = service.readFull('project-1', runId)!
     shotGate = current.gates.find((gate) => gate.gateId.startsWith('gate-shot-') && gate.status === 'waiting')!
@@ -139,7 +135,7 @@ describe('confirm_all per-shot provider boundary', () => {
       commandId: 'approve-shot-2', expectedRevision: current.revision, type: 'gate.decide',
       payload: { gateId: shotGate.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
     })
-    await waitFor(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review')
+    await waitForProduction(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review', WAIT_MS)
     expect(submissions).toEqual([current.jobs[0].jobId, current.jobs[1].jobId])
 
     const completed = service.readFull('project-1', runId)!
@@ -169,7 +165,7 @@ describe('confirm_all per-shot provider boundary', () => {
       commandId: 'approve-after-restart', expectedRevision: current.revision, type: 'gate.decide',
       payload: { gateId: gate.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
     })
-    await waitFor(() => submissions.length === 1)
+    await waitForProduction(() => submissions.length === 1, WAIT_MS)
     expect(submissions).toEqual([current.jobs[0].jobId])
   })
 
@@ -192,7 +188,7 @@ describe('confirm_all per-shot provider boundary', () => {
 
     const restarted = makeRuntime(root, submissions).service
     await restarted.resumeUnfinishedRuns('project-1')
-    await waitFor(() => submissions.length === 1)
+    await waitForProduction(() => submissions.length === 1, WAIT_MS)
     expect(submissions).toEqual([current.jobs[0].jobId])
   })
 
@@ -208,7 +204,7 @@ describe('confirm_all per-shot provider boundary', () => {
       commandId: 'reject-shot', expectedRevision: current.revision, type: 'gate.decide',
       payload: { gateId: gate.gateId, status: 'rejected' }, issuedAt: new Date().toISOString(),
     })
-    await waitFor(() => service.readFull('project-1', runId)!.status === 'paused')
+    await waitForProduction(() => service.readFull('project-1', runId)!.status === 'paused', WAIT_MS)
     expect(submissions).toEqual([])
     expect(service.readFull('project-1', runId)!.gates.find((candidate) => candidate.gateId === gate.gateId)?.status).toBe('rejected')
 
@@ -217,8 +213,8 @@ describe('confirm_all per-shot provider boundary', () => {
       commandId: 'resume-after-shot-reject', expectedRevision: paused.revision, type: 'run.control',
       payload: { action: 'resume' }, issuedAt: new Date().toISOString(),
     })
-    await waitFor(() => service.readFull('project-1', runId)!.gates
-      .some((candidate) => candidate.gateId !== gate.gateId && candidate.gateId.startsWith('gate-shot-') && candidate.status === 'waiting'))
+    await waitForProduction(() => service.readFull('project-1', runId)!.gates
+      .some((candidate) => candidate.gateId !== gate.gateId && candidate.gateId.startsWith('gate-shot-') && candidate.status === 'waiting'), WAIT_MS)
     const retried = service.readFull('project-1', runId)!
     const retryGate = retried.gates.find((candidate) => candidate.gateId !== gate.gateId && candidate.gateId.startsWith('gate-shot-') && candidate.status === 'waiting')!
     expect(retryGate.gateId).toMatch(/-r2$/)
@@ -228,7 +224,7 @@ describe('confirm_all per-shot provider boundary', () => {
       commandId: 'approve-retried-shot', expectedRevision: retried.revision, type: 'gate.decide',
       payload: { gateId: retryGate.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
     })
-    await waitFor(() => submissions.length === 1)
+    await waitForProduction(() => submissions.length === 1, WAIT_MS)
     expect(submissions).toEqual([retried.jobs[0].jobId])
   }, 15_000)
 })

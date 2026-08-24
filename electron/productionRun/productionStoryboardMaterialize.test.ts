@@ -5,16 +5,13 @@ import { describe, expect, it } from 'vitest'
 
 import { createProductionRunRepository } from './productionRunRepository'
 import { createProductionRunService } from './productionRunService'
+import { PRODUCTION_DRIVER_TEST_TIMEOUT_MS, waitForProduction } from './productionRunTestHelpers'
 
 function makeRoot(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-production-storyboard-materialize-'))
 }
 
-async function waitFor(check: () => boolean, timeoutMs = 2_000): Promise<void> {
-  const deadline = Date.now() + timeoutMs
-  while (!check() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5))
-  if (!check()) throw new Error('waitFor timed out')
-}
+const WAIT_MS = 2000
 
 async function approvedStoryboard(options: { stale?: boolean } = {}) {
   const root = makeRoot()
@@ -62,7 +59,7 @@ async function approvedStoryboard(options: { stale?: boolean } = {}) {
     commandId: 'script-review', expectedRevision: run.revision, type: 'script.review',
     payload: { artifactId: script.artifactId, decision: 'approved' }, issuedAt: new Date().toISOString(),
   })
-  await waitFor(() => Boolean(service.readFull('project-1', runId)?.artifacts.some((artifact) => artifact.kind === 'storyboard')))
+  await waitForProduction(() => Boolean(service.readFull('project-1', runId)?.artifacts.some((artifact) => artifact.kind === 'storyboard')), WAIT_MS)
   run = service.readFull('project-1', runId)
   const storyboard = run.artifacts.find((artifact) => artifact.kind === 'storyboard')!
   if (options.stale) {
@@ -82,7 +79,7 @@ async function approvedStoryboard(options: { stale?: boolean } = {}) {
   return { root, service, runId, storyboard, materializePayloads }
 }
 
-describe('external storyboard materialization', () => {
+describe('external storyboard materialization', { timeout: PRODUCTION_DRIVER_TEST_TIMEOUT_MS }, () => {
   it('materializes only an approved storyboard and attaches one durable contract', async () => {
     const { service, runId, storyboard, materializePayloads } = await approvedStoryboard()
     const result = await service.materializeStoryboard({

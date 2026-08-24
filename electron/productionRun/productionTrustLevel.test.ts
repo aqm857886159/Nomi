@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import { createProductionRunRepository } from './productionRunRepository'
 import { createProductionRunService } from './productionRunService'
-import { approveLatestScript, approveLatestStoryboard } from './productionRunTestHelpers'
+import { approveLatestScript, approveLatestStoryboard, waitForProduction, PRODUCTION_DRIVER_TEST_TIMEOUT_MS } from './productionRunTestHelpers'
 import { normalizeTrustLevel, trustLevelOf, DEFAULT_TRUST_LEVEL } from './productionRunTypes'
 import { shouldSampleGate } from './productionRunDriverOps'
 import { buildToolOutcome } from '../capabilityCore/mcpToolResults'
@@ -14,11 +14,7 @@ import { buildToolOutcome } from '../capabilityCore/mcpToolResults'
 // key_confirm（默认）= 五门全开；budget_only（「别问了直接出」）= 自动批准创意/样片门、只留预算门（永不跳）；
 // confirm_all = 每镜提交前在 Nomi 停门。降档留痕（事件 commandId 自证）。
 
-async function waitFor(check: () => boolean, timeoutMs = 4000): Promise<void> {
-  const deadline = Date.now() + timeoutMs
-  while (!check() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5))
-  if (!check()) throw new Error('waitFor timed out')
-}
+const WAIT_MS = 4000
 
 function makeService(root: string, trackCalls: { count: number }) {
   fs.mkdirSync(path.join(root, 'assets/generated'), { recursive: true })
@@ -55,7 +51,7 @@ function makeService(root: string, trackCalls: { count: number }) {
 
 /** 走到「合同已批准、driver 开始提镜」的公共前置（含方向门批准）。 */
 async function driveToContract(service: ReturnType<typeof createProductionRunService>, runId: string) {
-  await waitFor(() => Boolean(service.readFull('project-1', runId)?.gates.some((g) => g.gateId === 'gate-direction-v1' && g.status === 'approved')))
+  await waitForProduction(() => Boolean(service.readFull('project-1', runId)?.gates.some((g) => g.gateId === 'gate-direction-v1' && g.status === 'approved')), WAIT_MS)
   await approveLatestScript(service, 'project-1', runId)
   await approveLatestStoryboard(service, 'project-1', runId)
   const planned = service.readFull('project-1', runId)!
@@ -74,7 +70,7 @@ async function driveToContract(service: ReturnType<typeof createProductionRunSer
   })
 }
 
-describe('normalizeTrustLevel / trustLevelOf (B3 收口)', () => {
+describe('normalizeTrustLevel / trustLevelOf (B3 收口)', { timeout: PRODUCTION_DRIVER_TEST_TIMEOUT_MS }, () => {
   it('合法档位原样保留；非法/缺省收敛到默认 key_confirm', () => {
     expect(normalizeTrustLevel('budget_only')).toBe('budget_only')
     expect(normalizeTrustLevel('confirm_all')).toBe('confirm_all')
@@ -95,7 +91,7 @@ describe('normalizeTrustLevel / trustLevelOf (B3 收口)', () => {
   })
 })
 
-describe('trust level gate-skip matrix (B3 · 预算门永不跳)', () => {
+describe('trust level gate-skip matrix (B3 · 预算门永不跳)', { timeout: PRODUCTION_DRIVER_TEST_TIMEOUT_MS }, () => {
   it('budget_only：草稿建好即自动批准方向门（留痕）+ 跳样片门，但预算门仍在等', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-trust-budgetonly-'))
     const calls = { count: 0 }
@@ -108,7 +104,7 @@ describe('trust level gate-skip matrix (B3 · 预算门永不跳)', () => {
     })
 
     // 方向门被自动批准（不拟候选、不打扰），driver 直接推进到分镜。
-    await waitFor(() => service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-direction-v1' && g.status === 'approved'))
+    await waitForProduction(() => service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-direction-v1' && g.status === 'approved'), WAIT_MS)
     const directionGate = service.readFull('project-1', runId)!.gates.find((g) => g.gateId === 'gate-direction-v1')!
     expect(directionGate.directionCandidates).toBeUndefined() // budget_only 不拟候选
 
@@ -120,7 +116,7 @@ describe('trust level gate-skip matrix (B3 · 预算门永不跳)', () => {
     await driveToContract(service, runId)
 
     // 首镜提交后不设样片门（budget_only 跳）；直接批量到粗剪。
-    await waitFor(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review', 5000)
+    await waitForProduction(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review', 5000)
     const done = service.readFull('project-1', runId)!
     expect(done.gates.some((g) => g.gateId === 'gate-sample-v1')).toBe(false) // 样片门被跳过
     expect(calls.count).toBe(2) // 两镜连提，无样片门中断
@@ -138,7 +134,7 @@ describe('trust level gate-skip matrix (B3 · 预算门永不跳)', () => {
       // 不传 trustLevel → 默认 key_confirm。
     })
     // 方向门拟出候选（不自动批）。
-    await waitFor(() => (service.readFull('project-1', runId)?.gates.find((g) => g.gateId === 'gate-direction-v1')?.directionCandidates?.length ?? 0) === 2)
+    await waitForProduction(() => (service.readFull('project-1', runId)?.gates.find((g) => g.gateId === 'gate-direction-v1')?.directionCandidates?.length ?? 0) === 2, WAIT_MS)
     const beforeApprove = service.readFull('project-1', runId)!
     expect(beforeApprove.gates.find((g) => g.gateId === 'gate-direction-v1')!.status).toBe('waiting') // 没被自动批
     // 手动批准方向门。
@@ -148,12 +144,12 @@ describe('trust level gate-skip matrix (B3 · 预算门永不跳)', () => {
     })
     await driveToContract(service, runId)
     // 首镜后样片门停（key_confirm 要门）。
-    await waitFor(() => service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-sample-v1' && g.status === 'waiting'))
+    await waitForProduction(() => service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-sample-v1' && g.status === 'waiting'), WAIT_MS)
     expect(calls.count).toBe(1) // 窗口化：只提了镜 1
   })
 })
 
-describe('set_trust 对话改档 (B3 · 降档留痕 + 立即生效)', () => {
+describe('set_trust 对话改档 (B3 · 降档留痕 + 立即生效)', { timeout: PRODUCTION_DRIVER_TEST_TIMEOUT_MS }, () => {
   it('卡在方向门时降 budget_only → 该门自动批准（留痕）并推进', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-trust-settrust-'))
     const calls = { count: 0 }
@@ -164,7 +160,7 @@ describe('set_trust 对话改档 (B3 · 降档留痕 + 立即生效)', () => {
       origin: { host: 'codex' }, brief: { goal: 'downgrade mid-run', durationSeconds: 30 },
     })
     // 停在方向门（有候选，等确认）。
-    await waitFor(() => (service.readFull('project-1', runId)?.gates.find((g) => g.gateId === 'gate-direction-v1')?.directionCandidates?.length ?? 0) === 2)
+    await waitForProduction(() => (service.readFull('project-1', runId)?.gates.find((g) => g.gateId === 'gate-direction-v1')?.directionCandidates?.length ?? 0) === 2, WAIT_MS)
     const atDirection = service.readFull('project-1', runId)!
     expect(atDirection.gates.find((g) => g.gateId === 'gate-direction-v1')!.status).toBe('waiting')
 
@@ -175,7 +171,7 @@ describe('set_trust 对话改档 (B3 · 降档留痕 + 立即生效)', () => {
     })
 
     // 档位落 policy + 方向门被顺手自动批准（留痕）。
-    await waitFor(() => service.readFull('project-1', runId)!.gates.find((g) => g.gateId === 'gate-direction-v1')!.status === 'approved')
+    await waitForProduction(() => service.readFull('project-1', runId)!.gates.find((g) => g.gateId === 'gate-direction-v1')!.status === 'approved', WAIT_MS)
     const after = service.readFull('project-1', runId)!
     expect(trustLevelOf(after.policy)).toBe('budget_only')
     const events = await service.readEvents('project-1', runId, 0, 0)
@@ -183,7 +179,7 @@ describe('set_trust 对话改档 (B3 · 降档留痕 + 立即生效)', () => {
 
     // 降档后 run 一路自动跑到粗剪（无样片门中断）。
     await driveToContract(service, runId)
-    await waitFor(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review', 5000)
+    await waitForProduction(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review', 5000)
     expect(service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-sample-v1')).toBe(false)
   })
 

@@ -5,17 +5,13 @@ import { describe, expect, it } from 'vitest'
 
 import { createProductionRunRepository } from './productionRunRepository'
 import { createProductionRunService } from './productionRunService'
-import { approveLatestScript, approveLatestStoryboard } from './productionRunTestHelpers'
+import { approveLatestScript, approveLatestStoryboard, waitForProduction, PRODUCTION_DRIVER_TEST_TIMEOUT_MS } from './productionRunTestHelpers'
 
 // B4 gate.decide 幂等 + 并发（plan 2026-08-11-mcp-conversation-native-phase-b）：
 // 两个审批同时来（异 commandId、同决议）不再互相炸——同决议重复 = 幂等 no-op（返回当前态），
 // 只有「翻决议」（approved→rejected 或反之）才拒。两个 run 的门各自独立可决，互不覆盖。
 
-async function waitFor(check: () => boolean, timeoutMs = 4000): Promise<void> {
-  const deadline = Date.now() + timeoutMs
-  while (!check() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5))
-  if (!check()) throw new Error('waitFor timed out')
-}
+const WAIT_MS = 4000
 
 function makeService(root: string) {
   fs.mkdirSync(path.join(root, 'assets/generated'), { recursive: true })
@@ -58,10 +54,10 @@ async function draftAtContractGate(service: ReturnType<typeof createProductionRu
     payload: { artifactId: storyboardId, bindings: [{ nodeId: 'shot-1', provider: 'local', model: 'demo-video', stageId: 'generate' }] },
     issuedAt: new Date().toISOString(),
   })
-  await waitFor(() => service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-contract-v1' && g.status === 'waiting'))
+  await waitForProduction(() => service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-contract-v1' && g.status === 'waiting'), WAIT_MS)
 }
 
-describe('gate.decide idempotency (B4)', () => {
+describe('gate.decide idempotency (B4)', { timeout: PRODUCTION_DRIVER_TEST_TIMEOUT_MS }, () => {
   it('异 commandId、同决议重复 approve 已决门 = 幂等 no-op（不抛、返回当前态）', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-gate-idem-'))
     const service = makeService(root)
@@ -131,7 +127,7 @@ describe('gate.decide idempotency (B4)', () => {
   })
 })
 
-describe('two runs decide independently (B4 并发不互相覆盖)', () => {
+describe('two runs decide independently (B4 并发不互相覆盖)', { timeout: PRODUCTION_DRIVER_TEST_TIMEOUT_MS }, () => {
   it('两个 run 各自停在合同门 → 分别批准 → 互不影响', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-two-runs-'))
     const service = makeService(root)
