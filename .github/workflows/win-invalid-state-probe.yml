@@ -1,0 +1,134 @@
+# Windows 上验证 nomi-local 协议流的 ERR_INVALID_STATE 竞态。
+#
+# 为什么要有这个 workflow：用户的崩溃报自 Windows，而开发机是 macOS。
+# docs/plan/2026-08-24-local-protocol-stream-ownership.md §7b 记着一条没闭合的环——
+# 走查在 macOS 上「修复前后都不复现」，也就是没有鉴别力。本仓没有 Windows 机器，
+# 但 GitHub Actions 的 windows-latest 就是真 Windows + 真 NTFS，够用来回答这个问题。
+#
+# 三条臂，不是两条。计划书 §7c 讲清了原因：今天的 main **不是**用户崩溃的那一版。
+#   undici  = 4e4fb0d0（v0.20.1 之前）new Response(fs 流) → undici ReadableStreamFrom
+#             ← 用户崩溃栈第 2 帧 undici:1465 指的就是这条，这才是真正的对照组
+#   toweb   = main    Readable.toWeb(fs 流)              → Node 适配器，同族竞态 nodejs/node#64529
+#             ← 今天线上跑的是这条
+#   owned   = PR #126 createOwnedFileStream              → 关闭权在我们手里（待验的修复）
+#
+# 每条臂都先做「现场自证」：从构建产物里读出响应体形态，和期望不符就当场停。
+# 跑错版本的 A/B 是最贵的假证据。
+name: Win ERR_INVALID_STATE Probe
+
+on:
+  push:
+    branches: [claude/affectionate-kare-64b55c]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: win-invalid-state-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arm: undici
+            ref: 4e4fb0d07c20bda17a1ee04dcc944cf90f170510
+            note: "Race B · new Response(fs 流) · 用户崩溃栈就是这条"
+          - arm: toweb
+            ref: e83fe73efe188fc54543f5f6b9cd3e54a7d8f292
+            note: "Race C · Readable.toWeb · main 今天在跑的"
+          - arm: owned
+            ref: 713f38c9a2e765a783e3deeef0e9d2ef6ed2aa5f
+            note: "PR #126 · createOwnedFileStream · 待验的修复"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 只换协议层，其余（走查脚本、压测脚本、启动器）一律用本分支的，
+      # 这样三条臂用的是**同一把尺子**量的。
+      - name: Swap electron/protocol to ${{ matrix.arm }}
+        shell: bash
+        run: |
+          echo "arm=${{ matrix.arm }} ref=${{ matrix.ref }}  (${{ matrix.note }})"
+          rm -rf electron/protocol
+          git checkout ${{ matrix.ref }} -- electron/protocol/
+          echo "--- 换进来的响应体构造 ---"
+          grep -nE "new Response\(|createReadStream|toWeb\(|createOwnedFileStream" electron/protocol/localProtocol.ts || true
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+
+      - name: Show built shape (现场自证)
+        shell: bash
+        run: |
+          echo "--- dist-electron/protocol/localProtocol.js ---"
+          grep -cE "createOwnedFileStream" dist-electron/protocol/localProtocol.js | sed 's/^/owned hits: /' || true
+          grep -cE "toWeb\(" dist-electron/protocol/localProtocol.js | sed 's/^/toWeb hits: /' || true
+          grep -cE "createReadStream" dist-electron/protocol/localProtocol.js | sed 's/^/createReadStream hits: /' || true
+
+      # 压测是主仪器：数千次取消 + 时序扫描 + 阳性对照。
+      # STRESS_EXPECT_SHAPE 让脚本自己确认换版成功，不符就 exit 1。
+      # continue-on-error：对照组**复现出崩溃**才是我们要的结果，那会让脚本非零退出，
+      # 不能因此把整个矩阵判红——结论看日志和产物，不看这一步的红绿。
+      - name: Abort stress probe
+        id: stress
+        continue-on-error: true
+        shell: bash
+        env:
+          STRESS_EXPECT_SHAPE: ${{ matrix.arm }}
+          STRESS_ROUNDS: "4000"
+          STRESS_CONCURRENCY: "16"
+        run: node scripts/local-protocol-abort-stress.mjs 2>&1 | tee stress-${{ matrix.arm }}.log
+
+      # 用户点名要跑的那条走查，原样跑（和 macOS 那次可比）。
+      - name: Seek walkthrough (原样，与 macOS 结果可比)
+        id: walkthrough
+        continue-on-error: true
+        shell: bash
+        run: node scripts/local-protocol-seek-walkthrough.mjs 2>&1 | tee walkthrough-${{ matrix.arm }}.log
+
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## arm \`${{ matrix.arm }}\` — ${{ matrix.note }}"
+            echo ""
+            echo "| 步骤 | 退出状态 |"
+            echo "|---|---|"
+            echo "| 压测 | ${{ steps.stress.outcome }} |"
+            echo "| 走查 | ${{ steps.walkthrough.outcome }} |"
+            echo ""
+            echo '### 压测结果'
+            echo '```'
+            grep -A 12 "── 结果" stress-${{ matrix.arm }}.log 2>/dev/null || tail -25 stress-${{ matrix.arm }}.log 2>/dev/null || echo "(无日志)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: probe-${{ matrix.arm }}
+          path: |
+            stress-${{ matrix.arm }}.log
+            walkthrough-${{ matrix.arm }}.log
+            .local-protocol-abort-stress/*.json
+            .local-protocol-abort-stress/*.png
+            .local-protocol-seek-walk/*.png
+          if-no-files-found: warn
+          retention-days: 14

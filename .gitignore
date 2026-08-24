@@ -67,6 +67,9 @@ tests/system/runs/
 .library-cover-walk-lab/
 .project-asset-healthcheck-lab/
 .toolbar-order-lab/
+# nomi-local 协议走查/压测的 fixture 与产出（里面躺着 ~500MB 的 mp4，一次 `git add -A` 就能进库）
+.local-protocol-seek-walk/
+.local-protocol-abort-stress/
 .text-error-lab/
 
 # 3D 预设动作校准台的本地输出（pose-lab）
