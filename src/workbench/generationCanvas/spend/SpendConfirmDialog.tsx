@@ -178,12 +178,31 @@ export function SpendConfirmDialog() {
         <p className={cn('text-body-sm text-nomi-ink-80 leading-relaxed mb-3')}>{pending.message}</p>
 
         {pending.hostingDisclosure ? (
+          // 「记住我的选择」住在披露块**内部**，不和下面「本次会话不再提示」并排。
+          // 起因（2026-08-26 用户拍板）：两个勾选框曾贴在一起、长得一模一样，但管的是两件事、
+          // 两种作用域——一个管这张花钱卡（本会话），一个把 anonymousAssetHosting 永久设成 allow。
+          // 并排时得逐字读标签才分得清，误勾的代价是「以后本机素材静默上传公共托管」。
+          // 按 §1.5.3「先分组」：把勾选框搬进它作用的那个对象里，作用域一眼可见（也是「一功能一个家」的视觉版）。
           <div
             data-hosting-disclosure="true"
             className={cn('mb-3 flex gap-2 rounded-nomi-sm bg-nomi-ink-05 px-3 py-2.5 text-caption leading-relaxed text-nomi-ink-80')}
           >
             <IconCloud size={17} stroke={1.7} className={cn('mt-0.5 shrink-0 text-nomi-ink-60')} aria-hidden="true" />
-            <div className={cn('min-w-0')}>{pending.hostingDisclosure.message}</div>
+            <div className={cn('min-w-0 grid gap-2')}>
+              <div className={cn('min-w-0')}>{pending.hostingDisclosure.message}</div>
+              {/* 细分隔线：让「说明」与「这条说明对应的选择」分段，但仍同属一张托管卡（§1.5.3 分段要有边界）。 */}
+              <label
+                data-hosting-remember="true"
+                className={cn('flex items-center gap-2 border-t border-nomi-line-soft pt-2 cursor-pointer select-none text-nomi-ink-60')}
+              >
+                <input
+                  type="checkbox"
+                  checked={rememberHosting}
+                  onChange={(event) => setRememberHosting(event.currentTarget.checked)}
+                />
+                {pending.hostingDisclosure.rememberLabel}
+              </label>
+            </div>
           </div>
         ) : null}
 
@@ -277,13 +296,6 @@ export function SpendConfirmDialog() {
           >
             <input type="checkbox" checked={suppress} onChange={(event) => setSuppress(event.target.checked)} />
             {t('generationCommon.spend.suppressSession')}
-          </label>
-        ) : null}
-
-        {pending.hostingDisclosure ? (
-          <label className={cn('mb-4 flex items-center gap-2 cursor-pointer select-none text-caption text-nomi-ink-60')}>
-            <input type="checkbox" checked={rememberHosting} onChange={(event) => setRememberHosting(event.currentTarget.checked)} />
-            {pending.hostingDisclosure.rememberLabel}
           </label>
         ) : null}
 

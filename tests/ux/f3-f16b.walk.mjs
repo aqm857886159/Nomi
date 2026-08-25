@@ -145,12 +145,103 @@ try {
   // 披露文案取自 i18n（generationCommon.spendHostingDisclosure.*），不是走查手写的串——
   // 这样文案/键名回归会在这里报红，而不是被脚本里的副本掩盖。
   await expectVisible(win.getByText('记住我的选择，以后不再问', { exact: true }), '卡内含记住选择勾选')
+  // 「记住我的选择」必须住在**披露块内部**（2026-08-26 用户拍板）：它管的是托管（永久改
+  // anonymousAssetHosting），和管花钱的「本次会话不再提示」作用域不同。两者曾并排且同款样式，
+  // 误勾一次 = 以后本机素材静默上传。断言「在披露块的子树里」，不是「在卡上某处」——
+  // 后者在它被挪回并排时照样绿，等于没测。
+  await expectVisible(hostingBlock.locator('[data-hosting-remember="true"]'), '「记住我的选择」住在托管披露块内部（作用域可见）')
+  // 反向：披露块**外面**不许再有第二个同文案勾选（P1 加新必删旧——旧的那个并排勾选必须已删）。
+  const rememberOutside = await win.evaluate(() => {
+    const block = document.querySelector('[data-hosting-disclosure="true"]')
+    return [...document.querySelectorAll('label')].filter(
+      (el) => el.textContent?.trim() === '记住我的选择，以后不再问' && !block?.contains(el),
+    ).length
+  })
+  if (rememberOutside !== 0) {
+    throw new Error(`披露块外还有 ${rememberOutside} 个「记住我的选择」勾选——旧的并排勾选没删干净`)
+  }
+  // 截图前等**上一张阳性对照探针卡的淡出动画**真正结束。
+  // 踩过（2026-08-26）：探针卡在 expectAbsent 处已从 DOM 消失，但它的淡出/缩放动画还在最后几帧，
+  // 于是这张浅色证据里透出一层鬼影——披露块上叠着半透明的「取消 / 确认」和一个 ×，
+  // 看起来就像卡自己长了两个多余按钮。证据必须干净，否则人眼对账会对着假象下结论。
+  // 判据同样是确定性的：整屏不再有任何非本卡的 fixed 浮层，且连续两帧稳定。
+  await win.waitForFunction(() => {
+    const block = document.querySelector('[data-hosting-disclosure="true"]')
+    const card = block?.closest('div.fixed.inset-0')
+    if (!card) return false
+    const strays = [...document.querySelectorAll('div.fixed.inset-0')].filter((el) => el !== card)
+    return strays.length === 0
+  }, undefined, { timeout: 5000 })
   await win.screenshot({ path: path.join(shotsDir, '02-f16b-hosting-light.png') })
-  await win.getByText('记住我的选择，以后不再问', { exact: true }).click()
-  // 同一张卡切换暗色截图，避免为视觉对账再打开第二个 pending 请求。
-  await win.evaluate(() => document.documentElement.setAttribute('data-mantine-color-scheme', 'dark'))
+  // 勾它：点披露块**内部**那个（上面刚断言过它就住在这儿），不靠全局文案匹配碰运气。
+  await clickOrFail(hostingBlock.locator('[data-hosting-remember="true"] input[type="checkbox"]'), '披露块内「记住我的选择」勾选')
+
+  // ── 同一张卡切换暗色截图（避免为视觉对账再开第二个 pending 请求）──────────────
+  //
+  // 这里踩过两个坑，都会让暗色截图变成**无效证据**（2026-08-26 修）：
+  //
+  // ① 只写了 data-mantine-color-scheme 一个属性。生产切主题走 applyNomiColorScheme
+  //    （src/theme/colorScheme.ts:54）写**四个**：dataset.theme / dataset.nomiColorScheme /
+  //    data-mantine-color-scheme / style.colorScheme。少写 = 截的不是用户会看到的那一屏
+  //    （验证物必须等于用户所见物）。改成照抄那四行。
+  // ② 没等过渡收敛就截图。token 是 --nomi-transition-fast=140ms 的 transition-colors，
+  //    截到的是**插值中间帧**：正文已经变色、而取消/生成两个按钮的文字被洗成一片灰白方块，
+  //    肉眼看像按钮没有标签。这正是本次要修的假证据。
+  //
+  // 不用裸 sleep，改等**确定性信号**：轮询「生成」按钮的实际计算色，连续两次采样一致即判定收敛。
+  // ⚠️ 计算色会序列化成 oklch()/oklab()/rgb() 等多种形式，字面串比较不可靠（同一个颜色不同写法）——
+  // 所以抽出数字通道比较，不比字符串。
+  await win.evaluate(() => {
+    const root = document.documentElement
+    root.dataset.theme = 'dark'
+    root.dataset.nomiColorScheme = 'dark'
+    root.setAttribute('data-mantine-color-scheme', 'dark')
+    root.style.colorScheme = 'dark'
+  })
+  const settleReport = await win.evaluate(async () => {
+    const channels = (value) => (value.match(/-?\d*\.?\d+/g) || []).map(Number)
+    const same = (a, b) => a.length === b.length && a.every((n, i) => Math.abs(n - b[i]) < 0.001)
+    // 必须从**这张卡内部**取按钮：全局 querySelectorAll('button') 会先撞上背景里同名的「生成」
+    // （画布/侧栏都有），量到的根本不是卡上那个主按钮 —— 那正是「量错对象」式假红/假绿。
+    const read = () => {
+      const block = document.querySelector('[data-hosting-disclosure="true"]')
+      const card = block?.closest('div.fixed.inset-0')
+      if (!card) return null
+      const button = [...card.querySelectorAll('button')].find((el) => el.textContent?.trim() === '生成')
+      if (!button) return null
+      const style = getComputedStyle(button)
+      return channels(`${style.backgroundColor} ${style.color}`)
+    }
+    let previous = read()
+    if (!previous) return { settled: false, reason: '找不到「生成」按钮，无法判定主题过渡是否收敛' }
+    // 140ms 过渡；每 50ms 采一次，连续两次一致即收敛。上限 2s 兜底防死等。
+    for (let i = 0; i < 40; i += 1) {
+      await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 50)))
+      const current = read()
+      if (!current) return { settled: false, reason: '轮询期间「生成」按钮消失' }
+      if (same(previous, current)) return { settled: true, samples: i + 1, color: current }
+      previous = current
+    }
+    return { settled: false, reason: '2 秒内主题过渡仍未收敛' }
+  })
+  if (!settleReport.settled) throw new Error(`暗色截图前主题过渡未收敛：${settleReport.reason}`)
+  // 收敛后再断言按钮**真的换到了暗色**（不是浅色残留、也不是被洗白的中间帧）。
+  const darkButtonColor = await win.evaluate(() => {
+    const block = document.querySelector('[data-hosting-disclosure="true"]')
+    const card = block?.closest('div.fixed.inset-0')
+    const button = [...(card?.querySelectorAll('button') || [])].find((el) => el.textContent?.trim() === '生成')
+    if (!button) throw new Error('卡内找不到「生成」按钮')
+    const style = getComputedStyle(button)
+    return { bg: style.backgroundColor, fg: style.color }
+  })
+  // 主按钮是 bg-nomi-ink text-nomi-paper：暗色下 paper 变暗，字色不该还是纯白，底色也不该透明。
+  const whiteish = /^(?:oklch\(1 0 0\)|oklab\(1 0 0\)|rgb\(255, 255, 255\)|color\(srgb 1 1 1\))$/
+  if (darkButtonColor.bg === 'rgba(0, 0, 0, 0)' || whiteish.test(darkButtonColor.bg)) {
+    throw new Error(`暗色下「生成」按钮底色异常（${darkButtonColor.bg}）——疑似截到过渡中间帧或主题没生效`)
+  }
   await win.screenshot({ path: path.join(shotsDir, '03-f16b-hosting-dark.png') })
   await expectVisible(hostingBlock, '暗模式下同一张合并卡仍可见')
+  await expectVisible(win.getByText('记住我的选择，以后不再问', { exact: true }), '暗模式下披露块内的「记住选择」仍可见')
   await clickOrFail(spendCard.getByRole('button', { name: '生成', exact: true }), '合并确认卡「生成」')
 
   // ── 核心断言：确认之后，**旧卡**不该出现 ────────────────────────────────────
