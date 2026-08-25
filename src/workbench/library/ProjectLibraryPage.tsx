@@ -170,6 +170,7 @@ export default function ProjectLibraryPage({
         <button
           type="button"
           onClick={onOpenModelCatalog}
+          data-testid="open-model-settings"
           className={cn(
             'inline-flex items-center gap-1.5 h-7 px-2 rounded-pill border-0 bg-transparent cursor-pointer font-inherit',
             'text-caption text-nomi-ink-60 transition-colors hover:text-nomi-ink',
@@ -286,6 +287,7 @@ export default function ProjectLibraryPage({
               <button
                 type="button"
                 onClick={onOpenModelCatalog}
+                data-testid="open-model-settings"
                 className={cn(
                   'inline-flex items-center h-8 px-4 rounded-pill border-0 cursor-pointer font-inherit',
                   'bg-nomi-ink text-nomi-paper text-body-sm font-medium transition-colors hover:bg-nomi-accent',
