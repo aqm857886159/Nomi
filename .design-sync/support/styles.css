@@ -1,0 +1,95 @@
+/*
+ * design-sync cssEntry for Nomi.
+ *
+ * Nomi is an Electron app, not a published component library, so there is no
+ * shipped stylesheet to point at. This file assembles the exact styling
+ * surface the real app loads at runtime, in the same order:
+ *
+ *   1. @mantine/core/styles.css  — Mantine 7 base (index.html loads it via main.tsx)
+ *   2. src/theme/nomi-tokens.css — the design tokens (--nomi-*, --workbench-*)
+ *   3. public/tailwind.generated.css — the compiled Tailwind utility layer that
+ *      every component's className strings resolve against, plus the addBase
+ *      token definitions from tailwind.config.ts
+ *   4. src/styles/*.css          — app-level globals/animations/vendor overrides
+ *
+ * src/styles/index.css is deliberately NOT imported: it starts with
+ * `@import 'tailwindcss/base'` which only resolves inside the Vite/PostCSS
+ * pipeline. The compiled equivalent is already in tailwind.generated.css.
+ */
+
+@import "../../node_modules/@fontsource-variable/inter/wght.css";
+@import "../../node_modules/@fontsource-variable/fraunces/wght.css";
+@import "../../node_modules/@mantine/core/styles.css";
+@import "../../src/theme/nomi-tokens.css";
+@import "../../public/tailwind.generated.css";
+@import "../../src/styles/globals.css";
+@import "../../src/styles/animations.css";
+@import "../../src/styles/vendor-overrides.css";
+
+/*
+ * Brand-font alias — makes the cards render in the REAL brand faces.
+ *
+ * The app has a font-stack bug (flagged separately): the runtime tokens from
+ * tailwind.config.ts:90-91 resolve to `Fraunces, Inter, serif` / `Inter, …`,
+ * but the woff2s the app ships (@fontsource-variable) declare the families
+ * `Fraunces Variable` / `Inter Variable`. Nothing in the shipped CSS ever
+ * names those, so the app falls back to system fonts.
+ *
+ * A component library that reproduced that fallback would teach every future
+ * mockup the wrong typography. Aliasing the unsuffixed family names onto the
+ * same variable font files renders what the design INTENDS — the same result
+ * the app gets once tailwind.config.ts names the Variable families.
+ *
+ * If/when that product bug is fixed, this block becomes a harmless no-op
+ * (the Variable families would then match first). Do not delete it before
+ * checking `grep -c "Fraunces Variable" public/tailwind.generated.css`.
+ */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2") format("woff2-variations");
+}
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("../../node_modules/@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+/*
+ * The app paints the page background on html/body/#root from index.html.
+ * Preview cards render into a bare document, so restate the surface tokens
+ * here — otherwise every card sits on browser-default white and the paper /
+ * bg distinction (a real part of this design language) is invisible.
+ */
+html,
+body {
+  margin: 0;
+  background: var(--nomi-bg);
+  color: var(--nomi-ink);
+  font-family: var(--nomi-font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Undo the app-shell sizing for preview cards.
+ *
+ * src/styles/globals.css sets `html, body, #root { width:100%; height:100% }`
+ * so the Electron window is fully painted. A component card is not an app
+ * shell: with height:100% the body always fills the capture viewport, so a
+ * 208px row of buttons screenshots as 800px of empty background and every
+ * card reads as "mostly blank" (and the tiled contact sheets become unusable).
+ *
+ * Height must be content-driven here. Kept scoped to the document elements —
+ * component styles are untouched.
+ */
+html,
+body {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+

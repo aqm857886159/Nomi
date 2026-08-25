@@ -116,3 +116,12 @@ __pycache__/
 
 # 走查产出的截图（可随时重跑生成，别进库）
 docs/design/mockups/2026-08-20-grid-split-freeze/
+
+# design-sync (component library sync) — staged scripts, build output, machine state
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+# 由 .design-sync/support/build-css.mjs 生成（~620KB 的样式压平产物）：
+# 生成脚本进库、产物不进库。改了样式源码后重跑那个脚本即可。
+.design-sync/support/styles.generated.css

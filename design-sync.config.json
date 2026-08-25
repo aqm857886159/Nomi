@@ -1,0 +1,158 @@
+{
+  "pkg": "nomi",
+  "globalName": "NomiDS",
+  "shape": "package",
+  "srcDir": "src/design",
+  "tsconfig": "tsconfig.app.json",
+  "cssEntry": ".design-sync/support/styles.generated.css",
+  "extraFonts": [
+    "node_modules/@fontsource-variable/inter/wght.css",
+    "node_modules/@fontsource-variable/fraunces/wght.css"
+  ],
+  "provider": {
+    "component": "NomiPreviewHost",
+    "props": {
+      "locale": "zh-CN",
+      "colorScheme": "light"
+    }
+  },
+  "componentSrcMap": {
+    "ActionCard": "src/design/actions.tsx",
+    "BodyPortal": "src/design/portal.tsx",
+    "ConfirmDialogHost": "src/design/confirmDialog.tsx",
+    "DesignAlert": "src/design/status.tsx",
+    "DesignBadge": "src/design/status.tsx",
+    "DesignButton": "src/design/actions.tsx",
+    "DesignCheckbox": "src/design/forms.tsx",
+    "DesignDrawer": "src/design/overlays.tsx",
+    "DesignEmptyState": "src/design/emptyState.tsx",
+    "DesignFileInput": "src/design/forms.tsx",
+    "DesignModal": "src/design/overlays.tsx",
+    "DesignNumberInput": "src/design/forms.tsx",
+    "DesignPageShell": "src/design/layout.tsx",
+    "DesignPagination": "src/design/navigation.tsx",
+    "DesignProgress": "src/design/status.tsx",
+    "DesignSearchInput": "src/design/searchInput.tsx",
+    "DesignSegmentedControl": "src/design/forms.tsx",
+    "DesignSwitch": "src/design/forms.tsx",
+    "DesignTable": "src/design/tables.tsx",
+    "DesignTextInput": "src/design/forms.tsx",
+    "DesignTextarea": "src/design/forms.tsx",
+    "IconActionButton": "src/design/actions.tsx",
+    "NomiAILabel": "src/design/identity.tsx",
+    "NomiBrand": "src/design/identity.tsx",
+    "NomiImage": "src/design/media.tsx",
+    "NomiLoadingMark": "src/design/identity.tsx",
+    "NomiLogoMark": "src/design/identity.tsx",
+    "NomiSegmented": "src/design/NomiSegmented.tsx",
+    "NomiSelect": "src/design/NomiSelect.tsx",
+    "NomiSkeleton": "src/design/status.tsx",
+    "NomiStepper": "src/design/identity.tsx",
+    "NomiWordmark": "src/design/identity.tsx",
+    "StatusBadge": "src/design/status.tsx",
+    "Tooltip": "src/design/tooltip.tsx",
+    "TooltipContent": "src/design/tooltip.tsx",
+    "TooltipProvider": "src/design/tooltip.tsx",
+    "TooltipTrigger": "src/design/tooltip.tsx",
+    "WorkbenchButton": "src/design/actions.tsx",
+    "WorkbenchIconButton": "src/design/actions.tsx",
+    "NomiPreviewHost": "src/design/previewHost.tsx"
+  },
+  "overrides": {
+    "DesignModal": {
+      "cardMode": "single",
+      "viewport": "760x520"
+    },
+    "DesignDrawer": {
+      "cardMode": "single",
+      "viewport": "760x520"
+    },
+    "ConfirmDialogHost": {
+      "cardMode": "single",
+      "viewport": "760x520"
+    },
+    "NomiSelect": {
+      "cardMode": "single",
+      "viewport": "560x360"
+    },
+    "TooltipContent": {
+      "cardMode": "single",
+      "viewport": "620x300"
+    },
+    "WorkbenchButton": {
+      "viewport": "900x280"
+    },
+    "DesignButton": {
+      "viewport": "900x280"
+    },
+    "IconActionButton": {
+      "viewport": "900x280"
+    },
+    "WorkbenchIconButton": {
+      "viewport": "900x280"
+    },
+    "StatusBadge": {
+      "viewport": "900x280"
+    },
+    "DesignBadge": {
+      "viewport": "900x280"
+    },
+    "NomiLogoMark": {
+      "viewport": "900x280"
+    },
+    "NomiLoadingMark": {
+      "viewport": "900x280"
+    },
+    "NomiWordmark": {
+      "viewport": "900x280"
+    },
+    "NomiBrand": {
+      "viewport": "900x280"
+    },
+    "NomiAILabel": {
+      "viewport": "900x280"
+    },
+    "DesignProgress": {
+      "viewport": "900x280"
+    },
+    "DesignSwitch": {
+      "viewport": "900x280"
+    },
+    "DesignCheckbox": {
+      "viewport": "900x280"
+    },
+    "BodyPortal": {
+      "cardMode": "single",
+      "viewport": "560x340"
+    },
+    "TooltipProvider": {
+      "cardMode": "single",
+      "viewport": "560x240"
+    },
+    "Tooltip": {
+      "cardMode": "single",
+      "viewport": "560x240"
+    },
+    "TooltipTrigger": {
+      "cardMode": "single",
+      "viewport": "560x240"
+    },
+    "DesignPageShell": {
+      "cardMode": "single",
+      "viewport": "760x520"
+    },
+    "DesignTable": {
+      "viewport": "760x520"
+    },
+    "DesignEmptyState": {
+      "viewport": "760x560"
+    }
+  },
+  "runtimeFontPrefixes": [
+    "Hiragino",
+    "PingFang",
+    "-apple-system",
+    "BlinkMacSystemFont",
+    "system-ui"
+  ]
+}
