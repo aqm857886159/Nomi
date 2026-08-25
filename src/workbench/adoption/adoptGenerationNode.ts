@@ -4,7 +4,12 @@ import { getTrackTypeForClipType } from '../timeline/timelineTypes'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import { applyAdoption } from './adoptionApply'
 import { destinationOf, proposalKeyForNode, timelineRevisionOf } from './adoptionProposalKey'
-import { lookupAdoptionProposal, proposalIsLanded, registerAdoptionProposal } from './adoptionProposalRegistry'
+import {
+  findLandedProposalForSlot,
+  lookupAdoptionProposal,
+  proposalIsLanded,
+  registerAdoptionProposal,
+} from './adoptionProposalRegistry'
 import { workbenchAdoptionPorts } from './adoptionStorePorts'
 import type { AdoptionApplyPorts, AdoptionOutcome } from './adoptionTypes'
 
@@ -58,11 +63,22 @@ export async function adoptGenerationNode(
 
   const destination = destinationOf(
     placement.kind === 'append'
-      ? { kind: 'append', trackType }
+      ? { kind: 'append', trackType, startFrame }
       : { kind: 'frame', trackType, startFrame },
   )
   // 键在**构建之后**才算：baseRevision 要读的是「真正准备写的那一刻」的轴。
   const key = proposalKeyForNode(node, result, ports.readTimeline(), destination)
+
+  // 贴尾连点两下的幂等：贴尾的落点会**随轴变长而变**，所以两次点击的 destination 天然不同，
+  // 光靠全等键匹配不到。判据是「上一次采纳的成果原样还在、且轴自那以后没被动过」
+  // （proposalIsLanded 比对 appliedRevision）——成立就是同一个意图的重放，不再落第二份。
+  // 反过来，轴一旦被编辑过（用户又想要一份），它就不再 landed，于是正常落第二份，
+  // 而不是把人堵在「时间轴已变化」的死胡同里。
+  if (placement.kind === 'append') {
+    const live = ports.readTimeline()
+    const landedReplay = findLandedProposalForSlot(key, live)
+    if (landedReplay) return { status: 'applied', proposal: landedReplay, replayed: true }
+  }
 
   const lookup = lookupAdoptionProposal(key)
   if (lookup.kind === 'replay') return { status: 'applied', proposal: lookup.proposal, replayed: true }

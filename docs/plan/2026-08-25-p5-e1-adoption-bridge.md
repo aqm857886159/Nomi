@@ -41,7 +41,7 @@
 | 原子 apply | 整批一次 `setTimeline`，全成或全不成；失败走 compensation 回滚到 `baseTimeline` |
 | 补偿失败 | 补不回去 → `needs_recovery`，**保留旧态**（不留半落的轴） |
 | 一步 Undo | 整次采纳（1 个或 N 个 clip）= **1 层**撤销栈；回执 toast 带「撤销」 |
-| 收敛 | 5 条直写路径全部改走闸门，旧直写代码删除 |
+| 收敛 | **7** 条直写路径全部改走闸门，旧直写代码删除（第 7 条见 §3 表尾注） |
 | 铁律门岗 | `check:adoption-bridge`——生成/画布模块直调 `addTimelineClipAtFrame` 即报红 |
 
 ### 2.2 不动（明确不做）
@@ -73,8 +73,18 @@
 | 4 | Agent 工具 `arrange_storyboard_to_timeline` | `agent/applyCanvasToolCall.ts:575` | 无 UI | 同 #3（共享同一闸门） | — |
 | 5 | Capability apply handler | `capability/capabilityApplyHandler.ts:532` | 无 UI | 同 #3 | — |
 | 6 | Agent `send_to_timeline` | `generationCanvas/agent/generationCanvasTools.ts:125` → `sendGenerationNodeToTimeline.ts` | 无 UI | `adoptGenerationNode({ placement })` | 删除 ports 直写适配器（106 行改为桥适配器） |
+| 7 | 生成产物拖进轨道 | `timeline/TimelineTrack.tsx:144,157` | 拖拽不变 | `adoptGenerationNode({ placement: { kind: 'frame', startFrame } })` | 直写 + `buildGenerationNodeTimelineClip` 手搓落轴（18 行）|
 | — | 素材库→时间轴 | `timeline/addAssetToTimeline.ts:79,90` | 不变 | **不收敛**（非生成产物，见 §2.2） | — |
-| — | 时间轴内拖放落位 | `timeline/TimelineTrack.tsx:144,157` | 不变 | **不收敛**（轴内编辑，非采纳） | — |
+
+> **#7 是首版漏掉的第 7 条（2026-08-26 补）**。首版把它当成「轴内编辑」放过了——这是**误判**：
+> 它解的是 `TIMELINE_GENERATION_NODE_DRAG_MIME`，两个上游生产者
+> （`generationCanvas/nodes/BaseGenerationNode.tsx:134` 画布拖拽、
+> `preview/PreviewSourcePanel.tsx:89` 预览来源拖拽）送进来的都是**生成节点**，
+> 落的是生成产物，不是轴上已有片段的挪位。于是合同退出条件
+> 「生成模块不能绕过 Proposal 直接落轴」实际并未满足。
+> 更值得记的是 `PreviewSourcePanel.tsx`：它的**点击**路径早已走桥
+> （`:94 → addGenerationNodeToTimelineEnd`），**拖拽**路径却走旁路——
+> 同一个面板、同一个产物，两条路一条受控一条不受控。
 
 > #4/#5 与 #3 共用 `arrangeStoryboardToTimeline`，收敛 #3 即三处同时收敛——这正是
 > 「修根因不修症状」（P2）：闸门装在**汇流点**，不是装在三个调用方各一份。
@@ -142,12 +152,24 @@ request → ① 键归一 → registry 查同键
 
 ### 4.4 铁律门岗（P2 通用性判定 → 棘轮）
 
-`scripts/check-adoption-bridge.mjs`：扫 `src/workbench/generationCanvas/**` 与
-`src/workbench/timeline/addNodeToTimelineEnd.ts`，命中 `addTimelineClipAtFrame(` 即报红，
-除非文件在白名单基线里。基线**只减不增**。
+`scripts/check-adoption-bridge.mjs`：扫 `src/workbench/generationCanvas/**`、
+**`src/workbench/timeline/**`**、**`src/workbench/preview/**`**，
+命中 `addTimelineClipAtFrame(` 即报红，除非文件在白名单基线里。基线**只减不增**。
 
-**加规则必须先验它会红**（R17）：写完规则先故意在 `useNodeDragResize.ts` 插一行直写，
-跑门岗确认报红，再撤掉。证据记在本文档 §7。
+**扫描面为什么必须放宽（2026-08-26 修）**：首版只扫 `generationCanvas/**` 加
+`timeline/addNodeToTimelineEnd.ts` 两处，而真正漏网的直写在 `timeline/TimelineTrack.tsx`
+的拖放分支里——**恰好在扫描面之外**。于是门岗一路全绿，却什么都没证明。
+**看不见旁路的门岗比没有门岗更糟**：它让人以为铁律已经成立，从而不再去查。
+放宽后 `timeline/` 整个目录进扫描面，合法例外改用**显式白名单 + 计数棘轮**（只减不增），
+每条都在脚本里写清为什么是例外，防后人误以为是漏网。
+
+**白名单只有一条真例外**：`timeline/addAssetToTimeline.ts`（2 处）。
+已独立核实（不采信「文档这么写」）：它的入参是 `AssetRef`——来自
+`parseAssetLibraryDrag`，`source` 为 `project` / `canvas` 的**用户自有文件**——
+全文件不引用、也不接触 `GenerationCanvasNode`。它落的不是生成产物，
+不在「生成模块不能绕过 Proposal」的管辖范围内。
+
+**加规则必须先验它会红**（R17）——证据见 §7.1。
 
 ---
 
@@ -188,10 +210,31 @@ request → ① 键归一 → registry 查同键
 单 PR、单分支。回滚 = revert 该 PR：5 条路径回到直写，门岗随之移除。
 无数据迁移、无持久化格式变更（Proposal registry 是**进程内**的，不落盘）。
 
-## 7.1 门岗证据
+## 7.1 门岗证据（R17 红→绿实证）
 
-`node scripts/check-adoption-bridge.mjs` 已先在移除旧 `send_to_timeline` 直写后运行，当前输出
-`✅ adoption bridge 铁律通过：生成模块无 addTimelineClipAtFrame 直写`；该命令已接入 `pnpm run gates`。
+放宽扫描面后按 R17 重做了红灯验证——**故意把旁路种回它当初藏身的那个文件**
+（`src/workbench/timeline/TimelineTrack.tsx`，首版门岗对它完全失明）：
+
+| 步 | 动作 | 输出 | 退出码 |
+|---|---|---|---|
+| 1 | 修复到位，跑门岗 | `✅ adoption bridge 铁律通过：无绕过 Proposal 的直写（受控例外基线 2 处）` | **0** |
+| 2 | 在 `TimelineTrack.tsx` 注入 `addTimelineClipAtFrame(preview.clip, 'video', preview.startFrame)` | `✖ 存在绕过 Adoption Proposal 的时间轴直写：src/workbench/timeline/TimelineTrack.tsx:77 / :145` | **1** |
+| 3 | 撤掉注入，重跑 | `✅ adoption bridge 铁律通过：无绕过 Proposal 的直写（受控例外基线 2 处）` | **0** |
+
+关键点：步 2 报出的 `:145` **正是首版直写所在的那一行**——首版门岗对它恒绿。
+这次它报红，才说明门岗真的盖住了漏网的那条路，而不只是换了个说法。
+
+**当前基线**：受控例外 **2 处**（全部在 `timeline/addAssetToTimeline.ts`）；
+`adoption/adoptionStorePorts.ts` 在册但计数 **0**（只在注释里提到该 API，留册防后人误加直写）。
+该命令已接入 `pnpm run gates`。
+
+## 7.2 本轮同批修掉的三处（2026-08-26）
+
+| # | 问题 | 根因 | 修法 |
+|---|---|---|---|
+| 3 | 补偿后撤销栈泄漏一条幽灵记录 | `commitTimeline` 压了栈并清空 redo，`restoreTimeline` 却只还原 `timeline`——**还原范围和写入范围不对称** | 补偿改为轴 + 撤销栈 + 重做栈**一起**回到 commit 前（`adoptionStorePorts.ts`）。不修的话用户下一次 Cmd+Z 是静默空操作，且那次 redo 历史永久丢失 |
+| 4 | 合法的第二次贴尾被误判 stale，且**无路可走** | `destination` 把贴尾压成 `@append` 不带帧号，两次贴尾撞成同一意图；重点一次 baseRevision 又变，仍 stale | `destination` 带上解析出的真实 `startFrame`；连点两下的幂等改由 `findLandedProposalForSlot` 承担（判据：上次成果原样在轴上 **且** 轴自那以后没动过）。`adoptionBridge.test.ts` 里编码了旧错误行为的那条断言一并改正 |
+| 5/6 | 走查 `win.reload()` + 只有点击腿 | 原地刷新后活动项目会话为空、面板静默空掉（光色截图可能拍的是退化页）；拖拽腿缺失正是 #7 旁路长期未被发现的原因 | 两处 reload 改为**同 userDataDir 冷启动**；新增拖拽腿，判据是「拖完一步 Undo 能整体复原」——直写路径过不了这条 |
 
 ## 8. 风险
 

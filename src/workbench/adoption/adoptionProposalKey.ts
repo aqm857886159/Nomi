@@ -66,15 +66,26 @@ export function runIdOfNode(node: GenerationCanvasNode): string {
 }
 
 export type DestinationInput =
-  | { kind: 'append'; trackType: string }
+  | { kind: 'append'; trackType: string; startFrame: number }
   | { kind: 'frame'; trackType: string; startFrame: number }
   | { kind: 'batch' }
 
-/** 落点身份。同一个产物贴尾 vs 拖到第 120 帧是两次不同的采纳意图。 */
+/**
+ * 落点身份。同一个产物贴尾 vs 拖到第 120 帧是两次不同的采纳意图。
+ *
+ * **贴尾也要带上解析出来的真实 startFrame**（而不是笼统的 `@append`）。
+ * 只写 `@append` 会把「同一个产物先后两次合法贴尾」压成同一个意图：
+ * 用户第一次落完、轴又被编辑过，第二次点「加入时间轴」——他要的就是第二份——
+ * 却因为身份撞车被判成前一次的 stale，收到「时间轴已变化，请重新加入」。
+ * 而重点一次 baseRevision 又变了，仍然 stale：这是个**没有出路的死胡同**。
+ * 带上真实帧号后，两次贴尾天然是两个落点（轴长了，尾巴就不在同一帧），
+ * 各自是独立意图；真正的连点两下则落点相同 → 仍然正确地幂等重放。
+ */
 export function destinationOf(input: DestinationInput): string {
   if (input.kind === 'batch') return 'timeline:batch@append'
-  if (input.kind === 'append') return `timeline:${input.trackType}@append`
-  return `timeline:${input.trackType}@${Math.max(0, Math.floor(input.startFrame))}`
+  const startFrame = Math.max(0, Math.floor(input.startFrame))
+  if (input.kind === 'append') return `timeline:${input.trackType}@append:${startFrame}`
+  return `timeline:${input.trackType}@${startFrame}`
 }
 
 /** 单产物采纳的键。 */

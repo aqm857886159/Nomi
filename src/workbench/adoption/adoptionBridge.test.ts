@@ -5,6 +5,8 @@ import { applyAdoption, buildAdoptedTimeline } from './adoptionApply'
 import { adoptGenerationNode } from './adoptGenerationNode'
 import { adoptStoryboardBatch } from './adoptStoryboardBatch'
 import { lookupAdoptionProposal, registerAdoptionProposal, resetAdoptionRegistry } from './adoptionProposalRegistry'
+import { workbenchAdoptionPorts } from './adoptionStorePorts'
+import { useWorkbenchStore } from '../workbenchStore'
 import type { AdoptionPlacement, AdoptionProposalKey } from './adoptionTypes'
 
 function clip(id: string, startFrame: number, frameCount = 24): TimelineClip {
@@ -99,7 +101,7 @@ describe('P5 E1 adoption bridge', () => {
     expect(() => buildAdoptedTimeline(withExisting, [placement('new', 12)])).toThrow(/重叠/)
   })
 
-  it('replays a landed single artifact, but reports stale after an external timeline edit', async () => {
+  it('replays a landed single artifact at the identical append slot', async () => {
     let live = createDefaultTimeline()
     const node = {
       id: 'node-single', kind: 'image', title: '单产物', status: 'success',
@@ -114,13 +116,63 @@ describe('P5 E1 adoption bridge', () => {
     const replay = await adoptGenerationNode(node, { placement: { kind: 'append' }, ports })
     expect(first.status).toBe('applied')
     expect(replay).toMatchObject({ status: 'applied', replayed: true })
+  })
 
+  // 回归：贴尾采纳过一次、轴又被外部编辑之后，用户**再点一次**是一次全新的合法意图
+  // （他要的就是第二份）。append 落点必须带上真实解析出的 startFrame，否则这次会被
+  // 误判成前一次意图的 stale 重放，用户撞上「时间轴已变化，请重新加入」的死胡同——
+  // 重点一次仍然 stale（baseRevision 又变了），他没有任何出路。
+  it('adopts a legitimate second copy after an external edit instead of dead-ending on stale', async () => {
+    let live = createDefaultTimeline()
+    const node = {
+      id: 'node-single', kind: 'image', title: '单产物', status: 'success',
+      position: { x: 0, y: 0 }, result: { id: 'artifact-single', type: 'image', url: 'data:image/svg+xml,ok', createdAt: 1 },
+    } as never
+    const ports = {
+      readTimeline: () => live,
+      commitTimeline: (next: TimelineState) => { live = next },
+      restoreTimeline: (old: TimelineState) => { live = old; return true },
+    }
+    const first = await adoptGenerationNode(node, { placement: { kind: 'append' }, ports })
+    expect(first.status).toBe('applied')
+
+    // 外部编辑：往视频轨末尾放一段别的东西（轴的 revision 因此改变）。
     live = {
       ...live,
-      tracks: live.tracks.map((track) => track.type === 'video' ? { ...track, clips: [clip('external', 0)] } : track),
+      tracks: live.tracks.map((track) => track.type === 'video' ? { ...track, clips: [clip('external', 600)] } : track),
     }
-    const stale = await adoptGenerationNode(node, { placement: { kind: 'append' }, ports })
-    expect(stale.status).toBe('stale')
+    const second = await adoptGenerationNode(node, { placement: { kind: 'append' }, ports })
+    expect(second.status).toBe('applied')
+    expect(second).toMatchObject({ replayed: false })
+  })
+
+  // 回归：补偿必须把**撤销栈也**放回去。commitTimeline 已经压了一层 base 并清空 redo，
+  // 只还原 timeline 会在栈里留一条幽灵记录——用户下一次 Cmd+Z 撤到的是「和现在一模一样的轴」，
+  // 看起来就是撤销键坏了；同时被清掉的 redo 历史再也回不来。
+  it('restores the undo and redo stacks when a failed apply is compensated', () => {
+    const base = createDefaultTimeline()
+    const earlier: TimelineState = { ...base, fps: 25 }
+    const redoEntry: TimelineState = { ...base, fps: 30 }
+    useWorkbenchStore.setState({
+      timeline: base,
+      timelineUndoStack: [earlier],
+      timelineRedoStack: [redoEntry],
+    })
+
+    // 让写入后的校验失败（reducer 静默吞掉片段）→ 走 compensation 分支。
+    const failing = {
+      ...workbenchAdoptionPorts,
+      readTimeline: () => useWorkbenchStore.getState().timeline,
+      commitTimeline: (_next: TimelineState, old: TimelineState) => {
+        workbenchAdoptionPorts.commitTimeline({ ...old }, old)
+      },
+    }
+    const result = applyAdoption(failing, [placement('ghost', 0)])
+    expect(result.ok).toBe(false)
+
+    const after = useWorkbenchStore.getState()
+    expect(after.timelineUndoStack).toEqual([earlier])
+    expect(after.timelineRedoStack).toEqual([redoEntry])
   })
 
   it('adopts a storyboard batch in supplied shot order as one proposal', async () => {

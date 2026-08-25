@@ -45,6 +45,31 @@ export function proposalIsLanded(proposal: AdoptProposal, timeline: TimelineStat
     && (!proposal.appliedRevision || proposal.appliedRevision === timelineRevisionOf(timeline))
 }
 
+/**
+ * 找「同一个产物、同一条轨、成果仍原样在轴上」的已落提案。
+ *
+ * 给**贴尾**路径用：贴尾的落点随轴长度漂移，两次点击的 destination 必然不同，
+ * 用全等键或 identity 都匹配不上。这里放宽到「同 run + 同产物 + 同轨 + 同版本」，
+ * 再用 `proposalIsLanded` 卡死「轴自上次采纳后一动没动」——
+ * 只有这两条同时成立才算重放，所以它不会把用户「编辑过轴之后想再来一份」误吞掉。
+ */
+export function findLandedProposalForSlot(
+  key: AdoptionProposalKey,
+  timeline: TimelineState,
+): AdoptProposal | undefined {
+  const trackPrefix = key.destination.split('@')[0]
+  for (const entry of entries.values()) {
+    const candidate = entry.proposal
+    if (candidate.status !== 'applied') continue
+    if (candidate.key.runId !== key.runId) continue
+    if (candidate.key.artifactId !== key.artifactId) continue
+    if (candidate.key.artifactVersion !== key.artifactVersion) continue
+    if (candidate.key.destination.split('@')[0] !== trackPrefix) continue
+    if (proposalIsLanded(candidate, timeline)) return candidate
+  }
+  return undefined
+}
+
 function evictIfNeeded(): void {
   while (entries.size > REGISTRY_LIMIT) {
     const oldest = entries.keys().next()

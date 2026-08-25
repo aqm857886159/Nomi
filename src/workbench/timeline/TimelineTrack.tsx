@@ -4,7 +4,8 @@ import { useWorkbenchStore } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { cn } from '../../utils/cn'
 import { buildClipFromGenerationNode } from '../generationCanvas/model/buildClipFromGenerationNode'
-import { buildGenerationNodeTimelineClip } from './buildGenerationNodeTimelineClip'
+import { adoptGenerationNode } from '../adoption/adoptGenerationNode'
+import { reportAdoptionOutcome } from '../adoption/adoptionReceipt'
 import { tryAddAssetFromDragData } from './addAssetToTimeline'
 import { ASSET_LIBRARY_DRAG_MIME } from '../assets/assetLibraryDrag'
 import { clientXToFrame, frameToPixel } from './timelineEdit'
@@ -13,7 +14,6 @@ import { buildTimelineDropPreview, type TimelineDropPreview } from './timelineDr
 import { decodeTimelineGenerationNodeDragPayload, TIMELINE_GENERATION_NODE_DRAG_MIME } from './timelineDragPayload'
 import TimelineClip from './TimelineClip'
 import type { TimelineTrack as TimelineTrackData } from './timelineTypes'
-import { getTrackTypeForClipType } from './timelineTypes'
 import { toast } from '../../ui/toast'
 
 type TimelineTrackProps = {
@@ -35,7 +35,6 @@ function TimelineTrack({ track, variant = 'primary' }: TimelineTrackProps): JSX.
   // 订阅整条会让本轨道（连同所有 clip）每帧重渲；playhead 由独立 overlay 订阅 playheadFrame。
   const scale = useWorkbenchStore((state) => state.timeline.scale)
   const fps = useWorkbenchStore((state) => state.timeline.fps)
-  const addTimelineClipAtFrame = useWorkbenchStore((state) => state.addTimelineClipAtFrame)
   const setTimelinePlayhead = useWorkbenchStore((state) => state.setTimelinePlayhead)
   const setTimelineSelection = useWorkbenchStore((state) => state.setTimelineSelection)
   const clipsRef = React.useRef<HTMLDivElement | null>(null)
@@ -140,24 +139,24 @@ function TimelineTrack({ track, variant = 'primary' }: TimelineTrackProps): JSX.
       const generationNodePayload = decodeTimelineGenerationNodeDragPayload(
         event.dataTransfer.getData(TIMELINE_GENERATION_NODE_DRAG_MIME),
       )
-      if (!generationNodePayload) {
-        addTimelineClipAtFrame(preview.clip, getTrackTypeForClipType(preview.clip.type), preview.startFrame)
-        return
-      }
+      // 没有生成节点 payload 就不是采纳：素材库那条已在 handleAssetDrop 里返回，
+      // 走到这里还没 payload 属于预览态与 dataTransfer 不咬合，宁可不落也不直写。
+      if (!generationNodePayload) return
       const liveNode = useGenerationCanvasStore
         .getState()
         .nodes.find((node) => node.id === generationNodePayload.nodeId)
       const generationNode = liveNode || generationNodePayload.node
-      void buildGenerationNodeTimelineClip(generationNode, {
-        fps,
-        startFrame: preview.startFrame,
-        resultId: generationNodePayload.resultId,
-      }).then((clip) => {
-        const nextClip = clip || preview.clip
-        addTimelineClipAtFrame(nextClip, getTrackTypeForClipType(nextClip.type), preview.startFrame)
+      // P5 E1：把生成产物拖进轨道也是一次**采纳**，必须走桥——这里曾是最后一条直写旁路，
+      // 画布拖拽（BaseGenerationNode）和预览来源拖拽（PreviewSourcePanel）都汇到这儿。
+      // 落点就是拖放预览给出的那一帧（⌥ 自由落点 / 默认贴尾都已在 preview 里算好）。
+      void adoptGenerationNode(generationNode, {
+        placement: { kind: 'frame', startFrame: preview.startFrame },
+      }).then((outcome) => {
+        // 拖放时用户已经在看着轴了，回执不再展开面板（与画布拖拽路径一致）。
+        reportAdoptionOutcome(outcome, { revealTimeline: false })
       })
     },
-    [handleAssetDrop, addTimelineClipAtFrame, dragPreview, resolveDropPreview, fps, t],
+    [handleAssetDrop, dragPreview, resolveDropPreview, t],
   )
 
   return (
