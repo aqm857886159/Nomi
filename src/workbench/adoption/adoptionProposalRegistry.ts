@@ -1,4 +1,9 @@
-import type { AdoptProposal, AdoptionProposalKey, AdoptionProposalStatus } from './adoptionTypes'
+import type {
+  AdoptProposal,
+  AdoptionPlacementKind,
+  AdoptionProposalKey,
+  AdoptionProposalStatus,
+} from './adoptionTypes'
 import type { TimelineState } from '../timeline/timelineTypes'
 import { proposalIdentityId, proposalKeyId, proposalSlotId, timelineRevisionOf } from './adoptionProposalKey'
 
@@ -139,6 +144,7 @@ export function registerAdoptionProposal(
   key: AdoptionProposalKey,
   status: AdoptionProposalStatus,
   details: {
+    placementKind?: AdoptionPlacementKind
     clipIds?: string[]
     placedCount?: number
     appliedRevision?: string
@@ -150,6 +156,7 @@ export function registerAdoptionProposal(
     key,
     keyId,
     status,
+    placementKind: details.placementKind || 'append',
     clipIds: details.clipIds || [],
     placedCount: details.placedCount ?? (details.clipIds ? details.clipIds.length : 0),
     ...(details.appliedRevision ? { appliedRevision: details.appliedRevision } : {}),

@@ -126,6 +126,14 @@ try {
   // 名字只活在 aria-label/title 里，`hasText: '采纳桥镜头 2'` 永远匹配不上——
   // 上一版正是这么写的，于是这条腿从来没真正跑到过（静态门岗看不出，它不执行走查）。
   // 另外页面上还有画布节点把手也是 [draggable="true"]，裸选会撞上它们。
+  // 先等点击腿那张「已加入时间轴末尾」自然消失，再拖。
+  // 否则下面「不该出现末尾文案」的断言会被腿 1 的残留回执误伤——
+  // 那是仪器脏，不是产品坏，必须先把现场清干净再断言。
+  await expect(
+    win.getByText('已加入时间轴末尾', { exact: false }),
+    '点击腿的回执迟迟不消失，拖拽腿的文案断言会被它污染',
+  ).toHaveCount(0, { timeout: DEFAULT_TIMEOUT_MS })
+
   const dragSource = win
     .locator('.workbench-preview [data-testid="preview-source-shot"][data-node-id="adoption-shot-2"]')
     .first()
@@ -145,6 +153,16 @@ try {
 
   const draggedClip = win.locator('.workbench-preview [data-testid="timeline-clip"]').first()
   await expect(draggedClip, '拖拽落轴后时间轴没有出现片段').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+
+  // 回执必须说**落点**，不是「末尾」。用户明明拖到了指定位置，报「已加入时间轴末尾」
+  // 就是回执在说假话——此前没有任何断言盖住这句话，只能靠人眼看截图才发现。
+  const dropReceipt = win.getByText('已加入时间轴指定位置', { exact: false }).first()
+  await expect(dropReceipt, '拖拽落轴的回执没有出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  const receiptProof = await proveProbe(dropReceipt, '拖拽回执确实按落点措辞')
+  await expect(
+    win.getByText('已加入时间轴末尾', { exact: false }),
+    '拖拽落轴却报「已加入时间轴末尾」——回执在说假话',
+  ).toHaveCount(0, { timeout: DEFAULT_TIMEOUT_MS })
   await win.screenshot({ path: path.join(shotsDir, '03-dark-drag-applied.png') })
   const draggedProof = await proveProbe(draggedClip, '拖拽落轴后片段确实可见')
 
@@ -152,6 +170,12 @@ try {
   await expectAbsent(draggedClip, {
     provenBy: draggedProof,
     message: '拖拽落轴后一步 Undo 应整体复原（没复原 = 拖拽路径没走采纳桥）',
+  })
+  // 采纳被别的途径撤掉后，那张还挂着的回执**不能再提供撤销**——
+  // 它此刻弹的是上一笔无关编辑，会静默毁掉用户没要求撤的东西。
+  await expectAbsent(dropReceipt, {
+    provenBy: receiptProof,
+    message: '撤销后残留的回执仍在（它的「撤销」会弹掉无关编辑）',
   })
   await win.screenshot({ path: path.join(shotsDir, '04-dark-drag-undone.png') })
   if (!dragProof) throw new Error('拖拽来源探针未成立')

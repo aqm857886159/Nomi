@@ -96,6 +96,7 @@ export async function adoptGenerationNode(
   const applied = applyAdoption(ports, [{ clip, trackType, startFrame }])
   if (applied.ok) {
     const proposal = registerAdoptionProposal(key, 'applied', {
+      placementKind: placement.kind,
       clipIds: applied.clipIds,
       placedCount: 1,
       appliedRevision: timelineRevisionOf(applied.timeline),
@@ -103,7 +104,7 @@ export async function adoptGenerationNode(
     return { status: 'applied', proposal, replayed: false }
   }
   const status = applied.recovered ? 'failed' : 'needs_recovery'
-  const proposal = registerAdoptionProposal(key, status, { placedCount: 0 })
+  const proposal = registerAdoptionProposal(key, status, { placementKind: placement.kind, placedCount: 0 })
   return applied.recovered
     ? { status: 'failed', proposal, error: applied.error }
     : { status: 'needs_recovery', proposal, error: applied.error }

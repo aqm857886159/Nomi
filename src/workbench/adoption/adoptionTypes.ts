@@ -32,6 +32,13 @@ export type AdoptionPlacement = {
   startFrame: number
 }
 
+/**
+ * 落点语义。回执文案**从它派生**，不各自 hardcode：
+ * 「点击贴尾」和「拖到第 120 帧」对用户是两件事，说成同一句话就是在骗他。
+ * 记在提案上（而不是让四个调用方各传一次）——落点在哪算出来的，文案就在哪定，单一真相源。
+ */
+export type AdoptionPlacementKind = 'append' | 'frame' | 'batch'
+
 export type AdoptionProposalStatus =
   | 'applied'
   | 'stale'
@@ -45,6 +52,8 @@ export type AdoptProposal = {
   /** 归一后的键字符串，registry 的主键。 */
   keyId: string
   status: AdoptionProposalStatus
+  /** 落点语义，回执文案据此派生（见 AdoptionPlacementKind）。 */
+  placementKind: AdoptionPlacementKind
   /** apply 成功后落下的 clip id（幂等重放时原样返回）。 */
   clipIds: string[]
   /** 本次采纳排进去的单位数（批量时 = 镜头数）。 */

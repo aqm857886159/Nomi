@@ -32,6 +32,7 @@ export const zhTimelineEditor = {
   dragPlayhead: '拖动播放头',
   dragToTimeline: '加入时间轴（点击贴尾 · 拖拽自选位置）',
   addedToEnd: '已加入时间轴末尾',
+  addedAtPosition: '已加入时间轴指定位置',
   adoption: {
     alreadyOnTimeline: '已在时间轴上',
     stale: '时间轴已变化，请重新加入',
@@ -126,6 +127,7 @@ export const enTimelineEditor = {
   dragPlayhead: 'Drag playhead',
   dragToTimeline: 'Add to timeline (click appends · drag to place)',
   addedToEnd: 'Added to the end of the timeline',
+  addedAtPosition: 'Added to the timeline where you dropped it',
   adoption: {
     alreadyOnTimeline: 'Already on the timeline',
     stale: 'The timeline changed. Add it again to use the latest timeline.',

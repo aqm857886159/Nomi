@@ -237,6 +237,7 @@ export async function adoptStoryboardBatch(options: AdoptStoryboardBatchOptions)
   const applied = applyAdoption(ports, placements, { textClips, transitions })
   if (applied.ok) {
     const proposal = registerAdoptionProposal(key, 'applied', {
+      placementKind: 'batch',
       clipIds: applied.clipIds,
       placedCount: placements.length,
       appliedRevision: timelineRevisionOf(applied.timeline),
@@ -245,7 +246,7 @@ export async function adoptStoryboardBatch(options: AdoptStoryboardBatchOptions)
     return { status: 'applied', proposal, replayed: false, total, placedItems }
   }
   const status = applied.recovered ? 'failed' : 'needs_recovery'
-  const proposal = registerAdoptionProposal(key, status, { placedCount: 0, skipped })
+  const proposal = registerAdoptionProposal(key, status, { placementKind: 'batch', placedCount: 0, skipped })
   return applied.recovered
     ? { status: 'failed', proposal, error: applied.error, total }
     : { status: 'needs_recovery', proposal, error: applied.error, total }
