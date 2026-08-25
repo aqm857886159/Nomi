@@ -81,6 +81,69 @@ describe('buildAnchorCheckpointCard', () => {
     expect(model.reusedCount).toBe(0)
   })
 
+  // ── 复用真相源（#161 语义）────────────────────────────────────────────────
+  // 复用一个已有形象 = 把项目已有资产作 character 参考挂到视频镜的 references[]，**不是 role:'anchor' 的 shot**。
+  // 故复用形象不进门 jobIds；view 从 references 侧补出不可重拍的复用条目。
+
+  /** 给视频镜挂一个复用的 character 参考（模拟「用已有锚开新计划」）。 */
+  function withReusedRefs(assetIdsPerShot: string[][]): ProductionRun {
+    const base = run()
+    const shots = base.generationPlan!.shots!.map((shot) => {
+      if (shot.role === 'anchor') return shot
+      const index = shot.shotId === 'shot-1' ? 0 : 1
+      const ids = assetIdsPerShot[index] ?? []
+      return {
+        ...shot,
+        candidate: {
+          ...shot.candidate,
+          references: ids.map((assetId) => ({ assetId, contentHash: `hash-${assetId}`, version: 1, kind: 'image' as const, role: 'character' as const })),
+        },
+      }
+    })
+    return run({ generationPlan: { ...base.generationPlan!, shots } })
+  }
+
+  it('counts reused looks from the video shots’ character references (they have no gate entry of their own)', () => {
+    // 两镜引用同一张已有资产 → 复用 1（去重），新拍仍是门里那 2 张。
+    const model = buildAnchorCheckpointCard(withReusedRefs([['asset-lastseason'], ['asset-lastseason']]), gate)!
+    expect(model.reusedCount).toBe(1)
+    expect(model.freshCount).toBe(2)
+    // 复用形象没有自己的 job，但卡上仍要如实显示「复用上集」徽标；它不能走重拍链。
+    expect(model.anchors).toHaveLength(3)
+    expect(model.anchors.filter((anchor) => anchor.reused)).toEqual([
+      expect.objectContaining({ sourceAssetId: 'asset-lastseason', canRework: false }),
+    ])
+    expect(model.anchors.filter((anchor) => !anchor.reused).every((anchor) => anchor.canRework)).toBe(true)
+  })
+
+  it('dedupes reused assetIds across shots and ignores non-character references', () => {
+    const two = buildAnchorCheckpointCard(withReusedRefs([['asset-a'], ['asset-b']]), gate)!
+    expect(two.reusedCount).toBe(2)
+    expect(two.anchors.filter((anchor) => anchor.reused).map((anchor) => anchor.sourceAssetId)).toEqual(['asset-a', 'asset-b'])
+
+    // first_frame/reference 这类不是「复用形象」，不计入。
+    const base = run()
+    const shots = base.generationPlan!.shots!.map((shot) =>
+      shot.role === 'anchor'
+        ? shot
+        : { ...shot, candidate: { ...shot.candidate, references: [{ assetId: 'asset-ff', contentHash: 'h', version: 1, kind: 'image' as const, role: 'first_frame' as const }] } },
+    )
+    const model = buildAnchorCheckpointCard(run({ generationPlan: { ...base.generationPlan!, shots } }), gate)!
+    expect(model.reusedCount).toBe(0)
+  })
+
+  it('excludes references carried by shots the user unchecked (not part of this batch)', () => {
+    const base = run()
+    const shots = base.generationPlan!.shots!.map((shot) =>
+      shot.role === 'anchor'
+        ? shot
+        : { ...shot, included: false, candidate: { ...shot.candidate, references: [{ assetId: 'asset-skipped', contentHash: 'h', version: 1, kind: 'image' as const, role: 'character' as const }] } },
+    )
+    const model = buildAnchorCheckpointCard(run({ generationPlan: { ...base.generationPlan!, shots } }), gate)!
+    expect(model.reusedCount).toBe(0)
+    expect(model.shotCount).toBe(0)
+  })
+
   it('thumbnail null when the anchor artifact is missing or the path is unsafe (never fabricates an image)', () => {
     const noArt = run({ artifacts: [] })
     const model = buildAnchorCheckpointCard(noArt, gate)!

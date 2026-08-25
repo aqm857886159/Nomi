@@ -60,16 +60,19 @@ export function AnchorCheckpointCard({ model, autoReleaseSeconds = 0, onApprove,
           data-anchor-checkpoint-card 标在这里（fragment 挂不了属性）——它涵盖卡的可见主体，供走查/消费方定位。 */}
       <div className={cn('flex-1 min-h-0 overflow-y-auto')} data-anchor-checkpoint-card>
         <p className={cn('m-0 mb-3 text-body-sm leading-relaxed text-nomi-ink-80')} data-anchor-checkpoint-subtitle>
-          {t('generationCommon.production.checkpoint.subtitle', {
-            count: model.anchors.length,
-            fresh: model.freshCount,
-            reused: model.reusedCount,
-          })}
+          {/* 复用形象不进门、不花钱；有复用时副标题把它们单列，避免和本批新拍混淆。 */}
+          {t(
+            model.reusedCount > 0
+              ? 'generationCommon.production.checkpoint.subtitleWithReuse'
+              : 'generationCommon.production.checkpoint.subtitle',
+            { count: model.anchors.length, fresh: model.freshCount, reused: model.reusedCount },
+          )}
         </p>
 
         <div className={cn('grid grid-cols-2 gap-2.5')} data-anchor-checkpoint-grid>
           {model.anchors.map((anchor) => {
             const isSelected = selected.has(anchor.shotId)
+            const displayName = anchor.name || t('generationCommon.production.checkpoint.unnamed')
             return (
               <div
                 key={anchor.shotId}
@@ -85,14 +88,14 @@ export function AnchorCheckpointCard({ model, autoReleaseSeconds = 0, onApprove,
                   data-anchor-thumb
                   disabled={!anchor.thumbnailUrl}
                   onClick={() => anchor.thumbnailUrl && setZoomUrl(anchor.thumbnailUrl)}
-                  aria-label={t('generationCommon.production.checkpoint.viewLarge', { name: anchor.name })}
+                  aria-label={t('generationCommon.production.checkpoint.viewLarge', { name: displayName })}
                   className={cn('group relative block aspect-[4/3] w-full', anchor.thumbnailUrl ? 'cursor-zoom-in' : 'cursor-default')}
                 >
                   {anchor.thumbnailUrl ? (
                     <>
                       <img
                         src={anchor.thumbnailUrl}
-                        alt={t('generationCommon.production.checkpoint.stillAlt', { name: anchor.name })}
+                        alt={t('generationCommon.production.checkpoint.stillAlt', { name: displayName })}
                         className={cn('h-full w-full object-cover')}
                       />
                       <span
@@ -119,7 +122,7 @@ export function AnchorCheckpointCard({ model, autoReleaseSeconds = 0, onApprove,
                 <div className={cn('flex flex-wrap items-center gap-1.5 px-2.5 py-2')}>
                   <span className={cn('min-w-0 truncate text-body-sm font-semibold text-nomi-ink')} data-anchor-name>
                     {anchor.roleLabel ? <span className={cn('font-medium text-nomi-ink-60')}>{anchor.roleLabel} · </span> : null}
-                    {anchor.name || t('generationCommon.production.checkpoint.unnamed')}
+                    {displayName}
                   </span>
                   <span
                     data-anchor-badge={anchor.reused ? 'reuse' : 'new'}
@@ -130,19 +133,21 @@ export function AnchorCheckpointCard({ model, autoReleaseSeconds = 0, onApprove,
                   >
                     {t(anchor.reused ? 'generationCommon.production.checkpoint.badgeReuse' : 'generationCommon.production.checkpoint.badgeNew')}
                   </span>
-                  <button
-                    type="button"
-                    data-anchor-rework={anchor.shotId}
-                    onClick={() => toggle(anchor.shotId)}
-                    className={cn(
-                      'ml-auto shrink-0 rounded-full border px-2.5 py-1 text-micro transition-colors',
-                      isSelected
-                        ? 'border-nomi-accent text-nomi-accent'
-                        : 'border-dashed border-nomi-line text-nomi-ink-60 hover:border-nomi-accent hover:text-nomi-accent',
-                    )}
-                  >
-                    {t('generationCommon.production.checkpoint.reworkThis')}
-                  </button>
+                  {anchor.canRework ? (
+                    <button
+                      type="button"
+                      data-anchor-rework={anchor.shotId}
+                      onClick={() => toggle(anchor.shotId)}
+                      className={cn(
+                        'ml-auto shrink-0 rounded-full border px-2.5 py-1 text-micro transition-colors',
+                        isSelected
+                          ? 'border-nomi-accent text-nomi-accent'
+                          : 'border-dashed border-nomi-line text-nomi-ink-60 hover:border-nomi-accent hover:text-nomi-accent',
+                      )}
+                    >
+                      {t('generationCommon.production.checkpoint.reworkThis')}
+                    </button>
+                  ) : null}
                 </div>
               </div>
             )
