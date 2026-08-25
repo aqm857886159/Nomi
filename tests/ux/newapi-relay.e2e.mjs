@@ -46,7 +46,10 @@ try {
   const vendorKey = commit?.vendorKey;
 
   // 模型落对类型？
-  const models = await win.evaluate((vk) => (window.nomiDesktop.modelCatalog.listModels({ vendorKey: vk }) || []).map((m) => ({ k: m.modelKey, kind: m.kind })), vendorKey);
+  const models = await win.evaluate(async (vk) => {
+    // D2 读路径是 ipcRenderer.invoke，返回 Promise；先 await 才能使用数组方法。
+    return (await window.nomiDesktop.modelCatalog.listModels({ vendorKey: vk }) || []).map((m) => ({ k: m.modelKey, kind: m.kind }));
+  }, vendorKey);
   check("图片模型 kind=image", models.some((m) => m.k === "dall-e-3" && m.kind === "image"));
   check("视频模型 kind=video", models.some((m) => m.k === "kling-v1" && m.kind === "video"));
 

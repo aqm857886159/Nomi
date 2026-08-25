@@ -73,7 +73,7 @@ await win.evaluate(() => {
 })
 
 // ── 造现场：一家中转站 + 24 个模型，地址是错的 ──────────────────────────────
-const seeded = await win.evaluate(({ vendorKey, vendorName, wrongUrl }) => {
+const seeded = await win.evaluate(async ({ vendorKey, vendorName, wrongUrl }) => {
   const mc = window.nomiDesktop?.modelCatalog
   if (!mc) return null
   mc.upsertVendor({ key: vendorKey, name: vendorName, baseUrlHint: wrongUrl, enabled: true })
@@ -93,7 +93,8 @@ const seeded = await win.evaluate(({ vendorKey, vendorName, wrongUrl }) => {
   // 改哪面就得验哪面（R13），不能只看自定义家绿了就以为内置家没事。
   mc.upsertVendor({ key: 'apimart', baseUrlHint: wrongUrl })
   mc.upsertVendorApiKey('apimart', { apiKey: 'sk-walkthrough-known', enabled: true })
-  return mc.listModels({ vendorKey }).filter((m) => m.vendorKey === vendorKey).length
+  // D2 读路径是 ipcRenderer.invoke，返回 Promise；先 await 才能使用数组方法。
+  return (await mc.listModels({ vendorKey })).filter((m) => m.vendorKey === vendorKey).length
 }, { vendorKey: VENDOR_KEY, vendorName: VENDOR_NAME, wrongUrl: WRONG_URL })
 console.log(`现场：${VENDOR_NAME} · ${seeded} 个模型 · 地址=${WRONG_URL}`)
 

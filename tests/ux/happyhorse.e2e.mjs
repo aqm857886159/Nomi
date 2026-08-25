@@ -21,8 +21,9 @@ function assert(cond, label) { if (!cond) throw new Error(`E2E FAIL: ${label}`);
 const { app, win } = await launchNomiApp({ name: "happyhorse", env: { NOMI_E2E_SMOKE: "1" } });
 try {
 
-  const seeded = await win.evaluate(() => {
-    const m = window.nomiDesktop?.modelCatalog?.listModels({ kind: "video", enabled: true })?.find((x) => x.modelKey === "happyhorse");
+  const seeded = await win.evaluate(async () => {
+    // D2 读路径是 ipcRenderer.invoke，返回 Promise；可选链不会替 Promise await，必须显式等待。
+    const m = (await window.nomiDesktop?.modelCatalog?.listModels({ kind: "video", enabled: true }))?.find((x) => x.modelKey === "happyhorse");
     return Boolean(m) && m?.meta?.archetypeId === "happyhorse";
   });
   assert(seeded, "启动后 HappyHorse 在目录、带 archetypeId");

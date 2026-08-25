@@ -185,11 +185,13 @@ try {
   }
 
   // ── ④ 目录层验收：kind + 通道 ────────────────────────────────────────────
-  const catalog = await getWin().evaluate(() => {
+  const catalog = await getWin().evaluate(async () => {
     const mc = window.nomiDesktop?.modelCatalog
     if (!mc) return null
-    const m = mc.listModels().find((x) => x.modelKey === 'seedream-4-0')
-    const maps = mc.listMappings({ vendorKey: 'relay' })
+    // D2 起 modelCatalog 读路径改走 ipcRenderer.invoke，返回 Promise——必须 await，
+    // 否则拿到的是 Promise 而非数组（症状：`listModels(...).find is not a function`）。
+    const m = (await mc.listModels()).find((x) => x.modelKey === 'seedream-4-0')
+    const maps = await mc.listMappings({ vendorKey: 'relay' })
     return {
       kind: m?.kind ?? null,
       params: (m?.meta?.parameters || []).length,
@@ -205,10 +207,11 @@ try {
   }
 
   // ── ⑤ 生成侧验收：它回到图像模型下拉里了 ─────────────────────────────────
-  const inDropdown = await getWin().evaluate(() => {
+  const inDropdown = await getWin().evaluate(async () => {
     const mc = window.nomiDesktop?.modelCatalog
     if (!mc) return null
-    return mc.listModels({ kind: 'image', enabled: true }).map((m) => m.modelKey)
+    // D2 读路径是 ipcRenderer.invoke，返回 Promise；先 await 才能使用数组方法。
+    return (await mc.listModels({ kind: 'image', enabled: true })).map((m) => m.modelKey)
   })
   if (inDropdown) {
     note('图像可选模型', JSON.stringify(inDropdown))

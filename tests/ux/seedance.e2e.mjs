@@ -30,9 +30,10 @@ const { app, win } = await launchNomiApp({
 try {
 
   // 1) 启动即 seed 生效（内置 Seedance 在目录里）
-  const seeded = await win.evaluate(() => {
+  const seeded = await win.evaluate(async () => {
     const mc = window.nomiDesktop?.modelCatalog;
-    const m = mc?.listModels({ kind: "video", enabled: true })?.find((x) => x.modelKey === "bytedance/seedance-2");
+    // D2 读路径是 ipcRenderer.invoke，返回 Promise；可选链不会替 Promise await，必须显式等待。
+    const m = (await mc?.listModels({ kind: "video", enabled: true }))?.find((x) => x.modelKey === "bytedance/seedance-2");
     return Boolean(m) && m?.meta?.archetypeId === "seedance-2";
   });
   assert(seeded, "启动后 Seedance 在目录、带 archetypeId");

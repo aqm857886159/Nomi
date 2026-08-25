@@ -85,9 +85,10 @@ try {
     assert(true, "使用 app 已保存的 APIMart API key");
   }
 
-  const catalog = await win.evaluate(() => ({
-    models: window.nomiDesktop.modelCatalog.listModels({ kind: "video" }),
-    textModels: window.nomiDesktop.modelCatalog.listModels({ kind: "text" }),
+  const catalog = await win.evaluate(async () => ({
+    // D2 读路径是 ipcRenderer.invoke，返回 Promise；先 await 才能使用数组方法。
+    models: await window.nomiDesktop.modelCatalog.listModels({ kind: "video" }),
+    textModels: await window.nomiDesktop.modelCatalog.listModels({ kind: "text" }),
   }));
   const videoKeys = catalog.models.map((model) => model.modelKey);
   const textKeys = catalog.textModels.map((model) => model.modelKey);

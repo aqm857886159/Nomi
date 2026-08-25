@@ -50,8 +50,9 @@ const { app, win } = await launchNomiApp({
 try {
 
   // 找一个已连的文本模型（vendor+modelKey）当 agent 主控。
-  const brain = await win.evaluate(() => {
-    const models = window.nomiDesktop.modelCatalog.listModels?.() || [];
+  const brain = await win.evaluate(async () => {
+    // D2 读路径是 ipcRenderer.invoke，返回 Promise；先 await 才能使用数组方法。
+    const models = (await window.nomiDesktop.modelCatalog.listModels?.()) || [];
     const text = (models || []).find((m) => m.enabled && (m.kind === "text" || m.meta?.kind === "text"));
     return text ? { vendorKey: text.vendorKey || text.vendor, modelKey: text.modelKey || text.model } : null;
   });

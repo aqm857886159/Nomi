@@ -238,17 +238,18 @@ console.log(`  屏幕含 "docs.<数字>" 畸形域名: ${docsHostLeak}`)
 
 // 失败不能再是准入闸：故意失败的图片模型仍需启用、出现在 kind=image 列表；
 // 同时，排在它后面的视频模型必须完成验证并落下可执行 mapping。
-const catalog = await win.evaluate((baseUrl) => {
+const catalog = await win.evaluate(async (baseUrl) => {
   const bridge = window.nomiDesktop.modelCatalog
-  const vendor = (bridge.listVendors() || []).find((item) => item.baseUrlHint === baseUrl)
+  // D2 读路径是 ipcRenderer.invoke，返回 Promise；先 await 才能使用数组方法。
+  const vendor = (await bridge.listVendors() || []).find((item) => item.baseUrlHint === baseUrl)
   if (!vendor) return { vendor: null, models: [], imageModels: [], videoModels: [], mappings: [] }
   const own = (rows) => (rows || []).filter((item) => item.vendorKey === vendor.key)
   return {
     vendor,
-    models: bridge.listModels({ vendorKey: vendor.key }) || [],
-    imageModels: own(bridge.listModels({ kind: 'image', enabled: true })),
-    videoModels: own(bridge.listModels({ kind: 'video', enabled: true })),
-    mappings: bridge.listMappings({ vendorKey: vendor.key, enabled: true }) || [],
+    models: (await bridge.listModels({ vendorKey: vendor.key })) || [],
+    imageModels: own(await bridge.listModels({ kind: 'image', enabled: true })),
+    videoModels: own(await bridge.listModels({ kind: 'video', enabled: true })),
+    mappings: (await bridge.listMappings({ vendorKey: vendor.key, enabled: true })) || [],
   }
 }, gatewayBase)
 fs.writeFileSync(path.join(shotsDir, 'catalog.json'), JSON.stringify(catalog, null, 2))

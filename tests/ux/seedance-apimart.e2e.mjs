@@ -35,9 +35,10 @@ try {
   //    变体合并（2026-06-16）后：fast/face/fast-face 不再是独立 catalog 行，而是档案 variants
   //    （逐变体能力/清晰度由 archetypeMeta.test.ts / index.test.ts 单测钉死）→ 这里只核 catalog 真相：
   //    唯一基础行在 + 旧 3 独立变体行已退役 + 带正确 archetypeId。
-  const models = await win.evaluate(() => {
+  const models = await win.evaluate(async () => {
     const mc = window.nomiDesktop?.modelCatalog;
-    const list = mc?.listModels({ kind: "video" }) || [];
+    // D2 读路径是 ipcRenderer.invoke，返回 Promise；先 await 才能使用数组方法。
+    const list = (await mc?.listModels({ kind: "video" })) || [];
     const keys = list.map((m) => m.modelKey);
     const std = list.find((m) => m.modelKey === "doubao-seedance-2.0");
     const retired = ["doubao-seedance-2.0-fast", "doubao-seedance-2.0-face", "doubao-seedance-2.0-fast-face"];

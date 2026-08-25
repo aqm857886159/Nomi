@@ -37,8 +37,9 @@ try {
     // 4) onboarding IPC：manual-commit 空 → registerOnboardingIpc → catalogCommit.commitManualOpenAiCompatibleModels
     out.onboardCommit = await d.onboarding.manualCommit({});
     // 5) catalog 读 IPC（catalogStore）：health + 列表
-    out.health = d.modelCatalog?.health?.() ?? d.modelCatalog?.getHealth?.() ?? null;
-    out.vendorCount = (d.modelCatalog?.listVendors?.() ?? []).length;
+    // D2 读路径是 ipcRenderer.invoke，返回 Promise；可选链不会替 Promise await，必须显式等待。
+    out.health = await (d.modelCatalog?.health?.() ?? d.modelCatalog?.getHealth?.() ?? null);
+    out.vendorCount = (await (d.modelCatalog?.listVendors?.() ?? []))?.length ?? 0;
     return out;
   });
 

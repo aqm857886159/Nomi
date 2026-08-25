@@ -34,15 +34,16 @@ try {
   assert((await win.title()).toLowerCase().includes("nomi"), "窗口标题含 Nomi");
 
   // 1b) 内置模型 seed 在启动时生效（ensureBuiltinModelSeeds）——Seedance 开箱在目录里、带 archetypeId。
-  const seed = await win.evaluate(() => {
+  const seed = await win.evaluate(async () => {
     const mc = window.nomiDesktop?.modelCatalog;
     if (!mc) return { ok: false };
-    const seedance = mc.listModels({ kind: "video", enabled: true }).find((m) => m.modelKey === "bytedance/seedance-2");
+    // D2 读路径是 ipcRenderer.invoke，返回 Promise；先 await 才能使用数组方法。
+    const seedance = (await mc.listModels({ kind: "video", enabled: true })).find((m) => m.modelKey === "bytedance/seedance-2");
     return {
       ok: true,
-      hasKie: mc.listVendors().some((v) => v.key === "kie"),
+      hasKie: (await mc.listVendors()).some((v) => v.key === "kie"),
       archetypeId: seedance?.meta?.archetypeId ?? null,
-      hasMapping: mc.listMappings().some((mp) => mp.vendorKey === "kie" && mp.taskKind === "image_to_video"),
+      hasMapping: (await mc.listMappings()).some((mp) => mp.vendorKey === "kie" && mp.taskKind === "image_to_video"),
     };
   });
   assert(seed.ok && seed.hasKie, "启动后目录里有内置 kie vendor（seed 生效）");

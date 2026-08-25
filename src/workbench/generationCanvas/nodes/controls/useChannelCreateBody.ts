@@ -14,10 +14,11 @@ import { selectTaskMapping, type Mapping } from '../../../../../electron/catalog
 /** 目录变更广播（OnboardingDrawer.refresh 发的同一个信号）——接入/停用模型后立刻重算承载力。 */
 const CATALOG_CHANGED_EVENT = 'nomi-model-catalog-changed'
 
-function readCreateBody(vendorKey: string, modelKey: string, taskKind: string): unknown | null {
+async function readCreateBody(vendorKey: string, modelKey: string, taskKind: string): Promise<unknown | null> {
   if (!vendorKey || !taskKind) return null
   try {
-    const list = getDesktopBridge()?.modelCatalog?.listMappings?.({ vendorKey })
+    // D2 读路径是 ipcRenderer.invoke，返回 Promise；必须 await 后才能按数组选择 mapping。
+    const list = await getDesktopBridge()?.modelCatalog?.listMappings?.({ vendorKey })
     if (!Array.isArray(list)) return null
     // selectTaskMapping = 主进程选 mapping 的那把尺子本尊（精确 modelKey 优先、再回落无 modelKey 的通配），
     // 直接复用而不是在这儿重写一遍——重写就会有「UI 看 A、生成走 B」的第二种漂移。
@@ -29,13 +30,20 @@ function readCreateBody(vendorKey: string, modelKey: string, taskKind: string): 
 }
 
 export function useChannelCreateBody(vendorKey: string, modelKey: string, taskKind: string): unknown | null {
-  const [body, setBody] = React.useState<unknown | null>(() => readCreateBody(vendorKey, modelKey, taskKind))
+  const [body, setBody] = React.useState<unknown | null>(null)
 
   React.useEffect(() => {
-    const recompute = () => setBody(readCreateBody(vendorKey, modelKey, taskKind))
-    recompute() // 模型/模式切换即重算
+    let alive = true
+    const recompute = async () => {
+      const next = await readCreateBody(vendorKey, modelKey, taskKind)
+      if (alive) setBody(next)
+    }
+    void recompute() // 模型/模式切换即重算
     window.addEventListener(CATALOG_CHANGED_EVENT, recompute)
-    return () => window.removeEventListener(CATALOG_CHANGED_EVENT, recompute)
+    return () => {
+      alive = false
+      window.removeEventListener(CATALOG_CHANGED_EVENT, recompute)
+    }
   }, [vendorKey, modelKey, taskKind])
 
   return body

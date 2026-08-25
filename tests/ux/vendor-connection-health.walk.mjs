@@ -114,7 +114,7 @@ for (let i = 0; i < 6; i++) {
 }
 
 console.log('\n— 把三家内置供应商指向 mock 上游（造出三种状态）—')
-const wired = await win.evaluate((baseUrl) => {
+const wired = await win.evaluate(async (baseUrl) => {
   const mc = window.nomiDesktop?.modelCatalog
   if (!mc) return null
   const plan = [
@@ -126,7 +126,8 @@ const wired = await win.evaluate((baseUrl) => {
     mc.upsertVendor({ key, baseUrlHint: url })
     mc.upsertVendorApiKey(key, { apiKey: 'sk-walkthrough', enabled: true })
   }
-  return mc.listVendors().filter((v) => plan.some(([k]) => k === v.key)).map((v) => ({ key: v.key, baseUrl: v.baseUrlHint, hasApiKey: v.hasApiKey }))
+  // D2 读路径是 ipcRenderer.invoke，返回 Promise；先 await 才能使用数组方法。
+  return (await mc.listVendors()).filter((v) => plan.some(([k]) => k === v.key)).map((v) => ({ key: v.key, baseUrl: v.baseUrlHint, hasApiKey: v.hasApiKey }))
 }, base)
 console.log('  ', JSON.stringify(wired))
 check(Array.isArray(wired) && wired.length === 3 && wired.every((v) => v.hasApiKey), '三家都已配好地址 + key')
