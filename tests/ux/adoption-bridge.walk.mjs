@@ -2,7 +2,7 @@
 // 只播种一个已有产物，不触发生成；四路隔离目录都显式设置，尤其是 NOMI_CAPABILITY_DIR。
 // 用法：pnpm run build && node tests/ux/adoption-bridge.walk.mjs
 import { launchNomiApp } from './_launchApp.mjs'
-import { clickOrFail, expect, expectAbsent, proveProbe, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
+import { clickOrFail, expect, expectAbsent, proveProbe, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -108,13 +108,13 @@ try {
 
   const timelineClip = win.locator('.workbench-preview [data-testid="timeline-clip"]').first()
   await expect(timelineClip, '加入时间轴后预览没有出现片段').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-  await win.screenshot({ path: path.join(shotsDir, '01-dark-applied.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '01-dark-applied.png') })
   const clipProof = await proveProbe(timelineClip, '加入时间轴后片段确实可见')
 
   const undo = win.getByRole('button', { name: /撤销时间轴编辑/ }).first()
   await clickOrFail(undo, '一步撤销采纳')
   await expectAbsent(timelineClip, { provenBy: clipProof, message: '一步 Undo 后片段应从时间轴复原' })
-  await win.screenshot({ path: path.join(shotsDir, '02-dark-undone.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '02-dark-undone.png') })
 
   // ── 腿 2：拖拽落轴 ────────────────────────────────────────────────
   // 这条腿是本次修复的**核心回归**：拖拽路径此前绕过采纳桥直写时间轴，
@@ -163,7 +163,7 @@ try {
     win.getByText('已加入时间轴末尾', { exact: false }),
     '拖拽落轴却报「已加入时间轴末尾」——回执在说假话',
   ).toHaveCount(0, { timeout: DEFAULT_TIMEOUT_MS })
-  await win.screenshot({ path: path.join(shotsDir, '03-dark-drag-applied.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '03-dark-drag-applied.png') })
   const draggedProof = await proveProbe(draggedClip, '拖拽落轴后片段确实可见')
 
   await clickOrFail(win.getByRole('button', { name: /撤销时间轴编辑/ }).first(), '一步撤销拖拽采纳')
@@ -177,7 +177,7 @@ try {
     provenBy: receiptProof,
     message: '撤销后残留的回执仍在（它的「撤销」会弹掉无关编辑）',
   })
-  await win.screenshot({ path: path.join(shotsDir, '04-dark-drag-undone.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '04-dark-drag-undone.png') })
   if (!dragProof) throw new Error('拖拽来源探针未成立')
 
   // ── 光色证据 ────────────────────────────────────────────────────
@@ -188,7 +188,7 @@ try {
   await shutdown()
   await launch('adoption-bridge-light')
   await openProjectToPreview()
-  await win.screenshot({ path: path.join(shotsDir, '05-light-restored.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '05-light-restored.png') })
   // 正向探针的阳性对照，避免「光色截图」其实拍到错误页面。
   await expect(
     win.getByRole('button', { name: /采纳桥镜头 1.*点击加到片尾/ }).first(),

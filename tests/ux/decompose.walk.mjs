@@ -8,6 +8,7 @@ import { launchNomiApp } from "./_launchApp.mjs";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const TOKEN = process.env.REPLICATE_API_TOKEN || "";
@@ -71,7 +72,7 @@ try {
     await win.evaluate(() => window.dispatchEvent(new CustomEvent("nomi:open-onboarding")));
     await win.waitForTimeout(800);
   } catch { /* 抽屉事件名不确定，截全屏兜底 */ }
-  await win.screenshot({ path: path.join(SHOT_DIR, "app.png") });
+  await screenshotSettled(win, { path: path.join(SHOT_DIR, "app.png") });
   console.log(`截图：${path.join(SHOT_DIR, "app.png")}`);
 } catch (err) {
   ok = false;

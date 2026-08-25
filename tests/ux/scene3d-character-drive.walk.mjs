@@ -7,6 +7,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import path from 'node:path'
 import os from 'node:os'
 import { mkdtempSync, mkdirSync } from 'node:fs'
+import { screenshotSettled } from './_assert.mjs'
 
 const outDir = path.join(repoRoot, '.character-drive-lab')
 mkdirSync(outDir, { recursive: true })
@@ -67,7 +68,7 @@ try {
   await win.waitForTimeout(4000)
   const editor = win.locator('[aria-label="3D 场景编辑器"]')
   pass.editorOpen = (await editor.count()) > 0
-  await win.screenshot({ path: path.join(outDir, 'cd-01-editor-open.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'cd-01-editor-open.png') })
   log(`  ${pass.editorOpen ? '✓' : '✗'} 编辑器打开`)
 
   // 把 header「速度」滑块拉到高档（验 run 动画触发 + 走得够快）
@@ -88,7 +89,7 @@ try {
 
   // #6 自验：选中假人（未 possess）时角色头顶应浮出画布内「操控」按钮（drei Html）。
   // 截这张图人眼确认按钮贴角色头上，而非只藏右上角顶栏。
-  await win.screenshot({ path: path.join(outDir, 'cd-01b-head-possess-button.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'cd-01b-head-possess-button.png') })
 
   // 点头部「操控」（选中单个假人才出现）
   const possessBtn = win.getByRole('button', { name: '操控', exact: false }).first()
@@ -96,7 +97,7 @@ try {
   if (possessCount > 0) { await possessBtn.click(); await win.waitForTimeout(1000) }
   const actionBar = win.locator('[aria-label="角色操控动作库"]')
   pass.possessEntered = (await actionBar.count()) > 0
-  await win.screenshot({ path: path.join(outDir, 'cd-02-possessed-before-move.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'cd-02-possessed-before-move.png') })
   log(`  ${pass.possessEntered ? '✓' : '✗'} 进入操控态（操控钮 count=${possessCount}，动作库出现=${pass.possessEntered}）`)
 
   // 把相机拖到接近水平的侧视角（possess 下 OrbitControls 仍可用，拖拽=转视角，不掉出操控），
@@ -114,20 +115,20 @@ try {
     await win.mouse.wheel(0, -320) // 拉近看清腿
     await win.waitForTimeout(400)
   }
-  await win.screenshot({ path: path.join(outDir, 'cd-walk-sideview.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'cd-walk-sideview.png') })
 
   // 按住 W 走一段。键盘监听在 window 上，无需点画布聚焦。
   // 关键(动画切片)：按住期间隔 ~450ms 连截 3 帧，看腿是否在不同 stride 相位（真迈腿 vs 平移滑行）。
   await win.keyboard.down('KeyW')
   await win.waitForTimeout(500)
-  await win.screenshot({ path: path.join(outDir, 'cd-walk-stride-a.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'cd-walk-stride-a.png') })
   await win.waitForTimeout(450)
-  await win.screenshot({ path: path.join(outDir, 'cd-walk-stride-b.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'cd-walk-stride-b.png') })
   await win.waitForTimeout(450)
-  await win.screenshot({ path: path.join(outDir, 'cd-walk-stride-c.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'cd-walk-stride-c.png') })
   await win.keyboard.up('KeyW')
   await win.waitForTimeout(600)
-  await win.screenshot({ path: path.join(outDir, 'cd-03-after-walk-W.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'cd-03-after-walk-W.png') })
   const stillPossessedAfterMove = (await win.locator('[aria-label="角色操控动作库"]').count()) > 0
   pass.moved = stillPossessedAfterMove // 位移靠 cd-02 vs cd-03 人眼判断；操控态须仍在
   log(`  ${pass.moved ? '✓' : '✗'} 按住 W 走位后仍在操控态（看 cd-02 vs cd-03 假人是否前移）`)
@@ -136,7 +137,7 @@ try {
   const squat = win.getByRole('button', { name: '下蹲', exact: false }).first()
   const squatCount = await squat.count()
   if (squatCount > 0) { await squat.click(); await win.waitForTimeout(1500) }
-  await win.screenshot({ path: path.join(outDir, 'cd-04-action-squat.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'cd-04-action-squat.png') })
   pass.poseChanged = squatCount > 0
   log(`  ${pass.poseChanged ? '✓' : '✗'} 点动作库「下蹲」（count=${squatCount}，看 cd-04 是否蹲下）`)
 
@@ -144,7 +145,7 @@ try {
   await win.mouse.click(700, 320).catch(() => {})
   await win.waitForTimeout(600)
   pass.persistsOnCanvasClick = (await win.locator('[aria-label="角色操控动作库"]').count()) > 0
-  await win.screenshot({ path: path.join(outDir, 'cd-04b-after-canvas-click.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'cd-04b-after-canvas-click.png') })
   log(`  ${pass.persistsOnCanvasClick ? '✓' : '✗'} 点空白画布后操控态仍在（修复回归）`)
 
   // 退出操控 → 动作库应消失
@@ -152,7 +153,7 @@ try {
   if ((await exitBtn.count()) > 0) { await exitBtn.click(); await win.waitForTimeout(900) }
   const barGone = (await win.locator('[aria-label="角色操控动作库"]').count()) === 0
   pass.exited = barGone
-  await win.screenshot({ path: path.join(outDir, 'cd-05-exited.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'cd-05-exited.png') })
   log(`  ${pass.exited ? '✓' : '✗'} 退出操控（动作库消失=${barGone}）`)
 
   log('\n═══ 结果 ═══')

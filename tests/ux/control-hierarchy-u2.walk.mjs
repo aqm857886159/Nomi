@@ -11,6 +11,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-02-u2-after')
@@ -53,7 +54,7 @@ async function resizeWindow() {
 
 async function snap(name, clip) {
   const p = path.join(outDir, name)
-  await getWin().screenshot(clip ? { path: p, clip } : { path: p })
+  await screenshotSettled(getWin(), clip ? { path: p, clip } : { path: p })
   note(`截图 ${name}`, `${(fs.statSync(p).size / 1024).toFixed(0)}KB`)
   return p
 }

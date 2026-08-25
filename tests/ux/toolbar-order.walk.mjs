@@ -9,6 +9,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -77,7 +78,7 @@ try {
   assert(fsIdx > 0, `图片：全屏不再在最左（idx=${fsIdx}）`)
   assert(dlIdx >= 0 && Math.abs(fsIdx - dlIdx) === 1, `图片：全屏与下载相邻成工具组（全屏idx=${fsIdx} 下载idx=${dlIdx}）`)
   assert(!imgOrder[0].includes('全屏'), `图片：最左是创作动作不是全屏（最左=「${imgOrder[0]}」）`)
-  await win.screenshot({ path: path.join(outDir, '1-image-toolbar.png') })
+  await screenshotSettled(win, { path: path.join(outDir, '1-image-toolbar.png') })
 
   // —— 视频节点：点节点容器选中 → 读工具栏按钮顺序 ——
   await win.locator('[data-node-id="vid-node"]').first().click({ force: true })
@@ -92,10 +93,10 @@ try {
     const vDl = vidOrder.findIndex((x) => x.includes('下载'))
     assert(vFs > 0, `视频：全屏不再在最左（idx=${vFs}）`)
     assert(vDl >= 0 && Math.abs(vFs - vDl) === 1, `视频：全屏与下载相邻成工具组（全屏idx=${vFs} 下载idx=${vDl}）`)
-    await win.screenshot({ path: path.join(outDir, '2-video-toolbar.png') })
+    await screenshotSettled(win, { path: path.join(outDir, '2-video-toolbar.png') })
   } else {
     console.log('  · 视频工具栏未定位到（选择器差异），仅截图留存')
-    await win.screenshot({ path: path.join(outDir, '2-video-toolbar.png') })
+    await screenshotSettled(win, { path: path.join(outDir, '2-video-toolbar.png') })
   }
 
   console.log(`\n✅ 工具栏梳理走查通过（${passed} 项断言）\n   截图：${outDir}`)

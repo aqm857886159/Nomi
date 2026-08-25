@@ -7,6 +7,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import path from 'node:path'
 import os from 'node:os'
 import { mkdtempSync, mkdirSync } from 'node:fs'
+import { screenshotSettled } from './_assert.mjs'
 
 const outDir = path.join(repoRoot, '.scene3d-toolbar-lab')
 mkdirSync(outDir, { recursive: true })
@@ -60,7 +61,7 @@ try {
   await win.waitForTimeout(4000)
   const editor = win.locator('[aria-label="3D 场景编辑器"]')
   pass.editorOpen = (await editor.count()) > 0
-  await win.screenshot({ path: path.join(outDir, '01-editor-default.png') })
+  await screenshotSettled(win, { path: path.join(outDir, '01-editor-default.png') })
   log(`  ${pass.editorOpen ? '✓' : '✗'} 编辑器打开`)
 
   // ① 底部条不溢出
@@ -77,7 +78,7 @@ try {
   await win.waitForTimeout(400)
   const addMenu = win.locator('[role="menu"][aria-label="添加 3D 节点"]')
   pass.menuOpen = (await addMenu.count()) > 0
-  await win.screenshot({ path: path.join(outDir, '02-add-menu.png') })
+  await screenshotSettled(win, { path: path.join(outDir, '02-add-menu.png') })
   log(`  ${pass.menuOpen ? '✓' : '✗'} 添加菜单弹出`)
 
   // ③ 级联「几何模型」
@@ -86,14 +87,14 @@ try {
   await win.waitForTimeout(400)
   const geoMenu = win.locator('[role="menu"][aria-label="添加几何模型"]')
   pass.cascadeOpen = (await geoMenu.count()) > 0
-  await win.screenshot({ path: path.join(outDir, '03-geometry-cascade.png') })
+  await screenshotSettled(win, { path: path.join(outDir, '03-geometry-cascade.png') })
   log(`  ${pass.cascadeOpen ? '✓' : '✗'} 几何模型级联`)
 
   // ④ 点菜单外收起
   await win.mouse.click(550, 300)
   await win.waitForTimeout(400)
   pass.closedOutside = (await win.locator('[role="menu"][aria-label="添加 3D 节点"]').count()) === 0
-  await win.screenshot({ path: path.join(outDir, '04-closed.png') })
+  await screenshotSettled(win, { path: path.join(outDir, '04-closed.png') })
   log(`  ${pass.closedOutside ? '✓' : '✗'} 点外收起`)
 } catch (e) {
   log(`✗ 异常：${String(e)}`)

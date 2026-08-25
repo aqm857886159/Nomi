@@ -19,7 +19,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
-import { expectVisible, expectHidden, expectText, proveProbe, expectAbsent, scopedText } from './_assert.mjs'
+import { expectVisible, expectHidden, expectText, proveProbe, expectAbsent, scopedText, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-anchor-checkpoint-'))
@@ -200,11 +200,11 @@ try {
 
   // ── ② 卡弹 ──────────────────────────────────────────────────────────────────────
   await openTaskCenter(win)
-  await win.screenshot({ path: path.join(shotsDir, `${shotPrefix}01-task-center-checkpoint.png`) })
+  await screenshotSettled(win, { path: path.join(shotsDir, `${shotPrefix}01-task-center-checkpoint.png`) })
   const card = win.locator('[data-anchor-checkpoint-card]')
   await openCheckpointCard(win, card)
   await delay(400)
-  await win.screenshot({ path: path.join(shotsDir, `${shotPrefix}02-checkpoint-card-light.png`) })
+  await screenshotSettled(win, { path: path.join(shotsDir, `${shotPrefix}02-checkpoint-card-light.png`) })
 
   await expectText(win.locator('[data-anchor-checkpoint-subtitle]').first(), /2/, '副标题应报 2 张形象卡')
   await expectVisible(win.locator('[data-anchor-checkpoint-grid] [data-anchor-entry]').first(), '至少一张形象卡')
@@ -241,7 +241,7 @@ try {
   record('⑤ 选中前主按钮 = 开拍', approveLabelBefore.includes(L.approvePrefix), `主按钮：「${approveLabelBefore}」`)
   await win.locator('[data-anchor-rework]').first().click()
   await delay(300)
-  await win.screenshot({ path: path.join(shotsDir, `${shotPrefix}03-rework-selected.png`) })
+  await screenshotSettled(win, { path: path.join(shotsDir, `${shotPrefix}03-rework-selected.png`) })
   record('⑤ 点「重拍这张」→ 卡进选中态',
     await win.locator('[data-anchor-entry][data-anchor-selected="true"]').count() === 1,
     `选中卡数 = ${await win.locator('[data-anchor-entry][data-anchor-selected="true"]').count()}`)
@@ -271,7 +271,7 @@ try {
   record('④ 从任务中心重新弹出检查点卡', await card.count() === 1, '卡再次可见')
 
   // ── ③ 开拍：decide approved + 卡收 ───────────────────────────────────────────────
-  await win.screenshot({ path: path.join(shotsDir, `${shotPrefix}04-before-approve.png`) })
+  await screenshotSettled(win, { path: path.join(shotsDir, `${shotPrefix}04-before-approve.png`) })
   await win.locator('[data-anchor-checkpoint-primary]').click({ timeout: 8_000 })
   await expectHidden(card, '开拍后卡应关闭')
   const approved = await (async () => {
@@ -287,7 +287,7 @@ try {
     approved?.gates?.find((g) => g.scope === 'anchor_checkpoint')?.status === 'approved',
     `门=${approved?.gates?.find((g) => g.scope === 'anchor_checkpoint')?.status}`)
   await delay(600)
-  await win.screenshot({ path: path.join(shotsDir, `${shotPrefix}05-after-approve.png`) })
+  await screenshotSettled(win, { path: path.join(shotsDir, `${shotPrefix}05-after-approve.png`) })
 
   // 关掉浅色实例——暗色另起一个干净实例拍（真机切暗色只能走 app 启动读取：主题是 React Context 不是 window
   // 全局，DOM 直改会被下次 provider 重渲染覆盖回浅色，reload 又会丢工作台会话让 run 卡不再完整。最稳=冷启动
@@ -336,7 +336,7 @@ try {
     const bg = await darkWin.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--nomi-bg').trim())
     const cardBg = await darkCard.evaluate((el) => getComputedStyle(el).backgroundColor)
     const bgIsDark = /0\.1[0-9]|0\.18/.test(bg) // 暗色 L=0.18；浅色 L=0.985
-    await darkWin.screenshot({ path: path.join(shotsDir, `${shotPrefix}06-checkpoint-card-dark.png`) })
+    await screenshotSettled(darkWin, { path: path.join(shotsDir, `${shotPrefix}06-checkpoint-card-dark.png`) })
     record('⑥ 暗色主题下卡真翻转（--nomi-bg + 卡背景计算色变暗；截图 oklch 回退不作数）',
       await darkCard.count() === 1 && isDark && bgIsDark, `isDark=${isDark} --nomi-bg=${bg} cardBg=${cardBg}`)
   } finally {

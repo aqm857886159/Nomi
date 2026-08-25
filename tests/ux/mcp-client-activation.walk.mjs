@@ -10,6 +10,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const helpRequested = process.argv.includes('--help') || process.argv.includes('-h')
@@ -60,7 +61,7 @@ function assert(condition, message) {
 
 async function snap(win, name) {
   const target = path.join(shotsDir, `${realConnect ? 'real' : 'isolated'}-${name}.png`)
-  await win.screenshot({ path: target })
+  await screenshotSettled(win, { path: target })
   console.log(`shot ${target}`)
   return target
 }

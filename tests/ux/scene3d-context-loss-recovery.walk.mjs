@@ -5,6 +5,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import path from 'node:path'
 import os from 'node:os'
 import { mkdtempSync, mkdirSync } from 'node:fs'
+import { screenshotSettled } from './_assert.mjs'
 
 const outDir = path.join(repoRoot, '.scene3d-ctxloss-lab')
 mkdirSync(outDir, { recursive: true })
@@ -46,7 +47,7 @@ try {
   if ((await openEmpty.count()) > 0) await openEmpty.first().click()
   await win.waitForTimeout(4500)
   pass.editorOpen = (await win.locator('[aria-label="3D 场景编辑器"] canvas').count()) > 0
-  await win.screenshot({ path: path.join(outDir, 'c-01-before.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'c-01-before.png') })
   log(`  ${pass.editorOpen ? '✓' : '✗'} 编辑器打开`)
 
   // 强制丢失上下文
@@ -61,7 +62,7 @@ try {
     return true
   })
   await win.waitForTimeout(1200)
-  await win.screenshot({ path: path.join(outDir, 'c-02-lost.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'c-02-lost.png') })
   log(`  loseContext 调用 ${lostOk ? '成功' : '失败'} → 看 c-02 是否变空`)
 
   // 恢复上下文（真机里浏览器自动补发；测试用扩展手动触发 restored）
@@ -70,7 +71,7 @@ try {
     if (ext) ext.restoreContext()
   })
   await win.waitForTimeout(2500)
-  await win.screenshot({ path: path.join(outDir, 'c-03-recovered.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'c-03-recovered.png') })
   log('  restoreContext 调用 → 看 c-03 假人是否回来')
 } catch (e) {
   log(`✗ 异常：${String(e)}`)

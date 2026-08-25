@@ -4,6 +4,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import path from 'node:path'
 import os from 'node:os'
 import { mkdtempSync, mkdirSync } from 'node:fs'
+import { screenshotSettled } from './_assert.mjs'
 
 const outDir = path.join(repoRoot, '.scene3d-whitescreen-lab')
 mkdirSync(outDir, { recursive: true })
@@ -58,7 +59,7 @@ try {
   const canvasGone = async () => (await editor.locator('canvas').count()) === 0
   const initialCanvasGone = await canvasGone()
   log(`  默认(1假人) canvas 不见? ${initialCanvasGone}  err=${consoleErrors.length}/${pageErrors.length}`)
-  await win.screenshot({ path: path.join(outDir, 'w-01-default.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'w-01-default.png') })
 
   // 加第 2 个假人：旧条直接点「假人」按钮；新条点「添加」→「假人」→「单个假人」
   const addToggle = win.getByRole('button', { name: '添加', exact: true }).first()
@@ -78,7 +79,7 @@ try {
 
   const twoMannequinCanvasGone = await canvasGone()
   log(`  加第2假人后 canvas 不见? ${twoMannequinCanvasGone}  err=${consoleErrors.length}/${pageErrors.length}`)
-  await win.screenshot({ path: path.join(outDir, 'w-02-two-mannequins.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'w-02-two-mannequins.png') })
 
   // 关编辑器 → 重开（走「从磁盘恢复已存场景」路径，跟用户的 2 假人场景一致）
   const closeBtn = editor.locator('[title="退出 3D 场景"]').first()
@@ -95,7 +96,7 @@ try {
   await win.waitForTimeout(4500)
   const reopenedCanvasGone = await canvasGone()
   log(`  重开编辑器后 canvas 不见? ${reopenedCanvasGone}  err=${consoleErrors.length}/${pageErrors.length}`)
-  await win.screenshot({ path: path.join(outDir, 'w-03-reopened.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'w-03-reopened.png') })
 
   log('\n=== console errors ===')
   consoleErrors.slice(0, 20).forEach((e) => log('  • ' + e.slice(0, 300)))

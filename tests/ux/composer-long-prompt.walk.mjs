@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import http from 'node:http'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = process.cwd()
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/composer-long-prompt')
@@ -160,7 +161,7 @@ try {
     const pm = card.querySelector('.ProseMirror'); const s = pm && pm.closest('.overflow-auto'); if (s) s.scrollTop = 0
   })
   const after = await measure()
-  await composer.screenshot({ path: path.join(shotsDir, 'after-fixed.png') })
+  await screenshotSettled(composer, { path: path.join(shotsDir, 'after-fixed.png') })
   await getWin().screenshot({ path: path.join(shotsDir, 'after-fixed-full.png') }).catch(() => {})
   check('卡高被 maxHeight 卡住(≤ 402)', after.cardHeight != null && after.cardHeight <= 402, `cardHeight=${after.cardHeight}`)
   check('prompt 内容确实超长(scrollHeight>clientHeight)', after.scrolls === true, `${after.scrollHeight}>${after.clientHeight}`)
@@ -241,7 +242,7 @@ try {
     if (scroller) scroller.style.overflow = 'visible'
   })
   await getWin().waitForTimeout(400)
-  await composer.screenshot({ path: path.join(shotsDir, 'before-broken.png') })
+  await screenshotSettled(composer, { path: path.join(shotsDir, 'before-broken.png') })
   await getWin().screenshot({ path: path.join(shotsDir, 'before-broken-full.png') }).catch(() => {})
   const brokenScrollable = await getWin().locator('.generation-canvas-v2-node__composer-card').last().evaluate((card) => {
     const pm = card.querySelector('.ProseMirror'); const scroller = pm && pm.closest('.overflow-y-auto')

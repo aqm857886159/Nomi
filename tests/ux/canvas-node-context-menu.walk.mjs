@@ -12,7 +12,7 @@
 // 真 Electron + 真构建产物，隔离 userData / projects，全程不发生成请求（零额度）。
 // 用法：pnpm run build && node tests/ux/canvas-node-context-menu.walk.mjs
 import { launchNomiApp } from './_launchApp.mjs'
-import { expectAbsent, expectVisible, proveProbe } from './_assert.mjs'
+import { expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -45,7 +45,7 @@ const getWin = () => {
   win = live.find((c) => /projectId=/.test(c.url())) || live[live.length - 1] || win
   return win
 }
-const snap = async (n) => { await getWin().screenshot({ path: path.join(shotsDir, n) }); console.log(`  · 截图 ${n}`) }
+const snap = async (n) => { await screenshotSettled(getWin(), { path: path.join(shotsDir, n) }); console.log(`  · 截图 ${n}`) }
 
 async function dismissFirstRun() {
   for (let i = 0; i < 6; i += 1) {

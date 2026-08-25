@@ -18,7 +18,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { launchNomiApp } from './_launchApp.mjs'
-import { clickOrFail, expectVisible, expectText } from './_assert.mjs'
+import { clickOrFail, expectVisible, expectText, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/agent-panel-system-prompt')
@@ -103,7 +103,7 @@ let shotIndex = 0
 async function snap(win, name) {
   shotIndex += 1
   const file = path.join(shotsDir, `${String(shotIndex).padStart(2, '0')}-${name}.png`)
-  await win.screenshot({ path: file })
+  await screenshotSettled(win, { path: file })
   console.log(`  screenshot: ${path.basename(file)}`)
   return file
 }

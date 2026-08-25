@@ -15,7 +15,7 @@
 //   · 再切回默认态，断言按钮中心点命中的是按钮自身/其子元素、**不是**清单面板（expectAbsent 引用该证明）。
 // 没有阳性对照的「没遮挡」是恒真空话——按钮没渲染出来时 elementFromPoint 也不会命中面板（_assert.mjs 头注）。
 import { launchNomiApp } from './_launchApp.mjs'
-import { clickOrFail, expectVisible, proveProbe, expectAbsent, expect } from './_assert.mjs'
+import { clickOrFail, expectVisible, proveProbe, expectAbsent, expect, screenshotSettled } from './_assert.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -154,7 +154,7 @@ try {
 
   const storyboardBtn = win.locator('[data-action-run="storyboard"]').first()
   await expectVisible(storyboardBtn, '选中文字后「拆成镜头·落画布」按钮应出现（StoryboardNudge 达阈值浮出）')
-  await win.screenshot({ path: path.join(shotsDir, '01-default-button-visible.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '01-default-button-visible.png') })
 
   // —— 阳性对照：手动点开清单，证明「遮挡确实测得到」——
   // 先记录默认态下清单入口 pill 存在（清单没被 dismiss、确实挂着）。
@@ -163,7 +163,7 @@ try {
   await trigger.click()
   const panel = win.locator('[data-onboarding-checklist="panel"]').first()
   await expectVisible(panel, '点开后清单面板应展开')
-  await win.screenshot({ path: path.join(shotsDir, '02-checklist-opened-occludes.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '02-checklist-opened-occludes.png') })
 
   // 证明：此时按钮中心点被清单面板遮挡（探针测得到「遮挡」这个信号）。
   const occluded = await hitTestStoryboardButton()
@@ -189,11 +189,11 @@ try {
     `默认态遮挡回归：「拆成镜头·落画布」按钮中心点被「${clear.hitLabel}」挡住了（应命中按钮自身）。\n`
       + 'F4 根因：上手清单 fixed 覆盖层盖住创作区右侧工作按钮并吞点击。',
   ).toBe(true)
-  await win.screenshot({ path: path.join(shotsDir, '03-collapsed-button-clear.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '03-collapsed-button-clear.png') })
 
   // 真点一次：点得到 = 覆盖层没吞点击（clickOrFail 点不到会报红，不静默跳过）。
   await clickOrFail(storyboardBtn, '拆成镜头·落画布', { timeout: 8000 })
-  await win.screenshot({ path: path.join(shotsDir, '04-clicked.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '04-clicked.png') })
 
   console.log('✅ F4 通过：上手清单默认收起、不遮挡「拆成镜头·落画布」，按钮点得着。')
   await closeApp()

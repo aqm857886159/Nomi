@@ -14,6 +14,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import os from 'node:os'
 import { mkdtempSync, mkdirSync, readFileSync } from 'node:fs'
+import { screenshotSettled } from './_assert.mjs'
 
 const require = createRequire(import.meta.url)
 const outDir = path.join(repoRoot, '.scene3d-pose-drive-keys-lab')
@@ -169,13 +170,13 @@ try {
 
   await waveBtn.click()
   await win.waitForTimeout(400)
-  await win.screenshot({ path: path.join(outDir, 'pb-01-wave-applied.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'pb-01-wave-applied.png') })
   pass.waveApplied = await isActiveClass(waveBtn)
   log(`  ${pass.waveApplied ? '✓' : '✗'} 点「挥手」→ 挥手按钮高亮（姿势已应用）`)
 
   await standBtn.click()
   await win.waitForTimeout(400)
-  await win.screenshot({ path: path.join(outDir, 'pb-02-standing-via-button.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'pb-02-standing-via-button.png') })
   const standActiveAfterButton = await isActiveClass(standBtn)
   const waveActiveAfterButton = await isActiveClass(waveBtn)
   pass.standingToggleFromButton = standActiveAfterButton && !waveActiveAfterButton
@@ -184,10 +185,10 @@ try {
   // toggle：再点一次已激活的预设 = 顶成站立。
   await waveBtn.click()
   await win.waitForTimeout(400)
-  await win.screenshot({ path: path.join(outDir, 'pb-03-wave-again.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'pb-03-wave-again.png') })
   await waveBtn.click() // 再点一次同一个已激活按钮
   await win.waitForTimeout(400)
-  await win.screenshot({ path: path.join(outDir, 'pb-04-wave-reclick-toggles-standing.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'pb-04-wave-reclick-toggles-standing.png') })
   const standActiveAfterToggle = await isActiveClass(standBtn)
   pass.toggleFromReclick = standActiveAfterToggle
   log(`  ${pass.toggleFromReclick ? '✓' : '✗'} 再点一次已激活的「挥手」→ 自动顶成站立（toggle，不用找站立按钮）`)
@@ -243,13 +244,13 @@ try {
   if ((await focusBtn.count()) > 0) { await focusBtn.click(); await win.waitForTimeout(600) }
   await win.keyboard.down('KeyC')
   await win.waitForTimeout(500)
-  await win.screenshot({ path: path.join(outDir, 'pc-01-crouch-pose.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'pc-01-crouch-pose.png') })
   const squatVisualBtn = win.locator('[title="应用动作：下蹲"]').first()
   // 蹲姿是按住态、不是点击式动作库的 squat（不会点亮下蹲按钮）——只用截图人眼判断 + 之后松手校验。
   pass.crouchPoseVisual = (await win.locator('[aria-label="3D 场景编辑器"]').count()) > 0
   await win.keyboard.up('KeyC')
   await win.waitForTimeout(500)
-  await win.screenshot({ path: path.join(outDir, 'pc-02-crouch-released.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'pc-02-crouch-released.png') })
   pass.crouchReleaseRestoresStand = true // 由人眼截图对比最终确认（见汇报）
   void squatVisualBtn
 

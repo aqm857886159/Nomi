@@ -16,6 +16,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -105,7 +106,7 @@ try {
   const nodeState = await nodeVideo.evaluate((v) => ({ w: v.videoWidth, h: v.videoHeight, src: v.currentSrc }))
   assert(nodeState.w > 0 && nodeState.h > 0, `画布节点自愈后真的播出画面（${nodeState.w}x${nodeState.h}）`)
   assert(!/stale-import\.avi$/.test(nodeState.src), `节点已切到转码产物（${nodeState.src.split('/').pop()}）`)
-  await win.screenshot({ path: path.join(outDir, '1-canvas-node-healed.png') })
+  await screenshotSettled(win, { path: path.join(outDir, '1-canvas-node-healed.png') })
 
   // ② 全屏预览：此前这个 <video> 连 onError 都没有，播不了就是纯黑 + 零提示。
   // 选中节点 → 浮出结果工具栏 → 点「全屏预览视频」。
@@ -124,7 +125,7 @@ try {
   }, null, { timeout: 30000 })
   const dialogState = await dialogVideo.evaluate((v) => ({ w: v.videoWidth, h: v.videoHeight }))
   assert(dialogState.w > 0 && dialogState.h > 0, `全屏预览也播出画面（${dialogState.w}x${dialogState.h}）`)
-  await win.screenshot({ path: path.join(outDir, '2-fullscreen-preview.png') })
+  await screenshotSettled(win, { path: path.join(outDir, '2-fullscreen-preview.png') })
 
   console.log(`\n✅ 视频播放自愈走查通过（${passed} 项断言）\n   截图：${outDir}`)
 } finally {

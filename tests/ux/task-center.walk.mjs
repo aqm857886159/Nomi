@@ -9,6 +9,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/task-center')
@@ -22,12 +23,12 @@ let n = 0
 async function snap(win, name) {
   n += 1
   const tag = `${String(n).padStart(2, '0')}-${name}`
-  await win.screenshot({ path: path.join(shotsDir, `${tag}.png`) })
+  await screenshotSettled(win, { path: path.join(shotsDir, `${tag}.png`) })
   console.log(`  · shot ${tag}`)
   // 面板开着时再裁一张只含面板的：整窗图缩太小，字看不清就等于没人眼验过（R13 眼见链）。
   const box = await win.locator('[role="dialog"][aria-label="任务"]').first().boundingBox().catch(() => null)
   if (box) {
-    await win.screenshot({
+    await screenshotSettled(win, {
       path: path.join(shotsDir, `${tag}--panel.png`),
       clip: { x: Math.max(0, box.x - 4), y: Math.max(0, box.y - 4), width: box.width + 8, height: box.height + 8 },
     })
@@ -124,7 +125,7 @@ await snap(win, 'topbar-busy-badge')
 {
   const bar = await win.locator('.nomi-appbar__right').first().boundingBox().catch(() => null)
   if (bar) {
-    await win.screenshot({
+    await screenshotSettled(win, {
       path: path.join(shotsDir, '04b-topbar-right-zoom.png'),
       clip: { x: Math.max(0, bar.x - 8), y: Math.max(0, bar.y - 8), width: bar.width + 16, height: bar.height + 16 },
     })
@@ -140,7 +141,7 @@ await snap(win, 'topbar-busy-badge')
     if (box && box.y > 90 && box.y < 620) { badge = box; break }
   }
   if (badge) {
-    await win.screenshot({
+    await screenshotSettled(win, {
       path: path.join(shotsDir, '04c-canvas-queued-node.png'),
       clip: { x: Math.max(0, badge.x - 14), y: Math.max(0, badge.y - 14), width: 300, height: 190 },
     })

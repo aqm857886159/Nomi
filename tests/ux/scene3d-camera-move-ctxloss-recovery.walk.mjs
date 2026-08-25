@@ -8,6 +8,7 @@ import path from 'node:path'
 import os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { mkdtempSync, mkdirSync, readdirSync, statSync, copyFileSync } from 'node:fs'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, '.camera-move-explore')
@@ -142,7 +143,7 @@ try {
     await win.waitForTimeout(2000)
   }
   pass.mp4Made = mp4s.length > 0
-  await win.screenshot({ path: path.join(outDir, 'ctxloss-after.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'ctxloss-after.png') })
   let savedMp4 = ''
   if (mp4s[0]) {
     savedMp4 = path.join(outDir, 'ctxloss-recovered-take.mp4')

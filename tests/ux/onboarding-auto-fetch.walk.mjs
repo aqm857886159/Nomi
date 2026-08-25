@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { screenshotSettled } from './_assert.mjs'
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/onboarding-auto-fetch')
 fs.mkdirSync(shotsDir, { recursive: true })
 
@@ -22,7 +23,7 @@ const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-autofetch-'))
 const results = []
 const check = (name, ok, detail) => { results.push({ name, ok }); console.log(`  ${ok ? '✓' : '✗'} ${name}${detail ? ' — ' + detail : ''}`) }
 let n = 0
-const snap = async (win, name) => { n += 1; const tag = `${String(n).padStart(2, '0')}-${name}`; await win.screenshot({ path: path.join(shotsDir, `${tag}.png`) }); console.log(`  · shot ${tag}`) }
+const snap = async (win, name) => { n += 1; const tag = `${String(n).padStart(2, '0')}-${name}`; await screenshotSettled(win, { path: path.join(shotsDir, `${tag}.png`) }); console.log(`  · shot ${tag}`) }
 
 const { app, win } = await launchNomiApp({
   name: 'onboarding-auto-fetch',

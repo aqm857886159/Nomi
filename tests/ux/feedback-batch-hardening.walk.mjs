@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const outDir = path.join(repoRoot, '.feedback-batch-walk')
@@ -32,7 +33,7 @@ const launch = async () => {
   return result
 }
 const shot = async (win, name) => {
-  await win.screenshot({ path: path.join(outDir, name) })
+  await screenshotSettled(win, { path: path.join(outDir, name) })
   console.log(`  📸 ${name}`)
 }
 

@@ -19,6 +19,7 @@ import {
   dismissSplashIfPresent,
   createBlankProject,
 } from '../../evals/lib/isoApp.mjs'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, '.multi-user-walk')
@@ -74,7 +75,7 @@ try {
   ])
   check('A 项目落在 A 的 projectsDir', fs.existsSync(path.join(projA, '.nomi', 'project.json')), path.basename(projA))
   check('B 项目落在 B 的 projectsDir', fs.existsSync(path.join(projB, '.nomi', 'project.json')), path.basename(projB))
-  await winA.screenshot({ path: path.join(shotsDir, 'A-01-zh-workbench.png') })
+  await screenshotSettled(winA, { path: path.join(shotsDir, 'A-01-zh-workbench.png') })
 
   // A 是中文用户：工作台语言钮=语言、tab=创作/生成
   const aLangZh = await winA.locator('[aria-label="语言"]').count()
@@ -90,7 +91,7 @@ try {
   const bZhTabGone = await winB.getByRole('button', { name: '创作', exact: true }).count()
   check('B 切到英文（语言钮 aria-label→Language）', bLangEn > 0, `count=${bLangEn}`)
   check('B 工作台 tab 翻成英文（Create/Generate 出现、创作消失）', bCreateEn > 0 && bGenerateEn > 0 && bZhTabGone === 0, `Create=${bCreateEn} Generate=${bGenerateEn} 创作=${bZhTabGone}`)
-  await winB.screenshot({ path: path.join(shotsDir, 'B-01-en-workbench.png') })
+  await screenshotSettled(winB, { path: path.join(shotsDir, 'B-01-en-workbench.png') })
 
   // ③ 隔离交叉验证（多用户核心）
   console.log('\n▶ 隔离交叉验证…')
@@ -112,8 +113,8 @@ try {
     winB.evaluate(() => document.readyState === 'complete').catch(() => false),
   ])
   check('两实例并发存活（同时响应）', aAlive && bAlive, `A=${aAlive} B=${bAlive}`)
-  await winA.screenshot({ path: path.join(shotsDir, 'A-02-final-zh.png') })
-  await winB.screenshot({ path: path.join(shotsDir, 'B-02-final-en.png') })
+  await screenshotSettled(winA, { path: path.join(shotsDir, 'A-02-final-zh.png') })
+  await screenshotSettled(winB, { path: path.join(shotsDir, 'B-02-final-en.png') })
 } finally {
   await appA.close().catch(() => {})
   await appB.close().catch(() => {})

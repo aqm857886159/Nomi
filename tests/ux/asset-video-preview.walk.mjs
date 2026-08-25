@@ -13,6 +13,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
+import { screenshotSettled } from './_assert.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -112,7 +113,7 @@ try {
     return win
   }
   const screenshot = async (name) => {
-    await getWin().screenshot({ path: path.join(shotsDir, name) })
+    await screenshotSettled(getWin(), { path: path.join(shotsDir, name) })
     console.log(`  · 截图 ${name}`)
   }
   const findAssetCard = (name) => getWin().getByRole('button', { name, exact: true }).first()

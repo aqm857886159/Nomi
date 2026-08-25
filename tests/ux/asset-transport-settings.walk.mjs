@@ -3,7 +3,7 @@
 //
 // 走查跑在全新临时 userDataDir 上 → 一个 key 都没有 → 图片和视频必然都落到匿名公共托管。
 // 这正是最该被如实说出来的一态，断言就按它锁死：卡片敢粉饰成「私有链接」就报红。
-import { clickOrFail, expectText, expectVisible } from './_assert.mjs'
+import { clickOrFail, expectText, expectVisible, screenshotSettled } from './_assert.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -80,11 +80,11 @@ try {
     )
     await expectText(row, /litterbox|tmpfiles/, `「${label}」通道没说出真正收文件的主机名`)
   }
-  await dialog().screenshot({ path: path.join(shotsDir, '01-ai-upload-guidance-light.png') })
+  await screenshotSettled(dialog(), { path: path.join(shotsDir, '01-ai-upload-guidance-light.png') })
 
   await getWin().evaluate(() => document.documentElement.setAttribute('data-mantine-color-scheme', 'dark'))
   await getWin().waitForTimeout(300)
-  await dialog().screenshot({ path: path.join(shotsDir, '02-ai-upload-guidance-dark.png') })
+  await screenshotSettled(dialog(), { path: path.join(shotsDir, '02-ai-upload-guidance-dark.png') })
 
   await clickOrFail(upload.getByRole('button', { name: /配置 KIE|Configure KIE/i }), '去配置 KIE')
   const modelWorkspace = dialog().locator('[data-settings-model-workspace]')
@@ -96,7 +96,7 @@ try {
   await expectVisible(kieKeyInput, '没直达 KIE 的 Key 输入框：又把用户丢回模型列表页自己找')
   const focusedId = await getWin().evaluate(() => document.activeElement?.id ?? '')
   check('光标已经落在 KIE 的 Key 输入框里', focusedId === 'key-only-kie', `activeElement=#${focusedId || '(none)'}`)
-  await dialog().screenshot({ path: path.join(shotsDir, '03-kie-model-settings.png') })
+  await screenshotSettled(dialog(), { path: path.join(shotsDir, '03-kie-model-settings.png') })
   console.log(`\n截图目录：${shotsDir}`)
 } catch (error) {
   console.error('资产上传设置走查失败:', error)

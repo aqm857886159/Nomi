@@ -12,6 +12,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mkdirSync } from 'node:fs'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, '.viewfinder-marker-lab')
@@ -37,7 +38,7 @@ const pass = {
 
 // 全窗截图 → dataURL（后续在页面侧 2D canvas 做区域像素差）。
 async function shot(win, name) {
-  const buf = await win.screenshot({ path: path.join(outDir, `${name}.png`) })
+  const buf = await screenshotSettled(win, { path: path.join(outDir, `${name}.png`) })
   return 'data:image/png;base64,' + buf.toString('base64')
 }
 
@@ -129,7 +130,7 @@ try {
   // 首次进编辑器的分步教练卡（z-[6] 遮罩拦所有点击）→ 点「跳过」清场。
   const skipCoach = win.getByRole('button', { name: '跳过', exact: true }).first()
   if ((await skipCoach.count()) > 0) { await skipCoach.click().catch(() => {}); await win.waitForTimeout(600) }
-  await win.screenshot({ path: path.join(outDir, 'vf-0-editor.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'vf-0-editor.png') })
 
   // 选相机（左侧场景列表）→ 右栏「运镜预设」面板出现。
   const cameraItem = win.getByText('相机1', { exact: true }).first()
@@ -144,7 +145,7 @@ try {
   await win.waitForTimeout(1200)
   pass.presetApplied = (await win.locator('[title="播放"]').count()) > 0
   log(`  ${pass.presetApplied ? '✓' : '✗'} 推近预设落轨迹（时间轴自动打开）`)
-  await win.screenshot({ path: path.join(outDir, 'vf-1-preset.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'vf-1-preset.png') })
 
   // 运动检测区 = 画布全宽 × y 38%-72% 横带。排除的恒动/污染源：上方相机预览浮窗
   // （POV 是 objectWithPlaybackPose 纯投影，不走直驱表、修没修都在动，含 % 角标）、
@@ -196,14 +197,14 @@ try {
   await win.waitForTimeout(1500)
   pass.viewfinderEntered = (await win.locator('[title="回到导演工作视图"]').count()) > 0
   log(`  ${pass.viewfinderEntered ? '✓' : '✗'} 进入取景（输出画面）`)
-  await win.screenshot({ path: path.join(outDir, 'vf-4-viewfinder.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'vf-4-viewfinder.png') })
 
   const exitVf = win.locator('[title="回到导演工作视图"]').first()
   if ((await exitVf.count()) > 0) await exitVf.click()
   await win.waitForTimeout(1500)
   pass.viewfinderExited = (await win.locator('[title^="进入所选相机取景"]').count()) > 0
   log(`  ${pass.viewfinderExited ? '✓' : '✗'} 退出取景回工作视图`)
-  await win.screenshot({ path: path.join(outDir, 'vf-5-back.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'vf-5-back.png') })
 
   await settleForMeasure() // 取景退出视角留在近景 + 浮窗盖 marker → 清选中 + fit 回一致构图
   const b = await playAndMeasure(win, rect, 'vf-6-phaseB')

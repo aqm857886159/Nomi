@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import os from 'node:os'
 import { mkdtempSync, mkdirSync, readdirSync, statSync, readFileSync, copyFileSync, existsSync } from 'node:fs'
+import { screenshotSettled } from './_assert.mjs'
 
 const outDir = path.join(repoRoot, '.walk-squat-walk-lab')
 mkdirSync(outDir, { recursive: true })
@@ -132,13 +133,13 @@ try {
 
   // 走 → 蹲 → 再走（#4 的核心序列：第二段走必须把角色从蹲恢复到走）。
   await win.keyboard.down('KeyW'); await win.waitForTimeout(1400); await win.keyboard.up('KeyW')
-  await win.screenshot({ path: path.join(outDir, 'wsw-01-walk.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'wsw-01-walk.png') })
   const squat = win.getByRole('button', { name: '下蹲', exact: false }).first()
   if ((await squat.count()) > 0) { await squat.click(); await win.waitForTimeout(500) }
-  await win.screenshot({ path: path.join(outDir, 'wsw-02-squat.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'wsw-02-squat.png') })
   // 再按 W 恢复走路（修复点：此刻应往 poseTrack 补 base 关键帧，腿重新迈）。
   await win.keyboard.down('KeyW'); await win.waitForTimeout(1600); await win.keyboard.up('KeyW')
-  await win.screenshot({ path: path.join(outDir, 'wsw-03-walk-again.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'wsw-03-walk-again.png') })
   pass.walkSquatWalk = (await squat.count()) > 0
   log(`  ${pass.walkSquatWalk ? '✓' : '✗'} 录制中执行 走→蹲→再走`)
 

@@ -14,7 +14,7 @@
 // 断言：① 第一步 [data-step="model"][data-done="false"]（不打勾）；② 拆镜头报错走 recovery 卡而非英文原串。
 // 阳性对照（proveProbe）：先证清单面板 + 四个步骤项确实渲染出来（探针活着），否则 data-done 断言是空话。
 import { launchNomiApp } from './_launchApp.mjs'
-import { clickOrFail, expectVisible, proveProbe, expect } from './_assert.mjs'
+import { clickOrFail, expectVisible, proveProbe, expect, screenshotSettled } from './_assert.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -161,7 +161,7 @@ try {
   await clickOrFail(trigger, '上手清单入口 pill', { timeout: 8000 })
   const panel = win.locator('[data-onboarding-checklist="panel"]').first()
   await expectVisible(panel, '清单面板应展开')
-  await win.screenshot({ path: path.join(shotsDir, '01-checklist-open.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '01-checklist-open.png') })
 
   // 阳性对照：四个步骤项确实渲染（探针活着）——否则下面 data-done 断言是空话。
   const stepItems = panel.locator('li[data-step]')
@@ -195,7 +195,7 @@ try {
       { timeout: 30_000, message: '拆镜头失败后应出现 recovery 卡或错误卡（人话化），而不是原始英文串' },
     )
     .not.toBe('none')
-  await win.screenshot({ path: path.join(shotsDir, '02-storyboard-error.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '02-storyboard-error.png') })
 
   // 关键（正向锚定，别读空区域制造假绿）：从**实际渲染出来的那张卡**读文本——它必然非空、且必含人话，
   // 断言这段人话里**不含**英文原串（F5 根因就是这句被直通）。读卡本身而非「消息区容器」，

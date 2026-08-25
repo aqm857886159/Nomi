@@ -164,8 +164,75 @@ const RULES = [
   },
 ]
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 断言密度（2026-08-26，第四个根因）
+//
+// 前三条根因都是「证据取早了」。这一条是**根本没有证据**：
+// 一条走查可以几乎不含任何断言，照样 exit 0，照样在门岗眼里和一条严密的走查长得一模一样。
+//
+// 实证（不是推演）：修复前的 `tests/ux/model-onboarding.walk.mjs` 共 78 行，
+// 全文**只有一条**失败路径——开面板那句 `if (!(await openPanel(win))) … process.exit(1)`。
+// 面板一旦打开，**后面任何一步都不可能再让它变红**：它拍了 4 张字节完全相同的截图，
+// 仍然 exit 0。它之所以曾经是红的，只是因为 2026-08-15 的改名把那唯一一道闸弄坏了。
+//
+// 所以上面四条规则查的是**形状**（有没有写出骗人的写法），这一条查的是**能力**
+// （这份走查到底还有没有能力发现问题）。少了它，一条零检出力的走查是隐形的。
+//
+// 计数方向必须偏向**假红**：认不准的写法一律**不计入**（宁可少算 → 报红让人来看），
+// 绝不为了少报而放宽——「假红看得见，假绿看不见」。
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 真正能把一条走查**变红**的写法。全部来自实扫 tests/ux（176 份），不是照着某一份猜的：
+ * 这个仓库的习惯并不统一，四代写法叠在一起，漏掉任何一族都会把严密的走查误判成薄的。
+ */
+const FAILURE_PATH_PATTERNS = [
+  // 官方断言 + _assert.mjs 的封装（expectVisible/Hidden/Count/Text/Absent）。
+  [/\bexpect\s*\(/g, 'expect()'],
+  [/\bexpect(?:Visible|Hidden|Count|Text|Absent)\s*\(/g, 'expectXxx()'],
+  // proveProbe 自身就是一条硬断言（找不到就抛），不只是 expectAbsent 的前置。
+  [/\bproveProbe\s*\(/g, 'proveProbe()'],
+  // 点不到就抛 —— 走查里最常见的一族失败路径。
+  [/\bclickOrFail\s*\(/g, 'clickOrFail()'],
+  [/\bthrow\s+new\s+\w*Error\s*\(/g, 'throw'],
+  [/process\.exit\s*\(\s*1\s*\)/g, 'process.exit(1)'],
+  [/process\.exitCode\s*=\s*1/g, 'process.exitCode=1'],
+  // 累加器一族：先 push 再在收尾按 length 决定退出码（model-onboarding 修好后就是这个形状）。
+  // 只认**语义上是失败累加器**的名字：results/samples/nodes 这类是收集数据，算进来就成了过报。
+  [/\b(?:failures?|fails?|errors?|problems?|issues?|findings?|friction|structFails|verdicts|violations|misses|bad)\s*\.push\s*\(/g, '失败累加器.push()'],
+  // check(name, ok) / check(cond, msg) 判定助手：40 份走查、498 处调用，
+  // 收尾统一 `results.filter(r => !r.ok)` → process.exit(1)。是本仓最大的一族判定写法。
+  [/\bcheck\s*\(/g, 'check()'],
+]
+
+/** 低于这个数就算「几乎没有检出力」。model-onboarding 事故时是 1。 */
+const MIN_FAILURE_PATHS = 2
+
+function countFailurePaths(code) {
+  const breakdown = {}
+  let total = 0
+  for (const [re, label] of FAILURE_PATH_PATTERNS) {
+    const m = code.match(re)
+    if (!m) continue
+    breakdown[label] = m.length
+    total += m.length
+  }
+  return { total, breakdown }
+}
+
+/**
+ * 纯 helper 模块（只导出函数、自己不启动 app）不该被要求带断言——
+ * 它们没有「跑一趟」的语义，断言属于调用方。判据用**行为**不用文件名：
+ * 有没有真的拉起一个 app 才是「这是一趟走查」的证据。
+ */
+function isRunnableWalk(code) {
+  return /launchNomiApp|_electron|electron\.launch|chromium\.launch/.test(code)
+}
+
 const files = collect()
 const found = Object.fromEntries(RULES.map((r) => [r.id, []]))
+/** 每份走查的失败路径条数：{ '相对路径': 条数 }。只收 tests/ux 下跑得起来的那些。 */
+const density = {}
 for (const file of files) {
   const raw = fs.readFileSync(file, 'utf8')
   const code = stripComments(raw)
@@ -173,13 +240,19 @@ for (const file of files) {
     if (!rule.appliesTo(file)) continue
     found[rule.id].push(...rule.scan(code, file))
   }
+  if (file.includes(`${path.sep}tests${path.sep}ux${path.sep}`) && isRunnableWalk(code)) {
+    density[path.relative(repoRoot, file)] = countFailurePaths(code).total
+  }
 }
 
 const counts = Object.fromEntries(RULES.map((r) => [r.id, found[r.id].length]))
+/** 基线只记「薄的那些」：达标的走查不进基线，将来变薄自然会被抓（见下方比较逻辑）。 */
+const thinNow = Object.fromEntries(Object.entries(density).filter(([, n]) => n < MIN_FAILURE_PATHS))
 const writeBaseline = process.argv.includes('--update-baseline')
 if (writeBaseline) {
-  fs.writeFileSync(BASELINE_FILE, `${JSON.stringify(counts, null, 2)}\n`)
-  console.log('已写入基线：', JSON.stringify(counts))
+  const payload = { ...counts, 'assertion-density-thin': thinNow }
+  fs.writeFileSync(BASELINE_FILE, `${JSON.stringify(payload, null, 2)}\n`)
+  console.log('已写入基线：', JSON.stringify(counts), `+ 薄走查 ${Object.keys(thinNow).length} 份`)
   process.exit(0)
 }
 
@@ -211,11 +284,59 @@ for (const rule of RULES) {
   }
 }
 
+// ── 断言密度的棘轮 ──────────────────────────────────────────────────────────
+// 两种红：① 新走查一出生就是薄的；② 基线里的薄走查**更薄了**（净删断言）。
+// 存量薄走查留在基线里慢慢清零，本轮不做批量改写。
+const thinBaseline = baseline['assertion-density-thin'] ?? {}
+const newThin = []
+const gotThinner = []
+for (const [file, n] of Object.entries(thinNow)) {
+  if (!(file in thinBaseline)) newThin.push({ file, n })
+  else if (n < thinBaseline[file]) gotThinner.push({ file, n, was: thinBaseline[file] })
+}
+// 达标的走查后来掉到阈值以下 = 上面 newThin 已经抓到（它不在基线里）。
+// 基线内的走查回到达标线以上则自动从 thinNow 消失 → 提示拧棘轮。
+const healed = Object.keys(thinBaseline).filter((f) => !(f in thinNow))
+
+if (newThin.length > 0 || gotThinner.length > 0) {
+  failed = true
+  console.error('\n✖ 走查检出力不足：这份走查几乎不可能变红（它能跑完，但发现不了问题）')
+  for (const { file, n } of newThin) {
+    console.error(`  ${file}  失败路径 ${n} 条（要求 ≥ ${MIN_FAILURE_PATHS}）— 新增/未登记`)
+  }
+  for (const { file, n, was } of gotThinner) {
+    console.error(`  ${file}  失败路径 ${was} → ${n} 条 — 比基线更薄了（棘轮只减不增）`)
+  }
+  console.error(
+    '\n  为什么拦这个：2026-08-26 修复前的 model-onboarding.walk.mjs 全文只有 1 条失败路径，\n'
+      + '  面板一打开就再也不可能变红——它拍出 4 张字节完全相同的截图，exit 仍然是 0。\n'
+      + '  一条零检出力的走查，在其它门岗眼里和一条严密的走查完全一样。',
+  )
+  console.error(
+    '\n  → 正确的修法：想清楚这一趟**要证明什么**，把它写成断言——\n'
+      + '    tests/ux/_assert.mjs 的 expectVisible / expectCount / clickOrFail（点不到就红）、\n'
+      + '    expectAbsent（配 proveProbe 证明探针是活的）、或 failures.push(...) 累加后按 length 退出。\n'
+      + '    截图是给人眼看的证据，不是断言：没有断言的截图不会拦住任何回归。',
+  )
+  console.error(
+    '\n  → 别这么修：**为了凑数往走查里塞无意义的断言**（断言常量、断言 body 存在、\n'
+      + '    重复断言同一个东西）。那样门岗变绿而检出力仍然是零，你还骗过了下一个读它的人——\n'
+      + '    这比现在这条红线糟得多。凑不出真断言，说明这趟走查的目的没想清楚。',
+  )
+}
+
 if (failed) {
   console.error('\n走查质量门岗未通过。这些写法会让测试报绿但什么都没验证到。')
   process.exit(1)
 }
 console.log(`✅ 走查质量门岗通过：${RULES.map((r) => `${r.id}=${counts[r.id]}`).join(' · ')}`)
+console.log(
+  `   检出力：${Object.keys(density).length} 份走查，其中薄的 ${Object.keys(thinNow).length} 份在基线内`
+    + `（阈值 ≥ ${MIN_FAILURE_PATHS} 条失败路径）`,
+)
+if (healed.length > 0) {
+  improved.push(`assertion-density 有 ${healed.length} 份补上了断言：${healed.slice(0, 5).join('、')}`)
+}
 if (improved.length > 0) {
   console.log(`   有改善：${improved.join('、')} —— 记得跑 --update-baseline 把棘轮拧紧`)
 }
