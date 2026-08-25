@@ -121,12 +121,27 @@ try {
   // 而走查只有点击腿，所以那条旁路一直没被走查抓到（门岗也扫不到它）。
   // 判据不是「轴上多了个片段」——直写也能做到——而是**一步 Undo 能不能整个撤掉**：
   // 只有走桥的落轴才压一层栈，直写会压成另一番样子。
-  const dragSource = win.locator('[draggable="true"]').filter({ hasText: '采纳桥镜头 2' }).first()
+  //
+  // 定位器按 data-testid + nodeId 取，**不按文字**：这张卡的可见文字只有角标序号「2」，
+  // 名字只活在 aria-label/title 里，`hasText: '采纳桥镜头 2'` 永远匹配不上——
+  // 上一版正是这么写的，于是这条腿从来没真正跑到过（静态门岗看不出，它不执行走查）。
+  // 另外页面上还有画布节点把手也是 [draggable="true"]，裸选会撞上它们。
+  const dragSource = win
+    .locator('.workbench-preview [data-testid="preview-source-shot"][data-node-id="adoption-shot-2"]')
+    .first()
   await expect(dragSource, '拖拽用的产物来源没有出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   const dragProof = await proveProbe(dragSource, '预览区确实渲染了可拖拽的产物来源')
-  const videoTrack = win.locator('[data-testid="timeline-track"][data-track-type="image"]').first()
-  await expect(videoTrack, '时间轴图片轨没有出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-  await dragSource.dragTo(videoTrack)
+  // 落点三个坑，都是探针量出来的（读源码看不出）：
+  //  ① 必须 `.workbench-preview` 限定域：生成页那套时间轴同时挂载着（祖先 display:none），
+  //     裸 .first() 会抓到那份零尺寸的隐藏轨，等到超时也不会可见——点击腿早就这么限定了。
+  //  ② 落点要内层 __clips：drop/dragover handler 挂在它上面，外层 [data-testid] 只是网格容器。
+  //  ③ __clips 宽 3600px 远超视口，dragTo 默认取几何中心 → 落在视口外收不到 drop，
+  //     所以显式给 targetPosition，落在轨道左端可见处。
+  const imageTrackClips = win
+    .locator('.workbench-preview [data-testid="timeline-track"][data-track-type="image"] .workbench-timeline-track__clips')
+    .first()
+  await expect(imageTrackClips, '时间轴图片轨没有出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  await dragSource.dragTo(imageTrackClips, { targetPosition: { x: 60, y: 23 } })
 
   const draggedClip = win.locator('.workbench-preview [data-testid="timeline-clip"]').first()
   await expect(draggedClip, '拖拽落轴后时间轴没有出现片段').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
