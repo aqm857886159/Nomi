@@ -87,6 +87,13 @@ export type FetchTaskResultFn = (payload: { taskId: string; vendor: string; task
 
 const TERMINAL_STATUSES = new Set(['succeeded', 'failed'])
 
+/** Headless/MCP 轮询上限：视频 API 官方建议客户端最多等待 15 分钟，允许环境变量覆盖。 */
+export function resolveCapabilityPollTimeoutMs(kind: string, envValue: string | undefined = process.env.NOMI_POLL_TIMEOUT_MS): number {
+  const override = Number(envValue)
+  if (Number.isFinite(override) && override > 0) return override
+  return kind === 'text_to_video' || kind === 'image_to_video' ? 900_000 : 240_000
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -589,10 +596,9 @@ export async function generateOnProject(
 
     // 异步 vendor 首调返 queued/processing → 本进程内轮询到终态（视频给更长超时）。无 fetch 注入则不轮询。
     if (fetchTaskResultFn && result.status && !TERMINAL_STATUSES.has(result.status)) {
-      // 慢 vendor（如 runninghub/ComfyUI 队列可达数分钟）可经 NOMI_POLL_TIMEOUT_MS 调大本进程轮询上限，
-      // 否则 240s/300s 到点 break → 结果未取回（headless 返 queued）。缺省维持原值。
-      const envPoll = Number(process.env.NOMI_POLL_TIMEOUT_MS)
-      const timeoutMs = Number.isFinite(envPoll) && envPoll > 0 ? envPoll : (kind === 'text_to_video' || kind === 'image_to_video' ? 300000 : 240000)
+      // 慢 vendor（如 APIMart H3 官方资源有限）可经 NOMI_POLL_TIMEOUT_MS 覆盖本进程轮询上限；
+      // 视频默认 15 分钟与供应商建议一致，避免 5 分钟时任务仍在上游排队却被本地判失败。
+      const timeoutMs = resolveCapabilityPollTimeoutMs(kind)
       // 轮询间隔与渲染层同策：视频 3s、其余 1.5s（厂商文档要求查询间隔 ≥3-5s，见
       // docs/plan/2026-07-31-seedance-api-contract-reconciliation.md §三）。跨进程边界拿不到
       // 渲染层的 resolvePollIntervalMs，故此处是**配对常量，改一处必改另一处**（同 vendorErrorIpc

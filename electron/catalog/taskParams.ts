@@ -4,7 +4,7 @@
 //
 // 为什么单独成文件还配测试：duration 这种"数字被 firstString 吞成空串"的坑、omni 参考数组该不该进
 // params 的坑，都只在"真实参数构建"里暴露，埋在 2500 行 runtime 里既测不到也容易回归。
-import { firstString, type JsonRecord } from "../jsonUtils";
+import { firstString, isJsonRecord, type JsonRecord } from "../jsonUtils";
 import { referenceInputParams } from "./archetypeInput";
 import { ARCHETYPE_WIRE_DEFAULTS, ARCHETYPE_SIZE_RATIO_SEMANTIC } from "./archetypeWireDefaults.generated";
 import { bodyReferencedParamKeys } from "./paramTranslate";
@@ -382,6 +382,24 @@ function carriedReferenceUrlsByFamily(extras: JsonRecord): Record<ReferenceFamil
   return out;
 }
 
+function archetypeReferenceUrlsByFamily(extras: JsonRecord): Record<ReferenceFamily, string[]> {
+  const out: Record<ReferenceFamily, string[]> = { image: [], video: [], audio: [] };
+  const walk = (key: string, value: unknown): void => {
+    if (typeof value === "string") {
+      const url = value.trim();
+      const family = classifyReferenceKey(key);
+      if (url && REF_URL_RE.test(url) && family && !out[family].includes(url)) out[family].push(url);
+      return;
+    }
+    if (Array.isArray(value)) for (const item of value) walk(key, item);
+    else if (value && typeof value === "object") for (const [nestedKey, nestedValue] of Object.entries(value)) walk(nestedKey, nestedValue);
+  };
+  if (isJsonRecord(extras.archetypeInput)) {
+    for (const [key, value] of Object.entries(extras.archetypeInput)) walk(key, value);
+  }
+  return out;
+}
+
 /**
  * **headless/MCP 参考键形态投影**（纯函数，W1d 根因修复，见
  * docs/plan/2026-08-20-w1d-reference-mode-alignment.md）：把携带的参考投影到**这条 body 真实读的参考键**上。
@@ -413,6 +431,10 @@ export function projectReferencesOntoBodyKeys(
 ): Record<string, unknown> {
   const src = extras || {};
   const byFamily = carriedReferenceUrlsByFamily(src);
+  const flatSource = { ...src };
+  delete flatSource.archetypeInput;
+  const flatByFamily = carriedReferenceUrlsByFamily(flatSource);
+  const archetypeByFamily = archetypeReferenceUrlsByFamily(src);
   if (byFamily.image.length === 0 && byFamily.video.length === 0 && byFamily.audio.length === 0) return {};
 
   const hasNonEmpty = (value: unknown): boolean =>
@@ -422,12 +444,13 @@ export function projectReferencesOntoBodyKeys(
 
   // 先按族归拢 body 里可填的 plain 参考键（跳过对象形态键），每族选一个目标：优先数组键（扁平列表天然去处）。
   const candidateByFamily: Partial<Record<ReferenceFamily, { key: string; wantsArray: boolean }>> = {};
+  const archetypeInput = isJsonRecord(src.archetypeInput) ? src.archetypeInput : {};
   for (const key of bodyReferencedParamKeys(createBody)) {
     const detail = classifyReferenceKeyDetailed(key);
     if (!detail) continue; // 非参考载体键（size/duration/seed…）不碰。
     if (OBJECT_SHAPE_REF_KEY.test(key)) continue; // 对象形态键（image_with_roles/*_contents）headless 不填，留空由模板丢。
     if (byFamily[detail.family].length === 0) continue; // 没有这个族的参考可填。
-    if (hasNonEmpty(src[key])) continue; // 既有值优先（渲染层 archetypeInput / 调用方显式）→ 不覆盖。
+    if (hasNonEmpty(src[key]) || hasNonEmpty(archetypeInput[key])) continue; // 既有值优先（渲染层 archetypeInput / 调用方显式）→ 不覆盖。
     const wantsArray = refKeyWantsArray(key, detail.multiImage);
     const current = candidateByFamily[detail.family];
     // 每族至多一个：优先数组键（扁平参考列表的天然去处）；已有数组候选则不再被单值键替换。
@@ -436,6 +459,11 @@ export function projectReferencesOntoBodyKeys(
 
   const overlay: Record<string, unknown> = {};
   for (const family of Object.keys(candidateByFamily) as ReferenceFamily[]) {
+    // Renderer-produced archetypeInput is authoritative. Only project a second key when a
+    // distinct flat source exists; that deliberately preserves mixed-input detection.
+    const nested = archetypeByFamily[family];
+    const hasDistinctFlatSource = flatByFamily[family].some((url) => !nested.includes(url));
+    if (nested.length > 0 && !hasDistinctFlatSource) continue;
     const cand = candidateByFamily[family]!;
     const urls = byFamily[family];
     // 数组键塞整组、单值键塞首张（严格端点对 image:string 期待单串，塞数组会 400——沿用 asArray 声明的教训）。
