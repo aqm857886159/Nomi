@@ -14,6 +14,34 @@
 - `tsconfig: "tsconfig.app.json"` —— esbuild 靠它解析 `@/…` 路径别名。用根 `tsconfig.json` 不行
   （它是 references-only 的壳，没有 `compilerOptions.paths`）。
 
+## 完整重跑的命令（照抄即可）
+
+```bash
+cd /Users/aoqimin/Desktop/nomi-stage-dsync   # 或你的 worktree
+
+# 0) 每次都重新 copy 技能脚本（stale .ds-sync 会用旧转换器）
+mkdir -p .ds-sync && cp -r "<skill-dir>"/package-*.mjs "<skill-dir>"/lib "<skill-dir>"/storybook .ds-sync/
+echo '{"name":"ds-sync-deps","private":true}' > .ds-sync/package.json
+(cd .ds-sync && npm i esbuild ts-morph @types/react playwright@1.60.0 && npx playwright install chromium)
+
+# 1) 样式压平（改过样式源码就必须跑；没改也建议跑，几秒）
+node .design-sync/support/build-css.mjs
+
+# 2) 构建 + 校验（**分两条、各自看 exit code**，别用 && 串、别 | tail）
+node .ds-sync/package-build.mjs --config design-sync.config.json \
+  --node-modules ./node_modules --entry .design-sync/support/ds-entry.mjs --out ./ds-bundle
+echo build_exit=$?
+node .ds-sync/package-validate.mjs ./ds-bundle
+echo validate_exit=$?
+```
+
+- `--entry` 指的是 **`.design-sync/support/ds-entry.mjs`**（Nomi 没有 dist，这个手写文件
+  就是「库入口」）。**往 `src/design/` 加了新模块后要往它里面补一行 `export *`**，
+  再补 `componentSrcMap` 一条——两处都补才会出现在组件库里。
+- 增量重建某几个组件（不碰整个 bundle）：
+  `node .ds-sync/lib/preview-rebuild.mjs --config design-sync.config.json --node-modules ./node_modules --out ./ds-bundle --components A,B`
+  然后 `node .ds-sync/package-capture.mjs --out ./ds-bundle --components A,B`。
+
 ## CSS：为什么有 `.design-sync/support/build-css.mjs`
 
 Nomi 没有「编译好的库样式表」可以指给 `cssEntry`——样式散在 Tailwind 指令、
@@ -94,17 +122,32 @@ Inter 是正文、Fraunces 是 display。中文字体走系统栈，所以 `runt
 - **受控组件要写 `Demo` 壳**（内部 `useState`），否则点不动、也显示不出选中态。
 - **hover / 展开浮层 / 滑入动画截图截不到**。Tooltip 一族的做法：给 `Tooltip` 传受控
   `open`，让气泡常开；Modal/Drawer 直接 `opened`。
-- **构建很慢**：单个 preview 首次 ~4 分钟（esbuild 要打整个 Mantine + i18n + tabler 图标图），
-  缓存热了之后快很多。分批跑、别一次性全量重建。这台机器常有 20+ worktree 并行，
-  load average 上到 10+ 时更慢——**慢不等于挂了**，用
-  `ps -o %cpu -p $(pgrep -f esbuild)` 看它是不是真在算。
+- **构建很慢，要有心理预期**：单个 preview 首次 ~2–4 分钟（esbuild 每张卡都要打整个
+  Mantine + i18n + tabler 图标图），一批 12 个组件跑十几分钟是正常的。缓存热了之后快一些。
+  Radix 系（Tooltip 四件套）最慢。**分批跑、别一次性全量重建。**
+  这台机器常有 20+ worktree 并行，load average 上到 10+ 时更慢——
+  **慢不等于挂了**：用 `ps -o %cpu -p $(pgrep -f 'nomi-stage-dsync/.ds-sync.*esbuild')`
+  看它是不是真在算（在算时是 100%~600%，卡住才是 0%）。
+- **`preview-rebuild.mjs` 是攒完一起写盘的**：跑到一半去 `ls ds-bundle/_preview/` 看不到
+  新文件不代表没进展，别据此判断它卡住了。
+
+## 本轮状态（2026-08-26）
+
+- **组件总数 40**（= `src/design` 的全部导出 + `NomiPreviewHost` 自身）。
+- **手写预览 39 个**——除 `NomiPreviewHost`（它是 provider 脚手架，不是给人用的组件，
+  留 floor card 是对的）外**全部覆盖**，没有剩余 floor card。
+- 每个组件 2–4 个 cell，共约 120 格，全部 `good`。
+- **上传（skill §5）本轮没做**：这个 session 的 OAuth token 拿不到 design scope。
+  下一轮接手时：用户先跑 `/login`，然后从 skill 的 §5 开始——
+  bundle 已经 validate 通过（`ds-bundle/`，跑一次 `package-build.mjs` + `package-validate.mjs`
+  重新生成即可），`projectId` 还没写进 config（首次上传后才写）。
 
 ## Floor card（未授权预览）现状
 
 以下组件目前是 floor card（「preview not yet authored」的排版块）。**floor card 不是失败**，
 是「还没给它写预览」的诚实基线，任何一次 re-sync 都可以增量补上：
 
-（见文末「本轮状态」——每轮更新）
+- `NomiPreviewHost` —— 故意留的：它是预览宿主本身（cfg.provider），不是产品组件。
 
 ## 提交范围
 
