@@ -8,6 +8,7 @@
 // 不 import electron，保持纯逻辑单测边界。
 import type { AuthenticatedMcpClient } from './security'
 import type { MultiShotGateProjection } from '../productionRun/shotPricing'
+import { createConfirmationBinding } from './mcpConfirmationBinding'
 
 export type GenerationGateChallengeProjection = {
   challengeId: string
@@ -49,7 +50,7 @@ export type GenerationGateConfirmationDependencies = {
   /** 客户端 initialize 时声明过 elicitation 没——随握手改变，所以是 getter 不是快照。 */
   clientSupportsElicitation: () => boolean
   /** 协议层的 elicitation/create 弹框（boolean 确认 + 可选 attestation）。 */
-  elicitBooleanConfirm: (input: { message: string; title: string; description: string }) => Promise<{
+  elicitBooleanConfirm: (input: { message: string; title: string; description: string }, signal?: AbortSignal) => Promise<{
     supported: boolean
     confirmed?: boolean
     action?: 'accept' | 'decline' | 'cancel' | 'timeout'
@@ -58,7 +59,11 @@ export type GenerationGateConfirmationDependencies = {
 }
 
 export function createGenerationGateConfirmation({ transport, clientSupportsElicitation, elicitBooleanConfirm }: GenerationGateConfirmationDependencies) {
-  const generationConfirmationInFlight = new Map<string, Promise<GenerationGateConfirmation>>()
+  // 同 challengeId 的并发确认共享一个 in-flight promise（客户端超时/重连铸不出第二张提示或 nonce）。
+  // 实现住 mcpConfirmationBinding.ts——与 nomi_generate 付费路共用同一份并发语义（P1 不造第二套）。
+  const confirmationBinding = createConfirmationBinding<GenerationGateConfirmation>({
+    isConfirmed: (result) => result.confirmed,
+  })
 
   /**
    * Answer one server-owned generation challenge on exactly one surface. The
@@ -67,6 +72,7 @@ export function createGenerationGateConfirmation({ transport, clientSupportsElic
    */
   async function resolveGenerationConfirmation(
     challenge: GenerationGateChallengeProjection,
+    signal?: AbortSignal,
   ): Promise<GenerationGateConfirmation> {
     if (!challenge.challengeId || !challenge.model || !challenge.costScope || !Number.isFinite(challenge.maximumCost)
       || !challenge.expiresAt) throw new Error('Invalid generation gate challenge')
@@ -82,7 +88,7 @@ export function createGenerationGateConfirmation({ transport, clientSupportsElic
           challenge.referenceCount === undefined ? '' : `参考图 ${challenge.referenceCount} 张`,
           `有效期至 ${challenge.expiresAt}`,
         ].filter(Boolean).join(' · '),
-      })
+      }, signal)
       if (!elicited.confirmed) {
         return {
           challengeId: challenge.challengeId,
@@ -138,19 +144,9 @@ export function createGenerationGateConfirmation({ transport, clientSupportsElic
 
   async function requestGenerationConfirmation(
     challenge: GenerationGateChallengeProjection,
+    signal?: AbortSignal,
   ): Promise<GenerationGateConfirmation> {
-    const existing = generationConfirmationInFlight.get(challenge.challengeId)
-    if (existing) return existing
-    const pending = resolveGenerationConfirmation(challenge)
-    generationConfirmationInFlight.set(challenge.challengeId, pending)
-    try {
-      const result = await pending
-      if (!result.confirmed) generationConfirmationInFlight.delete(challenge.challengeId)
-      return result
-    } catch (error) {
-      generationConfirmationInFlight.delete(challenge.challengeId)
-      throw error
-    }
+    return confirmationBinding.run(challenge.challengeId, () => resolveGenerationConfirmation(challenge, signal))
   }
 
   return { requestGenerationConfirmation }

@@ -8,7 +8,8 @@
 // 取代旧 scripts/nomi-mcp.mjs + scripts/lib/nomiClient.mjs 的 MCP 路径：无 node 依赖、入口在包内永远存在（P1）。
 import readline from 'node:readline'
 import { app, session } from 'electron'
-import { createMcpProtocol, type McpInvokeOptions } from './mcpProtocol'
+import { createMcpProtocol, MCP_REQUEST_SIGNAL, type McpInvokeOptions } from './mcpProtocol'
+import { MAX_MCP_LINE_BYTES, parseMcpStdioLine } from './mcpStdioLine'
 import { getDesktopLocale, setDesktopLocale } from '../i18n'
 import { createDiskGateway, withPreApprovedSpend, type ProjectGateway } from './gateway'
 import { readLiveInstance, type InstanceAdvertisement } from './lockfile'
@@ -92,6 +93,9 @@ async function callViaRpc(
 ): Promise<unknown> {
   const timeoutMs = transportTimeoutMs()
   const controller = new AbortController()
+  const relayAbort = () => controller.abort(options?.signal?.reason)
+  if (options?.signal?.aborted) relayAbort()
+  else options?.signal?.addEventListener('abort', relayAbort, { once: true })
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   let res: Response
   try {
@@ -119,6 +123,7 @@ async function callViaRpc(
       signal: controller.signal,
     })
   } catch (error) {
+    if (options?.signal?.aborted) throw options.signal.reason instanceof Error ? options.signal.reason : new Error('MCP request cancelled')
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error(
         `Nomi 无响应（${Math.round(timeoutMs / 1000)}s 超时）——生成可能仍在后台跑，可稍后用 nomi_read_canvas 查结果。`,
@@ -128,6 +133,7 @@ async function callViaRpc(
     throw error
   } finally {
     clearTimeout(timer)
+    options?.signal?.removeEventListener('abort', relayAbort)
   }
   const body = (await res.json()) as { ok?: boolean; error?: unknown; result?: unknown }
   if (!body.ok) throw rpcErrorFromPayload(body, res.status)
@@ -141,11 +147,13 @@ async function invoke(
   options: McpInvokeOptions | undefined,
   authorities: McpStdioServerOptions,
 ): Promise<unknown> {
+  const requestSignal = (params as Record<PropertyKey, unknown>)[MCP_REQUEST_SIGNAL] as AbortSignal | undefined
+  const effectiveOptions = requestSignal ? { ...options, signal: requestSignal } : options
   const origin = resolveMcpOrigin(process.env[MCP_CLIENT_ENV], process.env[MCP_CLIENT_PROOF_ENV])
   const instance = readLiveInstance(currentLibrary())
   // GUI 开着 → RPC 转发，rpcServer 侧已做生成结果富化（缩略图/签名链），此处不再重复富化。
-  if (instance) return callViaRpc(instance, method, params, origin, options)
-  const makeGateway = options?.spendConfirmed ? makeConfirmedGateway : createDiskGateway
+  if (instance) return callViaRpc(instance, method, params, origin, effectiveOptions)
+  const makeGateway = effectiveOptions?.spendConfirmed ? makeConfirmedGateway : createDiskGateway
   // 交付②④：GUI 没开的进程内路——本进程就是 Electron（NOMI_MCP_STDIO 模式），有 nativeImage → dispatchAndEnrich
   // 里就地富化生成结果（缩略图/签名链）。收口在包装器（0a），此路与 GUI-开着的 RPC 路一样忘不了富化。
   return dispatchAndEnrich(method, params, {
@@ -155,7 +163,7 @@ async function invoke(
     productionRuns,
     origin: { host: origin },
     ...authorities,
-    ...(options?.planConfirmed ? { planConfirmed: true } : {}),
+    ...(effectiveOptions?.planConfirmed ? { planConfirmed: true } : {}),
     // 审片环（W1）：headless 路的真实 deps——judge 走 runTask 文本路（不花生成额度）、抽帧走主进程 ffmpeg、
     // 重试复用首发 grantId+同 nodeId 直发。judge 模型无可用 text 模型时 visionAvailable=false → 整体跳过。
     makeVerifyDeps: (verifyCtx) => makeShotVerifyDeps(verifyCtx),
@@ -291,23 +299,37 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     getLocale: () => getDesktopLocale(),
   })
 
+  // 行长上限：stdin 是**不可信输入**（本地客户端行为异常或被劫持时，一条无换行的超长流能把主进程
+  // 内存吃满）。4 MiB 够装带 base64 参考图的 tools/call，又把最坏内存钉死。readline 的 maxLength 会
+  // 在超限时抛 'error' 而不是静默截断，故我们自己按字节判——截断的半条 JSON 解析出来可能是**另一条
+  // 合法请求**，那比丢弃危险得多。
   const rl = readline.createInterface({ input: process.stdin })
   rl.on('line', (line) => {
-    const trimmed = line.trim()
-    if (!trimmed) return
-    let message: unknown
-    try {
-      message = JSON.parse(trimmed)
-    } catch {
-      return // 非 JSON 行忽略（不崩）
+    const parsed = parseMcpStdioLine(line)
+    if (parsed.kind === 'blank') return
+    if (parsed.kind === 'oversized') {
+      // 超长行整条丢弃。无从可靠取 id（正是因为它可能根本不是一条完整 JSON）→ 按规范只记日志。
+      console.warn(`[nomi-mcp] dropped an oversized stdin line (> ${MAX_MCP_LINE_BYTES} bytes)`)
+      return
     }
-    protocol.handleIncoming(message as Parameters<typeof protocol.handleIncoming>[0])
+    if (parsed.kind === 'parse-error') {
+      // 非 JSON 行：旧行为是静默丢弃 → 客户端永远等不到响应也不知道为什么。按 JSON-RPC 标准回
+      // -32700 Parse error。此时无从得知 id（正是解析失败），按规范用 null id。
+      process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }) + '\n')
+      return
+    }
+    protocol.handleIncoming(parsed.value as Parameters<typeof protocol.handleIncoming>[0])
   })
   // 客户端关闭 stdin（断连/退出）→ 我们也退出，不留孤儿进程。
+  // **退出前先中止在飞工作**：否则客户端断连后，已经发出去的付费生成仍在后台跑到底（真金风险，
+  // 审计 2026-08-25）。中止只切断我们这侧的等待；已提交给供应商的任务走既有 reconcile 语义收敛，
+  // 这里不新增重试、也不重复提交。
   let closing = false
   const close = () => {
     if (closing) return
     closing = true
+    const cancelled = protocol.cancelAllInFlight('stdio disconnected')
+    if (cancelled > 0) console.warn(`[nomi-mcp] cancelled ${cancelled} in-flight request(s) on disconnect`)
     void previewServer.close().finally(() => app.exit(0))
   }
   rl.on('close', close)

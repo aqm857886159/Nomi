@@ -11,7 +11,8 @@ import os from 'node:os'
 import path from 'node:path'
 import readline from 'node:readline'
 
-import { createMcpProtocol, type McpInvokeOptions } from './mcpProtocol'
+import { createMcpProtocol, MCP_REQUEST_SIGNAL, type McpInvokeOptions } from './mcpProtocol'
+import { MAX_MCP_LINE_BYTES, parseMcpStdioLine } from './mcpStdioLine'
 // 直接吃纯 locale 模块，不经 i18n.ts——后者顶层 `import { app } from 'electron'`，本 launcher 打包后跑在
 // 无 electron 的裸 Node 里，引 i18n 会 MODULE_NOT_FOUND。这条 electron-free 由 mcpLauncherClosure.test.ts 钉死。
 import { normalizeDesktopLocale, type DesktopLocale } from '../desktopLocale'
@@ -182,7 +183,8 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
  *   · dead / malformed → 没有活实例，走冷启（spawn + 满 BOOT_TIMEOUT_MS 轮询）；轮询期间若冒出 mismatch/stale/
  *     legacy（并发会话抢注）也即时快速失败。
  */
-async function ensureLiveInstance(): Promise<InstanceAdvertisement> {
+async function ensureLiveInstance(signal?: AbortSignal): Promise<InstanceAdvertisement> {
+  if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error('MCP request cancelled')
   const library = expectedLibrary()
   const initial = readAdvertVerdict(library)
   if (initial.kind === 'match') return initial.instance
@@ -193,6 +195,7 @@ async function ensureLiveInstance(): Promise<InstanceAdvertisement> {
   startNomi()
   const deadline = Date.now() + BOOT_TIMEOUT_MS
   while (Date.now() < deadline) {
+    if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error('MCP request cancelled')
     const verdict = readAdvertVerdict(library)
     if (verdict.kind === 'match') return verdict.instance
     const fastFail = fastFailMessage(verdict, library.root)
@@ -216,6 +219,9 @@ async function callViaRpc(
   const proof = String(process.env[CLIENT_PROOF_ENV] || '').trim()
   const timeoutMs = rpcTimeoutMs()
   const controller = new AbortController()
+  const relayAbort = () => controller.abort(options?.signal?.reason)
+  if (options?.signal?.aborted) relayAbort()
+  else options?.signal?.addEventListener('abort', relayAbort, { once: true })
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   let response: Response
   try {
@@ -227,16 +233,18 @@ async function callViaRpc(
         ...(client && proof ? { 'x-nomi-mcp-client': client, 'x-nomi-mcp-client-proof': proof } : {}),
       },
       // planConfirmed crosses to the renderer gateway so an in-chat plan approval skips the App dialog (no double-ask).
-      body: JSON.stringify({ method, params, ...(options?.planConfirmed ? { planConfirmed: true } : {}) }),
+      body: JSON.stringify({ method, params, ...(options?.planConfirmed ? { planConfirmed: true } : {}), ...(options?.spendConfirmed ? { spendConfirmed: true } : {}) }),
       signal: controller.signal,
     })
   } catch (error) {
+    if (options?.signal?.aborted) throw options.signal.reason instanceof Error ? options.signal.reason : new Error('MCP request cancelled')
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error(`Nomi did not respond within ${Math.round(timeoutMs / 1000)} seconds. The task may still be running; check Nomi before retrying.`, { cause: error })
     }
     throw error
   } finally {
     clearTimeout(timer)
+    options?.signal?.removeEventListener('abort', relayAbort)
   }
   const body = await response.json() as { ok?: boolean; error?: string; result?: unknown }
   if (!body.ok) throw new Error(body.error || `Nomi RPC failed (${response.status})`)
@@ -248,26 +256,34 @@ const launcherLocale = resolveLauncherLocale()
 
 const protocol = createMcpProtocol({
   send: (message) => process.stdout.write(`${JSON.stringify(message)}\n`),
-  invoke: async (method, params, options) => callViaRpc(await ensureLiveInstance(), method, params, options),
+  invoke: async (method, params, options) => {
+    const requestSignal = (params as Record<PropertyKey, unknown>)[MCP_REQUEST_SIGNAL] as AbortSignal | undefined
+    return callViaRpc(await ensureLiveInstance(requestSignal), method, params, requestSignal ? { ...options, signal: requestSignal } : options)
+  },
   isAppOpen: () => Boolean(readLiveInstance()),
   getLocale: () => launcherLocale,
 })
 
 const input = readline.createInterface({ input: process.stdin })
 input.on('line', (line) => {
-  const text = line.trim()
-  if (!text) return
-  try {
-    protocol.handleIncoming(JSON.parse(text))
-  } catch {
-    // Invalid/non-JSON stdio noise is ignored; valid requests receive protocol-level errors.
+  const parsed = parseMcpStdioLine(line)
+  if (parsed.kind === 'blank') return
+  if (parsed.kind === 'oversized') {
+    process.stderr.write(`[nomi-mcp] dropped an oversized stdin line (> ${MAX_MCP_LINE_BYTES} bytes)\n`)
+    return
   }
+  if (parsed.kind === 'parse-error') {
+    process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } })}\n`)
+    return
+  }
+  protocol.handleIncoming(parsed.value as Parameters<typeof protocol.handleIncoming>[0])
 })
 
 let closing = false
 function close(): void {
   if (closing) return
   closing = true
+  protocol.cancelAllInFlight('stdio disconnected')
   if (process.env.NOMI_MCP_EXIT_BOOTSTRAPPED_APP === '1' && bootedApp?.pid) {
     try { bootedApp.kill('SIGTERM') } catch { /* best effort test cleanup */ }
   }

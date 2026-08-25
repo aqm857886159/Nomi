@@ -1,8 +1,8 @@
 import type { GenerationGateChallengeProjection, GenerationGateConfirmation } from "./mcpProtocol";
 
 export type SemanticGenerationFlowDependencies = {
-  invoke: (method: string, params: Record<string, unknown>) => Promise<unknown>;
-  requestConfirmation: (challenge: GenerationGateChallengeProjection) => Promise<GenerationGateConfirmation>;
+  invoke: (method: string, params: Record<string, unknown>, signal?: AbortSignal) => Promise<unknown>;
+  requestConfirmation: (challenge: GenerationGateChallengeProjection, signal?: AbortSignal) => Promise<GenerationGateConfirmation>;
   buildResult: (toolName: string, args: Record<string, unknown>, result: unknown) => Record<string, unknown>;
   reply: (id: unknown, result: unknown) => void;
   locale: () => "zh-CN" | "en";
@@ -15,9 +15,10 @@ export async function handleSemanticGenerationGate(
   args: Record<string, unknown>,
   built: Record<string, unknown>,
   deps: SemanticGenerationFlowDependencies,
+  signal?: AbortSignal,
 ): Promise<void> {
-  const challenge = await deps.invoke("nomi_request_generation_gate", built) as GenerationGateChallengeProjection;
-  const confirmation = await deps.requestConfirmation(challenge);
+  const challenge = await deps.invoke("nomi_request_generation_gate", built, signal) as GenerationGateChallengeProjection;
+  const confirmation = await deps.requestConfirmation(challenge, signal);
   if (!confirmation.confirmed || (!confirmation.receiptId && !confirmation.receiptToken)) {
     deps.reply(id, {
       content: [{ type: "text", text: deps.locale() === "en"
@@ -33,7 +34,7 @@ export async function handleSemanticGenerationGate(
     contractHash: typeof challenge.handoff?.contractHash === "string" ? challenge.handoff.contractHash : undefined,
     receiptId: confirmation.receiptId,
     receiptToken: confirmation.receiptToken,
-  });
+  }, signal);
   const started = await deps.invoke("nomi_start_generation", {
     ...built,
     leaseHandle: approved && typeof (approved as Record<string, unknown>).leaseHandle === "string"
@@ -41,6 +42,6 @@ export async function handleSemanticGenerationGate(
       : built.leaseHandle,
     receiptId: confirmation.receiptId,
     receiptToken: confirmation.receiptToken,
-  });
+  }, signal);
   deps.reply(id, deps.buildResult(toolName, args, { confirmation, approved, started }));
 }
