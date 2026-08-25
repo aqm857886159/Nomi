@@ -2,13 +2,51 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const handlers = new Map<string, (...args: unknown[]) => unknown>();
 
+// 已加固通道（assertTrustedSender）只认「当前登记的主窗口主帧」，
+// 所以测试要先立一个假主窗口，再用 trustedEvent 当事件传进 handler。
+const harness = vi.hoisted(() => {
+  const MAIN_FRAME_ROUTING_ID = 7;
+  const APP_ENTRY_URL = "file:///app/index.html";
+  const byContents = new Map<object, object>();
+  class FakeBrowserWindow {
+    readonly webContents: { mainFrame: { routingId: number }; isDestroyed(): boolean; getURL(): string };
+    constructor() {
+      this.webContents = {
+        mainFrame: { routingId: MAIN_FRAME_ROUTING_ID },
+        isDestroyed: () => false,
+        getURL: () => APP_ENTRY_URL,
+      };
+      byContents.set(this.webContents, this);
+    }
+    isDestroyed(): boolean {
+      return false;
+    }
+    static fromWebContents(contents: object): object | null {
+      return byContents.get(contents) ?? null;
+    }
+  }
+  return { FakeBrowserWindow, MAIN_FRAME_ROUTING_ID, APP_ENTRY_URL };
+});
+
 vi.mock("electron", () => ({
+  BrowserWindow: harness.FakeBrowserWindow,
   ipcMain: {
     handle: (channel: string, handler: (...args: unknown[]) => unknown) => handlers.set(channel, handler),
   },
 }));
 
 import { registerProviderAdapterIpc } from "./ipc";
+import { setMainWindow } from "../mainWindowRegistry";
+
+/** 立一个假主窗口并返回它发来的合法事件（未登记主窗口时守卫一律拒绝）。 */
+function trustedEvent(): { sender: unknown; senderFrame: unknown } {
+  const win = new harness.FakeBrowserWindow();
+  setMainWindow(win as never);
+  return {
+    sender: win.webContents,
+    senderFrame: { routingId: harness.MAIN_FRAME_ROUTING_ID, url: harness.APP_ENTRY_URL },
+  };
+}
 
 describe("registerProviderAdapterIpc", () => {
   beforeEach(() => handlers.clear());
@@ -40,7 +78,7 @@ describe("registerProviderAdapterIpc", () => {
     };
     registerProviderAdapterIpc(service as never);
 
-    const registered = await handlers.get("nomi:provider-adapter:register")?.({}, {
+    const registered = await handlers.get("nomi:provider-adapter:register")?.(trustedEvent(), {
       vendorName: "Example",
       baseUrl: "https://api.example.com/v1",
       apiKey: "sk-secret",
@@ -48,16 +86,16 @@ describe("registerProviderAdapterIpc", () => {
       preserveExistingCredential: true,
       models: [{ modelKey: "paint-v2", kind: "image" }],
     });
-    const started = await handlers.get("nomi:provider-adapter:start")?.({}, {
+    const started = await handlers.get("nomi:provider-adapter:start")?.(trustedEvent(), {
       vendorName: "Example",
       baseUrl: "https://api.example.com/v1",
       apiKey: "sk-secret",
       models: [{ modelKey: "paint-v2", kind: "image" }],
     });
-    const fetched = await handlers.get("nomi:provider-adapter:get")?.({}, { runId: "run-1" });
-    const latest = await handlers.get("nomi:provider-adapter:latest")?.({}, { vendorKey: "example-com" });
-    const cancelled = await handlers.get("nomi:provider-adapter:cancel")?.({}, { runId: "run-1" });
-    const listed = await handlers.get("nomi:provider-adapter:list")?.({}, { vendorKey: "example-com", activeOnly: true, limit: 5 });
+    const fetched = await handlers.get("nomi:provider-adapter:get")?.(trustedEvent(), { runId: "run-1" });
+    const latest = await handlers.get("nomi:provider-adapter:latest")?.(trustedEvent(), { vendorKey: "example-com" });
+    const cancelled = await handlers.get("nomi:provider-adapter:cancel")?.(trustedEvent(), { runId: "run-1" });
+    const listed = await handlers.get("nomi:provider-adapter:list")?.(trustedEvent(), { vendorKey: "example-com", activeOnly: true, limit: 5 });
 
     expect(registered).toEqual({ ok: true, registration });
     expect(service.register).toHaveBeenCalledWith(expect.not.objectContaining({

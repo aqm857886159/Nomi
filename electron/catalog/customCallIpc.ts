@@ -20,6 +20,7 @@ import { registerCustomCallDraftIpc } from "./customCallDraftIpc";
 import type { ProfileKind } from "./types";
 import { createCustomCallTestRunRegistry, type CustomCallTestRunInput, type CustomCallTestRunResult } from "./customCallTestRuns";
 
+import { assertTrustedSender } from "../ipcSenderGuard";
 function resolveTarget(vendorKey: string, modelKey: string) {
   const state = readCatalog();
   const vendor = state.vendors.find((v) => v.key === vendorKey);
@@ -138,7 +139,8 @@ export function registerCustomCallIpc(registerSyncIpc: (channel: string, handler
     });
   }) as (...args: never[]) => unknown);
 
-  ipcMain.handle("nomi:model-catalog:custom-call:test-run", async (_event, payload) => {
+  ipcMain.handle("nomi:model-catalog:custom-call:test-run", async (event, payload) => {
+    assertTrustedSender(event);
     const raw = (payload || {}) as Record<string, unknown>;
     const vendorKey = trim(raw.vendorKey);
     const modelKey = trim(raw.modelKey);
@@ -157,12 +159,14 @@ export function registerCustomCallIpc(registerSyncIpc: (channel: string, handler
     return customCallTestRuns.wait(runId);
   });
 
-  ipcMain.handle("nomi:model-catalog:custom-call:test-get", async (_event, payload) => {
+  ipcMain.handle("nomi:model-catalog:custom-call:test-get", async (event, payload) => {
+    assertTrustedSender(event);
     const raw = (payload || {}) as Record<string, unknown>;
     return customCallTestRuns.get(trim(raw.runId)) || null;
   });
 
-  ipcMain.handle("nomi:model-catalog:custom-call:test-latest", async (_event, payload) => {
+  ipcMain.handle("nomi:model-catalog:custom-call:test-latest", async (event, payload) => {
+    assertTrustedSender(event);
     const raw = (payload || {}) as Record<string, unknown>;
     const run = customCallTestRuns.latest({
       vendorKey: trim(raw.vendorKey),
@@ -175,7 +179,8 @@ export function registerCustomCallIpc(registerSyncIpc: (channel: string, handler
     };
   });
 
-  ipcMain.handle("nomi:model-catalog:custom-call:test-cancel", async (_event, payload) => {
+  ipcMain.handle("nomi:model-catalog:custom-call:test-cancel", async (event, payload) => {
+    assertTrustedSender(event);
     const raw = (payload || {}) as Record<string, unknown>;
     return customCallTestRuns.cancel(trim(raw.runId)) || null;
   });

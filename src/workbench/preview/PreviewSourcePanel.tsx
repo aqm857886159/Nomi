@@ -75,6 +75,10 @@ function ShotGrid(): JSX.Element {
           key={source.nodeId}
           type="button"
           draggable
+          // 走查靠 nodeId 定位这张卡：它的可见文字只有角标序号，名字只活在 aria-label/title 里，
+          // 按文字找必然落空（拖拽腿曾因此从未真正跑到过）。按翻译串找又会随文案漂。
+          data-testid="preview-source-shot"
+          data-node-id={source.nodeId}
           className={cn(
             'group relative aspect-video overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-ink-05',
             'cursor-grab p-0 text-left active:cursor-grabbing',

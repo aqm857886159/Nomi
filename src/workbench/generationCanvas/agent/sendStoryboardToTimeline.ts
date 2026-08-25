@@ -1,175 +1,65 @@
 import { useWorkbenchStore } from '../../workbenchStore'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { sendGenerationNodeToTimeline } from './sendGenerationNodeToTimeline'
 import { planStoryboardTimeline, type StoryboardTimelineUnitRole } from './storyboardTimelinePlan'
-import type { TimelineState, TimelineTextClip, TimelineTransition } from '../../timeline/timelineTypes'
+import { adoptStoryboardBatch, timelineEndFrame } from '../../adoption/adoptStoryboardBatch'
+import type { BatchAdoptionResult } from '../../adoption/adoptStoryboardBatch'
+
+// 纯规划辅助函数保持原模块导出，旧单测与调用方继续复用同一份实现；写轴本身已汇流到桥。
+export { partitionUnitsByTimelinePresence, storyboardCaptionText } from '../../adoption/adoptStoryboardBatch'
+
+/**
+ * 「整批按分镜顺序排进时间轴」的两个入口（手动「发送选中」/ Agent `arrange`）。
+ *
+ * P5 E1 起这里**不再自己逐个写轴**——原 `placeUnitsSequentially`（算一个写一个）
+ * 已删除，改由采纳桥 `adoption/adoptStoryboardBatch` 整批一次落定：
+ *  · 第 N 个算失败不再留「半落的轴」（全算完才写）；
+ *  · 12 个镜头 = **一层**撤销栈（原来 12 层，用户要按 12 次 Cmd+Z）。
+ * 排序仍来自纯规划器 `planStoryboardTimeline`（shotIndex 镜序），本文件只管
+ * 「排哪些、从哪帧起」这层意图，落轴机制归桥。
+ */
 
 export type SendStoryboardToTimelineResult = {
   ok: boolean
   total: number
+  /** 本次真正排进去的单位数。 */
+  placed: number
+  /** 兼容既有 Agent/面板回执字段；只由采纳桥的落点明细派生。 */
   sent: Array<{ nodeId: string; clipId: string; trackType: string; startFrame: number; role?: StoryboardTimelineUnitRole }>
   skipped: Array<{ nodeId: string; reason: string }>
+  /** 采纳结果原样透传，调用方据此给回执（幂等/stale/换版都在里面）。 */
+  outcome: BatchAdoptionResult
 }
 
-/** 时间轴当前最右端帧（append 落点）：两轨所有 clip 的 endFrame 取最大，空轴则 0。 */
-function timelineEndFrame(timeline: TimelineState): number {
-  let end = 0
-  for (const track of timeline.tracks) {
-    for (const clip of track.clips) {
-      if (clip.endFrame > end) end = clip.endFrame
-    }
-  }
-  return end
-}
+export type { StoryboardTimelineUnitRole }
 
-/** 时间轴上已落 clip 的 sourceNodeId 集合（跨两轨）。clip.sourceNodeId === 排片单位 nodeId。 */
-function timelineSourceNodeIds(timeline: TimelineState): Set<string> {
-  const ids = new Set<string>()
-  for (const track of timeline.tracks) {
-    for (const clip of track.clips) {
-      if (clip.sourceNodeId) ids.add(clip.sourceNodeId)
-    }
+function toResult(outcome: BatchAdoptionResult, total: number): SendStoryboardToTimelineResult {
+  if (outcome.status === 'nothing_to_adopt') {
+    return { ok: false, total, placed: 0, sent: [], skipped: outcome.skipped, outcome }
   }
-  return ids
-}
-
-/** Prefer an authored subtitle; dialogue is the honest fallback when no subtitle was supplied. */
-export function storyboardCaptionText(node: { meta?: Record<string, unknown> }): string | undefined {
-  const meta = node.meta || {}
-  for (const key of ['subtitle', 'dialogue']) {
-    const value = meta[key]
-    if (typeof value === 'string' && value.trim()) return value.trim()
-  }
-  return undefined
-}
-
-function materializeStoryboardCaption(nodeId: string, clip: { startFrame: number; endFrame: number }, text: string): void {
-  const store = useWorkbenchStore.getState()
-  const timeline = store.timeline
-  // arrange is append-idempotent, but manual “send selected” can be repeated after moving a clip.
-  // Source provenance—not a generated random text id—keeps one storyboard subtitle per shot.
-  if (timeline.textClips.some((candidate) => candidate.sourceNodeId === nodeId)) return
-  const textClip: TimelineTextClip = {
-    id: `storyboard-caption-${nodeId.replace(/[^A-Za-z0-9._-]+/g, '-')}`,
-    sourceNodeId: nodeId,
-    text,
-    style: 'caption',
-    startFrame: clip.startFrame,
-    endFrame: clip.endFrame,
-  }
-  store.setTimeline({ ...timeline, textClips: [...timeline.textClips, textClip] })
-}
-
-function transitionFromNode(node: { meta?: Record<string, unknown> }): Omit<TimelineTransition, 'fromClipId' | 'toClipId'> | undefined {
-  const raw = node.meta?.transition
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
-  const record = raw as Record<string, unknown>
-  const type = record.type
-  if (!['cut', 'dissolve', 'fade', 'match_cut', 'whip_pan'].includes(String(type))) return undefined
-  const durationFrames = Number.isInteger(record.durationFrames) && Number(record.durationFrames) > 0
-    ? Number(record.durationFrames)
-    : undefined
-  return { type: type as TimelineTransition['type'], ...(durationFrames ? { durationFrames } : {}) }
-}
-
-/**
- * append 幂等：把已在时间轴上的单位（按 sourceNodeId）滤掉。
- * 选「跳过」而非「替换」——arrange 是「追加整条故事板到末尾」的语义（用户拍板），
- * 重复触发不应把已排好（可能用户已手动调过位/裁过）的 clip 再复制一份到末尾。
- * 跳过的单位回报 reason=already_on_timeline，让 LLM/调用方知道为何没动它。
- * 纯函数：不读 store，便于单测。
- */
-export function partitionUnitsByTimelinePresence<T extends { nodeId: string }>(
-  units: ReadonlyArray<T>,
-  presentSourceNodeIds: ReadonlySet<string>,
-): { kept: T[]; skipped: Array<{ nodeId: string; reason: string }> } {
-  const kept: T[] = []
-  const skipped: Array<{ nodeId: string; reason: string }> = []
-  for (const unit of units) {
-    if (presentSourceNodeIds.has(unit.nodeId)) {
-      skipped.push({ nodeId: unit.nodeId, reason: 'already_on_timeline' })
-    } else {
-      kept.push(unit)
-    }
-  }
-  return { kept, skipped }
-}
-
-/**
- * 把一组「排片单位」（已按剧本镜序排好）逐个落到时间轴：每个 clip 落自然轨
- * （视频→媒体轨、占位图→图片轨），cursor 在两轨间顺序累加——时间上首尾相接、
- * 不重叠，导出时跨两轨取当前帧活动 clip，成片连续。两个入口共用此核心。
- */
-function placeUnitsSequentially(
-  units: ReadonlyArray<{ nodeId: string; role?: StoryboardTimelineUnitRole }>,
-  startFrame: number,
-): SendStoryboardToTimelineResult['sent'] {
-  let cursor = Math.max(0, Math.floor(startFrame))
-  const sent: SendStoryboardToTimelineResult['sent'] = []
-  const sentNodes: Array<{ nodeId: string; clipId: string }> = []
-  for (const unit of units) {
-    const result = sendGenerationNodeToTimeline(
-      {
-        readGenerationNodes: () => useGenerationCanvasStore.getState().nodes,
-        readTimeline: () => useWorkbenchStore.getState().timeline,
-        addTimelineClipAtFrame: (clip, trackType, frame) => {
-          useWorkbenchStore.getState().addTimelineClipAtFrame(clip, trackType, frame)
-        },
-        readTimelineAfterInsert: () => useWorkbenchStore.getState().timeline,
-      },
-      unit.nodeId,
-      { startFrame: cursor },
-    )
-    if (result.ok) {
-      cursor = result.startFrame + result.clip.frameCount
-      const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === unit.nodeId)
-      const caption = node ? storyboardCaptionText(node) : undefined
-      if (caption) materializeStoryboardCaption(unit.nodeId, result.clip, caption)
-      sentNodes.push({ nodeId: unit.nodeId, clipId: result.clip.id })
-      sent.push({
-        nodeId: unit.nodeId,
-        clipId: result.clip.id,
-        trackType: result.trackType,
-        startFrame: result.startFrame,
-        ...(unit.role ? { role: unit.role } : {}),
-      })
-    }
-  }
-  // Transitions are authored metadata, not a count of adjacent cuts. Only an explicit
-  // transition on the preceding shot becomes a timeline entry; missing metadata remains a cut.
-  if (sentNodes.length > 1) {
-    const canvasNodes = useGenerationCanvasStore.getState().nodes
-    const existing = useWorkbenchStore.getState().timeline.transitions || []
-    const additions: TimelineTransition[] = []
-    for (let index = 0; index < sentNodes.length - 1; index += 1) {
-      const transition = transitionFromNode(canvasNodes.find((node) => node.id === sentNodes[index].nodeId) || {})
-      if (!transition) continue
-      const pair = { fromClipId: sentNodes[index].clipId, toClipId: sentNodes[index + 1].clipId, ...transition }
-      if (existing.some((candidate) => candidate.fromClipId === pair.fromClipId && candidate.toClipId === pair.toClipId)
-        || additions.some((candidate) => candidate.fromClipId === pair.fromClipId && candidate.toClipId === pair.toClipId)) continue
-      additions.push(pair)
-    }
-    if (additions.length) {
-      const timeline = useWorkbenchStore.getState().timeline
-      useWorkbenchStore.getState().setTimeline({ ...timeline, transitions: [...(timeline.transitions || []), ...additions] })
-    }
-  }
-  return sent
+  const placed = outcome.status === 'applied' && !outcome.replayed ? outcome.proposal.placedCount : 0
+  const sent = outcome.status === 'applied' && !outcome.replayed ? (outcome.placedItems || []) : []
+  // 幂等重放也是成功的采纳（只是这次没有再次写轴）；`sent` 保持空，避免
+  // 调用方把原片段误当成新落点，但 `ok` 不能把一次合法重放报成失败。
+  return { ok: true, total, placed, sent, skipped: outcome.proposal.skipped, outcome }
 }
 
 /**
  * 手动「发送到时间轴」（工具栏按钮，作用于选中子集）：按 `shotIndex` 镜序把选中节点
- * 铺到时间轴（从播放头开始）。排序与 Agent 路径共享同一份真相（shotIndex），
- * 不再用不可靠的连线拓扑。
+ * 铺到时间轴（从播放头开始）。排序与 Agent 路径共享同一份真相（shotIndex）。
  */
-export function sendStoryboardToTimeline(nodeIds: readonly string[]): SendStoryboardToTimelineResult {
+export async function sendStoryboardToTimeline(
+  nodeIds: readonly string[],
+): Promise<SendStoryboardToTimelineResult> {
   const canvasState = useGenerationCanvasStore.getState()
   const { units, skipped } = planStoryboardTimeline(canvasState.nodes, canvasState.edges, nodeIds)
   const startFrame = Math.max(0, Math.floor(useWorkbenchStore.getState().timeline.playheadFrame ?? 0))
-  const sent = placeUnitsSequentially(units, startFrame)
-  const skippedById = new Map(skipped.map((item) => [item.nodeId, item]))
-  for (const item of sent) skippedById.delete(item.nodeId)
-  return { ok: sent.length > 0, total: units.length, sent, skipped: [...skippedById.values()] }
+  const outcome = await adoptStoryboardBatch({
+    units,
+    skipped,
+    startFrame,
+    readNodes: () => useGenerationCanvasStore.getState().nodes,
+  })
+  return toResult(outcome, units.length)
 }
 
 export type ArrangeStoryboardToTimelineOptions = {
@@ -182,16 +72,17 @@ export type ArrangeStoryboardToTimelineOptions = {
  * **追加**到时间轴末尾（用户拍板：追加语义，非破坏现有 clip）。视频优先、缺视频走
  * 关键帧占位、未生成跳过并回报——排序/选片全在纯函数里，LLM 只负责触发。
  */
-export function arrangeStoryboardToTimeline(
+export async function arrangeStoryboardToTimeline(
   options: ArrangeStoryboardToTimelineOptions = {},
-): SendStoryboardToTimelineResult {
+): Promise<SendStoryboardToTimelineResult> {
   const canvasState = useGenerationCanvasStore.getState()
   const { units, skipped } = planStoryboardTimeline(canvasState.nodes, canvasState.edges, options.nodeIds)
-  const timeline = useWorkbenchStore.getState().timeline
-  // append 幂等：滤掉已在时间轴上的单位（按 sourceNodeId），避免重复触发把同一节点
-  // 再复制一份到末尾（clip id 含 startFrame，末尾 startFrame 不同 → 旧逻辑会生成重复 clip）。
-  const { kept, skipped: alreadyPlaced } = partitionUnitsByTimelinePresence(units, timelineSourceNodeIds(timeline))
-  const startFrame = timelineEndFrame(timeline)
-  const sent = placeUnitsSequentially(kept, startFrame)
-  return { ok: sent.length > 0, total: units.length, sent, skipped: [...skipped, ...alreadyPlaced] }
+  const startFrame = timelineEndFrame(useWorkbenchStore.getState().timeline)
+  const outcome = await adoptStoryboardBatch({
+    units,
+    skipped,
+    startFrame,
+    readNodes: () => useGenerationCanvasStore.getState().nodes,
+  })
+  return toResult(outcome, units.length)
 }

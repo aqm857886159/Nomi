@@ -23,6 +23,9 @@ import { buildToolErrorOutcome, buildProgressStartMessage, sanitizeArtifactResou
 import { assembleToolResultContent } from './mcpResultPayload'
 import { stripInternalEnrichFields } from './mcpResultEnrich'
 import { createProgressReporter } from './mcpProgress'
+import { createMcpRequestRegistry } from './mcpRequestRegistry'
+import { createConfirmationBinding } from './mcpConfirmationBinding'
+import { validateToolArguments } from './mcpArgValidation'
 import { handleSemanticGenerationGate } from './mcpSemanticGenerationFlow'
 import { createPlanTrustStore, planConfirmElicit } from './mcpPlanTrust'
 import { isAnchorCheckpointGate } from '../productionRun/anchorCheckpoint'
@@ -30,18 +33,25 @@ import { createSpendTrustStore, spendConfirmElicit } from './mcpSpendTrust'
 import { buildIntakeMessage, buildIntakeQuestions, buildIntakeSchema, resolveIntake, summarizeIntake } from './mcpBriefIntake'
 import type { AuthenticatedMcpClient } from './security'
 
-// spendConfirmed=真人已在 Claude 侧确认付费；planConfirmed=真人已在聊天里批准这批方案节点
-// （elicitation-first 画布确认，见 mcpPlanTrust.ts）——透传给传输层，让最终跑 confirmPlan 的网关预批准、
-// 不再弹 App 卡（免双问）。因方案 elicitation 发生在 App 开着时，planConfirmed 需跨 RPC 边界到达渲染层网关。
-export type McpInvokeOptions = { spendConfirmed?: boolean; planConfirmed?: boolean }
+export type McpInvokeOptions = { spendConfirmed?: boolean; planConfirmed?: boolean; signal?: AbortSignal }
+export const MCP_REQUEST_SIGNAL = Symbol('nomi.mcp.request-signal')
 
-// 生成门确认流（challenge → 恰好一个确认面 + 同 challengeId in-flight 去重）抽到 mcpGateConfirmation.ts
-//（壳到 800/800 的 headroom 提取）；类型经此再导出，外部 import 路径不变（mcpSemanticGenerationFlow / 测试）。
+function withRequestSignal(params: Record<string, unknown>, signal?: AbortSignal): Record<string, unknown> {
+  if (!signal) return params
+  try {
+    Object.defineProperty(params, MCP_REQUEST_SIGNAL, { value: signal, configurable: true })
+    return params
+  } catch {
+    const copy = { ...params }
+    Object.defineProperty(copy, MCP_REQUEST_SIGNAL, { value: signal, configurable: true })
+    return copy
+  }
+}
+
 import { createGenerationGateConfirmation } from './mcpGateConfirmation'
 import type { GenerationGateChallengeProjection, GenerationGateVerificationResult } from './mcpGateConfirmation'
 export type { GenerationGateChallengeProjection, GenerationGateConfirmation, GenerationGateVerificationResult } from './mcpGateConfirmation'
 
-// 哪些工具挂活 widget（tool.name → ui:// 资源）：单次生成与 production Run 共用一张活面板。
 const TOOL_UI_RESOURCE: Record<string, string> = {
   nomi_generate: NOMI_LIVE_DRAFT_UI_URI,
   nomi_start_playbook: NOMI_LIVE_DRAFT_UI_URI,
@@ -51,26 +61,24 @@ const TOOL_UI_RESOURCE: Record<string, string> = {
 }
 
 export interface McpTransport {
-  /** 发一帧给客户端（响应 / 服务端→客户端请求如 elicitation/create）。 */
   send(message: unknown): void
-  /** 调一次能力核方法。spendConfirmed=真人已在 Claude 侧确认付费 → 透传给传输层放行本次。 */
   invoke(method: string, params: Record<string, unknown>, options?: McpInvokeOptions): Promise<unknown>
   /**
    * Nomi 是否开着（有活实例）= **「应用内确认卡这条问法还在不在」**，不是「用户注意力在不在 Nomi」。
    * 确认优先弹在调用方（客户端声明 elicitation 即可）；本标志只用于回答「客户端问不了时，还有谁能问」。
    */
   isAppOpen(): boolean
-  /** Main-process proof that this connection was installed for a known MCP client. */
   getAuthenticatedClient?(): AuthenticatedMcpClient | null
-  /** Optional stronger per-challenge verifier. The client must provide a proof the main process can verify. */
   verifyClientGenerationConfirmation?(challenge: GenerationGateChallengeProjection, attestation: unknown): Promise<boolean | GenerationGateVerificationResult>
-  /** GUI fallback for the exact server-owned challenge. It must return only the gesture result. */
   confirmGenerationInNomi?(challenge: GenerationGateChallengeProjection): Promise<boolean | GenerationGateVerificationResult>
   /** 结果/进度文案语言（可选；缺省 zh-CN，跟 App 语言设置走）。 */
   getLocale?(): ResultLocale
 }
 
 const PROTOCOL_VERSION = '2025-11-25'
+
+/** 服务端支持的协议版本，降序排列。 */
+export const SUPPORTED_PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'] as const
 
 // MCP 工具契约目录抽出到 mcpToolCatalog.ts（壳到 800/800 的 headroom 提取）；此处只 import 这份数据契约。
 import { MCP_TOOL_CATALOG } from './mcpToolCatalog'
@@ -129,18 +137,27 @@ export function createMcpProtocol(transport: McpTransport) {
   // 付费的会话级信任（治「反复去软件确认」）：某项目批准一次 → 本会话该项目后续生成免问，
   // 用满 SPEND_TRUST_REASK_AFTER 次再问一次。同样挂闭包 = 随这条连接存活，断即亡（见 mcpSpendTrust.ts）。
   const spendTrust = createSpendTrustStore()
-  // 服务端→客户端请求自管 id 与 pending，等客户端回响应。
+  // 在飞请求账本：取消（notifications/cancelled）与 stdio 断连都挂在它上面（见 mcpRequestRegistry.ts）。
+  const requests = createMcpRequestRegistry()
+  // 付费确认的并发绑定（按 projectId）：两个首次付费请求同时进来时，第二个排队等第一个的确认结果，
+  // 而不是各弹各的卡。与生成门共用同一份并发语义（mcpConfirmationBinding.ts，P1 不造第二套）。
+  const spendConfirmBinding = createConfirmationBinding<{ supported: boolean; confirmed?: boolean }>({
+    isConfirmed: (result) => result.confirmed === true,
+  })
   let serverReqSeq = 0
-  const pendingServerReqs = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>()
+  const pendingServerReqs = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout>; cleanup?: () => void }>()
 
   function send(message: unknown): void {
     transport.send(message)
   }
+  // 取消后的请求不回响应。
   function reply(id: unknown, result: unknown): void {
+    if (!requests.shouldReply(id)) return
     send({ jsonrpc: '2.0', id, result })
   }
-  function replyError(id: unknown, code: number, message: string): void {
-    send({ jsonrpc: '2.0', id, error: { code, message } })
+  function replyError(id: unknown, code: number, message: string, data?: unknown): void {
+    if (!requests.shouldReply(id)) return
+    send({ jsonrpc: '2.0', id, error: { code, message, ...(data === undefined ? {} : { data }) } })
   }
 
   // 结果/进度文案语言：跟 transport 给的 App 语言设置，缺省 zh-CN。
@@ -186,27 +203,41 @@ export function createMcpProtocol(transport: McpTransport) {
     return payload
   }
 
-  function sendServerRequest(method: string, params: unknown, timeoutMs = 300000): Promise<unknown> {
+  function sendServerRequest(method: string, params: unknown, timeoutMs = 300000, signal?: AbortSignal): Promise<unknown> {
     const id = `srv-${(serverReqSeq += 1)}`
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
+      let settled = false
+      const cleanup = () => signal?.removeEventListener('abort', onAbort)
+      const onAbort = () => {
+        if (settled) return
+        settled = true
         pendingServerReqs.delete(id)
+        cleanup()
+        reject(signal?.reason instanceof Error ? signal.reason : new Error('MCP request cancelled'))
+      }
+      const timer = setTimeout(() => {
+        if (settled) return
+        settled = true
+        pendingServerReqs.delete(id)
+        cleanup()
         reject(new Error('客户端无响应（确认超时）'))
       }, timeoutMs)
-      pendingServerReqs.set(id, { resolve, reject, timer })
+      pendingServerReqs.set(id, { resolve, reject, timer, cleanup })
+      if (signal?.aborted) {
+        clearTimeout(timer)
+        onAbort()
+        return
+      }
+      signal?.addEventListener('abort', onAbort, { once: true })
       send({ jsonrpc: '2.0', id, method, params })
     })
   }
 
-  /**
-   * 让客户端（Claude Code）向真人弹一个「确认花费」对话框（boolean）。
-   * 不支持 elicitation 的客户端返回 { supported:false }；支持则返回 { supported:true, confirmed:bool }。
-   */
   async function elicitBooleanConfirm(input: {
     message: string
     title: string
     description: string
-  }): Promise<{ supported: boolean; confirmed?: boolean; action?: 'accept' | 'decline' | 'cancel' | 'timeout'; attestation?: unknown }> {
+  }, signal?: AbortSignal): Promise<{ supported: boolean; confirmed?: boolean; action?: 'accept' | 'decline' | 'cancel' | 'timeout'; attestation?: unknown }> {
     if (!clientSupportsElicitation) return { supported: false }
     try {
       const res = (await sendServerRequest('elicitation/create', {
@@ -218,7 +249,7 @@ export function createMcpProtocol(transport: McpTransport) {
           },
           required: ['confirm'],
         },
-      })) as { action?: string; content?: { confirm?: boolean; attestation?: unknown; confirmationAttestation?: unknown } } | null
+      }, 300000, signal)) as { action?: string; content?: { confirm?: boolean; attestation?: unknown; confirmationAttestation?: unknown } } | null
       // 三态：accept / decline / cancel。只有明确 accept + confirm=true 才能跨过服务端边界。
       const confirmed = res?.action === 'accept' && res?.content?.confirm === true
       return {
@@ -227,7 +258,8 @@ export function createMcpProtocol(transport: McpTransport) {
         action: res?.action === 'accept' || res?.action === 'decline' || res?.action === 'cancel' ? res.action : 'cancel',
         attestation: res?.content?.attestation ?? res?.content?.confirmationAttestation,
       }
-    } catch {
+    } catch (error) {
+      if (signal?.aborted) throw error
       // 超时/异常 → 当作未确认（不死等、不偷偷花钱）。
       return { supported: true, confirmed: false, action: 'timeout' }
     }
@@ -241,41 +273,35 @@ export function createMcpProtocol(transport: McpTransport) {
     elicitBooleanConfirm,
   })
 
-  /**
-   * 画布方案确认（免费、可撤）：把「要不要往画布加这 N 个节点」递进聊天问一次。
-   * 与 spend/creative-gate 同一条 seam——协议层拦在 transport.invoke 之前，accept 才放行。
-   */
-  async function elicitPlanConfirm(nodeCount: number): Promise<{ supported: boolean; confirmed?: boolean }> {
-    return elicitBooleanConfirm(planConfirmElicit(nodeCount))
+  async function elicitPlanConfirm(nodeCount: number, signal?: AbortSignal): Promise<{ supported: boolean; confirmed?: boolean }> {
+    return elicitBooleanConfirm(planConfirmElicit(nodeCount), signal)
   }
 
-  /**
-   * 开场收敛表单（W3 幕 0）：一次弹全 ≤3 题的 enum 选择。与 elicitBooleanConfirm 并列——
-   * 那个是「是/否」，这个是「选项」，两者都只是 elicitation/create 的不同 requestedSchema，不另造机制。
-   */
-  async function elicitIntake(questions: ReturnType<typeof buildIntakeQuestions>): Promise<{ supported: boolean; values?: Record<string, unknown> }> {
+  async function elicitIntake(questions: ReturnType<typeof buildIntakeQuestions>, signal?: AbortSignal): Promise<{ supported: boolean; values?: Record<string, unknown> }> {
     if (!clientSupportsElicitation) return { supported: false }
     try {
       const res = (await sendServerRequest('elicitation/create', {
         message: buildIntakeMessage(questions),
         requestedSchema: buildIntakeSchema(questions),
-      })) as { action?: string; content?: Record<string, unknown> } | null
+      }, 300000, signal)) as { action?: string; content?: Record<string, unknown> } | null
       // decline/cancel 不是错误——收敛这步「跳过永远安全」，交给 resolveIntake 全落默认。
       return { supported: true, values: res?.action === 'accept' ? (res.content || {}) : {} }
-    } catch {
+    } catch (error) {
+      if (signal?.aborted) throw error
       return { supported: true, values: {} } // 超时同理：走默认继续，不卡住用户
     }
   }
 
   async function elicitCreativeGateDecision(
     args: Record<string, unknown>,
+    signal?: AbortSignal,
   ): Promise<{ supported: boolean; confirmed?: boolean }> {
     if (!clientSupportsElicitation) return { supported: false }
     if (args.decision !== 'approved' && args.decision !== 'rejected') throw new Error('Invalid production gate decision')
     const projectId = typeof args.projectId === 'string' ? args.projectId : ''
     const runId = typeof args.runId === 'string' ? args.runId : ''
     const gateId = typeof args.gateId === 'string' ? args.gateId : ''
-    const projection = await transport.invoke('production.get', { projectId, runId }) as Record<string, unknown>
+    const projection = await transport.invoke('production.get', withRequestSignal({ projectId, runId }, signal)) as Record<string, unknown>
     const gates = Array.isArray(projection.gates) ? projection.gates as Array<Record<string, unknown>> : []
     const gate = gates.find((candidate) => candidate.gateId === gateId && candidate.status === 'waiting')
     if (!gate) throw new Error(`Production gate is not waiting: ${gateId}`)
@@ -324,13 +350,27 @@ export function createMcpProtocol(transport: McpTransport) {
           : (isEnglish
               ? 'Only this reversible creative gate will be decided. Spending and export approvals remain in Nomi.'
               : '只会决定这道可逆创意门；支出与导出仍必须在 Nomi 中确认。'),
-    })
+    }, signal)
   }
 
-  async function handle(message: RpcMessage): Promise<void> {
+  async function handle(message: RpcMessage, requestSignal?: AbortSignal): Promise<void> {
+    const invokeForRequest = (methodName: string, paramsValue: Record<string, unknown>, options?: McpInvokeOptions) => {
+      const forwardedParams = withRequestSignal(paramsValue, requestSignal)
+      const { signal: _signal, ...forwardedOptions } = options ?? {}
+      return Object.keys(forwardedOptions).length
+        ? transport.invoke(methodName, forwardedParams, forwardedOptions)
+        : transport.invoke(methodName, forwardedParams)
+    }
     const { id, method, params } = message
-    // 通知（无 id）不回响应。
-    if (id === undefined || id === null) return
+    // 通知不回响应；取消通知仍须交给 registry。
+    if (id === undefined || id === null) {
+      if (method === 'notifications/cancelled') {
+        // 未知、已完成或畸形 requestId 静默忽略。
+        const reason = typeof params?.reason === 'string' ? params.reason : undefined
+        requests.cancel(params?.requestId, reason)
+      }
+      return
+    }
 
     if (method === 'initialize') {
       clientSupportsElicitation = Boolean(params?.capabilities && (params.capabilities as Record<string, unknown>).elicitation)
@@ -342,9 +382,25 @@ export function createMcpProtocol(transport: McpTransport) {
           : clientName.includes('cursor')
             ? 'cursor'
             : 'external'
-      // 协议版本回显客户端请求的版本（兼容性根因 R5 实证）：硬回我们偏好版本会让只讲老协议的客户端按规范断开。
+      // 版本交集协商：不支持的版本回 -32602。
       const requested = params?.protocolVersion
-      const negotiatedVersion = typeof requested === 'string' && requested ? requested : PROTOCOL_VERSION
+      if (requested !== undefined && requested !== null && typeof requested !== 'string') {
+        replyError(id, -32602, 'Unsupported protocol version', {
+          supported: [...SUPPORTED_PROTOCOL_VERSIONS],
+          requested,
+        })
+        return
+      }
+      const negotiatedVersion = typeof requested === 'string' && requested
+        ? requested
+        : PROTOCOL_VERSION
+      if (typeof requested === 'string' && requested && !SUPPORTED_PROTOCOL_VERSIONS.includes(requested as typeof SUPPORTED_PROTOCOL_VERSIONS[number])) {
+        replyError(id, -32602, 'Unsupported protocol version', {
+          supported: [...SUPPORTED_PROTOCOL_VERSIONS],
+          requested,
+        })
+        return
+      }
       reply(id, {
         protocolVersion: negotiatedVersion,
         capabilities: { tools: {}, resources: {}, prompts: {} },
@@ -386,7 +442,19 @@ export function createMcpProtocol(transport: McpTransport) {
         replyError(id, -32602, `未知工具: ${name}`)
         return
       }
-      const args = (params?.arguments as Record<string, unknown>) || {}
+      const rawArgs = params?.arguments
+      // tools/list 广播的 JSON Schema 同时是运行时唯一校验边界；失败回 Tool Execution Error。
+      const invalid = validateToolArguments(tool.name, tool.inputSchema, rawArgs === undefined ? {} : rawArgs)
+      if (invalid) {
+        const err = buildToolErrorOutcome(tool.name, invalid, locale())
+        reply(id, {
+          content: [{ type: 'text', text: err.text }],
+          isError: true,
+          structuredContent: { nomiOutcome: err.outcome },
+        })
+        return
+      }
+      const args = (rawArgs as Record<string, unknown>) || {}
       // A1 进度桥：客户端在 _meta.progressToken 要了进度才发（规范）；只挂长任务工具。
       // 心跳报真实已用时长（兼保活，Claude Code stdio 无声 30min 会掐）；真事件经 emit 透出。
       const meta = (params?._meta && typeof params._meta === 'object' && !Array.isArray(params._meta))
@@ -410,7 +478,7 @@ export function createMcpProtocol(transport: McpTransport) {
           built.actorId = clientHost
         }
         if (tool.name === 'nomi_decide_gate') {
-          const confirm = await elicitCreativeGateDecision(args)
+          const confirm = await elicitCreativeGateDecision(args, requestSignal)
           if (!confirm.supported) {
             reply(id, {
               content: [{
@@ -435,7 +503,7 @@ export function createMcpProtocol(transport: McpTransport) {
             })
             return
           }
-          const result = await transport.invoke(tool.method, built)
+          const result = await invokeForRequest(tool.method, built)
           reply(id, buildToolResultPayload(tool.name, args, result))
           return
         }
@@ -458,7 +526,7 @@ export function createMcpProtocol(transport: McpTransport) {
           const projectId = typeof built.projectId === 'string' ? built.projectId : ''
           const nodeCount = built.nodes.length
           if (!planTrust.isTrusted(projectId)) {
-            const confirm = await elicitPlanConfirm(nodeCount)
+            const confirm = await elicitPlanConfirm(nodeCount, requestSignal)
             if (!confirm.confirmed) {
               // decline / 超时 → 与既有取消同形（{ids:[],cancelled:true}），不落节点；文案走同一 outcome 漏斗。
               reply(id, buildToolResultPayload(tool.name, args, { ids: [], cancelled: true }))
@@ -467,7 +535,7 @@ export function createMcpProtocol(transport: McpTransport) {
             planTrust.trust(projectId)
           }
           // 已信任或刚批准 → 带 planConfirmed 放行：下游 confirmPlan 预批准、渲染层弹窗不再出现（免双问）。
-          const result = await transport.invoke(tool.method, built, { planConfirmed: true })
+          const result = await invokeForRequest(tool.method, built, { planConfirmed: true })
           reply(id, buildToolResultPayload(tool.name, args, result))
           return
         }
@@ -476,7 +544,7 @@ export function createMcpProtocol(transport: McpTransport) {
         // 任何一题留空/选「按你判断」/给非法值 → 走系统默认（跳过永远安全，C 路调研铁律）。
         if (tool.name === 'nomi_intake_brief') {
           const questions = buildIntakeQuestions({ kind: typeof built.kind === 'string' ? built.kind : '' })
-          const asked = await elicitIntake(questions)
+          const asked = await elicitIntake(questions, requestSignal)
           if (!asked.supported) {
             // 退化路径：如实告诉模型「我没法弹表单，题在这儿，你一次问全」——不静默用默认，也不假装问过。
             reply(id, buildToolResultPayload(tool.name, args, {
@@ -506,22 +574,36 @@ export function createMcpProtocol(transport: McpTransport) {
           // 下游照旧逐次铸 node-bound 令牌、assertAndConsumeSpendGrant 逐次校验。
           if (spendTrust.isTrusted(spendProjectId)) {
             spendTrust.countPass(spendProjectId)
-            const result = await transport.invoke(tool.method, built, { spendConfirmed: true })
+            const result = await invokeForRequest(tool.method, built, { spendConfirmed: true })
             reply(id, buildToolResultPayload(tool.name, args, result))
             return
           }
           const reask = spendTrust.hasApprovedBefore(spendProjectId)
-          const confirm = await elicitBooleanConfirm(spendConfirmElicit(describeSpend(args), reask))
+          // 并发绑定（按 projectId）：两个首次付费请求同时到这里时，只有第一个真弹确认，第二个排队等
+          // 同一个结果——旧行为是两个都发现 isTrusted=false 于是各弹各的、各自放行（重复扣费风险）。
+          // 排队者复用的是**确认结果**不是**授权令牌**：它仍逐笔经主进程 assertAndConsumeSpendGrant
+          // 铸/校验自己的令牌，硬闸一步没少（见 mcpConfirmationBinding.ts 的边界注释）。
+          const confirm = await spendConfirmBinding.run(
+            spendProjectId,
+            () => elicitBooleanConfirm(spendConfirmElicit(describeSpend(args), reask), requestSignal),
+          )
           if (confirm.supported) {
             if (!confirm.confirmed) {
               reply(id, { content: [{ type: 'text', text: '已取消：你未确认这次付费生成，未生成、未消耗额度。' }], isError: true })
               return
             }
-            const result = await transport.invoke(tool.method, built, { spendConfirmed: true })
-            // 只在真跑成功后记信任：invoke 抛错（无令牌/供应商失败）不该换来一段免问期。
-            spendTrust.trust(spendProjectId)
-            reply(id, buildToolResultPayload(tool.name, args, result))
-            return
+            try {
+              const result = await invokeForRequest(tool.method, built, { spendConfirmed: true })
+              // 只在真跑成功后记信任：invoke 抛错（无令牌/供应商失败）不该换来一段免问期。
+              spendTrust.trust(spendProjectId)
+              reply(id, buildToolResultPayload(tool.name, args, result))
+              return
+            } finally {
+              // 无论成败都摘掉确认绑定：成功 → 后续走 spendTrust 快路；失败 → 下次重新问真人，
+              // 别让一颗「已确认但没跑成」的 promise 永久挂在这个 projectId 上（那会让后续请求
+              // 复用一次早已过期的确认 = 没问就花钱）。
+              spendConfirmBinding.release(spendProjectId)
+            }
           }
           if (!transport.isAppOpen()) {
             reply(id, {
@@ -535,22 +617,28 @@ export function createMcpProtocol(transport: McpTransport) {
           // 「反复」，否则 Claude Code 这类不声明 elicitation 的客户端一点好处都拿不到）。
           // grantsSessionTrust 让那张卡把授权范围写在脸上——用户以为批的是「这一张」，别让他不知情地批掉一段。
           built.grantsSessionTrust = true
-          const cardResult = await transport.invoke(tool.method, built)
+          // ⚠️ 这条路（App 内确认卡）**不能**把 invoke 塞进并发绑定里：那颗 promise 的值是「这一次生成的
+          // 结果」，让第二个请求复用它 = 两个请求拿同一张图、第二笔生成根本没发生。绑定只该共享「确认」，
+          // 不该共享「生成」。而这条路的确认与生成是**同一次 invoke**（invoke 成功即等于真人点了卡，
+          // 没点 → 无令牌 → assertAndConsumeSpendGrant 抛错），拆不开。
+          // 故这里的并发保护交给下游硬闸：每个请求各自铸/校验自己的令牌，真人点几张卡就放行几笔——
+          // 不会出现「一次确认放行两笔」，最坏情况只是用户看见两张卡（诚实，且每张都要单独点）。
+          const cardResult = await invokeForRequest(tool.method, built)
           spendTrust.trust(spendProjectId)
           reply(id, buildToolResultPayload(tool.name, args, cardResult))
           return
         }
         if (tool.name === 'nomi_request_generation_gate') {
           await handleSemanticGenerationGate(id, tool.name, args, built, {
-            invoke: (method, params) => transport.invoke(method, params),
-            requestConfirmation: requestGenerationConfirmation,
+            invoke: (method, params, signal) => invokeForRequest(method, params, { signal }),
+            requestConfirmation: (challenge, signal) => requestGenerationConfirmation(challenge, signal),
             buildResult: buildToolResultPayload,
             reply,
             locale,
-          })
+          }, requestSignal)
           return
         }
-        const result = await transport.invoke(tool.method, built)
+        const result = await invokeForRequest(tool.method, built)
         reply(id, buildToolResultPayload(tool.name, args, result))
       } catch (error) {
         // A6 错误契约：isError 返回（模型看到错误而非协议级 error），带人话原因 + 恢复动作 + 诊断码。
@@ -592,7 +680,7 @@ export function createMcpProtocol(transport: McpTransport) {
     }
 
     if (method === 'resources/list') {
-      const res = (await transport.invoke('skills.list', {})) as { skills?: SkillSummaryFrame[] } | null
+      const res = (await invokeForRequest('skills.list', {})) as { skills?: SkillSummaryFrame[] } | null
       const skillResources = (res?.skills || []).map((s) => ({
         uri: `${SKILL_URI_PREFIX}${s.directoryName}`,
         name: s.name,
@@ -631,7 +719,7 @@ export function createMcpProtocol(transport: McpTransport) {
         try {
           const artifact = productionArtifactResource(uri)
           if (!artifact) throw new Error(`未知资源 uri: ${uri}`)
-          const result = await transport.invoke('production.artifact.read', artifact)
+          const result = await invokeForRequest('production.artifact.read', artifact)
           reply(id, {
             contents: [{ uri, mimeType: 'application/json', text: JSON.stringify(sanitizeArtifactResource(result), null, 2) }],
           })
@@ -645,7 +733,7 @@ export function createMcpProtocol(transport: McpTransport) {
         return
       }
       const key = uri.slice(SKILL_URI_PREFIX.length)
-      const content = (await transport.invoke('skills.read', { name: key })) as SkillContentFrame | null
+      const content = (await invokeForRequest('skills.read', { name: key })) as SkillContentFrame | null
       if (!content?.body) {
         replyError(id, -32602, `未找到技能资源: ${uri}`)
         return
@@ -654,7 +742,7 @@ export function createMcpProtocol(transport: McpTransport) {
       return
     }
     if (method === 'prompts/list') {
-      const res = (await transport.invoke('skills.list', {})) as { skills?: SkillSummaryFrame[] } | null
+      const res = (await invokeForRequest('skills.list', {})) as { skills?: SkillSummaryFrame[] } | null
       // name 用 directoryName（斜杠命令友好，如 CodeBuddy 会转成 /director-cinematography）；无参数。
       const prompts = (res?.skills || []).map((s) => ({ name: s.directoryName, title: s.name, description: s.description }))
       reply(id, { prompts })
@@ -662,7 +750,7 @@ export function createMcpProtocol(transport: McpTransport) {
     }
     if (method === 'prompts/get') {
       const name = String(params?.name || '')
-      const content = (await transport.invoke('skills.read', { name })) as SkillContentFrame | null
+      const content = (await invokeForRequest('skills.read', { name })) as SkillContentFrame | null
       if (!content?.body) {
         replyError(id, -32602, `未找到技能提示词: ${name}`)
         return
@@ -688,14 +776,25 @@ export function createMcpProtocol(transport: McpTransport) {
         const pending = pendingServerReqs.get(String(message.id))!
         pendingServerReqs.delete(String(message.id))
         clearTimeout(pending.timer)
+        pending.cleanup?.()
         if (message.error) pending.reject(new Error(message.error.message || '客户端返回错误'))
         else pending.resolve(message.result)
         return
       }
-      void handle(message).catch((error) => {
-        if (message && message.id != null) replyError(message.id, -32603, error instanceof Error ? error.message : String(error))
-      })
+      // 有 id 的请求登记进在飞账本，取消/断连才有东西可中止；无 id 的通知不登记（handle 内部处理）。
+      const tracked = message && message.id != null && typeof message.method === 'string'
+        ? requests.begin(message.id, message.method)
+        : null
+      void handle(message, tracked?.signal)
+        .catch((error) => {
+          if (message && message.id != null) replyError(message.id, -32603, error instanceof Error ? error.message : String(error))
+        })
+        .finally(() => tracked?.finish())
       },
     requestGenerationConfirmation,
+    /** stdio 断连/进程退出：中止全部在飞工作，别把付费生成留在后台跑。 */
+    cancelAllInFlight(reason: string): number {
+      return requests.cancelAll(reason)
+    },
   }
 }

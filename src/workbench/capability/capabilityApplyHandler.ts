@@ -534,7 +534,7 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       }
     }
     case 'production.arrange': {
-      const result = arrangeStoryboardToTimeline()
+      const result = await arrangeStoryboardToTimeline()
       if (!result.ok && result.total === 0) throw new Error('没有可排片的镜头')
       const timelineContract = draftFilmTimelineFromState(useWorkbenchStore.getState().timeline)
       return {

@@ -32,6 +32,14 @@ export const zhTimelineEditor = {
   dragPlayhead: '拖动播放头',
   dragToTimeline: '加入时间轴（点击贴尾 · 拖拽自选位置）',
   addedToEnd: '已加入时间轴末尾',
+  addedAtPosition: '已加入时间轴指定位置',
+  adoption: {
+    alreadyOnTimeline: '已在时间轴上',
+    stale: '时间轴已变化，请重新加入',
+    versionChanged: '这个镜头已重新生成，请确认后再加入',
+    failedRecovered: '未能加入，时间轴保持原样',
+    needsRecovery: '加入中断，时间轴需要恢复',
+  },
   miniPreview: {
     title: '画面小窗',
     collapse: '收起画面小窗',
@@ -119,6 +127,14 @@ export const enTimelineEditor = {
   dragPlayhead: 'Drag playhead',
   dragToTimeline: 'Add to timeline (click appends · drag to place)',
   addedToEnd: 'Added to the end of the timeline',
+  addedAtPosition: 'Added to the timeline where you dropped it',
+  adoption: {
+    alreadyOnTimeline: 'Already on the timeline',
+    stale: 'The timeline changed. Add it again to use the latest timeline.',
+    versionChanged: 'This shot was regenerated. Confirm the version before adding it.',
+    failedRecovered: 'Could not add it. The timeline is unchanged.',
+    needsRecovery: 'Adding was interrupted. The timeline needs recovery.',
+  },
   miniPreview: {
     title: 'Mini preview',
     collapse: 'Collapse mini preview',

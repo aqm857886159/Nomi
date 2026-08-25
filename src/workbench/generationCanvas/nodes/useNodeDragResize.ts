@@ -10,8 +10,8 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { clientXToFrame } from '../../timeline/timelineEdit'
-import { getTrackTypeForClipType } from '../../timeline/timelineTypes'
-import { buildGenerationNodeTimelineClip } from '../../timeline/buildGenerationNodeTimelineClip'
+import { adoptGenerationNode } from '../../adoption/adoptGenerationNode'
+import { reportAdoptionOutcome } from '../../adoption/adoptionReceipt'
 import { toast } from '../../../ui/toast'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import { setCanvasDragging } from '../components/canvasDraggingFlag'
@@ -327,9 +327,10 @@ export function useNodeDragResize({
       const liveNode = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id) || node
       const rect = timelineDropTarget.getBoundingClientRect()
       const startFrame = clientXToFrame(event.clientX, rect.left, timeline.scale)
-      void buildGenerationNodeTimelineClip(liveNode, { fps: timeline.fps, startFrame }).then((clip) => {
-        if (!clip) return
-        useWorkbenchStore.getState().addTimelineClipAtFrame(clip, getTrackTypeForClipType(clip.type), startFrame)
+      // P5 E1：拖到自选位置也走采纳桥（不再直写轴）。落点语义由 placement 带过去，
+      // 幂等 / 新鲜度 / 原子写 / 一步撤销统一由桥负责。拖拽时用户已经在看着轴，回执不再展开面板。
+      void adoptGenerationNode(liveNode, { placement: { kind: 'frame', startFrame } }).then((outcome) => {
+        reportAdoptionOutcome(outcome, { revealTimeline: false })
         if (!dragStart?.multi) {
           moveNode(
             node.id,

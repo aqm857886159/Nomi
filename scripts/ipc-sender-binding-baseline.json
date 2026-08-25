@@ -1,0 +1,33 @@
+{
+  "_comment": [
+    "IPC sender-binding 棘轮基线：只减不增（R17）。",
+    "身份 = <file>|<kind>|<channel>，刻意不含行号——行号会因无关编辑漂移，",
+    "而基线一漂就只能靠『把数字调大』来消红，那正是这道门要防的事。",
+    "新增一条未加固注册 → 门岗直接点名那一条（file:line kind channel），不再随便指一个无辜文件。",
+    "这里剩下的每一条都是**刻意留下**的，理由见 _rationale。加固掉一条就从下面数组里删掉它。"
+  ],
+  "_rationale": {
+    "electron/capabilityCore/rendererBridge.ts|on|<dynamic>": "已有更强的专用绑定：回复必须来自当初收件的 webContents + frame + origin，不匹配则丢弃（既不 resolve 也不 reject，避免伪造者把真请求打成失败）。套通用守卫反而会弱化这套更精确的配对。",
+    "electron/windowCloseConfirmation.ts|on|nomi:window:close-response": "已有更强的专用绑定：必须携带主进程刚生成的、不可猜的 requestId，并与该窗口的 pending 记录逐一比对；只能促成用户自己已发起的关窗。",
+    "electron/main.ts|handle|nomi:window:minimize": "纯窗口控制，作用域由 fromWebContents(event.sender) 限定在发起者自己的窗口；不改权限、不花额度、不碰文件。",
+    "electron/main.ts|handle|nomi:window:maximize": "同上：只能最大化/还原发起者自己的窗口。",
+    "electron/main.ts|handle|nomi:window:close": "同上：只能关掉发起者自己的窗口，且真正关窗仍要过关窗确认链。",
+    "electron/main.ts|on|nomi:log:renderer-crash": "只把一条字符串写进本地崩溃日志，无返回值、无权限含义。",
+    "electron/main.ts|on|<dynamic>": "registerSyncIpc 通道注册器本体（通道名是变量）。它包裹的每条同步通道各自校验入参；扫描器只看得见这一处壳，不是一条真实权限入口。",
+    "electron/i18n.ts|on|nomi:i18n:set-locale": "纯 UI 状态：切桌面侧菜单/对话框语言，取值被 setDesktopLocale 收敛在受支持语言内。",
+    "electron/i18n.ts|on|nomi:i18n:get-system-locale": "只读 app.getLocale()，返回系统语言，无敏感信息。",
+    "electron/update/autoUpdater.ts|handle|nomi:app:version": "只读版本/平台/架构等构建常量；真正有权限含义的 check/download/install 已全部加固。"
+  },
+  "unguardedRegistrations": [
+    "electron/capabilityCore/rendererBridge.ts|on|<dynamic>",
+    "electron/i18n.ts|on|nomi:i18n:get-system-locale",
+    "electron/i18n.ts|on|nomi:i18n:set-locale",
+    "electron/main.ts|handle|nomi:window:close",
+    "electron/main.ts|handle|nomi:window:maximize",
+    "electron/main.ts|handle|nomi:window:minimize",
+    "electron/main.ts|on|<dynamic>",
+    "electron/main.ts|on|nomi:log:renderer-crash",
+    "electron/update/autoUpdater.ts|handle|nomi:app:version",
+    "electron/windowCloseConfirmation.ts|on|nomi:window:close-response"
+  ]
+}

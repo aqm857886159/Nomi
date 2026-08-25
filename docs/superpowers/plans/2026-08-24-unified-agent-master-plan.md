@@ -138,6 +138,14 @@ L0 底座                  ProductionRun/合同/预算/outbox/reconcile/资产  
 - **Track B（harness 与统一化）**：B0 本方案拍板 → B1a-d 低风险清理（立即可做）→ B2/B3 高风险件（B3 与 P4 S3 合流）→ B4 harness 核心（事件日志+事件流+策略引擎，P4 主体后接入，**加新删旧**替换散装配置层）→ **B5 交互层落地**：Agent 主栏 + 对话词汇组件（AI Elements 拷入重皮）+ 姿态切换/舞台跟随 + 库层入口 + 模式选择器——**全部样张先行拍板后实现**。
 - **Track C（外部体验）**：MCP Skill/Workflow 包装（Claude Code/Codex「一句话出片」引导）随 P4 节奏；新版 CC elicitation 真机探针（S3 验收项）。
 
+- **Track D（地基加固，2026-08-25 新增）**：来自全应用地基审计（`docs/audit/2026-08-25-app-wide-foundation-audit.md` + `plans/2026-08-25-foundation-replacement-plan.md`，PR #171）。owner 裁定：**不全面替换**，按「风险 x 代价」重排为四批，**不按模块优先级排**：
+  - **D1（立刻，=修 bug 不是重构）**：MCP 请求生命周期与边界——取消绑定在飞操作（客户端断开后付费生成仍在跑=真金风险）、付费确认与 request 一一绑定（两笔首次付费并发=重复扣费风险）、tools/call schema 成为唯一运行时校验边界、协议版本交集协商、stdio 行上限、IPC apply reply 绑 sender/frame/origin。**与换不换 SDK 无关**，但行为要对齐 MCP 标准语义（R20）。
+  - **D2**：IPC `sendSync` 读路径异步化（renderer 被主进程阻塞=真实卡顿）。
+  - **D3**：画布与时间轴的**瞬时状态 vs 领域状态分离**（同一个病的两个部位：播放头写回整个 timeline、viewport/手势与领域状态共用订阅）。这是我们自己的架构债；**改完之后「换不换成熟内核」才从必答题变成选择题**。
+  - **D4（可选，看收益）**：真要不要引入成熟交互内核 / MCP 官方 SDK 接管 wire 层——到时用 spike 验证，**禁止 SDK 类型反向侵入业务模型**。
+  - **保护项（永不被反向改写）**：ProductionRun 账本、预算/收据/幂等、锚一致性、Proposal/撤销、能力核权限——没有现成品且是护城河，P4 真金验收已证其价值。
+  - 审计基线是隔离树 `86a02cdc`，其 file:line 需 rebase 到最新 main 复核后才可当作业。
+
 **最核心（决定以后不用重写）**：P4 闭环；事件溯源日志；单一审批信道；策略引擎。
 **能等**：subagents、自定义 Builder、ACP 直接实现、全功能接管、第二条 Pack、P4.5 分镜图检查点。
 **不做**：swarm、外部 runtime 当事实源、per-tool 弹窗、两套画布/两套 UI。
