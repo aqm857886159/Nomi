@@ -14,6 +14,8 @@ import { layoutPlannedNodes, layoutStoryboardNodes } from './trajectoryLayout'
 import { formatCanvasForAgent } from './canvasPromptContext'
 import { buildDependencyWaves } from '../runner/dependencyWaves'
 import { runPlanWithToasts } from '../components/batchPlanPreview'
+import { resolveAutonomousUploadConsent } from '../runner/generationRunController'
+import { toast } from '../../../ui/toast'
 import { mintSpendGrant } from '../../api/taskApi'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
 import { parseStoryboardPlan } from './storyboardPlan'
@@ -555,9 +557,20 @@ export async function applyCanvasToolCall(
     }
     // 付费守卫：本分支只在用户批准 pending 卡后到达（人手势在上游）→ 铸令牌绑受理节点，
     // 随 plan 下到主进程 runTask 核验。删了 defaultExecuteToolCall 的自动放行旁路后此处不会被 AI 静默触发。
+    // 托管同意：这条是**外部 agent 受理**路径，回合不阻塞、也没人在等着点第二张卡。
+    // 交给同一个策略真相源逐节点判定（resolveAutonomousUploadConsent）：策略允许 / KIE 已配
+    // / 本地 ComfyUI → 放行；还需要问一次 → 拒发并把人话原因走 toast 告诉用户，不偷偷上传。
     void mintSpendGrant(accepted)
-      .then((grantId) => runPlanWithToasts(plan, { grantId }))
-      .catch(() => {}) // 进度/结果全走 toast+run 域事件,此处不再有未处理拒绝
+      .then(async (grantId) => {
+        const decisions = await Promise.all(accepted.map((id) => resolveAutonomousUploadConsent(id)))
+        const consent = decisions.includes('allow') ? 'allow' as const : 'not-needed' as const
+        await runPlanWithToasts(plan, { grantId, assetUploadConsent: consent })
+      })
+      .catch((error: unknown) => {
+        // 进度/结果本来全走 toast+run 域事件；托管被拒是唯一需要在此说人话的失败。
+        const message = error instanceof Error && error.message ? error.message : ''
+        if (message) toast(message, 'error')
+      })
     return {
       accepted: true,
       acceptedNodeIds: accepted,

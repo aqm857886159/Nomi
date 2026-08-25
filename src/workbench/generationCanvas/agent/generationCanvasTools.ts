@@ -39,8 +39,12 @@ export type GenerationCanvasToolAction =
   | { tool: 'delete_nodes'; nodeIds: string[] }
   | { tool: 'update_node_prompt'; nodeId: string; prompt: string }
   | { tool: 'set_node_references'; nodeId: string; references: string[] }
-  | { tool: 'generate_image'; nodeId: string; confirmed?: boolean }
-  | { tool: 'generate_video'; nodeId: string; confirmed?: boolean }
+  // 注：这里曾有 generate_image / generate_video 两个工具。它们**从来没有调用方**
+  //（全仓无人调 generationCanvasTools.execute），却各自绕开花钱确认卡直接跑 runGenerationNode，
+  // 于是也绕开了托管同意——F16b 那张「每次生成都弹」的第二卡就有它们一份。
+  // 2026-08-26 随旧卡一并删除（P1 不留死的并行入口）。真正现役的生成入口是
+  // NodeGenerationComposer → confirmAndRunNode / batchPlanPreview → 花钱卡，
+  // 外部 agent 走 capability 的 production.generate-node。
   | { tool: 'send_to_timeline'; nodeId: string; options?: SendGenerationNodeToTimelineOptions }
 
 function toolResult<T>(input: GenerationCanvasToolResult<T>): GenerationCanvasToolResult<T> {
@@ -192,38 +196,6 @@ export const generationCanvasTools = {
         data: result,
         ...(result.ok ? {} : { error: result.error }),
       })
-    }
-    if (action.tool === 'generate_image' || action.tool === 'generate_video') {
-      const node = findNode(action.nodeId)
-      if (!node) return toolResult({ ok: false, tool: action.tool, message: '未找到节点', error: 'node_not_found' })
-      const expectedKind = action.tool === 'generate_image' ? 'image' : 'video'
-      if (getGenerationNodeExecutionKind(node.kind) !== expectedKind) {
-        return toolResult({ ok: false, tool: action.tool, message: `当前工具需要可执行的 ${expectedKind} 节点`, error: 'kind_mismatch', data: node })
-      }
-      if (!action.confirmed) {
-        return toolResult({
-          ok: true,
-          tool: action.tool,
-          message: '需要确认后开始真实生成',
-          requiresConfirmation: true,
-          preview: {
-            nodeId: node.id,
-            title: node.title,
-            kind: node.kind,
-            prompt: node.prompt || '',
-            references: node.references || [],
-          },
-        })
-      }
-
-      try {
-        const { runGenerationNode } = await import('../runner/generationRunController')
-        const result = await runGenerationNode(node.id)
-        return toolResult({ ok: true, tool: action.tool, message: '生成完成', data: result })
-      } catch (error: unknown) {
-        const message = error instanceof Error && error.message ? error.message : '生成失败'
-        return toolResult({ ok: false, tool: action.tool, message, error: message })
-      }
     }
     return toolResult({ ok: false, tool: 'unknown', message: '未知工具', error: 'unknown_tool' })
   },

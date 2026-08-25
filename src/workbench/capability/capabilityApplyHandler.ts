@@ -11,7 +11,7 @@ import { runSingleShotAgent } from '../ai/agentLoopMode'
 import { readWindowUrlParam } from '../windowUrlParam'
 import { useWorkbenchStore } from '../workbenchStore'
 import { mintSpendGrant } from '../api/taskApi'
-import { runGenerationNode } from '../generationCanvas/runner/generationRunController'
+import { resolveAutonomousUploadConsent, runGenerationNode } from '../generationCanvas/runner/generationRunController'
 import { arrangeStoryboardToTimeline } from '../generationCanvas/agent/sendStoryboardToTimeline'
 import { exportTimelineToMp4 } from '../export/exportApi'
 import { verifyShotsAndReport, useShotVerifyStore, isShotVerifyEnabled } from '../generationCanvas/agent/shotVerifyStore'
@@ -521,7 +521,12 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       const retryDirective = typeof data.retryDirective === 'string' && data.retryDirective.trim()
         ? data.retryDirective.trim()
         : undefined
-      const result = await runGenerationNode(nodeId, { grantId, ...(retryDirective ? { promptSuffix: retryDirective } : {}) })
+      // 托管同意：外部 agent / MCP 驱动，没人坐在屏幕前——不能弹卡（会把整条自动化挂死在
+      // 一个没人点的对话框上），也不能默默把本地素材传到公共托管。交给同一个策略真相源判定：
+      // 策略允许 / KIE 已配 / 本地 ComfyUI → 放行；还需要问一次 → 诚实拒发，把「去配 KIE
+      // 或改托管策略」的人话回给 agent（见 resolveAutonomousUploadConsent）。
+      const assetUploadConsent = await resolveAutonomousUploadConsent(nodeId)
+      const result = await runGenerationNode(nodeId, { grantId, assetUploadConsent, ...(retryDirective ? { promptSuffix: retryDirective } : {}) })
       return {
         nodeId,
         status: 'succeeded',

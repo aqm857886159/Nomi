@@ -64,26 +64,86 @@ try {
   await expectVisible(win.getByText(/正在拆镜头|拆镜头/, { exact: false }).first(), '点击选区入口后进入同一拆镜流程')
   await win.screenshot({ path: path.join(shotsDir, '01-f3-selection-light.png') })
 
-  // E2E bridge feeds the real SpendConfirmDialog/store, including the merged disclosure.
+  // ── F16b 第一腿：**旧卡的阳性对照** ──────────────────────────────────────────
+  //
+  // 这一腿存在的唯一理由：让「确认后不再弹第二张卡」这句话真的被测量到。
+  //
+  // 之前这条走查断言的是 [data-hosting-disclosure] 不见了——那是**新卡自己的披露块**，
+  // 卡一关它必然消失，所以哪怕旧卡还在天天弹，这条也照样绿。真正要盯的是**旧卡的身份**：
+  // 标题「KIE 视频上传 / 公共托管确认」+ confirmDialog 的表面（data-confirm-dialog-surface）。
+  //
+  // 而「旧卡没出现」要有意义，先得证明这个探针**测得到旧卡**。旧卡的代码已被删除（F16b），
+  // 没法再让它真的弹一次，于是走 _assert.mjs 里 proveProbe 的第 ② 种用法：
+  // 用同一棵组件树、同一个 E2E 桥、同一套选择器**造一张一模一样的卡**，证明探针在这一屏是活的。
+  // 这排除的正是「选择器写错 / 弹层根本没挂载」这种让 expectAbsent 恒真的情形。
+  const legacyCardSurface = win.locator('[data-confirm-dialog-surface="confirm"]')
+  const legacyCardTitle = win.getByText('KIE 视频上传 / 公共托管确认', { exact: true })
   await win.evaluate(() => {
-    window.__nomiSpendRemembered = false
-    window.__nomiSpendConfirmE2E({
-      title: '开始生成',
-      message: '将生成 1 张画面 · 预计约 1 分钟 · 会消耗模型额度',
-      confirmLabel: '生成',
-      cancelLabel: '取消',
-      light: true,
-      rememberHosting: true,
-      hostingDisclosure: {
-        message: '这次要用到参考图，需先上传到公共临时托管——素材会离开本机，链接短期有效，并存在隐私风险。配置 KIE 后可改用它（免费，且会优先使用）。',
-        rememberLabel: '记住我的选择，以后不再问',
+    // 用真 confirmDialog 桥造一张与旧卡同构的卡（同组件树、同 data 属性、同标题文案）。
+    window.__nomiLegacyProbeResult = undefined
+    window.__nomiConfirmDialogE2E({
+      title: 'KIE 视频上传 / 公共托管确认',
+      message: '探针：证明本走查测得到这张卡的存在。',
+      confirmLabel: '继续上传',
+      cancelLabel: '取消生成',
+    }).then((value) => { window.__nomiLegacyProbeResult = value })
+  })
+  const legacySurfaceProof = await proveProbe(legacyCardSurface, '旧托管卡的表面选择器在本屏测得到（阳性对照）')
+  const legacyTitleProof = await proveProbe(legacyCardTitle, '旧托管卡的标题文案在本屏测得到（阳性对照）')
+  // 收掉探针卡，回到干净现场——否则后面「没有旧卡」是在一张开着旧卡的屏上断言，必红且没意义。
+  await clickOrFail(win.locator('[data-confirm-dialog-cancel="true"]'), '关掉阳性对照探针卡')
+  await expectAbsent(legacyCardSurface, { provenBy: legacySurfaceProof, message: '探针卡应已关闭，现场需干净' })
+
+  // ── F16b 第二腿：**真实漏斗**（不再手写字符串） ─────────────────────────────
+  //
+  // 之前这一腿用 __nomiSpendConfirmE2E 塞手写的 title/message/hostingDisclosure，
+  // 等于把策略解析、KIE 探测、resolveHostingDisclosure、i18n 键全绕过去了——那几处任何一个
+  // 回归，这条走查都还是绿的。现在改成驱动**生产自己的**确认漏斗：
+  // 把托管策略设成 ask、放一个本地素材参考，让 confirmAndRunNode 自己去解析、自己决定弹什么。
+  // 托管策略 = ask（默认值，显式写死以免本机设置漂移让这条恒不弹），并确认 KIE 没配 key
+  // ——两者任一不成立，生产就**正确地**不弹披露，这一腿会变成在验一个不会发生的场景。
+  await win.evaluate(async () => {
+    const policy = window.nomiDesktop?.settings?.automationPolicy
+    if (!policy) throw new Error('nomiDesktop.settings.automationPolicy 不可用：走查拿不到真策略')
+    const current = await policy.get()
+    await policy.set({ ...current, anonymousAssetHosting: 'ask' })
+  })
+  // 真漏斗：往画布放一个带**本地素材**参考的付费节点，再调生产入口 confirmAndRunPlan 本尊。
+  // 这一路的托管策略解析、KIE 探测、披露文案的 i18n 键、花钱卡组装，全是生产自己的代码；
+  // 走查一个字符串都不手写，所以其中任何一处回归都会在这里报红。
+  await win.evaluate(() => {
+    const store = window.__nomiCanvasStore
+    if (!store) throw new Error('__nomiCanvasStore 未挂载：走查拿不到真画布 store')
+    store.getState().addNode({
+      kind: 'video',
+      title: 'F16b 托管节点',
+      prompt: '雨夜码头',
+      references: ['nomi-local://asset/f3-f16b-project/clip.mp4'],
+      meta: {
+        modelVendor: 'kie',
+        modelKey: 'kie/veo',
+        referenceVideoUrls: ['nomi-local://asset/f3-f16b-project/clip.mp4'],
       },
     })
   })
+  const hostingNodeId = await win.evaluate(() => {
+    const nodes = window.__nomiCanvasStore.getState().nodes
+    return nodes[nodes.length - 1]?.id
+  })
+  if (!hostingNodeId) throw new Error('托管测试节点没建出来')
+  await win.evaluate((nodeId) => {
+    const plan = window.__nomiBuildDependencyWaves([nodeId], window.__nomiCanvasStore.getState())
+    // 不 await：确认卡要先渲染出来给我们看，resolve 发生在点「生成」之后。
+    window.__nomiF16bRun = window.__nomiConfirmAndRunPlan(plan)
+      .catch((error) => { window.__nomiF16bError = String(error?.message || error) })
+  }, hostingNodeId)
+
   const hostingBlock = win.locator('[data-hosting-disclosure="true"]')
   const spendCard = win.locator('div.fixed.inset-0').filter({ has: hostingBlock }).first()
-  const cardProof = await proveProbe(hostingBlock, '需要匿名托管时合并确认卡与披露块确实出现')
+  const cardProof = await proveProbe(hostingBlock, '真实漏斗下合并确认卡与披露块确实出现')
   await expectVisible(hostingBlock, '花钱卡内含完整公共托管披露')
+  // 披露文案取自 i18n（generationCommon.spendHostingDisclosure.*），不是走查手写的串——
+  // 这样文案/键名回归会在这里报红，而不是被脚本里的副本掩盖。
   await expectVisible(win.getByText('记住我的选择，以后不再问', { exact: true }), '卡内含记住选择勾选')
   await win.screenshot({ path: path.join(shotsDir, '02-f16b-hosting-light.png') })
   await win.getByText('记住我的选择，以后不再问', { exact: true }).click()
@@ -92,10 +152,70 @@ try {
   await win.screenshot({ path: path.join(shotsDir, '03-f16b-hosting-dark.png') })
   await expectVisible(hostingBlock, '暗模式下同一张合并卡仍可见')
   await clickOrFail(spendCard.getByRole('button', { name: '生成', exact: true }), '合并确认卡「生成」')
-  await expectAbsent(hostingBlock, { provenBy: cardProof, message: '确认后不应再弹第二张独立托管卡' })
-  const remembered = await win.evaluate(() => window.__nomiSpendRemembered === true)
-  if (!remembered) throw new Error('记住选择后 anonymousAssetHosting 没有写回 allow')
-  console.log('✅ F3/F16b 走查通过（选区拆镜入口、单卡披露、无第二卡、记住=allow、光/暗截图）')
+
+  // ── 核心断言：确认之后，**旧卡**不该出现 ────────────────────────────────────
+  //
+  // 盯的是旧卡的身份（表面 + 标题），基线是上面那两个阳性对照。这才是 F16b 的真正判据：
+  // 旧路径若还活着，这里就会冒出第二张「KIE 视频上传 / 公共托管确认」。
+  //
+  // ⚠️ 顺序很重要，这里踩过一次：`expectAbsent` 内部是 **toHaveCount(0) 的自动重试**断言——
+  // 它会一直轮询直到计数变 0 就通过。而旧卡（若复活）是**异步渲染**的，点完「生成」立刻断言，
+  // 会在卡挂上来之前就采到 0 → 恒绿。我用注入一张假旧卡的变异测试实测到了这个假绿：
+  // 卡确实弹了出来，走查照样报通过。
+  //
+  // 所以必须**先把生成这一轮跑完**（confirmAndRunPlan 的 promise 落地 = 旧路径该弹的都弹过了），
+  // 再断言「一张都没有」。这样断言才是在「坏东西有充分机会出现之后」做的。
+  await win.evaluate(async () => {
+    try { await window.__nomiF16bRun } catch { /* 生成本身失败无所谓——这条走查只关心弹了几张卡 */ }
+  })
+  // 再证一次探针此刻仍然是活的：如果这一屏的弹层宿主整个没挂载，下面的「没看到」同样是空话。
+  // 造一张、看得见、收掉——然后才断言旧卡不在。
+  await win.evaluate(() => {
+    window.__nomiConfirmDialogE2E({
+      title: 'KIE 视频上传 / 公共托管确认',
+      message: '第二次探针：证明生成结束后这一屏仍测得到旧卡。',
+      confirmLabel: '继续上传',
+      cancelLabel: '取消生成',
+    })
+  })
+  await expectVisible(legacyCardSurface, '生成结束后探针卡仍能弹出（证明此刻探针是活的）')
+  await expectVisible(legacyCardTitle, '生成结束后仍能测到旧卡标题（证明文案探针是活的）')
+  await clickOrFail(win.locator('[data-confirm-dialog-cancel="true"]'), '关掉第二次阳性对照探针卡')
+  await expectAbsent(legacyCardSurface, { provenBy: legacySurfaceProof, message: '第二次探针卡应已关闭' })
+
+  // 现在才是真判据。**故意不用 expectAbsent**：它是自动重试的 toHaveCount(0)，
+  // 对「已经稳定存在的坏东西」会一直等到它消失才罢休，而对「稍后才冒出来的坏东西」则会
+  // 抢在它出现前采到 0 —— 两头都能给出假绿（本轮变异测试实测到了后者）。
+  // 这里要的是相反的语义：**连续观察一段时间，期间一次都不许出现**。
+  const legacyAppearances = await win.evaluate(async () => {
+    let seen = 0
+    for (let i = 0; i < 30; i += 1) {
+      if (document.querySelector('[data-confirm-dialog-surface="confirm"]')) seen += 1
+      const titles = [...document.querySelectorAll('*')].some(
+        (el) => el.children.length === 0 && el.textContent?.trim() === 'KIE 视频上传 / 公共托管确认',
+      )
+      if (titles) seen += 1
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+    return seen
+  })
+  if (legacyAppearances !== 0) {
+    throw new Error(
+      `确认之后又出现了独立的「KIE 视频上传 / 公共托管确认」卡（3 秒内命中 ${legacyAppearances} 次）——`
+        + '旧路径没删干净，F16b 的第二张卡复活了。',
+    )
+  }
+  // 读真策略确认「记住我的选择」落了盘。桥名必须写死 window.nomiDesktop（preload 暴露的那个）：
+  // 写错名字 + 可选链 = 恒 undefined，看起来和「真没写进去」一模一样，会把人往错方向带。
+  const remembered = await win.evaluate(async () => {
+    const policy = window.nomiDesktop?.settings?.automationPolicy
+    if (!policy) throw new Error('nomiDesktop.settings.automationPolicy 不可用')
+    return (await policy.get())?.anonymousAssetHosting
+  })
+  if (remembered !== 'allow') {
+    throw new Error(`记住选择后 anonymousAssetHosting 应为 allow，实际为 ${JSON.stringify(remembered)}`)
+  }
+  console.log('✅ F3/F16b 走查通过（选区拆镜入口、真漏斗单卡披露、旧卡确证不再出现、记住=allow、光/暗截图）')
 } finally {
   await app.close().catch(() => {})
   fs.rmSync(root, { recursive: true, force: true })

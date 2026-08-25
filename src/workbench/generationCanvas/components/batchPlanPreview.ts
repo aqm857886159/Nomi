@@ -4,7 +4,7 @@ import { create } from 'zustand'
 import { toast, useToastStore } from '../../../ui/toast'
 import { runGenerationNodesByPlan, spendCostKindForNodes } from '../runner/generationRunController'
 import { mintSpendGrant } from '../../api/taskApi'
-import { confirmAndMintGrant, describeGenerationCost } from '../spend/spendConfirm'
+import { confirmAndMintGrant, confirmGenerationSpend, describeGenerationCost } from '../spend/spendConfirm'
 import { hasLocalAssetReference, resolveAssetUploadConsent } from '../runner/assetUploadConsent'
 import { resolveGenerationReferences } from '../runner/generationReferenceResolver'
 import { buildDependencyWaves, type DependencyWavePlan } from '../runner/dependencyWaves'
@@ -46,7 +46,11 @@ export const useBatchPlanPreviewStore = create<BatchPlanPreviewState>()((set, ge
       return
     }
     set({ plan: null, running: false })
-    await runPlanWithToasts(plan, { grantId })
+    // 计划 overlay 走的是 confirmAndRunPlan 之外的一条真人手势路径：托管同意同样必须先解析出来
+    // （策略/KIE 判定 → 需要问就带披露块弹卡），不能省略成「让 runner 自己弹第二张」。
+    const consent = await confirmPlanHostingConsent(plan.waves.flat())
+    if (!consent) return
+    await runPlanWithToasts(plan, { grantId, assetUploadConsent: consent })
   },
 }))
 
@@ -70,6 +74,76 @@ export function describeBlockedNotice(plan: DependencyWavePlan): string | null {
 }
 
 /**
+ * 一批节点的托管解析：整批只问一次（有一个节点需要披露，整批就带上披露块）。
+ * 返回 null = 策略 deny，这批直接不跑。
+ */
+async function resolveBatchHosting(ids: string[]): Promise<Awaited<ReturnType<typeof resolveAssetUploadConsent>> | null> {
+  const canvasState = useGenerationCanvasStore.getState()
+  const nodesById = new Map(canvasState.nodes.map((n) => [n.id, n]))
+  const consentNodes = ids
+    .map((id) => nodesById.get(id))
+    .filter((node): node is NonNullable<typeof node> => Boolean(node))
+    .map((node) => {
+      const resolved = resolveGenerationReferences(node, { nodes: canvasState.nodes, edges: canvasState.edges })
+      return {
+        ...node,
+        references: [
+          ...(node.references || []),
+          ...resolved.referenceImages,
+          ...resolved.referenceVideos,
+          ...resolved.referenceAudios,
+          ...(resolved.firstFrameUrl ? [resolved.firstFrameUrl] : []),
+          ...(resolved.lastFrameUrl ? [resolved.lastFrameUrl] : []),
+          ...(resolved.relayFromVideoUrl ? [resolved.relayFromVideoUrl] : []),
+        ],
+      }
+    })
+  let hosting: Awaited<ReturnType<typeof resolveAssetUploadConsent>> = { allowed: true, needsConfirmation: false, remember: async () => {} }
+  for (const node of consentNodes.filter((candidate) => hasLocalAssetReference(candidate))) {
+    const resolution = await resolveAssetUploadConsent(node)
+    if (!resolution.allowed) return null
+    if (resolution.needsConfirmation && !hosting.needsConfirmation) hosting = resolution
+  }
+  return hosting
+}
+
+/** 解析结果 → 花钱卡要不要带披露块。needsConfirmation 时才给，否则整块不渲染。 */
+function hostingDisclosureFor(
+  hosting: Awaited<ReturnType<typeof resolveAssetUploadConsent>>,
+): { hostingDisclosure: { message: string; rememberLabel: string; onRemember: () => Promise<void> } } | Record<string, never> {
+  if (!hosting.needsConfirmation) return {}
+  return {
+    hostingDisclosure: {
+      message: i18n.t('generationCommon.spendHostingDisclosure.message'),
+      rememberLabel: i18n.t('generationCommon.spendHostingDisclosure.remember'),
+      onRemember: hosting.remember,
+    },
+  }
+}
+
+/**
+ * 计划 overlay 的托管确认：这条路径的付费令牌在点「按计划生成」时就铸好了，
+ * 所以披露必须自己弹一次（同一张 SpendConfirmDialog，只是这次只承载托管披露）。
+ * 返回 null = 用户拒绝或策略 deny → 这批不跑。
+ */
+async function confirmPlanHostingConsent(ids: string[]): Promise<'allow' | 'not-needed' | null> {
+  const hosting = await resolveBatchHosting(ids)
+  if (!hosting) return null
+  if (!hosting.needsConfirmation) return 'not-needed'
+  const ok = await confirmGenerationSpend(
+    ids.map((id) => useGenerationCanvasStore.getState().nodes.find((n) => n.id === id)),
+    {
+      title: i18n.t('generationCommon.batchPlan.startTitle'),
+      message: describeGenerationCost(ids.length, spendCostKindForNodes(ids)),
+      confirmLabel: i18n.t('generationCommon.batchPlan.confirmGenerate'),
+      light: true,
+      ...hostingDisclosureFor(hosting),
+    },
+  )
+  return ok ? 'allow' : null
+}
+
+/**
  * 用户直发批量（框选「生成 N 个」）：轻确认 + 铸令牌 + 跑。取消则零调用零扣费。
  * 抽到此处而非内联进 GenerationCanvas（巨壳 800 行顶格，不喂）。
  */
@@ -79,32 +153,13 @@ export async function confirmAndRunPlan(
 ): Promise<void> {
   const ids = plan.waves.flat()
   if (ids.length === 0) {
-    await runPlanWithToasts(plan) // 无可跑 → 复用人话 toast 报「为什么不能跑」
+    // 无可跑 → 复用人话 toast 报「为什么不能跑」。零节点也就没有素材要上传。
+    await runPlanWithToasts(plan, { assetUploadConsent: 'not-needed' })
     return
   }
-  const canvasState = useGenerationCanvasStore.getState()
-  const nodesById = new Map(canvasState.nodes.map((n) => [n.id, n]))
-  const consentNodes = ids.map((id) => nodesById.get(id)).filter((node): node is NonNullable<typeof node> => Boolean(node)).map((node) => {
-    const resolved = resolveGenerationReferences(node, { nodes: canvasState.nodes, edges: canvasState.edges })
-    return {
-      ...node,
-      references: [
-        ...(node.references || []),
-        ...resolved.referenceImages,
-        ...resolved.referenceVideos,
-        ...resolved.referenceAudios,
-        ...(resolved.firstFrameUrl ? [resolved.firstFrameUrl] : []),
-        ...(resolved.lastFrameUrl ? [resolved.lastFrameUrl] : []),
-        ...(resolved.relayFromVideoUrl ? [resolved.relayFromVideoUrl] : []),
-      ],
-    }
-  })
-  let hosting: Awaited<ReturnType<typeof resolveAssetUploadConsent>> = { allowed: true, needsConfirmation: false, remember: async () => {} }
-  for (const node of consentNodes.filter((candidate) => hasLocalAssetReference(candidate))) {
-    const resolution = await resolveAssetUploadConsent(node)
-    if (!resolution.allowed) return
-    if (resolution.needsConfirmation && !hosting.needsConfirmation) hosting = resolution
-  }
+  const nodesById = new Map(useGenerationCanvasStore.getState().nodes.map((n) => [n.id, n]))
+  const hosting = await resolveBatchHosting(ids)
+  if (!hosting) return
   const grantId = await confirmAndMintGrant({
     nodeIds: ids,
     nodes: ids.map((id) => nodesById.get(id)),
@@ -112,23 +167,24 @@ export async function confirmAndRunPlan(
     message: describeGenerationCost(ids.length, spendCostKindForNodes(ids)),
     confirmLabel: i18n.t('generationCommon.batchPlan.confirmGenerate'),
     light: true,
-    ...(hosting.needsConfirmation ? {
-      hostingDisclosure: {
-        message: i18n.t('generationCommon.spendHostingDisclosure.message'),
-        rememberLabel: i18n.t('generationCommon.spendHostingDisclosure.remember'),
-        onRemember: hosting.remember,
-      },
-    } : {}),
+    ...hostingDisclosureFor(hosting),
   })
   if (!grantId) return
-  await runPlanWithToasts(plan, { grantId, concurrency: options.concurrency, assetUploadConsent: 'allow' })
+  await runPlanWithToasts(plan, {
+    grantId,
+    concurrency: options.concurrency,
+    // 用户刚在上面那张卡里同意了（或判定无需问）——决定在这里定死，波次里不再问第二次。
+    assetUploadConsent: hosting.needsConfirmation ? 'allow' : 'not-needed',
+  })
 }
 
 /** 按计划真实生成 + 进度人话 toast。「全部生成」与 S6b agent 受理路径共用(单一执行口)。
  * grantId：付费守卫令牌（确认后铸），随 plan 下到每个节点的 request.extras 供主进程核验。 */
 export async function runPlanWithToasts(
   plan: DependencyWavePlan,
-  options: { grantId?: string; concurrency?: number; assetUploadConsent?: 'allow' } = {},
+  // assetUploadConsent 必填：整批的托管同意在上面那张批量花钱卡里问过了，这里只是把答案带下去。
+  // 缺省会让 runner 无从判断「谁问的用户」，那正是 F16b 第二张卡的来源。
+  options: { grantId?: string; concurrency?: number; assetUploadConsent: 'allow' | 'not-needed' },
 ): Promise<void> {
   const waves = plan.waves
   const runnable = waves.flat().length
@@ -164,9 +220,9 @@ export async function runPlanWithToasts(
   })
   try {
     const result = await runGenerationNodesByPlan(plan, {
+      assetUploadConsent: options.assetUploadConsent,
       ...(options.grantId ? { grantId: options.grantId } : {}),
       ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency }),
-      ...(options.assetUploadConsent ? { assetUploadConsent: options.assetUploadConsent } : {}),
     })
     const okCount = result.successes.length
     const failCount = result.failures.length
