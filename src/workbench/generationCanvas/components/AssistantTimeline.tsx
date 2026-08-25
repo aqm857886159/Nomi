@@ -228,8 +228,11 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
   )
 
   const renderAssistantMessage = (message: WorkbenchAiMessage): JSX.Element => {
-    // 画布无独立 streaming 状态字段:'处理中...' 哨兵 = 等首 token(pending);有真内容 = 已到 token。
-    const isPending = message.content === '处理中...' || message.content === t('generationCommon.assistant.processing')
+    // status 是 pending/streaming 的唯一真相源(P2)。
+    // 旧路径曾以 '处理中...' 哨兵内容推断状态，现已修：content 里可能有任意字符（含模型合法输出或 i18n
+    // 文案被改），字符串匹配会静默误判。status 字段由 CanvasAssistantPanel 在创建消息时显式设置。
+    // undefined 兼容旧 session 持久化消息（视为 done，不进 pending 分支）。
+    const isPending = message.status === 'pending' || message.status === 'streaming'
     // status 是错误真相源(旧 session 用「（错误）」前缀兜底)。错误分流到红色错误卡(人话+一键出路),
     // 不再当普通回复渲染。
     const isErrorMsg =

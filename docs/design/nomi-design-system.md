@@ -373,8 +373,11 @@ Tailwind 标准 spacing 已经是 4 的倍数（`p-1` = 4px、`gap-3` = 12px）�
 | Token | 值 | 用途 |
 |---|---|---|
 | `--nomi-transition-fast` | `140ms cubic-bezier(.2, .7, .3, 1)` | 所有交互过渡的默认 |
+| `--nomi-motion-settle` | `340ms` | 节点入场 / 内容渐显（对齐 `generation-canvas-v2-node-in` 340ms） |
+| `--nomi-motion-breath` | `2400ms` | 环境呼吸 / 低频浮动循环 |
+| `--nomi-motion-orbit` | `5600ms` | 长周期轨道 / 光晕 / 状态指示器慢速循环 |
 
-**禁止：** 自己写 `transition-[opacity_300ms_ease-out]`，应该用 `transition-[opacity] duration-[var(--nomi-transition-fast)]`。
+**禁止：** 自己写 `transition-[opacity_300ms_ease-out]`，应该用 `transition-[opacity] duration-[var(--nomi-transition-fast)]`。同理，动效时长禁止直接写 `340ms` / `2400ms` / `5600ms`，必须引用对应 token。
 
 ---
 

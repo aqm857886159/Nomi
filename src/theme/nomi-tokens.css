@@ -44,6 +44,12 @@
   --nomi-radius: 10px;
   --nomi-radius-lg: 16px;
   --nomi-transition-fast: 140ms cubic-bezier(.2, .7, .3, 1);
+  /* 动效时长 token（真源在 tailwind.config.ts；此处同步为参考 + check-dangling-tokens）。
+     settle=节点入场/渐显（对齐 generation-canvas-v2-node-in 340ms）；
+     breath=环境呼吸/低频浮动；orbit=长周期轨道/光晕循环。 */
+  --nomi-motion-settle: 340ms;
+  --nomi-motion-breath: 2400ms;
+  --nomi-motion-orbit: 5600ms;
   --nomi-font-sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
   --nomi-font-display: "Fraunces Variable", Fraunces, "Inter Variable", Inter, serif;
   --nomi-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;

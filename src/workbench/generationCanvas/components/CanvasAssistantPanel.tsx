@@ -459,22 +459,24 @@ export default function CanvasAssistantPanel({
         const truncated = result.response.finishReason === 'length' && finalText !== ''
         const withNotes = (text: string): string =>
           `${text}${warn ? onlyTalkWarning() : ''}${truncated ? truncatedWarning() : ''}`
+        // 用户主动「停止」→ raw.cancelled=true，落第三态(中性，非错误)，与 CreationAiPanel:402 对齐。
+        const wasCancelled = Boolean((result.response.raw as { cancelled?: unknown } | undefined)?.cancelled)
         if (activeId !== null && activeText.trim() !== '') {
           // 尾段有正文(纯聊天整段 / 卡后总结)。
           updateMessage(activeId, withNotes(activeText))
-          setMessageStatus(activeId, 'done')
+          setMessageStatus(activeId, wasCancelled ? 'cancelled' : 'done')
         } else if (activeId !== null) {
           // 尾段是空占位气泡。有动作但无收尾文字 → 已应用卡已叙述结果,删空壳;否则补「已完成。」。
           if (toolActionCount > 0) {
             removeMessage(activeId)
           } else {
             updateMessage(activeId, withNotes(finalText || '已完成。'))
-            setMessageStatus(activeId, 'done')
+            setMessageStatus(activeId, wasCancelled ? 'cancelled' : 'done')
           }
         } else if (toolActionCount === 0) {
           // 无打开气泡且整轮零动作零文字 → 补一条「已完成。」(末尾是卡时不补,卡已叙述)。
           const id = createMessageId()
-          setMessages((current) => [...current, { id, role: 'assistant', content: withNotes(finalText || '已完成。'), status: 'done' }])
+          setMessages((current) => [...current, { id, role: 'assistant', content: withNotes(finalText || '已完成。'), status: wasCancelled ? 'cancelled' : 'done' }])
         }
       } catch (error: unknown) {
         if (streamRaf !== null) cancelAnimationFrame(streamRaf)
