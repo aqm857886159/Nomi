@@ -12,6 +12,7 @@ import {
   listAllProjects,
   readProjectCanvas,
   referencesFromEdges,
+  resolveCapabilityPollTimeoutMs,
   setProjectNodePrompt,
 } from './core'
 import { createDiskGateway, type PlanConfirmInfo, type ProjectGateway } from './gateway'
@@ -39,6 +40,15 @@ describe('referencesFromEdges（连参考边=喂参考图，headless 兜底）',
   it('非参考类边（first_frame 等）不计入此兜底', () => {
     const s = { ...(snap as object), edges: [{ id: 'e', source: 'a', target: 'b', mode: 'first_frame', order: 0 }] } as never
     expect(referencesFromEdges(s, 'b')).toEqual([])
+  })
+})
+
+describe('headless 轮询预算', () => {
+  it('视频默认等待 15 分钟，非视频维持 4 分钟，显式环境变量优先', () => {
+    expect(resolveCapabilityPollTimeoutMs('text_to_video', undefined)).toBe(900_000)
+    expect(resolveCapabilityPollTimeoutMs('image_to_video', undefined)).toBe(900_000)
+    expect(resolveCapabilityPollTimeoutMs('text_to_image', undefined)).toBe(240_000)
+    expect(resolveCapabilityPollTimeoutMs('image_to_video', '1234')).toBe(1234)
   })
 })
 
