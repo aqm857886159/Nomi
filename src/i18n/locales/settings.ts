@@ -145,7 +145,7 @@ export const zhSettings = {
     canvasGestureHint:
       '在生成画布里滚动滚轮（触控板双指滑）时做什么。不管选哪档，空白处左键拖动都是平移画布，Shift+左键拖是框选（加进当前选区），点一下空白取消选中。',
     canvasGestureZoom: '缩放',
-    canvasGestureZoomHint: '滚轮直接缩放，锚在光标。多数节点编辑器（ComfyUI 等）的习惯。',
+    canvasGestureZoomHint: '滚轮直接缩放，以光标位置为中心。多数节点编辑器（ComfyUI 等）的习惯。',
     canvasGesturePan: '平移',
     canvasGesturePanHint: '滚轮/双指滑平移画布，⌘/Ctrl+滚轮才缩放。触控板用户通常选这档（Figma 等的习惯）。',
   },
@@ -319,7 +319,7 @@ export const enSettings = {
     canvasGestureHint:
       'What the wheel (or a trackpad two-finger swipe) does on the generation canvas. Either way, left-drag empty space pans the canvas, Shift+left-drag box-selects (adding to the current selection), and a click on empty space clears it.',
     canvasGestureZoom: 'Zoom',
-    canvasGestureZoomHint: 'The wheel zooms directly, anchored at the cursor. What most node editors (ComfyUI and friends) do.',
+    canvasGestureZoomHint: 'The wheel zooms directly, centered on the cursor. What most node editors (ComfyUI and friends) do.',
     canvasGesturePan: 'Pan',
     canvasGesturePanHint: 'Wheel/two-finger swipe pans the canvas; ⌘/Ctrl+wheel zooms. Usually what trackpad users want (the Figma convention).',
   },

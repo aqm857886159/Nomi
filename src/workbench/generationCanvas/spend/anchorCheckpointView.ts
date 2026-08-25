@@ -11,8 +11,9 @@ import type {
 // 术语零内部词（「锚/检查点/封存/物化」不进任何返回串——名称从 candidate.prompt 取人话前缀）。
 //
 // 数据谱系（与 multiShotCanvasLanding 同一条链，不另立第二份）：
-//   门 jobIds = 锚 job → job.metadata.shotId → generationPlan.shots(role==='anchor') 取名称/reuse；
-//   job.jobId → artifacts(jobId 匹配·image·ready/adopted) 取缩略图 → buildNomiLocalAssetUrl 出 nomi-local url。
+//   门 jobIds = 锚 job → job.metadata.shotId → generationPlan.shots(role==='anchor') 取新拍条目；
+//   视频镜 candidate.references(role==='character') → 复用条目（按 assetId 去重）；
+//   job/asset → artifacts(image·ready/adopted) 取缩略图 → buildNomiLocalAssetUrl 出 nomi-local url。
 // 缩略图缺失（文件没落 / 越界路径）→ thumbnailUrl:null（卡渲染占位块，不伪造图）。
 
 export type AnchorCheckpointCardModel = {
@@ -26,8 +27,9 @@ export type AnchorCheckpointCardModel = {
   /** 镜头数（非锚、included 的镜）——主按钮「开拍 N 镜」用。 */
   shotCount: number
   anchors: AnchorCardEntry[]
-  /** 新拍 / 复用上集 计数（副标题用）。 */
+  /** 新拍数 = 卡上本批实际生成、可重拍的形象数。 */
   freshCount: number
+  /** 复用上集数 = 各镜引用的已有形象（按 assetId 去重）。 */
   reusedCount: number
 }
 
@@ -40,6 +42,10 @@ export type AnchorCardEntry = {
   roleLabel?: string
   /** 定妆照缩略图（nomi-local://…）；缺失为 null → 卡渲染占位块。 */
   thumbnailUrl: string | null
+  /** 复用条目的项目资产 id；新拍条目没有这个字段。 */
+  sourceAssetId?: string
+  /** 复用的已有资产不能沿本批的重拍链操作；新拍的 anchor-role shot 可以重拍。 */
+  canRework: boolean
   /** true=复用上集（badge=ink-05/ink-60）；false=新拍（badge=accent-soft/accent）。 */
   reused: boolean
 }
@@ -70,10 +76,63 @@ function anchorName(shot: ProductionGenerationShot | undefined): string {
   return result.length > 16 ? `${result.slice(0, 16)}…` : result
 }
 
-/** 该锚是否「复用上集」。origin/main 无 reuse 真相源（reuse 机制在飞·未合），故当前恒 false（默认全「新拍」）。
- *  reuse 落地后：读 shot/job 上的 reuse 标记填这里即可（D4 诚实交付：不伪造复用态）。 */
-function anchorReused(_shot: ProductionGenerationShot | undefined, _job: ProductionJob | undefined): boolean {
-  return false
+/**
+ * 该形象是否「复用上集」。真相源 = #161 合入的锚复用语义（`mcpMultiShotAnchorReuse.e2e.test.ts`）：
+ *
+ *   **复用一个已有形象 ≠ role:'anchor' 的 shot**——它没有要生成的东西，只是把项目**已有资产**作
+ *   `character` 参考挂到各视频镜的 `candidate.references[]`。调度派生按 role 分区
+ *   （`batchScheduleDerivation.ts:212` anchorsOf 只收 role==='anchor'），故复用形象**不进 anchorsOf、
+ *   不占提交、也不进锚检查点门的 jobIds**（`deriveCheckpoint` 对纯复用批返回 not_required）。
+ *
+ * 推论（这条决定了判据落在哪一层）：门里的 job 条目按构造是本批新生成的 anchor-role shot；
+ * 复用形象则从视频镜的 `references` 反查，作为没有重拍动作的复用条目补进卡片。
+ */
+function anchorReused(shot: ProductionGenerationShot | undefined, _job: ProductionJob | undefined): boolean {
+  // role:'anchor' 是本批要实际生成的形象，即使它带有输入参考，也仍是新拍。
+  // 复用形象没有自己的 job；它只会作为 character reference 出现在视频镜的 candidate 上。
+  return shot?.role !== 'anchor' && Boolean(characterReferencesFor(shot).length)
+}
+
+/**
+ * 本批「复用上集」的已有形象数：视频镜 `references[]` 里 role==='character' 的**去重 assetId**，
+ * 这是 #161 语义下唯一可靠的复用真相源（D4：数得出来才显示，数不出来就是 0）。
+ */
+function characterReferencesFor(shot: ProductionGenerationShot | undefined) {
+  return (shot?.candidate?.references ?? []).filter(
+    (reference) => reference.role === 'character' && typeof reference.assetId === 'string' && reference.assetId,
+  )
+}
+
+function reusedAssetReferences(run: ProductionRun) {
+  const shots = run.generationPlan?.shots ?? []
+  const references = new Map<string, (typeof shots)[number]['candidate']['references'][number]>()
+  for (const shot of shots) {
+    if (shot.role === 'anchor' || shot.included === false) continue
+    for (const reference of characterReferencesFor(shot)) {
+      if (!references.has(reference.assetId)) references.set(reference.assetId, reference)
+    }
+  }
+  return [...references.values()]
+}
+
+function thumbnailForReference(run: ProductionRun, reference: { assetId: string; contentHash: string }): string | null {
+  const artifact = run.artifacts.find(
+    (candidate: ProductionArtifact) =>
+      (candidate.artifactId === reference.assetId || candidate.contentHash === reference.contentHash) &&
+      candidate.kind === 'image' &&
+      (candidate.status === 'ready' || candidate.status === 'adopted') &&
+      (safeRelativePath(candidate.thumbnailRelativePath) || safeRelativePath(candidate.projectRelativePath)),
+  )
+  if (!artifact) return null
+  const rel = safeRelativePath(artifact.thumbnailRelativePath)
+    ? artifact.thumbnailRelativePath
+    : artifact.projectRelativePath
+  if (!rel) return null
+  try {
+    return buildNomiLocalAssetUrl(run.projectId, rel)
+  } catch {
+    return null
+  }
 }
 
 function thumbnailFor(
@@ -124,9 +183,23 @@ export function buildAnchorCheckpointCard(
       ...(anchorRoleLabel(shot) ? { roleLabel: anchorRoleLabel(shot) } : {}),
       thumbnailUrl: thumbnailFor(run, jobId),
       reused,
+      canRework: !reused,
     })
   }
   if (anchors.length === 0) return null
+
+  // 复用形象没有 anchor-role job，因而不会出现在 gate.jobIds。把每个项目资产只投影一次，
+  // 让卡上的「新拍 / 复用上集」徽标与真实计划一致；这些条目不挂重拍动作。
+  for (const reference of reusedAssetReferences(run)) {
+    anchors.push({
+      shotId: `reuse:${reference.assetId}`,
+      name: '',
+      thumbnailUrl: thumbnailForReference(run, reference),
+      sourceAssetId: reference.assetId,
+      reused: true,
+      canRework: false,
+    })
+  }
 
   const shots = (run.generationPlan?.shots ?? []).filter((shot) => shot.role !== 'anchor' && shot.included !== false)
   const freshCount = anchors.filter((anchor) => !anchor.reused).length
