@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-creation-pill-'))
@@ -112,7 +113,7 @@ async function verifyViewport(width, height) {
     undoBox,
     redoBox,
   }
-  await win.screenshot({ path: path.join(shotsDir, `creation-pill-${width}x${height}.png`) })
+  await screenshotSettled(win, { path: path.join(shotsDir, `creation-pill-${width}x${height}.png`) })
   console.log(JSON.stringify(result))
   if (result.pillVsUndo || result.pillVsRedo || !result.editorControlsEndBeforePill) {
     throw new Error(`创作助手 pill 与编辑器工具栏发生重叠：${width}x${height}`)

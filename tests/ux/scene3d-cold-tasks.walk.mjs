@@ -5,6 +5,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import path from 'node:path'
 import os from 'node:os'
 import { mkdtempSync, mkdirSync } from 'node:fs'
+import { screenshotSettled } from './_assert.mjs'
 
 const outDir = path.join(repoRoot, '.pose-lab')
 mkdirSync(outDir, { recursive: true })
@@ -49,7 +50,7 @@ try {
 
   // ① 三步教练标注
   pass.coachStep1 = (await win.getByText('点假人，人就归你管').count()) > 0
-  await win.screenshot({ path: path.join(outDir, 'cold-01-coach-step1.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'cold-01-coach-step1.png') })
   log(`  ${pass.coachStep1 ? '✓' : '✗'} 首次进入出现教练第 1 步`)
   // 压暗层回归具名 token alpha 类（bg-nomi-ink/45），必须真实布局——悬案回归网的后半张。
   const dimWidth = await win.evaluate(() => {
@@ -61,12 +62,12 @@ try {
   await win.getByRole('button', { name: '下一步' }).click()
   await win.waitForTimeout(500)
   pass.coachStep2 = (await win.getByText('点相机，运镜归你调').count()) > 0
-  await win.screenshot({ path: path.join(outDir, 'cold-02-coach-step2.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'cold-02-coach-step2.png') })
   log(`  ${pass.coachStep2 ? '✓' : '✗'} 第 2 步（相机）`)
   await win.getByRole('button', { name: '下一步' }).click()
   await win.waitForTimeout(500)
   pass.coachStep3 = (await win.getByText('场景不用自己搭').count()) > 0
-  await win.screenshot({ path: path.join(outDir, 'cold-03-coach-step3.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'cold-03-coach-step3.png') })
   log(`  ${pass.coachStep3 ? '✓' : '✗'} 第 3 步（添加）`)
   await win.getByRole('button', { name: '开始使用' }).click()
   await win.waitForTimeout(500)
@@ -85,7 +86,7 @@ try {
   await win.waitForTimeout(3000)
   const editorAgain = (await win.locator('[aria-label="3D 场景编辑器"]').count()) > 0
   pass.coachOnce = editorAgain && (await win.getByText('点假人，人就归你管').count()) === 0
-  await win.screenshot({ path: path.join(outDir, 'cold-04-second-open-no-coach.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'cold-04-second-open-no-coach.png') })
   log(`  ${pass.coachOnce ? '✓' : '✗'} 第二次进入不再出现（editorAgain=${editorAgain}）`)
 
   // ③ T1：只点可见带文案控件 → 选假人 → 姿势 → 蹲下
@@ -96,7 +97,7 @@ try {
   await win.getByRole('button', { name: '蹲下', exact: false }).first().click()
   await win.waitForTimeout(1500)
   pass.t1Pose = true
-  await win.screenshot({ path: path.join(outDir, 'cold-05-t1-squat-applied.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'cold-05-t1-squat-applied.png') })
   log('  ✓ T1 可见路径：选假人 → 姿势 → 蹲下')
 
   log('\n═══ 结果 ═══')

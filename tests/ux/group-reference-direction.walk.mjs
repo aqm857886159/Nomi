@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
+import { screenshotSettled } from './_assert.mjs'
 const repoRoot = process.cwd()
 const port = 5287
 const baseUrl = `http://127.0.0.1:${port}`
@@ -123,7 +124,7 @@ try {
   const fit = win.getByLabel('适应视图').first()
   if (await fit.count()) await fit.click()
   await win.waitForTimeout(900)
-  await win.screenshot({ path: path.join(shotsDir, '01-before.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '01-before.png') })
 
   const handle = win.locator('[data-node-id="target"] [data-side="left"]').first()
   const handleBox = await handle.boundingBox()
@@ -148,7 +149,7 @@ try {
   await win.waitForTimeout(350)
   const pendingAria = await win.locator('[data-group-id="reference-group"]').first().getAttribute('aria-label')
   check('左输入端待连提示说明“将编组作为输入”', /作为输入/.test(pendingAria || ''), pendingAria || '')
-  await win.screenshot({ path: path.join(shotsDir, '02-group-as-input.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '02-group-as-input.png') })
   await win.mouse.up()
   await win.waitForTimeout(1200)
 
@@ -179,7 +180,7 @@ try {
   check('目标顶部真实显示两张参考缩略图', await referenceImages.count() === 2, String(await referenceImages.count()))
   const activeMode = await targetNode.locator('[aria-label="生成方式"] [data-active="true"]').first().textContent().catch(() => '')
   check('界面模式同步显示“改图”', /改图/.test(activeMode || ''), activeMode || '')
-  await win.screenshot({ path: path.join(shotsDir, '03-after-connected.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '03-after-connected.png') })
 
   const clickableEdgePoint = await win.evaluate(() => {
     const groupRect = document.querySelector('[data-group-id="reference-group"]')?.getBoundingClientRect()
@@ -226,7 +227,7 @@ try {
     return useGenerationCanvasStore.getState().edges.map((edge) => edge.mode)
   })
   check('真实点标签可切换，且只改命中的一条边', modesAfterEdit.filter((mode) => mode === 'style_ref').length === 1, JSON.stringify(modesAfterEdit))
-  await win.screenshot({ path: path.join(shotsDir, '04-edge-label-changed.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '04-edge-label-changed.png') })
 
   const styleTag = win.getByRole('button', { name: /修改连接语义：当前为风格/ }).first()
   await styleTag.click()
@@ -243,7 +244,7 @@ try {
   check('断开编组连接会撤掉全部展开边', disconnected.edgeCount === 0, JSON.stringify(disconnected))
   check('断开同时清掉编组声明，不会后续复活', disconnected.outputLinks == null, JSON.stringify(disconnected.outputLinks))
   check('目标顶部参考图随断开实时清空', await referenceImages.count() === 0, String(await referenceImages.count()))
-  await win.screenshot({ path: path.join(shotsDir, '05-after-disconnected.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '05-after-disconnected.png') })
 } catch (error) {
   failures.push(String(error))
   console.error(error)

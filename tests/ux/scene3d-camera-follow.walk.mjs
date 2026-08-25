@@ -7,6 +7,7 @@ import path from 'node:path'
 import os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { mkdtempSync, mkdirSync } from 'node:fs'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, '.camera-follow-lab')
@@ -83,7 +84,7 @@ try {
   // 有真内容；2D canvas drawImage(HTMLImageElement) 可正常 getImageData）。算红色假人主色块质心，
   // 归一到 (-1..1) NDC（画布矩形内：中心 0,0、±1 边缘）。无红像素 → found=false。
   async function characterNdc() {
-    const buf = await canvas.screenshot()
+    const buf = await screenshotSettled(canvas)
     const dataUrl = 'data:image/png;base64,' + buf.toString('base64')
     return win.evaluate(async (url) => {
       const img = new Image()
@@ -132,11 +133,11 @@ try {
     await win.waitForTimeout(200)
     const ndc = await characterNdc()
     ndcSamples.push(ndc)
-    await win.screenshot({ path: path.join(outDir, `cf-step-${i}.png`) })
+    await screenshotSettled(win, { path: path.join(outDir, `cf-step-${i}.png`) })
   }
   await win.keyboard.up('KeyW')
   await win.waitForTimeout(300)
-  await win.screenshot({ path: path.join(outDir, 'cf-final.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'cf-final.png') })
 
   const valid = ndcSamples.filter((s) => s && s.found)
   const inFrame = valid.filter((s) => Math.abs(s.x) < 0.9 && Math.abs(s.y) < 0.95)

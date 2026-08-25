@@ -4,6 +4,7 @@
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = process.cwd()
 const THEME = process.env.NOMI_AUDIT_THEME === 'light' ? 'light' : 'dark'
@@ -15,7 +16,7 @@ const userData = path.join(repoRoot, '.tmp', 'nomi-audit-userdata')
 let n = 0
 async function snap(win, name) {
   n += 1
-  await win.screenshot({ path: path.join(shots, `${String(n).padStart(2, '0')}-${name}.png`) })
+  await screenshotSettled(win, { path: path.join(shots, `${String(n).padStart(2, '0')}-${name}.png`) })
   console.log(`  · ${THEME} ${String(n).padStart(2, '0')}-${name}`)
 }
 async function click(win, txt, ms = 1500) {

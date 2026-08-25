@@ -10,6 +10,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/storyboard-trigger')
@@ -47,7 +48,7 @@ let n = 0
 const snap = async (win, name) => {
   n += 1
   const tag = `${String(n).padStart(2, '0')}-${name}`
-  await win.screenshot({ path: path.join(shotsDir, `${tag}.png`) })
+  await screenshotSettled(win, { path: path.join(shotsDir, `${tag}.png`) })
   console.log(`  · shot ${tag}`)
 }
 const bodyHas = (win, re) => win.evaluate((src) => new RegExp(src).test(document.body.innerText), re.source)

@@ -17,7 +17,7 @@
 // 零额度——只用本地 ffmpeg 造的 4K 细节图，不触发任何生成。
 // 用法：node tests/ux/image-grid-split-freeze.walk.mjs [档位]   3=九宫格(默认) / 2=四视图 / 1=裁剪
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
-import { clickOrFail, expect, expectCount, expectVisible } from './_assert.mjs'
+import { clickOrFail, expect, expectCount, expectVisible, screenshotSettled } from './_assert.mjs'
 import { createRequire } from 'node:module'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -65,7 +65,7 @@ const getWin = () => {
   return win
 }
 const snap = async (name) => {
-  await getWin().screenshot({ path: path.join(outDir, name) })
+  await screenshotSettled(getWin(), { path: path.join(outDir, name) })
   console.log(`  · 截图 ${name}`)
 }
 const verdicts = []

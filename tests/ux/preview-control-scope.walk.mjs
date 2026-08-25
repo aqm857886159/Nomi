@@ -13,6 +13,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -55,7 +56,7 @@ const resize = async () => {
 }
 const snap = async (name) => {
   const p = path.join(outDir, name)
-  await getWin().screenshot({ path: p })
+  await screenshotSettled(getWin(), { path: p })
   console.log(`  · 截图 ${name} — ${(fs.statSync(p).size / 1024).toFixed(0)}KB`)
 }
 /** 只截控制条那一条（组名/禁用态在整屏图上看不清）。 */
@@ -67,7 +68,7 @@ const snapBar = async (name) => {
     return { x: Math.max(0, r.x - 20), y: Math.max(0, r.y - 20), width: Math.min(1680, r.width + 40), height: r.height + 40 }
   })
   if (!box) { console.log(`  · ${name} 跳过：没找到控制条`); return }
-  await getWin().screenshot({ path: path.join(outDir, name), clip: box })
+  await screenshotSettled(getWin(), { path: path.join(outDir, name), clip: box })
   console.log(`  · 截图 ${name}`)
 }
 /** 读控制条各组的名字 / 作用域 / 禁用态 / 是否给了原因。 */

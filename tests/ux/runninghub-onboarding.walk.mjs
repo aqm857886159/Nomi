@@ -3,12 +3,13 @@
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'; import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/runninghub'); fs.mkdirSync(shotsDir, { recursive: true })
 const userData = path.join(repoRoot, '.tmp', 'nomi-rh-userdata'); fs.mkdirSync(userData, { recursive: true })
 const KEY = process.env.RH_KEY || ''
 let n = 0
-const snap = async (w, name) => { n += 1; const t = `${String(n).padStart(2,'0')}-${name}`; await w.screenshot({ path: path.join(shotsDir, `${t}.png`) }); console.log(`  · ${t}`) }
+const snap = async (w, name) => { n += 1; const t = `${String(n).padStart(2,'0')}-${name}`; await screenshotSettled(w, { path: path.join(shotsDir, `${t}.png`) }); console.log(`  · ${t}`) }
 const tryClick = async (w, sel, label, ms = 3000) => { try { const el = w.locator(sel).first(); if (await el.count()) { await el.click({ timeout: ms }); console.log(`  ✓ ${label}`); return true } } catch (e) { console.log(`  ✗ ${label}: ${String(e.message).split('\n')[0]}`) } return false }
 const dumpButtons = async (w) => { const t = await w.locator('button, [role=button], [aria-label]').allInnerTexts().catch(() => []); console.log('  buttons:', JSON.stringify([...new Set(t.filter(Boolean))].slice(0, 30))) }
 

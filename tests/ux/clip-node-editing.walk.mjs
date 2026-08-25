@@ -8,6 +8,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const require = createRequire(import.meta.url)
@@ -275,7 +276,7 @@ async function dragClipEnd(material, deltaX, screenshotPath) {
   }
   if (!started) throw new Error(`片段出点拖动未启动：${clipId}`)
   const preview = await material.boundingBox()
-  if (screenshotPath) await win.screenshot({ path: screenshotPath })
+  if (screenshotPath) await screenshotSettled(win, { path: screenshotPath })
   const limited = await material.getAttribute('data-resize-limited') === 'true'
   await win.mouse.up()
   await win.waitForTimeout(300)
@@ -303,7 +304,7 @@ try {
   await win.mouse.down()
   await win.mouse.move(isolatedBefore.x + isolatedBefore.width / 2 + 120, isolatedBefore.y + isolatedBefore.height / 2, { steps: 10 })
   await win.waitForFunction(() => document.querySelector('[data-clip-id="clip-isolated-image"]')?.getAttribute('data-dragging') === 'true')
-  await win.screenshot({ path: screenshots.isolatedDrag })
+  await screenshotSettled(win, { path: screenshots.isolatedDrag })
   await win.mouse.up()
   await win.waitForTimeout(300)
   const isolatedAfter = await isolatedMaterial.boundingBox()
@@ -334,7 +335,7 @@ try {
     const rect = label.getBoundingClientRect()
     return rect.width > 0 && rect.height > 0 && getComputedStyle(label).visibility !== 'hidden'
   })
-  await win.screenshot({ path: screenshots.isolatedSnap })
+  await screenshotSettled(win, { path: screenshots.isolatedSnap })
   await win.mouse.up()
   await win.waitForTimeout(250)
   const isolatedSnapsToOrigin = Number(await isolatedMaterial.getAttribute('data-persisted-start-frame')) === 0
@@ -410,7 +411,7 @@ try {
         && sourceWidth >= element.getBoundingClientRect().width - 1
     })
   ))
-  await win.screenshot({ path: screenshots.compact })
+  await screenshotSettled(win, { path: screenshots.compact })
 
   const nodeBeforeDrag = await clip.boundingBox()
   const dragHandleBox = await clip.getByTestId('clip-node-drag-handle').boundingBox()
@@ -481,7 +482,7 @@ try {
   const afterCutClipId = await preview.getAttribute('data-active-clip-id')
   const playbackCrossesCuts = Boolean(beforeCutClipId && afterCutClipId && beforeCutClipId !== afterCutClipId)
   await preview.getByRole('button', { name: '暂停预览' }).click().catch(() => {})
-  await win.screenshot({ path: screenshots.preview })
+  await screenshotSettled(win, { path: screenshots.preview })
 
   await clip.getByTestId('clip-node-export').click()
   const exportMenu = win.getByTestId('clip-node-export-menu')
@@ -498,7 +499,7 @@ try {
       || exportMenuBox.y >= previewBeforeExportBox.y + previewBeforeExportBox.height
     ),
   )
-  await win.screenshot({ path: screenshots.exportMenu })
+  await screenshotSettled(win, { path: screenshots.exportMenu })
 
   await runExport('完整成片', '到画布', '已向画布导出 1 个视频节点')
   const fullCanvasExport = (await win.locator('[data-kind="video"]').count()) === 2
@@ -537,7 +538,7 @@ try {
   await win.mouse.click(edgePoint.x, edgePoint.y)
   await win.waitForTimeout(250)
   const clickingEdgeShowsNativeControl = (await win.locator('.generation-canvas-v2__edge-control[data-active="true"]').count()) === 1
-  await win.screenshot({ path: screenshots.outputs, fullPage: true })
+  await screenshotSettled(win, { path: screenshots.outputs, fullPage: true })
 
   const firstBox = await first.boundingBox()
   if (!firstBox) throw new Error('找不到首个片段')
@@ -615,7 +616,7 @@ try {
   await importedClip.scrollIntoViewIfNeeded()
   const importedClipBox = await importedClip.boundingBox()
   const importUsesRealDuration = Boolean(importedClipBox && importedClipBox.width >= 220)
-  await win.screenshot({ path: screenshots.imported })
+  await screenshotSettled(win, { path: screenshots.imported })
 
   const canvasZoom = win.getByRole('slider', { name: '缩放比例' }).first()
   await canvasZoom.evaluate((element) => {

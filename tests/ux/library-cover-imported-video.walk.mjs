@@ -13,6 +13,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-cover-walk-'))
 const settingsDir = path.join(root, 'settings')
@@ -154,7 +155,7 @@ try {
   const failedCount = await win.getByText('加载失败', { exact: false }).count()
   assert(failedCount === 0, '项目库页面没有任何「加载失败」字样')
 
-  await win.screenshot({ path: path.join(outDir, '1-library-covers.png') })
+  await screenshotSettled(win, { path: path.join(outDir, '1-library-covers.png') })
   console.log(`\n✅ 项目库封面走查通过（${passed} 项断言）\n   截图：${outDir}`)
 } finally {
   await app.close().catch(() => {})

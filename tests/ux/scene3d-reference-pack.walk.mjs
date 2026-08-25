@@ -13,6 +13,7 @@ import { mkdtempSync, mkdirSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import http from 'node:http'
 import net from 'node:net'
+import { screenshotSettled } from './_assert.mjs'
 
 const outDir = path.join(repoRoot, '.scene3d-reference-pack-lab')
 mkdirSync(outDir, { recursive: true })
@@ -183,7 +184,7 @@ try {
 
   const sceneNode = win.locator(`[data-node-id="${ids.sceneId}"]`)
   await sceneNode.waitFor({ state: 'visible', timeout: 8000 })
-  await win.screenshot({ path: path.join(outDir, '01-canvas-seeded.png') })
+  await screenshotSettled(win, { path: path.join(outDir, '01-canvas-seeded.png') })
   const openEditor = sceneNode.getByRole('button', { name: '打开 3D 编辑器', exact: false })
   await openEditor.first().click({ timeout: 5000 })
   await win.waitForTimeout(4500)
@@ -211,7 +212,7 @@ try {
   await referencePanel.waitFor({ state: 'visible', timeout: 5000 })
   const targetLabel = await win.locator('[data-scene3d-reference-target]').first().innerText()
   pass.referencePanel = /video_ref/.test(targetLabel) && /镜头 01/.test(targetLabel)
-  await win.screenshot({ path: path.join(outDir, '02-camera-reference-panel.png') })
+  await screenshotSettled(win, { path: path.join(outDir, '02-camera-reference-panel.png') })
   log(`  ${pass.referencePanel ? '✓' : '✗'} 参考输出面板指向 video_ref (${targetLabel})`)
 
   const pushIn = win.getByRole('button', { name: '推近', exact: true }).first()
@@ -230,7 +231,7 @@ try {
   const exportFrames = win.getByRole('button', { name: '导出运镜首尾帧', exact: true }).first()
   await exportFrames.click({ timeout: 5000 })
   await win.waitForTimeout(3500)
-  await win.screenshot({ path: path.join(outDir, '03-after-export-frames.png') })
+  await screenshotSettled(win, { path: path.join(outDir, '03-after-export-frames.png') })
   const frameState = await win.evaluate(async (targetId) => {
     const { useGenerationCanvasStore } = await import('/src/workbench/generationCanvas/store/generationCanvasStore.ts')
     const state = useGenerationCanvasStore.getState()
@@ -265,7 +266,7 @@ try {
   await win.waitForTimeout(2200)
   await win.keyboard.up('KeyW')
   await win.waitForTimeout(400)
-  await win.screenshot({ path: path.join(outDir, '04-recording-take.png') })
+  await screenshotSettled(win, { path: path.join(outDir, '04-recording-take.png') })
   await stopBtn.click({ timeout: 5000 })
   await win.waitForTimeout(1400)
 
@@ -296,7 +297,7 @@ try {
     ) break
     await win.waitForTimeout(2000)
   }
-  await win.screenshot({ path: path.join(outDir, '05-after-record-take.png') })
+  await screenshotSettled(win, { path: path.join(outDir, '05-after-record-take.png') })
   pass.takeVideoRefAttached = Boolean(
     attachedState?.targetVideoUrls?.length > 0 &&
     attachedState.targetVideoUrls.includes(attachedState.targetAttachedUrl) &&
@@ -332,7 +333,7 @@ try {
   await takeVideo.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
   pass.takeVideoVisible = (await takeVideo.count()) > 0
     && await takeVideo.evaluate((video) => video instanceof HTMLVideoElement && video.controls).catch(() => false)
-  await win.screenshot({ path: path.join(outDir, '06-canvas-reference-media-visible.png') })
+  await screenshotSettled(win, { path: path.join(outDir, '06-canvas-reference-media-visible.png') })
   log(`  ${pass.framesVisible ? '✓' : '✗'} 首/尾帧图片节点在画布中真实可见`)
   log(`  ${pass.takeVideoVisible ? '✓' : '✗'} take 节点在画布中显示可播放视频`)
 

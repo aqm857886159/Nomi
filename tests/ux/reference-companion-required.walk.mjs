@@ -20,7 +20,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
-import { expect, expectVisible, expectAbsent, proveProbe, clickOrFail } from './_assert.mjs'
+import { expect, expectVisible, expectAbsent, proveProbe, clickOrFail, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/reference-companion-required')
@@ -72,7 +72,7 @@ function record(label, detail = '') {
 let shotIndex = 0
 async function shot(tag) {
   shotIndex += 1
-  await win.screenshot({ path: path.join(shotsDir, `${String(shotIndex).padStart(2, '0')}-${tag}.png`) })
+  await screenshotSettled(win, { path: path.join(shotsDir, `${String(shotIndex).padStart(2, '0')}-${tag}.png`) })
 }
 
 const composer = win.locator('.generation-canvas-v2-node__composer')

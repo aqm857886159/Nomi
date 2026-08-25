@@ -7,7 +7,7 @@
 // 凭据：从用户真实 userData 复制 model-catalog.json 到隔离目录 —— 用真 key，
 // 但绝不往用户正式配置里写我的测试提示词。
 import { launchNomiApp } from './_launchApp.mjs'
-import { expectVisible, expectCount, waitForTurnIdle, scopedText } from './_assert.mjs'
+import { expectVisible, expectCount, waitForTurnIdle, scopedText, screenshotSettled } from './_assert.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -66,7 +66,7 @@ const record = (name, ok, detail) => {
   findings.push({ name, ok, detail })
   console.log(`${ok ? '✅' : '❌'} ${name} — ${detail}`)
 }
-const snap = async (n) => { await win.screenshot({ path: path.join(shotsDir, `${n}.png`) }) }
+const snap = async (n) => { await screenshotSettled(win, { path: path.join(shotsDir, `${n}.png`) }) }
 async function closeApp() {
   const child = app.process()
   await Promise.race([app.close().catch(() => undefined), new Promise((r) => setTimeout(r, 8000))])

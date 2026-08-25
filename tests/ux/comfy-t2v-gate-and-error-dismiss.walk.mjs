@@ -14,7 +14,7 @@
 //
 // 用法：node tests/ux/comfy-t2v-gate-and-error-dismiss.walk.mjs
 import { launchNomiApp } from './_launchApp.mjs'
-import { expect, clickOrFail, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
+import { expect, clickOrFail, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import http from 'node:http'
@@ -110,7 +110,7 @@ try {
   await win.close().catch(() => {})
   await app.close().catch(() => {})
   ;({ app, win } = await launchNomiApp({ name: 'comfy-t2v-gate-2', ...launchOpts, settleMs: 1800 }))
-  const snap = async (name) => { await win.screenshot({ path: path.join(shotsDir, `${name}.png`) }) }
+  const snap = async (name) => { await screenshotSettled(win, { path: path.join(shotsDir, `${name}.png`) }) }
 
   for (let i = 0; i < 4; i += 1) { await win.keyboard.press('Escape').catch(() => {}); await win.waitForTimeout(160) }
   await clickOrFail(win.getByRole('button', { name: /新建空白项目/ }), '新建空白项目', { noWaitAfter: true })

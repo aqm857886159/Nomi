@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-production-budget-ux-'))
@@ -159,7 +160,7 @@ try {
   await window.locator('[data-production-policy-issue="providers"]', { hasText: 'kie' }).waitFor({ timeout: 5_000 })
   await window.locator('[data-production-policy-issue="models"]', { hasText: 'gpt-image-2-text-to-image' }).waitFor({ timeout: 5_000 })
   await window.getByRole('button', { name: labels.openPolicy }).waitFor({ timeout: 5_000 })
-  await window.screenshot({ path: path.join(shotsDir, `${shotPrefix}01-incomplete-policy-contract.png`) })
+  await screenshotSettled(window, { path: path.join(shotsDir, `${shotPrefix}01-incomplete-policy-contract.png`) })
 
   await window.getByRole('button', { name: labels.openPolicy }).click()
   const budgetInput = window.locator('[data-settings-field="hard-budget"]')
@@ -177,7 +178,7 @@ try {
   const modelInput = window.locator('[data-settings-field="production-model"][data-policy-key="kie:gpt-image-2-text-to-image"]')
   await providerInput.waitFor({ timeout: 5_000 })
   await modelInput.waitFor({ timeout: 5_000 })
-  await window.screenshot({ path: path.join(shotsDir, `${shotPrefix}02-policy-settings-focused.png`) })
+  await screenshotSettled(window, { path: path.join(shotsDir, `${shotPrefix}02-policy-settings-focused.png`) })
 
   await budgetInput.fill('25')
   await window.waitForFunction(
@@ -206,7 +207,7 @@ try {
   if (await window.locator('[data-production-policy-readiness="incomplete"]').count()) {
     throw new Error('Completed policy still rendered as incomplete')
   }
-  await window.screenshot({ path: path.join(shotsDir, `${shotPrefix}03-ready-contract.png`) })
+  await screenshotSettled(window, { path: path.join(shotsDir, `${shotPrefix}03-ready-contract.png`) })
 
   run = await window.evaluate(({ pid, rid }) => window.nomiDesktop?.productionRuns?.read(pid, rid), {
     pid: projectId,
@@ -218,7 +219,7 @@ try {
   if (run.gates.find((gate) => gate.scope === 'budget_envelope')?.status !== 'approved') {
     throw new Error('Ready contract was not approved')
   }
-  await window.screenshot({ path: path.join(shotsDir, `${shotPrefix}04-approved-production.png`) })
+  await screenshotSettled(window, { path: path.join(shotsDir, `${shotPrefix}04-approved-production.png`) })
   console.log(`PRODUCTION POLICY RECOVERY WALK PASS (${locale}): ${shotsDir}`)
 } catch (error) {
   console.error(error?.stack || error)

@@ -13,6 +13,7 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { screenshotSettled } from './_assert.mjs'
 
 const require = createRequire(import.meta.url)
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-04-node-after')
@@ -49,7 +50,7 @@ const resize = async () => {
   await getWin().waitForTimeout(400)
 }
 const snap = async (name) => {
-  await getWin().screenshot({ path: path.join(outDir, name) })
+  await screenshotSettled(getWin(), { path: path.join(outDir, name) })
   console.log(`  · 截图 ${name}`)
 }
 

@@ -21,7 +21,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
-import { clickOrFail, expectVisible, expect } from './_assert.mjs'
+import { clickOrFail, expectVisible, expect, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/baseurl-discoverability')
@@ -53,7 +53,7 @@ let n = 0
 async function snap(win, name) {
   n += 1
   const file = path.join(shotsDir, `${String(n).padStart(2, '0')}-${name}.png`)
-  await win.screenshot({ path: file })
+  await screenshotSettled(win, { path: file })
   console.log(`  · shot ${String(n).padStart(2, '0')}-${name}`)
   return file
 }

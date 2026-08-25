@@ -10,6 +10,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-control-clarity')
@@ -68,8 +69,8 @@ async function resize(width, height) {
 
 async function snap(name, locator) {
   const file = path.join(shotsDir, name)
-  if (locator) await locator.screenshot({ path: file })
-  else await getWin().screenshot({ path: file })
+  if (locator) await screenshotSettled(locator, { path: file })
+  else await screenshotSettled(getWin(), { path: file })
   console.log(`  · 截图 ${name}`)
   return file
 }

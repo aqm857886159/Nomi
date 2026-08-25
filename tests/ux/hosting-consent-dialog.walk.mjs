@@ -14,7 +14,7 @@
 // 触发方式：localStorage['__nomiE2E']=1 打开 ConfirmDialogHost 的 E2E 桥
 //（window.__nomiConfirmDialogE2E = 真 confirmDialog），以素材托管确认卡的**真 i18n 文案**
 //（generationCommon.assetUploadConsent.*）驱动同一棵组件树。零额度、不触真供应商、不依赖付费/形象确认卡。
-import { clickOrFail, expectVisible, proveProbe, expectAbsent } from './_assert.mjs'
+import { clickOrFail, expectVisible, proveProbe, expectAbsent, screenshotSettled } from './_assert.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -132,7 +132,7 @@ try {
   await hitTest(confirmBtn, '继续上传')
   await hitTest(cancelBtn, '取消生成')
 
-  await getWin().screenshot({ path: path.join(shotsDir, '01-consent-visible-light.png') })
+  await screenshotSettled(getWin(), { path: path.join(shotsDir, '01-consent-visible-light.png') })
 
   // ── 点「取消生成」：结果 resolve=false，且遮罩清干净（无残留 overlay 拦点击）──────────
   // 先证探针能测到 overlay（此刻它就在），再点取消，再断言它没了 —— expectAbsent 强制的阳性对照。
@@ -160,7 +160,7 @@ try {
   check('暗模式确认卡真表面同样有真实高度', darkH > 60, `height=${darkH}`)
   // Mantine Modal 有淡入过渡（~150ms）；等它落定再截，否则截到半透明的过渡帧、人眼审查会误以为卡是透的。
   await getWin().waitForTimeout(600)
-  await getWin().screenshot({ path: path.join(shotsDir, '02-consent-visible-dark.png') })
+  await screenshotSettled(getWin(), { path: path.join(shotsDir, '02-consent-visible-dark.png') })
   const darkConfirm = getWin().locator('[data-confirm-dialog-confirm="true"]')
   await clickOrFail(darkConfirm, '继续上传')
   await getWin().waitForTimeout(300)

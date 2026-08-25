@@ -11,6 +11,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import readline from 'node:readline'
 import path from 'node:path'
+import { screenshotSettled } from './_assert.mjs'
 
 const require = createRequire(import.meta.url)
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/plan-gate')
@@ -77,7 +78,7 @@ try {
   await win.evaluate(() => { for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) window.localStorage.setItem(k, 'seen') })
   await win.reload(); await sleep(1500)
   for (let i = 0; i < 5; i++) { const s = win.locator('button,[role="button"],a', { hasText: /跳过|开始创作|进入|完成/ }).first(); if (await s.count()) await s.click({ timeout: 1000 }).catch(() => {}); await win.keyboard.press('Escape').catch(() => {}); await sleep(300) }
-  await win.screenshot({ path: path.join(shotsDir, '01-app-ready.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '01-app-ready.png') })
 
   child = spawn(require('electron'), withLinuxNoSandbox([repoRoot, '--disable-gpu']), { cwd: repoRoot, env: { ...process.env, ...sharedEnv, NOMI_MCP_STDIO: '1' }, stdio: ['pipe', 'pipe', 'inherit'] })
   const rl = readline.createInterface({ input: child.stdout })
@@ -113,7 +114,7 @@ try {
   const planCard = win.locator('div.fixed.inset-0').filter({ hasText: /在画布落一套方案|落到画布/ }).first()
   let cardShown = false
   for (let i = 0; i < 30; i++) { if (await planCard.count()) { cardShown = true; break } await sleep(1000) }
-  await win.screenshot({ path: path.join(shotsDir, '02-plan-gate-card.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '02-plan-gate-card.png') })
   ok(cardShown, '外部 agent 批量落节点 → GUI 弹出应用内「方案门」卡（不再静默写画布）')
   const cardText = await win.evaluate(() => document.body.innerText.match(/AI 助手想在画布落一套方案[\s\S]{0,120}/)?.[0] || '').catch(() => '')
   console.log('  · 方案卡文案：', cardText.replace(/\n+/g, ' ').slice(0, 120))
@@ -126,7 +127,7 @@ try {
   ok(Array.isArray(ids) && ids.length === 3, `确认后 3 节点真落画布（ids=${ids.length}）`)
   ok(!added.cancelled, '确认路径 cancelled 未置位')
   await sleep(1500)
-  await win.screenshot({ path: path.join(shotsDir, '03-after-confirm.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '03-after-confirm.png') })
 
   console.log(`\nPLAN-GATE PASS: ${passed} 断言——外部 agent 批量落节点经应用内方案门确认闭环。`)
   console.log('  截图 →', shotsDir)

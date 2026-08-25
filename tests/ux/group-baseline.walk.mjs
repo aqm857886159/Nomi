@@ -5,6 +5,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/group-baseline')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -16,7 +17,7 @@ let n = 0
 async function snap(win, name, clip) {
   n += 1
   const tag = `${String(n).padStart(2, '0')}-${name}`
-  await win.screenshot({ path: path.join(shotsDir, `${tag}.png`), ...(clip ? { clip } : {}) })
+  await screenshotSettled(win, { path: path.join(shotsDir, `${tag}.png`), ...(clip ? { clip } : {}) })
   console.log(`  · shot ${tag}`)
 }
 async function snapNear(win, name, locator, pad = 40) {

@@ -39,7 +39,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
-import { expect, expectVisible, expectCount, clickOrFail, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
+import { expect, expectVisible, expectCount, clickOrFail, DEFAULT_TIMEOUT_MS, screenshotSettled } from './_assert.mjs'
 import { seedFinishedJourneyProject } from './fixtures/journey-project-fixture.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -72,7 +72,7 @@ async function stage(win, name, arrive) {
   await arrive()
   const tag = `${String(stages.length + 1).padStart(2, '0')}-${name}`
   const file = path.join(shotsDir, `${tag}.png`)
-  await win.screenshot({ path: file })
+  await screenshotSettled(win, { path: file })
   const digest = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')
   stages.push({ tag, file, digest })
   console.log(`  ✓ ${tag}`)

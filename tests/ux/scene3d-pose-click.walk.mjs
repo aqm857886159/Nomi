@@ -6,6 +6,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import path from 'node:path'
 import os from 'node:os'
 import { mkdtempSync, mkdirSync } from 'node:fs'
+import { screenshotSettled } from './_assert.mjs'
 
 const outDir = path.join(repoRoot, '.pose-lab')
 mkdirSync(outDir, { recursive: true })
@@ -56,7 +57,7 @@ try {
     if ((await cube.count()) > 0) { await cube.first().click(); added = true }
   }
   await win.waitForTimeout(2000)
-  await win.screenshot({ path: path.join(outDir, 'walk-01-node-added.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'walk-01-node-added.png') })
   log(`  ✓ 3D 节点已添加 (added=${added})`)
 
   // —— 验证 ①：点空态 body「打开 3D 编辑器」→ 编辑器开 ——
@@ -65,7 +66,7 @@ try {
   await win.waitForTimeout(4000)
   const editor = win.locator('[aria-label="3D 场景编辑器"]')
   pass.editorOpen = (await editor.count()) > 0
-  await win.screenshot({ path: path.join(outDir, 'walk-02-editor-open.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'walk-02-editor-open.png') })
   log(`  ${pass.editorOpen ? '✓' : '✗'} 空态点击 → 编辑器打开`)
 
   // 加第二个假人（场景里默认已有一个；为还原「两人」再加一个）
@@ -83,7 +84,7 @@ try {
     if ((await btn.count()) > 0) {
       await btn.first().click()
       await win.waitForTimeout(1500)
-      await win.screenshot({ path: path.join(outDir, `walk-03-${label}-in-editor.png`) })
+      await screenshotSettled(win, { path: path.join(outDir, `walk-03-${label}-in-editor.png`) })
       if (label === '坐姿') pass.sitRendered = true
       log(`  ✓ 真编辑器套用「${label}」并渲染`)
     } else {
@@ -110,7 +111,7 @@ try {
   await close.click()
   await editor.waitFor({ state: 'hidden', timeout: 5000 })
   await win.waitForTimeout(2000)
-  await win.screenshot({ path: path.join(outDir, 'walk-04-back-on-canvas.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'walk-04-back-on-canvas.png') })
 
   // —— 验证 ②：已出缩略图的节点，悬浮整图 → 点居中「打开 3D 编辑器」按钮 → 编辑器重开 ——
   // 此前编辑器关掉了，aria-label="3D 场景编辑器" 应消失
@@ -120,7 +121,7 @@ try {
   const node3d = win.locator('[data-kind="scene3d"]').first()
   if ((await node3d.count()) > 0) await node3d.hover().catch(() => {})
   await win.waitForTimeout(600)
-  await win.screenshot({ path: path.join(outDir, 'walk-05-hover-thumbnail.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'walk-05-hover-thumbnail.png') })
   // pill 有可见文字「打开 3D 编辑器」；getByText 命中它（角落钮无文字）
   const pill = win.getByText('打开 3D 编辑器', { exact: true }).first()
   const pillCount = await pill.count()
@@ -128,7 +129,7 @@ try {
   await win.waitForTimeout(4000)
   const editorAgain = await win.locator('[aria-label="3D 场景编辑器"]').count()
   pass.filledClickOpens = editorGoneCount === 0 && editorAgain > 0
-  await win.screenshot({ path: path.join(outDir, 'walk-06-filled-click-reopened.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'walk-06-filled-click-reopened.png') })
   log(`  ${pass.filledClickOpens ? '✓' : '✗'} 已出图态：悬浮 pill(count=${pillCount}) 点击 → 编辑器重开 (gone=${editorGoneCount}→again=${editorAgain})`)
 
   log('\n═══ 结果 ═══')

@@ -3,6 +3,7 @@
 import { launchNomiApp } from "./_launchApp.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const outDir = process.env.NOMI_SHOT_DIR || path.join(repoRoot, ".tmp", "header-refresh-shots");
@@ -11,7 +12,7 @@ const { app, win } = await launchNomiApp({ name: "header-refresh-capture", env: 
 
 async function shot(w, name) {
   const p = path.join(outDir, `${name}.png`);
-  await w.screenshot({ path: p });
+  await screenshotSettled(w, { path: p });
   console.log(`  📸 ${p}`);
 }
 

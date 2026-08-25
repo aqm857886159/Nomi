@@ -11,6 +11,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-02-real-ui')
 fs.mkdirSync(outDir, { recursive: true })
@@ -139,7 +140,7 @@ async function resizeWindow() {
 // 截图后自己验：非白屏 / 非纯开屏遮罩（采样若干点，颜色方差够大才算真拍到）。
 async function snap(name) {
   const p = path.join(outDir, name)
-  await getWin().screenshot({ path: p })
+  await screenshotSettled(getWin(), { path: p })
   const stat = fs.statSync(p)
   // 简单方差校验：读 PNG 字节熵不够严谨，改在页面里采样像素方差。
   const variance = await getWin().evaluate(() => {
