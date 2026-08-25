@@ -28,6 +28,27 @@ const project = {
 for (const file of [path.join(projectRoot, 'project.json'), path.join(projectRoot, '.nomi', 'project.json')]) fs.writeFileSync(file, JSON.stringify(project))
 
 const { app, win } = await launchNomiApp({ name: 'f3-f16b', userDataDir: path.join(root, 'user-data'), settingsDir, projectsDir, settleMs: 900 })
+
+/**
+ * 等 ConfirmDialogHost 那张常驻 Modal 的整棵弹层树**离开 DOM**。
+ *
+ * Host 是单例 Modal（src/design/confirmDialog.tsx:70），opened 由 Boolean(active) 驱动。
+ * 关卡时 active→null 会让 data-confirm-dialog-surface 立刻消失，但 Mantine 的退场过渡
+ * 仍在渲染，且此刻按钮文案回落成默认的「取消/确认」（runtime.design.*）——那就是鬼影的来源。
+ * 所以判据必须是「节点没了」，不是「属性没了」，也不是「淡得看不见了」。
+ */
+async function waitForConfirmHostUnmounted(label) {
+  await win
+    .waitForFunction(
+      () => !document.querySelector('.mantine-Modal-inner, .mantine-Modal-overlay'),
+      undefined,
+      { timeout: 5000 },
+    )
+    .catch(() => {
+      throw new Error(`${label}：Mantine 弹层树 5 秒内没退干净，截图会带鬼影`)
+    })
+}
+
 try {
   await win.evaluate(() => {
     localStorage.setItem('__nomiE2E', '1')
@@ -93,6 +114,19 @@ try {
   // 收掉探针卡，回到干净现场——否则后面「没有旧卡」是在一张开着旧卡的屏上断言，必红且没意义。
   await clickOrFail(win.locator('[data-confirm-dialog-cancel="true"]'), '关掉阳性对照探针卡')
   await expectAbsent(legacyCardSurface, { provenBy: legacySurfaceProof, message: '探针卡应已关闭，现场需干净' })
+  // 再等探针卡的 Mantine 弹层**整棵树离开 DOM**，然后才允许开下一张卡。
+  //
+  // 为什么不能只等 [data-confirm-dialog-surface] 消失（2026-08-26 第三次修才找对根因）：
+  // ConfirmDialogHost 是**一个常驻的 Modal**，靠 opened={Boolean(active)} 开合，不是每张卡
+  // 新建一棵树。active 一变 null，surface 的 data 属性立刻没了（断言当场就绿），但 Mantine 的
+  // 退场过渡还在跑，此时卡里两个按钮**回落到默认文案**——恰好就是「取消 / 确认」，右上角还有个 ×。
+  // 于是浅色证据里透出一层半透明鬼影，压在披露正文上。运行时探针实测到的元凶：
+  //   div.mantine-Modal-inner  z-index 9300  opacity 1  textContent "取消确认"
+  //   div.mantine-Modal-overlay opacity 0.354547（正淡出到一半）
+  // 注意 inner 自己 opacity 是 1、且类名里**没有** fixed/inset-0——所以上一版「屏上不再有
+  // 非本卡的 div.fixed.inset-0」那个门根本没盯住它，等于没等（假绿）。
+  // 判据改成确定性的「节点不在 DOM 里」：不是淡到看不见，是真的没了。
+  await waitForConfirmHostUnmounted('阳性对照探针卡')
 
   // ── F16b 第二腿：**真实漏斗**（不再手写字符串） ─────────────────────────────
   //
@@ -160,18 +194,34 @@ try {
   if (rememberOutside !== 0) {
     throw new Error(`披露块外还有 ${rememberOutside} 个「记住我的选择」勾选——旧的并排勾选没删干净`)
   }
-  // 截图前等**上一张阳性对照探针卡的淡出动画**真正结束。
-  // 踩过（2026-08-26）：探针卡在 expectAbsent 处已从 DOM 消失，但它的淡出/缩放动画还在最后几帧，
-  // 于是这张浅色证据里透出一层鬼影——披露块上叠着半透明的「取消 / 确认」和一个 ×，
-  // 看起来就像卡自己长了两个多余按钮。证据必须干净，否则人眼对账会对着假象下结论。
-  // 判据同样是确定性的：整屏不再有任何非本卡的 fixed 浮层，且连续两帧稳定。
-  await win.waitForFunction(() => {
+  // 截图前再把关一次：这一屏除了本卡，不许有**任何**其它浮层在画。
+  //
+  // 真正的鬼影源已经在上面「开卡之前」按构造消掉了（探针卡的 Mantine 树等到彻底 unmount 才继续，
+  // 两张卡在时间上不再重叠）。这里留一道独立的收口，盯的是**渲染出来的东西**而不是某个选择器：
+  // 遍历全屏 fixed/absolute 元素，凡是不属于本卡、又还看得见（opacity>0.01 且 visibility 可见
+  // 且有面积）的，一律判为鬼影并报红——不管它叫 mantine-Modal-inner 还是别的什么。
+  // 上一版只数 div.fixed.inset-0，而元凶 .mantine-Modal-inner 既不是 inset-0、自身 opacity 还是 1，
+  // 于是那道门恒绿（假绿）。判据要跟着「所见」走，别跟着「某个类名」走。
+  const strayOverlays = await win.evaluate(() => {
     const block = document.querySelector('[data-hosting-disclosure="true"]')
     const card = block?.closest('div.fixed.inset-0')
-    if (!card) return false
-    const strays = [...document.querySelectorAll('div.fixed.inset-0')].filter((el) => el !== card)
-    return strays.length === 0
-  }, undefined, { timeout: 5000 })
+    const ghosts = []
+    for (const el of document.querySelectorAll('body *')) {
+      if (card && (card.contains(el) || el.contains(card))) continue
+      const style = getComputedStyle(el)
+      if (style.position !== 'fixed' && style.position !== 'absolute') continue
+      if (style.visibility === 'hidden' || Number(style.opacity) <= 0.01) continue
+      const rect = el.getBoundingClientRect()
+      if (rect.width < 40 || rect.height < 20) continue
+      const text = (el.textContent || '').trim()
+      if (!text) continue
+      ghosts.push(`${el.tagName}.${String(el.className).slice(0, 60)} opacity=${style.opacity} text="${text.slice(0, 30)}"`)
+    }
+    return ghosts
+  })
+  if (strayOverlays.length > 0) {
+    throw new Error(`浅色截图前仍有非本卡的可见浮层（鬼影）：\n${strayOverlays.join('\n')}`)
+  }
   await win.screenshot({ path: path.join(shotsDir, '02-f16b-hosting-light.png') })
   // 勾它：点披露块**内部**那个（上面刚断言过它就住在这儿），不靠全局文案匹配碰运气。
   await clickOrFail(hostingBlock.locator('[data-hosting-remember="true"] input[type="checkbox"]'), '披露块内「记住我的选择」勾选')
