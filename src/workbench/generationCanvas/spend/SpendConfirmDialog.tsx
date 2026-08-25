@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
-import { IconCoin, IconFileText, IconRobot, IconMovie, IconPhoto, IconUser } from '@tabler/icons-react'
+import { IconCloud, IconCoin, IconFileText, IconRobot, IconMovie, IconPhoto, IconUser } from '@tabler/icons-react'
 import { BodyPortal, NOMI_OVERLAY_Z_INDEX, WorkbenchButton } from '../../../design'
 import { useSpendConfirmStore } from './spendConfirm'
 import { ProductionContractSummary } from './ProductionContractSummary'
@@ -19,6 +19,7 @@ export function SpendConfirmDialog() {
   const pending = useSpendConfirmStore((state) => state.pending)
   const resolvePending = useSpendConfirmStore((state) => state.resolvePending)
   const [suppress, setSuppress] = React.useState(false)
+  const [rememberHosting, setRememberHosting] = React.useState(false)
   const [remainingMs, setRemainingMs] = React.useState(0)
   // P4 S3a：多镜确认卡「交互即暂停」——用户一旦在卡上动一下（点/移入/聚焦），倒计时停在原地，
   // 文案切「已暂停 · 你正在查看」。换 pending 时重置。只对多镜卡生效（外部单发确认仍到点自动返回）。
@@ -37,6 +38,7 @@ export function SpendConfirmDialog() {
     if (!pending) setSuppress(false)
     setChoiceKey(pending?.directionCandidates?.[0]?.key ?? null)
     setInteracted(false)
+    setRememberHosting(false)
   }, [pending])
 
   // 倒计时：设了 countdownMs 才跑。每 200ms 收敛，到点自动按「未确认」返回（不死等——外部调用方那头在等）。
@@ -175,6 +177,35 @@ export function SpendConfirmDialog() {
         <>
         <p className={cn('text-body-sm text-nomi-ink-80 leading-relaxed mb-3')}>{pending.message}</p>
 
+        {pending.hostingDisclosure ? (
+          // 「记住我的选择」住在披露块**内部**，不和下面「本次会话不再提示」并排。
+          // 起因（2026-08-26 用户拍板）：两个勾选框曾贴在一起、长得一模一样，但管的是两件事、
+          // 两种作用域——一个管这张花钱卡（本会话），一个把 anonymousAssetHosting 永久设成 allow。
+          // 并排时得逐字读标签才分得清，误勾的代价是「以后本机素材静默上传公共托管」。
+          // 按 §1.5.3「先分组」：把勾选框搬进它作用的那个对象里，作用域一眼可见（也是「一功能一个家」的视觉版）。
+          <div
+            data-hosting-disclosure="true"
+            className={cn('mb-3 flex gap-2 rounded-nomi-sm bg-nomi-ink-05 px-3 py-2.5 text-caption leading-relaxed text-nomi-ink-80')}
+          >
+            <IconCloud size={17} stroke={1.7} className={cn('mt-0.5 shrink-0 text-nomi-ink-60')} aria-hidden="true" />
+            <div className={cn('min-w-0 grid gap-2')}>
+              <div className={cn('min-w-0')}>{pending.hostingDisclosure.message}</div>
+              {/* 细分隔线：让「说明」与「这条说明对应的选择」分段，但仍同属一张托管卡（§1.5.3 分段要有边界）。 */}
+              <label
+                data-hosting-remember="true"
+                className={cn('flex items-center gap-2 border-t border-nomi-line-soft pt-2 cursor-pointer select-none text-nomi-ink-60')}
+              >
+                <input
+                  type="checkbox"
+                  checked={rememberHosting}
+                  onChange={(event) => setRememberHosting(event.currentTarget.checked)}
+                />
+                {pending.hostingDisclosure.rememberLabel}
+              </label>
+            </div>
+          </div>
+        ) : null}
+
         {directionCandidates.length ? (
           <div className={cn('mb-3 grid gap-1.5')} role="radiogroup" data-direction-candidates>
             {directionCandidates.map((candidate) => {
@@ -291,7 +322,7 @@ export function SpendConfirmDialog() {
               onClick={() => {
                 // B1：方向门确认时先回传选中候选（沿用 onOpenPolicySettings 的回调模式），再 resolve。
                 if (directionCandidates.length) pending.onDirectionDecision?.(choiceKey)
-                resolvePending(true, suppress)
+                resolvePending(true, suppress, rememberHosting)
               }}
             >
               {pending.confirmLabel || t('generationCommon.spend.confirm')}

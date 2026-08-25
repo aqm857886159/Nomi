@@ -74,11 +74,13 @@ describe('runPlanWithToasts concurrency', () => {
   it('passes the chosen concurrency to the dependency-wave runner', async () => {
     const dependencyPlan = plan({ waves: [['a']] })
 
-    await runPlanWithToasts(dependencyPlan, { grantId: 'grant-1', concurrency: 4 })
+    await runPlanWithToasts(dependencyPlan, { grantId: 'grant-1', concurrency: 4, assetUploadConsent: 'allow' })
 
     expect(runGenerationNodesByPlan).toHaveBeenCalledWith(dependencyPlan, {
       grantId: 'grant-1',
       concurrency: 4,
+      // 托管决定必须原样透传到波次运行器——中途丢了就等于让 runner 自己去问（F16b 第二张卡）。
+      assetUploadConsent: 'allow',
     })
   })
 
@@ -89,7 +91,7 @@ describe('runPlanWithToasts concurrency', () => {
       failures: [],
     })
 
-    await runPlanWithToasts(plan({ waves: [['a']] }))
+    await runPlanWithToasts(plan({ waves: [['a']] }), { assetUploadConsent: 'not-needed' })
 
     expect(mocks.toastPush).toHaveBeenCalledTimes(2)
     expect(mocks.toastPush.mock.calls[0][0]).toMatchObject({ id: BATCH_RUN_TOAST_ID, ttl: false })
@@ -109,7 +111,7 @@ describe('runPlanWithToasts concurrency', () => {
         failures: [],
       })
 
-    await runPlanWithToasts(plan({ waves: [['a']] }), { concurrency: 4 })
+    await runPlanWithToasts(plan({ waves: [['a']] }), { concurrency: 4, assetUploadConsent: 'not-needed' })
     const failedToast = mocks.toastPush.mock.calls[1][0]
     expect(failedToast).toMatchObject({
       id: BATCH_RUN_TOAST_ID,
@@ -124,6 +126,9 @@ describe('runPlanWithToasts concurrency', () => {
     expect(runGenerationNodesByPlan).toHaveBeenLastCalledWith(expect.any(Object), {
       grantId: 'retry-grant',
       concurrency: 4,
+      // 重试走 confirmAndRunPlan → 重新解析托管（不是把上一轮的决定翻出来复用）。
+      // 本用例的节点没有本地素材，所以正确答案是 not-needed：压根不碰公共托管。
+      assetUploadConsent: 'not-needed',
     })
     expect(mocks.toastPush.mock.calls.slice(2).every(([input]) => input.id === BATCH_RUN_TOAST_ID)).toBe(true)
   })

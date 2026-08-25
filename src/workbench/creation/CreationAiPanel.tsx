@@ -97,7 +97,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   const setError = useWorkbenchStore((state) => state.setCreationAiError)
   const setWorkspaceMode = useWorkbenchStore((state) => state.setWorkspaceMode)
   const setModeId = useWorkbenchStore((state) => state.setCreationAiModeId)
-
+  const setStoryboardPlannerLauncher = useWorkbenchStore((state) => state.setStoryboardPlannerLauncher)
   const {
     isDragging,
     openFilePicker,
@@ -235,7 +235,9 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
       }
     })()
   }, [cancelStreamFrame, documentText, pushStreamFrame, selectedText, setDraft, setError, setMessages, turn, t])
-
+  React.useEffect(() => {
+    setStoryboardPlannerLauncher(launchStoryboardPlanning)
+  }, [launchStoryboardPlanning, setStoryboardPlannerLauncher])
   // Tier2 定妆：把剧本交给 AI，按剧本为主要角色/场景建卡 + 注入身份板提示词（与拆镜头同构）。
   const launchFixationPlanning = React.useCallback((displayPrompt: string = t('creationAi.fixationCommand')) => {
     const storyText = (selectedText || documentText).trim()

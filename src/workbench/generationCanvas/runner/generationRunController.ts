@@ -40,8 +40,9 @@ import i18n from '../../../i18n'
 import {
   AssetUploadConsentCancelledError,
   hasLocalAssetReference,
-  requestAssetUploadConsent,
+  resolveAssetUploadConsent,
 } from './assetUploadConsent'
+import type { HostingDisclosure } from '../spend/spendConfirm'
 
 /** 节点 kind → 付费预估用的产物口径（视频/配音/画面），喂给 describeGenerationCost 报对名词与时长。 */
 function spendCostKind(kind: GenerationNodeKind): 'image' | 'video' | 'audio' {
@@ -62,6 +63,21 @@ export function spendCostKindForNodes(ids: string[]): 'image' | 'video' | 'audio
   return kinds.size === 0 ? 'image' : 'mixed'
 }
 
+/**
+ * 公共临时托管的**已决**同意。注意它是 `RunGenerationNodeOptions` 里唯一必填的字段——
+ * 这是故意的，也是 F16b 的根治手法。
+ *
+ * 为什么必填：旧版把它写成可选的 `assetUploadConsent?: 'allow'`，runner 里再用
+ * 「没传就自己弹一张卡」兜底。结果是「忘了传」这件事完全没有信号——编译过、测试绿、
+ * 只有真用户在 agent / MCP 路径上每次生成都被第二张卡拦一下。改成必填后，
+ * 「谁来问用户」这个问题在**编译期**就必须被每个调用点回答，答不出就不给过。
+ *
+ * 只有两个合法答案，都必须来自 resolveAssetUploadConsent 的解析结果：
+ * - `'allow'`     ：用户已在花钱确认卡上同意（或策略/KIE 判定无需再问）。
+ * - `'not-needed'`：这次生成压根不碰公共托管（无本地素材 / 本地 ComfyUI 跑）。
+ */
+export type AssetUploadConsentDecision = 'allow' | 'not-needed'
+
 export type RunGenerationNodeOptions = {
   executor?: GenerationNodeExecutor
   retry?: {
@@ -74,6 +90,70 @@ export type RunGenerationNodeOptions = {
   promptSuffix?: string
   /** 队列批次 id（任务中心的调度真相源，见 generationQueueStore）。不传 = 单发，内部自建 1 节点批次。 */
   batchId?: string
+  /**
+   * 上游确认面已解析好的托管同意。**必填**，理由见 AssetUploadConsentDecision。
+   * runner 不问用户——它只执行已经做出的决定。
+   */
+  assetUploadConsent: AssetUploadConsentDecision
+}
+
+async function buildConsentNode(node: GenerationCanvasNode): Promise<Pick<GenerationCanvasNode, 'meta' | 'references'>> {
+  const resolved = resolveGenerationReferences(node, { nodes: [node], edges: [] })
+  return {
+    ...node,
+    references: [
+      ...(node.references || []),
+      ...resolved.referenceImages,
+      ...resolved.referenceVideos,
+      ...resolved.referenceAudios,
+      ...(resolved.firstFrameUrl ? [resolved.firstFrameUrl] : []),
+      ...(resolved.lastFrameUrl ? [resolved.lastFrameUrl] : []),
+      ...(resolved.relayFromVideoUrl ? [resolved.relayFromVideoUrl] : []),
+    ],
+  }
+}
+
+async function resolveHostingDisclosure(node: GenerationCanvasNode | undefined): Promise<{ allowed: boolean; disclosure?: HostingDisclosure }> {
+  if (!node) return { allowed: true }
+  const consentNode = await buildConsentNode(node)
+  const resolution = await resolveAssetUploadConsent(consentNode)
+  if (!resolution.allowed) return { allowed: false }
+  if (!resolution.needsConfirmation) return { allowed: true }
+  return {
+    allowed: true,
+    disclosure: {
+      message: i18n.t('generationCommon.spendHostingDisclosure.message'),
+      rememberLabel: i18n.t('generationCommon.spendHostingDisclosure.remember'),
+      onRemember: resolution.remember,
+    },
+  }
+}
+
+/**
+ * 给**自主路径**（外部 agent / MCP 能力）解析托管同意——这些路径没有人坐在屏幕前，
+ * 弹卡等于把整条自动化挂死在一个没人点的对话框上。
+ *
+ * 判据完全复用同一个 resolveAssetUploadConsent，不另立一套语义：
+ * - 策略 deny → 抛 AssetUploadConsentCancelledError，这次生成不发（诚实失败，理由回给调用方）；
+ * - 还需要问一次（策略 ask + 有本地素材 + KIE 没配）→ 同样**拒发**。自动化不能替用户
+ *   默默把素材传到公共托管上；把「去设置里配 KIE，或把托管策略改成允许」这句人话回给
+ *   agent，由它转达。这是 D4「缺口明着标」：宁可这一次不跑，也不偷偷上传。
+ * - 其余 → 'allow' / 'not-needed'，照常跑。
+ */
+export async function resolveAutonomousUploadConsent(
+  nodeId: string,
+): Promise<AssetUploadConsentDecision> {
+  const state = useGenerationCanvasStore.getState()
+  const node = state.nodes.find((candidate) => candidate.id === nodeId)
+  if (!node) return 'not-needed'
+  const consentNode = await buildConsentNode(node)
+  if (!hasLocalAssetReference(consentNode)) return 'not-needed'
+  const resolution = await resolveAssetUploadConsent(consentNode)
+  if (!resolution.allowed) throw new AssetUploadConsentCancelledError()
+  if (resolution.needsConfirmation) {
+    throw new Error(i18n.t('generationCommon.spendHostingDisclosure.autonomousBlocked'))
+  }
+  return 'allow'
 }
 
 type GenerationRunContext = {
@@ -154,9 +234,11 @@ function currentNodeModelKey(nodeId: string): unknown {
   return (node?.meta as Record<string, unknown> | undefined)?.modelKey
 }
 
+// options 没有默认值：`= {}` 正是让调用点能省略托管同意的那个逃生口（F16b 根因）。
+// 去掉它之后，「谁问的用户」在编译期就必须有答案。
 export async function runGenerationNode(
   nodeId: string,
-  options: RunGenerationNodeOptions = {},
+  options: RunGenerationNodeOptions,
 ): Promise<GenerationNodeResult> {
   const id = String(nodeId || '').trim()
   if (!id) throw new Error('nodeId is required')
@@ -173,11 +255,11 @@ export async function runGenerationNode(
     )
   }
 
-  // Reference uploads happen in the main process immediately before the vendor
-  // request. Ask here, before queueing/grant consumption, so a public temporary
-  // host is never used silently and KIE's free video path is discoverable.
+  // 托管同意在**上游**就已经问完了（花钱确认卡里的披露块，或自主路径的
+  // resolveAutonomousUploadConsent）。这一层不再问、也不再有能问的东西——它只把已决的答案
+  // 往下透传给 executor。F16b 之前这里会自己弹第二张卡，那张卡现已删除，见 assetUploadConsent.ts。
   const resolvedReferences = resolveGenerationReferences(initialNode, { nodes: initialState.nodes, edges: initialState.edges })
-  const consentNode = {
+  const hasLocalReference = hasLocalAssetReference({
     ...initialNode,
     references: [
       ...(initialNode.references || []),
@@ -188,11 +270,7 @@ export async function runGenerationNode(
       ...(resolvedReferences.lastFrameUrl ? [resolvedReferences.lastFrameUrl] : []),
       ...(resolvedReferences.relayFromVideoUrl ? [resolvedReferences.relayFromVideoUrl] : []),
     ],
-  }
-  const hasLocalReference = hasLocalAssetReference(consentNode)
-  if (!(await requestAssetUploadConsent(consentNode))) {
-    throw new AssetUploadConsentCancelledError()
-  }
+  })
 
   // 队列登记：批量路径由 runGenerationNodesByPlan 预先整批登记（含后续波次），单发路径自建 1 节点批次。
   // markRunning 只把 queued 翻成 running（幂等），所以两条路都能安全调。
@@ -350,7 +428,7 @@ function normalizeConcurrency(value: unknown): number {
  */
 export async function runGenerationNodesBatch(
   nodeIds: readonly string[],
-  options: RunGenerationNodesBatchOptions = {},
+  options: RunGenerationNodesBatchOptions,
 ): Promise<RunGenerationNodesBatchResult> {
   const queue = nodeIds
     .map((value) => String(value || '').trim())
@@ -374,6 +452,8 @@ export async function runGenerationNodesBatch(
         const result = await runGenerationNode(nodeId, {
           executor: options.executor,
           retry: options.retry,
+          // 整批共用一个托管决定：批量确认卡对整批问了一次（batchPlanPreview），别在波次里逐个再问。
+          assetUploadConsent: options.assetUploadConsent,
           ...(options.grantId ? { grantId: options.grantId } : {}),
           ...(options.batchId ? { batchId: options.batchId } : {}),
         })
@@ -403,7 +483,7 @@ export async function runGenerationNodesBatch(
  */
 export async function runGenerationNodesByPlan(
   plan: DependencyWavePlan,
-  options: RunGenerationNodesBatchOptions = {},
+  options: RunGenerationNodesBatchOptions,
 ): Promise<RunGenerationNodesBatchResult> {
   const successes: RunGenerationNodesBatchResult['successes'] = []
   const failures: RunGenerationNodesBatchResult['failures'] = []
@@ -478,6 +558,8 @@ export async function runGenerationNodesByPlan(
  */
 export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean } = {}): Promise<void> {
   const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === nodeId)
+  const hosting = await resolveHostingDisclosure(node)
+  if (!hosting.allowed) return
   const ok = await confirmGenerationSpend([node], {
     title: opts.rerun
       ? i18n.t('generationCommon.spend.generateVariant')
@@ -487,6 +569,7 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
       ? i18n.t('generationCommon.spend.generateVariant')
       : i18n.t('generationCommon.spend.generate'),
     light: true,
+    ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
   })
   if (!ok) return
   let runId = nodeId
@@ -508,7 +591,7 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
     return
   }
   try {
-    await runGenerationNode(runId, { grantId })
+    await runGenerationNode(runId, { grantId, assetUploadConsent: 'allow' })
   } catch {
     // 失败已记在节点上（卡片渲染人话错误），这里不再弹。
   }
@@ -523,17 +606,21 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
 export async function confirmAndRunNodeVariants(
   nodeId: string,
   count: number,
-  options: RunGenerationNodeOptions = {},
+  // 托管同意由本函数自己的花钱卡问出来（下方固定传 'allow'），调用方给不了也不该给。
+  options: Omit<RunGenerationNodeOptions, 'assetUploadConsent'> = {},
 ): Promise<void> {
   const id = String(nodeId || '').trim()
   if (!id) return
   const total = Math.max(1, Math.min(8, Math.floor(count)))
   const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === id)
+  const hosting = await resolveHostingDisclosure(node)
+  if (!hosting.allowed) return
   const ok = await confirmGenerationSpend([node], {
     title: i18n.t('generationCommon.spend.startGeneration'),
     message: describeGenerationCost(total, node ? spendCostKind(node.kind) : 'image'),
     confirmLabel: i18n.t('generationCommon.spend.generate'),
     light: true,
+    ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
   })
   if (!ok) return
   for (let index = 0; index < total; index += 1) {
@@ -550,7 +637,7 @@ export async function confirmAndRunNodeVariants(
       return
     }
     try {
-      const result = await runGenerationNode(id, { ...options, grantId })
+      const result = await runGenerationNode(id, { ...options, grantId, assetUploadConsent: 'allow' })
       useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(id, result)
     } catch {
       return // 失败已落节点卡片（人话错误）；停发剩余变体
@@ -558,33 +645,26 @@ export async function confirmAndRunNodeVariants(
   }
 }
 
-export async function rerunGenerationNodeAsNewNode(
-  nodeId: string,
-  options: RunGenerationNodeOptions = {},
-): Promise<GenerationNodeResult> {
-  const state = useGenerationCanvasStore.getState()
-  const duplicatedNode = state.duplicateNodeForRegeneration(nodeId)
-  if (!duplicatedNode) throw new Error('node not found')
-  return runGenerationNode(duplicatedNode.id, options)
-}
-
 /**
  * In-place 重生成（C0）：同节点重出 —— **不 duplicate、不换 id、不动 shotIndex**。
  * `runGenerationNode` 本就原地（addNodeResult 把新 result 设为 node.result、旧的进 history），
  * 这里加「轻确认 + 铸令牌（不绕付费闸）+ 完成后回填时间轴」。产物贴回原节点后，
  * 时间轴里引用该节点的 clip 走回填闸（位置不变、URL providerUrl 优先、trim 越界夹取）。
- * 与「基于此生成变体」(confirmAndRunNode{rerun} / rerunGenerationNodeAsNewNode = duplicate) 分流，
+ * 与「基于此生成变体」(confirmAndRunNode{rerun} = duplicate) 分流，
  * 别共用一个口子（一个改这一镜、一个长出新镜）。
  */
 export async function regenerateNodeInPlace(nodeId: string): Promise<void> {
   const id = String(nodeId || '').trim()
   if (!id) return
   const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === id)
+  const hosting = await resolveHostingDisclosure(node)
+  if (!hosting.allowed) return
   const ok = await confirmGenerationSpend([node], {
     title: i18n.t('generationCommon.composer.regenerate'),
     message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image'),
     confirmLabel: i18n.t('generationCommon.composer.regenerate'),
     light: true,
+    ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
   })
   if (!ok) return
   let grantId: string
@@ -600,7 +680,7 @@ export async function regenerateNodeInPlace(nodeId: string): Promise<void> {
     return
   }
   try {
-    const result = await runGenerationNode(id, { grantId })
+    const result = await runGenerationNode(id, { grantId, assetUploadConsent: 'allow' })
     useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(id, result)
   } catch {
     // 失败已记在节点卡片（人话错误），不再弹。

@@ -13,11 +13,10 @@ export const zhGenerationCommon = {
     queueOnly: '这版 ComfyUI 只能安全移除排队任务；如果任务已经运行，它会在本地继续完成',
     failed: '没能确认 ComfyUI 已取消任务；它可能仍在本地运行',
   },
-  assetUploadConsent: {
-    title: 'KIE 视频上传 / 公共托管确认',
-    message: '当前没有配置 KIE 视频上传。KIE 的文件上传本身免费，配置后会优先使用它；现在也可以继续使用公共临时托管，但素材会离开本机，链接通常只短期有效并存在隐私风险。',
-    confirm: '继续上传',
-    cancel: '取消生成',
+  spendHostingDisclosure: {
+    message: '这次要用到参考图，需先上传到公共临时托管——素材会离开本机，链接短期有效，并存在隐私风险。配置 KIE 后可改用它（免费，且会优先使用）。',
+    remember: '记住我的选择，以后不再问',
+    autonomousBlocked: '这次生成要用到本机素材，需要先上传到公共临时托管，但自动任务不会替你做这个决定。请先在设置里配置 KIE 上传（免费），或把「匿名素材托管」策略改为允许，然后重试。',
   },
   provenance: {
     dialogAria: '生成记录',
@@ -1392,11 +1391,10 @@ export const enGenerationCommon = {
     queueOnly: 'This ComfyUI version can only remove queued jobs safely. A running job will continue locally.',
     failed: 'Nomi could not confirm that ComfyUI cancelled the job. It may still be running locally.',
   },
-  assetUploadConsent: {
-    title: 'KIE video upload / public hosting confirmation',
-    message: 'KIE video upload is not configured. KIE file upload itself is free and will be preferred once configured; you can continue with a public temporary host, but the media leaves this computer, the link is short-lived, and privacy risk applies.',
-    confirm: 'Continue upload',
-    cancel: 'Cancel generation',
+  spendHostingDisclosure: {
+    message: 'This generation uses a reference image, so it must first be uploaded to a public temporary host—the asset leaves this computer, the link is short-lived, and there is a privacy risk. Configure KIE to use its free upload channel instead (it is preferred).',
+    remember: 'Remember my choice and do not ask again',
+    autonomousBlocked: 'This generation needs a local asset uploaded to a public temporary host, and an automated run will not make that choice for you. Configure KIE upload (free) in settings, or set the anonymous asset hosting policy to allow, then retry.',
   },
   provenance: {
     dialogAria: 'Generation record',

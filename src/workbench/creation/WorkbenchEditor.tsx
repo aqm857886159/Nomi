@@ -94,6 +94,7 @@ export default function WorkbenchEditor(): JSX.Element {
   const setWorkbenchDocument = useWorkbenchStore((state) => state.setWorkbenchDocument)
   const setCreationDocumentTools = useWorkbenchStore((state) => state.setCreationDocumentTools)
   const setCreationSelectionText = useWorkbenchStore((state) => state.setCreationSelectionText)
+  const storyboardPlannerLauncher = useWorkbenchStore((state) => state.storyboardPlannerLauncher)
   const [selectionState, setSelectionState] = React.useState({ text: '', version: 0 })
   const scrollRef = useTransientScrollingClass<HTMLDivElement>('workbench-scrollbar-visible')
   const workbenchDocumentRef = React.useRef(workbenchDocument)
@@ -178,6 +179,7 @@ export default function WorkbenchEditor(): JSX.Element {
         editor={editor}
         selectedText={selectionState.text}
         selectionVersion={selectionState.version}
+        onStoryboard={storyboardPlannerLauncher ? () => storyboardPlannerLauncher() : undefined}
         onCreated={clearSelectionText}
       />
       <div

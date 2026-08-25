@@ -14,6 +14,7 @@ import { useProductionCanvasLandingStore } from './productionCanvasLandingStore'
 import { deriveBatchProgress } from './shotPlaceholderState'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { buildDependencyWaves } from '../generationCanvas/runner/dependencyWaves'
+import { confirmAndRunPlan } from '../generationCanvas/components/batchPlanPreview'
 import { useToastStore } from '../../ui/toast'
 
 const POLL_INTERVAL_MS = 1500
@@ -44,11 +45,16 @@ export function ProductionCanvasLandingHost({ projectId }: { projectId: string |
           __nomiProductionLandingStore?: unknown
           __nomiCanvasStore?: unknown
           __nomiBuildDependencyWaves?: unknown
+          __nomiConfirmAndRunPlan?: unknown
         }
         w.__nomiProductionLandingStore = useProductionCanvasLandingStore
         w.__nomiCanvasStore = useGenerationCanvasStore
         // F15 走查读依赖门（显示的≡执行的）：生产构建里源码路径不可 import，故把纯函数挂出来供零额度走查读。
         w.__nomiBuildDependencyWaves = buildDependencyWaves
+        // F16b 走查驱动**真实确认漏斗**：批量生成的生产入口本尊（confirmAndRunPlan → 解析托管策略/KIE
+        // → 合并花钱卡带披露块 → runPlanWithToasts）。挂的是那一个真函数，不是复制品——手写 requestConfirm
+        // 参数的走查会绕过策略解析与 i18n 键，任何一处回归都还是绿的（F16b 前那条就栽在这）。
+        w.__nomiConfirmAndRunPlan = confirmAndRunPlan
       }
     } catch {
       // localStorage 不可用 → 跳过

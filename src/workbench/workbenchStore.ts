@@ -106,7 +106,7 @@ type WorkbenchState = {
   rememberCategoryViewport: (categoryId: string, viewport: GraphViewport) => void
   workbenchDocument: WorkbenchDocument
   creationDocumentTools: CreationDocumentTools | null
-  creationSelectionText: string
+  creationSelectionText: string; storyboardPlannerLauncher: ((displayPrompt?: string) => void) | null
   creationAiModeId: string
   /** 手动锁定的 active skill（覆盖 mode 推导的 skillKey）。null = 自动（用创作模式默认）。 */
   creationActiveSkill: { key: string; name: string } | null
@@ -161,7 +161,7 @@ type WorkbenchState = {
   setProjectSidebarWidth: (width: number) => void
   setWorkbenchDocument: (document: WorkbenchDocument) => void
   setCreationDocumentTools: (tools: CreationDocumentTools | null) => void
-  setCreationSelectionText: (text: string) => void
+  setCreationSelectionText: (text: string) => void; setStoryboardPlannerLauncher: (launcher: ((displayPrompt?: string) => void) | null) => void
   setCreationAiModeId: (modeId: string) => void
   setCreationActiveSkill: (skill: { key: string; name: string } | null) => void
   setCreationAiDraft: (draft: string) => void
@@ -240,7 +240,6 @@ type WorkbenchState = {
   /** 文字 clip 换字体（id，见 textFonts.ts）。 */
   updateTimelineTextClipFont: (id: string, fontId: string) => void
 }
-
 export function isWorkspaceMode(value: unknown): value is WorkspaceMode {
   return typeof value === 'string' && WORKSPACE_MODES.includes(value as WorkspaceMode)
 }
@@ -317,7 +316,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   },
   workbenchDocument: createDefaultWorkbenchDocument(),
   creationDocumentTools: null,
-  creationSelectionText: '',
+  creationSelectionText: '', storyboardPlannerLauncher: null,
   creationAiModeId: 'general',
   creationActiveSkill: null,
   creationAiDraft: '',
@@ -365,6 +364,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   setCreationSelectionText: (text) => {
     set({ creationSelectionText: typeof text === 'string' ? text.trim() : '' })
   },
+  setStoryboardPlannerLauncher: (storyboardPlannerLauncher) => set({ storyboardPlannerLauncher }),
   setCreationAiModeId: (creationAiModeId) => {
     set({ creationAiModeId })
   },
