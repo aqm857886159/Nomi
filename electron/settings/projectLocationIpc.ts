@@ -3,6 +3,7 @@ import type { OpenDialogOptions } from "electron";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { assertTrustedSender } from "../ipcSenderGuard";
 import { ensureDir, getProjectLocationState, type ProjectLocationState } from "../runtimePaths";
 import { backfillWorkspaceOrigins } from "../workspace/workspaceRegistry";
 import { writeProjectsRoot } from "./projectLocationSettings";
@@ -134,8 +135,22 @@ export async function revealProjectLocation(
 }
 
 export function registerProjectLocationIpc(): void {
-  ipcMain.handle("nomi:settings:project-location-get", () => getProjectLocationResponse());
-  ipcMain.handle("nomi:settings:project-location-pick", () => pickProjectLocation());
-  ipcMain.handle("nomi:settings:project-location-reset", () => resetProjectLocation());
-  ipcMain.handle("nomi:settings:project-location-reveal", () => revealProjectLocation());
+  // 这四条决定「项目库落在磁盘哪里」并能弹原生目录选择器 / 用 shell 打开目录：
+  // 全是文件系统作用域，非主窗口内容不得触碰。
+  ipcMain.handle("nomi:settings:project-location-get", (event) => {
+    assertTrustedSender(event);
+    return getProjectLocationResponse();
+  });
+  ipcMain.handle("nomi:settings:project-location-pick", (event) => {
+    assertTrustedSender(event);
+    return pickProjectLocation();
+  });
+  ipcMain.handle("nomi:settings:project-location-reset", (event) => {
+    assertTrustedSender(event);
+    return resetProjectLocation();
+  });
+  ipcMain.handle("nomi:settings:project-location-reveal", (event) => {
+    assertTrustedSender(event);
+    return revealProjectLocation();
+  });
 }

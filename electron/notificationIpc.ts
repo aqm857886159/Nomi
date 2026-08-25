@@ -6,6 +6,7 @@
 // show()+focus() 拉回前台（渲染层的 window.focus() 在 macOS 上不可靠）。
 import { BrowserWindow, Notification, ipcMain } from "electron";
 import { logCrash } from "./crashLog";
+import { assertTrustedSender } from "./ipcSenderGuard";
 
 type NotifyPayload = {
   title?: unknown;
@@ -25,7 +26,9 @@ function focusMainWindow(): void {
 
 // 异步通道（ipcMain.handle）而非 registerSyncIpc：发通知没必要阻塞渲染层。
 export function registerNotificationIpc(): void {
-  ipcMain.handle("nomi:notifications:show", (_event, payload: unknown) => {
+  ipcMain.handle("nomi:notifications:show", (event, payload: unknown) => {
+    // 原生通知可被伪装成系统提示做钓鱼，且点击会把窗口拉到前台。
+    assertTrustedSender(event);
     const input = (payload || {}) as NotifyPayload;
     const title = String(input.title || "").trim();
     if (!title) return { ok: false, reason: "empty-title" };

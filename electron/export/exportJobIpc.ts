@@ -1,6 +1,8 @@
 import { ipcMain, webContents as electronWebContents } from "electron";
 import type { WebContents } from "electron";
 
+import { assertTrustedSender } from "../ipcSenderGuard";
+
 const exportJobEventSubscriptions = new Map<number, () => void>();
 let exportJobsPromise: Promise<typeof import("./exportJobs")> | null = null;
 
@@ -11,31 +13,37 @@ function loadExportJobs(): Promise<typeof import("./exportJobs")> {
 
 export function registerExportJobIpc(): void {
   ipcMain.handle("nomi:exports:start-job", async (event, payload) => {
+    assertTrustedSender(event);
     const jobs = await loadExportJobs();
     await registerExportJobEventForwarding(event.sender);
     return jobs.startExportJob(payload);
   });
   ipcMain.handle("nomi:exports:write-temp-input", async (event, payload) => {
+    assertTrustedSender(event);
     const jobs = await loadExportJobs();
     await registerExportJobEventForwarding(event.sender);
     return jobs.writeExportTempInput(payload);
   });
   ipcMain.handle("nomi:exports:finish-temp-input", async (event, payload) => {
+    assertTrustedSender(event);
     const jobs = await loadExportJobs();
     await registerExportJobEventForwarding(event.sender);
     return jobs.finishExportTempInput(payload);
   });
   ipcMain.handle("nomi:exports:status", async (event, jobId) => {
+    assertTrustedSender(event);
     const jobs = await loadExportJobs();
     await registerExportJobEventForwarding(event.sender);
     return jobs.getExportJobStatus(jobId);
   });
   ipcMain.handle("nomi:exports:cancel", async (event, jobId) => {
+    assertTrustedSender(event);
     const jobs = await loadExportJobs();
     await registerExportJobEventForwarding(event.sender);
     return jobs.cancelExportJob(jobId);
   });
-  ipcMain.handle("nomi:exports:show-in-folder", async (_event, payload) => {
+  ipcMain.handle("nomi:exports:show-in-folder", async (event, payload) => {
+    assertTrustedSender(event);
     const { showExportInFolder } = await loadExportJobs();
     return showExportInFolder(payload);
   });

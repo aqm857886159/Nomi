@@ -46,6 +46,7 @@ import {
 } from "../overlay/browserViewOverlay";
 import { allocateBrowserViewId, browserAssetOverlaysByWindow, browserViews, browserViewsByWindow } from "./browserViewState";
 import { BROWSER_PROFILE_PARTITION, STANDARD_CHROME_UA, configureBrowserSession } from "./browserViewSession";
+import { assertTrustedUiSender } from "../../ipcSenderGuard";
 import {
   bringBrowserViewToFront,
   destroyBrowserView,
@@ -240,6 +241,7 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
   setBrowserAssetOverlayRendererUrlResolver(rendererUrlResolver);
 
   ipcMain.handle("browser:view:create", async (event, payload: BrowserViewCreatePayload = {}) => {
+    assertTrustedUiSender(event);
     const win = getSenderWindow(event.sender);
     const tabId = String(payload.tabId || "").trim();
     if (!tabId) throw new Error("tabId is required");
@@ -275,11 +277,13 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
   });
 
   ipcMain.on("browser:view:destroy", (event, payload: BrowserViewIdPayload) => {
+    assertTrustedUiSender(event);
     const record = getBrowserViewForSender(event.sender, payload);
     destroyBrowserView(record);
   });
 
   ipcMain.on("browser:view:navigate", (event, payload: BrowserViewNavigatePayload) => {
+    assertTrustedUiSender(event);
     const record = getBrowserViewForSender(event.sender, payload);
     const url = normalizeBrowserUrl(payload.url);
     void record.view.webContents.loadURL(url);
@@ -287,20 +291,24 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
   });
 
   ipcMain.on("browser:view:back", (event, payload: BrowserViewIdPayload) => {
+    assertTrustedUiSender(event);
     const record = getBrowserViewForSender(event.sender, payload);
     if (record.view.webContents.canGoBack()) record.view.webContents.goBack();
   });
 
   ipcMain.on("browser:view:forward", (event, payload: BrowserViewIdPayload) => {
+    assertTrustedUiSender(event);
     const record = getBrowserViewForSender(event.sender, payload);
     if (record.view.webContents.canGoForward()) record.view.webContents.goForward();
   });
 
   ipcMain.on("browser:view:reload", (event, payload: BrowserViewIdPayload) => {
+    assertTrustedUiSender(event);
     getBrowserViewForSender(event.sender, payload).view.webContents.reload();
   });
 
   ipcMain.on("browser:view:resize", (event, payload: BrowserViewResizePayload) => {
+    assertTrustedUiSender(event);
     const record = getBrowserViewForSender(event.sender, payload);
     const bounds = normalizeBounds(payload.bounds);
     if (sameRectangle(record.lastBounds, bounds)) return;
@@ -310,6 +318,7 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
   });
 
   ipcMain.on("browser:view:show", (event, payload: BrowserViewIdPayload) => {
+    assertTrustedUiSender(event);
     const record = getBrowserViewForSender(event.sender, payload);
     bringBrowserViewToFront(record);
     record.view.setBounds(record.lastBounds);
@@ -318,6 +327,7 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
   });
 
   ipcMain.on("browser:view:hide", (event, payload: BrowserViewIdPayload) => {
+    assertTrustedUiSender(event);
     const record = getBrowserViewForSender(event.sender, payload);
     record.view.webContents.setBackgroundThrottling(true);
     record.view.setVisible(false);
@@ -325,56 +335,67 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
   });
 
   ipcMain.handle("browser:view:import-media", async (event, payload: BrowserViewImportMediaPayload) => {
+    assertTrustedUiSender(event);
     const record = getBrowserViewForSender(event.sender, payload);
     return importBrowserMedia(record, payload);
   });
 
   ipcMain.handle("browser:view:capture-prompt-image", async (event, payload: BrowserViewPromptImagePayload) => {
+    assertTrustedUiSender(event);
     const record = getBrowserViewForSender(event.sender, payload);
     return captureBrowserPromptImage(record, payload);
   });
 
   ipcMain.handle("browser:view:select-prompt-screenshot", async (event, payload: BrowserViewIdPayload) => {
+    assertTrustedUiSender(event);
     const record = getBrowserViewForSender(event.sender, payload);
     return selectBrowserPromptScreenshotRect(record);
   });
 
   ipcMain.handle("browser:view:capture-prompt-screenshot", async (event, payload: BrowserViewPromptScreenshotPayload) => {
+    assertTrustedUiSender(event);
     const record = getBrowserViewForSender(event.sender, payload);
     return captureBrowserPromptScreenshot(record, payload);
   });
 
   ipcMain.on("browser:view:set-resource-capture", (event, payload: BrowserViewIdPayload & { enabled?: unknown }) => {
+    assertTrustedUiSender(event);
     const record = getBrowserViewForSender(event.sender, payload);
     record.resourceCaptureEnabled = Boolean(payload.enabled);
     void installBrowserResourceCaptureBridge(record, record.resourceCaptureEnabled);
   });
 
   ipcMain.on("browser:view:capture-resource", (event, payload: BrowserViewIdPayload) => {
+    assertTrustedUiSender(event);
     const record = getBrowserViewForSender(event.sender, payload);
     if (!record.resourceCaptureEnabled) return;
     void captureBrowserResource(record);
   });
 
   ipcMain.handle("browser:chrome-menu:show", (event, payload: BrowserChromeMenuPayload) => {
+    assertTrustedUiSender(event);
     const owner = getOwnerWindowForSender(event.sender);
     return showBrowserChromeMenu(owner, normalizeBrowserChromeMenuPayload(payload));
   });
 
   ipcMain.on("browser:chrome-menu:select", (event, id: unknown) => {
+    assertTrustedUiSender(event);
     selectBrowserChromeMenu(event.sender.id, id);
   });
 
   ipcMain.on("browser:chrome-menu:cancel", (event) => {
+    assertTrustedUiSender(event);
     cancelBrowserChromeMenu(event.sender.id);
   });
 
   ipcMain.on("browser:asset-overlay:open", (event, payload: BrowserAssetOverlayPayload) => {
+    assertTrustedUiSender(event);
     const owner = getOwnerWindowForSender(event.sender);
     openBrowserAssetOverlay(owner, payload, payload.captureRequest ?? null);
   });
 
   ipcMain.on("browser:asset-overlay:update-host", (event, payload: BrowserAssetOverlayPayload) => {
+    assertTrustedUiSender(event);
     const record = getOverlayForSender(event.sender);
     if (!record) return;
     if (payload.viewId === null) {
@@ -389,11 +410,13 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
   });
 
   ipcMain.on("browser:asset-overlay:close", (event) => {
+    assertTrustedUiSender(event);
     const record = getOverlayForSender(event.sender);
     if (record) closeBrowserAssetOverlay(record);
   });
 
   ipcMain.on("browser:asset-overlay:capture-request", (event, payload: BrowserAssetOverlayCaptureRequest) => {
+    assertTrustedUiSender(event);
     const owner = getOwnerWindowForSender(event.sender);
     const record = browserAssetOverlaysByWindow.get(owner.id);
     if (!record) return;
@@ -401,6 +424,7 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
   });
 
   ipcMain.on("browser:asset-overlay:ready", (event) => {
+    assertTrustedUiSender(event);
     const record = getOverlayForSender(event.sender);
     if (!record) return;
     record.rendererReady = true;
@@ -413,6 +437,7 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
   });
 
   ipcMain.on("browser:asset-overlay:set-interactive", (event, payload: { interactive?: unknown }) => {
+    assertTrustedUiSender(event);
     const record = getOverlayForSender(event.sender);
     if (!record || record.window.isDestroyed()) return;
     record.pointerInteractive = payload.interactive === true;
@@ -420,12 +445,14 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
   });
 
   ipcMain.on("browser:asset-overlay:finish-drag", (event) => {
+    assertTrustedUiSender(event);
     const record = getOverlayForSender(event.sender);
     if (!record || record.window.isDestroyed()) return;
     finishBrowserAssetOverlayDrag(record);
   });
 
   ipcMain.on("browser:asset-overlay:set-state", (event, payload: BrowserAssetOverlayStatePayload) => {
+    assertTrustedUiSender(event);
     const record = getOverlayForSender(event.sender);
     if (!record) return;
     const nextDockMode = normalizeOverlayDockMode(payload.dockMode);
@@ -448,6 +475,7 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
   });
 
   ipcMain.on("browser:asset-overlay:import-to-canvas", (event, payload: unknown) => {
+    assertTrustedUiSender(event);
     const owner = getOwnerWindowForSender(event.sender);
     if (owner.isDestroyed()) return;
     owner.webContents.send("browser:asset-overlay:import-to-canvas", payload);
@@ -456,6 +484,7 @@ export function registerBrowserViewIpc(rendererUrlResolver?: () => string): void
   // contained 素材盒问「父窗现在有没有画布导入目标」——overlay 是独立窗口，DOM 探针跨窗探不到。
   // 选择器与渲染层 browserAssetPopoverConstants.CANVAS_IMPORT_TARGET_SELECTOR 同义（跨进程无法共享常量）。
   ipcMain.handle("browser:asset-overlay:canvas-import-available", async (event) => {
+    assertTrustedUiSender(event);
     try {
       const owner = getOwnerWindowForSender(event.sender);
       if (owner.isDestroyed()) return false;

@@ -11,6 +11,7 @@ import {
 } from "./existingConnection";
 import { getProviderAdapterService } from "./service";
 
+import { assertTrustedSender } from "../ipcSenderGuard";
 function modelKind(value: unknown): BillingModelKind {
   return value === "image" || value === "video" || value === "audio" || value === "model3d"
     ? value
@@ -57,23 +58,28 @@ function defaultActions(): ExistingConnectionActions {
 }
 
 export function registerExistingConnectionIpc(actions: ExistingConnectionActions = defaultActions()): void {
-  ipcMain.handle("nomi:provider-adapter:existing:list-models", async (_event, payload: unknown) => {
+  ipcMain.handle("nomi:provider-adapter:existing:list-models", async (event, payload: unknown) => {
+    assertTrustedSender(event);
     const vendorKey = String((payload as { vendorKey?: unknown } | null)?.vendorKey || "").trim();
     return actions.listModels({ vendorKey });
   });
-  ipcMain.handle("nomi:provider-adapter:existing:register", async (_event, payload: unknown) => {
+  ipcMain.handle("nomi:provider-adapter:existing:register", async (event, payload: unknown) => {
+    assertTrustedSender(event);
     const vendorKey = String((payload as { vendorKey?: unknown } | null)?.vendorKey || "").trim();
     return actions.register({ vendorKey, models: selectedModels(payload) });
   });
-  ipcMain.handle("nomi:provider-adapter:existing:start", async (_event, payload: unknown) => {
+  ipcMain.handle("nomi:provider-adapter:existing:start", async (event, payload: unknown) => {
+    assertTrustedSender(event);
     const vendorKey = String((payload as { vendorKey?: unknown } | null)?.vendorKey || "").trim();
     return actions.start({ vendorKey, models: selectedModels(payload) });
   });
-  ipcMain.handle("nomi:provider-adapter:existing:adapt", async (_event, payload: unknown) => {
+  ipcMain.handle("nomi:provider-adapter:existing:adapt", async (event, payload: unknown) => {
+    assertTrustedSender(event);
     const vendorKey = String((payload as { vendorKey?: unknown } | null)?.vendorKey || "").trim();
     return actions.adapt({ vendorKey, models: selectedModels(payload) });
   });
-  ipcMain.handle("nomi:provider-adapter:retry", async (_event, payload: unknown) => {
+  ipcMain.handle("nomi:provider-adapter:retry", async (event, payload: unknown) => {
+    assertTrustedSender(event);
     const raw = (payload || {}) as Record<string, unknown>;
     const runId = String(raw.runId || "").trim();
     const modelKey = String(raw.modelKey || "").trim();

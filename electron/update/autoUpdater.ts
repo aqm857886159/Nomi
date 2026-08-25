@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { desktopT } from "../i18n";
 import { buildDownloadPageUrl } from "./downloadPage";
 
+import { assertTrustedSender } from "../ipcSenderGuard";
 // 版本号 + 检查更新 + 一键更新（功能需求 1/2/3）。
 // GitHub Releases provider 由 package.json build.publish 自动派生，无需额外服务器。
 // 全程用户显式触发：关自动下载 / 关退出即装，下载与安装都必须用户点（P2 用户掌控）。
@@ -89,7 +90,9 @@ export function registerUpdaterIpc(): void {
   }));
 
   // 手动更新兜底：把主进程已知的真实平台/架构交给官网，由官网直接启动对应安装包下载。
-  ipcMain.handle("nomi:update:open-download", async () => {
+  ipcMain.handle("nomi:update:open-download", async (event) => {
+    // shell.openExternal：能让任意内容驱动系统去打开外部 URL。
+    assertTrustedSender(event);
     try {
       await shell.openExternal(buildDownloadPageUrl(process.platform, process.arch));
       return { ok: true };
@@ -99,7 +102,8 @@ export function registerUpdaterIpc(): void {
     }
   });
 
-  ipcMain.handle("nomi:update:check", async () => {
+  ipcMain.handle("nomi:update:check", async (event) => {
+    assertTrustedSender(event);
     // 未打包（dev）时 electron-updater 不可用——诚实回错，不假装能更新。
     if (!app.isPackaged) {
       broadcast({ type: "error", message: desktopT("updater.devUnavailable") });
@@ -116,7 +120,8 @@ export function registerUpdaterIpc(): void {
     }
   });
 
-  ipcMain.handle("nomi:update:download", async () => {
+  ipcMain.handle("nomi:update:download", async (event) => {
+    assertTrustedSender(event);
     try {
       const autoUpdater = await loadAutoUpdater();
       await autoUpdater.downloadUpdate();
@@ -127,7 +132,9 @@ export function registerUpdaterIpc(): void {
     }
   });
 
-  ipcMain.handle("nomi:update:install", () => {
+  ipcMain.handle("nomi:update:install", (event) => {
+    // 装更新会立刻重启整个应用，是最强的一条控制权。
+    assertTrustedSender(event);
     // 立即重启并安装（非静默）。mac 未签名会被 Gatekeeper 拦——降级实况以真机为准。
     setImmediate(() => {
       try {

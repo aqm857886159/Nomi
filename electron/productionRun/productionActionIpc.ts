@@ -2,6 +2,7 @@ import { ipcMain } from "electron";
 
 import type { ProductionActionResult } from "./productionRunTypes";
 
+import { assertTrustedSender } from "../ipcSenderGuard";
 /**
  * P4 S6 返工/续拍 IPC（从 main.ts 抽出来守 800 行门岗 R9）。渲染层（占位节点重试钮 / 失败镜 onRetry / 续拍钮）
  * 经此转调 appIntegration 编排（scheduler 闭包住那）。守卫：projectId 须 = 当前打开项目（返工/续拍是「用户在本机对
@@ -28,7 +29,8 @@ export function registerProductionActionIpc(deps: {
     return null;
   };
 
-  ipcMain.handle("nomi:production-runs:rework", async (_event, payload: unknown): Promise<ProductionActionResult> => {
+  ipcMain.handle("nomi:production-runs:rework", async (event, payload: unknown): Promise<ProductionActionResult> => {
+    assertTrustedSender(event);
     const raw = objectOf(payload);
     const projectId = str(raw.projectId);
     const runId = str(raw.runId);
@@ -38,7 +40,8 @@ export function registerProductionActionIpc(deps: {
     return rework({ projectId, runId, ...(shotId ? { shotId } : {}) });
   });
 
-  ipcMain.handle("nomi:production-runs:resume-batch", async (_event, payload: unknown): Promise<ProductionActionResult> => {
+  ipcMain.handle("nomi:production-runs:resume-batch", async (event, payload: unknown): Promise<ProductionActionResult> => {
+    assertTrustedSender(event);
     const raw = objectOf(payload);
     const projectId = str(raw.projectId);
     const runId = str(raw.runId);

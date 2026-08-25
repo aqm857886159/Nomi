@@ -7,6 +7,7 @@ import {
 } from "./service";
 import { runLiveProviderAdapterHarnessFromEnv } from "./liveHarness";
 
+import { assertTrustedSender } from "../ipcSenderGuard";
 type PublicProviderAdapterRun = Omit<ProviderAdapterRun, "connectionFingerprint">;
 
 function publicRun(run: ProviderAdapterRun): PublicProviderAdapterRun {
@@ -54,36 +55,42 @@ function adapterStartInput(payload: unknown): ProviderAdapterStartInput {
 }
 
 export function registerProviderAdapterIpc(service: ProviderAdapterService = getProviderAdapterService()): void {
-  ipcMain.handle("nomi:provider-adapter:register", async (_event, payload: unknown) => {
+  ipcMain.handle("nomi:provider-adapter:register", async (event, payload: unknown) => {
+    assertTrustedSender(event);
     try {
       return { ok: true, registration: service.register(adapterStartInput(payload)) };
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
-  ipcMain.handle("nomi:provider-adapter:start", async (_event, payload: unknown) => {
+  ipcMain.handle("nomi:provider-adapter:start", async (event, payload: unknown) => {
+    assertTrustedSender(event);
     try {
       return { ok: true, run: publicRun(service.start(adapterStartInput(payload))) };
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
-  ipcMain.handle("nomi:provider-adapter:get", async (_event, payload: unknown) => {
+  ipcMain.handle("nomi:provider-adapter:get", async (event, payload: unknown) => {
+    assertTrustedSender(event);
     const runId = String((payload as { runId?: unknown } | null)?.runId || "").trim();
     const run = runId ? service.getRun(runId) : undefined;
     return run ? { ok: true, run: publicRun(run) } : { ok: false, error: "Provider adapter run not found" };
   });
-  ipcMain.handle("nomi:provider-adapter:latest", async (_event, payload: unknown) => {
+  ipcMain.handle("nomi:provider-adapter:latest", async (event, payload: unknown) => {
+    assertTrustedSender(event);
     const vendorKey = String((payload as { vendorKey?: unknown } | null)?.vendorKey || "").trim();
     const run = vendorKey ? service.latestRun(vendorKey) : undefined;
     return run ? { ok: true, run: publicRun(run) } : { ok: false, error: "Provider adapter run not found" };
   });
-  ipcMain.handle("nomi:provider-adapter:cancel", async (_event, payload: unknown) => {
+  ipcMain.handle("nomi:provider-adapter:cancel", async (event, payload: unknown) => {
+    assertTrustedSender(event);
     const runId = String((payload as { runId?: unknown } | null)?.runId || "").trim();
     const run = runId ? service.cancel(runId) : undefined;
     return run ? { ok: true, run: publicRun(run) } : { ok: false, error: "Provider adapter run not found" };
   });
-  ipcMain.handle("nomi:provider-adapter:list", async (_event, payload: unknown) => {
+  ipcMain.handle("nomi:provider-adapter:list", async (event, payload: unknown) => {
+    assertTrustedSender(event);
     const raw = (payload || {}) as Record<string, unknown>;
     const vendorKey = String(raw.vendorKey || "").trim();
     const requestedLimit = Number(raw.limit);
