@@ -228,11 +228,14 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
   )
 
   const renderAssistantMessage = (message: WorkbenchAiMessage): JSX.Element => {
-    // status 是 pending/streaming 的唯一真相源(P2)。
-    // 旧路径曾以 '处理中...' 哨兵内容推断状态，现已修：content 里可能有任意字符（含模型合法输出或 i18n
-    // 文案被改），字符串匹配会静默误判。status 字段由 CanvasAssistantPanel 在创建消息时显式设置。
-    // undefined 兼容旧 session 持久化消息（视为 done，不进 pending 分支）。
-    const isPending = message.status === 'pending' || message.status === 'streaming'
+    // status 是 pending/streaming 的唯一真相源(P2)。CanvasAssistantPanel 负责维护状态机：
+    // 气泡创建时=pending，首 token 到达时转 streaming，收口时转 done/error/cancelled。
+    // undefined 兼容旧 session 持久化消息（视为 done，不进 streaming 分支）。
+    // AssistantMessageView 自己正确处理两种流式子情形：
+    //   streaming && !hasContent → NomiLoadingMark + pendingLabel（等首 token）
+    //   streaming && hasContent  → markdown + StreamingDots（正在吐字）
+    // 不再在这里强清 content——让组件本身决定渲染路径。
+    const isStreaming = message.status === 'pending' || message.status === 'streaming'
     // status 是错误真相源(旧 session 用「（错误）」前缀兜底)。错误分流到红色错误卡(人话+一键出路),
     // 不再当普通回复渲染。
     const isErrorMsg =
@@ -243,10 +246,10 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
           <AssistantErrorCard error={message.content} onRetry={props.onRetry} />
         ) : (
           <AssistantMessageView
-            content={isPending ? '' : message.content}
+            content={message.content}
             attachments={message.attachments}
-            streaming={isPending}
-            pendingLabel={isPending ? t('generationCommon.assistant.processingShort') : undefined}
+            streaming={isStreaming}
+            pendingLabel={isStreaming ? t('generationCommon.assistant.processingShort') : undefined}
             cancelled={message.status === 'cancelled'}
           />
         )}

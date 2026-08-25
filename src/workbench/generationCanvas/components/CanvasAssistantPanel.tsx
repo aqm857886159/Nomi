@@ -237,7 +237,7 @@ export default function CanvasAssistantPanel({
         content: options.displayMessage || text || '请看这些附件',
         ...(readyAttachments.length ? { attachments: readyAttachments } : {}),
       },
-      { id: firstBubbleId, role: 'assistant', content: '处理中...', status: 'pending' },
+      { id: firstBubbleId, role: 'assistant', content: '', status: 'pending' },
     ])
     setBusy(true)
     void (async () => {
@@ -378,13 +378,13 @@ export default function CanvasAssistantPanel({
       let streamRaf: number | null = null
       const flush = () => {
         streamRaf = null
-        if (activeId !== null) updateMessage(activeId, activeText || '处理中...')
+        if (activeId !== null) updateMessage(activeId, activeText)
       }
       const openBubble = () => {
         const id = createMessageId()
         activeId = id
         activeText = ''
-        setMessages((current) => [...current, { id, role: 'assistant', content: '处理中...', status: 'streaming' }])
+        setMessages((current) => [...current, { id, role: 'assistant', content: '', status: 'pending' }])
       }
       // 收口当前气泡:有正文→标 done(后续卡锚到它);空壳→删除(不留占位)。
       const sealBubble = () => {
@@ -409,7 +409,10 @@ export default function CanvasAssistantPanel({
           skill: options.skill,
           onContent: (delta) => {
             if (activeId === null) openBubble()
-            if (activeText === '') anchorId = activeId as string // 首字:后续卡锚到本气泡
+            if (activeText === '') {
+              anchorId = activeId as string // 首字:后续卡锚到本气泡
+              setMessageStatus(activeId as string, 'streaming') // pending→streaming 状态机转换
+            }
             activeText += delta
             if (streamRaf === null) streamRaf = requestAnimationFrame(flush)
           },
