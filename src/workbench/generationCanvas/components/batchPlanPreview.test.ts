@@ -124,6 +124,7 @@ describe('runPlanWithToasts concurrency', () => {
     expect(runGenerationNodesByPlan).toHaveBeenLastCalledWith(expect.any(Object), {
       grantId: 'retry-grant',
       concurrency: 4,
+      assetUploadConsent: 'allow',
     })
     expect(mocks.toastPush.mock.calls.slice(2).every(([input]) => input.id === BATCH_RUN_TOAST_ID)).toBe(true)
   })

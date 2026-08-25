@@ -18,6 +18,13 @@ type ConsentDependencies = {
   readPolicy: () => Promise<{ anonymousAssetHosting?: AssetUploadConsentPolicy }>
   listVendors: () => Array<{ key?: string; enabled?: boolean; hasApiKey?: boolean; authType?: string }>
   confirm: (options: { title: string; message: string; confirmLabel: string; cancelLabel: string }) => Promise<boolean>
+  remember?: () => Promise<void>
+}
+
+export type AssetUploadConsentResolution = {
+  allowed: boolean
+  needsConfirmation: boolean
+  remember: () => Promise<void>
 }
 
 function hasLocalAsset(value: unknown): boolean {
@@ -39,6 +46,10 @@ function defaultDependencies(): ConsentDependencies | null {
     readPolicy: () => policy.get(),
     listVendors: () => desktop.modelCatalog.listVendors() as Array<{ key?: string; enabled?: boolean; hasApiKey?: boolean; authType?: string }>,
     confirm: confirmDialog,
+    remember: async () => {
+      const current = await policy.get()
+      await policy.set({ ...current, anonymousAssetHosting: 'allow' })
+    },
   }
 }
 
@@ -52,23 +63,43 @@ export async function requestAssetUploadConsent(
   node: Pick<GenerationCanvasNode, 'meta' | 'references'>,
   injected?: Partial<ConsentDependencies>,
 ): Promise<boolean> {
-  if (!hasLocalAssetReference(node)) return true
+  const resolution = await resolveAssetUploadConsent(node, injected)
+  if (!resolution.allowed) return false
+  if (!resolution.needsConfirmation) return true
   const defaults = defaultDependencies()
   if (!defaults && !injected) return true
   const deps = { ...(defaults || {}), ...(injected || {}) } as ConsentDependencies
-  const policy = (await deps.readPolicy()).anonymousAssetHosting || 'ask'
-  if (policy === 'deny') return false
-  const targetVendor = typeof node.meta?.modelVendor === 'string'
-    ? node.meta.modelVendor
-    : typeof node.meta?.vendor === 'string' ? node.meta.vendor : ''
-  if (/^comfyui-local/i.test(targetVendor) || targetVendor === 'codex-local') return true
-  const kie = deps.listVendors().find((vendor) => vendor.key === 'kie')
-  if (kie?.enabled && (kie.authType === 'none' || kie.hasApiKey)) return true
-  if (policy === 'allow') return true
   return deps.confirm({
     title: i18n.t('generationCommon.assetUploadConsent.title'),
     message: i18n.t('generationCommon.assetUploadConsent.message'),
     confirmLabel: i18n.t('generationCommon.assetUploadConsent.confirm'),
     cancelLabel: i18n.t('generationCommon.assetUploadConsent.cancel'),
   })
+}
+
+/**
+ * Resolve the upload channel without opening UI. Spend confirmation owns the
+ * visible card; this function is the single policy/KIE truth source used by
+ * both the merged card and the legacy direct-run fallback.
+ */
+export async function resolveAssetUploadConsent(
+  node: Pick<GenerationCanvasNode, 'meta' | 'references'>,
+  injected?: Partial<ConsentDependencies>,
+): Promise<AssetUploadConsentResolution> {
+  const noopRemember = async () => {}
+  if (!hasLocalAssetReference(node)) return { allowed: true, needsConfirmation: false, remember: noopRemember }
+  const defaults = defaultDependencies()
+  if (!defaults && !injected) return { allowed: true, needsConfirmation: false, remember: noopRemember }
+  const deps = { ...(defaults || {}), ...(injected || {}) } as ConsentDependencies
+  const policy = (await deps.readPolicy()).anonymousAssetHosting || 'ask'
+  const remember = deps.remember || (async () => {})
+  if (policy === 'deny') return { allowed: false, needsConfirmation: false, remember }
+  const targetVendor = typeof node.meta?.modelVendor === 'string'
+    ? node.meta.modelVendor
+    : typeof node.meta?.vendor === 'string' ? node.meta.vendor : ''
+  if (/^comfyui-local/i.test(targetVendor) || targetVendor === 'codex-local') return { allowed: true, needsConfirmation: false, remember }
+  const kie = deps.listVendors().find((vendor) => vendor.key === 'kie')
+  if (kie?.enabled && (kie.authType === 'none' || kie.hasApiKey)) return { allowed: true, needsConfirmation: false, remember }
+  if (policy === 'allow') return { allowed: true, needsConfirmation: false, remember }
+  return { allowed: true, needsConfirmation: true, remember }
 }

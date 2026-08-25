@@ -40,8 +40,10 @@ import i18n from '../../../i18n'
 import {
   AssetUploadConsentCancelledError,
   hasLocalAssetReference,
+  resolveAssetUploadConsent,
   requestAssetUploadConsent,
 } from './assetUploadConsent'
+import type { HostingDisclosure } from '../spend/spendConfirm'
 
 /** 节点 kind → 付费预估用的产物口径（视频/配音/画面），喂给 describeGenerationCost 报对名词与时长。 */
 function spendCostKind(kind: GenerationNodeKind): 'image' | 'video' | 'audio' {
@@ -74,6 +76,40 @@ export type RunGenerationNodeOptions = {
   promptSuffix?: string
   /** 队列批次 id（任务中心的调度真相源，见 generationQueueStore）。不传 = 单发，内部自建 1 节点批次。 */
   batchId?: string
+  /** Upload consent was granted by the merged spend card; skip the direct-run fallback prompt. */
+  assetUploadConsent?: 'allow'
+}
+
+async function buildConsentNode(node: GenerationCanvasNode): Promise<Pick<GenerationCanvasNode, 'meta' | 'references'>> {
+  const resolved = resolveGenerationReferences(node, { nodes: [node], edges: [] })
+  return {
+    ...node,
+    references: [
+      ...(node.references || []),
+      ...resolved.referenceImages,
+      ...resolved.referenceVideos,
+      ...resolved.referenceAudios,
+      ...(resolved.firstFrameUrl ? [resolved.firstFrameUrl] : []),
+      ...(resolved.lastFrameUrl ? [resolved.lastFrameUrl] : []),
+      ...(resolved.relayFromVideoUrl ? [resolved.relayFromVideoUrl] : []),
+    ],
+  }
+}
+
+async function resolveHostingDisclosure(node: GenerationCanvasNode | undefined): Promise<{ allowed: boolean; disclosure?: HostingDisclosure }> {
+  if (!node) return { allowed: true }
+  const consentNode = await buildConsentNode(node)
+  const resolution = await resolveAssetUploadConsent(consentNode)
+  if (!resolution.allowed) return { allowed: false }
+  if (!resolution.needsConfirmation) return { allowed: true }
+  return {
+    allowed: true,
+    disclosure: {
+      message: i18n.t('generationCommon.spendHostingDisclosure.message'),
+      rememberLabel: i18n.t('generationCommon.spendHostingDisclosure.remember'),
+      onRemember: resolution.remember,
+    },
+  }
 }
 
 type GenerationRunContext = {
@@ -190,7 +226,7 @@ export async function runGenerationNode(
     ],
   }
   const hasLocalReference = hasLocalAssetReference(consentNode)
-  if (!(await requestAssetUploadConsent(consentNode))) {
+  if (options.assetUploadConsent !== 'allow' && !(await requestAssetUploadConsent(consentNode))) {
     throw new AssetUploadConsentCancelledError()
   }
 
@@ -376,6 +412,7 @@ export async function runGenerationNodesBatch(
           retry: options.retry,
           ...(options.grantId ? { grantId: options.grantId } : {}),
           ...(options.batchId ? { batchId: options.batchId } : {}),
+          ...(options.assetUploadConsent ? { assetUploadConsent: options.assetUploadConsent } : {}),
         })
         successes.push({ nodeId, result })
         options.onNodeResult?.({ ok: true, nodeId, result })
@@ -478,6 +515,8 @@ export async function runGenerationNodesByPlan(
  */
 export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean } = {}): Promise<void> {
   const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === nodeId)
+  const hosting = await resolveHostingDisclosure(node)
+  if (!hosting.allowed) return
   const ok = await confirmGenerationSpend([node], {
     title: opts.rerun
       ? i18n.t('generationCommon.spend.generateVariant')
@@ -487,6 +526,7 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
       ? i18n.t('generationCommon.spend.generateVariant')
       : i18n.t('generationCommon.spend.generate'),
     light: true,
+    ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
   })
   if (!ok) return
   let runId = nodeId
@@ -508,7 +548,7 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean 
     return
   }
   try {
-    await runGenerationNode(runId, { grantId })
+    await runGenerationNode(runId, { grantId, assetUploadConsent: 'allow' })
   } catch {
     // 失败已记在节点上（卡片渲染人话错误），这里不再弹。
   }
@@ -529,11 +569,14 @@ export async function confirmAndRunNodeVariants(
   if (!id) return
   const total = Math.max(1, Math.min(8, Math.floor(count)))
   const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === id)
+  const hosting = await resolveHostingDisclosure(node)
+  if (!hosting.allowed) return
   const ok = await confirmGenerationSpend([node], {
     title: i18n.t('generationCommon.spend.startGeneration'),
     message: describeGenerationCost(total, node ? spendCostKind(node.kind) : 'image'),
     confirmLabel: i18n.t('generationCommon.spend.generate'),
     light: true,
+    ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
   })
   if (!ok) return
   for (let index = 0; index < total; index += 1) {
@@ -550,7 +593,7 @@ export async function confirmAndRunNodeVariants(
       return
     }
     try {
-      const result = await runGenerationNode(id, { ...options, grantId })
+      const result = await runGenerationNode(id, { ...options, grantId, assetUploadConsent: 'allow' })
       useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(id, result)
     } catch {
       return // 失败已落节点卡片（人话错误）；停发剩余变体
@@ -580,11 +623,14 @@ export async function regenerateNodeInPlace(nodeId: string): Promise<void> {
   const id = String(nodeId || '').trim()
   if (!id) return
   const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === id)
+  const hosting = await resolveHostingDisclosure(node)
+  if (!hosting.allowed) return
   const ok = await confirmGenerationSpend([node], {
     title: i18n.t('generationCommon.composer.regenerate'),
     message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image'),
     confirmLabel: i18n.t('generationCommon.composer.regenerate'),
     light: true,
+    ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
   })
   if (!ok) return
   let grantId: string
@@ -600,7 +646,7 @@ export async function regenerateNodeInPlace(nodeId: string): Promise<void> {
     return
   }
   try {
-    const result = await runGenerationNode(id, { grantId })
+    const result = await runGenerationNode(id, { grantId, assetUploadConsent: 'allow' })
     useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(id, result)
   } catch {
     // 失败已记在节点卡片（人话错误），不再弹。

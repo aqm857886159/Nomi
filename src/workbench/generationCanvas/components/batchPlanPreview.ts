@@ -5,6 +5,8 @@ import { toast, useToastStore } from '../../../ui/toast'
 import { runGenerationNodesByPlan, spendCostKindForNodes } from '../runner/generationRunController'
 import { mintSpendGrant } from '../../api/taskApi'
 import { confirmAndMintGrant, describeGenerationCost } from '../spend/spendConfirm'
+import { hasLocalAssetReference, resolveAssetUploadConsent } from '../runner/assetUploadConsent'
+import { resolveGenerationReferences } from '../runner/generationReferenceResolver'
 import { buildDependencyWaves, type DependencyWavePlan } from '../runner/dependencyWaves'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { verifyShotsAndReport } from '../agent/shotVerifyStore'
@@ -80,7 +82,29 @@ export async function confirmAndRunPlan(
     await runPlanWithToasts(plan) // 无可跑 → 复用人话 toast 报「为什么不能跑」
     return
   }
-  const nodesById = new Map(useGenerationCanvasStore.getState().nodes.map((n) => [n.id, n]))
+  const canvasState = useGenerationCanvasStore.getState()
+  const nodesById = new Map(canvasState.nodes.map((n) => [n.id, n]))
+  const consentNodes = ids.map((id) => nodesById.get(id)).filter((node): node is NonNullable<typeof node> => Boolean(node)).map((node) => {
+    const resolved = resolveGenerationReferences(node, { nodes: canvasState.nodes, edges: canvasState.edges })
+    return {
+      ...node,
+      references: [
+        ...(node.references || []),
+        ...resolved.referenceImages,
+        ...resolved.referenceVideos,
+        ...resolved.referenceAudios,
+        ...(resolved.firstFrameUrl ? [resolved.firstFrameUrl] : []),
+        ...(resolved.lastFrameUrl ? [resolved.lastFrameUrl] : []),
+        ...(resolved.relayFromVideoUrl ? [resolved.relayFromVideoUrl] : []),
+      ],
+    }
+  })
+  let hosting: Awaited<ReturnType<typeof resolveAssetUploadConsent>> = { allowed: true, needsConfirmation: false, remember: async () => {} }
+  for (const node of consentNodes.filter((candidate) => hasLocalAssetReference(candidate))) {
+    const resolution = await resolveAssetUploadConsent(node)
+    if (!resolution.allowed) return
+    if (resolution.needsConfirmation && !hosting.needsConfirmation) hosting = resolution
+  }
   const grantId = await confirmAndMintGrant({
     nodeIds: ids,
     nodes: ids.map((id) => nodesById.get(id)),
@@ -88,16 +112,23 @@ export async function confirmAndRunPlan(
     message: describeGenerationCost(ids.length, spendCostKindForNodes(ids)),
     confirmLabel: i18n.t('generationCommon.batchPlan.confirmGenerate'),
     light: true,
+    ...(hosting.needsConfirmation ? {
+      hostingDisclosure: {
+        message: i18n.t('generationCommon.spendHostingDisclosure.message'),
+        rememberLabel: i18n.t('generationCommon.spendHostingDisclosure.remember'),
+        onRemember: hosting.remember,
+      },
+    } : {}),
   })
   if (!grantId) return
-  await runPlanWithToasts(plan, { grantId, concurrency: options.concurrency })
+  await runPlanWithToasts(plan, { grantId, concurrency: options.concurrency, assetUploadConsent: 'allow' })
 }
 
 /** 按计划真实生成 + 进度人话 toast。「全部生成」与 S6b agent 受理路径共用(单一执行口)。
  * grantId：付费守卫令牌（确认后铸），随 plan 下到每个节点的 request.extras 供主进程核验。 */
 export async function runPlanWithToasts(
   plan: DependencyWavePlan,
-  options: { grantId?: string; concurrency?: number } = {},
+  options: { grantId?: string; concurrency?: number; assetUploadConsent?: 'allow' } = {},
 ): Promise<void> {
   const waves = plan.waves
   const runnable = waves.flat().length
@@ -135,6 +166,7 @@ export async function runPlanWithToasts(
     const result = await runGenerationNodesByPlan(plan, {
       ...(options.grantId ? { grantId: options.grantId } : {}),
       ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency }),
+      ...(options.assetUploadConsent ? { assetUploadConsent: options.assetUploadConsent } : {}),
     })
     const okCount = result.successes.length
     const failCount = result.failures.length

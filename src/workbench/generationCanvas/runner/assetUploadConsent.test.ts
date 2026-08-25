@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { hasLocalAssetReference, requestAssetUploadConsent } from './assetUploadConsent'
+import { hasLocalAssetReference, requestAssetUploadConsent, resolveAssetUploadConsent } from './assetUploadConsent'
 
 const node = (meta: Record<string, unknown> = {}) => ({ id: 'node-1', kind: 'video', meta })
 
@@ -55,5 +55,17 @@ describe('asset upload consent', () => {
       listVendors: () => [],
       confirm,
     })).resolves.toBe(false)
+  })
+
+  it('resolves the merged-card disclosure without opening a second dialog', async () => {
+    const confirm = vi.fn()
+    const remember = vi.fn(async () => {})
+    await expect(resolveAssetUploadConsent(node({ referenceVideoUrls: ['nomi-local://asset/p/clip.mp4'] }), {
+      readPolicy: async () => ({ anonymousAssetHosting: 'ask' }),
+      listVendors: () => [],
+      confirm,
+      remember,
+    })).resolves.toMatchObject({ allowed: true, needsConfirmation: true })
+    expect(confirm).not.toHaveBeenCalled()
   })
 })

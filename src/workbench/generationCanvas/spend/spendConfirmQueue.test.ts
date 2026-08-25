@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest'
+import { describe, expect, it, beforeEach, vi } from 'vitest'
 import { useSpendConfirmStore } from './spendConfirm'
 
 // B4 确认竞态收口（plan 2026-08-11-mcp-conversation-native-phase-b）：
@@ -77,5 +77,19 @@ describe('spendConfirm FIFO 队列 (B4 · 竞态不丢 resolve)', () => {
     const p2 = store.requestConfirm({ title: 'B', message: 'b', light: true })
     await expect(p2).resolves.toBe(true)
     expect(useSpendConfirmStore.getState().pending).toBeNull()
+  })
+
+  it('resolves the merged hosting disclosure and remembers only when checked', async () => {
+    const remember = vi.fn(async () => {})
+    const promise = useSpendConfirmStore.getState().requestConfirm({
+      title: '开始生成',
+      message: '将生成 1 张画面',
+      light: true,
+      hostingDisclosure: { message: '素材会离开本机', rememberLabel: '记住我的选择', onRemember: remember },
+    })
+    expect(useSpendConfirmStore.getState().pending?.hostingDisclosure?.rememberLabel).toBe('记住我的选择')
+    useSpendConfirmStore.getState().resolvePending(true, false, true)
+    await expect(promise).resolves.toBe(true)
+    expect(remember).toHaveBeenCalledTimes(1)
   })
 })

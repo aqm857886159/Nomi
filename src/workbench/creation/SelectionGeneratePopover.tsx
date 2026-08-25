@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Editor } from '@tiptap/react'
-import { IconBold, IconH1, IconH2, IconItalic, IconPhoto, IconVideo } from '@tabler/icons-react'
+import { IconBold, IconH1, IconH2, IconItalic, IconMovie, IconPhoto, IconVideo } from '@tabler/icons-react'
 import { WorkbenchIconButton } from '../../design/actions'
 import { cn } from '../../utils/cn'
 import { createNodeFromSelection, type SelectionGenerationKind } from './createNodeFromSelection'
@@ -12,6 +12,7 @@ type SelectionGeneratePopoverProps = {
   editor: Editor | null
   selectedText: string
   selectionVersion: number
+  onStoryboard?: () => void
   onCreated?: () => void
 }
 
@@ -29,7 +30,7 @@ type SelectionFormatAction = {
   onClick: () => void
 }
 
-const POPOVER_WIDTH = 210
+const POPOVER_WIDTH = 260
 const POPOVER_HEIGHT = 40
 const POPOVER_OFFSET = 10
 
@@ -61,6 +62,7 @@ export default function SelectionGeneratePopover({
   editor,
   selectedText,
   selectionVersion,
+  onStoryboard,
   onCreated,
 }: SelectionGeneratePopoverProps): JSX.Element | null {
   const { t } = useTranslation()
@@ -149,7 +151,7 @@ export default function SelectionGeneratePopover({
       className={cn(
         'workbench-selection-popover',
         'absolute z-20 inline-flex items-center',
-        'w-[210px] h-[40px] gap-[5px] p-1 pr-[5px]',
+        'w-[260px] h-[40px] gap-[5px] p-1 pr-[5px]',
         'border border-workbench-border rounded-nomi-lg',
         'bg-workbench-overlay shadow-workbench-pop',
         'backdrop-blur-[18px] backdrop-saturate-[1.06]',
@@ -223,6 +225,25 @@ export default function SelectionGeneratePopover({
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => handleCreate('video')}
           icon={<IconVideo size={14} />}
+        />
+        <WorkbenchIconButton
+          className={cn(
+            'workbench-selection-popover__tool workbench-selection-popover__tool--generate',
+            'h-[30px] w-[30px] inline-flex items-center justify-center',
+            'border border-workbench-border-soft rounded-workbench-control',
+            'bg-workbench-surface text-workbench-ink',
+            'cursor-pointer',
+            'hover:border-[color-mix(in_srgb,var(--workbench-accent)_18%,transparent)]',
+            'hover:bg-workbench-accent-soft hover:text-workbench-accent',
+          )}
+          label={t('creationAi.selection.storyboard')}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            onStoryboard?.()
+            onCreated?.()
+          }}
+          disabled={!onStoryboard}
+          icon={<IconMovie size={14} />}
         />
       </div>
     </div>
