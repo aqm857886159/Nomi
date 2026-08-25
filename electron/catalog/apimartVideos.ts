@@ -17,6 +17,7 @@
 import type { HttpOperation, ProfileKind } from "./types";
 import type { ParamMap } from "./paramTranslate";
 import { APIMART_CREATE_TASK_ID_PATH, APIMART_STATUS_MAPPING, APIMART_VIDEO_QUERY_OP } from "./apimartVendor";
+import "./apimartMinimaxH3";
 
 const CREATE_HEADERS = { Authorization: "Bearer {{user_api_key}}", "Content-Type": "application/json" };
 
@@ -91,6 +92,8 @@ function videoModel(p: {
   idKey?: string;
   /** body 的 model 字段引用。缺省 {{model.modelKey}}；变体合并模型传 VARIANT_MODEL_REF。 */
   modelRef?: string;
+  /** 模板渲染后、HTTP 发送前的具名请求护栏。 */
+  requestTransform?: string;
   /** 省略 = 该模型无纯文生模式（Vidu Q3 参考生：image_urls 必填，只有 i2v mapping）。 */
   t2vBody?: Record<string, unknown>;
   i2vBody?: Record<string, unknown>;
@@ -100,10 +103,14 @@ function videoModel(p: {
   const idKey = p.idKey ?? p.archetypeId;
   const mappings: ApimartVideoModel["mappings"] = [];
   if (p.t2vBody) {
-    mappings.push({ id: `seed-apimart-${idKey}-text_to_video`, taskKind: "text_to_video", name: `${p.labelZh} · 文生视频`, create: videoCreateOp(p.t2vBody, p.modelRef) });
+    const create = videoCreateOp(p.t2vBody, p.modelRef);
+    if (p.requestTransform) create.request_transform = p.requestTransform;
+    mappings.push({ id: `seed-apimart-${idKey}-text_to_video`, taskKind: "text_to_video", name: `${p.labelZh} · 文生视频`, create });
   }
   if (p.i2vBody) {
-    mappings.push({ id: `seed-apimart-${idKey}-image_to_video`, taskKind: "image_to_video", name: `${p.labelZh} · 图生视频`, create: videoCreateOp(p.i2vBody, p.modelRef, p.i2vDrops?.length ? dropParamMap(p.i2vDrops) : undefined) });
+    const create = videoCreateOp(p.i2vBody, p.modelRef, p.i2vDrops?.length ? dropParamMap(p.i2vDrops) : undefined);
+    if (p.requestTransform) create.request_transform = p.requestTransform;
+    mappings.push({ id: `seed-apimart-${idKey}-image_to_video`, taskKind: "image_to_video", name: `${p.labelZh} · 图生视频`, create });
   }
   return { modelKey: p.modelKey, labelZh: p.labelZh, archetypeId: p.archetypeId, mappings };
 }
@@ -177,6 +184,7 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   }),
   videoModel({
     modelKey: "MiniMax-H3", labelZh: "MiniMax H3", archetypeId: "minimax-h3-apimart",
+    requestTransform: "apimart-minimax-h3",
     t2vBody: { duration: DURATION, resolution: RESOLUTION, aspect_ratio: ASPECT, watermark: "{{request.params.watermark}}", webhook: "{{request.params.webhook}}" },
     i2vBody: { duration: DURATION, resolution: RESOLUTION, aspect_ratio: ASPECT, watermark: "{{request.params.watermark}}", webhook: "{{request.params.webhook}}", first_frame_image: "{{request.params.first_frame_image}}", last_frame_image: "{{request.params.last_frame_image}}", image_urls: IMAGE_URLS, video_urls: VIDEO_URLS, audio_urls: AUDIO_URLS },
   }),

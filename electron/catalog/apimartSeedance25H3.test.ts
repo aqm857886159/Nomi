@@ -1,9 +1,35 @@
 import { describe, expect, it } from "vitest";
+import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
+import { applyRequestTransform } from "../tasks/requestTransforms";
 import { buildArchetypeInputParams } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
 import { getArchetypeById } from "../../src/config/modelArchetypes";
 import { applyBuiltinSeeds } from "./seedBuiltins";
+import { APIMART_VIDEO_MODELS } from "./apimartVideos";
+import { applyParamMap } from "./paramTranslate";
+import { taskTemplateParams } from "./taskParams";
 
 const emptyCatalog = () => ({ version: 4, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
+
+function renderH3I2vBody(extras: Record<string, unknown>) {
+  const mapping = APIMART_VIDEO_MODELS.find((model) => model.modelKey === "MiniMax-H3")?.mappings.find((item) => item.taskKind === "image_to_video");
+  if (!mapping) throw new Error("MiniMax-H3 image_to_video mapping is missing");
+  const request = { kind: "image_to_video", prompt: "镜头缓慢推近", extras };
+  const context = buildTemplateContext({
+    request,
+    params: applyParamMap(mapping.create.paramMap, taskTemplateParams(request)),
+    model: { modelKey: "MiniMax-H3" },
+    modelKey: "MiniMax-H3",
+    apiKey: "TEST_SECRET",
+  });
+  const built = buildHttpRequest({
+    baseUrl: "https://api.apimart.ai",
+    authType: "bearer",
+    apiKey: "TEST_SECRET",
+    context,
+    operation: mapping.create,
+  });
+  return { mapping, body: built.body as Record<string, unknown> };
+}
 
 describe("APIMart Seedance 2.5 / MiniMax-H3 curated 接入", () => {
   it("fresh seed 包含四个官方入口，且 mapping 桶按模型精确绑定", () => {
@@ -65,5 +91,34 @@ describe("APIMart Seedance 2.5 / MiniMax-H3 curated 接入", () => {
     const params = buildArchetypeInputParams(meta, archetype!, { firstFrameUrl: "https://x/first.png" });
     expect(params.first_frame_image).toBe("https://x/first.png");
     expect(params.first_frame_url).toBeUndefined();
+  });
+
+  it("H3 最终请求体拒绝首尾帧与多模态参考混发", async () => {
+    const { mapping, body } = renderH3I2vBody({
+      first_frame_image: "https://x/first.png",
+      image_urls: ["https://x/reference.png"],
+    });
+
+    await expect(
+      applyRequestTransform(mapping.create.request_transform, body, { baseUrl: "https://api.apimart.ai" }),
+    ).rejects.toThrow(/首尾帧.*参考素材/);
+  });
+
+  it("H3 多模态参考拒绝音频单独输入，并清理首尾帧模式忽略的字段", async () => {
+    const ref = renderH3I2vBody({
+      audio_urls: ["https://x/reference.mp3"],
+    });
+    await expect(
+      applyRequestTransform(ref.mapping.create.request_transform, ref.body, { baseUrl: "https://api.apimart.ai" }),
+    ).rejects.toThrow(/音频不能单独/);
+
+    const frame = renderH3I2vBody({
+      first_frame_image: "https://x/first.png",
+      aspect_ratio: "16:9",
+      webhook: "",
+    });
+    const transformed = await applyRequestTransform(frame.mapping.create.request_transform, frame.body, { baseUrl: "https://api.apimart.ai" });
+    expect(transformed).not.toHaveProperty("aspect_ratio");
+    expect(transformed).not.toHaveProperty("webhook");
   });
 });

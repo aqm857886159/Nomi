@@ -6,7 +6,7 @@ import { importRemoteAsset, writeAsset } from "./assets/projectAssetStore";
 import { endpoint } from "./vendorEndpoint";
 import { requestJson, requestMultipart } from "./vendor/vendorHttp";
 import { runMultipartProfileOperation } from "./catalog/multipartOperation";
-import { templateContext, buildProfileHttpRequest } from "./catalog/profileHttpRequest";
+import { templateContext, buildProfileHttpRequest, validateProfileRequestBeforeSpend } from "./catalog/profileHttpRequest";
 import { chatImageFallbackOperation } from "./catalog/imageRouteFallback";
 import { buildNormalizedRecipe, buildTaskProvenance } from "./vendor/provenance";
 import { traceVendorCompleted, traceVendorRequested } from "./events/vendorCallTrace";
@@ -63,7 +63,6 @@ export type {
   ProfileKind,
   Vendor,
 } from "./catalog/types";
-
 // ── 巨壳拆分：子模块再导出，main.ts/测试仍从 "./runtime" 消费这些符号（API 不破） ──
 export {
   startExportJob,
@@ -283,7 +282,7 @@ export async function executeProfileOperation(input: {
       : input;
   const built = buildProfileHttpRequest(effectiveInput);
   // 命名请求变换（P4，与 response_transform 对称）：发送前按后端实况补全 body；未声明 → 原样。
-  const body = await applyRequestTransform(input.operation.request_transform, built.body, { baseUrl: String(input.vendor.baseUrlHint || ""), promptId: trim(input.request.extras?.comfyPromptId) });
+  const body = await applyRequestTransform(input.operation.request_transform, built.body, { baseUrl: String(input.vendor.baseUrlHint || ""), promptId: trim(input.request.extras?.comfyPromptId), request: input.request });
   const { vendor, apiKey } = effectiveInput;
   const response = await requestJson(vendor, apiKey, built.method, built.url, built.headers, built.query, body, input.signal);
   return { response, request: built.preview };
@@ -385,6 +384,7 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
     return runAudioTask({ vendor, model, apiKey, request, kind, taskId, projectId, nodeId, mapping });
   }
   if (mapping) {
+    await validateProfileRequestBeforeSpend({ vendor, model, apiKey, request, operation: mapping.create });
     const uploadCatalog = readCatalog();
     if (!mapping.create.multipart && !mapping.create.process) {
       assertLocalAssetTransportReady(

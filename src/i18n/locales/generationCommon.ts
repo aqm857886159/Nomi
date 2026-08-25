@@ -1165,7 +1165,8 @@ export const zhGenerationCommon = {
     // 词汇红线：卡上零内部词——「锚/检查点/冻结/封存/物化/合同」一个都不出现。
     checkpoint: {
       title: '主角形象出片了——过目后开拍',
-      subtitle: '{{count}} 张形象卡就绪：{{fresh}} 张新拍 · {{reused}} 张复用上集',
+      subtitle: '{{count}} 张形象卡就绪，都是新拍的',
+      subtitleWithReuse: '{{count}} 张形象卡就绪：{{fresh}} 张新拍 · 另有 {{reused}} 张沿用你已有的形象（无需过目、不花钱）',
       badgeNew: '新拍',
       badgeReuse: '复用上集',
       reworkThis: '重拍这张',
@@ -2551,7 +2552,8 @@ export const enGenerationCommon = {
     // vocabulary on the card — never surface anchor/checkpoint/freeze/seal/materialize/contract.
     checkpoint: {
       title: 'The lead character look is out — review it, then shoot',
-      subtitle: '{{count}} character cards ready: {{fresh}} freshly shot · {{reused}} reused from last time',
+      subtitle: '{{count}} character cards ready, all freshly shot',
+      subtitleWithReuse: '{{count}} character cards ready: {{fresh}} freshly shot · plus {{reused}} reusing looks you already have (nothing to review, no cost)',
       badgeNew: 'Fresh',
       badgeReuse: 'Reused',
       reworkThis: 'Reshoot this',
