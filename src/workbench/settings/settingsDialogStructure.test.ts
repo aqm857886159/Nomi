@@ -15,10 +15,11 @@ const settingsDirectory = path.join(process.cwd(), 'src/workbench/settings')
 // 2026-08-21：AiModelsSection 增加上传边界说明（KIE 视频优先、公共托管先提醒），故更新其哈希。
 // 2026-08-25：同一块从「推销 KIE」改成「逐媒体类型说出当前真实通道 + 配置直达」，再次更新哈希；
 //             对应正向断言见下面 reports the live upload channel per media kind 那条。
+// 2026-08-26：D2 将设置页的目录/上传通道读取改为异步 IPC，更新该块的有意变更基线。
 const MAIN_NON_MODEL_SECTION_SHA256 = {
   'ProjectLocationSection.tsx': 'ad37c2f07c403b60cf42385f4d93fce8e2ff494c934467c670a7ae4b8c8d5523',
-  'AiModelsSection.tsx': '0ace652b36fe3a898ebd0cd7f1361b86e8f229af4d5599c95222d931cabf9ce9',
-  'AutomationPermissionsSection.tsx': 'a0ea704afb1a31c33ffa3e00821658d8696cc15d5069e6361032b194e638b352',
+  'AiModelsSection.tsx': '80a5182af0cf5410f337efbfcda7fc5c7967bf503e82315c4884724786425eb9',
+  'AutomationPermissionsSection.tsx': 'a446648a2ffddad01efbbcc13b77192d99046d0ca3a74f674c89375720cd134c',
   'CanvasGestureSection.tsx': '51c9806c303e5a02a09c9184a38835b4d2d8cad3cd6bb3f56a2408c96264c571',
   'AboutSection.tsx': '7fb3e4bee88cf77f6df1217424a4b6130e27581b97de3c58f3c2e7b5bf4a545b',
 } as const

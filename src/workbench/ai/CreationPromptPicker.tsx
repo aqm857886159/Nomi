@@ -63,12 +63,10 @@ export default function CreationPromptPicker({
   const customModes = modes.filter((mode) => mode.custom)
 
   const refresh = React.useCallback(() => {
-    try {
-      setSkills(listWorkbenchSkills().filter((s) => s.isPlaybook))
-    } catch {
-      setSkills([])
-    }
-    getAvailableSkillProviders()
+    listWorkbenchSkills()
+      .then((items) => setSkills(items.filter((s) => s.isPlaybook)))
+      .catch(() => setSkills([]))
+    void getAvailableSkillProviders()
       .then(setAvailable)
       .catch(() => setAvailable(new Set()))
   }, [])

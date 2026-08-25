@@ -649,13 +649,13 @@ export type DesktopBridge = DesktopMediaBridge & {
   /** 本机素材上传通道的现状描述。优先级规则只住 main（electron/catalog/assetTransportDescribe.ts），
    *  渲染层只显示、不重算——否则状态卡会和真实行为漂移。 */
   assetTransport?: {
-    describeChannels: () => AssetTransportChannelView[]
+    describeChannels: () => Promise<AssetTransportChannelView[]>
   }
   modelCatalog: CustomCallBridge & {
-    listVendors: () => unknown[]
-    listModels: (params?: unknown) => unknown[]
-    listMappings: (params?: unknown) => unknown[]
-    health: () => unknown
+    listVendors: () => Promise<unknown[]>
+    listModels: (params?: unknown) => Promise<unknown[]>
+    listMappings: (params?: unknown) => Promise<unknown[]>
+    health: () => Promise<unknown>
     upsertVendor: (payload: unknown) => unknown
     deleteVendor: (key: string) => void
     upsertVendorApiKey: (vendorKey: string, payload: unknown) => unknown
@@ -733,10 +733,10 @@ export type DesktopBridge = DesktopMediaBridge & {
       | { error: string }
     >
     /** ComfyUI 预置模板清单（S5）：静态数据，启用前走 reconcile 缺件闸。旧 preload 可能没有 → 可选。 */
-    listComfyuiPresets?: () => Array<{
+    listComfyuiPresets?: () => Promise<Array<{
       key: string; labelZh: string; descZh: string; workflowText: string; binding: unknown
       models: Array<{ file: string; dir: string; url: string }>
-    }>
+    }>>
     /** 按绑定落库为用户自有 model+mapping（同步）。enumOptions 可选 = combo 参数烤成真实文件下拉。 */
     importComfyWorkflow: (payload: { text: string; binding: unknown; labelZh: string; enumOptions?: unknown; vendorKey?: string; uiWorkflowText?: string }) =>
       { ok: true; modelKey: string; kind: string; taskKind: string } | { ok: false; error: string }
@@ -745,7 +745,7 @@ export type DesktopBridge = DesktopMediaBridge & {
       { ok: true; modelKey: string; kind: string; taskKind: string } | { ok: false; error: string }
   }
   skill: {
-    list: () => unknown[]
+    list: () => Promise<unknown[]>
     exportPackage: (dirName: string) => unknown
     importPackage: (payload: unknown) => unknown
     deleteByDir: (dirName: string) => unknown
@@ -768,7 +768,7 @@ export type DesktopBridge = DesktopMediaBridge & {
   capability?: {
     setActiveProject: (projectId: string) => void
     /** 「接入 AI 编程助手」卡：读接入状态 + 各客户端配置片段（类型见 mcpBridgeTypes）。 */
-    mcpInfo: () => McpInfo
+    mcpInfo: () => Promise<McpInfo>
     /** 一键写入指定客户端配置的 nomi 条目（合并 + 备份）。默认 Claude Code。 */
     installMcp: (client?: string) => { ok: boolean; client: string; configPath: string; backupPath: string | null }
     /** 撤销接入指定客户端：删 nomi 条目。默认 Claude Code。 */

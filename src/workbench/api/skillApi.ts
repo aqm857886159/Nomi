@@ -39,8 +39,8 @@ function requireDesktopRuntime(feature: string): DesktopBridge {
   return desktop
 }
 
-export function listWorkbenchSkills(): SkillListItemDto[] {
-  return requireDesktopRuntime('skill library').skill.list() as SkillListItemDto[]
+export async function listWorkbenchSkills(): Promise<SkillListItemDto[]> {
+  return await requireDesktopRuntime('skill library').skill.list() as SkillListItemDto[]
 }
 
 export function exportWorkbenchSkill(dirName: string): unknown {

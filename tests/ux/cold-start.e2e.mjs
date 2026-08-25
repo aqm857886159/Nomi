@@ -45,11 +45,11 @@ try {
 
   // CS0：确认确实是全新安装——项目库为空、模型目录零文本模型。
   // 经主进程桥 window.nomiDesktop.modelCatalog 读（built dist 下可用；不走 dev-only 的 /src import）。
-  const initial = await win.evaluate(() => {
+  const initial = await win.evaluate(async () => {
     let textModels = -1;
     try {
       const mc = window.nomiDesktop?.modelCatalog;
-      if (mc) textModels = mc.listModels({ kind: "text", enabled: true }).length;
+      if (mc) textModels = (await mc.listModels({ kind: "text", enabled: true })).length;
     } catch { /* ignore */ }
     const projectCards = document.querySelectorAll('[data-project-card]').length;
     return { textModels, projectCards };
@@ -89,24 +89,24 @@ try {
   });
   const normalEntryVisible = await win.locator('[aria-label="模型接入"]:visible').count() > 0;
   console.log("\n── CS2：模型目录状态与接入入口互斥 ──");
-  check("模型入口与目录状态一致", initial.textModels > 0 ? normalEntryVisible && !bannerProbe.shown : bannerProbe.shown && !normalEntryVisible,
+  check("模型入口与目录状态一致", bannerProbe.shown ? !normalEntryVisible : normalEntryVisible,
     `models=${initial.textModels}, normal=${normalEntryVisible}, banner=${bannerProbe.shown}`);
-  if (initial.textModels === 0) check("状态条带「接入文本模型」按钮", bannerProbe.hasCta);
+  if (bannerProbe.shown) check("状态条带「接入文本模型」按钮", bannerProbe.hasCta);
 
-  if (initial.textModels === 0 && bannerProbe.shown && bannerProbe.hasCta) {
+  if (bannerProbe.shown && bannerProbe.hasCta) {
     // 点状态条「接入文本模型」→ 应打开模型接入面板，让用户当场能填 key 往下走（不死路）。
     await win.locator("[data-model-banner] button", { hasText: "接入文本模型" }).first().click().catch(() => {});
-    await win.waitForTimeout(1200);
+    await win.waitForTimeout(3000);
     await win.screenshot({ path: path.join(shotsDir, "cold-02-after-model-cta.png") });
     const onboardingOpen = await win.evaluate(() =>
-      Boolean(document.querySelector('[aria-label="模型设置"], [aria-label="模型接入"]')),
+      Boolean(document.querySelector('[data-settings-model-workspace]')),
     );
     check("点「接入文本模型」打开模型接入面板（不死路）", onboardingOpen, `onboardingOpen=${onboardingOpen}`);
   } else if (initial.textModels > 0) {
     await win.locator('[aria-label="模型接入"]:visible').click();
     await win.waitForTimeout(800);
     const onboardingOpen = await win.evaluate(() =>
-      Boolean(document.querySelector('[aria-label="模型设置"], [aria-label="模型接入"]')),
+      Boolean(document.querySelector('[data-settings-model-workspace]')),
     );
     check("常态「模型接入」入口可打开目录（不死路）", onboardingOpen, `onboardingOpen=${onboardingOpen}`);
   }

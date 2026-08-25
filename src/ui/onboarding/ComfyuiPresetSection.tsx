@@ -36,8 +36,18 @@ type ComfyuiPresetSectionProps = {
 export function ComfyuiPresetSection({ modelLabels, onImported }: ComfyuiPresetSectionProps): JSX.Element | null {
   const { t } = useTranslation()
   const catalog = getDesktopBridge()?.modelCatalog
-  const presets = React.useMemo<Preset[]>(() => {
-    try { return (catalog?.listComfyuiPresets?.() as Preset[]) ?? [] } catch { return [] }
+  const [presets, setPresets] = React.useState<Preset[]>([])
+  React.useEffect(() => {
+    let alive = true
+    const request = catalog?.listComfyuiPresets?.()
+    if (!request) {
+      setPresets([])
+      return () => { alive = false }
+    }
+    void request
+      .then((items) => { if (alive) setPresets(Array.isArray(items) ? items as Preset[] : []) })
+      .catch(() => { if (alive) setPresets([]) })
+    return () => { alive = false }
   }, [catalog])
   const [openKey, setOpenKey] = React.useState<string | null>(null)
   const [reconcileByKey, setReconcileByKey] = React.useState<Record<string, Reconcile | 'checking' | null>>({})

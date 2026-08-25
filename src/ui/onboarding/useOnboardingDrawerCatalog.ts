@@ -60,10 +60,16 @@ export function useOnboardingDrawerCatalog(): {
     }
     bridgeRetries.current = 0
     setBridgeMissing(false)
-    try {
-      const storedModels = bridge.modelCatalog.listModels() as Array<Record<string, unknown>>
-      const storedVendors = bridge.modelCatalog.listVendors() as Array<Record<string, unknown>>
-      const storedMappings = bridge.modelCatalog.listMappings() as Mapping[]
+    let alive = true
+    void Promise.all([
+      bridge.modelCatalog.listModels(),
+      bridge.modelCatalog.listVendors(),
+      bridge.modelCatalog.listMappings(),
+    ]).then(([modelRows, vendorRows, mappingRows]) => {
+      if (!alive) return
+      const storedModels = modelRows as Array<Record<string, unknown>>
+      const storedVendors = vendorRows as Array<Record<string, unknown>>
+      const storedMappings = mappingRows as Mapping[]
       const metaMap = new Map<string, OnboardingVendorMeta>()
       for (const vendor of storedVendors) {
         metaMap.set(String(vendor.key), {
@@ -80,13 +86,12 @@ export function useOnboardingDrawerCatalog(): {
       setVendorMeta(metaMap)
       setModels(projectedCatalog.models)
       setMappings(storedMappings)
-    } catch {
+    }).catch(() => {
+      if (!alive) return
       setVendorMeta(new Map())
       setModels([])
       setMappings([])
-    }
-    setLoaded(true)
-    let alive = true
+    }).finally(() => { if (alive) setLoaded(true) })
     const dreamina = bridge.dreamina
     if (dreamina) {
       setDreaminaStatus((current) => current ?? DREAMINA_UNCHECKED_STATUS)

@@ -74,17 +74,22 @@ export function CustomCallEditor({
 
   const bridge = getDesktopBridge()
   const targetKey = target ? `${target.vendorKey}\0${target.modelKey}` : ''
-  const catalogModel = React.useMemo(() => {
-    if (!target || !bridge) return null
-    try {
-      const models = bridge.modelCatalog.listModels({ vendorKey: target.vendorKey }) as CustomCallCatalogModel[]
-      return models.find((model) => model.vendorKey === target.vendorKey && model.modelKey === target.modelKey) ?? null
-    } catch {
-      return null
+  const [catalogModel, setCatalogModel] = React.useState<CustomCallCatalogModel | null>(null)
+  React.useEffect(() => {
+    let alive = true
+    if (!target || !bridge) {
+      setCatalogModel(null)
+      return () => { alive = false }
     }
-  // Primitive identity is intentional: a parent refresh must not wipe in-progress editor drafts.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bridge, targetKey])
+    void bridge.modelCatalog.listModels({ vendorKey: target.vendorKey })
+      .then((models) => {
+        if (!alive) return
+        const rows = models as CustomCallCatalogModel[]
+        setCatalogModel(rows.find((model) => model.vendorKey === target.vendorKey && model.modelKey === target.modelKey) ?? null)
+      })
+      .catch(() => { if (alive) setCatalogModel(null) })
+    return () => { alive = false }
+  }, [bridge, targetKey, target])
   const scriptModes = React.useMemo(
     () => resolveCustomCallScriptModes(catalogModel, !target?.draft),
     [catalogModel, target?.draft],
@@ -138,21 +143,25 @@ export function CustomCallEditor({
 
   // 打开时装载既有脚本 + 该供应商已存的自定义配置；关闭清态。
   React.useEffect(() => {
+    let alive = true
     if (target) {
       const nextScripts = readCustomCallScriptDrafts(catalogModel, target.script)
-      const maskedConfig = getDesktopBridge()?.modelCatalog.customCallConfigGet?.(target.vendorKey) ?? []
-      const nextConfigRows = configRowsFromMaskedEntries(maskedConfig)
       setScriptDrafts(nextScripts)
-      setConfigRows(nextConfigRows)
-      setConfigOpen(hasCustomConfig(nextConfigRows))
-      setInitialPersistedState({ targetKey, signature: customCallPersistedStateSignature(nextScripts, nextConfigRows) })
       setSelectedModeId(null)
       setMaterial('')
       setAiError('')
       setSaveError('')
       setBriefCopied(false)
+      const request = getDesktopBridge()?.modelCatalog.customCallConfigGet?.(target.vendorKey)
+      void Promise.resolve(request).then((maskedConfig) => {
+        if (!alive) return
+        const nextConfigRows = configRowsFromMaskedEntries(maskedConfig ?? [])
+        setConfigRows(nextConfigRows)
+        setConfigOpen(hasCustomConfig(nextConfigRows))
+        setInitialPersistedState({ targetKey, signature: customCallPersistedStateSignature(nextScripts, nextConfigRows) })
+      })
     }
-    return () => abortRef.current?.abort()
+    return () => { alive = false; abortRef.current?.abort() }
   // targetKey avoids resetting typed drafts when the page parent refreshes the same target object.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetKey])

@@ -26,12 +26,10 @@ export function useWorkbenchSkills(opened: boolean): UseWorkbenchSkills {
   const [available, setAvailable] = React.useState<ReadonlySet<SkillProviderKind>>(new Set())
 
   const reload = React.useCallback(() => {
-    try {
-      setItems(listWorkbenchSkills())
-    } catch {
-      setItems([])
-    }
-    getAvailableSkillProviders()
+    listWorkbenchSkills()
+      .then(setItems)
+      .catch(() => setItems([]))
+    void getAvailableSkillProviders()
       .then(setAvailable)
       .catch(() => setAvailable(new Set()))
   }, [])
@@ -40,7 +38,7 @@ export function useWorkbenchSkills(opened: boolean): UseWorkbenchSkills {
     if (!opened) return
     reload()
     const onCatalogChanged = (): void => {
-      getAvailableSkillProviders()
+      void getAvailableSkillProviders()
         .then(setAvailable)
         .catch(() => setAvailable(new Set()))
     }

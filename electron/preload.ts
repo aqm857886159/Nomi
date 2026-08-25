@@ -525,13 +525,13 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   },
   assetTransport: {
     /** 每种媒体类型现在实际会走的第一条上传通道（设置页状态卡；优先级真相在 main 的解析器里）。 */
-    describeChannels: () => invokeSync("nomi:asset-transport:channels:describe"),
+    describeChannels: () => ipcRenderer.invoke("nomi:asset-transport:channels:describe"),
   },
   modelCatalog: {
-    listVendors: () => invokeSync("nomi:model-catalog:vendors:list"),
-    listModels: (params?: unknown) => invokeSync("nomi:model-catalog:models:list", params),
-    listMappings: (params?: unknown) => invokeSync("nomi:model-catalog:mappings:list", params),
-    health: () => invokeSync("nomi:model-catalog:health"),
+    listVendors: () => ipcRenderer.invoke("nomi:model-catalog:vendors:list"),
+    listModels: (params?: unknown) => ipcRenderer.invoke("nomi:model-catalog:models:list", params),
+    listMappings: (params?: unknown) => ipcRenderer.invoke("nomi:model-catalog:mappings:list", params),
+    health: () => ipcRenderer.invoke("nomi:model-catalog:health"),
     upsertVendor: (payload: unknown) => invokeSync("nomi:model-catalog:vendor:upsert", payload),
     deleteVendor: (key: string) => invokeSync("nomi:model-catalog:vendor:delete", key),
     upsertVendorApiKey: (vendorKey: string, payload: unknown) =>
@@ -543,7 +543,7 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       invokeSync("nomi:model-catalog:model:retype", payload),
     customCallContract: () => invokeSync("nomi:model-catalog:custom-call:contract"),
     customCallConfigGet: (vendorKey: string) =>
-      invokeSync("nomi:model-catalog:custom-call:config:get", vendorKey),
+      ipcRenderer.invoke("nomi:model-catalog:custom-call:config:get", vendorKey),
     customCallConfigSave: (vendorKey: string, payload: unknown) =>
       invokeSync("nomi:model-catalog:custom-call:config:save", vendorKey, payload),
     customCallAiInstruction: (payload: unknown) => invokeSync("nomi:model-catalog:custom-call:ai-instruction", payload),
@@ -577,14 +577,14 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.invoke("nomi:model-catalog:comfyui:templates", vendorKey),
     getComfyuiTemplateDetail: (name: string, vendorKey?: string) =>
       ipcRenderer.invoke("nomi:model-catalog:comfyui:template-detail", name, vendorKey),
-    listComfyuiPresets: () => invokeSync("nomi:model-catalog:comfyui:presets"),
+    listComfyuiPresets: () => ipcRenderer.invoke("nomi:model-catalog:comfyui:presets"),
     importComfyWorkflow: (payload: { text: string; binding: unknown; labelZh: string; enumOptions?: unknown; vendorKey?: string; uiWorkflowText?: string }) =>
       invokeSync("nomi:model-catalog:comfyui:import-workflow", payload),
     updateComfyWorkflow: (payload: { modelKey: string; text: string; binding: unknown; labelZh: string; enumOptions?: unknown; vendorKey?: string; uiWorkflowText?: string }) =>
       invokeSync("nomi:model-catalog:comfyui:update-workflow", payload),
   },
   skill: {
-    list: () => invokeSync("nomi:skill:list"),
+    list: () => ipcRenderer.invoke("nomi:skill:list"),
     exportPackage: (dirName: string) => invokeSync("nomi:skill:export", dirName),
     importPackage: (payload: unknown) => invokeSync("nomi:skill:import", payload),
     deleteByDir: (dirName: string) => invokeSync("nomi:skill:delete", dirName),
@@ -593,7 +593,7 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   capability: {
     setActiveProject: (projectId: string) => ipcRenderer.send("nomi:capability:active-project", projectId),
     // 「接入 AI 编程助手」卡：读状态/配置 + 一键写入/撤销 ~/.claude.json。
-    mcpInfo: () => invokeSync("nomi:capability:mcp-info"),
+    mcpInfo: () => ipcRenderer.invoke("nomi:capability:mcp-info"),
     installMcp: (client?: string) => invokeSync("nomi:capability:mcp-install", client),
     uninstallMcp: (client?: string) => invokeSync("nomi:capability:mcp-uninstall", client),
     // 实连验证（异步）：真起一次配置里那条命令握手，用来分辨「配置里有这行字」和「还真连得上」。

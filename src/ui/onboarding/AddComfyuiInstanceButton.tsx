@@ -29,7 +29,7 @@ export function AddComfyuiInstanceButton({ onAdded }: { onAdded: () => void }): 
   const [addr, setAddr] = React.useState('http://192.168.1.10:8188')
   const [busy, setBusy] = React.useState(false)
 
-  const submit = () => {
+  const submit = async () => {
     const bridge = getDesktopBridge()?.modelCatalog
     if (!bridge?.upsertVendor) return
     const trimmedName = name.trim()
@@ -37,7 +37,7 @@ export function AddComfyuiInstanceButton({ onAdded }: { onAdded: () => void }): 
     if (!trimmedName || !trimmedAddr) return
     setBusy(true)
     try {
-      const existing = (bridge.listVendors() as Array<{ key?: unknown }>).map((v) => String(v.key))
+      const existing = (await bridge.listVendors() as Array<{ key?: unknown }>).map((v) => String(v.key))
       let key = `${COMFYUI_VENDOR_KEY}-${slugFromName(trimmedName)}`
       while (existing.includes(key)) key = `${key}-2` // 重名不覆盖既有那台（宁可多一台也不丢用户配置）
       bridge.upsertVendor({ key, name: trimmedName, baseUrlHint: normalizeComfyuiAddressInput(trimmedAddr), authType: 'none', enabled: true })

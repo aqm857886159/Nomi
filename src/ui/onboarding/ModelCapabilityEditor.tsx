@@ -25,10 +25,10 @@ function serializedDraft(draft: CapabilityContractDraft | null): string {
   return JSON.stringify(draft)
 }
 
-function currentModelMeta(model: ChipModel): { found: true; meta: unknown } | { found: false } {
+async function currentModelMeta(model: ChipModel): Promise<{ found: true; meta: unknown } | { found: false }> {
   const bridge = getDesktopBridge()
   if (!bridge) return { found: false }
-  const latest = (bridge.modelCatalog.listModels({ vendorKey: model.vendorKey }) as Array<Record<string, unknown>>)
+  const latest = (await bridge.modelCatalog.listModels({ vendorKey: model.vendorKey }) as Array<Record<string, unknown>>)
     .find((candidate) => String(candidate.modelKey) === model.modelKey)
   return latest ? { found: true, meta: latest.meta } : { found: false }
 }
@@ -93,7 +93,7 @@ export function ModelCapabilityEditor({
     })
   }, [])
 
-  const save = React.useCallback(() => {
+  const save = React.useCallback(async () => {
     if (!model || !draft) return
     const validation = validateCapabilityContractDraft(draft)
     setErrors(validation.errors)
@@ -108,7 +108,7 @@ export function ModelCapabilityEditor({
       return
     }
     try {
-      const latest = currentModelMeta(model)
+      const latest = await currentModelMeta(model)
       if (!latest.found) throw new Error(t('onboardingProviders.workspace.modelMissing'))
       const meta = replaceCustomCapabilityContractMeta(latest.meta, {
         customCapabilityContract: validation.contract,
@@ -165,7 +165,7 @@ export function ModelCapabilityEditor({
       return
     }
     try {
-      const latest = currentModelMeta(model)
+      const latest = await currentModelMeta(model)
       if (!latest.found) throw new Error(t('onboardingProviders.workspace.modelMissing'))
       bridge.modelCatalog.upsertModel({
         vendorKey: model.vendorKey,

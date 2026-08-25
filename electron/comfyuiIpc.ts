@@ -45,7 +45,10 @@ export function registerComfyuiIpc(registerSyncIpc: RegisterSyncIpc): void {
   registerSyncIpc("nomi:model-catalog:comfyui:import-workflow", (payload: unknown) => importComfyWorkflowToCatalog(payload));
   registerSyncIpc("nomi:model-catalog:comfyui:update-workflow", (payload: unknown) => updateComfyWorkflowInCatalog(payload));
   // 预置模板（S5）：静态清单，启用前经 reconcile 缺件闸、启用走既有 import 链。
-  registerSyncIpc("nomi:model-catalog:comfyui:presets", () => listComfyuiPresets());
+  ipcMain.handle("nomi:model-catalog:comfyui:presets", (event) => {
+    assertTrustedSender(event);
+    return listComfyuiPresets();
+  });
   // 模板库（T2）：读**用户自己 ComfyUI 里的**官方模板（几百个），我们零维护。
   const comfyBaseUrl = (vendorKey: unknown): string => {
     const key = String(vendorKey || "").trim() || COMFYUI_VENDOR_KEY;

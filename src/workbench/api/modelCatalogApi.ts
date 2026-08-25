@@ -86,11 +86,11 @@ function requireDesktopRuntime(feature: string): DesktopBridge {
 }
 
 export async function listWorkbenchModelCatalogVendors(): Promise<ModelCatalogVendorDto[]> {
-  return requireDesktopRuntime('model catalog').modelCatalog.listVendors() as ModelCatalogVendorDto[]
+  return await requireDesktopRuntime('model catalog').modelCatalog.listVendors() as ModelCatalogVendorDto[]
 }
 
 export async function getWorkbenchModelCatalogHealth(): Promise<ModelCatalogHealthDto> {
-  return requireDesktopRuntime('model catalog').modelCatalog.health() as ModelCatalogHealthDto
+  return await requireDesktopRuntime('model catalog').modelCatalog.health() as ModelCatalogHealthDto
 }
 
 export async function listWorkbenchModelCatalogModels(params?: {
@@ -98,7 +98,7 @@ export async function listWorkbenchModelCatalogModels(params?: {
   kind?: BillingModelKind
   enabled?: boolean
 }): Promise<ModelCatalogModelDto[]> {
-  return requireDesktopRuntime('model catalog').modelCatalog.listModels(params) as ModelCatalogModelDto[]
+  return await requireDesktopRuntime('model catalog').modelCatalog.listModels(params) as ModelCatalogModelDto[]
 }
 
 /** 启用/更新一个已存在的目录模型（恢复卡「一键启用被禁用的文本大脑」用）。 */

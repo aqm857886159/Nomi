@@ -22,9 +22,9 @@ type McpConnectionSnapshot =
   | { phase: 'ready'; info: McpInfo }
   | { phase: 'unavailable'; info: null }
 
-function readMcpConnectionSnapshot(): McpConnectionSnapshot {
+async function readMcpConnectionSnapshot(): Promise<McpConnectionSnapshot> {
   try {
-    const info = getDesktopBridge()?.capability?.mcpInfo?.()
+    const info = await getDesktopBridge()?.capability?.mcpInfo?.()
     return info ? { phase: 'ready', info } : { phase: 'unavailable', info: null }
   } catch {
     return { phase: 'unavailable', info: null }
@@ -73,10 +73,10 @@ export function AutomationPermissionsSection({ settings, onChange }: Props): JSX
   const [page, setPage] = React.useState<'main' | 'mcp'>('main')
   const [focusCursorHost, setFocusCursorHost] = React.useState(false)
   const [focusMcpEntry, setFocusMcpEntry] = React.useState(false)
-  const [mcpSnapshot, setMcpSnapshot] = React.useState<McpConnectionSnapshot>(readMcpConnectionSnapshot)
+  const [mcpSnapshot, setMcpSnapshot] = React.useState<McpConnectionSnapshot>({ phase: 'unavailable', info: null })
   const view = buildAutomationSettingsView(settings)
   const refreshMcpInfo = React.useCallback(() => {
-    setMcpSnapshot(readMcpConnectionSnapshot())
+    void readMcpConnectionSnapshot().then(setMcpSnapshot)
   }, [])
   const toggleHost = (host: SettingsHostKey, enabled: boolean): void => {
     if (host === 'nomi') return
@@ -85,6 +85,11 @@ export function AutomationPermissionsSection({ settings, onChange }: Props): JSX
     else next.delete(host)
     onChange({ trustedHosts: ['nomi', ...[...next].filter((item) => item !== 'nomi')] })
   }
+
+  React.useEffect(() => {
+    if (page !== 'mcp') return
+    refreshMcpInfo()
+  }, [page, refreshMcpInfo])
 
   React.useEffect(() => {
     if (page !== 'mcp') return

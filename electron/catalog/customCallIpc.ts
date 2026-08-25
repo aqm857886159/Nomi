@@ -110,8 +110,10 @@ const customCallTestRuns = createCustomCallTestRunRegistry({ execute: executeCus
 
 export function registerCustomCallIpc(registerSyncIpc: (channel: string, handler: (...args: never[]) => unknown) => void): void {
   registerCustomCallDraftIpc(registerSyncIpc);
-  registerSyncIpc("nomi:model-catalog:custom-call:config:get", ((vendorKey: string) =>
-    listModelCatalogCustomCallConfig(trim(vendorKey))) as (...args: never[]) => unknown);
+  ipcMain.handle("nomi:model-catalog:custom-call:config:get", (event, vendorKey: unknown) => {
+    assertTrustedSender(event);
+    return listModelCatalogCustomCallConfig(trim(vendorKey));
+  });
   registerSyncIpc("nomi:model-catalog:custom-call:config:save", ((vendorKey: string, payload: unknown) => {
     const entries = isJsonRecord(payload) && Array.isArray(payload.entries) ? payload.entries : [];
     return upsertModelCatalogCustomCallConfig(trim(vendorKey), entries);

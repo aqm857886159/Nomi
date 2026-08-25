@@ -248,7 +248,7 @@ export function ComfyuiWorkflowSettingsPage({
     if (!bridge) return
     try {
       // 整台移除连它名下的工作流一起删——那些工作流指向的是这台的地址，留着是死的（同 ComfyuiLocalCard）。
-      const owned = (bridge.listModels() as Array<Record<string, unknown>>)
+      const owned = (await bridge.listModels() as Array<Record<string, unknown>>)
         .filter((m) => String(m.vendorKey) === backend.vendorKey)
         .map((m) => ({ vendorKey: backend.vendorKey, modelKey: String(m.modelKey) }))
       if (owned.length > 0) bridge.deleteModels(owned)

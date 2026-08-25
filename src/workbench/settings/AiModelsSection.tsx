@@ -64,10 +64,12 @@ export function AiModelsSection({
   React.useEffect(() => {
     try {
       const bridge = getDesktopBridge()
-      const described = bridge?.assetTransport?.describeChannels()
-      setChannels(Array.isArray(described) ? described : [])
-      const values = bridge?.modelCatalog.listVendors() as SettingsProviderInput[] | undefined
-      setProviders(Array.isArray(values) ? values : [])
+      void Promise.resolve(bridge?.assetTransport?.describeChannels())
+        .then((values) => setChannels(Array.isArray(values) ? values : []))
+        .catch(() => setChannels([]))
+      void Promise.resolve(bridge?.modelCatalog.listVendors())
+        .then((values) => setProviders(Array.isArray(values) ? values as SettingsProviderInput[] : []))
+        .catch(() => setProviders([]))
       void listWorkbenchModelCatalogModels({ enabled: true })
         .then((values) => setModels(Array.isArray(values) ? values : []))
         .catch(() => setModels([]))

@@ -86,12 +86,15 @@ export function useWorkflowCatalog(vendorKey: string, refreshToken: number): Wor
 
   const refresh = React.useCallback(() => setVersion((v) => v + 1), [])
 
-  // 目录（同步 IPC）。vendorKey 变 → 重取这台的模型与 mapping。
+  // 目录（异步 IPC）。vendorKey 变 → 重取这台的模型与 mapping。
   React.useEffect(() => {
     const catalog = getDesktopBridge()?.modelCatalog
     if (!catalog) return
-    try {
-      const allVendors = catalog.listVendors() as Array<Record<string, unknown>>
+    let alive = true
+    void Promise.all([catalog.listVendors(), catalog.listModels(), catalog.listMappings({ vendorKey })])
+      .then(([vendorRows, modelRows, mappingRows]) => {
+        if (!alive) return
+        const allVendors = vendorRows as Array<Record<string, unknown>>
       setVendors(
         allVendors
           .filter((v) => isComfyuiVendorKey(String(v.key)))
@@ -107,7 +110,7 @@ export function useWorkflowCatalog(vendorKey: string, refreshToken: number): Wor
             enabled: v.enabled !== false,
           })),
       )
-      const allModels = catalog.listModels() as Array<Record<string, unknown>>
+      const allModels = modelRows as Array<Record<string, unknown>>
       setModels(
         allModels
           .filter((m) => String(m.vendorKey) === vendorKey)
@@ -119,12 +122,15 @@ export function useWorkflowCatalog(vendorKey: string, refreshToken: number): Wor
             meta: m.meta,
           })),
       )
-      setMappings(catalog.listMappings({ vendorKey }) as Array<Record<string, unknown>>)
-    } catch {
-      setVendors([])
-      setModels([])
-      setMappings([])
-    }
+      setMappings(mappingRows as Array<Record<string, unknown>>)
+      })
+      .catch(() => {
+        if (!alive) return
+        setVendors([])
+        setModels([])
+        setMappings([])
+      })
+    return () => { alive = false }
   }, [vendorKey, version, refreshToken])
 
   const draftOf = React.useCallback(

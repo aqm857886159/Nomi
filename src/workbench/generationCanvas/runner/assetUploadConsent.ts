@@ -14,7 +14,7 @@ export class AssetUploadConsentCancelledError extends Error {
 
 type ConsentDependencies = {
   readPolicy: () => Promise<{ anonymousAssetHosting?: AssetUploadConsentPolicy }>
-  listVendors: () => Array<{ key?: string; enabled?: boolean; hasApiKey?: boolean; authType?: string }>
+  listVendors: () => Array<{ key?: string; enabled?: boolean; hasApiKey?: boolean; authType?: string }> | Promise<Array<{ key?: string; enabled?: boolean; hasApiKey?: boolean; authType?: string }>>
   remember?: () => Promise<void>
 }
 
@@ -41,7 +41,7 @@ function defaultDependencies(): ConsentDependencies | null {
   if (!policy || !desktop?.modelCatalog) return null
   return {
     readPolicy: () => policy.get(),
-    listVendors: () => desktop.modelCatalog.listVendors() as Array<{ key?: string; enabled?: boolean; hasApiKey?: boolean; authType?: string }>,
+    listVendors: () => desktop.modelCatalog.listVendors() as Promise<Array<{ key?: string; enabled?: boolean; hasApiKey?: boolean; authType?: string }>>,
     remember: async () => {
       const current = await policy.get()
       await policy.set({ ...current, anonymousAssetHosting: 'allow' })
@@ -78,7 +78,7 @@ export async function resolveAssetUploadConsent(
     ? node.meta.modelVendor
     : typeof node.meta?.vendor === 'string' ? node.meta.vendor : ''
   if (/^comfyui-local/i.test(targetVendor) || targetVendor === 'codex-local') return { allowed: true, needsConfirmation: false, remember }
-  const kie = deps.listVendors().find((vendor) => vendor.key === 'kie')
+  const kie = (await deps.listVendors()).find((vendor) => vendor.key === 'kie')
   if (kie?.enabled && (kie.authType === 'none' || kie.hasApiKey)) return { allowed: true, needsConfirmation: false, remember }
   if (policy === 'allow') return { allowed: true, needsConfirmation: false, remember }
   return { allowed: true, needsConfirmation: true, remember }

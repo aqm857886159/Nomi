@@ -5,26 +5,9 @@ import { pathToFileURL } from "node:url";
 import { createProject, deleteProject, diagnoseProject, listProjects, readProject, recoverProject, saveProject } from "./projects/repository";
 import { registerProjectsIpc } from "./projects/projectsIpc";
 import { registerAssetsIpc } from "./assets/assetsIpc";
-import {
-  clearModelCatalogVendorApiKey,
-  deleteModelCatalogMapping,
-  deleteModelCatalogModel,
-  deleteModelCatalogModels,
-  deleteModelCatalogVendor,
-  ensureBuiltinModelSeeds,
-  exportModelCatalogPackage,
-  getModelCatalogHealth,
-  importModelCatalogPackage,
-  listModelCatalogMappings,
-  listModelCatalogModels,
-  listModelCatalogVendors,
-  upsertModelCatalogMapping,
-  upsertModelCatalogModel,
-  upsertModelCatalogVendor,
-  upsertModelCatalogVendorApiKey,
-} from "./catalog/catalogStore";
+import { registerModelCatalogIpc } from "./catalog/modelCatalogIpc";
+import { ensureBuiltinModelSeeds } from "./catalog/catalogStore";
 import { registerAssetTransportIpc } from "./assetTransportIpc";
-import { retypeModelCatalogModel } from "./catalog/modelRetype";
 import { registerTaskIpcHandlers } from "./tasks/taskIpcHandlers";
 import { registerNotificationIpc } from "./notificationIpc";
 import { openWorkspaceFolder, selectWorkspaceFolder } from "./workspace/workspaceIpc";
@@ -434,40 +417,19 @@ function registerIpc(): void {
     assertTrustedSender(event);
     recreateMainWindowFromSender(event.sender, { preserveRoute: true, reason: "hard reload window" });
   });
-  registerSyncIpc("nomi:model-catalog:vendors:list", listModelCatalogVendors);
-  registerSyncIpc("nomi:model-catalog:models:list", (params?: unknown) => {
-    // Renderer 热更新不会重启 Electron main；读取时补一次内置种子，避免 onboarding
-    // 长时间停留在旧的持久化目录（例如 APIMart 缺 Grok Imagine 1.5）。
-    ensureBuiltinModelSeeds();
-    return listModelCatalogModels(params);
-  });
-  registerSyncIpc("nomi:model-catalog:mappings:list", listModelCatalogMappings);
-  registerSyncIpc("nomi:model-catalog:health", getModelCatalogHealth);
-  registerSyncIpc("nomi:model-catalog:vendor:upsert", upsertModelCatalogVendor);
-  registerSyncIpc("nomi:model-catalog:vendor:delete", deleteModelCatalogVendor);
-  registerSyncIpc("nomi:model-catalog:vendor-api-key:upsert", upsertModelCatalogVendorApiKey);
-  registerSyncIpc("nomi:model-catalog:vendor-api-key:clear", clearModelCatalogVendorApiKey);
-  registerSyncIpc("nomi:model-catalog:model:upsert", upsertModelCatalogModel);
-  // 改类型是**领域操作**不是字段 upsert：改 kind 的同时要按新 kind 重建调用通道，否则只是把
-  // 「类型错」换成「没有通道」（见 catalog/modelRetype.ts 文件头）。故走自己的 IPC，不复用 upsert。
-  registerSyncIpc("nomi:model-catalog:model:retype", retypeModelCatalogModel);
-  registerSyncIpc("nomi:model-catalog:model:delete", deleteModelCatalogModel);
-  registerSyncIpc("nomi:model-catalog:models:delete", deleteModelCatalogModels);
-  registerSyncIpc("nomi:model-catalog:mapping:upsert", upsertModelCatalogMapping);
-  registerSyncIpc("nomi:model-catalog:mapping:delete", deleteModelCatalogMapping);
-  registerSyncIpc("nomi:model-catalog:export", exportModelCatalogPackage);
-  registerSyncIpc("nomi:model-catalog:import", importModelCatalogPackage);
+  registerModelCatalogIpc(registerSyncIpc);
   // 域 IPC 各住各的模块（给 main.ts 800 行门腾空间；新通道加到对应模块，别回填这里）。comfy 那棵树重 → 惰性 require；素材通道薄 → 顶部静态 import。
   (require("./comfyuiIpc") as typeof import("./comfyuiIpc")).registerComfyuiIpc(registerSyncIpc);
-  registerAssetTransportIpc(registerSyncIpc);
+  registerAssetTransportIpc();
   // 自定义调用域（契约/AI 指令/试跑）住 electron/catalog/customCallIpc.ts（同上，腾 800 行门）。
   const { registerCustomCallIpc } = require("./catalog/customCallIpc") as typeof import("./catalog/customCallIpc");
   registerCustomCallIpc(registerSyncIpc);
   // 系统通知（任务跑完且窗口失焦时）住 electron/notificationIpc.ts，同样为 800 行门腾空间。
   // 静态 import 而非惰性 require：该文件只依赖 electron 本身，载入零成本，且不吃 no-require-imports 警告配额。
   registerNotificationIpc();
-  // Skill / Playbook 域（业务函数在 electron/skills/*，这里只接同步 IPC 管道）。
-  registerSyncIpc("nomi:skill:list", () => {
+  // Skill / Playbook 域（列表读取走异步 IPC；写入操作保持既有同步事务契约）。
+  ipcMain.handle("nomi:skill:list", (event) => {
+    assertTrustedSender(event);
     const { listSkillsForRenderer } = require("./skills/skillIpc") as typeof import("./skills/skillIpc");
     return listSkillsForRenderer();
   });
@@ -629,7 +591,10 @@ function registerIpc(): void {
     setActiveCapabilityProject(String(projectId || ""));
   });
   // 「接入 AI 编程助手」卡：读接入状态/配置片段 + 一键写入/撤销 ~/.claude.json 的 mcpServers.nomi。
-  registerSyncIpc("nomi:capability:mcp-info", () => readMcpInfo(getActiveCapabilityPort()));
+  ipcMain.handle("nomi:capability:mcp-info", (event) => {
+    assertTrustedSender(event);
+    return readMcpInfo(getActiveCapabilityPort());
+  });
   registerSyncIpc("nomi:capability:mcp-install", installMcp);
   registerSyncIpc("nomi:capability:mcp-uninstall", uninstallMcp);
   // 实连验证（异步：真起一次配置里那条命令握手）。「配置里有这行字」≠「还连得上」，见 mcpVerify 头注释。
