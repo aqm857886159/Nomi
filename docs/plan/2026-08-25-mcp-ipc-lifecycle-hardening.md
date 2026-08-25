@@ -217,6 +217,71 @@ R17 验证记录：先在临时分支工作树向 `electron/main.ts` 注入一�
 撤销临时行，正式 baseline 只记录当前存量，避免把故意测试代码带入提交。清理后实录：
 `173 registrations; 4 guarded; 169 unguarded (baseline 169)`，`exit=0`。
 
+### D2 补齐未加固通道 + 让棘轮点名真凶（2026-08-26 安全跟进）
+
+上一轮只加固了 4 条，剩 169 条在基线里。既然 `assertTrustedSender` 自己的文档就写明**应用内浏览器
+会有意加载远端网页**，"来自某个渲染进程"就不等于身份，那 169 条就是真风险而不是理论风险。
+
+**最要紧的一条链**：`nomi:settings:automation-policy-set` 写的是 `anonymousAssetHosting`
+（`electron/settings/automationPolicyContract.ts:24`）。非主窗口内容把它改成 `"allow"` →
+素材托管同意卡不再弹 → 用户本地素材静默上传公网托管（KIE）。这正好把 PR #177 正在建的同意机制架空。
+
+**两条信任规则（不是一条的别名）**：
+- `assertTrustedSender`：只认当前登记的主窗口主帧 + origin 一致。用于权限/花钱/破坏/文件系统/网络代取。
+- `assertTrustedUiSender`（新增）：认**任一我们自己创建的 BrowserWindow 的主帧、且入口是 `file://`**。
+  只给 `browser:*` 这族在应用内浏览器控制通道用——它们合法地由三个应用自有面驱动：主窗、素材叠加窗
+  （`browserViewOverlay.ts:340` 带 preload）、浏览器菜单窗（`browserViewChromeMenu.ts:170` 带 preload）。
+  若给它们套主窗口专用守卫，**应用内浏览器会直接瘫掉**。
+
+  为什么远端页面拿不到这条：浏览器视图是 `WebContentsView` 且**根本没配 preload**
+  （`browserViews.ts:249-257`），远端内容没有 `ipcRenderer`，结构上够不到任何通道。这条规则不是
+  "相信这一点"，而是把它**做成断言**：sender 必须是某个 BrowserWindow 自己的顶层帧且 origin 为
+  `file://`，远端页面两条都满足不了。
+
+**结果**：173 条注册中 163 条已加固，基线 **169 → 10**。刻意留在基线里的 10 条及理由写进
+`scripts/ipc-sender-binding-baseline.json` 的 `_rationale`（跟着基线走，不会漂）：
+`rendererBridge` 与 `windowCloseConfirmation` 各自**已有更强的专用绑定**（前者按
+webContents+frame+origin 配对后丢弃不匹配回复，后者要不可猜的 requestId），套通用守卫反而弱化；
+三条窗口控制由 `fromWebContents` 天然限定在发起者自己的窗口；`renderer-crash` 只写本地日志；
+两条 i18n 与 `app:version` 是纯 UI 状态/构建常量；`<dynamic>` 两处是通道注册器本体不是真实入口。
+
+**Gap 2：基线从"一个数"改成"一串身份"。** 原来 `{"unguargedRegistrations": 169}` 是裸计数，
+门岗**说不出哪一条是新的**，只能 `unguarded.slice(allowed)` 随便指一个——实测它会把
+`electron/workspace/workspaceFileDelete.ts:9` 这个无辜文件报成罪魁。开发者被指错文件后，最顺手的
+"修法"就是把数字调大，而那恰恰把这道门要焊死的洞重新打开。现在基线是
+`"<file>|<kind>|<channel>"` 数组（**刻意不含行号**——行号会因无关编辑漂移，一漂就又只能靠调数字消红），
+失败时精确打印新增项，并在存量减少时列出该从基线删掉哪几条。
+
+R17 红灯验证（把未设防 handler 注入 `electron/proxyIpc.ts`，看它是否点名**这个**文件）：
+
+```
+----- 注入后 -----
+IPC sender binding: 174 registrations; 163 guarded; 11 unguarded (baseline 10)
+✗ IPC sender binding 回归：1 处新增未加固注册
+  electron/proxyIpc.ts:43 handle nomi:evil:test
+  → 给这些注册加 assertTrustedSender / assertTrustedUiSender，而不是把它们写进基线
+exit=1
+
+----- 撤销后 -----
+IPC sender binding: 173 registrations; 163 guarded; 10 unguarded (baseline 10)
+✓ IPC sender binding 棘轮通过（只减不增）
+exit=0
+```
+
+点名的是**我真正动过的那个文件**（`proxyIpc.ts`），不再是旁观者。另验"存量减少"提示：往基线塞一条
+不存在的 `electron/ghost.ts|handle|nomi:ghost`，门岗输出 `↓ 存量减少 1 处` 并列出该删的身份、`exit=0`。
+
+**测试**（先红后绿）：`electron/settings/automationPolicyIpc.test.ts` 新增来源绑定回归——远端页面
+（`https://evil.example/`）与"另一个同 origin 的应用窗口"调 `-set` 都必须 **reject**，且断言
+`store.write` **一次都没被调用**（不是"写了但记了条日志"）。加固前这两个用例失败在
+`expected ... to throw`；加固后 10 个用例全绿。`ipcSenderGuard.test.ts` 补 `assertTrustedUiSender`
+三例：接受叠加窗/菜单窗、拒绝远端 origin 与子帧、拒绝不隶属任何窗口的裸 `WebContentsView`。
+另有 3 个既有测试文件（`providerAdapter/ipc`、`providerAdapter/existingConnectionIpc`、
+`productionRun/productionRunIpc`）原先传 `{}` 当事件，加固后合理地变红，已改为立假主窗口再传合法事件。
+
+**顺带的分层修正**：`main.ts` 加守卫后触到 800 行门岗（801 行）。没有为了消红去压行，而是把本就同主题的
+项目仓库通道整族抽成 `electron/projects/projectsIpc.ts`（`registerProjectsIpc`），`main.ts` 回落到 797 行。
+
 ### B 空 projectId 并发绑定
 
 `mcpConfirmationBinding.run` 原先对空 key 直接执行 task，导致两个没有可用 projectId 的并发请求不进账本。

@@ -56,3 +56,35 @@ export function assertTrustedSender(event: IpcEvent): void {
     throw new UntrustedIpcSenderError();
   }
 }
+
+/**
+ * Trust boundary for the in-app browser's own control channels (`browser:*`).
+ *
+ * These are legitimately driven by three distinct app-owned surfaces, so
+ * `assertTrustedSender` (main window only) would break the in-app browser:
+ * the main window, the asset overlay window, and the chrome menu window —
+ * every one of them a BrowserWindow created by us with our preload attached.
+ *
+ * The remote page itself is NOT one of them: browser views are constructed as
+ * `WebContentsView` with no preload (electron/browser/core/browserViews.ts),
+ * so remote content has no `ipcRenderer` and is structurally unable to reach
+ * any channel. This rule enforces that structurally rather than relying on it:
+ * the sender must be a BrowserWindow's own top-level frame loaded from the
+ * app's local renderer entry (`file://`), which no remote page can satisfy.
+ */
+export function assertTrustedUiSender(event: IpcEvent): void {
+  const sender = event.sender;
+  const senderFrame = event.senderFrame;
+  const senderWindow = sender ? BrowserWindow.fromWebContents(sender) : null;
+
+  if (
+    !senderWindow ||
+    senderWindow.isDestroyed() ||
+    sender !== senderWindow.webContents ||
+    !senderFrame ||
+    senderFrame.routingId !== senderWindow.webContents.mainFrame?.routingId ||
+    originOf(senderFrame.url) !== "file://"
+  ) {
+    throw new UntrustedIpcSenderError();
+  }
+}

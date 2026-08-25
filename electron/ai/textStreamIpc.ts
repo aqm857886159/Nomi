@@ -6,6 +6,7 @@
 import { ipcMain, webContents as electronWebContents } from "electron";
 import type { WebContents } from "electron";
 
+import { assertTrustedSender } from "../ipcSenderGuard";
 type TextStreamSession = {
   streamId: string;
   webContentsId: number;
@@ -28,6 +29,7 @@ function sendTextEvent(session: TextStreamSession, event: unknown): void {
 
 export function registerTextStreamIpc(): void {
   ipcMain.handle("nomi:tasks:text:stream", async (event, payload: Record<string, unknown>) => {
+    assertTrustedSender(event);
     const streamId = `text-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const session: TextStreamSession = {
       streamId,
@@ -71,7 +73,8 @@ export function registerTextStreamIpc(): void {
     return { streamId };
   });
 
-  ipcMain.handle("nomi:tasks:text:cancel", async (_event, payload: { streamId?: string }) => {
+  ipcMain.handle("nomi:tasks:text:cancel", async (event, payload: { streamId?: string }) => {
+    assertTrustedSender(event);
     const session = textStreamSessions.get(String(payload?.streamId || ""));
     if (!session) return { ok: false, error: "stream not found" };
     session.abortController.abort();

@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ipcMain } from "electron";
+import { assertTrustedSender } from "../ipcSenderGuard";
 import { writeJsonFileAtomic } from "../jsonFile";
 import { getWorkspaceRepositoryDeps } from "../runtimePaths";
 import { resolveWorkspaceProjectDir } from "../workspace/workspaceRepository";
@@ -20,7 +21,9 @@ function conversationsPath(projectId: string): string | null {
 }
 
 export function registerConversationsIpc(): void {
-  ipcMain.handle("nomi:conversations:read", async (_event, payload: { projectId?: string }) => {
+  ipcMain.handle("nomi:conversations:read", async (event, payload: { projectId?: string }) => {
+    // 守卫放 try 外：不能被 catch 洗成 { ok:false }。
+    assertTrustedSender(event);
     try {
       const filePath = conversationsPath(String(payload?.projectId || ""));
       if (!filePath || !fs.existsSync(filePath)) return { ok: true, conversations: null };
@@ -34,9 +37,10 @@ export function registerConversationsIpc(): void {
   ipcMain.handle(
     "nomi:conversations:write",
     async (
-      _event,
+      event,
       payload: { projectId?: string; creation?: unknown; generation?: unknown; committedProposal?: unknown },
     ) => {
+      assertTrustedSender(event);
       try {
         const filePath = conversationsPath(String(payload?.projectId || ""));
         if (!filePath) return { ok: false, error: "project not found" };

@@ -12,6 +12,7 @@ import {
 import { normalizeProviderKind } from "../../catalog/catalogStore";
 import { checkVendorHealth } from "./vendorHealth";
 
+import { assertTrustedSender } from "../../ipcSenderGuard";
 // ---------------------------------------------------------------------------
 // Onboarding — 中转拉取式接入 IPC（手填地址+key → 拉模型 → 按 id 分类 → 保存）。
 // 「AI 读文档」子系统已下线（Issue #8：各家中转参数不一，读文档抠参数不可靠）。
@@ -73,7 +74,8 @@ export function registerOnboardingIpc(): void {
 
   // 供应商连接健康：模型面板每次打开时按家自查「现在能不能用」。凭证由主进程自取——
   // renderer 只有 hasApiKey 布尔，这也是旧实现「只在粘贴 key 那一刻能测」的根因。
-  ipcMain.handle("nomi:onboarding:vendor-health", async (_event, payload: Record<string, unknown>) => {
+  ipcMain.handle("nomi:onboarding:vendor-health", async (event, payload: Record<string, unknown>) => {
+    assertTrustedSender(event);
     const vendorKey = String(payload?.vendorKey || "").trim();
     if (!vendorKey) return { vendorKey: "", state: "unsupported" as const, checkedAt: Date.now() };
     return checkVendorHealth(vendorKey, payload?.force === true);
@@ -82,7 +84,8 @@ export function registerOnboardingIpc(): void {
   // PRIMARY model-adding path — manual provider entry (BaseURL + key + models).
   // Deterministic openai-compatible text commit; reuses the single catalog write
   // path. No forced connectivity test (aligns with opencode; see test-connection).
-  ipcMain.handle("nomi:onboarding:manual-commit", async (_event, payload: Record<string, unknown>) => {
+  ipcMain.handle("nomi:onboarding:manual-commit", async (event, payload: Record<string, unknown>) => {
+    assertTrustedSender(event);
     try {
       // R1：走唯一 normalizeProviderKind（接受 openai-responses），不再 2 值 clamp。
       const providerKind = normalizeProviderKind(payload?.providerKind);
@@ -162,7 +165,8 @@ export function registerOnboardingIpc(): void {
 
   // 类型启发式（Issue #8）：从 /v1/models 拉到/手填的模型 id 没带类型，主进程按关键词猜
   // 图片/视频/文本/配音/3D（单一真相源 guessModelKind），返回给 UI 标在每行上，用户可就地改。
-  ipcMain.handle("nomi:onboarding:guess-kinds", async (_event, payload: Record<string, unknown>) => {
+  ipcMain.handle("nomi:onboarding:guess-kinds", async (event, payload: Record<string, unknown>) => {
+    assertTrustedSender(event);
     const ids = Array.isArray(payload?.ids) ? (payload.ids as unknown[]).map((x) => String(x || "")) : [];
     const kinds: Record<string, GuessableModelKind> = {};
     for (const id of ids) if (id) kinds[id] = guessModelKind(id);
@@ -174,7 +178,8 @@ export function registerOnboardingIpc(): void {
   // chat↔responses 共享 /v1 baseURL + bearer，只 path/body 不同，挨个发极小请求探测；
   // anthropic（host root + x-api-key）仅当 hostname 像 anthropic 或地址留空时纳入。
   // 专家在表单展开「接口协议」强制指定时，payload.providerKind 给定 → 只测那一个。
-  ipcMain.handle("nomi:onboarding:test-connection", async (_event, payload: Record<string, unknown>) => {
+  ipcMain.handle("nomi:onboarding:test-connection", async (event, payload: Record<string, unknown>) => {
+    assertTrustedSender(event);
     const rawBaseUrl = String(payload?.baseUrl || "").trim().replace(/\/+$/, "");
     const apiKey = String(payload?.apiKey || "").trim();
     const modelId = String(payload?.modelId || "").trim();
@@ -254,7 +259,8 @@ export function registerOnboardingIpc(): void {
   // user picks from real model ids instead of guessing/typing. Relays are usually
   // OpenAI-compatible and expose this; when they don't, the UI falls back to manual
   // id entry (this just returns ok:false and nothing is blocked).
-  ipcMain.handle("nomi:onboarding:list-models", async (_event, payload: Record<string, unknown>) => {
+  ipcMain.handle("nomi:onboarding:list-models", async (event, payload: Record<string, unknown>) => {
+    assertTrustedSender(event);
     // R1：唯一归一化器。openai-responses 与 openai-compatible 一样走 GET {baseUrl}/models。
     const providerKind = normalizeProviderKind(payload?.providerKind);
     const rawBaseUrl = String(payload?.baseUrl || "").trim().replace(/\/+$/, "");

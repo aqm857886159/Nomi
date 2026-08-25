@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 
+import { assertTrustedSender } from "../ipcSenderGuard";
 import {
   readGenerationModelDefaults,
   writeGenerationModelDefaults,
@@ -17,9 +18,13 @@ export function registerGenerationModelDefaultsIpc(
     write: writeGenerationModelDefaults,
   },
 ): void {
-  ipcMain.handle("nomi:settings:generation-model-defaults-get", async () => store.read());
-  ipcMain.handle(
-    "nomi:settings:generation-model-defaults-set",
-    async (_event, payload: unknown) => store.write(payload),
-  );
+  // 默认生成模型 = 后续每次生成花谁的额度，属于花钱路径的前置开关。
+  ipcMain.handle("nomi:settings:generation-model-defaults-get", async (event) => {
+    assertTrustedSender(event);
+    return store.read();
+  });
+  ipcMain.handle("nomi:settings:generation-model-defaults-set", async (event, payload: unknown) => {
+    assertTrustedSender(event);
+    return store.write(payload);
+  });
 }
