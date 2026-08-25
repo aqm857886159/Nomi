@@ -1,81 +1,76 @@
-import { buildClipFromGenerationNode } from '../model/buildClipFromGenerationNode'
-import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-import type { TimelineClip, TimelineState, TimelineTrackType } from '../../timeline/timelineTypes'
-import { getTrackTypeForClipType } from '../../timeline/timelineTypes'
+import { adoptGenerationNode } from '../../adoption/adoptGenerationNode'
+import type { AdoptionOutcome } from '../../adoption/adoptionTypes'
+import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { useWorkbenchStore } from '../../workbenchStore'
 
+/**
+ * Agent 的单产物入口现在只是采纳桥的适配器。
+ *
+ * 旧实现接收一组 `addTimelineClipAtFrame` ports，并在这里直接写时间轴；这条旁路
+ * 让 Agent 绕过 Proposal、幂等和一步 Undo。保留工具名和返回形状，内部只转发到
+ * `adoptGenerationNode`，这样 MCP/画布调用方无需新增用户可见动作。
+ */
 export type SendGenerationNodeToTimelineOptions = {
   fps?: number
   startFrame?: number
   resultId?: string
-  trackType?: TimelineTrackType
-}
-
-export type SendGenerationNodeToTimelinePorts = {
-  readGenerationNodes: () => readonly GenerationCanvasNode[]
-  readTimeline: () => TimelineState
-  addTimelineClipAtFrame: (clip: TimelineClip, trackType: TimelineTrackType, startFrame: number) => void
-  readTimelineAfterInsert: () => TimelineState
+  trackType?: 'image' | 'video'
 }
 
 export type SendGenerationNodeToTimelineResult =
   | {
       ok: true
       nodeId: string
-      clip: TimelineClip
-      trackType: TimelineTrackType
-      startFrame: number
+      status: 'applied'
+      replayed: boolean
+      clipIds: string[]
     }
   | {
       ok: false
-      error: 'node_not_found'
       nodeId: string
-    }
-  | {
-      ok: false
-      error: 'clip_unavailable'
-      nodeId: string
-    }
-  | {
-      ok: false
-      error: 'track_type_mismatch'
-      nodeId: string
-      clip: TimelineClip
-    }
-  | {
-      ok: false
-      error: 'timeline_insert_failed'
-      nodeId: string
-      clip: TimelineClip
+      error: 'node_not_found' | 'clip_unavailable' | 'stale' | 'needs_attention' | 'failed' | 'needs_recovery'
+      detail?: string
     }
 
-export function sendGenerationNodeToTimeline(
-  ports: SendGenerationNodeToTimelinePorts,
-  nodeId: string,
-  options?: SendGenerationNodeToTimelineOptions,
-): SendGenerationNodeToTimelineResult {
-  const id = String(nodeId || '').trim()
-  const node = ports.readGenerationNodes().find((candidate) => candidate.id === id)
-  if (!node) return { ok: false, error: 'node_not_found', nodeId: id || nodeId }
-
-  const timeline = ports.readTimeline()
-  const startFrame = Math.max(0, Math.floor(options?.startFrame ?? timeline.playheadFrame ?? 0))
-  const clip = buildClipFromGenerationNode(node, {
-    fps: options?.fps ?? timeline.fps,
-    startFrame,
-    resultId: options?.resultId,
-  })
-  if (!clip) return { ok: false, error: 'clip_unavailable', nodeId: id }
-  // v0.7.1: clip.type 是 'image' | 'video' | 'audio'，trackType 是 'image' | 'video'
-  // audio clip 落到 video 轨道
-  const trackType = getTrackTypeForClipType(clip.type)
-  if (options?.trackType && options.trackType !== trackType) {
-    return { ok: false, error: 'track_type_mismatch', nodeId: id, clip }
+function mapOutcome(nodeId: string, outcome: AdoptionOutcome): SendGenerationNodeToTimelineResult {
+  if (outcome.status === 'applied') {
+    return {
+      ok: true,
+      nodeId,
+      status: 'applied',
+      replayed: outcome.replayed,
+      clipIds: outcome.proposal.clipIds,
+    }
   }
+  if (outcome.status === 'nothing_to_adopt') {
+    return {
+      ok: false,
+      nodeId,
+      error: 'clip_unavailable',
+    }
+  }
+  return {
+    ok: false,
+    nodeId,
+    error: outcome.status,
+    ...('error' in outcome ? { detail: outcome.error } : {}),
+  }
+}
 
-  ports.addTimelineClipAtFrame(clip, trackType, startFrame)
-  const inserted = ports.readTimelineAfterInsert().tracks
-    .some((track) => track.type === trackType && track.clips.some((candidate) => candidate.id === clip.id))
-  if (!inserted) return { ok: false, error: 'timeline_insert_failed', nodeId: id, clip }
+export async function sendGenerationNodeToTimeline(
+  nodeId: string,
+  options: SendGenerationNodeToTimelineOptions = {},
+): Promise<SendGenerationNodeToTimelineResult> {
+  const id = String(nodeId || '').trim()
+  const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === id)
+  if (!node) return { ok: false, nodeId: id || nodeId, error: 'node_not_found' }
 
-  return { ok: true, nodeId: id, clip, trackType, startFrame }
+  const outcome = await adoptGenerationNode(node, {
+    // 保留旧 Agent 工具「缺省贴播放头」语义；UI 的节点按钮仍显式走 append。
+    placement: {
+      kind: 'frame',
+      startFrame: options.startFrame ?? useWorkbenchStore.getState().timeline.playheadFrame,
+    },
+  })
+  return mapOutcome(id, outcome)
 }

@@ -1,6 +1,5 @@
 import type { GenerationCanvasEdge, GenerationCanvasNode, GenerationNodeKind } from '../model/generationCanvasTypes'
 import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
-import { useWorkbenchStore } from '../../workbenchStore'
 import { collectNodeContext } from '../model/nodeContext'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { validateReferenceEdge, type EdgeSkipReason } from './referenceEdgeCapability'
@@ -123,14 +122,7 @@ export const generationCanvasTools = {
     return useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id) || null
   },
   send_to_timeline(nodeId: string, options?: SendGenerationNodeToTimelineOptions) {
-    return sendGenerationNodeToTimeline({
-      readGenerationNodes: () => useGenerationCanvasStore.getState().nodes,
-      readTimeline: () => useWorkbenchStore.getState().timeline,
-      addTimelineClipAtFrame: (clip, trackType, startFrame) => {
-        useWorkbenchStore.getState().addTimelineClipAtFrame(clip, trackType, startFrame)
-      },
-      readTimelineAfterInsert: () => useWorkbenchStore.getState().timeline,
-    }, nodeId, options)
+    return sendGenerationNodeToTimeline(nodeId, options)
   },
   async execute(action: GenerationCanvasToolAction): Promise<GenerationCanvasToolResult> {
     if (action.tool === 'read_canvas') {
@@ -184,7 +176,7 @@ export const generationCanvasTools = {
       })
     }
     if (action.tool === 'send_to_timeline') {
-      const result = generationCanvasTools.send_to_timeline(action.nodeId, action.options)
+      const result = await generationCanvasTools.send_to_timeline(action.nodeId, action.options)
       return toolResult({
         ok: result.ok,
         tool: action.tool,

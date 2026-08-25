@@ -572,7 +572,7 @@ export async function applyCanvasToolCall(
     const rawIds = Array.isArray(record.nodeIds)
       ? record.nodeIds.map((id) => resolveNodeId(String(id || '').trim())).filter(Boolean)
       : undefined
-    const result = arrangeStoryboardToTimeline(rawIds && rawIds.length ? { nodeIds: rawIds } : {})
+    const result = await arrangeStoryboardToTimeline(rawIds && rawIds.length ? { nodeIds: rawIds } : {})
     if (!result.ok && result.total === 0) {
       throw new Error('没有可排片的镜头:画布上还没有生成好的视频或可占位的关键帧')
     }

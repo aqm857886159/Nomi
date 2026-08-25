@@ -27,6 +27,7 @@ import { TimelineSecondaryAddRow } from './TimelineSecondaryAddRow'
 import { frameToPixel, pixelToFrame, TIMELINE_MIN_SCALE, TIMELINE_MAX_SCALE } from './timelineEdit'
 import { buildSnapPoints, resolveSnap, pixelThresholdToFrames } from './snapping'
 import { toast } from '../../ui/toast'
+import { reportAdoptionOutcome } from '../adoption/adoptionReceipt'
 import { dispatchTimelineShortcut } from './timelineShortcuts'
 
 const WHEEL_ZOOM_FACTOR = 1.24
@@ -117,10 +118,17 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
   // 用户测的主线诉求——点一下出初剪，手动重排/trim 是之后的微调。
   const handleAiArrange = React.useCallback(() => {
     void import('../generationCanvas/agent/sendStoryboardToTimeline').then(({ arrangeStoryboardToTimeline }) => {
-      const result = arrangeStoryboardToTimeline()
-      if (result.sent.length > 0) toast(t('timelineEditor.arranged', { count: result.sent.length }), 'success')
-      else if (result.total === 0) toast(t('timelineEditor.noShots'), 'info')
-      else toast(t('timelineEditor.alreadyArranged'), 'info')
+      void arrangeStoryboardToTimeline().then((result) => {
+        if (result.total === 0) {
+          toast(t('timelineEditor.noShots'), 'info')
+          return
+        }
+        reportAdoptionOutcome(result.outcome, {
+          successMessage: result.sent.length > 0
+            ? t('timelineEditor.arranged', { count: result.sent.length })
+            : undefined,
+        })
+      })
     })
   }, [t])
   // 空态「一键拼成初稿」入口的镜头数：取自与拼片同源的纯规划器（planStoryboardTimeline），
