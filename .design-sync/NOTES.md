@@ -136,7 +136,15 @@ Inter 是正文、Fraunces 是 display。中文字体走系统栈，所以 `runt
 - **组件总数 40**（= `src/design` 的全部导出 + `NomiPreviewHost` 自身）。
 - **手写预览 39 个**——除 `NomiPreviewHost`（它是 provider 脚手架，不是给人用的组件，
   留 floor card 是对的）外**全部覆盖**，没有剩余 floor card。
-- 每个组件 2–4 个 cell，共约 120 格，全部 `good`。
+- **已打分 27 个 / 85 格，全部 `good`**（每格都看过截图，或用 playwright 探针核过
+  DOM：零 pageerror、高度正常、文本内容如预期，之后才打的分）。
+- **还剩 12 个没打分**：`BodyPortal / ConfirmDialogHost / DesignDrawer / DesignEmptyState /
+  DesignModal / DesignPageShell / DesignTable / NomiSelect / Tooltip / TooltipContent /
+  TooltipProvider / TooltipTrigger`。
+  预览 `.tsx` **都已写好并提交**（语法已过 tsc 检查），只是这批 Radix/Mantine 依赖最重，
+  单批重建跑了 20+ 分钟还没出结果，本轮没能等到截图就收尾了。
+  **下一轮全量重建后，这 12 个会连同其余一起出卡，届时看图打分即可**——
+  它们不是 floor card，是「已授权但本轮没来得及打分」。
 - **上传（skill §5）本轮没做**：这个 session 的 OAuth token 拿不到 design scope。
 
 ### 下一轮从这里接（按顺序）
