@@ -138,9 +138,18 @@ Inter 是正文、Fraunces 是 display。中文字体走系统栈，所以 `runt
   留 floor card 是对的）外**全部覆盖**，没有剩余 floor card。
 - 每个组件 2–4 个 cell，共约 120 格，全部 `good`。
 - **上传（skill §5）本轮没做**：这个 session 的 OAuth token 拿不到 design scope。
-  下一轮接手时：用户先跑 `/login`，然后从 skill 的 §5 开始——
-  bundle 已经 validate 通过（`ds-bundle/`，跑一次 `package-build.mjs` + `package-validate.mjs`
-  重新生成即可），`projectId` 还没写进 config（首次上传后才写）。
+
+### 下一轮从这里接（按顺序）
+
+1. 用户先跑 `/login`（拿到 design scope），否则 §5 一定失败。
+2. **跑一次完整重建 + 校验**（命令见上面「完整重跑的命令」一节）。
+   本轮所有预览都是分批用 `preview-rebuild.mjs` 增量建的，**没有跑过一次收尾的
+   `package-build.mjs` 全量重建**；`ds-bundle/.render-check.json` 和
+   `_screenshots/contact-sheet-*.png` 还是授权预览之前的旧数据。
+   全量重建后再看 `.render-check.json`（`bad` 应为空、`fallbackCard` 只剩
+   `NomiPreviewHost`）和三张 contact sheet。
+3. 然后照 skill §5 上传；上传成功、`list_files` 数目对上之后，
+   才把 `projectId` 写进 `design-sync.config.json`。
 
 ## Floor card（未授权预览）现状
 
