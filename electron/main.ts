@@ -24,9 +24,7 @@ import {
 } from "./catalog/catalogStore";
 import { registerAssetTransportIpc } from "./assetTransportIpc";
 import { retypeModelCatalogModel } from "./catalog/modelRetype";
-import { runTaskWithIdempotency } from "./submissionLedger";
-import { runTaskIpcGuard } from "./tasks/taskIpcGuard";
-import { mintSpendGrant } from "./spendGrant";
+import { registerTaskIpcHandlers } from "./tasks/taskIpcHandlers";
 import { registerNotificationIpc } from "./notificationIpc";
 import { openWorkspaceFolder, selectWorkspaceFolder } from "./workspace/workspaceIpc";
 import { listWorkspaceFiles, resolveWorkspaceFilePath } from "./workspace/workspaceFileIndex";
@@ -56,6 +54,7 @@ import { registerLocalProtocol } from "./protocol/localProtocol";
 import { installMainWindowInteractions } from "./mainWindowInteractions";
 import { getMainWindow, setMainWindow } from "./mainWindowRegistry";
 import { createMainWindowGuard } from "./mainWindowPresence";
+import { assertTrustedSender } from "./ipcSenderGuard";
 import { registerScreenshotIpc } from "./screenshot/screenshotIpc";
 import { desktopT, registerI18nIpc, setDesktopLocale } from "./i18n";
 import { registerSettingsIpc } from "./settings/registerSettingsIpc";
@@ -605,32 +604,13 @@ function registerIpc(): void {
     return framesToVideoAsset(payload);
   });
   registerExportJobIpc();
-  // 付费守卫铸令牌：仅由渲染层「真人确认」事件链调用（务实纵深：铸造面小而审计过 + 主进程硬闸兜底）。
-  ipcMain.handle("nomi:tasks:grant-spend", (_event, payload) => {
-    const raw = (payload || {}) as { nodeIds?: unknown; maxAttemptsPerNode?: unknown };
-    const nodeIds = Array.isArray(raw.nodeIds) ? raw.nodeIds.map((id) => String(id)) : [];
-    const maxAttemptsPerNode = typeof raw.maxAttemptsPerNode === "number" ? raw.maxAttemptsPerNode : undefined;
-    return { grantId: mintSpendGrant({ nodeIds, ...(maxAttemptsPerNode ? { maxAttemptsPerNode } : {}) }) };
-  });
-  // 提交幂等包在 IPC 边界：渲染层每次提交（含控制器重试）都经此，同 idempotencyKey 的提交内核 at-most-once
-  // （堵「提交瞬间丢回执 → 重试 → 二次下单」；query 类 nomi:tasks:result 不包，查结果本就免费）。
-  ipcMain.handle("nomi:tasks:run", (_event, payload) =>
-    runTaskIpcGuard(payload, async () => {
-      const { runTask } = await loadRuntimeModule();
-      return runTaskWithIdempotency(payload, () => runTask(payload));
-    }),
-  );
-  ipcMain.handle("nomi:tasks:result", (_event, payload) =>
-    runTaskIpcGuard(payload, async () => {
-      const { fetchTaskResult } = await loadRuntimeModule();
-      return fetchTaskResult(payload);
-    }),
-  );
+  registerTaskIpcHandlers(loadRuntimeModule);
   // 能力核 A/B 守卫：renderer 在打开/切换/关闭项目时上报当前打开的 projectId，
   // 让外部调用拒绝直写「正在窗口里编辑」的工程（防内存 store 回盘覆盖，见 capabilityCore/rpcServer）。
-  ipcMain.on("nomi:capability:active-project", (_event, projectId: unknown) =>
-    setActiveCapabilityProject(String(projectId || "")),
-  );
+  ipcMain.on("nomi:capability:active-project", (event, projectId: unknown) => {
+    assertTrustedSender(event);
+    setActiveCapabilityProject(String(projectId || ""));
+  });
   // 「接入 AI 编程助手」卡：读接入状态/配置片段 + 一键写入/撤销 ~/.claude.json 的 mcpServers.nomi。
   registerSyncIpc("nomi:capability:mcp-info", () => readMcpInfo(getActiveCapabilityPort()));
   registerSyncIpc("nomi:capability:mcp-install", installMcp);

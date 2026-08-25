@@ -8,7 +8,7 @@
 ## 范围与不做项
 
 **做**：A1 取消绑定在飞操作 / A2 协议版本交集协商 / A3 tools/call 运行时 schema 校验 / A4 stdio 行边界 /
-B 付费确认并发绑定 / C IPC 回复 sender 绑定。
+B 付费确认并发绑定 / C IPC 回复 sender 绑定 / D IPC 注册入口 sender 绑定。
 
 **明确不做**（owner 裁定，后续批次）：
 - 引入 `@modelcontextprotocol/sdk` 接管 wire 层——需先 spike 验证；本批只让**行为**与标准一致，将来可平滑换。
@@ -190,6 +190,42 @@ launcher (`mcpNodeLauncher.ts:263`)，共享 `mcpStdioLine.ts` 的 4 MiB UTF-8 �
 `mcpSpendConcurrency.test.ts`（并发首次付费确认只弹一次、拒绝共享结果、每笔独立 signal/grant 路）、
 `mcpArgValidation.test.ts`（缺失/类型/未知字段/范围/目录结构门）以及 `mcpStdioLine.test.ts`
 （非法、超长、空行、UTF-8 字节计数）。
+
+## 本次阻断修复（PR #174 follow-up）
+
+### D IPC sender/origin 威胁模型与修法
+
+全仓实扫 `electron/` 的 `ipcMain.handle/on`：共 173 个注册点，其中 35 个显式以 `_event` 忽略来源。
+主窗口只从本地 `file://` 入口（生产）或受控 Vite `http://localhost` 入口（开发）加载，并在
+`main.ts:329-333` 拦截离开入口的顶层导航；没有 `<webview>`，但应用内 BrowserView/WebContentsView
+确实会加载用户指定的远端网页（`electron/browser/core/browserViews.ts:242-257,282-285`），且辅助菜单/覆盖窗
+也带 preload。因此「非受信渲染帧」在产品结构上**可达**，只是当前 BrowserView 没有主窗口 preload、且
+浏览器通道按 owner/viewId 做了额外关联；它不能被当作主窗口身份。严重度按本地桌面攻击面记为高（远端页面
+本身不应获得 Nomi 主 IPC 权限），不是把远端网页误报成可直接调用所有 Nomi 通道。
+
+根因是 IPC 注册点没有共享的 sender 身份断言：同一进程内只要拿到任一带 preload 的 WebContents，就可能
+触达 `_event` 被丢掉的权限/真金路径。新增 `electron/ipcSenderGuard.ts` 的 `assertTrustedSender(event)`：
+要求 `BrowserWindow.fromWebContents(event.sender)` 恰为 `mainWindowRegistry` 登记的主窗口、sender 为主
+webContents、frame 为主 frame，且 origin 与主窗口当前 URL 一致。`nomi:tasks:grant-spend` 与
+`nomi:capability:active-project` 接入该守卫；另将同一真金入口的任务提交 `nomi:tasks:run` 绑定，避免
+守卫只保护铸令牌而放过相邻入口。
+
+新增 `scripts/check-ipc-sender-binding.mjs` + `scripts/ipc-sender-binding-baseline.json`，扫描所有
+`ipcMain.handle/on` 注册点，记录未调用 `assertTrustedSender` 的存量并只允许下降；挂入 `pnpm run gates`。
+R17 验证记录：先在临时分支工作树向 `electron/main.ts` 注入一个未设防 handler，门岗输出新增 1 处并以
+非零码退出（实录：`174 registrations; 4 guarded; 170 unguarded (baseline 169)`，`exit=1`）；随后立即
+撤销临时行，正式 baseline 只记录当前存量，避免把故意测试代码带入提交。清理后实录：
+`173 registrations; 4 guarded; 169 unguarded (baseline 169)`，`exit=0`。
+
+### B 空 projectId 并发绑定
+
+`mcpConfirmationBinding.run` 原先对空 key 直接执行 task，导致两个没有可用 projectId 的并发请求不进账本。
+本次选择更根因的第二种修法：schema 仍要求字段存在（但空字符串是合法 string），因此由协议层把空 projectId
+映射为**每次调用唯一匿名 key**（`__anonymous__:<sequence>`），任何请求都经过 binding；空 key 不共享确认，也不会把某次
+确认误绑定到另一个项目。`mcpSpendConcurrency.test.ts` 新增空 projectId 并发回归：两个确认面各自出现、各自
+批准后各自进入生成，且不再走 `if (!key) return task()` 逃生口。先红后绿记录：新增回归前
+`pnpm vitest run electron/capabilityCore/mcpSpendConcurrency.test.ts` 在空 key 账本断言处以
+`expected 0 to be 2` 失败；实现匿名 key 后同命令 `4 tests passed`。
 
 ## 回滚
 
