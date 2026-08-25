@@ -384,9 +384,25 @@ L0 底座             ProductionRun / 合同 / 预算 / outbox / 资产   [✅ �
 
 按 Part 1.5 的完整规格做。**全部样张先行**。画样张前**先看真实 UI**（读完整外壳组件或真实截图），或用 design-sync 产出的组件库照着拼。
 
-## 6.9 Track C：外部体验
+## 6.9 L6 / E3 / Track C：已各有独立执行计划
 
-MCP Skill/Workflow 包装（Claude Code/Codex「一句话出片」引导）；新版 CC elicitation 真机探针（CC CLI ≥2.1.76 已支持，验完回写记忆）。
+这三块 2026-08-26 已补成与 B4 同量级的分期执行卡，**在 `claude/stage-p5-e2` 分支**：
+
+| 计划 | 文档 | 要点 |
+|---|---|---|
+| **L6 Pack 合同 + 模式选择器** | `docs/plan/2026-08-26-l6-workflow-pack-contract.md` | Pack 与现有 playbook 关系已查明是**并存**（Skill 层 `PlaybookRun` 是纯内存方法编排，Production 层 `ProductionPlaybookDefinition` + durable Run driver，**不是同一个对象**）。默认落法：Pack 当声明层、现有 registry 当执行 adapter，**不把 durable 账本搬到 Skill 层**。**L6-DEC-1 待 owner 拍板**：物理收编（迁移 `productionPlaybooks.ts`）vs 逻辑收编（adapter、文件并存）。`generation.single-shot` 的 legacy bypass **不自行解除**。 |
+| **E3 理解式剪辑** | `docs/plan/2026-08-26-e3-semantic-editing.md` | 成本是核心设计约束：价格目录**尚未覆盖 VLM/转写**，所以**价格未知时默认禁止自动执行**（fail-closed），不是「先跑起来再说」。与 E2 共用同一 EditPlan/Proposal/一步 Undo 通道。 |
+| **Track C 外部体验** | `docs/plan/2026-08-26-track-c-external-experience.md` | **重大发现见下。** |
+
+### ⚠️ 确认三宿主的第三个宿主**并不存在**
+
+主方案的「确认三宿主」表读起来像一套已有设计，实际**第三宿主是待建的**。已核实：`electron/` 下没有 `alwaysOnTop`/`topmost`，没有任何 confirmation host 目录。
+
+更糟的是兜底链的最后一环也不牢：`electron/notificationIpc.ts` 自己的注释承认「用户在系统设置里关了通知、未获授权…，而 `isSupported()` 仍返回 true」——**通知发出去 ≠ 用户看到了**。
+
+**后果**：用户人不在 Nomi、外部客户端又不支持 elicitation 时，有一笔付费要确认，**当前没有任何办法找到他**。这是产品信任链上的真缺口，不是待优化项。
+
+**因此禁止**：把现有 toast 或 browser asset overlay 当成已存在的确认宿主。**待 owner 拍板**：新建独立 BrowserWindow，还是挂进现有窗口/overlay（影响安全焦点与窗口生命周期，**且需样张**）。
 
 ## 6.10 债务清单
 
