@@ -11,6 +11,7 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { screenshotSettled } from './_assert.mjs'
 
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/local-gateway')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -112,7 +113,7 @@ let n = 0
 async function snap(win, name) {
   n += 1
   const tag = `${String(n).padStart(2, '0')}-${name}`
-  await win.screenshot({ path: path.join(shotsDir, `${tag}.png`) })
+  await screenshotSettled(win, { path: path.join(shotsDir, `${tag}.png`) })
   console.log(`  · shot ${tag}`)
 }
 

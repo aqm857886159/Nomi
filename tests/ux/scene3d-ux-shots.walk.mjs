@@ -5,6 +5,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import path from 'node:path'
 import os from 'node:os'
 import { mkdtempSync, mkdirSync } from 'node:fs'
+import { screenshotSettled } from './_assert.mjs'
 
 const outDir = path.join(repoRoot, '.pose-lab')
 mkdirSync(outDir, { recursive: true })
@@ -21,7 +22,7 @@ const { app, win } = await launchNomiApp({
 })
 const log = (m) => console.log(m)
 const shot = async (win, name) => {
-  await win.screenshot({ path: path.join(outDir, `${name}.png`) })
+  await screenshotSettled(win, { path: path.join(outDir, `${name}.png`) })
   log(`  📸 ${name}`)
 }
 

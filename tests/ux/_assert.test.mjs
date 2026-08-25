@@ -4,7 +4,7 @@
 // `expectAbsent` 没有 provenBy 就得当场抛错。这条一旦松了，整套加固就退回成一句口号——
 // 因为「没有基线的『没看到』」正是本仓 94% 的「不存在」断言在犯的错，也是我两天内栽的两次。
 import { describe, expect, it } from 'vitest'
-import { expectAbsent, proveProbe, stripCommentsAndStrings } from './_assert.mjs'
+import { expectAbsent, holdAbsent, proveProbe, stripCommentsAndStrings } from './_assert.mjs'
 
 /** 假 locator：这些测试只验签名契约，不碰真浏览器。 */
 const fakeLocator = { toString: () => 'locator(fake)' }
@@ -26,6 +26,46 @@ describe('expectAbsent 强制要基线', () => {
     expect(error.message).toContain('provenBy: proof')
     // 还要讲清「为什么」，不然下一个人只会照着补个参数、不理解拦的是什么。
     expect(error.message).toContain('空洞的通过')
+  })
+})
+
+describe('expectAbsent 的保持窗口：「不存在」必须持续成立，不是此刻恰好没看见', () => {
+  // 这一组钉的是 2026-08-25 三起事故的共同根因：**测量发生在被测物安顿之前**。
+  //
+  // 旧实现只有一句 `expect(locator).toHaveCount(0, { timeout })`。Playwright 的 web-first
+  // 断言是「重试到条件成立为止」——期望值 0、现场此刻也是 0，于是**第一次取样就通过**，
+  // 那个 15 秒 timeout 一秒都没用上。它证的是「此刻没有」，不是「一直没有」。
+  //
+  // 测的是 holdAbsent（expectAbsent 的第二段）：这次新增的行为全在这一段。
+  // 第一段用的是 Playwright 断言，只认真的 Locator，喂假对象会当场抛类型错——
+  // 硬给假对象套一层 Locator 协议的壳，测的就成了那层壳自己。
+
+  /** count() 在 delayMs 后由 0 翻成 1——模拟异步挂载、晚到一步的元素。 */
+  function lateMountingLocator(delayMs) {
+    const born = Date.now()
+    return {
+      count: async () => (Date.now() - born >= delayMs ? 1 : 0),
+      toString: () => `locator(late@${delayMs}ms)`,
+    }
+  }
+
+  it('先不在、200ms 后冒出来 → 报红（这正是旧版会放过去的那一族）', async () => {
+    const error = await holdAbsent(lateMountingLocator(200), '它不该出现').catch((e) => e)
+    expect(error).toBeInstanceOf(Error)
+    expect(error.message).toContain('保持窗口')
+    // 报错要讲清楚「别把窗口调小来让它变绿」，否则下一个人就是这么修的。
+    expect(error.message).toContain('别把窗口调小')
+  })
+
+  it('真的一直不存在 → 照常通过', async () => {
+    await holdAbsent({ count: async () => 0, toString: () => 'never' }, '它确实不在')
+  })
+
+  it('窗口内每一次取样都算数：只在最后一刻闪现也要抓到', async () => {
+    // 只有窗口快结束时才冒出来——单次取样必然漏掉，必须靠连续取样才抓得住。
+    const error = await holdAbsent(lateMountingLocator(600), '晚到 600ms').catch((e) => e)
+    expect(error).toBeInstanceOf(Error)
+    expect(error.message).toContain('保持窗口')
   })
 })
 

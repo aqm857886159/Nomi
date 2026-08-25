@@ -4,6 +4,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const userData = process.env.NOMI_ADAPTER_UI_USERDATA
@@ -54,7 +55,7 @@ try {
   const panelText = await panel.innerText()
   check('卡片显示部分可用', panelText.includes('部分可用'), panelText.match(/部分可用/)?.[0] || '')
   check('卡片显示真实启用数 2 / 3', /2\s*\/\s*3\s*个模型已启用/.test(panelText))
-  await panel.screenshot({ path: path.join(shotsDir, '01-light-partial-card.png') })
+  await screenshotSettled(panel, { path: path.join(shotsDir, '01-light-partial-card.png') })
 
   await providerCard.click({ timeout: 3_000 })
   await win.waitForTimeout(500)
@@ -66,7 +67,7 @@ try {
   check('未验证视频模型开关被锁定', (await failedToggle.count()) > 0 && await failedToggle.isDisabled())
   await failedToggle.scrollIntoViewIfNeeded()
   await win.waitForTimeout(250)
-  await panel.screenshot({ path: path.join(shotsDir, '02-light-expanded-models.png') })
+  await screenshotSettled(panel, { path: path.join(shotsDir, '02-light-expanded-models.png') })
 
   await win.evaluate(() => window.localStorage.setItem('nomi-color-scheme', 'dark'))
   await win.reload()
@@ -78,7 +79,7 @@ try {
   await win.waitForTimeout(900)
   const theme = await win.evaluate(() => document.documentElement.dataset.theme)
   check('暗色 token 已生效', theme === 'dark', String(theme))
-  await darkPanel.screenshot({ path: path.join(shotsDir, '03-dark-partial-card.png') })
+  await screenshotSettled(darkPanel, { path: path.join(shotsDir, '03-dark-partial-card.png') })
 } finally {
   await app.close().catch(() => undefined)
 }

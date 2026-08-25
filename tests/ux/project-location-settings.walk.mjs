@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-07-project-location')
@@ -76,11 +77,11 @@ try {
   check('设置页显示当前自定义目录', pathText === customProjectsRoot, pathText)
   check('占位标签已经删除', !(await dialog().innerText()).includes('稍后支持'))
   check('三个目录动作可见', await section.getByRole('button').count() === 3, `${await section.getByRole('button').count()} 个按钮`)
-  await dialog().screenshot({ path: path.join(outDir, '01-project-location-light.png') })
+  await screenshotSettled(dialog(), { path: path.join(outDir, '01-project-location-light.png') })
 
   await currentWindow().evaluate(() => document.documentElement.setAttribute('data-mantine-color-scheme', 'dark'))
   await currentWindow().waitForTimeout(300)
-  await dialog().screenshot({ path: path.join(outDir, '02-project-location-dark.png') })
+  await screenshotSettled(dialog(), { path: path.join(outDir, '02-project-location-dark.png') })
   await currentWindow().evaluate(() => document.documentElement.setAttribute('data-mantine-color-scheme', 'light'))
 
   await dialog().locator('button[aria-label*="关闭"], button[aria-label*="Close"]').click()

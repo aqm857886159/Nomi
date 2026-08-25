@@ -14,7 +14,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
-import { expectVisible, expectAbsent, proveProbe, scopedText } from './_assert.mjs'
+import { expectVisible, expectAbsent, proveProbe, scopedText, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-stalled-draft-'))
@@ -132,7 +132,7 @@ try {
   await win.locator('[data-task-center-trigger="true"]').click({ timeout: 10_000 })
   await win.locator('[data-production-task-card]').waitFor({ timeout: 15_000 })
   await delay(600)
-  await win.screenshot({ path: path.join(shotsDir, '01-healthy-draft-card.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '01-healthy-draft-card.png') })
   const primaryAction = win.locator('[data-production-primary-action]')
   // proveProbe 形式①：先在**它会出现**的现场证一次，再切到不该出现的现场断言它没了。
   const actionProof = await proveProbe(primaryAction, '正常草稿的任务卡上确实会渲染主操作键').catch(() => null)
@@ -162,10 +162,10 @@ try {
   await win.locator('[data-production-task-card]').waitFor({ timeout: 15_000 })
   await delay(800)
   const card = win.locator('[data-production-task-card]')
-  await win.screenshot({ path: path.join(shotsDir, '02-task-center-stalled-draft.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '02-task-center-stalled-draft.png') })
   const box = await card.boundingBox()
   if (box) {
-    await win.screenshot({
+    await screenshotSettled(win, {
       path: path.join(shotsDir, '03-stalled-draft-card.png'),
       clip: { x: Math.max(0, box.x - 8), y: Math.max(0, box.y - 8), width: box.width + 16, height: box.height + 16 },
     })
@@ -208,7 +208,7 @@ try {
   await confirm.click({ timeout: 8_000 })
   await delay(2000)
   const afterCancel = await win.evaluate(({ pid, rid }) => window.nomiDesktop?.productionRuns?.read(pid, rid), { pid: projectId, rid: STALLED_RUN_ID })
-  await win.screenshot({ path: path.join(shotsDir, '04-after-cancel.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '04-after-cancel.png') })
   record('③ 取消这个出口真的走得通', afterCancel?.status === 'cancelled', `取消后状态 = ${afterCancel?.status}`)
 
   console.log('\n──────── 小结 ────────')

@@ -8,6 +8,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import path from 'node:path'
 import os from 'node:os'
 import { mkdtempSync, mkdirSync, readdirSync, statSync, readFileSync } from 'node:fs'
+import { screenshotSettled } from './_assert.mjs'
 
 const outDir = path.join(repoRoot, '.take-record-lab')
 mkdirSync(outDir, { recursive: true })
@@ -107,11 +108,11 @@ try {
   await win.keyboard.down('KeyW'); await win.waitForTimeout(1300); await win.keyboard.up('KeyW')
   const squat = win.getByRole('button', { name: '下蹲', exact: false }).first()
   if ((await squat.count()) > 0) { await squat.click(); await win.waitForTimeout(300) }
-  await win.screenshot({ path: path.join(outDir, 'trp-01-recording-squat.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'trp-01-recording-squat.png') })
   await win.keyboard.down('KeyW'); await win.waitForTimeout(1200); await win.keyboard.up('KeyW')
   const wave = win.getByRole('button', { name: '挥手', exact: false }).first()
   if ((await wave.count()) > 0) { await wave.click(); await win.waitForTimeout(300) }
-  await win.screenshot({ path: path.join(outDir, 'trp-02-recording-wave.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'trp-02-recording-wave.png') })
   pass.posed = (await squat.count()) > 0 && (await wave.count()) > 0
   log(`  ${pass.posed ? '✓' : '✗'} 录制中切了下蹲 + 挥手`)
 
@@ -130,7 +131,7 @@ try {
   }
   pass.poseTrack = persisted.ok
   pass.mp4Made = mp4s.length > 0
-  await win.screenshot({ path: path.join(outDir, 'trp-03-after-capture.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'trp-03-after-capture.png') })
   log(`  ${pass.poseTrack ? '✓' : '✗'} 录制场景持久化含 poseTrack(squat+wave)${persisted.file ? ' → ' + path.basename(persisted.file) : ''}`)
   log(`  ${pass.mp4Made ? '✓' : '✗'} 端到端出 mp4（${mp4s.length} 个）${mp4s[0] ? ' → ' + path.basename(mp4s[0]) : ''}`)
 

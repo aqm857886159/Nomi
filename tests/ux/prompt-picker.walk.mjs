@@ -6,7 +6,7 @@
 //   4 设置页能新建自定义提示词 → 它出现在选择器的「我的」组里 → 选得中
 //   5 选中自定义后，带「镜头」的话不被拆分镜劫走（承接 08-17 的 dedicatedJob）
 import { launchNomiApp } from './_launchApp.mjs'
-import { expectVisible, expectCount, expectAbsent, proveProbe, scopedText } from './_assert.mjs'
+import { expectVisible, expectCount, expectAbsent, proveProbe, scopedText, screenshotSettled } from './_assert.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -48,7 +48,7 @@ const record = (name, ok, detail) => {
   findings.push({ name, ok, detail })
   console.log(`${ok ? '✅' : '❌'} ${name} — ${detail}`)
 }
-const snap = async (n) => { await win.screenshot({ path: path.join(shotsDir, `${n}.png`) }) }
+const snap = async (n) => { await screenshotSettled(win, { path: path.join(shotsDir, `${n}.png`) }) }
 async function closeApp() {
   const child = app.process()
   await Promise.race([app.close().catch(() => undefined), new Promise((r) => setTimeout(r, 8000))])

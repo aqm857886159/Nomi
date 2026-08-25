@@ -17,6 +17,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -125,7 +126,7 @@ try {
   }, null, { timeout: 30000 })
   const w = await nodeVideo.evaluate((v) => v.videoWidth)
   assert(w > 0, `落地后节点真的播出画面（${w}px 宽）`)
-  await win.screenshot({ path: path.join(outDir, 'healthcheck-localized.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'healthcheck-localized.png') })
 
   console.log(`\n✅ 开项目体检走查通过（${passed} 项断言）\n   截图：${outDir}`)
 } finally {

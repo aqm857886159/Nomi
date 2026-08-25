@@ -14,7 +14,7 @@
 // 用法：pnpm run build && node tests/ux/workbench-token-root-scope.walk.mjs
 import { launchNomiApp, repoRoot, withLinuxNoSandbox } from './_launchApp.mjs'
 import { startMockVendorServer, writeIsolatedCatalog, parseToolResult } from './_mcpJourney.mjs'
-import { clickOrFail, expectVisible } from './_assert.mjs'
+import { clickOrFail, expectVisible, screenshotSettled } from './_assert.mjs'
 import { createRequire } from 'node:module'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
@@ -158,7 +158,7 @@ try {
   // paper 白的合法序列化随引擎版本变（oklch(1 0 0) / rgb(255,255,255) / color(srgb 1 1 1)）——断语义不断字面。
   const isPaperWhite = /^(?:oklch\(1 0 0\)|rgb\(255, 255, 255\)|color\(srgb 1 1 1\))$/.test(lightBtnBg)
   ok(lightBtnBg !== 'rgba(0, 0, 0, 0)' && isPaperWhite, `卡上 WorkbenchButton 真实上色 bg=${lightBtnBg}（bg-workbench-surface→paper 白；收口前这里是 transparent）`)
-  await win.screenshot({ path: path.join(shotsDir, '01-light-card-on-library.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '01-light-card-on-library.png') })
 
   // ── 暗色（执行 applyNomiColorScheme 的四行属性写入，src/theme/colorScheme.ts:54）──
   await win.evaluate(() => {
@@ -179,7 +179,7 @@ try {
   // 白的任何序列化（oklch/oklab/rgb/color(srgb)）都算没换色——字符串不等 ≠ 换了色。
   const whiteish = /^(?:oklch\(1 0 0\)|oklab\(1 0 0\)|rgb\(255, 255, 255\)|color\(srgb 1 1 1\))$/
   ok(!whiteish.test(darkBtnBg) && darkBtnBg !== 'rgba(0, 0, 0, 0)', `暗色下按钮真实换到暗 paper（${darkBtnBg}）`)
-  await win.screenshot({ path: path.join(shotsDir, '02-dark-card-on-library.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '02-dark-card-on-library.png') })
 
   // ── 收尾：确认生成走完（证明这张卡是真卡、链路是活的，不是摆拍）──
   await clickOrFail(spendCard.locator('button').last(), '确认生成')

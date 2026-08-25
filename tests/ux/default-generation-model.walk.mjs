@@ -9,7 +9,7 @@
 // 真 Electron + 真构建产物，隔离 userData / projects，全程不发生成请求（零额度）。
 // 用法：pnpm run build && node tests/ux/default-generation-model.walk.mjs
 import { launchNomiApp } from './_launchApp.mjs'
-import { expectVisible, clickOrFail } from './_assert.mjs'
+import { expectVisible, clickOrFail, screenshotSettled } from './_assert.mjs'
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -47,7 +47,7 @@ const getWin = () => {
 }
 
 const snap = async (name) => {
-  await getWin().screenshot({ path: path.join(shotsDir, name) })
+  await screenshotSettled(getWin(), { path: path.join(shotsDir, name) })
   console.log(`  · 截图 ${name}`)
 }
 

@@ -9,7 +9,8 @@
  * 这个信息以前**只存在于 console log**，界面零暴露。顺带把「探到 SOCKS 但本版用不了」
  * 这个以前完全隐形的状态也显出来了。
  *
- * 组头字号字色沿用 AvailableGroup（text-micro / ink-40 + chevron），不另立视觉语言（P1）。
+ * 组头字号字色沿用面板既有的 section header 规格（text-micro / ink-40 + chevron），
+ * 不另立视觉语言（P1）。（原文引用的 AvailableGroup.tsx 已于 2026-08-26 作为死代码删除。）
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'

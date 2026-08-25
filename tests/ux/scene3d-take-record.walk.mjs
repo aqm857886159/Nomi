@@ -6,6 +6,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import path from 'node:path'
 import os from 'node:os'
 import { mkdtempSync, mkdirSync, readdirSync, statSync, copyFileSync } from 'node:fs'
+import { screenshotSettled } from './_assert.mjs'
 
 const outDir = path.join(repoRoot, '.take-record-lab')
 mkdirSync(outDir, { recursive: true })
@@ -120,7 +121,7 @@ try {
   await win.waitForTimeout(2600)
   await win.keyboard.up('KeyW')
   await win.waitForTimeout(400)
-  await win.screenshot({ path: path.join(outDir, 'tr-01-recording.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'tr-01-recording.png') })
 
   // 停止 → 触发建节点 + 离屏捕获
   if ((await stopBtn.count()) > 0) { await stopBtn.first().click(); await win.waitForTimeout(1200) }
@@ -145,7 +146,7 @@ try {
   const badgeVisible = await win.evaluate(() =>
     document.body.innerText.includes('参考视频生成中') || document.body.innerText.includes('参考视频已生成'))
   pass.takeNode = shellCount >= 2 || badgeVisible
-  await win.screenshot({ path: path.join(outDir, 'tr-02-canvas-take-node.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'tr-02-canvas-take-node.png') })
   log(`  ${pass.takeNode ? '✓' : '✗'} take 节点进画布视口（卡片外壳=${shellCount}，状态徽标可见=${badgeVisible}）`)
 
   // 轮询临时项目目录，等离屏捕获 + ffmpeg 出 mp4（最多 ~70s）
@@ -165,7 +166,7 @@ try {
     pass.editorEntryVisible = (await takeCard.getByRole('button', { name: '打开 3D 编辑器', exact: false }).count()) > 0
   }
   pass.completedBadgeRemoved = (await win.getByText('参考视频已生成', { exact: false }).count()) === 0
-  await win.screenshot({ path: path.join(outDir, 'tr-03-after-capture.png') })
+  await screenshotSettled(win, { path: path.join(outDir, 'tr-03-after-capture.png') })
   // 把出的 mp4 拷进持久 outDir（临时 projectsDir 跑完即清），方便用户抽帧看腿。
   let savedMp4 = ''
   if (mp4s[0]) {

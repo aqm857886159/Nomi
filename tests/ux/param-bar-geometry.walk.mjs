@@ -5,6 +5,7 @@
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
+import { screenshotSettled } from './_assert.mjs'
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/parambar')
 fs.mkdirSync(shotsDir, { recursive: true })
 
@@ -28,7 +29,7 @@ proj.name = '参数栏几何实测'
 fs.writeFileSync(path.join(dstDir, '.nomi', 'project.json'), JSON.stringify(proj))
 
 let n = 0
-const snap = async (win, name) => { n += 1; await win.screenshot({ path: path.join(shotsDir, `${String(n).padStart(2,'0')}-${name}.png`) }); console.log(`  · shot ${name}`) }
+const snap = async (win, name) => { n += 1; await screenshotSettled(win, { path: path.join(shotsDir, `${String(n).padStart(2,'0')}-${name}.png`) }); console.log(`  · shot ${name}`) }
 
 const { app, win } = await launchNomiApp({
   name: 'param-bar-geometry',

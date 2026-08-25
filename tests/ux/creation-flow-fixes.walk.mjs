@@ -7,7 +7,7 @@
 //   D 选了「素材规划」专职模式 → 不再被拆分镜劫持（浮现卡也不冒出来）
 //   E 设置 → AI → 系统提示词：全文可见、可改、可恢复默认（不再是 64px 小框）
 import { launchNomiApp } from './_launchApp.mjs'
-import { expect, expectVisible, expectCount, expectAbsent, proveProbe } from './_assert.mjs'
+import { expect, expectVisible, expectCount, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -139,7 +139,7 @@ function record(name, ok, detail) {
 }
 
 async function shot(name) {
-  await win.screenshot({ path: path.join(shotsDir, `${name}.png`) })
+  await screenshotSettled(win, { path: path.join(shotsDir, `${name}.png`) })
 }
 
 async function closeApp() {

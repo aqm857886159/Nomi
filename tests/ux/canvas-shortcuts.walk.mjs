@@ -21,6 +21,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-shortcuts')
@@ -54,7 +55,7 @@ const getWin = () => {
   return win
 }
 const snap = async (name) => {
-  await getWin().screenshot({ path: path.join(shotsDir, name) })
+  await screenshotSettled(getWin(), { path: path.join(shotsDir, name) })
   console.log(`  · 截图 ${name}`)
 }
 async function dismissFirstRun() {

@@ -14,6 +14,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-drag-pan-gestures')
@@ -57,7 +58,7 @@ async function resize(width, height) {
 
 async function snap(name) {
   const file = path.join(shotsDir, name)
-  await getWin().screenshot({ path: file })
+  await screenshotSettled(getWin(), { path: file })
   console.log(`  · 截图 ${name}`)
   return file
 }

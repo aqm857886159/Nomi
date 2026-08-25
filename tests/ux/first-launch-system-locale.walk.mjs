@@ -11,6 +11,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { prepareIsolation, dismissSplashIfPresent } from '../../evals/lib/isoApp.mjs'
+import { screenshotSettled } from './_assert.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, '.first-launch-walk')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -48,7 +49,7 @@ async function assertLocale(tag, lang, expected) {
     // 到 en-US——这不影响我们的映射结论（非中文一律 → 英文），故只断言「桥通」+「解析出的界面语言对」。
     check(`[${lang}] 桥读到非空系统语言（IPC 通）`, typeof sysLocale === 'string' && sysLocale.length > 0 && sysLocale !== '(no bridge)', `getSystemLocale=${sysLocale}`)
     check(`[${lang}] 首启界面语言=${expected}（跟随系统）`, htmlLang === expected, `html lang=${htmlLang}`)
-    await win.screenshot({ path: path.join(shotsDir, `${tag}-${lang}.png`) })
+    await screenshotSettled(win, { path: path.join(shotsDir, `${tag}-${lang}.png`) })
     return { iso, win, app }
   } catch (error) {
     check(`[${lang}] 走查未抛错`, false, String(error))
@@ -82,7 +83,7 @@ if (en) {
     const hasEnTime = /just now|min ago|hr ago|days ago/i.test(bodyText)
     const hasZhTime = /刚刚|分钟前|小时前|天前/.test(bodyText)
     check('[en] 项目库相对时间英文（无中文时间串）', hasEnTime && !hasZhTime, `enTime=${hasEnTime} zhTime=${hasZhTime}`)
-    await win.screenshot({ path: path.join(shotsDir, 'en-library-relative-time.png') })
+    await screenshotSettled(win, { path: path.join(shotsDir, 'en-library-relative-time.png') })
   } catch (error) {
     check('[en] 相对时间走查未抛错', false, String(error))
   } finally {

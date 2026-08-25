@@ -15,7 +15,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
-import { clickOrFail, expectAbsent, expectCount, expectText, expectVisible, proveProbe } from './_assert.mjs'
+import { clickOrFail, expectAbsent, expectCount, expectText, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 
 const require = createRequire(import.meta.url)
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path
@@ -125,14 +125,14 @@ await openCanvas()
 
 // ③ 先跑正常硬切——它同时是后面 expectAbsent 的基线：证明「全选」在有切点时确实存在、探得到。
 await openShotCutPanel('node-strong')
-await win.screenshot({ path: shot('3-strong') })
+await screenshotSettled(win, { path: shot('3-strong') })
 await expectText(subtitle, /检测到 1 个镜头$/, '硬切：应当就是 1 个镜头，且不该说「已自动放宽」（默认灵敏度本来就够）')
 await expectVisible(tiles.first(), '硬切：切点格子没出来')
 const selectAllProof = await proveProbe(selectAll, '有切点时「全选」会出现在底栏')
 
 // ③b 把灵敏度拉到顶 → 今天是一片空白；改后必须给出「为什么空 + 一键回去」。
 await panel.locator('#shot-cut-sensitivity').fill('0.7')
-await win.screenshot({ path: shot('3b-strong-overfiltered') })
+await screenshotSettled(win, { path: shot('3b-strong-overfiltered') })
 await expectVisible(panel.getByText('当前灵敏度太高'), '灵敏度拉满后没解释为什么空')
 await clickOrFail(panel.locator('[data-shot-cut-relax="true"]'), '「放宽到能看到」')
 await expectVisible(tiles.first(), '点了放宽仍然看不到切点')
@@ -140,14 +140,14 @@ await closePanel()
 
 // ② 弱切点：今天这条会是「检测到 0 个镜头」+ 滑杆 + 一片空白 + 一句解释都没有。
 await openShotCutPanel('node-weak')
-await win.screenshot({ path: shot('2-weak-autorelaxed') })
+await screenshotSettled(win, { path: shot('2-weak-autorelaxed') })
 await expectText(subtitle, /检测到 1 个镜头 · 已自动放宽灵敏度/, '弱切点：没有自动放宽，面板又是打开即空')
 await expectVisible(tiles.first(), '弱切点：自动放宽后仍然没有格子')
 await closePanel()
 
 // ① 真·一镜到底：不是失败，换一条路——而且不许再摆一个永远点不了的「全选」。
 await openShotCutPanel('node-oneshot')
-await win.screenshot({ path: shot('1-oneshot') })
+await screenshotSettled(win, { path: shot('1-oneshot') })
 await expectText(subtitle, /这段是一镜到底/, '一镜到底：标题没说清这是什么情况')
 await expectVisible(panel.getByText('要从它身上取画面'), '一镜到底：没告诉用户下一步能干什么')
 await expectAbsent(selectAll, { provenBy: selectAllProof, message: '一镜到底时没东西可选，不该还摆着「全选」' })
@@ -157,7 +157,7 @@ await expectText(primary, /均匀抽 3 帧/, '一镜到底：主操作没换成�
 await clickOrFail(primary, '「均匀抽 3 帧」')
 await panel.waitFor({ state: 'detached', timeout: 120_000 })
 await win.waitForTimeout(1500)
-await win.screenshot({ path: shot('1b-oneshot-frames-on-canvas') })
+await screenshotSettled(win, { path: shot('1b-oneshot-frames-on-canvas') })
 // 抽出来的节点标题是「{源标题}·{时间戳}」，那个「·」把它和源节点自己区分开。
 const produced = win.locator('[data-node-id]', { hasText: '一镜到底·' })
 await expectCount(produced, 3, '均匀抽帧点了，但画布上没落下 3 个帧节点')

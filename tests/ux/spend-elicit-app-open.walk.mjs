@@ -16,7 +16,7 @@
 // 用法：pnpm run build && node tests/ux/spend-elicit-app-open.walk.mjs
 import { launchNomiApp, repoRoot, withLinuxNoSandbox } from './_launchApp.mjs'
 import { startMockVendorServer, writeIsolatedCatalog, parseToolResult } from './_mcpJourney.mjs'
-import { clickOrFail, expectAbsent, proveProbe } from './_assert.mjs'
+import { clickOrFail, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import { createRequire } from 'node:module'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
@@ -135,7 +135,7 @@ try {
   await win.evaluate(() => { for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) window.localStorage.setItem(k, 'seen') })
   await win.reload(); await sleep(1500)
   for (let i = 0; i < 5; i++) { const s = win.locator('button,[role="button"],a', { hasText: /跳过|开始创作|进入|完成/ }).first(); if (await s.count()) await s.click({ timeout: 1000 }).catch(() => {}); await win.keyboard.press('Escape').catch(() => {}); await sleep(300) }
-  await win.screenshot({ path: path.join(shotsDir, '01-app-ready.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '01-app-ready.png') })
 
   // 应用内付费确认卡（i18n runtime.capability.spendTitle = 「AI 助手想生成{{intent}}」）。
   const spendCard = win.locator('div.fixed.inset-0').filter({ hasText: /AI 助手想生成/ })
@@ -166,7 +166,7 @@ try {
   })
   // 探针基线：这一屏卡**确实会浮**。expectAbsent 只认这个证明。
   const cardProof = await proveProbe(spendCard, '客户端不支持 elicitation 时，App 确实会弹付费确认卡', 30_000)
-  await win.screenshot({ path: path.join(shotsDir, '02-fallback-card-shown.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '02-fallback-card-shown.png') })
   ok(true, '不声明 elicitation + App 开着 → 应用内确认卡照旧弹出（没修坏兜底路）')
   // 卡上必须写明这一点还换来一段免问期（不写 = 骗同意）。
   const cardBody = await spendCard.first().innerText().catch(() => '')
@@ -181,7 +181,7 @@ try {
     projectId: projectIdA, vendor: 'nomi-mock', modelKey: 'nomi-mock-image', intent: 'image', prompt: '兜底腿：第二张',
   })
   ok(resA2.json?.status === 'succeeded', `第二次生成直接跑完（status=${resA2.json?.status}）——没再要一次点击`)
-  await win.screenshot({ path: path.join(shotsDir, '02b-second-gen-no-card.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '02b-second-gen-no-card.png') })
   await expectAbsent(spendCard, { provenBy: cardProof, message: '同会话同项目第二次生成不该再弹卡' })
   ok(true, '同项目第二次生成**没再弹卡**（治「反复确认」，卡片路也生效）')
   plainAgent.child.kill('SIGTERM')
@@ -207,7 +207,7 @@ try {
 
   // 趁 elicitation 挂起去 GUI 抓现行——带 A 腿的基线，「没看到卡」才算数。
   await sleep(2000)
-  await win.screenshot({ path: path.join(shotsDir, '03-during-elicit-no-card.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '03-during-elicit-no-card.png') })
   await expectAbsent(spendCard, { provenBy: cardProof, message: '确认已在调用方问过，App 不该再弹第二张卡' })
   ok(true, 'elicitation 挂起期间 App **没有**弹付费确认卡（无双问，基线已证卡是能被看见的）')
 
@@ -218,7 +218,7 @@ try {
   ok(String(assetUrl).startsWith('nomi-local://'), `真落了资产（${String(assetUrl).slice(0, 46)}）= 付费令牌确实铸出来了`)
 
   await sleep(1000)
-  await win.screenshot({ path: path.join(shotsDir, '04-after-generate.png') })
+  await screenshotSettled(win, { path: path.join(shotsDir, '04-after-generate.png') })
   await expectAbsent(spendCard, { provenBy: cardProof, message: '生成结束后也不该补问一次' })
   ok(true, '生成结束后 App 依然没冒出确认卡（确认没被补问）')
 

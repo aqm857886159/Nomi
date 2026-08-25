@@ -1,7 +1,7 @@
 // 看清「框选多选浮条」的真实样子：用户报「框选没办法选择不同供应商的模型，导致一直生成失败」。
 // 这份只做取证——不断言对错，就是把浮条真实渲染出来给人眼看：模型下拉有、供应商下拉有没有。
 import { launchNomiApp } from './_launchApp.mjs'
-import { expectVisible, expectAbsent, proveProbe } from './_assert.mjs'
+import { expectVisible, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -91,7 +91,7 @@ const { app, win } = await launchNomiApp({
 })
 
 const snap = async (name) => {
-  await win.screenshot({ path: path.join(shotsDir, `${name}.png`) })
+  await screenshotSettled(win, { path: path.join(shotsDir, `${name}.png`) })
   console.log(`  · shot ${name}`)
 }
 async function closeApp() {
@@ -140,7 +140,7 @@ try {
 
   const box = await bar.boundingBox().catch(() => null)
   if (box) {
-    await win.screenshot({
+    await screenshotSettled(win, {
       path: path.join(shotsDir, '03-toolbar-closeup.png'),
       clip: { x: Math.max(0, box.x - 12), y: Math.max(0, box.y - 12), width: box.width + 24, height: box.height + 24 },
     })

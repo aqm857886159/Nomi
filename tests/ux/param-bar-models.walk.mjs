@@ -4,6 +4,7 @@
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
+import { screenshotSettled } from './_assert.mjs'
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/parambar-models')
 fs.mkdirSync(shotsDir, { recursive: true })
 
@@ -30,7 +31,7 @@ fs.writeFileSync(path.join(projDir, 'project.json'), JSON.stringify(tmpl))
 fs.writeFileSync(path.join(projDir, '.nomi', 'project.json'), JSON.stringify(tmpl))
 
 let n = 0
-const snap = async (win, name) => { n += 1; await win.screenshot({ path: path.join(shotsDir, `${String(n).padStart(2,'0')}-${name}.png`) }); console.log(`  · shot ${name}`) }
+const snap = async (win, name) => { n += 1; await screenshotSettled(win, { path: path.join(shotsDir, `${String(n).padStart(2,'0')}-${name}.png`) }); console.log(`  · shot ${name}`) }
 
 const { app, win } = await launchNomiApp({ name: 'param-bar-models', userDataDir: settingsDir, settingsDir, projectsDir })
 await win.evaluate(() => { for (const k of ['nomi:splash:v1','nomi:journey-tour:v1','nomi:canvas-gesture-hint:v1']) window.localStorage.setItem(k,'seen') })
