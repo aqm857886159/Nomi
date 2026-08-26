@@ -32,6 +32,7 @@ Nomi：本地优先 AI 视频创作工作台。
 | `pnpm run check:filesize` | 巨壳文件门岗 |
 | `pnpm run check:tokens` | 设计 token 门岗（禁任意 px 字号/圆角、hex 色、默认色板；棘轮只减不增）|
 | `pnpm run check:heavy-path` | 重活门岗（同步图像编码 / base64 进 store / 尺寸双真相源；棘轮只减不增）|
+| `pnpm run check:vocabularies` | 语义词表门岗（同一件事别再造第二套说法；新词表未登记即红并摆出已有那套的 file:line；debt 只减不增）|
 | `pnpm run check:i18n` | 可见文字国际化门岗（禁止新增硬编码 UI 文案；遗留基线只减不增）|
 | `pnpm run check:audit` | 审计节奏提醒（≥25 commit 提示） |
 | `npx skills experimental_install` | 从 `skills-lock.json` 还原 `.Codex/skills/`（换机/协作者用） |
@@ -84,7 +85,7 @@ Nomi：本地优先 AI 视频创作工作台。
 | R11 | 自动 commit/push | 验证通过即自己 commit + push；五门全过才能 commit |
 | R12 | → R9 巨壳 | `check:filesize` 门岗；白名单基线只降不升 |
 | R13 | 体验走查 | Playwright 走真实用户旅程 J1-J5（创作目标，不是功能探索）；截图人眼判断 |
-| R14 | 周期审计 | ≥25 commit 或发版前：多维 subagent 审计 + 走查 + `docs/audit` 文档 |
+| R14 | 周期审计 | ≥25 commit 或发版前：多维 subagent 审计 + 走查 + `docs/audit` 文档；**固定含 R14.1「同一语义有几份定义」横扫**（工具面/可见性口径/标识符/格式契约/字段取值来源/确认面 六维，机器只兜得住词表那一维）|
 | R15 | 可见文字国际化 | 所有用户可见文字必须走 i18n；默认 `zh-CN`，当前仅支持 `zh-CN` / `en`；门禁基线只减不增 |
 | R16 | 真实任务测试系统=完成的一部分 | 功能交付（尤其用户可见/体感）必建几条「真实用户任务」端到端测试、带真实任务跑通使用闭环（用 R13 走查法）、把过程中冒出的体验/设计/UI/UX/产品感/功能问题**全修掉**——才算真完成，不留半成品（R16 = P3 完成标准的量化门）|
 | R17 | 重活门岗（本地看不出、线上/CI 才炸的一族） | 这族写法做成棘轮：`check:heavy-path`，基线只减不增；**加规则必须先验它会红**（规则清单以脚本 `RULES` 为准，别在文档里数条数）|

@@ -1,0 +1,303 @@
+{
+  "registered": {
+    "error|finished": {
+      "members": [
+        "finished",
+        "error"
+      ],
+      "reason": "SSE 流的**终止事件类型**，不是任务状态——它描述「这条流怎么结束的」，与任务生命周期正交。"
+    },
+    "failed|queued|repairing|testing|verified": {
+      "members": [
+        "queued",
+        "testing",
+        "repairing",
+        "verified",
+        "failed"
+      ],
+      "reason": "**模型接入自检**流水线态（testing/repairing/verified 是接入域独有动作）。"
+    },
+    "compiling|completed|failed|partial|repairing|testing": {
+      "members": [
+        "compiling",
+        "testing",
+        "repairing",
+        "completed",
+        "partial",
+        "failed"
+      ],
+      "reason": "**接入编译**态，partial（部分成功）是接入域独有语义，任务态里没有对应物。"
+    },
+    "error|loading|ready": {
+      "members": [
+        "loading",
+        "ready",
+        "error"
+      ],
+      "reason": "**资源加载**三态（有没有拿到数据），与任务执行无关。"
+    },
+    "fail|idle|ok|partial|running": {
+      "members": [
+        "idle",
+        "running",
+        "ok",
+        "partial",
+        "fail"
+      ],
+      "reason": "**网络连通性检测**结果，ok/partial/fail 是探测结论不是执行状态。"
+    },
+    "error|input|running|success": {
+      "members": [
+        "input",
+        "running",
+        "success",
+        "error"
+      ],
+      "reason": "**接入向导**步骤态，input 表示「等用户填表」，非后台任务。"
+    },
+    "active|danger|neutral|success|warning": {
+      "members": [
+        "neutral",
+        "active",
+        "success",
+        "warning",
+        "danger"
+      ],
+      "reason": "**视觉语气**枚举（决定用哪组颜色），不是状态——同一状态在不同场景可映射到不同语气。"
+    },
+    "disabled|failed|needsSetup|ready|verified|working": {
+      "members": [
+        "working",
+        "verified",
+        "ready",
+        "needsSetup",
+        "failed",
+        "disabled"
+      ],
+      "reason": "**模型设置首页**的卡片态，needsSetup/disabled 是配置维度，与运行时任务无关。"
+    },
+    "error|info|success|warning": {
+      "members": [
+        "info",
+        "success",
+        "error",
+        "warning"
+      ],
+      "reason": "Toast **语气**（视觉色调），不是状态。"
+    },
+    "error|ready|uploading": {
+      "members": [
+        "uploading",
+        "ready",
+        "error"
+      ],
+      "reason": "**附件上传**三态，生命周期归 composer 管，不进任务账本。"
+    },
+    "done|error|idle|preparing|recording": {
+      "members": [
+        "idle",
+        "preparing",
+        "recording",
+        "done",
+        "error"
+      ],
+      "reason": "**本地导出录制**状态机，preparing/recording 是 MediaRecorder 的真实阶段，无法映射到任务态。"
+    },
+    "idle|ready|verifying": {
+      "members": [
+        "idle",
+        "verifying",
+        "ready"
+      ],
+      "reason": "**镜级画面校验**独立生命周期（无撤销、与结构对账分开），见 shotVerifyStore 注释。"
+    },
+    "cancelled|completed": {
+      "members": [
+        "completed",
+        "cancelled"
+      ],
+      "reason": "**视口动画结算**结果，描述一次动画怎么收场，非任务。"
+    },
+    "error|timeout": {
+      "members": [
+        "error",
+        "timeout"
+      ],
+      "reason": "**媒体加载失败原因**分类（不是状态），用于给用户不同的人话提示。"
+    },
+    "error|info|success": {
+      "members": [
+        "info",
+        "success",
+        "error"
+      ],
+      "reason": "Toast 语气的三元子集（无 warning 的场景）。同上，非状态。"
+    },
+    "error|idle|loading|queued|ready|timeout": {
+      "members": [
+        "idle",
+        "queued",
+        "loading",
+        "ready",
+        "error",
+        "timeout"
+      ],
+      "reason": "**延迟媒体加载队列**态，loading/ready 是资源维度、timeout 是它独有的失败原因，与生成任务正交。"
+    },
+    "finale|idle|running": {
+      "members": [
+        "idle",
+        "running",
+        "finale"
+      ],
+      "reason": "**引导动画**播放态，finale 是动画收尾帧，纯 UI。"
+    },
+    "converting|done|error|idle|preparing|recording": {
+      "members": [
+        "idle",
+        "preparing",
+        "recording",
+        "converting",
+        "done",
+        "error"
+      ],
+      "reason": "同上，多一个 converting（转码）。与上一条是同一状态机的两个消费点，成员集合不同故分列。"
+    }
+  },
+  "debt": {
+    "cancelled|error": {
+      "members": [
+        "cancelled",
+        "error"
+      ],
+      "reason": "桥接层单点使用，说不清为什么不复用任务态。"
+    },
+    "error|pending|success": {
+      "members": [
+        "success",
+        "pending",
+        "error"
+      ],
+      "reason": "桥接层单点使用，说不清为什么不复用任务态。"
+    },
+    "cancelled|cancelling|failed|running|succeeded": {
+      "members": [
+        "running",
+        "cancelling",
+        "succeeded",
+        "failed",
+        "cancelled"
+      ],
+      "reason": "自定义调用测试态。cancelling 是唯一有「取消中」中间态的一套。待收敛。"
+    },
+    "cancelled|done|error|pending|streaming": {
+      "members": [
+        "pending",
+        "streaming",
+        "done",
+        "error",
+        "cancelled"
+      ],
+      "reason": "agent 消息态。收敛目标见 docs/design/nomi-agent-interaction.md §2（8 态 + 2 标志）。"
+    },
+    "failed|queued|running|succeeded": {
+      "members": [
+        "queued",
+        "running",
+        "succeeded",
+        "failed"
+      ],
+      "reason": "任务 API 态。与上两套同义但拼 succeeded 不是 success——同义异形是最难查的一种漂移。待收敛。"
+    },
+    "active|done|warn": {
+      "members": [
+        "done",
+        "active",
+        "warn"
+      ],
+      "reason": "agent 步骤徽标态。warn 与 done 互斥是错的——事实是「做完了且和批准的不一样」，应降为 done 上的 deviated 标志。见设计文档 §2.2。"
+    },
+    "error|idle|queued|recoverable|running|success": {
+      "members": [
+        "idle",
+        "queued",
+        "running",
+        "success",
+        "error",
+        "recoverable"
+      ],
+      "reason": "画布节点态。与下面 8 套讲同一件事（任务生命周期），收敛计划见 docs/plan/2026-08-27-unified-tool-surface.md。recoverable 只此一家，别处 switch 会静默漏。"
+    },
+    "cancelled|error|queued|running|success": {
+      "members": [
+        "queued",
+        "running",
+        "success",
+        "error",
+        "cancelled"
+      ],
+      "reason": "生成队列态。与画布节点态同义，仅差 idle/recoverable。待收敛。"
+    },
+    "cancelled|error|success": {
+      "members": [
+        "success",
+        "error",
+        "cancelled"
+      ],
+      "reason": "上述家族的三元子集，跨两个模块共用。待收敛。"
+    },
+    "error|success": {
+      "members": [
+        "success",
+        "error"
+      ],
+      "reason": "说不清为什么不用统一态。两处都在 openWorkspaceFlow，疑似可合并。"
+    },
+    "done|failed|generating|queued|stopped": {
+      "members": [
+        "queued",
+        "generating",
+        "stopped",
+        "failed",
+        "done"
+      ],
+      "reason": "镜头占位卡态（且字段名叫 phase 不叫 status）。generating/done/stopped 三个词只此一家。待收敛。"
+    },
+    "busy|failed|idle": {
+      "members": [
+        "busy",
+        "failed",
+        "idle"
+      ],
+      "reason": "任务中心条目态。busy 只此一家，语义等同 running。待收敛。"
+    },
+    "done|queued|running": {
+      "members": [
+        "running",
+        "queued",
+        "done"
+      ],
+      "reason": "任务中心投影态。上述家族的又一个子集。待收敛。"
+    },
+    "error|queued|running|success": {
+      "members": [
+        "queued",
+        "running",
+        "success",
+        "error"
+      ],
+      "reason": "MCP widget 态。与生成队列态同义。待收敛。"
+    },
+    "available|failed|running|succeeded|unknown": {
+      "members": [
+        "running",
+        "succeeded",
+        "failed",
+        "available",
+        "unknown"
+      ],
+      "reason": "MCP widget 的另一套（同文件内就有两套）。待收敛。"
+    }
+  },
+  "debtCap": 15
+}
