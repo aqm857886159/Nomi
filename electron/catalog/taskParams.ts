@@ -187,6 +187,22 @@ const OBJECT_SHAPE_REF_KEY = /with_roles|_contents\b|_content\b/i;
 // classifyReferenceKeyDetailed 的 multiImage 只覆盖 image 族的多图信号，video/audio 复数键靠此补齐 → 塞数组不塞单串。
 const ARRAY_SHAPE_REF_KEY = /_urls$|urls$|_images$|images$|_paths$|paths$/i;
 
+/**
+ * 帧槽：**归一后的标准来源键** ↔ **body 侧帧键的判据**。
+ *
+ * 为什么需要它（2026-08-27 真机 422 的根因）：`referenceInputParams` 把调用方的 `firstFrameUrl`
+ * 归一成 `first_frame_url`，**帧意图是保留着的**；但 `carriedReferenceUrlsByFamily` 会把同族的
+ * URL 拍平成一个列表，意图在那一步丢了。于是下游「每族优先数组键」的启发式把首帧塞进了
+ * `reference_image_urls`——对 Wan 3.0 这种「首/尾帧与 reference_* 官方硬互斥」的模型，
+ * 结果是 body 里两族键同时出现，kie 直接 422。
+ *
+ * 注意 `first_frame` / `last_frame` 两条判据互不包含（不能只用 /frame/），否则尾帧会被首帧规则先吞。
+ */
+const FRAME_SLOTS: ReadonlyArray<{ sourceKey: string; bodyKeyRe: RegExp }> = [
+  { sourceKey: "first_frame_url", bodyKeyRe: /first_frame/i },
+  { sourceKey: "last_frame_url", bodyKeyRe: /last_frame/i },
+];
+
 /** 往这个 body 参考键投影时该塞数组还是单串：多图键（multiImage）或复数 URL 键 → 数组；否则单串（首帧/单图聚合位）。 */
 function refKeyWantsArray(key: string, multiImage: boolean): boolean {
   return multiImage || ARRAY_SHAPE_REF_KEY.test(key);
@@ -416,6 +432,8 @@ function archetypeReferenceUrlsByFamily(extras: JsonRecord): Record<ReferenceFam
  *  · **每族至多填一个键**——headless 的 references 是**扁平列表**（无「这张是首帧、那张是角色图」的槽区分），
  *    同族多个 body 键（如 image_urls + first_frame_image）全填会把同一批 URL 重复塞进互斥键。**优先多值键**
  *    （扁平列表的天然去处），无多值键才退单值键（首帧/单图聚合位）。渲染层靠边 mode 区分槽，headless 靠这条。
+ *    ⚠️ **例外：首/尾帧不是「扁平列表」**——调用方写 `firstFrameUrl` 就是明确表态「这张是首帧」，
+ *    这份意图必须一路送到 body 的 first_frame_url，见下面「帧意图优先」。
  *  · **跳过对象形态键**（image_with_roles / *_contents）——它们要的是 [{url, role}] 对象，plain URL 塞进去既错
  *    形状又与 image_urls 互斥（seedance SEEDANCE_I2V_BODY 正是此例）。这些键只有渲染层 archetypeInput 才构造得对，
  *    headless 走 plain 键即可，对象键留空由模板引擎自动丢（= 该模型的「plain 参考」模式）。
@@ -442,10 +460,46 @@ export function projectReferencesOntoBodyKeys(
     (Array.isArray(value) && value.length > 0) ||
     (value != null && typeof value === "object");
 
+  const archetypeInput = isJsonRecord(src.archetypeInput) ? src.archetypeInput : {};
+  const bodyKeys = bodyReferencedParamKeys(createBody);
+
+  // ── 帧意图优先 ────────────────────────────────────────────────────────────
+  // 调用方写 `firstFrameUrl` 是明确表态「这张是首帧」，不是"一张随便的参考图"。
+  // 若这条 body 有对应的帧键，就**直接投到帧键**，并把该 URL 从族池里**取走**——
+  // 取走是关键：族池空了，下面的数组候选就不会再把同一张图塞进 reference_image_urls，
+  // 于是「首帧 + 参考数组」这对互斥键不可能被我们**同时**发出去（Wan 3.0 的 422 根因）。
+  //
+  // body 没有帧键时（如 Wan 2.7 / HappyHorse 用 image_urls 兼作首帧位）不消费，
+  // 首帧照旧落进数组候选——老行为逐字节不变。
+  const frameOverlay: Record<string, unknown> = {};
+  const consumed = new Set<string>();
+  const normalized = referenceInputParams(src);
+  for (const { sourceKey, bodyKeyRe } of FRAME_SLOTS) {
+    const url = typeof normalized[sourceKey] === "string" ? (normalized[sourceKey] as string).trim() : "";
+    if (!url) continue;
+    const target = bodyKeys.find(
+      (key) =>
+        bodyKeyRe.test(key) &&
+        !OBJECT_SHAPE_REF_KEY.test(key) &&
+        classifyReferenceKeyDetailed(key) &&
+        !hasNonEmpty(src[key]) &&
+        !hasNonEmpty(archetypeInput[key]),
+    );
+    if (!target) continue;
+    frameOverlay[target] = url;
+    consumed.add(url);
+  }
+  if (consumed.size > 0) {
+    for (const family of Object.keys(byFamily) as ReferenceFamily[]) {
+      byFamily[family] = byFamily[family].filter((url) => !consumed.has(url));
+      flatByFamily[family] = flatByFamily[family].filter((url) => !consumed.has(url));
+    }
+  }
+
   // 先按族归拢 body 里可填的 plain 参考键（跳过对象形态键），每族选一个目标：优先数组键（扁平列表天然去处）。
   const candidateByFamily: Partial<Record<ReferenceFamily, { key: string; wantsArray: boolean }>> = {};
-  const archetypeInput = isJsonRecord(src.archetypeInput) ? src.archetypeInput : {};
-  for (const key of bodyReferencedParamKeys(createBody)) {
+  for (const key of bodyKeys) {
+    if (frameOverlay[key] !== undefined) continue; // 已被帧意图占用
     const detail = classifyReferenceKeyDetailed(key);
     if (!detail) continue; // 非参考载体键（size/duration/seed…）不碰。
     if (OBJECT_SHAPE_REF_KEY.test(key)) continue; // 对象形态键（image_with_roles/*_contents）headless 不填，留空由模板丢。
@@ -457,7 +511,7 @@ export function projectReferencesOntoBodyKeys(
     if (!current || (wantsArray && !current.wantsArray)) candidateByFamily[detail.family] = { key, wantsArray };
   }
 
-  const overlay: Record<string, unknown> = {};
+  const overlay: Record<string, unknown> = { ...frameOverlay };
   for (const family of Object.keys(candidateByFamily) as ReferenceFamily[]) {
     // Renderer-produced archetypeInput is authoritative. Only project a second key when a
     // distinct flat source exists; that deliberately preserves mixed-input detection.
