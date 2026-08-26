@@ -142,18 +142,30 @@ export type SkillSummary = {
 };
 
 /**
- * 面向 MCP 脊柱暴露的「导演 / 编剧技能库」= directoryName 以 director- / writer- 开头的内置技能。
- * 这是从阿泽导演台整过来、供内外 agent 按需调用的电影方法论库；workbench.* 等内部编排技能不外暴露。
+ * 面向 MCP 脊柱暴露的「导演 / 编剧技能库」= directoryName 以 director- / writer- 开头
+ * **且随安装包分发的内置技能**。这是从阿泽导演台整过来、供内外 agent 按需调用的电影方法论库；
+ * workbench.* 等内部编排技能不外暴露。
+ *
+ * **`origin === 'builtin'` 这个条件是安全边界，不是优化**（2026-08-27 补）：
+ * 此前只判目录名前缀 —— 而同一天我们刚把技能导入放开（裸 SKILL.md / zip 都能进），
+ * 于是「用户随手导入一本叫 `director-xxx` 的技能」= **自动暴露给外部 Claude Code / Codex，
+ * 用户全程不知情**。让导入变容易的同时必须让暴露变难，两者要解耦。
+ *
+ * 默认收紧：**用户导入的技能一律只在本机内部可见**，与它叫什么名字无关。
+ * 将来由技能自己的 `audience` 字段显式声明才对外（见
+ * docs/plan/2026-08-27-skills-knowledge-distribution.md §2.3 Phase 1b）——
+ * 在那之前，宁可漏给外部少几本，也不能替用户做「把他的私有方法论发出去」的决定。
  */
 const CRAFT_SKILL_PREFIXES = ["director-", "writer-"] as const;
-function isCraftSkill(directoryName: string): boolean {
-  return CRAFT_SKILL_PREFIXES.some((prefix) => directoryName.startsWith(prefix));
+export function isCraftSkill(record: Pick<SkillRecord, "directoryName" | "origin">): boolean {
+  if (record.origin !== "builtin") return false;
+  return CRAFT_SKILL_PREFIXES.some((prefix) => record.directoryName.startsWith(prefix));
 }
 
 /** 技能元数据清单（渐进披露：只给 name+描述，不含正文）。默认只列导演/编剧技能库。 */
 export function listSkillSummaries(craftOnly = true): SkillSummary[] {
   return readSkillRecords()
-    .filter((record) => (craftOnly ? isCraftSkill(record.directoryName) : true))
+    .filter((record) => (craftOnly ? isCraftSkill(record) : true))
     .map((record) => ({
       name: record.name,
       directoryName: record.directoryName,
@@ -168,6 +180,11 @@ export function readSkillContent(
 ): { name: string; directoryName: string; description: string; body: string } | null {
   const record = findSkillRecord(key, key);
   if (!record) return null;
+  // 唯一调用方是能力核 dispatcher 的 `skills.read`（= 外部 MCP 客户端）。**读必须与列同一把尺子**：
+  // 此前只有 listSkillSummaries 过滤、这里不过滤 —— 于是过滤只挡住了「看见」，没挡住「拿到」：
+  // 外部 agent 报个目录名就能取走任意一本的全文，包括用户导入的私有方法论（2026-08-27 补）。
+  // 内嵌 agent 不走这条路（它直接用 findSkillRecord），所以这里收紧不影响内部功能。
+  if (!isCraftSkill(record)) return null;
   return {
     name: record.name,
     directoryName: record.directoryName,
