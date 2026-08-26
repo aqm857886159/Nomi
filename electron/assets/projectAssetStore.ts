@@ -18,7 +18,7 @@ import {
   sanitizeAssetMetaForKind,
   stableAssetId,
 } from "./assetPaths";
-import { resolveContentType } from "./mediaTypes";
+import { contentTypeFromMagicBytes, resolveContentType } from "./mediaTypes";
 
 type LocalAssetRecord = {
   id: string;
@@ -73,14 +73,25 @@ function contentTypeFromStoredFile(absolutePath: string): string {
   }
 }
 
+/**
+ * 落盘素材的**唯一** contentType 判定。字节是事实，声明只是线索。
+ *
+ * 为什么要越过声明看字节（2026-08-26 火山方舟 Seedream 改图走查）：产物 URL / 厂商 header /
+ * b64_json 的 `data:image/png;base64,` 前缀都可能与真实字节不符，而 contentType 一路决定
+ * canonicalAssetFileName 给的扩展名 —— 于是 JPEG 字节落成 `.png`，下游按扩展名判类型的消费者
+ * （workspace tree / protocol / 导出 / 拖拽）全被带偏。
+ *
+ * **只在同族内以字节覆盖声明**：`.m4a`(audio/mp4) 与 mp4 视频共用 ISO-BMFF 魔数，跨族覆盖会把
+ * 音频误判成视频（比原 bug 更糟）。同族覆盖只纠正 png↔jpeg / mp4↔webm / mp3↔flac 这类
+ * 「族对了、子类型错了」的谎，不动 kind。
+ */
 function effectiveContentType(fileName: string, declared: string, bytes?: Uint8Array): string {
-  const normalized = String(declared || "application/octet-stream").toLowerCase().split(";")[0].trim();
-  const extension = path.extname(fileName).toLowerCase();
-  // 已有真实扩展名的旧文件保留其历史落盘语义（例如 .avi 交给懒自愈处理）；
-  // 只有无扩展名或通用 .bin 才需要用文件头把视频从未知类型救回来。
-  return normalized === "application/octet-stream" && (!extension || extension === ".bin")
-    ? resolveContentType(fileName, bytes)
-    : declared;
+  const normalized = String(declared || "").toLowerCase().split(";")[0].trim();
+  // 声明本身没信息量（空 / octet-stream）：交给 resolveContentType（先文件头、再扩展名）。
+  if (!normalized || normalized === "application/octet-stream") return resolveContentType(fileName, bytes);
+  const sniffed = bytes ? contentTypeFromMagicBytes(bytes) : null;
+  if (sniffed && sniffed !== normalized && sniffed.split("/")[0] === normalized.split("/")[0]) return sniffed;
+  return normalized;
 }
 
 async function writeAssetSidecarMetaAsync(absolutePath: string, meta: JsonRecord): Promise<void> {
@@ -229,17 +240,18 @@ export async function copyAssetFile(
   rawMeta: JsonRecord,
 ): Promise<unknown> {
   const meta = sanitizeAssetMetaForKind(rawMeta);
-  let actualContentType = contentType;
-  if (String(contentType || "").toLowerCase().split(";")[0].trim() === "application/octet-stream") {
+  // 文件头无条件读：声明对不对要靠字节验，只在 octet-stream 时读等于「只在声明已经认输时才查证」。
+  const header = await (async () => {
     const handle = await fs.promises.open(sourcePath, "r");
     try {
-      const header = Buffer.alloc(4096);
-      const { bytesRead } = await handle.read(header, 0, header.length, 0);
-      actualContentType = effectiveContentType(fileName, contentType, header.subarray(0, bytesRead));
+      const buffer = Buffer.alloc(4096);
+      const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
+      return buffer.subarray(0, bytesRead);
     } finally {
       await handle.close();
     }
-  }
+  })();
+  const actualContentType = effectiveContentType(fileName, contentType, header);
   const storageFileName = canonicalAssetFileName(fileName, actualContentType);
   const { absolutePath, relativePath } = uniqueAssetPath(projectId, storageFileName, assetBucketFromMeta(meta));
   await fs.promises.copyFile(sourcePath, absolutePath);
@@ -275,18 +287,17 @@ export function moveAssetFile(
 ): unknown {
   // 唯一 sidecar 写入者之二：与 writeAsset 同一道 capture 族隐私收口。
   const meta = sanitizeAssetMetaForKind(rawMeta);
-  const header = String(contentType || "").toLowerCase().split(";")[0].trim() === "application/octet-stream"
-    ? (() => {
-        const handle = fs.openSync(sourcePath, "r");
-        try {
-          const bytes = Buffer.alloc(4096);
-          const bytesRead = fs.readSync(handle, bytes, 0, bytes.length, 0);
-          return bytes.subarray(0, bytesRead);
-        } finally {
-          fs.closeSync(handle);
-        }
-      })()
-    : undefined;
+  // 同 copyAssetFile：无条件读文件头，否则撒谎的声明永远没人查证。
+  const header = (() => {
+    const handle = fs.openSync(sourcePath, "r");
+    try {
+      const bytes = Buffer.alloc(4096);
+      const bytesRead = fs.readSync(handle, bytes, 0, bytes.length, 0);
+      return bytes.subarray(0, bytesRead);
+    } finally {
+      fs.closeSync(handle);
+    }
+  })();
   const actualContentType = effectiveContentType(fileName, contentType, header);
   const storageFileName = canonicalAssetFileName(fileName, actualContentType);
   const { absolutePath, relativePath } = uniqueAssetPath(projectId, storageFileName, assetBucketFromMeta(meta));

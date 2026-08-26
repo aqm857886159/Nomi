@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assetBucketFromMeta,
   assetKindFromContentType,
+  canonicalAssetFileName,
   contentTypeFromPath,
   extensionFromMime,
   extensionFromUrl,
@@ -10,6 +11,30 @@ import {
   sanitizeAssetMetaForKind,
   stableAssetId,
 } from "./assetPaths";
+
+describe("canonicalAssetFileName", () => {
+  it("rewrites an extension that contradicts the content type", () => {
+    // 2026-08-26 的根因：此前只有「缺扩展名 / .bin」才修，`.png` 装 JPEG 字节原样留下。
+    expect(canonicalAssetFileName("image-1787.png", "image/jpeg")).toBe("image-1787.jpg");
+    expect(canonicalAssetFileName("clip.mp4", "video/webm")).toBe("clip.webm");
+    expect(canonicalAssetFileName("voice.mp3", "audio/flac")).toBe("voice.flac");
+  });
+  it("keeps an extension that already denotes the same content type", () => {
+    // .jpeg 与 .jpg 同义——不能因为表里 jpg 排前面就把用户的 .jpeg 改名。
+    expect(canonicalAssetFileName("shot.jpeg", "image/jpeg")).toBe("shot.jpeg");
+    expect(canonicalAssetFileName("shot.JPEG", "image/jpeg")).toBe("shot.JPEG");
+    expect(canonicalAssetFileName("a.png", "image/png")).toBe("a.png");
+    expect(canonicalAssetFileName("a.mov", "video/quicktime")).toBe("a.mov");
+  });
+  it("still fills in missing and .bin extensions", () => {
+    expect(canonicalAssetFileName("render", "image/jpeg")).toBe("render.jpg");
+    expect(canonicalAssetFileName("render.bin", "video/mp4")).toBe("render.mp4");
+  });
+  it("leaves the name alone when the content type maps to no known extension", () => {
+    expect(canonicalAssetFileName("blob.png", "application/octet-stream")).toBe("blob.png");
+    expect(canonicalAssetFileName("blob.xyz", "application/x-unknown")).toBe("blob.xyz");
+  });
+});
 
 describe("extensionFromMime", () => {
   it("maps known mime types and strips parameters", () => {
