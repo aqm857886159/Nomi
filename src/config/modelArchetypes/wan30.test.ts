@@ -147,6 +147,52 @@ describe("Wan 3.0 apimart：单 id + generation_type 区分两族", () => {
   });
 });
 
+describe("Wan 3.0 kie 变体真的会发出去（不只是档案里写对了）", () => {
+  // 为什么单独钉这条：kie 只种 1 行 catalog（标准版），高速版**完全靠变体通道**把
+  // params.model 换成 wan/3-0-video-prime。这条链断了不会报错——用户选「高速」，
+  // 照样跑标准版、照标准版计时计费，界面还显示着「高速」。是纯静默的坏。
+  //
+  // 2026-08-27 付费验收虽然跑过一次高速，但保存下来的 wire.log 只留住了其中一条 createTask，
+  // 高速那条的报文没进产物 → 无法复核。故在此用生产同一条投影链做确定性断言，
+  // 比再烧一次额度更可靠（每次跑测试都验，而不是只验过那一次）。
+  it("选中 prime 变体后，投影出的 params.model 是高速 id", async () => {
+    const { applyArchetypeVariantSwitch, buildArchetypeInputParams, ensureArchetypeNodeMeta } = await import(
+      "../../workbench/generationCanvas/nodes/controls/archetypeMeta"
+    );
+    const arch = KIE();
+
+    const base = ensureArchetypeNodeMeta({}, arch)!;
+    expect(buildArchetypeInputParams(base, arch).model).toBe("wan/3-0-video");
+
+    const prime = applyArchetypeVariantSwitch(base, arch, "prime");
+    expect((prime.archetype as { variantId: string }).variantId).toBe("prime");
+    expect(buildArchetypeInputParams(prime, arch).model).toBe("wan/3-0-video-prime");
+
+    // 切回去也得换回来（别是单向粘住）。
+    const back = applyArchetypeVariantSwitch(prime, arch, "standard");
+    expect(buildArchetypeInputParams(back, arch).model).toBe("wan/3-0-video");
+  });
+
+  // 同理钉 apimart 的 generation_type：它是两族的唯一判据，投影漏了就等于让上游猜。
+  // （付费验收报告称发出去了，但保存下来的 wire.log 没留住那条报文 → 这里做确定性复核。）
+  it("apimart 各模式投影出正确的 generation_type", async () => {
+    const { applyArchetypeModeSwitch, buildArchetypeInputParams, ensureArchetypeNodeMeta } = await import(
+      "../../workbench/generationCanvas/nodes/controls/archetypeMeta"
+    );
+    const arch = APIMART();
+    let meta: Record<string, unknown> = ensureArchetypeNodeMeta({}, arch)!;
+
+    meta = applyArchetypeModeSwitch(meta, arch, "ref");
+    expect(buildArchetypeInputParams(meta, arch).generation_type).toBe("reference");
+
+    meta = applyArchetypeModeSwitch(meta, arch, "first");
+    expect(buildArchetypeInputParams(meta, arch).generation_type).toBe("frame");
+
+    meta = applyArchetypeModeSwitch(meta, arch, "firstlast");
+    expect(buildArchetypeInputParams(meta, arch).generation_type).toBe("frame");
+  });
+});
+
 describe("Wan 3.0 官方硬互斥被编码成模式划分（两家同此结构）", () => {
   // 官方原文：first_frame_url / last_frame_url **不能**与 reference_*_urls 同时出现。
   // 我们不靠运行时校验挡，而是让「模式」本身就凑不出违法组合——用户选了模式就不可能违规。
