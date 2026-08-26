@@ -1,4 +1,4 @@
-import { hostRootBase } from "../ai/requestPipeline";
+import { hostRootBase, hostRootJoin } from "../ai/requestPipeline";
 
 // ---------------------------------------------------------------------------
 // 「这家中转有没有某个原生端点」探测。零成本：只发 GET、不建任务、不计费，连有效 key 都不需要。
@@ -78,13 +78,17 @@ export async function probeNativeEndpoint(
   probePath: string,
   apiKey?: string,
 ): Promise<NativeEndpointProbeResult> {
-  const root = hostRootBase(baseUrl);
-  if (!/^https?:\/\//i.test(root)) return { exists: false, detail: "接入地址不是 http(s)，跳过原生端点探测" };
+  if (!/^https?:\/\//i.test(hostRootBase(baseUrl))) {
+    return { exists: false, detail: "接入地址不是 http(s)，跳过原生端点探测" };
+  }
   const headers: Record<string, string> = apiKey ? { authorization: `Bearer ${apiKey}` } : {};
+  // 探测 URL 必须与真正发送时**同一套拼接**（hostRootJoin），否则探针探的是另一个地址：
+  // 曾经这里直接 `${hostRootBase(base)}${probePath}` 拼，遇到 baseUrl 带 /api/v3 就拼出 /api/api/v3/…，
+  // 与哨兵同样 404 → 恒判「这家没有原生端点」，原生报文全线失联。
   // 哨兵与目标同深度、同父路径 → 走同一套路由/中间件，签名可比。
-  const sentinel = await probeOnce(`${root}${siblingSentinelPath(probePath)}/${BOGUS_ID}`, headers);
+  const sentinel = await probeOnce(hostRootJoin(baseUrl, `${siblingSentinelPath(probePath)}/${BOGUS_ID}`), headers);
   if (!sentinel) return { exists: false, detail: "探测请求失败（网络或超时），按不支持处理" };
-  const target = await probeOnce(`${root}${probePath}/${BOGUS_ID}`, headers);
+  const target = await probeOnce(hostRootJoin(baseUrl, `${probePath}/${BOGUS_ID}`), headers);
   if (!target) return { exists: false, detail: "探测请求失败（网络或超时），按不支持处理" };
   const same = target.status === sentinel.status && target.shape === sentinel.shape;
   return same

@@ -1,4 +1,6 @@
-// R1 通用解析器：把 request 里的本地素材(nomi-local://)在发送前变成 vendor 够得着的值。
+// R1 通用解析器：把 request 里的本地素材在发送前变成 vendor 够得着的值。
+// 「本地素材」= `nomi-local://`（项目内文件）**与** `data:`（内联字节）——形态判定住 assetValueScheme，
+// 两者共用同一条物化/上传链，于是每个 vendor 收到的永远是公网 URL，不再「这家收 data: 那家 500」。
 // **通用第一**：本模块与任何具体供应商无关——它只认「一份 AssetIngestion 声明」,按 strategy 分叉。
 // KIE 等具体供应商的端点/字段/响应路径只住在各自的声明里(单源),由 curatedAssetIngestion 提供。
 // 全部依赖注入(读本地字节 read / POST 上传 postJson),故可零网络零额度单测。
@@ -11,8 +13,14 @@ import {
   ingestionVisibility,
   type AnonymousAssetConsent,
 } from "./assetTransportPolicy";
-
-const NOMI_LOCAL_PREFIX = "nomi-local://";
+import {
+  classifyAssetValue,
+  describeAssetValue,
+  humanSize,
+  isLocalizableAssetValue,
+  parseInlineDataAsset,
+  unreachableAssetValueError,
+} from "./assetValueScheme";
 
 export type LocalAsset = {
   bytes: Buffer;
@@ -70,8 +78,12 @@ export type HttpPostMultipart = (
   fileField?: string,
 ) => Promise<unknown>;
 
+/**
+ * 「这个值发送前必须先本地化」——即 `nomi-local://`（读盘）**或** `data:` 内联字节（就地解码）。
+ * 形态判定住 assetValueScheme（单一真相源），本函数只是本模块的门面。
+ */
 export function isLocalAssetUrl(value: unknown): value is string {
-  return typeof value === "string" && value.startsWith(NOMI_LOCAL_PREFIX);
+  return isLocalizableAssetValue(value);
 }
 
 /** contentType → 媒体类型(image/video/audio)。未知一律按 image(今天的通道都面向图片)。 */
@@ -92,7 +104,7 @@ export function ingestionAccepts(ingestion: AssetIngestion, kind: AssetMediaKind
   return accepts.includes(kind);
 }
 
-/** 递归收集任意 JSON 结构里所有 nomi-local URL(去重)。标量/数组元素/对象值都认。 */
+/** 递归收集任意 JSON 结构里所有待本地化素材值(nomi-local:// / data:,去重)。标量/数组元素/对象值都认。 */
 export function collectLocalAssetUrls(value: unknown, out: Set<string> = new Set()): Set<string> {
   if (isLocalAssetUrl(value)) out.add(value);
   else if (Array.isArray(value)) for (const item of value) collectLocalAssetUrls(item, out);
@@ -100,7 +112,29 @@ export function collectLocalAssetUrls(value: unknown, out: Set<string> = new Set
   return out;
 }
 
-/** 递归把结构里的 nomi-local URL 按映射替换(返回新结构,不改原对象)。 */
+/** 递归收集所有「谁都够不着」的素材值(blob:/file:)——判定与理由见 assetValueScheme.classifyAssetValue。 */
+export function collectUnreachableAssetValues(value: unknown, out: Set<string> = new Set()): Set<string> {
+  if (classifyAssetValue(value) === "unreachable") out.add(value as string);
+  else if (Array.isArray(value)) for (const item of value) collectUnreachableAssetValues(item, out);
+  else if (value && typeof value === "object") for (const item of Object.values(value)) collectUnreachableAssetValues(item, out);
+  return out;
+}
+
+/** 出站前拦住 blob:/file:：它们进 body 必错(vendor 拉不到),而这一步在付费守卫之前,失败零花费。 */
+function assertNoUnreachableAssetValues(value: unknown): void {
+  for (const unreachable of collectUnreachableAssetValues(value)) throw unreachableAssetValueError(unreachable);
+}
+
+/**
+ * 素材值 → 字节。`data:` 就地解码（零 IO，与 vendor 无关），其余交给注入的读盘器。
+ * 这是「本地素材只有 nomi-local:// 一种」那个假设的收口点：新增一种本地形态只改这里。
+ */
+function readLocalizableAsset(url: string, read: LocalAssetReader): LocalAsset | null {
+  if (classifyAssetValue(url) === "inline-data") return parseInlineDataAsset(url);
+  return read(url);
+}
+
+/** 递归把结构里的待本地化素材值按映射替换(返回新结构,不改原对象)。 */
 export function replaceLocalAssetUrls<T>(value: T, urlMap: Map<string, string>): T {
   if (isLocalAssetUrl(value)) return (urlMap.get(value) ?? value) as unknown as T;
   if (Array.isArray(value)) return value.map((item) => replaceLocalAssetUrls(item, urlMap)) as unknown as T;
@@ -126,11 +160,12 @@ export function assertLocalAssetTransportReady(
   const effectiveValue = options.minimizeUploads && options.activeAssetUrls
     ? pruneInactiveLocalAssets(value, new Set(options.activeAssetUrls))
     : value;
+  assertNoUnreachableAssetValues(effectiveValue);
   for (const url of collectLocalAssetUrls(effectiveValue)) {
-    const asset = read(url);
-    if (!asset) throw new Error(`参考素材的本地文件读取失败（可能已被删除或随项目迁移）：${url}。请重新生成该节点或重新导入这张素材。`);
+    const asset = readLocalizableAsset(url, read);
+    if (!asset) throw new Error(`参考素材的本地文件读取失败（可能已被删除或随项目迁移）：${describeAssetValue(url)}。请重新生成该节点或重新导入这张素材。`);
     if (!asset.contentType || asset.contentType.toLowerCase().split(";")[0].trim() === "application/octet-stream") {
-      throw new Error(`无法识别本地素材「${asset.fileName || url}」的类型，不能安全判断它是图片、视频还是音频。请重新导入并保留正确的文件扩展名。`);
+      throw new Error(`无法识别本地素材「${asset.fileName || describeAssetValue(url)}」的类型，不能安全判断它是图片、视频还是音频。请重新导入并保留正确的文件扩展名。`);
     }
     if (trustedOriginalUrl(asset)) continue;
     const mediaKind = mediaKindFromContentType(asset.contentType);
@@ -207,8 +242,8 @@ export async function resolveLocalAsset(
     }
     throw new Error(`所有免配置上传 host 都失败：${errors.join("；") || "(链为空)"}`);
   }
-  const asset = read(localUrl);
-  if (!asset) throw new Error(`参考素材的本地文件读取失败（可能已被删除或随项目迁移）：${localUrl}。请重新生成该节点或重新导入这张素材。`);
+  const asset = readLocalizableAsset(localUrl, read);
+  if (!asset) throw new Error(`参考素材的本地文件读取失败（可能已被删除或随项目迁移）：${describeAssetValue(localUrl)}。请重新生成该节点或重新导入这张素材。`);
   // 本地 ComfyUI：LoadImage 只认上传回的 input 目录文件名（非公网 URL），故**跳过下面的 trustedOriginalUrl
   // 公网 URL 快路**，恒把本地字节 POST 到 /upload/image 换文件名（field 名 "image"、type=input、overwrite 避重名堆积）。
   if (ingestion.strategy === "comfyui-upload") {
@@ -322,6 +357,10 @@ export type LocalizeAssetsOptions = {
 };
 
 function pruneInactiveLocalAssets(value: unknown, active: ReadonlySet<string>): unknown {
+  // 内联字节永远算「活的」：它是本次请求**当场带进来**的，不可能是画布上早已过期的残留引用
+  // （剪枝要解决的是那个）。若按 activeAssetUrls 名单剪，调用方自己拼名单时漏了它 = 参考被
+  // 静默丢掉照样出图照样扣费——这是本次修复最不该复制的失败形状。
+  if (classifyAssetValue(value) === "inline-data") return value;
   if (isLocalAssetUrl(value)) return active.has(value) ? value : undefined;
   if (Array.isArray(value)) return value.map((item) => pruneInactiveLocalAssets(item, active)).filter((item) => item !== undefined);
   if (value && typeof value === "object") {
@@ -347,13 +386,6 @@ function stripTransportHints(value: unknown): unknown {
     return out;
   }
   return value;
-}
-
-/** 人话文件大小（错误里要告诉用户「多大」，否则他没法判断该压到多少）。 */
-function humanSize(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
-  if (bytes >= 1024) return `${Math.round(bytes / 1024)}KB`;
-  return `${bytes}B`;
 }
 
 const MEDIA_LABEL: Record<AssetMediaKind, string> = { image: "图片", video: "视频", audio: "音频" };
@@ -396,15 +428,16 @@ export async function localizeAssetsForVendor(
   const effectiveValue = options.minimizeUploads && options.activeAssetUrls
     ? pruneInactiveLocalAssets(value, new Set(options.activeAssetUrls))
     : value;
+  assertNoUnreachableAssetValues(effectiveValue);
   const urls = Array.from(collectLocalAssetUrls(effectiveValue));
   if (urls.length === 0) {
     return { value: effectiveValue === value ? value : stripTransportHints(effectiveValue), uploaded: 0 };
   }
   const urlMap = new Map<string, string>();
   for (const url of urls) {
-    const asset = read(url);
+    const asset = readLocalizableAsset(url, read);
     if (asset && (!asset.contentType || asset.contentType.toLowerCase().split(";")[0].trim() === "application/octet-stream")) {
-      throw new Error(`无法识别本地素材「${asset.fileName || url}」的类型，不能安全判断它是图片、视频还是音频。请重新导入并保留正确的文件扩展名。`);
+      throw new Error(`无法识别本地素材「${asset.fileName || describeAssetValue(url)}」的类型，不能安全判断它是图片、视频还是音频。请重新导入并保留正确的文件扩展名。`);
     }
     const mediaKind = mediaKindFromContentType(asset?.contentType);
     const candidates = resolveIngestion(mediaKind);

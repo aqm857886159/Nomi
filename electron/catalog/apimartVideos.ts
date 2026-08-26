@@ -59,7 +59,8 @@ const FIRST_FRAME_IMAGE = "{{request.params.first_frame_image}}"; // hailuo firs
 const SEED = "{{request.params.seed}}"; // 可选种子（无默认 → 未填则模板丢弃）
 const RETURN_LAST_FRAME = "{{request.params.return_last_frame}}"; // Seedance 2.5 独有：返回尾帧图
 const NEGATIVE_PROMPT = "{{request.params.negative_prompt}}"; // 负向提示词（可选，未填则丢弃）
-const GENERATION_TYPE = "{{request.params.generation_type}}"; // 首尾帧/参考图模式标记（mode.fixedParams 注入，Veo/Omni）
+const GENERATION_TYPE = "{{request.params.generation_type}}"; // 首尾帧/参考图模式标记（mode.fixedParams 注入，Veo/Omni/Wan 3.0）
+const WATERMARK = "{{request.params.watermark}}"; // 水印开关（Wan 3.0，官方默认 false）
 // 首尾帧角色数组：整串一个 {{}} → 模板引擎原样透传 [{url,role}] 不 stringify（同 kie 整串透传）。
 // 由 archetypeMeta combineSlotsInto 在构造层组装，与 image_urls 互斥（同 body，非当前模式键自动丢）。
 const IMAGE_WITH_ROLES = "{{request.params.image_with_roles}}";
@@ -196,6 +197,18 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
     modelKey: "wan2.7", labelZh: "Wan 2.7", archetypeId: "wan-2.7", modelRef: VARIANT_MODEL_REF,
     t2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, negative_prompt: NEGATIVE_PROMPT },
     i2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS, image_with_roles: IMAGE_WITH_ROLES, video_urls: VIDEO_URLS, negative_prompt: NEGATIVE_PROMPT, seed: SEED },
+  }),
+  // Wan 3.0（2026-08-27 接入，逐项对账 docs.apimart.ai/cn/api-reference/videos/wan3.0-video/generation）。
+  // 单 model id（无变体 → 默认 {{model.modelKey}}）；四模式（文生/首帧/首尾帧/全能参考）共用一条 i2v mapping。
+  // **generation_type 是这里的关键**：image_urls 在「首尾帧族」和「参考族」之间被官方重载，
+  // 只有它能告诉上游这批素材属于哪族 → 由档案 mode.fixedParams 钉死（frame / reference），不靠上游猜。
+  // 首/尾帧走 image_with_roles（combineSlotsInto 产 [{url,role:'first_frame'|'last_frame'}]），
+  // 参考族走裸 image_urls + video_urls + audio_urls；互斥由 M2 模式投影保证。
+  // 比例字段是 size（同 Wan 2.7，不是 aspect_ratio）；首尾帧模式档案已把 size 收窄为 adaptive → 值照发。
+  videoModel({
+    modelKey: "wan3.0-video", labelZh: "Wan 3.0", archetypeId: "wan-3.0-apimart",
+    t2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, audio: AUDIO, watermark: WATERMARK, seed: SEED },
+    i2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, audio: AUDIO, watermark: WATERMARK, seed: SEED, generation_type: GENERATION_TYPE, image_urls: IMAGE_URLS, image_with_roles: IMAGE_WITH_ROLES, video_urls: VIDEO_URLS, audio_urls: AUDIO_URLS },
   }),
   // Hailuo 2.3：无 aspect_ratio；图生视频用 first_frame_image（字符串，非数组）。变体（标准 / Fast）→ {{request.params.model}}。
   videoModel({

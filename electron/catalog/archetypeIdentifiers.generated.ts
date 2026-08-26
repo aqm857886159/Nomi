@@ -45,12 +45,28 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "seedream",
     "seedream/4.5-text-to-image",
     "seedream/4.5-edit",
-    "seedream/5-lite-text-to-image",
     "bytedance/seedream-v4-edit",
     "bytedance/seedream-v4-text-to-image",
     "seedream-4-5",
     "seedream-v4",
     "doubao-seedream-4.5"
+  ],
+  "kie-seedream-5-pro": [
+    "seedream/5-pro-text-to-image",
+    "seedream/5-pro-image-to-image"
+  ],
+  "kie-seedream-5-lite": [
+    "seedream/5-lite-text-to-image",
+    "seedream/5-lite-image-to-image"
+  ],
+  "nano-banana-2": [
+    "nano-banana-2",
+    "gemini-3.1-flash-image",
+    "gemini-3.1-flash-image-preview",
+    "gemini-3.1-flash-image-preview-official"
+  ],
+  "nano-banana-2-lite": [
+    "nano-banana-2-lite"
   ],
   "nano-banana": [
     "nano-banana",
@@ -59,12 +75,22 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "nano-banana-pro",
     "gemini-2.5-flash-image-preview"
   ],
+  "flux-2-pro": [
+    "flux-2/pro-text-to-image",
+    "flux-2/pro-image-to-image"
+  ],
   "kling-3.0": [
     "kling-3.0",
     "kling-3.0/video",
     "kling-3",
     "kling3",
     "kling-v3"
+  ],
+  "qwen-image-3": [
+    "qwen-image-3.0",
+    "qwen-image-3-0",
+    "qwen-image-3.0-pro",
+    "qwen-image-3-0-pro"
   ],
   "qwen-image": [
     "qwen-image",
@@ -100,6 +126,16 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "wan-2-7",
     "wan2.7-r2v",
     "wan-2-7-r2v"
+  ],
+  "wan-3.0": [
+    "wan/3-0-video",
+    "wan/3-0-video-prime",
+    "wan-3.0",
+    "wan3.0"
+  ],
+  "wan-3.0-apimart": [
+    "wan3.0-video",
+    "wan3-0-video"
   ],
   "hailuo-2.3": [
     "hailuo-2.3",
@@ -192,10 +228,16 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "doubao-seedream-4-5-251128",
     "doubao-seedream-4-0-250828"
   ],
+  "volcengine-seedream-5-pro": [
+    "doubao-seedream-5-0-pro-260628"
+  ],
   "volcengine-seedance-2": [
     "doubao-seedance-2-0-260128",
     "doubao-seedance-2-0-fast-260128",
     "doubao-seedance-2-0-mini-260615"
+  ],
+  "volcengine-seedance-2-5": [
+    "doubao-seedance-2-5-260628"
   ],
   "dreamina-seedance-2": [
     "dreamina-seedance-2.0",

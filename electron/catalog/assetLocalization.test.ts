@@ -19,14 +19,21 @@ import {
 import type { AssetIngestion } from "./types";
 
 const localUrl = (p: string) => `nomi-local://asset/proj/${p}`;
+// 内联素材（headless/MCP 直接给 data: URI，或落盘失败退回 base64 的兜底路径）。
+const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52]);
+const MP4_BYTES = Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x20]), Buffer.from("ftypisom"), Buffer.from("mdat")]);
+const inlineImageUrl = (salt = "") =>
+  `data:image/png;base64,${Buffer.concat([PNG_BYTES, Buffer.from(salt)]).toString("base64")}`;
+const inlineVideoUrl = () => `data:video/mp4;base64,${MP4_BYTES.toString("base64")}`;
 const fakeAsset = (name: string): LocalAsset => ({ bytes: Buffer.from("hello-" + name), contentType: "image/png", fileName: name });
 const read = (url: string): LocalAsset | null => fakeAsset(url.split("/").pop() || "x");
 // 默认 multipart mock：返回声明 urlPath 能读到的形状。各用例可覆盖。
 const noMultipart = vi.fn();
 
 describe("isLocalAssetUrl / collect / replace", () => {
-  it("detects nomi-local urls only", () => {
+  it("detects local assets: nomi-local + inline data uris, never public urls", () => {
     expect(isLocalAssetUrl(localUrl("a.png"))).toBe(true);
+    expect(isLocalAssetUrl(inlineImageUrl())).toBe(true);
     expect(isLocalAssetUrl("https://x/a.png")).toBe(false);
     expect(isLocalAssetUrl(42)).toBe(false);
   });
@@ -706,5 +713,164 @@ describe("comfyui-upload（本地 ComfyUI 首帧上传，S2）", () => {
     );
     expect((out.value as { firstFrameUrl: string }).firstFrameUrl).toBe("in/frame.png");
     expect(post).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * data: URI 与 nomi-local 走**同一条**物化/上传链。
+ *
+ * 根因（2026-08-26 真实付费实测）：此前 isLocalAssetUrl 只认 nomi-local://，一个 data: URI 一路直穿到
+ * vendor body —— 火山方舟 Ark 收（HTTP 200），kie.ai 的 nano-banana-2 / seedream-5-lite / flux-2-pro
+ * 三个模型一律 HTTP 500 "File type not supported"。同一张参考图换个供应商就挂，而 L3 参考护栏还判「有参考」。
+ * 修在这里=每个 vendor 拿到的永远是公网 URL，整类「谁收 data: 谁不收」的差异当场消失。
+ */
+describe("localizeAssetsForVendor — data: URI 与 nomi-local 同链", () => {
+  const uploadUrlIngestion: AssetIngestion = { strategy: "upload-url", endpoint: "https://up/x", base64Field: "b", urlPath: "url" };
+  const neverRead = vi.fn(() => null); // 内联素材零 IO：不该碰读盘器
+
+  it("内联图片上传换公网 URL，body 里带的是解码后的真字节", async () => {
+    const post = vi.fn().mockResolvedValue({ url: "https://pub/inline.png" });
+    const out = await localizeAssetsForVendor(
+      { image_input: [inlineImageUrl()], prompt: "hi" },
+      () => [{ vendorKey: "kie", ingestion: uploadUrlIngestion, uploadApiKey: "k" }],
+      neverRead,
+      post,
+      noMultipart,
+    );
+    expect(out.uploaded).toBe(1);
+    expect((out.value as { image_input: string[] }).image_input).toEqual(["https://pub/inline.png"]);
+    expect(neverRead).not.toHaveBeenCalled();
+    const body = post.mock.calls[0][2] as Record<string, string>;
+    expect(body.b).toBe(`data:image/png;base64,${PNG_BYTES.toString("base64")}`);
+  });
+
+  it("公网 URL 原样穿过，一次上传都不发（零成本直通不被本次修改破坏）", async () => {
+    const post = vi.fn();
+    const extras = { image_urls: ["https://cdn/a.png"], input_urls: ["http://cdn/b.png"], prompt: "hi" };
+    const out = await localizeAssetsForVendor(extras, () => [{ vendorKey: "kie", ingestion: uploadUrlIngestion, uploadApiKey: "k" }], neverRead, post, noMultipart);
+    expect(out.uploaded).toBe(0);
+    expect(out.value).toBe(extras);
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("内联素材与 nomi-local 混在一个请求里，各自换出可达 URL", async () => {
+    const post = vi.fn()
+      .mockResolvedValueOnce({ url: "https://pub/from-file.png" })
+      .mockResolvedValueOnce({ url: "https://pub/from-inline.png" });
+    const out = await localizeAssetsForVendor(
+      { referenceImages: [localUrl("a.png"), inlineImageUrl()] },
+      () => [{ vendorKey: "kie", ingestion: uploadUrlIngestion, uploadApiKey: "k" }],
+      read,
+      post,
+      noMultipart,
+    );
+    expect(out.uploaded).toBe(2);
+    expect((out.value as { referenceImages: string[] }).referenceImages).toEqual([
+      "https://pub/from-file.png",
+      "https://pub/from-inline.png",
+    ]);
+  });
+
+  it("同一份内联字节只上传一次；不同字节各传各的、文件名不重（重名=覆盖=两个参考塌成一张）", async () => {
+    const postMultipart = vi.fn().mockImplementation((_u, _h, _f, fileName: string) => Promise.resolve({ url: `https://pub/${fileName}` }));
+    const first = inlineImageUrl();
+    const second = inlineImageUrl("other");
+    const out = await localizeAssetsForVendor(
+      { referenceImages: [first, second, first] },
+      () => [{ vendorKey: "apimart", ingestion: { strategy: "upload-multipart", endpoint: "https://up/m", urlPath: "url" }, uploadApiKey: "k" }],
+      neverRead,
+      vi.fn(),
+      postMultipart,
+    );
+    expect(out.uploaded).toBe(2); // first 去重
+    const names = postMultipart.mock.calls.map((call) => call[3] as string);
+    expect(new Set(names).size).toBe(2);
+    expect(names.every((name) => name.endsWith(".png"))).toBe(true);
+    const values = (out.value as { referenceImages: string[] }).referenceImages;
+    expect(values[0]).toBe(values[2]);
+    expect(values[0]).not.toBe(values[1]);
+  });
+
+  it("内联视频按字节判成 video → 走视频通道（不被 mime 声明骗进图片 base64 通道被 413）", async () => {
+    const post = vi.fn();
+    const postMultipart = vi.fn().mockResolvedValue({ data: { downloadUrl: "https://pub/clip.mp4" } });
+    const videoIngestion: AssetIngestion = { strategy: "upload-stream", endpoint: "https://vid/up", urlPath: "data.downloadUrl", accepts: ["image", "video"] };
+    const out = await localizeAssetsForVendor(
+      { referenceVideoUrls: [inlineVideoUrl()] },
+      (kind) => (kind === "video" ? [{ vendorKey: "kie", ingestion: videoIngestion, uploadApiKey: "vk" }] : []),
+      neverRead,
+      post,
+      postMultipart,
+    );
+    expect(post).not.toHaveBeenCalled();
+    expect((out.value as { referenceVideoUrls: string[] }).referenceVideoUrls).toEqual(["https://pub/clip.mp4"]);
+    expect((postMultipart.mock.calls[0][5] as Record<string, string>).fileName.endsWith(".mp4")).toBe(true);
+  });
+
+  it("inline-base64 供应商（如魔搭）：内联素材归一后原样内联，不空跑一次上传", async () => {
+    const post = vi.fn();
+    const out = await localizeAssetsForVendor(
+      { image_url: inlineImageUrl() },
+      () => [{ vendorKey: "modelscope", ingestion: { strategy: "inline-base64" }, uploadApiKey: "" }],
+      neverRead,
+      post,
+      noMultipart,
+    );
+    expect((out.value as { image_url: string }).image_url).toBe(`data:image/png;base64,${PNG_BYTES.toString("base64")}`);
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("认不出类型的内联素材付费前拒发，且不把几 MB base64 糊进消息", async () => {
+    // 既没声明媒体类型、字节也嗅不出 → 不能瞎猜是图还是视频（猜错=送错通道被 413）。
+    const unknown = `data:application/octet-stream;base64,${"A".repeat(4000)}`;
+    const resolver = () => [{ vendorKey: "kie", ingestion: uploadUrlIngestion, uploadApiKey: "k" }];
+    expect(() => assertLocalAssetTransportReady({ referenceImages: [unknown] }, resolver, neverRead))
+      .toThrow(/无法识别本地素材/);
+    try {
+      assertLocalAssetTransportReady({ referenceImages: [unknown] }, resolver, neverRead);
+    } catch (error) {
+      expect((error as Error).message.length).toBeLessThan(200);
+    }
+  });
+
+  it("minimizeUploads 剪枝不碰内联素材（当场带进来的字节不可能是过期残留）", async () => {
+    const post = vi.fn().mockResolvedValue({ url: "https://pub/inline.png" });
+    const out = await localizeAssetsForVendor(
+      { referenceImages: [inlineImageUrl(), localUrl("stale.png")] },
+      () => [{ vendorKey: "kie", ingestion: uploadUrlIngestion, uploadApiKey: "k" }],
+      read,
+      post,
+      noMultipart,
+      { minimizeUploads: true, activeAssetUrls: [] }, // 名单里一个都没有
+    );
+    expect((out.value as { referenceImages: string[] }).referenceImages).toEqual(["https://pub/inline.png"]);
+  });
+
+  it("assertLocalAssetTransportReady：内联素材没有可用通道 → 付费前拒发", () => {
+    expect(() => assertLocalAssetTransportReady({ referenceImages: [inlineImageUrl()] }, () => [], neverRead))
+      .toThrow(/没有可用的图片上传通道/);
+    expect(() => assertLocalAssetTransportReady(
+      { referenceImages: [inlineImageUrl()] },
+      () => [{ vendorKey: "kie", ingestion: uploadUrlIngestion, uploadApiKey: "k" }],
+      neverRead,
+    )).not.toThrow();
+  });
+});
+
+/** blob:/file: 谁都够不着：与其让 vendor 500（或更糟——静默无视参考照样扣费），不如付费前拒发。 */
+describe("出站前拦截够不着的素材值（blob: / file:）", () => {
+  const resolver = () => [{ vendorKey: "kie", ingestion: { strategy: "upload-url", endpoint: "https://up/x", base64Field: "b", urlPath: "url" } as AssetIngestion, uploadApiKey: "k" }];
+
+  it("assertLocalAssetTransportReady 与 localizeAssetsForVendor 两处都拦（付费守卫前后各一道）", async () => {
+    expect(() => assertLocalAssetTransportReady({ referenceImages: ["blob:file:///abc-123"] }, resolver, read))
+      .toThrow(/发不出去/);
+    await expect(localizeAssetsForVendor({ referenceImages: ["file:///Users/me/a.png"] }, resolver, read, vi.fn(), noMultipart))
+      .rejects.toThrow(/发不出去/);
+  });
+
+  it("提到 file:// 的普通文案不误杀（判定只认整串就是 blob:/file: 地址）", async () => {
+    const extras = { prompt: "别用 file:// 这种地址", notes: "/Users/me/a.png" };
+    const out = await localizeAssetsForVendor(extras, resolver, read, vi.fn(), noMultipart);
+    expect(out.value).toBe(extras);
   });
 });

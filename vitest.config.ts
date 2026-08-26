@@ -3,7 +3,17 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    include: ["electron/**/*.test.ts", "src/**/*.test.ts", "evals/**/*.test.ts", "scripts/**/*.test.mjs", "tests/**/*.test.mjs"],
+    // scripts/ 两种后缀都收：历史门岗脚本是 .mjs，需要 import 仓库 TS 的脚本（如 model-radar 要
+    // 从 seedBuiltins/档案 derive「我们接了哪些模型」）只能是 .ts。漏掉 .ts 的后果是**测试文件静静躺着不跑**
+    // ——比没写测试更糟，因为它看起来有覆盖。
+    include: [
+      "electron/**/*.test.ts",
+      "src/**/*.test.ts",
+      "evals/**/*.test.ts",
+      "scripts/**/*.test.mjs",
+      "scripts/**/*.test.ts",
+      "tests/**/*.test.mjs",
+    ],
     environment: "node",
     // 单测不做真 fsync：临时目录的数据没人需要它跨掉电存活，但 fsync 会让墙钟随磁盘队列漂移，
     // 把 productionRun 的编排测试顶过 5000ms testTimeout（flake 根因）。见该文件顶部注释。

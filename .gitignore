@@ -54,6 +54,8 @@ docs/onboarding-trials/20*/
 
 # UX 走查截图产物（规则13）—— 不入库
 tests/ux/shots/
+# Playwright MCP 的 console 日志落点（探针跑完会留一堆，不入库）
+.playwright-mcp/
 tests/ux/__shots__/
 tests/ux/_stagingshot/
 tests/ux/_marketing/

@@ -1,0 +1,157 @@
+import { describe, expect, it } from "vitest";
+import { diffVendor, isCovered, normalizeToken, parseApimart, parseKie, stripLocale } from "./model-radar";
+import type { RadarEntry } from "./model-radar";
+
+// 全部用内联样本，**不打网络**：雷达的解析逻辑要能在 CI 里回归，
+// 而网络测试既慢又会因为对方改文档而随机翻红（那样门岗会被习惯性忽略）。
+// 样本行的形状 100% 抄自 2026-08-27 实抓的 llms.txt。
+
+const KIE_SAMPLE = [
+  "# docs.kie.ai",
+  "## Docs",
+  "- [Market](https://docs.kie.ai/market/quickstart.md): ",
+  "- Image    Models > Seedream [Seedream5.0 Pro - Text to Image](https://docs.kie.ai/market/seedream/5-pro-text-to-image.md): x",
+  "- Video    Models > Wan [Wan 3.0 - Video](https://docs.kie.ai/market/wan/3-0-video.md): x",
+  // 语言镜像：同一个模型的 /cn/ 复本，必须被去重掉，否则每个模型报两遍。
+  "- Video    Models > Wan [Wan 3.0 - 生成视频](https://docs.kie.ai/cn/market/wan/3-0-video.md): x",
+  "- Music Models > ElevenLabs [TTS Multilingual v2](https://docs.kie.ai/market/elevenlabs/text-to-speech-multilingual-v2.md): x",
+  // chat 不在盯的类别里。
+  "- Chat  Models > Claude [Claude Opus 5](https://docs.kie.ai/market/claude/claude-opus-5.md): x",
+  // Suno 那 94 条全是端点文档、不在 /market/ 下——一条都不该进来。
+  "- Suno API [Generate Music](https://docs.kie.ai/suno-api/generate-music.md): x",
+  "- Suno API [Generate Music Callbacks](https://docs.kie.ai/suno-api/generate-music-callbacks.md): x",
+  "- Veo3.1 API [Quickstart](https://docs.kie.ai/veo3-1-api/quickstart.md): x",
+].join("\n");
+
+const APIMART_SAMPLE = [
+  "# APIMart",
+  "- [APIMart Gateway](https://docs.apimart.ai/en/index.md): x",
+  "- [Nano banana2 Image Generation](https://docs.apimart.ai/en/api-reference/images/gemini-3.1-flash/generation.md): x",
+  "- [Wan3.0 Video Generation](https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation.md): x",
+  "- [TTS](https://docs.apimart.ai/en/api-reference/audios/elevenlabs-tts/generation.md): x",
+  // texts / tasks / account 不盯。
+  "- [Models List Metadata API](https://docs.apimart.ai/en/api-reference/texts/models/list.md): x",
+  "- [Task Status](https://docs.apimart.ai/en/api-reference/tasks/status.md): x",
+].join("\n");
+
+describe("归一", () => {
+  it("normalizeToken 抹平大小写与分隔符（文档路径 flux2 ↔ 真实 id flux-2 的关键）", () => {
+    expect(normalizeToken("flux2/pro-text-to-image")).toBe("flux2protexttoimage");
+    expect(normalizeToken("flux-2/pro-text-to-image")).toBe("flux2protexttoimage");
+    expect(normalizeToken("Seedream 5.0 Pro")).toBe("seedream50pro");
+  });
+
+  it("stripLocale 剥掉语言段", () => {
+    expect(stripLocale("/cn/market/wan/3-0-video.md")).toBe("/market/wan/3-0-video.md");
+    expect(stripLocale("/en/api-reference/images/x.md")).toBe("/api-reference/images/x.md");
+    expect(stripLocale("/market/wan/3-0-video.md")).toBe("/market/wan/3-0-video.md");
+  });
+});
+
+describe("kie 索引解析", () => {
+  const entries = parseKie(KIE_SAMPLE);
+  const slugs = entries.map((e) => e.slug);
+
+  it("只收 /market/ 下的模型页（Suno/Veo 的端点文档一条都不进）", () => {
+    // Suno 在真实索引里有 94 条端点文档；按分类收会是 94 条纯噪音。
+    expect(slugs).not.toContain("generate-music");
+    expect(entries.every((e) => e.url.includes("/market/"))).toBe(true);
+    expect(slugs).not.toContain("quickstart");
+  });
+
+  it("分类取自面包屑（官方就是不规则空格 'Image    Models'，必须塌空白）", () => {
+    const byslug = Object.fromEntries(entries.map((e) => [e.slug, e.category]));
+    expect(byslug["seedream/5-pro-text-to-image"]).toBe("image");
+    expect(byslug["wan/3-0-video"]).toBe("video");
+    expect(byslug["elevenlabs/text-to-speech-multilingual-v2"]).toBe("audio");
+  });
+
+  it("chat 类别被排除（用户拍板不盯 LLM）", () => {
+    expect(slugs).not.toContain("claude/claude-opus-5");
+  });
+
+  it("/cn/ 语言镜像被去重（否则每个模型报两遍）", () => {
+    expect(slugs.filter((s) => s === "wan/3-0-video")).toHaveLength(1);
+  });
+});
+
+describe("apimart 索引解析", () => {
+  const entries = parseApimart(APIMART_SAMPLE);
+  const slugs = entries.map((e) => e.slug);
+
+  it("按 URL 桶分类，slug 取模型段（剥掉 /generation）", () => {
+    expect(slugs).toContain("gemini-3.1-flash");
+    expect(slugs).toContain("wan3.0-video");
+    expect(entries.find((e) => e.slug === "wan3.0-video")?.category).toBe("video");
+    expect(entries.find((e) => e.slug === "elevenlabs-tts")?.category).toBe("audio");
+  });
+
+  it("texts / tasks / 首页不进", () => {
+    expect(slugs.some((s) => s.includes("models"))).toBe(false);
+    expect(slugs.some((s) => s.includes("status"))).toBe(false);
+  });
+});
+
+describe("覆盖判定 isCovered（三级判据 + 长度闸）", () => {
+  const coverage = new Set(
+    ["nanobanana2", "gemini31flashimagepreview", "flux2protexttoimage", "wan30video", "doubaoseedance20260128"].map(
+      (t) => t,
+    ),
+  );
+
+  it("全等命中", () => {
+    expect(isCovered("wan30video", coverage)).toBe(true);
+  });
+
+  it("末段全等命中（页名带厂商命名空间：google/nanobanana2 ↔ id nano-banana-2）", () => {
+    expect(isCovered("google/nanobanana2", coverage)).toBe(true);
+  });
+
+  it("包含关系命中（页名是家族、id 带后缀：gemini-3.1-flash ↔ …-image-preview）", () => {
+    expect(isCovered("gemini-3.1-flash", coverage)).toBe(true);
+  });
+
+  it("真缺口不被吞（同族但不同型号要报出来）", () => {
+    expect(isCovered("flux2/flex-text-to-image", coverage)).toBe(false);
+    expect(isCovered("bytedance/seedance-1-5-pro", coverage)).toBe(false);
+  });
+
+  it("长度闸生效：短 slug 不许靠包含把整族吃掉", () => {
+    // 没有这道闸，"wan"(3 字) 会命中 wan30video，于是所有 wan 系缺口被静默吞掉。
+    expect(isCovered("wan", coverage)).toBe(false);
+    expect(isCovered("x", coverage)).toBe(false);
+  });
+});
+
+describe("差分 diffVendor", () => {
+  const e = (slug: string): RadarEntry => ({
+    vendor: "kie",
+    category: "video",
+    slug,
+    title: slug,
+    url: `https://docs.kie.ai/market/${slug}.md`,
+  });
+
+  it("首次建基线不把整册报成新增（那是噪音不是信号）", () => {
+    const d = diffVendor("kie", [e("a-model"), e("b-model")], null, new Set());
+    expect(d.added).toEqual([]);
+    expect(d.total).toBe(2);
+  });
+
+  it("新增/下架各归各位", () => {
+    const prev = [e("a-model"), e("gone-model")];
+    const d = diffVendor("kie", [e("a-model"), e("fresh-model")], prev, new Set());
+    expect(d.added.map((x) => x.slug)).toEqual(["fresh-model"]);
+    expect(d.removed.map((x) => x.slug)).toEqual(["gone-model"]);
+  });
+
+  it("下架也要报——我们可能还在种一个已下线的模型", () => {
+    const d = diffVendor("kie", [], [e("retired")], new Set());
+    expect(d.removed.map((x) => x.slug)).toEqual(["retired"]);
+  });
+
+  it("uncovered 走 isCovered，不是裸全等", () => {
+    const d = diffVendor("kie", [e("google/nanobanana2")], [], new Set(["nanobanana2"]));
+    expect(d.uncovered).toEqual([]);
+  });
+});

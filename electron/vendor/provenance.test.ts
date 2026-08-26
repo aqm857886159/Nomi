@@ -50,3 +50,56 @@ describe("buildTaskProvenance(profile/fallback 两路径共用,修主路径漏�
     expect(typeof provenance.timestamp).toBe("number");
   });
 });
+
+/**
+ * 内联素材（data: URI）进记账面必须先摘要。
+ * 三处实伤（详见 provenance.inlineAssetDigest 注释）：溯源随 project.json 永久落盘、溯源面板
+ * 把 params 整段 JSON 铺进 <pre>、指纹要先把整个 extras stringify 再 sha256。
+ */
+describe("内联素材摘要（记账面只留身份，不留整串）", () => {
+  const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d]);
+  const inline = (salt = "") => `data:image/png;base64,${Buffer.concat([pngBytes, Buffer.from(salt)]).toString("base64")}`;
+  const requestWith = (url: string) => ({
+    kind: "image_edit",
+    prompt: "keep it",
+    extras: { referenceImages: [url], archetypeInput: { image_input: [url] }, aspectRatio: "16:9" },
+  });
+
+  it("recipe 与 provenance 都换成摘要：整串 base64 一个字节都不留", () => {
+    const url = inline();
+    const recipe = buildNormalizedRecipe({ vendor, model, request: requestWith(url) });
+    const provenance = buildTaskProvenance({ vendor, model, request: requestWith(url), vendorRequestId: "task-1" });
+    for (const serialized of [JSON.stringify(recipe), JSON.stringify(provenance)]) {
+      expect(serialized).not.toContain("base64,");
+      expect(serialized).toContain("nomi-inline-asset:sha256-");
+      expect(serialized).toContain("image/png");
+    }
+    // 嵌套结构（档案投影）里的那份也换掉，不只是顶层。
+    const nested = (recipe.params.archetypeInput as { image_input: string[] }).image_input[0];
+    expect(nested.startsWith("nomi-inline-asset:")).toBe(true);
+  });
+
+  it("摘要是内容身份：同字节恒同（指纹仍命中）、异字节恒异（不串图）", () => {
+    const same = JSON.stringify(buildNormalizedRecipe({ vendor, model, request: requestWith(inline()) }));
+    const sameAgain = JSON.stringify(buildNormalizedRecipe({ vendor, model, request: requestWith(inline()) }));
+    const other = JSON.stringify(buildNormalizedRecipe({ vendor, model, request: requestWith(inline("x")) }));
+    expect(same).toBe(sameAgain);
+    expect(same).not.toBe(other);
+  });
+
+  it("非内联值原样：公网 URL / nomi-local / 普通参数不被摘要碰", () => {
+    const recipe = buildNormalizedRecipe({
+      vendor,
+      model,
+      request: { kind: "k", prompt: "p", extras: { a: "https://cdn/a.png", b: "nomi-local://asset/p/a.png", c: 3 } },
+    });
+    expect(recipe.params).toMatchObject({ a: "https://cdn/a.png", b: "nomi-local://asset/p/a.png", c: 3 });
+  });
+
+  it("摘要体积恒定：几 MB 的内联素材也只留一行", () => {
+    const huge = `data:image/png;base64,${"A".repeat(4 * 1024 * 1024)}`;
+    const recipe = buildNormalizedRecipe({ vendor, model, request: requestWith(huge) });
+    expect(JSON.stringify(recipe).length).toBeLessThan(600);
+    expect(JSON.stringify(recipe)).toContain("3.0MB"); // 报的是解码后体积
+  });
+});

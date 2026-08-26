@@ -29,6 +29,7 @@ import {
 } from "./kieGptImage2";
 import { SEEDREAM_EDIT_MAPPING, SEEDREAM_MODEL_SEED, SEEDREAM_T2I_MAPPING } from "./kieSeedream";
 import { NANO_BANANA_EDIT_MAPPING, NANO_BANANA_MODEL_SEED, NANO_BANANA_T2I_MAPPING } from "./kieNanoBanana";
+import { KIE_IMAGE_2026_QUERY, KIE_IMAGE_2026_STATUS, KIE_IMAGE_MODELS_2026 } from "./kieImages2026";
 import { KLING_3_I2V_MAPPING, KLING_3_MODEL_SEED, KLING_3_T2V_MAPPING } from "./kieKling";
 import { MINIMAX_H3_CREATE_OP, MINIMAX_H3_MAPPING, MINIMAX_H3_MODEL_SEED, MINIMAX_H3_QUERY_OP } from "./kieMiniMaxH3";
 import {
@@ -38,6 +39,13 @@ import {
   SEEDANCE_2_5_QUERY_OP,
   SEEDANCE_2_5_TEXT_TO_VIDEO_MAPPING,
 } from "./kieSeedance25";
+import {
+  WAN_3_0_CREATE_OP,
+  WAN_3_0_IMAGE_TO_VIDEO_MAPPING,
+  WAN_3_0_MODEL_SEED,
+  WAN_3_0_QUERY_OP,
+  WAN_3_0_TEXT_TO_VIDEO_MAPPING,
+} from "./kieWan30";
 import { APIMART_VENDOR_SEED } from "./apimartVendor";
 import { APIMART_IMAGE_MODELS, APIMART_IMAGE_QUERY, APIMART_IMAGE_STATUS } from "./apimartImages";
 import { APIMART_VIDEO_MODELS, APIMART_VIDEO_QUERY, APIMART_VIDEO_STATUS } from "./apimartVideos";
@@ -51,13 +59,13 @@ import { MODELSCOPE_VENDOR_SEED } from "./modelscopeVendor";
 import { MODELSCOPE_IMAGE_MODELS, MODELSCOPE_IMAGE_QUERY, MODELSCOPE_IMAGE_STATUS } from "./modelscopeImages";
 import { MODELSCOPE_TEXT_MODELS } from "./modelscopeTexts";
 import { VOLCENGINE_VENDOR_SEED, VOLCENGINE_SPEECH_VENDOR_SEED } from "./volcengineVendor";
+import { BUILTIN_VENDOR_SEEDS, type VendorSeed } from "./builtinVendorSeeds";
 import { DREAMINA_VENDOR_SEED } from "./dreaminaVendor";
 import { DREAMINA_CURATED_MODELS, DREAMINA_CURATED_MAPPINGS } from "./dreaminaVideos";
 import { DREAMINA_IMAGE_CURATED_MODELS, DREAMINA_IMAGE_CURATED_MAPPINGS } from "./dreaminaImages";
 import { RUNNINGHUB_VENDOR_SEED, RUNNINGHUB_3D_CURATED_MODELS, RUNNINGHUB_3D_CURATED_MAPPINGS } from "./runninghub3d";
 import { RUNNINGHUB_VIDEO_CURATED_MODELS, RUNNINGHUB_VIDEO_CURATED_MAPPINGS } from "./runninghubVideos";
 import { RUNNINGHUB_IMAGE_CURATED_MODELS, RUNNINGHUB_IMAGE_CURATED_MAPPINGS } from "./runninghubImages";
-import { REPLICATE_VENDOR_SEED } from "./replicate";
 import { COMFYUI_VENDOR_SEED, COMFYUI_CURATED_MODELS, COMFYUI_CURATED_MAPPINGS } from "./comfyuiLocal";
 import { CODEX_LOCAL_VENDOR_SEED, CODEX_IMAGE_CURATED_MODELS, CODEX_IMAGE_CURATED_MAPPINGS } from "./codexImages";
 import { VOLCENGINE_IMAGE_MODELS } from "./volcengineImages";
@@ -98,6 +106,8 @@ const KLING_3_I2V_MAPPING_ID = "seed-kie-kling-3-image_to_video";
 const MINIMAX_H3_MAPPING_ID = "seed-kie-minimax-h3-text_to_video";
 const SEEDANCE_2_5_T2V_MAPPING_ID = "seed-kie-seedance2-5-text_to_video";
 const SEEDANCE_2_5_I2V_MAPPING_ID = "seed-kie-seedance2-5-image_to_video";
+const WAN_3_0_T2V_MAPPING_ID = "seed-kie-wan3-0-text_to_video";
+const WAN_3_0_I2V_MAPPING_ID = "seed-kie-wan3-0-image_to_video";
 
 /** kie 的 curated 内置模型（archetypeId = 能力档案指针，代码所有；enabled/labelZh = 用户所有）。 */
 const KIE_CURATED_MODELS: CuratedModel[] = [
@@ -110,6 +120,11 @@ const KIE_CURATED_MODELS: CuratedModel[] = [
   { modelKey: KLING_3_MODEL_SEED.modelKey, labelZh: KLING_3_MODEL_SEED.labelZh, kind: KLING_3_MODEL_SEED.kind, archetypeId: "kling-3.0" },
   { modelKey: MINIMAX_H3_MODEL_SEED.modelKey, labelZh: MINIMAX_H3_MODEL_SEED.labelZh, kind: MINIMAX_H3_MODEL_SEED.kind, archetypeId: "minimax-h3" },
   { modelKey: SEEDANCE_2_5_MODEL_SEED.modelKey, labelZh: SEEDANCE_2_5_MODEL_SEED.labelZh, kind: SEEDANCE_2_5_MODEL_SEED.kind, archetypeId: "seedance-2.5" },
+  // Wan 3.0：catalog 只有 **1 行**（标准版）；高速版 wan/3-0-video-prime 由档案 variants 暴露
+  // （契约逐项相同 → 变体而非第二行，见 wan30.ts 注释）。
+  { modelKey: WAN_3_0_MODEL_SEED.modelKey, labelZh: WAN_3_0_MODEL_SEED.labelZh, kind: WAN_3_0_MODEL_SEED.kind, archetypeId: "wan-3.0" },
+  // 2026-08 代图像（表驱动单源，见 kieImages2026）：Nano Banana 2 / 2 Lite、Seedream 5.0 Pro / Lite、FLUX.2 Pro。
+  ...KIE_IMAGE_MODELS_2026.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "image" as const, archetypeId: m.archetypeId })),
 ];
 
 /** kie 的 curated mapping（单源；create/query/statusMapping = 代码所有，强制对账）。 */
@@ -129,6 +144,16 @@ const KIE_CURATED_MAPPINGS: CuratedMapping[] = [
   { id: MINIMAX_H3_MAPPING_ID, taskKind: MINIMAX_H3_MAPPING.taskKind, modelKey: MINIMAX_H3_MAPPING.modelKey, name: MINIMAX_H3_MAPPING.name, create: MINIMAX_H3_CREATE_OP, query: MINIMAX_H3_QUERY_OP },
   { id: SEEDANCE_2_5_T2V_MAPPING_ID, taskKind: SEEDANCE_2_5_TEXT_TO_VIDEO_MAPPING.taskKind, modelKey: SEEDANCE_2_5_TEXT_TO_VIDEO_MAPPING.modelKey, name: SEEDANCE_2_5_TEXT_TO_VIDEO_MAPPING.name, create: SEEDANCE_2_5_CREATE_OP, query: SEEDANCE_2_5_QUERY_OP },
   { id: SEEDANCE_2_5_I2V_MAPPING_ID, taskKind: SEEDANCE_2_5_IMAGE_TO_VIDEO_MAPPING.taskKind, modelKey: SEEDANCE_2_5_IMAGE_TO_VIDEO_MAPPING.modelKey, name: SEEDANCE_2_5_IMAGE_TO_VIDEO_MAPPING.name, create: SEEDANCE_2_5_CREATE_OP, query: SEEDANCE_2_5_QUERY_OP },
+  { id: WAN_3_0_T2V_MAPPING_ID, taskKind: WAN_3_0_TEXT_TO_VIDEO_MAPPING.taskKind, modelKey: WAN_3_0_TEXT_TO_VIDEO_MAPPING.modelKey, name: WAN_3_0_TEXT_TO_VIDEO_MAPPING.name, create: WAN_3_0_CREATE_OP, query: WAN_3_0_QUERY_OP },
+  { id: WAN_3_0_I2V_MAPPING_ID, taskKind: WAN_3_0_IMAGE_TO_VIDEO_MAPPING.taskKind, modelKey: WAN_3_0_IMAGE_TO_VIDEO_MAPPING.modelKey, name: WAN_3_0_IMAGE_TO_VIDEO_MAPPING.name, create: WAN_3_0_CREATE_OP, query: WAN_3_0_QUERY_OP },
+  // 2026-08 代图像：每个模型 t2i + edit 两条，共用 kie 全家桶的轮询与状态归一。
+  // modelKey 精确路由（同 vendor 同 taskKind 多模型不撞，见 selectTaskMapping）。
+  ...KIE_IMAGE_MODELS_2026.flatMap((m) =>
+    m.mappings.map((mp) => ({
+      id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, name: mp.name,
+      create: mp.create, query: KIE_IMAGE_2026_QUERY, statusMapping: KIE_IMAGE_2026_STATUS,
+    })),
+  ),
 ];
 
 /** apimart 的 curated 模型 + mapping，从单源 APIMART_IMAGE_MODELS / APIMART_VIDEO_MODELS 派生。 */
@@ -299,16 +324,6 @@ function pruneRetiredMappings(mappings: Mapping[], retiredIds: readonly string[]
   return changed;
 }
 
-type VendorSeed = {
-  key: string;
-  name: string;
-  baseUrl: string;
-  authType: Vendor["authType"];
-  authHeader?: string | null;
-  enabled?: boolean;
-  assetIngestion?: Vendor["assetIngestion"];
-};
-
 /** 供应商种子（裸 baseUrl + bearer）。存在即跳过（用户配置不覆盖）。返回是否变更。
  *  多数种子默认 enabled:true；无鉴权本地后端（ComfyUI）带 `enabled:false` → 默认关、用户显式启用（污染防护）。 */
 function seedVendor(vendors: Vendor[], seed: VendorSeed, now: string): boolean {
@@ -354,6 +369,16 @@ const CANONICAL_MODEL_IDS: Record<string, string> = {
   "nano-banana": "nano banana",
   "gemini-2.5-flash-image-preview": "nano banana",
   "rhart-image-v1": "nano banana",
+  // Nano Banana 2（kie 主款 / apimart；**版本级**故与上面 2.5 代的 "nano banana" 分键，绝不合并）
+  // Lite 是独立档次（更快更便宜、参考图上限 10 而非 14）→ 自己一个键，不与主款合并成一条。
+  "nano-banana-2": "nano banana 2",
+  "gemini-3.1-flash-image-preview": "nano banana 2",
+  "nano-banana-2-lite": "nano banana 2 lite",
+  // Seedream 5.0（kie 的 pro / lite 两档 + apimart pro + 火山 pro；lite 与 pro 是不同档次故分键）
+  "seedream/5-pro-text-to-image": "seedream 5.0 pro",
+  "doubao-seedream-5-0-pro": "seedream 5.0 pro",
+  "doubao-seedream-5-0-pro-260628": "seedream 5.0 pro",
+  "seedream/5-lite-text-to-image": "seedream 5.0 lite",
   // GPT Image 2（kie 拆「· 文生图 / · 图生图」两行 / apimart / RunningHub → 同一 canonical 合并成一条）
   "gpt-image-2-text-to-image": "gpt image 2",
   "gpt-image-2-image-to-image": "gpt image 2",
@@ -366,6 +391,8 @@ const CANONICAL_MODEL_IDS: Record<string, string> = {
   // Qwen-Image 2.0（apimart / RunningHub）
   "qwen-image-2.0": "qwen-image 2.0",
   "rh-qwen-image-2.0": "qwen-image 2.0",
+  // Qwen-Image 3.0（apimart 独家；**版本级**故与 2.0 分键）
+  "qwen-image-3.0": "qwen-image 3.0",
   // Veo 3.1（apimart / RunningHub）
   "veo3.1-fast": "veo 3.1",
   "rhart-video-v3.1-pro-official": "veo 3.1",
@@ -463,18 +490,11 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   const mappings = [...state.mappings];
   let changed = false;
 
-  // 供应商：kie + apimart（apimart 为核心变现通道）。
-  if (seedVendor(vendors, KIE_VENDOR_SEED, now)) changed = true;
-  if (seedVendor(vendors, APIMART_VENDOR_SEED, now)) changed = true;
-  if (seedVendor(vendors, AGNES_VENDOR_SEED, now)) changed = true; // Agnes AI（全模态免费网关）
-  if (seedVendor(vendors, MODELSCOPE_VENDOR_SEED, now)) changed = true;
-  if (seedVendor(vendors, VOLCENGINE_VENDOR_SEED, now)) changed = true;
-  if (seedVendor(vendors, VOLCENGINE_SPEECH_VENDOR_SEED, now)) changed = true;
-  if (seedVendor(vendors, DREAMINA_VENDOR_SEED, now)) changed = true;
-  if (seedVendor(vendors, RUNNINGHUB_VENDOR_SEED, now)) changed = true; // RunningHub aggregator（先接 3D 混元文生3D）
-  if (seedVendor(vendors, REPLICATE_VENDOR_SEED, now)) changed = true; // Replicate（元素拆解 qwen-image-layered，按量付费）
-  if (seedVendor(vendors, COMFYUI_VENDOR_SEED, now)) changed = true; // 本地 ComfyUI（无鉴权本地后端，默认关、用户显式启用）
-  if (seedVendor(vendors, CODEX_LOCAL_VENDOR_SEED, now)) changed = true; // Codex 本地生图（实验，默认关）
+  // 供应商：清单住在 builtinVendorSeeds.ts（单一真相源，deriveVendorKeyFromBaseUrl 的
+  // 「已知 host → 内置 vendorKey」别名表由同一份清单派生，不另抄一份）。
+  for (const seed of BUILTIN_VENDOR_SEEDS) {
+    if (seedVendor(vendors, seed, now)) changed = true;
+  }
 
   // 退役 curated 记录清理（变体合并迁移：删 Seedance 旧变体模型 + mapping 孤儿，picker 收成 1 项）。
   if (pruneRetiredModels(models, APIMART_VENDOR_SEED.key, RETIRED_APIMART_VIDEO_MODEL_KEYS)) changed = true;
