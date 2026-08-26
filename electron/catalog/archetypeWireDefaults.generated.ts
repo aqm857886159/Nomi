@@ -20,7 +20,15 @@ export const ARCHETYPE_SIZE_RATIO_SEMANTIC: Record<string, Record<string, boolea
     "text_to_image": true,
     "image_edit": true
   },
+  "nano-banana-2": {
+    "text_to_image": true,
+    "image_edit": true
+  },
   "nano-banana": {
+    "text_to_image": true,
+    "image_edit": true
+  },
+  "qwen-image-3": {
     "text_to_image": true,
     "image_edit": true
   },

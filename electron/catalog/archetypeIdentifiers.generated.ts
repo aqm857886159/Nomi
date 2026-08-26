@@ -45,12 +45,28 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "seedream",
     "seedream/4.5-text-to-image",
     "seedream/4.5-edit",
-    "seedream/5-lite-text-to-image",
     "bytedance/seedream-v4-edit",
     "bytedance/seedream-v4-text-to-image",
     "seedream-4-5",
     "seedream-v4",
     "doubao-seedream-4.5"
+  ],
+  "kie-seedream-5-pro": [
+    "seedream/5-pro-text-to-image",
+    "seedream/5-pro-image-to-image"
+  ],
+  "kie-seedream-5-lite": [
+    "seedream/5-lite-text-to-image",
+    "seedream/5-lite-image-to-image"
+  ],
+  "nano-banana-2": [
+    "nano-banana-2",
+    "gemini-3.1-flash-image",
+    "gemini-3.1-flash-image-preview",
+    "gemini-3.1-flash-image-preview-official"
+  ],
+  "nano-banana-2-lite": [
+    "nano-banana-2-lite"
   ],
   "nano-banana": [
     "nano-banana",
@@ -59,12 +75,22 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "nano-banana-pro",
     "gemini-2.5-flash-image-preview"
   ],
+  "flux-2-pro": [
+    "flux-2/pro-text-to-image",
+    "flux-2/pro-image-to-image"
+  ],
   "kling-3.0": [
     "kling-3.0",
     "kling-3.0/video",
     "kling-3",
     "kling3",
     "kling-v3"
+  ],
+  "qwen-image-3": [
+    "qwen-image-3.0",
+    "qwen-image-3-0",
+    "qwen-image-3.0-pro",
+    "qwen-image-3-0-pro"
   ],
   "qwen-image": [
     "qwen-image",

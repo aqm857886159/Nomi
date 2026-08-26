@@ -88,7 +88,7 @@ function imageModel(p: {
   return { modelKey: p.modelKey, labelZh: p.labelZh, archetypeId: p.archetypeId, mappings };
 }
 
-/** 7 个 apimart 图片模型（单源；seedBuiltins 据此注册 catalog 行 + mapping）。 */
+/** apimart 图片模型（单源；seedBuiltins 据此注册 catalog 行 + mapping）。 */
 export const APIMART_IMAGE_MODELS: ApimartImageModel[] = [
   // Seedream 5.0 Pro（2026-07-29 照 docs.apimart.ai seedream-5-0-pro/generation.md 对账）：
   // ≤10 张参考图多参一图（首张免费）；resolution 仅 1K/2K（3K/4K 会 400）→ 独立档案不与 4.5 共享。
@@ -108,6 +108,16 @@ export const APIMART_IMAGE_MODELS: ApimartImageModel[] = [
     t2iBody: { size: SIZE }, // resolution 固定 1K → 省略走默认
     editBody: { size: SIZE, image_urls: IMAGE_URLS },
   }),
+  // Nano Banana 2（2026-08-26 照 docs.apimart.ai gemini-3.1-flash/generation.md 对账）：
+  // **≤14 张参考图**（全市场最多，直接服务跨镜身份一致性）；resolution 0.5K/1K/2K/4K，档案只暴露 1K/2K/4K
+  // （取与 kie 的交集，见 nanoBanana2.ts）。这里选 `gemini-3.1-flash-image-preview`（别名 nano-banana-2-ext）
+  // 而非 `-official`：文档同页两条同契约，ext 是常规通道；official 走官方直连、贵且限流严，
+  // 需要时用户可自建自定义模型指过去，不占 curated 名额（D4 极简）。
+  imageModel({
+    modelKey: "gemini-3.1-flash-image-preview", labelZh: "Nano Banana 2", archetypeId: "nano-banana-2",
+    t2iBody: { size: SIZE, resolution: RESOLUTION },
+    editBody: { size: SIZE, resolution: RESOLUTION, image_urls: IMAGE_URLS },
+  }),
   imageModel({
     modelKey: "gpt-image-2", labelZh: "GPT Image 2", archetypeId: "gpt-image-2",
     t2iBody: { size: SIZE, resolution: RESOLUTION },
@@ -123,6 +133,14 @@ export const APIMART_IMAGE_MODELS: ApimartImageModel[] = [
   // Qwen-Image：变体（标准 qwen-image-2.0 / Pro qwen-image-2.0-pro）→ body model 取 {{request.params.model}}。
   imageModel({
     modelKey: "qwen-image-2.0", labelZh: "Qwen-Image 2.0", archetypeId: "qwen-image", modelRef: VARIANT_MODEL_REF,
+    t2iBody: { size: SIZE, resolution: RESOLUTION, negative_prompt: NEGATIVE_PROMPT },
+    editBody: { size: SIZE, resolution: RESOLUTION, image_urls: IMAGE_URLS, negative_prompt: NEGATIVE_PROMPT },
+  }),
+  // Qwen-Image 3.0（2026-08-26 照 docs.apimart.ai qwen-image-3.0/generation.md 对账）：
+  // 变体标准/Pro（Pro 强于密集排版与文字渲染）→ body model 取 {{request.params.model}}。
+  // ⚠️ 改图参考图**只收 1–3 张**（2.0 是 4 张，别照抄）——档案槽已按 3 收口。
+  imageModel({
+    modelKey: "qwen-image-3.0", labelZh: "Qwen-Image 3.0", archetypeId: "qwen-image-3", modelRef: VARIANT_MODEL_REF,
     t2iBody: { size: SIZE, resolution: RESOLUTION, negative_prompt: NEGATIVE_PROMPT },
     editBody: { size: SIZE, resolution: RESOLUTION, image_urls: IMAGE_URLS, negative_prompt: NEGATIVE_PROMPT },
   }),

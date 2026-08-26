@@ -32,7 +32,11 @@ export const SEEDREAM_ARCHETYPE: ModelArchetype = {
   kind: "image",
   defaultModeId: "t2i",
   transportTaskKind: "text_to_image",
-  identifierPatterns: ["seedream", "seedream/4.5-text-to-image", "seedream/4.5-edit", "seedream/5-lite-text-to-image", "bytedance/seedream-v4-edit", "bytedance/seedream-v4-text-to-image", "seedream-4-5", "seedream-v4", "doubao-seedream-4.5"],
+  // ⚠️ 2026-08-26 修：此前这里混进了 "seedream/5-lite-text-to-image"（5.0 代的 id 挂在 4.5 档案上）。
+  // 后果不是报错而是**参数域用错**——5.0 lite 的 quality 有 ultra 档、4.5 没有，认到这里就永远发不出 ultra；
+  // 且 5.0 的改图是独立 model id，4.5 档案的 modelEnum 会把它发成 seedream/4.5-edit（跑的是上一代模型）。
+  // 5.0 lite / pro 现有自己的档案（kieSeedream5.ts），本档案只留 4.x 代的 id。
+  identifierPatterns: ["seedream", "seedream/4.5-text-to-image", "seedream/4.5-edit", "bytedance/seedream-v4-edit", "bytedance/seedream-v4-text-to-image", "seedream-4-5", "seedream-v4", "doubao-seedream-4.5"],
   modes: [
     {
       id: "t2i",

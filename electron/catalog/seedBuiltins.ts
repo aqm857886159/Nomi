@@ -29,6 +29,7 @@ import {
 } from "./kieGptImage2";
 import { SEEDREAM_EDIT_MAPPING, SEEDREAM_MODEL_SEED, SEEDREAM_T2I_MAPPING } from "./kieSeedream";
 import { NANO_BANANA_EDIT_MAPPING, NANO_BANANA_MODEL_SEED, NANO_BANANA_T2I_MAPPING } from "./kieNanoBanana";
+import { KIE_IMAGE_2026_QUERY, KIE_IMAGE_2026_STATUS, KIE_IMAGE_MODELS_2026 } from "./kieImages2026";
 import { KLING_3_I2V_MAPPING, KLING_3_MODEL_SEED, KLING_3_T2V_MAPPING } from "./kieKling";
 import { MINIMAX_H3_CREATE_OP, MINIMAX_H3_MAPPING, MINIMAX_H3_MODEL_SEED, MINIMAX_H3_QUERY_OP } from "./kieMiniMaxH3";
 import {
@@ -110,6 +111,8 @@ const KIE_CURATED_MODELS: CuratedModel[] = [
   { modelKey: KLING_3_MODEL_SEED.modelKey, labelZh: KLING_3_MODEL_SEED.labelZh, kind: KLING_3_MODEL_SEED.kind, archetypeId: "kling-3.0" },
   { modelKey: MINIMAX_H3_MODEL_SEED.modelKey, labelZh: MINIMAX_H3_MODEL_SEED.labelZh, kind: MINIMAX_H3_MODEL_SEED.kind, archetypeId: "minimax-h3" },
   { modelKey: SEEDANCE_2_5_MODEL_SEED.modelKey, labelZh: SEEDANCE_2_5_MODEL_SEED.labelZh, kind: SEEDANCE_2_5_MODEL_SEED.kind, archetypeId: "seedance-2.5" },
+  // 2026-08 代图像（表驱动单源，见 kieImages2026）：Nano Banana 2 / 2 Lite、Seedream 5.0 Pro / Lite、FLUX.2 Pro。
+  ...KIE_IMAGE_MODELS_2026.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "image" as const, archetypeId: m.archetypeId })),
 ];
 
 /** kie 的 curated mapping（单源；create/query/statusMapping = 代码所有，强制对账）。 */
@@ -129,6 +132,14 @@ const KIE_CURATED_MAPPINGS: CuratedMapping[] = [
   { id: MINIMAX_H3_MAPPING_ID, taskKind: MINIMAX_H3_MAPPING.taskKind, modelKey: MINIMAX_H3_MAPPING.modelKey, name: MINIMAX_H3_MAPPING.name, create: MINIMAX_H3_CREATE_OP, query: MINIMAX_H3_QUERY_OP },
   { id: SEEDANCE_2_5_T2V_MAPPING_ID, taskKind: SEEDANCE_2_5_TEXT_TO_VIDEO_MAPPING.taskKind, modelKey: SEEDANCE_2_5_TEXT_TO_VIDEO_MAPPING.modelKey, name: SEEDANCE_2_5_TEXT_TO_VIDEO_MAPPING.name, create: SEEDANCE_2_5_CREATE_OP, query: SEEDANCE_2_5_QUERY_OP },
   { id: SEEDANCE_2_5_I2V_MAPPING_ID, taskKind: SEEDANCE_2_5_IMAGE_TO_VIDEO_MAPPING.taskKind, modelKey: SEEDANCE_2_5_IMAGE_TO_VIDEO_MAPPING.modelKey, name: SEEDANCE_2_5_IMAGE_TO_VIDEO_MAPPING.name, create: SEEDANCE_2_5_CREATE_OP, query: SEEDANCE_2_5_QUERY_OP },
+  // 2026-08 代图像：每个模型 t2i + edit 两条，共用 kie 全家桶的轮询与状态归一。
+  // modelKey 精确路由（同 vendor 同 taskKind 多模型不撞，见 selectTaskMapping）。
+  ...KIE_IMAGE_MODELS_2026.flatMap((m) =>
+    m.mappings.map((mp) => ({
+      id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, name: mp.name,
+      create: mp.create, query: KIE_IMAGE_2026_QUERY, statusMapping: KIE_IMAGE_2026_STATUS,
+    })),
+  ),
 ];
 
 /** apimart 的 curated 模型 + mapping，从单源 APIMART_IMAGE_MODELS / APIMART_VIDEO_MODELS 派生。 */
@@ -344,6 +355,16 @@ const CANONICAL_MODEL_IDS: Record<string, string> = {
   "nano-banana": "nano banana",
   "gemini-2.5-flash-image-preview": "nano banana",
   "rhart-image-v1": "nano banana",
+  // Nano Banana 2（kie 主款 / apimart；**版本级**故与上面 2.5 代的 "nano banana" 分键，绝不合并）
+  // Lite 是独立档次（更快更便宜、参考图上限 10 而非 14）→ 自己一个键，不与主款合并成一条。
+  "nano-banana-2": "nano banana 2",
+  "gemini-3.1-flash-image-preview": "nano banana 2",
+  "nano-banana-2-lite": "nano banana 2 lite",
+  // Seedream 5.0（kie 的 pro / lite 两档 + apimart pro + 火山 pro；lite 与 pro 是不同档次故分键）
+  "seedream/5-pro-text-to-image": "seedream 5.0 pro",
+  "doubao-seedream-5-0-pro": "seedream 5.0 pro",
+  "doubao-seedream-5-0-pro-260628": "seedream 5.0 pro",
+  "seedream/5-lite-text-to-image": "seedream 5.0 lite",
   // GPT Image 2（kie 拆「· 文生图 / · 图生图」两行 / apimart / RunningHub → 同一 canonical 合并成一条）
   "gpt-image-2-text-to-image": "gpt image 2",
   "gpt-image-2-image-to-image": "gpt image 2",
@@ -356,6 +377,8 @@ const CANONICAL_MODEL_IDS: Record<string, string> = {
   // Qwen-Image 2.0（apimart / RunningHub）
   "qwen-image-2.0": "qwen-image 2.0",
   "rh-qwen-image-2.0": "qwen-image 2.0",
+  // Qwen-Image 3.0（apimart 独家；**版本级**故与 2.0 分键）
+  "qwen-image-3.0": "qwen-image 3.0",
   // Veo 3.1（apimart / RunningHub）
   "veo3.1-fast": "veo 3.1",
   "rhart-video-v3.1-pro-official": "veo 3.1",

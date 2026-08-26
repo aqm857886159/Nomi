@@ -43,6 +43,78 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
       }
     }
   },
+  "kie-seedream-5-pro": {
+    "text_to_image": {
+      "*": {
+        "aspect_ratio": "1:1",
+        "quality": "basic",
+        "output_format": "png",
+        "model": "seedream/5-pro-text-to-image"
+      }
+    },
+    "image_edit": {
+      "*": {
+        "aspect_ratio": "1:1",
+        "quality": "basic",
+        "output_format": "png",
+        "model": "seedream/5-pro-image-to-image"
+      }
+    }
+  },
+  "kie-seedream-5-lite": {
+    "text_to_image": {
+      "*": {
+        "aspect_ratio": "1:1",
+        "quality": "basic",
+        "output_format": "png",
+        "model": "seedream/5-lite-text-to-image"
+      }
+    },
+    "image_edit": {
+      "*": {
+        "aspect_ratio": "1:1",
+        "quality": "basic",
+        "output_format": "png",
+        "model": "seedream/5-lite-image-to-image"
+      }
+    }
+  },
+  "nano-banana-2": {
+    "text_to_image": {
+      "*": {
+        "aspect_ratio": "auto",
+        "resolution": "1K",
+        "output_format": "png"
+      },
+      "apimart": {
+        "size": "auto",
+        "resolution": "1K"
+      }
+    },
+    "image_edit": {
+      "*": {
+        "aspect_ratio": "auto",
+        "resolution": "1K",
+        "output_format": "png"
+      },
+      "apimart": {
+        "size": "auto",
+        "resolution": "1K"
+      }
+    }
+  },
+  "nano-banana-2-lite": {
+    "text_to_image": {
+      "*": {
+        "aspect_ratio": "auto"
+      }
+    },
+    "image_edit": {
+      "*": {
+        "aspect_ratio": "auto"
+      }
+    }
+  },
   "nano-banana": {
     "text_to_image": {
       "*": {
@@ -64,6 +136,38 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
       "apimart": {
         "size": "1:1",
         "model": "google/nano-banana-edit"
+      }
+    }
+  },
+  "flux-2-pro": {
+    "text_to_image": {
+      "*": {
+        "aspect_ratio": "1:1",
+        "resolution": "1K",
+        "model": "flux-2/pro-text-to-image"
+      }
+    },
+    "image_edit": {
+      "*": {
+        "aspect_ratio": "1:1",
+        "resolution": "1K",
+        "model": "flux-2/pro-image-to-image"
+      }
+    }
+  },
+  "qwen-image-3": {
+    "text_to_image": {
+      "*": {
+        "size": "1:1",
+        "resolution": "1K",
+        "model": "qwen-image-3.0"
+      }
+    },
+    "image_edit": {
+      "*": {
+        "size": "1:1",
+        "resolution": "1K",
+        "model": "qwen-image-3.0"
       }
     }
   },
