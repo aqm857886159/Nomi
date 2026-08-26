@@ -25,7 +25,7 @@ on:
   # 「Electron 43 在 win32 到底行不行」的答案，先挂一条只认这个验证分支的 push 触发。
   # 拿到结论后删掉这一段，只留 workflow_dispatch。
   push:
-    branches: [claude/win-gate-verify]
+    branches: [claude/win-gate-*]
 
 permissions:
   contents: read

@@ -90,10 +90,23 @@ function latestExport(projectDir, startedAt) {
   const exportDir = path.join(projectDir, "exports");
   if (!fs.existsSync(exportDir)) return null;
   return fs.readdirSync(exportDir)
-    .filter((name) => name.endsWith(".mp4"))
+    // ffmpeg 的在写临时文件也叫 .mp4：exportPaths.ts:69 把它命名成 <final>.partial.mp4，
+    // 于是 endsWith(".mp4") 必然把半成品当成品捞进来。
+    .filter((name) => name.endsWith(".mp4") && !name.endsWith(".partial.mp4"))
     .map((name) => path.join(exportDir, name))
-    .filter((file) => fs.statSync(file).mtimeMs >= startedAt && fs.statSync(file).size > 0)
-    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0] || null;
+    // stat 只做一次、结果随条目带走。原来 filter 和 sort 各 stat 一次，ffmpeg 在这两次之间
+    // 把 .partial.mp4 改名成最终名，第二次 stat 就 ENOENT 抛穿，报成「导出失败」——
+    // 而产品其实导出成功了。Windows 导出慢，正好把这个竞态窗口撞开；Linux/mac 只是没撞上，不是没有。
+    .flatMap((file) => {
+      try {
+        const stat = fs.statSync(file);
+        return [{ file, mtimeMs: stat.mtimeMs, size: stat.size }];
+      } catch {
+        return []; // 竞态中被改名/删除的文件跳过即可，不是错误
+      }
+    })
+    .filter((entry) => entry.mtimeMs >= startedAt && entry.size > 0)
+    .sort((a, b) => b.mtimeMs - a.mtimeMs)[0]?.file || null;
 }
 
 export default {
