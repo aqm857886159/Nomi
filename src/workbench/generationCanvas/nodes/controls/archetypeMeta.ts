@@ -378,18 +378,28 @@ function preservedVariantId(meta: Record<string, unknown>, archetype: ModelArche
 }
 
 /**
- * 切到 nextModeId：只改 node.meta.archetype.modeId（参考值全局保留，不搬不清）。返回**整份新 meta**。
+ * 切到 nextModeId：改 node.meta.archetype.modeId，并把**存量越界的 select 值夹回新模式的默认**
+ * （参考值/照片全局保留，不搬不清）。返回**整份新 meta**。
  * 互斥不在这里发生——发生在 buildArchetypeInputParams（只发当前模式声明的槽键）。这样切回时照片还在。
  * variantId 跟随保留（切 mode 不动变体）；无变体档案则不写 variantId 键。
+ *
+ * ⚠️ 这里必须和 applyArchetypeVariantSwitch 一样调 clampMetaToModeParams —— **模式和变体一样会收窄参数**。
+ * 2026-08-26 走查实测：火山 Seedance 2.5 在「文生视频」选了 16:9，切到「首帧」（官方硬约束 ratio 只能
+ * adaptive，档案已把选项收窄成一项）后，UI 上一个选中项都没有，而 meta 里那个 16:9 原封不动留着并照发
+ * —— 正好触发档案注释说要防的 InvalidParameter.TaskTypeConstraint（任务已创建才异步报错、额度已排队）。
+ * 收窄了「选项」却不收窄「已存的值」= UI 与发送不一致。通用坑，不是 Seedance 专属。
  */
 export function applyArchetypeModeSwitch(
   meta: Record<string, unknown>,
   archetype: ModelArchetype,
   nextModeId: string,
 ): Record<string, unknown> {
-  const nextMode = archetype.modes.find((m) => m.id === nextModeId) ?? archetype.modes[0]
   const variantId = preservedVariantId(meta, archetype)
-  return { ...meta, archetype: { id: archetype.id, modeId: nextMode.id, ...(variantId ? { variantId } : {}) } }
+  // 按当前变体特化后再取模式参数：变体与模式**都**可能收窄同一个 select，夹的必须是两层叠加后的选项集。
+  const specialized = specializeArchetypeForVariant(archetype, variantId)
+  const nextMode = specialized.modes.find((m) => m.id === nextModeId) ?? specialized.modes[0]
+  const clamped = nextMode ? clampMetaToModeParams(meta, nextMode.params) : meta
+  return { ...clamped, archetype: { id: archetype.id, modeId: nextMode.id, ...(variantId ? { variantId } : {}) } }
 }
 
 /**
