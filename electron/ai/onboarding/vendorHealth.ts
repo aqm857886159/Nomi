@@ -15,10 +15,14 @@
  * 代价是对「本就没有 /models」的家每轮多发一个必然 404 的请求：零额度（就是 GET /models）、
  * 有缓存、无害。换来的是新增供应商零维护（P4 通用第一）。
  */
+import { createHash } from "node:crypto";
 import type { AiSdkProviderKind } from "../../catalog/types";
 import { readCatalog, normalizeProviderKind } from "../../catalog/catalogStore";
 import { decryptApiKeyRecord } from "../../catalog/secrets";
-import { buildAuthHeaders, fetchModelList } from "./modelListProbe";
+import { isJsonRecord, mergeHeadersCaseInsensitive } from "../../jsonUtils";
+import { authHeaders, authQueryParams } from "../requestPipeline";
+import { fetchModelList, readExtraHeaders, type ModelListFailureKind } from "./modelListProbe";
+import { modelListErrorRedactor } from "./modelListSafety";
 
 export type VendorHealthState = "reachable" | "unreachable" | "unsupported";
 
@@ -52,8 +56,9 @@ export function resetVendorHealthCache(): void {
 
 type Target = {
   baseUrl: string;
-  apiKey: string;
   providerKind: AiSdkProviderKind;
+  headers: Record<string, string>;
+  query: Record<string, string>;
   fingerprint: string;
 };
 
@@ -74,32 +79,37 @@ function resolveTarget(vendorKey: string): Target | null {
   const apiKey = decryptApiKeyRecord(record) || "";
   if (!apiKey) return null;
   const providerKind = normalizeProviderKind(vendor.providerKind);
+  const authType = vendor.authType || (providerKind === "anthropic" ? "x-api-key" : "bearer");
+  const headers = mergeHeadersCaseInsensitive(
+    providerKind === "anthropic" ? { "anthropic-version": "2023-06-01" } : {},
+    authHeaders(authType, apiKey, vendor.authHeader ?? undefined),
+    readExtraHeaders(isJsonRecord(vendor.meta) ? vendor.meta.extraHeaders : undefined),
+  );
+  const query = authQueryParams(authType, apiKey, vendor.authQueryParam ?? undefined);
   return {
     baseUrl,
-    apiKey,
     providerKind,
-    fingerprint: `${baseUrl}|${record?.updatedAt ?? ""}|${providerKind}`,
+    headers,
+    query,
+    fingerprint: createHash("sha256").update(JSON.stringify({
+      baseUrl, updatedAt: record?.updatedAt, providerKind, authType,
+      authHeader: vendor.authHeader, authQueryParam: vendor.authQueryParam, headers, query,
+    })).digest("hex"),
   };
 }
 
 /** 探测结果 → 四态判定。抽成纯函数，好让单测直接钉住这张映射表。 */
 export function classifyProbe(
   vendorKey: string,
-  probe: { ok: boolean; error?: string; statuses: number[] },
+  probe: { ok: boolean; error?: string; statuses: number[]; failureKind?: ModelListFailureKind },
   checkedAt: number,
 ): VendorHealth {
   if (probe.ok) return { vendorKey, state: "reachable", checkedAt };
-  const { statuses } = probe;
-  // 凭证不对优先于「没这个端点」：/models 回 401、/v1/models 回 404 时若只看末位会把 key 失效吞掉。
-  if (statuses.some((s) => s === 401 || s === 403)) {
-    return { vendorKey, state: "unreachable", reason: probe.error, checkedAt };
+  // The shared probe includes business and network failures that HTTP statuses alone cannot show.
+  // A non-list response cannot establish whether the provider's generation API works.
+  if (probe.failureKind === "unsupported" || probe.failureKind === "invalid_response") {
+    return { vendorKey, state: "unsupported", checkedAt };
   }
-  // 「地址响应了，但这里没有模型列表」→ 我们没法预检，**不能**说连不上。
-  // 覆盖两类：全 404/405（没这个路由）、以及 2xx 却解析不出列表（火山语音这类原生上游、
-  // 或后台 SPA 回的 index.html）。宁可漏报也不误报——把能用的家标成「连不上」
-  // 会让用户以为配置坏了，代价远大于「没帮上忙」（D4 诚实：展开后如实说没法预检）。
-  const undiagnosable = statuses.length > 0 && statuses.every((s) => s === 404 || s === 405 || (s >= 200 && s < 300));
-  if (undiagnosable) return { vendorKey, state: "unsupported", checkedAt };
   return { vendorKey, state: "unreachable", reason: probe.error, checkedAt };
 }
 
@@ -107,11 +117,10 @@ async function probe(vendorKey: string, target: Target): Promise<VendorHealth> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
   try {
-    const headers = buildAuthHeaders(target.providerKind, target.apiKey, {});
-    const res = await fetchModelList(target.providerKind, target.baseUrl, headers, controller.signal);
+    const res = await fetchModelList(target.providerKind, target.baseUrl, target.headers, controller.signal, { query: target.query });
     return classifyProbe(
       vendorKey,
-      { ok: res.ok, error: res.ok ? undefined : res.error, statuses: res.statuses },
+      { ok: res.ok, error: res.ok ? undefined : res.error, statuses: res.statuses, failureKind: res.ok ? undefined : res.failureKind },
       Date.now(),
     );
   } finally {
@@ -139,7 +148,7 @@ export async function checkVendorHealth(vendorKey: string, force = false): Promi
     .catch((e): VendorHealth => ({
       vendorKey,
       state: "unreachable",
-      reason: e instanceof Error ? e.message : String(e),
+      reason: modelListErrorRedactor(target.baseUrl, target.headers, target.query)(e instanceof Error ? e.message : String(e)),
       checkedAt: Date.now(),
     }))
     .then((result) => {

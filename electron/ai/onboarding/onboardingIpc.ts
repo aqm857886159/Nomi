@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
 import type { AiSdkProviderKind } from "../../catalog/types";
-import { describeIllegalHeader, findIllegalHeader, findNonHeaderSafeChar } from "../../jsonUtils";
+import { describeIllegalHeader, findIllegalHeader, findNonHeaderSafeChar, mergeHeadersCaseInsensitive } from "../../jsonUtils";
 import { guessModelKind, type GuessableModelKind } from "../../catalog/modelKindHeuristic";
 import {
   buildAuthHeaders,
@@ -36,25 +36,17 @@ async function probeOneProtocol(
   signal: AbortSignal,
 ): Promise<ProtocolProbe> {
   let url: string;
-  let headers: Record<string, string>;
+  const headers = mergeHeadersCaseInsensitive({ "content-type": "application/json" }, buildAuthHeaders(kind, apiKey, extraHeaders));
   let body: Record<string, unknown>;
   if (kind === "anthropic") {
     const root = (rawBaseUrl || "https://api.anthropic.com").replace(/\/v1$/i, "");
     url = `${root}/v1/messages`;
-    headers = {
-      "content-type": "application/json",
-      "anthropic-version": "2023-06-01",
-      ...(apiKey ? { "x-api-key": apiKey } : {}),
-      ...extraHeaders,
-    };
     body = { model: modelId || "claude-3-5-haiku-latest", max_tokens: 1, messages: [{ role: "user", content: "ping" }] };
   } else if (kind === "openai-responses") {
     url = `${rawBaseUrl}/responses`;
-    headers = { "content-type": "application/json", ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}), ...extraHeaders };
     body = { model: modelId || "gpt-4o-mini", input: "ping", max_output_tokens: 16 };
   } else {
     url = `${rawBaseUrl}/chat/completions`;
-    headers = { "content-type": "application/json", ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}), ...extraHeaders };
     body = { model: modelId || "gpt-3.5-turbo", messages: [{ role: "user", content: "ping" }], max_tokens: 1 };
   }
   try {
@@ -197,12 +189,12 @@ export function registerOnboardingIpc(): void {
     // 不经发送闸——脏 key（含中文/全角）会让 fetch 同步抛原始 ByteString，被 describeNetworkError
     // 误判网络。先识别、说人话、根本不发 fetch（治本，避免「连不上：Cannot convert…」）。
     const keyProblem = apiKey ? findNonHeaderSafeChar(apiKey) : null;
-    if (keyProblem) return { ok: false, error: describeIllegalHeader({ name: "API Key", ...keyProblem }).message };
+    if (keyProblem) return { ok: false, failureKind: "auth", error: describeIllegalHeader({ name: "API Key", ...keyProblem }).message };
     const headerProblem = findIllegalHeader(extraHeaders);
-    if (headerProblem) return { ok: false, error: describeIllegalHeader(headerProblem).message };
+    if (headerProblem) return { ok: false, failureKind: "auth", error: describeIllegalHeader(headerProblem).message };
     // 纯图片/视频上游：不探协议（探了也白探，它们不走 providerKind），只探地址+Key 通不通。
     if (reachabilityOnly) {
-      if (!/^https?:\/\//i.test(rawBaseUrl)) return { ok: false, error: "接入地址需以 http:// 或 https:// 开头" };
+      if (!/^https?:\/\//i.test(rawBaseUrl)) return { ok: false, failureKind: "invalid_response", error: "接入地址需以 http:// 或 https:// 开头" };
       const kind = forcedKind ?? "openai-compatible";
       const headers = buildAuthHeaders(kind, apiKey, extraHeaders);
       const controller = new AbortController();
@@ -211,7 +203,7 @@ export function registerOnboardingIpc(): void {
         const listed = await fetchModelList(kind, rawBaseUrl, headers, controller.signal);
         return listed.ok
           ? { ok: true, reachabilityOnly: true }
-          : { ok: false, status: listed.status, error: listed.error };
+          : { ok: false, status: listed.status, failureKind: listed.failureKind, error: listed.error };
       } finally {
         clearTimeout(timeout);
       }
@@ -267,12 +259,12 @@ export function registerOnboardingIpc(): void {
     const baseUrl =
       providerKind === "anthropic" && !rawBaseUrl ? "https://api.anthropic.com" : rawBaseUrl;
     const apiKey = String(payload?.apiKey || "").trim();
-    if (!/^https?:\/\//i.test(baseUrl)) return { ok: false, error: "接入地址需以 http:// 或 https:// 开头" };
+    if (!/^https?:\/\//i.test(baseUrl)) return { ok: false, failureKind: "invalid_response", error: "接入地址需以 http:// 或 https:// 开头" };
     const extraHeaders = readExtraHeaders(payload?.headers);
     const headers = buildAuthHeaders(providerKind, apiKey, extraHeaders);
     // 发送前请求头守卫（同 test-connection）：自带裸 fetch 绕过发送闸，脏 key 先拦+说人话，不发 fetch。
     const headerProblem = findIllegalHeader(headers);
-    if (headerProblem) return { ok: false, error: describeIllegalHeader(headerProblem).message };
+    if (headerProblem) return { ok: false, failureKind: "auth", error: describeIllegalHeader(headerProblem).message };
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12_000);
     try {

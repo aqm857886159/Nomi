@@ -91,8 +91,8 @@ export function ModelPickerScreen({
   const { t } = useTranslation()
   const alreadyAdded = React.useMemo(() => new Set(alreadyAddedIds), [alreadyAddedIds])
   const controlsBlocked = blocked || confirming
-  const [selected, setSelected] = React.useState<Set<string>>(
-    () => new Set(initialSelected.map((m) => m.id).filter((id) => !alreadyAdded.has(id))),
+  const [selected, setSelected] = React.useState<Map<string, PickerModel>>(
+    () => new Map(initialSelected.filter((m) => !alreadyAdded.has(m.id)).map((m) => [m.id, m])),
   )
   const [manual, setManual] = React.useState<PickerModel[]>([])
   const [manualInput, setManualInput] = React.useState('')
@@ -106,7 +106,7 @@ export function ModelPickerScreen({
   const setKind = React.useCallback((id: string, kind: string) => {
     setOverrides((prev) => new Map(prev).set(id, kind))
     // 改了类型多半就是要它——顺手勾上，省一次点击（改完还要自己再勾一下是纯摩擦）。
-    setSelected((prev) => new Set(prev).add(id))
+    setSelected((prev) => new Map(prev).set(id, { id, kind }))
   }, [])
 
   // 池 = 手填 ∪ 已选 ∪ 拉到的（去重保首次）。已选放在拉取之前，保证手动加过的 id 仍渲染、
@@ -114,14 +114,14 @@ export function ModelPickerScreen({
   const pool = React.useMemo(() => {
     const seen = new Set<string>()
     const out: PickerModel[] = []
-    for (const m of [...manual, ...initialSelected, ...candidates]) {
+    for (const m of [...manual, ...selected.values(), ...initialSelected, ...candidates]) {
       const id = m.id.trim()
       if (!id || seen.has(id)) continue
       seen.add(id)
       out.push({ id, kind: overrides.get(id) ?? m.kind })
     }
     return out
-  }, [candidates, manual, initialSelected, overrides])
+  }, [candidates, manual, selected, initialSelected, overrides])
 
   const q = query.trim().toLowerCase()
   const visible = q ? pool.filter((m) => m.id.toLowerCase().includes(q)) : pool
@@ -131,38 +131,46 @@ export function ModelPickerScreen({
     (id: string) => {
       if (alreadyAdded.has(id) || controlsBlocked) return
       setSelected((prev) => {
-        const next = new Set(prev)
+        const next = new Map(prev)
         if (next.has(id)) next.delete(id)
-        else next.add(id)
+        else {
+          const model = pool.find((item) => item.id === id)
+          if (model) next.set(id, model)
+        }
         return next
       })
     },
-    [alreadyAdded, controlsBlocked],
+    [alreadyAdded, controlsBlocked, pool],
   )
 
   const toggleGroup = React.useCallback(
     (ids: string[]) => {
       if (controlsBlocked) return
       const available = ids.filter((id) => !alreadyAdded.has(id))
+      const byId = new Map(pool.map((model) => [model.id, model]))
       setSelected((prev) => {
-        const next = new Set(prev)
+        const next = new Map(prev)
         const allOn = available.length > 0 && available.every((id) => next.has(id))
         for (const id of available) {
           if (allOn) next.delete(id)
-          else next.add(id)
+          else {
+            const model = byId.get(id)
+            if (model) next.set(id, model)
+          }
         }
         return next
       })
     },
-    [alreadyAdded, controlsBlocked],
+    [alreadyAdded, controlsBlocked, pool],
   )
 
   const addManual = React.useCallback(async () => {
     const id = manualInput.trim()
     if (!id || controlsBlocked || alreadyAdded.has(id)) return
     setManualInput('')
-    if (pool.some((m) => m.id === id)) {
-      setSelected((prev) => new Set(prev).add(id))
+    const existing = pool.find((m) => m.id === id)
+    if (existing) {
+      setSelected((prev) => new Map(prev).set(id, existing))
       return
     }
     let kind = 'text'
@@ -174,14 +182,14 @@ export function ModelPickerScreen({
       }
     }
     setManual((prev) => [{ id, kind }, ...prev])
-    setSelected((prev) => new Set(prev).add(id))
+    setSelected((prev) => new Map(prev).set(id, { id, kind }))
   }, [manualInput, pool, onResolveKind, controlsBlocked, alreadyAdded])
 
   const confirm = React.useCallback(() => {
     onConfirm(pool.filter((m) => selected.has(m.id) && !alreadyAdded.has(m.id)))
   }, [pool, selected, alreadyAdded, onConfirm])
 
-  const count = selected.size
+  const count = [...selected.keys()].filter((id) => !alreadyAdded.has(id)).length
 
   return (
     <Stack gap={10}>
@@ -256,7 +264,7 @@ export function ModelPickerScreen({
         {count > 0 && (
           <button
             type="button"
-            onClick={() => setSelected(new Set())}
+            onClick={() => setSelected(new Map())}
             disabled={controlsBlocked}
             className="min-h-11 px-2 text-body-sm text-nomi-ink-40 hover:text-nomi-ink-60 sm:min-h-8"
           >

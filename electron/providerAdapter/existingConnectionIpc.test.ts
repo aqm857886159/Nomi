@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const handlers = new Map<string, (...args: unknown[]) => unknown>();
 
@@ -35,6 +35,11 @@ vi.mock("electron", () => ({
   },
 }));
 
+const dependencies = vi.hoisted(() => ({ readCatalog: vi.fn() }));
+vi.mock("../catalog/catalogStore", () => ({ readCatalog: dependencies.readCatalog }));
+vi.mock("../catalog/secrets", () => ({ decryptApiKeyRecord: () => "stored" }));
+vi.mock("./service", () => ({ getProviderAdapterService: () => ({ register: vi.fn(), start: vi.fn(), getRun: vi.fn() }) }));
+
 import { registerExistingConnectionIpc } from "./existingConnectionIpc";
 import { setMainWindow } from "../mainWindowRegistry";
 
@@ -50,6 +55,7 @@ function trustedEvent(): { sender: unknown; senderFrame: unknown } {
 
 describe("registerExistingConnectionIpc", () => {
   beforeEach(() => handlers.clear());
+  afterEach(() => vi.unstubAllGlobals());
 
   it("accepts only a saved vendor id when listing models", async () => {
     const actions = {
@@ -68,6 +74,20 @@ describe("registerExistingConnectionIpc", () => {
     });
 
     expect(actions.listModels).toHaveBeenCalledWith({ vendorKey: "saved" });
+  });
+
+  it.each(["authorization", "AUTHORIZATION"])("the production saved-connection fetch sends only the %s override", async (header) => {
+    dependencies.readCatalog.mockReturnValue({
+      vendors: [{ key: "saved", name: "Saved", baseUrlHint: "https://gateway.test/v1", authType: "bearer",
+        providerKind: "openai-compatible", meta: { extraHeaders: { [header]: "Bearer gateway-override" } } }],
+      models: [], apiKeysByVendor: { saved: { apiKey: "stored" } },
+    });
+    const fetchSpy = vi.fn(async (_url: string, _init: RequestInit) => new Response(JSON.stringify({ data: [{ id: "model" }] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchSpy);
+    registerExistingConnectionIpc();
+    expect(await handlers.get("nomi:provider-adapter:existing:list-models")?.(trustedEvent(), { vendorKey: "saved" }))
+      .toMatchObject({ ok: true, models: ["model"] });
+    expect(new Headers(fetchSpy.mock.calls[0][1].headers).get("authorization")).toBe("Bearer gateway-override");
   });
 
   it("sanitizes model selections and ignores renderer connection credentials", async () => {

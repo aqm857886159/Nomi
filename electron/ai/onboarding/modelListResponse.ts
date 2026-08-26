@@ -1,29 +1,87 @@
-// 「这个响应到底是不是模型列表」的唯一判据（中转拉取式接入 Issue #8）。
-//
-// 为什么要单独一个纯函数：拉模型是**多候选探测**（裸地址 → 依次试 /models、/v1/models）。
-// 判「命中」如果只看 HTTP 200，就会被 new-api / one-api 这类网关坑死——它们的后台是 SPA，
-// **任何未知路径都回 200 + 一整页 index.html**。于是 `{baseUrl}/models` 200 HTML 被当成命中，
-// 探测提前收工，真正对的 `{baseUrl}/v1/models` 永远轮不到（用户看到「这个地址没列出模型」）。
-//
-// 根因层的判据是：**解析得出模型 id 列表才算命中**，解析不出就继续试下一个候选。
+import { isJsonRecord, pickUpstreamMessage } from "../../jsonUtils";
 
-/** 解析模型列表响应体。返回 null = 这压根不是模型列表（HTML/错误页/别的 JSON），调用方应继续试下一个候选。 */
-export function parseModelListResponse(bodyText: string): string[] | null {
+export type ModelListFailureKind = "unsupported" | "auth" | "rate_limit" | "network" | "invalid_response" | "upstream";
+
+export type ModelListPage =
+  | { ok: true; models: string[]; next?: string; afterId?: string }
+  | { ok: false; failureKind: ModelListFailureKind; error?: string };
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function failureCode(value: unknown): boolean {
+  if (value === undefined || value === null || value === "") return false;
+  const code = typeof value === "number" ? value : Number(value);
+  if (Number.isFinite(code)) return code !== 0 && (code < 200 || code >= 300);
+  return typeof value === "string" && !/^(ok|success|succeeded)$/i.test(value);
+}
+
+/** Check the business envelope before data:[]; HTTP 200 alone is not a success. */
+function businessFailure(json: unknown, sanitize?: (message: string) => string): Extract<ModelListPage, { ok: false }> | null {
+  if (!isJsonRecord(json)) return null;
+  const error = json.error;
+  const hasError = error !== undefined && error !== null && error !== false && error !== "";
+  const nested = isJsonRecord(error) ? error : {};
+  const failed = hasError || json.success === false || failureCode(json.code) || failureCode(json.status) ||
+    (json.errors !== undefined && json.errors !== null && json.errors !== false && json.errors !== "");
+  if (!failed) return null;
+  const codes = [json.code, json.status, nested.code, nested.status, nested.type]
+    .filter((value) => typeof value === "string" || typeof value === "number")
+    .map(String);
+  const labels = codes.join(" ");
+  const failureKind: ModelListFailureKind = codes.some((code) => code === "401" || code === "403") ||
+    /invalid[_ -]?(api[_ -]?)?key|authentication|unauthori[sz]ed|forbidden|permission[_ -]?(denied|error)/i.test(labels)
+    ? "auth"
+    : codes.includes("429") || /rate[_ -]?limit|too[_ -]?many[_ -]?requests/i.test(labels)
+      ? "rate_limit"
+      : "upstream";
+  return { ok: false, failureKind, error: pickUpstreamMessage(json, sanitize) || "Model-list request was rejected by the upstream service" };
+}
+
+/** Response shape, not vendor identity, determines the list and pagination protocol. */
+export function parseModelListPage(bodyText: string, sanitize?: (message: string) => string): ModelListPage {
   let json: unknown;
-  try {
-    json = JSON.parse(bodyText);
-  } catch {
-    return null; // HTML 首页、纯文本错误页等
+  try { json = JSON.parse(bodyText); } catch { return { ok: false, failureKind: "invalid_response" }; }
+  const failed = businessFailure(json, sanitize);
+  if (failed) return failed;
+  const record = isJsonRecord(json) ? json : {};
+  const nativeResults = Array.isArray(record.results) && !Array.isArray(record.data);
+  const list = Array.isArray(json) ? json : Array.isArray(record.data) ? record.data : nativeResults ? record.results as unknown[] : null;
+  if (!list) return { ok: false, failureKind: "invalid_response" };
+  const ids = list.map((item) => {
+    if (typeof item === "string") return item.trim();
+    if (!isJsonRecord(item)) return "";
+    if (nativeResults) {
+      const owner = text(item.owner);
+      const name = text(item.name);
+      return owner && name ? `${owner}/${name}` : "";
+    }
+    return text(item.id);
+  }).filter(Boolean);
+  if (list.length > 0 && ids.length === 0) return { ok: false, failureKind: "invalid_response" };
+  const models = [...new Set(ids)];
+  // Replicate official HTTP API /models + SDK paginate(): results and next URL.
+  // https://replicate.com/docs/reference/http/#models.list (checked 2026-08-27)
+  if (record.next !== undefined && record.next !== null) {
+    if (!text(record.next)) return { ok: false, failureKind: "invalid_response", error: "Invalid model-list pagination link" };
+    return { ok: true, models, next: text(record.next) };
   }
-  // OpenAI 标准 { data: [...] }；少数网关直接回顶层数组。
-  const list = Array.isArray(json)
-    ? json
-    : Array.isArray((json as { data?: unknown })?.data)
-      ? ((json as { data: unknown[] }).data)
-      : null;
-  if (!list) return null;
-  // 元素形状：{ id } 为主，少数网关给裸字符串。
-  return list
-    .map((item) => (typeof item === "string" ? item : String((item as { id?: unknown })?.id ?? "")).trim())
-    .filter(Boolean);
+  // Anthropic's official list protocol uses last_id as the after_id query cursor.
+  // https://platform.claude.com/docs/en/api/models/list (checked 2026-08-27)
+  if (record.has_more !== undefined && typeof record.has_more !== "boolean") {
+    return { ok: false, failureKind: "invalid_response", error: "Invalid model-list pagination state" };
+  }
+  if (record.has_more === true) {
+    const afterId = text(record.last_id);
+    if (!afterId) return { ok: false, failureKind: "invalid_response", error: "Missing model-list pagination cursor" };
+    return { ok: true, models, afterId };
+  }
+  return { ok: true, models };
+}
+
+/** null is malformed/not a list; [] is a genuinely empty list. No ID coercion. */
+export function parseModelListResponse(bodyText: string): string[] | null {
+  const page = parseModelListPage(bodyText);
+  return page.ok ? page.models : null;
 }

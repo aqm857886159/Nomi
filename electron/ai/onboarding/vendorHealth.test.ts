@@ -43,24 +43,24 @@ describe("classifyProbe — 探测结果 → 四态的唯一映射表", () => {
   });
 
   it("候选全 404/405 = 这家没有模型列表接口，不是连不上", () => {
-    expect(classifyProbe("v", { ok: false, error: "HTTP 404", statuses: [404, 404] }, at).state).toBe("unsupported");
-    expect(classifyProbe("v", { ok: false, error: "HTTP 405", statuses: [405] }, at).state).toBe("unsupported");
+    expect(classifyProbe("v", { ok: false, failureKind: "unsupported", error: "HTTP 404", statuses: [404, 404] }, at).state).toBe("unsupported");
+    expect(classifyProbe("v", { ok: false, failureKind: "unsupported", error: "HTTP 405", statuses: [405] }, at).state).toBe("unsupported");
   });
 
   it("2xx 但解析不出模型列表 = 没法预检，**不许**报「连不上」", () => {
     // 火山语音那类原生上游、以及后台 SPA 回 index.html 的地址都会走到这里。
     // 误报「连不上」会让本来能用的家看着像坏了——宁可漏报。
     expect(
-      classifyProbe("v", { ok: false, error: "返回的不是模型列表（像是网页）", statuses: [200, 200] }, at).state,
+      classifyProbe("v", { ok: false, failureKind: "invalid_response", error: "返回的不是模型列表（像是网页）", statuses: [200, 200] }, at).state,
     ).toBe("unsupported");
   });
 
   it("有一个候选 200、另一个 404 也算没法预检", () => {
-    expect(classifyProbe("v", { ok: false, error: "x", statuses: [404, 200] }, at).state).toBe("unsupported");
+    expect(classifyProbe("v", { ok: false, failureKind: "invalid_response", error: "x", statuses: [404, 200] }, at).state).toBe("unsupported");
   });
 
   it("unsupported 不带 reason——那不是错误，没有要给用户看的原因", () => {
-    expect(classifyProbe("v", { ok: false, error: "HTTP 404", statuses: [404] }, at).reason).toBeUndefined();
+    expect(classifyProbe("v", { ok: false, failureKind: "unsupported", error: "HTTP 404", statuses: [404] }, at).reason).toBeUndefined();
   });
 
   it("fetch 全抛错（statuses 空）= 真连不上", () => {
@@ -69,6 +69,18 @@ describe("classifyProbe — 探测结果 → 四态的唯一映射表", () => {
 
   it("5xx = 连不上（上游此刻确实用不了）", () => {
     expect(classifyProbe("v", { ok: false, error: "HTTP 502", statuses: [502, 502] }, at).state).toBe("unreachable");
+  });
+
+  it.each(["auth", "rate_limit", "network", "upstream"] as const)(
+    "does not call %s unsupported just because HTTP statuses are 200 or 404", (failureKind) => {
+      expect(classifyProbe("v", { ok: false, failureKind, error: "real failure", statuses: [200, 404] }, at))
+        .toMatchObject({ state: "unreachable", reason: "real failure" });
+    },
+  );
+
+  it("maps a classified invalid list response to unsupported preflight, not broken generation", () => {
+    expect(classifyProbe("v", { ok: false, failureKind: "invalid_response", statuses: [200] }, at).state)
+      .toBe("unsupported");
   });
 });
 
@@ -195,6 +207,47 @@ describe("checkVendorHealth — 缓存与并发（「重开面板不回退」靠
     await checkVendorHealth("v");
     const [url, init] = fetchSpy.mock.calls[0];
     expect(String(url)).toContain("/models");
-    expect((init as { headers: Record<string, string> }).headers.authorization).toBe("Bearer sk-a");
+    expect(new Headers((init as { headers: Record<string, string> }).headers).get("authorization")).toBe("Bearer sk-a");
+  });
+
+  it("replays saved custom-header auth and gateway headers instead of inventing Bearer", async () => {
+    readCatalog.mockReturnValue({
+      vendors: [{ key: "v", authType: "x-api-key", authHeader: "X-Tenant-Key", hasApiKey: true,
+        baseUrlHint: "https://api.example.com/v1", meta: { extraHeaders: { "X-Gateway": "private-tenant" } } }],
+      apiKeysByVendor: { v: { apiKey: "custom-key", updatedAt: "one" } },
+    });
+    expect((await checkVendorHealth("v")).state).toBe("reachable");
+    expect(fetchSpy.mock.calls[0][1].headers).toEqual({ "X-Tenant-Key": "custom-key", "X-Gateway": "private-tenant" });
+  });
+
+  it("replays saved query auth and invalidates cache when its configuration changes", async () => {
+    const vendor = { key: "v", authType: "query", authQueryParam: "token", hasApiKey: true,
+      baseUrlHint: "https://api.example.com/v1", meta: { extraHeaders: { "X-Gateway": "tenant-one" } } };
+    readCatalog.mockReturnValue({ vendors: [vendor], apiKeysByVendor: { v: { apiKey: "query-key", updatedAt: "one" } } });
+    await checkVendorHealth("v");
+    expect(new URL(fetchSpy.mock.calls[0][0]).searchParams.get("token")).toBe("query-key");
+    expect(fetchSpy.mock.calls[0][1].headers).toEqual({ "X-Gateway": "tenant-one" });
+
+    vendor.authQueryParam = "api_key";
+    vendor.meta.extraHeaders["X-Gateway"] = "tenant-two";
+    await checkVendorHealth("v");
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(new URL(fetchSpy.mock.calls[1][0]).searchParams.get("api_key")).toBe("query-key");
+    expect(fetchSpy.mock.calls[1][1].headers).toEqual({ "X-Gateway": "tenant-two" });
+  });
+
+  it("does not report a business auth failure in HTTP200 as unsupported", async () => {
+    fetchSpy.mockResolvedValue({ ok: true, status: 200, text: async () => JSON.stringify({ code: 401, data: [], message: "expired" }) });
+    expect(await checkVendorHealth("v")).toMatchObject({ state: "unreachable", reason: "expired" });
+  });
+
+  it.each(["authorization", "AUTHORIZATION"])("sends only the saved %s override, not two Bearer values", async (header) => {
+    readCatalog.mockReturnValue({
+      vendors: [{ key: "v", authType: "bearer", hasApiKey: true, baseUrlHint: "https://api.example.com/v1",
+        meta: { extraHeaders: { [header]: "Bearer gateway-override" } } }],
+      apiKeysByVendor: { v: { apiKey: "stored", updatedAt: "one" } },
+    });
+    expect((await checkVendorHealth("v")).state).toBe("reachable");
+    expect(new Headers(fetchSpy.mock.calls[0][1].headers).get("authorization")).toBe("Bearer gateway-override");
   });
 });

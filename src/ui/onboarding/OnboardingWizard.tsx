@@ -24,6 +24,8 @@ import {
   ProviderPresetGroups,
 } from './OnboardingWizardAdvancedFields'
 import { PROVIDER_KIND_LABEL } from './onboardingProviderKindLabels'
+import { modelDiscoveryMessage } from './modelDiscovery'
+import { useModelDiscovery } from './useModelDiscovery'
 
 type Phase = 'input' | 'running' | 'success' | 'error'
 // model3d 必须在这个联合里。少了它的后果不是「3D 没做」，而是 hunyuan3d 这类**必定**被下面的
@@ -89,22 +91,16 @@ export function OnboardingWizard({
   // 已选中、将落库的模型（单一真相源）。每个携带 per-model 类型（图片/视频/配音/文本，可改）。
   // 录入唯一入口 = 第二屏 ModelPickerScreen（拉取后勾选确认，2026-06-29 改 opt-in）。
   const [models, setModels] = React.useState<Array<{ id: string; kind: ModelKind }>>([])
-  // 拉到的「候选池」（GET /models 的全部，带预判类型）——喂第二屏供勾选，不直接落库。
-  const [candidateModels, setCandidateModels] = React.useState<Array<{ id: string; kind: ModelKind }>>([])
   const [screen, setScreen] = React.useState<'form' | 'select' | 'scriptDraft'>(
     existingVendorKey ? 'select' : initialScreen ?? 'form',
   )
-  // 是否已尝试过拉取（区分「还没填地址」与「拉了但端点没列出」两种空态）。
-  const [fetchAttempted, setFetchAttempted] = React.useState(false)
-  const [fetchingModels, setFetchingModels] = React.useState(false)
-  const [fetchModelsMsg, setFetchModelsMsg] = React.useState('')
   // Custom request headers (key/value) for relay/proxy gateways. Empty by default
   // so the common case stays clean; the "添加请求头" button reveals a row on demand.
   const [headerRows, setHeaderRows] = React.useState<Array<{ key: string; value: string }>>([])
   const [saving, setSaving] = React.useState(false)
   const [savedConnection, setSavedConnection] = React.useState<DesktopProviderRegistration | null>(null)
   const [connectionSaveError, setConnectionSaveError] = React.useState('')
-  const [testState, setTestState] = React.useState<'idle' | 'testing' | 'ok' | 'fail'>('idle')
+  const [testState, setTestState] = React.useState<'idle' | 'testing' | 'ok' | 'fail' | 'unsupported'>('idle')
   const [testMessage, setTestMessage] = React.useState('')
   const [resultLabel, setResultLabel] = React.useState('')
   const [errorReason, setErrorReason] = React.useState('')
@@ -149,6 +145,20 @@ export function OnboardingWizard({
     return out
   }, [headerRows])
 
+  const loadModels = React.useCallback(async () => {
+    if (!bridge?.onboarding?.listModels) return { ok: false, error: t('modelSetup.desktopUnavailable') }
+    return bridge.onboarding.listModels({
+      baseUrl: effectiveBaseUrl, apiKey: requestAuth.apiKey, providerKind, headers: buildHeadersObject(),
+    })
+  }, [bridge, effectiveBaseUrl, requestAuth.apiKey, providerKind, buildHeadersObject, t])
+  const discoveryScope = JSON.stringify([effectiveBaseUrl, requestAuth.apiKey, providerKind, headerRows])
+  const {
+    candidates: candidateModels, fetching: fetchingModels, fetchAttempted,
+    result: discoveryResult, fetchModels, cancelPending,
+  } = useModelDiscovery({ scope: discoveryScope, opened, load: loadModels, guessKinds: bridge?.onboarding?.guessKinds })
+  const discoveryNotice = discoveryResult ? modelDiscoveryMessage(discoveryResult, false) : null
+  const fetchModelsMsg = discoveryNotice?.key ? t(discoveryNotice.key, discoveryNotice.values) : ''
+
   const handlePickPreset = React.useCallback((id: string) => {
     const preset = PROVIDER_PRESETS.find((p) => p.id === id)
     if (!preset) return
@@ -164,10 +174,7 @@ export function OnboardingWizard({
     setShowAdvanced(false)
     setNoApiKey(false)
     // Endpoint changed → previously fetched candidates / test result no longer apply.
-    setCandidateModels([])
-    setFetchAttempted(false)
     setScreen('form')
-    setFetchModelsMsg('')
     setTestState('idle')
   }, [])
 
@@ -299,56 +306,11 @@ export function OnboardingWizard({
     [registerModels],
   )
 
-  // 拉取这个上游开放的全部模型 → 预判类型 → 存进候选池（不直接落库）。用户在第二屏勾选确认
-  // 真正要哪些（opt-in，2026-06-29 反转旧「全量灌库再删」）。只有用户点「获取模型列表」才走这里。
+  // Explicit discovery only. The shared loader preserves candidates on failure and ignores stale replies.
   const handleFetchModels = React.useCallback(async () => {
-    if (!bridge?.onboarding?.listModels) return
-    setFetchingModels(true)
-    setFetchModelsMsg('')
-    try {
-      const res = await bridge.onboarding.listModels({
-        baseUrl: effectiveBaseUrl,
-        apiKey: requestAuth.apiKey,
-        providerKind,
-        headers: buildHeadersObject(),
-      })
-      if (res.ok && res.models && res.models.length > 0) {
-        const ids = Array.from(new Set(res.models.map((s) => s.trim()).filter(Boolean)))
-        let guessed: Record<string, ModelKind> = {}
-        if (bridge?.onboarding?.guessKinds) {
-          try {
-            guessed = (await bridge.onboarding.guessKinds({ ids })).kinds || {}
-          } catch {
-            /* 退回 text */
-          }
-        }
-        setCandidateModels(ids.map((id) => ({ id, kind: guessed[id] ?? 'text' })))
-        setFetchModelsMsg('')
-        setScreen('select')
-      } else if (res.ok) {
-        setCandidateModels([])
-        setFetchModelsMsg(t('modelSetup.noModelsListedHint'))
-      } else {
-        setCandidateModels([])
-        // 把上游真原因说出来（401 Invalid token / 超时 / 代理…）。旧版一律吞掉只报「没拉到」，
-        // 用户面对零线索无从下手——错在哪就说哪（对齐「测试连接」的失败透传）。
-        const reason = (res.error || '').trim()
-        setFetchModelsMsg(
-          reason ? t('modelSetup.noModelsFetchedWithReason', { error: reason }) : t('modelSetup.noModelsFetchedHint'),
-        )
-      }
-    } catch (error) {
-      setCandidateModels([])
-      setFetchModelsMsg(
-        t('modelSetup.noModelsFetchedWithReason', {
-          error: error instanceof Error ? error.message : String(error),
-        }),
-      )
-    } finally {
-      setFetchAttempted(true)
-      setFetchingModels(false)
-    }
-  }, [bridge, effectiveBaseUrl, requestAuth.apiKey, providerKind, buildHeadersObject, t])
+    const result = await fetchModels()
+    if (result?.ok && result.models?.length) setScreen('select')
+  }, [fetchModels])
 
   const handleTestConnection = React.useCallback(async () => {
     if (!bridge?.onboarding?.testConnection) return
@@ -386,6 +348,11 @@ export function OnboardingWizard({
       } else {
         setTestState('fail')
         if (reachabilityOnly) {
+          if (res.failureKind === 'unsupported' || res.failureKind === 'invalid_response') {
+            setTestState('unsupported')
+            setTestMessage(t('modelSetup.discoveryCannotVerifyConnection'))
+            return
+          }
           // 纯图片/视频上游：协议跟它无关，别把用户往「换个协议试试」上引（那是错误指路）。
           setTestMessage(
             res.error
@@ -627,12 +594,12 @@ export function OnboardingWizard({
                       <IconCheck size={14} stroke={1.5} />
                     </Group>
                   )}
-                  {testState === 'fail' && (
-                    <Group gap={4} align="center" wrap="nowrap" c="var(--workbench-danger)">
-                      <Text size="xs" c="var(--workbench-danger)" lineClamp={1}>
+                  {(testState === 'fail' || testState === 'unsupported') && (
+                    <Group gap={4} align="center" wrap="nowrap" c={testState === 'fail' ? 'var(--workbench-danger)' : 'var(--nomi-ink-60)'}>
+                      <Text size="xs" c="inherit" className="break-words leading-relaxed">
                         {testMessage}
                       </Text>
-                      <IconX size={14} stroke={1.5} />
+                      {testState === 'fail' ? <IconX size={14} stroke={1.5} /> : null}
                     </Group>
                   )}
                   </div>
@@ -678,6 +645,7 @@ export function OnboardingWizard({
           />
         ) : (
           <ModelPickerScreen
+            key={JSON.stringify([effectiveBaseUrl, providerKind])}
             candidates={candidateModels}
             initialSelected={models}
             sourceName={vendorName.trim()}
@@ -693,7 +661,7 @@ export function OnboardingWizard({
             hasFetched={fetchAttempted}
             statusHint={fetchModelsMsg || undefined}
             onRefetch={handleFetchModels}
-            onBack={() => setScreen('form')}
+            onBack={() => { cancelPending(); setScreen('form') }}
             onConfirm={handleConfirmPicked}
             onResolveKind={resolveKind}
             confirming={saving}
