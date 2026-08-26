@@ -16,6 +16,7 @@ import {
 import {
   classifyAssetValue,
   describeAssetValue,
+  humanSize,
   isLocalizableAssetValue,
   parseInlineDataAsset,
   unreachableAssetValueError,
@@ -385,13 +386,6 @@ function stripTransportHints(value: unknown): unknown {
     return out;
   }
   return value;
-}
-
-/** 人话文件大小（错误里要告诉用户「多大」，否则他没法判断该压到多少）。 */
-function humanSize(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
-  if (bytes >= 1024) return `${Math.round(bytes / 1024)}KB`;
-  return `${bytes}B`;
 }
 
 const MEDIA_LABEL: Record<AssetMediaKind, string> = { image: "图片", video: "视频", audio: "音频" };

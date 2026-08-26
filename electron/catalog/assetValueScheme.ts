@@ -62,8 +62,10 @@ export function classifyAssetValue(value: unknown): AssetValueScheme | null {
   return null;
 }
 
-/** 素材值需要本地化（物化/上传）才发得出去。 */
-export function isLocalizableAssetValue(value: unknown): value is string {
+/** 素材值需要本地化（物化/上传）才发得出去。
+ *  刻意**不写成 `value is string` 类型守卫**：调用方常常已经拿着 string（如渲染层白名单），
+ *  守卫会把否定分支窄成 never，后面再判别的形态就编译不过。要守卫用 isLocalAssetUrl。 */
+export function isLocalizableAssetValue(value: unknown): boolean {
   const scheme = classifyAssetValue(value);
   return scheme === "nomi-local" || scheme === "inline-data";
 }
@@ -118,6 +120,26 @@ export function parseInlineDataAsset(value: string): { bytes: Buffer; contentTyp
   const contentType = contentTypeFromMagicBytes(bytes) ?? (header.mime || "application/octet-stream");
   const extension = extensionFromContentType(contentType) || "bin";
   return { bytes, contentType, fileName: `inline-${contentTag(bytes)}.${extension}` };
+}
+
+/** 人话文件大小（错误/记账面要告诉用户「多大」，否则他没法判断该压到多少）。 */
+export function humanSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)}KB`;
+  return `${bytes}B`;
+}
+
+/** data: URI 的**解码后**字节数（base64 载荷按 3/4 折算）。用于记账面报体积，不解码整串。 */
+export function inlineAssetByteLength(value: string): number {
+  const header = parseDataUrlHeader(value);
+  if (!header) return 0;
+  const payloadLength = value.length - header.payloadStart;
+  return header.base64 ? Math.floor((payloadLength * 3) / 4) : payloadLength;
+}
+
+/** data: URI 声明的 mime（没声明按 octet-stream）。记账面用，不碰字节。 */
+export function inlineAssetMime(value: string): string {
+  return parseDataUrlHeader(value)?.mime || "application/octet-stream";
 }
 
 /** 素材值的人话短标识：data: URI 动辄几 MB，原样拼进错误消息会给用户糊一屏 base64。 */

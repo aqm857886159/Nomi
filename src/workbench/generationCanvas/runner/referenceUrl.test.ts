@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resultUrl, findNodeResultUrl } from './referenceUrl'
+import { asUrl, resultUrl, findNodeResultUrl } from './referenceUrl'
 import type { GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
 
 // L2（2026-07-06）：URL 口径翻转为**本地持久文件优先**。providerUrl 是服务商临时直链（kie ~3 天 /
@@ -34,5 +34,36 @@ describe('findNodeResultUrl — 节点/历史引用同口径', () => {
   })
   it('nodeId:resultId → 历史条目（providerUrl-only 兜底仍可用）', () => {
     expect(findNodeResultUrl(byId, 'n1:r1')).toBe('https://cdn/r1.png')
+  })
+})
+
+// 白名单本身（2026-08-26）：形态判定与出站侧共用 assetValueScheme，别再各列一份。
+describe('asUrl — 放行「能发出去或主进程能物化」的形态', () => {
+  const inlineImage = `data:image/png;base64,${Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d]).toString('base64')}`
+
+  it('公网 URL 与 nomi-local 照旧放行（含首尾空白修剪）', () => {
+    expect(asUrl('https://cdn/a.png')).toBe('https://cdn/a.png')
+    expect(asUrl('  http://cdn/a.png  ')).toBe('http://cdn/a.png')
+    expect(asUrl('nomi-local://asset/p/a.png')).toBe('nomi-local://asset/p/a.png')
+  })
+
+  it('data: 内联字节放行 —— 修「落盘失败退回 base64 的图连线当参考被静默丢掉」', () => {
+    expect(asUrl(inlineImage)).toBe(inlineImage)
+    expect(resultUrl({ url: inlineImage } as GenerationNodeResult)).toBe(inlineImage)
+  })
+
+  it('blob: 仍放行（要喂参考 chip 的显示；到不了 vendor 由主进程付费前拒发）', () => {
+    expect(asUrl('blob:file:///abc-123')).toBe('blob:file:///abc-123')
+  })
+
+  it('裸 / 开头不再放行（既发不出去也只有开发态显示得出来，全仓无生产者）', () => {
+    expect(asUrl('/prompt-media/expressions/a.webp')).toBe('')
+  })
+
+  it('非媒体 data: 与非 URL 判空（节点引用另走 findNodeResultUrl）', () => {
+    expect(asUrl('data:text/plain,hello')).toBe('')
+    expect(asUrl('n1:r1')).toBe('')
+    expect(asUrl('')).toBe('')
+    expect(asUrl(42)).toBe('')
   })
 })

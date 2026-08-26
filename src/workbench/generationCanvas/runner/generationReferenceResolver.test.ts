@@ -158,3 +158,28 @@ describe('B4 — 连线视频/音频参考分流（不漏进 referenceImages / �
     expect(refs.referenceVideos).toEqual([])
   })
 })
+
+/**
+ * 落盘失败退回 base64 的兜底图（persistNodeImage：可持久化、不丢图）连线当参考。
+ * 修前：asUrl 判空 → 参考被静默丢掉 → L3 反过来说「你没连参考」（把原因说反了），
+ * 或按纯文生跑照样扣费。修后：内联字节照常成为参考，出站前由主进程物化上传。
+ */
+describe('resolveGenerationReferences — base64 兜底图也能当参考', () => {
+  const inlineImage = `data:image/png;base64,${Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d]).toString('base64')}`
+
+  it('reference 边的源只有内联 base64 → 进 referenceImages', () => {
+    const source = node('c1', 'image', inlineImage)
+    const target = node('g1', 'image')
+    const edges: GenerationCanvasEdge[] = [{ id: 'e1', source: 'c1', target: 'g1', mode: 'reference' }]
+    const refs = resolveGenerationReferences(target, { nodes: [source, target], edges })
+    expect(refs.referenceImages).toEqual([inlineImage])
+  })
+
+  it('first_frame 边的源只有内联 base64 → 进 firstFrameUrl', () => {
+    const source = node('c1', 'image', inlineImage)
+    const target = node('v1', 'video')
+    const edges: GenerationCanvasEdge[] = [{ id: 'e1', source: 'c1', target: 'v1', mode: 'first_frame' }]
+    const refs = resolveGenerationReferences(target, { nodes: [source, target], edges })
+    expect(refs.firstFrameUrl).toBe(inlineImage)
+  })
+})
