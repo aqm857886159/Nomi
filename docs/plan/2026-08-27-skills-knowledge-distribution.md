@@ -169,7 +169,33 @@ stages: [storyboard, build]        # 哪个阶段可见（见 §2.4）
 
 倾向 **不允许覆盖、允许追加**：用户选的 A 恒在，agent 可额外 `load_skill(B)` 并在对话流里明写「另外载入了 B」。理由 D4 诚实：用户的选择不该被悄悄改掉。
 
-### 2.6 说不清（Phase 2）
+### 2.6 用户在聊天框里调技能：创作区有、生成区没有（2026-08-27 记录 · **只记问题，解法待定**）
+
+| 面板 | 用户能在聊天框里选技能吗 | 依据 |
+|---|---|---|
+| 创作区 `CreationAiPanel` | ✅ 有 —— `CreationPromptPicker` 下拉，选中存进 `creationActiveSkill` | `CreationAiPanel.tsx:66` |
+| 生成画布助手 `CanvasAssistantPanel` | ❌ 没有 —— 只有一处写死的 `FIXATION_PLANNER_SKILL`（定妆流程专用），用户选不了 | `CanvasAssistantPanel.tsx:516` |
+
+又一处「两个面板不一致」。
+
+**用户已拍板的语义区分（2026-08-27）**：
+
+> **模式 ≠ 技能。模式是「用户自主编辑的提示词」，技能是方法论库。**
+
+所以创作区那 7 个创作模式（写故事 / 写剧本 / 写分镜文字稿 / Seedance 提示词 / 审校优化…）**不是技能**，不该被并进技能体系；生成区缺的是技能入口，不是把创作模式搬过去。
+
+**一条已经栽过的教训，与本文治的病同族**（`CreationPromptPicker.tsx:7` 的根因备忘，2026-08-18）：
+
+> 本组件的前身 `ActiveSkillChip` 把列表**手写死**了 —— 于是 7 个模式里有 5 个在 UI 上根本不存在：**提示词写了、设置里能编辑、就是调不起来**。现在一律从 `listCreationAiModes()` derive。
+
+**「31 本技能大多用不到」是同一个错误在更大尺度上重演**：能力存在，但入口是手写清单，于是能力搁浅 —— 当时搁浅 5 个模式，这次搁浅 24 本技能。
+
+**待答（本文不给解法）**：
+1. 生成区的技能入口长什么样、放哪
+2. 模式与技能既然是两回事，两者在同一个 composer 上如何并存而不互相干扰
+3. 技能列表如何保证从真相源 derive（`skills.list` + `audience` / `stages` 过滤），不再退化成手写清单
+
+### 2.7 说不清（Phase 2）
 
 `electron/skills/skillIpc.ts` 此前 `description: r.manifest?.description ?? null` —— 只读 `skill.json`，导致**没有 manifest 的技能卡片一律显示「暂无说明」**，哪怕 frontmatter 里写着标准 description。31 本只有 7 本带 manifest，用户从生态导入的标准技能全中招。
 
