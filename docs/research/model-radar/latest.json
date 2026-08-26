@@ -3,29 +3,7 @@
     {
       "vendor": "kie",
       "total": 141,
-      "added": [
-        {
-          "vendor": "kie",
-          "category": "video",
-          "slug": "wan/3-0-video",
-          "title": "Wan 3.0 - Video",
-          "url": "https://docs.kie.ai/market/wan/3-0-video.md"
-        },
-        {
-          "vendor": "kie",
-          "category": "video",
-          "slug": "wan/3-0-video-prime",
-          "title": "Wan 3.0 - Video Prime",
-          "url": "https://docs.kie.ai/market/wan/3-0-video-prime.md"
-        },
-        {
-          "vendor": "kie",
-          "category": "audio",
-          "slug": "elevenlabs/text-to-speech-turbo-2-5",
-          "title": "elevenlabs/text-to-speech-turbo-2-5",
-          "url": "https://docs.kie.ai/market/elevenlabs/text-to-speech-turbo-2-5.md"
-        }
-      ],
+      "added": [],
       "removed": [],
       "uncovered": [
         {
