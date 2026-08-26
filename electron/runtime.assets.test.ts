@@ -13,6 +13,23 @@ vi.mock("./review/reviewTrace", () => ({
   scheduleTechnicalReview: vi.fn(),
 }));
 
+const hardenedFetchMock = vi.hoisted(() => vi.fn());
+vi.mock("./hardenedFetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./hardenedFetch")>()),
+  hardenedFetch: hardenedFetchMock,
+}));
+
+// 真实文件头（contentTypeFromMagicBytes 要求 ≥12 字节）——字节是事实，测试也不许拿假字节糊弄。
+const JPEG_BYTES = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]), Buffer.from("JFIF\0", "latin1"), Buffer.alloc(16)]);
+const PNG_BYTES = Buffer.concat([Buffer.from([0x89]), Buffer.from("PNG\r\n\n", "latin1"), Buffer.alloc(16)]);
+const WEBM_BYTES = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(16)]);
+/** ISO-BMFF：mp4 视频与 m4a 音频**共用**这一组魔数（跨族覆盖的反例）。 */
+const ISO_BMFF_BYTES = Buffer.concat([Buffer.from([0, 0, 0, 0x20]), Buffer.from("ftypisom", "ascii"), Buffer.alloc(16)]);
+
+function respondWith(bytes: Buffer, contentType: string): void {
+  hardenedFetchMock.mockResolvedValue({ bytes, contentType, status: 200, finalUrl: "https://cdn.example.com/x", truncated: false });
+}
+
 type AssetRecord = {
   data: {
     relativePath: string;
@@ -76,6 +93,99 @@ describe("runtime workspace asset storage", () => {
     ).toBe("video-123.webm");
     expect(localizedTaskAssetFileName("video", "https://cdn.example.com/result.mov", 123)).toBe("video-123.mov");
     expect(localizedTaskAssetFileName("video", "https://cdn.example.com/result", 123)).toBe("video-123.mp4");
+  });
+
+  // 产物扩展名必须跟着**真实内容**走，不跟着 URL 猜测或厂商声明走。
+  // 2026-08-26 火山方舟 Seedream 5.0 lite 改图走查：JPEG 字节被落成 `.png`。
+  describe("artifact extension follows the actual content", () => {
+    // 火山方舟 TOS 产物链：长签名 query 在后，扩展名在 path 里。
+    const ARK_SIGNED_URL =
+      "https://ark-content-generation-v2-cn-beijing.tos-cn-beijing.volces.com/doubao-seedream-5-0/0217563.jpeg" +
+      "?X-Tos-Algorithm=TOS4-HMAC-SHA256&X-Tos-Credential=AKLT%2F20260826%2Fcn-beijing%2Ftos%2Frequest" +
+      "&X-Tos-Date=20260826T061500Z&X-Tos-Expires=86400&X-Tos-Signature=deadbeef&X-Tos-SignedHeaders=host";
+
+    it("keeps .jpeg through a signed query string (query must not eat the extension)", async () => {
+      const workspace = createWorkspace();
+      respondWith(JPEG_BYTES, "image/jpeg");
+
+      const asset = await localizeTaskAsset(workspace.id, ARK_SIGNED_URL, "image", "node-1");
+
+      expect(asset.url).toMatch(/\.jpeg$/);
+      expect(asset.url).not.toMatch(/\.png$/);
+    });
+
+    it("uses the Content-Type when the URL carries no extension (was: always .png)", async () => {
+      const workspace = createWorkspace();
+      respondWith(JPEG_BYTES, "image/jpeg");
+
+      // 无扩展名 → localizedTaskAssetFileName 只能按 kind 猜，猜的就是 "png"。
+      const asset = await localizeTaskAsset(workspace.id, "https://cdn.example.com/gen/abc123", "image", "node-1");
+
+      expect(asset.url).toMatch(/\.jpg$/);
+      expect(asset.url).not.toMatch(/\.png$/);
+    });
+
+    it("believes the bytes when Content-Type and URL disagree with them", async () => {
+      const workspace = createWorkspace();
+      // URL 说 .png、header 也说 image/png —— 但字节是 JPEG。两个都在撒谎，字节说了算。
+      respondWith(JPEG_BYTES, "image/png");
+
+      const asset = await localizeTaskAsset(workspace.id, "https://cdn.example.com/gen/out.png", "image", "node-1");
+
+      expect(asset.url).toMatch(/\.jpg$/);
+    });
+
+    it("prefers the Content-Type over a lying URL extension", async () => {
+      const workspace = createWorkspace();
+      // 字节认不出（厂商 header 是唯一线索）：URL 说 .png，header 说 image/webp。
+      respondWith(Buffer.alloc(32), "image/webp");
+
+      const asset = await localizeTaskAsset(workspace.id, "https://cdn.example.com/gen/out.png", "image", "node-1");
+
+      expect(asset.url).toMatch(/\.webp$/);
+    });
+
+    it("does not rewrite an extension that already agrees with the bytes", async () => {
+      const workspace = createWorkspace();
+      respondWith(PNG_BYTES, "image/png");
+
+      const asset = await localizeTaskAsset(workspace.id, "https://cdn.example.com/gen/out.png", "image", "node-1");
+
+      expect(asset.url).toMatch(/\.png$/);
+    });
+
+    // 同一条派生路径服务 image/video/audio —— 修的是这一类，不是图片那一个。
+    it("applies to video artifacts too (extensionless URL was always .mp4)", async () => {
+      const workspace = createWorkspace();
+      respondWith(WEBM_BYTES, "video/webm");
+
+      const asset = await localizeTaskAsset(workspace.id, "https://cdn.example.com/gen/clip", "video", "node-1");
+
+      expect(asset.url).toMatch(/\.webm$/);
+      expect(asset.url).not.toMatch(/\.mp4$/);
+    });
+
+    it("applies to audio artifacts too (extensionless URL was always .mp3)", async () => {
+      const workspace = createWorkspace();
+      respondWith(Buffer.concat([Buffer.from("fLaC", "ascii"), Buffer.alloc(16)]), "audio/flac");
+
+      const asset = await localizeTaskAsset(workspace.id, "https://cdn.example.com/gen/voice", "audio", "node-1");
+
+      expect(asset.url).toMatch(/\.flac$/);
+      expect(asset.url).not.toMatch(/\.mp3$/);
+    });
+
+    // 跨族护栏：m4a 音频与 mp4 视频共用 ISO-BMFF 魔数。按字节盲目改写会把音频改成视频，
+    // 那比原 bug 更糟（kind 都错了）。只在同族内纠正子类型。
+    it("never reclassifies audio as video on shared ISO-BMFF magic bytes", async () => {
+      const workspace = createWorkspace();
+      respondWith(ISO_BMFF_BYTES, "audio/mp4");
+
+      const asset = await localizeTaskAsset(workspace.id, "https://cdn.example.com/gen/voice.m4a", "audio", "node-1");
+
+      expect(asset.url).toMatch(/\.m4a$/);
+      expect(asset.url).not.toMatch(/\.mp4$/);
+    });
   });
 
   it("includes probed video duration when localizing task assets", async () => {

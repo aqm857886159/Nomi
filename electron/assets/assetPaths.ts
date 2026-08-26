@@ -11,18 +11,23 @@ export function extensionFromMime(contentType: string, fallback = "bin"): string
 }
 
 /**
- * Give a persisted asset a truthful extension when the source filename is
- * missing one or carries the generic `.bin` fallback. The bytes/content type
- * are the identity; a filename is only a hint. Keeping this at the storage
- * boundary prevents later MIME-only consumers (workspace tree, protocol,
- * drag/drop) from silently treating a video as an image.
+ * Give a persisted asset a truthful extension. The content type (itself resolved
+ * from the bytes at the storage boundary) is the identity; a filename is only a
+ * hint —厂商起的名字/URL 扩展名会撒谎。Keeping this at the storage boundary
+ * prevents later MIME-only consumers (workspace tree, protocol, drag/drop) from
+ * silently treating a video as an image.
+ *
+ * 保留原扩展名的判据是「它指向同一个 contentType」，不是「它非空」——
+ * 于是 `.jpeg` 不会被改写成 `.jpg`（同义），而 `.png` 装着 JPEG 字节会被改成 `.jpg`
+ * （2026-08-26：生成产物一律落成 .png，因为此前只有缺扩展名/`.bin` 才修）。
  */
 export function canonicalAssetFileName(fileName: string, contentType: string): string {
   const raw = String(fileName || "").trim() || "asset";
-  const canonicalExt = extensionFromContentType(contentType);
+  const normalized = String(contentType || "").split(";")[0]?.trim().toLowerCase() ?? "";
+  const canonicalExt = extensionFromContentType(normalized);
   if (!canonicalExt) return raw;
   const currentExt = path.extname(raw).replace(/^\./, "").toLowerCase();
-  if (currentExt && currentExt !== "bin") return raw;
+  if (currentExt && currentExt !== "bin" && contentTypeFromExtension(currentExt) === normalized) return raw;
   const parsed = path.parse(raw);
   return `${parsed.name || "asset"}.${canonicalExt}`;
 }

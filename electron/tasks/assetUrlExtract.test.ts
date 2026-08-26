@@ -17,6 +17,31 @@ describe("extractAssetUrl — 既有 images 端点口径（不回归）", () => 
   });
 });
 
+describe("b64_json 的 data URL 类型取自字节，不写死 image/png", () => {
+  // 火山方舟 / kie 的 b64_json 常是 JPEG。写死 image/png 会让这段 JPEG 顶着假身份
+  // 一路走到落盘层，产物被命名成 .png（2026-08-26）。
+  const jpegBase64 = Buffer.concat([
+    Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]),
+    Buffer.from("JFIF\0", "latin1"),
+    Buffer.alloc(16),
+  ]).toString("base64");
+
+  it("JPEG 字节 → data:image/jpeg", () => {
+    expect(extractAssetUrl({ data: [{ b64_json: jpegBase64 }] })).toBe(`data:image/jpeg;base64,${jpegBase64}`);
+  });
+  it("chat/completions 的两条 b64_json 支路同样按字节判", () => {
+    expect(extractChatImageUrl({ choices: [{ message: { images: [{ b64_json: jpegBase64 }] } }] })).toBe(
+      `data:image/jpeg;base64,${jpegBase64}`,
+    );
+    expect(extractChatImageUrl({ choices: [{ message: { content: [{ b64_json: jpegBase64 }] } }] })).toBe(
+      `data:image/jpeg;base64,${jpegBase64}`,
+    );
+  });
+  it("认不出的字节仍回退 image/png（既有口径不回归）", () => {
+    expect(extractAssetUrl({ data: [{ b64_json: "AAAA" }] })).toBe("data:image/png;base64,AAAA");
+  });
+});
+
 describe("extractChatImageUrl — chat/completions 多模态图片返回", () => {
   it("① message.images:[{url}]", () => {
     const raw = { choices: [{ message: { images: [{ url: "https://x/c.png" }] } }] };
