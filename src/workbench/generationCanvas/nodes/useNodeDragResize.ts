@@ -16,6 +16,7 @@ import { toast } from '../../../ui/toast'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import { setCanvasDragging } from '../components/canvasDraggingFlag'
 import i18n from '../../../i18n'
+import { useGenerationFlowNodeManagedDrag } from '../reactFlow/generationFlowNodeContext'
 import {
   clampNumber,
   findTimelineDropTarget,
@@ -62,6 +63,7 @@ export function useNodeDragResize({
   updateNode,
   commitPersistedChange,
 }: UseNodeDragResizeArgs) {
+  const flowManagedDrag = useGenerationFlowNodeManagedDrag()
   const dragStartRef = React.useRef<{
     pointerX: number
     pointerY: number
@@ -161,6 +163,10 @@ export function useNodeDragResize({
   )
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    // In the React Flow PoC the outer node wrapper owns drag/selection. Leave
+    // the event bubbling so React Flow can process it; the default canvas path
+    // keeps the existing custom gesture implementation.
+    if (flowManagedDrag) return
     const target = event.target as HTMLElement
     // C5 安全坑：放行 contenteditable / ProseMirror，否则点正文会被当成拖拽、吞掉光标。
     if (target.closest('button, input, textarea, select, [contenteditable="true"], .ProseMirror')) return
@@ -193,6 +199,7 @@ export function useNodeDragResize({
   }
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (flowManagedDrag) return
     const resizeStart = resizeStartRef.current
     if (resizeStart) {
       const effectiveZoom = useGenerationCanvasStore.getState().canvasZoom || 1
@@ -313,6 +320,7 @@ export function useNodeDragResize({
   }
 
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (flowManagedDrag) return
     flushScheduledMove()
     const dragStart = dragStartRef.current
     const hadResize = Boolean(resizeStartRef.current)
@@ -363,6 +371,7 @@ export function useNodeDragResize({
   }
 
   const handleResizePointerDown = (direction: ResizeDirection) => (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (flowManagedDrag) return
     event.preventDefault()
     event.stopPropagation()
     if (readOnly) return

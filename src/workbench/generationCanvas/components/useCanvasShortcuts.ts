@@ -59,6 +59,7 @@ export function useCanvasShortcuts(opts: {
   activeCategoryId: string
   /** 只用于清空（Escape）；签名收窄到 null 以兼容任意 ActiveEdge setState。 */
   setActiveEdge: (edge: null) => void
+  deleteActiveEdge?: () => void
   cancelConnection: () => void
   deleteSelectedNodes: () => void
   groupSelectedNodes: () => void
@@ -78,6 +79,7 @@ export function useCanvasShortcuts(opts: {
     selectedGroupCount,
     activeCategoryId,
     setActiveEdge,
+    deleteActiveEdge,
     cancelConnection,
     deleteSelectedNodes,
     groupSelectedNodes,
@@ -118,7 +120,13 @@ export function useCanvasShortcuts(opts: {
         return
       }
       if (event.key === 'Backspace' || event.key === 'Delete') {
-        if (!selectedNodeCount) return
+        if (!selectedNodeCount) {
+          if (deleteActiveEdge) {
+            event.preventDefault()
+            deleteActiveEdge()
+          }
+          return
+        }
         event.preventDefault()
         const removedCount = selectedNodeCount
         deleteSelectedNodes()
@@ -230,6 +238,7 @@ export function useCanvasShortcuts(opts: {
     copySelectedNodes,
     cutSelectedNodes,
     deleteSelectedNodes,
+    deleteActiveEdge,
     getPastePosition,
     groupSelectedNodes,
     pasteNodes,

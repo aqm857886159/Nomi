@@ -19,10 +19,8 @@ import {
   type BrowserAssetCanvasImportItem,
 } from '../../../ui/browser/overlay/globalAssetPopoverEvents'
 import { getDesktopBridge } from '../../../desktop/bridge'
-import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 import { isImageLikeGenerationNodeKind } from '../model/generationNodeKinds'
 import { getGenerationNodeComponent } from '../nodes/renderRegistry'
-import { completeNodeConnection } from '../nodes/completeNodeConnection'
 // 事件名单一真相源：派发方（深链）与监听方（这里）必须读同一个常量，否则改名字会静默断链。
 import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
@@ -63,6 +61,7 @@ import { useCanvasBatchDockVisibility } from './useCanvasBatchDockVisibility'
 import { useCanvasScreenshotCapture } from './useCanvasScreenshotCapture'
 import { useComposerVisibilityPan } from './useComposerVisibilityPan'
 import { useCanvasFitSignal } from './useCanvasFitSignal'
+import { isReactFlowCanvasEnabled } from '../reactFlow/generationCanvasEngineFlag'
 import '../styles/generationCanvas.css'
 
 const StagingCaptureHost = lazyWithChunkBoundary('3D 站位捕获', () =>
@@ -74,6 +73,9 @@ const CameraMoveCaptureHost = lazyWithChunkBoundary('3D 运镜捕获', () =>
 const BatchPlanOverlay = lazyWithChunkBoundary('批量生成面板', () =>
   import('./BatchPlanOverlay').then((module) => ({ default: module.BatchPlanOverlay })),
 )
+const GenerationCanvasReactFlow = lazyWithChunkBoundary('React Flow 画布实验引擎', () =>
+  import('../reactFlow/GenerationCanvasReactFlow'),
+)
 
 const MULTI_SELECTION_BOUNDS_PADDING = 16
 const MULTI_SELECTION_TOOLBAR_OFFSET = 58
@@ -82,7 +84,7 @@ type GenerationCanvasProps = {
   readOnly?: boolean
 }
 
-export default function GenerationCanvas({ readOnly = false }: GenerationCanvasProps): JSX.Element {
+function LegacyGenerationCanvas({ readOnly = false }: GenerationCanvasProps): JSX.Element {
   const { t } = useTranslation()
   const isReady = useGenerationCanvasStore((state) => state.isReady)
   const allNodes = useGenerationCanvasStore((state) => state.nodes)
@@ -433,7 +435,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
         'success',
       )
     },
-    [activeCategoryId, getToolbarInsertionPosition, readOnly],
+    [activeCategoryId, getToolbarInsertionPosition, readOnly, t],
   )
 
   React.useEffect(
@@ -795,5 +797,19 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
         <SelectionPromptSaveController nodes={allNodes} disabled={readOnly} />
       </div>
     </section>
+  )
+}
+
+/**
+ * React Flow is the default renderer. The flag is evaluated at the component
+ * boundary so neither implementation conditionally changes its hook order;
+ * setting it to `legacy` provides an emergency rollback without a rebuild.
+ */
+export default function GenerationCanvas(props: GenerationCanvasProps): JSX.Element {
+  if (!isReactFlowCanvasEnabled()) return <LegacyGenerationCanvas {...props} />
+  return (
+    <React.Suspense fallback={null}>
+      <GenerationCanvasReactFlow {...props} />
+    </React.Suspense>
   )
 }

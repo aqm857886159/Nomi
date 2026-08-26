@@ -1,0 +1,137 @@
+.generation-canvas-react-flow {
+  --xy-node-border-radius: 0;
+}
+
+.generation-canvas-react-flow .react-flow {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+
+.generation-canvas-react-flow .react-flow__node {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__node-shell {
+  position: relative;
+  min-width: 1px;
+  min-height: 1px;
+}
+
+/* Existing node cards still contain their legacy canvas positioning and handles.
+ * React Flow owns the outer transform and connection ports in this experiment. */
+.generation-canvas-react-flow .generation-canvas-v2-node {
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.generation-canvas-react-flow .generation-canvas-v2-node__magnetic-handle,
+.generation-canvas-react-flow .generation-canvas-v2-node__handle,
+.generation-canvas-react-flow .generation-canvas-v2-node__resize-zone {
+  display: none !important;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__handle {
+  width: 12px;
+  height: 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--nomi-accent);
+  opacity: 0;
+  transition: opacity 120ms ease;
+  z-index: 6;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__node-shell:hover .generation-canvas-react-flow__handle,
+.generation-canvas-react-flow .generation-canvas-react-flow__handle.connecting {
+  opacity: 0.7;
+}
+
+.generation-canvas-react-flow .react-flow__edge-path {
+  stroke: color-mix(in srgb, var(--nomi-accent) 68%, var(--nomi-ink));
+  stroke-width: 1.8;
+}
+
+.generation-canvas-react-flow .generation-canvas-react-flow__edge--selected {
+  stroke: var(--nomi-accent);
+  stroke-width: 2.6;
+}
+
+.generation-canvas-react-flow__edge-label {
+  position: absolute;
+  border: 1px solid var(--workbench-border);
+  border-radius: 999px;
+  background: var(--nomi-paper);
+  color: var(--workbench-muted);
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.generation-canvas-react-flow__edge-label-button {
+  display: block;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.generation-canvas-react-flow__edge-menu {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  z-index: 3;
+  display: grid;
+  width: 176px;
+  gap: 2px;
+  padding: 4px;
+  transform: translateX(-50%);
+  border: 1px solid var(--workbench-border);
+  border-radius: 6px;
+  background: var(--nomi-paper);
+  box-shadow: 0 8px 24px rgba(18, 24, 38, 0.12);
+}
+
+.generation-canvas-react-flow__edge-menu button {
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--nomi-ink);
+  text-align: left;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.generation-canvas-react-flow__edge-menu button:hover,
+.generation-canvas-react-flow__edge-menu button[aria-checked='true'] {
+  background: color-mix(in srgb, var(--nomi-accent) 14%, transparent);
+}
+
+.generation-canvas-react-flow__edge-menu .generation-canvas-react-flow__edge-menu-delete {
+  margin-top: 3px;
+  border-top: 1px solid var(--workbench-border);
+  color: var(--workbench-danger);
+}
+
+.generation-canvas-react-flow .react-flow__controls,
+.generation-canvas-react-flow .react-flow__minimap {
+  border: 1px solid var(--workbench-border);
+  box-shadow: 0 8px 24px rgba(18, 24, 38, 0.08);
+}
+
+.generation-canvas-react-flow .react-flow__attribution {
+  display: none;
+}
