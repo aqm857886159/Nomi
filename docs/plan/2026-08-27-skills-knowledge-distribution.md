@@ -67,7 +67,109 @@ readRequestedSkill(payload) → findSkillRecord → 整本 skill.body 塞进 sys
 
 **所以 Phase 1 不是新建，是接线。**
 
-### 2.3 说不清（Phase 2）
+### 2.3 三处内外不一致（2026-08-27 追加 · 用户追问「我们这边调用的 Skill 和那边加载的，一致吗」）
+
+**先说好消息**：两边都走 `readSkillRecords()` 读同一个磁盘目录，`findSkillRecord` 共用。**技能内容确实只有一份。**
+
+坏消息有三处：
+
+#### ① 可见范围三套口径，同样 31 本技能
+
+| 谁 | 过滤规则 | 位置 | 能看到 |
+|---|---|---|---|
+| MCP（外部 agent） | `isCraftSkill` = `director-` / `writer-` **目录名前缀** | `skillStore.ts:149` | **23 本** |
+| 技能库面板（用户浏览） | `origin==='user' \|\| manifest.stages.length>0` | `skillIpc.ts:35` | 用户导入的 ∪ 带 stages 的内置 |
+| 内嵌 agent | `findSkillRecord` —— **无任何过滤** | `agentChatV2.ts:81` | **全部 31 本** |
+
+外部 agent **永远看不到**这 8 本：`brand-promo` `drama-short` `creation-edit` `skill-author` `workbench-creation` `workbench-fixation-planner` `workbench-generation` `workbench-storyboard-planner`。
+
+其中 `brand-promo`（品牌宣传片）和 `drama-short`（短剧）**正是 master plan 里 Workflow Pack 的第一条** —— 外部 agent 调不到。
+
+**且 `isCraftSkill` 用目录名前缀判可见性是隐式规则**：用户导入一本叫 `director-xxx` 的技能，会**自动对外暴露给 Claude Code**，用户不知情。这是安全边界靠命名约定，不可接受。
+
+#### ② 加载机制两套
+
+| | MCP（外部） | 内嵌 agent |
+|---|---|---|
+| 发现 | `skills.list` 只返元数据 | **无** —— 必须 UI 指定 `skillKey` |
+| 载入 | `skills.read` 按需载正文 | 整本 `skill.body` 塞 system prompt |
+| 谁决定 | 客户端自己挑 | UI 塞哪本吃哪本，agent 无权 |
+
+#### ③ 标识符不统一
+
+- MCP prompts 用 `directoryName` 当 name（`mcpProtocol.ts:747`）
+- 内嵌用 `skillKey`（如 `workbench.generation.canvas-planner`）
+- 而 `readSkillContent` 写的是 `findSkillRecord(key, key)` —— **同一个值传两个参数**
+
+最后这行是信号：**这一层自己已经分不清该用哪个标识符**，干脆两个都传同一个值撞运气。今天能跑，明天加一本同名技能就炸。
+
+#### 根治方向：可见性由技能自己声明，不由调用方各写一套
+
+现在是三个消费方各自 hardcode 规则。正确做法是在 frontmatter / `skill.json` 里声明，**三边读同一个字段**：
+
+```yaml
+---
+name: director.cinematography
+description: 镜头语言与摄影技法方法论…
+whenToUse: 拆镜头或写视频 shot 的 prompt 时
+audience: [internal, external]     # 谁能看见
+stages: [storyboard, build]        # 哪个阶段可见（见 §2.4）
+---
+```
+
+好处：加一本新技能只在它自己身上声明一次；`brand-promo` 想对外暴露改一个字段即可，不用改 `isCraftSkill`；用户导入的技能**不会因为目录名前缀就意外对外暴露**。
+
+### 2.4 分阶段可见（2026-08-27 用户提出）
+
+> 用户原话：「不是可以分阶段，不同阶段加载不同的 Skill…如果这个 Skill 太多，我们要思考一种方案，就是阶段性的，比如说有一部分能看到，有一部分看不到。」
+
+这正是 Claude Code frontmatter 里 `paths:` 字段的同构物 —— 它按**文件路径**条件激活（写前端代码时部署 Skill 不冒出来），我们按**创作阶段**。
+
+**先纠正我们自己的一个问题：阶段词表已经有两套，我在设计文档里还造了第三套。**
+
+| 词表 | 值 | 位置 | 处置 |
+|---|---|---|---|
+| 工作区阶段（用户在哪个 tab） | `creation \| generation \| preview` | `src/design/identity.tsx:30` | 保留（它是 UI 位置，不是工序） |
+| **Playbook 阶段（干到哪一步）** | `script \| storyboard \| build \| generate \| assemble` | `skills/brand-promo/skill.json` | ✅ **定为单一真相源** |
+| 工序图示（等待指示器） | 读本 / 拆镜 / 出图 / 出视频 / 上轨 | `docs/design/nomi-agent-interaction.md` §5 | ⛔ **我造的第四套，改为对齐上一行** |
+
+对应关系（几乎一一对应，所以对齐是自然的，不是硬凑）：
+
+| Playbook 阶段 | 工序图示 | 该阶段典型技能 |
+|---|---|---|
+| `script` | 一页纸逐行扫 | `writer-*`（编剧方法论） |
+| `storyboard` | 格子依次落位 | `director-shot-translation` `director-consistency` |
+| `build` | 取景框对焦 | `director-cinematography` `director-art-design` |
+| `generate` | 场记板打板 | `director-action` `director-style-*` |
+| `assemble` | 轨道走带 | 剪辑类（待建） |
+
+**设计主张**：
+
+1. **Level 1 元数据永远全量**（31 本 × ~80 字 ≈ 2,500 字符），因为「有哪些技能」本身是廉价的
+2. **阶段只影响排序与默认可见，不做硬隐藏** —— 当前阶段的技能排在前面并进 Level 1；其余折叠但**可搜、可 @**
+3. 理由（D1 用户摩擦）：硬隐藏会造成「我记得有个技能，怎么找不到了」。**用户找得到 > 列表干净。**
+
+**当 31 本涨到 100 本时**才需要真正的分层裁剪。那时的规则应当是：Level 1 只放「当前阶段 + 用户置顶 + 最近用过」，其余走搜索。**现在 31 本不需要，别过早优化。**
+
+### 2.5 用户 @ 调用（2026-08-27 用户提出）
+
+> 「你可以看一下怎么，比如说用户艾特，Nata 可以被调用。」
+
+我们 composer 里**已经有 `@` 机制**（`tests/ux/at-mention-edge.walk.mjs` 在测它）。技能应当接进同一个 `@`，不另造入口（一功能一个家）。
+
+三个形态（设计文档里要补的第 18–20 种）：
+
+| # | 形态 | 说明 |
+|---|---|---|
+| 18 | **composer 上的技能 chip** | 用户 `@` 选中后挂在输入框上方：`按 编剧·Kasdan 方法论`，随时可摘。**必须持续可见**——不然用户不知道输出为什么变了 |
+| 19 | **agent 自主载入 → 对话流一行** | 「载入了 镜头语言与摄影技法」，可展开看它是什么。属「工具条」层，单行 |
+| 20 | **常驻技能标记** | 面板顶部（与上下文用量同一行）显示当前生效的技能。技能约束的是**后面所有输出**，不能只在载入那一刻闪一下 |
+
+**待拍板的取舍**：用户选了技能 A，agent 中途判断该用 B —— 允许覆盖吗？
+
+倾向 **不允许覆盖、允许追加**：用户选的 A 恒在，agent 可额外 `load_skill(B)` 并在对话流里明写「另外载入了 B」。理由 D4 诚实：用户的选择不该被悄悄改掉。
+
+### 2.6 说不清（Phase 2）
 
 `electron/skills/skillIpc.ts` 此前 `description: r.manifest?.description ?? null` —— 只读 `skill.json`，导致**没有 manifest 的技能卡片一律显示「暂无说明」**，哪怕 frontmatter 里写着标准 description。31 本只有 7 本带 manifest，用户从生态导入的标准技能全中招。
 
@@ -105,9 +207,23 @@ skill 目录下的 references/ 按需读                          ← Level 3（
 
 **为什么这条优先**：一次解三个问题 —— ① 31 本从「基本用不到」变成「全部可发现」；② system prompt 立刻瘦一本技能的量；③ 给工具描述瘦身提供同一套机制（见 `2026-08-27-unified-tool-surface.md` §4）。而且它是**纯增量**，不动 `agentLoop` 核心路径。
 
+**Phase 1 的完整范围（2026-08-27 扩充）** —— 这四件事是**同一次改动**，都在动技能的发现层，分开做要改两遍：
+
+| # | 事 | 对应 |
+|---|---|---|
+| 1a | `skills.list` / `skills.read` 接成内嵌 agent 的工具（`load_skill`） | §2.3 ② 加载机制两套 |
+| 1b | **可见性由技能自己声明**（`audience` 字段），三个消费方读同一个字段，删掉 `isCraftSkill` 的前缀判定（P1 加新删旧） | §2.3 ① 三套口径 |
+| 1c | **标识符收口**：定 `directoryName` 为唯一外部标识、`name` 为显示名，删掉 `findSkillRecord(key, key)` 那种撞运气写法 | §2.3 ③ |
+| 1d | **阶段字段**（`stages`）影响排序与默认可见 | §2.4 |
+
+**为什么这条优先**：一次解三个问题 —— ① 31 本从「基本用不到」变成「全部可发现」；② system prompt 立刻瘦一本技能的量；③ 给工具描述瘦身提供同一套机制（见 `2026-08-27-unified-tool-surface.md` §4）。而且它是**纯增量**，不动 `agentLoop` 核心路径。
+
 **风险与边界**：
 - 弱模型可能不主动 `load_skill` → 保留「UI 显式指定 skillKey」作为**强制通道**（不是 fallback：它是用户明确选技能时的路径，语义不同）
 - `whenToUse` 字段标准里是可选的，我们要在 Phase 2 补齐才好判
+- **1b 是行为变更不是纯增量**：`audience` 默认值定错会让某些技能突然对外可见/不可见。默认应为 `[internal]`（**收紧**），逐本显式开 `external`，并写一条测试断言「当前 23 本 craft 技能迁移后仍对外可见」——否则这次改动本身会造成回归
+
+**明确不抄的（frontmatter 行为控制那一套）**：Claude Code 的 `allowed-tools` / `disable-model-invocation` / `context: fork` / `model:` / `hooks:` 很强，但它们依赖**策略引擎**和 **subagent 隔离**，我们两样都还没有（master plan 里是 B3/B4，且 v1 明确不做 subagents）。现在抄字段名等于写一堆读不懂的声明。**等策略引擎落地再接，届时字段名直接沿用它的**（同一语义不另造词表——这正是本文在治的病）。
 
 ### Phase 2 — 补齐 manifest 元数据
 
