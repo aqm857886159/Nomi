@@ -46,6 +46,10 @@ export const ARCHETYPE_SIZE_RATIO_SEMANTIC: Record<string, Record<string, boolea
     "text_to_video": true,
     "image_to_video": true
   },
+  "wan-3.0-apimart": {
+    "text_to_video": true,
+    "image_to_video": true
+  },
   "grok-imagine-1.5-video": {
     "text_to_video": true
   },

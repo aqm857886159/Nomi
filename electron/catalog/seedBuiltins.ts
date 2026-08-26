@@ -39,6 +39,13 @@ import {
   SEEDANCE_2_5_QUERY_OP,
   SEEDANCE_2_5_TEXT_TO_VIDEO_MAPPING,
 } from "./kieSeedance25";
+import {
+  WAN_3_0_CREATE_OP,
+  WAN_3_0_IMAGE_TO_VIDEO_MAPPING,
+  WAN_3_0_MODEL_SEED,
+  WAN_3_0_QUERY_OP,
+  WAN_3_0_TEXT_TO_VIDEO_MAPPING,
+} from "./kieWan30";
 import { APIMART_VENDOR_SEED } from "./apimartVendor";
 import { APIMART_IMAGE_MODELS, APIMART_IMAGE_QUERY, APIMART_IMAGE_STATUS } from "./apimartImages";
 import { APIMART_VIDEO_MODELS, APIMART_VIDEO_QUERY, APIMART_VIDEO_STATUS } from "./apimartVideos";
@@ -99,6 +106,8 @@ const KLING_3_I2V_MAPPING_ID = "seed-kie-kling-3-image_to_video";
 const MINIMAX_H3_MAPPING_ID = "seed-kie-minimax-h3-text_to_video";
 const SEEDANCE_2_5_T2V_MAPPING_ID = "seed-kie-seedance2-5-text_to_video";
 const SEEDANCE_2_5_I2V_MAPPING_ID = "seed-kie-seedance2-5-image_to_video";
+const WAN_3_0_T2V_MAPPING_ID = "seed-kie-wan3-0-text_to_video";
+const WAN_3_0_I2V_MAPPING_ID = "seed-kie-wan3-0-image_to_video";
 
 /** kie 的 curated 内置模型（archetypeId = 能力档案指针，代码所有；enabled/labelZh = 用户所有）。 */
 const KIE_CURATED_MODELS: CuratedModel[] = [
@@ -111,6 +120,9 @@ const KIE_CURATED_MODELS: CuratedModel[] = [
   { modelKey: KLING_3_MODEL_SEED.modelKey, labelZh: KLING_3_MODEL_SEED.labelZh, kind: KLING_3_MODEL_SEED.kind, archetypeId: "kling-3.0" },
   { modelKey: MINIMAX_H3_MODEL_SEED.modelKey, labelZh: MINIMAX_H3_MODEL_SEED.labelZh, kind: MINIMAX_H3_MODEL_SEED.kind, archetypeId: "minimax-h3" },
   { modelKey: SEEDANCE_2_5_MODEL_SEED.modelKey, labelZh: SEEDANCE_2_5_MODEL_SEED.labelZh, kind: SEEDANCE_2_5_MODEL_SEED.kind, archetypeId: "seedance-2.5" },
+  // Wan 3.0：catalog 只有 **1 行**（标准版）；高速版 wan/3-0-video-prime 由档案 variants 暴露
+  // （契约逐项相同 → 变体而非第二行，见 wan30.ts 注释）。
+  { modelKey: WAN_3_0_MODEL_SEED.modelKey, labelZh: WAN_3_0_MODEL_SEED.labelZh, kind: WAN_3_0_MODEL_SEED.kind, archetypeId: "wan-3.0" },
   // 2026-08 代图像（表驱动单源，见 kieImages2026）：Nano Banana 2 / 2 Lite、Seedream 5.0 Pro / Lite、FLUX.2 Pro。
   ...KIE_IMAGE_MODELS_2026.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "image" as const, archetypeId: m.archetypeId })),
 ];
@@ -132,6 +144,8 @@ const KIE_CURATED_MAPPINGS: CuratedMapping[] = [
   { id: MINIMAX_H3_MAPPING_ID, taskKind: MINIMAX_H3_MAPPING.taskKind, modelKey: MINIMAX_H3_MAPPING.modelKey, name: MINIMAX_H3_MAPPING.name, create: MINIMAX_H3_CREATE_OP, query: MINIMAX_H3_QUERY_OP },
   { id: SEEDANCE_2_5_T2V_MAPPING_ID, taskKind: SEEDANCE_2_5_TEXT_TO_VIDEO_MAPPING.taskKind, modelKey: SEEDANCE_2_5_TEXT_TO_VIDEO_MAPPING.modelKey, name: SEEDANCE_2_5_TEXT_TO_VIDEO_MAPPING.name, create: SEEDANCE_2_5_CREATE_OP, query: SEEDANCE_2_5_QUERY_OP },
   { id: SEEDANCE_2_5_I2V_MAPPING_ID, taskKind: SEEDANCE_2_5_IMAGE_TO_VIDEO_MAPPING.taskKind, modelKey: SEEDANCE_2_5_IMAGE_TO_VIDEO_MAPPING.modelKey, name: SEEDANCE_2_5_IMAGE_TO_VIDEO_MAPPING.name, create: SEEDANCE_2_5_CREATE_OP, query: SEEDANCE_2_5_QUERY_OP },
+  { id: WAN_3_0_T2V_MAPPING_ID, taskKind: WAN_3_0_TEXT_TO_VIDEO_MAPPING.taskKind, modelKey: WAN_3_0_TEXT_TO_VIDEO_MAPPING.modelKey, name: WAN_3_0_TEXT_TO_VIDEO_MAPPING.name, create: WAN_3_0_CREATE_OP, query: WAN_3_0_QUERY_OP },
+  { id: WAN_3_0_I2V_MAPPING_ID, taskKind: WAN_3_0_IMAGE_TO_VIDEO_MAPPING.taskKind, modelKey: WAN_3_0_IMAGE_TO_VIDEO_MAPPING.modelKey, name: WAN_3_0_IMAGE_TO_VIDEO_MAPPING.name, create: WAN_3_0_CREATE_OP, query: WAN_3_0_QUERY_OP },
   // 2026-08 代图像：每个模型 t2i + edit 两条，共用 kie 全家桶的轮询与状态归一。
   // modelKey 精确路由（同 vendor 同 taskKind 多模型不撞，见 selectTaskMapping）。
   ...KIE_IMAGE_MODELS_2026.flatMap((m) =>

@@ -147,6 +147,47 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
       }
     }
   },
+  "wan-3.0": {
+    "text_to_video": {
+      "*": {
+        "aspect_ratio": "adaptive",
+        "resolution": "1080P",
+        "duration": 5,
+        "audio": true,
+        "model": "wan/3-0-video"
+      }
+    },
+    "image_to_video": {
+      "*": {
+        "aspect_ratio": "adaptive",
+        "resolution": "1080P",
+        "duration": 5,
+        "audio": true,
+        "model": "wan/3-0-video"
+      }
+    }
+  },
+  "wan-3.0-apimart": {
+    "text_to_video": {
+      "*": {
+        "size": "adaptive",
+        "resolution": "1080P",
+        "duration": 5,
+        "audio": true,
+        "watermark": false
+      }
+    },
+    "image_to_video": {
+      "*": {
+        "generation_type": "reference",
+        "size": "adaptive",
+        "resolution": "1080P",
+        "duration": 5,
+        "audio": true,
+        "watermark": false
+      }
+    }
+  },
   "hailuo-2.3": {
     "text_to_video": {
       "*": {

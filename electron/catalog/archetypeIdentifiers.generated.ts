@@ -127,6 +127,16 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "wan2.7-r2v",
     "wan-2-7-r2v"
   ],
+  "wan-3.0": [
+    "wan/3-0-video",
+    "wan/3-0-video-prime",
+    "wan-3.0",
+    "wan3.0"
+  ],
+  "wan-3.0-apimart": [
+    "wan3.0-video",
+    "wan3-0-video"
+  ],
   "hailuo-2.3": [
     "hailuo-2.3",
     "minimax-hailuo-2.3",

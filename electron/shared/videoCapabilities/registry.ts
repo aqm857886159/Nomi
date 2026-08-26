@@ -30,6 +30,8 @@ import { SORA_2_ARCHETYPE } from "./sora2";
 import { VEO_3_1_ARCHETYPE } from "./veo31";
 import { VIDU_Q3_ARCHETYPE } from "./viduQ3";
 import { WAN_2_7_ARCHETYPE } from "./wan27";
+import { WAN_3_0_ARCHETYPE } from "./wan30";
+import { WAN_3_0_APIMART_ARCHETYPE } from "./wan30Apimart";
 
 /**
  * The catalog is the user's source of truth for which models actually exist.
@@ -66,6 +68,8 @@ const SOURCE_BACKED_PROFILES: readonly ModelArchetype[] = [
   SEEDANCE_2_5_APIMART_ARCHETYPE,
   MINIMAX_H3_APIMART_ARCHETYPE,
   WAN_2_7_ARCHETYPE,
+  WAN_3_0_ARCHETYPE,
+  WAN_3_0_APIMART_ARCHETYPE,
   HAILUO_2_3_ARCHETYPE,
   OMNI_FLASH_EXT_ARCHETYPE,
   MINIMAX_H3_REGENERATION_ARCHETYPE,
