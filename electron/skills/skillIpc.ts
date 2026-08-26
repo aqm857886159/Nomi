@@ -39,7 +39,11 @@ export function listSkillsForRenderer(): SkillListItem[] {
       directoryName: r.directoryName,
       name: r.name,
       label: r.manifest?.label || r.name,
-      description: r.manifest?.description ?? null,
+      // r.description 已是「manifest 的 ∥ SKILL.md frontmatter 的」（skillStore 算好的单一真相源）。
+      // 此前这里只取 manifest → 没有 skill.json 的技能一律显示「暂无说明」，哪怕 frontmatter 里
+      // 写着标准的 description（31 本内置只有 7 本带 manifest；用户从生态导入的标准技能全中招）。
+      // 2026-08-27 真机走查抓出：导入一个标准 SKILL.md → 落盘成功、卡片却是「暂无说明」。
+      description: r.description || r.manifest?.description || null,
       author: r.manifest?.author ?? null,
       stageLabels: (r.manifest?.stages ?? []).map((s) => s.goal),
       isPlaybook: (r.manifest?.stages ?? []).length > 0,

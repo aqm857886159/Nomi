@@ -11,23 +11,57 @@ import { parseSkillManifest, type SkillManifest } from "./skillManifestSchema";
 
 export const SKILL_PACKAGE_VERSION = "nomi-skill-v1";
 
-/** 自描述、可移植的 skill 包（JSON 序列化即可传输；skill 是纯文本，无需 zip）。 */
+/** 自描述、可移植的 skill 包（JSON 序列化即可传输）。 */
 export type SkillPackage = {
   version: string;
   /** 导出时间戳（调用方传入：脚本环境不可用 Date.now，由 IPC 层盖戳）。 */
   exportedAt: number;
   /** 目标目录名建议（导入时按冲突规则可能改名）。 */
   dirName: string;
-  /** basename → utf8 内容。必含 SKILL.md；可含 skill.json + 其它 .md/.txt 资源。 */
+  /** 相对路径（`/` 分隔，可含 references/ 等子目录）→ utf8 内容。必含根部 SKILL.md。 */
   files: Record<string, string>;
 };
 
-/** 仅允许安全的纯文件名（无目录分隔/无 ..）+ 白名单扩展（防路径穿越、防写可执行）。 */
-export function isSafeSkillFileName(name: string): boolean {
-  if (!name || name !== path.basename(name)) return false;
-  if (name === "." || name === "..") return false;
-  if (name.includes("/") || name.includes("\\") || name.includes("\0")) return false;
-  return /\.(md|json|txt)$/i.test(name);
+/** 知识层文本白名单。二进制（图片等）不进包——由调用方统计并如实告知用户跳过了几个。 */
+const SKILL_TEXT_EXT = /\.(md|markdown|json|txt|ya?ml|csv)$/i;
+/** 子目录深度上限（`references/api/v2/spec.md` = 3 段目录，够用且防深层炸弹）。 */
+const SKILL_PATH_MAX_DEPTH = 4;
+/**
+ * v1 只吃知识层：`scripts/` 是可执行代码，进来就要配安全扫描 + 沙箱（Nomi 是创作工具不是
+ * coding agent，技能价值在方法论）。这里显式识别出来，让 UI 能诚实告诉用户「跳过了脚本，原因是…」，
+ * 而不是笼统报「不安全的文件名」。
+ */
+const SKILL_EXECUTABLE_DIRS = new Set(["scripts", "bin", "hooks"]);
+
+/** 把 Windows 反斜杠归一成 `/`，并去掉冗余的 `./`。 */
+function normalizeSkillPath(raw: string): string {
+  return String(raw || "").replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/{2,}/g, "/");
+}
+
+/** 这个路径是不是「可执行区」（v1 不收，但要与「非法路径」区分开，好给人话原因）。 */
+export function isExecutableSkillPath(raw: string): boolean {
+  const p = normalizeSkillPath(raw);
+  const top = p.split("/")[0]?.toLowerCase() ?? "";
+  return SKILL_EXECUTABLE_DIRS.has(top);
+}
+
+/**
+ * 安全的 skill 相对路径：允许子目录（`references/x.md`、`assets/tpl.txt`），
+ * 但禁 `..` / 绝对路径 / 盘符 / `\0` / 空段，限深度，限文本扩展名。
+ */
+export function isSafeSkillFilePath(raw: string): boolean {
+  const p = normalizeSkillPath(raw);
+  if (!p || p.includes("\0")) return false;
+  if (p.startsWith("/") || /^[a-z]:/i.test(p)) return false;
+  if (isExecutableSkillPath(p)) return false;
+  const segments = p.split("/");
+  if (segments.length > SKILL_PATH_MAX_DEPTH) return false;
+  for (const segment of segments) {
+    if (!segment || segment === "." || segment === "..") return false;
+    // 段内不许再藏分隔符或空白包裹（zip 里出现过 `a /../b` 这种）
+    if (segment.trim() !== segment) return false;
+  }
+  return SKILL_TEXT_EXT.test(segments[segments.length - 1]);
 }
 
 /** 打包（纯）：把文件表组装成 SkillPackage。 */
@@ -42,6 +76,21 @@ export function buildSkillPackage(
 export type ValidatedSkillPackage =
   | { ok: true; pkg: SkillPackage; manifest: SkillManifest | null }
   | { ok: false; error: string };
+
+/**
+ * 归一导入输入（纯）：吃两种形状，**版本号只此一处**（渲染层不复制它）。
+ * ① 完整信封 `{version, exportedAt, dirName, files}` —— 我们自己导出的 `.nomiskill.json`，原样透传；
+ * ② 裸文件表 `{dirName, files}` —— 渲染层从 SKILL.md / zip 解析出来的，这里盖版本戳。
+ *
+ * ② 是 2026-08-27 加的：此前只认 ①，导致「别人的技能一律进不来」，而生态早已收敛到
+ * 「文件夹 + SKILL.md + YAML frontmatter」，我们自己的 SKILL.md 本来就是这个格式（R20 对齐标准）。
+ */
+export function normalizeSkillImportInput(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
+  const obj = raw as Record<string, unknown>;
+  if (obj.version !== undefined) return raw;
+  return { ...obj, version: SKILL_PACKAGE_VERSION, exportedAt: 0 };
+}
 
 /**
  * 校验一个外来包（纯）：版本兼容 + 形状 + 文件名安全 + 必含 SKILL.md + manifest 合法。
@@ -64,7 +113,10 @@ export function validateSkillPackage(raw: unknown): ValidatedSkillPackage {
   }
   const fileEntries = Object.entries(files as Record<string, unknown>);
   for (const [name, content] of fileEntries) {
-    if (!isSafeSkillFileName(name)) return { ok: false, error: `不安全的文件名：${name}` };
+    if (isExecutableSkillPath(name)) {
+      return { ok: false, error: `暂不支持带可执行脚本的技能（${name}）——Nomi 只吃知识层（SKILL.md / references / assets）` };
+    }
+    if (!isSafeSkillFilePath(name)) return { ok: false, error: `不安全或不支持的文件路径：${name}` };
     if (typeof content !== "string") return { ok: false, error: `文件 ${name} 内容必须是字符串` };
   }
   const fileMap = Object.fromEntries(fileEntries) as Record<string, string>;
@@ -106,14 +158,26 @@ export function resolveImportDirName(desired: string, existingDirs: ReadonlySet<
 
 // --- FS 层（显式目录参数；不碰 electron app，便于单测） ---
 
-/** 读一个 skill 目录的顶层可分享文件（SKILL.md / skill.json / *.md / *.txt）。 */
+/**
+ * 读一个 skill 目录的可分享文本文件，**含子目录**（references/ assets/ …）。
+ * 递归是为了让导出↔导入闭环：只读顶层的话，带 references 的技能导出一圈就被削平了。
+ */
 export function readSkillDirFiles(absDir: string): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const entry of fs.readdirSync(absDir, { withFileTypes: true })) {
-    if (!entry.isFile()) continue;
-    if (!isSafeSkillFileName(entry.name)) continue;
-    out[entry.name] = fs.readFileSync(path.join(absDir, entry.name), "utf8");
-  }
+  const walk = (dir: string, prefix: string): void => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        if (isExecutableSkillPath(rel)) continue; // 可执行区不导出（与导入对称）
+        if (rel.split("/").length >= SKILL_PATH_MAX_DEPTH) continue;
+        walk(path.join(dir, entry.name), rel);
+        continue;
+      }
+      if (!entry.isFile() || !isSafeSkillFilePath(rel)) continue;
+      out[rel] = fs.readFileSync(path.join(dir, entry.name), "utf8");
+    }
+  };
+  walk(absDir, "");
   return out;
 }
 
@@ -129,8 +193,12 @@ export function writeSkillImport(userRoot: string, pkg: SkillPackage): { dirName
   const dir = path.join(userRoot, dirName);
   fs.mkdirSync(dir, { recursive: true });
   for (const [name, content] of Object.entries(pkg.files)) {
-    if (!isSafeSkillFileName(name)) continue; // 双保险
-    fs.writeFileSync(path.join(dir, name), content, "utf8");
+    if (!isSafeSkillFilePath(name)) continue; // 双保险
+    const target = path.join(dir, ...name.split("/"));
+    // 三保险：解析后必须仍落在本 skill 目录内（防任何绕过 isSafeSkillFilePath 的构造）
+    if (!path.resolve(target).startsWith(path.resolve(dir) + path.sep)) continue;
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, content, "utf8");
   }
   return { dirName, dir };
 }
@@ -175,9 +243,18 @@ export function deleteUserSkill(directoryName: string): DeleteSkillResult {
   return { ok: true, dirName: name };
 }
 
-/** 导入一个外来包到可写用户 skills 目录（校验 → 落地）。 */
+/**
+ * 导入一个外来包到可写用户 skills 目录（归一 → 校验 → 落地）。
+ *
+ * 吃两种形状（**版本号只此一处**，渲染层不复制它）：
+ * ① 完整信封 `{version, exportedAt, dirName, files}` —— 我们自己导出的 `.nomiskill.json`；
+ * ② 裸文件表 `{dirName, files}` —— 渲染层从 SKILL.md / zip / 文件夹解析出来的，由这里盖版本戳。
+ *
+ * ② 是 2026-08-27 加的：此前只认 ①，导致「别人的技能一律进不来」——而生态早已收敛到
+ * 「文件夹 + SKILL.md + YAML frontmatter」，我们自己的 SKILL.md 本来就是这个格式（R20）。
+ */
 export function importSkillPackageToUserDir(raw: unknown): ImportSkillResult {
-  const validated = validateSkillPackage(raw);
+  const validated = validateSkillPackage(normalizeSkillImportInput(raw));
   if (!validated.ok) return validated;
   const { dirName } = writeSkillImport(getUserSkillsRoot(), validated.pkg);
   return {

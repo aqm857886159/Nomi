@@ -14,6 +14,7 @@ import { showUndoToast } from '../../utils/showUndoToast'
 import { useWorkbenchStore } from '../workbenchStore'
 import type { SkillListItemDto } from '../api/skillApi'
 import { useWorkbenchSkills } from './useWorkbenchSkills'
+import { parseSkillImportFile } from './parseSkillImport'
 import { SkillCard } from './SkillCard'
 
 type Source = 'mine' | 'builtin'
@@ -122,25 +123,25 @@ export function SkillLibraryContent({
     [exportPackage, remove, importPackage, t],
   )
 
-  // 导入：渲染层读文件 → 解析 JSON → 落用户目录（后端校验版本/形状/路径安全）。
+  // 导入：渲染层把 SKILL.md / zip / .nomiskill.json 归一成 {dirName, files} → 落用户目录
+  // （版本戳与真正的安全校验都在主进程，渲染层的判断一律不可信）。
   const handleImportFile = React.useCallback(
-    (file: File) => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        let parsed: unknown
-        try {
-          parsed = JSON.parse(String(reader.result || ''))
-        } catch {
-          showInfoToast(t('libraries.skill.invalidPackage'))
-          return
-        }
-        const res = importPackage(parsed)
-        showInfoToast(res.ok
-          ? t('libraries.skill.imported', { name: res.skillName ?? t('libraries.skill.newSkill') })
-          : t('libraries.skill.importFailed', { message: res.error ?? t('libraries.skill.unknownError') }))
+    async (file: File) => {
+      const parsed = await parseSkillImportFile(file)
+      if (!parsed.ok) {
+        showInfoToast(t(`libraries.skill.importReason.${parsed.reason}`))
+        return
       }
-      reader.onerror = () => showInfoToast(t('libraries.skill.readFailed'))
-      reader.readAsText(file)
+      const res = importPackage(parsed.payload)
+      if (!res.ok) {
+        showInfoToast(t('libraries.skill.importFailed', { message: res.error ?? t('libraries.skill.unknownError') }))
+        return
+      }
+      const name = res.skillName ?? t('libraries.skill.newSkill')
+      // 跳过的文件如实报数，不静默丢（二进制/超深路径进不了知识层包）。
+      showInfoToast(parsed.skipped.length
+        ? t('libraries.skill.importedWithSkips', { name, count: parsed.skipped.length })
+        : t('libraries.skill.imported', { name }))
     },
     [importPackage, t],
   )
@@ -256,11 +257,11 @@ export function SkillLibraryContent({
           <input
             ref={fileInputRef}
             type="file"
-            accept=".json,.nomiskill,application/json"
+            accept=".md,.markdown,.zip,.json,.nomiskill"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0]
-              if (file) handleImportFile(file)
+              if (file) void handleImportFile(file)
               e.target.value = ''
             }}
           />
