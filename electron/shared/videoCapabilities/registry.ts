@@ -25,6 +25,7 @@ import { SEEDANCE_2_5_ARCHETYPE } from "./seedance25";
 import { SEEDANCE_2_5_APIMART_ARCHETYPE } from "./seedance25Apimart";
 import { SEEDANCE_2_APIMART_ARCHETYPE } from "./seedanceApimart";
 import { SEEDANCE_VOLCENGINE_ARCHETYPE } from "./seedanceVolcengine";
+import { SEEDANCE_VOLCENGINE_2_5_ARCHETYPE } from "./seedanceVolcengine25";
 import { SORA_2_ARCHETYPE } from "./sora2";
 import { VEO_3_1_ARCHETYPE } from "./veo31";
 import { VIDU_Q3_ARCHETYPE } from "./viduQ3";
@@ -69,6 +70,7 @@ const SOURCE_BACKED_PROFILES: readonly ModelArchetype[] = [
   OMNI_FLASH_EXT_ARCHETYPE,
   MINIMAX_H3_REGENERATION_ARCHETYPE,
   SEEDANCE_VOLCENGINE_ARCHETYPE,
+  SEEDANCE_VOLCENGINE_2_5_ARCHETYPE,
   DREAMINA_SEEDANCE_ARCHETYPE,
   DREAMINA_MULTIFRAME_ARCHETYPE,
   RUNNINGHUB_SEEDANCE_ARCHETYPE,

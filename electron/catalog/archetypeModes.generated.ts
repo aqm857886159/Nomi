@@ -226,7 +226,23 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
       "edit": "image_edit"
     }
   },
+  "volcengine-seedream-5-pro": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "edit": "image_edit"
+    }
+  },
   "volcengine-seedance-2": {
+    "defaultModeId": "t2v",
+    "modes": {
+      "t2v": "text_to_video",
+      "first": "image_to_video",
+      "firstlast": "image_to_video",
+      "omni": "image_to_video"
+    }
+  },
+  "volcengine-seedance-2-5": {
     "defaultModeId": "t2v",
     "modes": {
       "t2v": "text_to_video",

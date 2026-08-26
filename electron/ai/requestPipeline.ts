@@ -181,6 +181,45 @@ export function hostRootBase(baseUrl: string): string {
   return String(baseUrl || "").trim().replace(/\/+$/, "").replace(/\/v\d+$/i, "");
 }
 
+/** 把 URL/路径切成非空路径段（`https://h/api/v3` → ["api","v3"]；`/api/v3/x` → ["api","v3","x"]）。 */
+function pathSegments(value: string): string[] {
+  const withoutOrigin = value.replace(/^https?:\/\/[^/]+/i, "");
+  return withoutOrigin.split("/").filter(Boolean);
+}
+
+/**
+ * 从主机根拼原生端点路径（`HttpOperation.pathFrom === "host-root"` 唯一入口）。
+ *
+ * 两步：先 `hostRootBase` 剥掉尾部版本段，**再折叠 base 尾部与 path 头部的重叠段**。
+ * 第二步是必需的——`hostRootBase` 只剥一层 `/vN`，遇到火山官方口径的 `https://ark…/api/v3`
+ * 会剥成 `…/api`，`/api` 残留，再拼自带 `/api/v3` 前缀的原生路径就成了 `…/api/api/v3/…`：
+ * 探针把它和「查无此路由」哨兵一比完全同签名 → 判定「这家不提供原生端点」→ 整条原生报文失联，
+ * Seedream 改图被降级成 chat/completions 多模态（它不是聊天模型）、Seedance 图生视频同样降级。
+ * 这条重叠折叠规则与 `joinUrl` 里已有的版本段去重是同一条规则，此处按段泛化。
+ *
+ * | baseUrl | path | 结果 |
+ * |---|---|---|
+ * | `https://ark…volces.com`         | `/api/v3/images/generations` | `https://ark…/api/v3/images/generations` |
+ * | `https://ark…volces.com/api/v3`  | `/api/v3/images/generations` | `https://ark…/api/v3/images/generations` |
+ * | `https://relay.example.com/v1`   | `/api/v3/images/generations` | `https://relay.example.com/api/v3/…` |
+ * | `https://relay.example.com/codex/v1` | `/api/v3/images/generations` | `https://relay.example.com/codex/api/v3/…` |
+ */
+export function hostRootJoin(baseUrl: string, path: string): string {
+  if (/^https?:\/\//i.test(path)) return path;
+  const base = hostRootBase(baseUrl);
+  const baseSegs = pathSegments(base);
+  const pathSegs = pathSegments(path);
+  // 最长的「base 结尾 == path 开头」段重叠，按段边界比对（不做子串比对，免得 /api 误吃 /apixyz）。
+  let overlap = 0;
+  for (let k = Math.min(baseSegs.length, pathSegs.length); k > 0; k -= 1) {
+    if (baseSegs.slice(baseSegs.length - k).every((seg, i) => seg === pathSegs[i])) {
+      overlap = k;
+      break;
+    }
+  }
+  return joinUrl(base, `/${pathSegs.slice(overlap).join("/")}`);
+}
+
 /** Join a (possibly absolute) operation path onto the vendor base URL. */
 export function joinUrl(baseUrl: string, path: string): string {
   if (/^https?:\/\//i.test(path)) return path;
@@ -272,9 +311,10 @@ export function buildHttpRequest(input: {
   const { context, operation } = input;
   const method = (pickString(operation.method) || "POST").toUpperCase();
   const renderedPath = String(renderTemplateValue(operation.path || "/v1/tasks", context) || "/v1/tasks");
-  // 原生端点声明 pathFrom:"host-root" → 先剥掉 baseUrl 尾部的 /vN（用户把接入地址填成 .../v1 时，
-  // /api/v3/… 直接拼会变成 /v1/api/v3/… 打不中）。缺省仍从 baseUrl 拼，既有档案零影响。
-  const url = joinUrl(operation.pathFrom === "host-root" ? hostRootBase(input.baseUrl) : input.baseUrl, renderedPath);
+  // 原生端点声明 pathFrom:"host-root" → 走 hostRootJoin（剥版本段 + 折叠 base/path 重叠段）。
+  // 缺省仍从 baseUrl 拼，既有档案零影响。
+  const url =
+    operation.pathFrom === "host-root" ? hostRootJoin(input.baseUrl, renderedPath) : joinUrl(input.baseUrl, renderedPath);
 
   const renderedHeaders = stringifyHeaders(renderTemplateValue(operation.headers, context));
   const headers: Record<string, string> = {

@@ -34,23 +34,34 @@ export type NativeWireProfile = {
   statusMapping?: Record<string, string[]>;
 };
 
-/** 火山方舟原生（Seedance 2.0）。中转代理方舟时可直接用这套：首/尾帧、角色图×9、参考视频×3、
- *  参考音频×3、generate_audio、ratio、resolution 全在，与用户那家中转文档 §6.2 逐字对得上。 */
-function volcengineSeedanceProfile(): NativeWireProfile {
-  const model = VOLCENGINE_VIDEO_MODELS.find((m) => m.archetypeId === "volcengine-seedance-2");
+/** 把一组 mapping 转成「从主机根拼」的 create 表。原生端点不在 /v1 命名空间下；
+ *  中转用户常把地址填成 .../v1 → 必须从主机根拼（hostRootJoin 负责剥版本段 + 折叠重叠段）。 */
+function hostRootCreateOps(mappings: ReadonlyArray<{ taskKind: ProfileKind; create: HttpOperation }>) {
   const create: Partial<Record<ProfileKind, HttpOperation>> = {};
-  for (const mapping of model?.mappings ?? []) {
-    // 原生端点不在 /v1 命名空间下；中转用户常把地址填成 .../v1 → 必须从主机根拼。
-    create[mapping.taskKind] = { ...mapping.create, pathFrom: "host-root" };
+  for (const mapping of mappings) create[mapping.taskKind] = { ...mapping.create, pathFrom: "host-root" };
+  return create;
+}
+
+/** 火山方舟视频原生（Seedance 全 family）。中转代理方舟时可直接用这套：首/尾帧、角色图、参考视频、
+ *  参考音频、generate_audio、ratio、resolution 全在，与用户那家中转文档 §6.2 逐字对得上。
+ *
+ *  **按 archetypeId 分组自动派生**，不是手写枚举：新增一个 Seedance 档案（2.5 就是这么进来的）
+ *  只要进了 VOLCENGINE_VIDEO_MODELS 就自动有原生 profile。手写枚举必漂——漏一个的症状是
+ *  「那个模型经中转接入后静默退回通用最小模板」，本地测不出来。 */
+function volcengineSeedanceProfiles(): NativeWireProfile[] {
+  const byArchetype = new Map<string, typeof VOLCENGINE_VIDEO_MODELS>();
+  for (const model of VOLCENGINE_VIDEO_MODELS) {
+    byArchetype.set(model.archetypeId, [...(byArchetype.get(model.archetypeId) ?? []), model]);
   }
-  return {
-    archetypeId: "volcengine-seedance-2",
+  return [...byArchetype.entries()].map(([archetypeId, models]) => ({
+    archetypeId,
     wireName: "火山方舟原生",
     probePath: "/api/v3/contents/generations/tasks",
-    create,
-    query: { ...VOLCENGINE_SEEDANCE_QUERY_OP, pathFrom: "host-root" },
+    // 同一档案下各模型共用同形 op（model 字段是动态值），取任一即可。
+    create: hostRootCreateOps(models[0].mappings),
+    query: { ...VOLCENGINE_SEEDANCE_QUERY_OP, pathFrom: "host-root" as const },
     statusMapping: VOLCENGINE_SEEDANCE_STATUS_MAPPING,
-  };
+  }));
 }
 
 /**
@@ -61,24 +72,23 @@ function volcengineSeedanceProfile(): NativeWireProfile {
  * 甚至直接失败。原生形状里改图是 `image ← image_urls`（整数组），已在 volcengineImages 真实 E2E 出图验证。
  *
  * 与视频 profile 同在 `/api/v3` 命名空间——中转若代理了方舟视频，通常同时代理图像，探测会各探各的。
- * 全 family 共用同一份 op（model 字段是 `{{model.modelKey}}` 动态值），故取任一模型的 mappings 即可。
+ * 同一档案下各模型共用同一份 op（model 字段是 `{{model.modelKey}}` 动态值），故取任一模型的 mappings 即可。
+ * 同视频侧：**按 archetypeId 分组自动派生**（5.0 pro 就是这么进来的），不手写枚举。
  */
-function volcengineSeedreamProfile(): NativeWireProfile {
-  const model = VOLCENGINE_IMAGE_MODELS.find((m) => m.archetypeId === "volcengine-seedream");
-  const create: Partial<Record<ProfileKind, HttpOperation>> = {};
-  for (const mapping of model?.mappings ?? []) {
-    // 原生端点不在 /v1 命名空间下；中转用户常把地址填成 .../v1 → 必须从主机根拼。
-    create[mapping.taskKind] = { ...mapping.create, pathFrom: "host-root" };
+function volcengineSeedreamProfiles(): NativeWireProfile[] {
+  const byArchetype = new Map<string, typeof VOLCENGINE_IMAGE_MODELS>();
+  for (const model of VOLCENGINE_IMAGE_MODELS) {
+    byArchetype.set(model.archetypeId, [...(byArchetype.get(model.archetypeId) ?? []), model]);
   }
-  return {
-    archetypeId: "volcengine-seedream",
+  return [...byArchetype.entries()].map(([archetypeId, models]) => ({
+    archetypeId,
     wireName: "火山方舟原生",
     probePath: "/api/v3/images/generations",
-    create,
-  };
+    create: hostRootCreateOps(models[0].mappings),
+  }));
 }
 
-const PROFILES: NativeWireProfile[] = [volcengineSeedanceProfile(), volcengineSeedreamProfile()];
+const PROFILES: NativeWireProfile[] = [...volcengineSeedanceProfiles(), ...volcengineSeedreamProfiles()];
 
 /** 按档案 id 查原生 wire 配方；没有就返回 null（该模型没有可复用的原生形状）。 */
 export function nativeWireProfileForArchetype(archetypeId: string | null | undefined): NativeWireProfile | null {

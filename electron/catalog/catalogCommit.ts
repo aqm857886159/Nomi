@@ -4,6 +4,7 @@ import { newapiImageEditProfileForModel, newapiTransportFor, type NewapiImageEdi
 import { consumedCanonicalKeys } from "./paramTranslate";
 import { nativeWireProfileForArchetype, type NativeWireProfile } from "./nativeWireProfiles";
 import { guessModelKind } from "./modelKindHeuristic";
+import { builtinVendorKeyForHostname } from "./builtinVendorSeeds";
 import { hardenedFetchText } from "../hardenedFetch";
 import type { AiSdkProviderKind, BillingModelKind, HttpOperation, Model, ProfileKind, Vendor } from "./types";
 import type { TaskRequest } from "../runtime";
@@ -296,6 +297,12 @@ export function deriveVendorKeyFromBaseUrl(baseUrl: string): string {
   } catch {
     return "";
   }
+  // 内置认得的 host → 直接复用内置 vendorKey，别再按 hostname 另造一个。
+  // 不这么做的话，走向导接入火山方舟会造出 `ark-cn-beijing-volces-com`，与内置种子的 `volcengine`
+  // 各占一个柜子：向导那半个一条内置 mapping 都拿不到，Seedream/Seedance 全退回通用最小模板
+  // （用户症状 = 「接了火山但没有图生图」）。key 随本次提交一起写到内置 vendor 上，故合并后即可用。
+  const builtin = builtinVendorKeyForHostname(host);
+  if (builtin) return builtin;
   let seed = host;
   if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0") {
     seed = `local-${port || "80"}`;

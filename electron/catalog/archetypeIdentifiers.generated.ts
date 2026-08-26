@@ -192,10 +192,16 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "doubao-seedream-4-5-251128",
     "doubao-seedream-4-0-250828"
   ],
+  "volcengine-seedream-5-pro": [
+    "doubao-seedream-5-0-pro-260628"
+  ],
   "volcengine-seedance-2": [
     "doubao-seedance-2-0-260128",
     "doubao-seedance-2-0-fast-260128",
     "doubao-seedance-2-0-mini-260615"
+  ],
+  "volcengine-seedance-2-5": [
+    "doubao-seedance-2-5-260628"
   ],
   "dreamina-seedance-2": [
     "dreamina-seedance-2.0",

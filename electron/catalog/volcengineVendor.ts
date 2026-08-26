@@ -3,12 +3,18 @@
 //   - 认证：Bearer API key（ark- 开头），核心生成不用 AK/SK V4 签名（那套只在头像素材子系统）。
 //   - modelKey 用模型直连名（如 doubao-seedream-5-0-260128），不用推理接入点 endpoint id。
 //   - 图片 Seedream **同步**：POST /api/v3/images/generations → { data:[{ url, size }], usage }（data[0].url 即结果）。
-//   - 视频 Seedance 异步（/api/v3/contents/generations/tasks）—— 用户尚未开通，待开通后再接。
-// baseUrl 裸（不带 /api/v3），path 自带 /api/v3（避双前缀）。
+//   - 视频 Seedance 异步（/api/v3/contents/generations/tasks）。
+//
+// baseUrl 取**官方文档口径** `https://ark.cn-beijing.volces.com/api/v3`，与 providerPresets 的火山那条一致
+// （2026-08-26 统一）。此前这里是裸 host、预设是带 /api/v3，两份地址各说各话；加上 deriveVendorKeyFromBaseUrl
+// 按 hostname 造 key，向导接入会另立一个 `ark-cn-beijing-volces-com` 供应商 → 同一家劈成两个柜子。
+// 原生 op 声明 pathFrom:"host-root"，其 `/api/v3/...` 路径经 hostRootJoin 的重叠段折叠仍精确落位；
+// 文本 `/v1/chat/completions` 经 joinUrl 的版本段折叠落到 `/api/v3/chat/completions`。两条都在
+// nativeWireHostRoot.test.ts 的矩阵里钉死。
 export const VOLCENGINE_VENDOR_SEED = {
   key: "volcengine",
   name: "火山方舟",
-  baseUrl: "https://ark.cn-beijing.volces.com",
+  baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
   authType: "bearer" as const,
   authHeader: "Authorization",
 } as const;

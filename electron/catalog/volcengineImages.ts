@@ -10,6 +10,10 @@ function seedreamCreateOp(): HttpOperation {
   return {
     method: "POST",
     path: "/api/v3/images/generations",
+    // 路径自带 /api/v3 → 必须从主机根拼（hostRootJoin：剥版本段 + 折叠 base/path 重叠段）。
+    // 漏了它就走 joinUrl，而种子 vendor 的 baseUrl 是 `https://ark…/api/v3` →
+    // 拼成 `/api/v3/api/v3/images/generations` 全线 404（2026-08-26 真 key 实发验证过这条）。
+    pathFrom: "host-root",
     headers: CREATE_HEADERS,
     // watermark:false 去掉火山默认的「AI生成」角标（真实验证：默认带角标，false 后干净）——创作工具默认要干净图。
     body: { model: "{{model.modelKey}}", prompt: "{{request.prompt}}", size: "{{request.params.size}}", watermark: false },
@@ -27,6 +31,10 @@ function seedreamEditOp(): HttpOperation {
   return {
     method: "POST",
     path: "/api/v3/images/generations",
+    // 路径自带 /api/v3 → 必须从主机根拼（hostRootJoin：剥版本段 + 折叠 base/path 重叠段）。
+    // 漏了它就走 joinUrl，而种子 vendor 的 baseUrl 是 `https://ark…/api/v3` →
+    // 拼成 `/api/v3/api/v3/images/generations` 全线 404（2026-08-26 真 key 实发验证过这条）。
+    pathFrom: "host-root",
     headers: CREATE_HEADERS,
     body: {
       model: "{{model.modelKey}}",
@@ -46,6 +54,32 @@ export type VolcengineImageModel = {
   archetypeId: string;
   mappings: { id: string; taskKind: ProfileKind; name: string; create: HttpOperation }[];
 };
+
+/**
+ * Seedream 5.0 **pro** 的 create / edit op。与 lite/4.x 同端点同响应，多一个 `background`
+ * （透明底，pro 独有；官方 background: transparent | opaque，默认 opaque）。
+ * pro **不支持** sequential_image_generation，故改图那条不发它（lite/4.x 那条发 disabled 出单图）。
+ */
+function seedream5ProOp(withImage: boolean): HttpOperation {
+  return {
+    method: "POST",
+    path: "/api/v3/images/generations",
+    // 路径自带 /api/v3 → 必须从主机根拼（hostRootJoin：剥版本段 + 折叠 base/path 重叠段）。
+    // 漏了它就走 joinUrl，而种子 vendor 的 baseUrl 是 `https://ark…/api/v3` →
+    // 拼成 `/api/v3/api/v3/images/generations` 全线 404（2026-08-26 真 key 实发验证过这条）。
+    pathFrom: "host-root",
+    headers: CREATE_HEADERS,
+    body: {
+      model: "{{model.modelKey}}",
+      prompt: "{{request.prompt}}",
+      ...(withImage ? { image: "{{request.params.image_urls}}" } : {}),
+      size: "{{request.params.size}}",
+      background: "{{request.params.background}}",
+      watermark: false,
+    },
+    response_mapping: { image_url: "data.0.url" },
+  };
+}
 
 /** 一个 Seedream 文生图模型（全 family 共用同步 create op + volcengine-seedream 档案）。 */
 function seedreamModel(modelKey: string, labelZh: string, slug: string): VolcengineImageModel {
@@ -74,6 +108,27 @@ function seedreamModel(modelKey: string, labelZh: string, slug: string): Volceng
 // 同步图片 API 形状一致（5.0 已真实 E2E 出图验证；4.x 同端点同契约）。modelKey 取自 Ark /api/v3/models。
 // 3.0 已 Retiring，不放。Seedance 视频是异步族（另一形状），待单独接（见方案文档）。
 export const VOLCENGINE_IMAGE_MODELS: VolcengineImageModel[] = [
+  {
+    // Seedream 5.0 pro（2026-08-26 接入）——旗舰，独立档案：像素域 [921600, 4624220] 与 lite 的
+    // [3686400, 16777216] 几乎不重叠，共用一份 size 清单必然有一边 400。详见 seedreamVolcengine5Pro.ts。
+    modelKey: "doubao-seedream-5-0-pro-260628",
+    labelZh: "Seedream 5.0 Pro",
+    archetypeId: "volcengine-seedream-5-pro",
+    mappings: [
+      {
+        id: "seed-volcengine-seedream-5-pro-text_to_image",
+        taskKind: "text_to_image",
+        name: "Seedream 5.0 Pro · 文生图",
+        create: seedream5ProOp(false),
+      },
+      {
+        id: "seed-volcengine-seedream-5-pro-image_edit",
+        taskKind: "image_edit",
+        name: "Seedream 5.0 Pro · 改图",
+        create: seedream5ProOp(true),
+      },
+    ],
+  },
   seedreamModel("doubao-seedream-5-0-260128", "Seedream 5.0 lite", "seedream-5"),
   seedreamModel("doubao-seedream-4-5-251128", "Seedream 4.5", "seedream-4-5"),
   seedreamModel("doubao-seedream-4-0-250828", "Seedream 4.0", "seedream-4-0"),

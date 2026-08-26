@@ -7,9 +7,10 @@ const PARAMS: ModelParameterControl[] = [
   { key: "ratio", label: "比例", type: "select", options: opt(["16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"]), defaultValue: "16:9" },
   { key: "resolution", label: "清晰度", type: "select", options: opt(["480p", "720p", "1080p", "4k"]), defaultValue: "720p" },
   { key: "duration", label: "时长(秒)", type: "number", options: [], min: 4, max: 15, defaultValue: 5 },
-  // 官方字段表有 seed，同族的 apimart 档案也有 —— 唯独火山这份漏了。参数由**模型身份**决定、
-  // 与渠道无关（model-param-consistency 铁律），同一个 Seedance 2.0 换个渠道就少一个控件是 bug。
-  { key: "seed", label: "种子", type: "number", options: [], placeholder: "随机" },
+  // ⚠️ 这里**刻意没有 seed / camera_fixed**。此前有一条 seed 控件，理由写的是「官方字段表有 seed，
+  // 唯独火山这份漏了」—— 2026-08-26 照官方 doc 1520757 参数表逐项对账后确认那条判断是**反的**：
+  // seed 与 camera_fixed 的支持列只列 1.5 pro / 1.0 pro / 1.0 pro fast，**2.0 系列与 2.5 都不支持**。
+  // 按 P1 直接删（不留 fallback）：发一个模型不认的字段，轻则静默忽略、重则 400，而且要等真发才知道。
   { key: "generate_audio", label: "生成音频", type: "boolean", options: [], defaultValue: true },
 ];
 
@@ -78,6 +79,21 @@ export const SEEDANCE_VOLCENGINE_ARCHETYPE: ModelArchetype = {
     "doubao-seedance-2-0-260128",
     "doubao-seedance-2-0-fast-260128",
     "doubao-seedance-2-0-mini-260615",
+  ],
+  sources: [
+    {
+      url: "https://docs.volcengine.com/docs/82379/1520757",
+      checkedAt: "2026-08-26",
+      vendorKey: "volcengine",
+      covers:
+        "POST /api/v3/contents/generations/tasks；content 元素靠 role 区分首帧/尾帧/参考图/参考视频/参考音频；2.0 系列 duration [4,15] 或 -1、resolution 480p/720p/1080p/4k（fast 与 mini 仅 480p/720p）；generate_audio 默认 true；watermark 默认 false；**seed 与 camera_fixed 仅 1.5pro/1.0pro/1.0pro-fast 支持，2.0 系列不支持**",
+    },
+    {
+      url: "https://docs.volcengine.com/docs/82379/1330310",
+      checkedAt: "2026-08-26",
+      vendorKey: "volcengine",
+      covers: "在售模型 id：doubao-seedance-2-0-260128 / -fast-260128 / -mini-260615；2.0 系列参考素材上限 9 图 / 3 视频 / 3 音频，且音频不可单独输入",
+    },
   ],
   modes: MODES,
   variants: [

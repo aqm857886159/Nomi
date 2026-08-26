@@ -738,9 +738,11 @@ describe('火山方舟 Seedance — 档案投影', () => {
       volcengine_first_image_content: { type: 'image_url', image_url: { url: 'F.png' }, role: 'first_frame' },
       model: 'doubao-seedance-2-0-260128',
     })
-    // seed 在官方字段表里、同族 apimart 档案也有——参数由模型身份决定与渠道无关，
-    // 换个渠道少一个控件就是 bug（2026-07-31 拿到交付文档对账时补齐）。
-    expect(VOLC.modes[0].params.map((p) => p.key)).toEqual(['ratio', 'resolution', 'duration', 'seed', 'generate_audio'])
+    // **刻意没有 seed**：2026-08-26 照官方一手文档（doc 1520757 参数表）逐项对账，seed / camera_fixed
+    // 的支持列只有 1.5 pro / 1.0 pro / 1.0 pro fast，2.0 系列与 2.5 都不支持。
+    // 这条推翻了 2026-07-31 那次「补齐 seed」——那次对的是**中转的交付文档**，它把全 family 的字段
+    // 并成了一张表，看不出逐模型差异。一手出处才算数（R5）。
+    expect(VOLC.modes[0].params.map((p) => p.key)).toEqual(['ratio', 'resolution', 'duration', 'generate_audio'])
   })
 
   it('fast 变体：out.model 发 fast Model ID', () => {
