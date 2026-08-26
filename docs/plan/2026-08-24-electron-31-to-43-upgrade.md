@@ -180,6 +180,7 @@ on(event: 'console-message', listener: (
 2. `pnpm run test:e2e` + `pnpm run test:packaging` 绿。
 3. **mac**：`pnpm run dist:mac:dir` 出包 → 打开 → 走查（起动、建项目、画布放视频、导出）+ **通知实弹**。
 4. **win**：NSIS x64 出包 → 真机安装 → 同一套走查（改哪面验哪面，win32 不能拿 mac 结果顶）。
+   → **2026-08-26 已补，见 §9.8。结论：Electron 43 在 win32 零回归。**「真机安装」那一格仍是空的（CI 顶不了）。
 5. **§2.2 专项**：渲染层故意 `console.error` 一条，确认主进程日志里级别**仍判为 error**（防静默降级）。
 6. **§2.4 专项**：干净克隆 → `pnpm install` → 直接 `pnpm dev`，确认不因缺二进制而失败。
 7. 走查截图必须**自己 Read 过**才算数（R13 眼见链）。
@@ -386,3 +387,51 @@ getBitmap(options?: BitmapOptions): void;
 若无遥测，可从 GitHub release 的下载数据或群反馈粗估。
 
 **Windows 侧无此问题**：32→44 无最低版本变化，且本仓 `win.target` 只有 x64。
+
+**§9.7 补数据（2026-08-26）**：v0.20.1 的 GitHub release 真实下载数拿到了——
+mac arm64 **41** / mac Intel **12** / win **234**。即 77% 的 mac 用户是 Apple Silicon（M1 起出厂即
+Big Sur，全都能升 12+），风险只可能落在 12 个 Intel 下载里；且 mac 仅占总量 53/287 ≈ 18%。
+另：macOS 10.15 / 11 本身已 EOL，2026-02 那次更新只续了 iMessage/FaceTime 证书，
+Apple 安全索引里无任何 CVE 条目。
+
+### 9.8 ✅ 验收门第 4 条（win32）已补——Electron 43 零回归
+
+2026-08-24 那轮 win32 一格没打勾（本机无 Windows）。**根因不是「那轮忘了验」**：
+`quality-gate.yml` 只有 ubuntu-latest（跑走查）和 macos-latest（只打包、不走查），
+**Windows 一个 job 都没有**——开发机是 macOS，win32 是结构性盲区。
+已补 `.github/workflows/win-gate.yml`：把 ubuntu job 的两步原样镜像到 windows-latest，
+另加 NSIS x64 出包，走查证据传 artifact。
+
+**单变量对照**（两组共用同一套走查工装，diff 只有 package.json 一行 + lockfile）：
+
+| | 实验组 Electron **43.4.1** | 对照组 Electron **31.7.7** |
+|---|---|---|
+| NSIS x64 出包 | ✅ success | ✅ success |
+| `test:e2e` smoke | ✅ success | ✅ success |
+| j3-first-success | ✅ 8/8 | ✅ 8/8 |
+| j5 `真实 MP4 已导出且非空` | ✅ | ✅ |
+| j5 `ffprobe 识别到视频流` | ✅ | ✅ |
+| j5 `提示词与重新生成控件同时可操作` | ❌ | ❌ **同错，数字逐位相同** |
+
+失败项两组的几何数据**完全一致**（含浮点尾数）：
+`promptVisibleHeight:0`，`composer{top:636.300048828125, bottom:662.2999877929688,
+left:290.34375, right:869.65625}`，`stage{top:88, bottom:719, left:60, right:1100}`。
+
+→ **判定：Electron 43 在 win32 上零回归。** 那条红是既有 Windows-only 问题
+（断言 2026-08-17 随 v0.20.0 发布准备加入，在 Linux 上一直绿；Windows 上大概率从那天起就红，
+只是 CI 里没有 Windows、没人看得见）。**不构成本次升级的阻塞项，另开任务修。**
+
+**注意 §2.1 类陷阱又出现了一次**：首跑报
+`infra error: ENOENT ... nomi-export-*.partial.mp4`，看起来像「Electron 43 把 Windows 导出搞坏了」。
+截图直接推翻——绿色 toast 明写「已导出到项目 exports 文件夹」，**产品导出成功了**。
+根因在走查工装 `evals/journeys/j5-edit-export.mjs` 的 `latestExport()`：
+`exportPaths.ts:69` 把 ffmpeg 在写的临时文件命名成 `<final>.partial.mp4`，它同样
+`endsWith(".mp4")` 会被当成品捞进来；而 `.filter()` 与 `.sort()` 各 `stat` 一次，
+ffmpeg 在两次之间把它改名成最终名，第二次 `stat` 直接 ENOENT 抛穿。
+**全平台潜伏 bug，Windows 只是导出慢、正好把竞态窗口撞开。** 已修并 A/B 证实
+（修复后两个导出断言均转绿）。教训与 §9.3 同族：**工装自己的 bug 会被 catch 洗成产品结论。**
+
+**仍未闭合**：「真机安装」那一格 CI 顶不了——走查跑的是 dev 构建，不是装完的 NSIS 产物，
+两者在 asar 打包、路径、`ensureExecutable` 的 ffmpeg 落地位置上有真实差异。
+补法：NSIS 静默安装后用 `launchNomiApp({ executablePath })` 指向装好的二进制再跑一遍
+（`_launchApp.mjs:115` 本就支持，`mcp-client-activation` 走查即此用法）。

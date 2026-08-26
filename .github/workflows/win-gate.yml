@@ -21,11 +21,8 @@ on:
         description: Branch, tag, or commit to verify
         required: true
         default: main
-  # ⚠️ 临时：workflow_dispatch 要能被调用，本文件得先在默认分支上。为了在合入前就拿到
-  # 「Electron 43 在 win32 到底行不行」的答案，先挂一条只认这个验证分支的 push 触发。
-  # 拿到结论后删掉这一段，只留 workflow_dispatch。
-  push:
-    branches: [claude/win-gate-*]
+  # 合入 main 后即可在 Actions UI 里按 ref 手动跑（workflow_dispatch 要求本文件在默认分支上）。
+  # 验证期曾临时挂过 push: [claude/win-gate-*] 以便合入前拿结论，结论已出（计划书 §9.8），故移除。
 
 permissions:
   contents: read
