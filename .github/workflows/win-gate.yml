@@ -1,0 +1,115 @@
+# Windows 侧的走查门岗——补 `docs/plan/2026-08-24-electron-31-to-43-upgrade.md` §6 验收门第 4 条。
+#
+# 为什么要有这个 workflow：
+#   Electron 31 → 43 那轮升级（PR #135）在 mac 上验得很足，但 win32 一格没打勾，
+#   PR 正文自己写着「本机无 Windows，mac 结果顶不了 win32」。而 v0.20.1 的真实下载数据是
+#   Windows 234 / mac 53——**82% 的用户跑在一个从没验过的 Electron 大版本上**。
+#
+#   根因不是「那轮忘了验」，是 `quality-gate.yml` 里压根没有 Windows job：
+#   只有 ubuntu-latest（跑走查）和 macos-latest（只打包、不走查）。开发机是 macOS，
+#   于是 win32 是个结构性盲区——不补 CI，下次任何平台敏感的改动会原样再漏一遍。
+#
+# 为什么是 workflow_dispatch 而不是挂 push：
+#   main 上 4 天进了 107 个 PR，Windows runner 计费 2x、单跑约 20 分钟，挂 push 成本不成比例。
+#   先按需跑；是否转成常驻门（或改 schedule 每日一跑）待定，见对话记录。
+name: Win Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or commit to verify
+        required: true
+        default: main
+  # ⚠️ 临时：workflow_dispatch 要能被调用，本文件得先在默认分支上。为了在合入前就拿到
+  # 「Electron 43 在 win32 到底行不行」的答案，先挂一条只认这个验证分支的 push 触发。
+  # 拿到结论后删掉这一段，只留 workflow_dispatch。
+  push:
+    branches: [claude/win-gate-verify]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: win-gate-${{ inputs.ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  win-walkthrough:
+    name: Windows Walkthrough
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 现场自证：先把真正跑起来的 Electron 版本打出来，别让「验过了」建立在没核对的前提上。
+      # 装机版和 package.json 声明的版本对不上过（本地 pnpm install 只做 link、没跑 postinstall，
+      # dist/ 压根不存在），那种情况下走查是拿旧二进制跑的，全绿也证明不了 43。
+      - name: Report actual Electron version
+        shell: bash
+        run: |
+          echo "package.json declares: $(node -p "require('./package.json').devDependencies.electron")"
+          echo "node_modules/electron/dist/version: $(cat node_modules/electron/dist/version)"
+
+      - name: Build
+        run: pnpm run build
+
+      # 与 quality-gate.yml 的 ubuntu job 同两步，去掉 xvfb（Windows runner 自带桌面会话）。
+      - name: Electron smoke journeys
+        run: pnpm run test:e2e
+
+      - name: Real user journey suite
+        run: pnpm run test:journeys
+
+      # 走查截图是人眼判断用的证据（R13），失败时尤其要能拿回来看。
+      - name: Upload walkthrough screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-walkthrough-screenshots
+          path: |
+            evals/runs/**/screenshots/**
+            evals/runs/**/output.jsonl
+          if-no-files-found: warn
+          retention-days: 7
+
+  win-package:
+    name: Windows NSIS Package
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm run build
+      - name: Package NSIS x64
+        run: pnpm exec electron-builder --win nsis --x64 --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nomi-win-x64-nsis
+          path: release/*.exe
+          if-no-files-found: error
+          retention-days: 7
