@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import http from "node:http";
+import { spawnSync } from "node:child_process";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -12,6 +13,7 @@ import {
   type CertificationMediaDependencies,
   type CertificationMediaReasonCode,
 } from "./certificationMedia";
+import { resolveFfmpegPath } from "../export/ffmpegRunner";
 
 const FIXTURES = path.join(__dirname, "__fixtures__", "certification-media");
 
@@ -21,6 +23,30 @@ function fixture(name: string): Buffer {
 
 function dataUrl(contentType: string, bytes: Uint8Array): string {
   return `data:${contentType};base64,${Buffer.from(bytes).toString("base64")}`;
+}
+
+function transcodeFixture(inputName: string, args: string[]): Buffer {
+  const result = spawnSync(resolveFfmpegPath(), ["-hide_banner", "-v", "error", "-i", "pipe:0", ...args, "pipe:1"], {
+    input: fixture(inputName),
+    maxBuffer: 2 * 1024 * 1024,
+  });
+  if (result.status !== 0) throw new Error("test fixture transcode failed");
+  return result.stdout;
+}
+
+function transcodeFixtureToFile(inputName: string, args: string[], extension: string): Buffer {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-certification-format-fixture-"));
+  const output = path.join(dir, `output.${extension}`);
+  try {
+    const result = spawnSync(resolveFfmpegPath(), ["-hide_banner", "-v", "error", "-i", "pipe:0", ...args, output], {
+      input: fixture(inputName),
+      maxBuffer: 2 * 1024 * 1024,
+    });
+    if (result.status !== 0) throw new Error("test fixture transcode failed");
+    return fs.readFileSync(output);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 async function reasonOf(promise: Promise<unknown>): Promise<CertificationMediaError> {
@@ -34,16 +60,30 @@ async function reasonOf(promise: Promise<unknown>): Promise<CertificationMediaEr
 }
 
 function minimalGlb(): Buffer {
-  const json = Buffer.from('{"asset":{"version":"2.0"}}', "utf8");
+  const json = Buffer.from(JSON.stringify({
+    asset: { version: "2.0" },
+    scene: 0,
+    scenes: [{ nodes: [0] }],
+    nodes: [{ mesh: 0 }],
+    meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
+    accessors: [{ bufferView: 0, componentType: 5126, count: 3, type: "VEC3" }],
+    bufferViews: [{ buffer: 0, byteLength: 36 }],
+    buffers: [{ byteLength: 36 }],
+  }), "utf8");
   const paddedLength = Math.ceil(json.byteLength / 4) * 4;
-  const totalLength = 12 + 8 + paddedLength;
-  const bytes = Buffer.alloc(totalLength, 0x20);
+  const binaryLength = 36;
+  const totalLength = 12 + 8 + paddedLength + 8 + binaryLength;
+  const bytes = Buffer.alloc(totalLength, 0);
   bytes.write("glTF", 0, "ascii");
   bytes.writeUInt32LE(2, 4);
   bytes.writeUInt32LE(totalLength, 8);
   bytes.writeUInt32LE(paddedLength, 12);
   bytes.writeUInt32LE(0x4e4f534a, 16);
   json.copy(bytes, 20);
+  bytes.fill(0x20, 20 + json.byteLength, 20 + paddedLength);
+  const binaryOffset = 20 + paddedLength;
+  bytes.writeUInt32LE(binaryLength, binaryOffset);
+  bytes.writeUInt32LE(0x004e4942, binaryOffset + 4);
   return bytes;
 }
 
@@ -169,6 +209,33 @@ describe("certifyMediaArtifact", () => {
     expect(JSON.stringify(evidence)).not.toContain(certificationRoot);
   });
 
+  it("rejects a truncated MP4 whose container still probes but whose first frame cannot decode", async () => {
+    const truncated = fixture("valid.mp4").subarray(0, 800);
+    const error = await reasonOf(certifyMediaArtifact(
+      { source: { bytes: truncated, contentType: "video/mp4" }, expectedKind: "video" },
+      deps(),
+    ));
+
+    expect(error.reasonCode).toBe("media_decode_failed");
+  });
+
+  it.each([
+    ["M4V", "video" as const, "video/x-m4v", () => {
+      const bytes = Buffer.from(fixture("valid.mp4"));
+      bytes.write("M4V ", 8, "ascii");
+      return bytes;
+    }],
+    ["MKV", "video" as const, "video/x-matroska", () => transcodeFixtureToFile("valid.mp4", ["-c", "copy"], "mkv")],
+    ["AAC", "audio" as const, "audio/aac", () => transcodeFixture("valid.wav", ["-c:a", "aac", "-f", "adts"])],
+    ["Opus", "audio" as const, "audio/opus", () => transcodeFixture("valid.wav", ["-c:a", "libopus", "-f", "opus"])],
+  ])("certifies a genuinely decodable %s fixture from the shared format matrix", async (_label, kind, contentType, bytes) => {
+    const evidence = await certifyMediaArtifact(
+      { source: { bytes: bytes(), contentType }, expectedKind: kind },
+      deps(),
+    );
+    expect(evidence).toMatchObject({ kind, contentType });
+  });
+
   it("accepts the current stable 3D boundary: a structurally valid binary GLB", async () => {
     const evidence = await certifyMediaArtifact(
       { source: { bytes: minimalGlb(), contentType: "model/gltf-binary" }, expectedKind: "model3d" },
@@ -176,6 +243,24 @@ describe("certifyMediaArtifact", () => {
     );
 
     expect(evidence).toMatchObject({ kind: "model3d", contentType: "model/gltf-binary" });
+  });
+
+  it("rejects a header-only GLB without a usable scene and mesh", async () => {
+    const json = Buffer.from('{"asset":{"version":"2.0"}}', "utf8");
+    const padded = Math.ceil(json.byteLength / 4) * 4;
+    const bytes = Buffer.alloc(20 + padded, 0x20);
+    bytes.write("glTF", 0, "ascii");
+    bytes.writeUInt32LE(2, 4);
+    bytes.writeUInt32LE(bytes.byteLength, 8);
+    bytes.writeUInt32LE(padded, 12);
+    bytes.writeUInt32LE(0x4e4f534a, 16);
+    json.copy(bytes, 20);
+
+    const error = await reasonOf(certifyMediaArtifact(
+      { source: { bytes, contentType: "model/gltf-binary" }, expectedKind: "model3d" },
+      deps(),
+    ));
+    expect(error.reasonCode).toBe("media_corrupt");
   });
 
   it.each([
@@ -207,6 +292,28 @@ describe("certifyMediaArtifact", () => {
       deps(),
     ));
     expect(error.reasonCode).toBe("media_content_type_unsupported");
+  });
+
+  it.each([
+    ["GIF", "image/gif", Buffer.from("GIF89a\u0001\u0000\u0001\u0000\u0000\u0000", "binary")],
+    ["AVIF", "image/avif", Buffer.from([0, 0, 0, 16, ...Buffer.from("ftypavif"), 0, 0, 0, 0])],
+    ["HEIC", "image/heic", Buffer.from([0, 0, 0, 16, ...Buffer.from("ftypheic"), 0, 0, 0, 0])],
+  ])("returns unsupported_format for recognized but unavailable %s decode support", async (_label, contentType, bytes) => {
+    const error = await reasonOf(certifyMediaArtifact(
+      { source: { bytes, contentType }, expectedKind: "image" },
+      deps(),
+    ));
+    expect(error.reasonCode).toBe("media_unsupported_format");
+  });
+
+  it("never echoes an arbitrary declared Content-Type or signed URL into params", async () => {
+    const sentinel = "https://signed.example/asset?token=SECRET";
+    const error = await reasonOf(certifyMediaArtifact(
+      { source: { bytes: fixture("valid.png"), contentType: `application/x-${sentinel}` }, expectedKind: "image" },
+      deps(),
+    ));
+    expect(error.params).toEqual({ declaredType: "unsupported", expectedKind: "image" });
+    expect(JSON.stringify(error.params)).not.toContain("SECRET");
   });
 
   it("rejects declared MIME and magic-byte mismatch", async () => {
@@ -326,6 +433,52 @@ describe("certifyMediaArtifact", () => {
     expect(error.reasonCode).toBe("media_timeout");
     expect(error.params).toEqual({ stage: "decode", timeoutMs: 20 });
     expect(decoderSignal?.aborted).toBe(true);
+  });
+
+  it("rejects a symlink certification root instead of following it", async () => {
+    const target = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-certification-target-"));
+    const link = path.join(os.tmpdir(), `nomi-certification-link-${Date.now()}`);
+    fs.symlinkSync(target, link, "dir");
+    try {
+      const error = await reasonOf(certifyMediaArtifact(
+        { source: { bytes: fixture("valid.png"), contentType: "image/png" }, expectedKind: "image" },
+        { certificationRoot: link },
+      ));
+      expect(error.reasonCode).toBe("media_storage_failed");
+      expect(`${error.message}${JSON.stringify(error.params)}`).not.toContain(link);
+    } finally {
+      fs.rmSync(link, { force: true });
+      fs.rmSync(target, { recursive: true, force: true });
+    }
+  });
+
+  it("detects path replacement between probe and decode by rechecking controlled bytes", async () => {
+    const decodeMedia = vi.fn();
+    const error = await reasonOf(certifyMediaArtifact(
+      { source: { bytes: fixture("valid.mp4"), contentType: "video/mp4" }, expectedKind: "video" },
+      deps({
+        probeMedia: async (inputPath) => {
+          fs.writeFileSync(inputPath, "replaced after probe");
+          return { kind: "video", durationSeconds: 1, width: 16, height: 16, streamCount: 1, hasAudio: false };
+        },
+        decodeMedia,
+      }),
+    ));
+    expect(error.reasonCode).toBe("media_storage_failed");
+    expect(decodeMedia).not.toHaveBeenCalled();
+  });
+
+  it("retries idempotent cleanup without replacing the original safety error", async () => {
+    const cleanup = vi.fn()
+      .mockRejectedValueOnce(new Error("temporary cleanup failure /private/path"))
+      .mockImplementationOnce(async (target: string) => { fs.rmSync(target, { recursive: true, force: true }); });
+    const error = await reasonOf(certifyMediaArtifact(
+      { source: { bytes: fixture("valid.mp4").subarray(0, 800), contentType: "video/mp4" }, expectedKind: "video" },
+      deps({ cleanup }),
+    ));
+    expect(error.reasonCode).toBe("media_decode_failed");
+    expect(cleanup).toHaveBeenCalledTimes(2);
+    expect(error.message).not.toContain("private/path");
   });
 
   it("keeps reason codes stable and params free of raw URL, path, body, and signed query", async () => {

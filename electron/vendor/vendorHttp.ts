@@ -12,6 +12,7 @@ import { describeIllegalHeader, findIllegalHeader, isJsonRecord, pickUpstreamMes
 import { fetchVendorWithBaseFallback } from "./vendorBaseFallback";
 import type { Vendor } from "../catalog/types";
 import { networkFailureDetails, redactNetworkMessage, safeNetworkUrl } from "../networkErrorDetails";
+import { BoundedResponseError, readBoundedResponseText } from "./boundedResponse";
 
 export type VendorErrorCategory = "auth" | "balance" | "quota" | "input" | "server" | "network" | "unknown";
 
@@ -20,6 +21,14 @@ export type VendorErrorCategory = "auth" | "balance" | "quota" | "input" | "serv
 // 首调返 queued 后由 core.ts 轮询循环（240s/300s）接管，故这里只兜「单次请求别永久挂死」。
 // 可经 NOMI_VENDOR_HTTP_TIMEOUT_MS 调（大模型同步出图慢可调大）。
 const DEFAULT_VENDOR_HTTP_TIMEOUT_MS = 120_000;
+export const DEFAULT_VENDOR_RESPONSE_MAX_BYTES = 8 * 1024 * 1024;
+export const MEDIA_VENDOR_RESPONSE_MAX_BYTES = Math.ceil((25 * 1024 * 1024 * 4) / 3) + 1024 * 1024;
+
+export function vendorResponseLimitForKind(kind: string): number {
+  return kind === "image" || kind === "video" || kind === "audio" || kind === "model3d"
+    ? MEDIA_VENDOR_RESPONSE_MAX_BYTES
+    : DEFAULT_VENDOR_RESPONSE_MAX_BYTES;
+}
 
 function vendorHttpTimeoutMs(): number {
   const raw = Number(process.env.NOMI_VENDOR_HTTP_TIMEOUT_MS);
@@ -103,6 +112,7 @@ async function requestVendor(
   query: Record<string, unknown>,
   bodyInit: BodyInit | undefined,
   signal?: AbortSignal,
+  maxResponseBytes = DEFAULT_VENDOR_RESPONSE_MAX_BYTES,
 ): Promise<unknown> {
   const finalUrl = appendQueryParams(url, { ...authQueryParams(vendor, apiKey), ...query });
   const diagnosticUrl = safeNetworkUrl(url);
@@ -165,10 +175,21 @@ async function requestVendor(
   // 超时同样覆盖响应体读取（vendor 可能接了连接却 hang 在 body 上）；读完才清 timer。
   let text: string;
   try {
-    text = await response.text();
+    text = await readBoundedResponseText(response, { maxBytes: maxResponseBytes, signal: controller.signal });
   } catch (error: unknown) {
     const cancellation = callerCancellation(signal);
     if (cancellation) throw cancellation;
+    if (error instanceof BoundedResponseError && error.code === "response_too_large") {
+      const upstreamMsg = "Provider response exceeded the safe size limit";
+      throw new VendorRequestError(`Provider request failed (response limit) at ${vendor.key} ${upperMethod} ${diagnosticUrl}: ${upstreamMsg}`, {
+        vendorKey: vendor.key,
+        method: upperMethod,
+        url: diagnosticUrl,
+        upstreamMsg,
+        category: "network",
+        retryable: false,
+      });
+    }
     const aborted = error instanceof Error && error.name === "AbortError";
     const upstreamMsg = aborted
       ? `读取响应超时（${Math.round(timeoutMs / 1000)}s）`
@@ -229,11 +250,12 @@ export async function requestJson(
   query: Record<string, unknown>,
   body: unknown,
   signal?: AbortSignal,
+  options: { maxResponseBytes?: number } = {},
 ): Promise<unknown> {
   const upperMethod = method.toUpperCase();
   const hasBody = upperMethod !== "GET" && upperMethod !== "HEAD" && body != null;
   const bodyInit = hasBody ? (typeof body === "string" ? body : JSON.stringify(body)) : undefined;
-  return requestVendor(vendor, apiKey, upperMethod, url, headers, query, bodyInit, signal);
+  return requestVendor(vendor, apiKey, upperMethod, url, headers, query, bodyInit, signal, options.maxResponseBytes);
 }
 
 /**

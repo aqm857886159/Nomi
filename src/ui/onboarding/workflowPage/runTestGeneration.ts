@@ -62,9 +62,11 @@ export async function runTestGeneration(input: {
         modelAlias: input.modelKey,
         nodeId,
         grantId,
+        certifyOutput: true,
       },
     })
     if (result.status === 'failed') return { ok: false, error: result.error || 'failed' }
+    if (result.status !== 'succeeded' || !result.assets.length) return { ok: false, error: 'output_not_certified' }
     return { ok: true }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }

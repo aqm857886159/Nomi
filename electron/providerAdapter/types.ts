@@ -4,6 +4,11 @@ import type {
   HttpOperation,
   ProfileKind,
 } from "../catalog/types";
+import type {
+  CertificationMediaErrorParams,
+  CertificationMediaEvidence,
+  CertificationMediaReasonCode,
+} from "./certificationMedia";
 
 export type AdapterAuthType = "none" | "bearer" | "x-api-key" | "query";
 
@@ -127,6 +132,9 @@ export type AdapterModeResult = {
   errorCategory?: "auth" | "balance" | "quota" | "input" | "server" | "network" | "unknown";
   httpStatus?: number;
   verifiedAt?: string;
+  mediaEvidence?: CertificationMediaEvidence;
+  reasonCode?: CertificationMediaReasonCode;
+  errorParams?: CertificationMediaErrorParams;
 };
 
 export type AdapterModelResult = {

@@ -1,5 +1,6 @@
 import { firstString, isJsonRecord, type JsonRecord } from "../jsonUtils";
 import { contentTypeFromMagicBytes } from "../assets/mediaTypes";
+export { certifyTaskOutputUrls } from "./taskResultCertification";
 
 /**
  * `b64_json` → data URL，**类型取自字节而非写死 image/png**。

@@ -103,6 +103,21 @@ describe("requestJson 结构化错误(S4-0,修压扁根因)", () => {
     await expect(requestJson(vendor, "k", "GET", "https://x", {}, {}, null)).resolves.toEqual({ ok: 1 });
   });
 
+  it("普通 API 响应超过共享上限时稳定失败，不泄露响应 body", async () => {
+    const sentinel = "SIGNED_URL_SECRET_SENTINEL";
+    stubFetch(() => new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(`{"value":"${sentinel}${"x".repeat(200)}"}`));
+        controller.close();
+      },
+    }), { status: 200 }));
+    const error = await requestJson(vendor, "k", "GET", "https://x", {}, {}, null, undefined, { maxResponseBytes: 32 })
+      .catch((caught) => caught);
+    assert(error instanceof VendorRequestError);
+    expect(error.structured).toMatchObject({ category: "network", retryable: false, upstreamMsg: "Provider response exceeded the safe size limit" });
+    expect(`${error.message}${JSON.stringify(error.structured)}`).not.toContain(sentinel);
+  });
+
   it("请求头含非法字符(密钥混中文)→ 发送前拦截为 auth 不可重试,根本不发 fetch(治 ByteString 误判网络)", async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);

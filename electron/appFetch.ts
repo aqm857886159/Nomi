@@ -15,7 +15,8 @@ export const appFetch: typeof globalThis.fetch = async (input, init) => {
   const signal = init?.signal === undefined
     ? (input instanceof NativeRequest ? input.signal : undefined) : init.signal;
   const target = input instanceof NativeRequest ? input.url : String(input);
-  const dispatcher = await getAppDispatcher(signal ?? undefined, target);
+  const suppliedDispatcher = (init as RequestInit & { dispatcher?: Dispatcher } | undefined)?.dispatcher;
+  const dispatcher = suppliedDispatcher ?? await getAppDispatcher(signal ?? undefined, target);
   const options: RequestInit & { dispatcher: Dispatcher } = { ...init, dispatcher };
   return nativeFetch(input, options);
 };

@@ -143,6 +143,8 @@ function isoBmffContentType(bytes: Uint8Array): string | null {
   }
   if (avif) return 'image/avif'
   if (heic) return 'image/heic'
+  if (major === 'M4A ' || major === 'M4B ') return 'audio/mp4'
+  if (major === 'M4V ' || major === 'M4VH' || major === 'M4VP') return 'video/x-m4v'
   return major === 'qt  ' ? 'video/quicktime' : 'video/mp4'
 }
 
@@ -155,17 +157,27 @@ export function contentTypeFromMagicBytes(bytes: Uint8Array): string | null {
   if (ascii(4, 'ftyp')) {
     return isoBmffContentType(bytes)
   }
-  // Matroska / WebM 共用 EBML 头，靠 DocType 分不划算（都当 webm 送即可：两者我们只用来判 kind）。
-  if (at(0) === 0x1a && at(1) === 0x45 && at(2) === 0xdf && at(3) === 0xa3) return 'video/webm'
+  // Matroska / WebM 共用 EBML 头；认证边界必须按 DocType 区分，不能把 MKV 伪装成 WebM。
+  if (at(0) === 0x1a && at(1) === 0x45 && at(2) === 0xdf && at(3) === 0xa3) {
+    const docTypeWindow = new TextDecoder('latin1').decode(bytes.subarray(0, Math.min(bytes.length, 4096))).toLowerCase()
+    if (docTypeWindow.includes('matroska')) return 'video/x-matroska'
+    return 'video/webm'
+  }
   // RIFF 容器：第 8 字节起的 form type 决定是 avi / wav / webp。
   if (ascii(0, 'RIFF')) {
     if (ascii(8, 'AVI ')) return 'video/x-msvideo'
     if (ascii(8, 'WAVE')) return 'audio/wav'
     if (ascii(8, 'WEBP')) return 'image/webp'
   }
-  if (ascii(0, 'OggS')) return 'audio/ogg'
+  if (ascii(0, 'OggS')) {
+    const window = new TextDecoder('latin1').decode(bytes.subarray(0, Math.min(bytes.length, 64 * 1024)))
+    if (window.includes('OpusHead')) return 'audio/opus'
+    if (window.toLowerCase().includes('theora')) return 'video/ogg'
+    return 'audio/ogg'
+  }
   if (ascii(0, 'fLaC')) return 'audio/flac'
   if (ascii(0, 'ID3')) return 'audio/mpeg'
+  if (at(0) === 0xff && (at(1) & 0xf6) === 0xf0) return 'audio/aac' // ADTS AAC
   if (at(0) === 0xff && (at(1) & 0xe0) === 0xe0) return 'audio/mpeg' // 裸 MPEG 音频帧同步字
   if (at(0) === 0x89 && ascii(1, 'PNG')) return 'image/png'
   if (at(0) === 0xff && at(1) === 0xd8 && at(2) === 0xff) return 'image/jpeg'
@@ -175,6 +187,20 @@ export function contentTypeFromMagicBytes(bytes: Uint8Array): string | null {
     || (ascii(0, 'MM') && at(2) === 0x00 && at(3) === 0x2a)) return 'image/tiff'
   if (at(0) === 0x00 && at(1) === 0x00 && at(2) === 0x01 && at(3) === 0x00) return 'image/x-icon'
   return null
+}
+
+/** 与项目当前真实 decoder/probe 边界一致；识别到但不在此集合中的格式必须报 unsupported。 */
+export const CERTIFIABLE_MEDIA_CONTENT_TYPES = new Set([
+  'image/png', 'image/jpeg', 'image/webp',
+  'video/mp4', 'video/x-m4v', 'video/quicktime', 'video/webm', 'video/x-matroska',
+  'video/ogg', 'video/x-msvideo', 'video/mpeg',
+  'audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/aac', 'audio/ogg', 'audio/opus',
+  'audio/webm', 'audio/flac',
+  'model/gltf-binary',
+]);
+
+export function isCertifiableMediaContentType(contentType: string): boolean {
+  return CERTIFIABLE_MEDIA_CONTENT_TYPES.has(String(contentType || '').toLowerCase().split(';', 1)[0].trim())
 }
 
 /**

@@ -6,10 +6,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   BoundedProcessError,
+  decodeMediaBytes,
   MediaProbeError,
   parseFfprobeJson,
+  probeMediaBytes,
   probeMediaMetadata,
   runBoundedProcess,
+  terminateProcessTree,
   type RunProbeProcess,
 } from "./mediaProbe";
 
@@ -78,6 +81,35 @@ describe("parseFfprobeJson", () => {
       channels: 1,
       streamCount: 1,
     });
+  });
+
+  it("ignores attached cover art when classifying an audio file but counts every stream", () => {
+    const metadata = parseFfprobeJson(JSON.stringify({
+      streams: [
+        {
+          codec_type: "video",
+          codec_name: "mjpeg",
+          width: 600,
+          height: 600,
+          disposition: { attached_pic: 1 },
+        },
+        {
+          codec_type: "audio",
+          codec_name: "mp3",
+          sample_rate: "44100",
+          channels: 2,
+        },
+      ],
+      format: { duration: "3.5" },
+    }));
+
+    expect(metadata).toMatchObject({
+      kind: "audio",
+      audioCodec: "mp3",
+      hasAudio: true,
+      streamCount: 2,
+    });
+    expect(metadata.videoCodec).toBeUndefined();
   });
 
   it("parses image/still metadata from image-like video streams without duration", () => {
@@ -195,6 +227,43 @@ describe("probeMediaMetadata", () => {
   });
 });
 
+describe("bounded media decode", () => {
+  it("probes bytes over stdin so certification and probing observe the same immutable bytes", async () => {
+    const bytes = Buffer.from("same controlled bytes");
+    const runProcess = vi.fn<RunProbeProcess>().mockResolvedValue({ code: 0, stdout: videoProbeJson, stderr: "" });
+
+    await expect(probeMediaBytes(bytes, { ffprobePath: "ffprobe", runProcess })).resolves.toMatchObject({ kind: "video" });
+    expect(runProcess).toHaveBeenCalledWith("ffprobe", expect.arrayContaining(["pipe:0"]), expect.objectContaining({ input: bytes }));
+  });
+
+  it.each([
+    ["video" as const, "0:v:0", "1"],
+    ["audio" as const, "0:a:0", undefined],
+  ])("performs a real bounded %s decode to the null muxer", async (kind, map, frames) => {
+    const runProcess = vi.fn<RunProbeProcess>().mockResolvedValue({ code: 0, stdout: "", stderr: "" });
+    const bytes = Buffer.from("controlled media bytes");
+
+    await decodeMediaBytes(bytes, kind, { ffmpegPath: "ffmpeg", runProcess, timeoutMs: 3210 });
+
+    const [, args, options] = runProcess.mock.calls[0]!;
+    expect(args).toEqual(expect.arrayContaining(["-xerror", "-err_detect", "explode", "-i", "pipe:0", "-map", map, "-f", "null", "-"]));
+    if (frames) expect(args).toEqual(expect.arrayContaining(["-frames:v", frames]));
+    else expect(args).toEqual(expect.arrayContaining(["-t", "1"]));
+    expect(options).toMatchObject({ input: bytes, timeoutMs: 3210 });
+  });
+
+  it("rejects a media payload that probes successfully but cannot decode a representative frame", async () => {
+    const bytes = Buffer.from("truncated video whose container still probes");
+    const runProcess = vi.fn<RunProbeProcess>()
+      .mockResolvedValueOnce({ code: 0, stdout: videoProbeJson, stderr: "" })
+      .mockResolvedValueOnce({ code: 1, stdout: "", stderr: "decode failed" });
+
+    await expect(probeMediaBytes(bytes, { ffprobePath: "ffprobe", runProcess })).resolves.toMatchObject({ kind: "video" });
+    await expect(decodeMediaBytes(bytes, "video", { ffmpegPath: "ffmpeg", runProcess }))
+      .rejects.toMatchObject({ code: "decode_failed" });
+  });
+});
+
 describe("runBoundedProcess", () => {
   it("kills a subprocess that exceeds its wall-clock limit", async () => {
     const error = await runBoundedProcess(
@@ -231,5 +300,31 @@ describe("runBoundedProcess", () => {
     controller.abort();
 
     await expect(pending).rejects.toMatchObject({ code: "cancelled" });
+  });
+
+  it("uses a detached POSIX process group and escalates from TERM to KILL", async () => {
+    const killGroup = vi.fn();
+    const killChild = vi.fn().mockReturnValue(true);
+    const child = { pid: 4321, killed: false, kill: killChild };
+
+    await terminateProcessTree(child, false, { platform: "darwin", killGroup, runTaskkill: vi.fn() });
+    await terminateProcessTree(child, true, { platform: "darwin", killGroup, runTaskkill: vi.fn() });
+
+    expect(killGroup).toHaveBeenNthCalledWith(1, -4321, "SIGTERM");
+    expect(killGroup).toHaveBeenNthCalledWith(2, -4321, "SIGKILL");
+    expect(killChild).not.toHaveBeenCalled();
+  });
+
+  it("waits for Windows taskkill /T /F completion before falling back to the direct child", async () => {
+    const order: string[] = [];
+    const runTaskkill = vi.fn(async (pid: number) => {
+      order.push(`taskkill:${pid}`);
+    });
+    const child = { pid: 987, killed: false, kill: vi.fn(() => { order.push("child.kill"); return true; }) };
+
+    await terminateProcessTree(child, true, { platform: "win32", killGroup: vi.fn(), runTaskkill });
+
+    expect(runTaskkill).toHaveBeenCalledWith(987);
+    expect(order).toEqual(["taskkill:987"]);
   });
 });

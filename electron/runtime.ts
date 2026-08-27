@@ -4,7 +4,7 @@ import { assetIngestionResolver, assetLocalizationOptions } from "./catalog/asse
 import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload } from "./assets/localAssetFile";
 import { importRemoteAsset, writeAsset, writeDeterministicAsset } from "./assets/projectAssetStore";
 import { endpoint } from "./vendorEndpoint";
-import { requestJson, requestMultipart } from "./vendor/vendorHttp";
+import { requestJson, requestMultipart, vendorResponseLimitForKind } from "./vendor/vendorHttp";
 import { runMultipartProfileOperation } from "./catalog/multipartOperation";
 import { templateContext, buildProfileHttpRequest, validateProfileRequestBeforeSpend } from "./catalog/profileHttpRequest";
 import { chatImageFallbackOperation } from "./catalog/imageRouteFallback";
@@ -22,7 +22,7 @@ import { executeTextTask } from "./textTaskRunner";
 import { runAudioTask } from "./audioTaskRunner";
 import { firstString, isJsonRecord, trim, type JsonRecord } from "./jsonUtils";
 import { collectAssetUrls, firstMappedString, providerMetaFromResponse, resolveTaskStatus, taskFailureMessageFromResponse, valuesFromMapping } from "./tasks/responseParsing";
-import { extractAssetUrl } from "./tasks/assetUrlExtract";
+import { certifyTaskOutputUrls, extractAssetUrl } from "./tasks/assetUrlExtract";
 import { applyResponseTransform } from "./tasks/responseTransforms";
 import { applyRequestTransform } from "./tasks/requestTransforms";
 import { TtlLruCache } from "./tasks/taskCache";
@@ -276,10 +276,9 @@ export async function executeProfileOperation(input: {
   // 命名请求变换（P4，与 response_transform 对称）：发送前按后端实况补全 body；未声明 → 原样。
   const body = await applyRequestTransform(input.operation.request_transform, built.body, { baseUrl: String(input.vendor.baseUrlHint || ""), promptId: trim(input.request.extras?.comfyPromptId), request: input.request });
   const { vendor, apiKey } = effectiveInput;
-  const response = await requestJson(vendor, apiKey, built.method, built.url, built.headers, built.query, body, input.signal);
+  const response = await requestJson(vendor, apiKey, built.method, built.url, built.headers, built.query, body, input.signal, { maxResponseBytes: vendorResponseLimitForKind(input.model.kind) });
   return { response, request: built.preview };
 }
-
 /** 归一上游响应成 TaskResult：命名响应变换（可选）→ 点路径 mapping（kie 等返 JSON 字符串已透明 parse）。 */
 export async function buildProfileTaskResult(input: {
   response: unknown;
@@ -319,6 +318,7 @@ export async function buildProfileTaskResult(input: {
   const { status, unrecognizedStatus } = resolveTaskStatus(response, responseMapping, input.mapping.statusMapping, assetUrls);
   const type: "image" | "video" | "model3d" =
     input.wantedKind === "video" ? "video" : input.wantedKind === "model3d" ? "model3d" : "image";
+  if (input.request.extras?.certifyOutput === true && status === "succeeded") await certifyTaskOutputUrls({ urls: assetUrls, kind: type, vendorBaseUrl: String(input.vendor?.baseUrlHint || "") });
   const assets = input.projectId
     ? await Promise.all(assetUrls.map((url) => localizeTaskAsset(input.projectId || "", url, type, input.nodeId, input.vendor)))
     : assetUrls.map((url) => unlocalizedTaskAsset(type, url));

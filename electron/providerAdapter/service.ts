@@ -568,6 +568,7 @@ export class ProviderAdapterService {
               state: "verified",
               attempts: attempt,
               verifiedAt: this.dependencies.now(),
+              ...(verified.mediaEvidence ? { mediaEvidence: verified.mediaEvidence } : {}),
             }
           : {
               modelKey: candidateModel.modelKey,
@@ -579,6 +580,7 @@ export class ProviderAdapterService {
               // 归类原样透传（抛出点已查表定好），别让渲染层再去猜。
               ...(verified.errorCategory ? { errorCategory: verified.errorCategory } : {}),
               ...(verified.httpStatus ? { httpStatus: verified.httpStatus } : {}),
+              ...(verified.reasonCode ? { reasonCode: verified.reasonCode } : {}), ...(verified.errorParams ? { errorParams: verified.errorParams } : {}),
             };
         results.push(modeResult);
         const persistedModeResult: AdapterModeResult = {
@@ -590,6 +592,7 @@ export class ProviderAdapterService {
           ...(modeResult.errorCategory ? { errorCategory: modeResult.errorCategory } : {}),
           ...(modeResult.httpStatus ? { httpStatus: modeResult.httpStatus } : {}),
           ...(modeResult.verifiedAt ? { verifiedAt: modeResult.verifiedAt } : {}),
+          ...(modeResult.mediaEvidence ? { mediaEvidence: modeResult.mediaEvidence } : {}), ...(modeResult.reasonCode ? { reasonCode: modeResult.reasonCode } : {}), ...(modeResult.errorParams ? { errorParams: modeResult.errorParams } : {}),
         };
         this.updateRunIfActive(id, (run) => {
           const models = run.models.map((item) =>

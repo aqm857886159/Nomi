@@ -1,11 +1,12 @@
 import crypto from "node:crypto";
 import os from "node:os";
 import path from "node:path";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 
 import { validateAntigravityImage } from "../ai/antigravityArtifacts";
-import { contentTypeFromMagicBytes, extensionFromContentType } from "../assets/mediaTypes";
-import { probeMediaMetadata, type MediaProbeMetadata } from "../export/mediaProbe";
+import { Model3DValidationError, validateGlbStructure } from "../assets/model3dValidation";
+import { contentTypeFromMagicBytes, extensionFromContentType, isCertifiableMediaContentType, MEDIA_TYPES } from "../assets/mediaTypes";
+import { decodeMediaBytes, probeMediaMetadata, type MediaProbeMetadata } from "../export/mediaProbe";
 import { hardenedFetch, type HardenedFetchResult } from "../hardenedFetch";
 
 export type CertificationMediaKind = "image" | "video" | "audio" | "model3d";
@@ -25,6 +26,7 @@ export type CertificationMediaReasonCode =
   | "media_stream_limit_exceeded"
   | "media_timeout"
   | "media_too_large"
+  | "media_unsupported_format"
   | "media_unsupported_3d";
 
 export type CertificationMediaErrorParams = Readonly<Record<string, string | number | boolean>>;
@@ -96,7 +98,13 @@ export type CertificationMediaDependencies = {
     inputPath: string,
     options: { signal?: AbortSignal; timeoutMs: number; maxStdoutBytes: number; maxStderrBytes: number },
   ) => Promise<MediaProbeMetadata>;
+  decodeMedia?: (
+    bytes: Uint8Array,
+    kind: "video" | "audio",
+    options: { signal?: AbortSignal; timeoutMs: number; maxStdoutBytes: number; maxStderrBytes: number },
+  ) => Promise<void>;
   certificationRoot?: string;
+  cleanup?: (target: string) => Promise<void>;
 };
 
 const DEFAULT_LIMITS: Record<CertificationMediaKind, Required<CertificationMediaLimits>> = {
@@ -157,6 +165,12 @@ function normalizedContentType(value: string): string {
   return normalized;
 }
 
+const KNOWN_MEDIA_CONTENT_TYPES = new Set(MEDIA_TYPES.map((entry) => entry.contentType));
+
+function safeDeclaredTypeParam(value: string): string {
+  return KNOWN_MEDIA_CONTENT_TYPES.has(value) || value === "application/octet-stream" ? value : "unsupported";
+}
+
 function kindForContentType(contentType: string): CertificationMediaKind | null {
   if (contentType.startsWith("image/")) return "image";
   if (contentType.startsWith("video/")) return "video";
@@ -196,12 +210,15 @@ function assertDeclaredAndDetectedTypes(
   const declaredKind = kindForContentType(declaredType);
   if (!declaredType || (!declaredKind && declaredType !== "application/octet-stream")) {
     throw new CertificationMediaError("media_content_type_unsupported", {
-      declaredType: declaredType || "missing",
+      declaredType: declaredType ? safeDeclaredTypeParam(declaredType) : "missing",
       expectedKind,
     });
   }
   const detectedType = detectContentType(bytes);
   if (!detectedType) throw new CertificationMediaError("media_corrupt", { expectedKind });
+  if (!isCertifiableMediaContentType(detectedType)) {
+    throw new CertificationMediaError("media_unsupported_format", { detectedType });
+  }
   const detectedKind = kindForContentType(detectedType);
   const ambiguousContainer = isAmbiguousContainerMatch(declaredType, detectedType, expectedKind);
   if (!detectedKind || (detectedKind !== expectedKind && !ambiguousContainer)) {
@@ -211,7 +228,7 @@ function assertDeclaredAndDetectedTypes(
     });
   }
   if (declaredType !== "application/octet-stream" && declaredType !== detectedType && !ambiguousContainer) {
-    throw new CertificationMediaError("media_mime_mismatch", { declaredType, detectedType });
+    throw new CertificationMediaError("media_mime_mismatch", { declaredType: safeDeclaredTypeParam(declaredType), detectedType });
   }
   if (declaredKind && declaredKind !== expectedKind && !ambiguousContainer) {
     throw new CertificationMediaError("media_kind_mismatch", { expectedKind, declaredKind });
@@ -343,38 +360,6 @@ async function runWithDecoderDeadline<T>(
   }
 }
 
-function validateGlb(bytes: Buffer): void {
-  if (bytes.byteLength < 20
-    || bytes.toString("ascii", 0, 4) !== "glTF"
-    || bytes.readUInt32LE(4) !== 2
-    || bytes.readUInt32LE(8) !== bytes.byteLength) {
-    throw new CertificationMediaError("media_corrupt", { expectedKind: "model3d" });
-  }
-  let offset = 12;
-  let sawJson = false;
-  while (offset < bytes.byteLength) {
-    if (offset + 8 > bytes.byteLength) throw new CertificationMediaError("media_corrupt", { expectedKind: "model3d" });
-    const chunkLength = bytes.readUInt32LE(offset);
-    const chunkType = bytes.readUInt32LE(offset + 4);
-    const next = offset + 8 + chunkLength;
-    if (chunkLength % 4 !== 0 || next > bytes.byteLength) {
-      throw new CertificationMediaError("media_corrupt", { expectedKind: "model3d" });
-    }
-    if (!sawJson) {
-      if (chunkType !== 0x4e4f534a) throw new CertificationMediaError("media_unsupported_3d");
-      try {
-        const parsed = JSON.parse(bytes.toString("utf8", offset + 8, next).trim()) as { asset?: { version?: unknown } };
-        if (parsed.asset?.version !== "2.0") throw new Error("unsupported version");
-      } catch {
-        throw new CertificationMediaError("media_corrupt", { expectedKind: "model3d" });
-      }
-      sawJson = true;
-    }
-    offset = next;
-  }
-  if (!sawJson || offset !== bytes.byteLength) throw new CertificationMediaError("media_corrupt", { expectedKind: "model3d" });
-}
-
 function safeMetadata(metadata: MediaProbeMetadata): CertificationMediaEvidence["metadata"] {
   return Object.freeze({
     ...(metadata.width !== undefined ? { width: metadata.width } : {}),
@@ -389,6 +374,29 @@ function safeMetadata(metadata: MediaProbeMetadata): CertificationMediaEvidence[
   });
 }
 
+async function assertTrustedCertificationRoot(root: string): Promise<void> {
+  const info = await lstat(root);
+  const currentUid = typeof process.getuid === "function" ? process.getuid() : undefined;
+  if (!info.isDirectory() || info.isSymbolicLink() || (currentUid !== undefined && info.uid !== currentUid)) throw new Error("unsafe root");
+  if (process.platform !== "win32" && (info.mode & 0o077) !== 0) {
+    await chmod(root, 0o700);
+    const secured = await lstat(root);
+    if ((secured.mode & 0o077) !== 0 || secured.isSymbolicLink()) throw new Error("unsafe root");
+  }
+}
+
+async function cleanupWithRetry(target: string, cleanup: (target: string) => Promise<void>): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await cleanup(target);
+      return true;
+    } catch {
+      if (attempt < 2) await new Promise<void>((resolve) => setTimeout(resolve, 10 * (attempt + 1)));
+    }
+  }
+  return false;
+}
+
 export async function certifyMediaArtifact(
   input: CertificationMediaInput,
   dependencies: CertificationMediaDependencies = {},
@@ -396,10 +404,21 @@ export async function certifyMediaArtifact(
   const limits = resolvedLimits(input);
   const acquired = await acquireBytes(input, dependencies, limits);
   const typed = assertDeclaredAndDetectedTypes(acquired.bytes, acquired.contentType, input.expectedKind);
-  const root = dependencies.certificationRoot || path.join(os.tmpdir(), "nomi-certification-media");
+  let root = dependencies.certificationRoot || "";
+  let ownsRoot = false;
   let runDirectory = "";
+  let operationFailed = false;
+  let evidence: CertificationMediaEvidence | undefined;
+  let caughtError: CertificationMediaError | undefined;
+  let cleanupFailed: boolean;
   try {
-    await mkdir(root, { recursive: true, mode: 0o700 });
+    if (!root) {
+      root = await mkdtemp(path.join(os.tmpdir(), "nomi-certification-media-"));
+      ownsRoot = true;
+    } else {
+      await mkdir(root, { recursive: true, mode: 0o700 });
+    }
+    await assertTrustedCertificationRoot(root);
     runDirectory = await mkdtemp(path.join(root, "run-"));
     const extension = extensionFromContentType(typed.contentType)
       || (input.expectedKind === "model3d" ? "glb" : "bin");
@@ -432,6 +451,7 @@ export async function certifyMediaArtifact(
       }
     } else if (input.expectedKind === "video" || input.expectedKind === "audio") {
       const probe = dependencies.probeMedia || probeMediaMetadata;
+      const decode = dependencies.decodeMedia || decodeMediaBytes;
       let probed: MediaProbeMetadata;
       try {
         probed = await runWithDecoderDeadline(
@@ -447,6 +467,12 @@ export async function certifyMediaArtifact(
       } catch (error) {
         if (error instanceof CertificationMediaError) throw error;
         throw new CertificationMediaError("media_corrupt", { expectedKind: input.expectedKind });
+      }
+      const reprobedBytes = await readFile(managedPath);
+      const expectedDigest = crypto.createHash("sha256").update(managedBytes).digest("hex");
+      const reprobedDigest = crypto.createHash("sha256").update(reprobedBytes).digest("hex");
+      if (expectedDigest !== reprobedDigest || reprobedBytes.byteLength !== managedBytes.byteLength) {
+        throw new CertificationMediaError("media_storage_failed");
       }
       if (probed.kind !== input.expectedKind) {
         throw new CertificationMediaError("media_kind_mismatch", {
@@ -470,12 +496,35 @@ export async function certifyMediaArtifact(
           maxPixels: limits.maxPixels,
         });
       }
+      try {
+        await runWithDecoderDeadline(
+          (signal) => decode(managedBytes, input.expectedKind as "video" | "audio", {
+            signal,
+            timeoutMs: limits.decoderTimeoutMs,
+            maxStdoutBytes: DEFAULT_PROCESS_STDOUT_LIMIT,
+            maxStderrBytes: DEFAULT_PROCESS_STDERR_LIMIT,
+          }),
+          limits.decoderTimeoutMs,
+          input.signal,
+        );
+      } catch (error) {
+        if (error instanceof CertificationMediaError) throw error;
+        throw new CertificationMediaError("media_decode_failed", { expectedKind: input.expectedKind });
+      }
       metadata = safeMetadata(probed);
     } else {
-      validateGlb(managedBytes);
+      try {
+        validateGlbStructure(managedBytes);
+      } catch (error) {
+        if (error instanceof Model3DValidationError
+          && (error.code === "external_uri" || error.code === "unsupported_version" || error.code === "resource_limit")) {
+          throw new CertificationMediaError("media_unsupported_3d");
+        }
+        throw new CertificationMediaError("media_corrupt", { expectedKind: "model3d" });
+      }
     }
 
-    return Object.freeze({
+    evidence = Object.freeze({
       kind: input.expectedKind,
       contentType: typed.contentType,
       byteLength: managedBytes.byteLength,
@@ -483,9 +532,16 @@ export async function certifyMediaArtifact(
       metadata,
     });
   } catch (error) {
-    if (error instanceof CertificationMediaError) throw error;
-    throw new CertificationMediaError("media_storage_failed");
+    operationFailed = true;
+    caughtError = error instanceof CertificationMediaError ? error : new CertificationMediaError("media_storage_failed");
   } finally {
-    if (runDirectory) await rm(runDirectory, { recursive: true, force: true });
+    const cleanup = dependencies.cleanup || ((target: string) => rm(target, { recursive: true, force: true }));
+    let cleaned = true;
+    if (runDirectory) cleaned = await cleanupWithRetry(runDirectory, cleanup);
+    if (ownsRoot && root) cleaned = await cleanupWithRetry(root, cleanup) && cleaned;
+    cleanupFailed = !cleaned && !operationFailed;
   }
+  if (caughtError) throw caughtError;
+  if (cleanupFailed || !evidence) throw new CertificationMediaError("media_storage_failed");
+  return evidence;
 }
