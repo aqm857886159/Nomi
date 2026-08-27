@@ -109,6 +109,14 @@ describe('timeline kernel operations', () => {
     ])
   })
 
+  it('rejects ripple removal that spans multiple tracks', () => {
+    const state = timeline([clip('video-a', 0, 30)], [clip('audio-a', 0, 30, 'audio', 30)])
+    const result = applyTimelineOperation(state, { kind: 'remove', clipIds: ['video-a', 'audio-a'], ripple: true })
+    expect(result.ok).toBe(false)
+    expect(result.timeline).toBe(state)
+    expect(result.diagnostics[0].code).toBe('ripple_requires_single_track')
+  })
+
   it('ripples a suffix across tracks and optionally text', () => {
     const state = timeline([clip('a', 0, 30), clip('b', 50, 70)], [clip('music', 60, 90, 'audio', 90)])
     const result = applyTimelineOperation(state, { kind: 'ripple', fromFrame: 40, deltaFrame: -10, includeText: true })

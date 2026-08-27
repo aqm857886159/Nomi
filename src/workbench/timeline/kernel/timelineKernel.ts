@@ -332,6 +332,9 @@ function applyRemove(timeline: TimelineState, operation: Extract<TimelineOperati
   const locations = ids.map((id) => findClip(timeline, id))
   const missing = ids.filter((_id, index) => locations[index] === null)
   if (missing.length > 0) return operationError('clip_not_found', 'operation.clipIds', `Clip not found: ${missing.join(', ')}`)
+  if (operation.ripple && new Set(locations.map((location) => location?.trackIndex)).size > 1) {
+    return operationError('ripple_requires_single_track', 'operation.ripple', 'Ripple remove must target clips on one track; use an explicit ripple operation per track to avoid A/V drift')
+  }
   const removedByTrack = new Map<number, TimelineClip[]>()
   locations.forEach((location) => {
     if (!location) return

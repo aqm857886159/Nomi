@@ -18,6 +18,18 @@ export type TimelineToolCallName =
 
 type JsonRecord = Record<string, unknown>
 
+type AppliedPlanRecord = {
+  signature: string
+  response: JsonRecord
+  undoToken: string
+  beforeRevision: string
+  afterRevision: string
+}
+
+const appliedPlans = new Map<string, AppliedPlanRecord>()
+let latestAgentUndo: AppliedPlanRecord | null = null
+const MAX_APPLIED_PLANS = 128
+
 function asRecord(args: unknown): JsonRecord {
   return args && typeof args === 'object' && !Array.isArray(args) ? args as JsonRecord : {}
 }
@@ -43,7 +55,9 @@ function compactClip(clip: TimelineTrack['clips'][number], trackId: string): Jso
       ? { sourceWindow: null }
       : { sourceWindow: { startFrame: clip.offsetStartFrame, endFrame: clip.frameCount - clip.offsetEndFrame } }),
     ...(clip.text ? { text: clip.text } : {}),
-    ...(clip.url ? { url: clip.url } : {}),
+    // Never send local media paths or project URLs to the model provider. The
+    // stable sourceNodeId is enough for planning; the renderer resolves media.
+    sourceAvailable: Boolean(clip.url),
   }
 }
 
@@ -114,9 +128,45 @@ function planInput(args: unknown): { planId: string; baseRevision: string; summa
   return { planId, baseRevision, summary, operations: operations as TimelineOperation[] }
 }
 
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as JsonRecord).sort(([left], [right]) => left.localeCompare(right)).map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`).join(',')}}`
+  }
+  return JSON.stringify(value)
+}
+
+function planSignature(plan: { baseRevision: string; summary: string; operations: TimelineOperation[] }): string {
+  return stableJson({ baseRevision: plan.baseRevision, summary: plan.summary, operations: plan.operations })
+}
+
 function applyPlan(args: unknown, validateOnly: boolean): JsonRecord {
   const plan = planInput(args)
   const base = workbenchAdoptionPorts.readTimeline()
+  const signature = planSignature(plan)
+  if (!validateOnly) {
+    const previous = appliedPlans.get(plan.planId)
+    if (previous) {
+      if (previous.signature !== signature) {
+        return {
+          planId: plan.planId,
+          ok: false,
+          applied: false,
+          replayed: false,
+          code: 'plan_id_conflict',
+          message: 'planId was already used for a different edit plan',
+          currentRevision: timelineRevision(base),
+        }
+      }
+      return {
+        ...previous.response,
+        replayed: true,
+        applied: false,
+        currentRevision: timelineRevision(base),
+        timeline: readTimeline(base),
+      }
+    }
+  }
   const result = applyTimelineOperations(base, plan.operations, {
     expectedRevision: plan.baseRevision,
     validateOnly,
@@ -149,9 +199,52 @@ function applyPlan(args: unknown, validateOnly: boolean): JsonRecord {
     throw new Error(restored ? 'Timeline edit verification failed; changes were recovered' : 'Timeline edit verification failed; recovery is required')
   }
   clearAdoptionUndoSnapshot()
+  const undoToken = `timeline-undo:${plan.planId}:${result.revision}`
   response.applied = true
+  response.replayed = false
+  response.undoToken = undoToken
   response.timeline = readTimeline(landed)
+  const record: AppliedPlanRecord = {
+    signature,
+    response: { ...response },
+    undoToken,
+    beforeRevision: timelineRevision(base),
+    afterRevision: result.revision,
+  }
+  appliedPlans.set(plan.planId, record)
+  while (appliedPlans.size > MAX_APPLIED_PLANS) appliedPlans.delete(appliedPlans.keys().next().value as string)
+  latestAgentUndo = record
   return response
+}
+
+function undoTimelineEdit(args: unknown): JsonRecord {
+  const input = asRecord(args)
+  const undoToken = typeof input.undoToken === 'string' ? input.undoToken.trim() : ''
+  const expectedRevision = typeof input.expectedRevision === 'string' ? input.expectedRevision.trim() : ''
+  const current = workbenchAdoptionPorts.readTimeline()
+  const currentRevision = timelineRevision(current)
+  const record = latestAgentUndo
+  if (!undoToken || !expectedRevision) {
+    return { ok: false, undone: false, code: 'undo_arguments_required', currentRevision }
+  }
+  if (!record || record.undoToken !== undoToken) {
+    return { ok: false, undone: false, code: 'undo_token_invalid', currentRevision }
+  }
+  if (expectedRevision !== currentRevision || currentRevision !== record.afterRevision) {
+    return { ok: false, undone: false, code: 'undo_stale_revision', currentRevision, expectedRevision }
+  }
+  useWorkbenchStore.getState().undoTimeline()
+  const after = workbenchAdoptionPorts.readTimeline()
+  const afterRevision = timelineRevision(after)
+  const undone = afterRevision === record.beforeRevision
+  if (undone) latestAgentUndo = null
+  return {
+    ok: undone,
+    undone,
+    ...(undone ? {} : { code: 'undo_verification_failed' }),
+    currentRevision: afterRevision,
+    timeline: readTimeline(after),
+  }
 }
 
 export async function applyTimelineToolCall(toolName: string, args: unknown): Promise<unknown> {
@@ -161,12 +254,7 @@ export async function applyTimelineToolCall(toolName: string, args: unknown): Pr
     case 'inspect_timeline_range': return inspectTimelineRange(timeline, args)
     case 'propose_edit_plan': return applyPlan(args, true)
     case 'apply_edit_plan': return applyPlan(args, false)
-    case 'undo_timeline_edit': {
-      const beforeRevision = timelineRevision(timeline)
-      useWorkbenchStore.getState().undoTimeline()
-      const after = workbenchAdoptionPorts.readTimeline()
-      return { undone: timelineRevision(after) !== beforeRevision, timeline: readTimeline(after) }
-    }
+    case 'undo_timeline_edit': return undoTimelineEdit(args)
     default: return null
   }
 }

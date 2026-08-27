@@ -14,7 +14,7 @@ const removeOperation = z.object({
   kind: z.literal('remove'),
   clipId: z.string().trim().min(1).optional(),
   clipIds: z.array(z.string().trim().min(1)).min(1).optional(),
-  ripple: z.boolean().optional(),
+  ripple: z.boolean().optional().describe('When true, ripple only the single track containing the removed clips; it never shifts other media or text tracks.'),
 }).refine((value) => Boolean(value.clipId || value.clipIds?.length), {
   message: 'remove requires clipId or clipIds',
 })
@@ -97,8 +97,10 @@ export const timelineToolDescriptors = {
   },
   undo_timeline_edit: {
     name: 'undo_timeline_edit',
-    description: 'Undo the most recent timeline edit as one user-visible action. Requires user approval and never touches canvas nodes.',
+    description: 'Undo the most recent Agent-applied timeline plan as one user-visible action. Use the undoToken and expectedRevision returned by apply_edit_plan; stale or non-Agent edits are rejected. Requires user approval and never touches canvas nodes.',
     parameters: z.object({
+      undoToken: z.string().trim().min(1).max(160),
+      expectedRevision: z.string().trim().min(1).max(64),
       reason: z.string().trim().max(300).optional(),
     }),
   },

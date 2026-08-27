@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { timelineEditPlanSchema, timelineToolNames } from './timelineDescriptors'
+import { timelineEditPlanSchema, timelineToolDescriptors, timelineToolNames } from './timelineDescriptors'
 
 describe('timeline Agent tool descriptors', () => {
   it('exposes the control-plane tools', () => {
@@ -19,5 +19,11 @@ describe('timeline Agent tool descriptors', () => {
     })
     expect(valid.success).toBe(true)
     expect(timelineEditPlanSchema.safeParse({ planId: 'p1', baseRevision: 'deadbeef', summary: 'empty', operations: [] }).success).toBe(false)
+  })
+
+  it('requires the Agent undo token and expected revision', () => {
+    const schema = timelineToolDescriptors.undo_timeline_edit.parameters
+    expect(schema.safeParse({ reason: 'undo it' }).success).toBe(false)
+    expect(schema.safeParse({ undoToken: 'timeline-undo:p1:deadbeef', expectedRevision: 'deadbeef' }).success).toBe(true)
   })
 })
