@@ -75,8 +75,20 @@ for (const html of [zh, en]) {
     'tab panels are associated',
   )
   expect(
-    html.includes('<dialog id="launch-film"') && html.includes('<track kind="captions"'),
-    'localized film dialog and captions',
+    html.includes('class="hero-actions"'),
+    'hero actions remain present',
+  )
+  expect(html.includes('data-github-hero'), 'hero GitHub CTA is marked for verification')
+  expect(html.includes('https://github.com/aqm857886159/Nomi'), 'hero GitHub CTA uses the canonical repository')
+  expect(html.includes('target="_blank" rel="noreferrer"'), 'hero GitHub CTA opens an external repository safely')
+  expect(!html.includes('data-open-dialog="launch-film"'), 'hero no longer opens the 60-second workflow dialog')
+  expect(
+    !html.includes('观看 60 秒工作流') && !html.includes('Watch the 60s workflow'),
+    '60-second hero copy is removed',
+  )
+  expect(
+    !html.includes('OPEN-SOURCE · LOCAL-FIRST · AI VIDEO WORKBENCH'),
+    'hero-only generic English float label is removed',
   )
   expect(html.includes('<dialog id="author-dialog"'), 'maintainer contact dialog exists')
   expect(html.includes('<dialog id="download-dialog"'), 'ambiguous platforms get an in-page download chooser')

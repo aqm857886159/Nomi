@@ -110,6 +110,31 @@ async function auditStandardCase(browser, testCase) {
     workflowTabs: document.querySelectorAll('[data-step]').length,
     downloadTriggers: document.querySelectorAll('[data-download-nomi]').length,
     directDownloadOptions: document.querySelectorAll('[data-direct-download]').length,
+    heroGithub: (() => {
+      const link = document.querySelector('[data-github-hero]')
+      const download = document.querySelector('.hero-actions [data-download-nomi]')
+      if (!link || !download) return false
+      const style = getComputedStyle(link)
+      const downloadStyle = getComputedStyle(download)
+      const downloadRect = download.getBoundingClientRect()
+      const linkRect = link.getBoundingClientRect()
+      return Boolean(
+        link.href === 'https://github.com/aqm857886159/Nomi' &&
+          link.target === '_blank' &&
+          link.rel.includes('noreferrer') &&
+          style.borderColor !== downloadStyle.borderColor &&
+          Math.abs(linkRect.height - downloadRect.height) <= 1 &&
+          style.minHeight === downloadStyle.minHeight &&
+          style.paddingLeft === downloadStyle.paddingLeft &&
+          style.paddingRight === downloadStyle.paddingRight &&
+          style.fontSize === downloadStyle.fontSize &&
+          style.fontWeight === downloadStyle.fontWeight &&
+          style.borderRadius === downloadStyle.borderRadius,
+      )
+    })(),
+    heroGenericEyebrow: Boolean(document.querySelector('.hero .eyebrow')),
+    heroFilmTrigger: Boolean(document.querySelector('.hero [data-open-dialog="launch-film"]')),
+    heroContribution: Boolean(document.querySelector('.hero .hero-contribution')),
     macNoticeVisible: (() => {
       const notice = document.querySelector('.mac-download-note')
       return Boolean(notice && getComputedStyle(notice).display !== 'none' && notice.getBoundingClientRect().height > 0)
@@ -178,6 +203,14 @@ async function auditStandardCase(browser, testCase) {
       facts.localeLinkVisible,
     `${testCase.name}: direct download path and visible locale switch exist`,
   )
+  assert(
+    facts.heroGithub && facts.heroContribution,
+    `${testCase.name}: hero GitHub CTA matches download sizing and has an invitation`,
+  )
+  assert(
+    !facts.heroGenericEyebrow && !facts.heroFilmTrigger,
+    `${testCase.name}: generic hero eyebrow and film trigger are removed`,
+  )
   assert(facts.macNoticeVisible, `${testCase.name}: macOS signing warning is visible before download`)
   assert(
     facts.logoLoaded && facts.productImagesLoaded && facts.currentScreenshots,
@@ -206,16 +239,7 @@ async function auditStandardCase(browser, testCase) {
   assert(browserErrors.length === 0, `${testCase.name}: no page errors`)
   await page.screenshot({ path: path.join(shotsDir, `home-${testCase.name}.png`), fullPage: true })
 
-  const expectedTrack =
-    testCase.path === '/en/' ? '/assets/video/launch-film-en.vtt' : '/assets/video/launch-film-zh.vtt'
-  await page.locator('[data-open-dialog="launch-film"]').click()
-  await page.locator('#launch-film').waitFor({ state: 'visible' })
-  assert(
-    (await page.locator('#launch-film track').getAttribute('src')) === expectedTrack,
-    `${testCase.name}: locale-matching film captions`,
-  )
-  await page.keyboard.press('Escape')
-  await page.locator('#launch-film').waitFor({ state: 'hidden' })
+  assert(await page.locator('[data-github-hero]').count() === 1, `${testCase.name}: one hero GitHub CTA exists`)
 
   if (testCase.name === 'zh-desktop') {
     const generationTab = page.locator('[data-cost="generation"]')
@@ -299,15 +323,18 @@ async function auditNoJavaScript(browser, pathName, locale, claim) {
   const downloadTriggers = await page.locator('[data-download-nomi][href="#download-options"]').count()
   const directDownloads = await page.locator('[data-direct-download][href*="/releases/latest/download/"]').count()
   const releasesListing = await page.locator('a[href="https://github.com/aqm857886159/Nomi/releases/latest"]').count()
-  const watchHref = await page.locator('[data-open-dialog="launch-film"]').getAttribute('href')
+  const heroGithub = await page.locator('[data-github-hero]').count()
+  const heroFilm = await page.locator('.hero [data-open-dialog="launch-film"]').count()
+  const heroContribution = await page.locator('.hero .hero-contribution').count()
   const qr = await page.locator('#community-qr img').getAttribute('src')
   const business = await page.locator('a[href*="business_inquiry.yml"]').count()
   const installGuide = (await page.locator('.download-fallback [data-mac-install-guide]').textContent()) || ''
   assert(h1.includes(claim), `${locale}: no-JS H1 remains`)
   assert(
-    downloadTriggers === 3 && directDownloads >= 3 && releasesListing === 0 && Boolean(watchHref?.endsWith('.mp4')),
-    `${locale}: no-JS direct downloads and film link remain without a Releases detour`,
+    downloadTriggers === 3 && directDownloads >= 3 && releasesListing === 0,
+    `${locale}: no-JS direct downloads remain without a Releases detour`,
   )
+  assert(heroGithub === 1 && heroFilm === 0 && heroContribution === 1, `${locale}: no-JS hero GitHub path remains without the film path`)
   assert(qr === '/assets/group-wechat-2026-08-25.jpg' && business > 0, `${locale}: no-JS QR and project paths remain`)
   assert(
     installGuide.includes('xattr -dr com.apple.quarantine') && /official|官方/.test(installGuide),
