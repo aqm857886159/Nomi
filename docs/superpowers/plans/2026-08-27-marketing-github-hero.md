@@ -57,7 +57,12 @@ In `tests/ux/marketing-home.visual.mjs`, extend the `page.evaluate` facts object
           style.borderColor &&
           downloadRect &&
           Math.abs(linkRect.height - downloadRect.height) <= 1 &&
-          Math.abs(linkRect.width - downloadRect.width) <= 1,
+          style.minHeight === getComputedStyle(download).minHeight &&
+          style.paddingLeft === getComputedStyle(download).paddingLeft &&
+          style.paddingRight === getComputedStyle(download).paddingRight &&
+          style.fontSize === getComputedStyle(download).fontSize &&
+          style.fontWeight === getComputedStyle(download).fontWeight &&
+          style.borderRadius === getComputedStyle(download).borderRadius,
       )
     })(),
     heroGenericEyebrow: Boolean(document.querySelector('.hero .eyebrow')),
