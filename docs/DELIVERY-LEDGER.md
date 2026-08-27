@@ -40,7 +40,7 @@ _没有标记为远期的方案。_
 
 </details>
 
-- 合计扫描：434 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
+- 合计扫描：435 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
 
 ---
 
