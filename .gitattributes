@@ -1,0 +1,11 @@
+# 门岗会重生成产物后逐字节比对；若工作区行尾随平台变化，
+# Windows 检出的 CRLF 就会造成全线假阳性，因此文本文件统一以 LF 检出。
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.webp binary
+*.mp4 binary
+*.glb binary
+*.ico binary
+*.icns binary

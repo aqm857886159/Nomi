@@ -1,0 +1,45 @@
+# docs/superpowers/plans 索引
+
+> 跨阶段总纲 / master plan 住这里；功能级方案在 [`docs/plan/`](../../plan/INDEX.md)。
+> **当前主文档**：[Nomi 统一 Agent 总体方案](2026-08-24-unified-agent-master-plan.md)（含 §5.1「AI 剪辑三步」E1/E2/E3）。
+> 一句话取自各文件的 H1 标题，未二次概括；状态列为「—」表示该文件尚未带状态标记。
+> 新增文档**顺手在此加一行**——`check:docs-index` 会拦未收录的新文件。
+
+| 文件 | 标题 | 状态 |
+|---|---|---|
+| [2026-08-01-nomi-conversion-preservation.md](2026-08-01-nomi-conversion-preservation.md) | Nomi Conversion Preservation Implementation Plan | — |
+| [2026-08-01-nomi-international-launch-film.md](2026-08-01-nomi-international-launch-film.md) | Nomi International Launch Film Implementation Plan | — |
+| [2026-08-02-default-readme-bilingual-conversion.md](2026-08-02-default-readme-bilingual-conversion.md) | Default README Bilingual Conversion Implementation Plan | — |
+| [2026-08-06-asset-preview-interaction-fix.md](2026-08-06-asset-preview-interaction-fix.md) | Asset Preview Interaction Fix Implementation Plan | — |
+| [2026-08-06-canvas-control-clarity.md](2026-08-06-canvas-control-clarity.md) | 生成画布控件辨识与比例连续性优化 Implementation Plan | — |
+| [2026-08-07-default-project-location.md](2026-08-07-default-project-location.md) | Default Project Location Implementation Plan | — |
+| [2026-08-08-production-experience-ui.md](2026-08-08-production-experience-ui.md) | Production Experience UI Implementation Plan | — |
+| [2026-08-08-production-mcp-evals.md](2026-08-08-production-mcp-evals.md) | Production MCP And Real-Task Evaluation Implementation Plan | — |
+| [2026-08-08-production-playbook-skills.md](2026-08-08-production-playbook-skills.md) | Production Playbook And Skill Evidence Implementation Plan | — |
+| [2026-08-08-production-run-foundation.md](2026-08-08-production-run-foundation.md) | Production Run Foundation Implementation Plan | — |
+| [2026-08-13-canvas-clip-node.md](2026-08-13-canvas-clip-node.md) | 画布剪辑节点实施计划 | — |
+| [2026-08-13-ux-clarity-and-discoverability.md](2026-08-13-ux-clarity-and-discoverability.md) | 体验清晰度与可发现性实施计划 | — |
+| [2026-08-14-clip-node-visual-alignment.md](2026-08-14-clip-node-visual-alignment.md) | 剪辑节点视觉对齐实施计划 | — |
+| [2026-08-21-agentic-production-draft-film.md](2026-08-21-agentic-production-draft-film.md) | Agentic Production 到真实 30 秒初稿 Implementation Plan | — |
+| [2026-08-21-apimart-deepseek-text-models.md](2026-08-21-apimart-deepseek-text-models.md) | APIMart DeepSeek Text Models Implementation Plan | — |
+| [2026-08-21-asset-transport-storage-hardening.md](2026-08-21-asset-transport-storage-hardening.md) | Asset Transport and Storage Hardening Implementation Plan | — |
+| [2026-08-21-nomi-unified-editor-runtime.md](2026-08-21-nomi-unified-editor-runtime.md) | 历史入口：Nomi 统一创作运行时与 AI 剪辑工作台实施方案 | — |
+| [2026-08-22-external-agent-runtime-mcp-control-plane.md](2026-08-22-external-agent-runtime-mcp-control-plane.md) | External Agent Runtime MCP Control Plane（历史草案，已归一） | — |
+| [2026-08-22-mcp-ai-generation-vertical-slice.md](2026-08-22-mcp-ai-generation-vertical-slice.md) | MCP AI Generation Vertical Slice Implementation Plan | — |
+| [2026-08-22-nomi-runtime-handoff.md](2026-08-22-nomi-runtime-handoff.md) | Nomi 统一运行时交接文档 | — |
+| [2026-08-22-nomi-unified-editor-runtime.md](2026-08-22-nomi-unified-editor-runtime.md) | Nomi 统一创作运行时与 AI 剪辑工作台实施方案 | ✅ |
+| [2026-08-22-release-0.20.1.md](2026-08-22-release-0.20.1.md) | Nomi 0.20.1 Release Plan | — |
+| [2026-08-23-contextual-video-generation-planning.md](2026-08-23-contextual-video-generation-planning.md) | Contextual Video Generation Planning Implementation Plan | — |
+| [2026-08-23-mcp-client-first-authorization.md](2026-08-23-mcp-client-first-authorization.md) | MCP 客户端优先授权实施计划 | — |
+| [2026-08-23-p1-p3-editable-mcp-generation.md](2026-08-23-p1-p3-editable-mcp-generation.md) | MCP 真实可编辑单镜生成（P1→P3）Implementation Plan | — |
+| [2026-08-23-provider-capability-degradation.md](2026-08-23-provider-capability-degradation.md) | Provider Capability Degradation Implementation Plan | — |
+| [2026-08-23-seo-observatory.md](2026-08-23-seo-observatory.md) | SEO Observatory Implementation Plan | — |
+| [2026-08-24-p4-multishot-continuity.md](2026-08-24-p4-multishot-continuity.md) | P4 多镜头连续性（Semantic Multi-Shot）实施计划 · Rev.2 | — |
+| [2026-08-24-unified-agent-master-plan.md](2026-08-24-unified-agent-master-plan.md) | Nomi 统一 Agent 总体方案（Master Plan · Rev.2 · 2026-08-24） | — |
+| [2026-08-25-asset-library-native-paste.md](2026-08-25-asset-library-native-paste.md) | 素材库原生图片拖入与粘贴 Implementation Plan | — |
+| [2026-08-25-canvas-batch-model-picker.md](2026-08-25-canvas-batch-model-picker.md) | Canvas Batch Model Picker Implementation Plan | — |
+| [2026-08-25-comfyui-workflow-matrix.md](2026-08-25-comfyui-workflow-matrix.md) | ComfyUI 通用工作流矩阵验证 Implementation Plan | — |
+| [2026-08-25-foundation-replacement-plan.md](2026-08-25-foundation-replacement-plan.md) | Foundation Replacement and Isolation Plan | — |
+| [2026-08-25-video-node-audio-playback.md](2026-08-25-video-node-audio-playback.md) | Video Node Audio Playback Implementation Plan | — |
+| [2026-08-27-marketing-github-hero.md](2026-08-27-marketing-github-hero.md) | Marketing GitHub Hero Implementation Plan | — |
+| [2026-08-27-release-media-pack-skill.md](2026-08-27-release-media-pack-skill.md) | Nomi Release Media Pack Skill Implementation Plan | — |

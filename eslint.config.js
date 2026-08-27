@@ -27,7 +27,8 @@ export default tseslint.config(
       'coverage/**',
       // 本地走查/探针输出目录（gitignored，含临时诊断 .mjs）——非源码，不 lint。
       '.pose-lab/**',
-      'scripts/**',
+      'scripts/**/*',
+      '!scripts/check-vocabularies*.mjs',
       'tests/ux/**',
       'tests/transport-spike/**',
       'evals/**',
@@ -49,6 +50,14 @@ export default tseslint.config(
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  {
+    files: ['scripts/check-vocabularies*.mjs'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: globals.node,
+    },
+  },
   {
     files: ['tests/network/**/*.{cjs,mjs}'],
     languageOptions: { globals: globals.node },
@@ -78,7 +87,10 @@ export default tseslint.config(
       'react-hooks/exhaustive-deps': 'warn',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none' }],
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none' },
+      ],
       '@typescript-eslint/no-empty-object-type': 'warn',
       '@typescript-eslint/no-require-imports': 'warn',
       'no-empty': 'warn',

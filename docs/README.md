@@ -1,13 +1,17 @@
 # docs 总地图 — 要找 X 去哪
 
-> 查文档前先看这张表，按「我要找什么」跳到对应目录，别全量 grep。
+> 查文档前先看这张表，按「我要找什么」跳到对应目录；索引仍有历史存量缺口，查不到时必须继续全量 grep。
 > 各目录若有自己的索引（如 plan/），表里直接给出。
 
 ## 按「我要找什么」定位
 
 | 我要找… | 去这里 |
 |---|---|
-| **某个功能的方案/执行计划** | [`plan/`](plan/) → 先读 [`plan/INDEX.md`](plan/INDEX.md)（64 篇按主题分组的查找表）|
+| **某个功能的方案/执行计划** | [`plan/`](plan/) → 先读 [`plan/INDEX.md`](plan/INDEX.md)（按主题分组的查找表）|
+| **跨阶段总纲 / master plan** | [`superpowers/plans/`](superpowers/plans/) → 先读 [Nomi 统一 Agent 总体方案](superpowers/plans/2026-08-24-unified-agent-master-plan.md) |
+| **每个子系统现在真正跑的是什么**（防止把三个月前的方案当现状） | [`ARCHITECTURE-NOW.md`](ARCHITECTURE-NOW.md) |
+| **术语表：同一个东西的多个叫法（搜不到时先查这里）** | [`GLOSSARY.md`](GLOSSARY.md) |
+| **已拍板但还没交付的，都欠着什么** | [`DELIVERY-LEDGER.md`](DELIVERY-LEDGER.md)（生成物；`pnpm run ledger:brief` 看一行摘要）|
 | **设计系统 / token / 组件规范** | [`design/`](design/) → 核心是 `design/nomi-design-system.md`（任何 UI 改动前必读）|
 | **「设计一个页面」的完整流程（可搬到别的产品复用）** | [`design/page-design-process.md`](design/page-design-process.md) → 七道闸 + 每道闸防的真实事故 + 可复制的模板/门岗/断言 |
 | **UI 样张（HTML mockup）** | [`mockups/`](mockups/) ｜ 旧版 [`ui-designs/`](ui-designs/) |
@@ -21,21 +25,22 @@
 | **产品定位 / 营销 / 媒体素材** | [`product/`](product/) ｜ [`marketing/`](marketing/) ｜ [`media/`](media/) |
 | **历史归档（已过时，仅留痕）** | [`archive/`](archive/) |
 
-## 目录一览（文件数）
+## 目录一览
 
-| 目录 | 数量 | 用途 |
-|---|---|---|
-| `plan/` | 64 | 方案/执行文档（**有 INDEX.md**）|
-| `onboarding-trials/` | 21 | 模型接入实测产物 |
-| `design/` | 20 | 设计系统 + 设计提案 |
-| `release-notes/` | 16 | 版本变更记录 |
-| `archive/` | 13 | 历史归档 |
-| `audit/` | 11 | 周期审计 + 诊断 |
-| `mockups/` | 5 | HTML 样张 |
-| `qa/` | 4 | 测试记录 |
-| `workflow/` | 2 | 工作流方法论 |
-| `handoff/` | 2 | 会话交接 |
-| `architecture/` `marketing/` `media/` `product/` `ui-designs/` | 各 1 | — |
+| 目录 | 用途 |
+|---|---|
+| `plan/` | 方案/执行文档（**有 INDEX.md，但仍有历史存量缺口**）|
+| `superpowers/plans/` | 跨阶段总纲 / master plan |
+| `onboarding-trials/` | 模型接入实测产物 |
+| `design/` | 设计系统 + 设计提案 |
+| `release-notes/` | 版本变更记录 |
+| `archive/` | 历史归档 |
+| `audit/` | 周期审计 + 诊断 |
+| `mockups/` | HTML 样张 |
+| `qa/` | 测试记录 |
+| `workflow/` | 工作流方法论 |
+| `handoff/` | 会话交接 |
+| `architecture/` `marketing/` `media/` `product/` `ui-designs/` | 其它专题目录 |
 
 ## 相关索引（非 docs/）
 

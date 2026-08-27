@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "release": {
+    "version": "",
+    "commit": "",
+    "previousVersion": "",
+    "installerSha256": ""
+  },
+  "destinations": {
+    "website": "https://nomiaqm.com/",
+    "github": "https://github.com/aqm857886159/Nomi",
+    "download": ""
+  },
+  "packageStatus": "blocked",
+  "artifacts": [
+    { "id": "story-brief", "locale": "shared", "required": true, "state": "planned", "path": "", "sha256": "", "blocker": "" },
+    { "id": "storyboard", "locale": "shared", "required": true, "state": "planned", "path": "", "sha256": "", "blocker": "" },
+    { "id": "launch-video", "locale": "zh-CN", "required": true, "state": "planned", "path": "", "sha256": "", "blocker": "" },
+    { "id": "launch-video", "locale": "en", "required": true, "state": "planned", "path": "", "sha256": "", "blocker": "" },
+    { "id": "update-carousel", "locale": "zh-CN", "required": true, "state": "planned", "path": "", "sha256": "", "blocker": "" },
+    { "id": "update-carousel", "locale": "en", "required": true, "state": "planned", "path": "", "sha256": "", "blocker": "" },
+    { "id": "wechat-copy", "locale": "zh-CN", "required": true, "state": "planned", "path": "", "sha256": "", "blocker": "" },
+    { "id": "x-thread", "locale": "en", "required": true, "state": "planned", "path": "", "sha256": "", "blocker": "" }
+  ],
+  "qualityGates": {
+    "releaseEvidence": "blocked",
+    "originality": "blocked",
+    "localization": "blocked",
+    "videoProbe": "blocked",
+    "fullDecode": "blocked",
+    "visualReview": "blocked",
+    "audioReview": "blocked",
+    "carouselReview": "blocked",
+    "linkCheck": "blocked",
+    "publicationReceipt": "blocked"
+  },
+  "lastSafeArtifact": "",
+  "blockers": [],
+  "nextAction": ""
+}
