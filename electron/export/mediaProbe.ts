@@ -16,9 +16,113 @@ export type MediaProbeMetadata = {
   hasAudio: boolean;
   sampleRate?: number;
   channels?: number;
+  streamCount?: number;
 };
 
-export type RunProbeProcess = (command: string, args: string[]) => Promise<{ code: number | null; stdout: string; stderr: string }>;
+export type BoundedProcessOptions = {
+  signal?: AbortSignal;
+  timeoutMs: number;
+  maxStdoutBytes: number;
+  maxStderrBytes: number;
+  input?: Uint8Array;
+};
+
+export class BoundedProcessError extends Error {
+  code: string;
+
+  constructor(code: string) {
+    super(`Bounded process failed (${code})`);
+    this.name = "BoundedProcessError";
+    this.code = code;
+  }
+}
+
+export type RunProbeProcess = (
+  command: string,
+  args: string[],
+  options?: BoundedProcessOptions,
+) => Promise<{ code: number | null; stdout: string; stderr: string }>;
+
+export async function runBoundedProcess(
+  command: string,
+  args: string[],
+  options: BoundedProcessOptions,
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
+  if (options.signal?.aborted) throw new BoundedProcessError("cancelled");
+  return new Promise((resolve, reject) => {
+    let child: ReturnType<typeof spawn>;
+    try {
+      ensureExecutable(command);
+      child = spawn(command, args, { shell: false, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
+    } catch {
+      reject(new BoundedProcessError("spawn_failed"));
+      return;
+    }
+
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let failure: BoundedProcessError | undefined;
+    let settled = false;
+
+    const stop = (code: string) => {
+      failure ??= new BoundedProcessError(code);
+      child.stdin?.destroy();
+      if (!child.killed) child.kill("SIGKILL");
+    };
+    const onAbort = () => stop("cancelled");
+    const timer = setTimeout(() => stop("timeout"), Math.max(1, options.timeoutMs));
+    options.signal?.addEventListener("abort", onAbort, { once: true });
+
+    child.stdout?.on("data", (raw: Buffer | string) => {
+      const chunk = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
+      stdoutBytes += chunk.byteLength;
+      if (stdoutBytes > options.maxStdoutBytes) {
+        stop("output_limit");
+        return;
+      }
+      stdoutChunks.push(chunk);
+    });
+    child.stderr?.on("data", (raw: Buffer | string) => {
+      const chunk = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
+      stderrBytes += chunk.byteLength;
+      if (stderrBytes > options.maxStderrBytes) {
+        stop("output_limit");
+        return;
+      }
+      stderrChunks.push(chunk);
+    });
+    child.stdin?.on("error", () => {
+      if (!failure) stop("spawn_failed");
+    });
+    child.on("error", () => {
+      if (!settled) stop("spawn_failed");
+    });
+    child.on("close", (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      options.signal?.removeEventListener("abort", onAbort);
+      if (failure) {
+        reject(failure);
+        return;
+      }
+      resolve({
+        code,
+        stdout: Buffer.concat(stdoutChunks, stdoutBytes).toString("utf8"),
+        stderr: Buffer.concat(stderrChunks, stderrBytes).toString("utf8"),
+      });
+    });
+
+    if (options.signal?.aborted) {
+      onAbort();
+      return;
+    }
+    if (options.input) child.stdin?.end(Buffer.from(options.input));
+    else child.stdin?.end();
+  });
+}
 
 export class MediaProbeError extends Error {
   code: "missing_file" | "probe_failed" | "unsupported_media" | "invalid_probe_output";
@@ -143,7 +247,7 @@ export function parseFfprobeJson(json: string): MediaProbeMetadata {
       ? "audio"
       : "unknown";
 
-  const metadata: MediaProbeMetadata = { kind, hasAudio };
+  const metadata: MediaProbeMetadata = { kind, hasAudio, streamCount: streams.length };
   if (durationSeconds !== undefined && kind !== "image") metadata.durationSeconds = durationSeconds;
   if (width !== undefined) metadata.width = width;
   if (height !== undefined) metadata.height = height;
@@ -202,26 +306,17 @@ function resolveFfprobePath(explicitFfprobePath?: string, explicitFfmpegPath?: s
   return commandExists(executableName) ? executableName : "";
 }
 
-function defaultRunProcess(command: string, args: string[]): Promise<{ code: number | null; stdout: string; stderr: string }> {
-  return new Promise((resolve, reject) => {
-    ensureExecutable(command);
-    const child = spawn(command, args, { windowsHide: true });
-    let stdout = "";
-    let stderr = "";
-    child.stdout?.on("data", (chunk) => {
-      stdout += Buffer.isBuffer(chunk) ? chunk.toString("utf8") : String(chunk);
-    });
-    child.stderr?.on("data", (chunk) => {
-      stderr += Buffer.isBuffer(chunk) ? chunk.toString("utf8") : String(chunk);
-    });
-    child.on("error", reject);
-    child.on("close", (code) => resolve({ code, stdout, stderr }));
-  });
-}
-
 export async function probeMediaMetadata(
   inputPath: string,
-  options: { ffprobePath?: string; ffmpegPath?: string; runProcess?: RunProbeProcess } = {},
+  options: {
+    ffprobePath?: string;
+    ffmpegPath?: string;
+    runProcess?: RunProbeProcess;
+    signal?: AbortSignal;
+    timeoutMs?: number;
+    maxStdoutBytes?: number;
+    maxStderrBytes?: number;
+  } = {},
 ): Promise<MediaProbeMetadata> {
   const absoluteInputPath = path.resolve(inputPath);
   if (!fs.existsSync(absoluteInputPath) || !fs.statSync(absoluteInputPath).isFile()) {
@@ -234,12 +329,26 @@ export async function probeMediaMetadata(
   }
 
   const args = ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", absoluteInputPath];
-  const runProcess = options.runProcess || defaultRunProcess;
+  const hasExplicitProcessLimits = options.signal !== undefined
+    || options.timeoutMs !== undefined
+    || options.maxStdoutBytes !== undefined
+    || options.maxStderrBytes !== undefined;
+  const processOptions: BoundedProcessOptions = {
+    timeoutMs: options.timeoutMs ?? 15_000,
+    maxStdoutBytes: options.maxStdoutBytes ?? 256 * 1024,
+    maxStderrBytes: options.maxStderrBytes ?? 64 * 1024,
+    ...(options.signal ? { signal: options.signal } : {}),
+  };
   let result: Awaited<ReturnType<RunProbeProcess>>;
   try {
-    result = await runProcess(ffprobePath, args);
+    if (!options.runProcess) result = await runBoundedProcess(ffprobePath, args, processOptions);
+    else if (hasExplicitProcessLimits) result = await options.runProcess(ffprobePath, args, processOptions);
+    else result = await options.runProcess(ffprobePath, args);
   } catch (error) {
-    throw new MediaProbeError("probe_failed", `ffprobe failed to start: ${error instanceof Error ? error.message : String(error)}`);
+    const detail = error instanceof BoundedProcessError
+      ? `ffprobe process ${error.code}`
+      : "ffprobe failed to start";
+    throw new MediaProbeError("probe_failed", detail);
   }
 
   if (result.code !== 0) {

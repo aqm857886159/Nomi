@@ -5,9 +5,16 @@ import { hardenedFetch } from "./hardenedFetch";
 
 let server: http.Server;
 let baseUrl = "";
+let redirectedTargetRequests = 0;
 
 beforeAll(async () => {
-  server = http.createServer((_req, res) => {
+  server = http.createServer((req, res) => {
+    if (req.url === "/redirect") {
+      res.writeHead(302, { Location: "/view" });
+      res.end();
+      return;
+    }
+    if (req.url === "/view") redirectedTargetRequests += 1;
     res.writeHead(200, { "Content-Type": "image/png" });
     res.end(Buffer.from([1, 2, 3]));
   });
@@ -30,5 +37,13 @@ describe("hardenedFetch 私网边界", () => {
     await expect(
       hardenedFetch(`${baseUrl}/view`, { allowedPrivateOrigins: ["http://127.0.0.1:1"] }),
     ).rejects.toThrow("private/loopback");
+  });
+
+  it("私网显式授权仍在第一跳拒绝重定向，不访问跳转目标", async () => {
+    redirectedTargetRequests = 0;
+    await expect(
+      hardenedFetch(`${baseUrl}/redirect`, { allowedPrivateOrigins: [baseUrl] }),
+    ).rejects.toThrow(/redirect/i);
+    expect(redirectedTargetRequests).toBe(0);
   });
 });

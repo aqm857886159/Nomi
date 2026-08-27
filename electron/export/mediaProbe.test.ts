@@ -4,7 +4,14 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { MediaProbeError, parseFfprobeJson, probeMediaMetadata, type RunProbeProcess } from "./mediaProbe";
+import {
+  BoundedProcessError,
+  MediaProbeError,
+  parseFfprobeJson,
+  probeMediaMetadata,
+  runBoundedProcess,
+  type RunProbeProcess,
+} from "./mediaProbe";
 
 const videoProbeJson = JSON.stringify({
   streams: [
@@ -21,6 +28,7 @@ const videoProbeJson = JSON.stringify({
       codec_name: "aac",
       sample_rate: "48000",
       channels: 2,
+      streamCount: 2,
     },
   ],
   format: { duration: "12.345" },
@@ -44,6 +52,7 @@ describe("parseFfprobeJson", () => {
       hasAudio: true,
       sampleRate: 48000,
       channels: 2,
+      streamCount: 2,
     });
   });
 
@@ -67,6 +76,7 @@ describe("parseFfprobeJson", () => {
       hasAudio: true,
       sampleRate: 44100,
       channels: 1,
+      streamCount: 1,
     });
   });
 
@@ -91,6 +101,7 @@ describe("parseFfprobeJson", () => {
       height: 600,
       videoCodec: "png",
       hasAudio: false,
+      streamCount: 1,
     });
   });
 
@@ -155,5 +166,70 @@ describe("probeMediaMetadata", () => {
 
     await expect(probeMediaMetadata(inputPath, { ffprobePath: "ffprobe", runProcess }))
       .rejects.toMatchObject({ code: "invalid_probe_output" });
+  });
+
+  it("passes explicit timeout, output limits, and cancellation to the process runner", async () => {
+    const inputPath = createTempFile();
+    const controller = new AbortController();
+    const runProcess = vi.fn<RunProbeProcess>().mockResolvedValue({ code: 0, stdout: videoProbeJson, stderr: "" });
+
+    await probeMediaMetadata(inputPath, {
+      ffprobePath: "/usr/local/bin/ffprobe",
+      runProcess,
+      signal: controller.signal,
+      timeoutMs: 1_234,
+      maxStdoutBytes: 4_096,
+      maxStderrBytes: 2_048,
+    });
+
+    expect(runProcess).toHaveBeenCalledWith(
+      "/usr/local/bin/ffprobe",
+      expect.any(Array),
+      {
+        signal: controller.signal,
+        timeoutMs: 1_234,
+        maxStdoutBytes: 4_096,
+        maxStderrBytes: 2_048,
+      },
+    );
+  });
+});
+
+describe("runBoundedProcess", () => {
+  it("kills a subprocess that exceeds its wall-clock limit", async () => {
+    const error = await runBoundedProcess(
+      process.execPath,
+      ["-e", "setInterval(() => {}, 1000)"],
+      { timeoutMs: 30, maxStdoutBytes: 1_024, maxStderrBytes: 1_024 },
+    ).catch((caught) => caught);
+
+    expect(error).toBeInstanceOf(BoundedProcessError);
+    expect(error).toMatchObject({ code: "timeout" });
+  });
+
+  it.each([
+    ["stdout", "process.stdout.write('x'.repeat(4096))"],
+    ["stderr", "process.stderr.write('x'.repeat(4096))"],
+  ])("kills a subprocess whose %s exceeds the configured limit", async (_stream, source) => {
+    const error = await runBoundedProcess(
+      process.execPath,
+      ["-e", source],
+      { timeoutMs: 1_000, maxStdoutBytes: 128, maxStderrBytes: 128 },
+    ).catch((caught) => caught);
+
+    expect(error).toBeInstanceOf(BoundedProcessError);
+    expect(error).toMatchObject({ code: "output_limit" });
+  });
+
+  it("kills a subprocess when the caller cancels", async () => {
+    const controller = new AbortController();
+    const pending = runBoundedProcess(
+      process.execPath,
+      ["-e", "setInterval(() => {}, 1000)"],
+      { signal: controller.signal, timeoutMs: 1_000, maxStdoutBytes: 1_024, maxStderrBytes: 1_024 },
+    );
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ code: "cancelled" });
   });
 });

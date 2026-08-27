@@ -122,10 +122,16 @@ export async function hardenedFetch(
     const response = await appFetch(url, {
       method,
       signal: controller.signal,
-      redirect: allowRedirect ? "follow" : "error",
+      // `error` hides the fact that a redirect happened behind a generic TypeError("fetch failed").
+      // `manual` returns the first 3xx without contacting its target, so callers can classify the
+      // refusal without ever exposing a private-origin grant to the redirect destination.
+      redirect: allowRedirect ? "follow" : "manual",
       headers: requestHeaders,
       ...(bodyInit !== undefined ? { body: bodyInit } : {}),
     });
+    if (!allowRedirect && response.status >= 300 && response.status < 400) {
+      throw new Error("Redirect refused by hardened fetch policy");
+    }
     if (!response.ok && options.throwOnNon2xx !== false) {
       throw new Error(`Fetch failed: HTTP ${response.status}`);
     }

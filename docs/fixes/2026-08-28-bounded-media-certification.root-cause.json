@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-08-28-bounded-media-certification",
+  "problem_type": "cross-provider media certification boundary regression",
+  "symptom": "Provider onboarding could report a media mode as verified after downloading an HTTP 200 response whose body was HTML/XML or a corrupt image, so the first real generation later failed inside a decoder with misleading sharp/libvips/glib corrupt-header or XML parse errors.",
+  "direct_cause": "Provider Adapter verification checked only the declared Content-Type prefix or data URL prefix and treated a completed download as proof that the returned artifact was usable media.",
+  "class_root": "Nomi had no single bounded certification boundary that proves byte identity, declared type agreement, decoder readability, resource limits, redirect safety, and sanitized evidence before a provider mode can be promoted.",
+  "affected_population": [
+    "Users onboarding any image, video, audio, or 3D provider whose success URL returns an upstream HTML/XML error page with HTTP 200",
+    "Users onboarding any provider whose result has a plausible media header but corrupt or truncated payload bytes",
+    "Users onboarding local/private same-origin providers whose artifacts require an explicit scoped private-origin grant",
+    "Users onboarding providers that return data URLs instead of HTTP artifact URLs"
+  ],
+  "scope_paths": [
+    "electron/providerAdapter/certificationMedia.ts",
+    "electron/providerAdapter/__fixtures__/certification-media/corrupt-image.base64",
+    "electron/providerAdapter/__fixtures__/certification-media/http-200-html.txt",
+    "electron/providerAdapter/__fixtures__/certification-media/http-200-xml.txt",
+    "electron/providerAdapter/__fixtures__/certification-media/valid.jpg",
+    "electron/providerAdapter/__fixtures__/certification-media/valid.mp4",
+    "electron/providerAdapter/__fixtures__/certification-media/valid.png",
+    "electron/providerAdapter/__fixtures__/certification-media/valid.wav",
+    "electron/providerAdapter/__fixtures__/certification-media/valid.webp",
+    "electron/providerAdapter/verifier.ts",
+    "electron/hardenedFetch.ts",
+    "electron/export/mediaProbe.ts"
+  ],
+  "entry_points": [
+    "verifyAdapterMode for every non-text Provider Adapter capability",
+    "HTTP and HTTPS result URLs fetched through hardenedFetch",
+    "inline data URLs returned as provider artifacts",
+    "the shared certification media interface later reused by ComfyUI certification"
+  ],
+  "internal_only_reason": "The failure is caused by Nomi treating transport success as local media evidence. Provider documentation cannot define Nomi's promotion, SSRF, decoder-resource, temp-storage, redaction, or evidence-persistence invariants.",
+  "invariants": [
+    "A media capability cannot be promoted until bounded bytes agree with the expected media kind, declared MIME, magic signature, and a real bounded decoder/probe result.",
+    "HTML, XML, SVG, JSON error pages, unknown headers, corrupt payloads, oversize streams, timeouts, unsafe redirects, and mismatched media kinds fail before any decoder receives masquerading markup.",
+    "HTTP media acquisition retains hardenedFetch SSRF rules; private access requires an exact explicit origin grant and cannot follow redirects, while cross-origin redirect evidence is rejected.",
+    "Image, video, audio, and supported GLB 3D validation run with byte, wall-clock, output, pixel, duration, stream, and child-process limits appropriate to their decoder boundary.",
+    "Successful bytes are materialized only inside Nomi-owned certification temporary storage, removed after probing, and represented outside that boundary only by a SHA-256 digest and sanitized metadata.",
+    "Certification failures expose a stable reasonCode and allowlisted params, never a raw response body, local path, source URL, redirect target, signed query, or decoder stdout/stderr.",
+    "HTTP and data URL artifacts pass through the same MIME, magic, kind, decoder, evidence, and cleanup pipeline."
+  ],
+  "regression_tests": [
+    "electron/providerAdapter/certificationMedia.test.ts",
+    "electron/providerAdapter/verifier.test.ts",
+    "electron/providerAdapter/verifierPrivateAsset.test.ts",
+    "electron/hardenedFetch.test.ts",
+    "electron/export/mediaProbe.test.ts"
+  ],
+  "migration": "No persisted artifact or catalog migration is required. Existing verified revisions remain unchanged; every new certification and repair run uses the bounded media verifier before promotion. The verifier result stores only digest and sanitized metadata, so old raw URLs or paths are not introduced into certification state.",
+  "residual_risks": [
+    "The repository has no sharp/libvips dependency or shared sharp decoder; the existing packaged strict image decode path is ffmpeg with error escalation. This task reuses the packaged decoder semantics instead of adding an unreviewed native dependency.",
+    "Only binary GLB is a stable first-class 3D asset in the current media registry; textual glTF and archive-based 3D formats remain unsupported until their resource graphs can be bounded safely."
+  ]
+}
