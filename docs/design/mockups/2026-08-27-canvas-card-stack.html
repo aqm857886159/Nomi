@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nomi 画布卡片堆叠样张</title>
+  <style>
+    :root{color-scheme:dark;--bg:#111318;--grid:#20242d;--paper:#242933;--paper2:#2c323e;--line:#3b4351;--ink:#f3f5f7;--muted:#a8b0bd;--accent:#e86d48;--group:#6f68e8}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Inter,ui-sans-serif,system-ui,sans-serif}
+    header{height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--line);background:#171a20}
+    header strong{font-size:16px} header span{color:var(--muted);font-size:12px}
+    main{min-height:calc(100vh - 58px);padding:44px;background-image:radial-gradient(var(--grid) 1px,transparent 1px);background-size:20px 20px}
+    .lane{display:flex;gap:86px;align-items:flex-start;flex-wrap:wrap}.demo{display:grid;gap:14px}.label{color:var(--muted);font-size:12px;font-weight:650;letter-spacing:.04em}
+    .stack{position:relative;width:248px;height:248px;isolation:isolate}.rear{position:absolute;inset:0;border:1px solid var(--line);border-radius:18px;background:var(--paper2);transform-origin:left center;transition:.24s cubic-bezier(.2,.8,.2,1);box-shadow:0 18px 40px #0005}.rear.two{transform:translate(12px,4px) rotate(1.5deg);z-index:1}.rear.three{transform:translate(22px,8px) rotate(3deg);z-index:0}.stack:hover .rear.two,.stack.open .rear.two{transform:translate(20px,3px) rotate(2.4deg)}.stack:hover .rear.three,.stack.open .rear.three{transform:translate(37px,8px) rotate(4.6deg)}
+    .front{position:absolute;inset:0;z-index:2;overflow:hidden;border:1px solid var(--line);border-radius:18px;background:var(--paper);box-shadow:0 22px 55px #0007}.media{height:185px;background:linear-gradient(135deg,#e7b78a,#9a6c68 42%,#2e3a4a);position:relative}.media:after{content:'人物走入雨夜咖啡馆';position:absolute;left:14px;bottom:12px;padding:5px 9px;border-radius:999px;background:#111a;color:white;font-size:11px}.meta{display:flex;align-items:center;justify-content:space-between;padding:12px 14px}.meta b{font-size:13px}.meta small{color:var(--muted)}
+    .peek{position:absolute;right:-47px;top:18px;z-index:4;display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;background:#1a1e25;padding:6px 8px;color:var(--ink);cursor:pointer;box-shadow:0 10px 24px #0006}.peek em{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--accent);font-style:normal;font-size:11px;font-weight:800}.tray{display:none;position:absolute;left:286px;top:0;width:310px;padding:12px;border:1px solid var(--line);border-radius:18px;background:#1a1e25;box-shadow:0 24px 70px #0009;z-index:8}.open .tray{display:grid;gap:9px}.item{display:grid;grid-template-columns:58px 1fr auto;gap:10px;align-items:center;padding:7px;border-radius:12px;background:var(--paper)}.thumb{height:48px;border-radius:9px;background:linear-gradient(135deg,#dbc0a2,#6f738e)}.item:nth-child(3) .thumb{background:linear-gradient(135deg,#708ba6,#302f42)}.item small{color:var(--muted)}.current{outline:1px solid var(--accent)}
+    .group .front{border-color:color-mix(in srgb,var(--group) 65%,var(--line))}.group .media{display:grid;place-items:center;background:linear-gradient(155deg,#303044,#242938)}.group .media:after{content:none}.group-mark{display:grid;place-items:center;width:64px;height:64px;border-radius:18px;background:#746ce8;color:white;font-size:28px;box-shadow:0 16px 36px #0005}.group .peek em{background:var(--group)}
+    .hint{max-width:248px;color:var(--muted);font-size:12px}.note{margin-top:70px;max-width:920px;padding:18px 20px;border:1px solid var(--line);border-radius:18px;background:#171a20}.note b{color:#ff9b7d}
+  </style>
+</head>
+<body>
+  <header><strong>Nomi · 卡片堆叠</strong><span>右侧露角 · 最多三层 · 点击展开</span></header>
+  <main>
+    <div class="lane">
+      <section class="demo">
+        <div class="label">同一节点 · 8 个生成版本</div>
+        <div class="stack" id="versions">
+          <div class="rear three"></div><div class="rear two"></div>
+          <div class="front"><div class="media"></div><div class="meta"><div><b>镜头 03</b><br><small>当前 · 第 6 版</small></div><small>Seedance 2.5</small></div></div>
+          <button class="peek" type="button" onclick="document.querySelector('#versions').classList.toggle('open')"><span>历史</span><em>8</em></button>
+          <div class="tray">
+            <div class="item current"><div class="thumb"></div><div><b>第 6 版</b><br><small>当前结果</small></div><span>✓</span></div>
+            <div class="item"><div class="thumb"></div><div><b>第 5 版</b><br><small>预览 · 下载 · 删除</small></div><span>•••</span></div>
+            <div class="item"><div class="thumb"></div><div><b>第 4 版</b><br><small>预览 · 下载 · 删除</small></div><span>•••</span></div>
+          </div>
+        </div>
+        <div class="hint">正面永远是当前结果。后卡只向右露角；鼠标经过轻轻扇开，点击才进入完整历史。</div>
+      </section>
+      <section class="demo">
+        <div class="label">收起编组 · 4 个独立节点</div>
+        <div class="stack group">
+          <div class="rear three"></div><div class="rear two"></div>
+          <div class="front"><div class="media"><div class="group-mark">⌘</div></div><div class="meta"><div><b>雨夜咖啡馆</b><br><small>分镜编组</small></div><small>拖动整体</small></div></div>
+          <button class="peek" type="button"><span>展开</span><em>4</em></button>
+        </div>
+        <div class="hint">编组不是拼图。它只收纳节点；点击卡角后，四个节点回到原位置，连线和结果都不变。</div>
+      </section>
+    </div>
+    <div class="note"><b>交互边界：</b>版本显示“8 版”，编组显示“4 节点”；编组收起时不再叠加内部版本角，避免两种含义套娃。</div>
+  </main>
+</body>
+</html>
