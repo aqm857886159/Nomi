@@ -10,9 +10,12 @@ import { humanizeModelKey } from "../catalog/modelLabel";
 import { modelHasPublishedExecution } from "../shared/modelPublication";
 import {
   candidateLineageMeta,
+  candidateModelPredecessors,
+  candidatePromotionPredecessorMeta,
   candidateSourceVendorKey,
   newCandidateRevisionId,
   planStagedVendorIdentity,
+  type CandidateModelPredecessors,
 } from "../catalog/stagedVendorIdentity";
 import { adapterModelMetadataForPromotion } from "./promotionMeta";
 import type {
@@ -30,16 +33,27 @@ export type LoadedConnection = {
   headers?: Record<string, string>;
 };
 
+export type ProviderAdapterPromotionResult =
+  | { status: "committed"; committedModes: Array<{ modelKey: string; taskKind: ProfileKind }> }
+  | { status: "no-lease" };
+
+export type StagedProviderAdapterCatalog = {
+  vendor: Vendor;
+  models: Model[];
+  lineageRootVendorKey: string;
+  supersededVendorKeys: string[];
+};
+
 export type ProviderAdapterCatalogPort = {
   register(input: ProviderAdapterRegisterInput & { vendorKey: string; savedAt: string }): { vendor: Vendor; models: Model[] };
-  stage(input: ProviderAdapterStartInput & { vendorKey: string; runId: string }): { vendor: Vendor; models: Model[] };
+  stage(input: ProviderAdapterStartInput & { vendorKey: string; runId: string }): StagedProviderAdapterCatalog;
   load(vendorKey: string, selectedModelKeys: readonly string[]): LoadedConnection | null;
   promote(input: {
     run: ProviderAdapterRun;
     draft: ProviderAdapterDraft;
     revision: ProviderAdapterRevision;
     verifiedModes: Array<{ modelKey: string; taskKind: ProfileKind }>;
-  }): void;
+  }): ProviderAdapterPromotionResult;
   fail(run: ProviderAdapterRun): void;
 };
 
@@ -232,7 +246,12 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
           },
         });
       });
-      return { vendor, models };
+      return {
+        vendor,
+        models,
+        lineageRootVendorKey: identity.rootVendorKey,
+        supersededVendorKeys: identity.supersededVendorKeys,
+      };
     });
   },
 
@@ -259,37 +278,65 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
     // A newer run owns every selected model. The old run is stale even if its
     // caller reached promote after the service-level stale check; do not enable
     // the vendor or publish mappings from that obsolete result.
-    if (ownedModelKeys.size === 0) return;
-    const verified = new Set(input.verifiedModes.map((item) => `${item.modelKey}\0${item.taskKind}`));
+    const committedModes = input.verifiedModes.filter((mode) => ownedModelKeys.has(mode.modelKey));
+    if (committedModes.length === 0 || committedModes.length !== input.verifiedModes.length) {
+      return { status: "no-lease" };
+    }
+    const verified = new Set(committedModes.map((item) => `${item.modelKey}\0${item.taskKind}`));
     const vendorEnabled = before.models.some((model) => {
       if (model.vendorKey !== input.run.vendorKey) return false;
       if (hasPublishedExecution(before, model)) return true;
-      return ownedModelKeys.has(model.modelKey) && input.verifiedModes.some((mode) => mode.modelKey === model.modelKey);
+      return ownedModelKeys.has(model.modelKey) && committedModes.some((mode) => mode.modelKey === model.modelKey);
     });
     const candidateVendor = before.vendors.find((vendor) => vendor.key === input.run.vendorKey);
-    const sourceVendorKey = candidateSourceVendorKey(candidateVendor?.meta);
+    if (!candidateVendor) return { status: "no-lease" };
+    const predecessors = candidateModelPredecessors(candidateVendor.meta);
     const switchedModelKeys = new Set(
-      input.verifiedModes
+      committedModes
         .filter((mode) => ownedModelKeys.has(mode.modelKey))
         .map((mode) => mode.modelKey),
     );
+    const promotionPredecessors: CandidateModelPredecessors = Object.fromEntries(
+      [...switchedModelKeys]
+        .filter((modelKey) => Boolean(predecessors[modelKey]))
+        .map((modelKey) => [modelKey, predecessors[modelKey]]),
+    );
+    const switchedBySource = new Map<string, Set<string>>();
+    for (const [modelKey, predecessor] of Object.entries(promotionPredecessors)) {
+      const models = switchedBySource.get(predecessor.vendorKey) || new Set<string>();
+      models.add(modelKey);
+      switchedBySource.set(predecessor.vendorKey, models);
+    }
     mutateCatalog((tx) => {
       const existingVendor = before.vendors.find((vendor) => vendor.key === input.run.vendorKey);
       if (!existingVendor) throw new Error(`Provider disappeared before adapter promotion: ${input.run.vendorKey}`);
-      tx.upsertVendor({ ...existingVendor, enabled: vendorEnabled });
-      if (sourceVendorKey && switchedModelKeys.size > 0) {
+      tx.upsertVendor({
+        ...existingVendor,
+        enabled: vendorEnabled,
+        meta: {
+          ...asRecord(existingVendor.meta),
+          ...candidatePromotionPredecessorMeta(promotionPredecessors),
+        },
+      });
+      for (const [sourceVendorKey, sourceModelKeys] of switchedBySource) {
         for (const sourceModel of before.models) {
-          if (sourceModel.vendorKey !== sourceVendorKey || !switchedModelKeys.has(sourceModel.modelKey)) continue;
+          if (sourceModel.vendorKey !== sourceVendorKey || !sourceModelKeys.has(sourceModel.modelKey)) continue;
           tx.upsertModel({ ...sourceModel, enabled: false });
         }
         for (const sourceMapping of before.mappings) {
-          if (sourceMapping.vendorKey !== sourceVendorKey || !sourceMapping.modelKey || !switchedModelKeys.has(sourceMapping.modelKey)) continue;
+          if (!sourceMapping.modelKey) continue;
+          const predecessor = promotionPredecessors[sourceMapping.modelKey];
+          if (
+            sourceMapping.vendorKey !== sourceVendorKey ||
+            !sourceModelKeys.has(sourceMapping.modelKey) ||
+            !predecessor?.publishedModes.includes(sourceMapping.taskKind)
+          ) continue;
           tx.upsertMapping({ ...sourceMapping, enabled: false });
         }
         const sourceVendor = before.vendors.find((vendor) => vendor.key === sourceVendorKey);
         if (sourceVendor) {
           const sourceStillPublished = before.models.some(
-            (model) => model.vendorKey === sourceVendorKey && !switchedModelKeys.has(model.modelKey) && hasPublishedExecution(before, model),
+            (model) => model.vendorKey === sourceVendorKey && !sourceModelKeys.has(model.modelKey) && hasPublishedExecution(before, model),
           );
           tx.upsertVendor({ ...sourceVendor, enabled: sourceStillPublished });
         }
@@ -302,7 +349,7 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
         if (!existing) continue;
         const modeResults = input.run.models.find((model) => model.modelKey === candidate.modelKey)?.modes || [];
         const oldMeta = asRecord(existing.meta);
-        const hasVerifiedMode = input.verifiedModes.some((mode) => mode.modelKey === candidate.modelKey);
+        const hasVerifiedMode = committedModes.some((mode) => mode.modelKey === candidate.modelKey);
         tx.upsertModel({
           ...existing,
           ...(hasVerifiedMode ? { labelZh: candidate.labelZh, kind: candidate.kind } : {}),
@@ -363,6 +410,7 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
         });
       }
     });
+    return { status: "committed", committedModes };
   },
 
   fail(run) {

@@ -38,7 +38,7 @@ vi.mock("../catalog/catalogStore", () => ({
 
 const { defaultCatalog } = await import("./service");
 
-function promoteWithEverythingFailed(): void {
+function promoteWithEverythingFailed() {
   const draft = {
     models: [
       {
@@ -49,7 +49,7 @@ function promoteWithEverythingFailed(): void {
       },
     ],
   };
-  defaultCatalog.promote({
+  return defaultCatalog.promote({
     run: {
       id: "run-1",
       vendorKey: vendor.key,
@@ -98,22 +98,23 @@ describe("adapter promotion", () => {
     expect(upsertApiKey).not.toHaveBeenCalled();
   });
 
-  it("keeps the model and vendor disabled when every mode failed verification", () => {
+  it("rejects zero-verified promotion without writing model or vendor state", () => {
     upsertModel.mockClear();
     upsertVendor.mockClear();
 
-    promoteWithEverythingFailed();
+    const result = promoteWithEverythingFailed();
 
-    expect(upsertModel).toHaveBeenCalledWith(expect.objectContaining({ modelKey: model.modelKey, enabled: false }));
-    expect(upsertVendor).toHaveBeenCalledWith(expect.objectContaining({ key: vendor.key, enabled: false }));
+    expect(result).toEqual({ status: "no-lease" });
+    expect(upsertModel).not.toHaveBeenCalled();
+    expect(upsertVendor).not.toHaveBeenCalled();
   });
 
-  it("records the failure on the model so the UI can mark it unverified", () => {
+  it("leaves failure recording to the fail lifecycle rather than promotion", () => {
     upsertModel.mockClear();
 
-    promoteWithEverythingFailed();
+    const result = promoteWithEverythingFailed();
 
-    const [written] = upsertModel.mock.calls[0] as [{ meta?: { adapter?: { state?: string } } }];
-    expect(written.meta?.adapter?.state).toBe("failed");
+    expect(result).toEqual({ status: "no-lease" });
+    expect(upsertModel).not.toHaveBeenCalled();
   });
 });

@@ -63,8 +63,8 @@
     },
     {
       "site": "electron/catalog/secrets.ts::type:ApiKeyDecryptStatus/type-union",
-      "members": ["locked", "missing", "ok"],
-      "reason": "ApiKeyDecryptStatus 是首次真实执行时的凭据可解密性合同：missing 表示没有可用记录，locked 表示 safeStorage 密文存在但宿主无法解密，ok 表示取得可用明文；它会触碰解密能力，与零解密的 textBrain metadata readiness 正交。"
+      "members": ["locked", "missing", "needs_resave", "ok"],
+      "reason": "ApiKeyDecryptStatus 是首次真实执行时的凭据可解密性合同：missing 表示没有可用记录，needs_resave 表示 legacy plaintext 仅可用于迁移提示且不可执行，locked 表示 safeStorage 密文存在但宿主无法解密，ok 表示取得可用明文；它会触碰解密能力，与零解密的 textBrain metadata readiness 正交。"
     },
     {
       "site": "electron/export/exportTypes.ts::type:ExportJobStatus/type-union",
@@ -364,8 +364,8 @@
     },
     {
       "site": "src/workbench/api/modelCatalogApi.ts::type:ModelCatalogHealthIssueCode/type-union",
-      "members": ["catalog_empty", "model_mapping_missing", "vendor_api_key_missing", "vendor_disabled"],
-      "reason": "ModelCatalogHealthIssueCode 是模型目录健康 DTO 的结构化问题码，区分目录为空、供应商禁用、缺 API key 与缺模型映射；renderer 据此定位配置缺口，它不是连接探测或任务状态。"
+      "members": ["catalog_empty", "model_mapping_missing", "vendor_api_key_locked", "vendor_api_key_missing", "vendor_api_key_needs_resave", "vendor_disabled"],
+      "reason": "ModelCatalogHealthIssueCode 是模型目录健康 DTO 的结构化问题码，区分目录为空、供应商禁用、缺 API key、safeStorage 密文锁定、legacy plaintext 需重存与缺模型映射；renderer 据此定位安全且可执行的配置缺口，它不是连接探测或任务状态。"
     },
     {
       "site": "src/workbench/export/exportApi.ts::type:ExportTimelineToMp4Options/property:onProgress/parameter:progress/property:status/type-union",

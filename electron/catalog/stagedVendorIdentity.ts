@@ -1,10 +1,34 @@
 import crypto from "node:crypto";
-import { modelHasPublishedExecution } from "../shared/modelPublication";
-import type { CatalogState, Vendor } from "./types";
+import { derivePublishedExecution, modelHasPublishedExecution } from "../shared/modelPublication";
+import type { CatalogState, ProfileKind, Vendor } from "./types";
 
 export const ADAPTER_CANDIDATE_SOURCE_VENDOR_KEY = "adapterCandidateSourceVendorKey";
 export const ADAPTER_CANDIDATE_ROOT_VENDOR_KEY = "adapterCandidateRootVendorKey";
 export const ADAPTER_CANDIDATE_REVISION_ID = "adapterCandidateRevisionId";
+export const ADAPTER_CANDIDATE_MODEL_PREDECESSORS = "adapterCandidateModelPredecessors";
+export const ADAPTER_CANDIDATE_PROMOTION_PREDECESSORS = "adapterCandidatePromotionPredecessors";
+
+const PROFILE_KINDS = new Set<ProfileKind>([
+  "chat",
+  "prompt_refine",
+  "text_to_image",
+  "image_to_prompt",
+  "image_to_video",
+  "text_to_video",
+  "image_edit",
+  "text_to_audio",
+  "image_to_audio",
+  "transcribe",
+  "text_to_3d",
+  "image_to_3d",
+]);
+
+export type CandidateModelPredecessor = {
+  vendorKey: string;
+  publishedModes: ProfileKind[];
+};
+
+export type CandidateModelPredecessors = Record<string, CandidateModelPredecessor>;
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -51,6 +75,31 @@ export function candidateRevisionId(meta: unknown): string {
   return text(record(meta)?.[ADAPTER_CANDIDATE_REVISION_ID]);
 }
 
+function parsePredecessors(value: unknown): CandidateModelPredecessors {
+  const raw = record(value);
+  if (!raw) return {};
+  const parsed: CandidateModelPredecessors = {};
+  for (const [modelKey, item] of Object.entries(raw)) {
+    const candidate = record(item);
+    const vendorKey = text(candidate?.vendorKey);
+    const publishedModes = Array.isArray(candidate?.publishedModes)
+      ? candidate.publishedModes.filter((mode): mode is ProfileKind => typeof mode === "string" && PROFILE_KINDS.has(mode as ProfileKind))
+      : [];
+    if (modelKey.trim() && vendorKey && publishedModes.length > 0) {
+      parsed[modelKey] = { vendorKey, publishedModes: [...new Set(publishedModes)] };
+    }
+  }
+  return parsed;
+}
+
+export function candidateModelPredecessors(meta: unknown): CandidateModelPredecessors {
+  return parsePredecessors(record(meta)?.[ADAPTER_CANDIDATE_MODEL_PREDECESSORS]);
+}
+
+export function candidatePromotionPredecessors(meta: unknown): CandidateModelPredecessors {
+  return parsePredecessors(record(meta)?.[ADAPTER_CANDIDATE_PROMOTION_PREDECESSORS]);
+}
+
 export function isCandidateVendor(vendor: Pick<Vendor, "meta"> | null | undefined): boolean {
   return Boolean(candidateSourceVendorKey(vendor?.meta));
 }
@@ -92,6 +141,33 @@ function lineageVendors(state: CatalogState, rootVendorKey: string): Vendor[] {
   );
 }
 
+function activeModelPredecessors(
+  state: CatalogState,
+  lineage: readonly Vendor[],
+  selectedModelKeys: readonly string[],
+): CandidateModelPredecessors {
+  const predecessors: CandidateModelPredecessors = {};
+  for (const modelKey of selectedModelKeys) {
+    const candidates = lineage.flatMap((vendor) => state.models
+      .filter((model) => model.vendorKey === vendor.key && model.modelKey === modelKey)
+      .map((model) => ({
+        vendor,
+        model,
+        publication: derivePublishedExecution(model, { mappings: state.mappings, legacyWithoutAdapter: "text-only" }),
+      })))
+      .filter((candidate) => candidate.publication.published)
+      .sort((left, right) => Date.parse(right.model.updatedAt) - Date.parse(left.model.updatedAt));
+    const active = candidates[0];
+    if (active) {
+      predecessors[modelKey] = {
+        vendorKey: active.vendor.key,
+        publishedModes: active.publication.publishedModes,
+      };
+    }
+  }
+  return predecessors;
+}
+
 export type StagedVendorIdentity = {
   vendorKey: string;
   isolated: boolean;
@@ -99,6 +175,7 @@ export type StagedVendorIdentity = {
   rootVendorKey: string;
   revisionId: string;
   supersededVendorKeys: string[];
+  modelPredecessors: CandidateModelPredecessors;
 };
 
 /**
@@ -119,6 +196,7 @@ export function planStagedVendorIdentity(input: {
   const rootVendorKey = lineageRoot(input.state, sourceVendorKey);
   const selected = new Set(input.selectedModelKeys);
   const lineage = lineageVendors(input.state, rootVendorKey);
+  const modelPredecessors = activeModelPredecessors(input.state, lineage, input.selectedModelKeys);
 
   const sameRevision = input.reuseUnpublishedCandidate
     ? lineage.find((vendor) =>
@@ -135,6 +213,7 @@ export function planStagedVendorIdentity(input: {
       rootVendorKey,
       revisionId: input.revisionId,
       supersededVendorKeys: [],
+      modelPredecessors: candidateModelPredecessors(sameRevision.meta),
     };
   }
 
@@ -150,6 +229,7 @@ export function planStagedVendorIdentity(input: {
       rootVendorKey,
       revisionId: candidateRevisionId(sourceVendor?.meta) || input.revisionId,
       supersededVendorKeys: [],
+      modelPredecessors: candidateModelPredecessors(sourceVendor?.meta),
     };
   }
 
@@ -170,10 +250,14 @@ export function planStagedVendorIdentity(input: {
       rootVendorKey,
       revisionId: input.revisionId,
       supersededVendorKeys: [],
+      modelPredecessors,
     };
   }
 
-  const immediateSourceVendorKey = activeSource?.key || candidateSourceVendorKey(sourceVendor?.meta) || sourceVendorKey;
+  const predecessorVendors = [...new Set(Object.values(modelPredecessors).map((predecessor) => predecessor.vendorKey))];
+  const immediateSourceVendorKey = predecessorVendors.length === 1
+    ? predecessorVendors[0]
+    : activeSource?.key || rootVendorKey;
   let vendorKey = stagedVendorKey(rootVendorKey, input.connection, input.revisionId);
   let suffix = 2;
   while (input.state.vendors.some((vendor) => vendor.key === vendorKey)) {
@@ -190,15 +274,23 @@ export function planStagedVendorIdentity(input: {
     rootVendorKey,
     revisionId: input.revisionId,
     supersededVendorKeys,
+    modelPredecessors,
   };
 }
 
-export function candidateLineageMeta(identity: StagedVendorIdentity): Record<string, string> {
+export function candidateLineageMeta(identity: StagedVendorIdentity): Record<string, unknown> {
   return identity.isolated
     ? {
         [ADAPTER_CANDIDATE_SOURCE_VENDOR_KEY]: identity.sourceVendorKey,
         [ADAPTER_CANDIDATE_ROOT_VENDOR_KEY]: identity.rootVendorKey,
         [ADAPTER_CANDIDATE_REVISION_ID]: identity.revisionId,
+        [ADAPTER_CANDIDATE_MODEL_PREDECESSORS]: identity.modelPredecessors,
       }
     : {};
+}
+
+export function candidatePromotionPredecessorMeta(
+  predecessors: CandidateModelPredecessors,
+): Record<string, CandidateModelPredecessors> {
+  return { [ADAPTER_CANDIDATE_PROMOTION_PREDECESSORS]: predecessors };
 }

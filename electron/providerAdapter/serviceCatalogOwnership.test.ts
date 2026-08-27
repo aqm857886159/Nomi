@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CatalogState, Mapping, Model, Vendor } from "../catalog/types";
+import { removeVendorLineage, restoreSourceAfterCandidateDeletion } from "../catalog/vendorLineageLifecycle";
 import type { ProviderAdapterDraft, ProviderAdapterRun } from "./types";
 
 const now = "2026-08-15T00:00:00.000Z";
@@ -493,5 +494,133 @@ describe("provider adapter catalog run ownership", () => {
 
     expect(second.vendor.key).toBe(first.vendor.key);
     expect(state.vendors.filter((vendor) => vendor.key.includes("--candidate-"))).toHaveLength(1);
+  });
+
+  it("tracks a predecessor per model when active models span root and a promoted candidate", () => {
+    const promotedVendorKey = `${vendorKey}--candidate-promoted`;
+    state = {
+      ...initialState(),
+      vendors: [
+        { ...initialState().vendors[0], enabled: true, authType: "bearer" },
+        {
+          ...initialState().vendors[0],
+          key: promotedVendorKey,
+          enabled: true,
+          authType: "bearer",
+          meta: {
+            adapterCandidateSourceVendorKey: vendorKey,
+            adapterCandidateRootVendorKey: vendorKey,
+            adapterCandidateRevisionId: "promoted-a",
+          },
+        },
+      ],
+      models: [
+        { ...initialState().models[0], enabled: false },
+        { ...initialState().models[0], vendorKey: promotedVendorKey, enabled: true },
+        { ...initialState().models[0], modelKey: "video-b", labelZh: "Video B", kind: "video", enabled: true },
+      ],
+      mappings: [
+        { id: "root-a", vendorKey, modelKey, taskKind: "text_to_image", name: "root a", enabled: false, create: { method: "POST", path: "/root-a" }, createdAt: now, updatedAt: now },
+        { id: "promoted-a", vendorKey: promotedVendorKey, modelKey, taskKind: "text_to_image", name: "promoted a", enabled: true, create: { method: "POST", path: "/promoted-a" }, createdAt: now, updatedAt: now },
+        { id: "root-b", vendorKey, modelKey: "video-b", taskKind: "text_to_video", name: "root b", enabled: true, create: { method: "POST", path: "/root-b" }, createdAt: now, updatedAt: now },
+      ],
+      apiKeysByVendor: {
+        [vendorKey]: { vendorKey, apiKey: "encrypted-root", enc: "safeStorage", enabled: true, createdAt: now, updatedAt: now },
+        [promotedVendorKey]: { vendorKey: promotedVendorKey, apiKey: "encrypted-promoted", enc: "safeStorage", enabled: true, createdAt: now, updatedAt: now },
+      },
+    };
+
+    const staged = defaultCatalog.stage({
+      catalogVendorKey: vendorKey,
+      vendorKey,
+      runId: "run-multi",
+      vendorName: "Multi candidate",
+      baseUrl: "https://multi.example.test/v1",
+      apiKey: "multi-key",
+      authType: "bearer",
+      providerKind: "openai-compatible",
+      models: [
+        { modelKey, labelZh: "Image A", kind: "image" },
+        { modelKey: "video-b", labelZh: "Video B", kind: "video" },
+      ],
+    });
+
+    expect(staged.vendor.meta).toMatchObject({
+      adapterCandidateModelPredecessors: {
+        [modelKey]: { vendorKey: promotedVendorKey, publishedModes: ["text_to_image"] },
+        "video-b": { vendorKey, publishedModes: ["text_to_video"] },
+      },
+    });
+
+    const multiDraft: ProviderAdapterDraft = {
+      provider: { baseUrl: "https://multi.example.test/v1", authType: "bearer", providerKind: "openai-compatible" },
+      sources: [],
+      models: [
+        { modelKey, labelZh: "Image A next", kind: "image", modes: [{ taskKind: "text_to_image", create: { method: "POST", path: "/next-a" }, sourceUrls: [] }] },
+        { modelKey: "video-b", labelZh: "Video B next", kind: "video", modes: [{ taskKind: "text_to_video", create: { method: "POST", path: "/next-b" }, sourceUrls: [] }] },
+      ],
+    };
+    const multiRun: ProviderAdapterRun = {
+      ...run("run-multi", "partial", "verified"),
+      vendorKey: staged.vendor.key,
+      selectedModelKeys: [modelKey, "video-b"],
+      models: [
+        run("run-multi", "partial", "verified").models[0],
+        { modelKey: "video-b", labelZh: "Video B", kind: "video", modes: [{ taskKind: "text_to_video", state: "failed", attempts: 1, stage: "create", error: "failed" }] },
+      ],
+    };
+    const result = defaultCatalog.promote({
+      run: multiRun,
+      draft: multiDraft,
+      revision: {
+        id: "revision-multi",
+        vendorKey: staged.vendor.key,
+        digest: "digest-multi",
+        draft: multiDraft,
+        verifiedModes: [{ modelKey, taskKind: "text_to_image" }],
+        createdAt: now,
+      },
+      verifiedModes: [{ modelKey, taskKind: "text_to_image" }],
+    });
+
+    expect(result).toEqual({
+      status: "committed",
+      committedModes: [{ modelKey, taskKind: "text_to_image" }],
+    });
+    expect(state.models.find((model) => model.vendorKey === promotedVendorKey && model.modelKey === modelKey)?.enabled).toBe(false);
+    expect(state.mappings.find((mapping) => mapping.id === "promoted-a")?.enabled).toBe(false);
+    expect(state.vendors.find((vendor) => vendor.key === promotedVendorKey)?.enabled).toBe(false);
+    expect(state.models.find((model) => model.vendorKey === vendorKey && model.modelKey === "video-b")?.enabled).toBe(true);
+    expect(state.models.find((model) => model.vendorKey === staged.vendor.key && model.modelKey === "video-b")?.enabled).toBe(false);
+    expect(state.models.filter((model) => model.modelKey === modelKey && model.enabled)).toHaveLength(1);
+
+    restoreSourceAfterCandidateDeletion(state, staged.vendor.key);
+    removeVendorLineage(state, staged.vendor.key);
+
+    expect(state.vendors.some((vendor) => vendor.key === staged.vendor.key)).toBe(false);
+    expect(state.apiKeysByVendor[staged.vendor.key]).toBeUndefined();
+    expect(state.models.find((model) => model.vendorKey === promotedVendorKey && model.modelKey === modelKey)?.enabled).toBe(true);
+    expect(state.mappings.find((mapping) => mapping.id === "promoted-a")?.enabled).toBe(true);
+    expect(state.models.find((model) => model.vendorKey === vendorKey && model.modelKey === "video-b")?.enabled).toBe(true);
+    expect(state.models.filter((model) => model.modelKey === modelKey && model.enabled)).toHaveLength(1);
+  });
+
+  it("returns no-lease instead of an ambiguous successful void when a candidate no longer owns the model", () => {
+    const candidate = draft("/late");
+    const result = defaultCatalog.promote({
+      run: run("run-without-lease", "completed", "verified"),
+      draft: candidate,
+      revision: {
+        id: "revision-without-lease",
+        vendorKey,
+        digest: "digest-without-lease",
+        draft: candidate,
+        verifiedModes: [{ modelKey, taskKind: "text_to_image" }],
+        createdAt: now,
+      },
+      verifiedModes: [{ modelKey, taskKind: "text_to_image" }],
+    });
+
+    expect(result).toEqual({ status: "no-lease" });
   });
 });

@@ -10,6 +10,8 @@ import type { AiSdkProviderKind, BillingModelKind, HttpOperation, Model, Profile
 import type { TaskRequest } from "../runtime";
 import { modelHasPublishedExecution } from "../shared/modelPublication";
 import {
+  ADAPTER_CANDIDATE_MODEL_PREDECESSORS,
+  candidateModelPredecessors,
   candidateLineageMeta,
   newCandidateRevisionId,
   planStagedVendorIdentity,
@@ -344,12 +346,31 @@ export function commitOnboardedModelsToCatalog(payload: { entries: OnboardedMode
   const revisionId = newCandidateRevisionId("manual-onboarding");
   const prepared = entries.map((entry) => prepareOnboardedModel(entry, before, revisionId));
   const credentialByVendor = new Map<string, string>();
+  const vendorPayloadByKey = new Map<string, Record<string, unknown>>();
   for (const item of prepared) {
     const existing = credentialByVendor.get(item.vendorKey);
     if (existing !== undefined && existing !== item.userApiKey) {
       throw new Error(`conflicting credentials for onboarding vendor ${item.vendorKey}`);
     }
     credentialByVendor.set(item.vendorKey, item.userApiKey);
+    const previous = vendorPayloadByKey.get(item.vendorKey);
+    const previousMeta = isJsonRecord(previous?.meta) ? previous.meta : {};
+    const incomingMeta = isJsonRecord(item.vendorPayload.meta) ? item.vendorPayload.meta : {};
+    const mergedPredecessors = {
+      ...candidateModelPredecessors(previousMeta),
+      ...candidateModelPredecessors(incomingMeta),
+    };
+    vendorPayloadByKey.set(item.vendorKey, {
+      ...(previous || item.vendorPayload),
+      ...item.vendorPayload,
+      meta: {
+        ...previousMeta,
+        ...incomingMeta,
+        ...(Object.keys(mergedPredecessors).length > 0
+          ? { [ADAPTER_CANDIDATE_MODEL_PREDECESSORS]: mergedPredecessors }
+          : {}),
+      },
+    });
   }
 
   return mutateCatalog((tx) => {
@@ -360,7 +381,7 @@ export function commitOnboardedModelsToCatalog(payload: { entries: OnboardedMode
     for (const item of prepared) {
       if (writtenVendors.has(item.vendorKey)) continue;
       writtenVendors.add(item.vendorKey);
-      tx.upsertVendor(item.vendorPayload);
+      tx.upsertVendor(vendorPayloadByKey.get(item.vendorKey) || item.vendorPayload);
       // Exactly one secure writer call per vendor/batch.
       tx.upsertApiKey(item.vendorKey, { apiKey: item.userApiKey, enabled: true });
     }

@@ -24,25 +24,33 @@ import type {
   ProviderAdapterDraft,
   ProviderAdapterRegisterInput,
   ProviderAdapterRegistration,
-  ProviderAdapterRevision,
   ProviderAdapterRun,
 } from "./types";
-import { adapterRevisionDigest } from "./validator";
 import { verifyAdapterMode, type AdapterVerificationResult } from "./verifier";
 import { redactAdapterSecrets } from "./redaction";
 import { defaultCatalog, type LoadedConnection, type ProviderAdapterCatalogPort } from "./serviceCatalog";
 import { AdapterWaitError, awaitAdapterStep, deadlineExpired, deadlineFrom } from "./serviceLifecycle";
 import {
   completedModelCount,
-  failUnfinishedModes,
   genericCompilation,
   primaryTaskKind,
   withTextModels,
 } from "./serviceFallback";
 import { compileMediaModels } from "./serviceCompilation";
 import { normalizeProviderAdapterInput, registerProviderConnection } from "./registration";
+import {
+  activeRunsSupersededBy,
+  adapterRunLineageRoot,
+  buildTerminalFailureRun,
+  latestRunInLineage,
+  planAdapterPromotionFinal,
+  staleAdapterRun,
+  type ModeResultWithModel,
+} from "./serviceRunLifecycle";
+import { prioritizeCompilerCandidates } from "./compilerCandidatePriority";
 
 export { adapterModelMetadataForPromotion } from "./promotionMeta";
+export { prioritizeCompilerCandidates } from "./compilerCandidatePriority";
 export { defaultCatalog } from "./serviceCatalog";
 export type { ProviderAdapterCatalogPort } from "./serviceCatalog";
 
@@ -87,28 +95,6 @@ export type ProviderAdapterServiceDependencies = {
   repairTimeoutMs?: number;
   verifyTimeoutMs?: number;
 };
-
-export function prioritizeCompilerCandidates<T extends { vendorKey: string }>(
-  candidates: readonly T[],
-  targetVendorKey?: string,
-): T[] {
-  const seenVendors = new Set<string>();
-  const firstPerVendor: T[] = [];
-  const remaining: T[] = [];
-  for (const candidate of candidates) {
-    if (seenVendors.has(candidate.vendorKey)) remaining.push(candidate);
-    else {
-      seenVendors.add(candidate.vendorKey);
-      firstPerVendor.push(candidate);
-    }
-  }
-  const prioritized = [...firstPerVendor, ...remaining];
-  if (!targetVendorKey) return prioritized;
-  return [
-    ...prioritized.filter((candidate) => candidate.vendorKey !== targetVendorKey),
-    ...prioritized.filter((candidate) => candidate.vendorKey === targetVendorKey),
-  ];
-}
 
 function defaultResolveLanguageModels(connection: LoadedConnection): LanguageModelV1[] {
   const state = readCatalog();
@@ -162,8 +148,6 @@ const defaultDependencies: ProviderAdapterServiceDependencies = {
   verifyTimeoutMs: 90_000,
 };
 
-type ModeResultWithModel = AdapterModeResult & { modelKey: string };
-
 export class ProviderAdapterService {
   private readonly dependencies: ProviderAdapterServiceDependencies;
   private readonly active = new Map<string, Promise<void>>();
@@ -191,9 +175,16 @@ export class ProviderAdapterService {
     const id = this.dependencies.id();
     const staged = this.dependencies.catalog.stage({ ...input, vendorKey, runId: id });
     const timestamp = this.dependencies.now();
+    this.supersedeActiveLineageRuns(
+      id,
+      staged.lineageRootVendorKey,
+      new Set(staged.supersededVendorKeys),
+      timestamp,
+    );
     const run: ProviderAdapterRun = {
       id,
       vendorKey: staged.vendor.key,
+      lineageRootVendorKey: staged.lineageRootVendorKey,
       vendorName: staged.vendor.name,
       connectionFingerprint: connectionFingerprint({
         baseUrl: input.baseUrl,
@@ -305,8 +296,18 @@ export class ProviderAdapterService {
       headers: connection.headers,
     });
     if (fingerprint !== initial.connectionFingerprint) {
-      const stale = this.store.markStaleIfConnectionChanged(id, fingerprint);
-      if (stale?.stage === "stale") this.dependencies.catalog.fail(stale);
+      const staleAt = this.dependencies.now();
+      const stale: ProviderAdapterRun = {
+        ...initial,
+        stage: "stale",
+        error: "Provider connection changed before verification completed",
+        currentModelKey: undefined,
+        stageStartedAt: staleAt,
+        lastProgressAt: staleAt,
+        updatedAt: staleAt,
+      };
+      this.dependencies.catalog.fail(stale);
+      this.store.upsertRun(stale);
       return;
     }
 
@@ -618,45 +619,39 @@ export class ProviderAdapterService {
   ): Promise<void> {
     const current = this.store.getRun(id);
     if (!current || isTerminalAdapterStage(current.stage) || this.markStaleIfSuperseded(current)) return;
-    const verifiedModes = results
-      .filter((result) => result.state === "verified")
-      .map((result) => ({ modelKey: result.modelKey, taskKind: result.taskKind }));
-    const digest = adapterRevisionDigest(draft);
-    const revision: ProviderAdapterRevision = {
-      id: `adapter-revision-${digest.slice(0, 20)}`,
-      vendorKey: this.store.getRun(id)?.vendorKey || "",
-      digest,
+    const { verifiedModes, revision, completedRun } = planAdapterPromotionFinal({
+      current,
       draft,
-      verifiedModes,
-      createdAt: this.dependencies.now(),
-    };
-    const finalStage = deadlineReached && verifiedModes.length === 0
-      ? "timed_out"
-      : verifiedModes.length === 0
-        ? "failed"
-        : results.some((result) => result.state === "failed")
-          ? "partial"
-          : "completed";
-    const completedAt = this.dependencies.now();
-    const completedRun: ProviderAdapterRun = {
-      ...current,
-      stage: finalStage,
-      currentModelKey: undefined,
-      completedCount: current.totalCount ?? current.selectedModelKeys.length,
-      totalCount: current.totalCount ?? current.selectedModelKeys.length,
-      activeRevision: verifiedModes.length > 0 ? revision.id : current.activeRevision,
-      ...(repairError ? { error: repairError.slice(0, 2_000) } : {}),
-      stageStartedAt: completedAt,
-      lastProgressAt: completedAt,
-      updatedAt: completedAt,
-    };
-    // The catalog is the user-visible result. Do not publish a successful run
-    // before that result is durable, otherwise a write failure becomes a false
-    // "completed" state that the outer error handler can no longer change.
-    this.dependencies.catalog.promote({ run: completedRun, draft, revision, verifiedModes });
-    this.store.upsertRun(completedRun);
-    if (verifiedModes.length === 0) return;
-    this.store.upsertRevision(revision);
+      results,
+      repairError,
+      deadlineReached,
+      completedAt: this.dependencies.now(),
+    });
+    // A zero-pass run has no publishable contract. Cleanup is the durable result;
+    // only persist the terminal run after catalog cleanup succeeds.
+    if (verifiedModes.length === 0) {
+      this.dependencies.catalog.fail(completedRun);
+      this.store.upsertRun(completedRun);
+      return;
+    }
+
+    // The catalog is the user-visible result. A lease miss means a newer lineage
+    // revision already superseded this run; never turn that no-op into completed.
+    const promotion = this.dependencies.catalog.promote({ run: completedRun, draft, revision, verifiedModes });
+    if (promotion.status === "no-lease") {
+      const staleRun: ProviderAdapterRun = {
+        ...completedRun,
+        stage: "stale",
+        activeRevision: current.activeRevision,
+        error: "A newer verification run replaced this result before promotion committed",
+      };
+      this.dependencies.catalog.fail(staleRun);
+      this.store.upsertRun(staleRun);
+      return;
+    }
+    const committedRevision = { ...revision, verifiedModes: promotion.committedModes };
+    this.store.upsertRun({ ...completedRun, activeRevision: committedRevision.id });
+    this.store.upsertRevision(committedRevision);
   }
 
   private setStage(
@@ -709,20 +704,15 @@ export class ProviderAdapterService {
           : "promote";
     const error = redactAdapterSecrets(message);
     const finishedAt = this.dependencies.now();
-    const models = failUnfinishedModes(existing.models, failureStage, error);
-    const run = this.store.updateRun(id, (current) => ({
-      ...current,
+    const run = buildTerminalFailureRun({
+      existing,
       stage,
       error,
-      currentModelKey: undefined,
-      models,
-      completedCount: completedModelCount(models),
-      totalCount: current.totalCount ?? current.selectedModelKeys.length,
-      stageStartedAt: finishedAt,
-      lastProgressAt: finishedAt,
-      updatedAt: finishedAt,
-    }));
+      failureStage,
+      finishedAt,
+    });
     this.dependencies.catalog.fail(run);
+    this.store.upsertRun(run);
     return run;
   }
 
@@ -764,20 +754,37 @@ export class ProviderAdapterService {
 
   private markStaleIfSuperseded(run: ProviderAdapterRun): boolean {
     if (isTerminalAdapterStage(run.stage)) return true;
-    const latest = this.store.latestRun(run.vendorKey);
+    const lineageRoot = adapterRunLineageRoot(run);
+    const latest = latestRunInLineage(this.store.snapshot().runs, lineageRoot);
     if (!latest || latest.id === run.id) return false;
     const staleAt = this.dependencies.now();
-    const stale = this.store.updateRun(run.id, (current) => ({
-      ...current,
-      stage: "stale",
-      error: "A newer verification run replaced this result",
-      currentModelKey: undefined,
-      stageStartedAt: staleAt,
-      lastProgressAt: staleAt,
-      updatedAt: staleAt,
-    }));
+    const stale = staleAdapterRun(run, staleAt, "A newer verification run replaced this result");
     this.dependencies.catalog.fail(stale);
+    this.store.upsertRun(stale);
+    this.controllers.get(run.id)?.abort();
     return true;
+  }
+
+  private supersedeActiveLineageRuns(
+    nextRunId: string,
+    lineageRootVendorKey: string,
+    supersededVendorKeys: ReadonlySet<string>,
+    staleAt: string,
+  ): void {
+    const superseded = activeRunsSupersededBy({
+      runs: this.store.snapshot().runs,
+      nextRunId,
+      lineageRootVendorKey,
+      supersededVendorKeys,
+    });
+    for (const current of superseded) {
+      const stale = staleAdapterRun(current, staleAt, "A newer verification run replaced this result");
+      // stage() removes superseded candidate rows atomically; fail() is an
+      // idempotent lifecycle acknowledgement for alternate catalog ports.
+      this.dependencies.catalog.fail(stale);
+      this.store.upsertRun(stale);
+      this.controllers.get(current.id)?.abort();
+    }
   }
 
 }

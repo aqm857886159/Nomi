@@ -444,6 +444,64 @@ describe("manual model entry — user journey", () => {
     expect(safeStorageTest.encryptString).toHaveBeenCalledTimes(1);
   });
 
+  it("persists every model predecessor when a manual batch spans root and a promoted candidate", () => {
+    const baseUrl = "https://mixed-predecessor.example.test/v1";
+    const rootVendorKey = deriveVendorKeyFromBaseUrl(baseUrl);
+    commitManualOpenAiCompatibleModels({
+      vendorName: "Mixed predecessor",
+      baseUrl,
+      apiKey: "root-key",
+      models: [{ id: "image-a", kind: "image" }, { id: "video-b", kind: "video" }],
+    });
+    const catalogFile = path.join(mockedUserDataRoot, "model-catalog.json");
+    const catalog = JSON.parse(fs.readFileSync(catalogFile, "utf8")) as {
+      vendors: Array<Record<string, unknown>>;
+      models: Array<Record<string, unknown>>;
+      mappings: Array<Record<string, unknown>>;
+      apiKeysByVendor: Record<string, unknown>;
+    };
+    const promotedVendorKey = `${rootVendorKey}--candidate-promoted-a`;
+    const rootVendor = catalog.vendors.find((vendor) => vendor.key === rootVendorKey)!;
+    const rootImage = catalog.models.find((model) => model.vendorKey === rootVendorKey && model.modelKey === "image-a")!;
+    const rootVideo = catalog.models.find((model) => model.vendorKey === rootVendorKey && model.modelKey === "video-b")!;
+    Object.assign(rootVendor, { enabled: true });
+    Object.assign(rootImage, { enabled: false });
+    Object.assign(rootVideo, { enabled: true });
+    catalog.vendors.push({
+      ...rootVendor,
+      key: promotedVendorKey,
+      enabled: true,
+      meta: {
+        adapterCandidateSourceVendorKey: rootVendorKey,
+        adapterCandidateRootVendorKey: rootVendorKey,
+        adapterCandidateRevisionId: "promoted-a",
+      },
+    });
+    catalog.models.push({ ...rootImage, vendorKey: promotedVendorKey, enabled: true });
+    catalog.mappings.push(
+      { id: "root-a", vendorKey: rootVendorKey, modelKey: "image-a", taskKind: "text_to_image", name: "root a", enabled: false, create: { method: "POST", path: "/root-a" }, createdAt: "2026-08-28T00:00:00.000Z", updatedAt: "2026-08-28T00:00:00.000Z" },
+      { id: "candidate-a", vendorKey: promotedVendorKey, modelKey: "image-a", taskKind: "text_to_image", name: "candidate a", enabled: true, create: { method: "POST", path: "/candidate-a" }, createdAt: "2026-08-28T00:00:00.000Z", updatedAt: "2026-08-28T00:00:00.000Z" },
+      { id: "root-b", vendorKey: rootVendorKey, modelKey: "video-b", taskKind: "text_to_video", name: "root b", enabled: true, create: { method: "POST", path: "/root-b" }, createdAt: "2026-08-28T00:00:00.000Z", updatedAt: "2026-08-28T00:00:00.000Z" },
+    );
+    catalog.apiKeysByVendor[promotedVendorKey] = catalog.apiKeysByVendor[rootVendorKey];
+    fs.writeFileSync(catalogFile, JSON.stringify(catalog), "utf8");
+
+    const result = commitManualOpenAiCompatibleModels({
+      vendorName: "Mixed next",
+      baseUrl: "https://mixed-predecessor.example.test/v2",
+      apiKey: "next-key",
+      models: [{ id: "image-a", kind: "image" }, { id: "video-b", kind: "video" }],
+    });
+    const after = JSON.parse(fs.readFileSync(catalogFile, "utf8")) as typeof catalog;
+
+    expect(after.vendors.find((vendor) => vendor.key === result.vendorKey)?.meta).toMatchObject({
+      adapterCandidateModelPredecessors: {
+        "image-a": { vendorKey: promotedVendorKey, publishedModes: ["text_to_image"] },
+        "video-b": { vendorKey: rootVendorKey, publishedModes: ["text_to_video"] },
+      },
+    });
+  });
+
   it("leaves the catalog byte-identical when a later candidate is invalid", () => {
     commitManualOpenAiCompatibleModels({
       vendorName: "Existing",

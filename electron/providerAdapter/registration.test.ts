@@ -43,7 +43,7 @@ describe("provider connection save-first registration", () => {
       })),
       stage: vi.fn(() => { throw new Error("not used"); }),
       load: vi.fn(() => null),
-      promote: vi.fn(),
+      promote: vi.fn(() => ({ status: "no-lease" as const })),
       fail: vi.fn(),
     };
 
@@ -91,7 +91,7 @@ describe("provider connection save-first registration", () => {
       register,
       stage: vi.fn(() => { throw new Error("stage must not run while saving"); }),
       load: vi.fn(() => null),
-      promote: vi.fn(),
+      promote: vi.fn(() => ({ status: "no-lease" as const })),
       fail: vi.fn(),
     };
     const adapterStore = store();

@@ -139,6 +139,8 @@ export type AdapterModelResult = {
 export type ProviderAdapterRun = {
   id: string;
   vendorKey: string;
+  /** Stable family identity shared by root and every candidate revision. */
+  lineageRootVendorKey?: string;
   vendorName: string;
   connectionFingerprint: string;
   selectedModelKeys: string[];

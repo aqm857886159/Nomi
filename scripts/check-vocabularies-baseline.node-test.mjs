@@ -156,6 +156,29 @@ test('repository text-brain reasons preserve metadata readiness without keychain
   assert.doesNotMatch(debtBySite.get(stalePreload)?.reason ?? '', /应.*复用.*ApiKeyDecryptStatus/i)
 })
 
+test('repository credential and catalog health vocabularies preserve fail-closed migration states', () => {
+  const baseline = JSON.parse(fs.readFileSync(repositoryBaselinePath, 'utf8'))
+  const registeredBySite = new Map(baseline.registered.map((entry) => [entry.site, entry]))
+  const credential = registeredBySite.get(
+    'electron/catalog/secrets.ts::type:ApiKeyDecryptStatus/type-union',
+  )
+  const health = registeredBySite.get(
+    'src/workbench/api/modelCatalogApi.ts::type:ModelCatalogHealthIssueCode/type-union',
+  )
+
+  assert.deepEqual(credential?.members, ['locked', 'missing', 'needs_resave', 'ok'])
+  assert.match(credential?.reason ?? '', /needs_resave.*legacy plaintext.*不可执行/i)
+  assert.deepEqual(health?.members, [
+    'catalog_empty',
+    'model_mapping_missing',
+    'vendor_api_key_locked',
+    'vendor_api_key_missing',
+    'vendor_api_key_needs_resave',
+    'vendor_disabled',
+  ])
+  assert.match(health?.reason ?? '', /safeStorage.*锁定.*legacy plaintext.*重存/i)
+})
+
 test('repository helper subsets and incomplete projections remain debt', () => {
   const baseline = JSON.parse(fs.readFileSync(repositoryBaselinePath, 'utf8'))
   const registeredSites = new Set(baseline.registered.map((entry) => entry.site))

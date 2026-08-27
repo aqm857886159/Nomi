@@ -114,6 +114,9 @@ describe("candidate vendor lineage deletion", () => {
           adapterCandidateSourceVendorKey: root,
           adapterCandidateRootVendorKey: root,
           adapterCandidateRevisionId: "promoted",
+          adapterCandidatePromotionPredecessors: {
+            target: { vendorKey: root, publishedModes: ["text_to_image"] },
+          },
         }),
         vendor(child, {
           adapterCandidateSourceVendorKey: candidate,
@@ -151,6 +154,65 @@ describe("candidate vendor lineage deletion", () => {
     expect(state.mappings.find((mapping) => mapping.id === "source-target")?.enabled).toBe(true);
     expect(state.models.find((model) => model.modelKey === "sibling")?.enabled).toBe(true);
     expect(state.mappings.find((mapping) => mapping.id === "source-sibling")?.enabled).toBe(true);
+    expect(Object.keys(state.apiKeysByVendor)).toEqual([root]);
+  });
+
+  it("restores every source mode disabled by promotion even when the candidate published only one mode", () => {
+    const root = "source";
+    const candidate = "source--candidate-partial";
+    writeState({
+      version: CURRENT_CATALOG_VERSION,
+      vendors: [
+        vendor(root),
+        vendor(candidate, {
+          adapterCandidateSourceVendorKey: root,
+          adapterCandidateRootVendorKey: root,
+          adapterCandidateRevisionId: "partial",
+          adapterCandidatePromotionPredecessors: {
+            target: {
+              vendorKey: root,
+              publishedModes: ["text_to_image", "image_edit"],
+            },
+          },
+        }),
+      ],
+      models: [
+        { vendorKey: root, modelKey: "target", labelZh: "Target", kind: "image", enabled: false, createdAt: now, updatedAt: now },
+        { vendorKey: candidate, modelKey: "target", labelZh: "Target", kind: "image", enabled: true, createdAt: now, updatedAt: now },
+      ],
+      mappings: [
+        { id: "source-t2i", vendorKey: root, modelKey: "target", taskKind: "text_to_image", name: "source t2i", enabled: false, create: { method: "POST", path: "/source-t2i" }, createdAt: now, updatedAt: now },
+        { id: "source-edit", vendorKey: root, modelKey: "target", taskKind: "image_edit", name: "source edit", enabled: false, create: { method: "POST", path: "/source-edit" }, createdAt: now, updatedAt: now },
+        { id: "candidate-t2i", vendorKey: candidate, modelKey: "target", taskKind: "text_to_image", name: "candidate t2i", enabled: true, create: { method: "POST", path: "/candidate-t2i" }, createdAt: now, updatedAt: now },
+        { id: "candidate-edit", vendorKey: candidate, modelKey: "target", taskKind: "image_edit", name: "candidate edit", enabled: false, create: { method: "POST", path: "/candidate-edit" }, createdAt: now, updatedAt: now },
+      ],
+      apiKeysByVendor: {
+        [root]: {
+          vendorKey: root,
+          apiKey: Buffer.from("root-key").toString("base64"),
+          enc: "safeStorage",
+          enabled: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+        [candidate]: {
+          vendorKey: candidate,
+          apiKey: Buffer.from("candidate-key").toString("base64"),
+          enc: "safeStorage",
+          enabled: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    });
+
+    deleteModelCatalogVendor(candidate);
+
+    const state = readCatalog();
+    expect(state.models.find((model) => model.vendorKey === root && model.modelKey === "target")?.enabled).toBe(true);
+    expect(state.mappings.find((mapping) => mapping.id === "source-t2i")?.enabled).toBe(true);
+    expect(state.mappings.find((mapping) => mapping.id === "source-edit")?.enabled).toBe(true);
+    expect(state.vendors.map((item) => item.key)).toEqual([root]);
     expect(Object.keys(state.apiKeysByVendor)).toEqual([root]);
   });
 });

@@ -108,7 +108,7 @@ function fakeCatalog(): ProviderAdapterCatalogPort & {
     },
     stage(input) {
       this.staged.push(input.models.map((model) => model.modelKey));
-      return { vendor, models };
+      return { vendor, models, lineageRootVendorKey: input.vendorKey, supersededVendorKeys: [] };
     },
     // 与真实 defaultCatalog.load 一致：按本次选中的模型过滤（分级要靠它判断有没有媒体模型）。
     load(_vendorKey, selectedModelKeys) {
@@ -120,6 +120,7 @@ function fakeCatalog(): ProviderAdapterCatalogPort & {
         verified: input.verifiedModes.map((item) => `${item.modelKey}/${item.taskKind}`),
         draft: input.draft,
       });
+      return { status: "committed", committedModes: input.verifiedModes };
     },
     fail(run) {
       this.failed.push(run.id);
@@ -346,8 +347,35 @@ describe("ProviderAdapterService", () => {
 
     await service.executeRun(started.id);
 
-    expect(catalog.promoted[0]?.verified).toEqual([]);
+    expect(catalog.promoted).toEqual([]);
+    expect(catalog.failed).toEqual([started.id]);
     expect(service.getRun(started.id)?.stage).toBe("failed");
+  });
+
+  it("does not persist a terminal success or revision when candidate cleanup fails", async () => {
+    const catalog = fakeCatalog();
+    const deps = dependencies(catalog);
+    deps.compile = async () => ({ draft: { ...draft(), models: [draft().models[1]] }, failures: [] });
+    deps.verify = async ({ mode }) => ({ ok: false, taskKind: mode.taskKind, stage: "create", error: "HTTP 500" });
+    deps.maxRepairs = 0;
+    catalog.fail = () => {
+      throw new Error("catalog cleanup failed");
+    };
+    const adapterStore = store();
+    const service = new ProviderAdapterService(adapterStore, deps);
+    const started = service.start({ ...startInput, models: [startInput.models[1]] });
+
+    await expect(service.executeRun(started.id)).rejects.toThrow("catalog cleanup failed");
+
+    expect(catalog.promoted).toEqual([]);
+    expect(adapterStore.snapshot().revisions).toEqual([]);
+    expect(service.getRun(started.id)?.stage).not.toMatch(/^(completed|partial|failed|timed_out|cancelled|stale)$/);
+
+    catalog.fail = function fail(run) {
+      this.failed.push(run.id);
+    };
+    expect(service.cancel(started.id)?.stage).toBe("cancelled");
+    expect(catalog.failed).toEqual([started.id]);
   });
 
   it("does not report completion when publishing the catalog result fails", async () => {
@@ -366,6 +394,21 @@ describe("ProviderAdapterService", () => {
       error: "catalog write failed",
     });
     expect(catalog.failed).toEqual([started.id]);
+  });
+
+  it("does not write completed state or a revision when promotion reports no lease", async () => {
+    const catalog = fakeCatalog();
+    const deps = dependencies(catalog);
+    catalog.promote = () => ({ status: "no-lease" }) as never;
+    const adapterStore = store();
+    const service = new ProviderAdapterService(adapterStore, deps);
+    const started = service.start({ ...startInput, models: [startInput.models[1]] });
+
+    await service.executeRun(started.id);
+
+    expect(service.getRun(started.id)?.stage).toBe("stale");
+    expect(service.getRun(started.id)?.stage).not.toBe("completed");
+    expect(adapterStore.snapshot().revisions).toEqual([]);
   });
 
   it("treats documentation discovery errors as missing optional evidence and verifies the generic contract", async () => {
@@ -408,11 +451,8 @@ describe("ProviderAdapterService", () => {
 
     expect(deps.compile).not.toHaveBeenCalled();
     expect(deps.repair).not.toHaveBeenCalled();
-    expect(catalog.failed).toEqual([]);
-    expect(catalog.promoted[0]?.draft.models[0]?.modes.map((mode) => mode.taskKind)).toEqual([
-      "text_to_image",
-      "image_edit",
-    ]);
+    expect(catalog.failed).toEqual([started.id]);
+    expect(catalog.promoted).toEqual([]);
     expect(service.getRun(started.id)?.stage).toBe("failed");
   });
 
@@ -585,10 +625,8 @@ describe("ProviderAdapterService", () => {
         ]),
       })],
     });
-    // Keep the candidate durable so timeout still leads to retry/manual takeover,
-    // rather than throwing away everything the user already configured.
-    expect(catalog.promoted).toHaveLength(1);
-    expect(catalog.promoted[0]?.verified).toEqual([]);
+    expect(catalog.promoted).toEqual([]);
+    expect(catalog.failed).toEqual([started.id]);
   });
 
   it("times out one model compilation, falls it back, and continues compiling later models", async () => {
@@ -683,7 +721,8 @@ describe("ProviderAdapterService", () => {
       stage: "timed_out",
       error: expect.stringContaining("deadline"),
     });
-    expect(catalog.promoted[0]?.verified).toEqual([]);
+    expect(catalog.promoted).toEqual([]);
+    expect(catalog.failed).toEqual([started.id]);
   });
 
   it("uses the generic contract when documentation exists but no compiler AI is configured", async () => {
@@ -765,7 +804,8 @@ describe("ProviderAdapterService", () => {
         })],
       }],
     });
-    expect(catalog.promoted).toHaveLength(1);
+    expect(catalog.promoted).toEqual([]);
+    expect(catalog.failed).toEqual([started.id]);
     expect(deps.compile).not.toHaveBeenCalled();
   });
 
@@ -821,6 +861,7 @@ describe("ProviderAdapterService", () => {
     expect(compileSignal?.aborted).toBe(true);
     expect(service.getRun(started.id)?.stage).toBe("cancelled");
     expect(catalog.promoted).toEqual([]);
+    expect(catalog.failed).toEqual([started.id]);
   });
 
   it("does not resume cancelled, timed-out, or already-expired work", () => {

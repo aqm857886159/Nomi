@@ -1,6 +1,8 @@
 import { nowIso } from "../jsonUtils";
-import { derivePublishedExecution } from "../shared/modelPublication";
-import { candidateSourceVendorKey } from "./stagedVendorIdentity";
+import {
+  candidatePromotionPredecessors,
+  candidateSourceVendorKey,
+} from "./stagedVendorIdentity";
 import type { CatalogState } from "./types";
 
 export function vendorLineageClosure(state: CatalogState, rootKey: string): Set<string> {
@@ -27,39 +29,31 @@ export function removeVendorLineage(state: CatalogState, rootKey: string): void 
 
 export function restoreSourceAfterCandidateDeletion(state: CatalogState, candidateKey: string): void {
   const candidate = state.vendors.find((vendor) => vendor.key === candidateKey);
-  const sourceVendorKey = candidateSourceVendorKey(candidate?.meta);
-  if (!sourceVendorKey) return;
-  const sourceVendor = state.vendors.find((vendor) => vendor.key === sourceVendorKey);
-  if (!sourceVendor) return;
-
+  const predecessors = candidatePromotionPredecessors(candidate?.meta);
+  if (Object.keys(predecessors).length === 0) return;
   const deleting = vendorLineageClosure(state, candidateKey);
-  const published = state.models.filter((model) =>
-    deleting.has(model.vendorKey) && derivePublishedExecution(model, { mappings: state.mappings }).published,
-  );
-  if (published.length === 0) return;
-  const publishedKeys = new Set(published.map((model) => model.modelKey));
-  const publishedModes = new Set(published.flatMap((model) =>
-    derivePublishedExecution(model, { mappings: state.mappings }).publishedModes
-      .map((taskKind) => `${model.modelKey}\0${taskKind}`),
-  ));
   const restoredAt = nowIso();
-  let restored = false;
+  const restoredVendorKeys = new Set<string>();
   state.models = state.models.map((model) => {
-    if (model.vendorKey !== sourceVendorKey || !publishedKeys.has(model.modelKey)) return model;
-    restored = true;
+    const predecessor = predecessors[model.modelKey];
+    if (!predecessor || model.vendorKey !== predecessor.vendorKey || deleting.has(model.vendorKey)) return model;
+    restoredVendorKeys.add(model.vendorKey);
     return { ...model, enabled: true, updatedAt: restoredAt };
   });
   state.mappings = state.mappings.map((mapping) => {
+    if (!mapping.modelKey) return mapping;
+    const predecessor = predecessors[mapping.modelKey];
     if (
-      mapping.vendorKey !== sourceVendorKey ||
-      !mapping.modelKey ||
-      !publishedModes.has(`${mapping.modelKey}\0${mapping.taskKind}`)
+      !predecessor ||
+      mapping.vendorKey !== predecessor.vendorKey ||
+      deleting.has(mapping.vendorKey) ||
+      !predecessor.publishedModes.includes(mapping.taskKind)
     ) return mapping;
     return { ...mapping, enabled: true, updatedAt: restoredAt };
   });
-  if (restored) {
+  if (restoredVendorKeys.size > 0) {
     state.vendors = state.vendors.map((vendor) =>
-      vendor.key === sourceVendorKey ? { ...vendor, enabled: true, updatedAt: restoredAt } : vendor,
+      restoredVendorKeys.has(vendor.key) ? { ...vendor, enabled: true, updatedAt: restoredAt } : vendor,
     );
   }
 }
