@@ -77,4 +77,19 @@ describe('document write handoff', () => {
     expect(cancel).toHaveBeenCalledTimes(1)
     expect(useGenerationCanvasStore.getState().nodes[0].result?.id).toBe('r')
   })
+
+  it('treats collapsing a group as a document write', () => {
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [{ id: 'n', kind: 'image', title: 'N', prompt: 'original', position: { x: 0, y: 0 }, groupId: 'g' }],
+      edges: [],
+      groups: [{ id: 'g', name: 'Group', categoryId: 'shots', nodeIds: ['n'], collapsed: false, createdAt: 1, updatedAt: 1 }],
+    })
+    const cancel = vi.fn()
+    ownPendingCanvasWrite('old', cancel)
+
+    useGenerationCanvasStore.getState().setGroupCollapsed('g', true)
+
+    expect(cancel).toHaveBeenCalledTimes(1)
+    expect(useGenerationCanvasStore.getState().groups[0]?.collapsed).toBe(true)
+  })
 })

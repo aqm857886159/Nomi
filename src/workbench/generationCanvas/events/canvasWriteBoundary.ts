@@ -22,7 +22,7 @@ const documentActions = {
   duplicateNodeForRegeneration: true, reassignNodeCategory: true, copyNodeToCategory: true, deleteNode: true,
   startConnection: false, cancelConnection: false, connectToNode: true, connectNodes: true,
   connectToGroup: true, updateEdgeMode: true, disconnectEdge: true, moveGroupNodes: true,
-  createGroup: true, groupSelectedNodes: true, renameGroup: true, setGroupColor: true,
+  createGroup: true, groupSelectedNodes: true, renameGroup: true, setGroupColor: true, setGroupCollapsed: true,
   ungroup: true, ungroupGroups: true, deleteGroup: true, moveNodeToGroup: true,
   removeNodeFromGroup: true, reorderGroup: true, restoreGraph: true,
   setNodeStatus: false, dismissNodeError: false, setNodeProgress: false, appendNodeRun: false,
