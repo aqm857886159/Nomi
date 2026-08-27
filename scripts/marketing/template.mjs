@@ -71,13 +71,13 @@ function renderHero(content, shared) {
   const ribbons = content.hero.ribbon.map((item) => `<span>${escapeText(item)}</span>`).join('')
   return `<section class="hero" id="top">
   <div class="wrap hero-copy" data-reveal>
-    <p class="eyebrow">${escapeText(content.hero.eyebrow)}</p>
     <h1><span class="line">${escapeText(content.hero.titleLead)}</span><span class="line hit">${escapeText(content.hero.titleEmphasis)}</span></h1>
     <p class="hero-lede">${escapeText(content.hero.lede)}</p>
     <div class="hero-actions">
       <a class="button primary" data-download-nomi href="#download-options">${escapeText(content.hero.download)}</a>
-      <a class="button" href="${content.htmlLang === 'en' ? '/assets/video/launch-film-en.mp4' : '/assets/demo.mp4'}" data-open-dialog="launch-film">${escapeText(content.hero.watch)}</a>
+      <a class="button hero-github" data-github-hero href="${escapeAttr(shared.repositoryUrl)}" ${externalAttrs}>${escapeText(content.hero.github)}</a>
     </div>
+    <p class="hero-contribution">${escapeText(content.hero.contribution)}</p>
     <p class="mac-download-note">${escapeText(content.hero.macNotice)} <a href="#download-options" data-open-dialog="download-dialog">${escapeText(content.hero.macInstallHelp)}</a></p>
     <p class="truth-note">${escapeText(content.hero.truth)}</p>
   </div>
