@@ -1,5 +1,7 @@
 # Nomi 剪辑引擎 build-vs-buy 评审
 
+> 状态：🚧 进行中
+
 - 日期：2026-08-28
 - 评审基线：`origin/main` @ `25f7401db530380475e3cd5c593e5329422fc05e`
 - 评审范围：Nomi 当前剪辑实现、在飞 PR #179/#207，以及 OpenChatCut、OpenCut（rewrite/classic）、MLT、libopenshot、FFmpeg、GStreamer/GES、Remotion、OpenTimelineIO；补充核对 OpenMontage 与 video-use 的 Agent 编辑协议。

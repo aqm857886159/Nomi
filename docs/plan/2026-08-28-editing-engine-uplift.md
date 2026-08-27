@@ -1,5 +1,7 @@
 # Nomi Editing Engine Uplift
 
+> 状态：🚧 进行中
+
 ## Decision
 
 Use a layered build-and-buy strategy. Keep Nomi's TimelineState and adoption boundary as the only project truth, adopt the OpenChatCut/OpenCut capability vocabulary and transaction patterns, and evaluate external render/NLE backends behind an adapter. Do not embed another editor's store or UI.
