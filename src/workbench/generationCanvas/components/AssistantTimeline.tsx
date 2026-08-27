@@ -19,6 +19,7 @@ import type { CommittedProposalRecord } from '../agent/proposalUndo'
 import type { ReconcileDeviation } from '../agent/reconcile'
 import type { PendingToolCallLike } from './agentPlanSummary'
 import type { WorkbenchAiMessage } from '../../ai/workbenchAiTypes'
+import { assistantTimelineIsEmpty } from './assistantTimelineState'
 
 type StepTone = 'done' | 'active' | 'warn'
 
@@ -185,7 +186,11 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
     })
   }
 
-  if (messages.length === 0 && pendingToolCalls.length === 0) {
+  if (assistantTimelineIsEmpty({
+    messageCount: messages.length,
+    pendingCallCount: pendingToolCalls.length,
+    liveBlockCount: liveBlocks.length,
+  })) {
     return (
       <div className={cn('flex flex-1 flex-col min-h-0 overflow-auto p-4')}>
         <div

@@ -4,9 +4,8 @@ import { createPortal } from 'react-dom'
 import { IconCornerDownLeft, IconCursorText, IconFilePlus, IconMaximize, IconMinimize, IconPaperclip, IconPlayerStopFilled, IconReplace, IconSend2, IconX } from '@tabler/icons-react'
 import { NomiLogoMark, WorkbenchButton, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
-import { runWorkbenchAgent, workbenchSessionKey, type ToolCallEvent } from '../ai/workbenchAgentRunner'
-import { startNewConversation } from '../ai/conversationPersistence'
-import { safeClearAgentSession } from '../ai/agentSessionKey'
+import { runWorkbenchAgent } from '../ai/workbenchAgentRunner'
+import { captureConversationHistory, startNewConversation } from '../ai/conversationPersistence'
 import { AssistantMessageView, UserMessageBubble } from '../ai/AssistantMessageView'
 import { NoTextModelRecoveryCard } from '../ai/NoTextModelRecoveryCard'
 import { AssistantErrorCard } from '../ai/AssistantErrorCard'
@@ -19,7 +18,6 @@ import { extractStoryFromRequest, routeCreationIntent } from './creationIntentRo
 import type { WorkbenchAiMessage } from '../ai/workbenchAiTypes'
 import { WorkbenchAiHeaderActions } from '../ai/WorkbenchAiHeaderActions'
 import CreationPromptPicker from '../ai/CreationPromptPicker'
-import { importWorkbenchSkill, getAvailableSkillProviders, skillCapabilityFor, type SkillProviderKind } from '../api/skillApi'
 import { MemoryFold } from '../generationCanvas/components/MemoryFold'
 import { useWorkbenchStore } from '../workbenchStore'
 import { runStoryboardPlanner } from '../generationCanvas/agent/runStoryboardPlanner'
@@ -35,10 +33,12 @@ import {
 import { readWorkbenchAiReplyText, writeToolLabelKey } from './creationAiReplyText'
 import { useSystemPromptOverrides } from './useSystemPromptOverrides'
 import { useTransientScrollingClass } from './useTransientScrollingClass'
-import { isWriteTool, useCreationTurnStore, type PendingDocToolCall, type WriteToolName } from './creationTurnController'
-import { readWindowUrlParam } from '../windowUrlParam'
+import { useCreationTurnStore, type PendingDocToolCall, type WriteToolName } from './creationTurnController'
+import { createCreationToolHandler } from './creationToolCalls'
+import { getActiveWorkbenchProjectId } from '../project/workbenchProjectSession'
 import { AttachmentRail } from '../ai/composer/AttachmentRail'
-import { StaleConversationDivider, useStaleConversationBoundary } from '../ai/staleConversationDivider'
+import { StaleConversationDivider } from '../ai/staleConversationDivider'
+import { useStaleConversationBoundary } from '../ai/useStaleConversationBoundary'
 import { AutoGrowTextarea } from '../ai/composer/AutoGrowTextarea'
 import { COMPOSER_ATTACHMENT_ACCEPT, useComposerAttachments } from '../ai/composer/useComposerAttachments'
 import { useRafCoalesce } from '../ai/useRafCoalesce'
@@ -67,7 +67,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   const setActiveSkill = useWorkbenchStore((state) => state.setCreationActiveSkill)
   const draft = useWorkbenchStore((state) => state.creationAiDraft)
   const messages = useWorkbenchStore((state) => state.creationAiMessages)
-  const staleBoundaryId = useStaleConversationBoundary(messages.map((message) => message.id), 'creation')
+  const staleBoundaryId = useStaleConversationBoundary(messages.map((message) => message.id), captureConversationHistory('creation', getActiveWorkbenchProjectId()))
   // 分镜方案卡挂在「产出它的那条消息」下面（治「卡片跟着对话跑」）。取**最后一条**带标消息：
   // 改方案会新产出一条带标的，卡片随之前移，永远只显示一张。
   // 两种没有锚的情形（都不是 fallback，是「方案在本线程里没有家」这个事实的诚实呈现）：
@@ -133,6 +133,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   // Run the actual editor mutation for an approved write tool, then resolve the
   // backend tool call so the agent loop can continue.
   const applyWriteTool = React.useCallback((call: PendingDocToolCall) => {
+    if (!turn.getState().pendingToolCalls.includes(call)) return
     const tools = documentToolsRef.current
     if (!tools) {
       resolvePending(call.toolCallId, { ok: false, message: 'editor_not_ready' })
@@ -143,7 +144,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     else tools.appendToEnd(call.content)
     const scriptDraft = snapshotScriptDraft({ content: tools.readFullText(), source: 'user' })
     resolvePending(call.toolCallId, { ok: true, result: { applied: true, scriptDraft } })
-  }, [resolvePending])
+  }, [resolvePending, turn])
   const writeToolIcon = React.useCallback((name: WriteToolName) => {
     if (name === 'insert_at_cursor') return <IconCursorText size={13} />
     if (name === 'replace_selection') return <IconReplace size={13} />
@@ -151,6 +152,9 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   }, [])
 
   const launchStoryboardPlanning = React.useCallback((displayPrompt: string = t('creationAi.storyboardCommand'), revisionRequest?: string, shotMode: 'image' | 'video' | 'image-video' = 'image') => {
+    if (turn.getState().sending) return
+    const projectId = getActiveWorkbenchProjectId()
+    const history = captureConversationHistory('creation', projectId)
     // P0-9 Slice 3：已有未落画布的方案 + 用户给了修改要求 → 进「改方案」模式（基于现方案改，不从头拆）。
     const store = useWorkbenchStore.getState()
     const currentPlan = store.storyboardPlan
@@ -199,21 +203,22 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     const handle = turn.getState().begin()
     void (async () => {
       try {
-        const { text } = await runStoryboardPlanner({
+        const { text, status } = await runStoryboardPlanner({
+          target: 'creation', history, projectId: projectId ?? undefined, canWrite: handle.canWrite,
           // 首拆带分镜模式（图片/视频，动作卡上选，默认图片）；改方案不带——保留现方案每镜已定的 shotKind。
           ...(isRevision ? { currentPlan, revisionRequest } : { storyText, shotMode }),
           onContent: (streamed) => {
-            if (!handle.isCurrent()) return
-            pushStreamFrame(() =>
-              setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: streamed || t('creationAi.planningShort'), status: 'streaming' as const } : m))),
-            )
+            if (!handle.canWrite()) return
+            pushStreamFrame(() => {
+              if (handle.canWrite()) setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: streamed || t('creationAi.planningShort'), status: 'streaming' as const } : m)))
+            })
           },
           onCancelReady: (cancel) => turn.getState().attachCancel(handle.id, cancel),
         })
         if (!handle.isCurrent()) return // 轮次已被切项目/新对话作废:别把旧项目内容写进新项目
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === assistantId ? { ...m, content: text || (isRevision ? t('creationAi.revisionComplete') : t('creationAi.planComplete')), status: 'done' as const } : m,
+            m.id === assistantId ? { ...m, content: text || (status === 'cancelled' ? t('creationAi.stopped') : isRevision ? t('creationAi.revisionComplete') : t('creationAi.planComplete')), status: status === 'cancelled' ? 'cancelled' as const : 'done' as const } : m,
           ),
         )
       } catch (error: unknown) {
@@ -225,13 +230,15 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
-              ? { ...m, content: rawMessage, status: 'error' as const }
+              ? { ...m, content: handle.isCancelled() ? t('creationAi.stopped') : rawMessage, status: handle.isCancelled() ? 'cancelled' as const : 'error' as const }
               : m,
           ),
         )
       } finally {
-        cancelStreamFrame() // 终态已落定，丢弃任何挂起的流式合帧，别用过期文本盖掉终态
-        turn.getState().finish(handle.id)
+        if (handle.isCurrent()) {
+          cancelStreamFrame()
+          turn.getState().finish(handle.id)
+        }
       }
     })()
   }, [cancelStreamFrame, documentText, pushStreamFrame, selectedText, setDraft, setError, setMessages, turn, t])
@@ -240,6 +247,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   }, [launchStoryboardPlanning, setStoryboardPlannerLauncher])
   // Tier2 定妆：把剧本交给 AI，按剧本为主要角色/场景建卡 + 注入身份板提示词（与拆镜头同构）。
   const launchFixationPlanning = React.useCallback((displayPrompt: string = t('creationAi.fixationCommand')) => {
+    const projectId = getActiveWorkbenchProjectId()
     const storyText = (selectedText || documentText).trim()
     if (!storyText) {
       setError(t('creationAi.writeScriptFirst'))
@@ -254,12 +262,17 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     setError('')
     setWorkspaceMode('generation')
     window.setTimeout(() => {
+      if (getActiveWorkbenchProjectId() !== projectId) return
       requestFixationPlanning({ storyText, source: 'creation-ai-panel' })
     }, 60)
   }, [documentText, selectedText, setDraft, setError, setMessages, setWorkspaceMode, turn, t])
 
   const send = React.useCallback(async (textOverride?: string) => {
     if (turn.getState().sending) return
+    const projectId = getActiveWorkbenchProjectId()
+    const history = captureConversationHistory('creation', projectId)
+    const selection = skillSelRef.current
+    const allowsWrite = modeAllowsWriteTools(selection.activeMode)
     const userRequest = (textOverride ?? draft).trim()
     // 附件还在上传就发送 = 静默丢弃在途附件（clearAttachments 会连 uploading 一起清）。
     // 拦下并提示用户稍候,等就绪再发,绝不悄悄把用户附的文件吞掉。
@@ -326,92 +339,37 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         prompt,
         displayPrompt,
         ...(attachmentPayload.length ? { attachments: attachmentPayload } : {}),
-        sessionKey: workbenchSessionKey('creation'),
-        projectId: readWindowUrlParam('projectId'),
+        history,
+        capability: allowsWrite ? 'creation-editor' : 'creation-chat',
+        projectId: projectId ?? undefined,
         // 手动锁定的 active skill 优先（如「品牌宣传片」playbook）；否则回退创作模式推导。
-        skillKey: skillSelRef.current.activeSkill ? skillSelRef.current.activeSkill.key : `workbench.creation.${skillSelRef.current.activeMode.id}`,
-        skillName: skillSelRef.current.activeSkill
-          ? skillSelRef.current.activeSkill.name
-          : t(`creationAi.mode.${skillSelRef.current.activeMode.id}.title` as 'creationAi.mode.general.title'),
+        skillKey: selection.activeSkill ? selection.activeSkill.key : `workbench.creation.${selection.activeMode.id}`,
+        skillName: selection.activeSkill
+          ? selection.activeSkill.name
+          : t(`creationAi.mode.${selection.activeMode.id}.title` as 'creationAi.mode.general.title'),
         onContent: (_delta, streamedText) => {
-          if (!handle.isCurrent()) return
-          pushStreamFrame(() =>
-            setMessages((prev) => prev.map((message) => (
+          if (!handle.canWrite()) return
+          pushStreamFrame(() => {
+            if (handle.canWrite()) setMessages((prev) => prev.map((message) => (
               message.id === pendingId ? { ...message, content: streamedText, status: 'streaming' as const } : message
-            ))),
-          )
+            )))
+          })
         },
         onCancelReady: (cancel) => turn.getState().attachCancel(handle.id, cancel),
-        onToolCall: (event: ToolCallEvent) => {
-          // 轮次已被切项目/新对话/卸载作废:拒绝迟到的工具调用,绝不写进新项目。
-          if (!handle.isCurrent()) {
-            void event.confirm({ ok: false, message: 'creation turn abandoned' })
-            return
-          }
-          // Read tools auto-execute against the live editor.
-          if (event.toolName === 'read_full_text') {
-            void event.confirm({ ok: true, result: { text: documentToolsRef.current?.readFullText() ?? '' } })
-            return
-          }
-          if (event.toolName === 'read_selection') {
-            void event.confirm({ ok: true, result: { text: documentToolsRef.current?.readSelectionText() ?? '' } })
-            return
-          }
-          // author_skill：转写出一个 Nomi skill 并落地。低风险（存文本文件、可逆、不花钱）→
-          // 自动落地，不弹确认卡；审阅靠「试跑一次」（用户拍板的 effect-first）。把能力差集喂回 LLM，
-          // 让它在回复里诚实标缺口（缺哪个 provider）。
-          if (event.toolName === 'author_skill') {
-            const args = (event.args && typeof event.args === 'object') ? event.args as Record<string, unknown> : {}
-            const manifest = args.manifest
-            const dirName = typeof args.dirName === 'string' && args.dirName.trim() ? args.dirName : 'imported-skill'
-            const skillMarkdown = typeof args.skillMarkdown === 'string' ? args.skillMarkdown : ''
-            const pkg = {
-              version: 'nomi-skill-v1' as const,
-              exportedAt: Date.now(),
-              dirName,
-              files: { 'SKILL.md': skillMarkdown, 'skill.json': JSON.stringify(manifest ?? {}, null, 2) },
-            }
-            const res = importWorkbenchSkill(pkg)
-            if (!res.ok) {
-              void event.confirm({ ok: false, message: res.error ?? t('creationAi.skillSaveFailed') })
-              return
-            }
-            const needed = (manifest && typeof manifest === 'object' && Array.isArray((manifest as Record<string, unknown>).requiredProviders))
-              ? (manifest as { requiredProviders: SkillProviderKind[] }).requiredProviders
-              : []
-            void getAvailableSkillProviders()
-              .then((available) => {
-                const cap = skillCapabilityFor({ neededProviders: needed }, available)
-                void event.confirm({ ok: true, result: { saved: true, skillName: res.skillName, dirName: res.dirName, missingProviders: cap.missing, satisfied: cap.satisfied } })
-              })
-              .catch(() => void event.confirm({ ok: true, result: { saved: true, skillName: res.skillName, dirName: res.dirName } }))
-            return
-          }
-          // Write tools wait for explicit user approval through a card.
-          if (isWriteTool(event.toolName)) {
-            // 能力声明驱动能力执行(P4):chatOnly 模式(通用问答)不接受写文档工具——
-            // 直接拒绝,不渲染写卡。prompt 软约束挡不住模型仍发 insert/replace/append,
-            // 这里按模式能力声明硬挡,保证「不改文档」是真约束而非文字祈求。
-            if (!modeAllowsWriteTools(activeMode)) {
-              void event.confirm({ ok: false, message: 'chat-only mode does not write to the document' })
-              return
-            }
-            const args = (event.args && typeof event.args === 'object') ? event.args as Record<string, unknown> : {}
-            const content = typeof args.content === 'string' ? args.content : ''
-            turn.getState().addPendingToolCall({
-              toolCallId: event.toolCallId,
-              toolName: event.toolName,
-              content,
-              confirm: event.confirm,
-            })
-            return
-          }
-          void event.confirm({ ok: false, message: `unknown tool ${event.toolName}` })
+        onToolError: ({ toolCallId }) => {
+          if (!handle.canWrite()) return
+          turn.setState((state) => ({ pendingToolCalls: state.pendingToolCalls.filter((call) => call.toolCallId !== toolCallId) }))
         },
+        onToolCall: createCreationToolHandler({
+          turn: handle, allowsWrite,
+          readTools: () => documentToolsRef.current,
+          enqueue: (call) => turn.getState().addPendingToolCall(call),
+          skillSaveFailed: () => t('creationAi.skillSaveFailed'),
+        }),
       })
       if (!handle.isCurrent()) return // 轮次已被作废:resolved 结果属于旧项目,丢弃不写
-      // 用户主动「停止」→ 流层合成的取消结果(raw.cancelled)落「已取消」第三态,不混作完成。
-      const cancelled = Boolean((response.raw as { cancelled?: unknown } | undefined)?.cancelled)
+      // Main emits cancelled only after the real runtime and context save settle.
+      const cancelled = response.status === 'cancelled'
       const streamed = readWorkbenchAiReplyText(response)
       if (cancelled) {
         setMessages((prev) => prev.map((message) => (
@@ -438,13 +396,15 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
       // 不再 setError(底部红 banner)——agent 错误只在对话内渲成红色错误卡(避免上下双显);
       // 底部 banner 仅留给 composer 校验提示(「先写段故事」「附件还在上传」)。
       setMessages((prev) => prev.map((item) => (
-        item.id === pendingId ? { ...item, content: `${t('creationAi.errorPrefix')}${message}`, status: 'error' as const } : item
+        item.id === pendingId ? { ...item, content: handle.isCancelled() ? t('creationAi.stopped') : `${t('creationAi.errorPrefix')}${message}`, status: handle.isCancelled() ? 'cancelled' as const : 'error' as const } : item
       )))
     } finally {
-      cancelStreamFrame() // 终态已落定，丢弃任何挂起的流式合帧，别用过期文本盖掉终态
-      turn.getState().finish(handle.id)
+      if (handle.isCurrent()) {
+        cancelStreamFrame()
+        turn.getState().finish(handle.id)
+      }
     }
-  }, [activeMode, activeSkill, attachments, cancelStreamFrame, clearAttachments, documentText, draft, launchStoryboardPlanning, launchFixationPlanning, pushStreamFrame, selectedText, setDraft, setError, setMessages, turn, t])
+  }, [activeMode, attachments, cancelStreamFrame, clearAttachments, documentText, draft, launchStoryboardPlanning, pushStreamFrame, selectedText, setDraft, setError, setMessages, turn, t])
 
   // 通用创作动作，贴 Nomi 视频创作调性、不绑小说题材（旧的「悬疑开场/童话语气」在产品/宣传项目里调性错配）。
   const suggestions = React.useMemo(() => [
@@ -462,8 +422,6 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     setDraft('')
     clearAttachments()
     setError('')
-    // 新对话 = 该 area 模型上下文归零(创作/画布各一份键,互不影响)。
-    void safeClearAgentSession(workbenchSessionKey('creation'))
   }, [clearAttachments, setDraft, setError, turn])
 
   const panelBody = (

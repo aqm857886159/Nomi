@@ -23,6 +23,7 @@ import { createDefaultGenerationCanvasSnapshot } from './generationCanvasDefault
 import { isShotNumberedNode, nextShotIndex } from '../model/shotNumbering'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import { applyCanvasEvent } from '../events/canvasEventReducer'
+import { withCanvasWriteBoundary } from '../events/canvasWriteBoundary'
 import type { GenerationCanvasState } from './canvasStoreTypes'
 import { createCanvasNodeActions } from './canvasNodeActions'
 import { createCanvasGraphActions } from './canvasGraphActions'
@@ -30,7 +31,7 @@ import { createCanvasRunActions } from './canvasRunActions'
 
 export { __resetCanvasUndoJournalForTests as __resetGenerationCanvasHistoryForTests } from '../events/canvasUndoJournal'
 
-export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscribeWithSelector(immer((set, get, store) => ({
+export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscribeWithSelector(immer((set, get, store) => withCanvasWriteBoundary({
   isReady: false,
   persistRevision: 0,
   // 初始画布走默认快照单一真相源（勿再内联一份节点/边，见审计 A4）。

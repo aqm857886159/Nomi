@@ -1,7 +1,24 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { ReconcileDeviation } from './reconcile'
-import { useShotVerifyStore, buildContentFixMessage } from './shotVerifyStore'
+import { useShotVerifyStore, buildContentFixMessage, verifyShotsAndReport } from './shotVerifyStore'
 import { DEFAULT_LOOP_MAX_ROUNDS } from './storyboardLoopBudget'
+
+const verifyMocks = vi.hoisted(() => ({
+  activeProjectId: 'project-A',
+  gather: vi.fn(() => [{ shotNodeId: 'shot-1' }]),
+  verify: vi.fn(),
+  makeDeps: vi.fn(() => ({ marker: 'deps' })),
+}))
+
+vi.mock('../../../desktop/activeProject', () => ({
+  getDesktopActiveProjectId: () => verifyMocks.activeProjectId,
+}))
+vi.mock('./gatherShotVerifyInputs', () => ({ gatherShotVerifyInputs: verifyMocks.gather }))
+vi.mock('./shotVerifyRunner', () => ({ verifyGeneratedShots: verifyMocks.verify }))
+vi.mock('./shotVerifyJudge', () => ({ makeShotVerifyDeps: verifyMocks.makeDeps }))
+vi.mock('../store/generationCanvasStore', () => ({
+  useGenerationCanvasStore: { getState: () => ({ nodes: [], edges: [] }) },
+}))
 
 const content = (where: string): ReconcileDeviation => ({
   where,
@@ -13,8 +30,24 @@ const content = (where: string): ReconcileDeviation => ({
   shotNodeId: where,
 })
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
 describe('shotVerifyStore 状态机', () => {
-  beforeEach(() => useShotVerifyStore.getState().clear())
+  beforeEach(() => {
+    verifyMocks.activeProjectId = 'project-A'
+    verifyMocks.gather.mockClear()
+    verifyMocks.verify.mockReset()
+    verifyMocks.makeDeps.mockClear()
+    useShotVerifyStore.getState().clear()
+  })
 
   it('setDeviations 有偏差 → status ready、不动预算', () => {
     useShotVerifyStore.getState().setDeviations([content('镜5')])
@@ -80,6 +113,96 @@ describe('shotVerifyStore 状态机', () => {
     expect(s.status).toBe('idle')
     expect(s.deviations).toEqual([])
     expect(s.budget.roundsUsed).toBe(0)
+  })
+
+  it('同项目 persistence 重绑不清审片结果和闭环预算', () => {
+    const store = useShotVerifyStore.getState()
+    store.activateProject('project-A')
+    store.setDeviations([content('镜5')])
+    store.consumeRound()
+
+    useShotVerifyStore.getState().activateProject(' project-A ')
+
+    const current = useShotVerifyStore.getState()
+    expect(current.deviations).toEqual([content('镜5')])
+    expect(current.budget.roundsUsed).toBe(1)
+  })
+
+  it('同项目开始新校验时立即撤下旧结果但保留闭环预算', () => {
+    const store = useShotVerifyStore.getState()
+    store.activateProject('project-A')
+    store.setDeviations([content('old-result')])
+    store.consumeRound()
+
+    const request = useShotVerifyStore.getState().beginVerify('project-A')
+
+    const verifying = useShotVerifyStore.getState()
+    expect(verifying.status).toBe('verifying')
+    expect(verifying.deviations).toEqual([])
+    expect(verifying.budget.roundsUsed).toBe(1)
+    expect(verifying.isVerifyCurrent(request, 'project-A')).toBe(true)
+    expect(verifying.completeVerify(request, 'project-A', [content('new-result')])).toBe(true)
+    expect(useShotVerifyStore.getState().deviations).toEqual([content('new-result')])
+  })
+
+  it('同项目并发校验 latest-wins：旧请求晚到不能覆盖新结果', async () => {
+    const older = deferred<ReconcileDeviation[]>()
+    const newer = deferred<ReconcileDeviation[]>()
+    verifyMocks.verify.mockImplementationOnce(() => older.promise).mockImplementationOnce(() => newer.promise)
+
+    const olderRun = verifyShotsAndReport(['shot-old'])
+    await vi.waitFor(() => expect(verifyMocks.verify).toHaveBeenCalledTimes(1))
+    const newerRun = verifyShotsAndReport(['shot-new'])
+    await vi.waitFor(() => expect(verifyMocks.verify).toHaveBeenCalledTimes(2))
+
+    newer.resolve([content('newer')])
+    await expect(newerRun).resolves.toEqual([content('newer')])
+    older.resolve([content('older')])
+    // store latest-wins；同时每个调用仍拿到自己那次 judge 的结果，production caller 不再读串全局值。
+    await expect(olderRun).resolves.toEqual([content('older')])
+
+    expect(useShotVerifyStore.getState().deviations).toEqual([content('newer')])
+  })
+
+  it('切项目会作废旧项目校验，旧结果晚到不能写进新项目', async () => {
+    const oldProjectRun = deferred<ReconcileDeviation[]>()
+    const newProjectRun = deferred<ReconcileDeviation[]>()
+    verifyMocks.verify.mockImplementationOnce(() => oldProjectRun.promise).mockImplementationOnce(() => newProjectRun.promise)
+
+    const oldRun = verifyShotsAndReport(['shot-A'])
+    await vi.waitFor(() => expect(verifyMocks.verify).toHaveBeenCalledTimes(1))
+    verifyMocks.activeProjectId = 'project-B'
+    useShotVerifyStore.getState().activateProject('project-B')
+    const newRun = verifyShotsAndReport(['shot-B'])
+    await vi.waitFor(() => expect(verifyMocks.verify).toHaveBeenCalledTimes(2))
+
+    newProjectRun.resolve([content('project-B-result')])
+    await expect(newRun).resolves.toEqual([content('project-B-result')])
+    oldProjectRun.resolve([content('project-A-result')])
+    await expect(oldRun).resolves.toEqual([content('project-A-result')])
+
+    const state = useShotVerifyStore.getState()
+    expect(state.projectId).toBe('project-B')
+    expect(state.deviations).toEqual([content('project-B-result')])
+    expect(verifyMocks.makeDeps).toHaveBeenNthCalledWith(1, 'project-A')
+    expect(verifyMocks.makeDeps).toHaveBeenNthCalledWith(2, 'project-B')
+  })
+
+  it('旧请求失败不能把更新请求已经写入的偏差清空', async () => {
+    const older = deferred<ReconcileDeviation[]>()
+    const newer = deferred<ReconcileDeviation[]>()
+    verifyMocks.verify.mockImplementationOnce(() => older.promise).mockImplementationOnce(() => newer.promise)
+
+    const olderRun = verifyShotsAndReport(['shot-old'])
+    await vi.waitFor(() => expect(verifyMocks.verify).toHaveBeenCalledTimes(1))
+    const newerRun = verifyShotsAndReport(['shot-new'])
+    await vi.waitFor(() => expect(verifyMocks.verify).toHaveBeenCalledTimes(2))
+    newer.resolve([content('newer')])
+    await newerRun
+    older.reject(new Error('late old failure'))
+    await expect(olderRun).resolves.toEqual([])
+
+    expect(useShotVerifyStore.getState().deviations).toEqual([content('newer')])
   })
 })
 

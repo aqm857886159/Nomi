@@ -3,6 +3,7 @@
 // agent 是否对多角色/多站位/朝向「选得对」。纯文本额度。gated APIMART_E2E。
 // 用法：pnpm run build && APIMART_E2E=1 node tests/ux/staging-agent-eval.e2e.mjs
 import { launchNomiApp } from "./_launchApp.mjs";
+import { runAgentProbe } from "./_agentProbe.mjs";
 
 
 if (!process.env.APIMART_E2E && !process.env.APIMART_API_KEY) {
@@ -29,33 +30,28 @@ try {
   }
 
   const rows = [];
+  let agentProbeFailed = false;
   for (const scenario of SCENARIOS) {
-    const spec = await win.evaluate(async ({ mk, text }) => {
-      const { sessionId } = await window.nomiDesktop.agents.chatV2Start({
-        prompt: `在画布上为这个镜头做站位锁定（用合适的工具）：${text}`,
-        sessionKey: "probe-agent-eval",
+    const outcome = await win.evaluate(runAgentProbe, {
+      timeoutMs: 90000,
+      request: {
+        prompt: `在画布上为这个镜头做站位锁定（用合适的工具）：${scenario}`,
+        capability: "canvas-agent",
+        history: { kind: "ephemeral" },
+        featureKey: "probe-agent-eval",
         skillKey: "workbench.generation.canvas-planner",
         mode: "auto",
-        agentModelKey: mk,
+        agentModelKey: MODEL_KEY,
         agentVendorKey: "apimart",
-      });
-      return await new Promise((resolve) => {
-        let found = null;
-        const off = window.nomiDesktop.agents.onChatV2Event(sessionId, (ev) => {
-          if (!ev) return;
-          if ((ev.type === "tool-call" || ev.type === "tool-call-pending")) {
-            if (ev.toolName === "create_staging_reference") found = ev.args ?? ev.input ?? null;
-            if (ev.type === "tool-call-pending" && ev.toolCallId) {
-              window.nomiDesktop.agents.confirmTool(sessionId, ev.toolCallId, { ok: false, denied: true, message: "probe" });
-            }
-          }
-          if (ev.type === "done" || ev.type === "error") { off?.(); resolve(found); }
-        });
-        setTimeout(() => { off?.(); resolve(found); }, 90000);
-      });
-    }, { mk: MODEL_KEY, text: scenario });
+      },
+    });
+    if (outcome.result?.usage) console.log(`  usage: ${JSON.stringify(outcome.result.usage)}`);
+    const spec = outcome.calls.find((call) => call.toolName === "create_staging_reference")?.args ?? null;
 
-    if (!spec) {
+    if (!outcome.ok) {
+      agentProbeFailed = true;
+      rows.push(`✗ Agent 未正常收尾：${outcome.error} | ${scenario}`);
+    } else if (!spec) {
       rows.push(`✗ 未调 staging | ${scenario}`);
     } else {
       const chars = Array.isArray(spec.characters) ? spec.characters : [];
@@ -69,7 +65,7 @@ try {
 
   console.log("\n═══ B 层 agent 选择评测 ═══");
   rows.forEach((r) => console.log(r));
-  await app.close(); process.exit(0);
+  await app.close(); process.exit(agentProbeFailed ? 1 : 0);
 } catch (err) {
   console.log(`✗ ${err?.message || err}`);
   await app.close().catch(() => undefined);

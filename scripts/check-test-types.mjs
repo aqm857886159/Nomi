@@ -20,34 +20,63 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
+import { createRequire } from 'node:module'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BASELINE_FILE = path.join(repoRoot, 'scripts/test-types-baseline.json')
 const PROJECT = 'tsconfig.test.json'
+const NATIVE_PROJECT = 'tests/agent-runtime/tsconfig.json'
+const require = createRequire(import.meta.url)
+const tscBin = require.resolve('typescript/bin/tsc')
 
-const tsc = spawnSync('npx', ['tsc', '-p', PROJECT, '--pretty', 'false'], {
-  cwd: repoRoot,
-  encoding: 'utf8',
-  shell: process.platform === 'win32',
-})
+function runTypecheck(project) {
+  const result = spawnSync(process.execPath, [tscBin, '-p', project, '--noEmit', '--pretty', 'false'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  })
+  if (result.error || result.signal || result.status === null) {
+    console.error(`✖ 无法运行 tsc (${project})：${result.error?.message ?? result.signal ?? 'no exit status'}`)
+    process.exit(1)
+  }
+  return result
+}
 
-if (tsc.error) {
-  console.error(`✖ 无法运行 tsc：${tsc.error.message}`)
+// Native node:test suites use the same strict NodeNext boundary as production.
+// They have no baseline: even --update-baseline must not admit a native error.
+const native = runTypecheck(NATIVE_PROJECT)
+if (native.status !== 0) {
+  console.error(`✖ agent-runtime 测试类型门岗未通过（必须 0 错误）\n${native.stdout}${native.stderr}`)
   process.exit(1)
 }
+console.log('✅ agent-runtime 测试类型通过：0 个错误')
+const tsc = runTypecheck(PROJECT)
 
 // tsc 的错误行形如：src/a/b.test.ts(12,34): error TS2345: ...
 // 续行（缩进的补充说明）不计数，只认带 file(line,col) 的那一行。
 const ERROR_LINE = /^([^\s(][^(]*)\((\d+),(\d+)\): error (TS\d+): (.*)$/
 const perFile = new Map()
 const details = new Map()
+const compilerErrors = []
 for (const line of `${tsc.stdout}${tsc.stderr}`.split('\n')) {
   const m = ERROR_LINE.exec(line.trim())
-  if (!m) continue
+  if (!m) {
+    if (/error TS\d+:/.test(line)) compilerErrors.push(line)
+    continue
+  }
   const file = m[1].replace(/\\/g, '/')
+  if (/\.json$/i.test(file)) {
+    compilerErrors.push(line)
+    continue
+  }
   perFile.set(file, (perFile.get(file) ?? 0) + 1)
   if (!details.has(file)) details.set(file, [])
   details.get(file).push(`${file}:${m[2]}  ${m[4]}: ${m[5]}`)
+}
+
+// Missing/invalid projects and compiler/process failures are not zero type debt.
+if (compilerErrors.length || (tsc.status !== 0 && perFile.size === 0)) {
+  console.error(`✖ 测试类型编译失败（不能记为基线）\n${tsc.stdout}${tsc.stderr}`)
+  process.exit(1)
 }
 
 const current = Object.fromEntries([...perFile.entries()].sort(([a], [b]) => a.localeCompare(b)))

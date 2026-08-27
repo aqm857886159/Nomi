@@ -1,6 +1,7 @@
 // nomi-local 素材的文件侧读取 + 上传通道(从 runtime.ts 抽出 —— 规则 12 巨壳净减)。
 // R1 用:把本地素材(nomi-local://)读成字节,或 POST 到 vendor 上传端点。
 import fs from "node:fs";
+import { appFetch } from "../appFetch";
 import { resolveProjectRelativePath } from "../projects/repository";
 import { resolveContentType } from "./mediaTypes";
 import { categorizeVendorFailure } from "../vendor/vendorHttp";
@@ -191,7 +192,7 @@ export async function postJsonForAssetUpload(url: string, headers: Record<string
   return postWithUploadRetry(
     () => {
       wireUrl = rewriteVendorUrl(url); // 每次 attempt 重取——自愈换线后下一跳即生效
-      return fetch(wireUrl, { method: "POST", headers, body: serialized });
+      return appFetch(wireUrl, { method: "POST", headers, body: serialized });
     },
     { onNetworkError: async (error) => { await maybeResolveVendorBase(wireUrl, error); } },
   );
@@ -219,7 +220,7 @@ export async function postMultipartForAssetUpload(
       const form = new FormData();
       form.append(fileField, new Blob([arrayBuffer], { type: contentType }), fileName);
       for (const [key, value] of Object.entries(extraFields ?? {})) form.append(key, value);
-      return fetch(wireUrl, { method: "POST", headers: restHeaders, body: form });
+      return appFetch(wireUrl, { method: "POST", headers: restHeaders, body: form });
     },
     { onNetworkError: async (error) => { await maybeResolveVendorBase(wireUrl, error); } },
   );

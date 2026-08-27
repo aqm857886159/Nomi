@@ -34,6 +34,12 @@ export function legacyCustomConfig(vendor: Vendor | undefined): Record<string, s
   return normalizedCustomConfig(meta.customConfig);
 }
 
+export function hasLegacyCustomConfigField(vendor: Vendor | undefined): boolean {
+  return Boolean(
+    isJsonRecord(vendor?.meta) && Object.prototype.hasOwnProperty.call(vendor.meta, "customConfig"),
+  );
+}
+
 export function credentialRecord(state: CatalogState, vendorKey: string): ApiKeyRecord {
   const existing = state.apiKeysByVendor[vendorKey];
   if (existing) return existing;
@@ -65,12 +71,16 @@ export function publicVendor(vendor: Vendor): Vendor {
   return { ...vendor, meta: withoutLegacyCustomConfig(vendor.meta) };
 }
 
-/** Returns null while OS safe storage is unavailable so the caller can retry on the next read. */
+/** Returns null while OS safe storage is unavailable so an explicit write can fail without touching disk. */
 export function migrateLegacyCustomConfigSecrets(state: CatalogState): CatalogState | null {
   const legacy = state.vendors
     .map((vendor) => ({ vendor, config: legacyCustomConfig(vendor) }))
-    .filter(({ config }) => Object.keys(config).length > 0);
-  if (legacy.length > 0 && !isSafeStorageAvailable()) return null;
+    .filter(({ vendor }) => hasLegacyCustomConfigField(vendor));
+  const requiresEncryption = legacy.some(({ vendor, config }) => {
+    const current = state.apiKeysByVendor[vendor.key]?.customConfig || {};
+    return Object.keys(config).some((name) => !current[name]);
+  });
+  if (requiresEncryption && !isSafeStorageAvailable()) return null;
 
   const next: CatalogState = {
     ...state,
@@ -78,7 +88,21 @@ export function migrateLegacyCustomConfigSecrets(state: CatalogState): CatalogSt
     vendors: state.vendors.map((vendor) => ({ ...vendor, meta: withoutLegacyCustomConfig(vendor.meta) })),
     apiKeysByVendor: { ...(state.apiKeysByVendor || {}) },
   };
-  for (const { vendor, config } of legacy) applyPlainCustomConfig(next, vendor.key, config);
+  for (const { vendor, config } of legacy) {
+    const existing = credentialRecord(next, vendor.key);
+    const current = existing.customConfig || {};
+    const encryptedLegacy: NonNullable<ApiKeyRecord["customConfig"]> = {};
+    for (const [name, value] of Object.entries(config)) {
+      if (!current[name]) encryptedLegacy[name] = encryptCustomSecretValue(value);
+    }
+    if (Object.keys(encryptedLegacy).length > 0) {
+      next.apiKeysByVendor[vendor.key] = {
+        ...existing,
+        customConfig: { ...encryptedLegacy, ...current },
+        updatedAt: nowIso(),
+      };
+    }
+  }
   return next;
 }
 

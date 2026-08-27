@@ -6,6 +6,7 @@
 // 内存:HISTORY_LIMIT=80 维持;最老 barrier 被挤出时把前缀压进 base(紧凑化),journal 不无界。
 import { applyCanvasEvent, emptyCanvasProjection, type CanvasProjection } from './canvasEventReducer'
 import { getActiveCanvasGestureContext } from './canvasGestureContext'
+import { interruptPendingCanvasWrite } from './canvasWriteBoundary'
 
 type JournalEvent = { type: string; payload: Record<string, unknown> }
 
@@ -15,6 +16,7 @@ let base: CanvasProjection = emptyCanvasProjection()
 let journal: JournalEvent[] = []
 let undoBarriers: number[] = []
 let redoBarriers: number[] = []
+let generation = 0
 
 function replayTo(position: number): CanvasProjection {
   let projection = base
@@ -37,6 +39,7 @@ export function getHistoryFlags(): { canUndo: boolean; canRedo: boolean } {
  *  S6-2:提议事务期间(suppressUndoBarriers)action 级 barrier 不打——
  *  整笔提议=一次用户意志=一个 Cmd+Z 步,事务自己在边界打。 */
 export function pushUndoSnapshot(_state?: unknown): void {
+  interruptPendingCanvasWrite()
   if (getActiveCanvasGestureContext()?.suppressUndoBarriers) return
   undoBarriers.push(journal.length)
   redoBarriers = []
@@ -52,6 +55,7 @@ export function pushUndoSnapshot(_state?: unknown): void {
 
 /** undo:弹出最近 barrier,返回该位置的前缀重放投影;当前长度入 redo 栈。 */
 export function popUndo(): CanvasProjection | undefined {
+  interruptPendingCanvasWrite()
   const barrier = undoBarriers.at(-1)
   if (barrier === undefined) return undefined
   undoBarriers = undoBarriers.slice(0, -1)
@@ -61,6 +65,7 @@ export function popUndo(): CanvasProjection | undefined {
 
 /** redo:回到撤销前的日志位置(该位置前缀=撤销前画布,因为日志只追加)。 */
 export function popRedo(): CanvasProjection | undefined {
+  interruptPendingCanvasWrite()
   const position = redoBarriers.at(-1)
   if (position === undefined) return undefined
   redoBarriers = redoBarriers.slice(0, -1)
@@ -71,6 +76,12 @@ export function popRedo(): CanvasProjection | undefined {
 /** S6-2 事务边界:记录当前日志位置(abort 清理的锚点)。 */
 export function getUndoJournalPosition(): number {
   return journal.length
+}
+
+/** Loaded-canvas identity, not a content revision. A new chat does not change
+ * the transaction's compensation target; replacing/clearing its canvas does. */
+export function getUndoJournalGeneration(): number {
+  return generation
 }
 
 /**
@@ -85,6 +96,7 @@ export function dropUndoBarriersAfter(position: number): void {
 
 /** 切项目/hydrate:历史清零(会话内撤销语义,跨会话历史只在磁盘日志供审计)。 */
 export function clearHistory(): void {
+  generation += 1
   base = emptyCanvasProjection()
   journal = []
   undoBarriers = []
@@ -96,6 +108,7 @@ export function clearHistory(): void {
  * 没有任何事件,undo 会回放到空白(生产路径的 genesis 事件随后追加,内容相同,幂等)。
  */
 export function seedUndoJournalBase(projection: CanvasProjection): void {
+  generation += 1
   base = { nodes: projection.nodes, edges: projection.edges, groups: projection.groups }
   journal = []
   undoBarriers = []

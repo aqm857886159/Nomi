@@ -44,6 +44,7 @@ describe('production.plan-directions 接线', () => {
     const arg = runDirectionPlanner.mock.calls[0][0] as Record<string, unknown>
     expect(arg.brief).toEqual(BRIEF)
     expect(arg.playbook).toEqual({ key: 'brand.promo' })
+    expect(arg.projectId).toBe('proj-1')
     expect(result).toEqual({ candidates })
   })
 

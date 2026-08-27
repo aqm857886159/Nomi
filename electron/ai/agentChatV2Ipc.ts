@@ -1,198 +1,211 @@
-import { ipcMain, webContents as electronWebContents } from "electron";
-import type { WebContents } from "electron";
-import { beginTurnTrace, traceChatEvent, traceGateDenied, traceToolDecision } from "../events/agentChatTrace";
-import { desktopT } from "../i18n";
+import { ipcMain, type IpcMainInvokeEvent, type WebContents, type WebFrameMain, type WebContentsDidStartNavigationEventParams } from 'electron';
+import { beginTurnTrace, traceChatEvent, traceGateDenied, traceToolDecision } from '../events/agentChatTrace';
+import { desktopT } from '../i18n';
+import { assertTrustedSender } from '../ipcSenderGuard';
+import { captureAgentChatRequest, captureAgentHistory } from '../harness/agentChatPolicy';
+import type { AgentChatErrorCode, AgentChatHistoryRequest, AgentChatResponse, AgentChatStartRequest, AgentChatToolDecision, AgentChatWireEvent } from '../harness/agentChatContracts';
+import type { RuntimeToolCall } from '../harness/runtime/runtimePort';
 
-import { assertTrustedSender } from "../ipcSenderGuard";
-// ---------------------------------------------------------------------------
-// Agent chat V2 — real streaming + tool-call confirmation
-// ---------------------------------------------------------------------------
-
-type AgentChatV2Session = {
-  sessionId: string;
-  webContentsId: number;
-  pendingConfirmations: Map<string, {
-    resolve: (decision: { ok: true; result: unknown } | { ok: false; message: string }) => void;
-    timeout: ReturnType<typeof setTimeout>;
-  }>;
-  cancelled: boolean;
-  abortController: AbortController;
-};
-
-// 工具确认无限期等用户回话 → 渲染层崩溃/卸载/IPC 事件丢失时，主进程永久 await + session 泄漏。
-// 兜底上限：超时自动按「拒绝」收口（与用户 Stop 同出口），让 agent loop 干净退出、Map 清理。
-// 设宽松（10 分钟）——只为兜「永远不会来的确认」，正常用户深思熟虑绰绰有余。
 const CONFIRM_TIMEOUT_MS = 10 * 60_000;
+type Owner = { contents: WebContents; frame: WebFrameMain; webContentsId: number; processId: number; routingId: number; origin: string };
+type Pending = { settle(decision: AgentChatToolDecision): void };
+type Session = { id: string; owner: Owner; controller: AbortController; pending: Map<string, Pending>; documentAlive: boolean; cleanup(): void };
+const sessions = new Map<string, Session>();
+const usedIds = new WeakMap<WebContents, Set<string>>();
+let modulePromise: Promise<typeof import('./agentChatV2')> | undefined;
+const loadAgent = () => modulePromise ??= import('./agentChatV2');
 
-const agentChatV2Sessions = new Map<string, AgentChatV2Session>();
-let agentChatV2ModulePromise: Promise<typeof import("./agentChatV2")> | null = null;
-
-function loadAgentChatV2Module(): Promise<typeof import("./agentChatV2")> {
-  agentChatV2ModulePromise ??= import("./agentChatV2");
-  return agentChatV2ModulePromise;
+function origin(url: string): string {
+  const parsed = new URL(url);
+  return parsed.protocol === 'file:' ? 'file://' : parsed.origin;
 }
 
-// 统一取消出口：abort 在途流 + 解开所有挂起确认（清各自超时定时器）。
-// 被「cancel IPC」与「渲染层 webContents 销毁」两处复用——后者根治「窗口关了但主进程还在 await」。
-function cancelAgentChatV2Session(session: AgentChatV2Session): void {
-  session.cancelled = true;
-  session.abortController.abort();
-  for (const [toolCallId, pending] of session.pendingConfirmations) {
-    clearTimeout(pending.timeout);
-    pending.resolve({ ok: false, message: "session cancelled" });
-    session.pendingConfirmations.delete(toolCallId);
+function captureOwner(event: IpcMainInvokeEvent): Owner {
+  const frame = event.senderFrame;
+  const mainFrame = event.sender.mainFrame;
+  if (!frame || frame.detached || frame.isDestroyed() || event.sender.isDestroyed()
+    || frame.processId !== mainFrame.processId || frame.routingId !== mainFrame.routingId) throw new Error('Agent IPC requires the live main frame');
+  return { contents: event.sender, frame, webContentsId: event.sender.id, processId: frame.processId, routingId: frame.routingId, origin: origin(frame.url) };
+}
+
+function sameOwner(event: IpcMainInvokeEvent, session: Session): boolean {
+  if (!session.documentAlive) return false;
+  try {
+    const current = captureOwner(event);
+    const expected = session.owner;
+    return current.contents === expected.contents && current.webContentsId === expected.webContentsId
+      && current.processId === expected.processId && current.routingId === expected.routingId && current.origin === expected.origin;
+  } catch { return false; }
+}
+
+function observe(work: () => void): void {
+  try { work(); } catch (error) { console.warn('Agent trace unavailable', error); }
+}
+
+function send(session: Session, event: AgentChatWireEvent): void {
+  observe(() => traceChatEvent(session.id, event));
+  const { contents, frame } = session.owner;
+  if (!session.documentAlive || contents.isDestroyed() || frame.detached || frame.isDestroyed()) return;
+  try { frame.send('nomi:agents:chatV2:event', { sessionId: session.id, event }); }
+  catch { invalidateDocument(session); }
+}
+
+function cancel(session: Session): void {
+  session.controller.abort();
+  for (const pending of session.pending.values()) pending.settle({ ok: false, message: 'Agent request cancelled' });
+}
+
+function invalidateDocument(session: Session): void {
+  session.documentAlive = false;
+  cancel(session);
+}
+
+function bindLifecycle(session: Session): void {
+  const contents = session.owner.contents;
+  const gone = () => invalidateDocument(session);
+  const navigate = (details: WebContentsDidStartNavigationEventParams) => {
+    if (details.isMainFrame && !details.isSameDocument) gone();
+  };
+  contents.on('did-start-navigation', navigate);
+  contents.on('render-process-gone', gone);
+  contents.on('destroyed', gone);
+  session.cleanup = () => {
+    contents.removeListener('did-start-navigation', navigate);
+    contents.removeListener('render-process-gone', gone);
+    contents.removeListener('destroyed', gone);
+    for (const pending of session.pending.values()) pending.settle({ ok: false, message: 'Agent request settled' });
+  };
+}
+
+function awaitConfirmation(session: Session, call: RuntimeToolCall, signal: AbortSignal): Promise<AgentChatToolDecision> {
+  if (signal.aborted || session.controller.signal.aborted || !session.documentAlive) return Promise.resolve({ ok: false, message: 'Agent request cancelled' });
+  if (session.pending.has(call.toolCallId)) return Promise.reject(new Error('Duplicate pending Agent tool call'));
+  return new Promise((resolve) => {
+    const abort = () => pending.settle({ ok: false, message: 'Agent request cancelled' });
+    const timeout = setTimeout(() => pending.settle({ ok: false, message: desktopT('agent.confirmTimeout') }), CONFIRM_TIMEOUT_MS);
+    const pending: Pending = { settle(decision) {
+      if (session.pending.get(call.toolCallId) !== pending) return;
+      session.pending.delete(call.toolCallId);
+      clearTimeout(timeout);
+      signal.removeEventListener('abort', abort);
+      resolve(decision);
+    } };
+    session.pending.set(call.toolCallId, pending); // A synchronous renderer reply can now find it.
+    signal.addEventListener('abort', abort, { once: true });
+    send(session, { type: 'tool-call-pending', ...call });
+  });
+}
+
+function emptyResult(id: string, status: 'error' | 'cancelled'): AgentChatResponse {
+  return { id, status, text: '', toolCalls: [], artifacts: [], finishReason: status === 'cancelled' ? 'aborted' : 'error',
+    ...(status === 'cancelled' ? { raw: { cancelled: true as const } } : {}),
+    usage: { promptTokens: 0, completionTokens: 0, cachedPromptTokens: 0, totalTokens: 0 } };
+}
+
+function structuredErrorCode(error: unknown): AgentChatErrorCode | undefined {
+  if (!error || typeof error !== 'object') return undefined;
+  return (error as { code?: unknown }).code === 'text_model_credential_locked'
+    ? 'text_model_credential_locked' : undefined;
+}
+
+async function execute(session: Session, request: AgentChatStartRequest['request']): Promise<void> {
+  let result: AgentChatResponse;
+  try {
+    const agent = await loadAgent();
+    result = session.controller.signal.aborted ? emptyResult(session.id, 'cancelled')
+      : await agent.runAgentChatV2(request, { emit: (event) => send(session, event), abortSignal: session.controller.signal,
+        awaitToolConfirmation: (call, signal) => awaitConfirmation(session, call, signal) });
+    if (session.controller.signal.aborted && result.status === 'finished') {
+      result = { ...result, status: 'cancelled', finishReason: 'aborted', raw: { cancelled: true } };
+    }
+  } catch (error) {
+    const status = session.controller.signal.aborted ? 'cancelled' : 'error';
+    if (status === 'error') {
+      const code = structuredErrorCode(error);
+      send(session, { type: 'error', message: error instanceof Error ? error.message : String(error), ...(code ? { code } : {}) });
+    }
+    result = emptyResult(session.id, status);
+  }
+  try {
+    send(session, { type: 'result', result });
+    send(session, { type: 'done', reason: result.status });
+  } finally {
+    session.cleanup();
+    sessions.delete(session.id);
   }
 }
 
-function sendChatV2Event(session: AgentChatV2Session, event: unknown): void {
-  // 结构化轨迹旁路(S3):先记账再投递;翻译器内部吞掉一切失败,绝不影响对话。
-  traceChatEvent(session.sessionId, event);
-  const target: WebContents | undefined = electronWebContents.fromId(session.webContentsId) || undefined;
-  if (!target || target.isDestroyed()) return;
-  target.send("nomi:agents:chatV2:event", { sessionId: session.sessionId, event });
+function validDecision(value: unknown): value is AgentChatToolDecision {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  if (record.ok !== true && record.ok !== false) return false;
+  if (record.ok) return (record.silent === undefined || typeof record.silent === 'boolean')
+    && (record.proposalId === undefined || typeof record.proposalId === 'string')
+    && ['effectiveArgs', 'overridesDelta'].every((key) => record[key] === undefined || Boolean(record[key] && typeof record[key] === 'object' && !Array.isArray(record[key])));
+  return (record.message === undefined || typeof record.message === 'string') && (record.denied === undefined || typeof record.denied === 'boolean');
 }
 
 export function registerAgentChatV2Ipc(): void {
-  ipcMain.handle("nomi:agents:chatV2:start", async (event, payload: Record<string, unknown>) => {
+  ipcMain.handle('nomi:agents:chatV2:start', (event, input: AgentChatStartRequest) => {
     assertTrustedSender(event);
-    const sessionId = `chatV2-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const session: AgentChatV2Session = {
-      sessionId,
-      webContentsId: event.sender.id,
-      pendingConfirmations: new Map(),
-      cancelled: false,
-      abortController: new AbortController(),
-    };
-    agentChatV2Sessions.set(sessionId, session);
-    beginTurnTrace(sessionId, payload);
-
-    // 渲染层（窗口/标签）销毁 → 任何挂起确认永远不会回话。监听 destroyed，按取消收口，
-    // 根治「窗口关了主进程还在 await + session 泄漏」整类（确认超时是再下一层兜底）。
-    event.sender.once("destroyed", () => {
-      const live = agentChatV2Sessions.get(sessionId);
-      if (live) cancelAgentChatV2Session(live);
-    });
-
-    // Run the agent loop asynchronously so the IPC call can return the
-    // sessionId immediately; the renderer subscribes to events first.
-    queueMicrotask(() => {
-      void (async () => {
-        const { runAgentChatV2 } = await loadAgentChatV2Module();
-        return runAgentChatV2(payload as Parameters<typeof runAgentChatV2>[0], {
-          emit: (evt) => sendChatV2Event(session, evt),
-          abortSignal: session.abortController.signal,
-          awaitToolConfirmation: ({ toolCallId, toolName, args }) => new Promise((resolve) => {
-            if (session.cancelled) {
-              resolve({ ok: false, message: desktopT("agent.sessionCancelled") });
-              return;
-            }
-            // 兜底超时：渲染层若永不回话（崩溃/事件丢失），到点自动按拒绝收口并清理。
-            const timeout = setTimeout(() => {
-              const pending = session.pendingConfirmations.get(toolCallId);
-              if (!pending) return;
-              session.pendingConfirmations.delete(toolCallId);
-              console.error(`[agentv2] 工具确认 ${CONFIRM_TIMEOUT_MS / 60_000} 分钟无响应，自动跳过（${toolName}）`);
-              pending.resolve({ ok: false, message: desktopT("agent.confirmTimeout") });
-            }, CONFIRM_TIMEOUT_MS);
-            session.pendingConfirmations.set(toolCallId, { resolve, timeout });
-            sendChatV2Event(session, {
-              type: "tool-call-pending",
-              toolCallId,
-              toolName,
-              args,
-            });
-          }),
-        });
-      })()
-        .then((result) => {
-          sendChatV2Event(session, { type: "result", result });
-          sendChatV2Event(session, { type: "done", reason: "finished" });
-        })
-        .catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : String(error);
-          sendChatV2Event(session, { type: "error", message });
-          sendChatV2Event(session, { type: "done", reason: "error" });
-        })
-        .finally(() => {
-          agentChatV2Sessions.delete(sessionId);
-        });
-    });
-
-    return { sessionId };
+    const owner = captureOwner(event); // Never read event.senderFrame after an await.
+    const id = input?.requestId;
+    if (typeof id !== 'string' || !/^[A-Za-z0-9._:-]{1,160}$/.test(id)) throw new Error('Invalid Agent request id');
+    const ids = usedIds.get(owner.contents) ?? new Set<string>();
+    if (ids.has(id) || sessions.has(id)) throw new Error('Duplicate Agent request id');
+    const request = captureAgentChatRequest(input.request);
+    ids.add(id); usedIds.set(owner.contents, ids);
+    const session: Session = { id, owner, controller: new AbortController(), pending: new Map(), documentAlive: true, cleanup: () => {} };
+    sessions.set(id, session);
+    bindLifecycle(session);
+    observe(() => beginTurnTrace(id, request as unknown as Record<string, unknown>));
+    queueMicrotask(() => { void execute(session, request); });
+    return { sessionId: id };
   });
 
-  ipcMain.handle("nomi:agents:chatV2:confirmTool", async (event, payload: {
-    sessionId: string;
-    toolCallId: string;
-    // S6-0:ok 分支携 effectiveArgs/overridesDelta —— 进 proposal.approved 供对账,result.resolve 不取它。
-    // S6-1:ok.silent=只读放行不记 approved;false.denied=gate 拒绝走 gate.denied。
-    // S6-2:ok.proposalId —— approved 事件级事务标注,与画布事件/txn.committed 同键 join。
-    decision:
-      | { ok: true; result?: unknown; effectiveArgs?: Record<string, unknown>; overridesDelta?: Record<string, unknown>; silent?: boolean; proposalId?: string }
-      | { ok: false; message?: string; denied?: boolean };
-  }) => {
+  ipcMain.handle('nomi:agents:chatV2:confirmTool', (event, input: { sessionId?: string; toolCallId?: string; decision?: unknown }) => {
     assertTrustedSender(event);
-    const session = agentChatV2Sessions.get(payload.sessionId);
-    if (!session) return { ok: false, error: "session not found" };
-    const pending = session.pendingConfirmations.get(payload.toolCallId);
-    if (!pending) return { ok: false, error: "tool call not pending" };
-    clearTimeout(pending.timeout);
-    session.pendingConfirmations.delete(payload.toolCallId);
-    if (payload.decision && payload.decision.ok === true) {
-      // 只读 allow 不入日志(§6.1 纯噪声);写操作批准才记对账快照。
-      if (!payload.decision.silent) {
-        traceToolDecision(payload.sessionId, payload.toolCallId, {
-          ok: true,
-          effectiveArgs: payload.decision.effectiveArgs,
-          overridesDelta: payload.decision.overridesDelta,
-          proposalId: payload.decision.proposalId,
-        });
-      }
-      pending.resolve({ ok: true, result: payload.decision.result ?? null });
-    } else {
-      const message = (payload.decision && (payload.decision as { message?: string }).message) || "rejected by user";
-      const denied = Boolean(payload.decision && (payload.decision as { denied?: boolean }).denied);
-      // gate 拒绝(锁/校验)≠ 用户拒绝:前者入 gate.denied(人话 reason 回喂 LLM),后者入 proposal.rejected。
-      if (denied) traceGateDenied(payload.sessionId, payload.toolCallId, message);
-      else traceToolDecision(payload.sessionId, payload.toolCallId, { ok: false, message });
-      pending.resolve({ ok: false, message });
-    }
+    const session = sessions.get(input?.sessionId ?? '');
+    if (!session || !sameOwner(event, session)) return { ok: false, error: 'Agent request owner mismatch or missing' };
+    if (session.controller.signal.aborted) return { ok: false, error: 'Agent request cancelled' };
+    const toolCallId = input.toolCallId ?? '';
+    const pending = session.pending.get(toolCallId);
+    if (!pending) return { ok: false, error: 'Agent confirmation missing or already settled' };
+    if (!validDecision(input.decision)) return { ok: false, error: 'Invalid Agent tool decision' };
+    const decision = input.decision;
+    if (decision.ok ? !decision.silent : !decision.denied) observe(() => traceToolDecision(session.id, toolCallId, decision));
+    if (!decision.ok && decision.denied) observe(() => traceGateDenied(session.id, toolCallId, decision.message ?? 'Tool denied'));
+    pending.settle(decision);
     return { ok: true };
   });
 
-  ipcMain.handle("nomi:agents:chatV2:cancel", async (event, payload: { sessionId: string }) => {
+  ipcMain.handle('nomi:agents:chatV2:cancel', (event, input: { sessionId?: string }) => {
     assertTrustedSender(event);
-    const session = agentChatV2Sessions.get(payload.sessionId);
-    if (!session) return { ok: false, error: "session not found" };
-    // 真取消（abort 在途流 + 解开挂起确认并清超时定时器），与渲染层销毁共用同一出口。
-    cancelAgentChatV2Session(session);
+    const session = sessions.get(input?.sessionId ?? '');
+    if (!session || !sameOwner(event, session)) return { ok: false, error: 'Agent request owner mismatch or missing' };
+    cancel(session);
     return { ok: true };
   });
 
-  // "新对话" — wipe the shared conversation memory for a sessionKey so the next
-  // turn starts fresh (no key = wipe all).
-  ipcMain.handle("nomi:agents:chatV2:clearSession", async (event, payload: { sessionKey?: string }) => {
+  ipcMain.handle('nomi:agents:chatV2:clearSession', async (event, input: AgentChatHistoryRequest) => {
     assertTrustedSender(event);
-    const { clearAgentChatV2History } = await loadAgentChatV2Module();
-    clearAgentChatV2History(payload?.sessionKey);
+    captureOwner(event);
+    const history = captureAgentHistory(input?.history);
+    await (await loadAgent()).clearAgentChatV2History({ history });
     return { ok: true };
   });
-
-  // S1b 诚实探针:UI 呈现的"AI 记得的范围"⊆ LLM 实际范围(总方案 §5 不变量)。
-  ipcMain.handle("nomi:agents:chatV2:sessionAlive", async (event, payload: { sessionKey?: string }) => {
+  ipcMain.handle('nomi:agents:chatV2:sessionAlive', async (event, input: AgentChatHistoryRequest) => {
     assertTrustedSender(event);
-    const { hasAgentChatV2History } = await loadAgentChatV2Module();
-    return { alive: hasAgentChatV2History(String(payload?.sessionKey || "")) };
+    captureOwner(event);
+    const history = captureAgentHistory(input?.history);
+    return { alive: await (await loadAgent()).agentChatV2HasHistory({ history }) };
   });
-
-  // 会话历史:翻回旧对话时,从该线程气泡重建模型工作缓存,使模型「记起」这段、可无缝接着聊。
-  ipcMain.handle(
-    "nomi:agents:chatV2:seedSession",
-    async (event, payload: { sessionKey?: string; messages?: Array<{ role?: string; content?: string }> }) => {
+  ipcMain.handle('nomi:agents:chatV2:seedSession', async (event, input: AgentChatHistoryRequest) => {
     assertTrustedSender(event);
-      const { seedAgentChatV2History } = await loadAgentChatV2Module();
-      seedAgentChatV2History(String(payload?.sessionKey || ""), Array.isArray(payload?.messages) ? payload.messages : []);
-      return { ok: true };
-    },
-  );
+    captureOwner(event);
+    const history = captureAgentHistory(input?.history);
+    const messages = input.messages?.map((message) => ({ ...message }));
+    await (await loadAgent()).seedAgentChatV2History({ history, messages });
+    return { ok: true };
+  });
 }

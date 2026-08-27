@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": ".",
+    "outDir": "../dist-electron",
+    "types": ["node"],
+    "strict": true,
+    "noEmit": false,
+    "noEmitOnError": true,
+    "sourceMap": true
+  },
+  "include": ["harness/runtime/pi/**/*.mts", "harness/runtime/pi/**/*.cts"],
+  "exclude": ["**/*.test.mts", "**/*.test.cts"]
+}

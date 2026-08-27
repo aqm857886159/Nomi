@@ -11,7 +11,9 @@
  * 本模块只做 main 进程内的"主动出站"加固。renderer / preload 不应直接 fetch。
  */
 import { URL } from "node:url";
-import net from "node:net";
+import { isPrivateHost } from "./networkHostPolicy";
+import { appFetch } from "./appFetch";
+export { isPrivateHost } from "./networkHostPolicy";
 
 export type HardenedFetchOptions = {
   /** 超时（毫秒）。默认 20 秒。 */
@@ -42,56 +44,7 @@ export type HardenedFetchOptions = {
 const DEFAULT_TIMEOUT_MS = 20_000;
 const DEFAULT_MAX_BYTES = 50 * 1024 * 1024;
 
-/**
- * 判定主机名是否落在私网/回环范围。
- *
- * 拦截：
- *  - localhost / *.localhost
- *  - 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
- *  - 169.254.0.0/16 (link-local，包括 AWS metadata 169.254.169.254)
- *  - 0.0.0.0
- *  - ::1, fc00::/7, fe80::/10
- *  - .local (mDNS)
- *
- * 不解析 DNS — 这里不做 DNS rebinding 防护（renderer 不直接出网，
- * 攻击面有限）。如果未来支持用户自定义 hook 出网，再加 DNS resolve + recheck。
- */
-export function isPrivateHost(hostname: string): boolean {
-  // Lab-only escape hatch: when LAB_ALLOW_LOCALHOST=1, permit localhost so that
-  // attack fixtures served from a local test server can be fetched.
-  // This env var must NEVER be set in production builds.
-  if (process.env.LAB_ALLOW_LOCALHOST === "1") return false;
-  const host = hostname.toLowerCase().trim();
-  if (!host) return true;
-  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) return true;
-  if (host === "0.0.0.0" || host === "[::]" || host === "::") return true;
-
-  // IPv6 literal — strip brackets
-  const ipv6 = host.startsWith("[") && host.endsWith("]") ? host.slice(1, -1) : host;
-  if (net.isIPv6(ipv6)) {
-    const lower = ipv6.toLowerCase();
-    if (lower === "::1") return true;
-    if (lower.startsWith("fe80") || lower.startsWith("fc") || lower.startsWith("fd")) return true;
-    return false;
-  }
-
-  if (!net.isIPv4(host)) {
-    // 非 IP 字面量 → 让 OS 解析。本模块不做 rebind 防御，但拦明显的 localhost。
-    return false;
-  }
-
-  const parts = host.split(".").map((n) => Number(n));
-  if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n) || n < 0 || n > 255)) return true;
-  const [a, b] = parts;
-  if (a === 127) return true;
-  if (a === 10) return true;
-  if (a === 169 && b === 254) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
-  if (a === 0) return true;
-  return false;
-}
-
+/** A configured private exception must match the complete origin exactly. */
 function isExplicitlyAllowedPrivateOrigin(url: URL, allowedOrigins: readonly string[]): boolean {
   return allowedOrigins.some((rawOrigin) => {
     try {
@@ -166,7 +119,7 @@ export async function hardenedFetch(
         requestHeaders["Content-Type"] = "application/json";
       }
     }
-    const response = await fetch(url, {
+    const response = await appFetch(url, {
       method,
       signal: controller.signal,
       redirect: allowRedirect ? "follow" : "error",

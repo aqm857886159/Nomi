@@ -1,4 +1,5 @@
 import { ipcMain } from "electron";
+import { appFetch } from "../../appFetch";
 import type { AiSdkProviderKind } from "../../catalog/types";
 import { describeIllegalHeader, findIllegalHeader, findNonHeaderSafeChar, mergeHeadersCaseInsensitive } from "../../jsonUtils";
 import { guessModelKind, type GuessableModelKind } from "../../catalog/modelKindHeuristic";
@@ -51,7 +52,7 @@ async function probeOneProtocol(
     body = { model: modelId || "gpt-3.5-turbo", messages: [{ role: "user", content: "ping" }], max_tokens: 1 };
   }
   try {
-    const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal });
+    const res = await appFetch(url, { method: "POST", headers, body: JSON.stringify(body), signal });
     if (res.ok) return { ok: true, status: res.status };
     const text = await res.text().catch(() => "");
     // 404/405/501/502/503 多为「路由/协议不对」→ 换下一个协议；401/403/400 多为鉴权/请求问题（不是协议错）。

@@ -10,9 +10,13 @@ import { runSingleShotAgent } from '../../ai/agentLoopMode'
 import { readWindowUrlParam } from '../../windowUrlParam'
 import type { ShotVerifyDeps } from './shotVerifyRunner'
 
-/** 真实 deps 工厂(渲染层环境)。无桌面桥(非 Electron)→ extractFrame 抛错,被 runner 逐镜 catch 跳过。 */
-export function makeShotVerifyDeps(): ShotVerifyDeps {
-  const projectId = readWindowUrlParam('projectId') || ''
+/** 真实 deps 工厂(渲染层环境)。无桌面桥(非 Electron)→ extractFrame 抛错,被 runner 逐镜 catch 跳过。
+ * 调用方在校验开始时传入项目 id，保证异步审片期间切项目也不会把旧镜头写进新会话；
+ * 无显式参数仅为旧调用/独立预览保留 URL 兜底。 */
+export function makeShotVerifyDeps(projectIdInput?: string): ShotVerifyDeps {
+  const projectId = typeof projectIdInput === 'string'
+    ? projectIdInput.trim()
+    : (readWindowUrlParam('projectId') || '')
   return {
     extractFrame: async (videoUrl: string): Promise<string> => {
       const extract = getDesktopBridge()?.video?.extractFrame
@@ -23,10 +27,10 @@ export function makeShotVerifyDeps(): ShotVerifyDeps {
       return url
     },
     judge: async (prompt: string, frameImageUrl: string): Promise<string> => {
-      // 每镜判断必须独立:单次链路(清会话 + mode:'chat' 纯多模态判断 + 模型偏好)收口到 runSingleShotAgent,
+      // 每镜判断独立：ephemeral 纯多模态请求不会读写任何会话历史，
       // 避免上一镜的图/判决污染本镜上下文(偏判)。
       const response = await runSingleShotAgent({
-        sessionKey: shotVerifySessionKey(),
+        featureKey: shotVerifySessionKey(projectId),
         prompt,
         displayPrompt: prompt.slice(0, 40),
         ...(projectId ? { projectId } : {}),

@@ -13,9 +13,9 @@ import i18n from '../../i18n'
 import { useWorkbenchStore } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { applyCanvasToolCall, resolveCanvasToolNodeId } from '../generationCanvas/agent/applyCanvasToolCall'
-import { generationCanvasTools } from '../generationCanvas/agent/generationCanvasTools'
 import { withCanvasGestureContext } from '../generationCanvas/events/canvasGestureContext'
 import { pushUndoSnapshot } from '../generationCanvas/events/canvasUndoJournal'
+import { interruptPendingCanvasWrite } from '../generationCanvas/events/canvasWriteBoundary'
 import { CATEGORY_IDS, type BuiltinCanvasCategoryId, type GenerationNodeKind, type GenerationNodeResult } from '../generationCanvas/model/generationCanvasTypes'
 
 /** 一镜/一锚要落的占位节点（主进程从 Run 的 generationPlan.shots 投影而来）。clientId = shotId（稳定寻址）。 */
@@ -61,6 +61,7 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   const incoming = Array.isArray(payload.shots) ? payload.shots.filter((shot) => shot && typeof shot.shotId === 'string' && shot.shotId.trim()) : []
   if (!materializationOperationId || incoming.length === 0) return { bindings: [], createdNodeIds: [], groupId: null }
 
+  interruptPendingCanvasWrite()
   const store = useGenerationCanvasStore.getState()
   // 已建的（本 op 章 + clientId）→ shotId → 节点 id。补齐时据此只补缺失、幂等回填 result。
   const existingByShot = new Map<string, string>()
@@ -210,6 +211,7 @@ export function attachShotResult(payload: AttachShotResultPayload): AttachShotRe
   if (url && !url.startsWith('nomi-local://')) {
     throw new Error(`production.attach-shot-result 拒绝非本地 result.url（必须 nomi-local://，原始 CDN 存 providerUrl）：${url.slice(0, 80)}`)
   }
+  interruptPendingCanvasWrite()
   const exists = useGenerationCanvasStore.getState().nodes.some((node) => node.id === nodeId)
   if (!exists) return { skipped: 'node-removed' }
   useGenerationCanvasStore.getState().addNodeResult(nodeId, result)

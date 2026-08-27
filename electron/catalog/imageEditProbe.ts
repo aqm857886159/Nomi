@@ -11,6 +11,8 @@
 //   · 其余（401/403 鉴权、5xx 服务端、网络失败、400 但没提 image）→ 拿不准 → null（**保守不猜**）
 // 各站报错形状不统一，故多信号 + 保守：拿不准一律 null，绝不误判把 chat 站强判成 multipart。
 
+import { appFetch } from "../appFetch";
+
 export type ImageEditProbeOutcome = "openai-multipart-edits" | null;
 
 // 端点在、只是缺图的正信号（英文各家措辞双向：image 在关键词前或后 + 中文）。
@@ -63,7 +65,7 @@ export async function probeImageEditProtocol(input: {
   const form = new FormData();
   form.append("model", input.modelKey || "");
   form.append("prompt", "ping"); // 故意不 append image[]：探端点存在性，非真生成
-  const doFetch: ProbeFetch = input.fetchImpl || ((u, init) => fetch(u, init) as unknown as Promise<ProbeResponse>);
+  const doFetch: ProbeFetch = input.fetchImpl || ((u, init) => appFetch(u, init) as unknown as Promise<ProbeResponse>);
   try {
     const res = await doFetch(url, { method: "POST", headers, body: form, signal: input.signal });
     const text = await res.text().catch(() => "");

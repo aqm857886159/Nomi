@@ -43,6 +43,10 @@ describe('production.revise-storyboard renderer seam', () => {
     expect(String(request.prompt)).toContain('只输出 JSON')
     expect(String(request.prompt)).toContain('transition')
     expect(request.skillKey).toBe('workbench.production.script-planner')
+    expect(request.capability).toBe('single-shot')
+    expect(request.history).toEqual({ kind: 'ephemeral' })
+    expect(request.featureKey).toBe('nomi:production-script:project-1')
+    expect(clearWorkbenchAgentSession).not.toHaveBeenCalled()
   })
 
   it('rejects prose instead of turning an unstructured model answer into a candidate', async () => {

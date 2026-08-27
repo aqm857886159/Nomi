@@ -9,6 +9,7 @@
  * 从 onboardingIpc.ts 移出——那份是 IPC 面，这份是领域原语（R9 分层）。
  */
 import type { AiSdkProviderKind } from "../../catalog/types";
+import { appFetch } from "../../appFetch";
 import { describeIllegalHeader, findIllegalHeader, isJsonRecord, mergeHeadersCaseInsensitive, pickUpstreamMessage } from "../../jsonUtils";
 import { parseModelListPage, type ModelListFailureKind } from "./modelListResponse";
 import { modelListErrorRedactor } from "./modelListSafety";
@@ -141,7 +142,7 @@ export async function fetchModelList(
       let status: number | undefined;
       try {
         // Never auto-follow redirects with arbitrary gateway auth headers/query credentials.
-        res = await fetch(url.toString(), { method: "GET", headers, signal, redirect: "manual" });
+        res = await appFetch(url.toString(), { method: "GET", headers, signal, redirect: "manual" });
         statuses.push(res.status);
         status = res.status;
         body = await res.text();

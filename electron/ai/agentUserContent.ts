@@ -11,7 +11,7 @@ export type AgentUserAttachment = {
 
 type TextPart = { type: 'text'; text: string }
 type ImagePart = { type: 'image'; image: Uint8Array; mimeType?: string }
-type FilePart = { type: 'file'; data: Uint8Array; mimeType: string }
+type FilePart = { type: 'file'; data: Uint8Array; mimeType: string; fileName: string }
 export type AgentUserContent = string | Array<TextPart | ImagePart | FilePart>
 
 // 已知支持图片输入（vision）的模型族。meta.supportsImageInput 显式声明优先。
@@ -74,7 +74,7 @@ export async function buildAgentUserContent(params: {
       if (!supportsPdfInput) { droppedPdfs += 1; continue }
       const bytes = resolveBytes(att.url)
       if (!bytes) { droppedPdfs += 1; continue }
-      mediaParts.push({ type: 'file', data: bytes, mimeType: 'application/pdf' })
+      mediaParts.push({ type: 'file', data: bytes, mimeType: 'application/pdf', fileName: att.fileName })
     } else {
       const text = await extractText(att)
       if (text && text.trim()) docBlocks.push(`〈${att.fileName}〉\n${text.trim()}`)

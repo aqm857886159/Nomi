@@ -9,9 +9,12 @@
 // 根因是「手工枚举字段的 payload builder 漏了一个」，而 typecheck 抓不到：
 // 调用方把 request 存成变量再传，结构化子类型允许多带字段（详见 workbenchAgentRunner 的标注注释）。
 // 类型标注挡住了「传了但 DTO 没声明」，这里挡另一半——「DTO 声明了但 builder 忘了转发」。
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { WORKBENCH_AI_REQUEST_FIELDS, buildWorkbenchAiPayload, type WorkbenchAiRequest } from './workbenchAiClient'
+const mocks = vi.hoisted(() => ({ stream: vi.fn() }))
+vi.mock('../../api/desktopClient', () => ({ workbenchAgentsChatStream: mocks.stream }))
+
+import { WORKBENCH_AI_REQUEST_FIELDS, buildWorkbenchAiPayload, sendWorkbenchAiMessage, type WorkbenchAiRequest } from './workbenchAiClient'
 
 type WorkbenchAiPayload = ReturnType<typeof buildWorkbenchAiPayload>
 
@@ -26,7 +29,10 @@ const FIELD_LANDING: Record<keyof WorkbenchAiRequest, (payload: WorkbenchAiPaylo
   prompt: (p) => p.prompt,
   systemPrompt: (p) => p.systemPrompt,
   displayPrompt: (p) => p.displayPrompt,
-  sessionKey: (p) => p.sessionKey,
+  capability: (p) => p.capability,
+  history: (p) => p.history,
+  featureKey: (p) => p.featureKey,
+  selectedNodeIds: (p) => p.selectedNodeIds,
   projectId: (p) => p.canvasProjectId,
   flowId: (p) => p.canvasFlowId,
   projectName: (p) => p.chatContext.currentProjectName,
@@ -43,7 +49,10 @@ const FULL_REQUEST: Required<WorkbenchAiRequest> = {
   prompt: '把这段故事拆成三个镜头',
   systemPrompt: '你现在在「生成画布」工作：把用户的想法落成画布上的节点。',
   displayPrompt: '拆镜头',
-  sessionKey: 'nomi:workbench:proj-1:generation',
+  capability: 'canvas-agent',
+  history: { kind: 'persistent', binding: { sessionKey: 'nomi:workbench:proj-1:generation', threadId: 'thread-1' } },
+  featureKey: 'test-feature',
+  selectedNodeIds: ['node-1'],
   projectId: 'proj-1',
   flowId: 'flow-1',
   projectName: '测试项目',
@@ -56,12 +65,20 @@ const FULL_REQUEST: Required<WorkbenchAiRequest> = {
 }
 
 describe('buildWorkbenchAiPayload', () => {
+  it('forwards explicit capability/history/selection and keeps feature identity outside the history key', () => {
+    const input: WorkbenchAiRequest = { ...FULL_REQUEST, capability: 'canvas-refine', selectedNodeIds: ['n1'], featureKey: 'feature-only',
+      history: { kind: 'persistent', binding: { sessionKey: 'nomi:workbench:proj-1:generation', threadId: 'thread-a' } } }
+    const payload = buildWorkbenchAiPayload(input)
+    expect(payload).toMatchObject({ capability: 'canvas-refine', history: input.history, selectedNodeIds: ['n1'], featureKey: 'feature-only' })
+    expect(payload).not.toHaveProperty('sessionKey')
+  })
   it('systemPrompt 必须上 wire（专长层曾被整段丢弃）', () => {
     const payload = buildWorkbenchAiPayload({
       prompt: 'p',
       systemPrompt: '面板专长层',
       displayPrompt: 'd',
-      sessionKey: 's',
+      capability: 'canvas-chat',
+      history: { kind: 'ephemeral' },
       skillKey: 'k',
       skillName: 'n',
     })
@@ -85,10 +102,30 @@ describe('buildWorkbenchAiPayload', () => {
     const payload = buildWorkbenchAiPayload({
       prompt: 'p',
       displayPrompt: 'd',
-      sessionKey: 's',
+      capability: 'canvas-chat',
+      history: { kind: 'ephemeral' },
       skillKey: 'k',
       skillName: 'n',
     })
     expect('systemPrompt' in payload).toBe(false)
+  })
+
+  it('keeps a structured credential code on the actionable Error', async () => {
+    mocks.stream.mockImplementationOnce(async (_payload, handlers) => {
+      handlers.onEvent({ event: 'error', data: {
+        message: 'Text model credential is locked', code: 'text_model_credential_locked',
+      } })
+      handlers.onEvent({ event: 'done', data: { reason: 'error' } })
+      return () => {}
+    })
+    let failure: unknown
+    try {
+      await sendWorkbenchAiMessage(FULL_REQUEST, {})
+    } catch (error) {
+      failure = error
+    }
+    expect(failure).toMatchObject({
+      name: 'WorkbenchAiError', message: 'Text model credential is locked', code: 'text_model_credential_locked',
+    })
   })
 })

@@ -5,6 +5,7 @@
 
 import { renderTemplateValue } from "../ai/requestPipeline";
 import { readNomiLocalAsset } from "../assets/localAssetFile";
+import { appFetch } from "../appFetch";
 import { templateContext, buildProfileHttpRequest } from "./profileHttpRequest";
 import type { HttpOperation, Model, Vendor } from "./types";
 import type { TaskRequest } from "../runtime";
@@ -26,7 +27,7 @@ export const resolveReferenceImageBytes: MultipartImageResolver = async (url) =>
     return { bytes, contentType, fileName: `image.${contentType.split("/").pop() || "png"}` };
   }
   if (/^https?:\/\//i.test(url)) {
-    const response = await fetch(url);
+    const response = await appFetch(url);
     if (!response.ok) return null;
     const bytes = Buffer.from(await response.arrayBuffer());
     const contentType = response.headers.get("content-type")?.split(";")[0]?.trim() || "image/png";

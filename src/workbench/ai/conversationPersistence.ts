@@ -4,7 +4,10 @@
 // 给面板与历史弹层。切项目前必须先 flushNow(旧 id),否则防抖窗口里的回写会写错项目文件。
 import { getDesktopBridge } from '../../desktop/bridge'
 import { seedWorkbenchAgentSession } from '../../api/desktopClient'
-import { workbenchSessionKey } from './workbenchAgentRunner'
+import { workbenchSessionKey } from './agentSessionKey'
+import type { AgentChatHistory } from '../../../electron/harness/agentChatContracts'
+import { abandonCreationTurn } from '../creation/creationTurnController'
+import { abandonCanvasTurn } from '../generationCanvas/agent/canvasTurnController'
 import { useWorkbenchStore } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import {
@@ -52,12 +55,26 @@ function activeProjectId(): string | null {
   return getProjectIdProvider()
 }
 
-/** 把某 area 活动线程的气泡种回模型工作缓存(空→清);per-area 键,互不串。 */
-function seedActiveModelMemory(area: ConvArea, messages: readonly WorkbenchAiMessage[]): void {
+/** Capture before preflight. Neither this helper nor main guesses a thread from URL. */
+export function captureConversationHistory(area: ConvArea, projectId: string | null): Extract<AgentChatHistory, { kind: 'persistent' }> {
+  const id = projectId?.trim() || 'local'
+  return { kind: 'persistent', binding: {
+    sessionKey: workbenchSessionKey(area, id),
+    threadId: getActiveThreadId(id, area, now()),
+  } }
+}
+
+function abandonArea(area: ConvArea): void {
+  if (area === 'creation') abandonCreationTurn()
+  else abandonCanvasTurn()
+}
+
+/** Ensure only: existing full snapshots and cleared tombstones always dominate UI text. */
+function seedActiveModelMemory(projectId: string, area: ConvArea, messages: readonly WorkbenchAiMessage[]): void {
   void seedWorkbenchAgentSession(
-    workbenchSessionKey(area),
+    captureConversationHistory(area, projectId),
     messages.map((message) => ({ role: message.role, content: message.content })),
-  )
+  ).catch((error: unknown) => console.warn('[agent] conversation ensure failed', error))
 }
 
 // ─── 历史弹层用的轻量响应式:线程结构变化时 bump,弹层 useSyncExternalStore 订阅 ───
@@ -114,21 +131,25 @@ export function flushConversationsNow(projectId: string | null): void {
   writeNow(projectId)
 }
 
-/** hydrate 后把磁盘上的会话列表迁灌进模型,并把各 area 活动线程气泡投影回面板。 */
+let loadGeneration = 0
+
+/** Only the latest read for the still-active project may project into either panel. */
 export async function loadProjectConversations(projectId: string): Promise<void> {
+  const generation = ++loadGeneration
+  abandonCreationTurn()
+  abandonCanvasTurn()
   const api = getDesktopBridge()?.conversations
   if (!api) return
   try {
     const { ok, conversations } = await api.read(projectId)
+    if (generation !== loadGeneration || activeProjectId() !== projectId) return
     const stamp = now()
     const creationMessages = hydrateArea(projectId, 'creation', ok ? conversations?.creation : null, stamp)
     const generationMessages = hydrateArea(projectId, 'generation', ok ? conversations?.generation : null, stamp)
     adapters.creation.setMessages(creationMessages)
     adapters.generation.setMessages(generationMessages)
-    // 打开项目即把活动线程气泡种回模型记忆——开门就能带记忆接着聊(气泡=UI 与模型记忆的统一真相源,
-    // 也覆盖掉 'local' 桶里别的项目残留)。各 area 独立键,互不串。
-    seedActiveModelMemory('creation', creationMessages)
-    seedActiveModelMemory('generation', generationMessages)
+    seedActiveModelMemory(projectId, 'creation', creationMessages)
+    seedActiveModelMemory(projectId, 'generation', generationMessages)
     // 回执种回(仅内存槽为空时;损坏数据 parse 失败则宁缺勿错)。
     if (ok && !getCommittedProposal() && conversations?.committedProposal) {
       const record = parseCommittedProposalRecord(conversations.committedProposal)
@@ -146,11 +167,13 @@ export async function loadProjectConversations(projectId: string): Promise<void>
 export function startNewConversation(area: ConvArea): void {
   const projectId = activeProjectId()
   if (!projectId) return
+  abandonArea(area)
   // 先把当前 store 消息同步进活动线程,再归档建新。
   syncActiveMessages(projectId, area, adapters[area].getMessages(), now())
   startNewThread(projectId, area, now())
   adapters[area].setMessages([])
   if (area === 'generation') clearCommittedProposal()
+  seedActiveModelMemory(projectId, area, [])
   bump()
   scheduleConversationsWrite(activeProjectId)
 }
@@ -162,10 +185,10 @@ export function switchConversation(area: ConvArea, threadId: string): void {
   syncActiveMessages(projectId, area, adapters[area].getMessages(), now())
   const target = activateThread(projectId, area, threadId, now())
   if (!target) return
+  abandonArea(area)
   adapters[area].setMessages(target.messages.slice())
   if (area === 'generation') clearCommittedProposal()
-  // 翻回旧对话:把该线程气泡重建成模型工作缓存喂回去,使模型「记起」这段、无缝接着聊。
-  seedActiveModelMemory(area, target.messages)
+  seedActiveModelMemory(projectId, area, target.messages)
   bump()
   scheduleConversationsWrite(activeProjectId)
 }
@@ -207,6 +230,7 @@ export function initConversationPersistence(getProjectId: () => string | null): 
   const unsubscribeCanvas = useGenerationCanvasStore.subscribe((state) => state.generationAiMessages, () => onChange('generation'))
   const unsubscribeProposal = subscribeCommittedProposal(() => scheduleConversationsWrite(getProjectId))
   return () => {
+    loadGeneration += 1
     unsubscribeWorkbench()
     unsubscribeCanvas()
     unsubscribeProposal()

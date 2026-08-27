@@ -42,7 +42,7 @@ import { registerMemoryIpc } from "./memory/memoryIpc";
 import { registerPromptLibraryIpc } from "./promptLibrary/promptLibraryIpc";
 import { registerBrowserViewIpc } from "./browser/core/browserViews";
 import { registerBrowserPromptExtractionSettingsIpc } from "./browser/settings/browserPromptExtractionSettings";
-import { registerProxyIpc } from "./proxyIpc";
+import { applyProxyAtBoot, registerProxyIpc } from "./proxyIpc";
 import { catalogSecretsProvider } from "./events/secretsProvider";
 import { registerOnboardingIpc } from "./ai/onboarding/onboardingIpc";
 import { registerProviderAdapterIpc } from "./providerAdapter/ipc";
@@ -735,6 +735,12 @@ if (hasSingleInstanceLock)
       }
       registerLocalProtocol();
       installContentSecurityPolicy(session.defaultSession);
+      // Start before exposing IPC/window. Painting is not blocked; appFetch
+      // waits for this configuration instead of silently sending early direct.
+      void applyProxyAtBoot()
+        .then(() => import("./vendor/vendorBaseFallbackBoot"))
+        .then((m) => m.configureVendorBaseFallbackAtBoot())
+        .catch((error) => console.error("[nomi:desktop] network boot failed:", error));
       // 写入内置模型种子（Seedance 等主流模型档案）；幂等、存在即跳过，不覆盖用户已有记录。
       // sync 且渲染层一进库就读 catalog → 须在 createWindow 前完成。
       try {
@@ -742,32 +748,27 @@ if (hasSingleInstanceLock)
       } catch (error) {
         console.error("[nomi:desktop] ensureBuiltinModelSeeds failed:", error);
       }
-      // 存量中转模型升级到厂商原生报文（异步不挡窗口、幂等、失败静默；细节见该模块头注释）。
-      void import("./catalog/relayNativeWireUpgrade").then((m) => m.scheduleRelayNativeWireUpgrade()).catch(() => {});
       registerIpc();
-      // E(冷启动 P0)：代理探测与能力核都不是窗口首帧的依赖，挡在窗口前是纯浪费。
-      //  · applySystemProxy：窗口创建后延迟后台探测；低内存模式更晚加载，避免列表页常驻代理栈。
-      //  · startCapabilityCore(外部 MCP 的本地 RPC 广告)：fail-open，本就不影响 app；低内存模式默认跳过。
+      await createWindow();
+      // 外部 capability RPC 不是首窗依赖，且它一旦 listen 就可能收到会解析凭据的 models/generation 请求。
+      // 必须在窗口完成后才暴露；失败显式消化，不能反向拖垮已经可用的首窗。低内存模式仍默认跳过。
       if (!capabilityCoreDisabled) {
         void startDesktopCapabilityCore().catch((error) => {
           console.error("[nomi:desktop] startCapabilityCore failed:", error);
         });
       }
-      await createWindow();
       flushPendingProductionDeepLink();
       setTimeout(
         () => {
+          // 存量中转模型升级会在真实探测前按需解密凭据；首窗完成后再让出一个后台时段调度，
+          // 避免 OS Keychain 阻塞初始窗口或调试握手。动态导入/维护失败均显式消化，不反向拖垮首窗。
+          void import("./catalog/relayNativeWireUpgrade")
+            .then((m) => m.scheduleRelayNativeWireUpgrade())
+            .catch(() => console.warn("[nomi:desktop] post-window catalog maintenance unavailable"));
           // 全局截图热键：默认关，只有用户在设置里开过才会真注册（见 screenshot/screenshotHotkey.ts）。
           void import("./screenshot/screenshotHotkey")
             .then(({ applyScreenshotHotkey }) => applyScreenshotHotkey())
             .catch((error) => console.error("[nomi:desktop] screenshot hotkey boot failed:", error));
-          void import("./proxyIpc")
-            .then(({ applyProxyAtBoot }) => applyProxyAtBoot())
-            .catch((error) => console.error("[nomi:desktop] proxy boot failed:", error))
-            // 代理定型后装 vendor 候选域自愈（apimart 被墙自动切官方备用域；回切探测走最终 dispatcher）。
-            .then(() => import("./vendor/vendorBaseFallbackBoot"))
-            .then((m) => m.configureVendorBaseFallbackAtBoot())
-            .catch((error) => console.error("[nomi:desktop] vendor base fallback boot failed:", error));
         },
         lowMemoryMode ? 15000 : 3000,
       );

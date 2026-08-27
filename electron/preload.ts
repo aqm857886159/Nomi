@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { importNativeFileFromPreload } from "./assets/nativeFileBridge";
+import type { AgentChatStartRequest, AgentChatHistoryRequest, AgentChatToolDecision, AgentChatWireEvent } from './harness/agentChatContracts';
 
 type SyncResult<T> = { ok: true; value: T } | { ok: false; error: string };
 type ProductionDeepLinkPayload = { projectId: string; runId?: string; nodeId?: string; artifactId?: string };
@@ -435,18 +436,17 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.invoke("nomi:conversations:write", { projectId, ...payload }),
   },
   agents: {
-    chatV2Start: (payload: unknown) =>
+    chatV2Start: (payload: AgentChatStartRequest) =>
       ipcRenderer.invoke("nomi:agents:chatV2:start", payload) as Promise<{ sessionId: string }>,
-    confirmTool: (sessionId: string, toolCallId: string, decision: unknown) =>
+    confirmTool: (sessionId: string, toolCallId: string, decision: AgentChatToolDecision) =>
       ipcRenderer.invoke("nomi:agents:chatV2:confirmTool", { sessionId, toolCallId, decision }),
     cancelChatV2: (sessionId: string) => ipcRenderer.invoke("nomi:agents:chatV2:cancel", { sessionId }),
-    clearChatV2Session: (sessionKey: string) => ipcRenderer.invoke("nomi:agents:chatV2:clearSession", { sessionKey }),
-    seedChatV2Session: (sessionKey: string, messages: Array<{ role: string; content: string }>) =>
-      ipcRenderer.invoke("nomi:agents:chatV2:seedSession", { sessionKey, messages }),
-    chatV2SessionAlive: (sessionKey: string) =>
-      ipcRenderer.invoke("nomi:agents:chatV2:sessionAlive", { sessionKey }) as Promise<{ alive: boolean }>,
-    onChatV2Event: (sessionId: string, callback: (event: unknown) => void) => {
-      const listener = (_event: unknown, payload: { sessionId: string; event: unknown }) => {
+    clearChatV2Session: (request: AgentChatHistoryRequest) => ipcRenderer.invoke("nomi:agents:chatV2:clearSession", request),
+    seedChatV2Session: (request: AgentChatHistoryRequest) => ipcRenderer.invoke("nomi:agents:chatV2:seedSession", request),
+    chatV2SessionAlive: (request: AgentChatHistoryRequest) =>
+      ipcRenderer.invoke("nomi:agents:chatV2:sessionAlive", request) as Promise<{ alive: boolean }>,
+    onChatV2Event: (sessionId: string, callback: (event: AgentChatWireEvent) => void) => {
+      const listener = (_event: unknown, payload: { sessionId: string; event: AgentChatWireEvent }) => {
         if (payload && payload.sessionId === sessionId) callback(payload.event);
       };
       ipcRenderer.on("nomi:agents:chatV2:event", listener as never);

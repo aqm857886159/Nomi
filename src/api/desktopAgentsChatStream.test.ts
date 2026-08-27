@@ -1,115 +1,133 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { openDesktopAgentsChatStream, type AgentChatV2Session, type AgentsChatStreamEvent } from './desktopAgentsChatStream'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { openDesktopAgentsChatStream, type AgentChatV2Session, type AgentsChatStreamEvent, type AgentsChatRequestDto } from './desktopAgentsChatStream'
 
-// Root-cause regression for the "Stop button doesn't stop" bug:
-// cancelling the stream MUST emit a terminal `result` + `done` so the awaiting
-// consumer (sendWorkbenchAiMessage) settles and the panel's sending/busy flag
-// resets. Before the fix, `stop()` only unsubscribed the IPC listener, so the
-// backend's own terminal events were dropped and the promise hung forever.
-
-type ChatV2Callback = (event: unknown) => void
-
-function installMockBridge() {
-  let captured: ChatV2Callback | null = null
-  const unsubscribe = vi.fn()
-  const cancelChatV2 = vi.fn(async () => ({ ok: true }))
-  const bridge = {
-    agents: {
-      chatV2Start: vi.fn(async () => ({ sessionId: 'session-test-1' })),
-      confirmTool: vi.fn(async () => ({ ok: true })),
-      cancelChatV2,
-      onChatV2Event: vi.fn((_sessionId: string, callback: ChatV2Callback) => {
-        captured = callback
-        return unsubscribe
-      }),
-    },
-  }
-  ;(globalThis as unknown as { window?: unknown }).window = { nomiDesktop: bridge }
-  return {
-    cancelChatV2,
-    unsubscribe,
-    emit: (event: unknown) => captured?.(event),
-  }
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (error: Error) => void
+  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no })
+  return { promise, resolve, reject }
 }
+const request = { prompt: 'hello', capability: 'canvas-chat', history: { kind: 'persistent', binding: { sessionKey: 'nomi:workbench:p:generation', threadId: 'thread' } } } as AgentsChatRequestDto
+function bridge() {
+  let listener: ((event: unknown) => void) | undefined
+  const ack = deferred<{ sessionId: string }>()
+  const unsubscribe = vi.fn()
+  const agents = {
+    chatV2Start: vi.fn(() => ack.promise), confirmTool: vi.fn(async () => ({ ok: true })),
+    cancelChatV2: vi.fn(async () => ({ ok: true })),
+    onChatV2Event: vi.fn((_id: string, callback: (event: unknown) => void) => { listener = callback; return unsubscribe }),
+  }
+  ;(globalThis as unknown as { window: unknown }).window = { nomiDesktop: { agents } }
+  return { agents, ack, unsubscribe, emit: (event: unknown) => listener?.(event) }
+}
+const result = (status = 'finished') => ({ id: 'result', text: 'completed text', status,
+  finishReason: status === 'cancelled' ? 'aborted' : 'stop', toolCalls: [], artifacts: [],
+  usage: { promptTokens: 4, completionTokens: 2, cachedPromptTokens: 1, totalTokens: 6 },
+  ...(status === 'cancelled' ? { raw: { cancelled: true } } : {}) })
+afterEach(() => { delete (globalThis as unknown as { window?: unknown }).window })
 
-describe('openDesktopAgentsChatStream cancel', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks()
-  })
-  afterEach(() => {
-    delete (globalThis as unknown as { window?: unknown }).window
+describe('desktop Agent stream admission and stable settlement', () => {
+  it('subscribes and exposes the cancel handle synchronously before start ACK', async () => {
+    const mock = bridge()
+    let session: AgentChatV2Session | undefined
+    const opening = openDesktopAgentsChatStream(request, { onEvent: () => {}, onSession: (value) => { session = value } })
+    expect(mock.agents.onChatV2Event).toHaveBeenCalledOnce()
+    expect(session).toBeDefined()
+    expect(mock.agents.onChatV2Event.mock.invocationCallOrder[0]).toBeLessThan(mock.agents.chatV2Start.mock.invocationCallOrder[0]!)
+    const id = session!.sessionId
+    expect(mock.agents.chatV2Start).toHaveBeenCalledWith({ requestId: id, request })
+    mock.ack.resolve({ sessionId: id })
+    await opening
+    mock.emit({ type: 'done', reason: 'finished' })
   })
 
-  it('emits a terminal result + done (with partial text) when cancelled mid-stream', async () => {
-    const mock = installMockBridge()
+  it('does not lose content/tool/result/done before ACK or revive a completed request on late ACK', async () => {
+    const mock = bridge()
     const events: AgentsChatStreamEvent[] = []
-    let session: AgentChatV2Session | null = null
-
-    await openDesktopAgentsChatStream(
-      { vendor: 'agents', prompt: 'hi' },
-      {
-        onEvent: (event) => events.push(event),
-        onSession: (s) => { session = s },
-      },
-    )
-
-    expect(session).not.toBeNull()
-    // Stream a couple of deltas so partial text exists.
-    mock.emit({ type: 'content-delta', delta: '你好' })
-    mock.emit({ type: 'content-delta', delta: '世界' })
-
-    // User hits Stop.
-    await session!.cancel()
-
-    const result = events.find((e) => e.event === 'result')
-    const done = events.find((e) => e.event === 'done')
-    expect(result, 'cancel must emit a terminal result so the consumer settles').toBeTruthy()
-    expect((result as { data: { response: { text: string } } }).data.response.text).toBe('你好世界')
-    expect(done, 'cancel must emit done so the awaiting promise resolves').toBeTruthy()
-    expect((done as { data: { reason: string } }).data.reason).toBe('finished')
-
-    // And it must actually cancel the backend + unsubscribe.
-    expect(mock.cancelChatV2).toHaveBeenCalledWith('session-test-1')
-    expect(mock.unsubscribe).toHaveBeenCalled()
+    let session: AgentChatV2Session | undefined
+    const opening = openDesktopAgentsChatStream(request, { onEvent: (event) => events.push(event), onSession: (value) => { session = value } })
+    mock.emit({ type: 'content-delta', delta: 'early' })
+    mock.emit({ type: 'tool-call-pending', toolCallId: 'c', toolName: 'read_canvas_state', args: {} })
+    mock.emit({ type: 'result', result: { ...result(), snapshot: 'MUST NOT CROSS', model: { apiKey: 'secret' } } })
+    mock.emit({ type: 'done', reason: 'finished' })
+    expect(events.map((event) => event.event)).toEqual(['initial', 'content', 'tool-call', 'result', 'done'])
+    const publicResult = events.find((event) => event.event === 'result')
+    expect(JSON.stringify(publicResult)).not.toContain('MUST NOT CROSS')
+    expect(JSON.stringify(publicResult)).not.toContain('secret')
+    mock.ack.resolve({ sessionId: session!.sessionId })
+    await opening
+    mock.emit({ type: 'content-delta', delta: 'late' })
+    expect(events.filter((event) => event.event === 'content')).toHaveLength(1)
+    expect(mock.unsubscribe).toHaveBeenCalledOnce()
   })
 
-  it('falls back to a "停止" placeholder when cancelled before any token', async () => {
-    const mock = installMockBridge()
+  it('early repeated Stop requests real cancellation and waits for actual cancelled usage', async () => {
+    const mock = bridge()
     const events: AgentsChatStreamEvent[] = []
-    let session: AgentChatV2Session | null = null
-
-    await openDesktopAgentsChatStream(
-      { vendor: 'agents', prompt: 'hi' },
-      {
-        onEvent: (event) => events.push(event),
-        onSession: (s) => { session = s },
-      },
-    )
-
+    let session: AgentChatV2Session | undefined
+    const opening = openDesktopAgentsChatStream(request, { onEvent: (event) => events.push(event), onSession: (value) => { session = value } })
+    expect(session).toBeDefined()
     await session!.cancel()
-
-    const result = events.find((e) => e.event === 'result')
-    expect((result as { data: { response: { text: string } } }).data.response.text).toBe('（已停止生成）')
-    void mock
+    await session!.cancel()
+    expect(mock.agents.cancelChatV2).toHaveBeenCalledOnce()
+    expect(mock.unsubscribe).not.toHaveBeenCalled()
+    expect(events.some((event) => event.event === 'done')).toBe(false)
+    mock.emit({ type: 'result', result: result('cancelled') })
+    mock.emit({ type: 'done', reason: 'cancelled' })
+    expect(events.at(-1)).toEqual({ event: 'done', data: { reason: 'cancelled' } })
+    expect(events.find((event) => event.event === 'result')).toMatchObject({ data: { response: { usage: { totalTokens: 6 }, status: 'cancelled' } } })
+    mock.ack.resolve({ sessionId: session!.sessionId })
+    await opening
+    expect(mock.unsubscribe).toHaveBeenCalledOnce()
   })
 
-  it('is idempotent — a second cancel does not emit a second terminal pair', async () => {
-    const mock = installMockBridge()
+  it('remembers Stop from the synchronous onSession callback until start has been dispatched', async () => {
+    const mock = bridge()
+    let id = ''
+    const opening = openDesktopAgentsChatStream(request, { onEvent: () => {}, onSession: (session) => { id = session.sessionId; void session.cancel() } })
+    expect(mock.agents.chatV2Start).toHaveBeenCalledOnce()
+    expect(mock.agents.cancelChatV2).toHaveBeenCalledWith(id)
+    expect(mock.agents.chatV2Start.mock.invocationCallOrder[0]).toBeLessThan(mock.agents.cancelChatV2.mock.invocationCallOrder[0]!)
+    mock.emit({ type: 'result', result: result('cancelled') })
+    mock.emit({ type: 'done', reason: 'cancelled' })
+    mock.ack.resolve({ sessionId: id })
+    await opening
+  })
+
+  it('start failure settles once and removes the early subscription', async () => {
+    const mock = bridge()
     const events: AgentsChatStreamEvent[] = []
-    let session: AgentChatV2Session | null = null
+    const opening = openDesktopAgentsChatStream(request, { onEvent: (event) => events.push(event) })
+    mock.ack.reject(new Error('start failed'))
+    await opening
+    expect(events.filter((event) => event.event === 'done')).toEqual([{ event: 'done', data: { reason: 'error' } }])
+    expect(mock.unsubscribe).toHaveBeenCalledOnce()
+  })
 
-    await openDesktopAgentsChatStream(
-      { vendor: 'agents', prompt: 'hi' },
-      {
-        onEvent: (event) => events.push(event),
-        onSession: (s) => { session = s },
-      },
-    )
+  it('compaction warnings do not terminate or become user errors', async () => {
+    const mock = bridge()
+    const events: AgentsChatStreamEvent[] = []
+    const onError = vi.fn()
+    const opening = openDesktopAgentsChatStream(request, { onEvent: (event) => events.push(event), onError })
+    mock.emit({ type: 'warning', error: { kind: 'http', message: 'summary failed', status: 503 } })
+    expect(onError).not.toHaveBeenCalled()
+    expect(events.some((event) => event.event === 'error' || event.event === 'done')).toBe(false)
+    mock.emit({ type: 'result', result: result() })
+    mock.emit({ type: 'done', reason: 'finished' })
+    mock.ack.resolve({ sessionId: mock.agents.onChatV2Event.mock.calls[0]?.[0] ?? '' })
+    await opening
+  })
 
-    await session!.cancel()
-    await session!.cancel()
-
-    expect(events.filter((e) => e.event === 'done')).toHaveLength(1)
-    expect(mock.cancelChatV2).toHaveBeenCalledTimes(1)
+  it('keeps the structured credential code on the renderer error event', async () => {
+    const mock = bridge()
+    const events: AgentsChatStreamEvent[] = []
+    const opening = openDesktopAgentsChatStream(request, { onEvent: (event) => events.push(event) })
+    mock.emit({ type: 'error', message: 'Text model credential is locked', code: 'text_model_credential_locked' })
+    expect(events.at(-1)).toEqual({ event: 'error', data: {
+      message: 'Text model credential is locked', code: 'text_model_credential_locked',
+    } })
+    mock.emit({ type: 'done', reason: 'error' })
+    mock.ack.resolve({ sessionId: mock.agents.onChatV2Event.mock.calls[0]?.[0] ?? '' })
+    await opening
   })
 })

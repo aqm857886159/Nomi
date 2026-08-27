@@ -208,17 +208,18 @@ export async function workbenchAgentsChatStream(
 
 
 /** Wipe the backend conversation memory for a sessionKey ("新对话"). */
-export async function clearWorkbenchAgentSession(sessionKey: string): Promise<void> {
-  await requireDesktopRuntime('clear agent session').agents.clearChatV2Session(sessionKey)
+export async function clearWorkbenchAgentSession(history: import('../../electron/harness/agentChatContracts').AgentChatHistory): Promise<void> {
+  const result = await requireDesktopRuntime('clear agent session').agents.clearChatV2Session({ history })
+  if (!result.ok) throw new Error(result.error || 'Agent context clear failed')
 }
 
 /** 会话历史:从线程气泡重建该 sessionKey 的模型工作缓存(翻回旧对话接着聊)。 */
 export async function seedWorkbenchAgentSession(
-  sessionKey: string,
-  messages: Array<{ role: string; content: string }>,
+  history: import('../../electron/harness/agentChatContracts').AgentChatHistory,
+  messages: ReadonlyArray<{ role: string; content: string }>,
 ): Promise<void> {
-  if (messages.length === 0) return
-  await requireDesktopRuntime('seed agent session').agents.seedChatV2Session?.(sessionKey, messages)
+  const result = await requireDesktopRuntime('seed agent session').agents.seedChatV2Session({ history, messages })
+  if (!result.ok) throw new Error('Agent context ensure failed')
 }
 
 export async function listModelCatalogVendors(): Promise<ModelCatalogVendorDto[]> {

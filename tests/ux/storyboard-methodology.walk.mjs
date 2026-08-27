@@ -11,6 +11,7 @@
 // **只到方案阶段**（收到 propose 即拒绝、不写画布、不生成），只花极少文本额度。
 // 额度闸：不显式 NOMI_R16=1 就 SKIP。用法：pnpm run build && NOMI_R16=1 node tests/ux/storyboard-methodology.walk.mjs
 import { launchNomiApp } from "./_launchApp.mjs";
+import { runAgentProbe } from "./_agentProbe.mjs";
 import { mkdirSync, mkdtempSync, copyFileSync, existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -61,42 +62,27 @@ try {
   }
   console.log(`▶ 用文本大脑 ${brain.vendorKey} · ${brain.modelKey} 跑拆镜头（skill=workbench.storyboard.planner）\n`);
 
-  const outcome = await win.evaluate(async ({ brain, story }) => {
-    const prompt =
-      `这是**视频分镜**。把下面这段戏拆成分镜，必须调用 propose_storyboard_plan 工具产出结构化方案` +
-      `（每个视频镜头填 durationSec 时长、把运镜和物理化的动作/表情写进 prompt），不要只用文字回答。\n\n剧本：\n${story}`;
-    const { sessionId } = await window.nomiDesktop.agents.chatV2Start({
-      prompt,
-      sessionKey: "r16-storyboard-methodology",
+  const outcome = await win.evaluate(runAgentProbe, {
+    timeoutMs: 120000,
+    request: {
+      prompt: `这是**视频分镜**。把下面这段戏拆成分镜，必须调用 propose_storyboard_plan 工具产出结构化方案` +
+        `（每个视频镜头填 durationSec 时长、把运镜和物理化的动作/表情写进 prompt），不要只用文字回答。\n\n剧本：\n${STORY}`,
+      capability: "storyboard",
+      history: { kind: "ephemeral" },
+      featureKey: "r16-storyboard-methodology",
       skillKey: "workbench.storyboard.planner",
       mode: "auto",
       agentModelKey: brain.modelKey,
       agentVendorKey: brain.vendorKey,
-    });
-    return await new Promise((resolve) => {
-      const seen = { plan: null, toolName: "", error: "", done: false };
-      const off = window.nomiDesktop.agents.onChatV2Event(sessionId, (ev) => {
-        if (!ev) return;
-        if ((ev.type === "tool-call" || ev.type === "tool-call-pending")) {
-          seen.toolName = ev.toolName || "";
-          if (ev.toolName === "propose_storyboard_plan" && ev.args) seen.plan = ev.args;
-          // 捕到方案就拒绝收尾（不写画布、省额度）。
-          if (ev.type === "tool-call-pending" && ev.toolCallId) {
-            window.nomiDesktop.agents.confirmTool(sessionId, ev.toolCallId, { ok: false, denied: true, message: "r16: captured, reject to end" });
-          }
-        }
-        if (ev.type === "error") seen.error = ev.message || "unknown";
-        if (ev.type === "done") { seen.done = true; off?.(); resolve(seen); }
-      });
-      setTimeout(() => { off?.(); resolve(seen); }, 120000);
-    });
-  }, { brain, story: STORY });
+    },
+  });
 
-  if (outcome.error && !outcome.plan) { console.log(`✗ agent 出错：${outcome.error}`); await app.close(); process.exit(1); }
-  if (!outcome.plan) { console.log(`✗ 没捕到 propose_storyboard_plan 方案（toolName=${outcome.toolName || "无"}）。`); await app.close(); process.exit(1); }
+  if (outcome.result?.usage) console.log(`  usage: ${JSON.stringify(outcome.result.usage)}`);
+  if (!outcome.ok) { console.log(`✗ agent 未正常收尾：${outcome.error}`); await app.close(); process.exit(1); }
+  const plan = outcome.calls.find((call) => call.toolName === "propose_storyboard_plan")?.args;
+  if (!plan) { console.log(`✗ 没捕到 propose_storyboard_plan 方案（toolName=${outcome.calls.at(-1)?.toolName || "无"}）。`); await app.close(); process.exit(1); }
 
   // 打印方案供人眼判断（R16 眼见链）。
-  const plan = outcome.plan;
   const shots = Array.isArray(plan.shots) ? plan.shots : [];
   console.log(`═══ 方案「${plan.title || "(无题)"}」· ${shots.length} 镜 · anchors ${(plan.anchors || []).length} 个 ═══\n`);
   const durs = [];

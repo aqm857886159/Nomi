@@ -66,6 +66,22 @@ describe("buildAgentUserContent", () => {
     expect(parts[1]).toMatchObject({ type: "file", mimeType: "application/pdf" });
   });
 
+  it("keeps a PDF filename with its bytes when a preceding attachment cannot be read", async () => {
+    const content = await buildAgentUserContent({
+      prompt: "read",
+      ...base,
+      attachments: [
+        { url: "missing", contentType: "application/pdf", fileName: "missing.pdf", kind: "file" },
+        { url: "present", contentType: "application/pdf", fileName: "actual.pdf", kind: "file" },
+      ],
+      resolveBytes: (url) => url === "present" ? bytes() : null,
+    });
+    expect(content).toEqual([
+      expect.objectContaining({ type: "text" }),
+      { type: "file", data: bytes(), mimeType: "application/pdf", fileName: "actual.pdf" },
+    ]);
+  });
+
   it("drops PDF + notes when model lacks pdf support", async () => {
     const content = await buildAgentUserContent({
       prompt: "读这份 PDF",

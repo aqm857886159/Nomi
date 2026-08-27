@@ -36,6 +36,47 @@ describe('creationTurnController', () => {
     expect(useCreationTurnStore.getState().sending).toBe(false)
   })
 
+  it('finish expires the running turn approval before its rejection callback can write', () => {
+    const turn = useCreationTurnStore.getState().begin()
+    const stateAtConfirm: Array<{ writable: boolean; pending: number }> = []
+    const confirm = vi.fn(async () => {
+      stateAtConfirm.push({ writable: turn.canWrite(), pending: useCreationTurnStore.getState().pendingToolCalls.length })
+    })
+    useCreationTurnStore.getState().addPendingToolCall({
+      toolCallId: 'expired-tool', toolName: 'append_to_end', content: 'must not write', confirm,
+    })
+    useCreationTurnStore.getState().finish(turn.id)
+    expect(turn.canWrite()).toBe(false)
+    expect(useCreationTurnStore.getState().pendingToolCalls).toEqual([])
+    expect(confirm).toHaveBeenCalledWith({ ok: false, denied: true, message: expect.any(String) })
+    expect(stateAtConfirm).toEqual([{ writable: false, pending: 0 }])
+  })
+
+  it('a stale terminal callback cannot expire the new running turn approval', () => {
+    const stale = useCreationTurnStore.getState().begin()
+    const current = useCreationTurnStore.getState().begin()
+    const confirm = vi.fn(async () => {})
+    const call = { toolCallId: 'current-tool', toolName: 'append_to_end' as const, content: 'new', confirm }
+    useCreationTurnStore.getState().addPendingToolCall(call)
+    useCreationTurnStore.getState().finish(stale.id)
+    expect(current.canWrite()).toBe(true)
+    expect(useCreationTurnStore.getState().pendingToolCalls).toEqual([call])
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('a repeated terminal callback preserves a local chatStory card created before the next begin', () => {
+    const completed = useCreationTurnStore.getState().begin()
+    useCreationTurnStore.getState().finish(completed.id)
+    const confirm = vi.fn(async () => {})
+    const call = { toolCallId: 'local-script-draft', toolName: 'append_to_end' as const, content: 'local draft', confirm }
+    useCreationTurnStore.getState().addPendingToolCall(call)
+    useCreationTurnStore.getState().finish(completed.id)
+    expect(useCreationTurnStore.getState().sending).toBe(false)
+    expect(useCreationTurnStore.getState().pendingToolCalls).toEqual([call])
+    useCreationTurnStore.getState().resolvePendingToolCall(call.toolCallId, { ok: true })
+    expect(confirm).toHaveBeenCalledExactlyOnceWith({ ok: true })
+  })
+
   it('attachCancel 仅对当前轮生效;requestUserCancel 调句柄但保留当前轮', () => {
     const cancel = vi.fn()
     const turn = useCreationTurnStore.getState().begin()
@@ -53,6 +94,36 @@ describe('creationTurnController', () => {
     useCreationTurnStore.getState().begin() // 作废 stale
     useCreationTurnStore.getState().attachCancel(stale.id, cancel)
     expect(useCreationTurnStore.getState().cancel).toBeNull()
+    expect(cancel).toHaveBeenCalledTimes(1)
+  })
+
+  it('Stop 在句柄到达前发生也会取消，重复 Stop 不重复发取消', () => {
+    const turn = useCreationTurnStore.getState().begin()
+    const cancel = vi.fn()
+    useCreationTurnStore.getState().requestUserCancel()
+    useCreationTurnStore.getState().requestUserCancel()
+    useCreationTurnStore.getState().attachCancel(turn.id, cancel)
+    expect(cancel).toHaveBeenCalledTimes(1)
+    useCreationTurnStore.getState().requestUserCancel()
+    expect(cancel).toHaveBeenCalledTimes(1)
+    expect(turn.isCurrent()).toBe(true)
+  })
+
+  it('新轮次先作废旧 token 再取消旧传输，迟到同步回调不能写入', () => {
+    const first = useCreationTurnStore.getState().begin()
+    const currentAtCancel: boolean[] = []
+    useCreationTurnStore.getState().attachCancel(first.id, () => currentAtCancel.push(first.isCurrent()))
+    const second = useCreationTurnStore.getState().begin()
+    expect(currentAtCancel).toEqual([false])
+    expect(second.isCurrent()).toBe(true)
+  })
+
+  it('abandon 先使旧 token 失效，再调用可能同步回调的取消句柄', () => {
+    const turn = useCreationTurnStore.getState().begin()
+    const currentAtCancel: boolean[] = []
+    useCreationTurnStore.getState().attachCancel(turn.id, () => currentAtCancel.push(turn.isCurrent()))
+    abandonCreationTurn()
+    expect(currentAtCancel).toEqual([false])
   })
 
   it('abandon 中止在途:调句柄、作废轮次、sending 归零、清空并拒绝写卡', () => {
@@ -68,7 +139,7 @@ describe('creationTurnController', () => {
     expect(turn.isCurrent()).toBe(false)
     expect(useCreationTurnStore.getState().sending).toBe(false)
     expect(useCreationTurnStore.getState().pendingToolCalls).toHaveLength(0)
-    expect(reject).toHaveBeenCalledWith({ ok: false, message: expect.any(String) })
+    expect(reject).toHaveBeenCalledWith({ ok: false, denied: true, message: expect.any(String) })
   })
 
   it('abandon 后旧轮 onContent 守卫:isCurrent 假', () => {
@@ -77,13 +148,13 @@ describe('creationTurnController', () => {
     expect(turn.isCurrent()).toBe(false)
   })
 
-  it('nextMessageId 单调唯一', () => {
+  it('nextMessageId 唯一并保留 role 前缀', () => {
     const a = useCreationTurnStore.getState().nextMessageId('user')
     const b = useCreationTurnStore.getState().nextMessageId('assistant')
     const c = useCreationTurnStore.getState().nextMessageId('user')
     expect(new Set([a, b, c]).size).toBe(3)
-    expect(a).toMatch(/^creation_ai_user_\d+$/)
-    expect(b).toMatch(/^creation_ai_assistant_\d+$/)
+    expect(a).toMatch(/^creation_ai_user_.+$/)
+    expect(b).toMatch(/^creation_ai_assistant_.+$/)
   })
 
   it('resolvePendingToolCall 调 confirm 并移除指定卡', () => {

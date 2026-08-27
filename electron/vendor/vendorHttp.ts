@@ -11,6 +11,7 @@ import {
 import { describeIllegalHeader, findIllegalHeader, isJsonRecord, pickUpstreamMessage } from "../jsonUtils";
 import { fetchVendorWithBaseFallback } from "./vendorBaseFallback";
 import type { Vendor } from "../catalog/types";
+import { networkFailureDetails, redactNetworkMessage, safeNetworkUrl } from "../networkErrorDetails";
 
 export type VendorErrorCategory = "auth" | "balance" | "quota" | "input" | "server" | "network" | "unknown";
 
@@ -104,6 +105,7 @@ async function requestVendor(
   signal?: AbortSignal,
 ): Promise<unknown> {
   const finalUrl = appendQueryParams(url, { ...authQueryParams(vendor, apiKey), ...query });
+  const diagnosticUrl = safeNetworkUrl(url);
   const upperMethod = method.toUpperCase();
   const hasBody = bodyInit != null;
   // 发送前请求头守卫：fetch 遇到码点 > 255 的头值会同步抛 ByteString 错，被下面 catch
@@ -112,16 +114,20 @@ async function requestVendor(
   const headerProblem = findIllegalHeader(headers);
   if (headerProblem) {
     const { isAuth, message: upstreamMsg } = describeIllegalHeader(headerProblem);
-    throw new VendorRequestError(`Provider request rejected (invalid header) at ${vendor.key} ${upperMethod} ${url}: ${upstreamMsg}`, {
+    throw new VendorRequestError(`Provider request rejected (invalid header) at ${vendor.key} ${upperMethod} ${diagnosticUrl}: ${upstreamMsg}`, {
       vendorKey: vendor.key,
       method: upperMethod,
-      url,
+      url: diagnosticUrl,
       upstreamMsg,
       category: isAuth ? "auth" : "input",
       retryable: false,
     });
   }
   const timeoutMs = vendorHttpTimeoutMs();
+  const networkMessage = (error: unknown) => redactNetworkMessage(
+    networkFailureDetails(error)?.message ?? (error instanceof Error ? error.message : String(error)),
+    [apiKey, ...Object.values(headers)].filter(Boolean), 256,
+  );
   const controller = new AbortController();
   const relayAbort = () => controller.abort(signal?.reason);
   if (signal?.aborted) relayAbort();
@@ -146,11 +152,11 @@ async function requestVendor(
     const aborted = error instanceof Error && error.name === "AbortError";
     const upstreamMsg = aborted
       ? `请求超时（${Math.round(timeoutMs / 1000)}s 无响应）`
-      : (error instanceof Error ? error.message : String(error)).slice(0, 256);
-    throw new VendorRequestError(`Provider request failed (network) at ${vendor.key} ${upperMethod} ${url}: ${upstreamMsg}`, {
+      : networkMessage(error);
+    throw new VendorRequestError(`Provider request failed (network) at ${vendor.key} ${upperMethod} ${diagnosticUrl}: ${upstreamMsg}`, {
       vendorKey: vendor.key,
       method: upperMethod,
-      url,
+      url: diagnosticUrl,
       upstreamMsg,
       category: "network",
       retryable: true,
@@ -166,11 +172,11 @@ async function requestVendor(
     const aborted = error instanceof Error && error.name === "AbortError";
     const upstreamMsg = aborted
       ? `读取响应超时（${Math.round(timeoutMs / 1000)}s）`
-      : (error instanceof Error ? error.message : String(error)).slice(0, 256);
-    throw new VendorRequestError(`Provider request failed (network) at ${vendor.key} ${upperMethod} ${url}: ${upstreamMsg}`, {
+      : networkMessage(error);
+    throw new VendorRequestError(`Provider request failed (network) at ${vendor.key} ${upperMethod} ${diagnosticUrl}: ${upstreamMsg}`, {
       vendorKey: vendor.key,
       method: upperMethod,
-      url,
+      url: diagnosticUrl,
       upstreamMsg,
       category: "network",
       retryable: true,
@@ -199,10 +205,10 @@ async function requestVendor(
     // and status so the failure is diagnosable instead of opaque.
     const detail = rawUpstream && rawUpstream !== "No message available" ? rawUpstream : `(no detail from provider)`;
     const { category, retryable } = categorizeVendorFailure(response.ok ? undefined : response.status, logicalCode ?? undefined);
-    throw new VendorRequestError(`Provider request failed (${statusLabel}) at ${vendor.key} ${upperMethod} ${url}: ${detail}`, {
+    throw new VendorRequestError(`Provider request failed (${statusLabel}) at ${vendor.key} ${upperMethod} ${diagnosticUrl}: ${detail}`, {
       vendorKey: vendor.key,
       method: upperMethod,
-      url,
+      url: diagnosticUrl,
       ...(response.ok ? {} : { httpStatus: response.status }),
       ...(logicalCode != null ? { logicalCode } : {}),
       upstreamMsg: detail.slice(0, 256),

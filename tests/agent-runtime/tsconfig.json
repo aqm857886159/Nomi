@@ -1,0 +1,9 @@
+{
+  "extends": "../../electron/tsconfig.pi.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "outDir": "../../.tmp/agent-runtime-tests"
+  },
+  "include": ["**/*.mts", "**/*.cts"],
+  "exclude": []
+}

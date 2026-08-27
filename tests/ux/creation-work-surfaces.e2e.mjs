@@ -11,7 +11,7 @@ const settingsDir = path.join(root, 'settings')
 const projectsDir = path.join(root, 'projects')
 const projectId = 'creation-surfaces-e2e'
 const projectRoot = path.join(projectsDir, `creation-surfaces-${projectId}`)
-const outDir = path.join(repoRoot, '.creation-surfaces-lab')
+const outDir = path.join(repoRoot, 'tests/ux/shots/creation-work-surfaces')
 fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
 fs.mkdirSync(outDir, { recursive: true })
 
@@ -127,6 +127,11 @@ try {
   process.exit(ok ? 0 : 1)
 } catch (error) {
   console.error(error)
+  console.error('Creation surface failure:', await _launchedWin.evaluate(() => ({
+    url: location.href,
+    creation: document.querySelector('[aria-label="AI 创作区"]')?.textContent?.slice(0, 3000) ?? null,
+  })).catch(() => null))
+  await _launchedWin.screenshot({ path: path.join(outDir, 'creation-work-surfaces-error.png') }).catch(() => {})
   await closeApp()
   process.exit(1)
 }

@@ -46,7 +46,7 @@ export { localizedTaskAssetFileName };
 import { extractVendorExtraHeaders, readCatalog } from "./catalog/catalogStore";
 import { activeTaskProjectFallback, unlocalizedTaskAsset } from "./tasks/activeProjectFallback";
 import type { BillingModelKind, HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./catalog/types";
-import { billingKindForTaskKind, selectExecutableModel, selectTaskMapping } from "./catalog/types";
+import { billingKindForTaskKind, selectTaskMapping } from "./catalog/types";
 import { applyHeadlessParamDefaults, imageEditGuardError } from "./catalog/taskParams";
 import { modelModeBodies } from "./catalog/modelCatalogListing";
 import { runCustomCallTask } from "./catalog/customCallDispatch";
@@ -101,14 +101,6 @@ export {
   fetchModelCatalogDocs,
   testModelCatalogMapping,
 } from "./catalog/catalogCommit";
-export { runAgentChatV2, clearAgentChatV2History } from "./ai/agentChatV2";
-export type {
-  AgentToolName,
-  AgentChatV2Event,
-  AgentToolConfirmation,
-  AgentChatV2Hooks,
-  RunAgentChatV2Payload,
-} from "./ai/agentChatV2";
 export type TaskRequest = {
   kind: ProfileKind;
   prompt: string;

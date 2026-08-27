@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 
 vi.mock("electron", () => ({ app: { getPath: () => "/tmp", getAppPath: () => process.cwd() } }));
 
-import { composeAgentSystemPrompt, NOMI_AGENT_IDENTITY } from "./agentChatV2";
+import { composeAgentSystemPrompt, NOMI_AGENT_IDENTITY } from "../harness/context/agentContext";
 import { sanitizeForBroadCompat } from "./promptSanitize";
 
 // B1c 字节稳定门：systemPrompt 合成器把「身份 + 面板专长 + skill 方法论 + 项目记忆」四层

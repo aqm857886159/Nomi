@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 
 vi.mock("electron", () => ({ app: { getPath: () => "/tmp", getAppPath: () => process.cwd() } }));
 
-import { bubblesToSeedTurns, selectTextModelCandidates } from "./agentChatV2";
+import { bubblesToSeedTurns } from "../harness/context/legacyBubbles";
+import { selectTextModelCandidates } from "./textBrainResolver";
 import type { CatalogState } from "../catalog/types";
 
 describe("bubblesToSeedTurns — 续聊重建规范化", () => {

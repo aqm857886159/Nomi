@@ -1,40 +1,19 @@
 /**
- * 主进程出站代理（自动探测 + 应用内三态设置）。
- *
- * 病根：Electron 主进程的全局 `fetch`（undici）默认**不读系统代理**——`session.setProxy()`
- * 只管 Chromium 渲染层，救不了主进程 fetch。于是中国用户即便开了 Clash，应用里"测试连接 / 调
- * AI API / 拉模型"仍直连超时，报笼统的 `fetch failed`。
- *
- * 解法（undici 官方 + Cherry Studio 实战）：
- *  - `setGlobalDispatcher(dispatcher)` 的 dispatcher 会被 Node 内置 `fetch` 共享
- *    （镜像到 `Symbol.for('undici.globalDispatcher.1')`）→ 全局 fetch 即走该 dispatcher。
- *  - 代理地址来源：① 环境变量 HTTPS_PROXY/HTTP_PROXY/ALL_PROXY；② Electron `session.resolveProxy()`
- *    读系统网络设置/PAC（macOS 从 Finder 启动拿不到 env 时的兜底）。
- *  - 用 `SelectiveProxyDispatcher` 包一层：origin 命中私网/回环（本地模型服务器 127.0.0.1 等）→ 走
- *    原始直连，绝不把本地流量也代理掉。私网判定复用 `hardenedFetch` 的 `isPrivateHost`（单一真相源）。
- *  - 渲染层同源（修「主进程能下载、预览区放不出远端视频」的撕裂）：env 来源的代理另用
- *    `session.setProxy()` 喂给 Chromium 网络栈——渲染层默认只读系统设置、不读环境变量。系统来源
- *    无需处理（session 默认 mode:'system' 已在用它）。私网/回环经 proxyBypassRules 直连。
- *
- * Phase 2（2026-08-01，见 docs/plan/2026-08-01-in-app-proxy-setting.md）：
- *  - 三态偏好（跟随系统 / 自定义 / 不用代理）由 `proxySettings.ts` 持久化，**用户偏好先于探测**。
- *  - `applySystemProxy` 可重复调用 = 改完设置即时生效，不用重启（见 directDispatcher 的套娃注释）。
- *  - `getProxyStatus()` 把「选了什么 × 实际生效什么」暴露给设置面板。
- *
- * Phase 3（2026-08-01）：SOCKS 支持。Electron 31 内置 undici 6.19.8（内置 `Socks5ProxyAgent`
- * 要 undici ≥7.25，升不得——理由见 socksDispatcher 头注释），故用 `socks` 包自接
- * `Agent({ connect })`。三档偏好与 http 完全同构，UI 无需分叉。
+ * App-owned HTTP route: preferences -> serialized Chromium application ->
+ * committed dispatcher + resolution. SDK imports may replace undici's global
+ * dispatcher, so appFetch always passes our private dispatcher explicitly.
+ * Existing system/env/custom/off, SOCKS and private-host policies stay here.
  */
 import { URL } from "node:url";
 import type { Session } from "electron";
 import {
   Dispatcher,
+  Agent,
   ProxyAgent,
-  getGlobalDispatcher,
-  setGlobalDispatcher,
 } from "undici";
-import { isPrivateHost } from "./hardenedFetch";
+import { isPrivateHost } from "./networkHostPolicy";
 import { createSocksDispatcher, parseSocksProxyUrl } from "./socksDispatcher";
+import { networkFailureDetails, redactNetworkMessage, safeNetworkUrl } from "./networkErrorDetails";
 // **只引类型**：proxySettings → runtimePaths → electron 有运行时依赖，引进来会让本模块
 // 没法在纯 Node 下单测（既有 systemProxy.test.ts 正是靠"不碰 electron 运行时"跑起来的）。
 // 故偏好由调用方（main.ts / proxyIpc.ts，它们本来就在 electron 里）读好了注入。
@@ -62,31 +41,72 @@ export type ProxyStatus = {
   customUrl: string;
   /** 实际生效的代理地址；直连时为空串。 */
   activeUrl: string;
-  /** 探到了但本版用不了（SOCKS 等）的人话详情；否则空串。 */
+  /** 当前偏好未能生效的原因；实际已提交线路仍由 activeUrl/source 描述。 */
   unsupported: string;
   source: ProxySource | "";
 };
 
 const LOG = "[nomi:proxy]";
 
-/**
- * 原始直连 dispatcher，**只捕获一次**。
- * 没有它的话，第二次 applySystemProxy 会把上一次装的 SelectiveProxyDispatcher 当成「直连档」
- * 套进新的 Selective 里 —— 每改一次设置就多套一层，私网直连那条路会经过 N 层代理判断。
- * 热切换是本次新增能力（以前只在启动跑一次），这个洞是它带来的，必须在这里堵死。
- */
-let baseDispatcher: Dispatcher | null = null;
-function directDispatcher(): Dispatcher {
-  if (!baseDispatcher) baseDispatcher = getGlobalDispatcher();
-  return baseDispatcher;
+type CommittedRoute = {
+  dispatcher: Dispatcher;
+  resolution: ProxyResolution;
+  chromiumConfig: Electron.ProxyConfig;
+};
+let activeRoute: CommittedRoute | undefined;
+let applicationError: Error | undefined;
+let applyQueue: Promise<void> = Promise.resolve();
+let requestedGeneration = 0;
+// Local RPC / configured private services always bypass public proxy settings,
+// including before boot or when those settings could not be applied.
+const privateDispatcher = new Agent();
+
+function isPrivateTarget(target: unknown): boolean {
+  if (typeof target !== 'string' && !(target instanceof URL)) return false;
+  try { return isPrivateHost(new URL(target).hostname); } catch { return false; }
 }
 
-/** 最近一次探测结果（供 getProxyStatus 拼状态；与 rememberProxyState 同步写）。 */
-let lastResolution: ProxyResolution = { kind: "none" };
+// Stable only as a forwarder: resolve the real route at dispatch time, so a
+// config commit between fetch's microtasks cannot strand it on a closed agent.
+const appDispatcher = new class extends Dispatcher {
+  dispatch(options: Dispatcher.DispatchOptions, handler: Dispatcher.DispatchHandlers): boolean {
+    // Check each dispatch, not just fetch's first URL: a private URL redirecting
+    // to the public internet must not inherit an unconditional direct route.
+    if (isPrivateTarget(options.origin)) return privateDispatcher.dispatch(options, handler);
+    if (!activeRoute) throw applicationError ?? new Error('Application network settings are not ready');
+    return activeRoute.dispatcher.dispatch(options, handler);
+  }
+}();
+
+/** Public targets await boot/latest preferences; explicit private targets do not. */
+export async function getAppDispatcher(signal?: AbortSignal, target?: string | URL): Promise<Dispatcher> {
+  signal?.throwIfAborted();
+  if (isPrivateTarget(target)) return appDispatcher;
+  let pending: Promise<void>;
+  do {
+    signal?.throwIfAborted();
+    pending = applyQueue;
+    if (!signal) await pending;
+    else await new Promise<void>((resolve, reject) => {
+      const abort = () => reject(signal.reason);
+      signal.addEventListener('abort', abort, { once: true });
+      void pending.then(() => {
+        signal.removeEventListener('abort', abort);
+        resolve();
+      }, (error: unknown) => {
+        signal.removeEventListener('abort', abort);
+        reject(error);
+      });
+    });
+  } while (pending !== applyQueue);
+  signal?.throwIfAborted();
+  if (!activeRoute) throw applicationError ?? new Error('Application network settings are not ready');
+  return appDispatcher;
+}
 
 /**
- * 本地/私网直连规则：回环 + 私网网段 + 无点主机名（`<local>`）。别把本地模型服务器
- *（Ollama 11434 / ComfyUI 8188）也代理掉，与 SelectiveProxyDispatcher 的 isPrivateHost 同义。
+ * Chromium 的既有本地/私网直连规则，含无点主机名（`<local>`）。Node 继续按
+ * isPrivateHost 的显式私网/回环分类，不另行扩大无点主机名或 DNS 解析策略。
  */
 const LOCAL_BYPASS_RULES = "localhost,127.0.0.1,[::1],10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,<local>";
 
@@ -94,15 +114,15 @@ const LOCAL_BYPASS_RULES = "localhost,127.0.0.1,[::1],10.0.0.0/8,172.16.0.0/12,1
 let activeProxyLabel: string | null = null;
 /**
  * 探到「配了代理、但这个地址用不了」（解析不出的 SOCKS 地址 / QUIC 等未知协议）时的人话详情。
- * 与 activeProxyLabel 互斥：unsupported 时按直连跑，但用户其实**配了**代理——诊断必须如实说
- * 地址有问题，绝不误说「当前未启用代理」（P2·别误导）。SOCKS 本身自 2026-08-01 起已支持。
+ * 诊断必须如实说地址未生效，不能把配置失败说成已确认直连。
+ * 正常提交只接受已支持的线路；此分支也供既有诊断测试夹具使用。
  */
 let unsupportedProxyDetail: string | null = null;
 
 /**
  * 把一次探测结果记进模块级诊断状态（唯一写入口；applySystemProxy 与测试都经它，避免两份真相源）。
  *  - http/socks  → 记生效标签，清 unsupported。
- *  - unsupported → 记 unsupported 详情，清生效标签（按直连跑但用户开了代理）。
+ *  - unsupported → 记未生效详情（诊断夹具，不等于允许直连）。
  *  - none        → 两者皆清（确无代理）。
  */
 function sourceLabel(source: ProxySource): string {
@@ -111,10 +131,11 @@ function sourceLabel(source: ProxySource): string {
   return "系统设置";
 }
 
-function rememberProxyState(resolution: ProxyResolution): void {
-  lastResolution = resolution;
+function rememberProxyState(route: CommittedRoute): void {
+  activeRoute = route;
+  const { resolution } = route;
   if (isActiveProxy(resolution)) {
-    activeProxyLabel = `${resolution.url}（来源：${sourceLabel(resolution.source)}）`;
+    activeProxyLabel = `${safeNetworkUrl(resolution.url)}（来源：${sourceLabel(resolution.source)}）`;
     unsupportedProxyDetail = null;
   } else if (resolution.kind === "unsupported") {
     activeProxyLabel = null;
@@ -169,7 +190,7 @@ export function parseEnvProxy(env: NodeJS.ProcessEnv): ProxyResolution {
 /**
  * 解析 Electron `session.resolveProxy()` 的返回串。
  * 形如 `"DIRECT"` / `"PROXY 127.0.0.1:7897"` / `"PROXY h:p;DIRECT"` / `"SOCKS5 h:p"`。
- * 取第一条非 DIRECT 项。PROXY/HTTPS → http(s)；SOCKS → unsupported。
+ * 取第一条非 DIRECT 项。PROXY/HTTPS → http(s)；SOCKS/SOCKS5 → socks。
  */
 export function parseResolveProxyString(result: string): ProxyResolution {
   const entries = result
@@ -203,14 +224,10 @@ export async function resolveProxy(session: Session, prefs: ProxyPrefs = FOLLOW_
   if (prefs.mode === "custom") return classifyProxyString(prefs.customUrl, "custom");
   const fromEnv = parseEnvProxy(process.env);
   if (fromEnv.kind !== "none") return fromEnv;
-  try {
-    // 用一个代表性 https 目标探测（PAC 可能按目标返回不同代理；Phase 1 取通用值）。
-    const raw = await session.resolveProxy("https://api.openai.com");
-    return parseResolveProxyString(raw);
-  } catch (error) {
-    console.error(`${LOG} session.resolveProxy 失败:`, error);
-    return { kind: "none" };
-  }
+  // Preserve the existing representative-target policy; a failed lookup is
+  // not evidence of DIRECT and must never silently confirm a direct route.
+  const raw = await session.resolveProxy("https://api.openai.com");
+  return parseResolveProxyString(raw);
 }
 
 /**
@@ -226,14 +243,7 @@ export class SelectiveProxyDispatcher extends Dispatcher {
   }
 
   private bypass(origin: unknown): boolean {
-    const originStr =
-      typeof origin === "string" ? origin : origin instanceof URL ? origin.toString() : "";
-    if (!originStr) return false;
-    try {
-      return isPrivateHost(new URL(originStr).hostname);
-    } catch {
-      return false;
-    }
+    return isPrivateTarget(origin);
   }
 
   dispatch(
@@ -244,8 +254,7 @@ export class SelectiveProxyDispatcher extends Dispatcher {
     return target.dispatch(options, handler);
   }
 
-  // close/destroy 实际很少被 setGlobalDispatcher 的全局实例调用，但需匹配 undici
-  // Dispatcher 的重载签名（同时支持 Promise 与 callback 两种调用形态），否则类型不兼容。
+  // 配置热切换时优雅退休旧路由；匹配 undici Dispatcher 的 Promise / callback 重载。
   close(): Promise<void>;
   close(callback: () => void): void;
   close(callback?: () => void): Promise<void> | void {
@@ -278,78 +287,72 @@ export class SelectiveProxyDispatcher extends Dispatcher {
   }
 }
 
-/**
- * 探测并应用系统代理到全局 fetch。启动时调一次。
- * 整体 try/catch：任何异常只记日志、不抛——探测失败绝不能拖垮启动（最坏退化回直连）。
- */
-export async function applySystemProxy(session: Session, prefs?: ProxyPrefs): Promise<ProxyResolution> {
-  try {
-    const effectivePrefs = prefs ?? FOLLOW_SYSTEM;
-    // ⚠️ 顺序有讲究：mode=system 要**先**把 session 还原成 'system' 再去问它。
-    // 「不用代理」那一档会把 session 钉成 `mode:'direct'`，而 resolveProxy 正是问这个 session
-    // 要系统代理 —— 不先还原，它就恒答 DIRECT，用户切回「跟随系统」后代理再也回不来
-    //（2026-08-01 真机走查抓到：off → system 之后 tmpfiles 仍不可达）。自己污染了自己的探测源。
-    if (effectivePrefs.mode === "system") await session.setProxy({ mode: "system" });
-    const resolution = await resolveProxy(session, effectivePrefs);
-    rememberProxyState(resolution);
-    if (isActiveProxy(resolution)) {
-      const direct = directDispatcher();
-      // socks 与 http 只差"造哪个 dispatcher"，外面那层选择性代理（私网直连）完全共用。
-      const socks = resolution.kind === "socks" ? parseSocksProxyUrl(resolution.url) : null;
-      const proxy = socks ? createSocksDispatcher(socks) : new ProxyAgent(resolution.url);
-      setGlobalDispatcher(new SelectiveProxyDispatcher(proxy, direct));
-      console.log(`${LOG} 已启用代理 ${activeProxyLabel}；本地/私网地址直连`);
-      // 渲染层同源修复：主进程 undici 走代理后，渲染层的 Chromium 网络栈（<video>/<img>/
-      // renderer fetch）默认只读「系统设置」代理、**不读环境变量**。env 来源的代理（Clash/终端
-      // export HTTPS_PROXY 的典型场景）会出现「主进程能下载、渲染层放不出远端视频」的撕裂——
-      // 表现为预览区「视频加载失败」。这里把 env 代理也显式喂给 session，让两层同一真相源。
-      // 系统来源的代理无需处理：session 默认 mode:'system' 已在用它（且可能是 PAC，别用 fixed 覆盖）。
-      // custom 同 env：用户填的地址系统并不知道，不喂给 session 就会撕裂（主进程走代理、预览区直连）。
-      if (resolution.source === "env" || resolution.source === "custom") {
-        await session.setProxy({
-          proxyRules: resolution.url,
-          // 本地/私网直连：回环 + 私网网段 + 无点主机名（<local>），别把本地模型服务器
-          //（Ollama 11434 / ComfyUI 8188）也代理掉，与 SelectiveProxyDispatcher 的 isPrivateHost 同义。
-          proxyBypassRules: LOCAL_BYPASS_RULES,
-        });
-        console.log(`${LOG} 已把代理同步到渲染层 session（远端视频/图片预览同源走代理）`);
+/** Serialize both stacks. Superseded work never publishes a stale resolution. */
+export function applySystemProxy(session: Session, prefs: ProxyPrefs = FOLLOW_SYSTEM): Promise<ProxyResolution> {
+  const generation = ++requestedGeneration;
+  const selected = { ...prefs };
+  const previousResolution = (): ProxyResolution => activeRoute?.resolution ?? { kind: 'none' };
+  const applying = applyQueue.then(async () => {
+    if (generation !== requestedGeneration) return previousResolution();
+    let candidate: CommittedRoute | undefined;
+    try {
+      // Restore the system discovery source before resolving, otherwise an old
+      // off/custom session answers its own override instead of the OS setting.
+      if (selected.mode === 'system') await session.setProxy({ mode: 'system' });
+      const resolution = await resolveProxy(session, selected);
+      if (generation !== requestedGeneration) return previousResolution();
+      if (resolution.kind === 'unsupported') throw new Error(resolution.detail);
+      const chromiumConfig: Electron.ProxyConfig = isActiveProxy(resolution)
+        && resolution.source !== 'system'
+        ? { proxyRules: resolution.url, proxyBypassRules: LOCAL_BYPASS_RULES }
+        : { mode: selected.mode === 'off' ? 'direct' : 'system' };
+      const direct = new Agent();
+      const socks = resolution.kind === 'socks' ? parseSocksProxyUrl(resolution.url) : null;
+      const dispatcher = isActiveProxy(resolution)
+        ? new SelectiveProxyDispatcher(socks ? createSocksDispatcher(socks) : new ProxyAgent(resolution.url), direct)
+        : direct;
+      candidate = { dispatcher, resolution, chromiumConfig };
+      await session.setProxy(chromiumConfig);
+      if (generation !== requestedGeneration) {
+        void dispatcher.close().catch(() => {});
+        return previousResolution();
       }
-    } else {
-      // 直连档（none / unsupported）**必须把 dispatcher 还原**——热切换才成立：
-      // 用户从「自定义」切到「不用代理」，不还原的话 undici 仍挂着上一个 ProxyAgent，
-      // 设置界面说直连、实际还在走代理（比不给设置更糟）。
-      setGlobalDispatcher(directDispatcher());
-      // 渲染层同理：之前若被 setProxy 钉过（env/custom），得改回去，否则 Chromium 那侧还走代理。
-      // 但改成什么有讲究：只有用户**明确选了「不用代理」**才钉 direct；其余情况（跟随系统但当前
-      // 没探到代理 / 探到 SOCKS 用不了）要还原成 session 默认的 'system'——钉死 direct 会让用户
-      // 中途打开系统代理后渲染层再也跟不上（而主进程下次 apply 就跟上了，又是一次两层撕裂）。
-      await session.setProxy(effectivePrefs.mode === "off" ? { mode: "direct" } : { mode: "system" });
-      if (resolution.kind === "unsupported") {
-        // 按直连跑，但记下 unsupported 详情 → describeNetworkError 与设置面板都会如实说
-        //「地址无效/协议不认识，已按直连」，绝不误说「未启用代理」（用户其实配了）。
-        console.warn(`${LOG} 探测到${resolution.detail}，用不了；当前按直连处理。`);
-      } else {
-        console.log(`${LOG} 按直连处理`);
+      const retired = activeRoute;
+      rememberProxyState(candidate);
+      applicationError = undefined;
+      // Each route owns its direct agent too. Graceful close lets already
+      // dispatched streams finish and never closes the replacement's pool.
+      void retired?.dispatcher.close().catch(() => {});
+      return resolution;
+    } catch (error) {
+      void candidate?.dispatcher.close().catch(() => {});
+      if (activeRoute) {
+        try { await session.setProxy(activeRoute.chromiumConfig); } catch { /* report the failed application below */ }
       }
+      if (generation === requestedGeneration) {
+        applicationError = error instanceof Error ? error : new Error(String(error));
+        console.error(`${LOG} 代理设置未能应用，保留已确认线路:`, redactNetworkMessage(applicationError.message));
+      }
+      return previousResolution();
     }
-    return resolution;
-  } catch (error) {
-    console.error(`${LOG} applySystemProxy 失败（已忽略，退回直连）:`, error);
-    return { kind: "none" };
-  }
+  });
+  applyQueue = applying.then(() => undefined);
+  return applying;
 }
 
 /**
- * 面板要显示的当前网络状态 = 用户选了什么（prefs）× 实际生效什么（lastResolution）。
+ * 面板要显示的当前网络状态 = 用户选了什么（prefs）× 实际已提交什么（activeRoute）。
  * 两者会不一致，而**这种不一致正是用户最需要看见的**：选了跟随系统但系统压根没代理、
- * 探到 SOCKS 本版用不了（以前只在 console warn，界面零暴露）、自定义地址填错。
+ * 系统探测失败、自定义地址填错或 Chromium 拒绝应用新配置。
  */
 export function getProxyStatus(prefs: ProxyPrefs = FOLLOW_SYSTEM): ProxyStatus {
+  const lastResolution = activeRoute?.resolution ?? { kind: 'none' };
   return {
     mode: prefs.mode,
     customUrl: prefs.customUrl,
     activeUrl: isActiveProxy(lastResolution) ? lastResolution.url : "",
-    unsupported: lastResolution.kind === "unsupported" ? lastResolution.detail : "",
+    unsupported: applicationError ? redactNetworkMessage(applicationError.message)
+      : lastResolution.kind === "unsupported" ? redactNetworkMessage(lastResolution.detail) : "",
     source: lastResolution.kind === "none" ? "" : lastResolution.source,
   };
 }
@@ -362,15 +365,15 @@ export function describeNetworkError(error: unknown): string {
   const proxyHint = activeProxyLabel
     ? `（当前代理：${activeProxyLabel}）`
     : unsupportedProxyDetail
-      ? `（检测到 ${unsupportedProxyDetail}，这个地址用不了、已按直连处理；请在「模型设置 → 网络」里改成有效的 http:// 或 socks5:// 地址）`
+      ? `（检测到 ${unsupportedProxyDetail}，这个地址未生效；请在「模型设置 → 网络」里改成有效的 http:// 或 socks5:// 地址）`
       : "（当前未启用代理；若该地址需科学上网，请开启系统代理后重启应用）";
 
   if (error instanceof Error && error.name === "AbortError") {
-    return `请求超时：12 秒内未响应。可能网络不通，或该地址需要代理才能访问。${proxyHint}`;
+    return `请求已中止或超时。请检查任务是否已取消，或网络是否可达。${proxyHint}`;
   }
 
   // undici fetch 把底层错误塞在 error.cause.code
-  const code = extractErrorCode(error);
+  const code = networkFailureDetails(error)?.code;
   switch (code) {
     case "ENOTFOUND":
     case "EAI_AGAIN":
@@ -396,21 +399,7 @@ export function describeNetworkError(error: unknown): string {
   if (/fetch failed/i.test(message)) {
     return `网络请求失败：无法连接到该地址。${proxyHint}`;
   }
-  return message;
-}
-
-function extractErrorCode(error: unknown): string | undefined {
-  let cur: unknown = error;
-  for (let depth = 0; depth < 5 && cur; depth += 1) {
-    if (typeof cur === "object" && cur !== null) {
-      const code = (cur as { code?: unknown }).code;
-      if (typeof code === "string") return code;
-      cur = (cur as { cause?: unknown }).cause;
-    } else {
-      break;
-    }
-  }
-  return undefined;
+  return redactNetworkMessage(message);
 }
 
 /**
@@ -418,11 +407,13 @@ function extractErrorCode(error: unknown): string | undefined {
  * 仅测试用——走的是与 applySystemProxy 同一个 rememberProxyState 写入口（单一真相源）。
  */
 export function rememberProxyStateForTests(resolution: ProxyResolution): void {
-  rememberProxyState(resolution);
+  rememberProxyState({ dispatcher: activeRoute?.dispatcher ?? new Agent(), resolution,
+    chromiumConfig: activeRoute?.chromiumConfig ?? { mode: 'system' } });
 }
 
 /** 测试钩子：清空模块级代理诊断状态（生效标签 + unsupported 详情）。 */
 export function resetProxyStateForTests(): void {
   activeProxyLabel = null;
   unsupportedProxyDetail = null;
+  applicationError = undefined;
 }

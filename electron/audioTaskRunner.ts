@@ -12,6 +12,7 @@
 import { readNomiLocalAsset } from "./assets/localAssetFile";
 import { parseDataUrl } from "./assets/assetBytes";
 import { hardenedFetch } from "./hardenedFetch";
+import { appFetch } from "./appFetch";
 import { type AuthType, authHeaders as buildAuthHeaders } from "./ai/requestPipeline";
 import { firstString, isJsonRecord, trim, type JsonRecord } from "./jsonUtils";
 import { taskTemplateParams } from "./catalog/taskParams";
@@ -61,7 +62,7 @@ async function runTextToSpeech(input: AudioTaskInput): Promise<TaskResult> {
   const built = buildProfileHttpRequest({ vendor, model, apiKey, request, operation: op });
   let response: Response;
   try {
-    response = await fetch(built.url, {
+    response = await appFetch(built.url, {
       method: built.method.toUpperCase(),
       headers: built.headers,
       body: typeof built.body === "string" ? built.body : JSON.stringify(built.body),
@@ -111,7 +112,7 @@ async function runDoubaoUnidirectionalTts(input: AudioTaskInput, op: HttpOperati
 
   let response: Response;
   try {
-    response = await fetch(url, {
+    response = await appFetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -166,7 +167,7 @@ async function runTranscribe(input: AudioTaskInput): Promise<TaskResult> {
   const { "Content-Type": _drop, ...auth } = buildAuthHeaders(vendor.authType as AuthType, apiKey, vendor.authHeader ?? undefined);
   let response: Response;
   try {
-    response = await fetch(url, { method: "POST", headers: auth, body: form });
+    response = await appFetch(url, { method: "POST", headers: auth, body: form });
   } catch (error: unknown) {
     throw new Error(`转写失败（${vendor.key} 网络错误）：${(error instanceof Error ? error.message : String(error)).slice(0, 256)}`);
   }

@@ -1,4 +1,5 @@
 import { comfyuiEndpoint, normalizeComfyuiBaseUrl } from "./endpointResolver";
+import { appFetch } from "../appFetch";
 
 export type ComfyuiCapabilitySnapshot = {
   baseUrl: string;
@@ -26,7 +27,7 @@ export async function getComfyuiCapabilities(baseUrl: string, force = false): Pr
 
   const request = (async (): Promise<ComfyuiCapabilitySnapshot> => {
     try {
-      const response = await fetch(comfyuiEndpoint(base, "features"), { signal: AbortSignal.timeout(3500) });
+      const response = await appFetch(comfyuiEndpoint(base, "features"), { signal: AbortSignal.timeout(3500) });
       // 收到任何 HTTP 响应都证明实例可达；只有 2xx JSON 才声明增强能力，其余保守回落兼容模式。
       if (!response.ok) return legacySnapshot(base, true);
       const json = await response.json().catch(() => null) as Record<string, unknown> | null;

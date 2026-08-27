@@ -17,6 +17,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import type { LanguageModelV1 } from "ai";
 import { applyProfileToRequestBody, getModelProfile } from "./modelProfiles";
+import { appFetch } from "../appFetch";
 // 单一真相源：provider-kind 联合定义在 catalog/types，这里只 re-export，避免并行定义漂移（规则 1）。
 import type { AiSdkProviderKind, Vendor } from "../catalog/types";
 export type { AiSdkProviderKind };
@@ -37,7 +38,7 @@ export interface BuildAiSdkModelInput {
 }
 
 /**
- * Wrap the global fetch so each request body gets profile-driven adjustments
+ * Wrap the app transport so each request body gets profile-driven adjustments
  * (forced temperature, default max_tokens, extra body fields).
  *
  * Optional debug: set LAB_DEBUG_REQUESTS=1 to dump each request body to /tmp.
@@ -67,7 +68,7 @@ function buildProfiledFetch(modelId: string): typeof fetch {
     // 见 docs/workflow/2026-06-06-real-generation-e2e-loop.md「主进程埋点」）。成功不打，避免噪音。
     const urlStr = typeof url === "string" ? url : ((url as { url?: string })?.url || String(url));
     try {
-      const res = await fetch(url as any, init);
+      const res = await appFetch(url as any, init);
       if (!res.ok) {
         let snippet = "";
         try { snippet = (await res.clone().text()).replace(/\s+/g, " ").slice(0, 300); } catch { /* body unreadable */ }
@@ -115,6 +116,7 @@ export function buildAiSdkModel(input: BuildAiSdkModelInput): LanguageModelV1 {
     if (unauthenticated) throw new Error("buildAiSdkModel: authType none requires an openai-compatible provider");
     const provider = createAnthropic({
       apiKey,
+      fetch: appFetch,
       ...(baseURL ? { baseURL } : {}),
       ...(headers ? { headers } : {}),
     });

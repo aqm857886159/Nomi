@@ -1,6 +1,7 @@
 # Agent Runtime 源码阅读与 Nomi 适配方案
 
 > 这是一份独立的源码研究文档。它不修改或替代 `docs/superpowers/plans/2026-08-22-external-agent-runtime-mcp-control-plane.md`，只回答一个问题：Codex 和 Pi Agent 的真实代码里，哪些设计值得 Nomi 复用，应该落在哪一层。
+> **2026-08-26 实施决策已更新**：内部 Agent 选择受控 pi `AgentSession`，不再维持“继续 ai@4 或 pi 二选一”的开放分支；非 Agent 文本链继续 ai@4。文内 Harness/Operation 图是研究和业务边界，不代表固定 0.84.3 的 `AgentHarness` 已可用（其关键方法未实现，本期不采用）。实际文件与验收状态见 [harness 导览](../../electron/harness/README.md) 和 [R1 实施卡](../plan/2026-08-26-pi-r1-runtime-cutover.md)。
 
 ## 先给结论
 
@@ -218,9 +219,11 @@ workbenchAgentRunner
   → typed domain command
 ```
 
-可以借 Pi 的 loop，也可以继续使用现有 Vercel AI SDK；两者都不能直接写 Timeline Store 或绕过 ProductionRun。
+已批准的内部运行核是受控 pi AgentSession；其适配只进入既有 Nomi 工具宿主，不能直接写 Timeline Store 或绕过业务批准/花费权威。原有 ai@4 仅保留在本次未替换的非 Agent 文本链，不作为 Agent 的失败 fallback。
 
 ### 4.3 媒体执行路径
+
+下图表达目标业务权威链，不是 R1 已统一两条付费入口的现状。R1 保留内部画布的 `mintSpendGrant → runPlanWithToasts` 和外部能力核的 `lease/receipt → ProductionRun`；本次只换 Agent 运行机制，不借研究图偷偷改写付费链。
 
 所有外部和内部 Agent 最终都要经过同一条 Nomi authority 链：
 
@@ -325,4 +328,3 @@ Nomi 最终应当是：
 > **Codex 的外部控制面语义 + Pi 的内部 Agent Loop / Durable Harness 语义 + Nomi 自己的媒体执行和编辑 authority。**
 
 这三者组合起来，才既能接入外部 Agent，又不会让 Nomi 退化成“只吐出几个片段的 MCP 工具集”。
-

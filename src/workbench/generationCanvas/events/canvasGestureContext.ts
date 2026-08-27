@@ -10,6 +10,12 @@ export type CanvasGestureContext = {
   proposalId?: string
   /** 事务期间 action 内置的 pushUndoSnapshot 不打 barrier(事务自己在边界打一个)。 */
   suppressUndoBarriers?: boolean
+  /** A pending proposal may be superseded during a synchronous store observer.
+   * Every later action in that same tool must still honor its write authority. */
+  canWrite?: () => boolean
+  /** Internal compensation is the only document writer admitted while the
+   * previous proposal is synchronously closing. */
+  allowDuringCleanup?: boolean
 }
 
 let active: CanvasGestureContext | null = null

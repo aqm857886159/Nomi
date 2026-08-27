@@ -4,7 +4,7 @@ import { findNonHeaderSafeChar, isJsonRecord, nowIso, type JsonRecord } from "..
 import { sanitizeName } from "../projects/repository";
 import { writeJsonFileAtomic } from "../jsonFile";
 import { CATALOG_FILE, getSettingsRoot, readJson } from "../runtimePaths";
-import { type ApiKeyRecord, decryptApiKeyRecord, isSafeStorageAvailable, makeApiKeyRecordFromPlain } from "./secrets";
+import { type ApiKeyRecord, decryptApiKeyRecord, makeApiKeyRecordFromPlain } from "./secrets";
 import { humanizeModelKey } from "./modelLabel";
 import { applyBuiltinSeeds } from "./seedBuiltins";
 import { migrateRelayImageEditProtocols } from "./relayImageEditMigration";
@@ -28,6 +28,7 @@ import { antigravityConnection } from "../ai/antigravityConnection";
 import { extractLegacyStages, normalizeLegacyMappings } from "./legacyMappingMigration";
 import {
   applyPlainCustomConfig,
+  hasLegacyCustomConfigField,
   legacyCustomConfig,
   migrateLegacyCustomConfigSecrets,
   normalizedCustomConfig,
@@ -69,8 +70,8 @@ export function readCatalog(): CatalogState {
     return initial;
   }
 
-  // Migrate forward. v1 → v2: tag pre-existing keys as plaintext-encoded; M5.2
-  // will lazy-upgrade them to safeStorage on first read once that lands.
+  // Migrate forward. v1 → v2 tags pre-existing keys as plaintext-encoded;
+  // reads preserve those records so catalog access never opens the OS keychain.
   const migrated = migrateCatalogForward(parsed);
 
   const apiKeysByVendor = migrated.apiKeysByVendor || {};
@@ -98,8 +99,9 @@ export function ensureBuiltinModelSeeds(): void {
 }
 
 /**
- * In-place forward migration. Unknown future versions fall back to defaults.
- * Always returns a state at CURRENT_CATALOG_VERSION.
+ * In-place forward migration. Unknown future versions stay untouched. A v8
+ * catalog carrying legacy plaintext custom config intentionally stays at v8
+ * until an explicit credential write can migrate every secret atomically.
  */
 function migrateCatalogForward(state: CatalogState): CatalogState {
   let s = state;
@@ -171,15 +173,11 @@ function migrateCatalogForward(state: CatalogState): CatalogState {
   }
 
   if (s.version === 8) {
-    const migrated = migrateLegacyCustomConfigSecrets(s);
-    if (!migrated) {
-      // Do not rewrite legacy plaintext or silently break AK/SK calls. A later
-      // read retries this migration after the OS keychain becomes available.
-      console.warn("[catalog] custom configuration migration deferred: system safe storage is unavailable");
-      return s;
+    const hasLegacyCustomConfig = s.vendors.some(hasLegacyCustomConfigField);
+    if (!hasLegacyCustomConfig) {
+      s = { ...s, version: 9 };
+      writeCatalog(s);
     }
-    s = migrated;
-    writeCatalog(s);
   }
 
   if (s.version === 9) {
@@ -195,28 +193,6 @@ function migrateCatalogForward(state: CatalogState): CatalogState {
       `[catalog] file version ${s.version} > app version ${CURRENT_CATALOG_VERSION}; read-only (writes refused)`,
     );
     return s;
-  }
-
-  // Lazy upgrade: any plaintext keys get re-encrypted on first read once safeStorage is up.
-  // This handles both legacy v1 keys post-migration and import-from-export scenarios.
-  if (isSafeStorageAvailable()) {
-    let dirty = false;
-    const upgraded: Record<string, ApiKeyRecord> = {};
-    for (const [k, rec] of Object.entries(s.apiKeysByVendor || {})) {
-      if (rec.enc !== "safeStorage" && rec.apiKey) {
-        upgraded[k] = {
-          ...makeApiKeyRecordFromPlain(rec.apiKey, rec.vendorKey, rec.enabled, rec.createdAt, rec.updatedAt),
-          ...(rec.customConfig ? { customConfig: rec.customConfig } : {}),
-        };
-        dirty = true;
-      } else {
-        upgraded[k] = rec;
-      }
-    }
-    if (dirty) {
-      s = { ...s, apiKeysByVendor: upgraded };
-      writeCatalog(s);
-    }
   }
 
   return s;
@@ -401,9 +377,20 @@ export function getModelCatalogHealth(): unknown {
 }
 
 /**
- * 纯函数:把一次 vendor upsert 应用到**内存中的** state(原地改 state.vendors),返回产出的 vendor。
- * 不读盘不写盘——读盘/写盘归调用方。事务化导入(importModelCatalogPackage)与单条公开 upsert
- * 共用它,避免两份合并逻辑漂移(P1)。
+ * 明确的 custom-config 凭据写边界：先加密，再从 vendor.meta 移除旧明文。
+ * 全部 legacy 字段都清理完后，才在同一内存事务中升到 v9。
+ */
+function applyPlainCustomConfigWrite(state: CatalogState, vendorKey: string, config: Record<string, string>): void {
+  applyPlainCustomConfig(state, vendorKey, config);
+  state.vendors = state.vendors.map((vendor) =>
+    vendor.key === vendorKey ? { ...vendor, meta: withoutLegacyCustomConfig(vendor.meta) } : vendor,
+  );
+  if (state.version === 8 && !state.vendors.some(hasLegacyCustomConfigField)) state.version = 9;
+}
+
+/**
+ * 把一次 vendor upsert 应用到内存 state，不读盘不写盘。
+ * 事务化导入与单条公开 upsert 共用它，避免两份合并逻辑漂移。
  */
 function applyVendorUpsert(state: CatalogState, payload: unknown): Vendor {
   const raw = payload as JsonRecord;
@@ -413,12 +400,25 @@ function applyVendorUpsert(state: CatalogState, payload: unknown): Vendor {
   guardAntigravityVendorWrite({ ...raw, key, enabled: normalizeEnabled(raw.enabled, existing?.enabled ?? true) }, existing,
     (request) => antigravityConnection.canEnable(request));
   const t = nowIso();
-  const incomingMeta = raw.meta !== undefined ? raw.meta : existing?.meta;
-  const incomingConfig =
-    isJsonRecord(incomingMeta) && Object.prototype.hasOwnProperty.call(incomingMeta, "customConfig")
-      ? normalizedCustomConfig(incomingMeta.customConfig)
-      : null;
-  if (incomingConfig) applyPlainCustomConfig(state, key, incomingConfig);
+  const existingMeta = isJsonRecord(existing?.meta) ? existing.meta : null;
+  const hasIncomingCustomConfig = Boolean(
+    isJsonRecord(raw.meta) && Object.prototype.hasOwnProperty.call(raw.meta, "customConfig"),
+  );
+  let incomingMeta: unknown;
+  if (hasIncomingCustomConfig) {
+    applyPlainCustomConfigWrite(state, key, normalizedCustomConfig((raw.meta as JsonRecord).customConfig));
+    incomingMeta = withoutLegacyCustomConfig(raw.meta);
+  } else {
+    incomingMeta = raw.meta !== undefined ? raw.meta : existing?.meta;
+  }
+  if (!hasIncomingCustomConfig && hasLegacyCustomConfigField(existing) && raw.meta !== undefined) {
+    incomingMeta = isJsonRecord(raw.meta)
+      ? {
+          ...raw.meta,
+          customConfig: existingMeta?.customConfig,
+        }
+      : { customConfig: existingMeta?.customConfig };
+  }
   const vendor: Vendor = {
     key,
     name: String(raw.name || existing?.name || key).trim(),
@@ -430,7 +430,7 @@ function applyVendorUpsert(state: CatalogState, payload: unknown): Vendor {
     authQueryParam:
       typeof raw.authQueryParam === "string" ? raw.authQueryParam.trim() || null : (existing?.authQueryParam ?? null),
     providerKind: normalizeProviderKind(raw.providerKind, existing?.providerKind ?? "openai-compatible"),
-    meta: withoutLegacyCustomConfig(incomingMeta),
+    meta: incomingMeta,
     createdAt: existing?.createdAt || t,
     updatedAt: t,
   };
@@ -518,13 +518,23 @@ export function listModelCatalogCustomCallConfig(vendorKey: string): CustomCallC
   return [...names].sort((left, right) => left.localeCompare(right)).map((name) => ({ name, hasValue: true }));
 }
 
+function migrateLegacyCustomConfigForWrite(state: CatalogState): CatalogState {
+  const hasLegacyCustomConfig = state.vendors.some(hasLegacyCustomConfigField);
+  if (!hasLegacyCustomConfig) return state;
+  const migrated = migrateLegacyCustomConfigSecrets(state);
+  if (!migrated) {
+    throw new Error("系统安全存储不可用，无法迁移旧版自定义配置；目录未写入。请解锁系统钥匙串后重试。");
+  }
+  return migrated;
+}
+
 /**
  * Replace the named secret set atomically. `keepFrom` copies an existing
  * ciphertext (also covering a rename); only entries carrying `value` encrypt
  * new plaintext. Missing rows are explicit deletions.
  */
 export function upsertModelCatalogCustomCallConfig(vendorKey: string, payload: unknown): CustomCallConfigPublicEntry[] {
-  const state = readCatalog();
+  const state = migrateLegacyCustomConfigForWrite(readCatalog());
   const result = replaceCustomCallConfig(state, vendorKey, payload);
   writeCatalog(state);
   return result;
@@ -704,8 +714,9 @@ export function importModelCatalogPackage(payload: unknown): unknown {
       vendors += 1;
       const apiKey = bundle.apiKey as JsonRecord | undefined;
       if (apiKey?.apiKey) applyApiKeyUpsert(state, vendor.key, apiKey);
-      if (isJsonRecord(apiKey?.customConfig))
-        applyPlainCustomConfig(state, vendor.key, normalizedCustomConfig(apiKey.customConfig));
+      if (isJsonRecord(apiKey?.customConfig)) {
+        applyPlainCustomConfigWrite(state, vendor.key, normalizedCustomConfig(apiKey.customConfig));
+      }
       for (const model of bundle.models || []) {
         applyModelUpsert(state, { ...(model as JsonRecord), vendorKey: (model as JsonRecord).vendorKey || vendor.key });
         models += 1;

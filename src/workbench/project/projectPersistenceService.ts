@@ -12,8 +12,19 @@ import { migrateProjectRecord, type CategoryMigrationDiagnostic } from './projec
 import { migrateProjectV51ToV60 } from './projectV51ToV60Migration'
 import { backfillShotIndexes } from '../generationCanvas/model/shotNumbering'
 import { runProjectAssetHealthCheck } from '../generationCanvas/runner/projectAssetHealthCheck'
+import { abandonCreationTurn } from '../creation/creationTurnController'
+import { abandonCanvasTurn } from '../generationCanvas/agent/canvasTurnController'
+import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 
 let lastCategoryMigrationDiagnostic: CategoryMigrationDiagnostic | null = null
+
+function abandonHydratingProjectOwnership(): void {
+  abandonCreationTurn()
+  abandonCanvasTurn()
+  // Hydration replaces the whole project snapshot. Invalidate review work here,
+  // not when the persistence subscription merely rebinds after an ordinary save.
+  useShotVerifyStore.getState().activateProject(null)
+}
 
 // 迁移幂等的语义相等（P2 根因 / 守纪律「幂等判定用语义相等不用引用相等」）：
 // hydrate 时串行跑多道迁移，其中任一道（如 v51→v60 把跨分类 derivedFrom 计入 anyChange，
@@ -142,6 +153,7 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
   }
 
   const hydrateProject = async (projectId: string): Promise<WorkbenchProjectRecordV1 | null> => {
+    abandonHydratingProjectOwnership()
     const project = await readLocalProjectAsync(projectId)
     if (!project) return null
     clearActiveWorkbenchProjectSaveTarget()
@@ -174,9 +186,15 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
     if (changed) {
       saveLocalProject(upgraded.id, upgraded.payload, upgraded.name)
     }
+    // A turn begun while the read was pending still targets the outgoing project.
+    abandonHydratingProjectOwnership()
     restoreWorkbenchProjectPayload(upgraded.payload)
     // S5-b-1:重放快照没盖到的事件尾巴(崩溃恢复),完成后以含尾后态发 genesis。
     await replayCanvasEventTailAndSealGenesis(upgraded.id, upgraded.payload)
+    // Event-tail replay crosses IPC and the restored canvas is already visible. A turn may
+    // start in that window with the outgoing project's identity; close the hydration epoch
+    // once more before publishing the new active project.
+    abandonHydratingProjectOwnership()
     // 开项目体检:后台抢救此前漏落进节点的厂商临时 URL(会过期)→ 本地资产。fire-and-forget,
     // 不阻塞打开;绝大多数项目节点本就 nomi-local,体检立即空跑返回。
     void runProjectAssetHealthCheck(upgraded.id).catch(() => {})

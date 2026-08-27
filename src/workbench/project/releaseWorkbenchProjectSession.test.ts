@@ -4,6 +4,9 @@ import { useGenerationCanvasStore } from '../generationCanvas/store/generationCa
 import { useWorkbenchStore } from '../workbenchStore'
 import { createDefaultTimeline } from '../timeline/timelineMath'
 import { releaseWorkbenchProjectRuntimeState } from './releaseWorkbenchProjectSession'
+import { useCanvasTurnStore } from '../generationCanvas/agent/canvasTurnController'
+import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
+import { clearActiveWorkbenchProjectSaveTarget, setActiveWorkbenchProjectSaveTarget } from './workbenchProjectSession'
 
 function node(id: string): GenerationCanvasNode {
   return {
@@ -17,10 +20,12 @@ function node(id: string): GenerationCanvasNode {
 
 describe('releaseWorkbenchProjectRuntimeState', () => {
   afterEach(() => {
+    clearActiveWorkbenchProjectSaveTarget()
     releaseWorkbenchProjectRuntimeState()
   })
 
   it('clears heavy project state without resetting store actions', () => {
+    const canvasTurn = useCanvasTurnStore.getState().begin()
     const addNode = useGenerationCanvasStore.getState().addNode
     useGenerationCanvasStore.setState({
       isReady: true,
@@ -40,8 +45,18 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
       selectedTimelineClipIds: ['clip1'],
       timelineUndoStack: [createDefaultTimeline()],
     })
+    const verifyRequest = useShotVerifyStore.getState().beginVerify('project-A')
+    useShotVerifyStore.getState().setDeviations([{
+      where: '镜头 1',
+      field: '身份',
+      expected: '一致',
+      actual: '不一致',
+      kind: 'content',
+      shotNodeId: 'n1',
+    }])
 
     releaseWorkbenchProjectRuntimeState()
+    expect(canvasTurn.isCurrent()).toBe(false)
 
     const canvas = useGenerationCanvasStore.getState()
     expect(canvas.nodes).toEqual([])
@@ -59,5 +74,55 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
     expect(workbench.timeline).toEqual(createDefaultTimeline())
     expect(workbench.selectedTimelineClipIds).toEqual([])
     expect(workbench.timelineUndoStack).toEqual([])
+
+    const verify = useShotVerifyStore.getState()
+    expect(verify.projectId).toBeNull()
+    expect(verify.status).toBe('idle')
+    expect(verify.deviations).toEqual([])
+    expect(verify.requestId).toBeGreaterThan(verifyRequest.requestId)
+  })
+
+  it('active project owner switches shot verify scope before an old result can surface', () => {
+    const target = (projectId: string) => ({
+      projectId,
+      projectName: projectId,
+      canPersist: () => false,
+      saveProject: async () => { throw new Error('not used') },
+      onSaved: () => undefined,
+    })
+    setActiveWorkbenchProjectSaveTarget(target('project-A'))
+    const oldRequest = useShotVerifyStore.getState().beginVerify('project-A')
+    useShotVerifyStore.getState().setDeviations([{
+      where: 'A 镜头',
+      field: '身份',
+      expected: '一致',
+      actual: '不一致',
+      kind: 'content',
+    }])
+
+    setActiveWorkbenchProjectSaveTarget(target('project-B'))
+
+    const verify = useShotVerifyStore.getState()
+    expect(verify.projectId).toBe('project-B')
+    expect(verify.status).toBe('idle')
+    expect(verify.deviations).toEqual([])
+    expect(verify.requestId).toBeGreaterThan(oldRequest.requestId)
+  })
+
+  it('persistence subscription rebind does not invalidate an in-flight verify for the same project', () => {
+    const target = {
+      projectId: 'project-A',
+      projectName: 'project-A',
+      canPersist: () => false,
+      saveProject: async () => { throw new Error('not used') },
+      onSaved: () => undefined,
+    }
+    setActiveWorkbenchProjectSaveTarget(target)
+    const request = useShotVerifyStore.getState().beginVerify('project-A')
+
+    clearActiveWorkbenchProjectSaveTarget('project-A')
+    setActiveWorkbenchProjectSaveTarget(target)
+
+    expect(useShotVerifyStore.getState().isVerifyCurrent(request, 'project-A')).toBe(true)
   })
 })

@@ -23,6 +23,7 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { ensureElectronSignature } from '../../scripts/ensure-electron-signature.mjs'
+import { assertElectronBuildArtifacts } from '../../scripts/electron-build-artifacts.mjs'
 
 const require = createRequire(import.meta.url)
 
@@ -74,17 +75,15 @@ export function withLinuxNoSandbox(args, platform = process.platform) {
   return normalized
 }
 
-/** 起飞前先确认构建产物在不在——没 build 就直接说，别让人等满超时才发现。 */
-function assertBuilt() {
-  // 入口从 package.json 的 main 派生，不 hardcode 路径（改打包布局时这里自动跟着走）。
-  const mainEntry = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')).main
-  const entryPath = path.join(repoRoot, mainEntry)
-  if (!fs.existsSync(entryPath)) {
-    throw new Error(
-      `Electron 主进程入口不存在：${mainEntry}\n` +
-        `→ 走查脚本跑的是构建产物，先执行：pnpm run build`,
-    )
-  }
+/** Electron 43's packaged Chromium rejects Playwright's DevTools WebSocket
+ * Origin unless it is explicitly allowed. This flag exists only in this E2E
+ * launcher (which already forces NOMI_E2E=1); normal product launches never
+ * receive a remote-debugging port or this allow-list. */
+export function withPackagedPlaywrightOrigin(args, isPackaged) {
+  const normalized = [...args]
+  const allowOrigin = '--remote-allow-origins=*'
+  if (isPackaged && !normalized.includes(allowOrigin)) normalized.push(allowOrigin)
+  return normalized
 }
 
 /**
@@ -120,7 +119,7 @@ export async function launchNomiApp(options = {}) {
   // 再塞个 `.` 反而会被当成「要打开的路径」参数。所以这两件事都跟着「是不是开发构建」走。
   const isDevElectron = executablePath === require('electron')
   if (isDevElectron) {
-    assertBuilt()
+    assertElectronBuildArtifacts(repoRoot)
     // Apple 会在首次启动时直接删除已吊销公证的 Electron.app。走查必须在 spawn 前复用
     // dev 启动器的静态探测与重签，否则表现为 60s 超时且一张截图也产不出来。
     ensureElectronSignature(executablePath)
@@ -143,11 +142,11 @@ export async function launchNomiApp(options = {}) {
 
   const launchOptions = {
     executablePath,
-    args: withLinuxNoSandbox([
+    args: withLinuxNoSandbox(withPackagedPlaywrightOrigin([
       ...(isDevElectron ? ['.'] : []),
       ...(userDataDir ? [`--user-data-dir=${userDataDir}`] : []),
       ...extraArgs,
-    ]),
+    ], !isDevElectron)),
     cwd: repoRoot,
     env: buildNomiLaunchEnv({ extraEnv, userDataDir, settingsDir, projectsDir, capabilityDir }),
     timeout,
@@ -166,7 +165,7 @@ export async function launchNomiApp(options = {}) {
   try {
     app = await electron.launch(launchOptions)
   } catch (error) {
-    throw new Error(diagnose(`Electron 起不来（electron.launch 失败/超时，${timeout}ms）`, name, error, logTail))
+    throw new Error(diagnoseLaunchFailure(`Electron 起不来（electron.launch 失败/超时，${timeout}ms）`, name, error, logTail))
   }
 
   try {
@@ -186,7 +185,7 @@ export async function launchNomiApp(options = {}) {
       // 两种失败形状都落这儿：等超时，以及 app 提前退出导致的 TargetClosedError
       //（单实例锁没抢到就是后者——主进程自己 quit 了）。诊断是同一套。
       await app.close().catch(() => undefined)
-      throw new Error(diagnose(`等了 ${timeout}ms 没等到窗口`, name, error, logTail))
+      throw new Error(diagnoseLaunchFailure(`等了 ${timeout}ms 没等到窗口`, name, error, logTail))
     }
     await win.waitForLoadState('domcontentloaded')
     if (settleMs > 0) await win.waitForTimeout(settleMs)
@@ -210,20 +209,28 @@ export async function launchNomiApp(options = {}) {
  * 注意排序：单实例锁那条**已经被启动器强制解掉了**，所以它不再是首要嫌疑——
  * 把它排第一会把人往错方向带。真实剩下的头号原因是构建产物过期。
  */
-function diagnose(headline, name, error, logTail) {
-  // Playwright 的 "Call log:" 段与其上的 "Browser logs:" 完全重复；先切掉，
-  // 否则下面捞 stderr 会把每行捞两遍。
-  const raw = String(error?.message || error || '').split(/\nCall log:/)[0].trim()
+export function diagnoseLaunchFailure(headline, name, error, logTail) {
+  const fullError = String(error?.message || error || '')
+  // 用 Call log 作子进程输出的真源：electron.launch resolve 之前我们还拿不到
+  // app.process()，此时 Playwright 只会把 stderr 收在这一段。原始错误摘要仍去掉
+  // Call log，避免与下面已清洗的主进程尾巴重复。
+  const callLogMarker = '\nCall log:'
+  const callLogIndex = fullError.indexOf(callLogMarker)
+  const raw = (callLogIndex >= 0 ? fullError.slice(0, callLogIndex) : fullError).trim()
+  const playwrightProcessOutput = callLogIndex >= 0
+    ? fullError.slice(callLogIndex + callLogMarker.length)
+    : fullError
   // launch 本身就失败时我们还没拿到子进程句柄，logTail 是空的；但 Playwright 自己把主进程
   // stderr 收进了错误文本（`[pid=123][err] ...`）——从那儿捞出来，别对着空手说「没有输出」。
-  const tail = logTail.length
+  const observedOutput = logTail.length
     ? logTail
-    : raw
+    : playwrightProcessOutput
         .split('\n')
         .filter((line) => /^\s*-?\s*\[pid=\d+\]\[err\]/.test(line))
         .map((line) => line.replace(/^\s*-?\s*\[pid=\d+\]\[err\]\s?/, ''))
-        .filter((line) => line.trim() && !/Debugger (listening|attached)|inspector|DevTools listening|Waiting for the debugger/.test(line))
-        .slice(-20)
+  const tail = observedOutput
+    .filter((line) => line.trim() && !/Debugger (listening|attached)|inspector|DevTools listening|Waiting for the debugger/i.test(line))
+    .slice(-20)
 
   const lines = [
     '',
@@ -240,7 +247,7 @@ function diagnose(headline, name, error, logTail) {
   if (tail.length) {
     lines.push('主进程最后几行输出：', ...tail.map((l) => `  │ ${l}`), '')
   } else {
-    lines.push('（没抓到任何主进程输出——通常意味着它压根没起来。)', '')
+    lines.push('（启动器未捕获到主进程输出；这不能证明进程未启动，仍需结合系统进程或采样确认。）', '')
   }
   lines.push(`原始错误：${raw}`)
   return lines.join('\n')

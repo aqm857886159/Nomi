@@ -19,6 +19,7 @@ let tmpRoot = "";
 const SESSION = "sess-1";
 // 用渲染层真实格式(带 :area 后缀,cdc433c 起)——曾用无后缀的 `nomi:workbench:p1` 掩盖了 trace 全丢的回归。
 const SESSION_KEY = "nomi:workbench:p1:generation";
+const history = { kind: 'persistent', binding: { sessionKey: SESSION_KEY, threadId: 'explicit-thread' } };
 
 beforeEach(() => {
   tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-trace-"));
@@ -34,7 +35,7 @@ afterEach(() => {
 
 describe("agentChatTrace — S6-0 对账的米", () => {
   it("approved 携 effectiveArgs/overridesDelta,causeId 回指 proposed", () => {
-    beginTurnTrace(SESSION, { sessionKey: SESSION_KEY, skillKey: "canvas", prompt: "拆镜头" });
+    beginTurnTrace(SESSION, { history, skillKey: "canvas", prompt: "拆镜头" });
     traceChatEvent(SESSION, {
       type: "tool-call",
       toolCallId: "tc-1",
@@ -65,7 +66,7 @@ describe("agentChatTrace — S6-0 对账的米", () => {
   });
 
   it("无 override 时不写空 overridesDelta(空对象不进日志)", () => {
-    beginTurnTrace(SESSION, { sessionKey: SESSION_KEY, skillKey: "canvas", prompt: "建节点" });
+    beginTurnTrace(SESSION, { history, skillKey: "canvas", prompt: "建节点" });
     traceChatEvent(SESSION, { type: "tool-call", toolCallId: "tc-2", toolName: "create_canvas_nodes", args: { nodes: [] } });
     traceToolDecision(SESSION, "tc-2", { ok: true, effectiveArgs: { nodes: [] } });
 
@@ -75,7 +76,7 @@ describe("agentChatTrace — S6-0 对账的米", () => {
   });
 
   it("rejected 只记 message,不混入对账字段", () => {
-    beginTurnTrace(SESSION, { sessionKey: SESSION_KEY, skillKey: "canvas", prompt: "删节点" });
+    beginTurnTrace(SESSION, { history, skillKey: "canvas", prompt: "删节点" });
     traceChatEvent(SESSION, { type: "tool-call", toolCallId: "tc-3", toolName: "delete_canvas_nodes", args: { nodeIds: ["n9"] } });
     traceToolDecision(SESSION, "tc-3", { ok: false, message: "用户拒绝" });
 
@@ -85,7 +86,7 @@ describe("agentChatTrace — S6-0 对账的米", () => {
   });
 
   it("S6-1 gate.denied:reason 人话落盘,causeId 回指 proposed(intent 可反走还原)", () => {
-    beginTurnTrace(SESSION, { sessionKey: SESSION_KEY, skillKey: "canvas", prompt: "动作" });
+    beginTurnTrace(SESSION, { history, skillKey: "canvas", prompt: "动作" });
     traceChatEvent(SESSION, { type: "tool-call", toolCallId: "tc-4", toolName: "rm_rf", args: {} });
     traceGateDenied(SESSION, "tc-4", "不支持的操作「rm_rf」");
 
@@ -97,5 +98,14 @@ describe("agentChatTrace — S6-0 对账的米", () => {
     expect(denied!.causeId).toBe(proposed!.id);
     // gate.denied 不是 proposal.rejected(两类语义分开)。
     expect(events.some((e) => e.type === "agent.proposal.rejected")).toBe(false);
+  });
+
+  it.each(['finished', 'cancelled', 'error'])('records the actual %s status and explicit thread identity', (status) => {
+    beginTurnTrace(SESSION, { history, prompt: 'go' });
+    traceChatEvent(SESSION, { type: 'result', result: { status, text: 'actual', usage: { totalTokens: 9 } } });
+    traceChatEvent(SESSION, { type: 'done', reason: status });
+    const events = readEvents('p1');
+    expect(events.find((event) => event.type === 'agent.turn.started')?.payload).toMatchObject({ threadId: 'explicit-thread' });
+    expect(events.find((event) => event.type === 'agent.turn.finished')?.payload).toMatchObject({ status, usage: { totalTokens: 9 } });
   });
 });

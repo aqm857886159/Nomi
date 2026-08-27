@@ -73,8 +73,7 @@ export type AiSdkErrorContext = {
  * 厂商请求失败 → 结构化错误；**不是**厂商请求失败（工具报错、没配模型、空响应截断、
  * 用户点停止）→ null，由调用方退回裸字符串走 legacy 兜底。
  *
- * 已经是 VendorRequestError 的原样放行——流式超时守卫（agentStreamConsumer）在触发那一刻
- * 就造好了结构化错误，这里不该再拆一遍。
+ * 已经是 VendorRequestError 的原样放行；非 Agent 文本任务的结构化错误不该再拆一遍。
  */
 export function vendorErrorFromAiSdkError(error: unknown, ctx: AiSdkErrorContext = {}): VendorRequestError | null {
   if (error instanceof VendorRequestError) return error;

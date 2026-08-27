@@ -15,6 +15,8 @@ import { createDiskGateway, withPreApprovedSpend, type ProjectGateway } from './
 import { readLiveInstance, type InstanceAdvertisement } from './lockfile'
 import { runTask, fetchTaskResult } from '../runtime'
 import { applySystemProxy } from '../systemProxy'
+import { appFetch } from '../appFetch'
+import { readProxyPrefs } from '../proxySettings'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
 import { startArtifactPreviewHttpServer, withAssetPreview } from '../productionRun/artifactPreviewHttpServer'
 import { resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
@@ -99,7 +101,7 @@ async function callViaRpc(
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   let res: Response
   try {
-    res = await fetch(`http://127.0.0.1:${instance.port}/rpc`, {
+    res = await appFetch(`http://127.0.0.1:${instance.port}/rpc`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -185,11 +187,11 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
   console.warn = toErr
   console.debug = toErr
 
-  // 和主 app 一致设代理（vendor fetch 在代理环境才通）；失败直连兜底，不崩。
+  // 与 GUI 共用持久化偏好；失败不退出 stdio，本机 RPC 仍按明确私网规则直连。
   try {
-    await applySystemProxy(session.defaultSession)
+    await applySystemProxy(session.defaultSession, readProxyPrefs())
   } catch {
-    /* 代理设失败 → 直连兜底 */
+    /* appFetch 会阻止未经确认的公共请求，不能把初始化失败当成允许直连。 */
   }
 
   // 交付5：结果/进度文案 locale 跟随系统/App 语言。stdio 进程走的是 main.ts 的 isMcpStdio 分支，**不经** GUI

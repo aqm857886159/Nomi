@@ -31,6 +31,8 @@ export type AdoptStoryboardBatchOptions = {
   startFrame: number
   readNodes: () => readonly GenerationCanvasNode[]
   ports?: AdoptionApplyPorts
+  /** Optional caller lifecycle guard, not a semantic revision/CAS protocol. */
+  assertCanApply?: () => void
 }
 
 /** 全轴最右端帧（跨所有轨）。 */
@@ -114,6 +116,7 @@ export type BatchAdoptionResult = AdoptionOutcome & {
 }
 
 export async function adoptStoryboardBatch(options: AdoptStoryboardBatchOptions): Promise<BatchAdoptionResult> {
+  options.assertCanApply?.()
   const ports = options.ports || workbenchAdoptionPorts
   const readNodes = options.readNodes
   const total = options.units.length
@@ -171,6 +174,7 @@ export async function adoptStoryboardBatch(options: AdoptStoryboardBatchOptions)
       continue
     }
     const clip = await buildGenerationNodeTimelineClip(node, { fps: timeline.fps, startFrame: cursor })
+    options.assertCanApply?.()
     if (!clip) {
       skipped.push({ nodeId: unit.nodeId, reason: 'clip_unavailable' })
       continue
@@ -225,6 +229,7 @@ export async function adoptStoryboardBatch(options: AdoptStoryboardBatchOptions)
   }
 
   // ── 阶段 ②：查闸。键在算完之后才取 baseRevision —— 上面的 await 期间轴可能被别处动过。
+  options.assertCanApply?.()
   const key = proposalKeyForBatch(keyUnits, ports.readTimeline())
   const lookup = lookupAdoptionProposal(key)
   if (lookup.kind === 'replay') return { status: 'applied', proposal: lookup.proposal, replayed: true, total }
