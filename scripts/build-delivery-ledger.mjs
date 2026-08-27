@@ -15,8 +15,13 @@
  * 3. 手工维护的清单一定会漂（本仓已证三次：README 说 64 篇 / INDEX 说 71 篇 /
  *    实际 397 篇），所以本文件全量生成，禁止手改。
  *
+ * 两份产物（同源同一次扫描，所以放一个脚本，由 check:ledger 一起把关）：
+ *   docs/DELIVERY-LEDGER.md            —— 欠账账本
+ *   docs/superpowers/plans/INDEX.md    —— 该目录索引（满足 check:docs-index）
+ *   后者若手工维护，每加一篇就得手补——正是本仓已证会漂的那种维护方式。
+ *
  * 用法：
- *   node scripts/build-delivery-ledger.mjs            # 生成 docs/DELIVERY-LEDGER.md
+ *   node scripts/build-delivery-ledger.mjs            # 生成两份产物
  *   node scripts/build-delivery-ledger.mjs --check    # 门岗：产物是否与源同步
  *   node scripts/build-delivery-ledger.mjs --brief    # 给 hook 用：一行提醒 + top N
  */
@@ -37,6 +42,7 @@ import {
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const OUTPUT = path.join(repoRoot, 'docs/DELIVERY-LEDGER.md')
+const PLANS_INDEX = path.join(repoRoot, 'docs/superpowers/plans/INDEX.md')
 const BRIEF_TOP_N = 3
 
 function readDocuments() {
@@ -75,6 +81,29 @@ function section(title, rows, emptyNote) {
   }
   lines.push('')
   return lines
+}
+
+function renderPlansIndex(documents) {
+  const rows = documents
+    .filter((doc) => doc.relativePath.startsWith('docs/superpowers/plans/'))
+    .sort((a, b) => a.relativePath.localeCompare(b.relativePath))
+  return [
+    '# docs/superpowers/plans 索引',
+    '',
+    '> **本文件由 `scripts/build-delivery-ledger.mjs` 生成，禁止手改**；加了文档就跑 `pnpm run gen:ledger`。',
+    '> 跨阶段总纲 / master plan 住这里；功能级方案在 [`docs/plan/`](../../plan/INDEX.md)。',
+    '> **当前主文档**：[Nomi 统一 Agent 总体方案](2026-08-24-unified-agent-master-plan.md)（含 §5.1「AI 剪辑三步」E1/E2/E3）。',
+    '> 「标题」取自各文件 H1，未二次概括；状态为「—」表示尚未登记（见 [交付账本](../../DELIVERY-LEDGER.md)）。',
+    '',
+    '| 文件 | 标题 | 状态 |',
+    '|---|---|---|',
+    ...rows.map((doc) => {
+      const name = path.basename(doc.relativePath)
+      const status = doc.status ? `${doc.status} ${STATUS_LABEL[doc.status]}` : '—'
+      return `| [${name}](${name}) | ${doc.title} | ${status} |`
+    }),
+    '',
+  ].join('\n')
 }
 
 function monthBuckets(documents) {
@@ -182,21 +211,30 @@ if (process.argv.includes('--brief')) {
   process.exit(0)
 }
 
-const expected = render(documents)
+/** 两份产物同源同一次扫描，写入/校验都成对进行，不允许只更新一份。 */
+const artifacts = [
+  { label: 'docs/DELIVERY-LEDGER.md', file: OUTPUT, expected: render(documents) },
+  { label: 'docs/superpowers/plans/INDEX.md', file: PLANS_INDEX, expected: renderPlansIndex(documents) },
+]
+
+// 行尾无关比对：工作区行尾由 .gitattributes 钉成 LF，但按内容比更稳。
+const normalize = (text) => text.split(/\r?\n/).join('\n')
+const openCount = documents.filter((doc) => OPEN_STATUSES.includes(doc.status)).length
 
 if (process.argv.includes('--check')) {
-  const actual = fs.existsSync(OUTPUT) ? fs.readFileSync(OUTPUT, 'utf8') : ''
-  // 逐行比较行尾无关内容：工作区行尾由 .gitattributes 钉成 LF，但仍按内容比对更稳。
-  if (actual.split(/\r?\n/).join('\n') === expected.split(/\r?\n/).join('\n')) {
-    const open = documents.filter((doc) => OPEN_STATUSES.includes(doc.status)).length
-    console.log(`✅ 交付账本同步：现役欠账 ${open} 篇，共扫描 ${documents.length} 篇方案`)
+  const stale = artifacts.filter((artifact) => {
+    const actual = fs.existsSync(artifact.file) ? fs.readFileSync(artifact.file, 'utf8') : ''
+    return normalize(actual) !== normalize(artifact.expected)
+  })
+  if (stale.length === 0) {
+    console.log(`✅ 文档生成物同步：现役欠账 ${openCount} 篇，共扫描 ${documents.length} 篇方案`)
     process.exit(0)
   }
-  console.error('✖ 交付账本已过期：某篇方案的状态标记变了，但 docs/DELIVERY-LEDGER.md 没重生成')
-  console.error('  → 跑 `pnpm run gen:ledger` 后提交（本文件是生成物，不要手改）')
+  console.error(`✖ ${stale.length} 份生成物已过期（多半是新增了方案文档，或某篇状态标记变了）：`)
+  for (const artifact of stale) console.error(`  ${artifact.label}`)
+  console.error('  → 跑 `pnpm run gen:ledger` 后提交（这些是生成物，不要手改）')
   process.exit(1)
 }
 
-fs.writeFileSync(OUTPUT, expected)
-const open = documents.filter((doc) => OPEN_STATUSES.includes(doc.status)).length
-console.log(`✅ 已生成 docs/DELIVERY-LEDGER.md：现役欠账 ${open} 篇，共扫描 ${documents.length} 篇方案`)
+for (const artifact of artifacts) fs.writeFileSync(artifact.file, artifact.expected)
+console.log(`✅ 已生成 ${artifacts.length} 份产物：现役欠账 ${openCount} 篇，共扫描 ${documents.length} 篇方案`)

@@ -1,9 +1,9 @@
 # docs/superpowers/plans 索引
 
+> **本文件由 `scripts/build-delivery-ledger.mjs` 生成，禁止手改**；加了文档就跑 `pnpm run gen:ledger`。
 > 跨阶段总纲 / master plan 住这里；功能级方案在 [`docs/plan/`](../../plan/INDEX.md)。
 > **当前主文档**：[Nomi 统一 Agent 总体方案](2026-08-24-unified-agent-master-plan.md)（含 §5.1「AI 剪辑三步」E1/E2/E3）。
-> 一句话取自各文件的 H1 标题，未二次概括；状态列为「—」表示该文件尚未带状态标记。
-> 新增文档**顺手在此加一行**——`check:docs-index` 会拦未收录的新文件。
+> 「标题」取自各文件 H1，未二次概括；状态为「—」表示尚未登记（见 [交付账本](../../DELIVERY-LEDGER.md)）。
 
 | 文件 | 标题 | 状态 |
 |---|---|---|
@@ -27,7 +27,7 @@
 | [2026-08-22-external-agent-runtime-mcp-control-plane.md](2026-08-22-external-agent-runtime-mcp-control-plane.md) | External Agent Runtime MCP Control Plane（历史草案，已归一） | — |
 | [2026-08-22-mcp-ai-generation-vertical-slice.md](2026-08-22-mcp-ai-generation-vertical-slice.md) | MCP AI Generation Vertical Slice Implementation Plan | — |
 | [2026-08-22-nomi-runtime-handoff.md](2026-08-22-nomi-runtime-handoff.md) | Nomi 统一运行时交接文档 | — |
-| [2026-08-22-nomi-unified-editor-runtime.md](2026-08-22-nomi-unified-editor-runtime.md) | Nomi 统一创作运行时与 AI 剪辑工作台实施方案 | ✅ |
+| [2026-08-22-nomi-unified-editor-runtime.md](2026-08-22-nomi-unified-editor-runtime.md) | Nomi 统一创作运行时与 AI 剪辑工作台实施方案 | — |
 | [2026-08-22-release-0.20.1.md](2026-08-22-release-0.20.1.md) | Nomi 0.20.1 Release Plan | — |
 | [2026-08-23-contextual-video-generation-planning.md](2026-08-23-contextual-video-generation-planning.md) | Contextual Video Generation Planning Implementation Plan | — |
 | [2026-08-23-mcp-client-first-authorization.md](2026-08-23-mcp-client-first-authorization.md) | MCP 客户端优先授权实施计划 | — |
@@ -42,4 +42,5 @@
 | [2026-08-25-foundation-replacement-plan.md](2026-08-25-foundation-replacement-plan.md) | Foundation Replacement and Isolation Plan | — |
 | [2026-08-25-video-node-audio-playback.md](2026-08-25-video-node-audio-playback.md) | Video Node Audio Playback Implementation Plan | — |
 | [2026-08-27-marketing-github-hero.md](2026-08-27-marketing-github-hero.md) | Marketing GitHub Hero Implementation Plan | — |
-| [2026-08-27-release-media-pack-skill.md](2026-08-27-release-media-pack-skill.md) | Nomi Release Media Pack Skill Implementation Plan | — |
+| [2026-08-27-quality-gate-single-run.md](2026-08-27-quality-gate-single-run.md) | Quality Gate Single-Run Implementation Plan | ✅ 已交付 |
+| [2026-08-27-release-media-pack-skill.md](2026-08-27-release-media-pack-skill.md) | Nomi Release Media Pack Skill Implementation Plan | 🚧 进行中 |
