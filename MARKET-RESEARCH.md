@@ -1,6 +1,6 @@
 # Video Editing Engine Market Review
 
-Date: 2026-08-28  
+Date: 2026-08-28
 Scope: open-source editing cores, media backends, timeline interchange, and AI-agent integration relevant to Nomi (Electron + React + TypeScript).
 
 ## Executive decision

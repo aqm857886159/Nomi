@@ -165,4 +165,3 @@ describe('timeline kernel transactions and diffs', () => {
     ])
   })
 })
-
