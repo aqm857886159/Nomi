@@ -9,11 +9,12 @@
 
 ---
 
-## 现役欠账（2）
+## 现役欠账（3）
 
 | 状态 | 文档 | 标题 |
 |---|---|---|
 | 📋 方案待拍板 | [2026-08-13-video-deconstruction-storyboard-table.md](plan/2026-08-13-video-deconstruction-storyboard-table.md) | 视频拆解 → 分镜表 → 复刻生成（方案已拍板，待实施） |
+| 📋 方案待拍板 | [2026-08-27-auto-edit-architecture.md](plan/2026-08-27-auto-edit-architecture.md) | E2 配套：内部 Agent 接线 + 外部对标 |
 | 🚧 进行中 | [2026-08-27-release-media-pack-skill.md](superpowers/plans/2026-08-27-release-media-pack-skill.md) | Nomi Release Media Pack Skill Implementation Plan |
 
 ## 远期 / 暂缓（0）
@@ -39,7 +40,7 @@ _没有标记为远期的方案。_
 
 </details>
 
-- 合计扫描：433 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
+- 合计扫描：434 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
 
 ---
 
