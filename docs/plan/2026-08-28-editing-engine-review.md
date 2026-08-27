@@ -27,7 +27,7 @@ Nomi TimelineState + EditPlan + Adoption/Undo（唯一事实源）
 
 这条路线能快速提升能力，又不会给 Pi Agent、MCPSQ 或现有画布/采纳链增加第二套真相源。MLT 是唯一值得优先做原生 NLE POC 的候选；libopenshot 作为备选；OpenCut/OpenChatCut 主要提供能力清单和 Agent 协议参考，不能当作可直接嵌入的内核。
 
-当前安全实现也已收敛到同一边界：Agent 与 Adoption 共用 kernel 的 canonical `timelineRevision`；时间轴工具只返回稳定素材 ID 和 `sourceAvailable`，不把本地 URL 送入模型；应用计划使用进程内 `planId + signature` 重放保护；Undo 必须携带应用返回的 `undoToken + expectedRevision`，时间轴被用户或其他 Agent 修改后会拒绝撤销。上述保护不改变 Pi Agent、MCPSQ、React Flow 或 Electron bridge 的所有权。
+当前安全实现也已收敛到同一边界：Agent 与 Adoption 共用 kernel 的 canonical `timelineRevision`；时间轴工具只返回稳定素材 ID 和 `sourceAvailable`，不把本地 URL 送入模型；应用计划使用进程内 `projectId + planId + signature` 重放保护，并在 hydrate/release/项目切换时清空；Undo 必须携带应用返回的 `undoToken + expectedRevision` 且项目作用域一致，时间轴被用户或其他 Agent 修改后会拒绝撤销。上述保护不改变 Pi Agent、MCPSQ、React Flow 或 Electron bridge 的所有权。
 
 ## Nomi 现状（代码事实）
 

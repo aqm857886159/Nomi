@@ -15,10 +15,12 @@ import { runProjectAssetHealthCheck } from '../generationCanvas/runner/projectAs
 import { abandonCreationTurn } from '../creation/creationTurnController'
 import { abandonCanvasTurn } from '../generationCanvas/agent/canvasTurnController'
 import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
+import { resetTimelineAgentState } from '../timeline/agent/timelineToolCall'
 
 let lastCategoryMigrationDiagnostic: CategoryMigrationDiagnostic | null = null
 
 function abandonHydratingProjectOwnership(): void {
+  resetTimelineAgentState()
   abandonCreationTurn()
   abandonCanvasTurn()
   // Hydration replaces the whole project snapshot. Invalidate review work here,

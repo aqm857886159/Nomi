@@ -3,6 +3,8 @@ import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 import { useWorkbenchStore } from '../workbenchStore'
 import { emitCanvasGesture, getCanvasEventLastSeq, seedCanvasEventLastSeq } from '../generationCanvas/events/canvasEventEmitter'
 import { getDesktopBridge } from '../../desktop/bridge'
+import { setDesktopActiveProjectId } from '../../desktop/activeProject'
+import { resetTimelineAgentState } from '../timeline/agent/timelineToolCall'
 import type { WorkbenchProjectPayload, WorkbenchProjectRecordV1 } from './projectRecordSchema'
 
 export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
@@ -90,7 +92,9 @@ type ActiveWorkbenchProjectSaveTarget = {
 let activeWorkbenchProjectSaveTarget: ActiveWorkbenchProjectSaveTarget | null = null
 
 export function setActiveWorkbenchProjectSaveTarget(target: ActiveWorkbenchProjectSaveTarget | null): void {
+  if (activeWorkbenchProjectSaveTarget?.projectId !== target?.projectId) resetTimelineAgentState()
   activeWorkbenchProjectSaveTarget = target
+  setDesktopActiveProjectId(target?.projectId ?? '')
   // 当前工作台项目是审片结果的所有权边界。绑定新项目时同步切换 shot verify scope；
   // activateProject 对同 id 幂等，不会因保存订阅重绑而误清本项目预算。
   useShotVerifyStore.getState().activateProject(target?.projectId)

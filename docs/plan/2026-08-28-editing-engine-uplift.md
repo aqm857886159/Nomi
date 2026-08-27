@@ -51,8 +51,9 @@ read_timeline -> inspect_timeline_range -> propose_edit_plan -> user review
 
 - `timelineRevision()` is the canonical content hash for both Agent plans and adoption proposals. It covers normalized tracks, source windows, framing, text, URLs, transitions, and other persisted timeline fields; no second partial revision algorithm is allowed at this boundary.
 - Tool results never expose `clip.url` or another local media path to the model provider. The Agent receives stable IDs and a boolean `sourceAvailable`; renderer-side asset resolution remains local.
-- `apply_edit_plan` keeps a bounded, process-local registry keyed by `planId` and a stable plan signature. Repeating the same `planId` and signature returns the original result without another write or undo entry. Reusing the ID for different content returns `plan_id_conflict`. This registry is an in-process retry guard, not durable project history.
+- `apply_edit_plan` keeps a bounded, process-local registry keyed by active project scope, `planId`, and a stable plan signature. Repeating the same plan in the same project returns the original result without another write or undo entry. Reusing the ID for different content returns `plan_id_conflict`; the same ID in another project is a new plan. This registry is an in-process retry guard, not durable project history, and it is cleared at project ownership transitions.
 - Successful apply returns `undoToken` and the landed `revision`. `undo_timeline_edit` requires both values and refuses to run if the timeline changed or another Agent plan superseded the token. User edits therefore cannot be overwritten by a stale Agent undo.
+- Apply and Undo require a non-empty active project scope. Read-only inspection and validate-only proposals remain available while a project is hydrating, but no write is accepted until ownership is established.
 
 ## Delivery phases
 

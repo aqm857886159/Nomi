@@ -4,6 +4,7 @@ import { timelineRevision } from '../kernel/timelineKernel'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { applyTimelineToolCall } from './timelineToolCall'
 import type { TimelineState } from '../timelineTypes'
+import { setDesktopActiveProjectId } from '../../../desktop/activeProject'
 
 function fixture(): TimelineState {
   const timeline = createDefaultTimeline()
@@ -24,6 +25,7 @@ function fixture(): TimelineState {
 
 afterEach(() => {
   useWorkbenchStore.setState({ timeline: createDefaultTimeline(), timelineUndoStack: [], timelineRedoStack: [] })
+  setDesktopActiveProjectId(null)
 })
 
 describe('timeline Agent tool adapter', () => {
@@ -49,6 +51,7 @@ describe('timeline Agent tool adapter', () => {
   })
 
   it('previews without mutation, applies atomically, and creates one undo entry', async () => {
+    setDesktopActiveProjectId('timeline-test')
     const timeline = fixture()
     useWorkbenchStore.setState({ timeline, timelineUndoStack: [], timelineRedoStack: [] })
     const baseRevision = timelineRevision(timeline)
@@ -66,6 +69,7 @@ describe('timeline Agent tool adapter', () => {
   })
 
   it('undoes an applied plan only with its token and landed revision', async () => {
+    setDesktopActiveProjectId('timeline-test')
     const timeline = fixture()
     useWorkbenchStore.setState({ timeline, timelineUndoStack: [], timelineRedoStack: [] })
     const plan = {
@@ -85,6 +89,7 @@ describe('timeline Agent tool adapter', () => {
   })
 
   it('rejects undo after a user changes the timeline', async () => {
+    setDesktopActiveProjectId('timeline-test')
     const timeline = fixture()
     useWorkbenchStore.setState({ timeline, timelineUndoStack: [], timelineRedoStack: [] })
     const plan = {
@@ -104,6 +109,7 @@ describe('timeline Agent tool adapter', () => {
   })
 
   it('replays an identical plan without a second write and rejects plan id conflicts', async () => {
+    setDesktopActiveProjectId('timeline-test')
     const timeline = fixture()
     useWorkbenchStore.setState({ timeline, timelineUndoStack: [], timelineRedoStack: [] })
     const plan = {
@@ -126,6 +132,7 @@ describe('timeline Agent tool adapter', () => {
   })
 
   it('rejects stale plans and reports a no-op undo', async () => {
+    setDesktopActiveProjectId('timeline-test')
     const timeline = fixture()
     useWorkbenchStore.setState({ timeline })
     const stale = await applyTimelineToolCall('apply_edit_plan', {
@@ -135,5 +142,28 @@ describe('timeline Agent tool adapter', () => {
     expect((stale.diagnostics as Array<Record<string, unknown>>)[0]?.code).toBe('stale_revision')
     const undone = await applyTimelineToolCall('undo_timeline_edit', {}) as Record<string, unknown>
     expect(undone.undone).toBe(false)
+  })
+
+  it('does not replay or undo a plan across project scopes', async () => {
+    const timeline = fixture()
+    useWorkbenchStore.setState({ timeline, timelineUndoStack: [], timelineRedoStack: [] })
+    setDesktopActiveProjectId('project-a')
+    const plan = {
+      planId: 'cross-project-plan',
+      baseRevision: timelineRevision(timeline),
+      summary: 'Move clip B in project A',
+      operations: [{ kind: 'move', clipId: 'clip-b', startFrame: 70 }],
+    }
+    const applied = await applyTimelineToolCall('apply_edit_plan', plan) as Record<string, unknown>
+    setDesktopActiveProjectId('project-b')
+    const replay = await applyTimelineToolCall('apply_edit_plan', plan) as Record<string, unknown>
+    expect(replay.ok).toBe(false)
+    expect((replay.diagnostics as Array<Record<string, unknown>>)[0]?.code).toBe('stale_revision')
+    const undone = await applyTimelineToolCall('undo_timeline_edit', {
+      undoToken: applied.undoToken,
+      expectedRevision: applied.revision,
+    }) as Record<string, unknown>
+    expect(undone).toMatchObject({ ok: false, undone: false, code: 'undo_token_invalid' })
+    expect(useWorkbenchStore.getState().timeline.tracks.flatMap((track) => track.clips).find((clip) => clip.id === 'clip-b')?.startFrame).toBe(70)
   })
 })

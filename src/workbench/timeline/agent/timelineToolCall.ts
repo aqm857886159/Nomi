@@ -8,6 +8,7 @@ import {
 } from '../kernel/timelineKernel'
 import { clearAdoptionUndoSnapshot, workbenchAdoptionPorts } from '../../adoption/adoptionStorePorts'
 import { useWorkbenchStore } from '../../workbenchStore'
+import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 
 export type TimelineToolCallName =
   | 'read_timeline'
@@ -19,6 +20,7 @@ export type TimelineToolCallName =
 type JsonRecord = Record<string, unknown>
 
 type AppliedPlanRecord = {
+  projectId: string
   signature: string
   response: JsonRecord
   undoToken: string
@@ -29,6 +31,20 @@ type AppliedPlanRecord = {
 const appliedPlans = new Map<string, AppliedPlanRecord>()
 let latestAgentUndo: AppliedPlanRecord | null = null
 const MAX_APPLIED_PLANS = 128
+
+function currentProjectId(): string {
+  return getDesktopActiveProjectId().trim()
+}
+
+function planRegistryKey(projectId: string, planId: string): string {
+  return `${projectId}\u0000${planId}`
+}
+
+/** Clear Agent-only retry and undo state when project ownership changes. */
+export function resetTimelineAgentState(): void {
+  appliedPlans.clear()
+  latestAgentUndo = null
+}
 
 function asRecord(args: unknown): JsonRecord {
   return args && typeof args === 'object' && !Array.isArray(args) ? args as JsonRecord : {}
@@ -143,9 +159,21 @@ function planSignature(plan: { baseRevision: string; summary: string; operations
 function applyPlan(args: unknown, validateOnly: boolean): JsonRecord {
   const plan = planInput(args)
   const base = workbenchAdoptionPorts.readTimeline()
+  const projectId = currentProjectId()
+  if (!validateOnly && !projectId) {
+    return {
+      planId: plan.planId,
+      ok: false,
+      applied: false,
+      replayed: false,
+      code: 'project_scope_required',
+      message: 'An active project is required to apply a timeline plan',
+      currentRevision: timelineRevision(base),
+    }
+  }
   const signature = planSignature(plan)
   if (!validateOnly) {
-    const previous = appliedPlans.get(plan.planId)
+    const previous = appliedPlans.get(planRegistryKey(projectId, plan.planId))
     if (previous) {
       if (previous.signature !== signature) {
         return {
@@ -205,13 +233,14 @@ function applyPlan(args: unknown, validateOnly: boolean): JsonRecord {
   response.undoToken = undoToken
   response.timeline = readTimeline(landed)
   const record: AppliedPlanRecord = {
+    projectId,
     signature,
     response: { ...response },
     undoToken,
     beforeRevision: timelineRevision(base),
     afterRevision: result.revision,
   }
-  appliedPlans.set(plan.planId, record)
+  appliedPlans.set(planRegistryKey(projectId, plan.planId), record)
   while (appliedPlans.size > MAX_APPLIED_PLANS) appliedPlans.delete(appliedPlans.keys().next().value as string)
   latestAgentUndo = record
   return response
@@ -221,13 +250,17 @@ function undoTimelineEdit(args: unknown): JsonRecord {
   const input = asRecord(args)
   const undoToken = typeof input.undoToken === 'string' ? input.undoToken.trim() : ''
   const expectedRevision = typeof input.expectedRevision === 'string' ? input.expectedRevision.trim() : ''
+  const projectId = currentProjectId()
   const current = workbenchAdoptionPorts.readTimeline()
   const currentRevision = timelineRevision(current)
   const record = latestAgentUndo
+  if (!projectId) {
+    return { ok: false, undone: false, code: 'project_scope_required', currentRevision }
+  }
   if (!undoToken || !expectedRevision) {
     return { ok: false, undone: false, code: 'undo_arguments_required', currentRevision }
   }
-  if (!record || record.undoToken !== undoToken) {
+  if (!record || record.projectId !== projectId || record.undoToken !== undoToken) {
     return { ok: false, undone: false, code: 'undo_token_invalid', currentRevision }
   }
   if (expectedRevision !== currentRevision || currentRevision !== record.afterRevision) {
