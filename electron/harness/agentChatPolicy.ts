@@ -3,6 +3,7 @@ import { assertAgentContextBinding } from './context/contextBinding';
 import { projectIdFromSessionKey } from '../events/eventLogRepository';
 import { canvasToolDescriptors } from './tools/canvasDescriptors';
 import { documentToolDescriptors } from './tools/documentDescriptors';
+import { timelineToolDescriptors } from './tools/timelineDescriptors';
 import type { RuntimeToolCall, RuntimeToolDescriptor } from './runtime/runtimePort';
 
 export function captureAgentHistory(history: AgentChatHistory): AgentChatHistory {
@@ -37,7 +38,7 @@ export function agentToolsForCapability(capability: AgentChatRequest['capability
   const canvas = canvasToolDescriptors;
   const descriptors = capability === 'creation-editor' ? Object.values(documents)
     : capability === 'creation-chat' ? [documents.read_full_text, documents.read_selection, documents.author_skill]
-      : capability === 'canvas-agent' ? Object.values(canvas)
+      : capability === 'canvas-agent' ? [...Object.values(canvas), ...Object.values(timelineToolDescriptors)]
         : capability === 'canvas-refine' ? [canvas.set_node_prompt]
           : capability === 'storyboard' ? [canvas.read_canvas_state, canvas.propose_storyboard_plan] : [];
   return descriptors.map(({ name, description, parameters }) => ({ name, description, schema: parameters }));

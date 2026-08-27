@@ -95,9 +95,12 @@ describe('Agent facade delegates exactly one turn to pi + bound context', () => 
     expect(state.request?.capability.maxSteps).toBe(maxSteps);
   });
 
-  it('canvas-agent gets all eleven canonical tools', async () => {
+  it('canvas-agent gets the canvas tools plus timeline control-plane tools', async () => {
     await runAgentChatV2(request('canvas-agent'), hooks());
-    expect(state.request?.tools).toHaveLength(11);
+    expect(state.request?.tools).toHaveLength(16);
+    expect(state.request?.tools.slice(-5).map((tool) => tool.name)).toEqual([
+      'read_timeline', 'inspect_timeline_range', 'propose_edit_plan', 'apply_edit_plan', 'undo_timeline_edit',
+    ]);
   });
 
   it('rejects missing capability, missing history and cross-project binding before model selection', async () => {

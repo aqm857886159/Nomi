@@ -19,6 +19,7 @@ import { toast } from '../../../ui/toast'
 import { mintSpendGrant } from '../../api/taskApi'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
+import { applyTimelineToolCall } from '../../timeline/agent/timelineToolCall'
 import { parseStoryboardPlan } from './storyboardPlan'
 import type { StagingSpec, StagingCharacterSpec } from '../nodes/scene3d/stagingBuilder'
 import type { CameraMoveSpec } from '../nodes/scene3d/cameraMoveBuilder'
@@ -228,6 +229,12 @@ export async function applyCanvasToolCall(
   const inCtx = <T>(fn: () => T): T => {
     assertWritable()
     return gesture ? withCanvasGestureContext(gesture, fn) : fn()
+  }
+
+  // Timeline tools use the canonical workbench timeline/adoption boundary and
+  // deliberately do not participate in the generation-canvas gesture context.
+  if (['read_timeline', 'inspect_timeline_range', 'propose_edit_plan', 'apply_edit_plan', 'undo_timeline_edit'].includes(toolName)) {
+    return applyTimelineToolCall(toolName, args)
   }
 
   if (toolName === 'read_canvas_state') {
