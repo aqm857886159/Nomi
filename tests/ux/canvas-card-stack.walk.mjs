@@ -4,6 +4,17 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
+import {
+  applyColorSchemeForShot,
+  clickOrFail,
+  expect,
+  expectAbsent,
+  expectCount,
+  expectHidden,
+  expectVisible,
+  proveProbe,
+  screenshotSettled,
+} from './_assert.mjs'
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-card-stack-walk-'))
 const settingsDir = path.join(root, 'settings')
@@ -116,51 +127,55 @@ try {
   await openCanvas()
   const imageNode = win.locator('[data-node-id="image-versions"]')
   const videoNode = win.locator('[data-node-id="video-versions"]')
+  const groupMembers = win.locator('[data-node-id="group-character"], [data-node-id="group-scene"], [data-node-id="group-style"]')
   await imageNode.locator('[data-node-media-state="ready"]').waitFor({ state: 'attached', timeout: 10_000 })
+  await expectCount(groupMembers, 3, '展开的雨夜参考组应显示三个成员节点')
+  const groupMembersProof = await proveProbe(groupMembers, '展开编组里的成员节点可被同一 data-node-id 探针找到')
   check('图片版本卡角可见', await imageNode.getByRole('button', { name: '3 版' }).isVisible())
   check('视频版本卡角可见', await videoNode.getByRole('button', { name: '2 版' }).isVisible())
   check('图片卡角最多两层', await imageNode.locator('[data-card-stack-rear]').count() === 2)
   check('视频两版只有一层后卡', await videoNode.locator('[data-card-stack-rear]').count() === 1)
-  await win.screenshot({ path: path.join(outputDir, '01-real-version-stacks-light.png') })
+  await screenshotSettled(win, { path: path.join(outputDir, '01-real-version-stacks-light.png') })
 
   await imageNode.getByRole('button', { name: '3 版' }).click()
   const tray = imageNode.locator('[data-node-result-stack="image-versions"]')
   await tray.waitFor({ state: 'visible' })
   const beforeOrder = await tray.locator('[data-result-stack-item]').evaluateAll((items) => items.map((item) => item.getAttribute('data-result-stack-item')))
   check('托盘列出三版', beforeOrder.join(',') === 'image-v3,image-v2,image-v1', beforeOrder.join(','))
-  await win.screenshot({ path: path.join(outputDir, '02-real-version-tray-light.png') })
+  await screenshotSettled(win, { path: path.join(outputDir, '02-real-version-tray-light.png') })
   await tray.locator('[data-result-stack-item="image-v1"] button').first().click()
   const afterOrder = await tray.locator('[data-result-stack-item]').evaluateAll((items) => items.map((item) => item.getAttribute('data-result-stack-item')))
   check('切换当前版不重排历史', afterOrder.join(',') === beforeOrder.join(','), afterOrder.join(','))
   check('第一版成为当前', await tray.locator('[data-result-stack-item="image-v1"]').getAttribute('data-current') === 'true')
 
-  await imageNode.getByRole('button', { name: '3 版' }).click()
-  await win.waitForTimeout(250)
+  await clickOrFail(imageNode.getByRole('button', { name: '3 版' }), '关闭结果版本托盘')
+  await expectHidden(tray, '结果版本托盘应完成退场')
   const collapse = win.getByRole('button', { name: '收起分组「雨夜参考组」' })
   await collapse.scrollIntoViewIfNeeded()
-  await collapse.click()
+  await clickOrFail(collapse, '把雨夜参考组收成节点卡组')
   const collapsed = win.locator('[data-collapsed-group-id="reference-group"]')
-  await collapsed.waitFor({ state: 'visible' })
-  check('收起后只剩一个组卡', await collapsed.count() === 1)
-  check('三位成员已从画布投影隐藏', await win.locator('[data-node-id="group-character"], [data-node-id="group-scene"], [data-node-id="group-style"]').count() === 0)
+  await expectVisible(collapsed, '收起后应显示一张编组卡')
+  await expectCount(collapsed, 1, '收起后只保留一张编组卡')
+  check('收起后只剩一个组卡', true)
+  await expectAbsent(groupMembers, { provenBy: groupMembersProof, message: '收起后组内三个成员节点不再各自占画布' })
+  check('三位成员已从画布投影隐藏', true)
   check('编组显示节点语义', await collapsed.getByRole('button', { name: '3 节点' }).isVisible())
   check('外部连线保留且内部连线隐藏', await win.locator('[data-edge-id]').count() >= 1)
-  await win.screenshot({ path: path.join(outputDir, '03-real-collapsed-group-light.png') })
+  await screenshotSettled(win, { path: path.join(outputDir, '03-real-collapsed-group-light.png') })
 
-  await collapsed.getByRole('button', { name: '3 节点' }).click()
-  await win.locator('[data-node-id="group-character"]').waitFor({ state: 'visible' })
+  await clickOrFail(collapsed.getByRole('button', { name: '3 节点' }), '展开雨夜参考组')
+  await expectVisible(win.locator('[data-node-id="group-character"]'), '点击卡角后应恢复组内节点')
   check('点击卡角恢复组内节点', await win.locator('[data-node-id="group-character"]').isVisible())
-  await win.waitForTimeout(600)
 
-  await collapse.click()
-  await win.waitForTimeout(500)
-  await win.evaluate(() => {
-    localStorage.setItem('nomi-color-scheme', 'dark')
-    document.documentElement.setAttribute('data-mantine-color-scheme', 'dark')
-  })
-  await win.screenshot({ path: path.join(outputDir, '04-real-collapsed-group-dark.png') })
+  await clickOrFail(collapse, '再次收起雨夜参考组')
+  await expectVisible(collapsed, '再次收起后应恢复编组卡')
+  await applyColorSchemeForShot(win, 'dark')
+  await screenshotSettled(win, { path: path.join(outputDir, '04-real-collapsed-group-dark.png') })
 
-  await win.waitForTimeout(900)
+  await expect.poll(() => {
+    const current = JSON.parse(fs.readFileSync(path.join(projectRoot, '.nomi', 'project.json'), 'utf8'))
+    return current.payload.generationCanvas.groups.find((entry) => entry.id === 'reference-group')?.collapsed
+  }, { message: '收起状态应持久化到项目文件' }).toBe(true)
   const persisted = JSON.parse(fs.readFileSync(path.join(projectRoot, '.nomi', 'project.json'), 'utf8'))
   check('收起状态写入项目', persisted.payload.generationCanvas.groups.find((entry) => entry.id === 'reference-group')?.collapsed === true)
   fs.writeFileSync(path.join(outputDir, 'walk-report.json'), JSON.stringify({ checks, projectRoot }, null, 2))
