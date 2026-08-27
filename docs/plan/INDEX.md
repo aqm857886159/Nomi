@@ -83,7 +83,7 @@
 | [2026-06-03-timeline-interaction-rework.md](2026-06-03-timeline-interaction-rework.md) | 时间轴交互层重做 | 📋 |
 | [2026-06-04-timeline-wysiwyg-and-export.md](2026-06-04-timeline-wysiwyg-and-export.md) | P2 预览=成片(WYSIWYG) + P3 导出能力 | 📋 |
 | [2026-06-21-blender-3d-render-lane.md](2026-06-21-blender-3d-render-lane.md) | **Blender 3D 渲染 lane**：AI 生资产→headless Blender 渲简单镜头→进时间轴，补「跨镜一致+真相机控制」；范围狠砍(不碰绑骨/动画/GUI/捆绑) | 📋 |
-| [2026-08-27-auto-edit-architecture.md](2026-08-27-auto-edit-architecture.md) | **自动剪辑架构**：根因=剪辑意图在管线里丢了；EDL 意图层 + 剪辑工具组 + 预览区挂 Agent；对账 ChatCut/video-use/OpenMontage；S0-S6 切片 | 📋 |
+| [2026-08-27-auto-edit-architecture.md](2026-08-27-auto-edit-architecture.md) | **E2 前置：剪辑模块代码盘点 + 内部 Agent 接线**（总纲 §5.1 明文要求的前置）。盘出 E1 链路已全通、两处断点（Agent 侧 schema 分叉 / 转场只写不渲染）；capability 接线六跳；对账 ChatCut/video-use/OpenMontage | 📋 |
 
 ## 项目库 / 素材库 / Workspace / 左面板
 
