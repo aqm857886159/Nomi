@@ -1,6 +1,6 @@
 # docs/plan 索引地图
 
-> 71 篇方案/执行文档按**主题**分组的查找表。文件本身保持平铺（彼此有 50+ 处路径互链，移动会断链），本表负责「按主题/状态秒定位」。
+> 72 篇方案/执行文档按**主题**分组的查找表。文件本身保持平铺（彼此有 50+ 处路径互链，移动会断链），本表负责「按主题/状态秒定位」。
 > 新增 plan 时**顺手在本表对应主题下加一行**。
 > 状态图例：✅ 已落地 ｜ 🚧 进行中/待实施 ｜ 📋 方案待拍板 ｜ ⛔ 已撤销/废弃 ｜ 📎 交接/日志
 
@@ -61,6 +61,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-08-27-single-source-semantics-gate.md](2026-08-27-single-source-semantics-gate.md) | ProjectAgent 统一前置：AST 语义词表门岗 + R14.1 单一 owner 审计 | ✅ |
 | [2026-06-09-agent-harness-architecture.md](2026-06-09-agent-harness-architecture.md) | **Agent Harness 架构定义与演进** — 本簇主文档 | 📋 |
 | [2026-06-21-self-improving-harness-loop.md](2026-06-21-self-improving-harness-loop.md) | **自我改进 harness 闭环**：AI 扮用户跑测试→量化诊断→修→重跑；架构铁律=查agent≠修agent(治自偏)；指标分三层(客观脊梁/半客观校准/主观人锚)；扩现有评测体系；不训模型/不碰GPU | 📋 |
 | [2026-06-10-nomi-harness-requirements.md](2026-06-10-nomi-harness-requirements.md) | Harness 需求真相源 | 📋 |
