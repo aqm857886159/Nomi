@@ -19,17 +19,15 @@ import {
   type BrowserAssetCanvasImportItem,
 } from '../../../ui/browser/overlay/globalAssetPopoverEvents'
 import { getDesktopBridge } from '../../../desktop/bridge'
-import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 import { isImageLikeGenerationNodeKind } from '../model/generationNodeKinds'
 import { getGenerationNodeComponent } from '../nodes/renderRegistry'
-import { completeNodeConnection } from '../nodes/completeNodeConnection'
 // 事件名单一真相源：派发方（深链）与监听方（这里）必须读同一个常量，否则改名字会静默断链。
 import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useBatchPlanPreviewStore } from './batchPlanPreview'
 import { useCanvasGroupActions } from './useCanvasGroupActions'
 import { useWorkbenchStore } from '../../workbenchStore'
-import { GroupFrameList } from './GroupFrame'
+import { CanvasGroupProjectionLayer } from './CanvasGroupProjectionLayer'
 import { useAutoFitOnLoad } from './useAutoFitOnLoad'
 import { useCanvasShortcuts } from './useCanvasShortcuts'
 import { useCanvasPointerInteractions } from './useCanvasPointerInteractions'
@@ -43,11 +41,10 @@ import { useTidyCanvas } from './useTidyCanvas'
 import {
   centerNodeOffset,
   clampNumber,
-  getCanvasGroupBoxes,
   getNodeSize,
   getSelectedBounds,
 } from './generationCanvasGeometry'
-import { useCanvasViewport } from './useCanvasViewport'
+import { useCollapsedCanvasViewport } from './useCollapsedCanvasViewport'
 import { useCanvasTransformStoreSync } from './useCanvasTransformStoreSync'
 import CanvasEdgeLayer, { type ActiveEdge } from './CanvasEdgeLayer'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
@@ -122,6 +119,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
   const selectNodes = useGenerationCanvasStore((state) => state.selectNodes)
   const moveSelectedNodes = useGenerationCanvasStore((state) => state.moveSelectedNodes)
   const moveGroupNodes = useGenerationCanvasStore((state) => state.moveGroupNodes)
+  const setGroupCollapsed = useGenerationCanvasStore((state) => state.setGroupCollapsed)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
   const disconnectEdge = useGenerationCanvasStore((state) => state.disconnectEdge)
@@ -135,7 +133,6 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
   const selectedSet = React.useMemo(() => new Set(selectedNodeIds), [selectedNodeIds])
   const nodeById = React.useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes])
   const selectedBounds = React.useMemo(() => getSelectedBounds(nodes, selectedNodeIds), [nodes, selectedNodeIds])
-  const groupBoxes = React.useMemo(() => getCanvasGroupBoxes(groups, nodes), [groups, nodes])
   const selectedGroupIds = React.useMemo(() => {
     return groups
       .filter((group) => {
@@ -148,7 +145,9 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
       .map((group) => group.id)
   }, [groups, nodeById, selectedSet])
 
-  // Pan/zoom + 视口虚拟化收口到 useCanvasViewport（壳组件顶死 800 行，抽出腾 headroom）。
+  const collapsedCanvas = useCollapsedCanvasViewport({ activeCategoryId, nodes, edges, groups, readOnly })
+  const { projection: collapsedProjection, groupBoxes, edgesForRender, edgeVisibleNodeIds } = collapsedCanvas
+  // Pan/zoom + 视口虚拟化与收起编组投影共用一条渲染路径。
   const {
     categoryViewports,
     setViewport,
@@ -158,15 +157,10 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
     canvasLayerRef,
     stageSize,
     visibleNodesForRender,
-    visibleEdgeNodeIds,
     offsetRef,
     zoomRef,
     stageSizeRef,
-  } = useCanvasViewport(activeCategoryId, nodes)
-  const edgesForRender = React.useMemo(() => {
-    if (!visibleEdgeNodeIds) return edges
-    return edges.filter((edge) => visibleEdgeNodeIds.has(edge.source) || visibleEdgeNodeIds.has(edge.target))
-  }, [edges, visibleEdgeNodeIds])
+  } = collapsedCanvas.viewport
   // 出现动画：只让**新落点**节点弹入（add/paste/Agent），开项目时已有节点不齐闪（实现见 hook）。
   const appearNodeIds = useNodeAppearTracking(allNodes)
   const { isTidying, tidy } = useTidyCanvas(activeCategoryId)
@@ -433,7 +427,7 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
         'success',
       )
     },
-    [activeCategoryId, getToolbarInsertionPosition, readOnly],
+    [activeCategoryId, getToolbarInsertionPosition, readOnly, t],
   )
 
   React.useEffect(
@@ -643,17 +637,21 @@ export default function GenerationCanvas({ readOnly = false }: GenerationCanvasP
               />
             ) : null}
             {/* 分层不变量：组框(z0) < 连线(z2) < 节点(z3)；组框不再放 nodes(z3) 里盖住边命中区。 */}
-            <GroupFrameList
+            <CanvasGroupProjectionLayer
               boxes={groupBoxes}
+              cards={collapsedProjection.cards}
+              readOnly={readOnly}
               onPointerDown={handleGroupFramePointerDown}
-              pendingConnection={!readOnly && Boolean(pendingConnectionSourceId)} pendingConnectionSide={pendingConnectionSourceSide}
+              pendingConnection={!readOnly && Boolean(pendingConnectionSourceId)}
+              pendingConnectionSide={pendingConnectionSourceSide}
               onConnectToGroup={handleConnectToGroup}
+              onSetCollapsed={setGroupCollapsed}
             />
             <CanvasEdgeLayer
               edges={edgesForRender}
-              nodeById={nodeById}
+              nodeById={collapsedProjection.edgeNodeById}
               zoom={zoom}
-              visibleNodeIds={visibleEdgeNodeIds}
+              visibleNodeIds={edgeVisibleNodeIds}
               lightweight={lightweightNodeMode}
               selectedNodeIds={selectedSet}
               activeEdge={activeEdge}

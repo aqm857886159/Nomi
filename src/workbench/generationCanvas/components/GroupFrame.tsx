@@ -7,6 +7,7 @@
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'
+import { IconStack2 } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import type { NodeGroup } from '../model/generationCanvasTypes'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
@@ -30,6 +31,7 @@ export type GroupFrameProps = {
   pendingConnection?: boolean
   pendingConnectionSide?: ConnectionAnchorSide
   onConnectToGroup?: (groupId: string) => void
+  onCollapse?: (groupId: string) => void
 }
 
 // 这里**刻意不放「整组运行」按钮**（2026-08-02 加过又删）：点组框本来就会选中全部成员
@@ -54,6 +56,7 @@ export default function GroupFrame({
   pendingConnection,
   pendingConnectionSide,
   onConnectToGroup,
+  onCollapse,
 }: GroupFrameProps): JSX.Element {
   const { t } = useTranslation()
   const groupColor = box.group.color || undefined
@@ -113,7 +116,7 @@ export default function GroupFrame({
       <div
         className={cn(
           'generation-canvas-v2__group-box-label',
-          'absolute left-3 top-2 inline-flex min-h-[22px] max-w-[calc(100%-24px)] items-center gap-2',
+          'absolute left-3 top-2 z-[4] inline-flex min-h-[22px] max-w-[calc(100%-24px)] items-center gap-2',
           'rounded-full bg-nomi-accent px-[9px] py-[3px] text-micro font-[650] leading-[1.25] text-nomi-paper',
           'pointer-events-auto select-none shadow-[0_8px_18px_rgba(18,24,38,0.12)]',
           connectable ? 'cursor-copy' : 'cursor-grab active:cursor-grabbing',
@@ -124,6 +127,24 @@ export default function GroupFrame({
         <span className="inline-grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[var(--workbench-veil-chip)] px-[5px] text-micro">
           {box.memberCount}
         </span>
+        {onCollapse && !connectable ? (
+          <button
+            type="button"
+            className="grid size-[18px] place-items-center rounded-full border-0 bg-[var(--workbench-veil-chip)] text-current hover:bg-nomi-paper/25 focus-visible:outline-2 focus-visible:outline-nomi-paper"
+            aria-label={t('generationCommon.canvas.group.collapseNamed', { name: box.group.name })}
+            title={t('generationCommon.canvas.group.collapse')}
+            onPointerDown={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+            }}
+            onClick={(event) => {
+              event.stopPropagation()
+              onCollapse(box.group.id)
+            }}
+          >
+            <IconStack2 size={11} stroke={1.9} aria-hidden="true" />
+          </button>
+        ) : null}
       </div>
     </div>
   )
@@ -135,6 +156,7 @@ export type GroupFrameListProps = {
   pendingConnection?: boolean
   pendingConnectionSide?: ConnectionAnchorSide
   onConnectToGroup?: (groupId: string) => void
+  onCollapse?: (groupId: string) => void
 }
 
 export function GroupFrameList({
@@ -143,9 +165,10 @@ export function GroupFrameList({
   pendingConnection,
   pendingConnectionSide,
   onConnectToGroup,
+  onCollapse,
 }: GroupFrameListProps): JSX.Element {
   return (
-    <div className="generation-canvas-v2__group-boxes pointer-events-none absolute inset-0 z-0">
+    <div className="generation-canvas-v2__group-boxes pointer-events-none absolute inset-0">
       {boxes.map((box) => (
         <GroupFrame
           key={box.group.id}
@@ -154,6 +177,7 @@ export function GroupFrameList({
           pendingConnection={pendingConnection}
           pendingConnectionSide={pendingConnectionSide}
           onConnectToGroup={onConnectToGroup}
+          onCollapse={onCollapse}
         />
       ))}
     </div>

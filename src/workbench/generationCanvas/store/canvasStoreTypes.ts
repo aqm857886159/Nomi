@@ -86,6 +86,7 @@ export type CanvasGraphActions = {
   groupSelectedNodes: (categoryId: string, name?: string) => NodeGroup | null
   renameGroup: (groupId: string, name: string) => void
   setGroupColor: (groupId: string, color: string) => void
+  setGroupCollapsed: (groupId: string, collapsed: boolean) => void
   ungroup: (groupId: string) => void
   ungroupGroups: (groupIds: string[]) => void
   deleteGroup: (groupId: string, deleteNodes?: boolean) => void

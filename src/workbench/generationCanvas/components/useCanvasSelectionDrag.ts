@@ -35,7 +35,11 @@ export function useCanvasSelectionDrag({
   moveSelectedNodes,
   selectNodes,
 }: CanvasSelectionDragOptions): {
-  handleGroupFramePointerDown: (event: React.PointerEvent<HTMLDivElement>, groupId: string) => void
+  handleGroupFramePointerDown: (
+    event: React.PointerEvent<HTMLDivElement>,
+    groupId: string,
+    options?: { selectMembers?: boolean },
+  ) => void
   handleSelectionBoundsPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void
 } {
   const draggingGroupRef = React.useRef<GroupDragRecord | null>(null)
@@ -183,13 +187,17 @@ export function useCanvasSelectionDrag({
     zoomRef,
   ])
 
-  const handleGroupFramePointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>, groupId: string) => {
+  const handleGroupFramePointerDown = React.useCallback((
+    event: React.PointerEvent<HTMLDivElement>,
+    groupId: string,
+    options?: { selectMembers?: boolean },
+  ) => {
     if (readOnly || event.button !== 0) return
     event.preventDefault()
     event.stopPropagation()
     const state = useGenerationCanvasStore.getState()
     const group = state.groups.find((candidate) => candidate.id === groupId)
-    if (group?.nodeIds.length) {
+    if (options?.selectMembers !== false && group?.nodeIds.length) {
       const groupNodeIds = new Set(group.nodeIds)
       const memberIds = state.nodes
         .filter((node) => groupNodeIds.has(node.id) && (node.categoryId || 'shots') === group.categoryId)

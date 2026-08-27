@@ -517,6 +517,26 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     const recolored = get().groups.find((candidate) => candidate.id === groupId)
     if (recolored) emitCanvasGesture([{ type: 'canvas.group.updated', payload: { group: recolored } }])
   },
+  setGroupCollapsed: (groupId, collapsed) => {
+    const current = get()
+    const existing = current.groups.find((group) => group.id === groupId)
+    if (!existing || Boolean(existing.collapsed) === collapsed) return
+    pushUndoSnapshot(current)
+    set((state) => {
+      const group = state.groups.find((candidate) => candidate.id === groupId)
+      if (!group) return
+      group.collapsed = collapsed
+      group.updatedAt = Date.now()
+      if (collapsed) {
+        const memberIds = new Set(group.nodeIds)
+        state.selectedNodeIds = state.selectedNodeIds.filter((nodeId) => !memberIds.has(nodeId))
+      }
+      bumpPersistRevision(state)
+      Object.assign(state, getHistoryFlags())
+    })
+    const updated = get().groups.find((candidate) => candidate.id === groupId)
+    if (updated) emitCanvasGesture([{ type: 'canvas.group.updated', payload: { group: updated } }])
+  },
   ungroup: (groupId) => {
     const current = get()
     const existing = current.groups.find((group) => group.id === groupId)

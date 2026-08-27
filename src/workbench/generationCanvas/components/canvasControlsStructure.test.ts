@@ -146,7 +146,7 @@ describe('generation canvas control structure', () => {
     const generationCanvas = source('./GenerationCanvas.tsx')
     const composer = source('../nodes/NodeGenerationComposer.tsx')
     const floatingToolbar = source('../nodes/NodeFloatingToolbar.tsx')
-    const imageStack = source('../nodes/ImageResultStack.tsx')
+    const resultStack = source('../nodes/NodeResultStack.tsx')
 
     // 四条拖动路径（单节点 / 选区框 / 组框 / 画布平移）升同一个画布级标志，浮层各自声明隐身——
     // 不再是「只有被拖的那张卡收起来」（2026-08-09 用户：拖 B 的时候 A 的面板也不该杵着；平移同理）。
@@ -154,7 +154,7 @@ describe('generation canvas control structure', () => {
     expect(selectionDrag).toContain('setCanvasDragging(null, true)')
     expect(viewportGestures).toContain('setCanvasDragging(stageRef.current, true)')
     expect(generationCanvas).toContain("'group/canvas'")
-    for (const overlay of [composer, floatingToolbar, imageStack]) {
+    for (const overlay of [composer, floatingToolbar, resultStack]) {
       expect(overlay).toContain('group-data-[dragging=true]/canvas:invisible')
     }
     // 平移那条必须在**跨过阈值之后**才升：按下就升 = 点一下空白也白写两次属性（08-08 的坑）。

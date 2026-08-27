@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GenerationCanvasNode, GenerationNodeResult } from './generationCanvasTypes'
-import { listNodeMediaResults, promoteNodeResult, removeNodeResult, resultIdentity } from './nodeResultLifecycle'
+import { listNodeMediaResults, listStableNodeMediaResults, removeNodeResult, resultIdentity } from './nodeResultLifecycle'
 
 const image = (id: string, url: string): GenerationNodeResult => ({
   id,
@@ -26,22 +26,15 @@ describe('node result lifecycle', () => {
     expect(listNodeMediaResults(node(a, [a, b])).map(resultIdentity)).toEqual(['a', 'b'])
   })
 
-  it('promotes one result without losing the former primary', () => {
+  it('keeps the tray order stable when the current result pointer changes', () => {
     const a = image('a', 'a.png')
     const b = image('b', 'b.png')
-    const patch = promoteNodeResult(node(a, [a, b]), 'b')
-    expect(patch?.result?.id).toBe('b')
-    expect(patch?.history?.map(resultIdentity)).toEqual(['b', 'a'])
-  })
+    const c = image('c', 'c.png')
+    const original = node(c, [c, b, a])
+    const switched = { ...original, result: a }
 
-  it('preserves non-media history while promoting an image', () => {
-    const a = image('a', 'a.png')
-    const b = image('b', 'b.png')
-    const text = { id: 'text-1', type: 'text', text: '保留这段历史' } as GenerationNodeResult
-    const patch = promoteNodeResult(node(a, [a, text, b]), 'b')
-
-    expect(patch?.result).toBe(b)
-    expect(patch?.history).toEqual([b, a, text])
+    expect(listStableNodeMediaResults(original).map(resultIdentity)).toEqual(['c', 'b', 'a'])
+    expect(listStableNodeMediaResults(switched).map(resultIdentity)).toEqual(['c', 'b', 'a'])
   })
 
   it('removes only the requested result and promotes the next result when needed', () => {

@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconCheck, IconCopy, IconDownload, IconMaximize, IconUpload } from '@tabler/icons-react'
+import { IconCopy, IconDownload, IconMaximize, IconUpload } from '@tabler/icons-react'
 import ProvenancePanel from './ProvenancePanel'
 import { ShotPreviewOverlays } from './ConvertShotToVideoButton'
 import { resolveNodeRenderKind, isCardRenderKind } from './resolveRenderKind'
@@ -9,7 +9,7 @@ import { getBuiltinCategoryById } from '../../project/projectCategories'
 import { NodeCardBody } from './render/NodeCardBody'
 import ImageCropGridOverlay from './render/ImageCropGridOverlay'
 import NodeImageEditToolbar from './NodeImageEditToolbar'
-import { ImageResultStackControls } from './ImageResultStack'
+import { NodeResultStack } from './NodeResultStack'
 import { FloatingToolbarShell, TOOLBAR_ICON as TBI, ToolbarButton, ToolbarDivider, ToolbarProvenanceButton } from './NodeFloatingToolbar'
 import { useNodeImageEditing } from './useNodeImageEditing'
 import { isLocalImageOpPending, isRemoveBackgroundPending } from './localImageOpPhase'
@@ -32,7 +32,6 @@ import { NodeVideoPlaybackGuard } from './NodeVideoPlaybackGuard'
 import { useNodePanoramaHandlers } from './useNodePanoramaHandlers'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
-import { useWorkbenchStore } from '../../workbenchStore'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { NodeGeneratingOverlay } from './NodeGeneratingOverlay'
 import { NodeQueuedBadge } from './NodeQueuedBadge'
@@ -48,7 +47,6 @@ import { NodeRecoverableReport } from './NodeRecoverableReport'
 import { dismissRecoverableNode, recoverNodeResult } from '../runner/recoverTaskActions'
 import { WorkbenchButton } from '../../../design'
 import { completeNodeConnection } from './completeNodeConnection'
-import { buildVideoPlaybackUrl } from '../../../media/videoPlaybackUrl'
 import { getGenerationNodeExecutionKind, isImageLikeGenerationNodeKind } from '../model/generationNodeKinds'
 import { anchorFreezeToolbarProps } from '../fixation/freezeAnchor'
 import { TechnicalReviewBadge } from './TechnicalReviewBadge'
@@ -123,9 +121,8 @@ function BaseGenerationNodeImpl({
   const panoramaFullscreenRef = React.useRef<(() => void) | null>(null)
   const panoramaUploadInputRef = React.useRef<HTMLInputElement | null>(null)
   const [provenanceOpen, setProvenanceOpen] = React.useState(false)
-  const [imageStackOpen, setImageStackOpen] = React.useState(false)
-  const { openMediaPreview, mediaPreviewControls, mediaPreviewDoubleClick } = useNodeMediaPreview(node, selected && !isMultiSelectActive && !imageStackOpen, () => setProvenanceOpen(true))
-  const handleImageStackOpenChange = setImageStackOpen // setState 身份稳定，直接透传（免一层等价 useCallback）
+  const [resultStackOpen, setResultStackOpen] = React.useState(false)
+  const { openMediaPreview, mediaPreviewControls, mediaPreviewDoubleClick } = useNodeMediaPreview(node, selected && !isMultiSelectActive && !resultStackOpen, () => setProvenanceOpen(true))
   const sizeBounds = getNodeSizeBounds(node.kind)
 
   const handleTimelineDragStart = (event: React.DragEvent<HTMLElement>) => {
@@ -231,7 +228,7 @@ function BaseGenerationNodeImpl({
     canSendToTimeline &&
     node.kind !== 'scene3d' &&
     (node.result?.type === 'image' || node.result?.type === 'video') &&
-    !imageStackOpen
+    !resultStackOpen
   const showSideTimelineDrag = canSendToTimeline && node.kind !== 'scene3d' && !showTimelineNotch
   // 失败态不显文字徽标——错误已铺满节点正文（NodeErrorReport），顶部再写「生成失败」是重复噪音（2026-06-03 评审）。
   const showStatusBadge = status === 'queued' || status === 'running'
@@ -259,13 +256,12 @@ function BaseGenerationNodeImpl({
   // 图片类与素材类共用；编辑产物进入当前节点历史堆叠，并切换为主图。
   const imageEditing = useNodeImageEditing(node, visualSize)
   const { downloading: panoramaDownloading, download: downloadPanorama } = useResultDownload(node)
-  const showImageResultStack =
+  const showNodeResultStack =
     !isCardKind &&
     !isTextKind &&
     node.kind !== 'panorama' &&
-    node.result?.type === 'image' &&
-    Boolean(node.result.url) &&
-    (node.kind === 'image' || isAssetKind || isImageLikeGenerationNodeKind(node.kind))
+    (node.result?.type === 'image' || node.result?.type === 'video') &&
+    Boolean(node.result.url)
   const useMagneticConnectionHandles =
     node.kind !== 'panorama' && (node.kind === 'image' || isAssetKind || isImageLikeGenerationNodeKind(node.kind))
 
@@ -276,7 +272,7 @@ function BaseGenerationNodeImpl({
         'absolute p-0 border-0 rounded-none bg-transparent shadow-none',
         'cursor-grab select-none touch-none overflow-visible',
         'data-[selected=true]:z-[5]',
-        'block group/node',
+        'block isolate group/node',
       )}
       data-node-id={node.id}
       data-kind={node.kind}
@@ -408,7 +404,7 @@ function BaseGenerationNodeImpl({
       selected &&
       !isMultiSelectActive &&
       !readOnly &&
-      !imageStackOpen &&
+      !resultStackOpen &&
       node.result?.type === 'image' &&
       node.result.url ? (
         <NodeImageEditToolbar
@@ -523,7 +519,7 @@ function BaseGenerationNodeImpl({
       <div
         className={cn(
           'generation-canvas-v2-node__preview',
-          'relative w-full h-full min-h-0 overflow-hidden',
+          'relative z-[2] w-full h-full min-h-0 overflow-hidden',
           // ring=中性细描边（box-shadow，零布局位移）：缩小/密集时卡片有边界、不糊进浅色画布（②）。
           'rounded-nomi shadow-nomi-md cursor-grab touch-none ring-1 ring-inset ring-nomi-line',
           // 棋盘格占位底纹只在「未生成」态出现；有结果后节点尺寸已贴合图片比例，
@@ -613,7 +609,7 @@ function BaseGenerationNodeImpl({
           />
         )}
         <ShotPreviewOverlays selected={selected} shotIndex={shotIndex} hasResult={hasResult} />
-        {canOpenImagePreview && !isCardKind && !readOnly && !imageStackOpen && imageEditing.editGrid === null ? (
+        {canOpenImagePreview && !isCardKind && !readOnly && !resultStackOpen && imageEditing.editGrid === null ? (
           <NodeInlineImageTitle nodeId={node.id} value={node.title || ''} selected={selected} />
         ) : null}
         {imageEditing.editGrid !== null &&
@@ -633,27 +629,13 @@ function BaseGenerationNodeImpl({
           <LocalImageOpPendingStatus message={node.progress?.message} progress={node.progress?.percent} />
         ) : null}
       </div>
-      {showImageResultStack ? (
-        <ImageResultStackControls
+      {showNodeResultStack ? (
+        <NodeResultStack
           node={node}
           readOnly={readOnly}
           selected={selected && !isMultiSelectActive}
-          visualWidth={visualSize.width}
-          visualHeight={visualSize.height}
-          onOpenChange={handleImageStackOpenChange}
+          onOpenChange={setResultStackOpen}
         />
-      ) : null}
-
-      {imageStackOpen && showImageResultStack ? (
-        <span
-          className={cn(
-            'pointer-events-none absolute right-2 top-2 z-[9] inline-flex h-7 items-center gap-1 rounded-full px-2',
-            'border-0 bg-nomi-ink text-micro font-medium text-nomi-paper shadow-nomi-sm',
-          )}
-        >
-          <IconCheck size={13} stroke={2.2} />
-          {t('generationCommon.node.primaryImage')}
-        </span>
       ) : null}
 
       {showTimelineNotch ? (
@@ -674,7 +656,7 @@ function BaseGenerationNodeImpl({
       {selected &&
       !isMultiSelectActive &&
       !readOnly &&
-      !imageStackOpen &&
+      !resultStackOpen &&
       node.kind !== 'panorama' &&
       node.kind !== 'scene3d' &&
       node.kind !== 'whiteboard' &&
