@@ -83,6 +83,7 @@
 | [2026-06-03-timeline-interaction-rework.md](2026-06-03-timeline-interaction-rework.md) | 时间轴交互层重做 | 📋 |
 | [2026-06-04-timeline-wysiwyg-and-export.md](2026-06-04-timeline-wysiwyg-and-export.md) | P2 预览=成片(WYSIWYG) + P3 导出能力 | 📋 |
 | [2026-06-21-blender-3d-render-lane.md](2026-06-21-blender-3d-render-lane.md) | **Blender 3D 渲染 lane**：AI 生资产→headless Blender 渲简单镜头→进时间轴，补「跨镜一致+真相机控制」；范围狠砍(不碰绑骨/动画/GUI/捆绑) | 📋 |
+| [2026-08-27-auto-edit-architecture.md](2026-08-27-auto-edit-architecture.md) | **自动剪辑架构**：根因=剪辑意图在管线里丢了；EDL 意图层 + 剪辑工具组 + 预览区挂 Agent；对账 ChatCut/video-use/OpenMontage；S0-S6 切片 | 📋 |
 
 ## 项目库 / 素材库 / Workspace / 左面板
 
