@@ -24,6 +24,7 @@ The recommended build-vs-buy decision is:
 5. Run a small compositor POC with WebAV or OpenCut WASM for responsive preview. Do not import OpenCut's store, UI, or command graph.
 6. Evaluate MLT and libopenshot only behind a JSON worker protocol after P0/P1. They are the only candidates here that resemble a native NLE engine, but both have substantial native packaging and data-model mapping costs.
 7. Do not embed Olive (GPL-3.0/alpha), OpenChatCut (AGPL-3.0), or OpenCut classic (archived) code in a proprietary/current Nomi path. Their architecture and agent workflow remain useful references.
+8. Treat Palmier Pro (GPL-3.0/macOS Swift) as a tool-catalog and review-workflow reference only; do not couple Nomi to its native runtime or project format.
 
 This gives a fast capability increase without introducing a second timeline truth source or coupling the Pi Agent/MCPSQ branches to a native editor runtime.
 
@@ -47,6 +48,10 @@ Repository metadata, source trees, headers and package manifests were inspected 
 | [OpenCut main](https://github.com/OpenCut-app/OpenCut) | MIT | Rewrite in Rust/WASM with planned Editor API, plugins, MCP, headless mode | Not ready as a stable embed; Rust/WASM boundary still moving | Roadmap/reference; do not depend on main yet |
 | [OpenCut classic](https://github.com/OpenCut-app/opencut-classic) | MIT, archived | Rich TS timeline manager and command/update pipeline | Code can be read, but repository is archived and app-coupled | Capability and algorithm reference only |
 | [OpenChatCut](https://github.com/0xsline/OpenChatCut) | AGPL-3.0-or-later | Immutable EditorCore, Remotion/WebGL/FFmpeg, proposal-based MCP/Agent edits | Similar product shape, but AGPL and tightly coupled runtime | Agent protocol reference; do not copy code into Nomi |
+| [FireRed-OpenStoryline](https://github.com/FireRedTeam/FireRed-OpenStoryline) | Apache-2.0 | Python/FastAPI MCP workflow made of registered nodes: media search/load, shot split/understanding, script/voice/BGM, beat-aware planning, ASR rough cut, AI transitions, render, and reusable Skills | Separate Python service and artifact/session store; integrate only through a manifest/worker boundary | Strong semantic-agent and workflow reference; not a timeline kernel |
+| [Palmier Pro](https://github.com/palmier-io/palmier-pro) | GPL-3.0 | macOS Swift editor with a broad MCP surface: timeline/project/marker/settings/export, media import/inspection, track/clip CRUD, split/ripple, properties/keyframes/layout/sync, captions/transcript, audio/BGM/beat, effects/color/denoise and generation | Native Swift runtime and macOS-only app; GPL obligations and project schema are not a portable SDK | Best reference for domain-sliced tool coverage, inspect/render review and job management; do not embed |
+| [OpenMontage](https://github.com/calesthio/OpenMontage) | AGPL-3.0 | Artifact-first edit-decision schema and scripted media pipeline with source ranges, layers, transforms, transitions, audio, subtitles and renderer/runtime declarations | Python/schema boundary is easy to inspect, but runtime is not Nomi's state or renderer | Reference for versioned manifests, checkpoints and validation; do not copy runtime |
+| [video-use](https://github.com/browser-use/video-use) | MIT | Skill/workflow around FFmpeg and transcript-guided cuts with word-boundary padding, subtitle ordering, segment extraction/concat and bounded self-checks | Low-cost rules can be implemented in TypeScript; not a multi-track engine | Convert hard rules into Nomi validators and verify-render tests |
 | [LosslessCut](https://github.com/mifi/lossless-cut) | GPL-2.0-only | Electron + FFmpeg lossless segment cutting and packaging | Useful packaging/worker patterns | Reference for lossless operations, not compositing |
 
 ## Detailed findings
@@ -156,6 +161,23 @@ OpenChatCut is AGPL-3.0 and has the closest product shape to Nomi: immutable tim
 
 **Nomi recommendation:** copy the capability inventory, update-rule ideas, render-plan boundaries and proposal protocol concepts. Do not copy application code or make OpenCut/OpenChatCut a runtime dependency. OpenChatCut's AGPL network/source obligations and both projects' application-coupled stores make that especially risky.
 
+### FireRed-OpenStoryline: semantic workflow and Skill orchestration reference
+
+FireRed-OpenStoryline is an Apache-2.0 Python 3.11 project with a FastAPI/MCP server. `register_tools.py` scans a node registry and turns each node's Pydantic input schema into an MCP tool wrapper; every invocation carries a session ID, creates a `NodeState`, and records results in an `ArtifactStore`. The repository includes nodes for `search_media`, `load_media`, `split_shots`, `understand_clips`, `filter_clips`, `group_clips`, `generate_script`, `generate_voiceover`, `select_bgm`, `plan_timeline`, `speech_rough_cut`, `generate_ai_transition`, and `render_video`, plus `read_node_history` and Skill persistence.
+
+Its `plan_timeline` output is a render-oriented millisecond manifest with video, subtitles, voiceover and BGM tracks; it is not a durable NLE timeline with clip-ID transactions or user undo. The useful ideas for Nomi are capability discovery, artifact checkpoints, partial redo from an intermediate node, beat-aware music planning, ASR rough-cut semantics, and reusable editing Skills. The Python service, absolute media paths, and artifact store should remain outside Nomi's renderer; adapt its node vocabulary into typed Nomi capabilities and convert accepted results into `EditPlan`/`RenderPlan` through the existing project boundary.
+
+### Palmier Pro: broad MCP inventory and review-oriented UX reference
+
+Palmier Pro is a macOS Swift editor distributed under GPL-3.0. Its MCP catalog is intentionally split by domain rather than exposing one unrestricted `edit_video` command. The checked tools include:
+
+- project/timeline: `get_timeline`, `inspect_timeline`, `create_timeline`, `set_active_timeline`, `manage_markers`, `set_project_settings`, `export_project`;
+- media/tracks/clips: `get_media`, `inspect_media`, `search_media`, `import_media`, `manage_tracks`, `add_clips`, `insert_clips`, `move_clips`, `remove_clips`, `split_clips`, `ripple_delete_ranges`, `swap_clip_media`, `set_clip_properties`, `set_keyframes`, `apply_layout`, `sync_clips`;
+- review and semantic media: transcript/caption operations, BGM and beat helpers, color/effects/denoise, generation and export-job management;
+- transaction ergonomics: timeline version/copy, stable track and clip IDs, an `inspect_timeline` result that includes a composited view with traceable clip IDs, grouped caption summaries with a detail mode, and marker/review workflows.
+
+The inventory is a useful completeness checklist for Nomi: read/inspect, media discovery, track/clip mutations, semantic analysis, review, and export should be separate capabilities with explicit permissions. It is not a reason to import Palmier's Swift store or project model. GPL-3.0, macOS-only APIs, native object lifetimes and its schema would create a platform and licensing dependency that does not protect Nomi's existing Electron/Windows path. Nomi should reproduce the contracts at its own boundary, using stable IDs, `timelineRevision`, `EditPlan`, Adoption and one Undo.
+
 ## How the market composes the pieces
 
 Observed product patterns:
@@ -167,6 +189,21 @@ Observed product patterns:
 - OTIO is used for interchange between systems, not as a live rendering core.
 - FFmpeg remains the compatibility and final-export escape hatch even when preview uses a browser/GPU path.
 - Agent-first editors put all model actions through validated command/proposal layers; they do not let the model mutate a UI store directly.
+
+The apparent tool-count gap is therefore expected at this stage. Mature products expose dozens of domain tools because they already own transcript indexes, media catalogs, compositors, export jobs and review state. Nomi currently has only the safe control plane; each additional tool must land after its state contract, backend implementation, capability policy and parity test exist.
+
+## Target Nomi tool catalog (staged)
+
+| Stage | Tool family | Initial tools | Preconditions and write boundary |
+|---|---|---|---|
+| P0 (implemented) | Timeline control | `read_timeline`, `inspect_timeline_range`, `propose_edit_plan`, `apply_edit_plan`, `undo_timeline_edit` | Canonical `TimelineState`, stable IDs, CAS revision, project scope, idempotency and one Adoption undo |
+| P1 | Media and source reads | `get_media`, `inspect_media`, `search_media`, `inspect_source_range`, `read_waveform` | Local asset registry, path redaction, deterministic probe/thumbnail/audio metadata |
+| P1 | Timeline mutations | `move_clip`, `remove_clip`, `split_clip`, `trim_clip`, `set_source_window`, `ripple_delete` | Pure kernel operations expressed inside `EditPlan`; same-track ripple by default; no cross-track drift |
+| P2 | Composition | `set_clip_properties`, `apply_layout`, `set_keyframes`, `apply_effect`, `apply_mask`, `set_transition`, `set_audio_mix` | Expanded schema plus FFmpeg/preview parity; unsupported fields return diagnostics, never silent fallback |
+| P3 | Semantic editing | `read_transcript`, `find_transcript`, `split_shots`, `speech_rough_cut`, `materialize_captions`, `place_bgm`, `beat_align` | ASR/shot/artifact services return source-bound IDs and timestamps; accepted output becomes an `EditPlan` |
+| P4 | Review and output | `preview_edit_plan`, `inspect_render`, `export_timeline`, `verify_render`, `manage_markers` | Shared versioned `RenderPlan`, cancellable jobs, frame/audio checks, artifact retention and audit receipts |
+
+Low-level mutation tools in the table are adapters over the same EditPlan transaction; they are not direct store methods. The public catalog can grow to match Palmier/OpenChatCut only after each row has a concrete implementation and a testable refusal path.
 
 ## Recommended Nomi target architecture
 
@@ -257,6 +294,10 @@ Main risks are native binary distribution, FFmpeg codec licensing, browser WebCo
 - Mediabunny: [README](https://github.com/Vanilagy/mediabunny/blob/main/README.md), [exports](https://github.com/Vanilagy/mediabunny/blob/main/src/index.ts).
 - OpenCut: [rewrite README](https://github.com/OpenCut-app/OpenCut/blob/main/README.md), [classic README](https://github.com/opencut-app/opencut-classic/blob/main/README.md), [classic timeline types](https://github.com/opencut-app/opencut-classic/blob/main/apps/web/src/timeline/types.ts), [classic manager](https://github.com/opencut-app/opencut-classic/blob/main/apps/web/src/core/managers/timeline-manager.ts), [classic update pipeline](https://github.com/opencut-app/opencut-classic/blob/main/apps/web/src/timeline/update-pipeline.ts).
 - OpenChatCut: [README](https://github.com/0xsline/OpenChatCut/blob/main/README.md), [license](https://github.com/0xsline/OpenChatCut/blob/main/LICENSE).
+- FireRed-OpenStoryline: [README](https://github.com/FireRedTeam/FireRed-OpenStoryline/blob/main/README.md), [MCP/tool registry](https://github.com/FireRedTeam/FireRed-OpenStoryline/tree/main/src).
+- Palmier Pro: [README](https://github.com/palmier-io/palmier-pro/blob/main/README.md), [license](https://github.com/palmier-io/palmier-pro/blob/main/LICENSE), [MCP tools](https://github.com/palmier-io/palmier-pro/tree/main).
+- OpenMontage: [README](https://github.com/calesthio/OpenMontage/blob/main/README.md), [edit-decision schema](https://github.com/calesthio/OpenMontage/blob/main/edit_decisions.schema.json).
+- video-use: [README](https://github.com/browser-use/video-use/blob/main/README.md), [skills](https://github.com/browser-use/video-use/tree/main/skills).
 - LosslessCut: [README](https://github.com/mifi/lossless-cut/blob/master/README.md), [package manifest](https://github.com/mifi/lossless-cut/blob/master/package.json).
 
 This is an engineering fit review, not legal advice. Before distributing binaries, run a complete dependency/license scan and obtain counsel on LGPL linking, FFmpeg codec choices, Remotion's company license and any native backend obligations.

@@ -1,10 +1,10 @@
 # Nomi 剪辑引擎 build-vs-buy 评审
 
-> 状态：🚧 进行中
+> 状态：✅ 评审完成；P0 已实现，P1/P2 按本文决策门推进
 
 - 日期：2026-08-28
 - 评审基线：`origin/main` @ `25f7401db530380475e3cd5c593e5329422fc05e`
-- 评审范围：Nomi 当前剪辑实现、在飞 PR #179/#207，以及 OpenChatCut、OpenCut（rewrite/classic）、MLT、libopenshot、FFmpeg、GStreamer/GES、Remotion、OpenTimelineIO；补充核对 OpenMontage 与 video-use 的 Agent 编辑协议。
+- 评审范围：Nomi 当前剪辑实现、在飞 PR #179/#207，以及 OpenChatCut、OpenCut（rewrite/classic）、FireRed-OpenStoryline、Palmier Pro、MLT、libopenshot、FFmpeg、GStreamer/GES、Remotion、OpenTimelineIO；补充核对 OpenMontage 与 video-use 的 Agent 编辑协议。
 - 调研方式：GitHub CLI API/源码读取；外部仓库按默认分支和 2026-08-28 可见的最新提交核对。没有把 README 的路线图当成已交付能力。
 
 ## 结论先行
@@ -63,6 +63,7 @@ PR 还发现 `propose_storyboard_plan` 的 schema 没声明 `subtitle/dialogue/t
 | 项目（默认分支/许可证） | 实际提供的层 | Electron + TypeScript 适配 | 主要风险 | 决策 |
 |---|---|---|---|---|
 | **OpenChatCut**（AGPL-3.0，约 1.4k stars，`2a6e882`） | Agent-native 多轨编辑器；`assets/agent/openchatcut-tool-schemas.json` 有 120 个 edit 工具（读取时间轴、转录、移动/删/分割/变速、字幕、音频、效果、beat、场景检测、预览/导出等）；依赖 Remotion 4、FFmpeg、AI SDK 7、MCP。 | TypeScript/Electron 形态接近，工具描述和 `read -> propose -> apply` 最值得对齐。 | AGPL 与 Nomi 相容但仍需保留版权/源代码义务；其 store、项目 schema、导出服务器、Remotion 运行时与 Nomi 不同，整体复制会制造第二时间轴。 | **参考 Agent 工具目录和协议；不整体嵌入。** 可在同许可证审计后逐模块移植纯算法。 |
+| **FireRed-OpenStoryline**（Apache-2.0，约 3.3k stars，`main`） | Python/FastAPI MCP 节点图；节点覆盖媒体搜索/加载、镜头切分/理解/过滤/分组、脚本/配音/BGM、beat-aware timeline、ASR 粗剪、AI 转场、渲染；`ArtifactStore` + session + Skill 归档支持中间结果和局部重做。 | 通过独立 Python worker/服务或离线 manifest 适配；不能直接作为 Electron TS 模块。 | 输出是毫秒级 render manifest，不是带稳定 clip ID、CAS revision 和一层 Undo 的 NLE；节点可能携带绝对路径；外部模型/素材服务与 Nomi 资产权限不同。 | **借 semantic pipeline、artifact checkpoint、Skill 和工具目录；不接入其 runtime/store。** |
 | **OpenCut rewrite**（MIT，约 87k stars，`400f097`） | README 明确“从零重写”；Rust workspace 只有 desktop timeline 占位组件，web editor 显示 Coming soon；MCP/headless/plugin 是路线图。 | 当前几乎没有可接的编辑内核。 | 高关注度掩盖未完成状态；接入会绑定未稳定 API。 | **拒绝作为当前内核。** |
 | **OpenCut classic**（MIT，已归档，`cf5e79e`） | 完整 TS 时间轴：video/image/audio/text/graphic/effect 轨、多 overlay/audio、trim/source window、retime/pitch、effects/masks、keyframes、mute/visibility、command/batch、preview commit/discard；`apps/web/src/timeline/types.ts:29-80,82-125`，`update-pipeline.ts:35-187`，`core/managers/timeline-manager.ts`。 | TypeScript 可读性好，算法和命令设计可局部参考；`opencut-wasm` 可作为独立 compositor POC 候选。 | 项目已归档；scene/track/element/store/renderer 强耦合；MediaBunny/Web Audio 与 Nomi 资源/导出路径不同。 | **借能力矩阵、update pipeline、command/batch；不复制 store/UI。** WASM 仅在独立 POC 通过后使用。 |
 | **MLT**（LGPL-2.1，约 1.8k stars，`a720333`） | 成熟原生多轨框架；`mlt_playlist.h:39-123` 支持顺序片段、blank、insert/remove/move/reorder/resize/split/mix；`mlt_multitrack.h:40-73` 支持并行轨；`mlt_transition.h:40-88` 支持双轨转场。支持 FFmpeg/多种模块。 | 通过独立 native worker/CLI 或 Node SWIG binding 接入；仓库有 `src/swig/nodejs/CMakeLists.txt:1-13`，但仍需自行构建/打包 ABI。 | C/C++、插件目录、平台编译和 LGPL/GPL 模块组合复杂；CMake 默认启用 GPL/GPL3 组件（`CMakeLists.txt:15-45`），错误构建会改变发行许可。 | **优先做 POC。** 只启用审计过的 LGPL 组件；worker 通过 JSON/OTIO-like manifest 通讯，Nomi 仍是事实源。 |
@@ -73,6 +74,7 @@ PR 还发现 `propose_storyboard_plan` 的 schema 没声明 `subtitle/dialogue/t
 | **OpenTimelineIO**（Apache-2.0，`bc5fe2d`） | 成熟的交换格式/API；Timeline=Stack of Track，RationalTime、Clip、Transition、外部 media reference（`src/opentimelineio/timeline.h:15-91`、`track.h:13-80`、`transition.h:10-90`）。README 明确“不包含媒体容器/渲染”。 | Apache 许可证安全；可用 JSON/CLI/Python bridge 生成 OTIO/FCPXML，不必把 C++ core 放进 renderer。 | 不是播放器/渲染器；官方 Python binding 稳定，JS binding/Node 包不应假定存在。 | **采用语义和导出交换；不替代 TimelineState。** |
 | **OpenMontage**（AGPL-3.0） | `edit_decisions.schema.json` 把 cuts、source in/out、speed、layer、transform、transition、audio、subtitles、renderer_family、render_runtime 作为 canonical artifact。 | 与 Nomi 许可证方向一致；schema 可作为 EditPlan/RenderManifest 评审样本。 | AGPL 代码和 Python pipeline 与 Nomi 不同；大 schema 直接塞进 Timeline 会污染领域边界。 | **借 artifact/checkpoint/验证思想，不复制 runtime。** |
 | **video-use**（MIT） | 一个 Skill + FFmpeg/Python helpers；硬规则包括词边界、30–200ms padding、字幕最后叠加、逐段抽取/concat、切点自检最多 3 轮。 | 可把规则转成 Nomi E3 验收和 verify-render，不需引入 Python runtime。 | 主要是工作流，不是多轨编辑器；依赖外部转录与脚本目录。 | **借硬规则和自审环；不当内核。** |
+| **Palmier Pro**（GPL-3.0，macOS Swift） | MCP 工具按项目/时间轴、素材、轨道/片段、字幕/转录、音频/BGM/beat、效果/调色/降噪、生成和导出任务拆分；支持稳定 ID、timeline version/copy、合成预览追踪、marker/review。 | 工具边界可映射到 Nomi 的 capability + EditPlan；Swift store、原生对象和 macOS API 不应进入 Electron。 | GPL-3.0、macOS-only、项目 schema 与 Nomi 不同；直接嵌入会产生第二事实源和平台锁定。 | **作为完整工具目录和 review workflow 参考；不接 runtime。** |
 
 ## Build-vs-buy 分层决策
 
@@ -103,6 +105,21 @@ PR 还发现 `propose_storyboard_plan` 的 schema 没声明 `subtitle/dialogue/t
 - KurrentDB/Temporal/LangGraph/Mastra 这类通用 runtime 不属于剪辑内核，会和现有本地 JSONL/ProductionRun 产生第二事实源。
 - OpenCut rewrite 当前没有可用编辑器核心。
 - Remotion 不作为默认渲染底座，除非公司许可证和分发方式已经书面确认。
+
+## 工具覆盖结论
+
+开源项目的工具数量差异来自它们拥有的领域状态不同，而不是 Nomi 少写几个函数就能直接补齐。Palmier/OpenChatCut 已经维护媒体索引、转录、字幕、review、渲染任务和效果参数，因此可以把能力拆成几十个窄工具；FireRed/OpenMontage 则把语义分析和中间 artifact 单独持久化。Nomi 当前只开放五个 P0 控制工具是有意的安全闸门：先固定唯一 `TimelineState`、revision/CAS、项目作用域、幂等和一层 Undo，再逐行开放下表能力。
+
+| 阶段 | Nomi 工具组 | 代表工具 | 开放条件 |
+|---|---|---|---|
+| P0（已实现） | 读取/提案/应用/撤销 | `read_timeline`、`inspect_timeline_range`、`propose_edit_plan`、`apply_edit_plan`、`undo_timeline_edit` | 纯 kernel、稳定 ID、项目 scope、CAS、idempotency、Adoption 一次 Undo |
+| P1 | 素材与源区间读取 | `get_media`、`inspect_media`、`search_media`、`inspect_source_range`、`read_waveform` | 本地资产索引、路径脱敏、确定性 probe/缩略图/音频元数据 |
+| P1 | 基础时间轴编辑 | `move_clip`、`remove_clip`、`split_clip`、`trim_clip`、`set_source_window`、`ripple_delete` | 全部降解为同一 `EditPlan`；跨轨 ripple 默认拒绝；越界必报错 |
+| P2 | 合成、效果与音频 | `set_clip_properties`、`apply_layout`、`set_keyframes`、`apply_effect`、`apply_mask`、`set_transition`、`set_audio_mix` | Timeline schema、RenderPlan、预览/导出 parity；不支持字段不得静默丢弃 |
+| P3 | 语义剪辑 | `read_transcript`、`find_transcript`、`split_shots`、`speech_rough_cut`、`materialize_captions`、`place_bgm`、`beat_align` | ASR/镜头/音乐服务返回来源绑定的稳定 ID 和时间戳，接受后转 EditPlan |
+| P4 | review 与输出 | `preview_edit_plan`、`inspect_render`、`export_timeline`、`verify_render`、`manage_markers` | 共享 RenderPlan、可取消 job、音视频帧检查、artifact/审计收据 |
+
+窄工具只是调用体验；所有写操作最终仍通过 EditPlan 的原子批处理，不能让 Agent 直接持有 Zustand、外部 NLE store 或 native object。
 
 ## 推荐实施路线
 

@@ -15,6 +15,7 @@ Use a layered build-and-buy strategy. Keep Nomi's TimelineState and adoption bou
 - Revision and idempotency keys already exist (`src/workbench/adoption/adoptionProposalKey.ts:26-152`).
 - OpenChatCut is TypeScript/React/Electron with Remotion and MCP, but is an AGPL application rather than a standalone editing SDK. Its timeline/reducer and external draft session are reference designs, not drop-in modules.
 - OpenCut classic provides an MIT Rust/WASM compositor, while its TypeScript timeline and renderer remain application-coupled. MLT/libopenshot are the external NLE backend candidates; FFmpeg remains a media/render primitive, not a timeline model.
+- Palmier Pro demonstrates a much broader, domain-sliced MCP inventory (timeline/project, media, tracks/clips, captions/transcript, audio/BGM/beat, effects and export), but its GPL-3.0 macOS Swift runtime is not a portable Nomi dependency. Use its catalog to drive staged capability coverage, not its store or project schema.
 
 ## Scope
 
