@@ -58,7 +58,7 @@ function collect(entry) {
 const violations = []
 const allowedCounts = new Map()
 for (const file of roots.flatMap(collect)) {
-  const rel = path.relative(repoRoot, file)
+  const rel = path.relative(repoRoot, file).split(path.sep).join('/')
   if (file.includes(`${path.sep}adoption${path.sep}`) && !allowlist.has(rel)) continue
   const code = stripCommentsAndStrings(fs.readFileSync(file, 'utf8'))
   code.split('\n').forEach((line, index) => {
