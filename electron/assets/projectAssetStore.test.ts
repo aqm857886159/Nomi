@@ -12,6 +12,28 @@ vi.mock("../projects/repository", () => ({
 
 const { listProjectAssets, writeAsset, writeDeterministicAsset } = await import("./projectAssetStore");
 
+function validGlb(): Buffer {
+  const json = Buffer.from(JSON.stringify({
+    asset: { version: "2.0" }, scene: 0, scenes: [{ nodes: [0] }], nodes: [{ mesh: 0 }],
+    meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
+    accessors: [{ bufferView: 0, componentType: 5126, count: 3, type: "VEC3" }],
+    bufferViews: [{ buffer: 0, byteLength: 36 }], buffers: [{ byteLength: 36 }],
+  }));
+  const jsonLength = Math.ceil(json.byteLength / 4) * 4;
+  const total = 12 + 8 + jsonLength + 8 + 36;
+  const bytes = Buffer.alloc(total);
+  bytes.write("glTF", 0, "ascii");
+  bytes.writeUInt32LE(2, 4);
+  bytes.writeUInt32LE(total, 8);
+  bytes.writeUInt32LE(jsonLength, 12);
+  bytes.writeUInt32LE(0x4e4f534a, 16);
+  json.copy(bytes, 20);
+  bytes.fill(0x20, 20 + json.byteLength, 20 + jsonLength);
+  bytes.writeUInt32LE(36, 20 + jsonLength);
+  bytes.writeUInt32LE(0x004e4942, 24 + jsonLength);
+  return bytes;
+}
+
 beforeEach(() => {
   fs.rmSync(path.join(projectRoot, "assets"), { recursive: true, force: true });
 });
@@ -19,6 +41,18 @@ beforeEach(() => {
 afterAll(() => fs.rmSync(projectRoot, { recursive: true, force: true }));
 
 describe("writeAsset canonical media filename", () => {
+  it("accepts only the exact self-contained GLB media type after shared structural validation", () => {
+    const stored = writeAsset("project-1", validGlb(), "scene.bin", "model/gltf-binary", { kind: "imported" }) as {
+      data?: { relativePath?: string; contentType?: string };
+    };
+    expect(stored.data?.relativePath).toMatch(/scene\.glb$/);
+    expect(stored.data?.contentType).toBe("model/gltf-binary");
+
+    expect(() => writeAsset("project-1", Buffer.from("glTFbad"), "bad.glb", "model/gltf-binary", { kind: "imported" }))
+      .toThrow(/3D model validation failed/);
+    expect(() => writeAsset("project-1", validGlb(), "bad.model", "model/x-vendor-scene", { kind: "imported" }))
+      .toThrow(/Unsupported 3D asset content type/);
+  });
   it("does not persist a video as .bin when the upload had no usable extension", () => {
     const result = writeAsset("project-1", Buffer.from("video"), "upload.bin", "video/mp4", { kind: "imported" }) as {
       data?: { relativePath?: string; url?: string; contentType?: string };

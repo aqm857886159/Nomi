@@ -271,9 +271,10 @@ export async function requestMultipart(
   query: Record<string, unknown>,
   form: FormData,
   signal?: AbortSignal,
+  options: { maxResponseBytes?: number } = {},
 ): Promise<unknown> {
   const cleanHeaders = Object.fromEntries(
     Object.entries(headers).filter(([key]) => key.toLowerCase() !== "content-type"),
   );
-  return requestVendor(vendor, apiKey, "POST", url, cleanHeaders, query, form, signal);
+  return requestVendor(vendor, apiKey, "POST", url, cleanHeaders, query, form, signal, options.maxResponseBytes);
 }

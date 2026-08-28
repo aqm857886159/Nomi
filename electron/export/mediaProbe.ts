@@ -5,6 +5,8 @@ import { spawn } from "node:child_process";
 import { resolveFfmpegPath } from "./ffmpegRunner";
 import { ensureExecutable } from "./ensureExecutable";
 
+export const MEDIA_DECODER_PROTOCOL_WHITELIST = "file,pipe,data";
+
 export type MediaProbeMetadata = {
   kind: "image" | "video" | "audio" | "unknown";
   durationSeconds?: number;
@@ -56,25 +58,26 @@ type ProcessTreeDeps = {
 };
 
 async function runWindowsTaskkill(pid: number): Promise<void> {
-  await new Promise<void>((resolve) => {
+  await new Promise<void>((resolve, reject) => {
     let settled = false;
     const child = spawn("taskkill", ["/PID", String(pid), "/T", "/F"], {
       shell: false,
       windowsHide: true,
       stdio: "ignore",
     });
-    const finish = () => {
+    const finish = (error?: Error) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      resolve();
+      if (error) reject(error);
+      else resolve();
     };
     const timer = setTimeout(() => {
       child.kill("SIGKILL");
-      finish();
+      finish(new Error("taskkill timed out"));
     }, 2_000);
-    child.once("close", finish);
-    child.once("error", finish);
+    child.once("close", (code) => finish(code === 0 ? undefined : new Error("taskkill failed")));
+    child.once("error", () => finish(new Error("taskkill failed")));
   });
 }
 
@@ -94,7 +97,8 @@ export async function terminateProcessTree(
       await (deps.runTaskkill ?? runWindowsTaskkill)(pid);
       return;
     } catch {
-      if (!child.killed) child.kill("SIGKILL");
+      const killed = child.killed || child.kill("SIGKILL");
+      if (!killed) throw new BoundedProcessError("process_cleanup_failed");
       return;
     }
   }
@@ -146,7 +150,7 @@ export async function runBoundedProcess(
         settled = true;
         clearTimeout(timer);
         options.signal?.removeEventListener("abort", onAbort);
-        reject(failure ?? new BoundedProcessError(code));
+        reject(new BoundedProcessError("process_cleanup_failed"));
       }, 2_500);
     };
     const onAbort = () => stop("cancelled");
@@ -413,7 +417,7 @@ export async function probeMediaMetadata(
     throw new MediaProbeError("probe_failed", "ffprobe executable could not be resolved");
   }
 
-  const args = ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", absoluteInputPath];
+  const args = ["-v", "error", "-protocol_whitelist", MEDIA_DECODER_PROTOCOL_WHITELIST, "-print_format", "json", "-show_format", "-show_streams", absoluteInputPath];
   const hasExplicitProcessLimits = options.signal !== undefined
     || options.timeoutMs !== undefined
     || options.maxStdoutBytes !== undefined
@@ -460,7 +464,7 @@ export async function probeMediaBytes(
 ): Promise<MediaProbeMetadata> {
   const ffprobePath = resolveFfprobePath(options.ffprobePath, options.ffmpegPath);
   if (!ffprobePath) throw new MediaProbeError("probe_failed", "ffprobe executable could not be resolved");
-  const args = ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", "pipe:0"];
+  const args = ["-v", "error", "-protocol_whitelist", MEDIA_DECODER_PROTOCOL_WHITELIST, "-print_format", "json", "-show_format", "-show_streams", "pipe:0"];
   const processOptions: BoundedProcessOptions = {
     timeoutMs: options.timeoutMs ?? 15_000,
     maxStdoutBytes: options.maxStdoutBytes ?? 256 * 1024,
@@ -504,7 +508,8 @@ export async function decodeMediaBytes(
   const ffmpegPath = resolveFfmpegPath(options.ffmpegPath);
   if (!ffmpegPath) throw new MediaDecodeError();
   const args = [
-    "-hide_banner", "-v", "error", "-xerror", "-err_detect", "explode", "-i", "pipe:0",
+    "-hide_banner", "-v", "error", "-xerror", "-err_detect", "explode",
+    "-protocol_whitelist", MEDIA_DECODER_PROTOCOL_WHITELIST, "-i", "pipe:0",
     "-map", kind === "video" ? "0:v:0" : "0:a:0",
     ...(kind === "video" ? ["-frames:v", "1"] : ["-t", "1"]),
     "-f", "null", "-",

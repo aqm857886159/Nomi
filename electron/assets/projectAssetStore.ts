@@ -19,6 +19,7 @@ import {
   stableAssetId,
 } from "./assetPaths";
 import { contentTypeFromMagicBytes, resolveContentType } from "./mediaTypes";
+import { validateGlbStructure } from "./model3dValidation";
 
 type LocalAssetRecord = {
   id: string;
@@ -87,11 +88,18 @@ function contentTypeFromStoredFile(absolutePath: string): string {
  */
 function effectiveContentType(fileName: string, declared: string, bytes?: Uint8Array): string {
   const normalized = String(declared || "").toLowerCase().split(";")[0].trim();
+  if (normalized.startsWith("model/") && normalized !== "model/gltf-binary") {
+    throw new Error("Unsupported 3D asset content type");
+  }
   // 声明本身没信息量（空 / octet-stream）：交给 resolveContentType（先文件头、再扩展名）。
   if (!normalized || normalized === "application/octet-stream") return resolveContentType(fileName, bytes);
   const sniffed = bytes ? contentTypeFromMagicBytes(bytes) : null;
   if (sniffed && sniffed !== normalized && sniffed.split("/")[0] === normalized.split("/")[0]) return sniffed;
   return normalized;
+}
+
+function validateStructuredAsset(contentType: string, bytes: Uint8Array): void {
+  if (contentType === "model/gltf-binary") validateGlbStructure(bytes);
 }
 
 async function writeAssetSidecarMetaAsync(absolutePath: string, meta: JsonRecord): Promise<void> {
@@ -154,6 +162,7 @@ export function writeAsset(
   // 唯一 sidecar 写入者之一：capture 族 originalUrl 恒 null 的不变量在此收口（见 assetPaths）。
   const meta = sanitizeAssetMetaForKind(rawMeta);
   const actualContentType = effectiveContentType(fileName, contentType, bytes);
+  validateStructuredAsset(actualContentType, bytes);
   const storageFileName = canonicalAssetFileName(fileName, actualContentType);
   const { absolutePath, relativePath } = uniqueAssetPath(projectId, storageFileName, assetBucketFromMeta(meta));
   fs.writeFileSync(absolutePath, bytes);
@@ -193,6 +202,7 @@ export function writeDeterministicAsset(
 ): unknown {
   const meta = sanitizeAssetMetaForKind(rawMeta);
   const actualContentType = effectiveContentType(fileName, contentType, bytes);
+  validateStructuredAsset(actualContentType, bytes);
   const storageFileName = canonicalAssetFileName(fileName, actualContentType);
   const parsed = path.parse(sanitizeName(storageFileName, "asset"));
   const keyHash = crypto.createHash("sha256").update(materializationKey).digest("hex").slice(0, 24);
@@ -254,6 +264,7 @@ export async function copyAssetFile(
     }
   })();
   const actualContentType = effectiveContentType(fileName, contentType, header);
+  if (actualContentType === "model/gltf-binary") validateStructuredAsset(actualContentType, await fs.promises.readFile(sourcePath));
   const storageFileName = canonicalAssetFileName(fileName, actualContentType);
   const { absolutePath, relativePath } = uniqueAssetPath(projectId, storageFileName, assetBucketFromMeta(meta));
   await fs.promises.copyFile(sourcePath, absolutePath);
@@ -301,6 +312,7 @@ export function moveAssetFile(
     }
   })();
   const actualContentType = effectiveContentType(fileName, contentType, header);
+  if (actualContentType === "model/gltf-binary") validateStructuredAsset(actualContentType, fs.readFileSync(sourcePath));
   const storageFileName = canonicalAssetFileName(fileName, actualContentType);
   const { absolutePath, relativePath } = uniqueAssetPath(projectId, storageFileName, assetBucketFromMeta(meta));
   try {

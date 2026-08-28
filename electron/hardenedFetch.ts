@@ -31,6 +31,8 @@ export type HardenedFetchOptions = {
   method?: string;
   /** 请求头。Authorization / Content-Type 等。 */
   headers?: Record<string, string>;
+  /** Additional application-specific credential headers stripped on cross-origin redirects. */
+  sensitiveHeaders?: readonly string[];
   /** 请求体。string 直接发，object/array 自动 JSON.stringify。 */
   body?: unknown;
   /** 上层任务取消信号；与本函数自己的超时共同中断请求。 */
@@ -158,7 +160,6 @@ export async function hardenedFetch(
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
   // 可信本地服务只允许精确同源的一跳请求。禁止重定向，避免先访问重定向目标、事后才校验。
-  const allowRedirect = allowedPrivateOrigins.length === 0 && options.allowRedirect !== false;
   const controller = new AbortController();
   const relayAbort = () => controller.abort(options.signal?.reason);
   if (options.signal?.aborted) relayAbort();
@@ -169,7 +170,18 @@ export async function hardenedFetch(
   try {
     const method = (options.method || "GET").toUpperCase();
     const hasBody = method !== "GET" && method !== "HEAD" && options.body != null;
-    const requestHeaders = { ...(options.headers || {}) };
+    let requestHeaders = { ...(options.headers || {}) };
+    const sensitiveHeaders = new Set([
+      "authorization",
+      "proxy-authorization",
+      "cookie",
+      ...(options.sensitiveHeaders || []).map((header) => header.trim().toLowerCase()).filter(Boolean),
+    ]);
+    const carriesSensitiveHeaders = Object.keys(requestHeaders).some((header) => sensitiveHeaders.has(header.toLowerCase()));
+    // Credential-bearing calls reject redirects unless the caller opts in explicitly.
+    const allowRedirect = allowedPrivateOrigins.length === 0
+      && options.allowRedirect !== false
+      && (!carriesSensitiveHeaders || options.allowRedirect === true);
     let bodyInit: string | undefined;
     if (hasBody) {
       bodyInit = typeof options.body === "string" ? options.body : JSON.stringify(options.body);
@@ -210,7 +222,13 @@ export async function hardenedFetch(
       if (!allowRedirect || !location || hop === 5 || (method !== "GET" && method !== "HEAD")) {
         throw new Error("Redirect refused by hardened fetch policy");
       }
-      currentUrl = new URL(location, currentUrl);
+      const nextUrl = new URL(location, currentUrl);
+      if (nextUrl.origin !== currentUrl.origin) {
+        requestHeaders = Object.fromEntries(
+          Object.entries(requestHeaders).filter(([header]) => !sensitiveHeaders.has(header.toLowerCase())),
+        );
+      }
+      currentUrl = nextUrl;
     }
     if (!response) throw new Error("Fetch failed");
     if (!response.ok && options.throwOnNon2xx !== false) {

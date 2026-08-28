@@ -1,13 +1,14 @@
 import crypto from "node:crypto";
 import os from "node:os";
 import path from "node:path";
-import { chmod, lstat, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 
 import { validateAntigravityImage } from "../ai/antigravityArtifacts";
 import { Model3DValidationError, validateGlbStructure } from "../assets/model3dValidation";
 import { contentTypeFromMagicBytes, extensionFromContentType, isCertifiableMediaContentType, MEDIA_TYPES } from "../assets/mediaTypes";
-import { decodeMediaBytes, probeMediaMetadata, type MediaProbeMetadata } from "../export/mediaProbe";
+import { decodeMediaBytes, probeMediaBytes, type MediaProbeMetadata } from "../export/mediaProbe";
 import { hardenedFetch, type HardenedFetchResult } from "../hardenedFetch";
+import { recordCertificationCleanupFailure, retryCertificationCleanup } from "./certificationCleanup";
 
 export type CertificationMediaKind = "image" | "video" | "audio" | "model3d";
 
@@ -95,7 +96,7 @@ export type CertificationMediaDependencies = {
     signal?: AbortSignal,
   ) => Promise<{ mimeType: string; width: number; height: number }>;
   probeMedia?: (
-    inputPath: string,
+    bytes: Uint8Array,
     options: { signal?: AbortSignal; timeoutMs: number; maxStdoutBytes: number; maxStderrBytes: number },
   ) => Promise<MediaProbeMetadata>;
   decodeMedia?: (
@@ -374,6 +375,25 @@ function safeMetadata(metadata: MediaProbeMetadata): CertificationMediaEvidence[
   });
 }
 
+function wavDurationSeconds(bytes: Uint8Array): number | undefined {
+  if (bytes.byteLength < 44 || Buffer.from(bytes.subarray(0, 4)).toString("ascii") !== "RIFF"
+    || Buffer.from(bytes.subarray(8, 12)).toString("ascii") !== "WAVE") return undefined;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let byteRate = 0;
+  let dataBytes = 0;
+  for (let offset = 12; offset + 8 <= bytes.byteLength;) {
+    const chunkType = Buffer.from(bytes.subarray(offset, offset + 4)).toString("ascii");
+    const chunkLength = view.getUint32(offset + 4, true);
+    const chunkStart = offset + 8;
+    if (chunkStart + chunkLength > bytes.byteLength) return undefined;
+    if (chunkType === "fmt " && chunkLength >= 12) byteRate = view.getUint32(chunkStart + 8, true);
+    if (chunkType === "data") dataBytes = chunkLength;
+    offset = chunkStart + chunkLength + (chunkLength % 2);
+  }
+  const duration = byteRate > 0 && dataBytes > 0 ? dataBytes / byteRate : 0;
+  return Number.isFinite(duration) && duration > 0 ? duration : undefined;
+}
+
 async function assertTrustedCertificationRoot(root: string): Promise<void> {
   const info = await lstat(root);
   const currentUid = typeof process.getuid === "function" ? process.getuid() : undefined;
@@ -404,27 +424,25 @@ export async function certifyMediaArtifact(
   const limits = resolvedLimits(input);
   const acquired = await acquireBytes(input, dependencies, limits);
   const typed = assertDeclaredAndDetectedTypes(acquired.bytes, acquired.contentType, input.expectedKind);
-  let root = dependencies.certificationRoot || "";
-  let ownsRoot = false;
+  const defaultRootSuffix = typeof process.getuid === "function" ? String(process.getuid()) : String(process.pid);
+  const root = dependencies.certificationRoot || path.join(os.tmpdir(), `nomi-certification-media-${defaultRootSuffix}`);
   let runDirectory = "";
   let operationFailed = false;
   let evidence: CertificationMediaEvidence | undefined;
   let caughtError: CertificationMediaError | undefined;
-  let cleanupFailed: boolean;
+  let cleanupFailed = false;
   try {
-    if (!root) {
-      root = await mkdtemp(path.join(os.tmpdir(), "nomi-certification-media-"));
-      ownsRoot = true;
-    } else {
-      await mkdir(root, { recursive: true, mode: 0o700 });
-    }
+    await mkdir(root, { recursive: true, mode: 0o700 });
     await assertTrustedCertificationRoot(root);
+    await retryCertificationCleanup(root, dependencies.cleanup).catch(() => undefined);
     runDirectory = await mkdtemp(path.join(root, "run-"));
     const extension = extensionFromContentType(typed.contentType)
       || (input.expectedKind === "model3d" ? "glb" : "bin");
     const managedPath = path.join(runDirectory, `artifact.${extension}`);
     await writeFile(managedPath, acquired.bytes, { flag: "wx", mode: 0o600 });
-    const managedBytes = await readFile(managedPath);
+    // This immutable in-memory copy is the single source for digest, probe and decode.
+    // The managed file is only a bounded Nomi-owned materialization, never a security oracle.
+    const managedBytes = Buffer.from(acquired.bytes);
     let metadata: CertificationMediaEvidence["metadata"] = Object.freeze({});
 
     if (input.expectedKind === "image") {
@@ -450,12 +468,12 @@ export async function certifyMediaArtifact(
         throw new CertificationMediaError("media_corrupt", { expectedKind: "image" });
       }
     } else if (input.expectedKind === "video" || input.expectedKind === "audio") {
-      const probe = dependencies.probeMedia || probeMediaMetadata;
+      const probe = dependencies.probeMedia || probeMediaBytes;
       const decode = dependencies.decodeMedia || decodeMediaBytes;
       let probed: MediaProbeMetadata;
       try {
         probed = await runWithDecoderDeadline(
-          (signal) => probe(managedPath, {
+          (signal) => probe(managedBytes, {
             signal,
             timeoutMs: limits.decoderTimeoutMs,
             maxStdoutBytes: DEFAULT_PROCESS_STDOUT_LIMIT,
@@ -468,11 +486,9 @@ export async function certifyMediaArtifact(
         if (error instanceof CertificationMediaError) throw error;
         throw new CertificationMediaError("media_corrupt", { expectedKind: input.expectedKind });
       }
-      const reprobedBytes = await readFile(managedPath);
-      const expectedDigest = crypto.createHash("sha256").update(managedBytes).digest("hex");
-      const reprobedDigest = crypto.createHash("sha256").update(reprobedBytes).digest("hex");
-      if (expectedDigest !== reprobedDigest || reprobedBytes.byteLength !== managedBytes.byteLength) {
-        throw new CertificationMediaError("media_storage_failed");
+      if (probed.durationSeconds === undefined && typed.contentType === "audio/wav") {
+        const durationSeconds = wavDurationSeconds(managedBytes);
+        if (durationSeconds !== undefined) probed = { ...probed, durationSeconds };
       }
       if (probed.kind !== input.expectedKind) {
         throw new CertificationMediaError("media_kind_mismatch", {
@@ -480,7 +496,10 @@ export async function certifyMediaArtifact(
           detectedKind: probed.kind,
         });
       }
-      if (!probed.durationSeconds || probed.durationSeconds > limits.maxDurationSeconds) {
+      // Non-seekable stdin deliberately prevents TOCTOU. Some valid audio containers
+      // omit duration on a pipe; bounded decode/bytes/time still apply, and a reported
+      // duration must remain within policy.
+      if (probed.durationSeconds !== undefined && probed.durationSeconds > limits.maxDurationSeconds) {
         throw new CertificationMediaError("media_decode_failed", {
           expectedKind: input.expectedKind,
           maxDurationSeconds: limits.maxDurationSeconds,
@@ -537,9 +556,17 @@ export async function certifyMediaArtifact(
   } finally {
     const cleanup = dependencies.cleanup || ((target: string) => rm(target, { recursive: true, force: true }));
     let cleaned = true;
-    if (runDirectory) cleaned = await cleanupWithRetry(runDirectory, cleanup);
-    if (ownsRoot && root) cleaned = await cleanupWithRetry(root, cleanup) && cleaned;
-    cleanupFailed = !cleaned && !operationFailed;
+    if (runDirectory) {
+      cleaned = await cleanupWithRetry(runDirectory, cleanup);
+      if (!cleaned) {
+        try {
+          await recordCertificationCleanupFailure(root, runDirectory);
+        } catch {
+          cleanupFailed = true;
+        }
+      }
+    }
+    cleanupFailed = cleanupFailed || (!cleaned && !operationFailed && !evidence);
   }
   if (caughtError) throw caughtError;
   if (cleanupFailed || !evidence) throw new CertificationMediaError("media_storage_failed");

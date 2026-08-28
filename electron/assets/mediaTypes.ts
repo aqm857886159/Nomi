@@ -177,6 +177,9 @@ export function contentTypeFromMagicBytes(bytes: Uint8Array): string | null {
   }
   if (ascii(0, 'fLaC')) return 'audio/flac'
   if (ascii(0, 'ID3')) return 'audio/mpeg'
+  // MPEG-1/2 program streams are recognized so certification can return a stable
+  // unsupported-format result; this build does not claim them as certifiable.
+  if (at(0) === 0x00 && at(1) === 0x00 && at(2) === 0x01 && (at(3) === 0xba || at(3) === 0xb3)) return 'video/mpeg'
   if (at(0) === 0xff && (at(1) & 0xf6) === 0xf0) return 'audio/aac' // ADTS AAC
   if (at(0) === 0xff && (at(1) & 0xe0) === 0xe0) return 'audio/mpeg' // 裸 MPEG 音频帧同步字
   if (at(0) === 0x89 && ascii(1, 'PNG')) return 'image/png'
@@ -193,7 +196,7 @@ export function contentTypeFromMagicBytes(bytes: Uint8Array): string | null {
 export const CERTIFIABLE_MEDIA_CONTENT_TYPES = new Set([
   'image/png', 'image/jpeg', 'image/webp',
   'video/mp4', 'video/x-m4v', 'video/quicktime', 'video/webm', 'video/x-matroska',
-  'video/ogg', 'video/x-msvideo', 'video/mpeg',
+  'video/ogg', 'video/x-msvideo',
   'audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/aac', 'audio/ogg', 'audio/opus',
   'audio/webm', 'audio/flac',
   'model/gltf-binary',

@@ -97,4 +97,43 @@ describe("hardenedFetch 私网边界", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(resolveHost).toHaveBeenCalledTimes(2);
   });
+
+  it("strips standard and declared secret headers before an explicitly allowed cross-origin redirect", async () => {
+    const seenHeaders: Array<Record<string, string>> = [];
+    const fetchImpl = vi.fn(async (url: URL, init?: RequestInit) => {
+      seenHeaders.push(Object.fromEntries(new Headers(init?.headers).entries()));
+      return url.hostname === "one.example.test"
+        ? new Response(null, { status: 302, headers: { Location: "https://two.example.test/final" } })
+        : new Response(Buffer.from([1]), { status: 200, headers: { "Content-Type": "image/png" } });
+    });
+    await hardenedFetch("https://one.example.test/start", {
+      allowRedirect: true,
+      headers: {
+        Authorization: "Bearer secret",
+        "Proxy-Authorization": "Basic secret",
+        Cookie: "session=secret",
+        "X-Provider-Secret": "secret",
+        "X-Public": "keep",
+      },
+      sensitiveHeaders: ["X-Provider-Secret"],
+    }, {
+      resolveHost: async () => [{ address: "93.184.216.34", family: 4 }],
+      createPinnedDispatcher: () => ({ close: async () => {} }) as never,
+      fetch: fetchImpl,
+    });
+    expect(seenHeaders[0]).toMatchObject({ authorization: "Bearer secret", cookie: "session=secret", "x-provider-secret": "secret" });
+    expect(seenHeaders[1]).toEqual({ "x-public": "keep" });
+  });
+
+  it("rejects redirects by default when a request carries credentials", async () => {
+    const fetchImpl = vi.fn(async () => new Response(null, { status: 302, headers: { Location: "https://two.example.test/final" } }));
+    await expect(hardenedFetch("https://one.example.test/start", {
+      headers: { Authorization: "Bearer secret" },
+    }, {
+      resolveHost: async () => [{ address: "93.184.216.34", family: 4 }],
+      createPinnedDispatcher: () => ({ close: async () => {} }) as never,
+      fetch: fetchImpl,
+    })).rejects.toThrow(/redirect/i);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
 });

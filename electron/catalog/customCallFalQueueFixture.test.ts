@@ -22,6 +22,7 @@ vi.mock("electron", () => ({
 vi.mock("../vendor/vendorHttp", () => ({
   requestJson,
   requestMultipart: vi.fn(),
+  vendorResponseLimitForKind: () => 8 * 1024 * 1024,
 }));
 
 import { runCustomCallScript } from "./customCallRunner";

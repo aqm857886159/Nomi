@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 
@@ -182,6 +183,8 @@ describe("probeMediaMetadata", () => {
     expect(runProcess).toHaveBeenCalledWith("/usr/local/bin/ffprobe", [
       "-v",
       "error",
+      "-protocol_whitelist",
+      "file,pipe,data",
       "-print_format",
       "json",
       "-show_format",
@@ -234,6 +237,7 @@ describe("bounded media decode", () => {
 
     await expect(probeMediaBytes(bytes, { ffprobePath: "ffprobe", runProcess })).resolves.toMatchObject({ kind: "video" });
     expect(runProcess).toHaveBeenCalledWith("ffprobe", expect.arrayContaining(["pipe:0"]), expect.objectContaining({ input: bytes }));
+    expect(runProcess.mock.calls[0]?.[1]).toEqual(expect.arrayContaining(["-protocol_whitelist", "file,pipe,data"]));
   });
 
   it.each([
@@ -247,6 +251,7 @@ describe("bounded media decode", () => {
 
     const [, args, options] = runProcess.mock.calls[0]!;
     expect(args).toEqual(expect.arrayContaining(["-xerror", "-err_detect", "explode", "-i", "pipe:0", "-map", map, "-f", "null", "-"]));
+    expect(args).toEqual(expect.arrayContaining(["-protocol_whitelist", "file,pipe,data"]));
     if (frames) expect(args).toEqual(expect.arrayContaining(["-frames:v", frames]));
     else expect(args).toEqual(expect.arrayContaining(["-t", "1"]));
     expect(options).toMatchObject({ input: bytes, timeoutMs: 3210 });
@@ -261,6 +266,26 @@ describe("bounded media decode", () => {
     await expect(probeMediaBytes(bytes, { ffprobePath: "ffprobe", runProcess })).resolves.toMatchObject({ kind: "video" });
     await expect(decodeMediaBytes(bytes, "video", { ffmpegPath: "ffmpeg", runProcess }))
       .rejects.toMatchObject({ code: "decode_failed" });
+  });
+
+  it("does not let a hostile playlist make ffprobe or ffmpeg open HTTP", async () => {
+    let requests = 0;
+    const server = http.createServer((_request, response) => {
+      requests += 1;
+      response.writeHead(200, { "Content-Type": "video/mp2t" });
+      response.end(Buffer.alloc(188));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("test server did not bind");
+    const playlist = Buffer.from(`#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXTINF:1,\nhttp://127.0.0.1:${address.port}/segment.ts\n#EXT-X-ENDLIST\n`);
+    try {
+      await probeMediaBytes(playlist, { timeoutMs: 2_000 }).catch(() => undefined);
+      await decodeMediaBytes(playlist, "video", { timeoutMs: 2_000 }).catch(() => undefined);
+      expect(requests).toBe(0);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 });
 
@@ -326,5 +351,24 @@ describe("runBoundedProcess", () => {
 
     expect(runTaskkill).toHaveBeenCalledWith(987);
     expect(order).toEqual(["taskkill:987"]);
+  });
+
+  it("falls back to the direct Windows child when taskkill spawn/timeout/nonzero rejects", async () => {
+    const child = { pid: 988, killed: false, kill: vi.fn(() => true) };
+    await terminateProcessTree(child, true, {
+      platform: "win32",
+      killGroup: vi.fn(),
+      runTaskkill: vi.fn(async () => { throw new Error("taskkill nonzero"); }),
+    });
+    expect(child.kill).toHaveBeenCalledWith("SIGKILL");
+  });
+
+  it("reports a stable cleanup error when neither Windows taskkill nor direct-child kill succeeds", async () => {
+    const child = { pid: 989, killed: false, kill: vi.fn(() => false) };
+    await expect(terminateProcessTree(child, true, {
+      platform: "win32",
+      killGroup: vi.fn(),
+      runTaskkill: vi.fn(async () => { throw new Error("taskkill timeout"); }),
+    })).rejects.toMatchObject({ code: "process_cleanup_failed" });
   });
 });

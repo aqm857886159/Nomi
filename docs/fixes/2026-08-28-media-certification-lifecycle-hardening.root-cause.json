@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "2026-08-28-media-certification-lifecycle-hardening",
+  "problem_type": "staged media verification lifecycle and immutable decoder boundary regression",
+  "symptom": "A disabled ComfyUI workflow candidate could not be tested through the normal runtime, edits could delete active mappings before verification, mutable temporary paths were used by media probes, GLB references were only shallowly checked, and failed cleanup or cross-origin redirects could leave unsafe residual state.",
+  "direct_cause": "ComfyUI import, runtime execution, media certification, asset persistence, cleanup recovery, custom-call transport, and redirect handling did not all share the same candidate lease, immutable-byte, bounded-process, and sanitized-evidence contracts.",
+  "class_root": "The repository lacked one end-to-end invariant that a candidate remains isolated and hidden until the exact staged revision produces self-contained bytes that pass the shared bounded validator, after which Task1 promotion atomically switches model and mapping ownership while all temporary and network capabilities remain bounded.",
+  "affected_population": [
+    "Users importing or editing any ComfyUI workflow while an older revision remains active",
+    "Users certifying video or audio whose path could change between probe and decode",
+    "Users importing GLB assets with external textures, dangling material references, or out-of-bounds accessors",
+    "Users calling provider multipart or custom-call routes that return oversized inline media responses",
+    "Users whose certification cleanup or Windows process-tree termination fails transiently"
+  ],
+  "scope_paths": [
+    "electron/assets/projectAssetStore.ts",
+    "electron/catalog/comfyuiCandidateLifecycle.ts",
+    "electron/catalog/comfyuiWorkflowImportStore.ts",
+    "electron/catalog/customCallRunner.ts",
+    "electron/providerAdapter/certificationCleanup.ts"
+  ],
+  "entry_points": [
+    "ComfyUI workflow import and edit staging",
+    "Main-process exact candidate test execution and terminal result handling",
+    "Project asset writes for model/gltf-binary",
+    "Provider custom-call JSON and multipart responses",
+    "Certification finalization and delayed cleanup recovery"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://ffmpeg.org/ffmpeg-protocols.html",
+      "checked_at": "2026-08-28",
+      "purpose": "Confirm protocol_whitelist semantics for restricting ffprobe and ffmpeg input protocols."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html",
+      "checked_at": "2026-08-28",
+      "purpose": "Confirm accessor, sparse accessor, bufferView, image, texture, material, and GLB self-containment constraints."
+    }
+  ],
+  "invariants": [
+    "Every ComfyUI import or edit is an isolated disabled model and disabled mapping tagged with one opaque revision lease; normal catalog selection cannot execute it.",
+    "Only the main-process exact candidate resolver may execute a staged revision, and only when certifyOutput is explicit and revision, model, and task mapping all match.",
+    "Successful unified media certification calls Task1 promotion atomically and persists only digest plus allowlisted metadata; failed certification deletes the staged candidate and leaves active rows byte-for-byte unchanged.",
+    "Certification digest, ffprobe, and ffmpeg decode consume the same held bytes; mutable temporary paths are materialization only and never security evidence.",
+    "GLB project writes accept only model/gltf-binary and reuse the shared no-DOM validator before persistence, including accessor bounds, sparse values, embedded image MIME and magic, and image-texture-material-mesh references.",
+    "ffprobe and ffmpeg accept only file, pipe, and data protocols, run under bounded process-tree teardown, and surface process_cleanup_failed without child output or paths.",
+    "Cleanup failures are retried, recorded as opaque relative run identifiers in a recoverable manifest, and never replace the original certification error or persist provider URLs or bodies.",
+    "Cross-origin redirects strip standard and declared credential headers, and credential-bearing requests reject redirects unless the caller explicitly opts in.",
+    "Multipart and custom-call transports use the same model-kind response budget as standard provider requests."
+  ],
+  "regression_tests": [
+    "electron/assets/projectAssetStore.test.ts",
+    "electron/catalog/comfyuiCandidateLifecycle.test.ts",
+    "electron/catalog/comfyuiWorkflowImportStore.test.ts",
+    "electron/providerAdapter/certificationMedia.test.ts"
+  ],
+  "migration": "Existing active ComfyUI models remain active. New imports and edits create isolated candidates and switch only after certification. Existing assets remain readable; new GLB writes are validated. Cleanup recovery stores only opaque run directory names and removes the manifest after successful retry.",
+  "residual_risks": [
+    "Non-seekable stdin may omit duration metadata for some valid audio containers; byte, process-time, stream-count, and real decode limits still apply, while known WAV duration is derived from its bounded RIFF header.",
+    "Textual glTF and externally referenced 3D resources remain unsupported until Nomi has a separately bounded resource package format."
+  ]
+}

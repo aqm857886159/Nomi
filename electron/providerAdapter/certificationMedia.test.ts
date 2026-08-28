@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import http from "node:http";
+import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
@@ -14,6 +15,7 @@ import {
   type CertificationMediaReasonCode,
 } from "./certificationMedia";
 import { resolveFfmpegPath } from "../export/ffmpegRunner";
+import { retryCertificationCleanup } from "./certificationCleanup";
 
 const FIXTURES = path.join(__dirname, "__fixtures__", "certification-media");
 
@@ -306,6 +308,18 @@ describe("certifyMediaArtifact", () => {
     expect(error.reasonCode).toBe("media_unsupported_format");
   });
 
+  it.each([
+    ["pack header", Buffer.from([0x00, 0x00, 0x01, 0xba, ...new Array(12).fill(0)])],
+    ["sequence header", Buffer.from([0x00, 0x00, 0x01, 0xb3, ...new Array(12).fill(0)])],
+  ])("recognizes MPEG %s but does not claim unsupported decoder certification", async (_label, bytes) => {
+    const error = await reasonOf(certifyMediaArtifact(
+      { source: { bytes, contentType: "video/mpeg" }, expectedKind: "video" },
+      deps(),
+    ));
+    expect(error.reasonCode).toBe("media_unsupported_format");
+    expect(error.params).toEqual({ detectedType: "video/mpeg" });
+  });
+
   it("never echoes an arbitrary declared Content-Type or signed URL into params", async () => {
     const sentinel = "https://signed.example/asset?token=SECRET";
     const error = await reasonOf(certifyMediaArtifact(
@@ -452,20 +466,25 @@ describe("certifyMediaArtifact", () => {
     }
   });
 
-  it("detects path replacement between probe and decode by rechecking controlled bytes", async () => {
-    const decodeMedia = vi.fn();
-    const error = await reasonOf(certifyMediaArtifact(
+  it("feeds probe, decoder, and digest from the same held bytes rather than a mutable temp path", async () => {
+    const source = fixture("valid.mp4");
+    let probedBytes: Uint8Array | undefined;
+    const decodeMedia = vi.fn(async (bytes: Uint8Array) => {
+      expect(bytes).toBe(probedBytes);
+      expect(Buffer.from(bytes)).toEqual(source);
+    });
+    const evidence = await certifyMediaArtifact(
       { source: { bytes: fixture("valid.mp4"), contentType: "video/mp4" }, expectedKind: "video" },
       deps({
-        probeMedia: async (inputPath) => {
-          fs.writeFileSync(inputPath, "replaced after probe");
+        probeMedia: async (bytes) => {
+          probedBytes = bytes;
           return { kind: "video", durationSeconds: 1, width: 16, height: 16, streamCount: 1, hasAudio: false };
         },
         decodeMedia,
       }),
-    ));
-    expect(error.reasonCode).toBe("media_storage_failed");
-    expect(decodeMedia).not.toHaveBeenCalled();
+    );
+    expect(evidence.sha256).toBe(crypto.createHash("sha256").update(source).digest("hex"));
+    expect(decodeMedia).toHaveBeenCalledTimes(1);
   });
 
   it("retries idempotent cleanup without replacing the original safety error", async () => {
@@ -479,6 +498,27 @@ describe("certifyMediaArtifact", () => {
     expect(error.reasonCode).toBe("media_decode_failed");
     expect(cleanup).toHaveBeenCalledTimes(2);
     expect(error.message).not.toContain("private/path");
+  });
+
+  it("records a cleanup orphan without provider data and recovers it on the next bounded retry", async () => {
+    const cleanup = vi.fn()
+      .mockRejectedValueOnce(new Error("failure one"))
+      .mockRejectedValueOnce(new Error("failure two"))
+      .mockRejectedValueOnce(new Error("failure three"))
+      .mockImplementationOnce(async (target: string) => fs.rmSync(target, { recursive: true, force: true }));
+    const evidence = await certifyMediaArtifact(
+      { source: { bytes: fixture("valid.png"), contentType: "image/png" }, expectedKind: "image" },
+      deps({ cleanup }),
+    );
+    expect(evidence.kind).toBe("image");
+    const manifestPath = path.join(certificationRoot, ".cleanup-manifest.json");
+    const manifest = fs.readFileSync(manifestPath, "utf8");
+    expect(manifest).toMatch(/run-/);
+    expect(manifest).not.toMatch(/provider|https?:|valid\.png|signed/i);
+
+    await expect(retryCertificationCleanup(certificationRoot, cleanup)).resolves.toBe(0);
+    expect(cleanup).toHaveBeenCalledTimes(4);
+    expect(fs.existsSync(manifestPath)).toBe(false);
   });
 
   it("keeps reason codes stable and params free of raw URL, path, body, and signed query", async () => {

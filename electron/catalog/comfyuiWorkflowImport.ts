@@ -656,7 +656,7 @@ export function buildComfyImportModelMapping(
         ...(normalizedDraft ? { comfyWorkflowImport: normalizedDraft } : {}),
       },
     },
-    mapping: { vendorKey, taskKind: imported.taskKind, modelKey: opts.modelKey, name: opts.labelZh, create, query },
+    mapping: { vendorKey, taskKind: imported.taskKind, modelKey: opts.modelKey, name: opts.labelZh, enabled: false, create, query },
   };
 }
 
