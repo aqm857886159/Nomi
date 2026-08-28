@@ -12,6 +12,7 @@ import {
 } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import type { LibraryPrompt } from '../api/promptLibraryApi'
+import { promptSourceLabel } from './promptDisplay'
 
 type Props = {
   prompt: LibraryPrompt
@@ -140,7 +141,7 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onSendToCanv
                 'bg-nomi-overlay-chip-strong border border-nomi-paper/20 text-nomi-paper shadow-nomi-sm backdrop-blur-sm',
               )}
             >
-              {isVideo ? t('libraries.prompt.category.video') : t('libraries.prompt.category.image')} · {prompt.source}
+              {isVideo ? t('libraries.prompt.category.video') : t('libraries.prompt.category.image')} · {promptSourceLabel(prompt)}
             </span>
             <button
               type="button"

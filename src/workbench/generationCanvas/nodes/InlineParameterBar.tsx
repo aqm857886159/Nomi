@@ -22,6 +22,7 @@ import { commonRatioSortKey } from './aspectRatio'
 import { resolveArchetypeForOption } from './nodeModelArchetype'
 import { useDedupedModelSelect } from '../../common/useDedupedModelSelect'
 import { localizeAutoOption, parameterOptionLayout } from './parameterOptionPresentation'
+import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 
 type InlineParameterBarProps = {
   modelOptions: readonly ModelOption[]
@@ -72,6 +73,7 @@ function ParameterTextInput({
   value: string
   onCommit: (value: string) => void
 }): JSX.Element {
+  const label = translateModelDisplayText(control.label)
   const isNumeric = control.type === 'number'
   const [draft, setDraft] = React.useState<string | null>(null)
 
@@ -95,7 +97,7 @@ function ParameterTextInput({
         className={cn(
           'flex-1 appearance-none bg-transparent border-0 outline-0 text-caption text-nomi-ink-80 min-w-0',
         )}
-        aria-label={control.label}
+        aria-label={label}
         type={isNumeric ? 'number' : 'text'}
         value={draft ?? value}
         min={control.min}
@@ -160,7 +162,9 @@ function summaryPart(control: DynamicModelControl, meta: Record<string, unknown>
     return localizeAutoOption(value, label, autoLabel).text
   }
   if (control.type === 'boolean') {
-    return (controlInitialValue(control, meta) || 'false') === 'true' ? control.label : ''
+    return (controlInitialValue(control, meta) || 'false') === 'true'
+      ? translateModelDisplayText(control.label)
+      : ''
   }
   const value = controlInitialValue(control, meta)
   if (!value) return ''
@@ -301,7 +305,7 @@ export default function InlineParameterBar({
     let entries = rawOptions.map((option) => {
       const localized = localizeAutoOption(
         option.value,
-        option.text,
+        translateModelDisplayText(option.text),
         t('generationCommon.parameters.auto'),
       )
       return {
@@ -345,16 +349,17 @@ export default function InlineParameterBar({
 
   // 面板参数组：少量短候选 → 分段；长/多候选 → 搜索列表；其余控件保持原交互。
   const renderPanelGroup = (control: DynamicModelControl): JSX.Element => {
+    const label = translateModelDisplayText(control.label)
     // boolean → Switch 行（label 左、开关右，2026-07-17 用户拍板）；组标题即行标题，不再另起。
     if (isParameterControl(control) && control.type === 'boolean') {
       const on = (controlInitialValue(control, meta) || 'false') === 'true'
       return (
         <div key={control.key} className="flex items-center justify-between gap-2" style={{ minHeight: 26 }}>
-          <div className="text-micro font-semibold leading-none text-nomi-ink-40">{control.label}</div>
+          <div className="text-micro font-semibold leading-none text-nomi-ink-40">{label}</div>
           <DesignSwitch
             size="sm"
             color="var(--nomi-accent)"
-            aria-label={control.label}
+            aria-label={label}
             checked={on}
             onChange={(e) => onParameterControlChange(control, e.currentTarget.checked ? 'true' : 'false')}
           />
@@ -364,7 +369,7 @@ export default function InlineParameterBar({
     const body = ((): JSX.Element => {
       if (!isParameterControl(control)) {
         return renderOptions(
-          control.label,
+          label,
           catalogControlInitialValue(control, meta),
           control.options.map((o) => ({ value: optionValue(o), text: optionLabel(o) })),
           (v) => onCatalogControlChange(control, v),
@@ -372,7 +377,7 @@ export default function InlineParameterBar({
       }
       if (control.options.length > 0) {
         return renderOptions(
-          control.label,
+          label,
           controlInitialValue(control, meta),
           control.options.map((o) => ({
             value: controlValueToString(o.value),
@@ -395,7 +400,7 @@ export default function InlineParameterBar({
           <div className="flex items-center gap-3 min-w-0">
             <Slider
               className="flex-1 min-w-0"
-              aria-label={control.label}
+              aria-label={label}
               value={value}
               min={control.min}
               max={control.max}
@@ -425,7 +430,7 @@ export default function InlineParameterBar({
     })()
     return (
       <div key={control.key} className="flex flex-col gap-1.5">
-        <div className="text-micro font-semibold leading-none text-nomi-ink-40">{control.label}</div>
+        <div className="text-micro font-semibold leading-none text-nomi-ink-40">{label}</div>
         {body}
       </div>
     )

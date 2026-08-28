@@ -13,6 +13,7 @@
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'
+import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 import { IconServerBolt, IconPlugConnected, IconCircleCheck, IconAlertTriangle, IconPhoto, IconMovie, IconRefresh, IconExternalLink, IconCheck, IconX, IconTrash, IconChevronRight } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
@@ -243,7 +244,7 @@ export function ComfyuiLocalCard({ vendorKey, instanceName, enabled, baseUrl, mo
     <FoldableModelCard
       glyph={<IconServerBolt size={16} stroke={1.6} />}
       glyphTone="ink"
-      name={instanceName || t('onboardingProviders.comfyLocal.cardName')}
+      name={translateModelDisplayText(instanceName || t('onboardingProviders.comfyLocal.cardName'))}
       subtitle={t('onboardingProviders.comfyLocal.cloudSubtitle')}
       status={cardStatus}
       statusLabel={statusLabel}
@@ -275,7 +276,7 @@ export function ComfyuiLocalCard({ vendorKey, instanceName, enabled, baseUrl, mo
               <IconCircleCheck size={17} className="shrink-0 mt-0.5 text-workbench-success" />
               <div className="min-w-0">
                 <div className="text-body-sm font-semibold text-nomi-ink">{t('onboardingProviders.comfyLocal.connected')}{health.version ? <span className="text-nomi-ink-60 font-normal">{t('onboardingProviders.comfyLocal.version', { version: health.version })}</span> : null}</div>
-                <div className="text-caption text-nomi-ink-60 mt-0.5">{health.summary}</div>
+                <div className="text-caption text-nomi-ink-60 mt-0.5">{translateModelDisplayText(health.summary)}</div>
                 {health.protocol ? (
                   <div className="text-micro text-nomi-ink-40 mt-0.5">
                     {health.protocol === 'enhanced'

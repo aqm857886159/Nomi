@@ -69,6 +69,7 @@ export function buildStoryboardPlanningMessage(input: {
   }
   const trimmed = (input.storyText || '').trim()
   return [
+    'Language requirement: produce the entire storyboard plan in English. The title, anchor names, anchor descriptions, shot prompts, and all user-facing explanation must be English. Use another language only if the user explicitly requests it.',
     '请把下面这段故事规划成一份「分镜方案」（跨镜头要一致的角色/场景/道具/风格 + 每个镜头），通过 propose_storyboard_plan 产出结构化方案对象——先给用户在创作区审阅、修改，不要直接写画布。',
     '',
     shotModeDirective(input.shotMode ?? 'image'),

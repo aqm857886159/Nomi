@@ -1,6 +1,8 @@
 // 创作/画布助手 composer 的附件模型（S1）。纯前端：把用户附的文件传成 nomi-local://，
 // 在 composer 里以 chip 呈现。带不带去发送由 S2 的链路决定，本层只描述「一个待发附件」。
 
+import i18n from '../../../i18n'
+
 export type ComposerAttachmentKind = 'image' | 'file'
 export type ComposerAttachmentStatus = 'uploading' | 'ready' | 'error'
 
@@ -37,10 +39,10 @@ export function attachmentTypeLabel(fileName: string, contentType: string): stri
   const ext = (fileName.split('.').pop() || '').trim().toLowerCase()
   if (ext && ext !== fileName.toLowerCase() && ext.length <= 5) return ext.toUpperCase()
   const ct = (contentType || '').toLowerCase()
-  if (ct.startsWith('image/')) return '图片'
+  if (ct.startsWith('image/')) return i18n.t('generationCommon.composer.attachmentImage')
   if (ct.includes('pdf')) return 'PDF'
   if (ct.includes('word')) return 'DOCX'
   if (ct.includes('sheet') || ct.includes('excel')) return 'XLSX'
   if (ct.startsWith('text/')) return 'TXT'
-  return '文件'
+  return i18n.t('generationCommon.composer.attachmentFile')
 }

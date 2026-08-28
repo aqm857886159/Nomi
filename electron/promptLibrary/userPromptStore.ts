@@ -78,14 +78,19 @@ export function addUserPrompt(input: UserPromptInput): LibraryPrompt {
   const tags = sanitizeTags(input.tags);
   const item: LibraryPrompt = {
     id: `user-${crypto.randomUUID()}`,
-    title: String(input.title ?? "").trim() || "未命名提示词",
+    // 空标题就**存空**,不存一句本地化过的「未命名提示词」——这条会落盘,存进去就把当时的界面语言
+    // 焊死在数据里:英文用户建的条目永远带中文标题,之后换语言也回不来。空 = 未命名,由渲染层按当前
+    // 语言显示 libraries.prompt.card.unnamed。老库里已存的那句中文由渲染层照旧当未命名处理。
+    title: String(input.title ?? "").trim(),
     prompt,
     // 封面缺省取首张参考图(网页提取卡带截图/原图,进库即有封面)。
     mediaUrl: referenceImages[0]?.url ?? "",
     mediaType: promptType,
     promptType,
     origin: "user",
-    source: "我的",
+    // 同上:来源标签不落盘。`origin: 'user'` 已经说明它是「我的库」,渲染层据此显本地化名;
+    // `source` 只留给站外精选条目的真实来源名(那是专名,不翻译)。
+    source: "",
     sourceId: "user",
     sourceUrl: "",
     updatedAt: now,
@@ -101,7 +106,7 @@ export function updateUserPrompt(id: string, patch: Partial<UserPromptInput>): L
     if (item.id !== id) return item;
     const prompt = patch.prompt !== undefined ? String(patch.prompt).trim() || item.prompt : item.prompt;
     const promptType = patch.promptType !== undefined ? makePromptType(patch.promptType) : item.promptType;
-    const title = patch.title !== undefined ? String(patch.title).trim() || "未命名提示词" : item.title;
+    const title = patch.title !== undefined ? String(patch.title).trim() : item.title;
     return { ...item, title, prompt, promptType, mediaType: promptType, updatedAt: new Date().toISOString() };
   });
   persist(next);

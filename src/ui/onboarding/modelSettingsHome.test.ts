@@ -91,6 +91,8 @@ describe('model settings home', () => {
   it('puts adapted platforms before custom APIs and does not render empty-state controls', () => {
     const home = fs.readFileSync(path.join(process.cwd(), 'src/ui/onboarding/ModelSettingsHome.tsx'), 'utf8')
 
+    expect(home).toContain("import { translateModelDisplayText } from '../../i18n/modelDisplayText'")
+    expect(home).toContain('const displayName = translateModelDisplayText(connection.name)')
     expect(home).toContain('data-model-home-adapted-platforms')
     expect(home).toContain('data-model-home-other-methods')
     expect(home).toContain('data-model-home-advanced')

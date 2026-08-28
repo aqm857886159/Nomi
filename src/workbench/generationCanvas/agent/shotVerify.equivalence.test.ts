@@ -53,6 +53,32 @@ const FIXTURES: Array<SrcCtx & CoreCtx> = [
     anchorDescriptions: ['  带前后空格的锚  ', '', '第二个锚"含引号"与\\反斜杠'],
     previousShotPrompt: '   ', // 全空白 → 视作无前镜
   },
+  // 英文界面：判官被要求用英文写 reason。两侧必须同样追加这一句,否则英文用户在一侧看到中文理由。
+  {
+    shotNodeId: 'n-4',
+    shotTitle: '#4 内·日',
+    shotPrompt: '小周把伞收进桶里',
+    anchorDescriptions: ['短发圆脸、左眉一颗痣，深蓝工装'],
+    previousShotPrompt: '暴雨中的便利店招牌',
+    reasonLanguage: 'en',
+  },
+  // 视频镜 + 英文：framePair 与 reasonLanguage 同时生效的组合。
+  {
+    shotNodeId: 'n-5',
+    shotTitle: '#5 外·夜',
+    shotPrompt: '镜头缓缓推近招牌',
+    anchorDescriptions: [],
+    framePair: true,
+    reasonLanguage: 'en',
+  },
+  // 显式中文：必须与「不传」逐字节一致(不许因为加了这个字段就给中文 prompt 多出空行)。
+  {
+    shotNodeId: 'n-6',
+    shotTitle: '#6 内',
+    shotPrompt: '货架特写',
+    anchorDescriptions: ['冷白灯光'],
+    reasonLanguage: 'zh-CN',
+  },
 ]
 
 describe('shotVerify 等价性（electron shotVerifyCore === src shotVerify 单一真相源）', () => {

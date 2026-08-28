@@ -11,6 +11,7 @@
 // 容错铁律（同 runner）：审片是**增益**，任一步失败绝不阻断「生成已完成」——取帧/判决失败 → 跳过判分
 // （返回 skipped 的 outcome，不抛、不误报）；视觉不可用 → 整体跳过。重试仅在「判分真的低于阈值」时发生。
 
+import type { DesktopLocale } from '../desktopLocale'
 import {
   buildShotVerifyPrompt,
   parseShotVerifyVerdict,
@@ -68,6 +69,12 @@ export type ShotVerifyDeps = {
   regenerate: (nodeId: string, retryDirective: string) => Promise<RegenerateResult>
   /** 多模态/视觉模型是否可用；false → 整体跳过判分（降级仅生成，不报错）。 */
   visionAvailable: () => boolean
+  /**
+   * 判官写 reason 用哪种语言（= 用户界面语言）。缺省 'zh-CN'（旧行为）。
+   * 由接线层注入而不是本层去 import electron/i18n：capabilityCore 必须保持 electron-free
+   * （裸 Node launcher 与 vitest 都要能载它）。
+   */
+  reasonLanguage?: DesktopLocale
 }
 
 /** 交付标注（方案 §7）：供 core 透传、mcpToolResults 读它填结构化 + 文本审片行。 */
@@ -93,12 +100,13 @@ export type ShotVerifyOutcome = {
   suggestion: string | null
 }
 
-function toContext(shot: ShotVerifyShot): ShotVerifyContext {
+function toContext(shot: ShotVerifyShot, reasonLanguage: DesktopLocale = 'zh-CN'): ShotVerifyContext {
   return {
     shotNodeId: shot.shotNodeId,
     shotTitle: shot.shotTitle,
     shotPrompt: shot.shotPrompt,
     anchorDescriptions: shot.anchorDescriptions,
+    reasonLanguage,
     ...(shot.previousShotPrompt ? { previousShotPrompt: shot.previousShotPrompt } : {}),
     // 视频镜喂的是首尾拼图 → 告诉 rubric，否则判分器会把「右半才出现的东西」当成穿帮
     // （而那恰恰是「逐渐显出」类镜头做对了的样子）。
@@ -140,7 +148,7 @@ async function judgeOnce(
     return null // 取帧失败 → 跳过判分（生成已完成，不误报）
   }
   if (!frameUrl) return null
-  const ctx = toContext(shot)
+  const ctx = toContext(shot, deps.reasonLanguage)
   try {
     const raw = await deps.judge(buildShotVerifyPrompt(ctx), frameUrl)
     const verdict = parseShotVerifyVerdict(raw)

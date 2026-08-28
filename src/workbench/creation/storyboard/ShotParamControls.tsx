@@ -6,6 +6,7 @@ import { cn } from '../../../utils/cn'
 import type { ModelOption } from '../../../config/models'
 import { resolveArchetypeForModel } from '../../../config/modelArchetypes'
 import type { ModelParameterControl } from '../../../config/modelCatalogMeta'
+import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 
 /**
  * 镜卡的模型参数控件（#1）。参数**全 derive 自模型档案**（archetype），不为某模型写专属 UI（P4）。
@@ -76,11 +77,11 @@ function ParamSelect({
   const { valueOf, setParam } = makeParamIO(params, onUpdate)
   return (
     <NomiSelect
-      ariaLabel={control.label}
-      leadingLabel={control.label}
+      ariaLabel={translateModelDisplayText(control.label)}
+      leadingLabel={translateModelDisplayText(control.label)}
       size="xs"
       value={valueOf(control)}
-      options={control.options.map((o) => ({ value: String(o.value), label: o.label }))}
+      options={control.options.map((o) => ({ value: String(o.value), label: translateModelDisplayText(o.label) }))}
       onChange={(value) => setParam(control, value)}
     />
   )
@@ -158,7 +159,7 @@ export function ShotParamsDrawer({
           leadingLabel={t('storyboardEditor.shotParams.mode')}
           size="xs"
           value={mode.id}
-          options={modes.map((m) => ({ value: m.id, label: m.vendorTerm || m.id }))}
+          options={modes.map((m) => ({ value: m.id, label: translateModelDisplayText(m.vendorTerm || m.id) }))}
           onChange={(value) => onUpdate({ modeId: value })}
         />
       ) : null}
@@ -174,7 +175,7 @@ export function ShotParamsDrawer({
                     checked={valueOf(c) === 'true'}
                     onChange={(event) => setParam(c, event.target.checked)}
                   />
-                  {c.label}
+                  {translateModelDisplayText(c.label)}
                 </label>
               )
             }
@@ -182,8 +183,8 @@ export function ShotParamsDrawer({
             return (
               <textarea
                 key={c.key}
-                aria-label={c.label}
-                placeholder={c.placeholder || c.label}
+                aria-label={translateModelDisplayText(c.label)}
+                placeholder={translateModelDisplayText(c.placeholder || c.label)}
                 value={valueOf(c)}
                 onChange={(event) => setParam(c, event.target.value)}
                 rows={2}

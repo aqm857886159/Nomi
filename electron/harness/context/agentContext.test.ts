@@ -84,8 +84,56 @@ describe("Nomi agent context ownership", () => {
     expect(findSkillRecord).toHaveBeenCalledWith("", "Story");
   });
 
-  it("composes four layers in order with memory last and no extra separators", () => {
-    expect(context.composeAgentSystemPrompt({ identity: "Identity", panelSystemPrompt: "Panel", skillSystemPrompt: "Skill", memoryBlock: "Memory" }))
-      .toBe("Identity\n\nPanel\n\nSkill\n\nMemory");
+  it("composes four layers in order with memory last, wrapped by the language rule", () => {
+    const composed = context.composeAgentSystemPrompt({ identity: "Identity", panelSystemPrompt: "Panel", skillSystemPrompt: "Skill", memoryBlock: "Memory" });
+    // 四层顺序不变、无多余分隔；语言规则首尾各一段（primacy/recency，见合成器注释）。
+    expect(composed).toMatch(/Identity\n\nPanel\n\nSkill\n\nMemory/);
+  });
+
+  // 回归闸：提示词主体几乎全是中文，模型会照着提示词的语言说话。只在末尾放一句英文规则时，
+  // 英文界面下会退化成中英混答（2026-08-28 用户实测）。规则必须首尾各出现一次。
+  it("states the language rule at both ends, not just the tail", async () => {
+    const { setDesktopLocale } = await import("../../desktopLocale");
+    setDesktopLocale("en");
+    const composed = context.composeAgentSystemPrompt({
+      identity: "Identity", panelSystemPrompt: "Panel", skillSystemPrompt: "Skill", memoryBlock: "Memory",
+    }) ?? "";
+    const occurrences = composed.split("Response-language rule (highest priority):").length - 1;
+    expect(occurrences).toBe(2);
+    expect(composed.startsWith("Response-language rule (highest priority):")).toBe(true);
+    expect(composed.trimEnd().endsWith("still answer in English.")).toBe(true);
+  });
+
+  // 中英混答的直接原因：提示词是中文，模型跟着提示词的语言走。必须点破「提示词语言 ≠ 输出语言」。
+  it("tells the model the Chinese prompt body is not a language signal", async () => {
+    const { setDesktopLocale } = await import("../../desktopLocale");
+    setDesktopLocale("en");
+    const composed = context.composeAgentSystemPrompt({ identity: "身份", panelSystemPrompt: "", skillSystemPrompt: "", memoryBlock: "" }) ?? "";
+    expect(composed).toContain("written in Chinese");
+    expect(composed).toContain("still answer in English");
+  });
+
+  // 语言规则跟界面语言走(不是写死英文)。中文界面下曾拿到一个用英文回话的助手——
+  // DEFAULT_LOCALE 还是 zh-CN,那等于让绝大多数用户对着英文提示词工作。
+  it("language rule follows the desktop locale", async () => {
+    const { setDesktopLocale } = await import("../../desktopLocale");
+    const layers = { identity: "Identity", panelSystemPrompt: "", skillSystemPrompt: "", memoryBlock: "" };
+
+    setDesktopLocale("en");
+    const en = context.composeAgentSystemPrompt(layers) ?? "";
+    expect(en).toContain("Response-language rule (highest priority):");
+    expect(en).toContain("Respond in English.");
+
+    setDesktopLocale("zh-CN");
+    const zh = context.composeAgentSystemPrompt(layers) ?? "";
+    expect(zh).toContain("回复语言铁律（最高优先级）：");
+    expect(zh).toContain("默认用简体中文回复。");
+    expect(zh).not.toContain("Respond in English by default.");
+  });
+
+  // 一条规则只有一个家(P1):身份层不得再自带一份语言规则,否则两份会互相打架且改一处漏一处。
+  it("keeps exactly one language rule, not a copy inside the identity layer", () => {
+    expect(context.NOMI_AGENT_IDENTITY).not.toMatch(/language rule/i);
+    expect(context.NOMI_AGENT_IDENTITY).not.toContain("回复语言铁律");
   });
 });

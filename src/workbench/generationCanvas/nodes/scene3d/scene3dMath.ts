@@ -1,3 +1,5 @@
+import i18n from '../../../../i18n'
+
 import * as THREE from 'three'
 import { createScene3DCameraId, createScene3DObjectId } from './scene3dBindingIds'
 import {
@@ -541,8 +543,8 @@ export function roleColorForIndex(index: number): string {
 }
 
 export function mannequinRoleLabel(index: number): string {
-  if (index < 26) return `角色${String.fromCharCode(65 + index)}`
-  return `角色A${index - 25}`
+  if (index < 26) return i18n.t('scene3d.mannequinName', { letter: String.fromCharCode(65 + index) })
+  return i18n.t('scene3d.mannequinNameOverflow', { index: index - 25 })
 }
 
 export function clampCrowdOptions(options: CrowdAddOptions): CrowdAddOptions {

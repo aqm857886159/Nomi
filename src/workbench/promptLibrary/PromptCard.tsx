@@ -4,6 +4,7 @@ import { IconPlayerPlayFilled, IconPhoto, IconVideo } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../design'
 import type { LibraryPrompt } from '../api/promptLibraryApi'
+import { promptDisplayTitle, promptSourceLabel } from './promptDisplay'
 
 type Props = {
   prompt: LibraryPrompt
@@ -71,13 +72,13 @@ export const PromptCard = React.memo(function PromptCard({ prompt, onSelect }: P
               'bg-gradient-to-t from-nomi-media-veil to-transparent',
             )}
           >
-            <span className={cn('block text-caption text-nomi-paper font-medium truncate')}>{prompt.title}</span>
-            <span className={cn('block text-micro text-nomi-paper/70 truncate')}>{prompt.source}</span>
+            <span className={cn('block text-caption text-nomi-paper font-medium truncate')}>{promptDisplayTitle(prompt)}</span>
+            <span className={cn('block text-micro text-nomi-paper/70 truncate')}>{promptSourceLabel(prompt)}</span>
           </span>
         </button>
       </TooltipTrigger>
       <TooltipContent side="top" className="max-w-56 whitespace-normal leading-snug">
-        {prompt.title}
+        {promptDisplayTitle(prompt)}
       </TooltipContent>
     </Tooltip>
   )

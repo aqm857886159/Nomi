@@ -16,8 +16,18 @@ describe('resolveLauncherLocale（注入 provider → 归一 OS locale，缺省 
   it("provider 抛错 → 缺省 zh-CN（不崩、不强行英文）", () => {
     expect(resolveLauncherLocale(() => { throw new Error('no Intl') })).toBe('zh-CN')
   })
-  it("provider 返回垃圾/非 en 串 → 归一到 zh-CN（normalizeDesktopLocale 兜底）", () => {
-    expect(resolveLauncherLocale(() => 'garbage-locale')).toBe('zh-CN')
+  // 判据是「是不是中文」,不是「是不是英文」:非中文的可读 locale 一律落英文。
+  // 旧口径把 tr-TR/de-DE 判成中文,与渲染层相反,土耳其语系统上 Agent 因此用中文作答(2026-08-28 实测)。
+  it("provider 返回非中文串（含垃圾串）→ 归一到 en", () => {
+    expect(resolveLauncherLocale(() => 'tr-TR')).toBe('en')
+    expect(resolveLauncherLocale(() => 'de-DE')).toBe('en')
+    expect(resolveLauncherLocale(() => 'garbage-locale')).toBe('en')
+  })
+  it("provider 返回中文串 → zh-CN", () => {
+    expect(resolveLauncherLocale(() => 'zh-TW')).toBe('zh-CN')
+    expect(resolveLauncherLocale(() => 'zh-Hans')).toBe('zh-CN')
+  })
+  it("provider 返回空串 → 无信号,回落缺省 zh-CN", () => {
     expect(resolveLauncherLocale(() => '')).toBe('zh-CN')
   })
   it("默认（不注入）读真实 OS locale → 合法双语枚举之一（不抛）", () => {

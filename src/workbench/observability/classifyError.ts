@@ -121,6 +121,30 @@ function truncateLine(value: string): string {
  */
 const STRUCTURED_KINDS: readonly GenerationErrorKind[] = ['auth', 'balance', 'quota', 'network', 'server', 'input']
 
+function detectMissingImageReference(raw: string): 'image_edit' | 'image_to_video' | null {
+  if (raw.includes('图生图缺少参考图')) return 'image_edit'
+  if (raw.includes('图生视频缺少参考图')) return 'image_to_video'
+  return null
+}
+
+function reportForMissingImageReference(
+  kind: 'image_edit' | 'image_to_video',
+  raw: string,
+): GenerationErrorReport {
+  const reason = i18n.t(
+    kind === 'image_edit'
+      ? 'generationCommon.composer.imageConnectionRequired'
+      : 'generationCommon.composer.videoFirstFrameRequired',
+  )
+  return {
+    kind: 'input',
+    reason,
+    hint: '',
+    raw,
+    ...narrateGenerationErrorActions('input'),
+  }
+}
+
 /** legacy 字符串 → 类别(老项目持久化的 node.error / 非 vendor 错误的兜底识别;文案不在这里)。 */
 function detectLegacyErrorKind(raw: string): GenerationErrorKind | null {
   const lower = raw.toLowerCase()
@@ -410,6 +434,8 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
     stripVendorErrorMarker(String(message || ''))
       .split('\n→')[0]
       .trim() || i18n.t('generationCommon.observability.error.unknown.reason')
+  const missingImageReference = detectMissingImageReference(cleanRaw)
+  if (missingImageReference) return reportForMissingImageReference(missingImageReference, cleanRaw)
   // 已退役下线**最先**判：判据是 electron 抛的专用签名（确定性事实），不该被任何猜文案的检测抢走。
   if (detectModelRetired(cleanRaw)) return reportFor('model-retired', cleanRaw, undefined)
   // 类型不符同理是专用签名，同层最先判。upstream 显式给 ''：这是**我们自己**的内部信号，

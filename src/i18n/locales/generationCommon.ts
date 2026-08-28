@@ -1,4 +1,16 @@
 export const zhGenerationCommon = {
+  // 节点/素材的默认标题:用户没给名字时显示的那几个词(建节点、拖素材、粘贴网页图都用这一份)。
+  defaultTitles: {
+    referenceImage: '参考图片',
+    referenceVideo: '参考视频',
+    prompt: '提示词',
+    webMedia: '网页媒体',
+  },
+  exportStatus: {
+    emptyTimeline: '时间轴为空，先添加素材',
+    converting: '正在转码 MP4',
+    exporting: '导出中 {{percent}}%',
+  },
   workspace: {
     timelineChunk: '生成时间轴',
     aria: '生成区',
@@ -297,6 +309,15 @@ export const zhGenerationCommon = {
     },
   },
   imageToolbar: {
+    // 抠图分步进度(按 worker 阶段 key 选一句),让等待有具体的「现在在干嘛」。
+    matteProgress: {
+      decode: '读取图片中',
+      inference: '识别主体中',
+      mask: '生成透明遮罩',
+      encode: '导出透明 PNG',
+      model: '加载抠图模型',
+      fallback: '抠图中',
+    },
     aria: '图片操作',
     fullscreen: '全屏预览',
     fullscreenAria: '全屏预览图片',
@@ -565,6 +586,8 @@ export const zhGenerationCommon = {
     label: '文本',
   },
   composer: {
+    attachmentImage: '图片',
+    attachmentFile: '文件',
     promptLibrary: '素材盒提示词',
     emptyPromptLibrary: '素材盒暂无可用提示词',
     openPromptLibrary: '打开素材盒提示词',
@@ -680,6 +703,44 @@ export const zhGenerationCommon = {
     failed: '拆解失败，请稍后重试',
   },
   assistant: {
+    newConversation: '新对话',
+    toolCall: {
+      quotedTitle: '「{{text}}」',
+      listSeparator: '、',
+      lineSeparator: '，',
+      andMore: '{{head}} 等 {{n}} 个',
+      // 带 {{count}} 的键必须给 _one/_other 两式:i18next 见 count 就走复数解析,只留裸键是靠回落。
+      // 中文复数只有 other 档(_one 永不命中),仍两式都写——两份词典结构对齐,parity 门岗才拦得住漏译。
+      createNodes_one: '创建 {{count}} 个节点',
+      createNodes_other: '创建 {{count}} 个节点',
+      createNodesWithSummary_one: '创建 {{count}} 个节点：{{summary}}',
+      createNodesWithSummary_other: '创建 {{count}} 个节点：{{summary}}',
+      connectEdges_one: '连接 {{count}} 条引用线',
+      connectEdges_other: '连接 {{count}} 条引用线',
+      connectEdgesWithModes_one: '连接 {{count}} 条引用线（{{parts}}）',
+      connectEdgesWithModes_other: '连接 {{count}} 条引用线（{{parts}}）',
+      setNodePrompt: '改写「{{title}}」的提示词',
+      setNodePromptGeneric: '改写节点提示词',
+      deleteNodes_one: '删除 {{count}} 个节点',
+      deleteNodes_other: '删除 {{count}} 个节点',
+      runGenerationBatch_one: '批量生成 {{count}} 个节点（将产生生成费用）',
+      runGenerationBatch_other: '批量生成 {{count}} 个节点（将产生生成费用）',
+      readCanvasState: '读取画布当前状态',
+      arrangeTimeline_one: '把 {{count}} 个镜头按剧本时序排入时间轴',
+      arrangeTimeline_other: '把 {{count}} 个镜头按剧本时序排入时间轴',
+      arrangeTimelineAll: '把整条故事板按剧本时序排入时间轴',
+      tidyCanvas: '整理{{target}}（按镜序归位 · ⌘Z 可撤销）',
+      tidyCanvasCurrent: '当前画布',
+      stagingReference: '建站位参考图（{{parts}}）',
+      stagingCharacters_one: '{{count}} 角色',
+      stagingCharacters_other: '{{count}} 角色',
+      cameraMove: '建运镜参考（{{label}} · {{shot}} · ≈{{duration}}s）',
+      cameraMoveFallback: '运镜',
+      nodeToCategory: '「{{title}}」→ {{category}}',
+      edgeModeCount: '{{label}} {{n}}',
+      edgePair: '「{{source}}」→「{{target}}」',
+      defaultNodeTitle: '{{kind}} {{index}}',
+    },
     attachmentPrompt: '请看这些附件',
     processing: '处理中...',
     onlyTalkWarning:
@@ -982,6 +1043,10 @@ export const zhGenerationCommon = {
       model: '模型',
       parameter: '参数 {{name}}',
       arrayReferenceSlot: '数组参考槽 {{name}}',
+      // 画面校验(shotVerify)三轴:键名与 SHOT_VERIFY_DIMENSIONS 的 key 同名,映射由代码 derive,不手抄。
+      identity: '身份',
+      composition: '构图',
+      continuity: '连贯',
     },
     values: {
       connected: '已连接',
@@ -998,6 +1063,8 @@ export const zhGenerationCommon = {
       edgeBackedSource: '画布内来源应建成有序边',
       orphanEdgeReference: '显示出边参考但无边',
       orphanMeta: 'meta-only 残留（无边有图）',
+      matchesBrief: '与设定/描述一致',
+      tier: '第 {{n}} 档',
     },
     reasons: {
       unsupportedReference: '所选模型不支持这种参考连接',
@@ -1005,6 +1072,7 @@ export const zhGenerationCommon = {
       dangling: '连接的一端节点找不到',
     },
     contentMismatch: '画面与设定对不上（{{actual}}）',
+    contentFallbackReason: '{{dimension}}不达标(第 {{n}} 档)',
     edgeReason: '没接上 · {{reason}}',
     edgeMissing: '这条连接没接上',
     edgeSemantics: '连接方式落地成了「{{actual}}」，批准的是「{{expected}}」',
@@ -1029,6 +1097,13 @@ export const zhGenerationCommon = {
     clear: '清除选择',
   },
   production: {
+    // 锚点卡上的角色前缀:嗅 prompt 得到规范 key,显示名在这里(源串在 anchorCheckpointView 只作匹配用)。
+    anchorRole: {
+      female: '女生',
+      male: '男生',
+      scene: '场景',
+      prop: '道具',
+    },
     aria: '画布批量生成',
     generateAll: '生成全部 {{count}} 个',
     generateSelected: '生成选中 {{count}} 个',
@@ -1389,6 +1464,17 @@ type TranslationShape<T> = {
 }
 
 export const enGenerationCommon = {
+  defaultTitles: {
+    referenceImage: 'Reference image',
+    referenceVideo: 'Reference video',
+    prompt: 'Prompt',
+    webMedia: 'Web media',
+  },
+  exportStatus: {
+    emptyTimeline: 'The timeline is empty. Add some media first.',
+    converting: 'Converting to MP4',
+    exporting: 'Exporting {{percent}}%',
+  },
   workspace: {
     timelineChunk: 'Generation timeline',
     aria: 'Generation workspace',
@@ -1687,6 +1773,14 @@ export const enGenerationCommon = {
     },
   },
   imageToolbar: {
+    matteProgress: {
+      decode: 'Reading the image',
+      inference: 'Detecting the subject',
+      mask: 'Generating the transparency mask',
+      encode: 'Exporting transparent PNG',
+      model: 'Loading the cut-out model',
+      fallback: 'Cutting out',
+    },
     aria: 'Image actions',
     fullscreen: 'Fullscreen preview',
     fullscreenAria: 'Preview image fullscreen',
@@ -1957,6 +2051,8 @@ export const enGenerationCommon = {
     label: 'Text',
   },
   composer: {
+    attachmentImage: 'Image',
+    attachmentFile: 'File',
     promptLibrary: 'Asset library prompts',
     emptyPromptLibrary: 'No prompts are available in the asset library',
     openPromptLibrary: 'Open asset library prompts',
@@ -2072,6 +2168,42 @@ export const enGenerationCommon = {
     failed: 'Decomposition failed. Try again later.',
   },
   assistant: {
+    newConversation: 'New conversation',
+    toolCall: {
+      quotedTitle: '“{{text}}”',
+      listSeparator: ', ',
+      lineSeparator: ', ',
+      andMore: '{{head}} and others ({{n}} total)',
+      createNodes_one: 'Create 1 node',
+      createNodes_other: 'Create {{count}} nodes',
+      createNodesWithSummary_one: 'Create 1 node: {{summary}}',
+      createNodesWithSummary_other: 'Create {{count}} nodes: {{summary}}',
+      connectEdges_one: 'Connect 1 reference link',
+      connectEdges_other: 'Connect {{count}} reference links',
+      connectEdgesWithModes_one: 'Connect 1 reference link ({{parts}})',
+      connectEdgesWithModes_other: 'Connect {{count}} reference links ({{parts}})',
+      setNodePrompt: 'Rewrite the prompt for “{{title}}”',
+      setNodePromptGeneric: 'Rewrite the node prompt',
+      deleteNodes_one: 'Delete 1 node',
+      deleteNodes_other: 'Delete {{count}} nodes',
+      runGenerationBatch_one: 'Generate 1 node (this will incur generation costs)',
+      runGenerationBatch_other: 'Generate {{count}} nodes (this will incur generation costs)',
+      readCanvasState: 'Read the current canvas state',
+      arrangeTimeline_one: 'Arrange 1 shot on the timeline in script order',
+      arrangeTimeline_other: 'Arrange {{count}} shots on the timeline in script order',
+      arrangeTimelineAll: 'Arrange the whole storyboard on the timeline in script order',
+      tidyCanvas: 'Tidy {{target}} (reordered by shot · ⌘Z to undo)',
+      tidyCanvasCurrent: 'the current canvas',
+      stagingReference: 'Create a blocking reference image ({{parts}})',
+      stagingCharacters_one: '1 character',
+      stagingCharacters_other: '{{count}} characters',
+      cameraMove: 'Create a camera-move reference ({{label}} · {{shot}} · ≈{{duration}}s)',
+      cameraMoveFallback: 'Camera move',
+      nodeToCategory: '“{{title}}” → {{category}}',
+      edgeModeCount: '{{label}} {{n}}',
+      edgePair: '“{{source}}” → “{{target}}”',
+      defaultNodeTitle: '{{kind}} {{index}}',
+    },
     attachmentPrompt: 'Please review these attachments',
     processing: 'Processing...',
     onlyTalkWarning:
@@ -2378,6 +2510,9 @@ export const enGenerationCommon = {
       model: 'Model',
       parameter: 'Parameter {{name}}',
       arrayReferenceSlot: 'Array reference slot {{name}}',
+      identity: 'Identity',
+      composition: 'Composition',
+      continuity: 'Continuity',
     },
     values: {
       connected: 'Connected',
@@ -2394,6 +2529,8 @@ export const enGenerationCommon = {
       edgeBackedSource: 'Canvas sources should use ordered edges',
       orphanEdgeReference: 'Shows an edge reference without an edge',
       orphanMeta: 'Leftover meta-only reference without an edge',
+      matchesBrief: 'Matches the brief',
+      tier: 'Tier {{n}}',
     },
     reasons: {
       unsupportedReference: 'The selected model does not support this reference connection',
@@ -2401,6 +2538,7 @@ export const enGenerationCommon = {
       dangling: 'One endpoint of the connection could not be found',
     },
     contentMismatch: 'The image does not match the established details ({{actual}})',
+    contentFallbackReason: '{{dimension}} is below the bar (tier {{n}})',
     edgeReason: 'Not connected · {{reason}}',
     edgeMissing: 'This connection was not created',
     edgeSemantics: 'The connection became “{{actual}}”; the approved value was “{{expected}}”',
@@ -2427,6 +2565,12 @@ export const enGenerationCommon = {
     clear: 'Clear selection',
   },
   production: {
+    anchorRole: {
+      female: 'Female lead',
+      male: 'Male lead',
+      scene: 'Scene',
+      prop: 'Prop',
+    },
     aria: 'Canvas batch generation',
     generateAll: 'Generate all {{count}}',
     generateSelected: 'Generate selected {{count}}',

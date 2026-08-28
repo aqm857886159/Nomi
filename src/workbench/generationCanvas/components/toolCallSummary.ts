@@ -1,13 +1,41 @@
 // 工具调用的人话摘要(时间线步骤标题 / committed 记录 stepLabels 共用单源)。
 // 杀 toolName 原文与 raw JSON:面板里直接显示给用户看的只能是这套词表。
+// 这套词表是**用户可见文案**,一律走 i18n(R15):词汇(连接语义/运镜/内置分类)复用既有键,不另起第二份。
+import i18n from '../../../i18n'
 import { getDefaultCategoryForNodeKind, type GenerationNodeKind } from '../model/generationCanvasTypes'
 import { getGenerationNodeDefaultTitle, isGenerationNodeKind } from '../model/generationNodeKinds'
-import { EDGE_MODE_LABEL } from '../model/graphOps'
-import { BUILTIN_CATEGORIES } from '../../project/projectCategories'
-import { CAMERA_MOVE_LABEL, CAMERA_SPEED_DURATION, type CameraMove, type CameraSpeed } from '../nodes/scene3d/cameraMoveVocab'
+import { BUILTIN_CATEGORY_IDS } from '../../project/projectCategories'
+import { CAMERA_SPEED_DURATION, type CameraMove, type CameraSpeed } from '../nodes/scene3d/cameraMoveVocab'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 
-const CATEGORY_NAME = new Map(BUILTIN_CATEGORIES.map((category) => [category.id, category.name]))
+const T = 'generationCommon.assistant.toolCall'
+const tt = (key: string, values?: Record<string, unknown>): string =>
+  i18n.t(`${T}.${key}` as 'generationCommon.assistant.toolCall.createNodes', values ?? {})
+
+/** 「标题」引号随语种走(中文直角引号 / 英文弯引号),不在代码里硬拼标点。 */
+const quoted = (text: string): string => tt('quotedTitle', { text })
+
+const BUILTIN_IDS = new Set<string>(BUILTIN_CATEGORY_IDS)
+
+/** 分类名:内置分类走侧栏那份既有译名(单源),自定义分类用用户自己起的名(查不到回落 id)。 */
+function categoryLabelOf(categoryId: string): string {
+  if (!BUILTIN_IDS.has(categoryId)) return categoryId
+  return i18n.t(
+    `libraries.sidebar.builtinCategory.${categoryId}` as 'libraries.sidebar.builtinCategory.shots',
+  )
+}
+
+/** 连接语义标签:复用连线菜单那份既有译名(单源),未知 mode 原样回落。 */
+function edgeModeLabelOf(mode: string): string {
+  const key = `generationCommon.canvas.edge.modes.${mode}` as 'generationCommon.canvas.edge.modes.reference'
+  return i18n.exists(key) ? i18n.t(key) : mode
+}
+
+/** 运镜标签:复用运镜控件那份既有译名(单源)。 */
+function cameraMoveLabelOf(move: string): string {
+  const key = `generationCommon.cameraMove.move.${move}` as 'generationCommon.cameraMove.move.push_in'
+  return i18n.exists(key) ? i18n.t(key) : tt('cameraMoveFallback')
+}
 
 /** id → 节点标题(把 n3/真实 id 这类机器串翻成「镜1」给用户看;查不到返回 null,调用方省略不灌 id)。 */
 function nodeTitleById(id: string): string | null {
@@ -20,12 +48,8 @@ function nodeTitleById(id: string): string | null {
 function joinNodeTitles(ids: string[]): string {
   const titles = ids.map(nodeTitleById).filter((t): t is string => Boolean(t))
   if (titles.length === 0) return ''
-  const head = titles.slice(0, 3).map((t) => `「${t}」`).join('、')
-  return titles.length > 3 ? `${head} 等 ${titles.length} 个` : head
-}
-
-function categoryLabelOf(categoryId: string): string {
-  return CATEGORY_NAME.get(categoryId) ?? categoryId
+  const head = titles.slice(0, 3).map(quoted).join(tt('listSeparator'))
+  return titles.length > 3 ? tt('andMore', { head, n: titles.length }) : head
 }
 
 function plannedNodeKind(raw: unknown): GenerationNodeKind {
@@ -38,52 +62,57 @@ export function summarizeToolCall(toolName: string, args: unknown): string {
   if (toolName === 'create_canvas_nodes') {
     const nodes = Array.isArray(record.nodes) ? record.nodes : []
     const summary = typeof record.summary === 'string' ? record.summary : ''
-    return `创建 ${nodes.length} 个节点${summary ? `：${summary}` : ''}`
+    return summary
+      ? tt('createNodesWithSummary', { count: nodes.length, summary })
+      : tt('createNodes', { count: nodes.length })
   }
   if (toolName === 'connect_canvas_edges') {
     const edges = Array.isArray(record.edges) ? record.edges : []
-    return `连接 ${edges.length} 条引用线`
+    return tt('connectEdges', { count: edges.length })
   }
   if (toolName === 'set_node_prompt') {
     const title = record.nodeId ? nodeTitleById(String(record.nodeId)) : null
-    return title ? `改写「${title}」的提示词` : '改写节点提示词'
+    return title ? tt('setNodePrompt', { title }) : tt('setNodePromptGeneric')
   }
   if (toolName === 'delete_canvas_nodes') {
     const ids = Array.isArray(record.nodeIds) ? record.nodeIds : []
-    return `删除 ${ids.length} 个节点`
+    return tt('deleteNodes', { count: ids.length })
   }
   if (toolName === 'run_generation_batch') {
     const ids = Array.isArray(record.nodeIds) ? record.nodeIds : []
-    return `批量生成 ${ids.length} 个节点（将产生生成费用）`
+    return tt('runGenerationBatch', { count: ids.length })
   }
   if (toolName === 'read_canvas_state') {
-    return '读取画布当前状态'
+    return tt('readCanvasState')
   }
   if (toolName === 'arrange_storyboard_to_timeline') {
     const ids = Array.isArray(record.nodeIds) ? record.nodeIds : []
-    return ids.length ? `把 ${ids.length} 个镜头按剧本时序排入时间轴` : '把整条故事板按剧本时序排入时间轴'
+    return ids.length ? tt('arrangeTimeline', { count: ids.length }) : tt('arrangeTimelineAll')
   }
   if (toolName === 'tidy_canvas') {
-    const cat = typeof record.categoryId === 'string' && record.categoryId ? categoryLabelOf(record.categoryId) : '当前画布'
-    return `整理${cat}（按镜序归位 · ⌘Z 可撤销）`
+    const target =
+      typeof record.categoryId === 'string' && record.categoryId
+        ? categoryLabelOf(record.categoryId)
+        : tt('tidyCanvasCurrent')
+    return tt('tidyCanvas', { target })
   }
   if (toolName === 'create_staging_reference') {
     const characters = Array.isArray(record.characters) ? record.characters : []
     const camera = record.camera && typeof record.camera === 'object' ? (record.camera as Record<string, unknown>) : {}
     const parts = [
-      `${characters.length} 角色`,
+      tt('stagingCharacters', { count: characters.length }),
       typeof record.layout === 'string' ? String(record.layout) : null,
       typeof camera.shot === 'string' ? String(camera.shot) : null,
     ].filter(Boolean)
-    return `建站位参考图（${parts.join(' · ')}）`
+    return tt('stagingReference', { parts: parts.join(' · ') })
   }
   if (toolName === 'create_camera_move') {
     const move = record.move as CameraMove
-    const label = CAMERA_MOVE_LABEL[move] ?? String(record.move ?? '运镜')
+    const label = cameraMoveLabelOf(String(move ?? ''))
     const speed = (typeof record.speed === 'string' ? record.speed : 'medium') as CameraSpeed
     const duration = CAMERA_SPEED_DURATION[speed] ?? CAMERA_SPEED_DURATION.medium
     const shot = typeof record.shot === 'string' ? record.shot : 'medium'
-    return `建运镜参考（${label} · ${shot} · ≈${duration}s）`
+    return tt('cameraMove', { label, shot, duration })
   }
   return toolName
 }
@@ -104,8 +133,11 @@ export function buildStepDetailLabels(toolName: string, args: unknown): string[]
       const title =
         typeof node.title === 'string' && node.title.trim()
           ? node.title.trim()
-          : `${getGenerationNodeDefaultTitle(kind)} ${index + 1}`
-      return `「${title}」→ ${categoryLabelOf(getDefaultCategoryForNodeKind(kind))}`
+          : tt('defaultNodeTitle', { kind: getGenerationNodeDefaultTitle(kind), index: index + 1 })
+      return tt('nodeToCategory', {
+        title,
+        category: categoryLabelOf(getDefaultCategoryForNodeKind(kind)),
+      })
     })
   }
   if (toolName === 'connect_canvas_edges') {
@@ -115,11 +147,14 @@ export function buildStepDetailLabels(toolName: string, args: unknown): string[]
       const mode = raw && typeof raw === 'object' ? String((raw as Record<string, unknown>).mode || 'reference') : 'reference'
       byMode.set(mode, (byMode.get(mode) ?? 0) + 1)
     }
-    const parts = Array.from(byMode.entries()).map(([mode, count]) => {
-      const label = (EDGE_MODE_LABEL as Record<string, string>)[mode] ?? mode
-      return `${label} ${count}`
-    })
-    return [`连接 ${edges.length} 条引用线${parts.length ? `（${parts.join(' · ')}）` : ''}`]
+    const parts = Array.from(byMode.entries()).map(([mode, count]) =>
+      tt('edgeModeCount', { label: edgeModeLabelOf(mode), n: count }),
+    )
+    return [
+      parts.length
+        ? tt('connectEdgesWithModes', { count: edges.length, parts: parts.join(' · ') })
+        : tt('connectEdges', { count: edges.length }),
+    ]
   }
   return [summarizeToolCall(toolName, args)]
 }
@@ -158,10 +193,10 @@ export function describeToolCallDetail(toolName: string, args: unknown): string 
         const e = edge && typeof edge === 'object' ? (edge as Record<string, unknown>) : {}
         const src = nodeTitleById(String(e.sourceClientId || e.source || ''))
         const tgt = nodeTitleById(String(e.targetClientId || e.target || ''))
-        return src && tgt ? `「${src}」→「${tgt}」` : null
+        return src && tgt ? tt('edgePair', { source: src, target: tgt }) : null
       })
       .filter((line): line is string => Boolean(line))
-    return lines.join('，')
+    return lines.join(tt('lineSeparator'))
   }
   if (toolName === 'set_node_prompt') {
     const prompt = String(record.prompt || '')

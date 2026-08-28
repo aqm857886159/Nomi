@@ -1,3 +1,5 @@
+import i18n from '../../i18n'
+
 import type { TimelineTextClip, TimelineTextStyle } from './timelineTypes'
 import { clampScale, type OverlayTransform, type Vec2 } from './overlayTransform'
 import { resolveFontStack } from './textFonts'
@@ -145,5 +147,5 @@ export function wrapTextToWidth(
 export const DEFAULT_TEXT_CLIP_SECONDS = 3
 
 export function defaultTextForStyle(style: TimelineTextStyle): string {
-  return style === 'title' ? '标题' : '字幕文字'
+  return i18n.t(style === 'title' ? 'timelineEditor.defaultTitleText' : 'timelineEditor.defaultSubtitleText')
 }

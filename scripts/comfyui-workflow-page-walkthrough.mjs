@@ -107,6 +107,7 @@ const { app, win } = await launchNomiApp({
   settleMs: 1800,
 })
 const errors = []
+const zhOrEn = (zh, en) => new RegExp(`${zh}|${en}`, 'i')
 /** 整页里的实时预览文本——场景⑤靠它证明「改图 → 预览跟着变」。 */
 const previewText = () => win.evaluate(() => {
   const el = document.querySelector('[data-workflow-preview]')
@@ -119,19 +120,19 @@ try {
   win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
 
   // ── ① 设置 → 模型 tab → 启用 ComfyUI → 导入一条工作流 ──
-  await win.getByRole('button', { name: '设置', exact: true }).first().click()
+  await win.getByRole('button', { name: /^(?:设置|Settings)$/i, exact: true }).first().click()
   await win.waitForTimeout(900)
-  await win.getByRole('button', { name: '模型', exact: true }).first().click()
+  await win.getByRole('button', { name: /^(?:模型|Models)$/i, exact: true }).first().click()
   await win.waitForTimeout(900)
-  await win.getByText('有本地 ComfyUI', { exact: false }).first().click()
+  await win.locator('[data-model-home-available^="comfyui"]').first().click()
   await win.waitForTimeout(500)
-  await win.getByText('本地 ComfyUI', { exact: true }).first().click()
+  await win.locator('[data-model-settings-page="connection"][data-model-settings-vendor^="comfyui"]').first().waitFor()
   await win.waitForTimeout(400)
-  await win.getByRole('button', { name: '启用 ComfyUI', exact: false }).first().click()
+  await win.getByRole('button', { name: zhOrEn('启用 ComfyUI', 'Enable ComfyUI'), exact: false }).first().click()
   await win.waitForTimeout(2200)
-  await win.getByText('本地 ComfyUI', { exact: true }).first().click()
+  await win.locator('[data-model-settings-page="connection"][data-model-settings-vendor^="comfyui"]').first().waitFor()
   await win.waitForTimeout(600)
-  const enhancedModeVisible = await win.getByText('增强模式', { exact: false }).count()
+  const enhancedModeVisible = await win.getByText(zhOrEn('增强模式', 'Enhanced mode'), { exact: false }).count()
   if (enhancedModeVisible === 0) throw new Error('探测到 /features 后连接卡没有显示增强模式')
   await shot(win, '00-card-enhanced-mode.png') // 验：已连接 + 增强模式 + Python/显卡摘要，文本不重叠
   await bw.evaluate((w) => w.setBounds({ x: 0, y: 0, width: 900, height: 720 })).catch(() => {})
@@ -142,24 +143,24 @@ try {
   await bw.evaluate((w) => w.setBounds({ x: 0, y: 0, width: 1440, height: 1000 })).catch(() => {})
   await win.waitForTimeout(500)
 
-  await win.getByRole('button', { name: '导入自定义工作流', exact: false }).first().click()
+  await win.getByRole('button', { name: zhOrEn('导入自定义工作流', 'Import custom workflow'), exact: false }).first().click()
   await win.waitForTimeout(400)
-  await win.getByRole('textbox', { name: 'ComfyUI 工作流 JSON' }).fill(LTX_GRAPH)
-  await win.getByRole('button', { name: '分析工作流', exact: true }).click()
+  await win.getByRole('textbox', { name: zhOrEn('ComfyUI 工作流 JSON', 'ComfyUI workflow JSON') }).fill(LTX_GRAPH)
+  await win.getByRole('button', { name: zhOrEn('分析工作流', 'Analyze workflow'), exact: true }).click()
   await win.waitForTimeout(900)
-  await win.getByPlaceholder('给它起个名', { exact: false }).fill('LTX 图生视频')
-  await win.getByRole('button', { name: '导入', exact: true }).click()
+  await win.getByPlaceholder(zhOrEn('给它起个名', 'Name this workflow'), { exact: false }).fill('LTX 图生视频')
+  await win.getByRole('button', { name: zhOrEn('导入', 'Import'), exact: true }).click()
   await win.waitForTimeout(1400)
   await shot(win, '01-card-workflow-row.png') // 验：卡里出现工作流行，整行可点（右侧有 › ）
 
   // ── ② 点工作流那一行 → 进整页 ──
   // 导入后卡会重挂、默认收起 → 先确保工作流行可见。
   if (!(await win.getByText('LTX 图生视频', { exact: false }).first().isVisible().catch(() => false))) {
-    await win.getByText('本地 ComfyUI', { exact: true }).first().click()
+    await win.locator('[data-model-home-available^="comfyui"]').first().click()
     await win.waitForTimeout(600)
   }
   await win.waitForTimeout(3200) // 等成功 toast 消退（toast 文本含模型名，会抢走定位）
-  await win.getByRole('button', { name: '打开「LTX 图生视频」的工作流设置', exact: false }).first().click()
+  await win.getByRole('button', { name: zhOrEn('打开「LTX 图生视频」的工作流设置', 'Open workflow settings for'), exact: false }).first().click()
   await win.waitForTimeout(1500)
   await shot(win, '02-workflow-page.png') // 验：占满屏；左栏 后端/工作流/画布预览；右侧节点图 + 连线
 
@@ -171,8 +172,10 @@ try {
     const el = document.querySelector('[data-workflow-graph]')
     return el ? el.innerText : ''
   })
-  for (const needle of ['提示词', '成品', '#110', '#300']) {
-    if (!graphText.includes(needle)) throw new Error(`节点图里没有「${needle}」——图上认不出角色`)
+  for (const alternatives of [['提示词', 'Prompt'], ['成品', 'Output'], ['#110'], ['#300']]) {
+    if (!alternatives.some((needle) => graphText.includes(needle))) {
+      throw new Error(`节点图里没有「${alternatives.join('/')}` + '」——图上认不出角色')
+    }
   }
   console.log('  图上直接标出了角色（提示词/成品）: ✓')
 
@@ -183,7 +186,7 @@ try {
   await win.locator('[data-node-id="109"]').first().click()
   await win.waitForTimeout(500)
   await shot(win, '03-node-menu.png') // 验：菜单两段——「在画布上当」+「变成画布上的可调字段」
-  await win.getByRole('menuitemradio', { name: '提示词', exact: false }).first().click()
+  await win.getByRole('menuitemradio', { name: zhOrEn('提示词', 'Prompt'), exact: false }).first().click()
   await win.waitForTimeout(600)
   await shot(win, '04-role-reassigned.png') // 验：#109 变成提示词色，#110 的角色胶囊消失
 
@@ -215,16 +218,16 @@ try {
   console.log('  保存落库、脏标记清掉: ✓')
 
   // ── ⑦ 兜底：图放不下时的完整节点列表，同样能点、能指定角色 ──
-  await win.getByRole('button', { name: '显示完整节点列表', exact: false }).first().click()
+  await win.getByRole('button', { name: zhOrEn('显示完整节点列表', 'Show full node list'), exact: false }).first().click()
   await win.waitForTimeout(700)
   await shot(win, '07-node-list-fallback.png') // 验：列表形态，每行带 #id / 标题 / 角色胶囊
 
   // ── ⑧ 真落库了没：退出整页 → 重新进 → 改动还在吗 ──
   // 「界面上不再显示未保存」只证明脏标记被清了，证不了写进目录。必须重进一次才算数（P3 全绿≠完成）。
-  await win.getByRole('button', { name: '返回设置', exact: false }).first().click()
+  await win.getByRole('button', { name: zhOrEn('返回设置', 'Back to settings'), exact: false }).first().click()
   await win.waitForTimeout(900)
   if ((await win.locator('[data-comfyui-workflow-page]').count()) !== 0) throw new Error('点「返回设置」没退出整页')
-  await win.getByRole('button', { name: '打开「LTX 图生视频」的工作流设置', exact: false }).first().click()
+  await win.getByRole('button', { name: zhOrEn('打开「LTX 图生视频」的工作流设置', 'Open workflow settings for'), exact: false }).first().click()
   await win.waitForTimeout(1600)
   const reopened = await previewText()
   if (!reopened.includes('#109')) throw new Error(`重进后提示词绑定没留住（回到了旧节点）：\n${reopened}`)
@@ -246,7 +249,7 @@ try {
   // ── ⑩ 解绑首帧 → 变成纯文生视频 → 试跑真提交，且值填进正确的节点 ──
   await win.locator('[data-node-id="200"]').first().click()
   await win.waitForTimeout(500)
-  await win.getByRole('menuitemradio', { name: '首帧', exact: false }).first().click() // 再点一次 = 取消
+  await win.getByRole('menuitemradio', { name: zhOrEn('首帧', 'First frame'), exact: false }).first().click() // 再点一次 = 取消
   await win.waitForTimeout(600)
   await win.locator('[data-workflow-preview] textarea').first().fill('走查用的提示词')
   await win.locator('[data-workflow-preview] input').last().fill('768')

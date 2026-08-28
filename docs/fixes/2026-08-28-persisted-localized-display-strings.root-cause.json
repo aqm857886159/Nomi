@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "id": "2026-08-28-persisted-localized-display-strings",
+  "problem_type": "persistence contract regression (localized text written into stored records)",
+  "symptom": "With the UI in English, prompt-library entries show Chinese: an entry saved without a title reads 未命名提示词 and its source line reads 我的. Switching the language does not fix them, because the Chinese is not being rendered from a translation table — it is the value stored on disk.",
+  "direct_cause": "addUserPrompt and updateUserPrompt substituted a localized literal for an absent title (`|| \"未命名提示词\"`) and hardcoded `source: \"我的\"`, then persisted both into the prompt-library file under .nomi.",
+  "class_root": "A display string was produced at the write boundary instead of the render boundary. Any field whose value is chosen for a human to read must be derived at display time from a stable stored value; storing the rendered text welds the locale that happened to be active at creation time into the data, so it can never follow a later language change and no translation table can reach it.",
+  "affected_population": [
+    "Users running the English UI who create prompt-library entries without a title — every such entry is stored with a Chinese title",
+    "Users who created entries under one language and then switched: existing entries keep the old language permanently",
+    "All users of the prompt library, whose entries carry a stored Chinese source label regardless of UI language"
+  ],
+  "scope_paths": [
+    "electron/promptLibrary/userPromptStore.ts",
+    "src/workbench/promptLibrary/promptDisplay.ts",
+    "src/workbench/promptLibrary/PromptCard.tsx",
+    "src/workbench/promptLibrary/UserPromptCard.tsx",
+    "src/workbench/promptLibrary/PromptPreviewOverlay.tsx"
+  ],
+  "entry_points": [
+    "addUserPrompt — the create path that substituted a localized title and a hardcoded source",
+    "updateUserPrompt — the edit path that re-applied the same localized title fallback when a title was cleared",
+    "PromptCard, UserPromptCard and PromptPreviewOverlay — every site that rendered prompt.title or prompt.source directly, which is why the stored text reached the screen unmediated"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "No external material can decide this. The defect is entirely in Nomi's own storage contract — which of our fields hold stable values and which hold rendered text — and in our own i18n display boundary. No third-party API, file format, or library behavior is involved, and the i18next fallback semantics that make the bug invisible in source review are already covered by the check-i18n-key-parity gate rather than by an external specification.",
+  "invariants": [
+    "Persisted records never contain localized display text. An absent title is stored as an empty string, and a user-library entry's provenance is expressed by `origin: 'user'` rather than by a stored label.",
+    "Every render of a stored title or source goes through the promptDisplay boundary, so the text shown always reflects the locale active at render time, not at write time.",
+    "The read side treats the literals older builds persisted (未命名提示词, Untitled prompt) as 'untitled', so existing libraries follow the UI language without rewriting stored files."
+  ],
+  "regression_tests": [
+    "src/workbench/promptLibrary/promptDisplay.test.ts",
+    "electron/promptLibrary/userPromptStore.test.ts"
+  ],
+  "migration": "No file rewrite. Legacy rows keep whatever title they were written with; the display boundary recognizes the two literals previous builds could produce and renders the localized 'untitled' placeholder instead, and it ignores the stored source entirely for user-origin rows, deriving the label from origin. This corrects existing libraries on read without touching data the user may have edited by hand, and the write path no longer produces those literals. userPromptStore.test.ts was updated from asserting the old localized defaults to asserting the stable stored values, so the old contract cannot silently return.",
+  "residual_risks": [
+    "A user who deliberately typed 未命名提示词 or Untitled prompt as a real title will see it rendered as the localized placeholder. Storage is unchanged and the text is identical in the matching locale, so the only visible effect is that the title follows the UI language.",
+    "Curated (non-user) entries still render prompt.source verbatim. Those are external source proper nouns that must not be translated; if a future curated feed ever carries a descriptive rather than a proper-noun source, it would need the same display-boundary treatment.",
+    "This contract covers the prompt library only. Other persisted labels were checked by the check:i18n visible-text gate, which is now at hard zero, but that gate reasons about literals in source rather than about which fields get persisted — a stored-display-text audit of other stores is not part of this change."
+  ]
+}

@@ -31,7 +31,8 @@ describe("userPromptStore", () => {
     const item = addUserPrompt({ title: "黄昏剪影", prompt: "屋顶逆光少年", promptType: "image" });
     expect(item.id).toMatch(/^user-/);
     expect(item.origin).toBe("user");
-    expect(item.source).toBe("我的");
+    // 来源标签不落盘(存了就把当时的界面语言焊进数据):origin 表达「这是我的库」,显示名由渲染层取。
+    expect(item.source).toBe("");
     const list = listUserPrompts();
     expect(list).toHaveLength(1);
     expect(list[0]?.prompt).toBe("屋顶逆光少年");
@@ -45,9 +46,11 @@ describe("userPromptStore", () => {
     expect(listUserPrompts()).toHaveLength(0);
   });
 
-  it("无标题落「未命名提示词」,类型默认 image", () => {
+  it("无标题存空串(不落本地化文案),类型默认 image", () => {
     const item = addUserPrompt({ prompt: "纯文本", promptType: "video" });
-    expect(item.title).toBe("未命名提示词");
+    // 空 = 未命名。**不能**在这里落「未命名提示词」:它会进库文件,把建条目那一刻的界面语言
+    // 焊死在数据里(英文用户建的条目永远带中文标题)。显示名由 promptDisplay.promptDisplayTitle 取。
+    expect(item.title).toBe("");
     expect(item.promptType).toBe("video");
     expect(item.mediaType).toBe("video");
   });

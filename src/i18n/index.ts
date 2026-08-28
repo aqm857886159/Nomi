@@ -30,11 +30,22 @@ export function readStoredLocale(): AppLocale {
 // 首启（无存储偏好）探测系统语言：中文系统留中文，其余一律给英文（#40 国际可达性——
 // 非中文系统进中文界面等于换一种语言的「语言墙」，英文是唯一另一支持语言、也是国际通用兜底）。
 // 仅真 Electron 经桥能拿到 OS locale；jsdom/无桥环境（含 vitest）返回 null → 回落默认中文，测试不受影响。
+/**
+ * OS locale 串 → 支持的双语枚举。判据是「是不是中文」：中文系统留中文，其余一律英文。
+ *
+ * 这条判据必须与主进程的 `normalizeDesktopLocale` **完全一致**——两边曾各写各的（这里「非 zh → en」、
+ * 主进程「非 en → zh-CN」），于是土耳其语/德语系统上界面是英文、主进程以为是中文，Agent 被要求用中文
+ * 作答（2026-08-28 实测）。两份实现由 `localeNormalize.equivalence.test.ts` 逐项钉死。
+ */
+export function normalizeSystemLocale(raw: string): AppLocale {
+  return raw.trim().toLowerCase().startsWith('zh') ? 'zh-CN' : 'en'
+}
+
 function detectSystemLocale(): AppLocale | null {
   try {
     const raw = getDesktopBridge()?.i18n?.getSystemLocale?.()
     if (!raw) return null
-    return raw.toLowerCase().startsWith('zh') ? 'zh-CN' : 'en'
+    return normalizeSystemLocale(raw)
   } catch {
     return null
   }

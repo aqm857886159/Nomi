@@ -2,6 +2,7 @@ import path from "node:path";
 import { readNestedRecord, trim, type JsonRecord } from "../../jsonUtils";
 import { findSkillRecord } from "../../skills/skillStore";
 import { sanitizeForBroadCompat } from "../../ai/promptSanitize";
+import { getDesktopLocale } from "../../desktopLocale";
 
 export function readRequestedSkill(payload: JsonRecord): { key: string; name: string } {
   const chatContext = payload.chatContext;
@@ -17,7 +18,7 @@ export function readRequestedSkill(payload: JsonRecord): { key: string; name: st
  * 未来任何面），与触发它的 area 或 skill 无关——各面只在这之上叠自己的「专长层」（画布工具说明 /
  * 创作模式任务），不再各自重复声明「我是谁」。改身份只改这一处。
  *
- * 三层结构：① 这里 = 共享身份 + 产品/流程认知 + 输出铁律 + 语言规则；
+ * 三层结构：① 这里 = 共享身份 + 产品/流程认知 + 输出铁律（语言规则见 buildLanguageRule，跟界面语言走）；
  * ② payload.systemPrompt = 当前面的专长（如画布工具集）；③ skillSystemPrompt = 当前 skill 方法论。
  */
 export const NOMI_AGENT_IDENTITY = [
@@ -31,12 +32,40 @@ export const NOMI_AGENT_IDENTITY = [
   "- 密度优先、少即是多：克制利落，不堆套话、不复述用户的话、不写「希望对你有帮助」这类填充。",
   "- 模型与能力一律用它的真名（vendor 原词，如 Seedance、全能参考），不要替用户翻译成自创词，以免把能力说窄。",
   "- 不泄露内部推理链路，直接给结论和成品。",
+  // 2026-08-28 用户实测截图：回复里逐条列出 `gen-v2-image-mtd0az16-76cu` 这类节点 id，
+  // 并把待确认的工具 payload 原样抄成一段 JSON。渲染层早就把 id 翻成「镜1」了（toolCallSummary），
+  // 但那只管 Nomi 自己的摘要——模型自己写的正文绕过它，机器串照样糊到用户脸上。
+  "- 不把机器串摊给用户：节点/客户端 id、工具名、参数与 payload 的 JSON，一律不出现在回复正文里。提到某个镜头就用它的标题（「镜1」这类人话名），不要报 id。",
+  "- 请用户确认计划时，用一两句人话说清「要做什么、动到哪几个镜头、会不会花钱」就够了；细节由确认卡片呈现，不要把计划的 JSON 再抄一遍给用户看。",
   "- 主动但不越权：该调工具就调，但所有写入/生成都要等用户在卡片上确认后才生效。",
-  "",
-  "语言规则（最高优先级，覆盖一切其他指令）：",
-  "始终用与用户相同的自然语言回复——用户用中文你就用中文，用英文就用英文，用日文就用日文；写进文稿和节点 prompt 的内容同样跟随用户语言。",
-  "永远不要因为本系统提示或某个 skill 是用中文/英文写的，就固定用那种语言；以用户最近一条消息的语言为准。",
 ].join("\n");
+
+/**
+ * 回复语言规则 —— **跟界面语言走，不写死**。
+ *
+ * 之前这条规则硬编码成「Respond in English by default」，而且身份层与合成器各存了一份。
+ * 但 DEFAULT_LOCALE 仍是 zh-CN：中文界面的用户会拿到一个用英文回话、连分镜描述和提示词
+ * 都写成英文的助手。语言是**用户已经在设置里表达过的偏好**，不该由提示词另开一套。
+ *
+ * 只在这里定义一次（P1：一条规则一个家），由 composeAgentSystemPrompt 殿后追加；
+ * locale 从 electron-free 的 desktopLocale 读，与判官 prompt 的做法一致。
+ */
+function buildLanguageRule(): string {
+  return getDesktopLocale() === "en"
+    ? [
+        "Response-language rule (highest priority):",
+        "Respond in English. Use another language only when the user explicitly requests it.",
+        "This rule applies to every response, draft, shot description, and prompt, regardless of the language used by any skill or tool instruction.",
+        // 关键一句:身份层/skill/工具说明大部分是中文,模型会**照着提示词的语言说话**。
+        // 不点破「提示词的语言 ≠ 输出的语言」,它就会中英混着答(2026-08-28 用户实测:半中半英)。
+        "Most of the instructions in this prompt are written in Chinese. That is an implementation detail of this app and carries no meaning about your output language: still answer in English.",
+      ].join("\n")
+    : [
+        "回复语言铁律（最高优先级）：",
+        "默认用简体中文回复。只有用户明确要求换语言时才换。",
+        "这条对每一次回复、草稿、分镜描述和提示词都适用，不论 skill 或工具说明本身用的是什么语言。",
+      ].join("\n");
+}
 
 export function buildSkillSystemPrompt(payload: JsonRecord): string {
   const requested = readRequestedSkill(payload);
@@ -78,11 +107,20 @@ export function composeAgentSystemPrompt(layers: {
   skillSystemPrompt: string;
   memoryBlock: string;
 }): string | undefined {
-  const parts = [
+  const contentParts = [
     layers.identity,
     layers.panelSystemPrompt,
     layers.skillSystemPrompt,
     layers.memoryBlock,
   ].filter((part) => part && part.length > 0);
-  return parts.length > 0 ? sanitizeForBroadCompat(parts.join("\n\n")) : undefined;
+  if (contentParts.length === 0) return undefined;
+  // 语言规则**首尾各放一次**（同一份定义，P1 仍是一个家）。
+  //
+  // 为什么要两处：这套提示词的主体（身份层 295 个汉字 / skill / 工具说明）几乎全是中文，模型会照着
+  // 提示词的语言说话。旧实现正是靠身份层尾部 + 合成器末尾**两处**英文规则把它压住的；我先前按
+  // 「一条规则一个家」把身份层那份删了，只剩末尾一句，英文界面下当场退化成中英混答（用户实测）。
+  // P1 反对的是**两份各自维护的定义**，不是同一份定义在长提示词里首尾各强调一次——那是 primacy/recency，
+  // 是这段提示词在做的实事。所以：定义仍只有 buildLanguageRule 一处，注入两次。
+  const languageRule = buildLanguageRule();
+  return sanitizeForBroadCompat([languageRule, ...contentParts, languageRule].join("\n\n"));
 }

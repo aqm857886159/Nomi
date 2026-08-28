@@ -203,7 +203,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     const handle = turn.getState().begin()
     void (async () => {
       try {
-        const { text, status } = await runStoryboardPlanner({
+        const { status } = await runStoryboardPlanner({
           target: 'creation', history, projectId: projectId ?? undefined, canWrite: handle.canWrite,
           // 首拆带分镜模式（图片/视频，动作卡上选，默认图片）；改方案不带——保留现方案每镜已定的 shotKind。
           ...(isRevision ? { currentPlan, revisionRequest } : { storyText, shotMode }),
@@ -218,7 +218,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         if (!handle.isCurrent()) return // 轮次已被切项目/新对话作废:别把旧项目内容写进新项目
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === assistantId ? { ...m, content: text || (status === 'cancelled' ? t('creationAi.stopped') : isRevision ? t('creationAi.revisionComplete') : t('creationAi.planComplete')), status: status === 'cancelled' ? 'cancelled' as const : 'done' as const } : m,
+            m.id === assistantId ? { ...m, content: status === 'cancelled' ? t('creationAi.stopped') : isRevision ? t('creationAi.revisionComplete') : t('creationAi.planComplete'), status: status === 'cancelled' ? 'cancelled' as const : 'done' as const } : m,
           ),
         )
       } catch (error: unknown) {

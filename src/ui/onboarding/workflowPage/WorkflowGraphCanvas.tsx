@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next'
 import { IconLayoutBoard, IconLayoutList, IconMaximize, IconMinus, IconPlus } from '@tabler/icons-react'
 import { resolveWheelIntent, useCanvasGestureScheme } from '../../../utils/canvasGesturePreference'
 import { cn } from '../../../utils/cn'
+import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { getWheelZoomFactor } from '../../../utils/wheelZoom'
 import {
   buildGraphGeometry,
@@ -333,7 +334,7 @@ function NodeList({
           const row = (
             <>
               <span className="w-14 shrink-0 font-nomi-mono text-micro text-nomi-ink-40">#{node.nodeId}</span>
-              <span className="min-w-0 flex-1 truncate text-caption text-nomi-ink">{node.title}</span>
+              <span className="min-w-0 flex-1 truncate text-caption text-nomi-ink">{translateModelDisplayText(node.title)}</span>
               <span className="hidden min-w-0 shrink-[2] truncate font-nomi-mono text-micro text-nomi-ink-40 sm:block">{node.classType}</span>
               {node.exposedCount > 0 ? (
                 <span className="shrink-0 rounded-full bg-nomi-accent-soft px-1.5 text-micro font-semibold text-nomi-accent">

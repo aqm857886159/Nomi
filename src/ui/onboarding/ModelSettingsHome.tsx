@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next'
 
 import type { Mapping } from '../../../electron/catalog/types'
 import { DesignButton, DesignSearchInput, NomiLoadingMark } from '../../design'
+import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 import { cn } from '../../utils/cn'
 import type { ChipModel } from './ModelChipGroups'
 import { useVendorHealth } from './useVendorHealth'
@@ -61,7 +62,7 @@ function ConnectionMark({ connection }: { connection: ModelSettingsHomeConnectio
   }
   return (
     <span className="grid size-7 shrink-0 place-items-center rounded-nomi-sm bg-nomi-ink-05 text-micro font-semibold text-nomi-ink-60">
-      {(connection.glyph || connection.name).trim().slice(0, 2).toUpperCase()}
+      {(connection.glyph || translateModelDisplayText(connection.name)).trim().slice(0, 2).toUpperCase()}
     </span>
   )
 }
@@ -155,6 +156,7 @@ function AvailableConnectionRow({
   badge?: string
   end?: string
 }): JSX.Element {
+  const displayName = translateModelDisplayText(connection.name)
   return (
     <button
       type="button"
@@ -165,7 +167,7 @@ function AvailableConnectionRow({
       <ConnectionMark connection={connection} />
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-2">
-          <span className="text-caption font-semibold text-nomi-ink">{title ?? connection.name}</span>
+          <span className="text-caption font-semibold text-nomi-ink">{title ?? displayName}</span>
           {badge ? (
             <span className="rounded-full bg-nomi-accent-soft px-2 py-0.5 text-micro font-semibold text-nomi-accent">
               {badge}
@@ -201,6 +203,7 @@ function ConnectedRow({
   onHealthChange: (vendorKey: string, unreachable: boolean) => void
 }): JSX.Element {
   const { t } = useTranslation()
+  const displayName = translateModelDisplayText(connection.name)
   const { connection: health } = useVendorHealth(connection.vendorKey, {
     hasApiKey: connection.hasApiKey ?? false,
     baseUrl: connection.baseUrl ?? '',
@@ -234,7 +237,7 @@ function ConnectedRow({
     >
       <ConnectionMark connection={connection} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-caption font-semibold text-nomi-ink">{connection.name}</span>
+        <span className="block truncate text-caption font-semibold text-nomi-ink">{displayName}</span>
         <span className="mt-0.5 block text-micro leading-relaxed text-nomi-ink-40">
           {connection.auxiliaryCounts
             ? t('antigravity.catalogSummary', { count: connection.models.length, ...connection.auxiliaryCounts })
@@ -270,7 +273,7 @@ function ConnectedRows({
   const normalizedSearch = search.trim().toLocaleLowerCase()
   const filtered = connections.filter((connection) => {
     if (!normalizedSearch) return true
-    return connection.name.toLocaleLowerCase().includes(normalizedSearch) || connection.models.some((model) => (
+    return `${connection.name} ${translateModelDisplayText(connection.name)}`.toLocaleLowerCase().includes(normalizedSearch) || connection.models.some((model) => (
       `${model.labelZh} ${model.modelKey}`.toLocaleLowerCase().includes(normalizedSearch)
     ))
   })
@@ -297,7 +300,7 @@ function availableHint(connection: ModelSettingsHomeConnection, t: ReturnType<ty
   if (connection.vendorKey === 'dreamina-member') return t('onboardingProviders.drawer.home.dreaminaHint')
   if (connection.vendorKey === 'codex-local') return t('onboardingProviders.drawer.home.codexImageHint')
   if (connection.vendorKey === 'antigravity-cli') return t('antigravity.subtitle')
-  return t('onboardingProviders.drawer.home.adaptedHint', { name: connection.name })
+  return t('onboardingProviders.drawer.home.adaptedHint', { name: translateModelDisplayText(connection.name) })
 }
 
 export function ModelSettingsHome({
@@ -394,7 +397,7 @@ export function ModelSettingsHome({
           <AvailableConnectionRow
             key={connection.vendorKey}
             connection={connection}
-            title={hasConnections ? t('onboardingProviders.drawer.home.connectPlatform', { name: connection.name }) : connection.name}
+            title={hasConnections ? t('onboardingProviders.drawer.home.connectPlatform', { name: translateModelDisplayText(connection.name) }) : undefined}
             hint={availableHint(connection, t)}
             badge={connection.vendorKey === 'apimart' ? t('onboardingProviders.drawer.home.recommended') : undefined}
             end={t('onboardingProviders.drawer.home.fillKey')}

@@ -480,7 +480,7 @@ export default function NodeParameterControls({
     ...arraySlots.map(
       (s): AssetSlot => ({
         key: s.metaKey,
-        label: s.label,
+        label: translateModelDisplayText(s.label),
         accept: s.accept,
         form: 'array',
         persistAsEdge: false,
@@ -493,7 +493,7 @@ export default function NodeParameterControls({
       ? [
           {
             key: sourceVideoSlot.metaKey,
-            label: sourceVideoSlot.label,
+            label: translateModelDisplayText(sourceVideoSlot.label),
             accept: 'video',
             form: 'single',
             persistAsEdge: false,

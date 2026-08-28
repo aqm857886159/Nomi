@@ -285,6 +285,13 @@ export function ComfyuiWorkflowSettingsPage({
     ? t('comfyuiWorkflowPage.preview.runNeedsOutput')
     : catalog.reachable === false
       ? t('comfyuiWorkflowPage.preview.runNeedsBackend')
+      : reconcile && reconcile.serverReachable && reconcile.missingEnumValues.length > 0
+        ? t('comfyuiWorkflowPage.preview.runNeedsMissing', {
+            count: reconcile.missingEnumValues.length,
+            names: reconcile.missingEnumValues.map((item) => item.value).join(', '),
+          })
+      : reconcile && reconcile.serverReachable && reconcile.unknownNodeTypes.length > 0
+        ? t('comfyuiWorkflowPage.preview.runNeedsNodes', { count: reconcile.unknownNodeTypes.length })
       : needsFrame
         ? t('comfyuiWorkflowPage.preview.runNeedsFrame')
         : null

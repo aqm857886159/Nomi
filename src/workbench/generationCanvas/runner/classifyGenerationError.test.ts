@@ -5,8 +5,20 @@ import { parseVendorErrorFromMessage, stripVendorErrorMarker } from './vendorErr
 import { desktopT } from '../../../../electron/i18n'
 import { describeAgentError } from '../../../../electron/ai/agentError'
 import { vendorStallError } from '../../../../electron/ai/aiSdkVendorError'
+import i18n from '../../../i18n'
 
 describe('classifyGenerationError — 已知分类', () => {
+  it('localizes the local missing-reference guard in English', async () => {
+    await i18n.changeLanguage('en')
+    try {
+      const r = classifyGenerationError('图生图缺少参考图：这次请求里没有任何图片可以发给模型。')
+      expect(r.reason).toBe('Image-to-image requires a reference image. Connect an image node, add a reference, or switch back to text-to-image')
+      expect(r.reason).not.toMatch(/图生图|参考图/)
+    } finally {
+      await i18n.changeLanguage('zh-CN')
+    }
+  })
+
   it('API Key 无效', () => {
     const r = classifyGenerationError('Error: 401 Unauthorized — invalid api key')
     expect(r.reason).toBe('API Key 无效')

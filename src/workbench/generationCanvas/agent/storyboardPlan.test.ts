@@ -30,25 +30,25 @@ describe('storyboardPlanToCreateNodesArgs', () => {
     const p = buildAnchorSheetPrompt({
       id: 'a', kind: 'character', name: '林夏', description: '齐肩黑发，红校服', carrier: 'visual', variants: ['成年', '童年'],
     })
-    expect(p).toContain('角色定妆参考卡')
+    expect(p).toContain('Character reference sheet')
     expect(p).toContain('林夏')
     expect(p).toContain('齐肩黑发')
-    expect(p).toContain('正面全身 A-Pose')
-    expect(p).toContain('变体行：成年、童年')
+    expect(p).toContain('full-body front A-pose')
+    expect(p).toContain('Variants: 成年, 童年')
   })
 
   it('场景卡提示词：含多角度（远景/近景/俯视），无变体则不出变体行', () => {
     const p = buildAnchorSheetPrompt({ id: 's', kind: 'scene', name: '天台', description: '夜晚霓虹', carrier: 'visual' })
-    expect(p).toContain('场景参考卡')
-    expect(p).toContain('远景 establishing')
-    expect(p).not.toContain('变体行')
+    expect(p).toContain('Environment reference sheet')
+    expect(p).toContain('distant establishing view')
+    expect(p).not.toContain('Variants:')
   })
 
   it('视觉锚落画布用定妆卡提示词 + 锁 GPT Image 2（defaultImageModelKey 注入）', () => {
     const { nodes } = storyboardPlanToCreateNodesArgs(PLAN, { defaultImageModelKey: 'gpt-image-2', defaultImageModeId: 'default' })
     const linxia = nodes.find((n) => n.clientId === 'a-linxia')
     expect(linxia?.modelKey).toBe('gpt-image-2')
-    expect(linxia?.prompt).toContain('角色定妆参考卡')
+    expect(linxia?.prompt).toContain('Character reference sheet')
     // 文本锚（风格）仍不建节点
     expect(nodes.some((n) => n.clientId === 'a-style')).toBe(false)
   })
@@ -449,8 +449,8 @@ describe('W2 圣经字段（static/dynamic 落 meta + 卡片 prompt 分区）', 
     expect(p).toContain('身份特征（跨镜保持一致）：鹅蛋脸、左眉一颗痣')
     expect(p).toContain('服装与状态：红色校服 / 雨夜披深蓝雨衣')
     // 仍是角色定妆卡骨架（多视图/身份锁没丢）。
-    expect(p).toContain('角色定妆参考卡')
-    expect(p).toContain('正面全身 A-Pose')
+    expect(p).toContain('Character reference sheet')
+    expect(p).toContain('full-body front A-pose')
   })
 
   it('buildAnchorSheetPrompt 无 static/dynamic 时退化到 description（旧行为不变）', () => {

@@ -6,15 +6,8 @@ import {
 
 export { DEFAULT_NODE_SIZE, NODE_KIND_LABEL } from './generationNodeKinds'
 
-export const EDGE_MODE_LABEL: Record<GenerationCanvasEdgeMode, string> = {
-  reference: '素材参考',
-  first_frame: '首帧',
-  last_frame: '尾帧',
-  style_ref: '风格',
-  character_ref: '角色',
-  composition_ref: '构图',
-}
-
+// 连接语义的**显示名**单源在 i18n(`generationCommon.canvas.edge.modes.*`);这里只留顺序,
+// 不再并存一份中文标签表(P1:显示名有了 i18n 这一个家,旧表同 commit 删掉)。
 export const EDGE_MODE_ORDER: GenerationCanvasEdgeMode[] = [
   'reference',
   'first_frame',

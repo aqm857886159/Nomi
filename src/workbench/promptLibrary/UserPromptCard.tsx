@@ -4,6 +4,7 @@ import { IconPlayerPlayFilled, IconPencil, IconTrash } from '@tabler/icons-react
 import { cn } from '../../utils/cn'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../design'
 import type { LibraryPrompt } from '../api/promptLibraryApi'
+import { isUntitledPrompt, promptDisplayTitle } from './promptDisplay'
 
 type Props = {
   prompt: LibraryPrompt
@@ -21,10 +22,7 @@ export const UserPromptCard = React.memo(function UserPromptCard({
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const isVideo = prompt.promptType === 'video'
-  const isUntitled =
-    prompt.title === '未命名提示词' ||
-    prompt.title === 'Untitled prompt' ||
-    prompt.title === t('libraries.prompt.card.unnamed')
+  const isUntitled = isUntitledPrompt(prompt.title)
 
   return (
     <Tooltip>
@@ -103,7 +101,7 @@ export const UserPromptCard = React.memo(function UserPromptCard({
         </div>
       </TooltipTrigger>
       <TooltipContent side="top" className="max-w-56 whitespace-normal leading-snug">
-        {prompt.title}
+        {promptDisplayTitle(prompt)}
       </TooltipContent>
     </Tooltip>
   )

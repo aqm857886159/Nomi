@@ -60,6 +60,7 @@ import {
   type ModelSettingsPage,
 } from './modelSettingsNavigation'
 import { useModelPageRequest, type ModelPageRequest } from './useModelPageRequest'
+import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 
 export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPageRequest } = {}): JSX.Element {
   const { t } = useTranslation()
@@ -275,7 +276,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
     <VendorOnboardCard
       key={card.directory.vendorKey}
       directory={card.directory}
-      vendorName={card.meta.name}
+      vendorName={translateModelDisplayText(card.meta.name)}
       baseUrl={card.meta.baseUrl}
       hasApiKey={card.meta.hasApiKey}
       models={card.vendorModels}
@@ -361,7 +362,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
     return (
       <KnownVendorKeyConnectPage
         directory={card.directory}
-        vendorName={card.meta.name}
+        vendorName={translateModelDisplayText(card.meta.name)}
         modelCount={card.vendorModels.length}
         onBack={goBack}
         onSaved={refresh}
@@ -383,7 +384,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       return (
         <ComfyuiLocalCard
           vendorKey={comfy.key}
-          instanceName={comfy.meta.name}
+          instanceName={translateModelDisplayText(comfy.meta.name)}
           enabled={comfy.meta.enabled}
           baseUrl={comfy.meta.baseUrl}
           models={comfy.models}

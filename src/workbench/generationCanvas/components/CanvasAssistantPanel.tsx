@@ -243,7 +243,7 @@ export default function CanvasAssistantPanel({
       {
         id: userMessageId,
         role: 'user',
-        content: options.displayMessage || text || '请看这些附件',
+        content: options.displayMessage || text || i18n.t('generationCommon.assistant.attachmentPrompt'),
         ...(readyAttachments.length ? { attachments: readyAttachments } : {}),
       },
       { id: firstBubbleId, role: 'assistant', content: '处理中...', status: 'pending' },
@@ -367,7 +367,7 @@ export default function CanvasAssistantPanel({
           history: launchHistory,
           capability: launchMode === 'chat' ? 'canvas-chat' : launchMode === 'refine' ? 'canvas-refine' : 'canvas-agent',
           canWrite: handle.canWrite,
-          message: text || '请看这些附件',
+          message: text || i18n.t('generationCommon.assistant.attachmentPrompt'),
           ...(attachmentPayload.length ? { attachments: attachmentPayload } : {}),
           snapshot,
           selectedNodes,

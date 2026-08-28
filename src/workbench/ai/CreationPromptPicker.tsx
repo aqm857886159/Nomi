@@ -61,6 +61,17 @@ export default function CreationPromptPicker({
   const modes = listCreationAiModes()
   const builtinModes = modes.filter((mode) => !mode.custom)
   const customModes = modes.filter((mode) => mode.custom)
+  const localizedMode = (mode: (typeof modes)[number]) => {
+    if (mode.custom) return mode
+    const key = `creationAi.mode.${mode.id}` as const
+    return {
+      ...mode,
+      label: t(`${key}.label`),
+      shortLabel: t(`${key}.short`),
+      title: t(`${key}.title`),
+      description: t(`${key}.description`),
+    }
+  }
 
   const refresh = React.useCallback(() => {
     try {
@@ -80,7 +91,7 @@ export default function CreationPromptPicker({
   const activeItem = activeSkill ? (skills.find((s) => s.name === activeSkill.key) ?? null) : null
   const activeMissing = activeItem ? skillCapabilityFor(activeItem, available).missing : []
   // chip 标签跟当前选择走（过去恒显「通用助手」，读起来像个静态徽标而不是选择器）。
-  const activeMode = modes.find((mode) => mode.id === modeId) ?? modes[0]
+  const activeMode = localizedMode(modes.find((mode) => mode.id === modeId) ?? modes[0])
   const chipLabel = activeSkill ? activeSkill.name : activeMode.shortLabel
   const chipActive = Boolean(activeSkill) || modeId !== 'general'
 
@@ -130,6 +141,7 @@ export default function CreationPromptPicker({
             {/* ── 提示词（内置）：全量 derive，不再手写条目 ── */}
             <div className="px-2 pt-1 pb-1.5 text-micro text-nomi-ink-40">{t('libraries.skill.groupPrompts')}</div>
             {builtinModes.map((mode) => {
+              const displayMode = localizedMode(mode)
               const selected = !activeSkill && modeId === mode.id
               return (
                 <button
@@ -141,9 +153,9 @@ export default function CreationPromptPicker({
                 >
                   <IconSparkles size={16} stroke={1.5} className="mt-0.5 shrink-0" />
                   <span className="flex-1 min-w-0">
-                    <span className="block font-medium">{mode.title}</span>
-                    {mode.description ? (
-                      <span className="block text-micro text-nomi-ink-60">{mode.description}</span>
+                    <span className="block font-medium">{displayMode.title}</span>
+                    {displayMode.description ? (
+                      <span className="block text-micro text-nomi-ink-60">{displayMode.description}</span>
                     ) : null}
                   </span>
                   {selected && <IconCheck size={15} stroke={1.8} className="mt-0.5 shrink-0" />}

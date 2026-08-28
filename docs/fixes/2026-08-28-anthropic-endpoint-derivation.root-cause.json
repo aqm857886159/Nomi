@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "id": "2026-08-28-anthropic-endpoint-derivation",
+  "problem_type": "provider protocol contract regression (endpoint derived for the wrong wire protocol)",
+  "symptom": "After connecting an Anthropic (Claude) provider, the onboarding connection check passed but nothing worked: every canvas agent turn failed with HTTP 404, and Settings → Models → 'Verify all again' hung until a 90s timeout and reported 'No capability passed verification / cannot be used on the canvas yet'.",
+  "direct_cause": "Two consumers derived the Anthropic endpoint incorrectly from the same stored vendor record. (1) buildAiSdkModel passed the stored base URL straight to @ai-sdk/anthropic's createAnthropic, whose baseURL must already carry the version segment (its default is https://api.anthropic.com/v1) and which appends only '/messages' — so requests went to {root}/messages and returned 404. (2) The built-in verification draft emitted an OpenAI chat operation ('/v1/chat/completions' with an OpenAI body) for every text model regardless of providerKind, so verification requests hit a path that does not exist on Anthropic and never succeeded before the 90s cap.",
+  "class_root": "The wire protocol was not treated as the thing that determines the request shape. A vendor record carries providerKind, and the onboarding probe honours it — but every other consumer re-derived the endpoint from its own assumption (the AI SDK's baseURL convention in one case, a hardcoded OpenAI contract in the other). Whenever endpoint, auth, and body are derived independently per call site instead of from the declared protocol, the paths silently disagree, and the one path that is right (the probe) masks the failure by reporting a healthy connection.",
+  "affected_population": [
+    "Every user who connects an Anthropic/Claude provider: the connection verifies, then all canvas agent turns fail with 404",
+    "The same users' model verification, which cannot pass for any Claude model and leaves every model badged as unusable",
+    "Any future first-party (non-OpenAI-shaped) protocol added to AiSdkProviderKind would hit the identical failure in both consumers"
+  ],
+  "scope_paths": [
+    "electron/ai/buildAiSdkModel.ts",
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts"
+  ],
+  "entry_points": [
+    "buildAiSdkModel — the runtime path that builds the language model for every canvas agent turn and every generation request",
+    "buildOpenAiCompatibleDraft / modesForKind — the built-in verification draft used by the provider-adapter 'testing' stage",
+    "onboardingIpc.probeOneProtocol — the third consumer, already correct; it is the reference for what the stored base URL means (host root, with '/v1/messages' appended by the caller)"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/vercel/ai",
+      "checked_at": "2026-08-28",
+      "purpose": "Confirm @ai-sdk/anthropic@1.2.12 defaults baseURL to 'https://api.anthropic.com/v1' and appends only '/messages', so the version segment must be part of baseURL. Verified against the installed dist in node_modules rather than from memory."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://platform.claude.com/docs/en/api/errors.md",
+      "checked_at": "2026-08-28",
+      "purpose": "Confirm the Messages endpoint is POST /v1/messages with x-api-key and anthropic-version, that max_tokens is required, and that 404 indicates an invalid endpoint or model ID rather than an auth failure (auth failures are 401)."
+    }
+  ],
+  "invariants": [
+    "A vendor's providerKind determines endpoint, auth scheme, and body shape at every consumer; no consumer hardcodes one protocol's contract for a model whose vendor declares another.",
+    "The stored base URL means the host root. Consumers that hand it to a client expecting a versioned base normalize it first, and normalization is idempotent — a base already ending in a version segment is never re-suffixed.",
+    "The built-in verification draft exercises the same endpoint and auth the runtime will use, so a passing verification implies a working runtime call rather than merely a reachable host."
+  ],
+  "regression_tests": [
+    "electron/ai/anthropicBaseUrl.test.ts",
+    "electron/ai/buildAiSdkModel.test.ts",
+    "electron/providerAdapter/anthropicChatDraft.test.ts"
+  ],
+  "migration": "No stored data is rewritten. Existing catalogs already hold the host-root form, so both fixes normalize on read: saved Claude connections start working without being re-added and without the API key being re-entered. buildAiSdkModel.test.ts previously asserted that a base without '/v1' routes to '/messages' — that assertion had pinned the defect as the contract and is corrected to '/v1/messages'; the '/v1'-suffixed row is unchanged and still proves no double-suffixing.",
+  "residual_risks": [
+    "A separate 'Model verification timed out after 90000 ms' was observed before this fix. The timeout is consistent with verification requests never succeeding against the wrong endpoint, but it was not reproduced end to end after the fix — if verification still times out with the correct endpoint, the timeout has an independent cause in the provider-adapter testing stage that this contract does not cover.",
+    "openai-responses shares the same per-call-site derivation shape and was not changed here; it was already correct for its own contract, but it is not covered by the new protocol-branch test beyond the negative case asserting the OpenAI path is unaffected.",
+    "Anthropic model availability per API key is not validated. A key without access to a given model still returns 404 from Anthropic itself, which is indistinguishable in the UI from the endpoint bug this contract fixes."
+  ]
+}

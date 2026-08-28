@@ -2,6 +2,8 @@
 // 纯模型:per-project × per-area 的「活动线程 + 归档线程」,是对话气泡的唯一真相源。
 // messages 仍由面板经 store 写入(流式),接线层(conversationPersistence)把 store 变化
 // 同步进活动线程;本模块只管线程结构 / 标题派生 / 序列化与迁灌,不碰 React/store。
+import i18n from '../../i18n'
+
 import type { WorkbenchAiMessage } from './workbenchAiTypes'
 import type { PersistedConversationArea, PersistedThread } from '../../desktop/bridge'
 
@@ -71,7 +73,7 @@ export function deriveThreadTitle(messages: readonly WorkbenchAiMessage[]): stri
 export function threadDisplayTitle(thread: ConversationThread): string {
   if (thread.title.trim()) return thread.title.trim()
   const derived = deriveThreadTitle(thread.messages)
-  return derived || '新对话'
+  return derived || i18n.t('generationCommon.assistant.newConversation')
 }
 
 function getActive(area: AreaModel): ConversationThread {
