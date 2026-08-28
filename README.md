@@ -132,7 +132,7 @@ pnpm run gates
 Bug reports, feature proposals, documentation, and code contributions are welcome. External contributors sign the one-time [Contributor License Agreement](CLA.md) when a pull request is opened.
 
 - [Report a bug](https://github.com/aqm857886159/Nomi/issues/new?template=bug_report.yml)
-- [Request a feature](https://github.com/aqm857886159/Nomi/issues/new?template=feedback.yml)
+- [Request a feature](https://github.com/aqm857886159/Nomi/issues/new?template=feature_request.yml)
 - [Ask a question or share an idea](https://github.com/aqm857886159/Nomi/issues)
 
 ## License
