@@ -250,6 +250,21 @@
       "reason": "ProjectAgentHost 对 Thread/Turn/Item/Queue 本地记录生命周期的 neutral shared owner；状态转换、持久化校验和 main/renderer 合同全部从此 tuple 派生，retryable 与 deviated 保持正交，且该记录状态不复制 ProductionRun 或外部 Task truth。"
     },
     {
+      "site": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts::type:ProjectAgentExecutionCoordinatorDeps/property:reportInternalError/parameter:context/property:phase/type-union",
+      "members": ["start", "terminalize-runtime-failure"],
+      "reason": "ExecutionCoordinator 的内部错误诊断阶段：start 表示启动/恢复执行时失败，terminalize-runtime-failure 表示运行时错误后的终态落盘失败；它只标记诊断上下文，不是 turn 或 task 生命周期。"
+    },
+    {
+      "site": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts::type:SubscriptionDelivery/property:phase/type-union",
+      "members": ["activating", "live", "pre-live"],
+      "reason": "SubscriptionDelivery 的订阅投递握手状态：pre-live 缓冲快照后的事件，activating 正在补齐待决通知，live 才向监听器发布实时事件；它保护订阅时序，不复制 Host turn 状态。"
+    },
+    {
+      "site": "electron/shared/projectAgentProposalReceipt.ts::variable:PROJECT_AGENT_PROPOSAL_RECEIPT_LIFECYCLES/as-const",
+      "members": ["committed", "preparing", "undoing", "undone"],
+      "reason": "ProjectAgent proposal receipt 的跨进程持久化生命周期 canonical tuple：preparing/committed 表示写入与提交，undoing/undone 表示补偿事务；写入与转换合同均从此 owner 派生，不等同于 Host approval reference 生命周期。"
+    },
+    {
       "site": "electron/shared/videoCapabilities/types.ts::type:ArchetypeExpressionChannel/property:status/type-union",
       "members": ["documented", "unknown", "unsupported"],
       "reason": "ArchetypeExpressionChannel.status 描述视频能力证据的覆盖度：documented 有来源证据，unsupported 明确不支持，unknown 尚无结论；它驱动规划时是否采用表达通道，不是任务执行状态。"

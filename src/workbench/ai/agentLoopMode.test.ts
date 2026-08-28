@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const runWorkbenchAgent = vi.fn(async () => ({
+const runWorkbenchAgent = vi.fn(async (..._args: unknown[]) => ({
   id: 'turn-a',
   status: 'finished' as const,
   text: 'ok',
@@ -60,7 +60,7 @@ describe('runSingleShotAgent', () => {
       skillName: 'shot verify',
       attachments,
     })
-    const input = runWorkbenchAgent.mock.calls[0][0]
+    const input = runWorkbenchAgent.mock.calls[0]?.[0] as Record<string, unknown>
     expect(input).not.toHaveProperty('projectId')
     expect(input.attachments).toEqual(attachments)
   })

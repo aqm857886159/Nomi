@@ -26,6 +26,11 @@ function readAssetUrl(asset: { data?: Record<string, unknown> }): string {
   return typeof url === 'string' ? url : ''
 }
 
+function readAssetContentHash(asset: { data?: Record<string, unknown> }): string {
+  const contentHash = asset?.data?.contentHash
+  return typeof contentHash === 'string' ? contentHash : ''
+}
+
 export type UseComposerAttachments = {
   isDragging: boolean
   openFilePicker: () => void
@@ -59,14 +64,22 @@ export function useComposerAttachments(opts: {
     try {
       const asset = await importWorkbenchLocalAssetFile(file)
       const url = readAssetUrl(asset)
-      if (!url) throw new Error(i18n.t('runtime.attachments.uploadNoUrl'))
+      const contentHash = readAssetContentHash(asset)
+      if (!asset.id || !url || !contentHash) throw new Error(i18n.t('runtime.attachments.uploadNoUrl'))
       setAttachments((prev) =>
         prev.map((item) => {
           if (item.id !== id) return item
           if (item.previewUrl) {
             try { URL.revokeObjectURL(item.previewUrl) } catch { /* noop */ }
           }
-          return { ...item, status: 'ready', url, previewUrl: undefined }
+          return {
+            ...item,
+            status: 'ready',
+            assetId: asset.id,
+            contentHash,
+            url,
+            previewUrl: undefined,
+          }
         }),
       )
     } catch (caught: unknown) {

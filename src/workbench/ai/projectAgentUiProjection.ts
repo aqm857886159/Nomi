@@ -1,11 +1,12 @@
 import type {
   ProjectAgentHostState,
   ProjectAgentItem,
+  ProjectAgentQueueItem,
   ProjectAgentStatus,
+  ProjectAgentTurn,
 } from '../../../electron/shared/projectAgentContracts'
 import type { WorkbenchAiMessage } from './workbenchAiTypes'
-import { useWorkbenchStore } from '../workbenchStore'
-import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+import { composerAttachmentsFromProjectAgentRefs } from './projectAgentAttachments'
 
 function uiStatus(status: ProjectAgentStatus): WorkbenchAiMessage['status'] {
   switch (status) {
@@ -25,33 +26,54 @@ function uiStatus(status: ProjectAgentStatus): WorkbenchAiMessage['status'] {
   }
 }
 
-function itemMessage(item: ProjectAgentItem): WorkbenchAiMessage | null {
+function itemMessage(
+  item: ProjectAgentItem,
+  turn: ProjectAgentTurn | undefined,
+  queueItem: ProjectAgentQueueItem | undefined,
+): WorkbenchAiMessage | null {
+  const base = { id: item.itemId, turnId: item.turnId }
   switch (item.kind) {
     case 'user':
-      return { id: item.itemId, role: 'user', content: item.text, status: uiStatus(item.status) }
+      return {
+        ...base,
+        role: 'user',
+        content: item.text,
+        status: uiStatus(item.status),
+        ...(queueItem?.attachmentRefs.length
+          ? { attachments: composerAttachmentsFromProjectAgentRefs(queueItem.attachmentRefs) }
+          : {}),
+      }
     case 'assistant':
-      return { id: item.itemId, role: 'assistant', content: item.text, status: uiStatus(item.status) }
+      return {
+        ...base,
+        role: 'assistant',
+        content: item.text,
+        status: uiStatus(item.status),
+        ...(turn?.skillVersions.some((skill) => skill.id === 'workbench.storyboard.planner')
+          ? { storyboardPlan: true as const }
+          : {}),
+      }
     case 'tool':
       return {
-        id: item.itemId,
+        ...base,
         role: 'tool',
         content: item.text ?? `[${item.capability.id}]`,
         status: uiStatus(item.status),
       }
     case 'failure':
-      return { id: item.itemId, role: 'assistant', content: item.message, status: 'error' }
+      return { ...base, role: 'assistant', content: item.message, status: 'error' }
     case 'artifact':
       return {
-        id: item.itemId,
+        ...base,
         role: 'assistant',
         content: `artifact:${item.artifact.artifactId}`,
         status: uiStatus(item.status),
       }
     case 'task':
-      return { id: item.itemId, role: 'assistant', content: `task:${item.task.runId}`, status: 'done' }
+      return { ...base, role: 'assistant', content: `task:${item.task.runId}`, status: 'done' }
     case 'proposal':
       return {
-        id: item.itemId,
+        ...base,
         role: 'assistant',
         content: item.approval ? `approval:${item.approval.approvalId}` : `approval:${item.humanApproval.challengeId}`,
         status: uiStatus(item.status),
@@ -66,23 +88,28 @@ export function projectAgentThreadMessages(
 ): WorkbenchAiMessage[] {
   if (!threadId || !state.threads.some((thread) => thread.threadId === threadId)) return []
   const turnOrder = new Map(state.turns.map((turn, index) => [turn.turnId, index]))
+  const itemOrder = new Map(state.items.map((item, index) => [item.itemId, index]))
+  const turns = new Map(state.turns.map((turn) => [turn.turnId, turn]))
+  const queueItems = new Map(state.queue.map((item) => [item.turnId, item]))
+  const failureTurnIds = new Set(
+    state.items.filter((item) => item.kind === 'failure').map((item) => item.turnId),
+  )
   return state.items
     .filter((item) => item.threadId === threadId)
+    .filter(
+      (item) =>
+        item.kind !== 'assistant' ||
+        item.status !== 'failed' ||
+        !failureTurnIds.has(item.turnId),
+    )
     .sort(
       (left, right) =>
         (turnOrder.get(left.turnId) ?? 0) - (turnOrder.get(right.turnId) ?? 0) ||
         left.createdAt.localeCompare(right.createdAt) ||
-        left.itemId.localeCompare(right.itemId),
+        (itemOrder.get(left.itemId) ?? 0) - (itemOrder.get(right.itemId) ?? 0),
     )
-    .map(itemMessage)
+    .map((item) => itemMessage(item, turns.get(item.turnId), queueItems.get(item.turnId)))
     .filter((message): message is WorkbenchAiMessage => message !== null)
-}
-
-/** Keeps the existing panel render adapters in lockstep with the Host snapshot. */
-export function installProjectAgentSnapshotToUi(state: ProjectAgentHostState): void {
-  const messages = projectAgentThreadMessages(state)
-  useWorkbenchStore.getState().setCreationAiMessages(messages)
-  useGenerationCanvasStore.getState().setGenerationAiMessages(messages)
 }
 
 export function projectAgentActiveThreadId(state: ProjectAgentHostState): string | null {

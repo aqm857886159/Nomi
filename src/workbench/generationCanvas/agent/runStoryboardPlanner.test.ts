@@ -50,9 +50,20 @@ beforeEach(() => {
 
 describe('storyboard planner scope and projection', () => {
   it('inline planner inherits the creation thread and grants only storyboard capability', async () => {
-    const input = { ...base(), skill: { key: 'brand.promo', name: 'custom method' } }
+    const input = {
+      ...base(),
+      turnId: 'turn-creation-preallocated',
+      displayPrompt: '拆成镜头',
+      skill: { key: 'brand.promo', name: 'custom method' },
+    }
     await runStoryboardPlanner(input)
-    expect(deps.send.mock.calls[0][0]).toMatchObject({ history, projectId: 'A', capability: 'storyboard' })
+    expect(deps.send.mock.calls[0][0]).toMatchObject({
+      turnId: input.turnId,
+      displayMessage: input.displayPrompt,
+      history,
+      projectId: 'A',
+      capability: 'storyboard',
+    })
   })
 
   it('fails closed if a main-owned read unexpectedly reaches the creation renderer callback', async () => {
@@ -65,6 +76,8 @@ describe('storyboard planner scope and projection', () => {
     const confirm = vi.fn(async (_decision: unknown) => {})
     deps.send.mockImplementation(async (input: { onToolCall: (event: ToolCallEvent) => void | Promise<void> }) => {
       await input.onToolCall({
+        turnId: 'turn-storyboard-test',
+        executionToken: 'execution-storyboard-test',
         toolCallId: 'read-live',
         toolName: CANVAS_READ_CAPABILITY.aliases.pi,
         args: {},
@@ -96,6 +109,8 @@ describe('storyboard planner scope and projection', () => {
     deps.send.mockImplementation(async (input: { onToolCall: (event: ToolCallEvent) => void | Promise<void> }) => {
       deps.activeProjectId = 'B'
       await input.onToolCall({
+        turnId: 'turn-storyboard-test',
+        executionToken: 'execution-storyboard-test',
         toolCallId: 'read-captured',
         toolName: CANVAS_READ_CAPABILITY.aliases.pi,
         args: {},
@@ -138,6 +153,8 @@ describe('storyboard planner scope and projection', () => {
     deps.send.mockImplementation(async (input: { onToolCall: (event: ToolCallEvent) => void | Promise<void> }) => {
       deps.uiTitle = 'project B after async switch'
       await input.onToolCall({
+        turnId: 'turn-storyboard-test',
+        executionToken: 'execution-storyboard-test',
         toolCallId: 'proposal',
         toolName: 'propose_storyboard_plan',
         args: plan,
@@ -179,6 +196,8 @@ describe('storyboard planner scope and projection', () => {
     deps.send.mockImplementation(async (input: { onToolCall: (event: ToolCallEvent) => void | Promise<void> }) => {
       writable = false
       await input.onToolCall({
+        turnId: 'turn-storyboard-test',
+        executionToken: 'execution-storyboard-test',
         toolCallId: 'late-plan',
         toolName: 'propose_storyboard_plan',
         args: plan,

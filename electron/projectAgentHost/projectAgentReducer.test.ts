@@ -716,6 +716,113 @@ describe("ProjectAgentHost reducer identity and exactly-once boundary", () => {
 });
 
 describe("ProjectAgentHost turn serialization and async re-entry", () => {
+  it("recovers an orphaned execution and its failure evidence in one idempotent reduction", () => {
+    for (const orphanStatus of ["queued", "running", "proposed"] as const) {
+      let seeded = reduceProjectAgentMutation(createInitialProjectAgentState(binding), enqueueMutation());
+      if (orphanStatus !== "queued") {
+        seeded = reduceProjectAgentMutation(
+          seeded.state,
+          startMutation(`command-start-recovery-${orphanStatus}`, "turn-a", seeded.state.hostRevision),
+        );
+      }
+      if (orphanStatus === "proposed") {
+        const approval = {
+          ref: {
+            approvalId: "approval-recovery",
+            threadId: "thread-a",
+            turnId: "turn-a",
+            toolCallId: "tool-recovery",
+            actionHash: "action-recovery",
+            target,
+            preconditions,
+            expiresAt: "2026-08-29T00:00:00.000Z",
+          },
+          lifecycle: "pending",
+        } as const;
+        seeded = reduceProjectAgentMutation(seeded.state, {
+          commandId: "command-proposal-recovery",
+          expectedRevision: seeded.state.hostRevision,
+          binding,
+          sender: { kind: "internal", senderId: "executor" },
+          type: "proposal.put",
+          payload: {
+            approval,
+            item: {
+              itemId: "proposal-recovery",
+              threadId: "thread-a",
+              turnId: "turn-a",
+              kind: "proposal",
+              approval: approval.ref,
+              status: "proposed",
+              retryable: false,
+              deviated: false,
+              createdAt: now,
+              updatedAt: now,
+            },
+            occurredAt: now,
+          },
+        });
+      }
+      const recovery = {
+        commandId: `command-recover-${orphanStatus}`,
+        expectedRevision: seeded.state.hostRevision,
+        binding,
+        sender: { kind: "internal" as const, senderId: "execution-recovery" },
+        type: "execution.recover" as const,
+        payload: {
+          turnId: "turn-a",
+          failure: {
+            itemId: "failure-recovery-turn-a",
+            threadId: "thread-a",
+            turnId: "turn-a",
+            kind: "failure" as const,
+            code: "execution_recovery_required",
+            message: "The previous Agent process ended before this turn completed.",
+            status: "failed" as const,
+            retryable: true,
+            deviated: false,
+            createdAt: "2026-08-28T00:00:01.000Z",
+            updatedAt: "2026-08-28T00:00:01.000Z",
+          },
+          recoveredAt: "2026-08-28T00:00:01.000Z",
+        },
+      } as ProjectAgentMutation;
+
+      const recovered = reduceProjectAgentMutation(seeded.state, recovery);
+      expect(recovered.state.hostRevision).toBe(seeded.state.hostRevision + 1);
+      expect(recovered.state.turns[0]).toMatchObject({ status: "failed", retryable: true });
+      expect(recovered.state.queue[0]).toMatchObject({ status: "failed", retryable: true });
+      expect(recovered.state.items.filter((item) => item.kind === "failure")).toHaveLength(1);
+      expect(recovered.patch?.changes).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ kind: "turn-upserted", turn: expect.objectContaining({ status: "failed" }) }),
+          expect.objectContaining({ kind: "queue-upserted", queueItem: expect.objectContaining({ status: "failed" }) }),
+          expect.objectContaining({ kind: "item-upserted", item: expect.objectContaining({ kind: "failure" }) }),
+        ]),
+      );
+      expect(
+        recovered.state.items.filter(
+          (item) => item.turnId === "turn-a" && (item.kind === "assistant" || item.kind === "proposal"),
+        ),
+      ).toEqual(expect.arrayContaining(recovered.state.items.filter(
+        (item) => item.turnId === "turn-a" && (item.kind === "assistant" || item.kind === "proposal"),
+      ).map((item) => expect.objectContaining({ itemId: item.itemId, status: "failed" }))));
+      expect(recovered.state.proposalApprovals.filter((approval) => approval.lifecycle === "pending")).toEqual([]);
+
+      const replayed = reduceProjectAgentMutation(recovered.state, recovery);
+      expect(replayed.replayed).toBe(true);
+      expect(replayed.state.hostRevision).toBe(recovered.state.hostRevision);
+      expect(replayed.state.items.filter((item) => item.kind === "failure")).toHaveLength(1);
+      expect(() =>
+        reduceProjectAgentMutation(seeded.state, {
+          ...recovery,
+          commandId: `renderer-recover-${orphanStatus}`,
+          sender: { kind: "renderer", senderId: "renderer-a" },
+        }),
+      ).toThrowError(expect.objectContaining<Partial<ProjectAgentReducerError>>({ code: "invalid_mutation" }));
+    }
+  });
+
   it("serializes concurrent dispatch per project, so only one same-revision command wins", async () => {
     const reducer = createProjectAgentSerialReducer(createInitialProjectAgentState(binding));
     const first = reducer.dispatch(enqueueMutation("command-a", "turn-a"));

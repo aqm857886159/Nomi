@@ -2,6 +2,7 @@ import type { AgentAttachmentPayload, AgentsChatResponseDto } from '../../../api
 import { runWorkbenchAgent, type RunWorkbenchAgentInput, type ToolCallEvent } from '../../ai/workbenchAgentRunner'
 import type { AgentChatCapability, AgentChatHistory } from '../../../../electron/harness/agentChatContracts'
 import type { CapturedCanvasReadSnapshotHandleWire } from '../../../../electron/shared/surfacePortBinding'
+import type { ProjectAgentAttachmentClaim } from '../../../../electron/shared/projectAgentContracts'
 import { assertTurnCanWrite } from '../../ai/agentTurnLifecycle'
 import type { GenerationCanvasSnapshot, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { getAgentCreatableGenerationNodeKinds } from '../model/generationNodeKinds'
@@ -17,7 +18,10 @@ import { captureCurrentProjectCanvasReadSurfaceBinding } from '../../project/pro
 export type { ToolCallEvent } from '../../ai/workbenchAgentRunner'
 
 type SendGenerationCanvasAgentMessageBase = {
+  turnId?: string
   message: string
+  /** Concise user-facing transcript text when message contains runtime instructions/context. */
+  displayMessage?: string
   selectedNodes: GenerationCanvasNode[]
   projectId?: string
   history: AgentChatHistory
@@ -55,6 +59,7 @@ type SendGenerationCanvasAgentMessageBase = {
   onCancelReady?: (cancel: () => void) => void
   /** 待发附件（图片/PDF 走原生多模态；文档抽文本）。透传给共享 runWorkbenchAgent。 */
   attachments?: AgentAttachmentPayload[]
+  attachmentClaims?: readonly ProjectAgentAttachmentClaim[]
 }
 
 type SendGenerationCanvasAgentMessageInput = SendGenerationCanvasAgentMessageBase & (
@@ -182,9 +187,10 @@ export async function sendGenerationCanvasAgentMessage(
   const staticSystemPrompt = buildStaticAgentSystemPrompt(input.mode)
 
   const response = await runWorkbenchAgent({
+    ...(input.turnId ? { turnId: input.turnId } : {}),
     prompt,
     ...(input.buildPrompt ? {} : { systemPrompt: staticSystemPrompt }),
-    displayPrompt: input.message,
+    displayPrompt: input.displayMessage ?? input.message,
     history: input.history,
     capability: input.capability,
     projectId: input.projectId,
@@ -196,6 +202,7 @@ export async function sendGenerationCanvasAgentMessage(
     skillKey: input.skill?.key || 'workbench.generation.canvas-planner',
     skillName: input.skill?.name || '生成区节点规划',
     ...(input.attachments?.length ? { attachments: input.attachments } : {}),
+    ...(input.attachmentClaims?.length ? { attachmentClaims: input.attachmentClaims } : {}),
     onContent: input.onContent,
     onCancelReady: input.onCancelReady,
     onToolCall: input.onToolCall,

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentsChatResponseDto } from '../../api/desktopClient'
 import type {
   ProjectAgentExecutionEvent,
+  ProjectAgentExecutionEventPayload,
   ProjectAgentHostState,
   ProjectAgentStatus,
 } from '../../../electron/shared/projectAgentContracts'
@@ -104,8 +105,13 @@ function publish(snapshot: ProjectAgentHostState): void {
   for (const listener of deps.stateListeners) listener()
 }
 
-function emit(event: ProjectAgentExecutionEvent): void {
-  for (const listener of deps.eventListeners) listener(event)
+function emit(event: ProjectAgentExecutionEventPayload): void {
+  const transportEvent = {
+    ...event,
+    subscriptionId: 'subscription-a',
+    subscriptionEpoch: 1,
+  } as ProjectAgentExecutionEvent
+  for (const listener of deps.eventListeners) listener(transportEvent)
 }
 
 function response(overrides: Partial<AgentsChatResponseDto> = {}): AgentsChatResponseDto {
@@ -193,12 +199,16 @@ describe('Project Agent workbench compatibility runner', () => {
 
   it('claims a confirmation synchronously so duplicate approvals cannot cross IPC', async () => {
     const calls: ToolCallEvent[] = []
-    const running = runWorkbenchAgent({ ...baseInput, onToolCall: (call) => calls.push(call) })
+    const running = runWorkbenchAgent({ ...baseInput, onToolCall: (call) => { calls.push(call) } })
     const turnId = deps.enqueue.mock.calls[0][0].turnId
+    const assistantTextAnchor = Object.freeze({ itemId: 'assistant-a', textOffset: 12 })
     emit({
       type: 'tool-call', binding, turnId, executionToken: 'execution-a',
       toolCallId: 'call-a', toolName: 'set_node_prompt', args: { nodeId: 'node-a' },
+      assistantTextAnchor,
     })
+    expect(calls[0]).toMatchObject({ turnId, assistantTextAnchor })
+    expect(calls[0].assistantTextAnchor).toBe(assistantTextAnchor)
     const first = calls[0].confirm({ ok: true, result: { applied: true } })
     const second = calls[0].confirm({ ok: true })
     await first
@@ -210,7 +220,7 @@ describe('Project Agent workbench compatibility runner', () => {
 
   it('makes an obsolete same-ID callback unable to settle its replacement', async () => {
     const calls: ToolCallEvent[] = []
-    const running = runWorkbenchAgent({ ...baseInput, onToolCall: (call) => calls.push(call) })
+    const running = runWorkbenchAgent({ ...baseInput, onToolCall: (call) => { calls.push(call) } })
     const turnId = deps.enqueue.mock.calls[0][0].turnId
     const event = {
       type: 'tool-call' as const, binding, turnId, executionToken: 'execution-a',
@@ -232,7 +242,7 @@ describe('Project Agent workbench compatibility runner', () => {
     let cancel!: () => void
     const running = runWorkbenchAgent({
       ...baseInput,
-      onToolCall: (call) => calls.push(call),
+      onToolCall: (call) => { calls.push(call) },
       onCancelReady: (next) => { cancel = next },
     })
     const turnId = deps.enqueue.mock.calls[0][0].turnId
@@ -251,7 +261,7 @@ describe('Project Agent workbench compatibility runner', () => {
   it('expires failed tool cards from the terminal runtime result and cleans both subscriptions', async () => {
     const calls: ToolCallEvent[] = []
     const onToolError = vi.fn()
-    const running = runWorkbenchAgent({ ...baseInput, onToolCall: (call) => calls.push(call), onToolError })
+    const running = runWorkbenchAgent({ ...baseInput, onToolCall: (call) => { calls.push(call) }, onToolError })
     const turnId = deps.enqueue.mock.calls[0][0].turnId
     emit({
       type: 'tool-call', binding, turnId, executionToken: 'execution-a',

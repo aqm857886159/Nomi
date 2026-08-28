@@ -6,7 +6,6 @@ import type {
 } from '../../../electron/shared/projectAgentContracts'
 import { projectAgentClient } from './projectAgentClient'
 import { projectAgentProjectionStore } from './projectAgentProjectionStore'
-import { installProjectAgentSnapshotToUi } from './projectAgentUiProjection'
 
 function currentSnapshot(): ProjectAgentHostState {
   const snapshot = projectAgentProjectionStore.getState().snapshot
@@ -34,7 +33,6 @@ async function dispatch(type: ProjectAgentMutationType, payload: unknown): Promi
     payload,
   })
   projectAgentProjectionStore.applySnapshot(result.state)
-  installProjectAgentSnapshotToUi(result.state)
   return result.state
 }
 

@@ -10,7 +10,19 @@ vi.mock("../projects/repository", () => ({
   sanitizeName: (value: unknown, fallback = "Untitled") => String(value || "").trim() || fallback,
 }));
 
-const { listProjectAssets, writeAsset, writeDeterministicAsset } = await import("./projectAssetStore");
+const assetStore = await import("./projectAssetStore");
+const { listProjectAssets, writeAsset, writeDeterministicAsset } = assetStore;
+const resolveProjectAgentAttachmentClaims = (assetStore as unknown as {
+  resolveProjectAgentAttachmentClaims?: (
+    projectId: string,
+    claims: readonly unknown[],
+  ) => readonly {
+    assetId: string;
+    contentHash: string;
+    version: number;
+    display: { url: string; fileName: string; contentType: string; sizeBytes: number; kind: "image" | "file" };
+  }[];
+}).resolveProjectAgentAttachmentClaims;
 
 beforeEach(() => {
   fs.rmSync(path.join(projectRoot, "assets"), { recursive: true, force: true });
@@ -40,11 +52,12 @@ describe("writeAsset canonical media filename", () => {
   it("returns the same stable identity that a later project listing reads", () => {
     const result = writeAsset("project-1", Buffer.from("stable-image"), "stable.png", "image/png", { kind: "imported" }) as {
       id?: string;
-      data?: { relativePath?: string };
+      data?: { relativePath?: string; contentHash?: string };
     };
 
     const listed = listProjectAssets({ projectId: "project-1", limit: 20 }).items.find((entry) => entry.data.relativePath === result.data?.relativePath);
     expect(listed?.id).toBe(result.id);
+    expect(result.data?.contentHash).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it("sniffs an octet-stream video before selecting its stored extension", () => {
@@ -94,5 +107,38 @@ describe("writeAsset canonical media filename", () => {
     try {
       expect(() => writeDeterministicAsset("project-1", Buffer.from("generated"), "result.jpg", "image/jpeg", { kind: "generated" }, "task-2")).toThrow("sidecar unavailable");
     } finally { write.mockRestore(); }
+  });
+});
+
+describe("Project Agent attachment authority", () => {
+  it("P2B-ASSET-002 resolves immutable metadata and a safe display URL from stored bytes", () => {
+    expect(resolveProjectAgentAttachmentClaims).toBeTypeOf("function");
+    const stored = writeAsset("project-1", Buffer.from("trusted-bytes"), "reference.png", "image/png", {
+      kind: "imported",
+    }) as { id: string; data: { contentHash: string } };
+
+    expect(resolveProjectAgentAttachmentClaims!("project-1", [{ assetId: stored.id, version: 1 }])).toEqual([
+      expect.objectContaining({
+        assetId: stored.id,
+        contentHash: stored.data.contentHash,
+        version: 1,
+        display: expect.objectContaining({
+          url: expect.stringMatching(/^nomi-local:\/\/asset\/project-1\//),
+          fileName: "reference.png",
+          contentType: "image/png",
+          sizeBytes: 13,
+          kind: "image",
+        }),
+      }),
+    ]);
+  });
+
+  it.each([
+    ["P2B-ASSET-003 forged renderer metadata", { assetId: "asset-a", version: 1, contentHash: "f".repeat(64), url: "file:///tmp/escape" }],
+    ["P2B-ASSET-004 stale version", { assetId: "asset-a", version: 2 }],
+    ["P2B-ASSET-005 missing or cross-project identity", { assetId: "asset-missing", version: 1 }],
+  ])("rejects %s", (_id, claim) => {
+    expect(resolveProjectAgentAttachmentClaims).toBeTypeOf("function");
+    expect(() => resolveProjectAgentAttachmentClaims!("project-1", [claim])).toThrow("project_agent_attachment_invalid");
   });
 });

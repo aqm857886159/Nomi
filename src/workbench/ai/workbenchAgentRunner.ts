@@ -7,6 +7,8 @@ import type {
 } from '../../../electron/harness/agentChatContracts'
 import type {
   ProjectAgentExecutionEvent,
+  ProjectAgentAttachmentClaim,
+  ProjectAgentAssistantTextAnchor,
   ProjectAgentHostState,
   ProjectAgentStatus,
 } from '../../../electron/shared/projectAgentContracts'
@@ -27,9 +29,15 @@ import { useAgentUsageStore } from './agentUsageStore'
 export { workbenchSessionKey, type WorkbenchAgentArea } from './agentSessionKey'
 
 export type ToolCallEvent = {
+  turnId: string
+  /** Host transport identity used by non-semantic panel registries. */
+  subscriptionId?: string
+  subscriptionEpoch?: number
+  executionToken?: string
   toolCallId: string
   toolName: string
   args: unknown
+  assistantTextAnchor?: ProjectAgentAssistantTextAnchor
   isPending: () => boolean
   confirm: (decision: AgentChatToolDecision) => Promise<void>
 }
@@ -43,6 +51,7 @@ export type ProjectAgentToolError = {
 }
 
 export type RunWorkbenchAgentInput = {
+  turnId?: string
   prompt: string
   systemPrompt?: string
   displayPrompt: string
@@ -57,6 +66,7 @@ export type RunWorkbenchAgentInput = {
   capturedCanvasReadSnapshot?: CapturedCanvasReadSnapshotHandleWire
   mode?: 'auto' | 'chat'
   attachments?: AgentAttachmentPayload[]
+  attachmentClaims?: readonly ProjectAgentAttachmentClaim[]
   onContent?: (delta: string, text: string) => void
   onToolCall?: (event: ToolCallEvent) => void | Promise<void>
   onToolError?: (error: ProjectAgentToolError) => void
@@ -139,7 +149,7 @@ export async function runWorkbenchAgent(input: RunWorkbenchAgentInput): Promise<
   if (!snapshot) throw new Error('project_agent_unavailable')
   if (input.projectId && input.projectId !== snapshot.binding.projectId) throw new Error('project_binding_stale')
 
-  const turnId = `turn-workbench-${globalThis.crypto.randomUUID()}`
+  const turnId = input.turnId ?? `turn-workbench-${globalThis.crypto.randomUUID()}`
   const tools = new Map<string, ObservedToolCall>()
   let lastText = ''
   let executionError: Error | null = null
@@ -206,9 +216,14 @@ export async function runWorkbenchAgent(input: RunWorkbenchAgentInput): Promise<
     }
     tools.set(event.toolCallId, observed)
     const call: ToolCallEvent = {
+      turnId,
+      subscriptionId: event.subscriptionId,
+      subscriptionEpoch: event.subscriptionEpoch,
+      executionToken: event.executionToken,
       toolCallId: event.toolCallId,
       toolName: event.toolName,
       args: event.args,
+      ...(event.assistantTextAnchor ? { assistantTextAnchor: event.assistantTextAnchor } : {}),
       isPending: () => !settled && observed.pending && tools.get(event.toolCallId) === observed,
       confirm: async (decision) => {
         if (!call.isPending()) throw new DOMException('Agent tool call is no longer pending', 'AbortError')
@@ -239,6 +254,7 @@ export async function runWorkbenchAgent(input: RunWorkbenchAgentInput): Promise<
       turnId,
       request: buildRequest(input),
       displayPrompt: input.displayPrompt,
+      ...(input.attachmentClaims?.length ? { attachmentClaims: input.attachmentClaims } : {}),
       ...turnTarget(input),
     })
     input.onCancelReady?.(() => {

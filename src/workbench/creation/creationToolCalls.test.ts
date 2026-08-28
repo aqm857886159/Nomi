@@ -22,7 +22,11 @@ describe('Creation document tool turn boundary', () => {
     const { handler, turn, enqueue, readTools } = setup()
     useCreationTurnStore.getState().requestUserCancel()
     const confirm = vi.fn(async () => {})
-    await handler({ toolCallId: 'tool', toolName, args: { content: 'old' }, isPending: () => true, confirm })
+    await handler({
+      turnId: String(turn.id),
+      executionToken: 'execution-test',
+      toolCallId: 'tool', toolName, args: { content: 'old' }, isPending: () => true, confirm,
+    })
     expect(turn.isCurrent()).toBe(true)
     expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ ok: false, denied: true }))
     expect(enqueue).not.toHaveBeenCalled()
@@ -33,9 +37,13 @@ describe('Creation document tool turn boundary', () => {
   it('author_skill stays automatic but late provider discovery cannot approve an abandoned turn', async () => {
     let release!: () => void
     deps.providers.mockImplementationOnce(() => new Promise((resolve) => { release = () => resolve([]) }))
-    const { handler, enqueue } = setup()
+    const { handler, enqueue, turn } = setup()
     const confirm = vi.fn(async () => {})
-    const pending = handler({ toolCallId: 'skill', toolName: 'author_skill', args: {}, isPending: () => true, confirm })
+    const pending = handler({
+      turnId: String(turn.id),
+      executionToken: 'execution-test',
+      toolCallId: 'skill', toolName: 'author_skill', args: {}, isPending: () => true, confirm,
+    })
     expect(deps.save).toHaveBeenCalledTimes(1)
     expect(enqueue).not.toHaveBeenCalled()
     useCreationTurnStore.getState().abandon()

@@ -465,6 +465,80 @@ export function reduceProjectAgentMutation(
         }
         break;
       }
+      case "execution.recover": {
+        if (mutation.sender.kind !== "internal" || mutation.sender.senderId !== "execution-recovery") {
+          fail("invalid_mutation");
+        }
+        assertExactMutationKeys(mutation.payload, ["turnId", "failure", "recoveredAt"]);
+        const { failure, recoveredAt } = mutation.payload;
+        assertCanonicalMutationTimestamp(recoveredAt);
+        const turn = findTurn(current, mutation.payload.turnId);
+        assertWritableThreadById(current, turn.threadId);
+        const queueItem = findQueueForTurn(queue, turn.turnId);
+        if (
+          !["queued", "running", "proposed"].includes(turn.status) ||
+          queueItem.status !== turn.status ||
+          failure.kind !== "failure" ||
+          failure.threadId !== turn.threadId ||
+          failure.turnId !== turn.turnId ||
+          failure.code !== "execution_recovery_required" ||
+          failure.status !== "failed" ||
+          !failure.retryable ||
+          failure.deviated ||
+          failure.createdAt !== recoveredAt ||
+          failure.updatedAt !== recoveredAt
+        ) {
+          fail("invalid_mutation");
+        }
+        assertCanAppendProjectAgentItem(items, failure, false);
+        const updatedTurn = transitionRecord(turn, {
+          status: "failed",
+          retryable: true,
+          updatedAt: recoveredAt,
+        });
+        const updatedQueue = transitionRecord(queueItem, {
+          status: "failed",
+          retryable: true,
+          updatedAt: recoveredAt,
+        });
+        turns = replaceById(
+          turns,
+          turn.turnId,
+          (value) => value.turnId,
+          () => updatedTurn,
+        );
+        queue = replaceById(
+          queue,
+          queueItem.queueItemId,
+          (value) => value.queueItemId,
+          () => updatedQueue,
+        );
+        const approvals = proposalApprovals.filter((approval) => approval.ref.turnId === turn.turnId);
+        for (const approval of approvals) {
+          const terminalItems = updateProposalItems(items, approval.ref.approvalId, "failed", recoveredAt);
+          items = terminalItems.items;
+          changes.push(...terminalItems.changes);
+        }
+        const removed = approvals.filter((approval) => approval.lifecycle === "pending");
+        proposalApprovals = proposalApprovals.filter((approval) => !removed.includes(approval));
+        changes.push(
+          ...removed.map(
+            (approval): ProjectAgentChange => ({
+              kind: "proposal-removed",
+              approvalId: approval.ref.approvalId,
+            }),
+          ),
+        );
+        const terminalAssistant = reduceProjectAgentAssistantTerminal(items, turn.turnId, "failed", recoveredAt);
+        items = [...terminalAssistant.items, failure];
+        changes.push(
+          ...terminalAssistant.changes,
+          { kind: "turn-upserted", turn: updatedTurn },
+          { kind: "queue-upserted", queueItem: updatedQueue },
+          { kind: "item-upserted", item: failure },
+        );
+        break;
+      }
       case "item.put": {
         assertExactMutationKeys(mutation.payload, ["item"]);
         const { item } = mutation.payload;

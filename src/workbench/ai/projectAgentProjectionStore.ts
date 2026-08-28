@@ -12,6 +12,7 @@ import type {
 export type ProjectAgentProjectionState = Readonly<{
   binding: ProjectBinding | null
   subscriptionId: string | null
+  subscriptionEpoch: number | null
   snapshot: ProjectAgentHostState | null
   lastError: string | null
 }>
@@ -19,7 +20,7 @@ export type ProjectAgentProjectionState = Readonly<{
 export type ProjectAgentProjectionStore = Readonly<{
   getState(): ProjectAgentProjectionState
   subscribe(listener: () => void): () => void
-  install(subscriptionId: string, snapshot: ProjectAgentHostState): void
+  install(subscriptionId: string, subscriptionEpoch: number, snapshot: ProjectAgentHostState): void
   applySnapshot(snapshot: ProjectAgentHostState): void
   applyPatch(patch: ProjectAgentPatch): boolean
   clear(error?: string): void
@@ -98,6 +99,7 @@ export function createProjectAgentProjectionStore(): ProjectAgentProjectionStore
   let state: ProjectAgentProjectionState = freezeState({
     binding: null,
     subscriptionId: null,
+    subscriptionEpoch: null,
     snapshot: null,
     lastError: null,
   })
@@ -112,8 +114,8 @@ export function createProjectAgentProjectionStore(): ProjectAgentProjectionStore
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
-    install(subscriptionId, snapshot) {
-      publish({ subscriptionId, binding: snapshot.binding, snapshot, lastError: null })
+    install(subscriptionId, subscriptionEpoch, snapshot) {
+      publish({ subscriptionId, subscriptionEpoch, binding: snapshot.binding, snapshot, lastError: null })
     },
     applySnapshot(snapshot) {
       if (!sameBinding(state.binding, snapshot.binding)) return
@@ -137,7 +139,7 @@ export function createProjectAgentProjectionStore(): ProjectAgentProjectionStore
       return true
     },
     clear(error) {
-      publish({ binding: null, subscriptionId: null, snapshot: null, lastError: error ?? null })
+      publish({ binding: null, subscriptionId: null, subscriptionEpoch: null, snapshot: null, lastError: error ?? null })
     },
   })
 }

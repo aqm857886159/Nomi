@@ -16,13 +16,17 @@ import type { WorkbenchProjectPersistenceService } from './project/projectPersis
 import { useWorkspaceEvents } from './useWorkspaceEvents'
 import { useWorkbenchStore, type WorkspaceMode } from './workbenchStore'
 import { swapGenerationAiProject } from './generationCanvas/store/generationAiConversation'
+import {
+  clearCommittedProposal,
+  hydrateCommittedProposalReceipt,
+  recoverPendingProposalReceipt,
+} from './generationCanvas/agent/proposalUndo'
 import { useGenerationCanvasStore } from './generationCanvas/store/generationCanvasStore'
 import { readGenerationCanvasSnapshot } from './generationCanvas/agent/generationCanvasTools'
 import { FOCUS_GENERATION_NODE_EVENT } from './generationCanvas/nodes/nodeSizing'
 import { focusCanvasNodeWhenReady } from './deepLinkFocus'
 import { projectAgentClient } from './ai/projectAgentClient'
 import { projectAgentProjectionStore } from './ai/projectAgentProjectionStore'
-import { installProjectAgentSnapshotToUi } from './ai/projectAgentUiProjection'
 import { initReviewEventBridge } from './generationCanvas/reviewEventBridge'
 import { initComfyuiProgressBridge } from './generationCanvas/comfyuiProgressBridge'
 import { initResultUrlRelocalizeBridge } from './generationCanvas/resultUrlRelocalizeBridge'
@@ -50,6 +54,7 @@ import {
 } from './project/projectCanvasReadSurface'
 import { hydrateWorkbenchProjectWithRecovery } from './project/projectHydrationRecovery'
 import { runProjectAssetHealthCheck } from './generationCanvas/runner/projectAssetHealthCheck'
+import { abandonPendingCanvasWrite } from './generationCanvas/events/canvasWriteBoundary'
 
 type AppView = 'library' | 'studio'
 
@@ -238,7 +243,6 @@ export default function NomiStudioApp(): JSX.Element {
       const unbind = projectAgentClient.onPatch((patch) => {
         if (projectAgentProjectionStore.applyPatch(patch)) {
           const snapshot = projectAgentProjectionStore.getState().snapshot
-          if (snapshot) installProjectAgentSnapshotToUi(snapshot)
           return
         }
         const subscriptionId = projectAgentSubscriptionRef.current
@@ -247,7 +251,6 @@ export default function NomiStudioApp(): JSX.Element {
           .snapshot(subscriptionId)
           .then((snapshot) => {
             projectAgentProjectionStore.applySnapshot(snapshot)
-            installProjectAgentSnapshotToUi(snapshot)
           })
           .catch(() => undefined)
       })
@@ -337,6 +340,10 @@ export default function NomiStudioApp(): JSX.Element {
       const surfaceEpoch = projectSurface.beginHydration()
       const hydrationSequence = ++hydrationSequenceRef.current
       hydratingProjectRef.current = true
+      // The old/new Canvas must not accept user writes between disk hydration
+      // and receipt recovery. React unmounts the studio before the first await;
+      // it is exposed again only after Host open + pending compensation finish.
+      setView('library')
       try {
         await surfaceEpoch.waitUntilSuspended()
         surfaceEpoch.assertCurrent()
@@ -346,6 +353,8 @@ export default function NomiStudioApp(): JSX.Element {
           projectAgentSubscriptionRef.current = null
           projectAgentProjectionStore.clear()
         }
+        abandonPendingCanvasWrite()
+        clearCommittedProposal()
         const { module, service } = await ensureProjectPersistenceService()
         surfaceEpoch.assertCurrent()
         const hydrated = await hydrateWorkbenchProjectWithRecovery({
@@ -371,10 +380,6 @@ export default function NomiStudioApp(): JSX.Element {
         // 不再误写进旧项目目录 / 编错 projectId 致渲染 404（C2 修，对齐 activeProjectIdRef 同步口径）。
         setDesktopActiveProjectId(hydrated.id)
         setActiveProject(hydrated)
-        setView('studio')
-        navigate(buildStudioUrl(hydrated.id), {
-          replace: options.replaceUrl ?? false,
-        })
         surfaceEpoch.assertCurrent()
         const committedBinding = await surfaceEpoch.commitCanvasRead(hydrated.id)
         surfaceEpoch.assertCurrent()
@@ -382,10 +387,17 @@ export default function NomiStudioApp(): JSX.Element {
           const opened = await projectAgentClient.open(committedBinding.binding)
           surfaceEpoch.assertCurrent()
           projectAgentSubscriptionRef.current = opened.subscriptionId
-          projectAgentProjectionStore.install(opened.subscriptionId, opened.snapshot)
+          projectAgentProjectionStore.install(opened.subscriptionId, opened.subscriptionEpoch, opened.snapshot)
+          hydrateCommittedProposalReceipt(opened.proposalReceipt)
+          await recoverPendingProposalReceipt()
+          surfaceEpoch.assertCurrent()
           // The Host snapshot is the sole display source after cutover.
-          installProjectAgentSnapshotToUi(opened.snapshot)
         }
+        surfaceEpoch.assertCurrent()
+        setView('studio')
+        navigate(buildStudioUrl(hydrated.id), {
+          replace: options.replaceUrl ?? false,
+        })
         // Only start background repairs after main has acknowledged the exact
         // committed Surface; the guard prevents any late write after a switch.
         void runProjectAssetHealthCheck(hydrated.id, surfaceEpoch).catch(() => {})

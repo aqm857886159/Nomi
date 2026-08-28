@@ -6,8 +6,17 @@ import { resolvePlannedNodeArgs } from './plannedNodeMeta'
 import { partitionConnectableEdges, type PlannedEdgeLike } from './referenceEdgeCapability'
 import type { ProposalStep } from './proposalTxn'
 import { assertTurnCanWrite, type AgentTurnHandle } from '../../ai/agentTurnLifecycle'
+import {
+  firstCanvasAssistantTimelineAnchor,
+  type CanvasAssistantTimelineAnchor,
+} from './canvasAssistantTimelineAnchor'
 
 export type CanvasApprovalRequest = { toolCallId: string; overrides?: Record<string, unknown> }
+
+export type PendingCallStore<Call> = Readonly<{
+  get(toolCallId: string): Call | undefined
+  delete(toolCallId: string): boolean
+}>
 
 export type CanvasApprovalStep = ProposalStep & {
   overridesDelta?: Record<string, unknown>
@@ -16,10 +25,11 @@ export type CanvasApprovalStep = ProposalStep & {
 
 /** Claim the entire visible batch synchronously. Missing/expired calls reject
  * the batch, never reduce it to a different set of user-approved operations. */
-export function claimCanvasApprovalBatch<Call extends ToolCallEvent & { turnId: number }>(
+export function claimCanvasApprovalBatch<Call extends ToolCallEvent & Partial<CanvasAssistantTimelineAnchor>>(
   requests: CanvasApprovalRequest[],
-  pending: Map<string, Call>,
+  pending: PendingCallStore<Call> | Map<string, Call>,
   turn: AgentTurnHandle,
+  hostTurnId: string,
 ) {
   if (
     !turn.canWrite() ||
@@ -30,7 +40,7 @@ export function claimCanvasApprovalBatch<Call extends ToolCallEvent & { turnId: 
   const items: Array<{ request: CanvasApprovalRequest; call: Call }> = []
   for (const request of requests) {
     const call = pending.get(request.toolCallId)
-    if (!call || call.turnId !== turn.id || !call.isPending()) return null
+    if (!call || call.turnId !== hostTurnId || !call.isPending()) return null
     items.push({ request, call })
   }
   for (const { call } of items) pending.delete(call.toolCallId)
@@ -47,6 +57,7 @@ export function claimCanvasApprovalBatch<Call extends ToolCallEvent & { turnId: 
   return {
     items,
     rawSteps,
+    timelineAnchor: firstCanvasAssistantTimelineAnchor(items.map(({ call }) => call)),
     // Execution eligibility is call/turn-scoped. The transaction itself owns
     // the loaded-canvas identity used for compensation after this expires.
     owner: { canWrite: () => turn.canWrite() && items.every(({ call }) => call.isPending()) },

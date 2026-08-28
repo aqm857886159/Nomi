@@ -36,7 +36,6 @@ describe('document write handoff', () => {
     state.setCanvasTransform(2, { x: 5, y: 8 })
     state.setCanvasZoom(1)
     state.setGenerationAiDraft('next idea')
-    state.setGenerationAiMessages([])
     state.setGenerationAiCollapsed(false)
     state.setNodeStatus('n', 'running')
     state.setNodeProgress('n', undefined)

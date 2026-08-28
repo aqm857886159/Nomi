@@ -1,7 +1,7 @@
 import type { CreationDocumentTools } from '../workbenchTypes'
 import type { ToolCallEvent } from '../ai/workbenchAgentRunner'
 import { importWorkbenchSkill, getAvailableSkillProviders, skillCapabilityFor, type SkillProviderKind } from '../api/skillApi'
-import { isWriteTool, type PendingDocToolCall, type TurnHandle } from './creationTurnController'
+import { isWriteTool, type PendingDocToolCall, type TurnHandle } from './creationToolContracts'
 
 /** Document executor shared by the Creation panel's stream callbacks. The
  * skill importer remains automatic; editor writes still wait for the same card. */

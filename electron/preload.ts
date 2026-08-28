@@ -613,6 +613,27 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     snapshot: (subscriptionId: string) => ipcRenderer.invoke('nomi:projectAgent:snapshot', { subscriptionId }),
     command: (command: unknown) => ipcRenderer.invoke('nomi:projectAgent:command', command),
     release: (subscriptionId: string) => ipcRenderer.invoke('nomi:projectAgent:release', { subscriptionId }),
+    readProposalReceipt: (subscriptionId: string) =>
+      ipcRenderer.invoke('nomi:projectAgent:proposalReceipt:read', { subscriptionId }),
+    writeProposalReceipt: (subscriptionId: string, input: { expectedRevision: number; proposalId: string; operationId: string; lifecycle: string; proposal: unknown }) =>
+      ipcRenderer.invoke('nomi:projectAgent:proposalReceipt:write', {
+        subscriptionId,
+        expectedRevision: input.expectedRevision,
+        proposalId: input.proposalId,
+        operationId: input.operationId,
+        lifecycle: input.lifecycle,
+        proposal: input.proposal,
+      }),
+    transitionProposalReceipt: (subscriptionId: string, input: { expectedRevision: number; proposalId: string; operationId: string; lifecycle: string }) =>
+      ipcRenderer.invoke('nomi:projectAgent:proposalReceipt:transition', {
+        subscriptionId,
+        expectedRevision: input.expectedRevision,
+        proposalId: input.proposalId,
+        operationId: input.operationId,
+        lifecycle: input.lifecycle,
+      }),
+    clearProposalReceipt: (subscriptionId: string, input: { expectedRevision: number; proposalId: string; operationId: string }) =>
+      ipcRenderer.invoke('nomi:projectAgent:proposalReceipt:clear', { subscriptionId, ...input }),
     onPatch: (handler: (patch: ProjectAgentPatch) => void) => {
       const listener = (_event: unknown, payload: unknown) => {
         if (payload && typeof payload === 'object' && !Array.isArray(payload)) handler(payload as ProjectAgentPatch);

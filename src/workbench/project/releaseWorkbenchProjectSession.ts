@@ -9,9 +9,9 @@ import { useWorkbenchStore } from '../workbenchStore'
 import { cloneBuiltinCategories, DEFAULT_CATEGORY_ID } from './projectCategories'
 import { createDefaultTimeline } from '../timeline/timelineMath'
 import { createDefaultWorkbenchDocument } from '../workbenchTypes'
-import { abandonCreationTurn } from '../creation/creationTurnController'
-import { abandonCanvasTurn } from '../generationCanvas/agent/canvasTurnController'
 import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
+import { abandonPendingCanvasWrite } from '../generationCanvas/events/canvasWriteBoundary'
+import { invalidateAgentTurnStates } from '../ai/agentTurnLifecycle'
 
 /**
  * Release the currently opened project's heavy renderer-only state after it has
@@ -19,8 +19,8 @@ import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
  * project library should not bump persistRevision or write an empty project.
  */
 export function releaseWorkbenchProjectRuntimeState(): void {
-  abandonCreationTurn()
-  abandonCanvasTurn()
+  invalidateAgentTurnStates()
+  abandonPendingCanvasWrite()
   // 审片结果和在途 judge 都是项目态；离开项目必须清掉并递增 requestId，旧回执随后到达也不能复活。
   useShotVerifyStore.getState().clear()
   clearCommittedProposal()
@@ -41,7 +41,6 @@ export function releaseWorkbenchProjectRuntimeState(): void {
     canvasZoom: 1,
     canvasOffset: { x: 0, y: 0 },
     generationAiDraft: '',
-    generationAiMessages: [],
     generationAiCollapsed: true,
     canUndo: false,
     canRedo: false,
@@ -59,7 +58,6 @@ export function releaseWorkbenchProjectRuntimeState(): void {
     creationAiModeId: 'general',
     creationActiveSkill: null,
     creationAiDraft: '',
-    creationAiMessages: [],
     creationAiAttachments: [],
     creationAiError: '',
     storyboardPlan: null,

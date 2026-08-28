@@ -3,16 +3,31 @@ import type { IpcMainInvokeEvent, WebContents, WebFrameMain } from "electron";
 
 import { assertTrustedSender } from "../ipcSenderGuard";
 import type { AgentChatRequest, AgentChatToolDecision } from "../harness/agentChatContracts";
-import type { ProjectAgentExecutionEvent, ProjectAgentMutation, ProjectBinding } from "../shared/projectAgentContracts";
-import { assertProjectAgentBinding } from "./projectAgentIdentity";
+import type {
+  ProjectAgentAttachmentRef,
+  ProjectAgentExecutionEvent,
+  ProjectAgentMutation,
+  ProjectBinding,
+} from "../shared/projectAgentContracts";
+import type {
+  ProjectAgentProposalReceiptTransition,
+  ProjectAgentProposalReceiptWrite,
+} from "../shared/projectAgentProposalReceipt";
+import { assertProjectAgentBinding, sameProjectAgentBinding } from "./projectAgentIdentity";
 import type { ProjectAgentProductionRuntime } from "./projectAgentProductionRuntime";
+import type { ProjectAgentProposalReceiptService } from "./projectAgentProposalReceiptStore";
 import type { CanvasReadSurfaceIpcCapture } from "../capabilityCore/canvasReadSurfaceIpc";
 import type { PiCanvasReadTransportAdapter } from "../capabilityCore/canvasReadTransportAdapters";
+import { ProjectAgentSubscriptionError } from "./projectAgentExecutionCoordinator";
 
 export const PROJECT_AGENT_OPEN_CHANNEL = "nomi:projectAgent:open";
 export const PROJECT_AGENT_SNAPSHOT_CHANNEL = "nomi:projectAgent:snapshot";
 export const PROJECT_AGENT_COMMAND_CHANNEL = "nomi:projectAgent:command";
 export const PROJECT_AGENT_RELEASE_CHANNEL = "nomi:projectAgent:release";
+export const PROJECT_AGENT_PROPOSAL_RECEIPT_READ_CHANNEL = "nomi:projectAgent:proposalReceipt:read";
+export const PROJECT_AGENT_PROPOSAL_RECEIPT_WRITE_CHANNEL = "nomi:projectAgent:proposalReceipt:write";
+export const PROJECT_AGENT_PROPOSAL_RECEIPT_TRANSITION_CHANNEL = "nomi:projectAgent:proposalReceipt:transition";
+export const PROJECT_AGENT_PROPOSAL_RECEIPT_CLEAR_CHANNEL = "nomi:projectAgent:proposalReceipt:clear";
 export const PROJECT_AGENT_PATCH_CHANNEL = "nomi:projectAgent:patch";
 export const PROJECT_AGENT_EVENT_CHANNEL = "nomi:projectAgent:event";
 
@@ -26,6 +41,8 @@ const PUBLIC_PROJECT_AGENT_ERROR_CODES = new Set([
   "project_binding_stale",
   "project_agent_owner_conflict",
   "project_agent_subscription_invalid",
+  "project_agent_receipt_invalid",
+  "project_agent_attachment_invalid",
   "revision_conflict",
 ]);
 
@@ -44,14 +61,27 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-type SubscriptionOwner = Readonly<{ sender: WebContents | undefined; frame: WebFrameMain | undefined }>;
+type SubscriptionOwner = Readonly<{
+  subscriptionId: string;
+  subscriptionEpoch: number;
+  sender: WebContents | undefined;
+  frame: WebFrameMain | undefined;
+  cleanup: () => void;
+}>;
+
+export type ProjectAgentPreparedProject = Readonly<{
+  proposalReceipts?: ProjectAgentProposalReceiptService;
+  resolveAttachmentClaims?: (claims: readonly unknown[]) => readonly ProjectAgentAttachmentRef[];
+}>;
 
 function executionEnqueueField(value: unknown): Readonly<{
   payload: Extract<ProjectAgentMutation, { type: "turn.enqueue" }>["payload"];
   request: AgentChatRequest;
+  attachmentClaims: readonly unknown[];
 }> {
   const record = asRecord(value);
-  exactKeys(record, ["thread", "turn", "userItem", "queueItem", "request"]);
+  exactKeys(record, ["thread", "turn", "userItem", "queueItem", "request", "attachmentClaims"]);
+  if (!Array.isArray(record.attachmentClaims)) throw new ProjectAgentIpcInputError("Project Agent attachments are invalid");
   return Object.freeze({
     payload: {
       thread: record.thread,
@@ -60,6 +90,7 @@ function executionEnqueueField(value: unknown): Readonly<{
       queueItem: record.queueItem,
     } as Extract<ProjectAgentMutation, { type: "turn.enqueue" }>["payload"],
     request: record.request as AgentChatRequest,
+    attachmentClaims: record.attachmentClaims,
   });
 }
 
@@ -87,6 +118,13 @@ function stringField(value: unknown, field: string): string {
     throw new ProjectAgentIpcInputError(`Project Agent IPC ${field} is invalid`);
   }
   return value;
+}
+
+function revisionField(value: unknown): number {
+  if (!Number.isSafeInteger(value) || (value as number) < 0) {
+    throw new ProjectAgentIpcInputError("Project Agent IPC expectedRevision is invalid");
+  }
+  return value as number;
 }
 
 function bindingField(value: unknown): ProjectBinding {
@@ -158,17 +196,51 @@ export function registerProjectAgentIpc(
       requestId: string,
     ) => PiCanvasReadTransportAdapter;
     /** Main-only migration hook; it runs after sender/binding verification and before open. */
-    prepareProject?: (binding: ProjectBinding) => void | Promise<void>;
+    prepareProject?: (
+      binding: ProjectBinding,
+    ) => ProjectAgentPreparedProject | void | Promise<ProjectAgentPreparedProject | void>;
   }>,
 ): void {
   const subscriptionOwners = new Map<string, SubscriptionOwner>();
+  const subscriptionProposalReceipts = new Map<string, ProjectAgentProposalReceiptService>();
+  const subscriptionAttachmentResolvers = new Map<
+    string,
+    (claims: readonly unknown[]) => readonly ProjectAgentAttachmentRef[]
+  >();
   const unsubscribeEvents = new Map<string, () => void>();
+  const openAttempts = new Map<WebContents, Readonly<{ id: number; frame: WebFrameMain | undefined }>>();
+  let nextOpenAttemptId = 0;
+  const revokeSubscription = (subscriptionId: string): void => {
+    const owner = subscriptionOwners.get(subscriptionId);
+    if (!owner) return;
+    subscriptionOwners.delete(subscriptionId);
+    owner.cleanup();
+    unsubscribeEvents.get(subscriptionId)?.();
+    unsubscribeEvents.delete(subscriptionId);
+    subscriptionProposalReceipts.delete(subscriptionId);
+    subscriptionAttachmentResolvers.delete(subscriptionId);
+    input.runtime.executionCoordinator.release(subscriptionId);
+  };
   const assertSubscriptionOwner = (event: IpcMainInvokeEvent, subscriptionId: string): void => {
     const owner = subscriptionOwners.get(subscriptionId);
     if (!owner || event.sender !== owner.sender || event.senderFrame !== owner.frame) {
-      throw new ProjectAgentIpcInputError("Project Agent subscription owner mismatch");
+      throw new ProjectAgentSubscriptionError("Project Agent subscription owner mismatch");
     }
   };
+  const receiptService = (
+    event: IpcMainInvokeEvent,
+    subscriptionId: string,
+  ): ProjectAgentProposalReceiptService => {
+    assertSubscriptionOwner(event, subscriptionId);
+    const service = subscriptionProposalReceipts.get(subscriptionId);
+    if (!service) throw new ProjectAgentIpcInputError("Project Agent proposal receipt is unavailable");
+    const snapshot = input.runtime.executionCoordinator.snapshot(subscriptionId);
+    if (!sameProjectAgentBinding(snapshot.binding, service.binding)) {
+      throw new ProjectAgentIpcInputError("Project Agent proposal receipt binding mismatch");
+    }
+    return service;
+  };
+  const receiptView = (service: ProjectAgentProposalReceiptService) => service.read();
   registerHandler(PROJECT_AGENT_OPEN_CHANNEL, async (event, raw) => {
     const request = asRecord(raw);
     exactKeys(request, ["binding"]);
@@ -177,35 +249,113 @@ export function registerProjectAgentIpc(
     // owner. The opaque port remains owned by the app-main lifecycle.
     let canvasRead: PiCanvasReadTransportAdapter | undefined;
     let subscription;
+    let prepared: ProjectAgentPreparedProject | void;
+    const sender = event.sender;
+    const frame = event.senderFrame ?? undefined;
+    const attempt = Object.freeze({ id: ++nextOpenAttemptId, frame });
+    openAttempts.set(sender, attempt);
+    let attemptAlive = true;
+    const invalidateAttempt = (): void => {
+      attemptAlive = false;
+      if (openAttempts.get(sender) === attempt) openAttempts.delete(sender);
+    };
+    const navigateAttempt = (details: { isMainFrame: boolean; isSameDocument: boolean }): void => {
+      if (details.isMainFrame && !details.isSameDocument) invalidateAttempt();
+    };
+    sender?.on?.("did-start-navigation", navigateAttempt);
+    sender?.on?.("render-process-gone", invalidateAttempt);
+    sender?.on?.("destroyed", invalidateAttempt);
+    const cleanupAttempt = (): void => {
+      sender?.removeListener?.("did-start-navigation", navigateAttempt);
+      sender?.removeListener?.("render-process-gone", invalidateAttempt);
+      sender?.removeListener?.("destroyed", invalidateAttempt);
+    };
+    const assertCurrentAttempt = (): void => {
+      if (!attemptAlive || openAttempts.get(sender) !== attempt || event.senderFrame !== frame) {
+        throw new ProjectAgentSubscriptionError("Project Agent open attempt was superseded");
+      }
+    };
     try {
       canvasRead = input.captureCanvasRead
         ? input.captureCanvasRead(event, binding, `project-agent-open-${binding.projectId}`)
         : (input.surfaceCapture.captureCanvasReadPort(event, binding), undefined);
-      await input.prepareProject?.(binding);
-      subscription = input.runtime.executionCoordinator.open(binding, canvasRead ? { canvasRead } : undefined);
+      prepared = await input.prepareProject?.(binding);
+      assertCurrentAttempt();
+      subscription = await input.runtime.executionCoordinator.open(binding, canvasRead ? { canvasRead } : undefined);
+      assertCurrentAttempt();
     } catch (error) {
-      canvasRead?.dispose();
+      if (subscription) input.runtime.executionCoordinator.release(subscription.subscriptionId);
+      else canvasRead?.dispose();
+      cleanupAttempt();
+      if (openAttempts.get(sender) === attempt) openAttempts.delete(sender);
       throw error;
     }
-    subscriptionOwners.set(subscription.subscriptionId, {
-      sender: event.sender,
-      frame: event.senderFrame ?? undefined,
+    cleanupAttempt();
+    if (openAttempts.get(sender) === attempt) openAttempts.delete(sender);
+    for (const [existingId, owner] of subscriptionOwners) {
+      if (owner.sender === sender && owner.frame === frame) revokeSubscription(existingId);
+    }
+    let owner!: SubscriptionOwner;
+    const revoke = (): void => revokeSubscription(subscription.subscriptionId);
+    const navigate = (details: { isMainFrame: boolean; isSameDocument: boolean }): void => {
+      if (details.isMainFrame && !details.isSameDocument) revoke();
+    };
+    let cleaned = false;
+    const cleanup = (): void => {
+      if (cleaned) return;
+      cleaned = true;
+      sender?.removeListener?.("did-start-navigation", navigate);
+      sender?.removeListener?.("render-process-gone", revoke);
+      sender?.removeListener?.("destroyed", revoke);
+    };
+    owner = Object.freeze({
+      subscriptionId: subscription.subscriptionId,
+      subscriptionEpoch: subscription.subscriptionEpoch,
+      sender,
+      frame,
+      cleanup,
     });
+    subscriptionOwners.set(subscription.subscriptionId, owner);
+    sender?.on?.("did-start-navigation", navigate);
+    sender?.on?.("render-process-gone", revoke);
+    sender?.on?.("destroyed", revoke);
+    if (prepared?.proposalReceipts) {
+      if (!sameProjectAgentBinding(prepared.proposalReceipts.binding, subscription.snapshot.binding)) {
+        revokeSubscription(subscription.subscriptionId);
+        throw new ProjectAgentIpcInputError("Project Agent prepared receipt binding mismatch");
+      }
+      subscriptionProposalReceipts.set(subscription.subscriptionId, prepared.proposalReceipts);
+    }
+    if (prepared?.resolveAttachmentClaims) {
+      subscriptionAttachmentResolvers.set(subscription.subscriptionId, prepared.resolveAttachmentClaims);
+    }
     const subscribe = input.runtime.executionCoordinator.subscribe;
     if (subscribe) {
       const unsubscribe = subscribe.call(
         input.runtime.executionCoordinator,
         subscription.subscriptionId,
         (notification: ProjectAgentExecutionEvent) => {
-          const frame = event.senderFrame;
-          if (!frame || frame.detached || frame.isDestroyed()) return;
-          if (notification.type === "patch") frame.send(PROJECT_AGENT_PATCH_CHANNEL, notification.patch);
+          const current = subscriptionOwners.get(subscription.subscriptionId);
+          if (
+            current !== owner ||
+            notification.subscriptionId !== owner.subscriptionId ||
+            notification.subscriptionEpoch !== owner.subscriptionEpoch ||
+            !frame ||
+            frame.detached ||
+            frame.isDestroyed()
+          ) return;
+          if (notification.type === "patch") frame.send(PROJECT_AGENT_PATCH_CHANNEL, notification);
           else frame.send(PROJECT_AGENT_EVENT_CHANNEL, notification);
         },
       );
       unsubscribeEvents.set(subscription.subscriptionId, unsubscribe);
     }
-    return { subscriptionId: subscription.subscriptionId, snapshot: subscription.snapshot };
+    return {
+      subscriptionId: subscription.subscriptionId,
+      subscriptionEpoch: subscription.subscriptionEpoch,
+      snapshot: subscription.snapshot,
+      proposalReceipt: prepared?.proposalReceipts ? receiptView(prepared.proposalReceipts) : null,
+    };
   });
 
   registerHandler(PROJECT_AGENT_SNAPSHOT_CHANNEL, (event, raw) => {
@@ -216,7 +366,7 @@ export function registerProjectAgentIpc(
     return input.runtime.executionCoordinator.snapshot(subscriptionId);
   });
 
-  registerHandler(PROJECT_AGENT_COMMAND_CHANNEL, (event, raw) => {
+  registerHandler(PROJECT_AGENT_COMMAND_CHANNEL, async (event, raw) => {
     const command = commandField(raw);
     assertSubscriptionOwner(event, command.subscriptionId);
     if (command.type === "tool.decision") {
@@ -246,12 +396,31 @@ export function registerProjectAgentIpc(
       Object.prototype.hasOwnProperty.call(command.payload, "request")
     ) {
       const execution = executionEnqueueField(command.payload);
+      const resolver = subscriptionAttachmentResolvers.get(command.subscriptionId);
+      if (execution.attachmentClaims.length > 0 && !resolver) throw new Error("project_agent_attachment_invalid");
+      const attachmentRefs = resolver ? resolver(execution.attachmentClaims) : Object.freeze([]);
+      const request = {
+        ...execution.request,
+        history: { kind: "ephemeral" as const },
+        attachments: attachmentRefs.flatMap((ref) => ref.display ? [{
+          url: ref.display.url,
+          contentType: ref.display.contentType,
+          fileName: ref.display.fileName,
+          kind: ref.display.kind,
+        }] : []),
+      };
       return input.runtime.executionCoordinator.enqueue(command.subscriptionId, {
-        mutation: { ...mutation, payload: execution.payload } as Extract<
+        mutation: {
+          ...mutation,
+          payload: {
+            ...execution.payload,
+            queueItem: { ...execution.payload.queueItem, attachmentRefs },
+          },
+        } as Extract<
           ProjectAgentMutation,
           { type: "turn.enqueue" }
         >,
-        request: execution.request,
+        request,
       });
     }
     return input.runtime.executionCoordinator.dispatch(command.subscriptionId, mutation);
@@ -262,11 +431,52 @@ export function registerProjectAgentIpc(
     exactKeys(request, ["subscriptionId"]);
     const subscriptionId = stringField(request.subscriptionId, "subscriptionId");
     assertSubscriptionOwner(_event, subscriptionId);
-    unsubscribeEvents.get(subscriptionId)?.();
-    unsubscribeEvents.delete(subscriptionId);
-    subscriptionOwners.delete(subscriptionId);
-    input.runtime.executionCoordinator.release(subscriptionId);
+    revokeSubscription(subscriptionId);
     return { released: true };
+  });
+
+  registerHandler(PROJECT_AGENT_PROPOSAL_RECEIPT_READ_CHANNEL, (event, raw) => {
+    const request = asRecord(raw);
+    exactKeys(request, ["subscriptionId"]);
+    const subscriptionId = stringField(request.subscriptionId, "subscriptionId");
+    return receiptView(receiptService(event, subscriptionId));
+  });
+
+  registerHandler(PROJECT_AGENT_PROPOSAL_RECEIPT_WRITE_CHANNEL, (event, raw) => {
+    const request = asRecord(raw);
+    exactKeys(request, ["subscriptionId", "expectedRevision", "proposalId", "operationId", "lifecycle", "proposal"]);
+    const subscriptionId = stringField(request.subscriptionId, "subscriptionId");
+    const service = receiptService(event, subscriptionId);
+    return service.write(Object.freeze({
+      expectedRevision: revisionField(request.expectedRevision),
+      proposalId: stringField(request.proposalId, "proposalId"),
+      operationId: stringField(request.operationId, "operationId"),
+      lifecycle: request.lifecycle as ProjectAgentProposalReceiptWrite["lifecycle"],
+      proposal: request.proposal,
+    }) as ProjectAgentProposalReceiptWrite);
+  });
+
+  registerHandler(PROJECT_AGENT_PROPOSAL_RECEIPT_TRANSITION_CHANNEL, (event, raw) => {
+    const request = asRecord(raw);
+    exactKeys(request, ["subscriptionId", "expectedRevision", "proposalId", "operationId", "lifecycle"]);
+    const subscriptionId = stringField(request.subscriptionId, "subscriptionId");
+    return receiptService(event, subscriptionId).transition(Object.freeze({
+      expectedRevision: revisionField(request.expectedRevision),
+      proposalId: stringField(request.proposalId, "proposalId"),
+      operationId: stringField(request.operationId, "operationId"),
+      lifecycle: request.lifecycle as ProjectAgentProposalReceiptTransition["lifecycle"],
+    }));
+  });
+
+  registerHandler(PROJECT_AGENT_PROPOSAL_RECEIPT_CLEAR_CHANNEL, (event, raw) => {
+    const request = asRecord(raw);
+    exactKeys(request, ["subscriptionId", "expectedRevision", "proposalId", "operationId"]);
+    const subscriptionId = stringField(request.subscriptionId, "subscriptionId");
+    return receiptService(event, subscriptionId).clear(Object.freeze({
+      expectedRevision: revisionField(request.expectedRevision),
+      proposalId: stringField(request.proposalId, "proposalId"),
+      operationId: stringField(request.operationId, "operationId"),
+    }));
   });
 
   // Patch delivery is command-result based in the first transport slice. The

@@ -12,14 +12,17 @@ import type {
   ProjectAgentPatch,
   ProjectBinding,
   ProjectAgentStatus,
+  ProjectAgentAssistantTextAnchor,
+  ProjectAgentExecutionEventPayload,
 } from "../shared/projectAgentContracts";
-import { sameProjectAgentBinding } from "./projectAgentIdentity";
+import { projectAgentPartitionKey, sameProjectAgentBinding } from "./projectAgentIdentity";
 import type { OfflineProjectAgentHost } from "./projectAgentHost";
 import type { ProjectAgentRepositoryRouter } from "./projectAgentRepositoryRouter";
 import type { PiCanvasReadTransportAdapter } from "../capabilityCore/canvasReadTransportAdapters";
 
 export type ProjectAgentSubscription = Readonly<{
   subscriptionId: string;
+  subscriptionEpoch: number;
   binding: ProjectBinding;
   snapshot: ProjectAgentHostState;
 }>;
@@ -27,6 +30,10 @@ export type ProjectAgentSubscription = Readonly<{
 export type ProjectAgentExecutionCoordinatorDeps = Readonly<{
   runAgent?: (request: AgentChatRequest, hooks: AgentChatV2Hooks) => Promise<AgentChatResponse>;
   now?: () => string;
+  reportInternalError?: (
+    error: unknown,
+    context: Readonly<{ phase: "start" | "terminalize-runtime-failure"; turnId: string; message: string }>,
+  ) => void;
 }>;
 
 type ProjectAgentExecutionEnqueue = Readonly<{
@@ -46,6 +53,7 @@ type PendingToolDecision = Readonly<{
   toolCallId: string;
   toolName: string;
   args: unknown;
+  assistantTextAnchor?: ProjectAgentAssistantTextAnchor;
   resolve: (decision: AgentChatToolDecision) => void;
   signal: AbortSignal;
 }>;
@@ -58,6 +66,30 @@ type ActiveExecution = {
   pending: Map<string, PendingToolDecision>;
   publicationTail: Promise<void>;
   approvedProposalId?: string;
+};
+
+type FrozenExecutionRequest = Readonly<{
+  request: AgentChatRequest;
+  requestDigest: string;
+  preferredSubscriptionId: string;
+}>;
+
+type SubscriptionDelivery = {
+  phase: "pre-live" | "activating" | "live";
+  listeners: Set<ProjectAgentExecutionListener>;
+  buffered: ProjectAgentExecutionEvent[];
+};
+
+type ExecutionPartition = {
+  partitionKey: string;
+  binding: ProjectBinding;
+  host: OfflineProjectAgentHost;
+  subscriptionIds: Set<string>;
+  requests: Map<string, FrozenExecutionRequest>;
+  active: Map<string, ActiveExecution>;
+  completions: Map<string, Deferred<ProjectAgentHostState>>;
+  initialization: Promise<void>;
+  drain?: Promise<void>;
 };
 
 function deferred<T>(): Deferred<T> {
@@ -137,7 +169,7 @@ export type ProjectAgentExecutionCoordinator = Readonly<{
   open: (
     binding: ProjectBinding,
     options?: Readonly<{ canvasRead?: PiCanvasReadTransportAdapter }>,
-  ) => ProjectAgentSubscription;
+  ) => Promise<ProjectAgentSubscription>;
   snapshot: (subscriptionId: string) => ProjectAgentHostState;
   dispatch: (subscriptionId: string, mutation: ProjectAgentMutation) => ReturnType<OfflineProjectAgentHost["dispatch"]>;
   enqueue: (
@@ -160,7 +192,7 @@ export class ProjectAgentSubscriptionError extends Error {
   readonly code = "project_agent_subscription_invalid" as const;
 }
 
-type SubscriptionRecord = ProjectAgentSubscription & Readonly<{ host: OfflineProjectAgentHost }>;
+type SubscriptionRecord = ProjectAgentSubscription & Readonly<{ partitionKey: string }>;
 
 export function createProjectAgentExecutionCoordinator(
   router: ProjectAgentRepositoryRouter,
@@ -168,77 +200,150 @@ export function createProjectAgentExecutionCoordinator(
   deps: ProjectAgentExecutionCoordinatorDeps = {},
 ): ProjectAgentExecutionCoordinator {
   const subscriptions = new Map<string, SubscriptionRecord>();
-  const listeners = new Map<string, Set<ProjectAgentExecutionListener>>();
+  const issuedSubscriptionIds = new Set<string>();
+  const partitions = new Map<string, ExecutionPartition>();
+  const partitionEpochs = new Map<string, number>();
+  const deliveries = new Map<string, SubscriptionDelivery>();
   const canvasReads = new Map<string, PiCanvasReadTransportAdapter | undefined>();
-  const requests = new Map<string, Map<string, AgentChatRequest>>();
-  const active = new Map<string, Map<string, ActiveExecution>>();
-  const completions = new Map<string, Map<string, Deferred<ProjectAgentHostState>>>();
-  const drains = new Map<string, Promise<void>>();
   const runAgent =
     deps.runAgent ?? (async (request, hooks) => (await import("../ai/agentChatV2")).runAgentChatV2(request, hooks));
   const now = deps.now ?? (() => new Date().toISOString());
+  const reportInternalError =
+    deps.reportInternalError ??
+    ((error: unknown, context: Readonly<{ phase: string; turnId: string; message: string }>) => {
+      console.error(`[nomi:project-agent] ${context.phase} failed for ${context.turnId}: ${context.message}`, error);
+    });
 
-  function publish(subscriptionId: string, event: ProjectAgentExecutionEvent): void {
-    for (const listener of listeners.get(subscriptionId) ?? []) {
-      try {
-        listener(event);
-      } catch {
-        /* A renderer observer cannot stop execution. */
+  function publish(partition: ExecutionPartition, event: ProjectAgentExecutionEventPayload): void {
+    for (const subscriptionId of partition.subscriptionIds) {
+      const subscription = subscriptions.get(subscriptionId);
+      if (!subscription) continue;
+      const notification = Object.freeze({
+        ...event,
+        subscriptionId,
+        subscriptionEpoch: subscription.subscriptionEpoch,
+      }) as ProjectAgentExecutionEvent;
+      const delivery = deliveries.get(subscriptionId);
+      if (!delivery) continue;
+      if (delivery.phase !== "live") {
+        delivery.buffered.push(notification);
+        continue;
+      }
+      for (const listener of delivery.listeners) {
+        try {
+          listener(notification);
+        } catch {
+          /* A renderer observer cannot stop execution. */
+        }
       }
     }
   }
 
-  function publishPatch(subscriptionId: string, patch: ProjectAgentPatch): void {
-    publish(subscriptionId, { type: "patch", patch });
+  function publishPatch(partition: ExecutionPartition, patch: ProjectAgentPatch): void {
+    publish(partition, { type: "patch", patch });
   }
 
-  function complete(subscriptionId: string, turnId: string): void {
-    const record = subscriptions.get(subscriptionId);
-    const pending = completions.get(subscriptionId)?.get(turnId);
-    if (!record || !pending) return;
-    const state = record.host.getSnapshot(record.binding);
+  function complete(partition: ExecutionPartition, turnId: string): void {
+    const pending = partition.completions.get(turnId);
+    if (!pending) return;
+    const state = partition.host.getSnapshot(partition.binding);
     const turn = state.turns.find((candidate) => candidate.turnId === turnId);
     if (!turn || ["queued", "running", "proposed"].includes(turn.status)) return;
     pending.resolve(state);
-    completions.get(subscriptionId)?.delete(turnId);
+    partition.completions.delete(turnId);
   }
 
-  function completionFor(subscriptionId: string, turnId: string): Promise<ProjectAgentHostState> {
-    const record = requireSubscription(subscriptionId);
-    const existing = completions.get(subscriptionId)?.get(turnId);
+  function completionForPartition(partition: ExecutionPartition, turnId: string): Promise<ProjectAgentHostState> {
+    const existing = partition.completions.get(turnId);
     if (existing) return existing.promise;
-    const current = record.host.getSnapshot(record.binding);
+    const current = partition.host.getSnapshot(partition.binding);
     const turn = current.turns.find((candidate) => candidate.turnId === turnId);
     if (turn && !["queued", "running", "proposed"].includes(turn.status)) return Promise.resolve(current);
     const entry = deferred<ProjectAgentHostState>();
-    let map = completions.get(subscriptionId);
-    if (!map) {
-      map = new Map();
-      completions.set(subscriptionId, map);
-    }
-    map.set(turnId, entry);
+    partition.completions.set(turnId, entry);
     return entry.promise;
   }
 
-  function open(
+  function completionFor(subscriptionId: string, turnId: string): Promise<ProjectAgentHostState> {
+    return completionForPartition(requirePartition(requireSubscription(subscriptionId)), turnId);
+  }
+
+  async function recoverOrphanedExecutions(partition: ExecutionPartition): Promise<void> {
+    while (true) {
+      const state = partition.host.getSnapshot(partition.binding);
+      const turn = state.turns.find((candidate) => ["queued", "running", "proposed"].includes(candidate.status));
+      if (!turn) return;
+      const recoveredAt = now();
+      await partition.host.dispatch({
+        commandId: `execution-recover-${turn.executionToken}`,
+        expectedRevision: state.hostRevision,
+        binding: partition.binding,
+        sender: { kind: "internal", senderId: "execution-recovery" },
+        type: "execution.recover",
+        payload: {
+          turnId: turn.turnId,
+          failure: Object.freeze({
+            itemId: `failure-${digest([partition.binding, turn.executionToken, "process-restart"])}`,
+            threadId: turn.threadId,
+            turnId: turn.turnId,
+            kind: "failure" as const,
+            code: "execution_recovery_required",
+            message: "The previous Agent process ended before this turn completed.",
+            status: "failed" as const,
+            retryable: true,
+            deviated: false,
+            createdAt: recoveredAt,
+            updatedAt: recoveredAt,
+          }),
+          recoveredAt,
+        },
+      });
+    }
+  }
+
+  async function open(
     binding: ProjectBinding,
     options: Readonly<{ canvasRead?: PiCanvasReadTransportAdapter }> = {},
-  ): ProjectAgentSubscription {
-    const host = router.attach(binding);
+  ): Promise<ProjectAgentSubscription> {
+    const partitionKey = projectAgentPartitionKey(binding);
+    let partition = partitions.get(partitionKey);
+    if (!partition) {
+      partition = {
+        partitionKey,
+        binding: Object.freeze({ ...binding }),
+        host: router.attach(binding),
+        subscriptionIds: new Set(),
+        requests: new Map(),
+        active: new Map(),
+        completions: new Map(),
+        initialization: Promise.resolve(),
+      };
+      partitions.set(partitionKey, partition);
+      partition.initialization = recoverOrphanedExecutions(partition);
+    } else if (!sameProjectAgentBinding(binding, partition.binding)) {
+      throw new ProjectAgentSubscriptionError("Project Agent partition binding mismatch");
+    }
+    await partition.initialization;
+    const subscriptionEpoch = (partitionEpochs.get(partitionKey) ?? 0) + 1;
+    partitionEpochs.set(partitionKey, subscriptionEpoch);
     const subscription: SubscriptionRecord = Object.freeze({
       subscriptionId: randomId(),
-      binding: Object.freeze({ ...binding }),
-      snapshot: host.getSnapshot(binding),
-      host,
+      subscriptionEpoch,
+      partitionKey,
+      binding: partition.binding,
+      snapshot: partition.host.getSnapshot(partition.binding),
     });
-    if (subscriptions.has(subscription.subscriptionId)) {
+    if (issuedSubscriptionIds.has(subscription.subscriptionId)) {
       throw new ProjectAgentSubscriptionError("Project Agent subscription id collision");
     }
+    issuedSubscriptionIds.add(subscription.subscriptionId);
     subscriptions.set(subscription.subscriptionId, subscription);
-    listeners.set(subscription.subscriptionId, new Set());
-    requests.set(subscription.subscriptionId, new Map());
-    active.set(subscription.subscriptionId, new Map());
-    completions.set(subscription.subscriptionId, new Map());
+    partition.subscriptionIds.add(subscription.subscriptionId);
+    deliveries.set(subscription.subscriptionId, {
+      phase: "pre-live",
+      listeners: new Set(),
+      buffered: [],
+    });
     canvasReads.set(subscription.subscriptionId, options.canvasRead);
     return subscription;
   }
@@ -249,31 +354,47 @@ export function createProjectAgentExecutionCoordinator(
     return record;
   }
 
-  function dispatch(subscriptionId: string, mutation: ProjectAgentMutation) {
-    const record = requireSubscription(subscriptionId);
-    if (!sameProjectAgentBinding(mutation.binding, record.binding)) {
+  function requirePartition(record: SubscriptionRecord): ExecutionPartition {
+    const partition = partitions.get(record.partitionKey);
+    if (!partition || !sameProjectAgentBinding(partition.binding, record.binding)) {
+      throw new ProjectAgentSubscriptionError("Project Agent execution partition is unavailable");
+    }
+    return partition;
+  }
+
+  function dispatchPartition(partition: ExecutionPartition, mutation: ProjectAgentMutation) {
+    if (!sameProjectAgentBinding(mutation.binding, partition.binding)) {
       throw new ProjectAgentSubscriptionError("Project Agent subscription binding mismatch");
     }
-    return record.host.dispatch(mutation).then((reduction) => {
+    return partition.host.dispatch(mutation).then((reduction) => {
       // Abort only after the stop transition commits. A stale or malformed
       // stop command must not cancel an execution that remains running.
       if (mutation.type === "turn.transition" && mutation.payload.status === "stopped") {
-        active.get(subscriptionId)?.get(mutation.payload.turnId)?.controller.abort();
+        partition.active.get(mutation.payload.turnId)?.controller.abort();
       }
-      if (reduction.patch) publishPatch(subscriptionId, reduction.patch);
-      complete(subscriptionId, mutation.type === "turn.transition" ? mutation.payload.turnId : "");
-      scheduleDrain(subscriptionId);
+      if (reduction.patch && !reduction.replayed) publishPatch(partition, reduction.patch);
+      const terminalTurnId =
+        mutation.type === "turn.transition" || mutation.type === "execution.recover" ? mutation.payload.turnId : "";
+      complete(partition, terminalTurnId);
+      scheduleDrain(partition);
       return reduction;
     });
   }
 
+  function dispatch(subscriptionId: string, mutation: ProjectAgentMutation) {
+    const record = requireSubscription(subscriptionId);
+    return dispatchPartition(requirePartition(record), mutation);
+  }
+
   function snapshot(subscriptionId: string): ProjectAgentHostState {
     const record = requireSubscription(subscriptionId);
-    return record.host.getSnapshot(record.binding);
+    const partition = requirePartition(record);
+    return partition.host.getSnapshot(partition.binding);
   }
 
   async function enqueue(subscriptionId: string, input: ProjectAgentExecutionEnqueue) {
     const record = requireSubscription(subscriptionId);
+    const partition = requirePartition(record);
     for (const claimedProjectId of [input.request.projectId, input.request.canvasProjectId]) {
       if (claimedProjectId !== undefined && claimedProjectId !== record.binding.projectId) {
         throw new ProjectAgentSubscriptionError("Project Agent request project does not match its subscription");
@@ -288,37 +409,35 @@ export function createProjectAgentExecutionCoordinator(
         ? { canvasProjectId: record.binding.projectId, selectedNodeIds: [...target.nodeIds] }
         : { canvasProjectId: undefined, selectedNodeIds: [] }),
     });
-    const requestMap = requests.get(subscriptionId);
-    if (!requestMap) throw new ProjectAgentSubscriptionError("Project Agent subscription is unavailable");
+    const requestMap = partition.requests;
     const turnId = input.mutation.payload.turn.turnId;
     const previousRequest = requestMap.get(turnId);
+    const requestDigest = digest(request);
+    if (previousRequest && previousRequest.requestDigest !== requestDigest) {
+      throw new ProjectAgentSubscriptionError("Project Agent turn already reserved a different execution request");
+    }
     // Register the ephemeral execution input before dispatch can schedule a
     // drain. Otherwise its first microtask can observe a queued turn without
     // a request and strand the FIFO head permanently.
-    requestMap.set(turnId, request);
+    const reservation =
+      previousRequest ?? Object.freeze({ request, requestDigest, preferredSubscriptionId: subscriptionId });
+    if (!previousRequest) requestMap.set(turnId, reservation);
     try {
-      const reduction = await dispatch(subscriptionId, input.mutation);
+      const reduction = await dispatchPartition(partition, input.mutation);
       if (!reduction.replayed) {
-        completionFor(subscriptionId, turnId);
-        scheduleDrain(subscriptionId);
-      } else if (previousRequest) {
-        requestMap.set(turnId, previousRequest);
-      } else {
+        completionForPartition(partition, turnId);
+        scheduleDrain(partition);
+      } else if (!previousRequest && requestMap.get(turnId) === reservation) {
         requestMap.delete(turnId);
       }
       return reduction;
     } catch (error) {
-      if (previousRequest) requestMap.set(turnId, previousRequest);
-      else requestMap.delete(turnId);
+      if (!previousRequest && requestMap.get(turnId) === reservation) requestMap.delete(turnId);
       throw error;
     }
   }
 
-  function queueExecutionMutation(
-    subscriptionId: string,
-    execution: ActiveExecution,
-    work: () => Promise<void>,
-  ): Promise<void> {
+  function queueExecutionMutation(execution: ActiveExecution, work: () => Promise<void>): Promise<void> {
     const next = execution.publicationTail.then(work, work);
     execution.publicationTail = next.then(
       () => undefined,
@@ -328,15 +447,14 @@ export function createProjectAgentExecutionCoordinator(
   }
 
   async function dispatchFresh(
-    subscriptionId: string,
+    partition: ExecutionPartition,
     build: (state: ProjectAgentHostState) => ProjectAgentMutation,
   ): Promise<Awaited<ReturnType<OfflineProjectAgentHost["dispatch"]>>> {
     let lastError: unknown;
     for (let attempt = 0; attempt < 4; attempt += 1) {
-      const record = requireSubscription(subscriptionId);
-      const state = record.host.getSnapshot(record.binding);
+      const state = partition.host.getSnapshot(partition.binding);
       try {
-        return await dispatch(subscriptionId, build(state));
+        return await dispatchPartition(partition, build(state));
       } catch (error) {
         lastError = error;
         if ((error as { code?: unknown })?.code !== "revision_conflict") throw error;
@@ -346,13 +464,12 @@ export function createProjectAgentExecutionCoordinator(
   }
 
   async function persistApprovedProposal(
-    subscriptionId: string,
+    partition: ExecutionPartition,
     execution: ActiveExecution,
     call: { toolCallId: string; toolName: string; args: unknown },
     decision: AgentChatToolDecision,
   ): Promise<void> {
     if (!decision.ok || decision.silent) return;
-    const record = requireSubscription(subscriptionId);
     const occurredAt = now();
     const expiresAt = new Date(new Date(occurredAt).getTime() + 10 * 60_000).toISOString();
     const approvalId =
@@ -379,19 +496,19 @@ export function createProjectAgentExecutionCoordinator(
       createdAt: occurredAt,
       updatedAt: occurredAt,
     });
-    await queueExecutionMutation(subscriptionId, execution, async () => {
-      await dispatchFresh(subscriptionId, (current) => ({
+    await queueExecutionMutation(execution, async () => {
+      await dispatchFresh(partition, (current) => ({
         commandId: `proposal-put-${digest([execution.turn.executionToken, call.toolCallId])}`,
         expectedRevision: current.hostRevision,
-        binding: record.binding,
+        binding: partition.binding,
         sender: { kind: "internal", senderId: execution.turn.executionToken },
         type: "proposal.put",
         payload: { approval: { ref, lifecycle: "pending" }, item, occurredAt },
       }));
-      await dispatchFresh(subscriptionId, (claimed) => ({
+      await dispatchFresh(partition, (claimed) => ({
         commandId: `proposal-claim-${digest([execution.turn.executionToken, call.toolCallId])}`,
         expectedRevision: claimed.hostRevision,
-        binding: record.binding,
+        binding: partition.binding,
         sender: { kind: "internal", senderId: execution.turn.executionToken },
         type: "proposal.transition",
         payload: { approvalId, lifecycle: "claimed", occurredAt: now() },
@@ -400,26 +517,35 @@ export function createProjectAgentExecutionCoordinator(
     execution.approvedProposalId = approvalId;
   }
 
-  function cleanupExecution(subscriptionId: string, execution: ActiveExecution, keepRequest: boolean): void {
+  function cleanupExecution(partition: ExecutionPartition, execution: ActiveExecution, keepRequest: boolean): void {
     execution.pending.clear();
-    active.get(subscriptionId)?.delete(execution.turn.turnId);
-    const record = subscriptions.get(subscriptionId);
-    const latest = record?.host.getSnapshot(record.binding);
+    partition.active.delete(execution.turn.turnId);
+    const latest = partition.host.getSnapshot(partition.binding);
     const stillQueued = latest?.turns.some((turn) => turn.turnId === execution.turn.turnId && turn.status === "queued");
-    if (!keepRequest || !stillQueued) requests.get(subscriptionId)?.delete(execution.turn.turnId);
-    complete(subscriptionId, execution.turn.turnId);
+    if (!keepRequest || !stillQueued) partition.requests.delete(execution.turn.turnId);
+    complete(partition, execution.turn.turnId);
   }
 
-  function awaitToolDecision(
-    subscriptionId: string,
+  async function awaitToolDecision(
+    partition: ExecutionPartition,
     execution: ActiveExecution,
     call: { toolCallId: string; toolName: string; args: unknown },
     signal: AbortSignal,
   ): Promise<AgentChatToolDecision> {
     if (signal.aborted || execution.controller.signal.aborted)
       return Promise.resolve({ ok: false, denied: true, message: "Agent request cancelled" });
+    await execution.publicationTail;
+    if (signal.aborted || execution.controller.signal.aborted)
+      return { ok: false, denied: true, message: "Agent request cancelled" };
     const existing = execution.pending.get(call.toolCallId);
     if (existing) return Promise.reject(new Error("Duplicate pending Project Agent tool call"));
+    const assistant = partition.host
+      .getSnapshot(partition.binding)
+      .items.find((item) => item.kind === "assistant" && item.turnId === execution.turn.turnId);
+    const assistantTextAnchor =
+      assistant?.kind === "assistant"
+        ? Object.freeze({ itemId: assistant.itemId, textOffset: assistant.text.length })
+        : undefined;
     return new Promise((resolve) => {
       const settle = (decision: AgentChatToolDecision): void => {
         if (execution.pending.get(call.toolCallId)?.resolve !== settleResolve) return;
@@ -436,26 +562,45 @@ export function createProjectAgentExecutionCoordinator(
         toolCallId: call.toolCallId,
         toolName: call.toolName,
         args: call.args,
+        ...(assistantTextAnchor ? { assistantTextAnchor } : {}),
         resolve: settleResolve,
         signal,
       });
       signal.addEventListener("abort", abort, { once: true });
-      publish(subscriptionId, {
+      publish(partition, {
         type: "tool-call",
-        binding: requireSubscription(subscriptionId).binding,
+        binding: partition.binding,
         turnId: execution.turn.turnId,
         executionToken: execution.turn.executionToken,
         toolCallId: call.toolCallId,
         toolName: call.toolName,
         args: call.args,
+        ...(assistantTextAnchor ? { assistantTextAnchor } : {}),
       });
     });
   }
 
-  async function executeTurn(subscriptionId: string, execution: ActiveExecution): Promise<"continue" | "stop"> {
-    const record = requireSubscription(subscriptionId);
+  function canvasReadFor(partition: ExecutionPartition, preferredSubscriptionId: string) {
+    const currentPreferred = partition.subscriptionIds.has(preferredSubscriptionId)
+      ? canvasReads.get(preferredSubscriptionId)
+      : undefined;
+    if (currentPreferred) return currentPreferred;
+    let selected: PiCanvasReadTransportAdapter | undefined;
+    let selectedEpoch = -1;
+    for (const subscriptionId of partition.subscriptionIds) {
+      const subscription = subscriptions.get(subscriptionId);
+      const adapter = canvasReads.get(subscriptionId);
+      if (subscription && adapter && subscription.subscriptionEpoch > selectedEpoch) {
+        selected = adapter;
+        selectedEpoch = subscription.subscriptionEpoch;
+      }
+    }
+    return selected;
+  }
+
+  async function executeTurn(partition: ExecutionPartition, execution: ActiveExecution): Promise<"continue" | "stop"> {
     const startAt = now();
-    const current = record.host.getSnapshot(record.binding);
+    const current = partition.host.getSnapshot(partition.binding);
     const assistantItem = Object.freeze({
       itemId: `assistant-${digest([execution.turn.executionToken, "assistant"])}`,
       threadId: execution.turn.threadId,
@@ -470,10 +615,10 @@ export function createProjectAgentExecutionCoordinator(
       updatedAt: startAt,
     });
     try {
-      await dispatch(subscriptionId, {
+      await dispatchPartition(partition, {
         commandId: `turn-start-${execution.turn.executionToken}`,
         expectedRevision: current.hostRevision,
-        binding: record.binding,
+        binding: partition.binding,
         sender: { kind: "internal", senderId: execution.turn.executionToken },
         type: "turn.start",
         payload: {
@@ -489,33 +634,32 @@ export function createProjectAgentExecutionCoordinator(
         // The queue entry is still authoritative, but another mutation won
         // between the snapshot and turn.start. Keep its request so the next
         // drain can rebuild the start command from the latest revision.
-        cleanupExecution(subscriptionId, execution, true);
-        return record.host.getSnapshot(record.binding).hostRevision !== current.hostRevision ? "continue" : "stop";
+        cleanupExecution(partition, execution, true);
+        return partition.host.getSnapshot(partition.binding).hostRevision !== current.hostRevision ? "continue" : "stop";
       }
-      if (!execution.controller.signal.aborted)
-        publish(subscriptionId, {
-          type: "execution-error",
-          binding: record.binding,
+      if (!execution.controller.signal.aborted) {
+        reportInternalError(error, {
+          phase: "start",
           turnId: execution.turn.turnId,
-          executionToken: execution.turn.executionToken,
           message: error instanceof Error ? error.message : String(error),
         });
-      cleanupExecution(subscriptionId, execution, false);
+      }
+      cleanupExecution(partition, execution, false);
       return "stop";
     }
     const append = (delta: string): void => {
-      void queueExecutionMutation(subscriptionId, execution, async () => {
+      void queueExecutionMutation(execution, async () => {
         if (execution.controller.signal.aborted || !delta) return;
-        const state = record.host.getSnapshot(record.binding);
+        const state = partition.host.getSnapshot(partition.binding);
         const item = state.items.find(
           (candidate) => candidate.kind === "assistant" && candidate.turnId === execution.turn.turnId,
         );
         if (!item || item.kind !== "assistant") return;
         try {
-          await dispatchFresh(subscriptionId, (state) => ({
+          await dispatchFresh(partition, (state) => ({
             commandId: `assistant-append-${execution.turn.executionToken}-${item.textRevision + 1}-${digest(delta).slice(0, 12)}`,
             expectedRevision: state.hostRevision,
-            binding: record.binding,
+            binding: partition.binding,
             sender: { kind: "embedded-agent", senderId: execution.turn.executionToken },
             type: "assistant.append",
             payload: {
@@ -537,9 +681,9 @@ export function createProjectAgentExecutionCoordinator(
       const request = {
         ...execution.request,
         history: { kind: "ephemeral" as const },
-        projectId: execution.request.projectId ?? record.binding.projectId,
-        canvasProjectId: execution.request.canvasProjectId ?? record.binding.projectId,
-        prompt: executionPrompt(record.host.getSnapshot(record.binding), execution.turn.turnId, execution.request),
+        projectId: execution.request.projectId ?? partition.binding.projectId,
+        canvasProjectId: execution.request.canvasProjectId ?? partition.binding.projectId,
+        prompt: executionPrompt(partition.host.getSnapshot(partition.binding), execution.turn.turnId, execution.request),
       };
       const response = await runAgent(request, {
         abortSignal: execution.controller.signal,
@@ -553,12 +697,13 @@ export function createProjectAgentExecutionCoordinator(
           // Transport adapters own capability-name matching. The coordinator
           // only offers the injected adapter a chance to handle a call, so it
           // cannot become a second tool dispatch/executor owner.
-          const read = await canvasReads.get(subscriptionId)?.tryExecute(call, signal);
+          const frozen = partition.requests.get(execution.turn.turnId);
+          const read = await canvasReadFor(partition, frozen?.preferredSubscriptionId ?? "")?.tryExecute(call, signal);
           if (read) return read;
-          const decision = await awaitToolDecision(subscriptionId, execution, call, signal);
+          const decision = await awaitToolDecision(partition, execution, call, signal);
           if (decision.ok && !decision.silent) {
             try {
-              await persistApprovedProposal(subscriptionId, execution, call, decision);
+              await persistApprovedProposal(partition, execution, call, decision);
             } catch {
               return { ok: false, message: "approval_persistence_failed" };
             }
@@ -567,24 +712,24 @@ export function createProjectAgentExecutionCoordinator(
         },
       });
       await execution.publicationTail;
-      const finalState = record.host.getSnapshot(record.binding);
+      const finalState = partition.host.getSnapshot(partition.binding);
       const assistant = finalState.items.find(
         (candidate) => candidate.kind === "assistant" && candidate.turnId === execution.turn.turnId,
       );
       const status = statusForResponse(response);
-      const toolItems = response.toolCalls.map((item) => toolItem(record.binding, execution.turn, item, now()));
-      const beforeResult = record.host.getSnapshot(record.binding);
+      const toolItems = response.toolCalls.map((item) => toolItem(partition.binding, execution.turn, item, now()));
+      const beforeResult = partition.host.getSnapshot(partition.binding);
       const currentStatus = beforeResult.turns.find((turn) => turn.turnId === execution.turn.turnId)?.status;
       if (!currentStatus || ["queued", "running", "proposed"].includes(currentStatus)) {
-        await dispatchFresh(subscriptionId, (state) => ({
+        await dispatchFresh(partition, (state) => ({
           commandId: `async-result-${execution.turn.executionToken}`,
           expectedRevision: state.hostRevision,
-          binding: record.binding,
+          binding: partition.binding,
           sender: { kind: "embedded-agent", senderId: execution.turn.executionToken },
           type: "async.result",
           payload: {
             asyncToken: execution.turn.executionToken,
-            binding: record.binding,
+            binding: partition.binding,
             threadId: execution.turn.threadId,
             turnId: execution.turn.turnId,
             queueItemId: execution.queueItem.queueItemId,
@@ -610,48 +755,96 @@ export function createProjectAgentExecutionCoordinator(
           },
         }));
       }
-      const committed = record.host.getSnapshot(record.binding);
+      const committed = partition.host.getSnapshot(partition.binding);
       const committedStatus = committed.turns.find((turn) => turn.turnId === execution.turn.turnId)?.status;
       if (!committedStatus || ["queued", "running", "proposed"].includes(committedStatus)) {
         throw new Error("Project Agent execution result has no committed terminal turn");
       }
-      publish(subscriptionId, {
+      publish(partition, {
         type: "execution-result",
-        binding: record.binding,
+        binding: partition.binding,
         turnId: execution.turn.turnId,
         executionToken: execution.turn.executionToken,
         response,
       });
     } catch (error) {
       if (!execution.controller.signal.aborted) {
-        publish(subscriptionId, {
-          type: "execution-error",
-          binding: record.binding,
-          turnId: execution.turn.turnId,
-          executionToken: execution.turn.executionToken,
-          message: error instanceof Error ? error.message : String(error),
-        });
-        // A model/runtime failure must not leave a running turn stranded in
-        // the queue. Publish the terminal state through the same Host path as
-        // every other mutation, after already queued assistant deltas settle.
+        const message = error instanceof Error && error.message ? error.message : String(error) || "Agent execution failed";
+        // A runtime failure is a canonical transcript fact. Commit both the
+        // terminal assistant and a Failure Item before notifying views.
+        let terminalError: unknown;
         try {
           await execution.publicationTail;
-          await dispatchFresh(subscriptionId, (state) => ({
-            commandId: `execution-failed-${execution.turn.executionToken}`,
-            expectedRevision: state.hostRevision,
-            binding: record.binding,
-            sender: { kind: "embedded-agent", senderId: execution.turn.executionToken },
-            type: "turn.transition",
-            payload: {
-              turnId: execution.turn.turnId,
-              status: "failed" as const,
-              retryable: true,
-              updatedAt: now(),
-            },
-          }));
-        } catch (terminalError) {
-          // Preserve the original runtime error notification. A concurrent
-          // stop or terminal commit may have won the race already.
+          const beforeFailure = partition.host.getSnapshot(partition.binding);
+          const currentStatus = beforeFailure.turns.find((turn) => turn.turnId === execution.turn.turnId)?.status;
+          const assistant = beforeFailure.items.find(
+            (item) => item.kind === "assistant" && item.turnId === execution.turn.turnId,
+          );
+          if (currentStatus === "running" && assistant?.kind === "assistant") {
+            const failedAt = now();
+            await dispatchFresh(partition, (state) => ({
+              commandId: `execution-failed-${execution.turn.executionToken}`,
+              expectedRevision: state.hostRevision,
+              binding: partition.binding,
+              sender: { kind: "embedded-agent", senderId: execution.turn.executionToken },
+              type: "async.result",
+              payload: {
+                asyncToken: execution.turn.executionToken,
+                binding: partition.binding,
+                threadId: execution.turn.threadId,
+                turnId: execution.turn.turnId,
+                queueItemId: execution.queueItem.queueItemId,
+                target: execution.queueItem.target,
+                preconditions: execution.queueItem.preconditions,
+                expectedRevision: state.hostRevision,
+                items: [Object.freeze({
+                  itemId: `failure-${digest([execution.turn.executionToken, "runtime-failure"])}`,
+                  threadId: execution.turn.threadId,
+                  turnId: execution.turn.turnId,
+                  kind: "failure" as const,
+                  code: "runtime_error",
+                  message,
+                  status: "failed" as const,
+                  retryable: true,
+                  deviated: false,
+                  createdAt: failedAt,
+                  updatedAt: failedAt,
+                })],
+                turnStatus: "failed" as const,
+                ...(execution.approvedProposalId
+                  ? { proposalApprovalId: execution.approvedProposalId, proposalStatus: "failed" as const }
+                  : {}),
+                assistantFinal: {
+                  itemId: assistant.itemId,
+                  executionToken: execution.turn.executionToken,
+                  expectedTextRevision: assistant.textRevision,
+                  text: assistant.text,
+                },
+                receivedAt: failedAt,
+              },
+            }));
+          }
+        } catch (failureCommitError) {
+          terminalError = failureCommitError;
+        }
+        const committed = partition.host.getSnapshot(partition.binding);
+        const committedStatus = committed.turns.find(
+          (turn) => turn.turnId === execution.turn.turnId,
+        )?.status;
+        if (committedStatus === "failed") {
+          publish(partition, {
+            type: "execution-error",
+            binding: partition.binding,
+            turnId: execution.turn.turnId,
+            executionToken: execution.turn.executionToken,
+            message,
+          });
+        } else {
+          reportInternalError(terminalError ?? error, {
+            phase: "terminalize-runtime-failure",
+            turnId: execution.turn.turnId,
+            message,
+          });
         }
       }
       try {
@@ -660,69 +853,101 @@ export function createProjectAgentExecutionCoordinator(
         /* terminal publication is best effort after cancellation */
       }
     } finally {
-      cleanupExecution(subscriptionId, execution, false);
+      cleanupExecution(partition, execution, false);
     }
     return "continue";
   }
 
-  function scheduleDrain(subscriptionId: string): void {
-    if (!subscriptions.has(subscriptionId) || drains.has(subscriptionId)) return;
+  function scheduleDrain(partition: ExecutionPartition): void {
+    if (partition.drain) return;
     const tail = Promise.resolve()
       .then(async () => {
         while (true) {
-          const record = subscriptions.get(subscriptionId);
-          if (!record) return;
-          if (active.get(subscriptionId)?.size) return;
-          const state = record.host.getSnapshot(record.binding);
+          if (partition.active.size) return;
+          const state = partition.host.getSnapshot(partition.binding);
           const head = state.queue.find((item) => ["queued", "proposed", "running"].includes(item.status));
           if (!head || head.status !== "queued") return;
-          const request = requests.get(subscriptionId)?.get(head.turnId);
-          if (!request) return;
+          const frozenRequest = partition.requests.get(head.turnId);
+          if (!frozenRequest) return;
           const turn = state.turns.find((candidate) => candidate.turnId === head.turnId);
           if (!turn) return;
           const execution: ActiveExecution = {
             turn,
             queueItem: head,
-            request,
+            request: frozenRequest.request,
             controller: new AbortController(),
             pending: new Map(),
             publicationTail: Promise.resolve(),
           };
-          active.get(subscriptionId)?.set(turn.turnId, execution);
-          if ((await executeTurn(subscriptionId, execution)) === "stop") return;
+          partition.active.set(turn.turnId, execution);
+          if ((await executeTurn(partition, execution)) === "stop") return;
         }
       })
       .finally(() => {
-        drains.delete(subscriptionId);
+        if (partition.drain === tail) partition.drain = undefined;
       });
-    drains.set(subscriptionId, tail);
+    partition.drain = tail;
   }
 
   function subscribe(subscriptionId: string, listener: ProjectAgentExecutionListener): () => void {
-    requireSubscription(subscriptionId);
-    const set = listeners.get(subscriptionId)!;
-    set.add(listener);
-    // A renderer can be remounted while an approval is pending. Replay the
-    // pending call to the new subscriber so a surface switch cannot strand
-    // the decision card in an unmounted panel.
-    for (const execution of active.get(subscriptionId)?.values() ?? []) {
-      for (const pending of execution.pending.values()) {
-        try {
-          listener({
-            type: "tool-call",
-            binding: requireSubscription(subscriptionId).binding,
-            turnId: pending.turnId,
-            executionToken: execution.turn.executionToken,
-            toolCallId: pending.toolCallId,
-            toolName: pending.toolName,
-            args: pending.args,
-          });
-        } catch {
-          // A renderer observer cannot stop execution.
+    const subscription = requireSubscription(subscriptionId);
+    const partition = requirePartition(subscription);
+    const delivery = deliveries.get(subscriptionId)!;
+    delivery.listeners.add(listener);
+
+    const pendingNotification = (
+      execution: ActiveExecution,
+      pending: PendingToolDecision,
+    ): ProjectAgentExecutionEvent => ({
+      type: "tool-call",
+      subscriptionId,
+      subscriptionEpoch: subscription.subscriptionEpoch,
+      binding: partition.binding,
+      turnId: pending.turnId,
+      executionToken: execution.turn.executionToken,
+      toolCallId: pending.toolCallId,
+      toolName: pending.toolName,
+      args: pending.args,
+      ...(pending.assistantTextAnchor ? { assistantTextAnchor: pending.assistantTextAnchor } : {}),
+    });
+    const notify = (notification: ProjectAgentExecutionEvent, target = listener): void => {
+      try {
+        target(notification);
+      } catch {
+        // A renderer observer cannot stop execution.
+      }
+    };
+
+    if (delivery.phase === "pre-live") {
+      delivery.phase = "activating";
+      // A pending tool call may have been published before the first listener
+      // attached. Add only calls absent from that ordered pre-live history.
+      for (const execution of partition.active.values()) {
+        for (const pending of execution.pending.values()) {
+          const alreadyBuffered = delivery.buffered.some(
+            (event) =>
+              event.type === "tool-call" &&
+              event.executionToken === execution.turn.executionToken &&
+              event.toolCallId === pending.toolCallId,
+          );
+          if (!alreadyBuffered) delivery.buffered.push(pendingNotification(execution, pending));
+        }
+      }
+      while (delivery.buffered.length > 0) {
+        const notification = delivery.buffered.shift()!;
+        for (const target of delivery.listeners) notify(notification, target);
+      }
+      delivery.phase = "live";
+    } else if (delivery.phase === "live") {
+      // A renderer can be remounted while an approval is pending. Later
+      // listeners replay only currently live decisions, never old patches.
+      for (const execution of partition.active.values()) {
+        for (const pending of execution.pending.values()) {
+          notify(pendingNotification(execution, pending));
         }
       }
     }
-    return () => set.delete(listener);
+    return () => delivery.listeners.delete(listener);
   }
 
   async function resolveToolDecision(
@@ -731,7 +956,9 @@ export function createProjectAgentExecutionCoordinator(
     toolCallId: string,
     decision: AgentChatToolDecision,
   ): Promise<void> {
-    const execution = active.get(subscriptionId)?.get(turnId);
+    const subscription = requireSubscription(subscriptionId);
+    const partition = requirePartition(subscription);
+    const execution = partition.active.get(turnId);
     const pending = execution?.pending.get(toolCallId);
     if (!execution || !pending) throw new ProjectAgentSubscriptionError("Project Agent tool decision is unavailable");
     pending.resolve(decision);
@@ -746,15 +973,14 @@ export function createProjectAgentExecutionCoordinator(
     resolveToolDecision,
     waitForTurn: completionFor,
     release: (subscriptionId: string) => {
-      for (const execution of active.get(subscriptionId)?.values() ?? []) execution.controller.abort();
+      const subscription = subscriptions.get(subscriptionId);
+      if (!subscription) return;
+      const partition = partitions.get(subscription.partitionKey);
+      partition?.subscriptionIds.delete(subscriptionId);
       subscriptions.delete(subscriptionId);
-      listeners.delete(subscriptionId);
+      deliveries.delete(subscriptionId);
       canvasReads.get(subscriptionId)?.dispose();
       canvasReads.delete(subscriptionId);
-      requests.delete(subscriptionId);
-      active.delete(subscriptionId);
-      completions.delete(subscriptionId);
-      drains.delete(subscriptionId);
     },
     subscriptionCount: () => subscriptions.size,
   });

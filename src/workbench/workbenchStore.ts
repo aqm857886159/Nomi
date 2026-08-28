@@ -33,11 +33,9 @@ import { createDefaultTimeline, normalizeTimeline } from './timeline/timelineMat
 import { readPreviewSourceCollapsed, writePreviewSourceCollapsed } from './preview/previewSourcePanelPreference'
 import type { TimelineClip, TimelineState, TimelineTextStyle, TimelineTrackType } from './timeline/timelineTypes'
 import { createDefaultWorkbenchDocument, normalizeWorkbenchDocument, type CreationDocumentTools, type PreviewAspectRatio, type WorkbenchDocument } from './workbenchTypes'
-import type { WorkbenchAiMessage } from './ai/workbenchAiTypes'
 import type { StoryboardPlan } from './generationCanvas/agent/storyboardPlan'
 import type { ComposerAttachment } from './ai/composer/composerAttachmentTypes'
 import { createConversationBuckets } from './aiConversationBuckets'
-import { abandonCreationTurn } from './creation/creationTurnController'
 
 // 创作面板会话「会话域」per-project 桶(S1 治串台)。
 // Agent messages are projected from ProjectAgentHost; this bucket owns only local composer state.
@@ -111,7 +109,6 @@ type WorkbenchState = {
   /** 手动锁定的 active skill（覆盖 mode 推导的 skillKey）。null = 自动（用创作模式默认）。 */
   creationActiveSkill: { key: string; name: string } | null
   creationAiDraft: string
-  creationAiMessages: WorkbenchAiMessage[]
   creationAiAttachments: ComposerAttachment[]
   creationAiError: string
   /** 分镜方案对象（planner 产出，创作区审/改后确认落画布）。null=本项目暂无方案。随项目持久化。 */
@@ -165,7 +162,6 @@ type WorkbenchState = {
   setCreationAiModeId: (modeId: string) => void
   setCreationActiveSkill: (skill: { key: string; name: string } | null) => void
   setCreationAiDraft: (draft: string) => void
-  setCreationAiMessages: (messages: WorkbenchAiMessage[] | ((messages: WorkbenchAiMessage[]) => WorkbenchAiMessage[])) => void
   setCreationAiAttachments: (attachments: ComposerAttachment[] | ((attachments: ComposerAttachment[]) => ComposerAttachment[])) => void
   setCreationAiError: (error: string) => void
   /** 写入/改写分镜方案对象（planner 落库、编辑器逐字段编辑）：置草稿态；editorOpen 由调用方管。 */
@@ -320,7 +316,6 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   creationAiModeId: 'general',
   creationActiveSkill: null,
   creationAiDraft: '',
-  creationAiMessages: [],
   creationAiAttachments: [],
   creationAiError: '',
   storyboardPlan: null,
@@ -373,11 +368,6 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   },
   setCreationAiDraft: (creationAiDraft) => {
     set({ creationAiDraft })
-  },
-  setCreationAiMessages: (messages) => {
-    set((state) => ({
-      creationAiMessages: typeof messages === 'function' ? messages(state.creationAiMessages) : messages,
-    }))
   },
   setCreationAiAttachments: (attachments) => {
     set((state) => ({
@@ -435,9 +425,6 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     set({ creationAiCollapsed })
   },
   swapCreationAiProject: (prevId, nextId) => {
-    // 结构性保证:任何「创作区切项目」都先中止在途流式轮次(中止流 + 作废 token +
-    // 拒绝清空待批写卡),否则旧轮回调会把内容写进新项目、写卡弹到新项目面板。
-    abandonCreationTurn()
     const state = get()
     set({
       ...creationAiBuckets.swap(prevId, nextId, {
@@ -445,8 +432,6 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
         creationAiAttachments: state.creationAiAttachments,
         creationAiError: state.creationAiError,
       }),
-      // ProjectAgentHost owns messages; clear the local compatibility projection while switching projects.
-      creationAiMessages: [],
       // 编辑器展开态(UI 瞬态,不持久化)切项目复位为收起:重开项目以「卡片·收起」休息态出现。
       storyboardEditorOpen: false,
       // 方案(storyboardPlan)与 committed 不在此清:随项目持久化(P0-6),hydrate restore 先于本 swap 跑、

@@ -6,7 +6,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { projectAgentContextPath } from "./projectAgentContextAdapter";
 import { createProjectAgentRepositoryRouter } from "./projectAgentRepositoryRouter";
 import { migrateProjectAgentLegacy } from "./projectAgentMigration";
-import { projectAgentProposalReceiptPath } from "./projectAgentProposalReceiptStore";
+import {
+  createProjectAgentProposalReceiptService,
+  hashProjectAgentCommittedProposal,
+  projectAgentProposalReceiptInvalidPath,
+  projectAgentProposalReceiptPath,
+} from "./projectAgentProposalReceiptStore";
 import {
   projectAgentCutoverLockPath,
   projectAgentCutoverManifestPath,
@@ -19,6 +24,17 @@ const binding = {
   projectGeneration: 1,
 } as const;
 const now = Date.parse("2026-08-28T00:00:00.000Z");
+const legacyProposal = {
+  proposalId: "proposal-1",
+  summary: "legacy undo",
+  stepLabels: ["created Shot A"],
+  categoryCounts: [{ categoryId: "shots", label: "Shots", count: 1 }],
+  compensation: [{ kind: "delete-nodes", nodeIds: ["node-a"] }],
+  watchNodes: [{ nodeId: "node-a", title: "Shot A", prompt: "wide shot" }],
+  reconciliationOk: false,
+  anchorMessageId: "assistant-a",
+  anchorTextOffset: 12,
+} as const;
 let root = "";
 
 afterEach(() => {
@@ -48,7 +64,7 @@ function writeLegacySource(): string {
       v: 2,
       creation: { activeId: "creation-old-thread-7", threads: threads("creation") },
       generation: { activeId: "same-old-thread", threads: threads("generation") },
-      committedProposal: { proposalId: "proposal-1", summary: "legacy undo" },
+      committedProposal: legacyProposal,
     }),
     "utf8",
   );
@@ -81,8 +97,36 @@ describe("ProjectAgent legacy raw migration", () => {
     expect(state!.activeThreadId).toBe(
       state!.threads.find((thread) => thread.provenance?.kind === "canonical")!.threadId,
     );
-    expect(JSON.parse(fs.readFileSync(projectAgentProposalReceiptPath(projectRoot), "utf8"))).toMatchObject({
-      proposal: { proposalId: "proposal-1" },
+    const durable = JSON.parse(fs.readFileSync(projectAgentProposalReceiptPath(projectRoot), "utf8"));
+    expect(durable).toMatchObject({
+      schemaVersion: 2,
+      lifecycle: "committed",
+      proposalId: "proposal-1",
+      proposalHash: hashProjectAgentCommittedProposal(legacyProposal),
+      proposal: legacyProposal,
+    });
+    expect(createProjectAgentProposalReceiptService({ projectRoot, binding }).read()).toMatchObject({
+      lifecycle: "committed",
+      proposal: legacyProposal,
+    });
+  });
+
+  it("archives an unconvertible legacy proposal without creating a valid Undo receipt", () => {
+    const projectRoot = writeLegacySource();
+    const sourcePath = path.join(projectRoot, ".nomi", "conversations.json");
+    const source = JSON.parse(fs.readFileSync(sourcePath, "utf8")) as Record<string, unknown>;
+    fs.writeFileSync(sourcePath, JSON.stringify({ ...source, committedProposal: { proposalId: "incomplete" } }), "utf8");
+    const agentStore = path.join(projectRoot, "agent-store");
+    fs.mkdirSync(agentStore, { recursive: true });
+    const router = createProjectAgentRepositoryRouter({ rootDir: agentStore });
+
+    expect(migrateProjectAgentLegacy({ projectRoot, binding, router, now }).migrated).toBe(true);
+    expect(fs.existsSync(projectAgentProposalReceiptPath(projectRoot))).toBe(false);
+    expect(createProjectAgentProposalReceiptService({ projectRoot, binding }).read()).toBeNull();
+    expect(JSON.parse(fs.readFileSync(projectAgentProposalReceiptInvalidPath(projectRoot), "utf8"))).toMatchObject({
+      binding,
+      reason: "invalid_legacy_proposal",
+      proposal: { proposalId: "incomplete" },
     });
   });
 

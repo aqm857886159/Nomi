@@ -39,7 +39,6 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(
         canvasZoom: 1,
         canvasOffset: { x: 0, y: 0 },
         generationAiDraft: '',
-        generationAiMessages: [],
         generationAiCollapsed: true,
         canUndo: false,
         canRedo: false,
@@ -56,17 +55,8 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(
         setGenerationAiDraft: (generationAiDraft) => {
           set({ generationAiDraft })
         },
-        setGenerationAiMessages: (messages) => {
-          set((state) => {
-            state.generationAiMessages =
-              typeof messages === 'function' ? messages(state.generationAiMessages) : messages
-          })
-        },
         setGenerationAiCollapsed: (generationAiCollapsed) => {
           set({ generationAiCollapsed })
-        },
-        resetGenerationAiConversation: () => {
-          set({ generationAiDraft: '', generationAiMessages: [] })
         },
         copySelectedNodes: () => {
           const nextClipboard = buildSelectedClipboard(get())

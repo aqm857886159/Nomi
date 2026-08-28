@@ -24,7 +24,6 @@ vi.mock('./projectAgentProjectionStore', () => ({
     applySnapshot: deps.install,
   },
 }))
-vi.mock('./projectAgentUiProjection', () => ({ installProjectAgentSnapshotToUi: deps.install }))
 
 import {
   activateProjectAgentThread,
@@ -70,7 +69,7 @@ describe('ProjectAgent UI history commands', () => {
         },
       }),
     )
-    expect(deps.install).toHaveBeenCalledTimes(2)
+    expect(deps.install).toHaveBeenCalledTimes(1)
   })
 
   it('routes activation and deletion through semantic mutations', async () => {

@@ -312,10 +312,21 @@ function assertQueueItem(
   if (!Array.isArray(item.attachmentRefs)) throw new ProjectAgentStateError("invalid_state");
   for (const raw of item.attachmentRefs) {
     const attachment = asRecord(raw);
-    assertAllowedKeys(attachment, ["assetId", "contentHash", "version"]);
+    assertAllowedKeys(attachment, ["assetId", "contentHash", "version", "display"]);
     assertNonEmpty(attachment.assetId);
     assertNonEmpty(attachment.contentHash);
     if (attachment.version !== undefined) assertSafeInteger(attachment.version, 1);
+    if (attachment.display !== undefined) {
+      const display = asRecord(attachment.display);
+      assertAllowedKeys(display, ["url", "fileName", "contentType", "sizeBytes", "kind"]);
+      assertNonEmpty(display.url);
+      assertNonEmpty(display.fileName);
+      assertNonEmpty(display.contentType);
+      assertSafeInteger(display.sizeBytes, 0);
+      if (display.kind !== "image" && display.kind !== "file") {
+        throw new ProjectAgentStateError("invalid_state");
+      }
+    }
   }
   const origin = asRecord(item.originSurface);
   assertAllowedKeys(origin, ["surfaceId", "kind"]);

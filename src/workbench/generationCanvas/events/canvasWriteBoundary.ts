@@ -11,8 +11,8 @@ type ActionName = {
 // status/progress is not a new edit. Previously accepted jobs are never cancelled.
 const documentActions = {
   markReady: false, captureHistory: true, setCanvasTransform: false, setCanvasZoom: false,
-  setGenerationAiDraft: false, setGenerationAiMessages: false, setGenerationAiCollapsed: false,
-  resetGenerationAiConversation: false, copySelectedNodes: false, cutSelectedNodes: true,
+  setGenerationAiDraft: false, setGenerationAiCollapsed: false,
+  copySelectedNodes: false, cutSelectedNodes: true,
   pasteNodes: true, undo: true, redo: true, readSnapshot: false, readDocumentSnapshot: false,
   restoreSnapshot: true, applyEventTail: true, applyExternalGraph: true,
   addNode: true, commitPersistedChange: false, updateNode: true, updateNodes: true,
@@ -29,23 +29,33 @@ const documentActions = {
   trackNodeRun: false, addNodeResult: true, rollbackHistory: true,
 } satisfies Record<ActionName, boolean>
 
-type PendingWrite = { proposalId: string; cancel: () => void }
+type PendingWrite = { proposalId: string; cancel: () => void | false }
 let pending: PendingWrite | undefined
 let cancelling = false
 let settledWaiters: Array<() => void> = []
 
-function cancelPending(): void {
+function resolveSettledWaiters(): void {
+  if (pending || cancelling) return
+  const waiters = settledWaiters
+  settledWaiters = []
+  for (const resolve of waiters) resolve()
+}
+
+function waitUntilSettled(): Promise<void> {
+  return new Promise<void>((resolve) => settledWaiters.push(resolve))
+}
+
+function cancelPending(): boolean {
   const previous = pending
-  pending = undefined
-  if (!previous) return
+  if (!previous) return true
   cancelling = true
   try {
-    previous.cancel()
+    if (previous.cancel() === false) return false
+    if (pending === previous) pending = undefined
+    return true
   } finally {
     cancelling = false
-    const waiters = settledWaiters
-    settledWaiters = []
-    for (const resolve of waiters) resolve()
+    resolveSettledWaiters()
   }
 }
 
@@ -56,22 +66,45 @@ export function interruptPendingCanvasWrite(): void {
   if (cancelling && !context?.allowDuringCleanup) throw new DOMException('Canvas proposal cleanup is in progress', 'AbortError')
   if (context?.canWrite && !context.canWrite()) throw new DOMException('Canvas proposal no longer owns this write', 'AbortError')
   if (!pending || context?.proposalId === pending.proposalId) return
-  cancelPending()
+  if (!cancelPending()) throw new DOMException('Canvas proposal receipt commit is in progress', 'AbortError')
 }
 
-export function ownPendingCanvasWrite(proposalId: string, cancel: () => void): (() => void) | Promise<() => void> {
+/** Project replacement drops only renderer ownership. Durable recovery evidence
+ * remains main-owned and is replayed when that exact project is installed. */
+export function abandonPendingCanvasWrite(): void {
+  pending = undefined
+  resolveSettledWaiters()
+}
+
+export function ownPendingCanvasWrite(proposalId: string, cancel: () => void | false): (() => void) | Promise<() => void> {
   // This is an explicitly new owner, including one started by a synchronous
   // store subscriber. During compensation it queues until the old event and
   // Undo segment are both closed; it never writes inside the cleanup stack.
   if (cancelling) {
-    return new Promise<void>((resolve) => settledWaiters.push(resolve))
+    return waitUntilSettled()
       .then(() => ownPendingCanvasWrite(proposalId, cancel))
       .then((release) => release)
   }
-  cancelPending()
+  if (pending?.proposalId === proposalId) {
+    const owner = pending
+    return () => {
+      if (pending !== owner) return
+      pending = undefined
+      resolveSettledWaiters()
+    }
+  }
+  if (!cancelPending()) {
+    return waitUntilSettled()
+      .then(() => ownPendingCanvasWrite(proposalId, cancel))
+      .then((release) => release)
+  }
   const owner = { proposalId, cancel }
   pending = owner
-  return () => { if (pending === owner) pending = undefined }
+  return () => {
+    if (pending !== owner) return
+    pending = undefined
+    resolveSettledWaiters()
+  }
 }
 
 /** One entry for UI, Agent and external graph actions; no panel-specific lock. */

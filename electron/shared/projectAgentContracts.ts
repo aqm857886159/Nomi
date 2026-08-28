@@ -18,6 +18,10 @@ export const PROJECT_AGENT_STATUSES = [
 
 export type ProjectAgentStatus = (typeof PROJECT_AGENT_STATUSES)[number];
 
+export function isProjectAgentLiveStatus(status: ProjectAgentStatus): boolean {
+  return status === "drafting" || status === "proposed" || status === "queued" || status === "running";
+}
+
 export const PROJECT_AGENT_ITEM_KINDS = [
   "user",
   "assistant",
@@ -56,6 +60,7 @@ export const PROJECT_AGENT_MUTATION_TYPES = [
   "turn.start",
   "assistant.append",
   "turn.transition",
+  "execution.recover",
   "item.put",
   "item.transition",
   "proposal.put",
@@ -117,10 +122,24 @@ export type ProjectAgentVersionRef = Readonly<{
   version: string | number;
 }>;
 
+/** Untrusted renderer claim. Main resolves every other attachment field. */
+export type ProjectAgentAttachmentClaim = Readonly<{
+  assetId: string;
+  version: number;
+}>;
+
 export type ProjectAgentAttachmentRef = Readonly<{
   assetId: string;
   contentHash: string;
   version?: number;
+  /** Immutable display snapshot. Asset identity remains assetId + contentHash. */
+  display?: Readonly<{
+    url: string;
+    fileName: string;
+    contentType: string;
+    sizeBytes: number;
+    kind: "image" | "file";
+  }>;
 }>;
 
 export type ProjectAgentOriginSurfaceRef = Readonly<{
@@ -325,8 +344,16 @@ export type ProjectAgentAsyncResultEnvelope = Readonly<{
   receivedAt: string;
 }>;
 
+/** Immutable UTF-16 position in the canonical Host Assistant Item. */
+export type ProjectAgentAssistantTextAnchor = Readonly<{ itemId: string; textOffset: number }>;
+
+export type ProjectAgentSubscriptionIdentity = Readonly<{
+  subscriptionId: string;
+  subscriptionEpoch: number;
+}>;
+
 /** Live execution notifications are transport events, not a second state owner. */
-export type ProjectAgentExecutionEvent =
+export type ProjectAgentExecutionEventPayload =
   | Readonly<{
       type: "patch";
       patch: ProjectAgentPatch;
@@ -339,6 +366,8 @@ export type ProjectAgentExecutionEvent =
       toolCallId: string;
       toolName: string;
       args: unknown;
+      /** Non-owning render anchor captured after all pre-tool deltas commit. */
+      assistantTextAnchor?: ProjectAgentAssistantTextAnchor;
     }>
   | Readonly<{
       type: "execution-error";
@@ -355,6 +384,12 @@ export type ProjectAgentExecutionEvent =
       executionToken: string;
       response: AgentChatResponse;
     }>;
+
+type WithProjectAgentSubscriptionIdentity<Event> = Event extends unknown
+  ? Readonly<Event & ProjectAgentSubscriptionIdentity>
+  : never;
+
+export type ProjectAgentExecutionEvent = WithProjectAgentSubscriptionIdentity<ProjectAgentExecutionEventPayload>;
 
 type ProjectAgentMutationEnvelope<Type extends string, Payload> = Readonly<{
   commandId: string;
@@ -427,6 +462,14 @@ export type ProjectAgentMutation =
         retryable?: boolean;
         deviated?: boolean;
         updatedAt: string;
+      }>
+    >
+  | ProjectAgentMutationEnvelope<
+      "execution.recover",
+      Readonly<{
+        turnId: string;
+        failure: ProjectAgentFailureItem;
+        recoveredAt: string;
       }>
     >
   | ProjectAgentMutationEnvelope<"item.put", Readonly<{ item: ProjectAgentItem }>>

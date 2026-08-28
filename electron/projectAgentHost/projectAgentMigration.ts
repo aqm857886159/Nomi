@@ -28,7 +28,10 @@ import {
   type ProjectAgentLegacyMessage,
   type ProjectAgentLegacyThread,
 } from "./projectAgentLegacyConversationReader";
-import { createProjectAgentProposalReceiptStore } from "./projectAgentProposalReceiptStore";
+import {
+  createProjectAgentProposalReceiptService,
+  createProjectAgentProposalReceiptStore,
+} from "./projectAgentProposalReceiptStore";
 import type { ProjectAgentRepositoryRouter } from "./projectAgentRepositoryRouter";
 import { projectAgentPartitionKey } from "./projectAgentIdentity";
 import { createInitialProjectAgentState, snapshotProjectAgentHostState } from "./projectAgentState";
@@ -361,15 +364,13 @@ export function migrateProjectAgentLegacy(
     const repository = input.router.repositoryFor(input.binding);
     repository.initializeMigrated(built.state);
     const receiptStore = createProjectAgentProposalReceiptStore(input.projectRoot);
-    if (source.committedProposal && typeof source.committedProposal === "object") {
-      receiptStore.write({
+    if (source.committedProposal !== null) {
+      createProjectAgentProposalReceiptService({
+        projectRoot: input.projectRoot,
         binding: input.binding,
-        proposal: source.committedProposal,
-        sourceHash: hashes.proposalHash,
-        updatedAt: preparation.startedAt,
-      });
+      }).migrateLegacy(source.committedProposal, hashes.proposalHash, preparation.startedAt);
     } else {
-      receiptStore.clear();
+      receiptStore.remove();
     }
     const manifest: ProjectAgentCutoverManifest = Object.freeze({
       schemaVersion: 1,

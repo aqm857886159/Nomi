@@ -31,20 +31,30 @@ import {
 import { writeToolLabelKey } from './creationAiReplyText'
 import { useSystemPromptOverrides } from './useSystemPromptOverrides'
 import { useTransientScrollingClass } from './useTransientScrollingClass'
-import { useCreationTurnStore, type PendingDocToolCall, type WriteToolName } from './creationTurnController'
+import type { PendingDocToolCall, WriteToolName } from './creationToolContracts'
 import { createCreationToolHandler } from './creationToolCalls'
 import { getActiveWorkbenchProjectId } from '../project/workbenchProjectSession'
 import { AttachmentRail } from '../ai/composer/AttachmentRail'
 import { AutoGrowTextarea } from '../ai/composer/AutoGrowTextarea'
 import { COMPOSER_ATTACHMENT_ACCEPT, useComposerAttachments } from '../ai/composer/useComposerAttachments'
-import { useRafCoalesce } from '../ai/useRafCoalesce'
 import StoryboardNudge from './storyboard/StoryboardNudge'
 import { snapshotScriptDraft } from './scriptDraftSnapshot'
 import type { ProjectAgentExecutionEvent } from '../../../electron/shared/projectAgentContracts'
-import { enqueueProjectAgentTurn, decideProjectAgentTool, stopProjectAgentTurn, subscribeProjectAgentEvents } from '../ai/projectAgentTurnCommands'
-import { projectAgentProjectionStore } from '../ai/projectAgentProjectionStore'
+import {
+  createProjectAgentPendingToolRegistry,
+  enqueueProjectAgentTurn,
+  decideProjectAgentTool,
+  stopProjectAgentTurn,
+  subscribeProjectAgentEvents,
+  createProjectAgentTurnHandle,
+} from '../ai/projectAgentTurnCommands'
 import { createProjectAgentThread } from '../ai/projectAgentUiCommands'
 import type { AgentTurnHandle } from '../ai/agentTurnLifecycle'
+import { useProjectAgentSnapshot, useProjectAgentThreadMessages } from '../ai/useProjectAgentThreadMessages'
+import { projectAgentAttachmentClaims } from '../ai/projectAgentAttachments'
+import { isProjectAgentLiveStatus } from '../../../electron/shared/projectAgentContracts'
+import { projectAgentProjectionStore } from '../ai/projectAgentProjectionStore'
+import type { WorkbenchAiMessage } from '../ai/workbenchAiTypes'
 
 const CREATION_PROJECT_AGENT_TOOL_NAMES = new Set([
   'read_full_text',
@@ -59,16 +69,7 @@ const EPHEMERAL_AGENT_HISTORY: AgentChatHistory = Object.freeze({ kind: 'ephemer
 
 export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => void } = {}): JSX.Element {
   const { t } = useTranslation()
-  const sending = useCreationTurnStore((state) => state.sending)
-  const pendingToolCalls = useCreationTurnStore((state) => state.pendingToolCalls)
-  const turn = useCreationTurnStore
-  const { push: pushStreamFrame, cancel: cancelStreamFrame } = useRafCoalesce()
   const [memoryRefreshKey, setMemoryRefreshKey] = React.useState(0)
-  const prevSendingRef = React.useRef(sending)
-  React.useEffect(() => {
-    if (prevSendingRef.current && !sending) setMemoryRefreshKey((key) => key + 1)
-    prevSendingRef.current = sending
-  }, [sending])
   const [expanded, setExpanded] = React.useState(false)
   const messagesScrollRef = useTransientScrollingClass<HTMLDivElement>('workbench-scrollbar-visible')
   const workbenchDocument = useWorkbenchStore((state) => state.workbenchDocument)
@@ -78,7 +79,39 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   const activeSkill = useWorkbenchStore((state) => state.creationActiveSkill)
   const setActiveSkill = useWorkbenchStore((state) => state.setCreationActiveSkill)
   const draft = useWorkbenchStore((state) => state.creationAiDraft)
-  const messages = useWorkbenchStore((state) => state.creationAiMessages)
+  const hostMessages = useProjectAgentThreadMessages()
+  const hostSnapshot = useProjectAgentSnapshot()
+  const pendingRegistryRef = React.useRef(createProjectAgentPendingToolRegistry<PendingDocToolCall>())
+  const [pendingRegistryVersion, setPendingRegistryVersion] = React.useState(0)
+  const [localPendingToolCalls, setLocalPendingToolCalls] = React.useState<PendingDocToolCall[]>([])
+  const activeDocumentTurnId = React.useMemo(() => {
+    const snapshot = hostSnapshot
+    if (!snapshot) return null
+    return snapshot.turns.find((candidate) => {
+      if (!isProjectAgentLiveStatus(candidate.status)) return false
+      const queue = snapshot.queue.find((item) => item.turnId === candidate.turnId)
+      return queue?.originSurface.kind === 'document' && candidate.threadId === snapshot.activeThreadId
+    })?.turnId ?? null
+  }, [hostSnapshot])
+  const sending = Boolean(activeDocumentTurnId)
+  const prevSendingRef = React.useRef(sending)
+  React.useEffect(() => {
+    if (prevSendingRef.current && !sending) setMemoryRefreshKey((key) => key + 1)
+    prevSendingRef.current = sending
+  }, [sending])
+  const hostPendingToolCalls = React.useMemo(
+    () => pendingRegistryRef.current.select(projectAgentProjectionStore.getState(), 'document'),
+    [hostSnapshot, pendingRegistryVersion],
+  )
+  const pendingToolCalls = React.useMemo(
+    () => [...hostPendingToolCalls, ...localPendingToolCalls],
+    [hostPendingToolCalls, localPendingToolCalls],
+  )
+  const [localActionMessages, setLocalActionMessages] = React.useState<WorkbenchAiMessage[]>([])
+  const messages = React.useMemo(
+    () => [...hostMessages, ...localActionMessages],
+    [hostMessages, localActionMessages],
+  )
   // 分镜方案卡挂在「产出它的那条消息」下面（治「卡片跟着对话跑」）。取**最后一条**带标消息：
   // 改方案会新产出一条带标的，卡片随之前移，永远只显示一张。
   // 两种没有锚的情形（都不是 fallback，是「方案在本线程里没有家」这个事实的诚实呈现）：
@@ -103,12 +136,15 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   const attachments = useWorkbenchStore((state) => state.creationAiAttachments)
   const error = useWorkbenchStore((state) => state.creationAiError)
   const setDraft = useWorkbenchStore((state) => state.setCreationAiDraft)
-  const setMessages = useWorkbenchStore((state) => state.setCreationAiMessages)
   const setAttachments = useWorkbenchStore((state) => state.setCreationAiAttachments)
   const setError = useWorkbenchStore((state) => state.setCreationAiError)
   const setWorkspaceMode = useWorkbenchStore((state) => state.setWorkspaceMode)
   const setModeId = useWorkbenchStore((state) => state.setCreationAiModeId)
   const setStoryboardPlannerLauncher = useWorkbenchStore((state) => state.setStoryboardPlannerLauncher)
+  React.useEffect(() => {
+    setLocalActionMessages([])
+    setResolvedActionIds(new Set())
+  }, [hostSnapshot?.binding.immutableProjectUuid, hostSnapshot?.binding.projectGeneration, hostSnapshot?.activeThreadId])
   const {
     isDragging,
     openFilePicker,
@@ -125,7 +161,8 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   const documentToolsRef = React.useRef(documentTools)
   documentToolsRef.current = documentTools
   const projectAgentTurnRef = React.useRef<string | null>(null)
-  const projectAgentHandleRef = React.useRef<AgentTurnHandle | null>(null)
+  const projectAgentCancelRef = React.useRef<(() => void) | null>(null)
+  const projectAgentInvalidateRef = React.useRef<(() => void) | null>(null)
 
   // 订阅设置里改过的系统提示词：覆盖到货/变更即重渲，activeMode 随之拿到最新有效提示词（发送路径同源）。
   useSystemPromptOverrides()
@@ -145,35 +182,42 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
       unsubscribe = subscribeProjectAgentEvents((event: ProjectAgentExecutionEvent) => {
         if (disposed || event.type === 'patch') return
         if (event.type === 'tool-call' && !CREATION_PROJECT_AGENT_TOOL_NAMES.has(event.toolName)) return
-        if (event.turnId !== projectAgentTurnRef.current) {
-          if (event.type !== 'tool-call' || projectAgentTurnRef.current !== null) return
-          projectAgentTurnRef.current = event.turnId
-          projectAgentHandleRef.current = turn.getState().begin()
-        }
-        if (event.type === 'execution-error') {
-          setError(event.message)
-          return
-        }
+        if (event.type === 'execution-error') return
         if (event.type !== 'tool-call') return
-        const handle = projectAgentHandleRef.current
+        const hostTurn = projectAgentProjectionStore.getState().snapshot?.turns.find((candidate) => candidate.turnId === event.turnId)
+        if (!hostTurn || hostTurn.executionToken !== event.executionToken) return
+        const hostTurnIsLive = () => {
+          const current = projectAgentProjectionStore.getState().snapshot?.turns.find((candidate) => candidate.turnId === event.turnId)
+          return Boolean(current && ['queued', 'drafting', 'proposed', 'running'].includes(current.status) && current.executionToken === event.executionToken)
+        }
+        const transportHandle: AgentTurnHandle = {
+          id: 0,
+          isCurrent: hostTurnIsLive,
+          canWrite: hostTurnIsLive,
+          isCancelled: () => !hostTurnIsLive(),
+        }
+        projectAgentTurnRef.current = event.turnId
         const confirm = (decision: Parameters<typeof decideProjectAgentTool>[0]['decision']) =>
           decideProjectAgentTool({ turnId: event.turnId, toolCallId: event.toolCallId, decision })
         const toolEvent = {
+          turnId: event.turnId,
+          subscriptionId: event.subscriptionId,
+          subscriptionEpoch: event.subscriptionEpoch,
+          executionToken: event.executionToken,
           toolCallId: event.toolCallId,
           toolName: event.toolName,
           args: event.args,
-          isPending: () => Boolean(handle?.canWrite()),
+          isPending: hostTurnIsLive,
           confirm,
         }
-        if (!handle) {
-          void confirm({ ok: false, denied: true, message: 'creation turn is no longer active' }).catch(() => {})
-          return
-        }
         void createCreationToolHandler({
-          turn: handle,
+          turn: transportHandle,
           allowsWrite: modeAllowsWriteTools(skillSelRef.current.activeMode),
           readTools: () => documentToolsRef.current,
-          enqueue: (call) => turn.getState().addPendingToolCall(call),
+          enqueue: (call) => {
+            pendingRegistryRef.current.install(event, call)
+            setPendingRegistryVersion((version) => version + 1)
+          },
           skillSaveFailed: () => t('creationAi.skillSaveFailed'),
         })(toolEvent).catch((error: unknown) => {
           void confirm({ ok: false, message: error instanceof Error ? error.message : String(error) }).catch(() => {})
@@ -186,59 +230,36 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
       disposed = true
       unsubscribe?.()
     }
-  }, [t, turn])
-
-  const hostTurnStatus = React.useSyncExternalStore(
-    projectAgentProjectionStore.subscribe,
-    () => {
-      const turnId = projectAgentTurnRef.current
-      const snapshot = projectAgentProjectionStore.getState().snapshot
-      return turnId ? snapshot?.turns.find((candidate) => candidate.turnId === turnId)?.status ?? null : null
-    },
-    () => null,
-  )
-  const hostSnapshot = React.useSyncExternalStore(
-    projectAgentProjectionStore.subscribe,
-    () => projectAgentProjectionStore.getState().snapshot,
-    () => null,
-  )
-  React.useEffect(() => {
-    if (projectAgentTurnRef.current || projectAgentHandleRef.current) return
-    const candidate = hostSnapshot?.turns.find((candidateTurn) => {
-      if (!['queued', 'drafting', 'proposed', 'running'].includes(candidateTurn.status)) return false
-      const queueItem = hostSnapshot.queue.find((item) => item.turnId === candidateTurn.turnId)
-      return queueItem?.originSurface.kind === 'document'
-    })
-    if (!candidate) return
-    projectAgentTurnRef.current = candidate.turnId
-    projectAgentHandleRef.current = turn.getState().begin()
-  }, [hostSnapshot, turn])
-  React.useEffect(() => {
-    if (!projectAgentTurnRef.current || !projectAgentHandleRef.current) return
-    if (hostTurnStatus && !['queued', 'drafting', 'proposed', 'running'].includes(hostTurnStatus)) {
-      turn.getState().finish(projectAgentHandleRef.current.id)
-      projectAgentHandleRef.current = null
-      projectAgentTurnRef.current = null
-    }
-  }, [hostTurnStatus, turn])
+  }, [t])
   React.useEffect(() => {
     if (hostSnapshot !== null) return
+    projectAgentInvalidateRef.current?.()
+    projectAgentInvalidateRef.current = null
     projectAgentTurnRef.current = null
-    projectAgentHandleRef.current = null
-    if (turn.getState().sending) turn.getState().abandon()
-  }, [hostSnapshot, turn])
+    projectAgentCancelRef.current = null
+    pendingRegistryRef.current.clear()
+    setPendingRegistryVersion((version) => version + 1)
+  }, [hostSnapshot])
 
   const resolvePending = React.useCallback((
     toolCallId: string,
     decision: { ok: true; result?: unknown } | { ok: false; message?: string },
   ) => {
-    turn.getState().resolvePendingToolCall(toolCallId, decision)
-  }, [turn])
+    const entry = pendingRegistryRef.current.find(toolCallId)
+    if (entry) pendingRegistryRef.current.removeByToolCallId(toolCallId)
+    else {
+      const local = localPendingToolCalls.find((call) => call.toolCallId === toolCallId)
+      if (local) void local.confirm(decision).catch(() => {})
+      setLocalPendingToolCalls((current) => current.filter((call) => call.toolCallId !== toolCallId))
+    }
+    setPendingRegistryVersion((version) => version + 1)
+    if (entry) void entry.value.confirm(decision).catch(() => {})
+  }, [localPendingToolCalls])
 
   // Run the actual editor mutation for an approved write tool, then resolve the
   // backend tool call so the agent loop can continue.
   const applyWriteTool = React.useCallback((call: PendingDocToolCall) => {
-    if (!turn.getState().pendingToolCalls.includes(call)) return
+    if (!pendingToolCalls.some((pending) => pending.toolCallId === call.toolCallId)) return
     const tools = documentToolsRef.current
     if (!tools) {
       resolvePending(call.toolCallId, { ok: false, message: 'editor_not_ready' })
@@ -249,7 +270,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     else tools.appendToEnd(call.content)
     const scriptDraft = snapshotScriptDraft({ content: tools.readFullText(), source: 'user' })
     resolvePending(call.toolCallId, { ok: true, result: { applied: true, scriptDraft } })
-  }, [resolvePending, turn])
+  }, [pendingToolCalls, resolvePending])
   const writeToolIcon = React.useCallback((name: WriteToolName) => {
     if (name === 'insert_at_cursor') return <IconCursorText size={13} />
     if (name === 'replace_selection') return <IconReplace size={13} />
@@ -257,7 +278,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   }, [])
 
   const launchStoryboardPlanning = React.useCallback((displayPrompt: string = t('creationAi.storyboardCommand'), revisionRequest?: string, shotMode: 'image' | 'video' | 'image-video' = 'image') => {
-    if (turn.getState().sending) return
+    if (activeDocumentTurnId) return
     const projectId = getActiveWorkbenchProjectId()
     const history = EPHEMERAL_AGENT_HISTORY
     // P0-9 Slice 3：已有未落画布的方案 + 用户给了修改要求 → 进「改方案」模式（基于现方案改，不从头拆）。
@@ -269,8 +290,8 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     // 编辑器为空但用户把故事打在了对话里 → 用对话正文，并补写进文稿（单一真相源），别让他把已经敲过的故事再搬一遍。
     const chatStory = docStory ? '' : extractStoryFromRequest(displayPrompt)
     if (chatStory) {
-      const toolCallId = `local-script-draft-${turn.getState().nextMessageId('assistant')}`
-      turn.getState().addPendingToolCall({
+      const toolCallId = `local-script-draft-creation_ai_assistant_${globalThis.crypto.randomUUID()}`
+      setLocalPendingToolCalls((current) => [...current, {
         toolCallId,
         toolName: 'append_to_end',
         content: chatStory,
@@ -278,7 +299,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
           if (!decision.ok) return
           launchStoryboardPlanning(displayPrompt, undefined, shotMode)
         },
-      })
+      }])
       return
     }
     const storyText = docStory || chatStory
@@ -286,83 +307,57 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
       setError(t('creationAi.writeStoryFirst'))
       return
     }
-    const userId = turn.getState().nextMessageId('user')
-    const assistantId = turn.getState().nextMessageId('assistant')
-    setMessages((prev) => [
-      ...prev,
-      { id: userId, role: 'user', content: displayPrompt },
-      {
-        id: assistantId,
-        role: 'assistant',
-        content: isRevision ? t('creationAi.revisingPlan') : t('creationAi.planningStoryboard'),
-        status: 'pending' as const,
-        // 方案卡锚在这条消息上（不再常驻对话流尾部跟着用户说话跑）。改方案同样打标 →
-        // 卡片自动移到最新那条，旧的那条不再是「最后一条带标的」，天然只显示一张。
-        storyboardPlan: true as const,
-      },
-    ])
     setDraft('')
     setError('')
     // 流程 A：就地跑规划师（不切到生成区）。产出 propose_storyboard_plan 落创作 store →
     // 主列展开分镜方案编辑器；规划阶段全程免费、不碰画布（runStoryboardPlanner 的 onToolCall 守卫）。
-    const handle = turn.getState().begin()
+    const hostTurnId = `turn-creation-${globalThis.crypto.randomUUID()}`
+    const turnSession = createProjectAgentTurnHandle(hostTurnId)
+    const handle = turnSession.handle
+    projectAgentInvalidateRef.current = turnSession.invalidate
+    projectAgentTurnRef.current = hostTurnId
     void (async () => {
       try {
-        const { text, status } = await runStoryboardPlanner({
+        await runStoryboardPlanner({
           target: 'creation', history, projectId: projectId ?? undefined, canWrite: handle.canWrite,
+          turnId: hostTurnId,
+          displayPrompt,
           // 首拆带分镜模式（图片/视频，动作卡上选，默认图片）；改方案不带——保留现方案每镜已定的 shotKind。
           ...(isRevision ? { currentPlan, revisionRequest } : { storyText, shotMode }),
-          onContent: (streamed) => {
-            if (!handle.canWrite()) return
-            pushStreamFrame(() => {
-              if (handle.canWrite()) setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: streamed || t('creationAi.planningShort'), status: 'streaming' as const } : m)))
-            })
-          },
-          onCancelReady: (cancel) => turn.getState().attachCancel(handle.id, cancel),
+          onCancelReady: (cancel) => { projectAgentCancelRef.current = cancel },
         })
-        if (!handle.isCurrent()) return // 轮次已被切项目/新对话作废:别把旧项目内容写进新项目
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId ? { ...m, content: text || (status === 'cancelled' ? t('creationAi.stopped') : isRevision ? t('creationAi.revisionComplete') : t('creationAi.planComplete')), status: status === 'cancelled' ? 'cancelled' as const : 'done' as const } : m,
-          ),
-        )
       } catch (error: unknown) {
         if (!handle.isCurrent()) return
+        const canonicalFailure = projectAgentProjectionStore.getState().snapshot?.items.some(
+          (item) => item.turnId === hostTurnId && item.kind === 'failure',
+        )
+        if (canonicalFailure) return
         // 存**原始**错误串（不再包一层中文前缀）——错误态统一由 AssistantErrorCard /
         // NoTextModelRecoveryCard 渲染，它们内部走 classifyGenerationError 分类成人话；提前包
         // 「拆镜头失败：<原串>」会污染 provider 原话抽取，且把英文散句直接怼到用户脸上（2026-08-25 走查）。
         const rawMessage = error instanceof Error && error.message ? error.message : t('creationAi.unknownError')
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId
-              ? { ...m, content: handle.isCancelled() ? t('creationAi.stopped') : rawMessage, status: handle.isCancelled() ? 'cancelled' as const : 'error' as const }
-              : m,
-          ),
-        )
+        setError(handle.isCancelled() ? '' : rawMessage)
       } finally {
-        if (handle.isCurrent()) {
-          cancelStreamFrame()
-          turn.getState().finish(handle.id)
+        turnSession.invalidate()
+        if (projectAgentTurnRef.current === hostTurnId) {
+          projectAgentTurnRef.current = null
+          projectAgentCancelRef.current = null
+          projectAgentInvalidateRef.current = null
         }
       }
     })()
-  }, [cancelStreamFrame, documentText, pushStreamFrame, selectedText, setDraft, setError, setMessages, turn, t])
+  }, [activeDocumentTurnId, documentText, selectedText, setDraft, setError, t])
   React.useEffect(() => {
     setStoryboardPlannerLauncher(launchStoryboardPlanning)
   }, [launchStoryboardPlanning, setStoryboardPlannerLauncher])
   // Tier2 定妆：把剧本交给 AI，按剧本为主要角色/场景建卡 + 注入身份板提示词（与拆镜头同构）。
-  const launchFixationPlanning = React.useCallback((displayPrompt: string = t('creationAi.fixationCommand')) => {
+  const launchFixationPlanning = React.useCallback((_displayPrompt: string = t('creationAi.fixationCommand')) => {
     const projectId = getActiveWorkbenchProjectId()
     const storyText = (selectedText || documentText).trim()
     if (!storyText) {
       setError(t('creationAi.writeScriptFirst'))
       return
     }
-    setMessages((prev) => [
-      ...prev,
-      { id: turn.getState().nextMessageId('user'), role: 'user', content: displayPrompt },
-      { id: turn.getState().nextMessageId('assistant'), role: 'assistant', content: t('creationAi.fixationStarted'), status: 'done' as const },
-    ])
     setDraft('')
     setError('')
     setWorkspaceMode('generation')
@@ -370,10 +365,10 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
       if (getActiveWorkbenchProjectId() !== projectId) return
       requestFixationPlanning({ storyText, source: 'creation-ai-panel' })
     }, 60)
-  }, [documentText, selectedText, setDraft, setError, setMessages, setWorkspaceMode, turn, t])
+  }, [documentText, selectedText, setDraft, setError, setWorkspaceMode, t])
 
   const send = React.useCallback(async (textOverride?: string) => {
-    if (turn.getState().sending) return
+    if (activeDocumentTurnId) return
     const projectId = getActiveWorkbenchProjectId()
     const selection = skillSelRef.current
     const allowsWrite = modeAllowsWriteTools(selection.activeMode)
@@ -405,9 +400,9 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
       // 识别到跨面板意图 → 不再静默直接开跑，推一张可见的动作卡（治隐形）：
       // 用户看见「看起来你想拆镜头 → [按钮]」，点按钮才真正落画布。口径放宽后这里召回更高，
       // 误判只是多一张可忽略的卡、不会误触动作（点了才跑），所以放心放宽（治脆）。
-      const userId = turn.getState().nextMessageId('user')
-      const actionId = turn.getState().nextMessageId('assistant')
-      setMessages((prev) => [
+      const userId = `creation_ai_user_${globalThis.crypto.randomUUID()}`
+      const actionId = `creation_ai_assistant_${globalThis.crypto.randomUUID()}`
+      setLocalActionMessages((prev) => [
         ...prev,
         { id: userId, role: 'user', content: userRequest || (intent === 'storyboard' ? t('creationAi.storyboardCommand') : t('creationAi.fixationCommand')) },
         { id: actionId, role: 'assistant', content: '', status: 'done' as const, action: { kind: intent, prompt: userRequest } },
@@ -420,60 +415,59 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     const displayPrompt = userRequest || (readyAttachments.length
       ? t('creationAi.attachmentPrompt')
       : t('creationAi.processDocument', { mode: t(`creationAi.mode.${activeMode.id}.label` as 'creationAi.mode.general.label') }))
-    const attachmentPayload = readyAttachments.map((item) => ({
-      url: item.url as string,
-      contentType: item.contentType,
-      fileName: item.fileName,
-      kind: item.kind,
-    }))
+    const attachmentClaims = projectAgentAttachmentClaims(readyAttachments)
     setDraft('')
     clearAttachments()
     setError('')
-    const handle = turn.getState().begin()
+    const hostTurnId = `turn-creation-${globalThis.crypto.randomUUID()}`
+    const turnSession = createProjectAgentTurnHandle(hostTurnId)
+    const handle = turnSession.handle
+    projectAgentInvalidateRef.current = turnSession.invalidate
     const canonicalRequest = {
       prompt,
       displayPrompt,
       capability: allowsWrite ? 'creation-editor' as const : 'creation-chat' as const,
       history: { kind: 'ephemeral' as const },
       projectId: projectId ?? undefined,
-      ...(attachmentPayload.length ? { attachments: attachmentPayload } : {}),
       skillKey: selection.activeSkill ? selection.activeSkill.key : `workbench.creation.${selection.activeMode.id}`,
       skillName: selection.activeSkill
         ? selection.activeSkill.name
         : t(`creationAi.mode.${selection.activeMode.id}.title` as 'creationAi.mode.general.title'),
     }
-    projectAgentHandleRef.current = handle
-    projectAgentTurnRef.current = ''
+    projectAgentTurnRef.current = hostTurnId
     try {
       const result = await enqueueProjectAgentTurn({
+        turnId: hostTurnId,
         request: canonicalRequest,
         displayPrompt,
+        ...(attachmentClaims.length ? { attachmentClaims } : {}),
         target: { kind: 'document', documentId: `${projectId ?? 'active'}:document`, anchor: { kind: 'whole-document' } },
         originSurface: { surfaceId: 'creation-ai-panel', kind: 'document' },
       })
       projectAgentTurnRef.current = result.turnId
       const status = result.state.turns.find((candidate) => candidate.turnId === result.turnId)?.status
       if (status && !['queued', 'drafting', 'proposed', 'running'].includes(status)) {
-        projectAgentHandleRef.current = null
         projectAgentTurnRef.current = null
-        turn.getState().finish(handle.id)
+        turnSession.invalidate()
+        projectAgentCancelRef.current = null
+        projectAgentInvalidateRef.current = null
       }
     } catch (err) {
       if (!handle.isCurrent()) return // 轮次已被作废:错误属于旧项目,丢弃不写
       setError(err instanceof Error ? err.message : t('creationAi.callFailed'))
-      turn.getState().finish(handle.id)
-      projectAgentHandleRef.current = null
+      turnSession.invalidate()
       projectAgentTurnRef.current = null
+      projectAgentCancelRef.current = null
+      projectAgentInvalidateRef.current = null
     } finally {
-      if (handle.isCurrent()) {
-        cancelStreamFrame()
-        if (projectAgentTurnRef.current === '') {
-          projectAgentHandleRef.current = null
-          turn.getState().finish(handle.id)
-        }
+      turnSession.invalidate()
+      if (projectAgentTurnRef.current === hostTurnId) {
+        projectAgentTurnRef.current = null
+        projectAgentCancelRef.current = null
+        projectAgentInvalidateRef.current = null
       }
     }
-  }, [activeMode, attachments, clearAttachments, documentText, draft, launchStoryboardPlanning, setDraft, setError, selectedText, turn, t])
+  }, [activeDocumentTurnId, activeMode, attachments, clearAttachments, documentText, draft, launchStoryboardPlanning, setDraft, setError, selectedText, t])
 
   // 通用创作动作，贴 Nomi 视频创作调性、不绑小说题材（旧的「悬疑开场/童话语气」在产品/宣传项目里调性错配）。
   const suggestions = React.useMemo(() => [
@@ -484,16 +478,26 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
 
   const handleNewConversation = React.useCallback(() => {
     // 新对话 = 抛弃在途轮次:中止流 + 作废 token(迟到回调不再写) + 拒绝清空待批写卡。
+    const activeTurnId = projectAgentTurnRef.current
+    projectAgentCancelRef.current?.()
+    if (!projectAgentCancelRef.current && activeTurnId) void stopProjectAgentTurn(activeTurnId).catch(() => undefined)
     projectAgentTurnRef.current = null
-    projectAgentHandleRef.current = null
-    turn.getState().abandon()
+    projectAgentCancelRef.current = null
+    projectAgentInvalidateRef.current?.()
+    projectAgentInvalidateRef.current = null
+    // Host-owned pending calls stay indexed across a thread switch. The
+    // selector hides them while the new thread is active and restores them if
+    // the user returns before the Host turn reaches a terminal state.
+    setLocalPendingToolCalls([])
+    setLocalActionMessages([])
+    setResolvedActionIds(new Set())
     // 会话历史:归档当前线程(不销毁),建空活动线程,清面板消息投影。
     void createProjectAgentThread().catch(() => undefined)
     // 清 session 态(draft/附件/error 不落盘,不入线程)。
     setDraft('')
     clearAttachments()
     setError('')
-  }, [clearAttachments, setDraft, setError, turn])
+  }, [clearAttachments, setDraft, setError])
 
   const panelBody = (
     <aside
@@ -636,6 +640,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
                     if (resolvedActionIds.has(message.id)) return
                     setResolvedActionIds((prev) => new Set(prev).add(message.id))
                     const prompt = message.action!.prompt
+                    setLocalActionMessages([])
                     if (message.action!.kind === 'storyboard') launchStoryboardPlanning(prompt || t('creationAi.storyboardCommand'), undefined, shotMode)
                     else launchFixationPlanning(prompt || t('creationAi.fixationCommand'))
                   }}
@@ -790,9 +795,9 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
               label={t('creationAi.stop')}
               aria-label={t('creationAi.stopAria')}
               onClick={() => {
-                const turnId = projectAgentTurnRef.current
+                const turnId = activeDocumentTurnId ?? projectAgentTurnRef.current
                 if (turnId) void stopProjectAgentTurn(turnId).catch(() => {})
-                else turn.getState().requestUserCancel()
+                else projectAgentCancelRef.current?.()
               }}
               icon={<IconPlayerStopFilled size={13} />}
             />

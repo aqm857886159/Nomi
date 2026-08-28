@@ -4,6 +4,7 @@ import { NomiAILabel } from '../../../design/identity'
 import { WorkbenchButton } from '../../../design/actions'
 import { cn } from '../../../utils/cn'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { useProjectAgentThreadMessages } from '../../ai/useProjectAgentThreadMessages'
 
 const CanvasAssistantPanel = React.lazy(() => import('./CanvasAssistantPanel'))
 
@@ -42,7 +43,7 @@ export default function CanvasAssistantEntry({
   onCollapsedChange,
 }: CanvasAssistantEntryProps): JSX.Element {
   const collapsed = useGenerationCanvasStore((state) => state.generationAiCollapsed)
-  const messagesLength = useGenerationCanvasStore((state) => state.generationAiMessages.length)
+  const messagesLength = useProjectAgentThreadMessages().length
   const draft = useGenerationCanvasStore((state) => state.generationAiDraft)
   const setCollapsed = useGenerationCanvasStore((state) => state.setGenerationAiCollapsed)
   const [shouldLoadPanel, setShouldLoadPanel] = React.useState(

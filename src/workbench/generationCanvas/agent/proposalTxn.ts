@@ -6,7 +6,7 @@
 // Cmd+Z 永远撤不出半截态。
 import { applyCanvasToolCall, resolveCanvasToolNodeId } from './applyCanvasToolCall'
 import { assertTurnCanWrite, type AgentTurnHandle } from '../../ai/agentTurnLifecycle'
-import { applyCompensationOps } from './proposalUndo'
+import { applyCompensationOps, type ProposalReceiptCoordinator } from './proposalUndo'
 import { readGenerationCanvasSnapshot } from './generationCanvasTools'
 import { reconcileProposal, type ReconcileResult } from './reconcile'
 import { findOrphanArrayReferences } from '../runner/referenceSlots'
@@ -101,6 +101,7 @@ function captureStepCompensation(
 export async function applyProposalBatch(
   steps: ProposalStep[],
   turn?: Pick<AgentTurnHandle, 'canWrite'>,
+  receiptCoordinator?: ProposalReceiptCoordinator,
 ): Promise<ProposalOutcome> {
   if (turn) assertTurnCanWrite(turn.canWrite)
   const journalGeneration = getUndoJournalGeneration()
@@ -126,6 +127,9 @@ export async function applyProposalBatch(
   // aborted outcome instead of touching temporal-dead-zone transaction state.
   let release: () => void = () => {}
   let journalStart: number | undefined = undefined
+  let receiptPrepared = false
+  let receiptCommitInFlight = false
+  let retainWriteOwnerForRecovery = false
   const collectCurrentStep = () => {
     if (!pendingStep) return
     const ops = captureStepCompensation(pendingStep.step, pendingStep.before)
@@ -136,7 +140,6 @@ export async function applyProposalBatch(
   const abort = (reason: string): Extract<ProposalOutcome, { status: 'aborted' }> => {
     if (aborted) return aborted
     aborted = { status: 'aborted', proposalId, failedIndex: currentIndex, reason, compensatedNodeIds: [] }
-    release()
     if (!isSameCanvas()) return aborted
     collectCurrentStep()
     const cleanupContext = { ...ctx, canWrite: undefined, allowDuringCleanup: true }
@@ -165,20 +168,68 @@ export async function applyProposalBatch(
     )
     return aborted
   }
+  const abortAndFinalizeReceipt = async (
+    reason: string,
+  ): Promise<Extract<ProposalOutcome, { status: 'aborted' }>> => {
+    const outcome = abort(reason)
+    // Compensation happens first. If the durable completion marker fails, the
+    // preparing receipt remains recovery evidence and reopen repeats the same
+    // idempotent compensation.
+    if (receiptCoordinator && receiptPrepared && isSameCanvas()) {
+      try {
+        await receiptCoordinator.abort(proposalId)
+      } catch (error) {
+        retainWriteOwnerForRecovery = true
+        throw error
+      }
+    }
+    return outcome
+  }
+  const currentAbortReason = (): string =>
+    (aborted as Extract<ProposalOutcome, { status: 'aborted' }> | undefined)?.reason ?? 'Agent turn abandoned'
+  const errorMessage = (error: unknown): string =>
+    error instanceof Error && error.message ? error.message : String(error)
   // Claim before opening our own Undo point: acquiring a new batch first
   // cleans up the old one, even when both approvals came from the same turn.
   const ownership = ownPendingCanvasWrite(proposalId, () => {
+    // With a durable coordinator, preparation itself can succeed after an IPC
+    // acknowledgement is lost. Keep all foreign document writes outside the
+    // recovery window until commit/abort disposition is durable.
+    if (receiptCoordinator || receiptCommitInFlight) return false
     abort('Canvas edit superseded the pending proposal')
   })
   release = typeof ownership === 'function' ? ownership : await ownership
   try {
     if (aborted) return aborted
+    if (receiptCoordinator) {
+      const before = readGenerationCanvasSnapshot()
+      try {
+        receiptPrepared = await receiptCoordinator.prepare(proposalId, before)
+      } catch (error: unknown) {
+        abort(errorMessage(error))
+        // A lost preparation acknowledgement can still leave a durable
+        // preparing record. Resolve that exact proposal before deciding
+        // whether it is safe to retire the recovery evidence.
+        let disposition
+        try {
+          disposition = await receiptCoordinator.disposition(proposalId)
+        } catch {
+          retainWriteOwnerForRecovery = true
+          throw error
+        }
+        if (disposition !== 'preparing') throw error
+        receiptPrepared = true
+        return await abortAndFinalizeReceipt(errorMessage(error))
+      }
+      if (!receiptPrepared) return abort('Project Agent proposal receipt preparation is unavailable')
+      if (aborted) return await abortAndFinalizeReceipt(currentAbortReason())
+    }
     try {
       assertTurnCanWrite(canWrite)
       journalStart = getUndoJournalPosition()
       withCanvasGestureContext({ ...ctx, suppressUndoBarriers: false }, () => pushUndoSnapshot())
     } catch (error: unknown) {
-      return abort(error instanceof Error && error.message ? error.message : String(error))
+      return await abortAndFinalizeReceipt(errorMessage(error))
     }
     for (let index = 0; index < steps.length; index += 1) {
       currentIndex = index
@@ -187,8 +238,8 @@ export async function applyProposalBatch(
         assertTurnCanWrite(canWrite)
         pendingStep = { step, before: readGenerationCanvasSnapshot() }
         const result = await applyCanvasToolCall(step.toolName, step.effectiveArgs, ctx, canWrite)
-        if (aborted) return aborted
-        if (!isSameCanvas()) return abort('Agent turn abandoned')
+        if (aborted) return await abortAndFinalizeReceipt(currentAbortReason())
+        if (!isSameCanvas()) return await abortAndFinalizeReceipt('Agent turn abandoned')
         collectCurrentStep()
         if (step.toolName === 'create_canvas_nodes' && result && typeof result === 'object') {
           const record = result as { clientIdToNodeId?: Record<string, string> }
@@ -197,7 +248,7 @@ export async function applyProposalBatch(
         results.push(result)
         assertTurnCanWrite(canWrite)
       } catch (error: unknown) {
-        return abort(error instanceof Error && error.message ? error.message : String(error))
+        return await abortAndFinalizeReceipt(errorMessage(error))
       }
     }
 
@@ -220,6 +271,48 @@ export async function applyProposalBatch(
       // 需要完整图类型——在此适配 reconcile 的结构化 NodeLike/EdgeLike 注入签名。
       auditOrphanArrayReferences: () => findOrphanArrayReferences(snapshot.nodes, snapshot.edges),
     })
+    // 编辑哨点:AI 落地的节点此刻状态(创建的 + 改过 prompt 的);整笔撤销前对比,改过的列明再丢。
+    const watchIds = new Set<string>(createdNodeIds)
+    for (const step of steps) {
+      if (step.toolName === 'set_node_prompt') {
+        watchIds.add(resolveCanvasToolNodeId(String(step.effectiveArgs.nodeId || '').trim()))
+      }
+    }
+    const watchNodes: ProposalWatchNode[] = snapshot.nodes
+      .filter((node) => watchIds.has(node.id))
+      .map((node) => ({ nodeId: node.id, title: node.title, prompt: node.prompt || '' }))
+
+    if (receiptCoordinator) {
+      receiptCommitInFlight = true
+      try {
+        try {
+          const committed = await receiptCoordinator.commit({
+            proposalId,
+            compensation,
+            watchNodes,
+            reconciliationOk: reconciliation.ok,
+          })
+          if (!committed) throw new Error('Project Agent proposal receipt commit acknowledgement is unavailable')
+        } catch (error: unknown) {
+          // The commit IPC can lose its acknowledgement after main has already
+          // fsynced the committed record. Never compensate until a readback says
+          // this exact proposal is still only preparing.
+          let disposition
+          try {
+            disposition = await receiptCoordinator.disposition(proposalId)
+          } catch {
+            throw error
+          }
+          if (disposition !== 'committed') {
+            if (disposition === 'preparing') return await abortAndFinalizeReceipt(errorMessage(error))
+            throw error
+          }
+        }
+      } finally {
+        receiptCommitInFlight = false
+      }
+    }
+
     release()
     withCanvasGestureContext(ctx, () =>
       emitCanvasGesture([
@@ -238,19 +331,9 @@ export async function applyProposalBatch(
         },
       ]),
     )
-    // 编辑哨点:AI 落地的节点此刻状态(创建的 + 改过 prompt 的);整笔撤销前对比,改过的列明再丢。
-    const watchIds = new Set<string>(createdNodeIds)
-    for (const step of steps) {
-      if (step.toolName === 'set_node_prompt') {
-        watchIds.add(resolveCanvasToolNodeId(String(step.effectiveArgs.nodeId || '').trim()))
-      }
-    }
-    const watchNodes: ProposalWatchNode[] = snapshot.nodes
-      .filter((node) => watchIds.has(node.id))
-      .map((node) => ({ nodeId: node.id, title: node.title, prompt: node.prompt || '' }))
 
     return { status: 'committed', proposalId, results, clientIdToNodeId, reconciliation, compensation, watchNodes }
   } finally {
-    release()
+    if (!retainWriteOwnerForRecovery) release()
   }
 }

@@ -1,6 +1,7 @@
 import type { AgentChatRequest, AgentChatToolDecision } from '../../../electron/harness/agentChatContracts'
 import type {
   ProjectAgentExecutionEvent,
+  ProjectAgentAttachmentClaim,
   ProjectAgentHostState,
   ProjectAgentQueueItem,
   ProjectAgentThread,
@@ -10,10 +11,12 @@ import type {
   TargetRef,
   PreconditionSet,
 } from '../../../electron/shared/projectAgentContracts'
+import { isProjectAgentLiveStatus } from '../../../electron/shared/projectAgentContracts'
 import { createProjectAgentContextBinding } from '../../../electron/projectAgentHost/projectAgentContextBinding'
 import { projectAgentClient } from './projectAgentClient'
 import { projectAgentProjectionStore } from './projectAgentProjectionStore'
-import { installProjectAgentSnapshotToUi } from './projectAgentUiProjection'
+import type { ProjectAgentProjectionState } from './projectAgentProjectionStore'
+import type { AgentTurnHandle } from './agentTurnLifecycle'
 
 export type ProjectAgentTurnTarget = Readonly<{
   target: TargetRef
@@ -27,6 +30,7 @@ export type ProjectAgentTurnCommandInput = ProjectAgentTurnTarget &
     displayPrompt: string
     threadTitle?: string
     turnId?: string
+    attachmentClaims?: readonly ProjectAgentAttachmentClaim[]
   }>
 
 export type ProjectAgentTurnCommandResult = Readonly<{
@@ -130,7 +134,7 @@ function buildRecords(
     skillVersions,
     capabilityVersions,
     policyRevision: 1,
-    attachmentRefs: [],
+    attachmentRefs: Object.freeze([]),
     originSurface: input.originSurface,
     enqueuedAt: now,
     status: 'queued' as const,
@@ -153,10 +157,13 @@ export async function enqueueProjectAgentTurn(
     clientCommandId: id('ui-enqueue'),
     knownRevision: snapshot.hostRevision,
     type: 'turn.enqueue',
-    payload: { ...records, request: { ...input.request, history: { kind: 'ephemeral' as const } } },
+    payload: {
+      ...records,
+      request: { ...input.request, history: { kind: 'ephemeral' as const } },
+      attachmentClaims: Object.freeze((input.attachmentClaims ?? []).map((claim) => Object.freeze({ ...claim }))),
+    },
   })
   projectAgentProjectionStore.applySnapshot(result.state)
-  installProjectAgentSnapshotToUi(result.state)
   return Object.freeze({
     state: result.state,
     turnId: records.turn.turnId,
@@ -183,7 +190,6 @@ export async function decideProjectAgentTool(
     payload: input,
   })
   projectAgentProjectionStore.applySnapshot(result.state)
-  installProjectAgentSnapshotToUi(result.state)
 }
 
 export async function stopProjectAgentTurn(turnId: string): Promise<void> {
@@ -201,21 +207,139 @@ export async function stopProjectAgentTurn(turnId: string): Promise<void> {
         payload: { turnId, status: 'stopped', updatedAt: new Date().toISOString() },
       })
       projectAgentProjectionStore.applySnapshot(result.state)
-      installProjectAgentSnapshotToUi(result.state)
       return
     } catch (error) {
       if ((error as { code?: unknown })?.code !== 'revision_conflict' || attempt === 2) throw error
       const fresh = await projectAgentClient.snapshot(subscriptionId)
       projectAgentProjectionStore.applySnapshot(fresh)
-      installProjectAgentSnapshotToUi(fresh)
     }
   }
 }
 
 export function subscribeProjectAgentEvents(listener: (event: ProjectAgentExecutionEvent) => void): () => void {
-  return projectAgentClient.onEvent(listener)
+  return projectAgentClient.onEvent((event) => {
+    const state = projectAgentProjectionStore.getState()
+    if (
+      event.subscriptionId !== state.subscriptionId ||
+      event.subscriptionEpoch !== state.subscriptionEpoch ||
+      event.type === 'patch'
+    ) return
+    const snapshot = state.snapshot
+    const turn = snapshot?.turns.find((candidate) => candidate.turnId === event.turnId)
+    if (!snapshot || !turn || turn.executionToken !== event.executionToken) return
+    if (!sameBinding(snapshot.binding, event.binding)) return
+    listener(event)
+  })
 }
 
 export function projectAgentEventBelongsToTurn(event: ProjectAgentExecutionEvent, turnId: string): boolean {
-  return event.type !== 'patch' && event.turnId === turnId
+  if (event.type === 'patch' || event.turnId !== turnId) return false
+  const turn = projectAgentProjectionStore.getState().snapshot?.turns.find((candidate) => candidate.turnId === turnId)
+  return Boolean(turn && turn.executionToken === event.executionToken)
+}
+
+function sameBinding(left: ProjectBinding, right: ProjectBinding): boolean {
+  return left.projectId === right.projectId &&
+    left.immutableProjectUuid === right.immutableProjectUuid &&
+    left.projectGeneration === right.projectGeneration
+}
+
+/**
+ * Renderer adapter for a Host-owned turn. It is writable before the enqueue
+ * response exists, then follows the canonical Host turn until terminality.
+ * The invalidation hook covers a local submit that is abandoned before Host
+ * has materialized its first snapshot.
+ */
+export function createProjectAgentTurnHandle(turnId: string): Readonly<{
+  handle: AgentTurnHandle
+  invalidate: () => void
+}> {
+  const initial = projectAgentProjectionStore.getState()
+  const subscriptionId = initial.subscriptionId
+  const subscriptionEpoch = initial.subscriptionEpoch
+  let invalidated = false
+  const isCurrent = (): boolean => {
+    if (invalidated) return false
+    const state = projectAgentProjectionStore.getState()
+    if (
+      !state.snapshot ||
+      state.subscriptionId !== subscriptionId ||
+      state.subscriptionEpoch !== subscriptionEpoch
+    ) return false
+    const turn = state.snapshot.turns.find((candidate) => candidate.turnId === turnId)
+    return !turn || isProjectAgentLiveStatus(turn.status)
+  }
+  return Object.freeze({
+    handle: Object.freeze({
+      id: 0,
+      isCurrent,
+      canWrite: isCurrent,
+      isCancelled: () => !isCurrent(),
+    }),
+    invalidate: () => {
+      invalidated = true
+    },
+  })
+}
+
+type PendingToolRegistryEntry<Value> = Readonly<{
+  event: Extract<ProjectAgentExecutionEvent, { type: 'tool-call' }>
+  value: Value
+}>
+
+export function createProjectAgentPendingToolRegistry<Value>(): Readonly<{
+  install(event: Extract<ProjectAgentExecutionEvent, { type: 'tool-call' }>, value: Value): void
+  select(state: ProjectAgentProjectionState, surfaceKind: 'document' | 'canvas'): readonly Value[]
+  find(toolCallId: string): { event: Extract<ProjectAgentExecutionEvent, { type: 'tool-call' }>; value: Value } | null
+  removeByToolCallId(toolCallId: string): void
+  remove(event: Extract<ProjectAgentExecutionEvent, { type: 'tool-call' }>): void
+  clear(): void
+}> {
+  const entries = new Map<string, PendingToolRegistryEntry<Value>>()
+  const key = (event: Extract<ProjectAgentExecutionEvent, { type: 'tool-call' }>): string =>
+    [event.subscriptionId, event.subscriptionEpoch, event.executionToken, event.turnId, event.toolCallId].join(':')
+  return Object.freeze({
+    install(event, value) {
+      entries.set(key(event), Object.freeze({ event, value }))
+    },
+    select(state, surfaceKind) {
+      const visible: Value[] = []
+      for (const [entryKey, entry] of entries) {
+        if (entry.event.subscriptionId !== state.subscriptionId || entry.event.subscriptionEpoch !== state.subscriptionEpoch) {
+          entries.delete(entryKey)
+          continue
+        }
+        const snapshot = state.snapshot
+        const turn = snapshot?.turns.find((candidate) => candidate.turnId === entry.event.turnId)
+        if (
+          !snapshot ||
+          !turn ||
+          turn.executionToken !== entry.event.executionToken ||
+          !sameBinding(snapshot.binding, entry.event.binding) ||
+          !isProjectAgentLiveStatus(turn.status)
+        ) {
+          entries.delete(entryKey)
+          continue
+        }
+        if (turn.threadId !== snapshot.activeThreadId) continue
+        const queueItem = snapshot.queue.find((candidate) => candidate.turnId === turn.turnId)
+        if (queueItem?.originSurface.kind !== surfaceKind) continue
+        visible.push(entry.value)
+      }
+      return Object.freeze(visible)
+    },
+    find(toolCallId) {
+      for (const entry of entries.values()) if (entry.event.toolCallId === toolCallId) return entry
+      return null
+    },
+    removeByToolCallId(toolCallId) {
+      for (const [entryKey, entry] of entries) if (entry.event.toolCallId === toolCallId) entries.delete(entryKey)
+    },
+    remove(event) {
+      entries.delete(key(event))
+    },
+    clear() {
+      entries.clear()
+    },
+  })
 }

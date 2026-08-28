@@ -62,7 +62,8 @@ async function startApprovalTurn() {
     for (const call of liveCalls.values()) call.pending = false
     liveCalls.clear()
   }
-  const pending = new Map<string, ToolCallEvent & { turnId: number }>()
+  const hostTurnId = 'host-approval-turn'
+  const pending = new Map<string, ToolCallEvent>()
   const turn = useCanvasTurnStore.getState().begin()
   deps.run.mockImplementationOnce((input: RunWorkbenchAgentInput) => {
     wire = input
@@ -73,7 +74,7 @@ async function startApprovalTurn() {
   const input = {
     message: 'edit the canvas', projectId: 'project-A', history: { kind: 'ephemeral' as const }, capability: 'canvas-agent' as const,
     snapshot: useGenerationCanvasStore.getState().readDocumentSnapshot(), selectedNodes: [], canWrite: turn.canWrite,
-    onToolCall: (call: ToolCallEvent) => { pending.set(call.toolCallId, { ...call, turnId: turn.id }) },
+    onToolCall: (call: ToolCallEvent) => { pending.set(call.toolCallId, call) },
     onToolError: ({ toolCallId }: { toolCallId: string }) => { pending.delete(toolCallId) },
     onCancelReady: (cancel: () => void) => useCanvasTurnStore.getState().attachCancel(turn.id, cancel),
   }
@@ -101,6 +102,7 @@ async function startApprovalTurn() {
     const live = { pending: true, identity }
     liveCalls.set(id, live)
     const event: ToolCallEvent = {
+      turnId: hostTurnId,
       toolCallId: id,
       toolName,
       args,
@@ -119,7 +121,7 @@ async function startApprovalTurn() {
   // The panel uses this same claim/preparation/executor pipeline. Only external
   // transport, model-catalog I/O and media probing are controlled by the test.
   const approve = async (ids: string[]) => {
-    const approval = claimCanvasApprovalBatch(ids.map((toolCallId) => ({ toolCallId })), pending, turn)
+    const approval = claimCanvasApprovalBatch(ids.map((toolCallId) => ({ toolCallId })), pending, turn, hostTurnId)
     if (!approval) return
     const steps = await resolveCanvasApprovalSteps(approval.rawSteps, approval.owner.canWrite)
     const outcome = await applyProposalBatch(steps, approval.owner)

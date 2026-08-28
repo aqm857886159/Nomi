@@ -11,6 +11,7 @@ import { STORYBOARD_PLANNER_SKILL, buildStoryboardPlanningMessage, type Storyboa
 import { parseStoryboardPlan, type StoryboardPlan } from './storyboardPlan'
 
 type StoryboardPlannerInput = {
+  turnId?: string
   projectId?: string
   featureKey?: string
   canWrite: () => boolean
@@ -18,6 +19,7 @@ type StoryboardPlannerInput = {
   shotMode?: StoryboardShotMode
   currentPlan?: StoryboardPlan | null
   revisionRequest?: string
+  displayPrompt?: string
   skill?: { key: string; name: string }
   onContent?: (text: string) => void
   onCancelReady?: (cancel: () => void) => void
@@ -40,12 +42,14 @@ export async function runStoryboardPlanner(
   const canWrite = input.canWrite
   let plan: StoryboardPlan | undefined
   const agentRequestBase = {
+    ...(input.turnId ? { turnId: input.turnId } : {}),
     message: buildStoryboardPlanningMessage({
       storyText: input.storyText,
       currentPlan: input.currentPlan,
       revisionRequest: input.revisionRequest,
       ...(input.shotMode ? { shotMode: input.shotMode } : {}),
     }),
+    ...(input.displayPrompt ? { displayMessage: input.displayPrompt } : {}),
     projectId: input.projectId,
     featureKey: input.featureKey,
     capability: 'storyboard' as const,

@@ -68,6 +68,8 @@ import { installProductionProjectAgentHost } from "./projectAgentHost/projectAge
 import { createProjectAgentRepositoryRouter } from "./projectAgentHost/projectAgentRepositoryRouter";
 import { registerProjectAgentIpc } from "./projectAgentHost/projectAgentIpc";
 import { migrateProjectAgentLegacy } from "./projectAgentHost/projectAgentMigration";
+import { createProjectAgentProposalReceiptService } from "./projectAgentHost/projectAgentProposalReceiptStore";
+import { resolveProjectAgentAttachmentClaims } from "./assets/projectAssetStore";
 import { getWorkspaceRepositoryDeps } from "./runtimePaths";
 import { ensureWorkspaceProjectIdentity } from "./workspace/workspaceProjectIdentity";
 import { resolveWorkspaceProjectDir } from "./workspace/workspaceRepository";
@@ -443,6 +445,10 @@ function registerIpc(): void {
           binding,
           router: runtime.repositoryRouter,
         });
+        return {
+          proposalReceipts: createProjectAgentProposalReceiptService({ projectRoot: root, binding }),
+          resolveAttachmentClaims: (claims) => resolveProjectAgentAttachmentClaims(binding.projectId, claims),
+        };
       },
     }),
   });

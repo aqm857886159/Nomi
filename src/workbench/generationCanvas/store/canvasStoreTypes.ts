@@ -9,7 +9,6 @@ import type {
   GenerationNodeStatus,
   NodeGroup,
 } from '../model/generationCanvasTypes'
-import type { WorkbenchAiMessage } from '../../ai/workbenchAiTypes'
 import type { EdgeCapabilityResult } from '../agent/referenceEdgeCapability'
 import type { CanvasMutationOptions } from './canvasGuards'
 import type { NodeProgressInput, NodeRunRecordInput, NodeRunRecordPatch } from './runRecordHelpers'
@@ -119,7 +118,6 @@ export type GenerationCanvasState = {
   canvasZoom: number
   canvasOffset: { x: number; y: number }
   generationAiDraft: string
-  generationAiMessages: WorkbenchAiMessage[]
   generationAiCollapsed: boolean
   canUndo: boolean
   canRedo: boolean
@@ -129,9 +127,7 @@ export type GenerationCanvasState = {
   setCanvasTransform: (zoom: number, offset: { x: number; y: number }) => void
   setCanvasZoom: (zoom: number) => void
   setGenerationAiDraft: (draft: string) => void
-  setGenerationAiMessages: (messages: WorkbenchAiMessage[] | ((messages: WorkbenchAiMessage[]) => WorkbenchAiMessage[])) => void
   setGenerationAiCollapsed: (collapsed: boolean) => void
-  resetGenerationAiConversation: () => void
   copySelectedNodes: () => void
   cutSelectedNodes: () => void
   pasteNodes: (basePosition?: { x: number; y: number }) => void

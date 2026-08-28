@@ -6,6 +6,12 @@ import type {
   ProjectAgentPatch,
   ProjectBinding,
 } from '../../../electron/shared/projectAgentContracts'
+import type {
+  ProjectAgentProposalReceiptClear,
+  ProjectAgentProposalReceiptTransition,
+  ProjectAgentProposalReceiptView,
+  ProjectAgentProposalReceiptWrite,
+} from '../../../electron/shared/projectAgentProposalReceipt'
 import { getDesktopBridge } from '../../desktop/bridge'
 
 export type ProjectAgentCommand = Readonly<{
@@ -39,7 +45,12 @@ function unwrap<T>(response: unknown): T {
 }
 
 export type ProjectAgentClient = Readonly<{
-  open(binding: ProjectBinding): Promise<{ subscriptionId: string; snapshot: ProjectAgentHostState }>
+  open(binding: ProjectBinding): Promise<{
+    subscriptionId: string
+    subscriptionEpoch: number
+    snapshot: ProjectAgentHostState
+    proposalReceipt: ProjectAgentProposalReceiptView | null
+  }>
   snapshot(subscriptionId: string): Promise<ProjectAgentHostState>
   command(command: ProjectAgentCommand): Promise<{
     state: ProjectAgentHostState
@@ -48,6 +59,19 @@ export type ProjectAgentClient = Readonly<{
     snapshotRequired?: boolean
   }>
   release(subscriptionId: string): Promise<{ released: true }>
+  readProposalReceipt(subscriptionId: string): Promise<ProjectAgentProposalReceiptView | null>
+  writeProposalReceipt(
+    subscriptionId: string,
+    input: ProjectAgentProposalReceiptWrite,
+  ): Promise<ProjectAgentProposalReceiptView>
+  transitionProposalReceipt(
+    subscriptionId: string,
+    input: ProjectAgentProposalReceiptTransition,
+  ): Promise<ProjectAgentProposalReceiptView>
+  clearProposalReceipt(
+    subscriptionId: string,
+    input: ProjectAgentProposalReceiptClear,
+  ): Promise<{ cleared: true; receipt: ProjectAgentProposalReceiptView }>
   onPatch(handler: (patch: ProjectAgentPatch) => void): () => void
   onEvent(handler: (event: ProjectAgentExecutionEvent) => void): () => void
 }>
@@ -70,6 +94,18 @@ export function createProjectAgentClient(getBridge: () => ProjectAgentBridge | u
     },
     async release(subscriptionId) {
       return unwrap(await requireBridge().release(subscriptionId))
+    },
+    async readProposalReceipt(subscriptionId) {
+      return unwrap(await requireBridge().readProposalReceipt(subscriptionId))
+    },
+    async writeProposalReceipt(subscriptionId, input) {
+      return unwrap(await requireBridge().writeProposalReceipt(subscriptionId, input))
+    },
+    async transitionProposalReceipt(subscriptionId, input) {
+      return unwrap(await requireBridge().transitionProposalReceipt(subscriptionId, input))
+    },
+    async clearProposalReceipt(subscriptionId, input) {
+      return unwrap(await requireBridge().clearProposalReceipt(subscriptionId, input))
     },
     onPatch(handler) {
       return requireBridge().onPatch?.(handler) ?? (() => undefined)

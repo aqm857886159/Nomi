@@ -4,17 +4,18 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../../i18n'
 import { cn } from '../../../utils/cn'
+import { toast } from '../../../ui/toast'
 import { sendGenerationCanvasAgentMessage, type ToolCallEvent } from '../agent/generationCanvasAgentClient'
 import type { AgentChatHistory } from '../../../../electron/harness/agentChatContracts'
 import { assertTurnCanWrite } from '../../ai/agentTurnLifecycle'
 import { getActiveWorkbenchProjectId } from '../../project/workbenchProjectSession'
-import { useCanvasTurnStore } from '../agent/canvasTurnController'
 import { generationCanvasTools, readGenerationCanvasSnapshot } from '../agent/generationCanvasTools'
 import { applyCanvasToolCall } from '../agent/applyCanvasToolCall'
 import { applyProposalBatch } from '../agent/proposalTxn'
 import {
   claimCanvasApprovalBatch,
   resolveCanvasApprovalSteps,
+  type PendingCallStore,
   type CanvasApprovalRequest,
 } from '../agent/canvasApprovalSteps'
 import { evaluateGate } from '../agent/gate'
@@ -28,10 +29,9 @@ import {
 import AssistantTimeline from './AssistantTimeline'
 import { buildStepDetailLabels, countCreatedNodesByCategory, summarizeToolCall } from './toolCallSummary'
 import { MemoryFold } from './MemoryFold'
-import { runProposalUndo, setCommittedProposal, useCommittedProposal } from '../agent/proposalUndo'
+import { createProposalReceiptCoordinator, runProposalUndo, useCommittedProposal } from '../agent/proposalUndo'
 import type { ReconcileDeviation } from '../agent/reconcile'
 import { useShotVerifyStore, buildContentFixMessage } from '../agent/shotVerifyStore'
-import type { WorkbenchAiMessage } from '../../ai/workbenchAiTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { handleAiComposerKeyDown } from '../../ai/aiComposerKeyboard'
 import { WorkbenchAiHeaderActions } from '../../ai/WorkbenchAiHeaderActions'
@@ -41,18 +41,31 @@ import { AutoGrowTextarea } from '../../ai/composer/AutoGrowTextarea'
 import { COMPOSER_ATTACHMENT_ACCEPT, useComposerAttachments } from '../../ai/composer/useComposerAttachments'
 import type { ComposerAttachment } from '../../ai/composer/composerAttachmentTypes'
 import { createProjectAgentThread } from '../../ai/projectAgentUiCommands'
+import { useProjectAgentSnapshot, useProjectAgentThreadMessages } from '../../ai/useProjectAgentThreadMessages'
+import { projectAgentAttachmentClaims } from '../../ai/projectAgentAttachments'
+import { isProjectAgentLiveStatus } from '../../../../electron/shared/projectAgentContracts'
+import {
+  createProjectAgentPendingToolRegistry,
+  createProjectAgentTurnHandle,
+  stopProjectAgentTurn,
+} from '../../ai/projectAgentTurnCommands'
 import { projectAgentProjectionStore } from '../../ai/projectAgentProjectionStore'
+import {
+  canvasAssistantTimelineAnchor,
+  type CanvasAssistantTimelineAnchor,
+} from '../agent/canvasAssistantTimelineAnchor'
 
-type PendingToolCall = {
-  turnId: number
+type PendingToolCall = Partial<CanvasAssistantTimelineAnchor> & {
+  turnId: string
+  subscriptionId?: string
+  subscriptionEpoch?: number
+  executionToken?: string
   toolCallId: string
   toolName: string
   args: unknown
   isPending: ToolCallEvent['isPending']
   /** 纯传输:把判决回给主进程(LLM 的 confirm 通道)。应用画布变更走 approveCalls 的事务批。 */
   confirm: ToolCallEvent['confirm']
-  /** 时序内联:本卡跟在哪条消息后(入队时的「卡前气泡」或用户消息 id)。 */
-  anchorMessageId?: string
 }
 
 /** 批准请求:plan card 把用户编辑过的字段作为 overrides 传回(S6-0 的 overridesDelta 来源)。 */
@@ -60,10 +73,6 @@ export type ApproveCallRequest = CanvasApprovalRequest
 
 type CanvasAssistantPanelProps = {
   onCollapsedChange?: (collapsed: boolean) => void
-}
-
-function createMessageId(): string {
-  return `assistant-message-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 // 文字里像「要动画布却没动」的意图特征——配合零工具发射判定「只说不做」，提示换模型。
@@ -76,17 +85,21 @@ const onlyTalkWarning = (): string => i18n.t('generationCommon.assistant.onlyTal
 const truncatedWarning = (): string => i18n.t('generationCommon.assistant.truncatedWarning')
 const EPHEMERAL_AGENT_HISTORY: AgentChatHistory = Object.freeze({ kind: 'ephemeral' })
 
+function projectAgentTurnAnchor(turnId: string): CanvasAssistantTimelineAnchor | undefined {
+  const items = projectAgentProjectionStore.getState().snapshot?.items ?? []
+  const assistant = items.find((item) => item.turnId === turnId && item.kind === 'assistant')
+  return assistant?.kind === 'assistant'
+    ? Object.freeze({ anchorMessageId: assistant.itemId, anchorTextOffset: assistant.text.length })
+    : undefined
+}
+
 export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssistantPanelProps): JSX.Element {
   const { t } = useTranslation()
-  const busy = useCanvasTurnStore((state) => state.sending)
-  const turnId = useCanvasTurnStore((state) => state.turnId)
-  const cancelRequested = useCanvasTurnStore((state) => state.cancelRequested)
   const [mode, setMode] = React.useState<'agent' | 'chat' | 'refine'>('agent')
-  const [pendingToolCalls, setPendingToolCalls] = React.useState<PendingToolCall[]>([])
   // S6-3 对账偏差(N12):committed 但执行 ≠ 批准时弹卡;对账一致时恒 null(M1 零可见)。
   const [deviationReport, setDeviationReport] = React.useState<ReconcileDeviation[] | null>(null)
   // 时序内联:对账卡跟在本轮「卡前气泡」后(与 committed 同源,approveCalls 设)。
-  const [deviationAnchorId, setDeviationAnchorId] = React.useState<string | null>(null)
+  const [deviationAnchor, setDeviationAnchor] = React.useState<CanvasAssistantTimelineAnchor | null>(null)
   // 镜级画面校验偏差(Stage 1,独立 store):生成完成后由 verifyShotsAndReport 写入,这里订阅显示。
   const contentDeviations = useShotVerifyStore((s) => s.deviations)
   const contentExhausted = useShotVerifyStore((s) => s.exhausted)
@@ -99,15 +112,21 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
   const [memoryRefreshKey, setMemoryRefreshKey] = React.useState(0)
   const threadBottomRef = React.useRef<HTMLDivElement | null>(null)
 
-  // toolCallId → pending call 查找表(approveCalls 事务批要按序取多个 call,函数式 setState 取不到)。
-  const pendingByIdRef = React.useRef(new Map<string, PendingToolCall>())
+  // Pending calls are indexed by Host subscription/epoch/execution identity;
+  // this adapter exposes only the lookup/delete operations needed by the
+  // approval transaction and does not create a second lifecycle owner.
+  const pendingRegistryRef = React.useRef(createProjectAgentPendingToolRegistry<PendingToolCall>())
+  const [pendingRegistryVersion, setPendingRegistryVersion] = React.useState(0)
+  const projectAgentTurnRef = React.useRef<string | null>(null)
+  const projectAgentCancelRef = React.useRef<(() => void) | null>(null)
+  const projectAgentInvalidateRef = React.useRef<(() => void) | null>(null)
 
   /** 拒绝/传输专用:把判决直接回给 LLM 并移除卡片(批准走 approveCalls 的事务批)。 */
   const resolvePending = React.useCallback((toolCallId: string, decision: { ok: false; message?: string }) => {
-    const target = pendingByIdRef.current.get(toolCallId)
-    pendingByIdRef.current.delete(toolCallId)
+    const target = pendingRegistryRef.current.find(toolCallId)?.value
+    pendingRegistryRef.current.removeByToolCallId(toolCallId)
+    setPendingRegistryVersion((version) => version + 1)
     if (target) void target.confirm(decision).catch(() => {})
-    setPendingToolCalls((current) => current.filter((item) => item.toolCallId !== toolCallId))
   }, [])
 
   // S6-2 提议事务:批准 = 一笔原子批量(plan card 的 create+connect 共一个 proposalId)。
@@ -124,44 +143,63 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
     [resolvePending],
   )
 
-  // Exposed for the V2 agent client (wired in B6) so the panel can render
-  // pending tool calls and forward the user's confirmation back to the IPC
-  // session. We surface it via a ref so the call site doesn't have to
-  // re-render on every state change.
-  const pendingToolCallsRef = React.useRef({
-    enqueue: (call: PendingToolCall) => {
-      pendingByIdRef.current.set(call.toolCallId, call)
-      setPendingToolCalls((current) => [...current, call])
+  const pendingCallStore = React.useMemo<PendingCallStore<PendingToolCall>>(() => ({
+    get: (toolCallId) => pendingRegistryRef.current.find(toolCallId)?.value,
+    delete: (toolCallId) => {
+      const exists = pendingRegistryRef.current.find(toolCallId) !== null
+      pendingRegistryRef.current.removeByToolCallId(toolCallId)
+      return exists
     },
-    clear: () => {
-      pendingByIdRef.current.clear()
-      setPendingToolCalls([])
-    },
-  })
+  }), [])
   const draft = useGenerationCanvasStore((state) => state.generationAiDraft)
-  const messages = useGenerationCanvasStore((state) => state.generationAiMessages)
-  const history = EPHEMERAL_AGENT_HISTORY
-  const activeThreadId = React.useSyncExternalStore(
-    projectAgentProjectionStore.subscribe,
-    () => projectAgentProjectionStore.getState().snapshot?.activeThreadId ?? null,
-    () => null,
+  const hostMessages = useProjectAgentThreadMessages()
+  const hostSnapshot = useProjectAgentSnapshot()
+  const activeCanvasTurnId = React.useMemo(() => {
+    if (!hostSnapshot) return null
+    return hostSnapshot.turns.find((turn) => {
+      if (!isProjectAgentLiveStatus(turn.status) || turn.threadId !== hostSnapshot.activeThreadId) return false
+      return hostSnapshot.queue.find((item) => item.turnId === turn.turnId)?.originSurface.kind === 'canvas'
+    })?.turnId ?? null
+  }, [hostSnapshot])
+  const busy = Boolean(activeCanvasTurnId)
+  const pendingToolCalls = React.useMemo(
+    () => pendingRegistryRef.current.select(projectAgentProjectionStore.getState(), 'canvas'),
+    [hostSnapshot, pendingRegistryVersion],
   )
+  const [turnNotes, setTurnNotes] = React.useState<Readonly<Record<string, string>>>({})
+  const messages = React.useMemo(
+    () => hostMessages.map((message) => {
+      const note = message.turnId ? turnNotes[message.turnId] : undefined
+      return note && message.role === 'assistant' ? { ...message, content: `${message.content}${note}` } : message
+    }),
+    [hostMessages, turnNotes],
+  )
+  const activeThreadId = hostSnapshot?.activeThreadId ?? null
   const collapsed = useGenerationCanvasStore((state) => state.generationAiCollapsed)
   const setDraft = useGenerationCanvasStore((state) => state.setGenerationAiDraft)
-  const setMessages = useGenerationCanvasStore((state) => state.setGenerationAiMessages)
   // 附件用组件本地态（不进 generationCanvasStore——它已是白名单巨壳，不再喂；附件本就 ephemeral，
   // 面板折叠时组件仍挂载，本地态不丢）。
   const [attachments, setAttachments] = React.useState<ComposerAttachment[]>([])
   const setCollapsed = useGenerationCanvasStore((state) => state.setGenerationAiCollapsed)
   React.useEffect(() => {
-    for (const [id, call] of pendingByIdRef.current) {
-      if (call.turnId !== turnId || cancelRequested || !busy) pendingByIdRef.current.delete(id)
-    }
-    setPendingToolCalls((current) => current.filter((call) => call.turnId === turnId && !cancelRequested && busy))
-  }, [turnId, cancelRequested, busy])
+    if (hostSnapshot !== null) return
+    projectAgentInvalidateRef.current?.()
+    projectAgentInvalidateRef.current = null
+    projectAgentTurnRef.current = null
+    projectAgentCancelRef.current = null
+    pendingRegistryRef.current.clear()
+    setPendingRegistryVersion((version) => version + 1)
+  }, [hostSnapshot])
+  React.useEffect(() => {
+    // Selecting against the current Host snapshot prunes terminal, stale,
+    // cross-project, and old-thread entries. Hidden live entries stay indexed
+    // so switching back to that thread restores the decision card.
+    pendingRegistryRef.current.select(projectAgentProjectionStore.getState(), 'canvas')
+  }, [hostSnapshot])
   React.useEffect(() => {
     setDeviationReport(null)
-    setDeviationAnchorId(null)
+    setDeviationAnchor(null)
+    setTurnNotes({})
   }, [activeThreadId])
 
   const {
@@ -198,27 +236,6 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
     threadBottomRef.current?.scrollIntoView({ block: 'end' })
   }, [messages, pendingToolCalls, deviationReport, contentDeviations, collapsed, stickToBottom])
 
-  const updateMessage = React.useCallback(
-    (id: string, content: string) => {
-      setMessages((current) => current.map((message) => (message.id === id ? { ...message, content } : message)))
-    },
-    [setMessages],
-  )
-
-  const setMessageStatus = React.useCallback(
-    (id: string, status: WorkbenchAiMessage['status']) => {
-      setMessages((current) => current.map((message) => (message.id === id ? { ...message, status } : message)))
-    },
-    [setMessages],
-  )
-
-  const removeMessage = React.useCallback(
-    (id: string) => {
-      setMessages((current) => current.filter((message) => message.id !== id))
-    },
-    [setMessages],
-  )
-
   type SubmitMessageOptions = {
     skill?: { key: string; name: string }
     displayMessage?: string
@@ -227,83 +244,58 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
   const submitAgentMessage = React.useCallback(
     (text: string, options: SubmitMessageOptions = {}) => {
       const readyAttachments = attachments.filter((item) => item.status === 'ready' && item.url)
-      if ((!text && !readyAttachments.length) || useCanvasTurnStore.getState().sending) return
+      if ((!text && !readyAttachments.length) || busy) return
       const projectId = getActiveWorkbenchProjectId()
       const snapshot = readGenerationCanvasSnapshot()
       const selectedNodes = generationCanvasTools.read_selected_nodes()
       const launchHistory = EPHEMERAL_AGENT_HISTORY
       const launchMode = mode
-      const handle = useCanvasTurnStore.getState().begin()
+      const hostTurnId = `turn-canvas-${globalThis.crypto.randomUUID()}`
+      const turnSession = createProjectAgentTurnHandle(hostTurnId)
+      const handle = turnSession.handle
+      projectAgentTurnRef.current = hostTurnId
+      projectAgentInvalidateRef.current = turnSession.invalidate
       setDraft('')
       clearAttachments()
-      const attachmentPayload = readyAttachments.map((item) => ({
-        url: item.url as string,
-        contentType: item.contentType,
-        fileName: item.fileName,
-        kind: item.kind,
-      }))
-      // 时序内联:捕获用户消息 id(无前言时第一张卡锚定到它)+ 开一个占位「卡前气泡」。
-      const userMessageId = createMessageId()
-      const firstBubbleId = createMessageId()
-      setMessages((current) => [
-        ...current,
-        {
-          id: userMessageId,
-          role: 'user',
-          content: options.displayMessage || text || '请看这些附件',
-          ...(readyAttachments.length ? { attachments: readyAttachments } : {}),
-        },
-        { id: firstBubbleId, role: 'assistant', content: '处理中...', status: 'pending' },
-      ])
+      const attachmentClaims = projectAgentAttachmentClaims(readyAttachments)
       void (async () => {
-        let toolActionCount = 0
         // S6-2 提议事务批:用户点「确认」后整批原子应用——全成 committed,中途失败补偿回滚
         // (零半截)。先落地后回话:LLM 收到的每步成败与画布事实一致。
         approveCallsRef.current = async (requests: ApproveCallRequest[]) => {
-          const approval = claimCanvasApprovalBatch(requests, pendingByIdRef.current, handle)
+          const approval = claimCanvasApprovalBatch(requests, pendingCallStore, handle, hostTurnId)
           if (!approval) return
-          const { items, rawSteps, owner } = approval
+          const { items, rawSteps, owner, timelineAnchor } = approval
           // 立即摘卡防双击;事务结果经 transport 回 LLM,卡不复原(与既有 resolve 即摘一致)。
-          const claimed = new Set(items.map((item) => item.call))
-          setPendingToolCalls((current) => current.filter((item) => !claimed.has(item)))
+          setPendingRegistryVersion((version) => version + 1)
           try {
             const steps = await resolveCanvasApprovalSteps(rawSteps, owner.canWrite)
             assertTurnCanWrite(owner.canWrite)
+            const categoryCounts = countCreatedNodesByCategory(steps)
+            const receiptCoordinator = createProposalReceiptCoordinator({
+              summary: steps.map((step) => summarizeToolCall(step.toolName, step.effectiveArgs)).join(' · '),
+              stepLabels: steps.flatMap((step) => buildStepDetailLabels(step.toolName, step.effectiveArgs)),
+              ...(categoryCounts.length ? { categoryCounts } : {}),
+              ...timelineAnchor,
+            })
             const outcome = await applyProposalBatch(
               steps.map(({ toolCallId, toolName, effectiveArgs }) => ({ toolCallId, toolName, effectiveArgs })),
               owner,
+              receiptCoordinator,
             )
             if (!handle.canWrite()) return
             if (outcome.status === 'committed') {
-              toolActionCount += steps.length
-              // 时序内联:卡片锚定到本轮「卡前气泡」(入队时记在 pending call 上),committed/对账卡同源。
-              const cardAnchorId = items.map((item) => item.call.anchorMessageId).find(Boolean) ?? null
+              // 回执和对账卡复用审批 batch 捕获的同一个 canonical Host item+offset 锚点。
               // S6-3 对账(N12):执行 ≠ 批准 → 弹偏差卡(per-field diff+一键整笔撤销);一致则零可见。
               if (!outcome.reconciliation.ok) {
                 setDeviationReport(outcome.reconciliation.deviations)
-                setDeviationAnchorId(cardAnchorId)
+                setDeviationAnchor(timelineAnchor ?? null)
               }
               // S6-5 整笔撤销唯一入口 = committed 卡(约束①,存活到下一笔)。落点回报靠卡内分类 chip。
               // 旧实现额外弹一个「整笔撤销」toast 当第二入口——每次 commit 都弹、和卡内入口重复,
               // 即用户反馈的「多余弹窗」,已删(单一入口,不再两套风格/两处冒泡)。
               // 无可补偿的提议(如 run_generation_batch 受理——网络调用收不回)不出撤销入口,不误导。
-              if (outcome.compensation.length > 0) {
-                // 落点回报(审计 A1):跨分类创建的节点会落进默认折叠的分类面板,卡片
-                // 必须报「落在哪」并给跳转入口,否则用户视角=确认过的节点凭空消失。
-                const categoryCounts = countCreatedNodesByCategory(steps)
-                const record = {
-                  proposalId: outcome.proposalId,
-                  summary: steps.map((step) => summarizeToolCall(step.toolName, step.effectiveArgs)).join(' · '),
-                  // A16:逐节点「标题 → 落点分类」明细,不再与 summary 同句重复。
-                  stepLabels: steps.flatMap((step) => buildStepDetailLabels(step.toolName, step.effectiveArgs)),
-                  ...(categoryCounts.length ? { categoryCounts } : {}),
-                  compensation: outcome.compensation,
-                  watchNodes: outcome.watchNodes,
-                  reconciliationOk: outcome.reconciliation.ok,
-                  ...(cardAnchorId ? { anchorMessageId: cardAnchorId } : {}),
-                }
-                setCommittedProposal(record)
-              }
+              // 回执已经在 applyProposalBatch 内完成 prepare→Canvas apply→commit；只有 durable commit
+              // 得到确认后才会走到这里并向 LLM 回 success，避免画布已落地但 Undo 证据尚未落盘。
               for (let index = 0; index < steps.length; index += 1) {
                 if (!handle.canWrite()) return
                 const step = steps[index]
@@ -330,76 +322,36 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
             }
           } catch (error: unknown) {
             const message = error instanceof Error ? error.message : String(error)
+            toast(message, 'error')
             for (const { call } of items)
               await call
                 .confirm({ ok: false, message, ...(!handle.canWrite() ? { denied: true } : {}) })
                 .catch(() => {})
           }
         }
-        // 时序内联(根治「吐字顺序倒挂/确认卡在上面」):文字按工具调用边界分段——
-        // 卡前文字进「卡前气泡」,卡后总结进「卡后新气泡」,卡片锚定到它跟随的消息;渲染层据此把卡
-        // 排到卡前文字之下、卡后文字之上。token 高频到达合帧(每帧最多一次 updateMessage),避免每字重渲。
-        let activeId: string | null = firstBubbleId // 当前打开的文字气泡(null=未开)
-        let activeText = '' // 本段累积(按 delta,非 cumulative)
-        let anchorId = userMessageId // 下一张卡锚定到的消息(气泡收首字后升级为气泡 id)
-        let streamRaf: number | null = null
-        const flush = () => {
-          streamRaf = null
-          if (!handle.canWrite()) return
-          if (activeId !== null) updateMessage(activeId, activeText || '处理中...')
-        }
-        const openBubble = () => {
-          if (!handle.canWrite()) return
-          const id = createMessageId()
-          activeId = id
-          activeText = ''
-          setMessages((current) => [...current, { id, role: 'assistant', content: '处理中...', status: 'streaming' }])
-        }
-        // 收口当前气泡:有正文→标 done(后续卡锚到它);空壳→删除(不留占位)。
-        const sealBubble = () => {
-          if (!handle.canWrite()) return
-          if (activeId === null) return
-          if (streamRaf !== null) {
-            cancelAnimationFrame(streamRaf)
-            streamRaf = null
-          }
-          if (activeText.trim() === '') {
-            removeMessage(activeId)
-          } else {
-            updateMessage(activeId, activeText)
-            setMessageStatus(activeId, 'done')
-          }
-          activeId = null
-          activeText = ''
-        }
         try {
           const result = await sendGenerationCanvasAgentMessage({
+            turnId: hostTurnId,
             projectId: projectId ?? undefined,
             history: launchHistory,
             capability:
               launchMode === 'chat' ? 'canvas-chat' : launchMode === 'refine' ? 'canvas-refine' : 'canvas-agent',
             canWrite: handle.canWrite,
             message: text || '请看这些附件',
-            ...(attachmentPayload.length ? { attachments: attachmentPayload } : {}),
+            ...(options.displayMessage ? { displayMessage: options.displayMessage } : {}),
+            ...(attachmentClaims.length ? { attachmentClaims } : {}),
             snapshot,
             selectedNodes,
             mode: launchMode,
             skill: options.skill,
-            onContent: (delta) => {
-              if (!handle.canWrite()) return
-              if (activeId === null) openBubble()
-              if (activeText === '') anchorId = activeId as string // 首字:后续卡锚到本气泡
-              activeText += delta
-              if (streamRaf === null) streamRaf = requestAnimationFrame(flush)
-            },
             onCancelReady: (cancel) => {
-              useCanvasTurnStore.getState().attachCancel(handle.id, cancel)
+              projectAgentCancelRef.current = cancel
             },
             onToolError: ({ toolCallId }) => {
-              const call = pendingByIdRef.current.get(toolCallId)
-              if (call?.turnId !== handle.id) return
-              pendingByIdRef.current.delete(toolCallId)
-              setPendingToolCalls((current) => current.filter((item) => item !== call))
+              const call = pendingRegistryRef.current.find(toolCallId)?.value
+              if (call?.turnId !== hostTurnId) return
+              pendingRegistryRef.current.removeByToolCallId(toolCallId)
+              setPendingRegistryVersion((version) => version + 1)
             },
             onToolCall: async (event: ToolCallEvent) => {
               const canWrite = () => handle.canWrite() && event.isPending()
@@ -430,91 +382,71 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
                 }
                 return
               }
-              // ask:写/破坏性操作排队,等用户经 pending 卡显式点头。卡锚定到当前「卡前气泡」,
-              // 收口本段→卡后文字另起新气泡。confirm 纯传输,批准走 approveCalls 事务批(S6-2)。
-              pendingToolCallsRef.current.enqueue({
-                turnId: handle.id,
+              // ask:写/破坏性操作排队。卡片只保存 canonical Host item 锚点，
+              // confirm 纯传输，批准仍走 approveCalls 的事务批。
+              const timelineAnchor = canvasAssistantTimelineAnchor(event.assistantTextAnchor)
+                ?? projectAgentTurnAnchor(event.turnId)
+              const pendingCall: PendingToolCall = {
+                turnId: event.turnId,
+                subscriptionId: event.subscriptionId,
+                subscriptionEpoch: event.subscriptionEpoch,
+                executionToken: event.executionToken,
                 toolCallId: event.toolCallId,
                 toolName: event.toolName,
                 args: event.args,
                 isPending: event.isPending,
                 confirm: event.confirm,
-                anchorMessageId: anchorId,
-              })
-              sealBubble()
+                ...timelineAnchor,
+              }
+              const projection = projectAgentProjectionStore.getState()
+              const currentSnapshot = projection.snapshot
+              const currentTurn = currentSnapshot?.turns.find((candidate) => candidate.turnId === event.turnId)
+              if (!currentSnapshot || !currentTurn || projection.subscriptionId === null || projection.subscriptionEpoch === null) return
+              pendingRegistryRef.current.install({
+                type: 'tool-call',
+                subscriptionId: event.subscriptionId ?? projection.subscriptionId,
+                subscriptionEpoch: event.subscriptionEpoch ?? projection.subscriptionEpoch,
+                binding: currentSnapshot.binding,
+                turnId: event.turnId,
+                executionToken: event.executionToken ?? currentTurn.executionToken,
+                toolCallId: event.toolCallId,
+                toolName: event.toolName,
+                args: event.args,
+              }, pendingCall)
+              setPendingRegistryVersion((version) => version + 1)
             },
           })
-
-          // 流结束:收口尾段气泡 + 特例定稿(只说不做⚠️ / 空回复)。
           if (!handle.isCurrent()) return
-          if (streamRaf !== null) cancelAnimationFrame(streamRaf)
           const finalText = result.response.text?.trim() || ''
-          if (result.response.status === 'cancelled') {
-            const content = activeText || finalText || i18n.t('creationAi.stopped')
-            if (activeId !== null) {
-              updateMessage(activeId, content)
-              setMessageStatus(activeId, 'cancelled')
-            } else {
-              setMessages((current) => [
-                ...current,
-                { id: createMessageId(), role: 'assistant', content, status: 'cancelled' },
-              ])
-            }
-            return
-          }
           // Main-owned canvas.read never emits a renderer pending event, but it
           // is still present in the canonical final response tool-call list.
           const warn =
             result.response.toolCalls.length === 0 && launchMode === 'agent' && AGENT_ACTION_INTENT.test(finalText)
           // 截断只在「模型真出了正文又被切断」时提示(空文本+length 是弱模型空响应,backend 已另说人话)。
           const truncated = result.response.finishReason === 'length' && finalText !== ''
-          const withNotes = (text: string): string =>
-            `${text}${warn ? onlyTalkWarning() : ''}${truncated ? truncatedWarning() : ''}`
-          if (activeId !== null && activeText.trim() !== '') {
-            // 尾段有正文(纯聊天整段 / 卡后总结)。
-            updateMessage(activeId, withNotes(activeText))
-            setMessageStatus(activeId, 'done')
-          } else if (activeId !== null) {
-            // 尾段是空占位气泡。有动作但无收尾文字 → 已应用卡已叙述结果,删空壳;否则补「已完成。」。
-            if (toolActionCount > 0) {
-              removeMessage(activeId)
-            } else {
-              updateMessage(activeId, withNotes(finalText || '已完成。'))
-              setMessageStatus(activeId, 'done')
-            }
-          } else if (toolActionCount === 0) {
-            // 无打开气泡且整轮零动作零文字 → 补一条「已完成。」(末尾是卡时不补,卡已叙述)。
-            const id = createMessageId()
-            setMessages((current) => [
-              ...current,
-              { id, role: 'assistant', content: withNotes(finalText || '已完成。'), status: 'done' },
-            ])
+          const note = finalText
+            ? `${warn ? onlyTalkWarning() : ''}${truncated ? truncatedWarning() : ''}`
+            : result.response.toolCalls.length === 0 && result.response.status !== 'cancelled'
+              ? i18n.t('generationCommon.assistant.completed')
+              : ''
+          if (note) {
+            setTurnNotes((current) => ({ ...current, [hostTurnId]: note }))
           }
-        } catch (error: unknown) {
-          if (!handle.isCurrent()) return
-          if (streamRaf !== null) cancelAnimationFrame(streamRaf)
-          const message = handle.isCancelled()
-            ? i18n.t('creationAi.stopped')
-            : `生成区 Agent 执行失败：${error instanceof Error && error.message ? error.message : '未知错误'}`
-          const status = handle.isCancelled() ? ('cancelled' as const) : ('error' as const)
-          if (activeId !== null) {
-            updateMessage(activeId, activeText ? `${activeText}\n\n${message}` : message)
-            setMessageStatus(activeId, status)
-          } else {
-            const id = createMessageId()
-            setMessages((current) => [...current, { id, role: 'assistant', content: message, status }])
-          }
+        } catch {
+          // Runtime failures are committed as canonical Host failure items.
         } finally {
-          if (streamRaf !== null) cancelAnimationFrame(streamRaf)
-          if (handle.isCurrent()) {
-            useCanvasTurnStore.getState().finish(handle.id)
-            approveCallsRef.current = null
-            setMemoryRefreshKey((key) => key + 1)
+          turnSession.invalidate()
+          approveCallsRef.current = null
+          setMemoryRefreshKey((key) => key + 1)
+          if (projectAgentTurnRef.current === hostTurnId) {
+            projectAgentTurnRef.current = null
+            projectAgentCancelRef.current = null
+            projectAgentInvalidateRef.current = null
           }
         }
       })()
     },
-    [attachments, clearAttachments, mode, removeMessage, setDraft, setMessages, setMessageStatus, updateMessage],
+    [attachments, busy, clearAttachments, mode, pendingCallStore, setDraft],
   )
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -544,10 +476,16 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
   }, [setCollapsed, submitAgentMessage])
 
   const handleNewConversation = React.useCallback(() => {
-    pendingByIdRef.current.clear()
-    setPendingToolCalls([])
+    const activeTurnId = projectAgentTurnRef.current
+    const cancel = projectAgentCancelRef.current
+    cancel?.()
+    if (!cancel && activeTurnId) void stopProjectAgentTurn(activeTurnId).catch(() => undefined)
+    projectAgentInvalidateRef.current?.()
+    projectAgentInvalidateRef.current = null
+    projectAgentTurnRef.current = null
+    projectAgentCancelRef.current = null
     setDeviationReport(null)
-    setDeviationAnchorId(null)
+    setDeviationAnchor(null)
     // 会话历史:归档当前线程(不销毁),建空活动线程,清消息投影;startNewConversation 内部清整笔撤销入口。
     void createProjectAgentThread().catch(() => undefined)
     setDraft('')
@@ -665,13 +603,21 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
         rejectPending={rejectPending}
         committedProposal={committedProposal}
         deviationReport={deviationReport}
-        deviationAnchorId={deviationAnchorId}
+        deviationAnchor={deviationAnchor}
         onDeviationUndo={() => {
           // 整笔撤销单机制(S6-5):补偿事务回退本笔,期间用户工作保留。
-          if (committedProposal) runProposalUndo(committedProposal)
-          else useGenerationCanvasStore.getState().undo()
-          setDeviationReport(null)
-          setDeviationAnchorId(null)
+          if (committedProposal) {
+            void runProposalUndo(committedProposal)
+              .then(() => {
+                setDeviationReport(null)
+                setDeviationAnchor(null)
+              })
+              .catch((error: unknown) => toast(error instanceof Error ? error.message : String(error), 'error'))
+          } else {
+            useGenerationCanvasStore.getState().undo()
+            setDeviationReport(null)
+            setDeviationAnchor(null)
+          }
         }}
         onRetry={() => {
           // 错误卡「重试」= 重发上一条用户消息(网络/服务商抖动等瞬时错误的直接出路)。
@@ -680,7 +626,7 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
         }}
         onDeviationDismiss={() => {
           setDeviationReport(null)
-          setDeviationAnchorId(null)
+          setDeviationAnchor(null)
         }}
         onDeviationAiFix={() => {
           // 让 AI 读画布、用所选模型支持的方式把没接上的参考连接重连(或换支持的模型)。
@@ -688,7 +634,7 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
             '刚才有几条参考连接没接上（所选模型不支持那种连接方式）。请先读画布，把这些没连上的参考连接，用所选模型支持的连接方式重连；如果模型确实不支持，就换成支持的模型再连。',
           )
           setDeviationReport(null)
-          setDeviationAnchorId(null)
+          setDeviationAnchor(null)
         }}
         contentDeviations={contentDeviations}
         contentExhausted={contentExhausted}
@@ -765,7 +711,11 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
           {busy ? (
             <WorkbenchIconButton
               type="button"
-              onClick={() => useCanvasTurnStore.getState().requestUserCancel()}
+              onClick={() => {
+                const turnId = activeCanvasTurnId ?? projectAgentTurnRef.current
+                if (turnId) void stopProjectAgentTurn(turnId).catch(() => {})
+                else projectAgentCancelRef.current?.()
+              }}
               className={cn(
                 'size-7 grid place-items-center shrink-0',
                 'border-0 rounded-full bg-nomi-ink text-nomi-paper cursor-pointer',

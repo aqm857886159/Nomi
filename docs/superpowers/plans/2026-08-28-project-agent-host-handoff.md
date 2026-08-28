@@ -46,16 +46,16 @@ Phase 2A 的独立审查仍要补，但它不再作为重新扫描整棵仓库�
 
 ## 0.2 历史 PR 证据门（Phase 5 / Phase 6 前强制执行）
 
-现有相关 PR 可能落后于最新 `main`，但其中记录了此前实际暴露的 MCP、Skill、Registry 和 UI 严重问题，也包含当时形成的设计判断。它们不是可直接合并的代码基线，却是不能丢失的问题证据与方案输入。
+**持续注意点：后续做 MCP、Skill、Registry 以及 UI 时，必须先回看现有相关 PR 的核心问题、review 争议和方案判断。** 这些 PR 可能落后于最新 `main`，但其中记录了此前实际暴露的严重问题和当时形成的解决思路；它们不是可直接合并的代码基线，却是不能丢失的问题证据与方案输入。尤其 UI 先以已经设计并拍板的界面和真实运行截图为基准，只有发现行为或信息层级缺口时，才按设计系统补充调整。
 
 进入 Phase 5 或 Phase 6 前必须：
 
 1. 枚举当前 open PR 与近期相关的 closed / merged PR，阅读标题、描述、changed files、关键 diff、review 讨论和其中新增的设计/审计文档；不能只搜索当前工作树。
 2. 产出 `docs/audit/<date>-project-agent-pr-evidence.md`，逐项记录“原问题 / 根因判断 / PR 中的方案 / 相对最新 main 的漂移 / 本轮采纳、调整或淘汰结论 / 对应实现与测试”。没有结论的相关 PR 不能静默略过。
 3. 实现一律以届时最新 `origin/main` 和本任务已冻结合同为代码基线。历史 PR 只做证据和设计输入，禁止整分支盲目合并、机械 cherry-pick，或让旧实现恢复第二套 owner / fallback。
-4. UI 先以现有已设计、已拍板的界面和真实运行截图为第一基准；只有证据表明行为或信息层级不足时，才按 `docs/design/nomi-design-system.md` 补齐，并重新出真实布局样张验收。
+4. UI 先以现有已设计、已拍板的界面和真实运行截图为第一基准；只有证据表明行为或信息层级不足时，才按 `docs/design/nomi-design-system.md` 补齐，并重新出真实布局样张验收。不得因为 PR 落后 `main` 就忽略其中已经验证过的 UI 摩擦和设计取舍。
 
-Phase 5 / Phase 6 的 round contract 必须列出这份审计文档及其 PR 覆盖清单；缺失即 hard fail，不得开始实现。
+本轮一次性审计已固化为 [`docs/audit/2026-08-29-project-agent-pr-evidence.md`](../../audit/2026-08-29-project-agent-pr-evidence.md)，覆盖清单见 [`docs/audit/2026-08-29-project-agent-pr-coverage-index.md`](../../audit/2026-08-29-project-agent-pr-coverage-index.md)。Phase 5 / Phase 6 的 round contract 必须列出这两份文档，并在届时只补新增/更新 PR 的增量；缺失即 hard fail，不得开始实现。
 
 ## 0.3 当前最短续跑点
 
@@ -63,6 +63,30 @@ Phase 5 / Phase 6 的 round contract 必须列出这份审计文档及其 PR 覆
 2. 把两个面板各自的 pending tool-call view owner 收成 Host event + proposal/item projection；保留领域执行器，但不能再由面板决定 pending 生命周期。
 3. 删除 `creationAiMessages` / `generationAiMessages` 及其 setters、hydrate/reset 分支和结构债；扩展 cutover structure test，注入任一旧 message/pending owner 都必须变红。
 4. 只跑上述切片的 panel/projection/approval tests、双 typecheck、owner/vocabulary gate；通过后做 Phase 2B focused spec/quality review。全量 gates/build/package 继续留到最终候选。
+
+## 0.4 2026-08-29 执行流程 v2（防止 reviewer 逐轮补洞）
+
+此前 direct projection checkpoint 连续出现 `Round 01 -> 02 -> 03 -> 04`，不是因为同一测试反复不稳定，而是合同先按文件切、reviewer 后置，导致 failure terminalization、卡片真实渲染、anchor 生命周期和 receipt 重启恢复这些相邻依赖一次只暴露一个。后续禁止沿用这种微切片串行。
+
+从现在起：
+
+1. **阶段合同按完整用户不变量写，不按文件写。** 每个阶段实现前同时覆盖 semantic owner、持久化/重启、transport authority、生命周期/竞态、项目切换、用户可见 projection、旧 owner 删除和验证表面。
+2. **reviewer 前置。** worker 写生产代码前，先让 skeptical reviewer 审完整 closure contract；缺失依赖先补合同，不能留到实现后逐轮发现。
+3. **一个阶段一个 build batch。** 同阶段新发现的 P0/P1 汇总进同一 remediation batch；不再为每个相邻问题单开 Round。RED/GREEN 只跑直接失败文件，batch 稳定后才跑一次 affected focused matrix。
+4. **终审默认只读。** reviewer 优先消费 worker 的命令与结果证据，只补跑缺失/有争议的检查，不机械复跑整套 focused tests。
+5. **远端 checkpoint 只落在闭环边界。** 仓库规则要求 push 前跑完整 gates，因此不为中间修复消耗 full gate。计划只在 Phase 2B、Phase 4（含 Phase 3）和最终 Phase 6 候选形成远端 checkpoint。
+6. **实现时不追 `main`，checkpoint 时只整合一次。** 日常 `fetch` 只判断是否有直接重叠的高风险改变，不在 implementation lane 中 merge/rebase。Phase 2B / Phase 4 / Phase 6 各自完成 focused closure 后，再整合当时最新 `main` 一次、保留重叠行为、跑一次 push gate 并推远端。这样既遵守仓库 push 规则，也不会在开发循环里永远追 main。
+7. **历史 PR 证据只审一次。** Phase 5 前统一审 MCP / Skill / Registry / UI PR，产出 §0.2 要求的 evidence 文档，Phase 6 复用并补增量，不重复做两轮同源审计。
+
+8. **每个 lane 先做调用面清单，再开始 RED。** 清单同时覆盖生产调用点、测试 fixture、结构/词汇门岗和删除债，并逐项标记迁移、删除或保留。这样契约字段或 owner 变化不会靠全量测试逐个暴露下游缺口。
+9. **证据按 lane 复用，阶段出口一次冻结。** 每个 lane 维护一次命令/文件/结果账本；worker 的 GREEN 证据由只读 reviewer 消费，只补跑缺失或有争议的检查。阶段出口固定为 affected focused matrix + typecheck + scoped lint + owner/vocabulary + diff check + 一次 consolidated remediation，然后才整合当时最新 main 并跑 full gate。
+
+当前 Phase 2B 不再按旧 §0.3 的单文件续跑点零散推进，统一以：
+
+- `.agents/runtime/harness/project-agent-host-20260829/execution-protocol-v2.json`
+- `.agents/runtime/harness/project-agent-host-20260829/phase-2b-closure-contract.json`
+
+为实施与验收合同。当前 Round 01-04 工件保留为失败证据，不再继续扩出 Round 05；先完成 closure contract 预审，再用一个 Phase 2B implementation batch 收口 receipt、Creation pending owner、Canvas lifecycle、项目切换/重启和结构门岗。
 
 ---
 

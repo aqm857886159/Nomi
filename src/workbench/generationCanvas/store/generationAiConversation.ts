@@ -12,7 +12,7 @@ const generationAiBuckets = createConversationBuckets(() => ({
   generationAiDraft: '',
 }))
 
-/** 切项目:存旧项目的画布助手 draft,载入新项目的(没有则空)。messages 切空,载入由 loadProjectConversations 投影回。 */
+/** 切项目:存旧项目的画布助手 draft,载入新项目的(没有则空)。 */
 export function swapGenerationAiProject(prevId: string | null, nextId: string | null): void {
   // S6-5 约束③:整笔撤销入口不跨项目——补偿计划引用的是旧项目节点,跨项目执行会复活幽灵。
   clearCommittedProposal()
@@ -23,6 +23,5 @@ export function swapGenerationAiProject(prevId: string | null, nextId: string | 
     ...generationAiBuckets.swap(prevId, nextId, {
       generationAiDraft: state.generationAiDraft,
     }),
-    generationAiMessages: [],
   })
 }
