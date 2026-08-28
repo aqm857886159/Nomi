@@ -1,13 +1,46 @@
-# Nomi 项目级常驻 Agent 完整交接（2026-08-28）
+# Nomi 项目级常驻 Agent 完整交接（2026-08-29 修订）
 
-> 状态：📎 交接日志（未提交、未推送、未开 PR）  
-> 用途：在当前任务额度耗尽或上下文丢失时，让下一位 Agent 从真实冻结点继续，不重做已完成切片，也不把尚未审完的工作误报为完成。  
-> 工作树：`/Users/aoqimin/Desktop/Nomi-project-agent-host-phase1-20260827`  
-> 分支：`codex/project-agent-host-phase1-20260827`  
-> 当前 HEAD：`a7a07cc4446f865fcbba528299ad9a73133ef6ea`  
-> 当前 `origin/main`：`527ae52f67dd8e5053049a3f0003bd13f0d7873b`  
-> 基线关系：`origin/main...HEAD = 2 0`，即远端主线领先 2 个提交，本分支还没有自己的提交。  
-> 最后统一状态：Phase 1 实现切片已冻结；Phase 2A 实现与主代理门岗为绿，但独立规格审查因交接中断，**还不能宣称 Phase 2A 双审完成**；Phase 2B 尚未写生产代码。
+> 状态：📎 交接日志（checkpoint 已提交并推送，Draft PR #223）
+> 用途：在当前任务额度耗尽或上下文丢失时，让下一位 Agent 从真实冻结点继续，不重做已完成切片，也不把尚未审完的工作误报为完成。
+> 工作树：`/Users/aoqimin/Desktop/Nomi-project-agent-host-phase1-20260827`
+> 分支：`codex/project-agent-host-phase1-20260827`
+> 当前 HEAD：`13bb526484cc4534763626de4d4db65a348c897b`
+> 远端分支：`origin/codex/project-agent-host-phase1-20260827`
+> Draft PR：[#223](https://github.com/aqm857886159/Nomi/pull/223)
+> 基线关系：本分支已保存当前 280 文件 checkpoint；`origin/main` 后续又前进，集成前仍需刷新基线。
+> 最后统一状态：Phase 1 与 Phase 2A 的实现代码已在快照中；Phase 2B **已经出现生产接线半成品**（不是 0），但没有完成原子 cutover、旧 writer 删除或双审放行。当前不能宣称任何 Phase 2 完成。
+
+## 0.1 2026-08-29 真实快照与加速规则
+
+这份交接曾把“设计阶段边界”误当成“代码快照边界”：文档写着 Phase 2B 生产代码为 0，但当前快照已经包含：
+
+- `electron/main.ts` 中的 `installProductionProjectAgentHost()`、迁移 prepare hook 和生产 IPC 注册；
+- `electron/projectAgentHost/projectAgentProductionRuntime.ts`、`projectAgentIpc.ts`、`projectAgentExecutionCoordinator.ts`；
+- preload/desktop bridge、`NomiStudioApp` 的 open/release/patch 接线和 projection store；
+- 旧 conversations fallback、旧面板 writer 尚未删除，因此这不是完成的 2B，而是“2B 半成品与 2A 验收混在一起”。
+
+从现在起采用以下加速规则：
+
+1. **不再用全量测试驱动日常开发。** 日常只跑当前切片的 focused tests；切片结束再跑一次该切片的静态门岗、类型检查和相关集成测试；完整 `gates`、`build/package`、真实用户旅程只在最终候选提交跑一次。
+2. **不回滚当前 checkpoint，也不重做 2A。** 先把现有代码按真实边界重新归类，再沿最短关键路径完成 2B 原子 cutover。
+3. **一个切片只解决一个 owner 问题。** 任何测试红必须先判断是实现缺陷、门岗误报、环境抖动还是阶段边界错误；同一红连续出现两次就暂停加测试，先修根因或拆切片。
+4. **性能阈值不再作为 reducer 单测的硬墙钟。** 保留结构/复杂度不变量；耗时只做独立 benchmark，避免机器负载把正确实现反复打红。
+5. **当前 Draft PR 只负责保存现场，不是合并目标。** 后续提交可以继续推到同一任务分支，但每个提交必须对应一个可解释的切片；未完成前保持 Draft。
+
+### 加速后的唯一关键路径
+
+```text
+快照对账与边界纠正
+  -> 2B 单 Host/IPC 基础收口
+  -> 原始历史迁移 + projection 接管
+  -> 两面板原子切换并删除旧 writer
+  -> Phase 3 只读/可撤写能力
+  -> Phase 4 ProductionRun/付费
+  -> Phase 5 Skill/MCP 派生
+  -> Phase 6 UI 与最终真实旅程
+```
+
+Phase 2A 的独立审查仍要补，但它不再作为重新扫描整棵仓库的前置条件；只针对 Host reducer/repository 的合同做一次 focused review，确认后立即进入 2B。生产接线已有的部分不再继续扩张，直到 owner/cutover 切片把旧 writer 关掉。
 
 ---
 
@@ -15,7 +48,7 @@
 
 Nomi 要从“创作面板一套 Agent 状态、生成画布又一套 Agent 状态”迁成一个项目级常驻 Agent：用户切创作、生成、预览或重启应用时，看到的仍是同一个线程、同一条排队消息、同一项审批和同一个任务；Pi、MCP、renderer 也不能各自拥有第二套能力合同或执行器。
 
-当前不是“做完了”，也不是“丢了”。代码完整保存在上述脏工作树中：
+当前不是“做完了”，也不是“丢了”。代码已保存在任务分支和 Draft PR #223 中；工作树应保持干净，后续改动继续在该任务分支进行：
 
 - Phase 1 已证明一项真实能力 `canvas.read` 可以由 Pi / MCP / renderer 共享同一可信调用和 main-only executor，并删除旧执行链。
 - Phase 2A 已搭好离线 ProjectAgentHost 的状态机、FIFO、流式 Assistant、幂等命令账本和崩溃安全持久化。
@@ -68,9 +101,9 @@ Phase 2B 才解决用户真实摩擦：
 | 阶段 | 目标 | 当前真实状态 | 下一放行条件 |
 |---|---|---|---|
 | Phase 0 | 语义 owner 门岗 | 已完成 | 保持 vocabulary / owner gate 不退化 |
-| Phase 1 | `canvas.read` 单一能力脊梁 | 实现与多轮审查已冻结；未做最终 build/package 发布验收 | 最终整体验收时跑真实 dev/package journey |
-| Phase 2A | 离线 ProjectAgentHost foundation | 实现与主代理 focused gates 全绿；独立 spec review 未完成，quality review 尚未在最终快照重跑 | spec PASS → quality PASS → 主代理 fresh gates |
-| Phase 2B | 单 Host 生产接线、迁移、旧 writer 原子删除 | 只读预飞完成；生产代码 0 | 先补两个小合同，再按首个 owner-conflict RED 开始 |
+| Phase 1 | `canvas.read` 单一能力脊梁 | 实现已在 checkpoint 中；最终 build/package 发布验收未做 | 只在 Phase 2B cutover 后统一跑 B6 真实 dev/package journey |
+| Phase 2A | 离线 ProjectAgentHost foundation | reducer/repository/queue/assistant 代码已在 checkpoint；独立 spec/quality review 未完成 | 只做 Host focused review + focused gates，一次放行 |
+| Phase 2B | 单 Host 生产接线、迁移、旧 writer 原子删除 | **半成品已存在**：main/IPC/renderer projection/迁移预接线已写；旧双写与原子 cutover 未完成 | 先收口 owner conflict，再迁移，再一次性切换并删旧 writer |
 | Phase 3 | 其余只读与可撤写能力 | 未开始 | 2B 完整 cutover 后逐能力迁移并删旧 owner |
 | Phase 4 | 破坏性/付费能力统一到 ProductionRun | 未开始 | receipt、precondition、typed cancel、TaskRef、artifact truth |
 | Phase 5 | Skill / MCP 从 Registry 派生 | 未开始 | list/read guard、shrink-only、删除 legacy route |
@@ -102,7 +135,7 @@ Phase 2B 才解决用户真实摩擦：
 可以说“Phase 1 实现切片完成并冻结”，不能说整个项目已经完成或已经发布：
 
 - 没有 commit / push / PR；
-- 没有在这一最终脏工作树上跑 build/package；
+- 没有在这一 checkpoint 上跑 build/package；
 - B6 已补 journey 文件与 CI/RC 接线，但最终真实 packaged GUI journey 应在所有阶段结束时再跑；
 - `docs/superpowers/plans/2026-08-27-canvas-read-capability-spine.md` 仍显示 B6 验收中，最终交付前需更新文档状态并重建 ledger。
 
@@ -165,7 +198,7 @@ Host / reducer / state：
 - atomic writer 任意 write/fsync/fchmod/rename 失败都会清 temp。
 - 1000 次同实体更新 snapshot 有界，不再把全 command history 塞进 snapshot。
 
-### 4.3 最后主代理 fresh 验证
+### 4.3 最后主代理 fresh 验证（历史记录，不代表当前快照全绿）
 
 在 state 最终 freeze 后运行：
 
@@ -177,7 +210,7 @@ pnpm run check:vocabularies
 pnpm run check:filesize
 ```
 
-结果：
+结果（当时的阶段性证据，当前 checkpoint 已扩展到 2B 预接线，不能直接复用）：
 
 - Vitest：13 files / 114 tests PASS；
 - Electron tsc：PASS；
@@ -229,12 +262,12 @@ tracked diff only: 123 files, +7410 / -2810
 
 - 不要在 `/Users/aoqimin/Desktop/Nomi` 的共享 main 工作树 reset / checkout / commit 这批文件。
 - 不要 `git reset --hard`、`git clean`、丢弃 untracked 文件或覆盖并行改动。
-- 不要直接 rebase 这个脏工作树；先完成/保护当前切片，再在独立干净 worktree 做集成交付。
+- 不要直接 rebase 这个任务分支；先完成当前切片，再从最新 `origin/main` 建独立集成 worktree。
 - 不要把 origin/main 的 2 个新提交机械 merge 到脏树后继续改；先看冲突范围和用户现有改动。
 - 不要在 Phase 2A 双审前注册生产 IPC。
 - 不要为了临时通过 Phase 2B 同时保留 Host writer 和旧 conversations/chatV2 writer。
 - 不要创建第二套 project/session/approval/run owner，也不要给兼容链加 feature flag fallback。
-- 不要现在 commit/push/开 PR；用户要求完成整个垂直目标后只交一条最终 PR。
+- 当前已有 Draft PR #223，仅用于保存现场；不要把 Draft 改成 ready，也不要合并，直到完整垂直切片与最终门岗通过。
 
 ### 5.3 Goal 的 UI 状态
 
@@ -430,7 +463,7 @@ CreationAiPanel 与 CanvasAssistantPanel 都改为同一 projection selectors + 
 
 ---
 
-## 8. 下一轮最短正确续跑顺序
+## 8. 下一轮最短正确续跑顺序（不跑全量）
 
 ### Step 1：恢复现场，不改代码
 
@@ -443,9 +476,9 @@ git rev-list --left-right --count origin/main...HEAD
 
 期望 branch 为 `codex/project-agent-host-phase1-20260827`。若不是，停止；不要切换共享脏树。
 
-### Step 2：Phase 2A 独立规格审查
+### Step 2：Phase 2A 独立规格审查（一次 focused review）
 
-新 reviewer 只读逐项核对：
+新 reviewer 只读逐项核对 Host 目录与共享合同，不扫描整个仓库：
 
 - state/reducer atomicity；
 - exact patch coverage；
@@ -460,37 +493,47 @@ git rev-list --left-right --count origin/main...HEAD
 
 结论只能是 `SPEC PASS` 或具体 P0–P2。审查中断/超时不算 PASS。
 
-### Step 3：Phase 2A 独立质量审查
+### Step 3：Phase 2A 独立质量审查（只看变更文件）
 
 只有 spec PASS 后再做质量 reviewer。若发现问题：同一实现代理或新代理先写 meaningful RED，再最小 GREEN，然后 spec → quality 都重跑。
 
-### Step 4：主代理 fresh gate
+### Step 4：主代理 focused gate（只跑一次）
 
 ```bash
 pnpm exec vitest run electron/projectAgentHost electron/jsonFile.test.ts
 pnpm exec tsc -p electron/tsconfig.json --noEmit
 pnpm run check:test-types
 pnpm run check:vocabularies
-pnpm run check:filesize
+pnpm run check:capability-owners
 pnpm exec eslint electron/projectAgentHost electron/shared/projectAgentContracts.ts electron/shared/projectBinding.ts electron/shared/capabilityTargeting.ts electron/jsonFile.ts electron/jsonFile.test.ts --max-warnings=0
 ```
 
-再对 Phase 2A scoped files 跑 Prettier check 和 `git diff --check`。
+再对 Phase 2A scoped files 跑 Prettier check 和 `git diff --check`。`check:filesize` 只在拆壳切片完成后跑一次；不把当前仓库历史巨壳债务混成 2A 的日常阻塞。
 
 ### Step 5：进入 Phase 2B
 
-只推进一个明确切片：
+只推进一个明确切片，每片完成后只跑该片测试：
 
-1. legacy/read-only thread provenance + removal patch；
-2. production owner-conflict RED；
-3. 最小 single-owner runtime；
-4. IPC / repository router；
-5. raw legacy migration；
-6. projection store；
-7. 两面板原子切换 + 旧 owner 删除；
-8. Phase 2B spec review → quality review → fresh gates。
+1. **Owner install**：先写 `projectAgentProductionRuntime.test.ts` 的第二 owner RED，修到无副作用失败；focused test + typecheck。
+2. **Transport boundary**：只收口 `projectAgentIpc` 的 sender/subscription/revision/patch 规则；focused IPC tests + owner gate。
+3. **Migration**：只做 raw legacy reader、cutover manifest、proposal receipt；focused migration tests，不碰 UI。
+4. **Projection**：只让 projection store 正确消费 snapshot/patch；focused store tests，不删旧 writer。
+5. **Atomic cutover**：同一提交完成两面板切 shared projection，并删除旧 conversations/chatV2 writer；随后才做 2B spec review、quality review 和一次 focused gate。
 
-不要一开始同时改 migration、两个面板和新 UI；但最终 cutover 提交必须是原子的，不能把新旧 writer 并存的中间态提交到远端。
+不要一开始同时改 migration、两个面板和新 UI；但最终 cutover 提交必须是原子的，不能把新旧 writer 并存的中间态当成完成态。
+
+### Step 6：最终候选才跑全量
+
+只有 Phase 2B cutover、Phase 3/4 的目标切片完成，且不再有结构性 owner 变化时，才运行：
+
+```bash
+pnpm run gates
+pnpm run build
+pnpm run test:journeys
+pnpm run test:mcp
+```
+
+这四项是发布候选验收，不是日常修复循环。任何失败都记录为候选提交的问题，不回头让全量测试主导每个小切片。
 
 ---
 
@@ -518,8 +561,7 @@ Skill progressive disclosure、audience、list/read guard、shrink-only 从 Regi
 
 用户要求的是完整纵向目标完成后的一条最终 PR，不是每个 checkpoint 一个 PR。因此：
 
-- 当前保持未提交脏工作树；
-- 每个切片用 tests / reviewer / handoff 作为冻结证据；
+- 当前 checkpoint 已提交并推送；后续每个切片用 focused tests / reviewer / handoff 作为冻结证据；
 - 最终交付前先保护该工作树，再从最新 `origin/main` 新建独立 sibling worktree；
 - 把本任务改动有范围地迁入干净分支，处理主线 2 个及后续新提交；
 - 在干净集成树跑项目 push 前全门、真实 dev/package journey 和用户任务；
@@ -539,9 +581,9 @@ Skill progressive disclosure、audience、list/read guard、shrink-only 从 Regi
 
 工作树固定为 /Users/aoqimin/Desktop/Nomi-project-agent-host-phase1-20260827，分支应为 codex/project-agent-host-phase1-20260827。先检查 git branch/status/rev-list；保护 123 个 tracked changes 与 86 个 untracked entries，禁止 reset/clean/覆盖。
 
-真实进度：Phase1 实现冻结但未最终 build/package；Phase2A 实现和主代理 13 files/114 tests 等门岗为绿，但最新独立 spec review 因交接中断，不能宣称 SPEC PASS；quality review 尚未在最终快照完成；Phase2B 生产代码尚未开始。
+真实进度：Phase1 实现已冻结但未最终 build/package；Phase2A 实现代码已在 checkpoint，独立 spec/quality review 尚未完成；Phase2B 已有 main/IPC/renderer projection/迁移预接线半成品，但旧 writer 与双写尚未切除。
 
-先只做 Phase2A 独立规格审查。若有具体 P0-P2，严格 RED→GREEN 修完并重审；SPEC PASS 后才做独立质量审查和 fresh gates。两审都 PASS 后，按 handoff 的 Phase2B 首片开始：先补 legacy/read-only provenance + removal patch，再写 production single-owner install 的 meaningful RED。不要注册双 Host、不要双写、不要保留旧 conversations/chatV2 fallback，不 commit/push/PR/build/package/network，直到完整垂直切片与最终门岗通过。
+先做一次 Phase2A focused spec/quality review；若有具体 P0-P2，严格 RED→GREEN 修完并重审。随后直接沿现有 Phase2B 半成品完成 owner install → IPC boundary → migration → projection → atomic cutover；不要创建第二个 Host、不要双写、不要保留旧 conversations/chatV2 fallback。日常只跑切片 focused tests，最终候选才跑全量 gates/build/package/真实旅程。
 ```
 
 ---
@@ -549,7 +591,7 @@ Skill progressive disclosure、audience、list/read guard、shrink-only 从 Regi
 ## 12. 交接时的最后结论
 
 - 代码没有丢，现场可恢复。
-- 任务没有完成，当前停在 Phase 2A “实现完成、双审未完成”。
+- 任务没有完成，当前处于 Phase 2A 审查未完成 + Phase 2B 生产接线半成品状态。
 - 没有已确认的 Phase 2A 新 P0–P2；但规格 reviewer 被中断，所以缺少放行证据。
 - Phase 2B 已有足够精确的施工 handoff，不需要重新讨论方向。
 - 用户额度不足时，最安全的停点就是现在：不再让工作树漂移，不提交半成品；下一轮从 Phase 2A spec review 继续。
