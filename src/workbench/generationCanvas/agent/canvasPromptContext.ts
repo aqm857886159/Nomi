@@ -31,6 +31,9 @@ export function formatCanvasForAgent(snapshot: SnapshotLike, selectedNodes: read
       `- ${node.id} | ${node.kind}`,
       // 镜号(shotIndex)= 剧本时序的真相,排片即按它排;让 Agent 决策/复报能引用「镜 N」。
       typeof node.shotIndex === 'number' ? ` | 镜${node.shotIndex}` : '',
+      typeof node.meta?.storyboardDesignId === 'string' && node.meta.storyboardDesignId.trim()
+        ? ` | storyboard:${node.meta.storyboardDesignId.trim()}`
+        : '',
       ` | ${node.title}`,
       flags.length ? ` | ${flags.join(',')}` : '',
       promptHead ? ` | prompt: ${promptHead}` : '',

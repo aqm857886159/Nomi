@@ -576,7 +576,11 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
       }
       current = executeInternal(run.projectId, run.runId, current, 'run.stage', { stageId: 'assemble' }, `driver-${run.runId}-stage-assemble-start-${current.revision}`).run
       current = executeInternal(run.projectId, run.runId, current, 'stage.upsert', { stage: stageValue(current, 'assemble', { status: 'running', startedAt: new Date().toISOString() }) }, `driver-${run.runId}-stage-assemble`).run
-      const arrangement = await requestRenderer('production.arrange', { projectId: run.projectId, runId: run.runId }, 5 * 60_000) as Record<string, unknown>
+      const arrangement = await requestRenderer('production.arrange', {
+        projectId: run.projectId,
+        runId: run.runId,
+        shotNodeIds: adoptedGenerationShotNodeIds(current),
+      }, 5 * 60_000) as Record<string, unknown>
       const timelinePath = `.nomi/runs/${run.runId}/timeline-v${current.planVersion}.json`
       writeProjectJson(run.projectId, timelinePath, { schemaVersion: 1, kind: 'timeline', arrangement, timelineContract: arrangement.timelineContract })
       current = requireRun(run.projectId, run.runId)

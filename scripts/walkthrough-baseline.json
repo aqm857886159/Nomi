@@ -1,7 +1,7 @@
 {
   "absence-without-baseline": 69,
   "whole-page-text": 29,
-  "sleep-as-done-signal": 113,
+  "sleep-as-done-signal": 112,
   "dead-selector": 0,
   "source-scan-without-strip": 9,
   "assertion-density-thin": {
@@ -13,7 +13,6 @@
     "tests/ux/canvas-image-preview-and-rename.e2e.mjs": 1,
     "tests/ux/clip-node-clickable-mockup.e2e.mjs": 0,
     "tests/ux/control-hierarchy-u2.walk.mjs": 1,
-    "tests/ux/creation-work-surfaces.e2e.mjs": 1,
     "tests/ux/custom-call-config.walk.mjs": 0,
     "tests/ux/dark-audit.walk.mjs": 0,
     "tests/ux/dark-mode.walk.mjs": 0,

@@ -8,7 +8,8 @@ export type WorkbenchDocument = {
 }
 
 /** A storyboard design belongs to one draft, while a draft may keep many designs. */
-export type StoryboardDesignStatus = 'draft' | 'committed' | 'stale'
+export const STORYBOARD_DESIGN_STATUSES = ['draft', 'committed', 'stale'] as const
+export type StoryboardDesignStatus = typeof STORYBOARD_DESIGN_STATUSES[number]
 
 export type StoryboardDesign = {
   id: string

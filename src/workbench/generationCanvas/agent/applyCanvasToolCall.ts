@@ -633,6 +633,7 @@ export async function applyCanvasToolCall(
       ? record.nodeIds.map((id) => resolveNodeId(String(id || '').trim())).filter(Boolean)
       : undefined
     const result = await arrangeStoryboardToTimeline({ ...(rawIds && rawIds.length ? { nodeIds: rawIds } : {}), assertCanApply: assertWritable })
+    if (result.scopeError) throw new Error(result.scopeError)
     if (!result.ok && result.total === 0) {
       throw new Error('没有可排片的镜头:画布上还没有生成好的视频或可占位的关键帧')
     }
@@ -663,8 +664,11 @@ export async function applyCanvasToolCall(
 
   throw new Error(`unknown tool ${toolName}`)
 }
+export const STORYBOARD_PLAN_APPLICATION_STATUSES = ['applied', 'obsolete'] as const
+export type StoryboardPlanApplicationStatus = typeof STORYBOARD_PLAN_APPLICATION_STATUSES[number]
+
 export type StoryboardPlanApplicationResult = {
-  status: 'applied' | 'obsolete'
+  status: StoryboardPlanApplicationStatus
   documentId: string
   storyboardDesignId?: string
   message: string

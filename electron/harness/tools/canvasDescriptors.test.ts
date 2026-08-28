@@ -52,7 +52,7 @@ describe("Nomi canvas descriptors", () => {
     // Captured from buildCanvasToolsForV2 at b4a3f466 before extraction.
     const descriptions = Object.fromEntries(Object.entries(canvasToolDescriptors).map(([name, value]) => [name, value.description]));
     expect(createHash("sha256").update(JSON.stringify(descriptions)).digest("hex"))
-      .toBe("11d9b7d85b335a5dffad4a738a29ce441c7f1fb3c6e723a4936d30b0f10de470");
+      .toBe("b0feab0c255c606c22a7d126921feba45d5f78491765fd56afe216aa22961d7b");
   });
 
   it("retains the live destructive-action reason slot", () => {
@@ -79,10 +79,10 @@ describe("Nomi canvas descriptors", () => {
     expect(schema.safeParse({ nodeIds: [""] }).success).toBe(false);
   });
 
-  it("keeps timeline node ids optional, including an empty subset and at most 48 ids", () => {
+  it("requires an explicit non-empty timeline node subset of at most 48 ids", () => {
     const schema = canvasToolDescriptors.arrange_storyboard_to_timeline.parameters;
-    expect(schema.safeParse({}).success).toBe(true);
-    expect(schema.safeParse({ nodeIds: [] }).success).toBe(true);
+    expect(schema.safeParse({}).success).toBe(false);
+    expect(schema.safeParse({ nodeIds: [] }).success).toBe(false);
     expect(schema.safeParse({ nodeIds: Array.from({ length: 48 }, (_, i) => `n${i}`) }).success).toBe(true);
     expect(schema.safeParse({ nodeIds: Array.from({ length: 49 }, (_, i) => `n${i}`) }).success).toBe(false);
   });

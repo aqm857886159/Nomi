@@ -363,9 +363,9 @@ export const canvasToolDescriptors = {
   },
   arrange_storyboard_to_timeline: {
     name: "arrange_storyboard_to_timeline",
-    description: "Arrange the storyboard's generated shot videos onto the timeline media track in script order (ordering decided by stored shot numbers, not by you). Ungenerated shots fall back to their keyframe image; clips are appended to the end. Omit nodeIds for the whole storyboard.",
+    description: "Arrange one explicit storyboard node subset onto the timeline in stored shot order. Read the canvas first and pass nodeIds from exactly one storyboard design; never mix designs. Ungenerated videos fall back to their keyframe image and clips append to the end.",
     parameters: z.object({
-      nodeIds: z.array(z.string().min(1)).max(48).optional(),
+      nodeIds: z.array(z.string().min(1)).min(1).max(48),
     }),
   },
   tidy_canvas: {

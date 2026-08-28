@@ -175,13 +175,16 @@ describe('ProductionRunService driver round 1', () => {
     fs.writeFileSync(path.join(root, 'assets/generated/shot.mp4'), 'video', 'utf8')
     fs.mkdirSync(path.join(root, 'exports'), { recursive: true })
     const calls: string[] = []
-    const requestRenderer = async (op: string) => {
+    const requestRenderer = async (op: string, payload: unknown) => {
       calls.push(op)
       if (op === 'production.plan-directions') return { candidates: [{ key: 'a', title: '方向一', oneLiner: 'x' }, { key: 'b', title: '方向二', oneLiner: 'y' }] }
       if (op === 'production.plan-script') return { text: 'Nomi promo script' }
       if (op === 'production.plan-storyboard') return { plan: { title: 'Nomi promo', anchors: [], shots: [{ index: 1, shotKind: 'video', prompt: 'show Nomi' }] } }
       if (op === 'production.generate-node') return { assets: [{ type: 'video', url: 'nomi-local://asset/project-1/assets/generated/shot.mp4' }] }
-      if (op === 'production.arrange') return { arranged: 1, total: 1 }
+      if (op === 'production.arrange') {
+        expect((payload as Record<string, unknown>)?.shotNodeIds).toEqual(['shot-1'])
+        return { arranged: 1, total: 1 }
+      }
       if (op === 'production.export') {
         fs.writeFileSync(path.join(root, 'exports/nomi-run-driver-3.mp4'), 'mp4', 'utf8')
         return { relativePath: 'exports/nomi-run-driver-3.mp4', size: 3 }

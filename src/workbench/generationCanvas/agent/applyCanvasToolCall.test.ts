@@ -215,6 +215,27 @@ describe('applyCanvasToolCall 图片+视频分镜镜号', () => {
 })
 
 // S2:propose_storyboard_plan 不碰画布——把结构化方案落创作 store 并切回创作区(规划免费可改)。
+describe('applyCanvasToolCall timeline storyboard scope', () => {
+  beforeEach(() => {
+    resetCanvas()
+    resetClientIdRegistry()
+  })
+
+  it('rejects Agent node ids that cross two storyboard designs before mutating the timeline', async () => {
+    const canvas = useGenerationCanvasStore.getState()
+    const first = canvas.addNode({ kind: 'video', title: 'A1', categoryId: 'shots' })
+    const second = canvas.addNode({ kind: 'video', title: 'B1', categoryId: 'shots' })
+    canvas.updateNode(first.id, { meta: { storyboardDesignId: 'design-a' } })
+    canvas.updateNode(second.id, { meta: { storyboardDesignId: 'design-b' } })
+    const timelineBefore = useWorkbenchStore.getState().timeline
+
+    await expect(applyCanvasToolCall('arrange_storyboard_to_timeline', {
+      nodeIds: [first.id, second.id],
+    })).rejects.toThrow('mixed_storyboard_scope')
+    expect(useWorkbenchStore.getState().timeline).toBe(timelineBefore)
+  })
+})
+
 describe('applyCanvasToolCall propose_storyboard_plan', () => {
   const PLAN: StoryboardPlan = {
     title: '雨夜追凶',

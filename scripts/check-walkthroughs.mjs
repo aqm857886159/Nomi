@@ -14,6 +14,10 @@ import { fileURLToPath } from 'node:url'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BASELINE_FILE = path.join(repoRoot, 'scripts/walkthrough-baseline.json')
 
+function repoRelative(file) {
+  return path.relative(repoRoot, file).split(path.sep).join('/')
+}
+
 /** 只扫「跑得起来的走查/e2e」和「扫源码的结构测试」这两片。 */
 function collect() {
   const files = []
@@ -241,7 +245,7 @@ for (const file of files) {
     found[rule.id].push(...rule.scan(code, file))
   }
   if (file.includes(`${path.sep}tests${path.sep}ux${path.sep}`) && isRunnableWalk(code)) {
-    density[path.relative(repoRoot, file)] = countFailurePaths(code).total
+    density[repoRelative(file)] = countFailurePaths(code).total
   }
 }
 

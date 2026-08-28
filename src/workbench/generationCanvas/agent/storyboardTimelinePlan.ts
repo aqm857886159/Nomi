@@ -31,7 +31,15 @@ export type StoryboardTimelineUnit = {
 export type StoryboardTimelinePlan = {
   units: StoryboardTimelineUnit[]
   skipped: Array<{ nodeId: string; reason: string }>
+  scopeError?: StoryboardTimelineScopeError
 }
+
+export type StoryboardTimelineScope = {
+  nodeIds?: readonly string[]
+  storyboardDesignId?: string
+}
+
+export type StoryboardTimelineScopeError = 'ambiguous_storyboard_scope' | 'mixed_storyboard_scope'
 
 const LAST_ORDER = Number.MAX_SAFE_INTEGER
 
@@ -55,22 +63,50 @@ function shotOrder(node: GenerationCanvasNode | undefined): number {
   return typeof node?.shotIndex === 'number' ? node.shotIndex : LAST_ORDER
 }
 
+function storyboardDesignIdOf(node: GenerationCanvasNode): string | undefined {
+  const value = node.meta?.storyboardDesignId
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function emptyScopePlan(scopeError: StoryboardTimelineScopeError): StoryboardTimelinePlan {
+  return { units: [], skipped: [], scopeError }
+}
+
 export function planStoryboardTimeline(
   nodes: readonly GenerationCanvasNode[],
   edges: readonly GenerationCanvasEdge[],
-  scopeNodeIds?: readonly string[],
+  scope: StoryboardTimelineScope = {},
 ): StoryboardTimelinePlan {
   const byId = new Map(nodes.map((node) => [node.id, node]))
-  const inScope = scopeNodeIds && scopeNodeIds.length ? new Set(scopeNodeIds) : null
-  const shots = nodes.filter((node) => isShotNumberedNode(node) && (!inScope || inScope.has(node.id)))
+  const allShots = nodes.filter(isShotNumberedNode)
+  const requestedNodeIds = scope.nodeIds?.length ? new Set(scope.nodeIds) : null
+  const requestedDesignId = scope.storyboardDesignId?.trim() || undefined
+  const selectedShots = requestedNodeIds ? allShots.filter((node) => requestedNodeIds.has(node.id)) : allShots
+  const selectedDesignIds = new Set(selectedShots.map(storyboardDesignIdOf).filter(Boolean))
+
+  if (requestedNodeIds && selectedDesignIds.size > 1) return emptyScopePlan('mixed_storyboard_scope')
+
+  const inferredDesignId = requestedDesignId
+    ?? (!requestedNodeIds && selectedDesignIds.size === 1 ? [...selectedDesignIds][0] : undefined)
+  if (!requestedNodeIds && !requestedDesignId && selectedDesignIds.size > 1) {
+    return emptyScopePlan('ambiguous_storyboard_scope')
+  }
+
+  const shots = selectedShots.filter((node) => !inferredDesignId || storyboardDesignIdOf(node) === inferredDesignId)
   const videoNodes = shots.filter(isVideoNode)
+
+  const referenceIsInScope = (node: GenerationCanvasNode): boolean => (
+    !inferredDesignId || storyboardDesignIdOf(node) === inferredDesignId
+  )
 
   // 某视频的「关键帧来源」= 入边里 first_frame / 通用引用边的 image 源节点（首个命中）。
   const imageSourcesOf = (video: GenerationCanvasNode): GenerationCanvasNode[] =>
     edges
       .filter((edge) => edge.target === video.id)
       .map((edge) => byId.get(edge.source))
-      .filter((node): node is GenerationCanvasNode => Boolean(node) && isImageNode(node!))
+      .filter((node): node is GenerationCanvasNode => (
+        Boolean(node) && isImageNode(node!) && referenceIsInScope(node!)
+      ))
   const firstFrameOf = (video: GenerationCanvasNode): GenerationCanvasNode | null => {
     const sources = edges
       .filter(
@@ -79,7 +115,9 @@ export function planStoryboardTimeline(
           (edge.mode === 'first_frame' || edge.mode === 'reference' || edge.mode == null),
       )
       .map((edge) => byId.get(edge.source))
-      .filter((node): node is GenerationCanvasNode => Boolean(node) && isImageNode(node!))
+      .filter((node): node is GenerationCanvasNode => (
+        Boolean(node) && isImageNode(node!) && referenceIsInScope(node!)
+      ))
     return sources[0] ?? null
   }
 
@@ -132,4 +170,14 @@ export function planStoryboardTimeline(
   })
 
   return { units, skipped }
+}
+
+export function planActiveStoryboardTimeline(
+  nodes: readonly GenerationCanvasNode[],
+  edges: readonly GenerationCanvasEdge[],
+  activeStoryboardDesignId: string | null,
+): StoryboardTimelinePlan {
+  return planStoryboardTimeline(nodes, edges, activeStoryboardDesignId
+    ? { storyboardDesignId: activeStoryboardDesignId }
+    : {})
 }

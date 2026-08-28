@@ -541,7 +541,11 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       }
     }
     case 'production.arrange': {
-      const result = await arrangeStoryboardToTimeline()
+      const shotNodeIds = Array.isArray(data.shotNodeIds)
+        ? data.shotNodeIds.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+        : []
+      const result = await arrangeStoryboardToTimeline(shotNodeIds.length ? { nodeIds: shotNodeIds } : {})
+      if (result.scopeError) throw new Error(result.scopeError)
       if (!result.ok && result.total === 0) throw new Error('没有可排片的镜头')
       const timelineContract = draftFilmTimelineFromState(useWorkbenchStore.getState().timeline)
       return {

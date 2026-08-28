@@ -5,7 +5,9 @@ export const zhTimelineEditor = {
   arrangeCta: {
     message: '有 {{count}} 个镜头可拼成初稿',
     action: '一键拼成初稿',
+    chooseStoryboard: '有多个分镜方案，请先选择要剪辑的分镜',
   },
+  storyboardScopeRequired: '请先在“创作”中选中要剪辑的分镜方案',
   selectedClipActions: '选中片段操作',
   regenerate: '重新生成这个镜头',
   regenerateHint: '重新生成这个镜头（就地重出、贴回原位；改 prompt/参数请去画布节点）',
@@ -160,7 +162,9 @@ export const enTimelineEditor = {
   arrangeCta: {
     message: '{{count}} shots ready to assemble into a draft',
     action: 'Assemble draft',
+    chooseStoryboard: 'Choose which storyboard design to edit first',
   },
+  storyboardScopeRequired: 'Select the storyboard design to edit in Creation first',
   selectedClipActions: 'Selected clip actions',
   regenerate: 'Regenerate this shot',
   regenerateHint:

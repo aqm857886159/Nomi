@@ -41,4 +41,12 @@ describe('formatCanvasForAgent — T1 紧凑画布上下文', () => {
     expect(text).toContain('「鸟居」(sel) 完整提示词:')
     expect(text).toContain(longPrompt)
   })
+
+  it('exposes storyboard provenance so the Agent can choose one exact node subset', () => {
+    const text = formatCanvasForAgent({
+      nodes: [node({ id: 'shot-a', meta: { storyboardDesignId: 'design-a' } })],
+      edges: [],
+    })
+    expect(text).toContain('shot-a | image | storyboard:design-a')
+  })
 })

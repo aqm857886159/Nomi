@@ -1,6 +1,10 @@
 import { useWorkbenchStore } from '../../workbenchStore'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { planStoryboardTimeline, type StoryboardTimelineUnitRole } from './storyboardTimelinePlan'
+import {
+  planStoryboardTimeline,
+  type StoryboardTimelineScopeError,
+  type StoryboardTimelineUnitRole,
+} from './storyboardTimelinePlan'
 import { adoptStoryboardBatch, timelineEndFrame } from '../../adoption/adoptStoryboardBatch'
 import type { BatchAdoptionResult } from '../../adoption/adoptStoryboardBatch'
 
@@ -26,6 +30,7 @@ export type SendStoryboardToTimelineResult = {
   /** 兼容既有 Agent/面板回执字段；只由采纳桥的落点明细派生。 */
   sent: Array<{ nodeId: string; clipId: string; trackType: string; startFrame: number; role?: StoryboardTimelineUnitRole }>
   skipped: Array<{ nodeId: string; reason: string }>
+  scopeError?: StoryboardTimelineScopeError
   /** 采纳结果原样透传，调用方据此给回执（幂等/stale/换版都在里面）。 */
   outcome: BatchAdoptionResult
 }
@@ -51,7 +56,7 @@ export async function sendStoryboardToTimeline(
   nodeIds: readonly string[],
 ): Promise<SendStoryboardToTimelineResult> {
   const canvasState = useGenerationCanvasStore.getState()
-  const { units, skipped } = planStoryboardTimeline(canvasState.nodes, canvasState.edges, nodeIds)
+  const { units, skipped } = planStoryboardTimeline(canvasState.nodes, canvasState.edges, { nodeIds })
   const startFrame = Math.max(0, Math.floor(useWorkbenchStore.getState().timeline.playheadFrame ?? 0))
   const outcome = await adoptStoryboardBatch({
     units,
@@ -63,8 +68,10 @@ export async function sendStoryboardToTimeline(
 }
 
 export type ArrangeStoryboardToTimelineOptions = {
-  /** 排片范围：省略 = 整条故事板（所有镜头节点）；给定 = 仅这些节点。 */
+  /** Exact node subset. Agent calls must provide this explicitly. */
   nodeIds?: readonly string[]
+  /** Exact creative design selected by the user-facing timeline entry point. */
+  storyboardDesignId?: string
   /** Agent turn ownership only; manual adoption has no conversation dependency. */
   assertCanApply?: () => void
 }
@@ -79,7 +86,14 @@ export async function arrangeStoryboardToTimeline(
 ): Promise<SendStoryboardToTimelineResult> {
   options.assertCanApply?.()
   const canvasState = useGenerationCanvasStore.getState()
-  const { units, skipped } = planStoryboardTimeline(canvasState.nodes, canvasState.edges, options.nodeIds)
+  const { units, skipped, scopeError } = planStoryboardTimeline(canvasState.nodes, canvasState.edges, {
+    nodeIds: options.nodeIds,
+    storyboardDesignId: options.storyboardDesignId,
+  })
+  if (scopeError) {
+    const outcome: BatchAdoptionResult = { status: 'nothing_to_adopt', skipped: [], total: 0 }
+    return { ok: false, total: 0, placed: 0, sent: [], skipped: [], scopeError, outcome }
+  }
   const startFrame = timelineEndFrame(useWorkbenchStore.getState().timeline)
   const outcome = await adoptStoryboardBatch({
     units,

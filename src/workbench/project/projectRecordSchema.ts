@@ -2,7 +2,11 @@ import { z } from 'zod'
 
 import { createDefaultTimeline } from '../timeline/timelineMath'
 import type { TimelineState } from '../timeline/timelineTypes'
-import { createDefaultWorkbenchDocument, type WorkbenchDocument } from '../workbenchTypes'
+import {
+  createDefaultWorkbenchDocument,
+  STORYBOARD_DESIGN_STATUSES,
+  type WorkbenchDocument,
+} from '../workbenchTypes'
 import type { StoryboardDesign } from '../workbenchTypes'
 import { createDefaultGenerationCanvasSnapshot } from '../generationCanvas/store/generationCanvasDefaults'
 import type { GenerationCanvasSnapshot } from '../generationCanvas/model/generationCanvasTypes'
@@ -81,7 +85,7 @@ export const workbenchProjectPayloadSchema = z.object({
       title: z.string(),
       plan: storyboardPlanSchema,
       committed: z.boolean(),
-      status: z.enum(['draft', 'committed', 'stale']),
+      status: z.enum(STORYBOARD_DESIGN_STATUSES),
       sourceDocumentUpdatedAt: z.number().finite(),
       createdAt: z.number().finite(),
       updatedAt: z.number().finite(),
