@@ -1,6 +1,6 @@
 # Nomi 项目级常驻 Agent 完整交接（2026-08-29 修订）
 
-> 状态：🚧 持续实施（本地切片已提交/待提交，Draft PR #223 因 GitHub HTTPS 超时暂时落后）
+> 状态：🚧 持续实施（Phase 2B focused closure checkpoint `b84188d3` 已提交并推送；Draft PR #223 仍作为现场保护）
 > 用途：在当前任务额度耗尽或上下文丢失时，让下一位 Agent 从真实冻结点继续，不重做已完成切片，也不把尚未审完的工作误报为完成。
 > 工作树：`/Users/aoqimin/Desktop/Nomi-project-agent-host-phase1-20260827`
 > 分支：`codex/project-agent-host-phase1-20260827`
@@ -8,7 +8,7 @@
 > 远端分支：`origin/codex/project-agent-host-phase1-20260827`
 > Draft PR：[#223](https://github.com/aqm857886159/Nomi/pull/223)
 > 远端冻结点：`ad5e6f31`；本地至少领先 `2d8cc85e`、`e46993c6`、`02f6080e`，后续切片以当前 Git 状态为准。
-> 最后统一状态：Phase 1 / 2A foundation 已在分支；Phase 2B 已完成单 Host/IPC、崩溃可恢复迁移、请求作用域绑定、旧 conversations writer 与 renderer chatV2 执行链删除。剩余 blocker 是两面板仍通过本地 `creationAiMessages` / `generationAiMessages` 和各自 pending owner 间接显示 Host 状态，尚未改成 direct projection selector。
+> 最后统一状态：Phase 1 / 2A foundation 已在分支；Phase 2B Lane C 已完成单 Host/IPC、崩溃可恢复迁移、请求作用域绑定、旧 conversations writer 与 renderer chatV2 执行链删除，并完成两面板 direct Host projection、Host 驱动 pending registry、proposal receipt 生命周期收口。受影响矩阵 24 文件/193 tests、双 TypeScript、能力 owner、词汇门、scoped lint 和 diff check 均通过；checkpoint `b84188d3` 已推送到 Draft PR #223。Phase 3 尚未开始。
 
 ## 0.1 2026-08-29 真实快照与加速规则
 
@@ -19,7 +19,7 @@
 - preload/desktop bridge、`NomiStudioApp` 的 open/release/patch 接线和 projection store；
 - 旧 conversations renderer writer、chatV2 preload/bridge/stream/client 已删除；主进程旧 conversations 文件只作为迁移输入。
 - `workbenchAgentRunner` 与 single-shot callers 已切到 Host queue / projection / tool decision / stop，真实 usage 与 finish metadata 由 Host 终态后的非 owning `execution-result` 事件返回。
-- 当前仍是 2B 半成品，因为 `projectAgentUiProjection` 还把 Host snapshot 复制进两个本地 message store，两个面板也仍分别拥有 pending call view state。
+- 两面板通过 `useProjectAgentThreadMessages` / `useProjectAgentSnapshot` 直接投影 Host；旧 message writer 已删除，pending registry 只保存与 Host event 对应的 UI card，不拥有 turn/approval 生命周期。
 
 从现在起采用以下加速规则：
 
@@ -57,12 +57,12 @@ Phase 2A 的独立审查仍要补，但它不再作为重新扫描整棵仓库�
 
 本轮一次性审计已固化为 [`docs/audit/2026-08-29-project-agent-pr-evidence.md`](../../audit/2026-08-29-project-agent-pr-evidence.md)，覆盖清单见 [`docs/audit/2026-08-29-project-agent-pr-coverage-index.md`](../../audit/2026-08-29-project-agent-pr-coverage-index.md)。Phase 5 / Phase 6 的 round contract 必须列出这两份文档，并在届时只补新增/更新 PR 的增量；缺失即 hard fail，不得开始实现。
 
-## 0.3 当前最短续跑点
+## 0.3 Phase 2B Lane C 出口与最短续跑点
 
-1. 删除 `projectAgentUiProjection` 对两个 message store 的写入，让 Creation / Canvas 两面板直接用共享 projection selector 渲染同一 Thread / Item / Queue。
-2. 把两个面板各自的 pending tool-call view owner 收成 Host event + proposal/item projection；保留领域执行器，但不能再由面板决定 pending 生命周期。
-3. 删除 `creationAiMessages` / `generationAiMessages` 及其 setters、hydrate/reset 分支和结构债；扩展 cutover structure test，注入任一旧 message/pending owner 都必须变红。
-4. 只跑上述切片的 panel/projection/approval tests、双 typecheck、owner/vocabulary gate；通过后做 Phase 2B focused spec/quality review。全量 gates/build/package 继续留到最终候选。
+1. 已完成 `projectAgentUiProjection` 的 direct projection cutover；Creation / Canvas 现在共享同一 Thread / Item / Queue 投影。
+2. 已完成两个面板 pending view 的 Host event registry 收口；领域执行器仍保留，但 turn、approval、stop 和终态由 Host 决定。
+3. 已删除 `creationAiMessages` / `generationAiMessages` writer、旧区域 turn-controller 的生产导入，并用结构门岗阻止回归。
+4. 当前只做一次 closure review 与 checkpoint 证据冻结：`check:test-types`、Lane C 20 文件 focused matrix、双 typecheck、scoped lint、owner/vocabulary、diff check；全量 gates/build/package/真实旅程继续留到最终候选。
 
 ## 0.4 2026-08-29 执行流程 v2（防止 reviewer 逐轮补洞）
 
@@ -86,7 +86,7 @@ Phase 2A 的独立审查仍要补，但它不再作为重新扫描整棵仓库�
 - `.agents/runtime/harness/project-agent-host-20260829/execution-protocol-v2.json`
 - `.agents/runtime/harness/project-agent-host-20260829/phase-2b-closure-contract.json`
 
-为实施与验收合同。当前 Round 01-04 工件保留为失败证据，不再继续扩出 Round 05；先完成 closure contract 预审，再用一个 Phase 2B implementation batch 收口 receipt、Creation pending owner、Canvas lifecycle、项目切换/重启和结构门岗。
+为实施与验收合同。当前 Round 01-04 工件保留为失败证据，不再继续扩出 Round 05；Phase 2B implementation batch 已收口 receipt、Creation pending owner、Canvas lifecycle、项目切换/重启和结构门岗，下一停点是 checkpoint 提交/推送及一次性 main 基线整合。
 
 ---
 
@@ -98,9 +98,9 @@ Nomi 要从“创作面板一套 Agent 状态、生成画布又一套 Agent 状�
 
 - Phase 1 已证明一项真实能力 `canvas.read` 可以由 Pi / MCP / renderer 共享同一可信调用和 main-only executor，并删除旧执行链。
 - Phase 2A 已搭好离线 ProjectAgentHost 的状态机、FIFO、流式 Assistant、幂等命令账本和崩溃安全持久化。
-- Phase 2B 已把 Host 接入产品并删除旧持久化/执行 writer；还差两面板直接 selector 与 pending view owner 收口，不能把兼容 message 镜像当最终 cutover。
+- Phase 2B 已把 Host 接入产品并删除旧持久化/执行 writer；两面板 direct selector、pending view registry、queue/approval/stop、attachments/history、proposal commit/deviation/Undo 与 hydration/release 已收口，不能再恢复兼容 message 镜像或第二生命周期 owner。
 
-因此下一步不是重做方案，也不是直接画新 UI；下一步是完成 §0.3 的两面板 direct projection cutover，再做一次 Phase 2B focused 双审。
+因此下一步不是重做方案，也不是追逐最新 `main`；下一步是消费本次 focused 证据做一次只读 closure review，形成 checkpoint，然后在 Phase 2B 出口只整合一次当时最新 `main`，再进入 Phase 3。
 
 ---
 
@@ -149,7 +149,7 @@ Phase 2B 才解决用户真实摩擦：
 | Phase 0 | 语义 owner 门岗 | 已完成 | 保持 vocabulary / owner gate 不退化 |
 | Phase 1 | `canvas.read` 单一能力脊梁 | 实现已在 checkpoint 中；最终 build/package 发布验收未做 | 只在 Phase 2B cutover 后统一跑 B6 真实 dev/package journey |
 | Phase 2A | 离线 ProjectAgentHost foundation | reducer/repository/queue/assistant 代码已在 checkpoint；独立 spec/quality review 未完成 | 只做 Host focused review + focused gates，一次放行 |
-| Phase 2B | 单 Host 生产接线、迁移、旧 writer 原子删除 | Host/IPC、迁移、请求 scope、旧 persistence/chatV2 writer 删除已完成；两面板仍有 message/pending 兼容 owner | 两面板改 direct projection selector，删除本地 message/pending owner，再做 focused 双审 |
+| Phase 2B | 单 Host 生产接线、迁移、旧 writer 原子删除 | focused closure 已通过并推送 `b84188d3`；两面板 direct 投影、Host pending registry、receipt/CAS/Undo、项目切换失效已收口 | 后续只在发现明确缺口时补同一阶段 remediation；不重复跑全量，随后进入 Phase 3 |
 | Phase 3 | 其余只读与可撤写能力 | 未开始 | 2B 完整 cutover 后逐能力迁移并删旧 owner |
 | Phase 4 | 破坏性/付费能力统一到 ProductionRun | 未开始 | receipt、precondition、typed cancel、TaskRef、artifact truth |
 | Phase 5 | Skill / MCP 从 Registry 派生 | 未开始 | 先过历史 PR 证据门，再完成 list/read guard、shrink-only、删除 legacy route |
@@ -587,7 +587,7 @@ pnpm run test:mcp
 
 ### Phase 3
 
-迁其余 read capability，再迁文稿/画布可撤写入；复用现有 proposal transaction / Undo / reconcile，删除已迁 capability 的旧 descriptor / switch / metadata owner。
+迁其余 read capability，再迁文稿/画布可撤写入；复用现有 proposal transaction / Undo / reconcile，删除已迁 capability 的旧 descriptor / switch / metadata owner。阶段合同已冻结在 `.agents/runtime/harness/project-agent-host-20260829/phase-3-closure-contract.json`，第一批 3A 调用面在 `.agents/runtime/harness/project-agent-host-20260829/phase-3-3a-call-surface.json`；它们是本地运行时合同，不替代最终可审计的代码与测试证据。
 
 ### Phase 4
 
@@ -627,9 +627,9 @@ pnpm run test:mcp
 
 工作树固定为 /Users/aoqimin/Desktop/Nomi-project-agent-host-phase1-20260827，分支应为 codex/project-agent-host-phase1-20260827。先检查 git branch/status/rev-list；保护 123 个 tracked changes 与 86 个 untracked entries，禁止 reset/clean/覆盖。
 
-真实进度：Phase1 实现已冻结但未最终 build/package；Phase2A 实现代码已在 checkpoint，独立 spec/quality review 尚未完成；Phase2B 已有 main/IPC/renderer projection/迁移预接线半成品，但旧 writer 与双写尚未切除。
+真实进度：Phase1 实现已冻结但未最终 build/package；Phase2A foundation 已完成 focused 合同验证；Phase2B Lane C 已完成 Host/IPC、迁移、direct projection、pending registry、receipt、项目切换/重启和旧 writer 删除，当前待 checkpoint 与一次性 latest-main integration。
 
-先做一次 Phase2A focused spec/quality review；若有具体 P0-P2，严格 RED→GREEN 修完并重审。随后直接沿现有 Phase2B 半成品完成 owner install → IPC boundary → migration → projection → atomic cutover；不要创建第二个 Host、不要双写、不要保留旧 conversations/chatV2 fallback。日常只跑切片 focused tests，最终候选才跑全量 gates/build/package/真实旅程。
+先做一次只读 Phase2B closure review；若有具体 P0-P2，合并进一个 remediation batch，修完只补跑直接受影响文件和一次 Lane C matrix。不要创建第二个 Host、不要双写、不要保留旧 conversations/chatV2 fallback。日常只跑切片 focused tests；Phase 2B 出口只整合一次当时最新 `main`，最终候选才跑全量 gates/build/package/真实旅程。
 ```
 
 ---
@@ -637,7 +637,7 @@ pnpm run test:mcp
 ## 12. 交接时的最后结论
 
 - 代码没有丢，现场可恢复。
-- 任务没有完成，当前处于 Phase 2A 审查未完成 + Phase 2B 生产接线半成品状态。
-- 没有已确认的 Phase 2A 新 P0–P2；但规格 reviewer 被中断，所以缺少放行证据。
-- Phase 2B 已有足够精确的施工 handoff，不需要重新讨论方向。
-- 用户额度不足时，最安全的停点就是现在：不再让工作树漂移，不提交半成品；下一轮从 Phase 2A spec review 继续。
+- 任务没有完成，当前处于 Phase 2B Lane C 已收口、待 checkpoint/main integration 的状态。
+- 本次 `check:test-types` 通过；Lane C 20 文件 focused matrix 为 180/180；无新增测试类型错误。
+- Phase 2B closure review 只需补缺失或有争议的证据，不应重新扫描整棵仓库或追逐 main。
+- 当前安全停点是 Phase 2B Lane C closure 之后：先保存本地改动并形成 checkpoint，再一次性整合 latest `main`；下一轮从 Phase 3 capability inventory 继续。

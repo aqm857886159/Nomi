@@ -20,7 +20,7 @@ pnpm exec vitest run electron/projectAgentHost/projectAgentIpc.test.ts src/workb
 
 # Lane C close matrix (2026-08-29)
 pnpm exec vitest run electron/projectAgentHost/projectAgentCutoverStructure.test.ts electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts electron/projectAgentHost/projectAgentMigration.test.ts electron/projectAgentHost/projectAgentReducer.test.ts electron/projectAgentHost/projectAgentProposalReceiptStore.test.ts electron/projectAgentHost/projectAgentIpc.test.ts electron/assets/projectAssetStore.test.ts src/workbench/ai/projectAgentProjectionStore.test.ts src/workbench/ai/projectAgentUiCommands.test.ts src/workbench/ai/projectAgentClient.test.ts src/workbench/ai/projectAgentTurnCommands.test.ts src/workbench/ai/projectAgentAttachments.test.ts src/workbench/ai/workbenchAgentRunner.test.ts src/workbench/generationCanvas/agent/canvasApprovalSteps.test.ts src/workbench/generationCanvas/agent/canvasToolApproval.test.ts src/workbench/generationCanvas/agent/proposalTxn.test.ts src/workbench/generationCanvas/agent/proposalUndo.test.ts src/workbench/generationCanvas/agent/proposalUndoReceiptLifecycle.test.ts src/workbench/generationCanvas/components/CanvasAssistantPanel.test.ts src/workbench/generationCanvas/components/assistantTimelineChronology.test.ts
-# Result: 20 files passed, 179 tests passed, 1.72s
+# Result: 20 files passed, 180 tests passed, 1.77s (2026-08-29 after test-contract remediation)
 ```
 
 No typecheck, lint, build, package, GUI, or repository-wide test is part of this
