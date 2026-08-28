@@ -1,21 +1,16 @@
 import { setImmediate } from 'node:timers/promises'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AgentChatV2Session, AgentsChatResponseDto, AgentsChatStreamEvent } from '../../../api/desktopClient'
-import type { WorkbenchAiStreamHandlers } from '../../ai/workbenchAiClient'
-import type { ToolCallEvent } from '../../ai/workbenchAgentRunner'
+import type { AgentsChatResponseDto } from '../../../api/desktopClient'
+import type { RunWorkbenchAgentInput, ToolCallEvent } from '../../ai/workbenchAgentRunner'
 import type { TimelineClip } from '../../timeline/timelineTypes'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
-const deps = vi.hoisted(() => ({ send: vi.fn(), catalog: vi.fn(), clip: vi.fn(), grant: vi.fn(), consent: vi.fn(), dispatch: vi.fn() }))
-vi.mock('../../ai/workbenchAiClient', () => ({ sendWorkbenchAiMessage: deps.send }))
-vi.mock('../../ai/assistantModelPref', () => ({ getAssistantModelPref: () => null }))
+const deps = vi.hoisted(() => ({ run: vi.fn(), catalog: vi.fn(), clip: vi.fn(), grant: vi.fn(), consent: vi.fn(), dispatch: vi.fn() }))
+vi.mock('../../ai/workbenchAgentRunner', () => ({ runWorkbenchAgent: deps.run }))
 vi.mock('./availableModels', () => ({ listAvailableModelsForAgent: deps.catalog, formatAvailableModelsForPrompt: () => '' }))
 vi.mock('../../timeline/buildGenerationNodeTimelineClip', () => ({ buildGenerationNodeTimelineClip: deps.clip }))
 vi.mock('../../api/taskApi', () => ({ mintSpendGrant: deps.grant }))
 vi.mock('../runner/generationRunController', () => ({ resolveAutonomousUploadConsent: deps.consent }))
 vi.mock('../components/batchPlanPreview', () => ({ runPlanWithToasts: deps.dispatch }))
-vi.mock('../../../api/desktopClient', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../../../api/desktopClient')>(), seedWorkbenchAgentSession: vi.fn(async () => {}),
-}))
 import { sendGenerationCanvasAgentMessage } from './generationCanvasAgentClient'
 import { claimCanvasApprovalBatch, resolveCanvasApprovalSteps } from './canvasApprovalSteps'
 import { applyProposalBatch } from './proposalTxn'
@@ -23,7 +18,6 @@ import { useCanvasTurnStore } from './canvasTurnController'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { createDefaultTimeline } from '../../timeline/timelineMath'
-import { initConversationPersistence, startNewConversation } from '../../ai/conversationPersistence'
 import { releaseWorkbenchProjectRuntimeState } from '../../project/releaseWorkbenchProjectSession'
 import { resetAdoptionRegistry } from '../../adoption/adoptionProposalRegistry'
 import { setDesktopActiveProjectId } from '../../../desktop/activeProject'
@@ -38,7 +32,6 @@ function deferred<T>() {
 const node = (): GenerationCanvasNode => ({ id: 'existing', kind: 'video', title: 'original', prompt: 'original', position: { x: 0, y: 0 }, categoryId: 'shots', shotIndex: 1 })
 const finished: AgentsChatResponseDto = { id: 'response', status: 'finished', text: 'done', toolCalls: [], artifacts: [], finishReason: 'stop', usage: { promptTokens: 0, completionTokens: 0, cachedPromptTokens: 0, totalTokens: 0 } }
 const captured: CanvasShadowEvent[] = []
-let disposeConversations: () => void
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -54,22 +47,28 @@ beforeEach(() => {
   resetAdoptionRegistry()
   captured.length = 0
   setCanvasEventSinkForTests((events) => captured.push(...events))
-  disposeConversations = initConversationPersistence(() => 'project-A')
 })
-afterEach(() => { disposeConversations(); useCanvasTurnStore.getState().abandon(); setDesktopActiveProjectId(null); setCanvasEventSinkForTests(null) })
+afterEach(() => { useCanvasTurnStore.getState().abandon(); setDesktopActiveProjectId(null); setCanvasEventSinkForTests(null) })
 
 async function startApprovalTurn() {
   const ready = deferred<void>()
   const completion = deferred<AgentsChatResponseDto>()
-  let wire!: WorkbenchAiStreamHandlers
-  const confirmTool = vi.fn<AgentChatV2Session['confirmTool']>(async () => {})
+  let wire!: RunWorkbenchAgentInput
+  const confirmTool = vi.fn(async (_toolCallId: string, _decision: Parameters<ToolCallEvent['confirm']>[0]) => {})
+  const liveCalls = new Map<string, { pending: boolean; identity: object }>()
+  let ended = false
+  const expireAll = () => {
+    ended = true
+    for (const call of liveCalls.values()) call.pending = false
+    liveCalls.clear()
+  }
   const pending = new Map<string, ToolCallEvent & { turnId: number }>()
   const turn = useCanvasTurnStore.getState().begin()
-  deps.send.mockImplementationOnce((_input, handlers: WorkbenchAiStreamHandlers) => {
-    wire = handlers
-    wire.onSession?.({ sessionId: 'session', cancel: async () => {}, confirmTool })
+  deps.run.mockImplementationOnce((input: RunWorkbenchAgentInput) => {
+    wire = input
+    wire.onCancelReady?.(expireAll)
     ready.resolve()
-    return completion.promise
+    return completion.promise.finally(expireAll)
   })
   const input = {
     message: 'edit the canvas', projectId: 'project-A', history: { kind: 'ephemeral' as const }, capability: 'canvas-agent' as const,
@@ -80,9 +79,40 @@ async function startApprovalTurn() {
   }
   const running = sendGenerationCanvasAgentMessage(input)
   await ready.promise
-  const emit = (event: AgentsChatStreamEvent) => wire.onEvent?.(event)
+  const emit = (event:
+    | { event: 'content'; data: { delta: string } }
+    | { event: 'tool-error'; data: { toolCallId: string; toolName: string; message: string; denied?: boolean; cancelled?: boolean } }
+    | { event: 'done'; data: { reason: 'finished' | 'cancelled' | 'error' } }
+    | { event: 'error'; data: { message: string } }
+    | { event: 'result'; data: { response: AgentsChatResponseDto } }) => {
+    if (event.event === 'content') wire.onContent?.(event.data.delta, event.data.delta)
+    else if (event.event === 'tool-error') {
+      const live = liveCalls.get(event.data.toolCallId)
+      if (live) live.pending = false
+      liveCalls.delete(event.data.toolCallId)
+      wire.onToolError?.(event.data)
+    } else if (event.event === 'done' || event.event === 'error' || event.event === 'result') expireAll()
+  }
   const call = (id: string, toolName = 'set_node_prompt', args: unknown = { nodeId: 'existing', prompt: 'edited' }) => {
-    emit({ event: 'tool-call', data: { sessionId: 'session', toolCallId: id, toolName, args } })
+    if (ended) return
+    const identity = {}
+    const previous = liveCalls.get(id)
+    if (previous) previous.pending = false
+    const live = { pending: true, identity }
+    liveCalls.set(id, live)
+    const event: ToolCallEvent = {
+      toolCallId: id,
+      toolName,
+      args,
+      isPending: () => !ended && live.pending && liveCalls.get(id)?.identity === identity,
+      confirm: async (decision) => {
+        if (!event.isPending()) throw new DOMException('Agent tool call is no longer pending', 'AbortError')
+        live.pending = false
+        liveCalls.delete(id)
+        await confirmTool(id, decision)
+      },
+    }
+    void wire.onToolCall?.(event)
   }
   const expire = (id: string) => emit({ event: 'tool-error', data: { toolCallId: id, toolName: 'set_node_prompt', message: 'confirmation timed out', denied: true } })
   const finish = async () => { completion.resolve(finished); await running }
@@ -195,7 +225,7 @@ describe('tool-call approval lifetime at real mutation boundaries', () => {
     const approval = session.approve(['edit', 'arrange'])
     await entered.promise
     expect(useGenerationCanvasStore.getState().nodes[0].prompt).toBe('edited')
-    if (expiredId === 'new-thread') startNewConversation('generation')
+    if (expiredId === 'new-thread') useCanvasTurnStore.getState().abandon()
     else session.expire(expiredId)
     probing.resolve({ id: 'clip', type: 'video', sourceNodeId: source.id, label: 'late', url: source.result.url,
       startFrame: 0, endFrame: 24, frameCount: 24, offsetStartFrame: 0, offsetEndFrame: 0 })
@@ -248,7 +278,7 @@ describe('tool-call approval lifetime at real mutation boundaries', () => {
     old.call('old-arrange', 'arrange_storyboard_to_timeline', { nodeIds: ['existing'] })
     const oldApproval = old.approve(['old-edit', 'old-arrange'])
     await entered.promise
-    if (action === 'new-thread') startNewConversation('generation')
+    if (action === 'new-thread') useCanvasTurnStore.getState().abandon()
     const replacement = action === 'new-thread' ? await startApprovalTurn() : old
     try {
       if (action === 'manual') useGenerationCanvasStore.getState().updateNodePrompt(targetId, 'new thread approved edit')
@@ -289,7 +319,7 @@ describe('tool-call approval lifetime at real mutation boundaries', () => {
     if (action === 'reject') await stale.confirm({ ok: false, message: 'rejected by user' })
     else if (action === 'stop') useCanvasTurnStore.getState().requestUserCancel()
     else if (action === 'terminal') session.emit({ event: 'done', data: { reason: 'finished' } })
-    else if (action === 'new-thread') startNewConversation('generation')
+    else if (action === 'new-thread') useCanvasTurnStore.getState().abandon()
     else {
       releaseWorkbenchProjectRuntimeState()
       useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [{ ...node(), title: 'project B', prompt: 'project B' }], edges: [], groups: [] })
@@ -310,7 +340,7 @@ describe('tool-call approval lifetime at real mutation boundaries', () => {
     const approval = session.approve(['create']).catch(() => undefined)
     if (action === 'stop') useCanvasTurnStore.getState().requestUserCancel()
     else if (action === 'terminal') session.emit({ event: 'done', data: { reason: 'finished' } })
-    else if (action === 'new-thread') startNewConversation('generation')
+    else if (action === 'new-thread') useCanvasTurnStore.getState().abandon()
     else releaseWorkbenchProjectRuntimeState()
     const before = useGenerationCanvasStore.getState().readDocumentSnapshot()
     catalog.resolve([])

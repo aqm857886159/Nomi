@@ -7,7 +7,6 @@ import type { DesktopSettingsBridge } from './settingsBridge'
 import type { DesktopOnboardingBridge } from './onboardingBridgeTypes'
 import type { DesktopProductionRunBridge } from './productionRunBridgeTypes'
 import type { CustomCallBridge } from './modelCatalogBridgeTypes'
-import type { AgentChatStartRequest, AgentChatHistoryRequest, AgentChatToolDecision, AgentChatWireEvent } from '../../electron/harness/agentChatContracts'
 import type { CanvasReadSurfaceBridge } from '../../electron/shared/surfacePortBinding'
 import type { ProjectAgentExecutionEvent, ProjectAgentHostState, ProjectAgentMutationType, ProjectAgentPatch, ProjectBinding } from '../../electron/shared/projectAgentContracts'
 export type { ProviderKind }
@@ -17,33 +16,6 @@ export type {
   DesktopProviderRegistration,
 } from './onboardingBridgeTypes'
 export type { ScreenshotHotkeyStatus } from './bridgeMedia'
-
-/** 落盘的对话消息(conversation 域;draft/附件是 session 域不落盘)。 */
-export type PersistedAiMessage = {
-  id: string
-  role: string
-  content: string
-  /** 分镜方案卡锚在这条消息上(方案随项目持久化,它的「家」也要一起落盘)。 */
-  storyboardPlan?: true
-}
-
-/** 一条会话线程(v2 会话历史)。messages=该线程气泡;title=一句话摘要(首句兜底)。 */
-export type PersistedThread = {
-  id: string
-  title: string
-  createdAt: number
-  updatedAt: number
-  messages: PersistedAiMessage[]
-}
-/** 一个面板(创作/画布)的会话列表 + 当前活动线程。 */
-export type PersistedConversationArea = { activeId: string | null; threads: PersistedThread[] }
-/** conversations.json v2:两个面板各一份会话列表。 */
-export type PersistedConversationsV2 = {
-  v: 2
-  creation: PersistedConversationArea
-  generation: PersistedConversationArea
-  committedProposal?: unknown
-}
 
 export type ProjectAgentCommandWire = {
   subscriptionId: string
@@ -582,21 +554,6 @@ export type DesktopBridge = DesktopMediaBridge & {
     comfyuiInterrupt?: (promptId: string) => Promise<{ ok: boolean; mode: 'targeted' | 'queue-only' | 'failed' }>
     onComfyuiProgress?: (callback: (event: unknown) => void) => () => void
   }
-  agents: {
-    chatV2Start: (payload: AgentChatStartRequest) => Promise<{ sessionId: string }>
-    confirmTool: (
-      sessionId: string,
-      toolCallId: string,
-      decision: AgentChatToolDecision,
-    ) => Promise<{ ok: boolean; error?: string }>
-    cancelChatV2: (sessionId: string) => Promise<{ ok: boolean; error?: string }>
-    clearChatV2Session: (request: AgentChatHistoryRequest) => Promise<{ ok: boolean; error?: string }>
-    /** Ensure only: an existing full snapshot or cleared tombstone always wins. */
-    seedChatV2Session: (request: AgentChatHistoryRequest) => Promise<{ ok: boolean }>
-    /** S1b 诚实探针:LLM 是否还记得这个会话(气泡在而记忆空 → 必须画「新会话」分隔线)。 */
-    chatV2SessionAlive: (request: AgentChatHistoryRequest) => Promise<{ alive: boolean }>
-    onChatV2Event: (sessionId: string, callback: (event: AgentChatWireEvent) => void) => () => void
-  }
   /** S5-a/b 画布事件 → 单写者日志仓库(seq/脱敏/截断在主进程单点);read 供 hydrate 尾部重放与轨迹。 */
   events?: {
     append: (projectId: string, events: unknown[]) => Promise<{ ok: boolean; count: number; lastSeq: number }>
@@ -636,18 +593,6 @@ export type DesktopBridge = DesktopMediaBridge & {
   /** S4-2b 技术自检结果广播(主进程异步旁路 → 节点 ⚠ 投影)。 */
   review?: {
     onEvent: (callback: (payload: unknown) => void) => () => void
-  }
-  /** S1b-3 对话持久化(conversation 域独立文件,不混画布 payload)。committedProposal=S6-5 事务回执(审计 A6),形状由画布层校验。 */
-  conversations?: {
-    read: (projectId: string) => Promise<{ ok: boolean; conversations: PersistedConversationsV2 | null }>
-    write: (
-      projectId: string,
-      payload: {
-        creation: PersistedConversationArea
-        generation: PersistedConversationArea
-        committedProposal?: unknown
-      },
-    ) => Promise<{ ok: boolean }>
   }
   onboarding: DesktopOnboardingBridge
   /** 版本号 + 检查更新 + 一键更新（功能需求1/2/3）。check/download/install 用户显式触发，进度/状态走 onEvent。 */

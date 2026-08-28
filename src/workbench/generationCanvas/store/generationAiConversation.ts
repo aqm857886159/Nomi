@@ -1,7 +1,7 @@
 // 生成画布 AI 对话的 per-project 桶交换(harness S1,治串台)。
 // 外挂模块而非 store action:generationCanvasStore 是白名单巨壳(基线只减不增,R12),
 // 不往里喂;用 zustand 外部 setState 实现同等语义。
-// 注:messages 已迁出本桶,改由 conversationThreads 模型按项目寻址(会话历史,2026-06-14);
+// Messages are projected from ProjectAgentHost; this bucket owns only local composer state.
 // 本桶只管 draft 这个「不落盘的 session 态」切项目交换。
 import { createConversationBuckets } from '../../aiConversationBuckets'
 import { useGenerationCanvasStore } from './generationCanvasStore'

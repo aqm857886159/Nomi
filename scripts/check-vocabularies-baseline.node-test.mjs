@@ -226,10 +226,6 @@ test('repository-specific runtime and view-model vocabularies are not mislabeled
       /runtime port.*turn/i,
     ],
     [
-      'src/api/desktopAgentsChatStream.ts::type:AgentsChatToolStreamPayload/property:stage/type-union',
-      /stream event.*view model/i,
-    ],
-    [
       'src/workbench/ai/workbenchAiTypes.ts::type:WorkbenchAiMessage/property:status/type-union',
       /assistant message.*view model/i,
     ],

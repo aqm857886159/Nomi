@@ -573,39 +573,55 @@ export function createProjectAgentExecutionCoordinator(
       );
       const status = statusForResponse(response);
       const toolItems = response.toolCalls.map((item) => toolItem(record.binding, execution.turn, item, now()));
-      await dispatchFresh(subscriptionId, (state) => ({
-        commandId: `async-result-${execution.turn.executionToken}`,
-        expectedRevision: state.hostRevision,
-        binding: record.binding,
-        sender: { kind: "embedded-agent", senderId: execution.turn.executionToken },
-        type: "async.result",
-        payload: {
-          asyncToken: execution.turn.executionToken,
-          binding: record.binding,
-          threadId: execution.turn.threadId,
-          turnId: execution.turn.turnId,
-          queueItemId: execution.queueItem.queueItemId,
-          target: execution.queueItem.target,
-          preconditions: execution.queueItem.preconditions,
+      const beforeResult = record.host.getSnapshot(record.binding);
+      const currentStatus = beforeResult.turns.find((turn) => turn.turnId === execution.turn.turnId)?.status;
+      if (!currentStatus || ["queued", "running", "proposed"].includes(currentStatus)) {
+        await dispatchFresh(subscriptionId, (state) => ({
+          commandId: `async-result-${execution.turn.executionToken}`,
           expectedRevision: state.hostRevision,
-          items: toolItems,
-          turnStatus: status,
-          ...(execution.approvedProposalId
-            ? { proposalApprovalId: execution.approvedProposalId, proposalStatus: status }
-            : {}),
-          ...(assistant && assistant.kind === "assistant"
-            ? {
-                assistantFinal: {
-                  itemId: assistant.itemId,
-                  executionToken: execution.turn.executionToken,
-                  expectedTextRevision: assistant.textRevision,
-                  text: response.text,
-                },
-              }
-            : {}),
-          receivedAt: now(),
-        },
-      }));
+          binding: record.binding,
+          sender: { kind: "embedded-agent", senderId: execution.turn.executionToken },
+          type: "async.result",
+          payload: {
+            asyncToken: execution.turn.executionToken,
+            binding: record.binding,
+            threadId: execution.turn.threadId,
+            turnId: execution.turn.turnId,
+            queueItemId: execution.queueItem.queueItemId,
+            target: execution.queueItem.target,
+            preconditions: execution.queueItem.preconditions,
+            expectedRevision: state.hostRevision,
+            items: toolItems,
+            turnStatus: status,
+            ...(execution.approvedProposalId
+              ? { proposalApprovalId: execution.approvedProposalId, proposalStatus: status }
+              : {}),
+            ...(assistant && assistant.kind === "assistant"
+              ? {
+                  assistantFinal: {
+                    itemId: assistant.itemId,
+                    executionToken: execution.turn.executionToken,
+                    expectedTextRevision: assistant.textRevision,
+                    text: response.text,
+                  },
+                }
+              : {}),
+            receivedAt: now(),
+          },
+        }));
+      }
+      const committed = record.host.getSnapshot(record.binding);
+      const committedStatus = committed.turns.find((turn) => turn.turnId === execution.turn.turnId)?.status;
+      if (!committedStatus || ["queued", "running", "proposed"].includes(committedStatus)) {
+        throw new Error("Project Agent execution result has no committed terminal turn");
+      }
+      publish(subscriptionId, {
+        type: "execution-result",
+        binding: record.binding,
+        turnId: execution.turn.turnId,
+        executionToken: execution.turn.executionToken,
+        response,
+      });
     } catch (error) {
       if (!execution.controller.signal.aborted) {
         publish(subscriptionId, {

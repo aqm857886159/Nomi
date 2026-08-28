@@ -26,6 +26,7 @@ export type ProjectAgentTurnCommandInput = ProjectAgentTurnTarget &
     request: AgentChatRequest
     displayPrompt: string
     threadTitle?: string
+    turnId?: string
   }>
 
 export type ProjectAgentTurnCommandResult = Readonly<{
@@ -79,7 +80,7 @@ function buildRecords(
 }> {
   const now = new Date().toISOString()
   const thread = activeWritableThread(snapshot, now)
-  const turnId = id('turn')
+  const turnId = input.turnId ?? id('turn')
   const executionToken = id('execution')
   const contextRef = Object.freeze({
     binding: createProjectAgentContextBinding(bindingOf(snapshot), thread.threadId),

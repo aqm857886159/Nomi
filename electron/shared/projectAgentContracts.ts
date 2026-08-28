@@ -1,5 +1,6 @@
 import type { PreconditionSet, TargetRef, TaskRef } from "./capabilityTargeting";
 import type { ProjectBinding } from "./projectBinding";
+import type { AgentChatResponse } from "../harness/agentChatContracts";
 
 export type { DocumentAnchorRef, PreconditionSet, TargetRef, TaskRef } from "./capabilityTargeting";
 export type { ProjectBinding } from "./projectBinding";
@@ -345,6 +346,14 @@ export type ProjectAgentExecutionEvent =
       turnId: string;
       executionToken: string;
       message: string;
+    }>
+  | Readonly<{
+      /** Runtime metadata published only after the Host owns a terminal turn. */
+      type: "execution-result";
+      binding: ProjectBinding;
+      turnId: string;
+      executionToken: string;
+      response: AgentChatResponse;
     }>;
 
 type ProjectAgentMutationEnvelope<Type extends string, Payload> = Readonly<{

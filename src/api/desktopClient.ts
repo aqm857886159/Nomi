@@ -1,28 +1,22 @@
 import type { ProviderKind } from '../desktop/providerKind'
-import {
-  requireDesktopRuntime,
-  openDesktopAgentsChatStream,
-  type AgentsChatRequestDto,
-  type AgentsChatStreamAdmission,
-  type AgentsChatStreamHandlers,
-} from './desktopAgentsChatStream'
+import { getDesktopBridge } from '../desktop/bridge'
+import type {
+  AgentChatAttachment,
+  AgentChatRequest,
+  AgentChatResponse,
+  AgentChatUsage,
+} from '../../electron/harness/agentChatContracts'
 
-// 重导出：openDesktopAgentsChatStream + chatV2 事件适配 + agents-chat 相关类型已拆到
-// desktopAgentsChatStream.ts（requireDesktopRuntime 这一守卫也随之搬过去，避免主文件 ↔
-// 流模块循环依赖），但 desktopClient 对外公共导出面保持不变。
-export {
-  coerceAgentUsage,
-  type AgentAttachmentPayload,
-  type AgentsChatRequestDto,
-  type AgentUsage,
-  type AgentsChatResponseDto,
-  type AgentsChatToolStreamPayload,
-  type AgentsChatStreamEvent,
-  type AgentChatV2ToolDecision,
-  type AgentChatV2Session,
-  type AgentsChatStreamAdmission,
-  type AgentsChatStreamHandlers,
-} from './desktopAgentsChatStream'
+export type AgentAttachmentPayload = AgentChatAttachment
+export type AgentsChatRequestDto = AgentChatRequest
+export type AgentsChatResponseDto = AgentChatResponse
+export type AgentUsage = AgentChatUsage
+
+function requireDesktopRuntime(feature: string) {
+  const desktop = getDesktopBridge()
+  if (!desktop) throw new Error(`Desktop runtime is required for ${feature}`)
+  return desktop
+}
 
 export type BillingModelKind = 'text' | 'image' | 'video' | 'audio' | 'model3d'
 
@@ -199,30 +193,6 @@ export type ModelCatalogMappingTestResultDto = {
   diagnostics: string[]
   request: unknown
   response?: unknown
-}
-
-export async function workbenchAgentsChatStream(
-  payload: AgentsChatRequestDto,
-  handlers: AgentsChatStreamHandlers,
-  admission: AgentsChatStreamAdmission = {},
-): Promise<() => void> {
-  return openDesktopAgentsChatStream(payload, handlers, admission)
-}
-
-
-/** Wipe the backend conversation memory for a sessionKey ("新对话"). */
-export async function clearWorkbenchAgentSession(history: import('../../electron/harness/agentChatContracts').AgentChatHistory): Promise<void> {
-  const result = await requireDesktopRuntime('clear agent session').agents.clearChatV2Session({ history })
-  if (!result.ok) throw new Error(result.error || 'Agent context clear failed')
-}
-
-/** 会话历史:从线程气泡重建该 sessionKey 的模型工作缓存(翻回旧对话接着聊)。 */
-export async function seedWorkbenchAgentSession(
-  history: import('../../electron/harness/agentChatContracts').AgentChatHistory,
-  messages: ReadonlyArray<{ role: string; content: string }>,
-): Promise<void> {
-  const result = await requireDesktopRuntime('seed agent session').agents.seedChatV2Session({ history, messages })
-  if (!result.ok) throw new Error('Agent context ensure failed')
 }
 
 export async function listModelCatalogVendors(): Promise<ModelCatalogVendorDto[]> {

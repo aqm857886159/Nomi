@@ -1,14 +1,14 @@
 # Nomi 项目级常驻 Agent 完整交接（2026-08-29 修订）
 
-> 状态：📎 交接日志（checkpoint 已提交并推送，Draft PR #223）
+> 状态：🚧 持续实施（本地切片已提交/待提交，Draft PR #223 因 GitHub HTTPS 超时暂时落后）
 > 用途：在当前任务额度耗尽或上下文丢失时，让下一位 Agent 从真实冻结点继续，不重做已完成切片，也不把尚未审完的工作误报为完成。
 > 工作树：`/Users/aoqimin/Desktop/Nomi-project-agent-host-phase1-20260827`
 > 分支：`codex/project-agent-host-phase1-20260827`
-> 当前 HEAD：`13bb526484cc4534763626de4d4db65a348c897b`
+> 当前 HEAD：动态读取 `git rev-parse HEAD`；不要使用本文件里的旧冻结 hash 复位工作树
 > 远端分支：`origin/codex/project-agent-host-phase1-20260827`
 > Draft PR：[#223](https://github.com/aqm857886159/Nomi/pull/223)
-> 基线关系：本分支已保存当前 280 文件 checkpoint；`origin/main` 后续又前进，集成前仍需刷新基线。
-> 最后统一状态：Phase 1 与 Phase 2A 的实现代码已在快照中；Phase 2B **已经出现生产接线半成品**（不是 0），但没有完成原子 cutover、旧 writer 删除或双审放行。当前不能宣称任何 Phase 2 完成。
+> 远端冻结点：`ad5e6f31`；本地至少领先 `2d8cc85e`、`e46993c6`、`02f6080e`，后续切片以当前 Git 状态为准。
+> 最后统一状态：Phase 1 / 2A foundation 已在分支；Phase 2B 已完成单 Host/IPC、崩溃可恢复迁移、请求作用域绑定、旧 conversations writer 与 renderer chatV2 执行链删除。剩余 blocker 是两面板仍通过本地 `creationAiMessages` / `generationAiMessages` 和各自 pending owner 间接显示 Host 状态，尚未改成 direct projection selector。
 
 ## 0.1 2026-08-29 真实快照与加速规则
 
@@ -17,7 +17,9 @@
 - `electron/main.ts` 中的 `installProductionProjectAgentHost()`、迁移 prepare hook 和生产 IPC 注册；
 - `electron/projectAgentHost/projectAgentProductionRuntime.ts`、`projectAgentIpc.ts`、`projectAgentExecutionCoordinator.ts`；
 - preload/desktop bridge、`NomiStudioApp` 的 open/release/patch 接线和 projection store；
-- 旧 conversations fallback、旧面板 writer 尚未删除，因此这不是完成的 2B，而是“2B 半成品与 2A 验收混在一起”。
+- 旧 conversations renderer writer、chatV2 preload/bridge/stream/client 已删除；主进程旧 conversations 文件只作为迁移输入。
+- `workbenchAgentRunner` 与 single-shot callers 已切到 Host queue / projection / tool decision / stop，真实 usage 与 finish metadata 由 Host 终态后的非 owning `execution-result` 事件返回。
+- 当前仍是 2B 半成品，因为 `projectAgentUiProjection` 还把 Host snapshot 复制进两个本地 message store，两个面板也仍分别拥有 pending call view state。
 
 从现在起采用以下加速规则：
 
@@ -42,19 +44,39 @@
 
 Phase 2A 的独立审查仍要补，但它不再作为重新扫描整棵仓库的前置条件；只针对 Host reducer/repository 的合同做一次 focused review，确认后立即进入 2B。生产接线已有的部分不再继续扩张，直到 owner/cutover 切片把旧 writer 关掉。
 
+## 0.2 历史 PR 证据门（Phase 5 / Phase 6 前强制执行）
+
+现有相关 PR 可能落后于最新 `main`，但其中记录了此前实际暴露的 MCP、Skill、Registry 和 UI 严重问题，也包含当时形成的设计判断。它们不是可直接合并的代码基线，却是不能丢失的问题证据与方案输入。
+
+进入 Phase 5 或 Phase 6 前必须：
+
+1. 枚举当前 open PR 与近期相关的 closed / merged PR，阅读标题、描述、changed files、关键 diff、review 讨论和其中新增的设计/审计文档；不能只搜索当前工作树。
+2. 产出 `docs/audit/<date>-project-agent-pr-evidence.md`，逐项记录“原问题 / 根因判断 / PR 中的方案 / 相对最新 main 的漂移 / 本轮采纳、调整或淘汰结论 / 对应实现与测试”。没有结论的相关 PR 不能静默略过。
+3. 实现一律以届时最新 `origin/main` 和本任务已冻结合同为代码基线。历史 PR 只做证据和设计输入，禁止整分支盲目合并、机械 cherry-pick，或让旧实现恢复第二套 owner / fallback。
+4. UI 先以现有已设计、已拍板的界面和真实运行截图为第一基准；只有证据表明行为或信息层级不足时，才按 `docs/design/nomi-design-system.md` 补齐，并重新出真实布局样张验收。
+
+Phase 5 / Phase 6 的 round contract 必须列出这份审计文档及其 PR 覆盖清单；缺失即 hard fail，不得开始实现。
+
+## 0.3 当前最短续跑点
+
+1. 删除 `projectAgentUiProjection` 对两个 message store 的写入，让 Creation / Canvas 两面板直接用共享 projection selector 渲染同一 Thread / Item / Queue。
+2. 把两个面板各自的 pending tool-call view owner 收成 Host event + proposal/item projection；保留领域执行器，但不能再由面板决定 pending 生命周期。
+3. 删除 `creationAiMessages` / `generationAiMessages` 及其 setters、hydrate/reset 分支和结构债；扩展 cutover structure test，注入任一旧 message/pending owner 都必须变红。
+4. 只跑上述切片的 panel/projection/approval tests、双 typecheck、owner/vocabulary gate；通过后做 Phase 2B focused spec/quality review。全量 gates/build/package 继续留到最终候选。
+
 ---
 
 ## 0. 一句话真相
 
 Nomi 要从“创作面板一套 Agent 状态、生成画布又一套 Agent 状态”迁成一个项目级常驻 Agent：用户切创作、生成、预览或重启应用时，看到的仍是同一个线程、同一条排队消息、同一项审批和同一个任务；Pi、MCP、renderer 也不能各自拥有第二套能力合同或执行器。
 
-当前不是“做完了”，也不是“丢了”。代码已保存在任务分支和 Draft PR #223 中；工作树应保持干净，后续改动继续在该任务分支进行：
+当前不是“做完了”，也不是“丢了”。代码已保存在本地任务分支；Draft PR #223 仍在，但远端因网络超时落后。后续改动继续在该任务分支进行：
 
 - Phase 1 已证明一项真实能力 `canvas.read` 可以由 Pi / MCP / renderer 共享同一可信调用和 main-only executor，并删除旧执行链。
 - Phase 2A 已搭好离线 ProjectAgentHost 的状态机、FIFO、流式 Assistant、幂等命令账本和崩溃安全持久化。
-- Phase 2B 还没有把这个 Host 接入产品，更没有完成旧双面板数据迁移和旧 writer 原子删除。
+- Phase 2B 已把 Host 接入产品并删除旧持久化/执行 writer；还差两面板直接 selector 与 pending view owner 收口，不能把兼容 message 镜像当最终 cutover。
 
-因此下一步不是重做方案，也不是直接画新 UI；下一步是先补完 Phase 2A 独立双审，再做 Phase 2B 的单 owner 安装与原子切换。
+因此下一步不是重做方案，也不是直接画新 UI；下一步是完成 §0.3 的两面板 direct projection cutover，再做一次 Phase 2B focused 双审。
 
 ---
 
@@ -103,12 +125,12 @@ Phase 2B 才解决用户真实摩擦：
 | Phase 0 | 语义 owner 门岗 | 已完成 | 保持 vocabulary / owner gate 不退化 |
 | Phase 1 | `canvas.read` 单一能力脊梁 | 实现已在 checkpoint 中；最终 build/package 发布验收未做 | 只在 Phase 2B cutover 后统一跑 B6 真实 dev/package journey |
 | Phase 2A | 离线 ProjectAgentHost foundation | reducer/repository/queue/assistant 代码已在 checkpoint；独立 spec/quality review 未完成 | 只做 Host focused review + focused gates，一次放行 |
-| Phase 2B | 单 Host 生产接线、迁移、旧 writer 原子删除 | **半成品已存在**：main/IPC/renderer projection/迁移预接线已写；旧双写与原子 cutover 未完成 | 先收口 owner conflict，再迁移，再一次性切换并删旧 writer |
+| Phase 2B | 单 Host 生产接线、迁移、旧 writer 原子删除 | Host/IPC、迁移、请求 scope、旧 persistence/chatV2 writer 删除已完成；两面板仍有 message/pending 兼容 owner | 两面板改 direct projection selector，删除本地 message/pending owner，再做 focused 双审 |
 | Phase 3 | 其余只读与可撤写能力 | 未开始 | 2B 完整 cutover 后逐能力迁移并删旧 owner |
 | Phase 4 | 破坏性/付费能力统一到 ProductionRun | 未开始 | receipt、precondition、typed cancel、TaskRef、artifact truth |
-| Phase 5 | Skill / MCP 从 Registry 派生 | 未开始 | list/read guard、shrink-only、删除 legacy route |
-| Phase 6 | 新常驻 UI | 未开始 | 先基于 2B 已验证行为出真实样张并由用户拍板，再替换旧面板 |
-| 最终交付 | 一条 PR + 真实任务/恢复/隐私/打包验收 | 未开始 | 全门、真机、package、跨项目、重启、MCP 隐私、付费审批全部通过 |
+| Phase 5 | Skill / MCP 从 Registry 派生 | 未开始 | 先过历史 PR 证据门，再完成 list/read guard、shrink-only、删除 legacy route |
+| Phase 6 | 新常驻 UI | 未开始 | 先过历史 PR 证据门；基于既有设计和 2B 已验证行为出真实样张并由用户拍板，再替换旧面板 |
+| 最终交付 | 一条 PR + 真实任务/恢复/隐私/打包验收 | 未开始 | 历史 PR 结论全部闭环；全门、真机、package、跨项目、重启、MCP 隐私、付费审批全部通过 |
 
 ---
 
@@ -549,11 +571,11 @@ pnpm run test:mcp
 
 ### Phase 5
 
-Skill progressive disclosure、audience、list/read guard、shrink-only 从 Registry 派生；MCP transport 仍保留 lease/elicitation/receipt 额外安全层，但不能污染 Host history。删除按名字前缀猜可见性与 legacy route。
+先执行 §0.2 历史 PR 证据门并冻结采纳矩阵。然后让 Skill progressive disclosure、audience、list/read guard、shrink-only 从 Registry 派生；MCP transport 仍保留 lease/elicitation/receipt 额外安全层，但不能污染 Host history。删除按名字前缀猜可见性与 legacy route。
 
 ### Phase 6
 
-新常驻 UI 只能投影 Phase 2B 已验证状态，不新增状态语义。先看真实现有 UI、读设计系统、出可体验样张让用户拍板，然后替换两个旧面板；最后跑跨页面、重启、跨项目、冲突、MCP 私有性、付费审批和正式打包真实用户旅程。
+先执行 §0.2 历史 PR 证据门，把既有 UI 设计、相关 PR 判断和最新真实界面逐项对账。新常驻 UI 只能投影 Phase 2B 已验证状态，不新增状态语义。先看真实现有 UI、读设计系统、出可体验样张让用户拍板，然后替换两个旧面板；最后跑跨页面、重启、跨项目、冲突、MCP 私有性、付费审批和正式打包真实用户旅程。
 
 ---
 

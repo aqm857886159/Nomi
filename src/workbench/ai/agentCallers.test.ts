@@ -9,8 +9,7 @@ const deps = vi.hoisted(() => ({
   captureSurface: vi.fn(),
   sealSurfaceSnapshot: vi.fn(),
 }))
-vi.mock('./workbenchAiClient', () => ({ sendWorkbenchAiMessage: deps.send }))
-vi.mock('./assistantModelPref', () => ({ getAssistantModelPref: () => null }))
+vi.mock('./workbenchAgentRunner', () => ({ runWorkbenchAgent: deps.send }))
 vi.mock('../windowUrlParam', () => ({ readWindowUrlParam: () => deps.project }))
 vi.mock('../project/workbenchProjectSession', () => ({ getActiveWorkbenchProjectId: () => deps.project }))
 vi.mock('../../desktop/bridge', () => ({ getDesktopBridge: () => ({ video: { extractFrame: deps.frame } }) }))
@@ -71,7 +70,7 @@ describe('remaining production callers use the explicit shared Agent profile', (
     expect(deps.send).toHaveBeenCalledWith(expect.objectContaining({
       projectId: 'explicit-project', featureKey: 'nomi:production-directions:explicit-project',
       capability: 'single-shot', history: { kind: 'ephemeral' },
-    }), {})
+    }))
   })
 
   it('shot verification captures project before frame extraction and keeps its image attached', async () => {
@@ -87,7 +86,7 @@ describe('remaining production callers use the explicit shared Agent profile', (
       capability: 'single-shot', history: { kind: 'ephemeral' }, attachments: [
         { url: 'nomi-local://frame-A', contentType: 'image/png', fileName: 'shot-frame.png', kind: 'image' },
       ],
-    }), {})
+    }))
   })
 
   it.each(['production.plan-script', 'production.revise-script', 'production.revise-storyboard'])('%s uses ephemeral zero-tool text capability', async (operation) => {
@@ -96,7 +95,7 @@ describe('remaining production callers use the explicit shared Agent profile', (
     expect(result).toEqual(operation.endsWith('storyboard') ? { plan } : { text: 'actual script' })
     expect(deps.send).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'A', capability: 'single-shot',
       featureKey: 'nomi:production-script:A', history: { kind: 'ephemeral' },
-    }), {})
+    }))
   })
 
   it('production storyboard keeps the launch snapshot/run attribution and returns its own plan after UI project changes', async () => {

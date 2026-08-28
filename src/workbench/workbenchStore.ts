@@ -40,7 +40,7 @@ import { createConversationBuckets } from './aiConversationBuckets'
 import { abandonCreationTurn } from './creation/creationTurnController'
 
 // 创作面板会话「会话域」per-project 桶(S1 治串台)。
-// 注:messages 已迁出本桶,改由 conversationThreads 模型按项目寻址(会话历史,2026-06-14);
+// Agent messages are projected from ProjectAgentHost; this bucket owns only local composer state.
 // 本桶只管 draft/附件/error 这些「不落盘的 session 态」的切项目交换。
 const creationAiBuckets = createConversationBuckets(() => ({
   creationAiDraft: '',
@@ -445,7 +445,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
         creationAiAttachments: state.creationAiAttachments,
         creationAiError: state.creationAiError,
       }),
-      // messages 由 conversationThreads 模型按项目持有;切项目先清空,载入由 loadProjectConversations 投影回。
+      // ProjectAgentHost owns messages; clear the local compatibility projection while switching projects.
       creationAiMessages: [],
       // 编辑器展开态(UI 瞬态,不持久化)切项目复位为收起:重开项目以「卡片·收起」休息态出现。
       storyboardEditorOpen: false,

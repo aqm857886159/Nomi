@@ -56,6 +56,7 @@ beforeEach(() => {
 describe("ProjectAgent turn commands", () => {
   it("enqueues a canonical turn with an explicit target and ephemeral model history", async () => {
     const result = await enqueueProjectAgentTurn({
+      turnId: "turn-from-caller",
       request: {
         prompt: "rewrite this",
         capability: "creation-editor",
@@ -77,7 +78,8 @@ describe("ProjectAgent turn commands", () => {
       documentId: "document-1",
       anchor: { kind: "whole-document" },
     });
-    expect(result.turnId).toBe(command.payload.turn.turnId);
+    expect(result.turnId).toBe("turn-from-caller");
+    expect(command.payload.turn.turnId).toBe("turn-from-caller");
     expect(deps.applySnapshot).toHaveBeenCalledTimes(1);
     expect(deps.install).toHaveBeenCalledTimes(1);
   });

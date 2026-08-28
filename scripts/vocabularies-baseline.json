@@ -265,11 +265,6 @@
       "reason": "外部任务响应解析的成功同义词集合（done / ok / succeeded / success / 完成 / 成功），是解析字典而非执行状态。"
     },
     {
-      "site": "src/api/desktopAgentsChatStream.ts::type:AgentsChatToolStreamPayload/property:stage/type-union",
-      "members": ["completed", "error", "started", "warning"],
-      "reason": "AgentsChatToolStreamPayload.stage 是 stream event 的合法 view model：started、completed、warning、error 描述单个工具事件在旧 stream 适配层的呈现阶段，其中 warning 不是 turn 终态；它不替代 RuntimeToolCallRecord。"
-    },
-    {
       "site": "src/config/modelCatalogStatus.ts::type:ModelCatalogStatus/type-union",
       "members": ["api_unreachable", "catalog_empty", "incomplete", "kind_empty", "loading", "ready"],
       "reason": "模型目录/供应商调用域的结果词表（api_unreachable / catalog_empty / incomplete / kind_empty / loading / ready），成员由该供应商或调用协议定义。"

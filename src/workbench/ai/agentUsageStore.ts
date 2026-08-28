@@ -12,7 +12,7 @@ type AgentUsageState = {
 
 /**
  * Cumulative agent token usage for the current app session, fed automatically by
- * `sendWorkbenchAiMessage` (all Agent callers and all terminal outcomes). Previously the SDK collected usage and it
+ * ProjectAgentHost execution results (all Agent callers and terminal outcomes). Previously the SDK collected usage and it
  * was dropped one IPC hop away (harness audit #8); now it accumulates here so a
  * token/cost readout can render it for free.
  */

@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { ProjectAgentMutation } from "../shared/projectAgentContracts";
+import type { ProjectAgentExecutionEvent, ProjectAgentMutation } from "../shared/projectAgentContracts";
 import type { AgentChatRequest, AgentChatResponse } from "../harness/agentChatContracts";
 import { createProjectAgentContextBinding } from "./projectAgentContextBinding";
 import {
@@ -65,6 +65,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-execution-"));
     let coordinator!: ReturnType<typeof createProjectAgentExecutionCoordinator>;
     let subscriptionId = "";
+    const published: ProjectAgentExecutionEvent[] = [];
     const toolCallSeen = new Promise<{ turnId: string; toolCallId: string }>((resolve) => {
       coordinator = createProjectAgentExecutionCoordinator(
         createProjectAgentRepositoryRouter({ rootDir: root }),
@@ -107,6 +108,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
       const opened = coordinator.open(binding);
       subscriptionId = opened.subscriptionId;
       coordinator.subscribe(opened.subscriptionId, (event) => {
+        published.push(event);
         if (event.type === "tool-call") resolve({ turnId: event.turnId, toolCallId: event.toolCallId });
       });
       const contextRef = {
@@ -212,6 +214,25 @@ describe("ProjectAgentExecutionCoordinator", () => {
       status: "done",
     });
     expect(final.queue.find((item) => item.turnId === seen.turnId)?.status).toBe("done");
+    const resultIndex = published.findIndex((event) => event.type === "execution-result");
+    expect(resultIndex).toBeGreaterThan(-1);
+    expect(
+      published.slice(0, resultIndex).some(
+        (event) =>
+          event.type === "patch" &&
+          event.patch.changes.some((change) => change.kind === "turn-upserted" && change.turn.status === "done"),
+      ),
+    ).toBe(true);
+    expect(published[resultIndex]).toMatchObject({
+      type: "execution-result",
+      turnId: seen.turnId,
+      response: {
+        status: "finished",
+        finishReason: "stop",
+        usage: { totalTokens: 2 },
+        toolCalls: [{ toolCallId: seen.toolCallId, status: "ok" }],
+      },
+    });
   });
 
   it("terminalizes a running turn when the model runtime fails", async () => {
