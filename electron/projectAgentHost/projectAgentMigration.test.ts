@@ -1,12 +1,17 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { projectAgentContextPath } from "./projectAgentContextAdapter";
 import { createProjectAgentRepositoryRouter } from "./projectAgentRepositoryRouter";
 import { migrateProjectAgentLegacy } from "./projectAgentMigration";
 import { projectAgentProposalReceiptPath } from "./projectAgentProposalReceiptStore";
-import { projectAgentCutoverLockPath, withProjectAgentCutoverLock } from "./projectAgentCutoverManifest";
+import {
+  projectAgentCutoverLockPath,
+  projectAgentCutoverManifestPath,
+  withProjectAgentCutoverLock,
+} from "./projectAgentCutoverManifest";
 
 const binding = {
   projectId: "migration-project",
@@ -17,6 +22,7 @@ const now = Date.parse("2026-08-28T00:00:00.000Z");
 let root = "";
 
 afterEach(() => {
+  vi.restoreAllMocks();
   if (root) fs.rmSync(root, { recursive: true, force: true });
   root = "";
 });
@@ -92,6 +98,42 @@ describe("ProjectAgent legacy raw migration", () => {
     expect(router.repositoryFor(binding).load(binding)!.hostRevision).toBe(0);
   });
 
+  it.each([
+    ["context staging", (projectRoot: string) => projectAgentContextPath(projectRoot)],
+    [
+      "Host initialization",
+      (_projectRoot: string, router: ReturnType<typeof createProjectAgentRepositoryRouter>) =>
+        router.repositoryFor(binding).pathsFor(binding).snapshot,
+    ],
+    ["proposal receipt", (projectRoot: string) => projectAgentProposalReceiptPath(projectRoot)],
+    ["manifest publication", (projectRoot: string) => projectAgentCutoverManifestPath(projectRoot)],
+  ])("resumes with byte-identical state after a crash during %s", (_label, targetPath) => {
+    const projectRoot = writeLegacySource();
+    const agentStore = path.join(projectRoot, "agent-store");
+    fs.mkdirSync(agentStore, { recursive: true });
+    const router = createProjectAgentRepositoryRouter({ rootDir: agentStore });
+    const target = targetPath(projectRoot, router);
+    const rename = fs.renameSync.bind(fs);
+    let failed = false;
+    const renameSpy = vi.spyOn(fs, "renameSync").mockImplementation((from, to) => {
+      if (!failed && String(to) === target) {
+        failed = true;
+        throw new Error("simulated process crash");
+      }
+      return rename(from, to);
+    });
+
+    expect(() => migrateProjectAgentLegacy({ projectRoot, binding, router, now })).toThrow("simulated process crash");
+    expect(fs.existsSync(projectAgentCutoverManifestPath(projectRoot))).toBe(false);
+    renameSpy.mockRestore();
+
+    const recovered = migrateProjectAgentLegacy({ projectRoot, binding, router, now: now + 60_000 });
+    expect(recovered.migrated).toBe(true);
+    expect(recovered.manifest.completedAt).toBe(new Date(now).toISOString());
+    expect(router.repositoryFor(binding).load(binding)?.items).toHaveLength(recovered.messageCount);
+    expect(migrateProjectAgentLegacy({ projectRoot, binding, router, now: now + 120_000 }).migrated).toBe(false);
+  });
+
   it("uses only a validated exact legacy context candidate", () => {
     const projectRoot = writeLegacySource();
     fs.writeFileSync(
@@ -125,6 +167,18 @@ describe("ProjectAgent legacy raw migration", () => {
     const projectRoot = writeLegacySource();
     const lockPath = projectAgentCutoverLockPath(projectRoot);
     fs.writeFileSync(lockPath, JSON.stringify({ pid: 999999, startedAt: 1 }), "utf8");
+    expect(withProjectAgentCutoverLock(projectRoot, () => "retried")).toBe("retried");
+    expect(fs.existsSync(lockPath)).toBe(false);
+  });
+
+  it("allows immediate retry when a recent cutover lock belongs to a dead process", () => {
+    const projectRoot = writeLegacySource();
+    const lockPath = projectAgentCutoverLockPath(projectRoot);
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: 424242, startedAt: Date.now() }), "utf8");
+    vi.spyOn(process, "kill").mockImplementation((pid) => {
+      if (pid === 424242) throw Object.assign(new Error("dead"), { code: "ESRCH" });
+      return true;
+    });
     expect(withProjectAgentCutoverLock(projectRoot, () => "retried")).toBe("retried");
     expect(fs.existsSync(lockPath)).toBe(false);
   });

@@ -12,7 +12,9 @@ import { createProjectAgentContextBinding } from "./projectAgentContextBinding";
 import { legacyContextRecordKey, stageProjectAgentLegacyContext } from "./projectAgentContextAdapter";
 import {
   assertCutoverMatches,
+  assertCutoverPreparationMatches,
   hashCutoverProposal,
+  readOrCreateProjectAgentCutoverPreparation,
   readProjectAgentCutoverManifest,
   type ProjectAgentCutoverManifest,
   withProjectAgentCutoverLock,
@@ -299,13 +301,12 @@ export function migrateProjectAgentLegacy(
 ): ProjectAgentMigrationResult {
   const now = input.now ?? Date.now();
   return withProjectAgentCutoverLock(input.projectRoot, () => {
-    const source = readProjectAgentLegacyConversations(input.projectRoot, now);
-    const context = readProjectAgentLegacyContext(input.projectRoot);
-    const proposalHash = hashCutoverProposal(source.committedProposal);
-    const hashes = {
+    let source = readProjectAgentLegacyConversations(input.projectRoot, now);
+    let context = readProjectAgentLegacyContext(input.projectRoot);
+    let hashes = {
       conversationsHash: source.sourceHash,
       contextHash: context.sourceHash,
-      proposalHash,
+      proposalHash: hashCutoverProposal(source.committedProposal),
     } as const;
     const existing = readProjectAgentCutoverManifest(input.projectRoot);
     if (existing) {
@@ -321,6 +322,24 @@ export function migrateProjectAgentLegacy(
         manifest: existing,
       });
     }
+
+    const preparation = readOrCreateProjectAgentCutoverPreparation(
+      input.projectRoot,
+      input.binding,
+      hashes,
+      new Date(now).toISOString(),
+    );
+    const migrationNow = Date.parse(preparation.startedAt);
+    // Read again after the preparation is durable. This both closes the source
+    // hash race and makes every crash retry rebuild byte-identical Host state.
+    source = readProjectAgentLegacyConversations(input.projectRoot, migrationNow);
+    context = readProjectAgentLegacyContext(input.projectRoot);
+    hashes = {
+      conversationsHash: source.sourceHash,
+      contextHash: context.sourceHash,
+      proposalHash: hashCutoverProposal(source.committedProposal),
+    } as const;
+    assertCutoverPreparationMatches(preparation, input.binding, hashes);
 
     const stagedContext = stageProjectAgentLegacyContext({
       projectRoot: input.projectRoot,
@@ -338,12 +357,17 @@ export function migrateProjectAgentLegacy(
         }),
       ],
     });
-    const built = buildState(input.binding, source, context, stagedContext.recordIds, now);
+    const built = buildState(input.binding, source, context, stagedContext.recordIds, migrationNow);
     const repository = input.router.repositoryFor(input.binding);
     repository.initializeMigrated(built.state);
     const receiptStore = createProjectAgentProposalReceiptStore(input.projectRoot);
     if (source.committedProposal && typeof source.committedProposal === "object") {
-      receiptStore.write({ binding: input.binding, proposal: source.committedProposal, sourceHash: proposalHash });
+      receiptStore.write({
+        binding: input.binding,
+        proposal: source.committedProposal,
+        sourceHash: hashes.proposalHash,
+        updatedAt: preparation.startedAt,
+      });
     } else {
       receiptStore.clear();
     }
@@ -356,7 +380,7 @@ export function migrateProjectAgentLegacy(
         generationThreads: built.generationThreads,
         messageCount: built.messageCount,
       }),
-      completedAt: new Date(now).toISOString(),
+      completedAt: preparation.startedAt,
     });
     writeProjectAgentCutoverManifest(input.projectRoot, manifest);
     return Object.freeze({

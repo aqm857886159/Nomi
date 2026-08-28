@@ -8,19 +8,29 @@ import { assertProjectAgentBinding } from "./projectAgentIdentity";
 
 export const PROJECT_AGENT_CUTOVER_SCHEMA_VERSION = 1 as const;
 export const PROJECT_AGENT_CUTOVER_MANIFEST_FILE = "project-agent-cutover.json" as const;
+export const PROJECT_AGENT_CUTOVER_PREPARATION_FILE = "project-agent-cutover-preparation.json" as const;
 export const PROJECT_AGENT_CUTOVER_LOCK_FILE = "project-agent-cutover.lock" as const;
 export const PROJECT_AGENT_CUTOVER_LOCK_STALE_MS = 5 * 60 * 1000;
+
+export type ProjectAgentCutoverSources = Readonly<{
+  conversationsHash: string;
+  contextHash: string;
+  proposalHash: string;
+}>;
 
 export type ProjectAgentCutoverManifest = Readonly<{
   schemaVersion: typeof PROJECT_AGENT_CUTOVER_SCHEMA_VERSION;
   binding: ProjectBinding;
-  sources: Readonly<{
-    conversationsHash: string;
-    contextHash: string;
-    proposalHash: string;
-  }>;
+  sources: ProjectAgentCutoverSources;
   imported: Readonly<{ creationThreads: number; generationThreads: number; messageCount: number }>;
   completedAt: string;
+}>;
+
+export type ProjectAgentCutoverPreparation = Readonly<{
+  schemaVersion: typeof PROJECT_AGENT_CUTOVER_SCHEMA_VERSION;
+  binding: ProjectBinding;
+  sources: ProjectAgentCutoverSources;
+  startedAt: string;
 }>;
 
 export class ProjectAgentCutoverError extends Error {
@@ -33,6 +43,10 @@ function nomiDir(projectRoot: string): string {
 
 export function projectAgentCutoverManifestPath(projectRoot: string): string {
   return path.join(nomiDir(projectRoot), PROJECT_AGENT_CUTOVER_MANIFEST_FILE);
+}
+
+export function projectAgentCutoverPreparationPath(projectRoot: string): string {
+  return path.join(nomiDir(projectRoot), PROJECT_AGENT_CUTOVER_PREPARATION_FILE);
 }
 
 export function projectAgentCutoverLockPath(projectRoot: string): string {
@@ -87,6 +101,56 @@ function parseManifest(value: unknown): ProjectAgentCutoverManifest | null {
   });
 }
 
+function parsePreparation(value: unknown): ProjectAgentCutoverPreparation | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const binding = raw.binding as ProjectBinding;
+  try {
+    assertProjectAgentBinding(binding);
+  } catch {
+    return null;
+  }
+  const sources = raw.sources;
+  if (
+    raw.schemaVersion !== PROJECT_AGENT_CUTOVER_SCHEMA_VERSION ||
+    !sources ||
+    typeof sources !== "object" ||
+    !validHash((sources as Record<string, unknown>).conversationsHash) ||
+    !validHash((sources as Record<string, unknown>).contextHash) ||
+    !validHash((sources as Record<string, unknown>).proposalHash) ||
+    typeof raw.startedAt !== "string" ||
+    !Number.isFinite(Date.parse(raw.startedAt))
+  ) {
+    return null;
+  }
+  return Object.freeze({
+    schemaVersion: PROJECT_AGENT_CUTOVER_SCHEMA_VERSION,
+    binding: Object.freeze({ ...binding }),
+    sources: Object.freeze({ ...(sources as ProjectAgentCutoverSources) }),
+    startedAt: raw.startedAt,
+  });
+}
+
+function fsyncNomiDirectory(projectRoot: string): void {
+  let fd: number | undefined;
+  try {
+    fd = fs.openSync(nomiDir(projectRoot), fs.constants.O_RDONLY);
+    fs.fsyncSync(fd);
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
+}
+
+function assertSourcesMatch(left: ProjectAgentCutoverSources, right: ProjectAgentCutoverSources): void {
+  if (
+    left.conversationsHash !== right.conversationsHash ||
+    left.contextHash !== right.contextHash ||
+    left.proposalHash !== right.proposalHash
+  ) {
+    throw new ProjectAgentCutoverError("Legacy source bytes changed during Project Agent cutover");
+  }
+}
+
 export function readProjectAgentCutoverManifest(projectRoot: string): ProjectAgentCutoverManifest | null {
   const filePath = projectAgentCutoverManifestPath(projectRoot);
   try {
@@ -100,17 +164,60 @@ export function readProjectAgentCutoverManifest(projectRoot: string): ProjectAge
 export function assertCutoverMatches(
   manifest: ProjectAgentCutoverManifest,
   binding: ProjectBinding,
-  sources: ProjectAgentCutoverManifest["sources"],
+  sources: ProjectAgentCutoverSources,
 ): void {
   if (!sameBinding(manifest.binding, binding))
     throw new ProjectAgentCutoverError("Project Agent cutover binding changed");
-  if (
-    manifest.sources.conversationsHash !== sources.conversationsHash ||
-    manifest.sources.contextHash !== sources.contextHash ||
-    manifest.sources.proposalHash !== sources.proposalHash
-  ) {
-    throw new ProjectAgentCutoverError("Legacy source bytes changed after Project Agent cutover");
+  try {
+    assertSourcesMatch(manifest.sources, sources);
+  } catch (error) {
+    throw new ProjectAgentCutoverError("Legacy source bytes changed after Project Agent cutover", { cause: error });
   }
+}
+
+export function assertCutoverPreparationMatches(
+  preparation: ProjectAgentCutoverPreparation,
+  binding: ProjectBinding,
+  sources: ProjectAgentCutoverSources,
+): void {
+  if (!sameBinding(preparation.binding, binding)) {
+    throw new ProjectAgentCutoverError("Project Agent cutover preparation binding changed");
+  }
+  assertSourcesMatch(preparation.sources, sources);
+}
+
+export function readOrCreateProjectAgentCutoverPreparation(
+  projectRoot: string,
+  binding: ProjectBinding,
+  sources: ProjectAgentCutoverSources,
+  startedAt: string,
+): ProjectAgentCutoverPreparation {
+  const filePath = projectAgentCutoverPreparationPath(projectRoot);
+  let existing: ProjectAgentCutoverPreparation | null = null;
+  try {
+    if (fs.existsSync(filePath)) {
+      existing = parsePreparation(JSON.parse(fs.readFileSync(filePath, "utf8")) as unknown);
+      if (!existing) throw new ProjectAgentCutoverError(`Project Agent cutover preparation is invalid: ${filePath}`);
+    }
+  } catch (error) {
+    if (error instanceof ProjectAgentCutoverError) throw error;
+    throw new ProjectAgentCutoverError(`Project Agent cutover preparation is unreadable: ${filePath}`, { cause: error });
+  }
+  if (existing) {
+    assertCutoverPreparationMatches(existing, binding, sources);
+    return existing;
+  }
+
+  const preparation = parsePreparation({
+    schemaVersion: PROJECT_AGENT_CUTOVER_SCHEMA_VERSION,
+    binding,
+    sources,
+    startedAt,
+  });
+  if (!preparation) throw new ProjectAgentCutoverError("Project Agent cutover preparation is invalid");
+  writeJsonFileAtomic(filePath, preparation, { mode: 0o600 });
+  fsyncNomiDirectory(projectRoot);
+  return preparation;
 }
 
 export function withProjectAgentCutoverLock<T>(projectRoot: string, fn: () => T): T {
@@ -138,16 +245,14 @@ export function withProjectAgentCutoverLock<T>(projectRoot: string, fn: () => T)
         // A legacy/plain lock with an old mtime is also recoverable.
       }
       const age = Date.now() - startedAt;
-      if (age >= PROJECT_AGENT_CUTOVER_LOCK_STALE_MS) {
-        if (pid > 0) {
-          try {
-            process.kill(pid, 0);
-          } catch (probeError) {
-            stale = (probeError as NodeJS.ErrnoException).code === "ESRCH";
-          }
-        } else {
-          stale = true;
+      if (pid > 0) {
+        try {
+          process.kill(pid, 0);
+        } catch (probeError) {
+          stale = (probeError as NodeJS.ErrnoException).code === "ESRCH";
         }
+      } else if (age >= PROJECT_AGENT_CUTOVER_LOCK_STALE_MS) {
+        stale = true;
       }
     } catch (probeError) {
       if ((probeError as NodeJS.ErrnoException).code === "ENOENT") stale = true;
@@ -176,13 +281,7 @@ export function writeProjectAgentCutoverManifest(projectRoot: string, manifest: 
   const canonical = parseManifest(manifest);
   if (!canonical) throw new ProjectAgentCutoverError("Project Agent cutover manifest is invalid");
   writeJsonFileAtomic(projectAgentCutoverManifestPath(projectRoot), canonical, { mode: 0o600 });
-  let fd: number | undefined;
-  try {
-    fd = fs.openSync(nomiDir(projectRoot), fs.constants.O_RDONLY);
-    fs.fsyncSync(fd);
-  } finally {
-    if (fd !== undefined) fs.closeSync(fd);
-  }
+  fsyncNomiDirectory(projectRoot);
 }
 
 export function hashCutoverProposal(value: unknown): string {
