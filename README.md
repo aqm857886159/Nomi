@@ -10,7 +10,7 @@ Nomi is an open-source desktop workbench for AI video. Connect any OpenAI-compat
 
 Your projects, prompts, and API keys stay on your machine. No account. No telemetry.
 
-[简体中文](README.zh-CN.md) · [Website](https://nomiaqm.com/en/) · [Download](#download) · [Community](https://github.com/aqm857886159/Nomi/issues) · [For Teams](https://nomiaqm.com/en/#teams) · [Watch the 60s film](https://nomiaqm.com/assets/video/launch-film-en.mp4) · [Documentation](docs/user-guide.md)
+[简体中文](README.zh-CN.md) · [Website](https://nomiaqm.com/en/) · [Download](#download) · [Community](https://github.com/aqm857886159/Nomi/discussions) · [For Teams](https://nomiaqm.com/en/#teams) · [Watch the 60s film](https://nomiaqm.com/assets/video/launch-film-en.mp4) · [Documentation](docs/user-guide.md)
 
 ## WeChat / 微信联系
 
@@ -36,7 +36,7 @@ Your projects, prompts, and API keys stay on your machine. No account. No teleme
   群码失效，或沟通定制开发、系统集成、贴牌交付与持续迭代，请添加作者微信 <strong>TZ857886159</strong>。
 </p>
 
-International community: [GitHub Issues](https://github.com/aqm857886159/Nomi/issues) · Project inquiry: [Business Inquiry](https://github.com/aqm857886159/Nomi/issues/new?template=business_inquiry.yml)
+International community: [GitHub Discussions](https://github.com/aqm857886159/Nomi/discussions) · Project inquiry: [Business Inquiry](https://github.com/aqm857886159/Nomi/issues/new?template=business_inquiry.yml)
 
 [![Latest release](https://img.shields.io/github/v/release/aqm857886159/Nomi?label=release)](https://github.com/aqm857886159/Nomi/releases/latest)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-1a1816)
@@ -93,7 +93,7 @@ Read the [user guide](docs/user-guide.md), [provider guide](docs/provider-integr
 
 ## Community
 
-Use [GitHub Issues](https://github.com/aqm857886159/Nomi/issues) to share workflows, report friction, and follow what is being built next. WeChat users can use the group and maintainer QR codes at the top of this README; the [Chinese README](README.zh-CN.md#用户群) contains the full Chinese guide.
+Use [GitHub Discussions](https://github.com/aqm857886159/Nomi/discussions) to ask questions, share workflows, and follow what is being built next, and [GitHub Issues](https://github.com/aqm857886159/Nomi/issues) to report bugs and request features. WeChat users can use the group and maintainer QR codes at the top of this README; the [Chinese README](README.zh-CN.md#用户群) contains the full Chinese guide.
 
 ## For Teams
 
@@ -133,7 +133,7 @@ Bug reports, feature proposals, documentation, and code contributions are welcom
 
 - [Report a bug](https://github.com/aqm857886159/Nomi/issues/new?template=bug_report.yml)
 - [Request a feature](https://github.com/aqm857886159/Nomi/issues/new?template=feature_request.yml)
-- [Ask a question or share an idea](https://github.com/aqm857886159/Nomi/issues)
+- [Ask a question or share an idea](https://github.com/aqm857886159/Nomi/discussions)
 
 ## License
 
