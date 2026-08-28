@@ -106,6 +106,20 @@ describe('ProductionRunService driver round 1', () => {
     const recalculatedPlanHash = crypto.createHash('sha256').update(JSON.stringify(persistedStoryboard.plan)).digest('hex')
     expect(proposedStoryboard.contentHash).toBe(recalculatedPlanHash)
     expect(persistedStoryboard.planHash).toBe(recalculatedPlanHash)
+    const legacyRepository = {
+      ...repository,
+      read: (projectId: string, runId: string) => {
+        const stored = repository.read(projectId, runId)
+        return stored ? {
+          ...stored,
+          artifacts: stored.artifacts.map((artifact) => artifact.kind === 'storyboard'
+            ? { ...artifact, contentHash: undefined }
+            : artifact),
+        } : null
+      },
+    }
+    const legacyReader = createProductionRunService({ repository: legacyRepository, projectRootResolver: () => root })
+    expect(legacyReader.readFull('project-1', 'run-driver-2').artifacts.find((item) => item.kind === 'storyboard')?.contentHash).toBe(recalculatedPlanHash)
     await approveLatestStoryboard(service, 'project-1', 'run-driver-2')
     const planned = service.readFull('project-1', 'run-driver-2')
     expect(planned.status).toBe('awaiting_storyboard_review')

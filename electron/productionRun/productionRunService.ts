@@ -12,6 +12,7 @@ import {
   createArtifactProjection,
   getArtifactPreviewSecret,
   resolveOwnedArtifactFile,
+  safeProjectRelativePath,
   verifyArtifactPreviewHandle,
   type ArtifactProjection,
 } from './artifactProjection'
@@ -715,7 +716,30 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
   }
 
   function readFull(projectId: string, runId: string): ProductionRun {
-    return requireRun(projectId, runId)
+    const run = requireRun(projectId, runId)
+    const root = projectRootResolver(run.projectId)
+    if (!root) return run
+    let recovered = false
+    const artifacts = run.artifacts.map((artifact) => {
+      if (artifact.kind !== 'storyboard' || artifact.contentHash || !artifact.projectRelativePath) return artifact
+      const relativePath = safeProjectRelativePath(artifact.projectRelativePath)
+      if (!relativePath) return artifact
+      try {
+        const filePath = resolveOwnedArtifactFile(root, relativePath)
+        const record = JSON.parse(fs.readFileSync(filePath, 'utf8')) as { planHash?: unknown; plan?: unknown }
+        const storedHash = typeof record.planHash === 'string' ? record.planHash.trim().toLowerCase() : ''
+        if (!/^[a-f0-9]{64}$/.test(storedHash) || !record.plan || typeof record.plan !== 'object' || Array.isArray(record.plan)) return artifact
+        const calculatedHash = crypto.createHash('sha256').update(JSON.stringify(record.plan)).digest('hex')
+        if (storedHash !== calculatedHash) return artifact
+        recovered = true
+        return { ...artifact, contentHash: calculatedHash }
+      } catch {
+        // Legacy recovery is read-only and fail-closed. Invalid, missing, or
+        // out-of-project files never become reviewable storyboard candidates.
+        return artifact
+      }
+    })
+    return recovered ? { ...run, artifacts } : run
   }
 
   const artifactOperations = createArtifactOperations({

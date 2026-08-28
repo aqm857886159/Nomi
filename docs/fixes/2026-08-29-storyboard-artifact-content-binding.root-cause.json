@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "id": "2026-08-29-storyboard-artifact-content-binding",
+  "problem_type": "production storyboard artifact identity regression",
+  "symptom": "Confirming a Nomi-generated storyboard design could bypass the durable production artifact review and materialization path because the creation UI could not prove which candidate artifact contained the selected local plan.",
+  "direct_cause": "The production driver calculated and persisted planHash in storyboard-vN.json but omitted that same value from the candidate artifact contentHash field consumed by the renderer.",
+  "class_root": "Storyboard content identity was written to the file-backed plan and the run artifact as two separate contracts, allowing the durable orchestration record to lose the only safe join key used by the multi-design creation UI.",
+  "affected_population": [
+    "Users confirming a storyboard produced by an active production run after selecting among multiple local storyboard designs",
+    "Users reopening an older production run whose candidate storyboard artifact predates contentHash persistence"
+  ],
+  "scope_paths": [
+    "electron/productionRun/productionRunDriverOps.ts",
+    "electron/productionRun/productionRunService.ts"
+  ],
+  "entry_points": [
+    "production.plan-storyboard candidate creation after an approved script",
+    "production run read used by the creation workspace before storyboard review and materialization"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The defect is entirely within Nomi's own production artifact persistence and renderer join contract. No provider, model, or third-party API behavior determines the invariant.",
+  "invariants": [
+    "Every newly proposed storyboard artifact carries the SHA-256 of the exact JSON plan stored in its file-backed record as both planHash and artifact contentHash.",
+    "A legacy storyboard candidate without contentHash is enriched only when its project-owned regular file has a valid 64-character planHash that exactly matches a fresh SHA-256 of its plan object.",
+    "Missing, malformed, symlinked, out-of-project, or hash-mismatched storyboard files remain unbound and cannot be guessed from candidate order."
+  ],
+  "regression_tests": [
+    "electron/productionRun/productionRunDriver.test.ts"
+  ],
+  "migration": "No persisted schema version changes. New candidates persist contentHash directly. Existing candidates remain byte-for-byte unchanged; the read path derives a verified in-memory contentHash from their protected storyboard-vN.json record when possible, so they can use the same review and materialization flow without rewriting history.",
+  "residual_risks": [
+    "Legacy storyboard files that are missing or already corrupted cannot be safely rebound and require the user to regenerate the candidate.",
+    "Content hashes identify exact JSON serialization; intentionally reformatted historical plan files fail closed instead of being semantically canonicalized."
+  ]
+}
