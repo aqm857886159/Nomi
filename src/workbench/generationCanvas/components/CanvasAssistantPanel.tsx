@@ -40,6 +40,7 @@ import { AttachmentRail } from '../../ai/composer/AttachmentRail'
 import { AutoGrowTextarea } from '../../ai/composer/AutoGrowTextarea'
 import { COMPOSER_ATTACHMENT_ACCEPT, useComposerAttachments } from '../../ai/composer/useComposerAttachments'
 import type { ComposerAttachment } from '../../ai/composer/composerAttachmentTypes'
+import { useTimelineAgentUi } from './useTimelineAgentUi'
 
 type PendingToolCall = {
   turnId: number
@@ -82,6 +83,15 @@ export default function CanvasAssistantPanel({
   const cancelRequested = useCanvasTurnStore((state) => state.cancelRequested)
   const [mode, setMode] = React.useState<'agent' | 'chat' | 'refine'>('agent')
   const [pendingToolCalls, setPendingToolCalls] = React.useState<PendingToolCall[]>([])
+  const {
+    timelinePlanPreviews,
+    timelineApplied,
+    capturePreview: captureTimelinePreview,
+    recordOutcome: recordTimelineOutcome,
+    recordFailure: recordTimelineFailure,
+    undo: undoTimelinePlan,
+    reset: resetTimelineUi,
+  } = useTimelineAgentUi()
   // S6-3 对账偏差(N12):committed 但执行 ≠ 批准时弹卡;对账一致时恒 null(M1 零可见)。
   const [deviationReport, setDeviationReport] = React.useState<ReconcileDeviation[] | null>(null)
   // 时序内联:对账卡跟在本轮「卡前气泡」后(与 committed 同源,approveCalls 设)。
@@ -161,7 +171,8 @@ export default function CanvasAssistantPanel({
   React.useEffect(() => {
     setDeviationReport(null)
     setDeviationAnchorId(null)
-  }, [history.binding.sessionKey, history.binding.threadId])
+    resetTimelineUi()
+  }, [history.binding.sessionKey, history.binding.threadId, resetTimelineUi])
 
   const {
     isDragging,
@@ -272,6 +283,7 @@ export default function CanvasAssistantPanel({
           if (!handle.canWrite()) return
           if (outcome.status === 'committed') {
             toolActionCount += steps.length
+            recordTimelineOutcome(steps, outcome.results, items.map((item) => item.call.anchorMessageId).find(Boolean))
             // 时序内联:卡片锚定到本轮「卡前气泡」(入队时记在 pending call 上),committed/对账卡同源。
             const cardAnchorId = items.map((item) => item.call.anchorMessageId).find(Boolean) ?? null
             // S6-3 对账(N12):执行 ≠ 批准 → 弹偏差卡(per-field diff+一键整笔撤销);一致则零可见。
@@ -312,6 +324,8 @@ export default function CanvasAssistantPanel({
               })
             }
           } else {
+            const timelineStep = steps.find((step) => step.toolName === 'apply_edit_plan')
+            if (timelineStep) recordTimelineFailure(timelineStep.effectiveArgs, outcome.reason, items.map((item) => item.call.anchorMessageId).find(Boolean))
             // 整笔失败:每步如实回话(LLM 可重新规划),画布已由补偿回滚到提议前(I3)。
             for (let index = 0; index < steps.length; index += 1) {
               if (!handle.canWrite()) return
@@ -409,6 +423,9 @@ export default function CanvasAssistantPanel({
                 try {
                   const result = await applyCanvasToolCall(event.toolName, event.args, undefined, canWrite)
                   assertTurnCanWrite(canWrite)
+                  if (event.toolName === 'propose_edit_plan' && result && typeof result === 'object') {
+                    captureTimelinePreview({ toolCallId: event.toolCallId, toolName: event.toolName, args: event.args, anchorMessageId: anchorId }, result)
+                  }
                   await event.confirm({ ok: true, result, silent: true })
                 } catch (error: unknown) {
                   await event.confirm({ ok: false, message: error instanceof Error ? error.message : String(error) })
@@ -487,7 +504,7 @@ export default function CanvasAssistantPanel({
         }
       }
     })()
-  }, [attachments, clearAttachments, mode, removeMessage, setDraft, setMessages, setMessageStatus, updateMessage])
+  }, [attachments, captureTimelinePreview, clearAttachments, mode, recordTimelineFailure, recordTimelineOutcome, removeMessage, setDraft, setMessages, setMessageStatus, updateMessage])
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -518,13 +535,14 @@ export default function CanvasAssistantPanel({
   const handleNewConversation = React.useCallback(() => {
     pendingByIdRef.current.clear()
     setPendingToolCalls([])
+    resetTimelineUi()
     setDeviationReport(null)
     setDeviationAnchorId(null)
     // 会话历史:归档当前线程(不销毁),建空活动线程,清消息投影;startNewConversation 内部清整笔撤销入口。
     startNewConversation('generation')
     setDraft('')
     clearAttachments()
-  }, [clearAttachments, setDraft])
+  }, [clearAttachments, resetTimelineUi, setDraft])
 
   if (collapsed) {
     return (
@@ -665,6 +683,9 @@ export default function CanvasAssistantPanel({
           markVerifyFixing()
         }}
         onContentDismiss={() => clearVerify()}
+        timelinePlanPreviews={timelinePlanPreviews}
+        timelineApplied={timelineApplied}
+        onTimelineUndo={() => { void undoTimelinePlan() }}
         threadBottomRef={threadBottomRef}
       />
       <form

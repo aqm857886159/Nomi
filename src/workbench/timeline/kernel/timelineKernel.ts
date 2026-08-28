@@ -1,4 +1,5 @@
 import type { TimelineClip, TimelineState, TimelineTextClip, TimelineTrack, TimelineTrackType } from '../timelineTypes'
+import { MAX_CLIP_GAIN_DB, MIN_CLIP_GAIN_DB } from '../clipAudio'
 
 /**
  * P0 editor operations deliberately operate on the existing TimelineState.
@@ -188,6 +189,25 @@ function validateClip(
     if (isInteger(clip.frameCount) && isNonNegativeInteger(clip.offsetStartFrame) && isNonNegativeInteger(clip.offsetEndFrame)
       && clip.offsetStartFrame + clip.offsetEndFrame >= clip.frameCount) {
       diagnostics.push(diagnostic('source_window_empty', `${path}.offsetStartFrame`, 'Video/audio source window must contain at least one frame'))
+    }
+  }
+
+  if (clip.audio !== undefined) {
+    if (clip.type === 'image') diagnostics.push(diagnostic('clip_audio_unsupported', `${path}.audio`, 'Image clips cannot carry audio settings'))
+    if (!clip.audio || typeof clip.audio !== 'object' || Array.isArray(clip.audio)) {
+      diagnostics.push(diagnostic('clip_audio_invalid', `${path}.audio`, 'audio must be an object when present'))
+    } else {
+      const { gainDb, muted, fadeInFrames, fadeOutFrames } = clip.audio
+      if (gainDb !== undefined && (!Number.isFinite(gainDb) || gainDb < MIN_CLIP_GAIN_DB || gainDb > MAX_CLIP_GAIN_DB)) {
+        diagnostics.push(diagnostic('clip_audio_gain_invalid', `${path}.audio.gainDb`, `gainDb must be between ${MIN_CLIP_GAIN_DB} and ${MAX_CLIP_GAIN_DB}`))
+      }
+      if (muted !== undefined && typeof muted !== 'boolean') diagnostics.push(diagnostic('clip_audio_mute_invalid', `${path}.audio.muted`, 'muted must be boolean when present'))
+      if (fadeInFrames !== undefined && !isNonNegativeInteger(fadeInFrames)) diagnostics.push(diagnostic('clip_audio_fade_invalid', `${path}.audio.fadeInFrames`, 'fadeInFrames must be a non-negative integer'))
+      if (fadeOutFrames !== undefined && !isNonNegativeInteger(fadeOutFrames)) diagnostics.push(diagnostic('clip_audio_fade_invalid', `${path}.audio.fadeOutFrames`, 'fadeOutFrames must be a non-negative integer'))
+      if (isNonNegativeInteger(fadeInFrames ?? 0) && isNonNegativeInteger(fadeOutFrames ?? 0)
+        && (fadeInFrames ?? 0) + (fadeOutFrames ?? 0) > clip.endFrame - clip.startFrame) {
+        diagnostics.push(diagnostic('clip_audio_fade_overlap', `${path}.audio`, 'Audio fades cannot exceed the visible clip duration'))
+      }
     }
   }
 }

@@ -7,6 +7,8 @@ import { useWorkbenchStore } from '../workbenchStore'
 import { resolveActiveClipsAtFrame } from './timelineMath'
 import { useVideoPlaybackHeal } from '../../media/useVideoPlaybackHeal'
 import { usePreviewVideoPlayheadSync } from '../preview/usePreviewVideoPlayheadSync'
+import { findTimelineTransitionForClipType, resolveTimelineTransitionsAtFrame } from './timelineTransition'
+import { TimelineTransitionLayer } from '../preview/TimelineTransitionLayer'
 
 /**
  * 生成页时间轴的迷你画面窗：跟随播放头显示当前帧，治「画布上盲剪」——
@@ -31,6 +33,12 @@ export default function TimelineMiniPreview(): JSX.Element | null {
 
   const timeline = useWorkbenchStore((state) => state.timeline)
   const activeClips = React.useMemo(() => resolveActiveClipsAtFrame(timeline, playheadFrame), [timeline, playheadFrame])
+  const activeTransitions = React.useMemo(
+    () => resolveTimelineTransitionsAtFrame(timeline, playheadFrame),
+    [playheadFrame, timeline],
+  )
+  const imageTransition = findTimelineTransitionForClipType(activeTransitions, 'image')
+  const videoTransition = findTimelineTransitionForClipType(activeTransitions, 'video')
   const videoClip = activeClips.find((clip) => clip.type === 'video') ?? null
   const imageClip = activeClips.find((clip) => clip.type === 'image') ?? null
   const hasAnyClip = timeline.tracks.some((track) => track.clips.length > 0)
@@ -96,10 +104,21 @@ export default function TimelineMiniPreview(): JSX.Element | null {
         </button>
       </div>
       <div className={cn('relative aspect-video w-full bg-[var(--nomi-paper)] overflow-hidden')}>
-        {videoClip ? (
+        {imageClip && !imageTransition ? (
+          <NomiImage className="absolute inset-0 z-[1] h-full w-full object-contain" src={imageClip.url || imageClip.thumbnailUrl || ''} alt="" />
+        ) : null}
+        {imageTransition ? (
+          <TimelineTransitionLayer
+            resolved={imageTransition}
+            playheadFrame={playheadFrame}
+            fps={fps}
+            zIndex={1}
+          />
+        ) : null}
+        {videoClip && !videoTransition ? (
           <video
             ref={videoRef}
-            className="absolute inset-0 h-full w-full object-contain"
+            className="absolute inset-0 z-[2] h-full w-full object-contain"
             src={heal.playbackUrl}
             crossOrigin="use-credentials"
             muted
@@ -108,13 +127,20 @@ export default function TimelineMiniPreview(): JSX.Element | null {
             onError={heal.onError}
             onLoadedMetadata={heal.onLoadedMetadata}
           />
-        ) : imageClip ? (
-          <NomiImage className="absolute inset-0 h-full w-full object-contain" src={imageClip.url || imageClip.thumbnailUrl || ''} alt="" />
-        ) : (
+        ) : null}
+        {videoTransition ? (
+          <TimelineTransitionLayer
+            resolved={videoTransition}
+            playheadFrame={playheadFrame}
+            fps={fps}
+            zIndex={2}
+          />
+        ) : null}
+        {!videoClip && !imageClip && !videoTransition && !imageTransition ? (
           <div className={cn('absolute inset-0 grid place-items-center')}>
             <span className="text-micro font-medium text-[var(--nomi-ink-40)]">{t('timelinePreview.gapHint')}</span>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   )

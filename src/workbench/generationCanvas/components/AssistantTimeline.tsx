@@ -20,8 +20,20 @@ import type { ReconcileDeviation } from '../agent/reconcile'
 import type { PendingToolCallLike } from './agentPlanSummary'
 import type { WorkbenchAiMessage } from '../../ai/workbenchAiTypes'
 import { assistantTimelineIsEmpty } from './assistantTimelineState'
+import {
+  TimelineEditPlanCard,
+  type TimelineAppliedRecord,
+  type TimelinePlanPreviewRecord,
+  type TimelineToolCallLike,
+} from './TimelineEditPlanCard'
 
 type StepTone = 'done' | 'active' | 'warn'
+
+function asPlanId(args: unknown): string {
+  if (!args || typeof args !== 'object' || Array.isArray(args)) return ''
+  const planId = (args as Record<string, unknown>).planId
+  return typeof planId === 'string' ? planId : ''
+}
 
 /** 动作块的标题 + 状态徽标（等你确认 / ✓已应用 / ⚠有出入）——去掉时间轴后,徽标即「执行进度」可见性来源。 */
 function StepHeader({ title, badge, badgeTone }: { title: string; badge?: string; badgeTone?: StepTone }): JSX.Element {
@@ -71,6 +83,9 @@ export type AssistantTimelineProps = {
   onContentDismiss?: () => void
   /** 错误卡「重试」= 重发上一条用户消息(undefined 则不显重试按钮)。 */
   onRetry?: () => void
+  timelinePlanPreviews?: TimelinePlanPreviewRecord[]
+  timelineApplied?: TimelineAppliedRecord | null
+  onTimelineUndo?: () => void
   threadBottomRef: React.RefObject<HTMLDivElement>
 }
 
@@ -86,7 +101,12 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
   // 产出新 plan 引用,连带 React.memo(AgentPlanCard) 失效、8 节点计划卡每帧重画(卡顿放大)。
   const plan = React.useMemo(() => summarizeAgentPlan(pendingToolCalls), [pendingToolCalls])
   const planCallIds = new Set([plan?.createCallId, plan?.connectCallId].filter(Boolean) as string[])
-  const remaining = plan ? pendingToolCalls.filter((call) => !planCallIds.has(call.toolCallId)) : pendingToolCalls
+  const timelinePending = pendingToolCalls.filter(
+    (call): call is PendingToolCallLike & TimelineToolCallLike => call.toolName === 'apply_edit_plan' || call.toolName === 'undo_timeline_edit',
+  )
+  const timelinePendingIds = new Set(timelinePending.map((call) => call.toolCallId))
+  const remaining = (plan ? pendingToolCalls.filter((call) => !planCallIds.has(call.toolCallId)) : pendingToolCalls)
+    .filter((call) => !timelinePendingIds.has(call.toolCallId))
 
   // 活动卡(回执/出入/待确认)。每项一个竖排动作块(标题徽标 + flat 卡);anchor=它锚定到的消息 id。
   const liveBlocks: { key: string; anchor?: string; render: () => React.ReactNode }[] = []
@@ -116,6 +136,38 @@ export default function AssistantTimeline(props: AssistantTimelineProps): JSX.El
       key: `committed-${props.committedProposal.proposalId}`,
       anchor: props.committedProposal.anchorMessageId,
       render: () => <CommittedProposalCard flat record={props.committedProposal!} />,
+    })
+  }
+  const appliedPlanId = props.timelineApplied?.planId
+  for (const preview of (props.timelinePlanPreviews ?? []).filter((item) => {
+    const itemPlanId = asPlanId(item.args)
+    return !appliedPlanId || itemPlanId !== appliedPlanId
+  })) {
+    liveBlocks.push({
+      key: `timeline-preview-${preview.toolCallId}`,
+      anchor: preview.anchorMessageId,
+      render: () => <TimelineEditPlanCard mode="preview" call={preview} result={preview.result} />,
+    })
+  }
+  for (const call of timelinePending) {
+    liveBlocks.push({
+      key: `timeline-pending-${call.toolCallId}`,
+      anchor: call.anchorMessageId,
+      render: () => (
+        <TimelineEditPlanCard
+          mode="pending"
+          call={call}
+          onApprove={(toolCallId) => props.approveCalls([{ toolCallId }])}
+          onReject={props.rejectPending}
+        />
+      ),
+    })
+  }
+  if (props.timelineApplied) {
+    liveBlocks.push({
+      key: `timeline-applied-${props.timelineApplied.planId}`,
+      anchor: props.timelineApplied.anchorMessageId,
+      render: () => <TimelineEditPlanCard mode="applied" applied={props.timelineApplied!} onUndo={props.onTimelineUndo} />,
     })
   }
   // 镜级画面校验偏差(Stage 1):独立块(无锚,挂线程底部),与结构对账互不干扰。

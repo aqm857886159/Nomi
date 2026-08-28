@@ -1,14 +1,30 @@
 import type { JSONContent } from '@tiptap/react'
 import { parsePromptSegments } from './promptMentions'
+import type { PromptReference } from './promptMentions'
 
-export function promptToContent(prompt: string, orderedImageUrls: readonly string[] = []): JSONContent {
+export function promptToContent(
+  prompt: string,
+  references: readonly string[] | readonly PromptReference[] = [],
+): JSONContent {
   const segments = parsePromptSegments(prompt)
   const paragraphs: JSONContent[] = [{ type: 'paragraph', content: [] }]
   const pushInline = (node: JSONContent) => { (paragraphs[paragraphs.length - 1].content as JSONContent[]).push(node) }
   for (const seg of segments) {
     if (seg.type === 'mention') {
-      const index = orderedImageUrls.indexOf(seg.url)
-      pushInline({ type: 'assetMention', attrs: { url: seg.url, index: index >= 0 ? index + 1 : null } })
+      const index = references.length && typeof references[0] === 'string'
+        ? (references as readonly string[]).indexOf(seg.url)
+        : -1
+      const reference = typeof references[0] === 'string'
+        ? (index >= 0 ? { url: seg.url, kind: 'image' as const, index: index + 1 } : null)
+        : (references as readonly PromptReference[]).find((candidate) => candidate.url === seg.url)
+      pushInline({
+        type: 'assetMention',
+        attrs: {
+          url: seg.url,
+          index: reference ? reference.index : null,
+          ...(reference?.kind && reference.kind !== 'image' ? { kind: reference.kind } : {}),
+        },
+      })
       continue
     }
     seg.value.split('\n').forEach((line, index) => {

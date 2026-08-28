@@ -8,7 +8,6 @@
     "tests/ux/accent-soft-hue.walk.mjs": 0,
     "tests/ux/adapter-failed-unlock.walk.mjs": 0,
     "tests/ux/app-page-zoom.e2e.mjs": 1,
-    "tests/ux/at-mention-edge.walk.mjs": 0,
     "tests/ux/b1-camera-move.walk.mjs": 0,
     "tests/ux/canvas-control-clarity.walk.mjs": 1,
     "tests/ux/canvas-image-preview-and-rename.e2e.mjs": 1,

@@ -97,9 +97,11 @@ describe('Agent facade delegates exactly one turn to pi + bound context', () => 
 
   it('canvas-agent gets the canvas tools plus timeline control-plane tools', async () => {
     await runAgentChatV2(request('canvas-agent'), hooks());
-    expect(state.request?.tools).toHaveLength(16);
-    expect(state.request?.tools.slice(-5).map((tool) => tool.name)).toEqual([
+    expect(state.request?.tools).toHaveLength(25);
+    expect(state.request?.tools.slice(-14).map((tool) => tool.name)).toEqual([
       'read_timeline', 'inspect_timeline_range', 'propose_edit_plan', 'apply_edit_plan', 'undo_timeline_edit',
+      'get_media', 'inspect_media', 'search_media', 'inspect_source_range', 'read_waveform',
+      'export_timeline', 'inspect_export_job', 'verify_render', 'cancel_export_job',
     ]);
   });
 

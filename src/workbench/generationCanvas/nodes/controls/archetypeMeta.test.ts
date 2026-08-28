@@ -19,6 +19,7 @@ import {
   modeHasCharacterSlot,
   normalizeArchetypeVariantMeta,
   orderedSentImageReferenceUrls,
+  orderedSentMediaReferenceUrls,
 } from './archetypeMeta'
 
 // C2b：模式分段切换 + 命名空间 meta + flat 帧键投影（M2 互斥）的核心逻辑钉死。
@@ -328,6 +329,27 @@ describe('option 2 单源 — 「有序参考图」连线在前、上传在后�
   it('当前模式无 image 数组槽（首帧模式）→ []（@ 投影回退 no-op）', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'first' }, firstFrameUrl: 'F.png' }
     expect(orderedSentImageReferenceUrls(meta, SEEDANCE, ['e1.png'])).toEqual([])
+  })
+
+  it('omni 的图/视频/音频分别按各自槽顺序编号，顺序与发送输入一致', () => {
+    const meta = {
+      archetype: { id: 'seedance-2', modeId: 'omni' },
+      referenceImageUrls: ['u-image.png'],
+      referenceVideoUrls: ['u-video.mp4'],
+      referenceAudioUrls: ['u-audio.mp3'],
+    }
+    expect(orderedSentMediaReferenceUrls(meta, SEEDANCE, {
+      image: ['e-image.png'],
+      video: ['e-video.mp4'],
+      audio: ['e-audio.mp3'],
+    })).toEqual([
+      { url: 'e-image.png', kind: 'image', index: 1 },
+      { url: 'u-image.png', kind: 'image', index: 2 },
+      { url: 'e-video.mp4', kind: 'video', index: 1 },
+      { url: 'u-video.mp4', kind: 'video', index: 2 },
+      { url: 'e-audio.mp3', kind: 'audio', index: 1 },
+      { url: 'u-audio.mp3', kind: 'audio', index: 2 },
+    ])
   })
 })
 

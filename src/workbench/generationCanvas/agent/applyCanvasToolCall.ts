@@ -233,7 +233,7 @@ export async function applyCanvasToolCall(
 
   // Timeline tools use the canonical workbench timeline/adoption boundary and
   // deliberately do not participate in the generation-canvas gesture context.
-  if (['read_timeline', 'inspect_timeline_range', 'propose_edit_plan', 'apply_edit_plan', 'undo_timeline_edit'].includes(toolName)) {
+  if (['read_timeline', 'inspect_timeline_range', 'propose_edit_plan', 'apply_edit_plan', 'undo_timeline_edit', 'get_media', 'inspect_media', 'search_media', 'inspect_source_range', 'read_waveform', 'export_timeline', 'inspect_export_job', 'verify_render', 'cancel_export_job'].includes(toolName)) {
     return applyTimelineToolCall(toolName, args)
   }
 

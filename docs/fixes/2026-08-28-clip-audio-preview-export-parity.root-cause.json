@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "id": "2026-08-28-clip-audio-preview-export-parity",
+  "problem_type": "clip audio preview and export contract gap",
+  "symptom": "Timeline clips could not persist or render clip-local gain, mute, fade-in, or fade-out, so Agent-authored and future UI-authored audio edits had no executable preview/export path.",
+  "direct_cause": "The persisted TimelineClip, renderer manifest, preview media elements, and FFmpeg audio graph had no shared clip-audio contract or envelope semantics.",
+  "class_root": "Audio processing was represented only by a global preview volume and an unparameterized FFmpeg mixdown, leaving no canonical clip-local invariant across persistence, validation, preview, and export boundaries.",
+  "affected_population": [
+    "Projects that need clip-local attenuation or mute on audio clips",
+    "Video clips whose embedded source audio needs attenuation, mute, or boundary fades",
+    "Agent and future UI workflows that require preview/export parity for clip audio edits"
+  ],
+  "scope_paths": [
+    "src/workbench/timeline/timelineTypes.ts",
+    "src/workbench/timeline/clipAudio.ts",
+    "src/workbench/timeline/timelineMath.ts",
+    "src/workbench/timeline/kernel/timelineKernel.ts",
+    "src/workbench/export/exportTypes.ts",
+    "src/workbench/export/renderManifest.ts",
+    "src/workbench/preview/usePreviewBgmPlayback.ts",
+    "src/workbench/preview/TimelinePreview.tsx",
+    "electron/export/exportManifest.ts",
+    "electron/export/ffmpegFiltergraph.ts",
+    "electron/export/exportJobs.ts"
+  ],
+  "entry_points": [
+    "normalizeTimeline when loading persisted or foreign timeline state",
+    "validateTimeline before timeline operations and Agent plan adoption",
+    "TimelinePreview video and BGM media-element playback",
+    "buildRenderManifestRequest and assertValidManifest at the renderer-to-Electron boundary",
+    "compileFfmpegFiltergraph for standalone audio and embedded video source audio"
+  ],
+  "internal_only_reason": "This change connects Nomi's existing timeline and FFmpeg boundaries using standard FFmpeg volume and afade filters; no third-party API behavior or dependency choice is being changed.",
+  "invariants": [
+    "Missing clip audio settings preserve legacy unity gain, audible playback, and zero fades without changing existing default filtergraphs.",
+    "The same decibel conversion and linear frame envelope govern preview and export; positive gain remains unsupported until preview can exceed unity gain honestly.",
+    "Invalid renderer manifests fail explicitly instead of dropping malformed audio fields or silently falling back.",
+    "Image clips cannot carry clip audio processing and combined fades cannot exceed the visible clip duration."
+  ],
+  "regression_tests": [
+    "src/workbench/timeline/clipAudio.test.ts",
+    "src/workbench/timeline/timelineMath.test.ts",
+    "src/workbench/timeline/kernel/timelineKernel.test.ts",
+    "src/workbench/export/renderManifest.test.ts",
+    "electron/export/exportManifest.test.ts",
+    "electron/export/ffmpegFiltergraph.test.ts",
+    "electron/export/ffmpegFiltergraph.integration.test.ts",
+    "electron/export/exportJobIpc.test.ts"
+  ],
+  "migration": "Timeline schema version remains 1. Old clips omit audio and retain exact legacy behavior. Persisted non-image audio objects are normalized to bounded values on load; renderer manifests require a complete valid audio object when the optional field is present.",
+  "residual_risks": [
+    "Adjacent clip crossfade is intentionally deferred because the fixed audio track rejects overlap and the timeline has no audio-transition entity; two boundary fades would not be a real acrossfade.",
+    "Positive gain is intentionally deferred until preview uses Web Audio or another gain stage capable of matching FFmpeg above unity."
+  ]
+}

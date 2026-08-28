@@ -64,6 +64,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-08-28-reference-media-mentions.md](2026-08-28-reference-media-mentions.md) | 图片/视频/音频 @ 引用统一：候选、真实参考槽、编辑器与发送投影 | ✅ |
 | [2026-08-27-root-cause-remediation-and-media-boundary-fixes.md](2026-08-27-root-cause-remediation-and-media-boundary-fixes.md) | Comfy/custom-call 媒体契约根因修复 + 可执行根因合同门禁 | ✅ |
 | [2026-08-27-single-source-semantics-gate.md](2026-08-27-single-source-semantics-gate.md) | ProjectAgent 统一前置：AST 语义词表门岗 + R14.1 单一 owner 审计 | ✅ |
 | [2026-06-09-agent-harness-architecture.md](2026-06-09-agent-harness-architecture.md) | **Agent Harness 架构定义与演进** — 本簇主文档 | 📋 |
@@ -90,6 +91,7 @@
 | [2026-06-21-blender-3d-render-lane.md](2026-06-21-blender-3d-render-lane.md) | **Blender 3D 渲染 lane**：AI 生资产→headless Blender 渲简单镜头→进时间轴，补「跨镜一致+真相机控制」；范围狠砍(不碰绑骨/动画/GUI/捆绑) | 📋 |
 | [2026-08-28-editing-engine-review.md](2026-08-28-editing-engine-review.md) | Editing engine build-vs-buy review and open-source research | 🚧 |
 | [2026-08-28-editing-engine-uplift.md](2026-08-28-editing-engine-uplift.md) | P0 timeline kernel and Agent editing control plane | 🚧 |
+| [2026-08-28-timeline-visual-feedback.md](2026-08-28-timeline-visual-feedback.md) | Timeline source-window and transition support feedback | 🚧 |
 
 ## 项目库 / 素材库 / Workspace / 左面板
 

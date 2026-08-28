@@ -328,17 +328,17 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   const { assets: projectAssets } = useAllProjectAssets()
   const mentionLibraryAssets = React.useMemo(
     () => projectAssets
-      .filter((asset) => asset.kind === 'image' && asset.renderUrl)
-      .map((asset) => ({ id: asset.id, name: asset.name, url: asset.renderUrl })),
+      .filter((asset) => (asset.kind === 'image' || asset.kind === 'video' || asset.kind === 'audio') && asset.renderUrl)
+      .map((asset) => ({ id: asset.id, name: asset.name, url: asset.renderUrl, kind: asset.kind })),
     [projectAssets],
   )
-  const { orderedReferenceUrls: mentionCandidates, mentionSearch, onMentionSelect } =
+  const { orderedReferenceUrls: mentionCandidates, orderedMediaReferences, mentionSearch, onMentionSelect } =
     useNodeMentionSource(node, mentionLibraryAssets)
   const insertMention = React.useCallback((url: string) => {
     if (!promptEditor || promptEditor.isDestroyed) return
-    const index = mentionCandidates.indexOf(url)
-    promptEditor.commands.insertAssetMention(url, index >= 0 ? index + 1 : undefined)
-  }, [mentionCandidates, promptEditor])
+    const reference = orderedMediaReferences.find((candidate) => candidate.url === url)
+    promptEditor.commands.insertAssetMention(url, reference?.index, reference?.kind)
+  }, [orderedMediaReferences, promptEditor])
 
   /**
    * 描述框 placeholder：**这张卡已经有参考图时**才在尾巴上挂一句「打 @ 可引用参考图」。
@@ -660,6 +660,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
             onBlur={() => { void persistActiveWorkbenchProjectNow().catch(() => {}) }}
             onReady={setPromptEditor}
             mentionCandidates={mentionCandidates}
+            mentionReferences={orderedMediaReferences}
             mentionSearch={mentionSearch}
             onMentionSelect={onMentionSelect}
           />

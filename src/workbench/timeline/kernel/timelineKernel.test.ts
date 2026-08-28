@@ -56,6 +56,24 @@ describe('timeline kernel validation and normalization', () => {
     expect(normalized.textClips.map((entry) => entry.id)).toEqual(['caption'])
     expect(timelineRevision(state)).toBe(timelineRevision(normalized))
   })
+
+  it('rejects malformed clip audio and unsupported image audio settings', () => {
+    const invalid = timeline([
+      { ...clip('gain', 0, 30), audio: { gainDb: 1 } },
+      { ...clip('fades', 40, 70), audio: { fadeInFrames: 20, fadeOutFrames: 20 } },
+      { ...clip('image', 80, 110, 'image'), audio: { muted: true } },
+    ], [
+      { ...clip('audio', 0, 30, 'audio'), audio: { fadeInFrames: -1, muted: 'yes' as unknown as boolean } },
+    ])
+
+    expect(validateTimeline(invalid).diagnostics.map((entry) => entry.code)).toEqual(expect.arrayContaining([
+      'clip_audio_gain_invalid',
+      'clip_audio_fade_overlap',
+      'clip_audio_unsupported',
+      'clip_audio_fade_invalid',
+      'clip_audio_mute_invalid',
+    ]))
+  })
 })
 
 describe('timeline kernel operations', () => {

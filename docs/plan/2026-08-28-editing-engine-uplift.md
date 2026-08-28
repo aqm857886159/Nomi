@@ -25,7 +25,7 @@ Out of scope for this stream: Pi Agent runtime, MCPSQ page migration, `electron/
 
 ## Implemented Control Plane
 
-The first safe slice is now implemented on the integration branch. `canvas-agent` receives five timeline tools in addition to the existing canvas tools:
+The safe control and media-read slices are now implemented on the integration branch. `canvas-agent` receives ten editing tools in addition to the existing canvas tools:
 
 | Tool | Side effect | Contract |
 |---|---:|---|
@@ -34,10 +34,15 @@ The first safe slice is now implemented on the integration branch. `canvas-agent
 | `propose_edit_plan` | none | Validate and preview an atomic P0 plan |
 | `apply_edit_plan` | yes | User-approved plan, base-revision CAS, one adoption/undo entry; returns an Agent-bound undo token |
 | `undo_timeline_edit` | yes | User-approved undo for the latest Agent plan, guarded by token and expected revision; never changes canvas nodes |
+| `get_media` | none | Read one active-project asset by stable ID; no local path or URL leaves the renderer |
+| `inspect_media` | none | Technical metadata only; it explicitly reports that semantic inspection was not performed |
+| `search_media` | none | Project-scoped name/kind search with bounded results and stable IDs |
+| `inspect_source_range` | none | Validate a source-frame range and find timeline usages at the current timeline FPS |
+| `read_waveform` | none | Locally decode audio into bounded peak/RMS buckets; bytes stay local and failures are explicit |
 
-All five calls are routed through `applyCanvasToolCall` only as a compatibility entry point. The actual executor is `src/workbench/timeline/agent/timelineToolCall.ts`; it reads and commits through `workbenchAdoptionPorts`, and delegates operation semantics to the pure kernel. The Agent never receives a Zustand store handle or a renderer/native object.
+All ten calls are routed through `applyCanvasToolCall` only as a compatibility entry point. Timeline control uses `src/workbench/timeline/agent/timelineToolCall.ts`; project media reads use the sibling `mediaToolCall.ts`. Timeline writes still commit through `workbenchAdoptionPorts` and delegate operation semantics to the pure kernel. The Agent never receives a Zustand store handle, renderer/native object, local media path, or media bytes.
 
-The current operation vocabulary is intentionally small and executable: `move`, `remove` (optional same-track ripple), `split`, `trim`, `source-window`, and explicit `ripple`. Audio mixing, retime, transitions, effects, masks, keyframes, transcript/word timing, media search, preview/export and render verification are not advertised until their backend and parity tests exist. This avoids the common failure mode of exposing attractive tool names that silently drop fields.
+The current operation vocabulary is intentionally small and executable: `move`, `remove` (optional same-track ripple), `split`, `trim`, `source-window`, and explicit `ripple`. The production FFmpeg path now renders authored same-track `dissolve`/`fade` transitions plus clip-local audio gain, mute, fade-in, and fade-out for standalone audio and embedded video audio. Preview media elements use the same decibel conversion and frame envelope. Project media search, technical inspection, source-range lookup, bounded waveform reads, and project-scoped Agent export job controls (`export_timeline`, `inspect_export_job`, `verify_render`, `cancel_export_job`) are real. Semantic scene/shot analysis, audio crossfade, retime, effects, masks, keyframes, and transcript/word timing remain gated until their backend and parity tests exist. This avoids the common failure mode of exposing attractive tool names that silently drop fields.
 
 The call sequence is fixed:
 
@@ -55,6 +60,7 @@ read_timeline -> inspect_timeline_range -> propose_edit_plan -> user review
 - `apply_edit_plan` keeps a bounded, process-local registry keyed by active project scope, `planId`, and a stable plan signature. Repeating the same plan in the same project returns the original result without another write or undo entry. Reusing the ID for different content returns `plan_id_conflict`; the same ID in another project is a new plan. This registry is an in-process retry guard, not durable project history, and it is cleared at project ownership transitions.
 - Successful apply returns `undoToken` and the landed `revision`. `undo_timeline_edit` requires both values and refuses to run if the timeline changed or another Agent plan superseded the token. User edits therefore cannot be overwritten by a stale Agent undo.
 - Apply and Undo require a non-empty active project scope. Read-only inspection and validate-only proposals remain available while a project is hydrating, but no write is accepted until ownership is established.
+- Media reads require a non-empty active project too. Asset listing rejects cross-project records; responses are allowlisted and never contain `data.url`, `relativePath`, `absolutePath`, or media bytes. Waveform reads are capped at 256 buckets and 128 MB with bounded read/decode timeouts.
 
 ## Delivery phases
 
@@ -69,24 +75,28 @@ Acceptance: operations are immutable, deterministic, reject stale or invalid IDs
 
 ### P1: media correctness
 
-- Implement real audio mixing, volume/fades/mute, retime, and source-audio handling.
-- Make preview and export consume the same render manifest.
-- Validate MP4 output with audio and frame-accurate source windows.
+- Implemented real source-audio mixing plus clip-local `gainDb`, mute, fade-in, and fade-out for audio clips and video source audio. Old projects omit the optional field and keep unity-gain behavior.
+- Preview and export share the canonical dB conversion and frame envelope. The Electron manifest strictly validates the resolved contract; malformed audio never silently falls back to WebM.
+- A real bundled-FFmpeg integration fixture renders an audio timeline to MP4, verifies AAC with ffprobe, and measures the authored -6 dB center segment. Frame-accurate source-window coverage remains in the existing renderer tests.
+- Retime remains outstanding. Preview and export do not yet consume one serialized manifest object; they consume the same persisted clip contract and pure audio semantics.
+- Adjacent audio `acrossfade` is deliberately not synthesized from two independent fades. The fixed audio track currently rejects overlap and has no audio-transition entity, so real crossfade belongs in P2 after the model can represent its overlap window.
 
 ### P2: compositor capability
 
-- Add transform/opacity/blend, effects, masks, keyframes, and real transitions.
+- Add a first-class audio-transition/overlap model and render real `acrossfade`; then add transform/opacity/blend, effects, masks, keyframes, and real `match_cut`/`whip_pan` transitions.
 - Run a bounded OpenCut-WASM compositor spike behind a renderer interface; keep a deterministic FFmpeg/native export path.
 
 ### P3: semantic editing
 
-- Add transcript/word timing, media search, scene/shot analysis, speech rough cut, caption materialization, and music placement.
+- Project media search, technical inspection, source-range lookup, and waveform reads are implemented.
+- Add transcript/word timing, scene/shot analysis, speech rough cut, caption materialization, and music placement.
 
 ### P4: Agent and MCP
 
 - Expose stable control tools: `read_timeline`, `inspect_timeline_range`, `propose_edit_plan`, `apply_edit_plan`.
-- Add semantic tools: `read_transcript`, `find_transcript`, `search_media`, `inspect_source_range`.
-- Add output tools: `preview_edit_plan`, `export_timeline`, `verify_render`.
+- Media tools implemented: `get_media`, `inspect_media`, `search_media`, `inspect_source_range`, `read_waveform`.
+- Add semantic tools: `read_transcript`, `find_transcript`, scene/shot understanding, and speech-range search.
+- Add output tools: `preview_edit_plan`, `export_timeline`, `inspect_export_job`, `verify_render`, and `cancel_export_job`.
 - Keep low-level operations inside EditPlan rather than granting the Agent direct store access.
 
 ## Backend evaluation

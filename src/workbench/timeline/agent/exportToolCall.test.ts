@@ -1,0 +1,100 @@
+import { describe, expect, it, vi } from 'vitest'
+import type { ExportJobSnapshot } from '../../../../electron/export/exportJobManager'
+import { createDefaultTimeline } from '../timelineMath'
+import { timelineRevision } from '../kernel/timelineKernel'
+import { applyExportToolCall, type ExportToolRuntime } from './exportToolCall'
+
+function timeline() {
+  const state = createDefaultTimeline()
+  state.tracks = state.tracks.map((track) => track.type === 'video'
+    ? { ...track, clips: [{ id: 'clip-1', type: 'video', sourceNodeId: 'node-1', label: 'Clip', startFrame: 0, endFrame: 60, frameCount: 60, offsetStartFrame: 0, offsetEndFrame: 0 }] }
+    : track)
+  return state
+}
+
+function job(overrides: Partial<ExportJobSnapshot> = {}): ExportJobSnapshot {
+  return {
+    id: 'job-1', projectId: 'project-1', projectDir: 'C:/private/project', jobDir: 'C:/private/job',
+    manifest: { version: 1, projectId: 'project-1', createdAt: '2026-08-28T00:00:00.000Z',
+      timeline: { fps: 30, durationFrames: 60, range: { startFrame: 0, endFrame: 60 }, tracks: [] },
+      profile: { preset: 'publish', container: 'mp4', quality: 'standard', width: 1920, height: 1080, fps: 30, videoCodec: 'h264', pixelFormat: 'yuv420p', audioCodec: 'none', audioMode: 'mute' }, assets: {} },
+    status: 'encoding', progress: { ratio: 0.5, stage: 'encoding', message: 'Encoding MP4' }, cancelled: false,
+    createdAt: '2026-08-28T00:00:00.000Z', updatedAt: '2026-08-28T00:00:01.000Z',
+    ...overrides,
+  }
+}
+
+function runtime(overrides: Partial<ExportToolRuntime> = {}): ExportToolRuntime {
+  const state = timeline()
+  return {
+    activeProjectId: () => 'project-1',
+    readTimeline: () => state,
+    readAspectRatio: () => '16:9',
+    readGenerationNodes: () => [],
+    startExport: vi.fn(async () => ({ jobId: 'job-1', backend: 'filtergraph' as const })),
+    getJob: vi.fn(async () => job()),
+    cancelJob: vi.fn(async () => ({ ok: true })),
+    ...overrides,
+  }
+}
+
+describe('project-scoped export Agent tools', () => {
+  it('starts the existing export pipeline only for the exact timeline revision', async () => {
+    const deps = runtime()
+    const current = deps.readTimeline()
+    const result = await applyExportToolCall('export_timeline', {
+      expectedRevision: timelineRevision(current), aspectRatio: '9:16', resolution: '720p', quality: 'high', outputName: 'vertical-cut',
+    }, deps)
+    expect(result).toMatchObject({ accepted: true, jobId: 'job-1', backend: 'filtergraph', durationFrames: 60,
+      profile: { aspectRatio: '9:16', resolution: '720p', quality: 'high' } })
+    expect(deps.startExport).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'project-1', profile: expect.objectContaining({ outputName: 'vertical-cut' }) }))
+  })
+
+  it('rejects stale and empty timelines before creating an export job', async () => {
+    const deps = runtime()
+    await expect(applyExportToolCall('export_timeline', { expectedRevision: 'stale' }, deps)).resolves.toMatchObject({ accepted: false, code: 'stale_revision' })
+    expect(deps.startExport).not.toHaveBeenCalled()
+    const empty = createDefaultTimeline()
+    const emptyRuntime = runtime({ readTimeline: () => empty })
+    await expect(applyExportToolCall('export_timeline', { expectedRevision: timelineRevision(empty) }, emptyRuntime)).resolves.toMatchObject({ accepted: false, code: 'empty_timeline' })
+  })
+
+  it('returns a path-free status receipt with useful progress diagnostics', async () => {
+    const deps = runtime({ getJob: vi.fn(async () => job({ manifest: { ...job().manifest, diagnostics: { warnings: ['fallback'] } } })) })
+    const result = await applyExportToolCall('inspect_export_job', { jobId: 'job-1' }, deps)
+    expect(result).toMatchObject({ jobId: 'job-1', status: 'encoding', cancellable: true, warningCount: 1, progress: { ratio: 0.5, stage: 'encoding' } })
+    const serialized = JSON.stringify(result)
+    expect(serialized).not.toContain('projectDir')
+    expect(serialized).not.toContain('jobDir')
+    expect(serialized).not.toContain('C:/private')
+    expect(serialized).not.toContain('manifest')
+  })
+
+  it('binds inspection and cancellation to the active project', async () => {
+    const foreign = runtime({ getJob: vi.fn(async () => job({ projectId: 'project-2' })) })
+    await expect(applyExportToolCall('inspect_export_job', { jobId: 'job-1' }, foreign)).rejects.toThrow('export_job_not_found')
+    expect(foreign.cancelJob).not.toHaveBeenCalled()
+
+    const deps = runtime()
+    await expect(applyExportToolCall('cancel_export_job', { jobId: 'job-1' }, deps)).resolves.toEqual({ jobId: 'job-1', cancelled: true, status: 'cancelled' })
+    expect(deps.cancelJob).toHaveBeenCalledWith('job-1')
+  })
+
+  it('does not rewrite terminal jobs when cancellation is requested', async () => {
+    const deps = runtime({ getJob: vi.fn(async () => job({ status: 'succeeded', progress: { ratio: 1, stage: 'succeeded', message: 'Succeeded' }, result: { outputPath: 'C:/private/out.mp4', bytes: 1234, durationMs: 2000 } })) })
+    await expect(applyExportToolCall('cancel_export_job', { jobId: 'job-1' }, deps)).resolves.toMatchObject({ cancelled: false, code: 'export_not_cancellable', status: 'succeeded' })
+    expect(deps.cancelJob).not.toHaveBeenCalled()
+  })
+
+  it('labels receipt verification honestly without claiming media decode', async () => {
+    const success = runtime({ getJob: vi.fn(async () => job({ status: 'succeeded', progress: { ratio: 1, stage: 'succeeded', message: 'Succeeded' }, result: { outputPath: 'C:/private/out.mp4', bytes: 4096, durationMs: 2000 } })) })
+    await expect(applyExportToolCall('verify_render', { jobId: 'job-1' }, success)).resolves.toEqual({
+      jobId: 'job-1', verified: true, verificationLevel: 'export_job_receipt', contentDecoded: false,
+      status: 'succeeded', bytes: 4096, durationMs: 2000,
+    })
+    const failed = runtime({ getJob: vi.fn(async () => job({ status: 'failed', progress: { ratio: 0.4, stage: 'failed', message: 'Failed' }, error: { message: 'ffmpeg failed at C:/private/input.mp4' } })) })
+    const result = await applyExportToolCall('verify_render', { jobId: 'job-1' }, failed)
+    expect(result).toMatchObject({ verified: false, status: 'failed', failure: 'render_engine' })
+    expect(JSON.stringify(result)).not.toContain('C:/private')
+  })
+})

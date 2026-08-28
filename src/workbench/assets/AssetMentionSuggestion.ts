@@ -55,7 +55,7 @@ export function createAssetMentionSuggestion(options: {
             const index = options.onSelect(item)
             const chain = editor.chain().focus().deleteRange(range)
             if (index === null) { chain.run(); return }
-            chain.insertAssetMention(item.url, index).run()
+            chain.insertAssetMention(item.url, index, item.kind).run()
           },
           render: () => {
             let renderer: ReactRenderer<MentionSuggestionListRef> | null = null

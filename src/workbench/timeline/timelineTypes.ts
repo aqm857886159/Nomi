@@ -20,6 +20,15 @@ export type TimelineTransition = {
   durationFrames?: number
 }
 
+/** Clip-local audio processing. Missing means unity gain, audible, and no fades. */
+export type TimelineClipAudio = {
+  /** Attenuation in decibels. Positive boost is intentionally unsupported until preview uses Web Audio. */
+  gainDb?: number
+  muted?: boolean
+  fadeInFrames?: number
+  fadeOutFrames?: number
+}
+
 export type TimelineClip = {
   id: string
   type: TimelineClipType
@@ -33,6 +42,8 @@ export type TimelineClip = {
   text?: string
   url?: string
   thumbnailUrl?: string
+  /** Valid for audio clips and the source audio carried by video clips. */
+  audio?: TimelineClipAudio
   // 取景（适应/填充 + 缩放 + 平移）。缺省 = DEFAULT_CLIP_FRAMING（contain/1/0/0）。
   // 这是 P0-5「所见即所得」的关键：取景从预览局部 state 提升为时间轴数据，导出据此复现构图。
   framing?: ClipFraming

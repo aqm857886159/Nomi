@@ -85,6 +85,21 @@ export function summarizeToolCall(toolName: string, args: unknown): string {
     const shot = typeof record.shot === 'string' ? record.shot : 'medium'
     return `建运镜参考（${label} · ${shot} · ≈${duration}s）`
   }
+  if (toolName === 'export_timeline') {
+    const resolution = record.resolution === '720p' || record.resolution === '1080p'
+      ? record.resolution
+      : '1080p'
+    const quality = record.quality === 'small'
+      ? '小体积'
+      : record.quality === 'high'
+        ? '高质量'
+        : '标准质量'
+    const outputName = typeof record.outputName === 'string' ? record.outputName.trim() : ''
+    return `导出时间线（${resolution} · ${quality}）${outputName ? `：${outputName}` : ''}`
+  }
+  if (toolName === 'inspect_export_job') return '查看导出进度'
+  if (toolName === 'verify_render') return '验证导出结果'
+  if (toolName === 'cancel_export_job') return '取消导出任务'
   return toolName
 }
 

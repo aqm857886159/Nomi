@@ -1,6 +1,7 @@
 import React from 'react'
 import type { TimelineClip } from '../timeline/timelineTypes'
 import { resolveVideoClipMediaTimeSeconds } from '../player/timelinePlayback'
+import { resolvePreviewMediaVolume } from '../timeline/clipAudio'
 
 type BgmPlaybackState = {
   playing: boolean
@@ -38,9 +39,9 @@ export function usePreviewBgmPlayback(
   React.useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
-    audio.volume = volume
+    audio.volume = resolvePreviewMediaVolume(audioClip, playheadFrame, volume, muted)
     audio.muted = muted
-  }, [audioUrl, volume, muted])
+  }, [audioUrl, audioClip, playheadFrame, volume, muted])
 
   // 播放/暂停跟随时间轴 playing。
   React.useEffect(() => {

@@ -482,6 +482,16 @@
       "site": "src/workbench/taskCenter/taskCenterProjection.ts::type:TaskCenterOutcome/type-union",
       "members": ["cancelled", "error", "success"],
       "reason": "TaskCenterOutcome 是 TaskCenter 终局徽标的合法 view model：success、error、cancelled 由各上游任务状态通过各自 mapper 产生，跨 generation 与 ProductionRun 共用展示语义但不反向成为业务真相源。"
+    },
+    {
+      "site": "src/workbench/generationCanvas/components/TimelineEditPlanCard.tsx::function:StatusBadge/parameter:0/property:tone/type-union",
+      "members": ["active", "neutral", "success", "warning"],
+      "reason": "TimelineEditPlanCard StatusBadge tone is a visual vocabulary for Agent edit-plan cards; it only controls badge color and icon, not the edit or task lifecycle."
+    },
+    {
+      "site": "src/workbench/generationCanvas/components/TimelineEditPlanCard.tsx::type:TimelineAppliedRecord/property:status/type-union",
+      "members": ["applied", "failed", "undoing", "undone"],
+      "reason": "TimelineAppliedRecord.status is a local view-model vocabulary for apply and undo outcomes; it must remain distinct from the persisted adoption and runtime lifecycle states."
     }
   ],
   "debt": [

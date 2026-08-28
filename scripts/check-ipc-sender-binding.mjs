@@ -18,8 +18,9 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const repoRoot = path.resolve(new URL('.', import.meta.url).pathname, '..')
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const electronRoot = path.join(repoRoot, 'electron')
 const baselinePath = path.join(repoRoot, 'scripts', 'ipc-sender-binding-baseline.json')
 

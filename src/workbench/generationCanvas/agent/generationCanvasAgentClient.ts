@@ -71,7 +71,7 @@ function buildStaticAgentSystemPrompt(mode: SendGenerationCanvasAgentMessageInpu
   // 身份/产品认知/语言/输出铁律由后端共享的 NOMI_AGENT_IDENTITY 注入（单一真相源）；
   // 这里只声明本面专长——「你在生成画布工作」+ 可用工具 + 硬约束。
   return [
-    'Timeline editing tools are available in Agent mode: read_timeline, inspect_timeline_range, propose_edit_plan, apply_edit_plan, and undo_timeline_edit. Read the timeline revision first; propose before apply; apply and undo require user approval.',
+    'Timeline editing tools are available in Agent mode: read_timeline, inspect_timeline_range, get_media, inspect_media, search_media, inspect_source_range, read_waveform, propose_edit_plan, apply_edit_plan, undo_timeline_edit, export_timeline, inspect_export_job, verify_render, and cancel_export_job. Use project-scoped media ids returned by search_media/get_media; technical inspection and waveform reads are local and never expose file paths. Read the timeline revision first; propose before apply. Timeline apply/undo and export start/cancel require user approval; inspect_export_job and verify_render are read-only.',
     '你现在在「生成画布」工作：把用户的想法落成画布上的节点、引用边和真实生成任务。',
     '',
     modeInstruction,

@@ -9,6 +9,8 @@ import {
 import { clearAdoptionUndoSnapshot, workbenchAdoptionPorts } from '../../adoption/adoptionStorePorts'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
+import { applyMediaToolCall } from './mediaToolCall'
+import { applyExportToolCall } from './exportToolCall'
 
 export type TimelineToolCallName =
   | 'read_timeline'
@@ -16,6 +18,15 @@ export type TimelineToolCallName =
   | 'propose_edit_plan'
   | 'apply_edit_plan'
   | 'undo_timeline_edit'
+  | 'get_media'
+  | 'inspect_media'
+  | 'search_media'
+  | 'inspect_source_range'
+  | 'read_waveform'
+  | 'export_timeline'
+  | 'inspect_export_job'
+  | 'verify_render'
+  | 'cancel_export_job'
 
 type JsonRecord = Record<string, unknown>
 
@@ -281,6 +292,12 @@ function undoTimelineEdit(args: unknown): JsonRecord {
 }
 
 export async function applyTimelineToolCall(toolName: string, args: unknown): Promise<unknown> {
+  if (['export_timeline', 'inspect_export_job', 'verify_render', 'cancel_export_job'].includes(toolName)) {
+    return applyExportToolCall(toolName, args)
+  }
+  if (['get_media', 'inspect_media', 'search_media', 'inspect_source_range', 'read_waveform'].includes(toolName)) {
+    return applyMediaToolCall(toolName, args)
+  }
   const timeline = workbenchAdoptionPorts.readTimeline()
   switch (toolName as TimelineToolCallName) {
     case 'read_timeline': return readTimeline(timeline)

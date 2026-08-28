@@ -15,14 +15,17 @@ import { decodeTimelineGenerationNodeDragPayload, TIMELINE_GENERATION_NODE_DRAG_
 import TimelineClip from './TimelineClip'
 import type { TimelineTrack as TimelineTrackData } from './timelineTypes'
 import { toast } from '../../ui/toast'
+import TimelineTransitionMarker from './TimelineTransitionMarker'
+import type { TimelineTransitionFeedback } from './timelineVisualFeedback'
 
 type TimelineTrackProps = {
   track: TimelineTrackData
+  transitionFeedback?: readonly TimelineTransitionFeedback[]
   // 主次分层：primary=画面轨(图/视频,显眼)；secondary=叠加层(配乐/字幕,压矮变淡)。缺省 primary。
   variant?: 'primary' | 'secondary'
 }
 
-function TimelineTrack({ track, variant = 'primary' }: TimelineTrackProps): JSX.Element {
+function TimelineTrack({ track, transitionFeedback = [], variant = 'primary' }: TimelineTrackProps): JSX.Element {
   const { t } = useTranslation()
   const displayTrackLabel =
     track.type === 'image'
@@ -31,6 +34,13 @@ function TimelineTrack({ track, variant = 'primary' }: TimelineTrackProps): JSX.
         ? t('timelineEditor.track.videoLabel')
         : t('timelineEditor.track.audioLabel')
   const secondary = variant === 'secondary'
+  const transitionRowsAtBoundary = new Map<number, number>()
+  const laidOutTransitionFeedback = transitionFeedback.map((feedback) => {
+    const stackRow = transitionRowsAtBoundary.get(feedback.boundaryFrame) ?? 0
+    transitionRowsAtBoundary.set(feedback.boundaryFrame, stackRow + 1)
+    return { feedback, stackRow }
+  })
+  const transitionLaneRows = Math.max(0, ...transitionRowsAtBoundary.values())
   // 只订阅渲染真正用到的 scale/fps，**不订阅整条 timeline**：播放推进每帧换 timeline 引用，
   // 订阅整条会让本轨道（连同所有 clip）每帧重渲；playhead 由独立 overlay 订阅 playheadFrame。
   const scale = useWorkbenchStore((state) => state.timeline.scale)
@@ -233,6 +243,7 @@ function TimelineTrack({ track, variant = 'primary' }: TimelineTrackProps): JSX.
         style={{
           width: 'var(--workbench-timeline-content-width, 100%)',
           minWidth: 'var(--workbench-timeline-content-width, 100%)',
+          minHeight: transitionLaneRows > 0 ? `${(secondary ? 26 : 42) + transitionLaneRows * 20}px` : undefined,
         }}
         data-drag-over={dragPreview ? 'true' : 'false'}
         data-drop-valid={dragPreview ? String(dragPreview.canPlace) : undefined}
@@ -314,7 +325,16 @@ function TimelineTrack({ track, variant = 'primary' }: TimelineTrackProps): JSX.
           </div>
         ) : null}
         {track.clips.map((clip) => (
-          <TimelineClip key={clip.id} clip={clip} />
+          <TimelineClip key={clip.id} clip={clip} transitionLaneRows={transitionLaneRows} />
+        ))}
+        {laidOutTransitionFeedback.map(({ feedback, stackRow }, index) => (
+          <TimelineTransitionMarker
+            key={`${feedback.transition.fromClipId}:${feedback.transition.toClipId}:${feedback.transition.type}:${index}`}
+            feedback={feedback}
+            fps={fps}
+            scale={scale}
+            stackRow={stackRow}
+          />
         ))}
       </div>
     </div>

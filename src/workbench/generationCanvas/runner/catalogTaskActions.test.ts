@@ -11,6 +11,7 @@ import {
 } from './catalogTaskActions'
 import { resolveGenerationReferences } from './generationReferenceResolver'
 import { MODEL_ARCHETYPES } from '../../../config/modelArchetypes'
+import { encodeMention } from '../../assets/promptMentions'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { TaskRequestDto, TaskResultDto } from '../../api/taskApi'
 import type { ModelCatalogModelDto, ModelCatalogVendorDto } from '../../api/modelCatalogApi'
@@ -167,6 +168,19 @@ describe('buildCatalogTaskRequest — 档案驱动 input（extras.archetypeInput
     expect(ai.reference_image_urls).toEqual(['c1.png', 'c2.png'])
     expect(ai.reference_video_urls).toEqual(['v1.mp4'])
     expect(ai.first_frame_url).toBeUndefined()
+  })
+
+  it('全能参考模式：连入的视频引用在最终请求提示词中投影为 @video1', () => {
+    const videoUrl = 'nomi-local://asset/project/drone-reference.mp4'
+    const node = seedanceVideoNode('omni', {})
+    node.prompt = `镜头运动参考 ${encodeMention(videoUrl)}`
+
+    const request = buildCatalogTaskRequest(node, {
+      references: { referenceVideos: [videoUrl] },
+    }).request
+
+    expect(request.prompt).toBe('镜头运动参考 @video1')
+    expect((request.extras?.archetypeInput as Record<string, unknown>).reference_video_urls).toEqual([videoUrl])
   })
 })
 

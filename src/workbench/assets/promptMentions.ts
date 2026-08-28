@@ -9,6 +9,9 @@
 
 const MENTION_RE = /@\[asset:([^\]]+)\]/g
 
+export type PromptReferenceKind = 'image' | 'video' | 'audio'
+export type PromptReference = { url: string; kind: PromptReferenceKind; index: number }
+
 function safeDecode(enc: string): string {
   try { return decodeURIComponent(enc) } catch { return enc }
 }
@@ -45,23 +48,50 @@ export function hasMentions(prompt: string): boolean {
  * N = 该 url 在 orderedImageUrls(有序图片参考数组,= 发送的 reference_image 顺序)里的位置 +1。
  * 数组里找不到(对应 tile 已删)→ 标记移除(连带清理多余空格)。无标记时原样返回(no-op,向后兼容)。
  */
-function projectPromptMentions(prompt: string, orderedImageUrls: readonly string[]): string {
+export function normalizePromptReferences(
+  references: readonly string[] | readonly PromptReference[],
+): PromptReference[] {
+  if (!references.length) return []
+  if (typeof references[0] === 'string') {
+    return (references as readonly string[]).map((url, index) => ({ url, kind: 'image' as const, index: index + 1 }))
+  }
+  return [...references as readonly PromptReference[]]
+}
+
+export function promptReferenceForUrl(
+  url: string,
+  references: readonly string[] | readonly PromptReference[],
+): PromptReference | null {
+  return normalizePromptReferences(references).find((reference) => reference.url === url) ?? null
+}
+
+function projectPromptMentions(
+  prompt: string,
+  references: readonly string[] | readonly PromptReference[],
+): string {
   if (!prompt) return prompt
+  const byUrl = new Map(normalizePromptReferences(references).map((reference) => [reference.url, reference]))
   const replaced = prompt.replace(MENTION_RE, (_full, enc: string) => {
-    const index = orderedImageUrls.indexOf(safeDecode(enc))
-    return index >= 0 ? `@image${index + 1}` : ''
+    const reference = byUrl.get(safeDecode(enc))
+    return reference ? `@${reference.kind}${reference.index}` : ''
   })
   return collapsePromptWhitespace(replaced)
 }
 
 /** 发给模型前的最终 Prompt：严格按实际参考图数组顺序转成 @imageN。 */
-export function projectPromptForSend(prompt: string, orderedImageUrls: string[]): string {
-  return projectPromptMentions(prompt, orderedImageUrls)
+export function projectPromptForSend(
+  prompt: string,
+  references: readonly string[] | readonly PromptReference[],
+): string {
+  return projectPromptMentions(prompt, references)
 }
 
 /** 非编辑态 Prompt 预览：与最终发送口径相同，绝不显示内部 @[asset:URL] 标记。 */
-export function projectPromptForDisplay(prompt: string, orderedImageUrls: readonly string[]): string {
-  return projectPromptMentions(prompt, orderedImageUrls)
+export function projectPromptForDisplay(
+  prompt: string,
+  references: readonly string[] | readonly PromptReference[],
+): string {
+  return projectPromptMentions(prompt, references)
 }
 
 // 删标记后清理多余空格/标点前空白(「 @image1  走」→「@image1 走」)。最终投影与

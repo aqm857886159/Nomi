@@ -29,6 +29,7 @@ import { buildSnapPoints, resolveSnap, pixelThresholdToFrames } from './snapping
 import { toast } from '../../ui/toast'
 import { reportAdoptionOutcome } from '../adoption/adoptionReceipt'
 import { dispatchTimelineShortcut } from './timelineShortcuts'
+import { groupTimelineTransitionFeedbackByTrack } from './timelineVisualFeedback'
 
 const WHEEL_ZOOM_FACTOR = 1.24
 
@@ -139,6 +140,10 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
   const setTimelinePlayhead = useWorkbenchStore((state) => state.setTimelinePlayhead)
   const splitTimelineClip = useWorkbenchStore((state) => state.splitTimelineClip)
   const durationFrame = computeTimelineDuration(timeline)
+  const transitionFeedbackByTrack = React.useMemo(
+    () => groupTimelineTransitionFeedbackByTrack(timeline.tracks, timeline.transitions),
+    [timeline.tracks, timeline.transitions],
+  )
   // 画面轨还空着 + 画布已有可拼镜头 → 显示空态提示行（纯增益，有画面片段后自动隐去）。
   const showArrangeCta = !timelineHasVisualClips(timeline) && arrangeableShotCount > 0
   const rulerEndFrame = React.useMemo(
@@ -485,7 +490,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
         </div>
         {/* 主次分层(方案 B)：画面(图/视频)主轨;配乐/字幕降副轨,空时收成「+配乐/+字幕」窄条。 */}
         {timeline.tracks.filter((t) => t.type !== 'audio').map((track) => (
-          <TimelineTrack key={track.id} track={track} variant="primary" />
+          <TimelineTrack key={track.id} track={track} transitionFeedback={transitionFeedbackByTrack.get(track.id)} variant="primary" />
         ))}
         {(() => {
           const audioTrack = timeline.tracks.find((t) => t.type === 'audio')
@@ -495,7 +500,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
           const showTextChip = showTextTrack && !textHasClips
           return (
             <>
-              {audioTrack && audioHasClips ? <TimelineTrack key={audioTrack.id} track={audioTrack} variant="secondary" /> : null}
+              {audioTrack && audioHasClips ? <TimelineTrack key={audioTrack.id} track={audioTrack} transitionFeedback={transitionFeedbackByTrack.get(audioTrack.id)} variant="secondary" /> : null}
               {showTextTrack && textHasClips ? <TimelineTextTrack /> : null}
               {showAudioChip || showTextChip ? <TimelineSecondaryAddRow showAudio={showAudioChip} showText={showTextChip} /> : null}
             </>

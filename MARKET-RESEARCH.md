@@ -197,7 +197,7 @@ The apparent tool-count gap is therefore expected at this stage. Mature products
 | Stage | Tool family | Initial tools | Preconditions and write boundary |
 |---|---|---|---|
 | P0 (implemented) | Timeline control | `read_timeline`, `inspect_timeline_range`, `propose_edit_plan`, `apply_edit_plan`, `undo_timeline_edit` | Canonical `TimelineState`, stable IDs, CAS revision, project scope, idempotency and one Adoption undo |
-| P1 | Media and source reads | `get_media`, `inspect_media`, `search_media`, `inspect_source_range`, `read_waveform` | Local asset registry, path redaction, deterministic probe/thumbnail/audio metadata |
+| P1 (implemented) | Media and source reads | `get_media`, `inspect_media`, `search_media`, `inspect_source_range`, `read_waveform` | Active-project asset registry, path redaction, bounded technical inspection and real local waveform decoding; semantic vision/ASR remains P3 |
 | P1 | Timeline mutations | `move_clip`, `remove_clip`, `split_clip`, `trim_clip`, `set_source_window`, `ripple_delete` | Pure kernel operations expressed inside `EditPlan`; same-track ripple by default; no cross-track drift |
 | P2 | Composition | `set_clip_properties`, `apply_layout`, `set_keyframes`, `apply_effect`, `apply_mask`, `set_transition`, `set_audio_mix` | Expanded schema plus FFmpeg/preview parity; unsupported fields return diagnostics, never silent fallback |
 | P3 | Semantic editing | `read_transcript`, `find_transcript`, `split_shots`, `speech_rough_cut`, `materialize_captions`, `place_bgm`, `beat_align` | ASR/shot/artifact services return source-bound IDs and timestamps; accepted output becomes an `EditPlan` |
