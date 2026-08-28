@@ -11,7 +11,8 @@
   ],
   "scope_paths": [
     "electron/productionRun/productionRunDriverOps.ts",
-    "electron/productionRun/productionRunService.ts"
+    "electron/productionRun/productionRunService.ts",
+    "electron/productionRun/productionRunStoryboardHashRecovery.ts"
   ],
   "entry_points": [
     "production.plan-storyboard candidate creation after an approved script",
