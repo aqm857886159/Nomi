@@ -3,6 +3,7 @@ import path from "node:path";
 export const ROOT_CAUSE_CONTRACT_SCHEMA_VERSION = 1;
 
 const HIGH_RISK_PREFIXES = [
+  ".github/workflows/",
   "electron/catalog/",
   "electron/assets/",
   "electron/comfyui/",
@@ -26,7 +27,7 @@ function normalized(file) {
 }
 
 function isTestFile(file) {
-  return /(?:^|\/)(?:tests?|__tests__)(?:\/|$)/i.test(file) || /\.(?:test|spec)\.[cm]?[jt]sx?$/i.test(file);
+  return /(?:^|\/)(?:tests?|__tests__)(?:\/|$)/i.test(file) || /\.(?:node-test|test|spec)\.[cm]?[jt]sx?$/i.test(file);
 }
 
 export function isHighRiskProductionFile(file) {

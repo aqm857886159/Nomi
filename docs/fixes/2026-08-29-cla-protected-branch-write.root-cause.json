@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "2026-08-29-cla-protected-branch-write",
+  "problem_type": "CLA signature persistence blocked by protected branch",
+  "symptom": "A fork contributor could post the exact CLA signature comment and receive an all-signed comment, while the CLA status later failed and the contributor was absent from the persisted signature ledger.",
+  "direct_cause": "The CLA action was configured to commit signatures directly to main, whose protection rules require every change to arrive through a pull request.",
+  "class_root": "Mutable automation-owned state shared the protected code branch without a contract separating bot append-only storage from reviewed product source changes.",
+  "affected_population": [
+    "First-time contributors signing the CLA from fork pull requests",
+    "Maintainers reviewing a misleading all-signed comment after signature persistence failed",
+    "Future contributors whose CLA status depends on signatures that never reached the durable ledger"
+  ],
+  "scope_paths": [
+    ".github/workflows/cla.yml",
+    "package.json",
+    "scripts/root-cause-contracts.mjs"
+  ],
+  "entry_points": [
+    "pull_request_target opened and synchronize events that validate all pull request commit authors",
+    "issue_comment signature commands that append a contributor to the ledger",
+    "issue_comment recheck commands that re-read the durable ledger",
+    "pull_request_target closed events that finalize the CLA conversation"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/contributor-assistant/github-action/blob/v2.6.1/README.md",
+      "checked_at": "2026-08-29",
+      "purpose": "The action's official configuration explicitly states that the signature storage branch must not be protected and documents branch-based signature persistence."
+    }
+  ],
+  "invariants": [
+    "Every contributor-assistant step stores signatures only on the dedicated cla-signatures branch, never on main or another protected code branch.",
+    "The code branch does not retain a second signatures/cla.json copy that can drift from the automation-owned ledger.",
+    "The CLA workflow runs from pull_request_target and issue_comment with only the permissions required to update statuses, pull-request comments, actions, and the dedicated ledger.",
+    "Fork pull request code is never checked out or executed by the privileged CLA workflow."
+  ],
+  "regression_tests": [
+    "scripts/check-cla-workflow.node-test.mjs",
+    "scripts/check-root-cause-contracts.node-test.mjs"
+  ],
+  "migration": "Create cla-signatures from the pre-fix main commit so the existing signedContributors history is preserved, then remove signatures/cla.json from main and point the action at the dedicated branch. Existing signature comments are reprocessed with recheck after deployment; no signature is fabricated or manually inserted.",
+  "residual_risks": [
+    "The dedicated branch must remain writable by the repository GITHUB_TOKEN; adding branch protection there requires an explicit replacement storage design.",
+    "The third-party action can still emit a misleading comment before a later write error; durable ledger content and the final check conclusion remain the acceptance evidence."
+  ]
+}

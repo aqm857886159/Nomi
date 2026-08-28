@@ -76,6 +76,31 @@ test("match: a complete contract covers changed production and test files", () =
   });
 });
 
+test("match: repository node-test files are valid changing regression evidence", () => {
+  const workflowContract = {
+    ...completeContract,
+    __file: "docs/fixes/fixture-workflow.root-cause.json",
+    id: "fixture-workflow",
+    scope_paths: [".github/workflows/cla.yml"],
+    regression_tests: ["scripts/check-cla-workflow.node-test.mjs"],
+  };
+  const files = [
+    ".github/workflows/cla.yml",
+    "scripts/check-cla-workflow.node-test.mjs",
+    workflowContract.__file,
+  ];
+  const result = validateRootCauseChange({
+    changedFiles: files,
+    contracts: [workflowContract],
+    existingFiles: new Set(files),
+  });
+  assert.deepEqual(result, {
+    ok: true,
+    errors: [],
+    triggeredFiles: [".github/workflows/cla.yml"],
+  });
+});
+
 test("not_match: unrelated historical contracts are ignored", () => {
   const unrelated = {
     ...completeContract,
@@ -134,8 +159,9 @@ test("match: a new complete contract may supersede a relevant historical contrac
   assert.equal(result.ok, true);
 });
 
-test("high-risk matcher covers provider, media, network, IPC, and persistence boundaries", () => {
+test("high-risk matcher covers workflows, providers, media, network, IPC, and persistence boundaries", () => {
   for (const file of [
+    ".github/workflows/cla.yml",
     "electron/vendor/vendorHttp.ts",
     "electron/image/decomposeLayers.ts",
     "electron/hardenedFetch.ts",
