@@ -1,11 +1,15 @@
 export type WorkbenchDocument = {
+  /** 文档稳定 id（crypto.randomUUID）。多文档侧栏据此切换/定位。 */
+  id: string
   version: 1
   title: string
   contentJson: unknown
   updatedAt: number
 }
 
-const STARTER_KIT_MARK_TYPES = new Set(['bold', 'italic', 'strike', 'code'])
+// 行内 mark 白名单：StarterKit 基础 4 个 + 创作编辑器新增的 highlight。
+// 不在名单里的 mark 读盘时丢弃，防止未知/过期 mark 污染文档结构。
+const STARTER_KIT_MARK_TYPES = new Set(['bold', 'italic', 'strike', 'code', 'highlight'])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -79,6 +83,45 @@ function normalizeListItems(value: unknown): Array<Record<string, unknown>> {
   })
 }
 
+function normalizeTaskItems(value: unknown): Array<Record<string, unknown>> {
+  if (!isRecord(value) || !Array.isArray(value.content)) return []
+  return value.content.flatMap((child): Array<Record<string, unknown>> => {
+    if (!isRecord(child) || child.type !== 'taskItem') return []
+    const blocks = normalizeBlockContent(child)
+    const checked = child.attrs && isRecord(child.attrs) ? child.attrs.checked === true : false
+    return [{
+      type: 'taskItem',
+      attrs: { checked },
+      content: blocks.length ? blocks : [{ type: 'paragraph' }],
+    }]
+  })
+}
+
+function normalizeTableCell(value: unknown, type: 'tableCell' | 'tableHeader'): Array<Record<string, unknown>> {
+  if (!isRecord(value) || !Array.isArray(value.content)) return []
+  const blocks = normalizeBlockContent(value)
+  return [{ type, content: blocks.length ? blocks : [{ type: 'paragraph' }] }]
+}
+
+function normalizeTableRows(value: unknown): Array<Record<string, unknown>> {
+  if (!isRecord(value) || !Array.isArray(value.content)) return []
+  return value.content.flatMap((child): Array<Record<string, unknown>> => {
+    if (!isRecord(child) || child.type !== 'tableRow' || !Array.isArray(child.content)) return []
+    const cells = child.content.flatMap((cell) => {
+      if (!isRecord(cell)) return []
+      if (cell.type === 'tableCell') return normalizeTableCell(cell, 'tableCell')
+      if (cell.type === 'tableHeader') return normalizeTableCell(cell, 'tableHeader')
+      return []
+    })
+    return cells.length ? [{ type: 'tableRow', content: cells }] : []
+  })
+}
+
+function normalizeTable(value: unknown): Array<Record<string, unknown>> {
+  const rows = normalizeTableRows(value)
+  return rows.length ? [{ type: 'table', content: rows }] : []
+}
+
 function normalizeBlockNodes(value: unknown): Array<Record<string, unknown>> {
   if (!isRecord(value) || typeof value.type !== 'string') return []
   if (value.type === 'paragraph') return [{ type: 'paragraph', content: normalizeInlineContent(value) }]
@@ -94,6 +137,11 @@ function normalizeBlockNodes(value: unknown): Array<Record<string, unknown>> {
     const content = normalizeListItems(value)
     return content.length ? [{ type: value.type, content }] : []
   }
+  if (value.type === 'taskList') {
+    const content = normalizeTaskItems(value)
+    return content.length ? [{ type: 'taskList', content }] : []
+  }
+  if (value.type === 'table') return normalizeTable(value)
   if (value.type === 'horizontalRule') return [{ type: 'horizontalRule' }]
   const inlineNodes = normalizeInlineNodes(value)
   return inlineNodes.length ? [{ type: 'paragraph', content: inlineNodes }] : []
@@ -122,11 +170,20 @@ export function normalizeWorkbenchContentJson(value: unknown): unknown {
 export function normalizeWorkbenchDocument(input: unknown): WorkbenchDocument {
   if (!isRecord(input)) return createDefaultWorkbenchDocument()
   return {
+    id: typeof input.id === 'string' && input.id.trim() ? input.id.trim() : mintDocumentId(),
     version: 1,
     title: typeof input.title === 'string' ? input.title : '',
     contentJson: normalizeWorkbenchContentJson(input.contentJson),
     updatedAt: typeof input.updatedAt === 'number' && Number.isFinite(input.updatedAt) ? input.updatedAt : Date.now(),
   }
+}
+
+/** 生成文档稳定 id（renderer 运行时可用；测试注入 node 环境则回退计数）。 */
+export function mintDocumentId(): string {
+  if (typeof globalThis.crypto !== 'undefined' && 'randomUUID' in globalThis.crypto) {
+    return `doc-${globalThis.crypto.randomUUID()}`
+  }
+  return `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 export type CreationDocumentTools = {
@@ -141,6 +198,7 @@ export type PreviewAspectRatio = '16:9' | '9:16' | '1:1' | '4:5' | '3:4' | '4:3'
 
 export function createDefaultWorkbenchDocument(): WorkbenchDocument {
   return {
+    id: mintDocumentId(),
     version: 1,
     title: '',
     contentJson: createDefaultWorkbenchContentJson(),

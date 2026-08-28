@@ -69,8 +69,7 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
 
     const workbench = useWorkbenchStore.getState()
     expect(workbench.creationAiMessages).toEqual([])
-    expect(workbench.storyboardPlan).toBeNull()
-    expect(workbench.storyboardPlanCommitted).toBe(false)
+    expect(workbench.storyboardPlans).toEqual({})
     expect(workbench.timeline).toEqual(createDefaultTimeline())
     expect(workbench.selectedTimelineClipIds).toEqual([])
     expect(workbench.timelineUndoStack).toEqual([])

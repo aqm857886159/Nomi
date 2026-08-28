@@ -50,12 +50,14 @@ export function releaseWorkbenchProjectRuntimeState(): void {
     hasClipboard: false,
   })
 
+  const emptyDocument = createDefaultWorkbenchDocument()
   useWorkbenchStore.setState({
     workspaceMode: 'generation',
     activeCategoryId: DEFAULT_CATEGORY_ID,
     categories: cloneBuiltinCategories(),
     categoryViewports: {},
-    workbenchDocument: createDefaultWorkbenchDocument(),
+    workbenchDocuments: [emptyDocument],
+    activeDocumentId: emptyDocument.id,
     creationDocumentTools: null,
     creationSelectionText: '',
     creationAiModeId: 'general',
@@ -64,9 +66,7 @@ export function releaseWorkbenchProjectRuntimeState(): void {
     creationAiMessages: [],
     creationAiAttachments: [],
     creationAiError: '',
-    storyboardPlan: null,
-    storyboardPlanCommitted: false,
-    storyboardEditorOpen: false,
+    storyboardPlans: {},
     timeline: createDefaultTimeline(),
     timelinePlaying: false,
     previewAspectRatio: '16:9',

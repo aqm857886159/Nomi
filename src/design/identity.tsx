@@ -27,8 +27,8 @@ type NomiAILabelProps = {
 }
 
 type NomiStepperProps = {
-  value: 'creation' | 'generation' | 'preview'
-  onChange: (mode: 'creation' | 'generation' | 'preview') => void
+  value: 'creation' | 'storyboard' | 'generation' | 'preview'
+  onChange: (mode: 'creation' | 'storyboard' | 'generation' | 'preview') => void
 }
 
 type NomiWordmarkProps = {
@@ -136,6 +136,7 @@ export function NomiStepper({ value, onChange }: NomiStepperProps): JSX.Element 
   const { t } = useTranslation()
   const tabs: { mode: NomiStepperProps['value']; label: string }[] = [
     { mode: 'creation', label: t('workspace.creationTab') },
+    { mode: 'storyboard', label: t('workspace.storyboardTab') },
     { mode: 'generation', label: t('workspace.generationTab') },
     { mode: 'preview', label: t('workspace.previewTab') },
   ]

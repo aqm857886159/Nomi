@@ -17,7 +17,7 @@ function textNode(text: string, marks?: Array<{ type: string }>): TiptapTextNode
 
 function parseInlineMarkdown(input: string): TiptapTextNode[] {
   const nodes: TiptapTextNode[] = []
-  const pattern = /(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\*[^*]+\*|_[^_]+_)/g
+  const pattern = /(==[^=]+==|\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\*[^*]+\*|_[^_]+_)/g
   let lastIndex = 0
   for (const match of input.matchAll(pattern)) {
     const index = match.index ?? 0
@@ -25,7 +25,10 @@ function parseInlineMarkdown(input: string): TiptapTextNode[] {
     const before = input.slice(lastIndex, index)
     const beforeNode = textNode(before)
     if (beforeNode) nodes.push(beforeNode)
-    if ((raw.startsWith('**') && raw.endsWith('**')) || (raw.startsWith('__') && raw.endsWith('__'))) {
+    if (raw.startsWith('==') && raw.endsWith('==')) {
+      const node = textNode(raw.slice(2, -2), [{ type: 'highlight' }])
+      if (node) nodes.push(node)
+    } else if ((raw.startsWith('**') && raw.endsWith('**')) || (raw.startsWith('__') && raw.endsWith('__'))) {
       const node = textNode(raw.slice(2, -2), [{ type: 'bold' }])
       if (node) nodes.push(node)
     } else if (raw.startsWith('`') && raw.endsWith('`')) {
@@ -50,10 +53,61 @@ function listItem(text: string): TiptapNode {
   return { type: 'listItem', content: [paragraph(text)] }
 }
 
+function taskItem(text: string, checked: boolean): TiptapNode {
+  return { type: 'taskItem', attrs: { checked }, content: [paragraph(text)] }
+}
+
 function flushParagraph(buffer: string[], nodes: TiptapNode[]) {
   const text = buffer.join(' ').trim()
   if (text) nodes.push(paragraph(text))
   buffer.length = 0
+}
+
+function parseTaskItems(lines: string[], start: number): { items: TiptapNode[]; next: number } {
+  const items: TiptapNode[] = []
+  let index = start
+  while (index < lines.length) {
+    const itemMatch = lines[index].trim().match(/^[-*+]\s+\[([ xX])\]\s+(.+)$/)
+    if (!itemMatch) break
+    items.push(taskItem(itemMatch[2].trim(), itemMatch[1].toLowerCase() === 'x'))
+    index += 1
+  }
+  return { items, next: index }
+}
+
+// 把一行表格分隔行 `| --- | --- |` 解析成对齐标记，用于判断某列是否为表头分隔。返回列数或 null。
+function parseTableDelimiter(line: string): number | null {
+  const cells = line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|')
+  if (cells.length === 0) return null
+  if (!cells.every((cell) => /^\s*:?-{3,}:?\s*$/.test(cell))) return null
+  return cells.length
+}
+
+function parseTableRow(line: string, isHeader: boolean): TiptapNode {
+  const cells = line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim())
+  return {
+    type: 'tableRow',
+    content: cells.map((cell) => ({
+      type: isHeader ? 'tableHeader' : 'tableCell',
+      content: [{ type: 'paragraph', content: parseInlineMarkdown(cell) }],
+    })),
+  }
+}
+
+// 尝试把以 `|` 开头的连续行解析成 GFM 表格：第一行表头 + 第二行 `---` 分隔 + 后续数据行。
+// 返回 { rows, next }；若第二行不是分隔行，返回 null（让调用方按普通段落处理）。
+function tryParseTable(lines: string[], start: number): { rows: TiptapNode[]; next: number } | null {
+  const delimiter = start + 1 < lines.length ? parseTableDelimiter(lines[start + 1]) : null
+  if (delimiter === null) return null
+  const rows: TiptapNode[] = [parseTableRow(lines[start], true)]
+  let index = start + 2
+  while (index < lines.length) {
+    const trimmed = lines[index].trim()
+    if (!trimmed || !trimmed.startsWith('|')) break
+    rows.push(parseTableRow(lines[index], false))
+    index += 1
+  }
+  return { rows, next: index }
 }
 
 export function markdownToTiptapContent(markdown: string): TiptapNode[] {
@@ -121,6 +175,13 @@ export function markdownToTiptapContent(markdown: string): TiptapNode[] {
     const bulletMatch = trimmed.match(/^[-*+]\s+(.+)$/)
     if (bulletMatch) {
       flushParagraph(paragraphBuffer, nodes)
+      // 待办列表优先于普通无序列表：`- [ ]` 是 bulletMatch 的子集，先识别成 taskList。
+      const tasks = parseTaskItems(lines, index)
+      if (tasks.items.length > 0) {
+        nodes.push({ type: 'taskList', content: tasks.items })
+        index = tasks.next
+        continue
+      }
       const items: TiptapNode[] = []
       while (index < lines.length) {
         const itemMatch = lines[index].trim().match(/^[-*+]\s+(.+)$/)
@@ -129,6 +190,20 @@ export function markdownToTiptapContent(markdown: string): TiptapNode[] {
         index += 1
       }
       nodes.push({ type: 'bulletList', content: items })
+      continue
+    }
+
+    // GFM 表格：以 `|` 开头的行 + 第二行 `---` 分隔。
+    if (trimmed.startsWith('|')) {
+      flushParagraph(paragraphBuffer, nodes)
+      const table = tryParseTable(lines, index)
+      if (table) {
+        nodes.push({ type: 'table', content: table.rows })
+        index = table.next
+        continue
+      }
+      paragraphBuffer.push(trimmed)
+      index += 1
       continue
     }
 

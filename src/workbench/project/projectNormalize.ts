@@ -1,5 +1,7 @@
 import { normalizeTimeline } from '../timeline/timelineMath'
 import { normalizeWorkbenchDocument } from '../workbenchPersistence'
+import { createDefaultWorkbenchDocument, type WorkbenchDocument } from '../workbenchTypes'
+import type { StoryboardPlan } from '../generationCanvas/agent/storyboardPlan'
 import {
   createDefaultWorkbenchProjectPayload,
   workbenchProjectPayloadSchema,
@@ -77,16 +79,38 @@ export function normalizePayload(input: unknown): WorkbenchProjectPayload {
     throw new Error(i18n.t('runtime.project.corruptPayload'))
   }
   const payload = parsed.data
+  // P2 多文档迁移：优先读新字段 workbenchDocuments；老项目只有 workbenchDocument → 包装成单元素集合。
+  const legacyDoc = payload.workbenchDocument
+  const documents = Array.isArray(payload.workbenchDocuments) && payload.workbenchDocuments.length
+    ? payload.workbenchDocuments
+    : legacyDoc
+      ? [legacyDoc]
+      : [createDefaultWorkbenchDocument()]
+  const activeId = payload.activeDocumentId
+  const normalizedDocuments = documents.map(normalizeWorkbenchDocument)
+  const firstDocumentId = normalizedDocuments[0].id
+  const activeDocumentId = activeId && documents.some((d) => (d as WorkbenchDocument).id === activeId)
+    ? activeId
+    : firstDocumentId
+  // P4 分镜方案迁移：优先读新字段 storyboardPlans；老项目只有单 storyboardPlan → 包装成 { [activeDocumentId]: {...} }。
+  const storyboardPlans: Record<string, { plan: StoryboardPlan; committed: boolean }> = payload.storyboardPlans
+    ? Object.fromEntries(
+        Object.entries(payload.storyboardPlans).map(([docId, entry]) => [
+          docId,
+          { plan: entry.plan, committed: entry.committed ?? false },
+        ]),
+      )
+    : payload.storyboardPlan
+      ? { [activeDocumentId]: { plan: payload.storyboardPlan, committed: payload.storyboardPlanCommitted ?? false } }
+      : {}
   return {
-    workbenchDocument: normalizeWorkbenchDocument(payload.workbenchDocument),
+    workbenchDocuments: normalizedDocuments,
+    activeDocumentId,
     timeline: normalizeTimeline(payload.timeline),
     generationCanvas: payload.generationCanvas,
     categories: normalizeCategories(payload.categories),
     generationCanvasLastSeq: payload.generationCanvasLastSeq,
-    // P0-6:分镜方案随项目持久化(normalizePayload 是字段重建式,不透传 → 必须显式带上,否则切项目/重载丢)。
-    storyboardPlan: payload.storyboardPlan ?? null,
-    // 卡片回看:落画布状态随项目持久化(老项目无字段 → false 当草稿)。
-    storyboardPlanCommitted: payload.storyboardPlanCommitted ?? false,
+    storyboardPlans,
   }
 }
 

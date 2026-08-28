@@ -227,15 +227,19 @@ describe('applyCanvasToolCall propose_storyboard_plan', () => {
 
   beforeEach(() => {
     resetCanvas()
-    useWorkbenchStore.getState().setStoryboardPlan(null)
+    useWorkbenchStore.getState().hydrateWorkbenchDocuments(
+      [{ id: 'doc-1', version: 1, title: '', contentJson: { type: 'doc', content: [] }, updatedAt: 1 }],
+      'doc-1',
+    )
+    useWorkbenchStore.getState().hydrateStoryboardPlans({})
     useWorkbenchStore.getState().setWorkspaceMode('generation')
   })
 
-  it('合法方案 → 落创作 store + 切回创作区 + 不动画布,回执含计数', async () => {
+  it('合法方案 → 落创作 store + 切到分镜页 + 不动画布,回执含计数', async () => {
     const ack = (await applyCanvasToolCall('propose_storyboard_plan', PLAN)) as string
     const ws = useWorkbenchStore.getState()
-    expect(ws.storyboardPlan).toEqual(PLAN)
-    expect(ws.workspaceMode).toBe('creation')
+    expect(ws.storyboardPlans['doc-1'].plan).toEqual(PLAN)
+    expect(ws.workspaceMode).toBe('storyboard') // P3:拆完切独立分镜页(原切回 creation)
     expect(useGenerationCanvasStore.getState().nodes).toHaveLength(0) // 规划不碰画布
     expect(ack).toContain('1 个锚')
     expect(ack).toContain('2 个镜头')
@@ -245,7 +249,7 @@ describe('applyCanvasToolCall propose_storyboard_plan', () => {
     await expect(
       applyCanvasToolCall('propose_storyboard_plan', { title: 't', anchors: [{ id: 'x', kind: 'bad' }], shots: [] }),
     ).rejects.toThrow()
-    expect(useWorkbenchStore.getState().storyboardPlan).toBeNull()
+    expect(useWorkbenchStore.getState().storyboardPlans['doc-1']).toBeUndefined()
   })
 })
 

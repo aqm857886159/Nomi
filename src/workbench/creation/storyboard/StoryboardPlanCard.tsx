@@ -13,10 +13,10 @@ import { useWorkbenchStore } from '../../workbenchStore'
  */
 export default function StoryboardPlanCard(): JSX.Element | null {
   const { t } = useTranslation()
-  const plan = useWorkbenchStore((s) => s.storyboardPlan)
-  const committed = useWorkbenchStore((s) => s.storyboardPlanCommitted)
-  const editorOpen = useWorkbenchStore((s) => s.storyboardEditorOpen)
-  const setStoryboardEditorOpen = useWorkbenchStore((s) => s.setStoryboardEditorOpen)
+  const activeDocumentId = useWorkbenchStore((s) => s.activeDocumentId)
+  const entry = useWorkbenchStore((s) => (s.activeDocumentId ? s.storyboardPlans[s.activeDocumentId] : undefined))
+  const plan = entry?.plan ?? null
+  const committed = entry?.committed ?? false
   const discardStoryboardPlan = useWorkbenchStore((s) => s.discardStoryboardPlan)
   const setWorkspaceMode = useWorkbenchStore((s) => s.setWorkspaceMode)
 
@@ -40,46 +40,33 @@ export default function StoryboardPlanCard(): JSX.Element | null {
       confirmLabel: t('storyboardEditor.discard'),
       danger: true,
     })
-    if (ok) discardStoryboardPlan()
+    if (ok) discardStoryboardPlan(activeDocumentId)
   }
 
-  // 状态徽标用 Nomi 品牌色(草稿/编辑=暖 accent、已落=success)。StatusBadge 是 Mantine
+  // 状态徽标用 Nomi 品牌色(草稿=暖 accent、已落=success)。StatusBadge 是 Mantine
   // gray/blue/green，非品牌色 → 这里保留手写品牌 chip(2026-06-22 回归核对:别让品牌色被压成通用灰蓝)。
-  const badge = editorOpen
-    ? { label: t('storyboardEditor.planCard.editing'), cls: 'bg-nomi-accent-soft text-nomi-accent' }
-    : committed
-      ? { label: t('storyboardEditor.planCard.committed'), cls: 'bg-workbench-success-soft text-workbench-success' }
-      : { label: t('storyboardEditor.planCard.draft'), cls: 'bg-nomi-accent-soft text-nomi-accent' }
+  const badge = committed
+    ? { label: t('storyboardEditor.planCard.committed'), cls: 'bg-workbench-success-soft text-workbench-success' }
+    : { label: t('storyboardEditor.planCard.draft'), cls: 'bg-nomi-accent-soft text-nomi-accent' }
 
   return (
     <div
-      className={cn(
-        'flex flex-col gap-2 p-3 rounded-nomi border bg-nomi-paper',
-        editorOpen ? 'border-nomi-accent' : 'border-nomi-line',
-      )}
-      data-storyboard-card={committed ? 'committed' : editorOpen ? 'editing' : 'draft'}
+      className={cn('flex flex-col gap-2 p-3 rounded-nomi border border-nomi-line bg-nomi-paper')}
+      data-storyboard-card={committed ? 'committed' : 'draft'}
     >
       <div className="flex items-center gap-2 min-w-0">
-        {committed && !editorOpen
+        {committed
           ? <IconCircleCheck size={15} stroke={1.6} className="shrink-0 text-workbench-success" />
           : <IconMovie size={15} stroke={1.6} className="shrink-0 text-nomi-ink-60" />}
         <span className="min-w-0 flex-1 truncate text-body-sm font-medium text-nomi-ink">{title}</span>
         <span className={cn('shrink-0 text-micro px-2 py-0.5 rounded-full leading-relaxed', badge.cls)}>{badge.label}</span>
       </div>
 
-      {editorOpen ? (
-        <>
-          <span className="text-caption text-nomi-ink-60">{t('storyboardEditor.planCard.editingSummary', { count: shotCount })}</span>
-          <div className="flex items-center gap-2">
-            <WorkbenchButton variant="default" size="sm" onClick={() => setStoryboardEditorOpen(false)}>{t('storyboardEditor.planCard.backToDraft')}</WorkbenchButton>
-            <span className="ml-auto text-caption text-nomi-ink-40">{t('storyboardEditor.planCard.confirmHint')}</span>
-          </div>
-        </>
-      ) : committed ? (
+      {committed ? (
         <>
           <span className="text-caption text-nomi-ink-60">{t('storyboardEditor.planCard.committedSummary', { count: shotCount })}</span>
           <div className="flex items-center gap-2">
-            <WorkbenchButton variant="default" size="sm" onClick={() => setStoryboardEditorOpen(true)}>{t('storyboardEditor.planCard.editAgain')}</WorkbenchButton>
+            <WorkbenchButton variant="default" size="sm" onClick={() => setWorkspaceMode('storyboard')}>{t('storyboardEditor.planCard.editAgain')}</WorkbenchButton>
             <WorkbenchButton variant="default" size="sm" className="ml-auto" onClick={() => setWorkspaceMode('generation')}>
               {t('storyboardEditor.planCard.goGeneration')}<IconArrowRight size={13} stroke={1.6} />
             </WorkbenchButton>
@@ -102,7 +89,7 @@ export default function StoryboardPlanCard(): JSX.Element | null {
             ) : null}
           </div>
           <div className="flex items-center gap-2">
-            <WorkbenchButton variant="primary" size="sm" onClick={() => setStoryboardEditorOpen(true)}>{t('storyboardEditor.planCard.openEditor')}</WorkbenchButton>
+            <WorkbenchButton variant="primary" size="sm" onClick={() => setWorkspaceMode('storyboard')}>{t('storyboardEditor.planCard.openEditor')}</WorkbenchButton>
             <button
               type="button"
               onClick={onDiscard}
