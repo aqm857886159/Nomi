@@ -124,14 +124,14 @@ export async function retryCertificationCleanup(
       const timer = timers.get(root);
       if (timer) clearInterval(timer);
       timers.delete(root);
-    }
+    } else scheduleCertificationCleanupRecovery(root);
     return remaining.length;
   });
 }
 
 export function scheduleCertificationCleanupRecovery(root: string): void {
   if (timers.has(root)) return;
-  const timer = setInterval(() => void retryCertificationCleanup(root).catch(() => undefined), 60_000);
+  const timer = setInterval(() => retryCertificationCleanup(root).catch(() => undefined), 60_000);
   timer.unref?.();
   timers.set(root, timer);
 }

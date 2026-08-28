@@ -6,7 +6,7 @@ import { mintSpendGrant } from "../spendGrant";
 import { runTaskIpcGuard } from "./taskIpcGuard";
 import { withTaskOwner } from "./localTaskJobs";
 import { antigravityImageJobs } from "../catalog/antigravityImageOperation";
-import { cancelComfyCandidateTest, runComfyCandidateTest } from "./comfyCandidateTest";
+import { cancelComfyCandidateTest, failComfyCandidateEnvelope, runComfyCandidateTest } from "./comfyCandidateTest";
 
 type RuntimeLoader = () => Promise<typeof import("../runtime")>;
 
@@ -51,16 +51,33 @@ export function registerTaskIpcHandlers(loadRuntimeModule: RuntimeLoader): void 
       return withTaskOwner(event.sender.id, () => fetchTaskResult(payload));
     });
   });
-  ipcMain.handle("nomi:tasks:comfy-candidate-test", (event, payload) => {
+  ipcMain.handle("nomi:tasks:comfy-candidate-test", async (event, payload) => {
     assertTrustedSender(event);
-    return runTaskIpcGuard(payload, async () => {
-      const { runTask, fetchTaskResult } = await loadRuntimeModule();
-      return withTaskOwner(event.sender.id, () => runComfyCandidateTest(payload, { runTask, fetchTaskResult }));
-    });
+    let ownerDestroyed = false;
+    const envelope = (payload as { candidate?: unknown })?.candidate;
+    const onDestroyed = () => {
+      ownerDestroyed = true;
+      cancelComfyCandidateTest(envelope);
+      failComfyCandidateEnvelope(payload, "candidate_cancelled");
+    };
+    event.sender.once("destroyed", onDestroyed);
+    try {
+      return await runTaskIpcGuard(payload, async () => {
+        const { runTask, fetchTaskResult } = await loadRuntimeModule();
+        if (ownerDestroyed) return failComfyCandidateEnvelope(payload, "candidate_cancelled");
+        return withTaskOwner(event.sender.id, () => runComfyCandidateTest(payload, { runTask, fetchTaskResult }));
+      });
+    } catch {
+      return failComfyCandidateEnvelope(payload, ownerDestroyed ? "candidate_cancelled" : "provider_failed");
+    } finally {
+      event.sender.removeListener("destroyed", onDestroyed);
+    }
   });
   ipcMain.handle("nomi:tasks:comfy-candidate-cancel", (event, payload) => {
     assertTrustedSender(event);
-    return cancelComfyCandidateTest(payload);
+    const result = cancelComfyCandidateTest(payload);
+    failComfyCandidateEnvelope(payload, "candidate_cancelled");
+    return result;
   });
   ipcMain.handle("nomi:tasks:cancel", (event, taskId: unknown) => {
     assertTrustedSender(event);

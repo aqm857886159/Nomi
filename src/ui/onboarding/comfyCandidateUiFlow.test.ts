@@ -12,10 +12,11 @@ describe('ComfyUI component candidate state flow', () => {
     vendorKey: 'comfyui-local--candidate-new',
     modelKey: 'workflow-1',
     revisionId: 'comfy-new',
+    taskKind: 'text_to_video',
   }
 
   it('retains the formal import/update DTO and switches to the promoted active identity only on success', () => {
-    expect(candidateFromWorkflowMutation({ ok: true, kind: 'video', taskKind: 'text_to_video', ...candidate })).toEqual(candidate)
+    expect(candidateFromWorkflowMutation({ ok: true, kind: 'video', ...candidate })).toEqual(candidate)
     expect(settleCandidateUiRun(candidate, {
       ok: true,
       revisionId: 'comfy-new',

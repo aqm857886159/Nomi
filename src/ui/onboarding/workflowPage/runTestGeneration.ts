@@ -12,7 +12,7 @@
 //
 // 媒体输入（首帧/尾帧/源视频）**不带**：那要先把素材上传成 ComfyUI 的文件名，是画布的活。
 // 试跑只验「图能不能跑通 + 参数有没有接对」；界面上已明说这一点，不假装带了。
-import { mintSpendGrant, runComfyCandidateTestByVendor, type ComfyCandidateTestResultDto, type TaskKind } from '../../../workbench/api/taskApi'
+import { cancelComfyCandidateTestRevision, mintSpendGrant, runComfyCandidateTestByVendor, type ComfyCandidateTestResultDto, type TaskKind } from '../../../workbench/api/taskApi'
 import { workflowMediaBindings, type WorkflowBinding } from '../comfyuiWorkflowBinding'
 
 export type TestRunResult = ComfyCandidateTestResultDto
@@ -47,6 +47,8 @@ export async function runTestGeneration(input: {
   // nodeId 是主进程用来对账/可中断的句柄。这次试跑不属于画布上任何节点，
   // 给一个带前缀的独立 id，别去撞画布节点的 id 空间。
   const nodeId = `comfy-workflow-test-${input.revisionId}`
+  const taskKind = taskKindOf(input.binding)
+  const candidate = { revisionId: input.revisionId, modelKey: input.modelKey, taskKind }
   try {
     // 付费守卫（electron/spendGrant.ts）硬拦所有未授权的 vendor 出口，试跑也不例外——
     // 走查实锤：不铸令牌就是 SpendNotAuthorizedError。**这颗令牌在「运行测试」按钮的 onClick
@@ -56,8 +58,9 @@ export async function runTestGeneration(input: {
     // 回去改绑定，而不是背着他重试三次。
     const grantId = await mintSpendGrant([nodeId], 1)
     return await runComfyCandidateTestByVendor(input.candidateVendorKey, {
+      candidate,
       request: {
-        kind: taskKindOf(input.binding),
+        kind: taskKind,
         prompt: input.prompt,
         extras: {
           ...input.extras,
@@ -71,6 +74,7 @@ export async function runTestGeneration(input: {
       },
     })
   } catch {
+    await cancelComfyCandidateTestRevision(candidate).catch(() => undefined)
     return { ok: false, revisionId: input.revisionId, reasonCode: 'provider_failed', params: {} }
   }
 }

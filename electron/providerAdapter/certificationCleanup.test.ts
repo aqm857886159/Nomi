@@ -14,7 +14,7 @@ let root = "";
 const run = (id: string) => path.join(root, `run-${id}`);
 
 beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-cleanup-lease-")); });
-afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
+afterEach(() => { vi.useRealTimers(); fs.rmSync(root, { recursive: true, force: true }); });
 
 describe("certification cleanup leases", () => {
   it("recovers a crash after lease registration and before run cleanup", async () => {
@@ -56,5 +56,21 @@ describe("certification cleanup leases", () => {
     fs.rmSync(run("done"), { recursive: true, force: true });
     await completeCertificationCleanupLease(root, run("done"));
     expect(fs.existsSync(path.join(root, ".cleanup-manifest.json"))).toBe(false);
+  });
+
+  it("automatically retries a fresh startup lease after it becomes stale without another certification", async () => {
+    vi.useFakeTimers(); vi.setSystemTime(1_000);
+    fs.mkdirSync(run("restart"));
+    await registerCertificationCleanupLease(root, run("restart"), Date.now());
+    await expect(retryCertificationCleanup(root)).resolves.toBe(1);
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
+    expect(fs.existsSync(run("restart"))).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(5 * 60_000 + 1);
+
+    await vi.waitFor(() => {
+      expect(fs.existsSync(run("restart"))).toBe(false);
+      expect(fs.existsSync(path.join(root, ".cleanup-manifest.json"))).toBe(false);
+    });
   });
 });

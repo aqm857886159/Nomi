@@ -26,6 +26,7 @@ describe('desktop ComfyUI candidate bridge contract', () => {
   it('requires exact revision intent on the dedicated main-process test IPC', () => {
     const payload: CandidateTestPayload = {
       vendor: 'comfyui-local',
+      candidate: { revisionId: 'comfy-a', modelKey: 'wan-t2v', taskKind: 'text_to_video' },
       request: {
         kind: 'text_to_video',
         prompt: 'test',
@@ -41,5 +42,6 @@ describe('desktop ComfyUI candidate bridge contract', () => {
       comfyCertificationRevisionId: 'comfy-a',
       certifyOutput: true,
     })
+    expect(payload.candidate).toEqual({ revisionId: 'comfy-a', modelKey: 'wan-t2v', taskKind: 'text_to_video' })
   })
 })

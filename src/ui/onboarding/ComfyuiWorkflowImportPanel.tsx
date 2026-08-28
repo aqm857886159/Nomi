@@ -22,6 +22,7 @@ import { getDesktopBridge } from '../../desktop/bridge'
 import { toast } from '../toast'
 import { paramCandidates } from './comfyuiParamCandidates'
 import { runTestGeneration } from './workflowPage/runTestGeneration'
+import { cancelComfyCandidateTestRevision } from '../../workbench/api/taskApi'
 import { candidateFailureText, candidateFromWorkflowMutation, settleCandidateUiRun, type ComfyCandidateUiState } from './comfyCandidateUiFlow'
 // 类型与参数塑形规则的单一真相源——整页（工作流设置）与这条导入路共用同一份，
 // 抄第二份必然漂（那正是「提示词被参数占位覆盖」反复复发的形状）。
@@ -126,6 +127,27 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
   const candidateRef = React.useRef<ComfyCandidateUiState | null>(null)
   const reconcileSeq = React.useRef(0)
 
+  const cancelCandidate = React.useCallback((target = candidateRef.current) => {
+    if (!target) return
+    void cancelComfyCandidateTestRevision(target).catch(() => undefined)
+    if (candidateRef.current?.revisionId === target.revisionId) {
+      candidateRef.current = null
+      setCandidate(null)
+    }
+  }, [])
+  const replaceCandidate = React.useCallback((next: ComfyCandidateUiState) => {
+    const previous = candidateRef.current
+    if (previous && previous.revisionId !== next.revisionId) {
+      void cancelComfyCandidateTestRevision(previous).catch(() => undefined)
+    }
+    candidateRef.current = next
+    setCandidate(next)
+  }, [])
+  React.useEffect(() => () => {
+    const current = candidateRef.current
+    if (current) void cancelComfyCandidateTestRevision(current).catch(() => undefined)
+  }, [])
+
   // 缺件对账（异步，不阻塞绑定 UI）：分析成功后问本机 /object_info，缺节点/缺模型在导入前就说清。
   // seq 防串台：快速换文本重新分析时，旧请求晚到不覆盖新结果。
   const runReconcile = React.useCallback((value: string) => {
@@ -201,8 +223,7 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
       if (!r.ok) { setError(r.error); return }
       const staged = candidateFromWorkflowMutation(r)
       if (!staged) { setError('candidate_stage_failed'); return }
-      candidateRef.current = staged
-      setCandidate(staged)
+      replaceCandidate(staged)
       const testResult = await runTestGeneration({
         vendorKey: vendorKey || staged.vendorKey,
         candidateVendorKey: staged.vendorKey,
@@ -227,7 +248,7 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
       setOpen(false)
       onImported()
     } finally { setBusy(false) }
-  }, [binding, catalog, text, labelZh, reset, onImported, paramKeyError, reconcile, vendorKey, uiWorkflowText, t])
+  }, [binding, catalog, text, labelZh, reset, onImported, paramKeyError, reconcile, vendorKey, uiWorkflowText, replaceCandidate, t])
 
   if (!open) {
     return (
@@ -357,7 +378,7 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
         <span className="text-body-sm font-semibold text-nomi-ink flex-1">{t('onboardingProviders.comfyWorkflow.title')}</span>
         <button
           type="button"
-          onClick={() => { reset(); setOpen(false) }}
+          onClick={() => { cancelCandidate(); reset(); setOpen(false) }}
           className="h-6 w-6 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05"
           aria-label={t('onboardingProviders.comfyWorkflow.collapse')}
         >

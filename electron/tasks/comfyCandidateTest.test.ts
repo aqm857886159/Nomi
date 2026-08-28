@@ -14,6 +14,7 @@ import type { TaskResult } from "../runtime";
 
 const payload = {
   vendor: "candidate-vendor",
+  candidate: { revisionId: "revision-1", modelKey: "workflow-1", taskKind: "text_to_video" as const },
   request: { kind: "text_to_video" as const, prompt: "test", extras: {
     modelKey: "workflow-1", comfyCertificationRevisionId: "revision-1", certifyOutput: true,
   } },
@@ -49,6 +50,16 @@ describe("Comfy candidate test lifecycle", () => {
     await expect(runComfyCandidateTest(payload, { runTask: vi.fn(), fetchTaskResult: vi.fn() }))
       .resolves.toMatchObject({ ok: false, reasonCode: "candidate_stale" });
     expect(lifecycle.fail).not.toHaveBeenCalled();
+  });
+
+  it("uses the trusted candidate envelope to clean malformed request payloads without throwing", async () => {
+    lifecycle.active.mockReset().mockReturnValue(null); lifecycle.resolve.mockReset(); lifecycle.fail.mockReset();
+    const malformed = { ...payload, request: { kind: "text_to_video", prompt: "test", extras: {} } };
+    await expect(runComfyCandidateTest(malformed, { runTask: vi.fn(), fetchTaskResult: vi.fn() }))
+      .resolves.toMatchObject({ ok: false, revisionId: "revision-1", reasonCode: "candidate_invalid_request" });
+    expect(lifecycle.fail).toHaveBeenCalledWith(expect.objectContaining({
+      revisionId: "revision-1", modelKey: "workflow-1", taskKind: "text_to_video",
+    }));
   });
 
   it.each(["failed", "throw", "poll", "cancel"])("cleans the exact staged revision on %s", async (failure) => {
@@ -95,5 +106,10 @@ describe("Comfy candidate test lifecycle", () => {
     await expect(runComfyCandidateTest(payload, { runTask: secondRun, fetchTaskResult: vi.fn() }))
       .resolves.toMatchObject({ ok: false });
     expect(secondRun).toHaveBeenCalledOnce();
+  });
+
+  it("treats repeated exact cancellation as idempotent", () => {
+    expect(cancelComfyCandidateTest(payload.candidate)).toEqual({ ok: true });
+    expect(cancelComfyCandidateTest(payload.candidate)).toEqual({ ok: true });
   });
 });

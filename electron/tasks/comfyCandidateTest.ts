@@ -13,8 +13,11 @@ export type ComfyCandidateTestResult =
 
 type CandidatePayload = {
   vendor: string;
+  candidate: CandidateEnvelope;
   request: { kind: ProfileKind; prompt: string; extras?: Record<string, unknown> };
 };
+
+type CandidateEnvelope = { revisionId: string; modelKey: string; taskKind: ProfileKind };
 
 type CandidateTestDependencies = {
   runTask: (payload: unknown) => Promise<TaskResult>;
@@ -29,14 +32,31 @@ const controllers = new Map<string, AbortController>();
 
 function text(value: unknown): string { return typeof value === "string" ? value.trim() : ""; }
 
+function candidateEnvelope(payload: unknown): CandidateEnvelope | null {
+  const raw = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
+  const nested = raw.candidate && typeof raw.candidate === "object" ? raw.candidate as Record<string, unknown> : raw;
+  const revisionId = text(nested.revisionId);
+  const modelKey = text(nested.modelKey);
+  const taskKind = text(nested.taskKind) as ProfileKind;
+  return revisionId && modelKey && taskKind ? { revisionId, modelKey, taskKind } : null;
+}
+
 function candidateIntent(payload: unknown): { payload: CandidatePayload; revisionId: string; modelKey: string; taskKind: ProfileKind } {
   const candidate = payload as CandidatePayload;
+  const envelope = candidateEnvelope(payload);
   const revisionId = text(candidate?.request?.extras?.comfyCertificationRevisionId);
   const modelKey = text(candidate?.request?.extras?.modelKey) || text(candidate?.request?.extras?.modelAlias);
-  if (!text(candidate?.vendor) || !revisionId || !modelKey || candidate?.request?.extras?.certifyOutput !== true) {
+  if (!envelope || !text(candidate?.vendor) || !revisionId || !modelKey || candidate?.request?.extras?.certifyOutput !== true
+    || revisionId !== envelope.revisionId || modelKey !== envelope.modelKey || candidate.request.kind !== envelope.taskKind) {
     throw new Error("Invalid ComfyUI candidate certification request");
   }
   return { payload: candidate, revisionId, modelKey, taskKind: candidate.request.kind };
+}
+
+export function failComfyCandidateEnvelope(payload: unknown, reasonCode = "provider_failed"): ComfyCandidateTestResult {
+  const envelope = candidateEnvelope(payload);
+  if (envelope) failComfyCandidateRevision({ ...envelope, reasonCode });
+  return { ok: false, revisionId: envelope?.revisionId || "", reasonCode, params: {} };
 }
 
 function wait(ms: number, signal: AbortSignal): Promise<void> {
@@ -113,7 +133,9 @@ async function executeCandidate(
 }
 
 export function runComfyCandidateTest(payload: unknown, dependencies: CandidateTestDependencies): Promise<ComfyCandidateTestResult> {
-  const intent = candidateIntent(payload);
+  let intent: ReturnType<typeof candidateIntent>;
+  try { intent = candidateIntent(payload); }
+  catch { return Promise.resolve(failComfyCandidateEnvelope(payload, "candidate_invalid_request")); }
   const existing = inFlight.get(intent.revisionId);
   if (existing) return existing;
   const controller = new AbortController();
@@ -127,11 +149,11 @@ export function runComfyCandidateTest(payload: unknown, dependencies: CandidateT
 }
 
 export function cancelComfyCandidateTest(payload: unknown): { ok: boolean } {
-  const raw = payload as { revisionId?: unknown };
-  const revisionId = text(raw?.revisionId);
+  const revisionId = candidateEnvelope(payload)?.revisionId || text((payload as { revisionId?: unknown })?.revisionId);
   if (!revisionId) return { ok: false };
   const controller = controllers.get(revisionId);
-  if (!controller || controller.signal.aborted) return { ok: false };
-  controller.abort(Object.assign(new Error("candidate cancelled"), { name: "AbortError" }));
+  if (controller && !controller.signal.aborted) {
+    controller.abort(Object.assign(new Error("candidate cancelled"), { name: "AbortError" }));
+  }
   return { ok: true };
 }

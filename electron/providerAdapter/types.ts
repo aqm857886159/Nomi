@@ -129,7 +129,7 @@ export type AdapterModeResult = {
    * 渲染层据此说人话 + 给对应的下一步动作；**不要在 UI 里用关键词猜**（同型 bug 已反复出现 5 轮，
    * 见 2026-08-12 `fix(errors): 文本侧错误也在源头留住 category`）。
    */
-  errorCategory?: "auth" | "balance" | "quota" | "input" | "server" | "network" | "unknown";
+  errorCategory?: "auth" | "balance" | "quota" | "input" | "server" | "network" | "timeout" | "unknown";
   httpStatus?: number;
   verifiedAt?: string;
   /** One bounded, sanitized evidence record for every promoted media asset. */

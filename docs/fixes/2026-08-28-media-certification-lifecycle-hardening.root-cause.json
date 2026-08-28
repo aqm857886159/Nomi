@@ -18,6 +18,9 @@
     "electron/catalog/comfyuiWorkflowImportStore.ts",
     "electron/tasks/comfyCandidateTest.ts",
     "electron/tasks/taskIpcHandlers.ts",
+    "electron/vendor/vendorHttp.ts",
+    "src/desktop/bridge.ts",
+    "src/workbench/api/taskApi.ts",
     "src/ui/onboarding/workflowPage/runTestGeneration.ts",
     "src/ui/onboarding/ComfyuiWorkflowImportPanel.tsx",
     "src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx",
@@ -51,15 +54,18 @@
     "Every ComfyUI import or edit is an isolated disabled model and disabled mapping tagged with one opaque revision lease; normal catalog selection cannot execute it.",
     "Only the main-process exact candidate resolver may execute a staged revision, and only when certifyOutput is explicit and revision, model, and task mapping all match.",
     "The renderer retains the formal candidate vendorKey and revisionId returned by import or update, and the dedicated trusted IPC executes only that disabled revision; stale completions cannot clear a newer candidate.",
+    "Candidate identity is duplicated in a minimal trusted IPC envelope so grant, bridge, payload parsing, runtime loading, renderer destruction, window close, unmount, and revision replacement all cancel and fail only that exact staged lease; repeated cancellation is idempotent and promoted or newer revisions are untouched.",
     "Successful unified media certification materializes matching bytes before Task1 promotion and persists one digest plus allowlisted metadata record per bounded asset; submit, poll, provider, materialization, certification, cancellation, and timeout failures delete only the exact staged lease and leave active rows byte-for-byte unchanged.",
     "Certification digest, ffprobe, and ffmpeg decode consume the same held bytes; mutable temporary paths are materialization only and never security evidence.",
     "GLB project writes accept only model/gltf-binary and reuse the shared no-DOM validator before persistence, including accessor bounds, sparse values, embedded image MIME and magic, and image-texture-material-mesh references.",
     "ffprobe and ffmpeg accept only file, pipe, and data protocols, run under bounded process-tree teardown, and surface process_cleanup_failed without child output or paths.",
     "A cleanup lease is atomically registered before provider bytes are written; per-root serialized manifest mutation preserves concurrent entries, skips fresh active runs, and reclaims stale crash leftovers without provider URLs or bodies.",
+    "Startup cleanup recovery schedules bounded retries whenever entries remain, so a fresh active lease is reclaimed automatically after its stale deadline even when no later certification runs.",
     "Generated project media is rejected before disk unless MIME, magic, media kind, and real bounded decode agree or its exact byte digest matches trusted certification evidence.",
     "Provider Adapter verification certifies every returned asset up to a hard count limit; any later HTML, oversize, corrupt, or wrong-kind asset prevents promotion.",
     "Cross-origin redirects strip standard and declared credential headers, and credential-bearing requests reject redirects unless the caller explicitly opts in.",
-    "Multipart and custom-call transports use the same model-kind response budget as standard provider requests."
+    "Multipart and custom-call transports use the same model-kind response budget as standard provider requests.",
+    "A bounded response-body deadline is preserved as timeout with response_timeout rather than being flattened into a generic network read failure."
   ],
   "regression_tests": [
     "electron/assets/projectAssetStore.test.ts",
@@ -69,10 +75,13 @@
     "electron/tasks/taskIpcHandlers.test.ts",
     "src/ui/onboarding/workflowPage/runTestGeneration.test.ts",
     "src/ui/onboarding/comfyCandidateUiFlow.test.ts",
+    "src/ui/onboarding/comfyCandidateComponentLifecycle.test.ts",
+    "src/desktop/bridgeComfyCandidateContract.test.ts",
     "electron/providerAdapter/certificationCleanup.test.ts",
     "electron/providerAdapter/verifier.test.ts",
     "electron/export/mediaProbe.test.ts",
-    "electron/providerAdapter/certificationMedia.test.ts"
+    "electron/providerAdapter/certificationMedia.test.ts",
+    "electron/vendor/vendorHttp.test.ts"
   ],
   "migration": "Existing active ComfyUI models remain active. New imports and edits create isolated candidates and switch only after certification. Existing assets remain readable; new GLB writes are validated. Cleanup recovery stores only opaque run directory names and removes the manifest after successful retry.",
   "residual_risks": [

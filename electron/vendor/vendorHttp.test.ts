@@ -5,7 +5,7 @@ import type { Vendor } from "../catalog/types";
 
 const vendor = { key: "kie", authType: "bearer", baseUrlHint: "https://api.kie.ai" } as unknown as Vendor;
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { delete process.env.NOMI_VENDOR_HTTP_TIMEOUT_MS; vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 const stubFetch = (impl: () => Promise<Response> | Response) => vi.stubGlobal("fetch", vi.fn(async () => impl()));
 
@@ -116,6 +116,19 @@ describe("requestJson 结构化错误(S4-0,修压扁根因)", () => {
     assert(error instanceof VendorRequestError);
     expect(error.structured).toMatchObject({ category: "network", retryable: false, upstreamMsg: "Provider response exceeded the safe size limit" });
     expect(`${error.message}${JSON.stringify(error.structured)}`).not.toContain(sentinel);
+  });
+
+  it("maps a bounded response-body deadline to the stable timeout category and reason", async () => {
+    vi.useFakeTimers(); process.env.NOMI_VENDOR_HTTP_TIMEOUT_MS = "10";
+    stubFetch(() => new Response(new ReadableStream({ pull: () => new Promise(() => {}) })));
+    const pending = requestJson(vendor, "k", "GET", "https://x", {}, {}, null).catch((caught) => caught);
+    await vi.advanceTimersByTimeAsync(11);
+    const error = await pending;
+    assert(error instanceof VendorRequestError);
+    expect(error.structured).toMatchObject({
+      category: "timeout", retryable: true, reasonCode: "response_timeout",
+      upstreamMsg: "读取响应超时（0s）",
+    });
   });
 
   it("请求头含非法字符(密钥混中文)→ 发送前拦截为 auth 不可重试,根本不发 fetch(治 ByteString 误判网络)", async () => {

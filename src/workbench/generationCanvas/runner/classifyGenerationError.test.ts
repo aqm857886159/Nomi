@@ -307,6 +307,14 @@ describe('structured 路径(S4-2:VendorRequestError 经 IPC 标记穿透)', () =
   const encode = (structured: Record<string, unknown>, tail = 'Provider request failed (code 402) at kie POST https://x: 余额不足') =>
     `Error invoking remote method 'nomi:tasks:run': Error: NOMI_VENDOR_ERR_B64::${Buffer.from(JSON.stringify(structured), 'utf8').toString('base64')}:: ${tail}`
 
+  it('uses the stable timeout category without depending on English timeout keywords', () => {
+    const result = classifyGenerationError(encode(
+      { category: 'timeout', reasonCode: 'response_timeout', upstreamMsg: '读取响应超时（120s）' },
+      'Provider request failed: 读取响应超时（120s）',
+    ))
+    expect(result.reason).toBe('连不上服务商')
+  })
+
   it('balance 类别直读 structured,不靠正则;raw 剥掉标记段', () => {
     const r = classifyGenerationError(encode({ category: 'balance', upstreamMsg: '余额不足', vendorKey: 'kie' }))
     expect(r.reason).toBe('余额不足')

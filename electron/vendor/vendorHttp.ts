@@ -14,7 +14,7 @@ import type { Vendor } from "../catalog/types";
 import { networkFailureDetails, redactNetworkMessage, safeNetworkUrl } from "../networkErrorDetails";
 import { BoundedResponseError, readBoundedResponseText } from "./boundedResponse";
 
-export type VendorErrorCategory = "auth" | "balance" | "quota" | "input" | "server" | "network" | "unknown";
+export type VendorErrorCategory = "auth" | "balance" | "quota" | "input" | "server" | "network" | "timeout" | "unknown";
 
 // 单次 vendor HTTP 请求的硬超时（堵无界阻塞 P2 根因：此前裸 fetch 无 timeout，vendor 一 hang
 // 整条生成链 await 死，外部 MCP 端跟着永久转圈）。一次往返足够慢的同步图生成也走得完；异步 vendor
@@ -52,6 +52,7 @@ export type VendorErrorStructured = {
   /** 查表分类,不是猜:401/403→auth,402→balance,429→quota,400/422→input,5xx→server。 */
   category: VendorErrorCategory;
   retryable: boolean;
+  reasonCode?: "response_timeout";
 };
 
 export class VendorRequestError extends Error {
@@ -180,6 +181,18 @@ async function requestVendor(
   } catch (error: unknown) {
     const cancellation = callerCancellation(signal);
     if (cancellation) throw cancellation;
+    if (error instanceof BoundedResponseError && error.code === "response_timeout") {
+      const upstreamMsg = `读取响应超时（${Math.round(timeoutMs / 1000)}s）`;
+      throw new VendorRequestError(`Provider request failed (timeout) at ${vendor.key} ${upperMethod} ${diagnosticUrl}: ${upstreamMsg}`, {
+        vendorKey: vendor.key,
+        method: upperMethod,
+        url: diagnosticUrl,
+        upstreamMsg,
+        category: "timeout",
+        retryable: true,
+        reasonCode: "response_timeout",
+      });
+    }
     if (error instanceof BoundedResponseError && error.code === "response_too_large") {
       const upstreamMsg = "Provider response exceeded the safe size limit";
       throw new VendorRequestError(`Provider request failed (response limit) at ${vendor.key} ${upperMethod} ${diagnosticUrl}: ${upstreamMsg}`, {

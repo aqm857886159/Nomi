@@ -126,7 +126,7 @@ export async function runWorkbenchTaskByVendor(vendor: string, request: TaskRequ
 
 export async function runComfyCandidateTestByVendor(
   vendor: string,
-  payload: { request: TaskRequestDto },
+  payload: { candidate: { revisionId: string; modelKey: string; taskKind: TaskKind }; request: TaskRequestDto },
 ): Promise<ComfyCandidateTestResultDto> {
   const normalizedVendor = String(vendor || '').trim()
   if (!normalizedVendor) throw new Error('vendor is required')
@@ -135,11 +135,20 @@ export async function runComfyCandidateTestByVendor(
   const projectId = getDesktopActiveProjectId()
   return desktop.tasks.runComfyCandidateTest({
     vendor: normalizedVendor,
+    candidate: payload.candidate,
     request: {
       ...payload.request,
       extras: { ...(payload.request.extras || {}), ...(projectId ? { projectId } : {}) },
     },
   })
+}
+
+export async function cancelComfyCandidateTestRevision(candidate: {
+  revisionId: string; modelKey: string; taskKind: TaskKind
+}): Promise<{ ok: boolean }> {
+  const desktop = requireDesktopRuntime('ComfyUI candidate cancellation')
+  if (!desktop.tasks.cancelComfyCandidateTest) throw new Error('ComfyUI candidate cancellation is unavailable')
+  return desktop.tasks.cancelComfyCandidateTest(candidate)
 }
 
 export async function fetchWorkbenchTaskResultByVendor(

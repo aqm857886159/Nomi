@@ -470,6 +470,9 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   if (structured?.category && (STRUCTURED_KINDS as readonly string[]).includes(structured.category)) {
     return reportFor(structured.category as GenerationErrorKind, stripVendorErrorMarker(message), structured.upstreamMsg)
   }
+  if (structured?.category === 'timeout') {
+    return reportFor('network', stripVendorErrorMarker(message), structured.upstreamMsg)
+  }
   // Strip any legacy "\n→ hint" tail that older builds baked into node.error.
   const raw =
     stripVendorErrorMarker(String(message || ''))

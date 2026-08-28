@@ -47,6 +47,8 @@ export function adapterFailureAdvice(input: AdapterFailureInput): AdapterFailure
       return { reasonKey: 'server', action: 'retry' }
     case 'network':
       return { reasonKey: 'network', action: 'fixUrl' }
+    case 'timeout':
+      return { reasonKey: 'network', action: 'retry' }
     default:
       // 不认得就**别装懂**：说清「没看懂这个错」，把原文摆出来（UI 侧），给最通用的两条路。
       return { reasonKey: 'unknown', action: 'selfConnect' }

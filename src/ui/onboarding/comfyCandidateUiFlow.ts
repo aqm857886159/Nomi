@@ -1,7 +1,9 @@
-export type ComfyCandidateUiState = { vendorKey: string; modelKey: string; revisionId: string }
+import type { TaskKind } from '../../workbench/api/taskApi'
+
+export type ComfyCandidateUiState = { vendorKey: string; modelKey: string; revisionId: string; taskKind: TaskKind }
 
 type MutationResult =
-  | ({ ok: true; kind: string; taskKind: string } & ComfyCandidateUiState)
+  | { ok: true; kind: string; taskKind: string; vendorKey: string; modelKey: string; revisionId: string }
   | { ok: false; error: string }
 
 type Settlement =
@@ -9,7 +11,12 @@ type Settlement =
   | { ok: false; revisionId: string; reasonCode: string; params: Record<string, string | number | boolean> }
 
 export function candidateFromWorkflowMutation(result: MutationResult): ComfyCandidateUiState | null {
-  return result.ok ? { vendorKey: result.vendorKey, modelKey: result.modelKey, revisionId: result.revisionId } : null
+  return result.ok ? {
+    vendorKey: result.vendorKey,
+    modelKey: result.modelKey,
+    revisionId: result.revisionId,
+    taskKind: result.taskKind as TaskKind,
+  } : null
 }
 
 export function settleCandidateUiRun(current: ComfyCandidateUiState | null, result: Settlement): {

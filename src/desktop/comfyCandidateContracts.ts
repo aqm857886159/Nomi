@@ -1,5 +1,6 @@
 export type ComfyCandidateTestPayload = {
   vendor: string
+  candidate: { revisionId: string; modelKey: string; taskKind: string }
   request: { kind: string; prompt: string; extras: Record<string, unknown> }
 }
 
