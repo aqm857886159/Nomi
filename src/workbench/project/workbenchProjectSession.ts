@@ -21,6 +21,7 @@ export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
     generationCanvasLastSeq: getCanvasEventLastSeq(),
     // P4:每篇原稿的分镜方案映射随项目落盘（P0-6 从单字段升级）。
     storyboardPlans: workbench.storyboardPlans,
+    storyboardDesignsByDocumentId: workbench.storyboardDesignsByDocumentId,
   }
 }
 
@@ -33,7 +34,11 @@ export function restoreWorkbenchProjectPayload(payload: WorkbenchProjectPayload)
   useWorkbenchStore.getState().setCategories(payload.categories)
   // P4:恢复整套分镜方案映射。restore 在 hydrate 里先于 swapCreationAiProject 跑。
   // 用 hydrateStoryboardPlans(非 setStoryboardPlan):载入不标脏。
-  useWorkbenchStore.getState().hydrateStoryboardPlans(payload.storyboardPlans ?? {})
+  const store = useWorkbenchStore.getState()
+  store.hydrateStoryboardDesigns(
+    payload.storyboardDesignsByDocumentId ?? {},
+    payload.storyboardPlans ?? {},
+  )
   useGenerationCanvasStore.getState().restoreSnapshot(payload.generationCanvas)
 }
 

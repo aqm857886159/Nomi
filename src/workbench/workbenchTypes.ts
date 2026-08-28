@@ -7,6 +7,21 @@ export type WorkbenchDocument = {
   updatedAt: number
 }
 
+/** A storyboard design belongs to one draft, while a draft may keep many designs. */
+export type StoryboardDesignStatus = 'draft' | 'committed' | 'stale'
+
+export type StoryboardDesign = {
+  id: string
+  documentId: string
+  title: string
+  plan: import('./generationCanvas/agent/storyboardPlan').StoryboardPlan
+  committed: boolean
+  status: StoryboardDesignStatus
+  sourceDocumentUpdatedAt: number
+  createdAt: number
+  updatedAt: number
+}
+
 // 行内 mark 白名单：StarterKit 基础 4 个 + 创作编辑器新增的 highlight。
 // 不在名单里的 mark 读盘时丢弃，防止未知/过期 mark 污染文档结构。
 const STARTER_KIT_MARK_TYPES = new Set(['bold', 'italic', 'strike', 'code', 'highlight'])
@@ -184,6 +199,13 @@ export function mintDocumentId(): string {
     return `doc-${globalThis.crypto.randomUUID()}`
   }
   return `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+export function mintStoryboardDesignId(): string {
+  if (typeof globalThis.crypto !== 'undefined' && 'randomUUID' in globalThis.crypto) {
+    return `storyboard-${globalThis.crypto.randomUUID()}`
+  }
+  return `storyboard-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 export type CreationDocumentTools = {

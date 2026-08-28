@@ -117,7 +117,10 @@ export function useNomiRichTextEditor(options: {
     if (!nextJson || nextJson === lastEditorJsonRef.current) return
     const previousSelection = editor.state.selection
     lastEditorJsonRef.current = nextJson
-    editor.commands.setContent(content)
+    // Controlled resource switches are hydration, not user edits. Emitting an
+    // update here would bump the destination document timestamp and mark its
+    // storyboard designs stale merely because the user opened the document.
+    editor.commands.setContent(content, { emitUpdate: false })
     if (editor.isFocused) {
       const maxPosition = editor.state.doc.content.size
       editor.commands.setTextSelection({

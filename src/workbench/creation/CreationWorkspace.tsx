@@ -4,6 +4,7 @@ import { cn } from '../../utils/cn'
 import CreationAiPanel from './CreationAiPanel'
 import WorkbenchEditor from './WorkbenchEditor'
 import DocumentListSidebar from './DocumentListSidebar'
+import StoryboardPlanEditor from './storyboard/StoryboardPlanEditor'
 import { NomiAILabel, WorkbenchButton } from '../../design'
 import { useWorkbenchStore } from '../workbenchStore'
 
@@ -16,12 +17,27 @@ export default function CreationWorkspace(): JSX.Element {
   // 一次性信号：打开示例/新项目时自动展开助手，让「拆镜头」CTA 一眼可见，消费后清掉。
   const autoOpen = useWorkbenchStore((s) => s.creationAssistantAutoOpen)
   const setAutoOpen = useWorkbenchStore((s) => s.setCreationAssistantAutoOpen)
+  const activeStoryboardId = useWorkbenchStore((s) => s.activeStoryboardId)
+  const activeDocumentId = useWorkbenchStore((s) => s.activeDocumentId)
+  const activeStoryboard = useWorkbenchStore((s) => (
+    activeDocumentId && activeStoryboardId
+      ? s.storyboardDesignsByDocumentId[activeDocumentId]?.find((design) => design.id === activeStoryboardId)
+      : undefined
+  ))
+  const workspaceMode = useWorkbenchStore((s) => s.workspaceMode)
+  const designsForActiveDocument = useWorkbenchStore((s) => s.storyboardDesignsByDocumentId[s.activeDocumentId] ?? [])
+  const setActiveStoryboardId = useWorkbenchStore((s) => s.setActiveStoryboardId)
+  React.useEffect(() => {
+    if (workspaceMode === 'storyboard' && !activeStoryboardId && designsForActiveDocument[0]) {
+      setActiveStoryboardId(designsForActiveDocument[0].id, activeDocumentId)
+    }
+  }, [activeDocumentId, activeStoryboardId, designsForActiveDocument, setActiveStoryboardId, workspaceMode])
   React.useEffect(() => {
     if (autoOpen) {
       setCollapsed(false)
       setAutoOpen(false)
     }
-  }, [autoOpen, setAutoOpen])
+  }, [autoOpen, setAutoOpen, setCollapsed])
 
   return (
     <section
@@ -31,24 +47,29 @@ export default function CreationWorkspace(): JSX.Element {
         'pt-[22px] px-6 pb-6',
         'bg-workbench-bg',
         collapsed
-          ? // 收起态：左侧文档列表 200px + 编辑器 1fr + 右侧「重开」pill 各占一格（in-flow），pill 有自己的列、
+          ? cn(
+            // 收起态：左侧资源树 + 编辑器 + 右侧「重开」pill 各占一格（in-flow），pill 有自己的列、
             // 结构上不可能再压到编辑器。根治 3c2fe821 起 pill 用 absolute 浮在右上角、
             // bf026cac 把撤销/重做移到右端后 pill 盖住按钮的重叠（editor 恒 1fr，不复发 #45 裁切）。
-            'grid grid-cols-[200px_minmax(0,1fr)_auto] max-w-[1264px] mx-auto gap-5'
+            'grid grid-cols-[240px_minmax(0,1fr)_auto] max-w-[1304px] mx-auto gap-5',
+            'max-[1320px]:grid-cols-[240px_minmax(0,1fr)] max-[1320px]:grid-rows-[minmax(0,1fr)_auto]',
+            'max-[1180px]:grid-cols-[200px_minmax(0,1fr)]',
+            )
           : cn(
-              'grid grid-cols-[200px_minmax(0,1fr)_344px] max-w-[1440px] mx-auto gap-5',
+              'grid grid-cols-[240px_minmax(0,1fr)_344px] max-w-[1480px] mx-auto gap-5',
               // 断点 1120→880（2026-08-07 飞书反馈「为什么变成上下了」）：1120 太宽，
               // 常规窗口就触发上下堆叠，违背「常驻右栏」拍板（2026-07-25）；右栏 344 + 主区
               // 最小可用 ~536 = 880 以下才真正需要堆叠。
-              'max-[1080px]:grid-cols-[minmax(0,1fr)] max-[1080px]:grid-rows-[minmax(420px,1fr)_minmax(320px,42vh)]',
+              'max-[1320px]:grid-cols-[240px_minmax(0,1fr)] max-[1320px]:grid-rows-[minmax(300px,1fr)_minmax(240px,40%)]',
+              'max-[1180px]:grid-cols-[200px_minmax(0,1fr)]',
             ),
       )}
       aria-label={t('creationAi.workspace.aria')}
     >
-      <DocumentListSidebar />
+        <DocumentListSidebar />
       <div className="min-w-0 min-h-0 flex flex-col gap-2">
-        <div className="min-h-0 flex-1" data-creation-surface="source">
-          <WorkbenchEditor />
+        <div className="min-h-0 flex-1" data-creation-surface={activeStoryboard ? 'storyboard' : 'source'}>
+          {activeStoryboard ? <StoryboardPlanEditor /> : <WorkbenchEditor />}
         </div>
       </div>
       {collapsed ? (

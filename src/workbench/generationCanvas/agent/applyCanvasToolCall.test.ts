@@ -232,17 +232,18 @@ describe('applyCanvasToolCall propose_storyboard_plan', () => {
       'doc-1',
     )
     useWorkbenchStore.getState().hydrateStoryboardPlans({})
-    useWorkbenchStore.getState().setWorkspaceMode('generation')
+    useWorkbenchStore.getState().setWorkspaceMode('creation')
   })
 
-  it('合法方案 → 落创作 store + 切到分镜页 + 不动画布,回执含计数', async () => {
-    const ack = (await applyCanvasToolCall('propose_storyboard_plan', PLAN)) as string
+  it('合法方案 → 落统一创作页 + 不动画布,回执含计数', async () => {
+    const ack = await applyCanvasToolCall('propose_storyboard_plan', PLAN)
     const ws = useWorkbenchStore.getState()
     expect(ws.storyboardPlans['doc-1'].plan).toEqual(PLAN)
-    expect(ws.workspaceMode).toBe('storyboard') // P3:拆完切独立分镜页(原切回 creation)
+    expect(ws.workspaceMode).toBe('creation')
     expect(useGenerationCanvasStore.getState().nodes).toHaveLength(0) // 规划不碰画布
-    expect(ack).toContain('1 个锚')
-    expect(ack).toContain('2 个镜头')
+    expect(ack).toMatchObject({ status: 'applied', documentId: 'doc-1', storyboardDesignId: expect.any(String) })
+    expect((ack as { message: string }).message).toContain('1 个锚')
+    expect((ack as { message: string }).message).toContain('2 个镜头')
   })
 
   it('畸形方案 → throw,不落 store(调用方映射成 tool error 回喂 LLM)', async () => {
@@ -250,6 +251,40 @@ describe('applyCanvasToolCall propose_storyboard_plan', () => {
       applyCanvasToolCall('propose_storyboard_plan', { title: 't', anchors: [{ id: 'x', kind: 'bad' }], shots: [] }),
     ).rejects.toThrow()
     expect(useWorkbenchStore.getState().storyboardPlans['doc-1']).toBeUndefined()
+  })
+
+  it('规划期间用户切走后不抢回工作区，结果仍落原文稿', async () => {
+    useWorkbenchStore.getState().setWorkspaceMode('generation')
+    await applyCanvasToolCall('propose_storyboard_plan', PLAN, undefined, undefined, 'doc-1')
+    const ws = useWorkbenchStore.getState()
+    expect(ws.workspaceMode).toBe('generation')
+    expect(ws.storyboardDesignsByDocumentId['doc-1'][0].plan).toEqual(PLAN)
+  })
+
+  it('全新拆镜不会覆盖当前已确认的分镜设计', async () => {
+    await applyCanvasToolCall('propose_storyboard_plan', PLAN, undefined, undefined, 'doc-1')
+    const firstId = useWorkbenchStore.getState().activeStoryboardId!
+    useWorkbenchStore.getState().commitStoryboardPlan('doc-1', firstId)
+
+    const nextPlan = { ...PLAN, title: '另一版' }
+    const result = await applyCanvasToolCall('propose_storyboard_plan', nextPlan, undefined, undefined, 'doc-1')
+    const ws = useWorkbenchStore.getState()
+
+    expect(result).toMatchObject({ status: 'applied', storyboardDesignId: expect.any(String) })
+    expect((result as { storyboardDesignId: string }).storyboardDesignId).not.toBe(firstId)
+    expect(ws.storyboardDesignsByDocumentId['doc-1']).toHaveLength(2)
+    expect(ws.storyboardDesignsByDocumentId['doc-1'].find((design) => design.id === firstId)?.committed).toBe(true)
+  })
+
+  it('生成期间原稿被删除时不留下孤儿分镜', async () => {
+    useWorkbenchStore.getState().addWorkbenchDocument()
+    const deletedDocumentId = useWorkbenchStore.getState().activeDocumentId
+    useWorkbenchStore.getState().deleteWorkbenchDocument(deletedDocumentId)
+
+    const result = await applyCanvasToolCall('propose_storyboard_plan', PLAN, undefined, undefined, deletedDocumentId)
+
+    expect(result).toMatchObject({ status: 'obsolete', documentId: deletedDocumentId })
+    expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId[deletedDocumentId]).toBeUndefined()
   })
 })
 

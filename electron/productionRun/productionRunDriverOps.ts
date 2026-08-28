@@ -382,9 +382,10 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
         commandId: `driver:${run.runId}:storyboard-proposed:${hash.slice(0, 16)}`,
         expectedRevision: current.revision, type: 'plan.proposed',
         payload: { artifacts: [{
-          artifactId: `artifact-storyboard-v${version}`, stageId: 'storyboard', kind: 'storyboard' as const,
-          status: 'candidate' as const, version, source: 'nomi-agent' as const,
-          sourceArtifactId: source.artifactId, sourceVersion: source.version,
+           artifactId: `artifact-storyboard-v${version}`, stageId: 'storyboard', kind: 'storyboard' as const,
+           status: 'candidate' as const, version, source: 'nomi-agent' as const,
+           contentHash: hash,
+           sourceArtifactId: source.artifactId, sourceVersion: source.version,
           sourceContentHash: source.contentHash, sourceHash: source.contentHash, reviewStatus: 'waiting' as const,
           sourceScriptArtifactId: source.artifactId, sourceScriptVersion: source.version, sourceScriptHash: source.contentHash,
           skillEvidence,

@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import crypto from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -96,6 +97,15 @@ describe('ProductionRunService driver round 1', () => {
     })
     expect(approved.run.status).toBe('running')
     await approveLatestScript(service, 'project-1', 'run-driver-2')
+    const proposed = service.readFull('project-1', 'run-driver-2')
+    const proposedStoryboard = proposed.artifacts.find((item) => item.kind === 'storyboard')!
+    const persistedStoryboard = JSON.parse(fs.readFileSync(path.join(root, proposedStoryboard.projectRelativePath!), 'utf8')) as {
+      planHash: string
+      plan: unknown
+    }
+    const recalculatedPlanHash = crypto.createHash('sha256').update(JSON.stringify(persistedStoryboard.plan)).digest('hex')
+    expect(proposedStoryboard.contentHash).toBe(recalculatedPlanHash)
+    expect(persistedStoryboard.planHash).toBe(recalculatedPlanHash)
     await approveLatestStoryboard(service, 'project-1', 'run-driver-2')
     const planned = service.readFull('project-1', 'run-driver-2')
     expect(planned.status).toBe('awaiting_storyboard_review')

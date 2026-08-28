@@ -303,6 +303,9 @@ export type StoryboardPlanToArgsOptions = {
   defaultVideoModeId?: string
   /** Stable id used to make a production materialization retry converge on existing nodes. */
   materializationOperationId?: string
+  /** Creation resource provenance used to trace canvas nodes back to their source. */
+  creationDocumentId?: string
+  storyboardDesignId?: string
 }
 
 const VISUAL_KINDS: ReadonlySet<PlanAnchorKind> = new Set(['character', 'scene', 'prop'])
@@ -343,8 +346,12 @@ function storyboardShotMetadata(
   shot: PlanShot,
   materializationOperationId?: string,
   materializationClientId?: string,
+  creationDocumentId?: string,
+  storyboardDesignId?: string,
 ): Record<string, unknown> {
   const metadata: Record<string, unknown> = { shotId: stableShotId(shot) }
+  if (creationDocumentId) metadata.creationDocumentId = creationDocumentId
+  if (storyboardDesignId) metadata.storyboardDesignId = storyboardDesignId
   if (materializationOperationId && materializationClientId) {
     metadata.materializationOperationId = materializationOperationId
     metadata.materializationClientId = materializationClientId
@@ -482,10 +489,14 @@ export function storyboardPlanToCreateNodesArgs(
       // description 仍拼进 prompt（buildAnchorSheetPrompt），二者并存不矛盾（static/dynamic 是 description 的结构化细化）。
       ...(anchor.staticFeatures && anchor.staticFeatures.trim() ? { staticFeatures: anchor.staticFeatures.trim() } : {}),
       ...(anchor.dynamicFeatures && anchor.dynamicFeatures.trim() ? { dynamicFeatures: anchor.dynamicFeatures.trim() } : {}),
-      ...(options.materializationOperationId ? {
+      ...(options.materializationOperationId || options.creationDocumentId || options.storyboardDesignId ? {
         metadata: {
-          materializationOperationId: options.materializationOperationId,
-          materializationClientId: anchor.id,
+          ...(options.materializationOperationId ? {
+            materializationOperationId: options.materializationOperationId,
+            materializationClientId: anchor.id,
+          } : {}),
+          ...(options.creationDocumentId ? { creationDocumentId: options.creationDocumentId } : {}),
+          ...(options.storyboardDesignId ? { storyboardDesignId: options.storyboardDesignId } : {}),
         },
       } : {}),
       ...(options.defaultImageModelKey ? { modelKey: options.defaultImageModelKey } : {}),
@@ -531,7 +542,14 @@ export function storyboardPlanToCreateNodesArgs(
         ...(keyframeModelKey ? { modelKey: keyframeModelKey } : {}),
         ...(keyframeModeId ? { modeId: keyframeModeId } : {}),
         ...(shot.keyframe?.params ? { params: shot.keyframe.params } : {}),
-        metadata: storyboardShotMetadata(plan, shot, options.materializationOperationId, referenceTargetId),
+        metadata: storyboardShotMetadata(
+          plan,
+          shot,
+          options.materializationOperationId,
+          referenceTargetId,
+          options.creationDocumentId,
+          options.storyboardDesignId,
+        ),
       })
     }
     nodes.push({
@@ -547,7 +565,14 @@ export function storyboardPlanToCreateNodesArgs(
         ...(shot.params || {}),
         ...(!isImageShot && Number.isFinite(shot.durationSec) ? { duration: shot.durationSec } : {}),
       },
-      metadata: storyboardShotMetadata(plan, shot, options.materializationOperationId, id),
+      metadata: storyboardShotMetadata(
+        plan,
+        shot,
+        options.materializationOperationId,
+        id,
+        options.creationDocumentId,
+        options.storyboardDesignId,
+      ),
     })
     // 定妆卡 → 这一镜参考边（角色 character_ref / 场景·风格 style_ref / 道具 reference）。图片/视频镜头都连。
     for (const anchorId of visualAnchorIds) {

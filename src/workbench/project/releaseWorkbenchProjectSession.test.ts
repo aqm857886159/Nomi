@@ -40,6 +40,14 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
     useWorkbenchStore.setState({
       creationAiMessages: [{ id: 'm2', role: 'user', content: 'hello' }],
       storyboardPlans: { 'doc-a': { plan: { title: 'plan', anchors: [], shots: [] }, committed: true } },
+      storyboardDesignsByDocumentId: {
+        'doc-a': [{
+          id: 'storyboard-a', documentId: 'doc-a', title: 'plan',
+          plan: { title: 'plan', anchors: [], shots: [] }, committed: true, status: 'committed',
+          sourceDocumentUpdatedAt: 1, createdAt: 1, updatedAt: 1,
+        }],
+      },
+      activeStoryboardId: 'storyboard-a',
       timeline: { ...createDefaultTimeline(), playheadFrame: 24 },
       selectedTimelineClipIds: ['clip1'],
       timelineUndoStack: [createDefaultTimeline()],
@@ -69,6 +77,8 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
     const workbench = useWorkbenchStore.getState()
     expect(workbench.creationAiMessages).toEqual([])
     expect(workbench.storyboardPlans).toEqual({})
+    expect(workbench.storyboardDesignsByDocumentId).toEqual({})
+    expect(workbench.activeStoryboardId).toBeNull()
     expect(workbench.timeline).toEqual(createDefaultTimeline())
     expect(workbench.selectedTimelineClipIds).toEqual([])
     expect(workbench.timelineUndoStack).toEqual([])

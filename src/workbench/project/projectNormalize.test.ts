@@ -31,6 +31,42 @@ describe('normalizePayload — storyboardPlan 持久化往返(P0-6)', () => {
     expect(out.storyboardPlans).toEqual({})
   })
 
+  it('多分镜设计持久化往返不丢，且保留旧 storyboardPlans 投影', () => {
+    const base = createDefaultWorkbenchProjectPayload()
+    const documentId = base.activeDocumentId!
+    const design = {
+      id: 'storyboard-1',
+      documentId,
+      title: '导演版 A',
+      plan,
+      committed: false,
+      status: 'draft' as const,
+      sourceDocumentUpdatedAt: 10,
+      createdAt: 11,
+      updatedAt: 12,
+    }
+    const out = normalizePayload({
+      ...base,
+      storyboardPlans: { [documentId]: { plan, committed: false } },
+      storyboardDesignsByDocumentId: { [documentId]: [design] },
+    })
+    expect(out.storyboardDesignsByDocumentId?.[documentId]).toEqual([design])
+    expect(out.storyboardPlans?.[documentId].plan).toEqual(plan)
+  })
+
+  it('空的新字段不会遮掉仍有数据的旧 storyboardPlans', () => {
+    const base = createDefaultWorkbenchProjectPayload()
+    const documentId = base.activeDocumentId!
+    const out = normalizePayload({
+      ...base,
+      storyboardPlans: { [documentId]: { plan, committed: false } },
+      storyboardDesignsByDocumentId: {},
+    })
+
+    expect(out.storyboardDesignsByDocumentId).toBeUndefined()
+    expect(out.storyboardPlans?.[documentId].plan).toEqual(plan)
+  })
+
   it('保留画布事件日志游标，避免结果级更新后重复回放旧事件', () => {
     const out = normalizePayload({ ...createDefaultWorkbenchProjectPayload(), generationCanvasLastSeq: 37 })
     expect(out.generationCanvasLastSeq).toBe(37)

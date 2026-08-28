@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { storyboardPlanSourceMatchesApprovedScript } from './StoryboardPlanEditor'
+import {
+  findMatchingCandidateStoryboard,
+  storyboardDesignNeedsSync,
+  storyboardPlanContentHash,
+  storyboardPlanSourceMatchesApprovedScript,
+} from './storyboardPlanGuards'
+import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 
 const plan = {
   sourceScriptArtifactId: 'artifact-script-v2',
@@ -27,5 +33,27 @@ describe('StoryboardPlanEditor provenance guard', () => {
 
   it('does not require provenance for a local, pre-production plan', () => {
     expect(storyboardPlanSourceMatchesApprovedScript({}, [])).toBe(true)
+  })
+
+  it('matches only the candidate artifact with the exact storyboard content hash', async () => {
+    const fullPlan: StoryboardPlan = { title: '版本 B', anchors: [], shots: [{ index: 1, durationSec: 5, anchorIds: [], prompt: 'B' }] }
+    const hash = await storyboardPlanContentHash(fullPlan)
+    expect(hash).toMatch(/^[a-f0-9]{64}$/)
+    await expect(findMatchingCandidateStoryboard(fullPlan, [
+      { artifactId: 'artifact-a', kind: 'storyboard', status: 'candidate', contentHash: '0'.repeat(64) },
+      { artifactId: 'artifact-b', kind: 'storyboard', status: 'candidate', contentHash: hash! },
+    ])).resolves.toMatchObject({ artifactId: 'artifact-b' })
+  })
+
+  it('does not bind a local design to an unrelated production candidate', async () => {
+    const fullPlan: StoryboardPlan = { title: '本地版', anchors: [], shots: [{ index: 1, durationSec: 5, anchorIds: [], prompt: 'local' }] }
+    await expect(findMatchingCandidateStoryboard(fullPlan, [
+      { artifactId: 'artifact-other', kind: 'storyboard', status: 'candidate', contentHash: 'f'.repeat(64) },
+    ])).resolves.toBeUndefined()
+  })
+
+  it('treats a newer source document as needing synchronization', () => {
+    expect(storyboardDesignNeedsSync(11, 10)).toBe(true)
+    expect(storyboardDesignNeedsSync(10, 10)).toBe(false)
   })
 })

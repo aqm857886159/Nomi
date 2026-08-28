@@ -111,6 +111,10 @@ export function normalizePayload(input: unknown): WorkbenchProjectPayload {
     categories: normalizeCategories(payload.categories),
     generationCanvasLastSeq: payload.generationCanvasLastSeq,
     storyboardPlans,
+    ...(payload.storyboardDesignsByDocumentId
+      && Object.values(payload.storyboardDesignsByDocumentId).some((designs) => designs.length > 0)
+      ? { storyboardDesignsByDocumentId: payload.storyboardDesignsByDocumentId }
+      : {}),
   }
 }
 

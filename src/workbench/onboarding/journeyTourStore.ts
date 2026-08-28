@@ -89,7 +89,7 @@ export const useJourneyTourStore = create<JourneyTourState>((set) => {
     // ── 创作区：AI 拆分镜（预置方案直接展示）──
     const plan = buildDemoStoryboardPlan()
     ws().setStoryboardPlan(plan)
-    ws().setWorkspaceMode('storyboard')
+    ws().setWorkspaceMode('creation')
     cinematic('split')
     await delay(2600)
     if (aborted()) return

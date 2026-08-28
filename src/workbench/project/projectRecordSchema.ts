@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createDefaultTimeline } from '../timeline/timelineMath'
 import type { TimelineState } from '../timeline/timelineTypes'
 import { createDefaultWorkbenchDocument, type WorkbenchDocument } from '../workbenchTypes'
+import type { StoryboardDesign } from '../workbenchTypes'
 import { createDefaultGenerationCanvasSnapshot } from '../generationCanvas/store/generationCanvasDefaults'
 import type { GenerationCanvasSnapshot } from '../generationCanvas/model/generationCanvasTypes'
 import { storyboardPlanSchema, type StoryboardPlan } from '../generationCanvas/agent/storyboardPlan'
@@ -72,6 +73,20 @@ export const workbenchProjectPayloadSchema = z.object({
       committed: z.boolean().optional(),
     }),
   ).optional(),
+  /** Multiple storyboard designs per draft. Older payloads are migrated from storyboardPlans. */
+  storyboardDesignsByDocumentId: z.record(
+    z.array(z.object({
+      id: z.string().min(1),
+      documentId: z.string().min(1),
+      title: z.string(),
+      plan: storyboardPlanSchema,
+      committed: z.boolean(),
+      status: z.enum(['draft', 'committed', 'stale']),
+      sourceDocumentUpdatedAt: z.number().finite(),
+      createdAt: z.number().finite(),
+      updatedAt: z.number().finite(),
+    })),
+  ).optional(),
 })
 
 export const workbenchProjectRecordSchema = workbenchProjectSummarySchema.extend({
@@ -132,6 +147,7 @@ export type WorkbenchProjectPayload = {
   generationCanvasLastSeq?: number
   /** P4:每篇原稿的分镜方案映射（key=documentId）。无则空。 */
   storyboardPlans?: Record<string, { plan: StoryboardPlan; committed: boolean }>
+  storyboardDesignsByDocumentId?: Record<string, StoryboardDesign[]>
   /** @deprecated P0-6 单字段，P4 改为 storyboardPlans；仅读侧迁移用。 */
   storyboardPlan?: StoryboardPlan | null
   /** @deprecated 随 storyboardPlans entry 内嵌；仅读侧迁移用。 */

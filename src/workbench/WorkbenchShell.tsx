@@ -27,10 +27,6 @@ const GenerationWorkspace = lazyWithChunkBoundary(
     () => import("./generation/GenerationWorkspace"),
 );
 const PreviewWorkspace = lazyWithChunkBoundary("预览区", () => import("./preview/PreviewWorkspace"));
-const StoryboardWorkspace = lazyWithChunkBoundary(
-    "分镜区",
-    () => import("./creation/storyboard/StoryboardWorkspace"),
-);
 
 type WorkbenchShellProps = {
     generation: React.ReactNode;
@@ -273,18 +269,11 @@ export default function WorkbenchShell({
                     <ProjectExplorerSidebar projectId={projectId ?? null} categories={categories} />
                 ) : null}
                 <div className='flex-1 min-w-0 min-h-0 relative'>
-                    {mountedWorkspaceModes.includes("creation") ? (
+                    {mountedWorkspaceModes.includes("creation") || mountedWorkspaceModes.includes("storyboard") ? (
                         <WorkspaceSlot
-                            active={workspaceMode === "creation"}
+                            active={workspaceMode === "creation" || workspaceMode === "storyboard"}
                             label={t("workspace.creation")}>
                             <CreationWorkspace />
-                        </WorkspaceSlot>
-                    ) : null}
-                    {mountedWorkspaceModes.includes("storyboard") ? (
-                        <WorkspaceSlot
-                            active={workspaceMode === "storyboard"}
-                            label={t("workspace.storyboard")}>
-                            <StoryboardWorkspace />
                         </WorkspaceSlot>
                     ) : null}
                     {mountedWorkspaceModes.includes("generation") ? (

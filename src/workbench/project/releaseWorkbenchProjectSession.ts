@@ -67,6 +67,8 @@ export function releaseWorkbenchProjectRuntimeState(): void {
     creationAiAttachments: [],
     creationAiError: '',
     storyboardPlans: {},
+    storyboardDesignsByDocumentId: {},
+    activeStoryboardId: null,
     timeline: createDefaultTimeline(),
     timelinePlaying: false,
     previewAspectRatio: '16:9',

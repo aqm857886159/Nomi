@@ -220,6 +220,7 @@ export async function applyCanvasToolCall(
   gesture?: CanvasGestureContext,
   canWrite?: () => boolean,
   documentId?: string,
+  storyboardId?: string,
 ): Promise<unknown> {
   const assertWritable = () => { if (canWrite) assertTurnCanWrite(canWrite) }
   assertWritable()
@@ -256,9 +257,32 @@ export async function applyCanvasToolCall(
     // P4:按 documentId 存方案。documentId 由调用方在发起拆镜头时捕获，异步期间切文档不串稿。
     // 缺 documentId（如旧调用方）回退 activeDocumentId，保证至少落到当前激活文档。
     const targetDocumentId = documentId ?? store.activeDocumentId
-    store.setStoryboardPlan(plan, targetDocumentId)
-    store.setWorkspaceMode('storyboard') // 拆完切到独立分镜页（P3，替代原创作页内展开编辑器）。
-    return `已生成分镜方案「${plan.title || '未命名'}」：${plan.anchors.length} 个锚 · ${plan.shots.length} 个镜头，已放到分镜页，待你审阅/修改后确认落画布。`
+    if (!store.workbenchDocuments.some((document) => document.id === targetDocumentId)) {
+      return {
+        status: 'obsolete',
+        documentId: targetDocumentId,
+        ...(storyboardId ? { storyboardDesignId: storyboardId } : {}),
+        message: '目标原稿已不存在，未应用迟到的规划结果。',
+      } satisfies StoryboardPlanApplicationResult
+    }
+    const design = store.setStoryboardPlan(plan, targetDocumentId, storyboardId, true, !storyboardId)
+    if (!design) {
+      return {
+        status: 'obsolete',
+        documentId: targetDocumentId,
+        ...(storyboardId ? { storyboardDesignId: storyboardId } : {}),
+        message: '目标分镜已不存在，未应用迟到的规划结果。',
+      } satisfies StoryboardPlanApplicationResult
+    }
+    if (store.workspaceMode === 'creation' || store.workspaceMode === 'storyboard') {
+      store.setWorkspaceMode('creation')
+    }
+    return {
+      status: 'applied',
+      documentId: targetDocumentId,
+      storyboardDesignId: design.id,
+      message: `已生成分镜方案「${plan.title || '未命名'}」：${plan.anchors.length} 个锚 · ${plan.shots.length} 个镜头，已放到创作页，待你审阅/修改后确认落画布。`,
+    } satisfies StoryboardPlanApplicationResult
   }
 
   if (toolName === 'create_canvas_nodes') {
@@ -638,4 +662,10 @@ export async function applyCanvasToolCall(
   }
 
   throw new Error(`unknown tool ${toolName}`)
+}
+export type StoryboardPlanApplicationResult = {
+  status: 'applied' | 'obsolete'
+  documentId: string
+  storyboardDesignId?: string
+  message: string
 }

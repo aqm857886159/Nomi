@@ -118,7 +118,13 @@ export default function WorkbenchEditor(): JSX.Element {
 
   const handleChange = React.useCallback(
     (contentJson: JSONContent) => {
-      setWorkbenchDocument({ ...workbenchDocumentRef.current, contentJson, updatedAt: Date.now() })
+      const currentDocument = workbenchDocumentRef.current
+      const currentContent = normalizeWorkbenchContentJson(currentDocument.contentJson)
+      // Tiptap can emit an initialization update even when its JSON is
+      // unchanged. Opening a draft must not mutate its source revision or mark
+      // every attached storyboard as needing synchronization.
+      if (JSON.stringify(currentContent) === JSON.stringify(contentJson)) return
+      setWorkbenchDocument({ ...currentDocument, contentJson, updatedAt: Date.now() })
     },
     [setWorkbenchDocument],
   )
@@ -181,6 +187,7 @@ export default function WorkbenchEditor(): JSX.Element {
         'overflow-hidden',
       )}
       aria-label={t('creationAi.editor.documentAria')}
+      data-creation-editor="true"
       onKeyDown={(event) => event.stopPropagation()}
       onKeyUp={(event) => event.stopPropagation()}
     >

@@ -11,14 +11,30 @@ import { useWorkbenchStore } from '../../workbenchStore'
  *   editorOpen → 编辑中｜!committed → 草稿｜committed → 已落画布。
  * 编辑仍走主列全宽 StoryboardPlanEditor（卡片只做摘要+状态+入口）。
  */
-export default function StoryboardPlanCard(): JSX.Element | null {
+type StoryboardPlanCardProps = {
+  documentId?: string
+  storyboardId?: string
+}
+
+export default function StoryboardPlanCard({ documentId, storyboardId }: StoryboardPlanCardProps = {}): JSX.Element | null {
   const { t } = useTranslation()
   const activeDocumentId = useWorkbenchStore((s) => s.activeDocumentId)
-  const entry = useWorkbenchStore((s) => (s.activeDocumentId ? s.storyboardPlans[s.activeDocumentId] : undefined))
-  const plan = entry?.plan ?? null
-  const committed = entry?.committed ?? false
-  const discardStoryboardPlan = useWorkbenchStore((s) => s.discardStoryboardPlan)
+  const targetDocumentId = documentId ?? activeDocumentId
+  const entry = useWorkbenchStore((s) => (targetDocumentId ? s.storyboardPlans[targetDocumentId] : undefined))
+  const exactDesign = useWorkbenchStore((s) => storyboardId
+    ? s.storyboardDesignsByDocumentId[targetDocumentId]?.find((design) => design.id === storyboardId)
+    : undefined)
+  const plan = exactDesign?.plan ?? (storyboardId ? null : entry?.plan ?? null)
+  const committed = exactDesign?.committed ?? (storyboardId ? false : entry?.committed ?? false)
+  const deleteStoryboardDesign = useWorkbenchStore((s) => s.deleteStoryboardDesign)
   const setWorkspaceMode = useWorkbenchStore((s) => s.setWorkspaceMode)
+  const setActiveStoryboardId = useWorkbenchStore((s) => s.setActiveStoryboardId)
+  const projectedStoryboardId = useWorkbenchStore((s) => {
+    const currentEntry = targetDocumentId ? s.storyboardPlans[targetDocumentId] : undefined
+    const designs = s.storyboardDesignsByDocumentId[targetDocumentId] ?? []
+    return designs.find((design) => design.plan === currentEntry?.plan)?.id ?? designs[0]?.id
+  })
+  const resolvedStoryboardId = exactDesign?.id ?? projectedStoryboardId
 
   if (!plan) return null
 
@@ -40,7 +56,12 @@ export default function StoryboardPlanCard(): JSX.Element | null {
       confirmLabel: t('storyboardEditor.discard'),
       danger: true,
     })
-    if (ok) discardStoryboardPlan(activeDocumentId)
+    if (ok && resolvedStoryboardId) deleteStoryboardDesign(resolvedStoryboardId, targetDocumentId)
+  }
+
+  const openEditor = () => {
+    if (resolvedStoryboardId) setActiveStoryboardId(resolvedStoryboardId, targetDocumentId)
+    setWorkspaceMode('creation')
   }
 
   // 状态徽标用 Nomi 品牌色(草稿=暖 accent、已落=success)。StatusBadge 是 Mantine
@@ -66,7 +87,7 @@ export default function StoryboardPlanCard(): JSX.Element | null {
         <>
           <span className="text-caption text-nomi-ink-60">{t('storyboardEditor.planCard.committedSummary', { count: shotCount })}</span>
           <div className="flex items-center gap-2">
-            <WorkbenchButton variant="default" size="sm" onClick={() => setWorkspaceMode('storyboard')}>{t('storyboardEditor.planCard.editAgain')}</WorkbenchButton>
+            <WorkbenchButton variant="default" size="sm" onClick={openEditor}>{t('storyboardEditor.planCard.editAgain')}</WorkbenchButton>
             <WorkbenchButton variant="default" size="sm" className="ml-auto" onClick={() => setWorkspaceMode('generation')}>
               {t('storyboardEditor.planCard.goGeneration')}<IconArrowRight size={13} stroke={1.6} />
             </WorkbenchButton>
@@ -89,7 +110,7 @@ export default function StoryboardPlanCard(): JSX.Element | null {
             ) : null}
           </div>
           <div className="flex items-center gap-2">
-            <WorkbenchButton variant="primary" size="sm" onClick={() => setWorkspaceMode('storyboard')}>{t('storyboardEditor.planCard.openEditor')}</WorkbenchButton>
+            <WorkbenchButton variant="primary" size="sm" onClick={openEditor}>{t('storyboardEditor.planCard.openEditor')}</WorkbenchButton>
             <button
               type="button"
               onClick={onDiscard}
