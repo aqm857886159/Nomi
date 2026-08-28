@@ -273,7 +273,21 @@ export function createProjectAgentExecutionCoordinator(
   }
 
   async function enqueue(subscriptionId: string, input: ProjectAgentExecutionEnqueue) {
-    const request = captureAgentChatRequest({ ...input.request, history: { kind: "ephemeral" } });
+    const record = requireSubscription(subscriptionId);
+    for (const claimedProjectId of [input.request.projectId, input.request.canvasProjectId]) {
+      if (claimedProjectId !== undefined && claimedProjectId !== record.binding.projectId) {
+        throw new ProjectAgentSubscriptionError("Project Agent request project does not match its subscription");
+      }
+    }
+    const target = input.mutation.payload.queueItem.target;
+    const request = captureAgentChatRequest({
+      ...input.request,
+      history: { kind: "ephemeral" },
+      projectId: record.binding.projectId,
+      ...(target.kind === "canvas"
+        ? { canvasProjectId: record.binding.projectId, selectedNodeIds: [...target.nodeIds] }
+        : { canvasProjectId: undefined, selectedNodeIds: [] }),
+    });
     const requestMap = requests.get(subscriptionId);
     if (!requestMap) throw new ProjectAgentSubscriptionError("Project Agent subscription is unavailable");
     const turnId = input.mutation.payload.turn.turnId;

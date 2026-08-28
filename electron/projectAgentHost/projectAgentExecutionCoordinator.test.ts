@@ -616,4 +616,124 @@ describe("ProjectAgentExecutionCoordinator", () => {
     expect(final.turns[0]?.status).toBe("done");
     coordinator.release(opened.subscriptionId);
   });
+
+  it("rejects a forged request project and derives canvas selection from the queued target", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-request-scope-"));
+    let capturedRequest: AgentChatRequest | undefined;
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-request-scope",
+      {
+        runAgent: async (request) => {
+          capturedRequest = request;
+          return {
+            id: "request-scope-result",
+            status: "finished",
+            text: "done",
+            finishReason: "stop",
+            artifacts: [],
+            toolCalls: [],
+            usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+          } satisfies AgentChatResponse;
+        },
+      },
+    );
+    const opened = coordinator.open(binding);
+    const timestamp = "2026-08-28T00:00:00.000Z";
+    const thread = {
+      threadId: "thread-request-scope",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      provenance: { kind: "canonical" as const },
+    };
+    const contextRef = {
+      binding: createProjectAgentContextBinding(binding, thread.threadId),
+      contextRevision: 0,
+      recordId: "context-request-scope",
+    } as const;
+    const turn = {
+      turnId: "turn-request-scope",
+      threadId: thread.threadId,
+      executionToken: "token-request-scope",
+      model: { id: "model", version: 1 },
+      skillVersions: [],
+      capabilityVersions: [{ id: "canvas-refine", version: 1 }],
+      contextRef,
+      status: "queued" as const,
+      retryable: false,
+      deviated: false,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const userItem = {
+      itemId: "user-request-scope",
+      threadId: thread.threadId,
+      turnId: turn.turnId,
+      kind: "user" as const,
+      text: "refine",
+      status: "done" as const,
+      retryable: false,
+      deviated: false,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const queueItem = {
+      queueItemId: "queue-request-scope",
+      threadId: thread.threadId,
+      turnId: turn.turnId,
+      binding,
+      target: { kind: "canvas" as const, nodeIds: ["canonical-node"] },
+      preconditions: {},
+      contextRef,
+      model: turn.model,
+      skillVersions: [],
+      capabilityVersions: turn.capabilityVersions,
+      policyRevision: 1,
+      attachmentRefs: [],
+      originSurface: { surfaceId: "surface", kind: "canvas" as const },
+      enqueuedAt: timestamp,
+      status: "queued" as const,
+      retryable: false,
+      deviated: false,
+      updatedAt: timestamp,
+    };
+    const mutation: Extract<ProjectAgentMutation, { type: "turn.enqueue" }> = {
+      commandId: "enqueue-request-scope",
+      expectedRevision: 0,
+      binding,
+      sender: { kind: "renderer", senderId: opened.subscriptionId },
+      type: "turn.enqueue",
+      payload: { thread, turn, userItem, queueItem },
+    };
+
+    await expect(
+      coordinator.enqueue(opened.subscriptionId, {
+        mutation,
+        request: {
+          prompt: "forged",
+          capability: "canvas-refine",
+          history: { kind: "ephemeral" },
+          projectId: "project-b",
+          selectedNodeIds: ["forged-node"],
+        },
+      }),
+    ).rejects.toThrow(ProjectAgentSubscriptionError);
+
+    await coordinator.enqueue(opened.subscriptionId, {
+      mutation,
+      request: {
+        prompt: "valid",
+        capability: "canvas-refine",
+        history: { kind: "ephemeral" },
+        projectId: binding.projectId,
+        selectedNodeIds: ["forged-node"],
+      },
+    });
+    await coordinator.waitForTurn(opened.subscriptionId, turn.turnId);
+    expect(capturedRequest).toMatchObject({
+      projectId: binding.projectId,
+      canvasProjectId: binding.projectId,
+      selectedNodeIds: ["canonical-node"],
+    });
+  });
 });
