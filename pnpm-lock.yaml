@@ -88,9 +88,18 @@ importers:
       '@tiptap/core':
         specifier: 3.23.5
         version: 3.23.5(@tiptap/pm@3.23.5)
+      '@tiptap/extension-highlight':
+        specifier: 3.23.5
+        version: 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))
+      '@tiptap/extension-list':
+        specifier: 3.23.5
+        version: 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)
       '@tiptap/extension-placeholder':
         specifier: ^3.22.5
         version: 3.23.5(@tiptap/extensions@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5))
+      '@tiptap/extension-table':
+        specifier: 3.23.5
+        version: 3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)
       '@tiptap/pm':
         specifier: 3.23.5
         version: 3.23.5
@@ -1421,6 +1430,69 @@ packages:
     peerDependencies:
       react: ^18.x || ^19.x
 
+  '@mariozechner/clipboard-darwin-arm64@0.3.9':
+    resolution: {integrity: sha512-BfgV7vCEWZwJwZJw03r6bP5+tf0iI/ANuQYCxi9RNn7FrWB3yzGuMKCrNLRl6V761vXRdL8+OqZ0wd4TqlsNOQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@mariozechner/clipboard-darwin-universal@0.3.9':
+    resolution: {integrity: sha512-BGGR4iA9Z2shAjI65eI5xtyb3LYNlDW9X3gxKxDbqtbnREohsrqznov6zpKoIrsRWpzlYVEdKphS7ksJ0/ndSQ==}
+    engines: {node: '>= 10'}
+    os: [darwin]
+
+  '@mariozechner/clipboard-darwin-x64@0.3.9':
+    resolution: {integrity: sha512-4kURmCbS6nt8uYhtmWpUcJWyPHfmAr5dTpXD1nO3pIfa+TSQ9DbrGOYCKH+aEFW47XhQ4Vp8ZTszie+wfFvDKg==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@mariozechner/clipboard-linux-arm64-gnu@0.3.9':
+    resolution: {integrity: sha512-g59OkUGP2DDfCOIKypHeYgv2M55u/cKvXa5dSxFbEJ34XvIQMdcVmpKCkGUro3ZgefXiGVdwguvTMQGpHWzIXw==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+
+  '@mariozechner/clipboard-linux-arm64-musl@0.3.9':
+    resolution: {integrity: sha512-AGuJdgKsmJdm4Pych7kv3sqe591ERRaAHW3xjLooiFzn8J+PxUyof++7YZrB5Y5tpnTO+K18Og3taj2NpluCRQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+
+  '@mariozechner/clipboard-linux-riscv64-gnu@0.3.9':
+    resolution: {integrity: sha512-DXBEAiuMpk7dhS1a9NzNxVAFi1vaKoPu7rQNgY8LIDLGrK3lnIp3nT10DUum+PKVJoJppIP+NAA8IZe4DMNDPw==}
+    engines: {node: '>= 10'}
+    cpu: [riscv64]
+    os: [linux]
+
+  '@mariozechner/clipboard-linux-x64-gnu@0.3.9':
+    resolution: {integrity: sha512-WORrMLd6EpElEME7JRKfSaY34nW1P5LbdgK5YNCS1ncG2LqmITsSMEJ8nh2mpvxb3TxqbOOKgY7k9eMJYlW9Mw==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+
+  '@mariozechner/clipboard-linux-x64-musl@0.3.9':
+    resolution: {integrity: sha512-/DHn+1DrfL6oRaPPWXaOKvonFFrni666fxd+zFqiQEfvBH0tsHVWjq9iqBk0oDp0qaPA72lIMy5BptxISBEhZQ==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+
+  '@mariozechner/clipboard-win32-arm64-msvc@0.3.9':
+    resolution: {integrity: sha512-O5FHD3ErkMwMhNzAfu3ggy0ug4z7btZuoQgwwxlzPrwV2bxlD6WDpqBY4NCgICAgZdDKdp+loUEKVAVt8aYnhQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@mariozechner/clipboard-win32-x64-msvc@0.3.9':
+    resolution: {integrity: sha512-ihQC3EufqEY81vhXBgVBtK4prL+wc62zJsSvxrgz7K1hsdt6OObz6v9p3Rn1OG3GJksTTKMJF0u/guMISHPhSA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
+
+  '@mariozechner/clipboard@0.3.9':
+    resolution: {integrity: sha512-ABnA53mdfkGZwOFUdZNv2S0CWGO/EIuPj8Vv9xmBFmSYg/qFc7ihO6q5FcQjvoE67kZpWkEc4AhD6B/os04yuA==}
+    engines: {node: '>= 10'}
+
   '@mastra/core@1.45.0':
     resolution: {integrity: sha512-UPpNL+iJVfypfc7IOKL9fhmoKKDe6IA6y+DwZDRSTN+uz/ft194e+TrB4LnBdYtTTeLhDO96mxW2rp9LK0ULhg==}
     engines: {node: '>=22.13.0'}
@@ -2192,6 +2264,11 @@ packages:
     peerDependencies:
       '@tiptap/core': 3.23.5
 
+  '@tiptap/extension-highlight@3.23.5':
+    resolution: {integrity: sha512-RCLliXLtpmJZBTYWYH0fJbSBAsPNiPhGud9zeHqaf1J8QvdNAhe0VTKmtjbLOBxHDSx/CfSgnxKF7PUecdRA2g==}
+    peerDependencies:
+      '@tiptap/core': 3.23.5
+
   '@tiptap/extension-horizontal-rule@3.23.5':
     resolution: {integrity: sha512-9XkRYc4XE0stERZB3y8bsJd32Jw9UZfMwZXo1GLNYRHFr7dmhSGUj0IzgofqOVmLDcOMW6XcCk54TBYw6BCrWA==}
     peerDependencies:
@@ -2244,6 +2321,12 @@ packages:
     resolution: {integrity: sha512-PMB9lpQGOJGuRTIS9rBw8UZtHQwmsiJbWKjcBr5z20MluaJQ3ZCHFhDYG6ncIDRz+0ny4ZvoJ7cKGpI+NTvXMA==}
     peerDependencies:
       '@tiptap/core': 3.23.5
+
+  '@tiptap/extension-table@3.23.5':
+    resolution: {integrity: sha512-3uTaC+LsilQHaMGTW6vK4fXHsTYL/TPGM0mxoBz8UvMl+G/uzL149RcMC0d0qKvYPxInFQ2rFzxPTpnY3Rg3UA==}
+    peerDependencies:
+      '@tiptap/core': 3.23.5
+      '@tiptap/pm': 3.23.5
 
   '@tiptap/extension-text@3.23.5':
     resolution: {integrity: sha512-GLa+AaA2NC5XYRZad/Qq/oH5Pa95s+uA17J7+RCkF8j1RNREUBkYQ5CD5MT8kT+D3DHgU8MRyYdTd28I46HBDQ==}
@@ -6483,6 +6566,8 @@ snapshots:
       typebox: 1.3.7
       undici: 8.9.0
       yaml: 2.9.0
+    optionalDependencies:
+      '@mariozechner/clipboard': 0.3.9
     transitivePeerDependencies:
       - '@modelcontextprotocol/sdk'
       - bufferutil
@@ -7375,6 +7460,50 @@ snapshots:
     dependencies:
       react: 18.3.1
 
+  '@mariozechner/clipboard-darwin-arm64@0.3.9':
+    optional: true
+
+  '@mariozechner/clipboard-darwin-universal@0.3.9':
+    optional: true
+
+  '@mariozechner/clipboard-darwin-x64@0.3.9':
+    optional: true
+
+  '@mariozechner/clipboard-linux-arm64-gnu@0.3.9':
+    optional: true
+
+  '@mariozechner/clipboard-linux-arm64-musl@0.3.9':
+    optional: true
+
+  '@mariozechner/clipboard-linux-riscv64-gnu@0.3.9':
+    optional: true
+
+  '@mariozechner/clipboard-linux-x64-gnu@0.3.9':
+    optional: true
+
+  '@mariozechner/clipboard-linux-x64-musl@0.3.9':
+    optional: true
+
+  '@mariozechner/clipboard-win32-arm64-msvc@0.3.9':
+    optional: true
+
+  '@mariozechner/clipboard-win32-x64-msvc@0.3.9':
+    optional: true
+
+  '@mariozechner/clipboard@0.3.9':
+    optionalDependencies:
+      '@mariozechner/clipboard-darwin-arm64': 0.3.9
+      '@mariozechner/clipboard-darwin-universal': 0.3.9
+      '@mariozechner/clipboard-darwin-x64': 0.3.9
+      '@mariozechner/clipboard-linux-arm64-gnu': 0.3.9
+      '@mariozechner/clipboard-linux-arm64-musl': 0.3.9
+      '@mariozechner/clipboard-linux-riscv64-gnu': 0.3.9
+      '@mariozechner/clipboard-linux-x64-gnu': 0.3.9
+      '@mariozechner/clipboard-linux-x64-musl': 0.3.9
+      '@mariozechner/clipboard-win32-arm64-msvc': 0.3.9
+      '@mariozechner/clipboard-win32-x64-msvc': 0.3.9
+    optional: true
+
   '@mastra/core@1.45.0(ai@4.3.19(react@18.3.1)(zod@3.25.76))(express@5.2.1)(zod@3.25.76)':
     dependencies:
       '@a2a-js/sdk': 0.3.13(express@5.2.1)
@@ -8104,6 +8233,10 @@ snapshots:
     dependencies:
       '@tiptap/core': 3.23.5(@tiptap/pm@3.23.5)
 
+  '@tiptap/extension-highlight@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))':
+    dependencies:
+      '@tiptap/core': 3.23.5(@tiptap/pm@3.23.5)
+
   '@tiptap/extension-horizontal-rule@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)':
     dependencies:
       '@tiptap/core': 3.23.5(@tiptap/pm@3.23.5)
@@ -8147,6 +8280,11 @@ snapshots:
   '@tiptap/extension-strike@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))':
     dependencies:
       '@tiptap/core': 3.23.5(@tiptap/pm@3.23.5)
+
+  '@tiptap/extension-table@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))(@tiptap/pm@3.23.5)':
+    dependencies:
+      '@tiptap/core': 3.23.5(@tiptap/pm@3.23.5)
+      '@tiptap/pm': 3.23.5
 
   '@tiptap/extension-text@3.23.5(@tiptap/core@3.23.5(@tiptap/pm@3.23.5))':
     dependencies:

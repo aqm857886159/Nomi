@@ -218,6 +218,7 @@ export async function applyCanvasToolCall(
   args: unknown,
   gesture?: CanvasGestureContext,
   canWrite?: () => boolean,
+  documentId?: string,
 ): Promise<unknown> {
   const assertWritable = () => { if (canWrite) assertTurnCanWrite(canWrite) }
   assertWritable()
@@ -245,10 +246,12 @@ export async function applyCanvasToolCall(
     // 校验失败 throw → 调用方映射成 tool error,回喂 LLM 自我修正(与 gate deny 同语义)。
     const plan = parseStoryboardPlan(record)
     const store = useWorkbenchStore.getState()
-    store.setStoryboardPlan(plan)
-    store.setStoryboardEditorOpen(true) // 拆完自动打开编辑器(沿用「立刻看到方案」);卡片同时进对话流。
-    store.setWorkspaceMode('creation')
-    return `已生成分镜方案「${plan.title || '未命名'}」：${plan.anchors.length} 个锚 · ${plan.shots.length} 个镜头，已放到创作区，待你审阅/修改后确认落画布。`
+    // P4:按 documentId 存方案。documentId 由调用方在发起拆镜头时捕获，异步期间切文档不串稿。
+    // 缺 documentId（如旧调用方）回退 activeDocumentId，保证至少落到当前激活文档。
+    const targetDocumentId = documentId ?? store.activeDocumentId
+    store.setStoryboardPlan(plan, targetDocumentId)
+    store.setWorkspaceMode('storyboard') // 拆完切到独立分镜页（P3，替代原创作页内展开编辑器）。
+    return `已生成分镜方案「${plan.title || '未命名'}」：${plan.anchors.length} 个锚 · ${plan.shots.length} 个镜头，已放到分镜页，待你审阅/修改后确认落画布。`
   }
 
   if (toolName === 'create_canvas_nodes') {

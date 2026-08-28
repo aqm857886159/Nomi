@@ -11,6 +11,11 @@
   font-size: 16px;
   line-height: 1.76;
   letter-spacing: 0;
+  /* 内容列宽约束（ColaMD 排版摘取）：限制舒适行长并水平居中，长文不再铺满整个主区。
+     680px ≈ 中文 40 字/行，正文阅读最舒适区间。margin:auto 在 flex 主轴方向吸收剩余空间居中。 */
+  max-width: 680px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .workbench-editor__scroll > div {
@@ -51,10 +56,14 @@
 
 .workbench-editor__content h1 {
   font-size: 28px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--workbench-border-soft);
 }
 
 .workbench-editor__content h2 {
   font-size: 22px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--workbench-border-soft);
 }
 
 .workbench-editor__content h3 {
@@ -89,6 +98,79 @@
   padding: 1px 4px;
   background: var(--workbench-pressed);
   font-size: 0.92em;
+}
+
+/* ==高亮== mark（ColaMD 摘取）：accent 浅底 + accent 字色，暗色随 token 自动翻。 */
+.workbench-editor__content mark {
+  background: var(--nomi-accent-soft);
+  color: var(--nomi-accent);
+  padding: 0 3px;
+  border-radius: 3px;
+}
+
+/* 待办列表（Tiptap v3 用原生 checkbox：label > input + span，非 ColaMD 的 ::before）。 */
+.workbench-editor__content ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.workbench-editor__content li[data-type='taskItem'] {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 2px 0;
+}
+
+.workbench-editor__content li[data-type='taskItem'] > label {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.workbench-editor__content li[data-type='taskItem'] > label input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--nomi-accent);
+  cursor: pointer;
+}
+
+.workbench-editor__content li[data-type='taskItem'] > div {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 已勾选的待办：弱化 + 删除线。 */
+.workbench-editor__content li[data-type='taskItem'][data-checked='true'] > div {
+  color: var(--nomi-ink-40);
+  text-decoration: line-through;
+}
+
+/* Markdown 表格（ColaMD 摘取）：表头浅底、细线边框、整表可横向滚动。 */
+.workbench-editor__content .tableWrapper {
+  margin: 0 0 14px;
+  overflow-x: auto;
+}
+
+.workbench-editor__content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0;
+  font-size: 14px;
+}
+
+.workbench-editor__content th,
+.workbench-editor__content td {
+  border: 1px solid var(--workbench-border);
+  padding: 7px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.workbench-editor__content th {
+  background: var(--workbench-surface-soft);
+  font-weight: 600;
 }
 
 /* (节点错误显示已统一到 NodeErrorReport.tsx，原 .error-peek 已删；规则 1) */

@@ -42,31 +42,40 @@ function makeRecord(overrides: Partial<WorkbenchProjectRecordV1> = {}): Workbenc
 }
 
 describe('workbenchPayloadSemanticEquals（语义相等：不靠引用相等）', () => {
+  // P2 多文档后，createDefaultWorkbenchProjectPayload 每次生成随机文档 id（每篇文档独立身份），
+  // 「两次独立新建」天然不等。语义相等测的是深比较逻辑本身，用固定 id 的文档隔离随机性。
+  function fixedPayload(): ReturnType<typeof createDefaultWorkbenchProjectPayload> {
+    const payload = createDefaultWorkbenchProjectPayload()
+    payload.workbenchDocuments = payload.workbenchDocuments!.map((doc, i) => ({ ...doc, id: `doc-${i}` }))
+    payload.activeDocumentId = 'doc-0'
+    return payload
+  }
+
   it('内容相同但引用不同的两份 payload 判为相等', () => {
-    const a = createDefaultWorkbenchProjectPayload()
-    const b = createDefaultWorkbenchProjectPayload()
+    const a = fixedPayload()
+    const b = JSON.parse(JSON.stringify(a)) as typeof a
     expect(a).not.toBe(b) // 不同引用
     expect(workbenchPayloadSemanticEquals(a, b)).toBe(true)
   })
 
   it('仅 bookkeeping 元字段不同（updatedAt 等 wall-clock）判为相等（不因 Date.now 边界 flaky）', () => {
-    const a = createDefaultWorkbenchProjectPayload()
-    const b = createDefaultWorkbenchProjectPayload()
-    // 模拟两次新建相差 1ms：内容全等，仅 workbenchDocument.updatedAt 不同。
-    b.workbenchDocument = { ...b.workbenchDocument, updatedAt: a.workbenchDocument.updatedAt + 1 }
-    expect(b.workbenchDocument.updatedAt).not.toBe(a.workbenchDocument.updatedAt)
+    const a = fixedPayload()
+    const b = JSON.parse(JSON.stringify(a)) as typeof a
+    // 模拟两次新建相差 1ms：内容全等，仅文档 updatedAt 不同。
+    b.workbenchDocuments![0] = { ...b.workbenchDocuments![0], updatedAt: a.workbenchDocuments![0].updatedAt + 1 }
+    expect(b.workbenchDocuments![0].updatedAt).not.toBe(a.workbenchDocuments![0].updatedAt)
     expect(workbenchPayloadSemanticEquals(a, b)).toBe(true)
   })
 
   it('深拷贝（不同对象/数组引用，内容一致）判为相等', () => {
-    const a = createDefaultWorkbenchProjectPayload()
+    const a = fixedPayload()
     const b = JSON.parse(JSON.stringify(a)) as typeof a
     expect(workbenchPayloadSemanticEquals(a, b)).toBe(true)
   })
 
   it('对象 key 顺序不同但内容一致判为相等（不靠 JSON 字符串顺序）', () => {
-    const a = { ...createDefaultWorkbenchProjectPayload(), generationCanvasLastSeq: 3 }
-    const reordered = { generationCanvasLastSeq: 3, ...createDefaultWorkbenchProjectPayload() }
+    const a = { ...fixedPayload(), generationCanvasLastSeq: 3 }
+    const reordered = { generationCanvasLastSeq: 3, ...fixedPayload() }
     expect(workbenchPayloadSemanticEquals(a, reordered)).toBe(true)
   })
 

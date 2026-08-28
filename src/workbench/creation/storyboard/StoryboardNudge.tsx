@@ -26,8 +26,15 @@ export default function StoryboardNudge({
   onRun: (shotMode: StoryboardShotMode) => void
 }): JSX.Element | null {
   const { t } = useTranslation()
-  const workbenchDocument = useWorkbenchStore((state) => state.workbenchDocument)
-  const storyboardPlan = useWorkbenchStore((state) => state.storyboardPlan)
+  const workbenchDocuments = useWorkbenchStore((state) => state.workbenchDocuments)
+  const activeDocumentId = useWorkbenchStore((state) => state.activeDocumentId)
+  const workbenchDocument = React.useMemo(
+    () => workbenchDocuments.find((d) => d.id === activeDocumentId) ?? workbenchDocuments[0],
+    [workbenchDocuments, activeDocumentId],
+  )
+  const storyboardPlans = useWorkbenchStore((state) => state.storyboardPlans)
+  // P4：按当前文档取方案，方案存在则不再浮「拆镜头」提示。
+  const storyboardPlan = activeDocumentId ? storyboardPlans[activeDocumentId]?.plan ?? null : null
   const [dismissed, setDismissed] = React.useState(false)
   const documentText = React.useMemo(() => extractWorkbenchDocumentText(workbenchDocument), [workbenchDocument])
 

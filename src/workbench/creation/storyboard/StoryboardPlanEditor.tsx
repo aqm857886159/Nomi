@@ -62,7 +62,8 @@ export function storyboardPlanSourceMatchesApprovedScript(
 
 export default function StoryboardPlanEditor(): JSX.Element | null {
   const { t } = useTranslation()
-  const plan = useWorkbenchStore((s) => s.storyboardPlan)
+  const entry = useWorkbenchStore((s) => (s.activeDocumentId ? s.storyboardPlans[s.activeDocumentId] : undefined))
+  const plan = entry?.plan ?? null
   const setStoryboardPlan = useWorkbenchStore((s) => s.setStoryboardPlan)
   const commitStoryboardPlan = useWorkbenchStore((s) => s.commitStoryboardPlan)
   const discardStoryboardPlan = useWorkbenchStore((s) => s.discardStoryboardPlan)
@@ -310,17 +311,22 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
       </div>
 
       <footer className="flex items-center justify-between gap-3 px-4 py-2.5 border-t border-nomi-line bg-nomi-paper">
-        {issues.length > 0 ? (
-          <span className="text-caption text-workbench-danger inline-flex items-center gap-[5px] min-w-0">
-            <IconAlertTriangle size={14} stroke={1.8} className="shrink-0" />
-            <span className="truncate">{t('storyboardEditor.issuesSummary', { count: issues.length, issue: firstIssueLabel(issues[0]) })}</span>
-          </span>
-        ) : (
-          <span className="text-caption text-workbench-success inline-flex items-center gap-[5px]">
-            <IconCheck size={14} stroke={1.8} />
-            {t('storyboardEditor.readySummary', { anchors: plan.anchors.length, shots: plan.shots.length })}
-          </span>
-        )}
+        <div className="flex items-center gap-2 min-w-0">
+          <WorkbenchButton variant="default" size="sm" onClick={() => setWorkspaceMode('creation')}>
+            {t('storyboardEditor.backToCreation')}
+          </WorkbenchButton>
+          {issues.length > 0 ? (
+            <span className="text-caption text-workbench-danger inline-flex items-center gap-[5px] min-w-0">
+              <IconAlertTriangle size={14} stroke={1.8} className="shrink-0" />
+              <span className="truncate">{t('storyboardEditor.issuesSummary', { count: issues.length, issue: firstIssueLabel(issues[0]) })}</span>
+            </span>
+          ) : (
+            <span className="text-caption text-workbench-success inline-flex items-center gap-[5px]">
+              <IconCheck size={14} stroke={1.8} />
+              {t('storyboardEditor.readySummary', { anchors: plan.anchors.length, shots: plan.shots.length })}
+            </span>
+          )}
+        </div>
         <WorkbenchButton
           variant="primary"
           onClick={onConfirm}

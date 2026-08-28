@@ -170,7 +170,7 @@ describe('projectRepository workspace project creation', () => {
     const record = readLocalProject('ws-1')
 
     expect(record).toMatchObject({ id: 'ws-1', name: 'Workspace Project', version: 1 })
-    expect(record?.payload.workbenchDocument.version).toBe(1)
+    expect(record?.payload.workbenchDocuments[0].version).toBe(1)
     // 三轨：旧 2 轨工程加载时 normalizeTimeline 自动补音频轨（migration，幂等）。
     expect(record?.payload.timeline.tracks).toHaveLength(3)
     expect(record?.payload.timeline.tracks.map((t) => t.type)).toEqual(['image', 'video', 'audio'])
@@ -198,7 +198,7 @@ describe('projectRepository workspace project creation', () => {
     const record = readLocalProject('ws-music')
 
     expect(record).toMatchObject({ id: 'ws-music', name: 'Music', version: 1 })
-    expect(record?.payload.workbenchDocument.version).toBe(1)
+    expect(record?.payload.workbenchDocuments[0].version).toBe(1)
     expect(record?.payload.timeline.tracks.length).toBeGreaterThan(0)
     expect(Array.isArray(record?.payload.generationCanvas.nodes)).toBe(true)
   })

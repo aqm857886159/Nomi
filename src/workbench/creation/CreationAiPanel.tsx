@@ -59,7 +59,12 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   }, [sending])
   const [expanded, setExpanded] = React.useState(false)
   const messagesScrollRef = useTransientScrollingClass<HTMLDivElement>('workbench-scrollbar-visible')
-  const workbenchDocument = useWorkbenchStore((state) => state.workbenchDocument)
+  const workbenchDocuments = useWorkbenchStore((state) => state.workbenchDocuments)
+  const activeDocumentId = useWorkbenchStore((state) => state.activeDocumentId)
+  const workbenchDocument = React.useMemo(
+    () => workbenchDocuments.find((d) => d.id === activeDocumentId) ?? workbenchDocuments[0],
+    [workbenchDocuments, activeDocumentId],
+  )
   const documentTools = useWorkbenchStore((state) => state.creationDocumentTools)
   const selectedText = useWorkbenchStore((state) => state.creationSelectionText)
   const modeId = useWorkbenchStore((state) => state.creationAiModeId)
@@ -74,7 +79,10 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   //   ① 老项目：方案早于本次改动产生，消息上没有标；
   //   ② 用户点了「新对话」：消息清空但方案是项目级的，仍在。
   // 这时把卡片放在列表**顶部**当常驻产物，而不是放回尾部——放尾部就是把这个 bug 又请回来了。
-  const storyboardPlan = useWorkbenchStore((state) => state.storyboardPlan)
+  const storyboardPlans = useWorkbenchStore((state) => state.storyboardPlans)
+  // 当前文档的分镜方案条目（P4：按 documentId 取，切文档切方案）。
+  const storyboardEntry = activeDocumentId ? storyboardPlans[activeDocumentId] : undefined
+  const storyboardPlan = storyboardEntry?.plan ?? null
   const storyboardAnchorId = React.useMemo(() => {
     if (!storyboardPlan) return null
     for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -157,8 +165,11 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     const history = captureConversationHistory('creation', projectId)
     // P0-9 Slice 3：已有未落画布的方案 + 用户给了修改要求 → 进「改方案」模式（基于现方案改，不从头拆）。
     const store = useWorkbenchStore.getState()
-    const currentPlan = store.storyboardPlan
-    const isRevision = Boolean(currentPlan && !store.storyboardPlanCommitted && revisionRequest?.trim())
+    // P4：捕获发起时的 activeDocumentId（异步期间切文档不串稿）。currentPlan 也按当前文档取。
+    const documentId = store.activeDocumentId
+    const currentEntry = documentId ? store.storyboardPlans[documentId] : undefined
+    const currentPlan = currentEntry?.plan ?? null
+    const isRevision = Boolean(currentPlan && !currentEntry?.committed && revisionRequest?.trim())
     const liveDocumentText = documentToolsRef.current?.readFullText() || documentText
     const docStory = (selectedText || liveDocumentText).trim()
     // 编辑器为空但用户把故事打在了对话里 → 用对话正文，并补写进文稿（单一真相源），别让他把已经敲过的故事再搬一遍。
@@ -205,6 +216,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
       try {
         const { text, status } = await runStoryboardPlanner({
           target: 'creation', history, projectId: projectId ?? undefined, canWrite: handle.canWrite,
+          documentId,
           // 首拆带分镜模式（图片/视频，动作卡上选，默认图片）；改方案不带——保留现方案每镜已定的 shotKind。
           ...(isRevision ? { currentPlan, revisionRequest } : { storyText, shotMode }),
           onContent: (streamed) => {
@@ -282,9 +294,13 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     }
     const readyAttachments = attachments.filter((item) => item.status === 'ready' && item.url)
     if (!userRequest && !selectedText && !documentText && !readyAttachments.length) return
-    // P0-9 Slice 3：方案审阅中（编辑器替换了文档编辑器，用户正盯着方案）→ 输入即视为对现方案的
-    // 修改要求（「全部加负面词 / 统一冷调 / 第 3 镜改特写」等），交规划师基于现方案改、保留其余。
-    if (useWorkbenchStore.getState().storyboardEditorOpen && userRequest) {
+    // P0-9 Slice 3：有未落画布的方案 + 用户给了自然语言要求 → 视为对现方案的修改要求
+    // （「全部加负面词 / 统一冷调 / 第 3 镜改特写」等），交规划师基于现方案改、保留其余。
+    // P4：按当前文档取方案，避免切文档后误改别篇的方案。send 内直读 store，保持依赖稳定。
+    const currentDocEntry = useWorkbenchStore.getState().activeDocumentId
+      ? useWorkbenchStore.getState().storyboardPlans[useWorkbenchStore.getState().activeDocumentId]
+      : undefined
+    if (currentDocEntry && !currentDocEntry.committed && userRequest) {
       launchStoryboardPlanning(userRequest, userRequest)
       return
     }

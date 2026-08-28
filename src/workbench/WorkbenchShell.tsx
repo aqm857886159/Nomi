@@ -27,6 +27,10 @@ const GenerationWorkspace = lazyWithChunkBoundary(
     () => import("./generation/GenerationWorkspace"),
 );
 const PreviewWorkspace = lazyWithChunkBoundary("预览区", () => import("./preview/PreviewWorkspace"));
+const StoryboardWorkspace = lazyWithChunkBoundary(
+    "分镜区",
+    () => import("./creation/storyboard/StoryboardWorkspace"),
+);
 
 type WorkbenchShellProps = {
     generation: React.ReactNode;
@@ -42,6 +46,7 @@ type WorkbenchShellProps = {
 
 const STEP_PARAM_BY_MODE: Record<WorkspaceMode, string> = {
     creation: "create",
+    storyboard: "storyboard",
     generation: "generate",
     preview: "preview",
 };
@@ -49,6 +54,7 @@ const STEP_PARAM_BY_MODE: Record<WorkspaceMode, string> = {
 const MODE_BY_STEP_PARAM: Record<string, WorkspaceMode> = {
     create: "creation",
     creation: "creation",
+    storyboard: "storyboard",
     generate: "generation",
     generation: "generation",
     preview: "preview",
@@ -272,6 +278,13 @@ export default function WorkbenchShell({
                             active={workspaceMode === "creation"}
                             label={t("workspace.creation")}>
                             <CreationWorkspace />
+                        </WorkspaceSlot>
+                    ) : null}
+                    {mountedWorkspaceModes.includes("storyboard") ? (
+                        <WorkspaceSlot
+                            active={workspaceMode === "storyboard"}
+                            label={t("workspace.storyboard")}>
+                            <StoryboardWorkspace />
                         </WorkspaceSlot>
                     ) : null}
                     {mountedWorkspaceModes.includes("generation") ? (

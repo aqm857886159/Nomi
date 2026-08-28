@@ -18,6 +18,8 @@ type StoryboardPlannerInput = {
   shotMode?: StoryboardShotMode
   currentPlan?: StoryboardPlan | null
   revisionRequest?: string
+  /** P4：方案归属的原稿 documentId（发起拆镜头时捕获，异步期间切文档不串稿）。 */
+  documentId?: string
   skill?: { key: string; name: string }
   onContent?: (text: string) => void
   onCancelReady?: (cancel: () => void) => void
@@ -62,7 +64,7 @@ export async function runStoryboardPlanner(input: StoryboardPlannerInput): Promi
             await event.confirm({ ok: false, denied: true, message: gate.outcome === 'deny' ? gate.reason : 'storyboard action requires approval' })
             return
           }
-          result = await applyCanvasToolCall(event.toolName, event.args, undefined, canWrite)
+          result = await applyCanvasToolCall(event.toolName, event.args, undefined, canWrite, input.documentId)
         } else if (event.toolName === 'read_canvas_state') {
           // This snapshot was captured by the capability host before its first await.
           result = formatCanvasForAgent(snapshot)

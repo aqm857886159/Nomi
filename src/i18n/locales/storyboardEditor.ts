@@ -1,4 +1,9 @@
 export const zhStoryboardEditor = {
+  empty: {
+    title: '还没有分镜方案',
+    description: '先在创作页写一段故事，让 AI 拆成镜头，再回到这里审阅、落画布。',
+    backToCreation: '去创作页写故事',
+  },
   shotParams: {
     parameters: '参数',
     mode: '模式',
@@ -39,6 +44,7 @@ export const zhStoryboardEditor = {
   readySummary: '全部就绪 · {{anchors}} 张参考卡 · {{shots}} 镜',
   landing: '落画布中…',
   confirmLanding: '确认落画布',
+  backToCreation: '返回原稿',
   second: '{{count}} 秒',
   defaultModel: '默认模型',
   shotNumber: '镜 {{index}}',
@@ -128,6 +134,11 @@ type TranslationShape<T> = {
 }
 
 export const enStoryboardEditor = {
+  empty: {
+    title: 'No storyboard plan yet',
+    description: 'Write a story in the Creation workspace and let AI split it into shots, then review and add it to the canvas here.',
+    backToCreation: 'Go to Creation',
+  },
   shotParams: {
     parameters: 'Parameters',
     mode: 'Mode',
@@ -168,6 +179,7 @@ export const enStoryboardEditor = {
   readySummary: 'Ready · {{anchors}} reference cards · {{shots}} shots',
   landing: 'Adding to canvas…',
   confirmLanding: 'Add to canvas',
+  backToCreation: 'Back to draft',
   second: '{{count}} sec',
   defaultModel: 'Default model',
   shotNumber: 'Shot {{index}}',

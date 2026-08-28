@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
 import CreationAiPanel from './CreationAiPanel'
 import WorkbenchEditor from './WorkbenchEditor'
-import StoryboardPlanEditor from './storyboard/StoryboardPlanEditor'
+import DocumentListSidebar from './DocumentListSidebar'
 import { NomiAILabel, WorkbenchButton } from '../../design'
 import { useWorkbenchStore } from '../workbenchStore'
 
@@ -16,11 +16,6 @@ export default function CreationWorkspace(): JSX.Element {
   // 一次性信号：打开示例/新项目时自动展开助手，让「拆镜头」CTA 一眼可见，消费后清掉。
   const autoOpen = useWorkbenchStore((s) => s.creationAssistantAutoOpen)
   const setAutoOpen = useWorkbenchStore((s) => s.setCreationAssistantAutoOpen)
-  // 原稿与分镜是同一创作阶段的两个工作面；方案存在后始终给出明确入口，避免“内容被替换”的错觉。
-  const storyboardPlan = useWorkbenchStore((s) => s.storyboardPlan)
-  const storyboardPlanCommitted = useWorkbenchStore((s) => s.storyboardPlanCommitted)
-  const storyboardEditorOpen = useWorkbenchStore((s) => s.storyboardEditorOpen)
-  const setStoryboardEditorOpen = useWorkbenchStore((s) => s.setStoryboardEditorOpen)
   React.useEffect(() => {
     if (autoOpen) {
       setCollapsed(false)
@@ -36,61 +31,24 @@ export default function CreationWorkspace(): JSX.Element {
         'pt-[22px] px-6 pb-6',
         'bg-workbench-bg',
         collapsed
-          ? // 收起态：编辑器 1fr + 右侧「重开」pill 各占一格（in-flow），pill 有自己的列、
+          ? // 收起态：左侧文档列表 200px + 编辑器 1fr + 右侧「重开」pill 各占一格（in-flow），pill 有自己的列、
             // 结构上不可能再压到编辑器。根治 3c2fe821 起 pill 用 absolute 浮在右上角、
             // bf026cac 把撤销/重做移到右端后 pill 盖住按钮的重叠（editor 恒 1fr，不复发 #45 裁切）。
-            'grid grid-cols-[minmax(0,1fr)_auto] max-w-[1024px] mx-auto gap-5'
+            'grid grid-cols-[200px_minmax(0,1fr)_auto] max-w-[1264px] mx-auto gap-5'
           : cn(
-              'grid grid-cols-[minmax(0,1fr)_344px] max-w-[1264px] mx-auto gap-5',
+              'grid grid-cols-[200px_minmax(0,1fr)_344px] max-w-[1440px] mx-auto gap-5',
               // 断点 1120→880（2026-08-07 飞书反馈「为什么变成上下了」）：1120 太宽，
               // 常规窗口就触发上下堆叠，违背「常驻右栏」拍板（2026-07-25）；右栏 344 + 主区
               // 最小可用 ~536 = 880 以下才真正需要堆叠。
-              'max-[880px]:grid-cols-[minmax(0,1fr)] max-[880px]:grid-rows-[minmax(420px,1fr)_minmax(320px,42vh)]',
+              'max-[1080px]:grid-cols-[minmax(0,1fr)] max-[1080px]:grid-rows-[minmax(420px,1fr)_minmax(320px,42vh)]',
             ),
       )}
       aria-label={t('creationAi.workspace.aria')}
     >
+      <DocumentListSidebar />
       <div className="min-w-0 min-h-0 flex flex-col gap-2">
-        {storyboardPlan ? (
-          <div
-            className="h-9 shrink-0 flex items-center justify-between gap-3 p-0.5 border border-nomi-line rounded-nomi bg-nomi-paper"
-            role="tablist"
-            aria-label={t('creationAi.workspace.surfacesAria')}
-          >
-            <div className="flex items-center gap-0.5">
-              {(
-                [
-                  { label: t('creationAi.workspace.source'), active: !storyboardEditorOpen, open: false },
-                  { label: t('creationAi.workspace.storyboard'), active: storyboardEditorOpen, open: true },
-                ] as const
-              ).map((tab) => (
-                <button
-                  key={tab.label}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab.active}
-                  onClick={() => setStoryboardEditorOpen(tab.open)}
-                  className={cn(
-                    'h-7 px-3 rounded-nomi-sm text-caption font-semibold cursor-pointer',
-                    'transition-[background,color,box-shadow] duration-[var(--nomi-transition-fast)]',
-                    tab.active
-                      ? 'bg-nomi-ink-10 text-nomi-ink shadow-nomi-sm'
-                      : 'bg-transparent text-nomi-ink-40 hover:text-nomi-ink-60',
-                  )}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-            <span
-              className={cn('mr-2 text-micro', storyboardPlanCommitted ? 'text-workbench-success' : 'text-nomi-accent')}
-            >
-              {storyboardPlanCommitted ? t('creationAi.workspace.committed') : t('creationAi.workspace.draft')}
-            </span>
-          </div>
-        ) : null}
-        <div className="min-h-0 flex-1" data-creation-surface={storyboardEditorOpen ? 'storyboard' : 'source'}>
-          {storyboardEditorOpen ? <StoryboardPlanEditor /> : <WorkbenchEditor />}
+        <div className="min-h-0 flex-1" data-creation-surface="source">
+          <WorkbenchEditor />
         </div>
       </div>
       {collapsed ? (
