@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "id": "2026-08-29-cla-protected-branch-write",
   "problem_type": "CLA signature persistence blocked by protected branch",
   "symptom": "A fork contributor could post the exact CLA signature comment and receive an all-signed comment, while the CLA status later failed and the contributor was absent from the persisted signature ledger.",
@@ -39,6 +39,24 @@
     "scripts/check-cla-workflow.node-test.mjs",
     "scripts/check-root-cause-contracts.node-test.mjs"
   ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every first-time fork contributor can reach the same protected-branch write, so the failure repeats until signature storage is separated from reviewed code.",
+    "same_class_scan": [
+      "Parsed every workflow for contributor-assistant ownership and confirmed there is exactly one signature writer.",
+      "Queried branch protection for main and cla-signatures and verified only the dedicated ledger branch is writable by the action.",
+      "Searched the code branch for duplicate signatures/cla.json ledgers that could drift from the automation-owned source of truth."
+    ]
+  },
+  "prevention": {
+    "strategy": "Separate append-only automation state from protected source code and enforce that boundary in the required contracts gate.",
+    "artifacts": [
+      ".github/workflows/cla.yml",
+      "scripts/check-cla-workflow.node-test.mjs",
+      "scripts/root-cause-contracts.mjs",
+      "scripts/check-root-cause-contracts.node-test.mjs"
+    ]
+  },
   "migration": "Create cla-signatures from the pre-fix main commit so the existing signedContributors history is preserved, then remove signatures/cla.json from main and point the action at the dedicated branch. Existing signature comments are reprocessed with recheck after deployment; no signature is fabricated or manually inserted.",
   "residual_risks": [
     "The dedicated branch must remain writable by the repository GITHUB_TOKEN; adding branch protection there requires an explicit replacement storage design.",

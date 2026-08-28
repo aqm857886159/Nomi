@@ -1,6 +1,6 @@
 import path from "node:path";
 
-export const ROOT_CAUSE_CONTRACT_SCHEMA_VERSION = 1;
+export const ROOT_CAUSE_CONTRACT_SCHEMA_VERSION = 2;
 
 const HIGH_RISK_PREFIXES = [
   ".github/workflows/",
@@ -20,7 +20,11 @@ const HIGH_RISK_EXACT = new Set([
   "electron/hardenedFetch.ts",
   "electron/ipcSenderGuard.ts",
   "electron/workspace/workspaceRegistry.ts",
+  "scripts/check-root-cause-contracts.mjs",
+  "scripts/root-cause-contracts.mjs",
 ]);
+
+const RECURRENCE_CLASSIFICATIONS = new Set(["one_off", "recurring"]);
 
 function normalized(file) {
   return String(file || "").replaceAll(path.sep, "/").replace(/^\.\//, "");
@@ -55,6 +59,13 @@ function scopeCovers(scope, file) {
   return cleanScope === cleanFile;
 }
 
+function isStructuralPreventionArtifact(file) {
+  const name = normalized(file);
+  return !isTestFile(name)
+    && !name.endsWith(".md")
+    && !/^docs\/fixes\/.*\.root-cause\.json$/i.test(name);
+}
+
 function validateContract(contract, changed, existingFiles, index) {
   const label = nonEmptyText(contract?.id) ? contract.id : `contract #${index + 1}`;
   const errors = [];
@@ -69,6 +80,41 @@ function validateContract(contract, changed, existingFiles, index) {
   }
   for (const field of ["affected_population", "scope_paths", "entry_points", "invariants", "regression_tests", "residual_risks"]) {
     if (!nonEmptyTextArray(contract?.[field])) errors.push(`${label}: ${field} must be a non-empty string array`);
+  }
+
+  const recurrence = contract?.recurrence;
+  if (!recurrence || typeof recurrence !== "object" || Array.isArray(recurrence)) {
+    errors.push(`${label}: recurrence must classify the repair as one_off or recurring`);
+  } else {
+    if (!RECURRENCE_CLASSIFICATIONS.has(recurrence.classification)) {
+      errors.push(`${label}: recurrence.classification must be one_off or recurring`);
+    }
+    if (!nonEmptyText(recurrence.reason)) errors.push(`${label}: recurrence.reason is required`);
+    if (!nonEmptyTextArray(recurrence.same_class_scan)) {
+      errors.push(`${label}: recurrence.same_class_scan must contain concrete repository scan evidence`);
+    }
+  }
+
+  if (recurrence?.classification === "recurring") {
+    const prevention = contract?.prevention;
+    if (!prevention || typeof prevention !== "object" || Array.isArray(prevention)) {
+      errors.push(`${label}: recurring repairs require prevention.strategy and prevention.artifacts`);
+    } else {
+      if (!nonEmptyText(prevention.strategy)) errors.push(`${label}: prevention.strategy is required`);
+      if (!nonEmptyTextArray(prevention.artifacts)) {
+        errors.push(`${label}: prevention.artifacts must be a non-empty string array`);
+      } else {
+        const artifacts = prevention.artifacts.map(normalized);
+        for (const artifact of artifacts) {
+          if (!changed.has(artifact)) {
+            errors.push(`${label}: prevention artifact was not changed in this diff: ${artifact}`);
+          }
+        }
+        if (!artifacts.some(isStructuralPreventionArtifact)) {
+          errors.push(`${label}: recurring repairs require changed structural prevention, not only tests or documentation`);
+        }
+      }
+    }
   }
 
   const sources = Array.isArray(contract?.external_sources) ? contract.external_sources : [];
@@ -103,17 +149,18 @@ export function validateRootCauseChange({ changedFiles, contracts, existingFiles
   const changed = new Set(changedFiles.map(normalized));
   const existing = new Set([...existingFiles].map(normalized));
   const triggeredFiles = [...changed].filter(isHighRiskProductionFile).sort();
-  if (triggeredFiles.length === 0) return { ok: true, errors: [], triggeredFiles: [] };
 
   // 只有本次新增/修改的合同能为本次改动背书。历史合同仍可留作知识，但不会变成以后每次都要
   // 重写的永久枷锁；每个高风险文件只需至少一份“本次变化且完整”的合同覆盖。
   const changedContracts = contracts.filter((contract) =>
     nonEmptyText(contract?.__file) && changed.has(normalized(contract.__file)));
+  const errors = [];
+  changedContracts.forEach((contract, index) => errors.push(...validateContract(contract, changed, existing, index)));
+  if (triggeredFiles.length === 0) return { ok: errors.length === 0, errors, triggeredFiles: [] };
+
   const relevantContracts = changedContracts.filter((contract) =>
     Array.isArray(contract?.scope_paths) && triggeredFiles.some((file) =>
       contract.scope_paths.some((scope) => scopeCovers(scope, file))));
-  const errors = [];
-  relevantContracts.forEach((contract, index) => errors.push(...validateContract(contract, changed, existing, index)));
   for (const file of triggeredFiles) {
     const covered = relevantContracts.some((contract) =>
       Array.isArray(contract?.scope_paths) && contract.scope_paths.some((scope) => scopeCovers(scope, file)));

@@ -471,14 +471,15 @@ git status --short --branch
 
 **与既有规则的关系**：R5 管「用第三方库时先查官方文档」，R6 管「做方案前先读顶尖开源」，**R20 管更早的一步：先判断该不该自己写**。P2 的「通用性判定」是修 bug 侧的同一思维（这类还会从别的入口出现吗），R20 是造东西侧。
 
-## R21 高风险修复必须交根因合同
+## R21 可复发/高风险修复必须交根因合同
 
-**触发**：缺陷或回归涉及 provider、媒体、工作流绑定、任务派发、runtime、资产边界等高风险生产路径。
+**触发**：任何缺陷/回归先做复发性判定；判为 `recurring`，或涉及 provider、媒体、工作流绑定、任务派发、runtime、资产边界等高风险生产路径时，必须交根因合同。
 
-1. 先读 `.agents/skills/root-cause-remediation/SKILL.md`，按症状 → 直接原因 → 类根因 → 入口集 → 不变量推进。
-2. 生产代码前新建或更新 `docs/fixes/*.root-cause.json`；外部行为必须带核验日期的官方文档/源码，纯内部问题必须写 `internal_only_reason`。
-3. 报告的精确案例与类边界都要有先红后绿的测试；合同里的 `regression_tests` 必须在同一 diff 真实变化。
-4. 修在最早可统一约束的边界，不能因报错来自某模型/供应商就默认加专用分支。
-5. `pnpm run check:root-cause-contracts` 是权威门禁；本地 Agent hook 只做提前提醒，缺失也不能绕过 CI。
+1. 先读 `.agents/skills/root-cause-remediation/SKILL.md`，按症状 → 直接原因 → 类根因 → 入口集 → `one_off`/`recurring` 推进；“只出现一次”不是 `one_off` 的证据。
+2. `one_off` 必须给出全仓同类扫描和仓库无法结构性预防的证据；否则一律按 `recurring`。
+3. `recurring` 和所有高风险修复在生产代码前新建或更新 `docs/fixes/*.root-cause.json`；外部行为必须带核验日期的官方文档/源码，纯内部问题必须写 `internal_only_reason`。
+4. 报告的精确案例与类边界都要有先红后绿的测试；`recurring` 还必须提交变化中的结构防护产物，不能只补测试、重试、跳过或人工步骤。
+5. 修在最早可统一约束的边界，不能因报错来自某模型/供应商就默认加专用分支。
+6. `pnpm run check:root-cause-contracts` 是权威门禁；任何主动提交的合同都会校验，高风险路径则强制必须有合同。本地 Agent hook 只做提前提醒，缺失也不能绕过 CI。
 
 根因合同字段与完整方法只在技能和 schema 检查器维护，本节不复制，避免规则再次分叉。
