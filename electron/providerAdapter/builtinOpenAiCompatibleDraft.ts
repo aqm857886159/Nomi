@@ -29,6 +29,22 @@ const OPENAI_COMPATIBLE_CHAT_OP: HttpOperation = {
   },
 };
 
+/**
+ * Anthropic Messages 契约（与 onboardingIpc 的协议探测、buildAiSdkModel 的运行时同一条线）：
+ * `POST {base}/v1/messages`，`x-api-key` + `anthropic-version`，且 **max_tokens 必填**——
+ * 缺它 Anthropic 直接 400，不是可选项。鉴权头由 withAuthHeader 按 authType 补，这里只声明版本头。
+ */
+const ANTHROPIC_CHAT_OP: HttpOperation = {
+  method: "POST",
+  path: "/v1/messages",
+  headers: { "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
+  body: {
+    model: "{{model.modelKey}}",
+    max_tokens: 16,
+    messages: [{ role: "user", content: "{{request.prompt}}" }],
+  },
+};
+
 type ParamControl = ReturnType<typeof newapiTransportFor>["params"][number];
 type DraftParameters = NonNullable<AdapterModelDraft["parameters"]>;
 
@@ -67,11 +83,22 @@ function withAuthHeader(operation: HttpOperation, authType: AdapterAuthType): Ht
   return next;
 }
 
-function modesForKind(kind: BillingModelKind, authType: AdapterAuthType): AdapterModeDraft[] {
+function modesForKind(
+  kind: BillingModelKind,
+  authType: AdapterAuthType,
+  providerKind?: AiSdkProviderKind,
+): AdapterModeDraft[] {
   // 没有文档出处就诚实留空——这张卡来自内置标准契约，不是从某个页面读出来的（D4 缺口明着标）。
   const noSources = { sourceUrls: [] as string[] };
   const auth = (operation: HttpOperation) => withAuthHeader(operation, authType);
-  if (kind === "text") return [{ taskKind: "chat", create: auth(OPENAI_COMPATIBLE_CHAT_OP), ...noSources }];
+  // 文字模型的验证通道必须**随协议 derive**，不能一律按 OpenAI 发。
+  // anthropic 的聊天端点是 /v1/messages（不是 /chat/completions）且 max_tokens 必填，
+  // 照 OpenAI 那份发过去只会 404 → 验证卡在 testing 直到 90s 超时，界面报「没有能力通过验证」，
+  // 而连接检查本身是通的（那条路自己拼对了 /v1/messages）。2026-08-28 用户接 Claude 实测。
+  if (kind === "text") {
+    const chatOp = providerKind === "anthropic" ? ANTHROPIC_CHAT_OP : OPENAI_COMPATIBLE_CHAT_OP;
+    return [{ taskKind: "chat", create: auth(chatOp), ...noSources }];
+  }
   // 3D 没有通用 OpenAI 兼容契约 → 不编造。返回空 modes，验证阶段如实报「这个模型没有可用通道」。
   if (kind !== "image" && kind !== "video" && kind !== "audio") return [];
   const transport = newapiTransportFor(kind);
@@ -131,7 +158,7 @@ export function buildOpenAiCompatibleDraft(input: {
         labelZh: model.labelZh,
         kind: model.kind,
         ...(parameters.length > 0 ? { parameters } : {}),
-        modes: modesForKind(model.kind, input.authType),
+        modes: modesForKind(model.kind, input.authType, input.providerKind),
       };
     }),
   };
