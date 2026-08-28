@@ -20,6 +20,15 @@ export class ProjectAgentIpcInputError extends Error {
   readonly code = "project_agent_invalid_request" as const;
 }
 
+const PUBLIC_PROJECT_AGENT_ERROR_CODES = new Set([
+  "project_agent_invalid_request",
+  "project_identity_unavailable",
+  "project_binding_stale",
+  "project_agent_owner_conflict",
+  "project_agent_subscription_invalid",
+  "revision_conflict",
+]);
+
 type WireCommand = Readonly<{
   subscriptionId: string;
   clientCommandId: string;
@@ -112,10 +121,15 @@ function commandField(value: unknown): WireCommand {
 }
 
 function errorEnvelope(error: unknown): Readonly<{ ok: false; error: { code: string } }> {
-  const code =
+  const explicitCode =
     error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string"
       ? (error as { code: string }).code
-      : "project_agent_unavailable";
+      : undefined;
+  const message = error instanceof Error ? error.message : undefined;
+  const code =
+    (explicitCode && PUBLIC_PROJECT_AGENT_ERROR_CODES.has(explicitCode) ? explicitCode : undefined) ??
+    (message && PUBLIC_PROJECT_AGENT_ERROR_CODES.has(message) ? message : undefined) ??
+    "project_agent_unavailable";
   return { ok: false, error: { code } };
 }
 
@@ -161,12 +175,13 @@ export function registerProjectAgentIpc(
     const binding = bindingField(request.binding);
     // Surface capture proves the binding belongs to this live main-frame
     // owner. The opaque port remains owned by the app-main lifecycle.
-    const canvasRead = input.captureCanvasRead
-      ? input.captureCanvasRead(event, binding, `project-agent-open-${binding.projectId}`)
-      : (input.surfaceCapture.captureCanvasReadPort(event, binding), undefined);
-    await input.prepareProject?.(binding);
+    let canvasRead: PiCanvasReadTransportAdapter | undefined;
     let subscription;
     try {
+      canvasRead = input.captureCanvasRead
+        ? input.captureCanvasRead(event, binding, `project-agent-open-${binding.projectId}`)
+        : (input.surfaceCapture.captureCanvasReadPort(event, binding), undefined);
+      await input.prepareProject?.(binding);
       subscription = input.runtime.executionCoordinator.open(binding, canvasRead ? { canvasRead } : undefined);
     } catch (error) {
       canvasRead?.dispose();
@@ -182,8 +197,10 @@ export function registerProjectAgentIpc(
         input.runtime.executionCoordinator,
         subscription.subscriptionId,
         (notification: ProjectAgentExecutionEvent) => {
-          if (notification.type === "patch") event.sender?.send(PROJECT_AGENT_PATCH_CHANNEL, notification.patch);
-          else event.sender?.send(PROJECT_AGENT_EVENT_CHANNEL, notification);
+          const frame = event.senderFrame;
+          if (!frame || frame.detached || frame.isDestroyed()) return;
+          if (notification.type === "patch") frame.send(PROJECT_AGENT_PATCH_CHANNEL, notification.patch);
+          else frame.send(PROJECT_AGENT_EVENT_CHANNEL, notification);
         },
       );
       unsubscribeEvents.set(subscription.subscriptionId, unsubscribe);
