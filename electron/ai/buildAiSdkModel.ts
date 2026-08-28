@@ -99,6 +99,23 @@ function sanitizeHeaders(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+/**
+ * Anthropic 的 baseURL **必须自带版本段**：`@ai-sdk/anthropic` 的默认值就是
+ * `https://api.anthropic.com/v1`，它只在这个 base 后面接 `/messages`。
+ *
+ * 而我们**存的是 host root**——onboarding 探测（onboardingIpc.probeOneProtocol）会主动剥掉尾随的
+ * `/v1`（防止和它自己拼的 `/v1/messages` 双拼），落库的 baseUrl 因此是 `https://api.anthropic.com`。
+ * 两条路径对同一个存储值的约定相反：探测端「root，自己补 /v1」，运行端「base 里得有 /v1」。
+ *
+ * 不补这一段，运行时就会 POST 到 `{root}/messages` → **404 Not Found**，而 onboarding 探测却是通的，
+ * 于是表现成「连接能过、一到画布就 404」（2026-08-28 用户实测：接 Claude 后 Agent 每次 HTTP 404）。
+ * 归一放在这里而不是改存储：存量库里已经是 root 形态，读侧补齐才能同时救老数据和新接入。
+ */
+export function anthropicBaseUrl(baseURL: string): string {
+  const trimmed = baseURL.trim().replace(/\/+$/, "");
+  return /\/v\d+$/i.test(trimmed) ? trimmed : `${trimmed}/v1`;
+}
+
 export function buildAiSdkModel(input: BuildAiSdkModelInput): LanguageModelV1 {
   const apiKey = (input.apiKey || "").trim();
   const unauthenticated = input.authType === "none";
@@ -117,7 +134,7 @@ export function buildAiSdkModel(input: BuildAiSdkModelInput): LanguageModelV1 {
     const provider = createAnthropic({
       apiKey,
       fetch: appFetch,
-      ...(baseURL ? { baseURL } : {}),
+      ...(baseURL ? { baseURL: anthropicBaseUrl(baseURL) } : {}),
       ...(headers ? { headers } : {}),
     });
     return provider.languageModel(modelId);
