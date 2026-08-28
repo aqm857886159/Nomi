@@ -25,7 +25,7 @@ beforeEach(() => {
   deps.send.mockResolvedValue({ id: 'r', status: 'finished', text: 'actual', toolCalls: [], artifacts: [], finishReason: 'stop',
     usage: { promptTokens: 2, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 3 } })
   useGenerationCanvasStore.getState().restoreSnapshot(snapshot('A-node'))
-  useWorkbenchStore.setState({ storyboardPlan: { ...plan, title: 'unrelated UI plan' }, workspaceMode: 'creation' })
+  useWorkbenchStore.setState({ storyboardPlans: { 'doc-a': { plan: { ...plan, title: 'unrelated UI plan' }, committed: false } }, workspaceMode: 'creation' })
 })
 
 describe('remaining production callers use the explicit shared Agent profile', () => {
@@ -71,14 +71,14 @@ describe('remaining production callers use the explicit shared Agent profile', (
     const pending = handleCapabilityApply('production.plan-storyboard', { projectId: 'A', runId: 'run-A', operationId: 'operation-A', brief: { goal: 'goal' } })
     deps.project = 'B'
     useGenerationCanvasStore.getState().restoreSnapshot(snapshot('B-node'))
-    useWorkbenchStore.setState({ storyboardPlan: { ...plan, title: 'B plan' } })
+    useWorkbenchStore.setState({ storyboardPlans: { 'doc-a': { plan: { ...plan, title: 'B plan' }, committed: false } } })
     release()
     expect(await pending).toEqual({ text: 'own text', plan })
     expect(deps.planner).toHaveBeenCalledWith(expect.objectContaining({ target: 'production', projectId: 'A',
       history: { kind: 'ephemeral' }, featureKey: 'nomi:production-planner:A:run-A:operation-A',
       snapshot: expect.objectContaining({ nodes: [expect.objectContaining({ id: 'A-node' })] }),
     }))
-    expect(useWorkbenchStore.getState()).toMatchObject({ workspaceMode: 'creation', storyboardPlan: { title: 'B plan' } })
+    expect(useWorkbenchStore.getState()).toMatchObject({ workspaceMode: 'creation', storyboardPlans: { 'doc-a': { plan: { title: 'B plan' } } } })
     expect(useGenerationCanvasStore.getState().nodes[0].id).toBe('B-node')
   })
 })
