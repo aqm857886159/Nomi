@@ -8,6 +8,11 @@ import { load } from 'js-yaml'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const workflowPath = path.join(repoRoot, '.github/workflows/quality-gate.yml')
 const workflow = load(fs.readFileSync(workflowPath, 'utf8'))
+const desktopRcWorkflow = load(fs.readFileSync(path.join(repoRoot, '.github/workflows/desktop-rc.yml'), 'utf8'))
+
+function commands(steps) {
+  return steps.flatMap((step) => (typeof step.run === 'string' ? [step.run] : []))
+}
 
 test('quality gate runs for pull requests and main pushes without feature-branch push duplication', () => {
   assert.deepEqual(workflow.on, {
@@ -25,4 +30,21 @@ test('quality gate cancels only obsolete runs in the same PR or main lane', () =
     workflow.jobs.quality.env.VOCAB_BASE_REF,
     '${{ github.event.pull_request.base.sha || github.event.before }}',
   )
+})
+
+test('pull requests and release candidates execute both project-agent canvas journeys', () => {
+  const expected = ['xvfb-run -a pnpm run test:mcp', 'xvfb-run -a node tests/ux/project-agent-canvas-isolation.e2e.mjs']
+  const qualityCommands = commands(workflow.jobs.quality.steps)
+  const releaseCommands = commands(desktopRcWorkflow.jobs.validate.steps)
+
+  for (const command of expected) {
+    assert.ok(
+      qualityCommands.some((candidate) => candidate.includes(command)),
+      `quality gate misses ${command}`,
+    )
+    assert.ok(
+      releaseCommands.some((candidate) => candidate.includes(command)),
+      `desktop RC misses ${command}`,
+    )
+  }
 })

@@ -34,7 +34,7 @@ import {
   videoRecommendationInput,
 } from "./mcpGenerationVideoResolve";
 import type { ModuleRegistry } from "./moduleRegistry";
-import type { ProjectLeaseV1 } from "./projectLease";
+import type { ProjectLeaseV2 } from "./projectLease";
 import {
   classifyGenerationProviderCapabilities,
   type GenerationProviderCapabilityProfile,
@@ -53,30 +53,6 @@ import { effectiveVideoModes } from "../shared/videoCapabilities/recommendation"
  * knows a vendor-specific parameter or calls a provider.
  */
 export const MCP_GENERATION_TOOL_CATALOG = [
-  {
-    name: "nomi_session_open",
-    description: "打开当前项目的安全会话；只返回一个可短期使用的项目句柄。",
-    inputSchema: {
-      type: "object",
-      properties: {
-        projectSelectionHandle: { type: "string" },
-        bootstrap: {
-          type: "object",
-          properties: {
-            mode: { type: "string", enum: ["current_project"] },
-            clientSessionNonce: { type: "string" },
-          },
-          additionalProperties: false,
-        },
-      },
-      additionalProperties: false,
-    },
-    method: "nomi_session_open",
-    build: (args: Record<string, unknown>) => ({
-      ...(typeof args.projectSelectionHandle === "string" ? { projectSelectionHandle: args.projectSelectionHandle } : {}),
-      ...(args.bootstrap !== undefined ? { bootstrap: args.bootstrap } : {}),
-    }),
-  },
   {
     name: "nomi_get_generation_context",
     description: "读取当前项目可用的生成模块、模型、模式和参考素材；不调用模型。",
@@ -355,7 +331,7 @@ export type GenerationPlanningHandlerDependencies = {
   registry: Pick<ModuleRegistry, "resolve"> & Partial<Pick<ModuleRegistry, "snapshot">>;
   operations: GenerationOperationStore;
   now?: () => string;
-  context?: (input: { projectId: string; lease: ProjectLeaseV1 }) => unknown | Promise<unknown>;
+  context?: (input: { projectId: string; lease: ProjectLeaseV2 }) => unknown | Promise<unknown>;
   /**
    * Recovery capabilities are descriptive only. This resolver answers the
    * separate question of whether an executable adapter + credential exists for
@@ -392,8 +368,8 @@ export type GenerationPlanningHandlerDependencies = {
    * 单镜与多镜 create 都过它（一个入口两路都堵，P2 通用性）。抛人话 Error 即拒。Omitted → 不校验（向后兼容）。
    */
   assertReferencesResolvable?: AssertReferencesResolvable;
-  start?: (operation: GenerationOperation, lease: ProjectLeaseV1) => unknown | Promise<unknown>;
-  reconcile?: (operation: GenerationOperation, outcome: "found" | "not_found", lease: ProjectLeaseV1) => unknown | Promise<unknown>;
+  start?: (operation: GenerationOperation, lease: ProjectLeaseV2) => unknown | Promise<unknown>;
+  reconcile?: (operation: GenerationOperation, outcome: "found" | "not_found", lease: ProjectLeaseV2) => unknown | Promise<unknown>;
 };
 
 function record(value: unknown, label: string): Record<string, unknown> {
@@ -528,7 +504,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       anchorChips: anchors.map((anchor) => ({ label: normalized(anchor.candidate).prompt.slice(0, 40), price: priceForCandidate(normalized(anchor.candidate)) })),
     });
   };
-  return async (input: { capability: string; params: Record<string, unknown>; lease?: ProjectLeaseV1; origin?: { host: string; actorId?: string } }): Promise<unknown> => {
+  return async (input: { capability: string; params: Record<string, unknown>; lease?: ProjectLeaseV2; origin?: { host: string; actorId?: string } }): Promise<unknown> => {
     if (!input.lease) throw new Error("A verified project lease is required");
     const params = input.params;
     if (input.capability === "context") {

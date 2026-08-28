@@ -3,6 +3,7 @@ import {
   type AgentAttachmentPayload,
   type AgentChatV2Session,
   type AgentsChatResponseDto,
+  type AgentsChatStreamAdmission,
   type AgentsChatStreamEvent,
 } from '../../api/desktopClient'
 import type { AgentChatCapability, AgentChatErrorCode, AgentChatHistory, AgentChatStatus } from '../../../electron/harness/agentChatContracts'
@@ -100,6 +101,7 @@ export function buildWorkbenchAiPayload(input: WorkbenchAiRequest) {
 export async function sendWorkbenchAiMessage(
   input: WorkbenchAiRequest,
   handlers: WorkbenchAiStreamHandlers,
+  admission: AgentsChatStreamAdmission = {},
 ): Promise<AgentsChatResponseDto> {
   const payload = buildWorkbenchAiPayload(input)
 
@@ -132,7 +134,7 @@ export async function sendWorkbenchAiMessage(
         observe(() => handlers.onEvent?.(event))
       },
       onError: (error) => { outcome.error = error },
-    }).catch(reject)
+    }, admission).catch(reject)
   })
 
   // Stable final consumption is counted once for all six callers, including errors and Stop.

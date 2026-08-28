@@ -110,6 +110,26 @@ describe('buildWorkbenchAiPayload', () => {
     expect('systemPrompt' in payload).toBe(false)
   })
 
+  it('threads captured Surface admission beside the payload without making it business data', async () => {
+    const surfaceBinding = { version: 1 as const, bindingId: 'binding-a',
+      binding: { projectId: 'proj-1', immutableProjectUuid: 'uuid-proj-1', projectGeneration: 1 },
+      webContentsId: 1, processId: 2, frameRoutingId: 3, origin: 'file://',
+      surfaceInstanceId: 'surface-generation', portRevision: 4, nonce: 'nonce-a' }
+    const response = { id: 'response', status: 'finished' as const, text: '', toolCalls: [], artifacts: [], finishReason: 'stop' as const,
+      usage: { promptTokens: 0, completionTokens: 0, cachedPromptTokens: 0, totalTokens: 0 } }
+    mocks.stream.mockImplementationOnce(async (_payload, handlers) => {
+      handlers.onEvent({ event: 'result', data: { response } })
+      handlers.onEvent({ event: 'done', data: { reason: 'finished' } })
+      return () => {}
+    })
+
+    await sendWorkbenchAiMessage(FULL_REQUEST, {}, { surfaceBinding })
+
+    const [payload, , admission] = mocks.stream.mock.calls[0]
+    expect(payload).not.toHaveProperty('surfaceBinding')
+    expect(admission).toEqual({ surfaceBinding })
+  })
+
   it('keeps a structured credential code on the actionable Error', async () => {
     mocks.stream.mockImplementationOnce(async (_payload, handlers) => {
       handlers.onEvent({ event: 'error', data: {

@@ -5,14 +5,28 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createApprovalReceiptAuthority } from "./approvalReceipt";
 import { dispatch } from "./dispatcher";
+import type { McpConnectionContext } from "./mcpConnectionContext";
 import { createMcpGenerationPolicy } from "./mcpGenerationPolicy";
 import { createMcpProtocol, type McpTransport } from "./mcpProtocol";
 import { createGenerationPlanningHandler, createInMemoryGenerationOperationStore } from "./mcpGenerationTools";
 import { createModuleRegistry } from "./moduleRegistry";
 import { createProjectLeaseAuthority } from "./projectLease";
 import { createProjectLeaseStore } from "./projectLeaseStore";
+import { createProjectSessionAuthority } from "./projectSessionAuthority";
 
 const roots: string[] = [];
+const connection: McpConnectionContext = Object.freeze({
+  authenticatedClient: "codex",
+  principal: "mcp:codex",
+  sessionId: "mcp-session:test",
+  connectionNonce: "nonce-test",
+});
+const projectIdentity = Object.freeze({
+  projectId: "project-1",
+  immutableProjectUuid: "project-uuid",
+  projectGeneration: 1,
+  canonicalRootDigest: "root",
+});
 const registry = createModuleRegistry([{
   moduleId: "generation.single-shot",
   version: "1.0.0",
@@ -42,7 +56,11 @@ function leaseAuthority(root: string) {
   return createProjectLeaseAuthority({
     macKey: "lease-key",
     keyId: "lease-v1",
-    store: createProjectLeaseStore({ filePath: path.join(root, "leases.json"), macKey: "lease-store-key", keyId: "lease-store-v1" }),
+    store: createProjectLeaseStore({ filePath: path.join(root, "leases.json"), macKey: "lease-store-key", keyId: "lease-store-v1", now: () => "2026-08-23T00:00:00.000Z" }),
+    verifyProjectIdentity: async (projectId) => {
+      if (projectId !== projectIdentity.projectId) throw new Error("project identity unavailable");
+      return projectIdentity;
+    },
     now: () => "2026-08-23T00:00:00.000Z",
     randomId: (() => { let n = 0; return () => `lease-${++n}`; })(),
   });
@@ -72,8 +90,8 @@ describe("semantic MCP one-confirmation journey", () => {
     roots.push(root);
     const receipts = authority(root);
     const leases = leaseAuthority(root);
-    const selection = leases.issueSelectionHandle({ immutableProjectUuid: "project-uuid", projectGeneration: 1, canonicalRootDigest: "root", manifestDigest: "manifest", scopeSet: ["context:read", "generation:create", "generation:plan", "generation:preview", "generation:gate", "generation:read"] });
-    const lease = leases.issueLease(selection.token, { projectId: "project-1", leasePrincipal: "mcp:codex", sessionId: "session-1", connectionNonce: "nonce-1" }).token;
+    const selection = leases.issueSelectionHandle({ ...projectIdentity, manifestDigest: "manifest", scopeSet: ["context:read", "generation:create", "generation:plan", "generation:preview", "generation:gate", "generation:read"] }, connection);
+    const lease = (await leases.issueLease(selection.token, connection)).token;
     const baseOperations = createInMemoryGenerationOperationStore();
     let createdOperationId = "";
     const operations = {
@@ -94,7 +112,14 @@ describe("semantic MCP one-confirmation journey", () => {
       origin: { host: "codex" as const },
       generationPolicy: policy,
       generationPlanning: planning,
-      projectLeaseAuthority: leases,
+      projectSession: {
+        authority: createProjectSessionAuthority({
+          leaseAuthority: leases,
+          generationPolicy: policy,
+          resolveProjectSelection: async () => ({ ...projectIdentity, manifestDigest: "manifest" }),
+        }),
+        connection,
+      },
       approvalReceiptAuthority: receipts,
       projectRevisionResolver: () => 1,
     };

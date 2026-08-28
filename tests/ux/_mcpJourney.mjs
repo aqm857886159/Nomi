@@ -26,6 +26,7 @@ import readline from 'node:readline'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { withLinuxNoSandbox } from './_launchApp.mjs'
+import { installMcpClientProof } from './_mcpClientProof.mjs'
 
 const require = createRequire(import.meta.url)
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -253,6 +254,12 @@ export const BAD_SHOT_MARKER = '#BADSHOT'
 export function spawnMcpStdioClient({
   settingsDir, userDataDir, projectsDir, capabilityDir, clientInfo, capabilities, env,
 }) {
+  const hasClient = typeof env?.NOMI_MCP_CLIENT === 'string' && env.NOMI_MCP_CLIENT.length > 0
+  const hasProof = typeof env?.NOMI_MCP_CLIENT_PROOF === 'string' && env.NOMI_MCP_CLIENT_PROOF.length > 0
+  if (hasClient !== hasProof) throw new Error('MCP journey must provide both client and proof, or neither')
+  const clientProofEnv = hasClient
+    ? {}
+    : installMcpClientProof(capabilityDir, 'codex')
   const child = spawn(require('electron'), withLinuxNoSandbox([repoRoot, '--disable-gpu']), {
     cwd: repoRoot,
     env: {
@@ -264,6 +271,7 @@ export function spawnMcpStdioClient({
       NOMI_ELECTRON_USER_DATA_DIR: userDataDir,
       NOMI_PROJECTS_DIR: projectsDir,
       NOMI_CAPABILITY_DIR: capabilityDir,
+      ...clientProofEnv,
       ...(env || {}),
     },
     stdio: ['pipe', 'pipe', 'inherit'],

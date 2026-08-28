@@ -1,12 +1,13 @@
 import { z } from 'zod'
+import { generationNodeStatusSchema } from '../../../../electron/shared/canvas/generationNodeStatus'
 import { CATEGORY_IDS } from './generationCanvasTypes'
 import { GENERATION_NODE_KINDS } from './generationNodeKinds'
 
 export const generationNodeKindSchema = z.enum(GENERATION_NODE_KINDS)
 
-export const generationNodeStatusSchema = z.enum(['idle', 'queued', 'running', 'success', 'error', 'recoverable'])
+export { generationNodeStatusSchema }
 export const generationNodeTaskKindSchema = z.enum(['text', 'image', 'video', 'audio', 'model3d', 'workflow', 'asset', 'unknown'])
-export const generationNodeRunStatusSchema = z.enum(['queued', 'running', 'success', 'error', 'cancelled', 'recoverable'])
+export const generationNodeRunStatusSchema = generationNodeStatusSchema.exclude(['idle']).or(z.literal('cancelled'))
 export const categoryIdSchema = z.enum(CATEGORY_IDS)
 
 export const generationNodeProgressSchema = z.object({

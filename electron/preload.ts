@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { importNativeFileFromPreload } from "./assets/nativeFileBridge";
 import type { AgentChatStartRequest, AgentChatHistoryRequest, AgentChatToolDecision, AgentChatWireEvent } from './harness/agentChatContracts';
+import { createCanvasReadSurfacePreloadBridge } from './surfacePortPreloadBridge';
+import type { ProjectAgentExecutionEvent, ProjectAgentPatch } from './shared/projectAgentContracts';
 
 type SyncResult<T> = { ok: true; value: T } | { ok: false; error: string };
 type ProductionDeepLinkPayload = { projectId: string; runId?: string; nodeId?: string; artifactId?: string };
@@ -593,9 +595,7 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     importPackage: (payload: unknown) => invokeSync("nomi:skill:import", payload),
     deleteByDir: (dirName: string) => invokeSync("nomi:skill:delete", dirName),
   },
-  // 能力核：上报当前窗口打开的项目，供外部调用的 A/B 路由（决定走渲染层网关还是磁盘网关）。
   capability: {
-    setActiveProject: (projectId: string) => ipcRenderer.send("nomi:capability:active-project", projectId),
     // 「接入 AI 编程助手」卡：读状态/配置 + 一键写入/撤销 ~/.claude.json。
     mcpInfo: () => invokeSync("nomi:capability:mcp-info"),
     installMcp: (client?: string) => invokeSync("nomi:capability:mcp-install", client),
@@ -621,6 +621,37 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       };
       ipcRenderer.on("nomi:capability:apply", listener);
       return () => ipcRenderer.removeListener("nomi:capability:apply", listener);
+    },
+  },
+  surface: createCanvasReadSurfacePreloadBridge(
+    (channel, payload) => ipcRenderer.invoke(channel, payload),
+    {
+      subscribe: (channel, listener) => {
+        const wrapped = (_event: unknown, payload: unknown) => listener(payload);
+        ipcRenderer.on(channel, wrapped);
+        return () => ipcRenderer.removeListener(channel, wrapped);
+      },
+      send: (channel, payload) => ipcRenderer.send(channel, payload),
+    },
+  ),
+  projectAgent: {
+    open: (binding: unknown) => ipcRenderer.invoke('nomi:projectAgent:open', { binding }),
+    snapshot: (subscriptionId: string) => ipcRenderer.invoke('nomi:projectAgent:snapshot', { subscriptionId }),
+    command: (command: unknown) => ipcRenderer.invoke('nomi:projectAgent:command', command),
+    release: (subscriptionId: string) => ipcRenderer.invoke('nomi:projectAgent:release', { subscriptionId }),
+    onPatch: (handler: (patch: ProjectAgentPatch) => void) => {
+      const listener = (_event: unknown, payload: unknown) => {
+        if (payload && typeof payload === 'object' && !Array.isArray(payload)) handler(payload as ProjectAgentPatch);
+      };
+      ipcRenderer.on('nomi:projectAgent:patch', listener as never);
+      return () => ipcRenderer.removeListener('nomi:projectAgent:patch', listener as never);
+    },
+    onEvent: (handler: (event: ProjectAgentExecutionEvent) => void) => {
+      const listener = (_event: unknown, payload: unknown) => {
+        if (payload && typeof payload === 'object' && !Array.isArray(payload)) handler(payload as ProjectAgentExecutionEvent);
+      };
+      ipcRenderer.on('nomi:projectAgent:event', listener as never);
+      return () => ipcRenderer.removeListener('nomi:projectAgent:event', listener as never);
     },
   },
 });

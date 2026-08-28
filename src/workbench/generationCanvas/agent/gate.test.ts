@@ -1,9 +1,14 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { CANVAS_READ_CAPABILITY } from '../../../../electron/shared/agentCapabilities/canvasRead'
 import { evaluateGate } from './gate'
 
 describe('evaluateGate — 统一求值流(§6.1)', () => {
-  it('① policy:只读工具直通 allow', () => {
-    expect(evaluateGate({ kind: 'tool-call', toolName: 'read_canvas_state', args: {} })).toEqual({ outcome: 'allow' })
+  it('fails closed if a main-owned canvas read ever leaks into the renderer gate', () => {
+    const decision = evaluateGate({ kind: 'tool-call', toolName: CANVAS_READ_CAPABILITY.aliases.pi, args: {} })
+    expect(decision.outcome).toBe('deny')
+    const source = readFileSync(new URL('./gate.ts', import.meta.url), 'utf8')
+    expect(source).not.toContain('CANVAS_READ_CAPABILITY')
   })
 
   it('① policy:propose_storyboard_plan 免费可改(不写画布/不花钱)→ allow', () => {

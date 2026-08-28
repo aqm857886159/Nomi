@@ -6,12 +6,15 @@ import type {
 import { CATEGORY_IDS } from '../model/generationCanvasTypes'
 import { getDefaultCategoryForNodeKind, getGenerationNodeDefaultTitle } from '../model/generationNodeKinds'
 import { ANCHOR_META_KEYS } from '../model/anchorBibleKeys'
-import { generationCanvasTools, type CreateGenerationNodeToolInput } from './generationCanvasTools'
+import {
+  generationCanvasTools,
+  readGenerationCanvasSnapshot,
+  type CreateGenerationNodeToolInput,
+} from './generationCanvasTools'
 import { listAvailableModelsForAgent, type AgentModelEntry } from './availableModels'
 import { buildPlannedNodeMeta } from './plannedNodeMeta'
 import { withCanvasGestureContext, type CanvasGestureContext } from '../events/canvasGestureContext'
 import { layoutPlannedNodes, layoutStoryboardNodes } from './trajectoryLayout'
-import { formatCanvasForAgent } from './canvasPromptContext'
 import { buildDependencyWaves } from '../runner/dependencyWaves'
 import { runPlanWithToasts } from '../components/batchPlanPreview'
 import { resolveAutonomousUploadConsent } from '../runner/generationRunController'
@@ -97,7 +100,7 @@ function appendDirectiveToNodePrompt(
   metaFlagKey: string,
   inCtx: <T>(fn: () => T) => T,
 ): { found: boolean; applied: boolean; alreadyApplied: boolean } {
-  const existing = generationCanvasTools.read_canvas().nodes.find((node) => node.id === nodeId)
+  const existing = readGenerationCanvasSnapshot().nodes.find((node) => node.id === nodeId)
   if (!existing) return { found: false, applied: false, alreadyApplied: false }
   const meta = (existing.meta ?? {}) as Record<string, unknown>
   if (meta[metaFlagKey] === directive) {
@@ -219,7 +222,9 @@ export async function applyCanvasToolCall(
   gesture?: CanvasGestureContext,
   canWrite?: () => boolean,
 ): Promise<unknown> {
-  const assertWritable = () => { if (canWrite) assertTurnCanWrite(canWrite) }
+  const assertWritable = () => {
+    if (canWrite) assertTurnCanWrite(canWrite)
+  }
   assertWritable()
   const record = args && typeof args === 'object' ? (args as Record<string, unknown>) : {}
   // S6-2:提议事务把手势上下文传进来,store 变更段(纯同步)包在上下文里——途经 action
@@ -228,15 +233,6 @@ export async function applyCanvasToolCall(
   const inCtx = <T>(fn: () => T): T => {
     assertWritable()
     return gesture ? withCanvasGestureContext(gesture, fn) : fn()
-  }
-
-  if (toolName === 'read_canvas_state') {
-    // T1 token 优化:回包用紧凑行格式(与 system prompt 的画布段同源),
-    // 不再把全字段快照 JSON 回灌进对话历史(那是每请求 2-3k token 的洞)。
-    const snapshot = generationCanvasTools.read_canvas()
-    const selectedIds = new Set(snapshot.selectedNodeIds ?? [])
-    const selected = snapshot.nodes.filter((node) => selectedIds.has(node.id))
-    return formatCanvasForAgent(snapshot, selected)
   }
 
   if (toolName === 'propose_storyboard_plan') {
@@ -269,7 +265,7 @@ export async function applyCanvasToolCall(
     })
     // 分镜方案落画布（storyboardPlanToCreateNodesArgs 给 anchorCount）→ 参考行在上 + 镜头折行网格；
     // 其余（agent 直接建卡）→ 原轨迹分层布局。两者都从已有节点包围盒下方起、不压旧内容。
-    const existingCanvasNodes = generationCanvasTools.read_canvas().nodes
+    const existingCanvasNodes = readGenerationCanvasSnapshot().nodes
     const storyboardAnchorCount = typeof record.anchorCount === 'number' ? record.anchorCount : null
     const layout =
       storyboardAnchorCount !== null
@@ -292,8 +288,10 @@ export async function applyCanvasToolCall(
       // 首帧图身份同机制 → node.meta.storyboardKeyframe：创建时不领号，随后共用所属视频的镜号（见下）。
       // W2 圣经：static/dynamic 特征也透传进 meta（键名走 anchorBibleKeys 单一常量，防 GUI/headless 漂移）——
       // 身份轴对照读 meta.staticFeatures、冻结门/交付可显示；passthrough schema 自动持久化，零 schema 改动。
-      const staticFeatures = typeof node.staticFeatures === 'string' && node.staticFeatures.trim() ? node.staticFeatures.trim() : ''
-      const dynamicFeatures = typeof node.dynamicFeatures === 'string' && node.dynamicFeatures.trim() ? node.dynamicFeatures.trim() : ''
+      const staticFeatures =
+        typeof node.staticFeatures === 'string' && node.staticFeatures.trim() ? node.staticFeatures.trim() : ''
+      const dynamicFeatures =
+        typeof node.dynamicFeatures === 'string' && node.dynamicFeatures.trim() ? node.dynamicFeatures.trim() : ''
       const identityMarks = {
         ...(node.referenceSheet === true ? { referenceSheet: true } : {}),
         ...(node.storyboardKeyframe === true ? { storyboardKeyframe: true } : {}),
@@ -308,9 +306,10 @@ export async function applyCanvasToolCall(
         node.metadata && typeof node.metadata === 'object' && !Array.isArray(node.metadata)
           ? (node.metadata as Record<string, unknown>)
           : undefined
-      const meta = structuredMetadata || Object.keys(identityMarks).length
-        ? { ...(plannedMeta ?? {}), ...(structuredMetadata ?? {}), ...identityMarks }
-        : plannedMeta
+      const meta =
+        structuredMetadata || Object.keys(identityMarks).length
+          ? { ...(plannedMeta ?? {}), ...(structuredMetadata ?? {}), ...identityMarks }
+          : plannedMeta
       // 单节点：尊重 agent 指定位置（增量添加可能要贴近某节点），否则同走避让布局。
       const position =
         total > 1
@@ -436,7 +435,7 @@ export async function applyCanvasToolCall(
     const { buildStagingSceneAudited } = await import('../nodes/scene3d/stagingBuilder')
     // 运行时自检(F3,零额度几何守卫):修正非法/近似姿势 id(治静默落站立)+ 角色过近自动拉开间距。
     const { state, issues: stagingIssues } = buildStagingSceneAudited(spec)
-    const existing = generationCanvasTools.read_canvas().nodes
+    const existing = readGenerationCanvasSnapshot().nodes
     const position = layoutPlannedNodes(['image'], existing)[0]
     const created = inCtx(() =>
       generationCanvasTools.create_nodes([
@@ -554,10 +553,10 @@ export async function applyCanvasToolCall(
     const requested = Array.isArray(record.nodeIds)
       ? record.nodeIds.map((id) => resolveNodeId(String(id || '').trim())).filter(Boolean)
       : []
-    const existing = new Set(generationCanvasTools.read_canvas().nodes.map((node) => node.id))
+    const existing = new Set(readGenerationCanvasSnapshot().nodes.map((node) => node.id))
     const nodeIds = requested.filter((id) => existing.has(id))
     if (!nodeIds.length) throw new Error('node_not_found:请求生成的节点都不存在')
-    const state = generationCanvasTools.read_canvas()
+    const state = readGenerationCanvasSnapshot()
     const plan = buildDependencyWaves(nodeIds, { nodes: state.nodes, edges: state.edges })
     const accepted = plan.waves.flat()
     if (!accepted.length) {
@@ -576,7 +575,7 @@ export async function applyCanvasToolCall(
         if (getDesktopActiveProjectId() !== projectId) return
         const decisions = await Promise.all(accepted.map((id) => resolveAutonomousUploadConsent(id)))
         if (getDesktopActiveProjectId() !== projectId) return
-        const consent = decisions.includes('allow') ? 'allow' as const : 'not-needed' as const
+        const consent = decisions.includes('allow') ? ('allow' as const) : ('not-needed' as const)
         await runPlanWithToasts(plan, { grantId, assetUploadConsent: consent })
       })
       .catch((error: unknown) => {
@@ -598,7 +597,10 @@ export async function applyCanvasToolCall(
     const rawIds = Array.isArray(record.nodeIds)
       ? record.nodeIds.map((id) => resolveNodeId(String(id || '').trim())).filter(Boolean)
       : undefined
-    const result = await arrangeStoryboardToTimeline({ ...(rawIds && rawIds.length ? { nodeIds: rawIds } : {}), assertCanApply: assertWritable })
+    const result = await arrangeStoryboardToTimeline({
+      ...(rawIds && rawIds.length ? { nodeIds: rawIds } : {}),
+      assertCanApply: assertWritable,
+    })
     if (!result.ok && result.total === 0) {
       throw new Error('没有可排片的镜头:画布上还没有生成好的视频或可占位的关键帧')
     }

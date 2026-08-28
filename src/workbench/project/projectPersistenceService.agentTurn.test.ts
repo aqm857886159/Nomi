@@ -38,8 +38,10 @@ describe('project hydration invalidates Agent ownership before asynchronous work
     let releaseReplay!: () => void
     deps.read.mockImplementationOnce(() => new Promise((resolve) => { release = resolve }))
     deps.replay.mockImplementationOnce(() => new Promise<void>((resolve) => { releaseReplay = resolve }))
-    const service = createWorkbenchProjectPersistenceService({ setActiveProject: vi.fn(), setView: vi.fn(), onSaveError: vi.fn() })
-    const loading = service.hydrateProject('B')
+    const setActiveProject = vi.fn()
+    const service = createWorkbenchProjectPersistenceService({ setActiveProject })
+    const guard = { signal: new AbortController().signal, assertCurrent: vi.fn() }
+    const loading = service.hydrateProject('B', guard)
     expect(oldCreation.canWrite()).toBe(false)
     expect(oldCanvas.canWrite()).toBe(false)
     expect(useShotVerifyStore.getState().isVerifyCurrent(oldVerify, 'A')).toBe(false)
@@ -62,5 +64,34 @@ describe('project hydration invalidates Agent ownership before asynchronous work
     expect(tailCreation.canWrite()).toBe(false)
     expect(tailCanvas.canWrite()).toBe(false)
     expect(useShotVerifyStore.getState().isVerifyCurrent(tailVerify, 'A')).toBe(false)
+    expect(deps.replay).toHaveBeenCalledWith('B', expect.anything(), guard)
+    // The outer Surface coordinator owns the one active publish immediately
+    // before commit; persistence restore must not publish a second time.
+    expect(setActiveProject).not.toHaveBeenCalled()
+  })
+
+  it('checks the hydration epoch after the async read and before restoring any global project state', async () => {
+    const project = {
+      id: 'B', name: 'B', version: 1, createdAt: 1, updatedAt: 1, revision: 1, savedAt: 1,
+      payload: createDefaultWorkbenchProjectPayload(),
+    }
+    let current = true
+    deps.read.mockImplementationOnce(async () => {
+      current = false
+      return project
+    })
+    const guard = {
+      signal: new AbortController().signal,
+      assertCurrent: vi.fn(() => {
+        if (!current) throw new Error('project_hydration_superseded')
+      }),
+    }
+    const setActiveProject = vi.fn()
+    const service = createWorkbenchProjectPersistenceService({ setActiveProject })
+
+    await expect(service.hydrateProject('B', guard)).rejects.toThrow('project_hydration_superseded')
+    expect(deps.restore).not.toHaveBeenCalled()
+    expect(deps.replay).not.toHaveBeenCalled()
+    expect(setActiveProject).not.toHaveBeenCalled()
   })
 })

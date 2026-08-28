@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
 import { buildStepDetailLabels, countCreatedNodesByCategory, summarizeToolCall, describeToolCallDetail } from './toolCallSummary'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
@@ -27,6 +28,11 @@ describe('summarizeToolCall — 时间线步骤标题(人话,无 toolName 原文
 
   it('未知工具退回工具名(不崩)', () => {
     expect(summarizeToolCall('mystery', {})).toBe('mystery')
+  })
+
+  it('does not own an unreachable summary branch for silent canvas reads', () => {
+    const source = readFileSync(new URL('./toolCallSummary.ts', import.meta.url), 'utf8')
+    expect(source).not.toMatch(/toolName === ['"]read_canvas_state['"]/)
   })
 })
 

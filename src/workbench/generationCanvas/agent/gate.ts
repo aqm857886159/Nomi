@@ -1,6 +1,6 @@
 // 统一求值流(harness §6.1)——AI 想动你的作品前必经的那道门。
-// 把散落的"只读自动放行"硬编码约定声明化成一张工具 meta 表 + 一个纯函数。
-// 三步:① policy(只读→allow)② invariant(校验/锁→deny)③ ask(其余→等用户点头)。
+// 渲染层只评估会抵达 UI 的操作；main-owned 只读能力不会进入这里。
+// 三步:① policy(本地无副作用→allow)② invariant(校验/锁→deny)③ ask(其余→等用户点头)。
 // SDK 的 hook registry / permission mode / 规则 DSL 一律不抄(单用户桌面无配置面)。
 import i18n from '../../../i18n'
 
@@ -28,7 +28,6 @@ export type GateContext = {
 type ToolMeta = { writes: boolean; destructive?: boolean; costy?: boolean }
 
 const TOOL_META: Record<string, ToolMeta> = {
-  read_canvas_state: { writes: false },
   // 产出分镜方案对象,只落创作 store 给用户审/改(不写画布投影、不花钱)——免费可改,直通放行(allow)。
   // 真正花钱/写画布的是用户确认后由方案转出的 create_canvas_nodes + run_generation_batch。
   propose_storyboard_plan: { writes: false },

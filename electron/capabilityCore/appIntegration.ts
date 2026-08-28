@@ -2,8 +2,7 @@
 //
 // 把 RPC server + token + 实例广告接到运行中的 Nomi app：启动时拉起 RPC（127.0.0.1）、ensureToken、
 // 写实例广告让外部 CLI/MCP 探测得到「app 开着」；退出时清广告 + 关 server。
-// 还维护「当前哪个项目正在窗口里打开」（renderer 经 IPC 上报）供 A/B 守卫用——避免外部直写正在
-// 编辑的工程被内存 store 覆盖（rpcServer 注释详述）。
+// 「当前项目」只投影 main-owned Surface committed identity；renderer 不再上报可执行项目标量。
 //
 // **库指纹 + 心跳**（2026-08-18 §P3-F）：广告写 v2——带 projectsRoot（本实例真正服务的库，取自
 // getProjectLocationState，与 runtimePaths 同源，不另派生）+ heartbeatAt（每 HEARTBEAT_INTERVAL_MS 刷新的
@@ -14,20 +13,16 @@
 import { app } from 'electron'
 import crypto from 'node:crypto'
 import path from 'node:path'
-import { startRpcServer, type RpcServerHandle } from './rpcServer'
+import { startRpcServer, type RpcServerHandle, type RpcServerOptions } from './rpcServer'
 import { capabilityCoreDir, ensureCapabilitySigningKey, ensureToken } from './security'
 import { clearInstanceAdvertisement, writeInstanceAdvertisement } from './lockfile'
 import { HEARTBEAT_INTERVAL_MS, type InstanceAdvertisement } from './instanceAdvert'
 import { getProjectLocationState, getWorkspaceRepositoryDeps } from '../runtimePaths'
 import type { FetchTaskResultFn, RunTaskFn } from './core'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
-import { createProjectLeaseAuthority, type ProjectLeaseAuthority } from './projectLease'
-import { createProjectLeaseStore } from './projectLeaseStore'
 import { createApprovalReceiptAuthority, type ApprovalReceiptAuthority } from './approvalReceipt'
 import { createProductionRunLock } from '../productionRun/productionRunLock'
 import { readWorkspaceProject, resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
-import { createCurrentProjectResolver, deriveProjectIdentityDigests } from './currentProjectResolver'
-import type { ProjectSelectionHandleV1 } from './projectLease'
 import { createRuntimeMcpGenerationPolicy, type McpGenerationPolicy } from './mcpGenerationPolicy'
 import type { DispatchContext } from './dispatcher'
 import { requestRenderer, rendererTargetIdentity } from './rendererBridge'
@@ -46,13 +41,15 @@ import { createGenerationProviderBootstrap } from './generationProviderBootstrap
 import { createGenerationOutputMaterializer } from './generationOutputMaterializer'
 import { readCatalog } from '../catalog/catalogStore'
 import { buildVideoModelCandidates, recommendVideoGeneration, videoArchetypeIdFromMeta } from '../shared/videoCapabilities'
+import { createProductionProjectSessionRuntime } from './projectSessionRuntime'
+import { canvasReadSurfaceRuntime } from './canvasReadSurfaceRuntime'
+import type { CanvasReadExecutionRuntime } from './canvasReadExecutionRuntime'
 
 let handle: RpcServerHandle | null = null
-let openProjectId = ''
 // P4 S5：打开/切换项目时的补齐钩子（startCapabilityCore 装配后设进来）——按 run.jobs[].nodeId × artifacts
 // 幂等补落缺失节点/组、回填已完成 result，并恢复未完批次调度（resumeUnfinishedRuns）。模块级 hoist 是因为
-// setOpenProjectId 是模块级导出（main.ts 的 active-project IPC 直接调它），而补齐逻辑住在 start 闭包内。
 let reconcileOpenProjectHook: ((projectId: string) => void) | null = null
+let unsubscribeCommittedSurface: (() => void) | null = null
 // P4 S6：返工/续拍编排钩子（start 闭包装配后设进来）——住在 start 闭包里因为它们要用 scheduler builder +
 // 单镜 gate 确认（confirmGenerationInNomi + 收据机构）+ 提交门面，这些都在闭包内。main.ts 的 IPC 转调这两个导出。
 let reworkProductionShotHook: ((input: { projectId: string; runId: string; shotId?: string }) => Promise<ProductionActionResult>) | null = null
@@ -61,7 +58,7 @@ let resumeProductionBatchHook: ((input: { projectId: string; runId: string; reas
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null
 let advertisedLibrary: { projectsRoot: string; isDefault: boolean } | null = null
 
-function createDefaultAuthorities(hooks: {
+function createDefaultAuthorities(generationPolicy: McpGenerationPolicy, hooks: {
   /**
    * P4 S4 试拍首镜 (§6 T3): called when a multi-shot confirmation card resolves trialFirst. Narrows the
    * plan to shot 1 and re-seals it durably, so the client's re-requested gate lists a single shot. The
@@ -71,25 +68,20 @@ function createDefaultAuthorities(hooks: {
   onTrialFirst?: (input: { projectId: string; operationId: string }) => void | Promise<void>
 } = {}): Pick<
   DispatchContext,
-  'projectLeaseAuthority' | 'resolveProjectSelection' | 'resolveCurrentProject' | 'approvalReceiptAuthority' | 'projectRevisionResolver'
-  | 'confirmGenerationInNomi'
-> {
+  'approvalReceiptAuthority' | 'projectRevisionResolver' | 'confirmGenerationInNomi'
+> & Pick<RpcServerOptions, 'projectSessionAuthority'> {
   const authorityDir = capabilityCoreDir()
   const sharedLock = createProductionRunLock({
     filePath: path.join(authorityDir, 'semantic-authorities.lock'),
     epochPath: path.join(authorityDir, 'semantic-authorities.epoch'),
     ownerId: `capability-core-${process.pid}`,
   })
-  const leaseKey = ensureCapabilitySigningKey('project-lease')
-  const leaseAuthority = createProjectLeaseAuthority({
-    macKey: leaseKey,
-    keyId: 'project-lease-v1',
-    store: createProjectLeaseStore({
-      filePath: path.join(authorityDir, 'project-leases.json'),
-      macKey: ensureCapabilitySigningKey('project-lease-store'),
-      keyId: 'project-lease-store-v1',
-      lock: sharedLock,
-    }),
+  const projectSession = createProductionProjectSessionRuntime({
+    generationPolicy,
+    getOpenProjectSelection: canvasReadSurfaceRuntime.getCommittedProjectSelection,
+    // Existing non-current projects are not implicitly authorized merely
+    // because they exist. A future allowlist must be an explicit policy.
+    isServerAllowlisted: () => false,
   })
   const receiptAuthority = createApprovalReceiptAuthority({
     filePath: path.join(authorityDir, 'approval-receipts.json'),
@@ -98,29 +90,6 @@ function createDefaultAuthorities(hooks: {
     keyId: 'approval-receipt-v1',
     lock: sharedLock,
   })
-  const resolver = createCurrentProjectResolver({
-    getOpenProjectId: () => openProjectId,
-    readProject: (projectId) => readWorkspaceProject(projectId, getWorkspaceRepositoryDeps()),
-  })
-  const resolveProjectSelection = (selection: ProjectSelectionHandleV1) => {
-    const projectId = openProjectId.trim()
-    const record = projectId ? readWorkspaceProject(projectId, getWorkspaceRepositoryDeps()) : null
-    if (!record || record.id !== projectId || record.immutableProjectUuid !== selection.immutableProjectUuid
-      || record.projectGeneration !== selection.projectGeneration) {
-      throw new Error('Project selection handle does not match the open project')
-    }
-    const digests = deriveProjectIdentityDigests(record)
-    if (digests.canonicalRootDigest !== selection.canonicalRootDigest || digests.manifestDigest !== selection.manifestDigest) {
-      throw new Error('Project selection handle is stale for the open project')
-    }
-    return {
-      projectId,
-      leasePrincipal: 'nomi-gui',
-      sessionId: `nomi-gui:${selection.sessionNonce}`,
-      connectionNonce: selection.sessionNonce,
-      serverNonce: crypto.randomUUID(),
-    }
-  }
   const confirmGenerationInNomi = async ({ challengeToken }: { challengeToken: string }) => {
     const challenge = receiptAuthority.verifyChallenge(challengeToken)
     const target = rendererTargetIdentity()
@@ -167,22 +136,11 @@ function createDefaultAuthorities(hooks: {
     }
   }
   return {
-    projectLeaseAuthority: leaseAuthority,
-    resolveProjectSelection,
-    resolveCurrentProject: resolver,
+    projectSessionAuthority: projectSession.authority,
     approvalReceiptAuthority: receiptAuthority,
     confirmGenerationInNomi,
     projectRevisionResolver: (projectId) => readWorkspaceProject(projectId, getWorkspaceRepositoryDeps())?.revision,
   }
-}
-
-/** renderer 上报当前打开的项目（打开/切换=id，关闭=''）。A/B 守卫据此拒绝直写打开中的工程。 */
-export function setOpenProjectId(projectId: string): void {
-  const next = String(projectId || '').trim()
-  const changed = next && next !== openProjectId
-  openProjectId = next
-  // P4 S5：打开/切到某项目 → 触发画布落地补齐 + 未完批次恢复（best-effort，异步不阻塞上报）。
-  if (changed && reconcileOpenProjectHook) reconcileOpenProjectHook(next)
 }
 
 /** 当前进程 RPC 端口（未启动=null）。「接入助手卡」据此显示能力核就绪态。 */
@@ -227,8 +185,6 @@ export async function startCapabilityCore(
   runTask: RunTaskFn,
   fetchTaskResult: FetchTaskResultFn,
   authorities: {
-    projectLeaseAuthority?: ProjectLeaseAuthority
-    resolveCurrentProject?: DispatchContext['resolveCurrentProject']
     approvalReceiptAuthority?: ApprovalReceiptAuthority
     requestGenerationGate?: DispatchContext['requestGenerationGate']
     authorizeGeneration?: DispatchContext['authorizeGeneration']
@@ -238,16 +194,18 @@ export async function startCapabilityCore(
     generationPlanning?: DispatchContext['generationPlanning']
     generationModuleRegistry?: Pick<ModuleRegistry, 'resolve'>
     projectRevisionResolver?: (projectId: string) => number | undefined
+    canvasReadExecutionRuntime?: CanvasReadExecutionRuntime
   } = {},
 ): Promise<void> {
   try {
     const token = ensureToken()
     const generationService = getProductionRunService()
     const operationStore = createProductionGenerationOperationStore(generationService)
+    const generationPolicy = authorities.generationPolicy ?? createRuntimeMcpGenerationPolicy()
     // P4 S4: wire the trial-first narrow into the confirmation seam. When a multi-shot card resolves
     // trialFirst, narrow the durable plan to shot 1 (a fresh plan hash) so the re-requested gate lists 1
     // shot. Guarded by the same operationId the challenge carries as runId.
-    const defaults = createDefaultAuthorities({
+    const defaults = createDefaultAuthorities(generationPolicy, {
       onTrialFirst: async ({ projectId, operationId }) => {
         if (!operationStore.trialNarrow) return
         const trialPlanHash = `trial:${operationId}:${crypto.randomUUID()}`
@@ -275,8 +233,8 @@ export async function startCapabilityCore(
     // P4 S2: real per-shot pricing from the live catalog (resolve lazily so pricing edits apply).
     const resolveModelPricing = (providerId: string, modelId: string) => createCatalogModelPricingResolver(readCatalog().models)(providerId, modelId)
     const resolveShotPrice = (contract: Parameters<ReturnType<typeof createCatalogShotPriceResolver>>[0]) => createCatalogShotPriceResolver(readCatalog().models)(contract)
-    // P4 S5：本实例是否正打开该项目（确认即落只在项目正开时尝试）。openProjectId 是 renderer 上报的单一真相。
-    const isProjectOpen = (id: string) => Boolean(openProjectId) && id === openProjectId
+    // P4 S5：只认 main-issued Surface 的完整 committed identity；renderer scalar 不是 authority。
+    const isProjectOpen = (id: string) => canvasReadSurfaceRuntime.getCommittedProjectSelection()?.projectId === id
     // P4 S5：把一个 Run 的镜尽力落成画布占位/组/回填 result，并把 shotId→nodeId 写回 Run（best-effort，永不抛）。
     // 确认即落与打开项目补齐（reconcileOpenProject）共用它——一个家（P1）。
     const landCanvasBestEffort = async (projectId: string, runId: string): Promise<boolean> => {
@@ -555,6 +513,12 @@ export async function startCapabilityCore(
         }
       })()
     }
+    // Late core startup must replay a Surface committed before the RPC server
+    // was enabled, then follow subsequent suspend/commit/release projections.
+    unsubscribeCommittedSurface?.()
+    unsubscribeCommittedSurface = canvasReadSurfaceRuntime.subscribeCommittedProject((selection) => {
+      if (selection && reconcileOpenProjectHook) reconcileOpenProjectHook(selection.projectId)
+    })
     // P4 S6 返工编排（§3.5 / §3.B）：对一镜发起「同 Run 新 Job」→ 起**单镜 gate**（该镜子合同单价，复用唯一
     // spendConfirm 漏斗的扁平单镜卡 = 无 shots 键）→ 铸 receipt → durable `generation.approve` 带新 attempt（只批该
     // 镜，不动兄弟镜的批准）→ kick scheduler 派发这个 authorized 新 Job。锚 character_ref/DNA 提示词天然继承（新 Job
@@ -715,11 +679,11 @@ export async function startCapabilityCore(
     handle = await startRpcServer({
       runTask,
       fetchTaskResult,
-      isProjectOpen: (id) => Boolean(openProjectId) && id === openProjectId,
+      isProjectOpen,
       productionRuns: getProductionRunService(),
       ...defaults,
       ...authorities,
-      generationPolicy: authorities.generationPolicy ?? createRuntimeMcpGenerationPolicy(),
+      generationPolicy,
       generationPlanning,
     })
     const location = getProjectLocationState()
@@ -757,6 +721,8 @@ export function stopCapabilityCore(): void {
     handle = null
   }
   reconcileOpenProjectHook = null
+  unsubscribeCommittedSurface?.()
+  unsubscribeCommittedSurface = null
   reworkProductionShotHook = null
   resumeProductionBatchHook = null
 }

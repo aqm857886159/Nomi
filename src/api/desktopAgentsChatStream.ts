@@ -1,5 +1,5 @@
 import { getDesktopBridge, type DesktopBridge } from '../desktop/bridge'
-import type { AgentChatAttachment, AgentChatErrorCode, AgentChatRequest, AgentChatResponse, AgentChatStatus, AgentChatToolDecision, AgentChatUsage } from '../../electron/harness/agentChatContracts'
+import type { AgentChatAttachment, AgentChatCanvasReadAdmission, AgentChatErrorCode, AgentChatRequest, AgentChatResponse, AgentChatStartRequest, AgentChatStatus, AgentChatToolDecision, AgentChatUsage } from '../../electron/harness/agentChatContracts'
 
 export function requireDesktopRuntime(feature: string): DesktopBridge {
   const desktop = getDesktopBridge()
@@ -48,9 +48,14 @@ export type AgentsChatStreamHandlers = {
   onError?: (error: Error) => void
   onSession?: (session: AgentChatV2Session) => void
 }
+export type AgentsChatStreamAdmission = AgentChatCanvasReadAdmission
 
 /** Subscribe and publish cancellation synchronously; an ACK is never a stream admission gate. */
-export async function openDesktopAgentsChatStream(payload: AgentChatRequest, handlers: AgentsChatStreamHandlers): Promise<() => void> {
+export async function openDesktopAgentsChatStream(
+  payload: AgentChatRequest,
+  handlers: AgentsChatStreamHandlers,
+  admission: AgentsChatStreamAdmission = {},
+): Promise<() => void> {
   const desktop = requireDesktopRuntime('agents chat')
   const sessionId = `agent-${globalThis.crypto.randomUUID()}`
   let settled = false
@@ -116,7 +121,12 @@ export async function openDesktopAgentsChatStream(payload: AgentChatRequest, han
     if (!reply.ok && !settled && !cancelRequested) throw new Error(reply.error || 'Agent confirmation rejected')
   } })
   try {
-    const starting = desktop.agents.chatV2Start({ requestId: sessionId, request: payload })
+    const startRequest: AgentChatStartRequest = admission.capturedCanvasReadSnapshot
+      ? { requestId: sessionId, request: payload, capturedCanvasReadSnapshot: admission.capturedCanvasReadSnapshot }
+      : admission.surfaceBinding
+        ? { requestId: sessionId, request: payload, surfaceBinding: admission.surfaceBinding }
+        : { requestId: sessionId, request: payload }
+    const starting = desktop.agents.chatV2Start(startRequest)
     startDispatched = true
     if (cancelRequested) void requestCancel()
     const ack = await starting

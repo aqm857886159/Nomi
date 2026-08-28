@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import { CANVAS_READ_CAPABILITY } from "../../shared/agentCapabilities/canvasRead";
 import {
   cameraMoveParamsSchema,
   canvasNodeKindSchema,
@@ -53,6 +54,19 @@ describe("Nomi canvas descriptors", () => {
     const descriptions = Object.fromEntries(Object.entries(canvasToolDescriptors).map(([name, value]) => [name, value.description]));
     expect(createHash("sha256").update(JSON.stringify(descriptions)).digest("hex"))
       .toBe("11d9b7d85b335a5dffad4a738a29ce441c7f1fb3c6e723a4936d30b0f10de470");
+  });
+
+  it("projects the Pi canvas.read descriptor directly from the canonical contract", () => {
+    const descriptor = canvasToolDescriptors.read_canvas_state;
+    expect(descriptor.name).toBe(CANVAS_READ_CAPABILITY.aliases.pi);
+    expect(descriptor.description).toBe(CANVAS_READ_CAPABILITY.projections.pi?.description);
+    expect(descriptor.parameters).toBe(CANVAS_READ_CAPABILITY.inputSchema);
+
+    const source = readFileSync(new URL("./canvasDescriptors.ts", import.meta.url), "utf8");
+    expect(source).not.toMatch(/^\s*read_canvas_state:\s*\{/m);
+    expect(source).not.toMatch(/name:\s*["']read_canvas_state["']/);
+    expect(source).not.toContain('description: "Read the current generation canvas (nodes + edges)."');
+    expect(source).not.toMatch(/read_canvas_state:\s*\{[\s\S]{0,160}parameters:\s*z\.object\(\{\}\)/);
   });
 
   it("retains the live destructive-action reason slot", () => {
@@ -398,8 +412,10 @@ describe("canvas descriptor schemas", () => {
   });
 
   describe("read_canvas_state parameters", () => {
-    it("accepts empty object", () => {
+    it("accepts only the empty semantic object", () => {
       expect(canvasToolDescriptors.read_canvas_state.parameters.safeParse({}).success).toBe(true);
+      expect(canvasToolDescriptors.read_canvas_state.parameters.safeParse({ projectId: "project-a" }).success).toBe(false);
+      expect(canvasToolDescriptors.read_canvas_state.parameters.safeParse({ leaseHandle: "lease-a" }).success).toBe(false);
     });
   });
 });

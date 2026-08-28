@@ -1,4 +1,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+
+const surface = vi.hoisted(() => ({
+  binding: Object.freeze({
+    version: 1 as const,
+    bindingId: 'binding-a',
+    binding: Object.freeze({ projectId: 'p', immutableProjectUuid: '11111111-1111-4111-8111-111111111111', projectGeneration: 3 }),
+    webContentsId: 1,
+    processId: 10,
+    frameRoutingId: 2,
+    origin: 'file://',
+    surfaceInstanceId: 'surface-a',
+    portRevision: 4,
+    nonce: 'nonce-a',
+  }),
+}))
 import { openDesktopAgentsChatStream, type AgentChatV2Session, type AgentsChatStreamEvent, type AgentsChatRequestDto } from './desktopAgentsChatStream'
 
 function deferred<T>() {
@@ -30,13 +45,41 @@ describe('desktop Agent stream admission and stable settlement', () => {
   it('subscribes and exposes the cancel handle synchronously before start ACK', async () => {
     const mock = bridge()
     let session: AgentChatV2Session | undefined
-    const opening = openDesktopAgentsChatStream(request, { onEvent: () => {}, onSession: (value) => { session = value } })
+    const opening = openDesktopAgentsChatStream(
+      request,
+      { onEvent: () => {}, onSession: (value) => { session = value } },
+      { surfaceBinding: surface.binding },
+    )
     expect(mock.agents.onChatV2Event).toHaveBeenCalledOnce()
     expect(session).toBeDefined()
     expect(mock.agents.onChatV2Event.mock.invocationCallOrder[0]).toBeLessThan(mock.agents.chatV2Start.mock.invocationCallOrder[0]!)
     const id = session!.sessionId
-    expect(mock.agents.chatV2Start).toHaveBeenCalledWith({ requestId: id, request })
+    expect(mock.agents.chatV2Start).toHaveBeenCalledWith({ requestId: id, request, surfaceBinding: surface.binding })
     mock.ack.resolve({ sessionId: id })
+    await opening
+    mock.emit({ type: 'done', reason: 'finished' })
+  })
+
+  it('transports only the opaque captured snapshot admission for production', async () => {
+    const mock = bridge()
+    const capturedCanvasReadSnapshot = Object.freeze({
+      version: 1 as const,
+      handleId: 'captured-a',
+      nonce: 'captured-nonce-a',
+    })
+    let session: AgentChatV2Session | undefined
+    const opening = openDesktopAgentsChatStream(
+      request,
+      { onEvent: () => {}, onSession: (value) => { session = value } },
+      { capturedCanvasReadSnapshot },
+    )
+
+    expect(mock.agents.chatV2Start).toHaveBeenCalledWith({
+      requestId: session!.sessionId,
+      request,
+      capturedCanvasReadSnapshot,
+    })
+    mock.ack.resolve({ sessionId: session!.sessionId })
     await opening
     mock.emit({ type: 'done', reason: 'finished' })
   })

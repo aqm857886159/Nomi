@@ -12,6 +12,7 @@ import { stripInternalEnrichFields } from './mcpResultEnrich'
 import { projectGenerationRecovery } from './generationRecoveryProjection'
 
 export { buildToolErrorOutcome } from './mcpToolErrorResults'
+export { buildCanonicalMcpToolResult, type CanonicalMcpToolResult } from './mcpCanonicalToolResult'
 
 export type ResultLocale = 'zh-CN' | 'en'
 

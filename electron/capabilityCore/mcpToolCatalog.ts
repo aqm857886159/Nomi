@@ -6,11 +6,14 @@
 // build 里 nomi_generate 的画幅/时长参数归一走 buildGenerateParams（不 hardcode vendor，比例同时铺
 // aspect_ratio/size/aspectRatio 三别名，覆盖不同 archetype 读的键）。
 import { listProductionPlaybookNames } from '../productionRun/productionPlaybooks'
+import { MCP_CAPABILITY_RESOLVER, immutableSchemaSnapshot } from './mcpCapabilityProjection'
 import { buildGenerateParams } from './mcpGenerateParams'
 import { MCP_GENERATION_TOOL_CATALOG } from './mcpGenerationTools'
+import { MCP_PROJECT_SESSION_TOOL } from './mcpProjectSessionTool'
 
 // 工具定义：name → { description, inputSchema(JSON Schema), method(能力核方法), build(args→params) }。
 export const MCP_TOOL_CATALOG = [
+  MCP_PROJECT_SESSION_TOOL,
   ...MCP_GENERATION_TOOL_CATALOG,
   {
     name: 'nomi_list_projects',
@@ -39,13 +42,7 @@ export const MCP_TOOL_CATALOG = [
     method: 'models.list',
     build: () => ({}),
   },
-  {
-    name: 'nomi_read_canvas',
-    description: '读取某项目画布的节点与连线（精简视图，用于据此决策）。',
-    inputSchema: { type: 'object', properties: { projectId: { type: 'string' } }, required: ['projectId'] },
-    method: 'canvas.read',
-    build: (a: Record<string, unknown>) => ({ projectId: a.projectId }),
-  },
+  ...MCP_CAPABILITY_RESOLVER.list(),
   {
     name: 'nomi_add_nodes',
     description:
@@ -444,3 +441,30 @@ export const MCP_TOOL_CATALOG = [
     }),
   },
 ] as const
+
+export type McpToolDefinition = (typeof MCP_TOOL_CATALOG)[number]
+
+const MCP_TOOL_SNAPSHOT = Object.freeze(MCP_TOOL_CATALOG.map((tool) => {
+  const annotations = 'annotations' in tool && tool.annotations
+    ? Object.freeze({ ...tool.annotations })
+    : undefined
+  return Object.freeze({
+    ...tool,
+    inputSchema: immutableSchemaSnapshot(tool.inputSchema),
+    ...(annotations ? { annotations } : {}),
+  })
+})) as readonly McpToolDefinition[]
+
+const MCP_TOOL_BY_NAME = new Map<string, McpToolDefinition>(
+  MCP_TOOL_SNAPSHOT.map((tool) => [tool.name, tool]),
+)
+
+if (MCP_TOOL_BY_NAME.size !== MCP_TOOL_SNAPSHOT.length) {
+  throw new Error('Duplicate MCP tool name in the explicit catalog')
+}
+
+/** tools/list and tools/call must share this exact post-filter resolver. */
+export const MCP_TOOL_RESOLVER = Object.freeze({
+  list: (): readonly McpToolDefinition[] => MCP_TOOL_SNAPSHOT,
+  resolve: (name: string): McpToolDefinition | undefined => MCP_TOOL_BY_NAME.get(name),
+})

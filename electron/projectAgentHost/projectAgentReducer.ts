@@ -1,0 +1,847 @@
+import type { ProjectBinding } from "../shared/projectBinding";
+import type {
+  ProjectAgentAppliedCommand,
+  ProjectAgentChange,
+  ProjectAgentHostState,
+  ProjectAgentMutation,
+  ProjectAgentPatch,
+  ProjectAgentProposalApproval,
+  ProjectAgentProposalLifecycle,
+  ProjectAgentQueueItem,
+  ProjectAgentStatus,
+  ProjectAgentThread,
+  ProjectAgentTurn,
+} from "../shared/projectAgentContracts";
+import { ProjectAgentReducerError, type ProjectAgentReducerErrorCode } from "./projectAgentReducerContract";
+import { assertCanAppendProjectAgentItem } from "./projectAgentItemSemantics";
+import { hasDuplicateProjectAgentApprovalIdentity } from "./projectAgentSemanticIdentity";
+import {
+  assertCanonicalMutationTimestamp,
+  assertExactMutationKeys,
+  assertOptionalMutationBoolean,
+  assertProjectAgentMutationEnvelope,
+  hashProjectAgentMutation,
+  isCanonicalProjectAgentId,
+} from "./projectAgentMutationValidation";
+import type { ProjectAgentReduction } from "./projectAgentReduction";
+import {
+  isProjectAgentAbortStatus,
+  isProjectAgentAsyncTurnStatus,
+  isProjectAgentQueueBlockingStatus,
+  isProjectAgentProposalSettlementStatus,
+} from "./projectAgentStatusSemantics";
+import {
+  appendTrustedProjectAgentHostState,
+  findTrustedProjectAgentAppliedCommand,
+  freezeProjectAgentSnapshot,
+  sameProjectAgentBinding,
+  snapshotProjectAgentHostState,
+  stableProjectAgentJson,
+} from "./projectAgentState";
+import { freezeProjectAgentIncremental } from "./projectAgentSnapshot";
+import { reduceProjectAgentAssistantAppend } from "./projectAgentAssistantAppendReduction";
+import {
+  reduceProjectAgentAssistantFinal,
+  reduceProjectAgentAssistantTerminal,
+} from "./projectAgentAssistantFinalReduction";
+import { reduceProjectAgentQueueEdit } from "./projectAgentQueueEditReduction";
+import { reduceProjectAgentThreadActivation } from "./projectAgentThreadActivation";
+import { reduceProjectAgentTurnStart } from "./projectAgentTurnStartReduction";
+import {
+  assertStatusTransition,
+  replaceById,
+  transitionRecord,
+  updateProposalItems,
+} from "./projectAgentRecordReduction";
+
+export {
+  PROJECT_AGENT_REDUCER_ERROR_CODES,
+  ProjectAgentReducerError,
+  isProjectAgentStatusTransition,
+} from "./projectAgentReducerContract";
+export type { ProjectAgentReducerErrorCode } from "./projectAgentReducerContract";
+export { hashProjectAgentMutation } from "./projectAgentMutationValidation";
+export { replayProjectAgentCompactCommand } from "./projectAgentCompactReplay";
+export type { ProjectAgentReduction } from "./projectAgentReduction";
+
+function isProposalTransition(from: ProjectAgentProposalLifecycle, to: ProjectAgentProposalLifecycle): boolean {
+  return from === "pending" && (to === "claimed" || to === "expired");
+}
+
+function fail(code: ProjectAgentReducerErrorCode): never {
+  throw new ProjectAgentReducerError(code);
+}
+
+function assertNoAreaIdentity(thread: ProjectAgentThread): void {
+  const record = thread as unknown as Record<string, unknown>;
+  if (
+    Object.prototype.hasOwnProperty.call(record, "area") ||
+    Object.prototype.hasOwnProperty.call(record, "legacyArea") ||
+    Object.prototype.hasOwnProperty.call(record, "sessionKey")
+  ) {
+    fail("area_identity_forbidden");
+  }
+  if (!isCanonicalProjectAgentId(thread.threadId)) fail("invalid_mutation");
+}
+
+function assertWritableThread(thread: ProjectAgentThread): void {
+  if (thread.provenance?.kind === "legacy") fail("thread_read_only");
+}
+
+function assertLegacyProvenanceAuthority(thread: ProjectAgentThread, sender: ProjectAgentMutation["sender"]): void {
+  if (thread.provenance?.kind === "legacy" && !(sender.kind === "internal" && sender.senderId === "migration")) {
+    fail("thread_read_only");
+  }
+}
+
+function assertWritableThreadById(state: ProjectAgentHostState, threadId: string): void {
+  const thread = state.threads.find((value) => value.threadId === threadId);
+  if (thread) assertWritableThread(thread);
+}
+
+function assertThreadHistory(existing: ProjectAgentThread | undefined, incoming: ProjectAgentThread): void {
+  if (
+    existing &&
+    (existing.createdAt !== incoming.createdAt ||
+      new Date(incoming.updatedAt).getTime() < new Date(existing.updatedAt).getTime())
+  ) {
+    fail("invalid_mutation");
+  }
+}
+
+function findTurn(state: ProjectAgentHostState, turnId: string): ProjectAgentTurn {
+  const turn = state.turns.find((value) => value.turnId === turnId);
+  if (!turn) fail("record_not_found");
+  return turn;
+}
+
+function findQueueForTurn(queue: readonly ProjectAgentQueueItem[], turnId: string): ProjectAgentQueueItem {
+  const item = queue.find((value) => value.turnId === turnId);
+  if (!item) fail("record_not_found");
+  return item;
+}
+
+function assertSingleRunningTurn(state: ProjectAgentHostState, turnId: string): void {
+  if (state.turns.some((turn) => turn.turnId !== turnId && turn.status === "running")) {
+    fail("running_turn_exists");
+  }
+}
+
+function assertQueueBinding(item: ProjectAgentQueueItem, binding: ProjectBinding): void {
+  if (!sameProjectAgentBinding(item.binding, binding)) fail("project_binding_mismatch");
+}
+
+function finalizeReduction(
+  current: ProjectAgentHostState,
+  mutation: ProjectAgentMutation,
+  hash: string,
+  next: Omit<ProjectAgentHostState, "hostRevision" | "commandLedgerHighWater" | "recentAppliedCommands">,
+  changes: readonly ProjectAgentChange[],
+): ProjectAgentReduction {
+  const hostRevision = current.hostRevision + 1;
+  const patch = freezeProjectAgentSnapshot<ProjectAgentPatch>({
+    binding: current.binding,
+    previousRevision: current.hostRevision,
+    hostRevision,
+    changes,
+  });
+  const receipt = freezeProjectAgentSnapshot<ProjectAgentAppliedCommand>({
+    commandId: mutation.commandId,
+    mutationHash: hash,
+    appliedRevision: hostRevision,
+    patch,
+  });
+  const state = appendTrustedProjectAgentHostState(current, next, receipt);
+  const durableReceipt = state.recentAppliedCommands[state.recentAppliedCommands.length - 1]!;
+  return Object.freeze({
+    state,
+    patch: durableReceipt.patch,
+    receipt: durableReceipt,
+    replayed: false,
+    snapshotRequired: false,
+  });
+}
+
+export function reduceProjectAgentMutation(
+  inputState: ProjectAgentHostState,
+  inputMutation: ProjectAgentMutation,
+): ProjectAgentReduction {
+  const current = snapshotProjectAgentHostState(inputState);
+  let mutation: ProjectAgentMutation;
+  try {
+    mutation = freezeProjectAgentSnapshot(inputMutation);
+  } catch {
+    fail("invalid_mutation");
+  }
+  assertProjectAgentMutationEnvelope(mutation);
+  if (!sameProjectAgentBinding(current.binding, mutation.binding)) {
+    fail("project_binding_mismatch");
+  }
+
+  const hash = hashProjectAgentMutation(mutation);
+  const existing = findTrustedProjectAgentAppliedCommand(current, mutation.commandId);
+  if (existing) {
+    if (existing.mutationHash !== hash) fail("command_id_conflict");
+    return Object.freeze({
+      state: current,
+      patch: existing.patch,
+      receipt: existing,
+      replayed: true,
+      snapshotRequired: false,
+    });
+  }
+  if (mutation.expectedRevision !== current.hostRevision) fail("revision_conflict");
+
+  let activeThreadId = current.activeThreadId;
+  let threads = current.threads;
+  let turns = current.turns;
+  let items = current.items;
+  let queue = current.queue;
+  let proposalApprovals = current.proposalApprovals;
+  const changes: ProjectAgentChange[] = [];
+
+  try {
+    switch (mutation.type) {
+      case "thread.put": {
+        assertExactMutationKeys(mutation.payload, ["thread", "makeActive"]);
+        const { thread, makeActive = false } = mutation.payload;
+        assertOptionalMutationBoolean(mutation.payload.makeActive);
+        assertNoAreaIdentity(thread);
+        assertLegacyProvenanceAuthority(thread, mutation.sender);
+        const existingThread = threads.find((value) => value.threadId === thread.threadId);
+        if (existingThread?.provenance?.kind === "legacy" || (existingThread && thread.provenance?.kind === "legacy")) {
+          fail("thread_read_only");
+        }
+        assertThreadHistory(existingThread, thread);
+        threads = existingThread
+          ? replaceById(
+              threads,
+              thread.threadId,
+              (value) => value.threadId,
+              () => thread,
+            )
+          : [...threads, thread];
+        const previousActiveThreadId = activeThreadId;
+        if (makeActive || activeThreadId === null) activeThreadId = thread.threadId;
+        changes.push({ kind: "thread-upserted", thread });
+        if (activeThreadId !== previousActiveThreadId) {
+          changes.push({ kind: "active-thread-changed", activeThreadId });
+        }
+        break;
+      }
+      case "thread.remove": {
+        assertExactMutationKeys(mutation.payload, ["threadId", "occurredAt"]);
+        assertCanonicalMutationTimestamp(mutation.payload.occurredAt);
+        const thread = current.threads.find((value) => value.threadId === mutation.payload.threadId);
+        if (!thread) fail("record_not_found");
+        // Canonical threads may be deleted only after they are archived. Legacy
+        // archives remain explicitly read-only but can be removed as a whole.
+        if (thread.provenance?.kind !== "legacy" && current.activeThreadId === thread.threadId) {
+          fail("thread_read_only");
+        }
+        if (
+          current.turns.some(
+            (turn) => turn.threadId === thread.threadId && isProjectAgentQueueBlockingStatus(turn.status),
+          )
+        ) {
+          fail("thread_read_only");
+        }
+        const turnIds = new Set(
+          current.turns.filter((turn) => turn.threadId === thread.threadId).map((turn) => turn.turnId),
+        );
+        const itemIds = new Set(
+          current.items.filter((item) => item.threadId === thread.threadId).map((item) => item.itemId),
+        );
+        const queueItemIds = new Set(
+          current.queue.filter((item) => item.threadId === thread.threadId).map((item) => item.queueItemId),
+        );
+        const approvalIds = new Set(
+          current.proposalApprovals
+            .filter((approval) => approval.ref.threadId === thread.threadId)
+            .map((approval) => approval.ref.approvalId),
+        );
+        threads = current.threads.filter((value) => value.threadId !== thread.threadId);
+        turns = current.turns.filter((value) => !turnIds.has(value.turnId));
+        items = current.items.filter((value) => !itemIds.has(value.itemId));
+        queue = current.queue.filter((value) => !queueItemIds.has(value.queueItemId));
+        proposalApprovals = current.proposalApprovals.filter((value) => !approvalIds.has(value.ref.approvalId));
+        changes.push(
+          ...current.items
+            .filter((value) => itemIds.has(value.itemId))
+            .map((value): ProjectAgentChange => ({ kind: "item-removed", itemId: value.itemId })),
+          ...current.queue
+            .filter((value) => queueItemIds.has(value.queueItemId))
+            .map((value): ProjectAgentChange => ({ kind: "queue-removed", queueItemId: value.queueItemId })),
+          ...current.turns
+            .filter((value) => turnIds.has(value.turnId))
+            .map((value): ProjectAgentChange => ({ kind: "turn-removed", turnId: value.turnId })),
+          ...current.proposalApprovals
+            .filter((value) => approvalIds.has(value.ref.approvalId))
+            .map((value): ProjectAgentChange => ({ kind: "proposal-removed", approvalId: value.ref.approvalId })),
+          { kind: "thread-removed", threadId: thread.threadId },
+        );
+        if (activeThreadId === thread.threadId) {
+          activeThreadId = null;
+          changes.push({ kind: "active-thread-changed", activeThreadId });
+        }
+        break;
+      }
+      case "thread.activate": {
+        const activated = reduceProjectAgentThreadActivation(current, mutation);
+        activeThreadId = activated.activeThreadId;
+        changes.push(...activated.changes);
+        break;
+      }
+      case "turn.enqueue": {
+        assertExactMutationKeys(mutation.payload, ["thread", "turn", "userItem", "queueItem"]);
+        const { thread, turn, userItem, queueItem } = mutation.payload;
+        assertNoAreaIdentity(thread);
+        assertWritableThread(thread);
+        if (
+          turn.status !== "queued" ||
+          queueItem.status !== "queued" ||
+          userItem.kind !== "user" ||
+          turn.threadId !== thread.threadId ||
+          userItem.threadId !== thread.threadId ||
+          userItem.turnId !== turn.turnId ||
+          queueItem.threadId !== thread.threadId ||
+          queueItem.turnId !== turn.turnId ||
+          queueItem.retryable !== turn.retryable ||
+          queueItem.deviated !== turn.deviated ||
+          queueItem.updatedAt !== turn.updatedAt ||
+          stableProjectAgentJson(queueItem.contextRef) !== stableProjectAgentJson(turn.contextRef) ||
+          stableProjectAgentJson(queueItem.model) !== stableProjectAgentJson(turn.model) ||
+          stableProjectAgentJson(queueItem.skillVersions) !== stableProjectAgentJson(turn.skillVersions) ||
+          stableProjectAgentJson(queueItem.capabilityVersions) !== stableProjectAgentJson(turn.capabilityVersions) ||
+          turns.some((value) => value.turnId === turn.turnId) ||
+          turns.some((value) => value.executionToken === turn.executionToken) ||
+          items.some((value) => value.itemId === userItem.itemId) ||
+          queue.some((value) => value.queueItemId === queueItem.queueItemId)
+        ) {
+          fail("record_exists");
+        }
+        assertQueueBinding(queueItem, current.binding);
+        const existingThread = threads.find((value) => value.threadId === thread.threadId);
+        if (existingThread) assertWritableThread(existingThread);
+        assertThreadHistory(existingThread, thread);
+        threads = existingThread
+          ? replaceById(
+              threads,
+              thread.threadId,
+              (value) => value.threadId,
+              () => thread,
+            )
+          : [...threads, thread];
+        turns = [...turns, turn];
+        items = [...items, userItem];
+        queue = [...queue, queueItem];
+        const previousActiveThreadId = activeThreadId;
+        activeThreadId = thread.threadId;
+        changes.push(
+          { kind: "thread-upserted", thread },
+          { kind: "turn-upserted", turn },
+          { kind: "item-upserted", item: userItem },
+          { kind: "queue-upserted", queueItem },
+        );
+        if (activeThreadId !== previousActiveThreadId) {
+          changes.push({ kind: "active-thread-changed", activeThreadId });
+        }
+        break;
+      }
+      case "queue.edit": {
+        const queueItem = current.queue.find((value) => value.queueItemId === mutation.payload.queueItemId);
+        if (queueItem) assertWritableThreadById(current, queueItem.threadId);
+        const edited = reduceProjectAgentQueueEdit(current, mutation);
+        turns = edited.turns;
+        items = edited.items;
+        queue = edited.queue;
+        changes.push(...edited.changes);
+        break;
+      }
+      case "turn.start": {
+        const turn = current.turns.find((value) => value.turnId === mutation.payload.turnId);
+        if (turn) assertWritableThreadById(current, turn.threadId);
+        const started = reduceProjectAgentTurnStart(current, mutation);
+        turns = started.turns;
+        items = started.items;
+        queue = started.queue;
+        changes.push(...started.changes);
+        break;
+      }
+      case "assistant.append": {
+        const turn = current.turns.find((value) => value.turnId === mutation.payload.turnId);
+        if (turn) assertWritableThreadById(current, turn.threadId);
+        const appended = reduceProjectAgentAssistantAppend(current, mutation);
+        items = appended.items;
+        changes.push(...appended.changes);
+        break;
+      }
+      case "turn.transition": {
+        const turnForWrite = current.turns.find((value) => value.turnId === mutation.payload.turnId);
+        if (turnForWrite) assertWritableThreadById(current, turnForWrite.threadId);
+        assertExactMutationKeys(mutation.payload, ["turnId", "status", "retryable", "deviated", "updatedAt"]);
+        const turn = findTurn(current, mutation.payload.turnId);
+        const queueItem = findQueueForTurn(queue, turn.turnId);
+        const hasPendingApproval = proposalApprovals.some(
+          (approval) => approval.ref.turnId === turn.turnId && approval.lifecycle === "pending",
+        );
+        const hasClaimedApproval = proposalApprovals.some(
+          (approval) => approval.ref.turnId === turn.turnId && approval.lifecycle === "claimed",
+        );
+        if (
+          mutation.payload.status === "proposed" ||
+          (hasClaimedApproval && mutation.payload.status !== "stopped" && mutation.payload.status !== "failed") ||
+          (hasPendingApproval && !isProjectAgentAbortStatus(mutation.payload.status))
+        ) {
+          fail("proposal_transition_invalid");
+        }
+        if (mutation.payload.status === "running") fail("status_transition_invalid");
+        if (
+          turn.status === "running" &&
+          !isProjectAgentAbortStatus(mutation.payload.status) &&
+          items.some((item) => item.kind === "assistant" && item.turnId === turn.turnId && item.status === "running")
+        ) {
+          fail("status_transition_invalid");
+        }
+        const updatedTurn = transitionRecord(turn, mutation.payload);
+        const updatedQueue = transitionRecord(queueItem, mutation.payload);
+        turns = replaceById(
+          turns,
+          turn.turnId,
+          (value) => value.turnId,
+          () => updatedTurn,
+        );
+        queue = replaceById(
+          queue,
+          queueItem.queueItemId,
+          (value) => value.queueItemId,
+          () => updatedQueue,
+        );
+        changes.push({ kind: "turn-upserted", turn: updatedTurn }, { kind: "queue-upserted", queueItem: updatedQueue });
+        if (isProjectAgentAbortStatus(mutation.payload.status)) {
+          const removed = proposalApprovals.filter(
+            (approval) => approval.ref.turnId === turn.turnId && approval.lifecycle === "pending",
+          );
+          for (const approval of removed) {
+            const terminalItems = updateProposalItems(
+              items,
+              approval.ref.approvalId,
+              mutation.payload.status,
+              mutation.payload.updatedAt,
+            );
+            items = terminalItems.items;
+            changes.push(...terminalItems.changes);
+          }
+          proposalApprovals = proposalApprovals.filter((approval) => !removed.includes(approval));
+          changes.push(
+            ...removed.map(
+              (approval): ProjectAgentChange => ({
+                kind: "proposal-removed",
+                approvalId: approval.ref.approvalId,
+              }),
+            ),
+          );
+          const claimed = proposalApprovals.filter(
+            (approval) => approval.ref.turnId === turn.turnId && approval.lifecycle === "claimed",
+          );
+          for (const approval of claimed) {
+            const terminalItems = updateProposalItems(
+              items,
+              approval.ref.approvalId,
+              mutation.payload.status,
+              mutation.payload.updatedAt,
+            );
+            items = terminalItems.items;
+            changes.push(...terminalItems.changes);
+          }
+          const terminalAssistant = reduceProjectAgentAssistantTerminal(
+            items,
+            turn.turnId,
+            mutation.payload.status,
+            mutation.payload.updatedAt,
+          );
+          items = terminalAssistant.items;
+          changes.push(...terminalAssistant.changes);
+        }
+        break;
+      }
+      case "item.put": {
+        assertExactMutationKeys(mutation.payload, ["item"]);
+        const { item } = mutation.payload;
+        assertWritableThreadById(current, item.threadId);
+        assertCanAppendProjectAgentItem(items, item, false);
+        items = [...items, item];
+        changes.push({ kind: "item-upserted", item });
+        break;
+      }
+      case "item.transition": {
+        const itemForWrite = current.items.find((value) => value.itemId === mutation.payload.itemId);
+        if (itemForWrite) assertWritableThreadById(current, itemForWrite.threadId);
+        assertExactMutationKeys(mutation.payload, ["itemId", "status", "retryable", "deviated", "updatedAt"]);
+        const existingItem = items.find((value) => value.itemId === mutation.payload.itemId);
+        if (!existingItem) fail("record_not_found");
+        if (existingItem.kind === "task" || existingItem.kind === "proposal" || existingItem.kind === "assistant") {
+          fail("foreign_domain_state");
+        }
+        const updated = transitionRecord(existingItem, mutation.payload);
+        items = replaceById(
+          items,
+          existingItem.itemId,
+          (value) => value.itemId,
+          () => updated,
+        );
+        changes.push({ kind: "item-upserted", item: updated });
+        break;
+      }
+      case "proposal.put": {
+        assertExactMutationKeys(mutation.payload, ["approval", "item", "occurredAt"]);
+        const { approval, item, occurredAt } = mutation.payload;
+        if (approval?.ref) assertWritableThreadById(current, approval.ref.threadId);
+        assertCanonicalMutationTimestamp(occurredAt);
+        if (
+          !approval ||
+          typeof approval !== "object" ||
+          !approval.ref ||
+          typeof approval.ref !== "object" ||
+          !item ||
+          typeof item !== "object"
+        ) {
+          fail("invalid_mutation");
+        }
+        if (
+          approval.lifecycle !== "pending" ||
+          proposalApprovals.some((value) => value.ref.approvalId === approval.ref.approvalId) ||
+          hasDuplicateProjectAgentApprovalIdentity([...proposalApprovals, approval])
+        ) {
+          fail("record_exists");
+        }
+        const turn = findTurn(current, approval.ref.turnId);
+        const queueItem = findQueueForTurn(queue, turn.turnId);
+        if (
+          turn.threadId !== approval.ref.threadId ||
+          turn.status !== "running" ||
+          item.kind !== "proposal" ||
+          !item.approval ||
+          item.status !== "proposed" ||
+          item.threadId !== turn.threadId ||
+          item.turnId !== turn.turnId ||
+          items.some((value) => value.itemId === item.itemId) ||
+          stableProjectAgentJson(item.approval) !== stableProjectAgentJson(approval.ref) ||
+          stableProjectAgentJson(approval.ref.target) !== stableProjectAgentJson(queueItem.target) ||
+          stableProjectAgentJson(approval.ref.preconditions) !== stableProjectAgentJson(queueItem.preconditions) ||
+          new Date(occurredAt).getTime() < new Date(turn.updatedAt).getTime() ||
+          new Date(approval.ref.expiresAt).getTime() <= new Date(occurredAt).getTime()
+        ) {
+          fail("proposal_transition_invalid");
+        }
+        assertCanAppendProjectAgentItem(items, item, true);
+        assertCanonicalMutationTimestamp(approval.ref.expiresAt);
+        const updatedTurn = transitionRecord(turn, {
+          status: "proposed",
+          updatedAt: occurredAt,
+        });
+        const updatedQueue = transitionRecord(queueItem, {
+          status: "proposed",
+          updatedAt: occurredAt,
+        });
+        proposalApprovals = [...proposalApprovals, approval];
+        items = [...items, item];
+        turns = replaceById(
+          turns,
+          turn.turnId,
+          (value) => value.turnId,
+          () => updatedTurn,
+        );
+        queue = replaceById(
+          queue,
+          queueItem.queueItemId,
+          (value) => value.queueItemId,
+          () => updatedQueue,
+        );
+        changes.push(
+          { kind: "proposal-upserted", approval },
+          { kind: "item-upserted", item },
+          { kind: "turn-upserted", turn: updatedTurn },
+          { kind: "queue-upserted", queueItem: updatedQueue },
+        );
+        break;
+      }
+      case "proposal.transition": {
+        assertExactMutationKeys(mutation.payload, ["approvalId", "lifecycle", "occurredAt"]);
+        assertCanonicalMutationTimestamp(mutation.payload.occurredAt);
+        const existingApproval = proposalApprovals.find(
+          (value) => value.ref.approvalId === mutation.payload.approvalId,
+        );
+        if (!existingApproval) fail("record_not_found");
+        assertWritableThreadById(current, existingApproval.ref.threadId);
+        if (!isProposalTransition(existingApproval.lifecycle, mutation.payload.lifecycle)) {
+          fail("proposal_transition_invalid");
+        }
+        const occurredAtMs = new Date(mutation.payload.occurredAt).getTime();
+        const expiresAtMs = new Date(existingApproval.ref.expiresAt).getTime();
+        if (
+          (mutation.payload.lifecycle === "claimed" && occurredAtMs >= expiresAtMs) ||
+          (mutation.payload.lifecycle === "expired" && occurredAtMs < expiresAtMs)
+        ) {
+          fail("proposal_transition_invalid");
+        }
+        const turn = findTurn(current, existingApproval.ref.turnId);
+        const queueItem = findQueueForTurn(queue, turn.turnId);
+        const proposalItem = items.find(
+          (item) => item.kind === "proposal" && item.approval?.approvalId === existingApproval.ref.approvalId,
+        );
+        if (
+          turn.status !== "proposed" ||
+          queueItem.status !== "proposed" ||
+          !proposalItem ||
+          occurredAtMs < new Date(turn.updatedAt).getTime() ||
+          occurredAtMs < new Date(proposalItem.updatedAt).getTime()
+        ) {
+          fail("proposal_transition_invalid");
+        }
+        const claimed = mutation.payload.lifecycle === "claimed";
+        if (claimed) assertSingleRunningTurn(current, turn.turnId);
+        const status: ProjectAgentStatus = claimed ? "running" : "stopped";
+        const updatedApproval: ProjectAgentProposalApproval = freezeProjectAgentIncremental({
+          ...existingApproval,
+          lifecycle: mutation.payload.lifecycle,
+          ...(claimed ? { claimedAt: mutation.payload.occurredAt } : { expiredAt: mutation.payload.occurredAt }),
+        });
+        const updatedTurn = transitionRecord(turn, {
+          status,
+          updatedAt: mutation.payload.occurredAt,
+        });
+        const updatedQueue = transitionRecord(queueItem, {
+          status,
+          updatedAt: mutation.payload.occurredAt,
+        });
+        const proposalItems = updateProposalItems(
+          items,
+          existingApproval.ref.approvalId,
+          status,
+          mutation.payload.occurredAt,
+        );
+        items = proposalItems.items;
+        const terminalAssistant = claimed
+          ? { items, changes: [] }
+          : reduceProjectAgentAssistantTerminal(items, turn.turnId, status, mutation.payload.occurredAt);
+        items = terminalAssistant.items;
+        proposalApprovals = replaceById(
+          proposalApprovals,
+          existingApproval.ref.approvalId,
+          (value) => value.ref.approvalId,
+          () => updatedApproval,
+        );
+        turns = replaceById(
+          turns,
+          turn.turnId,
+          (value) => value.turnId,
+          () => updatedTurn,
+        );
+        queue = replaceById(
+          queue,
+          queueItem.queueItemId,
+          (value) => value.queueItemId,
+          () => updatedQueue,
+        );
+        changes.push(
+          { kind: "proposal-upserted", approval: updatedApproval },
+          { kind: "turn-upserted", turn: updatedTurn },
+          { kind: "queue-upserted", queueItem: updatedQueue },
+          ...proposalItems.changes,
+          ...terminalAssistant.changes,
+        );
+        break;
+      }
+      case "async.result": {
+        if (mutation.sender.kind !== "embedded-agent" && mutation.sender.kind !== "internal") {
+          fail("invalid_mutation");
+        }
+        assertExactMutationKeys(mutation.payload, [
+          "asyncToken",
+          "binding",
+          "threadId",
+          "turnId",
+          "queueItemId",
+          "target",
+          "preconditions",
+          "expectedRevision",
+          "items",
+          "turnStatus",
+          "proposalApprovalId",
+          "proposalStatus",
+          "assistantFinal",
+          "receivedAt",
+        ]);
+        const result = mutation.payload;
+        assertWritableThreadById(current, result.threadId);
+        assertCanonicalMutationTimestamp(result.receivedAt);
+        assertExactMutationKeys(result.binding, ["projectId", "immutableProjectUuid", "projectGeneration"]);
+        if (
+          result.expectedRevision !== mutation.expectedRevision ||
+          !sameProjectAgentBinding(result.binding, current.binding) ||
+          !isProjectAgentAsyncTurnStatus(result.turnStatus)
+        ) {
+          fail("async_result_stale");
+        }
+        const turn = findTurn(current, result.turnId);
+        const queueItem = findQueueForTurn(queue, result.turnId);
+        if (
+          turn.threadId !== result.threadId ||
+          queueItem.queueItemId !== result.queueItemId ||
+          turn.executionToken !== result.asyncToken ||
+          turn.status !== "running" ||
+          new Date(result.receivedAt).getTime() < new Date(turn.updatedAt).getTime() ||
+          stableProjectAgentJson(queueItem.target) !== stableProjectAgentJson(result.target) ||
+          stableProjectAgentJson(queueItem.preconditions) !== stableProjectAgentJson(result.preconditions)
+        ) {
+          fail("async_result_stale");
+        }
+        if (turn.status !== result.turnStatus) {
+          assertStatusTransition(turn.status, result.turnStatus);
+        } else if (result.turnStatus !== "running") {
+          fail("status_transition_invalid");
+        }
+        const prospectiveItems = [...items];
+        for (const item of result.items) {
+          if (item.threadId !== result.threadId || item.turnId !== result.turnId) {
+            fail("async_result_stale");
+          }
+          assertCanAppendProjectAgentItem(prospectiveItems, item, false, true);
+          prospectiveItems.push(item);
+        }
+        const runningProposalIds = items.flatMap((item) =>
+          item.kind === "proposal" && item.approval && item.status === "running" ? [item.approval.approvalId] : [],
+        );
+        const hasProposalApprovalId = result.proposalApprovalId !== undefined;
+        const hasProposalStatus = result.proposalStatus !== undefined;
+        if (hasProposalApprovalId !== hasProposalStatus) {
+          fail("async_result_stale");
+        }
+        if (runningProposalIds.length > 0 && !hasProposalApprovalId) {
+          fail("async_result_stale");
+        }
+        if (hasProposalApprovalId) {
+          const approval = proposalApprovals.find((value) => value.ref.approvalId === result.proposalApprovalId);
+          if (
+            !approval ||
+            approval.lifecycle !== "claimed" ||
+            approval.ref.turnId !== result.turnId ||
+            !runningProposalIds.includes(result.proposalApprovalId) ||
+            !result.proposalStatus ||
+            !isProjectAgentProposalSettlementStatus(result.proposalStatus)
+          ) {
+            fail("async_result_stale");
+          }
+          const settledProposal = updateProposalItems(
+            items,
+            result.proposalApprovalId,
+            result.proposalStatus,
+            result.receivedAt,
+          );
+          items = settledProposal.items;
+          changes.push(...settledProposal.changes);
+        }
+        const assistantFinal = reduceProjectAgentAssistantFinal(items, result);
+        items = assistantFinal.items;
+        changes.push(...assistantFinal.changes);
+        const updatedTurn = transitionRecord(
+          turn,
+          {
+            status: result.turnStatus,
+            ...(result.turnStatus === "failed" ? { retryable: true } : {}),
+            updatedAt: result.receivedAt,
+          },
+          true,
+        );
+        const updatedQueue = transitionRecord(
+          queueItem,
+          {
+            status: result.turnStatus,
+            ...(result.turnStatus === "failed" ? { retryable: true } : {}),
+            updatedAt: result.receivedAt,
+          },
+          true,
+        );
+        turns = replaceById(
+          turns,
+          turn.turnId,
+          (value) => value.turnId,
+          () => updatedTurn,
+        );
+        queue = replaceById(
+          queue,
+          queueItem.queueItemId,
+          (value) => value.queueItemId,
+          () => updatedQueue,
+        );
+        items = [...items, ...result.items];
+        changes.push(
+          ...result.items.map((item): ProjectAgentChange => ({ kind: "item-upserted", item })),
+          { kind: "turn-upserted", turn: updatedTurn },
+          { kind: "queue-upserted", queueItem: updatedQueue },
+        );
+        break;
+      }
+      default:
+        fail("invalid_mutation");
+    }
+  } catch (error) {
+    if (error instanceof ProjectAgentReducerError) throw error;
+    fail("invalid_mutation");
+  }
+
+  try {
+    return finalizeReduction(
+      current,
+      mutation,
+      hash,
+      {
+        binding: current.binding,
+        activeThreadId,
+        threads,
+        turns,
+        items,
+        queue,
+        proposalApprovals,
+      },
+      changes,
+    );
+  } catch (error) {
+    if (error instanceof ProjectAgentReducerError) throw error;
+    fail("invalid_mutation");
+  }
+}
+
+export type ProjectAgentSerialReducer = Readonly<{
+  dispatch: (mutation: ProjectAgentMutation) => Promise<ProjectAgentReduction>;
+  getSnapshot: () => ProjectAgentHostState;
+}>;
+
+export function createProjectAgentSerialReducer(initialState: ProjectAgentHostState): ProjectAgentSerialReducer {
+  let current = snapshotProjectAgentHostState(initialState);
+  let tail: Promise<void> = Promise.resolve();
+  return Object.freeze({
+    dispatch(input: ProjectAgentMutation): Promise<ProjectAgentReduction> {
+      let mutation: ProjectAgentMutation;
+      try {
+        mutation = freezeProjectAgentSnapshot(input);
+      } catch {
+        return Promise.reject(new ProjectAgentReducerError("invalid_mutation"));
+      }
+      const operation = tail.then(() => {
+        const result = reduceProjectAgentMutation(current, mutation);
+        current = result.state;
+        return result;
+      });
+      tail = operation.then(
+        () => undefined,
+        () => undefined,
+      );
+      return operation;
+    },
+    getSnapshot(): ProjectAgentHostState {
+      return current;
+    },
+  });
+}

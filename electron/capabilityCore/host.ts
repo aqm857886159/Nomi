@@ -18,6 +18,11 @@ import { applySystemProxy } from '../systemProxy'
 import { readProxyPrefs } from '../proxySettings'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
 import { rpcErrorWirePayload } from './mcpRpcError'
+import { assertLocalBearerProjectSessionRoute } from './localProjectSessionTransportPolicy'
+import { createHeadlessCanvasReadExecutionRuntime, resolveProductionCanvasReadProjectIdentity } from './canvasReadExecutionRuntime'
+import { createInternalCanvasReadTransportAdapter } from './canvasReadTransportAdapters'
+import { createInternalCanvasReadVerifiedInvocationFactory } from './verifiedCapabilityInvocation'
+import { canvasReadRpcError } from './canvasReadPublicError'
 
 const productionRuns = getProductionRunService()
 
@@ -66,6 +71,30 @@ async function run(): Promise<number> {
   }
   const method = String(command.method || '')
   const params = command.params && typeof command.params === 'object' ? command.params : {}
+  try {
+    const canvasReadExecutionRuntime = createHeadlessCanvasReadExecutionRuntime()
+    const adapter = createInternalCanvasReadTransportAdapter({
+      factory: createInternalCanvasReadVerifiedInvocationFactory({
+        verifyBearer: (bearer) => verifyToken(bearer),
+        resolveProjectIdentity: resolveProductionCanvasReadProjectIdentity,
+      }),
+      executor: canvasReadExecutionRuntime.executor,
+    })
+    const routed = await adapter.tryExecute(method, {
+        bearer: String(command.token || ''),
+        requestBody: params,
+      })
+    if (routed.handled) {
+      emit({ ok: true, result: routed.result })
+      return 0
+    }
+  } catch (error) {
+    emit({ ok: false, error: rpcErrorWirePayload(canvasReadRpcError(error)) })
+    return 1
+  }
+  // The one-shot host has only a local bearer. It cannot invent an MCP
+  // principal/session or accept a bare projectId for project-session routes.
+  assertLocalBearerProjectSessionRoute(method)
   // headless 永远是工程文件的唯一写者（app 关着时 CLI 才 spawn 它），无运行中渲染层 → 恒磁盘网关。
   try {
     const result = await dispatch(method, params, {

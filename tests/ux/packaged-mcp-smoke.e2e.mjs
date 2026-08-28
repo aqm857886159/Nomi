@@ -6,6 +6,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import readline from 'node:readline'
+import { parseJsonToolResult, proveCanonicalCanvasReadToolResult } from './_b6CanvasReadProof.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
 
 const bundlePath = path.resolve(process.argv[2] || '')
@@ -122,6 +123,7 @@ async function smokeClient(client) {
     // and provider/model declarations must not turn this smoke test into a fixed count.
     assert(tools.length >= 22, `${client} expected the legacy catalog baseline, got ${tools.length}`)
     const requiredTools = [
+      'nomi_create_project', 'nomi_read_canvas',
       'nomi_start_playbook', 'nomi_get_run', 'nomi_subscribe_run', 'nomi_get_artifact', 'nomi_control_run', 'nomi_decide_gate',
       'nomi_session_open', 'nomi_operation_create', 'nomi_submit_generation_plan', 'nomi_preview_execution',
       'nomi_request_generation_gate', 'nomi_decide_generation_gate', 'nomi_start_generation', 'nomi_operation_read',
@@ -142,8 +144,29 @@ async function smokeClient(client) {
       name: 'nomi_create_project',
       arguments: { name: `Packaged MCP origin smoke - ${client}` },
     })
-    const project = JSON.parse(created.result?.content?.[0]?.text || '{}')
+    const project = parseJsonToolResult(created.result, `${client} create project`)
     assert(project.id, `${client} isolated project creation`)
+    assert(project.projectSelectionHandle, `${client} create project returned a connection-bound selection`)
+
+    const opened = await rpc('tools/call', {
+      name: 'nomi_session_open',
+      arguments: { projectSelectionHandle: project.projectSelectionHandle },
+    })
+    const session = parseJsonToolResult(opened.result, `${client} open project session`)
+    assert(session.projectId === project.id, `${client} project session retained the selected project`)
+    assert(session.leaseHandle, `${client} project session returned a lease`)
+    assert(
+      Array.isArray(session.effectiveScope) && session.effectiveScope.includes('canvas:read'),
+      `${client} project session includes canvas:read`,
+    )
+
+    const read = await rpc('tools/call', {
+      name: 'nomi_read_canvas',
+      arguments: { leaseHandle: session.leaseHandle, projectId: project.id },
+    })
+    const canonicalCanvas = proveCanonicalCanvasReadToolResult(read.result)
+    assert(canonicalCanvas.nodes.length === 0, `${client} new packaged project canvas starts empty`)
+    assert(canonicalCanvas.edges.length === 0, `${client} new packaged project has no canvas edges`)
     const started = await rpc('tools/call', {
       name: 'nomi_start_playbook',
       arguments: {
@@ -154,7 +177,7 @@ async function smokeClient(client) {
     })
     const run = started.result?.structuredContent?.nomiRunData
     assert(run?.origin?.host === client, `${client} expected signed origin, got ${run?.origin?.host || 'missing'}`)
-    return { tools: tools.length, resources: resources.length, body: body.length, origin: run.origin.host }
+    return { tools: tools.length, resources: resources.length, body: body.length, origin: run.origin.host, canvasNodes: canonicalCanvas.nodes.length }
   } finally {
     failPending(new Error(`Packaged MCP ${client} smoke finished`))
     await terminateChild()
@@ -175,7 +198,7 @@ try {
   const evidence = []
   for (const client of clients) evidence.push(await smokeClient(client))
   const first = evidence[0]
-  console.log(`PACKAGED MCP SMOKE PASS: ${first.tools} tools, ${first.resources} resources, director body ${first.body} chars, origins ${evidence.map((item) => item.origin).join('/')}`)
+  console.log(`PACKAGED MCP SMOKE PASS: ${first.tools} tools, ${first.resources} resources, director body ${first.body} chars, canonical canvas nodes ${first.canvasNodes}, origins ${evidence.map((item) => item.origin).join('/')}`)
 } catch (error) {
   exitCode = 1
   console.error(error instanceof Error ? error.message : String(error))

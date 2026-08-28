@@ -36,6 +36,40 @@ function start() {
 }
 
 describe('shared Agent tool-call lifetime', () => {
+  it('forwards a captured Surface only as transport admission, outside the business request', async () => {
+    const surfaceBinding = { version: 1 as const, bindingId: 'binding-a',
+      binding: { projectId: 'p', immutableProjectUuid: 'uuid-p', projectGeneration: 1 },
+      webContentsId: 1, processId: 2, frameRoutingId: 3, origin: 'file://',
+      surfaceInstanceId: 'surface-generation', portRevision: 4, nonce: 'nonce-a' }
+    deps.send.mockResolvedValueOnce({ id: 'response', status: 'finished', text: '', toolCalls: [], artifacts: [],
+      finishReason: 'stop', usage: { promptTokens: 0, completionTokens: 0, cachedPromptTokens: 0, totalTokens: 0 } })
+
+    await runWorkbenchAgent({ prompt: 'p', displayPrompt: 'p', capability: 'canvas-agent', history: { kind: 'ephemeral' },
+      projectId: 'p', skillKey: 'method', skillName: 'Method', surfaceBinding })
+
+    const [request, , admission] = deps.send.mock.calls[0]
+    expect(request).not.toHaveProperty('surfaceBinding')
+    expect(admission).toEqual({ surfaceBinding })
+  })
+
+  it('forwards a main-sealed snapshot handle only as mutually exclusive transport admission', async () => {
+    const capturedCanvasReadSnapshot = {
+      version: 1 as const,
+      handleId: 'captured-a',
+      nonce: 'captured-nonce-a',
+    }
+    deps.send.mockResolvedValueOnce({ id: 'response', status: 'finished', text: '', toolCalls: [], artifacts: [],
+      finishReason: 'stop', usage: { promptTokens: 0, completionTokens: 0, cachedPromptTokens: 0, totalTokens: 0 } })
+
+    await runWorkbenchAgent({ prompt: 'p', displayPrompt: 'p', capability: 'storyboard', history: { kind: 'ephemeral' },
+      projectId: 'p', skillKey: 'method', skillName: 'Method', capturedCanvasReadSnapshot })
+
+    const [request, , admission] = deps.send.mock.calls[0]
+    expect(request).not.toHaveProperty('capturedCanvasReadSnapshot')
+    expect(admission).toEqual({ capturedCanvasReadSnapshot })
+    expect(admission).not.toHaveProperty('surfaceBinding')
+  })
+
   it.each(['tool-error', 'tool-result'] as const)('%s expires only the matching call before the turn settles', async (event) => {
     const session = start()
     session.call('expired')

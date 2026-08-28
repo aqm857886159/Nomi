@@ -14,6 +14,14 @@ import {
   subscribeConversations,
   switchConversation,
 } from './conversationPersistence'
+import {
+  activateProjectAgentThread,
+  createProjectAgentThread,
+  projectAgentIsReady,
+  projectAgentThreads,
+  removeProjectAgentThread,
+} from './projectAgentUiCommands'
+import { projectAgentProjectionStore } from './projectAgentProjectionStore'
 import { type ConvArea, threadDisplayTitle } from './conversationThreads'
 
 /** 相对时间:刚刚 / N 分钟前 / N 小时前 / 昨天 / M/D。 */
@@ -38,10 +46,24 @@ export function ConversationHistoryList({
 }): JSX.Element {
   const { t } = useTranslation()
   const revision = React.useSyncExternalStore(subscribeConversations, getConversationsRevision)
-  // revision=外部 store 版本号:listConversations 读可变线程模型,靠它强制重算(lint 看不出外部依赖)。
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const threads = React.useMemo(() => listConversations(area), [area, revision])
-  const activeId = getActiveConversationId(area)
+  const hostRevision = React.useSyncExternalStore(projectAgentProjectionStore.subscribe, () => projectAgentProjectionStore.getState().snapshot?.hostRevision ?? -1)
+  const hostReady = projectAgentIsReady()
+  const hostSnapshot = projectAgentProjectionStore.getState().snapshot
+  const threads = React.useMemo(() => {
+    if (!hostReady || !hostSnapshot) {
+      void revision
+      return listConversations(area)
+    }
+    void hostRevision
+    return projectAgentThreads().map((thread) => ({
+      id: thread.threadId,
+      title: thread.title ?? '',
+      createdAt: Date.parse(thread.createdAt),
+      updatedAt: Date.parse(thread.updatedAt),
+      messages: [],
+    }))
+  }, [area, hostReady, hostRevision, hostSnapshot, revision])
+  const activeId = hostReady ? projectAgentProjectionStore.getState().snapshot?.activeThreadId ?? null : getActiveConversationId(area)
   const now = Date.now()
 
   return (
@@ -53,7 +75,8 @@ export function ConversationHistoryList({
           'hover:bg-nomi-ink-05',
         )}
         onClick={() => {
-          onNewConversation()
+          if (hostReady) void createProjectAgentThread().catch(() => undefined)
+          else onNewConversation()
           onClose()
         }}
       >
@@ -78,7 +101,10 @@ export function ConversationHistoryList({
                 isActive ? 'bg-nomi-accent-soft border-nomi-accent' : 'border-transparent hover:bg-nomi-ink-05',
               )}
               onClick={() => {
-                if (!isActive) switchConversation(area, thread.id)
+                if (!isActive) {
+                  if (hostReady) void activateProjectAgentThread(thread.id).catch(() => undefined)
+                  else switchConversation(area, thread.id)
+                }
                 onClose()
               }}
             >
@@ -100,7 +126,8 @@ export function ConversationHistoryList({
                   aria-label={t('creationAi.conversationHistory.delete')}
                   onClick={(event) => {
                     event.stopPropagation()
-                    deleteConversation(area, thread.id)
+                    if (hostReady) void removeProjectAgentThread(thread.id).catch(() => undefined)
+                    else deleteConversation(area, thread.id)
                   }}
                 >
                   <IconX size={12} stroke={1.7} />

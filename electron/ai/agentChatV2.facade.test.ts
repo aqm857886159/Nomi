@@ -107,6 +107,25 @@ describe('Agent facade delegates exactly one turn to pi + bound context', () => 
     expect(state.choose).not.toHaveBeenCalled();
   });
 
+  it.each(['canvas-agent', 'canvas-refine', 'storyboard'] as const)(
+    'rejects %s without an explicit project target before model selection',
+    async (capability) => {
+      await expect(runAgentChatV2({
+        ...request(capability),
+        projectId: undefined,
+        canvasProjectId: undefined,
+      }, hooks())).rejects.toThrow(/project/i);
+      expect(state.choose).not.toHaveBeenCalled();
+      expect(state.run).not.toHaveBeenCalled();
+    },
+  );
+
+  it('keeps tool-free canvas chat usable without a project and accepts canvasProjectId as an explicit tool target', async () => {
+    await runAgentChatV2({ ...request('canvas-chat'), projectId: undefined, canvasProjectId: undefined }, hooks());
+    await runAgentChatV2({ ...request('storyboard'), projectId: undefined, canvasProjectId: 'project' }, hooks());
+    expect(state.choose).toHaveBeenCalledTimes(2);
+  });
+
   it('preserves the structured credential failure from real model selection', async () => {
     const failure = Object.assign(new Error('Text model credential is locked'), {
       code: 'text_model_credential_locked' as const,

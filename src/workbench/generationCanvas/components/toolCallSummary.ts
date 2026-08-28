@@ -56,9 +56,6 @@ export function summarizeToolCall(toolName: string, args: unknown): string {
     const ids = Array.isArray(record.nodeIds) ? record.nodeIds : []
     return `批量生成 ${ids.length} 个节点（将产生生成费用）`
   }
-  if (toolName === 'read_canvas_state') {
-    return '读取画布当前状态'
-  }
   if (toolName === 'arrange_storyboard_to_timeline') {
     const ids = Array.isArray(record.nodeIds) ? record.nodeIds : []
     return ids.length ? `把 ${ids.length} 个镜头按剧本时序排入时间轴` : '把整条故事板按剧本时序排入时间轴'

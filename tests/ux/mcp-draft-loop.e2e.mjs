@@ -12,6 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { launchNomiApp } from "./_launchApp.mjs";
+import { installMcpClientProof } from "./_mcpClientProof.mjs";
 
 const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -41,9 +42,11 @@ const tempRoot = mkdtempSync(path.join(os.tmpdir(), "nomi-draft-"));
 const userDataDir = tempRoot;
 const settingsDir = tempRoot;
 const projectsDir = path.join(tempRoot, "projects");
+const capabilityDir = path.join(tempRoot, "capability-core");
 const shotsDir = path.join(repoRoot, "tests/ux/shots/mcp-quick-draft");
 mkdirSync(projectsDir, { recursive: true });
 mkdirSync(shotsDir, { recursive: true });
+const mcpClientProof = installMcpClientProof(capabilityDir, "codex");
 const realCatalog = path.join(realSettings, "model-catalog.json");
 if (!existsSync(realCatalog)) { console.log(`SKIP: 找不到真 model-catalog.json（${realCatalog}）。`); process.exit(0); }
 
@@ -70,7 +73,7 @@ gui = await launchNomiApp({
   userDataDir,
   settingsDir,
   projectsDir,
-  env: { NOMI_CAPABILITY_DIR: path.join(tempRoot, "capability-core") },
+  env: { NOMI_CAPABILITY_DIR: capabilityDir },
 });
 
 let passed = 0;
@@ -90,7 +93,8 @@ const child = spawn(appBundle ? packagedLauncher : require("electron"), [appBund
     NOMI_MCP_STDIO: "1",
     NOMI_SETTINGS_DIR: settingsDir,
     NOMI_ELECTRON_USER_DATA_DIR: userDataDir,
-    NOMI_CAPABILITY_DIR: path.join(tempRoot, "capability-core"),
+    NOMI_CAPABILITY_DIR: capabilityDir,
+    ...mcpClientProof,
   },
   stdio: ["pipe", "pipe", "pipe"],
 });
@@ -181,6 +185,11 @@ try {
   const proj = await callTool("nomi_create_project", { name: "R16 MCP 出初稿验证" });
   const projectId = proj.projectId || proj.id;
   assert(projectId, `建项目成功（${projectId}）`);
+  const projectSelectionHandle = proj.projectSelectionHandle;
+  assert(projectSelectionHandle, "建项目返回同连接签发的项目选择凭证");
+  const projectSession = await callTool("nomi_session_open", { projectSelectionHandle });
+  const leaseHandle = projectSession.leaseHandle;
+  assert(leaseHandle && projectSession.projectId === projectId, "项目会话绑定同一 MCP 连接与刚创建的项目");
 
   const addNodes = callTool("nomi_add_nodes", { projectId, nodes: [
     { kind: "image", title: "角色参考", prompt: "橘猫，琥珀色眼睛，红色细项圈。" },
@@ -229,7 +238,7 @@ try {
   // 生成结果在 gen.assets[0].url；也兜底读画布节点。
   const resultUrl = gen?.assets?.[0]?.url || gen?.result?.url || gen?.url;
   assert(resultUrl && /^(https?:|asset:|nomi-local:|file:)/.test(String(resultUrl)), `节点真拿到图素材（${String(resultUrl).slice(0, 56)}）`);
-  const canvas = await callTool("nomi_read_canvas", { projectId });
+  const canvas = await callTool("nomi_read_canvas", { leaseHandle, projectId });
   assert(Array.isArray(canvas.nodes) && canvas.nodes.length === 3, `read_canvas 回读到 3 个画布节点`);
   assert(Array.isArray(canvas.edges) && canvas.edges.length === 1, "read_canvas 回读到 1 条 reference 连线");
 

@@ -3,6 +3,7 @@ import {
   requireDesktopRuntime,
   openDesktopAgentsChatStream,
   type AgentsChatRequestDto,
+  type AgentsChatStreamAdmission,
   type AgentsChatStreamHandlers,
 } from './desktopAgentsChatStream'
 
@@ -19,6 +20,7 @@ export {
   type AgentsChatStreamEvent,
   type AgentChatV2ToolDecision,
   type AgentChatV2Session,
+  type AgentsChatStreamAdmission,
   type AgentsChatStreamHandlers,
 } from './desktopAgentsChatStream'
 
@@ -202,8 +204,9 @@ export type ModelCatalogMappingTestResultDto = {
 export async function workbenchAgentsChatStream(
   payload: AgentsChatRequestDto,
   handlers: AgentsChatStreamHandlers,
+  admission: AgentsChatStreamAdmission = {},
 ): Promise<() => void> {
-  return openDesktopAgentsChatStream(payload, handlers)
+  return openDesktopAgentsChatStream(payload, handlers, admission)
 }
 
 

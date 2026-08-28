@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const deps = vi.hoisted(() => ({ project: 'A', send: vi.fn(), frame: vi.fn(), planner: vi.fn(), landing: vi.fn() }))
+const deps = vi.hoisted(() => ({
+  project: 'A',
+  send: vi.fn(),
+  frame: vi.fn(),
+  planner: vi.fn(),
+  landing: vi.fn(),
+  captureSurface: vi.fn(),
+  sealSurfaceSnapshot: vi.fn(),
+}))
 vi.mock('./workbenchAiClient', () => ({ sendWorkbenchAiMessage: deps.send }))
 vi.mock('./assistantModelPref', () => ({ getAssistantModelPref: () => null }))
 vi.mock('../windowUrlParam', () => ({ readWindowUrlParam: () => deps.project }))
@@ -8,6 +16,10 @@ vi.mock('../project/workbenchProjectSession', () => ({ getActiveWorkbenchProject
 vi.mock('../../desktop/bridge', () => ({ getDesktopBridge: () => ({ video: { extractFrame: deps.frame } }) }))
 vi.mock('../generationCanvas/agent/runStoryboardPlanner', () => ({ runStoryboardPlanner: deps.planner }))
 vi.mock('../capability/multiShotCanvasLanding', () => ({ handleMultiShotCanvasLandingOp: deps.landing }))
+vi.mock('../project/projectCanvasReadSurface', () => ({
+  captureCurrentProjectCanvasReadSurfaceBinding: deps.captureSurface,
+  sealCurrentProjectCanvasReadSnapshot: deps.sealSurfaceSnapshot,
+}))
 import { runDirectionPlanner } from '../generationCanvas/agent/runDirectionPlanner'
 import { makeShotVerifyDeps } from '../generationCanvas/agent/shotVerifyJudge'
 import { handleCapabilityApply } from '../capability/capabilityApplyHandler'
@@ -16,15 +28,38 @@ import { useWorkbenchStore } from '../workbenchStore'
 
 const plan = { title: 'this operation', anchors: [], shots: [{ index: 1, shotId: 'shot-1', shotKind: 'video' as const, durationSec: 3, anchorIds: [], prompt: 'rain' }] }
 const candidates = [{ key: 'a', title: 'first', oneLiner: 'one' }, { key: 'b', title: 'second', oneLiner: 'two' }]
-const snapshot = (id: string) => ({ nodes: [{ id, title: id, kind: 'image' as const, prompt: id, position: { x: 0, y: 0 } }], edges: [], groups: [] })
+const snapshot = (id: string) => ({
+  nodes: [{ id, title: id, kind: 'image' as const, prompt: id, position: { x: 0, y: 0 } }],
+  edges: [],
+  groups: [],
+  selectedNodeIds: [id],
+})
 
 beforeEach(() => {
   vi.clearAllMocks()
   deps.project = 'A'
   deps.landing.mockResolvedValue(null)
+  deps.captureSurface.mockReturnValue({
+    version: 1,
+    bindingId: 'binding-A',
+    binding: { projectId: 'A', immutableProjectUuid: 'uuid-A', projectGeneration: 1 },
+    webContentsId: 1,
+    processId: 2,
+    frameRoutingId: 3,
+    origin: 'file://',
+    surfaceInstanceId: 'surface-A',
+    portRevision: 1,
+    nonce: 'binding-nonce-A',
+  })
+  deps.sealSurfaceSnapshot.mockResolvedValue({
+    version: 1,
+    handleId: 'captured-A',
+    nonce: 'captured-nonce-A',
+  })
   deps.send.mockResolvedValue({ id: 'r', status: 'finished', text: 'actual', toolCalls: [], artifacts: [], finishReason: 'stop',
     usage: { promptTokens: 2, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 3 } })
   useGenerationCanvasStore.getState().restoreSnapshot(snapshot('A-node'))
+  useGenerationCanvasStore.setState({ selectedNodeIds: ['A-node'] })
   useWorkbenchStore.setState({ storyboardPlan: { ...plan, title: 'unrelated UI plan' }, workspaceMode: 'creation' })
 })
 
@@ -69,15 +104,30 @@ describe('remaining production callers use the explicit shared Agent profile', (
     deps.landing.mockReturnValueOnce(new Promise((resolve) => { release = () => resolve(null) }))
     deps.planner.mockResolvedValueOnce({ status: 'finished', text: 'own text', plan })
     const pending = handleCapabilityApply('production.plan-storyboard', { projectId: 'A', runId: 'run-A', operationId: 'operation-A', brief: { goal: 'goal' } })
+    expect(deps.captureSurface).toHaveBeenCalledOnce()
+    expect(deps.sealSurfaceSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({ binding: expect.objectContaining({ projectId: 'A' }) }),
+      expect.objectContaining({
+        nodes: [expect.objectContaining({ id: 'A-node', title: 'A-node' })],
+        selectedNodeIds: [],
+      }),
+    )
+    expect(deps.landing).not.toHaveBeenCalled()
     deps.project = 'B'
     useGenerationCanvasStore.getState().restoreSnapshot(snapshot('B-node'))
     useWorkbenchStore.setState({ storyboardPlan: { ...plan, title: 'B plan' } })
+    await vi.waitFor(() => expect(deps.landing).toHaveBeenCalledOnce())
     release()
     expect(await pending).toEqual({ text: 'own text', plan })
     expect(deps.planner).toHaveBeenCalledWith(expect.objectContaining({ target: 'production', projectId: 'A',
       history: { kind: 'ephemeral' }, featureKey: 'nomi:production-planner:A:run-A:operation-A',
-      snapshot: expect.objectContaining({ nodes: [expect.objectContaining({ id: 'A-node' })] }),
+      snapshot: expect.objectContaining({
+        nodes: [expect.objectContaining({ id: 'A-node' })],
+        selectedNodeIds: [],
+      }),
+      capturedCanvasReadSnapshot: { version: 1, handleId: 'captured-A', nonce: 'captured-nonce-A' },
     }))
+    expect(deps.planner.mock.calls[0]![0].snapshot).toBe(deps.sealSurfaceSnapshot.mock.calls[0]![1])
     expect(useWorkbenchStore.getState()).toMatchObject({ workspaceMode: 'creation', storyboardPlan: { title: 'B plan' } })
     expect(useGenerationCanvasStore.getState().nodes[0].id).toBe('B-node')
   })

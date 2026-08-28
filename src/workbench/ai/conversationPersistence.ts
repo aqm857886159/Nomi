@@ -30,6 +30,12 @@ import {
   startNewThread,
   syncActiveMessages,
 } from './conversationThreads'
+import {
+  activateProjectAgentThread,
+  createProjectAgentThread,
+  projectAgentIsReady,
+  removeProjectAgentThread,
+} from './projectAgentUiCommands'
 
 const WRITE_DEBOUNCE_MS = 1000
 
@@ -51,6 +57,19 @@ const adapters: Record<ConvArea, {
 }
 
 let getProjectIdProvider: () => string | null = () => null
+let projectAgentCutoverActive = false
+
+/** Once a project has opened through ProjectAgentHost, the legacy conversation
+ * writer is disabled for the process. The old file remains a read-only
+ * migration source and cannot be changed by a background debounce. */
+export function setProjectAgentCutoverActive(active: boolean): void {
+  projectAgentCutoverActive = active
+  if (active && timer) {
+    clearTimeout(timer)
+    timer = null
+  }
+}
+
 function activeProjectId(): string | null {
   return getProjectIdProvider()
 }
@@ -95,6 +114,7 @@ export function subscribeConversations(cb: () => void): () => void {
 // ───────────────────────────── 回写 ─────────────────────────────
 
 function writeNow(projectId: string): void {
+  if (projectAgentCutoverActive) return
   const api = getDesktopBridge()?.conversations
   if (!api || !projectId) return
   void api
@@ -111,6 +131,7 @@ let timer: ReturnType<typeof setTimeout> | null = null
 
 /** 消息变化后的防抖回写;projectId 在冲刷时刻取(防切换期错绑)。 */
 export function scheduleConversationsWrite(getProjectId: () => string | null): void {
+  if (projectAgentCutoverActive) return
   if (timer) clearTimeout(timer)
   timer = setTimeout(() => {
     timer = null
@@ -121,6 +142,7 @@ export function scheduleConversationsWrite(getProjectId: () => string | null): v
 
 /** 切项目前调用:取消挂起防抖,把两面板当前 store 消息同步进模型,立即写给指定旧项目。 */
 export function flushConversationsNow(projectId: string | null): void {
+  if (projectAgentCutoverActive) return
   if (timer) {
     clearTimeout(timer)
     timer = null
@@ -135,6 +157,7 @@ let loadGeneration = 0
 
 /** Only the latest read for the still-active project may project into either panel. */
 export async function loadProjectConversations(projectId: string): Promise<void> {
+  if (projectAgentCutoverActive) return
   const generation = ++loadGeneration
   abandonCreationTurn()
   abandonCanvasTurn()
@@ -167,6 +190,14 @@ export async function loadProjectConversations(projectId: string): Promise<void>
 export function startNewConversation(area: ConvArea): void {
   const projectId = activeProjectId()
   if (!projectId) return
+  if (projectAgentCutoverActive && projectAgentIsReady()) {
+    abandonArea(area)
+    adapters[area].setMessages([])
+    if (area === 'generation') clearCommittedProposal()
+    void createProjectAgentThread().catch(() => undefined)
+    bump()
+    return
+  }
   abandonArea(area)
   // 先把当前 store 消息同步进活动线程,再归档建新。
   syncActiveMessages(projectId, area, adapters[area].getMessages(), now())
@@ -182,6 +213,14 @@ export function startNewConversation(area: ConvArea): void {
 export function switchConversation(area: ConvArea, threadId: string): void {
   const projectId = activeProjectId()
   if (!projectId) return
+  if (projectAgentCutoverActive && projectAgentIsReady()) {
+    abandonArea(area)
+    adapters[area].setMessages([])
+    void activateProjectAgentThread(threadId).catch(() => undefined)
+    if (area === 'generation') clearCommittedProposal()
+    bump()
+    return
+  }
   syncActiveMessages(projectId, area, adapters[area].getMessages(), now())
   const target = activateThread(projectId, area, threadId, now())
   if (!target) return
@@ -197,6 +236,10 @@ export function switchConversation(area: ConvArea, threadId: string): void {
 export function deleteConversation(area: ConvArea, threadId: string): void {
   const projectId = activeProjectId()
   if (!projectId) return
+  if (projectAgentCutoverActive && projectAgentIsReady()) {
+    void removeProjectAgentThread(threadId).catch(() => undefined)
+    return
+  }
   if (removeThread(projectId, area, threadId, now())) {
     bump()
     scheduleConversationsWrite(activeProjectId)
@@ -222,6 +265,7 @@ export function getActiveConversationId(area: ConvArea): string | null {
 export function initConversationPersistence(getProjectId: () => string | null): () => void {
   getProjectIdProvider = getProjectId
   const onChange = (area: ConvArea) => {
+    if (projectAgentCutoverActive) return
     const projectId = getProjectId()
     if (projectId) syncActiveMessages(projectId, area, adapters[area].getMessages(), now())
     scheduleConversationsWrite(getProjectId)

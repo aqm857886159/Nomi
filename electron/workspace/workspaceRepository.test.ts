@@ -17,6 +17,13 @@ import {
 } from "./workspaceRepository";
 import { workspaceProjectBackupFile, workspaceProjectFile, workspaceProjectQuarantineFile } from "./workspacePaths";
 import { recentWorkspacesPath } from "./workspaceRegistry";
+import { WorkspaceProjectIdentityUnavailableError } from "./workspaceTypes";
+import { ensureWorkspaceProjectIdentity } from "./workspaceProjectIdentity";
+import {
+  WorkspaceManifestLockBusyError,
+  releaseWorkspaceManifestLock,
+  tryAcquireWorkspaceManifestLock,
+} from "./workspaceManifestLock";
 
 const tempRoots: string[] = [];
 
@@ -155,7 +162,119 @@ describe("workspace repository", () => {
       payload: { draft: 2 },
     });
     expect(raw.payload).toEqual({ draft: 2 });
-    expect(JSON.parse(fs.readFileSync(workspaceProjectBackupFile(selectedRoot), "utf8")).payload).toEqual({ draft: 1 });
+    const backup = JSON.parse(fs.readFileSync(workspaceProjectBackupFile(selectedRoot), "utf8"));
+    expect(backup.payload).toEqual({ draft: 1 });
+    expect(raw).toMatchObject({
+      immutableProjectUuid: created.immutableProjectUuid,
+      projectGeneration: created.projectGeneration,
+    });
+    expect(backup).toMatchObject({
+      immutableProjectUuid: created.immutableProjectUuid,
+      projectGeneration: created.projectGeneration,
+    });
+  });
+
+  it("keeps save read-backup-write inside the shared sync transaction", () => {
+    const selectedRoot = makeTempDir();
+    const repoDeps = deps();
+    const created = createWorkspaceProject(
+      { rootPath: selectedRoot, record: { name: "Busy Save", payload: { draft: 1 } } },
+      repoDeps,
+    );
+    const manifestPath = workspaceProjectFile(selectedRoot);
+    const backupPath = workspaceProjectBackupFile(selectedRoot);
+    const manifestBefore = fs.readFileSync(manifestPath, "utf8");
+    const backupBefore = fs.readFileSync(backupPath, "utf8");
+    const held = tryAcquireWorkspaceManifestLock(selectedRoot, {
+      ownerId: "other-writer",
+      randomId: () => "other-writer-nonce",
+    });
+
+    expect(() => saveWorkspaceProject(created.id, { name: "Must not save", payload: { draft: 2 } }, repoDeps)).toThrow(
+      WorkspaceManifestLockBusyError,
+    );
+    expect(fs.readFileSync(manifestPath, "utf8")).toBe(manifestBefore);
+    expect(fs.readFileSync(backupPath, "utf8")).toBe(backupBefore);
+
+    releaseWorkspaceManifestLock(held);
+  });
+
+  it("backs up the raw manifest so future fields survive a repository save", () => {
+    const selectedRoot = makeTempDir();
+    const repoDeps = deps();
+    const created = createWorkspaceProject(
+      { rootPath: selectedRoot, record: { name: "Raw Backup", payload: { step: 0 } } },
+      repoDeps,
+    );
+    const manifestPath = workspaceProjectFile(selectedRoot);
+    const current = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    fs.writeFileSync(manifestPath, `${JSON.stringify({ ...current, futureField: { keep: [1, 2, 3] } }, null, 2)}\n`);
+
+    saveWorkspaceProject(created.id, { name: "Saved", payload: { step: 1 } }, repoDeps);
+
+    expect(JSON.parse(fs.readFileSync(workspaceProjectBackupFile(selectedRoot), "utf8"))).toMatchObject({
+      immutableProjectUuid: created.immutableProjectUuid,
+      projectGeneration: created.projectGeneration,
+      futureField: { keep: [1, 2, 3] },
+      payload: { step: 0 },
+    });
+  });
+
+  it("backfills identity after an identityless legacy save without losing the saved payload", async () => {
+    const selectedRoot = makeTempDir();
+    const repoDeps = deps();
+    const created = createWorkspaceProject(
+      { rootPath: selectedRoot, record: { name: "Save Then Identity", payload: { step: 0 } } },
+      repoDeps,
+    );
+    const manifestPath = workspaceProjectFile(selectedRoot);
+    const current = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    const { immutableProjectUuid: _uuid, projectGeneration: _generation, ...legacy } = current;
+    fs.writeFileSync(manifestPath, `${JSON.stringify(legacy, null, 2)}\n`);
+
+    const saved = saveWorkspaceProject(created.id, { name: "Saved", payload: { step: 1 } }, repoDeps);
+    const identity = await ensureWorkspaceProjectIdentity(selectedRoot, {
+      randomUuid: () => "11111111-1111-4111-8111-111111111111",
+    });
+    const persisted = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+
+    expect(saved).toMatchObject({ revision: 1, payload: { step: 1 } });
+    expect(persisted).toMatchObject({
+      revision: 1,
+      payload: { step: 1 },
+      immutableProjectUuid: identity.immutableProjectUuid,
+      projectGeneration: 1,
+    });
+  });
+
+  it("preserves a backfilled identity through the next repository save", async () => {
+    const selectedRoot = makeTempDir();
+    const repoDeps = deps();
+    const created = createWorkspaceProject(
+      { rootPath: selectedRoot, record: { name: "Identity Then Save", payload: { step: 0 } } },
+      repoDeps,
+    );
+    const manifestPath = workspaceProjectFile(selectedRoot);
+    const current = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    const { immutableProjectUuid: _uuid, projectGeneration: _generation, ...legacy } = current;
+    fs.writeFileSync(manifestPath, `${JSON.stringify(legacy, null, 2)}\n`);
+
+    const identity = await ensureWorkspaceProjectIdentity(selectedRoot, {
+      randomUuid: () => "11111111-1111-4111-8111-111111111111",
+    });
+    const saved = saveWorkspaceProject(created.id, { name: "Saved", payload: { step: 1 } }, repoDeps);
+    const backup = JSON.parse(fs.readFileSync(workspaceProjectBackupFile(selectedRoot), "utf8"));
+
+    expect(saved).toMatchObject({
+      revision: 1,
+      payload: { step: 1 },
+      immutableProjectUuid: identity.immutableProjectUuid,
+      projectGeneration: 1,
+    });
+    expect(backup).toMatchObject({
+      immutableProjectUuid: identity.immutableProjectUuid,
+      projectGeneration: 1,
+    });
   });
 
   it("diagnoses and recovers a corrupt manifest from the last valid backup", () => {
@@ -177,6 +296,65 @@ describe("workspace repository", () => {
     expect(recovered.payload).toEqual({ draft: 1 });
     expect(readWorkspaceProject(created.id, repoDeps)?.payload).toEqual({ draft: 1 });
     expect(fs.existsSync(workspaceProjectQuarantineFile(selectedRoot, Date.now()))).toBe(true);
+  });
+
+  it("preserves a structurally complete current identity when recovering an old identityless backup", () => {
+    const selectedRoot = makeTempDir();
+    const repoDeps = deps();
+    const created = createWorkspaceProject(
+      { rootPath: selectedRoot, record: { name: "Identity Recovery", payload: { draft: 1 } } },
+      repoDeps,
+    );
+    const manifestPath = workspaceProjectFile(selectedRoot);
+    const backupPath = workspaceProjectBackupFile(selectedRoot);
+    const current = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    const { immutableProjectUuid: _uuid, projectGeneration: _generation, ...identityless } = current;
+    fs.writeFileSync(
+      backupPath,
+      `${JSON.stringify({ ...identityless, futureBackupField: { keep: true } }, null, 2)}\n`,
+    );
+    fs.writeFileSync(manifestPath, `${JSON.stringify({ ...current, name: "" }, null, 2)}\n`);
+
+    const recovered = recoverWorkspaceProject(created.id, repoDeps);
+    const recoveredRaw = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+
+    expect(recovered).toMatchObject({
+      immutableProjectUuid: created.immutableProjectUuid,
+      projectGeneration: created.projectGeneration,
+    });
+    expect(recoveredRaw).toMatchObject({
+      immutableProjectUuid: created.immutableProjectUuid,
+      projectGeneration: created.projectGeneration,
+      futureBackupField: { keep: true },
+    });
+  });
+
+  it("fails recovery closed when backup identity conflicts with the current manifest", () => {
+    const selectedRoot = makeTempDir();
+    const repoDeps = deps();
+    const created = createWorkspaceProject(
+      { rootPath: selectedRoot, record: { name: "Identity Conflict", payload: {} } },
+      repoDeps,
+    );
+    const manifestPath = workspaceProjectFile(selectedRoot);
+    const backupPath = workspaceProjectBackupFile(selectedRoot);
+    const current = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    fs.writeFileSync(
+      backupPath,
+      `${JSON.stringify(
+        {
+          ...current,
+          immutableProjectUuid: "22222222-2222-4222-8222-222222222222",
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    const corrupt = `${JSON.stringify({ ...current, name: "" }, null, 2)}\n`;
+    fs.writeFileSync(manifestPath, corrupt);
+
+    expect(() => recoverWorkspaceProject(created.id, repoDeps)).toThrow(WorkspaceProjectIdentityUnavailableError);
+    expect(fs.readFileSync(manifestPath, "utf8")).toBe(corrupt);
   });
 
   it("removes a project reference without deleting rootPath", () => {
@@ -204,7 +382,12 @@ describe("workspace repository", () => {
     fs.rmSync(selectedRoot, { recursive: true, force: true });
 
     expect(listWorkspaceProjects(repoDeps)).toEqual([
-      expect.objectContaining({ id: created.id, name: "Missing Folder", missing: true, rootPath: path.resolve(selectedRoot) }),
+      expect.objectContaining({
+        id: created.id,
+        name: "Missing Folder",
+        missing: true,
+        rootPath: path.resolve(selectedRoot),
+      }),
     ]);
     expect(readWorkspaceProject(created.id, repoDeps)).toBeNull();
     expect(resolveWorkspaceProjectDir(created.id, repoDeps)).toBeNull();
@@ -243,14 +426,8 @@ describe("workspace repository", () => {
     const staleRoot = makeTempDir();
     const actualRoot = makeTempDir();
     const repoDeps = deps();
-    const stale = createWorkspaceProject(
-      { rootPath: staleRoot, record: { name: "Stale", payload: {} } },
-      repoDeps,
-    );
-    const actual = createWorkspaceProject(
-      { rootPath: actualRoot, record: { name: "Actual", payload: {} } },
-      repoDeps,
-    );
+    const stale = createWorkspaceProject({ rootPath: staleRoot, record: { name: "Stale", payload: {} } }, repoDeps);
+    const actual = createWorkspaceProject({ rootPath: actualRoot, record: { name: "Actual", payload: {} } }, repoDeps);
     const registry = JSON.parse(fs.readFileSync(recentWorkspacesPath(repoDeps.settingsRoot), "utf8"));
     fs.writeFileSync(
       recentWorkspacesPath(repoDeps.settingsRoot),
@@ -351,10 +528,7 @@ describe("draft lifecycle + empty-draft GC", () => {
   it("never deletes an external folder draft — only the registry binding could change, files stay", () => {
     const repoDeps = deps();
     const externalRoot = makeTempDir("nomi-external-folder-"); // 不在默认根下 = folder
-    const draft = createWorkspaceProject(
-      { rootPath: externalRoot, record: { name: "外部", draft: true } },
-      repoDeps,
-    );
+    const draft = createWorkspaceProject({ rootPath: externalRoot, record: { name: "外部", draft: true } }, repoDeps);
     const result = gcEmptyDraftWorkspaceProjects(repoDeps);
     expect(result.recycled).not.toContain(draft.id);
     expect(fs.existsSync(workspaceProjectFile(externalRoot))).toBe(true);

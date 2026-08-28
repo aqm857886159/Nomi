@@ -80,14 +80,10 @@ const PROTOCOL_VERSION = '2025-11-25'
 /** 服务端支持的协议版本，降序排列。 */
 export const SUPPORTED_PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'] as const
 
-// MCP 工具契约目录抽出到 mcpToolCatalog.ts（壳到 800/800 的 headroom 提取）；此处只 import 这份数据契约。
-import { MCP_TOOL_CATALOG } from './mcpToolCatalog'
+// tools/list 与 tools/call 共用同一份过滤后目录 resolver，避免“看不见但能调”。
+import { MCP_TOOL_RESOLVER } from './mcpToolCatalog'
 
-export const MCP_TOOL_NAMES = MCP_TOOL_CATALOG.map((tool) => tool.name)
-
-type ToolDef = (typeof MCP_TOOL_CATALOG)[number]
-const TOOL_BY_NAME = new Map<string, ToolDef>(MCP_TOOL_CATALOG.map((tool) => [tool.name, tool]))
-
+export const MCP_TOOL_NAMES = MCP_TOOL_RESOLVER.list().map((tool) => tool.name)
 /**
  * 只读工具（annotations.readOnlyHint）——**只查不改不花钱**的那几个。
  * 为什么必须标：宿主按它决定要不要每次弹确认（Codex 的 `default_tools_approval_mode = "writes"`
@@ -97,7 +93,6 @@ const TOOL_BY_NAME = new Map<string, ToolDef>(MCP_TOOL_CATALOG.map((tool) => [to
 const READ_ONLY_TOOLS = new Set([
   'nomi_list_projects',
   'nomi_list_models',
-  'nomi_read_canvas',
   'nomi_get_generation_context',
   'nomi_operation_read',
   'nomi_get_run',
@@ -169,6 +164,8 @@ export function createMcpProtocol(transport: McpTransport) {
   // openai/outputTemplate（ChatGPT 别名）。always 附——宿主不支持则忽略这些附加字段（spec 设计），
   // 跨 Claude/ChatGPT/参考宿主通用（P4）；不 gate on 客户端声明，否则 ChatGPT 不声明该扩展就拿不到 widget。
   function buildToolResultPayload(toolName: string, args: Record<string, unknown>, result: unknown): Record<string, unknown> {
+    const resolvedTool = MCP_TOOL_RESOLVER.resolve(toolName)
+    if (resolvedTool && 'presentResult' in resolvedTool) return resolvedTool.presentResult(result)
     // content 块装配（text + 可选缩略图 image）抽到 mcpResultPayload（0c：壳文件不破 800 行）。
     const { content, outcome } = assembleToolResultContent(toolName, args, result, locale())
     const payload: Record<string, unknown> = { content }
@@ -414,12 +411,15 @@ export function createMcpProtocol(transport: McpTransport) {
     }
     if (method === 'tools/list') {
       reply(id, {
-        tools: MCP_TOOL_CATALOG.map(({ name, description, inputSchema }) => {
+        tools: MCP_TOOL_RESOLVER.list().map((tool) => {
+          const { name, description, inputSchema } = tool
           // 挂活 widget 的工具：预声明 _meta.ui.resourceUri（MCP Apps 标准）+ openai/outputTemplate（ChatGPT 别名）
           // + 调用状态文案。always 广告（宿主不支持则忽略 _meta，spec 设计）→ 跨 Claude/ChatGPT 通用（P4）。
           const uiUri = TOOL_UI_RESOURCE[name]
           // 只读标注对所有宿主 always 广告（不支持的按 spec 忽略未知字段）→ Claude/Codex/Cursor 通用（P4）。
-          const annotations = READ_ONLY_TOOLS.has(name) ? { annotations: { readOnlyHint: true } } : {}
+          const projectedAnnotations = 'annotations' in tool ? tool.annotations : undefined
+          const annotations = projectedAnnotations ? { annotations: projectedAnnotations }
+            : READ_ONLY_TOOLS.has(name) ? { annotations: { readOnlyHint: true } } : {}
           return uiUri
             ? {
                 name, description, inputSchema, ...annotations,
@@ -437,7 +437,7 @@ export function createMcpProtocol(transport: McpTransport) {
     }
     if (method === 'tools/call') {
       const name = params?.name as string | undefined
-      const tool = name ? TOOL_BY_NAME.get(name) : undefined
+      const tool = name ? MCP_TOOL_RESOLVER.resolve(name) : undefined
       if (!tool) {
         replyError(id, -32602, `未知工具: ${name}`)
         return

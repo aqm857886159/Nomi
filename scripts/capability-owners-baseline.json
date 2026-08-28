@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "file": "electron/shared/agentCapabilities/canvasRead.ts",
+      "symbol": "CANVAS_READ_CAPABILITY.aliases.mcp",
+      "role": "mcp_alias_owner",
+      "deleteIn": null
+    },
+    {
+      "file": "electron/shared/agentCapabilities/canvasRead.ts",
+      "symbol": "CANVAS_READ_CAPABILITY.aliases.pi",
+      "role": "pi_alias_owner",
+      "deleteIn": null
+    },
+    {
+      "file": "electron/shared/agentCapabilities/canvasRead.ts",
+      "symbol": "CANVAS_READ_CAPABILITY.effect",
+      "role": "canonical_effect_owner",
+      "deleteIn": null
+    },
+    {
+      "file": "electron/shared/agentCapabilities/canvasRead.ts",
+      "symbol": "CANVAS_READ_CAPABILITY.id",
+      "role": "canonical_id_owner",
+      "deleteIn": null
+    },
+    {
+      "file": "electron/shared/agentCapabilities/canvasRead.ts",
+      "symbol": "canvasReadResultSchema",
+      "role": "canonical_output_schema_owner",
+      "deleteIn": null
+    },
+    {
+      "file": "electron/shared/agentCapabilities/canvasRead.ts",
+      "symbol": "canvasReadSemanticInputSchema",
+      "role": "canonical_input_schema_owner",
+      "deleteIn": null
+    },
+    {
+      "file": "electron/shared/agentCapabilities/canvasRead.ts",
+      "symbol": "projectCanvasRead",
+      "role": "safe_projector",
+      "deleteIn": null
+    }
+  ]
+}

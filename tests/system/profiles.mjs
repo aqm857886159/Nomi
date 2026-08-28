@@ -14,6 +14,8 @@ export const STAGES = {
   e2e: stage("e2e", "pnpm", ["run", "test:e2e"]),
   "journeys-ci": stage("journeys-ci", "pnpm", ["run", "test:journeys"]),
   "journeys-all": stage("journeys-all", "pnpm", ["eval:journey"]),
+  "project-agent-mcp": stage("project-agent-mcp", "pnpm", ["run", "test:mcp"]),
+  "project-agent-surface": stage("project-agent-surface", "node", ["tests/ux/project-agent-canvas-isolation.e2e.mjs"]),
   "real-generation": stage("real-generation", "node", ["tests/ux/camera-move-render-e2e.mjs"], {
     env: { APIMART_E2E: "1", NOMI_SPEND_OK: "1", NOMI_E2E: "1", NOMI_E2E_ALLOW_MULTI_INSTANCE: "1" },
   }),
@@ -21,8 +23,8 @@ export const STAGES = {
 
 export const PROFILES = {
   quick: ["matrix", "unit"],
-  ci: ["matrix", "unit", "build", "e2e", "journeys-ci"],
-  "full-local": ["matrix", "gates", "e2e", "journeys-ci"],
+  ci: ["matrix", "unit", "build", "e2e", "journeys-ci", "project-agent-mcp", "project-agent-surface"],
+  "full-local": ["matrix", "gates", "e2e", "journeys-ci", "project-agent-mcp", "project-agent-surface"],
   "real-generation": ["real-generation"],
-  release: ["matrix", "gates", "e2e", "journeys-all", "real-generation"],
+  release: ["matrix", "gates", "e2e", "journeys-all", "project-agent-mcp", "project-agent-surface", "real-generation"],
 };

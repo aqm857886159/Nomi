@@ -131,15 +131,26 @@ try {
 
   // ── Step b · nomi_create_project ───────────────────────────────────────────────────────────────
   let projectId = ''
+  let leaseHandle = ''
   {
     const started = Date.now()
     const result = await mcp.callTool('nomi_create_project', { name: 'J-MCP1 · 影子罢工了 60s' })
     const durationMs = Date.now() - started
     const parsed = parseToolResult(result)
     projectId = parsed.json?.id || parsed.json?.projectId || ''
+    const projectSelectionHandle = parsed.json?.projectSelectionHandle || ''
     recordStep({ step: 'create_project', tool: 'nomi_create_project', ok: Boolean(projectId), durationMs, visible: { deepLink: Boolean(parsed.deepLink) } })
     assert(projectId, `created isolated project (${projectId})`)
+    assert(projectSelectionHandle, 'create_project returned a connection-bound project selection')
     assert(durationMs < OVERHEAD_BUDGET_MS, `create_project overhead < ${OVERHEAD_BUDGET_MS}ms (${durationMs}ms)`)
+
+    const sessionStarted = Date.now()
+    const session = parseToolResult(await mcp.callTool('nomi_session_open', { projectSelectionHandle }))
+    const sessionDurationMs = Date.now() - sessionStarted
+    leaseHandle = session.json?.leaseHandle || ''
+    recordStep({ step: 'open_project_session', tool: 'nomi_session_open', ok: Boolean(leaseHandle), durationMs: sessionDurationMs })
+    assert(leaseHandle, 'opened a canvas:read project session on the same stdio connection')
+    assert(session.json?.projectId === projectId, 'project session is bound to the created project')
   }
 
   // ── Step c · nomi_add_nodes — ONE batch of 14 (2 anchors: character+scene; 12 video shot nodes) ──
@@ -295,7 +306,7 @@ try {
   //    already asserted at step f; we re-affirm it is retrievable here.
   {
     const started = Date.now()
-    const result = await mcp.callTool('nomi_read_canvas', { projectId })
+    const result = await mcp.callTool('nomi_read_canvas', { leaseHandle, projectId })
     const durationMs = Date.now() - started
     const parsed = parseToolResult(result)
     const canvas = parsed.json || {}
@@ -318,7 +329,7 @@ try {
   // ── Step i · nomi_read_canvas — 14 nodes, layout NOT a single x column, no AABB overlaps (T3) ─────
   {
     const started = Date.now()
-    const result = await mcp.callTool('nomi_read_canvas', { projectId })
+    const result = await mcp.callTool('nomi_read_canvas', { leaseHandle, projectId })
     const durationMs = Date.now() - started
     const parsed = parseToolResult(result)
     const canvas = parsed.json || {}

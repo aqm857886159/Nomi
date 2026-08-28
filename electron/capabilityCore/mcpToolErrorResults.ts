@@ -30,9 +30,32 @@ const USER_ACTION_HINT: Record<string, { action: string; zh: string; en: string 
   lease_required: { action: 'reselect_project', zh: '请重新选择当前项目。', en: 'Select the current project again.' },
   lease_invalid: { action: 'reselect_project', zh: '项目连接已失效，请重新选择当前项目。', en: 'The project connection expired; select the current project again.' },
   project_scope_changed: { action: 'reselect_project', zh: '项目范围已变化，请重新选择项目。', en: 'The project scope changed; select the project again.' },
+  project_binding_stale: { action: 'reselect_project', zh: '项目身份已变化，请重新选择当前项目。', en: 'The project identity changed; select the current project again.' },
   lease_expired: { action: 'reselect_project', zh: '项目连接已过期，请重新选择当前项目。', en: 'The project connection expired; select the current project again.' },
   lease_revoked: { action: 'reselect_project', zh: '项目连接已撤销，请重新选择当前项目。', en: 'The project connection was revoked; select the current project again.' },
 }
+
+const OPEN_NEW_PROJECT_SESSION = 'Open a new project session and retry'
+
+const POLICY_CODES = new Set([
+  'legacy_path_forbidden', 'feature_disabled', 'phase_not_ready', 'not_ready',
+  'capability_invocation_unverified', 'capability_authority_invalid', 'capability_input_invalid',
+  'capability_policy_stale', 'capability_output_invalid', 'capability_timeout',
+  'capability_cancelled', 'capability_execution_failed',
+  'project_session_unavailable', 'project_selection_denied', 'project_identity_unavailable',
+  'human_approval_required', 'receipt_invalid', 'receipt_expired',
+  'lease_required', 'lease_invalid', 'project_scope_changed', 'project_binding_stale', 'lease_expired', 'lease_revoked',
+  'surface_port_suspended', 'surface_port_unavailable', 'surface_port_stale', 'surface_owner_mismatch',
+])
+
+/** These typed failures may wrap private disk/provider causes; the code is their whole public message. */
+const SAFE_CANVAS_READ_CODES = new Set([
+  'capability_invocation_unverified', 'capability_authority_invalid', 'capability_input_invalid',
+  'capability_policy_stale', 'capability_output_invalid', 'capability_timeout',
+  'capability_cancelled', 'capability_execution_failed',
+  'project_identity_unavailable', 'project_binding_stale',
+  'surface_port_suspended', 'surface_port_unavailable', 'surface_port_stale', 'surface_owner_mismatch',
+])
 
 /** A6 · 错误 → 人话原因 + 恢复动作 + 诊断信息（未知错误不编内容，原样透传 message）。 */
 export function buildToolErrorOutcome(
@@ -41,22 +64,25 @@ export function buildToolErrorOutcome(
   locale: ResultLocale = 'zh-CN',
 ): { text: string; outcome: Record<string, unknown> } {
   const ctx: Ctx = { locale }
-  const message = error instanceof Error ? error.message : String(error)
+  const rawMessage = error instanceof Error ? error.message : String(error)
   const errorRecord = error && typeof error === 'object' ? error as Record<string, unknown> : {}
   const structuredCode = typeof errorRecord.code === 'string'
     ? errorRecord.code
     : typeof errorRecord.errorCode === 'string' ? errorRecord.errorCode : null
-  const policyCode = new Set([
-    'legacy_path_forbidden', 'feature_disabled', 'phase_not_ready', 'not_ready',
-    'human_approval_required', 'receipt_invalid', 'receipt_expired',
-    'lease_required', 'lease_invalid', 'project_scope_changed', 'lease_expired', 'lease_revoked',
-  ])
-  const code = structuredCode && policyCode.has(structuredCode)
+  const code = structuredCode && POLICY_CODES.has(structuredCode)
     ? structuredCode
-    : Object.keys(ERROR_HINT).find((key) => message.includes(key)) || null
-  const policyDetails = structuredCode && policyCode.has(structuredCode)
+    : Object.keys(ERROR_HINT).find((key) => rawMessage.includes(key)) || null
+  const message = structuredCode && SAFE_CANVAS_READ_CODES.has(structuredCode)
+    ? structuredCode
+    : rawMessage
+  const nextAction = typeof errorRecord.nextAction === 'string'
+    ? errorRecord.nextAction
+    : structuredCode && USER_ACTION_HINT[structuredCode]?.action === 'reselect_project'
+      ? OPEN_NEW_PROJECT_SESSION
+      : undefined
+  const policyDetails = structuredCode && POLICY_CODES.has(structuredCode)
     ? {
-        ...(typeof errorRecord.nextAction === 'string' ? { nextAction: errorRecord.nextAction } : {}),
+        ...(nextAction ? { nextAction } : {}),
         ...(typeof errorRecord.phase === 'string' ? { phase: errorRecord.phase } : {}),
         ...(typeof errorRecord.capability === 'string' ? { capability: errorRecord.capability } : {}),
       }

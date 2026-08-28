@@ -23,7 +23,6 @@ import {
   addNodes,
   connectNodes,
   deleteNodes,
-  readCanvas,
   setNodePrompt,
   type CanvasSnapshot,
   type ConnectionSpec,
@@ -287,11 +286,7 @@ export function listAvailableModels(): ModelListingEntry[] {
   return deriveModelListing(readCatalog())
 }
 
-// ── 画布级（经 ProjectGateway：A 模式转发渲染层 / B 模式直写盘，统一逻辑）──────
-
-export async function readProjectCanvas(gateway: ProjectGateway): Promise<ReturnType<typeof readCanvas>> {
-  return readCanvas(await gateway.readDoc())
-}
+// ── 画布写操作（经 ProjectGateway：A 模式转发渲染层 / B 模式直写盘，统一逻辑）────
 
 export async function addProjectNodes(gateway: ProjectGateway, specs: NodeSpec[], projectId = ''): Promise<{ ids: string[]; cancelled?: boolean }> {
   // 方案门（Phase B）：≥2 节点 = 一套「方案」→ 落画布前弹应用内确认卡（app 开着时；headless 直放行）。

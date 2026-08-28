@@ -179,7 +179,7 @@ try {
   ok(Boolean((await agent.start())?.result), 'stdio MCP 起来了（语义面已开：SINGLE_SHOT_V1 + E1_V1；客户端=claude）')
 
   // 语义会话：current_project bootstrap 拿 lease（scoped 到 GUI 里打开的项目）。
-  const session = await agent.callTool('nomi_session_open', { bootstrap: { mode: 'current_project', clientSessionNonce: `nonce-${Date.now()}` } })
+  const session = await agent.callTool('nomi_session_open', { bootstrap: { mode: 'current_project' } })
   const leaseHandle = session.json?.leaseHandle || session.structured?.leaseHandle
   if (!leaseHandle) { note(`session_open 返回: ${JSON.stringify(session.json || session.structured || session.raw?.result).slice(0, 300)}`) }
   ok(leaseHandle, `打开安全会话（current_project bootstrap 拿到 lease）`)

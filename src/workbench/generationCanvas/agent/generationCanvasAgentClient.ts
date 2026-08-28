@@ -1,17 +1,23 @@
 import type { AgentAttachmentPayload, AgentsChatResponseDto } from '../../../api/desktopClient'
 import { runWorkbenchAgent, type RunWorkbenchAgentInput, type ToolCallEvent } from '../../ai/workbenchAgentRunner'
 import type { AgentChatCapability, AgentChatHistory } from '../../../../electron/harness/agentChatContracts'
+import type { CapturedCanvasReadSnapshotHandleWire } from '../../../../electron/shared/surfacePortBinding'
 import { assertTurnCanWrite } from '../../ai/agentTurnLifecycle'
 import type { GenerationCanvasSnapshot, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { getAgentCreatableGenerationNodeKinds } from '../model/generationNodeKinds'
 import { listAvailableModelsForAgent, formatAvailableModelsForPrompt } from './availableModels'
 import { formatCanvasForAgent } from './canvasPromptContext'
+import { CANVAS_READ_CAPABILITY, type CanvasReadResult } from '../../../../electron/shared/agentCapabilities/canvasRead'
+import {
+  assertIssuedCanvasReadResult,
+  captureCanvasReadResult,
+} from './canvasReadResultSeal'
+import { captureCurrentProjectCanvasReadSurfaceBinding } from '../../project/projectCanvasReadSurface'
 
 export type { ToolCallEvent } from '../../ai/workbenchAgentRunner'
 
-type SendGenerationCanvasAgentMessageInput = {
+type SendGenerationCanvasAgentMessageBase = {
   message: string
-  snapshot: GenerationCanvasSnapshot
   selectedNodes: GenerationCanvasNode[]
   projectId?: string
   history: AgentChatHistory
@@ -33,8 +39,8 @@ type SendGenerationCanvasAgentMessageInput = {
    */
   buildPrompt?: (input: {
     message: string
-    snapshot: GenerationCanvasSnapshot
-    selectedNodes: GenerationCanvasNode[]
+    snapshot: CanvasReadResult
+    selectedNodeIds: readonly string[]
   }) => string
   onContent?: (delta: string, text: string) => void
   /**
@@ -50,6 +56,19 @@ type SendGenerationCanvasAgentMessageInput = {
   /** 待发附件（图片/PDF 走原生多模态；文档抽文本）。透传给共享 runWorkbenchAgent。 */
   attachments?: AgentAttachmentPayload[]
 }
+
+type SendGenerationCanvasAgentMessageInput = SendGenerationCanvasAgentMessageBase & (
+  | {
+      /** Main-sealed production snapshot admission captured by the submit owner. */
+      capturedCanvasReadSnapshot: CapturedCanvasReadSnapshotHandleWire
+      /** The exact canonical object already sealed by the production submit owner. */
+      snapshot: CanvasReadResult
+    }
+  | {
+      capturedCanvasReadSnapshot?: never
+      snapshot: GenerationCanvasSnapshot | CanvasReadResult
+    }
+)
 
 export type GenerationCanvasAgentResponse = {
   response: AgentsChatResponseDto
@@ -76,7 +95,7 @@ function buildStaticAgentSystemPrompt(mode: SendGenerationCanvasAgentMessageInpu
     modeInstruction,
     '',
     '你可以调用以下工具（详细 schema 由系统注入）：',
-    '- read_canvas_state：读取当前画布（紧凑行格式：id | 类型 | 标题 | 状态 | prompt 摘要，附引用边与选中）。',
+    `- ${CANVAS_READ_CAPABILITY.aliases.pi}：读取当前画布（紧凑行格式：id | 类型 | 标题 | 状态 | prompt 摘要，附引用边与选中）。`,
     '- propose_storyboard_plan：把一段故事规划成结构化「分镜方案」（跨镜头一致的锚 + 镜头），先给用户在创作区审阅/修改，不碰画布、不花钱（分镜规划师技能用；确认后才由系统落画布）。',
     `- create_canvas_nodes：在画布上创建一批待用户确认的节点，并用 edges 字段一并提交这些节点之间的引用边（每个节点必须给定 clientId、kind=${creatableKinds} 之一、title、prompt；建议再给 modelKey + 可选 modeId + params 以指定模型和比例/清晰度等参数，取值见下方「可用模型」清单）。`,
     '- connect_canvas_edges：仅用于给画布上已有节点补连引用边（后续编辑场景）；新计划的边必须放在 create_canvas_nodes 的 edges 字段里，不要拆成两次调用。',
@@ -103,14 +122,14 @@ function buildStaticAgentSystemPrompt(mode: SendGenerationCanvasAgentMessageInpu
 
 /** 动态用户消息(每轮重建):紧凑画布上下文 + 模型清单 + 用户请求。
  *  模型清单必须贴着请求(实测挪进 system 前部后 modelKey 服从性掉穿,smoke 0/5)。 */
-function buildGenerationCanvasUserMessage(input: SendGenerationCanvasAgentMessageInput, modelsBlock: string): string {
+function buildGenerationCanvasUserMessage(message: string, canvas: CanvasReadResult, modelsBlock: string): string {
   return [
     '当前画布：',
-    formatCanvasForAgent(input.snapshot, input.selectedNodes),
+    formatCanvasForAgent(canvas),
     ...(modelsBlock ? ['', modelsBlock] : []),
     '',
     '用户请求：',
-    input.message,
+    message,
   ].join('\n')
 }
 
@@ -119,16 +138,35 @@ export async function sendGenerationCanvasAgentMessage(
 ): Promise<GenerationCanvasAgentResponse> {
   // Everything that owns the turn is captured before catalog I/O. UI changes
   // afterwards cannot retarget its project, thread, mode or refine selection.
-  const input: SendGenerationCanvasAgentMessageInput = {
-    ...request,
-    history: request.history.kind === 'persistent'
-      ? { kind: 'persistent', binding: { ...request.history.binding } }
-      : { kind: 'ephemeral' },
-    selectedNodes: request.selectedNodes.slice(),
+  let canvas: CanvasReadResult
+  let selectedNodeIds: readonly string[]
+  let capturedCanvasReadSnapshot: CapturedCanvasReadSnapshotHandleWire | undefined
+  let surfaceBinding: ReturnType<typeof captureCurrentProjectCanvasReadSurfaceBinding> = null
+  if (request.capturedCanvasReadSnapshot) {
+    assertIssuedCanvasReadResult(request.snapshot)
+    canvas = request.snapshot
+    selectedNodeIds = Object.freeze([...canvas.selectedNodeIds])
+    capturedCanvasReadSnapshot = Object.freeze({ ...request.capturedCanvasReadSnapshot })
+  } else {
+    selectedNodeIds = Object.freeze(request.selectedNodes.map((node) => node.id))
+    canvas = captureCanvasReadResult({ ...request.snapshot, selectedNodeIds })
+    surfaceBinding = captureCurrentProjectCanvasReadSurfaceBinding()
+  }
+  const {
+    snapshot: _snapshot,
+    selectedNodes: _selectedNodes,
+    capturedCanvasReadSnapshot: _capturedCanvasReadSnapshot,
+    ...requestWithoutCanvas
+  } = request
+  const history: AgentChatHistory = request.history.kind === 'persistent'
+    ? { kind: 'persistent', binding: { ...request.history.binding } }
+    : { kind: 'ephemeral' }
+  const input = {
+    ...requestWithoutCanvas,
+    history,
     skill: request.skill ? { ...request.skill } : undefined,
     attachments: request.attachments?.map((attachment) => ({ ...attachment })),
   }
-  const selectedNodeIds = input.selectedNodes.map((node) => node.id)
   assertTurnCanWrite(input.canWrite)
   // bug①:可用模型清单——必须留在用户消息里贴着请求(见 buildGenerationCanvasUserMessage 注)。
   let modelsBlock = ''
@@ -137,8 +175,8 @@ export async function sendGenerationCanvasAgentMessage(
   } catch { /* 静默退回无清单 */ }
   assertTurnCanWrite(input.canWrite)
   const prompt = input.buildPrompt
-    ? input.buildPrompt({ message: input.message, snapshot: input.snapshot, selectedNodes: input.selectedNodes })
-    : buildGenerationCanvasUserMessage(input, modelsBlock)
+    ? input.buildPrompt({ message: input.message, snapshot: canvas, selectedNodeIds: canvas.selectedNodeIds })
+    : buildGenerationCanvasUserMessage(input.message, canvas, modelsBlock)
   // 静态段(身份/规则)进 system,会话内 byte 稳定 → vendor 自动前缀缓存命中。
   // 项目记忆已下沉到后端 runAgentChatV2 的单一注入点(创作区/生成区共享 block),这里不再各自注入。
   const staticSystemPrompt = buildStaticAgentSystemPrompt(input.mode)
@@ -150,6 +188,8 @@ export async function sendGenerationCanvasAgentMessage(
     history: input.history,
     capability: input.capability,
     projectId: input.projectId,
+    ...(surfaceBinding ? { surfaceBinding } : {}),
+    ...(capturedCanvasReadSnapshot ? { capturedCanvasReadSnapshot } : {}),
     featureKey: input.featureKey,
     selectedNodeIds,
     mode: input.mode === 'chat' ? 'chat' : 'auto',

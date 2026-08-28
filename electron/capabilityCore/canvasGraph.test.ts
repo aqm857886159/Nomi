@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import * as canvasGraph from './canvasGraph'
 
 import {
   addNodes,
@@ -6,7 +7,6 @@ import {
   deleteNodes,
   emptyCanvasSnapshot,
   normalizeSnapshot,
-  readCanvas,
   setNodePrompt,
 } from './canvasGraph'
 import { nodeKindDefaultSize } from './nodeKindDomain'
@@ -159,10 +159,7 @@ describe('capabilityCore/canvasGraph', () => {
     expect(dirty.edges).toHaveLength(1)
   })
 
-  it('readCanvas 只暴露决策所需精简字段，不灌 raw', () => {
-    const built = addNodes(emptyCanvasSnapshot(), [{ kind: 'text', prompt: 'p', title: 't' }])
-    const view = readCanvas(built.snapshot)
-    expect(view.nodes[0]).toMatchObject({ kind: 'text', prompt: 'p', title: 't', status: 'idle', hasResult: false })
-    expect(view.nodes[0]).not.toHaveProperty('raw')
+  it('does not own a second canvas.read field projector', () => {
+    expect('readCanvas' in canvasGraph).toBe(false)
   })
 })

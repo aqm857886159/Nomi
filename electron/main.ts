@@ -33,9 +33,7 @@ import { registerWorkspaceFileDeleteIpc } from "./workspace/workspaceFileDelete"
 import { logCrash } from "./crashLog";
 import { installMainProcessLifecycle } from "./mainProcessLifecycle";
 import { registerExportJobIpc } from "./export/exportJobIpc";
-import { registerAgentChatV2Ipc } from "./ai/agentChatV2Ipc";
 import { registerTextStreamIpc } from "./ai/textStreamIpc";
-import { registerConversationsIpc } from "./conversations/conversationsIpc";
 import { setEventLogSecretsProvider } from "./events/eventLogRepository";
 import { registerEventsIpc } from "./events/eventsIpc";
 import { registerMemoryIpc } from "./memory/memoryIpc";
@@ -62,6 +60,17 @@ import { registerSettingsIpc } from "./settings/registerSettingsIpc";
 import { registerProductionRunIpc } from "./productionRun/productionRunIpc";
 import { registerProductionActionIpc } from "./productionRun/productionActionIpc";
 import { installProductionRunDesktopLifecycle } from "./productionRun/productionRunDesktopLifecycle";
+import { canvasReadSurfaceRuntime } from "./capabilityCore/canvasReadSurfaceRuntime";
+import { registerDesktopCanvasReadRuntime, type CanvasReadExecutionRuntime } from "./capabilityCore/canvasReadMainRuntime";
+import { createPiCanvasReadIpcCapture } from "./capabilityCore/canvasReadTransportAdapters";
+import { getSettingsRoot } from "./runtimePaths";
+import { installProductionProjectAgentHost } from "./projectAgentHost/projectAgentProductionRuntime";
+import { createProjectAgentRepositoryRouter } from "./projectAgentHost/projectAgentRepositoryRouter";
+import { registerProjectAgentIpc } from "./projectAgentHost/projectAgentIpc";
+import { migrateProjectAgentLegacy } from "./projectAgentHost/projectAgentMigration";
+import { getWorkspaceRepositoryDeps } from "./runtimePaths";
+import { ensureWorkspaceProjectIdentity } from "./workspace/workspaceProjectIdentity";
+import { resolveWorkspaceProjectDir } from "./workspace/workspaceRepository";
 installMainProcessLifecycle(app);
 const configuredUserDataDir = String(process.env.NOMI_ELECTRON_USER_DATA_DIR || "").trim();
 if (configuredUserDataDir) {
@@ -117,8 +126,8 @@ const capabilityCoreDisabled =
 let runtimeModulePromise: Promise<typeof import("./runtime")> | null = null;
 let capabilityCoreModule: typeof import("./capabilityCore/appIntegration") | null = null;
 let capabilityCoreModulePromise: Promise<typeof import("./capabilityCore/appIntegration")> | null = null;
-let activeCapabilityProjectId = "";
 let capabilityPortCache: number | null = null;
+let desktopCanvasReadExecutionRuntime: CanvasReadExecutionRuntime | null = null;
 
 function loadRuntimeModule(): Promise<typeof import("./runtime")> {
   runtimeModulePromise ??= import("./runtime");
@@ -134,19 +143,13 @@ async function loadCapabilityCoreModule(): Promise<typeof import("./capabilityCo
   return capabilityCoreModulePromise;
 }
 
-function setActiveCapabilityProject(projectId: string): void {
-  activeCapabilityProjectId = String(projectId || "").trim();
-  if (capabilityCoreModule) capabilityCoreModule.setOpenProjectId(activeCapabilityProjectId);
-  void import("./tasks/activeProjectFallback").then((m) => m.rememberActiveProjectForTasks(activeCapabilityProjectId));
-}
-
 function getActiveCapabilityPort(): number | null {
   return capabilityPortCache;
 }
 
 async function startDesktopCapabilityCore(): Promise<void> {
+  if (!desktopCanvasReadExecutionRuntime) throw new Error("Canvas read execution runtime is unavailable");
   const core = await loadCapabilityCoreModule();
-  core.setOpenProjectId(activeCapabilityProjectId);
   await core.startCapabilityCore(
     async (payload) => {
       const { runTask } = await loadRuntimeModule();
@@ -156,6 +159,7 @@ async function startDesktopCapabilityCore(): Promise<void> {
       const { fetchTaskResult } = await loadRuntimeModule();
       return fetchTaskResult(payload);
     },
+    { canvasReadExecutionRuntime: desktopCanvasReadExecutionRuntime },
   );
   capabilityPortCache = core.getCapabilityPort();
 }
@@ -403,6 +407,45 @@ function registerSyncIpc<TArgs extends unknown[], TResult>(
 }
 function registerIpc(): void {
   const selectedWorkspaceRoots = new Set<string>();
+  // Static app-main Surface authority: registered before createWindow and
+  // independent from the delayed/optional external capability core.
+  const canvasReadExecutionRuntime = registerDesktopCanvasReadRuntime();
+  desktopCanvasReadExecutionRuntime = canvasReadExecutionRuntime;
+  const projectAgentCanvasReadCapture = createPiCanvasReadIpcCapture({
+    surfaceCapture: canvasReadExecutionRuntime.surfaceCapture,
+    registry: canvasReadSurfaceRuntime.registry,
+    capturedSnapshots: canvasReadSurfaceRuntime.capturedSnapshots,
+    executor: canvasReadExecutionRuntime.executor,
+  });
+  // ProjectAgentHost is an app-process owner. It is installed once before the
+  // first BrowserWindow and receives the already-registered Surface authority;
+  // window recreation only opens/releases subscriptions on this owner.
+  installProductionProjectAgentHost({
+    createRepository: () => createProjectAgentRepositoryRouter({ rootDir: getSettingsRoot() }),
+    subscribeSurface: () => canvasReadSurfaceRuntime.subscribeCommittedProject(() => undefined),
+    registerIpc: (runtime) => registerProjectAgentIpc({
+      runtime,
+      surfaceCapture: canvasReadExecutionRuntime.surfaceCapture,
+      captureCanvasRead: (event, binding, requestId) => projectAgentCanvasReadCapture.capture(event, { surfaceBinding: binding, projectId: binding.projectId }, requestId),
+      prepareProject: async (binding) => {
+        const root = resolveWorkspaceProjectDir(binding.projectId, getWorkspaceRepositoryDeps());
+        if (!root) throw new Error("project_identity_unavailable");
+        const identity = await ensureWorkspaceProjectIdentity(root);
+        if (
+          identity.projectId !== binding.projectId ||
+          identity.immutableProjectUuid !== binding.immutableProjectUuid ||
+          identity.projectGeneration !== binding.projectGeneration
+        ) {
+          throw new Error("project_binding_stale");
+        }
+        migrateProjectAgentLegacy({
+          projectRoot: root,
+          binding,
+          router: runtime.repositoryRouter,
+        });
+      },
+    }),
+  });
   registerI18nIpc();
   // 渲染层崩溃（RootErrorBoundary）也落到同一崩溃日志（P0-8）。
   ipcMain.on("nomi:log:renderer-crash", (_event, message: unknown) => logCrash("renderer", String(message)));
@@ -622,21 +665,13 @@ function registerIpc(): void {
   });
   registerExportJobIpc();
   registerTaskIpcHandlers(loadRuntimeModule);
-  // 能力核 A/B 守卫：renderer 在打开/切换/关闭项目时上报当前打开的 projectId，
-  // 让外部调用拒绝直写「正在窗口里编辑」的工程（防内存 store 回盘覆盖，见 capabilityCore/rpcServer）。
-  ipcMain.on("nomi:capability:active-project", (event, projectId: unknown) => {
-    assertTrustedSender(event);
-    setActiveCapabilityProject(String(projectId || ""));
-  });
   // 「接入 AI 编程助手」卡：读接入状态/配置片段 + 一键写入/撤销 ~/.claude.json 的 mcpServers.nomi。
   registerSyncIpc("nomi:capability:mcp-info", () => readMcpInfo(getActiveCapabilityPort()));
   registerSyncIpc("nomi:capability:mcp-install", installMcp);
   registerSyncIpc("nomi:capability:mcp-uninstall", uninstallMcp);
   // 实连验证（异步：真起一次配置里那条命令握手）。「配置里有这行字」≠「还连得上」，见 mcpVerify 头注释。
   ipcMain.handle("nomi:capability:mcp-verify", (event, client: unknown) => (assertTrustedSender(event), verifyMcp(typeof client === "string" ? client : undefined)));
-  registerAgentChatV2Ipc();
   registerTextStreamIpc();
-  registerConversationsIpc();
   registerEventsIpc();
   registerMemoryIpc();
   registerPromptLibraryIpc();
@@ -647,7 +682,10 @@ function registerIpc(): void {
   registerProviderAdapterIpc();
   registerExistingConnectionIpc();
   registerProductionRunIpc();
-  registerProductionActionIpc({ getActiveProjectId: () => activeCapabilityProjectId, loadCore: loadCapabilityCoreModule }); // P4 S6 返工/续拍
+  registerProductionActionIpc({
+    getActiveProjectId: () => canvasReadSurfaceRuntime.getCommittedProjectSelection()?.projectId ?? "",
+    loadCore: loadCapabilityCoreModule,
+  }); // P4 S6 返工/续拍
   registerUpdaterIpc();
   // M0 独立捕捞窗已退役（方案A 2026-07-12）：捕捞面收敛到应用内浏览器（registerBrowserViewIpc）。
   // S4-1 评测安全铁律:事件落盘前,已配置的 vendor key 精确匹配脱敏(形态兜底之外的地基)。

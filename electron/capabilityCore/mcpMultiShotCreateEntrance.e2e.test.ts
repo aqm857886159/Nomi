@@ -12,7 +12,7 @@ import {
   type GenerationOperationStore,
   type StoryboardPlanResult,
 } from "./mcpGenerationTools";
-import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV1 } from "./projectLease";
+import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
 import { createProductionGenerationOperationStore } from "../productionRun/productionGenerationOperationStore";
 import { createProductionGenerationSubmission } from "../productionRun/productionGenerationSubmission";
 import { createProductionRunRepository } from "../productionRun/productionRunRepository";
@@ -48,7 +48,7 @@ const registry = createModuleRegistry([{
   }],
 }]);
 
-const lease: ProjectLeaseV1 = {
+const lease: ProjectLeaseV2 = {
   version: PROJECT_LEASE_VERSION,
   keyId: "key-1",
   algorithm: PROJECT_LEASE_ALGORITHM,
@@ -64,7 +64,7 @@ const lease: ProjectLeaseV1 = {
   issuedAt: "2026-08-25T00:00:00.000Z",
   expiresAt: "2026-08-25T01:00:00.000Z",
   audience: PROJECT_LEASE_AUDIENCE,
-  leasePrincipal: "mcp:test",
+  leasePrincipal: "mcp:codex",
   sessionId: "session-1",
   connectionNonce: "connection-1",
   revocationEpoch: 0,

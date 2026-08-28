@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { buildToolOutcome, buildToolErrorOutcome, buildProgressStartMessage } from './mcpToolResults'
+import { canvasReadResultSchema, projectCanvasRead } from '../shared/agentCapabilities/canvasRead'
+import {
+  buildCanonicalMcpToolResult,
+  buildToolOutcome,
+  buildToolErrorOutcome,
+  buildProgressStartMessage,
+} from './mcpToolResults'
 
 describe('buildToolOutcome (A2 结果重写：转述原材料 + 参数回显)', () => {
   it('start_playbook：状态首行 + 参数回显 + 下一步；结构化字段齐 runId/nextActions', () => {
@@ -189,10 +195,23 @@ describe('buildToolOutcome (A2 结果重写：转述原材料 + 参数回显)', 
     expect(text).toContain('judge model unavailable')
   })
 
-  it('画布低层工具维持 JSON 直出（text=null 不接管）', () => {
-    const { text, outcome } = buildToolOutcome('nomi_read_canvas', { projectId: 'p1' }, { nodes: [] })
-    expect(text).toBeNull()
-    expect(outcome).toBeNull()
+  it('canvas.read text + structuredContent accept only the canonical safe result', () => {
+    const canonical = projectCanvasRead({
+      nodes: [{
+        id: 'node-a', kind: 'image', title: 'A', position: { x: 1, y: 2 },
+        result: { id: 'result-a', url: 'https://provider.invalid/a.png', providerTaskId: 'secret' },
+      }],
+      edges: [], groups: [], selectedNodeIds: ['node-a'],
+    })
+    const payload = buildCanonicalMcpToolResult(canvasReadResultSchema, canonical)
+
+    expect(JSON.parse(payload.content[0]!.text)).toEqual(canonical)
+    expect(payload.structuredContent).toEqual(canonical)
+    expect(payload.content[0]!.text).not.toContain('provider.invalid')
+    expect(() => buildCanonicalMcpToolResult(canvasReadResultSchema, {
+      ...canonical,
+      nodes: [{ ...canonical.nodes[0], url: 'https://provider.invalid/leak.png' }],
+    })).toThrow()
   })
 })
 
@@ -306,6 +325,46 @@ describe('buildToolErrorOutcome (A6 错误契约)', () => {
     const { outcome } = buildToolErrorOutcome('nomi_start_generation', error)
     expect(outcome).toMatchObject({
       kind: 'error', errorCode: 'phase_not_ready', nextAction: 'finish P0', phase: 'schema_only', capability: 'start',
+    })
+  })
+
+  it.each([
+    'capability_invocation_unverified',
+    'capability_authority_invalid',
+    'capability_input_invalid',
+    'capability_policy_stale',
+    'capability_output_invalid',
+    'capability_timeout',
+    'capability_cancelled',
+    'capability_execution_failed',
+    'project_identity_unavailable',
+    'project_binding_stale',
+    'surface_port_suspended',
+    'surface_port_unavailable',
+    'surface_port_stale',
+    'surface_owner_mismatch',
+  ])('preserves canonical canvas-read code %s without leaking a raw cause', (code) => {
+    const privateCause = `/Users/private/${code}/provider-secret`
+    const error = Object.assign(new Error(privateCause), { code })
+    const { text, outcome } = buildToolErrorOutcome('nomi_read_canvas', error)
+
+    expect(outcome).toMatchObject({ kind: 'error', errorCode: code, message: code })
+    expect(text).not.toContain(privateCause)
+    expect(JSON.stringify(outcome)).not.toContain(privateCause)
+  })
+
+  it('keeps established lease recovery projection unchanged', () => {
+    const error = Object.assign(new Error('lease expired on this connection'), {
+      code: 'lease_expired', nextAction: 'open a new project session', capability: 'project.session',
+    })
+    const { text, outcome } = buildToolErrorOutcome('nomi_read_canvas', error)
+
+    expect(text).toContain('项目连接已过期，请重新选择当前项目')
+    expect(outcome).toMatchObject({
+      errorCode: 'lease_expired',
+      message: 'lease expired on this connection',
+      nextAction: 'open a new project session',
+      nextActions: ['reselect_project'],
     })
   })
 

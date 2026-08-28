@@ -117,10 +117,13 @@ test('repository exact-set owners are upstream and every local projection stays 
     'electron/capabilityCore/mcpGenerationTools.ts::type:GenerationPlanningHandlerDependencies/property:reconcile/parameter:outcome/type-union',
     'src/workbench/production/useProductionStatus.ts::function:useProductionStatus/variable:onPrimaryAction/variable:outcome/type-union',
   ]
-  const generationSchema =
+  const generationCanonical =
+    'electron/shared/canvas/generationNodeStatus.ts::variable:GENERATION_NODE_STATUSES/as-const'
+  const formerGenerationSchema =
     'src/workbench/generationCanvas/model/generationCanvasSchema.ts::variable:generationNodeStatusSchema/z.enum'
-  const generationType =
+  const formerGenerationType =
     'src/workbench/generationCanvas/model/generationCanvasTypes.ts::type:GenerationNodeStatus/type-union'
+  const canvasReadCopy = 'electron/shared/agentCapabilities/canvasRead.ts::variable:CANVAS_NODE_STATUSES/as-const'
 
   assert.match(registeredBySite.get(contextStore)?.reason ?? '', /contextService.*(?:导入|import).*contextStore/i)
   assert.match(debtBySite.get(contextService)?.reason ?? '', /StoredAgentContext.*(?:投影|projection)/i)
@@ -139,8 +142,14 @@ test('repository exact-set owners are upstream and every local projection stays 
     assert.match(reason, /ProductionRun\/shared.*GenerationReconcileOutcome/i, site)
     assert.match(reason, /as const tuple.*runtime schema.*JSON Schema.*callback.*IPC validation.*UI/i, site)
   }
-  assert.match(registeredBySite.get(generationSchema)?.reason ?? '', /运行时校验.*z\.infer/i)
-  assert.match(debtBySite.get(generationType)?.reason ?? '', /generationNodeStatusSchema.*z\.infer/i)
+  assert.match(
+    registeredBySite.get(generationCanonical)?.reason ?? '',
+    /neutral shared.*renderer runtime schema.*GenerationNodeStatus.*canvas\.read/i,
+  )
+  for (const staleCopy of [formerGenerationSchema, formerGenerationType, canvasReadCopy]) {
+    assert.equal(registeredBySite.has(staleCopy), false, staleCopy)
+    assert.equal(debtBySite.has(staleCopy), false, staleCopy)
+  }
 })
 
 test('repository text-brain reasons preserve metadata readiness without keychain probing', () => {

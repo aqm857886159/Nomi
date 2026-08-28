@@ -7,7 +7,7 @@
 import { applyCanvasToolCall, resolveCanvasToolNodeId } from './applyCanvasToolCall'
 import { assertTurnCanWrite, type AgentTurnHandle } from '../../ai/agentTurnLifecycle'
 import { applyCompensationOps } from './proposalUndo'
-import { generationCanvasTools } from './generationCanvasTools'
+import { readGenerationCanvasSnapshot } from './generationCanvasTools'
 import { reconcileProposal, type ReconcileResult } from './reconcile'
 import { findOrphanArrayReferences } from '../runner/referenceSlots'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
@@ -57,14 +57,18 @@ export function mintProposalId(): string {
 /** Read the real post-state, including a synchronous mutation whose Promise
  * continuation has not run yet. Foreign document edits cannot enter until this
  * segment has been compensated, so these deltas belong to this step alone. */
-function captureStepCompensation(step: ProposalStep, before: ReturnType<typeof generationCanvasTools.read_canvas>): CompensationOp[] {
-  const after = generationCanvasTools.read_canvas()
+function captureStepCompensation(
+  step: ProposalStep,
+  before: ReturnType<typeof readGenerationCanvasSnapshot>,
+): CompensationOp[] {
+  const after = readGenerationCanvasSnapshot()
   const ops: CompensationOp[] = []
   if (step.toolName === 'set_node_prompt') {
     const nodeId = resolveCanvasToolNodeId(String(step.effectiveArgs.nodeId || '').trim())
     const previous = before.nodes.find((node) => node.id === nodeId)
     const current = after.nodes.find((node) => node.id === nodeId)
-    if (previous && current && previous.prompt !== current.prompt) ops.push({ kind: 'restore-prompt', nodeId, prompt: previous.prompt || '' })
+    if (previous && current && previous.prompt !== current.prompt)
+      ops.push({ kind: 'restore-prompt', nodeId, prompt: previous.prompt || '' })
   }
   if (step.toolName === 'delete_canvas_nodes') {
     const remaining = new Set(after.nodes.map((node) => node.id))
@@ -80,7 +84,8 @@ function captureStepCompensation(step: ProposalStep, before: ReturnType<typeof g
   }
   if (step.toolName === 'connect_canvas_edges' || step.toolName === 'create_canvas_nodes') {
     const existing = new Set(before.edges.map((edge) => `${edge.source}→${edge.target}`))
-    const pairs = after.edges.filter((edge) => !existing.has(`${edge.source}→${edge.target}`))
+    const pairs = after.edges
+      .filter((edge) => !existing.has(`${edge.source}→${edge.target}`))
       .map((edge) => ({ source: edge.source, target: edge.target }))
     if (pairs.length) ops.push({ kind: 'disconnect-edges', pairs })
   }
@@ -93,7 +98,10 @@ function captureStepCompensation(step: ProposalStep, before: ReturnType<typeof g
  * 新文档写入先同步接管未提交批次:补偿发生在新动作读状态/打 barrier 之前。
  * 只复用既有工具执行器、补偿操作和日志,不把异步准备变成第二个状态推进循环。
  */
-export async function applyProposalBatch(steps: ProposalStep[], turn?: Pick<AgentTurnHandle, 'canWrite'>): Promise<ProposalOutcome> {
+export async function applyProposalBatch(
+  steps: ProposalStep[],
+  turn?: Pick<AgentTurnHandle, 'canWrite'>,
+): Promise<ProposalOutcome> {
   if (turn) assertTurnCanWrite(turn.canWrite)
   const journalGeneration = getUndoJournalGeneration()
   const isSameCanvas = () => getUndoJournalGeneration() === journalGeneration
@@ -112,7 +120,7 @@ export async function applyProposalBatch(steps: ProposalStep[], turn?: Pick<Agen
   const results: unknown[] = []
   const compensation: CompensationOp[] = []
   let currentIndex = 0
-  let pendingStep: { step: ProposalStep; before: ReturnType<typeof generationCanvasTools.read_canvas> } | undefined
+  let pendingStep: { step: ProposalStep; before: ReturnType<typeof readGenerationCanvasSnapshot> } | undefined
   // A queued replacement can be superseded before its await continuation
   // receives the ownership handle. Keep that pre-write cancellation a normal
   // aborted outcome instead of touching temporal-dead-zone transaction state.
@@ -132,24 +140,36 @@ export async function applyProposalBatch(steps: ProposalStep[], turn?: Pick<Agen
     if (!isSameCanvas()) return aborted
     collectCurrentStep()
     const cleanupContext = { ...ctx, canWrite: undefined, allowDuringCleanup: true }
-    const existedBefore = new Set(generationCanvasTools.read_canvas().nodes.map((node) => node.id))
+    const existedBefore = new Set(readGenerationCanvasSnapshot().nodes.map((node) => node.id))
     if (compensation.length) withCanvasGestureContext(cleanupContext, () => applyCompensationOps(compensation))
-    const remaining = new Set(generationCanvasTools.read_canvas().nodes.map((node) => node.id))
+    const remaining = new Set(readGenerationCanvasSnapshot().nodes.map((node) => node.id))
     aborted.compensatedNodeIds = createdNodeIds.filter((id) => existedBefore.has(id) && !remaining.has(id))
     // The boundary has not admitted the next document write yet. There can be
     // no newer transaction's barrier in this compensatable segment.
     if (journalStart !== undefined) dropUndoBarriersAfter(journalStart)
-    withCanvasGestureContext(cleanupContext, () => emitCanvasGesture([{
-      type: 'agent.txn.aborted',
-      payload: { proposalId, reason, failedToolCallId: steps[currentIndex]?.toolCallId,
-        failedToolName: steps[currentIndex]?.toolName, failedIndex: currentIndex,
-        stepCount: steps.length, compensatedNodeIds: aborted?.compensatedNodeIds ?? [] },
-    }]))
+    withCanvasGestureContext(cleanupContext, () =>
+      emitCanvasGesture([
+        {
+          type: 'agent.txn.aborted',
+          payload: {
+            proposalId,
+            reason,
+            failedToolCallId: steps[currentIndex]?.toolCallId,
+            failedToolName: steps[currentIndex]?.toolName,
+            failedIndex: currentIndex,
+            stepCount: steps.length,
+            compensatedNodeIds: aborted?.compensatedNodeIds ?? [],
+          },
+        },
+      ]),
+    )
     return aborted
   }
   // Claim before opening our own Undo point: acquiring a new batch first
   // cleans up the old one, even when both approvals came from the same turn.
-  const ownership = ownPendingCanvasWrite(proposalId, () => { abort('Canvas edit superseded the pending proposal') })
+  const ownership = ownPendingCanvasWrite(proposalId, () => {
+    abort('Canvas edit superseded the pending proposal')
+  })
   release = typeof ownership === 'function' ? ownership : await ownership
   try {
     if (aborted) return aborted
@@ -165,7 +185,7 @@ export async function applyProposalBatch(steps: ProposalStep[], turn?: Pick<Agen
       const step = steps[index]
       try {
         assertTurnCanWrite(canWrite)
-        pendingStep = { step, before: generationCanvasTools.read_canvas() }
+        pendingStep = { step, before: readGenerationCanvasSnapshot() }
         const result = await applyCanvasToolCall(step.toolName, step.effectiveArgs, ctx, canWrite)
         if (aborted) return aborted
         if (!isSameCanvas()) return abort('Agent turn abandoned')
@@ -183,7 +203,7 @@ export async function applyProposalBatch(steps: ProposalStep[], turn?: Pick<Agen
 
     // S6-3 对账(I4):commit 回执必带 reconciliation——执行后态 vs 批准快照逐字段比对,
     // 偏差不静默(UI 渲染「执行与批准有 N 处出入」),正常时用户什么都看不见(M1)。
-    const snapshot = generationCanvasTools.read_canvas()
+    const snapshot = readGenerationCanvasSnapshot()
     const reconciliation = reconcileProposal({
       steps: steps.map((step, index) => ({
         toolName: step.toolName,
@@ -196,7 +216,7 @@ export async function applyProposalBatch(steps: ProposalStep[], turn?: Pick<Agen
       // 跨提议 clientId 回退：与执行侧同一个全局 registry（修对账误报「未连接」，bug A）。
       resolveExternalId: resolveCanvasToolNodeId,
       // 地基收口（§1c+§1d）：显示出的数组参考必须有对应已提交边，无边有图的 meta-only 孤儿如实报。
-      // snapshot.nodes/edges 是完整 GenerationCanvasNode/Edge（read_canvas 后态），findOrphanArrayReferences
+      // snapshot.nodes/edges 是完整 GenerationCanvasNode/Edge（事务后态），findOrphanArrayReferences
       // 需要完整图类型——在此适配 reconcile 的结构化 NodeLike/EdgeLike 注入签名。
       auditOrphanArrayReferences: () => findOrphanArrayReferences(snapshot.nodes, snapshot.edges),
     })
@@ -230,5 +250,7 @@ export async function applyProposalBatch(steps: ProposalStep[], turn?: Pick<Agen
       .map((node) => ({ nodeId: node.id, title: node.title, prompt: node.prompt || '' }))
 
     return { status: 'committed', proposalId, results, clientIdToNodeId, reconciliation, compensation, watchNodes }
-  } finally { release() }
+  } finally {
+    release()
+  }
 }

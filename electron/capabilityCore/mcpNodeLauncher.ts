@@ -23,6 +23,12 @@ import {
   type AdvertVerdict,
   type InstanceAdvertisement,
 } from './instanceAdvert'
+import {
+  createMcpConnectionContext,
+  type McpConnectionContext,
+} from './mcpConnectionContext'
+import { rpcErrorFromPayload } from './mcpRpcError'
+import { createMcpLoopbackRpcRequest } from './mcpLoopbackRpcRequest'
 
 const CAPABILITY_DIR_ENV = 'NOMI_CAPABILITY_DIR'
 const PROJECTS_DIR_ENV = 'NOMI_PROJECTS_DIR'
@@ -215,7 +221,7 @@ async function callViaRpc(
   params: Record<string, unknown>,
   options?: McpInvokeOptions,
 ): Promise<unknown> {
-  const client = String(process.env[CLIENT_ENV] || '').trim()
+  const connection = launcherConnection()
   const proof = String(process.env[CLIENT_PROOF_ENV] || '').trim()
   const timeoutMs = rpcTimeoutMs()
   const controller = new AbortController()
@@ -226,15 +232,16 @@ async function callViaRpc(
   let response: Response
   try {
     response = await fetch(`http://127.0.0.1:${instance.port}/rpc`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${instance.token}`,
-        ...(client && proof ? { 'x-nomi-mcp-client': client, 'x-nomi-mcp-client-proof': proof } : {}),
-      },
-      // planConfirmed crosses to the renderer gateway so an in-chat plan approval skips the App dialog (no double-ask).
-      body: JSON.stringify({ method, params, ...(options?.planConfirmed ? { planConfirmed: true } : {}), ...(options?.spendConfirmed ? { spendConfirmed: true } : {}) }),
-      signal: controller.signal,
+      ...createMcpLoopbackRpcRequest({
+        token: instance.token,
+        clientProof: proof,
+        connection,
+        method,
+        params,
+        planConfirmed: options?.planConfirmed,
+        spendConfirmed: options?.spendConfirmed,
+        signal: controller.signal,
+      }),
     })
   } catch (error) {
     if (options?.signal?.aborted) throw options.signal.reason instanceof Error ? options.signal.reason : new Error('MCP request cancelled')
@@ -246,13 +253,24 @@ async function callViaRpc(
     clearTimeout(timer)
     options?.signal?.removeEventListener('abort', relayAbort)
   }
-  const body = await response.json() as { ok?: boolean; error?: string; result?: unknown }
-  if (!body.ok) throw new Error(body.error || `Nomi RPC failed (${response.status})`)
+  const body = await response.json() as { ok?: boolean; error?: unknown; result?: unknown }
+  if (!body.ok) throw rpcErrorFromPayload(body, response.status)
   return body.result
 }
 
 // OS locale 解析一次（进程生命周期内 UI 语言不变，同 mcpStdioServer 的 setDesktopLocale(app.getLocale())）。
 const launcherLocale = resolveLauncherLocale()
+let connection: McpConnectionContext | null = null
+// Mint lazily but at most once for this stdio transport. Lazy construction
+// keeps pure helper imports side-effect free; the first real RPC still fails
+// closed when the installed client proof is absent or invalid.
+function launcherConnection(): McpConnectionContext {
+  connection ??= createMcpConnectionContext({
+    client: process.env[CLIENT_ENV],
+    proof: process.env[CLIENT_PROOF_ENV],
+  })
+  return connection
+}
 
 const protocol = createMcpProtocol({
   send: (message) => process.stdout.write(`${JSON.stringify(message)}\n`),
@@ -261,6 +279,7 @@ const protocol = createMcpProtocol({
     return callViaRpc(await ensureLiveInstance(requestSignal), method, params, requestSignal ? { ...options, signal: requestSignal } : options)
   },
   isAppOpen: () => Boolean(readLiveInstance()),
+  getAuthenticatedClient: () => launcherConnection().authenticatedClient,
   getLocale: () => launcherLocale,
 })
 

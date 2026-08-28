@@ -1,7 +1,7 @@
 // 能力核 · 纯图操作领域层（见 docs/plan/2026-06-20-capability-core-headless-exposure.md）。
 //
 // 这是「外部 agent / CLI / MCP 驱动 Nomi 画布」的最底层：把对画布工程的语义操作
-// （建节点 / 连线 / 改提示词 / 删节点 / 读画布）实现成**纯函数**——输入一份
+// （建节点 / 连线 / 改提示词 / 删节点）实现成**纯函数**——输入一份
 // GenerationCanvasSnapshot（即 project.json 的 payload.generationCanvas，纯 JSON），
 // 输出新的 snapshot + 受影响的 id。零 electron、零 store、零副作用，故可在纯 Node 单测。
 //
@@ -117,30 +117,6 @@ export function normalizeSnapshot(value: unknown): CanvasSnapshot {
     edges: edges.filter((edge) => edge && typeof edge.id === 'string' && typeof edge.source === 'string' && typeof edge.target === 'string'),
     groups: Array.isArray(raw.groups) ? (raw.groups as unknown[]) : [],
     selectedNodeIds: Array.isArray(raw.selectedNodeIds) ? (raw.selectedNodeIds as string[]) : [],
-  }
-}
-
-/** 读画布：返回精简到「外部 agent 需要据此决策」的字段，不灌完整 raw（R2 极简）。 */
-export function readCanvas(snapshot: CanvasSnapshot): {
-  nodes: Array<{ id: string; kind: string; title: string; prompt: string; status: string; position: { x: number; y: number }; hasResult: boolean }>
-  edges: Array<{ id: string; source: string; target: string; mode: string }>
-} {
-  return {
-    nodes: snapshot.nodes.map((node) => ({
-      id: node.id,
-      kind: node.kind,
-      title: node.title || '',
-      prompt: typeof node.prompt === 'string' ? node.prompt : '',
-      status: typeof node.status === 'string' ? node.status : 'idle',
-      position: node.position || { x: 0, y: 0 },
-      hasResult: Boolean(node.result),
-    })),
-    edges: snapshot.edges.map((edge) => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      mode: edge.mode || 'reference',
-    })),
   }
 }
 

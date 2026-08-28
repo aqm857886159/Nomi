@@ -1,5 +1,5 @@
 {
-  "debtCap": 84,
+  "debtCap": 82,
   "registered": [
     {
       "site": "electron/ai/antigravityProtocol.ts::type:AntigravityToolStep/property:state/type-union",
@@ -15,6 +15,11 @@
       "site": "electron/capabilityCore/approvalReceipt.ts::type:ChallengeRecord/property:status/type-union",
       "members": ["accepted", "expired", "pending", "rejected"],
       "reason": "能力调用审批 challenge 的生命周期（accepted / expired / pending / rejected），是授权事实，不是任务执行状态。"
+    },
+    {
+      "site": "electron/capabilityCore/canvasReadSurfaceRegistry.ts::type:LifecycleState/property:status/type-union",
+      "members": ["committed", "committing", "suspended"],
+      "reason": "LifecycleState.status 是 renderer Surface 到 main 项目绑定的窄状态机：suspended 表示旧端口已停用，committing 表示正在解析权威项目身份，committed 表示完整绑定已发布；它阻止绑定完成前读取，并与 ProductionRun 或生成任务状态正交。"
     },
     {
       "site": "electron/capabilityCore/generationRecoveryProjection.ts::type:GenerationRecoveryState/type-union",
@@ -45,6 +50,11 @@
       "site": "electron/capabilityCore/mcpGenerationTools.ts::type:GenerationOperationState/type-union",
       "members": ["cancelled", "draft", "sealed", "submitted"],
       "reason": "GenerationOperationState 是语义生成计划从 draft、sealed 到 submitted 或 cancelled 的导出状态合同；GenerationOperationStore 以它为接口，ProductionGenerationPlan.state 只是持久化适配投影，必须复用该 named owner。"
+    },
+    {
+      "site": "electron/capabilityCore/projectLeaseStore.ts::function:directoryState/type-union",
+      "members": ["directory", "invalid", "missing"],
+      "reason": "directoryState 是不可变项目 lease 存储的文件系统入口分类：missing 允许创建或表示尚无记录，directory 才允许遍历，invalid 对符号链接和非目录 fail closed；它只描述路径安全形态，不是项目、会话或任务生命周期。"
     },
     {
       "site": "electron/catalog/antigravityCatalog.ts::type:AntigravityProcessStage/type-union",
@@ -225,6 +235,21 @@
       "reason": "Antigravity 连接或自检域状态（error / limited / login-required / missing / ready / unverified），描述集成可用性而不是生成任务。"
     },
     {
+      "site": "electron/shared/canvas/generationNodeStatus.ts::variable:GENERATION_NODE_STATUSES/as-const",
+      "members": ["error", "idle", "queued", "recoverable", "running", "success"],
+      "reason": "Neutral shared generation-node lifecycle owner；renderer runtime schema、GenerationNodeStatus 类型与 canvas.read status parser 全部从这一 tuple 派生，跨 main/renderer 的成员变化只改此处。"
+    },
+    {
+      "site": "electron/shared/projectAgentContracts.ts::variable:PROJECT_AGENT_PROPOSAL_LIFECYCLES/as-const",
+      "members": ["claimed", "expired", "pending"],
+      "reason": "ProjectAgentHost 本地 proposal approval reference 的唯一生命周期：pending 表示可见且阻塞 FIFO，claimed 表示已由专用原子路径认领，expired 表示达到冻结期限后释放；用户拒绝由 Item 和 Turn 的 closed status 表达，外部 HumanApproval 仍只保存 display ref。"
+    },
+    {
+      "site": "electron/shared/projectAgentContracts.ts::variable:PROJECT_AGENT_STATUSES/as-const",
+      "members": ["declined", "done", "drafting", "failed", "proposed", "queued", "running", "stopped"],
+      "reason": "ProjectAgentHost 对 Thread/Turn/Item/Queue 本地记录生命周期的 neutral shared owner；状态转换、持久化校验和 main/renderer 合同全部从此 tuple 派生，retryable 与 deviated 保持正交，且该记录状态不复制 ProductionRun 或外部 Task truth。"
+    },
+    {
       "site": "electron/shared/videoCapabilities/types.ts::type:ArchetypeExpressionChannel/property:status/type-union",
       "members": ["documented", "unknown", "unsupported"],
       "reason": "ArchetypeExpressionChannel.status 描述视频能力证据的覆盖度：documented 有来源证据，unsupported 明确不支持，unknown 尚无结论；它驱动规划时是否采用表达通道，不是任务执行状态。"
@@ -386,11 +411,6 @@
       "site": "src/workbench/generationCanvas/components/viewportAnimationSettlement.ts::type:ViewportAnimationSettlementOutcome/type-union",
       "members": ["cancelled", "completed"],
       "reason": "**视口动画结算**结果，描述一次动画怎么收场，非任务。"
-    },
-    {
-      "site": "src/workbench/generationCanvas/model/generationCanvasSchema.ts::variable:generationNodeStatusSchema/z.enum",
-      "members": ["error", "idle", "queued", "recoverable", "running", "success"],
-      "reason": "generationNodeStatusSchema 是画布节点持久化与 IPC 数据的运行时校验 owner；idle、queued、running、success、error、recoverable 在反序列化入口由该 Zod schema 判定。GenerationNodeStatus 必须用 z.infer 从它派生。"
     },
     {
       "site": "src/workbench/generationCanvas/nodes/DeferredNodeMedia.tsx::function:DeferredNodeMediaFailure/parameter:0/property:state/type-union",
@@ -891,16 +911,6 @@
       "site": "src/workbench/generationCanvas/components/AssistantTimeline.tsx::type:StepTone/type-union",
       "members": ["active", "done", "warn"],
       "reason": "StepTone 把执行进度 active/done 与对账偏差 warn 混成互斥枚举；现码中 warn 只由 deviationReport/contentDeviations 触发。收敛目标是以 active/done 作为步骤进度 canonical，并把偏差改为 done 上独立的 deviated flag，随后删除 warn 成员。"
-    },
-    {
-      "site": "src/workbench/generationCanvas/model/generationCanvasSchema.ts::variable:generationNodeRunStatusSchema/z.enum",
-      "members": ["cancelled", "error", "queued", "recoverable", "running", "success"],
-      "reason": "generationNodeRunStatusSchema 是 generationNodeStatusSchema 排除 idle 后加入 cancelled 的运行投影，却重写了其余成员；应从 runtime owner exclude/extend derive，避免与画布节点状态并行维护。"
-    },
-    {
-      "site": "src/workbench/generationCanvas/model/generationCanvasTypes.ts::type:GenerationNodeStatus/type-union",
-      "members": ["error", "idle", "queued", "recoverable", "running", "success"],
-      "reason": "GenerationNodeStatus 与 runtime canonical generationNodeStatusSchema 成员完全相同；应改为 z.infer<typeof generationNodeStatusSchema> 并删除这份并行 TypeScript 字面量。"
     },
     {
       "site": "src/workbench/generationCanvas/nodes/nodeAssetWrite.ts::type:AddAssetOutcome/property:status/type-union",

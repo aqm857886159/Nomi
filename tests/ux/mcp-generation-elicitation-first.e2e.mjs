@@ -71,7 +71,7 @@ async function driveGate(dirs, token, { capabilities, clientName }) {
     env: { NOMI_MCP_GENERATION_SINGLE_SHOT_V1: '1', NOMI_MCP_GENERATION_SINGLE_SHOT_E1_V1: '1', NOMI_MCP_CLIENT: 'codex', NOMI_MCP_CLIENT_PROOF: proofFor(token, 'codex') },
   })
   await mcp.initialize()
-  const opened = parseToolResult(await mcp.callTool('nomi_session_open', { bootstrap: { mode: 'current_project', clientSessionNonce: `${clientName}-session` } }))
+  const opened = parseToolResult(await mcp.callTool('nomi_session_open', { bootstrap: { mode: 'current_project' } }))
   const leaseHandle = opened.json?.leaseHandle || opened.outcome?.leaseHandle
   const projectId = opened.json?.projectId || opened.outcome?.projectId
   const candidate = {

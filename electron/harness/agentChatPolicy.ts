@@ -1,9 +1,12 @@
 import { AGENT_CHAT_CAPABILITIES, type AgentChatRequest, type AgentChatHistory } from './agentChatContracts';
 import { assertAgentContextBinding } from './context/contextBinding';
 import { projectIdFromSessionKey } from '../events/eventLogRepository';
-import { canvasToolDescriptors } from './tools/canvasDescriptors';
+import { canvasToolDescriptors, canvasToolNames } from './tools/canvasDescriptors';
 import { documentToolDescriptors } from './tools/documentDescriptors';
 import type { RuntimeToolCall, RuntimeToolDescriptor } from './runtime/runtimePort';
+import { CANVAS_READ_CAPABILITY } from '../shared/agentCapabilities/canvasRead';
+
+const CANVAS_TOOL_NAMES = new Set<string>(canvasToolNames);
 
 export function captureAgentHistory(history: AgentChatHistory): AgentChatHistory {
   if (!history || typeof history !== 'object') throw new Error('Explicit Agent history scope is required');
@@ -21,6 +24,9 @@ export function captureAgentChatRequest(input: AgentChatRequest): AgentChatReque
   if (input.capability === 'single-shot' && history.kind !== 'ephemeral') throw new Error('Single-shot requires ephemeral history');
   const knownProjects = [input.projectId, input.canvasProjectId].filter((id): id is string => id !== undefined);
   if (knownProjects.some((id) => typeof id !== 'string' || !id.trim() || id !== id.trim())) throw new Error('Invalid explicit Agent project');
+  if (agentToolsForCapability(input.capability).some((tool) => CANVAS_TOOL_NAMES.has(tool.name)) && knownProjects.length === 0) {
+    throw new Error('Explicit Agent project is required for canvas tools');
+  }
   if (knownProjects.some((id) => id !== knownProjects[0])) throw new Error('Agent project bindings disagree');
   if (history.kind === 'persistent' && knownProjects.some((id) => id !== projectIdFromSessionKey(history.binding.sessionKey))) {
     throw new Error('Agent project does not match its persistent history binding');
@@ -39,7 +45,7 @@ export function agentToolsForCapability(capability: AgentChatRequest['capability
     : capability === 'creation-chat' ? [documents.read_full_text, documents.read_selection, documents.author_skill]
       : capability === 'canvas-agent' ? Object.values(canvas)
         : capability === 'canvas-refine' ? [canvas.set_node_prompt]
-          : capability === 'storyboard' ? [canvas.read_canvas_state, canvas.propose_storyboard_plan] : [];
+          : capability === 'storyboard' ? [canvas[CANVAS_READ_CAPABILITY.aliases.pi], canvas.propose_storyboard_plan] : [];
   return descriptors.map(({ name, description, parameters }) => ({ name, description, schema: parameters }));
 }
 

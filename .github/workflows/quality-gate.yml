@@ -39,6 +39,10 @@ jobs:
         run: xvfb-run -a pnpm run test:e2e
       - name: Real user journey suite
         run: xvfb-run -a pnpm run test:journeys
+      - name: Project Agent MCP journey
+        run: xvfb-run -a pnpm run test:mcp
+      - name: Project Agent Surface isolation
+        run: xvfb-run -a node tests/ux/project-agent-canvas-isolation.e2e.mjs
 
       # 走查证据（截图 + output.jsonl）。win-gate.yml 一直有这步，本 job 却没有——
       # 结果是 ubuntu 这边走查一红就只剩一行「✗ 某某检查」，几何类失败隔着 CI 根本判不了因

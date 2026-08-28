@@ -1,6 +1,10 @@
 import type { AgentContextScope } from './context/contextBinding';
 import type { LegacyAgentBubble } from './context/legacyBubbles';
 import type { RuntimeActivityEvent, RuntimeFinishReason, RuntimeToolCallRecord, RuntimeToolDecision, RuntimeUsage } from './runtime/runtimePort';
+import type {
+  CapturedCanvasReadSnapshotHandleWire,
+  SurfacePortBindingWire,
+} from '../shared/surfacePortBinding';
 
 /** One SDK-free wire contract shared by main, preload and renderer. */
 export const AGENT_CHAT_CAPABILITIES = [
@@ -53,5 +57,13 @@ export type AgentChatWireEvent = AgentChatActivity
   | { type: 'tool-call-pending'; toolCallId: string; toolName: string; args: unknown }
   | { type: 'result'; result: AgentChatResponse }
   | { type: 'done'; reason: AgentChatStatus };
-export interface AgentChatStartRequest { requestId: string; request: AgentChatRequest }
+export type AgentChatCanvasReadAdmission =
+  | Readonly<{ surfaceBinding: SurfacePortBindingWire; capturedCanvasReadSnapshot?: never }>
+  | Readonly<{ capturedCanvasReadSnapshot: CapturedCanvasReadSnapshotHandleWire; surfaceBinding?: never }>
+  | Readonly<{ surfaceBinding?: never; capturedCanvasReadSnapshot?: never }>;
+
+export type AgentChatStartRequest = Readonly<{
+  requestId: string
+  request: AgentChatRequest
+}> & AgentChatCanvasReadAdmission;
 export interface AgentChatHistoryRequest { history: AgentChatHistory; messages?: readonly LegacyAgentBubble[] }

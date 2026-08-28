@@ -7,6 +7,7 @@ import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
+import { unwrapNomiTransportResponse } from './nomiTransportError.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -74,8 +75,19 @@ async function callViaRpc(instance, token, method, params) {
     clearTimeout(timer)
   }
   const body = await res.json()
-  if (!body.ok) throw new Error(body.error || `RPC ${res.status}`)
-  return body.result
+  return unwrapNomiTransportResponse(body, `RPC ${res.status}`)
+}
+
+/** Pure headless stdout decoder, exported so the CLI transport contract is testable without Electron. */
+export function parseHeadlessHostResponse(stdout, stderr = '') {
+  let body
+  try {
+    const match = stdout.trim().match(/\{[\s\S]*\}$/)
+    body = JSON.parse(match ? match[0] : stdout)
+  } catch {
+    throw new Error(`host 无有效响应。stdout=${stdout.slice(0, 400)} stderr=${stderr.slice(0, 400)}`)
+  }
+  return unwrapNomiTransportResponse(body, 'host 失败')
 }
 
 function callViaHost(token, method, params, spawnEnv) {
@@ -133,14 +145,8 @@ function callViaHost(token, method, params, spawnEnv) {
       if (settled) return
       settled = true
       clearTimeout(killTimer)
-      try {
-        const match = stdout.trim().match(/\{[\s\S]*\}$/)
-        const body = JSON.parse(match ? match[0] : stdout)
-        if (!body.ok) reject(new Error(body.error || 'host 失败'))
-        else resolve(body.result)
-      } catch {
-        reject(new Error(`host 无有效响应。stdout=${stdout.slice(0, 400)} stderr=${stderr.slice(0, 400)}`))
-      }
+      try { resolve(parseHeadlessHostResponse(stdout, stderr)) }
+      catch (error) { reject(error) }
     })
   })
 }

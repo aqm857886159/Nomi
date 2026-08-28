@@ -56,6 +56,11 @@ try {
   const created = parseToolResult(await mcp.callToolOrThrow('nomi_create_project', { name: '验收旅程《2:17 的男人》' }))
   const projectId = created.json?.id || created.json?.projectId
   assertTrue(projectId, '建项目返回 id')
+  const projectSelectionHandle = created.json?.projectSelectionHandle
+  assertTrue(projectSelectionHandle, '建项目返回同连接签发的项目选择凭证')
+  const projectSession = parseToolResult(await mcp.callToolOrThrow('nomi_session_open', { projectSelectionHandle }))
+  const leaseHandle = projectSession.json?.leaseHandle
+  assertTrue(leaseHandle && projectSession.json?.projectId === projectId, '项目会话绑定当前连接与刚创建的项目')
 
   // ── 幕 0 · 开场收敛 ─────────────────────────────────────────────
   {
@@ -91,7 +96,7 @@ try {
     // 指改 #3：编号即地址 → set_node_prompt → 回读验证生效且其余不动。
     const newPrompt = '男人进店，没拿水，只是站在冰柜前数了 17 秒'
     await mcp.callToolOrThrow('nomi_set_node_prompt', { projectId, nodeId: sceneIds[2], prompt: newPrompt })
-    const canvas = parseToolResult(await mcp.callToolOrThrow('nomi_read_canvas', { projectId }))
+    const canvas = parseToolResult(await mcp.callToolOrThrow('nomi_read_canvas', { leaseHandle, projectId }))
     const nodes = canvas.json?.nodes || []
     const scene3 = nodes.find((n) => n.id === sceneIds[2])
     const scene2 = nodes.find((n) => n.id === sceneIds[1])
@@ -130,7 +135,7 @@ try {
     const [freezeAnchorId, freezeShotId] = a2.json?.ids || []
     assertTrue(freezeAnchorId && freezeShotId, '幕2 锚 + 引用镜头落画布')
     await mcp.callToolOrThrow('nomi_connect_nodes', { projectId, connections: [{ source: freezeAnchorId, target: freezeShotId, mode: 'character_ref' }] })
-    const c2 = parseToolResult(await mcp.callToolOrThrow('nomi_read_canvas', { projectId }))
+    const c2 = parseToolResult(await mcp.callToolOrThrow('nomi_read_canvas', { leaseHandle, projectId }))
     const anchorBack = (c2.json?.nodes || []).find((n) => n.id === freezeAnchorId)
     const refEdge = (c2.json?.edges || []).find((e) => e.source === freezeAnchorId && e.target === freezeShotId)
     assertTrue(anchorBack?.kind === 'character' && refEdge, '锚(kind=character)+镜头+character_ref 边真的持久化（批量拓扑成立）')
@@ -173,7 +178,7 @@ try {
       projectId,
       connections: shotNodeIds.map((target) => ({ source: anchorId, target, mode: 'character_ref' })),
     })
-    const canvas = parseToolResult(await mcp.callToolOrThrow('nomi_read_canvas', { projectId }))
+    const canvas = parseToolResult(await mcp.callToolOrThrow('nomi_read_canvas', { leaseHandle, projectId }))
     const edges = canvas.json?.edges || []
     const linked = edges.filter((e) => e.source === anchorId && shotNodeIds.includes(e.target))
     assertTrue(linked.length === 2, `锚→镜头参考边齐（得 ${linked.length}/2）`)

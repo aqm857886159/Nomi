@@ -2,6 +2,10 @@ import type { AgentAttachmentPayload, AgentsChatResponseDto, AgentChatV2Session,
 import { sendWorkbenchAiMessage, type WorkbenchAiRequest } from './workbenchAiClient'
 import { getAssistantModelPref } from './assistantModelPref'
 import type { AgentChatCapability, AgentChatHistory, AgentChatToolDecision } from '../../../electron/harness/agentChatContracts'
+import type {
+  CapturedCanvasReadSnapshotHandleWire,
+  SurfacePortBindingWire,
+} from '../../../electron/shared/surfacePortBinding'
 
 // 会话键工厂已收口到 agentSessionKey.ts（B1a）。此处 re-export 保持既有 import 路径不破
 // （generationCanvasAgentClient / 两面板 / staleConversationDivider / conversationPersistence 仍从这里取）。
@@ -48,6 +52,10 @@ export type RunWorkbenchAgentInput = {
   skillKey: string
   skillName: string
   projectId?: string
+  /** Exact main-issued Surface captured by the domain send entry before its first await. */
+  surfaceBinding?: SurfacePortBindingWire
+  /** Opaque main-sealed production snapshot; mutually exclusive with live Surface. */
+  capturedCanvasReadSnapshot?: CapturedCanvasReadSnapshotHandleWire
   mode?: 'auto' | 'chat'
   /** 待发附件（图片走原生多模态；文件 S4 抽文本）。 */
   attachments?: AgentAttachmentPayload[]
@@ -64,6 +72,9 @@ export type RunWorkbenchAgentInput = {
 }
 
 export async function runWorkbenchAgent(input: RunWorkbenchAgentInput): Promise<AgentsChatResponseDto> {
+  if (input.surfaceBinding && input.capturedCanvasReadSnapshot) {
+    throw new Error('canvas read admission must be unique')
+  }
   // 助手模型偏好（用户在助手面板选的）→ 加进 payload，后端 chooseTextModel 优先用它，
   // 否则回退「第一个可用 text 模型」。两个面板都走这里 → 自动生效，无需各自传。
   const pref = getAssistantModelPref()
@@ -146,7 +157,15 @@ export async function runWorkbenchAgent(input: RunWorkbenchAgentInput): Promise<
   }
 
   try {
-    return await sendWorkbenchAiMessage(request, handlers)
+    return await sendWorkbenchAiMessage(
+      request,
+      handlers,
+      input.capturedCanvasReadSnapshot
+        ? { capturedCanvasReadSnapshot: input.capturedCanvasReadSnapshot }
+        : input.surfaceBinding
+          ? { surfaceBinding: input.surfaceBinding }
+          : {},
+    )
   } finally {
     expireAll()
   }

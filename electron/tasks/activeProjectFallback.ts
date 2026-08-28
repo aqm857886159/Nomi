@@ -2,9 +2,9 @@
 // 生成结果只有在 projectId 到达主进程时才会 importRemoteAsset 落盘；projectId 由渲染层
 // taskApi 用 getDesktopActiveProjectId() 兜进 payload——activeProjectId 空窗（hydrate 前、
 // 项目切换瞬间、重启后找回）时主进程静默跳过本地化，把厂商临时 CDN URL 直接存进
-// node.result.url，链接过期即裂。主进程自己有独立上报源（workbenchProjectSession 开/关项目
-// 时经 nomi:capability:active-project 上报），把它记在这里，runtime 各 projectId 读点在
-// payload 缺失时兜底——「落盘与否」不再取决于渲染层恰好 hydrate 完。payload 带了绝不覆盖。
+// node.result.url，链接过期即裂。这里保存的只是 main-owned Surface committed selection
+// 投影，供 runtime 各 projectId 读点在 payload 缺失时兜底；它不参与能力资格判断，Surface
+// suspend/release 会同步投影为空。payload 带了绝不覆盖。
 let activeProjectId = "";
 
 export function rememberActiveProjectForTasks(projectId: string): void {

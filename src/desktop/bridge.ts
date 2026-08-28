@@ -8,6 +8,8 @@ import type { DesktopOnboardingBridge } from './onboardingBridgeTypes'
 import type { DesktopProductionRunBridge } from './productionRunBridgeTypes'
 import type { CustomCallBridge } from './modelCatalogBridgeTypes'
 import type { AgentChatStartRequest, AgentChatHistoryRequest, AgentChatToolDecision, AgentChatWireEvent } from '../../electron/harness/agentChatContracts'
+import type { CanvasReadSurfaceBridge } from '../../electron/shared/surfacePortBinding'
+import type { ProjectAgentExecutionEvent, ProjectAgentHostState, ProjectAgentMutationType, ProjectAgentPatch, ProjectBinding } from '../../electron/shared/projectAgentContracts'
 export type { ProviderKind }
 export type {
   DesktopAdapterModeResult,
@@ -41,6 +43,28 @@ export type PersistedConversationsV2 = {
   creation: PersistedConversationArea
   generation: PersistedConversationArea
   committedProposal?: unknown
+}
+
+export type ProjectAgentCommandWire = {
+  subscriptionId: string
+  clientCommandId: string
+  knownRevision: number
+  type: ProjectAgentMutationType | 'tool.decision'
+  payload: unknown
+}
+
+export type ProjectAgentBridge = {
+  open: (binding: ProjectBinding) => Promise<{ subscriptionId: string; snapshot: ProjectAgentHostState }>
+  snapshot: (subscriptionId: string) => Promise<ProjectAgentHostState>
+  command: (command: Omit<ProjectAgentCommandWire, 'subscriptionId'> & { subscriptionId: string }) => Promise<{
+    state: ProjectAgentHostState
+    patch: ProjectAgentPatch | null
+    replayed: boolean
+    snapshotRequired?: boolean
+  }>
+  release: (subscriptionId: string) => Promise<{ released: true }>
+  onPatch?: (handler: (patch: ProjectAgentPatch) => void) => () => void
+  onEvent?: (handler: (event: ProjectAgentExecutionEvent) => void) => () => void
 }
 
 /** 代理三态：跟随系统探测 / 只对 Nomi 生效的自定义地址 / 强制直连。 */
@@ -765,7 +789,6 @@ export type DesktopBridge = DesktopMediaBridge & {
   }
   /** 能力核：上报当前打开项目，供外部调用的 A/B 守卫（可选——老 preload 无此口）。 */
   capability?: {
-    setActiveProject: (projectId: string) => void
     /** 「接入 AI 编程助手」卡：读接入状态 + 各客户端配置片段（类型见 mcpBridgeTypes）。 */
     mcpInfo: () => McpInfo
     /** 一键写入指定客户端配置的 nomi 条目（合并 + 备份）。默认 Claude Code。 */
@@ -780,6 +803,10 @@ export type DesktopBridge = DesktopMediaBridge & {
     /** A 模式实时桥：注册处理器，接主进程转发来的外部 MCP 画布读/写/付费确认。返回反注册函数。 */
     onApply?: (handler: (op: string, payload: unknown) => unknown | Promise<unknown>) => () => void
   }
+  /** Main-issued read-only project Surface lifecycle; independent from capability.onApply. */
+  surface?: CanvasReadSurfaceBridge
+  /** The sole renderer transport for the app-process ProjectAgentHost. */
+  projectAgent?: ProjectAgentBridge
 }
 
 declare global {

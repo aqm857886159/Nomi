@@ -2,11 +2,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { getDurabilityMode, setDurabilityMode } from "./durability";
 import { readJsonFile, renameSyncWithRetry, writeJsonFileAtomic } from "./jsonFile";
 
 const tempRoots: string[] = [];
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const root of tempRoots.splice(0)) {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -59,6 +61,48 @@ describe("writeJsonFileAtomic", () => {
     const leftovers = fs.readdirSync(dir).filter((name) => name.endsWith(".tmp"));
     expect(leftovers).toEqual([]);
     expect(fs.readdirSync(dir)).toEqual(["project.json"]);
+  });
+
+  it("removes the private temp file when its durability barrier fails", () => {
+    const dir = makeTempDir();
+    const file = path.join(dir, "private.json");
+    fs.writeFileSync(file, '{"revision":1}\n', { mode: 0o600 });
+    const before = fs.readFileSync(file);
+    const previousDurability = getDurabilityMode();
+    setDurabilityMode("durable");
+    vi.spyOn(fs, "fsyncSync").mockImplementation(() => {
+      const error = new Error("simulated temp fsync EIO") as NodeJS.ErrnoException;
+      error.code = "EIO";
+      throw error;
+    });
+
+    try {
+      expect(() => writeJsonFileAtomic(file, { revision: 2 }, { mode: 0o600 })).toThrow(/temp fsync EIO/);
+      expect(fs.readFileSync(file)).toEqual(before);
+      expect(fs.readdirSync(dir).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+    } finally {
+      setDurabilityMode(previousDurability);
+    }
+  });
+
+  it("applies an optional private mode to the temp file before atomic replacement", () => {
+    const dir = makeTempDir();
+    const file = path.join(dir, "private.json");
+    fs.writeFileSync(file, "{}\n", { mode: 0o644 });
+    const realRename = fs.renameSync.bind(fs);
+    let tempModeAtRename: number | null = null;
+    vi.spyOn(fs, "renameSync").mockImplementation((from, to) => {
+      if (String(to) === file) tempModeAtRename = fs.statSync(from).mode & 0o777;
+      return realRename(from, to);
+    });
+
+    writeJsonFileAtomic(file, { private: true }, { mode: 0o600 });
+
+    expect(readJsonFile(file)).toEqual({ private: true });
+    if (process.platform !== "win32") {
+      expect(tempModeAtRename).toBe(0o600);
+      expect(fs.statSync(file).mode & 0o777).toBe(0o600);
+    }
   });
 });
 

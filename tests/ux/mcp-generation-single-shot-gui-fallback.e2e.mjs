@@ -125,11 +125,11 @@ try {
   check(Boolean((await mcp.initialize())?.result), 'MCP stdio 与当前 GUI 建立真实握手')
 
   const opened = parseToolResult(await mcp.callTool('nomi_session_open', {
-    bootstrap: { mode: 'current_project', clientSessionNonce: 'semantic-gui-fallback-session' },
+    bootstrap: { mode: 'current_project' },
   }))
   const leaseHandle = opened.json?.leaseHandle || opened.outcome?.leaseHandle
   check(typeof leaseHandle === 'string' && leaseHandle.length > 20, '一次 session/open 返回可复用的当前项目句柄')
-  check(Array.isArray(opened.json?.effectiveScope) && opened.json.effectiveScope.includes('create'), '句柄默认包含零额度规划权限，不要求用户再复制第二个句柄')
+  check(Array.isArray(opened.json?.effectiveScope) && opened.json.effectiveScope.includes('generation:create'), '句柄默认包含零额度规划权限，不要求用户再复制第二个句柄')
 
   const candidate = {
     candidateId: 'semantic-gui-candidate', revision: 1, moduleId: 'generation.single-shot', providerId: 'apimart', modelId: 'gpt-image-2', mode: 'text-to-image',

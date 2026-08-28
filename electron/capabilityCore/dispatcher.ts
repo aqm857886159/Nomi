@@ -9,7 +9,6 @@ import {
   importProjectAsset,
   listAllProjects,
   listAvailableModels,
-  readProjectCanvas,
   setProjectNodePrompt,
   type FetchTaskResultFn,
   type GenerateInput,
@@ -25,11 +24,13 @@ import { INTAKE_MAX_QUESTIONS, buildIntakeMessage, buildIntakeQuestions } from '
 import type { CapabilityOriginHost } from './security'
 import { createMcpGenerationPolicy, type McpGenerationPolicy } from './mcpGenerationPolicy'
 import { dispatchSemanticGeneration, guardLegacyGenerationRoute, isSemanticGenerationRoute } from './generationDispatcher'
-import { RpcError } from './rpcError'
+import { RpcError, type RpcPublicErrorCode } from './rpcError'
 export { RpcError } from './rpcError'
 export type { RpcPolicyErrorCode, RpcPolicyErrorDetails } from './rpcError'
-import type { ProjectLeaseAuthority, ProjectLeaseV1, ProjectSelectionHandleV1 } from './projectLease'
+import type { ProjectLeaseV2 } from './projectLease'
 import type { ApprovalReceiptAuthority, HumanApprovalReceiptV1 } from './approvalReceipt'
+import type { McpConnectionContext } from './mcpConnectionContext'
+import type { ProjectSessionAuthority } from './projectSessionAuthority'
 
 export function projectIdOf(params: Record<string, unknown>): string {
   return typeof params.projectId === 'string' ? params.projectId : ''
@@ -54,44 +55,19 @@ export type DispatchContext = {
   origin?: { host: CapabilityOriginHost; actorId?: string }
   /** The frozen server-side generation policy. Omit in legacy callers to build the default snapshot. */
   generationPolicy?: McpGenerationPolicy
+  /** One cohesive, transport-owned project-session authority for every leased MCP capability. */
+  projectSession?: Readonly<{
+    authority: ProjectSessionAuthority
+    connection: McpConnectionContext
+  }>
   /** Optional read-only context seam. No semantic route may fall through to a legacy service. */
   generationContext?: (params: Record<string, unknown>) => unknown | Promise<unknown>
   /** Shared semantic planning/editing seam. MCP and GUI must provide the same handler; no provider call here. */
-  generationPlanning?: (input: { capability: string; params: Record<string, unknown>; lease?: ProjectLeaseV1; origin?: { host: CapabilityOriginHost; actorId?: string } }) => unknown | Promise<unknown>
-  /** Main-process project-lease authority. Semantic routes never trust body.projectId without this verifier. */
-  projectLeaseAuthority?: ProjectLeaseAuthority
-  /** Main-process resolver for a signed selection handle. It supplies current project identity and connection binding. */
-  resolveProjectSelection?: (handle: ProjectSelectionHandleV1) => {
-    projectId: string
-    leasePrincipal: string
-    sessionId: string
-    connectionNonce: string
-    serverNonce: string
-  }
-  /**
-   * Server-owned current-project bootstrap for a client that Nomi installed and
-   * authenticated. The callback must derive identity from main-process state;
-   * it receives no projectId/path from the request.
-   */
-  resolveCurrentProject?: (request: {
-    client: Extract<CapabilityOriginHost, 'claude' | 'codex' | 'cursor'>
-    clientSessionNonce: string
-  }) => {
-    projectId: string
-    immutableProjectUuid: string
-    projectGeneration: number
-    canonicalRootDigest: string
-    manifestDigest: string
-    revocationEpoch?: number
-    leasePrincipal: string
-    sessionId: string
-    connectionNonce: string
-    serverNonce: string
-  }
+  generationPlanning?: (input: { capability: string; params: Record<string, unknown>; lease?: ProjectLeaseV2; origin?: { host: CapabilityOriginHost; actorId?: string } }) => unknown | Promise<unknown>
   /** Main-process approval-receipt authority. Gate routes verify receipts here; the Run owner consumes them. */
   approvalReceiptAuthority?: ApprovalReceiptAuthority
   /** Run-owned challenge projection. It must recompute model/cost/contract from main-process state. */
-  requestGenerationGate?: (input: { params: Record<string, unknown>; lease: ProjectLeaseV1 }) => unknown | Promise<unknown>
+  requestGenerationGate?: (input: { params: Record<string, unknown>; lease: ProjectLeaseV2 }) => unknown | Promise<unknown>
   /** Main-process GUI fallback for the exact challenge; it may return the receipt minted from the gesture. */
   confirmGenerationInNomi?: (input: { challengeToken: string }) => Promise<unknown>
   /**
@@ -101,7 +77,7 @@ export type DispatchContext = {
    */
   authorizeGeneration?: (input: {
     params: Record<string, unknown>
-    lease: ProjectLeaseV1
+    lease: ProjectLeaseV2
     receipt: HumanApprovalReceiptV1
   }) => unknown | Promise<unknown>
   /** Project-owner revision lookup. Receipt bindings never trust a revision supplied by the caller. */
@@ -117,6 +93,79 @@ export type DispatchContext = {
    * 领域策略住 shotVerifyOrchestrate，传输层只注入 deps，core 只透传 outcome（三层干净，方案 §3/§9）。
    */
   makeVerifyDeps?: MakeVerifyDeps
+}
+
+const PROJECT_SESSION_RETRY = 'Open a new project session and retry'
+
+function errorCodeOf(error: unknown): string | undefined {
+  return error && typeof error === 'object' && 'code' in error
+    ? String((error as { code?: unknown }).code ?? '') || undefined
+    : undefined
+}
+
+function leaseFailureCode(error: unknown): Extract<
+  RpcPublicErrorCode,
+  'lease_invalid' | 'project_scope_changed' | 'project_binding_stale' | 'lease_expired' | 'lease_revoked'
+> {
+  const code = errorCodeOf(error)
+  const message = error instanceof Error ? error.message : ''
+  if (code === 'project_binding_stale') return code
+  if (code === 'project_scope_changed'
+    && (/does not match (?:the )?current scope|scope is insufficient/i.test(message))) return code
+  if (code === 'lease_expired' || code === 'lease_revoked') return code
+  return 'lease_invalid'
+}
+
+function leasePublicError(error: unknown): RpcError {
+  const code = leaseFailureCode(error)
+  const message = code === 'lease_expired'
+    ? 'Project session lease has expired'
+    : code === 'lease_revoked'
+      ? 'Project session lease has been revoked'
+      : code === 'project_scope_changed'
+        ? 'Project session lease does not authorize this project or capability'
+        : code === 'project_binding_stale'
+          ? 'Project binding is stale'
+        : 'Project session lease is invalid'
+  return new RpcError(message, 403, {
+    code,
+    nextAction: PROJECT_SESSION_RETRY,
+    capability: 'project.session',
+  })
+}
+
+function projectSessionOpenPublicError(error: unknown): RpcError {
+  const code = errorCodeOf(error)
+  if (code === 'lease_expired' || code === 'lease_revoked' || code === 'project_scope_changed'
+    || code === 'project_binding_stale') {
+    return leasePublicError(error)
+  }
+  if (code === 'lease_required') {
+    return new RpcError('Project session request is invalid', 400, {
+      code: 'lease_required',
+      nextAction: 'Choose a project and open a new project session',
+      capability: 'project.session',
+    })
+  }
+  if (code === 'project_selection_denied') {
+    return new RpcError('Project selection is not authorized', 403, {
+      code,
+      nextAction: 'Choose an authorized project in Nomi',
+      capability: 'project.session',
+    })
+  }
+  if (code === 'project_identity_unavailable') {
+    return new RpcError('Project identity is unavailable', 503, {
+      code,
+      nextAction: 'Retry after the project identity is available',
+      capability: 'project.session',
+    })
+  }
+  return new RpcError('Project session is unavailable', 500, {
+    code: 'project_session_unavailable',
+    nextAction: 'Retry opening the project session',
+    capability: 'project.session',
+  })
 }
 
 const PRODUCTION_START_FIELDS = new Set([
@@ -230,6 +279,14 @@ function productionStartInput(params: Record<string, unknown>, authority: Dispat
 }
 
 export async function dispatch(method: string, params: Record<string, unknown>, ctx: DispatchContext): Promise<unknown> {
+  if (method === 'nomi_session_open') {
+    if (!ctx.projectSession) throw projectSessionOpenPublicError(undefined)
+    try {
+      return await ctx.projectSession.authority.open(params, ctx.projectSession.connection)
+    } catch (error) {
+      throw projectSessionOpenPublicError(error)
+    }
+  }
   const generationPolicy = ctx.generationPolicy ?? createMcpGenerationPolicy()
   const classifiedRoute = generationPolicy.classifyRoute(method)
   const legacyRoute = classifiedRoute.kind === 'legacy'
@@ -245,8 +302,16 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       return { ok: true }
     case 'project.list':
       return { projects: listAllProjects() }
-    case 'project.create':
-      return createNamedProject(typeof params.name === 'string' ? params.name : undefined)
+    case 'project.create': {
+      const created = createNamedProject(typeof params.name === 'string' ? params.name : undefined)
+      if (!ctx.projectSession) return created
+      const selection = await ctx.projectSession.authority.issueProjectSelection(
+        'created_project',
+        created.id,
+        ctx.projectSession.connection,
+      )
+      return { ...created, projectSelectionHandle: selection.token }
+    }
     case 'models.list':
       return { models: listAvailableModels() }
     case 'skills.list':
@@ -390,8 +455,6 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       })
       return ctx.productionRuns.readProjection(projectId, runId)
     }
-    case 'canvas.read':
-      return readProjectCanvas(ctx.makeGateway(projectIdOf(params)))
     case 'canvas.addNodes': {
       // 方案已被协议层 elicitation-first 批准 → 预批准方案门（不再弹渲染层卡，免双问）；否则原网关照常确认。
       const base = ctx.makeGateway(projectIdOf(params))

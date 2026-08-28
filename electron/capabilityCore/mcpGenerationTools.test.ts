@@ -1,8 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createModuleRegistry } from "./moduleRegistry";
-import { createGenerationPlanningHandler, createInMemoryGenerationOperationStore, MCP_GENERATION_TOOL_CATALOG } from "./mcpGenerationTools";
-import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV1 } from "./projectLease";
+import {
+  createGenerationPlanningHandler,
+  createInMemoryGenerationOperationStore,
+  MCP_GENERATION_TOOL_CATALOG,
+  type GenerationOperation,
+} from "./mcpGenerationTools";
+import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
 import { SEEDANCE_2_5_APIMART_ARCHETYPE } from "../../src/config/modelArchetypes/seedance25Apimart";
 import { buildVideoModelCandidates, recommendVideoGeneration } from "../shared/videoCapabilities";
 
@@ -61,9 +66,9 @@ const videoRegistry = createModuleRegistry([{
   }],
 }]);
 
-// 完整的 ProjectLeaseV1 形状。签名相关字段（keyId/nonce/scopeHash/mac）这些用例用不到
+// 完整的 ProjectLeaseV2 形状。签名相关字段（keyId/nonce/scopeHash/mac）这些用例用不到
 // （handler 只读 projectId 之类），但类型上是必填的——缺了就是夹具在类型上撒谎。
-const lease: ProjectLeaseV1 = {
+const lease: ProjectLeaseV2 = {
   version: PROJECT_LEASE_VERSION,
   keyId: "key-1",
   algorithm: PROJECT_LEASE_ALGORITHM,
@@ -79,7 +84,7 @@ const lease: ProjectLeaseV1 = {
   issuedAt: "2026-08-23T00:00:00.000Z",
   expiresAt: "2026-08-23T01:00:00.000Z",
   audience: PROJECT_LEASE_AUDIENCE,
-  leasePrincipal: "mcp:test",
+  leasePrincipal: "mcp:codex",
   sessionId: "session-1",
   connectionNonce: "connection-1",
   revocationEpoch: 0,
@@ -113,7 +118,6 @@ describe("semantic MCP generation tools", () => {
 
   it("exposes one vocabulary for MCP and GUI adapters", () => {
     expect(MCP_GENERATION_TOOL_CATALOG.map((tool) => tool.name)).toEqual(expect.arrayContaining([
-      "nomi_session_open",
       "nomi_operation_create",
       "nomi_submit_generation_plan",
       "nomi_preview_execution",
@@ -265,7 +269,11 @@ describe("semantic MCP generation tools", () => {
 
   it("returns explicit provider-not-configured status and never falls back to legacy generation", async () => {
     const operations = createInMemoryGenerationOperationStore();
-    const start = async (operation: never) => ({ operationId: operation.operationId, state: "sealed", nextAction: "provider_not_configured" });
+    const start = async (operation: GenerationOperation) => ({
+      operationId: operation.operationId,
+      state: "sealed",
+      nextAction: "provider_not_configured",
+    });
     const handler = createGenerationPlanningHandler({ registry, operations, start, now: () => "2026-08-23T00:00:00.000Z" });
     const created = await handler({ capability: "create", params: { candidate: candidate() }, lease });
     const operationId = (created as { operation: { operationId: string } }).operation.operationId;

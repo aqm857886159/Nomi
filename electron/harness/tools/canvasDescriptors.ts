@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CANVAS_READ_CAPABILITY } from "../../shared/agentCapabilities/canvasRead";
 
 /** Pure Nomi-owned canvas metadata; confirmation and effects belong to the runtime adapter. */
 
@@ -308,10 +309,10 @@ export function normalizeCameraMoveParams(params: CameraMoveParams): CameraMoveP
 export const cameraMoveParamsSchema = cameraMoveParamsObjectSchema.transform(normalizeCameraMoveParams);
 
 export const canvasToolDescriptors = {
-  read_canvas_state: {
-    name: "read_canvas_state",
-    description: "Read the current generation canvas (nodes + edges).",
-    parameters: z.object({}),
+  [CANVAS_READ_CAPABILITY.aliases.pi]: {
+    name: CANVAS_READ_CAPABILITY.aliases.pi,
+    description: CANVAS_READ_CAPABILITY.projections.pi.description,
+    parameters: CANVAS_READ_CAPABILITY.inputSchema,
   },
   propose_storyboard_plan: {
     name: "propose_storyboard_plan",

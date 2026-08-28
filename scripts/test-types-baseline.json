@@ -2,8 +2,6 @@
   "electron/ai/composeAgentSystemPrompt.test.ts": 1,
   "electron/capabilityCore/apimartGenerationProvider.test.ts": 3,
   "electron/capabilityCore/generationRuntimeAdapter.test.ts": 3,
-  "electron/capabilityCore/mcpGenerationDispatcher.test.ts": 1,
-  "electron/capabilityCore/mcpGenerationTools.test.ts": 2,
   "electron/capabilityCore/mcpToolResults.test.ts": 1,
   "electron/capabilityCore/moduleCatalogBootstrap.test.ts": 1,
   "electron/capabilityCore/nodeKindDomain.equivalence.test.ts": 1,
