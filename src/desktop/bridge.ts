@@ -8,6 +8,7 @@ import type { DesktopOnboardingBridge } from './onboardingBridgeTypes'
 import type { DesktopProductionRunBridge } from './productionRunBridgeTypes'
 import type { CustomCallBridge } from './modelCatalogBridgeTypes'
 import type { AgentChatStartRequest, AgentChatHistoryRequest, AgentChatToolDecision, AgentChatWireEvent } from '../../electron/harness/agentChatContracts'
+import type { ComfyCandidateTestPayload, ComfyCandidateTestResult, ComfyWorkflowMutationResult } from './comfyCandidateContracts'
 export type { ProviderKind }
 export type {
   DesktopAdapterModeResult,
@@ -15,7 +16,6 @@ export type {
   DesktopProviderRegistration,
 } from './onboardingBridgeTypes'
 export type { ScreenshotHotkeyStatus } from './bridgeMedia'
-
 /** 落盘的对话消息(conversation 域;draft/附件是 session 域不落盘)。 */
 export type PersistedAiMessage = {
   id: string
@@ -548,6 +548,8 @@ export type DesktopBridge = DesktopMediaBridge & {
     cancel?: (taskId: string) => Promise<{ ok: boolean }>
     run: (payload: unknown) => Promise<unknown>
     result: (payload: unknown) => Promise<unknown>
+    runComfyCandidateTest?: (payload: ComfyCandidateTestPayload) => Promise<ComfyCandidateTestResult>
+    cancelComfyCandidateTest?: (payload: { revisionId: string }) => Promise<{ ok: boolean }>
     grantSpend: (payload: { nodeIds: string[]; maxAttemptsPerNode?: number }) => Promise<{ grantId: string }>
     runTextStream: (payload: unknown) => Promise<{ streamId: string }>
     cancelTextStream: (streamId: string) => Promise<unknown>
@@ -738,10 +740,10 @@ export type DesktopBridge = DesktopMediaBridge & {
     }>
     /** 按绑定落库为用户自有 model+mapping（同步）。enumOptions 可选 = combo 参数烤成真实文件下拉。 */
     importComfyWorkflow: (payload: { text: string; binding: unknown; labelZh: string; enumOptions?: unknown; vendorKey?: string; uiWorkflowText?: string }) =>
-      { ok: true; modelKey: string; kind: string; taskKind: string } | { ok: false; error: string }
+      ComfyWorkflowMutationResult
     /** 用同一 modelKey 更新已导入 workflow（同步）。 */
     updateComfyWorkflow?: (payload: { modelKey: string; text: string; binding: unknown; labelZh: string; enumOptions?: unknown; vendorKey?: string; uiWorkflowText?: string }) =>
-      { ok: true; modelKey: string; kind: string; taskKind: string } | { ok: false; error: string }
+      ComfyWorkflowMutationResult
   }
   skill: {
     list: () => unknown[]

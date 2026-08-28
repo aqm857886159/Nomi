@@ -6,6 +6,7 @@ import { mintSpendGrant } from "../spendGrant";
 import { runTaskIpcGuard } from "./taskIpcGuard";
 import { withTaskOwner } from "./localTaskJobs";
 import { antigravityImageJobs } from "../catalog/antigravityImageOperation";
+import { cancelComfyCandidateTest, runComfyCandidateTest } from "./comfyCandidateTest";
 
 type RuntimeLoader = () => Promise<typeof import("../runtime")>;
 
@@ -49,6 +50,17 @@ export function registerTaskIpcHandlers(loadRuntimeModule: RuntimeLoader): void 
       const { fetchTaskResult } = await loadRuntimeModule();
       return withTaskOwner(event.sender.id, () => fetchTaskResult(payload));
     });
+  });
+  ipcMain.handle("nomi:tasks:comfy-candidate-test", (event, payload) => {
+    assertTrustedSender(event);
+    return runTaskIpcGuard(payload, async () => {
+      const { runTask, fetchTaskResult } = await loadRuntimeModule();
+      return withTaskOwner(event.sender.id, () => runComfyCandidateTest(payload, { runTask, fetchTaskResult }));
+    });
+  });
+  ipcMain.handle("nomi:tasks:comfy-candidate-cancel", (event, payload) => {
+    assertTrustedSender(event);
+    return cancelComfyCandidateTest(payload);
   });
   ipcMain.handle("nomi:tasks:cancel", (event, taskId: unknown) => {
     assertTrustedSender(event);

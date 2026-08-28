@@ -30,8 +30,8 @@ import type { HttpOperation } from "./catalog/types";
 // 导入本文件即注册 "comfyui-history" 变换（副作用）——runtime 按名查表要它在场。
 import "./catalog/comfyuiLocal";
 
-// 极小 mp4 ftyp 盒（/view 返回；传输测只验能取到 + content-type，不验可播放）。
-const MP4_BYTES = Buffer.from("00000018667479706d70343200000000", "hex");
+// 真实可解码 MP4：集成链必须经过与生产一致的 ffprobe + ffmpeg certification。
+const MP4_BYTES = fs.readFileSync(path.join(__dirname, "providerAdapter/__fixtures__/certification-media/valid.mp4"));
 
 // 一条「视频工作流」映射：图里有 VHS_VideoCombine 输出节点；提示词走 {{request.prompt}}。
 const VIDEO_GRAPH = {

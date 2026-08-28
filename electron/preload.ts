@@ -338,6 +338,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     cancel: (taskId: string) => ipcRenderer.invoke("nomi:tasks:cancel", taskId) as Promise<{ ok: boolean }>,
     run: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:run", payload),
     result: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:result", payload),
+    runComfyCandidateTest: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:comfy-candidate-test", payload),
+    cancelComfyCandidateTest: (payload: unknown) => ipcRenderer.invoke("nomi:tasks:comfy-candidate-cancel", payload),
     // 付费守卫：真人确认后铸一次性令牌（绑 nodeIds），返回不透明 grantId 随生成请求下传。
     grantSpend: (payload: unknown) =>
       ipcRenderer.invoke("nomi:tasks:grant-spend", payload) as Promise<{ grantId: string }>,

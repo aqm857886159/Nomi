@@ -40,4 +40,19 @@ describe("readBoundedResponseText", () => {
     controller.abort();
     await expect(pending).rejects.toMatchObject({ code: "response_cancelled" });
   });
+
+  it("preserves timeout classification even when reader.cancel rejects", async () => {
+    const controller = new AbortController();
+    let rejectRead!: (error: Error) => void;
+    const response = {
+      headers: new Headers(),
+      body: { getReader: () => ({
+        read: () => new Promise((_resolve, reject) => { rejectRead = reject; }),
+        cancel: vi.fn(async () => { rejectRead(new Error("reader aborted")); throw new Error("cancel transport failed"); }),
+      }) },
+    } as unknown as Response;
+    const pending = readBoundedResponseText(response, { maxBytes: 32, signal: controller.signal });
+    controller.abort(new DOMException("deadline", "TimeoutError"));
+    await expect(pending).rejects.toMatchObject({ code: "response_timeout" });
+  });
 });

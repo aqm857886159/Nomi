@@ -48,16 +48,24 @@ describe("ComfyUI staged certification lifecycle", () => {
 
   it("atomically promotes certified evidence and leaves the active revision unchanged when an edit fails", async () => {
     const { analyzeComfyWorkflowText, importComfyWorkflowToCatalog, updateComfyWorkflowInCatalog } = await import("./comfyuiWorkflowImportStore");
-    const { failComfyCandidate, promoteCertifiedComfyCandidate, resolveComfyStagedCandidate } = await import("./comfyuiCandidateLifecycle");
+    const { materializeCertifiedComfyAssets, resolveComfyStagedCandidate } = await import("./comfyuiCandidateLifecycle");
     const { listModelCatalogMappings, listModelCatalogModels, listModelCatalogVendors } = await import("./catalogStore");
     const text = workflow("active");
     const binding = (analyzeComfyWorkflowText(text) as { analysis: { suggested: unknown } }).analysis.suggested;
     const first = importComfyWorkflowToCatalog({ text, binding, labelZh: "Active" }, "active") as {
       ok: true; modelKey: string; vendorKey: string; revisionId: string; taskKind: "image_to_video";
     };
-    promoteCertifiedComfyCandidate(resolveComfyStagedCandidate(first), {
+    const evidence = [{
       kind: "video", contentType: "video/mp4", byteLength: 128, sha256: "a".repeat(64),
       metadata: { width: 16, height: 16, durationSeconds: 1, streamCount: 1 },
+    }] as const;
+    await materializeCertifiedComfyAssets({
+      certification: { candidate: resolveComfyStagedCandidate(first), evidence: [...evidence] },
+      status: "succeeded", urls: ["https://output.invalid/video.mp4"],
+      materialize: async () => {
+        expect(listModelCatalogModels({ vendorKey: first.vendorKey })).toContainEqual(expect.objectContaining({ enabled: false }));
+        return "nomi-local://asset/video.mp4";
+      },
     });
     expect(listModelCatalogModels({ vendorKey: first.vendorKey })).toContainEqual(expect.objectContaining({ modelKey: first.modelKey, enabled: true }));
     expect(listModelCatalogMappings({ vendorKey: first.vendorKey })).toContainEqual(expect.objectContaining({ modelKey: first.modelKey, enabled: true }));
@@ -72,7 +80,11 @@ describe("ComfyUI staged certification lifecycle", () => {
     const edit = updateComfyWorkflowInCatalog({ vendorKey: first.vendorKey, modelKey: first.modelKey, text: editText, binding: editBinding, labelZh: "Edit" }) as {
       ok: true; modelKey: string; vendorKey: string; revisionId: string; taskKind: "image_to_video";
     };
-    failComfyCandidate(resolveComfyStagedCandidate(edit), "media_decode_failed");
+    await expect(materializeCertifiedComfyAssets({
+      certification: { candidate: resolveComfyStagedCandidate(edit), evidence: [...evidence] },
+      status: "succeeded", urls: ["https://output.invalid/changed.mp4"],
+      materialize: async () => { throw new Error("evidence_mismatch"); },
+    })).rejects.toThrow("evidence_mismatch");
 
     expect(listModelCatalogVendors().some((vendor: { key: string }) => vendor.key === edit.vendorKey)).toBe(false);
     expect(JSON.stringify({

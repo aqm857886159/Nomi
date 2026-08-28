@@ -301,6 +301,30 @@ describe("runBoundedProcess", () => {
     expect(error).toMatchObject({ code: "timeout" });
   });
 
+  it("observes teardown rejection on the real stop path without an unhandled promise", async () => {
+    const unhandled = vi.fn();
+    process.on("unhandledRejection", unhandled);
+    try {
+      const error = await runBoundedProcess(
+        process.execPath,
+        ["-e", "setInterval(() => {}, 1000)"],
+        { timeoutMs: 20, maxStdoutBytes: 1_024, maxStderrBytes: 1_024 },
+        {
+          terminateTree: async (child) => {
+            child.kill("SIGKILL");
+            throw new Error("taskkill failed after fallback");
+          },
+          cleanupDeadlineMs: 1_000,
+        },
+      ).catch((caught) => caught);
+      expect(error).toMatchObject({ code: "process_cleanup_failed" });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.removeListener("unhandledRejection", unhandled);
+    }
+  });
+
   it.each([
     ["stdout", "process.stdout.write('x'.repeat(4096))"],
     ["stderr", "process.stderr.write('x'.repeat(4096))"],

@@ -79,7 +79,7 @@ describe("ProviderAdapterStore", () => {
           taskKind: "text_to_image",
           state: "verified",
           attempts: 1,
-          mediaEvidence: {
+          mediaEvidence: [{
             kind: "image",
             contentType: "image/png",
             byteLength: 93,
@@ -87,7 +87,7 @@ describe("ProviderAdapterStore", () => {
             metadata: { width: 2, height: 2, raw: "SECRET_BODY" } as never,
             url: "https://signed.invalid/a?token=SECRET",
             path: "/private/output.png",
-          } as unknown as CertificationMediaEvidence,
+          } as unknown as CertificationMediaEvidence],
           reasonCode: "media_mime_mismatch",
           errorParams: {
             declaredType: "image/png",
@@ -103,7 +103,7 @@ describe("ProviderAdapterStore", () => {
     expect(persisted).toMatch(/"width":\s*2/);
     expect(persisted).not.toMatch(/SECRET|signedUrl|\/private|"raw"|"url"|"path"/);
     expect(new ProviderAdapterStore(filePath).getRun("run-1")?.models[0].modes[0].mediaEvidence)
-      .toEqual({ kind: "image", contentType: "image/png", byteLength: 93, sha256: "a".repeat(64), metadata: { width: 2, height: 2 } });
+      .toEqual([{ kind: "image", contentType: "image/png", byteLength: 93, sha256: "a".repeat(64), metadata: { width: 2, height: 2 } }]);
   });
 
   it("returns interrupted work for resume but excludes terminal runs", () => {

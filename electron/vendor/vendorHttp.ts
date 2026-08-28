@@ -142,7 +142,7 @@ async function requestVendor(
   const relayAbort = () => controller.abort(signal?.reason);
   if (signal?.aborted) relayAbort();
   else signal?.addEventListener("abort", relayAbort, { once: true });
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const timer = setTimeout(() => controller.abort(new DOMException("Provider response timeout", "TimeoutError")), timeoutMs);
   let response: Response;
   try {
     // 经 vendorBaseFallback：主域被墙（连接从未建立）→ 零额度探测官方备用域 → 换线重发一次。
@@ -159,7 +159,8 @@ async function requestVendor(
     const cancellation = callerCancellation(signal);
     if (cancellation) throw cancellation;
     // abort = 我们的超时，给一条说人话的 timeout 错误（仍归 network 类、可重试），而不是裸 "aborted"。
-    const aborted = error instanceof Error && error.name === "AbortError";
+    const aborted = (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError"))
+      || (error instanceof BoundedResponseError && error.code === "response_timeout");
     const upstreamMsg = aborted
       ? `请求超时（${Math.round(timeoutMs / 1000)}s 无响应）`
       : networkMessage(error);

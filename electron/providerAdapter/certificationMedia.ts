@@ -8,7 +8,12 @@ import { Model3DValidationError, validateGlbStructure } from "../assets/model3dV
 import { contentTypeFromMagicBytes, extensionFromContentType, isCertifiableMediaContentType, MEDIA_TYPES } from "../assets/mediaTypes";
 import { decodeMediaBytes, probeMediaBytes, type MediaProbeMetadata } from "../export/mediaProbe";
 import { hardenedFetch, type HardenedFetchResult } from "../hardenedFetch";
-import { recordCertificationCleanupFailure, retryCertificationCleanup } from "./certificationCleanup";
+import {
+  completeCertificationCleanupLease,
+  recordCertificationCleanupFailure,
+  registerCertificationCleanupLease,
+  retryCertificationCleanup,
+} from "./certificationCleanup";
 
 export type CertificationMediaKind = "image" | "video" | "audio" | "model3d";
 
@@ -146,6 +151,18 @@ const DEFAULT_LIMITS: Record<CertificationMediaKind, Required<CertificationMedia
 const DEFAULT_PROCESS_STDOUT_LIMIT = 256 * 1024;
 const DEFAULT_PROCESS_STDERR_LIMIT = 64 * 1024;
 const MARKUP_SCAN_BYTES = 4_096;
+
+export function defaultCertificationMediaRoot(): string {
+  const suffix = typeof process.getuid === "function" ? String(process.getuid()) : String(process.pid);
+  return path.join(os.tmpdir(), `nomi-certification-media-${suffix}`);
+}
+
+export async function recoverCertificationMediaStorage(): Promise<number> {
+  const root = defaultCertificationMediaRoot();
+  await mkdir(root, { recursive: true, mode: 0o700 });
+  await assertTrustedCertificationRoot(root);
+  return retryCertificationCleanup(root);
+}
 
 function resolvedLimits(input: CertificationMediaInput): Required<CertificationMediaLimits> {
   const defaults = DEFAULT_LIMITS[input.expectedKind];
@@ -424,8 +441,7 @@ export async function certifyMediaArtifact(
   const limits = resolvedLimits(input);
   const acquired = await acquireBytes(input, dependencies, limits);
   const typed = assertDeclaredAndDetectedTypes(acquired.bytes, acquired.contentType, input.expectedKind);
-  const defaultRootSuffix = typeof process.getuid === "function" ? String(process.getuid()) : String(process.pid);
-  const root = dependencies.certificationRoot || path.join(os.tmpdir(), `nomi-certification-media-${defaultRootSuffix}`);
+  const root = dependencies.certificationRoot || defaultCertificationMediaRoot();
   let runDirectory = "";
   let operationFailed = false;
   let evidence: CertificationMediaEvidence | undefined;
@@ -436,6 +452,7 @@ export async function certifyMediaArtifact(
     await assertTrustedCertificationRoot(root);
     await retryCertificationCleanup(root, dependencies.cleanup).catch(() => undefined);
     runDirectory = await mkdtemp(path.join(root, "run-"));
+    await registerCertificationCleanupLease(root, runDirectory);
     const extension = extensionFromContentType(typed.contentType)
       || (input.expectedKind === "model3d" ? "glb" : "bin");
     const managedPath = path.join(runDirectory, `artifact.${extension}`);
@@ -558,7 +575,13 @@ export async function certifyMediaArtifact(
     let cleaned = true;
     if (runDirectory) {
       cleaned = await cleanupWithRetry(runDirectory, cleanup);
-      if (!cleaned) {
+      if (cleaned) {
+        try {
+          await completeCertificationCleanupLease(root, runDirectory);
+        } catch {
+          cleanupFailed = true;
+        }
+      } else {
         try {
           await recordCertificationCleanupFailure(root, runDirectory);
         } catch {

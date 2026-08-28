@@ -109,7 +109,9 @@ function lifecycleArtifacts(candidate: ComfyStagedCandidate, mode: AdapterModeRe
   return { run, draft, revision };
 }
 
-export function promoteCertifiedComfyCandidate(candidate: ComfyStagedCandidate, evidence: CertificationMediaEvidence): void {
+export function promoteCertifiedComfyCandidate(candidate: ComfyStagedCandidate, evidence: CertificationMediaEvidence[]): {
+  vendorKey: string; modelKey: string;
+} {
   const mode: AdapterModeResult = {
     taskKind: candidate.mapping.taskKind,
     state: "verified",
@@ -124,6 +126,7 @@ export function promoteCertifiedComfyCandidate(candidate: ComfyStagedCandidate, 
     verifiedModes: [{ modelKey: candidate.model.modelKey, taskKind: candidate.mapping.taskKind }],
   });
   if (result.status !== "committed") throw new Error("ComfyUI staged candidate promotion lease expired");
+  return { vendorKey: candidate.vendor.key, modelKey: candidate.model.modelKey };
 }
 
 export function failComfyCandidate(candidate: ComfyStagedCandidate, reasonCode?: string): void {
@@ -145,7 +148,7 @@ export async function certifyTaskOutputAndSettleComfyCandidate(input: {
   urls: readonly string[];
   kind: Extract<CertificationMediaKind, "image" | "video" | "audio" | "model3d">;
   vendorBaseUrl: string;
-}): Promise<void> {
+}): Promise<{ candidate?: ComfyStagedCandidate; evidence: CertificationMediaEvidence[] }> {
   const revisionId = text(input.request.extras?.comfyCertificationRevisionId);
   if (revisionId && !input.modelKey) throw new Error("ComfyUI staged candidate model is missing");
   const candidate = revisionId
@@ -154,12 +157,49 @@ export async function certifyTaskOutputAndSettleComfyCandidate(input: {
   if (input.request.extras?.certifyOutput === true && input.status === "succeeded") {
     try {
       const evidence = await certifyTaskOutputUrls({ urls: input.urls, kind: input.kind, vendorBaseUrl: input.vendorBaseUrl });
-      if (candidate) promoteCertifiedComfyCandidate(candidate, evidence[0]);
+      return { ...(candidate ? { candidate } : {}), evidence };
     } catch (error) {
       if (candidate) failComfyCandidate(candidate, (error as { reasonCode?: string })?.reasonCode);
       throw error;
     }
   } else if (candidate && input.status === "failed") {
     failComfyCandidate(candidate);
+  }
+  return { ...(candidate ? { candidate } : {}), evidence: [] };
+}
+
+export function activeComfyCandidateRevision(revisionId: string): { vendorKey: string; modelKey: string } | null {
+  const state = readCatalog();
+  for (const model of state.models) {
+    const adapter = record(record(model.meta).adapter);
+    if (adapter.activeRevision === revisionId && model.enabled) return { vendorKey: model.vendorKey, modelKey: model.modelKey };
+  }
+  return null;
+}
+
+/** Exact lease cleanup: stale revisions are harmless no-ops and cannot delete a newer candidate. */
+export function failComfyCandidateRevision(input: { revisionId: string; modelKey: string; taskKind: ProfileKind; reasonCode?: string }): void {
+  try {
+    failComfyCandidate(resolveComfyStagedCandidate(input), input.reasonCode);
+  } catch {
+    // Already promoted, already cleaned, or superseded: never broaden cleanup by model identity.
+  }
+}
+
+export async function materializeCertifiedComfyAssets<T>(input: {
+  certification: { candidate?: ComfyStagedCandidate; evidence: CertificationMediaEvidence[] };
+  status: TaskStatus;
+  urls: readonly string[];
+  materialize: (url: string, index: number) => Promise<T>;
+}): Promise<T[]> {
+  try {
+    const assets = await Promise.all(input.urls.map(input.materialize));
+    if (input.certification.candidate && input.status === "succeeded") {
+      promoteCertifiedComfyCandidate(input.certification.candidate, input.certification.evidence);
+    }
+    return assets;
+  } catch (error) {
+    if (input.certification.candidate) failComfyCandidate(input.certification.candidate, (error as { reasonCode?: string })?.reasonCode);
+    throw error;
   }
 }

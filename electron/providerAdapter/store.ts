@@ -49,28 +49,30 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function sanitizeMode(mode: AdapterModeResult): AdapterModeResult {
   const raw = asRecord(mode);
-  const evidence = asRecord(raw.mediaEvidence);
-  const metadata = asRecord(evidence.metadata);
-  const safeMetadata: Record<string, number | string> = {};
-  for (const [key, value] of Object.entries(metadata)) {
-    if (SAFE_METADATA_NUMBERS.has(key) && typeof value === "number" && Number.isFinite(value) && value >= 0) safeMetadata[key] = value;
-    if ((key === "videoCodec" || key === "audioCodec") && typeof value === "string" && /^[A-Za-z0-9_.+-]{1,64}$/.test(value)) {
-      safeMetadata[key] = value;
+  const rawEvidence = Array.isArray(raw.mediaEvidence)
+    ? raw.mediaEvidence.slice(0, 8)
+    : raw.mediaEvidence ? [raw.mediaEvidence] : [];
+  const safeEvidence = rawEvidence.flatMap((item) => {
+    const evidence = asRecord(item);
+    const metadata = asRecord(evidence.metadata);
+    const safeMetadata: Record<string, number | string> = {};
+    for (const [key, value] of Object.entries(metadata)) {
+      if (SAFE_METADATA_NUMBERS.has(key) && typeof value === "number" && Number.isFinite(value) && value >= 0) safeMetadata[key] = value;
+      if ((key === "videoCodec" || key === "audioCodec") && typeof value === "string" && /^[A-Za-z0-9_.+-]{1,64}$/.test(value)) safeMetadata[key] = value;
     }
-  }
-  const safeEvidence = typeof evidence.kind === "string"
-    && ["image", "video", "audio", "model3d"].includes(evidence.kind)
-    && typeof evidence.contentType === "string" && /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/.test(evidence.contentType)
-    && typeof evidence.byteLength === "number" && Number.isSafeInteger(evidence.byteLength) && evidence.byteLength > 0
-    && typeof evidence.sha256 === "string" && /^[a-f0-9]{64}$/.test(evidence.sha256)
-    ? {
-        kind: evidence.kind as "image" | "video" | "audio" | "model3d",
-        contentType: evidence.contentType,
-        byteLength: evidence.byteLength,
-        sha256: evidence.sha256,
-        metadata: safeMetadata,
-      }
-    : undefined;
+    return typeof evidence.kind === "string" && ["image", "video", "audio", "model3d"].includes(evidence.kind)
+      && typeof evidence.contentType === "string" && /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/.test(evidence.contentType)
+      && typeof evidence.byteLength === "number" && Number.isSafeInteger(evidence.byteLength) && evidence.byteLength > 0
+      && typeof evidence.sha256 === "string" && /^[a-f0-9]{64}$/.test(evidence.sha256)
+      ? [{
+          kind: evidence.kind as "image" | "video" | "audio" | "model3d",
+          contentType: evidence.contentType,
+          byteLength: evidence.byteLength,
+          sha256: evidence.sha256,
+          metadata: safeMetadata,
+        }]
+      : [];
+  });
   const params = asRecord(raw.errorParams);
   const safeParams: Record<string, string | number | boolean> = {};
   for (const [key, value] of Object.entries(params)) {
@@ -84,7 +86,7 @@ function sanitizeMode(mode: AdapterModeResult): AdapterModeResult {
   delete base.errorParams;
   return {
     ...base as AdapterModeResult,
-    ...(safeEvidence ? { mediaEvidence: safeEvidence } : {}),
+    ...(safeEvidence.length ? { mediaEvidence: safeEvidence } : {}),
     ...(typeof raw.reasonCode === "string" && SAFE_REASON_CODES.has(raw.reasonCode) ? { reasonCode: raw.reasonCode as AdapterModeResult["reasonCode"] } : {}),
     ...(Object.keys(safeParams).length ? { errorParams: safeParams } : {}),
   };

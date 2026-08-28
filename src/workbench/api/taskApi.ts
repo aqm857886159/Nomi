@@ -87,6 +87,10 @@ export type FetchWorkbenchTaskResultResponseDto = {
   result: TaskResultDto
 }
 
+export type ComfyCandidateTestResultDto =
+  | { ok: true; revisionId: string; active: { vendorKey: string; modelKey: string } }
+  | { ok: false; revisionId: string; reasonCode: string; params: Record<string, string | number | boolean> }
+
 function requireDesktopRuntime(feature: string): DesktopBridge {
   const desktop = getDesktopBridge()
   if (!desktop) throw new Error(`${feature} requires the Electron desktop runtime`)
@@ -118,6 +122,24 @@ export async function runWorkbenchTaskByVendor(vendor: string, request: TaskRequ
       },
     },
   }) as Promise<TaskResultDto>
+}
+
+export async function runComfyCandidateTestByVendor(
+  vendor: string,
+  payload: { request: TaskRequestDto },
+): Promise<ComfyCandidateTestResultDto> {
+  const normalizedVendor = String(vendor || '').trim()
+  if (!normalizedVendor) throw new Error('vendor is required')
+  const desktop = requireDesktopRuntime('ComfyUI candidate certification')
+  if (!desktop.tasks.runComfyCandidateTest) throw new Error('ComfyUI candidate certification is unavailable')
+  const projectId = getDesktopActiveProjectId()
+  return desktop.tasks.runComfyCandidateTest({
+    vendor: normalizedVendor,
+    request: {
+      ...payload.request,
+      extras: { ...(payload.request.extras || {}), ...(projectId ? { projectId } : {}) },
+    },
+  })
 }
 
 export async function fetchWorkbenchTaskResultByVendor(

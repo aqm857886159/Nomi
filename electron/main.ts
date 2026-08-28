@@ -734,6 +734,7 @@ if (hasSingleInstanceLock)
         // Registration is best-effort in dev and on platforms that disallow it.
       }
       registerLocalProtocol();
+      void import("./providerAdapter/certificationMedia").then((m) => m.recoverCertificationMediaStorage()).catch(() => undefined);
       installContentSecurityPolicy(session.defaultSession);
       // Start before exposing IPC/window. Painting is not blocked; appFetch
       // waits for this configuration instead of silently sending early direct.

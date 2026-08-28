@@ -57,6 +57,12 @@ type ProcessTreeDeps = {
   runTaskkill?: (pid: number) => Promise<void>;
 };
 
+type BoundedProcessDependencies = {
+  terminateTree?: (child: ProcessTreeChild, force: boolean) => Promise<void>;
+  cleanupGraceMs?: number;
+  cleanupDeadlineMs?: number;
+};
+
 async function runWindowsTaskkill(pid: number): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     let settled = false;
@@ -113,6 +119,7 @@ export async function runBoundedProcess(
   command: string,
   args: string[],
   options: BoundedProcessOptions,
+  dependencies: BoundedProcessDependencies = {},
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
   if (options.signal?.aborted) throw new BoundedProcessError("cancelled");
   return new Promise((resolve, reject) => {
@@ -136,22 +143,53 @@ export async function runBoundedProcess(
     let stderrBytes = 0;
     let failure: BoundedProcessError | undefined;
     let settled = false;
+    let closeSeen = false;
+    let closeCode: number | null = null;
+    let cleanupPending = 0;
+    let cleanupRejected = false;
     let forceTimer: ReturnType<typeof setTimeout> | undefined;
     let finalTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const finish = () => {
+      if (settled || !closeSeen || cleanupPending > 0) return;
+      settled = true;
+      clearTimeout(timer);
+      if (forceTimer) clearTimeout(forceTimer);
+      if (finalTimer) clearTimeout(finalTimer);
+      options.signal?.removeEventListener("abort", onAbort);
+      if (cleanupRejected) reject(new BoundedProcessError("process_cleanup_failed"));
+      else if (failure) reject(failure);
+      else resolve({
+        code: closeCode,
+        stdout: Buffer.concat(stdoutChunks, stdoutBytes).toString("utf8"),
+        stderr: Buffer.concat(stderrChunks, stderrBytes).toString("utf8"),
+      });
+    };
+
+    const terminate = (force: boolean) => {
+      cleanupPending += 1;
+      let operation: Promise<void>;
+      try { operation = (dependencies.terminateTree || terminateProcessTree)(child, force); }
+      catch { cleanupRejected = true; cleanupPending -= 1; finish(); return; }
+      void operation.then(
+        () => { cleanupPending -= 1; finish(); },
+        () => { cleanupRejected = true; cleanupPending -= 1; finish(); },
+      );
+    };
 
     const stop = (code: string) => {
       if (settled) return;
       failure ??= new BoundedProcessError(code);
       child.stdin?.destroy();
-      void terminateProcessTree(child, false);
-      forceTimer ??= setTimeout(() => void terminateProcessTree(child, true), 250);
+      if (cleanupPending === 0 && !forceTimer && !finalTimer) terminate(false);
+      forceTimer ??= setTimeout(() => { if (!closeSeen) terminate(true); }, dependencies.cleanupGraceMs ?? 250);
       finalTimer ??= setTimeout(() => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
         options.signal?.removeEventListener("abort", onAbort);
         reject(new BoundedProcessError("process_cleanup_failed"));
-      }, 2_500);
+      }, dependencies.cleanupDeadlineMs ?? 2_500);
     };
     const onAbort = () => stop("cancelled");
     const timer = setTimeout(() => stop("timeout"), Math.max(1, options.timeoutMs));
@@ -183,20 +221,10 @@ export async function runBoundedProcess(
     });
     child.on("close", (code) => {
       if (settled) return;
-      settled = true;
-      clearTimeout(timer);
+      closeSeen = true;
+      closeCode = code;
       if (forceTimer) clearTimeout(forceTimer);
-      if (finalTimer) clearTimeout(finalTimer);
-      options.signal?.removeEventListener("abort", onAbort);
-      if (failure) {
-        reject(failure);
-        return;
-      }
-      resolve({
-        code,
-        stdout: Buffer.concat(stdoutChunks, stdoutBytes).toString("utf8"),
-        stderr: Buffer.concat(stderrChunks, stderrBytes).toString("utf8"),
-      });
+      finish();
     });
 
     if (options.signal?.aborted) {

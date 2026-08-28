@@ -113,7 +113,46 @@ describe("verifyAdapterMode", () => {
       allowRedirect: false,
       maxBytes: 12 * 1024 * 1024,
     }));
-    if (verification.ok) expect(verification.mediaEvidence).toMatchObject({ kind: "image", contentType: "image/png" });
+    if (verification.ok) expect(verification.mediaEvidence).toMatchObject([{ kind: "image", contentType: "image/png" }]);
+  });
+
+  it.each([
+    ["HTML", "image/png", mediaFixture("http-200-html.txt"), "media_markup_masquerade"],
+    ["oversize bytes", "image/png", Buffer.alloc(12 * 1024 * 1024 + 1), "media_too_large"],
+    ["wrong media kind", "video/mp4", mediaFixture("valid.mp4"), "media_kind_mismatch"],
+  ])("rejects the whole mode when a second asset is %s", async (_label, contentType, bytes, reasonCode) => {
+    const urls = ["https://cdn.example.com/first.png", "https://cdn.example.com/second.bin"];
+    const execute = vi.fn().mockResolvedValue({ response: {}, request: {} });
+    const normalize = vi.fn().mockResolvedValue({
+      result: result("succeeded", urls.map((url) => ({ type: "image", url }))),
+      providerMeta: {},
+    });
+    const fetchAsset = vi.fn(async (url: string) => url === urls[0]
+      ? { contentType: "image/png", bytes: mediaFixture("valid.png") }
+      : { contentType, bytes });
+
+    const verification = await verifyAdapterMode(
+      { vendor, model, apiKey: "sk-test", mode: mode() },
+      { execute, normalize, fetchAsset },
+    );
+
+    expect(verification.ok).toBe(false);
+    if (!verification.ok) expect(verification.reasonCode).toBe(reasonCode);
+    expect(fetchAsset).toHaveBeenCalledTimes(2);
+  });
+
+  it("persists evidence for every bounded media asset", async () => {
+    const urls = ["https://cdn.example.com/first.png", "https://cdn.example.com/second.png"];
+    const verification = await verifyAdapterMode(
+      { vendor, model, apiKey: "sk-test", mode: mode() },
+      {
+        execute: vi.fn().mockResolvedValue({ response: {}, request: {} }),
+        normalize: vi.fn().mockResolvedValue({ result: result("succeeded", urls.map((url) => ({ type: "image", url }))), providerMeta: {} }),
+        fetchAsset: vi.fn().mockResolvedValue({ contentType: "image/png", bytes: mediaFixture("valid.png") }),
+      },
+    );
+    expect(verification.ok).toBe(true);
+    if (verification.ok) expect(verification.mediaEvidence).toHaveLength(2);
   });
 
   it("polls an asynchronous mapping until it reaches a terminal success", async () => {

@@ -27,6 +27,7 @@ import {
 const TEXT_PROBE_MAX_TOKENS = 2_048;
 
 const REFERENCE_URL = "nomi-local://adapter-test/reference.png";
+const MAX_VERIFIED_ASSETS = 8;
 const REFERENCE_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mP8z8AARAwMjDAGDAAANgQCAf6mRpsAAAAASUVORK5CYII=",
   "base64",
@@ -37,7 +38,7 @@ export type AdapterVerificationResult =
       ok: true;
       taskKind: AdapterModeDraft["taskKind"];
       requestSummary?: unknown;
-      mediaEvidence?: CertificationMediaEvidence;
+      mediaEvidence?: CertificationMediaEvidence[];
     }
   | {
       ok: false;
@@ -273,14 +274,18 @@ export async function verifyAdapterMode(
     }
 
     stage = "verify_asset";
-    const asset = normalized.result.assets[0];
-    if (!asset?.url) throw new Error("Successful task returned no media asset URL");
-    const mediaEvidence = await certifyMedia({
-      source: asset.url,
-      expectedKind: input.model.kind,
-      ...(verifiedOrigin ? { allowedPrivateOrigins: [verifiedOrigin] } : {}),
-      ...(input.signal ? { signal: input.signal } : {}),
-    });
+    const assets = normalized.result.assets;
+    if (!assets.length || assets.some((asset) => !asset?.url)) throw new Error("Successful task returned no media asset URL");
+    if (assets.length > MAX_VERIFIED_ASSETS) throw new Error("Successful task returned too many media assets");
+    const mediaEvidence: CertificationMediaEvidence[] = [];
+    for (const asset of assets) {
+      mediaEvidence.push(await certifyMedia({
+        source: asset.url,
+        expectedKind: input.model.kind,
+        ...(verifiedOrigin ? { allowedPrivateOrigins: [verifiedOrigin] } : {}),
+        ...(input.signal ? { signal: input.signal } : {}),
+      }));
+    }
     return { ok: true, taskKind: input.mode.taskKind, requestSummary, mediaEvidence };
   } catch (error) {
     const message = errorMessage(error);

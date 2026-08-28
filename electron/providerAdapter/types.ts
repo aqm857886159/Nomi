@@ -132,7 +132,8 @@ export type AdapterModeResult = {
   errorCategory?: "auth" | "balance" | "quota" | "input" | "server" | "network" | "unknown";
   httpStatus?: number;
   verifiedAt?: string;
-  mediaEvidence?: CertificationMediaEvidence;
+  /** One bounded, sanitized evidence record for every promoted media asset. */
+  mediaEvidence?: CertificationMediaEvidence[];
   reasonCode?: CertificationMediaReasonCode;
   errorParams?: CertificationMediaErrorParams;
 };

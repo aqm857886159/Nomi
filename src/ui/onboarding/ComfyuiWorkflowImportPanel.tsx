@@ -21,6 +21,8 @@ import { NomiSelect } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { toast } from '../toast'
 import { paramCandidates } from './comfyuiParamCandidates'
+import { runTestGeneration } from './workflowPage/runTestGeneration'
+import { candidateFailureText, candidateFromWorkflowMutation, settleCandidateUiRun, type ComfyCandidateUiState } from './comfyCandidateUiFlow'
 // 类型与参数塑形规则的单一真相源——整页（工作流设置）与这条导入路共用同一份，
 // 抄第二份必然漂（那正是「提示词被参数占位覆盖」反复复发的形状）。
 import {
@@ -120,6 +122,8 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
   const [busy, setBusy] = React.useState(false)
   const [reconcile, setReconcile] = React.useState<Reconcile | null>(null)
   const [uiWorkflowText, setUiWorkflowText] = React.useState('')
+  const [candidate, setCandidate] = React.useState<ComfyCandidateUiState | null>(null)
+  const candidateRef = React.useRef<ComfyCandidateUiState | null>(null)
   const reconcileSeq = React.useRef(0)
 
   // 缺件对账（异步，不阻塞绑定 UI）：分析成功后问本机 /object_info，缺节点/缺模型在导入前就说清。
@@ -183,7 +187,9 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
     return ''
   }, [binding, t])
 
-  const doImport = React.useCallback(() => {
+  React.useEffect(() => { candidateRef.current = candidate }, [candidate])
+
+  const doImport = React.useCallback(async () => {
     if (!binding || !catalog?.importComfyWorkflow) return
     if (paramKeyError) { setError(paramKeyError); return }
     setBusy(true)
@@ -193,6 +199,24 @@ export function ComfyuiWorkflowImportPanel({ onImported, vendorKey }: ComfyuiWor
       const enumOptions = reconcile && reconcile.enumOptions?.length ? reconcile.enumOptions : undefined
       const r = catalog.importComfyWorkflow({ text, binding, labelZh: name, enumOptions, vendorKey, ...(uiWorkflowText ? { uiWorkflowText } : {}) })
       if (!r.ok) { setError(r.error); return }
+      const staged = candidateFromWorkflowMutation(r)
+      if (!staged) { setError('candidate_stage_failed'); return }
+      candidateRef.current = staged
+      setCandidate(staged)
+      const testResult = await runTestGeneration({
+        vendorKey: vendorKey || staged.vendorKey,
+        candidateVendorKey: staged.vendorKey,
+        revisionId: staged.revisionId,
+        modelKey: staged.modelKey,
+        binding,
+        prompt: 'Nomi ComfyUI workflow certification',
+        extras: Object.fromEntries((binding.params ?? []).map((param) => [param.paramKey, param.default])),
+      })
+      const settled = settleCandidateUiRun(candidateRef.current, testResult)
+      if (!settled.applied) return
+      candidateRef.current = settled.candidate
+      setCandidate(settled.candidate)
+      if (!testResult.ok) { setError(candidateFailureText(testResult)); return }
       const kindLabel = r.kind === 'video'
         ? t('onboardingProviders.comfyWorkflow.video')
         : r.kind === 'model3d'

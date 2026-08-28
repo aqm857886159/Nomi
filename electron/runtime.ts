@@ -47,7 +47,7 @@ import { applyHeadlessParamDefaults, imageEditGuardError } from "./catalog/taskP
 import { modelModeBodies } from "./catalog/modelCatalogListing";
 import { runCustomCallTask } from "./catalog/customCallDispatch";
 import { resolveCustomCallExecution } from "./catalog/customCallMode";
-import { certifyTaskOutputAndSettleComfyCandidate, resolveComfyCandidateExecution } from "./catalog/comfyuiCandidateLifecycle";
+import { certifyTaskOutputAndSettleComfyCandidate, materializeCertifiedComfyAssets, resolveComfyCandidateExecution } from "./catalog/comfyuiCandidateLifecycle";
 import { assertAndConsumeSpendGrant } from "./spendGrant";
 export type {
   AiSdkProviderKind,
@@ -187,6 +187,7 @@ export async function localizeTaskAsset(
   assetUrl: string,
   type: "image" | "video" | "audio" | "model3d",
   nodeId?: string, vendor?: Pick<Vendor, "key" | "baseUrlHint">,
+  certificationEvidence?: import("./providerAdapter/certificationMedia").CertificationMediaEvidence,
 ): Promise<TaskResult["assets"][number]> {
   const imported = (await importRemoteAsset({
     projectId,
@@ -194,7 +195,10 @@ export async function localizeTaskAsset(
     kind: "generated",
     ownerNodeId: nodeId || null,
     fileName: localizedTaskAssetFileName(type, assetUrl),
-  }, { trustedPrivateOrigin: trustedLocalOutputOrigin(vendor) || undefined })) as { id?: string; name?: string; data?: { url?: string; absolutePath?: string } };
+  }, {
+    trustedPrivateOrigin: trustedLocalOutputOrigin(vendor) || undefined,
+    ...(certificationEvidence ? { certificationEvidence } : {}),
+  })) as { id?: string; name?: string; data?: { url?: string; absolutePath?: string } };
   const durationSeconds = await probeLocalizedDurationSeconds(type, imported.data?.absolutePath);
   if (type === "image" || type === "video")
     scheduleTechnicalReview({
@@ -306,19 +310,16 @@ export async function buildProfileTaskResult(input: {
     extractTaskIdShared(response),
     input.taskIdFallback,
   );
-  const mappedAssetValues = ["assets", "image_url", "video_url", "model_url"].flatMap((key) =>
-    valuesFromMapping(response, responseMapping, key),
-  );
-  const assetUrls = Array.from(
-    new Set([...mappedAssetValues.flatMap(collectAssetUrls), ...collectAssetUrls(extractAssetUrl(response))]),
-  );
+  const mappedAssetValues = ["assets", "image_url", "video_url", "model_url"].flatMap((key) => valuesFromMapping(response, responseMapping, key));
+  const assetUrls = Array.from(new Set([...mappedAssetValues.flatMap(collectAssetUrls), ...collectAssetUrls(extractAssetUrl(response))]));
   const { status, unrecognizedStatus } = resolveTaskStatus(response, responseMapping, input.mapping.statusMapping, assetUrls);
   const type: "image" | "video" | "model3d" =
     input.wantedKind === "video" ? "video" : input.wantedKind === "model3d" ? "model3d" : "image";
-  await certifyTaskOutputAndSettleComfyCandidate({ request: input.request, modelKey: input.model?.modelKey, status, urls: assetUrls, kind: type, vendorBaseUrl: String(input.vendor?.baseUrlHint || "") });
-  const assets = input.projectId
-    ? await Promise.all(assetUrls.map((url) => localizeTaskAsset(input.projectId || "", url, type, input.nodeId, input.vendor)))
-    : assetUrls.map((url) => unlocalizedTaskAsset(type, url));
+  const certification = await certifyTaskOutputAndSettleComfyCandidate({ request: input.request, modelKey: input.model?.modelKey, status, urls: assetUrls, kind: type, vendorBaseUrl: String(input.vendor?.baseUrlHint || "") });
+  const assets = await materializeCertifiedComfyAssets({ certification, status, urls: assetUrls,
+    materialize: (url, index) => input.projectId
+      ? localizeTaskAsset(input.projectId, url, type, input.nodeId, input.vendor, certification.evidence[index])
+      : Promise.resolve(unlocalizedTaskAsset(type, url)) });
   return {
     providerMeta,
     unrecognizedStatus,

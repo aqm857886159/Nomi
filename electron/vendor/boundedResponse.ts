@@ -1,5 +1,5 @@
 export class BoundedResponseError extends Error {
-  readonly code: "response_too_large" | "response_cancelled" | "response_read_failed";
+  readonly code: "response_too_large" | "response_cancelled" | "response_timeout" | "response_read_failed";
 
   constructor(code: BoundedResponseError["code"], cause?: unknown) {
     super(`Bounded response read failed (${code})`);
@@ -14,7 +14,10 @@ export async function readBoundedResponseText(
   options: { maxBytes: number; signal?: AbortSignal },
 ): Promise<string> {
   if (!Number.isFinite(options.maxBytes) || options.maxBytes < 1) throw new BoundedResponseError("response_read_failed");
-  if (options.signal?.aborted) throw new BoundedResponseError("response_cancelled");
+  const abortedCode = () => options.signal?.reason instanceof Error && options.signal.reason.name === "TimeoutError"
+    ? "response_timeout" as const
+    : "response_cancelled" as const;
+  if (options.signal?.aborted) throw new BoundedResponseError(abortedCode());
   const declared = Number(response.headers.get("content-length") || "0");
   if (!response.body) throw new BoundedResponseError("response_read_failed");
   const reader = response.body.getReader();
@@ -28,10 +31,10 @@ export async function readBoundedResponseText(
   options.signal?.addEventListener("abort", abort, { once: true });
   try {
     while (true) {
-      if (options.signal?.aborted) throw new BoundedResponseError("response_cancelled");
+      if (options.signal?.aborted) throw new BoundedResponseError(abortedCode());
       const { value, done } = await reader.read();
       if (done) {
-        if (options.signal?.aborted) throw new BoundedResponseError("response_cancelled");
+        if (options.signal?.aborted) throw new BoundedResponseError(abortedCode());
         break;
       }
       if (!value) continue;
@@ -44,7 +47,7 @@ export async function readBoundedResponseText(
     }
   } catch (error) {
     if (error instanceof BoundedResponseError) throw error;
-    throw new BoundedResponseError(options.signal?.aborted ? "response_cancelled" : "response_read_failed", error);
+    throw new BoundedResponseError(options.signal?.aborted ? abortedCode() : "response_read_failed", error);
   } finally {
     options.signal?.removeEventListener("abort", abort);
   }

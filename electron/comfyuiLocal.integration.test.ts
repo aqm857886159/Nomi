@@ -31,11 +31,8 @@ import { executeProfileOperation, buildProfileTaskResult, createProject, listPro
 import { COMFYUI_CURATED_MAPPINGS, COMFYUI_CURATED_MODELS } from "./catalog/comfyuiLocal";
 import { applyWireDefaults } from "./catalog/taskParams";
 
-// 1×1 PNG（/view 返回的假图）。
-const PNG_1x1 = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
-  "base64",
-);
+// 真实可解码 PNG：集成链必须经过与生产一致的 decoder certification。
+const PNG_1x1 = fs.readFileSync(path.join(__dirname, "providerAdapter/__fixtures__/certification-media/valid.png"));
 
 let server: http.Server;
 let baseUrl = "";
