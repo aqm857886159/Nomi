@@ -39,8 +39,7 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
     })
     useWorkbenchStore.setState({
       creationAiMessages: [{ id: 'm2', role: 'user', content: 'hello' }],
-      storyboardPlan: { title: 'plan', anchors: [], shots: [] },
-      storyboardPlanCommitted: true,
+      storyboardPlans: { 'doc-a': { plan: { title: 'plan', anchors: [], shots: [] }, committed: true } },
       timeline: { ...createDefaultTimeline(), playheadFrame: 24 },
       selectedTimelineClipIds: ['clip1'],
       timelineUndoStack: [createDefaultTimeline()],

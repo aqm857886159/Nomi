@@ -23,7 +23,7 @@ describe('normalizePayload — storyboardPlan 持久化往返(P0-6)', () => {
 
   it('带方案的 payload 往返不丢(normalizePayload 字段重建式,曾会丢)', () => {
     const out = normalizePayload({ ...createDefaultWorkbenchProjectPayload(), storyboardPlans: { 'doc-1': { plan, committed: false } } })
-    expect(out.storyboardPlans['doc-1'].plan).toEqual(plan)
+    expect(out.storyboardPlans!['doc-1'].plan).toEqual(plan)
   })
 
   it('老项目无 storyboardPlan → 归一化为空映射,不报错', () => {
@@ -49,9 +49,9 @@ describe('normalizePayload — 损坏记录优雅降级（缺可默认字段不�
     const out = normalizePayload(corrupted)
     expect(out.generationCanvas.nodes).toHaveLength(1) // 关键内容保留
     // 默认文档结构（不比 updatedAt——默认用 Date.now()，会 flaky）
-    expect(out.workbenchDocuments).toHaveLength(1)
-    expect(out.workbenchDocuments[0].version).toBe(1)
-    expect(out.workbenchDocuments[0].title).toBe('')
+    expect(out.workbenchDocuments!).toHaveLength(1)
+    expect(out.workbenchDocuments![0].version).toBe(1)
+    expect(out.workbenchDocuments![0].title).toBe('')
     expect(out.timeline.tracks.length).toBeGreaterThan(0) // 默认时间轴轨道补齐
   })
 
@@ -61,9 +61,9 @@ describe('normalizePayload — 损坏记录优雅降级（缺可默认字段不�
       timeline: 42,
       generationCanvas: { nodes: [], edges: [] },
     })
-    expect(out.workbenchDocuments).toHaveLength(1)
-    expect(out.workbenchDocuments[0].version).toBe(1)
-    expect(out.workbenchDocuments[0].title).toBe('')
+    expect(out.workbenchDocuments!).toHaveLength(1)
+    expect(out.workbenchDocuments![0].version).toBe(1)
+    expect(out.workbenchDocuments![0].title).toBe('')
     expect(out.timeline.tracks.length).toBeGreaterThan(0)
   })
 })
