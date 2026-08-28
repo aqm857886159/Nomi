@@ -2,7 +2,6 @@ import crypto, { createHash } from "node:crypto";
 import type { AgentChatRequest, AgentChatResponse, AgentChatToolDecision } from "../harness/agentChatContracts";
 import type { AgentChatV2Hooks } from "../ai/agentChatV2";
 import { captureAgentChatRequest } from "../harness/agentChatPolicy";
-import { CANVAS_READ_CAPABILITY } from "../shared/agentCapabilities/canvasRead";
 import type {
   ProjectAgentExecutionEvent,
   ProjectAgentMutation,
@@ -537,10 +536,11 @@ export function createProjectAgentExecutionCoordinator(
           // ruled out, so no duplicate pending card is possible here.
         },
         awaitToolConfirmation: async (call, signal) => {
-          if (call.toolName === CANVAS_READ_CAPABILITY.aliases.pi) {
-            const read = await canvasReads.get(subscriptionId)?.tryExecute(call, signal);
-            if (read) return read;
-          }
+          // Transport adapters own capability-name matching. The coordinator
+          // only offers the injected adapter a chance to handle a call, so it
+          // cannot become a second tool dispatch/executor owner.
+          const read = await canvasReads.get(subscriptionId)?.tryExecute(call, signal);
+          if (read) return read;
           const decision = await awaitToolDecision(subscriptionId, execution, call, signal);
           if (decision.ok && !decision.silent) {
             try {
