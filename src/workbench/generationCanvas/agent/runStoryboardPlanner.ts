@@ -22,7 +22,7 @@ type StoryboardPlannerInput = {
   onContent?: (text: string) => void
   onCancelReady?: (cancel: () => void) => void
 } & (
-  | { target: 'creation'; history: Extract<AgentChatHistory, { kind: 'persistent' }> }
+  | { target: 'creation'; history: AgentChatHistory }
   | {
       target: 'production'
       history: Extract<AgentChatHistory, { kind: 'ephemeral' }>

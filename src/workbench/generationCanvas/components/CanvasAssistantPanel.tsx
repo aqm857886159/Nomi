@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import i18n from '../../../i18n'
 import { cn } from '../../../utils/cn'
 import { sendGenerationCanvasAgentMessage, type ToolCallEvent } from '../agent/generationCanvasAgentClient'
-import { captureConversationHistory, startNewConversation } from '../../ai/conversationPersistence'
+import type { AgentChatHistory } from '../../../../electron/harness/agentChatContracts'
 import { assertTurnCanWrite } from '../../ai/agentTurnLifecycle'
 import { getActiveWorkbenchProjectId } from '../../project/workbenchProjectSession'
 import { useCanvasTurnStore } from '../agent/canvasTurnController'
@@ -36,11 +36,12 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { handleAiComposerKeyDown } from '../../ai/aiComposerKeyboard'
 import { WorkbenchAiHeaderActions } from '../../ai/WorkbenchAiHeaderActions'
 import AssistantModelPicker from '../../ai/AssistantModelPicker'
-import { useStaleConversationBoundary } from '../../ai/useStaleConversationBoundary'
 import { AttachmentRail } from '../../ai/composer/AttachmentRail'
 import { AutoGrowTextarea } from '../../ai/composer/AutoGrowTextarea'
 import { COMPOSER_ATTACHMENT_ACCEPT, useComposerAttachments } from '../../ai/composer/useComposerAttachments'
 import type { ComposerAttachment } from '../../ai/composer/composerAttachmentTypes'
+import { createProjectAgentThread } from '../../ai/projectAgentUiCommands'
+import { projectAgentProjectionStore } from '../../ai/projectAgentProjectionStore'
 
 type PendingToolCall = {
   turnId: number
@@ -73,6 +74,7 @@ const onlyTalkWarning = (): string => i18n.t('generationCommon.assistant.onlyTal
 
 // 截断提示:finishReason=length 且有正文 = 模型这条输出到达单次上限被切断(别把半截当完整)。
 const truncatedWarning = (): string => i18n.t('generationCommon.assistant.truncatedWarning')
+const EPHEMERAL_AGENT_HISTORY: AgentChatHistory = Object.freeze({ kind: 'ephemeral' })
 
 export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssistantPanelProps): JSX.Element {
   const { t } = useTranslation()
@@ -138,11 +140,11 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
   })
   const draft = useGenerationCanvasStore((state) => state.generationAiDraft)
   const messages = useGenerationCanvasStore((state) => state.generationAiMessages)
-  // S1b 诚实分隔线:气泡有历史而 LLM 记忆为空 → 在历史末尾画「以上对话 AI 已不再记得」。
-  const history = captureConversationHistory('generation', getActiveWorkbenchProjectId())
-  const staleBoundaryId = useStaleConversationBoundary(
-    messages.map((message) => message.id),
-    history,
+  const history = EPHEMERAL_AGENT_HISTORY
+  const activeThreadId = React.useSyncExternalStore(
+    projectAgentProjectionStore.subscribe,
+    () => projectAgentProjectionStore.getState().snapshot?.activeThreadId ?? null,
+    () => null,
   )
   const collapsed = useGenerationCanvasStore((state) => state.generationAiCollapsed)
   const setDraft = useGenerationCanvasStore((state) => state.setGenerationAiDraft)
@@ -160,7 +162,7 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
   React.useEffect(() => {
     setDeviationReport(null)
     setDeviationAnchorId(null)
-  }, [history.binding.sessionKey, history.binding.threadId])
+  }, [activeThreadId])
 
   const {
     isDragging,
@@ -229,7 +231,7 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
       const projectId = getActiveWorkbenchProjectId()
       const snapshot = readGenerationCanvasSnapshot()
       const selectedNodes = generationCanvasTools.read_selected_nodes()
-      const launchHistory = captureConversationHistory('generation', projectId)
+      const launchHistory = EPHEMERAL_AGENT_HISTORY
       const launchMode = mode
       const handle = useCanvasTurnStore.getState().begin()
       setDraft('')
@@ -547,7 +549,7 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
     setDeviationReport(null)
     setDeviationAnchorId(null)
     // 会话历史:归档当前线程(不销毁),建空活动线程,清消息投影;startNewConversation 内部清整笔撤销入口。
-    startNewConversation('generation')
+    void createProjectAgentThread().catch(() => undefined)
     setDraft('')
     clearAttachments()
   }, [clearAttachments, setDraft])
@@ -628,7 +630,6 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
         </div>
         <div className={cn('inline-flex items-center gap-2 ml-auto min-w-0')}>
           <WorkbenchAiHeaderActions
-            area="generation"
             className={cn(
               'generation-canvas-v2-assistant__shared-actions',
               'inline-flex items-center flex-nowrap gap-1',
@@ -657,7 +658,7 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
           不再让两套操作相邻（plan 2026-08-11-nomi-side-viewer-and-fallback N2）。 */}
       <AssistantTimeline
         messages={messages}
-        staleBoundaryId={staleBoundaryId}
+        staleBoundaryId={null}
         onSuggestion={submitAgentMessage}
         pendingToolCalls={pendingToolCalls}
         approveCalls={approveCalls}

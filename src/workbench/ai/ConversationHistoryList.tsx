@@ -7,22 +7,12 @@ import type { TFunction } from 'i18next'
 import { IconPlus, IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import {
-  deleteConversation,
-  getActiveConversationId,
-  getConversationsRevision,
-  listConversations,
-  subscribeConversations,
-  switchConversation,
-} from './conversationPersistence'
-import {
   activateProjectAgentThread,
-  createProjectAgentThread,
-  projectAgentIsReady,
   projectAgentThreads,
   removeProjectAgentThread,
 } from './projectAgentUiCommands'
 import { projectAgentProjectionStore } from './projectAgentProjectionStore'
-import { type ConvArea, threadDisplayTitle } from './conversationThreads'
+import { projectAgentThreadMessages } from './projectAgentUiProjection'
 
 /** 相对时间:刚刚 / N 分钟前 / N 小时前 / 昨天 / M/D。 */
 function relativeTime(ts: number, now: number, t: TFunction): string {
@@ -36,34 +26,32 @@ function relativeTime(ts: number, now: number, t: TFunction): string {
 }
 
 export function ConversationHistoryList({
-  area,
   onNewConversation,
   onClose,
 }: {
-  area: ConvArea
   onNewConversation: () => void
   onClose: () => void
 }): JSX.Element {
   const { t } = useTranslation()
-  const revision = React.useSyncExternalStore(subscribeConversations, getConversationsRevision)
   const hostRevision = React.useSyncExternalStore(projectAgentProjectionStore.subscribe, () => projectAgentProjectionStore.getState().snapshot?.hostRevision ?? -1)
-  const hostReady = projectAgentIsReady()
   const hostSnapshot = projectAgentProjectionStore.getState().snapshot
   const threads = React.useMemo(() => {
-    if (!hostReady || !hostSnapshot) {
-      void revision
-      return listConversations(area)
-    }
+    if (!hostSnapshot) return []
     void hostRevision
     return projectAgentThreads().map((thread) => ({
       id: thread.threadId,
-      title: thread.title ?? '',
+      title:
+        thread.title?.trim() ||
+        projectAgentThreadMessages(hostSnapshot, thread.threadId)
+          .find((message) => message.role === 'user')
+          ?.content.trim()
+          .slice(0, 24) ||
+        t('creationAi.conversationHistory.newConversation'),
       createdAt: Date.parse(thread.createdAt),
       updatedAt: Date.parse(thread.updatedAt),
-      messages: [],
     }))
-  }, [area, hostReady, hostRevision, hostSnapshot, revision])
-  const activeId = hostReady ? projectAgentProjectionStore.getState().snapshot?.activeThreadId ?? null : getActiveConversationId(area)
+  }, [hostRevision, hostSnapshot, t])
+  const activeId = hostSnapshot?.activeThreadId ?? null
   const now = Date.now()
 
   return (
@@ -75,8 +63,7 @@ export function ConversationHistoryList({
           'hover:bg-nomi-ink-05',
         )}
         onClick={() => {
-          if (hostReady) void createProjectAgentThread().catch(() => undefined)
-          else onNewConversation()
+          onNewConversation()
           onClose()
         }}
       >
@@ -102,8 +89,7 @@ export function ConversationHistoryList({
               )}
               onClick={() => {
                 if (!isActive) {
-                  if (hostReady) void activateProjectAgentThread(thread.id).catch(() => undefined)
-                  else switchConversation(area, thread.id)
+                  void activateProjectAgentThread(thread.id).catch(() => undefined)
                 }
                 onClose()
               }}
@@ -111,7 +97,7 @@ export function ConversationHistoryList({
               <span
                 className={cn('flex-1 min-w-0 truncate text-body-sm', isActive ? 'text-nomi-ink' : 'text-nomi-ink-80')}
               >
-                {threadDisplayTitle(thread)}
+                {thread.title}
               </span>
               <span className={cn('shrink-0 text-micro text-nomi-ink-40')}>
                 {relativeTime(thread.updatedAt, now, t)}
@@ -126,8 +112,7 @@ export function ConversationHistoryList({
                   aria-label={t('creationAi.conversationHistory.delete')}
                   onClick={(event) => {
                     event.stopPropagation()
-                    if (hostReady) void removeProjectAgentThread(thread.id).catch(() => undefined)
-                    else deleteConversation(area, thread.id)
+                    void removeProjectAgentThread(thread.id).catch(() => undefined)
                   }}
                 >
                   <IconX size={12} stroke={1.7} />

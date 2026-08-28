@@ -432,11 +432,6 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       return () => ipcRenderer.removeListener("nomi:review:event", listener as never);
     },
   },
-  conversations: {
-    read: (projectId: string) => ipcRenderer.invoke("nomi:conversations:read", { projectId }),
-    write: (projectId: string, payload: { creation: unknown; generation: unknown; committedProposal?: unknown }) =>
-      ipcRenderer.invoke("nomi:conversations:write", { projectId, ...payload }),
-  },
   agents: {
     chatV2Start: (payload: AgentChatStartRequest) =>
       ipcRenderer.invoke("nomi:agents:chatV2:start", payload) as Promise<{ sessionId: string }>,

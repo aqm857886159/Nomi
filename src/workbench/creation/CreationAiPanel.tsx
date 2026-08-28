@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { IconCornerDownLeft, IconCursorText, IconFilePlus, IconMaximize, IconMinimize, IconPaperclip, IconPlayerStopFilled, IconReplace, IconSend2, IconX } from '@tabler/icons-react'
 import { NomiLogoMark, WorkbenchButton, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
-import { captureConversationHistory, startNewConversation } from '../ai/conversationPersistence'
+import type { AgentChatHistory } from '../../../electron/harness/agentChatContracts'
 import { AssistantMessageView, UserMessageBubble } from '../ai/AssistantMessageView'
 import { NoTextModelRecoveryCard } from '../ai/NoTextModelRecoveryCard'
 import { AssistantErrorCard } from '../ai/AssistantErrorCard'
@@ -35,8 +35,6 @@ import { useCreationTurnStore, type PendingDocToolCall, type WriteToolName } fro
 import { createCreationToolHandler } from './creationToolCalls'
 import { getActiveWorkbenchProjectId } from '../project/workbenchProjectSession'
 import { AttachmentRail } from '../ai/composer/AttachmentRail'
-import { StaleConversationDivider } from '../ai/staleConversationDivider'
-import { useStaleConversationBoundary } from '../ai/useStaleConversationBoundary'
 import { AutoGrowTextarea } from '../ai/composer/AutoGrowTextarea'
 import { COMPOSER_ATTACHMENT_ACCEPT, useComposerAttachments } from '../ai/composer/useComposerAttachments'
 import { useRafCoalesce } from '../ai/useRafCoalesce'
@@ -45,6 +43,7 @@ import { snapshotScriptDraft } from './scriptDraftSnapshot'
 import type { ProjectAgentExecutionEvent } from '../../../electron/shared/projectAgentContracts'
 import { enqueueProjectAgentTurn, decideProjectAgentTool, stopProjectAgentTurn, subscribeProjectAgentEvents } from '../ai/projectAgentTurnCommands'
 import { projectAgentProjectionStore } from '../ai/projectAgentProjectionStore'
+import { createProjectAgentThread } from '../ai/projectAgentUiCommands'
 import type { AgentTurnHandle } from '../ai/agentTurnLifecycle'
 
 const CREATION_PROJECT_AGENT_TOOL_NAMES = new Set([
@@ -55,6 +54,8 @@ const CREATION_PROJECT_AGENT_TOOL_NAMES = new Set([
   'replace_selection',
   'append_to_end',
 ])
+
+const EPHEMERAL_AGENT_HISTORY: AgentChatHistory = Object.freeze({ kind: 'ephemeral' })
 
 export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => void } = {}): JSX.Element {
   const { t } = useTranslation()
@@ -78,7 +79,6 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   const setActiveSkill = useWorkbenchStore((state) => state.setCreationActiveSkill)
   const draft = useWorkbenchStore((state) => state.creationAiDraft)
   const messages = useWorkbenchStore((state) => state.creationAiMessages)
-  const staleBoundaryId = useStaleConversationBoundary(messages.map((message) => message.id), captureConversationHistory('creation', getActiveWorkbenchProjectId()))
   // 分镜方案卡挂在「产出它的那条消息」下面（治「卡片跟着对话跑」）。取**最后一条**带标消息：
   // 改方案会新产出一条带标的，卡片随之前移，永远只显示一张。
   // 两种没有锚的情形（都不是 fallback，是「方案在本线程里没有家」这个事实的诚实呈现）：
@@ -259,7 +259,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
   const launchStoryboardPlanning = React.useCallback((displayPrompt: string = t('creationAi.storyboardCommand'), revisionRequest?: string, shotMode: 'image' | 'video' | 'image-video' = 'image') => {
     if (turn.getState().sending) return
     const projectId = getActiveWorkbenchProjectId()
-    const history = captureConversationHistory('creation', projectId)
+    const history = EPHEMERAL_AGENT_HISTORY
     // P0-9 Slice 3：已有未落画布的方案 + 用户给了修改要求 → 进「改方案」模式（基于现方案改，不从头拆）。
     const store = useWorkbenchStore.getState()
     const currentPlan = store.storyboardPlan
@@ -488,7 +488,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     projectAgentHandleRef.current = null
     turn.getState().abandon()
     // 会话历史:归档当前线程(不销毁),建空活动线程,清面板消息投影。
-    startNewConversation('creation')
+    void createProjectAgentThread().catch(() => undefined)
     // 清 session 态(draft/附件/error 不落盘,不入线程)。
     setDraft('')
     clearAttachments()
@@ -537,7 +537,6 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
             的决策位，和模型选择器并排。头部这颗不再保留：同一功能两个家 = P1/§1.5 一功能一个家。 */}
         <div className={cn('inline-flex items-center gap-2 ml-auto min-w-0')}>
           <WorkbenchAiHeaderActions
-            area="creation"
             className={cn('inline-flex items-center flex-nowrap gap-1')}
             actionClassName={cn(
               'size-6 inline-grid place-items-center shrink-0',
@@ -667,7 +666,6 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
                 />
               )}
               {message.id === storyboardAnchorId ? <StoryboardPlanCard /> : null}
-              {message.id === staleBoundaryId ? <StaleConversationDivider /> : null}
             </React.Fragment>
           ))
         )}

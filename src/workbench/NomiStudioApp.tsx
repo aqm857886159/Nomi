@@ -20,12 +20,6 @@ import { useGenerationCanvasStore } from './generationCanvas/store/generationCan
 import { readGenerationCanvasSnapshot } from './generationCanvas/agent/generationCanvasTools'
 import { FOCUS_GENERATION_NODE_EVENT } from './generationCanvas/nodes/nodeSizing'
 import { focusCanvasNodeWhenReady } from './deepLinkFocus'
-import {
-  flushConversationsNow,
-  initConversationPersistence,
-  loadProjectConversations,
-  setProjectAgentCutoverActive,
-} from './ai/conversationPersistence'
 import { projectAgentClient } from './ai/projectAgentClient'
 import { projectAgentProjectionStore } from './ai/projectAgentProjectionStore'
 import { installProjectAgentSnapshotToUi } from './ai/projectAgentUiProjection'
@@ -239,7 +233,6 @@ export default function NomiStudioApp(): JSX.Element {
     setDesktopActiveProjectId(activeProject?.id)
   }, [activeProject?.id])
 
-  React.useEffect(() => initConversationPersistence(() => activeProjectIdRef.current ?? null), [])
   React.useEffect(() => {
     try {
       const unbind = projectAgentClient.onPatch((patch) => {
@@ -323,8 +316,6 @@ export default function NomiStudioApp(): JSX.Element {
       event.stopPropagation()
       if (hardReloadingRef.current) return
       hardReloadingRef.current = true
-      const projectId = activeProjectIdRef.current
-      flushConversationsNow(projectId)
       void import('./project/workbenchProjectSession')
         .then(({ persistActiveWorkbenchProjectNow }) => persistActiveWorkbenchProjectNow())
         .catch((error: unknown) => {
@@ -372,13 +363,8 @@ export default function NomiStudioApp(): JSX.Element {
         // S1 治串台:切项目时交换两个 AI 面板的对话桶(存旧载新),气泡不再跨项目漂移。
         const prevProjectId = activeProjectIdRef.current ?? null
         if (prevProjectId !== hydrated.id) {
-          // 先冲刷旧项目的落盘(取消挂起防抖,防把新项目内容写进旧文件)。
-          flushConversationsNow(prevProjectId)
           useWorkbenchStore.getState().swapCreationAiProject(prevProjectId, hydrated.id)
           swapGenerationAiProject(prevProjectId, hydrated.id)
-          // Desktop Host migration owns the legacy source. Web/local-only
-          // runtimes retain their existing adapter until a Host is available.
-          if (!getDesktopBridge()?.projectAgent) void loadProjectConversations(hydrated.id)
         }
         activeProjectIdRef.current = hydrated.id
         // 同步喂全局（不等 effect 滞后一拍）：切项目瞬间拖图上传时 resolveProjectId 取的就是新项目，
@@ -397,7 +383,6 @@ export default function NomiStudioApp(): JSX.Element {
           surfaceEpoch.assertCurrent()
           projectAgentSubscriptionRef.current = opened.subscriptionId
           projectAgentProjectionStore.install(opened.subscriptionId, opened.snapshot)
-          setProjectAgentCutoverActive(true)
           // The Host snapshot is the sole display source after cutover.
           installProjectAgentSnapshotToUi(opened.snapshot)
         }
@@ -707,14 +692,12 @@ export default function NomiStudioApp(): JSX.Element {
       console.error('project Surface release failed', error)
       return
     }
-    const previousProjectId = activeProjectIdRef.current
     const previousSubscription = projectAgentSubscriptionRef.current
     if (previousSubscription) {
       await projectAgentClient.release(previousSubscription).catch(() => undefined)
       projectAgentSubscriptionRef.current = null
       projectAgentProjectionStore.clear()
     }
-    flushConversationsNow(previousProjectId)
     const unbindPersistence = projectPersistenceUnbindRef.current
     projectPersistenceUnbindRef.current = null
     unbindPersistence?.()
