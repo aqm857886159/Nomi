@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { serializeManifest } from "./exportManifest";
+import { assertValidExportAuditManifest, serializeExportAuditManifest } from "./exportAuditManifest";
 import { createExportTempDir } from "./exportPaths";
 import type { ExportJobSnapshot } from "./exportJobManager";
 
@@ -21,7 +21,7 @@ export class ExportJobStore {
   create(snapshot: ExportJobSnapshot): ExportJobSnapshot {
     const jobDir = createExportTempDir(snapshot.projectDir, snapshot.id);
     const stored = { ...snapshot, jobDir };
-    writeJson(path.join(jobDir, "manifest.json"), JSON.parse(serializeManifest(stored.manifest)));
+    writeJson(path.join(jobDir, "manifest.json"), JSON.parse(serializeExportAuditManifest(stored.manifest)));
     writeJson(path.join(jobDir, "job.json"), stored);
     fs.closeSync(fs.openSync(path.join(jobDir, "export.log"), "a"));
     appendLog(jobDir, `created job ${stored.id} with status ${stored.status}`);
@@ -30,6 +30,28 @@ export class ExportJobStore {
 
   save(snapshot: ExportJobSnapshot): ExportJobSnapshot {
     fs.mkdirSync(snapshot.jobDir, { recursive: true });
+    const manifestPath = path.join(snapshot.jobDir, "manifest.json");
+    const serialized = JSON.parse(serializeExportAuditManifest(snapshot.manifest));
+    if (fs.existsSync(manifestPath)) {
+      const existing = readJson<unknown>(manifestPath);
+      let existingIsCanonicalAudit = true;
+      try {
+        assertValidExportAuditManifest(existing);
+      } catch {
+        existingIsCanonicalAudit = false;
+      }
+      if (existingIsCanonicalAudit && JSON.stringify(existing) !== JSON.stringify(serialized)) {
+        throw new Error("Export audit manifest is immutable after job creation");
+      }
+      if (!existingIsCanonicalAudit) {
+        if (snapshot.manifestIntegrity === "canonical") {
+          throw new Error("Canonical export job cannot replace legacy manifest evidence");
+        }
+        writeJson(manifestPath, serialized);
+      }
+    } else {
+      writeJson(manifestPath, serialized);
+    }
     writeJson(path.join(snapshot.jobDir, "job.json"), snapshot);
     appendLog(snapshot.jobDir, `saved job ${snapshot.id} with status ${snapshot.status}`);
 

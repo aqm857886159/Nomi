@@ -1,0 +1,150 @@
+{
+  "phase": "4",
+  "title": "ProductionRun, destructive Canvas, media, export, and cutover call surface",
+  "baseline": "668b9bb1c01d3b7dc74deb47f2c49c094ba3d8e3",
+  "currentOwners": {
+    "piDescriptors": [
+      "electron/harness/tools/canvasDescriptors.ts",
+      "electron/harness/tools/timelineDescriptors.ts",
+      "electron/harness/agentChatPolicy.ts"
+    ],
+    "rendererApprovalAndDispatch": [
+      "src/workbench/generationCanvas/agent/gate.ts",
+      "src/workbench/generationCanvas/components/CanvasAssistantPanel.tsx",
+      "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "src/workbench/timeline/agent/timelineToolCall.ts"
+    ],
+    "directPaidRendererPath": [
+      "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts run_generation_batch",
+      "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "src/workbench/api/taskApi.ts mintSpendGrant"
+    ],
+    "paidDomainAuthority": [
+      "electron/productionRun/productionRunRepository.ts",
+      "electron/productionRun/productionRunService.ts",
+      "electron/productionRun/budgetLedger.ts",
+      "electron/productionRun/productionRunApprovalReceipt.ts",
+      "electron/productionRun/productionGenerationSubmission.ts",
+      "electron/productionRun/submissionOutbox.ts",
+      "electron/productionRun/productionGenerationOperationStore.ts",
+      "electron/productionRun/multiShotBatchScheduler.ts"
+    ],
+    "legacyPaidMcpPath": [
+      "electron/capabilityCore/mcpToolCatalog.ts nomi_generate",
+      "electron/capabilityCore/mcpProtocol.ts nomi_generate special cases",
+      "electron/capabilityCore/dispatcher.ts generate",
+      "electron/capabilityCore/core.ts direct task execution",
+      "electron/capabilityCore/mcpGenerationPolicy.ts legacy route classification"
+    ],
+    "semanticPaidMcpPath": [
+      "electron/capabilityCore/generationDispatcher.ts",
+      "electron/capabilityCore/mcpGenerationTools.ts",
+      "electron/capabilityCore/appIntegration.ts",
+      "electron/productionRun/productionGenerationOperationStore.ts"
+    ],
+    "productionRunRpcOwners": [
+      "electron/capabilityCore/dispatcher.ts production.start / production.get / production.control / production.decide-gate",
+      "electron/capabilityCore/mcpToolCatalog.ts handwritten ProductionRun schemas",
+      "electron/productionRun/productionRunService.ts"
+    ],
+    "exportTaskAuthority": [
+      "electron/export/exportJobManager.ts",
+      "electron/export/exportJobStore.ts",
+      "electron/export/exportJobs.ts",
+      "electron/export/exportManifest.ts"
+    ],
+    "productionExportAuthority": [
+      "electron/productionRun/productionRunDriverOps.ts driveExport",
+      "electron/productionRun/productionRunArtifactOperations.ts"
+    ],
+    "agentCutover": [
+      "electron/projectAgentHost/projectAgentCutoverManifest.ts",
+      "electron/projectAgentHost/projectAgentMigration.ts",
+      "electron/main.ts prepareProject"
+    ]
+  },
+  "targetOwners": {
+    "contracts": "electron/shared/agentCapabilities owns canonical schemas and projection metadata",
+    "host": "Project Agent Host owns only Thread/Turn/Item, human proposal lifecycle, TaskRef, and ArtifactRef",
+    "paidGeneration": "ProductionRun owns run, gate, budget, provider job, receipt, recovery, cancellation, and artifact facts",
+    "standaloneExport": "ExportJobManager plus ExportJobStore owns job lifecycle and the persisted audit manifest",
+    "canvasDelete": "the existing Canvas proposal transaction and Undo journal own mutation and reversal",
+    "media": "the existing active-project media index and local waveform decoder own source facts; capability results are safe projections",
+    "cutover": "the existing archive-only manifest owns the one-way Agent switch; domain stores are preserved, not migrated"
+  },
+  "aliases": {
+    "mediaRead": [
+      "get_media",
+      "inspect_media",
+      "search_media",
+      "inspect_source_range",
+      "read_waveform"
+    ],
+    "canvasDestructive": [
+      "delete_canvas_nodes"
+    ],
+    "paidGeneration": [
+      "run_generation_batch"
+    ],
+    "productionRunCanonicalization": [
+      "production.start",
+      "production.get",
+      "production.events",
+      "production.control",
+      "production.decide-gate"
+    ],
+    "exportRead": [
+      "inspect_export_job",
+      "verify_render"
+    ],
+    "exportWrite": [
+      "export_timeline",
+      "cancel_export_job"
+    ],
+    "paidMcpLegacyToRetire": [
+      "nomi_generate"
+    ]
+  },
+  "deletionDebt": [
+    "handwritten Phase 4 aliases in canvasDescriptors.ts and timelineDescriptors.ts",
+    "Phase 4 TOOL_META and lock-policy literals in generationCanvas/agent/gate.ts",
+    "Phase 4 renderer direct-dispatch branches in applyCanvasToolCall.ts and timelineToolCall.ts",
+    "run_generation_batch mintSpendGrant -> runPlanWithToasts paid submission path",
+    "advertised and routable nomi_generate direct-provider MCP path plus its special progress/widget cases",
+    "any Host item or panel state that copies ProductionRun or ExportJob status instead of storing a reference"
+  ],
+  "knownIntegrityGap": {
+    "symptom": "electron/export/exportJobs.ts can sanitize a current WebM transition manifest by replacing timeline.tracks with [] and assets with {} before persistence.",
+    "classRoot": "the execution fallback manifest and the durable audit manifest are represented by one mutable shape, so compatibility can erase source truth.",
+    "requiredPrevention": "persist an immutable canonical audit manifest and derive any backend-specific execution plan separately; add a root-cause contract and structural regression checks."
+  },
+  "focusedTests": [
+    "electron/shared/agentCapabilities/*.test.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts",
+    "electron/projectAgentHost/projectAgentMigration.test.ts",
+    "electron/productionRun/productionGenerationSubmission.test.ts",
+    "electron/productionRun/submissionOutbox.test.ts",
+    "electron/productionRun/budgetLedger.test.ts",
+    "electron/productionRun/productionRunResume.test.ts",
+    "electron/export/exportManifest.test.ts",
+    "electron/export/exportJobManager.test.ts",
+    "electron/export/exportJobStore.test.ts",
+    "electron/export/exportJobs tests via focused integration files",
+    "src/workbench/generationCanvas/agent/runGenerationBatchTool.test.ts",
+    "src/workbench/timeline/agent/exportToolCall.test.ts",
+    "scripts/check-capability-owners.node-test.mjs"
+  ],
+  "hardFail": [
+    "an Agent-paid action can reach mintSpendGrant, renderer generation queue, provider submit, or a second ledger without a ProductionRun and exact human receipt",
+    "the immutable provider-submission envelope digest differs between Host approval, the one correlated ProductionRun gate receipt, and the actual submitted provider payload, or a mismatch reaches budget reservation, ledger mutation, outbox intent, or provider submit",
+    "unknown provider submission is automatically retried or replayed after restart",
+    "any of get_media, inspect_media, search_media, inspect_source_range, or read_waveform accepts a stale/cross-project binding, exceeds its result/range/sample bound, exposes a local/relative/absolute/provider URL or bytes, or claims semantic understanding",
+    "a legacy nomi_generate direct path remains in catalog/list/schema, MCP protocol special cases, dispatcher/core routing, or generation-policy classification after the paid cutover",
+    "Host, TaskCenter, MCP, or UI copies business status and becomes a shadow task owner",
+    "a standalone export result exposes paths or records an audit manifest different from the actual canonical timeline/execution inputs",
+    "standalone export status/cancel trusts a renderer-supplied bare jobId without exact current immutable project identity, a ProductionRun-driven export creates a second ExportJob/ledger, or a TaskRef copies status/budget/provider/progress lifecycle facts",
+    "cutover writes its marker before every archive is durable, restores a legacy approval/Undo/execution/dual writer in a crash window, invalidates a domain task, resubmits submission_unknown work, or archives, clears, replays, or mutates ProductionRun, ExportJob, document, Canvas, media, or generated-result data",
+    "a capability loses its input/output reference role, uses an untyped cancel, fabricates an ETA, claims success without a project-bound reviewable artifact, or exposes a path/provider-bearing projection",
+    "a migrated alias remains independently described, gated, dispatched, or executed outside Registry and the canonical domain owner"
+  ]
+}

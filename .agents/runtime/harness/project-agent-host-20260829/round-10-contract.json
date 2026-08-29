@@ -1,0 +1,101 @@
+{
+  "round": 10,
+  "phase": "4",
+  "batch": "production-export-and-cutover-closure",
+  "goal": "Move the remaining embedded Agent media, destructive Canvas, paid generation, and export aliases onto canonical Registry and Project Agent Host routes; make ProductionRun the only paid-generation authority, keep ExportJob as the standalone export authority, retire direct paid/provider paths, and close the archive-only cutover without migrating old Agent execution state.",
+  "baseline": {
+    "branch": "codex/project-agent-host-phase1-20260827",
+    "checkpoint": "668b9bb1c01d3b7dc74deb47f2c49c094ba3d8e3",
+    "draftPr": 223,
+    "mainIntegration": "forbidden until this round passes; integrate the then-current origin/main once at the combined Phase 3/4 exit"
+  },
+  "ownedTasks": [
+    "asset.read@v1 for get_media, inspect_media, search_media, inspect_source_range, and read_waveform",
+    "a destructive Canvas capability for delete_canvas_nodes with exact target and revision evidence",
+    "canonical ProductionRun read, start, control, gate-decision, and paid-generation contracts over the existing service",
+    "a paid ProductionRun capability for run_generation_batch with one human-receipt authority",
+    "export read/write capabilities for export_timeline, inspect_export_job, verify_render, and cancel_export_job",
+    "TaskRef projection for ProductionRun and standalone ExportJob facts",
+    "retirement of direct renderer spend submission and legacy nomi_generate provider submission",
+    "export manifest truth and archive-only Project Agent cutover closure"
+  ],
+  "deliverables": [
+    "Registry owns strict schemas, aliases, effects, scopes, targets, approvals, availability, and safe projections for every migrated alias. No migrated alias remains a handwritten Pi descriptor, TOOL_META entry, renderer dispatcher branch, or independent policy owner.",
+    "Media reads use the active main-issued project binding and return stable asset identity plus bounded technical data. They never return local URLs, relative paths, absolute paths, provider URLs, media bytes, or a claim of semantic visual/audio understanding.",
+    "delete_canvas_nodes freezes the exact nodes, current result pointers, group membership, and incident edge relation before approval. It executes through the existing Canvas proposal/Undo transaction and creates no second delete or Undo owner.",
+    "Production read, start, control, and gate decisions use strict Registry contracts over the existing ProductionRun service; neither MCP nor Host owns a parallel run state machine. run_generation_batch freezes one bounded immutable provider-submission envelope containing the exact node/result references, model/provider route, normalized generation parameters, job set, and budget ceiling. Its canonical digest is the single authorization identity: one Host human decision is correlated one-to-one with one ProductionRun gate receipt that records the same digest, and the actual provider payload must recompute to that approved digest. Any mismatch fails before budget reservation, ledger mutation, outbox intent, or provider submission. ProductionRun alone owns budget entries, gate receipt, idempotent provider submission, jobs, recovery, cancellation, artifacts, and result landing; Host stores only a TaskRef and safe artifact refs.",
+    "The renderer no longer mints a spend grant or dispatches its local generation queue for an Agent batch. The external nomi_generate direct provider path is removed from the advertised/routable MCP surface rather than wrapped as canonical; the existing semantic generation/ProductionRun path remains the only paid MCP route until Phase 5 derives its final projection from Registry.",
+    "Standalone timeline export keeps ExportJobManager/ExportJobStore as its one durable task owner. Host stores only an export-job TaskRef; inspect, verify, cancel, TaskCenter, and UI read the same persisted snapshot. Main binds every status/cancel call to the current immutable project identity instead of trusting a renderer-supplied bare jobId. A ProductionRun-driven export continues to project its own Run artifact and is not shadow-written into a second Run or ledger.",
+    "The persisted export manifest describes the actual timeline, tracks, assets, transitions, text, and audio mode used to produce the output. Compatibility may transform a private execution plan, but it may not overwrite the audit manifest with empty tracks/assets or claim mute when audio was rendered.",
+    "Project Agent cutover remains archive-only: old conversations, Pi context, and old proposal receipts are read-only archives; pending or ambiguous legacy execution is never replayed. Documents, Canvas, media, generated results, ExportJobs, and ProductionRuns are outside the Agent archive and remain intact. No legacy writer or dual-write fallback survives."
+  ],
+  "verificationPlan": [
+    {
+      "criterion": "Paid generation has one durable authority and one provider submission identity.",
+      "howToCheck": "Focused Registry, Host coordinator, ProductionRun repository/ledger/submission/recovery, and owner-structure tests prove one immutable provider-submission envelope digest across the Host decision, exactly one correlated ProductionRun gate receipt, and the actual provider payload. Tests mutate model, route, parameter, reference, job set, and budget after approval and prove each mismatch fails before budget reservation, ledger mutation, outbox intent, or provider submit. They also prove one run/job/provider idempotency key, zero renderer spend grants, zero direct Agent queue submission, and no automatic retry for unknown submission state.",
+      "hardFail": true
+    },
+    {
+      "criterion": "All five media aliases are bounded, project-bound technical reads with no secret-bearing output.",
+      "howToCheck": "Focused Registry/schema, verified-invocation, Surface rotation, and media adapter tests exercise get_media, inspect_media, search_media, inspect_source_range, and read_waveform individually. Every alias rejects stale or cross-project bindings, caps result counts/ranges/waveform samples, and returns only its strict DTO. Tests reject or scan out local URLs, relative paths, absolute paths, provider URLs, bytes/base64, unbounded metadata, and semantic visual/audio understanding claims.",
+      "hardFail": true
+    },
+    {
+      "criterion": "Destructive Canvas execution is exact-target, approved, reversible, and project-scoped.",
+      "howToCheck": "Focused Surface and proposal-transaction tests cover stale node/result/group/edge evidence, project rotation, decline, cancellation, one Undo entry, replay, and exact receipt correlation.",
+      "hardFail": true
+    },
+    {
+      "criterion": "Export status and manifest are truthful and single-owner.",
+      "howToCheck": "Focused export manifest/job/store/Agent transport tests compare persisted manifest fields to the canonical Timeline and actual execution inputs, cover restart/inspect/cancel/empty output, and assert safe path-free Host results plus one export-job TaskRef. Status/cancel rejects a bare jobId unless main also binds it to the exact current immutable project identity, including project rotation. ProductionRun-driven export creates no ExportJob or second ledger. TaskRef contains identifiers and safe references only, never copied status, budget, provider receipt, progress, or lifecycle fields.",
+      "hardFail": true
+    },
+    {
+      "criterion": "The legacy nomi_generate provider route is absent from every advertised and routable surface.",
+      "howToCheck": "Owner and protocol tests prove nomi_generate is absent from catalog/list/schema, MCP protocol progress/widget special cases, dispatcher routing, core direct task execution, and legacy generation-policy classification. A direct invocation receives unknown-tool rejection and cannot reach a provider stub; the semantic ProductionRun route remains available.",
+      "hardFail": true
+    },
+    {
+      "criterion": "Archive-only cutover preserves works and durable tasks while invalidating legacy Agent execution.",
+      "howToCheck": "Focused migration/crash-window tests prove every required archive copy/rename is durable before the cutover marker, inject failure at each copy/rename/marker window, and prove restart idempotency with no old approval, Undo, execution replay, or dual write. Domain-state matrices prove pre-existing pending, running, submission_unknown, and cancel_requested ProductionRuns still reconcile through the existing service without resubmitting unknown work, and pre-existing active ExportJobs remain inspectable, cancellable, and restart-recoverable. Document, Canvas, media, generated-result, ProductionRun, and ExportJob data remains byte-identical and outside legacy invalidation.",
+      "hardFail": true
+    },
+    {
+      "criterion": "Phase 4 projections preserve reference roles, typed cancellation, honest ETA, and reviewable artifacts without creating shadow owners.",
+      "howToCheck": "Focused Registry/Host/TaskRef/ArtifactRef tests require each input/output reference to retain its declared role, cancellation to use a typed domain command and terminal/non-cancellable outcome, ETA to be omitted or explicitly unknown unless derived from the domain owner, and every claimed result to resolve to a project-bound reviewable artifact. Path-bearing, provider-bearing, copied lifecycle, fabricated ETA, and unreviewable success projections fail closed.",
+      "hardFail": true
+    },
+    {
+      "criterion": "Only changed fingerprints are revalidated during implementation.",
+      "howToCheck": "Record every admitted command in .agents/runtime/harness/project-agent-host-20260829/round-10-evidence.json with criterion, exact command/files, source-fixture-dependency-environment fingerprint, result, failure signature/classification, and next allowed command. Run direct RED/GREEN files only, then one Phase 4 focused matrix, app/Electron/Pi TypeScript, scoped lint, capability-owner/vocabulary/root-cause gates, and git diff --check. Do not run repository full test/build/package before the combined Phase 3/4 exit.",
+      "hardFail": true
+    }
+  ],
+  "nonGoals": [
+    "Migrate old chat text, Pi context, old pending approvals, ambiguous old Agent turns, or old proposal receipts into live Host state.",
+    "Create a second ProductionRun, budget ledger, provider receipt store, export job store, Canvas transaction, Undo history, task status, or artifact owner.",
+    "Force arbitrary standalone timeline exports into a synthetic ProductionRun; a stable export-job TaskRef is sufficient because export is not a paid generation authority.",
+    "Complete final MCP/Skill audience and list/read projection; Phase 5 owns that projection after the paid legacy route is closed.",
+    "Redesign persistent Agent UI, run packaged GUI journeys, run repository full gates, or integrate main before this round passes."
+  ],
+  "handoffPaths": [
+    "electron/shared/agentCapabilities",
+    "electron/capabilityCore/capabilityExecutorRegistry.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+    "electron/shared/projectAgentContracts.ts",
+    "electron/shared/capabilityTargeting.ts",
+    "electron/productionRun",
+    "electron/export",
+    "electron/harness/agentChatPolicy.ts",
+    "electron/harness/tools/canvasDescriptors.ts",
+    "electron/harness/tools/timelineDescriptors.ts",
+    "src/workbench/generationCanvas/agent",
+    "src/workbench/timeline/agent",
+    "src/workbench/taskCenter"
+  ],
+  "roleBounds": {
+    "writer": "The root agent owns production edits in the current worktree after evaluator contract review.",
+    "reviewer": "The evaluator first reviews this contract, then performs a read-only evidence review of the completed batch and reports P0/P1/P2 findings without broadening scope.",
+    "orchestrator": "Only the root agent may stage, commit, push, update the Draft PR, or integrate main after focused PASS."
+  }
+}

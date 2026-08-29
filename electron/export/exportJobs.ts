@@ -2,14 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { absolutePathFromLocalAssetUrlAnyProject } from "../assets/localAssetFile";
 import { assertProjectExportRelativePath } from "./exportPaths";
-import { ExportJobManager, type ExportJobEvent, type ExportJobSnapshot } from "./exportJobManager";
+import { ExportJobManager, type ExportJobEvent, type ExportJobProjectIdentity, type ExportJobSnapshot } from "./exportJobManager";
 import { assertValidManifest, type NomiRenderManifestV1 } from "./exportManifest";
+import { createExportAuditManifest, deriveWebmExecutionManifest } from "./exportAuditManifest";
 import { planExport } from "./exportPlanner";
 import { ExportCancelledError, renderFiltergraphToMp4, transcodeWebmFileToMp4, transcodeWebmToMp4, type TimelineMp4ExportResult } from "./ffmpegRunner";
 import { compileFfmpegFiltergraph, type FfmpegFiltergraphPlan, type FfmpegTextOverlayInput } from "./ffmpegFiltergraph";
 import { probeMediaMetadata } from "./mediaProbe";
 import { appendExportTempInputChunk, finishExportTempInput as finishExportTempInputFile, removeExportTempInput } from "./exportTempInput";
 import { ensureProjectFolders, projectDirById, resolveProjectRelativePath } from "../projects/repository";
+import { ensureWorkspaceProjectIdentity } from "../workspace/workspaceProjectIdentity";
 
 type TimelineMp4ExportRequest = {
   projectId?: string;
@@ -50,43 +52,11 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function hasUnresolvedRendererAssets(manifest: NomiRenderManifestV1): boolean {
-  return Object.values(manifest.assets).some((asset) => !isPlainRecord(asset) || typeof asset.absolutePath !== "string");
-}
-
 function isCurrentWebmTransitionRendererManifest(value: unknown): value is Record<string, unknown> {
   if (!isPlainRecord(value)) return false;
   const diagnostics = value.diagnostics;
   if (!isPlainRecord(diagnostics) || !Array.isArray(diagnostics.warnings)) return false;
   return diagnostics.warnings.some((warning) => typeof warning === "string" && /webm|capture|renderer|unresolved|unsupported tracks/i.test(warning));
-}
-
-function sanitizeCurrentWebmTransitionManifest(value: Record<string, unknown>): unknown {
-  const timeline = isPlainRecord(value.timeline) ? value.timeline : {};
-  return {
-    ...value,
-    timeline: {
-      ...timeline,
-      tracks: [],
-    },
-    assets: {},
-  };
-}
-
-function parseExportJobManifest(value: unknown): NomiRenderManifestV1 {
-  const manifestValue = isCurrentWebmTransitionRendererManifest(value) ? sanitizeCurrentWebmTransitionManifest(value) : value;
-  if (isPlainRecord(manifestValue) && isPlainRecord(manifestValue.assets)) {
-    for (const asset of Object.values(manifestValue.assets)) {
-      if (isPlainRecord(asset) && ("url" in asset || "absolutePath" in asset)) {
-        throw new Error("Export job asset resolution is not wired yet; renderer assets cannot start a production export job.");
-      }
-    }
-  }
-  assertValidManifest(manifestValue);
-  if (hasUnresolvedRendererAssets(manifestValue)) {
-    throw new Error("Export job asset resolution is not wired yet; manifest assets must include absolutePath.");
-  }
-  return manifestValue;
 }
 
 // ── 导出后端决策（所见即所得 + 删 WebM 并行版）────────────────────────────────────
@@ -124,7 +94,6 @@ function writeTextOverlayFiles(rawManifest: unknown, jobDir: string): FfmpegText
 async function tryBuildFiltergraphExport(
   rawManifest: unknown,
   projectId: string,
-  jobDir: string,
 ): Promise<{ manifest: NomiRenderManifestV1; plan: FfmpegFiltergraphPlan } | null> {
   if (!isPlainRecord(rawManifest)) return null;
   const rawTimeline = isPlainRecord(rawManifest.timeline) ? rawManifest.timeline : null;
@@ -190,7 +159,15 @@ async function tryBuildFiltergraphExport(
 
   assertValidManifest(manifest);
   try {
-    const textOverlays = writeTextOverlayFiles(rawManifest, jobDir);
+    const textOverlays = isPlainRecord(rawManifest) && Array.isArray(rawManifest.textOverlays)
+      ? rawManifest.textOverlays.flatMap((entry, index): FfmpegTextOverlayInput[] => {
+          if (!isPlainRecord(entry)) return [];
+          const startFrame = Number(entry.startFrame);
+          const endFrame = Number(entry.endFrame);
+          if (!Number.isFinite(startFrame) || !Number.isFinite(endFrame) || endFrame <= startFrame) return [];
+          return [{ path: path.resolve(path.sep, "nomi-export-preflight", `text-overlay-${index}.png`), startFrame, endFrame }];
+        })
+      : [];
     const plan = compileFfmpegFiltergraph({ manifest, textOverlays });
     if (plan.warnings.length > 0) {
       manifest.diagnostics = {
@@ -203,26 +180,65 @@ async function tryBuildFiltergraphExport(
   }
 }
 
-export async function startExportJob(payload: unknown): Promise<{ jobId: string; backend: "filtergraph" | "webm" }> {
+function exportProjectIdentity(value: ExportJobProjectIdentity): ExportJobProjectIdentity {
+  return Object.freeze({
+    projectId: String(value.projectId || "").trim(),
+    immutableProjectUuid: String(value.immutableProjectUuid || "").trim(),
+    projectGeneration: Number(value.projectGeneration),
+    canonicalRootDigest: String(value.canonicalRootDigest || "").trim(),
+  });
+}
+
+function sameExportProjectIdentity(left: ExportJobProjectIdentity, right: ExportJobProjectIdentity): boolean {
+  return left.projectId === right.projectId
+    && left.immutableProjectUuid === right.immutableProjectUuid
+    && left.projectGeneration === right.projectGeneration
+    && left.canonicalRootDigest === right.canonicalRootDigest;
+}
+
+export async function startExportJob(
+  payload: unknown,
+  authorizedIdentity?: ExportJobProjectIdentity,
+): Promise<{ jobId: string; backend: "filtergraph" | "webm" }> {
   const raw = (payload || {}) as ExportJobStartRequest;
   const projectId = String(raw.projectId || "").trim();
   if (!projectId) throw new Error("projectId is required");
   const projectDir = projectDirById(projectId);
   if (!projectDir) throw new Error("Project not found");
   ensureProjectFolders(projectDir);
-  const manifest = parseExportJobManifest(raw.manifest);
-  if (manifest.projectId !== projectId) {
-    throw new Error("Export job projectId must match manifest.projectId");
+  const diskIdentity = exportProjectIdentity(await ensureWorkspaceProjectIdentity(projectDir));
+  if (diskIdentity.projectId !== projectId) throw new Error("Export project identity is unavailable");
+  const projectIdentity = authorizedIdentity ? exportProjectIdentity(authorizedIdentity) : diskIdentity;
+  if (!sameExportProjectIdentity(projectIdentity, diskIdentity)) {
+    throw new Error("Export project identity changed before job creation");
   }
-  planExport(manifest);
-  const job = exportJobManager.createJob({ projectId, projectDir, manifest, outputName: raw.outputName });
-
-  // 前置决定后端：尝试编译 filtergraph 计划（解析资产 + ffprobe + 编译）。成功 → 主路径，renderer 不录 WebM。
-  let backend: "filtergraph" | "webm" = "webm";
-  const prepared = await tryBuildFiltergraphExport(raw.manifest, projectId, job.jobDir);
+  const prepared = await tryBuildFiltergraphExport(raw.manifest, projectId);
+  const backend: "filtergraph" | "webm" = prepared ? "filtergraph" : "webm";
+  if (isPlainRecord(raw.manifest) && isPlainRecord(raw.manifest.assets)) {
+    for (const asset of Object.values(raw.manifest.assets)) {
+      if (isPlainRecord(asset) && "absolutePath" in asset) {
+        throw new Error("Export job asset resolution is not wired yet; renderer assets cannot supply absolutePath.");
+      }
+    }
+  }
+  if (!prepared && isPlainRecord(raw.manifest) && isPlainRecord(raw.manifest.assets)
+    && Object.keys(raw.manifest.assets).length > 0 && !isCurrentWebmTransitionRendererManifest(raw.manifest)) {
+    throw new Error("Export job asset resolution is not wired yet; renderer assets cannot start a production export job.");
+  }
+  const manifest = createExportAuditManifest(raw.manifest, {
+    projectId,
+    backend,
+    ...(prepared ? { effectiveProfile: prepared.manifest.profile } : {}),
+  });
+  const executionManifest = prepared?.manifest ?? deriveWebmExecutionManifest(manifest);
+  planExport(executionManifest);
+  const job = exportJobManager.createJob({ projectIdentity, projectDir, manifest, outputName: raw.outputName });
   if (prepared) {
-    preparedFiltergraphExports.set(job.id, prepared);
-    backend = "filtergraph";
+    const textOverlays = writeTextOverlayFiles(raw.manifest, job.jobDir);
+    preparedFiltergraphExports.set(job.id, {
+      manifest: prepared.manifest,
+      plan: compileFfmpegFiltergraph({ manifest: prepared.manifest, textOverlays }),
+    });
   }
 
   exportJobManager.updateJob(job.id, {
@@ -232,21 +248,20 @@ export async function startExportJob(payload: unknown): Promise<{ jobId: string;
   return { jobId: job.id, backend };
 }
 
-export function getExportJobStatus(jobId: string): ExportJobSnapshot {
+export function getExportJobStatus(projectIdentity: ExportJobProjectIdentity, jobId: string): ExportJobSnapshot {
   const id = String(jobId || "").trim();
   if (!id) throw new Error("jobId is required");
-  const snapshot = exportJobManager.getJob(id);
-  if (!snapshot) throw new Error(`Export job ${id} was not found`);
-  return snapshot;
+  return exportJobManager.getJobForProject(exportProjectIdentity(projectIdentity), id);
 }
 
-export async function cancelExportJob(jobId: string): Promise<{ ok: true }> {
+export async function cancelExportJob(projectIdentity: ExportJobProjectIdentity, jobId: string): Promise<{ ok: true }> {
   const id = String(jobId || "").trim();
   if (!id) throw new Error("jobId is required");
-  const job = exportJobManager.getJob(id);
+  const identity = exportProjectIdentity(projectIdentity);
+  const job = exportJobManager.getJobForProject(identity, id);
   activeExportAbortControllers.get(id)?.abort();
-  await exportJobManager.cancelJob(id);
-  if (job) removeExportTempInput(job);
+  await exportJobManager.cancelJobForProject(identity, id);
+  removeExportTempInput(job);
   preparedFiltergraphExports.delete(id);
   return { ok: true };
 }

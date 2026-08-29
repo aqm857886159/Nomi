@@ -1,0 +1,16 @@
+{
+  "round": 10,
+  "kind": "contract-review",
+  "decision": "pass",
+  "reviewedCheckpoint": "668b9bb1c01d3b7dc74deb47f2c49c094ba3d8e3",
+  "hardFailures": [],
+  "evidence": [
+    "Host approval, the one ProductionRun gate receipt, and provider submission share one immutable envelope digest before side effects",
+    "all five media aliases have project, privacy, schema, and bounded-output hard-fails",
+    "nomi_generate deletion is checked from catalog/list/schema through provider dispatch",
+    "cutover includes archive ordering plus ProductionRun and ExportJob recovery matrices",
+    "standalone export identity, TaskRef projection, reference roles, typed cancel, honest ETA, and reviewable artifacts are observable",
+    "round-10-evidence.json is the required command and fingerprint ledger"
+  ],
+  "implementationApproved": true
+}

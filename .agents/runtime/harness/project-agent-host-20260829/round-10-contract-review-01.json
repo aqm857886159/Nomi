@@ -1,0 +1,17 @@
+{
+  "round": 10,
+  "kind": "contract-review",
+  "decision": "fail",
+  "reviewedCheckpoint": "668b9bb1c01d3b7dc74deb47f2c49c094ba3d8e3",
+  "findings": [
+    "P0: bind Host approval, the ProductionRun gate receipt, and actual provider payload to one immutable digest before any spend or submit side effect",
+    "P0: add hard-fail coverage for all five media aliases and their project/privacy/bounds contract",
+    "P0: mechanically prove nomi_generate is absent from every advertised and routable legacy surface",
+    "P0: prove cutover preserves ProductionRun and ExportJob recovery semantics, including submission_unknown no-resubmit",
+    "P1: prove project-bound export status/cancel, no second export owner, and reference-only TaskRef projection",
+    "P1: make archive-before-marker crash ordering and restart idempotency observable",
+    "P1: cover reference role, typed cancel, honest ETA, and reviewable artifact constraints",
+    "P1: name and structure the implementation evidence ledger"
+  ],
+  "resolution": "Round 10 contract and call-surface hard-fails were tightened before production implementation; a second evaluator review is required."
+}

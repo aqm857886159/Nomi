@@ -1,10 +1,15 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
-import type { NomiRenderManifestV1 } from "./exportManifest";
+import {
+  assertValidExportAuditManifest,
+  createExportAuditManifest,
+  type ExportAuditManifestV1,
+} from "./exportAuditManifest";
 import { createExportTempDir } from "./exportPaths";
 import type { ExportJobStatus } from "./exportTypes";
 import { ExportJobStore } from "./exportJobStore";
+import { deriveCanonicalWorkspaceRootIdentity } from "../workspace/workspaceProjectIdentity";
 
 export type ExportJobProgress = {
   ratio: number;
@@ -26,18 +31,27 @@ export type ExportJobError = {
 };
 
 export type CreateExportJobInput = {
-  projectId: string;
+  projectIdentity: ExportJobProjectIdentity;
   projectDir: string;
-  manifest: NomiRenderManifestV1;
+  manifest: ExportAuditManifestV1;
   outputName?: string;
 };
+
+export type ExportJobProjectIdentity = Readonly<{
+  projectId: string;
+  immutableProjectUuid: string;
+  projectGeneration: number;
+  canonicalRootDigest: string;
+}>;
 
 export type ExportJobSnapshot = {
   id: string;
   projectId: string;
+  projectIdentity: ExportJobProjectIdentity | null;
   projectDir: string;
   jobDir: string;
-  manifest: NomiRenderManifestV1;
+  manifest: ExportAuditManifestV1;
+  manifestIntegrity: "canonical" | "legacy_complete" | "legacy_incomplete";
   outputName?: string;
   status: ExportJobStatus;
   progress: ExportJobProgress;
@@ -86,6 +100,58 @@ function toErrorDetails(error: unknown): ExportJobError {
   return { message: JSON.stringify(error) || String(error) };
 }
 
+function sameProjectIdentity(left: ExportJobProjectIdentity | null, right: ExportJobProjectIdentity): boolean {
+  return left !== null && left.projectId === right.projectId
+    && left.immutableProjectUuid === right.immutableProjectUuid
+    && left.projectGeneration === right.projectGeneration
+    && left.canonicalRootDigest === right.canonicalRootDigest;
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function legacyManifestWasErased(value: unknown): boolean {
+  const manifest = record(value);
+  const timeline = record(manifest?.timeline);
+  const assets = record(manifest?.assets);
+  const diagnostics = record(manifest?.diagnostics);
+  const warnings = Array.isArray(diagnostics?.warnings) ? diagnostics.warnings : [];
+  return Array.isArray(timeline?.tracks)
+    && timeline.tracks.length === 0
+    && assets !== null
+    && Object.keys(assets).length === 0
+    && warnings.some((warning) => typeof warning === "string" && /webm|capture|renderer|unresolved|unsupported tracks/i.test(warning));
+}
+
+function normalizeHydratedSnapshot(value: ExportJobSnapshot): ExportJobSnapshot {
+  const raw = value as ExportJobSnapshot & { manifestIntegrity?: unknown; projectIdentity?: unknown };
+  try {
+    assertValidExportAuditManifest(raw.manifest);
+    return {
+      ...raw,
+      projectIdentity: record(raw.projectIdentity) ? raw.projectIdentity as ExportJobProjectIdentity : null,
+      manifestIntegrity: raw.manifestIntegrity === "canonical"
+        || raw.manifestIntegrity === "legacy_complete"
+        || raw.manifestIntegrity === "legacy_incomplete"
+        ? raw.manifestIntegrity
+        : "legacy_complete",
+    };
+  } catch {
+    const incomplete = legacyManifestWasErased(raw.manifest);
+    const manifest = createExportAuditManifest(raw.manifest, {
+      projectId: raw.projectId,
+      backend: incomplete ? "webm" : "filtergraph",
+    });
+    return {
+      ...raw,
+      projectIdentity: record(raw.projectIdentity) ? raw.projectIdentity as ExportJobProjectIdentity : null,
+      manifest,
+      manifestIntegrity: incomplete ? "legacy_incomplete" : "legacy_complete",
+    };
+  }
+}
+
 export class ExportJobManager {
   private readonly store: ExportJobStore;
   private readonly idGenerator: () => string;
@@ -104,13 +170,13 @@ export class ExportJobManager {
   }
 
   createJob(input: CreateExportJobInput): ExportJobSnapshot {
-    if (input.manifest.projectId !== input.projectId) {
+    if (input.manifest.projectId !== input.projectIdentity.projectId) {
       throw new Error("Export job projectId must match manifest.projectId");
     }
     this.hydrateProject(input.projectDir);
     // active 锁按 projectId 维度，而非全局：同一项目同一时刻只允许一个在跑的导出
     // （避免互相覆盖输出/抢临时目录），但不同项目可并行导出，彼此不阻塞。
-    const activeJob = [...this.jobs.values()].find((job) => job.projectId === input.projectId && isActive(job.status));
+    const activeJob = [...this.jobs.values()].find((job) => job.projectId === input.projectIdentity.projectId && isActive(job.status));
     if (activeJob !== undefined) {
       throw new Error(`Cannot create export job while active export job ${activeJob.id} is ${activeJob.status}`);
     }
@@ -119,10 +185,12 @@ export class ExportJobManager {
     const now = this.clock();
     const snapshot: ExportJobSnapshot = {
       id,
-      projectId: input.projectId,
+      projectId: input.projectIdentity.projectId,
+      projectIdentity: Object.freeze({ ...input.projectIdentity }),
       projectDir: input.projectDir,
       jobDir: createExportTempDir(input.projectDir, id),
       manifest: input.manifest,
+      manifestIntegrity: "canonical",
       outputName: input.outputName,
       status: "queued",
       progress: { ratio: 0, stage: "queued", message: "Queued" },
@@ -138,6 +206,22 @@ export class ExportJobManager {
   getJob(jobId: string): ExportJobSnapshot | null {
     this.hydrateKnownProjects();
     return this.jobs.get(jobId) ?? null;
+  }
+
+  getJobForProject(identity: ExportJobProjectIdentity, jobId: string): ExportJobSnapshot {
+    let job = this.requireJob(jobId);
+    if (job.projectIdentity === null) {
+      const root = deriveCanonicalWorkspaceRootIdentity(job.projectDir);
+      if (job.projectId !== identity.projectId || root.canonicalRootDigest !== identity.canonicalRootDigest) {
+        throw new Error(`Export job ${jobId} does not belong to the current project identity`);
+      }
+      job = this.store.save({ ...job, projectIdentity: Object.freeze({ ...identity }) });
+      this.jobs.set(job.id, job);
+    }
+    if (!sameProjectIdentity(job.projectIdentity, identity)) {
+      throw new Error(`Export job ${jobId} does not belong to the current project identity`);
+    }
+    return job;
   }
 
   listJobs(projectId?: string): ExportJobSnapshot[] {
@@ -190,6 +274,9 @@ export class ExportJobManager {
 
   async cancelJob(jobId: string): Promise<ExportJobSnapshot> {
     const current = this.requireJob(jobId);
+    if (!isActive(current.status)) {
+      throw new Error(`Export job ${jobId} is ${current.status} and is not cancellable`);
+    }
     const cancelled: ExportJobSnapshot = {
       ...current,
       status: "cancelled",
@@ -197,6 +284,11 @@ export class ExportJobManager {
       updatedAt: this.clock(),
     };
     return this.saveAndEmit(cancelled, ["status"]);
+  }
+
+  async cancelJobForProject(identity: ExportJobProjectIdentity, jobId: string): Promise<ExportJobSnapshot> {
+    this.getJobForProject(identity, jobId);
+    return this.cancelJob(jobId);
   }
 
   onEvent(listener: (event: ExportJobEvent) => void): () => void {
@@ -251,7 +343,8 @@ export class ExportJobManager {
   private hydrateProject(projectDir: string): void {
     const resolvedProjectDir = path.resolve(projectDir);
     this.projectDirs.add(resolvedProjectDir);
-    for (const job of this.store.loadRecentJobs(resolvedProjectDir)) {
+    for (const storedJob of this.store.loadRecentJobs(resolvedProjectDir)) {
+      const job = normalizeHydratedSnapshot(storedJob);
       if (this.jobs.has(job.id)) continue; // 本会话已在跟踪，别用磁盘旧态覆盖
       if (isActive(job.status)) {
         // 上个进程崩溃/退出残留的孤儿 active job：本实例并未在跑它，却会永久占用

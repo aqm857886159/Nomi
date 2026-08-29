@@ -1,6 +1,6 @@
 # Project Agent Host 全阶段执行路线图
 
-> 状态：🚧 进行中。Phase 1、2A、2B、3A、3B 已形成远端 checkpoint；Phase 3C Canvas completion 已完成本地 focused closure，下一批为 Phase 3D timeline。最终完成条件仍为 Phase 3–6 与发布候选门全部通过。
+> 状态：🚧 进行中。Phase 1、2A、2B、3A、3B、3C、3D 已形成远端 checkpoint；当前为 Phase 4 ProductionRun / export / cutover 大批。最终完成条件仍为 Phase 4–6 与发布候选门全部通过。
 
 ## 目标
 
@@ -21,9 +21,9 @@
 | Phase 2B | 已完成 checkpoint | 单 Host、两面板投影、旧 writer 删除、receipt/Undo/项目切换已收口 |
 | Phase 3A | 已完成 checkpoint | canonical `document.read` 已通过 Host，旧 read owner 已删除 |
 | Phase 3B | 已完成 focused closure | `document.write` 已完成 Registry/Host/Surface/adapter/UI 路由；写入队列必须冻结可执行 anchor/revision/hash，缺失或 whole-document 占位在入队前 fail closed |
-| Phase 3C | 本地闭环完成 | canonical `canvas.write@v1` 已统一 set/create/connect/tidy；真实 renderer transaction、receipt correlation、stale/lock、exact result pointer 和旧 owner 删除已通过 focused closure |
-| Phase 3D | 下一批 | timeline read/propose/apply/undo 与旧 owner 删除；`delete_canvas_nodes`、`run_generation_batch` 归 Phase 4 |
-| Phase 4 | 未开始 | ProductionRun、付费/破坏性能力、receipt、TaskRef、typed cancel、export truth |
+| Phase 3C | 已完成 checkpoint | canonical `canvas.write@v1` 已统一 set/create/connect/tidy；真实 renderer transaction、receipt correlation、stale/lock、exact result pointer 和旧 owner 删除已通过 focused closure |
+| Phase 3D | 已完成 checkpoint | canonical `timeline.read@v1` / `timeline.write@v1` 已统一 read/range/plan/apply/undo；Timeline kernel、CAS、Workbench Undo 和旧 owner 删除已通过 focused closure |
+| Phase 4 | 进行中（Round 10） | ProductionRun、付费/破坏性能力、TaskRef、typed cancel、export truth 与 archive-only cutover closure |
 | Phase 5 | 未开始 | Skill/MCP 从 Registry 派生，list/read guard、shrink-only、legacy firewall |
 | Phase 6 | 未开始 | 常驻 UI；只投影已冻结的 Host/domain 状态，基于现有设计系统调整 |
 

@@ -1,0 +1,58 @@
+{
+  "round": 10,
+  "phase": "4",
+  "entries": [
+    {
+      "criterion": "Export status and manifest are truthful and single-owner",
+      "command": "pnpm exec vitest run electron/export/exportAuditManifest.test.ts electron/export/exportJobIpc.test.ts --no-file-parallelism",
+      "files": [
+        "electron/export/exportAuditManifest.test.ts",
+        "electron/export/exportJobIpc.test.ts"
+      ],
+      "fingerprint": "tests:7face4fbd41dbf83e6835d9b0f2ccb72776e6995,54a20f52121c5ed46ba84ae6df53efbddc84de2e;source:f7ce3d7f4d974552fb62e130a2de6175de13e52f,4a03de337230011b92fe50be2e9dcc3ab4f92ecd,598e3b3a7b83fae504d404c9910568ba3dcedf8c;environment:vitest-4.1.8",
+      "result": "RED: exportAuditManifest module is absent and the WebM integration persists empty tracks instead of canonical evidence; 14 unrelated direct-file cases passed",
+      "failureSignature": "Cannot find ./exportAuditManifest; expected preserved video-track but received []",
+      "failureClassification": "implementation",
+      "nextAllowedCommand": "After implementing the shared audit/execution boundary, rerun these same two direct files once"
+    },
+    {
+      "criterion": "Export status and manifest are truthful and single-owner",
+      "command": "pnpm exec vitest run electron/export/exportAuditManifest.test.ts electron/export/exportJobIpc.test.ts electron/export/exportJobIpcHandlers.test.ts electron/export/exportJobManager.test.ts electron/export/exportJobStore.test.ts --no-file-parallelism",
+      "files": [
+        "electron/export/exportAuditManifest.test.ts",
+        "electron/export/exportJobIpc.test.ts",
+        "electron/export/exportJobIpcHandlers.test.ts",
+        "electron/export/exportJobManager.test.ts",
+        "electron/export/exportJobStore.test.ts"
+      ],
+      "fingerprint": "export-audit-project-authority-implementation-v1",
+      "result": "PASS: 5 files, 36 tests",
+      "failureSignature": null,
+      "failureClassification": null,
+      "nextAllowedCommand": "Do not rerun until an export source/test fingerprint changes; proceed to root-cause contract gate"
+    },
+    {
+      "criterion": "Export root-cause prevention contract",
+      "command": "pnpm run check:root-cause-contracts",
+      "files": [
+        "docs/fixes/2026-08-29-export-audit-manifest-authority.root-cause.json"
+      ],
+      "fingerprint": "contract-v1-listed-unmodified-exportApi-test",
+      "result": "FAIL: contract metadata listed src/workbench/export/exportApi.test.ts as changed regression evidence when that file was not changed",
+      "failureSignature": "regression test was not changed in this diff: src/workbench/export/exportApi.test.ts",
+      "failureClassification": "contract",
+      "nextAllowedCommand": "Remove unmodified planned evidence from this checkpoint contract, then rerun only check:root-cause-contracts"
+    }
+  ],
+  "requiredFields": [
+    "criterion",
+    "command",
+    "files",
+    "fingerprint",
+    "result",
+    "failureSignature",
+    "failureClassification",
+    "nextAllowedCommand"
+  ],
+  "stopRule": "Do not run an unchanged command a third time after the same failure signature; first change contract, source, fixture, dependency, or relevant environment evidence."
+}

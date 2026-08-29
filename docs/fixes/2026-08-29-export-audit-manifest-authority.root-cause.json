@@ -1,0 +1,80 @@
+{
+  "schema_version": 2,
+  "id": "2026-08-29-export-audit-manifest-authority",
+  "problem_type": "Export audit truth and project authority corruption",
+  "symptom": "A current renderer WebM fallback request can be accepted only after exportJobs replaces timeline.tracks with [] and assets with {}, and that compatibility shape is then persisted as the ExportJob manifest. Export status and cancel also accept a bare jobId without proving that the caller still owns the same immutable project.",
+  "direct_cause": "parseExportJobManifest uses sanitizeCurrentWebmTransitionManifest before ExportJobManager persistence, so a backend compatibility transform mutates the durable audit record. getExportJobStatus and cancelExportJob resolve only by globally unique jobId and the IPC handlers do not bind the lookup to the active main-issued project identity.",
+  "class_root": "Nomi represented canonical export evidence and backend-specific execution input as one mutable manifest, and represented task lookup identity as jobId rather than project identity plus jobId. Any fallback backend or future export caller could therefore erase audit fields or inspect/control another project's job while still passing the storage API.",
+  "affected_population": [
+    "Users exporting timelines through the renderer WebM fallback when local asset resolution or filtergraph compilation is unavailable",
+    "Users reviewing persisted export inputs, audio mode, transitions, or job history after restart",
+    "Users who switch projects while an ExportJob exists and then inspect or cancel by a retained jobId",
+    "Future Project Agent, MCP, TaskCenter, or UI projections that rely on ExportJob as the standalone export owner"
+  ],
+  "scope_paths": [
+    "electron/export/exportAuditManifest.ts",
+    "electron/export/exportJobs.ts",
+    "electron/export/exportJobManager.ts",
+    "electron/export/exportJobStore.ts",
+    "electron/export/exportJobIpc.ts",
+    "electron/export/exportPlanner.ts",
+    "electron/preload.ts",
+    "electron/main.ts",
+    "src/desktop/bridge.ts",
+    "src/workbench/export/exportApi.ts"
+  ],
+  "entry_points": [
+    "renderer start-job requests that use local, cross-project local, provider, missing, or unresolved asset URLs",
+    "filtergraph planning and WebM capture fallback selection",
+    "manifest.json and job.json persistence plus restart hydration",
+    "renderer and future Agent inspect_export_job or verify_render reads",
+    "renderer and future Agent cancel_export_job controls",
+    "project release, rotation, reopen, replacement, and immutable identity change"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The defect is entirely within Nomi's renderer request parsing, export planner, ExportJob persistence, main-issued project binding, and IPC projection. No FFmpeg, Electron, provider, or MCP client behavior decides whether canonical evidence is mutated or whether a job belongs to a project.",
+  "invariants": [
+    "Every new ExportJob persists an immutable canonical audit manifest that retains the exact timeline tracks, clips, transitions, asset identities, profile, diagnostics, and effective audio mode used by the selected backend.",
+    "Asset source URLs and absolute paths are not copied into the audit manifest; exact source correlation uses a deterministic digest and bounded technical metadata.",
+    "Filtergraph resolution and WebM compatibility derive a private execution plan from the audit input and never mutate or replace the persisted audit manifest.",
+    "manifest.json and the manifest embedded in job.json remain byte-equivalent canonical evidence across status updates, completion, cancellation, and restart hydration.",
+    "Every status or cancel lookup requires the main-issued current immutable project identity plus jobId and rejects project rotation, identity replacement, missing active project, and cross-project lookup before returning or mutating a job.",
+    "Standalone ExportJob remains the only standalone export lifecycle owner; Host and TaskCenter receive identifiers and safe artifact references rather than a copied status machine.",
+    "Old jobs whose manifest was already erased are retained as legacy incomplete evidence and never upgraded or presented as canonically verified because the missing source truth is unrecoverable."
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same shared manifest and bare-job lookup mechanisms are reached by every fallback export, every status/cancel caller, every restart, and every future backend or projection.",
+    "same_class_scan": [
+      "Searched exportJobs, exportManifest, exportPlanner, ExportJobManager, ExportJobStore, exportJobIpc, preload, DesktopBridge, exportApi, timeline Agent export routes, ProductionRun export driver, and tests for manifest, tracks, assets, audioMode, jobId, status, cancel, and backend selection.",
+      "Confirmed sanitizeCurrentWebmTransitionManifest clears tracks/assets before createJob, and ExportJobStore writes that same shape to both manifest.json and job.json.",
+      "Confirmed preparedFiltergraphExports already demonstrates the correct private-plan boundary but its resolved manifest and effective audio profile are not the persisted audit truth.",
+      "Confirmed status/cancel IPC forwards a renderer-supplied bare jobId, while the existing Canvas Surface registry already owns the active main-issued immutable project selection.",
+      "Confirmed ProductionRun-driven export is a separate Run artifact path and must not be shadow-written into ExportJob."
+    ]
+  },
+  "prevention": {
+    "strategy": "Introduce a validated path-free export audit manifest and exact project-qualified ExportJob lookup, derive backend execution plans without persistence mutation, and delete the sanitizer and bare status/cancel routes.",
+    "artifacts": [
+      "electron/export/exportAuditManifest.ts",
+      "electron/export/exportJobs.ts",
+      "electron/export/exportJobManager.ts",
+      "electron/export/exportJobStore.ts",
+      "electron/export/exportJobIpc.ts",
+      "electron/main.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/export/exportAuditManifest.test.ts",
+    "electron/export/exportJobIpc.test.ts",
+    "electron/export/exportJobManager.test.ts",
+    "electron/export/exportJobStore.test.ts",
+    "electron/export/exportJobIpcHandlers.test.ts"
+  ],
+  "migration": "New jobs use canonical audit manifest version 1. Existing snapshots with truthful legacy manifests remain readable and are normalized as legacy-complete evidence; snapshots whose persisted tracks/assets were erased cannot be reconstructed and are marked legacy_incomplete. Active jobs interrupted by restart keep the existing failed/interrupted behavior. No old export is replayed, and no legacy manifest is silently rewritten as canonical.",
+  "residual_risks": [
+    "A source digest proves equality to the renderer request but cannot recover a deleted or moved source file; artifact verification remains a separate check.",
+    "A WebM capture audit records the authored timeline and selected capture backend, but pixel-perfect proof still belongs to final rendered artifact verification.",
+    "Packaged cross-project and restart journeys remain in the combined Phase 3/4 and final Phase 6 exit gates."
+  ]
+}
