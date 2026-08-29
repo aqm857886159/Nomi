@@ -2,6 +2,8 @@
 
 > 状态：🚧 进行中。Phase 1、2A、2B、3A、3B、3C、3D 与 Phase 4 Surface/export 已形成远端 checkpoint；当前只剩 Phase 4 authority/cutover closure，之后是 Phase 5 和 Phase 6。后续不再新增 Round。
 
+> 交付方法：本路线图继续是唯一活跃任务真源；复杂方案与执行节奏遵循 [engineering-plan-delivery](../../.agents/skills/engineering-plan-delivery/SKILL.md)。Skill 规定单一真源、宏批次、证据复用和成本熔断，不另建新的 protocol/version/ledger；本路线图负责 Project Agent Host 的具体合同、阶段状态和下一步。
+
 ## 目标
 
 在当前任务分支完成 Project Agent Host 的 Phase 2B 至 Phase 6，并把最终
@@ -69,8 +71,10 @@ allowlist 条目来掩盖模块膨胀。
 
 每个宏批次 focused 绿后只做一次只读评审。reviewer 只对冻结合同和该批 diff 报告
 P0/P1 阻断项；P2 或既有非回归进入 backlog，不能反向扩张当前批次。修复 reviewer
-发现后只验证失效证据，不重跑整个 closure。随后形成一个 scoped commit，刷新并检查
-远端任务分支后普通 push；每个宏批次都必须推远端，不能只留本地。
+发现后只做一次 fix diff/失效条款 scoped re-review，并验证失效证据，不重跑整个 closure。
+提交前先把本路线图的证据、状态、残余风险和下一批次回填，再把 scoped code + 路线图
+一起 commit；刷新并检查远端任务分支后普通 push。生成的 commit SHA 记入 PR/交付报告或
+下一 checkpoint，不要求 commit 自己记录自己的 hash。每个宏批次都必须推远端，不能只留本地。
 
 ## 一次性 Cutover 决策
 

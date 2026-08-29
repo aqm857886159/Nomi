@@ -1,0 +1,51 @@
+{
+  "skill_name": "engineering-plan-delivery",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "We have a six-phase desktop-app migration that replaces two legacy agent runtimes with one project-level host. Four phases are partially implemented, the branch has a draft PR, some status lives in ignored harness files, and main changes every day. A frozen coverage index already lists the relevant older MCP, Skill, and UI PR revisions; one unrelated old PR also exists. Those PRs document serious permission, identity, and state-owner failures, and an approved UI design already exists. One legacy paid task is `submission_unknown`. Create a delivery plan that can survive session or network loss without weakening paid-operation, recovery, user-asset, or historical-design guarantees.",
+      "expected_output": "A current-state-first, single-source delivery plan with a frozen contract, historical PR adopt/adapt/reject evidence, a small number of macro batches, remote checkpoints, one pinned main integration point, archive-only versus full migration rules, and criterion-driven verification.",
+      "files": [],
+      "expectations": [
+        "The plan requires verifying current code, Git/PR state, dirty files, and existing evidence before trusting older plans.",
+        "The plan names one tracked execution document as the active source of truth and demotes ignored harness state to historical evidence.",
+        "The work is grouped into two to five end-to-end macro batches rather than a round per contract, test, or file.",
+        "Each macro batch ends with a scoped commit and remote task-branch checkpoint.",
+        "The plan avoids continually chasing main and pins one default-branch SHA for final integration.",
+        "The plan preserves user work and reconciles paid operations while explicitly deciding migration versus archive-only cutover; the submission_unknown task is never retried or resubmitted until definitely-not-submitted is proven.",
+        "The plan records adopt, adapt, or reject decisions for relevant historical PR evidence and binds accepted points to the contract or acceptance criteria.",
+        "The plan reuses the frozen PR coverage index, checks only changed relevant revisions, and does not scan or block on the unrelated old PR.",
+        "UI work starts from the approved design and current rendered product rather than inventing a parallel state owner or unrelated redesign.",
+        "Full-repository verification is reserved for the final pinned candidate; batch verification is affected and criterion-driven."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "A long implementation has run the full test suite repeatedly. The same integration test fails with the same timeout signature, reviewers keep asking for repo-wide improvements, and every small fix triggers another complete review. The current batch code is now green, but the tracked plan still reports the previous batch. Revise the execution and checkpoint process without lowering the quality bar.",
+      "expected_output": "A failure-fingerprinted, bounded review and testing process that diagnoses repeated failures, reruns only invalidated evidence, and protects the frozen delivery contract from scope expansion.",
+      "files": [],
+      "expectations": [
+        "The response prohibits a third unchanged run after two identical command and failure signatures.",
+        "The failure is classified as contract, lifecycle, implementation, environment, or test defect before another run.",
+        "The response uses the smallest deterministic test first and reruns only evidence invalidated by a fix.",
+        "Reviewers may block only current-contract P0/P1 issues; P2 and unrelated findings go to backlog.",
+        "There is at most one bounded review per macro batch and scoped re-review of changed risk or fix diffs.",
+        "The tracked plan is updated with evidence, residual risk, and the next batch before code and plan are committed and pushed together.",
+        "The response includes a cost/drift pause that reshapes the plan instead of adding another protocol or round."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Change one existing error message in a single TypeScript file and update its existing focused unit test. The behavior is local, reversible, and does not change an interface or user workflow. Tell me how you would proceed.",
+      "expected_output": "A bounded in-chat intent and focused verification, without creating a plan file, research phase, task graph, multi-agent review, repeated full suite, or main integration ceremony.",
+      "files": [],
+      "expectations": [
+        "The task is classified as bounded.",
+        "The response does not create a plan document, research report, task graph, or reviewer roster.",
+        "The response names the focused existing unit test as the primary verification.",
+        "The response keeps the edit and commit scoped to the local behavior.",
+        "The response does not prescribe a full repository test suite for this local change."
+      ]
+    }
+  ]
+}

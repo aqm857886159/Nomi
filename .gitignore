@@ -35,6 +35,8 @@ project-data/
 .agents/skills/*
 !.agents/skills/root-cause-remediation/
 !.agents/skills/root-cause-remediation/SKILL.md
+!.agents/skills/engineering-plan-delivery/
+!.agents/skills/engineering-plan-delivery/**
 .tapcanvas/
 artifacts/
 orchestration/
