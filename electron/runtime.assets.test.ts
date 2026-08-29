@@ -24,7 +24,7 @@ const JPEG_BYTES = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x1
 const PNG_BYTES = Buffer.concat([Buffer.from([0x89]), Buffer.from("PNG\r\n\n", "latin1"), Buffer.alloc(16)]);
 const WEBM_BYTES = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(16)]);
 /** ISO-BMFF：mp4 视频与 m4a 音频**共用**这一组魔数（跨族覆盖的反例）。 */
-const ISO_BMFF_BYTES = Buffer.concat([Buffer.from([0, 0, 0, 0x20]), Buffer.from("ftypisom", "ascii"), Buffer.alloc(16)]);
+const ISO_BMFF_BYTES = Buffer.concat([Buffer.from([0, 0, 0, 0x10]), Buffer.from("ftypisom", "ascii"), Buffer.alloc(4)]);
 
 function respondWith(bytes: Buffer, contentType: string): void {
   hardenedFetchMock.mockResolvedValue({ bytes, contentType, status: 200, finalUrl: "https://cdn.example.com/x", truncated: false });
@@ -235,7 +235,7 @@ describe("runtime workspace asset storage", () => {
 
   it("sniffs an extensionless octet-stream video before importing", async () => {
     const workspace = createWorkspace();
-    const bytes = Buffer.concat([Buffer.from([0, 0, 0, 0x20]), Buffer.from("ftypisom", "ascii"), Buffer.alloc(16)]);
+    const bytes = Buffer.concat([Buffer.from([0, 0, 0, 0x10]), Buffer.from("ftypisom", "ascii"), Buffer.alloc(4)]);
     const asset = (await importLocalFile({
       projectId: workspace.id,
       bytes,

@@ -1,8 +1,35 @@
 import React from 'react'
 import { useEditor, type Editor, type JSONContent } from '@tiptap/react'
+import { markInputRule, markPasteRule, type AnyExtension } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
+import { Highlight } from '@tiptap/extension-highlight'
+import { TaskItem, TaskList } from '@tiptap/extension-list'
+import { TableKit } from '@tiptap/extension-table'
 import { markdownToTiptapContent } from '../creation/markdownToTiptap'
+import { sanitizePastedHtml } from './sanitizePastedHtml'
+
+// ==高亮== 输入/粘贴规则：Tiptap 默认规则要求 `==` 前是行首或空白，中文「这是==重点==」
+// 无空格场景会失效；这里放宽为任意位置触发，对齐 ColaMD 的 `/==([^=]+)==/`。
+const HighlightWithZh = Highlight.extend({
+  addInputRules() {
+    return [markInputRule({ find: /==([^=]+)==$/, type: this.type })]
+  },
+  addPasteRules() {
+    return [markPasteRule({ find: /==([^=]+)==/g, type: this.type })]
+  },
+})
+
+// 创作编辑器的富文本特性扩展（模块级稳定引用，避免 editor 反复重建）。
+// 画布文字节点（TextDocumentNode）复用同一内核但不挂这些——它保持基础能力，行为零回归。
+export const RICH_TEXT_FEATURE_EXTENSIONS: AnyExtension[] = [
+  HighlightWithZh,
+  TaskList,
+  TaskItem,
+  TableKit,
+]
+
+const EMPTY_EXTENSIONS: AnyExtension[] = []
 
 /**
  * Shared Tiptap rich-text kernel — single source of truth for BOTH the creation
@@ -38,12 +65,16 @@ export function useNomiRichTextEditor(options: {
   content: JSONContent
   placeholder?: string
   editable?: boolean
+  /** 富文本特性扩展（高亮/待办/表格）。创作编辑器传 RICH_TEXT_FEATURE_EXTENSIONS，画布文字节点省略保持基础能力。 */
+  featureExtensions?: AnyExtension[]
+  /** 粘贴 HTML 清洗（Excel/Word 脏 HTML → 干净语义结构）。创作编辑器开，画布文字节点默认关。 */
+  sanitizePaste?: boolean
   /** Fires on every edit with the new JSON. Caller persists however it wants. */
   onChange?: (json: JSONContent) => void
   /** Fires on selection change with the selected plain text (empty when none). */
   onSelectionChange?: (text: string) => void
 }): { editor: Editor | null; tools: NomiRichTextTools } {
-  const { content, placeholder, editable = true, onChange, onSelectionChange } = options
+  const { content, placeholder, editable = true, featureExtensions = EMPTY_EXTENSIONS, sanitizePaste = false, onChange, onSelectionChange } = options
 
   // Keep callbacks in refs so changing them never re-creates the editor instance.
   const onChangeRef = React.useRef(onChange)
@@ -61,9 +92,12 @@ export function useNomiRichTextEditor(options: {
   const editor = useEditor(
     {
       editable,
-      extensions: [StarterKit, Placeholder.configure({ placeholder: placeholder ?? '' })],
+      extensions: [StarterKit, Placeholder.configure({ placeholder: placeholder ?? '' }), ...featureExtensions],
       content,
-      editorProps: { attributes: { class: 'workbench-editor__content' } },
+      editorProps: {
+        attributes: { class: 'workbench-editor__content' },
+        transformPastedHTML: sanitizePaste ? (html) => sanitizePastedHtml(html) : undefined,
+      },
       onUpdate: ({ editor: current }) => {
         const json = current.getJSON()
         lastEditorJsonRef.current = JSON.stringify(json)
@@ -83,7 +117,10 @@ export function useNomiRichTextEditor(options: {
     if (!nextJson || nextJson === lastEditorJsonRef.current) return
     const previousSelection = editor.state.selection
     lastEditorJsonRef.current = nextJson
-    editor.commands.setContent(content)
+    // Controlled resource switches are hydration, not user edits. Emitting an
+    // update here would bump the destination document timestamp and mark its
+    // storyboard designs stale merely because the user opened the document.
+    editor.commands.setContent(content, { emitUpdate: false })
     if (editor.isFocused) {
       const maxPosition = editor.state.doc.content.size
       editor.commands.setTextSelection({

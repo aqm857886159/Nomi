@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "2026-08-28-reference-media-mentions",
+  "problem_type": "cross-media reference mention regression",
+  "symptom": "Typing @ and part of a video node title in a generation prompt did not offer the video as a selectable reference, so users could not create a visible Video 1 mention even when the selected model exposed a video reference slot.",
+  "direct_cause": "The mention candidate source filtered the canvas and project library to images, the selection adapter dropped the candidate media kind, and prompt rendering and send projection only numbered the ordered image reference array.",
+  "class_root": "The shared mention contract treated every asset URL as an implicit image instead of carrying media kind and per-kind position from capability-checked reference storage through editor rendering to the final provider prompt.",
+  "affected_population": [
+    "Users of multimodal generation modes with video_ref slots who try to reference a generated, imported, or library video by name",
+    "Users of modes with audio_ref slots who try to reference project-library audio from the prompt",
+    "Users reopening prompts whose URL-only mention marker points to a non-image reference"
+  ],
+  "scope_paths": [
+    "src/workbench/assets/AssetMentionChip.tsx",
+    "src/workbench/assets/AssetMentionNode.tsx",
+    "src/workbench/assets/AssetMentionSuggestion.ts",
+    "src/workbench/assets/AssetMentionSuggestionList.tsx",
+    "src/workbench/assets/AssetReference.tsx",
+    "src/workbench/assets/PromptEditor.tsx",
+    "src/workbench/assets/promptEditorContent.ts",
+    "src/workbench/assets/promptMentions.ts",
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+    "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+    "src/workbench/generationCanvas/nodes/mentionCandidates.ts",
+    "src/workbench/generationCanvas/nodes/useNodeDisplayPrompt.ts",
+    "src/workbench/generationCanvas/nodes/useNodeMentionSource.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.ts"
+  ],
+  "entry_points": [
+    "Existing connected or uploaded image, video, and audio references shown as current @ candidates",
+    "Generated and imported canvas media nodes discovered by title or file-name query",
+    "Image, video, and audio assets discovered through the project library",
+    "Reference-tile clicks and suggestion selection that insert a prompt chip",
+    "Prompt editor rehydration, non-editing display projection, and final catalog task request projection"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This defect is entirely inside Nomi's media-kind propagation and URL-only prompt projection contract. No third-party API behavior, model field, or provider mapping is changed, so external documentation cannot decide the invariant.",
+  "invariants": [
+    "Every mentionable reference carries image, video, or audio kind from discovery through selection and chip rendering; an omitted kind remains image only for backward compatibility.",
+    "Selecting a canvas candidate creates a capability-checked real edge, while selecting a library candidate writes the matching image_ref, video_ref, or audio_ref storage slot before a chip can be inserted.",
+    "Image, video, and audio indices are independently 1-based and derive from the same ordered arrays used to build the provider request.",
+    "The persisted marker remains URL-only, and editor/display rehydration derives its current kind and index from structured reference state rather than storing a second truth source."
+  ],
+  "regression_tests": [
+    "src/workbench/assets/promptEditorContent.test.ts",
+    "src/workbench/assets/promptMentions.test.ts",
+    "src/workbench/generationCanvas/nodes/controls/archetypeMeta.test.ts",
+    "src/workbench/generationCanvas/nodes/mentionCandidates.test.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.test.ts",
+    "tests/ux/at-mention-edge.walk.mjs"
+  ],
+  "migration": "No persisted schema changes. Existing @[asset:URL] markers and image-only callers remain valid; on load, Nomi derives media kind and the current per-kind index from the active structured reference slots. A marker whose reference was removed continues to render without a fabricated index and is removed from the final send projection as before.",
+  "residual_risks": [
+    "Only media with a resolved URL can be mentioned; pending canvas nodes still require a future node-identity mention contract.",
+    "Models without a compatible declared reference slot continue to reject the candidate at selection time instead of inserting a prompt-only reference.",
+    "Audio references can be attached from the project library, while canvas audio edges remain unavailable until the canvas reference capability model declares an audio source kind."
+  ]
+}

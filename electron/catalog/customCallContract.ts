@@ -33,7 +33,7 @@ export const CUSTOM_CALL_VARIABLES: CustomCallVariableDoc[] = [
   {
     name: "references",
     type: "{ firstFrame?: string; lastFrame?: string; images: string[]; videos: string[]; audios: string[] }",
-    desc: "convenience view over params reference keys; values are vendor-reachable URLs (already uploaded/localized by Nomi)",
+    desc: "convenience view over params reference keys; values are vendor-reachable URLs already uploaded/localized by Nomi. Roles are explicit and disjoint: never infer firstFrame/lastFrame from images, and preserve images order/cardinality",
   },
   { name: "model", type: "string", desc: "model id to send upstream (alias if configured, else key)" },
   { name: "baseUrl", type: "string", desc: "vendor base URL exactly as configured (may already end with /v1)" },
@@ -151,7 +151,7 @@ export function buildCustomCallAiInstruction(input: {
     `You are writing the body of an async JavaScript function that calls a generation API for the model "${input.modelKey}" (capability: ${input.kind}; task kind: ${input.taskKind || "selected at runtime"}; mode: ${input.modeId || "selected at runtime or undefined"}; base URL: ${input.baseUrl}).`,
     `Available variables (already in scope — do NOT redeclare them):\n${vars}`,
     CUSTOM_CALL_RETURN_CONTRACT,
-    `Rules: output ONLY the raw function body statements — no markdown fences, no function wrapper, no explanations. Use await directly. Prefer \`http\` for Bearer-auth JSON APIs; use \`request\` when auth or content type is non-standard. Never invent endpoints not present in the material; if the material is insufficient, still produce the best guess and put open questions in a leading // comment.`,
-    `API material provided by the user:\n${input.material || "(none — fall back to the most common OpenAI-compatible shape for this capability)"}`,
+    `Rules: output ONLY the raw function body statements — no markdown fences, no function wrapper, no explanations. Use await directly. Prefer \`http\` for Bearer-auth JSON APIs; use \`request\` when auth or content type is non-standard. Never promote references.images[0] (or any generic image) to references.firstFrame/lastFrame; preserve generic image order and count. Never invent endpoints not present in the material. If the material is insufficient, return a script that throws a clear missing-documentation Error before any request instead of guessing an endpoint or field.`,
+    `API material provided by the user:\n${input.material || "(none — do not guess; emit a clear missing-documentation Error)"}`,
   ].join("\n\n") + repair;
 }

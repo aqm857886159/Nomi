@@ -12,10 +12,16 @@ import { migrateProjectV51ToV60 } from './projectV51ToV60Migration'
 import { backfillShotIndexes } from '../generationCanvas/model/shotNumbering'
 import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 import type { ProjectHydrationGuard } from './projectCanvasReadSurface'
+import { resetTimelineAgentState } from '../timeline/agent/timelineToolCall'
+import { abandonCreationTurn } from '../creation/creationTurnController'
+import { abandonCanvasTurn } from '../generationCanvas/agent/canvasTurnController'
 
 const categoryMigrationDiagnostics = new WeakMap<object, CategoryMigrationDiagnostic>()
 
 function abandonHydratingProjectOwnership(): void {
+  resetTimelineAgentState()
+  abandonCreationTurn()
+  abandonCanvasTurn()
   // Hydration replaces the whole project snapshot. Invalidate review work here,
   // not when the persistence subscription merely rebinds after an ordinary save.
   useShotVerifyStore.getState().activateProject(null)

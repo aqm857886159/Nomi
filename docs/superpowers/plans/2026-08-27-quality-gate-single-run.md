@@ -188,3 +188,26 @@ Do not use `--admin`. Afterward verify the PR state is `MERGED` and the merge co
 - Spec coverage: trigger deduplication, concurrency, stable event-specific baseline, fail-closed behavior, automated regression coverage, full gates, live PR observation, and protected merge are all mapped to tasks.
 - Placeholder scan: no deferred implementation or ambiguous code step remains; `<number>` is a runtime value returned by PR creation, not an unspecified implementation detail.
 - Consistency: the new package script name, test filename, workflow keys, and verification commands match across all tasks.
+
+## 2026-08-28 补充：当前 HEAD 恢复入口
+
+### 根因
+
+PR #210 通过 GitHub 的 expected-head 原子写入更新分支时，CLA 与 Cloudflare 收到了新提交，但 `pull_request` Quality Gate 没有生成；关闭并重开 PR 也只重跑了 `pull_request_target` 的 CLA。当前 workflow 又没有 `workflow_dispatch`，因此只能制造无意义提交或绕过门禁，二者都不可接受。
+
+### 实施
+
+1. 先扩展 `scripts/check-quality-gate-workflow.node-test.mjs`，要求 `workflow_dispatch.inputs.base_ref` 存在且默认 `origin/main`，并要求 `VOCAB_BASE_REF` 在 PR base、push before、手动 base_ref 之间按事件证据依次选择。Actions checkout 处于 detached HEAD，远端跟踪 ref 可达而本地 `main` 不保证存在。
+2. 运行契约测试观察 RED。
+3. 在 `.github/workflows/quality-gate.yml` 添加手动恢复入口与显式基线输入，不增加功能分支 push 触发器。
+4. 运行定向测试、完整 `pnpm run gates`，然后对 PR 的精确 HEAD 手动 dispatch，等待 Quality Gate 与 Mac Package 都通过。
+
+### 首次恢复运行反馈
+
+首次按 `base_ref=main` 触发的当前 HEAD 运行在词表门岗按设计失败：checkout 已完整抓取历史，但只保证 `origin/main` 可解析，不保证创建本地 `main` 分支。该运行证明恢复入口命中了正确 HEAD，也证明基线必须使用 checkout 后可达的 Git ref。契约因此收紧为默认 `origin/main`；不添加静默 fallback，传入不可达 ref 时仍然 fail closed。
+
+### 不动项
+
+- 不降低门禁内容，不跳过 Mac 打包，不伪造 check，不用管理员覆盖。
+- 正常 PR 仍只有 `pull_request` 一套自动门禁；`main` 仍在落地后复验。
+- 手动恢复不自动猜测不可取得的旧 SHA。

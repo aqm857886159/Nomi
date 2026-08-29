@@ -1,6 +1,7 @@
 import {
   TIMELINE_TRACK_DEFINITIONS,
   type TimelineClip,
+  type TimelineClipAudio,
   type TimelineState,
   type TimelineTextClip,
   type TimelineTextStyle,
@@ -9,6 +10,7 @@ import {
   type TimelineTransition,
 } from './timelineTypes'
 import { resolveClipFraming, type ClipFraming } from './clipFraming'
+import { resolveClipAudio } from './clipAudio'
 
 const DEFAULT_TIMELINE_SCALE = 1
 const DEFAULT_TIMELINE_FPS = 30
@@ -65,6 +67,9 @@ function normalizeClip(input: unknown, fallbackType: TimelineTrackType): Timelin
     offsetEndFrame: toFiniteNonNegativeInteger(raw.offsetEndFrame, 0),
     ...(normalizeString(raw.url) ? { url: normalizeString(raw.url) } : {}),
     ...(normalizeString(raw.thumbnailUrl) ? { thumbnailUrl: normalizeString(raw.thumbnailUrl) } : {}),
+    ...(type !== 'image' && raw.audio && typeof raw.audio === 'object' && !Array.isArray(raw.audio)
+      ? { audio: resolveClipAudio(raw.audio as TimelineClipAudio, endFrame - startFrame) }
+      : {}),
     // 取景随时间轴落盘：present 才挂（清洗成合法 framing），缺省则不挂 → 切项目/重载不蒸发。
     ...(raw.framing && typeof raw.framing === 'object'
       ? { framing: resolveClipFraming({ framing: raw.framing as Partial<ClipFraming> }) }

@@ -11,10 +11,19 @@ export type NomiRenderManifestV1 = {
     durationFrames: number;
     range: { startFrame: number; endFrame: number };
     tracks: NomiRenderTrack[];
+    /** Authored transitions between adjacent visual clips. */
+    transitions?: NomiRenderTransition[];
   };
   profile: ExportProfile;
   assets: Record<string, NomiRenderAsset>;
   diagnostics?: { warnings: string[] };
+};
+
+export type NomiRenderTransition = {
+  fromClipId: string;
+  toClipId: string;
+  type: "cut" | "dissolve" | "fade" | "match_cut" | "whip_pan";
+  durationFrames?: number;
 };
 
 export type NomiRenderAsset = {
@@ -39,6 +48,13 @@ export type NomiRenderTrack = {
   clips: NomiRenderClip[];
 };
 
+export type NomiRenderClipAudio = {
+  gainDb: number;
+  muted: boolean;
+  fadeInFrames: number;
+  fadeOutFrames: number;
+};
+
 export type NomiRenderClip = {
   id: string;
   assetId?: string;
@@ -47,6 +63,7 @@ export type NomiRenderClip = {
   sourceStartFrame?: number;
   sourceEndFrame?: number;
   transform?: Record<string, unknown>;
+  audio?: NomiRenderClipAudio;
   text?: Record<string, unknown>;
 };
 
@@ -123,6 +140,25 @@ function assertValidProfile(value: unknown): asserts value is ExportProfile {
   assertIntegerInRange(value.fps, "profile.fps", 1, 120);
 }
 
+function assertValidClipAudio(
+  value: unknown,
+  fieldName: string,
+  durationFrames: number,
+): asserts value is NomiRenderClipAudio {
+  assertRecord(value, fieldName);
+  if (typeof value.gainDb !== "number" || !Number.isFinite(value.gainDb) || value.gainDb < -60 || value.gainDb > 0) {
+    throw new Error(`${fieldName}.gainDb must be a finite number between -60 and 0`);
+  }
+  if (typeof value.muted !== "boolean") {
+    throw new Error(`${fieldName}.muted must be boolean`);
+  }
+  assertIntegerInRange(value.fadeInFrames, `${fieldName}.fadeInFrames`, 0);
+  assertIntegerInRange(value.fadeOutFrames, `${fieldName}.fadeOutFrames`, 0);
+  if (value.fadeInFrames + value.fadeOutFrames > durationFrames) {
+    throw new Error(`${fieldName} fades cannot exceed the visible clip duration`);
+  }
+}
+
 function assertValidClip(value: unknown, fieldName: string): asserts value is NomiRenderClip {
   assertRecord(value, fieldName);
   assertNonEmptyString(value.id, `${fieldName}.id`);
@@ -152,6 +188,9 @@ function assertValidClip(value: unknown, fieldName: string): asserts value is No
   if (value.transform !== undefined && !isRecord(value.transform)) {
     throw new Error(`${fieldName}.transform must be an object when present`);
   }
+  if (value.audio !== undefined) {
+    assertValidClipAudio(value.audio, `${fieldName}.audio`, value.endFrame - value.startFrame);
+  }
   if (value.text !== undefined && !isRecord(value.text)) {
     throw new Error(`${fieldName}.text must be an object when present`);
   }
@@ -175,6 +214,27 @@ function assertValidTrack(value: unknown, fieldName: string): asserts value is N
     throw new Error(`${fieldName}.clips must be an array`);
   }
   value.clips.forEach((clip, clipIndex) => assertValidClip(clip, `${fieldName}.clips[${clipIndex}]`));
+}
+
+function assertValidTransitions(value: unknown, fieldName: string): asserts value is NomiRenderTransition[] {
+  if (!Array.isArray(value)) {
+    throw new Error(`${fieldName} must be an array when present`);
+  }
+  value.forEach((transition, index) => {
+    const path = `${fieldName}[${index}]`;
+    assertRecord(transition, path);
+    assertNonEmptyString(transition.fromClipId, `${path}.fromClipId`);
+    assertNonEmptyString(transition.toClipId, `${path}.toClipId`);
+    if (!["cut", "dissolve", "fade", "match_cut", "whip_pan"].includes(String(transition.type))) {
+      throw new Error(`${path}.type must be a supported transition type`);
+    }
+    if (transition.durationFrames !== undefined) {
+      assertIntegerInRange(transition.durationFrames, `${path}.durationFrames`, 1);
+    }
+    if (transition.fromClipId === transition.toClipId) {
+      throw new Error(`${path} endpoints must be different`);
+    }
+  });
 }
 
 function assertValidAsset(value: unknown, fieldName: string): asserts value is NomiRenderAsset {
@@ -207,6 +267,10 @@ function assertClipAssetReferencesExist(tracks: NomiRenderTrack[], assets: Recor
       if (clip.assetId !== undefined && assets[clip.assetId] === undefined) {
         throw new Error(`timeline.tracks[${trackIndex}].clips[${clipIndex}].assetId ${clip.assetId} must reference an existing asset`);
       }
+      const asset = clip.assetId === undefined ? undefined : assets[clip.assetId];
+      if (clip.audio !== undefined && (asset?.kind === "image" || track.kind === "image" || track.type === "image")) {
+        throw new Error(`timeline.tracks[${trackIndex}].clips[${clipIndex}].audio is not supported for image clips`);
+      }
     });
   });
 }
@@ -236,6 +300,9 @@ export function assertValidManifest(value: unknown): asserts value is NomiRender
     throw new Error("timeline.tracks must be an array");
   }
   value.timeline.tracks.forEach((track, index) => assertValidTrack(track, `timeline.tracks[${index}]`));
+  if (value.timeline.transitions !== undefined) {
+    assertValidTransitions(value.timeline.transitions, "timeline.transitions");
+  }
 
   assertValidProfile(value.profile);
 

@@ -30,9 +30,9 @@ beforeAll(() => {
   fs.mkdirSync(path.dirname(assetPath), { recursive: true });
   fs.writeFileSync(assetPath, Buffer.from("0123456789"));
   fs.writeFileSync(path.join(projectRoot, "assets", "generated", "clip.bin"), Buffer.concat([
-    Buffer.from([0, 0, 0, 0x20]),
+    Buffer.from([0, 0, 0, 0x10]),
     Buffer.from("ftypisom", "ascii"),
-    Buffer.alloc(16),
+    Buffer.alloc(4),
   ]));
 });
 

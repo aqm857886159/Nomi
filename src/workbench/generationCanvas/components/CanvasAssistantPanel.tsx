@@ -371,6 +371,9 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
                 try {
                   const result = await applyCanvasToolCall(event.toolName, event.args, undefined, canWrite)
                   assertTurnCanWrite(canWrite)
+                  if (event.toolName === 'propose_edit_plan' && result && typeof result === 'object') {
+                    captureTimelinePreview({ toolCallId: event.toolCallId, toolName: event.toolName, args: event.args, anchorMessageId: anchorId }, result)
+                  }
                   await event.confirm({ ok: true, result, silent: true })
                 } catch (error: unknown) {
                   const code = error instanceof Error ? (error as Error & { code?: unknown }).code : undefined
@@ -647,6 +650,9 @@ export default function CanvasAssistantPanel({ onCollapsedChange }: CanvasAssist
           markVerifyFixing()
         }}
         onContentDismiss={() => clearVerify()}
+        timelinePlanPreviews={timelinePlanPreviews}
+        timelineApplied={timelineApplied}
+        onTimelineUndo={() => { void undoTimelinePlan() }}
         threadBottomRef={threadBottomRef}
       />
       <form className={cn('grid gap-1 p-3 border-t border-nomi-line-soft bg-nomi-paper')} onSubmit={handleSubmit}>

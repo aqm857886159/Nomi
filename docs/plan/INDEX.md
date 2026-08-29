@@ -64,6 +64,9 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-08-29-cla-signature-ledger.md](2026-08-29-cla-signature-ledger.md) | CLA 签名账本与受保护主分支解耦 | ✅ |
+| [2026-08-28-reference-media-mentions.md](2026-08-28-reference-media-mentions.md) | 图片/视频/音频 @ 引用统一：候选、真实参考槽、编辑器与发送投影 | ✅ |
+| [2026-08-27-root-cause-remediation-and-media-boundary-fixes.md](2026-08-27-root-cause-remediation-and-media-boundary-fixes.md) | Comfy/custom-call 媒体契约根因修复 + 可执行根因合同门禁 | ✅ |
 | [2026-08-27-single-source-semantics-gate.md](2026-08-27-single-source-semantics-gate.md) | ProjectAgent 统一前置：AST 语义词表门岗 + R14.1 单一 owner 审计 | ✅ |
 | [2026-06-09-agent-harness-architecture.md](2026-06-09-agent-harness-architecture.md) | **Agent Harness 架构定义与演进** — 本簇主文档 | 📋 |
 | [2026-06-21-self-improving-harness-loop.md](2026-06-21-self-improving-harness-loop.md) | **自我改进 harness 闭环**：AI 扮用户跑测试→量化诊断→修→重跑；架构铁律=查agent≠修agent(治自偏)；指标分三层(客观脊梁/半客观校准/主观人锚)；扩现有评测体系；不训模型/不碰GPU | 📋 |
@@ -87,6 +90,9 @@
 | [2026-06-03-timeline-interaction-rework.md](2026-06-03-timeline-interaction-rework.md) | 时间轴交互层重做 | 📋 |
 | [2026-06-04-timeline-wysiwyg-and-export.md](2026-06-04-timeline-wysiwyg-and-export.md) | P2 预览=成片(WYSIWYG) + P3 导出能力 | 📋 |
 | [2026-06-21-blender-3d-render-lane.md](2026-06-21-blender-3d-render-lane.md) | **Blender 3D 渲染 lane**：AI 生资产→headless Blender 渲简单镜头→进时间轴，补「跨镜一致+真相机控制」；范围狠砍(不碰绑骨/动画/GUI/捆绑) | 📋 |
+| [2026-08-28-editing-engine-review.md](2026-08-28-editing-engine-review.md) | Editing engine build-vs-buy review and open-source research | 🚧 |
+| [2026-08-28-editing-engine-uplift.md](2026-08-28-editing-engine-uplift.md) | P0 timeline kernel and Agent editing control plane | 🚧 |
+| [2026-08-28-timeline-visual-feedback.md](2026-08-28-timeline-visual-feedback.md) | Timeline source-window and transition support feedback | 🚧 |
 
 ## 项目库 / 素材库 / Workspace / 左面板
 

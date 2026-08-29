@@ -8,6 +8,7 @@ const stage = (id, command, args = [], options = {}) => ({
 
 export const STAGES = {
   matrix: stage("matrix", "node", ["scripts/test-capability-matrix.mjs"]),
+  contracts: stage("contracts", "pnpm", ["run", "gates:contracts"]),
   unit: stage("unit", "pnpm", ["run", "test"]),
   gates: stage("gates", "pnpm", ["run", "gates"]),
   build: stage("build", "pnpm", ["run", "build"]),
@@ -24,6 +25,9 @@ export const STAGES = {
 export const PROFILES = {
   quick: ["matrix", "unit"],
   ci: ["matrix", "unit", "build", "e2e", "journeys-ci", "project-agent-mcp", "project-agent-surface"],
+  "ci-contracts": ["contracts"],
+  "ci-unit": ["unit"],
+  "ci-desktop": ["build", "e2e", "journeys-ci"],
   "full-local": ["matrix", "gates", "e2e", "journeys-ci", "project-agent-mcp", "project-agent-surface"],
   "real-generation": ["real-generation"],
   release: ["matrix", "gates", "e2e", "journeys-all", "project-agent-mcp", "project-agent-surface", "real-generation"],

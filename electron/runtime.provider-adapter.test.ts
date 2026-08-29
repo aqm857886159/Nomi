@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Model, Vendor } from "./catalog/types";
 
+const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d, 0x49, 0x48, 0x44, 0x52]);
 let mockedUserDataRoot = "";
 const roots: string[] = [];
 
@@ -101,12 +102,12 @@ describe("executeProfileOperation adapter verification seam", () => {
       },
       localAssetReader: (url) =>
         url === "nomi-local://adapter-test/reference.png"
-          ? { bytes: Buffer.from("png-fixture"), contentType: "image/png", fileName: "reference.png" }
+          ? { bytes: PNG_BYTES, contentType: "image/png", fileName: "reference.png" }
           : null,
     });
 
     const body = JSON.parse(String((fetchFn.mock.calls[0]?.[1] as RequestInit | undefined)?.body || "{}"));
-    expect(body.image).toBe(`data:image/png;base64,${Buffer.from("png-fixture").toString("base64")}`);
+    expect(body.image).toBe(`data:image/png;base64,${PNG_BYTES.toString("base64")}`);
   });
 
   /**

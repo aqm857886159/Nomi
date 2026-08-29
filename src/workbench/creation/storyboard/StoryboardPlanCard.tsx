@@ -11,14 +11,30 @@ import { useWorkbenchStore } from '../../workbenchStore'
  *   editorOpen → 编辑中｜!committed → 草稿｜committed → 已落画布。
  * 编辑仍走主列全宽 StoryboardPlanEditor（卡片只做摘要+状态+入口）。
  */
-export default function StoryboardPlanCard(): JSX.Element | null {
+type StoryboardPlanCardProps = {
+  documentId?: string
+  storyboardId?: string
+}
+
+export default function StoryboardPlanCard({ documentId, storyboardId }: StoryboardPlanCardProps = {}): JSX.Element | null {
   const { t } = useTranslation()
-  const plan = useWorkbenchStore((s) => s.storyboardPlan)
-  const committed = useWorkbenchStore((s) => s.storyboardPlanCommitted)
-  const editorOpen = useWorkbenchStore((s) => s.storyboardEditorOpen)
-  const setStoryboardEditorOpen = useWorkbenchStore((s) => s.setStoryboardEditorOpen)
-  const discardStoryboardPlan = useWorkbenchStore((s) => s.discardStoryboardPlan)
+  const activeDocumentId = useWorkbenchStore((s) => s.activeDocumentId)
+  const targetDocumentId = documentId ?? activeDocumentId
+  const entry = useWorkbenchStore((s) => (targetDocumentId ? s.storyboardPlans[targetDocumentId] : undefined))
+  const exactDesign = useWorkbenchStore((s) => storyboardId
+    ? s.storyboardDesignsByDocumentId[targetDocumentId]?.find((design) => design.id === storyboardId)
+    : undefined)
+  const plan = exactDesign?.plan ?? (storyboardId ? null : entry?.plan ?? null)
+  const committed = exactDesign?.committed ?? (storyboardId ? false : entry?.committed ?? false)
+  const deleteStoryboardDesign = useWorkbenchStore((s) => s.deleteStoryboardDesign)
   const setWorkspaceMode = useWorkbenchStore((s) => s.setWorkspaceMode)
+  const setActiveStoryboardId = useWorkbenchStore((s) => s.setActiveStoryboardId)
+  const projectedStoryboardId = useWorkbenchStore((s) => {
+    const currentEntry = targetDocumentId ? s.storyboardPlans[targetDocumentId] : undefined
+    const designs = s.storyboardDesignsByDocumentId[targetDocumentId] ?? []
+    return designs.find((design) => design.plan === currentEntry?.plan)?.id ?? designs[0]?.id
+  })
+  const resolvedStoryboardId = exactDesign?.id ?? projectedStoryboardId
 
   if (!plan) return null
 
@@ -40,46 +56,38 @@ export default function StoryboardPlanCard(): JSX.Element | null {
       confirmLabel: t('storyboardEditor.discard'),
       danger: true,
     })
-    if (ok) discardStoryboardPlan()
+    if (ok && resolvedStoryboardId) deleteStoryboardDesign(resolvedStoryboardId, targetDocumentId)
   }
 
-  // 状态徽标用 Nomi 品牌色(草稿/编辑=暖 accent、已落=success)。StatusBadge 是 Mantine
+  const openEditor = () => {
+    if (resolvedStoryboardId) setActiveStoryboardId(resolvedStoryboardId, targetDocumentId)
+    setWorkspaceMode('creation')
+  }
+
+  // 状态徽标用 Nomi 品牌色(草稿=暖 accent、已落=success)。StatusBadge 是 Mantine
   // gray/blue/green，非品牌色 → 这里保留手写品牌 chip(2026-06-22 回归核对:别让品牌色被压成通用灰蓝)。
-  const badge = editorOpen
-    ? { label: t('storyboardEditor.planCard.editing'), cls: 'bg-nomi-accent-soft text-nomi-accent' }
-    : committed
-      ? { label: t('storyboardEditor.planCard.committed'), cls: 'bg-workbench-success-soft text-workbench-success' }
-      : { label: t('storyboardEditor.planCard.draft'), cls: 'bg-nomi-accent-soft text-nomi-accent' }
+  const badge = committed
+    ? { label: t('storyboardEditor.planCard.committed'), cls: 'bg-workbench-success-soft text-workbench-success' }
+    : { label: t('storyboardEditor.planCard.draft'), cls: 'bg-nomi-accent-soft text-nomi-accent' }
 
   return (
     <div
-      className={cn(
-        'flex flex-col gap-2 p-3 rounded-nomi border bg-nomi-paper',
-        editorOpen ? 'border-nomi-accent' : 'border-nomi-line',
-      )}
-      data-storyboard-card={committed ? 'committed' : editorOpen ? 'editing' : 'draft'}
+      className={cn('flex flex-col gap-2 p-3 rounded-nomi border border-nomi-line bg-nomi-paper')}
+      data-storyboard-card={committed ? 'committed' : 'draft'}
     >
       <div className="flex items-center gap-2 min-w-0">
-        {committed && !editorOpen
+        {committed
           ? <IconCircleCheck size={15} stroke={1.6} className="shrink-0 text-workbench-success" />
           : <IconMovie size={15} stroke={1.6} className="shrink-0 text-nomi-ink-60" />}
         <span className="min-w-0 flex-1 truncate text-body-sm font-medium text-nomi-ink">{title}</span>
         <span className={cn('shrink-0 text-micro px-2 py-0.5 rounded-full leading-relaxed', badge.cls)}>{badge.label}</span>
       </div>
 
-      {editorOpen ? (
-        <>
-          <span className="text-caption text-nomi-ink-60">{t('storyboardEditor.planCard.editingSummary', { count: shotCount })}</span>
-          <div className="flex items-center gap-2">
-            <WorkbenchButton variant="default" size="sm" onClick={() => setStoryboardEditorOpen(false)}>{t('storyboardEditor.planCard.backToDraft')}</WorkbenchButton>
-            <span className="ml-auto text-caption text-nomi-ink-40">{t('storyboardEditor.planCard.confirmHint')}</span>
-          </div>
-        </>
-      ) : committed ? (
+      {committed ? (
         <>
           <span className="text-caption text-nomi-ink-60">{t('storyboardEditor.planCard.committedSummary', { count: shotCount })}</span>
           <div className="flex items-center gap-2">
-            <WorkbenchButton variant="default" size="sm" onClick={() => setStoryboardEditorOpen(true)}>{t('storyboardEditor.planCard.editAgain')}</WorkbenchButton>
+            <WorkbenchButton variant="default" size="sm" onClick={openEditor}>{t('storyboardEditor.planCard.editAgain')}</WorkbenchButton>
             <WorkbenchButton variant="default" size="sm" className="ml-auto" onClick={() => setWorkspaceMode('generation')}>
               {t('storyboardEditor.planCard.goGeneration')}<IconArrowRight size={13} stroke={1.6} />
             </WorkbenchButton>
@@ -102,7 +110,7 @@ export default function StoryboardPlanCard(): JSX.Element | null {
             ) : null}
           </div>
           <div className="flex items-center gap-2">
-            <WorkbenchButton variant="primary" size="sm" onClick={() => setStoryboardEditorOpen(true)}>{t('storyboardEditor.planCard.openEditor')}</WorkbenchButton>
+            <WorkbenchButton variant="primary" size="sm" onClick={openEditor}>{t('storyboardEditor.planCard.openEditor')}</WorkbenchButton>
             <button
               type="button"
               onClick={onDiscard}

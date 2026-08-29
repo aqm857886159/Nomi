@@ -27,8 +27,8 @@ type NomiAILabelProps = {
 }
 
 type NomiStepperProps = {
-  value: 'creation' | 'generation' | 'preview'
-  onChange: (mode: 'creation' | 'generation' | 'preview') => void
+  value: 'creation' | 'storyboard' | 'generation' | 'preview'
+  onChange: (mode: 'creation' | 'storyboard' | 'generation' | 'preview') => void
 }
 
 type NomiWordmarkProps = {
@@ -134,6 +134,7 @@ export function NomiAILabel({ markSize = 22, wordSize = 14, className, suffix = 
 
 export function NomiStepper({ value, onChange }: NomiStepperProps): JSX.Element {
   const { t } = useTranslation()
+  const visibleValue = value === 'storyboard' ? 'creation' : value
   const tabs: { mode: NomiStepperProps['value']; label: string }[] = [
     { mode: 'creation', label: t('workspace.creationTab') },
     { mode: 'generation', label: t('workspace.generationTab') },
@@ -158,8 +159,8 @@ export function NomiStepper({ value, onChange }: NomiStepperProps): JSX.Element 
             'data-[state=active]:bg-nomi-paper data-[state=active]:text-nomi-ink data-[state=active]:shadow-nomi-sm',
           )}
           type="button"
-          aria-current={value === tab.mode ? 'page' : undefined}
-          data-state={value === tab.mode ? 'active' : 'idle'}
+          aria-current={visibleValue === tab.mode ? 'page' : undefined}
+          data-state={visibleValue === tab.mode ? 'active' : 'idle'}
           data-mode={tab.mode}
           onClick={() => onChange(tab.mode)}
         >

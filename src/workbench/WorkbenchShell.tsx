@@ -42,6 +42,7 @@ type WorkbenchShellProps = {
 
 const STEP_PARAM_BY_MODE: Record<WorkspaceMode, string> = {
     creation: "create",
+    storyboard: "storyboard",
     generation: "generate",
     preview: "preview",
 };
@@ -49,6 +50,7 @@ const STEP_PARAM_BY_MODE: Record<WorkspaceMode, string> = {
 const MODE_BY_STEP_PARAM: Record<string, WorkspaceMode> = {
     create: "creation",
     creation: "creation",
+    storyboard: "storyboard",
     generate: "generation",
     generation: "generation",
     preview: "preview",
@@ -267,9 +269,9 @@ export default function WorkbenchShell({
                     <ProjectExplorerSidebar projectId={projectId ?? null} categories={categories} />
                 ) : null}
                 <div className='flex-1 min-w-0 min-h-0 relative'>
-                    {mountedWorkspaceModes.includes("creation") ? (
+                    {mountedWorkspaceModes.includes("creation") || mountedWorkspaceModes.includes("storyboard") ? (
                         <WorkspaceSlot
-                            active={workspaceMode === "creation"}
+                            active={workspaceMode === "creation" || workspaceMode === "storyboard"}
                             label={t("workspace.creation")}>
                             <CreationWorkspace />
                         </WorkspaceSlot>

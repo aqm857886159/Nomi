@@ -129,4 +129,5 @@ describe('formatCanvasForAgent — canonical canvas.read compact presentation', 
     expect(MAX_CANVAS_PROMPT_CHARACTERS).toBeLessThanOrEqual(12_000)
     expect(text).toContain(selectedPrompt)
   })
+
 })

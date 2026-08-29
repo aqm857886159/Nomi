@@ -7,15 +7,17 @@ import { cn } from '../../utils/cn'
 import { useWorkbenchStore } from '../workbenchStore'
 import { normalizeWorkbenchContentJson, type CreationDocumentTools } from '../workbenchTypes'
 import { useTransientScrollingClass } from './useTransientScrollingClass'
-import { useNomiRichTextEditor } from '../common/useNomiRichTextEditor'
+import { useNomiRichTextEditor, RICH_TEXT_FEATURE_EXTENSIONS } from '../common/useNomiRichTextEditor'
 import { buildRichTextActions, type RichTextAction } from '../common/richTextActions'
 
-// 工具栏分组：格式按语义分 3 簇（强调 / 标题 / 列表·引用）靠左，历史（撤销/重做）推到右端。
+// 工具栏分组：格式按语义分 4 簇（文字 / 标题段落 / 列表 / 插入）靠左，历史（撤销/重做）推到右端。
 // 之前用一个 flex-1 spacer 把 9 个按钮全挤到左侧、右边 ~570px 浪费 —— 这里按语义两端锚定。
+// 5 簇封顶（§1.5 硬规则），每个簇都是往已有语义里补成员，不新增平铺簇。
 const TOOLBAR_LEFT_GROUPS: readonly (readonly string[])[] = [
-  ['bold', 'italic'],
-  ['h1', 'h2'],
-  ['bullet-list', 'ordered-list', 'blockquote'],
+  ['bold', 'italic', 'strike', 'code', 'highlight'],
+  ['h1', 'h2', 'h3', 'blockquote', 'horizontal-rule'],
+  ['bullet-list', 'ordered-list', 'task-list'],
+  ['table', 'link'],
 ]
 const TOOLBAR_RIGHT_GROUP: readonly string[] = ['undo', 'redo']
 
@@ -90,13 +92,19 @@ function WorkbenchEditorToolbar({ editor }: { editor: Editor | null }): JSX.Elem
 
 export default function WorkbenchEditor(): JSX.Element {
   const { t } = useTranslation()
-  const workbenchDocument = useWorkbenchStore((state) => state.workbenchDocument)
+  const workbenchDocuments = useWorkbenchStore((state) => state.workbenchDocuments)
+  const activeDocumentId = useWorkbenchStore((state) => state.activeDocumentId)
   const setWorkbenchDocument = useWorkbenchStore((state) => state.setWorkbenchDocument)
   const setCreationDocumentTools = useWorkbenchStore((state) => state.setCreationDocumentTools)
   const setCreationSelectionText = useWorkbenchStore((state) => state.setCreationSelectionText)
   const storyboardPlannerLauncher = useWorkbenchStore((state) => state.storyboardPlannerLauncher)
   const [selectionState, setSelectionState] = React.useState({ text: '', version: 0 })
   const scrollRef = useTransientScrollingClass<HTMLDivElement>('workbench-scrollbar-visible')
+  // 当前激活文档（多文档：编辑器内容跟随 activeDocumentId）。
+  const workbenchDocument = React.useMemo(
+    () => workbenchDocuments.find((d) => d.id === activeDocumentId) ?? workbenchDocuments[0],
+    [workbenchDocuments, activeDocumentId],
+  )
   const workbenchDocumentRef = React.useRef(workbenchDocument)
 
   React.useEffect(() => {
@@ -110,7 +118,13 @@ export default function WorkbenchEditor(): JSX.Element {
 
   const handleChange = React.useCallback(
     (contentJson: JSONContent) => {
-      setWorkbenchDocument({ ...workbenchDocumentRef.current, contentJson, updatedAt: Date.now() })
+      const currentDocument = workbenchDocumentRef.current
+      const currentContent = normalizeWorkbenchContentJson(currentDocument.contentJson)
+      // Tiptap can emit an initialization update even when its JSON is
+      // unchanged. Opening a draft must not mutate its source revision or mark
+      // every attached storyboard as needing synchronization.
+      if (JSON.stringify(currentContent) === JSON.stringify(contentJson)) return
+      setWorkbenchDocument({ ...currentDocument, contentJson, updatedAt: Date.now() })
     },
     [setWorkbenchDocument],
   )
@@ -136,6 +150,8 @@ export default function WorkbenchEditor(): JSX.Element {
     placeholder: t('creationAi.editor.placeholder'),
     onChange: handleChange,
     onSelectionChange: handleSelectionChange,
+    featureExtensions: RICH_TEXT_FEATURE_EXTENSIONS,
+    sanitizePaste: true,
   })
 
   // Publish creation document tools = the shared rich-text read/write surface (read full/selection,
@@ -171,6 +187,7 @@ export default function WorkbenchEditor(): JSX.Element {
         'overflow-hidden',
       )}
       aria-label={t('creationAi.editor.documentAria')}
+      data-creation-editor="true"
       onKeyDown={(event) => event.stopPropagation()}
       onKeyUp={(event) => event.stopPropagation()}
     >

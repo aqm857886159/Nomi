@@ -9,8 +9,8 @@ import {
 
 // 真 PNG 头（≥12 字节，魔数嗅探要够长）。
 const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52]);
-// ISO-BMFF：4 字节 box size + "ftyp" + brand。
-const MP4_BYTES = Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x20]), Buffer.from("ftypisom"), Buffer.from("mdat")]);
+// ISO-BMFF：合法最小 ftyp box（size + type + major brand + minor version）。
+const MP4_BYTES = Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x10]), Buffer.from("ftypisom"), Buffer.alloc(4), Buffer.from("mdat")]);
 const dataUrl = (mime: string, bytes: Buffer) => `data:${mime};base64,${bytes.toString("base64")}`;
 
 describe("classifyAssetValue", () => {

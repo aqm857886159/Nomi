@@ -1,4 +1,4 @@
-import type { WorkbenchDocument } from '../workbenchTypes'
+import { mintDocumentId, type WorkbenchDocument } from '../workbenchTypes'
 
 export type TryNowExample = {
   id: 'manga' | 'product-demo' | 'travel-vlog'
@@ -85,6 +85,7 @@ export function buildStoryDocument(story: string, title = ''): WorkbenchDocument
     .map((line) => line.trim())
     .filter(Boolean)
   return {
+    id: mintDocumentId(),
     version: 1,
     title,
     contentJson: {

@@ -144,6 +144,59 @@ describe("Nomi render manifest v1", () => {
     expect(parsed.profile.audioMode).toBe("mute");
   });
 
+  it("round-trips complete clip audio processing", () => {
+    const manifest = validManifest();
+    manifest.timeline.tracks[0].clips[0].audio = {
+      gainDb: -6,
+      muted: false,
+      fadeInFrames: 12,
+      fadeOutFrames: 18,
+    };
+
+    const parsed = parseManifestJson(serializeManifest(manifest));
+
+    expect(parsed.timeline.tracks[0].clips[0].audio).toEqual(manifest.timeline.tracks[0].clips[0].audio);
+  });
+
+  it("rejects malformed or out-of-range clip audio instead of dropping it", () => {
+    const cases: unknown[] = [
+      { gainDb: 1, muted: false, fadeInFrames: 0, fadeOutFrames: 0 },
+      { gainDb: -61, muted: false, fadeInFrames: 0, fadeOutFrames: 0 },
+      { gainDb: -6, muted: "yes", fadeInFrames: 0, fadeOutFrames: 0 },
+      { gainDb: -6, muted: false, fadeInFrames: -1, fadeOutFrames: 0 },
+      { gainDb: -6, muted: false, fadeInFrames: 0.5, fadeOutFrames: 0 },
+      { muted: false, fadeInFrames: 0, fadeOutFrames: 0 },
+    ];
+    cases.forEach((audio) => {
+      const manifest = validManifest();
+      (manifest.timeline.tracks[0].clips[0] as unknown as { audio: unknown }).audio = audio;
+      expect(() => assertValidManifest(manifest), JSON.stringify(audio)).toThrow(/audio/i);
+    });
+
+    const overlapping = validManifest();
+    overlapping.timeline.tracks[0].clips[0].audio = {
+      gainDb: 0,
+      muted: false,
+      fadeInFrames: 50,
+      fadeOutFrames: 50,
+    };
+    expect(() => assertValidManifest(overlapping)).toThrow(/visible clip duration/i);
+  });
+
+  it("rejects clip audio processing on image assets", () => {
+    const manifest = validManifest();
+    manifest.timeline.tracks[0].kind = "image";
+    manifest.assets["asset-1"].kind = "image";
+    manifest.timeline.tracks[0].clips[0].audio = {
+      gainDb: -6,
+      muted: false,
+      fadeInFrames: 0,
+      fadeOutFrames: 0,
+    };
+
+    expect(() => assertValidManifest(manifest)).toThrow(/image clips/i);
+  });
+
   it("rejects invalid profile audio fields", () => {
     const preserveWithoutAac = validManifest();
     preserveWithoutAac.profile.audioCodec = "none";
@@ -156,5 +209,26 @@ describe("Nomi render manifest v1", () => {
     const invalidMode = validManifest() as unknown as { profile: { audioMode: string } };
     invalidMode.profile.audioMode = "silent";
     expect(() => assertValidManifest(invalidMode)).toThrow(/profile/i);
+  });
+
+  it("validates authored transition endpoints and duration", () => {
+    const manifest = validManifest();
+    manifest.timeline.tracks[0].clips.push({
+      id: "clip-2",
+      assetId: "asset-1",
+      startFrame: 90,
+      endFrame: 120,
+    });
+    manifest.timeline.transitions = [{
+      fromClipId: "clip-1",
+      toClipId: "clip-2",
+      type: "dissolve",
+      durationFrames: 6,
+    }];
+    expect(() => assertValidManifest(manifest)).not.toThrow();
+
+    const invalid = validManifest();
+    invalid.timeline.transitions = [{ fromClipId: "clip-1", toClipId: "clip-1", type: "cut" }];
+    expect(() => assertValidManifest(invalid)).toThrow(/endpoints/i);
   });
 });

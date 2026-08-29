@@ -43,7 +43,7 @@ beforeEach(() => {
   deps.uiTitle = 'different UI plan'
   deps.apply.mockImplementation(async (_name, args) => {
     deps.uiTitle = args.title
-    return { accepted: true }
+    return { status: 'applied', documentId: 'doc-1', storyboardDesignId: 'storyboard-1', message: 'ok' }
   })
   deps.send.mockResolvedValue({ response: { text: 'answer', status: 'finished' } })
 })
@@ -188,6 +188,32 @@ describe('storyboard planner scope and projection', () => {
   it('cancelled planner remains cancelled instead of reporting plan complete', async () => {
     deps.send.mockResolvedValue({ response: { text: 'partial', status: 'cancelled' } })
     expect(await runStoryboardPlanner(base())).toEqual({ text: 'partial', status: 'cancelled' })
+  })
+
+  it('returns the exact design application accepted by the creation store', async () => {
+    const confirm = vi.fn(async () => {})
+    deps.send.mockImplementation(async (input: { onToolCall: (event: ToolCallEvent) => void | Promise<void> }) => {
+      await input.onToolCall({ turnId: 'turn-storyboard-test', toolCallId: 'proposal', toolName: 'propose_storyboard_plan', args: plan, isPending: () => true, confirm })
+      return { response: { text: 'done', status: 'finished' } }
+    })
+
+    await expect(runStoryboardPlanner(base())).resolves.toMatchObject({
+      plan,
+      application: { status: 'applied', documentId: 'doc-1', storyboardDesignId: 'storyboard-1' },
+    })
+  })
+
+  it('reports an obsolete revision without presenting the late plan as applied', async () => {
+    const confirm = vi.fn(async () => {})
+    deps.apply.mockResolvedValue({ status: 'obsolete', documentId: 'doc-1', storyboardDesignId: 'deleted', message: 'obsolete' })
+    deps.send.mockImplementation(async (input: { onToolCall: (event: ToolCallEvent) => void | Promise<void> }) => {
+      await input.onToolCall({ turnId: 'turn-storyboard-test', toolCallId: 'proposal', toolName: 'propose_storyboard_plan', args: plan, isPending: () => true, confirm })
+      return { response: { text: 'done', status: 'finished' } }
+    })
+
+    const result = await runStoryboardPlanner(base())
+    expect(result.plan).toBeUndefined()
+    expect(result.application).toMatchObject({ status: 'obsolete', storyboardDesignId: 'deleted' })
   })
 
   it('a stopped parent turn cannot apply or approve a late plan', async () => {

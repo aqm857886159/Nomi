@@ -1,5 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
+import { IconCrop } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { NomiImage } from '../../design/media'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -8,12 +9,14 @@ import { buildSnapPoints, resolveSnap, pixelThresholdToFrames, type SnapResult }
 import type { TimelineClip as TimelineClipData } from './timelineTypes'
 import { resolveTimelineClipPreviewMedia } from './timelineClipPreview'
 import { useFilmstrip } from '../../media/useFilmstrip'
+import { resolveTimelineSourceWindow } from './timelineVisualFeedback'
 
 type TimelineClipProps = {
   clip: TimelineClipData
+  transitionLaneRows?: number
 }
 
-function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
+function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.Element {
   const { t } = useTranslation()
   const scale = useWorkbenchStore((state) => state.timeline.scale)
   // 仅订阅"本 clip 是否选中"（布尔），避免选区变化时所有 clip 重渲染
@@ -30,6 +33,15 @@ function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
   const didDragRef = React.useRef(false)
 
   const title = clip.label || clip.text || clip.sourceNodeId
+  const sourceWindow = resolveTimelineSourceWindow(clip)
+  const sourceWindowLabel = sourceWindow.trimmed
+    ? t('timelineEditor.clip.sourceWindow', {
+        start: sourceWindow.sourceStartFrame,
+        end: sourceWindow.sourceEndFrame,
+        left: sourceWindow.trimmedStartFrames,
+        right: sourceWindow.trimmedEndFrames,
+      })
+    : ''
   const previewMedia = resolveTimelineClipPreviewMedia(clip)
   // 视频 clip 全员真帧：后台抽 16 帧胶片条（同源共享缓存），未就绪/失败回退静态图或占位色块
   const filmstrip = useFilmstrip(clip.type === 'video' ? clip.url : '')
@@ -229,6 +241,7 @@ function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
   )
 
   const clipWidth = Math.max(36, frameToPixel(clipVisibleFrames(clip), scale))
+  const showSourceWindowIcon = sourceWindow.trimmed && clipWidth >= 64
 
   const thumbContent =
     clip.type === 'video' && filmstrip?.status === 'ready' ? (
@@ -259,7 +272,7 @@ function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
 
   const clipBaseClasses = cn(
     'workbench-timeline-clip',
-    'absolute top-[5px] bottom-[5px] flex items-center gap-0 p-0',
+    'absolute bottom-[5px] flex items-center gap-0 p-0',
     'rounded text-[var(--workbench-ink)] text-micro font-medium',
     'shadow-[inset_0_1px_0_var(--workbench-bevel)] cursor-grab select-none active:cursor-grabbing',
     clip.type === 'image' &&
@@ -302,11 +315,12 @@ function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
       className={cn(clipBaseClasses, selectedClasses)}
       data-testid="timeline-clip"
       data-clip-type={clip.type}
-      title={title}
+      title={sourceWindow.trimmed ? `${title} · ${sourceWindowLabel}` : title}
       data-selected={isSelected ? 'true' : 'false'}
       data-dragging={isDragging ? 'true' : 'false'}
       style={{
         left: frameToPixel(clip.startFrame, scale),
+        top: transitionLaneRows > 0 ? transitionLaneRows * 20 + 1 : 5,
         width: clipWidth,
         zIndex: isDragging ? 5 : undefined,
         cursor: splitMode ? 'col-resize' : isDragging ? 'grabbing' : undefined,
@@ -367,16 +381,49 @@ function TimelineClip({ clip }: TimelineClipProps): JSX.Element {
         </button>
       ) : null}
       {thumbContent}
+      {sourceWindow.trimmed ? (
+        <span
+          className={cn(
+            'workbench-timeline-clip__source-window',
+            'absolute left-1 right-1 top-1 z-[1] h-1 overflow-hidden rounded-full',
+            'bg-[color-mix(in_oklch,var(--nomi-ink)_18%,transparent)] pointer-events-none',
+          )}
+          data-timeline-source-window="true"
+          data-source-start-frame={sourceWindow.sourceStartFrame}
+          data-source-end-frame={sourceWindow.sourceEndFrame}
+          role="img"
+          aria-label={sourceWindowLabel}
+          title={sourceWindowLabel}
+        >
+          <span
+            className={cn(
+              'absolute inset-y-0 rounded-full',
+              clip.type === 'video' ? 'bg-[var(--workbench-video)]' : 'bg-[var(--workbench-audio)]',
+            )}
+            style={{ left: `${sourceWindow.startPercent}%`, width: `${sourceWindow.widthPercent}%` }}
+            aria-hidden="true"
+          />
+        </span>
+      ) : null}
       {/* 标签始终显示（含有缩略图时也压在其上）：宽参考图 object-cover 只见局部，光看图认不出哪一镜 */}
       <span
         className={cn(
           'workbench-timeline-clip__label',
-          'relative z-[1] min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap',
+          'absolute bottom-0 left-0 z-[1] inline-flex min-w-0 max-w-full items-center gap-0.5 overflow-hidden whitespace-nowrap',
           'rounded-nomi-sm text-[var(--nomi-ink)] backdrop-blur-[8px]',
-          'self-end mt-auto mx-1 mb-1 px-[5px] py-0.5 bg-[color-mix(in_oklch,var(--nomi-paper)_72%,transparent)]',
+          'mx-1 px-[5px] py-0.5 bg-[color-mix(in_oklch,var(--nomi-paper)_72%,transparent)]',
         )}
       >
-        {title}
+        {showSourceWindowIcon ? (
+          <IconCrop
+            className="flex-none"
+            size={11}
+            stroke={1.5}
+            data-timeline-source-window-icon="true"
+            aria-hidden="true"
+          />
+        ) : null}
+        <span className="min-w-0 overflow-hidden text-ellipsis">{title}</span>
       </span>
       {/* 剪刀模式切点线：橙色虚线 + 剪刀图标，跟随光标 */}
       {splitMode && cutPx !== null ? (

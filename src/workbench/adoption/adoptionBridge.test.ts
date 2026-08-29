@@ -5,9 +5,11 @@ import { applyAdoption, buildAdoptedTimeline } from './adoptionApply'
 import { adoptGenerationNode } from './adoptGenerationNode'
 import { adoptStoryboardBatch } from './adoptStoryboardBatch'
 import { lookupAdoptionProposal, registerAdoptionProposal, resetAdoptionRegistry } from './adoptionProposalRegistry'
+import { timelineRevisionOf } from './adoptionProposalKey'
 import { workbenchAdoptionPorts } from './adoptionStorePorts'
 import { useWorkbenchStore } from '../workbenchStore'
 import type { AdoptionPlacement, AdoptionProposalKey } from './adoptionTypes'
+import { timelineRevision } from '../timeline/kernel/timelineKernel'
 
 function clip(id: string, startFrame: number, frameCount = 24): TimelineClip {
   return {
@@ -90,6 +92,22 @@ describe('P5 E1 adoption bridge', () => {
     expect(lookupAdoptionProposal(key())).toEqual({ kind: 'replay', proposal: original })
     expect(lookupAdoptionProposal(key({ baseRevision: 'base-2' }))).toMatchObject({ kind: 'stale', proposal: original })
     expect(lookupAdoptionProposal(key({ artifactVersion: '2' }))).toMatchObject({ kind: 'needs_attention', proposal: original })
+  })
+
+  it('uses the same full-content revision as Agent timeline plans', () => {
+    const base = createDefaultTimeline()
+    const withClip = {
+      ...base,
+      tracks: base.tracks.map((track) => track.type === 'video' ? { ...track, clips: [clip('a', 0)] } : track),
+    }
+    const changedSourceWindow = {
+      ...withClip,
+      tracks: withClip.tracks.map((track) => track.type === 'video'
+        ? { ...track, clips: track.clips.map((item) => ({ ...item, offsetStartFrame: 1 })) }
+        : track),
+    }
+    expect(timelineRevisionOf(withClip)).toBe(timelineRevision(withClip))
+    expect(timelineRevisionOf(changedSourceWindow)).not.toBe(timelineRevisionOf(withClip))
   })
 
   it('rejects a same-track overlap as one failed transaction', () => {

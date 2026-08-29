@@ -5,6 +5,7 @@
 // KIE 等具体供应商的端点/字段/响应路径只住在各自的声明里(单源),由 curatedAssetIngestion 提供。
 // 全部依赖注入(读本地字节 read / POST 上传 postJson),故可零网络零额度单测。
 
+import { DOMParser } from "@xmldom/xmldom";
 import { isComfyuiVendor, type AssetIngestion, type AssetMediaKind } from "./types";
 import {
   anonymousConsentFromUnknown,
@@ -21,6 +22,7 @@ import {
   parseInlineDataAsset,
   unreachableAssetValueError,
 } from "./assetValueScheme";
+import { contentTypeFromMagicBytes } from "../assets/mediaTypes";
 
 export type LocalAsset = {
   bytes: Buffer;
@@ -134,6 +136,41 @@ function readLocalizableAsset(url: string, read: LocalAssetReader): LocalAsset |
   return read(url);
 }
 
+/** 上传前按全局媒体表核对本地图片字节；SVG 单独验证文本结构，其余格式必须命中对应魔数。 */
+export function assertLocalAssetMediaBytes(asset: LocalAsset, mediaKind = mediaKindFromContentType(asset.contentType)): void {
+  if (mediaKind !== "image") return;
+  const declared = asset.contentType.toLowerCase().split(";")[0].trim();
+  const sniffed = contentTypeFromMagicBytes(asset.bytes);
+  if (sniffed && !sniffed.startsWith("image/")) {
+    throw new Error(`图片素材「${asset.fileName}」的真实文件头是 ${sniffed}，不能作为图片上传。`);
+  }
+  if (declared === "image/svg+xml") {
+    const svg = asset.bytes.toString("utf8").trim();
+    try {
+      // SVG 素材只需结构验证，不需要 DTD；显式拒绝实体声明，避免外部实体与实体展开入口。
+      if (/<!DOCTYPE\b|<!ENTITY\b/i.test(svg)) throw new Error("DTD/entity is not allowed");
+      const document = new DOMParser({ onError: (_level, message) => { throw new Error(message); } })
+        .parseFromString(svg, "image/svg+xml");
+      if (document.documentElement?.localName?.toLowerCase() !== "svg"
+        || document.documentElement.namespaceURI !== "http://www.w3.org/2000/svg") throw new Error("root is not svg");
+      return;
+    } catch {
+      throw new Error(`图片素材「${asset.fileName}」声明为 SVG，但内容不是完整且安全的 SVG 文档。`);
+    }
+  }
+  const prefix = asset.bytes.subarray(0, 2048).toString("utf8");
+  if (/<!doctype\s+html|<html\b|<\?xml\b|<svg\b/i.test(prefix)) {
+    throw new Error(`图片素材「${asset.fileName}」的内容实际是 HTML/XML/SVG 文本，不是可用于视频生成的栅格图片。请重新导入原图。`);
+  }
+  const knownRasterTypes = new Set([
+    "image/png", "image/jpeg", "image/webp", "image/gif", "image/avif",
+    "image/bmp", "image/x-icon", "image/tiff", "image/heic",
+  ]);
+  if (knownRasterTypes.has(declared) && sniffed !== declared) {
+    throw new Error(`图片素材「${asset.fileName}」声明为 ${declared}，但文件头识别为 ${sniffed || "未知/损坏"}。请重新导入原图。`);
+  }
+}
+
 /** 递归把结构里的待本地化素材值按映射替换(返回新结构,不改原对象)。 */
 export function replaceLocalAssetUrls<T>(value: T, urlMap: Map<string, string>): T {
   if (isLocalAssetUrl(value)) return (urlMap.get(value) ?? value) as unknown as T;
@@ -167,6 +204,7 @@ export function assertLocalAssetTransportReady(
     if (!asset.contentType || asset.contentType.toLowerCase().split(";")[0].trim() === "application/octet-stream") {
       throw new Error(`无法识别本地素材「${asset.fileName || describeAssetValue(url)}」的类型，不能安全判断它是图片、视频还是音频。请重新导入并保留正确的文件扩展名。`);
     }
+    assertLocalAssetMediaBytes(asset);
     if (trustedOriginalUrl(asset)) continue;
     const mediaKind = mediaKindFromContentType(asset.contentType);
     const candidates = resolveIngestion(mediaKind);
@@ -244,6 +282,7 @@ export async function resolveLocalAsset(
   }
   const asset = readLocalizableAsset(localUrl, read);
   if (!asset) throw new Error(`参考素材的本地文件读取失败（可能已被删除或随项目迁移）：${describeAssetValue(localUrl)}。请重新生成该节点或重新导入这张素材。`);
+  assertLocalAssetMediaBytes(asset);
   // 本地 ComfyUI：LoadImage 只认上传回的 input 目录文件名（非公网 URL），故**跳过下面的 trustedOriginalUrl
   // 公网 URL 快路**，恒把本地字节 POST 到 /upload/image 换文件名（field 名 "image"、type=input、overwrite 避重名堆积）。
   if (ingestion.strategy === "comfyui-upload") {
@@ -270,7 +309,6 @@ export async function resolveLocalAsset(
   // multipart / stream 上传（视频走的就是这两条）白白在主进程上同步造一个 1.33× 文件大小的字符串
   // ——一段 200MB 的 mp4 = 267MB 字符串 + 一次同步 CPU 峰值，整个 app 当场卡住（R17 卡死一族同款）。
   const base64Of = () => asset.bytes.toString("base64");
-
   if (ingestion.strategy === "inline-base64") return `data:${asset.contentType};base64,${base64Of()}`;
 
   if (ingestion.strategy === "upload-multipart") {
@@ -440,6 +478,7 @@ export async function localizeAssetsForVendor(
       throw new Error(`无法识别本地素材「${asset.fileName || describeAssetValue(url)}」的类型，不能安全判断它是图片、视频还是音频。请重新导入并保留正确的文件扩展名。`);
     }
     const mediaKind = mediaKindFromContentType(asset?.contentType);
+    if (asset) assertLocalAssetMediaBytes(asset, mediaKind);
     const candidates = resolveIngestion(mediaKind);
     // 本地 ComfyUI（comfyui-upload）：公网 URL 用不了，必须传到它自己的 input 目录换文件名 → 跳过 trusted 快路，恒上传。
     const skipTrusted = candidates[0]?.ingestion.strategy === "comfyui-upload";

@@ -57,6 +57,18 @@ describe('storyboardPlanToCreateNodesArgs', () => {
     expect(storyboardPlanToCreateNodesArgs(PLAN).groupCategoryId).toBe('shots')
   })
 
+  it('落画布节点保留原稿和分镜设计来源', () => {
+    const { nodes } = storyboardPlanToCreateNodesArgs(PLAN, {
+      creationDocumentId: 'doc-a',
+      storyboardDesignId: 'storyboard-b',
+    })
+    expect(nodes).not.toHaveLength(0)
+    expect(nodes.every((node) => (
+      node.metadata?.creationDocumentId === 'doc-a'
+      && node.metadata?.storyboardDesignId === 'storyboard-b'
+    ))).toBe(true)
+  })
+
   // ⚠️ 现状固化，不是「期望行为」：2026-08-18 修「批量选不了供应商」时实查到的缺口。
   // 画布框选那条链已经能把 vendor 一路写进节点；分镜这条**不能**——PlanShot 只有 modelKey，
   // 没有 vendor 字段，storyboardPlanToCreateNodesArgs 自然也传不出去。落地时 buildPlannedNodeMeta

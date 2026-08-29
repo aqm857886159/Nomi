@@ -131,8 +131,8 @@ describe('buildRenderManifestRequest', () => {
     })
 
     expect(request.diagnostics.warnings).toEqual(expect.arrayContaining([
-      'Timeline model only exposes image/video clips; audio/text/overlay/effect/keyframe entities are not first-class timeline tracks yet.',
-      'Renderer request omits audio/text/overlay/effect/keyframe tracks instead of synthesizing unsupported timeline data.',
+      'Timeline model exposes image/video/audio clips and text overlays; effect and keyframe entities are not first-class timeline tracks yet.',
+      'Renderer request omits effect/keyframe tracks instead of synthesizing unsupported timeline data.',
     ]))
     expect(request.timeline.tracks.map((track) => track.kind)).toEqual(['image'])
   })
@@ -156,6 +156,39 @@ describe('buildRenderManifestRequest', () => {
     const clips = request.timeline.tracks[0]?.clips ?? []
     expect(clips[0]).toMatchObject({ id: 'clip-framed', transform: { fit: 'cover', scale: 1.5, offsetX: 0.2, offsetY: -0.1 } })
     expect(clips[1]).not.toHaveProperty('transform')
+  })
+
+  it('carries non-default clip audio processing and omits legacy defaults', () => {
+    const processed = makeClip({
+      id: 'clip-processed',
+      sourceNodeId: 'asset-processed',
+      audio: { gainDb: -6, muted: false, fadeInFrames: 6, fadeOutFrames: 9 },
+    })
+    const legacy = makeClip({ id: 'clip-legacy', sourceNodeId: 'asset-legacy', startFrame: 40, endFrame: 70 })
+    const explicitDefaults = makeClip({
+      id: 'clip-defaults',
+      sourceNodeId: 'asset-defaults',
+      startFrame: 70,
+      endFrame: 100,
+      audio: { gainDb: 0, muted: false, fadeInFrames: 0, fadeOutFrames: 0 },
+    })
+    const request = buildRenderManifestRequest({
+      projectId: 'project-1',
+      timeline: makeTimeline([{ id: 'videoTrack', type: 'video', label: 'Video', clips: [processed, legacy, explicitDefaults] }]),
+      aspectRatio: '16:9',
+      resolution: '1080p',
+      quality: 'standard',
+      preset: 'publish',
+    })
+
+    expect(request.timeline.tracks[0].clips[0].audio).toEqual({
+      gainDb: -6,
+      muted: false,
+      fadeInFrames: 6,
+      fadeOutFrames: 9,
+    })
+    expect(request.timeline.tracks[0].clips[1]).not.toHaveProperty('audio')
+    expect(request.timeline.tracks[0].clips[2]).not.toHaveProperty('audio')
   })
 
   it('does not merge two clips from the same node when they carry different result urls', () => {
@@ -238,5 +271,25 @@ describe('buildRenderManifestRequest', () => {
       url: 'file:///project/media/clip.mp4',
       hasAudio: true,
     })
+  })
+
+  it('carries authored visual transitions through the export manifest', () => {
+    const first = makeClip({ id: 'clip-a', sourceNodeId: 'asset-a', startFrame: 0, endFrame: 30 })
+    const second = makeClip({ id: 'clip-b', sourceNodeId: 'asset-b', startFrame: 30, endFrame: 60 })
+    const request = buildRenderManifestRequest({
+      projectId: 'project-1',
+      timeline: {
+        ...makeTimeline([{ id: 'videoTrack', type: 'video', label: 'Video', clips: [first, second] }]),
+        transitions: [{ fromClipId: 'clip-a', toClipId: 'clip-b', type: 'dissolve', durationFrames: 6 }],
+      },
+      aspectRatio: '16:9',
+      resolution: '1080p',
+      quality: 'standard',
+      preset: 'publish',
+    })
+
+    expect(request.timeline.transitions).toEqual([
+      { fromClipId: 'clip-a', toClipId: 'clip-b', type: 'dissolve', durationFrames: 6 },
+    ])
   })
 })

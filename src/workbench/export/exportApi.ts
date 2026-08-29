@@ -22,6 +22,8 @@ export type ExportTimelineToMp4Options = {
   quality?: ExportQuality
   generationNodes?: GenerationCanvasNode[]
   onProgress?: (progress: { status: 'preparing' | 'recording' | 'converting' | 'done'; ratio: number }) => void
+  /** Fired only after the main process has created and persisted the export job. */
+  onJobStarted?: (job: { jobId: string; backend: 'filtergraph' | 'webm' }) => void
 }
 
 export type StartTimelineMp4ExportJobOptions = Omit<ExportTimelineToMp4Options, 'onProgress'>
@@ -76,6 +78,7 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
     outputName: options.outputName,
     manifest,
   })
+  options.onJobStarted?.({ jobId, backend })
 
   let webmBlob: Blob | null = null
   let finishedTempInput = false

@@ -72,7 +72,6 @@ export const useJourneyTourStore = create<JourneyTourState>((set) => {
     }
 
     // ── 创作区：打字回放 ──
-    ws().setStoryboardEditorOpen(false)
     ws().setStoryboardPlan(null)
     ws().setWorkspaceMode('creation')
     await settle()
@@ -90,7 +89,7 @@ export const useJourneyTourStore = create<JourneyTourState>((set) => {
     // ── 创作区：AI 拆分镜（预置方案直接展示）──
     const plan = buildDemoStoryboardPlan()
     ws().setStoryboardPlan(plan)
-    ws().setStoryboardEditorOpen(true)
+    ws().setWorkspaceMode('creation')
     cinematic('split')
     await delay(2600)
     if (aborted()) return

@@ -3,6 +3,8 @@ import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 import { useWorkbenchStore } from '../workbenchStore'
 import { emitCanvasGesture, getCanvasEventLastSeq, seedCanvasEventLastSeq } from '../generationCanvas/events/canvasEventEmitter'
 import { getDesktopBridge } from '../../desktop/bridge'
+import { setDesktopActiveProjectId } from '../../desktop/activeProject'
+import { resetTimelineAgentState } from '../timeline/agent/timelineToolCall'
 import type { WorkbenchProjectPayload, WorkbenchProjectRecordV1 } from './projectRecordSchema'
 import type { ProjectHydrationGuard } from './projectCanvasReadSurface'
 
@@ -10,28 +12,34 @@ export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
   const workbench = useWorkbenchStore.getState()
   const generation = useGenerationCanvasStore.getState()
   return {
-    workbenchDocument: workbench.workbenchDocument,
+    workbenchDocuments: workbench.workbenchDocuments,
+    activeDocumentId: workbench.activeDocumentId,
     timeline: workbench.timeline,
     // S5-b-0:持久化走 document 视图(选区是会话态不进项目文件)
     generationCanvas: generation.readDocumentSnapshot(),
     categories: workbench.categories,
     // S5-b-1:尾部重放游标(append 回执维护;回执延迟导致略旧也安全——reducer 幂等)
     generationCanvasLastSeq: getCanvasEventLastSeq(),
-    // P0-6:分镜方案随项目落盘(此前纯内存→切项目/重载蒸发)。
-    storyboardPlan: workbench.storyboardPlan,
-    // 卡片回看:落画布状态随项目落盘(草稿/已落画布),否则重开项目分不清卡片该显哪态。
-    storyboardPlanCommitted: workbench.storyboardPlanCommitted,
+    // P4:每篇原稿的分镜方案映射随项目落盘（P0-6 从单字段升级）。
+    storyboardPlans: workbench.storyboardPlans,
+    storyboardDesignsByDocumentId: workbench.storyboardDesignsByDocumentId,
   }
 }
 
 export function restoreWorkbenchProjectPayload(payload: WorkbenchProjectPayload): void {
-  useWorkbenchStore.getState().setWorkbenchDocument(payload.workbenchDocument)
+  useWorkbenchStore.getState().hydrateWorkbenchDocuments(
+    payload.workbenchDocuments ?? (payload.workbenchDocument ? [payload.workbenchDocument] : []),
+    payload.activeDocumentId ?? null,
+  )
   useWorkbenchStore.getState().setTimeline(payload.timeline)
   useWorkbenchStore.getState().setCategories(payload.categories)
-  // P0-6:分镜方案随项目恢复。restore 在 hydrate 里先于 swapCreationAiProject 跑,故由它负责
-  // 载入本项目方案(swap 不再清,见 workbenchStore),老项目无字段则置 null。
-  // 用 hydrateStoryboardPlan(非 setStoryboardPlan):载入不自动展开编辑器、不标脏。
-  useWorkbenchStore.getState().hydrateStoryboardPlan(payload.storyboardPlan ?? null, payload.storyboardPlanCommitted ?? false)
+  // P4:恢复整套分镜方案映射。restore 在 hydrate 里先于 swapCreationAiProject 跑。
+  // 用 hydrateStoryboardPlans(非 setStoryboardPlan):载入不标脏。
+  const store = useWorkbenchStore.getState()
+  store.hydrateStoryboardDesigns(
+    payload.storyboardDesignsByDocumentId ?? {},
+    payload.storyboardPlans ?? {},
+  )
   useGenerationCanvasStore.getState().restoreSnapshot(payload.generationCanvas)
 }
 
@@ -102,7 +110,9 @@ type ActiveWorkbenchProjectSaveTarget = {
 let activeWorkbenchProjectSaveTarget: ActiveWorkbenchProjectSaveTarget | null = null
 
 export function setActiveWorkbenchProjectSaveTarget(target: ActiveWorkbenchProjectSaveTarget | null): void {
+  if (activeWorkbenchProjectSaveTarget?.projectId !== target?.projectId) resetTimelineAgentState()
   activeWorkbenchProjectSaveTarget = target
+  setDesktopActiveProjectId(target?.projectId ?? '')
   // 当前工作台项目是审片结果的所有权边界。绑定新项目时同步切换 shot verify scope；
   // activateProject 对同 id 幂等，不会因保存订阅重绑而误清本项目预算。
   useShotVerifyStore.getState().activateProject(target?.projectId)

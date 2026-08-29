@@ -320,6 +320,46 @@ describe("runtime export job IPC functions", () => {
     await cancelExportJob(jobId);
   });
 
+  it("rejects invalid renderer clip audio instead of silently falling back to WebM", async () => {
+    const { createProject, startExportJob } = await import("../runtime");
+    createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
+    const assetDir = path.join(tempRoot, "assets");
+    fs.mkdirSync(assetDir, { recursive: true });
+    fs.writeFileSync(path.join(assetDir, "tone.wav"), "not-a-real-wave");
+
+    const request = {
+      ...makeManifest("project-1"),
+      diagnostics: {
+        warnings: ["Renderer request omits unsupported tracks while WebM capture migration is incomplete."],
+      },
+      timeline: {
+        fps: 30,
+        durationFrames: 30,
+        range: { startFrame: 0, endFrame: 30 },
+        tracks: [{
+          id: "audio-track",
+          kind: "audio",
+          clips: [{
+            id: "clip-1",
+            assetId: "asset1",
+            startFrame: 0,
+            endFrame: 30,
+            audio: { gainDb: 1, muted: false, fadeInFrames: 0, fadeOutFrames: 0 },
+          }],
+        }],
+      },
+      assets: {
+        asset1: {
+          id: "asset1",
+          kind: "audio",
+          url: "nomi-local://asset/project-1/assets/tone.wav",
+        },
+      },
+    };
+
+    await expect(startExportJob({ projectId: "project-1", manifest: request })).rejects.toThrow(/gainDb/i);
+  });
+
   it("rejects renderer URL assets even when a fake absolutePath is supplied", async () => {
     const { createProject, startExportJob } = await import("../runtime");
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });

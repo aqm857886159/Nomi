@@ -116,8 +116,12 @@ describe("contentTypeFromMagicBytes / resolveContentType（扩展名认不出时
     while (bytes.length < 16) bytes.push(0);
     return Uint8Array.from(bytes);
   };
-  const mp4 = head([0, 0, 0, 0x20], "ftyp", "isom");
-  const mov = head([0, 0, 0, 0x14], "ftyp", "qt  ");
+  const ftyp = (major: string, compatible: string[] = []) => {
+    const size = 16 + compatible.length * 4;
+    return head([(size >>> 24) & 0xff, (size >>> 16) & 0xff, (size >>> 8) & 0xff, size & 0xff], "ftyp", major, [0, 0, 0, 0], ...compatible);
+  };
+  const mp4 = ftyp("isom");
+  const mov = ftyp("qt  ");
   const matroska = head([0x1a, 0x45, 0xdf, 0xa3]);
   const wav = head("RIFF", [0, 0, 0, 0], "WAVE");
   const webp = head("RIFF", [0, 0, 0, 0], "WEBP");
@@ -130,6 +134,15 @@ describe("contentTypeFromMagicBytes / resolveContentType（扩展名认不出时
     expect(contentTypeFromMagicBytes(wav)).toBe("audio/wav");
     expect(contentTypeFromMagicBytes(webp)).toBe("image/webp");
     expect(contentTypeFromMagicBytes(png)).toBe("image/png");
+    expect(contentTypeFromMagicBytes(ftyp("avif"))).toBe("image/avif");
+    expect(contentTypeFromMagicBytes(ftyp("heic"))).toBe("image/heic");
+    expect(contentTypeFromMagicBytes(ftyp("mif1", ["avif"]))).toBe("image/avif");
+    expect(contentTypeFromMagicBytes(ftyp("mif1", ["heic", "hevc"]))).toBe("image/heic");
+    expect(contentTypeFromMagicBytes(Uint8Array.from([0, 0, 0, 32, ...Buffer.from("ftypmif1")]))).toBeNull();
+    expect(contentTypeFromMagicBytes(Uint8Array.from([0, 0, 0, 0, ...Buffer.from("ftypmif1"), ...new Uint8Array(8192)]))).toBeNull();
+    expect(contentTypeFromMagicBytes(head([...Buffer.from("BM"), 0, 0]))).toBe("image/bmp");
+    expect(contentTypeFromMagicBytes(head([0x49, 0x49, 0x2a, 0x00]))).toBe("image/tiff");
+    expect(contentTypeFromMagicBytes(head([0x00, 0x00, 0x01, 0x00]))).toBe("image/x-icon");
     expect(contentTypeFromMagicBytes(head([1, 2, 3, 4]))).toBeNull();
   });
 

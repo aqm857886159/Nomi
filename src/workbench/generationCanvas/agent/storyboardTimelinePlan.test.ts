@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { planStoryboardTimeline } from './storyboardTimelinePlan'
+import { planActiveStoryboardTimeline, planStoryboardTimeline } from './storyboardTimelinePlan'
 import type {
   GenerationCanvasEdge,
   GenerationCanvasNode,
@@ -29,6 +29,10 @@ function node(
 
 function edge(source: string, target: string, mode?: GenerationCanvasEdge['mode']): GenerationCanvasEdge {
   return { id: `${source}-${target}`, source, target, ...(mode ? { mode } : {}) }
+}
+
+function fromDesign(nodeValue: GenerationCanvasNode, storyboardDesignId: string): GenerationCanvasNode {
+  return { ...nodeValue, meta: { ...nodeValue.meta, storyboardDesignId } }
 }
 
 describe('planStoryboardTimeline', () => {
@@ -93,8 +97,43 @@ describe('planStoryboardTimeline', () => {
       node('v2', 'video', 2, { type: 'video' }),
       { ...node('t1', 'text', undefined), categoryId: 'shots' } as GenerationCanvasNode,
     ]
-    const { units } = planStoryboardTimeline(nodes, [], ['v2'])
+    const { units } = planStoryboardTimeline(nodes, [], { nodeIds: ['v2'] })
     expect(units.map((u) => u.nodeId)).toEqual(['v2'])
+  })
+
+  it('fails closed when multiple storyboard designs exist without an exact scope', () => {
+    const nodes = [
+      fromDesign(node('a-1', 'video', 1, { type: 'video' }), 'design-a'),
+      fromDesign(node('b-1', 'video', 1, { type: 'video' }), 'design-b'),
+    ]
+
+    expect(planStoryboardTimeline(nodes, [])).toEqual({
+      units: [],
+      skipped: [],
+      scopeError: 'ambiguous_storyboard_scope',
+    })
+  })
+
+  it('uses the active storyboard design and never mixes equal shot numbers from another design', () => {
+    const nodes = [
+      fromDesign(node('a-2', 'video', 2, { type: 'video' }), 'design-a'),
+      fromDesign(node('b-1', 'video', 1, { type: 'video' }), 'design-b'),
+      fromDesign(node('a-1', 'video', 1, { type: 'video' }), 'design-a'),
+    ]
+
+    const plan = planActiveStoryboardTimeline(nodes, [], 'design-a')
+    expect(plan.scopeError).toBeUndefined()
+    expect(plan.units.map((unit) => unit.nodeId)).toEqual(['a-1', 'a-2'])
+  })
+
+  it('rejects an explicit Agent node subset that crosses storyboard designs', () => {
+    const nodes = [
+      fromDesign(node('a-1', 'video', 1, { type: 'video' }), 'design-a'),
+      fromDesign(node('b-1', 'video', 1, { type: 'video' }), 'design-b'),
+    ]
+
+    expect(planStoryboardTimeline(nodes, [], { nodeIds: ['a-1', 'b-1'] }).scopeError)
+      .toBe('mixed_storyboard_scope')
   })
 
   it('mixes generated videos and placeholders in one ordered sequence', () => {

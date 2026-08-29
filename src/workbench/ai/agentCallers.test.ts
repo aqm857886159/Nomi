@@ -59,7 +59,7 @@ beforeEach(() => {
     usage: { promptTokens: 2, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 3 } })
   useGenerationCanvasStore.getState().restoreSnapshot(snapshot('A-node'))
   useGenerationCanvasStore.setState({ selectedNodeIds: ['A-node'] })
-  useWorkbenchStore.setState({ storyboardPlan: { ...plan, title: 'unrelated UI plan' }, workspaceMode: 'creation' })
+  useWorkbenchStore.setState({ storyboardPlans: { 'doc-a': { plan: { ...plan, title: 'unrelated UI plan' }, committed: false } }, workspaceMode: 'creation' })
 })
 
 describe('remaining production callers use the explicit shared Agent profile', () => {
@@ -114,8 +114,7 @@ describe('remaining production callers use the explicit shared Agent profile', (
     expect(deps.landing).not.toHaveBeenCalled()
     deps.project = 'B'
     useGenerationCanvasStore.getState().restoreSnapshot(snapshot('B-node'))
-    useWorkbenchStore.setState({ storyboardPlan: { ...plan, title: 'B plan' } })
-    await vi.waitFor(() => expect(deps.landing).toHaveBeenCalledOnce())
+    useWorkbenchStore.setState({ storyboardPlans: { 'doc-a': { plan: { ...plan, title: 'B plan' }, committed: false } } })
     release()
     expect(await pending).toEqual({ text: 'own text', plan })
     expect(deps.planner).toHaveBeenCalledWith(expect.objectContaining({ target: 'production', projectId: 'A',
@@ -127,7 +126,7 @@ describe('remaining production callers use the explicit shared Agent profile', (
       capturedCanvasReadSnapshot: { version: 1, handleId: 'captured-A', nonce: 'captured-nonce-A' },
     }))
     expect(deps.planner.mock.calls[0]![0].snapshot).toBe(deps.sealSurfaceSnapshot.mock.calls[0]![1])
-    expect(useWorkbenchStore.getState()).toMatchObject({ workspaceMode: 'creation', storyboardPlan: { title: 'B plan' } })
+    expect(useWorkbenchStore.getState()).toMatchObject({ workspaceMode: 'creation', storyboardPlans: { 'doc-a': { plan: { title: 'B plan' } } } })
     expect(useGenerationCanvasStore.getState().nodes[0].id).toBe('B-node')
   })
 })

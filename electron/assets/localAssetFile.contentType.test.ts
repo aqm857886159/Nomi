@@ -18,12 +18,12 @@ const { mediaKindFromContentType } = await import("../catalog/assetLocalization"
 
 afterAll(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
 
-/** 一个最小的合法 mp4 文件头：4 字节 box size + "ftyp" + major brand。 */
+/** 一个最小的合法 mp4 ftyp box：size + type + major brand + minor version。 */
 function mp4Bytes(): Buffer {
   return Buffer.concat([
-    Buffer.from([0, 0, 0, 0x20]),
+    Buffer.from([0, 0, 0, 0x10]),
     Buffer.from("ftypisom", "ascii"),
-    Buffer.alloc(16),
+    Buffer.alloc(4),
   ]);
 }
 

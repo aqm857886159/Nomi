@@ -1,4 +1,4 @@
-import type { NomiRenderAsset, NomiRenderClip, NomiRenderManifestV1, NomiRenderTrack } from "./exportManifest";
+import type { NomiRenderAsset, NomiRenderClip, NomiRenderManifestV1, NomiRenderTrack, NomiRenderTransition } from "./exportManifest";
 
 /** 字幕/标题卡叠加：已渲染成全画幅透明 PNG 的临时文件 + 可见区间。 */
 export type FfmpegTextOverlayInput = {
@@ -66,6 +66,29 @@ function formatNumber(value: number): string {
   return Number(value.toFixed(6)).toString();
 }
 
+function clipAudioProcessingFilters(clip: NomiRenderClip, fps: number): string {
+  const audio = clip.audio;
+  if (!audio) return "";
+
+  const filters: string[] = [];
+  if (audio.muted) {
+    filters.push("volume=0");
+  } else if (audio.gainDb !== 0) {
+    filters.push(`volume=${formatNumber(10 ** (audio.gainDb / 20))}`);
+  }
+  if (audio.fadeInFrames > 0) {
+    filters.push(`afade=t=in:st=0:d=${formatSeconds(secondsFromFrames(audio.fadeInFrames, fps))}`);
+  }
+  if (audio.fadeOutFrames > 0) {
+    const fadeStartFrames = clip.endFrame - clip.startFrame - audio.fadeOutFrames;
+    filters.push(
+      `afade=t=out:st=${formatSeconds(secondsFromFrames(fadeStartFrames, fps))}:` +
+        `d=${formatSeconds(secondsFromFrames(audio.fadeOutFrames, fps))}`,
+    );
+  }
+  return filters.length > 0 ? `,${filters.join(",")}` : "";
+}
+
 // ── 取景（fit / 缩放 / 平移）──────────────────────────────────────────────
 // 与预览 CSS / WebM canvas computeFramedRect 同一套公式，用 ffmpeg 运行期表达式实现
 // （iw/ih=源尺寸，main_w/overlay_w=帧/已缩放媒体）。offsetX/Y 为帧尺寸的归一化分数。
@@ -128,6 +151,34 @@ function sourceLabelForClip(clip: Pick<ResolvedClip, "clip">, stream: "video" | 
   return labelForClip(clip.clip.id, `${stream}_source`);
 }
 
+type VisualTransitionGroup = {
+  trackIndex: number;
+  clips: ResolvedClip[];
+  transitions: NomiRenderTransition[];
+};
+
+type VisualUnit = {
+  id: string;
+  trackIndex: number;
+  startFrame: number;
+  endFrame: number;
+  clip?: ResolvedClip;
+  transitionGroup?: VisualTransitionGroup;
+};
+
+const DEFAULT_TRANSITION_FRAMES = 15;
+
+function transitionBlendExpression(type: NomiRenderTransition["type"], offset: number, duration: number): string {
+  // FFmpeg 4.x (the bundled Windows binary) has no xfade filter. `blend` is
+  // available there and keeps the same frame-accurate behavior. Escape the
+  // expression commas because they are filtergraph separators.
+  const progress = `max(0\\,min(1\\,(T-${formatSeconds(offset)})/${formatSeconds(duration)}))`;
+  if (type === "fade") {
+    return `if(lt(${progress}\\,0.5)\\,A*(1-2*${progress})\\,B*(2*${progress}-1))`;
+  }
+  return `A*(1-${progress})+B*${progress}`;
+}
+
 function isAudioTrack(track: NomiRenderTrack): boolean {
   return track.kind === "audio" || track.type === "audio";
 }
@@ -162,6 +213,93 @@ function collectReferencedClips(manifest: NomiRenderManifestV1): ResolvedClip[] 
   });
 
   return resolved;
+}
+
+/**
+ * Resolve authored transitions into linear same-track groups. The persisted
+ * timeline keeps clips contiguous and stores transitions as metadata, so the
+ * exporter must reject ambiguous pairs instead of guessing across tracks.
+ */
+function collectVisualTransitionGroups(
+  transitions: NomiRenderTransition[] | undefined,
+  visualClips: ResolvedClip[],
+  fps: number,
+): { groups: VisualTransitionGroup[]; warnings: string[] } {
+  if (!transitions || transitions.length === 0) return { groups: [], warnings: [] };
+
+  const byClipId = new Map(visualClips.map((entry) => [entry.clip.id, entry]));
+  const outgoing = new Map<string, { transition: NomiRenderTransition; to: ResolvedClip; durationFrames: number }>();
+  const incoming = new Set<string>();
+  const warnings: string[] = [];
+
+  for (const transition of transitions) {
+    if (transition.type === "cut") continue;
+    const from = byClipId.get(transition.fromClipId);
+    const to = byClipId.get(transition.toClipId);
+    if (!from || !to) {
+      warnings.push(`Transition ${transition.fromClipId}->${transition.toClipId} was ignored because both endpoints must be visual clips.`);
+      continue;
+    }
+    if (from.trackIndex !== to.trackIndex) {
+      warnings.push(`Transition ${transition.fromClipId}->${transition.toClipId} was ignored because transitions must stay on one visual track.`);
+      continue;
+    }
+    if (from.clip.endFrame !== to.clip.startFrame) {
+      warnings.push(`Transition ${transition.fromClipId}->${transition.toClipId} was ignored because clips must be contiguous.`);
+      continue;
+    }
+    const minimumDuration = Math.min(
+      from.clip.endFrame - from.clip.startFrame,
+      to.clip.endFrame - to.clip.startFrame,
+    );
+    const durationFrames = transition.durationFrames ?? Math.min(DEFAULT_TRANSITION_FRAMES, Math.floor(minimumDuration / 2));
+    if (!Number.isInteger(durationFrames) || durationFrames < 1 || durationFrames >= minimumDuration) {
+      warnings.push(`Transition ${transition.fromClipId}->${transition.toClipId} was ignored because its duration must be shorter than both clips.`);
+      continue;
+    }
+    if (outgoing.has(from.clip.id) || incoming.has(to.clip.id)) {
+      warnings.push(`Transition ${transition.fromClipId}->${transition.toClipId} was ignored because a clip can only have one adjacent transition.`);
+      continue;
+    }
+    if (transition.type !== "dissolve" && transition.type !== "fade") {
+      warnings.push(`Transition ${transition.fromClipId}->${transition.toClipId} (${transition.type}) is not supported by the FFmpeg backend and remains a hard cut.`);
+      continue;
+    }
+    outgoing.set(from.clip.id, { transition, to, durationFrames });
+    incoming.add(to.clip.id);
+  }
+
+  const groups: VisualTransitionGroup[] = [];
+  const consumed = new Set<string>();
+  const ordered = [...visualClips].sort((left, right) =>
+    left.trackIndex - right.trackIndex || left.clip.startFrame - right.clip.startFrame || left.clip.id.localeCompare(right.clip.id),
+  );
+  for (const first of ordered) {
+    if (consumed.has(first.clip.id) || incoming.has(first.clip.id)) continue;
+    const firstEdge = outgoing.get(first.clip.id);
+    if (!firstEdge) continue;
+
+    const clips = [first];
+    const groupTransitions: NomiRenderTransition[] = [];
+    let current = first;
+    while (true) {
+      const edge = outgoing.get(current.clip.id);
+      if (!edge || consumed.has(edge.to.clip.id)) break;
+      clips.push(edge.to);
+      groupTransitions.push({ ...edge.transition, durationFrames: edge.durationFrames });
+      consumed.add(current.clip.id);
+      current = edge.to;
+    }
+    consumed.add(current.clip.id);
+    if (clips.length > 1) {
+      groups.push({ trackIndex: first.trackIndex, clips, transitions: groupTransitions });
+    }
+  }
+
+  // Keep this argument in the helper signature so its frame/time conversion is
+  // explicit at the call site; transition durations are frame-native today.
+  void fps;
+  return { groups, warnings };
 }
 
 function buildInputs(resolvedClips: ResolvedClip[], fps: number): FfmpegFiltergraphPlanInput[] {
@@ -233,12 +371,13 @@ function buildAudioGraph(
     const clipDurationFrames = clip.endFrame - clip.startFrame;
     const sourceStart = secondsFromFrames(clip.sourceStartFrame ?? 0, fps);
     const sourceEnd = secondsFromFrames(clip.sourceEndFrame ?? (clip.sourceStartFrame ?? 0) + clipDurationFrames, fps);
+    const clipAudioFilters = clipAudioProcessingFilters(clip, fps);
     const equalizeDuration = audioSources.length > 1
       ? `,apad,atrim=end=${formatSeconds(timelineDurationSeconds)}`
       : "";
     filters.push(
       `${sourceLabel}atrim=start=${formatSeconds(sourceStart)}:end=${formatSeconds(sourceEnd)},` +
-        `asetpts=PTS-STARTPTS,adelay=${startMs}|${startMs}${equalizeDuration}[${outLabel}]`,
+        `asetpts=PTS-STARTPTS${clipAudioFilters},adelay=${startMs}|${startMs}${equalizeDuration}[${outLabel}]`,
     );
     sourceLabels.push(`[${outLabel}]`);
   });
@@ -256,7 +395,7 @@ function buildAudioGraph(
 // 视觉链：白底 base + 逐 clip 按取景 scale → 居中/偏移 overlay（所见即所得）。
 // 输出未定型的视觉 label（[vcomposite] 或 [base]），format=pixelFormat 由 compile 收口到链尾一次
 // （避免中间媒体奇数尺寸触发 yuv420p 报错）。返回 { filters, videoLabel }。
-function buildVisualGraph(manifest: NomiRenderManifestV1, visualClips: ResolvedClip[]): { filters: string[]; videoLabel: string } {
+function buildBasicVisualGraph(manifest: NomiRenderManifestV1, visualClips: ResolvedClip[]): { filters: string[]; videoLabel: string } {
   const { profile } = manifest;
   const fps = manifest.timeline.fps;
   const durationSeconds = secondsFromFrames(manifest.timeline.durationFrames, fps);
@@ -332,6 +471,173 @@ function buildVisualGraph(manifest: NomiRenderManifestV1, visualClips: ResolvedC
   return { filters, videoLabel: orderedVisualClips.length === 0 ? "base" : "vcomposite" };
 }
 
+function sourceTrimFilter(
+  resolved: ResolvedClip,
+  sourceLabel: string,
+  segmentLabel: string,
+  fps: number,
+): string {
+  const duration = secondsFromFrames(resolved.clip.endFrame - resolved.clip.startFrame, fps);
+  if (resolved.asset.kind === "image") {
+    return `${sourceLabel}trim=duration=${formatSeconds(duration)},setpts=PTS-STARTPTS[${segmentLabel}]`;
+  }
+  if (resolved.asset.kind === "video") {
+    const sourceStart = secondsFromFrames(resolved.clip.sourceStartFrame ?? 0, fps);
+    const sourceEnd = secondsFromFrames(
+      resolved.clip.sourceEndFrame ?? (resolved.clip.sourceStartFrame ?? 0) + (resolved.clip.endFrame - resolved.clip.startFrame),
+      fps,
+    );
+    return `${sourceLabel}trim=start=${formatSeconds(sourceStart)}:end=${formatSeconds(sourceEnd)},setpts=PTS-STARTPTS[${segmentLabel}]`;
+  }
+  throw new FfmpegFiltergraphError("unsupported_clip", `Asset ${resolved.asset.id} is not visual`);
+}
+
+function buildTransitionClipFrame(
+  resolved: ResolvedClip,
+  sourceLabel: string,
+  filters: string[],
+  profile: NomiRenderManifestV1["profile"],
+  fps: number,
+  index: number,
+): string {
+  const clipKey = `${resolved.clip.id}_transition_${index}`;
+  const segmentLabel = labelForClip(clipKey, "segment");
+  const fittedLabel = labelForClip(clipKey, "fitted");
+  const backgroundLabel = labelForClip(clipKey, "background");
+  const fullLabel = labelForClip(clipKey, "full");
+  const duration = secondsFromFrames(resolved.clip.endFrame - resolved.clip.startFrame, fps);
+
+  filters.push(sourceTrimFilter(resolved, sourceLabel, segmentLabel, fps));
+  filters.push(framingFilters(resolveClipFraming(resolved.clip.transform), profile.width, profile.height, segmentLabel, fittedLabel));
+  filters.push(`color=white:size=${profile.width}x${profile.height}:rate=${fps}:duration=${formatSeconds(duration)}[${backgroundLabel}]`);
+  const { x, y } = framingOverlayPosition(resolveClipFraming(resolved.clip.transform));
+  filters.push(
+    `[${backgroundLabel}][${fittedLabel}]overlay=x='${x}':y='${y}':shortest=1:eof_action=pass,format=${profile.pixelFormat},fps=${fps},settb=AVTB[${fullLabel}]`,
+  );
+  return fullLabel;
+}
+
+function buildTransitionVisualGraph(
+  manifest: NomiRenderManifestV1,
+  visualClips: ResolvedClip[],
+  transitionGroups: VisualTransitionGroup[],
+): { filters: string[]; videoLabel: string } {
+  const { profile } = manifest;
+  const fps = manifest.timeline.fps;
+  const durationSeconds = secondsFromFrames(manifest.timeline.durationFrames, fps);
+  const filters = [`color=white:size=${profile.width}x${profile.height}:rate=${fps}:duration=${formatSeconds(durationSeconds)}[base]`];
+  const groupByClipId = new Map<string, VisualTransitionGroup>();
+  transitionGroups.forEach((group) => group.clips.forEach((clip) => groupByClipId.set(clip.clip.id, group)));
+
+  const units: VisualUnit[] = [];
+  const seenGroups = new Set<VisualTransitionGroup>();
+  for (const resolved of visualClips) {
+    const group = groupByClipId.get(resolved.clip.id);
+    if (group) {
+      if (seenGroups.has(group)) continue;
+      seenGroups.add(group);
+      units.push({
+        id: `transition_${group.clips[0].clip.id}`,
+        trackIndex: group.trackIndex,
+        startFrame: group.clips[0].clip.startFrame,
+        endFrame: group.clips[group.clips.length - 1].clip.endFrame,
+        transitionGroup: group,
+      });
+    } else {
+      units.push({
+        id: resolved.clip.id,
+        trackIndex: resolved.trackIndex,
+        startFrame: resolved.clip.startFrame,
+        endFrame: resolved.clip.endFrame,
+        clip: resolved,
+      });
+    }
+  }
+  units.sort((left, right) => left.trackIndex - right.trackIndex || left.startFrame - right.startFrame || left.id.localeCompare(right.id));
+
+  const sourceClips = units.flatMap((unit) => unit.transitionGroup?.clips ?? (unit.clip ? [unit.clip] : []));
+  const visualSourceGroups = new Map<number, ResolvedClip[]>();
+  sourceClips.forEach((resolved) => {
+    const group = visualSourceGroups.get(resolved.inputIndex) ?? [];
+    group.push(resolved);
+    visualSourceGroups.set(resolved.inputIndex, group);
+  });
+  visualSourceGroups.forEach((group, inputIndex) => {
+    if (group.length <= 1) return;
+    const labels = group.map((resolved) => `[${sourceLabelForClip(resolved, "video")}]`).join("");
+    filters.push(`[${inputIndex}:v]split=${group.length}${labels}`);
+  });
+
+  const sourceLabelForVisual = (resolved: ResolvedClip): string => {
+    const repeated = visualSourceGroups.get(resolved.inputIndex)?.length ?? 1;
+    return repeated > 1 ? `[${sourceLabelForClip(resolved, "video")}]` : `[${resolved.inputIndex}:v]`;
+  };
+
+  const unitVideoLabels = new Map<string, string>();
+  const unitFramings = new Map<string, ClipFraming>();
+  for (const unit of units) {
+    if (unit.transitionGroup) {
+      const group = unit.transitionGroup;
+      let previousLabel = buildTransitionClipFrame(group.clips[0], sourceLabelForVisual(group.clips[0]), filters, profile, fps, 0);
+      let cumulativeSeconds = secondsFromFrames(group.clips[0].clip.endFrame - group.clips[0].clip.startFrame, fps);
+      for (let index = 1; index < group.clips.length; index += 1) {
+        const current = group.clips[index];
+        const currentLabel = buildTransitionClipFrame(current, sourceLabelForVisual(current), filters, profile, fps, index);
+        const transition = group.transitions[index - 1];
+        const transitionDuration = secondsFromFrames(transition.durationFrames ?? DEFAULT_TRANSITION_FRAMES, fps);
+        const currentDuration = secondsFromFrames(current.clip.endFrame - current.clip.startFrame, fps);
+        const paddedPrevious = labelForClip(`${group.clips[index - 1].clip.id}_transition_padded`, "video");
+        const paddedCurrent = labelForClip(`${current.clip.id}_transition_padded`, "video");
+        filters.push(`[${previousLabel}]tpad=stop_mode=clone:stop_duration=${formatSeconds(currentDuration)}[${paddedPrevious}]`);
+        filters.push(`[${currentLabel}]tpad=start_mode=clone:start_duration=${formatSeconds(cumulativeSeconds)}[${paddedCurrent}]`);
+        const outputLabel = labelForClip(`${group.clips[0].clip.id}_transition_blend`, String(index));
+        filters.push(
+          `[${paddedPrevious}][${paddedCurrent}]blend=all_expr='${transitionBlendExpression(transition.type, cumulativeSeconds, transitionDuration)}':eof_action=repeat:shortest=0[${outputLabel}]`,
+        );
+        previousLabel = outputLabel;
+        cumulativeSeconds += secondsFromFrames(current.clip.endFrame - current.clip.startFrame, fps);
+      }
+      const timelineLabel = labelForClip(unit.id, "timeline");
+      const start = secondsFromFrames(unit.startFrame, fps);
+      filters.push(`[${previousLabel}]setpts=PTS-STARTPTS+${formatSeconds(start)}/TB[${timelineLabel}]`);
+      unitVideoLabels.set(unit.id, timelineLabel);
+      continue;
+    }
+
+    if (!unit.clip) continue;
+    const resolved = unit.clip;
+    const segmentLabel = labelForClip(resolved.clip.id, "segment");
+    const fittedLabel = labelForClip(resolved.clip.id, "fitted");
+    const start = secondsFromFrames(resolved.clip.startFrame, fps);
+    const duration = secondsFromFrames(resolved.clip.endFrame - resolved.clip.startFrame, fps);
+    filters.push(sourceTrimFilter(resolved, sourceLabelForVisual(resolved), segmentLabel, fps).replace("setpts=PTS-STARTPTS", `setpts=PTS-STARTPTS+${formatSeconds(start)}/TB`));
+    filters.push(framingFilters(resolveClipFraming(resolved.clip.transform), profile.width, profile.height, segmentLabel, fittedLabel));
+    unitVideoLabels.set(unit.id, fittedLabel);
+    unitFramings.set(unit.id, resolveClipFraming(resolved.clip.transform));
+    void duration;
+  }
+
+  let baseLabel = "base";
+  units.forEach((unit, index) => {
+    const outputLabel = index === units.length - 1 ? "vcomposite" : `vstack${index}`;
+    const visualLabel = unitVideoLabels.get(unit.id);
+    if (!visualLabel) return;
+    if (unit.transitionGroup) {
+      filters.push(
+        `[${baseLabel}][${visualLabel}]overlay=0:0:shortest=0:eof_action=pass:enable='gte(t,${formatSeconds(secondsFromFrames(unit.startFrame, fps))})*lt(t,${formatSeconds(secondsFromFrames(unit.endFrame, fps))})'[${outputLabel}]`,
+      );
+    } else {
+      const framing = unitFramings.get(unit.id) ?? resolveClipFraming(unit.clip?.clip.transform);
+      const { x, y } = framingOverlayPosition(framing);
+      filters.push(
+        `[${baseLabel}][${visualLabel}]overlay=x='${x}':y='${y}':shortest=0:eof_action=pass:enable='gte(t,${formatSeconds(secondsFromFrames(unit.startFrame, fps))})*lt(t,${formatSeconds(secondsFromFrames(unit.endFrame, fps))})'[${outputLabel}]`,
+      );
+    }
+    baseLabel = outputLabel;
+  });
+  return { filters, videoLabel: units.length === 0 ? "base" : "vcomposite" };
+}
+
 /**
  * 文字叠加链：每条 overlay PNG 作为新输入（-loop 1 -t 全长），在 [start,end] 区间 overlay 到视频上。
  * PNG 是全画幅透明 → overlay=0:0 对齐。接在视觉链尾（最上层）。返回新增滤镜行 + 输入 + 最终视频 label。
@@ -381,7 +687,10 @@ export function compileFfmpegFiltergraph(input: FfmpegFiltergraphInput): FfmpegF
   const durationSeconds = secondsFromFrames(manifest.timeline.durationFrames, fps);
 
   const audioFilters = buildAudioGraph(resolvedClips, manifest.profile.audioCodec, fps, durationSeconds);
-  const visual = buildVisualGraph(manifest, visualClips);
+  const transitionResolution = collectVisualTransitionGroups(manifest.timeline.transitions, visualClips, fps);
+  const visual = transitionResolution.groups.length > 0
+    ? buildTransitionVisualGraph(manifest, visualClips, transitionResolution.groups)
+    : buildBasicVisualGraph(manifest, visualClips);
   const filters = visual.filters;
 
   const inputs = buildInputs(resolvedClips, fps);
@@ -411,6 +720,6 @@ export function compileFfmpegFiltergraph(input: FfmpegFiltergraphInput): FfmpegF
     filterComplex: filters.join(";"),
     videoOutputLabel,
     audioOutputLabel: audioFilters.length > 0 ? "[aout]" : undefined,
-    warnings: [],
+    warnings: transitionResolution.warnings,
   };
 }

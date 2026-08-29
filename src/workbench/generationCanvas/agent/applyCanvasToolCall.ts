@@ -22,6 +22,9 @@ import { toast } from '../../../ui/toast'
 import { mintSpendGrant } from '../../api/taskApi'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
+import { applyTimelineToolCall } from '../../timeline/agent/timelineToolCall'
+import { formatCanvasForAgent } from './canvasPromptContext'
+import { captureCanvasReadResult } from './canvasReadResultSeal'
 import { parseStoryboardPlan } from './storyboardPlan'
 import type { StagingSpec, StagingCharacterSpec } from '../nodes/scene3d/stagingBuilder'
 import type { CameraMoveSpec } from '../nodes/scene3d/cameraMoveBuilder'
@@ -221,6 +224,8 @@ export async function applyCanvasToolCall(
   args: unknown,
   gesture?: CanvasGestureContext,
   canWrite?: () => boolean,
+  documentId?: string,
+  storyboardId?: string,
 ): Promise<unknown> {
   const assertWritable = () => {
     if (canWrite) assertTurnCanWrite(canWrite)
@@ -235,16 +240,56 @@ export async function applyCanvasToolCall(
     return gesture ? withCanvasGestureContext(gesture, fn) : fn()
   }
 
+  // Timeline tools use the canonical workbench timeline/adoption boundary and
+  // deliberately do not participate in the generation-canvas gesture context.
+  if (['read_timeline', 'inspect_timeline_range', 'propose_edit_plan', 'apply_edit_plan', 'undo_timeline_edit', 'get_media', 'inspect_media', 'search_media', 'inspect_source_range', 'read_waveform', 'export_timeline', 'inspect_export_job', 'verify_render', 'cancel_export_job'].includes(toolName)) {
+    return applyTimelineToolCall(toolName, args)
+  }
+
+  if (toolName === 'read_canvas_state') {
+    // T1 token 优化:回包用紧凑行格式(与 system prompt 的画布段同源),
+    // 不再把全字段快照 JSON 回灌进对话历史(那是每请求 2-3k token 的洞)。
+    const snapshot = readGenerationCanvasSnapshot()
+    const selectedIds = new Set(snapshot.selectedNodeIds ?? [])
+    const selected = snapshot.nodes.filter((node) => selectedIds.has(node.id))
+    return formatCanvasForAgent(captureCanvasReadResult({ ...snapshot, selectedNodeIds: [...selectedIds] }))
+  }
+
   if (toolName === 'propose_storyboard_plan') {
     // 规划免费可改:planner 第一手产出结构化方案对象,落创作 store 给用户审/改——不碰画布、零网络、零扣费。
     // 用户确认后才由 storyboardPlanToCreateNodesArgs 转成 create_canvas_nodes 落画布(S4)。
     // 校验失败 throw → 调用方映射成 tool error,回喂 LLM 自我修正(与 gate deny 同语义)。
     const plan = parseStoryboardPlan(record)
     const store = useWorkbenchStore.getState()
-    store.setStoryboardPlan(plan)
-    store.setStoryboardEditorOpen(true) // 拆完自动打开编辑器(沿用「立刻看到方案」);卡片同时进对话流。
-    store.setWorkspaceMode('creation')
-    return `已生成分镜方案「${plan.title || '未命名'}」：${plan.anchors.length} 个锚 · ${plan.shots.length} 个镜头，已放到创作区，待你审阅/修改后确认落画布。`
+    // P4:按 documentId 存方案。documentId 由调用方在发起拆镜头时捕获，异步期间切文档不串稿。
+    // 缺 documentId（如旧调用方）回退 activeDocumentId，保证至少落到当前激活文档。
+    const targetDocumentId = documentId ?? store.activeDocumentId
+    if (!store.workbenchDocuments.some((document) => document.id === targetDocumentId)) {
+      return {
+        status: 'obsolete',
+        documentId: targetDocumentId,
+        ...(storyboardId ? { storyboardDesignId: storyboardId } : {}),
+        message: '目标原稿已不存在，未应用迟到的规划结果。',
+      } satisfies StoryboardPlanApplicationResult
+    }
+    const design = store.setStoryboardPlan(plan, targetDocumentId, storyboardId, true, !storyboardId)
+    if (!design) {
+      return {
+        status: 'obsolete',
+        documentId: targetDocumentId,
+        ...(storyboardId ? { storyboardDesignId: storyboardId } : {}),
+        message: '目标分镜已不存在，未应用迟到的规划结果。',
+      } satisfies StoryboardPlanApplicationResult
+    }
+    if (store.workspaceMode === 'creation' || store.workspaceMode === 'storyboard') {
+      store.setWorkspaceMode('creation')
+    }
+    return {
+      status: 'applied',
+      documentId: targetDocumentId,
+      storyboardDesignId: design.id,
+      message: `已生成分镜方案「${plan.title || '未命名'}」：${plan.anchors.length} 个锚 · ${plan.shots.length} 个镜头，已放到创作页，待你审阅/修改后确认落画布。`,
+    } satisfies StoryboardPlanApplicationResult
   }
 
   if (toolName === 'create_canvas_nodes') {
@@ -601,6 +646,7 @@ export async function applyCanvasToolCall(
       ...(rawIds && rawIds.length ? { nodeIds: rawIds } : {}),
       assertCanApply: assertWritable,
     })
+    if (result.scopeError) throw new Error(result.scopeError)
     if (!result.ok && result.total === 0) {
       throw new Error('没有可排片的镜头:画布上还没有生成好的视频或可占位的关键帧')
     }
@@ -630,4 +676,13 @@ export async function applyCanvasToolCall(
   }
 
   throw new Error(`unknown tool ${toolName}`)
+}
+export const STORYBOARD_PLAN_APPLICATION_STATUSES = ['applied', 'obsolete'] as const
+export type StoryboardPlanApplicationStatus = typeof STORYBOARD_PLAN_APPLICATION_STATUSES[number]
+
+export type StoryboardPlanApplicationResult = {
+  status: StoryboardPlanApplicationStatus
+  documentId: string
+  storyboardDesignId?: string
+  message: string
 }

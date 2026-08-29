@@ -119,6 +119,13 @@ describe("references 便捷视图（键名对齐 archetypeInput 标准键）", (
   it("reference_images 兜底 images（非档案模型的老键）", () => {
     expect(referencesViewFromParams({ reference_images: ["https://a/1.png"] }).images).toEqual(["https://a/1.png"]);
   });
+  it("两张普通参考图保持原角色、顺序和数量，不隐式产生首帧", () => {
+    const view = referencesViewFromParams({
+      reference_image_urls: ["https://a/1.png", "https://a/2.png"],
+    });
+    expect(view.firstFrame).toBeUndefined();
+    expect(view.images).toEqual(["https://a/1.png", "https://a/2.png"]);
+  });
 });
 
 describe("失败姿态", () => {

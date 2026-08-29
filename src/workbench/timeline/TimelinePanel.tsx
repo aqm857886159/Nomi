@@ -17,7 +17,7 @@ import {
 } from '@tabler/icons-react'
 import { useWorkbenchStore } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
-import { planStoryboardTimeline } from '../generationCanvas/agent/storyboardTimelinePlan'
+import { planActiveStoryboardTimeline } from '../generationCanvas/agent/storyboardTimelinePlan'
 import { WorkbenchButton, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
 import { computeTimelineDuration, timelineHasVisualClips } from './timelineMath'
@@ -29,6 +29,7 @@ import { buildSnapPoints, resolveSnap, pixelThresholdToFrames } from './snapping
 import { toast } from '../../ui/toast'
 import { reportAdoptionOutcome } from '../adoption/adoptionReceipt'
 import { dispatchTimelineShortcut } from './timelineShortcuts'
+import { groupTimelineTransitionFeedbackByTrack } from './timelineVisualFeedback'
 
 const WHEEL_ZOOM_FACTOR = 1.24
 
@@ -104,6 +105,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
   // 单片工具（分割/复制/微调）作用于"最后选中"的 primary
   const primaryClipId = selectedClipIds.length > 0 ? selectedClipIds[selectedClipIds.length - 1] : ''
   const hasSelection = selectedClipIds.length > 0
+  const activeStoryboardId = useWorkbenchStore((state) => state.activeStoryboardId)
   // 选中单个媒体 clip（有源节点）→ 可「就地重生成」。文字 clip 在 textClips、不在 tracks，天然不命中。
   const primaryMediaClip = React.useMemo(() => {
     if (selectedClipIds.length !== 1 || !primaryClipId) return null
@@ -118,7 +120,11 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
   // 用户测的主线诉求——点一下出初剪，手动重排/trim 是之后的微调。
   const handleAiArrange = React.useCallback(() => {
     void import('../generationCanvas/agent/sendStoryboardToTimeline').then(({ arrangeStoryboardToTimeline }) => {
-      void arrangeStoryboardToTimeline().then((result) => {
+      void arrangeStoryboardToTimeline(activeStoryboardId ? { storyboardDesignId: activeStoryboardId } : {}).then((result) => {
+        if (result.scopeError) {
+          toast(t('timelineEditor.storyboardScopeRequired'), 'info')
+          return
+        }
         if (result.total === 0) {
           toast(t('timelineEditor.noShots'), 'info')
           return
@@ -130,17 +136,26 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
         })
       })
     })
-  }, [t])
+  }, [activeStoryboardId, t])
   // 空态「一键拼成初稿」入口的镜头数：取自与拼片同源的纯规划器（planStoryboardTimeline），
   // 与 handleAiArrange 实际会排的单位一致；选择器只返回数字 → 数字不变不触发重渲。
-  const arrangeableShotCount = useGenerationCanvasStore(
-    (state) => planStoryboardTimeline(state.nodes, state.edges).units.length,
+  const arrangePlanSummary = useGenerationCanvasStore(
+    (state) => {
+      const plan = planActiveStoryboardTimeline(state.nodes, state.edges, activeStoryboardId)
+      return plan.scopeError ?? plan.units.length
+    },
   )
+  const arrangeableShotCount = typeof arrangePlanSummary === 'number' ? arrangePlanSummary : 0
+  const needsStoryboardScope = typeof arrangePlanSummary === 'string'
   const setTimelinePlayhead = useWorkbenchStore((state) => state.setTimelinePlayhead)
   const splitTimelineClip = useWorkbenchStore((state) => state.splitTimelineClip)
   const durationFrame = computeTimelineDuration(timeline)
+  const transitionFeedbackByTrack = React.useMemo(
+    () => groupTimelineTransitionFeedbackByTrack(timeline.tracks, timeline.transitions),
+    [timeline.tracks, timeline.transitions],
+  )
   // 画面轨还空着 + 画布已有可拼镜头 → 显示空态提示行（纯增益，有画面片段后自动隐去）。
-  const showArrangeCta = !timelineHasVisualClips(timeline) && arrangeableShotCount > 0
+  const showArrangeCta = !timelineHasVisualClips(timeline) && (arrangeableShotCount > 0 || needsStoryboardScope)
   const rulerEndFrame = React.useMemo(
     () => resolveTimelineRulerEndFrame({
       durationFrame,
@@ -420,7 +435,9 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
               <span className="inline-flex items-center gap-2 min-w-0">
                 <IconSparkles size={15} className="flex-none text-[var(--workbench-accent)]" />
                 <span className="min-w-0 truncate text-xs text-[var(--workbench-ink)]">
-                  {t('timelineEditor.arrangeCta.message', { count: arrangeableShotCount })}
+                  {needsStoryboardScope
+                    ? t('timelineEditor.arrangeCta.chooseStoryboard')
+                    : t('timelineEditor.arrangeCta.message', { count: arrangeableShotCount })}
                 </span>
               </span>
               <WorkbenchButton variant="primary" size="sm" className="flex-none" onClick={handleAiArrange}>
@@ -485,7 +502,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
         </div>
         {/* 主次分层(方案 B)：画面(图/视频)主轨;配乐/字幕降副轨,空时收成「+配乐/+字幕」窄条。 */}
         {timeline.tracks.filter((t) => t.type !== 'audio').map((track) => (
-          <TimelineTrack key={track.id} track={track} variant="primary" />
+          <TimelineTrack key={track.id} track={track} transitionFeedback={transitionFeedbackByTrack.get(track.id)} variant="primary" />
         ))}
         {(() => {
           const audioTrack = timeline.tracks.find((t) => t.type === 'audio')
@@ -495,7 +512,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
           const showTextChip = showTextTrack && !textHasClips
           return (
             <>
-              {audioTrack && audioHasClips ? <TimelineTrack key={audioTrack.id} track={audioTrack} variant="secondary" /> : null}
+              {audioTrack && audioHasClips ? <TimelineTrack key={audioTrack.id} track={audioTrack} transitionFeedback={transitionFeedbackByTrack.get(audioTrack.id)} variant="secondary" /> : null}
               {showTextTrack && textHasClips ? <TimelineTextTrack /> : null}
               {showAudioChip || showTextChip ? <TimelineSecondaryAddRow showAudio={showAudioChip} showText={showTextChip} /> : null}
             </>

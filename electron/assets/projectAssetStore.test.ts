@@ -61,7 +61,7 @@ describe("writeAsset canonical media filename", () => {
   });
 
   it("sniffs an octet-stream video before selecting its stored extension", () => {
-    const bytes = Buffer.concat([Buffer.from([0, 0, 0, 0x20]), Buffer.from("ftypisom", "ascii"), Buffer.alloc(16)]);
+    const bytes = Buffer.concat([Buffer.from([0, 0, 0, 0x10]), Buffer.from("ftypisom", "ascii"), Buffer.alloc(4)]);
     const result = writeAsset("project-1", bytes, "upload", "application/octet-stream", { kind: "imported" }) as {
       data?: { relativePath?: string; contentType?: string };
     };
@@ -74,9 +74,9 @@ describe("writeAsset canonical media filename", () => {
     const absolutePath = path.join(projectRoot, relativePath);
     fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
     fs.writeFileSync(absolutePath, Buffer.concat([
-      Buffer.from([0, 0, 0, 0x20]),
+      Buffer.from([0, 0, 0, 0x10]),
       Buffer.from("ftypisom", "ascii"),
-      Buffer.alloc(16),
+      Buffer.alloc(4),
     ]));
 
     const item = listProjectAssets({ projectId: "project-1", limit: 20 }).items.find((entry) => entry.data.relativePath === relativePath);

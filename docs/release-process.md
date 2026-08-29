@@ -8,9 +8,11 @@
 git fetch origin
 git worktree add ../Nomi-feature-name -b feat/feature-name origin/main
 cd ../Nomi-feature-name
-pnpm install --frozen-lockfile
+pnpm install --frozen-lockfile --prefer-offline
 pnpm dev
 ```
+
+每个 worktree 必须拥有自己的 `node_modules` 目录，禁止把它软链接/junction 到主仓或其他 worktree，也不能复制其他 worktree 生成的包链接。pnpm store 已经会在机器范围内复用包内容；共享或串仓的链接会把 Electron 解析到旧 worktree，出现“声明 Electron 43.4.1、实际运行 31.7.7”。`pnpm dev`、`pnpm run build` 和 `pnpm run gates` 会在使用前核对声明、安装包、dist 与真实二进制四份身份。
 
 `pnpm dev` 默认把设置、密钥、缓存和项目放进当前 worktree 的 `.tmp/electron-user-data/dev-<port>`，不会读取正式版的 `~/Documents/Nomi Projects`。
 

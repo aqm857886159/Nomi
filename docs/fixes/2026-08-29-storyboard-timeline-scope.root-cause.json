@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "2026-08-29-storyboard-timeline-scope",
+  "problem_type": "multi-storyboard timeline adoption scope regression",
+  "symptom": "After materializing more than one storyboard design, one-click or Agent-assisted arranging could interleave shots from different designs on the canonical timeline because equal shot numbers were treated as one storyboard.",
+  "direct_cause": "The canvas-to-timeline planner treated an omitted nodeIds list as every shot-numbered canvas node even though materialized nodes already carried distinct storyboardDesignId provenance.",
+  "class_root": "Storyboard provenance was recorded at materialization but not enforced at the final selection boundary before timeline adoption, so a project-level canvas was incorrectly assumed to contain one storyboard.",
+  "affected_population": [
+    "Users who materialize two or more storyboard designs in one project and then use the timeline one-click arrange action",
+    "Agent and Production Run callers that arrange canvas nodes without an exact node subset"
+  ],
+  "scope_paths": [
+    "electron/productionRun/productionRunDriverOps.ts",
+    "src/workbench/generationCanvas/agent/storyboardTimelinePlan.ts",
+    "src/workbench/generationCanvas/agent/sendStoryboardToTimeline.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts"
+  ],
+  "entry_points": [
+    "TimelinePanel one-click draft assembly",
+    "arrange_storyboard_to_timeline Agent tool",
+    "production.arrange renderer operation"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The failure is an internal provenance-selection contract between Nomi canvas nodes and timeline adoption. No provider, model, MCP host, or external editing engine determines the correct storyboard scope.",
+  "invariants": [
+    "A user-facing arrange operation with an active storyboard design selects only shot nodes whose storyboardDesignId exactly matches that design.",
+    "An Agent node subset spanning multiple non-empty storyboardDesignId values is rejected before any timeline mutation.",
+    "An unscoped legacy operation is allowed only when provenance resolves to zero or one distinct storyboard design; multiple designs fail closed as ambiguous.",
+    "A Production Run passes only its adopted generation job node ids to production.arrange."
+  ],
+  "regression_tests": [
+    "electron/productionRun/productionRunDriver.test.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardTimelinePlan.test.ts"
+  ],
+  "migration": "No persisted schema changes. Existing legacy canvases with no storyboardDesignId retain whole-canvas arranging. Canvases with exactly one provenance id infer that design. Canvases with multiple ids now require an active design or explicit node ids.",
+  "residual_risks": [
+    "Legacy nodes without provenance cannot be assigned to a particular modern storyboard automatically; explicit node selection remains the safe compatibility path.",
+    "The canonical timeline still represents one adopted cut. Switching the selected storyboard does not replace or fork an existing timeline automatically."
+  ]
+}

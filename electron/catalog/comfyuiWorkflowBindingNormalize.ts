@@ -105,8 +105,9 @@ function normalizeImageBindings(
   const push = (nodeId: string, inputKey: string, paramKey: string, label: string, mediaKind: "image" | "video") => {
     const targetKey = inputKeyOf(nodeId, inputKey);
     if (seenTargets.has(targetKey) || seenKeys.has(paramKey)) return;
-    // 有图就校验这个 input 真的存在且是标量 widget（连线口不是可填的槽）。
-    if (graph && !isScalar(graph[nodeId]?.inputs?.[inputKey])) return;
+    // 媒体占位最终会写入字符串 URL/文件名。数字/布尔虽然也是 scalar widget，却不是媒体槽；
+    // 接受它们会让旧 binding 把图片文件名写进 VHS frame_rate 等数值参数。
+    if (graph && typeof graph[nodeId]?.inputs?.[inputKey] !== "string") return;
     seenTargets.add(targetKey);
     seenKeys.add(paramKey);
     images.push({ nodeId, inputKey, paramKey, label, mediaKind });

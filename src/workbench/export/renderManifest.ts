@@ -3,6 +3,7 @@ import type { RendererRenderAsset, RendererRenderManifestRequest } from './expor
 import { computeTimelineDuration } from '../timeline/timelineMath'
 import type { TimelineClip, TimelineState, TimelineTrack } from '../timeline/timelineTypes'
 import { isDefaultFraming, resolveClipFraming } from '../timeline/clipFraming'
+import { isDefaultClipAudio, resolveClipAudio } from '../timeline/clipAudio'
 import type { PreviewAspectRatio } from '../workbenchTypes'
 
 const RESOLUTION_SIZE: Record<Exclude<ExportResolution, 'source'>, { width: number; height: number }> = {
@@ -21,10 +22,10 @@ const ASPECT_RATIO_VALUE: Record<PreviewAspectRatio, number> = {
 }
 
 const THIN_TIMELINE_MODEL_WARNING =
-  'Timeline model only exposes image/video clips; audio/text/overlay/effect/keyframe entities are not first-class timeline tracks yet.'
+  'Timeline model exposes image/video/audio clips and text overlays; effect and keyframe entities are not first-class timeline tracks yet.'
 
 const OMIT_UNSUPPORTED_TRACKS_WARNING =
-  'Renderer request omits audio/text/overlay/effect/keyframe tracks instead of synthesizing unsupported timeline data.'
+  'Renderer request omits effect/keyframe tracks instead of synthesizing unsupported timeline data.'
 
 function even(value: number): number {
   return Math.max(2, Math.round(value / 2) * 2)
@@ -120,6 +121,7 @@ function buildClip(
 ): RendererRenderManifestRequest['timeline']['tracks'][number]['clips'][number] {
   // 取景只在非默认时携带 → 默认构图的 clip 不增 manifest 体积、不动既有快照。
   const framing = resolveClipFraming(clip)
+  const audio = resolveClipAudio(clip.audio, clip.endFrame - clip.startFrame)
   // 源帧窗口 = [offsetStartFrame, frameCount − offsetEndFrame]。offset* 是「从两端裁掉的帧数」，
   // 不是源位置——直接把 offsetEndFrame 当 sourceEndFrame 是 P2 根因 bug：未裁剪 clip(offsetEnd=0)
   // 会得到 sourceEnd=0 ≤ sourceStart=0，assertValidManifest 拒收 → 整个导出静默回退无声 WebM
@@ -132,6 +134,7 @@ function buildClip(
     sourceStartFrame: clip.offsetStartFrame,
     sourceEndFrame: Math.max(clip.offsetStartFrame + 1, clip.frameCount - clip.offsetEndFrame),
     ...(isDefaultFraming(framing) ? {} : { transform: framing }),
+    ...(clip.type !== 'image' && !isDefaultClipAudio(audio) ? { audio } : {}),
   }
 }
 
@@ -164,6 +167,13 @@ export function buildRenderManifestRequest(options: {
     .filter((track) => track.clips.length > 0)
   const warnings = [THIN_TIMELINE_MODEL_WARNING, OMIT_UNSUPPORTED_TRACKS_WARNING]
 
+  const transitions = options.timeline.transitions?.map((transition) => ({
+    fromClipId: transition.fromClipId,
+    toClipId: transition.toClipId,
+    type: transition.type,
+    ...(transition.durationFrames ? { durationFrames: transition.durationFrames } : {}),
+  }))
+
   if (tracks.length === 0) {
     warnings.unshift('Timeline has no image or video clips to render.')
   }
@@ -177,6 +187,7 @@ export function buildRenderManifestRequest(options: {
       durationFrames,
       range: { startFrame: 0, endFrame: durationFrames },
       tracks,
+      ...(transitions && transitions.length > 0 ? { transitions } : {}),
     },
     profile: {
       preset: options.preset,

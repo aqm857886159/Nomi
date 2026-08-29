@@ -180,15 +180,23 @@ async function tryBuildFiltergraphExport(
       durationFrames,
       range: { startFrame: 0, endFrame: durationFrames },
       tracks: rawTimeline.tracks as NomiRenderManifestV1["timeline"]["tracks"],
+      ...(Array.isArray(rawTimeline.transitions)
+        ? { transitions: rawTimeline.transitions as NomiRenderManifestV1["timeline"]["transitions"] }
+        : {}),
     },
     profile,
     assets: resolvedAssets,
   };
 
+  assertValidManifest(manifest);
   try {
-    assertValidManifest(manifest);
     const textOverlays = writeTextOverlayFiles(rawManifest, jobDir);
     const plan = compileFfmpegFiltergraph({ manifest, textOverlays });
+    if (plan.warnings.length > 0) {
+      manifest.diagnostics = {
+        warnings: [...(manifest.diagnostics?.warnings ?? []), ...plan.warnings],
+      };
+    }
     return { manifest, plan };
   } catch {
     return null; // 校验/编译失败 → 回退 WebM
@@ -211,15 +219,10 @@ export async function startExportJob(payload: unknown): Promise<{ jobId: string;
 
   // 前置决定后端：尝试编译 filtergraph 计划（解析资产 + ffprobe + 编译）。成功 → 主路径，renderer 不录 WebM。
   let backend: "filtergraph" | "webm" = "webm";
-  try {
-    const prepared = await tryBuildFiltergraphExport(raw.manifest, projectId, job.jobDir);
-    if (prepared) {
-      preparedFiltergraphExports.set(job.id, prepared);
-      backend = "filtergraph";
-    }
-  } catch {
-    // 编译期异常（探测/校验失败）→ 退回 WebM 降级，不阻断导出。
-    backend = "webm";
+  const prepared = await tryBuildFiltergraphExport(raw.manifest, projectId, job.jobDir);
+  if (prepared) {
+    preparedFiltergraphExports.set(job.id, prepared);
+    backend = "filtergraph";
   }
 
   exportJobManager.updateJob(job.id, {

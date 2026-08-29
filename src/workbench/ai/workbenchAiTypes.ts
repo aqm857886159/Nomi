@@ -27,6 +27,9 @@ export type WorkbenchAiMessage = {
    * 于是结构上被钉死在列表末尾——用户每说一句话它就被顶到新消息下面，像在「跟着对话跑」。
    * 方案是某一轮的产出，就该锚在那一轮上（对齐同文件 action 卡的做法）。
    * 改方案会产出新的一条带标消息，卡片随之移到最新那条（取最后一条带标的）。
-   */
+  */
   storyboardPlan?: true
+  /** Exact creation resource produced by this turn. Older persisted messages omit both fields. */
+  storyboardDocumentId?: string
+  storyboardDesignId?: string
 }

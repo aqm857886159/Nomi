@@ -31,6 +31,31 @@ function collidingBinding(): WorkflowBinding {
 }
 
 describe('ComfyUI shared media and scalar parameter namespace', () => {
+  it('drops a stale media binding that targets VHS frame_rate and preserves the numeric fps', () => {
+    const videoGraph: ComfyGraph = {
+      '1': { class_type: 'LoadImage', inputs: { image: 'input.png' } },
+      '9': { class_type: 'VHS_VideoCombine', inputs: { images: ['1', 0], frame_rate: 24 } },
+    }
+    const staleBinding: WorkflowBinding = {
+      images: [
+        {
+          nodeId: '9',
+          inputKey: 'frame_rate',
+          paramKey: 'first_frame_url',
+          label: 'First frame',
+          mediaKind: 'image',
+        },
+      ],
+      outputNodeId: '9',
+      outputKind: 'video',
+      params: [],
+    }
+
+    const normalized = normalizeWorkflowBinding(staleBinding, videoGraph)
+    expect(normalized.images).toEqual([])
+    expect(buildImportedWorkflow(videoGraph, staleBinding).templatedGraph['9'].inputs?.frame_rate).toBe(24)
+  })
+
   it('keeps media keys and suffixes every colliding scalar without dropping user fields', () => {
     const source = collidingBinding()
     const normalized = normalizeWorkflowBinding(source, graph)

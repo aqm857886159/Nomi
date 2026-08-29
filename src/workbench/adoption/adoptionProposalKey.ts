@@ -1,5 +1,6 @@
 import type { GenerationCanvasNode, GenerationNodeResult } from '../generationCanvas/model/generationCanvasTypes'
 import type { TimelineState } from '../timeline/timelineTypes'
+import { timelineRevision } from '../timeline/kernel/timelineKernel'
 import type { AdoptionProposalKey } from './adoptionTypes'
 
 /**
@@ -24,20 +25,10 @@ export function stableHash(input: string): string {
  * 撤回到同一个轴也能回到同一个 revision，不会制造假 stale。
  */
 export function timelineRevisionOf(timeline: TimelineState): string {
-  const parts: string[] = []
-  for (const track of timeline.tracks) {
-    for (const clip of track.clips) {
-      parts.push(`${track.type}:${clip.id}:${clip.startFrame}:${clip.endFrame}`)
-    }
-  }
-  for (const textClip of timeline.textClips) {
-    parts.push(`t:${textClip.id}:${textClip.startFrame}:${textClip.endFrame}`)
-  }
-  for (const transition of timeline.transitions || []) {
-    parts.push(`x:${transition.fromClipId}>${transition.toClipId}:${transition.type}`)
-  }
-  parts.sort()
-  return stableHash(parts.join('|'))
+  // Agent plans and adoption proposals must share one content revision. The
+  // kernel hash covers source windows, framing, text, URLs and transitions;
+  // keeping a second partial hash would let edits bypass stale detection.
+  return timelineRevision(timeline)
 }
 
 /**

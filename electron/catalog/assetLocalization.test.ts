@@ -14,6 +14,7 @@ import {
   LITTERBOX_INGESTION,
   TMPFILES_INGESTION,
   ANON_UPLOAD_CHAIN,
+  assertLocalAssetMediaBytes,
   type LocalAsset,
 } from "./assetLocalization";
 import type { AssetIngestion } from "./types";
@@ -21,11 +22,11 @@ import type { AssetIngestion } from "./types";
 const localUrl = (p: string) => `nomi-local://asset/proj/${p}`;
 // 内联素材（headless/MCP 直接给 data: URI，或落盘失败退回 base64 的兜底路径）。
 const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52]);
-const MP4_BYTES = Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x20]), Buffer.from("ftypisom"), Buffer.from("mdat")]);
+const MP4_BYTES = Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x10]), Buffer.from("ftypisom"), Buffer.alloc(4), Buffer.from("mdat")]);
 const inlineImageUrl = (salt = "") =>
   `data:image/png;base64,${Buffer.concat([PNG_BYTES, Buffer.from(salt)]).toString("base64")}`;
 const inlineVideoUrl = () => `data:video/mp4;base64,${MP4_BYTES.toString("base64")}`;
-const fakeAsset = (name: string): LocalAsset => ({ bytes: Buffer.from("hello-" + name), contentType: "image/png", fileName: name });
+const fakeAsset = (name: string): LocalAsset => ({ bytes: Buffer.concat([PNG_BYTES, Buffer.from(name)]), contentType: "image/png", fileName: name });
 const read = (url: string): LocalAsset | null => fakeAsset(url.split("/").pop() || "x");
 // 默认 multipart mock：返回声明 urlPath 能读到的形状。各用例可覆盖。
 const noMultipart = vi.fn();
@@ -68,6 +69,31 @@ describe("isLocalAssetUrl / collect / replace", () => {
       () => ({ bytes: Buffer.from([1, 2, 3]), contentType: "application/octet-stream", fileName: "unknown.bin" }),
     )).toThrow(/无法识别/);
   });
+
+  it("rejects a png-named HTML/XML payload before any upload while preserving real SVG as a supported image type", () => {
+    const html = { bytes: Buffer.from("<!doctype html><html><script></script></html>"), contentType: "image/png", fileName: "image.png" };
+    expect(() => assertLocalAssetMediaBytes(html)).toThrow(/HTML\/XML\/SVG/);
+    expect(() => assertLocalAssetMediaBytes({
+      bytes: Buffer.from("<svg xmlns='http://www.w3.org/2000/svg'></svg>"),
+      contentType: "image/svg+xml",
+      fileName: "vector.svg",
+    })).not.toThrow();
+    expect(() => assertLocalAssetMediaBytes({
+      bytes: Buffer.from("<html><script></script></html>"),
+      contentType: "image/svg+xml",
+      fileName: "fake.svg",
+    })).toThrow(/不是完整且安全的 SVG/);
+    for (const malformed of ["<svg><meta><script></svg>", "<svg><g></svg>", "<x:svg xmlns:x='urn:not-svg'/>", "<!DOCTYPE svg [<!ENTITY x SYSTEM 'file:///etc/passwd'>]><svg>&x;</svg>"]) {
+      expect(() => assertLocalAssetMediaBytes({
+        bytes: Buffer.from(malformed), contentType: "image/svg+xml", fileName: "malformed.svg",
+      })).toThrow(/不是完整且安全的 SVG/);
+    }
+    expect(() => assertLocalAssetMediaBytes({
+      bytes: Buffer.from("corrupt but named png"),
+      contentType: "image/png",
+      fileName: "broken.png",
+    })).toThrow(/未知\/损坏/);
+  });
 });
 
 describe("resolveLocalAsset (per strategy)", () => {
@@ -82,6 +108,24 @@ describe("resolveLocalAsset (per strategy)", () => {
 
   it("none throws a clear error", async () => {
     await expect(resolveLocalAsset(localUrl("a.png"), { strategy: "none" }, "k", read, noPost, noMultipart)).rejects.toThrow(/不支持本地素材/);
+  });
+
+  it("does not call an upload endpoint when image bytes are actually an HTML page", async () => {
+    const post = vi.fn();
+    const readHtml = (): LocalAsset => ({
+      bytes: Buffer.from("<html><meta><script></script></html>"),
+      contentType: "image/png",
+      fileName: "image.png",
+    });
+    await expect(resolveLocalAsset(
+      localUrl("image.png"),
+      { strategy: "upload-url", endpoint: "https://up/x", base64Field: "data", urlPath: "url" },
+      "k",
+      readHtml,
+      post,
+      noMultipart,
+    )).rejects.toThrow(/实际是 HTML\/XML\/SVG/);
+    expect(post).not.toHaveBeenCalled();
   });
 
   it("upload-url posts base64 and reads the declared url path", async () => {
@@ -311,7 +355,8 @@ describe("localizeAssetsForVendor", () => {
     const readMixed = (url: string): LocalAsset | null => {
       const name = url.split("/").pop() || "x";
       const contentType = name.endsWith(".mp4") ? "video/mp4" : "image/png";
-      return { bytes: Buffer.from("bytes-" + name), contentType, fileName: name };
+      const bytes = name.endsWith(".mp4") ? MP4_BYTES : PNG_BYTES;
+      return { bytes, contentType, fileName: name };
     };
     const imageIngestion: AssetIngestion = { strategy: "upload-url", endpoint: "https://img/up", base64Field: "b", urlPath: "url", accepts: ["image"] };
     const videoIngestion: AssetIngestion = { strategy: "upload-stream", endpoint: "https://vid/up", urlPath: "data.downloadUrl", accepts: ["image", "video"] };
@@ -648,7 +693,7 @@ describe("sidecar originalUrl 新鲜度门（L2：参考图永不过期）", () 
 
 describe("comfyui-upload（本地 ComfyUI 首帧上传，S2）", () => {
   const comfyIngestion = (endpoint = "http://127.0.0.1:8188/upload/image"): AssetIngestion => ({ strategy: "comfyui-upload", endpoint, accepts: ["image"] });
-  const readFresh = (name = "a.png"): LocalAsset => ({ bytes: Buffer.from("x"), contentType: "image/png", fileName: name, originalUrl: "https://pub/" + name, ageMs: 0 });
+  const readFresh = (name = "a.png"): LocalAsset => ({ bytes: PNG_BYTES, contentType: "image/png", fileName: name, originalUrl: "https://pub/" + name, ageMs: 0 });
 
   it("trustedLocalOutputOrigin：只信任代码所有的 ComfyUI baseUrl 精确 origin", () => {
     expect(trustedLocalOutputOrigin({ key: "comfyui-local", baseUrlHint: "http://127.0.0.1:8188/api/" })).toBe("http://127.0.0.1:8188");

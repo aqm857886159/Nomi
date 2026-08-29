@@ -18,6 +18,12 @@ export function summarizeStages(stages) {
   return { discovered: stages.length, selected: stages.length, passed, failed, skipped, unsupported, ok: failed === 0 && stages.every((stage) => !stage.required || stage.status === "passed") };
 }
 
+function resolveStageCommand(command) {
+  // Windows exposes pnpm through a .cmd shim; spawnSync does not resolve that
+  // shim when shell execution is disabled (the safe default).
+  return process.platform === "win32" && command === "pnpm" ? "pnpm.cmd" : command;
+}
+
 function reportMarkdown(profile, summary, stages) {
   const rows = stages.map((stage) => `| ${stage.id} | ${stage.status} | ${stage.exitCode ?? "—"} | ${stage.durationMs} |`);
   return [`# Nomi system test: ${profile}`, "", `Result: **${summary.ok ? "PASS" : "FAIL"}** · ${summary.passed}/${summary.selected} stages passed`, "", "| Stage | Status | Exit | Duration ms |", "|---|---|---:|---:|", ...rows, ""].join("\n");
@@ -27,7 +33,13 @@ export function runProfile(profile, { root = path.resolve(import.meta.dirname, "
   const stages = expandProfile(profile);
   for (const stage of stages) {
     const started = Date.now();
-    const result = spawnSync(stage.command, stage.args, { cwd: root, env: { ...env, ...stage.env }, stdio: "inherit" });
+    const command = resolveStageCommand(stage.command);
+    const result = spawnSync(command, stage.args, {
+      cwd: root,
+      env: { ...env, ...stage.env },
+      stdio: "inherit",
+      shell: process.platform === "win32" && command.endsWith(".cmd"),
+    });
     stage.durationMs = Date.now() - started;
     stage.exitCode = result.status ?? 1;
     stage.status = stage.exitCode === 0 ? "passed" : "failed";

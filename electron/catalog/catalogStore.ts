@@ -10,17 +10,9 @@ import { applyBuiltinSeeds } from "./seedBuiltins";
 import { migrateRelayImageEditProtocols } from "./relayImageEditMigration";
 import { migrateRelayVideoImageToVideo } from "./relayVideoI2vMigration";
 import { migrateComfyWorkflowOutputs } from "./comfyuiWorkflowOutputMigration";
+import { migrateCatalogMediaContracts } from "./catalogMediaContractMigration";
 import { migrateRelayImageEditCapability, migrateRelayParamMaps } from "./relayLegacyMigrations";
-import type {
-  AiSdkProviderKind,
-  BillingModelKind,
-  CatalogState,
-  HttpOperation,
-  Mapping,
-  Model,
-  ProfileKind,
-  Vendor,
-} from "./types";
+import type { AiSdkProviderKind, BillingModelKind, CatalogState, HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./types";
 import { CURRENT_CATALOG_VERSION } from "./types";
 import { normalizeCustomCall } from "./customCallMode";
 import { guardAntigravityMappingWrite, guardAntigravityModelWrite, guardAntigravityVendorWrite } from "./antigravityWriteGuard";
@@ -183,6 +175,14 @@ function migrateCatalogForward(state: CatalogState): CatalogState {
   if (s.version === 9) {
     s = { ...migrateComfyWorkflowOutputs(s), version: 10 };
     writeCatalog(s);
+  }
+
+  if (s.version === 10) {
+    const before = s;
+    const migrated = migrateCatalogMediaContracts(s);
+    s = migrated.unresolved ? migrated.state : { ...migrated.state, version: 11 };
+    if (!migrated.unresolved || migrated.state !== before) writeCatalog(s);
+    if (migrated.unresolved) console.warn("[catalog] v11 media migration has unresolved ambiguous bindings; catalog remains v10 for retry");
   }
 
   if ((s.version as number) > CURRENT_CATALOG_VERSION) {

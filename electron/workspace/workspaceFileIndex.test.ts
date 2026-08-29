@@ -65,9 +65,9 @@ describe("workspace file index", () => {
     const target = path.join(root, "assets", "imported", "clip.bin");
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, Buffer.concat([
-      Buffer.from([0, 0, 0, 0x20]),
+      Buffer.from([0, 0, 0, 0x10]),
       Buffer.from("ftypisom", "ascii"),
-      Buffer.alloc(16),
+      Buffer.alloc(4),
     ]));
 
     const clip = listWorkspaceFiles({ rootPath: root }).items[0]?.children?.[0]?.children?.[0];

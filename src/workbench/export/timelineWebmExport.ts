@@ -5,6 +5,7 @@ import { resolveVideoClipMediaTimeSeconds } from '../player/timelinePlayback'
 import { drawTextBox } from '../timeline/textOverlayCanvas'
 import { computeFramedRect, resolveClipFraming } from '../timeline/clipFraming'
 import i18n from '../../i18n'
+import { findTimelineTransitionForClipType, resolveTimelineTransitionsAtFrame } from '../timeline/timelineTransition'
 
 export type ExportStatus = 'idle' | 'preparing' | 'recording' | 'done' | 'error'
 
@@ -132,13 +133,13 @@ async function seekVideoToTime(video: HTMLVideoElement, time: number): Promise<v
 
 async function preloadTimelineAssets(timeline: TimelineState): Promise<TimelineAssetCache> {
   const imageUrls = new Set<string>()
-  const videoUrls = new Set<string>()
+  const videoClips: Array<TimelineClip & { url: string }> = []
 
   for (const track of timeline.tracks) {
     for (const clip of track.clips) {
       if (!hasMediaSource(clip)) continue
       if (clip.type === 'image') imageUrls.add(clip.url)
-      if (clip.type === 'video') videoUrls.add(clip.url)
+      if (clip.type === 'video') videoClips.push(clip)
     }
   }
 
@@ -148,8 +149,8 @@ async function preloadTimelineAssets(timeline: TimelineState): Promise<TimelineA
   await Promise.all(Array.from(imageUrls, async (url) => {
     images.set(url, await loadImage(url))
   }))
-  await Promise.all(Array.from(videoUrls, async (url) => {
-    videos.set(url, await loadVideo(url))
+  await Promise.all(videoClips.map(async (clip) => {
+    videos.set(clip.id, await loadVideo(clip.url))
   }))
 
   return { images, videos }
@@ -170,27 +171,57 @@ function drawFramedMedia(
   context.drawImage(source, rect.x, rect.y, rect.width, rect.height)
 }
 
+function drawClipMedia(
+  context: CanvasRenderingContext2D,
+  clip: TimelineClip,
+  size: ExportCanvasSize,
+  assets: TimelineAssetCache,
+  opacity = 1,
+): void {
+  if (!hasMediaSource(clip) || opacity <= 0) return
+  context.save()
+  context.globalAlpha = Math.max(0, Math.min(1, opacity))
+  if (clip.type === 'image') {
+    const image = assets.images.get(clip.url)
+    if (image) drawFramedMedia(context, image, image.naturalWidth, image.naturalHeight, size, clip)
+  } else if (clip.type === 'video') {
+    const video = assets.videos.get(clip.id)
+    if (video && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      drawFramedMedia(context, video, video.videoWidth, video.videoHeight, size, clip)
+    }
+  }
+  context.restore()
+}
+
+function fillFrame(context: CanvasRenderingContext2D, size: ExportCanvasSize, color: string): void {
+  context.fillStyle = color
+  context.fillRect(0, 0, size.width, size.height)
+}
+
 export function drawTimelineFrame(input: DrawTimelineFrameInput): void {
   const { context, timeline, frame, size, background, assets } = input
   const activeClips = resolveActiveClipsAtFrame(timeline, frame)
+  const activeTransitions = resolveTimelineTransitionsAtFrame(timeline, frame)
   const videoClip = selectClip(activeClips, 'video')
   const imageClip = selectClip(activeClips, 'image')
+  const imageTransition = findTimelineTransitionForClipType(activeTransitions, 'image')
+  const videoTransition = findTimelineTransitionForClipType(activeTransitions, 'video')
 
   context.clearRect(0, 0, size.width, size.height)
-  context.fillStyle = background
-  context.fillRect(0, 0, size.width, size.height)
+  fillFrame(context, size, background)
 
   // 图片在下层、视频在上层（与预览 z-order 一致）：各按自己 clip 的取景绘制。
-  if (imageClip && hasMediaSource(imageClip)) {
-    const image = assets.images.get(imageClip.url)
-    if (image) drawFramedMedia(context, image, image.naturalWidth, image.naturalHeight, size, imageClip)
-  }
-  if (videoClip && hasMediaSource(videoClip)) {
-    const video = assets.videos.get(videoClip.url)
-    if (video && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-      drawFramedMedia(context, video, video.videoWidth, video.videoHeight, size, videoClip)
-    }
-  }
+  if (imageTransition) {
+    fillFrame(context, size, imageTransition.backdrop === 'black' ? '#000000' : background)
+    drawClipMedia(context, imageTransition.fromClip, size, assets, imageTransition.outgoingOpacity)
+    drawClipMedia(context, imageTransition.toClip, size, assets, imageTransition.incomingOpacity)
+  } else if (imageClip) drawClipMedia(context, imageClip, size, assets)
+
+  if (videoTransition) {
+    fillFrame(context, size, videoTransition.backdrop === 'black' ? '#000000' : background)
+    drawClipMedia(context, videoTransition.fromClip, size, assets, videoTransition.outgoingOpacity)
+    drawClipMedia(context, videoTransition.toClip, size, assets, videoTransition.incomingOpacity)
+  } else if (videoClip) drawClipMedia(context, videoClip, size, assets)
 
   // 文字叠加层（字幕/标题卡）：画在媒体之上，与预览 DOM 共用 textLayout 几何。
   for (const textClip of resolveActiveTextClipsAtFrame(timeline, frame)) {
@@ -275,12 +306,24 @@ export async function exportTimelineToWebm(options: TimelineWebmExportOptions): 
       let frame = 0
       const tick = async (): Promise<void> => {
         try {
+          const transitions = resolveTimelineTransitionsAtFrame(options.timeline, frame)
+          const videoTransition = findTimelineTransitionForClipType(transitions, 'video')
           const activeClips = resolveActiveClipsAtFrame(options.timeline, frame)
-          const videoClip = selectClip(activeClips, 'video')
-          if (videoClip && hasMediaSource(videoClip)) {
-            const video = assets.videos.get(videoClip.url)
+          const videoSamples = videoTransition
+            ? [
+                { clip: videoTransition.fromClip, sampleFrame: Math.max(videoTransition.fromClip.startFrame, videoTransition.fromClip.endFrame - 1) },
+                { clip: videoTransition.toClip, sampleFrame: frame },
+              ]
+            : [{ clip: selectClip(activeClips, 'video'), sampleFrame: frame }]
+          for (const sample of videoSamples) {
+            if (!sample.clip || !hasMediaSource(sample.clip)) continue
+            const video = assets.videos.get(sample.clip.id)
             if (video) {
-              const nextTime = resolveVideoClipMediaTimeSeconds({ clip: videoClip, playheadFrame: frame, fps: options.timeline.fps })
+              const nextTime = resolveVideoClipMediaTimeSeconds({
+                clip: sample.clip,
+                playheadFrame: sample.sampleFrame,
+                fps: options.timeline.fps,
+              })
               await seekVideoToTime(video, nextTime)
             }
           }

@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildComfyImportModelMapping, buildImportedWorkflow, type ComfyGraph } from './comfyuiWorkflowImport'
-import type { CatalogState, Mapping, Model } from './types'
+import { CURRENT_CATALOG_VERSION, type CatalogState, type Mapping, type Model } from './types'
 import { isJsonRecord } from '../jsonUtils'
 import { migrateComfyWorkflowOutputs } from './comfyuiWorkflowOutputMigration'
 
@@ -197,7 +197,7 @@ describe('stored ComfyUI output correction', () => {
     fs.writeFileSync(file, JSON.stringify(before))
     const { readCatalog } = await import('./catalogStore')
     const after = readCatalog()
-    expect(after.version).toBe(10)
+    expect(after.version).toBe(CURRENT_CATALOG_VERSION)
     expect(after.models[0]).toMatchObject({ modelKey: 'comfy-existing', kind: 'video', enabled: false, meta: { userSetting: 'keep', comfyWorkflowImport: { binding: { outputNodeId: '3', outputKind: 'video' } } } })
     expect(after.models[0].meta).toMatchObject({ parameters: (before.models[0].meta as Record<string, unknown>).parameters })
     expect(after.mappings[0]).toMatchObject({ taskKind: 'image_to_video', query: { response_mapping: { video_url: 'video_url', error_message: 'error', custom: 'keep' } } })

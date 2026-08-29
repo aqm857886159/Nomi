@@ -82,6 +82,7 @@ export function formatCanvasForAgent(result: CanvasReadResult): string {
 
   const titleById = new Map(result.nodes.map((node) => [node.id, compactHead(node.title, 80)]));
   const nodes = boundedJoin(result.nodes, NODE_SUMMARY_BUDGET, "\n", (node) => {
+    const storyboardDesignId = (node as unknown as { meta?: { storyboardDesignId?: unknown } }).meta?.storyboardDesignId;
     const flags = [
       node.locked ? "已锁定" : null,
       node.hasResult ? "已有结果" : null,
@@ -92,6 +93,7 @@ export function formatCanvasForAgent(result: CanvasReadResult): string {
     return [
       `- ${compactHead(node.id, 120)} | ${compactHead(node.kind, 40)}`,
       typeof node.shotIndex === "number" ? ` | 镜${node.shotIndex}` : "",
+      typeof storyboardDesignId === "string" && storyboardDesignId.trim() ? ` | storyboard:${storyboardDesignId.trim()}` : "",
       ` | ${compactHead(node.title, 80)}`,
       flags.length ? ` | ${flags.join(",")}` : "",
       promptHead ? ` | prompt: ${promptHead}` : "",
@@ -101,14 +103,14 @@ export function formatCanvasForAgent(result: CanvasReadResult): string {
   });
   const edges = boundedJoin(result.edges, EDGE_SUMMARY_BUDGET, ", ", (edge) =>
     `${titleById.get(edge.source) || compactHead(edge.source, 120)}→${titleById.get(edge.target) || compactHead(edge.target, 120)}`);
-  const selected = boundedJoin(result.selectedNodeIds, SELECTED_IDS_BUDGET, ", ", (id) => compactHead(id, 120));
+  const selected = boundedJoin(result.selectedNodeIds ?? [], SELECTED_IDS_BUDGET, ", ", (id) => compactHead(id, 120));
   const writer = createPromptWriter(MAX_CANVAS_PROMPT_CHARACTERS);
   writer.appendLine(`画布节点 ${result.nodes.length} 个(id | 类型 | 标题 | 状态 | prompt 摘要 | 结果身份):`);
   writer.appendLine(`当前选中: ${selected.text || "无"}`);
   writer.appendLine(nodes.text);
   writer.appendLine(`引用边: ${edges.text || "无"}`);
 
-  const selectedIds = new Set(result.selectedNodeIds);
+  const selectedIds = new Set(result.selectedNodeIds ?? []);
   let promptTruncated = false;
   let promptsOmitted = false;
   const coreTruncated = selected.truncated || nodes.truncated || edges.truncated;

@@ -382,9 +382,10 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
         commandId: `driver:${run.runId}:storyboard-proposed:${hash.slice(0, 16)}`,
         expectedRevision: current.revision, type: 'plan.proposed',
         payload: { artifacts: [{
-          artifactId: `artifact-storyboard-v${version}`, stageId: 'storyboard', kind: 'storyboard' as const,
-          status: 'candidate' as const, version, source: 'nomi-agent' as const,
-          sourceArtifactId: source.artifactId, sourceVersion: source.version,
+           artifactId: `artifact-storyboard-v${version}`, stageId: 'storyboard', kind: 'storyboard' as const,
+           status: 'candidate' as const, version, source: 'nomi-agent' as const,
+           contentHash: hash,
+           sourceArtifactId: source.artifactId, sourceVersion: source.version,
           sourceContentHash: source.contentHash, sourceHash: source.contentHash, reviewStatus: 'waiting' as const,
           sourceScriptArtifactId: source.artifactId, sourceScriptVersion: source.version, sourceScriptHash: source.contentHash,
           skillEvidence,
@@ -575,7 +576,11 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
       }
       current = executeInternal(run.projectId, run.runId, current, 'run.stage', { stageId: 'assemble' }, `driver-${run.runId}-stage-assemble-start-${current.revision}`).run
       current = executeInternal(run.projectId, run.runId, current, 'stage.upsert', { stage: stageValue(current, 'assemble', { status: 'running', startedAt: new Date().toISOString() }) }, `driver-${run.runId}-stage-assemble`).run
-      const arrangement = await requestRenderer('production.arrange', { projectId: run.projectId, runId: run.runId }, 5 * 60_000) as Record<string, unknown>
+      const arrangement = await requestRenderer('production.arrange', {
+        projectId: run.projectId,
+        runId: run.runId,
+        shotNodeIds: adoptedGenerationShotNodeIds(current),
+      }, 5 * 60_000) as Record<string, unknown>
       const timelinePath = `.nomi/runs/${run.runId}/timeline-v${current.planVersion}.json`
       writeProjectJson(run.projectId, timelinePath, { schemaVersion: 1, kind: 'timeline', arrangement, timelineContract: arrangement.timelineContract })
       current = requireRun(run.projectId, run.runId)

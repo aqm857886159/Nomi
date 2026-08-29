@@ -15,16 +15,17 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { showInfoToast } from '../../../utils/showInfoToast'
 import { resolveReferenceSlots } from '../runner/referenceSlots'
 import { referenceSlotStorage } from './controls/archetypeMeta'
-import { validateReferenceEdge } from '../agent/referenceEdgeCapability'
-import { buildMentionCandidates, currentReferenceUrls, planMentionInsert } from './mentionCandidates'
+import { selectConnectionEdgeMode, validateReferenceEdge } from '../agent/referenceEdgeCapability'
+import { buildMentionCandidates, currentReferenceMedia, currentReferenceUrls, planMentionInsert } from './mentionCandidates'
 import type { MentionSuggestionItem } from '../../assets/AssetMentionSuggestionList'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
-type LibraryAsset = { id: string; name: string; url: string }
+type LibraryAsset = { id: string; name: string; url: string; kind?: 'image' | 'video' | 'audio' }
 
 export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: readonly LibraryAsset[]): {
-  /** 有序参考 url（chip 编号真相源，喂 PromptEditor 的 mentionCandidates）。 */
+  /** 有序图片参考 url（兼容旧的图片 chip 编号）；视频/音频编号由 mediaReferences 提供。 */
   orderedReferenceUrls: string[]
+  orderedMediaReferences: ReturnType<typeof currentReferenceMedia>
   mentionSearch: (query: string) => MentionSuggestionItem[]
   onMentionSelect: (item: MentionSuggestionItem) => number | null
 } {
@@ -34,6 +35,10 @@ export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: 
 
   const orderedReferenceUrls = React.useMemo(
     () => currentReferenceUrls(node, nodes, edges),
+    [node, nodes, edges],
+  )
+  const orderedMediaReferences = React.useMemo(
+    () => currentReferenceMedia(node, nodes, edges),
     [node, nodes, edges],
   )
 
@@ -46,11 +51,19 @@ export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: 
       edges: state.edges,
       libraryAssets,
       query,
-      currentLabel: (index) => t('assetLibrary.referenceImageIndexed', { index }),
+      currentLabel: (index, kind) => t(
+        kind === 'video'
+          ? 'assetLibrary.referenceVideoIndexed'
+          : kind === 'audio'
+            ? 'assetLibrary.referenceAudioIndexed'
+            : 'assetLibrary.referenceImageIndexed',
+        { index },
+      ),
     }).map((candidate) => ({
       key: candidate.key,
       url: candidate.url,
       label: candidate.label,
+      ...(candidate.kind ? { kind: candidate.kind } : {}),
       group: candidate.group,
       ...(candidate.referenceIndex === undefined ? {} : { index: candidate.referenceIndex }),
     }))
@@ -62,6 +75,7 @@ export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: 
       url: item.url,
       label: item.label,
       group: item.group,
+      ...(item.kind ? { kind: item.kind } : {}),
       ...(item.index === undefined ? {} : { referenceIndex: item.index }),
       ...(item.key.startsWith('canvas:') ? { sourceNodeId: item.key.slice('canvas:'.length) } : {}),
     })
@@ -84,16 +98,18 @@ export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: 
         )
         return null
       }
-      store.connectNodes(plan.sourceNodeId, node.id)
+      const existingEdgesToTarget = store.edges.filter((edge) => edge.target === node.id)
+      store.connectNodes(plan.sourceNodeId, node.id, selectConnectionEdgeMode(source, target, existingEdgesToTarget))
     } else {
-      // 素材库图 → 落进 image_ref 槽的上传位（与拖文件进卡同一条存储路径）。
-      const slot = resolveReferenceSlots(target, store.nodes, store.edges).find((s) => s.slotKind === 'image_ref')
+      // 素材库媒体 → 落进对应参考槽的上传位（与拖文件进卡同一条存储路径）。
+      const desiredSlotKind = plan.mediaKind === 'video' ? 'video_ref' : plan.mediaKind === 'audio' ? 'audio_ref' : 'image_ref'
+      const slot = resolveReferenceSlots(target, store.nodes, store.edges).find((s) => s.slotKind === desiredSlotKind)
       if (!slot) { showInfoToast(t('connection.unsupported')); return null }
       if (slot.max !== undefined && slot.fills.length >= slot.max) {
         showInfoToast(t('connection.slotsFull', { max: slot.max }))
         return null
       }
-      const storage = referenceSlotStorage({ kind: 'image_ref' })
+      const storage = referenceSlotStorage({ kind: desiredSlotKind })
       if (!storage) return null
       const meta = (target.meta || {}) as Record<string, unknown>
       const existing = Array.isArray(meta[storage.metaKey]) ? (meta[storage.metaKey] as string[]) : []
@@ -106,14 +122,16 @@ export function useNodeMentionSource(node: GenerationCanvasNode, libraryAssets: 
     const after = useGenerationCanvasStore.getState()
     const afterTarget = after.nodes.find((candidate) => candidate.id === node.id)
     if (!afterTarget) return null
-    const index = currentReferenceUrls(afterTarget, after.nodes, after.edges).indexOf(plan.url)
+    const media = currentReferenceMedia(afterTarget, after.nodes, after.edges)
+    const index = media.find((reference) => reference.url === plan.url && reference.kind === plan.mediaKind)?.index ?? -1
     if (index < 0) {
       // 引用没真落进槽（例如被 placeAt 丢弃）→ 不插 chip，且明着说，别静默。
       showInfoToast(t('connection.referenceFull'))
       return null
     }
-    return index + 1
+    // currentReferenceMedia 已返回每种媒体自己的 1-based 编号；不要再次递增。
+    return index
   }, [node.id, t])
 
-  return { orderedReferenceUrls, mentionSearch, onMentionSelect }
+  return { orderedReferenceUrls, orderedMediaReferences, mentionSearch, onMentionSelect }
 }

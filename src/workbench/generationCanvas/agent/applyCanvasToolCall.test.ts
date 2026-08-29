@@ -223,6 +223,27 @@ describe('applyCanvasToolCall 图片+视频分镜镜号', () => {
 })
 
 // S2:propose_storyboard_plan 不碰画布——把结构化方案落创作 store 并切回创作区(规划免费可改)。
+describe('applyCanvasToolCall timeline storyboard scope', () => {
+  beforeEach(() => {
+    resetCanvas()
+    resetClientIdRegistry()
+  })
+
+  it('rejects Agent node ids that cross two storyboard designs before mutating the timeline', async () => {
+    const canvas = useGenerationCanvasStore.getState()
+    const first = canvas.addNode({ kind: 'video', title: 'A1', categoryId: 'shots' })
+    const second = canvas.addNode({ kind: 'video', title: 'B1', categoryId: 'shots' })
+    canvas.updateNode(first.id, { meta: { storyboardDesignId: 'design-a' } })
+    canvas.updateNode(second.id, { meta: { storyboardDesignId: 'design-b' } })
+    const timelineBefore = useWorkbenchStore.getState().timeline
+
+    await expect(applyCanvasToolCall('arrange_storyboard_to_timeline', {
+      nodeIds: [first.id, second.id],
+    })).rejects.toThrow('mixed_storyboard_scope')
+    expect(useWorkbenchStore.getState().timeline).toBe(timelineBefore)
+  })
+})
+
 describe('applyCanvasToolCall propose_storyboard_plan', () => {
   const PLAN: StoryboardPlan = {
     title: '雨夜追凶',
@@ -235,25 +256,64 @@ describe('applyCanvasToolCall propose_storyboard_plan', () => {
 
   beforeEach(() => {
     resetCanvas()
-    useWorkbenchStore.getState().setStoryboardPlan(null)
-    useWorkbenchStore.getState().setWorkspaceMode('generation')
+    useWorkbenchStore.getState().hydrateWorkbenchDocuments(
+      [{ id: 'doc-1', version: 1, title: '', contentJson: { type: 'doc', content: [] }, updatedAt: 1 }],
+      'doc-1',
+    )
+    useWorkbenchStore.getState().hydrateStoryboardPlans({})
+    useWorkbenchStore.getState().setWorkspaceMode('creation')
   })
 
-  it('合法方案 → 落创作 store + 切回创作区 + 不动画布,回执含计数', async () => {
-    const ack = (await applyCanvasToolCall('propose_storyboard_plan', PLAN)) as string
+  it('合法方案 → 落统一创作页 + 不动画布,回执含计数', async () => {
+    const ack = await applyCanvasToolCall('propose_storyboard_plan', PLAN)
     const ws = useWorkbenchStore.getState()
-    expect(ws.storyboardPlan).toEqual(PLAN)
+    expect(ws.storyboardPlans['doc-1'].plan).toEqual(PLAN)
     expect(ws.workspaceMode).toBe('creation')
     expect(useGenerationCanvasStore.getState().nodes).toHaveLength(0) // 规划不碰画布
-    expect(ack).toContain('1 个锚')
-    expect(ack).toContain('2 个镜头')
+    expect(ack).toMatchObject({ status: 'applied', documentId: 'doc-1', storyboardDesignId: expect.any(String) })
+    expect((ack as { message: string }).message).toContain('1 个锚')
+    expect((ack as { message: string }).message).toContain('2 个镜头')
   })
 
   it('畸形方案 → throw,不落 store(调用方映射成 tool error 回喂 LLM)', async () => {
     await expect(
       applyCanvasToolCall('propose_storyboard_plan', { title: 't', anchors: [{ id: 'x', kind: 'bad' }], shots: [] }),
     ).rejects.toThrow()
-    expect(useWorkbenchStore.getState().storyboardPlan).toBeNull()
+    expect(useWorkbenchStore.getState().storyboardPlans['doc-1']).toBeUndefined()
+  })
+
+  it('规划期间用户切走后不抢回工作区，结果仍落原文稿', async () => {
+    useWorkbenchStore.getState().setWorkspaceMode('generation')
+    await applyCanvasToolCall('propose_storyboard_plan', PLAN, undefined, undefined, 'doc-1')
+    const ws = useWorkbenchStore.getState()
+    expect(ws.workspaceMode).toBe('generation')
+    expect(ws.storyboardDesignsByDocumentId['doc-1'][0].plan).toEqual(PLAN)
+  })
+
+  it('全新拆镜不会覆盖当前已确认的分镜设计', async () => {
+    await applyCanvasToolCall('propose_storyboard_plan', PLAN, undefined, undefined, 'doc-1')
+    const firstId = useWorkbenchStore.getState().activeStoryboardId!
+    useWorkbenchStore.getState().commitStoryboardPlan('doc-1', firstId)
+
+    const nextPlan = { ...PLAN, title: '另一版' }
+    const result = await applyCanvasToolCall('propose_storyboard_plan', nextPlan, undefined, undefined, 'doc-1')
+    const ws = useWorkbenchStore.getState()
+
+    expect(result).toMatchObject({ status: 'applied', storyboardDesignId: expect.any(String) })
+    expect((result as { storyboardDesignId: string }).storyboardDesignId).not.toBe(firstId)
+    expect(ws.storyboardDesignsByDocumentId['doc-1']).toHaveLength(2)
+    expect(ws.storyboardDesignsByDocumentId['doc-1'].find((design) => design.id === firstId)?.committed).toBe(true)
+  })
+
+  it('生成期间原稿被删除时不留下孤儿分镜', async () => {
+    useWorkbenchStore.getState().addWorkbenchDocument()
+    const deletedDocumentId = useWorkbenchStore.getState().activeDocumentId
+    useWorkbenchStore.getState().deleteWorkbenchDocument(deletedDocumentId)
+
+    const result = await applyCanvasToolCall('propose_storyboard_plan', PLAN, undefined, undefined, deletedDocumentId)
+
+    expect(result).toMatchObject({ status: 'obsolete', documentId: deletedDocumentId })
+    expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId[deletedDocumentId]).toBeUndefined()
   })
 })
 

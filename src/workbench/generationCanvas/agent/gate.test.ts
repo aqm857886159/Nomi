@@ -11,6 +11,12 @@ describe('evaluateGate — 统一求值流(§6.1)', () => {
     expect(source).not.toContain('CANVAS_READ_CAPABILITY')
   })
 
+  it('① policy:只读工具直通 allow', () => {
+    for (const toolName of ['get_media', 'inspect_media', 'search_media', 'inspect_source_range', 'read_waveform', 'inspect_export_job', 'verify_render']) {
+      expect(evaluateGate({ kind: 'tool-call', toolName, args: {} })).toEqual({ outcome: 'allow' })
+    }
+  })
+
   it('① policy:propose_storyboard_plan 免费可改(不写画布/不花钱)→ allow', () => {
     expect(evaluateGate({ kind: 'tool-call', toolName: 'propose_storyboard_plan', args: {} })).toEqual({
       outcome: 'allow',
@@ -18,7 +24,7 @@ describe('evaluateGate — 统一求值流(§6.1)', () => {
   })
 
   it('③ ask:写工具排队等点头', () => {
-    for (const toolName of ['create_canvas_nodes', 'connect_canvas_edges', 'set_node_prompt']) {
+    for (const toolName of ['create_canvas_nodes', 'connect_canvas_edges', 'set_node_prompt', 'export_timeline', 'cancel_export_job']) {
       expect(evaluateGate({ kind: 'tool-call', toolName, args: {} })).toEqual({ outcome: 'ask' })
     }
   })

@@ -29,30 +29,11 @@ import StoryboardBulkBar from './StoryboardBulkBar'
 import StoryboardShotCard from './StoryboardShotCard'
 import { productionRunApi } from '../../production/productionRunApi'
 import { useProductionRunStore } from '../../production/productionRunStore'
-import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
-
-type ApprovedScriptLike = {
-  artifactId: string
-  kind: string
-  status: string
-  version?: number
-  contentHash?: string
-}
-
-/** Pure provenance check shared by the UI guard and its adversarial tests. */
-export function storyboardPlanSourceMatchesApprovedScript(
-  plan: Pick<StoryboardPlan, 'sourceScriptArtifactId' | 'sourceScriptVersion' | 'sourceScriptHash'>,
-  artifacts: readonly ApprovedScriptLike[],
-): boolean {
-  if (!plan.sourceScriptArtifactId && plan.sourceScriptVersion === undefined && !plan.sourceScriptHash) return true
-  const approvedScript = [...artifacts]
-    .reverse()
-    .find((artifact) => artifact.kind === 'script' && (artifact.status === 'adopted' || artifact.status === 'ready'))
-  return Boolean(approvedScript)
-    && plan.sourceScriptArtifactId === approvedScript?.artifactId
-    && plan.sourceScriptVersion === approvedScript?.version
-    && plan.sourceScriptHash === approvedScript?.contentHash
-}
+import {
+  findMatchingCandidateStoryboard,
+  storyboardDesignNeedsSync,
+  storyboardPlanSourceMatchesApprovedScript,
+} from './storyboardPlanGuards'
 
 /**
  * 分镜方案字段编辑器（S3，决策 B）。创作区主列在 storyboardPlan 存在时替换文档编辑器渲染它。
@@ -62,11 +43,15 @@ export function storyboardPlanSourceMatchesApprovedScript(
 
 export default function StoryboardPlanEditor(): JSX.Element | null {
   const { t } = useTranslation()
-  const plan = useWorkbenchStore((s) => s.storyboardPlan)
+  const entry = useWorkbenchStore((s) => (s.activeDocumentId ? s.storyboardPlans[s.activeDocumentId] : undefined))
+  const plan = entry?.plan ?? null
   const setStoryboardPlan = useWorkbenchStore((s) => s.setStoryboardPlan)
   const commitStoryboardPlan = useWorkbenchStore((s) => s.commitStoryboardPlan)
-  const discardStoryboardPlan = useWorkbenchStore((s) => s.discardStoryboardPlan)
+  const deleteStoryboardDesign = useWorkbenchStore((s) => s.deleteStoryboardDesign)
   const setWorkspaceMode = useWorkbenchStore((s) => s.setWorkspaceMode)
+  const setActiveStoryboardId = useWorkbenchStore((s) => s.setActiveStoryboardId)
+  const activeDocumentId = useWorkbenchStore((s) => s.activeDocumentId)
+  const activeStoryboardId = useWorkbenchStore((s) => s.activeStoryboardId)
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
   const [landing, setLanding] = React.useState(false)
@@ -90,17 +75,45 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
   const noNameAnchorIds = new Set(issues.filter((i) => i.kind === 'anchor-no-name').map((i) => i.anchorId))
 
   const onDiscard = async () => {
+    const targetDocumentId = activeDocumentId
+    const targetStoryboardId = activeStoryboardId
+    if (!targetStoryboardId) return
     const ok = await confirmDialog({
       title: t('storyboardEditor.discardTitle'),
       message: t('storyboardEditor.discardMessage'),
       confirmLabel: t('storyboardEditor.discard'),
       danger: true,
     })
-    if (ok) discardStoryboardPlan()
+    if (ok) deleteStoryboardDesign(targetStoryboardId, targetDocumentId)
   }
 
   const onConfirm = async () => {
     if (issues.length > 0 || landing) return
+    const targetDocumentId = activeDocumentId
+    const targetStoryboardId = activeStoryboardId
+    if (!targetStoryboardId) return
+    const targetDesign = useWorkbenchStore.getState().storyboardDesignsByDocumentId[targetDocumentId]
+      ?.find((design) => design.id === targetStoryboardId)
+    if (!targetDesign) return
+    const targetCanStillLand = () => {
+      const state = useWorkbenchStore.getState()
+      const current = state.storyboardDesignsByDocumentId[targetDocumentId]
+        ?.find((design) => design.id === targetStoryboardId)
+      return current === targetDesign
+    }
+    const targetIsStillVisible = () => {
+      const state = useWorkbenchStore.getState()
+      return state.activeDocumentId === targetDocumentId && state.activeStoryboardId === targetStoryboardId
+    }
+    const targetDocument = useWorkbenchStore.getState().workbenchDocuments.find((document) => document.id === targetDocumentId)
+    if (targetDocument && storyboardDesignNeedsSync(targetDocument.updatedAt, targetDesign.sourceDocumentUpdatedAt)) {
+      const proceed = await confirmDialog({
+        title: t('storyboardEditor.staleTitle'),
+        message: t('storyboardEditor.staleMessage'),
+        confirmLabel: t('storyboardEditor.staleConfirm'),
+      })
+      if (!proceed || !targetCanStillLand()) return
+    }
     // A storyboard is a one-way projection of the approved script. Check the
     // identity before mutating the canvas so a stale plan cannot leave orphaned
     // nodes that the production run will later reject.
@@ -121,7 +134,13 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
     setLanding(true)
     try {
       const productionRun = useProductionRunStore.getState().run
-      const storyboardArtifact = productionRun?.artifacts.find((artifact) => artifact.kind === 'storyboard' && artifact.status === 'candidate')
+      // A run may contain multiple storyboard candidates. Only the exact
+      // content-hash match is allowed through the durable review/materialize
+      // path; an unrelated local design must never approve the first artifact.
+      const storyboardArtifact = productionRun
+        ? await findMatchingCandidateStoryboard(plan, productionRun.artifacts)
+        : undefined
+      if (!targetCanStillLand()) return
       // Production runs use the same durable review → materialize seam as
       // external MCP. The UI confirmation is the storyboard review decision;
       // only after it is adopted does the main process ask the renderer to
@@ -134,6 +153,7 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
           payload: { artifactId: storyboardArtifact.artifactId, decision: 'approved' },
           issuedAt: new Date().toISOString(),
         })
+        if (!targetCanStillLand()) return
         const materialized = await productionRunApi.materializeStoryboard(
           productionRun.projectId,
           productionRun.runId,
@@ -141,10 +161,13 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
           reviewed.run.artifacts.find((artifact) => artifact.artifactId === storyboardArtifact.artifactId)?.version || storyboardArtifact.version || 1,
         )
         await useProductionRunStore.getState().load(productionRun.projectId)
-        commitStoryboardPlan()
-        setWorkspaceMode('generation')
+        if (!targetCanStillLand()) return
+        commitStoryboardPlan(targetDocumentId, targetStoryboardId)
         const landedIds = materialized.createdNodeIds
-        if (landedIds.length > 1) useGenerationCanvasStore.getState().selectNodes(landedIds)
+        if (targetIsStillVisible()) {
+          setWorkspaceMode('generation')
+          if (landedIds.length > 1) useGenerationCanvasStore.getState().selectNodes(landedIds)
+        }
         return
       }
       // 注入默认模型（用户拍板 B-clean）：定妆卡=图片模型（偏好 GPT Image 2）；镜头=视频模型
@@ -154,23 +177,30 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
         resolveStoryboardImageDefault(),
         resolveStoryboardVideoDefault(),
       ])
+      if (!targetCanStillLand()) return
       const args = storyboardPlanToCreateNodesArgs(plan, {
+        creationDocumentId: targetDocumentId,
+        storyboardDesignId: targetStoryboardId,
         ...(imageDefault.modelKey ? { defaultImageModelKey: imageDefault.modelKey } : {}),
         ...(imageDefault.modeId ? { defaultImageModeId: imageDefault.modeId } : {}),
         ...(imageDefault.refModeId ? { defaultImageRefModeId: imageDefault.refModeId } : {}),
         ...(videoDefault.modelKey ? { defaultVideoModelKey: videoDefault.modelKey } : {}),
         ...(videoDefault.modeId ? { defaultVideoModeId: videoDefault.modeId } : {}),
       })
-      await applyCanvasToolCall('create_canvas_nodes', args)
+      await applyCanvasToolCall('create_canvas_nodes', args, undefined, targetCanStillLand)
+      if (!targetCanStillLand()) return
       // 不再即焚:方案保留、转「已落画布」、收起编辑器 → 卡片留在对话流可回看/再编辑。
-      commitStoryboardPlan()
-      setWorkspaceMode('generation')
+      commitStoryboardPlan(targetDocumentId, targetStoryboardId)
       // 落画布即自动全选这批新节点（样张拍板 2026-07-29）→ 既有多选浮条「生成 N 个」直接浮现，
       // 批量入口不再靠用户自己发现框选；点浮条整批确认生成，依赖波次照旧（定妆/首帧先、镜头后）。
       // clientId 经注册表换真实节点 id；≤1 个不选（浮条本就只在多选时出现，单节点一键生成足矣）。
       const landedIds = args.nodes.map((created) => resolveCanvasToolNodeId(created.clientId))
-      if (landedIds.length > 1) useGenerationCanvasStore.getState().selectNodes(landedIds)
+      if (targetIsStillVisible()) {
+        setWorkspaceMode('generation')
+        if (landedIds.length > 1) useGenerationCanvasStore.getState().selectNodes(landedIds)
+      }
     } catch (error: unknown) {
+      if (!targetCanStillLand()) return
       // 人话化：别把服务端/内部原串直贴进对话框（2026-08-25 走查同类：CreationAiPanel 拆镜头也曾直通英文串）。
       // 走 classifyGenerationError 拿分类后的 reason（+ 缺 key 时的一句指引），与错误卡同一真相源（P1）。
       const raw = error instanceof Error && error.message ? error.message : ''
@@ -190,7 +220,10 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
   }
 
   return (
-    <section className="relative w-full h-full min-h-0 grid grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] border border-workbench-border rounded-workbench bg-workbench-surface-solid shadow-workbench-md overflow-hidden">
+    <section
+      className="relative w-full h-full min-h-0 grid grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] border border-workbench-border rounded-workbench bg-workbench-surface-solid shadow-workbench-md overflow-hidden"
+      data-storyboard-editor="true"
+    >
       <header className="flex items-center justify-between gap-3 h-12 px-4 border-b border-nomi-line">
         <div className="flex items-center gap-2 min-w-0">
           <IconMovie size={16} stroke={1.5} className="text-nomi-ink-60 shrink-0" />
@@ -310,17 +343,25 @@ export default function StoryboardPlanEditor(): JSX.Element | null {
       </div>
 
       <footer className="flex items-center justify-between gap-3 px-4 py-2.5 border-t border-nomi-line bg-nomi-paper">
-        {issues.length > 0 ? (
-          <span className="text-caption text-workbench-danger inline-flex items-center gap-[5px] min-w-0">
-            <IconAlertTriangle size={14} stroke={1.8} className="shrink-0" />
-            <span className="truncate">{t('storyboardEditor.issuesSummary', { count: issues.length, issue: firstIssueLabel(issues[0]) })}</span>
-          </span>
-        ) : (
-          <span className="text-caption text-workbench-success inline-flex items-center gap-[5px]">
-            <IconCheck size={14} stroke={1.8} />
-            {t('storyboardEditor.readySummary', { anchors: plan.anchors.length, shots: plan.shots.length })}
-          </span>
-        )}
+        <div className="flex items-center gap-2 min-w-0">
+          <WorkbenchButton variant="default" size="sm" onClick={() => {
+            setActiveStoryboardId(null)
+            setWorkspaceMode('creation')
+          }}>
+            {t('storyboardEditor.backToCreation')}
+          </WorkbenchButton>
+          {issues.length > 0 ? (
+            <span className="text-caption text-workbench-danger inline-flex items-center gap-[5px] min-w-0">
+              <IconAlertTriangle size={14} stroke={1.8} className="shrink-0" />
+              <span className="truncate">{t('storyboardEditor.issuesSummary', { count: issues.length, issue: firstIssueLabel(issues[0]) })}</span>
+            </span>
+          ) : (
+            <span className="text-caption text-workbench-success inline-flex items-center gap-[5px]">
+              <IconCheck size={14} stroke={1.8} />
+              {t('storyboardEditor.readySummary', { anchors: plan.anchors.length, shots: plan.shots.length })}
+            </span>
+          )}
+        </div>
         <WorkbenchButton
           variant="primary"
           onClick={onConfirm}

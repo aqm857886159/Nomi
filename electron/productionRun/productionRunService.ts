@@ -29,6 +29,7 @@ import { normalizeTrustLevel, trustLevelOf } from './productionRunTypes'
 import { approvalReceiptForGate } from './productionRunApprovalReceipt'
 import { isAnchorCheckpointGate } from './anchorCheckpoint'
 import { kickBatchSchedulerForRun } from './batchSchedulerKick'
+import { recoverStoryboardContentHashes } from './productionRunStoryboardHashRecovery'
 import type { ApprovalReceiptAuthority } from '../capabilityCore/approvalReceipt'
 import {
   metadataProjection,
@@ -715,7 +716,8 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
   }
 
   function readFull(projectId: string, runId: string): ProductionRun {
-    return requireRun(projectId, runId)
+    const run = requireRun(projectId, runId)
+    return recoverStoryboardContentHashes(run, projectRootResolver(run.projectId))
   }
 
   const artifactOperations = createArtifactOperations({

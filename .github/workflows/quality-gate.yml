@@ -5,6 +5,13 @@ on:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: Reachable vocabulary baseline for a manual current-HEAD recovery run
+        required: false
+        default: origin/main
+        type: string
 
 concurrency:
   group: quality-gate-${{ github.event.pull_request.number || github.ref }}
@@ -14,12 +21,13 @@ permissions:
   contents: read
 
 jobs:
-  quality:
-    name: Quality Gate
+  contracts:
+    name: Contracts
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      VOCAB_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+      VOCAB_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || inputs.base_ref }}
+      ROOT_CAUSE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || inputs.base_ref }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,12 +41,50 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Repository gates
-        run: pnpm run gates
-      - name: Electron smoke journeys
-        run: xvfb-run -a pnpm run test:e2e
-      - name: Real user journey suite
-        run: xvfb-run -a pnpm run test:journeys
+      - name: Static contracts, lint, and types
+        run: pnpm run test:system:contracts
+
+  unit:
+    name: Unit
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Unit and agent runtime tests
+        run: pnpm run test:system:unit
+
+  desktop-linux:
+    name: Desktop Linux
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build and run desktop journeys
+        run: xvfb-run -a pnpm run test:system:desktop
       - name: Project Agent MCP journey
         run: xvfb-run -a pnpm run test:mcp
       - name: Project Agent Surface isolation
@@ -79,3 +125,16 @@ jobs:
         run: pnpm run dist:mac:dir
       - name: Verify macOS signature
         run: codesign --verify --deep --strict --verbose=4 release/mac-arm64/Nomi.app
+
+  quality:
+    name: Quality Gate
+    needs: [contracts, unit, desktop-linux, mac-package]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every validation surface
+        run: |
+          test "${{ needs.contracts.result }}" = "success"
+          test "${{ needs.unit.result }}" = "success"
+          test "${{ needs['desktop-linux'].result }}" = "success"
+          test "${{ needs['mac-package'].result }}" = "success"

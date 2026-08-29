@@ -11,6 +11,7 @@ vi.mock("electron", () => ({
 }));
 
 import {
+  buildCustomCallAiInstruction,
   CUSTOM_CALL_RETURN_CONTRACT,
   CUSTOM_CALL_TEMPLATES,
   CUSTOM_CALL_VARIABLES,
@@ -18,6 +19,19 @@ import {
 import { registerCustomCallIpc } from "./customCallIpc";
 
 describe("custom-call contract IPC", () => {
+  it("AI 题面禁止引用角色提升，也禁止在材料不足时猜接口", () => {
+    const instruction = buildCustomCallAiInstruction({
+      modelKey: "kling-3.0-omni",
+      kind: "video",
+      baseUrl: "https://relay.example",
+      material: "",
+    });
+    expect(instruction).toMatch(/Never promote .*images\[0\].*firstFrame/i);
+    expect(instruction).toMatch(/Never invent endpoints/i);
+    expect(instruction).not.toMatch(/best guess/i);
+    expect(instruction).not.toMatch(/fall back to the most common/i);
+  });
+
   it("exposes the same variables, return contract, and templates used by the runner and AI prompt", () => {
     const syncHandlers = new Map<string, (...args: never[]) => unknown>();
     registerCustomCallIpc((channel, handler) => syncHandlers.set(channel, handler));

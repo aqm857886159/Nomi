@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
-import { MENTION_CANDIDATE_LIMIT, buildMentionCandidates, planMentionInsert } from './mentionCandidates'
+import { MENTION_CANDIDATE_LIMIT, buildMentionCandidates, currentReferenceMedia, planMentionInsert } from './mentionCandidates'
 
 function imageNode(id: string, title: string, url?: string): GenerationCanvasNode {
   return {
@@ -52,10 +52,31 @@ describe('buildMentionCandidates — 三组候选', () => {
     expect(build({ target, nodes: [target, imageNode('a', '还没跑')] })).toEqual([])
   })
 
-  it('视频节点不进图类候选（视频有自己的 video_ref 槽，混进来会污染 image_ref）', () => {
+  it('已出视频节点进入视频候选（不再被图类过滤器静默丢弃）', () => {
     const target = imageNode('target', '镜头 1')
     const got = build({ target, nodes: [target, videoNode('v', '一段视频', 'https://x/v.mp4')] })
-    expect(got).toEqual([])
+    expect(got).toMatchObject([{ key: 'canvas:v', label: '一段视频', kind: 'video' }])
+  })
+
+  it('视频候选按节点标题搜索，英文 query 也命中', () => {
+    const target = imageNode('target', '镜头 1')
+    const got = build({ target, nodes: [target, videoNode('v', 'drone move', 'https://x/drone.mp4')], query: 'dr' })
+    expect(got).toMatchObject([{ key: 'canvas:v', label: 'drone move', kind: 'video' }])
+  })
+
+  it('全能参考模式的当前视频可按「视频1」搜索，并保留视频类型', () => {
+    const target = {
+      ...videoNode('target', '镜头 1', 'https://x/target.mp4'),
+      meta: { modelKey: 'bytedance/seedance-2', modelVendor: 'kie', archetype: { id: 'seedance-2', modeId: 'omni' } },
+    } as GenerationCanvasNode
+    const source = videoNode('v', '运镜参考', 'https://x/move.mp4')
+    const edges: GenerationCanvasEdge[] = [{ id: 'e', source: 'v', target: 'target', mode: 'reference', order: 0 }]
+    expect(currentReferenceMedia(target, [target, source], edges)).toEqual([
+      { url: 'https://x/move.mp4', kind: 'video', index: 1, label: '运镜参考' },
+    ])
+    expect(build({ target, nodes: [target, source], edges, query: '运镜' })).toMatchObject([
+      { key: 'current:https://x/move.mp4', label: '运镜参考', kind: 'video', referenceIndex: 0 },
+    ])
   })
 
   it('同一个 URL 在画布和素材库都出现时只留一条（画布优先，它能建边）', () => {
@@ -104,21 +125,26 @@ describe('buildMentionCandidates — 上限', () => {
 describe('planMentionInsert — 选中后该干什么', () => {
   it('已是参考 → 直接插 chip，编号 = 下标+1', () => {
     expect(planMentionInsert({ key: 'k', url: 'u', label: '图片2', group: 'current', referenceIndex: 1 }))
-      .toEqual({ kind: 'insert', url: 'u', index: 2 })
+      .toEqual({ kind: 'insert', url: 'u', mediaKind: 'image', index: 2 })
   })
 
   it('画布节点 → 先建边', () => {
     expect(planMentionInsert({ key: 'k', url: 'u', label: 'x', group: 'canvas', sourceNodeId: 'a' }))
-      .toEqual({ kind: 'connect', sourceNodeId: 'a', url: 'u' })
+      .toEqual({ kind: 'connect', sourceNodeId: 'a', url: 'u', mediaKind: 'image' })
   })
 
   it('素材库 → 落上传参考槽', () => {
     expect(planMentionInsert({ key: 'k', url: 'u', label: 'x', group: 'library' }))
-      .toEqual({ kind: 'attach', url: 'u' })
+      .toEqual({ kind: 'attach', url: 'u', mediaKind: 'image' })
   })
 
   it('canvas 组丢了 sourceNodeId → 退化成 attach，不产生「连了个寂寞」的边', () => {
     expect(planMentionInsert({ key: 'k', url: 'u', label: 'x', group: 'canvas' }))
-      .toEqual({ kind: 'attach', url: 'u' })
+      .toEqual({ kind: 'attach', url: 'u', mediaKind: 'image' })
+  })
+
+  it('视频参考 → 选择后保留 video 类型', () => {
+    expect(planMentionInsert({ key: 'k', url: 'u', label: '视频1', kind: 'video', group: 'current', referenceIndex: 0 }))
+      .toEqual({ kind: 'insert', url: 'u', mediaKind: 'video', index: 1 })
   })
 })

@@ -3,6 +3,7 @@ import { assertAgentContextBinding } from './context/contextBinding';
 import { projectIdFromSessionKey } from '../events/eventLogRepository';
 import { canvasToolDescriptors, canvasToolNames } from './tools/canvasDescriptors';
 import { documentToolDescriptors } from './tools/documentDescriptors';
+import { timelineToolDescriptors } from './tools/timelineDescriptors';
 import type { RuntimeToolCall, RuntimeToolDescriptor } from './runtime/runtimePort';
 import { CANVAS_READ_CAPABILITY } from '../shared/agentCapabilities/canvasRead';
 
@@ -43,7 +44,7 @@ export function agentToolsForCapability(capability: AgentChatRequest['capability
   const canvas = canvasToolDescriptors;
   const descriptors = capability === 'creation-editor' ? Object.values(documents)
     : capability === 'creation-chat' ? [documents.read_full_text, documents.read_selection, documents.author_skill]
-      : capability === 'canvas-agent' ? Object.values(canvas)
+      : capability === 'canvas-agent' ? [...Object.values(canvas), ...Object.values(timelineToolDescriptors)]
         : capability === 'canvas-refine' ? [canvas.set_node_prompt]
           : capability === 'storyboard' ? [canvas[CANVAS_READ_CAPABILITY.aliases.pi], canvas.propose_storyboard_plan] : [];
   return descriptors.map(({ name, description, parameters }) => ({ name, description, schema: parameters }));

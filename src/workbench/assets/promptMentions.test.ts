@@ -55,6 +55,14 @@ describe('projectPromptForSend (R6 单源)', () => {
     const prompt = `${encodeMention(B)} 看向 ${encodeMention(A)}`
     expect(projectPromptForDisplay(prompt, [A, B])).toBe('@image2 看向 @image1')
   })
+
+  it('按媒体类型投影视频/音频引用', () => {
+    const prompt = `${encodeMention(A)} ${encodeMention(B)}`
+    expect(projectPromptForSend(prompt, [
+      { url: A, kind: 'image', index: 1 },
+      { url: B, kind: 'video', index: 1 },
+    ])).toBe('@image1 @video1')
+  })
 })
 
 describe('removeMention (删 tile 同步清 chip)', () => {

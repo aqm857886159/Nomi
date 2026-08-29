@@ -112,6 +112,33 @@ describe('normalizeTimeline — video/audio 裁剪不变量（回归）', () => 
   })
 })
 
+describe('normalizeTimeline clip audio compatibility', () => {
+  it('keeps old clips without an audio object unchanged', () => {
+    const out = normalizeTimeline({ tracks: [{ id: 'videoTrack', type: 'video', clips: [
+      { id: 'legacy', sourceNodeId: 'node', type: 'video', startFrame: 0, endFrame: 30, frameCount: 30 },
+    ] }] })
+    expect(videoTrackClips(out)[0]).not.toHaveProperty('audio')
+  })
+
+  it('normalizes persisted clip audio without attaching it to images', () => {
+    const video = normalizeTimeline({ tracks: [{ id: 'videoTrack', type: 'video', clips: [
+      {
+        id: 'video', sourceNodeId: 'node', type: 'video', startFrame: 0, endFrame: 10, frameCount: 10,
+        audio: { gainDb: -100, muted: true, fadeInFrames: 8, fadeOutFrames: 8 },
+      },
+    ] }] })
+    expect(videoTrackClips(video)[0].audio).toEqual({ gainDb: -60, muted: true, fadeInFrames: 8, fadeOutFrames: 2 })
+
+    const image = normalizeTimeline({ tracks: [{ id: 'imageTrack', type: 'image', clips: [
+      {
+        id: 'image', sourceNodeId: 'node', type: 'image', startFrame: 0, endFrame: 10, frameCount: 10,
+        audio: { gainDb: -6, muted: true, fadeInFrames: 2, fadeOutFrames: 2 },
+      },
+    ] }] })
+    expect(image.tracks.find((entry) => entry.type === 'image')?.clips[0]).not.toHaveProperty('audio')
+  })
+})
+
 describe('normalizeTimeline — 归一化与清洗', () => {
   it('非对象输入回退到默认时间轴', () => {
     expect(normalizeTimeline(null)).toEqual(createDefaultTimeline())

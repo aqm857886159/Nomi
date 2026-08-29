@@ -52,14 +52,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # 现场自证：先把真正跑起来的 Electron 版本打出来，别让「验过了」建立在没核对的前提上。
-      # 装机版和 package.json 声明的版本对不上过（本地 pnpm install 只做 link、没跑 postinstall，
-      # dist/ 压根不存在），那种情况下走查是拿旧二进制跑的，全绿也证明不了 43。
-      - name: Report actual Electron version
-        shell: bash
-        run: |
-          echo "package.json declares: $(node -p "require('./package.json').devDependencies.electron")"
-          echo "node_modules/electron/dist/version: $(cat node_modules/electron/dist/version)"
+      # 不是只打印声明：同时核对安装包、dist 元数据和真正执行的二进制。
+      - name: Verify actual Electron identity
+        run: pnpm run check:electron-install
 
       - name: Build
         run: pnpm run build

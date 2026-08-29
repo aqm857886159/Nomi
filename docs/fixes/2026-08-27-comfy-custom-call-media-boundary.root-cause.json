@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "id": "2026-08-27-comfy-custom-call-media-boundary",
+  "problem_type": "cross-provider media contract regression",
+  "symptom": "A ComfyUI VHS workflow received an image file name in frame_rate, while a Kling 3.0 Omni two-image custom call promoted the first generic reference into firstFrame and could pass HTML/XML bytes disguised by an image file name into video generation.",
+  "direct_cause": "Workflow media bindings accepted scalar numeric slots; generated custom-call guidance allowed generic-image-to-first-frame fallback; local image transport trusted a declared image MIME or extension even when the source bytes were markup.",
+  "class_root": "Media identity, reference role, and payload type were not enforced at their shared normalization, persistence-migration, and local upload boundaries, so stale metadata or generated scripts could silently reinterpret values before the final request.",
+  "affected_population": [
+    "Users importing older or version-drifted ComfyUI workflows whose media binding points to a non-media scalar widget",
+    "Users running custom-call video models with multiple generic reference images and no explicit first frame",
+    "Users whose local asset has an image file name or MIME but actually contains an HTML/XML page"
+  ],
+  "scope_paths": [
+    "electron/catalog/comfyuiWorkflowBindingNormalize.ts",
+    "electron/catalog/catalogMediaContractMigration.ts",
+    "electron/catalog/catalogStore.ts",
+    "electron/catalog/types.ts",
+    "electron/catalog/customCallContract.ts",
+    "electron/catalog/customCallDispatch.ts",
+    "electron/catalog/assetLocalization.ts",
+    "electron/catalog/assetTransportRuntime.ts",
+    "electron/assets/mediaTypes.ts"
+  ],
+  "entry_points": [
+    "normalizeWorkflowBinding and buildImportedWorkflow",
+    "buildCustomCallAiInstruction and catalog v10 to v11 migration",
+    "executeProfileOperation and runCustomCallTask through localizeAssetsForVendor",
+    "all local image upload strategies before any remote upload"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.comfy.org/development/core-concepts/workflow",
+      "checked_at": "2026-08-27",
+      "purpose": "Confirm ComfyUI workflow/API inputs are keyed node inputs and should retain node-declared value types."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite",
+      "checked_at": "2026-08-27",
+      "purpose": "Confirm VHS VideoCombine frame_rate is a numeric widget rather than a media input."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://bananarouter.com/docs",
+      "checked_at": "2026-08-27",
+      "purpose": "Record the currently retrievable BananaRouter documentation; the specific Kling route did not expose stable API text, so no endpoint or field is inferred from it."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/xmldom/xmldom/releases",
+      "checked_at": "2026-08-28",
+      "purpose": "Use the current maintained XML parser and strict onError behavior to reject malformed SVG without enabling DTD or external entities."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://skia.googlesource.com/external/github.com/AOMediaCodec/libavif/+/refs/heads/main/src/read.c",
+      "checked_at": "2026-08-28",
+      "purpose": "Confirm production AVIF readers match both the major brand and every compatible brand in the ftyp box."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/nokiatech/heif/wiki/II.-HEIF-Writer-Executable-and-Configuration-Examples",
+      "checked_at": "2026-08-28",
+      "purpose": "Confirm valid HEIC files can use mif1 as the major brand while declaring heic/hevc only as compatible brands."
+    }
+  ],
+  "invariants": [
+    "A workflow media binding may only target an existing string-valued media widget and can never overwrite a numeric frame_rate.",
+    "firstFrame, lastFrame, and images are explicit disjoint roles; generated scripts never promote images[0] to firstFrame and generic image order/cardinality is preserved.",
+    "A local asset declared as a raster image must match the magic header for every raster format in the global media registry before it reaches any upload strategy; ISO-BMFF image detection checks major and compatible brands within a bounded ftyp box without allocating a brand array, while SVG must parse as well-formed XML with the SVG namespace and no DTD/entity declarations."
+  ],
+  "regression_tests": [
+    "electron/catalog/comfyuiWorkflowBindingNormalize.test.ts",
+    "electron/catalog/catalogMediaContractMigration.test.ts",
+    "electron/catalog/catalogMigrateV11.test.ts",
+    "electron/catalog/customCallRunner.test.ts",
+    "electron/catalog/customCallIpc.test.ts",
+    "electron/catalog/assetLocalization.test.ts",
+    "electron/assets/mediaTypes.test.ts",
+    "electron/comfyuiWorkflowMatrix.integration.test.ts",
+    "electron/runtime.provider-adapter.test.ts"
+  ],
+  "migration": "Catalog v11 atomically rebuilds provably stale stored ComfyUI bindings and generated mappings from their saved workflow graph, restoring numeric widget values and moving the media placeholder to an actual media input. It never rewrites existing custom-call scripts because historical rows have no reliable generator provenance or template fingerprint; new AI-generated scripts follow the explicit role contract, while existing scripts remain user-controlled. New local uploads reject provable markup before network activity.",
+  "residual_risks": [
+    "Already-public third-party image URLs and upload-host responses are not re-downloaded because active re-fetch would add SSRF and multi-image latency; their availability remains an upstream contract.",
+    "Arbitrary existing custom-call JavaScript can still reinterpret roles; Nomi prevents new AI-generated copies but does not silently rewrite historical scripts without provenance. Affected legacy connections must be regenerated and confirmed in the editor.",
+    "The provider-specific Kling documentation route was not server-readable during this investigation, so exact request field mapping still requires a stable official page or captured provider schema."
+  ]
+}

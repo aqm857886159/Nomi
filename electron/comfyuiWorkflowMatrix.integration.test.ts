@@ -21,8 +21,9 @@ import {
 } from './catalog/comfyuiWorkflowImport'
 import type { LocalAssetReader } from './catalog/assetLocalization'
 
+const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d, 0x49, 0x48, 0x44, 0x52])
 const LOCAL_ASSET = (name: string, contentType: string): ReturnType<LocalAssetReader> => ({
-  bytes: Buffer.from(`bytes:${name}`), fileName: name, contentType,
+  bytes: contentType === 'image/png' ? PNG_BYTES : Buffer.from(`bytes:${name}`), fileName: name, contentType,
 })
 
 const MULTI_MEDIA_GRAPH: ComfyGraph = {

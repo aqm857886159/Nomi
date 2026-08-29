@@ -1,13 +1,36 @@
 import React from 'react'
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
+import { AssetThumb } from './AssetTile'
+import type { AssetKind, AssetRef } from './assetTypes'
 
-// @ 内联引用 chip 的 nodeview 组件:句中一个 18px 缩略图(样张 v4 .atChip)。
+// @ 内联媒体引用 chip 的 nodeview 组件:句中一个 18px 缩略图(样张 v4 .atChip)。
 // 单独成文件,让 AssetMentionNode 只导出 Tiptap Node(非组件)——避免 react-refresh/only-export-components 警告。
 export default function AssetMentionChip({ node }: NodeViewProps): JSX.Element {
+  const { t } = useTranslation()
   const url = String(node.attrs.url || '')
   const index = Number(node.attrs.index)
-  const label = Number.isInteger(index) && index > 0 ? `图片${index}` : '参考图'
+  const kind: AssetKind = node.attrs.kind === 'video' ? 'video' : node.attrs.kind === 'audio' ? 'audio' : 'image'
+  const indexedKey = kind === 'video'
+    ? 'assetLibrary.referenceVideoIndexed'
+    : kind === 'audio'
+      ? 'assetLibrary.referenceAudioIndexed'
+      : 'assetLibrary.referenceImageIndexed'
+  const fallbackKey = kind === 'video'
+    ? 'assetLibrary.referenceVideo'
+    : kind === 'audio'
+      ? 'assetLibrary.referenceAudio'
+      : 'assetLibrary.referenceImage'
+  const label = Number.isInteger(index) && index > 0 ? t(indexedKey, { index }) : t(fallbackKey)
+  const asset: AssetRef = {
+    id: url,
+    kind,
+    name: label,
+    renderUrl: url,
+    source: 'project',
+    origin: { source: 'project', projectId: '', relativePath: '' },
+  }
   return (
     <NodeViewWrapper
       as="span"
@@ -16,7 +39,9 @@ export default function AssetMentionChip({ node }: NodeViewProps): JSX.Element {
       className={cn('inline-flex align-[-5px] h-[22px] items-center gap-[4px] mx-[2px] pr-[6px] rounded-nomi-sm border border-nomi-line bg-nomi-ink-05 overflow-hidden cursor-pointer hover:outline hover:outline-2 hover:outline-offset-1 hover:outline-nomi-accent')}
       contentEditable={false}
     >
-      <img src={url} alt="" draggable={false} className={cn('w-[22px] h-[22px] object-cover select-none shrink-0')} />
+      <span className={cn('relative w-[22px] h-[22px] overflow-hidden bg-nomi-ink-05 shrink-0 flex items-center justify-center')} aria-hidden>
+        <AssetThumb asset={asset} playSize={10} />
+      </span>
       <span className={cn('text-micro font-medium leading-none text-nomi-ink-70 whitespace-nowrap')}>{label}</span>
     </NodeViewWrapper>
   )

@@ -39,7 +39,7 @@ type AssetReferenceProps = {
   onPick: (slot: AssetSlot, asset: AssetRef) => void
   onUpload: (slot: AssetSlot, file: File) => void
   onRemove: (slot: AssetSlot, index: number) => void
-  /** 点 image 参考 tile → 在描述框插入 @ 引用 chip(主路径)。 */
+  /** 点媒体参考 tile → 在描述框插入 @ 引用 chip(主路径)。 */
   onInsertMention?: (url: string) => void
   /** 同槽内拖拽重排(from→to);跨槽(image/video/audio)由组件内 metaKey 守卫禁止。 */
   onReorder?: (slot: AssetSlot, from: number, to: number) => void
@@ -136,7 +136,7 @@ export default function AssetReference({
                 asset={displayRef(url, slot.accept, `${slot.label}${index + 1}`)}
                 index={slot.numbered ? index + 1 : undefined}
                 onRemove={() => onRemove(slot, index)}
-                onClick={slot.accept === 'image' && onInsertMention ? () => onInsertMention(url) : undefined}
+                onClick={onInsertMention ? () => onInsertMention(url) : undefined}
                 dragProps={onReorder ? {
                   draggable: true,
                   onDragStart: () => { dragRef.current = { key: slot.key, index } },

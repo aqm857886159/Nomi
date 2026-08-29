@@ -5,6 +5,7 @@ import { assertTurnCanWrite } from '../../ai/agentTurnLifecycle'
 import { sendGenerationCanvasAgentMessage, type ToolCallEvent } from './generationCanvasAgentClient'
 import { readGenerationCanvasSnapshot } from './generationCanvasTools'
 import { applyCanvasToolCall } from './applyCanvasToolCall'
+import type { StoryboardPlanApplicationResult } from './applyCanvasToolCall'
 import { evaluateGate } from './gate'
 import { buildLockGateContext } from './lockGateContext'
 import { STORYBOARD_PLANNER_SKILL, buildStoryboardPlanningMessage, type StoryboardShotMode } from './storyboardLauncher'
@@ -20,6 +21,10 @@ type StoryboardPlannerInput = {
   currentPlan?: StoryboardPlan | null
   revisionRequest?: string
   displayPrompt?: string
+  /** P4：方案归属的原稿 documentId（发起拆镜头时捕获，异步期间切文档不串稿）。 */
+  documentId?: string
+  /** Existing design to revise. Omit when the planner should create a new design. */
+  storyboardId?: string
   skill?: { key: string; name: string }
   onContent?: (text: string) => void
   onCancelReady?: (cancel: () => void) => void
@@ -37,10 +42,11 @@ type StoryboardPlannerInput = {
  * projects the parsed plan into the editor; production owns the returned plan. */
 export async function runStoryboardPlanner(
   input: StoryboardPlannerInput,
-): Promise<{ text: string; status: AgentChatStatus; plan?: StoryboardPlan }> {
+): Promise<{ text: string; status: AgentChatStatus; plan?: StoryboardPlan; application?: StoryboardPlanApplicationResult }> {
   const target = input.target
   const canWrite = input.canWrite
   let plan: StoryboardPlan | undefined
+  let application: StoryboardPlanApplicationResult | undefined
   const agentRequestBase = {
     ...(input.turnId ? { turnId: input.turnId } : {}),
     message: buildStoryboardPlanningMessage({
@@ -84,12 +90,14 @@ export async function runStoryboardPlanner(
             })
             return
           }
-          result = await applyCanvasToolCall(event.toolName, event.args, undefined, canWrite)
+          result = await applyCanvasToolCall(event.toolName, event.args, undefined, canWrite, input.documentId, input.storyboardId)
+          application = result as StoryboardPlanApplicationResult
         }
         assertTurnCanWrite(canWrite)
-        plan = parseStoryboardPlan(event.args)
+        const parsedPlan = parseStoryboardPlan(event.args)
+        if (target === 'production' || application?.status === 'applied') plan = parsedPlan
         if (target === 'production')
-          result = { title: plan.title, anchorCount: plan.anchors.length, shotCount: plan.shots.length }
+          result = { title: parsedPlan.title, anchorCount: parsedPlan.anchors.length, shotCount: parsedPlan.shots.length }
         await event.confirm({ ok: true, result, silent: true })
       } catch (error: unknown) {
         const code = error instanceof Error ? (error as Error & { code?: unknown }).code : undefined
@@ -116,5 +124,5 @@ export async function runStoryboardPlanner(
           snapshot: readGenerationCanvasSnapshot(),
         },
   )
-  return { text: response.text.trim(), status: response.status, ...(plan ? { plan } : {}) }
+  return { text: response.text.trim(), status: response.status, ...(plan ? { plan } : {}), ...(application ? { application } : {}) }
 }

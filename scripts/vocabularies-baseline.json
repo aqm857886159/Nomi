@@ -413,6 +413,11 @@
       "reason": "**本地导出录制**状态机，preparing/recording 是 MediaRecorder 的真实阶段，无法映射到任务态。"
     },
     {
+      "site": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts::variable:STORYBOARD_PLAN_APPLICATION_STATUSES/as-const",
+      "members": ["applied", "obsolete"],
+      "reason": "Storyboard plan application status is the Agent planning receipt: applied means the targeted draft/design still exists and accepted the result, while obsolete means a late result was safely discarded. It is not a design or task lifecycle."
+    },
+    {
       "site": "src/workbench/generationCanvas/agent/shotVerifyStore.ts::type:ShotVerifyStatus/type-union",
       "members": ["idle", "ready", "verifying"],
       "reason": "**镜级画面校验**独立生命周期（无撤销、与结构对账分开），见 shotVerifyStore 注释。"
@@ -512,6 +517,21 @@
       "site": "src/workbench/taskCenter/taskCenterProjection.ts::type:TaskCenterOutcome/type-union",
       "members": ["cancelled", "error", "success"],
       "reason": "TaskCenterOutcome 是 TaskCenter 终局徽标的合法 view model：success、error、cancelled 由各上游任务状态通过各自 mapper 产生，跨 generation 与 ProductionRun 共用展示语义但不反向成为业务真相源。"
+    },
+    {
+      "site": "src/workbench/workbenchTypes.ts::variable:STORYBOARD_DESIGN_STATUSES/as-const",
+      "members": ["committed", "draft", "stale"],
+      "reason": "Storyboard design status is the persisted lifecycle of a draft-owned creative asset: draft is proposed, committed is placed on canvas, and stale needs synchronization after its source draft changes."
+    },
+    {
+      "site": "src/workbench/generationCanvas/components/TimelineEditPlanCard.tsx::function:StatusBadge/parameter:0/property:tone/type-union",
+      "members": ["active", "neutral", "success", "warning"],
+      "reason": "TimelineEditPlanCard StatusBadge tone is a visual vocabulary for Agent edit-plan cards; it only controls badge color and icon, not the edit or task lifecycle."
+    },
+    {
+      "site": "src/workbench/generationCanvas/components/TimelineEditPlanCard.tsx::type:TimelineAppliedRecord/property:status/type-union",
+      "members": ["applied", "failed", "undoing", "undone"],
+      "reason": "TimelineAppliedRecord.status is a local view-model vocabulary for apply and undo outcomes; it must remain distinct from the persisted adoption and runtime lifecycle states."
     }
   ],
   "debt": [

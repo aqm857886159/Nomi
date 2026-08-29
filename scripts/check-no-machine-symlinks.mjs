@@ -2,9 +2,9 @@
 // ============================================================================
 // 门岗：防「本机绝对路径的符号链接」进 git（会让别人 checkout 出来就是坏链）。
 //
-// 为什么：本机按 CLAUDE.md 用 `ln -s /Users/<me>/Desktop/Nomi/node_modules node_modules`
-//   让 20+ 并行 worktree 复用主仓依赖。这链接**只在本机成立**，进了 git 就是给协作者
-//   发一条指向不存在路径的死链。
+// 历史上曾把 worktree 的 node_modules 软链到主仓。除了链接一旦进 git 会成为坏链，
+// 共享依赖本身也会把 pnpm 相对链接解析到旧 worktree，造成声明 Electron 43、实际运行 31。
+// 现在每个 worktree 都必须独立 `pnpm install --prefer-offline`；pnpm store 仍会复用包内容。
 //
 // 为什么 .gitignore 挡不住（这坑已复发过一次，2026-08-08 修掉、08-11 又回来）：
 //   ① 带斜杠的 `node_modules/` 只匹配目录，匹配不上符号链接（符号链接在 git 眼里是文件）

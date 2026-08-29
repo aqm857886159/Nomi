@@ -44,6 +44,13 @@ export type RendererClipTransform = {
   offsetY: number
 }
 
+export type RendererClipAudio = {
+  gainDb: number
+  muted: boolean
+  fadeInFrames: number
+  fadeOutFrames: number
+}
+
 export type RendererRenderClip = {
   id: string
   assetId: string
@@ -53,6 +60,8 @@ export type RendererRenderClip = {
   sourceEndFrame: number
   /** 取景。缺省 = 默认 contain/1/0/0（仅非默认时携带，省体积）。 */
   transform?: RendererClipTransform
+  /** Clip-local source audio processing; omitted for legacy/default behavior. */
+  audio?: RendererClipAudio
 }
 
 export type RendererRenderTrack = {
@@ -60,6 +69,13 @@ export type RendererRenderTrack = {
   kind: string
   type: string
   clips: RendererRenderClip[]
+}
+
+export type RendererRenderTransition = {
+  fromClipId: string
+  toClipId: string
+  type: 'cut' | 'dissolve' | 'fade' | 'match_cut' | 'whip_pan'
+  durationFrames?: number
 }
 
 export type RendererTextOverlay = {
@@ -79,6 +95,7 @@ export type RendererRenderManifestRequest = {
     durationFrames: number
     range: { startFrame: number; endFrame: number }
     tracks: RendererRenderTrack[]
+    transitions?: RendererRenderTransition[]
   }
   profile: ExportProfile
   assets: Record<string, RendererRenderAsset>

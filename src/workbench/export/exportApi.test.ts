@@ -89,14 +89,16 @@ describe('exportTimelineToMp4', () => {
 
     const { exportTimelineToMp4 } = await import('./exportApi')
 
+    const onJobStarted = vi.fn()
     await expect(
-      exportTimelineToMp4({ projectId: 'project-1', timeline: makeTimeline(), aspectRatio: '16:9' }),
+      exportTimelineToMp4({ projectId: 'project-1', timeline: makeTimeline(), aspectRatio: '16:9', onJobStarted }),
     ).resolves.toEqual({ absolutePath: '/tmp/out.mp4', relativePath: 'exports/out.mp4', size: 4 })
 
     // 主路径不录 WebM、不上传分块
     expect(exportTimelineToWebmMock).not.toHaveBeenCalled()
     expect(writeTempInput).not.toHaveBeenCalled()
     expect(finishTempInput).toHaveBeenCalledWith({ jobId: 'job-1' })
+    expect(onJobStarted).toHaveBeenCalledWith({ jobId: 'job-1', backend: 'filtergraph' })
   })
 
   it('does not cancel the desktop export job after finishTempInput succeeds', async () => {

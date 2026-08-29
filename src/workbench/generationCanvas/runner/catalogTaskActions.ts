@@ -17,7 +17,7 @@ import { readParameterReferenceSlots } from '../model/parameterReferenceSlots'
 import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import { applyRelayFirstFrame } from './relayFrameResolver'
 import { narrateProgress, type GenerationProgressPhase, type ProgressNarrationContext } from '../../observability/narrate'
-import { buildArchetypeInputParams, currentArchetypeMode, orderedSentImageReferenceUrls } from '../nodes/controls/archetypeMeta'
+import { buildArchetypeInputParams, currentArchetypeMode, orderedSentImageReferenceUrls, orderedSentMediaReferenceUrls } from '../nodes/controls/archetypeMeta'
 import { projectPromptForSend } from '../../assets/promptMentions'
 import {
   type CatalogTaskActionOptions,
@@ -293,7 +293,14 @@ export function buildCatalogTaskRequest(
   const orderedReferenceUrls = promptRefArchetype
     ? orderedSentImageReferenceUrls(meta, promptRefArchetype, references.referenceImages || [])
     : readStringArray(meta.referenceImageUrls)
-  const prompt = projectPromptForSend(rawPrompt, orderedReferenceUrls)
+  const orderedPromptReferences = promptRefArchetype
+    ? orderedSentMediaReferenceUrls(meta, promptRefArchetype, {
+      image: references.referenceImages || [],
+      video: references.referenceVideos || [],
+      audio: references.referenceAudios || [],
+    })
+    : orderedReferenceUrls
+  const prompt = projectPromptForSend(rawPrompt, orderedPromptReferences)
   // 站位构图参考：出关键帧时把 staging 灰模图当「构图蓝图」而非编辑底图——照站位/姿势/机位，
   // 但写实重渲染，别照搬灰模 3D 外观（评测发现 image_edit 直喂会出 CGI 感）。只对图像生成加。
   const renderedPrompt =

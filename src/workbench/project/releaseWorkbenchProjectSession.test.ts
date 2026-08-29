@@ -41,8 +41,15 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
       hasClipboard: true,
     })
     useWorkbenchStore.setState({
-      storyboardPlan: { title: 'plan', anchors: [], shots: [] },
-      storyboardPlanCommitted: true,
+      storyboardPlans: { 'doc-a': { plan: { title: 'plan', anchors: [], shots: [] }, committed: true } },
+      storyboardDesignsByDocumentId: {
+        'doc-a': [{
+          id: 'storyboard-a', documentId: 'doc-a', title: 'plan',
+          plan: { title: 'plan', anchors: [], shots: [] }, committed: true, status: 'committed',
+          sourceDocumentUpdatedAt: 1, createdAt: 1, updatedAt: 1,
+        }],
+      },
+      activeStoryboardId: 'storyboard-a',
       timeline: { ...createDefaultTimeline(), playheadFrame: 24 },
       selectedTimelineClipIds: ['clip1'],
       timelineUndoStack: [createDefaultTimeline()],
@@ -68,8 +75,9 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
     expect(canvas.addNode).toBe(addNode)
 
     const workbench = useWorkbenchStore.getState()
-    expect(workbench.storyboardPlan).toBeNull()
-    expect(workbench.storyboardPlanCommitted).toBe(false)
+    expect(workbench.storyboardPlans).toEqual({})
+    expect(workbench.storyboardDesignsByDocumentId).toEqual({})
+    expect(workbench.activeStoryboardId).toBeNull()
     expect(workbench.timeline).toEqual(createDefaultTimeline())
     expect(workbench.selectedTimelineClipIds).toEqual([])
     expect(workbench.timelineUndoStack).toEqual([])

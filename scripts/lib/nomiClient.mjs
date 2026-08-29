@@ -8,9 +8,18 @@ import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { unwrapNomiTransportResponse } from './nomiTransportError.mjs'
+import { assertElectronInstallIdentity } from '../electron-install-identity.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
+let verifiedElectronBinary = ''
+
+function resolveVerifiedElectronBinary() {
+  if (verifiedElectronBinary) return verifiedElectronBinary
+  assertElectronInstallIdentity(repoRoot)
+  verifiedElectronBinary = require('electron')
+  return verifiedElectronBinary
+}
 
 // 传输层兜底超时（堵无界阻塞：即便主进程/host 某处 hang 死，外部 agent 也等够即拿到错误，不永久转圈）。
 // 必须 ≥ 服务端最长合法耗时（core.ts 视频轮询 300s）才不误杀真生成；默认 360s，可经 env 调。
@@ -94,9 +103,13 @@ function callViaHost(token, method, params, spawnEnv) {
   return new Promise((resolve, reject) => {
     let electronBinary
     try {
-      electronBinary = require('electron')
-    } catch {
-      reject(new Error('找不到 electron 可执行文件（dev 用；打包版 CLI 走应用内置 Electron，后续切片）'))
+      electronBinary = resolveVerifiedElectronBinary()
+    } catch (error) {
+      reject(
+        error instanceof Error
+          ? error
+          : new Error('找不到 electron 可执行文件（dev 用；打包版 CLI 走应用内置 Electron，后续切片）'),
+      )
       return
     }
     const hostScript = path.join(repoRoot, 'dist-electron', 'capabilityCore', 'host.js')

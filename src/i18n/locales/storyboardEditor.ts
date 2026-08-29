@@ -1,4 +1,9 @@
 export const zhStoryboardEditor = {
+  empty: {
+    title: '还没有分镜方案',
+    description: '先在创作页写一段故事，让 AI 拆成镜头，再回到这里审阅、落画布。',
+    backToCreation: '去创作页写故事',
+  },
   shotParams: {
     parameters: '参数',
     mode: '模式',
@@ -21,6 +26,9 @@ export const zhStoryboardEditor = {
   discardTitle: '丢弃这份方案？',
   discardMessage: '方案和你刚才的修改会清空，可以重新让 AI 拆镜头。',
   discard: '丢弃',
+  staleTitle: '原稿已更新',
+  staleMessage: '这份分镜基于修改前的原稿。继续会按当前分镜落画布；如需采用新原稿，请先让 AI 同步方案。',
+  staleConfirm: '仍按当前分镜落画布',
   landFailed: '落画布失败',
   unknownRetry: '未知错误，请重试。',
   titleAria: '方案标题',
@@ -39,6 +47,7 @@ export const zhStoryboardEditor = {
   readySummary: '全部就绪 · {{anchors}} 张参考卡 · {{shots}} 镜',
   landing: '落画布中…',
   confirmLanding: '确认落画布',
+  backToCreation: '返回原稿',
   second: '{{count}} 秒',
   defaultModel: '默认模型',
   shotNumber: '镜 {{index}}',
@@ -94,6 +103,7 @@ export const zhStoryboardEditor = {
     editing: '编辑中',
     committed: '已落画布',
     draft: '草稿',
+    stale: '需同步',
     editingSummary: '正在左侧编辑器中修改 · {{count}} 个镜头',
     backToDraft: '返回原稿',
     confirmHint: '在编辑器里确认即落画布',
@@ -128,6 +138,11 @@ type TranslationShape<T> = {
 }
 
 export const enStoryboardEditor = {
+  empty: {
+    title: 'No storyboard plan yet',
+    description: 'Write a story in the Creation workspace and let AI split it into shots, then review and add it to the canvas here.',
+    backToCreation: 'Go to Creation',
+  },
   shotParams: {
     parameters: 'Parameters',
     mode: 'Mode',
@@ -150,6 +165,9 @@ export const enStoryboardEditor = {
   discardTitle: 'Discard this plan?',
   discardMessage: 'The plan and your edits will be cleared. You can ask AI to split the story into shots again.',
   discard: 'Discard',
+  staleTitle: 'The draft has changed',
+  staleMessage: 'This storyboard is based on an earlier draft. Continue to add the current storyboard to the canvas, or sync it with AI first.',
+  staleConfirm: 'Add current storyboard',
   landFailed: 'Failed to add to canvas',
   unknownRetry: 'Unknown error. Try again.',
   titleAria: 'Plan title',
@@ -168,6 +186,7 @@ export const enStoryboardEditor = {
   readySummary: 'Ready · {{anchors}} reference cards · {{shots}} shots',
   landing: 'Adding to canvas…',
   confirmLanding: 'Add to canvas',
+  backToCreation: 'Back to draft',
   second: '{{count}} sec',
   defaultModel: 'Default model',
   shotNumber: 'Shot {{index}}',
@@ -227,6 +246,7 @@ export const enStoryboardEditor = {
     editing: 'Editing',
     committed: 'On canvas',
     draft: 'Draft',
+    stale: 'Needs sync',
     editingSummary: 'Editing in the left panel · {{count}} shots',
     backToDraft: 'Back to document',
     confirmHint: 'Confirm in the editor to add it to the canvas',
