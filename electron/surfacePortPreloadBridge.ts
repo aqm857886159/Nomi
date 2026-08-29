@@ -3,10 +3,13 @@ import {
   SURFACE_CANVAS_READ_REQUEST_CHANNEL,
   SURFACE_DOCUMENT_READ_REPLY_CHANNEL,
   SURFACE_DOCUMENT_READ_REQUEST_CHANNEL,
+  SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL,
+  SURFACE_DOCUMENT_WRITE_REQUEST_CHANNEL,
   type CapturedCanvasReadSnapshotHandleWire,
   type CanvasReadSurfaceBridge,
   type CanvasReadSurfaceRequestWire,
   type DocumentReadSurfaceRequestWire,
+  type DocumentWriteSurfaceRequestWire,
   type SurfacePortBindingWire,
   SurfacePortWireError,
   type SurfaceSuspensionWire,
@@ -51,6 +54,18 @@ function documentReadRequest(value: unknown): DocumentReadSurfaceRequestWire | n
   if (typeof request.documentId !== 'string' || !request.documentId.trim()) return null
   if (request.scope !== 'full' && request.scope !== 'selection') return null
   return request as unknown as DocumentReadSurfaceRequestWire
+}
+
+function documentWriteRequest(value: unknown): DocumentWriteSurfaceRequestWire | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const request = value as Record<string, unknown>
+  if (typeof request.requestId !== 'string' || !request.requestId.trim()) return null
+  if (!request.binding || typeof request.binding !== 'object' || Array.isArray(request.binding)) return null
+  if (typeof request.documentId !== 'string' || !request.documentId.trim()) return null
+  if (request.operation !== 'insert' && request.operation !== 'replace' && request.operation !== 'append') return null
+  if (typeof request.content !== 'string' || !request.content.trim()) return null
+  if (!Object.prototype.hasOwnProperty.call(request, 'target') || !Object.prototype.hasOwnProperty.call(request, 'preconditions')) return null
+  return request as unknown as DocumentWriteSurfaceRequestWire
 }
 
 export function createCanvasReadSurfacePreloadBridge(
@@ -133,6 +148,40 @@ export function createCanvasReadSurfacePreloadBridge(
             result: value,
           }),
           (error) => events.send(SURFACE_DOCUMENT_READ_REPLY_CHANNEL, {
+            requestId: request.requestId,
+            binding: request.binding,
+            error: {
+              code: error instanceof SurfacePortWireError ? error.code : 'surface_port_unavailable',
+            },
+          }),
+        )
+      })
+    },
+    onDocumentWrite(handler) {
+      if (!events) throw new SurfacePortWireError('surface_port_unavailable')
+      return events.subscribe(SURFACE_DOCUMENT_WRITE_REQUEST_CHANNEL, (payload) => {
+        const request = documentWriteRequest(payload)
+        if (!request) return
+        let result: unknown | Promise<unknown>
+        try {
+          result = handler({
+            binding: request.binding,
+            documentId: request.documentId,
+            operation: request.operation,
+            content: request.content,
+            target: request.target,
+            preconditions: request.preconditions,
+          })
+        } catch (error) {
+          result = Promise.reject(error)
+        }
+        void Promise.resolve(result).then(
+          (value) => events.send(SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL, {
+            requestId: request.requestId,
+            binding: request.binding,
+            result: value,
+          }),
+          (error) => events.send(SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL, {
             requestId: request.requestId,
             binding: request.binding,
             error: {

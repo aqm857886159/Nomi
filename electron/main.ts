@@ -64,6 +64,7 @@ import { canvasReadSurfaceRuntime } from "./capabilityCore/canvasReadSurfaceRunt
 import { registerDesktopCanvasReadRuntime, type CanvasReadExecutionRuntime } from "./capabilityCore/canvasReadMainRuntime";
 import { createPiCanvasReadIpcCapture } from "./capabilityCore/canvasReadTransportAdapters";
 import { createPiDocumentReadTransportAdapter } from "./capabilityCore/documentReadTransportAdapters";
+import { createPiDocumentWriteTransportAdapter } from "./capabilityCore/documentWriteTransportAdapters";
 import { getSettingsRoot } from "./runtimePaths";
 import { installProductionProjectAgentHost } from "./projectAgentHost/projectAgentProductionRuntime";
 import { createProjectAgentRepositoryRouter } from "./projectAgentHost/projectAgentRepositoryRouter";
@@ -431,6 +432,12 @@ function registerIpc(): void {
       surfaceCapture: canvasReadExecutionRuntime.surfaceCapture,
       captureCanvasRead: (event, binding, requestId) => projectAgentCanvasReadCapture.capture(event, { surfaceBinding: binding, projectId: binding.projectId }, requestId),
       captureDocumentRead: (event, binding, requestId) => createPiDocumentReadTransportAdapter({
+        registry: canvasReadSurfaceRuntime.registry,
+        capturedPort: canvasReadExecutionRuntime.surfaceCapture.captureCanvasReadPort(event, binding),
+        requestId,
+        executor: canvasReadExecutionRuntime.executor,
+      }),
+      captureDocumentWrite: (event, binding, requestId) => createPiDocumentWriteTransportAdapter({
         registry: canvasReadSurfaceRuntime.registry,
         capturedPort: canvasReadExecutionRuntime.surfaceCapture.captureCanvasReadPort(event, binding),
         requestId,

@@ -6,6 +6,8 @@ export const SURFACE_CANVAS_READ_REQUEST_CHANNEL = "nomi:surface:canvasRead:requ
 export const SURFACE_CANVAS_READ_REPLY_CHANNEL = "nomi:surface:canvasRead:reply" as const;
 export const SURFACE_DOCUMENT_READ_REQUEST_CHANNEL = "nomi:surface:documentRead:request" as const;
 export const SURFACE_DOCUMENT_READ_REPLY_CHANNEL = "nomi:surface:documentRead:reply" as const;
+export const SURFACE_DOCUMENT_WRITE_REQUEST_CHANNEL = "nomi:surface:documentWrite:request" as const;
+export const SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL = "nomi:surface:documentWrite:reply" as const;
 
 export type ProjectBindingWire = ProjectBinding;
 
@@ -56,6 +58,23 @@ export type DocumentReadSurfaceReplyWire = Readonly<{
   error?: Readonly<{ code: SurfacePortWireErrorCode }>;
 }>;
 
+export type DocumentWriteSurfaceRequestWire = Readonly<{
+  requestId: string;
+  binding: SurfacePortBindingWire;
+  documentId: string;
+  operation: "insert" | "replace" | "append";
+  content: string;
+  target: unknown;
+  preconditions: unknown;
+}>;
+
+export type DocumentWriteSurfaceReplyWire = Readonly<{
+  requestId: string;
+  binding: SurfacePortBindingWire;
+  result?: unknown;
+  error?: Readonly<{ code: SurfacePortWireErrorCode }>;
+}>;
+
 /** Opaque main-issued, owner-bound, one-shot admission for a captured turn. */
 export type CapturedCanvasReadSnapshotHandleWire = Readonly<{
   version: typeof CAPTURED_CANVAS_READ_SNAPSHOT_VERSION;
@@ -90,6 +109,16 @@ export type CanvasReadSurfaceBridge = Readonly<{
       binding: SurfacePortBindingWire;
       documentId: string;
       scope: "full" | "selection";
+    }>) => unknown | Promise<unknown>,
+  ) => () => void;
+  onDocumentWrite: (
+    handler: (request: Readonly<{
+      binding: SurfacePortBindingWire;
+      documentId: string;
+      operation: "insert" | "replace" | "append";
+      content: string;
+      target: unknown;
+      preconditions: unknown;
     }>) => unknown | Promise<unknown>,
   ) => () => void;
 }>;

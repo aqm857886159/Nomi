@@ -20,6 +20,7 @@ import type { OfflineProjectAgentHost } from "./projectAgentHost";
 import type { ProjectAgentRepositoryRouter } from "./projectAgentRepositoryRouter";
 import type { PiCanvasReadTransportAdapter } from "../capabilityCore/canvasReadTransportAdapters";
 import type { PiDocumentReadTransportAdapter } from "../capabilityCore/documentReadTransportAdapters";
+import type { PiDocumentWriteTransportAdapter, PreparedDocumentWrite } from "../capabilityCore/documentWriteTransportAdapters";
 import { resolveCapabilityAlias } from "../shared/agentCapabilities/registry";
 import { DOCUMENT_READ_CAPABILITY } from "../shared/agentCapabilities/documentRead";
 
@@ -174,7 +175,11 @@ function toolItem(
 export type ProjectAgentExecutionCoordinator = Readonly<{
   open: (
     binding: ProjectBinding,
-    options?: Readonly<{ canvasRead?: PiCanvasReadTransportAdapter; documentRead?: PiDocumentReadTransportAdapter }>,
+    options?: Readonly<{
+      canvasRead?: PiCanvasReadTransportAdapter;
+      documentRead?: PiDocumentReadTransportAdapter;
+      documentWrite?: PiDocumentWriteTransportAdapter;
+    }>,
   ) => Promise<ProjectAgentSubscription>;
   snapshot: (subscriptionId: string) => ProjectAgentHostState;
   dispatch: (subscriptionId: string, mutation: ProjectAgentMutation) => ReturnType<OfflineProjectAgentHost["dispatch"]>;
@@ -212,6 +217,7 @@ export function createProjectAgentExecutionCoordinator(
   const deliveries = new Map<string, SubscriptionDelivery>();
   const canvasReads = new Map<string, PiCanvasReadTransportAdapter | undefined>();
   const documentReads = new Map<string, PiDocumentReadTransportAdapter | undefined>();
+  const documentWrites = new Map<string, PiDocumentWriteTransportAdapter | undefined>();
   const runAgent =
     deps.runAgent ?? (async (request, hooks) => (await import("../ai/agentChatV2")).runAgentChatV2(request, hooks));
   const now = deps.now ?? (() => new Date().toISOString());
@@ -310,7 +316,11 @@ export function createProjectAgentExecutionCoordinator(
 
   async function open(
     binding: ProjectBinding,
-    options: Readonly<{ canvasRead?: PiCanvasReadTransportAdapter; documentRead?: PiDocumentReadTransportAdapter }> = {},
+    options: Readonly<{
+      canvasRead?: PiCanvasReadTransportAdapter;
+      documentRead?: PiDocumentReadTransportAdapter;
+      documentWrite?: PiDocumentWriteTransportAdapter;
+    }> = {},
   ): Promise<ProjectAgentSubscription> {
     const partitionKey = projectAgentPartitionKey(binding);
     let partition = partitions.get(partitionKey);
@@ -353,6 +363,7 @@ export function createProjectAgentExecutionCoordinator(
     });
     canvasReads.set(subscription.subscriptionId, options.canvasRead);
     documentReads.set(subscription.subscriptionId, options.documentRead);
+    documentWrites.set(subscription.subscriptionId, options.documentWrite);
     return subscription;
   }
 
@@ -476,20 +487,23 @@ export function createProjectAgentExecutionCoordinator(
     execution: ActiveExecution,
     call: { toolCallId: string; toolName: string; args: unknown },
     decision: AgentChatToolDecision,
+    override?: Readonly<{ target: ProjectAgentQueueItem["target"]; preconditions: ProjectAgentQueueItem["preconditions"] }>,
   ): Promise<void> {
     if (!decision.ok || decision.silent) return;
     const occurredAt = now();
     const expiresAt = new Date(new Date(occurredAt).getTime() + 10 * 60_000).toISOString();
     const approvalId =
       decision.proposalId?.trim() || `approval-${digest([execution.turn.executionToken, call.toolCallId])}`;
+    const target = override?.target ?? execution.queueItem.target;
+    const preconditions = override?.preconditions ?? execution.queueItem.preconditions;
     const ref = Object.freeze({
       approvalId,
       threadId: execution.turn.threadId,
       turnId: execution.turn.turnId,
       toolCallId: call.toolCallId,
-      actionHash: digest({ toolName: call.toolName, args: call.args, target: execution.queueItem.target }),
-      target: execution.queueItem.target,
-      preconditions: execution.queueItem.preconditions,
+      actionHash: digest({ toolName: call.toolName, args: call.args, target }),
+      target,
+      preconditions,
       expiresAt,
     });
     const item = Object.freeze({
@@ -624,6 +638,24 @@ export function createProjectAgentExecutionCoordinator(
     return selected;
   }
 
+  function documentWriteFor(partition: ExecutionPartition, preferredSubscriptionId: string) {
+    const currentPreferred = partition.subscriptionIds.has(preferredSubscriptionId)
+      ? documentWrites.get(preferredSubscriptionId)
+      : undefined;
+    if (currentPreferred) return currentPreferred;
+    let selected: PiDocumentWriteTransportAdapter | undefined;
+    let selectedEpoch = -1;
+    for (const subscriptionId of partition.subscriptionIds) {
+      const subscription = subscriptions.get(subscriptionId);
+      const adapter = documentWrites.get(subscriptionId);
+      if (subscription && adapter && subscription.subscriptionEpoch > selectedEpoch) {
+        selected = adapter;
+        selectedEpoch = subscription.subscriptionEpoch;
+      }
+    }
+    return selected;
+  }
+
   async function executeTurn(partition: ExecutionPartition, execution: ActiveExecution): Promise<"continue" | "stop"> {
     const startAt = now();
     const current = partition.host.getSnapshot(partition.binding);
@@ -732,6 +764,36 @@ export function createProjectAgentExecutionCoordinator(
           if (document) return document;
           if (resolveCapabilityAlias(call.toolName)?.contract.id === DOCUMENT_READ_CAPABILITY.id) {
             return { ok: false, code: "surface_port_unavailable", message: "surface_port_unavailable" };
+          }
+          const writeAdapter = documentWriteFor(partition, frozen?.preferredSubscriptionId ?? "");
+          if (writeAdapter) {
+            const documentId = execution.queueItem.target.kind === "document" ? execution.queueItem.target.documentId : "";
+            let prepared: PreparedDocumentWrite | null;
+            try {
+              prepared = await writeAdapter.prepare(call, {
+                documentId,
+                target: execution.queueItem.target,
+                preconditions: execution.queueItem.preconditions,
+              }, signal);
+            } catch (error) {
+              const code = error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string"
+                ? (error as { code: string }).code
+                : error instanceof Error ? error.message : "capability_execution_failed";
+              return { ok: false, code, message: code };
+            }
+            if (prepared) {
+              const decision = await awaitToolDecision(partition, execution, call, signal);
+              if (!decision.ok) return decision;
+              try {
+                await persistApprovedProposal(partition, execution, call, decision, {
+                  target: prepared.invocation.target,
+                  preconditions: prepared.invocation.preconditions,
+                });
+              } catch {
+                return { ok: false, message: "approval_persistence_failed" };
+              }
+              return writeAdapter.execute(prepared, signal);
+            }
           }
           const decision = await awaitToolDecision(partition, execution, call, signal);
           if (decision.ok && !decision.silent) {
@@ -1016,6 +1078,8 @@ export function createProjectAgentExecutionCoordinator(
       canvasReads.delete(subscriptionId);
       documentReads.get(subscriptionId)?.dispose();
       documentReads.delete(subscriptionId);
+      documentWrites.get(subscriptionId)?.dispose();
+      documentWrites.delete(subscriptionId);
     },
     subscriptionCount: () => subscriptions.size,
   });

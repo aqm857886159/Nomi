@@ -35,6 +35,13 @@ export type ProjectCanvasReadSurfaceCoordinator = Readonly<{
   ): Promise<CapturedCanvasReadSnapshotHandleWire>
   registerCanvasReadSource(readSnapshot: () => unknown): () => void
   registerDocumentReadSource(readDocument: (input: { documentId: string; scope: "full" | "selection" }) => unknown): () => void
+  registerDocumentWriteSource(writeDocument: (input: {
+    documentId: string
+    operation: "insert" | "replace" | "append"
+    content: string
+    target: unknown
+    preconditions: unknown
+  }) => unknown): () => void
 }>;
 
 let registeredCoordinator: ProjectCanvasReadSurfaceCoordinator | null = null
@@ -57,20 +64,31 @@ export function registerProjectCanvasReadSurface(
   coordinator: ProjectCanvasReadSurfaceCoordinator,
   readSnapshot: () => unknown,
   readDocument?: (input: { documentId: string; scope: 'full' | 'selection' }) => unknown,
+  writeDocument?: (input: {
+    documentId: string
+    operation: 'insert' | 'replace' | 'append'
+    content: string
+    target: unknown
+    preconditions: unknown
+  }) => unknown,
 ): () => void {
   const unregisterCoordinator = registerProjectCanvasReadSurfaceCoordinator(coordinator)
   let unregisterSnapshot: (() => void) | undefined
   let unregisterDocument: (() => void) | undefined
+  let unregisterDocumentWrite: (() => void) | undefined
   try {
     unregisterSnapshot = coordinator.registerCanvasReadSource(readSnapshot)
     unregisterDocument = readDocument ? coordinator.registerDocumentReadSource(readDocument) : undefined
+    unregisterDocumentWrite = writeDocument ? coordinator.registerDocumentWriteSource(writeDocument) : undefined
     return () => {
+      unregisterDocumentWrite?.()
       unregisterDocument?.()
       unregisterSnapshot?.()
       unregisterCoordinator()
     }
   } catch (error) {
     unregisterDocument?.()
+    unregisterDocumentWrite?.()
     unregisterSnapshot?.()
     unregisterCoordinator()
     throw error
@@ -255,6 +273,16 @@ export function createProjectCanvasReadSurfaceCoordinator(input: Readonly<{
         if (!state || !state.binding) throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
         if (!sameBinding(binding, state.binding)) throw new SurfacePortWireError('surface_port_stale')
         return readDocument({ documentId, scope })
+      })
+    },
+    registerDocumentWriteSource(writeDocument) {
+      const bridge = input.getSurfaceBridge()
+      if (!bridge || !writeDocument) return () => undefined
+      return bridge.onDocumentWrite(({ binding, documentId, operation, content, target, preconditions }) => {
+        const state = current
+        if (!state || !state.binding) throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
+        if (!sameBinding(binding, state.binding)) throw new SurfacePortWireError('surface_port_stale')
+        return writeDocument({ documentId, operation, content, target, preconditions })
       })
     },
   })

@@ -8,9 +8,11 @@ import {
   SURFACE_CANVAS_READ_REQUEST_CHANNEL,
   SURFACE_DOCUMENT_READ_REPLY_CHANNEL,
   SURFACE_DOCUMENT_READ_REQUEST_CHANNEL,
+  SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL,
+  SURFACE_DOCUMENT_WRITE_REQUEST_CHANNEL,
   type SurfacePortWireErrorCode,
 } from "../shared/surfacePortBinding";
-import { CapabilityExecutionError, type CanvasReadPort, type DocumentReadPort } from "./capabilityExecutorRegistry";
+import { CapabilityExecutionError, type CanvasReadPort, type DocumentReadPort, type DocumentWritePort } from "./capabilityExecutorRegistry";
 import {
   type CanvasReadSurfaceRegistry,
   type CapturedCanvasReadPort,
@@ -37,9 +39,11 @@ type PendingRead = {
 export type CanvasReadSurfacePortRuntime = Readonly<{
   createPort(captured: CapturedCanvasReadPort): CanvasReadPort;
   createDocumentReadPort(captured: CapturedCanvasReadPort, documentId: string): DocumentReadPort;
+  createDocumentWritePort(captured: CapturedCanvasReadPort, documentId: string): DocumentWritePort;
 }>;
 
 const REPLY_ERROR_CODES = new Set<SurfacePortWireErrorCode>([
+  "capability_input_invalid",
   "project_identity_unavailable",
   "project_binding_stale",
   "surface_port_suspended",
@@ -123,6 +127,7 @@ export function createCanvasReadSurfacePortRuntime(
   };
   ipcMain.on(SURFACE_CANVAS_READ_REPLY_CHANNEL, (event, value) => handleReply(SURFACE_CANVAS_READ_REPLY_CHANNEL, event, value));
   ipcMain.on(SURFACE_DOCUMENT_READ_REPLY_CHANNEL, (event, value) => handleReply(SURFACE_DOCUMENT_READ_REPLY_CHANNEL, event, value));
+  ipcMain.on(SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL, (event, value) => handleReply(SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL, event, value));
 
   const requestRead = (
     captured: CapturedCanvasReadPort,
@@ -178,6 +183,19 @@ export function createCanvasReadSurfacePortRuntime(
       return Object.freeze({
         read({ scope, signal }) {
           return requestRead(captured, signal, SURFACE_DOCUMENT_READ_REQUEST_CHANNEL, SURFACE_DOCUMENT_READ_REPLY_CHANNEL, { documentId, scope });
+        },
+      });
+    },
+    createDocumentWritePort(captured, documentId) {
+      return Object.freeze({
+        write({ operation, content, target, preconditions, signal }) {
+          return requestRead(
+            captured,
+            signal,
+            SURFACE_DOCUMENT_WRITE_REQUEST_CHANNEL,
+            SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL,
+            { documentId, operation, content, target, preconditions },
+          );
         },
       });
     },

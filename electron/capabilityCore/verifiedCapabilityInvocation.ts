@@ -6,7 +6,12 @@ import {
   documentReadSemanticInputSchema,
   type DocumentReadInput,
 } from "../shared/agentCapabilities/documentRead";
-import type { PreconditionSet } from "../shared/capabilityTargeting";
+import {
+  DOCUMENT_WRITE_CAPABILITY,
+  documentWriteSemanticInputSchema,
+  type DocumentWriteInput,
+} from "../shared/agentCapabilities/documentWrite";
+import type { DocumentAnchorRef, PreconditionSet } from "../shared/capabilityTargeting";
 import type { ProjectBinding } from "../shared/projectBinding";
 import {
   WorkspaceProjectIdentityUnavailableError,
@@ -30,6 +35,7 @@ import { ProjectSessionRequestError } from "./projectSessionAuthority";
 import { resolveProjectSessionLeaseVerification, type VerifiedProjectSessionBinding } from "./projectSessionRuntime";
 
 export const CANVAS_READ_INVOCATION_POLICY_REVISION = 1 as const;
+export const DOCUMENT_WRITE_INVOCATION_POLICY_REVISION = 1 as const;
 
 export type { PreconditionSet } from "../shared/capabilityTargeting";
 export type { ProjectBinding } from "../shared/projectBinding";
@@ -124,7 +130,8 @@ export type VerifiedCanvasReadExecutionTarget =
 
 export type VerifiedCapabilityExecutionTarget =
   | VerifiedCanvasReadExecutionTarget
-  | Readonly<{ kind: "document-surface"; capturedPort: CapturedCanvasReadPort; documentId: string }>;
+  | Readonly<{ kind: "document-surface"; capturedPort: CapturedCanvasReadPort; documentId: string }>
+  | Readonly<{ kind: "document-write-surface"; capturedPort: CapturedCanvasReadPort; documentId: string }>;
 
 type InvocationState = Readonly<{
   evidence: CapabilityAuthorityEvidence;
@@ -289,6 +296,7 @@ function mintCapabilityInvocation<Input, Target>(
     policyRevision: number;
     semanticInput: Input;
     target: Target;
+    preconditions?: PreconditionSet;
     evidence: CapabilityAuthorityEvidence;
     revalidate: () => Promise<CapabilityAuthorityEvidence>;
     executionTarget: VerifiedCapabilityExecutionTarget;
@@ -297,12 +305,13 @@ function mintCapabilityInvocation<Input, Target>(
   const capability = capabilityIdentity(input.capability.id, input.capability.version);
   const policyRevision = input.policyRevision;
   const inputHash = digest("input", input.semanticInput);
+  const preconditions = deepFreeze(input.preconditions ?? EMPTY_PRECONDITIONS);
   const actionHash = digest("action", {
     capability,
     binding: input.evidence.binding,
     input: input.semanticInput,
     target: input.target,
-    preconditions: EMPTY_PRECONDITIONS,
+    preconditions,
     policyRevision,
   });
   const invocation = deepFreeze({
@@ -310,7 +319,7 @@ function mintCapabilityInvocation<Input, Target>(
     capability,
     binding: input.evidence.binding,
     target: input.target,
-    preconditions: EMPTY_PRECONDITIONS,
+    preconditions,
     input: input.semanticInput,
     caller: input.evidence.caller,
     authorityRef: input.evidence.authorityRef,
@@ -335,7 +344,7 @@ function mintCanvasReadInvocation(
     semanticInput: CanvasReadInput;
     evidence: CapabilityAuthorityEvidence;
     revalidate: () => Promise<CapabilityAuthorityEvidence>;
-    executionTarget: VerifiedCanvasReadExecutionTarget;
+    executionTarget: VerifiedCapabilityExecutionTarget;
   }>,
 ): McpCanvasReadInvocation {
   return mintCapabilityInvocation({
@@ -726,6 +735,62 @@ export function createInternalDocumentReadVerifiedInvocationFactory(
   });
 }
 
+export type RendererDocumentWriteVerifiedInvocationFactory = Readonly<{
+  mint(input: Readonly<{
+    toolCallId: string;
+    documentId: string;
+    anchor: DocumentAnchorRef;
+    preconditions: PreconditionSet;
+    input: unknown;
+  }>): Promise<VerifiedCapabilityInvocation<DocumentWriteInput, Readonly<{ kind: "document"; documentId: string; anchor: DocumentAnchorRef }>>>;
+}>;
+
+/** Main-issued reversible document write invocation over one captured Surface owner. */
+export function createRendererDocumentWriteVerifiedInvocationFactory(
+  input: Readonly<{
+    registry: CanvasReadSurfaceRegistry;
+    capturedPort: CapturedCanvasReadPort;
+    requestId: string;
+  }>,
+): RendererDocumentWriteVerifiedInvocationFactory {
+  try {
+    assertCanvasReadSurfaceRegistry(input.registry);
+    input.registry.resolveCapturedCanvasReadPort(input.capturedPort);
+  } catch {
+    throw new CapabilityInvocationError("capability_authority_invalid");
+  }
+  const requestId = nonEmptyString(input.requestId);
+  const registry = input.registry;
+  const capturedPort = input.capturedPort;
+  return Object.freeze({
+    async mint({ toolCallId: toolCallIdValue, documentId: documentIdValue, anchor, preconditions, input: semanticValue }) {
+      const toolCallId = nonEmptyString(toolCallIdValue);
+      const documentId = nonEmptyString(documentIdValue);
+      const semanticInput = documentWriteSemanticInputSchema.parse(semanticValue);
+      if (!anchor || typeof anchor !== "object" || typeof (anchor as { kind?: unknown }).kind !== "string") {
+        throw new CapabilityInvocationError("capability_input_invalid");
+      }
+      const caller = Object.freeze({ kind: "embedded-agent" as const, requestId, toolCallId });
+      const verify = async (): Promise<RendererAuthorityEvidence> => {
+        const dispatch = registry.resolveCapturedCanvasReadPort(capturedPort);
+        const binding = await registry.assertCanvasReadPortReply(capturedPort, dispatch.binding);
+        return rendererEvidence(binding, caller);
+      };
+      const evidence = await verify();
+      return mintCapabilityInvocation({
+        capability: DOCUMENT_WRITE_CAPABILITY,
+        policyRevision: DOCUMENT_WRITE_INVOCATION_POLICY_REVISION,
+        semanticInput,
+        evidence,
+        revalidate: verify,
+        preconditions,
+        target: Object.freeze({ kind: "document" as const, documentId, anchor: deepFreeze(structuredClone(anchor)) }),
+        executionTarget: Object.freeze({ kind: "document-write-surface" as const, capturedPort, documentId }),
+      });
+    },
+  });
+}
+
 export function assertVerifiedCapabilityInvocation(
   value: unknown,
 ): asserts value is VerifiedCapabilityInvocation<unknown, unknown> {
@@ -740,7 +805,7 @@ export function resolveVerifiedCanvasReadExecutionTarget(
   assertVerifiedCapabilityInvocation(invocation);
   const state = invocationStates.get(invocation);
   if (!state) throw new CapabilityInvocationError("capability_invocation_unverified");
-  if (state.executionTarget.kind === "document-surface") {
+  if (state.executionTarget.kind === "document-surface" || state.executionTarget.kind === "document-write-surface") {
     throw new CapabilityInvocationError("capability_authority_invalid");
   }
   return state.executionTarget;

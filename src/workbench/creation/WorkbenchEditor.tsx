@@ -9,6 +9,17 @@ import { normalizeWorkbenchContentJson, type CreationDocumentTools } from '../wo
 import { useTransientScrollingClass } from './useTransientScrollingClass'
 import { useNomiRichTextEditor, RICH_TEXT_FEATURE_EXTENSIONS } from '../common/useNomiRichTextEditor'
 import { buildRichTextActions, type RichTextAction } from '../common/richTextActions'
+import { SurfacePortWireError } from '../../../electron/shared/surfacePortBinding'
+import type { DocumentAnchorRef, PreconditionSet, TargetRef } from '../../../electron/shared/capabilityTargeting'
+
+function documentContentHash(text: string): string {
+  let hash = 2166136261
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return `fnv1a-${(hash >>> 0).toString(16).padStart(8, '0')}`
+}
 
 // 工具栏分组：格式按语义分 4 簇（文字 / 标题段落 / 列表 / 插入）靠左，历史（撤销/重做）推到右端。
 // 之前用一个 flex-1 spacer 把 9 个按钮全挤到左侧、右边 ~570px 浪费 —— 这里按语义两端锚定。
@@ -106,9 +117,15 @@ export default function WorkbenchEditor(): JSX.Element {
     [workbenchDocuments, activeDocumentId],
   )
   const workbenchDocumentRef = React.useRef(workbenchDocument)
+  const documentRevisionRef = React.useRef(0)
+  const revisionDocumentIdRef = React.useRef(workbenchDocument.id)
 
   React.useEffect(() => {
     workbenchDocumentRef.current = workbenchDocument
+    if (revisionDocumentIdRef.current !== workbenchDocument.id) {
+      revisionDocumentIdRef.current = workbenchDocument.id
+      documentRevisionRef.current = 0
+    }
   }, [workbenchDocument])
 
   const editorContent = React.useMemo(
@@ -124,6 +141,7 @@ export default function WorkbenchEditor(): JSX.Element {
       // unchanged. Opening a draft must not mutate its source revision or mark
       // every attached storyboard as needing synchronization.
       if (JSON.stringify(currentContent) === JSON.stringify(contentJson)) return
+      documentRevisionRef.current += 1
       setWorkbenchDocument({ ...currentDocument, contentJson, updatedAt: Date.now() })
     },
     [setWorkbenchDocument],
@@ -162,6 +180,30 @@ export default function WorkbenchEditor(): JSX.Element {
     const toolsApi: CreationDocumentTools = {
       readFullText: tools.readFullText,
       readSelectionText: tools.readSelectionText,
+      readState: () => {
+        const text = tools.readFullText()
+        const { from, to, empty } = editor.state.selection
+        const selectedText = empty || from === to ? '' : editor.state.doc.textBetween(from, to, '\n').trim()
+        const anchor: DocumentAnchorRef = empty || from === to
+          ? Object.freeze({ kind: 'cursor', position: from, beforeHash: documentContentHash(editor.state.doc.textBetween(0, from, '\n')), afterHash: documentContentHash(editor.state.doc.textBetween(from, editor.state.doc.content.size, '\n')) })
+          : Object.freeze({ kind: 'range', from, to, selectedTextHash: documentContentHash(selectedText) })
+        return Object.freeze({ revision: documentRevisionRef.current, contentHash: documentContentHash(text), anchor })
+      },
+      applyDocumentWrite: (input: Readonly<{ operation: 'insert' | 'replace' | 'append'; content: string; target: TargetRef; preconditions: PreconditionSet }>) => {
+        if (input.target.kind !== 'document' || input.target.documentId !== workbenchDocumentRef.current.id) {
+          throw new SurfacePortWireError('surface_port_stale')
+        }
+        const expected = input.preconditions.document
+        const current = toolsApi.readState()
+        if (expected && (expected.revision !== current.revision || (expected.contentHash && expected.contentHash !== current.contentHash))) {
+          throw new SurfacePortWireError('surface_port_stale')
+        }
+        if (input.operation === 'insert') tools.insertAtCursor(input.content)
+        else if (input.operation === 'replace') tools.replaceSelection(input.content)
+        else tools.appendToEnd(input.content)
+        const next = toolsApi.readState()
+        return Object.freeze({ applied: true as const, revision: next.revision, contentHash: next.contentHash })
+      },
       insertAtCursor: tools.insertAtCursor,
       replaceSelection: tools.replaceSelection,
       appendToEnd: tools.appendToEnd,

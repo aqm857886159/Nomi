@@ -69,6 +69,11 @@ export function registerMainCanvasReadExecutionRuntime(input: Readonly<{
         if (target.kind !== "document-surface") throw new Error("capability_unsupported");
         return surfacePortRuntime.createDocumentReadPort(target.capturedPort, target.documentId);
       },
+      resolveDocumentWritePort: async (invocation) => {
+        const target = resolveVerifiedCapabilityExecutionTarget(invocation);
+        if (target.kind !== "document-write-surface") throw new Error("capability_unsupported");
+        return surfacePortRuntime.createDocumentWritePort(target.capturedPort, target.documentId);
+      },
     }),
     surfacePortRuntime,
   });

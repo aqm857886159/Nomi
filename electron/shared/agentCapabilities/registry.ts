@@ -1,5 +1,6 @@
 import { CANVAS_READ_CAPABILITY } from "./canvasRead";
 import { DOCUMENT_READ_CAPABILITY, DOCUMENT_READ_ALIASES } from "./documentRead";
+import { DOCUMENT_WRITE_ALIASES, DOCUMENT_WRITE_CAPABILITY } from "./documentWrite";
 import type { CapabilityContract } from "./capabilityContract";
 
 type AnyCapabilityContract = CapabilityContract<unknown, unknown>;
@@ -11,7 +12,7 @@ export type ContractOnlyRegistry<Contracts extends readonly AnyCapabilityContrac
     : never;
 };
 
-const REGISTERED_CONTRACTS = [CANVAS_READ_CAPABILITY, DOCUMENT_READ_CAPABILITY] as const satisfies readonly CapabilityContract<
+const REGISTERED_CONTRACTS = [CANVAS_READ_CAPABILITY, DOCUMENT_READ_CAPABILITY, DOCUMENT_WRITE_CAPABILITY] as const satisfies readonly CapabilityContract<
   unknown,
   unknown
 >[];
@@ -27,6 +28,8 @@ export const CAPABILITY_ALIAS_ENTRIES = Object.freeze([
     Object.entries(contract.aliases).map(([surface, alias]) => ({ contract, surface, alias })),
   ),
   { contract: DOCUMENT_READ_CAPABILITY, surface: "pi", alias: DOCUMENT_READ_ALIASES.selection },
+  { contract: DOCUMENT_WRITE_CAPABILITY, surface: "pi", alias: DOCUMENT_WRITE_ALIASES.replace },
+  { contract: DOCUMENT_WRITE_CAPABILITY, surface: "pi", alias: DOCUMENT_WRITE_ALIASES.append },
 ]);
 
 export function resolveCapabilityAlias(alias: string):

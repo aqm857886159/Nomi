@@ -38,7 +38,6 @@ import { AttachmentRail } from '../ai/composer/AttachmentRail'
 import { AutoGrowTextarea } from '../ai/composer/AutoGrowTextarea'
 import { COMPOSER_ATTACHMENT_ACCEPT, useComposerAttachments } from '../ai/composer/useComposerAttachments'
 import StoryboardNudge from './storyboard/StoryboardNudge'
-import { snapshotScriptDraft } from './scriptDraftSnapshot'
 import type { ProjectAgentExecutionEvent } from '../../../electron/shared/projectAgentContracts'
 import {
   createProjectAgentPendingToolRegistry,
@@ -269,20 +268,12 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     if (entry) void entry.value.confirm(decision).catch(() => {})
   }, [localPendingToolCalls])
 
-  // Run the actual editor mutation for an approved write tool, then resolve the
-  // backend tool call so the agent loop can continue.
+  // The Host owns the actual editor mutation. This card only records the
+  // user's approval; the bound Surface adapter executes the same decision in
+  // main and returns a canonical write receipt.
   const applyWriteTool = React.useCallback((call: PendingDocToolCall) => {
     if (!pendingToolCalls.some((pending) => pending.toolCallId === call.toolCallId)) return
-    const tools = documentToolsRef.current
-    if (!tools) {
-      resolvePending(call.toolCallId, { ok: false, message: 'editor_not_ready' })
-      return
-    }
-    if (call.toolName === 'insert_at_cursor') tools.insertAtCursor(call.content)
-    else if (call.toolName === 'replace_selection') tools.replaceSelection(call.content)
-    else tools.appendToEnd(call.content)
-    const scriptDraft = snapshotScriptDraft({ content: tools.readFullText(), source: 'user' })
-    resolvePending(call.toolCallId, { ok: true, result: { applied: true, scriptDraft } })
+    resolvePending(call.toolCallId, { ok: true })
   }, [pendingToolCalls, resolvePending])
   const writeToolIcon = React.useCallback((name: WriteToolName) => {
     if (name === 'insert_at_cursor') return <IconCursorText size={13} />
@@ -447,6 +438,12 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
       ? t('creationAi.attachmentPrompt')
       : t('creationAi.processDocument', { mode: t(`creationAi.mode.${activeMode.id}.label` as 'creationAi.mode.general.label') }))
     const attachmentClaims = projectAgentAttachmentClaims(readyAttachments)
+    const documentState = liveStore.creationDocumentTools?.readState()
+    const documentTarget = {
+      kind: 'document' as const,
+      documentId: activeDocumentId,
+      anchor: documentState?.anchor ?? { kind: 'whole-document' as const },
+    }
     setDraft('')
     clearAttachments()
     setError('')
@@ -472,7 +469,8 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         request: canonicalRequest,
         displayPrompt,
         ...(attachmentClaims.length ? { attachmentClaims } : {}),
-        target: { kind: 'document', documentId: activeDocumentId, anchor: { kind: 'whole-document' } },
+        target: documentTarget,
+        ...(documentState ? { preconditions: { document: { revision: documentState.revision, contentHash: documentState.contentHash } } } : {}),
         originSurface: { surfaceId: 'creation-ai-panel', kind: 'document' },
       })
       projectAgentTurnRef.current = result.turnId

@@ -282,6 +282,14 @@ export default function NomiStudioApp(): JSX.Element {
         }
         return { text: scope === 'full' ? tools.readFullText() : tools.readSelectionText() }
       },
+      ({ documentId, operation, content, target, preconditions }) => {
+        const store = useWorkbenchStore.getState()
+        const tools = store.creationDocumentTools
+        if (!tools || store.activeDocumentId !== documentId) {
+          throw new SurfacePortWireError('surface_port_stale')
+        }
+        return tools.applyDocumentWrite({ operation, content, target: target as never, preconditions: preconditions as never })
+      },
     ),
     [projectSurface],
   )
