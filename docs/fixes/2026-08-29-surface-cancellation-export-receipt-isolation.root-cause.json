@@ -1,0 +1,87 @@
+{
+  "schema_version": 2,
+  "id": "2026-08-29-surface-cancellation-export-receipt-isolation",
+  "problem_type": "Renderer Surface cancellation and cross-domain compensation corruption",
+  "symptom": "When a Project Agent turn was cancelled or its project Surface rotated, main discarded the eventual renderer reply but the renderer could still mutate Document, Canvas, Timeline, or Export state. An approved Export also prepared a generic Canvas restore-snapshot receipt, so restart recovery could roll unrelated Canvas work back even though Export owns no Canvas mutation.",
+  "direct_cause": "The main-to-renderer Surface protocol had request and reply channels but no request-bound cancellation frame or renderer AbortSignal. Project Surface write targets checked the binding only at dispatch rather than again immediately before each effect. The shared proposal receipt coordinator also defaulted every preparation to Canvas snapshot compensation, and Export reused that default despite starting an independently durable ExportJob.",
+  "class_root": "Nomi did not encode cancellation as an end-to-end request authority and did not encode compensation ownership by domain. Any renderer-hosted side effect could therefore outlive its main request, while any non-Canvas operation reusing the generic receipt helper could acquire an invalid Canvas rollback plan.",
+  "affected_population": [
+    "Users cancelling an Agent turn while a renderer-hosted Document, Canvas, Timeline, or Export write is pending",
+    "Users switching, reloading, replacing, or closing a project during a pending renderer write",
+    "Users restarting after an Export receipt was prepared but before its acknowledgement was committed",
+    "Users who made unrelated Canvas edits before or during an interrupted Export",
+    "Future renderer-hosted capability aliases that use the shared Surface or proposal receipt boundaries"
+  ],
+  "scope_paths": [
+    "electron/shared/surfacePortBinding.ts",
+    "electron/capabilityCore/canvasReadSurfacePort.ts",
+    "electron/surfacePortPreloadBridge.ts",
+    "src/workbench/project/projectCanvasReadSurface.ts",
+    "src/workbench/creation/documentWriteTarget.ts",
+    "src/workbench/generationCanvas/agent/canvasWriteTarget.ts",
+    "src/workbench/generationCanvas/agent/proposalUndo.ts",
+    "src/workbench/timeline/agent/timelineCapabilityTarget.ts",
+    "src/workbench/timeline/agent/phase4CapabilityTargets.ts"
+  ],
+  "entry_points": [
+    "main capability timeout and caller AbortSignal cancellation",
+    "Project Agent turn cancellation",
+    "project switch, same-id reopen, renderer reload, frame destruction, and Surface release",
+    "approved Document, Canvas, Timeline, and Export Surface writes",
+    "Export receipt preparation, acknowledgement loss, restart recovery, and replay attempt",
+    "future non-Canvas operations using createProposalReceiptCoordinator"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The defect is entirely inside Nomi's main/renderer protocol, project epoch guard, effect boundary, and receipt compensation ownership. Electron transport ordering and external Export backends cannot decide whether Nomi forwards cancellation or whether an Export receipt is permitted to restore Canvas state.",
+  "invariants": [
+    "Every cancellable renderer write receives a main-issued requestId plus exact Surface binding and a renderer AbortSignal tied only to that request and binding.",
+    "A cancellation frame with a different requestId, nonce, bindingId, Surface instance, port revision, or immutable project identity cannot abort the request, and malformed frames fail closed without throwing into the preload event loop.",
+    "Main cancellation both rejects the local request with capability_cancelled and sends the exact cancellation frame to the captured owner frame; late replies cannot revive or revalidate the request.",
+    "Project rotation and request cancellation are revalidated immediately before every Document, Canvas, Timeline, or Export effect, so rotation that wins before effect start produces zero domain side effects.",
+    "Once an Export effect starts, a lost acknowledgement remains an unresolved preparing receipt and is never converted to abort, retry, replay, or a second ExportJob.",
+    "Export receipt preparation persists an empty compensation list and never stores or executes a Canvas restore snapshot.",
+    "Canvas proposal writes retain Canvas compensation and per-effect guards; the Export exception cannot weaken Canvas Undo semantics.",
+    "Renderer cancellation errors expose only stable typed codes and never serialize local paths, abort reasons, or provider details."
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every current and future renderer-hosted side effect reaches the same Surface request lifetime, and every non-Canvas operation using the shared receipt helper reaches the same compensation default.",
+    "same_class_scan": [
+      "Scanned every CanvasReadSurfaceBridge request/reply pair, CanvasReadSurfacePort runtime, preload listener, Project Surface registration, and main capability AbortSignal path for cancellation propagation and exact binding checks.",
+      "Scanned Document write, Canvas write/delete, Timeline write/undo, Asset read, Export read/start/cancel targets for the last check before domain effects and for awaits between admission and mutation.",
+      "Scanned createProposalReceiptCoordinator, prepareProposalReceipt, recovery, Undo compensation execution, Canvas proposal transaction callers, and Export callers for restore-snapshot compensation reuse.",
+      "Confirmed read-only Surface calls have no domain side effect, while all four write families now receive a live request guard; Export retains post-effect ambiguity because its durable job may already exist.",
+      "Confirmed no second Export recovery owner or retry path was introduced and ExportJobManager remains the durable lifecycle authority."
+    ]
+  },
+  "prevention": {
+    "strategy": "Add one exact-binding cancellation channel from main to preload, carry its AbortSignal through the project epoch into every write target, assert the live epoch immediately before effects, and make non-Canvas compensation an explicit receipt metadata choice that Export fixes to none.",
+    "artifacts": [
+      "electron/shared/surfacePortBinding.ts",
+      "electron/capabilityCore/canvasReadSurfacePort.ts",
+      "electron/surfacePortPreloadBridge.ts",
+      "src/workbench/project/projectCanvasReadSurface.ts",
+      "src/workbench/generationCanvas/agent/canvasWriteTarget.ts",
+      "src/workbench/generationCanvas/agent/proposalUndo.ts",
+      "src/workbench/timeline/agent/timelineCapabilityTarget.ts",
+      "src/workbench/timeline/agent/phase4CapabilityTargets.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/canvasReadSurfacePort.test.ts",
+    "electron/surfacePortPreloadBridge.test.ts",
+    "electron/capabilityCore/phase4SurfaceTransportAdapters.test.ts",
+    "src/workbench/project/projectCanvasReadSurface.test.ts",
+    "src/workbench/generationCanvas/agent/canvasWriteTarget.test.ts",
+    "src/workbench/generationCanvas/agent/canvasWriteTarget.integration.test.ts",
+    "src/workbench/generationCanvas/agent/proposalUndoReceiptLifecycle.test.ts",
+    "src/workbench/timeline/agent/timelineCapabilityTarget.test.ts",
+    "src/workbench/timeline/agent/phase4CapabilityTargets.test.ts"
+  ],
+  "migration": "No historical Agent execution is replayed. Existing committed Canvas receipts keep their stored compensation. Existing preparing Export-shaped receipts are left unresolved and cannot auto-run or auto-undo; because old generic receipts cannot prove whether an ExportJob started, users inspect the durable ExportJob owner before submitting a fresh export. New Export receipts always contain empty compensation. Documents, Canvas, media, generated results, ProductionRuns, and ExportJobs remain outside the Agent archive and are not rewritten by this change.",
+  "residual_risks": [
+    "A provider or OS export call that has already begun cannot be synchronously proven absent after cancellation; the preparing receipt intentionally reports ambiguity and prevents automatic retry.",
+    "Read-only Surface work may continue briefly after main stops waiting because it has no domain side effect; write cancellation is the required safety boundary.",
+    "Packaged project-switch and process-crash journeys remain in the combined Phase 3/4 exit matrix."
+  ]
+}

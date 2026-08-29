@@ -4,20 +4,20 @@ import { timelineEditPlanSchema, timelineToolDescriptors, timelineToolNames } fr
 describe('timeline Agent tool descriptors', () => {
   it('exposes the control-plane tools', () => {
     expect(timelineToolNames).toEqual([
-      'read_timeline',
-      'inspect_timeline_range',
-      'propose_edit_plan',
-      'apply_edit_plan',
-      'undo_timeline_edit',
       'get_media',
       'inspect_media',
       'search_media',
       'inspect_source_range',
       'read_waveform',
-      'export_timeline',
       'inspect_export_job',
       'verify_render',
+      'export_timeline',
       'cancel_export_job',
+      'read_timeline',
+      'inspect_timeline_range',
+      'propose_edit_plan',
+      'apply_edit_plan',
+      'undo_timeline_edit',
     ])
   })
 

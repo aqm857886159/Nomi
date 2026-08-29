@@ -8,7 +8,9 @@ export type TargetRef =
   | Readonly<{ kind: "document"; documentId: string; anchor: DocumentAnchorRef }>
   | Readonly<{ kind: "canvas"; nodeIds: readonly string[]; groupIds?: readonly string[] }>
   | Readonly<{ kind: "canvas-result"; nodeId: string; resultId: string }>
+  | Readonly<{ kind: "asset"; assetIds: readonly string[] }>
   | Readonly<{ kind: "timeline"; clipIds: readonly string[] }>
+  | Readonly<{ kind: "export"; jobId?: string; timelineRevision?: string }>
   | Readonly<{
       kind: "artifact";
       runId: string;
@@ -29,11 +31,16 @@ export type PreconditionSet = Readonly<{
   run?: Readonly<{ runId: string; revision: number }>;
 }>;
 
-export type TaskRef = Readonly<{
-  kind: "production-run";
-  runId: string;
-  expectedRunRevision?: number;
-  stageId?: string;
-  jobId?: string;
-  shotId?: string;
-}>;
+export type TaskRef =
+  | Readonly<{
+      kind: "production-run";
+      runId: string;
+      expectedRunRevision?: number;
+      stageId?: string;
+      jobId?: string;
+      shotId?: string;
+    }>
+  | Readonly<{
+      kind: "export-job";
+      jobId: string;
+    }>;

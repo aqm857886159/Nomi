@@ -64,6 +64,8 @@ function buildRequest(input: CanvasWriteInput): CanvasWriteTargetExecution {
     receiptProposalId: RECEIPT_ID,
     approvalId: APPROVAL_ID,
     actionHash: ACTION_HASH,
+    signal: new AbortController().signal,
+    assertCurrent: vi.fn(),
   }
 }
 

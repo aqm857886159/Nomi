@@ -43,6 +43,13 @@ const approval = {
   receiptProposalId: 'receipt-plan-a',
   approvalId: 'approval-plan-a',
   actionHash: 'a'.repeat(64),
+  signal: new AbortController().signal,
+  assertCurrent: () => undefined,
+}
+
+const executionGuard = {
+  signal: new AbortController().signal,
+  assertCurrent: () => undefined,
 }
 
 describe('canonical Timeline capability target', () => {
@@ -240,6 +247,7 @@ describe('canonical Timeline capability target', () => {
       receiptProposalId: 'receipt-undo-a',
       approvalId: 'approval-undo-a',
       actionHash: 'b'.repeat(64),
+      ...executionGuard,
     })
     expect(undo).toMatchObject({ ok: false, undone: false, code: 'undo_token_invalid' })
     expect(useWorkbenchStore.getState().timelineUndoStack).toEqual(stack)
@@ -260,6 +268,7 @@ describe('canonical Timeline capability target', () => {
       target: { kind: 'timeline' as const, clipIds: [] },
       preconditions: { timeline: { revision: applied.revision } },
       receiptProposalId: 'receipt-undo-a', approvalId: 'approval-undo-a', actionHash: 'b'.repeat(64),
+      ...executionGuard,
     }
     expect(executeTimelineWriteTarget(request)).toMatchObject({ operation: 'undo_timeline_edit', ok: true, undone: true, revision: baseRevision })
     const afterFirstUndo = useWorkbenchStore.getState()
@@ -295,6 +304,7 @@ describe('canonical Timeline capability target', () => {
       receiptProposalId: 'receipt-undo-a',
       approvalId: 'approval-undo-a',
       actionHash: 'b'.repeat(64),
+      ...executionGuard,
     }
 
     const appliedStack = useWorkbenchStore.getState().timelineUndoStack
@@ -346,6 +356,7 @@ describe('canonical Timeline capability target', () => {
       receiptProposalId: 'receipt-undo-a',
       approvalId: 'approval-undo-a',
       actionHash: 'b'.repeat(64),
+      ...executionGuard,
     })
     expect(result).toMatchObject({ ok: false, undone: false, code: 'undo_stale_revision' })
     expect(useWorkbenchStore.getState().timeline).toBe(afterUserEdit.timeline)

@@ -7,6 +7,11 @@ import { timelineToolDescriptors } from "./tools/timelineDescriptors";
 import type { RuntimeToolCall, RuntimeToolDescriptor } from "./runtime/runtimePort";
 import { CANVAS_READ_CAPABILITY } from "../shared/agentCapabilities/canvasRead";
 import {
+  CANVAS_DELETE_CAPABILITY,
+  canvasDeletePiDescriptionForAlias,
+  canvasDeletePiInputSchema,
+} from "../shared/agentCapabilities/canvasDelete";
+import {
   CANVAS_WRITE_CAPABILITY,
   canvasWritePiDescriptionForAlias,
   canvasWritePiInputSchema,
@@ -35,8 +40,23 @@ const CANVAS_WRITE_DESCRIPTOR: PiToolDescriptor = (() => {
   if (!descriptor) throw new Error("Missing primary canvas.write Pi Registry projection");
   return descriptor;
 })();
-const CANVAS_DESCRIPTORS: PiToolDescriptor[] = [...Object.values(canvasToolDescriptors), ...CANVAS_WRITE_DESCRIPTORS];
-const CANVAS_TOOL_NAMES = new Set<string>([...canvasToolNames, ...CANVAS_WRITE_DESCRIPTORS.map(({ name }) => name)]);
+const CANVAS_DELETE_DESCRIPTOR: PiToolDescriptor = {
+  name: CANVAS_DELETE_CAPABILITY.aliases.pi,
+  description:
+    canvasDeletePiDescriptionForAlias(CANVAS_DELETE_CAPABILITY.aliases.pi) ??
+    CANVAS_DELETE_CAPABILITY.projections.pi.description,
+  parameters: canvasDeletePiInputSchema,
+};
+const CANVAS_DESCRIPTORS: PiToolDescriptor[] = [
+  ...Object.values(canvasToolDescriptors),
+  ...CANVAS_WRITE_DESCRIPTORS,
+  CANVAS_DELETE_DESCRIPTOR,
+];
+const CANVAS_TOOL_NAMES = new Set<string>([
+  ...canvasToolNames,
+  ...CANVAS_WRITE_DESCRIPTORS.map(({ name }) => name),
+  CANVAS_DELETE_DESCRIPTOR.name,
+]);
 const DOCUMENT_READ_DESCRIPTORS = capabilityAliasesFor(DOCUMENT_READ_CAPABILITY.id, "pi").map((alias) => {
   const descriptor = Object.values(documentToolDescriptors).find((candidate) => candidate.name === alias);
   if (!descriptor) throw new Error(`Missing document tool projection for ${alias}`);

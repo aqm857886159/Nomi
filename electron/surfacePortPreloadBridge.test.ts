@@ -196,6 +196,7 @@ describe('Surface preload bridge', () => {
       target: { kind: 'canvas', nodeIds: ['node-real'] },
       preconditions: { nodes: [{ nodeId: 'node-real', contentHash: 'hash-a' }] },
       receiptProposalId: 'receipt-a', approvalId: 'approval-a', actionHash: 'action-a',
+      signal: expect.any(AbortSignal),
     })
 
     receivers.get('nomi:surface:canvasWrite:capture:request')?.({
@@ -249,6 +250,7 @@ describe('Surface preload bridge', () => {
     expect(write).toHaveBeenCalledWith({
       binding, input, target, preconditions,
       receiptProposalId: 'receipt-a', approvalId: 'approval-a', actionHash: 'action-a',
+      signal: expect.any(AbortSignal),
     })
 
     receivers.get('nomi:surface:timelineWrite:request')?.({
@@ -256,5 +258,74 @@ describe('Surface preload bridge', () => {
       receiptProposalId: 'receipt-a', approvalId: '', actionHash: 'action-a',
     })
     expect(write).toHaveBeenCalledTimes(1)
+  })
+
+  it('aborts only the exact request and Surface authority, then returns a typed cancellation', async () => {
+    const receivers = new Map<string, (payload: unknown) => void>()
+    const send = vi.fn()
+    const bridge = createCanvasReadSurfacePreloadBridge(
+      vi.fn(async () => ({ ok: true, value: { released: true } })),
+      {
+        subscribe: (channel, listener) => {
+          receivers.set(channel, listener)
+          return () => receivers.delete(channel)
+        },
+        send,
+      },
+    )
+    const binding = {
+      version: 1 as const,
+      bindingId: 'binding-a',
+      binding: {
+        projectId: 'project-a',
+        immutableProjectUuid: '00000000-0000-4000-8000-000000000001',
+        projectGeneration: 1,
+      },
+      webContentsId: 1,
+      processId: 2,
+      frameRoutingId: 3,
+      origin: 'file://',
+      surfaceInstanceId: 'surface-a',
+      portRevision: 4,
+      nonce: 'nonce-a',
+    }
+    let signal: AbortSignal | undefined
+    let finish!: () => void
+    const pending = new Promise<void>((resolve) => { finish = resolve })
+    bridge.onCanvasWriteExecute((request) => {
+      signal = request.signal
+      return pending
+    })
+    receivers.get('nomi:surface:canvasWrite:execute:request')?.({
+      requestId: 'execute-a',
+      binding,
+      input: { operation: 'set_node_prompt', nodeId: 'node-a', prompt: 'new' },
+      target: { kind: 'canvas', nodeIds: ['node-a'] },
+      preconditions: {},
+      receiptProposalId: 'receipt-a',
+      approvalId: 'approval-a',
+      actionHash: 'action-a',
+    })
+    expect(signal?.aborted).toBe(false)
+
+    receivers.get('nomi:surface:request:cancel')?.({
+      requestId: 'execute-a',
+      binding: { ...structuredClone(binding), nonce: 'forged' },
+    })
+    receivers.get('nomi:surface:request:cancel')?.({ requestId: 'other-request', binding })
+    receivers.get('nomi:surface:request:cancel')?.({ requestId: 'execute-a', binding: {} })
+    expect(signal?.aborted).toBe(false)
+
+    receivers.get('nomi:surface:request:cancel')?.({
+      requestId: 'execute-a',
+      binding: structuredClone(binding),
+    })
+    expect(signal?.aborted).toBe(true)
+    finish()
+    await vi.waitFor(() => expect(send).toHaveBeenCalledWith('nomi:surface:canvasWrite:execute:reply', {
+      requestId: 'execute-a',
+      binding,
+      error: { code: 'capability_cancelled' },
+    }))
   })
 })

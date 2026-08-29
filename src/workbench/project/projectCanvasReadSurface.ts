@@ -6,6 +6,9 @@ import type {
 } from '../../../electron/shared/surfacePortBinding'
 import { SurfacePortWireError } from '../../../electron/shared/surfacePortBinding'
 import type { CanvasWriteInput, CanvasWriteOperation } from '../../../electron/shared/agentCapabilities/canvasWrite'
+import type { CanvasDeleteInput } from '../../../electron/shared/agentCapabilities/canvasDelete'
+import type { AssetReadInput } from '../../../electron/shared/agentCapabilities/assetRead'
+import type { ExportReadInput, ExportWriteInput } from '../../../electron/shared/agentCapabilities/exportCapabilities'
 import type { TimelineReadInput } from '../../../electron/shared/agentCapabilities/timelineRead'
 import type { TimelineWriteInput } from '../../../electron/shared/agentCapabilities/timelineWrite'
 
@@ -27,6 +30,7 @@ export type ProjectHydrationEpoch = Readonly<{
 }>
 
 export type ProjectHydrationGuard = Pick<ProjectHydrationEpoch, 'signal' | 'assertCurrent'>
+export type ProjectSurfaceExecutionGuard = Readonly<{ signal: AbortSignal; assertCurrent(): void }>
 
 export type ProjectCanvasReadSurfaceCoordinator = Readonly<{
   beginHydration(): ProjectHydrationEpoch
@@ -47,10 +51,14 @@ export type ProjectCanvasReadSurfaceCoordinator = Readonly<{
       content: string
       target: unknown
       preconditions: unknown
-    }) => unknown,
+    } & ProjectSurfaceExecutionGuard) => unknown,
   ): () => void
   registerCanvasWriteCaptureSource(
-    capture: (input: { operation: CanvasWriteOperation; input?: CanvasWriteInput; nodeId?: string }) => unknown,
+    capture: (input: {
+      operation: CanvasWriteOperation | CanvasDeleteInput['operation']
+      input?: CanvasWriteInput | CanvasDeleteInput
+      nodeId?: string
+    }) => unknown,
   ): () => void
   registerCanvasWriteExecuteSource(
     execute: (input: {
@@ -60,7 +68,7 @@ export type ProjectCanvasReadSurfaceCoordinator = Readonly<{
       receiptProposalId: string
       approvalId: string
       actionHash: string
-    }) => unknown,
+    } & ProjectSurfaceExecutionGuard) => unknown,
   ): () => void
   registerTimelineReadSource(
     read: (input: { input: TimelineReadInput; target: unknown; preconditions: unknown }) => unknown,
@@ -73,7 +81,23 @@ export type ProjectCanvasReadSurfaceCoordinator = Readonly<{
       receiptProposalId: string
       approvalId: string
       actionHash: string
-    }) => unknown,
+    } & ProjectSurfaceExecutionGuard) => unknown,
+  ): () => void
+  registerAssetReadSource(
+    read: (input: { input: AssetReadInput; target: unknown; preconditions: unknown }) => unknown,
+  ): () => void
+  registerExportReadSource(
+    read: (input: { input: ExportReadInput; target: unknown; preconditions: unknown }) => unknown,
+  ): () => void
+  registerExportWriteSource(
+    write: (input: {
+      input: ExportWriteInput
+      target: unknown
+      preconditions: unknown
+      receiptProposalId: string
+      approvalId: string
+      actionHash: string
+    } & ProjectSurfaceExecutionGuard) => unknown,
   ): () => void
 }>
 
@@ -103,10 +127,10 @@ export function registerProjectCanvasReadSurface(
     content: string
     target: unknown
     preconditions: unknown
-  }) => unknown,
+  } & ProjectSurfaceExecutionGuard) => unknown,
   captureCanvasWrite?: (input: {
-    operation: CanvasWriteOperation
-    input?: CanvasWriteInput
+    operation: CanvasWriteOperation | CanvasDeleteInput['operation']
+    input?: CanvasWriteInput | CanvasDeleteInput
     nodeId?: string
   }) => unknown,
   executeCanvasWrite?: (input: {
@@ -116,7 +140,7 @@ export function registerProjectCanvasReadSurface(
     receiptProposalId: string
     approvalId: string
     actionHash: string
-  }) => unknown,
+  } & ProjectSurfaceExecutionGuard) => unknown,
   readTimeline?: (input: { input: TimelineReadInput; target: unknown; preconditions: unknown }) => unknown,
   writeTimeline?: (input: {
     input: TimelineWriteInput
@@ -125,7 +149,19 @@ export function registerProjectCanvasReadSurface(
     receiptProposalId: string
     approvalId: string
     actionHash: string
-  }) => unknown,
+  } & ProjectSurfaceExecutionGuard) => unknown,
+  additionalSources?: Readonly<{
+    readAsset?: (input: { input: AssetReadInput; target: unknown; preconditions: unknown }) => unknown
+    readExport?: (input: { input: ExportReadInput; target: unknown; preconditions: unknown }) => unknown
+    writeExport?: (input: {
+      input: ExportWriteInput
+      target: unknown
+      preconditions: unknown
+      receiptProposalId: string
+      approvalId: string
+      actionHash: string
+    } & ProjectSurfaceExecutionGuard) => unknown
+  }>,
 ): () => void {
   const unregisterCoordinator = registerProjectCanvasReadSurfaceCoordinator(coordinator)
   let unregisterSnapshot: (() => void) | undefined
@@ -135,6 +171,9 @@ export function registerProjectCanvasReadSurface(
   let unregisterCanvasWriteExecute: (() => void) | undefined
   let unregisterTimelineRead: (() => void) | undefined
   let unregisterTimelineWrite: (() => void) | undefined
+  let unregisterAssetRead: (() => void) | undefined
+  let unregisterExportRead: (() => void) | undefined
+  let unregisterExportWrite: (() => void) | undefined
   try {
     unregisterSnapshot = coordinator.registerCanvasReadSource(readSnapshot)
     unregisterDocument = readDocument ? coordinator.registerDocumentReadSource(readDocument) : undefined
@@ -147,7 +186,19 @@ export function registerProjectCanvasReadSurface(
       : undefined
     unregisterTimelineRead = readTimeline ? coordinator.registerTimelineReadSource(readTimeline) : undefined
     unregisterTimelineWrite = writeTimeline ? coordinator.registerTimelineWriteSource(writeTimeline) : undefined
+    unregisterAssetRead = additionalSources?.readAsset
+      ? coordinator.registerAssetReadSource(additionalSources.readAsset)
+      : undefined
+    unregisterExportRead = additionalSources?.readExport
+      ? coordinator.registerExportReadSource(additionalSources.readExport)
+      : undefined
+    unregisterExportWrite = additionalSources?.writeExport
+      ? coordinator.registerExportWriteSource(additionalSources.writeExport)
+      : undefined
     return () => {
+      unregisterExportWrite?.()
+      unregisterExportRead?.()
+      unregisterAssetRead?.()
       unregisterTimelineWrite?.()
       unregisterTimelineRead?.()
       unregisterCanvasWriteExecute?.()
@@ -158,6 +209,9 @@ export function registerProjectCanvasReadSurface(
       unregisterCoordinator()
     }
   } catch (error) {
+    unregisterExportWrite?.()
+    unregisterExportRead?.()
+    unregisterAssetRead?.()
     unregisterTimelineWrite?.()
     unregisterTimelineRead?.()
     unregisterCanvasWriteExecute?.()
@@ -245,6 +299,19 @@ export function createProjectCanvasReadSurfaceCoordinator(
       assertCurrent(state)
       throw error
     }
+  }
+
+  const requestGuard = (binding: SurfacePortBindingWire, signal: AbortSignal): ProjectSurfaceExecutionGuard => {
+    const assertRequestCurrent = (): void => {
+      if (signal.aborted) throw new SurfacePortWireError('capability_cancelled')
+      const state = current
+      if (!state?.binding) {
+        throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
+      }
+      if (!sameBinding(binding, state.binding)) throw new SurfacePortWireError('surface_port_stale')
+    }
+    assertRequestCurrent()
+    return Object.freeze({ signal, assertCurrent: assertRequestCurrent })
   }
 
   const releaseState = async (state: EpochState): Promise<void> => {
@@ -357,12 +424,9 @@ export function createProjectCanvasReadSurfaceCoordinator(
     registerDocumentWriteSource(writeDocument) {
       const bridge = input.getSurfaceBridge()
       if (!bridge || !writeDocument) return () => undefined
-      return bridge.onDocumentWrite(({ binding, documentId, operation, content, target, preconditions }) => {
-        const state = current
-        if (!state || !state.binding)
-          throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
-        if (!sameBinding(binding, state.binding)) throw new SurfacePortWireError('surface_port_stale')
-        return writeDocument({ documentId, operation, content, target, preconditions })
+      return bridge.onDocumentWrite(({ binding, signal, documentId, operation, content, target, preconditions }) => {
+        const guard = requestGuard(binding, signal)
+        return writeDocument({ documentId, operation, content, target, preconditions, ...guard })
       })
     },
     registerCanvasWriteCaptureSource(capture) {
@@ -384,11 +448,8 @@ export function createProjectCanvasReadSurfaceCoordinator(
       const bridge = input.getSurfaceBridge()
       if (!bridge || !execute) return () => undefined
       return bridge.onCanvasWriteExecute(({ binding, ...request }) => {
-        const state = current
-        if (!state || !state.binding)
-          throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
-        if (!sameBinding(binding, state.binding)) throw new SurfacePortWireError('surface_port_stale')
-        return execute(request)
+        const guard = requestGuard(binding, request.signal)
+        return execute({ ...request, ...guard })
       })
     },
     registerTimelineReadSource(read) {
@@ -406,11 +467,38 @@ export function createProjectCanvasReadSurfaceCoordinator(
       const bridge = input.getSurfaceBridge()
       if (!bridge || !write) return () => undefined
       return bridge.onTimelineWrite(({ binding, ...request }) => {
+        const guard = requestGuard(binding, request.signal)
+        return write({ ...request, ...guard })
+      })
+    },
+    registerAssetReadSource(read) {
+      const bridge = input.getSurfaceBridge()
+      if (!bridge || !read) return () => undefined
+      return bridge.onAssetRead(({ binding, ...request }) => {
         const state = current
         if (!state || !state.binding)
           throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
         if (!sameBinding(binding, state.binding)) throw new SurfacePortWireError('surface_port_stale')
-        return write(request)
+        return read(request)
+      })
+    },
+    registerExportReadSource(read) {
+      const bridge = input.getSurfaceBridge()
+      if (!bridge || !read) return () => undefined
+      return bridge.onExportRead(({ binding, ...request }) => {
+        const state = current
+        if (!state || !state.binding)
+          throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
+        if (!sameBinding(binding, state.binding)) throw new SurfacePortWireError('surface_port_stale')
+        return read(request)
+      })
+    },
+    registerExportWriteSource(write) {
+      const bridge = input.getSurfaceBridge()
+      if (!bridge || !write) return () => undefined
+      return bridge.onExportWrite(({ binding, ...request }) => {
+        const guard = requestGuard(binding, request.signal)
+        return write({ ...request, ...guard })
       })
     },
   })

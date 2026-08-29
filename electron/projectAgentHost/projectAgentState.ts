@@ -107,13 +107,21 @@ function assertTurn(
 
 function assertTaskRef(value: unknown): asserts value is TaskRef {
   const task = asRecord(value);
-  assertAllowedKeys(task, ["kind", "runId", "expectedRunRevision", "stageId", "jobId", "shotId"]);
-  if (task.kind !== "production-run") throw new ProjectAgentStateError("invalid_state");
-  assertNonEmpty(task.runId);
-  if (task.expectedRunRevision !== undefined) assertSafeInteger(task.expectedRunRevision);
-  for (const key of ["stageId", "jobId", "shotId"] as const) {
-    if (task[key] !== undefined) assertNonEmpty(task[key]);
+  if (task.kind === "production-run") {
+    assertAllowedKeys(task, ["kind", "runId", "expectedRunRevision", "stageId", "jobId", "shotId"]);
+    assertNonEmpty(task.runId);
+    if (task.expectedRunRevision !== undefined) assertSafeInteger(task.expectedRunRevision);
+    for (const key of ["stageId", "jobId", "shotId"] as const) {
+      if (task[key] !== undefined) assertNonEmpty(task[key]);
+    }
+    return;
   }
+  if (task.kind === "export-job") {
+    assertAllowedKeys(task, ["kind", "jobId"]);
+    assertNonEmpty(task.jobId);
+    return;
+  }
+  throw new ProjectAgentStateError("invalid_state");
 }
 
 function assertHumanApprovalRef(value: unknown, binding: ProjectBinding): asserts value is HumanApprovalRef {

@@ -414,16 +414,6 @@ export const canvasToolDescriptors = {
       "Produce a structured storyboard plan (cross-shot anchors + shots) for the user to review/edit in the creation area before anything lands on the canvas. Does not touch the canvas and costs nothing. Emit exactly one call.",
     parameters: storyboardPlanParamsSchema,
   },
-  delete_canvas_nodes: {
-    name: "delete_canvas_nodes",
-    description: "Delete one or more existing canvas nodes (destructive).",
-    parameters: z.object({
-      nodeIds: z.array(z.string().min(1)).min(1).max(24),
-      // Keep a hint slot so the model can surface its rationale to the user
-      // before destructive confirmation.
-      reason: z.string().optional(),
-    }),
-  },
   run_generation_batch: {
     name: "run_generation_batch",
     description:

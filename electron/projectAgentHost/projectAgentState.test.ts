@@ -281,6 +281,20 @@ describe("ProjectAgentHost state contract", () => {
     };
     const threadB = { ...thread, threadId: "thread-b" };
     const before = "2026-08-27T23:59:59.999Z";
+    const exportTask = {
+      kind: "task",
+      itemId: "export-task",
+      threadId: "thread-a",
+      turnId: "turn-a",
+      status: "done",
+      retryable: false,
+      deviated: false,
+      task: { kind: "export-job", jobId: "export-a" },
+      createdAt: "2026-08-28T00:00:00.000Z",
+      updatedAt: "2026-08-28T00:00:00.000Z",
+    };
+
+    expect(snapshotProjectAgentHostState({ ...validShape, items: [user, exportTask] }).items).toContainEqual(exportTask);
 
     const malformed = [
       { ...validShape, items: [{ ...user, status: "invented-status" }] },
@@ -324,6 +338,10 @@ describe("ProjectAgentHost state contract", () => {
             task: { kind: "production-run", runId: "run-a", status: "running" },
           },
         ],
+      },
+      {
+        ...validShape,
+        items: [{ ...exportTask, task: { ...exportTask.task, status: "running" } }],
       },
       {
         ...validShape,

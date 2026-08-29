@@ -1,7 +1,10 @@
+import { ASSET_READ_CAPABILITY } from "./assetRead";
+import { CANVAS_DELETE_CAPABILITY } from "./canvasDelete";
 import { CANVAS_READ_CAPABILITY } from "./canvasRead";
 import { CANVAS_WRITE_CAPABILITY } from "./canvasWrite";
 import { DOCUMENT_READ_CAPABILITY } from "./documentRead";
 import { DOCUMENT_WRITE_CAPABILITY } from "./documentWrite";
+import { EXPORT_READ_CAPABILITY, EXPORT_WRITE_CAPABILITY } from "./exportCapabilities";
 import { TIMELINE_READ_CAPABILITY } from "./timelineRead";
 import { TIMELINE_WRITE_CAPABILITY } from "./timelineWrite";
 import type { CapabilityContract, CapabilityProjectionSurface } from "./capabilityContract";
@@ -16,10 +19,14 @@ export type ContractOnlyRegistry<Contracts extends readonly AnyCapabilityContrac
 };
 
 const REGISTERED_CONTRACTS = [
+  ASSET_READ_CAPABILITY,
+  CANVAS_DELETE_CAPABILITY,
   CANVAS_READ_CAPABILITY,
   CANVAS_WRITE_CAPABILITY,
   DOCUMENT_READ_CAPABILITY,
   DOCUMENT_WRITE_CAPABILITY,
+  EXPORT_READ_CAPABILITY,
+  EXPORT_WRITE_CAPABILITY,
   TIMELINE_READ_CAPABILITY,
   TIMELINE_WRITE_CAPABILITY,
 ] as const satisfies readonly CapabilityContract<unknown, unknown>[];

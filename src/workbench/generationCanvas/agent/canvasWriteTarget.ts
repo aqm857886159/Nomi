@@ -12,6 +12,14 @@ import {
   type CanvasWriteOperation,
   type CanvasWriteResult,
 } from '../../../../electron/shared/agentCapabilities/canvasWrite'
+import {
+  canvasDeleteSemanticInputSchema,
+  type CanvasDeleteInput,
+  type CanvasDeleteResult,
+} from '../../../../electron/shared/agentCapabilities/canvasDelete'
+import {
+  assertCanvasDeleteAdmissionMatches,
+} from '../../../../electron/shared/agentCapabilities/canvasDeleteEvidence'
 import { SurfacePortWireError } from '../../../../electron/shared/surfacePortBinding'
 import type { GenerationCanvasSnapshot, GenerationNodeResult } from '../model/generationCanvasTypes'
 import { buildStepDetailLabels, summarizeToolCall } from '../components/toolCallSummary'
@@ -115,6 +123,21 @@ export function captureCanvasWriteBatchRawEvidence(
   return parsed.data
 }
 
+export function captureCanvasDeleteRawEvidence(
+  snapshot: GenerationCanvasSnapshot,
+  input: CanvasDeleteInput,
+): CanvasWriteBatchRawEvidence {
+  const evidence = captureCanvasWriteBatchRawEvidence(snapshot)
+  const knownNodeIds = new Set(snapshot.nodes.map((node) => node.id))
+  const resolvedReferences = input.nodeIds.flatMap((requestedId) => {
+    const nodeId = resolveCanvasToolNodeId(requestedId)
+    return knownNodeIds.has(nodeId) ? [{ requestedId, nodeId }] : []
+  })
+  const parsed = canvasWriteBatchRawEvidenceSchema.safeParse({ ...evidence, resolvedReferences })
+  if (!parsed.success) throw new CanvasWriteEvidenceError('capability_input_invalid')
+  return parsed.data
+}
+
 export function captureCanvasWriteRawEvidence(
   snapshot: GenerationCanvasSnapshot,
   requestedNodeId: string | Readonly<{ operation: CanvasWriteOperation; input?: unknown }>,
@@ -177,19 +200,31 @@ export type CanvasWriteTargetExecution = Readonly<{
   receiptProposalId: string
   approvalId: string
   actionHash: string
+  signal: AbortSignal
+  assertCurrent(): void
 }>
 
 function wireError(error: unknown): SurfacePortWireError {
   const code = error && typeof error === 'object' ? (error as { code?: unknown }).code : undefined
   return new SurfacePortWireError(
-    code === 'capability_input_invalid' || code === 'capability_target_stale' ? code : 'capability_receipt_unresolved',
+    code === 'capability_cancelled' || code === 'capability_input_invalid' || code === 'capability_target_stale'
+      ? code
+      : 'capability_receipt_unresolved',
   )
+}
+
+function assertExecutionCurrent(request: CanvasWriteTargetExecution): void {
+  if (request.signal.aborted) throw new SurfacePortWireError('capability_cancelled')
+  request.assertCurrent()
 }
 
 export async function executeCanvasWriteTarget(
   request: CanvasWriteTargetExecution,
   readSnapshot: () => GenerationCanvasSnapshot,
-): Promise<CanvasWriteResult> {
+): Promise<CanvasWriteResult | CanvasDeleteResult> {
+  assertExecutionCurrent(request)
+  const deleteParsed = canvasDeleteSemanticInputSchema.safeParse(request.input)
+  if (deleteParsed.success) return executeCanvasDeleteTarget(request, deleteParsed.data, readSnapshot)
   const parsed = canvasWriteSemanticInputSchema.safeParse(request.input)
   if (!parsed.success) throw new SurfacePortWireError('capability_input_invalid')
   const input = parsed.data
@@ -205,12 +240,16 @@ export async function executeCanvasWriteTarget(
   try {
     outcome = await applyProposalBatch(
       [{ toolCallId: request.approvalId, toolName: input.operation, effectiveArgs: input }],
-      undefined,
+      { canWrite: () => {
+        assertExecutionCurrent(request)
+        return true
+      } },
       receiptCoordinator,
       {
         proposalId: request.receiptProposalId,
         beforePrepare() {
           try {
+            assertExecutionCurrent(request)
             const admission = assertCanvasWriteAdmissionMatches(
               captureCanvasWriteRawEvidence(
                 readSnapshot(),
@@ -314,4 +353,66 @@ export async function executeCanvasWriteTarget(
     categoryId,
     nodeCount: afterSnapshot.nodes.filter((node) => (node.categoryId ?? 'shots') === categoryId).length,
   } satisfies CanvasWriteResult
+}
+
+async function executeCanvasDeleteTarget(
+  request: CanvasWriteTargetExecution,
+  input: CanvasDeleteInput,
+  readSnapshot: () => GenerationCanvasSnapshot,
+): Promise<CanvasDeleteResult> {
+  assertExecutionCurrent(request)
+  const receiptCoordinator = createProposalReceiptCoordinator({
+    summary: summarizeToolCall(input.operation, input),
+    stepLabels: buildStepDetailLabels(input.operation, input),
+    hostApprovalId: request.approvalId,
+    hostActionHash: request.actionHash,
+  })
+  const beforeSnapshot = readSnapshot()
+  let outcome: Awaited<ReturnType<typeof applyProposalBatch>>
+  try {
+    outcome = await applyProposalBatch(
+      [{ toolCallId: request.approvalId, toolName: input.operation, effectiveArgs: input }],
+      { canWrite: () => {
+        assertExecutionCurrent(request)
+        return true
+      } },
+      receiptCoordinator,
+      {
+        proposalId: request.receiptProposalId,
+        beforePrepare() {
+          try {
+            assertExecutionCurrent(request)
+            assertCanvasDeleteAdmissionMatches(
+              captureCanvasDeleteRawEvidence(readSnapshot(), input),
+              input,
+              { target: request.target, preconditions: request.preconditions },
+            )
+          } catch (error) {
+            throw wireError(error)
+          }
+        },
+      },
+    )
+  } catch (error) {
+    throw wireError(error)
+  }
+  if (outcome.status !== 'committed') throw wireError(new Error(outcome.reason))
+  const afterIds = new Set(readSnapshot().nodes.map((node) => node.id))
+  const deletedNodeIds = beforeSnapshot.nodes
+    .filter((node) => !afterIds.has(node.id) && (request.target as { nodeIds?: unknown }).nodeIds instanceof Array &&
+      (request.target as { nodeIds: string[] }).nodeIds.includes(node.id))
+    .map((node) => node.id)
+  if (deletedNodeIds.length !== input.nodeIds.length) {
+    throw new SurfacePortWireError('capability_receipt_unresolved')
+  }
+  return {
+    operation: input.operation,
+    applied: true,
+    proposalId: outcome.proposalId,
+    deletedNodeIds,
+    reconciliation: {
+      ok: outcome.reconciliation.ok,
+      deviationCount: outcome.reconciliation.deviations.length,
+    },
+  }
 }

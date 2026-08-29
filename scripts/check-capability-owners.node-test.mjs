@@ -191,6 +191,34 @@ test('migrated aliases cannot return to Pi, MCP, READ_ONLY_TOOLS, or TOOL_META l
   }
 })
 
+test('Phase 4 aliases cannot return to renderer policy, Canvas forwarding, or retired dispatchers', async (t) => {
+  const mutations = [
+    {
+      file: 'src/workbench/generationCanvas/agent/gate.ts',
+      source: `const TOOL_META = { get_media: { writes: false }, delete_canvas_nodes: { writes: true } }`,
+      diagnostic: /Phase 4 legacy owner.*gate\.ts.*(?:get_media|delete_canvas_nodes)/i,
+    },
+    {
+      file: 'src/workbench/generationCanvas/agent/applyCanvasToolCall.ts',
+      source: `export function applyCanvasToolCall(name) { if (name === 'export_timeline') return legacy() }`,
+      diagnostic: /Phase 4 legacy owner.*applyCanvasToolCall\.ts.*export_timeline/i,
+    },
+    {
+      file: 'electron/harness/tools/canvasDescriptors.ts',
+      source: `export const descriptors = { delete_canvas_nodes: { name: 'delete_canvas_nodes' } }`,
+      diagnostic: /Phase 4 legacy owner.*canvasDescriptors\.ts.*delete_canvas_nodes/i,
+    },
+    {
+      file: 'src/workbench/timeline/agent/timelineToolCall.ts',
+      source: `export function applyTimelineToolCall() {}`,
+      diagnostic: /Phase 4 retired dispatcher.*timelineToolCall\.ts/i,
+    },
+  ]
+  for (const mutation of mutations) {
+    await t.test(mutation.file, () => expectRejected(withFile(mutation.file, mutation.source), mutation.diagnostic))
+  }
+})
+
 test('shared capability leaves cannot import environment layers', async (t) => {
   for (const dependency of [
     'node:fs',

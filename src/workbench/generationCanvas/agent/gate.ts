@@ -28,19 +28,9 @@ export type GateContext = {
 type ToolMeta = { writes: boolean; destructive?: boolean; costy?: boolean }
 
 const TOOL_META: Record<string, ToolMeta> = {
-  get_media: { writes: false },
-  inspect_media: { writes: false },
-  search_media: { writes: false },
-  inspect_source_range: { writes: false },
-  read_waveform: { writes: false },
-  export_timeline: { writes: true },
-  inspect_export_job: { writes: false },
-  verify_render: { writes: false },
-  cancel_export_job: { writes: true, destructive: true },
   // 产出分镜方案对象,只落创作 store 给用户审/改(不写画布投影、不花钱)——免费可改,直通放行(allow)。
   // 真正花钱/写画布的是用户确认后由方案转出的 canonical Canvas write + generation batch。
   propose_storyboard_plan: { writes: false },
-  delete_canvas_nodes: { writes: true, destructive: true },
   // S6b 受理语义:不写画布投影,但花真钱——costy 必问,确认前零网络调用。
   run_generation_batch: { writes: false, costy: true },
   // 写时间轴(非画布投影,不花钱):非破坏、可撤销,但有可见副作用——按写操作走确认门(ask)。
@@ -100,14 +90,6 @@ function evaluateLock(toolName: string, args: unknown, ctx: GateContext): GateDe
     }),
   })
 
-  if (toolName === 'delete_canvas_nodes') {
-    const nodeIds = Array.isArray(record.nodeIds) ? record.nodeIds : []
-    for (const raw of nodeIds) {
-      const nodeId = resolve(String(raw || '').trim())
-      if (locked.has(nodeId)) return denyFor(nodeId, 'deleteNode')
-    }
-    return null
-  }
   if (toolName === 'run_generation_batch') {
     // 重新生成会覆盖 result——锁住的定妆卡不许被批量重跑(引用它当参考照常,那是出边)。
     const nodeIds = Array.isArray(record.nodeIds) ? record.nodeIds : []

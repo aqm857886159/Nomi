@@ -18,6 +18,11 @@ vi.mock("./proposalUndo", () => ({ createProposalReceiptCoordinator: deps.create
 
 import { captureCanvasWriteRawEvidence, executeCanvasWriteTarget } from "./canvasWriteTarget";
 
+const executionGuard = {
+  signal: new AbortController().signal,
+  assertCurrent: vi.fn(),
+};
+
 function writableSnapshot(prompt = "old prompt", locked = false): GenerationCanvasSnapshot {
   return {
     nodes: [{
@@ -136,6 +141,7 @@ describe("canvas.write renderer evidence capture", () => {
       receiptProposalId: "receipt-host-a",
       approvalId: "approval-host-a",
       actionHash: "a".repeat(64),
+      ...executionGuard,
     }, () => snapshot)).resolves.toEqual({
       applied: true,
       proposalId: "receipt-host-a",
@@ -167,6 +173,7 @@ describe("canvas.write renderer evidence capture", () => {
       receiptProposalId: "receipt-host-a",
       approvalId: "approval-host-a",
       actionHash: "a".repeat(64),
+      ...executionGuard,
     }, () => current)).rejects.toMatchObject({ code: "capability_target_stale" });
   });
 });

@@ -31,11 +31,18 @@ import type {
   PiTimelineWriteTransportAdapter,
   PreparedTimelineWrite,
 } from "../capabilityCore/timelineTransportAdapters";
+import type {
+  PiPhase4SurfaceTransportAdapter,
+  PreparedExportWrite,
+} from "../capabilityCore/phase4SurfaceTransportAdapters";
 import { resolveCapabilityAlias } from "../shared/agentCapabilities/registry";
 import { DOCUMENT_READ_CAPABILITY } from "../shared/agentCapabilities/documentRead";
+import { CANVAS_DELETE_CAPABILITY } from "../shared/agentCapabilities/canvasDelete";
 import { CANVAS_WRITE_CAPABILITY } from "../shared/agentCapabilities/canvasWrite";
 import { TIMELINE_READ_CAPABILITY } from "../shared/agentCapabilities/timelineRead";
 import { TIMELINE_WRITE_CAPABILITY } from "../shared/agentCapabilities/timelineWrite";
+import { ASSET_READ_CAPABILITY } from "../shared/agentCapabilities/assetRead";
+import { EXPORT_READ_CAPABILITY, EXPORT_WRITE_CAPABILITY } from "../shared/agentCapabilities/exportCapabilities";
 import type { ProjectAgentProposalReceiptView } from "../shared/projectAgentProposalReceipt";
 import { committedProjectAgentReceiptMatchesApproval } from "./projectAgentProposalReceiptCorrelation";
 import { digest, executionPrompt, stableJson, statusForResponse, toolItem } from "./projectAgentExecutionHelpers";
@@ -56,6 +63,7 @@ export type ProjectAgentExecutionOpenOptions = Readonly<{
   canvasWrite?: PiCanvasWriteTransportAdapter;
   timelineRead?: PiTimelineReadTransportAdapter;
   timelineWrite?: PiTimelineWriteTransportAdapter;
+  phase4Surface?: PiPhase4SurfaceTransportAdapter;
   proposalReceipt?: ProjectAgentProposalReceiptReader;
 }>;
 
@@ -300,6 +308,7 @@ export function createProjectAgentExecutionCoordinator(
   const canvasWrites = new Map<string, PiCanvasWriteTransportAdapter | undefined>();
   const timelineReads = new Map<string, PiTimelineReadTransportAdapter | undefined>();
   const timelineWrites = new Map<string, PiTimelineWriteTransportAdapter | undefined>();
+  const phase4Surfaces = new Map<string, PiPhase4SurfaceTransportAdapter | undefined>();
   const proposalReceiptReaders = new Map<string, ProjectAgentProposalReceiptReader | undefined>();
   const runAgent =
     deps.runAgent ?? (async (request, hooks) => (await import("../ai/agentChatV2")).runAgentChatV2(request, hooks));
@@ -527,6 +536,7 @@ export function createProjectAgentExecutionCoordinator(
     canvasWrites.set(subscription.subscriptionId, options.canvasWrite);
     timelineReads.set(subscription.subscriptionId, options.timelineRead);
     timelineWrites.set(subscription.subscriptionId, options.timelineWrite);
+    phase4Surfaces.set(subscription.subscriptionId, options.phase4Surface);
     proposalReceiptReaders.set(subscription.subscriptionId, options.proposalReceipt);
     return subscription;
   }
@@ -922,6 +932,24 @@ export function createProjectAgentExecutionCoordinator(
     return selected;
   }
 
+  function phase4SurfaceFor(partition: ExecutionPartition, preferredSubscriptionId: string) {
+    const currentPreferred = partition.subscriptionIds.has(preferredSubscriptionId)
+      ? phase4Surfaces.get(preferredSubscriptionId)
+      : undefined;
+    if (currentPreferred) return currentPreferred;
+    let selected: PiPhase4SurfaceTransportAdapter | undefined;
+    let selectedEpoch = -1;
+    for (const subscriptionId of partition.subscriptionIds) {
+      const subscription = subscriptions.get(subscriptionId);
+      const adapter = phase4Surfaces.get(subscriptionId);
+      if (subscription && adapter && subscription.subscriptionEpoch > selectedEpoch) {
+        selected = adapter;
+        selectedEpoch = subscription.subscriptionEpoch;
+      }
+    }
+    return selected;
+  }
+
   function proposalReceiptReaderFor(partition: ExecutionPartition, preferredSubscriptionId: string) {
     const currentPreferred = partition.subscriptionIds.has(preferredSubscriptionId)
       ? proposalReceiptReaders.get(preferredSubscriptionId)
@@ -1041,7 +1069,9 @@ export function createProjectAgentExecutionCoordinator(
           // cannot become a second tool dispatch/executor owner.
           const frozen = partition.requests.get(execution.turn.turnId);
           const canonicalCapability = resolveCapabilityAlias(call.toolName)?.contract;
-          if (canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id && execution.blockedCanvasWriteDecision) {
+          const isCanvasMutation = canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id
+            || canonicalCapability?.id === CANVAS_DELETE_CAPABILITY.id;
+          if (isCanvasMutation && execution.blockedCanvasWriteDecision) {
             return execution.blockedCanvasWriteDecision;
           }
           const read = await canvasReadFor(
@@ -1061,6 +1091,15 @@ export function createProjectAgentExecutionCoordinator(
           const timelineRead = await timelineReadAdapter?.tryExecute(call, signal);
           if (timelineRead) return timelineRead;
           if (canonicalCapability?.id === TIMELINE_READ_CAPABILITY.id) {
+            return { ok: false, code: "surface_port_unavailable", message: "surface_port_unavailable" };
+          }
+          const phase4Surface = phase4SurfaceFor(partition, frozen?.preferredSubscriptionId ?? "");
+          const phase4Read = await phase4Surface?.tryExecuteRead(call, signal);
+          if (phase4Read) return phase4Read;
+          if (
+            canonicalCapability?.id === ASSET_READ_CAPABILITY.id
+            || canonicalCapability?.id === EXPORT_READ_CAPABILITY.id
+          ) {
             return { ok: false, code: "surface_port_unavailable", message: "surface_port_unavailable" };
           }
           const canvasWriteAdapter = canvasWriteFor(partition, frozen?.preferredSubscriptionId ?? "");
@@ -1147,7 +1186,7 @@ export function createProjectAgentExecutionCoordinator(
               recordProposalSettlement(execution, persisted.approvalId, "done");
               return executed!;
             }
-            if (canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id) {
+            if (isCanvasMutation) {
               return rememberCanvasWriteOutcome(
                 execution,
                 call.toolCallId,
@@ -1156,7 +1195,73 @@ export function createProjectAgentExecutionCoordinator(
               );
             }
           }
-          if (canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id) {
+          if (isCanvasMutation) {
+            return rememberCanvasWriteOutcome(
+              execution,
+              call.toolCallId,
+              "capability_surface_unavailable",
+              "capability_surface_unavailable",
+            );
+          }
+          if (phase4Surface) {
+            let prepared: PreparedExportWrite | null;
+            try {
+              prepared = await phase4Surface.prepareWrite(call, signal);
+            } catch (error) {
+              const code = error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string"
+                ? (error as { code: string }).code
+                : error instanceof Error ? error.message : "capability_execution_failed";
+              return rememberCanvasWriteOutcome(execution, call.toolCallId, code, "capability_unsupported");
+            }
+            if (prepared) {
+              const decision = await awaitToolDecision(partition, execution, call, signal);
+              if (!decision.ok) {
+                return rememberCanvasWriteOutcome(
+                  execution,
+                  call.toolCallId,
+                  decision.code,
+                  signal.aborted ? "capability_cancelled" : "capability_declined",
+                  decision.denied,
+                );
+              }
+              const persisted = await persistApprovedProposal(partition, execution, call, decision, {
+                approvalId: `approval-${digest([execution.turn.executionToken, call.toolCallId])}`,
+                receiptProposalId: `receipt-${digest([execution.turn.executionToken, call.toolCallId, "receipt"])}`,
+                target: prepared.invocation.target,
+                preconditions: prepared.invocation.preconditions,
+                policyRevision: prepared.invocation.policyRevision,
+                inputHash: prepared.invocation.inputHash,
+                actionHash: prepared.invocation.actionHash,
+              });
+              if (!persisted) throw new Error("approval_persistence_failed");
+              const executed = await phase4Surface.executeWrite(prepared, {
+                receiptProposalId: persisted.receiptProposalId,
+                approvalId: persisted.approvalId,
+                actionHash: persisted.actionHash,
+              }, signal);
+              const receipt = readProposalReceiptSafely(proposalReceiptReaderFor(
+                partition,
+                frozen?.preferredSubscriptionId ?? "",
+              ));
+              const receiptMatches = committedProjectAgentReceiptMatchesApproval(
+                partition.binding,
+                receipt,
+                persisted,
+              );
+              if (!executed.ok || !receiptMatches) {
+                recordProposalSettlement(execution, persisted.approvalId, "failed");
+                return rememberCanvasWriteOutcome(
+                  execution,
+                  call.toolCallId,
+                  executed.ok ? "capability_receipt_unresolved" : executed.code,
+                  signal.aborted ? "capability_cancelled" : "capability_receipt_unresolved",
+                );
+              }
+              recordProposalSettlement(execution, persisted.approvalId, "done");
+              return executed;
+            }
+          }
+          if (canonicalCapability?.id === EXPORT_WRITE_CAPABILITY.id) {
             return rememberCanvasWriteOutcome(
               execution,
               call.toolCallId,
@@ -1570,6 +1675,8 @@ export function createProjectAgentExecutionCoordinator(
       timelineReads.delete(subscriptionId);
       timelineWrites.get(subscriptionId)?.dispose();
       timelineWrites.delete(subscriptionId);
+      phase4Surfaces.get(subscriptionId)?.dispose();
+      phase4Surfaces.delete(subscriptionId);
       proposalReceiptReaders.delete(subscriptionId);
     },
     subscriptionCount: () => subscriptions.size,

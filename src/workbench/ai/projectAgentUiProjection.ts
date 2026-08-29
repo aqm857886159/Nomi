@@ -70,7 +70,12 @@ function itemMessage(
         status: uiStatus(item.status),
       }
     case 'task':
-      return { ...base, role: 'assistant', content: `task:${item.task.runId}`, status: 'done' }
+      return {
+        ...base,
+        role: 'assistant',
+        content: `task:${item.task.kind === 'production-run' ? item.task.runId : item.task.jobId}`,
+        status: 'done',
+      }
     case 'proposal':
       return {
         ...base,

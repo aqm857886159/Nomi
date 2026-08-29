@@ -276,6 +276,7 @@ export type ProposalReceiptMetadata = Readonly<{
   categoryCounts?: CommittedProposalRecord['categoryCounts']
   anchorMessageId?: string
   anchorTextOffset?: number
+  prepareCompensation?: 'canvas_snapshot' | 'none'
 }>
 
 export type ProposalReceiptDisposition = ProjectAgentProposalReceiptLifecycle | 'missing' | 'superseded'
@@ -325,7 +326,7 @@ export function createProposalReceiptCoordinator(metadata: ProposalReceiptMetada
       }
       return prepareProposalReceipt({
         ...base(proposalId),
-        compensation: [{ kind: 'restore-snapshot', snapshot }],
+        compensation: metadata.prepareCompensation === 'none' ? [] : [{ kind: 'restore-snapshot', snapshot }],
         watchNodes: [],
         reconciliationOk: true,
       })

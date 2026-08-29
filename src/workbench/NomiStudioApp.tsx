@@ -23,12 +23,22 @@ import {
 } from './generationCanvas/agent/proposalUndo'
 import { useGenerationCanvasStore } from './generationCanvas/store/generationCanvasStore'
 import { readGenerationCanvasSnapshot } from './generationCanvas/agent/generationCanvasTools'
-import { captureCanvasWriteRawEvidence, executeCanvasWriteTarget } from './generationCanvas/agent/canvasWriteTarget'
+import {
+  captureCanvasDeleteRawEvidence,
+  captureCanvasWriteRawEvidence,
+  executeCanvasWriteTarget,
+} from './generationCanvas/agent/canvasWriteTarget'
+import { canvasDeleteSemanticInputSchema } from '../../electron/shared/agentCapabilities/canvasDelete'
 import {
   executeTimelineReadTarget,
   executeTimelineWriteTarget,
   type TimelineWriteTargetExecution,
 } from './timeline/agent/timelineCapabilityTarget'
+import {
+  executeAssetReadTarget,
+  executeExportReadTarget,
+  executeExportWriteTarget,
+} from './timeline/agent/phase4CapabilityTargets'
 import { FOCUS_GENERATION_NODE_EVENT } from './generationCanvas/nodes/nodeSizing'
 import { focusCanvasNodeWhenReady } from './deepLinkFocus'
 import { projectAgentClient } from './ai/projectAgentClient'
@@ -286,12 +296,14 @@ export default function NomiStudioApp(): JSX.Element {
           }
           return { text: scope === 'full' ? tools.readFullText() : tools.readSelectionText() }
         },
-        ({ documentId, operation, content, target, preconditions }) => {
+        ({ documentId, operation, content, target, preconditions, signal, assertCurrent }) => {
           const store = useWorkbenchStore.getState()
           const tools = store.creationDocumentTools
           if (!tools || store.activeDocumentId !== documentId) {
             throw new SurfacePortWireError('surface_port_stale')
           }
+          if (signal.aborted) throw new SurfacePortWireError('capability_cancelled')
+          assertCurrent()
           return tools.applyDocumentWrite({
             operation,
             content,
@@ -301,6 +313,12 @@ export default function NomiStudioApp(): JSX.Element {
         },
         ({ operation, input, nodeId }) => {
           try {
+            if (operation === 'delete_canvas_nodes') {
+              return captureCanvasDeleteRawEvidence(
+                readGenerationCanvasSnapshot(),
+                canvasDeleteSemanticInputSchema.parse(input),
+              )
+            }
             return captureCanvasWriteRawEvidence(
               readGenerationCanvasSnapshot(),
               operation === 'set_node_prompt' ? (nodeId ?? '') : { operation, input },
@@ -316,6 +334,11 @@ export default function NomiStudioApp(): JSX.Element {
         (request) => executeCanvasWriteTarget(request, readGenerationCanvasSnapshot),
         ({ input }) => executeTimelineReadTarget(input),
         (request) => executeTimelineWriteTarget(request as TimelineWriteTargetExecution),
+        {
+          readAsset: executeAssetReadTarget,
+          readExport: executeExportReadTarget,
+          writeExport: executeExportWriteTarget,
+        },
       ),
     [projectSurface],
   )

@@ -1,6 +1,17 @@
 import crypto from "node:crypto";
 
+import {
+  ASSET_READ_CAPABILITY,
+  assetReadSemanticInputSchema,
+  type AssetReadInput,
+} from "../shared/agentCapabilities/assetRead";
 import { CANVAS_READ_CAPABILITY, type CanvasReadInput } from "../shared/agentCapabilities/canvasRead";
+import {
+  CANVAS_DELETE_CAPABILITY,
+  canvasDeleteSemanticInputSchema,
+  type CanvasDeleteInput,
+} from "../shared/agentCapabilities/canvasDelete";
+import { buildCanvasDeleteAdmission } from "../shared/agentCapabilities/canvasDeleteEvidence";
 import {
   CANVAS_WRITE_CAPABILITY,
   canvasWriteSemanticInputSchema,
@@ -17,6 +28,14 @@ import {
   documentWriteSemanticInputSchema,
   type DocumentWriteInput,
 } from "../shared/agentCapabilities/documentWrite";
+import {
+  EXPORT_READ_CAPABILITY,
+  EXPORT_WRITE_CAPABILITY,
+  exportReadSemanticInputSchema,
+  exportWriteSemanticInputSchema,
+  type ExportReadInput,
+  type ExportWriteInput,
+} from "../shared/agentCapabilities/exportCapabilities";
 import {
   TIMELINE_READ_CAPABILITY,
   timelineReadSemanticInputSchema,
@@ -52,9 +71,13 @@ import { resolveProjectSessionLeaseVerification, type VerifiedProjectSessionBind
 
 export const CANVAS_READ_INVOCATION_POLICY_REVISION = 1 as const;
 export const DOCUMENT_WRITE_INVOCATION_POLICY_REVISION = 1 as const;
+export const CANVAS_DELETE_INVOCATION_POLICY_REVISION = 1 as const;
 export const CANVAS_WRITE_INVOCATION_POLICY_REVISION = 1 as const;
 export const TIMELINE_READ_INVOCATION_POLICY_REVISION = 1 as const;
 export const TIMELINE_WRITE_INVOCATION_POLICY_REVISION = 1 as const;
+export const ASSET_READ_INVOCATION_POLICY_REVISION = 1 as const;
+export const EXPORT_READ_INVOCATION_POLICY_REVISION = 1 as const;
+export const EXPORT_WRITE_INVOCATION_POLICY_REVISION = 1 as const;
 
 export type { PreconditionSet } from "../shared/capabilityTargeting";
 export type { ProjectBinding } from "../shared/projectBinding";
@@ -153,7 +176,10 @@ export type VerifiedCapabilityExecutionTarget =
   | Readonly<{ kind: "document-write-surface"; capturedPort: CapturedCanvasReadPort; documentId: string }>
   | Readonly<{ kind: "canvas-write-surface"; capturedPort: CapturedCanvasReadPort }>
   | Readonly<{ kind: "timeline-read-surface"; capturedPort: CapturedCanvasReadPort }>
-  | Readonly<{ kind: "timeline-write-surface"; capturedPort: CapturedCanvasReadPort }>;
+  | Readonly<{ kind: "timeline-write-surface"; capturedPort: CapturedCanvasReadPort }>
+  | Readonly<{ kind: "asset-read-surface"; capturedPort: CapturedCanvasReadPort }>
+  | Readonly<{ kind: "export-read-surface"; capturedPort: CapturedCanvasReadPort }>
+  | Readonly<{ kind: "export-write-surface"; capturedPort: CapturedCanvasReadPort }>;
 
 type InvocationState = Readonly<{
   evidence: CapabilityAuthorityEvidence;
@@ -884,6 +910,53 @@ export function createRendererCanvasWriteVerifiedInvocationFactory(
   });
 }
 
+export type RendererCanvasDeleteVerifiedInvocationFactory = Readonly<{
+  mint(
+    input: Readonly<{ toolCallId: string; input: unknown; rawEvidence: unknown }>,
+  ): Promise<VerifiedCapabilityInvocation<CanvasDeleteInput, Extract<TargetRef, { kind: "canvas" }>>>;
+}>;
+
+export function createRendererCanvasDeleteVerifiedInvocationFactory(
+  input: Readonly<{
+    registry: CanvasReadSurfaceRegistry;
+    capturedPort: CapturedCanvasReadPort;
+    requestId: string;
+  }>,
+): RendererCanvasDeleteVerifiedInvocationFactory {
+  assertCanvasReadSurfaceRegistry(input.registry);
+  input.registry.resolveCapturedCanvasReadPort(input.capturedPort);
+  const requestId = nonEmptyString(input.requestId);
+  return Object.freeze({
+    async mint({ toolCallId: toolCallIdValue, input: semanticValue, rawEvidence }) {
+      const toolCallId = nonEmptyString(toolCallIdValue);
+      let semanticInput: CanvasDeleteInput;
+      try {
+        semanticInput = deepFreeze(canvasDeleteSemanticInputSchema.parse(semanticValue));
+      } catch {
+        throw new CapabilityInvocationError("capability_input_invalid");
+      }
+      const admission = buildCanvasDeleteAdmission(rawEvidence, semanticInput);
+      const caller = Object.freeze({ kind: "embedded-agent" as const, requestId, toolCallId });
+      const verify = async (): Promise<RendererAuthorityEvidence> => {
+        const dispatch = input.registry.resolveCapturedCanvasReadPort(input.capturedPort);
+        const binding = await input.registry.assertCanvasReadPortReply(input.capturedPort, dispatch.binding);
+        return rendererEvidence(binding, caller);
+      };
+      const evidence = await verify();
+      return mintCapabilityInvocation({
+        capability: CANVAS_DELETE_CAPABILITY,
+        policyRevision: CANVAS_DELETE_INVOCATION_POLICY_REVISION,
+        semanticInput,
+        evidence,
+        revalidate: verify,
+        target: admission.target,
+        preconditions: admission.preconditions,
+        executionTarget: Object.freeze({ kind: "canvas-write-surface" as const, capturedPort: input.capturedPort }),
+      });
+    },
+  });
+}
+
 type TimelineTarget = Extract<TargetRef, { kind: "timeline" }>;
 
 function timelineClipIds(input: TimelineReadInput | TimelineWriteInput): readonly string[] {
@@ -990,6 +1063,142 @@ export function createRendererTimelineWriteVerifiedInvocationFactory(
   });
 }
 
+type AssetTarget = Extract<TargetRef, { kind: "asset" }>;
+type ExportTarget = Extract<TargetRef, { kind: "export" }>;
+
+function assetTarget(input: AssetReadInput): AssetTarget {
+  return Object.freeze({
+    kind: "asset" as const,
+    assetIds: Object.freeze("assetId" in input ? [input.assetId] : []),
+  });
+}
+
+function exportTarget(input: ExportReadInput | ExportWriteInput): ExportTarget {
+  return input.operation === "export_timeline"
+    ? Object.freeze({ kind: "export" as const, timelineRevision: input.expectedRevision })
+    : Object.freeze({ kind: "export" as const, jobId: input.jobId });
+}
+
+function exportPreconditions(input: ExportReadInput | ExportWriteInput): PreconditionSet {
+  return input.operation === "export_timeline"
+    ? Object.freeze({ timeline: Object.freeze({ revision: input.expectedRevision }) })
+    : EMPTY_PRECONDITIONS;
+}
+
+export function createRendererAssetReadVerifiedInvocationFactory(
+  input: Readonly<{ registry: CanvasReadSurfaceRegistry; capturedPort: CapturedCanvasReadPort; requestId: string }>,
+): Readonly<{
+  mint(value: Readonly<{ toolCallId: string; input: unknown }>): Promise<VerifiedCapabilityInvocation<AssetReadInput, AssetTarget>>;
+}> {
+  assertCanvasReadSurfaceRegistry(input.registry);
+  input.registry.resolveCapturedCanvasReadPort(input.capturedPort);
+  const requestId = nonEmptyString(input.requestId);
+  return Object.freeze({
+    async mint({ toolCallId: toolCallIdValue, input: semanticValue }) {
+      const toolCallId = nonEmptyString(toolCallIdValue);
+      let semanticInput: AssetReadInput;
+      try {
+        semanticInput = deepFreeze(assetReadSemanticInputSchema.parse(semanticValue));
+      } catch {
+        throw new CapabilityInvocationError("capability_input_invalid");
+      }
+      const caller = Object.freeze({ kind: "embedded-agent" as const, requestId, toolCallId });
+      const verify = async (): Promise<RendererAuthorityEvidence> => {
+        const dispatch = input.registry.resolveCapturedCanvasReadPort(input.capturedPort);
+        const binding = await input.registry.assertCanvasReadPortReply(input.capturedPort, dispatch.binding);
+        return rendererEvidence(binding, caller);
+      };
+      const evidence = await verify();
+      return mintCapabilityInvocation({
+        capability: ASSET_READ_CAPABILITY,
+        policyRevision: ASSET_READ_INVOCATION_POLICY_REVISION,
+        semanticInput,
+        target: assetTarget(semanticInput),
+        preconditions: EMPTY_PRECONDITIONS,
+        evidence,
+        revalidate: verify,
+        executionTarget: Object.freeze({ kind: "asset-read-surface" as const, capturedPort: input.capturedPort }),
+      });
+    },
+  });
+}
+
+export function createRendererExportReadVerifiedInvocationFactory(
+  input: Readonly<{ registry: CanvasReadSurfaceRegistry; capturedPort: CapturedCanvasReadPort; requestId: string }>,
+): Readonly<{
+  mint(value: Readonly<{ toolCallId: string; input: unknown }>): Promise<VerifiedCapabilityInvocation<ExportReadInput, ExportTarget>>;
+}> {
+  assertCanvasReadSurfaceRegistry(input.registry);
+  input.registry.resolveCapturedCanvasReadPort(input.capturedPort);
+  const requestId = nonEmptyString(input.requestId);
+  return Object.freeze({
+    async mint({ toolCallId: toolCallIdValue, input: semanticValue }) {
+      const toolCallId = nonEmptyString(toolCallIdValue);
+      let semanticInput: ExportReadInput;
+      try {
+        semanticInput = deepFreeze(exportReadSemanticInputSchema.parse(semanticValue));
+      } catch {
+        throw new CapabilityInvocationError("capability_input_invalid");
+      }
+      const caller = Object.freeze({ kind: "embedded-agent" as const, requestId, toolCallId });
+      const verify = async (): Promise<RendererAuthorityEvidence> => {
+        const dispatch = input.registry.resolveCapturedCanvasReadPort(input.capturedPort);
+        const binding = await input.registry.assertCanvasReadPortReply(input.capturedPort, dispatch.binding);
+        return rendererEvidence(binding, caller);
+      };
+      const evidence = await verify();
+      return mintCapabilityInvocation({
+        capability: EXPORT_READ_CAPABILITY,
+        policyRevision: EXPORT_READ_INVOCATION_POLICY_REVISION,
+        semanticInput,
+        target: exportTarget(semanticInput),
+        preconditions: EMPTY_PRECONDITIONS,
+        evidence,
+        revalidate: verify,
+        executionTarget: Object.freeze({ kind: "export-read-surface" as const, capturedPort: input.capturedPort }),
+      });
+    },
+  });
+}
+
+export function createRendererExportWriteVerifiedInvocationFactory(
+  input: Readonly<{ registry: CanvasReadSurfaceRegistry; capturedPort: CapturedCanvasReadPort; requestId: string }>,
+): Readonly<{
+  mint(value: Readonly<{ toolCallId: string; input: unknown }>): Promise<VerifiedCapabilityInvocation<ExportWriteInput, ExportTarget>>;
+}> {
+  assertCanvasReadSurfaceRegistry(input.registry);
+  input.registry.resolveCapturedCanvasReadPort(input.capturedPort);
+  const requestId = nonEmptyString(input.requestId);
+  return Object.freeze({
+    async mint({ toolCallId: toolCallIdValue, input: semanticValue }) {
+      const toolCallId = nonEmptyString(toolCallIdValue);
+      let semanticInput: ExportWriteInput;
+      try {
+        semanticInput = deepFreeze(exportWriteSemanticInputSchema.parse(semanticValue));
+      } catch {
+        throw new CapabilityInvocationError("capability_input_invalid");
+      }
+      const caller = Object.freeze({ kind: "embedded-agent" as const, requestId, toolCallId });
+      const verify = async (): Promise<RendererAuthorityEvidence> => {
+        const dispatch = input.registry.resolveCapturedCanvasReadPort(input.capturedPort);
+        const binding = await input.registry.assertCanvasReadPortReply(input.capturedPort, dispatch.binding);
+        return rendererEvidence(binding, caller);
+      };
+      const evidence = await verify();
+      return mintCapabilityInvocation({
+        capability: EXPORT_WRITE_CAPABILITY,
+        policyRevision: EXPORT_WRITE_INVOCATION_POLICY_REVISION,
+        semanticInput,
+        target: exportTarget(semanticInput),
+        preconditions: exportPreconditions(semanticInput),
+        evidence,
+        revalidate: verify,
+        executionTarget: Object.freeze({ kind: "export-write-surface" as const, capturedPort: input.capturedPort }),
+      });
+    },
+  });
+}
+
 export function assertVerifiedCapabilityInvocation(
   value: unknown,
 ): asserts value is VerifiedCapabilityInvocation<unknown, unknown> {
@@ -1009,7 +1218,10 @@ export function resolveVerifiedCanvasReadExecutionTarget(
     state.executionTarget.kind === "document-write-surface" ||
     state.executionTarget.kind === "canvas-write-surface" ||
     state.executionTarget.kind === "timeline-read-surface" ||
-    state.executionTarget.kind === "timeline-write-surface"
+    state.executionTarget.kind === "timeline-write-surface" ||
+    state.executionTarget.kind === "asset-read-surface" ||
+    state.executionTarget.kind === "export-read-surface" ||
+    state.executionTarget.kind === "export-write-surface"
   ) {
     throw new CapabilityInvocationError("capability_authority_invalid");
   }

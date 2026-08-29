@@ -202,12 +202,12 @@ export type ProjectAgentProposalItem =
         deviated: false;
       }>);
 
-/** Task truth remains in ProductionRun. This item intentionally owns only TaskRef. */
+/** Task truth remains in its domain owner. This item intentionally owns only TaskRef. */
 export type ProjectAgentTaskItem = Omit<ProjectAgentItemBase, "status" | "retryable" | "deviated"> &
   Readonly<{
     kind: "task";
     task: TaskRef;
-    /** Local card creation is complete; ProductionRun status is read only from its projection. */
+    /** Local card creation is complete; task status is read only from its domain projection. */
     status: "done";
     retryable: false;
     deviated: false;

@@ -28,6 +28,7 @@ import type {
   PiTimelineReadTransportAdapter,
   PiTimelineWriteTransportAdapter,
 } from "../capabilityCore/timelineTransportAdapters";
+import type { PiPhase4SurfaceTransportAdapter } from "../capabilityCore/phase4SurfaceTransportAdapters";
 import type { CapturedCanvasReadSnapshotHandleWire } from "../shared/surfacePortBinding";
 import { ProjectAgentSubscriptionError } from "./projectAgentExecutionCoordinator";
 import { projectAgentProposalMatchesApproval } from "./projectAgentProposalReceiptCorrelation";
@@ -242,6 +243,11 @@ export function registerProjectAgentIpc(
       binding: ProjectBinding,
       requestId: string,
     ) => PiTimelineWriteTransportAdapter;
+    capturePhase4Surface?: (
+      event: IpcMainInvokeEvent,
+      binding: ProjectBinding,
+      requestId: string,
+    ) => PiPhase4SurfaceTransportAdapter;
     /** Main-only migration hook; it runs after sender/binding verification and before open. */
     prepareProject?: (
       binding: ProjectBinding,
@@ -332,6 +338,7 @@ export function registerProjectAgentIpc(
     let canvasWrite: PiCanvasWriteTransportAdapter | undefined;
     let timelineRead: PiTimelineReadTransportAdapter | undefined;
     let timelineWrite: PiTimelineWriteTransportAdapter | undefined;
+    let phase4Surface: PiPhase4SurfaceTransportAdapter | undefined;
     let subscription;
     let prepared: ProjectAgentPreparedProject | void;
     const sender = event.sender;
@@ -368,6 +375,7 @@ export function registerProjectAgentIpc(
       canvasWrite = input.captureCanvasWrite?.(event, binding, `project-agent-open-${binding.projectId}`);
       timelineRead = input.captureTimelineRead?.(event, binding, `project-agent-open-${binding.projectId}`);
       timelineWrite = input.captureTimelineWrite?.(event, binding, `project-agent-open-${binding.projectId}`);
+      phase4Surface = input.capturePhase4Surface?.(event, binding, `project-agent-open-${binding.projectId}`);
       prepared = await input.prepareProject?.(binding);
       assertCurrentAttempt();
       const proposalReceipts = prepared?.proposalReceipts;
@@ -376,7 +384,7 @@ export function registerProjectAgentIpc(
       }
       subscription = await input.runtime.executionCoordinator.open(
         binding,
-        canvasRead || documentRead || documentWrite || canvasWrite || timelineRead || timelineWrite || proposalReceipts
+        canvasRead || documentRead || documentWrite || canvasWrite || timelineRead || timelineWrite || phase4Surface || proposalReceipts
           ? {
               ...(canvasRead ? { canvasRead } : {}),
               ...(documentRead ? { documentRead } : {}),
@@ -384,6 +392,7 @@ export function registerProjectAgentIpc(
               ...(canvasWrite ? { canvasWrite } : {}),
               ...(timelineRead ? { timelineRead } : {}),
               ...(timelineWrite ? { timelineWrite } : {}),
+              ...(phase4Surface ? { phase4Surface } : {}),
               ...(proposalReceipts
                 ? { proposalReceipt: () => proposalReceipts.read() }
                 : {}),
@@ -400,6 +409,7 @@ export function registerProjectAgentIpc(
         canvasWrite?.dispose();
         timelineRead?.dispose();
         timelineWrite?.dispose();
+        phase4Surface?.dispose();
       }
       cleanupAttempt();
       if (openAttempts.get(sender) === attempt) openAttempts.delete(sender);

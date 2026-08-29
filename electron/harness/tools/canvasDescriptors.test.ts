@@ -16,7 +16,7 @@ const FORBIDDEN_OWNER_IMPORT =
   /(?:from|import\s*\()\s*["'](?:ai|@ai-sdk\/[^"']*|@mariozechner\/[^"']*|@earendil-works\/pi-[^"']*|[^"']*agentChatV2)["']/;
 
 describe("Nomi canvas descriptors", () => {
-  it("owns exactly the remaining seven legacy tool names", () => {
+  it("owns exactly the remaining six legacy tool names", () => {
     expect(Object.keys(canvasToolDescriptors)).toEqual([...canvasToolNames]);
     for (const [name, descriptor] of Object.entries(canvasToolDescriptors)) {
       expect(descriptor.name).toBe(name);
@@ -59,7 +59,7 @@ describe("Nomi canvas descriptors", () => {
       Object.entries(canvasToolDescriptors).map(([name, value]) => [name, value.description]),
     );
     expect(createHash("sha256").update(JSON.stringify(descriptions)).digest("hex")).toBe(
-      "5db44feec4cd01d9b6dca4517837640e9665efb0d1fcb14c8c7a7be5e83ed522",
+      "4f3383f266a2e5937ef40c8168b137627a585e4d404edfad0a5fdd35dc8082c8",
     );
   });
 
@@ -74,11 +74,6 @@ describe("Nomi canvas descriptors", () => {
     expect(source).not.toMatch(/name:\s*["']read_canvas_state["']/);
     expect(source).not.toContain('description: "Read the current generation canvas (nodes + edges)."');
     expect(source).not.toMatch(/read_canvas_state:\s*\{[\s\S]{0,160}parameters:\s*z\.object\(\{\}\)/);
-  });
-
-  it("retains the live destructive-action reason slot", () => {
-    const args = { nodeIds: ["obsolete-shot"], reason: "The creator removed this shot" };
-    expect(canvasToolDescriptors.delete_canvas_nodes.parameters.parse(args)).toEqual(args);
   });
 
   it("exposes storyboard string preprocessing through the real descriptor", () => {
@@ -275,11 +270,10 @@ describe("canvas descriptor schemas", () => {
   });
 
   describe("canvasToolNames", () => {
-    it("enumerates all 7 remaining legacy tools", () => {
+    it("enumerates all 6 remaining legacy tools", () => {
       expect(canvasToolNames).toEqual([
         "read_canvas_state",
         "propose_storyboard_plan", // 分镜方案：产出结构化方案对象落创作区，确认后才落画布
-        "delete_canvas_nodes",
         "run_generation_batch", // S6b 受理语义
         "arrange_storyboard_to_timeline", // 按剧本镜序排片到时间轴
         "create_staging_reference", // 3D 站位参考图（站位+动作+机位）
@@ -354,24 +348,6 @@ describe("canvas descriptor schemas", () => {
         prompt: `shot ${i + 1}`,
       }));
       expect(storyboardPlanParamsSchema.safeParse({ title: "too many", anchors: [], shots }).success).toBe(false);
-    });
-  });
-
-  describe("delete_canvas_nodes parameters", () => {
-    const schema = canvasToolDescriptors.delete_canvas_nodes.parameters;
-
-    it("accepts 1-24 ids", () => {
-      expect(schema.safeParse({ nodeIds: ["a"] }).success).toBe(true);
-      expect(schema.safeParse({ nodeIds: Array.from({ length: 24 }, (_, i) => `n${i}`) }).success).toBe(true);
-    });
-
-    it("rejects empty array and overflow", () => {
-      expect(schema.safeParse({ nodeIds: [] }).success).toBe(false);
-      expect(schema.safeParse({ nodeIds: Array.from({ length: 25 }, (_, i) => `n${i}`) }).success).toBe(false);
-    });
-
-    it("rejects empty string ids", () => {
-      expect(schema.safeParse({ nodeIds: ["good", ""] }).success).toBe(false);
     });
   });
 

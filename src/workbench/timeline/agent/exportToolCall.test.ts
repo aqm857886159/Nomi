@@ -76,7 +76,9 @@ describe('project-scoped export Agent tools', () => {
     expect(foreign.cancelJob).not.toHaveBeenCalled()
 
     const deps = runtime()
-    await expect(applyExportToolCall('cancel_export_job', { jobId: 'job-1' }, deps)).resolves.toEqual({ jobId: 'job-1', cancelled: true, status: 'cancelled' })
+    await expect(applyExportToolCall('cancel_export_job', { jobId: 'job-1' }, deps)).resolves.toEqual({
+      operation: 'cancel_export_job', jobId: 'job-1', cancelled: true, status: 'cancelled',
+    })
     expect(deps.cancelJob).toHaveBeenCalledWith('job-1')
   })
 
@@ -89,6 +91,7 @@ describe('project-scoped export Agent tools', () => {
   it('labels receipt verification honestly without claiming media decode', async () => {
     const success = runtime({ getJob: vi.fn(async () => job({ status: 'succeeded', progress: { ratio: 1, stage: 'succeeded', message: 'Succeeded' }, result: { outputPath: 'C:/private/out.mp4', bytes: 4096, durationMs: 2000 } })) })
     await expect(applyExportToolCall('verify_render', { jobId: 'job-1' }, success)).resolves.toEqual({
+      operation: 'verify_render',
       jobId: 'job-1', verified: true, verificationLevel: 'export_job_receipt', contentDecoded: false,
       status: 'succeeded', bytes: 4096, durationMs: 2000,
     })

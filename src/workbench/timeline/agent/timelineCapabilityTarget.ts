@@ -7,6 +7,7 @@ import type {
   TimelineWriteInput,
   TimelineWriteResult,
 } from '../../../../electron/shared/agentCapabilities/timelineWrite'
+import { SurfacePortWireError } from '../../../../electron/shared/surfacePortBinding'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import { clearAdoptionUndoSnapshot, workbenchAdoptionPorts } from '../../adoption/adoptionStorePorts'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -36,7 +37,14 @@ export type TimelineWriteTargetExecution = Readonly<{
   receiptProposalId: string
   approvalId: string
   actionHash: string
+  signal: AbortSignal
+  assertCurrent(): void
 }>
+
+function assertExecutionCurrent(request: TimelineWriteTargetExecution): void {
+  if (request.signal.aborted) throw new SurfacePortWireError('capability_cancelled')
+  request.assertCurrent()
+}
 
 function compactClip(clip: TimelineTrack['clips'][number], trackId: string): JsonRecord {
   return {
@@ -272,6 +280,7 @@ function applyPlan(request: TimelineWriteTargetExecution & { input: Extract<Time
     actionHash: request.actionHash,
   }
   try {
+    assertExecutionCurrent(request)
     workbenchAdoptionPorts.commitTimeline(result.timeline, base, createTimelineAgentUndoEntry(base, metadata))
   } catch (error) {
     try { workbenchAdoptionPorts.restoreTimeline(base) } catch { /* preserve the original error */ }
@@ -316,6 +325,7 @@ function undoPlan(request: TimelineWriteTargetExecution & { input: Extract<Timel
   ) {
     return failure(input.operation, 'undo_stale_revision', currentRevision, { undone: false })
   }
+  assertExecutionCurrent(request)
   state.undoTimeline()
   const afterRevision = timelineRevision(useWorkbenchStore.getState().timeline)
   const undone = afterRevision === metadata.beforeRevision
@@ -329,6 +339,7 @@ function undoPlan(request: TimelineWriteTargetExecution & { input: Extract<Timel
 }
 
 export function executeTimelineWriteTarget(request: TimelineWriteTargetExecution): TimelineWriteResult {
+  assertExecutionCurrent(request)
   if (request.input.operation === 'apply_edit_plan') {
     return applyPlan(request as TimelineWriteTargetExecution & {
       input: Extract<TimelineWriteInput, { operation: 'apply_edit_plan' }>

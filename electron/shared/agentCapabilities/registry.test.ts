@@ -1,9 +1,12 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import type { CapabilityContract } from "./capabilityContract";
+import { ASSET_READ_CAPABILITY } from "./assetRead";
+import { CANVAS_DELETE_CAPABILITY } from "./canvasDelete";
 import { CANVAS_READ_CAPABILITY } from "./canvasRead";
 import { CANVAS_WRITE_CAPABILITY } from "./canvasWrite";
 import { DOCUMENT_READ_CAPABILITY, DOCUMENT_READ_ALIASES } from "./documentRead";
 import { DOCUMENT_WRITE_CAPABILITY, DOCUMENT_WRITE_ALIASES } from "./documentWrite";
+import { EXPORT_READ_CAPABILITY, EXPORT_WRITE_CAPABILITY } from "./exportCapabilities";
 import { TIMELINE_READ_CAPABILITY } from "./timelineRead";
 import { TIMELINE_WRITE_CAPABILITY } from "./timelineWrite";
 import { CAPABILITY_CONTRACTS, capabilityOperationAliasesFor, resolveCapabilityAlias } from "./registry";
@@ -23,10 +26,14 @@ type RejectedRuntimeObjects = AssertNever<ContractOnlyRegistry<readonly [Contrac
 describe("capability contract registry", () => {
   it("registers canonical contracts exactly once with globally unique aliases", () => {
     expect(CAPABILITY_CONTRACTS).toEqual([
+      ASSET_READ_CAPABILITY,
+      CANVAS_DELETE_CAPABILITY,
       CANVAS_READ_CAPABILITY,
       CANVAS_WRITE_CAPABILITY,
       DOCUMENT_READ_CAPABILITY,
       DOCUMENT_WRITE_CAPABILITY,
+      EXPORT_READ_CAPABILITY,
+      EXPORT_WRITE_CAPABILITY,
       TIMELINE_READ_CAPABILITY,
       TIMELINE_WRITE_CAPABILITY,
     ]);
@@ -37,23 +44,31 @@ describe("capability contract registry", () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(new Set(aliases).size).toBe(aliases.length);
     expect(ids).toEqual([
+      "asset.read",
+      "canvas.delete",
       "canvas.read",
       "canvas.write",
       "document.read",
       "document.write",
+      "export.read",
+      "export.write",
       "timeline.read",
       "timeline.write",
     ]);
     expect(aliases).toEqual([
+      "get_media",
+      "delete_canvas_nodes",
       "read_canvas_state",
       "nomi_read_canvas",
       "set_node_prompt",
       "read_full_text",
       "insert_at_cursor",
+      "inspect_export_job",
+      "export_timeline",
       "read_timeline",
       "apply_edit_plan",
     ]);
-    expect(CAPABILITY_CONTRACTS[0]?.exposure).toBe("mcp_safe");
+    expect(CAPABILITY_CONTRACTS.find((contract) => contract.id === "canvas.read")?.exposure).toBe("mcp_safe");
     expect(resolveCapabilityAlias(CANVAS_WRITE_CAPABILITY.aliases.pi)?.contract).toBe(CANVAS_WRITE_CAPABILITY);
     expect(capabilityOperationAliasesFor(CANVAS_WRITE_CAPABILITY.id, "pi")).toEqual([
       "create_canvas_nodes",
@@ -66,6 +81,10 @@ describe("capability contract registry", () => {
     expect(resolveCapabilityAlias(DOCUMENT_WRITE_ALIASES.append)?.contract).toBe(DOCUMENT_WRITE_CAPABILITY);
     expect(resolveCapabilityAlias("inspect_timeline_range")?.contract).toBe(TIMELINE_READ_CAPABILITY);
     expect(resolveCapabilityAlias("undo_timeline_edit")?.contract).toBe(TIMELINE_WRITE_CAPABILITY);
+    expect(resolveCapabilityAlias("read_waveform")?.contract).toBe(ASSET_READ_CAPABILITY);
+    expect(resolveCapabilityAlias("delete_canvas_nodes")?.contract).toBe(CANVAS_DELETE_CAPABILITY);
+    expect(resolveCapabilityAlias("verify_render")?.contract).toBe(EXPORT_READ_CAPABILITY);
+    expect(resolveCapabilityAlias("cancel_export_job")?.contract).toBe(EXPORT_WRITE_CAPABILITY);
   });
 
   it("rejects adapter, port, and executor objects at compile time", () => {

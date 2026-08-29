@@ -1,5 +1,10 @@
 import type { RuntimeToolCall, RuntimeToolDecision } from "../harness/runtime/runtimePort";
 import {
+  CANVAS_DELETE_ALIAS,
+  canvasDeleteInputForAlias,
+  type CanvasDeleteInput,
+} from "../shared/agentCapabilities/canvasDelete";
+import {
   canvasWriteOperationForAlias,
   canvasWritePiInputSchemaForAlias,
   canvasWriteSemanticInputSchema,
@@ -9,13 +14,16 @@ import type { TargetRef } from "../shared/capabilityTargeting";
 import type { CapabilityExecutorRegistry, CanvasWritePort } from "./capabilityExecutorRegistry";
 import type { CanvasReadSurfaceRegistry, CapturedCanvasReadPort } from "./canvasReadSurfaceRegistry";
 import {
+  createRendererCanvasDeleteVerifiedInvocationFactory,
   createRendererCanvasWriteVerifiedInvocationFactory,
   type VerifiedCapabilityInvocation,
 } from "./verifiedCapabilityInvocation";
 
+type CanvasMutationInput = CanvasWriteInput | CanvasDeleteInput;
+
 export type PreparedCanvasWrite = Readonly<{
   call: RuntimeToolCall;
-  invocation: VerifiedCapabilityInvocation<CanvasWriteInput, Extract<TargetRef, { kind: "canvas" }>>;
+  invocation: VerifiedCapabilityInvocation<CanvasMutationInput, Extract<TargetRef, { kind: "canvas" }>>;
 }>;
 
 export type CanvasWriteApprovalAuthority = Readonly<{
@@ -77,39 +85,47 @@ export function createPiCanvasWriteTransportAdapter(
     capturedPort: input.capturedPort,
     requestId: input.requestId,
   });
+  const deleteFactory = createRendererCanvasDeleteVerifiedInvocationFactory({
+    registry: input.registry,
+    capturedPort: input.capturedPort,
+    requestId: input.requestId,
+  });
   let disposed = false;
   return Object.freeze({
     async prepare(call, signal) {
       const operation = canvasWriteOperationForAlias(call.toolName);
-      if (!operation) return null;
+      const isDelete = call.toolName === CANVAS_DELETE_ALIAS;
+      if (!operation && !isDelete) return null;
       if (disposed) throw Object.assign(new Error("surface_port_unavailable"), { code: "surface_port_unavailable" });
       if (signal.aborted) throw Object.assign(new Error("capability_cancelled"), { code: "capability_cancelled" });
       const args =
         call.args && typeof call.args === "object" && !Array.isArray(call.args)
           ? (call.args as Record<string, unknown>)
           : {};
-      const piSchema = canvasWritePiInputSchemaForAlias(call.toolName);
-      const parsed = piSchema?.safeParse(args);
-      if (!parsed || !parsed.success)
+      let semanticInput: CanvasMutationInput;
+      try {
+        if (isDelete) {
+          semanticInput = canvasDeleteInputForAlias(call.toolName, args)!;
+        } else {
+          const parsed = canvasWritePiInputSchemaForAlias(call.toolName)?.parse(args);
+          semanticInput = canvasWriteSemanticInputSchema.parse({ operation, ...parsed });
+        }
+      } catch {
         throw Object.assign(new Error("capability_input_invalid"), { code: "capability_input_invalid" });
-      const semanticInput = canvasWriteSemanticInputSchema.safeParse({ operation, ...parsed.data });
-      if (!semanticInput.success)
-        throw Object.assign(new Error("capability_input_invalid"), { code: "capability_input_invalid" });
+      }
       const rawEvidence = await input.port.capture(
         operation === "set_node_prompt"
           ? {
               operation,
-              nodeId: (semanticInput.data as Extract<CanvasWriteInput, { operation: "set_node_prompt" }>).nodeId,
+              nodeId: (semanticInput as Extract<CanvasWriteInput, { operation: "set_node_prompt" }>).nodeId,
               signal,
             }
-          : { operation, input: semanticInput.data, signal },
+          : { operation: semanticInput.operation, input: semanticInput, signal },
       );
-      const invocation = await factory.mint({
-        toolCallId: call.toolCallId,
-        input: semanticInput.data,
-        rawEvidence,
-      });
-      return Object.freeze({ call, invocation });
+      const invocation = isDelete
+        ? await deleteFactory.mint({ toolCallId: call.toolCallId, input: semanticInput, rawEvidence })
+        : await factory.mint({ toolCallId: call.toolCallId, input: semanticInput, rawEvidence });
+      return Object.freeze({ call, invocation: invocation as PreparedCanvasWrite["invocation"] });
     },
     async execute(prepared, approval, signal) {
       if (disposed) return { ok: false, code: "surface_port_unavailable", message: "surface_port_unavailable" };

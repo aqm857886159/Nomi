@@ -70,6 +70,7 @@ import {
   createPiTimelineReadTransportAdapter,
   createPiTimelineWriteTransportAdapter,
 } from "./capabilityCore/timelineTransportAdapters";
+import { createPiPhase4SurfaceTransportAdapter } from "./capabilityCore/phase4SurfaceTransportAdapters";
 import { getSettingsRoot } from "./runtimePaths";
 import { installProductionProjectAgentHost } from "./projectAgentHost/projectAgentProductionRuntime";
 import { createProjectAgentRepositoryRouter } from "./projectAgentHost/projectAgentRepositoryRouter";
@@ -481,6 +482,12 @@ function registerIpc(): void {
         executor: canvasReadExecutionRuntime.executor,
       }),
       captureTimelineWrite: (event, binding, requestId) => createPiTimelineWriteTransportAdapter({
+        registry: canvasReadSurfaceRuntime.registry,
+        capturedPort: canvasReadExecutionRuntime.surfaceCapture.captureCanvasReadPort(event, binding),
+        requestId,
+        executor: canvasReadExecutionRuntime.executor,
+      }),
+      capturePhase4Surface: (event, binding, requestId) => createPiPhase4SurfaceTransportAdapter({
         registry: canvasReadSurfaceRuntime.registry,
         capturedPort: canvasReadExecutionRuntime.surfaceCapture.captureCanvasReadPort(event, binding),
         requestId,

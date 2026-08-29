@@ -5,6 +5,7 @@ import { compileExecutionContract, type ExecutionContractV1, type PlanCandidate 
 import {
   assertGenerationProviderCapabilities,
   GenerationProviderCapabilityError,
+  GenerationProviderRequestError,
   createGenerationRuntimeAdapter,
   resolveExecutionContract,
 } from "./generationRuntimeAdapter";
@@ -74,6 +75,59 @@ function contract(providerId: string, modelId: string, mode: string, parameters:
 }
 
 describe("GenerationRuntimeAdapter", () => {
+  it("prepares an exact provider payload hash before submission and verifies it again at submit", async () => {
+    const imageContract = contract("provider.image", "model.image.v1", "text-to-image", { aspectRatio: "16:9" });
+    const binding = bindingFor("provider.image", imageContract.contractHash);
+    const submit = vi.fn(async () => ({ providerTaskId: "image-task-authorized" }));
+    const adapter = createGenerationRuntimeAdapter({ providers: [{
+      providerId: "provider.image",
+      capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true },
+      buildRequest: (input) => ({ model: input.modelId, prompt: input.prompt, ratio: input.parameters.aspectRatio }),
+      submit,
+    }] });
+
+    const prepared = adapter.prepare({ contract: imageContract, binding });
+    await expect(adapter.submit({
+      contract: imageContract,
+      binding,
+      expectedProviderRequestHash: prepared.providerRequestHash,
+    })).resolves.toMatchObject({ providerTaskId: "image-task-authorized", providerRequestHash: prepared.providerRequestHash });
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails closed when buildRequest is not deterministic", () => {
+    const imageContract = contract("provider.image", "model.image.v1", "text-to-image", { aspectRatio: "16:9" });
+    const binding = bindingFor("provider.image", imageContract.contractHash);
+    let nonce = 0;
+    const submit = vi.fn();
+    const adapter = createGenerationRuntimeAdapter({ providers: [{
+      providerId: "provider.image",
+      capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true },
+      buildRequest: () => ({ nonce: ++nonce }),
+      submit,
+    }] });
+
+    expect(() => adapter.prepare({ contract: imageContract, binding })).toThrow(GenerationProviderRequestError);
+    expect(submit).not.toHaveBeenCalled();
+  });
+
+  it("does not submit when the actual provider payload differs from the approved hash", async () => {
+    const imageContract = contract("provider.image", "model.image.v1", "text-to-image", { aspectRatio: "16:9" });
+    const binding = bindingFor("provider.image", imageContract.contractHash);
+    const submit = vi.fn();
+    const adapter = createGenerationRuntimeAdapter({ providers: [{
+      providerId: "provider.image",
+      capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true },
+      buildRequest: (input) => ({ model: input.modelId, prompt: input.prompt }),
+      submit,
+    }] });
+
+    await expect(adapter.submit({ contract: imageContract, binding, expectedProviderRequestHash: "0".repeat(64) })).rejects.toThrow(
+      "Provider wire payload no longer matches",
+    );
+    expect(submit).not.toHaveBeenCalled();
+  });
+
   it("maps two different provider profiles without provider-specific branches in the adapter", async () => {
     const imageSubmit = vi.fn(async (request: Record<string, unknown>) => ({ providerTaskId: "image-task-1", raw: request }));
     const videoSubmit = vi.fn(async (request: Record<string, unknown>) => ({ providerTaskId: "video-task-1", raw: request }));

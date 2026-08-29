@@ -34,6 +34,7 @@ import { abandonPendingCanvasWrite } from '../events/canvasWriteBoundary'
 import {
   clearCommittedProposal,
   commitProposalReceipt,
+  createProposalReceiptCoordinator,
   getCommittedProposal,
   hydrateCommittedProposalReceipt,
   prepareProposalReceipt,
@@ -90,6 +91,25 @@ beforeEach(() => {
 })
 
 describe('committed proposal receipt renderer lifecycle', () => {
+  it('persists an explicitly non-Canvas preparation with no restore snapshot', async () => {
+    const coordinator = createProposalReceiptCoordinator({
+      summary: 'export_timeline',
+      stepLabels: ['export_timeline'],
+      prepareCompensation: 'none',
+    })
+
+    await expect(coordinator.prepare('export-receipt-a', {
+      nodes: [{ id: 'unrelated-node' }],
+      edges: [{ id: 'unrelated-edge' }],
+      groups: [{ id: 'unrelated-group' }],
+    })).resolves.toBe(true)
+    expect(deps.write).toHaveBeenCalledWith('subscription-a', expect.objectContaining({
+      proposalId: 'export-receipt-a',
+      lifecycle: 'preparing',
+      proposal: expect.objectContaining({ compensation: [] }),
+    }))
+  })
+
   it('keeps preparing invisible and publishes Undo only after the committed receipt is acknowledged', async () => {
     await expect(prepareProposalReceipt(record)).resolves.toBe(true)
     expect(getCommittedProposal()).toBeNull()

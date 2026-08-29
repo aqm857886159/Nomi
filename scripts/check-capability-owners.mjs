@@ -42,6 +42,18 @@ const RETIRED_EXECUTION_SYMBOLS = new Set([
   'readCanvasFromGateway',
 ])
 const RETIRED_EXECUTION_MODULES = ['canvasReadCapabilityAdapter', 'canvasReadGatewayAdapter']
+const PHASE4_ASSET_EXPORT_ALIASES = [
+  'get_media',
+  'inspect_media',
+  'search_media',
+  'inspect_source_range',
+  'read_waveform',
+  'export_timeline',
+  'inspect_export_job',
+  'verify_render',
+  'cancel_export_job',
+]
+const PHASE4_RENDERER_POLICY_ALIASES = [...PHASE4_ASSET_EXPORT_ALIASES, 'delete_canvas_nodes']
 
 function readOption(argv, name, fallback) {
   const index = argv.indexOf(name)
@@ -654,6 +666,30 @@ function scanDocumentReadOwnership(repoRoot) {
   return violations
 }
 
+function scanRetiredPhase4Owners(repoRoot) {
+  const violations = []
+  const forbidden = [
+    ['src/workbench/generationCanvas/agent/gate.ts', PHASE4_RENDERER_POLICY_ALIASES],
+    ['src/workbench/generationCanvas/agent/applyCanvasToolCall.ts', PHASE4_ASSET_EXPORT_ALIASES],
+    ['electron/harness/tools/canvasDescriptors.ts', ['delete_canvas_nodes']],
+  ]
+  for (const [relative, aliases] of forbidden) {
+    const file = path.join(repoRoot, relative)
+    if (!fs.existsSync(file)) continue
+    const text = fs.readFileSync(file, 'utf8')
+    for (const alias of aliases) {
+      if (new RegExp(`\\b${alias}\\b`).test(text)) {
+        violations.push(`Phase 4 legacy owner ${relative} reintroduced alias ${alias}`)
+      }
+    }
+  }
+  const retiredDispatcher = 'src/workbench/timeline/agent/timelineToolCall.ts'
+  if (fs.existsSync(path.join(repoRoot, retiredDispatcher))) {
+    violations.push(`Phase 4 retired dispatcher reintroduced: ${retiredDispatcher}`)
+  }
+  return violations
+}
+
 export function scanRepository(repoRoot) {
   const facts = []
   const violations = []
@@ -673,6 +709,7 @@ export function scanRepository(repoRoot) {
     }
   }
   violations.push(...scanDocumentReadOwnership(repoRoot))
+  violations.push(...scanRetiredPhase4Owners(repoRoot))
   for (const site of REQUIRED_CANONICAL_EXECUTION_SITES) {
     const matches = canonicalExecutionAttestations.filter((attestation) => attestation.site === site)
     if (matches.length !== 1) violations.push(`canonical canvas.read execution path ${site} must exist exactly once`)

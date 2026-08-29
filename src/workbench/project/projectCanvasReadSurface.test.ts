@@ -65,6 +65,7 @@ function harness() {
     content: string
     target: unknown
     preconditions: unknown
+    signal: AbortSignal
   }) => unknown | Promise<unknown>
   let canvasWriteCaptureHandler:
     | ((request: {
@@ -82,6 +83,7 @@ function harness() {
         receiptProposalId: string
         approvalId: string
         actionHash: string
+        signal: AbortSignal
       }) => unknown | Promise<unknown>)
     | undefined
   let timelineReadHandler:
@@ -101,6 +103,7 @@ function harness() {
         receiptProposalId: string
         approvalId: string
         actionHash: string
+        signal: AbortSignal
       }) => unknown | Promise<unknown>)
     | undefined
   const bridge = {
@@ -438,6 +441,7 @@ describe('project canvas-read Surface hydration coordinator', () => {
       receiptProposalId: 'receipt-a',
       approvalId: 'approval-a',
       actionHash: 'action-a',
+      signal: new AbortController().signal,
     }
     expect(test.executeCanvasWrite(executeRequest)).toEqual({ applied: true, proposalId: 'receipt-a' })
 
@@ -488,6 +492,7 @@ describe('project canvas-read Surface hydration coordinator', () => {
       receiptProposalId: 'receipt-a',
       approvalId: 'approval-a',
       actionHash: 'action-a',
+      signal: new AbortController().signal,
     }
     expect(test.readTimeline(readRequest)).toEqual({ operation: 'read_timeline', revision: 'deadbeef' })
     expect(test.writeTimeline(writeRequest)).toEqual({

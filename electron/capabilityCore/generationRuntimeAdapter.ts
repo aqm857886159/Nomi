@@ -1,4 +1,8 @@
 import type { ProductionExecutionBinding } from "../productionRun/productionExecutionBinding";
+import {
+  assertProductionGenerationPayloadHash,
+  productionGenerationPayloadHash,
+} from "../productionRun/productionGenerationAuthorization";
 import type { ExecutionContractV1 } from "./executionContract";
 import { assertGenerationProviderCanSubmit } from "./generationProviderCapabilities";
 
@@ -79,6 +83,15 @@ export class GenerationRuntimeBindingError extends Error {
   }
 }
 
+export class GenerationProviderRequestError extends Error {
+  readonly code = "provider_request_unstable" as const;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "GenerationProviderRequestError";
+  }
+}
+
 export class GenerationProviderObservationError extends Error {
   readonly code = "provider_observation_unsupported" as const;
 
@@ -120,15 +133,37 @@ export function createGenerationRuntimeAdapter(deps: { providers: readonly Gener
     providers.set(provider.providerId, provider);
   }
 
-  async function submit(input: { contract: ExecutionContractV1; binding: ProductionExecutionBinding }): Promise<{ providerTaskId: string; raw?: unknown; request: ResolvedTaskRequestV1 }> {
+  function prepare(input: { contract: ExecutionContractV1; binding: ProductionExecutionBinding }): Readonly<{
+    request: ResolvedTaskRequestV1;
+    providerRequest: unknown;
+    providerRequestHash: string;
+  }> {
     const request = resolveExecutionContract(input.contract, input.binding);
     const provider = providers.get(request.providerId);
     if (!provider) throw new GenerationProviderCapabilityError(request.providerId, ["registered_provider"]);
     assertGenerationProviderCanSubmit(provider);
-    const providerRequest = provider.buildRequest(request);
-    const result = await provider.submit(providerRequest, request.idempotencyKey);
+    const first = provider.buildRequest(structuredClone(request));
+    const second = provider.buildRequest(structuredClone(request));
+    const firstHash = productionGenerationPayloadHash(first);
+    if (productionGenerationPayloadHash(second) !== firstHash) {
+      throw new GenerationProviderRequestError("Provider buildRequest must be deterministic before approval");
+    }
+    return Object.freeze({ request, providerRequest: structuredClone(first), providerRequestHash: firstHash });
+  }
+
+  async function submit(input: {
+    contract: ExecutionContractV1;
+    binding: ProductionExecutionBinding;
+    expectedProviderRequestHash?: string;
+  }): Promise<{ providerTaskId: string; raw?: unknown; request: ResolvedTaskRequestV1; providerRequestHash: string }> {
+    const prepared = prepare(input);
+    if (input.expectedProviderRequestHash) {
+      assertProductionGenerationPayloadHash(prepared.providerRequest, input.expectedProviderRequestHash);
+    }
+    const provider = providers.get(prepared.request.providerId)!;
+    const result = await provider.submit(prepared.providerRequest, prepared.request.idempotencyKey);
     if (!result.providerTaskId.trim()) throw new Error("Provider returned an empty task id");
-    return { ...result, request };
+    return { ...result, request: prepared.request, providerRequestHash: prepared.providerRequestHash };
   }
 
   async function query(input: { providerId: string; providerTaskId: string }): Promise<GenerationProviderQueryResult> {
@@ -163,5 +198,5 @@ export function createGenerationRuntimeAdapter(deps: { providers: readonly Gener
     return result;
   }
 
-  return { submit, query, reconcile, materialize };
+  return { prepare, submit, query, reconcile, materialize };
 }

@@ -29,6 +29,7 @@ import {
   SURFACE_TIMELINE_READ_REQUEST_CHANNEL,
   SURFACE_TIMELINE_WRITE_REPLY_CHANNEL,
   SURFACE_TIMELINE_WRITE_REQUEST_CHANNEL,
+  SURFACE_PORT_CANCEL_REQUEST_CHANNEL,
 } from "../shared/surfacePortBinding";
 import { CapabilityExecutionError } from "./capabilityExecutorRegistry";
 import {
@@ -198,6 +199,11 @@ describe("dedicated renderer CanvasReadPort", () => {
     const controller = new AbortController();
     const reading = test.runtime.createPort(captured).read({ signal: controller.signal });
     controller.abort(new Error("private abort reason"));
+
+    expect(test.send).toHaveBeenLastCalledWith(SURFACE_PORT_CANCEL_REQUEST_CHANNEL, {
+      requestId: "read-5",
+      binding,
+    });
 
     await expect(reading).rejects.toEqual(
       expect.objectContaining<Partial<CapabilityExecutionError>>({
