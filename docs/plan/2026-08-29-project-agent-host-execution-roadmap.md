@@ -1,5 +1,7 @@
 # Project Agent Host 全阶段执行路线图
 
+> 状态：🚧 进行中。Phase 1、2A、2B、3A、3B 已形成远端 checkpoint；当前推进 Phase 3C，最终完成条件仍为 Phase 3–6 与发布候选门全部通过。
+
 ## 目标
 
 在当前任务分支完成 Project Agent Host 的 Phase 2B 至 Phase 6，并把最终

@@ -1,5 +1,7 @@
 # Project Agent Phase 3B: Reversible Document Write
 
+> 状态：✅ 已交付。`document.write` focused closure、冻结 target admission 与独立评审已通过并推送；最终包级旅程仍归总路线图的 Phase 6 出口。
+
 ## Objective
 
 Move the three creation-document write aliases (`insert_at_cursor`,
