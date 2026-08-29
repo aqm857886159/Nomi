@@ -343,9 +343,12 @@ describe("ProjectAgentHost state contract", () => {
             lifecycle: "pending",
             ref: {
               approvalId: "approval-a",
+              receiptProposalId: "receipt-approval-a",
               threadId: "thread-b",
               turnId: "turn-a",
               toolCallId: "tool-a",
+              policyRevision: queueItem.policyRevision,
+              inputHash: "input-hash",
               actionHash: "action-hash",
               target: queueItem.target,
               preconditions: queueItem.preconditions,

@@ -383,9 +383,12 @@ describe("ProjectAgentHost assistant async finalization", () => {
     const approval = {
       ref: {
         approvalId: "approval-a",
+        receiptProposalId: "receipt-approval-a",
         threadId: "thread-a",
         turnId: "turn-a",
         toolCallId: "tool-a",
+        policyRevision: 5,
+        inputHash: "input-a",
         actionHash: "action-a",
         target: { kind: "canvas", nodeIds: ["node-a"] },
         preconditions: { nodes: [{ nodeId: "node-a", revision: 2, contentHash: "node-hash" }] },
@@ -459,9 +462,12 @@ describe("ProjectAgentHost assistant async finalization", () => {
     const approval = {
       ref: {
         approvalId: "approval-claimed",
+        receiptProposalId: "receipt-approval-claimed",
         threadId: "thread-a",
         turnId: "turn-a",
         toolCallId: "tool-claimed",
+        policyRevision: 5,
+        inputHash: "input-claimed",
         actionHash: "action-claimed",
         target: { kind: "canvas", nodeIds: ["node-a"] },
         preconditions: { nodes: [{ nodeId: "node-a", revision: 2, contentHash: "node-hash" }] },

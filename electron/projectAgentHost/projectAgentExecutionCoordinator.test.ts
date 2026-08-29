@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -127,9 +128,16 @@ function documentWriteAdapter(options: Readonly<{
     if (options.prepareError) {
       throw Object.assign(new Error(options.prepareError), { code: options.prepareError });
     }
+    const inputHash = createHash("sha256").update(JSON.stringify(call.args)).digest("hex");
+    const actionHash = createHash("sha256")
+      .update(JSON.stringify({ call: call.toolName, inputHash, target: input.target, preconditions: input.preconditions }))
+      .digest("hex");
     const invocation = {
       target: input.target,
       preconditions: input.preconditions,
+      policyRevision: 1,
+      inputHash,
+      actionHash,
     } as unknown as PreparedDocumentWrite["invocation"];
     return Object.freeze({ call, invocation });
   });
@@ -486,9 +494,12 @@ describe("ProjectAgentExecutionCoordinator", () => {
       if (orphanStatus === "proposed") {
         const ref = {
           approvalId: "approval-recovery-proposed",
+          receiptProposalId: "receipt-recovery-proposed",
           threadId: input.mutation.payload.thread.threadId,
           turnId: input.mutation.payload.turn.turnId,
           toolCallId: "tool-recovery-proposed",
+          policyRevision: input.mutation.payload.queueItem.policyRevision,
+          inputHash: "input-recovery-proposed",
           actionHash: "action-recovery-proposed",
           target: input.mutation.payload.queueItem.target,
           preconditions: input.mutation.payload.queueItem.preconditions,
@@ -918,7 +929,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
         ...base.mutation,
         payload: {
           ...base.mutation.payload,
-          queueItem: { ...base.mutation.payload.queueItem, target, preconditions },
+          queueItem: { ...base.mutation.payload.queueItem, target, preconditions, policyRevision: 5 },
         },
       },
     };
@@ -931,11 +942,34 @@ describe("ProjectAgentExecutionCoordinator", () => {
       expect.any(AbortSignal),
     );
     expect(documentAdapter.execute).toHaveBeenCalledOnce();
-    expect(documentAdapter.execute.mock.calls[0]?.[0].invocation).toMatchObject({ target, preconditions });
+    const invocation = documentAdapter.execute.mock.calls[0]?.[0].invocation;
+    expect(invocation).toMatchObject({ target, preconditions });
     const proposal = final.items.find((item) => item.kind === "proposal");
-    expect(proposal).toMatchObject({ status: "done", approval: { target, preconditions } });
+    expect(proposal).toMatchObject({
+      status: "done",
+      approval: {
+        approvalId: expect.stringMatching(/^approval-/),
+        receiptProposalId: expect.any(String),
+        policyRevision: 1,
+        inputHash: invocation.inputHash,
+        actionHash: invocation.actionHash,
+        target,
+        preconditions,
+      },
+    });
     expect(final.proposalApprovals).toHaveLength(1);
-    expect(final.proposalApprovals[0]).toMatchObject({ lifecycle: "claimed", ref: { target, preconditions } });
+    expect(final.proposalApprovals[0]).toMatchObject({
+      lifecycle: "claimed",
+      ref: {
+        approvalId: expect.stringMatching(/^approval-/),
+        receiptProposalId: expect.any(String),
+        policyRevision: 1,
+        inputHash: invocation.inputHash,
+        actionHash: invocation.actionHash,
+        target,
+        preconditions,
+      },
+    });
   });
 
   it("includes frozen preconditions in the proposal action hash", async () => {

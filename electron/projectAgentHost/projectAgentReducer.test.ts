@@ -729,9 +729,12 @@ describe("ProjectAgentHost turn serialization and async re-entry", () => {
         const approval = {
           ref: {
             approvalId: "approval-recovery",
+            receiptProposalId: "receipt-recovery",
             threadId: "thread-a",
             turnId: "turn-a",
             toolCallId: "tool-recovery",
+            policyRevision: 5,
+            inputHash: "input-recovery",
             actionHash: "action-recovery",
             target,
             preconditions,
@@ -1115,9 +1118,12 @@ describe("ProjectAgentHost turn serialization and async re-entry", () => {
     const approval = {
       ref: {
         approvalId: "approval-a",
+        receiptProposalId: "receipt-approval-a",
         threadId: "thread-a",
         turnId: "turn-a",
         toolCallId: "tool-call-a",
+        policyRevision: 5,
+        inputHash: "input-hash",
         actionHash: "action-hash",
         target,
         preconditions,

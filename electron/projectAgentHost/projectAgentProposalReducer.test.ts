@@ -140,9 +140,12 @@ function proposal(
 } {
   const ref = {
     approvalId,
+    receiptProposalId: `receipt-${approvalId}`,
     threadId: "thread-a",
     turnId: "turn-a",
     toolCallId: `tool-${approvalId}`,
+    policyRevision: 1,
+    inputHash: `input-${approvalId}`,
     actionHash: `action-${approvalId}`,
     target,
     preconditions,
@@ -177,6 +180,49 @@ function putProposal(state: ProjectAgentHostState, value: ReturnType<typeof prop
 }
 
 describe("ProjectAgent proposal reducer boundary", () => {
+  it("durably preserves the exact capability invocation identity", () => {
+    const value = proposal("approval-durable", "proposal-durable");
+    const proposed = putProposal(runningState(), value, "put-durable");
+    const restarted = snapshotProjectAgentHostState(JSON.parse(JSON.stringify(proposed.state)) as ProjectAgentHostState);
+
+    expect(restarted.proposalApprovals[0]?.ref).toEqual(value.approval.ref);
+    expect(restarted.items.find((item) => item.itemId === "proposal-durable")).toMatchObject({
+      kind: "proposal",
+      approval: value.approval.ref,
+    });
+
+    for (const field of ["receiptProposalId", "policyRevision", "inputHash"] as const) {
+      const incompleteRef = { ...value.approval.ref } as Record<string, unknown>;
+      delete incompleteRef[field];
+      expect(() =>
+        putProposal(
+          runningState(),
+          {
+            approval: { ...value.approval, ref: incompleteRef as ProposalApprovalRef },
+            item: { ...value.item, approval: incompleteRef as ProposalApprovalRef },
+          },
+          `put-missing-${field}`,
+        ),
+      ).toThrowError(
+        expect.objectContaining<Partial<ProjectAgentReducerError>>({
+          code: expect.stringMatching(/^(invalid_mutation|proposal_transition_invalid)$/),
+        }),
+      );
+
+      expect(() =>
+        snapshotProjectAgentHostState({
+          ...proposed.state,
+          proposalApprovals: [{ ...value.approval, ref: incompleteRef as ProposalApprovalRef }],
+          items: proposed.state.items.map((item) =>
+            item.itemId === value.item.itemId
+              ? ({ ...value.item, approval: incompleteRef as ProposalApprovalRef } as ProjectAgentProposalItem)
+              : item,
+          ),
+        }),
+      ).toThrow(/invalid_state/);
+    }
+  });
+
   it("atomically requires one matching visible card for the frozen queue target", () => {
     const state = runningState();
     const valid = proposal("approval-a", "proposal-a");
@@ -361,7 +407,7 @@ describe("ProjectAgent proposal reducer boundary", () => {
     ).toThrow(/invalid_state/);
   });
 
-  it("rejects a new approval that reuses a settled tool call identity", () => {
+  it("rejects a new approval that reuses a settled tool call or receipt identity", () => {
     const first = proposal("approval-a", "proposal-a");
     const proposed = putProposal(runningState(), first, "put-a");
     const claimed = reduceProjectAgentMutation(proposed.state, {
@@ -405,6 +451,21 @@ describe("ProjectAgent proposal reducer boundary", () => {
           item: reusedItem,
         },
         "put-b",
+      ),
+    ).toThrowError(expect.objectContaining<Partial<ProjectAgentReducerError>>({ code: "record_exists" }));
+
+    const reusedReceiptRef = {
+      ...second.approval.ref,
+      receiptProposalId: first.approval.ref.receiptProposalId,
+    };
+    expect(() =>
+      putProposal(
+        continued.state,
+        {
+          approval: { ...second.approval, ref: reusedReceiptRef },
+          item: { ...second.item, approval: reusedReceiptRef },
+        },
+        "put-reused-receipt",
       ),
     ).toThrowError(expect.objectContaining<Partial<ProjectAgentReducerError>>({ code: "record_exists" }));
   });

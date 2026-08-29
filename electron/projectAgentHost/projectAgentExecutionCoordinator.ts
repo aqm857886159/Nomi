@@ -487,26 +487,39 @@ export function createProjectAgentExecutionCoordinator(
     execution: ActiveExecution,
     call: { toolCallId: string; toolName: string; args: unknown },
     decision: AgentChatToolDecision,
-    override?: Readonly<{ target: ProjectAgentQueueItem["target"]; preconditions: ProjectAgentQueueItem["preconditions"] }>,
+    verified?: Readonly<{
+      approvalId: string;
+      receiptProposalId: string;
+      target: ProjectAgentQueueItem["target"];
+      preconditions: ProjectAgentQueueItem["preconditions"];
+      policyRevision: number;
+      inputHash: string;
+      actionHash: string;
+    }>,
   ): Promise<void> {
     if (!decision.ok || decision.silent) return;
     const occurredAt = now();
     const expiresAt = new Date(new Date(occurredAt).getTime() + 10 * 60_000).toISOString();
-    const approvalId =
-      decision.proposalId?.trim() || `approval-${digest([execution.turn.executionToken, call.toolCallId])}`;
-    const target = override?.target ?? execution.queueItem.target;
-    const preconditions = override?.preconditions ?? execution.queueItem.preconditions;
+    const approvalId = verified?.approvalId
+      ?? decision.proposalId?.trim()
+      ?? `approval-${digest([execution.turn.executionToken, call.toolCallId])}`;
+    const target = verified?.target ?? execution.queueItem.target;
+    const preconditions = verified?.preconditions ?? execution.queueItem.preconditions;
+    const fallbackActionHash = digest({
+      toolName: call.toolName,
+      args: call.args,
+      target,
+      preconditions,
+    });
     const ref = Object.freeze({
       approvalId,
+      receiptProposalId: verified?.receiptProposalId ?? approvalId,
       threadId: execution.turn.threadId,
       turnId: execution.turn.turnId,
       toolCallId: call.toolCallId,
-      actionHash: digest({
-        toolName: call.toolName,
-        args: call.args,
-        target,
-        preconditions,
-      }),
+      policyRevision: verified?.policyRevision ?? execution.queueItem.policyRevision,
+      inputHash: verified?.inputHash ?? digest({ toolName: call.toolName, args: call.args }),
+      actionHash: verified?.actionHash ?? fallbackActionHash,
       target,
       preconditions,
       expiresAt,
@@ -791,8 +804,13 @@ export function createProjectAgentExecutionCoordinator(
               if (!decision.ok) return decision;
               try {
                 await persistApprovedProposal(partition, execution, call, decision, {
+                  approvalId: `approval-${digest([execution.turn.executionToken, call.toolCallId])}`,
+                  receiptProposalId: `receipt-${digest([execution.turn.executionToken, call.toolCallId, "receipt"])}`,
                   target: prepared.invocation.target,
                   preconditions: prepared.invocation.preconditions,
+                  policyRevision: prepared.invocation.policyRevision,
+                  inputHash: prepared.invocation.inputHash,
+                  actionHash: prepared.invocation.actionHash,
                 });
               } catch {
                 return { ok: false, message: "approval_persistence_failed" };

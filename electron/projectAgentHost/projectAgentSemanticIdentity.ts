@@ -21,11 +21,13 @@ export function hasDuplicateProjectAgentToolIdentity(items: readonly ProjectAgen
 
 export function hasDuplicateProjectAgentApprovalIdentity(approvals: readonly ProjectAgentProposalApproval[]): boolean {
   const toolCallIds = new Set<string>();
+  const receiptProposalIds = new Set<string>();
   for (const approval of approvals) {
     const ref = approval.ref;
     const key = `${ref.threadId}\0${ref.turnId}\0${ref.toolCallId}`;
-    if (toolCallIds.has(key)) return true;
+    if (toolCallIds.has(key) || receiptProposalIds.has(ref.receiptProposalId)) return true;
     toolCallIds.add(key);
+    receiptProposalIds.add(ref.receiptProposalId);
   }
   return false;
 }

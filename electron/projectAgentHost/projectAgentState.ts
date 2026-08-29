@@ -155,17 +155,29 @@ function assertProposalApprovalRef(value: unknown): asserts value is ProposalApp
   const approval = asRecord(value);
   assertAllowedKeys(approval, [
     "approvalId",
+    "receiptProposalId",
     "threadId",
     "turnId",
     "toolCallId",
+    "policyRevision",
+    "inputHash",
     "actionHash",
     "target",
     "preconditions",
     "expiresAt",
   ]);
-  for (const key of ["approvalId", "threadId", "turnId", "toolCallId", "actionHash"] as const) {
+  for (const key of [
+    "approvalId",
+    "receiptProposalId",
+    "threadId",
+    "turnId",
+    "toolCallId",
+    "inputHash",
+    "actionHash",
+  ] as const) {
     assertCanonicalId(approval[key]);
   }
+  assertSafeInteger(approval.policyRevision);
   assertCanonicalTimestamp(approval.expiresAt);
   assertTarget(approval.target);
   assertPreconditions(approval.preconditions);

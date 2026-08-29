@@ -75,9 +75,12 @@ export const PROJECT_AGENT_ASSISTANT_DELTA_MAX_CHARS = 16_384;
 
 export type ProposalApprovalRef = Readonly<{
   approvalId: string;
+  receiptProposalId: string;
   threadId: string;
   turnId: string;
   toolCallId: string;
+  policyRevision: number;
+  inputHash: string;
   actionHash: string;
   target: TargetRef;
   preconditions: PreconditionSet;
