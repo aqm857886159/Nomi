@@ -11,6 +11,7 @@ import { DREAMINA_MULTIFRAME_ARCHETYPE } from "./dreaminaMultiframe";
 import { DREAMINA_SEEDANCE_ARCHETYPE } from "./dreaminaSeedance";
 import { GROK_IMAGINE_1_5_VIDEO_ARCHETYPE } from "./grokImagine15Video";
 import { HAILUO_2_3_ARCHETYPE } from "./hailuo23";
+import { HAILUO_H3_ARCHETYPE } from "./hailuoH3";
 import { HAPPYHORSE_ARCHETYPE } from "./happyhorse";
 import { HAPPYHORSE_1_1_ARCHETYPE } from "./happyhorse11";
 import { KLING_3_ARCHETYPE } from "./kling";
@@ -72,6 +73,7 @@ const SOURCE_BACKED_PROFILES: readonly ModelArchetype[] = [
   WAN_3_0_ARCHETYPE,
   WAN_3_0_APIMART_ARCHETYPE,
   HAILUO_2_3_ARCHETYPE,
+  HAILUO_H3_ARCHETYPE,
   OMNI_FLASH_EXT_ARCHETYPE,
   MINIMAX_H3_REGENERATION_ARCHETYPE,
   SEEDANCE_VOLCENGINE_ARCHETYPE,
@@ -167,6 +169,10 @@ function profileFor(model: VideoCatalogModel): ModelArchetype {
     ? SOURCE_BACKED_PROFILES.find((profile) => profile.id === model.archetypeId)
     : undefined;
   if (exact) return exact;
+  // An explicit archetype id is authoritative. If its profile was omitted from
+  // the shared registry, fail closed to the conservative catalog shape instead
+  // of borrowing a same-named profile from another provider.
+  if (model.archetypeId) return unknownVideoArchetype(model);
   const ranked = SOURCE_BACKED_PROFILES
     .map((profile) => ({ profile, score: modelProfileMatchScore(model.modelKey, profile) }))
     .filter((match) => match.score > 0)

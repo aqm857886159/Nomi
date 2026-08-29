@@ -1,0 +1,120 @@
+{
+  "schema_version": 3,
+  "id": "2026-08-29-minimax-catalog-profile-isolation",
+  "problem_type": "cross-provider curated video profile misresolution",
+  "symptom": "Adding the official MiniMax H3 catalog row made three catalog contract tests fail and exposed MiniMax H3 with APIMart-only image-reference modes instead of its official text-to-video-only contract.",
+  "direct_cause": "The new hailuo-h3 profile lived only in the renderer directory and was absent from the shared source-backed registry; when explicit lookup missed, profileFor fell through to fuzzy modelKey matching and selected APIMart's same-named MiniMax-H3 profile. One APIMart test also counted mappings by modelKey without its vendor owner.",
+  "class_root": "An explicit catalog archetype identity was not fail-closed at the shared profile resolver, so an omitted registry entry could silently borrow another provider's similarly named wire contract, while one regression assertion contradicted the catalog's vendor-scoped mapping identity.",
+  "affected_population": [
+    "Users enabling the official MiniMax H3 video model after catalog seeding",
+    "Any future curated video provider whose remote model name matches another provider while its explicit archetype profile is missing from the shared registry"
+  ],
+  "scope_paths": [
+    "electron/catalog/archetypeIdentifiers.generated.ts",
+    "electron/catalog/archetypeModes.generated.ts",
+    "electron/catalog/archetypeWireDefaults.video.generated.ts",
+    "electron/catalog/builtinVendorSeeds.ts",
+    "electron/catalog/minimaxTexts.ts",
+    "electron/catalog/minimaxVendor.ts",
+    "electron/catalog/minimaxVideos.ts",
+    "electron/catalog/seedBuiltins.ts",
+    "electron/shared/videoCapabilities/hailuoH3.ts",
+    "electron/shared/videoCapabilities/registry.ts",
+    "src/config/modelArchetypes/hailuoH3.ts"
+  ],
+  "entry_points": [
+    "applyBuiltinSeeds creates provider-owned MiniMax and APIMart model and mapping rows",
+    "buildVideoModelCandidates resolves seeded catalog rows into GUI and planning capability profiles",
+    "selectTaskMapping resolves a runnable mapping by vendor, task kind, and model key"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "MiniMax's official API documentation determines its endpoint and payload, but the failing invariant is Nomi's internal ownership and resolver behavior: explicit archetype ids and mapping identities must remain provider-scoped. Repository types, seed reconciliation, and shared registry code are the authority for that invariant.",
+  "invariants": [
+    "A curated video's explicit archetypeId resolves only to that exact shared profile; if the profile is absent, resolution returns a conservative unknown profile and never guesses by model name.",
+    "Source-backed video profiles are owned in electron/shared/videoCapabilities and renderer modules only re-export them.",
+    "Mapping identity is the tuple vendorKey, taskKind, and optional modelKey, so equal remote model names in different vendors remain independent.",
+    "The official MiniMax H3 model key remains the API enum MiniMax-H3 and its request body derives the model field from the selected catalog row."
+  ],
+  "generality_proof": "All GUI, MCP planning, and curated video capability projections converge on buildVideoModelCandidates and profileFor. Making explicit ids authoritative prevents every provider and future model-name collision from crossing profile ownership. Seed and runtime mapping selection already include vendorKey; correcting the APIMart class assertion verifies the same tuple rather than manufacturing global model-name uniqueness.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/videoCapabilities/registry.ts",
+      "symbol": "profileFor",
+      "responsibility": "Resolve explicit source-backed archetype identities exactly and fail closed to a conservative catalog profile when the registry entry is missing."
+    },
+    {
+      "path": "electron/catalog/seedBuiltins.ts",
+      "symbol": "reconcileMappings",
+      "responsibility": "Persist and reconcile curated mappings using the provider-scoped vendorKey, taskKind, and modelKey identity tuple."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/minimaxVideos.ts",
+      "entry_point": "MINIMAX_VIDEO_MODELS official H3 seed",
+      "disposition": "enforced",
+      "evidence": "The row declares archetypeId hailuo-h3 and reaches profileFor through the shared seeded catalog projection; its mapping remains owned by vendor minimax."
+    },
+    {
+      "path": "electron/catalog/apimartVideos.ts",
+      "entry_point": "APIMART_VIDEO_MODELS MiniMax-H3 relay seed",
+      "disposition": "enforced",
+      "evidence": "The same remote model name declares archetypeId minimax-h3-apimart and is resolved exactly while its mappings remain owned by vendor apimart."
+    },
+    {
+      "path": "electron/shared/videoCapabilities/registry.ts",
+      "entry_point": "unregistered explicit archetype fallback",
+      "disposition": "enforced",
+      "evidence": "The changed boundary returns unknownVideoArchetype before fuzzy identifier matching whenever an explicit archetypeId is not registered."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every new curated provider can reuse a vendor model enum already present elsewhere or omit one registry import, so name-based fallback could otherwise reproduce the same cross-provider capability leak.",
+    "same_class_scan": [
+      "Searched all curated catalog modelKey declarations and found MiniMax-H3 in both electron/catalog/apimartVideos.ts and electron/catalog/minimaxVideos.ts.",
+      "Traced all mapping selectors and seed reconciliation to vendor-scoped identity in electron/catalog/types.ts and electron/catalog/seedBuiltins.ts.",
+      "Checked renderer compatibility modules and confirmed source-backed profiles are re-exported from electron/shared/videoCapabilities across existing providers."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/videoCapabilities/registry.ts",
+    "invariant": "An explicit archetypeId either resolves exactly in the source-backed registry or produces a conservative unknown profile; fuzzy identifier matching is allowed only for rows without an explicit identity.",
+    "failure_mode": "A missing registration exposes only generic text and single-image shapes and fails the curated exact-profile contract test instead of silently advertising another provider's unsupported modes.",
+    "exception_policy": "none",
+    "strategy": "Move the MiniMax profile into the shared owner, register it once, and stop explicit identities before the fuzzy name-matching path for every caller.",
+    "artifacts": [
+      "electron/shared/videoCapabilities/hailuoH3.ts",
+      "electron/shared/videoCapabilities/registry.ts",
+      "src/config/modelArchetypes/hailuoH3.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/apimartSeedance25H3.test.ts",
+    "electron/catalog/minimax.test.ts",
+    "electron/shared/videoCapabilities/index.test.ts",
+    "src/config/knownVendors.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/apimartSeedance25H3.test.ts",
+    "electron/shared/videoCapabilities/index.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/config/modelArchetypes/hailuoH3.ts"
+    ],
+    "rationale": "The renderer-owned full profile definition is replaced by a compatibility re-export from the shared Electron owner; there is no second callable or editable profile definition."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The defect is in repository-owned catalog identity and profile resolution; no third-party package or runtime version controls the invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted schema migration is required. Built-in seed reconciliation keeps the existing provider-owned MiniMax row and mapping ids, while source-backed profile ownership changes only code lookup. Installations without the new seed remain unchanged; installations receiving it resolve the exact shared hailuo-h3 profile.",
+  "residual_risks": [
+    "The final paid H3 generation still requires a user-supplied key in safeStorage and provider-side quota; repository tests and earlier curl evidence cannot prove the current account state.",
+    "Fuzzy matching remains available for catalog rows that intentionally omit archetypeId; those rows stay conservative unless their identifier match is source-backed."
+  ]
+}

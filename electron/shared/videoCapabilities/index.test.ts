@@ -111,6 +111,18 @@ describe("shared video capability registry", () => {
     expect(mismatches).toEqual([]);
   });
 
+  it("does not borrow a same-named provider profile when an explicit archetype id is missing", () => {
+    const [candidate] = buildVideoModelCandidates([{
+      provider: "minimax",
+      modelKey: "MiniMax-H3",
+      label: "MiniMax H3",
+      archetypeId: "missing-minimax-h3-profile",
+    }]);
+
+    expect(candidate?.archetype.id).toBe("catalog-video-minimax-MiniMax-H3");
+    expect(candidate?.archetype.family).toBe("unknown");
+  });
+
   it("keeps renderer lookups and main-process planning on the same profile objects", () => {
     const mismatches = sourceBackedVideoProfiles().flatMap((profile) =>
       getArchetypeById(profile.id) === profile ? [] : [profile.id],
