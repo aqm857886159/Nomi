@@ -67,6 +67,7 @@
 | [2026-08-29-project-agent-host-execution-roadmap.md](2026-08-29-project-agent-host-execution-roadmap.md) | Project Agent Host Phase 2B–6 全阶段执行路线、出口门与 main 整合策略 | 🚧 |
 | [2026-08-29-project-agent-phase3a-closure.md](2026-08-29-project-agent-phase3a-closure.md) | Project Agent Phase 3A：canonical document.read Host 闭环 | ✅ |
 | [2026-08-29-project-agent-phase3b-document-write.md](2026-08-29-project-agent-phase3b-document-write.md) | Project Agent Phase 3B：可撤销 document.write Host 闭环 | 🚧 |
+| [2026-08-29-project-agent-phase3c-canvas-write.md](2026-08-29-project-agent-phase3c-canvas-write.md) | Project Agent Phase 3C：canonical canvas.write、Host-before-Surface 与精确 precondition | 🚧 |
 | [2026-08-29-cla-signature-ledger.md](2026-08-29-cla-signature-ledger.md) | CLA 签名账本与受保护主分支解耦 | ✅ |
 | [2026-08-28-reference-media-mentions.md](2026-08-28-reference-media-mentions.md) | 图片/视频/音频 @ 引用统一：候选、真实参考槽、编辑器与发送投影 | ✅ |
 | [2026-08-27-root-cause-remediation-and-media-boundary-fixes.md](2026-08-27-root-cause-remediation-and-media-boundary-fixes.md) | Comfy/custom-call 媒体契约根因修复 + 可执行根因合同门禁 | ✅ |

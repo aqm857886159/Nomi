@@ -1,14 +1,14 @@
 # Nomi 项目级常驻 Agent 完整交接（2026-08-29 修订）
 
-> 状态：🚧 持续实施（Phase 2B focused closure checkpoint `b84188d3` 已提交并推送；Draft PR #223 仍作为现场保护）
+> 状态：🚧 持续实施（远端任务分支已到 Phase 3B checkpoint `0a3de699`；本地 HEAD `820be401` 只领先一个状态文档提交；Draft PR #223 仍作为现场保护）
 > 用途：在当前任务额度耗尽或上下文丢失时，让下一位 Agent 从真实冻结点继续，不重做已完成切片，也不把尚未审完的工作误报为完成。
 > 工作树：`/Users/aoqimin/Desktop/Nomi-project-agent-host-phase1-20260827`
 > 分支：`codex/project-agent-host-phase1-20260827`
 > 当前 HEAD：动态读取 `git rev-parse HEAD`；不要使用本文件里的旧冻结 hash 复位工作树
 > 远端分支：`origin/codex/project-agent-host-phase1-20260827`
 > Draft PR：[#223](https://github.com/aqm857886159/Nomi/pull/223)
-> 远端冻结点：`ad5e6f31`；本地至少领先 `2d8cc85e`、`e46993c6`、`02f6080e`，后续切片以当前 Git 状态为准。
-> 最后统一状态：Phase 1 / 2A foundation 已在分支；Phase 2B Lane C 已完成单 Host/IPC、崩溃可恢复迁移、请求作用域绑定、旧 conversations writer 与 renderer chatV2 执行链删除，并完成两面板 direct Host projection、Host 驱动 pending registry、proposal receipt 生命周期收口。受影响矩阵 24 文件/193 tests、双 TypeScript、能力 owner、词汇门、scoped lint 和 diff check 均通过；checkpoint `b84188d3` 已推送到 Draft PR #223。Phase 3 尚未开始。
+> 远端冻结点：`0a3de699`；后续切片以动态读取的当前 Git 状态为准，不用本文旧 hash 复位。
+> 最后统一状态：Phase 2B、Phase 3A `document.read`、Phase 3B `document.write` 已完成并进入远端任务分支。当前是 Phase 3C Round 07 合同复审：Round 06 因 Host-before-Surface 顺序、exact invocation 持久化、authoritative Canvas precondition、MCP 阶段边界而失败；修订后只剩 receipt identity correlation 与合法 `{status,retryable}` 映射两项，已补入合同，生产代码尚未开始。
 
 ## 0.1 2026-08-29 真实快照与加速规则
 
@@ -64,7 +64,7 @@ Phase 2A 的独立审查仍要补，但它不再作为重新扫描整棵仓库�
 3. 已删除 `creationAiMessages` / `generationAiMessages` writer、旧区域 turn-controller 的生产导入，并用结构门岗阻止回归。
 4. 当前只做一次 closure review 与 checkpoint 证据冻结：`check:test-types`、Lane C 20 文件 focused matrix、双 typecheck、scoped lint、owner/vocabulary、diff check；全量 gates/build/package/真实旅程继续留到最终候选。
 
-## 0.4 2026-08-29 执行流程 v2（防止 reviewer 逐轮补洞）
+## 0.4 2026-08-29 执行流程 v3（防止 reviewer 逐轮补洞和无信息重跑）
 
 此前 direct projection checkpoint 连续出现 `Round 01 -> 02 -> 03 -> 04`，不是因为同一测试反复不稳定，而是合同先按文件切、reviewer 后置，导致 failure terminalization、卡片真实渲染、anchor 生命周期和 receipt 重启恢复这些相邻依赖一次只暴露一个。后续禁止沿用这种微切片串行。
 
@@ -80,13 +80,17 @@ Phase 2A 的独立审查仍要补，但它不再作为重新扫描整棵仓库�
 
 8. **每个 lane 先做调用面清单，再开始 RED。** 清单同时覆盖生产调用点、测试 fixture、结构/词汇门岗和删除债，并逐项标记迁移、删除或保留。这样契约字段或 owner 变化不会靠全量测试逐个暴露下游缺口。
 9. **证据按 lane 复用，阶段出口一次冻结。** 每个 lane 维护一次命令/文件/结果账本；worker 的 GREEN 证据由只读 reviewer 消费，只补跑缺失或有争议的检查。阶段出口固定为 affected focused matrix + typecheck + scoped lint + owner/vocabulary + diff check + 一次 consolidated remediation，然后才整合当时最新 main 并跑 full gate。
+10. **相同失败有停止条件。** 同一命令、同一失败签名在源码、fixture、依赖和相关环境均未变化时最多执行两次；第二次后必须先归类为 contract / lifecycle / implementation / environment 并改变对应证据，禁止第三次原样重跑，也禁止用更宽测试诊断已知窄问题。
+11. **本地提交与远端 checkpoint 分层。** 每个切片 focused closure 后形成 scoped 本地提交；只在 Phase 3/4 联合出口和 Phase 6 最终出口刷新远端基线、整合一次 main、跑一次完整 push gate 并更新 Draft PR。网络失败只重试网络操作，不使未变化的测试证据失效。
+12. **lane 入口读取直接重叠历史 PR。** MCP / Skill / Registry / UI 每个 lane 在 RED 前读取 evidence 表与原 PR 语义 diff，先写 adopt / adapt / reject；Phase 5 做全量增量，Phase 6 只补 UI 和新 PR 差异。
 
-当前 Phase 2B 不再按旧 §0.3 的单文件续跑点零散推进，统一以：
+当前 Phase 3C 不按旧 §0.3 的单文件续跑点零散推进，统一以：
 
-- `.agents/runtime/harness/project-agent-host-20260829/execution-protocol-v2.json`
-- `.agents/runtime/harness/project-agent-host-20260829/phase-2b-closure-contract.json`
+- `.agents/runtime/harness/project-agent-host-20260829/execution-protocol-v3.json`
+- `.agents/runtime/harness/project-agent-host-20260829/phase-3-closure-contract.json`
+- `.agents/runtime/harness/project-agent-host-20260829/round-07-contract.json`
 
-为实施与验收合同。当前 Round 01-04 工件保留为失败证据，不再继续扩出 Round 05；Phase 2B implementation batch 已收口 receipt、Creation pending owner、Canvas lifecycle、项目切换/重启和结构门岗，下一停点是 checkpoint 提交/推送及一次性 main 基线整合。
+为当前实施与验收合同。Round 01-06 工件保留为历史证据，不再沿用“实现后 reviewer 每轮补一个洞”的节奏。下一停点是 Round 07 增量只读复审通过，然后才为 `set_node_prompt` 写最小 RED；此时不整合 `main`、不跑全量测试。
 
 ---
 
@@ -625,11 +629,11 @@ pnpm run test:mcp
 3) docs/superpowers/plans/2026-08-27-canvas-read-capability-spine.md
 4) docs/ARCHITECTURE-NOW.md
 
-工作树固定为 /Users/aoqimin/Desktop/Nomi-project-agent-host-phase1-20260827，分支应为 codex/project-agent-host-phase1-20260827。先检查 git branch/status/rev-list；保护 123 个 tracked changes 与 86 个 untracked entries，禁止 reset/clean/覆盖。
+工作树固定为 /Users/aoqimin/Desktop/Nomi-project-agent-host-phase1-20260827，分支应为 codex/project-agent-host-phase1-20260827。先检查 git branch/status/rev-list；保护所有不是当前 lane 所有的改动，禁止 reset/clean/覆盖。
 
-真实进度：Phase1 实现已冻结但未最终 build/package；Phase2A foundation 已完成 focused 合同验证；Phase2B Lane C 已完成 Host/IPC、迁移、direct projection、pending registry、receipt、项目切换/重启和旧 writer 删除，当前待 checkpoint 与一次性 latest-main integration。
+真实进度：Phase 1/2A/2B、Phase 3A document.read、Phase 3B document.write 已完成并进入远端任务分支；Phase 3C 处于 Round 07 合同增量复审，生产代码尚未开始。当前合同要求 main 预分配 receiptProposalId、Host proposal durable 后才 dispatch、renderer write boundary 同步复验、typed outcome 进入唯一 ProjectAgentFailureItem。
 
-先做一次只读 Phase2B closure review；若有具体 P0-P2，合并进一个 remediation batch，修完只补跑直接受影响文件和一次 Lane C matrix。不要创建第二个 Host、不要双写、不要保留旧 conversations/chatV2 fallback。日常只跑切片 focused tests；Phase 2B 出口只整合一次当时最新 `main`，最终候选才跑全量 gates/build/package/真实旅程。
+先对 Round 07 的 receipt identity 和合法 {status,retryable} 映射做一次增量只读复审；通过后才写 `set_node_prompt` 最小 RED。不要创建第二个 Host、Canvas transaction、receipt、Undo 或状态 owner。日常只跑直接测试；每个切片做 scoped 本地提交，Phase 3/4 联合出口才整合一次当时最新 `main` 和运行完整 push gate，最终候选再跑 build/package/真实旅程。
 ```
 
 ---
@@ -637,7 +641,7 @@ pnpm run test:mcp
 ## 12. 交接时的最后结论
 
 - 代码没有丢，现场可恢复。
-- 任务没有完成，当前处于 Phase 2B Lane C 已收口、待 checkpoint/main integration 的状态。
-- 本次 `check:test-types` 通过；Lane C 20 文件 focused matrix 为 180/180；无新增测试类型错误。
-- Phase 2B closure review 只需补缺失或有争议的证据，不应重新扫描整棵仓库或追逐 main。
-- 当前安全停点是 Phase 2B Lane C closure 之后：先保存本地改动并形成 checkpoint，再一次性整合 latest `main`；下一轮从 Phase 3 capability inventory 继续。
+- 任务没有完成，当前处于 Phase 3C Round 07 增量合同复审，生产实现尚未开始。
+- Phase 3B 之前的代码已在远端任务分支；本地状态文档和 Phase 3C 合同是当前待提交现场。
+- 只复审 receipt identity 与 `{status,retryable}` 两项修订，不重新扫描已关闭阶段或追逐 `main`。
+- 当前安全停点是合同修订之后：复审通过即写 `set_node_prompt` 最小 RED，并沿一个完整纵切推进。
