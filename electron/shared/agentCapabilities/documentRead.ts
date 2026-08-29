@@ -39,6 +39,9 @@ export const DOCUMENT_READ_CAPABILITY = {
   aliases: {
     pi: "read_full_text",
   },
+  additionalAliases: {
+    pi: Object.freeze([DOCUMENT_READ_SELECTION_ALIAS]),
+  },
   inputSchema: documentReadSemanticInputSchema,
   outputSchema: documentReadResultSchema,
   effect: "read",

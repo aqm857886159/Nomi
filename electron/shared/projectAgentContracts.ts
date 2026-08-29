@@ -109,17 +109,6 @@ export type ProjectAgentContextRef = Readonly<{
   recordId: string;
 }>;
 
-export type LegacyContextSourceRef = Readonly<{
-  legacyArea: "creation" | "generation";
-  legacySessionKey: string;
-  legacyThreadId: string;
-  sourceHash: string;
-}>;
-
-export type ProjectAgentThreadProvenance =
-  | Readonly<{ kind: "canonical" }>
-  | Readonly<{ kind: "legacy"; readOnly: true; source: LegacyContextSourceRef }>;
-
 export type ProjectAgentVersionRef = Readonly<{
   id: string;
   version: string | number;
@@ -163,8 +152,6 @@ export type ProjectAgentThread = Readonly<{
   title?: string;
   createdAt: string;
   updatedAt: string;
-  /** Legacy threads are immutable archive records; absence means a canonical thread. */
-  provenance?: ProjectAgentThreadProvenance;
 }>;
 
 export type ProjectAgentTurn = ProjectAgentRecordBase &

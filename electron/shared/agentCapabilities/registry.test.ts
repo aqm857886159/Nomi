@@ -4,7 +4,7 @@ import { CANVAS_READ_CAPABILITY } from "./canvasRead";
 import { CANVAS_WRITE_CAPABILITY } from "./canvasWrite";
 import { DOCUMENT_READ_CAPABILITY, DOCUMENT_READ_ALIASES } from "./documentRead";
 import { DOCUMENT_WRITE_CAPABILITY, DOCUMENT_WRITE_ALIASES } from "./documentWrite";
-import { CAPABILITY_CONTRACTS, resolveCapabilityAlias } from "./registry";
+import { CAPABILITY_CONTRACTS, capabilityOperationAliasesFor, resolveCapabilityAlias } from "./registry";
 import type { ContractOnlyRegistry } from "./registry";
 
 type AssertNever<Value extends never> = Value;
@@ -42,6 +42,11 @@ describe("capability contract registry", () => {
     ]);
     expect(CAPABILITY_CONTRACTS[0]?.exposure).toBe("mcp_safe");
     expect(resolveCapabilityAlias(CANVAS_WRITE_CAPABILITY.aliases.pi)?.contract).toBe(CANVAS_WRITE_CAPABILITY);
+    expect(capabilityOperationAliasesFor(CANVAS_WRITE_CAPABILITY.id, "pi")).toEqual([
+      "create_canvas_nodes",
+      "connect_canvas_edges",
+      "tidy_canvas",
+    ]);
     expect(resolveCapabilityAlias("nomi_set_node_prompt")).toBeUndefined();
     expect(resolveCapabilityAlias(DOCUMENT_READ_ALIASES.selection)?.contract).toBe(DOCUMENT_READ_CAPABILITY);
     expect(resolveCapabilityAlias(DOCUMENT_WRITE_ALIASES.replace)?.contract).toBe(DOCUMENT_WRITE_CAPABILITY);

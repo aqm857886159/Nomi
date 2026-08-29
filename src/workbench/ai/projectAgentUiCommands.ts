@@ -41,7 +41,6 @@ function newThread(now: string): ProjectAgentThread {
     threadId: `thread-${globalThis.crypto.randomUUID()}`,
     createdAt: now,
     updatedAt: now,
-    provenance: Object.freeze({ kind: 'canonical' as const }),
   })
 }
 
@@ -49,11 +48,7 @@ function newThread(now: string): ProjectAgentThread {
 export async function createProjectAgentThread(): Promise<ProjectAgentHostState> {
   const snapshot = currentSnapshot()
   const active = snapshot.threads.find((thread) => thread.threadId === snapshot.activeThreadId)
-  if (
-    active?.provenance?.kind !== 'legacy' &&
-    active &&
-    !snapshot.items.some((item) => item.threadId === active.threadId)
-  ) {
+  if (active && !snapshot.items.some((item) => item.threadId === active.threadId)) {
     return snapshot
   }
   const now = new Date().toISOString()

@@ -48,7 +48,6 @@ function executionInput(
     threadId: `thread-${id}`,
     createdAt: occurredAt,
     updatedAt: occurredAt,
-    provenance: { kind: "canonical" as const },
   };
   const contextRef = {
     binding: createProjectAgentContextBinding(projectBinding, thread.threadId),
@@ -119,43 +118,49 @@ function executionInput(
   };
 }
 
-function documentWriteAdapter(options: Readonly<{
-  prepareError?: string;
-  result?: AgentChatToolDecision;
-}> = {}): PiDocumentWriteTransportAdapter & {
+function documentWriteAdapter(
+  options: Readonly<{
+    prepareError?: string;
+    result?: AgentChatToolDecision;
+  }> = {},
+): PiDocumentWriteTransportAdapter & {
   prepare: ReturnType<typeof vi.fn>;
   execute: ReturnType<typeof vi.fn>;
   dispose: ReturnType<typeof vi.fn>;
 } {
-  const prepare = vi.fn(async (
-    call: RuntimeToolCall,
-    input: Readonly<{ documentId: string; target: TargetRef; preconditions: PreconditionSet }>,
-    _signal: AbortSignal,
-  ): Promise<PreparedDocumentWrite | null> => {
-    if (options.prepareError) {
-      throw Object.assign(new Error(options.prepareError), { code: options.prepareError });
-    }
-    const inputHash = createHash("sha256").update(JSON.stringify(call.args)).digest("hex");
-    const actionHash = createHash("sha256")
-      .update(JSON.stringify({ call: call.toolName, inputHash, target: input.target, preconditions: input.preconditions }))
-      .digest("hex");
-    const invocation = {
-      target: input.target,
-      preconditions: input.preconditions,
-      policyRevision: 1,
-      inputHash,
-      actionHash,
-    } as unknown as PreparedDocumentWrite["invocation"];
-    return Object.freeze({ call, invocation });
-  });
-  const execute = vi.fn(async (
-    _prepared: PreparedDocumentWrite,
-    _signal: AbortSignal,
-  ): Promise<AgentChatToolDecision> => options.result ?? {
-    ok: true,
-    result: { applied: true, revision: 2, contentHash: "fnv1a-next" },
-    silent: true,
-  });
+  const prepare = vi.fn(
+    async (
+      call: RuntimeToolCall,
+      input: Readonly<{ documentId: string; target: TargetRef; preconditions: PreconditionSet }>,
+      _signal: AbortSignal,
+    ): Promise<PreparedDocumentWrite | null> => {
+      if (options.prepareError) {
+        throw Object.assign(new Error(options.prepareError), { code: options.prepareError });
+      }
+      const inputHash = createHash("sha256").update(JSON.stringify(call.args)).digest("hex");
+      const actionHash = createHash("sha256")
+        .update(
+          JSON.stringify({ call: call.toolName, inputHash, target: input.target, preconditions: input.preconditions }),
+        )
+        .digest("hex");
+      const invocation = {
+        target: input.target,
+        preconditions: input.preconditions,
+        policyRevision: 1,
+        inputHash,
+        actionHash,
+      } as unknown as PreparedDocumentWrite["invocation"];
+      return Object.freeze({ call, invocation });
+    },
+  );
+  const execute = vi.fn(
+    async (_prepared: PreparedDocumentWrite, _signal: AbortSignal): Promise<AgentChatToolDecision> =>
+      options.result ?? {
+        ok: true,
+        result: { applied: true, revision: 2, contentHash: "fnv1a-next" },
+        silent: true,
+      },
+  );
   const dispose = vi.fn();
   return { prepare, execute, dispose } as unknown as PiDocumentWriteTransportAdapter & {
     prepare: ReturnType<typeof vi.fn>;
@@ -171,21 +176,25 @@ function documentWriteResponse(call: RuntimeToolCall, decision: AgentChatToolDec
     text: "done",
     finishReason: "stop",
     artifacts: [],
-    toolCalls: [{
-      ...call,
-      status: decision.ok ? "ok" : "denied",
-      ...(decision.ok && decision.result !== undefined ? { result: decision.result } : {}),
-      decision,
-    }],
+    toolCalls: [
+      {
+        ...call,
+        status: decision.ok ? "ok" : "denied",
+        ...(decision.ok && decision.result !== undefined ? { result: decision.result } : {}),
+        decision,
+      },
+    ],
     usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
   };
 }
 
-function canvasWriteAdapter(options: Readonly<{
-  prepareError?: string;
-  result?: AgentChatToolDecision;
-  executeError?: string;
-}> = {}): PiCanvasWriteTransportAdapter & {
+function canvasWriteAdapter(
+  options: Readonly<{
+    prepareError?: string;
+    result?: AgentChatToolDecision;
+    executeError?: string;
+  }> = {},
+): PiCanvasWriteTransportAdapter & {
   prepare: ReturnType<typeof vi.fn>;
   execute: ReturnType<typeof vi.fn>;
   dispose: ReturnType<typeof vi.fn>;
@@ -205,18 +214,22 @@ function canvasWriteAdapter(options: Readonly<{
     } as unknown as PreparedCanvasWrite["invocation"];
     return Object.freeze({ call, invocation });
   });
-  const execute = vi.fn(async (
-    _prepared: PreparedCanvasWrite,
-    approval: CanvasWriteApprovalAuthority,
-    _signal: AbortSignal,
-  ): Promise<AgentChatToolDecision> => {
-    if (options.executeError) throw new Error(options.executeError);
-    return options.result ?? ({
-      ok: true,
-      result: { applied: true, proposalId: approval.receiptProposalId },
-      silent: true,
-    });
-  });
+  const execute = vi.fn(
+    async (
+      _prepared: PreparedCanvasWrite,
+      approval: CanvasWriteApprovalAuthority,
+      _signal: AbortSignal,
+    ): Promise<AgentChatToolDecision> => {
+      if (options.executeError) throw new Error(options.executeError);
+      return (
+        options.result ?? {
+          ok: true,
+          result: { applied: true, proposalId: approval.receiptProposalId },
+          silent: true,
+        }
+      );
+    },
+  );
   const dispose = vi.fn();
   return { prepare, execute, dispose } as unknown as PiCanvasWriteTransportAdapter & {
     prepare: ReturnType<typeof vi.fn>;
@@ -279,31 +292,33 @@ async function seedClaimedCanvasExecution(
   const host = createProjectAgentRepositoryRouter({ rootDir: recoveryRoot }).attach(projectBinding);
   const input = canvasExecutionInput(id, 0, projectBinding);
   let state = (await host.dispatch(input.mutation)).state;
-  state = (await host.dispatch({
-    commandId: `start-${id}`,
-    expectedRevision: state.hostRevision,
-    binding: projectBinding,
-    sender: { kind: "internal", senderId: "test" },
-    type: "turn.start",
-    payload: {
-      turnId: input.mutation.payload.turn.turnId,
-      queueItemId: input.mutation.payload.queueItem.queueItemId,
-      assistantItem: {
-        itemId: `assistant-${id}`,
-        threadId: input.mutation.payload.thread.threadId,
+  state = (
+    await host.dispatch({
+      commandId: `start-${id}`,
+      expectedRevision: state.hostRevision,
+      binding: projectBinding,
+      sender: { kind: "internal", senderId: "test" },
+      type: "turn.start",
+      payload: {
         turnId: input.mutation.payload.turn.turnId,
-        kind: "assistant",
-        text: "",
-        textRevision: 0,
-        status: "running",
-        retryable: false,
-        deviated: false,
-        createdAt: "2026-08-28T00:00:00.000Z",
-        updatedAt: "2026-08-28T00:00:00.000Z",
+        queueItemId: input.mutation.payload.queueItem.queueItemId,
+        assistantItem: {
+          itemId: `assistant-${id}`,
+          threadId: input.mutation.payload.thread.threadId,
+          turnId: input.mutation.payload.turn.turnId,
+          kind: "assistant",
+          text: "",
+          textRevision: 0,
+          status: "running",
+          retryable: false,
+          deviated: false,
+          createdAt: "2026-08-28T00:00:00.000Z",
+          updatedAt: "2026-08-28T00:00:00.000Z",
+        },
+        occurredAt: "2026-08-28T00:00:00.000Z",
       },
-      occurredAt: "2026-08-28T00:00:00.000Z",
-    },
-  })).state;
+    })
+  ).state;
   const approval: ProposalApprovalRef = Object.freeze({
     approvalId: `approval-${id}`,
     receiptProposalId: `receipt-${id}`,
@@ -317,29 +332,31 @@ async function seedClaimedCanvasExecution(
     preconditions: input.mutation.payload.queueItem.preconditions,
     expiresAt: "2026-08-29T00:00:00.000Z",
   });
-  state = (await host.dispatch({
-    commandId: `proposal-${id}`,
-    expectedRevision: state.hostRevision,
-    binding: projectBinding,
-    sender: { kind: "internal", senderId: "test" },
-    type: "proposal.put",
-    payload: {
-      approval: { ref: approval, lifecycle: "pending" },
-      item: {
-        itemId: `proposal-${id}`,
-        threadId: approval.threadId,
-        turnId: approval.turnId,
-        kind: "proposal",
-        approval,
-        status: "proposed",
-        retryable: false,
-        deviated: false,
-        createdAt: "2026-08-28T00:00:00.000Z",
-        updatedAt: "2026-08-28T00:00:00.000Z",
+  state = (
+    await host.dispatch({
+      commandId: `proposal-${id}`,
+      expectedRevision: state.hostRevision,
+      binding: projectBinding,
+      sender: { kind: "internal", senderId: "test" },
+      type: "proposal.put",
+      payload: {
+        approval: { ref: approval, lifecycle: "pending" },
+        item: {
+          itemId: `proposal-${id}`,
+          threadId: approval.threadId,
+          turnId: approval.turnId,
+          kind: "proposal",
+          approval,
+          status: "proposed",
+          retryable: false,
+          deviated: false,
+          createdAt: "2026-08-28T00:00:00.000Z",
+          updatedAt: "2026-08-28T00:00:00.000Z",
+        },
+        occurredAt: "2026-08-28T00:00:00.000Z",
       },
-      occurredAt: "2026-08-28T00:00:00.000Z",
-    },
-  })).state;
+    })
+  ).state;
   await host.dispatch({
     commandId: `claim-${id}`,
     expectedRevision: state.hostRevision,
@@ -370,29 +387,31 @@ async function seedSecondClaimedCanvasApproval(
     inputHash: "d".repeat(64),
     actionHash: "c".repeat(64),
   });
-  state = (await host.dispatch({
-    commandId: `proposal-${approval.approvalId}`,
-    expectedRevision: state.hostRevision,
-    binding: projectBinding,
-    sender: { kind: "internal", senderId: "test" },
-    type: "proposal.put",
-    payload: {
-      approval: { ref: approval, lifecycle: "pending" },
-      item: {
-        itemId: `proposal-${approval.approvalId}`,
-        threadId: approval.threadId,
-        turnId: approval.turnId,
-        kind: "proposal",
-        approval,
-        status: "proposed",
-        retryable: false,
-        deviated: false,
-        createdAt: "2026-08-28T00:00:00.000Z",
-        updatedAt: "2026-08-28T00:00:00.000Z",
+  state = (
+    await host.dispatch({
+      commandId: `proposal-${approval.approvalId}`,
+      expectedRevision: state.hostRevision,
+      binding: projectBinding,
+      sender: { kind: "internal", senderId: "test" },
+      type: "proposal.put",
+      payload: {
+        approval: { ref: approval, lifecycle: "pending" },
+        item: {
+          itemId: `proposal-${approval.approvalId}`,
+          threadId: approval.threadId,
+          turnId: approval.turnId,
+          kind: "proposal",
+          approval,
+          status: "proposed",
+          retryable: false,
+          deviated: false,
+          createdAt: "2026-08-28T00:00:00.000Z",
+          updatedAt: "2026-08-28T00:00:00.000Z",
+        },
+        occurredAt: "2026-08-28T00:00:00.000Z",
       },
-      occurredAt: "2026-08-28T00:00:00.000Z",
-    },
-  })).state;
+    })
+  ).state;
   await host.dispatch({
     commandId: `claim-${approval.approvalId}`,
     expectedRevision: state.hostRevision,
@@ -622,8 +641,12 @@ describe("ProjectAgentExecutionCoordinator", () => {
       "turn-partition-a",
       "turn-partition-b",
     ]);
-    expect(firstEvents.every((event) => event.subscriptionId === first.subscriptionId && event.subscriptionEpoch === 1)).toBe(true);
-    expect(secondEvents.every((event) => event.subscriptionId === second.subscriptionId && event.subscriptionEpoch === 2)).toBe(true);
+    expect(
+      firstEvents.every((event) => event.subscriptionId === first.subscriptionId && event.subscriptionEpoch === 1),
+    ).toBe(true);
+    expect(
+      secondEvents.every((event) => event.subscriptionId === second.subscriptionId && event.subscriptionEpoch === 2),
+    ).toBe(true);
     const firstPatchRevisions = firstEvents
       .filter((event) => event.type === "patch")
       .map((event) => event.patch.hostRevision);
@@ -711,31 +734,33 @@ describe("ProjectAgentExecutionCoordinator", () => {
       const input = executionInput(`recovery-${orphanStatus}`, 0, projectBinding);
       let state = (await host.dispatch(input.mutation)).state;
       if (orphanStatus !== "queued") {
-        state = (await host.dispatch({
-          commandId: `start-recovery-${orphanStatus}`,
-          expectedRevision: state.hostRevision,
-          binding: projectBinding,
-          sender: { kind: "internal", senderId: "test" },
-          type: "turn.start",
-          payload: {
-            turnId: input.mutation.payload.turn.turnId,
-            queueItemId: input.mutation.payload.queueItem.queueItemId,
-            assistantItem: {
-              itemId: `assistant-recovery-${orphanStatus}`,
-              threadId: input.mutation.payload.thread.threadId,
+        state = (
+          await host.dispatch({
+            commandId: `start-recovery-${orphanStatus}`,
+            expectedRevision: state.hostRevision,
+            binding: projectBinding,
+            sender: { kind: "internal", senderId: "test" },
+            type: "turn.start",
+            payload: {
               turnId: input.mutation.payload.turn.turnId,
-              kind: "assistant",
-              text: "",
-              textRevision: 0,
-              status: "running",
-              retryable: false,
-              deviated: false,
-              createdAt: "2026-08-28T00:00:00.000Z",
-              updatedAt: "2026-08-28T00:00:00.000Z",
+              queueItemId: input.mutation.payload.queueItem.queueItemId,
+              assistantItem: {
+                itemId: `assistant-recovery-${orphanStatus}`,
+                threadId: input.mutation.payload.thread.threadId,
+                turnId: input.mutation.payload.turn.turnId,
+                kind: "assistant",
+                text: "",
+                textRevision: 0,
+                status: "running",
+                retryable: false,
+                deviated: false,
+                createdAt: "2026-08-28T00:00:00.000Z",
+                updatedAt: "2026-08-28T00:00:00.000Z",
+              },
+              occurredAt: "2026-08-28T00:00:00.000Z",
             },
-            occurredAt: "2026-08-28T00:00:00.000Z",
-          },
-        })).state;
+          })
+        ).state;
       }
       if (orphanStatus === "proposed") {
         const ref = {
@@ -841,16 +866,18 @@ describe("ProjectAgentExecutionCoordinator", () => {
         receiptProposalId: approval.receiptProposalId,
         actionHash: approval.actionHash,
       });
-      const receipt = receiptState === "missing" ? null
-        : receiptState === "binding-mismatch"
-          ? { ...exactReceipt, binding: { ...projectBinding, projectId: "project-forged" } }
-          : receiptState === "proposal-mismatch"
-            ? { ...exactReceipt, proposalId: "receipt-forged" }
-            : receiptState === "approval-mismatch"
-              ? { ...exactReceipt, proposal: { ...exactReceipt.proposal, hostApprovalId: "approval-forged" } }
-              : receiptState === "action-mismatch"
-                ? { ...exactReceipt, proposal: { ...exactReceipt.proposal, hostActionHash: "f".repeat(64) } }
-                : exactReceipt;
+      const receipt =
+        receiptState === "missing"
+          ? null
+          : receiptState === "binding-mismatch"
+            ? { ...exactReceipt, binding: { ...projectBinding, projectId: "project-forged" } }
+            : receiptState === "proposal-mismatch"
+              ? { ...exactReceipt, proposalId: "receipt-forged" }
+              : receiptState === "approval-mismatch"
+                ? { ...exactReceipt, proposal: { ...exactReceipt.proposal, hostApprovalId: "approval-forged" } }
+                : receiptState === "action-mismatch"
+                  ? { ...exactReceipt, proposal: { ...exactReceipt.proposal, hostActionHash: "f".repeat(64) } }
+                  : exactReceipt;
       const readProposalReceipt = vi.fn(() => receipt);
       const canvasAdapter = canvasWriteAdapter();
       let runCount = 0;
@@ -883,13 +910,17 @@ describe("ProjectAgentExecutionCoordinator", () => {
         status: expectedStatus,
         retryable: false,
       });
-      expect(recovered.items.find((item) => item.kind === "proposal" && item.turnId === approval.turnId)).toMatchObject({
-        status: expectedStatus,
-      });
+      expect(recovered.items.find((item) => item.kind === "proposal" && item.turnId === approval.turnId)).toMatchObject(
+        {
+          status: expectedStatus,
+        },
+      );
       if (receiptState === "exact") {
         expect(recovered.items.some((item) => item.kind === "failure" && item.turnId === approval.turnId)).toBe(false);
       } else {
-        expect(recovered.items.find((item) => item.kind === "failure" && item.turnId === approval.turnId)).toMatchObject({
+        expect(
+          recovered.items.find((item) => item.kind === "failure" && item.turnId === approval.turnId),
+        ).toMatchObject({
           code: "capability_receipt_unresolved",
           status: "failed",
           retryable: false,
@@ -1031,7 +1062,6 @@ describe("ProjectAgentExecutionCoordinator", () => {
 
   it("owns the queued turn execution, streams one assistant item, and waits for tool decisions", async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-execution-"));
-    let coordinator!: ReturnType<typeof createProjectAgentExecutionCoordinator>;
     let subscriptionId = "";
     const published: ProjectAgentExecutionEvent[] = [];
     let resolveToolCall!: (value: {
@@ -1046,131 +1076,130 @@ describe("ProjectAgentExecutionCoordinator", () => {
     }>((resolve) => {
       resolveToolCall = resolve;
     });
-    coordinator = createProjectAgentExecutionCoordinator(
-        createProjectAgentRepositoryRouter({ rootDir: root }),
-        () => "subscription-execution",
-        {
-          runAgent: async (_request, hooks) => {
-            hooks.emit({ type: "content-delta", delta: "hello" });
-            hooks.emit({
-              type: "tool-call",
-              toolCallId: "tool-1",
-              toolName: "insert_at_cursor",
-              args: { content: "x" },
-            });
-            const decision = await hooks.awaitToolConfirmation(
-              { toolCallId: "tool-1", toolName: "insert_at_cursor", args: { content: "x" } },
-              hooks.abortSignal!,
-            );
-            expect(decision).toMatchObject({ ok: true, result: { applied: true } });
-            return {
-              id: "result",
-              status: "finished",
-              text: "hello",
-              finishReason: "stop",
-              artifacts: [],
-              usage: { promptTokens: 1, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 2 },
-              toolCalls: [
-                {
-                  toolCallId: "tool-1",
-                  toolName: "insert_at_cursor",
-                  args: { content: "x" },
-                  status: "ok",
-                  result: { applied: true },
-                  decision,
-                },
-              ],
-            } satisfies AgentChatResponse;
-          },
-        },
-      );
-    const opened = await coordinator.open(binding);
-      subscriptionId = opened.subscriptionId;
-      coordinator.subscribe(opened.subscriptionId, (event) => {
-        published.push(event);
-        if (event.type === "tool-call") {
-          resolveToolCall({
-            turnId: event.turnId,
-            toolCallId: event.toolCallId,
-            ...(event.assistantTextAnchor ? { assistantTextAnchor: event.assistantTextAnchor } : {}),
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-execution",
+      {
+        runAgent: async (_request, hooks) => {
+          hooks.emit({ type: "content-delta", delta: "hello" });
+          hooks.emit({
+            type: "tool-call",
+            toolCallId: "tool-1",
+            toolName: "insert_at_cursor",
+            args: { content: "x" },
           });
-        }
-      });
-      const contextRef = {
-        binding: createProjectAgentContextBinding(binding, "thread-execution"),
-        contextRevision: 0,
-        recordId: "canonical-context-thread-execution",
-      } as const;
-      const now = "2026-08-28T00:00:00.000Z";
-      const thread = {
-        threadId: "thread-execution",
-        createdAt: now,
-        updatedAt: now,
-        provenance: { kind: "canonical" as const },
-      };
-      const turn = {
-        turnId: "turn-execution",
-        threadId: thread.threadId,
-        executionToken: "execution-token",
-        model: { id: "model", version: 1 },
-        skillVersions: [],
-        capabilityVersions: [{ id: "creation-chat", version: 1 }],
-        contextRef,
-        status: "queued" as const,
-        retryable: false,
-        deviated: false,
-        createdAt: now,
-        updatedAt: now,
-      };
-      const userItem = {
-        itemId: "user-execution",
-        threadId: thread.threadId,
-        turnId: turn.turnId,
-        kind: "user" as const,
-        text: "hi",
-        status: "done" as const,
-        retryable: false,
-        deviated: false,
-        createdAt: now,
-        updatedAt: now,
-      };
-      const queueItem = {
-        queueItemId: "queue-execution",
-        threadId: thread.threadId,
-        turnId: turn.turnId,
-        binding,
-        target: { kind: "document" as const, documentId: "doc", anchor: { kind: "whole-document" as const } },
-        preconditions: {},
-        contextRef,
-        model: turn.model,
-        skillVersions: [],
-        capabilityVersions: turn.capabilityVersions,
-        policyRevision: 1,
-        attachmentRefs: [],
-        originSurface: { surfaceId: "surface", kind: "document" as const },
-        enqueuedAt: now,
-        status: "queued" as const,
-        retryable: false,
-        deviated: false,
-        updatedAt: now,
-      };
-      const mutation: Extract<ProjectAgentMutation, { type: "turn.enqueue" }> = {
-        commandId: "enqueue-execution",
-        expectedRevision: 0,
-        binding,
-        sender: { kind: "renderer", senderId: "subscription-execution" },
-        type: "turn.enqueue",
-        payload: { thread, turn, userItem, queueItem },
-      };
-      const request: AgentChatRequest = {
-        prompt: "hi",
-        capability: "creation-chat",
-        history: { kind: "ephemeral" },
-        projectId: binding.projectId,
-      };
-      void coordinator.enqueue(opened.subscriptionId, { mutation, request }).catch((error) => {
-        console.error("execution enqueue failed", error);
-      });
+          const decision = await hooks.awaitToolConfirmation(
+            { toolCallId: "tool-1", toolName: "insert_at_cursor", args: { content: "x" } },
+            hooks.abortSignal!,
+          );
+          expect(decision).toMatchObject({ ok: true, result: { applied: true } });
+          return {
+            id: "result",
+            status: "finished",
+            text: "hello",
+            finishReason: "stop",
+            artifacts: [],
+            usage: { promptTokens: 1, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 2 },
+            toolCalls: [
+              {
+                toolCallId: "tool-1",
+                toolName: "insert_at_cursor",
+                args: { content: "x" },
+                status: "ok",
+                result: { applied: true },
+                decision,
+              },
+            ],
+          } satisfies AgentChatResponse;
+        },
+      },
+    );
+    const opened = await coordinator.open(binding);
+    subscriptionId = opened.subscriptionId;
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      published.push(event);
+      if (event.type === "tool-call") {
+        resolveToolCall({
+          turnId: event.turnId,
+          toolCallId: event.toolCallId,
+          ...(event.assistantTextAnchor ? { assistantTextAnchor: event.assistantTextAnchor } : {}),
+        });
+      }
+    });
+    const contextRef = {
+      binding: createProjectAgentContextBinding(binding, "thread-execution"),
+      contextRevision: 0,
+      recordId: "canonical-context-thread-execution",
+    } as const;
+    const now = "2026-08-28T00:00:00.000Z";
+    const thread = {
+      threadId: "thread-execution",
+      createdAt: now,
+      updatedAt: now,
+    };
+    const turn = {
+      turnId: "turn-execution",
+      threadId: thread.threadId,
+      executionToken: "execution-token",
+      model: { id: "model", version: 1 },
+      skillVersions: [],
+      capabilityVersions: [{ id: "creation-chat", version: 1 }],
+      contextRef,
+      status: "queued" as const,
+      retryable: false,
+      deviated: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const userItem = {
+      itemId: "user-execution",
+      threadId: thread.threadId,
+      turnId: turn.turnId,
+      kind: "user" as const,
+      text: "hi",
+      status: "done" as const,
+      retryable: false,
+      deviated: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const queueItem = {
+      queueItemId: "queue-execution",
+      threadId: thread.threadId,
+      turnId: turn.turnId,
+      binding,
+      target: { kind: "document" as const, documentId: "doc", anchor: { kind: "whole-document" as const } },
+      preconditions: {},
+      contextRef,
+      model: turn.model,
+      skillVersions: [],
+      capabilityVersions: turn.capabilityVersions,
+      policyRevision: 1,
+      attachmentRefs: [],
+      originSurface: { surfaceId: "surface", kind: "document" as const },
+      enqueuedAt: now,
+      status: "queued" as const,
+      retryable: false,
+      deviated: false,
+      updatedAt: now,
+    };
+    const mutation: Extract<ProjectAgentMutation, { type: "turn.enqueue" }> = {
+      commandId: "enqueue-execution",
+      expectedRevision: 0,
+      binding,
+      sender: { kind: "renderer", senderId: "subscription-execution" },
+      type: "turn.enqueue",
+      payload: { thread, turn, userItem, queueItem },
+    };
+    const request: AgentChatRequest = {
+      prompt: "hi",
+      capability: "creation-chat",
+      history: { kind: "ephemeral" },
+      projectId: binding.projectId,
+    };
+    void coordinator.enqueue(opened.subscriptionId, { mutation, request }).catch((error) => {
+      console.error("execution enqueue failed", error);
+    });
     const seen = await toolCallSeen;
     const assistantAtToolCall = coordinator
       .snapshot(subscriptionId)
@@ -1209,11 +1238,13 @@ describe("ProjectAgentExecutionCoordinator", () => {
     const resultIndex = published.findIndex((event) => event.type === "execution-result");
     expect(resultIndex).toBeGreaterThan(-1);
     expect(
-      published.slice(0, resultIndex).some(
-        (event) =>
-          event.type === "patch" &&
-          event.patch.changes.some((change) => change.kind === "turn-upserted" && change.turn.status === "done"),
-      ),
+      published
+        .slice(0, resultIndex)
+        .some(
+          (event) =>
+            event.type === "patch" &&
+            event.patch.changes.some((change) => change.kind === "turn-upserted" && change.turn.status === "done"),
+        ),
     ).toBe(true);
     expect(published[resultIndex]).toMatchObject({
       type: "execution-result",
@@ -1284,7 +1315,11 @@ describe("ProjectAgentExecutionCoordinator", () => {
       () => "subscription-document-write-denied",
       {
         runAgent: async (_request, hooks) => {
-          const call = { toolCallId: "tool-document-write-denied", toolName: "insert_at_cursor", args: { content: "x" } };
+          const call = {
+            toolCallId: "tool-document-write-denied",
+            toolName: "insert_at_cursor",
+            args: { content: "x" },
+          };
           const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
           expect(decision).toMatchObject({ ok: false, denied: true });
           return documentWriteResponse(call, decision);
@@ -1326,7 +1361,11 @@ describe("ProjectAgentExecutionCoordinator", () => {
       () => "subscription-document-write-approved",
       {
         runAgent: async (_request, hooks) => {
-          const call = { toolCallId: "tool-document-write-approved", toolName: "replace_selection", args: { content: "new" } };
+          const call = {
+            toolCallId: "tool-document-write-approved",
+            toolName: "replace_selection",
+            args: { content: "new" },
+          };
           const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
           expect(decision).toMatchObject({ ok: true, result: { applied: true } });
           return documentWriteResponse(call, decision);
@@ -1397,20 +1436,23 @@ describe("ProjectAgentExecutionCoordinator", () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-canvas-write-approved-"));
     const canvasAdapter = canvasWriteAdapter();
     let receipt: ProjectAgentProposalReceiptView | null = null;
-    canvasAdapter.execute.mockImplementation(async (
-      _prepared: PreparedCanvasWrite,
-      approval: CanvasWriteApprovalAuthority,
-    ) => {
-      receipt = committedCanvasReceipt(binding, approval);
-      return { ok: true, result: { applied: true, proposalId: approval.receiptProposalId }, silent: true };
-    });
+    canvasAdapter.execute.mockImplementation(
+      async (_prepared: PreparedCanvasWrite, approval: CanvasWriteApprovalAuthority) => {
+        receipt = committedCanvasReceipt(binding, approval);
+        return { ok: true, result: { applied: true, proposalId: approval.receiptProposalId }, silent: true };
+      },
+    );
     const readProposalReceipt = vi.fn(() => receipt);
     const coordinator = createProjectAgentExecutionCoordinator(
       createProjectAgentRepositoryRouter({ rootDir: root }),
       () => "subscription-canvas-write-approved",
       {
         runAgent: async (_request, hooks) => {
-          const call = { toolCallId: "tool-canvas-write-approved", toolName: "set_node_prompt", args: { nodeId: "node-real", prompt: "new prompt" } };
+          const call = {
+            toolCallId: "tool-canvas-write-approved",
+            toolName: "set_node_prompt",
+            args: { nodeId: "node-real", prompt: "new prompt" },
+          };
           const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
           expect(decision).toMatchObject({ ok: true });
           return canvasWriteResponse(call, decision);
@@ -1423,7 +1465,10 @@ describe("ProjectAgentExecutionCoordinator", () => {
     });
     coordinator.subscribe(opened.subscriptionId, (event) => {
       if (event.type === "tool-call") {
-        void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, { ok: true, result: { approved: true } });
+        void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+          ok: true,
+          result: { approved: true },
+        });
       }
     });
 
@@ -1449,7 +1494,11 @@ describe("ProjectAgentExecutionCoordinator", () => {
     expect(canvasAdapter.prepare).toHaveBeenCalledOnce();
     expect(canvasAdapter.execute).toHaveBeenCalledWith(
       expect.objectContaining({ invocation: expect.objectContaining({ actionHash: "action-hash" }) }),
-      { receiptProposalId: expect.stringMatching(/^receipt-/), approvalId: expect.stringMatching(/^approval-/), actionHash: "action-hash" },
+      {
+        receiptProposalId: expect.stringMatching(/^receipt-/),
+        approvalId: expect.stringMatching(/^approval-/),
+        actionHash: "action-hash",
+      },
       expect.any(AbortSignal),
     );
     expect(canvasAdapter.execute).toHaveBeenCalledOnce();
@@ -1458,7 +1507,9 @@ describe("ProjectAgentExecutionCoordinator", () => {
       status: "done",
       retryable: false,
     });
-    expect(final.proposalApprovals).toMatchObject([{ lifecycle: "claimed", ref: { actionHash: "action-hash", target: { kind: "canvas", nodeIds: ["node-real"] } } }]);
+    expect(final.proposalApprovals).toMatchObject([
+      { lifecycle: "claimed", ref: { actionHash: "action-hash", target: { kind: "canvas", nodeIds: ["node-real"] } } },
+    ]);
     expect(final.items.find((item) => item.kind === "proposal")).toMatchObject({ status: "done" });
     coordinator.release(opened.subscriptionId);
   });
@@ -1467,13 +1518,12 @@ describe("ProjectAgentExecutionCoordinator", () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-canvas-two-clean-"));
     const canvasAdapter = canvasWriteAdapter();
     let receipt: ProjectAgentProposalReceiptView | null = null;
-    canvasAdapter.execute.mockImplementation(async (
-      _prepared: PreparedCanvasWrite,
-      approval: CanvasWriteApprovalAuthority,
-    ) => {
-      receipt = committedCanvasReceipt(binding, approval);
-      return { ok: true, result: { applied: true, proposalId: approval.receiptProposalId }, silent: true };
-    });
+    canvasAdapter.execute.mockImplementation(
+      async (_prepared: PreparedCanvasWrite, approval: CanvasWriteApprovalAuthority) => {
+        receipt = committedCanvasReceipt(binding, approval);
+        return { ok: true, result: { applied: true, proposalId: approval.receiptProposalId }, silent: true };
+      },
+    );
     const readProposalReceipt = vi.fn(() => receipt);
     const coordinator = createProjectAgentExecutionCoordinator(
       createProjectAgentRepositoryRouter({ rootDir: root }),
@@ -1481,8 +1531,16 @@ describe("ProjectAgentExecutionCoordinator", () => {
       {
         runAgent: async (_request, hooks) => {
           const calls = [
-            { toolCallId: "tool-canvas-clean-1", toolName: "set_node_prompt", args: { nodeId: "node-real", prompt: "first prompt" } },
-            { toolCallId: "tool-canvas-clean-2", toolName: "set_node_prompt", args: { nodeId: "node-real", prompt: "second prompt" } },
+            {
+              toolCallId: "tool-canvas-clean-1",
+              toolName: "set_node_prompt",
+              args: { nodeId: "node-real", prompt: "first prompt" },
+            },
+            {
+              toolCallId: "tool-canvas-clean-2",
+              toolName: "set_node_prompt",
+              args: { nodeId: "node-real", prompt: "second prompt" },
+            },
           ];
           const decisions: AgentChatToolDecision[] = [];
           for (const call of calls) decisions.push(await hooks.awaitToolConfirmation(call, hooks.abortSignal!));
@@ -1530,13 +1588,12 @@ describe("ProjectAgentExecutionCoordinator", () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-canvas-mixed-settlement-"));
     const canvasAdapter = canvasWriteAdapter();
     let receipt: ProjectAgentProposalReceiptView | null = null;
-    canvasAdapter.execute.mockImplementation(async (
-      _prepared: PreparedCanvasWrite,
-      approval: CanvasWriteApprovalAuthority,
-    ) => {
-      if (canvasAdapter.execute.mock.calls.length === 1) receipt = committedCanvasReceipt(binding, approval);
-      return { ok: true, result: { applied: true, proposalId: approval.receiptProposalId }, silent: true };
-    });
+    canvasAdapter.execute.mockImplementation(
+      async (_prepared: PreparedCanvasWrite, approval: CanvasWriteApprovalAuthority) => {
+        if (canvasAdapter.execute.mock.calls.length === 1) receipt = committedCanvasReceipt(binding, approval);
+        return { ok: true, result: { applied: true, proposalId: approval.receiptProposalId }, silent: true };
+      },
+    );
     const readProposalReceipt = vi.fn(() => receipt);
     const decisions: AgentChatToolDecision[] = [];
     const coordinator = createProjectAgentExecutionCoordinator(
@@ -1545,9 +1602,21 @@ describe("ProjectAgentExecutionCoordinator", () => {
       {
         runAgent: async (_request, hooks) => {
           const calls = [
-            { toolCallId: "tool-canvas-mixed-1", toolName: "set_node_prompt", args: { nodeId: "node-real", prompt: "first prompt" } },
-            { toolCallId: "tool-canvas-mixed-2", toolName: "set_node_prompt", args: { nodeId: "node-real", prompt: "second prompt" } },
-            { toolCallId: "tool-canvas-mixed-3", toolName: "set_node_prompt", args: { nodeId: "node-real", prompt: "third prompt" } },
+            {
+              toolCallId: "tool-canvas-mixed-1",
+              toolName: "set_node_prompt",
+              args: { nodeId: "node-real", prompt: "first prompt" },
+            },
+            {
+              toolCallId: "tool-canvas-mixed-2",
+              toolName: "set_node_prompt",
+              args: { nodeId: "node-real", prompt: "second prompt" },
+            },
+            {
+              toolCallId: "tool-canvas-mixed-3",
+              toolName: "set_node_prompt",
+              args: { nodeId: "node-real", prompt: "third prompt" },
+            },
           ];
           for (const call of calls) decisions.push(await hooks.awaitToolConfirmation(call, hooks.abortSignal!));
           const response = canvasWriteResponse(calls[0], decisions[0]);
@@ -1555,7 +1624,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
             ...response,
             toolCalls: calls.map((call, index) => ({
               ...call,
-              status: decisions[index].ok ? "ok" as const : "denied" as const,
+              status: decisions[index].ok ? ("ok" as const) : ("denied" as const),
               decision: decisions[index],
             })),
           };
@@ -1607,20 +1676,19 @@ describe("ProjectAgentExecutionCoordinator", () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), `nomi-project-agent-canvas-receipt-${forge}-`));
     const canvasAdapter = canvasWriteAdapter();
     let approval: CanvasWriteApprovalAuthority | undefined;
-    canvasAdapter.execute.mockImplementation(async (
-      _prepared: PreparedCanvasWrite,
-      value: CanvasWriteApprovalAuthority,
-    ) => {
-      approval = value;
-      return {
-        ok: true,
-        result: {
-          applied: true,
-          proposalId: forge === "output-proposal" ? "receipt-forged" : value.receiptProposalId,
-        },
-        silent: true,
-      };
-    });
+    canvasAdapter.execute.mockImplementation(
+      async (_prepared: PreparedCanvasWrite, value: CanvasWriteApprovalAuthority) => {
+        approval = value;
+        return {
+          ok: true,
+          result: {
+            applied: true,
+            proposalId: forge === "output-proposal" ? "receipt-forged" : value.receiptProposalId,
+          },
+          silent: true,
+        };
+      },
+    );
     const readProposalReceipt = vi.fn((): ProjectAgentProposalReceiptView | null => {
       if (forge === "read-error") throw new Error("receipt read failed");
       if (!approval || forge === "missing") return null;
@@ -1691,7 +1759,9 @@ describe("ProjectAgentExecutionCoordinator", () => {
       status: "failed",
       retryable: false,
     });
-    expect(final.items.find((item) => item.kind === "failure" && item.turnId === input.mutation.payload.turn.turnId)).toMatchObject({
+    expect(
+      final.items.find((item) => item.kind === "failure" && item.turnId === input.mutation.payload.turn.turnId),
+    ).toMatchObject({
       code: "capability_receipt_unresolved",
       status: "failed",
       retryable: false,
@@ -1712,14 +1782,13 @@ describe("ProjectAgentExecutionCoordinator", () => {
       root = fs.mkdtempSync(path.join(os.tmpdir(), `nomi-project-agent-${id}-`));
       const canvasAdapter = canvasWriteAdapter();
       let receipt: ProjectAgentProposalReceiptView | null = null;
-      canvasAdapter.execute.mockImplementation(async (
-        _prepared: PreparedCanvasWrite,
-        approval: CanvasWriteApprovalAuthority,
-      ) => {
-        if (receiptState === "exact") receipt = committedCanvasReceipt(binding, approval);
-        if (executeState === "throw") throw new Error("Surface response lost after dispatch");
-        return { ok: false, code: "capability_timeout", message: "capability_timeout" };
-      });
+      canvasAdapter.execute.mockImplementation(
+        async (_prepared: PreparedCanvasWrite, approval: CanvasWriteApprovalAuthority) => {
+          if (receiptState === "exact") receipt = committedCanvasReceipt(binding, approval);
+          if (executeState === "throw") throw new Error("Surface response lost after dispatch");
+          return { ok: false, code: "capability_timeout", message: "capability_timeout" };
+        },
+      );
       const readProposalReceipt = vi.fn(() => receipt);
       const decisions: AgentChatToolDecision[] = [];
       const coordinator = createProjectAgentExecutionCoordinator(
@@ -1728,8 +1797,16 @@ describe("ProjectAgentExecutionCoordinator", () => {
         {
           runAgent: async (_request, hooks) => {
             const calls = [
-              { toolCallId: `tool-${id}-1`, toolName: "set_node_prompt", args: { nodeId: "node-real", prompt: "new prompt" } },
-              { toolCallId: `tool-${id}-2`, toolName: "set_node_prompt", args: { nodeId: "node-real", prompt: "second prompt" } },
+              {
+                toolCallId: `tool-${id}-1`,
+                toolName: "set_node_prompt",
+                args: { nodeId: "node-real", prompt: "new prompt" },
+              },
+              {
+                toolCallId: `tool-${id}-2`,
+                toolName: "set_node_prompt",
+                args: { nodeId: "node-real", prompt: "second prompt" },
+              },
             ];
             const callCount = 2;
             for (const call of calls.slice(0, callCount)) {
@@ -1740,7 +1817,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
               ...response,
               toolCalls: calls.slice(0, callCount).map((call, index) => ({
                 ...call,
-                status: decisions[index].ok ? "ok" as const : "denied" as const,
+                status: decisions[index].ok ? ("ok" as const) : ("denied" as const),
                 decision: decisions[index],
               })),
             };
@@ -1781,13 +1858,17 @@ describe("ProjectAgentExecutionCoordinator", () => {
           silent: true,
         });
         expect(decisions[1]).toEqual(decisions[0]);
-        expect(final.items.some((item) => item.kind === "failure" && item.turnId === input.mutation.payload.turn.turnId)).toBe(false);
+        expect(
+          final.items.some((item) => item.kind === "failure" && item.turnId === input.mutation.payload.turn.turnId),
+        ).toBe(false);
         expect(final.items.find((item) => item.kind === "proposal")).toMatchObject({ status: "done" });
       } else {
         expect(decisions).toHaveLength(2);
         expect(decisions[0]).toMatchObject({ ok: false, code: "capability_receipt_unresolved" });
         expect(decisions[1]).toMatchObject({ ok: false, code: "capability_receipt_unresolved" });
-        expect(final.items.find((item) => item.kind === "failure" && item.turnId === input.mutation.payload.turn.turnId)).toMatchObject({
+        expect(
+          final.items.find((item) => item.kind === "failure" && item.turnId === input.mutation.payload.turn.turnId),
+        ).toMatchObject({
           code: "capability_receipt_unresolved",
           retryable: false,
         });
@@ -1853,7 +1934,9 @@ describe("ProjectAgentExecutionCoordinator", () => {
       status: "failed",
       retryable: true,
     });
-    expect(final.items.find((item) => item.kind === "failure" && item.turnId === input.mutation.payload.turn.turnId)).toMatchObject({
+    expect(
+      final.items.find((item) => item.kind === "failure" && item.turnId === input.mutation.payload.turn.turnId),
+    ).toMatchObject({
       code: "capability_surface_unavailable",
       retryable: true,
     });
@@ -1913,9 +1996,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
     },
   ] as const)("durably projects Canvas outcome $code through every Host record", async (outcome) => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), `nomi-project-agent-${outcome.code}-`));
-    const canvasAdapter = canvasWriteAdapter(outcome.approve
-      ? { prepareError: outcome.code }
-      : {});
+    const canvasAdapter = canvasWriteAdapter(outcome.approve ? { prepareError: outcome.code } : {});
     const coordinator = createProjectAgentExecutionCoordinator(
       createProjectAgentRepositoryRouter({ rootDir: root }),
       () => `subscription-${outcome.code}`,
@@ -1971,7 +2052,9 @@ describe("ProjectAgentExecutionCoordinator", () => {
       status: outcome.status,
       retryable: outcome.retryable,
     });
-    expect(final.items.find((item) => item.kind === "failure" && item.turnId === input.mutation.payload.turn.turnId)).toMatchObject({
+    expect(
+      final.items.find((item) => item.kind === "failure" && item.turnId === input.mutation.payload.turn.turnId),
+    ).toMatchObject({
       code: outcome.code,
       message: outcome.code,
       nextAction: outcome.nextAction,
@@ -1993,7 +2076,9 @@ describe("ProjectAgentExecutionCoordinator", () => {
       status: outcome.status,
       retryable: outcome.retryable,
     });
-    expect(restored.items.find((item) => item.kind === "failure" && item.turnId === input.mutation.payload.turn.turnId)).toMatchObject({
+    expect(
+      restored.items.find((item) => item.kind === "failure" && item.turnId === input.mutation.payload.turn.turnId),
+    ).toMatchObject({
       code: outcome.code,
       status: outcome.status,
       retryable: outcome.retryable,
@@ -2011,7 +2096,11 @@ describe("ProjectAgentExecutionCoordinator", () => {
           () => "subscription-document-write-action-hash",
           {
             runAgent: async (_request, hooks) => {
-              const call = { toolCallId: "tool-document-write-action-hash", toolName: "insert_at_cursor", args: { content: "x" } };
+              const call = {
+                toolCallId: "tool-document-write-action-hash",
+                toolName: "insert_at_cursor",
+                args: { content: "x" },
+              };
               const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
               return documentWriteResponse(call, decision);
             },
@@ -2044,7 +2133,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
         // Drain's final snapshot runs in a following microtask. Let it observe
         // the terminal queue before removing this test's repository root.
         await new Promise<void>((resolve) => setImmediate(resolve));
-        return proposal?.kind === "proposal" ? proposal.approval?.actionHash ?? "" : "";
+        return proposal?.kind === "proposal" ? (proposal.approval?.actionHash ?? "") : "";
       } finally {
         fs.rmSync(localRoot, { recursive: true, force: true });
       }
@@ -2129,7 +2218,6 @@ describe("ProjectAgentExecutionCoordinator", () => {
       threadId: "thread-execution-error",
       createdAt: now,
       updatedAt: now,
-      provenance: { kind: "canonical" as const },
     };
     const contextRef = {
       binding: createProjectAgentContextBinding(binding, thread.threadId),
@@ -2272,7 +2360,6 @@ describe("ProjectAgentExecutionCoordinator", () => {
       threadId: "thread-terminal-commit-error",
       createdAt: now,
       updatedAt: now,
-      provenance: { kind: "canonical" as const },
     };
     const contextRef = {
       binding: createProjectAgentContextBinding(binding, thread.threadId),
@@ -2560,7 +2647,6 @@ describe("ProjectAgentExecutionCoordinator", () => {
       threadId: "thread-start-race",
       createdAt: now,
       updatedAt: now,
-      provenance: { kind: "canonical" as const },
     };
     const contextRef = {
       binding: createProjectAgentContextBinding(binding, thread.threadId),
@@ -2681,7 +2767,6 @@ describe("ProjectAgentExecutionCoordinator", () => {
       threadId: "thread-request-scope",
       createdAt: timestamp,
       updatedAt: timestamp,
-      provenance: { kind: "canonical" as const },
     };
     const contextRef = {
       binding: createProjectAgentContextBinding(binding, thread.threadId),

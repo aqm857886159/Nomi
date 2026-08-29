@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { CANVAS_READ_CAPABILITY } from '../../../../electron/shared/agentCapabilities/canvasRead'
+import { CANVAS_WRITE_CAPABILITY } from '../../../../electron/shared/agentCapabilities/canvasWrite'
+import { capabilityOperationAliasesFor } from '../../../../electron/shared/agentCapabilities/registry'
 import { evaluateGate } from './gate'
 
 describe('evaluateGate — 统一求值流(§6.1)', () => {
@@ -12,7 +14,15 @@ describe('evaluateGate — 统一求值流(§6.1)', () => {
   })
 
   it('① policy:只读工具直通 allow', () => {
-    for (const toolName of ['get_media', 'inspect_media', 'search_media', 'inspect_source_range', 'read_waveform', 'inspect_export_job', 'verify_render']) {
+    for (const toolName of [
+      'get_media',
+      'inspect_media',
+      'search_media',
+      'inspect_source_range',
+      'read_waveform',
+      'inspect_export_job',
+      'verify_render',
+    ]) {
       expect(evaluateGate({ kind: 'tool-call', toolName, args: {} })).toEqual({ outcome: 'allow' })
     }
   })
@@ -24,7 +34,7 @@ describe('evaluateGate — 统一求值流(§6.1)', () => {
   })
 
   it('③ ask:写工具排队等点头', () => {
-    for (const toolName of ['create_canvas_nodes', 'connect_canvas_edges', 'export_timeline', 'cancel_export_job']) {
+    for (const toolName of ['export_timeline', 'cancel_export_job']) {
       expect(evaluateGate({ kind: 'tool-call', toolName, args: {} })).toEqual({ outcome: 'ask' })
     }
   })
@@ -46,9 +56,16 @@ describe('evaluateGate — 统一求值流(§6.1)', () => {
     expect(evaluateGate(intent)).toEqual(evaluateGate(intent))
   })
 
-  it('has no renderer policy owner for the Registry-owned canvas.write alias', () => {
-    expect(evaluateGate({ kind: 'tool-call', toolName: 'set_node_prompt', args: {} }).outcome).toBe('deny')
-    expect(readFileSync(new URL('./gate.ts', import.meta.url), 'utf8')).not.toContain('set_node_prompt')
+  it('has no renderer policy owner for any Registry-owned canvas.write alias', () => {
+    const aliases = [
+      CANVAS_WRITE_CAPABILITY.aliases.pi,
+      ...capabilityOperationAliasesFor(CANVAS_WRITE_CAPABILITY.id, 'pi'),
+    ]
+    const source = readFileSync(new URL('./gate.ts', import.meta.url), 'utf8')
+    for (const alias of aliases) {
+      expect(evaluateGate({ kind: 'tool-call', toolName: alias, args: {} }).outcome).toBe('deny')
+      expect(source).not.toContain(alias)
+    }
   })
 
   describe('S6-4 锁不变量(N11):AI 硬禁,出边放行', () => {
@@ -64,25 +81,6 @@ describe('evaluateGate — 统一求值流(§6.1)', () => {
         ctx,
       )
       expect(decision.outcome).toBe('deny')
-    })
-
-    it('入边(target=锁节点)deny;出边(source=锁节点,被引用)allow→ask', () => {
-      const inbound = evaluateGate(
-        { kind: 'tool-call', toolName: 'connect_canvas_edges', args: { edges: [{ source: 'n9', target: 'real-1' }] } },
-        ctx,
-      )
-      expect(inbound.outcome).toBe('deny')
-      const outbound = evaluateGate(
-        { kind: 'tool-call', toolName: 'connect_canvas_edges', args: { edges: [{ source: 'real-1', target: 'n9' }] } },
-        ctx,
-      )
-      expect(outbound).toEqual({ outcome: 'ask' })
-    })
-
-    it('不碰锁节点的写操作不受影响', () => {
-      expect(
-        evaluateGate({ kind: 'tool-call', toolName: 'create_canvas_nodes', args: { nodes: [] } }, ctx),
-      ).toEqual({ outcome: 'ask' })
     })
   })
 

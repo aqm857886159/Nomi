@@ -1,6 +1,7 @@
 import type { RuntimeToolCall, RuntimeToolDecision } from "../harness/runtime/runtimePort";
 import {
   canvasWriteOperationForAlias,
+  canvasWritePiInputSchemaForAlias,
   canvasWriteSemanticInputSchema,
   type CanvasWriteInput,
 } from "../shared/agentCapabilities/canvasWrite";
@@ -54,20 +55,23 @@ const PUBLIC_FAILURE_CODES = new Set([
 ]);
 
 function safeFailure(error: unknown): Extract<RuntimeToolDecision, { ok: false }> {
-  const candidate = error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string"
-    ? (error as { code: string }).code
-    : undefined;
+  const candidate =
+    error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string"
+      ? (error as { code: string }).code
+      : undefined;
   const code = candidate && PUBLIC_FAILURE_CODES.has(candidate) ? candidate : "capability_execution_failed";
   return { ok: false, code, message: code };
 }
 
-export function createPiCanvasWriteTransportAdapter(input: Readonly<{
-  registry: CanvasReadSurfaceRegistry;
-  capturedPort: CapturedCanvasReadPort;
-  requestId: string;
-  port: CanvasWritePort;
-  executor: Pick<CapabilityExecutorRegistry, "execute">;
-}>): PiCanvasWriteTransportAdapter {
+export function createPiCanvasWriteTransportAdapter(
+  input: Readonly<{
+    registry: CanvasReadSurfaceRegistry;
+    capturedPort: CapturedCanvasReadPort;
+    requestId: string;
+    port: CanvasWritePort;
+    executor: Pick<CapabilityExecutorRegistry, "execute">;
+  }>,
+): PiCanvasWriteTransportAdapter {
   const factory = createRendererCanvasWriteVerifiedInvocationFactory({
     registry: input.registry,
     capturedPort: input.capturedPort,
@@ -80,24 +84,29 @@ export function createPiCanvasWriteTransportAdapter(input: Readonly<{
       if (!operation) return null;
       if (disposed) throw Object.assign(new Error("surface_port_unavailable"), { code: "surface_port_unavailable" });
       if (signal.aborted) throw Object.assign(new Error("capability_cancelled"), { code: "capability_cancelled" });
-      const args = call.args && typeof call.args === "object" && !Array.isArray(call.args)
-        ? call.args as Record<string, unknown>
-        : {};
-      const parsed = canvasWriteSemanticInputSchema.safeParse({
-        operation,
-        nodeId: args.nodeId,
-        prompt: args.prompt,
-      });
-      if (!parsed.success) throw Object.assign(new Error("capability_input_invalid"), { code: "capability_input_invalid" });
-      const semanticInput = parsed.data;
-      const rawEvidence = await input.port.capture({
-        operation,
-        nodeId: semanticInput.nodeId,
-        signal,
-      });
+      const args =
+        call.args && typeof call.args === "object" && !Array.isArray(call.args)
+          ? (call.args as Record<string, unknown>)
+          : {};
+      const piSchema = canvasWritePiInputSchemaForAlias(call.toolName);
+      const parsed = piSchema?.safeParse(args);
+      if (!parsed || !parsed.success)
+        throw Object.assign(new Error("capability_input_invalid"), { code: "capability_input_invalid" });
+      const semanticInput = canvasWriteSemanticInputSchema.safeParse({ operation, ...parsed.data });
+      if (!semanticInput.success)
+        throw Object.assign(new Error("capability_input_invalid"), { code: "capability_input_invalid" });
+      const rawEvidence = await input.port.capture(
+        operation === "set_node_prompt"
+          ? {
+              operation,
+              nodeId: (semanticInput.data as Extract<CanvasWriteInput, { operation: "set_node_prompt" }>).nodeId,
+              signal,
+            }
+          : { operation, input: semanticInput.data, signal },
+      );
       const invocation = await factory.mint({
         toolCallId: call.toolCallId,
-        input: semanticInput,
+        input: semanticInput.data,
         rawEvidence,
       });
       return Object.freeze({ call, invocation });

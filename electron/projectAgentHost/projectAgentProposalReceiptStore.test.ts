@@ -7,7 +7,6 @@ import type { WorkbenchAiMessage } from "../../src/workbench/ai/workbenchAiTypes
 import { orderAssistantTimelineEntries } from "../../src/workbench/generationCanvas/components/assistantTimelineChronology";
 import {
   hashProjectAgentCommittedProposal,
-  projectAgentProposalReceiptInvalidPath,
   createProjectAgentProposalReceiptService,
   projectAgentProposalReceiptPath,
 } from "./projectAgentProposalReceiptStore";
@@ -73,31 +72,34 @@ describe("ProjectAgent committed proposal receipt", () => {
     const restored = createProjectAgentProposalReceiptService({ projectRoot, binding }).read();
     expect(restored).toEqual(committed);
 
-    const messages: WorkbenchAiMessage[] = [{
-      id: "assistant-a",
-      role: "assistant",
-      content: "Before tool. After tool.",
-      status: "done",
-    }];
-    expect(orderAssistantTimelineEntries(messages, [{ key: "restored-receipt", ...restored!.proposal }])
-      .map((entry) => entry.kind === "message" ? `text:${entry.content}` : entry.key)).toEqual([
-      "text:Before tool.",
-      "restored-receipt",
-      "text: After tool.",
-    ]);
+    const messages: WorkbenchAiMessage[] = [
+      {
+        id: "assistant-a",
+        role: "assistant",
+        content: "Before tool. After tool.",
+        status: "done",
+      },
+    ];
+    expect(
+      orderAssistantTimelineEntries(messages, [{ key: "restored-receipt", ...restored!.proposal }]).map((entry) =>
+        entry.kind === "message" ? `text:${entry.content}` : entry.key,
+      ),
+    ).toEqual(["text:Before tool.", "restored-receipt", "text: After tool."]);
   });
 
   it("rejects malformed live writes and fails closed after disk tampering", () => {
     const projectRoot = tempProject();
     const service = createProjectAgentProposalReceiptService({ projectRoot, binding });
 
-    expect(() => service.write({
-      expectedRevision: 0,
-      proposalId: proposal.proposalId,
-      operationId: "invalid-proposal",
-      lifecycle: "preparing",
-      proposal: { ...proposal, anchorTextOffset: -1 },
-    })).toThrow("invalid");
+    expect(() =>
+      service.write({
+        expectedRevision: 0,
+        proposalId: proposal.proposalId,
+        operationId: "invalid-proposal",
+        lifecycle: "preparing",
+        proposal: { ...proposal, anchorTextOffset: -1 },
+      }),
+    ).toThrow("invalid");
     expect(fs.existsSync(projectAgentProposalReceiptPath(projectRoot))).toBe(false);
 
     service.write({
@@ -107,10 +109,16 @@ describe("ProjectAgent committed proposal receipt", () => {
       lifecycle: "preparing",
       proposal,
     });
-    const raw = JSON.parse(fs.readFileSync(projectAgentProposalReceiptPath(projectRoot), "utf8")) as Record<string, unknown>;
+    const raw = JSON.parse(fs.readFileSync(projectAgentProposalReceiptPath(projectRoot), "utf8")) as Record<
+      string,
+      unknown
+    >;
     fs.writeFileSync(
       projectAgentProposalReceiptPath(projectRoot),
-      JSON.stringify({ ...raw, proposal: { ...(raw.proposal as object), compensation: [{ kind: "delete-nodes", nodeIds: [42] }] } }),
+      JSON.stringify({
+        ...raw,
+        proposal: { ...(raw.proposal as object), compensation: [{ kind: "delete-nodes", nodeIds: [42] }] },
+      }),
       "utf8",
     );
     expect(() => createProjectAgentProposalReceiptService({ projectRoot, binding }).read()).toThrow("invalid");
@@ -141,13 +149,15 @@ describe("ProjectAgent committed proposal receipt", () => {
       proposal,
     });
     expect(committed).toMatchObject({ revision: 2, lifecycle: "committed" });
-    expect(first.write({
-      expectedRevision: 1,
-      proposalId: proposal.proposalId,
-      operationId: "commit-proposal-a",
-      lifecycle: "committed",
-      proposal,
-    })).toEqual(committed);
+    expect(
+      first.write({
+        expectedRevision: 1,
+        proposalId: proposal.proposalId,
+        operationId: "commit-proposal-a",
+        lifecycle: "committed",
+        proposal,
+      }),
+    ).toEqual(committed);
 
     const undoing = first.transition({
       expectedRevision: 2,
@@ -156,12 +166,14 @@ describe("ProjectAgent committed proposal receipt", () => {
       lifecycle: "undoing",
     });
     expect(undoing).toMatchObject({ revision: 3, lifecycle: "undoing", proposal });
-    expect(first.transition({
-      expectedRevision: 2,
-      proposalId: proposal.proposalId,
-      operationId: "undo-proposal-a",
-      lifecycle: "undoing",
-    })).toEqual(undoing);
+    expect(
+      first.transition({
+        expectedRevision: 2,
+        proposalId: proposal.proposalId,
+        operationId: "undo-proposal-a",
+        lifecycle: "undoing",
+      }),
+    ).toEqual(undoing);
     const undone = first.transition({
       expectedRevision: 3,
       proposalId: proposal.proposalId,
@@ -170,11 +182,13 @@ describe("ProjectAgent committed proposal receipt", () => {
     });
     expect(undone).toMatchObject({ revision: 4, lifecycle: "undone" });
 
-    expect(() => createProjectAgentProposalReceiptService({ projectRoot, binding: otherBinding }).write({
-      ...prepare,
-      expectedRevision: 4,
-      operationId: "cross-project-overwrite",
-    })).toThrow("binding");
+    expect(() =>
+      createProjectAgentProposalReceiptService({ projectRoot, binding: otherBinding }).write({
+        ...prepare,
+        expectedRevision: 4,
+        operationId: "cross-project-overwrite",
+      }),
+    ).toThrow("binding");
     const clearProposalA = {
       expectedRevision: 4,
       proposalId: proposal.proposalId,
@@ -201,25 +215,6 @@ describe("ProjectAgent committed proposal receipt", () => {
     expect(first.read()).toMatchObject({ revision: 7, proposalId: proposalB.proposalId, lifecycle: "committed" });
   });
 
-  it("uses one canonical proposal hash domain for durable and rejected records", () => {
-    const projectRoot = tempProject();
-    const service = createProjectAgentProposalReceiptService({ projectRoot, binding });
-    service.migrateLegacy(proposal, "a".repeat(64), "2026-08-28T00:00:00.000Z");
-    const raw = JSON.parse(fs.readFileSync(projectAgentProposalReceiptPath(projectRoot), "utf8")) as Record<string, unknown>;
-    expect(raw.proposalHash).toBe(hashProjectAgentCommittedProposal(proposal));
-
-    const invalidRoot = path.join(projectRoot, "invalid-project");
-    fs.mkdirSync(path.join(invalidRoot, ".nomi"), { recursive: true });
-    const invalid = createProjectAgentProposalReceiptService({ projectRoot: invalidRoot, binding });
-    expect(invalid.migrateLegacy({ proposalId: "incomplete" }, "b".repeat(64), "2026-08-28T00:00:00.000Z")).toBeNull();
-    expect(invalid.read()).toBeNull();
-    expect(JSON.parse(fs.readFileSync(projectAgentProposalReceiptInvalidPath(invalidRoot), "utf8"))).toMatchObject({
-      binding,
-      sourceHash: "b".repeat(64),
-      reason: "invalid_legacy_proposal",
-    });
-  });
-
   it("keeps Host approval correlation immutable from preparation through commit", () => {
     const service = createProjectAgentProposalReceiptService({ projectRoot: tempProject(), binding });
     const correlated = {
@@ -236,29 +231,35 @@ describe("ProjectAgent committed proposal receipt", () => {
       proposal: correlated,
     });
 
-    expect(() => service.write({
-      expectedRevision: 1,
-      proposalId: correlated.proposalId,
-      operationId: "forged-host-commit",
-      lifecycle: "committed",
-      proposal: { ...correlated, hostApprovalId: "approval-forged" },
-    })).toThrow("correlation");
-    expect(() => service.write({
-      expectedRevision: 1,
-      proposalId: correlated.proposalId,
-      operationId: "forged-action-commit",
-      lifecycle: "committed",
-      proposal: { ...correlated, hostActionHash: "b".repeat(64) },
-    })).toThrow("correlation");
+    expect(() =>
+      service.write({
+        expectedRevision: 1,
+        proposalId: correlated.proposalId,
+        operationId: "forged-host-commit",
+        lifecycle: "committed",
+        proposal: { ...correlated, hostApprovalId: "approval-forged" },
+      }),
+    ).toThrow("correlation");
+    expect(() =>
+      service.write({
+        expectedRevision: 1,
+        proposalId: correlated.proposalId,
+        operationId: "forged-action-commit",
+        lifecycle: "committed",
+        proposal: { ...correlated, hostActionHash: "b".repeat(64) },
+      }),
+    ).toThrow("correlation");
     expect(hashProjectAgentCommittedProposal(correlated)).not.toBe(
       hashProjectAgentCommittedProposal({ ...correlated, hostActionHash: "b".repeat(64) }),
     );
-    expect(service.write({
-      expectedRevision: 1,
-      proposalId: correlated.proposalId,
-      operationId: "host-commit",
-      lifecycle: "committed",
-      proposal: correlated,
-    })).toMatchObject({ lifecycle: "committed", proposal: correlated });
+    expect(
+      service.write({
+        expectedRevision: 1,
+        proposalId: correlated.proposalId,
+        operationId: "host-commit",
+        lifecycle: "committed",
+        proposal: correlated,
+      }),
+    ).toMatchObject({ lifecycle: "committed", proposal: correlated });
   });
 });

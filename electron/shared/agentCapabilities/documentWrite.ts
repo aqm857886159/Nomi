@@ -41,6 +41,9 @@ export const DOCUMENT_WRITE_CAPABILITY = {
   aliases: {
     pi: DOCUMENT_WRITE_ALIASES.insert,
   },
+  additionalAliases: {
+    pi: Object.freeze([DOCUMENT_WRITE_ALIASES.replace, DOCUMENT_WRITE_ALIASES.append]),
+  },
   inputSchema: documentWriteSemanticInputSchema,
   outputSchema: documentWriteResultSchema,
   effect: "reversible_write",
@@ -58,4 +61,3 @@ export const DOCUMENT_WRITE_CAPABILITY = {
     },
   },
 } as const satisfies CapabilityContract<DocumentWriteInput, DocumentWriteResult>;
-

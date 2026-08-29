@@ -243,10 +243,7 @@ export default function NomiStudioApp(): JSX.Element {
   React.useEffect(() => {
     try {
       const unbind = projectAgentClient.onPatch((patch) => {
-        if (projectAgentProjectionStore.applyPatch(patch)) {
-          const snapshot = projectAgentProjectionStore.getState().snapshot
-          return
-        }
+        if (projectAgentProjectionStore.applyPatch(patch)) return
         const subscriptionId = projectAgentSubscriptionRef.current
         if (!subscriptionId) return
         void projectAgentClient
@@ -272,37 +269,47 @@ export default function NomiStudioApp(): JSX.Element {
   React.useEffect(() => registerCapabilityApplyHandler(), [])
   // B4 只读 Surface 端口复用同一 coordinator binding，不复制项目真相。
   React.useEffect(
-    () => registerProjectCanvasReadSurface(
-      projectSurface,
-      readGenerationCanvasSnapshot,
-      ({ documentId, scope }) => {
-        const store = useWorkbenchStore.getState()
-        const tools = store.creationDocumentTools
-        if (!tools || store.activeDocumentId !== documentId) {
-          throw new SurfacePortWireError('surface_port_stale')
-        }
-        return { text: scope === 'full' ? tools.readFullText() : tools.readSelectionText() }
-      },
-      ({ documentId, operation, content, target, preconditions }) => {
-        const store = useWorkbenchStore.getState()
-        const tools = store.creationDocumentTools
-        if (!tools || store.activeDocumentId !== documentId) {
-          throw new SurfacePortWireError('surface_port_stale')
-        }
-        return tools.applyDocumentWrite({ operation, content, target: target as never, preconditions: preconditions as never })
-      },
-      ({ nodeId }) => {
-        try {
-          return captureCanvasWriteRawEvidence(readGenerationCanvasSnapshot(), nodeId)
-        } catch (error) {
-          const code = error && typeof error === 'object' && (error as { code?: unknown }).code === 'capability_target_stale'
-            ? 'capability_target_stale'
-            : 'capability_input_invalid'
-          throw new SurfacePortWireError(code)
-        }
-      },
-      (request) => executeCanvasWriteTarget(request, readGenerationCanvasSnapshot),
-    ),
+    () =>
+      registerProjectCanvasReadSurface(
+        projectSurface,
+        readGenerationCanvasSnapshot,
+        ({ documentId, scope }) => {
+          const store = useWorkbenchStore.getState()
+          const tools = store.creationDocumentTools
+          if (!tools || store.activeDocumentId !== documentId) {
+            throw new SurfacePortWireError('surface_port_stale')
+          }
+          return { text: scope === 'full' ? tools.readFullText() : tools.readSelectionText() }
+        },
+        ({ documentId, operation, content, target, preconditions }) => {
+          const store = useWorkbenchStore.getState()
+          const tools = store.creationDocumentTools
+          if (!tools || store.activeDocumentId !== documentId) {
+            throw new SurfacePortWireError('surface_port_stale')
+          }
+          return tools.applyDocumentWrite({
+            operation,
+            content,
+            target: target as never,
+            preconditions: preconditions as never,
+          })
+        },
+        ({ operation, input, nodeId }) => {
+          try {
+            return captureCanvasWriteRawEvidence(
+              readGenerationCanvasSnapshot(),
+              operation === 'set_node_prompt' ? (nodeId ?? '') : { operation, input },
+            )
+          } catch (error) {
+            const code =
+              error && typeof error === 'object' && (error as { code?: unknown }).code === 'capability_target_stale'
+                ? 'capability_target_stale'
+                : 'capability_input_invalid'
+            throw new SurfacePortWireError(code)
+          }
+        },
+        (request) => executeCanvasWriteTarget(request, readGenerationCanvasSnapshot),
+      ),
     [projectSurface],
   )
 

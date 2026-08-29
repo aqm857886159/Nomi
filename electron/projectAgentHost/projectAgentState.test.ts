@@ -451,6 +451,10 @@ describe("ProjectAgentHost state contract", () => {
       { ...validShape, threads: [{ ...thread, threadId: " thread-a " }] },
       {
         ...validShape,
+        threads: [{ ...thread, provenance: { kind: "legacy", readOnly: true } }],
+      },
+      {
+        ...validShape,
         queue: [
           {
             ...queueItem,

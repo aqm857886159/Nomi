@@ -23,12 +23,10 @@ export function assertProjectAgentAssistantLifecycle(
   turns: readonly ProjectAgentTurn[],
   items: readonly ProjectAgentItem[],
   selectedTurnIds?: ReadonlySet<string>,
-  allowMissingAssistantTurnIds?: ReadonlySet<string>,
 ): void {
   for (const turn of turns) {
     if (selectedTurnIds && !selectedTurnIds.has(turn.turnId)) continue;
     const assistants = items.filter((item) => item.kind === "assistant" && item.turnId === turn.turnId);
-    if (allowMissingAssistantTurnIds?.has(turn.turnId) && assistants.length === 0) continue;
     if (assistants.length > 1 || !hasExpectedAssistantStatus(turn, assistants[0])) {
       throw new ProjectAgentStateError("invalid_state");
     }

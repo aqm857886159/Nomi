@@ -43,18 +43,14 @@ const TOOL_META: Record<string, ToolMeta> = {
   verify_render: { writes: false },
   cancel_export_job: { writes: true, destructive: true },
   // 产出分镜方案对象,只落创作 store 给用户审/改(不写画布投影、不花钱)——免费可改,直通放行(allow)。
-  // 真正花钱/写画布的是用户确认后由方案转出的 create_canvas_nodes + run_generation_batch。
+  // 真正花钱/写画布的是用户确认后由方案转出的 canonical Canvas write + generation batch。
   propose_storyboard_plan: { writes: false },
-  create_canvas_nodes: { writes: true },
-  connect_canvas_edges: { writes: true },
   delete_canvas_nodes: { writes: true, destructive: true },
   // S6b 受理语义:不写画布投影,但花真钱——costy 必问,确认前零网络调用。
   run_generation_batch: { writes: false, costy: true },
   // 写时间轴(非画布投影,不花钱):非破坏、可撤销,但有可见副作用——按写操作走确认门(ask)。
   // 锁不变量只管画布节点,evaluateLock 对此工具名返回 null,自然放行到 ask。
   arrange_storyboard_to_timeline: { writes: true },
-  // 一键整理画布:重排节点位置(非破坏、零花费、⌘Z 可撤销),但满屏节点位移是可见副作用→按写操作走确认门(ask)。
-  tidy_canvas: { writes: true },
   // 站位参考:建 scene3d 节点 + 离屏出灰模参考图(零扣费),但写画布有可见副作用→按写操作走确认门(ask)。
   create_staging_reference: { writes: true },
   // 运镜参考:建 scene3d 节点 + 离屏渲运镜小片(零扣费),但写画布有可见副作用→按写操作走确认门(ask)。
@@ -123,16 +119,6 @@ function evaluateLock(toolName: string, args: unknown, ctx: GateContext): GateDe
     for (const raw of nodeIds) {
       const nodeId = resolve(String(raw || '').trim())
       if (locked.has(nodeId)) return denyFor(nodeId, 'regenerateNode')
-    }
-    return null
-  }
-  if (toolName === 'connect_canvas_edges') {
-    const edges = Array.isArray(record.edges) ? record.edges : []
-    for (const raw of edges) {
-      const edge = asRecord(raw)
-      // 只看 target(入边改变锁节点的生成输入);source 是出边=被引用,放行。
-      const target = resolve(String(edge.targetClientId || edge.target || '').trim())
-      if (locked.has(target)) return denyFor(target, 'addIncomingEdge')
     }
     return null
   }

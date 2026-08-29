@@ -5,6 +5,7 @@ import type {
   SurfaceSuspensionWire,
 } from '../../../electron/shared/surfacePortBinding'
 import { SurfacePortWireError } from '../../../electron/shared/surfacePortBinding'
+import type { CanvasWriteInput, CanvasWriteOperation } from '../../../electron/shared/agentCapabilities/canvasWrite'
 
 export class ProjectHydrationSupersededError extends Error {
   readonly code = 'project_hydration_superseded'
@@ -21,7 +22,7 @@ export type ProjectHydrationEpoch = Readonly<{
   waitUntilSuspended(): Promise<void>
   commitCanvasRead(projectId: string): Promise<SurfacePortBindingWire | null>
   release(): Promise<void>
-}>;
+}>
 
 export type ProjectHydrationGuard = Pick<ProjectHydrationEpoch, 'signal' | 'assertCurrent'>
 
@@ -34,24 +35,32 @@ export type ProjectCanvasReadSurfaceCoordinator = Readonly<{
     snapshot: unknown,
   ): Promise<CapturedCanvasReadSnapshotHandleWire>
   registerCanvasReadSource(readSnapshot: () => unknown): () => void
-  registerDocumentReadSource(readDocument: (input: { documentId: string; scope: "full" | "selection" }) => unknown): () => void
-  registerDocumentWriteSource(writeDocument: (input: {
-    documentId: string
-    operation: "insert" | "replace" | "append"
-    content: string
-    target: unknown
-    preconditions: unknown
-  }) => unknown): () => void
-  registerCanvasWriteCaptureSource(capture: (input: { operation: 'set_node_prompt'; nodeId: string }) => unknown): () => void
-  registerCanvasWriteExecuteSource(execute: (input: {
-    input: unknown
-    target: unknown
-    preconditions: unknown
-    receiptProposalId: string
-    approvalId: string
-    actionHash: string
-  }) => unknown): () => void
-}>;
+  registerDocumentReadSource(
+    readDocument: (input: { documentId: string; scope: 'full' | 'selection' }) => unknown,
+  ): () => void
+  registerDocumentWriteSource(
+    writeDocument: (input: {
+      documentId: string
+      operation: 'insert' | 'replace' | 'append'
+      content: string
+      target: unknown
+      preconditions: unknown
+    }) => unknown,
+  ): () => void
+  registerCanvasWriteCaptureSource(
+    capture: (input: { operation: CanvasWriteOperation; input?: CanvasWriteInput; nodeId?: string }) => unknown,
+  ): () => void
+  registerCanvasWriteExecuteSource(
+    execute: (input: {
+      input: unknown
+      target: unknown
+      preconditions: unknown
+      receiptProposalId: string
+      approvalId: string
+      actionHash: string
+    }) => unknown,
+  ): () => void
+}>
 
 let registeredCoordinator: ProjectCanvasReadSurfaceCoordinator | null = null
 
@@ -80,7 +89,11 @@ export function registerProjectCanvasReadSurface(
     target: unknown
     preconditions: unknown
   }) => unknown,
-  captureCanvasWrite?: (input: { operation: 'set_node_prompt'; nodeId: string }) => unknown,
+  captureCanvasWrite?: (input: {
+    operation: CanvasWriteOperation
+    input?: CanvasWriteInput
+    nodeId?: string
+  }) => unknown,
   executeCanvasWrite?: (input: {
     input: unknown
     target: unknown
@@ -100,8 +113,12 @@ export function registerProjectCanvasReadSurface(
     unregisterSnapshot = coordinator.registerCanvasReadSource(readSnapshot)
     unregisterDocument = readDocument ? coordinator.registerDocumentReadSource(readDocument) : undefined
     unregisterDocumentWrite = writeDocument ? coordinator.registerDocumentWriteSource(writeDocument) : undefined
-    unregisterCanvasWriteCapture = captureCanvasWrite ? coordinator.registerCanvasWriteCaptureSource(captureCanvasWrite) : undefined
-    unregisterCanvasWriteExecute = executeCanvasWrite ? coordinator.registerCanvasWriteExecuteSource(executeCanvasWrite) : undefined
+    unregisterCanvasWriteCapture = captureCanvasWrite
+      ? coordinator.registerCanvasWriteCaptureSource(captureCanvasWrite)
+      : undefined
+    unregisterCanvasWriteExecute = executeCanvasWrite
+      ? coordinator.registerCanvasWriteExecuteSource(executeCanvasWrite)
+      : undefined
     return () => {
       unregisterCanvasWriteExecute?.()
       unregisterCanvasWriteCapture?.()
@@ -143,7 +160,7 @@ type EpochState = {
   suspension: SurfaceSuspensionWire | null
   binding: SurfacePortBindingWire | null
   epoch: ProjectHydrationEpoch | null
-};
+}
 
 function requiredProjectId(value: string): string {
   const projectId = value.trim()
@@ -152,24 +169,28 @@ function requiredProjectId(value: string): string {
 }
 
 function sameBinding(left: SurfacePortBindingWire, right: SurfacePortBindingWire): boolean {
-  return left.version === right.version
-    && left.bindingId === right.bindingId
-    && left.binding.projectId === right.binding.projectId
-    && left.binding.immutableProjectUuid === right.binding.immutableProjectUuid
-    && left.binding.projectGeneration === right.binding.projectGeneration
-    && left.webContentsId === right.webContentsId
-    && left.processId === right.processId
-    && left.frameRoutingId === right.frameRoutingId
-    && left.origin === right.origin
-    && left.surfaceInstanceId === right.surfaceInstanceId
-    && left.portRevision === right.portRevision
-    && left.nonce === right.nonce
+  return (
+    left.version === right.version &&
+    left.bindingId === right.bindingId &&
+    left.binding.projectId === right.binding.projectId &&
+    left.binding.immutableProjectUuid === right.binding.immutableProjectUuid &&
+    left.binding.projectGeneration === right.binding.projectGeneration &&
+    left.webContentsId === right.webContentsId &&
+    left.processId === right.processId &&
+    left.frameRoutingId === right.frameRoutingId &&
+    left.origin === right.origin &&
+    left.surfaceInstanceId === right.surfaceInstanceId &&
+    left.portRevision === right.portRevision &&
+    left.nonce === right.nonce
+  )
 }
 
-export function createProjectCanvasReadSurfaceCoordinator(input: Readonly<{
-  getSurfaceBridge(): CanvasReadSurfaceBridge | null
-  createSurfaceInstanceId(): string
-}>): ProjectCanvasReadSurfaceCoordinator {
+export function createProjectCanvasReadSurfaceCoordinator(
+  input: Readonly<{
+    getSurfaceBridge(): CanvasReadSurfaceBridge | null
+    createSurfaceInstanceId(): string
+  }>,
+): ProjectCanvasReadSurfaceCoordinator {
   const surfaceInstanceId = input.createSurfaceInstanceId().trim()
   if (!surfaceInstanceId) throw new Error('surface_instance_unavailable')
   let sequence = 0
@@ -225,9 +246,7 @@ export function createProjectCanvasReadSurfaceCoordinator(input: Readonly<{
         epoch: null,
       }
       current = state
-      const rawSuspension = bridge
-        ? Promise.resolve(bridge.suspend({ surfaceInstanceId }))
-        : Promise.resolve(null)
+      const rawSuspension = bridge ? Promise.resolve(bridge.suspend({ surfaceInstanceId })) : Promise.resolve(null)
       state.suspensionPromise = rawSuspension.then((reply) => {
         assertCurrent(state)
         state.suspension = reply?.suspension ?? null
@@ -274,8 +293,9 @@ export function createProjectCanvasReadSurfaceCoordinator(input: Readonly<{
       }
       // IPC dispatch happens during this call. Its reply deliberately does not
       // consult `current`: the main-sealed bytes belong to the submitted turn.
-      return Promise.resolve(state.bridge.captureCanvasReadSnapshot({ binding, snapshot }))
-        .then((reply) => reply.handle)
+      return Promise.resolve(state.bridge.captureCanvasReadSnapshot({ binding, snapshot })).then(
+        (reply) => reply.handle,
+      )
     },
     registerCanvasReadSource(readSnapshot) {
       const bridge = input.getSurfaceBridge()
@@ -296,7 +316,8 @@ export function createProjectCanvasReadSurfaceCoordinator(input: Readonly<{
       if (!bridge || !readDocument) return () => undefined
       return bridge.onDocumentRead(({ binding, documentId, scope }) => {
         const state = current
-        if (!state || !state.binding) throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
+        if (!state || !state.binding)
+          throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
         if (!sameBinding(binding, state.binding)) throw new SurfacePortWireError('surface_port_stale')
         return readDocument({ documentId, scope })
       })
@@ -306,7 +327,8 @@ export function createProjectCanvasReadSurfaceCoordinator(input: Readonly<{
       if (!bridge || !writeDocument) return () => undefined
       return bridge.onDocumentWrite(({ binding, documentId, operation, content, target, preconditions }) => {
         const state = current
-        if (!state || !state.binding) throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
+        if (!state || !state.binding)
+          throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
         if (!sameBinding(binding, state.binding)) throw new SurfacePortWireError('surface_port_stale')
         return writeDocument({ documentId, operation, content, target, preconditions })
       })
@@ -314,11 +336,16 @@ export function createProjectCanvasReadSurfaceCoordinator(input: Readonly<{
     registerCanvasWriteCaptureSource(capture) {
       const bridge = input.getSurfaceBridge()
       if (!bridge || !capture) return () => undefined
-      return bridge.onCanvasWriteCapture(({ binding, operation, nodeId }) => {
+      return bridge.onCanvasWriteCapture(({ binding, operation, input, nodeId }) => {
         const state = current
-        if (!state || !state.binding) throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
+        if (!state || !state.binding)
+          throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
         if (!sameBinding(binding, state.binding)) throw new SurfacePortWireError('surface_port_stale')
-        return capture({ operation, nodeId })
+        return capture({
+          operation,
+          ...(input !== undefined ? { input: input as CanvasWriteInput } : {}),
+          ...(nodeId ? { nodeId } : {}),
+        })
       })
     },
     registerCanvasWriteExecuteSource(execute) {
@@ -326,7 +353,8 @@ export function createProjectCanvasReadSurfaceCoordinator(input: Readonly<{
       if (!bridge || !execute) return () => undefined
       return bridge.onCanvasWriteExecute(({ binding, ...request }) => {
         const state = current
-        if (!state || !state.binding) throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
+        if (!state || !state.binding)
+          throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
         if (!sameBinding(binding, state.binding)) throw new SurfacePortWireError('surface_port_stale')
         return execute(request)
       })

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { PreconditionSet, TargetRef } from "../capabilityTargeting";
 import { synchronousSha256 } from "../synchronousSha256";
+import type { CanvasWriteInput } from "./canvasWrite";
 import { CANVAS_WRITE_MAX_PROMPT_CHARS } from "./canvasWrite";
 
 const canonicalIdSchema = z.string().trim().min(1).max(512);
@@ -42,19 +43,74 @@ export const canvasWriteRawEvidenceSchema = z
         currentResult: canvasWriteResultPointerEvidenceSchema.nullable(),
       })
       .strict(),
-    groups: z.array(
-      z
-        .object({
-          id: canonicalIdSchema,
-          categoryId: canonicalIdSchema,
-          nodeIds: z.array(canonicalIdSchema).max(20_000),
-        })
-        .strict(),
-    ).max(16),
+    groups: z
+      .array(
+        z
+          .object({
+            id: canonicalIdSchema,
+            categoryId: canonicalIdSchema,
+            nodeIds: z.array(canonicalIdSchema).max(20_000),
+          })
+          .strict(),
+      )
+      .max(16),
   })
   .strict();
 
 export type CanvasWriteRawEvidence = z.infer<typeof canvasWriteRawEvidenceSchema>;
+
+const canvasWritePositionEvidenceSchema = z.object({ x: z.number().finite(), y: z.number().finite() }).strict();
+const canvasWriteBatchNodeEvidenceSchema = z
+  .object({
+    id: canonicalIdSchema,
+    kind: z.string().trim().min(1).max(128),
+    title: z.string().max(4_096),
+    prompt: z.string().max(CANVAS_WRITE_MAX_PROMPT_CHARS),
+    locked: z.boolean(),
+    categoryId: optionalCanonicalIdSchema,
+    groupId: optionalCanonicalIdSchema,
+    position: canvasWritePositionEvidenceSchema,
+    model: canvasWriteModelEvidenceSchema,
+    currentResult: canvasWriteResultPointerEvidenceSchema.nullable(),
+  })
+  .strict();
+const canvasWriteBatchEdgeEvidenceSchema = z
+  .object({
+    id: canonicalIdSchema,
+    source: canonicalIdSchema,
+    target: canonicalIdSchema,
+    mode: z.string().trim().min(1).max(128),
+    order: z.number().int().nonnegative().optional(),
+  })
+  .strict();
+export const canvasWriteBatchRawEvidenceSchema = z
+  .object({
+    nodes: z.array(canvasWriteBatchNodeEvidenceSchema).max(20_000),
+    edges: z.array(canvasWriteBatchEdgeEvidenceSchema).max(40_000),
+    groups: z
+      .array(
+        z
+          .object({
+            id: canonicalIdSchema,
+            categoryId: canonicalIdSchema,
+            nodeIds: z.array(canonicalIdSchema).max(20_000),
+          })
+          .strict(),
+      )
+      .max(16),
+    resolvedReferences: z
+      .array(
+        z
+          .object({
+            requestedId: canonicalIdSchema,
+            nodeId: canonicalIdSchema,
+          })
+          .strict(),
+      )
+      .max(96),
+  })
+  .strict();
+export type CanvasWriteBatchRawEvidence = z.infer<typeof canvasWriteBatchRawEvidenceSchema>;
 
 export type CanvasWriteAdmission = Readonly<{
   target: Extract<TargetRef, { kind: "canvas" }>;
@@ -85,7 +141,7 @@ function stableJson(value: unknown): string {
   throw new CanvasWriteEvidenceError("capability_input_invalid");
 }
 
-export function canvasWriteEvidenceHash(domain: "node" | "result" | "membership", value: unknown): string {
+export function canvasWriteEvidenceHash(domain: "node" | "result" | "membership" | "canvas", value: unknown): string {
   const text = `nomi-canvas-write:${domain}:v1\0${stableJson(value)}`;
   return `sha256-${synchronousSha256(text)}`;
 }
@@ -165,11 +221,72 @@ export function buildCanvasWriteAdmission(value: unknown): CanvasWriteAdmission 
   return Object.freeze({ target, preconditions });
 }
 
+function buildBatchCanvasWriteAdmission(
+  value: unknown,
+  input: Exclude<CanvasWriteInput, { operation: "set_node_prompt" }>,
+): CanvasWriteAdmission {
+  const parsed = canvasWriteBatchRawEvidenceSchema.safeParse(value);
+  if (!parsed.success) throw new CanvasWriteEvidenceError("capability_input_invalid");
+  const evidence = parsed.data;
+  assertUnique(evidence.nodes.map((node) => node.id));
+  assertUnique(evidence.edges.map((edge) => edge.id));
+  assertUnique(evidence.groups.map((group) => group.id));
+  const nodeIds = new Set(evidence.nodes.map((node) => node.id));
+  for (const edge of evidence.edges) {
+    if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) stale();
+  }
+  for (const group of evidence.groups) {
+    assertUnique(group.nodeIds);
+    if (group.nodeIds.some((nodeId) => !nodeIds.has(nodeId))) stale();
+  }
+  assertUnique(evidence.resolvedReferences.map((reference) => reference.requestedId));
+  const resolved = new Map(evidence.resolvedReferences.map((reference) => [reference.requestedId, reference.nodeId]));
+  if (evidence.resolvedReferences.some((reference) => !nodeIds.has(reference.nodeId))) stale();
+  if (input.operation === "tidy_canvas" && input.categoryId) {
+    if (!evidence.groups.every((group) => group.categoryId.trim())) stale();
+  }
+  const relationHash = canvasWriteEvidenceHash("canvas", {
+    nodes: evidence.nodes,
+    edges: evidence.edges,
+    groups: evidence.groups,
+    resolvedReferences: evidence.resolvedReferences,
+  });
+  const inputReferenceIds =
+    input.operation === "tidy_canvas"
+      ? []
+      : (input.edges ?? []).flatMap((edge) => [edge.sourceClientId, edge.targetClientId]);
+  const targetNodeIds =
+    input.operation === "tidy_canvas"
+      ? evidence.nodes
+          .filter((node) => (node.categoryId ?? "shots") === (input.categoryId ?? "shots"))
+          .map((node) => node.id)
+      : Array.from(new Set(inputReferenceIds.map((id) => resolved.get(id)).filter((id): id is string => Boolean(id))));
+  const targetIdSet = new Set(targetNodeIds);
+  if (input.operation === "tidy_canvas" && evidence.nodes.some((node) => targetIdSet.has(node.id) && node.locked))
+    stale();
+  if (input.operation === "connect_canvas_edges" || input.operation === "create_canvas_nodes") {
+    const lockedTargets = new Set((input.edges ?? []).map((edge) => resolved.get(edge.targetClientId)).filter(Boolean));
+    if (evidence.nodes.some((node) => lockedTargets.has(node.id) && node.locked)) stale();
+  }
+  const target = Object.freeze({ kind: "canvas" as const, nodeIds: Object.freeze(targetNodeIds) });
+  const preconditions: PreconditionSet = Object.freeze({
+    edges: Object.freeze([Object.freeze({ relationHash })]),
+  });
+  return Object.freeze({ target, preconditions });
+}
+
+export function buildCanvasWriteAdmissionForOperation(value: unknown, input: CanvasWriteInput): CanvasWriteAdmission {
+  return input.operation === "set_node_prompt"
+    ? buildCanvasWriteAdmission(value)
+    : buildBatchCanvasWriteAdmission(value, input);
+}
+
 export function assertCanvasWriteAdmissionMatches(
   value: unknown,
   expected: Readonly<{ target: unknown; preconditions: unknown }>,
+  input?: CanvasWriteInput,
 ): CanvasWriteAdmission {
-  const admission = buildCanvasWriteAdmission(value);
+  const admission = input ? buildCanvasWriteAdmissionForOperation(value, input) : buildCanvasWriteAdmission(value);
   if (
     stableJson(admission.target) !== stableJson(expected.target) ||
     stableJson(admission.preconditions) !== stableJson(expected.preconditions)

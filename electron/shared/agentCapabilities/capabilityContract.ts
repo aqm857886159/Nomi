@@ -15,6 +15,7 @@ export type CapabilityContract<Input, Output> = {
   readonly id: string;
   readonly version: number;
   readonly aliases: Readonly<Partial<Record<CapabilityProjectionSurface, string>>>;
+  readonly additionalAliases?: Readonly<Partial<Record<CapabilityProjectionSurface, readonly string[]>>>;
   readonly inputSchema: ZodType<Input>;
   readonly outputSchema: ZodType<Output>;
   readonly effect: CapabilityEffect;

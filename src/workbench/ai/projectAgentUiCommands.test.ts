@@ -63,9 +63,7 @@ describe('ProjectAgent UI history commands', () => {
         type: 'thread.put',
         payload: {
           makeActive: true,
-          thread: expect.objectContaining({
-            provenance: { kind: 'canonical' },
-          }),
+          thread: expect.objectContaining({ threadId: expect.stringMatching(/^thread-/) }),
         },
       }),
     )
@@ -85,7 +83,7 @@ describe('ProjectAgent UI history commands', () => {
       snapshot: {
         binding,
         hostRevision: 7,
-        threads: [{ threadId: 'thread-empty', provenance: { kind: 'canonical' } }],
+        threads: [{ threadId: 'thread-empty' }],
         items: [],
         activeThreadId: 'thread-empty',
       },

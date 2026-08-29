@@ -55,30 +55,37 @@ export type DocumentReadPort = Readonly<{
 }>;
 
 export type DocumentWritePort = Readonly<{
-  write(input: Readonly<{
-    operation: "insert" | "replace" | "append";
-    content: string;
-    target: unknown;
-    preconditions: unknown;
-    signal: AbortSignal;
-  }>): Promise<unknown>;
+  write(
+    input: Readonly<{
+      operation: "insert" | "replace" | "append";
+      content: string;
+      target: unknown;
+      preconditions: unknown;
+      signal: AbortSignal;
+    }>,
+  ): Promise<unknown>;
 }>;
 
 export type CanvasWritePort = Readonly<{
-  capture(input: Readonly<{
-    operation: "set_node_prompt";
-    nodeId: string;
-    signal: AbortSignal;
-  }>): Promise<unknown>;
-  write(input: Readonly<{
-    input: unknown;
-    target: unknown;
-    preconditions: unknown;
-    receiptProposalId: string;
-    approvalId: string;
-    actionHash: string;
-    signal: AbortSignal;
-  }>): Promise<unknown>;
+  capture(
+    input: Readonly<{
+      operation: import("../shared/agentCapabilities/canvasWrite").CanvasWriteOperation;
+      input?: unknown;
+      nodeId?: string;
+      signal: AbortSignal;
+    }>,
+  ): Promise<unknown>;
+  write(
+    input: Readonly<{
+      input: unknown;
+      target: unknown;
+      preconditions: unknown;
+      receiptProposalId: string;
+      approvalId: string;
+      actionHash: string;
+      signal: AbortSignal;
+    }>,
+  ): Promise<unknown>;
 }>;
 
 type AnyVerifiedInvocation = VerifiedCapabilityInvocation<unknown, unknown>;
@@ -198,8 +205,10 @@ function canvasWriteApproval(
   if (
     !approval ||
     Object.keys(approval).some((key) => !["receiptProposalId", "approvalId", "actionHash"].includes(key)) ||
-    typeof approval.receiptProposalId !== "string" || !approval.receiptProposalId.trim() ||
-    typeof approval.approvalId !== "string" || !approval.approvalId.trim() ||
+    typeof approval.receiptProposalId !== "string" ||
+    !approval.receiptProposalId.trim() ||
+    typeof approval.approvalId !== "string" ||
+    !approval.approvalId.trim() ||
     approval.actionHash !== invocation.actionHash
   ) {
     throw new CapabilityInvocationError("capability_authority_invalid");
@@ -216,19 +225,23 @@ async function revalidate(invocation: AnyVerifiedInvocation): Promise<void> {
 }
 
 function parseInput(invocation: AnyVerifiedInvocation): void {
-  const schema = invocation.capability.id === DOCUMENT_READ_CAPABILITY.id
-    ? documentReadSemanticInputSchema
-    : invocation.capability.id === DOCUMENT_WRITE_CAPABILITY.id
-      ? documentWriteSemanticInputSchema
-      : invocation.capability.id === CANVAS_WRITE_CAPABILITY.id
-        ? canvasWriteSemanticInputSchema
-        : CANVAS_READ_CAPABILITY.inputSchema;
+  const schema =
+    invocation.capability.id === DOCUMENT_READ_CAPABILITY.id
+      ? documentReadSemanticInputSchema
+      : invocation.capability.id === DOCUMENT_WRITE_CAPABILITY.id
+        ? documentWriteSemanticInputSchema
+        : invocation.capability.id === CANVAS_WRITE_CAPABILITY.id
+          ? canvasWriteSemanticInputSchema
+          : CANVAS_READ_CAPABILITY.inputSchema;
   if (!schema.safeParse(invocation.input).success) {
     throw new CapabilityExecutionError("capability_input_invalid");
   }
 }
 
-function projectOutput(source: unknown, invocation: AnyVerifiedInvocation): CanvasReadResult | DocumentReadResult | DocumentWriteResult | CanvasWriteResult {
+function projectOutput(
+  source: unknown,
+  invocation: AnyVerifiedInvocation,
+): CanvasReadResult | DocumentReadResult | DocumentWriteResult | CanvasWriteResult {
   if (invocation.capability.id === DOCUMENT_READ_CAPABILITY.id) {
     try {
       return documentReadResultSchema.parse(projectDocumentRead(source));
@@ -276,24 +289,30 @@ export class CapabilityExecutorRegistry {
     this.#resolveCanvasReadPort = (invocation) =>
       invocation.capability.id === DOCUMENT_READ_CAPABILITY.id
         ? resolveDocumentReadPort
-            ? Promise.resolve(resolveDocumentReadPort(invocation)).then((port): CanvasReadPort => ({
-              read: (portInput: Readonly<{ signal: AbortSignal; scope?: "full" | "selection" }>) => port.read({
-                scope: documentReadSemanticInputSchema.parse(invocation.input).scope,
-                signal: portInput.signal,
+          ? Promise.resolve(resolveDocumentReadPort(invocation)).then(
+              (port): CanvasReadPort => ({
+                read: (portInput: Readonly<{ signal: AbortSignal; scope?: "full" | "selection" }>) =>
+                  port.read({
+                    scope: documentReadSemanticInputSchema.parse(invocation.input).scope,
+                    signal: portInput.signal,
+                  }),
               }),
-            }))
+            )
           : Promise.reject(new CapabilityExecutionError("capability_unsupported"))
         : invocation.capability.id === DOCUMENT_WRITE_CAPABILITY.id
           ? resolveDocumentWritePort
-            ? Promise.resolve(resolveDocumentWritePort(invocation)).then((port): CanvasReadPort => ({
-                read: (portInput: Readonly<{ signal: AbortSignal; scope?: "full" | "selection" }>) => port.write({
-                  operation: documentWriteSemanticInputSchema.parse(invocation.input).operation,
-                  content: documentWriteSemanticInputSchema.parse(invocation.input).content,
-                  target: invocation.target,
-                  preconditions: invocation.preconditions,
-                  signal: portInput.signal,
+            ? Promise.resolve(resolveDocumentWritePort(invocation)).then(
+                (port): CanvasReadPort => ({
+                  read: (portInput: Readonly<{ signal: AbortSignal; scope?: "full" | "selection" }>) =>
+                    port.write({
+                      operation: documentWriteSemanticInputSchema.parse(invocation.input).operation,
+                      content: documentWriteSemanticInputSchema.parse(invocation.input).content,
+                      target: invocation.target,
+                      preconditions: invocation.preconditions,
+                      signal: portInput.signal,
+                    }),
                 }),
-              }))
+              )
             : Promise.reject(new CapabilityExecutionError("capability_unsupported"))
           : invocation.capability.id === CANVAS_WRITE_CAPABILITY.id
             ? resolveCanvasWritePort
@@ -313,56 +332,84 @@ export class CapabilityExecutorRegistry {
                   },
                 }
               : Promise.reject(new CapabilityExecutionError("capability_unsupported"))
-          : resolveCanvasReadPort(invocation);
+            : resolveCanvasReadPort(invocation);
     this.#timeoutMs = positiveTimeout(options.timeoutMs);
   }
 
   async execute<Input, Target>(
     invocationValue: VerifiedCapabilityInvocation<Input, Target>,
     options: CapabilityExecuteOptions = {},
-  ): Promise<Input extends import("../shared/agentCapabilities/documentRead").DocumentReadInput ? DocumentReadResult :
-    Input extends import("../shared/agentCapabilities/documentWrite").DocumentWriteInput ? DocumentWriteResult :
-    Input extends import("../shared/agentCapabilities/canvasWrite").CanvasWriteInput ? CanvasWriteResult : CanvasReadResult> {
+  ): Promise<
+    Input extends import("../shared/agentCapabilities/documentRead").DocumentReadInput
+      ? DocumentReadResult
+      : Input extends import("../shared/agentCapabilities/documentWrite").DocumentWriteInput
+        ? DocumentWriteResult
+        : Input extends import("../shared/agentCapabilities/canvasWrite").CanvasWriteInput
+          ? CanvasWriteResult
+          : CanvasReadResult
+  > {
     assertVerifiedCapabilityInvocation(invocationValue);
     const invocation = invocationValue;
-    const isCanvasRead = invocation.capability.id === CANVAS_READ_CAPABILITY.id && invocation.capability.version === CANVAS_READ_CAPABILITY.version;
-    const isDocumentRead = invocation.capability.id === DOCUMENT_READ_CAPABILITY.id && invocation.capability.version === DOCUMENT_READ_CAPABILITY.version;
-    const isDocumentWrite = invocation.capability.id === DOCUMENT_WRITE_CAPABILITY.id && invocation.capability.version === DOCUMENT_WRITE_CAPABILITY.version;
-    const isCanvasWrite = invocation.capability.id === CANVAS_WRITE_CAPABILITY.id && invocation.capability.version === CANVAS_WRITE_CAPABILITY.version;
+    const isCanvasRead =
+      invocation.capability.id === CANVAS_READ_CAPABILITY.id &&
+      invocation.capability.version === CANVAS_READ_CAPABILITY.version;
+    const isDocumentRead =
+      invocation.capability.id === DOCUMENT_READ_CAPABILITY.id &&
+      invocation.capability.version === DOCUMENT_READ_CAPABILITY.version;
+    const isDocumentWrite =
+      invocation.capability.id === DOCUMENT_WRITE_CAPABILITY.id &&
+      invocation.capability.version === DOCUMENT_WRITE_CAPABILITY.version;
+    const isCanvasWrite =
+      invocation.capability.id === CANVAS_WRITE_CAPABILITY.id &&
+      invocation.capability.version === CANVAS_WRITE_CAPABILITY.version;
     if (!isCanvasRead && !isDocumentRead && !isDocumentWrite && !isCanvasWrite) {
       throw new CapabilityExecutionError("capability_unsupported");
     }
     parseInput(invocation);
 
-    return bounded(this.#timeoutMs, options.signal, async (signal) => {
-      await revalidate(invocation);
-      let port: CanvasReadPort;
-      try {
-        port = await this.#resolveCanvasReadPort(invocation);
-      } catch (error) {
-        throw safeStageError(error);
-      }
-      await revalidate(invocation);
+    return bounded(
+      this.#timeoutMs,
+      options.signal,
+      async (signal) => {
+        await revalidate(invocation);
+        let port: CanvasReadPort;
+        try {
+          port = await this.#resolveCanvasReadPort(invocation);
+        } catch (error) {
+          throw safeStageError(error);
+        }
+        await revalidate(invocation);
 
-      let source: unknown;
-      try {
-        source = await (port as CanvasReadPort).read({
-          ...(isDocumentRead ? { scope: documentReadSemanticInputSchema.parse(invocation.input).scope } : {}),
-          signal,
-        });
-      } catch (error) {
-        if (signal.aborted) throw new CapabilityExecutionError("capability_cancelled");
-        throw safeStageError(error);
-      }
-      await revalidate(invocation);
-      return projectOutput(source, invocation) as unknown as Input extends import("../shared/agentCapabilities/documentRead").DocumentReadInput
+        let source: unknown;
+        try {
+          source = await (port as CanvasReadPort).read({
+            ...(isDocumentRead ? { scope: documentReadSemanticInputSchema.parse(invocation.input).scope } : {}),
+            signal,
+          });
+        } catch (error) {
+          if (signal.aborted) throw new CapabilityExecutionError("capability_cancelled");
+          throw safeStageError(error);
+        }
+        await revalidate(invocation);
+        return projectOutput(
+          source,
+          invocation,
+        ) as unknown as Input extends import("../shared/agentCapabilities/documentRead").DocumentReadInput
+          ? DocumentReadResult
+          : Input extends import("../shared/agentCapabilities/documentWrite").DocumentWriteInput
+            ? DocumentWriteResult
+            : CanvasReadResult;
+      },
+      options,
+    ) as Promise<
+      Input extends import("../shared/agentCapabilities/documentRead").DocumentReadInput
         ? DocumentReadResult
         : Input extends import("../shared/agentCapabilities/documentWrite").DocumentWriteInput
           ? DocumentWriteResult
-          : CanvasReadResult;
-    }, options) as Promise<Input extends import("../shared/agentCapabilities/documentRead").DocumentReadInput ? DocumentReadResult :
-      Input extends import("../shared/agentCapabilities/documentWrite").DocumentWriteInput ? DocumentWriteResult :
-      Input extends import("../shared/agentCapabilities/canvasWrite").CanvasWriteInput ? CanvasWriteResult : CanvasReadResult>;
+          : Input extends import("../shared/agentCapabilities/canvasWrite").CanvasWriteInput
+            ? CanvasWriteResult
+            : CanvasReadResult
+    >;
   }
 }
 

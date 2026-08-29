@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { CANVAS_READ_CAPABILITY } from "../../shared/agentCapabilities/canvasRead";
 import {
   cameraMoveParamsSchema,
@@ -13,10 +12,11 @@ import {
   storyboardPlanParamsSchema,
 } from "./canvasDescriptors";
 
-const FORBIDDEN_OWNER_IMPORT = /(?:from|import\s*\()\s*["'](?:ai|@ai-sdk\/[^"']*|@mariozechner\/[^"']*|@earendil-works\/pi-[^"']*|[^"']*agentChatV2)["']/;
+const FORBIDDEN_OWNER_IMPORT =
+  /(?:from|import\s*\()\s*["'](?:ai|@ai-sdk\/[^"']*|@mariozechner\/[^"']*|@earendil-works\/pi-[^"']*|[^"']*agentChatV2)["']/;
 
 describe("Nomi canvas descriptors", () => {
-  it("owns exactly the remaining ten legacy tool names", () => {
+  it("owns exactly the remaining seven legacy tool names", () => {
     expect(Object.keys(canvasToolDescriptors)).toEqual([...canvasToolNames]);
     for (const [name, descriptor] of Object.entries(canvasToolDescriptors)) {
       expect(descriptor.name).toBe(name);
@@ -26,8 +26,12 @@ describe("Nomi canvas descriptors", () => {
 
   it("detects static and dynamic imports from every forbidden SDK prefix", () => {
     const imports = [
-      "ai", "@ai-sdk/openai", "@mariozechner/pi-coding-agent",
-      "@earendil-works/pi-coding-agent", "@earendil-works/pi-agent-core", "@earendil-works/pi-ai",
+      "ai",
+      "@ai-sdk/openai",
+      "@mariozechner/pi-coding-agent",
+      "@earendil-works/pi-coding-agent",
+      "@earendil-works/pi-agent-core",
+      "@earendil-works/pi-ai",
     ].flatMap((specifier) => [
       `import { dependency } from "${specifier}";`,
       `const dependency = await import('${specifier}');`,
@@ -51,9 +55,12 @@ describe("Nomi canvas descriptors", () => {
 
   it("preserves the byte-exact LIVE agentChatV2 descriptions, not the unused legacy table", () => {
     // Captured from buildCanvasToolsForV2 at b4a3f466 before extraction.
-    const descriptions = Object.fromEntries(Object.entries(canvasToolDescriptors).map(([name, value]) => [name, value.description]));
-    expect(createHash("sha256").update(JSON.stringify(descriptions)).digest("hex"))
-      .toBe("90a33a6efb507f3647f6539541ac3d1756dd298337d866425ba099374f321075");
+    const descriptions = Object.fromEntries(
+      Object.entries(canvasToolDescriptors).map(([name, value]) => [name, value.description]),
+    );
+    expect(createHash("sha256").update(JSON.stringify(descriptions)).digest("hex")).toBe(
+      "5db44feec4cd01d9b6dca4517837640e9665efb0d1fcb14c8c7a7be5e83ed522",
+    );
   });
 
   it("projects the Pi canvas.read descriptor directly from the canonical contract", () => {
@@ -76,13 +83,23 @@ describe("Nomi canvas descriptors", () => {
 
   it("exposes storyboard string preprocessing through the real descriptor", () => {
     const shot = { index: 1, durationSec: 0, anchorIds: [], prompt: "A still frame" };
-    expect(canvasToolDescriptors.propose_storyboard_plan.parameters.parse({ title: "Draft", anchors: [], shots: JSON.stringify([shot]) }))
-      .toEqual({ title: "Draft", anchors: [], shots: [shot] });
+    expect(
+      canvasToolDescriptors.propose_storyboard_plan.parameters.parse({
+        title: "Draft",
+        anchors: [],
+        shots: JSON.stringify([shot]),
+      }),
+    ).toEqual({ title: "Draft", anchors: [], shots: [shot] });
   });
 
   it("exposes camera normalization through the real descriptor", () => {
-    expect(canvasToolDescriptors.create_camera_move.parameters.parse({ shotClientId: "video-1", move: "push_in", customMove: "handheld follow" }))
-      .toEqual({ shotClientId: "video-1", customMove: "handheld follow" });
+    expect(
+      canvasToolDescriptors.create_camera_move.parameters.parse({
+        shotClientId: "video-1",
+        move: "push_in",
+        customMove: "handheld follow",
+      }),
+    ).toEqual({ shotClientId: "video-1", customMove: "handheld follow" });
   });
 
   it("keeps generation batches within 1-24 node ids", () => {
@@ -103,20 +120,45 @@ describe("Nomi canvas descriptors", () => {
 
   it("retains the calibrated pose vocabulary and staging character limit", () => {
     const schema = canvasToolDescriptors.create_staging_reference.parameters;
-    for (const pose of ["standing", "t-pose", "walk", "run", "sit", "squat", "crouch", "single-knee", "double-knee", "hands-on-hips", "point", "wave", "cheer"]) {
+    for (const pose of [
+      "standing",
+      "t-pose",
+      "walk",
+      "run",
+      "sit",
+      "squat",
+      "crouch",
+      "single-knee",
+      "double-knee",
+      "hands-on-hips",
+      "point",
+      "wave",
+      "cheer",
+    ]) {
       expect(schema.safeParse({ characters: [{ pose }] }).success, pose).toBe(true);
-      expect(canvasToolDescriptors.create_camera_move.parameters.safeParse({ shotClientId: "v", subjectPose: pose }).success, pose).toBe(true);
+      expect(
+        canvasToolDescriptors.create_camera_move.parameters.safeParse({ shotClientId: "v", subjectPose: pose }).success,
+        pose,
+      ).toBe(true);
     }
     expect(schema.safeParse({ characters: [{ pose: "flying" }] }).success).toBe(false);
-    expect(schema.safeParse({ characters: Array.from({ length: 6 }, () => ({ pose: "standing" })) }).success).toBe(true);
-    expect(schema.safeParse({ characters: Array.from({ length: 7 }, () => ({ pose: "standing" })) }).success).toBe(false);
+    expect(schema.safeParse({ characters: Array.from({ length: 6 }, () => ({ pose: "standing" })) }).success).toBe(
+      true,
+    );
+    expect(schema.safeParse({ characters: Array.from({ length: 7 }, () => ({ pose: "standing" })) }).success).toBe(
+      false,
+    );
   });
 
   it("retains the 12-prop range on both 3D descriptors", () => {
     for (const name of ["create_staging_reference", "create_camera_move"] as const) {
       const schema = canvasToolDescriptors[name].parameters;
-      expect(schema.safeParse({ shotClientId: "v", props: Array.from({ length: 12 }, () => ({ kind: "car" })) }).success).toBe(true);
-      expect(schema.safeParse({ shotClientId: "v", props: Array.from({ length: 13 }, () => ({ kind: "car" })) }).success).toBe(false);
+      expect(
+        schema.safeParse({ shotClientId: "v", props: Array.from({ length: 12 }, () => ({ kind: "car" })) }).success,
+      ).toBe(true);
+      expect(
+        schema.safeParse({ shotClientId: "v", props: Array.from({ length: 13 }, () => ({ kind: "car" })) }).success,
+      ).toBe(false);
     }
   });
 });
@@ -185,17 +227,7 @@ describe("canvas descriptor schemas", () => {
 
   describe("canvasNodeKindSchema", () => {
     it("accepts the 9 supported kinds", () => {
-      for (const kind of [
-        "text",
-        "character",
-        "scene",
-        "image",
-        "keyframe",
-        "video",
-        "shot",
-        "output",
-        "panorama",
-      ]) {
+      for (const kind of ["text", "character", "scene", "image", "keyframe", "video", "shot", "output", "panorama"]) {
         expect(canvasNodeKindSchema.safeParse(kind).success).toBe(true);
       }
     });
@@ -243,16 +275,13 @@ describe("canvas descriptor schemas", () => {
   });
 
   describe("canvasToolNames", () => {
-    it("enumerates all 10 remaining legacy tools", () => {
+    it("enumerates all 7 remaining legacy tools", () => {
       expect(canvasToolNames).toEqual([
         "read_canvas_state",
         "propose_storyboard_plan", // 分镜方案：产出结构化方案对象落创作区，确认后才落画布
-        "create_canvas_nodes",
-        "connect_canvas_edges",
         "delete_canvas_nodes",
         "run_generation_batch", // S6b 受理语义
         "arrange_storyboard_to_timeline", // 按剧本镜序排片到时间轴
-        "tidy_canvas", // 助手一键整理画布（复用 tidyCategory）
         "create_staging_reference", // 3D 站位参考图（站位+动作+机位）
         "create_camera_move", // 3D 运镜参考小片（喂 video_ref / 降级 prompt）
       ]);
@@ -260,40 +289,6 @@ describe("canvas descriptor schemas", () => {
 
     it("matches the keys of canvasToolDescriptors", () => {
       expect(Object.keys(canvasToolDescriptors).sort()).toEqual([...canvasToolNames].sort());
-    });
-  });
-
-  describe("create_canvas_nodes parameters", () => {
-    const schema = canvasToolDescriptors.create_canvas_nodes.parameters;
-
-    it("accepts 1-24 nodes", () => {
-      const nodes = Array.from({ length: 6 }, (_, i) => makeValidNode({ clientId: `n${i}` }));
-      expect(schema.safeParse({ summary: "ok", nodes }).success).toBe(true);
-    });
-
-    it("rejects an empty nodes array", () => {
-      expect(schema.safeParse({ summary: "ok", nodes: [] }).success).toBe(false);
-    });
-
-    it("rejects more than 24 nodes", () => {
-      const nodes = Array.from({ length: 25 }, (_, i) => makeValidNode({ clientId: `n${i}` }));
-      expect(schema.safeParse({ summary: "ok", nodes }).success).toBe(false);
-    });
-
-    it("requires summary", () => {
-      const nodes = [makeValidNode()];
-      // zod object passthrough: missing summary fails because schema is z.object({summary: z.string(), ...})
-      expect(schema.safeParse({ nodes }).success).toBe(false);
-    });
-
-    it("publishes required plan fields and their confirmation guidance to the model", () => {
-      const wire = JSON.parse(JSON.stringify(zodToJsonSchema(schema, { $refStrategy: "none" }))) as {
-        required?: string[];
-        properties?: Record<string, { description?: string }>;
-      };
-      expect(wire.required).toEqual(expect.arrayContaining(["summary", "nodes"]));
-      expect(wire.properties?.summary?.description).toContain("shown to the user before confirmation");
-      expect(wire.properties?.edges?.description).toContain("same call");
     });
   });
 
@@ -344,7 +339,8 @@ describe("canvas descriptor schemas", () => {
       const parsed = storyboardPlanParamsSchema.safeParse({
         title: "坏字符串",
         anchors: [],
-        shots: '[{"index":1,"shotKind":"video","durationSec":6,"anchorIds":[],"prompt":"p","keyframe":{"enabled":true,"prompt":"k"}}',
+        shots:
+          '[{"index":1,"shotKind":"video","durationSec":6,"anchorIds":[],"prompt":"p","keyframe":{"enabled":true,"prompt":"k"}}',
       });
       expect(parsed.success).toBe(false);
     });
@@ -358,24 +354,6 @@ describe("canvas descriptor schemas", () => {
         prompt: `shot ${i + 1}`,
       }));
       expect(storyboardPlanParamsSchema.safeParse({ title: "too many", anchors: [], shots }).success).toBe(false);
-    });
-  });
-
-  describe("connect_canvas_edges parameters", () => {
-    const schema = canvasToolDescriptors.connect_canvas_edges.parameters;
-
-    it("accepts 1-48 edges", () => {
-      const edges = Array.from({ length: 10 }, (_, i) => ({ sourceClientId: `n${i}`, targetClientId: `n${i + 1}` }));
-      expect(schema.safeParse({ edges }).success).toBe(true);
-    });
-
-    it("rejects an empty edges array", () => {
-      expect(schema.safeParse({ edges: [] }).success).toBe(false);
-    });
-
-    it("rejects more than 48 edges", () => {
-      const edges = Array.from({ length: 49 }, (_, i) => ({ sourceClientId: `s${i}`, targetClientId: `t${i}` }));
-      expect(schema.safeParse({ edges }).success).toBe(false);
     });
   });
 
@@ -400,8 +378,12 @@ describe("canvas descriptor schemas", () => {
   describe("read_canvas_state parameters", () => {
     it("accepts only the empty semantic object", () => {
       expect(canvasToolDescriptors.read_canvas_state.parameters.safeParse({}).success).toBe(true);
-      expect(canvasToolDescriptors.read_canvas_state.parameters.safeParse({ projectId: "project-a" }).success).toBe(false);
-      expect(canvasToolDescriptors.read_canvas_state.parameters.safeParse({ leaseHandle: "lease-a" }).success).toBe(false);
+      expect(canvasToolDescriptors.read_canvas_state.parameters.safeParse({ projectId: "project-a" }).success).toBe(
+        false,
+      );
+      expect(canvasToolDescriptors.read_canvas_state.parameters.safeParse({ leaseHandle: "lease-a" }).success).toBe(
+        false,
+      );
     });
   });
 });

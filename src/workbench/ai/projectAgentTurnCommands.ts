@@ -53,12 +53,11 @@ function bindingOf(snapshot: ProjectAgentHostState): ProjectBinding {
 
 function activeWritableThread(snapshot: ProjectAgentHostState, now: string): ProjectAgentThread {
   const active = snapshot.threads.find((thread) => thread.threadId === snapshot.activeThreadId)
-  if (!active || active.provenance?.kind === 'legacy') {
+  if (!active) {
     return Object.freeze({
       threadId: id('thread'),
       createdAt: now,
       updatedAt: now,
-      provenance: { kind: 'canonical' as const },
     })
   }
   return Object.freeze({ ...active, ...(active.title ? { title: active.title } : {}), updatedAt: now })
@@ -229,7 +228,8 @@ export function subscribeProjectAgentEvents(listener: (event: ProjectAgentExecut
       event.subscriptionId !== state.subscriptionId ||
       event.subscriptionEpoch !== state.subscriptionEpoch ||
       event.type === 'patch'
-    ) return
+    )
+      return
     const snapshot = state.snapshot
     const turn = snapshot?.turns.find((candidate) => candidate.turnId === event.turnId)
     if (!snapshot || !turn || turn.executionToken !== event.executionToken) return
@@ -245,9 +245,11 @@ export function projectAgentEventBelongsToTurn(event: ProjectAgentExecutionEvent
 }
 
 function sameBinding(left: ProjectBinding, right: ProjectBinding): boolean {
-  return left.projectId === right.projectId &&
+  return (
+    left.projectId === right.projectId &&
     left.immutableProjectUuid === right.immutableProjectUuid &&
     left.projectGeneration === right.projectGeneration
+  )
 }
 
 /**
@@ -267,11 +269,8 @@ export function createProjectAgentTurnHandle(turnId: string): Readonly<{
   const isCurrent = (): boolean => {
     if (invalidated) return false
     const state = projectAgentProjectionStore.getState()
-    if (
-      !state.snapshot ||
-      state.subscriptionId !== subscriptionId ||
-      state.subscriptionEpoch !== subscriptionEpoch
-    ) return false
+    if (!state.snapshot || state.subscriptionId !== subscriptionId || state.subscriptionEpoch !== subscriptionEpoch)
+      return false
     const turn = state.snapshot.turns.find((candidate) => candidate.turnId === turnId)
     return !turn || isProjectAgentLiveStatus(turn.status)
   }
@@ -311,7 +310,10 @@ export function createProjectAgentPendingToolRegistry<Value>(): Readonly<{
     select(state, surfaceKind) {
       const visible: Value[] = []
       for (const [entryKey, entry] of entries) {
-        if (entry.event.subscriptionId !== state.subscriptionId || entry.event.subscriptionEpoch !== state.subscriptionEpoch) {
+        if (
+          entry.event.subscriptionId !== state.subscriptionId ||
+          entry.event.subscriptionEpoch !== state.subscriptionEpoch
+        ) {
           entries.delete(entryKey)
           continue
         }

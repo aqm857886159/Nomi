@@ -91,17 +91,10 @@ export function projectAgentThreadMessages(
   const itemOrder = new Map(state.items.map((item, index) => [item.itemId, index]))
   const turns = new Map(state.turns.map((turn) => [turn.turnId, turn]))
   const queueItems = new Map(state.queue.map((item) => [item.turnId, item]))
-  const failureTurnIds = new Set(
-    state.items.filter((item) => item.kind === 'failure').map((item) => item.turnId),
-  )
+  const failureTurnIds = new Set(state.items.filter((item) => item.kind === 'failure').map((item) => item.turnId))
   return state.items
     .filter((item) => item.threadId === threadId)
-    .filter(
-      (item) =>
-        item.kind !== 'assistant' ||
-        item.status !== 'failed' ||
-        !failureTurnIds.has(item.turnId),
-    )
+    .filter((item) => item.kind !== 'assistant' || item.status !== 'failed' || !failureTurnIds.has(item.turnId))
     .sort(
       (left, right) =>
         (turnOrder.get(left.turnId) ?? 0) - (turnOrder.get(right.turnId) ?? 0) ||
@@ -114,8 +107,4 @@ export function projectAgentThreadMessages(
 
 export function projectAgentActiveThreadId(state: ProjectAgentHostState): string | null {
   return state.activeThreadId
-}
-
-export function projectAgentLegacyThreadIsReadOnly(state: ProjectAgentHostState, threadId: string): boolean {
-  return state.threads.some((thread) => thread.threadId === threadId && thread.provenance?.kind === 'legacy')
 }

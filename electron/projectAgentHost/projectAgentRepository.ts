@@ -61,8 +61,6 @@ export type ProjectAgentRepositoryDeps = {
   rootDir: string;
 };
 
-export type ProjectAgentMigratedState = ProjectAgentHostState;
-
 export class ProjectAgentRepositoryIntegrityError extends Error {
   constructor(message: string) {
     super(message);
@@ -548,43 +546,7 @@ export function createProjectAgentRepository(deps: ProjectAgentRepositoryDeps) {
     return load(binding)!;
   }
 
-  /**
-   * Installs a validated legacy projection as the revision-zero starting
-   * point. Only the migration coordinator calls this method; normal commands
-   * still begin from the empty canonical state and advance by CAS commits.
-   */
-  function initializeMigrated(state: ProjectAgentMigratedState): ProjectAgentHostState {
-    const canonical = snapshotProjectAgentHostState(state);
-    if (
-      canonical.hostRevision !== 0 ||
-      canonical.commandLedgerHighWater !== 0 ||
-      canonical.recentAppliedCommands.length !== 0
-    ) {
-      throw new ProjectAgentRepositoryIntegrityError("Migrated Project Agent state must start at revision zero");
-    }
-    const paths = pathsFor(canonical.binding);
-    ensurePartitionDirectory(paths);
-    const existing = resolveEnvelope(canonical.binding);
-    const initialLedger = emptyProjectAgentCommandLedgerPointer();
-    if (existing) {
-      if (
-        existing.envelope.hostRevision === 0 &&
-        stableProjectAgentJson(existing.envelope.state) === stableProjectAgentJson(canonical)
-      ) {
-        return existing.envelope.state;
-      }
-      throw new ProjectAgentRepositoryIntegrityError("Project Agent host partition is already initialized");
-    }
-    const emptyView = commandLedger.validate(paths.ledger, canonical.binding, initialLedger);
-    commandLedger.reconcilePreparedTail(paths.ledger, canonical.binding, emptyView);
-    const initialEnvelope = envelopeFor(canonical, initialLedger);
-    writeJsonFileAtomic(paths.snapshot, initialEnvelope, PROJECT_AGENT_PRIVATE_FILE_OPTIONS);
-    fsyncPublishedMain(paths, canonical.binding, 0);
-    mirrorCommittedEnvelope(paths, initialEnvelope);
-    return load(canonical.binding)!;
-  }
-
-  return { pathsFor, load, lookupCommittedCommand, initialize, initializeMigrated, commit };
+  return { pathsFor, load, lookupCommittedCommand, initialize, commit };
 }
 
 export type ProjectAgentRepository = ReturnType<typeof createProjectAgentRepository>;

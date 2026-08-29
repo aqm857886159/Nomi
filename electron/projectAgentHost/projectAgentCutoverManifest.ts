@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -16,19 +15,20 @@ export const PROJECT_AGENT_CUTOVER_LOCK_STALE_MS = 5 * 60 * 1000;
 export type ProjectAgentCutoverSources = Readonly<{
   conversationsHash: string;
   contextHash: string;
-  proposalHash: string;
+  proposalReceiptHash: string;
 }>;
 
 export type ProjectAgentCutoverManifest = Readonly<{
   schemaVersion: typeof PROJECT_AGENT_CUTOVER_SCHEMA_VERSION;
+  mode: "archive-only";
   binding: ProjectBinding;
   sources: ProjectAgentCutoverSources;
-  imported: Readonly<{ creationThreads: number; generationThreads: number; messageCount: number }>;
   completedAt: string;
 }>;
 
 export type ProjectAgentCutoverPreparation = Readonly<{
   schemaVersion: typeof PROJECT_AGENT_CUTOVER_SCHEMA_VERSION;
+  mode: "archive-only";
   binding: ProjectBinding;
   sources: ProjectAgentCutoverSources;
   startedAt: string;
@@ -76,28 +76,23 @@ function parseManifest(value: unknown): ProjectAgentCutoverManifest | null {
     return null;
   }
   const sources = raw.sources;
-  const imported = raw.imported;
   if (
     raw.schemaVersion !== PROJECT_AGENT_CUTOVER_SCHEMA_VERSION ||
+    raw.mode !== "archive-only" ||
     !sources ||
     typeof sources !== "object" ||
     !validHash((sources as Record<string, unknown>).conversationsHash) ||
     !validHash((sources as Record<string, unknown>).contextHash) ||
-    !validHash((sources as Record<string, unknown>).proposalHash) ||
-    !imported ||
-    typeof imported !== "object" ||
-    !Number.isSafeInteger((imported as Record<string, unknown>).creationThreads) ||
-    !Number.isSafeInteger((imported as Record<string, unknown>).generationThreads) ||
-    !Number.isSafeInteger((imported as Record<string, unknown>).messageCount) ||
+    !validHash((sources as Record<string, unknown>).proposalReceiptHash) ||
     typeof raw.completedAt !== "string"
   ) {
     return null;
   }
   return Object.freeze({
     schemaVersion: PROJECT_AGENT_CUTOVER_SCHEMA_VERSION,
+    mode: "archive-only",
     binding: Object.freeze({ ...binding }),
     sources: Object.freeze({ ...(sources as ProjectAgentCutoverManifest["sources"]) }),
-    imported: Object.freeze({ ...(imported as ProjectAgentCutoverManifest["imported"]) }),
     completedAt: raw.completedAt,
   });
 }
@@ -114,11 +109,12 @@ function parsePreparation(value: unknown): ProjectAgentCutoverPreparation | null
   const sources = raw.sources;
   if (
     raw.schemaVersion !== PROJECT_AGENT_CUTOVER_SCHEMA_VERSION ||
+    raw.mode !== "archive-only" ||
     !sources ||
     typeof sources !== "object" ||
     !validHash((sources as Record<string, unknown>).conversationsHash) ||
     !validHash((sources as Record<string, unknown>).contextHash) ||
-    !validHash((sources as Record<string, unknown>).proposalHash) ||
+    !validHash((sources as Record<string, unknown>).proposalReceiptHash) ||
     typeof raw.startedAt !== "string" ||
     !Number.isFinite(Date.parse(raw.startedAt))
   ) {
@@ -126,6 +122,7 @@ function parsePreparation(value: unknown): ProjectAgentCutoverPreparation | null
   }
   return Object.freeze({
     schemaVersion: PROJECT_AGENT_CUTOVER_SCHEMA_VERSION,
+    mode: "archive-only",
     binding: Object.freeze({ ...binding }),
     sources: Object.freeze({ ...(sources as ProjectAgentCutoverSources) }),
     startedAt: raw.startedAt,
@@ -147,7 +144,7 @@ function assertSourcesMatch(left: ProjectAgentCutoverSources, right: ProjectAgen
   if (
     left.conversationsHash !== right.conversationsHash ||
     left.contextHash !== right.contextHash ||
-    left.proposalHash !== right.proposalHash
+    left.proposalReceiptHash !== right.proposalReceiptHash
   ) {
     throw new ProjectAgentCutoverError("Legacy source bytes changed during Project Agent cutover");
   }
@@ -156,25 +153,19 @@ function assertSourcesMatch(left: ProjectAgentCutoverSources, right: ProjectAgen
 export function readProjectAgentCutoverManifest(projectRoot: string): ProjectAgentCutoverManifest | null {
   const filePath = projectAgentCutoverManifestPath(projectRoot);
   try {
-    return parseManifest(JSON.parse(fs.readFileSync(filePath, "utf8")) as unknown);
+    const manifest = parseManifest(JSON.parse(fs.readFileSync(filePath, "utf8")) as unknown);
+    if (!manifest) throw new ProjectAgentCutoverError(`Project Agent cutover manifest is invalid: ${filePath}`);
+    return manifest;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    if (error instanceof ProjectAgentCutoverError) throw error;
     throw new ProjectAgentCutoverError(`Project Agent cutover manifest is unreadable: ${filePath}`, { cause: error });
   }
 }
 
-export function assertCutoverMatches(
-  manifest: ProjectAgentCutoverManifest,
-  binding: ProjectBinding,
-  sources: ProjectAgentCutoverSources,
-): void {
+export function assertCutoverMatches(manifest: ProjectAgentCutoverManifest, binding: ProjectBinding): void {
   if (!sameBinding(manifest.binding, binding))
     throw new ProjectAgentCutoverError("Project Agent cutover binding changed");
-  try {
-    assertSourcesMatch(manifest.sources, sources);
-  } catch (error) {
-    throw new ProjectAgentCutoverError("Legacy source bytes changed after Project Agent cutover", { cause: error });
-  }
 }
 
 export function assertCutoverPreparationMatches(
@@ -203,7 +194,9 @@ export function readOrCreateProjectAgentCutoverPreparation(
     }
   } catch (error) {
     if (error instanceof ProjectAgentCutoverError) throw error;
-    throw new ProjectAgentCutoverError(`Project Agent cutover preparation is unreadable: ${filePath}`, { cause: error });
+    throw new ProjectAgentCutoverError(`Project Agent cutover preparation is unreadable: ${filePath}`, {
+      cause: error,
+    });
   }
   if (existing) {
     assertCutoverPreparationMatches(existing, binding, sources);
@@ -212,6 +205,7 @@ export function readOrCreateProjectAgentCutoverPreparation(
 
   const preparation = parsePreparation({
     schemaVersion: PROJECT_AGENT_CUTOVER_SCHEMA_VERSION,
+    mode: "archive-only",
     binding,
     sources,
     startedAt,
@@ -284,11 +278,4 @@ export function writeProjectAgentCutoverManifest(projectRoot: string, manifest: 
   if (!canonical) throw new ProjectAgentCutoverError("Project Agent cutover manifest is invalid");
   writeJsonFileAtomic(projectAgentCutoverManifestPath(projectRoot), canonical, { mode: 0o600 });
   fsyncNomiDirectory(projectRoot);
-}
-
-export function hashCutoverProposal(value: unknown): string {
-  return crypto
-    .createHash("sha256")
-    .update(JSON.stringify(value ?? null))
-    .digest("hex");
 }

@@ -16,7 +16,13 @@ import {
   SURFACE_DOCUMENT_WRITE_REQUEST_CHANNEL,
   type SurfacePortWireErrorCode,
 } from "../shared/surfacePortBinding";
-import { CapabilityExecutionError, type CanvasReadPort, type CanvasWritePort, type DocumentReadPort, type DocumentWritePort } from "./capabilityExecutorRegistry";
+import {
+  CapabilityExecutionError,
+  type CanvasReadPort,
+  type CanvasWritePort,
+  type DocumentReadPort,
+  type DocumentWritePort,
+} from "./capabilityExecutorRegistry";
 import {
   type CanvasReadSurfaceRegistry,
   type CapturedCanvasReadPort,
@@ -132,23 +138,43 @@ export function createCanvasReadSurfacePortRuntime(
     );
   };
   ipcMain.on(SURFACE_CANVAS_READ_REPLY_CHANNEL, (event, value) => {
-    try { assertTrustedSender(event); } catch { return; }
+    try {
+      assertTrustedSender(event);
+    } catch {
+      return;
+    }
     handleReply(SURFACE_CANVAS_READ_REPLY_CHANNEL, event, value);
   });
   ipcMain.on(SURFACE_DOCUMENT_READ_REPLY_CHANNEL, (event, value) => {
-    try { assertTrustedSender(event); } catch { return; }
+    try {
+      assertTrustedSender(event);
+    } catch {
+      return;
+    }
     handleReply(SURFACE_DOCUMENT_READ_REPLY_CHANNEL, event, value);
   });
   ipcMain.on(SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL, (event, value) => {
-    try { assertTrustedSender(event); } catch { return; }
+    try {
+      assertTrustedSender(event);
+    } catch {
+      return;
+    }
     handleReply(SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL, event, value);
   });
   ipcMain.on(SURFACE_CANVAS_WRITE_CAPTURE_REPLY_CHANNEL, (event, value) => {
-    try { assertTrustedSender(event); } catch { return; }
+    try {
+      assertTrustedSender(event);
+    } catch {
+      return;
+    }
     handleReply(SURFACE_CANVAS_WRITE_CAPTURE_REPLY_CHANNEL, event, value);
   });
   ipcMain.on(SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL, (event, value) => {
-    try { assertTrustedSender(event); } catch { return; }
+    try {
+      assertTrustedSender(event);
+    } catch {
+      return;
+    }
     handleReply(SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL, event, value);
   });
 
@@ -164,7 +190,9 @@ export function createCanvasReadSurfacePortRuntime(
     try {
       dispatch = input.registry.resolveCapturedCanvasReadPort(captured);
     } catch (error) {
-      return Promise.reject(error instanceof SurfacePortError ? error : new SurfacePortError("surface_port_unavailable"));
+      return Promise.reject(
+        error instanceof SurfacePortError ? error : new SurfacePortError("surface_port_unavailable"),
+      );
     }
     const requestId = randomId().trim();
     if (!requestId || pending.has(requestId)) return Promise.reject(new SurfacePortError("surface_port_unavailable"));
@@ -198,14 +226,26 @@ export function createCanvasReadSurfacePortRuntime(
     createPort(captured): CanvasReadPort {
       return Object.freeze({
         read({ signal }): Promise<unknown> {
-          return requestRead(captured, signal, SURFACE_CANVAS_READ_REQUEST_CHANNEL, SURFACE_CANVAS_READ_REPLY_CHANNEL, {});
+          return requestRead(
+            captured,
+            signal,
+            SURFACE_CANVAS_READ_REQUEST_CHANNEL,
+            SURFACE_CANVAS_READ_REPLY_CHANNEL,
+            {},
+          );
         },
       });
     },
     createDocumentReadPort(captured, documentId) {
       return Object.freeze({
         read({ scope, signal }) {
-          return requestRead(captured, signal, SURFACE_DOCUMENT_READ_REQUEST_CHANNEL, SURFACE_DOCUMENT_READ_REPLY_CHANNEL, { documentId, scope });
+          return requestRead(
+            captured,
+            signal,
+            SURFACE_DOCUMENT_READ_REQUEST_CHANNEL,
+            SURFACE_DOCUMENT_READ_REPLY_CHANNEL,
+            { documentId, scope },
+          );
         },
       });
     },
@@ -224,13 +264,17 @@ export function createCanvasReadSurfacePortRuntime(
     },
     createCanvasWritePort(captured) {
       return Object.freeze({
-        capture({ operation, nodeId, signal }) {
+        capture({ operation, input, nodeId, signal }) {
           return requestRead(
             captured,
             signal,
             SURFACE_CANVAS_WRITE_CAPTURE_REQUEST_CHANNEL,
             SURFACE_CANVAS_WRITE_CAPTURE_REPLY_CHANNEL,
-            { operation, nodeId },
+            {
+              operation,
+              ...(nodeId !== undefined ? { nodeId } : {}),
+              ...(input !== undefined ? { input } : {}),
+            },
           );
         },
         write({ input: semanticInput, target, preconditions, receiptProposalId, approvalId, actionHash, signal }) {

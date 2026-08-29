@@ -45,7 +45,6 @@ export type ProjectAgentProposalReceiptService = Readonly<{
     cleared: true;
     receipt: ProjectAgentProposalReceiptView;
   }>;
-  migrateLegacy(value: unknown, sourceHash: string, updatedAt: string): ProjectAgentProposalReceiptView | null;
 }>;
 
 export class ProjectAgentProposalReceiptError extends Error {
@@ -62,10 +61,6 @@ const MAX_OPERATIONS = 64;
 
 function receiptPath(projectRoot: string): string {
   return path.join(path.resolve(projectRoot), ".nomi", "project-agent-proposal-receipt.json");
-}
-
-function invalidReceiptPath(projectRoot: string): string {
-  return path.join(path.resolve(projectRoot), ".nomi", "project-agent-proposal-receipt.invalid.json");
 }
 
 function fsyncReceiptDirectory(projectRoot: string): void {
@@ -96,7 +91,10 @@ function stableJson(value: unknown): string {
 }
 
 function digest(domain: string, value: unknown): string {
-  return crypto.createHash("sha256").update(`${domain}\0${stableJson(value)}`).digest("hex");
+  return crypto
+    .createHash("sha256")
+    .update(`${domain}\0${stableJson(value)}`)
+    .digest("hex");
 }
 
 function validHash(value: unknown): value is string {
@@ -133,7 +131,7 @@ function hashJournal(value: Omit<ProjectAgentProposalReceipt, "journalHash">): s
   return digest("nomi-project-agent-proposal-journal:v2", value);
 }
 
-function operationHash(kind: "write" | "transition" | "clear" | "migration", value: unknown): string {
+function operationHash(kind: "write" | "transition" | "clear", value: unknown): string {
   return digest(`nomi-project-agent-proposal-operation:${kind}:v2`, value);
 }
 
@@ -261,40 +259,21 @@ export function createProjectAgentProposalReceiptStore(projectRoot: string) {
       fsyncReceiptDirectory(projectRoot);
       return journal;
     },
-    remove(): void {
-      const existed = fs.existsSync(target);
-      fs.rmSync(target, { force: true });
-      if (existed) fsyncReceiptDirectory(projectRoot);
-    },
-    archiveInvalid(input: Readonly<{
-      binding: ProjectBinding;
-      sourceHash: string;
-      proposal: unknown;
-      rejectedAt: string;
-    }>): void {
-      writeJsonFileAtomic(invalidReceiptPath(projectRoot), {
-        schemaVersion: 1,
-        binding: input.binding,
-        sourceHash: input.sourceHash,
-        reason: "invalid_legacy_proposal",
-        rejectedAt: input.rejectedAt,
-        proposal: input.proposal,
-      }, { mode: 0o600 });
-      fsyncReceiptDirectory(projectRoot);
-    },
   });
 }
 
-function makeReceipt(input: Readonly<{
-  previous: ProjectAgentProposalReceipt | null;
-  binding: ProjectBinding;
-  lifecycle: ProjectAgentProposalReceiptLifecycle;
-  proposalId: string;
-  operationId: string;
-  proposal: ProjectAgentCommittedProposalRecord;
-  requestHash: string;
-  updatedAt?: string;
-}>): Omit<ProjectAgentProposalReceipt, "journalHash"> {
+function makeReceipt(
+  input: Readonly<{
+    previous: ProjectAgentProposalReceipt | null;
+    binding: ProjectBinding;
+    lifecycle: ProjectAgentProposalReceiptLifecycle;
+    proposalId: string;
+    operationId: string;
+    proposal: ProjectAgentCommittedProposalRecord;
+    requestHash: string;
+    updatedAt?: string;
+  }>,
+): Omit<ProjectAgentProposalReceipt, "journalHash"> {
   const revision = (input.previous?.revision ?? 0) + 1;
   const operations = [
     ...(input.previous?.operations ?? []),
@@ -315,10 +294,12 @@ function makeReceipt(input: Readonly<{
 }
 
 /** Trusted live service: root, binding, hashes, and lifecycle transitions never cross ownership boundaries. */
-export function createProjectAgentProposalReceiptService(input: Readonly<{
-  projectRoot: string;
-  binding: ProjectBinding;
-}>): ProjectAgentProposalReceiptService {
+export function createProjectAgentProposalReceiptService(
+  input: Readonly<{
+    projectRoot: string;
+    binding: ProjectBinding;
+  }>,
+): ProjectAgentProposalReceiptService {
   assertProjectAgentBinding(input.binding);
   const trustedBinding = Object.freeze({ ...input.binding });
   const store = createProjectAgentProposalReceiptStore(input.projectRoot);
@@ -342,7 +323,9 @@ export function createProjectAgentProposalReceiptService(input: Readonly<{
     const applied = receipt?.operations.find((operation) => operation.operationId === operationId);
     if (!applied) return null;
     if (applied.requestHash !== requestHash) {
-      throw new ProjectAgentProposalReceiptError("Project Agent proposal receipt operation conflicts with its first request");
+      throw new ProjectAgentProposalReceiptError(
+        "Project Agent proposal receipt operation conflicts with its first request",
+      );
     }
     if (applied.appliedRevision !== receipt!.revision || receipt!.operationId !== operationId) {
       throw new ProjectAgentProposalReceiptError("revision_conflict", "revision_conflict");
@@ -382,25 +365,33 @@ export function createProjectAgentProposalReceiptService(input: Readonly<{
       assertCas(receipt, value.expectedRevision);
       if (value.lifecycle === "preparing") {
         if (receipt && receipt.lifecycle !== "committed" && receipt.lifecycle !== "undone") {
-          throw new ProjectAgentProposalReceiptError("Project Agent proposal receipt already has an unfinished operation");
+          throw new ProjectAgentProposalReceiptError(
+            "Project Agent proposal receipt already has an unfinished operation",
+          );
         }
       } else {
         if (!receipt || receipt.lifecycle !== "preparing" || receipt.proposalId !== value.proposalId) {
-          throw new ProjectAgentProposalReceiptError("Project Agent proposal receipt cannot commit without its preparation");
+          throw new ProjectAgentProposalReceiptError(
+            "Project Agent proposal receipt cannot commit without its preparation",
+          );
         }
         if (!sameHostCorrelation(receipt.proposal, proposal)) {
           throw new ProjectAgentProposalReceiptError("Project Agent proposal receipt Host correlation is immutable");
         }
       }
-      return toView(store.write(makeReceipt({
-        previous: receipt,
-        binding: trustedBinding,
-        lifecycle: value.lifecycle,
-        proposalId: value.proposalId,
-        operationId: value.operationId,
-        proposal,
-        requestHash,
-      })));
+      return toView(
+        store.write(
+          makeReceipt({
+            previous: receipt,
+            binding: trustedBinding,
+            lifecycle: value.lifecycle,
+            proposalId: value.proposalId,
+            operationId: value.operationId,
+            proposal,
+            requestHash,
+          }),
+        ),
+      );
     },
     transition(value) {
       if (!validId(value.proposalId) || !validId(value.operationId)) {
@@ -423,15 +414,19 @@ export function createProjectAgentProposalReceiptService(input: Readonly<{
       ) {
         throw new ProjectAgentProposalReceiptError("Project Agent proposal receipt lifecycle transition is invalid");
       }
-      return toView(store.write(makeReceipt({
-        previous: receipt,
-        binding: trustedBinding,
-        lifecycle: value.lifecycle,
-        proposalId: receipt.proposalId,
-        operationId: value.operationId,
-        proposal: receipt.proposal,
-        requestHash,
-      })));
+      return toView(
+        store.write(
+          makeReceipt({
+            previous: receipt,
+            binding: trustedBinding,
+            lifecycle: value.lifecycle,
+            proposalId: receipt.proposalId,
+            operationId: value.operationId,
+            proposal: receipt.proposal,
+            requestHash,
+          }),
+        ),
+      );
     },
     clear(value) {
       if (!validId(value.proposalId) || !validId(value.operationId)) {
@@ -443,53 +438,28 @@ export function createProjectAgentProposalReceiptService(input: Readonly<{
       if (repeated) return Object.freeze({ cleared: true as const, receipt: repeated });
       assertCas(receipt, value.expectedRevision);
       if (!receipt || receipt.proposalId !== value.proposalId || receipt.lifecycle !== "undone") {
-        throw new ProjectAgentProposalReceiptError("Project Agent proposal receipt cannot clear live recovery evidence");
+        throw new ProjectAgentProposalReceiptError(
+          "Project Agent proposal receipt cannot clear live recovery evidence",
+        );
       }
-      const cleared = toView(store.write(makeReceipt({
-        previous: receipt,
-        binding: trustedBinding,
-        lifecycle: "undone",
-        proposalId: receipt.proposalId,
-        operationId: value.operationId,
-        proposal: receipt.proposal,
-        requestHash,
-      })));
+      const cleared = toView(
+        store.write(
+          makeReceipt({
+            previous: receipt,
+            binding: trustedBinding,
+            lifecycle: "undone",
+            proposalId: receipt.proposalId,
+            operationId: value.operationId,
+            proposal: receipt.proposal,
+            requestHash,
+          }),
+        ),
+      );
       return Object.freeze({ cleared: true as const, receipt: cleared });
-    },
-    migrateLegacy(value, sourceHash, updatedAt) {
-      if (!validHash(sourceHash) || !Number.isFinite(Date.parse(updatedAt))) {
-        throw new ProjectAgentProposalReceiptError("Project Agent legacy proposal receipt evidence is invalid");
-      }
-      const proposal = parseProjectAgentCommittedProposal(value);
-      if (!proposal) {
-        store.remove();
-        store.archiveInvalid({ binding: trustedBinding, sourceHash, proposal: value, rejectedAt: updatedAt });
-        return null;
-      }
-      const operationId = `legacy-migration-${sourceHash}`;
-      const requestHash = operationHash("migration", { sourceHash, proposal });
-      const receipt = current();
-      const repeated = replay(receipt, operationId, requestHash);
-      if (repeated) return repeated;
-      if (receipt) throw new ProjectAgentProposalReceiptError("Project Agent legacy proposal receipt conflicts with live state");
-      return toView(store.write(makeReceipt({
-        previous: null,
-        binding: trustedBinding,
-        lifecycle: "committed",
-        proposalId: proposal.proposalId,
-        operationId,
-        proposal,
-        requestHash,
-        updatedAt,
-      })));
     },
   });
 }
 
 export function projectAgentProposalReceiptPath(projectRoot: string): string {
   return receiptPath(projectRoot);
-}
-
-export function projectAgentProposalReceiptInvalidPath(projectRoot: string): string {
-  return invalidReceiptPath(projectRoot);
 }

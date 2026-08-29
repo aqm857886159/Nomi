@@ -1,6 +1,6 @@
 # Project Agent Phase 3C: Canonical Canvas Reversible Write
 
-> 状态：🚧 进行中。Round 07 preflight 与增量只读复审已通过；canonical contract、Registry alias 和 durable proposal identity 已完成。剩余实现合并为主干、领域切换两个交付批次。
+> 状态：✅ 本地闭环完成。canonical contract、Registry aliases、durable proposal identity、真实 renderer transaction、receipt correlation、exact result pointer 与旧 owner 删除均已完成；全量发布门保留到 Phase 3/4 联合出口。
 
 ## 目标与范围
 
@@ -18,6 +18,10 @@ RED/GREEN，但只做一次 closure、评审、完整 push gate、提交和恢�
 - `projectAgentProposalReceiptStore`：durable Canvas proposal receipt；
 - `projectAgentExecutionCoordinator`：Host proposal 和能力调用生命周期；
 - 当前 Canvas store/domain/persistence：节点、边、组和 revision 的唯一事实源。
+
+发布 cutover 已固定为旧 Agent 会话/Pi context 只读归档、新 Host 干净启动；旧
+Canvas proposal 不导入、不重放、不伪装成仍可撤销。此简化只作用于旧系统切换，
+不削弱新 Host proposal、Canvas receipt、Undo 与崩溃恢复链。
 
 明确不进入本合同：
 
@@ -144,6 +148,13 @@ adapter 与 owner gate。每批只在批末执行一次相关 focused closure、
 TypeScript、scoped ESLint 与 `git diff --check` 也只在批末按影响面执行。完整 gate
 是仓库 push 纪律，不代表每批追赶 `main`；Phase 3/4 联合出口才整合一次 `main`
 并更新远端 stage checkpoint。
+
+最终本地证据：3C closure 为 17 个直接相关测试文件、194 项通过；真实 renderer
+集成另外明确覆盖 create+edge exact IDs、existing connect、all-skipped zero effect、
+category tidy、stale mutation、locked target 与 proposal/approval/actionHash correlation
+共 7 个场景。app/electron TypeScript、test-types、capability owner 与 `git diff --check`
+通过。result/version closure 使用当前 `resultId + pointerHash` 进入 precondition；结果
+切换后旧 proposal 返回 `capability_target_stale`，不把 renderer store 复制进 Host。
 
 ## 历史 PR 门禁
 

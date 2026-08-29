@@ -63,40 +63,48 @@ function snapshotFor(turnId?: string, status: ProjectAgentStatus = 'queued', tex
     contextRevision: 0,
     recordId: 'context-a',
   } as const
-  const assistantStatus = status === 'done' ? 'done' : status === 'failed' ? 'failed' : status === 'stopped' ? 'stopped' : 'running'
+  const assistantStatus =
+    status === 'done' ? 'done' : status === 'failed' ? 'failed' : status === 'stopped' ? 'stopped' : 'running'
   return {
     ...initial,
     hostRevision: 2,
     commandLedgerHighWater: 2,
     activeThreadId: threadId,
-    threads: [{ threadId, provenance: { kind: 'canonical' }, createdAt: timestamp, updatedAt: timestamp }],
-    turns: [{
-      turnId,
-      threadId,
-      executionToken: 'execution-a',
-      model: { id: 'model', version: 1 },
-      skillVersions: [],
-      capabilityVersions: [{ id: 'canvas-agent', version: 1 }],
-      contextRef,
-      status,
-      retryable: false,
-      deviated: false,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    }],
-    items: status === 'queued' ? [] : [{
-      itemId: 'assistant-a',
-      threadId,
-      turnId,
-      kind: 'assistant',
-      text,
-      textRevision: text.length,
-      status: assistantStatus,
-      retryable: status === 'failed',
-      deviated: false,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    }],
+    threads: [{ threadId, createdAt: timestamp, updatedAt: timestamp }],
+    turns: [
+      {
+        turnId,
+        threadId,
+        executionToken: 'execution-a',
+        model: { id: 'model', version: 1 },
+        skillVersions: [],
+        capabilityVersions: [{ id: 'canvas-agent', version: 1 }],
+        contextRef,
+        status,
+        retryable: false,
+        deviated: false,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+    ],
+    items:
+      status === 'queued'
+        ? []
+        : [
+            {
+              itemId: 'assistant-a',
+              threadId,
+              turnId,
+              kind: 'assistant',
+              text,
+              textRevision: text.length,
+              status: assistantStatus,
+              retryable: status === 'failed',
+              deviated: false,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            },
+          ],
   }
 }
 
@@ -199,12 +207,22 @@ describe('Project Agent workbench compatibility runner', () => {
 
   it('claims a confirmation synchronously so duplicate approvals cannot cross IPC', async () => {
     const calls: ToolCallEvent[] = []
-    const running = runWorkbenchAgent({ ...baseInput, onToolCall: (call) => { calls.push(call) } })
+    const running = runWorkbenchAgent({
+      ...baseInput,
+      onToolCall: (call) => {
+        calls.push(call)
+      },
+    })
     const turnId = deps.enqueue.mock.calls[0][0].turnId
     const assistantTextAnchor = Object.freeze({ itemId: 'assistant-a', textOffset: 12 })
     emit({
-      type: 'tool-call', binding, turnId, executionToken: 'execution-a',
-      toolCallId: 'call-a', toolName: 'set_node_prompt', args: { nodeId: 'node-a' },
+      type: 'tool-call',
+      binding,
+      turnId,
+      executionToken: 'execution-a',
+      toolCallId: 'call-a',
+      toolName: 'set_node_prompt',
+      args: { nodeId: 'node-a' },
       assistantTextAnchor,
     })
     expect(calls[0]).toMatchObject({ turnId, assistantTextAnchor })
@@ -220,11 +238,21 @@ describe('Project Agent workbench compatibility runner', () => {
 
   it('makes an obsolete same-ID callback unable to settle its replacement', async () => {
     const calls: ToolCallEvent[] = []
-    const running = runWorkbenchAgent({ ...baseInput, onToolCall: (call) => { calls.push(call) } })
+    const running = runWorkbenchAgent({
+      ...baseInput,
+      onToolCall: (call) => {
+        calls.push(call)
+      },
+    })
     const turnId = deps.enqueue.mock.calls[0][0].turnId
     const event = {
-      type: 'tool-call' as const, binding, turnId, executionToken: 'execution-a',
-      toolCallId: 'same-id', toolName: 'set_node_prompt', args: {},
+      type: 'tool-call' as const,
+      binding,
+      turnId,
+      executionToken: 'execution-a',
+      toolCallId: 'same-id',
+      toolName: 'set_node_prompt',
+      args: {},
     }
     emit(event)
     emit(event)
@@ -242,14 +270,23 @@ describe('Project Agent workbench compatibility runner', () => {
     let cancel!: () => void
     const running = runWorkbenchAgent({
       ...baseInput,
-      onToolCall: (call) => { calls.push(call) },
-      onCancelReady: (next) => { cancel = next },
+      onToolCall: (call) => {
+        calls.push(call)
+      },
+      onCancelReady: (next) => {
+        cancel = next
+      },
     })
     const turnId = deps.enqueue.mock.calls[0][0].turnId
     await Promise.resolve()
     emit({
-      type: 'tool-call', binding, turnId, executionToken: 'execution-a',
-      toolCallId: 'pending', toolName: 'set_node_prompt', args: {},
+      type: 'tool-call',
+      binding,
+      turnId,
+      executionToken: 'execution-a',
+      toolCallId: 'pending',
+      toolName: 'set_node_prompt',
+      args: {},
     })
     cancel()
     expect(calls[0].isPending()).toBe(false)
@@ -261,23 +298,46 @@ describe('Project Agent workbench compatibility runner', () => {
   it('expires failed tool cards from the terminal runtime result and cleans both subscriptions', async () => {
     const calls: ToolCallEvent[] = []
     const onToolError = vi.fn()
-    const running = runWorkbenchAgent({ ...baseInput, onToolCall: (call) => { calls.push(call) }, onToolError })
+    const running = runWorkbenchAgent({
+      ...baseInput,
+      onToolCall: (call) => {
+        calls.push(call)
+      },
+      onToolError,
+    })
     const turnId = deps.enqueue.mock.calls[0][0].turnId
     emit({
-      type: 'tool-call', binding, turnId, executionToken: 'execution-a',
-      toolCallId: 'denied', toolName: 'set_node_prompt', args: {},
+      type: 'tool-call',
+      binding,
+      turnId,
+      executionToken: 'execution-a',
+      toolCallId: 'denied',
+      toolName: 'set_node_prompt',
+      args: {},
     })
-    finish(turnId, 'done', response({
-      toolCalls: [{
-        toolCallId: 'denied', toolName: 'set_node_prompt', args: {}, status: 'denied',
-        decision: { ok: false, denied: true, message: 'confirmation timed out' },
-        error: 'confirmation timed out',
-      }],
-    }))
+    finish(
+      turnId,
+      'done',
+      response({
+        toolCalls: [
+          {
+            toolCallId: 'denied',
+            toolName: 'set_node_prompt',
+            args: {},
+            status: 'denied',
+            decision: { ok: false, denied: true, message: 'confirmation timed out' },
+            error: 'confirmation timed out',
+          },
+        ],
+      }),
+    )
     await running
     expect(calls[0].isPending()).toBe(false)
     expect(onToolError).toHaveBeenCalledExactlyOnceWith({
-      toolCallId: 'denied', toolName: 'set_node_prompt', message: 'confirmation timed out', denied: true,
+      toolCallId: 'denied',
+      toolName: 'set_node_prompt',
+      message: 'confirmation timed out',
+      denied: true,
     })
     expect(deps.eventListeners.size).toBe(0)
     expect(deps.stateListeners.size).toBe(0)
@@ -297,8 +357,13 @@ describe('Project Agent workbench compatibility runner', () => {
     const running = runWorkbenchAgent(baseInput)
     const turnId = deps.enqueue.mock.calls[0][0].turnId
     emit({
-      type: 'tool-call', binding, turnId, executionToken: 'execution-a',
-      toolCallId: 'unhandled', toolName: 'set_node_prompt', args: {},
+      type: 'tool-call',
+      binding,
+      turnId,
+      executionToken: 'execution-a',
+      toolCallId: 'unhandled',
+      toolName: 'set_node_prompt',
+      args: {},
     })
     await Promise.resolve()
     expect(deps.decide).toHaveBeenCalledWith({

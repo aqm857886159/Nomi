@@ -1,4 +1,5 @@
 import type { ProjectBinding } from "./projectBinding";
+import type { CanvasWriteOperation } from "./agentCapabilities/canvasWrite";
 
 export const SURFACE_PORT_BINDING_VERSION = 1 as const;
 export const CAPTURED_CANVAS_READ_SNAPSHOT_VERSION = 1 as const;
@@ -82,8 +83,9 @@ export type DocumentWriteSurfaceReplyWire = Readonly<{
 export type CanvasWriteCaptureSurfaceRequestWire = Readonly<{
   requestId: string;
   binding: SurfacePortBindingWire;
-  operation: "set_node_prompt";
-  nodeId: string;
+  operation: CanvasWriteOperation;
+  input?: unknown;
+  nodeId?: string;
 }>;
 
 export type CanvasWriteCaptureSurfaceReplyWire = Readonly<{
@@ -141,27 +143,48 @@ export type CanvasReadSurfaceBridge = Readonly<{
     handler: (request: Readonly<{ binding: SurfacePortBindingWire }>) => unknown | Promise<unknown>,
   ): () => void;
   onDocumentRead: (
-    handler: (request: Readonly<{
-      binding: SurfacePortBindingWire;
-      documentId: string;
-      scope: "full" | "selection";
-    }>) => unknown | Promise<unknown>,
+    handler: (
+      request: Readonly<{
+        binding: SurfacePortBindingWire;
+        documentId: string;
+        scope: "full" | "selection";
+      }>,
+    ) => unknown | Promise<unknown>,
   ) => () => void;
   onDocumentWrite: (
-    handler: (request: Readonly<{
-      binding: SurfacePortBindingWire;
-      documentId: string;
-      operation: "insert" | "replace" | "append";
-      content: string;
-      target: unknown;
-      preconditions: unknown;
-    }>) => unknown | Promise<unknown>,
+    handler: (
+      request: Readonly<{
+        binding: SurfacePortBindingWire;
+        documentId: string;
+        operation: "insert" | "replace" | "append";
+        content: string;
+        target: unknown;
+        preconditions: unknown;
+      }>,
+    ) => unknown | Promise<unknown>,
   ) => () => void;
   onCanvasWriteCapture: (
-    handler: (request: Readonly<{ binding: SurfacePortBindingWire; operation: "set_node_prompt"; nodeId: string }>) => unknown | Promise<unknown>,
+    handler: (
+      request: Readonly<{
+        binding: SurfacePortBindingWire;
+        operation: CanvasWriteOperation;
+        input?: unknown;
+        nodeId?: string;
+      }>,
+    ) => unknown | Promise<unknown>,
   ) => () => void;
   onCanvasWriteExecute: (
-    handler: (request: Readonly<{ binding: SurfacePortBindingWire; input: unknown; target: unknown; preconditions: unknown; receiptProposalId: string; approvalId: string; actionHash: string }>) => unknown | Promise<unknown>,
+    handler: (
+      request: Readonly<{
+        binding: SurfacePortBindingWire;
+        input: unknown;
+        target: unknown;
+        preconditions: unknown;
+        receiptProposalId: string;
+        approvalId: string;
+        actionHash: string;
+      }>,
+    ) => unknown | Promise<unknown>,
   ) => () => void;
 }>;
 

@@ -1,22 +1,20 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { projectAgentContextPath } from "./projectAgentContextAdapter";
-import { createProjectAgentRepositoryRouter } from "./projectAgentRepositoryRouter";
-import { migrateProjectAgentLegacy } from "./projectAgentMigration";
-import {
-  createProjectAgentProposalReceiptService,
-  hashProjectAgentCommittedProposal,
-  projectAgentProposalReceiptInvalidPath,
-  projectAgentProposalReceiptPath,
-} from "./projectAgentProposalReceiptStore";
 import {
   projectAgentCutoverLockPath,
   projectAgentCutoverManifestPath,
   withProjectAgentCutoverLock,
 } from "./projectAgentCutoverManifest";
+import { migrateProjectAgentLegacy } from "./projectAgentMigration";
+import {
+  createProjectAgentProposalReceiptService,
+  projectAgentProposalReceiptPath,
+} from "./projectAgentProposalReceiptStore";
+import { createProjectAgentRepositoryRouter } from "./projectAgentRepositoryRouter";
 
 const binding = {
   projectId: "migration-project",
@@ -24,17 +22,18 @@ const binding = {
   projectGeneration: 1,
 } as const;
 const now = Date.parse("2026-08-28T00:00:00.000Z");
-const legacyProposal = {
-  proposalId: "proposal-1",
-  summary: "legacy undo",
+const proposal = {
+  proposalId: "proposal-new",
+  summary: "new Host proposal",
   stepLabels: ["created Shot A"],
   categoryCounts: [{ categoryId: "shots", label: "Shots", count: 1 }],
-  compensation: [{ kind: "delete-nodes", nodeIds: ["node-a"] }],
+  compensation: [{ kind: "delete-nodes" as const, nodeIds: ["node-a"] }],
   watchNodes: [{ nodeId: "node-a", title: "Shot A", prompt: "wide shot" }],
-  reconciliationOk: false,
+  reconciliationOk: true,
   anchorMessageId: "assistant-a",
   anchorTextOffset: 12,
 } as const;
+
 let root = "";
 
 afterEach(() => {
@@ -43,172 +42,196 @@ afterEach(() => {
   root = "";
 });
 
-function writeLegacySource(): string {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-migration-"));
-  fs.mkdirSync(path.join(root, ".nomi"), { recursive: true });
-  const threads = (area: string) =>
-    Array.from({ length: 31 }, (_, index) => ({
-      id: index === 0 ? "same-old-thread" : `${area}-old-thread-${index}`,
-      title: `${area} ${index}`,
-      createdAt: now + index,
-      updatedAt: now + index + 1,
-      messages: Array.from({ length: index === 0 ? 205 : 1 }, (_, messageIndex) => ({
-        id: `${area}-message-${index}-${messageIndex}`,
-        role: messageIndex % 2 === 0 ? "user" : "assistant",
-        content: `${area} message ${index}/${messageIndex}`,
-      })),
-    }));
-  fs.writeFileSync(
-    path.join(root, ".nomi", "conversations.json"),
-    JSON.stringify({
-      v: 2,
-      creation: { activeId: "creation-old-thread-7", threads: threads("creation") },
-      generation: { activeId: "same-old-thread", threads: threads("generation") },
-      committedProposal: legacyProposal,
-    }),
-    "utf8",
-  );
-  return root;
+function sha256(bytes: Buffer | string): string {
+  return crypto.createHash("sha256").update(bytes).digest("hex");
 }
 
-describe("ProjectAgent legacy raw migration", () => {
-  it("imports every valid legacy thread/message without old clipping or cross-area collisions", () => {
-    const projectRoot = writeLegacySource();
-    const agentStore = path.join(projectRoot, "agent-store");
-    fs.mkdirSync(agentStore, { recursive: true });
-    const router = createProjectAgentRepositoryRouter({ rootDir: agentStore });
+function archivePath(projectRoot: string, fileName: string): string {
+  const stamp = new Date(now).toISOString().replace(/[^0-9A-Za-z]/g, "_");
+  return path.join(projectRoot, ".nomi", "project-agent-legacy-archive-v1", `${stamp}-${fileName}`);
+}
+
+function fixture() {
+  root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-cutover-"));
+  const nomiDir = path.join(root, ".nomi");
+  fs.mkdirSync(nomiDir, { recursive: true });
+  const sources = {
+    conversations: Buffer.from([0xff, 0xfe, 0x00, 0x01]),
+    context: Buffer.from("not-json-context", "utf8"),
+    receipt: Buffer.from("legacy-pending-receipt", "utf8"),
+  } as const;
+  fs.writeFileSync(path.join(nomiDir, "conversations.json"), sources.conversations);
+  fs.writeFileSync(path.join(nomiDir, "agent-session.json"), sources.context);
+  fs.writeFileSync(projectAgentProposalReceiptPath(root), sources.receipt);
+  fs.writeFileSync(path.join(root, "project.json"), "valuable-work-data", "utf8");
+  const agentStore = path.join(root, "agent-store");
+  fs.mkdirSync(agentStore, { recursive: true });
+  return { projectRoot: root, router: createProjectAgentRepositoryRouter({ rootDir: agentStore }), sources };
+}
+
+describe("Project Agent archive-only cutover", () => {
+  it("archives raw legacy bytes, starts an empty Host, and leaves work data untouched", () => {
+    const { projectRoot, router, sources } = fixture();
     const result = migrateProjectAgentLegacy({ projectRoot, binding, router, now });
-    expect(result.migrated).toBe(true);
-    expect(result.creationThreads).toBe(31);
-    expect(result.generationThreads).toBe(31);
-    expect(result.messageCount).toBe(31 * 1 + 31 * 1 + 2 * 204);
 
-    const state = router.repositoryFor(binding).load(binding);
-    expect(state).not.toBeNull();
-    expect(state!.threads).toHaveLength(63);
-    expect(state!.threads.filter((thread) => thread.provenance?.kind === "legacy")).toHaveLength(62);
-    expect(new Set(state!.threads.map((thread) => thread.threadId)).size).toBe(63);
-    expect(state!.items.some((item) => item.kind === "assistant" && item.text.includes("creation message 0/203"))).toBe(
-      true,
-    );
-    expect(
-      state!.items.some((item) => item.kind === "assistant" && item.text.includes("generation message 0/203")),
-    ).toBe(true);
-    expect(state!.activeThreadId).toBe(
-      state!.threads.find((thread) => thread.provenance?.kind === "canonical")!.threadId,
-    );
-    const durable = JSON.parse(fs.readFileSync(projectAgentProposalReceiptPath(projectRoot), "utf8"));
-    expect(durable).toMatchObject({
-      schemaVersion: 2,
-      lifecycle: "committed",
-      proposalId: "proposal-1",
-      proposalHash: hashProjectAgentCommittedProposal(legacyProposal),
-      proposal: legacyProposal,
+    expect(result).toMatchObject({ migrated: true, manifest: { mode: "archive-only" } });
+    expect(result.manifest.sources).toEqual({
+      conversationsHash: sha256(sources.conversations),
+      contextHash: sha256(sources.context),
+      proposalReceiptHash: sha256(sources.receipt),
     });
-    expect(createProjectAgentProposalReceiptService({ projectRoot, binding }).read()).toMatchObject({
-      lifecycle: "committed",
-      proposal: legacyProposal,
+    expect(router.repositoryFor(binding).load(binding)).toMatchObject({
+      hostRevision: 0,
+      threads: [],
+      turns: [],
+      items: [],
+      queue: [],
+      proposalApprovals: [],
     });
-  });
-
-  it("archives an unconvertible legacy proposal without creating a valid Undo receipt", () => {
-    const projectRoot = writeLegacySource();
-    const sourcePath = path.join(projectRoot, ".nomi", "conversations.json");
-    const source = JSON.parse(fs.readFileSync(sourcePath, "utf8")) as Record<string, unknown>;
-    fs.writeFileSync(sourcePath, JSON.stringify({ ...source, committedProposal: { proposalId: "incomplete" } }), "utf8");
-    const agentStore = path.join(projectRoot, "agent-store");
-    fs.mkdirSync(agentStore, { recursive: true });
-    const router = createProjectAgentRepositoryRouter({ rootDir: agentStore });
-
-    expect(migrateProjectAgentLegacy({ projectRoot, binding, router, now }).migrated).toBe(true);
+    expect(fs.readFileSync(archivePath(projectRoot, "conversations.json"))).toEqual(sources.conversations);
+    expect(fs.readFileSync(archivePath(projectRoot, "agent-session.json"))).toEqual(sources.context);
+    expect(fs.readFileSync(archivePath(projectRoot, "project-agent-proposal-receipt.json"))).toEqual(sources.receipt);
+    if (process.platform !== "win32") {
+      expect(fs.statSync(archivePath(projectRoot, "conversations.json")).mode & 0o777).toBe(0o400);
+    }
     expect(fs.existsSync(projectAgentProposalReceiptPath(projectRoot))).toBe(false);
-    expect(createProjectAgentProposalReceiptService({ projectRoot, binding }).read()).toBeNull();
-    expect(JSON.parse(fs.readFileSync(projectAgentProposalReceiptInvalidPath(projectRoot), "utf8"))).toMatchObject({
-      binding,
-      reason: "invalid_legacy_proposal",
-      proposal: { proposalId: "incomplete" },
-    });
+    expect(fs.readFileSync(path.join(projectRoot, "project.json"), "utf8")).toBe("valuable-work-data");
   });
 
-  it("is source-hash/idempotent on restart and never replays legacy commands", () => {
-    const projectRoot = writeLegacySource();
-    const agentStore = path.join(projectRoot, "agent-store");
-    fs.mkdirSync(agentStore, { recursive: true });
-    const router = createProjectAgentRepositoryRouter({ rootDir: agentStore });
+  it("is idempotent and never removes a receipt written by the new Host", () => {
+    const { projectRoot, router } = fixture();
     const first = migrateProjectAgentLegacy({ projectRoot, binding, router, now });
-    const second = migrateProjectAgentLegacy({ projectRoot, binding, router, now: now + 1000 });
-    expect(first.manifest.sources).toEqual(second.manifest.sources);
+    const service = createProjectAgentProposalReceiptService({ projectRoot, binding });
+    service.write({
+      expectedRevision: 0,
+      proposalId: proposal.proposalId,
+      operationId: "prepare-new-proposal",
+      lifecycle: "preparing",
+      proposal,
+    });
+    const newReceipt = fs.readFileSync(projectAgentProposalReceiptPath(projectRoot));
+
+    const second = migrateProjectAgentLegacy({ projectRoot, binding, router, now: now + 60_000 });
     expect(second.migrated).toBe(false);
-    expect(router.repositoryFor(binding).load(binding)!.hostRevision).toBe(0);
+    expect(second.manifest).toEqual(first.manifest);
+    expect(fs.readFileSync(projectAgentProposalReceiptPath(projectRoot))).toEqual(newReceipt);
   });
 
-  it.each([
-    ["context staging", (projectRoot: string) => projectAgentContextPath(projectRoot)],
-    [
-      "Host initialization",
-      (_projectRoot: string, router: ReturnType<typeof createProjectAgentRepositoryRouter>) =>
-        router.repositoryFor(binding).pathsFor(binding).snapshot,
-    ],
-    ["proposal receipt", (projectRoot: string) => projectAgentProposalReceiptPath(projectRoot)],
-    ["manifest publication", (projectRoot: string) => projectAgentCutoverManifestPath(projectRoot)],
-  ])("resumes with byte-identical state after a crash during %s", (_label, targetPath) => {
-    const projectRoot = writeLegacySource();
-    const agentStore = path.join(projectRoot, "agent-store");
-    fs.mkdirSync(agentStore, { recursive: true });
-    const router = createProjectAgentRepositoryRouter({ rootDir: agentStore });
-    const target = targetPath(projectRoot, router);
+  it("fails closed when archived legacy evidence is changed", () => {
+    const { projectRoot, router } = fixture();
+    migrateProjectAgentLegacy({ projectRoot, binding, router, now });
+    const archived = archivePath(projectRoot, "conversations.json");
+    fs.chmodSync(archived, 0o600);
+    fs.writeFileSync(archived, "tampered");
+
+    expect(() => migrateProjectAgentLegacy({ projectRoot, binding, router, now: now + 1 })).toThrow(
+      "archive does not match",
+    );
+  });
+
+  it("rejects a pre-archive legacy-import manifest instead of silently accepting two modes", () => {
+    const { projectRoot, router } = fixture();
+    fs.writeFileSync(
+      projectAgentCutoverManifestPath(projectRoot),
+      JSON.stringify({
+        schemaVersion: 1,
+        binding,
+        sources: {
+          conversationsHash: "a".repeat(64),
+          contextHash: "b".repeat(64),
+          proposalHash: "c".repeat(64),
+        },
+        imported: { creationThreads: 1, generationThreads: 1, messageCount: 2 },
+        completedAt: new Date(now).toISOString(),
+      }),
+      "utf8",
+    );
+
+    expect(() => migrateProjectAgentLegacy({ projectRoot, binding, router, now })).toThrow("manifest is invalid");
+  });
+
+  it("resumes after Host initialization crashes before manifest publication", () => {
+    const { projectRoot, router } = fixture();
+    const target = projectAgentCutoverManifestPath(projectRoot);
     const rename = fs.renameSync.bind(fs);
     let failed = false;
-    const renameSpy = vi.spyOn(fs, "renameSync").mockImplementation((from, to) => {
+    vi.spyOn(fs, "renameSync").mockImplementation((from, to) => {
       if (!failed && String(to) === target) {
         failed = true;
-        throw new Error("simulated process crash");
+        throw new Error("simulated manifest crash");
       }
       return rename(from, to);
     });
 
-    expect(() => migrateProjectAgentLegacy({ projectRoot, binding, router, now })).toThrow("simulated process crash");
-    expect(fs.existsSync(projectAgentCutoverManifestPath(projectRoot))).toBe(false);
-    renameSpy.mockRestore();
+    expect(() => migrateProjectAgentLegacy({ projectRoot, binding, router, now })).toThrow("simulated manifest crash");
+    expect(fs.existsSync(target)).toBe(false);
+    vi.restoreAllMocks();
 
     const recovered = migrateProjectAgentLegacy({ projectRoot, binding, router, now: now + 60_000 });
     expect(recovered.migrated).toBe(true);
     expect(recovered.manifest.completedAt).toBe(new Date(now).toISOString());
-    expect(router.repositoryFor(binding).load(binding)?.items).toHaveLength(recovered.messageCount);
-    expect(migrateProjectAgentLegacy({ projectRoot, binding, router, now: now + 120_000 }).migrated).toBe(false);
+    expect(router.repositoryFor(binding).load(binding)?.hostRevision).toBe(0);
   });
 
-  it("uses only a validated exact legacy context candidate", () => {
-    const projectRoot = writeLegacySource();
-    fs.writeFileSync(
-      path.join(projectRoot, ".nomi", "agent-session.json"),
-      JSON.stringify({
-        version: 2,
-        sessions: {
-          "nomi:workbench:migration-project:creation": {
-            snapshot: "opaque-snapshot",
-            threadId: "creation-old-thread-7",
-          },
-          "nomi:workbench:other-project:creation": { snapshot: "ambiguous" },
-        },
-      }),
-      "utf8",
+  it("retries cleanly when an archive publication is interrupted", () => {
+    const { projectRoot, router, sources } = fixture();
+    const target = archivePath(projectRoot, "conversations.json");
+    const rename = fs.renameSync.bind(fs);
+    let failed = false;
+    vi.spyOn(fs, "renameSync").mockImplementation((from, to) => {
+      if (!failed && String(to) === target) {
+        failed = true;
+        throw new Error("simulated archive crash");
+      }
+      return rename(from, to);
+    });
+
+    expect(() => migrateProjectAgentLegacy({ projectRoot, binding, router, now })).toThrow("simulated archive crash");
+    expect(fs.existsSync(target)).toBe(false);
+    expect(fs.readdirSync(path.dirname(target)).some((name) => name.endsWith(".tmp"))).toBe(false);
+    vi.restoreAllMocks();
+
+    expect(migrateProjectAgentLegacy({ projectRoot, binding, router, now: now + 1 }).migrated).toBe(true);
+    expect(fs.readFileSync(target)).toEqual(sources.conversations);
+  });
+
+  it("finishes invalidating an old receipt after a crash immediately after manifest publication", () => {
+    const { projectRoot, router } = fixture();
+    const receiptPath = projectAgentProposalReceiptPath(projectRoot);
+    const remove = fs.rmSync.bind(fs);
+    let failed = false;
+    vi.spyOn(fs, "rmSync").mockImplementation((target, options) => {
+      if (!failed && String(target) === receiptPath) {
+        failed = true;
+        throw new Error("simulated receipt cleanup crash");
+      }
+      return remove(target, options);
+    });
+
+    expect(() => migrateProjectAgentLegacy({ projectRoot, binding, router, now })).toThrow(
+      "simulated receipt cleanup crash",
     );
-    const agentStore = path.join(projectRoot, "agent-store");
-    fs.mkdirSync(agentStore, { recursive: true });
-    const router = createProjectAgentRepositoryRouter({ rootDir: agentStore });
-    const result = migrateProjectAgentLegacy({ projectRoot, binding, router, now });
-    const state = router.repositoryFor(binding).load(binding)!;
-    const active = state.threads.find((thread) => thread.threadId === state.activeThreadId)!;
-    expect(active.provenance?.kind).toBe("legacy");
-    if (active.provenance?.kind === "legacy") {
-      expect(active.provenance.source.legacySessionKey).toBe("nomi:workbench:migration-project:creation");
-    }
-    expect(result.migrated).toBe(true);
+    expect(fs.existsSync(projectAgentCutoverManifestPath(projectRoot))).toBe(true);
+    expect(fs.existsSync(receiptPath)).toBe(true);
+    vi.restoreAllMocks();
+
+    expect(migrateProjectAgentLegacy({ projectRoot, binding, router, now: now + 1 }).migrated).toBe(false);
+    expect(fs.existsSync(receiptPath)).toBe(false);
+  });
+
+  it("rejects symlinked legacy sources", () => {
+    const { projectRoot, router } = fixture();
+    const conversations = path.join(projectRoot, ".nomi", "conversations.json");
+    fs.rmSync(conversations);
+    fs.symlinkSync(path.join(projectRoot, "project.json"), conversations);
+
+    expect(() => migrateProjectAgentLegacy({ projectRoot, binding, router, now })).toThrow(
+      "not a private regular file",
+    );
   });
 
   it("allows retry after a stale cutover lock from a crashed process", () => {
-    const projectRoot = writeLegacySource();
+    const { projectRoot } = fixture();
     const lockPath = projectAgentCutoverLockPath(projectRoot);
     fs.writeFileSync(lockPath, JSON.stringify({ pid: 999999, startedAt: 1 }), "utf8");
     expect(withProjectAgentCutoverLock(projectRoot, () => "retried")).toBe("retried");
@@ -216,7 +239,7 @@ describe("ProjectAgent legacy raw migration", () => {
   });
 
   it("allows immediate retry when a recent cutover lock belongs to a dead process", () => {
-    const projectRoot = writeLegacySource();
+    const { projectRoot } = fixture();
     const lockPath = projectAgentCutoverLockPath(projectRoot);
     fs.writeFileSync(lockPath, JSON.stringify({ pid: 424242, startedAt: Date.now() }), "utf8");
     vi.spyOn(process, "kill").mockImplementation((pid) => {

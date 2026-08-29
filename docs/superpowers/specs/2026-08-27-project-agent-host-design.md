@@ -7,6 +7,8 @@
 > 关系：本文件不是第二份总计划。总体目标、阶段和产品边界仍以 [统一 Agent 总计划](../plans/2026-08-24-unified-agent-master-plan.md) 与 [R2-U1 逐文件迁移边界](../../plan/2026-08-26-pi-agent-loop-file-migration.md#r2-u1项目级统一-agent必交不是可选-ui-优化) 为准；本文件只把 R2-U1、MCP、Skill 和近期交互设计收敛成可实施合同。
 >
 > Ownership ADR：本文件同时是 R2-U1 的增量所有权裁定。它只新增 ProjectAgentHost 这个“会话 / 回合 / Item / 排队 / 审批引用”的持久 owner；现有文稿、画布、ProductionRun、素材、目录和 pi snapshot owner 不变。后续若改变这些边界，必须另提 ownership ADR，不能在实现 PR 中顺手漂移。
+>
+> **2026-08-29 cutover 覆盖决策：** 本文件中关于旧 conversation、Pi context 和 Canvas proposal receipt 可执行导入/staging 的内容已由 [全阶段执行路线图](../../plan/2026-08-29-project-agent-host-execution-roadmap.md#一次性-cutover-决策) 替代。发布只做原始文件只读归档，新 Host 从空状态启动；旧审批、回合和 Undo 不重放。作品数据与 ProductionRun 仍由原领域 owner 保留，新 Host 自身的 CAS/恢复合同不变。
 
 ## 一句话结论
 

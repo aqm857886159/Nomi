@@ -1,6 +1,6 @@
 # Project Agent Host 全阶段执行路线图
 
-> 状态：🚧 进行中。Phase 1、2A、2B、3A、3B 已形成远端 checkpoint；Phase 3C 的 Registry contract 与 durable proposal identity 已完成，`set_node_prompt` 剩余工作合并为主干、领域切换两个交付批次。最终完成条件仍为 Phase 3–6 与发布候选门全部通过。
+> 状态：🚧 进行中。Phase 1、2A、2B、3A、3B 已形成远端 checkpoint；Phase 3C Canvas completion 已完成本地 focused closure，下一批为 Phase 3D timeline。最终完成条件仍为 Phase 3–6 与发布候选门全部通过。
 
 ## 目标
 
@@ -17,12 +17,12 @@
 | 阶段 | 状态 | 当前事实 |
 | --- | --- | --- |
 | Phase 1 | 已完成基础实现 | `canvas.read` 脊梁已存在，最终包级验收留到最终出口 |
-| Phase 2A | 已完成 | Host foundation、CAS、迁移/恢复合同已落地 |
+| Phase 2A | 已完成 | Host foundation、CAS 与恢复合同已落地；发布 cutover 简化为旧会话只读归档 + 新 Host 干净启动 |
 | Phase 2B | 已完成 checkpoint | 单 Host、两面板投影、旧 writer 删除、receipt/Undo/项目切换已收口 |
 | Phase 3A | 已完成 checkpoint | canonical `document.read` 已通过 Host，旧 read owner 已删除 |
 | Phase 3B | 已完成 focused closure | `document.write` 已完成 Registry/Host/Surface/adapter/UI 路由；写入队列必须冻结可执行 anchor/revision/hash，缺失或 whole-document 占位在入队前 fail closed |
-| Phase 3C | 实现中 | 首个 `set_node_prompt` 垂直切片；contract 与 durable identity 已完成，剩余六项依赖按主干、领域切换两个交付批次推进 |
-| Phase 3 其余 | 未开始 | 其余 canvas reversible writes 与精确 result/version 引用合为一个 Canvas completion 大批；timeline read/write 独立为一个 Phase 3D 大批 |
+| Phase 3C | 本地闭环完成 | canonical `canvas.write@v1` 已统一 set/create/connect/tidy；真实 renderer transaction、receipt correlation、stale/lock、exact result pointer 和旧 owner 删除已通过 focused closure |
+| Phase 3D | 下一批 | timeline read/propose/apply/undo 与旧 owner 删除；`delete_canvas_nodes`、`run_generation_batch` 归 Phase 4 |
 | Phase 4 | 未开始 | ProductionRun、付费/破坏性能力、receipt、TaskRef、typed cancel、export truth |
 | Phase 5 | 未开始 | Skill/MCP 从 Registry 派生，list/read guard、shrink-only、legacy firewall |
 | Phase 6 | 未开始 | 常驻 UI；只投影已冻结的 Host/domain 状态，基于现有设计系统调整 |
@@ -65,6 +65,24 @@ allowlist 条目来掩盖模块膨胀。
 这样每个大批次只有一次完整门禁成本，同时远端 Draft PR 仍持续获得可恢复备份。
 日常 recovery checkpoint 不整合 `main`；Phase 3/4 联合出口和最终 Phase 6 出口才形成
 **remote stage checkpoint**。
+
+## 一次性 Cutover 决策
+
+正式发布采用 `archive-only`，不再把旧创作/生成对话或 Pi context 导入新 Host：
+
+- 首次打开先把旧 `conversations.json`、旧 Pi context 和旧 Canvas proposal receipt
+  复制到只读归档，再写一次性 cutover manifest；新 Host 从空状态初始化。
+- 旧 pending/已批准但状态不明的 Agent 操作全部失效且不自动重放；旧 Canvas proposal
+  只归档，不迁成可执行 Undo receipt。
+- 文档、画布节点、素材、生成结果及 ProductionRun 继续由各自领域存储保留；
+  ProductionRun 仍按 Phase 4 的核账/恢复合同处理，不能因 Agent cutover 被清空。
+- cutover 后只有新 Host 是 Agent writer，不保留新旧双写；新 Host 产生数据后不承诺
+  直接降级到旧版本。
+
+这里删除的是旧 Agent 会话/Pi context 的无损迁移复杂度，不删除新 Host 自身的
+CAS、receipt correlation、崩溃恢复和 ProductionRun exactly-once 安全边界。
+Host 合同也不再保留 legacy thread provenance；旧文字/context/receipt 只存在于归档，
+不能重新进入运行时、审批或 Undo 状态。
 
 remote recovery push 前刷新远端基线与任务分支引用，但只观察、不把 `main` 合入开放中的
 lane；如果网络失败或远端没有新事实，记录
@@ -170,12 +188,10 @@ adapter、边界内 stale revalidation 和旧 owner 删除。批内仍按最左�
 
 ## 下一步顺序
 
-1. 完成 Phase 3C 主干批次，再完成领域切换批次；每批只做一次 closure、评审、
-   完整 push gate、提交和恢复 push，不新增第二套 approval、status 或 Undo owner。
-2. 用一个 Canvas completion 大批一次迁移 `connect_canvas_edges`、
-   `create_canvas_nodes`、`tidy_canvas` 和精确 result/version 引用；随后用一个
-   Phase 3D 大批完成 timeline read/propose/apply/undo 与旧 owner 删除，形成
-   Phase 3 出口矩阵。两个大批内部按依赖顺序做 direct RED/GREEN，但不分别整合 `main`。
+1. Phase 3C 已完成本地 closure；保存 checkpoint 后直接进入 Phase 3D，不重开已通过的
+   Canvas 微切片，也不新增第二套 approval、status 或 Undo owner。
+2. 用一个 Phase 3D 大批完成 timeline read/propose/apply/undo 与旧 owner 删除，形成
+   Phase 3 出口矩阵；不在批内整合 `main`。
 3. 用一个端到端大批推进 ProductionRun/付费链与 export integrity，形成 Phase 4 出口，再做一次
    Phase 3/4 联合 closure、整合当时的 `main` 并更新远端 checkpoint。
 4. 阅读历史 PR 增量并完成 Registry 派生的 Skill/MCP surface（Phase 5）。

@@ -8,7 +8,6 @@ import type {
   ProjectAgentProposalApproval,
   ProjectAgentQueueItem,
   ProjectAgentThread,
-  ProjectAgentThreadProvenance,
   ProjectAgentTurn,
   ProposalApprovalRef,
   TaskRef,
@@ -64,35 +63,12 @@ let fullValidationCount = 0;
 
 function assertThread(value: unknown): asserts value is ProjectAgentThread {
   const thread = asRecord(value);
-  assertAllowedKeys(thread, ["threadId", "title", "createdAt", "updatedAt", "provenance"]);
+  assertAllowedKeys(thread, ["threadId", "title", "createdAt", "updatedAt"]);
   assertCanonicalId(thread.threadId);
   if (thread.title !== undefined) assertNonEmpty(thread.title);
   assertCanonicalTimestamp(thread.createdAt);
   assertCanonicalTimestamp(thread.updatedAt);
   assertTimestampOrder(thread.createdAt, thread.updatedAt);
-  if (thread.provenance !== undefined) assertThreadProvenance(thread.provenance);
-}
-
-function assertThreadProvenance(value: unknown): asserts value is ProjectAgentThreadProvenance {
-  const provenance = asRecord(value);
-  if (provenance.kind === "canonical") {
-    assertAllowedKeys(provenance, ["kind"]);
-    return;
-  }
-  assertAllowedKeys(provenance, ["kind", "readOnly", "source"]);
-  if (provenance.kind !== "legacy" || provenance.readOnly !== true) {
-    throw new ProjectAgentStateError("invalid_state");
-  }
-  const source = asRecord(provenance.source);
-  assertAllowedKeys(source, ["legacyArea", "legacySessionKey", "legacyThreadId", "sourceHash"]);
-  if (source.legacyArea !== "creation" && source.legacyArea !== "generation") {
-    throw new ProjectAgentStateError("invalid_state");
-  }
-  assertNonEmpty(source.legacySessionKey);
-  assertNonEmpty(source.legacyThreadId);
-  if (typeof source.sourceHash !== "string" || !/^[a-f0-9]{64}$/.test(source.sourceHash)) {
-    throw new ProjectAgentStateError("invalid_state");
-  }
 }
 
 function assertTurn(
@@ -579,21 +555,10 @@ export function assertProjectAgentHostState(value: unknown): asserts value is Pr
       humanApprovalKeys.add(key);
     }
   });
-  const legacyThreadIds = new Set(
-    state.threads.filter((thread) => thread.provenance?.kind === "legacy").map((thread) => thread.threadId),
-  );
-  const legacyTurnIds = new Set(
-    state.turns.filter((turn) => legacyThreadIds.has(turn.threadId)).map((turn) => turn.turnId),
-  );
-  // Canonical turns always begin with a user item. Legacy archives may contain
-  // assistant/tool-only records; their source item remains readable without
-  // inventing a synthetic user message during migration.
   for (const turnId of turnIds) {
-    if (!userItemTurnIds.has(turnId) && !legacyTurnIds.has(turnId)) {
-      throw new ProjectAgentStateError("invalid_state");
-    }
+    if (!userItemTurnIds.has(turnId)) throw new ProjectAgentStateError("invalid_state");
   }
-  assertProjectAgentAssistantLifecycle(state.turns, state.items, undefined, legacyTurnIds);
+  assertProjectAgentAssistantLifecycle(state.turns, state.items);
 
   state.queue.forEach((item) => assertQueueItem(item, state.binding, threadIds, turnIds));
   assertUniqueIds(state.queue, (entry) => (entry as ProjectAgentQueueItem).queueItemId);

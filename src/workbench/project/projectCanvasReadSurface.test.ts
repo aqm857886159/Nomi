@@ -51,33 +51,39 @@ function binding(id: string, projectId = 'project-a') {
 function harness() {
   let suspensionId = 0
   let readHandler: ((request: { binding: ReturnType<typeof binding> }) => unknown | Promise<unknown>) | undefined
-  let documentReadHandler: ((request: {
-    binding: ReturnType<typeof binding>
-    documentId: string
-    scope: 'full' | 'selection'
-  }) => unknown | Promise<unknown>) | undefined
-  let documentWriteHandler: ((request: {
+  let documentReadHandler:
+    | ((request: {
+        binding: ReturnType<typeof binding>
+        documentId: string
+        scope: 'full' | 'selection'
+      }) => unknown | Promise<unknown>)
+    | undefined
+  type DocumentWriteHandler = (request: {
     binding: ReturnType<typeof binding>
     documentId: string
     operation: 'insert' | 'replace' | 'append'
     content: string
     target: unknown
     preconditions: unknown
-  }) => unknown | Promise<unknown>) | undefined
-  let canvasWriteCaptureHandler: ((request: {
-    binding: ReturnType<typeof binding>
-    operation: 'set_node_prompt'
-    nodeId: string
-  }) => unknown | Promise<unknown>) | undefined
-  let canvasWriteExecuteHandler: ((request: {
-    binding: ReturnType<typeof binding>
-    input: unknown
-    target: unknown
-    preconditions: unknown
-    receiptProposalId: string
-    approvalId: string
-    actionHash: string
-  }) => unknown | Promise<unknown>) | undefined
+  }) => unknown | Promise<unknown>
+  let canvasWriteCaptureHandler:
+    | ((request: {
+        binding: ReturnType<typeof binding>
+        operation: 'set_node_prompt'
+        nodeId: string
+      }) => unknown | Promise<unknown>)
+    | undefined
+  let canvasWriteExecuteHandler:
+    | ((request: {
+        binding: ReturnType<typeof binding>
+        input: unknown
+        target: unknown
+        preconditions: unknown
+        receiptProposalId: string
+        approvalId: string
+        actionHash: string
+      }) => unknown | Promise<unknown>)
+    | undefined
   const bridge = {
     suspend: vi.fn(async () => ({ suspension: suspension(String(++suspensionId)) })),
     commitCanvasRead: vi.fn(async (input: { projectId: string }) => ({
@@ -89,23 +95,28 @@ function harness() {
     release: vi.fn(async () => ({ released: true as const })),
     onCanvasRead: vi.fn((handler: typeof readHandler) => {
       readHandler = handler
-      return () => { readHandler = undefined }
+      return () => {
+        readHandler = undefined
+      }
     }),
     onDocumentRead: vi.fn((handler: typeof documentReadHandler) => {
       documentReadHandler = handler
-      return () => { documentReadHandler = undefined }
+      return () => {
+        documentReadHandler = undefined
+      }
     }),
-    onDocumentWrite: vi.fn((handler: typeof documentWriteHandler) => {
-      documentWriteHandler = handler
-      return () => { documentWriteHandler = undefined }
-    }),
+    onDocumentWrite: vi.fn((_handler: DocumentWriteHandler) => () => undefined),
     onCanvasWriteCapture: vi.fn((handler: typeof canvasWriteCaptureHandler) => {
       canvasWriteCaptureHandler = handler
-      return () => { canvasWriteCaptureHandler = undefined }
+      return () => {
+        canvasWriteCaptureHandler = undefined
+      }
     }),
     onCanvasWriteExecute: vi.fn((handler: typeof canvasWriteExecuteHandler) => {
       canvasWriteExecuteHandler = handler
-      return () => { canvasWriteExecuteHandler = undefined }
+      return () => {
+        canvasWriteExecuteHandler = undefined
+      }
     }),
   }
   const coordinator = createProjectCanvasReadSurfaceCoordinator({
@@ -116,13 +127,12 @@ function harness() {
     coordinator,
     bridge,
     read: (request: { binding: ReturnType<typeof binding> }) => readHandler?.(request),
-    readDocument: (request: {
-      binding: ReturnType<typeof binding>
-      documentId: string
-      scope: 'full' | 'selection'
-    }) => documentReadHandler?.(request),
-    captureCanvasWrite: (request: Parameters<NonNullable<typeof canvasWriteCaptureHandler>>[0]) => canvasWriteCaptureHandler?.(request),
-    executeCanvasWrite: (request: Parameters<NonNullable<typeof canvasWriteExecuteHandler>>[0]) => canvasWriteExecuteHandler?.(request),
+    readDocument: (request: { binding: ReturnType<typeof binding>; documentId: string; scope: 'full' | 'selection' }) =>
+      documentReadHandler?.(request),
+    captureCanvasWrite: (request: Parameters<NonNullable<typeof canvasWriteCaptureHandler>>[0]) =>
+      canvasWriteCaptureHandler?.(request),
+    executeCanvasWrite: (request: Parameters<NonNullable<typeof canvasWriteExecuteHandler>>[0]) =>
+      canvasWriteExecuteHandler?.(request),
   }
 }
 
@@ -255,9 +265,11 @@ describe('project canvas-read Surface hydration coordinator', () => {
 
     expect(test.read({ binding: structuredClone(committed!) })).toEqual({ nodes: [{ id: 'live-node' }] })
     expect(readSnapshot).toHaveBeenCalledOnce()
-    expect(() => test.read({
-      binding: { ...structuredClone(committed!), nonce: 'forged' },
-    })).toThrow(expect.objectContaining({ code: 'surface_port_stale' }))
+    expect(() =>
+      test.read({
+        binding: { ...structuredClone(committed!), nonce: 'forged' },
+      }),
+    ).toThrow(expect.objectContaining({ code: 'surface_port_stale' }))
 
     test.coordinator.beginHydration()
     expect(() => test.read({ binding: structuredClone(committed!) })).toThrow(
@@ -311,35 +323,47 @@ describe('project canvas-read Surface hydration coordinator', () => {
 
     expect(captureCurrentProjectCanvasReadSurfaceBinding()).toBe(committed)
     expect(test.read({ binding: committed! })).toEqual({ nodes: [{ id: 'live-node' }] })
-    expect(test.readDocument({
-      binding: structuredClone(committed!),
-      documentId: 'document-a',
-      scope: 'selection',
-    })).toEqual({ text: 'selected text' })
+    expect(
+      test.readDocument({
+        binding: structuredClone(committed!),
+        documentId: 'document-a',
+        scope: 'selection',
+      }),
+    ).toEqual({ text: 'selected text' })
     expect(readDocument).toHaveBeenCalledWith({ documentId: 'document-a', scope: 'selection' })
-    expect(() => test.readDocument({
-      binding: { ...structuredClone(committed!), nonce: 'forged' },
-      documentId: 'document-a',
-      scope: 'full',
-    })).toThrow(expect.objectContaining({ code: 'surface_port_stale' }))
+    expect(() =>
+      test.readDocument({
+        binding: { ...structuredClone(committed!), nonce: 'forged' },
+        documentId: 'document-a',
+        scope: 'full',
+      }),
+    ).toThrow(expect.objectContaining({ code: 'surface_port_stale' }))
 
     unregister()
     expect(captureCurrentProjectCanvasReadSurfaceBinding()).toBeNull()
     expect(test.read({ binding: committed! })).toBeUndefined()
-    expect(test.readDocument({
-      binding: committed!,
-      documentId: 'document-a',
-      scope: 'full',
-    })).toBeUndefined()
+    expect(
+      test.readDocument({
+        binding: committed!,
+        documentId: 'document-a',
+        scope: 'full',
+      }),
+    ).toBeUndefined()
   })
 
   it('suspends document reads immediately when the active project rotates', async () => {
     const test = harness()
-    const unregister = registerProjectCanvasReadSurface(test.coordinator, () => ({}), () => ({ text: 'draft' }))
+    const unregister = registerProjectCanvasReadSurface(
+      test.coordinator,
+      () => ({}),
+      () => ({ text: 'draft' }),
+    )
     const epoch = test.coordinator.beginHydration()
     await epoch.waitUntilSuspended()
     const committed = await epoch.commitCanvasRead('project-a')
-    expect(test.readDocument({ binding: committed!, documentId: 'document-a', scope: 'full' })).toEqual({ text: 'draft' })
+    expect(test.readDocument({ binding: committed!, documentId: 'document-a', scope: 'full' })).toEqual({
+      text: 'draft',
+    })
 
     test.coordinator.beginHydration()
     expect(() => test.readDocument({ binding: committed!, documentId: 'document-a', scope: 'full' })).toThrow(
@@ -350,8 +374,14 @@ describe('project canvas-read Surface hydration coordinator', () => {
 
   it('shares the exact binding for Canvas write capture/execute and suspends both on rotation', async () => {
     const test = harness()
-    const capture = vi.fn(({ nodeId }: { operation: 'set_node_prompt'; nodeId: string }) => ({ node: { id: nodeId }, groups: [] }))
-    const execute = vi.fn(({ receiptProposalId }: { receiptProposalId: string }) => ({ applied: true, proposalId: receiptProposalId }))
+    const capture = vi.fn<NonNullable<Parameters<typeof registerProjectCanvasReadSurface>[4]>>(({ nodeId }) => ({
+      node: { id: nodeId },
+      groups: [],
+    }))
+    const execute = vi.fn(({ receiptProposalId }: { receiptProposalId: string }) => ({
+      applied: true,
+      proposalId: receiptProposalId,
+    }))
     const unregister = registerProjectCanvasReadSurface(
       test.coordinator,
       () => ({}),
@@ -366,14 +396,23 @@ describe('project canvas-read Surface hydration coordinator', () => {
     const captureRequest = { binding: committed!, operation: 'set_node_prompt' as const, nodeId: 'node-real' }
     expect(test.captureCanvasWrite(captureRequest)).toEqual({ node: { id: 'node-real' }, groups: [] })
     const executeRequest = {
-      binding: committed!, input: {}, target: {}, preconditions: {},
-      receiptProposalId: 'receipt-a', approvalId: 'approval-a', actionHash: 'action-a',
+      binding: committed!,
+      input: {},
+      target: {},
+      preconditions: {},
+      receiptProposalId: 'receipt-a',
+      approvalId: 'approval-a',
+      actionHash: 'action-a',
     }
     expect(test.executeCanvasWrite(executeRequest)).toEqual({ applied: true, proposalId: 'receipt-a' })
 
     test.coordinator.beginHydration()
-    expect(() => test.captureCanvasWrite(captureRequest)).toThrow(expect.objectContaining({ code: 'surface_port_suspended' }))
-    expect(() => test.executeCanvasWrite(executeRequest)).toThrow(expect.objectContaining({ code: 'surface_port_suspended' }))
+    expect(() => test.captureCanvasWrite(captureRequest)).toThrow(
+      expect.objectContaining({ code: 'surface_port_suspended' }),
+    )
+    expect(() => test.executeCanvasWrite(executeRequest)).toThrow(
+      expect.objectContaining({ code: 'surface_port_suspended' }),
+    )
     unregister()
   })
 })

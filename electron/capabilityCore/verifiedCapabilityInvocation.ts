@@ -6,9 +6,7 @@ import {
   canvasWriteSemanticInputSchema,
   type CanvasWriteInput,
 } from "../shared/agentCapabilities/canvasWrite";
-import {
-  buildCanvasWriteAdmission,
-} from "../shared/agentCapabilities/canvasWriteEvidence";
+import { buildCanvasWriteAdmissionForOperation } from "../shared/agentCapabilities/canvasWriteEvidence";
 import {
   DOCUMENT_READ_CAPABILITY,
   documentReadSemanticInputSchema,
@@ -638,15 +636,15 @@ export function createInternalCanvasReadVerifiedInvocationFactory(
 }
 
 export type InternalDocumentReadVerifiedInvocationFactory = Readonly<{
-  mint(input: Readonly<{ bearer: string; requestBody: unknown }>): Promise<
-    VerifiedCapabilityInvocation<DocumentReadInput, Readonly<{ kind: "document"; documentId: string }>>
-  >;
+  mint(
+    input: Readonly<{ bearer: string; requestBody: unknown }>,
+  ): Promise<VerifiedCapabilityInvocation<DocumentReadInput, Readonly<{ kind: "document"; documentId: string }>>>;
 }>;
 
 export type RendererDocumentReadVerifiedInvocationFactory = Readonly<{
-  mint(input: Readonly<{ toolCallId: string; documentId: string; input: unknown }>): Promise<
-    VerifiedCapabilityInvocation<DocumentReadInput, Readonly<{ kind: "document"; documentId: string }>>
-  >;
+  mint(
+    input: Readonly<{ toolCallId: string; documentId: string; input: unknown }>,
+  ): Promise<VerifiedCapabilityInvocation<DocumentReadInput, Readonly<{ kind: "document"; documentId: string }>>>;
 }>;
 
 /** Main-issued document read invocation over the same captured renderer owner as canvas.read. */
@@ -746,13 +744,20 @@ export function createInternalDocumentReadVerifiedInvocationFactory(
 }
 
 export type RendererDocumentWriteVerifiedInvocationFactory = Readonly<{
-  mint(input: Readonly<{
-    toolCallId: string;
-    documentId: string;
-    anchor: DocumentAnchorRef;
-    preconditions: PreconditionSet;
-    input: unknown;
-  }>): Promise<VerifiedCapabilityInvocation<DocumentWriteInput, Readonly<{ kind: "document"; documentId: string; anchor: DocumentAnchorRef }>>>;
+  mint(
+    input: Readonly<{
+      toolCallId: string;
+      documentId: string;
+      anchor: DocumentAnchorRef;
+      preconditions: PreconditionSet;
+      input: unknown;
+    }>,
+  ): Promise<
+    VerifiedCapabilityInvocation<
+      DocumentWriteInput,
+      Readonly<{ kind: "document"; documentId: string; anchor: DocumentAnchorRef }>
+    >
+  >;
 }>;
 
 /** Main-issued reversible document write invocation over one captured Surface owner. */
@@ -773,7 +778,13 @@ export function createRendererDocumentWriteVerifiedInvocationFactory(
   const registry = input.registry;
   const capturedPort = input.capturedPort;
   return Object.freeze({
-    async mint({ toolCallId: toolCallIdValue, documentId: documentIdValue, anchor, preconditions, input: semanticValue }) {
+    async mint({
+      toolCallId: toolCallIdValue,
+      documentId: documentIdValue,
+      anchor,
+      preconditions,
+      input: semanticValue,
+    }) {
       const toolCallId = nonEmptyString(toolCallIdValue);
       const documentId = nonEmptyString(documentIdValue);
       const semanticInput = documentWriteSemanticInputSchema.parse(semanticValue);
@@ -802,11 +813,13 @@ export function createRendererDocumentWriteVerifiedInvocationFactory(
 }
 
 export type RendererCanvasWriteVerifiedInvocationFactory = Readonly<{
-  mint(input: Readonly<{
-    toolCallId: string;
-    input: unknown;
-    rawEvidence: unknown;
-  }>): Promise<VerifiedCapabilityInvocation<CanvasWriteInput, Extract<TargetRef, { kind: "canvas" }>>>;
+  mint(
+    input: Readonly<{
+      toolCallId: string;
+      input: unknown;
+      rawEvidence: unknown;
+    }>,
+  ): Promise<VerifiedCapabilityInvocation<CanvasWriteInput, Extract<TargetRef, { kind: "canvas" }>>>;
 }>;
 
 /** Main-only mint boundary: the Surface supplies raw evidence, while main derives every authority field. */
@@ -835,7 +848,7 @@ export function createRendererCanvasWriteVerifiedInvocationFactory(
       } catch {
         throw new CapabilityInvocationError("capability_input_invalid");
       }
-      const admission = buildCanvasWriteAdmission(rawEvidence);
+      const admission = buildCanvasWriteAdmissionForOperation(rawEvidence, semanticInput);
       const caller = Object.freeze({ kind: "embedded-agent" as const, requestId, toolCallId });
       const verify = async (): Promise<RendererAuthorityEvidence> => {
         const dispatch = registry.resolveCapturedCanvasReadPort(capturedPort);

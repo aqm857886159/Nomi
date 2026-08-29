@@ -87,21 +87,6 @@ function assertNoAreaIdentity(thread: ProjectAgentThread): void {
   if (!isCanonicalProjectAgentId(thread.threadId)) fail("invalid_mutation");
 }
 
-function assertWritableThread(thread: ProjectAgentThread): void {
-  if (thread.provenance?.kind === "legacy") fail("thread_read_only");
-}
-
-function assertLegacyProvenanceAuthority(thread: ProjectAgentThread, sender: ProjectAgentMutation["sender"]): void {
-  if (thread.provenance?.kind === "legacy" && !(sender.kind === "internal" && sender.senderId === "migration")) {
-    fail("thread_read_only");
-  }
-}
-
-function assertWritableThreadById(state: ProjectAgentHostState, threadId: string): void {
-  const thread = state.threads.find((value) => value.threadId === threadId);
-  if (thread) assertWritableThread(thread);
-}
-
 function assertThreadHistory(existing: ProjectAgentThread | undefined, incoming: ProjectAgentThread): void {
   if (
     existing &&
@@ -210,11 +195,7 @@ export function reduceProjectAgentMutation(
         const { thread, makeActive = false } = mutation.payload;
         assertOptionalMutationBoolean(mutation.payload.makeActive);
         assertNoAreaIdentity(thread);
-        assertLegacyProvenanceAuthority(thread, mutation.sender);
         const existingThread = threads.find((value) => value.threadId === thread.threadId);
-        if (existingThread?.provenance?.kind === "legacy" || (existingThread && thread.provenance?.kind === "legacy")) {
-          fail("thread_read_only");
-        }
         assertThreadHistory(existingThread, thread);
         threads = existingThread
           ? replaceById(
@@ -237,11 +218,7 @@ export function reduceProjectAgentMutation(
         assertCanonicalMutationTimestamp(mutation.payload.occurredAt);
         const thread = current.threads.find((value) => value.threadId === mutation.payload.threadId);
         if (!thread) fail("record_not_found");
-        // Canonical threads may be deleted only after they are archived. Legacy
-        // archives remain explicitly read-only but can be removed as a whole.
-        if (thread.provenance?.kind !== "legacy" && current.activeThreadId === thread.threadId) {
-          fail("thread_read_only");
-        }
+        if (current.activeThreadId === thread.threadId) fail("thread_read_only");
         if (
           current.turns.some(
             (turn) => turn.threadId === thread.threadId && isProjectAgentQueueBlockingStatus(turn.status),
@@ -299,7 +276,6 @@ export function reduceProjectAgentMutation(
         assertExactMutationKeys(mutation.payload, ["thread", "turn", "userItem", "queueItem"]);
         const { thread, turn, userItem, queueItem } = mutation.payload;
         assertNoAreaIdentity(thread);
-        assertWritableThread(thread);
         if (
           turn.status !== "queued" ||
           queueItem.status !== "queued" ||
@@ -325,7 +301,6 @@ export function reduceProjectAgentMutation(
         }
         assertQueueBinding(queueItem, current.binding);
         const existingThread = threads.find((value) => value.threadId === thread.threadId);
-        if (existingThread) assertWritableThread(existingThread);
         assertThreadHistory(existingThread, thread);
         threads = existingThread
           ? replaceById(
@@ -352,8 +327,6 @@ export function reduceProjectAgentMutation(
         break;
       }
       case "queue.edit": {
-        const queueItem = current.queue.find((value) => value.queueItemId === mutation.payload.queueItemId);
-        if (queueItem) assertWritableThreadById(current, queueItem.threadId);
         const edited = reduceProjectAgentQueueEdit(current, mutation);
         turns = edited.turns;
         items = edited.items;
@@ -362,8 +335,6 @@ export function reduceProjectAgentMutation(
         break;
       }
       case "turn.start": {
-        const turn = current.turns.find((value) => value.turnId === mutation.payload.turnId);
-        if (turn) assertWritableThreadById(current, turn.threadId);
         const started = reduceProjectAgentTurnStart(current, mutation);
         turns = started.turns;
         items = started.items;
@@ -372,16 +343,12 @@ export function reduceProjectAgentMutation(
         break;
       }
       case "assistant.append": {
-        const turn = current.turns.find((value) => value.turnId === mutation.payload.turnId);
-        if (turn) assertWritableThreadById(current, turn.threadId);
         const appended = reduceProjectAgentAssistantAppend(current, mutation);
         items = appended.items;
         changes.push(...appended.changes);
         break;
       }
       case "turn.transition": {
-        const turnForWrite = current.turns.find((value) => value.turnId === mutation.payload.turnId);
-        if (turnForWrite) assertWritableThreadById(current, turnForWrite.threadId);
         assertExactMutationKeys(mutation.payload, ["turnId", "status", "retryable", "deviated", "updatedAt"]);
         const turn = findTurn(current, mutation.payload.turnId);
         const queueItem = findQueueForTurn(queue, turn.turnId);
@@ -478,7 +445,6 @@ export function reduceProjectAgentMutation(
         const { failure, recoveredAt } = mutation.payload;
         assertCanonicalMutationTimestamp(recoveredAt);
         const turn = findTurn(current, mutation.payload.turnId);
-        assertWritableThreadById(current, turn.threadId);
         const queueItem = findQueueForTurn(queue, turn.turnId);
         if (
           !["queued", "running", "proposed"].includes(turn.status) ||
@@ -547,15 +513,12 @@ export function reduceProjectAgentMutation(
       case "item.put": {
         assertExactMutationKeys(mutation.payload, ["item"]);
         const { item } = mutation.payload;
-        assertWritableThreadById(current, item.threadId);
         assertCanAppendProjectAgentItem(items, item, false);
         items = [...items, item];
         changes.push({ kind: "item-upserted", item });
         break;
       }
       case "item.transition": {
-        const itemForWrite = current.items.find((value) => value.itemId === mutation.payload.itemId);
-        if (itemForWrite) assertWritableThreadById(current, itemForWrite.threadId);
         assertExactMutationKeys(mutation.payload, ["itemId", "status", "retryable", "deviated", "updatedAt"]);
         const existingItem = items.find((value) => value.itemId === mutation.payload.itemId);
         if (!existingItem) fail("record_not_found");
@@ -575,7 +538,6 @@ export function reduceProjectAgentMutation(
       case "proposal.put": {
         assertExactMutationKeys(mutation.payload, ["approval", "item", "occurredAt"]);
         const { approval, item, occurredAt } = mutation.payload;
-        if (approval?.ref) assertWritableThreadById(current, approval.ref.threadId);
         assertCanonicalMutationTimestamp(occurredAt);
         if (
           !approval ||
@@ -653,7 +615,6 @@ export function reduceProjectAgentMutation(
           (value) => value.ref.approvalId === mutation.payload.approvalId,
         );
         if (!existingApproval) fail("record_not_found");
-        assertWritableThreadById(current, existingApproval.ref.threadId);
         if (!isProposalTransition(existingApproval.lifecycle, mutation.payload.lifecycle)) {
           fail("proposal_transition_invalid");
         }
@@ -756,7 +717,6 @@ export function reduceProjectAgentMutation(
           "receivedAt",
         ]);
         const result = mutation.payload;
-        assertWritableThreadById(current, result.threadId);
         assertCanonicalMutationTimestamp(result.receivedAt);
         assertOptionalMutationBoolean(result.retryable);
         assertExactMutationKeys(result.binding, ["projectId", "immutableProjectUuid", "projectGeneration"]);
@@ -796,9 +756,8 @@ export function reduceProjectAgentMutation(
         const terminalRetryable = result.retryable ?? result.turnStatus === "failed";
         if (
           result.items.some(
-            (item) => item.kind === "failure" && (
-              item.status !== result.turnStatus || item.retryable !== terminalRetryable
-            ),
+            (item) =>
+              item.kind === "failure" && (item.status !== result.turnStatus || item.retryable !== terminalRetryable),
           )
         ) {
           fail("async_result_stale");
@@ -820,17 +779,19 @@ export function reduceProjectAgentMutation(
           proposalSettlements = [{ approvalId: result.proposalApprovalId, status: result.proposalStatus }];
         }
         if (
-          proposalSettlements.length !== runningProposalIds.length
-          || new Set(proposalSettlements.map((settlement) => settlement.approvalId)).size !== proposalSettlements.length
-          || proposalSettlements.some((settlement) =>
-            !settlement
-            || typeof settlement !== "object"
-            || Object.keys(settlement).length !== 2
-            || !Object.hasOwn(settlement, "approvalId")
-            || !Object.hasOwn(settlement, "status")
-            || typeof settlement.approvalId !== "string"
-            || !runningProposalIds.includes(settlement.approvalId)
-            || !isProjectAgentProposalSettlementStatus(settlement.status))
+          proposalSettlements.length !== runningProposalIds.length ||
+          new Set(proposalSettlements.map((settlement) => settlement.approvalId)).size !== proposalSettlements.length ||
+          proposalSettlements.some(
+            (settlement) =>
+              !settlement ||
+              typeof settlement !== "object" ||
+              Object.keys(settlement).length !== 2 ||
+              !Object.hasOwn(settlement, "approvalId") ||
+              !Object.hasOwn(settlement, "status") ||
+              typeof settlement.approvalId !== "string" ||
+              !runningProposalIds.includes(settlement.approvalId) ||
+              !isProjectAgentProposalSettlementStatus(settlement.status),
+          )
         ) {
           fail("async_result_stale");
         }
