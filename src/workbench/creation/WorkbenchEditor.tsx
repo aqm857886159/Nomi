@@ -11,28 +11,13 @@ import { useNomiRichTextEditor, RICH_TEXT_FEATURE_EXTENSIONS } from '../common/u
 import { buildRichTextActions, type RichTextAction } from '../common/richTextActions'
 import { SurfacePortWireError } from '../../../electron/shared/surfacePortBinding'
 import type { DocumentAnchorRef, PreconditionSet, TargetRef } from '../../../electron/shared/capabilityTargeting'
-
-function documentContentHash(text: string): string {
-  let hash = 2166136261
-  for (let index = 0; index < text.length; index += 1) {
-    hash ^= text.charCodeAt(index)
-    hash = Math.imul(hash, 16777619)
-  }
-  return `fnv1a-${(hash >>> 0).toString(16).padStart(8, '0')}`
-}
-
-function sameDocumentAnchor(left: DocumentAnchorRef, right: DocumentAnchorRef): boolean {
-  if (left.kind !== right.kind) return false
-  if (left.kind === 'whole-document' && right.kind === 'whole-document') return true
-  if (left.kind === 'range' && right.kind === 'range') {
-    return left.from === right.from && left.to === right.to && left.selectedTextHash === right.selectedTextHash
-  }
-  if (left.kind === 'cursor' && right.kind === 'cursor') {
-    return left.position === right.position && left.beforeHash === right.beforeHash && left.afterHash === right.afterHash
-  }
-  if (left.kind === 'document-end' && right.kind === 'document-end') return left.trailingTextHash === right.trailingTextHash
-  return false
-}
+import {
+  assertDocumentWritePreconditions,
+  captureDocumentAnchor,
+  documentContentHash,
+  resolveDocumentWriteRange,
+  type DocumentTextReader,
+} from './documentWriteTarget'
 
 // 工具栏分组：格式按语义分 4 簇（文字 / 标题段落 / 列表 / 插入）靠左，历史（撤销/重做）推到右端。
 // 之前用一个 flex-1 spacer 把 9 个按钮全挤到左侧、右边 ~570px 浪费 —— 这里按语义两端锚定。
@@ -190,16 +175,16 @@ export default function WorkbenchEditor(): JSX.Element {
   const creationDocumentToolsRef = React.useRef<CreationDocumentTools | null>(null)
   React.useEffect(() => {
     if (!editor) return
+    const documentReader = (): DocumentTextReader => ({
+      contentSize: editor.state.doc.content.size,
+      textBetween: (from, to, blockSeparator) => editor.state.doc.textBetween(from, to, blockSeparator),
+    })
     const toolsApi: CreationDocumentTools = {
       readFullText: tools.readFullText,
       readSelectionText: tools.readSelectionText,
       readState: () => {
         const text = tools.readFullText()
-        const { from, to, empty } = editor.state.selection
-        const selectedText = empty || from === to ? '' : editor.state.doc.textBetween(from, to, '\n').trim()
-        const anchor: DocumentAnchorRef = empty || from === to
-          ? Object.freeze({ kind: 'cursor', position: from, beforeHash: documentContentHash(editor.state.doc.textBetween(0, from, '\n')), afterHash: documentContentHash(editor.state.doc.textBetween(from, editor.state.doc.content.size, '\n')) })
-          : Object.freeze({ kind: 'range', from, to, selectedTextHash: documentContentHash(selectedText) })
+        const anchor: DocumentAnchorRef = captureDocumentAnchor(documentReader(), editor.state.selection)
         return Object.freeze({ revision: documentRevisionRef.current, contentHash: documentContentHash(text), anchor })
       },
       applyDocumentWrite: (input: Readonly<{ operation: 'insert' | 'replace' | 'append'; content: string; target: TargetRef; preconditions: PreconditionSet }>) => {
@@ -208,15 +193,9 @@ export default function WorkbenchEditor(): JSX.Element {
         }
         const expected = input.preconditions.document
         const current = toolsApi.readState()
-        if (expected && (expected.revision !== current.revision || (expected.contentHash && expected.contentHash !== current.contentHash))) {
-          throw new SurfacePortWireError('surface_port_stale')
-        }
-        if (input.target.anchor.kind !== 'whole-document' && !sameDocumentAnchor(input.target.anchor, current.anchor)) {
-          throw new SurfacePortWireError('surface_port_stale')
-        }
-        if (input.operation === 'insert') tools.insertAtCursor(input.content)
-        else if (input.operation === 'replace') tools.replaceSelection(input.content)
-        else tools.appendToEnd(input.content)
+        assertDocumentWritePreconditions(expected, current)
+        const range = resolveDocumentWriteRange(documentReader(), input.target.anchor, input.operation)
+        tools.applyAtRange(input.content, range)
         const next = toolsApi.readState()
         return Object.freeze({ applied: true as const, revision: next.revision, contentHash: next.contentHash })
       },

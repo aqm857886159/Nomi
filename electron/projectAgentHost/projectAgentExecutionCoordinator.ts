@@ -501,7 +501,12 @@ export function createProjectAgentExecutionCoordinator(
       threadId: execution.turn.threadId,
       turnId: execution.turn.turnId,
       toolCallId: call.toolCallId,
-      actionHash: digest({ toolName: call.toolName, args: call.args, target }),
+      actionHash: digest({
+        toolName: call.toolName,
+        args: call.args,
+        target,
+        preconditions,
+      }),
       target,
       preconditions,
       expiresAt,

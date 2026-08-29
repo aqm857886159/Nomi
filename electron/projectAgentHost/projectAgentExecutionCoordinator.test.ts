@@ -819,7 +819,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
             text: "done",
             finishReason: "stop",
             artifacts: [],
-            toolCalls: [{ ...call, status: "ok", result: decision.result, decision }],
+            toolCalls: [{ ...call, status: "ok", result: decision.ok ? decision.result : undefined, decision }],
             usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
           } satisfies AgentChatResponse;
         },
@@ -936,6 +936,62 @@ describe("ProjectAgentExecutionCoordinator", () => {
     expect(proposal).toMatchObject({ status: "done", approval: { target, preconditions } });
     expect(final.proposalApprovals).toHaveLength(1);
     expect(final.proposalApprovals[0]).toMatchObject({ lifecycle: "claimed", ref: { target, preconditions } });
+  });
+
+  it("includes frozen preconditions in the proposal action hash", async () => {
+    const run = async (preconditions: Readonly<{ document: { revision: number; contentHash: string } }>) => {
+      const localRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-document-write-action-hash-"));
+      try {
+        const documentAdapter = documentWriteAdapter();
+        const coordinator = createProjectAgentExecutionCoordinator(
+          createProjectAgentRepositoryRouter({ rootDir: localRoot }),
+          () => "subscription-document-write-action-hash",
+          {
+            runAgent: async (_request, hooks) => {
+              const call = { toolCallId: "tool-document-write-action-hash", toolName: "insert_at_cursor", args: { content: "x" } };
+              const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+              return documentWriteResponse(call, decision);
+            },
+          },
+        );
+        const opened = await coordinator.open(binding, { documentWrite: documentAdapter });
+        coordinator.subscribe(opened.subscriptionId, (event) => {
+          if (event.type === "tool-call") {
+            void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+              ok: true,
+              result: { applied: true },
+            });
+          }
+        });
+        const base = executionInput("document-write-action-hash", 0);
+        const input = {
+          ...base,
+          mutation: {
+            ...base.mutation,
+            payload: {
+              ...base.mutation.payload,
+              queueItem: { ...base.mutation.payload.queueItem, preconditions },
+            },
+          },
+        };
+        await coordinator.enqueue(opened.subscriptionId, input);
+        const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+        const proposal = final.items.find((item) => item.kind === "proposal");
+        coordinator.release(opened.subscriptionId);
+        // Drain's final snapshot runs in a following microtask. Let it observe
+        // the terminal queue before removing this test's repository root.
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        return proposal?.kind === "proposal" ? proposal.approval?.actionHash ?? "" : "";
+      } finally {
+        fs.rmSync(localRoot, { recursive: true, force: true });
+      }
+    };
+
+    const first = await run({ document: { revision: 1, contentHash: "fnv1a-one" } });
+    const second = await run({ document: { revision: 2, contentHash: "fnv1a-two" } });
+    expect(first).toMatch(/^[a-f0-9]{64}$/);
+    expect(second).toMatch(/^[a-f0-9]{64}$/);
+    expect(second).not.toBe(first);
   });
 
   it.each(["document_target_stale", "surface_port_stale"] as const)(

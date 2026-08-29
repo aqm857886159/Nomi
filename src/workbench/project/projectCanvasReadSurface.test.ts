@@ -56,6 +56,14 @@ function harness() {
     documentId: string
     scope: 'full' | 'selection'
   }) => unknown | Promise<unknown>) | undefined
+  let documentWriteHandler: ((request: {
+    binding: ReturnType<typeof binding>
+    documentId: string
+    operation: 'insert' | 'replace' | 'append'
+    content: string
+    target: unknown
+    preconditions: unknown
+  }) => unknown | Promise<unknown>) | undefined
   const bridge = {
     suspend: vi.fn(async () => ({ suspension: suspension(String(++suspensionId)) })),
     commitCanvasRead: vi.fn(async (input: { projectId: string }) => ({
@@ -72,6 +80,10 @@ function harness() {
     onDocumentRead: vi.fn((handler: typeof documentReadHandler) => {
       documentReadHandler = handler
       return () => { documentReadHandler = undefined }
+    }),
+    onDocumentWrite: vi.fn((handler: typeof documentWriteHandler) => {
+      documentWriteHandler = handler
+      return () => { documentWriteHandler = undefined }
     }),
   }
   const coordinator = createProjectCanvasReadSurfaceCoordinator({

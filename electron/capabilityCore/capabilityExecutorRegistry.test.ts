@@ -156,7 +156,7 @@ describe("main-only CapabilityExecutorRegistry", () => {
         policyRevision: 1,
         inputHash: "request-picked",
         actionHash: "request-picked",
-      }),
+      } as never),
     ).rejects.toMatchObject({ code: "capability_invocation_unverified" });
     expect(resolveCanvasReadPort).not.toHaveBeenCalled();
   });
