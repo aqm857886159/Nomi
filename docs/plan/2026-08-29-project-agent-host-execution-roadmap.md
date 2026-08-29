@@ -1,6 +1,6 @@
 # Project Agent Host 全阶段执行路线图
 
-> 状态：🚧 进行中。Phase 1、2A、2B、3A、3B、3C、3D 已形成远端 checkpoint；当前为 Phase 4 ProductionRun / export / cutover 大批。最终完成条件仍为 Phase 4–6 与发布候选门全部通过。
+> 状态：🚧 进行中。Phase 1、2A、2B、3A、3B、3C、3D 与 Phase 4 Surface/export 已形成远端 checkpoint；当前只剩 Phase 4 authority/cutover closure，之后是 Phase 5 和 Phase 6。后续不再新增 Round。
 
 ## 目标
 
@@ -23,7 +23,7 @@
 | Phase 3B | 已完成 focused closure | `document.write` 已完成 Registry/Host/Surface/adapter/UI 路由；写入队列必须冻结可执行 anchor/revision/hash，缺失或 whole-document 占位在入队前 fail closed |
 | Phase 3C | 已完成 checkpoint | canonical `canvas.write@v1` 已统一 set/create/connect/tidy；真实 renderer transaction、receipt correlation、stale/lock、exact result pointer 和旧 owner 删除已通过 focused closure |
 | Phase 3D | 已完成 checkpoint | canonical `timeline.read@v1` / `timeline.write@v1` 已统一 read/range/plan/apply/undo；Timeline kernel、CAS、Workbench Undo 和旧 owner 删除已通过 focused closure |
-| Phase 4 | 进行中（Round 10） | ProductionRun、付费/破坏性能力、TaskRef、typed cancel、export truth 与 archive-only cutover closure |
+| Phase 4 | 进行中（closure 宏批次） | Surface、media、Canvas destructive、manifest、TaskRef、TaskCenter 和 export truth 已完成；剩唯一付费 authority 与 archive-only recovery matrix |
 | Phase 5 | 未开始 | Skill/MCP 从 Registry 派生，list/read guard、shrink-only、legacy firewall |
 | Phase 6 | 未开始 | 常驻 UI；只投影已冻结的 Host/domain 状态，基于现有设计系统调整 |
 
@@ -32,9 +32,10 @@ R12 说明：本任务分支当前有 6 个超过 800 行的 Host/工作台聚�
 Canvas completion 与 Phase 4 大批必须优先抽取这些 owner 并下调基线，不能再新增
 allowlist 条目来掩盖模块膨胀。
 
-## 每个能力的固定垂直切片
+## 每个能力的固定内部顺序
 
-能力不得横向铺开成“先改所有后端、再改所有 UI”。每个能力按下列顺序闭环：
+能力不得横向铺开成“先改所有后端、再改所有 UI”。每个能力仍按下列顺序闭环，
+但这些步骤只是批内依赖，不是独立 Round、评审、提交或推送单位：
 
 1. **契约**：canonical id、version、input/output、effect、target、precondition、
    approval 和 aliases 只有一个 Registry owner。
@@ -53,18 +54,23 @@ allowlist 条目来掩盖模块膨胀。
 
 ## 验证节奏
 
-实现循环分成两层。微切片 RED/GREEN 只运行当前最早失败边界的直接测试文件；
-只有完整 lane 稳定后才运行一次 focused closure，包括相关矩阵、对应 TypeScript、
-`check:capability-owners`、必要的词汇/结构门和 `git diff --check`。测试失败时
-先把失败归类为契约、生命周期、实现或环境问题，记录到证据账本；同一失败不
-通过重复跑更宽测试来“确认”。修复后只重跑指纹已变化的直接测试。
+实现循环分成三层：
 
-每个交付批次 focused 绿后只做一次只读评审。评审通过后，按仓库 push 纪律只运行
-一次完整 push gate，再形成一个 **scoped 本地提交**并普通 push 到现有任务分支；
-批内检查点只控制依赖顺序和直接 RED/GREEN，不分别触发评审、提交、推送或宽测试。
-这样每个大批次只有一次完整门禁成本，同时远端 Draft PR 仍持续获得可恢复备份。
-日常 recovery checkpoint 不整合 `main`；Phase 3/4 联合出口和最终 Phase 6 出口才形成
-**remote stage checkpoint**。
+1. 批内只在新增验收项尚无证据，或源码、fixture、依赖、相关环境指纹变化时，运行
+   最早失败边界的直接测试。已通过且指纹未变化的证据继续有效。
+2. 宏批次稳定后只运行一次 affected closure：直接相关矩阵、受影响 TypeScript project、
+   `check:capability-owners`、必要的词汇/结构/root-cause 门和 `git diff --check`。
+3. 全仓 test/build/package/真实旅程只在最终候选整合固定的 `main` SHA 后运行一次。
+
+测试失败先归类为契约、生命周期、实现或环境问题；相同命令和失败签名在相关指纹
+未变化时最多出现两次，第三次原样重跑禁止。修复后只重跑受影响的失败文件；不能用
+更宽测试诊断已知窄问题。互不共享锁、端口或生成目录的测试/TypeScript project 可以
+并行，存在共享全局状态的命令保持串行。
+
+每个宏批次 focused 绿后只做一次只读评审。reviewer 只对冻结合同和该批 diff 报告
+P0/P1 阻断项；P2 或既有非回归进入 backlog，不能反向扩张当前批次。修复 reviewer
+发现后只验证失效证据，不重跑整个 closure。随后形成一个 scoped commit，刷新并检查
+远端任务分支后普通 push；每个宏批次都必须推远端，不能只留本地。
 
 ## 一次性 Cutover 决策
 
@@ -84,21 +90,15 @@ CAS、receipt correlation、崩溃恢复和 ProductionRun exactly-once 安全边
 Host 合同也不再保留 legacy thread provenance；旧文字/context/receipt 只存在于归档，
 不能重新进入运行时、审批或 Undo 状态。
 
-remote recovery push 前刷新远端基线与任务分支引用，但只观察、不把 `main` 合入开放中的
-lane；如果网络失败或远端没有新事实，记录
+remote recovery push 前刷新任务分支引用，但只观察、不把 `main` 合入开放中的
+宏批次；如果网络失败或远端没有新事实，记录
 一次 transport 错误后熔断，不重复 fetch/push，不让它阻塞实现。远端分支若前进，
 普通 push 会安全拒绝，此时才暂停并检查分歧；禁止 force-push。
 
-remote stage checkpoint 才做三件事：
-
-1. 对照本路线图和对应 acceptance matrix 做一次只读 closure review；
-2. 只在 Phase 3/4 联合出口或 Phase 6 最终出口把当时的 `origin/main` 整合一次，
-   处理直接重叠并保留已冻结行为；
-3. 运行仓库要求的完整 push gate 一次，再推送任务分支 checkpoint。
-
-日常允许 `fetch` 观察主线或刷新任务分支，但不为每个新提交 rebase/merge。只有 Phase 3/4
-联合出口和最终 Phase 6 出口整合 `main`；这样不会永远追着主线跑，也不会把
-主线的新问题误判成当前切片回归。
+开放中的 Phase 4/5/6 都不因 `main` 移动而 rebase/merge。Phase 6 focused UI 完成并形成
+远端 recovery checkpoint 后，才 fetch 一次、记录一个固定的 `origin/main` SHA、整合一次，
+处理冲突并运行最终全量门。验证期间 `main` 再移动不触发追赶；只有仓库合并策略明确
+阻塞时才重新评估，不把持续追主线当作实现循环。
 
 ## 阶段出口定义
 
@@ -154,29 +154,46 @@ remote stage checkpoint 才做三件事：
 和对应验收项。UI 另需冻结批准设计的 commit/path、真实工作台截图、关键状态对账和
 设计系统版本；结构门必须拒绝缺失证据的 Registry/MCP/Skill/UI RED，而不是依赖人工记忆。
 
-## 流程 v4：关键路径与停止无信息循环
+## 流程 v5：三个宏批次
 
-本任务的节奏真源是本路线图与本地 harness 的
-`execution-protocol-v4.json`。同一测试命令、同一失败签名在源码、fixture、依赖
-和相关环境都没变化时最多执行两次；第二次相同失败后必须先归类为合同、生命周期、
-实现或环境问题并改变对应证据，禁止第三次原样重跑。已知窄问题不能靠更宽测试诊断。
+本路线图是唯一活跃流程真源。`.agents/runtime/harness/...` 下的 protocol v2-v4、Round
+1-10 合同、evaluation 和 stale ledger 只作为历史证据，不再驱动任务，也不再为后续工作
+新增 Round 文件。这样避免把关键状态放在被 `.gitignore` 排除的 32 个运行态文件中。
 
-每个 lane 只允许一个生产代码 writer；reviewer 默认只读并复用 evidence ledger，
-仅补查缺失、过期或有争议的证据。网络 fetch/push 失败不使未变化的代码验证失效，
-也不触发重跑测试。
+### A. Phase 4 Closure
 
-Phase 3C 的内部依赖顺序固定为：能力合同 → durable approval → Canvas raw
-evidence/hash → Surface transport → executor → Host ordering/typed outcome → 现有
-receipt/transaction 关联 → 删除旧 owner。前两项已完成，后六项不再各自作为交付轮次，
-而是合并为两个批次：主干批次一次完成 evidence/hash、Surface transport、executor、
-Host ordering/typed outcome；领域切换批次一次完成 receipt/transaction 关联、renderer
-adapter、边界内 stale revalidation 和旧 owner 删除。批内仍按最左侧失败边界推进，
-但只在批末做一次 focused closure、一次只读评审、一次提交和一次恢复 push。
+一个批次完成剩余 paid authority：gate 前冻结唯一 authorization envelope/digest，Approval、
+budget/outbox 和实际 provider payload 消费同一 identity，任何 mismatch 在 job、ledger、outbox、
+provider 副作用前失败；同时删除 renderer `mintSpendGrant -> runPlanWithToasts` 直达路径和
+advertised/routable `nomi_generate` 旧 provider 路。随后按已批准的 archive-only 方案审计现有
+cutover；满足则只补 recovery matrix，不写迁移代码，有真实缺口才做最小修复。整批只有一次
+Phase 4 affected matrix、一次评审、一次 commit/push，不整合 `main`，不跑全仓门。
 
-每条测试证据保存命令、直接文件、源码/fixture/环境指纹、结果签名、失败分类和
-下一条允许命令。通过的证据在指纹未变化时继续有效；reviewer 只消费账本并检查
-缺失或有争议的合同条件。任何命令若不能关闭当前 criterion、缩小失败分类或验证
-一次指纹变化，就不进入执行队列。
+### B. Phase 5 Skill/MCP
+
+复用现有历史 PR coverage index，只枚举相对记录 SHA 的增量，按 lane 写一次
+`adopt / adapt / reject`。完成 Registry 派生的 Skill/MCP surface、list/read 同 guard、
+shrink-only 和 legacy firewall。整批只有一次 affected matrix、一次评审、一次 commit/push；
+不重读已覆盖 PR，不把 Phase 6 UI 拉进本批，也不整合 `main`。
+
+### C. Phase 6 UI 与最终候选
+
+先基于既有设计系统和冻结 Host/domain projection 完成常驻 UI，做一次 focused UI/visual/
+journey closure 并 push recovery checkpoint。然后只在最终候选前固定并整合一个 `main` SHA，
+运行一次全量 gates、typecheck/test/build/package、真实创作到导出旅程、恢复/跨项目/隐私/
+审批验收和最终只读评审，再 push 最终 checkpoint 并更新 Draft PR。
+
+### Scope 与成本准入
+
+- **当前批次修复**：违反已冻结安全不变量，或由本批 diff 引入的回归。
+- **Backlog**：既有、P2、非当前交付路径问题；记录但不扩当前批次。
+- **最终整合处理**：只存在于 `main` 漂移或 merge conflict 的问题。
+- 命令只有在关闭一个 criterion、缩小未分类失败、或验证变化指纹时才准入。
+- 评审只消费已有 evidence；除证据缺失、过期或有争议外，不重复运行命令。
+
+该方案吸收了独立流程审计，但拒绝其中“Phase 4 和 Phase 6 各整合一次 `main`”与
+“Phase 5 只留本地提交”两点：前者重复制造冲突与全量门成本，后者不能满足网络中断恢复。
+最终选择是每个宏批次远端 checkpoint、`main` 只在最终候选固定整合一次。
 
 ## 回滚与恢复
 
@@ -188,11 +205,9 @@ adapter、边界内 stale revalidation 和旧 owner 删除。批内仍按最左�
 
 ## 下一步顺序
 
-1. Phase 3C 已完成本地 closure；保存 checkpoint 后直接进入 Phase 3D，不重开已通过的
-   Canvas 微切片，也不新增第二套 approval、status 或 Undo owner。
-2. 用一个 Phase 3D 大批完成 timeline read/propose/apply/undo 与旧 owner 删除，形成
-   Phase 3 出口矩阵；不在批内整合 `main`。
-3. 用一个端到端大批推进 ProductionRun/付费链与 export integrity，形成 Phase 4 出口，再做一次
-   Phase 3/4 联合 closure、整合当时的 `main` 并更新远端 checkpoint。
-4. 阅读历史 PR 增量并完成 Registry 派生的 Skill/MCP surface（Phase 5）。
-5. 最后基于设计系统完成常驻 UI、真实旅程和最终全量发布门（Phase 6）。
+1. 完成 Phase 4 Closure 宏批次：唯一付费 authorization、旧直达路径删除、archive-only
+   recovery matrix；定向 closure 后评审、提交并推送，不整合 `main`。
+2. 完成 Phase 5 Skill/MCP 宏批次：历史 PR 增量决策、Registry 派生 surface 与 guard；
+   定向 closure 后评审、提交并推送，不整合 `main`。
+3. 完成 Phase 6 UI focused checkpoint；推远端后固定并整合一个 `main` SHA，运行唯一一次
+   最终全量验收，形成最终 checkpoint 并把 Draft PR 更新到可合并状态。
