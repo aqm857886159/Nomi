@@ -13,13 +13,12 @@ afterEach(() => useCreationTurnStore.getState().abandon())
 function setup() {
   const turn = useCreationTurnStore.getState().begin()
   const enqueue = vi.fn()
-  const readTools = vi.fn(() => null)
-  return { turn, enqueue, readTools, handler: createCreationToolHandler({ turn, enqueue, readTools, allowsWrite: true, skillSaveFailed: () => 'failed' }) }
+  return { turn, enqueue, handler: createCreationToolHandler({ turn, enqueue, allowsWrite: true, skillSaveFailed: () => 'failed' }) }
 }
 
 describe('Creation document tool turn boundary', () => {
   it.each(['read_full_text', 'append_to_end', 'author_skill'])('Stop rejects %s even while cancelled result may still display', async (toolName) => {
-    const { handler, turn, enqueue, readTools } = setup()
+    const { handler, turn, enqueue } = setup()
     useCreationTurnStore.getState().requestUserCancel()
     const confirm = vi.fn(async () => {})
     await handler({
@@ -30,7 +29,6 @@ describe('Creation document tool turn boundary', () => {
     expect(turn.isCurrent()).toBe(true)
     expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ ok: false, denied: true }))
     expect(enqueue).not.toHaveBeenCalled()
-    expect(readTools).not.toHaveBeenCalled()
     expect(deps.save).not.toHaveBeenCalled()
   })
 

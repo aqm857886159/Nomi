@@ -14,7 +14,12 @@ vi.mock("electron", () => ({
 }));
 vi.mock("../ipcSenderGuard", () => ({ assertTrustedSender: ipc.trust }));
 
-import { SURFACE_CANVAS_READ_REPLY_CHANNEL, SURFACE_CANVAS_READ_REQUEST_CHANNEL } from "../shared/surfacePortBinding";
+import {
+  SURFACE_CANVAS_READ_REPLY_CHANNEL,
+  SURFACE_CANVAS_READ_REQUEST_CHANNEL,
+  SURFACE_DOCUMENT_READ_REPLY_CHANNEL,
+  SURFACE_DOCUMENT_READ_REQUEST_CHANNEL,
+} from "../shared/surfacePortBinding";
 import { CapabilityExecutionError } from "./capabilityExecutorRegistry";
 import {
   createCanvasReadSurfaceRegistry,
@@ -81,6 +86,12 @@ function setup() {
           sender: source.contents ?? contents,
           senderFrame: source.frame ?? frame,
         } as unknown as IpcMainEvent,
+        payload,
+      );
+    },
+    replyDocument(payload: unknown) {
+      ipc.listeners.get(SURFACE_DOCUMENT_READ_REPLY_CHANNEL)?.(
+        { sender: contents, senderFrame: frame } as unknown as IpcMainEvent,
         payload,
       );
     },
@@ -194,5 +205,54 @@ describe("dedicated renderer CanvasReadPort", () => {
         message: "surface_port_suspended",
       }),
     );
+  });
+
+  it("uses a main-captured document id and scope for canonical document.read", async () => {
+    const test = setup();
+    const { captured, binding } = await test.capture();
+    const reading = test.runtime.createDocumentReadPort(captured, "document-a").read({
+      scope: "selection",
+      signal: new AbortController().signal,
+    });
+    expect(test.send).toHaveBeenCalledWith(SURFACE_DOCUMENT_READ_REQUEST_CHANNEL, {
+      requestId: "read-5",
+      binding,
+      documentId: "document-a",
+      scope: "selection",
+    });
+    test.replyDocument({ requestId: "read-5", binding: structuredClone(binding), result: { text: "selected", path: "/private" } });
+    await expect(reading).resolves.toEqual({ text: "selected", path: "/private" });
+  });
+
+  it("keeps document replies on their own channel and cancels a rotated request without fallback", async () => {
+    const test = setup();
+    const { captured, binding } = await test.capture();
+    const controller = new AbortController();
+    const reading = test.runtime.createDocumentReadPort(captured, "document-a").read({
+      scope: "full",
+      signal: controller.signal,
+    });
+    test.reply({ requestId: "read-5", binding: structuredClone(binding), result: { wrong: true } });
+    await Promise.resolve();
+    expect(test.send).toHaveBeenCalledWith(SURFACE_DOCUMENT_READ_REQUEST_CHANNEL, expect.anything());
+    controller.abort();
+    await expect(reading).rejects.toMatchObject({ code: "capability_cancelled" });
+    const callsAtAbort = test.resolveProjectIdentity.mock.calls.length;
+    test.replyDocument({ requestId: "read-5", binding: structuredClone(binding), result: { late: true } });
+    await Promise.resolve();
+    expect(test.resolveProjectIdentity).toHaveBeenCalledTimes(callsAtAbort);
+  });
+
+  it("fails closed when the captured document surface is rotated before dispatch", async () => {
+    const test = setup();
+    const { captured } = await test.capture();
+    test.setLive(false);
+    await expect(
+      test.runtime.createDocumentReadPort(captured, "document-a").read({
+        scope: "selection",
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toMatchObject({ code: "surface_port_unavailable" });
+    expect(test.send).not.toHaveBeenCalled();
   });
 });

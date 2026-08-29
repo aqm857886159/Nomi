@@ -185,7 +185,12 @@ export class CapabilityExecutorRegistry {
     this.#resolveCanvasReadPort = (invocation) =>
       invocation.capability.id === DOCUMENT_READ_CAPABILITY.id
         ? resolveDocumentReadPort
-          ? resolveDocumentReadPort(invocation)
+          ? Promise.resolve(resolveDocumentReadPort(invocation)).then((port) => ({
+              read: (portInput) => port.read({
+                scope: documentReadSemanticInputSchema.parse(invocation.input).scope,
+                signal: portInput.signal,
+              }),
+            }))
           : Promise.reject(new CapabilityExecutionError("capability_unsupported"))
         : resolveCanvasReadPort(invocation);
     this.#timeoutMs = positiveTimeout(options.timeoutMs);
@@ -206,7 +211,7 @@ export class CapabilityExecutorRegistry {
 
     return bounded(this.#timeoutMs, options.signal, async (signal) => {
       await revalidate(invocation);
-      let port: CanvasReadPort | DocumentReadPort;
+      let port: CanvasReadPort;
       try {
         port = await this.#resolveCanvasReadPort(invocation);
       } catch (error) {
@@ -216,10 +221,7 @@ export class CapabilityExecutorRegistry {
 
       let source: unknown;
       try {
-        source = await (port as CanvasReadPort).read({
-          scope: isDocumentRead ? documentReadSemanticInputSchema.parse(invocation.input).scope : undefined,
-          signal,
-        });
+        source = await port.read({ signal });
       } catch (error) {
         if (signal.aborted) throw new CapabilityExecutionError("capability_cancelled");
         throw safeStageError(error);

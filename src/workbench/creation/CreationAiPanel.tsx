@@ -227,7 +227,6 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         void createCreationToolHandler({
           turn: transportHandle,
           allowsWrite: modeAllowsWriteTools(skillSelRef.current.activeMode),
-          readTools: () => documentToolsRef.current,
           enqueue: (call) => {
             pendingRegistryRef.current.install(event, call)
             setPendingRegistryVersion((version) => version + 1)
@@ -473,7 +472,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         request: canonicalRequest,
         displayPrompt,
         ...(attachmentClaims.length ? { attachmentClaims } : {}),
-        target: { kind: 'document', documentId: `${projectId ?? 'active'}:document`, anchor: { kind: 'whole-document' } },
+        target: { kind: 'document', documentId: activeDocumentId, anchor: { kind: 'whole-document' } },
         originSurface: { surfaceId: 'creation-ai-panel', kind: 'document' },
       })
       projectAgentTurnRef.current = result.turnId

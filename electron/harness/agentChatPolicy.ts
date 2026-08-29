@@ -6,8 +6,18 @@ import { documentToolDescriptors } from './tools/documentDescriptors';
 import { timelineToolDescriptors } from './tools/timelineDescriptors';
 import type { RuntimeToolCall, RuntimeToolDescriptor } from './runtime/runtimePort';
 import { CANVAS_READ_CAPABILITY } from '../shared/agentCapabilities/canvasRead';
+import { DOCUMENT_READ_CAPABILITY } from '../shared/agentCapabilities/documentRead';
+import { capabilityAliasesFor } from '../shared/agentCapabilities/registry';
 
 const CANVAS_TOOL_NAMES = new Set<string>(canvasToolNames);
+const DOCUMENT_READ_DESCRIPTORS = capabilityAliasesFor(DOCUMENT_READ_CAPABILITY.id, 'pi').map((alias) => {
+  const descriptor = Object.values(documentToolDescriptors).find((candidate) => candidate.name === alias);
+  if (!descriptor) throw new Error(`Missing document tool projection for ${alias}`);
+  return descriptor;
+});
+const DOCUMENT_NON_READ_DESCRIPTORS = Object.values(documentToolDescriptors).filter(
+  (descriptor) => !DOCUMENT_READ_DESCRIPTORS.includes(descriptor),
+);
 
 export function captureAgentHistory(history: AgentChatHistory): AgentChatHistory {
   if (!history || typeof history !== 'object') throw new Error('Explicit Agent history scope is required');
@@ -40,10 +50,9 @@ export function captureAgentChatRequest(input: AgentChatRequest): AgentChatReque
 }
 
 export function agentToolsForCapability(capability: AgentChatRequest['capability']): RuntimeToolDescriptor[] {
-  const documents = documentToolDescriptors;
   const canvas = canvasToolDescriptors;
-  const descriptors = capability === 'creation-editor' ? Object.values(documents)
-    : capability === 'creation-chat' ? [documents.read_full_text, documents.read_selection, documents.author_skill]
+  const descriptors = capability === 'creation-editor' ? [...DOCUMENT_READ_DESCRIPTORS, ...DOCUMENT_NON_READ_DESCRIPTORS]
+    : capability === 'creation-chat' ? [...DOCUMENT_READ_DESCRIPTORS, documentToolDescriptors.author_skill]
       : capability === 'canvas-agent' ? [...Object.values(canvas), ...Object.values(timelineToolDescriptors)]
         : capability === 'canvas-refine' ? [canvas.set_node_prompt]
           : capability === 'storyboard' ? [canvas[CANVAS_READ_CAPABILITY.aliases.pi], canvas.propose_storyboard_plan] : [];

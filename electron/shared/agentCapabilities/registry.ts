@@ -34,3 +34,11 @@ export function resolveCapabilityAlias(alias: string):
   | undefined {
   return CAPABILITY_ALIAS_ENTRIES.find((entry) => entry.alias === alias);
 }
+
+export function capabilityAliasesFor(contractId: string, surface: string): readonly string[] {
+  return Object.freeze(
+    CAPABILITY_ALIAS_ENTRIES
+      .filter((entry) => entry.contract.id === contractId && entry.surface === surface)
+      .map((entry) => entry.alias),
+  );
+}

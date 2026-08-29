@@ -51,6 +51,11 @@ function binding(id: string, projectId = 'project-a') {
 function harness() {
   let suspensionId = 0
   let readHandler: ((request: { binding: ReturnType<typeof binding> }) => unknown | Promise<unknown>) | undefined
+  let documentReadHandler: ((request: {
+    binding: ReturnType<typeof binding>
+    documentId: string
+    scope: 'full' | 'selection'
+  }) => unknown | Promise<unknown>) | undefined
   const bridge = {
     suspend: vi.fn(async () => ({ suspension: suspension(String(++suspensionId)) })),
     commitCanvasRead: vi.fn(async (input: { projectId: string }) => ({
@@ -64,12 +69,25 @@ function harness() {
       readHandler = handler
       return () => { readHandler = undefined }
     }),
+    onDocumentRead: vi.fn((handler: typeof documentReadHandler) => {
+      documentReadHandler = handler
+      return () => { documentReadHandler = undefined }
+    }),
   }
   const coordinator = createProjectCanvasReadSurfaceCoordinator({
     getSurfaceBridge: () => bridge,
     createSurfaceInstanceId: () => 'surface-document-1',
   })
-  return { coordinator, bridge, read: (request: { binding: ReturnType<typeof binding> }) => readHandler?.(request) }
+  return {
+    coordinator,
+    bridge,
+    read: (request: { binding: ReturnType<typeof binding> }) => readHandler?.(request),
+    readDocument: (request: {
+      binding: ReturnType<typeof binding>
+      documentId: string
+      scope: 'full' | 'selection'
+    }) => documentReadHandler?.(request),
+  }
 }
 
 describe('project canvas-read Surface hydration coordinator', () => {
@@ -247,16 +265,50 @@ describe('project canvas-read Surface hydration coordinator', () => {
   it('registers and tears down the exact coordinator and its read source as one lifecycle', async () => {
     const test = harness()
     const readSnapshot = vi.fn(() => ({ nodes: [{ id: 'live-node' }] }))
-    const unregister = registerProjectCanvasReadSurface(test.coordinator, readSnapshot)
+    const readDocument = vi.fn(({ scope }: { documentId: string; scope: 'full' | 'selection' }) => ({
+      text: scope === 'full' ? 'full draft' : 'selected text',
+    }))
+    const unregister = registerProjectCanvasReadSurface(test.coordinator, readSnapshot, readDocument)
     const epoch = test.coordinator.beginHydration()
     await epoch.waitUntilSuspended()
     const committed = await epoch.commitCanvasRead('project-a')
 
     expect(captureCurrentProjectCanvasReadSurfaceBinding()).toBe(committed)
     expect(test.read({ binding: committed! })).toEqual({ nodes: [{ id: 'live-node' }] })
+    expect(test.readDocument({
+      binding: structuredClone(committed!),
+      documentId: 'document-a',
+      scope: 'selection',
+    })).toEqual({ text: 'selected text' })
+    expect(readDocument).toHaveBeenCalledWith({ documentId: 'document-a', scope: 'selection' })
+    expect(() => test.readDocument({
+      binding: { ...structuredClone(committed!), nonce: 'forged' },
+      documentId: 'document-a',
+      scope: 'full',
+    })).toThrow(expect.objectContaining({ code: 'surface_port_stale' }))
 
     unregister()
     expect(captureCurrentProjectCanvasReadSurfaceBinding()).toBeNull()
     expect(test.read({ binding: committed! })).toBeUndefined()
+    expect(test.readDocument({
+      binding: committed!,
+      documentId: 'document-a',
+      scope: 'full',
+    })).toBeUndefined()
+  })
+
+  it('suspends document reads immediately when the active project rotates', async () => {
+    const test = harness()
+    const unregister = registerProjectCanvasReadSurface(test.coordinator, () => ({}), () => ({ text: 'draft' }))
+    const epoch = test.coordinator.beginHydration()
+    await epoch.waitUntilSuspended()
+    const committed = await epoch.commitCanvasRead('project-a')
+    expect(test.readDocument({ binding: committed!, documentId: 'document-a', scope: 'full' })).toEqual({ text: 'draft' })
+
+    test.coordinator.beginHydration()
+    expect(() => test.readDocument({ binding: committed!, documentId: 'document-a', scope: 'full' })).toThrow(
+      expect.objectContaining({ code: 'surface_port_suspended' }),
+    )
+    unregister()
   })
 })

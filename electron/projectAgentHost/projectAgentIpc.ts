@@ -18,6 +18,7 @@ import type { ProjectAgentProductionRuntime } from "./projectAgentProductionRunt
 import type { ProjectAgentProposalReceiptService } from "./projectAgentProposalReceiptStore";
 import type { CanvasReadSurfaceIpcCapture } from "../capabilityCore/canvasReadSurfaceIpc";
 import type { PiCanvasReadTransportAdapter } from "../capabilityCore/canvasReadTransportAdapters";
+import type { PiDocumentReadTransportAdapter } from "../capabilityCore/documentReadTransportAdapters";
 import { ProjectAgentSubscriptionError } from "./projectAgentExecutionCoordinator";
 
 export const PROJECT_AGENT_OPEN_CHANNEL = "nomi:projectAgent:open";
@@ -195,6 +196,11 @@ export function registerProjectAgentIpc(
       binding: ProjectBinding,
       requestId: string,
     ) => PiCanvasReadTransportAdapter;
+    captureDocumentRead?: (
+      event: IpcMainInvokeEvent,
+      binding: ProjectBinding,
+      requestId: string,
+    ) => PiDocumentReadTransportAdapter;
     /** Main-only migration hook; it runs after sender/binding verification and before open. */
     prepareProject?: (
       binding: ProjectBinding,
@@ -248,6 +254,7 @@ export function registerProjectAgentIpc(
     // Surface capture proves the binding belongs to this live main-frame
     // owner. The opaque port remains owned by the app-main lifecycle.
     let canvasRead: PiCanvasReadTransportAdapter | undefined;
+    let documentRead: PiDocumentReadTransportAdapter | undefined;
     let subscription;
     let prepared: ProjectAgentPreparedProject | void;
     const sender = event.sender;
@@ -279,13 +286,20 @@ export function registerProjectAgentIpc(
       canvasRead = input.captureCanvasRead
         ? input.captureCanvasRead(event, binding, `project-agent-open-${binding.projectId}`)
         : (input.surfaceCapture.captureCanvasReadPort(event, binding), undefined);
+      documentRead = input.captureDocumentRead?.(event, binding, `project-agent-open-${binding.projectId}`);
       prepared = await input.prepareProject?.(binding);
       assertCurrentAttempt();
-      subscription = await input.runtime.executionCoordinator.open(binding, canvasRead ? { canvasRead } : undefined);
+      subscription = await input.runtime.executionCoordinator.open(
+        binding,
+        canvasRead || documentRead ? { ...(canvasRead ? { canvasRead } : {}), ...(documentRead ? { documentRead } : {}) } : undefined,
+      );
       assertCurrentAttempt();
     } catch (error) {
       if (subscription) input.runtime.executionCoordinator.release(subscription.subscriptionId);
-      else canvasRead?.dispose();
+      else {
+        canvasRead?.dispose();
+        documentRead?.dispose();
+      }
       cleanupAttempt();
       if (openAttempts.get(sender) === attempt) openAttempts.delete(sender);
       throw error;

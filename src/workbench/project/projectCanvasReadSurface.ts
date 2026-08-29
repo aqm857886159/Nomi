@@ -34,6 +34,7 @@ export type ProjectCanvasReadSurfaceCoordinator = Readonly<{
     snapshot: unknown,
   ): Promise<CapturedCanvasReadSnapshotHandleWire>
   registerCanvasReadSource(readSnapshot: () => unknown): () => void
+  registerDocumentReadSource(readDocument: (input: { documentId: string; scope: "full" | "selection" }) => unknown): () => void
 }>;
 
 let registeredCoordinator: ProjectCanvasReadSurfaceCoordinator | null = null
@@ -55,15 +56,22 @@ export function registerProjectCanvasReadSurfaceCoordinator(
 export function registerProjectCanvasReadSurface(
   coordinator: ProjectCanvasReadSurfaceCoordinator,
   readSnapshot: () => unknown,
+  readDocument?: (input: { documentId: string; scope: 'full' | 'selection' }) => unknown,
 ): () => void {
   const unregisterCoordinator = registerProjectCanvasReadSurfaceCoordinator(coordinator)
+  let unregisterSnapshot: (() => void) | undefined
+  let unregisterDocument: (() => void) | undefined
   try {
-    const unregisterSource = coordinator.registerCanvasReadSource(readSnapshot)
+    unregisterSnapshot = coordinator.registerCanvasReadSource(readSnapshot)
+    unregisterDocument = readDocument ? coordinator.registerDocumentReadSource(readDocument) : undefined
     return () => {
-      unregisterSource()
+      unregisterDocument?.()
+      unregisterSnapshot?.()
       unregisterCoordinator()
     }
   } catch (error) {
+    unregisterDocument?.()
+    unregisterSnapshot?.()
     unregisterCoordinator()
     throw error
   }
@@ -237,6 +245,16 @@ export function createProjectCanvasReadSurfaceCoordinator(input: Readonly<{
         // The preload invokes this handler synchronously; the store snapshot is
         // therefore captured against the exact binding before any promise turn.
         return readSnapshot()
+      })
+    },
+    registerDocumentReadSource(readDocument) {
+      const bridge = input.getSurfaceBridge()
+      if (!bridge || !readDocument) return () => undefined
+      return bridge.onDocumentRead(({ binding, documentId, scope }) => {
+        const state = current
+        if (!state || !state.binding) throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
+        if (!sameBinding(binding, state.binding)) throw new SurfacePortWireError('surface_port_stale')
+        return readDocument({ documentId, scope })
       })
     },
   })

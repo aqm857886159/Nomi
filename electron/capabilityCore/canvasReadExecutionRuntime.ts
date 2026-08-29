@@ -9,6 +9,7 @@ import {
   createMainCapabilityExecutorRegistry,
   type CapabilityExecutorRegistry,
 } from "./capabilityExecutorRegistry";
+import { resolveVerifiedCapabilityExecutionTarget } from "./verifiedCapabilityInvocation";
 import {
   createCanvasReadPortResolver,
   type DiskCanvasReadPortDeps,
@@ -61,7 +62,14 @@ export function registerMainCanvasReadExecutionRuntime(input: Readonly<{
     capturedSnapshots: input.capturedSnapshots,
   });
   return Object.freeze({
-    executor: createMainCapabilityExecutorRegistry({ resolveCanvasReadPort }),
+    executor: createMainCapabilityExecutorRegistry({
+      resolveCanvasReadPort,
+      resolveDocumentReadPort: async (invocation) => {
+        const target = resolveVerifiedCapabilityExecutionTarget(invocation);
+        if (target.kind !== "document-surface") throw new Error("capability_unsupported");
+        return surfacePortRuntime.createDocumentReadPort(target.capturedPort, target.documentId);
+      },
+    }),
     surfacePortRuntime,
   });
 }

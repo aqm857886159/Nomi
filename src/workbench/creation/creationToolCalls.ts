@@ -1,4 +1,3 @@
-import type { CreationDocumentTools } from '../workbenchTypes'
 import type { ToolCallEvent } from '../ai/workbenchAgentRunner'
 import { importWorkbenchSkill, getAvailableSkillProviders, skillCapabilityFor, type SkillProviderKind } from '../api/skillApi'
 import { isWriteTool, type PendingDocToolCall, type TurnHandle } from './creationToolContracts'
@@ -8,19 +7,12 @@ import { isWriteTool, type PendingDocToolCall, type TurnHandle } from './creatio
 export function createCreationToolHandler(input: {
   turn: TurnHandle
   allowsWrite: boolean
-  readTools: () => CreationDocumentTools | null
   enqueue: (call: PendingDocToolCall) => void
   skillSaveFailed: () => string
 }): (event: ToolCallEvent) => Promise<void> {
   return async (event) => {
     if (!input.turn.canWrite()) {
       await event.confirm({ ok: false, denied: true, message: 'creation turn abandoned' })
-      return
-    }
-    if (event.toolName === 'read_full_text' || event.toolName === 'read_selection') {
-      const tools = input.readTools()
-      const text = event.toolName === 'read_full_text' ? tools?.readFullText() : tools?.readSelectionText()
-      await event.confirm({ ok: true, result: { text: text ?? '' }, silent: true })
       return
     }
     if (event.toolName === 'author_skill') {

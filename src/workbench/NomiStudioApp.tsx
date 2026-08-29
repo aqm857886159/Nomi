@@ -55,6 +55,7 @@ import {
 import { hydrateWorkbenchProjectWithRecovery } from './project/projectHydrationRecovery'
 import { runProjectAssetHealthCheck } from './generationCanvas/runner/projectAssetHealthCheck'
 import { abandonPendingCanvasWrite } from './generationCanvas/events/canvasWriteBoundary'
+import { SurfacePortWireError } from '../../electron/shared/surfacePortBinding'
 
 type AppView = 'library' | 'studio'
 
@@ -270,7 +271,18 @@ export default function NomiStudioApp(): JSX.Element {
   React.useEffect(() => registerCapabilityApplyHandler(), [])
   // B4 只读 Surface 端口复用同一 coordinator binding，不复制项目真相。
   React.useEffect(
-    () => registerProjectCanvasReadSurface(projectSurface, readGenerationCanvasSnapshot),
+    () => registerProjectCanvasReadSurface(
+      projectSurface,
+      readGenerationCanvasSnapshot,
+      ({ documentId, scope }) => {
+        const store = useWorkbenchStore.getState()
+        const tools = store.creationDocumentTools
+        if (!tools || store.activeDocumentId !== documentId) {
+          throw new SurfacePortWireError('surface_port_stale')
+        }
+        return { text: scope === 'full' ? tools.readFullText() : tools.readSelectionText() }
+      },
+    ),
     [projectSurface],
   )
 

@@ -19,6 +19,9 @@ import { projectAgentPartitionKey, sameProjectAgentBinding } from "./projectAgen
 import type { OfflineProjectAgentHost } from "./projectAgentHost";
 import type { ProjectAgentRepositoryRouter } from "./projectAgentRepositoryRouter";
 import type { PiCanvasReadTransportAdapter } from "../capabilityCore/canvasReadTransportAdapters";
+import type { PiDocumentReadTransportAdapter } from "../capabilityCore/documentReadTransportAdapters";
+import { resolveCapabilityAlias } from "../shared/agentCapabilities/registry";
+import { DOCUMENT_READ_CAPABILITY } from "../shared/agentCapabilities/documentRead";
 
 export type ProjectAgentSubscription = Readonly<{
   subscriptionId: string;
@@ -147,6 +150,7 @@ function toolItem(
   now: string,
 ): ProjectAgentItem {
   const status = record.status === "ok" ? "done" : record.status === "cancelled" ? "stopped" : "failed";
+  const canonicalCapability = resolveCapabilityAlias(record.toolName)?.contract;
   return Object.freeze({
     itemId: `tool-${digest([binding, turn.executionToken, record.toolCallId])}`,
     threadId: turn.threadId,
@@ -154,7 +158,9 @@ function toolItem(
     kind: "tool" as const,
     toolCallId: record.toolCallId,
     invocationId: `invocation-${digest([turn.executionToken, record.toolCallId])}`,
-    capability: { id: record.toolName, version: 1 },
+    capability: canonicalCapability
+      ? { id: canonicalCapability.id, version: canonicalCapability.version }
+      : { id: record.toolName, version: 1 },
     ...(record.error ? { text: record.error } : {}),
     resultRef: `result-${digest(record.result ?? record.error ?? record.status)}`,
     status,
@@ -168,7 +174,7 @@ function toolItem(
 export type ProjectAgentExecutionCoordinator = Readonly<{
   open: (
     binding: ProjectBinding,
-    options?: Readonly<{ canvasRead?: PiCanvasReadTransportAdapter }>,
+    options?: Readonly<{ canvasRead?: PiCanvasReadTransportAdapter; documentRead?: PiDocumentReadTransportAdapter }>,
   ) => Promise<ProjectAgentSubscription>;
   snapshot: (subscriptionId: string) => ProjectAgentHostState;
   dispatch: (subscriptionId: string, mutation: ProjectAgentMutation) => ReturnType<OfflineProjectAgentHost["dispatch"]>;
@@ -205,6 +211,7 @@ export function createProjectAgentExecutionCoordinator(
   const partitionEpochs = new Map<string, number>();
   const deliveries = new Map<string, SubscriptionDelivery>();
   const canvasReads = new Map<string, PiCanvasReadTransportAdapter | undefined>();
+  const documentReads = new Map<string, PiDocumentReadTransportAdapter | undefined>();
   const runAgent =
     deps.runAgent ?? (async (request, hooks) => (await import("../ai/agentChatV2")).runAgentChatV2(request, hooks));
   const now = deps.now ?? (() => new Date().toISOString());
@@ -303,7 +310,7 @@ export function createProjectAgentExecutionCoordinator(
 
   async function open(
     binding: ProjectBinding,
-    options: Readonly<{ canvasRead?: PiCanvasReadTransportAdapter }> = {},
+    options: Readonly<{ canvasRead?: PiCanvasReadTransportAdapter; documentRead?: PiDocumentReadTransportAdapter }> = {},
   ): Promise<ProjectAgentSubscription> {
     const partitionKey = projectAgentPartitionKey(binding);
     let partition = partitions.get(partitionKey);
@@ -345,6 +352,7 @@ export function createProjectAgentExecutionCoordinator(
       buffered: [],
     });
     canvasReads.set(subscription.subscriptionId, options.canvasRead);
+    documentReads.set(subscription.subscriptionId, options.documentRead);
     return subscription;
   }
 
@@ -598,6 +606,24 @@ export function createProjectAgentExecutionCoordinator(
     return selected;
   }
 
+  function documentReadFor(partition: ExecutionPartition, preferredSubscriptionId: string) {
+    const currentPreferred = partition.subscriptionIds.has(preferredSubscriptionId)
+      ? documentReads.get(preferredSubscriptionId)
+      : undefined;
+    if (currentPreferred) return currentPreferred;
+    let selected: PiDocumentReadTransportAdapter | undefined;
+    let selectedEpoch = -1;
+    for (const subscriptionId of partition.subscriptionIds) {
+      const subscription = subscriptions.get(subscriptionId);
+      const adapter = documentReads.get(subscriptionId);
+      if (subscription && adapter && subscription.subscriptionEpoch > selectedEpoch) {
+        selected = adapter;
+        selectedEpoch = subscription.subscriptionEpoch;
+      }
+    }
+    return selected;
+  }
+
   async function executeTurn(partition: ExecutionPartition, execution: ActiveExecution): Promise<"continue" | "stop"> {
     const startAt = now();
     const current = partition.host.getSnapshot(partition.binding);
@@ -700,6 +726,13 @@ export function createProjectAgentExecutionCoordinator(
           const frozen = partition.requests.get(execution.turn.turnId);
           const read = await canvasReadFor(partition, frozen?.preferredSubscriptionId ?? "")?.tryExecute(call, signal);
           if (read) return read;
+          const documentId = execution.queueItem.target.kind === "document" ? execution.queueItem.target.documentId : "";
+          const documentAdapter = documentReadFor(partition, frozen?.preferredSubscriptionId ?? "");
+          const document = await documentAdapter?.tryExecute(call, documentId, signal);
+          if (document) return document;
+          if (resolveCapabilityAlias(call.toolName)?.contract.id === DOCUMENT_READ_CAPABILITY.id) {
+            return { ok: false, code: "surface_port_unavailable", message: "surface_port_unavailable" };
+          }
           const decision = await awaitToolDecision(partition, execution, call, signal);
           if (decision.ok && !decision.silent) {
             try {
@@ -981,6 +1014,8 @@ export function createProjectAgentExecutionCoordinator(
       deliveries.delete(subscriptionId);
       canvasReads.get(subscriptionId)?.dispose();
       canvasReads.delete(subscriptionId);
+      documentReads.get(subscriptionId)?.dispose();
+      documentReads.delete(subscriptionId);
     },
     subscriptionCount: () => subscriptions.size,
   });

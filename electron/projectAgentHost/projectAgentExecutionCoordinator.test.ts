@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
   ProjectAgentExecutionEvent,
@@ -732,6 +732,55 @@ describe("ProjectAgentExecutionCoordinator", () => {
         toolCalls: [{ toolCallId: seen.toolCallId, status: "ok" }],
       },
     });
+  });
+
+  it("auto-executes document read aliases through the Host without a pending confirmation", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-document-read-execution-"));
+    const documentAdapter = {
+      tryExecute: vi.fn(async (call: { toolName: string }, documentId: string) =>
+        call.toolName === "read_full_text"
+          ? { ok: true as const, result: { text: `text:${documentId}` }, silent: true as const }
+          : null,
+      ),
+      dispose: vi.fn(),
+    };
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-document-read",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = { toolCallId: "tool-document-read", toolName: "read_full_text", args: {} };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          expect(decision).toEqual({ ok: true, result: { text: "text:document-document-read" }, silent: true });
+          return {
+            id: "result-document-read",
+            status: "finished",
+            text: "done",
+            finishReason: "stop",
+            artifacts: [],
+            toolCalls: [{ ...call, status: "ok", result: decision.result, decision }],
+            usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+          } satisfies AgentChatResponse;
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, { documentRead: documentAdapter });
+    const input = executionInput("document-read", 0);
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(documentAdapter.tryExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ toolName: "read_full_text" }),
+      "document-document-read",
+      expect.any(AbortSignal),
+    );
+    expect(final.items.filter((item) => item.kind === "proposal")).toHaveLength(0);
+    expect(final.items.find((item) => item.kind === "tool")).toMatchObject({
+      capability: { id: "document.read", version: 1 },
+      status: "done",
+    });
+    coordinator.release(opened.subscriptionId);
+    expect(documentAdapter.dispose).toHaveBeenCalledOnce();
   });
 
   it("terminalizes a running turn when the model runtime fails", async () => {

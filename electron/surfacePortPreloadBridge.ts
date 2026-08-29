@@ -1,9 +1,12 @@
 import {
   SURFACE_CANVAS_READ_REPLY_CHANNEL,
   SURFACE_CANVAS_READ_REQUEST_CHANNEL,
+  SURFACE_DOCUMENT_READ_REPLY_CHANNEL,
+  SURFACE_DOCUMENT_READ_REQUEST_CHANNEL,
   type CapturedCanvasReadSnapshotHandleWire,
   type CanvasReadSurfaceBridge,
   type CanvasReadSurfaceRequestWire,
+  type DocumentReadSurfaceRequestWire,
   type SurfacePortBindingWire,
   SurfacePortWireError,
   type SurfaceSuspensionWire,
@@ -38,6 +41,16 @@ function readRequest(value: unknown): CanvasReadSurfaceRequestWire | null {
   if (typeof request.requestId !== 'string' || !request.requestId.trim()) return null
   if (!request.binding || typeof request.binding !== 'object' || Array.isArray(request.binding)) return null
   return request as unknown as CanvasReadSurfaceRequestWire
+}
+
+function documentReadRequest(value: unknown): DocumentReadSurfaceRequestWire | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const request = value as Record<string, unknown>
+  if (typeof request.requestId !== 'string' || !request.requestId.trim()) return null
+  if (!request.binding || typeof request.binding !== 'object' || Array.isArray(request.binding)) return null
+  if (typeof request.documentId !== 'string' || !request.documentId.trim()) return null
+  if (request.scope !== 'full' && request.scope !== 'selection') return null
+  return request as unknown as DocumentReadSurfaceRequestWire
 }
 
 export function createCanvasReadSurfacePreloadBridge(
@@ -93,6 +106,33 @@ export function createCanvasReadSurfacePreloadBridge(
             result: value,
           }),
           (error) => events.send(SURFACE_CANVAS_READ_REPLY_CHANNEL, {
+            requestId: request.requestId,
+            binding: request.binding,
+            error: {
+              code: error instanceof SurfacePortWireError ? error.code : 'surface_port_unavailable',
+            },
+          }),
+        )
+      })
+    },
+    onDocumentRead(handler) {
+      if (!events) throw new SurfacePortWireError('surface_port_unavailable')
+      return events.subscribe(SURFACE_DOCUMENT_READ_REQUEST_CHANNEL, (payload) => {
+        const request = documentReadRequest(payload)
+        if (!request) return
+        let result: unknown | Promise<unknown>
+        try {
+          result = handler({ binding: request.binding, documentId: request.documentId, scope: request.scope })
+        } catch (error) {
+          result = Promise.reject(error)
+        }
+        void Promise.resolve(result).then(
+          (value) => events.send(SURFACE_DOCUMENT_READ_REPLY_CHANNEL, {
+            requestId: request.requestId,
+            binding: request.binding,
+            result: value,
+          }),
+          (error) => events.send(SURFACE_DOCUMENT_READ_REPLY_CHANNEL, {
             requestId: request.requestId,
             binding: request.binding,
             error: {

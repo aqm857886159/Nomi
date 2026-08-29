@@ -111,7 +111,7 @@ type InternalAuthorityEvidence = Readonly<{
   canonicalRootDigest: string;
 }>;
 
-type CanvasReadAuthorityEvidence =
+type CapabilityAuthorityEvidence =
   | McpAuthorityEvidence
   | RendererAuthorityEvidence
   | CapturedRendererAuthorityEvidence
@@ -122,10 +122,14 @@ export type VerifiedCanvasReadExecutionTarget =
   | Readonly<{ kind: "captured-snapshot"; capturedPort: CapturedCanvasReadSnapshotPort }>
   | Readonly<{ kind: "project"; binding: ProjectBinding; canonicalRootDigest: string }>;
 
+export type VerifiedCapabilityExecutionTarget =
+  | VerifiedCanvasReadExecutionTarget
+  | Readonly<{ kind: "document-surface"; capturedPort: CapturedCanvasReadPort; documentId: string }>;
+
 type InvocationState = Readonly<{
-  evidence: CanvasReadAuthorityEvidence;
-  revalidate: () => Promise<CanvasReadAuthorityEvidence>;
-  executionTarget: VerifiedCanvasReadExecutionTarget;
+  evidence: CapabilityAuthorityEvidence;
+  revalidate: () => Promise<CapabilityAuthorityEvidence>;
+  executionTarget: VerifiedCapabilityExecutionTarget;
   policyRevision: number;
 }>;
 
@@ -263,7 +267,7 @@ function authorityEvidence(lease: ProjectLeaseV2): McpAuthorityEvidence {
   });
 }
 
-function sameEvidence(left: CanvasReadAuthorityEvidence, right: CanvasReadAuthorityEvidence): boolean {
+function sameEvidence(left: CapabilityAuthorityEvidence, right: CapabilityAuthorityEvidence): boolean {
   return stableJson(left) === stableJson(right);
 }
 
@@ -285,9 +289,9 @@ function mintCapabilityInvocation<Input, Target>(
     policyRevision: number;
     semanticInput: Input;
     target: Target;
-    evidence: CanvasReadAuthorityEvidence;
-    revalidate: () => Promise<CanvasReadAuthorityEvidence>;
-    executionTarget: VerifiedCanvasReadExecutionTarget;
+    evidence: CapabilityAuthorityEvidence;
+    revalidate: () => Promise<CapabilityAuthorityEvidence>;
+    executionTarget: VerifiedCapabilityExecutionTarget;
   }>,
 ): VerifiedCapabilityInvocation<Input, Target> {
   const capability = capabilityIdentity(input.capability.id, input.capability.version);
@@ -329,8 +333,8 @@ function mintCapabilityInvocation<Input, Target>(
 function mintCanvasReadInvocation(
   input: Readonly<{
     semanticInput: CanvasReadInput;
-    evidence: CanvasReadAuthorityEvidence;
-    revalidate: () => Promise<CanvasReadAuthorityEvidence>;
+    evidence: CapabilityAuthorityEvidence;
+    revalidate: () => Promise<CapabilityAuthorityEvidence>;
     executionTarget: VerifiedCanvasReadExecutionTarget;
   }>,
 ): McpCanvasReadInvocation {
@@ -620,6 +624,54 @@ export type InternalDocumentReadVerifiedInvocationFactory = Readonly<{
   >;
 }>;
 
+export type RendererDocumentReadVerifiedInvocationFactory = Readonly<{
+  mint(input: Readonly<{ toolCallId: string; documentId: string; input: unknown }>): Promise<
+    VerifiedCapabilityInvocation<DocumentReadInput, Readonly<{ kind: "document"; documentId: string }>>
+  >;
+}>;
+
+/** Main-issued document read invocation over the same captured renderer owner as canvas.read. */
+export function createRendererDocumentReadVerifiedInvocationFactory(
+  input: Readonly<{
+    registry: CanvasReadSurfaceRegistry;
+    capturedPort: CapturedCanvasReadPort;
+    requestId: string;
+  }>,
+): RendererDocumentReadVerifiedInvocationFactory {
+  try {
+    assertCanvasReadSurfaceRegistry(input.registry);
+    input.registry.resolveCapturedCanvasReadPort(input.capturedPort);
+  } catch {
+    throw new CapabilityInvocationError("capability_authority_invalid");
+  }
+  const requestId = nonEmptyString(input.requestId);
+  const registry = input.registry;
+  const capturedPort = input.capturedPort;
+  return Object.freeze({
+    async mint({ toolCallId: toolCallIdValue, documentId: documentIdValue, input: semanticValue }) {
+      const toolCallId = nonEmptyString(toolCallIdValue);
+      const documentId = nonEmptyString(documentIdValue);
+      const semanticInput = documentReadSemanticInputSchema.parse(semanticValue);
+      const caller = Object.freeze({ kind: "embedded-agent" as const, requestId, toolCallId });
+      const verify = async (): Promise<RendererAuthorityEvidence> => {
+        const dispatch = registry.resolveCapturedCanvasReadPort(capturedPort);
+        const binding = await registry.assertCanvasReadPortReply(capturedPort, dispatch.binding);
+        return rendererEvidence(binding, caller);
+      };
+      const evidence = await verify();
+      return mintCapabilityInvocation({
+        capability: DOCUMENT_READ_CAPABILITY,
+        policyRevision: CANVAS_READ_INVOCATION_POLICY_REVISION,
+        semanticInput,
+        evidence,
+        revalidate: verify,
+        target: Object.freeze({ kind: "document" as const, documentId }),
+        executionTarget: Object.freeze({ kind: "document-surface" as const, capturedPort, documentId }),
+      });
+    },
+  });
+}
+
 /** Main-only document.read mint boundary; document identity is captured in the target. */
 export function createInternalDocumentReadVerifiedInvocationFactory(
   input: Readonly<{
@@ -685,6 +737,18 @@ export function assertVerifiedCapabilityInvocation(
 export function resolveVerifiedCanvasReadExecutionTarget(
   invocation: VerifiedCapabilityInvocation<unknown, unknown>,
 ): VerifiedCanvasReadExecutionTarget {
+  assertVerifiedCapabilityInvocation(invocation);
+  const state = invocationStates.get(invocation);
+  if (!state) throw new CapabilityInvocationError("capability_invocation_unverified");
+  if (state.executionTarget.kind === "document-surface") {
+    throw new CapabilityInvocationError("capability_authority_invalid");
+  }
+  return state.executionTarget;
+}
+
+export function resolveVerifiedCapabilityExecutionTarget(
+  invocation: VerifiedCapabilityInvocation<unknown, unknown>,
+): VerifiedCapabilityExecutionTarget {
   assertVerifiedCapabilityInvocation(invocation);
   const state = invocationStates.get(invocation);
   if (!state) throw new CapabilityInvocationError("capability_invocation_unverified");
