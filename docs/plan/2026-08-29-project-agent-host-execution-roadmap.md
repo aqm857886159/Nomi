@@ -18,7 +18,7 @@
 | Phase 2A | 已完成 | Host foundation、CAS、迁移/恢复合同已落地 |
 | Phase 2B | 已完成 checkpoint | 单 Host、两面板投影、旧 writer 删除、receipt/Undo/项目切换已收口 |
 | Phase 3A | 已完成 checkpoint | canonical `document.read` 已通过 Host，旧 read owner 已删除 |
-| Phase 3B | 进行中 | `document.write` 已完成 Registry/Host/Surface/adapter/UI 路由，正在补执行闭环证据 |
+| Phase 3B | 已完成 focused closure | `document.write` 已完成 Registry/Host/Surface/adapter/UI 路由；写入队列必须冻结可执行 anchor/revision/hash，缺失或 whole-document 占位在入队前 fail closed |
 | Phase 3 其余 | 未开始 | canvas reversible writes、timeline read/write、精确 result/version 引用 |
 | Phase 4 | 未开始 | ProductionRun、付费/破坏性能力、receipt、TaskRef、typed cancel、export truth |
 | Phase 5 | 未开始 | Skill/MCP 从 Registry 派生，list/read guard、shrink-only、legacy firewall |
@@ -116,9 +116,9 @@
 
 ## 下一步顺序
 
-1. 补齐并通过 `document.write` Host execution coordinator：拒绝不执行、确认后
-   执行、proposal 生命周期正确、stale revision/anchor fail closed。
-2. 按同一垂直切片完成 canvas reversible writes 和 timeline read/write，形成
+1. 按同一垂直切片完成 canvas reversible writes 和 typed decline/cancel/timeout/
+   unsupported outcomes，不新增第二套 approval、status 或 Undo owner。
+2. 完成 timeline read/write 和精确 result/version 引用，形成
    Phase 3 出口矩阵并整合一次 `main`。
 3. 推进 ProductionRun/付费链与 export integrity，形成 Phase 4 出口。
 4. 阅读历史 PR 增量并完成 Registry 派生的 Skill/MCP surface（Phase 5）。

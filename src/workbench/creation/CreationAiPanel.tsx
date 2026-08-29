@@ -29,6 +29,7 @@ import {
   type CreationAiModeId,
 } from './creationAiModes'
 import { writeToolLabelKey } from './creationAiReplyText'
+import { buildDocumentTurnAdmission } from './documentWriteTarget'
 import { useSystemPromptOverrides } from './useSystemPromptOverrides'
 import { useTransientScrollingClass } from './useTransientScrollingClass'
 import type { PendingDocToolCall, WriteToolName } from './creationToolContracts'
@@ -402,8 +403,9 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
     // （「全部加负面词 / 统一冷调 / 第 3 镜改特写」等），交规划师基于现方案改、保留其余。
     // P4：按当前文档取方案，避免切文档后误改别篇的方案。send 内直读 store，保持依赖稳定。
     const liveStore = useWorkbenchStore.getState()
+    const liveDocumentId = liveStore.activeDocumentId
     const selectedDesign = liveStore.activeStoryboardId
-      ? liveStore.storyboardDesignsByDocumentId[liveStore.activeDocumentId]?.find((design) => design.id === liveStore.activeStoryboardId)
+      ? liveStore.storyboardDesignsByDocumentId[liveDocumentId]?.find((design) => design.id === liveStore.activeStoryboardId)
       : undefined
     if (selectedDesign && !selectedDesign.committed && userRequest) {
       launchStoryboardPlanning(userRequest, userRequest)
@@ -439,10 +441,12 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
       : t('creationAi.processDocument', { mode: t(`creationAi.mode.${activeMode.id}.label` as 'creationAi.mode.general.label') }))
     const attachmentClaims = projectAgentAttachmentClaims(readyAttachments)
     const documentState = liveStore.creationDocumentTools?.readState()
-    const documentTarget = {
-      kind: 'document' as const,
-      documentId: activeDocumentId,
-      anchor: documentState?.anchor ?? { kind: 'whole-document' as const },
+    let documentAdmission: ReturnType<typeof buildDocumentTurnAdmission>
+    try {
+      documentAdmission = buildDocumentTurnAdmission(liveDocumentId, documentState, allowsWrite)
+    } catch {
+      setError(t('creationAi.callFailed'))
+      return
     }
     setDraft('')
     clearAttachments()
@@ -469,8 +473,7 @@ export default function CreationAiPanel({ onCollapse }: { onCollapse?: () => voi
         request: canonicalRequest,
         displayPrompt,
         ...(attachmentClaims.length ? { attachmentClaims } : {}),
-        target: documentTarget,
-        ...(documentState ? { preconditions: { document: { revision: documentState.revision, contentHash: documentState.contentHash } } } : {}),
+        ...documentAdmission,
         originSurface: { surfaceId: 'creation-ai-panel', kind: 'document' },
       })
       projectAgentTurnRef.current = result.turnId

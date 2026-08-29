@@ -1,4 +1,4 @@
-import type { DocumentAnchorRef, PreconditionSet } from '../../../electron/shared/capabilityTargeting'
+import type { DocumentAnchorRef, PreconditionSet, TargetRef } from '../../../electron/shared/capabilityTargeting'
 import { SurfacePortWireError } from '../../../electron/shared/surfacePortBinding'
 
 /** The small part of a ProseMirror document needed to validate a frozen anchor. */
@@ -16,6 +16,13 @@ export type DocumentSelectionSnapshot = Readonly<{
 export type DocumentWriteRange = Readonly<{ from: number; to: number }>
 
 export type DocumentStateSnapshot = Readonly<{ revision: number; contentHash: string }>
+
+export type DocumentTurnStateSnapshot = DocumentStateSnapshot & Readonly<{ anchor: DocumentAnchorRef }>
+
+export type DocumentTurnAdmission = Readonly<{
+  target: Extract<TargetRef, { kind: 'document' }>
+  preconditions?: Readonly<{ document: NonNullable<PreconditionSet['document']> }>
+}>
 
 export function documentContentHash(text: string): string {
   let hash = 2166136261
@@ -49,6 +56,33 @@ export function captureDocumentAnchor(
 
 function staleAnchor(): never {
   throw new SurfacePortWireError('surface_port_stale')
+}
+
+/**
+ * Freeze the document authority attached to a Host turn. Write-enabled turns
+ * may never use a whole-document placeholder because it cannot identify the
+ * mutation position that the user intended at enqueue time.
+ */
+export function buildDocumentTurnAdmission(
+  documentId: string,
+  state: DocumentTurnStateSnapshot | undefined,
+  writeEnabled: boolean,
+): DocumentTurnAdmission {
+  if (writeEnabled && (!state || state.anchor.kind === 'whole-document')) staleAnchor()
+
+  const target = Object.freeze({
+    kind: 'document' as const,
+    documentId,
+    anchor: state?.anchor ?? Object.freeze({ kind: 'whole-document' as const }),
+  })
+  if (!state) return Object.freeze({ target })
+
+  return Object.freeze({
+    target,
+    preconditions: Object.freeze({
+      document: Object.freeze({ revision: state.revision, contentHash: state.contentHash }),
+    }),
+  })
 }
 
 export function assertDocumentWritePreconditions(
