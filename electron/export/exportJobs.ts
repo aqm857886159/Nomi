@@ -1,10 +1,23 @@
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { absolutePathFromLocalAssetUrlAnyProject } from "../assets/localAssetFile";
 import { assertProjectExportRelativePath } from "./exportPaths";
-import { ExportJobManager, type ExportJobEvent, type ExportJobProjectIdentity, type ExportJobSnapshot } from "./exportJobManager";
+import {
+  createExportJobExecutionEvidence,
+  ExportJobManager,
+  type ExportJobEvent,
+  type ExportJobExecutionEvidence,
+  type ExportJobProjectIdentity,
+  type ExportJobSnapshot,
+  type ExportJobVerification,
+} from "./exportJobManager";
 import { assertValidManifest, type NomiRenderManifestV1 } from "./exportManifest";
-import { createExportAuditManifest, deriveWebmExecutionManifest } from "./exportAuditManifest";
+import {
+  createExportAuditManifest,
+  deriveWebmExecutionManifest,
+  exportAuditManifestDigest,
+} from "./exportAuditManifest";
 import { planExport } from "./exportPlanner";
 import { ExportCancelledError, renderFiltergraphToMp4, transcodeWebmFileToMp4, transcodeWebmToMp4, type TimelineMp4ExportResult } from "./ffmpegRunner";
 import { compileFfmpegFiltergraph, type FfmpegFiltergraphPlan, type FfmpegTextOverlayInput } from "./ffmpegFiltergraph";
@@ -38,6 +51,14 @@ type ExportTempInputRequest = {
   jobId?: string;
   chunk?: ArrayBuffer | Uint8Array | number[];
 };
+
+type ProductionRunExportInput = Readonly<{
+  projectId: string;
+  runId: string;
+  outputName: string;
+  manifest: unknown;
+  captureWebm: () => Promise<unknown>;
+}>;
 
 const exportJobManager = new ExportJobManager();
 
@@ -180,6 +201,72 @@ async function tryBuildFiltergraphExport(
   }
 }
 
+export async function executeProductionRunExport(input: ProductionRunExportInput): Promise<{ relativePath: string; size: number }> {
+  const projectId = String(input.projectId || "").trim();
+  const runId = String(input.runId || "").trim();
+  if (!projectId || !/^[A-Za-z0-9._-]{1,160}$/.test(runId)) throw new Error("Production export identity is invalid");
+  const projectDir = projectDirById(projectId);
+  if (!projectDir) throw new Error("Production export project was not found");
+  ensureProjectFolders(projectDir);
+
+  const prepared = await tryBuildFiltergraphExport(input.manifest, projectId);
+  const backend = prepared ? "filtergraph" as const : "webm" as const;
+  const audit = createExportAuditManifest(input.manifest, {
+    projectId,
+    backend,
+    ...(prepared ? { effectiveProfile: prepared.manifest.profile } : {}),
+  });
+  planExport(prepared?.manifest ?? deriveWebmExecutionManifest(audit));
+
+  const runDir = path.join(projectDir, ".nomi", "runs", runId);
+  const workDir = path.join(runDir, "export-work");
+  fs.mkdirSync(workDir, { recursive: true });
+  let inputDigest: string | undefined;
+  let result!: TimelineMp4ExportResult;
+  try {
+    if (prepared) {
+      const textOverlays = writeTextOverlayFiles(input.manifest, workDir);
+      result = await renderFiltergraphToMp4({
+        jobId: `production-${runId}`,
+        projectDir,
+        outputName: input.outputName,
+        profile: prepared.manifest.profile,
+        filtergraph: compileFfmpegFiltergraph({ manifest: prepared.manifest, textOverlays }),
+        durationMs: Math.max(0, prepared.manifest.timeline.durationFrames / Math.max(1, prepared.manifest.timeline.fps) * 1000),
+        stderrLogPath: path.join(runDir, "export-ffmpeg.log"),
+      });
+    } else {
+      const bytes = bufferFromExportBytes(await input.captureWebm() as TimelineMp4ExportRequest["webmBytes"]);
+      inputDigest = createHash("sha256").update(bytes).digest("hex");
+      result = await transcodeWebmToMp4({
+        jobId: `production-${runId}`,
+        projectDir,
+        inputBytes: bytes,
+        outputName: input.outputName,
+        resolution: resolutionFromProfile(audit.profile),
+        aspectRatio: aspectRatioFromProfile(audit.profile),
+        quality: audit.profile.quality || "standard",
+        fps: audit.profile.fps || audit.timeline.fps || 30,
+        durationMs: Math.max(0, audit.timeline.durationFrames / Math.max(1, audit.timeline.fps) * 1000),
+        stderrLogPath: path.join(runDir, "export-ffmpeg.log"),
+      });
+    }
+  } finally {
+    fs.rmSync(workDir, { recursive: true, force: true });
+  }
+
+  fs.writeFileSync(path.join(runDir, "export-execution.json"), `${JSON.stringify({
+    schemaVersion: 1,
+    owner: "production-run",
+    runId,
+    backend,
+    auditManifestDigest: exportAuditManifestDigest(audit),
+    ...(inputDigest ? { inputDigest } : {}),
+    output: { relativePath: result.relativePath, bytes: result.size },
+  }, null, 2)}\n`, "utf8");
+  return { relativePath: result.relativePath, size: result.size };
+}
+
 function exportProjectIdentity(value: ExportJobProjectIdentity): ExportJobProjectIdentity {
   return Object.freeze({
     projectId: String(value.projectId || "").trim(),
@@ -252,6 +339,12 @@ export function getExportJobStatus(projectIdentity: ExportJobProjectIdentity, jo
   const id = String(jobId || "").trim();
   if (!id) throw new Error("jobId is required");
   return exportJobManager.getJobForProject(exportProjectIdentity(projectIdentity), id);
+}
+
+export function verifyExportJob(projectIdentity: ExportJobProjectIdentity, jobId: string): ExportJobVerification {
+  const id = String(jobId || "").trim();
+  if (!id) throw new Error("jobId is required");
+  return exportJobManager.verifyJobOutputForProject(exportProjectIdentity(projectIdentity), id);
 }
 
 export function listExportJobs(projectIdentity: ExportJobProjectIdentity): ExportJobSnapshot[] {
@@ -368,6 +461,7 @@ export async function finishExportTempInput(
     };
 
     let result: TimelineMp4ExportResult;
+    let executionInput: ExportJobExecutionEvidence["input"] = { kind: "filtergraph" };
     if (prepared) {
       // 主路径（startJob 已编译好计划）：filtergraph 直读源文件渲染（含音频 + 取景 WYSIWYG）。
       // 此模式 renderer 未录 WebM，无临时输入文件可读 —— 直接渲染，不调 finishExportTempInputFile。
@@ -388,7 +482,8 @@ export async function finishExportTempInput(
       });
     } else {
       // 降级路径：资产无法本地解析 → renderer 录的 canvas WebM → MP4（无音频）。
-      const { inputPath } = finishExportTempInputFile(job);
+      const { inputPath, size, sha256 } = finishExportTempInputFile(job);
+      executionInput = { kind: "webm", bytes: size, sha256 };
       result = await transcodeWebmFileToMp4({
         jobId: job.id,
         projectDir: job.projectDir,
@@ -416,6 +511,7 @@ export async function finishExportTempInput(
       relativeOutputPath: result.relativePath,
       bytes: result.size,
       durationMs,
+      execution: createExportJobExecutionEvidence(job.manifest, executionInput),
     });
     return result;
   } catch (error) {

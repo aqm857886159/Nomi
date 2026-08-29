@@ -1,4 +1,4 @@
-import type { ExportJobSnapshot } from '../../../../electron/export/exportJobManager'
+import type { ExportJobSnapshot, ExportJobVerification } from '../../../../electron/export/exportJobManager'
 import { EXPORT_STAGES, type ExportQuality, type ExportStage } from '../../../../electron/export/exportTypes'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import { getDesktopBridge } from '../../../desktop/bridge'
@@ -34,6 +34,7 @@ export type ExportToolRuntime = {
     profile: ExportProfileInput
   }): Promise<{ jobId: string; backend: 'filtergraph' | 'webm' }>
   getJob(jobId: string): Promise<ExportJobSnapshot>
+  verifyJob(jobId: string): Promise<ExportJobVerification>
   cancelJob(jobId: string): Promise<{ ok: boolean }>
 }
 
@@ -153,6 +154,11 @@ function defaultRuntime(): ExportToolRuntime {
       if (!bridge?.exports?.status) throw new Error('export_status_unavailable: desktop export status is unavailable')
       return bridge.exports.status(jobId)
     },
+    verifyJob: async (jobId: string) => {
+      const bridge = getDesktopBridge()
+      if (!bridge?.exports?.verify) throw new Error('export_verify_unavailable: desktop export verification is unavailable')
+      return bridge.exports.verify(jobId)
+    },
     cancelJob: async (jobId: string) => {
       const bridge = getDesktopBridge()
       if (!bridge?.exports?.cancel) throw new Error('export_cancel_unavailable: desktop export cancellation is unavailable')
@@ -196,34 +202,12 @@ export async function applyExportToolCall(
   }
 
   const jobId = requiredString(input.jobId, 'jobId', 160)
+  if (toolName === 'verify_render') {
+    const verification = await runtime.verifyJob(jobId)
+    return { operation: toolName, ...verification }
+  }
   const snapshot = await scopedJob(runtime, jobId)
   if (toolName === 'inspect_export_job') return { operation: toolName, ...compactJob(snapshot) }
-  if (toolName === 'verify_render') {
-    const bytes = snapshot.result?.bytes
-    const verified = snapshot.manifestIntegrity !== 'legacy_incomplete'
-      && snapshot.status === 'succeeded'
-      && typeof bytes === 'number'
-      && bytes > 0
-    return {
-      operation: toolName,
-      jobId,
-      verified,
-      verificationLevel: 'export_job_receipt',
-      contentDecoded: false,
-      status: snapshot.status,
-      ...(snapshot.manifestIntegrity ? { manifestIntegrity: snapshot.manifestIntegrity } : {}),
-      ...(verified
-        ? { bytes, durationMs: snapshot.result?.durationMs ?? null }
-        : {
-            code: snapshot.manifestIntegrity === 'legacy_incomplete'
-              ? 'legacy_incomplete_manifest'
-              : snapshot.status === 'succeeded'
-                ? 'empty_output_receipt'
-                : `export_${snapshot.status}`,
-            failure: failureCategory(snapshot),
-          }),
-    }
-  }
   if (toolName === 'cancel_export_job') {
     if (!isActiveStatus(snapshot.status)) {
       return { operation: toolName, jobId, cancelled: false, status: snapshot.status, code: 'export_not_cancellable' }

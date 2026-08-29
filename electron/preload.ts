@@ -326,6 +326,7 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     writeTempInput: (payload: unknown) => ipcRenderer.invoke("nomi:exports:write-temp-input", payload),
     finishTempInput: (payload: unknown) => ipcRenderer.invoke("nomi:exports:finish-temp-input", payload),
     status: (jobId: string) => ipcRenderer.invoke("nomi:exports:status", jobId),
+    verify: (jobId: string) => ipcRenderer.invoke("nomi:exports:verify", jobId),
     cancel: (jobId: string) => ipcRenderer.invoke("nomi:exports:cancel", jobId),
     onEvent: (callback: (event: unknown) => void) => {
       const listener = (_event: unknown, payload: unknown) => callback(payload);

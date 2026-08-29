@@ -33,6 +33,10 @@ function runtime(overrides: Partial<ExportToolRuntime> = {}): ExportToolRuntime 
     readGenerationNodes: () => [],
     startExport: vi.fn(async () => ({ jobId: 'job-1', backend: 'filtergraph' as const })),
     getJob: vi.fn(async () => job()),
+    verifyJob: vi.fn(async () => ({
+      jobId: 'job-1', verified: false, verificationLevel: 'export_job_output' as const, contentDecoded: false as const,
+      status: 'encoding', manifestIntegrity: 'canonical' as const, code: 'export_encoding',
+    })),
     cancelJob: vi.fn(async () => ({ ok: true })),
     ...overrides,
   }
@@ -89,15 +93,21 @@ describe('project-scoped export Agent tools', () => {
   })
 
   it('labels receipt verification honestly without claiming media decode', async () => {
-    const success = runtime({ getJob: vi.fn(async () => job({ status: 'succeeded', progress: { ratio: 1, stage: 'succeeded', message: 'Succeeded' }, result: { outputPath: 'C:/private/out.mp4', bytes: 4096, durationMs: 2000 } })) })
+    const success = runtime({ verifyJob: vi.fn(async () => ({
+      jobId: 'job-1', verified: true, verificationLevel: 'export_job_output' as const, contentDecoded: false as const,
+      status: 'succeeded', manifestIntegrity: 'canonical' as const, bytes: 4096, durationMs: 2000,
+    })) })
     await expect(applyExportToolCall('verify_render', { jobId: 'job-1' }, success)).resolves.toEqual({
       operation: 'verify_render',
-      jobId: 'job-1', verified: true, verificationLevel: 'export_job_receipt', contentDecoded: false,
-      status: 'succeeded', bytes: 4096, durationMs: 2000,
+      jobId: 'job-1', verified: true, verificationLevel: 'export_job_output', contentDecoded: false,
+      status: 'succeeded', manifestIntegrity: 'canonical', bytes: 4096, durationMs: 2000,
     })
-    const failed = runtime({ getJob: vi.fn(async () => job({ status: 'failed', progress: { ratio: 0.4, stage: 'failed', message: 'Failed' }, error: { message: 'ffmpeg failed at C:/private/input.mp4' } })) })
+    const failed = runtime({ verifyJob: vi.fn(async () => ({
+      jobId: 'job-1', verified: false, verificationLevel: 'export_job_output' as const, contentDecoded: false as const,
+      status: 'succeeded', manifestIntegrity: 'canonical' as const, code: 'missing_output',
+    })) })
     const result = await applyExportToolCall('verify_render', { jobId: 'job-1' }, failed)
-    expect(result).toMatchObject({ verified: false, status: 'failed', failure: 'render_engine' })
+    expect(result).toMatchObject({ verified: false, status: 'succeeded', code: 'missing_output' })
     expect(JSON.stringify(result)).not.toContain('C:/private')
   })
 })

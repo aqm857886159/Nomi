@@ -69,6 +69,12 @@ export function registerExportJobIpc(deps: ExportJobIpcDeps): void {
     await registerExportJobEventForwarding(event.sender, deps);
     return jobs.getExportJobStatus(selection, jobId);
   });
+  ipcMain.handle("nomi:exports:verify", async (event, jobId) => {
+    assertTrustedSender(event);
+    const jobs = await loadExportJobs();
+    const selection = requireActiveProjectSelection(deps);
+    return jobs.verifyExportJob(selection, jobId);
+  });
   ipcMain.handle("nomi:exports:cancel", async (event, jobId) => {
     assertTrustedSender(event);
     const jobs = await loadExportJobs();

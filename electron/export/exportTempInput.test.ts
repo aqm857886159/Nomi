@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -56,6 +57,7 @@ describe("export temp input", () => {
     expect(first).toEqual({ ok: true, size: 3 });
     expect(second).toEqual({ ok: true, size: 5 });
     expect(finished.size).toBe(5);
+    expect(finished.sha256).toBe(createHash("sha256").update(Buffer.from([1, 2, 3, 4, 5])).digest("hex"));
     expect(finished.inputPath).toBe(resolveExportTempInputPath(job));
     expect(path.resolve(finished.inputPath).startsWith(`${path.resolve(job.jobDir)}${path.sep}`)).toBe(true);
     expect([...fs.readFileSync(finished.inputPath)]).toEqual([1, 2, 3, 4, 5]);

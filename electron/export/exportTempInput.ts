@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -6,7 +7,7 @@ import type { ExportJobSnapshot } from "./exportJobManager";
 export type ExportTempInputChunk = ArrayBuffer | ArrayBufferView | number[] | { chunk?: unknown };
 
 export type ExportTempInputWriteResult = { ok: true; size: number };
-export type ExportTempInputFinishResult = { inputPath: string; size: number };
+export type ExportTempInputFinishResult = { inputPath: string; size: number; sha256: string };
 
 export const EXPORT_TEMP_INPUT_MAX_CHUNK_BYTES = 1024 * 1024;
 export const EXPORT_TEMP_INPUT_MAX_TOTAL_BYTES = 2 * 1024 * 1024 * 1024;
@@ -53,7 +54,21 @@ export function finishExportTempInput(job: ExportJobSnapshot): ExportTempInputFi
   if (!fs.existsSync(inputPath)) throw new Error("Export temp input is missing");
   const stat = fs.statSync(inputPath);
   if (!stat.isFile() || stat.size <= 0) throw new Error("Export temp input is empty");
-  return { inputPath, size: stat.size };
+  const hash = createHash("sha256");
+  const fd = fs.openSync(inputPath, "r");
+  const chunk = Buffer.allocUnsafe(1024 * 1024);
+  try {
+    let offset = 0;
+    while (offset < stat.size) {
+      const bytesRead = fs.readSync(fd, chunk, 0, Math.min(chunk.byteLength, stat.size - offset), offset);
+      if (bytesRead <= 0) throw new Error("Export temp input changed while hashing");
+      hash.update(chunk.subarray(0, bytesRead));
+      offset += bytesRead;
+    }
+  } finally {
+    fs.closeSync(fd);
+  }
+  return { inputPath, size: stat.size, sha256: hash.digest("hex") };
 }
 
 export function removeExportTempInput(job: ExportJobSnapshot): void {

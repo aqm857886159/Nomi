@@ -105,6 +105,7 @@ type ServiceDeps = {
   projectRootResolver?: (projectId: string) => string | null
   previewSecret?: string
   requestRenderer?: (op: string, payload: unknown, timeoutMs: number) => Promise<unknown>
+  executeProductionExport?: (input: { projectId: string; runId: string; outputName: string }) => Promise<{ relativePath: string; size: number }>
   policyResolver?: () => Partial<AutomationPolicy>
   reconcileProviderTask?: (job: ProductionRun['jobs'][number]) => Promise<{
     status?: string
@@ -238,6 +239,18 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
     const bridge = await import('../capabilityCore/rendererBridge')
     return bridge.requestRenderer(op, payload, timeoutMs)
   })
+  const executeProductionExport = deps.executeProductionExport ?? (async (input) => {
+    const prepared = await requestRenderer('production.export', input, 5 * 60_000) as { manifest?: unknown }
+    const exports = await import('../export/exportJobs')
+    return exports.executeProductionRunExport({
+      ...input,
+      manifest: prepared?.manifest,
+      captureWebm: async () => {
+        const captured = await requestRenderer('production.capture-export', input, 30 * 60_000) as { webmBytes?: unknown }
+        return captured?.webmBytes
+      },
+    })
+  })
   const policyResolver = deps.policyResolver ?? (() => {
     const settings = readAutomationPolicySettings()
     return {
@@ -366,6 +379,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
     requireRun,
     executeInternal,
     requestRenderer,
+    executeProductionExport,
     writeProjectJson,
     localAssetPath,
     projectRelativePath,

@@ -12,7 +12,8 @@ import { useWorkbenchStore } from '../workbenchStore'
 import { mintSpendGrant } from '../api/taskApi'
 import { resolveAutonomousUploadConsent, runGenerationNode } from '../generationCanvas/runner/generationRunController'
 import { arrangeStoryboardToTimeline } from '../generationCanvas/agent/sendStoryboardToTimeline'
-import { exportTimelineToMp4 } from '../export/exportApi'
+import { createTimelineExportManifest } from '../export/exportApi'
+import { exportTimelineToWebm } from '../export/timelineWebmExport'
 import { verifyShotsAndReport, isShotVerifyEnabled } from '../generationCanvas/agent/shotVerifyStore'
 import { isAnchorFrozen, isVisualAnchorNode } from '../generationCanvas/model/anchorBibleKeys'
 import { assertDraftFilmReady, draftFilmTimelineFromState } from '../preview/timelineSubtitleTransitionContract'
@@ -663,14 +664,33 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       if (typeof data.runId === 'string' && data.runId.trim()) {
         assertDraftFilmReady(draftFilmTimelineFromState(state.timeline))
       }
-      const result = await exportTimelineToMp4({
+      const { manifest } = createTimelineExportManifest({
         projectId: project,
         timeline: state.timeline,
         aspectRatio: state.previewAspectRatio,
         generationNodes: useGenerationCanvasStore.getState().nodes,
-        outputName: typeof data.outputName === 'string' ? data.outputName : undefined,
       })
-      return { relativePath: result.relativePath, size: result.size }
+      return { manifest }
+    }
+    case 'production.capture-export': {
+      const project = typeof data.projectId === 'string' ? data.projectId : ''
+      const state = useWorkbenchStore.getState()
+      if (typeof data.runId === 'string' && data.runId.trim()) {
+        assertDraftFilmReady(draftFilmTimelineFromState(state.timeline))
+      }
+      const { timeline } = createTimelineExportManifest({
+        projectId: project,
+        timeline: state.timeline,
+        aspectRatio: state.previewAspectRatio,
+        generationNodes: useGenerationCanvasStore.getState().nodes,
+      })
+      const webm = await exportTimelineToWebm({
+        timeline,
+        aspectRatio: state.previewAspectRatio,
+        width: 1920,
+        autoDownload: false,
+      })
+      return { webmBytes: await webm.arrayBuffer() }
     }
     default:
       throw new Error(i18n.t('runtime.capability.unknownOperation', { operation: op }))

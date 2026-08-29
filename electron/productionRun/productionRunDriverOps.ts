@@ -35,6 +35,7 @@ export type DriverOpsDeps = {
     commandId: string,
   ) => { run: ProductionRun; events: unknown[] }
   requestRenderer: (op: string, payload: unknown, timeoutMs: number) => Promise<unknown>
+  executeProductionExport: (input: { projectId: string; runId: string; outputName: string }) => Promise<{ relativePath: string; size: number }>
   writeProjectJson: (projectId: string, relativePath: string, value: unknown) => void
   localAssetPath: (projectId: string, rawUrl: unknown) => string | undefined
   projectRelativePath: (projectId: string, rawPath: unknown, options?: { requireFile?: boolean }) => string
@@ -168,7 +169,7 @@ export type DriverOps = {
 
 export function createDriverOps(deps: DriverOpsDeps): DriverOps {
   const {
-    repository, sleep, requireRun, executeInternal, requestRenderer, writeProjectJson,
+    repository, sleep, requireRun, executeInternal, requestRenderer, executeProductionExport, writeProjectJson,
     localAssetPath, projectRelativePath, stageValue, reconcileProviderTask, inFlight, reconciliationInFlight,
     directionsInFlight,
   } = deps
@@ -606,7 +607,7 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
     try {
       let current = requireRun(run.projectId, run.runId)
       current = executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'exporting' }, `driver-${run.runId}-export-start`).run
-      const result = await requestRenderer('production.export', { projectId: run.projectId, runId: run.runId, outputName: `nomi-${run.runId}.mp4` }, 30 * 60_000) as { relativePath?: string; size?: number }
+      const result = await executeProductionExport({ projectId: run.projectId, runId: run.runId, outputName: `nomi-${run.runId}.mp4` })
       const relativePath = projectRelativePath(run.projectId, result?.relativePath, { requireFile: true })
       current = requireRun(run.projectId, run.runId)
       current = executeInternal(run.projectId, run.runId, current, 'artifact.add', { artifact: { artifactId: `artifact-export-v${current.planVersion}`, stageId: 'export', kind: 'export', status: 'adopted', projectRelativePath: relativePath, createdAt: new Date().toISOString(), adoptedAt: new Date().toISOString() } }, `driver-${run.runId}-export-artifact`).run

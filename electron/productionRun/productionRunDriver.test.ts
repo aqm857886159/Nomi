@@ -185,10 +185,6 @@ describe('ProductionRunService driver round 1', () => {
         expect((payload as Record<string, unknown>)?.shotNodeIds).toEqual(['shot-1'])
         return { arranged: 1, total: 1 }
       }
-      if (op === 'production.export') {
-        fs.writeFileSync(path.join(root, 'exports/nomi-run-driver-3.mp4'), 'mp4', 'utf8')
-        return { relativePath: 'exports/nomi-run-driver-3.mp4', size: 3 }
-      }
       throw new Error(`unexpected renderer op: ${op}`)
     }
     const repository = createProductionRunRepository({ projectDirResolver: () => root })
@@ -196,6 +192,12 @@ describe('ProductionRunService driver round 1', () => {
       repository,
       projectRootResolver: () => root,
       requestRenderer,
+      executeProductionExport: async ({ outputName }) => {
+        calls.push('production.export')
+        expect(outputName).toBe('nomi-run-driver-3.mp4')
+        fs.writeFileSync(path.join(root, 'exports/nomi-run-driver-3.mp4'), 'mp4', 'utf8')
+        return { relativePath: 'exports/nomi-run-driver-3.mp4', size: 3 }
+      },
       policyResolver: () => ({ trustedHosts: ['nomi', 'codex'], allowedProviders: ['local'], allowedModels: ['demo-video'], maxSpend: 10, maxAttemptsPerJob: 1 }),
     })
     service.createDraft({
@@ -238,6 +240,7 @@ describe('ProductionRunService driver round 1', () => {
     const completed = service.readFull('project-1', 'run-driver-3')
     expect(completed.status).toBe('completed')
     expect(completed.artifacts.find((item) => item.kind === 'export')?.projectRelativePath).toBe('exports/nomi-run-driver-3.mp4')
+    expect(fs.existsSync(path.join(root, '.nomi', 'jobs'))).toBe(false)
   })
 
   it('W2 冻结门：有未冻结视觉锚 → 合同批准后停在冻结门（零 provider 调用）；冻结批准后才提交镜头', async () => {

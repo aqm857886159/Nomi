@@ -1,4 +1,4 @@
-import type { ExportJobEvent, ExportJobSnapshot } from '../../electron/export/exportJobManager'
+import type { ExportJobEvent, ExportJobSnapshot, ExportJobVerification } from '../../electron/export/exportJobManager'
 import type { WorkspaceFileListResult } from '../../electron/workspace/workspaceFileIndex'
 import type { ProviderKind } from './providerKind'
 import type { DesktopMediaBridge } from './bridgeMedia'
@@ -153,7 +153,7 @@ export type DesktopExportTempInputWriteResult = {
   size: number
 }
 
-export type { ExportJobEvent, ExportJobSnapshot }
+export type { ExportJobEvent, ExportJobSnapshot, ExportJobVerification }
 
 /** 应用信息（功能需求1 查看版本号）。canAutoInstall：未签名 mac 无法就地装，走手动下载兜底（真相源在主进程）。 */
 export type DesktopAppInfo = {
@@ -561,6 +561,7 @@ export type DesktopBridge = DesktopMediaBridge & {
     writeTempInput: (payload: DesktopExportTempInputWritePayload) => Promise<DesktopExportTempInputWriteResult>
     finishTempInput: (payload: { jobId: string }) => Promise<DesktopMp4ExportResult>
     status: (jobId: string) => Promise<ExportJobSnapshot>
+    verify: (jobId: string) => Promise<ExportJobVerification>
     cancel: (jobId: string) => Promise<{ ok: boolean }>
     onEvent: (callback: (event: ExportJobEvent) => void) => () => void
     showInFolder: (payload: { projectId: string; relativePath: string }) => Promise<{ ok: boolean }>

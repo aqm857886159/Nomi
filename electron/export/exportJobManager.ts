@@ -1,12 +1,14 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import fs from "node:fs";
 import path from "node:path";
 
 import {
   assertValidExportAuditManifest,
   createExportAuditManifest,
+  exportAuditManifestDigest,
   type ExportAuditManifestV1,
 } from "./exportAuditManifest";
-import { createExportTempDir } from "./exportPaths";
+import { assertProjectExportRelativePath, createExportTempDir } from "./exportPaths";
 import type { ExportJobStatus } from "./exportTypes";
 import { ExportJobStore } from "./exportJobStore";
 
@@ -21,7 +23,26 @@ export type ExportJobResult = {
   relativeOutputPath?: string;
   bytes?: number;
   durationMs?: number;
+  execution: ExportJobExecutionEvidence;
 };
+
+export type ExportJobExecutionEvidence = Readonly<{
+  auditManifestDigest: string;
+  input: Readonly<{ kind: "filtergraph" }> | Readonly<{ kind: "webm"; sha256: string; bytes: number }>;
+  correlationDigest: string;
+}>;
+
+export type ExportJobVerification = Readonly<{
+  jobId: string;
+  verified: boolean;
+  verificationLevel: "export_job_output";
+  contentDecoded: false;
+  status: ExportJobStatus;
+  manifestIntegrity: ExportJobSnapshot["manifestIntegrity"];
+  bytes?: number;
+  durationMs?: number | null;
+  code?: string;
+}>;
 
 export type ExportJobError = {
   message: string;
@@ -104,6 +125,83 @@ function sameProjectIdentity(left: ExportJobProjectIdentity | null, right: Expor
     && left.immutableProjectUuid === right.immutableProjectUuid
     && left.projectGeneration === right.projectGeneration
     && left.canonicalRootDigest === right.canonicalRootDigest;
+}
+
+function correlationDigest(auditManifestDigest: string, input: ExportJobExecutionEvidence["input"]): string {
+  const inputIdentity = input.kind === "webm" ? `webm:${input.sha256}:${input.bytes}` : "filtergraph";
+  return createHash("sha256").update(`${auditManifestDigest}:${inputIdentity}`).digest("hex");
+}
+
+export function createExportJobExecutionEvidence(
+  manifest: ExportAuditManifestV1,
+  input: ExportJobExecutionEvidence["input"],
+): ExportJobExecutionEvidence {
+  const auditManifestDigest = exportAuditManifestDigest(manifest);
+  return Object.freeze({
+    auditManifestDigest,
+    input: Object.freeze({ ...input }),
+    correlationDigest: correlationDigest(auditManifestDigest, input),
+  });
+}
+
+class ExportJobOutputError extends Error {
+  constructor(readonly code: string, message: string) {
+    super(message);
+    this.name = "ExportJobOutputError";
+  }
+}
+
+function outputError(code: string, message: string): never {
+  throw new ExportJobOutputError(code, message);
+}
+
+function normalizeSuccessfulResult(current: ExportJobSnapshot, result: ExportJobResult): ExportJobResult {
+  const expectedAuditDigest = exportAuditManifestDigest(current.manifest);
+  if (result.execution.auditManifestDigest !== expectedAuditDigest) {
+    outputError("audit_manifest_mismatch", "Export result does not match the job audit manifest");
+  }
+  if (current.manifest.execution.backend !== result.execution.input.kind) {
+    outputError("execution_backend_mismatch", "Export result execution backend does not match the job audit manifest");
+  }
+  if (result.execution.input.kind === "webm") {
+    if (!/^[a-f0-9]{64}$/.test(result.execution.input.sha256) || !Number.isSafeInteger(result.execution.input.bytes) || result.execution.input.bytes <= 0) {
+      outputError("webm_input_evidence_invalid", "Export result WebM input evidence is invalid");
+    }
+  }
+  if (result.execution.correlationDigest !== correlationDigest(expectedAuditDigest, result.execution.input)) {
+    outputError("execution_correlation_mismatch", "Export result execution evidence is not correlated to the audit manifest");
+  }
+
+  if (!path.isAbsolute(result.outputPath)) outputError("outside_project", "Export output path must be absolute");
+  let projectRoot: string;
+  let outputPath: string;
+  try {
+    projectRoot = fs.realpathSync.native(current.projectDir);
+    outputPath = fs.realpathSync.native(result.outputPath);
+  } catch {
+    outputError("missing_output", "Export output file is missing");
+  }
+  const rootWithSep = `${projectRoot}${path.sep}`;
+  if (outputPath === projectRoot || !outputPath.startsWith(rootWithSep)) {
+    outputError("outside_project", "Export output file is outside the current project");
+  }
+  const relativeOutputPath = assertProjectExportRelativePath(path.relative(projectRoot, outputPath).split(path.sep).join("/"));
+  if (result.relativeOutputPath !== undefined && result.relativeOutputPath.replace(/\\/g, "/") !== relativeOutputPath) {
+    outputError("output_receipt_mismatch", "Export output relative path does not match the output file");
+  }
+  const stat = fs.statSync(outputPath);
+  if (!stat.isFile()) outputError("missing_output", "Export output is not a file");
+  if (stat.size <= 0) outputError("empty_output", "Export output file is empty");
+  if (result.bytes !== undefined && result.bytes !== stat.size) {
+    outputError("output_receipt_mismatch", "Export output byte receipt does not match the output file");
+  }
+  return {
+    ...result,
+    outputPath,
+    relativeOutputPath,
+    bytes: stat.size,
+    execution: Object.freeze({ ...result.execution, input: Object.freeze({ ...result.execution.input }) }),
+  };
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -257,12 +355,14 @@ export class ExportJobManager {
 
   completeJob(jobId: string, result: ExportJobResult): ExportJobSnapshot {
     const current = this.requireJob(jobId);
+    const completedAt = this.clock();
     const completed: ExportJobSnapshot = {
       ...current,
       status: "succeeded",
       progress: { ratio: 1, stage: "succeeded", message: "Succeeded" },
-      result,
-      updatedAt: this.clock(),
+      result: normalizeSuccessfulResult(current, result),
+      completedAt,
+      updatedAt: completedAt,
     };
     delete completed.error;
     return this.saveAndEmit(completed, ["status", "progress", "result"]);
@@ -285,6 +385,38 @@ export class ExportJobManager {
   async cancelJobForProject(identity: ExportJobProjectIdentity, jobId: string): Promise<ExportJobSnapshot> {
     this.getJobForProject(identity, jobId);
     return this.cancelJob(jobId);
+  }
+
+  verifyJobOutputForProject(identity: ExportJobProjectIdentity, jobId: string): ExportJobVerification {
+    const job = this.getJobForProject(identity, jobId);
+    const base = {
+      jobId: job.id,
+      verificationLevel: "export_job_output" as const,
+      contentDecoded: false as const,
+      status: job.status,
+      manifestIntegrity: job.manifestIntegrity,
+    };
+    if (job.manifestIntegrity === "legacy_incomplete") {
+      return { ...base, verified: false, code: "legacy_incomplete_manifest" };
+    }
+    if (job.status !== "succeeded" || !job.result) {
+      return { ...base, verified: false, code: `export_${job.status}` };
+    }
+    try {
+      const result = normalizeSuccessfulResult(job, job.result);
+      return {
+        ...base,
+        verified: true,
+        bytes: result.bytes,
+        durationMs: result.durationMs ?? null,
+      };
+    } catch (error) {
+      return {
+        ...base,
+        verified: false,
+        code: error instanceof ExportJobOutputError ? error.code : "output_verification_failed",
+      };
+    }
   }
 
   onEvent(listener: (event: ExportJobEvent) => void): () => void {

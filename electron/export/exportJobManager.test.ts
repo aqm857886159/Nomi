@@ -2,7 +2,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { ExportJobManager, type ExportJobEvent } from "./exportJobManager";
+import {
+  createExportJobExecutionEvidence,
+  ExportJobManager,
+  type ExportJobEvent,
+  type ExportJobResult,
+} from "./exportJobManager";
 import type { ExportAuditManifestV1 } from "./exportAuditManifest";
 import type { ExportJobProjectIdentity } from "./exportJobManager";
 import { deriveCanonicalWorkspaceRootIdentity } from "../workspace/workspaceProjectIdentity";
@@ -55,6 +60,18 @@ function identityFor(projectId = "project-1"): ExportJobProjectIdentity {
     immutableProjectUuid: `${projectId}-immutable-uuid`,
     projectGeneration: 1,
     canonicalRootDigest: `${projectId}-root-digest`,
+  };
+}
+
+function successfulResult(projectDir: string, manifest: ExportAuditManifestV1, contents = "video"): ExportJobResult {
+  const outputPath = path.join(projectDir, "exports", "video.mp4");
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, contents);
+  return {
+    outputPath,
+    relativeOutputPath: "exports/video.mp4",
+    bytes: Buffer.byteLength(contents),
+    execution: createExportJobExecutionEvidence(manifest, { kind: "webm", sha256: "a".repeat(64), bytes: 5 }),
   };
 }
 
@@ -112,7 +129,7 @@ describe("ExportJobManager", () => {
   it("emits event on status update", () => {
     const projectDir = makeTempDir();
     const manager = new ExportJobManager({ idGenerator: () => "job-1", clock: () => "2026-05-24T01:00:00.000Z" });
-    manager.createJob({ projectIdentity, projectDir, manifest: makeManifest() });
+    const job = manager.createJob({ projectIdentity, projectDir, manifest: makeManifest() });
     const events: ExportJobEvent[] = [];
     const unsubscribe = manager.onEvent((event) => events.push(event));
 
@@ -240,8 +257,8 @@ describe("ExportJobManager", () => {
   it("hydrates the current project directory before exact identity listing", () => {
     const projectDir = makeTempDir();
     const first = new ExportJobManager({ idGenerator: () => "job-1", clock: () => "2026-05-24T01:00:00.000Z" });
-    first.createJob({ projectIdentity, projectDir, manifest: makeManifest() });
-    const completed = first.completeJob("job-1", { outputPath: path.join(projectDir, "exports", "video.mp4") });
+    const job = first.createJob({ projectIdentity, projectDir, manifest: makeManifest() });
+    const completed = first.completeJob("job-1", successfulResult(projectDir, job.manifest));
     const restarted = new ExportJobManager();
 
     expect(restarted.listJobsForProject(projectIdentity, projectDir)).toEqual([completed]);
@@ -298,7 +315,7 @@ describe("ExportJobManager", () => {
   it("stores failure message", () => {
     const projectDir = makeTempDir();
     const manager = new ExportJobManager({ idGenerator: () => "job-1", clock: () => "2026-05-24T01:00:00.000Z" });
-    manager.createJob({ projectIdentity, projectDir, manifest: makeManifest() });
+    const job = manager.createJob({ projectIdentity, projectDir, manifest: makeManifest() });
 
     const failed = manager.failJob("job-1", new Error("ffmpeg crashed"));
 
@@ -310,7 +327,7 @@ describe("ExportJobManager", () => {
     const projectDir = makeTempDir();
     let now = "2026-05-24T01:00:00.000Z";
     const manager = new ExportJobManager({ idGenerator: () => "job-1", clock: () => now });
-    manager.createJob({ projectIdentity, projectDir, manifest: makeManifest() });
+    const job = manager.createJob({ projectIdentity, projectDir, manifest: makeManifest() });
     manager.failJob("job-1", new Error("ffmpeg crashed"));
 
     now = "2026-05-24T01:01:00.000Z";
@@ -325,10 +342,39 @@ describe("ExportJobManager", () => {
 
     manager.failJob("job-1", new Error("second failure"));
     now = "2026-05-24T01:02:00.000Z";
-    const completed = manager.completeJob("job-1", { outputPath: path.join(projectDir, "exports", "video.mp4") });
+    const completed = manager.completeJob("job-1", successfulResult(projectDir, job.manifest));
 
     expect(completed.status).toBe("succeeded");
     expect(completed.error).toBeUndefined();
-    expect(completed.result).toEqual({ outputPath: path.join(projectDir, "exports", "video.mp4") });
+    expect(completed.result).toMatchObject({
+      outputPath: fs.realpathSync.native(path.join(projectDir, "exports", "video.mp4")),
+      relativeOutputPath: "exports/video.mp4",
+      bytes: 5,
+      execution: { input: { kind: "webm" } },
+    });
+  });
+
+  it("fails closed for missing, empty, outside-project, or later-removed output files", () => {
+    const projectDir = makeTempDir();
+    const outsideDir = makeTempDir();
+    const manager = new ExportJobManager({ idGenerator: () => "job-1", clock: () => "2026-05-24T01:00:00.000Z" });
+    const job = manager.createJob({ projectIdentity, projectDir, manifest: makeManifest() });
+    const execution = createExportJobExecutionEvidence(job.manifest, { kind: "webm", sha256: "b".repeat(64), bytes: 8 });
+    const missingPath = path.join(projectDir, "exports", "missing.mp4");
+
+    expect(() => manager.completeJob(job.id, { outputPath: missingPath, execution })).toThrow(/missing/i);
+    fs.mkdirSync(path.dirname(missingPath), { recursive: true });
+    fs.writeFileSync(missingPath, "");
+    expect(() => manager.completeJob(job.id, { outputPath: missingPath, execution })).toThrow(/empty/i);
+
+    const outsidePath = path.join(outsideDir, "video.mp4");
+    fs.writeFileSync(outsidePath, "outside");
+    expect(() => manager.completeJob(job.id, { outputPath: outsidePath, execution })).toThrow(/outside|project/i);
+
+    fs.writeFileSync(missingPath, "valid");
+    manager.completeJob(job.id, { outputPath: missingPath, relativeOutputPath: "exports/missing.mp4", execution });
+    expect(manager.verifyJobOutputForProject(projectIdentity, job.id)).toMatchObject({ verified: true, bytes: 5 });
+    fs.rmSync(missingPath);
+    expect(manager.verifyJobOutputForProject(projectIdentity, job.id)).toMatchObject({ verified: false, code: "missing_output" });
   });
 });

@@ -45,6 +45,11 @@ function digest(value: string): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
+export function exportAuditManifestDigest(manifest: ExportAuditManifestV1): string {
+  assertValidExportAuditManifest(manifest);
+  return createHash("sha256").update(JSON.stringify(manifest)).digest("hex");
+}
+
 function jsonClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
