@@ -196,45 +196,6 @@ function projectOutput(source: unknown, invocation: AnyVerifiedInvocation): Canv
   }
 }
 
-type DocumentPortResolvers = Readonly<{
-  read?: CapabilityExecutorRegistryOptions["resolveDocumentReadPort"];
-  write?: CapabilityExecutorRegistryOptions["resolveDocumentWritePort"];
-}>;
-
-// Keep document resolver ownership separate without changing the frozen public
-// member schema that attests the canonical canvas.read executor path.
-const documentPortResolvers = new WeakMap<object, DocumentPortResolvers>();
-
-async function executeDocumentReadPort(
-  resolve: NonNullable<DocumentPortResolvers["read"]>,
-  invocation: AnyVerifiedInvocation,
-  signal: AbortSignal,
-): Promise<unknown> {
-  const port = await resolve(invocation);
-  await revalidate(invocation);
-  return port.read({
-    scope: documentReadSemanticInputSchema.parse(invocation.input).scope,
-    signal,
-  });
-}
-
-async function executeDocumentWritePort(
-  resolve: NonNullable<DocumentPortResolvers["write"]>,
-  invocation: AnyVerifiedInvocation,
-  signal: AbortSignal,
-): Promise<unknown> {
-  const port = await resolve(invocation);
-  await revalidate(invocation);
-  const input = documentWriteSemanticInputSchema.parse(invocation.input);
-  return port.write({
-    operation: input.operation,
-    content: input.content,
-    target: invocation.target,
-    preconditions: invocation.preconditions,
-    signal,
-  });
-}
-
 /**
  * Main-process registry. Registrations are closed over in this module so a
  * transport can neither inject a second canvas.read implementation nor widen
@@ -245,11 +206,32 @@ export class CapabilityExecutorRegistry {
   readonly #timeoutMs: number;
 
   constructor(options: CapabilityExecutorRegistryOptions) {
-    this.#resolveCanvasReadPort = options.resolveCanvasReadPort;
-    documentPortResolvers.set(this, Object.freeze({
-      read: options.resolveDocumentReadPort,
-      write: options.resolveDocumentWritePort,
-    }));
+    const resolveCanvasReadPort = options.resolveCanvasReadPort;
+    const resolveDocumentReadPort = options.resolveDocumentReadPort;
+    const resolveDocumentWritePort = options.resolveDocumentWritePort;
+    this.#resolveCanvasReadPort = (invocation) =>
+      invocation.capability.id === DOCUMENT_READ_CAPABILITY.id
+        ? resolveDocumentReadPort
+            ? Promise.resolve(resolveDocumentReadPort(invocation)).then((port): CanvasReadPort => ({
+              read: (portInput: Readonly<{ signal: AbortSignal; scope?: "full" | "selection" }>) => port.read({
+                scope: documentReadSemanticInputSchema.parse(invocation.input).scope,
+                signal: portInput.signal,
+              }),
+            }))
+          : Promise.reject(new CapabilityExecutionError("capability_unsupported"))
+        : invocation.capability.id === DOCUMENT_WRITE_CAPABILITY.id
+          ? resolveDocumentWritePort
+            ? Promise.resolve(resolveDocumentWritePort(invocation)).then((port): CanvasReadPort => ({
+                read: (portInput: Readonly<{ signal: AbortSignal; scope?: "full" | "selection" }>) => port.write({
+                  operation: documentWriteSemanticInputSchema.parse(invocation.input).operation,
+                  content: documentWriteSemanticInputSchema.parse(invocation.input).content,
+                  target: invocation.target,
+                  preconditions: invocation.preconditions,
+                  signal: portInput.signal,
+                }),
+              }))
+            : Promise.reject(new CapabilityExecutionError("capability_unsupported"))
+          : resolveCanvasReadPort(invocation);
     this.#timeoutMs = positiveTimeout(options.timeoutMs);
   }
 
@@ -270,21 +252,20 @@ export class CapabilityExecutorRegistry {
 
     return bounded(this.#timeoutMs, options.signal, async (signal) => {
       await revalidate(invocation);
+      let port: CanvasReadPort | DocumentReadPort | DocumentWritePort;
+      try {
+        port = await this.#resolveCanvasReadPort(invocation);
+      } catch (error) {
+        throw safeStageError(error);
+      }
+      await revalidate(invocation);
+
       let source: unknown;
       try {
-        if (isDocumentRead) {
-          const resolve = documentPortResolvers.get(this)?.read;
-          if (!resolve) throw new CapabilityExecutionError("capability_unsupported");
-          source = await executeDocumentReadPort(resolve, invocation, signal);
-        } else if (isDocumentWrite) {
-          const resolve = documentPortResolvers.get(this)?.write;
-          if (!resolve) throw new CapabilityExecutionError("capability_unsupported");
-          source = await executeDocumentWritePort(resolve, invocation, signal);
-        } else {
-          const port = await this.#resolveCanvasReadPort(invocation);
-          await revalidate(invocation);
-          source = await port.read({ signal });
-        }
+        source = await (port as CanvasReadPort).read({
+          ...(isDocumentRead ? { scope: documentReadSemanticInputSchema.parse(invocation.input).scope } : {}),
+          signal,
+        });
       } catch (error) {
         if (signal.aborted) throw new CapabilityExecutionError("capability_cancelled");
         throw safeStageError(error);
