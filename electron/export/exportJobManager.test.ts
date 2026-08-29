@@ -221,7 +221,33 @@ describe("ExportJobManager", () => {
     expect(manager.getJob(job.id)?.status).toBe("queued");
   });
 
-  it("marks erased legacy evidence incomplete and project-binds it before restart inspection", async () => {
+  it("lists jobs only for the exact immutable project identity", () => {
+    const projectDir = makeTempDir();
+    const manager = new ExportJobManager({ idGenerator: () => "job-1", clock: () => "2026-05-24T01:00:00.000Z" });
+    const job = manager.createJob({ projectIdentity, projectDir, manifest: makeManifest() });
+
+    expect(manager.listJobsForProject(projectIdentity)).toEqual([job]);
+    for (const replacement of [
+      { ...projectIdentity, projectId: "project-2" },
+      { ...projectIdentity, immutableProjectUuid: "22222222-2222-4222-8222-222222222222" },
+      { ...projectIdentity, projectGeneration: 2 },
+      { ...projectIdentity, canonicalRootDigest: "replacement-root" },
+    ]) {
+      expect(manager.listJobsForProject(replacement)).toEqual([]);
+    }
+  });
+
+  it("hydrates the current project directory before exact identity listing", () => {
+    const projectDir = makeTempDir();
+    const first = new ExportJobManager({ idGenerator: () => "job-1", clock: () => "2026-05-24T01:00:00.000Z" });
+    first.createJob({ projectIdentity, projectDir, manifest: makeManifest() });
+    const completed = first.completeJob("job-1", { outputPath: path.join(projectDir, "exports", "video.mp4") });
+    const restarted = new ExportJobManager();
+
+    expect(restarted.listJobsForProject(projectIdentity, projectDir)).toEqual([completed]);
+  });
+
+  it("archives erased legacy evidence without rewriting or binding it during restart inspection", async () => {
     const projectDir = makeTempDir();
     const jobDir = path.join(projectDir, ".nomi", "jobs", "legacy-job");
     fs.mkdirSync(jobDir, { recursive: true });
@@ -243,22 +269,30 @@ describe("ExportJobManager", () => {
       createdAt: "2026-05-24T01:00:00.000Z",
       updatedAt: "2026-05-24T01:00:00.000Z",
     };
-    fs.writeFileSync(path.join(jobDir, "manifest.json"), JSON.stringify(legacyManifest));
-    fs.writeFileSync(path.join(jobDir, "job.json"), JSON.stringify(legacySnapshot));
+    const manifestPath = path.join(jobDir, "manifest.json");
+    const jobPath = path.join(jobDir, "job.json");
+    fs.writeFileSync(manifestPath, JSON.stringify(legacyManifest));
+    fs.writeFileSync(jobPath, JSON.stringify(legacySnapshot));
+    const manifestBytes = fs.readFileSync(manifestPath);
+    const jobBytes = fs.readFileSync(jobPath);
 
     const manager = new ExportJobManager({ projectDirs: [projectDir], clock: () => "2026-05-24T02:00:00.000Z" });
     const identity = {
       ...projectIdentity,
       canonicalRootDigest: deriveCanonicalWorkspaceRootIdentity(projectDir).canonicalRootDigest,
     };
-    const recovered = manager.getJobForProject(identity, "legacy-job");
+    const recovered = manager.getJob("legacy-job")!;
 
     expect(recovered.status).toBe("failed");
     expect(recovered.error?.message).toMatch(/restart/i);
     expect(recovered.manifestIntegrity).toBe("legacy_incomplete");
-    expect(recovered.projectIdentity).toEqual(identity);
+    expect(recovered.projectIdentity).toBeNull();
     expect(recovered.manifest.execution).toEqual({ backend: "webm" });
-    await expect(manager.cancelJobForProject(identity, recovered.id)).rejects.toThrow(/not cancellable|failed/i);
+    expect(manager.listJobsForProject(identity, projectDir)).toEqual([]);
+    expect(() => manager.getJobForProject(identity, recovered.id)).toThrow(/project.*identity|does not belong/i);
+    await expect(manager.cancelJobForProject(identity, recovered.id)).rejects.toThrow(/project.*identity|does not belong/i);
+    expect(fs.readFileSync(manifestPath)).toEqual(manifestBytes);
+    expect(fs.readFileSync(jobPath)).toEqual(jobBytes);
   });
 
   it("stores failure message", () => {

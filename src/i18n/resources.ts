@@ -124,6 +124,14 @@ export const zhCN = {
         awaitingExport: '等待确认导出', exporting: '正在导出', completed: '制作完成', cancelled: '已取消',
       },
     },
+    exportJob: {
+      title: '导出成片',
+      failed: '导出失败',
+      statuses: {
+        queued: '等待导出', preparing: '准备素材', planning: '规划导出', rendering: '渲染画面', encoding: '编码成片',
+        muxing: '合成音视频', finalizing: '完成导出', succeeded: '导出完成', failed: '导出失败', cancelled: '已取消',
+      },
+    },
     empty: {
       title: '没有在跑的任务',
       hint: '框选镜头点「生成」就会出现在这里',
@@ -496,6 +504,14 @@ export const en = {
         awaitingContract: 'Production and budget approval required', ready: 'Ready to generate', running: 'Generating', pausing: 'Pausing',
         paused: 'Paused', needsAttention: 'Needs attention', awaitingRoughCutReview: 'Rough-cut review required',
         awaitingExport: 'Export approval required', exporting: 'Exporting', completed: 'Production complete', cancelled: 'Cancelled',
+      },
+    },
+    exportJob: {
+      title: 'Export',
+      failed: 'Export failed',
+      statuses: {
+        queued: 'Queued', preparing: 'Preparing media', planning: 'Planning export', rendering: 'Rendering', encoding: 'Encoding',
+        muxing: 'Muxing audio and video', finalizing: 'Finalizing', succeeded: 'Export complete', failed: 'Export failed', cancelled: 'Cancelled',
       },
     },
     empty: {

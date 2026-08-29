@@ -295,6 +295,16 @@ describe("ProjectAgentHost state contract", () => {
     };
 
     expect(snapshotProjectAgentHostState({ ...validShape, items: [user, exportTask] }).items).toContainEqual(exportTask);
+    for (const target of [
+      { kind: "asset", assetIds: [] },
+      { kind: "export", jobId: "export-a" },
+      { kind: "export", timelineRevision: "revision-a" },
+    ]) {
+      expect(snapshotProjectAgentHostState({
+        ...validShape,
+        queue: [{ ...queueItem, target }],
+      }).queue[0]?.target).toEqual(target);
+    }
 
     const malformed = [
       { ...validShape, items: [{ ...user, status: "invented-status" }] },
@@ -343,6 +353,8 @@ describe("ProjectAgentHost state contract", () => {
         ...validShape,
         items: [{ ...exportTask, task: { ...exportTask.task, status: "running" } }],
       },
+      { ...validShape, queue: [{ ...queueItem, target: { kind: "export" } }] },
+      { ...validShape, queue: [{ ...queueItem, target: { kind: "export", jobId: "job-a", timelineRevision: "revision-a" } }] },
       {
         ...validShape,
         threads: [thread, threadB],

@@ -1,0 +1,90 @@
+{
+  "schema_version": 2,
+  "id": "2026-08-29-export-job-taskref-project-bound-input",
+  "problem_type": "ExportJob reference projection and immutable project authority gaps",
+  "symptom": "A successful Agent export did not create an ExportJob TaskRef, TaskCenter could not project standalone export work, and WebM write/finish IPC accepted a globally resolved jobId after the renderer had moved to another immutable project instance.",
+  "direct_cause": "The Host converted every tool result only into a generic tool item, ExportJobManager exposed only projectId-based listing, TaskCenter had no ExportJob projection, and writeExportTempInput/finishExportTempInput resolved jobs through the global manager instead of the current main-issued project selection.",
+  "class_root": "Nomi had no single invariant requiring every asynchronous domain task projection and every follow-up side effect to resolve through the domain owner's immutable identity. A copied status machine was avoided, but the reference producer, exact listing boundary, and project-bound continuation boundary were left incomplete.",
+  "affected_population": [
+    "Users starting standalone exports through Project Agent",
+    "Users expecting active standalone exports to appear in TaskCenter",
+    "Users switching projects or reopening a same-projectId replacement while WebM chunks or encoding completion are pending",
+    "Future Host, Skill, MCP, or UI consumers that need a stable ExportJob reference without copying lifecycle truth"
+  ],
+  "scope_paths": [
+    "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+    "electron/projectAgentHost/projectAgentReferenceValidation.ts",
+    "electron/export/exportJobManager.ts",
+    "electron/export/exportJobs.ts",
+    "electron/export/exportJobIpc.ts",
+    "electron/runtime.ts",
+    "electron/preload.ts",
+    "src/desktop/bridge.ts",
+    "src/workbench/taskCenter/taskCenterProjection.ts",
+    "src/workbench/taskCenter/exportJobTaskCenter.ts",
+    "src/workbench/taskCenter/TaskCenterButton.tsx",
+    "src/workbench/taskCenter/TaskCenterPanel.tsx"
+  ],
+  "entry_points": [
+    "successful export_timeline tool results after Host receipt correlation",
+    "repeated or malformed runtime tool results",
+    "TaskCenter closed summary polling and opened panel projection",
+    "nomi:exports:list, write-temp-input, finish-temp-input, status, and cancel IPC",
+    "same projectId reopen with a new immutable UUID, project generation, or canonical root digest"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The defect is entirely within Nomi's Host item production, ExportJob identity lookup, Electron IPC authority injection, and TaskCenter projection. Electron, FFmpeg, providers, and MCP clients cannot decide which immutable Nomi project owns a job or whether Host stores a reference instead of copied status.",
+  "invariants": [
+    "Host creates an export-job TaskRef only from a successful export_timeline result with operation=export_timeline, accepted=true, and a bounded canonical jobId after proposal receipt correlation succeeds.",
+    "A Host task item stores only {kind, jobId}; ExportJob status, progress, paths, errors, and output metadata remain exclusively in ExportJobManager.",
+    "Repeated tool results and an ExportJob TaskRef already present in Host state cannot create a duplicate semantic task item.",
+    "ExportJob listing matches projectId, immutableProjectUuid, projectGeneration, and canonicalRootDigest and never falls back to projectId-only matching.",
+    "WebM write and finish resolve the job through the current main-issued immutable project selection before writing a byte, creating an AbortController, or starting an encoder.",
+    "TaskCenter rows are a pure projection of ExportJob snapshots, use only the real progress ratio, never fabricate ETA, and route active cancellation through the existing project-bound exports.cancel(jobId).",
+    "Project rotation, a same-id project replacement, malformed job ids, and legacy jobs without immutable identity fail closed without file or encoder effects."
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every asynchronous domain task projected through Host or TaskCenter needs the same reference-only ownership rule, while every job continuation keyed by an opaque id can otherwise cross a project replacement boundary.",
+    "same_class_scan": [
+      "Scanned ProjectAgent TaskRef types, state validation, reducer semantic dedupe, execution result publication, and UI projection for all task producers and copied domain status fields.",
+      "Scanned ExportJobManager, exportJobs, exportJobIpc, preload, DesktopBridge, exportApi, TimelinePreview, and TaskCenter for list/status/cancel/write/finish lookup authority and progress ownership.",
+      "Confirmed ProductionRun already owns its own lifecycle and TaskCenter projection and must not be shadow-written into ExportJob; this change applies only to standalone ExportJob work.",
+      "Confirmed existing ExportJob status/cancel use exact project identity, while list/write/finish were the remaining unqualified continuations."
+    ]
+  },
+  "prevention": {
+    "strategy": "Produce one validated reference-only Host item, add exact identity listing and continuation lookup at ExportJobManager, inject main project selection into every Export IPC continuation, and derive the existing TaskCenter row from the same domain snapshot.",
+    "artifacts": [
+      "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+      "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+      "electron/projectAgentHost/projectAgentReferenceValidation.ts",
+      "electron/export/exportJobManager.ts",
+      "electron/export/exportJobs.ts",
+      "electron/export/exportJobIpc.ts",
+      "electron/runtime.ts",
+      "electron/preload.ts",
+      "src/desktop/bridge.ts",
+      "src/workbench/taskCenter/taskCenterProjection.ts",
+      "src/workbench/taskCenter/exportJobTaskCenter.ts",
+      "src/workbench/taskCenter/TaskCenterButton.tsx",
+      "src/workbench/taskCenter/TaskCenterPanel.tsx"
+    ]
+  },
+  "regression_tests": [
+    "electron/projectAgentHost/projectAgentExecutionHelpers.test.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts",
+    "electron/projectAgentHost/projectAgentState.test.ts",
+    "electron/export/exportJobManager.test.ts",
+    "electron/export/exportJobIpc.test.ts",
+    "electron/export/exportJobIpcHandlers.test.ts",
+    "src/workbench/taskCenter/exportJobTaskCenter.test.ts"
+  ],
+  "migration": "Existing canonical ExportJobs with immutable identity become visible through the exact list API. Legacy jobs without immutable identity remain archived and are not silently rebound by listing. Existing Host history is not replayed to synthesize missing TaskRefs; future successful exports create the reference. No ExportJob status is copied into Host, and no old WebM continuation is retried after project rotation.",
+  "residual_risks": [
+    "An encoder already started under a valid immutable selection may finish after the UI switches projects; its durable ExportJob remains owned by the original project and its events are not forwarded to the new project.",
+    "TaskCenter does not synthesize historical Host TaskRefs for exports created before this change; it lists canonical domain snapshots directly.",
+    "ProductionRun-driven export ownership is a separate Phase 4 closure item and remains outside this standalone ExportJob contract."
+  ]
+}

@@ -66,6 +66,7 @@ export type {
 // ── 巨壳拆分：子模块再导出，main.ts/测试仍从 "./runtime" 消费这些符号（API 不破） ──
 export {
   startExportJob,
+  listExportJobs,
   getExportJobStatus,
   cancelExportJob,
   writeExportTempInput,

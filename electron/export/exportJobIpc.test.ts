@@ -154,31 +154,64 @@ describe("runtime export job IPC functions", () => {
   it("rejects temp input writes for unknown jobId", async () => {
     const { writeExportTempInput } = await import("../runtime");
 
-    await expect(writeExportTempInput({ jobId: "missing-job", chunk: [1, 2, 3] })).rejects.toThrow(/not found/i);
+    await expect(writeExportTempInput({
+      projectId: "project-1",
+      immutableProjectUuid: "11111111-1111-4111-8111-111111111111",
+      projectGeneration: 1,
+      canonicalRootDigest: "missing-root",
+    }, { jobId: "missing-job", chunk: [1, 2, 3] })).rejects.toThrow(/not found/i);
   });
 
   it("rejects temp input writes after cancel", async () => {
     const { cancelExportJob, createProject, startExportJob, writeExportTempInput } = await import("../runtime");
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
     const { jobId } = await startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") });
-    await cancelExportJob(await exportProjectIdentity(), jobId);
+    const identity = await exportProjectIdentity();
+    await cancelExportJob(identity, jobId);
 
-    await expect(writeExportTempInput({ jobId, chunk: [1, 2, 3] })).rejects.toThrow(/cancelled|not active|cannot write/i);
+    await expect(writeExportTempInput(identity, { jobId, chunk: [1, 2, 3] })).rejects.toThrow(/cancelled|not active|cannot write/i);
   });
 
   it("appends temp input chunks for active jobs under the jobDir", async () => {
     const { cancelExportJob, createProject, getExportJobStatus, startExportJob, writeExportTempInput } = await import("../runtime");
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
     const { jobId } = await startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") });
-
-    await expect(writeExportTempInput({ jobId, chunk: new Uint8Array([1, 2]), path: path.join(tempRoot, "escape.webm") })).resolves.toEqual({ ok: true, size: 2 });
-    await expect(writeExportTempInput({ jobId, chunk: [3] })).resolves.toEqual({ ok: true, size: 3 });
-
     const identity = await exportProjectIdentity();
+
+    await expect(writeExportTempInput(identity, { jobId, chunk: new Uint8Array([1, 2]), path: path.join(tempRoot, "escape.webm") })).resolves.toEqual({ ok: true, size: 2 });
+    await expect(writeExportTempInput(identity, { jobId, chunk: [3] })).resolves.toEqual({ ok: true, size: 3 });
+
     const snapshot = getExportJobStatus(identity, jobId);
     const inputPath = path.join(snapshot.jobDir, "input.webm");
     expect(fs.existsSync(path.join(tempRoot, "escape.webm"))).toBe(false);
     expect([...fs.readFileSync(inputPath)]).toEqual([1, 2, 3]);
+    await cancelExportJob(identity, jobId);
+  });
+
+  it("rejects list, write, and finish after immutable project rotation before file or encoder effects", async () => {
+    const {
+      cancelExportJob,
+      createProject,
+      finishExportTempInput,
+      getExportJobStatus,
+      listExportJobs,
+      startExportJob,
+      writeExportTempInput,
+    } = await import("../runtime");
+    createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
+    const { jobId } = await startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") });
+    const identity = await exportProjectIdentity();
+    const replacement = { ...identity, projectGeneration: identity.projectGeneration + 1 };
+    const inputPath = path.join(getExportJobStatus(identity, jobId).jobDir, "input.webm");
+
+    expect(listExportJobs(identity).map((job) => job.id)).toEqual([jobId]);
+    expect(listExportJobs(replacement)).toEqual([]);
+    await expect(writeExportTempInput(replacement, { jobId, chunk: [1, 2, 3] })).rejects.toThrow(/project.*identity|does not belong/i);
+    await expect(finishExportTempInput(replacement, { jobId })).rejects.toThrow(/project.*identity|does not belong/i);
+
+    expect(fs.existsSync(inputPath)).toBe(false);
+    expect(transcodeWebmFileToMp4).not.toHaveBeenCalled();
+    expect(getExportJobStatus(identity, jobId).status).toBe("planning");
     await cancelExportJob(identity, jobId);
   });
 
@@ -190,7 +223,7 @@ describe("runtime export job IPC functions", () => {
     const identity = await exportProjectIdentity();
     const job = getExportJobStatus(identity, jobId);
 
-    await expect(writeExportTempInput({ jobId, chunk: new Uint8Array(EXPORT_TEMP_INPUT_MAX_CHUNK_BYTES + 1) })).rejects.toThrow(/chunk.*too large|exceeds/i);
+    await expect(writeExportTempInput(identity, { jobId, chunk: new Uint8Array(EXPORT_TEMP_INPUT_MAX_CHUNK_BYTES + 1) })).rejects.toThrow(/chunk.*too large|exceeds/i);
     expect(fs.existsSync(path.join(job.jobDir, "input.webm"))).toBe(false);
     await cancelExportJob(identity, jobId);
   });
@@ -199,12 +232,12 @@ describe("runtime export job IPC functions", () => {
     const { createProject, getExportJobStatus, startExportJob, writeExportTempInput, finishExportTempInput } = await import("../runtime");
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
     const { jobId } = await startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") });
-    await writeExportTempInput({ jobId, chunk: [1, 2, 3] });
     const identity = await exportProjectIdentity();
+    await writeExportTempInput(identity, { jobId, chunk: [1, 2, 3] });
     const inputPath = path.join(getExportJobStatus(identity, jobId).jobDir, "input.webm");
     expect(fs.existsSync(inputPath)).toBe(true);
 
-    await finishExportTempInput({ jobId });
+    await finishExportTempInput(identity, { jobId });
 
     const snapshot = getExportJobStatus(identity, jobId);
     expect(fs.existsSync(inputPath)).toBe(false);
@@ -247,11 +280,11 @@ describe("runtime export job IPC functions", () => {
     const { cancelExportJob, createProject, getExportJobStatus, startExportJob, writeExportTempInput, finishExportTempInput } = await import("../runtime");
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
     const { jobId } = await startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") });
-    await writeExportTempInput({ jobId, chunk: [1, 2, 3] });
     const identity = await exportProjectIdentity();
+    await writeExportTempInput(identity, { jobId, chunk: [1, 2, 3] });
     const inputPath = path.join(getExportJobStatus(identity, jobId).jobDir, "input.webm");
 
-    const finishPromise = finishExportTempInput({ jobId });
+    const finishPromise = finishExportTempInput(identity, { jobId });
     await runnerStarted;
     await cancelExportJob(identity, jobId);
 
@@ -269,8 +302,8 @@ describe("runtime export job IPC functions", () => {
     const { cancelExportJob, createProject, getExportJobStatus, startExportJob, writeExportTempInput } = await import("../runtime");
     createProject({ id: "project-1", rootPath: tempRoot, name: "Project One", version: 1 });
     const { jobId } = await startExportJob({ projectId: "project-1", manifest: makeManifest("project-1") });
-    await writeExportTempInput({ jobId, chunk: [1, 2, 3] });
     const identity = await exportProjectIdentity();
+    await writeExportTempInput(identity, { jobId, chunk: [1, 2, 3] });
     const inputPath = path.join(getExportJobStatus(identity, jobId).jobDir, "input.webm");
     expect(fs.existsSync(inputPath)).toBe(true);
 

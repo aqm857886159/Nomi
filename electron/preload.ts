@@ -322,6 +322,7 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   },
   exports: {
     startJob: (payload: unknown) => ipcRenderer.invoke("nomi:exports:start-job", payload),
+    list: () => ipcRenderer.invoke("nomi:exports:list"),
     writeTempInput: (payload: unknown) => ipcRenderer.invoke("nomi:exports:write-temp-input", payload),
     finishTempInput: (payload: unknown) => ipcRenderer.invoke("nomi:exports:finish-temp-input", payload),
     status: (jobId: string) => ipcRenderer.invoke("nomi:exports:status", jobId),

@@ -53,10 +53,23 @@ export function assertTarget(value: unknown): asserts value is TargetRef {
       assertNonEmpty(target.nodeId);
       assertNonEmpty(target.resultId);
       break;
+    case "asset":
+      assertAllowedKeys(target, ["kind", "assetIds"]);
+      assertStringArray(target.assetIds);
+      break;
     case "timeline":
       assertAllowedKeys(target, ["kind", "clipIds"]);
       assertStringArray(target.clipIds);
       break;
+    case "export": {
+      assertAllowedKeys(target, ["kind", "jobId", "timelineRevision"]);
+      const hasJobId = target.jobId !== undefined;
+      const hasTimelineRevision = target.timelineRevision !== undefined;
+      if (hasJobId === hasTimelineRevision) throw new ProjectAgentStateError("invalid_state");
+      if (hasJobId) assertNonEmpty(target.jobId);
+      if (hasTimelineRevision) assertNonEmpty(target.timelineRevision);
+      break;
+    }
     case "artifact":
       assertAllowedKeys(target, ["kind", "runId", "artifactId", "version", "contentHash"]);
       assertNonEmpty(target.runId);

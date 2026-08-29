@@ -3,11 +3,16 @@ import type { AgentChatRequest, AgentChatResponse } from "../harness/agentChatCo
 import type {
   ProjectAgentHostState,
   ProjectAgentItem,
+  ProjectAgentTaskItem,
   ProjectAgentTurn,
   ProjectBinding,
   ProjectAgentStatus,
 } from "../shared/projectAgentContracts";
 import { resolveCapabilityAlias } from "../shared/agentCapabilities/registry";
+import {
+  EXPORT_WRITE_ALIASES,
+  exportWriteResultSchema,
+} from "../shared/agentCapabilities/exportCapabilities";
 
 export function stableJson(value: unknown): string {
   if (value === null) return "null";
@@ -75,4 +80,43 @@ export function toolItem(
     createdAt: now,
     updatedAt: now,
   });
+}
+
+export function exportJobTaskItems(
+  binding: ProjectBinding,
+  turn: ProjectAgentTurn,
+  records: AgentChatResponse["toolCalls"],
+  existingItems: readonly ProjectAgentItem[],
+  now: string,
+): ProjectAgentTaskItem[] {
+  const knownJobIds = new Set(
+    existingItems.flatMap((item) => item.kind === "task" && item.task.kind === "export-job"
+      ? [item.task.jobId]
+      : []),
+  );
+  const items: ProjectAgentTaskItem[] = [];
+  for (const record of records) {
+    if (record.status !== "ok" || record.toolName !== EXPORT_WRITE_ALIASES.start) continue;
+    const result = exportWriteResultSchema.safeParse(record.result);
+    if (!result.success || result.data.operation !== "export_timeline" || !result.data.accepted) continue;
+    const rawJobId = record.result && typeof record.result === "object" && !Array.isArray(record.result)
+      ? (record.result as Record<string, unknown>).jobId
+      : undefined;
+    if (rawJobId !== result.data.jobId || knownJobIds.has(result.data.jobId)) continue;
+    knownJobIds.add(result.data.jobId);
+    items.push(Object.freeze({
+      itemId: `task-${digest([binding, turn.executionToken, "export-job", result.data.jobId])}`,
+      threadId: turn.threadId,
+      turnId: turn.turnId,
+      correlationId: record.toolCallId,
+      kind: "task" as const,
+      task: Object.freeze({ kind: "export-job" as const, jobId: result.data.jobId }),
+      status: "done" as const,
+      retryable: false,
+      deviated: false,
+      createdAt: now,
+      updatedAt: now,
+    }));
+  }
+  return items;
 }

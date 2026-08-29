@@ -45,7 +45,14 @@ import { ASSET_READ_CAPABILITY } from "../shared/agentCapabilities/assetRead";
 import { EXPORT_READ_CAPABILITY, EXPORT_WRITE_CAPABILITY } from "../shared/agentCapabilities/exportCapabilities";
 import type { ProjectAgentProposalReceiptView } from "../shared/projectAgentProposalReceipt";
 import { committedProjectAgentReceiptMatchesApproval } from "./projectAgentProposalReceiptCorrelation";
-import { digest, executionPrompt, stableJson, statusForResponse, toolItem } from "./projectAgentExecutionHelpers";
+import {
+  digest,
+  executionPrompt,
+  exportJobTaskItems,
+  stableJson,
+  statusForResponse,
+  toolItem,
+} from "./projectAgentExecutionHelpers";
 
 export type ProjectAgentSubscription = Readonly<{
   subscriptionId: string;
@@ -1380,8 +1387,25 @@ export function createProjectAgentExecutionCoordinator(
       const capabilityOutcome = execution.capabilityOutcome;
       const status = capabilityOutcome?.status ?? statusForResponse(response);
       const proposalSettlements = proposalSettlementsFor(execution, status);
-      const toolItems = response.toolCalls.map((item) => toolItem(partition.binding, execution.turn, item, now()));
       const receivedAt = now();
+      const beforeResult = partition.host.getSnapshot(partition.binding);
+      const toolItems = response.toolCalls.map((item) => toolItem(partition.binding, execution.turn, item, receivedAt));
+      const settledApprovalIds = new Set(
+        proposalSettlements.filter((settlement) => settlement.status === "done").map((settlement) => settlement.approvalId),
+      );
+      const receiptCorrelatedToolCallIds = new Set(
+        beforeResult.proposalApprovals.flatMap((approval) => settledApprovalIds.has(approval.ref.approvalId)
+          ? [approval.ref.toolCallId]
+          : []),
+      );
+      const taskItems = exportJobTaskItems(
+        partition.binding,
+        execution.turn,
+        response.toolCalls.filter((record) => receiptCorrelatedToolCallIds.has(record.toolCallId)),
+        beforeResult.items,
+        receivedAt,
+      );
+      const resultItems = [...toolItems, ...taskItems];
       const outcomeFailure: ProjectAgentFailureItem | undefined = capabilityOutcome
         ? Object.freeze({
             itemId: `failure-${digest([execution.turn.executionToken, capabilityOutcome.toolCallId, capabilityOutcome.code])}`,
@@ -1399,7 +1423,6 @@ export function createProjectAgentExecutionCoordinator(
             updatedAt: receivedAt,
           })
         : undefined;
-      const beforeResult = partition.host.getSnapshot(partition.binding);
       const currentStatus = beforeResult.turns.find((turn) => turn.turnId === execution.turn.turnId)?.status;
       if (!currentStatus || ["queued", "running", "proposed"].includes(currentStatus)) {
         await dispatchFresh(partition, (state) => ({
@@ -1417,7 +1440,7 @@ export function createProjectAgentExecutionCoordinator(
             target: execution.queueItem.target,
             preconditions: execution.queueItem.preconditions,
             expectedRevision: state.hostRevision,
-            items: outcomeFailure ? [...toolItems, outcomeFailure] : toolItems,
+            items: outcomeFailure ? [...resultItems, outcomeFailure] : resultItems,
             turnStatus: status,
             ...(capabilityOutcome ? { retryable: capabilityOutcome.retryable } : {}),
             ...(proposalSettlements.length > 0

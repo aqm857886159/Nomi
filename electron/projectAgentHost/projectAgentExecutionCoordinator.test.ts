@@ -32,6 +32,10 @@ import type {
   PreparedTimelineWrite,
   TimelineWriteApprovalAuthority,
 } from "../capabilityCore/timelineTransportAdapters";
+import type {
+  PiPhase4SurfaceTransportAdapter,
+  PreparedExportWrite,
+} from "../capabilityCore/phase4SurfaceTransportAdapters";
 import type { PreconditionSet, TargetRef } from "../shared/capabilityTargeting";
 import type { ProjectAgentProposalReceiptView } from "../shared/projectAgentProposalReceipt";
 
@@ -1294,6 +1298,115 @@ describe("ProjectAgentExecutionCoordinator", () => {
         toolCalls: [{ toolCallId: seen.toolCallId, status: "ok" }],
       },
     });
+  });
+
+  it("appends one reference-only ExportJob task after the exact proposal receipt settles", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-export-taskref-"));
+    let receipt: ProjectAgentProposalReceiptView | null = null;
+    const phase4Surface: PiPhase4SurfaceTransportAdapter = {
+      tryExecuteRead: vi.fn(async () => null),
+      prepareWrite: vi.fn(async (call: RuntimeToolCall): Promise<PreparedExportWrite | null> => {
+        if (call.toolName !== "export_timeline") return null;
+        return Object.freeze({
+          call,
+          invocation: {
+            input: { operation: "export_timeline", expectedRevision: "revision-a" },
+            target: { kind: "export", timelineRevision: "revision-a" },
+            preconditions: { timeline: { revision: "revision-a" } },
+            policyRevision: 1,
+            inputHash: "b".repeat(64),
+            actionHash: "a".repeat(64),
+          } as unknown as PreparedExportWrite["invocation"],
+        });
+      }),
+      executeWrite: vi.fn(async (_prepared, approval) => {
+        receipt = committedCanvasReceipt(binding, approval);
+        return {
+          ok: true,
+          silent: true,
+          result: {
+            operation: "export_timeline",
+            accepted: true,
+            jobId: "job-export-taskref",
+            backend: "filtergraph",
+            timelineRevision: "revision-a",
+            durationFrames: 60,
+            profile: { aspectRatio: "16:9", resolution: "1080p", quality: "standard" },
+          },
+        };
+      }),
+      dispose: vi.fn(),
+    };
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-export-taskref",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = {
+            toolCallId: "tool-export-taskref",
+            toolName: "export_timeline",
+            args: { expectedRevision: "revision-a" },
+          };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          return {
+            id: "result-export-taskref",
+            status: "finished",
+            text: "export started",
+            finishReason: "stop",
+            artifacts: [],
+            toolCalls: [{
+              ...call,
+              status: decision.ok ? "ok" : "denied",
+              ...(decision.ok && decision.result !== undefined ? { result: decision.result } : {}),
+              decision,
+            }],
+            usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+          } satisfies AgentChatResponse;
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, {
+      phase4Surface,
+      proposalReceipt: () => receipt,
+    });
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type !== "tool-call") return;
+      void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+        ok: true,
+        result: { approved: true },
+      });
+    });
+    const base = executionInput("export-taskref", 0);
+    const input: ExecutionInput = {
+      ...base,
+      mutation: {
+        ...base.mutation,
+        payload: {
+          ...base.mutation.payload,
+          queueItem: {
+            ...base.mutation.payload.queueItem,
+            target: { kind: "export", timelineRevision: "revision-a" },
+            preconditions: { timeline: { revision: "revision-a" } },
+            originSurface: { surfaceId: "preview-export", kind: "preview" },
+          },
+        },
+      },
+    };
+
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+    const taskItems = final.items.filter((item) => item.kind === "task");
+
+    expect(taskItems).toHaveLength(1);
+    expect(taskItems[0]).toMatchObject({
+      correlationId: "tool-export-taskref",
+      task: { kind: "export-job", jobId: "job-export-taskref" },
+      status: "done",
+    });
+    expect(Object.keys(taskItems[0]!.task).sort()).toEqual(["jobId", "kind"]);
+    expect(final.proposalApprovals).toMatchObject([{ lifecycle: "claimed" }]);
+    expect(final.items.find((item) => item.kind === "proposal")).toMatchObject({ status: "done" });
+    coordinator.release(opened.subscriptionId);
   });
 
   it("auto-executes document read aliases through the Host without a pending confirmation", async () => {

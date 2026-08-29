@@ -557,6 +557,7 @@ export type DesktopBridge = DesktopMediaBridge & {
   }
   exports: {
     startJob: (payload: DesktopExportJobStartPayload) => Promise<DesktopExportJobStartResult>
+    list: () => Promise<ExportJobSnapshot[]>
     writeTempInput: (payload: DesktopExportTempInputWritePayload) => Promise<DesktopExportTempInputWriteResult>
     finishTempInput: (payload: { jobId: string }) => Promise<DesktopMp4ExportResult>
     status: (jobId: string) => Promise<ExportJobSnapshot>

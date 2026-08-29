@@ -41,17 +41,26 @@ export function registerExportJobIpc(deps: ExportJobIpcDeps): void {
     await registerExportJobEventForwarding(event.sender, deps);
     return jobs.startExportJob(payload, selection);
   });
+  ipcMain.handle("nomi:exports:list", async (event) => {
+    assertTrustedSender(event);
+    const jobs = await loadExportJobs();
+    const selection = requireActiveProjectSelection(deps);
+    await registerExportJobEventForwarding(event.sender, deps);
+    return jobs.listExportJobs(selection);
+  });
   ipcMain.handle("nomi:exports:write-temp-input", async (event, payload) => {
     assertTrustedSender(event);
     const jobs = await loadExportJobs();
+    const selection = requireActiveProjectSelection(deps);
     await registerExportJobEventForwarding(event.sender, deps);
-    return jobs.writeExportTempInput(payload);
+    return jobs.writeExportTempInput(selection, payload);
   });
   ipcMain.handle("nomi:exports:finish-temp-input", async (event, payload) => {
     assertTrustedSender(event);
     const jobs = await loadExportJobs();
+    const selection = requireActiveProjectSelection(deps);
     await registerExportJobEventForwarding(event.sender, deps);
-    return jobs.finishExportTempInput(payload);
+    return jobs.finishExportTempInput(selection, payload);
   });
   ipcMain.handle("nomi:exports:status", async (event, jobId) => {
     assertTrustedSender(event);

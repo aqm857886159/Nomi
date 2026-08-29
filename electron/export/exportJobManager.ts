@@ -9,7 +9,6 @@ import {
 import { createExportTempDir } from "./exportPaths";
 import type { ExportJobStatus } from "./exportTypes";
 import { ExportJobStore } from "./exportJobStore";
-import { deriveCanonicalWorkspaceRootIdentity } from "../workspace/workspaceProjectIdentity";
 
 export type ExportJobProgress = {
   ratio: number;
@@ -209,15 +208,7 @@ export class ExportJobManager {
   }
 
   getJobForProject(identity: ExportJobProjectIdentity, jobId: string): ExportJobSnapshot {
-    let job = this.requireJob(jobId);
-    if (job.projectIdentity === null) {
-      const root = deriveCanonicalWorkspaceRootIdentity(job.projectDir);
-      if (job.projectId !== identity.projectId || root.canonicalRootDigest !== identity.canonicalRootDigest) {
-        throw new Error(`Export job ${jobId} does not belong to the current project identity`);
-      }
-      job = this.store.save({ ...job, projectIdentity: Object.freeze({ ...identity }) });
-      this.jobs.set(job.id, job);
-    }
+    const job = this.requireJob(jobId);
     if (!sameProjectIdentity(job.projectIdentity, identity)) {
       throw new Error(`Export job ${jobId} does not belong to the current project identity`);
     }
@@ -228,6 +219,11 @@ export class ExportJobManager {
     this.hydrateKnownProjects();
     const jobs = [...this.jobs.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     return projectId === undefined ? jobs : jobs.filter((job) => job.projectId === projectId);
+  }
+
+  listJobsForProject(identity: ExportJobProjectIdentity, projectDir?: string): ExportJobSnapshot[] {
+    if (projectDir) this.hydrateProject(projectDir);
+    return this.listJobs().filter((job) => sameProjectIdentity(job.projectIdentity, identity));
   }
 
   updateJob(jobId: string, patch: ExportJobPatch): ExportJobSnapshot {
@@ -365,6 +361,11 @@ export class ExportJobManager {
       error: { message: "Export interrupted by app restart" },
       updatedAt: this.clock(),
     };
+    if (job.projectIdentity === null) {
+      this.jobs.set(failed.id, failed);
+      this.projectDirs.add(path.resolve(failed.projectDir));
+      return;
+    }
     this.saveAndEmit(failed, ["status", "error"]);
   }
 }

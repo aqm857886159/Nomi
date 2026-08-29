@@ -254,6 +254,13 @@ export function getExportJobStatus(projectIdentity: ExportJobProjectIdentity, jo
   return exportJobManager.getJobForProject(exportProjectIdentity(projectIdentity), id);
 }
 
+export function listExportJobs(projectIdentity: ExportJobProjectIdentity): ExportJobSnapshot[] {
+  const identity = exportProjectIdentity(projectIdentity);
+  const projectDir = projectDirById(identity.projectId);
+  if (!projectDir) throw new Error("Project not found");
+  return exportJobManager.listJobsForProject(identity, projectDir);
+}
+
 export async function cancelExportJob(projectIdentity: ExportJobProjectIdentity, jobId: string): Promise<{ ok: true }> {
   const id = String(jobId || "").trim();
   if (!id) throw new Error("jobId is required");
@@ -287,11 +294,10 @@ export function abortAllActiveExports(): number {
 const EXPORT_TEMP_INPUT_WRITABLE_STATUSES = new Set(["queued", "preparing", "planning", "rendering", "encoding", "muxing", "finalizing"]);
 const activeExportAbortControllers = new Map<string, AbortController>();
 
-function requireWritableExportJob(jobId: unknown): ExportJobSnapshot {
+function requireWritableExportJob(projectIdentity: ExportJobProjectIdentity, jobId: unknown): ExportJobSnapshot {
   const id = String(jobId || "").trim();
   if (!id) throw new Error("jobId is required");
-  const job = exportJobManager.getJob(id);
-  if (!job) throw new Error(`Export job ${id} was not found`);
+  const job = exportJobManager.getJobForProject(exportProjectIdentity(projectIdentity), id);
   if (job.cancelled || !EXPORT_TEMP_INPUT_WRITABLE_STATUSES.has(job.status)) {
     throw new Error(`Cannot write temp input for export job ${id} while it is ${job.status}`);
   }
@@ -316,9 +322,12 @@ function resolutionFromProfile(profile: NomiRenderManifestV1["profile"]): Timeli
   return Math.max(profile.width, profile.height) <= 1280 ? "720p" : "1080p";
 }
 
-export async function writeExportTempInput(payload: unknown): Promise<{ ok: true; size: number }> {
+export async function writeExportTempInput(
+  projectIdentity: ExportJobProjectIdentity,
+  payload: unknown,
+): Promise<{ ok: true; size: number }> {
   const raw = (payload || {}) as ExportTempInputRequest;
-  const job = requireWritableExportJob(raw.jobId);
+  const job = requireWritableExportJob(projectIdentity, raw.jobId);
   const result = appendExportTempInputChunk(job, raw.chunk as never);
   exportJobManager.updateJob(job.id, {
     status: job.status === "queued" ? "preparing" : job.status,
@@ -327,9 +336,12 @@ export async function writeExportTempInput(payload: unknown): Promise<{ ok: true
   return result;
 }
 
-export async function finishExportTempInput(payload: unknown): Promise<unknown> {
+export async function finishExportTempInput(
+  projectIdentity: ExportJobProjectIdentity,
+  payload: unknown,
+): Promise<unknown> {
   const raw = (payload || {}) as ExportTempInputRequest;
-  const job = requireWritableExportJob(raw.jobId);
+  const job = requireWritableExportJob(projectIdentity, raw.jobId);
   const controller = new AbortController();
   activeExportAbortControllers.set(job.id, controller);
   try {
