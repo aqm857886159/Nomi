@@ -24,6 +24,11 @@ import {
 import { useGenerationCanvasStore } from './generationCanvas/store/generationCanvasStore'
 import { readGenerationCanvasSnapshot } from './generationCanvas/agent/generationCanvasTools'
 import { captureCanvasWriteRawEvidence, executeCanvasWriteTarget } from './generationCanvas/agent/canvasWriteTarget'
+import {
+  executeTimelineReadTarget,
+  executeTimelineWriteTarget,
+  type TimelineWriteTargetExecution,
+} from './timeline/agent/timelineCapabilityTarget'
 import { FOCUS_GENERATION_NODE_EVENT } from './generationCanvas/nodes/nodeSizing'
 import { focusCanvasNodeWhenReady } from './deepLinkFocus'
 import { projectAgentClient } from './ai/projectAgentClient'
@@ -309,6 +314,8 @@ export default function NomiStudioApp(): JSX.Element {
           }
         },
         (request) => executeCanvasWriteTarget(request, readGenerationCanvasSnapshot),
+        ({ input }) => executeTimelineReadTarget(input),
+        (request) => executeTimelineWriteTarget(request as TimelineWriteTargetExecution),
       ),
     [projectSurface],
   )

@@ -12,7 +12,6 @@ import { createDefaultWorkbenchDocument } from '../workbenchTypes'
 import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 import { abandonPendingCanvasWrite } from '../generationCanvas/events/canvasWriteBoundary'
 import { invalidateAgentTurnStates } from '../ai/agentTurnLifecycle'
-import { resetTimelineAgentState } from '../timeline/agent/timelineToolCall'
 
 /**
  * Release the currently opened project's heavy renderer-only state after it has
@@ -22,7 +21,6 @@ import { resetTimelineAgentState } from '../timeline/agent/timelineToolCall'
 export function releaseWorkbenchProjectRuntimeState(): void {
   invalidateAgentTurnStates()
   abandonPendingCanvasWrite()
-  resetTimelineAgentState()
   // 审片结果和在途 judge 都是项目态；离开项目必须清掉并递增 requestId，旧回执随后到达也不能复活。
   useShotVerifyStore.getState().clear()
   clearCommittedProposal()

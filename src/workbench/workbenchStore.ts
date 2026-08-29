@@ -32,6 +32,7 @@ import type { Vec2 } from './timeline/overlayTransform'
 import { createDefaultTimeline, normalizeTimeline } from './timeline/timelineMath'
 import { readPreviewSourceCollapsed, writePreviewSourceCollapsed } from './preview/previewSourcePanelPreference'
 import type { TimelineClip, TimelineState, TimelineTextStyle, TimelineTrackType } from './timeline/timelineTypes'
+import { timelineUndoTimeline, type TimelineUndoEntry } from './timeline/timelineUndoHistory'
 import { normalizeWorkbenchDocument, type CreationDocumentTools, type PreviewAspectRatio, type WorkbenchDocument } from './workbenchTypes'
 import type { WorkbenchAiMessage } from './ai/workbenchAiTypes'
 import type { ComposerAttachment } from './ai/composer/composerAttachmentTypes'
@@ -63,7 +64,7 @@ export type TimelineSnapGuide = { frame: number; label: string }
 // 时间轴撤销栈封顶（防无限增长）。
 const TIMELINE_UNDO_LIMIT = 30
 // 离散编辑生效时把旧 timeline 压栈：仅当真的变了。供 set 内联调用。
-function pushTimelineUndo(stack: TimelineState[], previous: TimelineState): TimelineState[] {
+function pushTimelineUndo(stack: TimelineUndoEntry[], previous: TimelineState): TimelineUndoEntry[] {
   const next = [...stack, previous]
   if (next.length > TIMELINE_UNDO_LIMIT) next.shift()
   return next
@@ -137,7 +138,7 @@ type WorkbenchState = WorkbenchDocumentSlice & {
   previewSourcePanelCollapsed: boolean
   setPreviewSourcePanelCollapsed: (collapsed: boolean) => void
   /** 时间轴撤销栈（仅时间轴编辑，非持久化）。封顶后丢最旧。 */
-  timelineUndoStack: TimelineState[]
+  timelineUndoStack: TimelineUndoEntry[]
   /** 时间轴重做栈。撤销时压入；任一新编辑清空（新编辑使 redo 失效，标准语义）。 */
   timelineRedoStack: TimelineState[]
   setTimelineSplitMode: (on: boolean) => void
@@ -462,7 +463,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     set((state) => {
       const stack = state.timelineUndoStack
       if (stack.length === 0) return state
-      const previous = stack[stack.length - 1]
+      const previous = timelineUndoTimeline(stack[stack.length - 1])
       const liveIds = new Set(previous.tracks.flatMap((track) => track.clips.map((clip) => clip.id)))
       return {
         timeline: previous,

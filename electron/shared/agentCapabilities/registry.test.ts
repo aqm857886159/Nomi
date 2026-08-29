@@ -4,6 +4,8 @@ import { CANVAS_READ_CAPABILITY } from "./canvasRead";
 import { CANVAS_WRITE_CAPABILITY } from "./canvasWrite";
 import { DOCUMENT_READ_CAPABILITY, DOCUMENT_READ_ALIASES } from "./documentRead";
 import { DOCUMENT_WRITE_CAPABILITY, DOCUMENT_WRITE_ALIASES } from "./documentWrite";
+import { TIMELINE_READ_CAPABILITY } from "./timelineRead";
+import { TIMELINE_WRITE_CAPABILITY } from "./timelineWrite";
 import { CAPABILITY_CONTRACTS, capabilityOperationAliasesFor, resolveCapabilityAlias } from "./registry";
 import type { ContractOnlyRegistry } from "./registry";
 
@@ -25,6 +27,8 @@ describe("capability contract registry", () => {
       CANVAS_WRITE_CAPABILITY,
       DOCUMENT_READ_CAPABILITY,
       DOCUMENT_WRITE_CAPABILITY,
+      TIMELINE_READ_CAPABILITY,
+      TIMELINE_WRITE_CAPABILITY,
     ]);
 
     const ids = CAPABILITY_CONTRACTS.map((contract) => contract.id);
@@ -32,13 +36,22 @@ describe("capability contract registry", () => {
 
     expect(new Set(ids).size).toBe(ids.length);
     expect(new Set(aliases).size).toBe(aliases.length);
-    expect(ids).toEqual(["canvas.read", "canvas.write", "document.read", "document.write"]);
+    expect(ids).toEqual([
+      "canvas.read",
+      "canvas.write",
+      "document.read",
+      "document.write",
+      "timeline.read",
+      "timeline.write",
+    ]);
     expect(aliases).toEqual([
       "read_canvas_state",
       "nomi_read_canvas",
       "set_node_prompt",
       "read_full_text",
       "insert_at_cursor",
+      "read_timeline",
+      "apply_edit_plan",
     ]);
     expect(CAPABILITY_CONTRACTS[0]?.exposure).toBe("mcp_safe");
     expect(resolveCapabilityAlias(CANVAS_WRITE_CAPABILITY.aliases.pi)?.contract).toBe(CANVAS_WRITE_CAPABILITY);
@@ -51,6 +64,8 @@ describe("capability contract registry", () => {
     expect(resolveCapabilityAlias(DOCUMENT_READ_ALIASES.selection)?.contract).toBe(DOCUMENT_READ_CAPABILITY);
     expect(resolveCapabilityAlias(DOCUMENT_WRITE_ALIASES.replace)?.contract).toBe(DOCUMENT_WRITE_CAPABILITY);
     expect(resolveCapabilityAlias(DOCUMENT_WRITE_ALIASES.append)?.contract).toBe(DOCUMENT_WRITE_CAPABILITY);
+    expect(resolveCapabilityAlias("inspect_timeline_range")?.contract).toBe(TIMELINE_READ_CAPABILITY);
+    expect(resolveCapabilityAlias("undo_timeline_edit")?.contract).toBe(TIMELINE_WRITE_CAPABILITY);
   });
 
   it("rejects adapter, port, and executor objects at compile time", () => {

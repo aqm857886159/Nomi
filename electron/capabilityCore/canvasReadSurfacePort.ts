@@ -14,6 +14,10 @@ import {
   SURFACE_DOCUMENT_READ_REQUEST_CHANNEL,
   SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL,
   SURFACE_DOCUMENT_WRITE_REQUEST_CHANNEL,
+  SURFACE_TIMELINE_READ_REPLY_CHANNEL,
+  SURFACE_TIMELINE_READ_REQUEST_CHANNEL,
+  SURFACE_TIMELINE_WRITE_REPLY_CHANNEL,
+  SURFACE_TIMELINE_WRITE_REQUEST_CHANNEL,
   type SurfacePortWireErrorCode,
 } from "../shared/surfacePortBinding";
 import {
@@ -22,6 +26,8 @@ import {
   type CanvasWritePort,
   type DocumentReadPort,
   type DocumentWritePort,
+  type TimelineReadPort,
+  type TimelineWritePort,
 } from "./capabilityExecutorRegistry";
 import {
   type CanvasReadSurfaceRegistry,
@@ -51,6 +57,8 @@ export type CanvasReadSurfacePortRuntime = Readonly<{
   createDocumentReadPort(captured: CapturedCanvasReadPort, documentId: string): DocumentReadPort;
   createDocumentWritePort(captured: CapturedCanvasReadPort, documentId: string): DocumentWritePort;
   createCanvasWritePort(captured: CapturedCanvasReadPort): CanvasWritePort;
+  createTimelineReadPort(captured: CapturedCanvasReadPort): TimelineReadPort;
+  createTimelineWritePort(captured: CapturedCanvasReadPort): TimelineWritePort;
 }>;
 
 const REPLY_ERROR_CODES = new Set<SurfacePortWireErrorCode>([
@@ -177,6 +185,22 @@ export function createCanvasReadSurfacePortRuntime(
     }
     handleReply(SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL, event, value);
   });
+  ipcMain.on(SURFACE_TIMELINE_READ_REPLY_CHANNEL, (event, value) => {
+    try {
+      assertTrustedSender(event);
+    } catch {
+      return;
+    }
+    handleReply(SURFACE_TIMELINE_READ_REPLY_CHANNEL, event, value);
+  });
+  ipcMain.on(SURFACE_TIMELINE_WRITE_REPLY_CHANNEL, (event, value) => {
+    try {
+      assertTrustedSender(event);
+    } catch {
+      return;
+    }
+    handleReply(SURFACE_TIMELINE_WRITE_REPLY_CHANNEL, event, value);
+  });
 
   const requestRead = (
     captured: CapturedCanvasReadPort,
@@ -283,6 +307,32 @@ export function createCanvasReadSurfacePortRuntime(
             signal,
             SURFACE_CANVAS_WRITE_EXECUTE_REQUEST_CHANNEL,
             SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL,
+            { input: semanticInput, target, preconditions, receiptProposalId, approvalId, actionHash },
+          );
+        },
+      });
+    },
+    createTimelineReadPort(captured) {
+      return Object.freeze({
+        read({ input: semanticInput, target, preconditions, signal }) {
+          return requestRead(
+            captured,
+            signal,
+            SURFACE_TIMELINE_READ_REQUEST_CHANNEL,
+            SURFACE_TIMELINE_READ_REPLY_CHANNEL,
+            { input: semanticInput, target, preconditions },
+          );
+        },
+      });
+    },
+    createTimelineWritePort(captured) {
+      return Object.freeze({
+        write({ input: semanticInput, target, preconditions, receiptProposalId, approvalId, actionHash, signal }) {
+          return requestRead(
+            captured,
+            signal,
+            SURFACE_TIMELINE_WRITE_REQUEST_CHANNEL,
+            SURFACE_TIMELINE_WRITE_REPLY_CHANNEL,
             { input: semanticInput, target, preconditions, receiptProposalId, approvalId, actionHash },
           );
         },

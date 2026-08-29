@@ -2,6 +2,8 @@ import { CANVAS_READ_CAPABILITY } from "./canvasRead";
 import { CANVAS_WRITE_CAPABILITY } from "./canvasWrite";
 import { DOCUMENT_READ_CAPABILITY } from "./documentRead";
 import { DOCUMENT_WRITE_CAPABILITY } from "./documentWrite";
+import { TIMELINE_READ_CAPABILITY } from "./timelineRead";
+import { TIMELINE_WRITE_CAPABILITY } from "./timelineWrite";
 import type { CapabilityContract, CapabilityProjectionSurface } from "./capabilityContract";
 
 type AnyCapabilityContract = CapabilityContract<unknown, unknown>;
@@ -18,6 +20,8 @@ const REGISTERED_CONTRACTS = [
   CANVAS_WRITE_CAPABILITY,
   DOCUMENT_READ_CAPABILITY,
   DOCUMENT_WRITE_CAPABILITY,
+  TIMELINE_READ_CAPABILITY,
+  TIMELINE_WRITE_CAPABILITY,
 ] as const satisfies readonly CapabilityContract<unknown, unknown>[];
 
 export const CAPABILITY_CONTRACTS: ContractOnlyRegistry<typeof REGISTERED_CONTRACTS> = REGISTERED_CONTRACTS;

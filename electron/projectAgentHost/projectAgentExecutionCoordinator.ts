@@ -26,9 +26,16 @@ import type {
   PiCanvasWriteTransportAdapter,
   PreparedCanvasWrite,
 } from "../capabilityCore/canvasWriteTransportAdapters";
+import type {
+  PiTimelineReadTransportAdapter,
+  PiTimelineWriteTransportAdapter,
+  PreparedTimelineWrite,
+} from "../capabilityCore/timelineTransportAdapters";
 import { resolveCapabilityAlias } from "../shared/agentCapabilities/registry";
 import { DOCUMENT_READ_CAPABILITY } from "../shared/agentCapabilities/documentRead";
 import { CANVAS_WRITE_CAPABILITY } from "../shared/agentCapabilities/canvasWrite";
+import { TIMELINE_READ_CAPABILITY } from "../shared/agentCapabilities/timelineRead";
+import { TIMELINE_WRITE_CAPABILITY } from "../shared/agentCapabilities/timelineWrite";
 import type { ProjectAgentProposalReceiptView } from "../shared/projectAgentProposalReceipt";
 import { committedProjectAgentReceiptMatchesApproval } from "./projectAgentProposalReceiptCorrelation";
 import { digest, executionPrompt, stableJson, statusForResponse, toolItem } from "./projectAgentExecutionHelpers";
@@ -47,6 +54,8 @@ export type ProjectAgentExecutionOpenOptions = Readonly<{
   documentRead?: PiDocumentReadTransportAdapter;
   documentWrite?: PiDocumentWriteTransportAdapter;
   canvasWrite?: PiCanvasWriteTransportAdapter;
+  timelineRead?: PiTimelineReadTransportAdapter;
+  timelineWrite?: PiTimelineWriteTransportAdapter;
   proposalReceipt?: ProjectAgentProposalReceiptReader;
 }>;
 
@@ -289,6 +298,8 @@ export function createProjectAgentExecutionCoordinator(
   const documentReads = new Map<string, PiDocumentReadTransportAdapter | undefined>();
   const documentWrites = new Map<string, PiDocumentWriteTransportAdapter | undefined>();
   const canvasWrites = new Map<string, PiCanvasWriteTransportAdapter | undefined>();
+  const timelineReads = new Map<string, PiTimelineReadTransportAdapter | undefined>();
+  const timelineWrites = new Map<string, PiTimelineWriteTransportAdapter | undefined>();
   const proposalReceiptReaders = new Map<string, ProjectAgentProposalReceiptReader | undefined>();
   const runAgent =
     deps.runAgent ?? (async (request, hooks) => (await import("../ai/agentChatV2")).runAgentChatV2(request, hooks));
@@ -514,6 +525,8 @@ export function createProjectAgentExecutionCoordinator(
     documentReads.set(subscription.subscriptionId, options.documentRead);
     documentWrites.set(subscription.subscriptionId, options.documentWrite);
     canvasWrites.set(subscription.subscriptionId, options.canvasWrite);
+    timelineReads.set(subscription.subscriptionId, options.timelineRead);
+    timelineWrites.set(subscription.subscriptionId, options.timelineWrite);
     proposalReceiptReaders.set(subscription.subscriptionId, options.proposalReceipt);
     return subscription;
   }
@@ -873,6 +886,42 @@ export function createProjectAgentExecutionCoordinator(
     return selected;
   }
 
+  function timelineReadFor(partition: ExecutionPartition, preferredSubscriptionId: string) {
+    const currentPreferred = partition.subscriptionIds.has(preferredSubscriptionId)
+      ? timelineReads.get(preferredSubscriptionId)
+      : undefined;
+    if (currentPreferred) return currentPreferred;
+    let selected: PiTimelineReadTransportAdapter | undefined;
+    let selectedEpoch = -1;
+    for (const subscriptionId of partition.subscriptionIds) {
+      const subscription = subscriptions.get(subscriptionId);
+      const adapter = timelineReads.get(subscriptionId);
+      if (subscription && adapter && subscription.subscriptionEpoch > selectedEpoch) {
+        selected = adapter;
+        selectedEpoch = subscription.subscriptionEpoch;
+      }
+    }
+    return selected;
+  }
+
+  function timelineWriteFor(partition: ExecutionPartition, preferredSubscriptionId: string) {
+    const currentPreferred = partition.subscriptionIds.has(preferredSubscriptionId)
+      ? timelineWrites.get(preferredSubscriptionId)
+      : undefined;
+    if (currentPreferred) return currentPreferred;
+    let selected: PiTimelineWriteTransportAdapter | undefined;
+    let selectedEpoch = -1;
+    for (const subscriptionId of partition.subscriptionIds) {
+      const subscription = subscriptions.get(subscriptionId);
+      const adapter = timelineWrites.get(subscriptionId);
+      if (subscription && adapter && subscription.subscriptionEpoch > selectedEpoch) {
+        selected = adapter;
+        selectedEpoch = subscription.subscriptionEpoch;
+      }
+    }
+    return selected;
+  }
+
   function proposalReceiptReaderFor(partition: ExecutionPartition, preferredSubscriptionId: string) {
     const currentPreferred = partition.subscriptionIds.has(preferredSubscriptionId)
       ? proposalReceiptReaders.get(preferredSubscriptionId)
@@ -1008,6 +1057,12 @@ export function createProjectAgentExecutionCoordinator(
           if (canonicalCapability?.id === DOCUMENT_READ_CAPABILITY.id) {
             return { ok: false, code: "surface_port_unavailable", message: "surface_port_unavailable" };
           }
+          const timelineReadAdapter = timelineReadFor(partition, frozen?.preferredSubscriptionId ?? "");
+          const timelineRead = await timelineReadAdapter?.tryExecute(call, signal);
+          if (timelineRead) return timelineRead;
+          if (canonicalCapability?.id === TIMELINE_READ_CAPABILITY.id) {
+            return { ok: false, code: "surface_port_unavailable", message: "surface_port_unavailable" };
+          }
           const canvasWriteAdapter = canvasWriteFor(partition, frozen?.preferredSubscriptionId ?? "");
           if (canvasWriteAdapter) {
             let prepared: PreparedCanvasWrite | null;
@@ -1102,6 +1157,63 @@ export function createProjectAgentExecutionCoordinator(
             }
           }
           if (canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id) {
+            return rememberCanvasWriteOutcome(
+              execution,
+              call.toolCallId,
+              "capability_surface_unavailable",
+              "capability_surface_unavailable",
+            );
+          }
+          const timelineWriteAdapter = timelineWriteFor(partition, frozen?.preferredSubscriptionId ?? "");
+          if (timelineWriteAdapter) {
+            let prepared: PreparedTimelineWrite | null;
+            try {
+              prepared = await timelineWriteAdapter.prepare(call, signal);
+            } catch (error) {
+              const code = error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string"
+                ? (error as { code: string }).code
+                : error instanceof Error ? error.message : "capability_execution_failed";
+              return rememberCanvasWriteOutcome(execution, call.toolCallId, code, "capability_unsupported");
+            }
+            if (prepared) {
+              const decision = await awaitToolDecision(partition, execution, call, signal);
+              if (!decision.ok) {
+                return rememberCanvasWriteOutcome(
+                  execution,
+                  call.toolCallId,
+                  decision.code,
+                  signal.aborted ? "capability_cancelled" : "capability_declined",
+                  decision.denied,
+                );
+              }
+              const persisted = await persistApprovedProposal(partition, execution, call, decision, {
+                approvalId: `approval-${digest([execution.turn.executionToken, call.toolCallId])}`,
+                receiptProposalId: `receipt-${digest([execution.turn.executionToken, call.toolCallId, "receipt"])}`,
+                target: prepared.invocation.target,
+                preconditions: prepared.invocation.preconditions,
+                policyRevision: prepared.invocation.policyRevision,
+                inputHash: prepared.invocation.inputHash,
+                actionHash: prepared.invocation.actionHash,
+              });
+              if (!persisted) throw new Error("approval_persistence_failed");
+              const executed = await timelineWriteAdapter.execute(prepared, {
+                receiptProposalId: persisted.receiptProposalId,
+                approvalId: persisted.approvalId,
+                actionHash: persisted.actionHash,
+              }, signal);
+              recordProposalSettlement(execution, persisted.approvalId, executed.ok ? "done" : "failed");
+              if (!executed.ok) {
+                return rememberCanvasWriteOutcome(
+                  execution,
+                  call.toolCallId,
+                  executed.code,
+                  signal.aborted ? "capability_cancelled" : "capability_target_stale",
+                );
+              }
+              return executed;
+            }
+          }
+          if (canonicalCapability?.id === TIMELINE_WRITE_CAPABILITY.id) {
             return rememberCanvasWriteOutcome(
               execution,
               call.toolCallId,
@@ -1454,6 +1566,10 @@ export function createProjectAgentExecutionCoordinator(
       documentWrites.delete(subscriptionId);
       canvasWrites.get(subscriptionId)?.dispose();
       canvasWrites.delete(subscriptionId);
+      timelineReads.get(subscriptionId)?.dispose();
+      timelineReads.delete(subscriptionId);
+      timelineWrites.get(subscriptionId)?.dispose();
+      timelineWrites.delete(subscriptionId);
       proposalReceiptReaders.delete(subscriptionId);
     },
     subscriptionCount: () => subscriptions.size,

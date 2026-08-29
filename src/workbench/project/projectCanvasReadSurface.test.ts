@@ -84,6 +84,25 @@ function harness() {
         actionHash: string
       }) => unknown | Promise<unknown>)
     | undefined
+  let timelineReadHandler:
+    | ((request: {
+        binding: ReturnType<typeof binding>
+        input: { operation: 'read_timeline' }
+        target: unknown
+        preconditions: unknown
+      }) => unknown | Promise<unknown>)
+    | undefined
+  let timelineWriteHandler:
+    | ((request: {
+        binding: ReturnType<typeof binding>
+        input: { operation: 'undo_timeline_edit'; undoToken: string; expectedRevision: string }
+        target: unknown
+        preconditions: unknown
+        receiptProposalId: string
+        approvalId: string
+        actionHash: string
+      }) => unknown | Promise<unknown>)
+    | undefined
   const bridge = {
     suspend: vi.fn(async () => ({ suspension: suspension(String(++suspensionId)) })),
     commitCanvasRead: vi.fn(async (input: { projectId: string }) => ({
@@ -118,6 +137,18 @@ function harness() {
         canvasWriteExecuteHandler = undefined
       }
     }),
+    onTimelineRead: vi.fn((handler: typeof timelineReadHandler) => {
+      timelineReadHandler = handler
+      return () => {
+        timelineReadHandler = undefined
+      }
+    }),
+    onTimelineWrite: vi.fn((handler: typeof timelineWriteHandler) => {
+      timelineWriteHandler = handler
+      return () => {
+        timelineWriteHandler = undefined
+      }
+    }),
   }
   const coordinator = createProjectCanvasReadSurfaceCoordinator({
     getSurfaceBridge: () => bridge,
@@ -133,6 +164,10 @@ function harness() {
       canvasWriteCaptureHandler?.(request),
     executeCanvasWrite: (request: Parameters<NonNullable<typeof canvasWriteExecuteHandler>>[0]) =>
       canvasWriteExecuteHandler?.(request),
+    readTimeline: (request: Parameters<NonNullable<typeof timelineReadHandler>>[0]) =>
+      timelineReadHandler?.(request),
+    writeTimeline: (request: Parameters<NonNullable<typeof timelineWriteHandler>>[0]) =>
+      timelineWriteHandler?.(request),
   }
 }
 
@@ -413,6 +448,61 @@ describe('project canvas-read Surface hydration coordinator', () => {
     expect(() => test.executeCanvasWrite(executeRequest)).toThrow(
       expect.objectContaining({ code: 'surface_port_suspended' }),
     )
+    unregister()
+  })
+
+  it('rejects Timeline read/write from an old binding as soon as the project Surface rotates', async () => {
+    const test = harness()
+    const read = vi.fn(() => ({ operation: 'read_timeline', revision: 'deadbeef' }))
+    const write = vi.fn(() => ({ operation: 'undo_timeline_edit', ok: true, undone: true, revision: 'cafebabe' }))
+    const unregister = registerProjectCanvasReadSurface(
+      test.coordinator,
+      () => ({}),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      read,
+      write,
+    )
+    const epoch = test.coordinator.beginHydration()
+    await epoch.waitUntilSuspended()
+    const committed = await epoch.commitCanvasRead('project-a')
+    const target = { kind: 'timeline', clipIds: [] }
+    const preconditions = { timeline: { revision: 'deadbeef' } }
+    const readRequest = {
+      binding: committed!,
+      input: { operation: 'read_timeline' as const },
+      target,
+      preconditions,
+    }
+    const writeRequest = {
+      binding: committed!,
+      input: {
+        operation: 'undo_timeline_edit' as const,
+        undoToken: 'timeline-undo:v1:receipt-a',
+        expectedRevision: 'deadbeef',
+      },
+      target,
+      preconditions,
+      receiptProposalId: 'receipt-a',
+      approvalId: 'approval-a',
+      actionHash: 'action-a',
+    }
+    expect(test.readTimeline(readRequest)).toEqual({ operation: 'read_timeline', revision: 'deadbeef' })
+    expect(test.writeTimeline(writeRequest)).toEqual({
+      operation: 'undo_timeline_edit', ok: true, undone: true, revision: 'cafebabe',
+    })
+
+    test.coordinator.beginHydration()
+    expect(() => test.readTimeline(readRequest)).toThrow(
+      expect.objectContaining({ code: 'surface_port_suspended' }),
+    )
+    expect(() => test.writeTimeline(writeRequest)).toThrow(
+      expect.objectContaining({ code: 'surface_port_suspended' }),
+    )
+    expect(read).toHaveBeenCalledTimes(1)
+    expect(write).toHaveBeenCalledTimes(1)
     unregister()
   })
 })

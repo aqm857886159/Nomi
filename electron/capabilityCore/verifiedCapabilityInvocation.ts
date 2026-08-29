@@ -17,6 +17,16 @@ import {
   documentWriteSemanticInputSchema,
   type DocumentWriteInput,
 } from "../shared/agentCapabilities/documentWrite";
+import {
+  TIMELINE_READ_CAPABILITY,
+  timelineReadSemanticInputSchema,
+  type TimelineReadInput,
+} from "../shared/agentCapabilities/timelineRead";
+import {
+  TIMELINE_WRITE_CAPABILITY,
+  timelineWriteSemanticInputSchema,
+  type TimelineWriteInput,
+} from "../shared/agentCapabilities/timelineWrite";
 import type { DocumentAnchorRef, PreconditionSet, TargetRef } from "../shared/capabilityTargeting";
 import type { ProjectBinding } from "../shared/projectBinding";
 import {
@@ -43,6 +53,8 @@ import { resolveProjectSessionLeaseVerification, type VerifiedProjectSessionBind
 export const CANVAS_READ_INVOCATION_POLICY_REVISION = 1 as const;
 export const DOCUMENT_WRITE_INVOCATION_POLICY_REVISION = 1 as const;
 export const CANVAS_WRITE_INVOCATION_POLICY_REVISION = 1 as const;
+export const TIMELINE_READ_INVOCATION_POLICY_REVISION = 1 as const;
+export const TIMELINE_WRITE_INVOCATION_POLICY_REVISION = 1 as const;
 
 export type { PreconditionSet } from "../shared/capabilityTargeting";
 export type { ProjectBinding } from "../shared/projectBinding";
@@ -139,7 +151,9 @@ export type VerifiedCapabilityExecutionTarget =
   | VerifiedCanvasReadExecutionTarget
   | Readonly<{ kind: "document-surface"; capturedPort: CapturedCanvasReadPort; documentId: string }>
   | Readonly<{ kind: "document-write-surface"; capturedPort: CapturedCanvasReadPort; documentId: string }>
-  | Readonly<{ kind: "canvas-write-surface"; capturedPort: CapturedCanvasReadPort }>;
+  | Readonly<{ kind: "canvas-write-surface"; capturedPort: CapturedCanvasReadPort }>
+  | Readonly<{ kind: "timeline-read-surface"; capturedPort: CapturedCanvasReadPort }>
+  | Readonly<{ kind: "timeline-write-surface"; capturedPort: CapturedCanvasReadPort }>;
 
 type InvocationState = Readonly<{
   evidence: CapabilityAuthorityEvidence;
@@ -870,6 +884,112 @@ export function createRendererCanvasWriteVerifiedInvocationFactory(
   });
 }
 
+type TimelineTarget = Extract<TargetRef, { kind: "timeline" }>;
+
+function timelineClipIds(input: TimelineReadInput | TimelineWriteInput): readonly string[] {
+  if (input.operation !== "propose_edit_plan" && input.operation !== "apply_edit_plan") return Object.freeze([]);
+  const ids = new Set<string>();
+  for (const operation of input.operations) {
+    if ("clipId" in operation && operation.clipId) ids.add(operation.clipId);
+    if ("clipIds" in operation) operation.clipIds?.forEach((clipId) => ids.add(clipId));
+  }
+  return Object.freeze([...ids]);
+}
+
+function timelinePreconditions(input: TimelineReadInput | TimelineWriteInput): PreconditionSet {
+  if (input.operation === "propose_edit_plan" || input.operation === "apply_edit_plan") {
+    return Object.freeze({ timeline: Object.freeze({ revision: input.baseRevision }) });
+  }
+  if (input.operation === "undo_timeline_edit") {
+    return Object.freeze({ timeline: Object.freeze({ revision: input.expectedRevision }) });
+  }
+  return EMPTY_PRECONDITIONS;
+}
+
+function timelineTarget(input: TimelineReadInput | TimelineWriteInput): TimelineTarget {
+  return Object.freeze({ kind: "timeline", clipIds: timelineClipIds(input) });
+}
+
+export type RendererTimelineReadVerifiedInvocationFactory = Readonly<{
+  mint(input: Readonly<{ toolCallId: string; input: unknown }>): Promise<VerifiedCapabilityInvocation<TimelineReadInput, TimelineTarget>>;
+}>;
+
+export function createRendererTimelineReadVerifiedInvocationFactory(
+  input: Readonly<{ registry: CanvasReadSurfaceRegistry; capturedPort: CapturedCanvasReadPort; requestId: string }>,
+): RendererTimelineReadVerifiedInvocationFactory {
+  assertCanvasReadSurfaceRegistry(input.registry);
+  input.registry.resolveCapturedCanvasReadPort(input.capturedPort);
+  const requestId = nonEmptyString(input.requestId);
+  return Object.freeze({
+    async mint({ toolCallId: toolCallIdValue, input: semanticValue }) {
+      const toolCallId = nonEmptyString(toolCallIdValue);
+      let semanticInput: TimelineReadInput;
+      try {
+        semanticInput = deepFreeze(timelineReadSemanticInputSchema.parse(semanticValue));
+      } catch {
+        throw new CapabilityInvocationError("capability_input_invalid");
+      }
+      const caller = Object.freeze({ kind: "embedded-agent" as const, requestId, toolCallId });
+      const verify = async (): Promise<RendererAuthorityEvidence> => {
+        const dispatch = input.registry.resolveCapturedCanvasReadPort(input.capturedPort);
+        const binding = await input.registry.assertCanvasReadPortReply(input.capturedPort, dispatch.binding);
+        return rendererEvidence(binding, caller);
+      };
+      const evidence = await verify();
+      return mintCapabilityInvocation({
+        capability: TIMELINE_READ_CAPABILITY,
+        policyRevision: TIMELINE_READ_INVOCATION_POLICY_REVISION,
+        semanticInput,
+        target: timelineTarget(semanticInput),
+        preconditions: timelinePreconditions(semanticInput),
+        evidence,
+        revalidate: verify,
+        executionTarget: Object.freeze({ kind: "timeline-read-surface" as const, capturedPort: input.capturedPort }),
+      });
+    },
+  });
+}
+
+export type RendererTimelineWriteVerifiedInvocationFactory = Readonly<{
+  mint(input: Readonly<{ toolCallId: string; input: unknown }>): Promise<VerifiedCapabilityInvocation<TimelineWriteInput, TimelineTarget>>;
+}>;
+
+export function createRendererTimelineWriteVerifiedInvocationFactory(
+  input: Readonly<{ registry: CanvasReadSurfaceRegistry; capturedPort: CapturedCanvasReadPort; requestId: string }>,
+): RendererTimelineWriteVerifiedInvocationFactory {
+  assertCanvasReadSurfaceRegistry(input.registry);
+  input.registry.resolveCapturedCanvasReadPort(input.capturedPort);
+  const requestId = nonEmptyString(input.requestId);
+  return Object.freeze({
+    async mint({ toolCallId: toolCallIdValue, input: semanticValue }) {
+      const toolCallId = nonEmptyString(toolCallIdValue);
+      let semanticInput: TimelineWriteInput;
+      try {
+        semanticInput = deepFreeze(timelineWriteSemanticInputSchema.parse(semanticValue));
+      } catch {
+        throw new CapabilityInvocationError("capability_input_invalid");
+      }
+      const caller = Object.freeze({ kind: "embedded-agent" as const, requestId, toolCallId });
+      const verify = async (): Promise<RendererAuthorityEvidence> => {
+        const dispatch = input.registry.resolveCapturedCanvasReadPort(input.capturedPort);
+        const binding = await input.registry.assertCanvasReadPortReply(input.capturedPort, dispatch.binding);
+        return rendererEvidence(binding, caller);
+      };
+      const evidence = await verify();
+      return mintCapabilityInvocation({
+        capability: TIMELINE_WRITE_CAPABILITY,
+        policyRevision: TIMELINE_WRITE_INVOCATION_POLICY_REVISION,
+        semanticInput,
+        target: timelineTarget(semanticInput),
+        preconditions: timelinePreconditions(semanticInput),
+        evidence,
+        revalidate: verify,
+        executionTarget: Object.freeze({ kind: "timeline-write-surface" as const, capturedPort: input.capturedPort }),
+      });
+    },
+  });
+}
+
 export function assertVerifiedCapabilityInvocation(
   value: unknown,
 ): asserts value is VerifiedCapabilityInvocation<unknown, unknown> {
@@ -887,7 +1007,9 @@ export function resolveVerifiedCanvasReadExecutionTarget(
   if (
     state.executionTarget.kind === "document-surface" ||
     state.executionTarget.kind === "document-write-surface" ||
-    state.executionTarget.kind === "canvas-write-surface"
+    state.executionTarget.kind === "canvas-write-surface" ||
+    state.executionTarget.kind === "timeline-read-surface" ||
+    state.executionTarget.kind === "timeline-write-surface"
   ) {
     throw new CapabilityInvocationError("capability_authority_invalid");
   }

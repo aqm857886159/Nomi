@@ -79,6 +79,16 @@ export function registerMainCanvasReadExecutionRuntime(input: Readonly<{
         if (target.kind !== "canvas-write-surface") throw new Error("capability_unsupported");
         return surfacePortRuntime.createCanvasWritePort(target.capturedPort);
       },
+      resolveTimelineReadPort: async (invocation) => {
+        const target = resolveVerifiedCapabilityExecutionTarget(invocation);
+        if (target.kind !== "timeline-read-surface") throw new Error("capability_unsupported");
+        return surfacePortRuntime.createTimelineReadPort(target.capturedPort);
+      },
+      resolveTimelineWritePort: async (invocation) => {
+        const target = resolveVerifiedCapabilityExecutionTarget(invocation);
+        if (target.kind !== "timeline-write-surface") throw new Error("capability_unsupported");
+        return surfacePortRuntime.createTimelineWritePort(target.capturedPort);
+      },
     }),
     surfacePortRuntime,
   });

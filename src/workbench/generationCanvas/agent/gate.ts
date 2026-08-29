@@ -28,11 +28,6 @@ export type GateContext = {
 type ToolMeta = { writes: boolean; destructive?: boolean; costy?: boolean }
 
 const TOOL_META: Record<string, ToolMeta> = {
-  read_timeline: { writes: false },
-  inspect_timeline_range: { writes: false },
-  propose_edit_plan: { writes: false },
-  apply_edit_plan: { writes: true },
-  undo_timeline_edit: { writes: true, destructive: true },
   get_media: { writes: false },
   inspect_media: { writes: false },
   search_media: { writes: false },

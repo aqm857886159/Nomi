@@ -85,7 +85,7 @@ function assertEntityConditions(value: unknown, allowed: readonly string[], idKe
 
 export function assertPreconditions(value: unknown): asserts value is PreconditionSet {
   const conditions = asRecord(value);
-  assertAllowedKeys(conditions, ["document", "nodes", "groups", "edges", "results", "clips", "run"]);
+  assertAllowedKeys(conditions, ["document", "nodes", "groups", "edges", "results", "clips", "timeline", "run"]);
   if (conditions.document !== undefined) {
     const document = asRecord(conditions.document);
     assertAllowedKeys(document, ["revision", "contentHash"]);
@@ -120,6 +120,11 @@ export function assertPreconditions(value: unknown): asserts value is Preconditi
     assertAllowedKeys(run, ["runId", "revision"]);
     assertNonEmpty(run.runId);
     assertSafeInteger(run.revision);
+  }
+  if (conditions.timeline !== undefined) {
+    const timeline = asRecord(conditions.timeline);
+    assertAllowedKeys(timeline, ["revision"]);
+    assertNonEmpty(timeline.revision);
   }
 }
 

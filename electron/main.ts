@@ -66,6 +66,10 @@ import { createPiCanvasReadIpcCapture, createPiCanvasReadTransportAdapter } from
 import { createPiDocumentReadTransportAdapter } from "./capabilityCore/documentReadTransportAdapters";
 import { createPiDocumentWriteTransportAdapter } from "./capabilityCore/documentWriteTransportAdapters";
 import { createPiCanvasWriteTransportAdapter } from "./capabilityCore/canvasWriteTransportAdapters";
+import {
+  createPiTimelineReadTransportAdapter,
+  createPiTimelineWriteTransportAdapter,
+} from "./capabilityCore/timelineTransportAdapters";
 import { getSettingsRoot } from "./runtimePaths";
 import { installProductionProjectAgentHost } from "./projectAgentHost/projectAgentProductionRuntime";
 import { createProjectAgentRepositoryRouter } from "./projectAgentHost/projectAgentRepositoryRouter";
@@ -470,6 +474,18 @@ function registerIpc(): void {
           executor: canvasReadExecutionRuntime.executor,
         });
       },
+      captureTimelineRead: (event, binding, requestId) => createPiTimelineReadTransportAdapter({
+        registry: canvasReadSurfaceRuntime.registry,
+        capturedPort: canvasReadExecutionRuntime.surfaceCapture.captureCanvasReadPort(event, binding),
+        requestId,
+        executor: canvasReadExecutionRuntime.executor,
+      }),
+      captureTimelineWrite: (event, binding, requestId) => createPiTimelineWriteTransportAdapter({
+        registry: canvasReadSurfaceRuntime.registry,
+        capturedPort: canvasReadExecutionRuntime.surfaceCapture.captureCanvasReadPort(event, binding),
+        requestId,
+        executor: canvasReadExecutionRuntime.executor,
+      }),
       prepareProject: async (binding) => {
         const root = resolveWorkspaceProjectDir(binding.projectId, getWorkspaceRepositoryDeps());
         if (!root) throw new Error("project_identity_unavailable");

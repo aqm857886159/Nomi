@@ -1,5 +1,7 @@
 import type { ProjectBinding } from "./projectBinding";
 import type { CanvasWriteOperation } from "./agentCapabilities/canvasWrite";
+import type { TimelineReadInput } from "./agentCapabilities/timelineRead";
+import type { TimelineWriteInput } from "./agentCapabilities/timelineWrite";
 
 export const SURFACE_PORT_BINDING_VERSION = 1 as const;
 export const CAPTURED_CANVAS_READ_SNAPSHOT_VERSION = 1 as const;
@@ -13,6 +15,10 @@ export const SURFACE_CANVAS_WRITE_CAPTURE_REQUEST_CHANNEL = "nomi:surface:canvas
 export const SURFACE_CANVAS_WRITE_CAPTURE_REPLY_CHANNEL = "nomi:surface:canvasWrite:capture:reply" as const;
 export const SURFACE_CANVAS_WRITE_EXECUTE_REQUEST_CHANNEL = "nomi:surface:canvasWrite:execute:request" as const;
 export const SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL = "nomi:surface:canvasWrite:execute:reply" as const;
+export const SURFACE_TIMELINE_READ_REQUEST_CHANNEL = "nomi:surface:timelineRead:request" as const;
+export const SURFACE_TIMELINE_READ_REPLY_CHANNEL = "nomi:surface:timelineRead:reply" as const;
+export const SURFACE_TIMELINE_WRITE_REQUEST_CHANNEL = "nomi:surface:timelineWrite:request" as const;
+export const SURFACE_TIMELINE_WRITE_REPLY_CHANNEL = "nomi:surface:timelineWrite:reply" as const;
 
 export type ProjectBindingWire = ProjectBinding;
 
@@ -113,6 +119,39 @@ export type CanvasWriteExecuteSurfaceReplyWire = Readonly<{
   error?: Readonly<{ code: SurfacePortWireErrorCode }>;
 }>;
 
+export type TimelineReadSurfaceRequestWire = Readonly<{
+  requestId: string;
+  binding: SurfacePortBindingWire;
+  input: TimelineReadInput;
+  target: unknown;
+  preconditions: unknown;
+}>;
+
+export type TimelineReadSurfaceReplyWire = Readonly<{
+  requestId: string;
+  binding: SurfacePortBindingWire;
+  result?: unknown;
+  error?: Readonly<{ code: SurfacePortWireErrorCode }>;
+}>;
+
+export type TimelineWriteSurfaceRequestWire = Readonly<{
+  requestId: string;
+  binding: SurfacePortBindingWire;
+  input: TimelineWriteInput;
+  target: unknown;
+  preconditions: unknown;
+  receiptProposalId: string;
+  approvalId: string;
+  actionHash: string;
+}>;
+
+export type TimelineWriteSurfaceReplyWire = Readonly<{
+  requestId: string;
+  binding: SurfacePortBindingWire;
+  result?: unknown;
+  error?: Readonly<{ code: SurfacePortWireErrorCode }>;
+}>;
+
 /** Opaque main-issued, owner-bound, one-shot admission for a captured turn. */
 export type CapturedCanvasReadSnapshotHandleWire = Readonly<{
   version: typeof CAPTURED_CANVAS_READ_SNAPSHOT_VERSION;
@@ -185,6 +224,25 @@ export type CanvasReadSurfaceBridge = Readonly<{
         actionHash: string;
       }>,
     ) => unknown | Promise<unknown>,
+  ) => () => void;
+  onTimelineRead: (
+    handler: (request: Readonly<{
+      binding: SurfacePortBindingWire;
+      input: TimelineReadInput;
+      target: unknown;
+      preconditions: unknown;
+    }>) => unknown | Promise<unknown>,
+  ) => () => void;
+  onTimelineWrite: (
+    handler: (request: Readonly<{
+      binding: SurfacePortBindingWire;
+      input: TimelineWriteInput;
+      target: unknown;
+      preconditions: unknown;
+      receiptProposalId: string;
+      approvalId: string;
+      actionHash: string;
+    }>) => unknown | Promise<unknown>,
   ) => () => void;
 }>;
 

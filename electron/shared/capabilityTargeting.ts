@@ -25,6 +25,7 @@ export type PreconditionSet = Readonly<{
   edges?: readonly Readonly<{ relationHash: string }>[];
   results?: readonly Readonly<{ nodeId: string; resultId: string; pointerHash: string }>[];
   clips?: readonly Readonly<{ clipId: string; revision?: number; contentHash: string }>[];
+  timeline?: Readonly<{ revision: string }>;
   run?: Readonly<{ runId: string; revision: number }>;
 }>;
 

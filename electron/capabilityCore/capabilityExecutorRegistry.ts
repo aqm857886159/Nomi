@@ -24,6 +24,18 @@ import {
   type DocumentWriteResult,
 } from "../shared/agentCapabilities/documentWrite";
 import {
+  TIMELINE_READ_CAPABILITY,
+  projectTimelineReadResult,
+  timelineReadSemanticInputSchema,
+  type TimelineReadResult,
+} from "../shared/agentCapabilities/timelineRead";
+import {
+  TIMELINE_WRITE_CAPABILITY,
+  projectTimelineWriteResult,
+  timelineWriteSemanticInputSchema,
+  type TimelineWriteResult,
+} from "../shared/agentCapabilities/timelineWrite";
+import {
   CapabilityInvocationError,
   assertVerifiedCapabilityInvocation,
   revalidateVerifiedCapabilityInvocation,
@@ -88,6 +100,22 @@ export type CanvasWritePort = Readonly<{
   ): Promise<unknown>;
 }>;
 
+export type TimelineReadPort = Readonly<{
+  read(input: Readonly<{ input: unknown; target: unknown; preconditions: unknown; signal: AbortSignal }>): Promise<unknown>;
+}>;
+
+export type TimelineWritePort = Readonly<{
+  write(input: Readonly<{
+    input: unknown;
+    target: unknown;
+    preconditions: unknown;
+    receiptProposalId: string;
+    approvalId: string;
+    actionHash: string;
+    signal: AbortSignal;
+  }>): Promise<unknown>;
+}>;
+
 type AnyVerifiedInvocation = VerifiedCapabilityInvocation<unknown, unknown>;
 
 export type CanvasReadPortResolver = (invocation: AnyVerifiedInvocation) => CanvasReadPort | Promise<CanvasReadPort>;
@@ -97,6 +125,8 @@ export type CapabilityExecutorRegistryOptions = Readonly<{
   resolveDocumentReadPort?: (invocation: AnyVerifiedInvocation) => DocumentReadPort | Promise<DocumentReadPort>;
   resolveDocumentWritePort?: (invocation: AnyVerifiedInvocation) => DocumentWritePort | Promise<DocumentWritePort>;
   resolveCanvasWritePort?: (invocation: AnyVerifiedInvocation) => CanvasWritePort | Promise<CanvasWritePort>;
+  resolveTimelineReadPort?: (invocation: AnyVerifiedInvocation) => TimelineReadPort | Promise<TimelineReadPort>;
+  resolveTimelineWritePort?: (invocation: AnyVerifiedInvocation) => TimelineWritePort | Promise<TimelineWritePort>;
   timeoutMs?: number;
 }>;
 
@@ -197,7 +227,7 @@ async function bounded<T>(
   }
 }
 
-function canvasWriteApproval(
+function proposalApproval(
   invocation: AnyVerifiedInvocation,
   signal: AbortSignal,
 ): NonNullable<CapabilityExecuteOptions["approval"]> {
@@ -230,9 +260,13 @@ function parseInput(invocation: AnyVerifiedInvocation): void {
       ? documentReadSemanticInputSchema
       : invocation.capability.id === DOCUMENT_WRITE_CAPABILITY.id
         ? documentWriteSemanticInputSchema
-        : invocation.capability.id === CANVAS_WRITE_CAPABILITY.id
+          : invocation.capability.id === CANVAS_WRITE_CAPABILITY.id
           ? canvasWriteSemanticInputSchema
-          : CANVAS_READ_CAPABILITY.inputSchema;
+          : invocation.capability.id === TIMELINE_READ_CAPABILITY.id
+            ? timelineReadSemanticInputSchema
+            : invocation.capability.id === TIMELINE_WRITE_CAPABILITY.id
+              ? timelineWriteSemanticInputSchema
+              : CANVAS_READ_CAPABILITY.inputSchema;
   if (!schema.safeParse(invocation.input).success) {
     throw new CapabilityExecutionError("capability_input_invalid");
   }
@@ -241,7 +275,7 @@ function parseInput(invocation: AnyVerifiedInvocation): void {
 function projectOutput(
   source: unknown,
   invocation: AnyVerifiedInvocation,
-): CanvasReadResult | DocumentReadResult | DocumentWriteResult | CanvasWriteResult {
+): CanvasReadResult | DocumentReadResult | DocumentWriteResult | CanvasWriteResult | TimelineReadResult | TimelineWriteResult {
   if (invocation.capability.id === DOCUMENT_READ_CAPABILITY.id) {
     try {
       return documentReadResultSchema.parse(projectDocumentRead(source));
@@ -259,6 +293,26 @@ function projectOutput(
   if (invocation.capability.id === CANVAS_WRITE_CAPABILITY.id) {
     try {
       return canvasWriteResultSchema.parse(source);
+    } catch {
+      throw new CapabilityExecutionError("capability_output_invalid");
+    }
+  }
+  if (invocation.capability.id === TIMELINE_READ_CAPABILITY.id) {
+    try {
+      return projectTimelineReadResult(
+        source,
+        timelineReadSemanticInputSchema.parse(invocation.input).operation,
+      );
+    } catch {
+      throw new CapabilityExecutionError("capability_output_invalid");
+    }
+  }
+  if (invocation.capability.id === TIMELINE_WRITE_CAPABILITY.id) {
+    try {
+      return projectTimelineWriteResult(
+        source,
+        timelineWriteSemanticInputSchema.parse(invocation.input).operation,
+      );
     } catch {
       throw new CapabilityExecutionError("capability_output_invalid");
     }
@@ -286,6 +340,8 @@ export class CapabilityExecutorRegistry {
     const resolveDocumentReadPort = options.resolveDocumentReadPort;
     const resolveDocumentWritePort = options.resolveDocumentWritePort;
     const resolveCanvasWritePort = options.resolveCanvasWritePort;
+    const resolveTimelineReadPort = options.resolveTimelineReadPort;
+    const resolveTimelineWritePort = options.resolveTimelineWritePort;
     this.#resolveCanvasReadPort = (invocation) =>
       invocation.capability.id === DOCUMENT_READ_CAPABILITY.id
         ? resolveDocumentReadPort
@@ -318,7 +374,7 @@ export class CapabilityExecutorRegistry {
             ? resolveCanvasWritePort
               ? {
                   async read(portInput) {
-                    const approval = canvasWriteApproval(invocation, portInput.signal);
+                    const approval = proposalApproval(invocation, portInput.signal);
                     const port = await resolveCanvasWritePort(invocation);
                     return port.write({
                       input: invocation.input,
@@ -332,7 +388,38 @@ export class CapabilityExecutorRegistry {
                   },
                 }
               : Promise.reject(new CapabilityExecutionError("capability_unsupported"))
-            : resolveCanvasReadPort(invocation);
+            : invocation.capability.id === TIMELINE_READ_CAPABILITY.id
+              ? resolveTimelineReadPort
+                ? Promise.resolve(resolveTimelineReadPort(invocation)).then(
+                    (port): CanvasReadPort => ({
+                      read: (portInput) => port.read({
+                        input: invocation.input,
+                        target: invocation.target,
+                        preconditions: invocation.preconditions,
+                        signal: portInput.signal,
+                      }),
+                    }),
+                  )
+                : Promise.reject(new CapabilityExecutionError("capability_unsupported"))
+              : invocation.capability.id === TIMELINE_WRITE_CAPABILITY.id
+                ? resolveTimelineWritePort
+                  ? {
+                      async read(portInput) {
+                        const approval = proposalApproval(invocation, portInput.signal);
+                        const port = await resolveTimelineWritePort(invocation);
+                        return port.write({
+                          input: invocation.input,
+                          target: invocation.target,
+                          preconditions: invocation.preconditions,
+                          receiptProposalId: approval.receiptProposalId,
+                          approvalId: approval.approvalId,
+                          actionHash: approval.actionHash,
+                          signal: portInput.signal,
+                        });
+                      },
+                    }
+                  : Promise.reject(new CapabilityExecutionError("capability_unsupported"))
+                : resolveCanvasReadPort(invocation);
     this.#timeoutMs = positiveTimeout(options.timeoutMs);
   }
 
@@ -346,7 +433,11 @@ export class CapabilityExecutorRegistry {
         ? DocumentWriteResult
         : Input extends import("../shared/agentCapabilities/canvasWrite").CanvasWriteInput
           ? CanvasWriteResult
-          : CanvasReadResult
+          : Input extends import("../shared/agentCapabilities/timelineRead").TimelineReadInput
+            ? TimelineReadResult
+            : Input extends import("../shared/agentCapabilities/timelineWrite").TimelineWriteInput
+              ? TimelineWriteResult
+              : CanvasReadResult
   > {
     assertVerifiedCapabilityInvocation(invocationValue);
     const invocation = invocationValue;
@@ -362,7 +453,13 @@ export class CapabilityExecutorRegistry {
     const isCanvasWrite =
       invocation.capability.id === CANVAS_WRITE_CAPABILITY.id &&
       invocation.capability.version === CANVAS_WRITE_CAPABILITY.version;
-    if (!isCanvasRead && !isDocumentRead && !isDocumentWrite && !isCanvasWrite) {
+    const isTimelineRead =
+      invocation.capability.id === TIMELINE_READ_CAPABILITY.id &&
+      invocation.capability.version === TIMELINE_READ_CAPABILITY.version;
+    const isTimelineWrite =
+      invocation.capability.id === TIMELINE_WRITE_CAPABILITY.id &&
+      invocation.capability.version === TIMELINE_WRITE_CAPABILITY.version;
+    if (!isCanvasRead && !isDocumentRead && !isDocumentWrite && !isCanvasWrite && !isTimelineRead && !isTimelineWrite) {
       throw new CapabilityExecutionError("capability_unsupported");
     }
     parseInput(invocation);
@@ -398,7 +495,13 @@ export class CapabilityExecutorRegistry {
           ? DocumentReadResult
           : Input extends import("../shared/agentCapabilities/documentWrite").DocumentWriteInput
             ? DocumentWriteResult
-            : CanvasReadResult;
+            : Input extends import("../shared/agentCapabilities/canvasWrite").CanvasWriteInput
+              ? CanvasWriteResult
+              : Input extends import("../shared/agentCapabilities/timelineRead").TimelineReadInput
+                ? TimelineReadResult
+                : Input extends import("../shared/agentCapabilities/timelineWrite").TimelineWriteInput
+                  ? TimelineWriteResult
+                  : CanvasReadResult;
       },
       options,
     ) as Promise<
@@ -407,8 +510,12 @@ export class CapabilityExecutorRegistry {
         : Input extends import("../shared/agentCapabilities/documentWrite").DocumentWriteInput
           ? DocumentWriteResult
           : Input extends import("../shared/agentCapabilities/canvasWrite").CanvasWriteInput
-            ? CanvasWriteResult
-            : CanvasReadResult
+          ? CanvasWriteResult
+          : Input extends import("../shared/agentCapabilities/timelineRead").TimelineReadInput
+            ? TimelineReadResult
+            : Input extends import("../shared/agentCapabilities/timelineWrite").TimelineWriteInput
+              ? TimelineWriteResult
+              : CanvasReadResult
     >;
   }
 }

@@ -25,6 +25,10 @@ import {
   SURFACE_DOCUMENT_READ_REQUEST_CHANNEL,
   SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL,
   SURFACE_DOCUMENT_WRITE_REQUEST_CHANNEL,
+  SURFACE_TIMELINE_READ_REPLY_CHANNEL,
+  SURFACE_TIMELINE_READ_REQUEST_CHANNEL,
+  SURFACE_TIMELINE_WRITE_REPLY_CHANNEL,
+  SURFACE_TIMELINE_WRITE_REQUEST_CHANNEL,
 } from "../shared/surfacePortBinding";
 import { CapabilityExecutionError } from "./capabilityExecutorRegistry";
 import {
@@ -115,6 +119,18 @@ function setup() {
     },
     replyCanvasWriteExecute(payload: unknown) {
       ipc.listeners.get(SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL)?.(
+        { sender: contents, senderFrame: frame } as unknown as IpcMainEvent,
+        payload,
+      );
+    },
+    replyTimelineRead(payload: unknown) {
+      ipc.listeners.get(SURFACE_TIMELINE_READ_REPLY_CHANNEL)?.(
+        { sender: contents, senderFrame: frame } as unknown as IpcMainEvent,
+        payload,
+      );
+    },
+    replyTimelineWrite(payload: unknown) {
+      ipc.listeners.get(SURFACE_TIMELINE_WRITE_REPLY_CHANNEL)?.(
         { sender: contents, senderFrame: frame } as unknown as IpcMainEvent,
         payload,
       );
@@ -386,5 +402,67 @@ describe("dedicated renderer CanvasReadPort", () => {
       error: { code: "renderer_private_error" },
     });
     await expect(unknown).rejects.toMatchObject({ code: "surface_port_unavailable" });
+  });
+
+  it("keeps Timeline reads and approved writes on exact independent Surface channels", async () => {
+    const test = setup();
+    const { captured, binding } = await test.capture();
+    const signal = new AbortController().signal;
+    const target = { kind: "timeline", clipIds: ["clip-a"] };
+    const preconditions = { timeline: { revision: "revision-a" } };
+
+    const reading = test.runtime.createTimelineReadPort(captured).read({
+      input: { operation: "read_timeline" },
+      target,
+      preconditions,
+      signal,
+    });
+    expect(test.send).toHaveBeenCalledWith(SURFACE_TIMELINE_READ_REQUEST_CHANNEL, {
+      requestId: "read-5",
+      binding,
+      input: { operation: "read_timeline" },
+      target,
+      preconditions,
+    });
+    test.replyTimelineWrite({
+      requestId: "read-5",
+      binding: structuredClone(binding),
+      result: { wrongChannel: true },
+    });
+    await Promise.resolve();
+    test.replyTimelineRead({
+      requestId: "read-5",
+      binding: structuredClone(binding),
+      result: { operation: "read_timeline", revision: "revision-a" },
+    });
+    await expect(reading).resolves.toEqual({ operation: "read_timeline", revision: "revision-a" });
+
+    const input = {
+      operation: "undo_timeline_edit" as const,
+      undoToken: "timeline-undo:v1:receipt-a",
+      expectedRevision: "revision-a",
+    };
+    const writing = test.runtime.createTimelineWritePort(captured).write({
+      input,
+      target,
+      preconditions,
+      receiptProposalId: "receipt-a",
+      approvalId: "approval-a",
+      actionHash: "action-a",
+      signal,
+    });
+    expect(test.send).toHaveBeenLastCalledWith(SURFACE_TIMELINE_WRITE_REQUEST_CHANNEL, {
+      requestId: "read-6",
+      binding,
+      input,
+      target,
+      preconditions,
+      receiptProposalId: "receipt-a",
+      approvalId: "approval-a",
+      actionHash: "action-a",
+    });
+    const result = { operation: "undo_timeline_edit", ok: true, undone: true, revision: "revision-b" };
+    test.replyTimelineWrite({ requestId: "read-6", binding: structuredClone(binding), result });
+    await expect(writing).resolves.toEqual(result);
   });
 });

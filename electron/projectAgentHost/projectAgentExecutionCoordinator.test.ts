@@ -27,6 +27,11 @@ import type {
   PiCanvasWriteTransportAdapter,
   PreparedCanvasWrite,
 } from "../capabilityCore/canvasWriteTransportAdapters";
+import type {
+  PiTimelineWriteTransportAdapter,
+  PreparedTimelineWrite,
+  TimelineWriteApprovalAuthority,
+} from "../capabilityCore/timelineTransportAdapters";
 import type { PreconditionSet, TargetRef } from "../shared/capabilityTargeting";
 import type { ProjectAgentProposalReceiptView } from "../shared/projectAgentProposalReceipt";
 
@@ -232,6 +237,39 @@ function canvasWriteAdapter(
   );
   const dispose = vi.fn();
   return { prepare, execute, dispose } as unknown as PiCanvasWriteTransportAdapter & {
+    prepare: ReturnType<typeof vi.fn>;
+    execute: ReturnType<typeof vi.fn>;
+    dispose: ReturnType<typeof vi.fn>;
+  };
+}
+
+function timelineWriteAdapter(): PiTimelineWriteTransportAdapter & {
+  prepare: ReturnType<typeof vi.fn>;
+  execute: ReturnType<typeof vi.fn>;
+  dispose: ReturnType<typeof vi.fn>;
+} {
+  const prepare = vi.fn(async (call: RuntimeToolCall): Promise<PreparedTimelineWrite | null> => {
+    if (call.toolName !== "apply_edit_plan" && call.toolName !== "undo_timeline_edit") return null;
+    const invocation = {
+      input: { operation: "apply_edit_plan" },
+      target: { kind: "timeline", clipIds: ["clip-a"] },
+      preconditions: { timeline: { revision: "deadbeef" } },
+      policyRevision: 1,
+      inputHash: "timeline-input-hash",
+      actionHash: "timeline-action-hash",
+    } as unknown as PreparedTimelineWrite["invocation"];
+    return Object.freeze({ call, invocation });
+  });
+  const execute = vi.fn(async (
+    _prepared: PreparedTimelineWrite,
+    _approval: TimelineWriteApprovalAuthority,
+  ): Promise<AgentChatToolDecision> => ({
+    ok: true,
+    result: { operation: "apply_edit_plan", ok: true, revision: "cafebabe", applied: true },
+    silent: true,
+  }));
+  const dispose = vi.fn();
+  return { prepare, execute, dispose } as unknown as PiTimelineWriteTransportAdapter & {
     prepare: ReturnType<typeof vi.fn>;
     execute: ReturnType<typeof vi.fn>;
     dispose: ReturnType<typeof vi.fn>;
@@ -1512,6 +1550,99 @@ describe("ProjectAgentExecutionCoordinator", () => {
     ]);
     expect(final.items.find((item) => item.kind === "proposal")).toMatchObject({ status: "done" });
     coordinator.release(opened.subscriptionId);
+  });
+
+  it("persists a claimed Timeline approval before Surface execute", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-timeline-write-approved-"));
+    const timelineAdapter = timelineWriteAdapter();
+    let subscriptionId = "";
+    let approvalWasClaimedBeforeExecute = false;
+    const call = {
+      toolCallId: "tool-timeline-write-approved",
+      toolName: "apply_edit_plan",
+      args: {
+        planId: "plan-a",
+        baseRevision: "deadbeef",
+        summary: "Move clip A",
+        operations: [{ kind: "move", clipId: "clip-a", startFrame: 48 }],
+      },
+    };
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-timeline-write-approved",
+      {
+        runAgent: async (_request, hooks) => {
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          return documentWriteResponse(call, decision);
+        },
+      },
+    );
+    timelineAdapter.execute.mockImplementation(async (
+      _prepared: PreparedTimelineWrite,
+      approval: TimelineWriteApprovalAuthority,
+    ) => {
+      approvalWasClaimedBeforeExecute = coordinator.snapshot(subscriptionId).proposalApprovals.some(
+        (candidate) => candidate.lifecycle === "claimed" &&
+          candidate.ref.approvalId === approval.approvalId &&
+          candidate.ref.actionHash === approval.actionHash,
+      );
+      return {
+        ok: true,
+        result: { operation: "apply_edit_plan", ok: true, revision: "cafebabe", applied: true },
+        silent: true,
+      };
+    });
+    const opened = await coordinator.open(binding, { timelineWrite: timelineAdapter });
+    subscriptionId = opened.subscriptionId;
+    coordinator.subscribe(subscriptionId, (event) => {
+      if (event.type === "tool-call") {
+        void coordinator.resolveToolDecision(subscriptionId, event.turnId, event.toolCallId, {
+          ok: true,
+          result: { approved: true },
+        });
+      }
+    });
+    const base = executionInput("timeline-write-approved", 0);
+    const input = {
+      ...base,
+      mutation: {
+        ...base.mutation,
+        payload: {
+          ...base.mutation.payload,
+          queueItem: {
+            ...base.mutation.payload.queueItem,
+            target: { kind: "timeline" as const, clipIds: ["clip-a"] },
+            preconditions: { timeline: { revision: "deadbeef" } },
+            originSurface: { surfaceId: "timeline-surface", kind: "timeline" as const },
+          },
+        },
+      },
+    };
+    await coordinator.enqueue(subscriptionId, input);
+    const final = await coordinator.waitForTurn(subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(approvalWasClaimedBeforeExecute).toBe(true);
+    expect(timelineAdapter.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ invocation: expect.objectContaining({ actionHash: "timeline-action-hash" }) }),
+      {
+        receiptProposalId: expect.stringMatching(/^receipt-/),
+        approvalId: expect.stringMatching(/^approval-/),
+        actionHash: "timeline-action-hash",
+      },
+      expect.any(AbortSignal),
+    );
+    expect(final.proposalApprovals).toMatchObject([
+      {
+        lifecycle: "claimed",
+        ref: {
+          actionHash: "timeline-action-hash",
+          target: { kind: "timeline", clipIds: ["clip-a"] },
+          preconditions: { timeline: { revision: "deadbeef" } },
+        },
+      },
+    ]);
+    expect(final.items.find((item) => item.kind === "proposal")).toMatchObject({ status: "done" });
+    coordinator.release(subscriptionId);
   });
 
   it("atomically settles two clean Canvas approvals in one turn", async () => {

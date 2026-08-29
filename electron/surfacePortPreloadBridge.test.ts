@@ -203,4 +203,58 @@ describe('Surface preload bridge', () => {
     })
     expect(capture).toHaveBeenCalledTimes(1)
   })
+
+  it('validates Timeline requests and preserves exact Host approval evidence in replies', async () => {
+    const receivers = new Map<string, (payload: unknown) => void>()
+    const send = vi.fn()
+    const bridge = createCanvasReadSurfacePreloadBridge(
+      vi.fn(async () => ({ ok: true, value: { released: true } })),
+      {
+        subscribe: (channel, listener) => {
+          receivers.set(channel, listener)
+          return () => receivers.delete(channel)
+        },
+        send,
+      },
+    )
+    const binding = { version: 1, bindingId: 'binding-a' } as never
+    const target = { kind: 'timeline', clipIds: ['clip-a'] }
+    const preconditions = { timeline: { revision: 'revision-a' } }
+    const read = vi.fn(() => ({ operation: 'read_timeline', revision: 'revision-a' }))
+    const write = vi.fn(() => ({ operation: 'undo_timeline_edit', ok: true, undone: true }))
+    bridge.onTimelineRead(read)
+    bridge.onTimelineWrite(write)
+
+    receivers.get('nomi:surface:timelineRead:request')?.({
+      requestId: 'read-a', binding, input: { operation: 'read_timeline' }, target, preconditions,
+    })
+    await vi.waitFor(() => expect(send).toHaveBeenCalledWith('nomi:surface:timelineRead:reply', {
+      requestId: 'read-a', binding, result: { operation: 'read_timeline', revision: 'revision-a' },
+    }))
+    expect(read).toHaveBeenCalledWith({ binding, input: { operation: 'read_timeline' }, target, preconditions })
+
+    const input = {
+      operation: 'undo_timeline_edit',
+      undoToken: 'timeline-undo:v1:receipt-a',
+      expectedRevision: 'revision-a',
+    }
+    receivers.get('nomi:surface:timelineWrite:request')?.({
+      requestId: 'write-a', binding, input, target, preconditions,
+      receiptProposalId: 'receipt-a', approvalId: 'approval-a', actionHash: 'action-a',
+    })
+    await vi.waitFor(() => expect(send).toHaveBeenCalledWith('nomi:surface:timelineWrite:reply', {
+      requestId: 'write-a', binding,
+      result: { operation: 'undo_timeline_edit', ok: true, undone: true },
+    }))
+    expect(write).toHaveBeenCalledWith({
+      binding, input, target, preconditions,
+      receiptProposalId: 'receipt-a', approvalId: 'approval-a', actionHash: 'action-a',
+    })
+
+    receivers.get('nomi:surface:timelineWrite:request')?.({
+      requestId: 'malformed', binding, input, target, preconditions,
+      receiptProposalId: 'receipt-a', approvalId: '', actionHash: 'action-a',
+    })
+    expect(write).toHaveBeenCalledTimes(1)
+  })
 })

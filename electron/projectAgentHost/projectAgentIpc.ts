@@ -24,6 +24,10 @@ import type { PiCanvasReadTransportAdapter } from "../capabilityCore/canvasReadT
 import type { PiDocumentReadTransportAdapter } from "../capabilityCore/documentReadTransportAdapters";
 import type { PiDocumentWriteTransportAdapter } from "../capabilityCore/documentWriteTransportAdapters";
 import type { PiCanvasWriteTransportAdapter } from "../capabilityCore/canvasWriteTransportAdapters";
+import type {
+  PiTimelineReadTransportAdapter,
+  PiTimelineWriteTransportAdapter,
+} from "../capabilityCore/timelineTransportAdapters";
 import type { CapturedCanvasReadSnapshotHandleWire } from "../shared/surfacePortBinding";
 import { ProjectAgentSubscriptionError } from "./projectAgentExecutionCoordinator";
 import { projectAgentProposalMatchesApproval } from "./projectAgentProposalReceiptCorrelation";
@@ -228,6 +232,16 @@ export function registerProjectAgentIpc(
       binding: ProjectBinding,
       requestId: string,
     ) => PiCanvasWriteTransportAdapter;
+    captureTimelineRead?: (
+      event: IpcMainInvokeEvent,
+      binding: ProjectBinding,
+      requestId: string,
+    ) => PiTimelineReadTransportAdapter;
+    captureTimelineWrite?: (
+      event: IpcMainInvokeEvent,
+      binding: ProjectBinding,
+      requestId: string,
+    ) => PiTimelineWriteTransportAdapter;
     /** Main-only migration hook; it runs after sender/binding verification and before open. */
     prepareProject?: (
       binding: ProjectBinding,
@@ -316,6 +330,8 @@ export function registerProjectAgentIpc(
     let documentRead: PiDocumentReadTransportAdapter | undefined;
     let documentWrite: PiDocumentWriteTransportAdapter | undefined;
     let canvasWrite: PiCanvasWriteTransportAdapter | undefined;
+    let timelineRead: PiTimelineReadTransportAdapter | undefined;
+    let timelineWrite: PiTimelineWriteTransportAdapter | undefined;
     let subscription;
     let prepared: ProjectAgentPreparedProject | void;
     const sender = event.sender;
@@ -350,6 +366,8 @@ export function registerProjectAgentIpc(
       documentRead = input.captureDocumentRead?.(event, binding, `project-agent-open-${binding.projectId}`);
       documentWrite = input.captureDocumentWrite?.(event, binding, `project-agent-open-${binding.projectId}`);
       canvasWrite = input.captureCanvasWrite?.(event, binding, `project-agent-open-${binding.projectId}`);
+      timelineRead = input.captureTimelineRead?.(event, binding, `project-agent-open-${binding.projectId}`);
+      timelineWrite = input.captureTimelineWrite?.(event, binding, `project-agent-open-${binding.projectId}`);
       prepared = await input.prepareProject?.(binding);
       assertCurrentAttempt();
       const proposalReceipts = prepared?.proposalReceipts;
@@ -358,12 +376,14 @@ export function registerProjectAgentIpc(
       }
       subscription = await input.runtime.executionCoordinator.open(
         binding,
-        canvasRead || documentRead || documentWrite || canvasWrite || proposalReceipts
+        canvasRead || documentRead || documentWrite || canvasWrite || timelineRead || timelineWrite || proposalReceipts
           ? {
               ...(canvasRead ? { canvasRead } : {}),
               ...(documentRead ? { documentRead } : {}),
               ...(documentWrite ? { documentWrite } : {}),
               ...(canvasWrite ? { canvasWrite } : {}),
+              ...(timelineRead ? { timelineRead } : {}),
+              ...(timelineWrite ? { timelineWrite } : {}),
               ...(proposalReceipts
                 ? { proposalReceipt: () => proposalReceipts.read() }
                 : {}),
@@ -378,6 +398,8 @@ export function registerProjectAgentIpc(
         documentRead?.dispose();
         documentWrite?.dispose();
         canvasWrite?.dispose();
+        timelineRead?.dispose();
+        timelineWrite?.dispose();
       }
       cleanupAttempt();
       if (openAttempts.get(sender) === attempt) openAttempts.delete(sender);

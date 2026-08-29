@@ -9,6 +9,10 @@ import {
   SURFACE_DOCUMENT_READ_REQUEST_CHANNEL,
   SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL,
   SURFACE_DOCUMENT_WRITE_REQUEST_CHANNEL,
+  SURFACE_TIMELINE_READ_REPLY_CHANNEL,
+  SURFACE_TIMELINE_READ_REQUEST_CHANNEL,
+  SURFACE_TIMELINE_WRITE_REPLY_CHANNEL,
+  SURFACE_TIMELINE_WRITE_REQUEST_CHANNEL,
   type CapturedCanvasReadSnapshotHandleWire,
   type CanvasReadSurfaceBridge,
   type CanvasReadSurfaceRequestWire,
@@ -19,8 +23,12 @@ import {
   type SurfacePortBindingWire,
   SurfacePortWireError,
   type SurfaceSuspensionWire,
+  type TimelineReadSurfaceRequestWire,
+  type TimelineWriteSurfaceRequestWire,
   unwrapSurfacePortIpcResponse,
 } from "./shared/surfacePortBinding";
+import { timelineReadSemanticInputSchema } from "./shared/agentCapabilities/timelineRead";
+import { timelineWriteSemanticInputSchema } from "./shared/agentCapabilities/timelineWrite";
 
 type Invoke = (channel: string, payload: unknown) => Promise<unknown>;
 type SurfaceReadEvents = Readonly<{
@@ -111,6 +119,29 @@ function canvasWriteExecuteRequest(value: unknown): CanvasWriteExecuteSurfaceReq
   if (typeof request.approvalId !== "string" || !request.approvalId.trim()) return null;
   if (typeof request.actionHash !== "string" || !request.actionHash.trim()) return null;
   return request as unknown as CanvasWriteExecuteSurfaceRequestWire;
+}
+
+function timelineReadRequest(value: unknown): TimelineReadSurfaceRequestWire | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const request = value as Record<string, unknown>;
+  if (typeof request.requestId !== "string" || !request.requestId.trim()) return null;
+  if (!request.binding || typeof request.binding !== "object" || Array.isArray(request.binding)) return null;
+  if (!timelineReadSemanticInputSchema.safeParse(request.input).success) return null;
+  if (!Object.prototype.hasOwnProperty.call(request, "target") || !Object.prototype.hasOwnProperty.call(request, "preconditions")) return null;
+  return request as unknown as TimelineReadSurfaceRequestWire;
+}
+
+function timelineWriteRequest(value: unknown): TimelineWriteSurfaceRequestWire | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const request = value as Record<string, unknown>;
+  if (typeof request.requestId !== "string" || !request.requestId.trim()) return null;
+  if (!request.binding || typeof request.binding !== "object" || Array.isArray(request.binding)) return null;
+  if (!timelineWriteSemanticInputSchema.safeParse(request.input).success) return null;
+  if (!Object.prototype.hasOwnProperty.call(request, "target") || !Object.prototype.hasOwnProperty.call(request, "preconditions")) return null;
+  if (typeof request.receiptProposalId !== "string" || !request.receiptProposalId.trim()) return null;
+  if (typeof request.approvalId !== "string" || !request.approvalId.trim()) return null;
+  if (typeof request.actionHash !== "string" || !request.actionHash.trim()) return null;
+  return request as unknown as TimelineWriteSurfaceRequestWire;
 }
 
 export function createCanvasReadSurfacePreloadBridge(
@@ -304,6 +335,69 @@ export function createCanvasReadSurfacePreloadBridge(
               binding: request.binding,
               error: { code: error instanceof SurfacePortWireError ? error.code : "surface_port_unavailable" },
             }),
+        );
+      });
+    },
+    onTimelineRead(handler) {
+      if (!events) throw new SurfacePortWireError("surface_port_unavailable");
+      return events.subscribe(SURFACE_TIMELINE_READ_REQUEST_CHANNEL, (payload) => {
+        const request = timelineReadRequest(payload);
+        if (!request) return;
+        let result: unknown | Promise<unknown>;
+        try {
+          result = handler({
+            binding: request.binding,
+            input: request.input,
+            target: request.target,
+            preconditions: request.preconditions,
+          });
+        } catch (error) {
+          result = Promise.reject(error);
+        }
+        void Promise.resolve(result).then(
+          (value) => events.send(SURFACE_TIMELINE_READ_REPLY_CHANNEL, {
+            requestId: request.requestId,
+            binding: request.binding,
+            result: value,
+          }),
+          (error) => events.send(SURFACE_TIMELINE_READ_REPLY_CHANNEL, {
+            requestId: request.requestId,
+            binding: request.binding,
+            error: { code: error instanceof SurfacePortWireError ? error.code : "surface_port_unavailable" },
+          }),
+        );
+      });
+    },
+    onTimelineWrite(handler) {
+      if (!events) throw new SurfacePortWireError("surface_port_unavailable");
+      return events.subscribe(SURFACE_TIMELINE_WRITE_REQUEST_CHANNEL, (payload) => {
+        const request = timelineWriteRequest(payload);
+        if (!request) return;
+        let result: unknown | Promise<unknown>;
+        try {
+          result = handler({
+            binding: request.binding,
+            input: request.input,
+            target: request.target,
+            preconditions: request.preconditions,
+            receiptProposalId: request.receiptProposalId,
+            approvalId: request.approvalId,
+            actionHash: request.actionHash,
+          });
+        } catch (error) {
+          result = Promise.reject(error);
+        }
+        void Promise.resolve(result).then(
+          (value) => events.send(SURFACE_TIMELINE_WRITE_REPLY_CHANNEL, {
+            requestId: request.requestId,
+            binding: request.binding,
+            result: value,
+          }),
+          (error) => events.send(SURFACE_TIMELINE_WRITE_REPLY_CHANNEL, {
+            requestId: request.requestId,
+            binding: request.binding,
+            error: { code: error instanceof SurfacePortWireError ? error.code : "surface_port_unavailable" },
+          }),
         );
       });
     },

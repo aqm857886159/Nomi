@@ -1,0 +1,98 @@
+{
+  "schema_version": 2,
+  "id": "2026-08-29-project-agent-timeline-owner-cutover",
+  "problem_type": "Timeline Agent authority, replay, and Undo lifecycle split",
+  "symptom": "Timeline read, preview, apply, and undo calls bypass the canonical Capability Registry and Project Agent Host. Apply replay and Agent-only undo depend on renderer module globals, while approval is routed through Canvas pending infrastructure even though Timeline has its own kernel and Undo owner.",
+  "direct_cause": "The five Timeline aliases were added as handwritten Pi descriptors and dispatched directly from applyCanvasToolCall into timelineToolCall. That renderer module owns appliedPlans and latestAgentUndo independently of Host proposal lifecycle and the Workbench Undo stack, so state is lost on reload, cannot be correlated to durable Host approval, and can disagree with project or Undo state.",
+  "class_root": "Nomi lacked a canonical Timeline capability boundary that binds main-issued project authority and deterministic timelineRevision to the existing Timeline kernel and Workbench Undo owner. Any future Timeline alias could therefore add another schema, policy switch, renderer lifecycle cache, or approval path instead of deriving transport and state from the Registry and domain stack.",
+  "affected_population": [
+    "Users invoking read_timeline, inspect_timeline_range, propose_edit_plan, apply_edit_plan, or undo_timeline_edit from the embedded Canvas Agent",
+    "Users who edit the Timeline, switch projects, reload the renderer, stop a turn, or lose the Surface between proposal and execution",
+    "Future MCP and Skill callers if Timeline aliases were projected before canonical ownership exists"
+  ],
+  "scope_paths": [
+    "electron/shared/agentCapabilities/",
+    "electron/capabilityCore/",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+    "electron/shared/surfacePortBinding.ts",
+    "electron/surfacePortPreloadBridge.ts",
+    "electron/harness/agentChatPolicy.ts",
+    "electron/harness/tools/timelineDescriptors.ts",
+    "src/workbench/timeline/agent/timelineToolCall.ts",
+    "src/workbench/timeline/kernel/timelineKernel.ts",
+    "src/workbench/adoption/adoptionStorePorts.ts",
+    "src/workbench/workbenchStore.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "src/workbench/generationCanvas/agent/gate.ts",
+    "src/workbench/NomiStudioApp.tsx"
+  ],
+  "entry_points": [
+    "Pi Timeline snapshot and range reads",
+    "Pi EditPlan preview",
+    "Pi user-approved EditPlan apply",
+    "Pi user-approved Agent undo",
+    "project hydrate, release, switch, and renderer Surface replacement",
+    "future Registry-derived MCP, Skill, and UI projections"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This defect is entirely within Nomi's Registry, Host proposal lifecycle, renderer Surface binding, Timeline kernel, and Workbench Undo ownership. No provider, MCP client, model, or third-party API behavior determines the invariant.",
+  "invariants": [
+    "The five migrated aliases derive schema, description, effect, scope, approval, and capability identity from the canonical Registry.",
+    "Main-issued project and Surface authority is revalidated before and after port resolution; a stale or replaced Surface cannot read or mutate the next project.",
+    "Read and plan-preview operations are pure projections over the existing Timeline kernel and cannot mutate Timeline, persistence revision, or Undo/Redo state.",
+    "Apply and undo execute only after the Host durably stores and claims the exact proposal target, preconditions, policyRevision, inputHash, and actionHash.",
+    "The renderer synchronously compares the canonical current timelineRevision with the approved precondition immediately before mutation.",
+    "One successful EditPlan creates one Workbench Undo entry containing the Agent plan identity and before/after revisions; no renderer map or second Undo journal exists.",
+    "Identical replay and Agent-only undo are derived from the top domain Undo entry. A different plan under the same planId, a user edit, a project change, a legacy unannotated entry, or revision drift cannot mutate or pop the stack.",
+    "Old Pi descriptors, Gate literals, direct renderer dispatcher routes, and dead Timeline UI state are deleted in the same batch."
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The ownership split affects every Timeline operation and every lifecycle boundary, and the same mechanism would recur for each new alias or future MCP/Skill projection without a Registry and domain-stack invariant.",
+    "same_class_scan": [
+      "Searched read_timeline, inspect_timeline_range, propose_edit_plan, apply_edit_plan, undo_timeline_edit, timelineRevision, appliedPlans, latestAgentUndo, and resetTimelineAgentState across electron, renderer, tests, plans, and UX gates.",
+      "Confirmed the five aliases share handwritten descriptors, Canvas Gate literals, direct applyCanvasToolCall routing, and one renderer executor.",
+      "Confirmed timelineKernel already owns deterministic validation, preview, diff, and CAS while adoptionStorePorts and workbenchStore already own atomic commit and Undo/Redo.",
+      "Confirmed useTimelineAgentUi has no production importer and directly invokes undo outside Host, so it is deletion debt rather than a projection to preserve.",
+      "Confirmed media and export aliases share the descriptor file but have distinct domain and Phase 4 ownership, so they remain explicit non-goals instead of being accidentally migrated."
+    ]
+  },
+  "prevention": {
+    "strategy": "Move authority to Registry-derived Host adapters and move replay/Undo evidence into the existing domain Undo entry, then delete every migrated legacy schema, policy, dispatch, and lifecycle owner.",
+    "artifacts": [
+      "electron/shared/agentCapabilities/timelineRead.ts",
+      "electron/shared/agentCapabilities/timelineWrite.ts",
+      "electron/shared/agentCapabilities/registry.ts",
+      "electron/capabilityCore/timelineTransportAdapters.ts",
+      "electron/capabilityCore/capabilityExecutorRegistry.ts",
+      "electron/capabilityCore/verifiedCapabilityInvocation.ts",
+      "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+      "electron/shared/surfacePortBinding.ts",
+      "electron/capabilityCore/canvasReadSurfacePort.ts",
+      "electron/surfacePortPreloadBridge.ts",
+      "electron/harness/agentChatPolicy.ts",
+      "src/workbench/timeline/agent/timelineToolCall.ts",
+      "src/workbench/adoption/adoptionStorePorts.ts",
+      "src/workbench/workbenchStore.ts",
+      "src/workbench/NomiStudioApp.tsx",
+      "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "src/workbench/generationCanvas/agent/gate.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/shared/agentCapabilities/timelineRead.test.ts",
+    "electron/shared/agentCapabilities/timelineWrite.test.ts",
+    "electron/capabilityCore/timelineTransportAdapters.test.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts",
+    "electron/harness/agentChatPolicy.test.ts",
+    "electron/capabilityCore/canvasReadSurfacePort.test.ts",
+    "electron/surfacePortPreloadBridge.test.ts",
+    "src/workbench/timeline/agent/timelineCapabilityTarget.test.ts"
+  ],
+  "migration": "Timeline project data is unchanged. Old renderer appliedPlans/latestAgentUndo state and old pending approvals are intentionally discarded. Existing unannotated Undo entries remain valid for manual Undo/Redo but cannot authorize undo_timeline_edit; after upgrade the Agent starts with no recoverable Timeline undo token. No old operation is replayed automatically.",
+  "residual_risks": [
+    "Undo history remains intentionally session-local and is not restored after app restart; the UI and Agent must not imply that an old token is still usable.",
+    "Media and export aliases remain on existing routes until the Phase 4 ProductionRun batch and must stay outside the migrated owner gate.",
+    "Packaged crash and cross-workspace UI journeys remain part of the final Phase 6 candidate gate."
+  ]
+}
