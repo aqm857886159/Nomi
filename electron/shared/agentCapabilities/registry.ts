@@ -1,4 +1,5 @@
 import { CANVAS_READ_CAPABILITY } from "./canvasRead";
+import { CANVAS_WRITE_CAPABILITY } from "./canvasWrite";
 import { DOCUMENT_READ_CAPABILITY, DOCUMENT_READ_ALIASES } from "./documentRead";
 import { DOCUMENT_WRITE_ALIASES, DOCUMENT_WRITE_CAPABILITY } from "./documentWrite";
 import type { CapabilityContract } from "./capabilityContract";
@@ -12,10 +13,12 @@ export type ContractOnlyRegistry<Contracts extends readonly AnyCapabilityContrac
     : never;
 };
 
-const REGISTERED_CONTRACTS = [CANVAS_READ_CAPABILITY, DOCUMENT_READ_CAPABILITY, DOCUMENT_WRITE_CAPABILITY] as const satisfies readonly CapabilityContract<
-  unknown,
-  unknown
->[];
+const REGISTERED_CONTRACTS = [
+  CANVAS_READ_CAPABILITY,
+  CANVAS_WRITE_CAPABILITY,
+  DOCUMENT_READ_CAPABILITY,
+  DOCUMENT_WRITE_CAPABILITY,
+] as const satisfies readonly CapabilityContract<unknown, unknown>[];
 
 export const CAPABILITY_CONTRACTS: ContractOnlyRegistry<typeof REGISTERED_CONTRACTS> = REGISTERED_CONTRACTS;
 

@@ -1,6 +1,6 @@
 # Project Agent Host 全阶段执行路线图
 
-> 状态：🚧 进行中。Phase 1、2A、2B、3A、3B 已形成远端 checkpoint；当前处于 Phase 3C Round 07 合同复审，生产代码尚未开始。最终完成条件仍为 Phase 3–6 与发布候选门全部通过。
+> 状态：🚧 进行中。Phase 1、2A、2B、3A、3B 已形成远端 checkpoint；Phase 3C Round 07 合同预检已通过，`set_node_prompt` 正处于第一个 Registry contract RED/GREEN 微切片。最终完成条件仍为 Phase 3–6 与发布候选门全部通过。
 
 ## 目标
 
@@ -21,7 +21,7 @@
 | Phase 2B | 已完成 checkpoint | 单 Host、两面板投影、旧 writer 删除、receipt/Undo/项目切换已收口 |
 | Phase 3A | 已完成 checkpoint | canonical `document.read` 已通过 Host，旧 read owner 已删除 |
 | Phase 3B | 已完成 focused closure | `document.write` 已完成 Registry/Host/Surface/adapter/UI 路由；写入队列必须冻结可执行 anchor/revision/hash，缺失或 whole-document 占位在入队前 fail closed |
-| Phase 3C | 合同复审中 | 首个 `set_node_prompt` 垂直切片；Round 06 preflight 已打回，Round 07 已补 Host-before-Surface、可信 hash 与 durable outcome 合同 |
+| Phase 3C | 实现中 | 首个 `set_node_prompt` 垂直切片；Round 07 preflight 已通过，当前从 Registry contract 开始沿 8 个依赖切片单向推进 |
 | Phase 3 其余 | 未开始 | 其余 canvas reversible writes、timeline read/write、精确 result/version 引用 |
 | Phase 4 | 未开始 | ProductionRun、付费/破坏性能力、receipt、TaskRef、typed cancel、export truth |
 | Phase 5 | 未开始 | Skill/MCP 从 Registry 派生，list/read guard、shrink-only、legacy firewall |
@@ -48,16 +48,23 @@
 
 ## 验证节奏
 
-实现循环只运行当前切片的 focused matrix：相关单测、对应 TypeScript、
+实现循环分成两层。微切片 RED/GREEN 只运行当前最早失败边界的直接测试文件；
+只有完整 lane 稳定后才运行一次 focused closure，包括相关矩阵、对应 TypeScript、
 `check:capability-owners`、必要的词汇/结构门和 `git diff --check`。测试失败时
-先把失败归类为契约、生命周期、实现或环境问题，记录到阶段日志；同一失败不
-通过重复跑全量测试来“确认”。修复后只重跑直接受影响的矩阵。
+先把失败归类为契约、生命周期、实现或环境问题，记录到证据账本；同一失败不
+通过重复跑更宽测试来“确认”。修复后只重跑指纹已变化的直接测试。
 
 每个切片 focused 绿后立即形成 **scoped 本地提交**；它是日常恢复点，不触发
-`main` 整合、全量门禁或远端 push。远端 Draft PR 已保存 Phase 3B 之前的代码现场；
-Phase 3/4 联合出口和最终 Phase 6 出口才形成远端 stage checkpoint。
+`main` 整合或全量门禁。网络可用时立即把该提交普通 push 到现有任务分支，形成
+**remote recovery checkpoint**，Draft PR 自动得到增量备份；这不等于阶段验收，
+也不要求追赶 `main`。Phase 3/4 联合出口和最终 Phase 6 出口才形成
+**remote stage checkpoint**。
 
-远端 stage checkpoint 才做三件事：
+remote recovery push 前只刷新任务分支引用；如果网络失败或远端没有新事实，记录
+一次 transport 错误后熔断，不重复 fetch/push，不让它阻塞实现。远端分支若前进，
+普通 push 会安全拒绝，此时才暂停并检查分歧；禁止 force-push。
+
+remote stage checkpoint 才做三件事：
 
 1. 对照本路线图和对应 acceptance matrix 做一次只读 closure review；
 2. 只在 Phase 3/4 联合出口或 Phase 6 最终出口把当时的 `origin/main` 整合一次，
@@ -116,16 +123,26 @@ Phase 3/4 联合出口和最终 Phase 6 出口才形成远端 stage checkpoint�
 `adopt / adapt / reject`。Phase 5 做一次全量增量审计，Phase 6 只补 UI 和新 PR
 的变化，不重复同源审计。
 
-## 流程 v3：停止无信息测试循环
+## 流程 v4：关键路径与停止无信息循环
 
 本任务的节奏真源是本路线图与本地 harness 的
-`execution-protocol-v3.json`。同一测试命令、同一失败签名在源码、fixture、依赖
+`execution-protocol-v4.json`。同一测试命令、同一失败签名在源码、fixture、依赖
 和相关环境都没变化时最多执行两次；第二次相同失败后必须先归类为合同、生命周期、
 实现或环境问题并改变对应证据，禁止第三次原样重跑。已知窄问题不能靠更宽测试诊断。
 
 每个 lane 只允许一个生产代码 writer；reviewer 默认只读并复用 evidence ledger，
 仅补查缺失、过期或有争议的证据。网络 fetch/push 失败不使未变化的代码验证失效，
 也不触发重跑测试。
+
+Phase 3C 的当前关键路径固定为：能力合同 → durable approval → Canvas raw
+evidence/hash → Surface transport → executor → Host ordering/typed outcome → 现有
+receipt/transaction 关联 → 删除旧 owner。每次只打开最左侧未完成切片；后续测试
+可以先写 RED，但后续生产实现不得越过该边界，以免同时制造多个不确定失败。
+
+每条测试证据保存命令、直接文件、源码/fixture/环境指纹、结果签名、失败分类和
+下一条允许命令。通过的证据在指纹未变化时继续有效；reviewer 只消费账本并检查
+缺失或有争议的合同条件。任何命令若不能关闭当前 criterion、缩小失败分类或验证
+一次指纹变化，就不进入执行队列。
 
 ## 回滚与恢复
 
@@ -137,9 +154,9 @@ Phase 3/4 联合出口和最终 Phase 6 出口才形成远端 stage checkpoint�
 
 ## 下一步顺序
 
-1. 先让 Phase 3C Round 07 的增量合同复审通过，再按同一垂直切片完成
-   `set_node_prompt` 的 Host-before-Surface、exact receipt identity、stale revalidation
-   和 typed outcomes；不新增第二套 approval、status 或 Undo owner。
+1. 沿已通过的 Phase 3C Round 07 关键路径完成 `set_node_prompt` 的
+   Host-before-Surface、exact receipt identity、stale revalidation 和 typed outcomes；
+   不新增第二套 approval、status 或 Undo owner。
 2. 完成 timeline read/write 和精确 result/version 引用，形成
    Phase 3 focused 出口矩阵；此时不单独整合 `main`。
 3. 推进 ProductionRun/付费链与 export integrity，形成 Phase 4 出口，再做一次
