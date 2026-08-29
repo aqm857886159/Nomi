@@ -32,6 +32,7 @@ const CANONICAL_MCP_ADAPTER_SYMBOL = 'CANVAS_READ_MCP_ADAPTER'
 const CANONICAL_MCP_TRANSPORT_ADAPTER_FILE = 'electron/capabilityCore/canvasReadTransportAdapters.ts'
 const CANONICAL_MCP_TRANSPORT_ADAPTER_SYMBOL = 'createMcpCanvasReadTransportAdapter'
 const CANONICAL_EXECUTOR_FILE = 'electron/capabilityCore/capabilityExecutorRegistry.ts'
+const CANONICAL_DOCUMENT_READ_FILE = 'electron/shared/agentCapabilities/documentRead.ts'
 const RETIRED_EXECUTION_SYMBOLS = new Set([
   'createLiveCanvasReadCapabilityAdapter',
   'createCapturedCanvasReadCapabilityAdapter',
@@ -625,6 +626,34 @@ function scanFile(repoRoot, file) {
   }
 }
 
+function scanDocumentReadOwnership(repoRoot) {
+  const canonicalPath = path.join(repoRoot, CANONICAL_DOCUMENT_READ_FILE)
+  if (!fs.existsSync(canonicalPath)) return []
+  const sources = walk(path.join(repoRoot, 'src')).concat(walk(path.join(repoRoot, 'electron')))
+    .map((file) => ({ relative: path.relative(repoRoot, file).split(path.sep).join('/'), text: fs.readFileSync(file, 'utf8') }))
+  const declarations = [
+    ['documentReadSemanticInputSchema', /\b(?:export\s+)?const\s+documentReadSemanticInputSchema\s*=/g],
+    ['documentReadResultSchema', /\b(?:export\s+)?const\s+documentReadResultSchema\s*=/g],
+    ['projectDocumentRead', /\b(?:export\s+)?function\s+projectDocumentRead\s*\(/g],
+    ['DOCUMENT_READ_CAPABILITY', /\b(?:export\s+)?const\s+DOCUMENT_READ_CAPABILITY\s*=/g],
+    ['document.read id literal', /\bid\s*:\s*["']document\.read["']/g],
+  ]
+  const violations = []
+  for (const [label, pattern] of declarations) {
+    const matches = sources.flatMap(({ relative, text }) => {
+      const count = text.match(pattern)?.length ?? 0
+      return count > 0 ? [{ relative, count }] : []
+    })
+    const total = matches.reduce((sum, value) => sum + value.count, 0)
+    if (total !== 1) {
+      violations.push(`document.read ${label} must have exactly one owner; found ${total}`)
+    } else if (matches[0].relative !== CANONICAL_DOCUMENT_READ_FILE) {
+      violations.push(`document.read ${label} owner moved to ${matches[0].relative}`)
+    }
+  }
+  return violations
+}
+
 export function scanRepository(repoRoot) {
   const facts = []
   const violations = []
@@ -643,6 +672,7 @@ export function scanRepository(repoRoot) {
       canonicalExecutionAttestations.push(...result.canonicalExecutionAttestations)
     }
   }
+  violations.push(...scanDocumentReadOwnership(repoRoot))
   for (const site of REQUIRED_CANONICAL_EXECUTION_SITES) {
     const matches = canonicalExecutionAttestations.filter((attestation) => attestation.site === site)
     if (matches.length !== 1) violations.push(`canonical canvas.read execution path ${site} must exist exactly once`)

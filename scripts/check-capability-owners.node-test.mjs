@@ -80,6 +80,24 @@ test('canonical id, schema, alias, effect, and projector owners are singular', a
   }
 })
 
+test('document.read schema owners are singular without adding a second baseline vocabulary', () => {
+  const documentContract = `
+    import { z } from 'zod'
+    export const documentReadSemanticInputSchema = z.object({ scope: z.enum(['full', 'selection']) }).strict()
+    export const documentReadResultSchema = z.object({ text: z.string() }).strict()
+    export function projectDocumentRead(source) { return documentReadResultSchema.parse(source) }
+    export const DOCUMENT_READ_CAPABILITY = { id: 'document.read', aliases: { pi: 'read_full_text' }, inputSchema: documentReadSemanticInputSchema, outputSchema: documentReadResultSchema, effect: 'read' }
+  `
+  expectRejected(
+    {
+      ...canonicalFiles,
+      'electron/shared/agentCapabilities/documentRead.ts': documentContract,
+      'electron/shared/agentCapabilities/duplicateDocumentRead.ts': `import { z } from 'zod'; export const documentReadSemanticInputSchema = z.object({ scope: z.string() })`,
+    },
+    /document\.read documentReadSemanticInputSchema must have exactly one owner/,
+  )
+})
+
 test('computed properties and Map registrations cannot collide with canonical aliases', async (t) => {
   const mutations = [
     {
