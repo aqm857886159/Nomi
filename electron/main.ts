@@ -82,6 +82,7 @@ import { getWorkspaceRepositoryDeps } from "./runtimePaths";
 import { ensureWorkspaceProjectIdentity } from "./workspace/workspaceProjectIdentity";
 import { resolveWorkspaceProjectDir } from "./workspace/workspaceRepository";
 import { installContentSecurityPolicy } from "./contentSecurityPolicy";
+import { registerSkillIpc } from "./skills/skillIpc";
 installMainProcessLifecycle(app);
 const configuredUserDataDir = String(process.env.NOMI_ELECTRON_USER_DATA_DIR || "").trim();
 if (configuredUserDataDir) {
@@ -579,23 +580,8 @@ function registerIpc(): void {
   // 系统通知（任务跑完且窗口失焦时）住 electron/notificationIpc.ts，同样为 800 行门腾空间。
   // 静态 import 而非惰性 require：该文件只依赖 electron 本身，载入零成本，且不吃 no-require-imports 警告配额。
   registerNotificationIpc();
-  // Skill / Playbook 域（业务函数在 electron/skills/*，这里只接同步 IPC 管道）。
-  registerSyncIpc("nomi:skill:list", () => {
-    const { listSkillsForRenderer } = require("./skills/skillIpc") as typeof import("./skills/skillIpc");
-    return listSkillsForRenderer();
-  });
-  registerSyncIpc("nomi:skill:export", (dirName: unknown) => {
-    const { exportSkillPackageByName } = require("./skills/skillPackage") as typeof import("./skills/skillPackage");
-    return exportSkillPackageByName(String(dirName || ""), Date.now());
-  });
-  registerSyncIpc("nomi:skill:import", (payload: unknown) => {
-    const { importSkillPackageToUserDir } = require("./skills/skillPackage") as typeof import("./skills/skillPackage");
-    return importSkillPackageToUserDir(payload);
-  });
-  registerSyncIpc("nomi:skill:delete", (dirName: unknown) => {
-    const { deleteUserSkill } = require("./skills/skillPackage") as typeof import("./skills/skillPackage");
-    return deleteUserSkill(String(dirName || ""));
-  });
+  // Skill / Playbook 域在自己的 IPC 模块；ZIP import 异步流式解析，不能阻塞 renderer。
+  registerSkillIpc(registerSyncIpc);
 
   ipcMain.handle("nomi:model-catalog:docs:fetch", async (event, payload) => {
     assertTrustedSender(event);

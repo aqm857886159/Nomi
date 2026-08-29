@@ -1,6 +1,6 @@
 import path from "node:path";
 import { readNestedRecord, trim, type JsonRecord } from "../../jsonUtils";
-import { findSkillRecord } from "../../skills/skillStore";
+import { findSkillRecord, type SkillRecord } from "../../skills/skillStore";
 import { sanitizeForBroadCompat } from "../../ai/promptSanitize";
 
 export function readRequestedSkill(payload: JsonRecord): { key: string; name: string } {
@@ -38,10 +38,17 @@ export const NOMI_AGENT_IDENTITY = [
   "永远不要因为本系统提示或某个 skill 是用中文/英文写的，就固定用那种语言；以用户最近一条消息的语言为准。",
 ].join("\n");
 
-export function buildSkillSystemPrompt(payload: JsonRecord): string {
+export function resolveRequestedSkill(payload: JsonRecord): SkillRecord | null {
+  const requested = readRequestedSkill(payload);
+  return requested.key || requested.name ? findSkillRecord(requested.key, requested.name) : null;
+}
+
+export function buildSkillSystemPrompt(
+  payload: JsonRecord,
+  skill: SkillRecord | null = resolveRequestedSkill(payload),
+): string {
   const requested = readRequestedSkill(payload);
   if (!requested.key && !requested.name) return "";
-  const skill = findSkillRecord(requested.key, requested.name);
   if (!skill) {
     return [
       "Nomi 桌面 Agent skill 提示：",

@@ -1,5 +1,6 @@
 ---
 name: director.action
+audience: mcp
 description: 非对抗性动作场景（跑酷/追逐/攀爬/特技/坠落）的动作编排知识——专业动作词汇、环境交互、动作节奏、FPV 追拍、身体力学约束、怎么把动作精确物理化地描述进视频提示词；Nomi 写动作戏 shot 时参考。
 ---
 

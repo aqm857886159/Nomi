@@ -1,0 +1,129 @@
+{
+  "schema_version": 2,
+  "id": "2026-08-30-skill-mcp-visibility-capability-boundary",
+  "problem_type": "Skill package trust, MCP visibility, and capability authority split",
+  "symptom": "An MCP caller can list only director-/writer-prefixed built-in Skills but can read any installed Skill by guessing its name or directory. Imported packages silently omit nested or unsupported content, resource URIs are not bound to a package version or content hash, and legacy manifest tool fields are not structurally separated from the Host capability ceiling.",
+  "direct_cause": "skillStore uses a directory-prefix predicate only in listSkillSummaries while readSkillContent calls the unrestricted fuzzy lookup. skillPackage accepts only top-level text basenames and both export/import silently skip unsupported entries. The first ZIP normalization draft decompressed in renderer before main validation, which erased raw traversal paths, central-directory duplicates, Unix entry types, empty directories, authoritative sizes, and CRC evidence. The first main-owned parser then validated only yauzl's Unicode-effective fileName and trusted successful inflater output without proving that deflate consumed the complete declared compressed range. mcpProtocol encodes only directoryName in nomi-skill URIs. agentChatPolicy computes tools from the Host capability alone and has no request-aware intersection with canonical Registry IDs.",
+  "class_root": "Nomi has no shared, origin-aware Skill visibility decision used by every metadata and content projection, no main-owned knowledge-only package boundary that preserves and validates the complete raw archive before normalization, and no canonical shrink-only boundary between declarative Skill requests and Host-owned capability grants. Equivalent list/read/resource/prompt, raw ZIP/file-table import/export, and Pi tool-selection entries can therefore disagree, lose security evidence, or accidentally widen authority.",
+  "affected_population": [
+    "Users with internal built-in or user-imported Skills whose names can be guessed by an MCP client",
+    "Users importing or exporting standard SKILL.md zip packages containing references, assets, unsupported files, or executable directories",
+    "Agent turns selecting a Skill whose legacy manifest tool names could be mistaken for permission grants",
+    "MCP clients caching a Skill resource after its on-disk content changes"
+  ],
+  "scope_paths": [
+    "electron/skills/",
+    "electron/shared/skillImportContracts.ts",
+    "electron/main.ts",
+    "electron/preload.ts",
+    "electron/skills/skillStore.ts",
+    "electron/skills/skillManifestSchema.ts",
+    "electron/skills/skillCapability.ts",
+    "electron/harness/agentChatPolicy.ts",
+    "electron/harness/context/agentContext.ts",
+    "electron/ai/agentChatV2.ts",
+    "electron/capabilityCore/dispatcher.ts",
+    "electron/capabilityCore/mcpProtocol.ts",
+    "src/desktop/bridge.ts",
+    "src/workbench/api/skillApi.ts",
+    "src/workbench/creation/creationToolCalls.ts",
+    "src/workbench/skillLibrary/parseSkillImport.ts",
+    "src/workbench/skillLibrary/useWorkbenchSkills.ts",
+    "src/workbench/skillLibrary/SkillLibraryPanel.tsx",
+    "skills/"
+  ],
+  "entry_points": [
+    "SkillLibrary renderer import of exported envelopes, bare SKILL.md, and raw zip bytes",
+    "Trusted asynchronous Skill IPC from renderer to main",
+    "Main-process central-directory scan, streamed ZIP decode, package validation, recursive export, and user-root write",
+    "Workbench and Agent Skill record loading",
+    "Project Agent Pi tool projection for a selected Skill",
+    "Capability Core skills.list and skills.read dispatch",
+    "MCP resources/list, resources/read, prompts/list, and prompts/get",
+    "First-party director and writer Skill frontmatter"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/thejoshwolfe/yauzl/blob/f5798e15204ffbb9a428b00217e4659684a41b0f/README.md",
+      "checked_at": "2026-08-30",
+      "purpose": "Confirms yauzl 3.4.0 central-directory semantics, lazy entry iteration, strictFileNames, validateEntrySizes streaming checks, exposed external attributes, and the explicit absence of built-in CRC verification."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/docs/latest-v22.x/api/zlib.html",
+      "checked_at": "2026-08-30",
+      "purpose": "Confirms Node 22 provides incremental zlib.crc32 and inflater bytesWritten so main can verify CRC and exact compressed-input consumption without another ZIP library or full-buffer decompression."
+    }
+  ],
+  "invariants": [
+    "Skill packages are knowledge-only: the complete accepted file table contains root SKILL.md/skill.json plus bounded recursive text knowledge files, including references/assets/examples/evals and README; traversal, links, unsupported or binary content, and scripts/bin/hooks are rejected rather than skipped.",
+    "ZIP bytes cross a trusted asynchronous IPC unchanged. Main scans the central directory before wrapper stripping, independently validates the raw central filename and any Unicode-effective alias, applies duplicate and file/directory ancestor checks to both canonical identities, and rejects suffix/type disagreement, absolute/traversal/hidden/forbidden paths, symlinks, and non-regular types.",
+    "Main reads each accepted entry as a bounded raw stream. Stored entries require compressed and uncompressed sizes to agree; deflated entries must consume exactly the declared compressed range. Both methods must match actual output size, per-file/total limits, and central-directory CRC.",
+    "The main process is the authority for archive decoding, package version stamping, path/content limits, manifest parsing, origin assignment, and user-import visibility; renderer normalization is never trusted as validation and never performs archive decompression.",
+    "One origin-aware visibility guard is used by list and read and therefore by MCP resources and prompts. User imports remain internal even when their package claims MCP audience.",
+    "Every Skill summary/content projection carries deterministic package version and content hash; an MCP resource URI binds directory/version/hash and is revalidated against current visible content on read.",
+    "Skill requestedCapabilities contains canonical Registry IDs only and can only intersect the Host capability ceiling. Unknown IDs, aliases, and legacy tool names fail closed; a missing field preserves the current legacy ceiling.",
+    "Legacy manifest tools, permissions, and stage tools remain Workflow metadata and never grant a capability or register a Pi/MCP tool.",
+    "MCP tools and schemas remain derived only from the canonical Registry plus explicit transport adapters; Skill packages and manifests cannot add or replace them.",
+    "First-party MCP visibility is explicit in Skill metadata and no directory prefix is an authorization decision."
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same absent visibility and shrink-only invariants affect every current and future Skill, every external name/URI guess, every package shape, and every Agent capability ceiling; the mechanism is not confined to one Skill or one caller.",
+    "same_class_scan": [
+      "Scanned skillStore, dispatcher, mcpProtocol, Skill IPC/Workbench list APIs, and MCP tests for every list/read/resources/prompts metadata or content path and found the list-only prefix filter plus unrestricted read.",
+      "Scanned skillPackage, renderer import UI, preload/main IPC, historical PR #195 parser, runtime Skill roots, and all current Skill directories for package normalization, recursive files, raw/effective ZIP traversal and collisions, Info-ZIP 0x7075 aliases, entry types, forged declared/output/compressed sizes, trailing deflate input, CRC, executable directories, binary handling, silent skip behavior, and origin assignment.",
+      "Scanned skillManifestSchema, skillCapability, playbook stages, agentChatPolicy, agentChatV2, canonical Registry contracts, Pi aliases, MCP capability projection, and tool catalogs for every field or path that can select or register tools.",
+      "Scanned current first-party director-/writer-prefixed Skills and confirmed prefix naming is the only MCP audience signal; current repository Skills contain no scripts/bin/hooks directories or symbolic links.",
+      "Reviewed historical PR #226 and incremental PRs #227-#235: adopted Capability as sole permission owner and version/hash evidence, retained the existing Registry/Host, and rejected Skill-driven MCP schema registration."
+    ]
+  },
+  "prevention": {
+    "strategy": "Enforce the class at the earliest shared boundaries: pass raw archives over trusted asynchronous IPC; preserve and separately validate raw/effective central-directory identities; require exact compressed-input consumption plus bounded output/CRC in main; validate every normalized file table in main; derive one immutable Skill identity and visibility decision; intersect canonical capability requests at the Host policy seam; and make every MCP Skill projection consume the same versioned record.",
+    "artifacts": [
+      "electron/skills/skillPackage.ts",
+      "electron/skills/skillZipImport.ts",
+      "electron/skills/skillIpc.ts",
+      "electron/shared/skillImportContracts.ts",
+      "electron/main.ts",
+      "electron/preload.ts",
+      "electron/skills/skillStore.ts",
+      "electron/skills/skillManifestSchema.ts",
+      "electron/skills/skillCapability.ts",
+      "electron/harness/agentChatPolicy.ts",
+      "electron/harness/context/agentContext.ts",
+      "electron/ai/agentChatV2.ts",
+      "electron/capabilityCore/dispatcher.ts",
+      "electron/capabilityCore/mcpProtocol.ts",
+      "src/desktop/bridge.ts",
+      "src/workbench/api/skillApi.ts",
+      "src/workbench/creation/creationToolCalls.ts",
+      "src/workbench/skillLibrary/parseSkillImport.ts",
+      "src/workbench/skillLibrary/useWorkbenchSkills.ts",
+      "src/workbench/skillLibrary/SkillLibraryPanel.tsx"
+    ]
+  },
+  "regression_tests": [
+    "electron/skills/skillPackage.test.ts",
+    "electron/skills/skillZipImport.test.ts",
+    "electron/skills/skillIpc.test.ts",
+    "electron/skills/skillStore.test.ts",
+    "electron/skills/builtinSkills.test.ts",
+    "electron/skills/skillManifestSchema.test.ts",
+    "electron/skills/skillCapability.test.ts",
+    "electron/harness/agentChatPolicy.test.ts",
+    "electron/ai/agentChatV2.facade.test.ts",
+    "electron/capabilityCore/skillDispatcher.test.ts",
+    "electron/capabilityCore/nomiMcpSkills.test.ts",
+    "electron/capabilityCore/mcpCapabilityProjection.test.ts",
+    "src/workbench/skillLibrary/parseSkillImport.test.ts",
+    "src/workbench/creation/creationToolCalls.test.ts"
+  ],
+  "migration": "Existing first-party director/writer knowledge Skills gain explicit MCP audience metadata without changing their body. Existing user Skills load as internal regardless of claimed audience. Existing Skill manifests without requestedCapabilities keep their current Host ceiling; once the field exists it is validated against current canonical Registry IDs. Existing raw nomi-skill://directory URIs become invalid and clients must relist to receive a version/hash-bound URI. Existing exported envelopes remain accepted after main stamps the current package version; no executable or silently truncated package is grandfathered.",
+  "residual_risks": [
+    "A reviewed UI for explicitly publishing a user Skill to MCP is out of scope; user Skills intentionally remain internal.",
+    "PromptRecipe, ConnectorDefinition, ExecutableExtension, and third-party MCP client runtime remain out of scope.",
+    "Final packaged MCP client and UI journeys are reserved for the Phase 6 pinned candidate; Phase 5 proves the deterministic package, policy, dispatcher, and protocol seams."
+  ]
+}

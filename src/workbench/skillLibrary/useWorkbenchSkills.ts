@@ -17,7 +17,7 @@ export type UseWorkbenchSkills = {
   available: ReadonlySet<SkillProviderKind>
   reload: () => void
   remove: (dirName: string) => { ok: boolean; error?: string }
-  importPackage: (payload: unknown) => { ok: boolean; skillName?: string; error?: string }
+  importPackage: (payload: unknown) => Promise<{ ok: boolean; skillName?: string; error?: string }>
   exportPackage: (dirName: string) => unknown
 }
 
@@ -58,8 +58,8 @@ export function useWorkbenchSkills(opened: boolean): UseWorkbenchSkills {
   )
 
   const importPackage = React.useCallback(
-    (payload: unknown) => {
-      const res = importWorkbenchSkill(payload)
+    async (payload: unknown) => {
+      const res = await importWorkbenchSkill(payload)
       if (res.ok) reload()
       return { ok: res.ok, skillName: res.skillName, error: res.error }
     },

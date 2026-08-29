@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RuntimeTurnHooks, RuntimeTurnRequest, RuntimeTurnResult } from '../harness/runtime/runtimePort';
 import { parseVendorErrorFromMessage } from '../../src/workbench/generationCanvas/runner/vendorErrorIpc';
+import type { SkillRecord } from '../skills/skillStore';
 
 const state = vi.hoisted(() => ({
   request: undefined as RuntimeTurnRequest | undefined,
@@ -8,11 +9,12 @@ const state = vi.hoisted(() => ({
   result: undefined as RuntimeTurnResult | undefined,
   choose: vi.fn(),
   run: vi.fn(),
+  skill: null as SkillRecord | null,
 }));
 vi.mock('electron', () => ({ app: { getPath: () => '/tmp', getAppPath: () => process.cwd() } }));
 vi.mock('./textBrainResolver', () => ({ chooseTextModel: state.choose }));
 vi.mock('../memory/projectMemory', () => ({ getProjectMemory: () => ({ facts: [] }), formatMemoryForPrompt: () => 'project facts' }));
-vi.mock('../skills/skillStore', () => ({ findSkillRecord: () => null }));
+vi.mock('../skills/skillStore', () => ({ findSkillRecord: () => state.skill }));
 vi.mock('../assets/localAssetFile', () => ({ readNomiLocalAsset: () => ({ bytes: new Uint8Array([1, 2]) }) }));
 vi.mock('../files/extractText', () => ({ extractTextFromLocalAsset: async () => 'actual document' }));
 vi.mock('../harness/context/contextService', () => ({ createAgentContextService: () => ({ run: state.run }) }));
@@ -35,6 +37,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   state.request = undefined;
   state.hooks = undefined;
+  state.skill = null;
   state.result = { status: 'finished', text: 'actual', finishReason: 'stop',
     usage: { promptTokens: 12, completionTokens: 3, cachedPromptTokens: 4, totalTokens: 15 },
     toolCalls: [], snapshot: 'PRIVATE SDK SNAPSHOT' };
@@ -83,7 +86,7 @@ describe('Agent facade delegates exactly one turn to pi + bound context', () => 
 
   it.each([
     ['creation-editor', ['read_full_text', 'read_selection', 'insert_at_cursor', 'replace_selection', 'append_to_end', 'author_skill'], 8],
-    ['creation-chat', ['read_full_text', 'read_selection', 'author_skill'], 8],
+    ['creation-chat', ['read_full_text', 'author_skill'], 8],
     ['canvas-chat', [], 8],
     ['canvas-refine', ['set_node_prompt'], 8],
     ['storyboard', ['read_canvas_state', 'propose_storyboard_plan'], 24],
@@ -97,12 +100,40 @@ describe('Agent facade delegates exactly one turn to pi + bound context', () => 
 
   it('canvas-agent gets the canvas tools plus timeline control-plane tools', async () => {
     await runAgentChatV2(request('canvas-agent'), hooks());
-    expect(state.request?.tools).toHaveLength(25);
+    expect(state.request?.tools).toHaveLength(24);
     expect(state.request?.tools.slice(-14).map((tool) => tool.name)).toEqual([
-      'read_timeline', 'inspect_timeline_range', 'propose_edit_plan', 'apply_edit_plan', 'undo_timeline_edit',
       'get_media', 'inspect_media', 'search_media', 'inspect_source_range', 'read_waveform',
-      'export_timeline', 'inspect_export_job', 'verify_render', 'cancel_export_job',
+      'inspect_export_job', 'verify_render', 'export_timeline', 'cancel_export_job',
+      'read_timeline', 'inspect_timeline_range', 'propose_edit_plan', 'apply_edit_plan', 'undo_timeline_edit',
     ]);
+  });
+
+  it('intersects the Host ceiling with the selected Skill canonical capability request', async () => {
+    state.skill = {
+      name: 'craft.camera',
+      directoryName: 'craft-camera',
+      filePath: '/skills/craft-camera/SKILL.md',
+      description: 'Camera craft',
+      body: 'Camera body',
+      manifest: {
+        name: 'craft.camera',
+        version: '1.0.0',
+        description: 'Camera craft',
+        tools: [],
+        requiredProviders: [],
+        permissions: [],
+        requestedCapabilities: ['canvas.read'],
+      },
+      origin: 'builtin',
+      audience: 'internal',
+      packageVersion: 'nomi-skill-v1',
+      contentHash: 'a'.repeat(64),
+    };
+    await runAgentChatV2({
+      ...request('canvas-agent'),
+      chatContext: { skill: { key: 'craft.camera', name: 'Camera' } },
+    }, hooks());
+    expect(state.request?.tools.map((tool) => tool.name)).toEqual(['read_canvas_state']);
   });
 
   it('rejects missing capability, missing history and cross-project binding before model selection', async () => {

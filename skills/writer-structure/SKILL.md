@@ -1,5 +1,6 @@
 ---
 name: writer.structure
+audience: mcp
 description: 结构师（John Truby 方法论）——故事有机结构设计 / 对手网络构建 / 场景编织 / 节奏控制 / 钩子编排。Nomi 创作区搭故事骨架时参考。
 ---
 

@@ -314,10 +314,18 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       return { models: listAvailableModels() }
     case 'skills.list':
       // 导演/编剧技能库元数据（渐进披露，不含正文）。供 MCP 脊柱 resources/prompts 列表。
-      return { skills: listSkillSummaries() }
-    case 'skills.read':
+      return { skills: listSkillSummaries('mcp') }
+    case 'skills.read': {
       // 按 name/directoryName 读一个技能正文。找不到 ⇒ null（协议层转 error）。
-      return readSkillContent(String(params.name || params.directoryName || ''))
+      const packageVersion = typeof params.packageVersion === 'string' ? params.packageVersion : ''
+      const contentHash = typeof params.contentHash === 'string' ? params.contentHash : ''
+      return readSkillContent(
+        String(params.name || params.directoryName || ''),
+        'mcp',
+        undefined,
+        packageVersion && contentHash ? { packageVersion, contentHash } : undefined,
+      )
+    }
     case 'production.start':
       return ctx.productionRuns.createDraft(productionStartInput(params, ctx.origin))
     case 'production.get':

@@ -29,6 +29,40 @@ describe("skillManifestSchema", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("accepts an explicit audience and canonical requested capability ids", () => {
+    const result = parseSkillManifest({
+      name: "workbench.example",
+      version: "1.0.0",
+      description: "Example skill",
+      audience: "mcp",
+      requestedCapabilities: ["canvas.read", "document.write"],
+      tools: ["legacy_workflow_hint"],
+      requiredProviders: ["text"],
+      permissions: ["create"],
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.manifest.audience).toBe("mcp");
+      expect(result.manifest.requestedCapabilities).toEqual(["canvas.read", "document.write"]);
+    }
+  });
+
+  it.each(["read_canvas_state", "nomi_read_canvas", "missing.capability"])(
+    "rejects non-canonical requested capability %s",
+    (requestedCapability) => {
+      const result = parseSkillManifest({
+        name: "workbench.example",
+        version: "1.0.0",
+        description: "Example skill",
+        requestedCapabilities: [requestedCapability],
+        tools: [],
+        requiredProviders: [],
+        permissions: [],
+      });
+      expect(result.ok).toBe(false);
+    },
+  );
+
   it("rejects unknown permission values", () => {
     const result = parseSkillManifest({
       name: "x",

@@ -18,13 +18,17 @@ export function createCreationToolHandler(input: {
     if (event.toolName === 'author_skill') {
       const args = event.args && typeof event.args === 'object' ? event.args as Record<string, unknown> : {}
       const manifest = args.manifest
-      const result = importWorkbenchSkill({
+      const result = await importWorkbenchSkill({
         version: 'nomi-skill-v1', exportedAt: Date.now(),
         dirName: typeof args.dirName === 'string' && args.dirName.trim() ? args.dirName : 'imported-skill',
         files: { 'SKILL.md': typeof args.skillMarkdown === 'string' ? args.skillMarkdown : '', 'skill.json': JSON.stringify(manifest ?? {}, null, 2) },
       })
       if (!result.ok) {
         await event.confirm({ ok: false, message: result.error ?? input.skillSaveFailed() })
+        return
+      }
+      if (!input.turn.canWrite()) {
+        await event.confirm({ ok: false, denied: true, message: 'creation turn ended after skill save' })
         return
       }
       const needed = manifest && typeof manifest === 'object' && Array.isArray((manifest as Record<string, unknown>).requiredProviders)

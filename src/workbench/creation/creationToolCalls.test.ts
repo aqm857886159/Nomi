@@ -42,6 +42,7 @@ describe('Creation document tool turn boundary', () => {
       executionToken: 'execution-test',
       toolCallId: 'skill', toolName: 'author_skill', args: {}, isPending: () => true, confirm,
     })
+    await Promise.resolve()
     expect(deps.save).toHaveBeenCalledTimes(1)
     expect(enqueue).not.toHaveBeenCalled()
     useCreationTurnStore.getState().abandon()

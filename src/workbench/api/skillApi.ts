@@ -47,8 +47,8 @@ export function exportWorkbenchSkill(dirName: string): unknown {
   return requireDesktopRuntime('skill export').skill.exportPackage(dirName)
 }
 
-export function importWorkbenchSkill(payload: unknown): SkillImportResultDto {
-  return requireDesktopRuntime('skill import').skill.importPackage(payload) as SkillImportResultDto
+export async function importWorkbenchSkill(payload: unknown): Promise<SkillImportResultDto> {
+  return requireDesktopRuntime('skill import').skill.importPackage(payload) as Promise<SkillImportResultDto>
 }
 
 /** 删除一个用户技能（内置只读、删不掉，后端会拒）。 */

@@ -1,8 +1,20 @@
 // 渲染层要的 skill 列表 DTO（主进程组装）。按「路 A」：这里只把 manifest 原样给渲染层，
 // 能力比对（缺哪个 provider）放渲染层用 getCatalogHealth 做，catalog 一变实时刷新、不耦合。
+import { ipcMain } from "electron";
+
+import { assertTrustedSender } from "../ipcSenderGuard";
 import { deriveSkillNeeds } from "./skillCapability";
 import type { SkillProviderKind } from "./skillManifestSchema";
+import {
+  deleteUserSkill,
+  exportSkillPackageByName,
+  importSkillPackageToUserDir,
+  type ImportSkillResult,
+} from "./skillPackage";
 import { readSkillRecords } from "./skillStore";
+import { inspectSkillZipImportPayload, parseSkillZipPackage } from "./skillZipImport";
+
+type RegisterSyncIpc = (channel: string, handler: (...args: unknown[]) => unknown) => void;
 
 export type SkillListItem = {
   directoryName: string;
@@ -47,5 +59,32 @@ export function listSkillsForRenderer(): SkillListItem[] {
       manifestError: r.manifestError ?? null,
       origin: r.origin,
     };
+  });
+}
+
+export async function importSkillRequestToUserDir(raw: unknown): Promise<ImportSkillResult> {
+  try {
+    const zipRequest = inspectSkillZipImportPayload(raw);
+    if (zipRequest.kind === "invalid") return { ok: false, error: zipRequest.error };
+    if (zipRequest.kind === "zip") {
+      const parsed = await parseSkillZipPackage(zipRequest, Date.now());
+      if (!parsed.ok) return parsed;
+      return importSkillPackageToUserDir(parsed.pkg);
+    }
+    return importSkillPackageToUserDir(raw);
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export function registerSkillIpc(registerSyncIpc: RegisterSyncIpc): void {
+  registerSyncIpc("nomi:skill:list", () => listSkillsForRenderer());
+  registerSyncIpc("nomi:skill:export", (dirName: unknown) =>
+    exportSkillPackageByName(String(dirName || ""), Date.now()));
+  registerSyncIpc("nomi:skill:delete", (dirName: unknown) =>
+    deleteUserSkill(String(dirName || "")));
+  ipcMain.handle("nomi:skill:import", async (event, payload: unknown) => {
+    assertTrustedSender(event);
+    return importSkillRequestToUserDir(payload);
   });
 }

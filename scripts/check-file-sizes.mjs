@@ -33,7 +33,7 @@ const ALLOWLIST = {
   // Ratchet only: any growth is a hard failure; Canvas completion/Phase 4 must
   // extract these modules and lower the baselines.
   "electron/capabilityCore/verifiedCapabilityInvocation.ts": 1257,
-  "electron/main.ts": 850,
+  "electron/main.ts": 836,
   "electron/productionRun/productionRunService.ts": 806,
   "electron/projectAgentHost/projectAgentExecutionCoordinator.ts": 1707,
   "electron/projectAgentHost/projectAgentReducer.ts": 920,

@@ -12,8 +12,9 @@ import {
   canvasDeletePiDescriptionForAlias,
   canvasDeletePiInputSchema,
 } from "../shared/agentCapabilities/canvasDelete";
+import { CANVAS_READ_CAPABILITY } from "../shared/agentCapabilities/canvasRead";
 import { capabilityOperationAliasesFor } from "../shared/agentCapabilities/registry";
-import { agentToolsForCapability } from "./agentChatPolicy";
+import { agentToolsForCapability, agentToolsForCapabilityAndSkill } from "./agentChatPolicy";
 import { canvasToolDescriptors } from "./tools/canvasDescriptors";
 
 describe("Project Agent Pi capability projection", () => {
@@ -57,5 +58,19 @@ describe("Project Agent Pi capability projection", () => {
     expect(policySource).not.toContain("canvas.set_node_prompt");
     expect(descriptorSource).not.toContain("set_node_prompt");
     expect(descriptorSource).not.toContain("delete_canvas_nodes");
+  });
+
+  it("lets a Skill shrink but never expand the Host capability ceiling", () => {
+    const hostTools = agentToolsForCapability("canvas-agent");
+    expect(agentToolsForCapabilityAndSkill("canvas-agent", undefined)).toEqual(hostTools);
+    expect(agentToolsForCapabilityAndSkill("canvas-agent", [CANVAS_WRITE_CAPABILITY.id]).map(({ name }) => name))
+      .toEqual([
+        CANVAS_WRITE_CAPABILITY.aliases.pi,
+        ...capabilityOperationAliasesFor(CANVAS_WRITE_CAPABILITY.id, "pi"),
+      ]);
+    expect(agentToolsForCapabilityAndSkill("canvas-refine", [CANVAS_READ_CAPABILITY.id])).toEqual([]);
+    expect(() => agentToolsForCapabilityAndSkill("canvas-agent", ["read_canvas_state"])).toThrow(
+      "Unknown canonical Skill capability",
+    );
   });
 });

@@ -1,6 +1,6 @@
 # Project Agent Host 全阶段执行路线图
 
-> 状态：🚧 进行中。Phase 1、2A、2B、3A、3B、3C、3D 与 Phase 4 Surface/export 已形成远端 checkpoint；Phase 4 authority/cutover 的实现、定向证据、closure gates 和限定评审已完成，当前只剩 commit/push 远端 checkpoint，之后立即进入 Phase 5。后续不再新增 Round。
+> 状态：⏸️ Phase 1、2A、2B、3A、3B、3C、3D、4 与 5 已完成 checkpoint；按产品输入暂停在 Phase 6 之前，等待 Agent 交互设计补充。后续不再新增 Round，也不在暂停期间追逐或整合 `main`。
 
 > 交付方法：本路线图继续是唯一活跃任务真源；复杂方案与执行节奏遵循 [engineering-plan-delivery](../../.agents/skills/engineering-plan-delivery/SKILL.md)。Skill 规定单一真源、宏批次、证据复用和成本熔断，不另建新的 protocol/version/ledger；本路线图负责 Project Agent Host 的具体合同、阶段状态和下一步。
 
@@ -25,9 +25,9 @@
 | Phase 3B | 已完成 focused closure | `document.write` 已完成 Registry/Host/Surface/adapter/UI 路由；写入队列必须冻结可执行 anchor/revision/hash，缺失或 whole-document 占位在入队前 fail closed |
 | Phase 3C | 已完成 checkpoint | canonical `canvas.write@v1` 已统一 set/create/connect/tidy；真实 renderer transaction、receipt correlation、stale/lock、exact result pointer 和旧 owner 删除已通过 focused closure |
 | Phase 3D | 已完成 checkpoint | canonical `timeline.read@v1` / `timeline.write@v1` 已统一 read/range/plan/apply/undo；Timeline kernel、CAS、Workbench Undo 和旧 owner 删除已通过 focused closure |
-| Phase 4 | closure 已通过，待远端 checkpoint | 唯一付费 authorization、三条旧 writer 退役与 archive-only active-source cleanup 已完成；affected evidence、结构门和限定 P0/P1 review 已通过 |
-| Phase 5 | 未开始 | Skill/MCP 从 Registry 派生，list/read guard、shrink-only、legacy firewall |
-| Phase 6 | 未开始 | 常驻 UI；只投影已冻结的 Host/domain 状态，基于现有设计系统调整 |
+| Phase 4 | 已完成 checkpoint | 唯一付费 authorization、三条旧 writer 退役与 archive-only active-source cleanup 已完成；affected evidence、结构门和限定 P0/P1 review 已通过；远端恢复点 `189ac884` |
+| Phase 5 | 已完成 checkpoint | 显式 audience、list/read 同 guard、version/hash URI、shrink-only、Registry-only 投影和 main-owned knowledge-only ZIP 边界已收口；affected closure 与限定复审通过 |
+| Phase 6 | 暂停，未开始 | 常驻 UI；等待 Agent 交互设计补充后，只投影已冻结的 Host/domain 状态并基于现有设计系统调整 |
 
 R12 说明：本任务分支当前有 6 个超过 800 行的 Host/工作台聚合文件。它们已按本批
 人工审查后进入精确行数 allowlist，allowlist 只防止继续增长，不等于债务清零；
@@ -130,6 +130,55 @@ remote recovery push 前刷新任务分支引用，但只观察、不把 `main` 
   schemas 从 Registry 派生，legacy route 不能承接 canonical binding。
 - 进入本阶段前必须先读历史 PR 证据，并只补届时 `main` 上新增/更新 PR 的增量。
 
+#### Phase 5 冻结合同（2026-08-30）
+
+**包边界。** Skill 是知识包，不是执行扩展。renderer 只把现有导出 envelope、裸
+`SKILL.md` 归一成文件表；zip 保留原始 bytes，通过 trusted async IPC 交给 main。main 以
+central directory 为权威，分别校验 raw filename 与 Unicode-effective alias 的
+path/type/duplicate/ancestor，再从 raw stream 解压并核对压缩输入实际消费字节、输出 size 与
+CRC，最后才剥唯一 wrapper 并形成文件表；随后盖 `nomi-skill-v1` 版本并做唯一权威校验。允许
+根 `SKILL.md` / `skill.json` 和有界递归纯文本知识文件（包括 `references/`、`assets/`、
+`examples/`、`evals/` 与 README）；路径穿越、符号
+链接、重复/碰撞 entry、大小/数量/深度越界、二进制或不支持内容、`scripts/` / `bin/` /
+`hooks/` 全部拒绝，
+不得静默导入截断包。导出与导入保留同一递归知识文件表。
+
+**可见性。** Skill 显式声明 `audience: internal | mcp`。当前第一方导演/编剧知识 Skill
+逐个声明 `mcp`；目录名前缀不再拥有授权语义。用户导入包即使自称 `mcp` 也强制为
+`internal`，直到以后存在经批准的外曝 consent UI。list、read、resources 和 prompts
+共用一个 audience/origin guard；猜 name、directoryName 或 URI 不能绕过 list。
+
+**能力缩小。** manifest 可选 `requestedCapabilities`，每项只能是 canonical Registry ID。
+运行工具集合为 `Host capability ceiling ∩ Skill requestedCapabilities`；未知 ID、Pi/MCP alias
+或 legacy tool name fail closed。字段缺失时保持当前 legacy Host ceiling，避免把现有无声明
+Skill 意外变成零工具。旧 `tools`、`permissions` 和 stage tools 继续表示 Workflow/产品需求，
+不得授予 Host 或 MCP 权限，也不得自动注册工具。
+
+**版本化投影。** summaries/content 同时带 main 派生的确定性 package content hash 与版本。
+MCP resource URI 严格绑定 directory/version/hash，read 时重新执行同一可见性检查并校验当前
+版本/hash；畸形、过期、缺失或不可见 URI 均 fail closed。Pi/MCP canonical tools 继续只由
+Registry + 显式 transport adapter 派生，Skill/manifest 不改变 `MCP_CAPABILITY_RESOLVER`。
+
+**不在本阶段。** 不建设 PromptRecipe catalog、Connector/MCP client、ExecutableExtension、
+能力 marketplace、项目 capability lock 或 Phase 6 UI 改版；MCP artifact/player 的最终视觉
+闭环归 Phase 6 真实客户端旅程，本批只保留现有 Registry/ProductionRun 投影边界。
+
+#### Phase 5 验收与证据预算
+
+| Criterion | 最小证据 |
+| --- | --- |
+| 包完整性与知识-only 边界 | `skillZipImport.test.ts` + `skillPackage.test.ts` + `parseSkillImport.test.ts`：三种输入、递归 round-trip、raw traversal/duplicate/symlink/type/declared+actual limits/CRC/binary/executable-dir 拒绝，renderer 不解压 |
+| ZIP/IPC 信任与性能边界 | `skillIpc.test.ts` + Electron/renderer typecheck：async invoke/handle、trusted sender guard、raw bytes 只在 main lazy stream decode |
+| list/read 对称与用户包不外曝 | `skillStore.test.ts` + `nomiMcpSkills.test.ts`：同一 guard 覆盖 list/read/resources/prompts、伪造 audience/name/URI 失败 |
+| Skill 只能缩小 Host ceiling | `skillManifestSchema.test.ts` + `skillCapability.test.ts` + `agentChatPolicy.test.ts`：canonical ID 交集、unknown/alias fail closed、缺字段 legacy 保持 |
+| MCP 版本化资源且 Registry 唯一 | `nomiMcpSkills.test.ts` + `mcpCapabilityProjection.test.ts`：strict URI/stale hash 拒绝、manifest 不注册 tool/schema |
+| recurring 类根因结构防护 | `check:root-cause-contracts` + Phase 5 根因合同覆盖全部变化中的生产边界 |
+
+批内只运行新增/直接失效的测试；宏批次结束运行上述 affected files、受影响 TypeScript project、
+`check:root-cause-contracts`、`check:capability-owners`、必要结构门和 `git diff --check` 各一次。
+随后只做一次当前合同 P0/P1 diff review，修复只重跑被失效证据。整批一次 commit/push，
+不整合 `main`，不运行全仓 test/build/package。
+
 ### Phase 6：常驻 UI 与最终候选
 
 - UI 只投影已有 Host/domain 状态，不新增权限、审批、任务或结果 owner。
@@ -204,6 +253,24 @@ tombstone 保留以 fail closed，但 resolver/catalog、MCP `tools/list`、`too
 shrink-only 和 legacy firewall。整批只有一次 affected matrix、一次评审、一次 commit/push；
 不重读已覆盖 PR，不把 Phase 6 UI 拉进本批，也不整合 `main`。
 
+增量审计已观察 GitHub `main@491d670ac35e3b4db8156bc9eeac0a0daa36cd18`，不 fetch、
+不合入。PR #226 的 Capability/Skill 分权、知识-only 渐进披露、版本/hash 证据予以 adopt/adapt；
+PromptRecipe、Connector、ExecutableExtension 和 marketplace 延后。#227-#235 中只有 #231 的
+“不包含 MCP schema”进一步钉住 owner 边界，#232 留作 Phase 6 UI 输入，其余不改变本批合同。
+
+#### Phase 5 closure（2026-08-30）
+
+| 验收面 | 证据/指纹 | 结果 |
+| --- | --- | --- |
+| Skill 包、IPC、visibility、capability 与 MCP 投影 affected matrix | 基线 `189ac884` + 完整 Phase 5 diff；14 个直接测试文件 | 14/14 files、182/182 tests passed |
+| ZIP 两个复审修复 | `skillZipImport.ts` / `.test.ts`：raw/effective 双 identity；raw stream + inflater `bytesWritten`；0x7075 traversal/forbidden/duplicate/type 与 `compressedSize +1/+4/+16` | 19/19 passed；同一 reviewer scoped re-review PASS，无剩余 P0/P1 |
+| 生产类型边界 | Electron 与 renderer production TypeScript projects；ZIP 修复后 Electron project 重验 | passed；既有 `tsconfig.test.json` 历史红线未扩入本批 |
+| 结构、性能与 hygiene | `check:root-cause-contracts`（35 个变化中的高风险生产文件）、`check:capability-owners`（131/131）、`check:filesize`、`check:heavy-path`、`check:i18n`、`check:test-waits`、scoped ESLint、`git diff --check` | passed；`electron/main.ts` 从 850 降至 836 行，filesize 基线同步下调 |
+
+阶段出口选择是提交并推送当前任务分支形成远端恢复点，但不整合 `main`、不 merge Draft PR，
+也不提前进入 Phase 6。用户补充 Agent 交互设计后再恢复 Phase 6 UI；历史 PR evidence 只补届时
+变化的 UI/new-PR 增量，不重做 Phase 5 审计。
+
 ### C. Phase 6 UI 与最终候选
 
 先基于既有设计系统和冻结 Host/domain projection 完成常驻 UI，做一次 focused UI/visual/
@@ -233,8 +300,7 @@ journey closure 并 push recovery checkpoint。然后只在最终候选前固定
 
 ## 下一步顺序
 
-1. 提交并推送 Phase 4 Closure 远端 checkpoint，不整合 `main`。
-2. 完成 Phase 5 Skill/MCP 宏批次：历史 PR 增量决策、Registry 派生 surface 与 guard；
-   定向 closure 后评审、提交并推送，不整合 `main`。
-3. 完成 Phase 6 UI focused checkpoint；推远端后固定并整合一个 `main` SHA，运行唯一一次
+1. 暂停在 Phase 6 前，接收并冻结用户补充的 Agent 交互设计；暂停期间不改权限、生命周期、
+   Registry 或 Skill/MCP 已验收合同，也不整合 `main`。
+2. 恢复后完成 Phase 6 UI focused checkpoint；推远端后固定并整合一个 `main` SHA，运行唯一一次
    最终全量验收，形成最终 checkpoint 并把 Draft PR 更新到可合并状态。

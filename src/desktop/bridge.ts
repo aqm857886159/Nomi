@@ -741,7 +741,7 @@ export type DesktopBridge = DesktopMediaBridge & {
   skill: {
     list: () => unknown[]
     exportPackage: (dirName: string) => unknown
-    importPackage: (payload: unknown) => unknown
+    importPackage: (payload: unknown) => Promise<unknown>
     deleteByDir: (dirName: string) => unknown
   }
   /** 即梦会员（dreamina CLI）：设备码登录/账户检测/安装（可选——老 preload 无此口）。 */

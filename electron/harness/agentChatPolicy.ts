@@ -19,6 +19,7 @@ import {
 } from "../shared/agentCapabilities/canvasWrite";
 import { DOCUMENT_READ_CAPABILITY } from "../shared/agentCapabilities/documentRead";
 import { capabilityAliasesFor, capabilityOperationAliasesFor } from "../shared/agentCapabilities/registry";
+import { restrictToolsToSkillCapabilities } from "../skills/skillCapability";
 
 type PiToolDescriptor = Readonly<{
   name: string;
@@ -129,8 +130,20 @@ export function agentToolsForCapability(capability: AgentChatRequest["capability
   return descriptors.map(({ name, description, parameters }) => ({ name, description, schema: parameters }));
 }
 
-export function agentToolIsInScope(request: AgentChatRequest, call: RuntimeToolCall): boolean {
-  if (!agentToolsForCapability(request.capability).some((tool) => tool.name === call.toolName)) return false;
+export function agentToolsForCapabilityAndSkill(
+  capability: AgentChatRequest["capability"],
+  requestedCapabilities: readonly string[] | undefined,
+): RuntimeToolDescriptor[] {
+  return restrictToolsToSkillCapabilities(agentToolsForCapability(capability), requestedCapabilities);
+}
+
+export function agentToolIsInScope(
+  request: AgentChatRequest,
+  call: RuntimeToolCall,
+  requestedCapabilities?: readonly string[],
+): boolean {
+  if (!agentToolsForCapabilityAndSkill(request.capability, requestedCapabilities)
+    .some((tool) => tool.name === call.toolName)) return false;
   if (request.capability !== "canvas-refine") return true;
   const nodeId = call.args && typeof call.args === "object" ? (call.args as Record<string, unknown>).nodeId : undefined;
   return typeof nodeId === "string" && Boolean(request.selectedNodeIds?.includes(nodeId));

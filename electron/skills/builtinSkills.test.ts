@@ -38,6 +38,17 @@ describe("built-in skill packs", () => {
     expect(result.ok, result.ok ? "" : (result as { error: string }).error).toBe(true);
   });
 
+  it("marks every first-party director/writer knowledge Skill with explicit MCP audience", () => {
+    const craftDirs = fs.readdirSync(SKILLS_DIR, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && /^(director|writer)-/.test(entry.name))
+      .map((entry) => entry.name);
+    expect(craftDirs).toHaveLength(23);
+    for (const dir of craftDirs) {
+      const markdown = fs.readFileSync(path.join(SKILLS_DIR, dir, "SKILL.md"), "utf8");
+      expect(markdown, dir).toMatch(/^---\r?\n[\s\S]*?^audience:\s*mcp\s*$[\s\S]*?^---$/m);
+    }
+  });
+
   it("brand-promo is a script-first 5-stage playbook that topo-sorts cleanly", () => {
     const raw = JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, "brand-promo", "skill.json"), "utf8"));
     const parsed = parseSkillManifest(raw);

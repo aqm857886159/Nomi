@@ -1,9 +1,32 @@
 import { describe, expect, it } from "vitest";
 
-import { findSkillRecord, normalizeSkillLookupKey, type SkillRecord } from "./skillStore";
+import {
+  findSkillRecord,
+  isSkillVisibleTo,
+  listSkillSummaries,
+  normalizeSkillLookupKey,
+  readSkillContent,
+  type SkillRecord,
+} from "./skillStore";
 
-function record(name: string, directoryName: string): SkillRecord {
-  return { name, directoryName, filePath: `${directoryName}/SKILL.md`, body: "x", manifest: null, origin: "builtin" };
+function record(
+  name: string,
+  directoryName: string,
+  overrides: Partial<SkillRecord> = {},
+): SkillRecord {
+  return {
+    name,
+    directoryName,
+    filePath: `${directoryName}/SKILL.md`,
+    description: `${name} description`,
+    body: `${name} body`,
+    manifest: null,
+    origin: "builtin",
+    audience: "internal",
+    packageVersion: "nomi-skill-v1",
+    contentHash: "a".repeat(64),
+    ...overrides,
+  };
 }
 
 const records: SkillRecord[] = [
@@ -36,5 +59,37 @@ describe("findSkillRecord", () => {
 
   it("returns null when nothing matches", () => {
     expect(findSkillRecord("does.not.exist", "nope", records)).toBeNull();
+  });
+});
+
+describe("Skill audience visibility", () => {
+  const publicBuiltin = record("craft.camera", "arbitrary-public-name", { audience: "mcp" });
+  const hiddenPrefixed = record("internal.director", "director-hidden", { audience: "internal" });
+  const userClaimingMcp = record("user.claim", "writer-user-claim", { origin: "user", audience: "mcp" });
+  const records = [publicBuiltin, hiddenPrefixed, userClaimingMcp];
+
+  it("uses explicit audience and origin rather than a directory prefix", () => {
+    expect(isSkillVisibleTo(publicBuiltin, "mcp")).toBe(true);
+    expect(isSkillVisibleTo(hiddenPrefixed, "mcp")).toBe(false);
+    expect(isSkillVisibleTo(userClaimingMcp, "mcp")).toBe(false);
+    expect(isSkillVisibleTo(userClaimingMcp, "internal")).toBe(true);
+  });
+
+  it("applies the same guard to list and exact read", () => {
+    expect(listSkillSummaries("mcp", records)).toEqual([
+      expect.objectContaining({
+        name: publicBuiltin.name,
+        directoryName: publicBuiltin.directoryName,
+        packageVersion: "nomi-skill-v1",
+        contentHash: "a".repeat(64),
+      }),
+    ]);
+    expect(readSkillContent(publicBuiltin.directoryName, "mcp", records)?.body).toContain("craft.camera");
+    expect(readSkillContent(hiddenPrefixed.directoryName, "mcp", records)).toBeNull();
+    expect(readSkillContent(userClaimingMcp.name, "mcp", records)).toBeNull();
+  });
+
+  it("does not let external reads use the internal fuzzy-prefix lookup", () => {
+    expect(readSkillContent(`${publicBuiltin.name}.extra`, "mcp", records)).toBeNull();
   });
 });

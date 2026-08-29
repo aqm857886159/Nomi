@@ -33,3 +33,19 @@ GitHub review API 未返回这些 PR 的非空 review body 或 line review comme
 2. MCP / Skill / Registry 实现必须先在本表找到对应证据和 `adopt/adapt/reject` 结论，再开始 RED；没有结论的历史 PR 是 hard fail。
 3. UI 实现先读取现有批准设计、真实运行界面和 #194/#196/#199/#201/#203 的核心判断；只有证据证明信息层级不足时，才改 `docs/design/nomi-design-system.md` 对应 token/规范并重新出样张。
 4. 任何历史方案都不能恢复第二个 transcript、pending、receipt、capability schema、executor、ProductionRun 或 timeline owner。历史 PR 的价值是问题证据和设计输入，代码基线永远是最新 `main`。
+
+## Phase 5 增量审计（2026-08-30）
+
+本次只读观察 GitHub `main@491d670ac35e3b4db8156bc9eeac0a0daa36cd18`，未 fetch、
+rebase 或 merge。相对本表原始基线 `4cac784ed2b8f7820ee41811e15b4fbbe03ba7b9`，新增/更新
+PR #226-#235。只有与 Skill、MCP、Registry 或 Phase 6 UI 合同重叠的语义进入本任务：
+
+| PR | 核心证据 | Phase 5 裁决 | 合同/验收绑定 |
+| --- | --- | --- | --- |
+| #226 `docs: propose governed creative capability system` | open；base `4cac784ed2b8f7820ee41811e15b4fbbe03ba7b9`，head `57beefacbea8278359da8a015dc47c84f52e266c`；把 PromptRecipe、KnowledgeSkill、WorkflowDefinition、ConnectorDefinition、ExecutableExtension 分开；Capability 是唯一权限 owner；Skill 只请求能力；知识 Skill 渐进披露；版本/hash 可审计。无人工 reviews/comments。 | **adopt** 类型分权、Capability 唯一授权、Skill shrink-only、知识-only 渐进披露、version/hash；**adapt** 到现有 canonical Registry、ProjectAgentHost 和 MCP server projection；**reject/defer** PromptRecipe catalog、Connector runtime/MCP client、ExecutableExtension、marketplace UI、项目 capability lock。 | Phase 5 `audience`/guard、`requestedCapabilities` 交集、package hash/version、manifest 不注册工具；Phase 6 只消费投影。 |
+| #231 `fix(ai): derive Anthropic protocol at runtime boundaries` | 2026-08-30 核验：merged；base `612b380779c50be4ad21dbbc185a57b943e39c19`，head `54f0db0fdbec045f3d72840e1616e268b0050d7d`。5 个 changed files 仅覆盖 Anthropic SDK URL/verification 与根因合同：`buildAiSdkModel{,.test}.ts`、`builtinOpenAiCompatibleDraft{,.test}.ts`、对应 root-cause JSON；PR Scope 明确“no MCP schema”。reviews 为空，issue comments 只有部署 bot。GitHub compare 证明 head 是观察到的 `main@491d670ac35e3b4db8156bc9eeac0a0daa36cd18` 祖先（main ahead 23、behind 0）。 | **adopt** 为 owner firewall：该 provider protocol 修复不拥有 MCP schema，也不能成为 Skill/manifest 驱动 MCP schema 的理由；不采纳其 provider 实现到 Phase 5。 | `mcpCapabilityProjection.test.ts` 继续证明工具/schema 仅从 Registry + 显式 adapter 派生；Phase 5 不修改上述 5 个 provider 文件。 |
+| #232 | 后续 UI/视频复刻方向，和当前 Skill/MCP 权限链无生产代码重叠。 | **adapt/defer** 到 Phase 6 样张和真实工作台对账；不进入 Phase 5。 | Phase 6 UI evidence gate。 |
+| #227-#230、#233-#235 | delivery/provider/i18n/canvas 等增量；未改变 Skill、MCP 或 Registry owner。 | **reject for Phase 5 scope**，保留各自领域 owner，不扩本批。 | 无新增 Phase 5 criterion；最终 pinned-main integration 再处理真实冲突。 |
+
+增量结论已经写入唯一活跃路线图的 Phase 5 冻结合同。后续 Phase 5 不重复读取这些未变 head；
+Phase 6 只补 UI 相关 head/review 和届时新增 PR。

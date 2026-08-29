@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
-import { deriveSkillNeeds, reportSkillCapability } from "./skillCapability";
+import { CANVAS_READ_CAPABILITY } from "../shared/agentCapabilities/canvasRead";
+import { CANVAS_WRITE_CAPABILITY } from "../shared/agentCapabilities/canvasWrite";
+import {
+  deriveSkillNeeds,
+  reportSkillCapability,
+  restrictToolsToSkillCapabilities,
+} from "./skillCapability";
 import type { SkillManifest } from "./skillManifestSchema";
+import type { RuntimeToolDescriptor } from "../harness/runtime/runtimePort";
 
 function manifest(partial: Partial<SkillManifest>): SkillManifest {
   return {
@@ -83,4 +91,30 @@ describe("reportSkillCapability", () => {
     expect(report.missingTools).toEqual([]);
     expect(report.satisfied).toBe(true);
   });
+});
+
+describe("restrictToolsToSkillCapabilities", () => {
+  const hostTools: RuntimeToolDescriptor[] = [
+    { name: CANVAS_READ_CAPABILITY.aliases.pi, description: "read", schema: z.object({}) },
+    { name: CANVAS_WRITE_CAPABILITY.aliases.pi, description: "write", schema: z.object({}) },
+    { name: "legacy_workflow_hint", description: "legacy", schema: z.object({}) },
+  ];
+
+  it("preserves the legacy Host ceiling when the Skill does not declare requests", () => {
+    expect(restrictToolsToSkillCapabilities(hostTools, undefined)).toEqual(hostTools);
+  });
+
+  it("intersects the Host ceiling with canonical Registry capability ids", () => {
+    expect(restrictToolsToSkillCapabilities(hostTools, ["canvas.read"])).toEqual([hostTools[0]]);
+    expect(restrictToolsToSkillCapabilities(hostTools, [])).toEqual([]);
+  });
+
+  it.each(["read_canvas_state", "nomi_read_canvas", "missing.capability"])(
+    "fails closed for an alias or unknown id: %s",
+    (requestedCapability) => {
+      expect(() => restrictToolsToSkillCapabilities(hostTools, [requestedCapability])).toThrow(
+        "Unknown canonical Skill capability",
+      );
+    },
+  );
 });

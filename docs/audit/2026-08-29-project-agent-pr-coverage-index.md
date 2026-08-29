@@ -1,6 +1,6 @@
 # Project Agent 历史 PR 覆盖索引
 
-> 状态：已完成 2026-08-29 的一次只读 evidence 审计；完整证据见 [`docs/audit/2026-08-29-project-agent-pr-evidence.md`](./2026-08-29-project-agent-pr-evidence.md)。Phase 5 前只需按届时最新 `main` 做增量枚举并更新漂移，不得跳过历史 PR。
+> 状态：已完成 2026-08-29 全量 evidence 审计与 2026-08-30 Phase 5 增量审计；完整证据见 [`docs/audit/2026-08-29-project-agent-pr-evidence.md`](./2026-08-29-project-agent-pr-evidence.md)。Phase 6 只补 UI 相关 head/review 与届时新增 PR，不重复读取未变证据。
 
 原则：最新 `main` 是代码基线；历史 PR 是严重问题证据和设计输入，不整包 merge，不机械 cherry-pick。PR 即使落后于 `main`，也必须提炼其中的严重问题、核心语义决策和 review 异议，并结合当前实现给出 `adopt / adapt / reject` 结论，不能因代码漂移而跳过。
 
@@ -20,10 +20,14 @@
 | #204 单源门岗 | semantic owner AST 检查与 R14.1 | Phase 2B | 全阶段结构门岗 | 已审计；能力 owner 仍需人工对偶审计 |
 | #213 safe AI timeline editing | 时间轴控制面、卡片/控件行为；与当前 Canvas timeline 改动直接重叠 | Phase 2B checkpoint | main integration 保行为 | 已审计；checkpoint 必须保行为 |
 | #223 Project Agent Host | 当前任务分支与 Draft PR | 全阶段 | 最终交付 | 持续更新；本次审计已记录快照漂移 |
+| #226 governed creative capability system | Capability 唯一授权、KnowledgeSkill 渐进披露、Skill 只请求能力、version/hash | Phase 5 | Skill/MCP guard 与 shrink-only | 已增量审计；adopt/adapt/defer 已绑定 Phase 5 冻结合同 |
+| #231 schema exclusion | 明确当前范围不包含 MCP schema | Phase 5 | Registry/MCP owner firewall | 已增量审计；禁止由 Skill/manifest 自动注册 MCP schema |
+| #232 UI/video recreation input | 后续 UI/视频复刻方向 | Phase 6 | 样张与真实界面对账 | 已增量审计；Phase 5 defer |
+| #227-#230、#233-#235 | delivery/provider/i18n/canvas 等非重叠增量 | 最终集成 | 各领域 owner | 已增量枚举；不改变 Phase 5 合同 |
 
 ## 阶段边界
 
 - Phase 2B：只读取会影响 Host owner、旧外壳行为、receipt/recovery 和 checkpoint 合并冲突的条目。
 - Phase 3/4：补读 capability、取消、审批、ProductionRun 和真实旅程证据。
-- 进入 Phase 5 前：以 evidence 文档为基线，重新枚举新增/更新的 MCP / Skill / Registry PR，补增量后冻结行为合同。
+- 进入 Phase 5 前：已观察 GitHub `main@491d670ac35e3b4db8156bc9eeac0a0daa36cd18` 并完成 #226-#235 增量裁决；不 fetch、不把移动主线合入开放批次。
 - Phase 6：复用冻结合同，只补 UI 相关 PR / 截图 / review 增量；UI 不得反向修改权限、Registry 或生命周期语义。

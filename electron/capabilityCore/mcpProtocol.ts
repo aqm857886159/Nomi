@@ -98,8 +98,14 @@ const READ_ONLY_TOOLS = new Set([
 type RpcMessage = { jsonrpc?: string; id?: unknown; method?: string; params?: Record<string, unknown>; result?: unknown; error?: { code?: number; message?: string } }
 
 // 能力核 skills.list / skills.read 返回的形状（协议层据此把技能映射成 MCP resources/prompts）。
-type SkillSummaryFrame = { name: string; directoryName: string; description: string }
-type SkillContentFrame = { name: string; directoryName: string; description: string; body: string }
+type SkillSummaryFrame = {
+  name: string
+  directoryName: string
+  description: string
+  packageVersion: string
+  contentHash: string
+}
+type SkillContentFrame = SkillSummaryFrame & { body: string }
 
 /**
  * 建一个 MCP 协议处理器。喂入客户端发来的每一帧（handleIncoming），它经 transport.send 回响应；
@@ -554,6 +560,34 @@ export function createMcpProtocol(transport: McpTransport) {
     const SKILL_URI_PREFIX = 'nomi-skill://'
     const PRODUCTION_ARTIFACT_URI_PREFIX = 'nomi://project/'
 
+    function skillResourceUri(skill: SkillSummaryFrame): string | null {
+      if (!/^[A-Za-z0-9._-]{1,160}$/.test(skill.directoryName)) return null
+      if (!/^[A-Za-z0-9._-]{1,80}$/.test(skill.packageVersion)) return null
+      if (!/^[a-f0-9]{64}$/.test(skill.contentHash)) return null
+      return `${SKILL_URI_PREFIX}${encodeURIComponent(skill.directoryName)}/${encodeURIComponent(skill.packageVersion)}/${skill.contentHash}`
+    }
+
+    function parseSkillResourceUri(uri: string): {
+      directoryName: string
+      packageVersion: string
+      contentHash: string
+    } {
+      const match = /^nomi-skill:\/\/([^/]+)\/([^/]+)\/([a-f0-9]{64})$/.exec(uri)
+      if (!match) throw new Error(`技能资源 uri 无效: ${uri}`)
+      let directoryName: string
+      let packageVersion: string
+      try {
+        directoryName = decodeURIComponent(match[1])
+        packageVersion = decodeURIComponent(match[2])
+      } catch {
+        throw new Error(`技能资源 uri 编码无效: ${uri}`)
+      }
+      if (!/^[A-Za-z0-9._-]{1,160}$/.test(directoryName) || !/^[A-Za-z0-9._-]{1,80}$/.test(packageVersion)) {
+        throw new Error(`技能资源 uri 标识无效: ${uri}`)
+      }
+      return { directoryName, packageVersion, contentHash: match[3] }
+    }
+
     /** Parse the only production artifact resource shape we expose. IDs are validated again in dispatch/service. */
     function productionArtifactResource(uri: string): Record<string, string> | null {
       if (!uri.startsWith(PRODUCTION_ARTIFACT_URI_PREFIX)) return null
@@ -577,12 +611,10 @@ export function createMcpProtocol(transport: McpTransport) {
 
     if (method === 'resources/list') {
       const res = (await invokeForRequest('skills.list', {})) as { skills?: SkillSummaryFrame[] } | null
-      const skillResources = (res?.skills || []).map((s) => ({
-        uri: `${SKILL_URI_PREFIX}${s.directoryName}`,
-        name: s.name,
-        description: s.description,
-        mimeType: 'text/markdown',
-      }))
+      const skillResources = (res?.skills || []).flatMap((skill) => {
+        const uri = skillResourceUri(skill)
+        return uri ? [{ uri, name: skill.name, description: skill.description, mimeType: 'text/markdown' }] : []
+      })
       // 活 widget 资源（MCP Apps）：宿主预取渲染生成结果与 production Run 投影的活面板。
       const uiResources = [{
         uri: NOMI_LIVE_DRAFT_UI_URI,
@@ -628,13 +660,17 @@ export function createMcpProtocol(transport: McpTransport) {
         replyError(id, -32602, `未知资源 uri: ${uri}`)
         return
       }
-      const key = uri.slice(SKILL_URI_PREFIX.length)
-      const content = (await invokeForRequest('skills.read', { name: key })) as SkillContentFrame | null
-      if (!content?.body) {
-        replyError(id, -32602, `未找到技能资源: ${uri}`)
-        return
+      try {
+        const identity = parseSkillResourceUri(uri)
+        const content = (await invokeForRequest('skills.read', identity)) as SkillContentFrame | null
+        if (!content?.body) {
+          replyError(id, -32602, `未找到技能资源: ${uri}`)
+          return
+        }
+        reply(id, { contents: [{ uri, mimeType: 'text/markdown', text: content.body }] })
+      } catch (error) {
+        replyError(id, -32602, error instanceof Error ? error.message : String(error))
       }
-      reply(id, { contents: [{ uri, mimeType: 'text/markdown', text: content.body }] })
       return
     }
     if (method === 'prompts/list') {
