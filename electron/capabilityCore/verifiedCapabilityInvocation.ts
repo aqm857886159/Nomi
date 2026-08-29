@@ -1,6 +1,11 @@
 import crypto from "node:crypto";
 
 import { CANVAS_READ_CAPABILITY, type CanvasReadInput } from "../shared/agentCapabilities/canvasRead";
+import {
+  DOCUMENT_READ_CAPABILITY,
+  documentReadSemanticInputSchema,
+  type DocumentReadInput,
+} from "../shared/agentCapabilities/documentRead";
 import type { PreconditionSet } from "../shared/capabilityTargeting";
 import type { ProjectBinding } from "../shared/projectBinding";
 import {
@@ -121,6 +126,7 @@ type InvocationState = Readonly<{
   evidence: CanvasReadAuthorityEvidence;
   revalidate: () => Promise<CanvasReadAuthorityEvidence>;
   executionTarget: VerifiedCanvasReadExecutionTarget;
+  policyRevision: number;
 }>;
 
 const invocationStates = new WeakMap<object, InvocationState>();
@@ -273,6 +279,53 @@ function parseCanonicalInput(value: unknown): CanvasReadInput {
   }
 }
 
+function mintCapabilityInvocation<Input, Target>(
+  input: Readonly<{
+    capability: Readonly<{ id: string; version: number }>;
+    policyRevision: number;
+    semanticInput: Input;
+    target: Target;
+    evidence: CanvasReadAuthorityEvidence;
+    revalidate: () => Promise<CanvasReadAuthorityEvidence>;
+    executionTarget: VerifiedCanvasReadExecutionTarget;
+  }>,
+): VerifiedCapabilityInvocation<Input, Target> {
+  const capability = capabilityIdentity(input.capability.id, input.capability.version);
+  const policyRevision = input.policyRevision;
+  const inputHash = digest("input", input.semanticInput);
+  const actionHash = digest("action", {
+    capability,
+    binding: input.evidence.binding,
+    input: input.semanticInput,
+    target: input.target,
+    preconditions: EMPTY_PRECONDITIONS,
+    policyRevision,
+  });
+  const invocation = deepFreeze({
+    invocationId: invocationId(),
+    capability,
+    binding: input.evidence.binding,
+    target: input.target,
+    preconditions: EMPTY_PRECONDITIONS,
+    input: input.semanticInput,
+    caller: input.evidence.caller,
+    authorityRef: input.evidence.authorityRef,
+    policyRevision,
+    inputHash,
+    actionHash,
+  }) as unknown as VerifiedCapabilityInvocation<Input, Target>;
+  invocationStates.set(
+    invocation,
+    Object.freeze({
+      evidence: input.evidence,
+      revalidate: input.revalidate,
+      executionTarget: input.executionTarget,
+      policyRevision,
+    }),
+  );
+  return invocation;
+}
+
 function mintCanvasReadInvocation(
   input: Readonly<{
     semanticInput: CanvasReadInput;
@@ -281,39 +334,12 @@ function mintCanvasReadInvocation(
     executionTarget: VerifiedCanvasReadExecutionTarget;
   }>,
 ): McpCanvasReadInvocation {
-  const capability = capabilityIdentity(CANVAS_READ_CAPABILITY.id, CANVAS_READ_CAPABILITY.version);
-  const policyRevision = CANVAS_READ_INVOCATION_POLICY_REVISION;
-  const inputHash = digest("input", input.semanticInput);
-  const actionHash = digest("action", {
-    capability,
-    binding: input.evidence.binding,
-    input: input.semanticInput,
+  return mintCapabilityInvocation({
+    ...input,
+    capability: CANVAS_READ_CAPABILITY,
+    policyRevision: CANVAS_READ_INVOCATION_POLICY_REVISION,
     target: PROJECT_TARGET,
-    preconditions: EMPTY_PRECONDITIONS,
-    policyRevision,
   });
-  const invocation = deepFreeze({
-    invocationId: invocationId(),
-    capability,
-    binding: input.evidence.binding,
-    target: PROJECT_TARGET,
-    preconditions: EMPTY_PRECONDITIONS,
-    input: input.semanticInput,
-    caller: input.evidence.caller,
-    authorityRef: input.evidence.authorityRef,
-    policyRevision,
-    inputHash,
-    actionHash,
-  }) as unknown as McpCanvasReadInvocation;
-  invocationStates.set(
-    invocation,
-    Object.freeze({
-      evidence: input.evidence,
-      revalidate: input.revalidate,
-      executionTarget: input.executionTarget,
-    }),
-  );
-  return invocation;
 }
 
 export type McpCanvasReadVerifiedInvocationFactory = Readonly<{
@@ -493,6 +519,32 @@ function internalRequest(value: unknown): Readonly<{ projectId: string; input: C
   });
 }
 
+function internalDocumentRequest(value: unknown): Readonly<{
+  projectId: string;
+  documentId: string;
+  input: DocumentReadInput;
+}> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new CapabilityInvocationError("capability_input_invalid");
+  }
+  const request = value as Record<string, unknown>;
+  if (Object.keys(request).some((key) => FORBIDDEN_AUTHORITY_FIELDS.has(key) || key === "leaseHandle")) {
+    throw new CapabilityInvocationError("capability_authority_invalid");
+  }
+  if (Object.keys(request).some((key) => !["projectId", "documentId", "scope"].includes(key))) {
+    throw new CapabilityInvocationError("capability_input_invalid");
+  }
+  try {
+    return Object.freeze({
+      projectId: nonEmptyString(request.projectId),
+      documentId: nonEmptyString(request.documentId),
+      input: documentReadSemanticInputSchema.parse({ scope: request.scope }),
+    });
+  } catch {
+    throw new CapabilityInvocationError("capability_input_invalid");
+  }
+}
+
 function internalEvidence(
   identity: WorkspaceProjectIdentity,
   caller: Extract<VerifiedCaller, { kind: "internal" }>,
@@ -562,6 +614,66 @@ export function createInternalCanvasReadVerifiedInvocationFactory(
   });
 }
 
+export type InternalDocumentReadVerifiedInvocationFactory = Readonly<{
+  mint(input: Readonly<{ bearer: string; requestBody: unknown }>): Promise<
+    VerifiedCapabilityInvocation<DocumentReadInput, Readonly<{ kind: "document"; documentId: string }>>
+  >;
+}>;
+
+/** Main-only document.read mint boundary; document identity is captured in the target. */
+export function createInternalDocumentReadVerifiedInvocationFactory(
+  input: Readonly<{
+    verifyBearer(bearer: string): boolean | Promise<boolean>;
+    resolveProjectIdentity(projectId: string): Promise<WorkspaceProjectIdentity>;
+    randomId?: () => string;
+  }>,
+): InternalDocumentReadVerifiedInvocationFactory {
+  const randomId = input.randomId ?? (() => crypto.randomUUID());
+  return Object.freeze({
+    async mint({ bearer: bearerValue, requestBody }) {
+      const request = internalDocumentRequest(requestBody);
+      const bearer = nonEmptyString(bearerValue);
+      const operationId = nonEmptyString(randomId());
+      const caller = Object.freeze({
+        kind: "internal" as const,
+        principal: "internal:local-capability",
+        operationId,
+      });
+      const verify = async (): Promise<InternalAuthorityEvidence> => {
+        let authorized: boolean;
+        try {
+          authorized = await input.verifyBearer(bearer);
+        } catch {
+          throw new CapabilityInvocationError("capability_authority_invalid");
+        }
+        if (!authorized) throw new CapabilityInvocationError("capability_authority_invalid");
+        let identity: WorkspaceProjectIdentity;
+        try {
+          identity = await input.resolveProjectIdentity(request.projectId);
+        } catch {
+          throw new WorkspaceProjectIdentityUnavailableError();
+        }
+        if (identity.projectId !== request.projectId) throw new WorkspaceProjectIdentityUnavailableError();
+        return internalEvidence(identity, caller);
+      };
+      const evidence = await verify();
+      return mintCapabilityInvocation({
+        capability: DOCUMENT_READ_CAPABILITY,
+        policyRevision: CANVAS_READ_INVOCATION_POLICY_REVISION,
+        semanticInput: request.input,
+        target: Object.freeze({ kind: "document" as const, documentId: request.documentId }),
+        evidence,
+        revalidate: verify,
+        executionTarget: Object.freeze({
+          kind: "project",
+          binding: evidence.binding,
+          canonicalRootDigest: evidence.canonicalRootDigest,
+        }),
+      });
+    },
+  });
+}
+
 export function assertVerifiedCapabilityInvocation(
   value: unknown,
 ): asserts value is VerifiedCapabilityInvocation<unknown, unknown> {
@@ -592,7 +704,7 @@ export async function revalidateVerifiedCapabilityInvocation<Input, Target>(
   if (!state) throw new CapabilityInvocationError("capability_invocation_unverified");
   const fresh = await state.revalidate();
   if (!sameEvidence(state.evidence, fresh)) throw new ProjectBindingStaleError();
-  if (invocation.policyRevision !== CANVAS_READ_INVOCATION_POLICY_REVISION) {
+  if (invocation.policyRevision !== state.policyRevision) {
     throw new CapabilityInvocationError("capability_policy_stale");
   }
   return invocation;

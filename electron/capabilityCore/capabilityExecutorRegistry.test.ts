@@ -5,6 +5,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { projectCanvasRead } from "../shared/agentCapabilities/canvasRead";
+import { createInternalDocumentReadVerifiedInvocationFactory } from "./verifiedCapabilityInvocation";
 import type { WorkspaceProjectIdentity } from "../workspace/workspaceProjectIdentity";
 import { createMcpConnectionContext } from "./mcpConnectionContext";
 import { createMcpGenerationPolicy } from "./mcpGenerationPolicy";
@@ -115,6 +116,29 @@ afterEach(() => {
 });
 
 describe("main-only CapabilityExecutorRegistry", () => {
+  it("dispatches document.read through its scoped document port and returns a safe result", async () => {
+    const identity = BASE_IDENTITY;
+    const invocation = await createInternalDocumentReadVerifiedInvocationFactory({
+      verifyBearer: async (bearer) => bearer === "bearer",
+      resolveProjectIdentity: async () => identity,
+      randomId: () => "document-operation",
+    }).mint({
+      bearer: "bearer",
+      requestBody: { projectId: identity.projectId, documentId: "document-1", scope: "selection" },
+    });
+    const read = vi.fn(async ({ scope }: { scope: "full" | "selection" }) => ({
+      text: scope === "selection" ? "selected" : "full",
+      path: "/private/editor-state",
+    }));
+    const registry = createMainCapabilityExecutorRegistry({
+      resolveCanvasReadPort: async () => ({ read: async () => ({}) }),
+      resolveDocumentReadPort: async () => ({ read }),
+    });
+
+    await expect(registry.execute(invocation)).resolves.toEqual({ text: "selected" });
+    expect(read).toHaveBeenCalledWith(expect.objectContaining({ scope: "selection", signal: expect.any(AbortSignal) }));
+  });
+
   it("rejects a structural invocation before resolving any environment port", async () => {
     const resolveCanvasReadPort = vi.fn();
     const registry = createMainCapabilityExecutorRegistry({ resolveCanvasReadPort });

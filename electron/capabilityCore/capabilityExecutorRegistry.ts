@@ -5,6 +5,13 @@ import {
   type CanvasReadResult,
 } from "../shared/agentCapabilities/canvasRead";
 import {
+  DOCUMENT_READ_CAPABILITY,
+  documentReadSemanticInputSchema,
+  documentReadResultSchema,
+  projectDocumentRead,
+  type DocumentReadResult,
+} from "../shared/agentCapabilities/documentRead";
+import {
   assertVerifiedCapabilityInvocation,
   revalidateVerifiedCapabilityInvocation,
   type VerifiedCapabilityInvocation,
@@ -27,7 +34,11 @@ export class CapabilityExecutionError extends Error {
 
 /** The only environmental authority available to a canvas.read executor. */
 export type CanvasReadPort = Readonly<{
-  read(input: Readonly<{ signal: AbortSignal }>): Promise<unknown>;
+  read(input: Readonly<{ signal: AbortSignal; scope?: "full" | "selection" }>): Promise<unknown>;
+}>;
+
+export type DocumentReadPort = Readonly<{
+  read(input: Readonly<{ scope: "full" | "selection"; signal: AbortSignal }>): Promise<unknown>;
 }>;
 
 type AnyVerifiedInvocation = VerifiedCapabilityInvocation<unknown, unknown>;
@@ -36,6 +47,7 @@ export type CanvasReadPortResolver = (invocation: AnyVerifiedInvocation) => Canv
 
 export type CapabilityExecutorRegistryOptions = Readonly<{
   resolveCanvasReadPort: CanvasReadPortResolver;
+  resolveDocumentReadPort?: (invocation: AnyVerifiedInvocation) => DocumentReadPort | Promise<DocumentReadPort>;
   timeoutMs?: number;
 }>;
 
@@ -133,12 +145,22 @@ async function revalidate(invocation: AnyVerifiedInvocation): Promise<void> {
 }
 
 function parseInput(invocation: AnyVerifiedInvocation): void {
-  if (!CANVAS_READ_CAPABILITY.inputSchema.safeParse(invocation.input).success) {
+  const schema = invocation.capability.id === DOCUMENT_READ_CAPABILITY.id
+    ? documentReadSemanticInputSchema
+    : CANVAS_READ_CAPABILITY.inputSchema;
+  if (!schema.safeParse(invocation.input).success) {
     throw new CapabilityExecutionError("capability_input_invalid");
   }
 }
 
-function projectOutput(source: unknown): CanvasReadResult {
+function projectOutput(source: unknown, invocation: AnyVerifiedInvocation): CanvasReadResult | DocumentReadResult {
+  if (invocation.capability.id === DOCUMENT_READ_CAPABILITY.id) {
+    try {
+      return documentReadResultSchema.parse(projectDocumentRead(source));
+    } catch {
+      throw new CapabilityExecutionError("capability_output_invalid");
+    }
+  }
   try {
     const canonical = canvasReadResultSchema.safeParse(source);
     if (canonical.success) return canonical.data;
@@ -158,24 +180,33 @@ export class CapabilityExecutorRegistry {
   readonly #timeoutMs: number;
 
   constructor(options: CapabilityExecutorRegistryOptions) {
-    this.#resolveCanvasReadPort = options.resolveCanvasReadPort;
+    const resolveCanvasReadPort = options.resolveCanvasReadPort;
+    const resolveDocumentReadPort = options.resolveDocumentReadPort;
+    this.#resolveCanvasReadPort = (invocation) =>
+      invocation.capability.id === DOCUMENT_READ_CAPABILITY.id
+        ? resolveDocumentReadPort
+          ? resolveDocumentReadPort(invocation)
+          : Promise.reject(new CapabilityExecutionError("capability_unsupported"))
+        : resolveCanvasReadPort(invocation);
     this.#timeoutMs = positiveTimeout(options.timeoutMs);
   }
 
-  async execute(invocationValue: unknown, options: CapabilityExecuteOptions = {}): Promise<CanvasReadResult> {
+  async execute<Input, Target>(
+    invocationValue: VerifiedCapabilityInvocation<Input, Target>,
+    options: CapabilityExecuteOptions = {},
+  ): Promise<Input extends import("../shared/agentCapabilities/documentRead").DocumentReadInput ? DocumentReadResult : CanvasReadResult> {
     assertVerifiedCapabilityInvocation(invocationValue);
     const invocation = invocationValue;
-    if (
-      invocation.capability.id !== CANVAS_READ_CAPABILITY.id ||
-      invocation.capability.version !== CANVAS_READ_CAPABILITY.version
-    ) {
+    const isCanvasRead = invocation.capability.id === CANVAS_READ_CAPABILITY.id && invocation.capability.version === CANVAS_READ_CAPABILITY.version;
+    const isDocumentRead = invocation.capability.id === DOCUMENT_READ_CAPABILITY.id && invocation.capability.version === DOCUMENT_READ_CAPABILITY.version;
+    if (!isCanvasRead && !isDocumentRead) {
       throw new CapabilityExecutionError("capability_unsupported");
     }
     parseInput(invocation);
 
     return bounded(this.#timeoutMs, options.signal, async (signal) => {
       await revalidate(invocation);
-      let port: CanvasReadPort;
+      let port: CanvasReadPort | DocumentReadPort;
       try {
         port = await this.#resolveCanvasReadPort(invocation);
       } catch (error) {
@@ -185,13 +216,18 @@ export class CapabilityExecutorRegistry {
 
       let source: unknown;
       try {
-        source = await port.read({ signal });
+        source = await (port as CanvasReadPort).read({
+          scope: isDocumentRead ? documentReadSemanticInputSchema.parse(invocation.input).scope : undefined,
+          signal,
+        });
       } catch (error) {
         if (signal.aborted) throw new CapabilityExecutionError("capability_cancelled");
         throw safeStageError(error);
       }
       await revalidate(invocation);
-      return projectOutput(source);
+      return projectOutput(source, invocation) as Input extends import("../shared/agentCapabilities/documentRead").DocumentReadInput
+        ? DocumentReadResult
+        : CanvasReadResult;
     });
   }
 }
