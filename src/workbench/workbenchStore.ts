@@ -36,7 +36,6 @@ import { normalizeWorkbenchDocument, type CreationDocumentTools, type PreviewAsp
 import type { WorkbenchAiMessage } from './ai/workbenchAiTypes'
 import type { ComposerAttachment } from './ai/composer/composerAttachmentTypes'
 import { createConversationBuckets } from './aiConversationBuckets'
-import { abandonCreationTurn } from './creation/creationTurnController'
 import { createWorkbenchDocumentSlice, type WorkbenchDocumentSlice } from './workbenchDocumentSlice'
 
 // 创作面板会话「会话域」per-project 桶(S1 治串台)。

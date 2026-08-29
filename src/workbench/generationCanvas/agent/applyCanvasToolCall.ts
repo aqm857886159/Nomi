@@ -23,8 +23,6 @@ import { mintSpendGrant } from '../../api/taskApi'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
 import { applyTimelineToolCall } from '../../timeline/agent/timelineToolCall'
-import { formatCanvasForAgent } from './canvasPromptContext'
-import { captureCanvasReadResult } from './canvasReadResultSeal'
 import { parseStoryboardPlan } from './storyboardPlan'
 import type { StagingSpec, StagingCharacterSpec } from '../nodes/scene3d/stagingBuilder'
 import type { CameraMoveSpec } from '../nodes/scene3d/cameraMoveBuilder'
@@ -244,15 +242,6 @@ export async function applyCanvasToolCall(
   // deliberately do not participate in the generation-canvas gesture context.
   if (['read_timeline', 'inspect_timeline_range', 'propose_edit_plan', 'apply_edit_plan', 'undo_timeline_edit', 'get_media', 'inspect_media', 'search_media', 'inspect_source_range', 'read_waveform', 'export_timeline', 'inspect_export_job', 'verify_render', 'cancel_export_job'].includes(toolName)) {
     return applyTimelineToolCall(toolName, args)
-  }
-
-  if (toolName === 'read_canvas_state') {
-    // T1 token 优化:回包用紧凑行格式(与 system prompt 的画布段同源),
-    // 不再把全字段快照 JSON 回灌进对话历史(那是每请求 2-3k token 的洞)。
-    const snapshot = readGenerationCanvasSnapshot()
-    const selectedIds = new Set(snapshot.selectedNodeIds ?? [])
-    const selected = snapshot.nodes.filter((node) => selectedIds.has(node.id))
-    return formatCanvasForAgent(captureCanvasReadResult({ ...snapshot, selectedNodeIds: [...selectedIds] }))
   }
 
   if (toolName === 'propose_storyboard_plan') {
