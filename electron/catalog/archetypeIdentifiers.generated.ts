@@ -145,6 +145,9 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "MiniMax-Hailuo-2.3",
     "MiniMax-Hailuo-2.3-Fast"
   ],
+  "hailuo-h3": [
+    "hailuo-h3"
+  ],
   "grok-imagine-1.5-video": [
     "grok-imagine-1.5-video-apimart",
     "grok-imagine-1.5-video-ext",

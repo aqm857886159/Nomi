@@ -15,6 +15,7 @@ import { VOLCENGINE_VENDOR_SEED, VOLCENGINE_SPEECH_VENDOR_SEED } from '../../ele
 import { DREAMINA_VENDOR_SEED } from '../../electron/catalog/dreaminaVendor'
 import { RUNNINGHUB_VENDOR_SEED } from '../../electron/catalog/runninghub3d'
 import { REPLICATE_VENDOR_SEED } from '../../electron/catalog/replicate'
+import { MINIMAX_VENDOR_SEED } from '../../electron/catalog/minimaxVendor'
 
 // 单一来源：seedBuiltins.applyBuiltinSeeds 实际 seed 的内置 vendor（每个的 *_VENDOR_SEED.key）。
 const SEEDED_BUILTIN_KEYS = new Set<string>([
@@ -27,6 +28,7 @@ const SEEDED_BUILTIN_KEYS = new Set<string>([
   DREAMINA_VENDOR_SEED.key,
   RUNNINGHUB_VENDOR_SEED.key,
   REPLICATE_VENDOR_SEED.key,
+  MINIMAX_VENDOR_SEED.key,
 ])
 
 describe('KNOWN_VENDORS × seed 身份键不变量', () => {

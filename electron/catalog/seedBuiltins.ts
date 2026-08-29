@@ -71,6 +71,9 @@ import { CODEX_LOCAL_VENDOR_SEED, CODEX_IMAGE_CURATED_MODELS, CODEX_IMAGE_CURATE
 import { VOLCENGINE_IMAGE_MODELS } from "./volcengineImages";
 import { VOLCENGINE_AUDIO_MODELS } from "./volcengineAudios";
 import { VOLCENGINE_SEEDANCE_QUERY_OP, VOLCENGINE_SEEDANCE_STATUS_MAPPING, VOLCENGINE_VIDEO_MODELS } from "./volcengineVideos";
+import { MINIMAX_VENDOR_SEED, MINIMAX_VIDEO_QUERY_OP, MINIMAX_STATUS_MAPPING } from "./minimaxVendor";
+import { MINIMAX_VIDEO_MODELS } from "./minimaxVideos";
+import { MINIMAX_TEXT_MODELS } from "./minimaxTexts";
 
 /** curated 模型/mapping 的内部类型（reconcile 两函数的输入）。 */
 type CuratedModel = {
@@ -256,6 +259,18 @@ const VOLCENGINE_SPEECH_CURATED_MODELS: CuratedModel[] = VOLCENGINE_AUDIO_MODELS
 const VOLCENGINE_SPEECH_CURATED_MAPPINGS: CuratedMapping[] = VOLCENGINE_AUDIO_MODELS.flatMap((m) =>
   m.mappings.map((mp) => ({
     id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, name: mp.name, create: mp.create,
+  })),
+);
+
+/** MiniMax 官方原生 curated 模型 + mapping。文本 M1：无 mapping 直连 chat；视频 H3：async create→poll。 */
+const MINIMAX_CURATED_MODELS: CuratedModel[] = [
+  ...MINIMAX_TEXT_MODELS.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "text" as const })),
+  ...MINIMAX_VIDEO_MODELS.map((m) => ({ modelKey: m.modelKey, labelZh: m.labelZh, kind: "video" as const, archetypeId: m.archetypeId })),
+];
+const MINIMAX_CURATED_MAPPINGS: CuratedMapping[] = MINIMAX_VIDEO_MODELS.flatMap((m) =>
+  m.mappings.map((mp) => ({
+    id: mp.id, taskKind: mp.taskKind, modelKey: m.modelKey, name: mp.name,
+    create: mp.create, query: MINIMAX_VIDEO_QUERY_OP, statusMapping: MINIMAX_STATUS_MAPPING,
   })),
 );
 
@@ -518,6 +533,7 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (reconcileModels(models, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_IMAGE_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, COMFYUI_VENDOR_SEED.key, COMFYUI_CURATED_MODELS, now)) changed = true;
   if (reconcileModels(models, CODEX_LOCAL_VENDOR_SEED.key, CODEX_IMAGE_CURATED_MODELS, now)) changed = true;
+  if (reconcileModels(models, MINIMAX_VENDOR_SEED.key, MINIMAX_CURATED_MODELS, now)) changed = true;
 
   // kie 历史包袱 repair：把视频形状的坏 (kie, text_to_image) 替换成正确的 GPT Image 2 文生图契约
   // （旧 onboarding 抽错留下的；契约见 kieGptImage2.ts 直连实测确认）。apimart 无此历史，不需要。
@@ -549,6 +565,7 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (reconcileMappings(mappings, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_IMAGE_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, COMFYUI_VENDOR_SEED.key, COMFYUI_CURATED_MAPPINGS, now)) changed = true;
   if (reconcileMappings(mappings, CODEX_LOCAL_VENDOR_SEED.key, CODEX_IMAGE_CURATED_MAPPINGS, now)) changed = true;
+  if (reconcileMappings(mappings, MINIMAX_VENDOR_SEED.key, MINIMAX_CURATED_MAPPINGS, now)) changed = true;
 
   if (!changed) return { state, changed: false };
   return { state: { ...state, vendors, models, mappings }, changed: true };

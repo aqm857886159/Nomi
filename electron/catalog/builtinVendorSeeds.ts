@@ -9,6 +9,7 @@ import { REPLICATE_VENDOR_SEED } from "./replicate";
 import { COMFYUI_VENDOR_SEED } from "./comfyuiLocal";
 import { CODEX_LOCAL_VENDOR_SEED } from "./codexImages";
 import { ANTIGRAVITY_VENDOR_SEED } from "./antigravityTexts";
+import { MINIMAX_VENDOR_SEED } from "./minimaxVendor";
 import type { Vendor } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -41,6 +42,7 @@ export const BUILTIN_VENDOR_SEEDS: readonly VendorSeed[] = [
   COMFYUI_VENDOR_SEED, // 本地 ComfyUI（无鉴权本地后端，默认关、用户显式启用）
   CODEX_LOCAL_VENDOR_SEED, // Codex 本地生图（实验，默认关）
   ANTIGRAVITY_VENDOR_SEED, // 官方本机 CLI；完整能力验证前默认关闭
+  MINIMAX_VENDOR_SEED, // MiniMax 官方原生（文本 M1 + 视频 H3，直连 api.minimaxi.com）
 ];
 
 /**

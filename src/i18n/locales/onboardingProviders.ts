@@ -500,6 +500,15 @@ export const zhOnboardingProviders = {
         'Replicate 托管 qwen-image-layered（开源 Apache 2.0），把一张图拆成前景/背景/元素多个可编辑图层。注册后在 Account 里拿 API token，按量付费。',
       promoCta: '去 Replicate 拿 token',
     },
+    minimax: {
+      tagline: '官方原生 · 文本 MiniMax M1 + 视频 H3',
+      credentialPlaceholder: '粘贴 MiniMax API Key（sk-…）',
+      credentialHint:
+        '官方 API Key（sk-…）。文本 M1 用 sk-cp 标准版即可；视频 H3 需 sk-api 超集 key（具备视频生成权限）。凭证本地加密存储。',
+      promoText:
+        'MiniMax 官方原生接口：文本 MiniMax-M1（创作/拆镜头大脑）与视频 MiniMax-H3（文生视频）。去开放平台拿 API Key。',
+      promoCta: '去 MiniMax 开放平台',
+    },
   },
   vendorCard: {
     defaultKeyPlaceholder: '粘贴你的 API Key（sk-…）',
@@ -1680,6 +1689,15 @@ export const enOnboardingProviders = {
       promoText:
         'Replicate hosts the Apache 2.0 qwen-image-layered model, which separates an image into editable foreground, background, and element layers. Get a pay-as-you-go token from Account.',
       promoCta: 'Get a Replicate token',
+    },
+    minimax: {
+      tagline: 'Official access · MiniMax M1 text + H3 video',
+      credentialPlaceholder: 'Paste your MiniMax API key (sk-…)',
+      credentialHint:
+        'Official API key (sk-…). Text M1 works with a standard sk-cp key; H3 video needs a sk-api superset key with video-generation access. Credentials are encrypted locally.',
+      promoText:
+        'MiniMax native APIs: MiniMax-M1 text (creation / shot-splitting brain) and MiniMax-H3 video (text-to-video). Get an API key from the open platform.',
+      promoCta: 'Open MiniMax platform',
     },
   },
   vendorCard: {

@@ -204,6 +204,15 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
       }
     }
   },
+  "hailuo-h3": {
+    "text_to_video": {
+      "*": {
+        "resolution": "768P",
+        "duration": 6,
+        "ratio": "16:9"
+      }
+    }
+  },
   "grok-imagine-1.5-video": {
     "text_to_video": {
       "*": {

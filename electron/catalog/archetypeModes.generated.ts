@@ -173,6 +173,12 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
       "i2v": "image_to_video"
     }
   },
+  "hailuo-h3": {
+    "defaultModeId": "t2v",
+    "modes": {
+      "t2v": "text_to_video"
+    }
+  },
   "grok-imagine-1.5-video": {
     "defaultModeId": "t2v",
     "modes": {

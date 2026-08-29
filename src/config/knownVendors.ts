@@ -195,6 +195,21 @@ export const KNOWN_VENDORS: readonly KnownVendor[] = [
       url: 'https://replicate.com/account/api-tokens',
     },
   },
+  {
+    // MiniMax 官方原生：文本 MiniMax-M1（OpenAI 兼容 chat）+ 视频 MiniMax-H3（V2 create→poll）。
+    // 两把 key 的区别：sk-cp 系仅文本；sk-api 超集含视频。H3 视频需 sk-api 超集 key（D4 明标，别让用户拿错 key）。
+    vendorKey: 'minimax',
+    glyph: 'M',
+    tagline: '官方原生 · 文本 MiniMax M1 + 视频 H3',
+    credentialPlaceholder: '粘贴 MiniMax API Key（sk-…）',
+    credentialHint:
+      '官方 API Key（sk-…）。文本 M1 用 sk-cp 标准版即可；视频 H3 需 sk-api 超集 key（具备视频生成权限）。凭证本地加密存储。',
+    promo: {
+      text: 'MiniMax 官方原生接口：文本 MiniMax-M1（创作/拆镜头大脑）与视频 MiniMax-H3（文生视频）。去开放平台拿 API Key。',
+      ctaLabel: '去 MiniMax 开放平台',
+      url: 'https://platform.minimaxi.com',
+    },
+  },
 ] as const
 
 const KNOWN_VENDOR_BY_KEY = new Map<string, KnownVendor>(KNOWN_VENDORS.map((vendor) => [vendor.vendorKey, vendor]))
