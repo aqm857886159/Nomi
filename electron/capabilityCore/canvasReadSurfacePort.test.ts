@@ -19,6 +19,8 @@ import {
   SURFACE_CANVAS_READ_REQUEST_CHANNEL,
   SURFACE_DOCUMENT_READ_REPLY_CHANNEL,
   SURFACE_DOCUMENT_READ_REQUEST_CHANNEL,
+  SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL,
+  SURFACE_DOCUMENT_WRITE_REQUEST_CHANNEL,
 } from "../shared/surfacePortBinding";
 import { CapabilityExecutionError } from "./capabilityExecutorRegistry";
 import {
@@ -91,6 +93,12 @@ function setup() {
     },
     replyDocument(payload: unknown) {
       ipc.listeners.get(SURFACE_DOCUMENT_READ_REPLY_CHANNEL)?.(
+        { sender: contents, senderFrame: frame } as unknown as IpcMainEvent,
+        payload,
+      );
+    },
+    replyDocumentWrite(payload: unknown) {
+      ipc.listeners.get(SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL)?.(
         { sender: contents, senderFrame: frame } as unknown as IpcMainEvent,
         payload,
       );
@@ -254,5 +262,28 @@ describe("dedicated renderer CanvasReadPort", () => {
       }),
     ).rejects.toMatchObject({ code: "surface_port_unavailable" });
     expect(test.send).not.toHaveBeenCalled();
+  });
+
+  it("routes reversible document writes with the frozen target and preconditions", async () => {
+    const test = setup();
+    const { captured, binding } = await test.capture();
+    const writing = test.runtime.createDocumentWritePort(captured, "document-a").write({
+      operation: "replace",
+      content: "new text",
+      target: { kind: "document", documentId: "document-a", anchor: { kind: "range", from: 1, to: 3, selectedTextHash: "h" } },
+      preconditions: { document: { revision: 4, contentHash: "old" } },
+      signal: new AbortController().signal,
+    });
+    expect(test.send).toHaveBeenCalledWith(SURFACE_DOCUMENT_WRITE_REQUEST_CHANNEL, {
+      requestId: "read-5",
+      binding,
+      documentId: "document-a",
+      operation: "replace",
+      content: "new text",
+      target: { kind: "document", documentId: "document-a", anchor: { kind: "range", from: 1, to: 3, selectedTextHash: "h" } },
+      preconditions: { document: { revision: 4, contentHash: "old" } },
+    });
+    test.replyDocumentWrite({ requestId: "read-5", binding: structuredClone(binding), result: { applied: true, revision: 5, contentHash: "next" } });
+    await expect(writing).resolves.toEqual({ applied: true, revision: 5, contentHash: "next" });
   });
 });

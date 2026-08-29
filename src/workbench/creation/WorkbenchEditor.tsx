@@ -21,6 +21,19 @@ function documentContentHash(text: string): string {
   return `fnv1a-${(hash >>> 0).toString(16).padStart(8, '0')}`
 }
 
+function sameDocumentAnchor(left: DocumentAnchorRef, right: DocumentAnchorRef): boolean {
+  if (left.kind !== right.kind) return false
+  if (left.kind === 'whole-document' && right.kind === 'whole-document') return true
+  if (left.kind === 'range' && right.kind === 'range') {
+    return left.from === right.from && left.to === right.to && left.selectedTextHash === right.selectedTextHash
+  }
+  if (left.kind === 'cursor' && right.kind === 'cursor') {
+    return left.position === right.position && left.beforeHash === right.beforeHash && left.afterHash === right.afterHash
+  }
+  if (left.kind === 'document-end' && right.kind === 'document-end') return left.trailingTextHash === right.trailingTextHash
+  return false
+}
+
 // 工具栏分组：格式按语义分 4 簇（文字 / 标题段落 / 列表 / 插入）靠左，历史（撤销/重做）推到右端。
 // 之前用一个 flex-1 spacer 把 9 个按钮全挤到左侧、右边 ~570px 浪费 —— 这里按语义两端锚定。
 // 5 簇封顶（§1.5 硬规则），每个簇都是往已有语义里补成员，不新增平铺簇。
@@ -196,6 +209,9 @@ export default function WorkbenchEditor(): JSX.Element {
         const expected = input.preconditions.document
         const current = toolsApi.readState()
         if (expected && (expected.revision !== current.revision || (expected.contentHash && expected.contentHash !== current.contentHash))) {
+          throw new SurfacePortWireError('surface_port_stale')
+        }
+        if (input.target.anchor.kind !== 'whole-document' && !sameDocumentAnchor(input.target.anchor, current.anchor)) {
           throw new SurfacePortWireError('surface_port_stale')
         }
         if (input.operation === 'insert') tools.insertAtCursor(input.content)
