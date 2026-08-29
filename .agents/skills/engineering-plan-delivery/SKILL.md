@@ -1,6 +1,6 @@
 ---
 name: engineering-plan-delivery
-description: Use when creating, reviewing, revising, or resuming a multi-step engineering plan, architecture rollout, migration, or long-running delivery effort. Also use when rounds, tickets, reviews, test reruns, main-branch updates, or phase scope are multiplying and delivery is slowing down. Produces the shortest safe critical path, one tracked source of truth, bounded macro batches, proportionate research/review/testing, remote recovery checkpoints, and explicit cost circuit breakers. Do not use for a genuinely bounded one-file change or a read-only answer that needs no delivery plan.
+description: Plan, review, revise, or resume complex multi-step engineering delivery, migration, or cutover, especially when phases, tickets, reviews, test reruns, main updates, or scope are multiplying. Produces one tracked contract, 2-5 outcome-level batches, bounded evidence and review, remote checkpoints, and cost/drift circuit breakers. Skip bounded one-file changes and read-only answers.
 ---
 
 # Engineering Plan Delivery
@@ -52,20 +52,19 @@ Inspect before proposing:
 - prior relevant PRs, reviews, incidents, prototypes, and approved UI designs;
 - dependencies, blockers, product promises, user assets, and paid/audited work.
 
+Use the repository's existing tracker, docs, tests, and delivery tooling; do not
+install or require a parallel process framework. Treat code, config, scripts,
+and current tool output as the source of truth for facts available in one cheap
+lookup. The active plan stores decisions, status, evidence fingerprints,
+exceptions, and precise navigation pointers rather than copying command
+catalogs, directory inventories, config, or session history.
+
 Never discard or mix unexplained dirty work. Identify its owner and preserve it
 outside the scoped commit.
 
-For prior PRs, keep a coverage section in the active plan: query/scope, relevant
-PR ids, base/head, checked date, the problem exposed, and an `adopt`, `adapt`, or
-`reject` decision. Relevance is limited to the frozen contract's owners and
-surfaces, explicit incidents, and PRs the user named. A stale PR may contain
-current problem evidence even when its code no longer applies. Bind every
-adopted point to a contract clause or acceptance criterion; never treat the
-section as a mechanical cherry-pick list. After coverage freezes, inspect only
-new PRs or changed heads/reviews. For UI, start from the approved design and
-current rendered product, then use the design system only to close real gaps.
-Missing evidence blocks the overlapping acceptance criterion, not an unrelated
-whole lane.
+When relevant historical PR/review/incident evidence or an approved UI design
+exists, read [references/historical-evidence.md](references/historical-evidence.md)
+before freezing its coverage. Otherwise skip that reference.
 
 Write or update one tracked plan. Mark older plans, round protocols, ignored
 harness files, and local ledgers as historical rather than allowing multiple
@@ -89,7 +88,8 @@ Before decomposing work, make these decision-complete:
 - assets and durable data that must survive;
 - migration, archive-only cutover, rollback, and downgrade behavior;
 - dependencies and the smallest sufficient interfaces between them;
-- acceptance criteria mapped to the evidence that can prove each one;
+- acceptance criteria mapped to the smallest stable existing seams that can
+  prove each one;
 - remote checkpoint and PR strategy.
 
 After the contract freezes, change it only through an explicit reviewed delta.
@@ -100,26 +100,15 @@ Ask the user only for product direction, irreversible trade-offs, credentials,
 or facts available only to them. Resolve repository facts yourself. Record a
 reasonable reversible ruling when the contract already determines the answer.
 
-### Migration versus archive-only cutover
+Prefer the highest authoritative existing seam that deterministically isolates
+each criterion and matches the interface used by real callers. Add a seam only
+when existing ones cannot expose the required behavior. Fewer stable seams mean
+fewer fixtures, less duplicated verification, and less implementation coupling.
 
-Require full Agent-session migration when conversation/context continuity is a
-promised user asset or when a contract, audit, or compliance rule explicitly
-requires that history. The existence of paid work alone does not require full
-session migration; it always requires domain-level reconciliation. Otherwise
-prefer a safe archive-only cutover:
-
-- preserve documents, canvas state, media, generated results, and other work;
-- preserve paid, submitted, or `submission_unknown` work in its domain owner and
-  reconcile it; never retry or resubmit until definitely-not-submitted is proven;
-- archive old conversations/context as read-only or exportable;
-- invalidate pending approvals and never replay uncertain approved work;
-- mark only legacy Agent work with no external side effect as interrupted and
-  require explicit resubmission;
-- back up old state, write one cutover marker, and allow only the new writer;
-- state downgrade limitations after the new writer has produced data.
-
-Do not build lossless session migration merely to avoid making this decision.
-Do not use a simplified cutover to discard user work or create dual writes.
+When the work changes runtime/session/storage ownership or includes migration,
+cutover, replay, or recovery, read
+[references/migration-cutover.md](references/migration-cutover.md) before
+freezing the contract. Otherwise skip that reference.
 
 ## 3. Research only what can change a decision
 
@@ -280,6 +269,9 @@ these occurs:
 - a new writer, compatibility path, migration layer, or source of truth appears;
 - main-branch integration or full-suite execution is happening repeatedly;
 - context handoffs repeat history instead of pointing to tracked facts.
+
+Before adding another rule, use the rubric's process-cost routing to repair the
+cheapest durable layer.
 
 Report the measured cost, collapse or reshape batches, update the plan version,
 and continue from the newest remote checkpoint. Do not create another parallel

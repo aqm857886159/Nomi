@@ -19,6 +19,7 @@ A plan fails if any answer is no.
 | Bounded review | Can the reviewer block only current-contract P0/P1 findings? |
 | Test budget | Are focused tests used during work and the full suite reserved for the pinned final candidate? |
 | Failure breaker | Is a third unchanged run of the same failure signature prohibited? |
+| Context economy | Does the plan store decisions, status, evidence, and precise pointers instead of copying cheap environment facts or session history? |
 | Main strategy | Is the task branch checkpointed without continually chasing the default branch? |
 | Cutover | If migration is involved, are preserved assets, invalidated work, replay, dual-write, backup, and downgrade behavior explicit? |
 | Recovery | Could a new session resume from tracked state and the latest remote commit without reconstructing hidden history? |
@@ -33,7 +34,7 @@ with no hard-gate failure before implementation.
 | Correctness | Requirements are vague or proof is indirect | Main path is covered but edge invariants are implicit | Contract, forbidden states, and criterion-to-evidence mapping are explicit |
 | Delivery speed | Micro-steps each trigger ceremony | Some useful batching, some repeated gates | Shortest safe critical path with 2-5 meaningful macro batches |
 | Compute cost | Full suites and duplicate review are routine | Some targeted checks but no reuse rule | Fingerprinted evidence, escalation ladder, and one final full run |
-| Context cost | Handoffs paste history or recreate state | Tracked notes exist but authority is unclear | One tracked truth and path-based bounded handoffs |
+| Context cost | Handoffs paste history, duplicate rules, or cache repository facts | Tracked notes exist but authority or routing is unclear | One tracked truth, precise pointers, conditional disclosure, and no cheap-source cache |
 | Recoverability | Progress is local or ignored | Commits exist but status/evidence is stale | Each macro batch updates tracked status and pushes a remote checkpoint |
 | Scope stability | Phases silently expand | Scope is listed but lacks breakers | Frozen scope, explicit backlog, reviewer boundary, and drift breakers |
 
@@ -54,8 +55,22 @@ with no hard-gate failure before implementation.
 | Stale PR ignored or cherry-picked wholesale | Valuable problem evidence is lost or obsolete code is revived | Record `adopt`/`adapt`/`reject` per core point |
 | Separate research/spec/plan/ticket/ledger truth | Documents drift and contradict | Keep one active delivery contract; create support artifacts only when they have independent value |
 
+## Process-Cost Routing
+
+Before adding another instruction, classify recurring cost as navigation,
+information access, automated-check coverage, reviewer guidance, tool economy,
+or an instruction no-op. Repair the cheapest durable layer: sharpen a pointer,
+expose read-only evidence, automate a deterministic invariant, move diff-only
+quality heuristics into reviewer guidance, streamline the tool path, or delete
+the no-op.
+
+Keep implementation context only when the instruction changes how the
+implementation must be produced. Do not cache facts that remain cheap to query
+from their owner.
+
 ## Final self-review prompts
 
 1. What ceremony can be deleted without weakening an invariant?
 2. Which internal step has been mistaken for an external delivery batch?
 3. Is the plan minimizing total turns and handoffs, not only one command's cost?
+4. Which line is a no-op or copies a fact that remains cheap to query from its owner?

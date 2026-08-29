@@ -31,7 +31,8 @@
         "Reviewers may block only current-contract P0/P1 issues; P2 and unrelated findings go to backlog.",
         "There is at most one bounded review per macro batch and scoped re-review of changed risk or fix diffs.",
         "The tracked plan is updated with evidence, residual risk, and the next batch before code and plan are committed and pushed together.",
-        "The response includes a cost/drift pause that reshapes the plan instead of adding another protocol or round."
+        "The response includes a cost/drift pause that reshapes the plan instead of adding another protocol or round.",
+        "The response routes recurring process cost to the cheapest durable layer, such as navigation, information access, an automated check, reviewer guidance, tool economy, or instruction deletion, instead of adding more implementation-context prose."
       ]
     },
     {
