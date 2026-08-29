@@ -12,6 +12,7 @@
 | 文件 | 一句话 | 状态 |
 |---|---|---|
 | [2026-06-07-model-onboarding-final-plan.md](2026-06-07-model-onboarding-final-plan.md) | **模型接入最终方案**（R7 定稿，审计+设计+计划）— 本簇主文档 | ✅ |
+| [2026-08-29-minimax-vendor.md](2026-08-29-minimax-vendor.md) | MiniMax 官方原生双接口：文本 M1 + 视频 H3 create→poll | ✅ |
 | [2026-08-28-conversational-model-integration-verification.md](2026-08-28-conversational-model-integration-verification.md) | 对话式模型接入与认证闭环：J0–J5 真实验收和发布记录 | 🚧 |
 | [2026-06-07-apimart-curated-onboarding.md](2026-06-07-apimart-curated-onboarding.md) | 策展两家(kie+apimart)一键接入；战略从「通用接入」转向 | ✅ |
 | [2026-06-06-universal-model-onboarding.md](2026-06-06-universal-model-onboarding.md) | 「描述符+通用解释器接长尾」研究稿 | ⛔ |
