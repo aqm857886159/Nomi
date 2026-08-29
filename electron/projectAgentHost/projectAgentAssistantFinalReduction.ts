@@ -54,12 +54,14 @@ export function reduceProjectAgentAssistantFinal(
   ) {
     stale();
   }
+  const status = result.turnStatus === "declined" ? "stopped" : result.turnStatus;
+  if (!isProjectAgentStatusTransition(assistant.status, status)) stale();
   const textChanged = final.text !== assistant.text;
   const updated = freezeProjectAgentIncremental({
     ...assistant,
     text: final.text,
     textRevision: assistant.textRevision + (textChanged ? 1 : 0),
-    status: result.turnStatus,
+    status,
     updatedAt: result.receivedAt,
   }) as ProjectAgentAssistantItem;
   return {

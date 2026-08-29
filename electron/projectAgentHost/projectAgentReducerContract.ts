@@ -35,7 +35,7 @@ export function isProjectAgentStatusTransition(from: ProjectAgentStatus, to: Pro
     case "queued":
       return to === "running" || to === "declined" || to === "failed" || to === "stopped";
     case "running":
-      return to === "proposed" || to === "done" || to === "failed" || to === "stopped";
+      return to === "proposed" || to === "declined" || to === "done" || to === "failed" || to === "stopped";
     case "declined":
     case "done":
     case "failed":

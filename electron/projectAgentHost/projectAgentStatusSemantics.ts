@@ -13,7 +13,7 @@ export function isProjectAgentProposalSettlementStatus(status: ProjectAgentStatu
 }
 
 export function isProjectAgentAsyncTurnStatus(status: ProjectAgentStatus): boolean {
-  return status === "running" || isProjectAgentProposalSettlementStatus(status);
+  return status === "running" || status === "declined" || isProjectAgentProposalSettlementStatus(status);
 }
 
 export function isProjectAgentClaimedProposalItemStatus(status: ProjectAgentStatus): boolean {

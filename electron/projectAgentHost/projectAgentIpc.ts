@@ -20,6 +20,7 @@ import type { CanvasReadSurfaceIpcCapture } from "../capabilityCore/canvasReadSu
 import type { PiCanvasReadTransportAdapter } from "../capabilityCore/canvasReadTransportAdapters";
 import type { PiDocumentReadTransportAdapter } from "../capabilityCore/documentReadTransportAdapters";
 import type { PiDocumentWriteTransportAdapter } from "../capabilityCore/documentWriteTransportAdapters";
+import type { PiCanvasWriteTransportAdapter } from "../capabilityCore/canvasWriteTransportAdapters";
 import { ProjectAgentSubscriptionError } from "./projectAgentExecutionCoordinator";
 
 export const PROJECT_AGENT_OPEN_CHANNEL = "nomi:projectAgent:open";
@@ -207,6 +208,11 @@ export function registerProjectAgentIpc(
       binding: ProjectBinding,
       requestId: string,
     ) => PiDocumentWriteTransportAdapter;
+    captureCanvasWrite?: (
+      event: IpcMainInvokeEvent,
+      binding: ProjectBinding,
+      requestId: string,
+    ) => PiCanvasWriteTransportAdapter;
     /** Main-only migration hook; it runs after sender/binding verification and before open. */
     prepareProject?: (
       binding: ProjectBinding,
@@ -262,6 +268,7 @@ export function registerProjectAgentIpc(
     let canvasRead: PiCanvasReadTransportAdapter | undefined;
     let documentRead: PiDocumentReadTransportAdapter | undefined;
     let documentWrite: PiDocumentWriteTransportAdapter | undefined;
+    let canvasWrite: PiCanvasWriteTransportAdapter | undefined;
     let subscription;
     let prepared: ProjectAgentPreparedProject | void;
     const sender = event.sender;
@@ -295,12 +302,13 @@ export function registerProjectAgentIpc(
         : (input.surfaceCapture.captureCanvasReadPort(event, binding), undefined);
       documentRead = input.captureDocumentRead?.(event, binding, `project-agent-open-${binding.projectId}`);
       documentWrite = input.captureDocumentWrite?.(event, binding, `project-agent-open-${binding.projectId}`);
+      canvasWrite = input.captureCanvasWrite?.(event, binding, `project-agent-open-${binding.projectId}`);
       prepared = await input.prepareProject?.(binding);
       assertCurrentAttempt();
       subscription = await input.runtime.executionCoordinator.open(
         binding,
-        canvasRead || documentRead || documentWrite
-          ? { ...(canvasRead ? { canvasRead } : {}), ...(documentRead ? { documentRead } : {}), ...(documentWrite ? { documentWrite } : {}) }
+        canvasRead || documentRead || documentWrite || canvasWrite
+          ? { ...(canvasRead ? { canvasRead } : {}), ...(documentRead ? { documentRead } : {}), ...(documentWrite ? { documentWrite } : {}), ...(canvasWrite ? { canvasWrite } : {}) }
           : undefined,
       );
       assertCurrentAttempt();
@@ -310,6 +318,7 @@ export function registerProjectAgentIpc(
         canvasRead?.dispose();
         documentRead?.dispose();
         documentWrite?.dispose();
+        canvasWrite?.dispose();
       }
       cleanupAttempt();
       if (openAttempts.get(sender) === attempt) openAttempts.delete(sender);

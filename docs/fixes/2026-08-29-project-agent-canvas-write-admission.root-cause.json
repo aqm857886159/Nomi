@@ -3,8 +3,8 @@
   "id": "2026-08-29-project-agent-canvas-write-admission",
   "problem_type": "reversible Canvas write authority and lifecycle split",
   "symptom": "Approving set_node_prompt in the Canvas assistant can mutate Canvas through applyProposalBatch before Project Agent Host durably records and claims the exact proposal, while decline, cancel, timeout, unsupported, stale, and unavailable paths can lose their distinct reason in boolean or free-form results.",
-  "direct_cause": "CanvasAssistantPanel currently combines approval intent with direct domain execution and returns the renderer-minted proposalId only after mutation; the Host coordinator persists approval afterward and recomputes a narrower action hash. Outcome adapters independently flatten lifecycle reasons instead of committing one Host status projection.",
-  "class_root": "Nomi lacks one enforced admission boundary from main-minted verified invocation through durable Host proposal identity to the existing Canvas receipt, and lacks one atomic reduction from typed capability outcome to every Host record. Any renderer-owned approval callback or boolean confirmation adapter can therefore execute before authority is durable or erase the reason needed for safe recovery.",
+  "direct_cause": "CanvasAssistantPanel currently combines approval intent with direct domain execution and returns the renderer-minted proposalId only after mutation; the Host coordinator persists approval afterward and recomputes a narrower action hash. The first canvas.write executor draft also added a second conditional resolve/write branch and private resolver member inside CapabilityExecutorRegistry.execute, changing the owner-gated canvas.read lexical route instead of adapting the new effect behind its existing port boundary. Outcome adapters independently flatten lifecycle reasons instead of committing one Host status projection.",
+  "class_root": "Nomi lacks one enforced admission boundary from main-minted verified invocation through durable Host proposal identity to the existing Canvas receipt, and lacks one atomic reduction from typed capability outcome to every Host record. The shared executor additionally lacked an explicit invariant that new capabilities must adapt behind its frozen resolve-port-project skeleton, so a new effect could accidentally create a parallel route inside the canonical canvas.read executor. Any renderer-owned approval callback, executor-local capability branch, or boolean confirmation adapter can therefore execute before authority is durable, weaken the single-route owner gate, or erase the reason needed for safe recovery.",
   "affected_population": [
     "Users approving set_node_prompt or later reversible Canvas proposals from the embedded/Pi Canvas assistant",
     "Users who decline, stop, time out, switch projects, lose the Canvas Surface, or restart between approval, receipt commit, and Host terminal projection",
@@ -15,6 +15,7 @@
     "electron/shared/projectAgentContracts.ts",
     "electron/shared/projectAgentProposalReceipt.ts",
     "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+    "electron/projectAgentHost/projectAgentIpc.ts",
     "electron/projectAgentHost/projectAgentRecordReduction.ts",
     "electron/projectAgentHost/projectAgentReducer.ts",
     "electron/capabilityCore/",
@@ -52,6 +53,7 @@
     "The existing Canvas committed-proposal/receipt carries immutable hostApprovalId and hostActionHash, and main admits or recovery-terminalizes it only when binding, receiptProposalId, approvalId, and actionHash exactly match the durable Host proposal.",
     "A missing, reused, or mismatched receipt never terminalizes success and never redispatches Canvas mutation; it persists capability_receipt_unresolved as failed and non-retryable while retaining evidence for manual review.",
     "The renderer supplies only owner-bound raw Canvas evidence. Main canonicalizes and hashes it; the renderer synchronously revalidates the same evidence inside canvasWriteBoundary immediately before the existing applyProposalBatch transaction.",
+    "CapabilityExecutorRegistry.execute retains one owner-gated validate, resolve, port invocation, and projection route; canvas.write approval and write dispatch are adapted behind the existing resolver/port boundary with execution-local authority, never through a second public or conditional executor route.",
     "Every non-success capability outcome uses one closed code mapping and one durable Host commit so the terminal Turn, queue item, ProjectAgentFailureItem, and any existing ProjectAgentProposalItem have identical status and retryable values.",
     "Migrating set_node_prompt removes its hand-written Pi schema, allowed-set, approval/effect, and direct-dispatch owners while preserving applyCanvasToolCall, proposalTxn, receipt, reconcile, and Undo as the only Canvas domain transaction."
   ],
@@ -62,23 +64,29 @@
       "Searched CanvasAssistantPanel, applyProposalBatch/proposalUndo, ProjectAgentExecutionCoordinator, ProposalApprovalRef, ProjectAgentProposalReceipt, canvasDescriptors, agentChatPolicy, gate TOOL_META, mcpProtocol, gateway, core, and spendConfirm for proposalId, actionHash, approval, cancelled, and confirmation ownership.",
       "Confirmed set_node_prompt, connect_edges, create_nodes, and tidy share the same Canvas proposal transaction class; only set_node_prompt is the first migration slice.",
       "Confirmed MCP 2025-11-25 elicitation distinguishes accept/decline/cancel while current adapters contain boolean cancellation paths; MCP canvas.write remains unexposed until Phase 5 rather than receiving a partial repair.",
-      "Confirmed document.write already freezes document anchor/revision/hash and is retained as a regression sentinel, not rewritten as a Canvas state owner."
+      "Confirmed document.write already freezes document anchor/revision/hash and is retained as a regression sentinel, not rewritten as a Canvas state owner.",
+      "Scanned CapabilityExecutorRegistry, its structural execution gate, Canvas read/document adapters, and canvas.write transport for extra class members, conditional dispatch branches, and approval state shared across concurrent executions."
     ]
   },
   "prevention": {
     "strategy": "Enforce authority at the earliest shared boundaries: a Registry-owned canvas.write contract and main-minted verified invocation, exact Host-to-existing-receipt correlation checked by main, synchronous in-boundary Canvas revalidation, atomic typed-outcome reduction, and same-batch deletion of the migrated Pi owners.",
     "artifacts": [
       "electron/shared/projectAgentContracts.ts",
-      "electron/shared/projectAgentProposalReceipt.ts",
+      "electron/capabilityCore/capabilityExecutorRegistry.ts",
+      "electron/capabilityCore/canvasWriteTransportAdapters.ts",
       "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
-      "src/workbench/generationCanvas/agent/proposalTxn.ts"
+      "electron/projectAgentHost/projectAgentIpc.ts",
+      "electron/projectAgentHost/projectAgentReducer.ts",
+      "electron/projectAgentHost/projectAgentReducerContract.ts",
+      "electron/projectAgentHost/projectAgentStatusSemantics.ts",
+      "electron/projectAgentHost/projectAgentRecordReduction.ts",
+      "electron/projectAgentHost/projectAgentAssistantFinalReduction.ts"
     ]
   },
   "regression_tests": [
     "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts",
-    "electron/projectAgentHost/projectAgentReducer.test.ts",
-    "src/workbench/generationCanvas/agent/proposalTxn.test.ts",
-    "src/workbench/generationCanvas/events/canvasWriteBoundary.test.ts"
+    "electron/capabilityCore/canvasWriteTransportAdapters.test.ts",
+    "electron/projectAgentHost/projectAgentReducer.test.ts"
   ],
   "migration": "New Host-driven canvas.write proposals use a versioned approval shape with receiptProposalId, policyRevision, inputHash, and actionHash. Existing terminal proposal items remain immutable history. A live legacy proposal lacking those fields cannot resume or dispatch and becomes a durable manual-review failure. Existing Canvas receipts without hostApprovalId/hostActionHash remain readable for their historical Undo/display behavior but can never terminalize a new Host canvas.write proposal. applyProposalBatch may mint an ID only for preserved non-Host operations until each alias migrates and deletes that caller; Host calls must inject the preallocated identity.",
   "residual_risks": [

@@ -1,6 +1,6 @@
 # Project Agent Host 全阶段执行路线图
 
-> 状态：🚧 进行中。Phase 1、2A、2B、3A、3B 已形成远端 checkpoint；Phase 3C Round 07 合同预检已通过，`set_node_prompt` 正处于第一个 Registry contract RED/GREEN 微切片。最终完成条件仍为 Phase 3–6 与发布候选门全部通过。
+> 状态：🚧 进行中。Phase 1、2A、2B、3A、3B 已形成远端 checkpoint；Phase 3C 的 Registry contract 与 durable proposal identity 已完成，`set_node_prompt` 剩余工作合并为主干、领域切换两个交付批次。最终完成条件仍为 Phase 3–6 与发布候选门全部通过。
 
 ## 目标
 
@@ -21,7 +21,7 @@
 | Phase 2B | 已完成 checkpoint | 单 Host、两面板投影、旧 writer 删除、receipt/Undo/项目切换已收口 |
 | Phase 3A | 已完成 checkpoint | canonical `document.read` 已通过 Host，旧 read owner 已删除 |
 | Phase 3B | 已完成 focused closure | `document.write` 已完成 Registry/Host/Surface/adapter/UI 路由；写入队列必须冻结可执行 anchor/revision/hash，缺失或 whole-document 占位在入队前 fail closed |
-| Phase 3C | 实现中 | 首个 `set_node_prompt` 垂直切片；Round 07 preflight 已通过，当前从 Registry contract 开始沿 8 个依赖切片单向推进 |
+| Phase 3C | 实现中 | 首个 `set_node_prompt` 垂直切片；contract 与 durable identity 已完成，剩余六项依赖按主干、领域切换两个交付批次推进 |
 | Phase 3 其余 | 未开始 | 其余 canvas reversible writes、timeline read/write、精确 result/version 引用 |
 | Phase 4 | 未开始 | ProductionRun、付费/破坏性能力、receipt、TaskRef、typed cancel、export truth |
 | Phase 5 | 未开始 | Skill/MCP 从 Registry 派生，list/read guard、shrink-only、legacy firewall |
@@ -54,8 +54,9 @@
 先把失败归类为契约、生命周期、实现或环境问题，记录到证据账本；同一失败不
 通过重复跑更宽测试来“确认”。修复后只重跑指纹已变化的直接测试。
 
-每个切片 focused 绿后立即形成 **scoped 本地提交**；它是日常恢复点，不触发
-`main` 整合或全量门禁。网络可用时立即把该提交普通 push 到现有任务分支，形成
+每个交付批次 focused 绿后形成一次 **scoped 本地提交**；批内检查点只控制依赖
+顺序和直接 RED/GREEN，不分别触发评审、提交、推送或宽测试。批次提交是日常恢复点，
+不触发 `main` 整合或全量门禁。网络可用时立即把该提交普通 push 到现有任务分支，形成
 **remote recovery checkpoint**，Draft PR 自动得到增量备份；这不等于阶段验收，
 也不要求追赶 `main`。Phase 3/4 联合出口和最终 Phase 6 出口才形成
 **remote stage checkpoint**。
@@ -134,10 +135,13 @@ remote stage checkpoint 才做三件事：
 仅补查缺失、过期或有争议的证据。网络 fetch/push 失败不使未变化的代码验证失效，
 也不触发重跑测试。
 
-Phase 3C 的当前关键路径固定为：能力合同 → durable approval → Canvas raw
+Phase 3C 的内部依赖顺序固定为：能力合同 → durable approval → Canvas raw
 evidence/hash → Surface transport → executor → Host ordering/typed outcome → 现有
-receipt/transaction 关联 → 删除旧 owner。每次只打开最左侧未完成切片；后续测试
-可以先写 RED，但后续生产实现不得越过该边界，以免同时制造多个不确定失败。
+receipt/transaction 关联 → 删除旧 owner。前两项已完成，后六项不再各自作为交付轮次，
+而是合并为两个批次：主干批次一次完成 evidence/hash、Surface transport、executor、
+Host ordering/typed outcome；领域切换批次一次完成 receipt/transaction 关联、renderer
+adapter、边界内 stale revalidation 和旧 owner 删除。批内仍按最左侧失败边界推进，
+但只在批末做一次 focused closure、一次只读评审、一次提交和一次恢复 push。
 
 每条测试证据保存命令、直接文件、源码/fixture/环境指纹、结果签名、失败分类和
 下一条允许命令。通过的证据在指纹未变化时继续有效；reviewer 只消费账本并检查
@@ -154,9 +158,8 @@ receipt/transaction 关联 → 删除旧 owner。每次只打开最左侧未完�
 
 ## 下一步顺序
 
-1. 沿已通过的 Phase 3C Round 07 关键路径完成 `set_node_prompt` 的
-   Host-before-Surface、exact receipt identity、stale revalidation 和 typed outcomes；
-   不新增第二套 approval、status 或 Undo owner。
+1. 完成 Phase 3C 主干批次，再完成领域切换批次；每批只做一次 closure、评审、
+   提交和恢复 push，不新增第二套 approval、status 或 Undo owner。
 2. 完成 timeline read/write 和精确 result/version 引用，形成
    Phase 3 focused 出口矩阵；此时不单独整合 `main`。
 3. 推进 ProductionRun/付费链与 export integrity，形成 Phase 4 出口，再做一次

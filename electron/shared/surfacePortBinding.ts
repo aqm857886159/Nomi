@@ -8,6 +8,10 @@ export const SURFACE_DOCUMENT_READ_REQUEST_CHANNEL = "nomi:surface:documentRead:
 export const SURFACE_DOCUMENT_READ_REPLY_CHANNEL = "nomi:surface:documentRead:reply" as const;
 export const SURFACE_DOCUMENT_WRITE_REQUEST_CHANNEL = "nomi:surface:documentWrite:request" as const;
 export const SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL = "nomi:surface:documentWrite:reply" as const;
+export const SURFACE_CANVAS_WRITE_CAPTURE_REQUEST_CHANNEL = "nomi:surface:canvasWrite:capture:request" as const;
+export const SURFACE_CANVAS_WRITE_CAPTURE_REPLY_CHANNEL = "nomi:surface:canvasWrite:capture:reply" as const;
+export const SURFACE_CANVAS_WRITE_EXECUTE_REQUEST_CHANNEL = "nomi:surface:canvasWrite:execute:request" as const;
+export const SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL = "nomi:surface:canvasWrite:execute:reply" as const;
 
 export type ProjectBindingWire = ProjectBinding;
 
@@ -75,6 +79,38 @@ export type DocumentWriteSurfaceReplyWire = Readonly<{
   error?: Readonly<{ code: SurfacePortWireErrorCode }>;
 }>;
 
+export type CanvasWriteCaptureSurfaceRequestWire = Readonly<{
+  requestId: string;
+  binding: SurfacePortBindingWire;
+  operation: "set_node_prompt";
+  nodeId: string;
+}>;
+
+export type CanvasWriteCaptureSurfaceReplyWire = Readonly<{
+  requestId: string;
+  binding: SurfacePortBindingWire;
+  result?: unknown;
+  error?: Readonly<{ code: SurfacePortWireErrorCode }>;
+}>;
+
+export type CanvasWriteExecuteSurfaceRequestWire = Readonly<{
+  requestId: string;
+  binding: SurfacePortBindingWire;
+  input: unknown;
+  target: unknown;
+  preconditions: unknown;
+  receiptProposalId: string;
+  approvalId: string;
+  actionHash: string;
+}>;
+
+export type CanvasWriteExecuteSurfaceReplyWire = Readonly<{
+  requestId: string;
+  binding: SurfacePortBindingWire;
+  result?: unknown;
+  error?: Readonly<{ code: SurfacePortWireErrorCode }>;
+}>;
+
 /** Opaque main-issued, owner-bound, one-shot admission for a captured turn. */
 export type CapturedCanvasReadSnapshotHandleWire = Readonly<{
   version: typeof CAPTURED_CANVAS_READ_SNAPSHOT_VERSION;
@@ -121,10 +157,17 @@ export type CanvasReadSurfaceBridge = Readonly<{
       preconditions: unknown;
     }>) => unknown | Promise<unknown>,
   ) => () => void;
+  onCanvasWriteCapture: (
+    handler: (request: Readonly<{ binding: SurfacePortBindingWire; operation: "set_node_prompt"; nodeId: string }>) => unknown | Promise<unknown>,
+  ) => () => void;
+  onCanvasWriteExecute: (
+    handler: (request: Readonly<{ binding: SurfacePortBindingWire; input: unknown; target: unknown; preconditions: unknown; receiptProposalId: string; approvalId: string; actionHash: string }>) => unknown | Promise<unknown>,
+  ) => () => void;
 }>;
 
 export type SurfacePortWireErrorCode =
   | "capability_input_invalid"
+  | "capability_target_stale"
   | "project_identity_unavailable"
   | "project_binding_stale"
   | "surface_port_suspended"
@@ -134,6 +177,7 @@ export type SurfacePortWireErrorCode =
 
 const SURFACE_PORT_WIRE_ERROR_CODES = new Set<SurfacePortWireErrorCode>([
   "capability_input_invalid",
+  "capability_target_stale",
   "project_identity_unavailable",
   "project_binding_stale",
   "surface_port_suspended",

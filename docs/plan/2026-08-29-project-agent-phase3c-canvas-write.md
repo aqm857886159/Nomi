@@ -1,6 +1,6 @@
 # Project Agent Phase 3C: Canonical Canvas Reversible Write
 
-> 状态：🚧 进行中。Round 06 preflight 被独立评审打回；Round 07 第二次预检只剩 receipt identity 与合法 status/retryable 映射两个阻断点，本文已补齐，必须通过一次增量只读复审后才能进入 RED。
+> 状态：🚧 进行中。Round 07 preflight 与增量只读复审已通过；canonical contract、Registry alias 和 durable proposal identity 已完成。剩余实现合并为主干、领域切换两个交付批次。
 
 ## 目标与范围
 
@@ -135,11 +135,13 @@ schema 或 approval owner。
 
 ## Focused 验证
 
-实现中只运行 Registry/`canvasWrite`、verified invocation、executor、Surface transport、
-Host coordinator/proposal、target hash、proposal transaction/property/receipt lifecycle、
-Canvas write boundary、owner gate、app/electron TypeScript、scoped ESLint 和
-`git diff --check`。Round 07 通过独立评审、实现并 focused closure 后立即形成 scoped
-本地提交；Phase 3/4 联合出口才整合一次 `main`、跑完整 push gate 并更新远端 PR。
+实现中只运行当前失败边界的直接测试。主干批次覆盖 raw evidence/hash、verified
+invocation、Surface transport、executor 和 Host ordering/typed outcome；领域切换批次
+覆盖 proposal transaction/property/receipt lifecycle、Canvas write boundary、renderer
+adapter 与 owner gate。每批只在批末执行一次相关 focused closure、一次只读评审、
+一次 scoped 提交和一次恢复 push；app/electron TypeScript、scoped ESLint 与
+`git diff --check` 也只在批末按影响面执行。Phase 3/4 联合出口才整合一次 `main`、
+跑完整 push gate 并更新远端 PR。
 
 ## 历史 PR 门禁
 

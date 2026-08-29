@@ -23,6 +23,7 @@ import {
 } from './generationCanvas/agent/proposalUndo'
 import { useGenerationCanvasStore } from './generationCanvas/store/generationCanvasStore'
 import { readGenerationCanvasSnapshot } from './generationCanvas/agent/generationCanvasTools'
+import { captureCanvasWriteRawEvidence } from './generationCanvas/agent/canvasWriteTarget'
 import { FOCUS_GENERATION_NODE_EVENT } from './generationCanvas/nodes/nodeSizing'
 import { focusCanvasNodeWhenReady } from './deepLinkFocus'
 import { projectAgentClient } from './ai/projectAgentClient'
@@ -289,6 +290,16 @@ export default function NomiStudioApp(): JSX.Element {
           throw new SurfacePortWireError('surface_port_stale')
         }
         return tools.applyDocumentWrite({ operation, content, target: target as never, preconditions: preconditions as never })
+      },
+      ({ nodeId }) => {
+        try {
+          return captureCanvasWriteRawEvidence(readGenerationCanvasSnapshot(), nodeId)
+        } catch (error) {
+          const code = error && typeof error === 'object' && (error as { code?: unknown }).code === 'capability_target_stale'
+            ? 'capability_target_stale'
+            : 'capability_input_invalid'
+          throw new SurfacePortWireError(code)
+        }
       },
     ),
     [projectSurface],

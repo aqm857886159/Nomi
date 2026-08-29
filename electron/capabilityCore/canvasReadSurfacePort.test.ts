@@ -17,6 +17,10 @@ vi.mock("../ipcSenderGuard", () => ({ assertTrustedSender: ipc.trust }));
 import {
   SURFACE_CANVAS_READ_REPLY_CHANNEL,
   SURFACE_CANVAS_READ_REQUEST_CHANNEL,
+  SURFACE_CANVAS_WRITE_CAPTURE_REPLY_CHANNEL,
+  SURFACE_CANVAS_WRITE_CAPTURE_REQUEST_CHANNEL,
+  SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL,
+  SURFACE_CANVAS_WRITE_EXECUTE_REQUEST_CHANNEL,
   SURFACE_DOCUMENT_READ_REPLY_CHANNEL,
   SURFACE_DOCUMENT_READ_REQUEST_CHANNEL,
   SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL,
@@ -99,6 +103,18 @@ function setup() {
     },
     replyDocumentWrite(payload: unknown) {
       ipc.listeners.get(SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL)?.(
+        { sender: contents, senderFrame: frame } as unknown as IpcMainEvent,
+        payload,
+      );
+    },
+    replyCanvasWriteCapture(payload: unknown) {
+      ipc.listeners.get(SURFACE_CANVAS_WRITE_CAPTURE_REPLY_CHANNEL)?.(
+        { sender: contents, senderFrame: frame } as unknown as IpcMainEvent,
+        payload,
+      );
+    },
+    replyCanvasWriteExecute(payload: unknown) {
+      ipc.listeners.get(SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL)?.(
         { sender: contents, senderFrame: frame } as unknown as IpcMainEvent,
         payload,
       );
@@ -285,5 +301,90 @@ describe("dedicated renderer CanvasReadPort", () => {
     });
     test.replyDocumentWrite({ requestId: "read-5", binding: structuredClone(binding), result: { applied: true, revision: 5, contentHash: "next" } });
     await expect(writing).resolves.toEqual({ applied: true, revision: 5, contentHash: "next" });
+  });
+
+  it("captures raw Canvas evidence and executes only main-issued write authority on independent channels", async () => {
+    const test = setup();
+    const { captured, binding } = await test.capture();
+    const port = test.runtime.createCanvasWritePort(captured);
+    const controller = new AbortController();
+
+    const capturing = port.capture({ operation: "set_node_prompt", nodeId: "node-alias", signal: controller.signal });
+    expect(test.send).toHaveBeenCalledWith(SURFACE_CANVAS_WRITE_CAPTURE_REQUEST_CHANNEL, {
+      requestId: "read-5",
+      binding,
+      operation: "set_node_prompt",
+      nodeId: "node-alias",
+    });
+    const rawEvidence = { node: { id: "node-real" }, groups: [] };
+    test.replyCanvasWriteCapture({ requestId: "read-5", binding: structuredClone(binding), result: rawEvidence });
+    await expect(capturing).resolves.toEqual(rawEvidence);
+
+    const writing = port.write({
+      input: { operation: "set_node_prompt", nodeId: "node-alias", prompt: "new prompt" },
+      target: { kind: "canvas", nodeIds: ["node-real"] },
+      preconditions: { nodes: [{ nodeId: "node-real", contentHash: "fnv1a-node" }] },
+      receiptProposalId: "receipt-a",
+      approvalId: "approval-a",
+      actionHash: "action-a",
+      signal: controller.signal,
+    });
+    expect(test.send).toHaveBeenLastCalledWith(SURFACE_CANVAS_WRITE_EXECUTE_REQUEST_CHANNEL, {
+      requestId: "read-6",
+      binding,
+      input: { operation: "set_node_prompt", nodeId: "node-alias", prompt: "new prompt" },
+      target: { kind: "canvas", nodeIds: ["node-real"] },
+      preconditions: { nodes: [{ nodeId: "node-real", contentHash: "fnv1a-node" }] },
+      receiptProposalId: "receipt-a",
+      approvalId: "approval-a",
+      actionHash: "action-a",
+    });
+    const result = { applied: true, proposalId: "receipt-a", operation: "set_node_prompt", affectedNodeIds: ["node-real"], reconciliation: { ok: true, deviationCount: 0 } };
+    test.replyCanvasWriteExecute({ requestId: "read-6", binding: structuredClone(binding), result });
+    await expect(writing).resolves.toEqual(result);
+  });
+
+  it("preserves a renderer target-stale outcome on the Canvas write reply boundary", async () => {
+    const test = setup();
+    const { captured, binding } = await test.capture();
+    const capturing = test.runtime.createCanvasWritePort(captured).capture({
+      operation: "set_node_prompt",
+      nodeId: "node-a",
+      signal: new AbortController().signal,
+    });
+    test.replyCanvasWriteCapture({
+      requestId: "read-5",
+      binding: structuredClone(binding),
+      error: { code: "capability_target_stale" },
+    });
+    await expect(capturing).rejects.toMatchObject({ code: "capability_target_stale" });
+
+    const executing = test.runtime.createCanvasWritePort(captured).write({
+      input: { operation: "set_node_prompt", nodeId: "node-a", prompt: "new" },
+      target: { kind: "canvas", nodeIds: ["node-a"] },
+      preconditions: {},
+      receiptProposalId: "receipt-a",
+      approvalId: "approval-a",
+      actionHash: "action-a",
+      signal: new AbortController().signal,
+    });
+    test.replyCanvasWriteExecute({
+      requestId: "read-6",
+      binding: structuredClone(binding),
+      error: { code: "capability_target_stale" },
+    });
+    await expect(executing).rejects.toMatchObject({ code: "capability_target_stale" });
+
+    const unknown = test.runtime.createCanvasWritePort(captured).capture({
+      operation: "set_node_prompt",
+      nodeId: "node-a",
+      signal: new AbortController().signal,
+    });
+    test.replyCanvasWriteCapture({
+      requestId: "read-7",
+      binding: structuredClone(binding),
+      error: { code: "renderer_private_error" },
+    });
+    await expect(unknown).rejects.toMatchObject({ code: "surface_port_unavailable" });
   });
 });

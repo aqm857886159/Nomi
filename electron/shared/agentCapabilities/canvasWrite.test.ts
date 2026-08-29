@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CANVAS_WRITE_ALIASES,
   CANVAS_WRITE_CAPABILITY,
+  CANVAS_WRITE_MAX_PROMPT_CHARS,
   canvasWriteResultSchema,
   canvasWriteSemanticInputSchema,
   canvasWriteOperationForAlias,
@@ -41,6 +42,17 @@ describe("canvas.write canonical contract", () => {
       nodeId: "node-a",
       prompt: "  preserve prompt whitespace  ",
     }).prompt).toBe("  preserve prompt whitespace  ");
+
+    expect(canvasWriteSemanticInputSchema.safeParse({
+      operation: "set_node_prompt",
+      nodeId: "node-a",
+      prompt: "x".repeat(CANVAS_WRITE_MAX_PROMPT_CHARS),
+    }).success).toBe(true);
+    expect(canvasWriteSemanticInputSchema.safeParse({
+      operation: "set_node_prompt",
+      nodeId: "node-a",
+      prompt: "x".repeat(CANVAS_WRITE_MAX_PROMPT_CHARS + 1),
+    }).success).toBe(false);
 
     for (const rejected of [
       { operation: "set_node_prompt", nodeId: "", prompt: "new prompt" },

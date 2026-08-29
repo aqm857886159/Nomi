@@ -1014,7 +1014,7 @@ describe("ProjectAgentHost turn serialization and async re-entry", () => {
     expect(applied.state.queue[0]?.status).toBe("done");
   });
 
-  it("marks failed async results retryable while terminalizing the turn and queue", () => {
+  it("uses the explicit async outcome retryability while terminalizing the turn and queue", () => {
     const queued = reduceProjectAgentMutation(createInitialProjectAgentState(binding), enqueueMutation());
     const running = reduceProjectAgentMutation(queued.state, startMutation("command-start-failed", "turn-a", 1));
     const failed = reduceProjectAgentMutation(running.state, {
@@ -1034,6 +1034,7 @@ describe("ProjectAgentHost turn serialization and async re-entry", () => {
         expectedRevision: running.state.hostRevision,
         items: [],
         turnStatus: "failed",
+        retryable: false,
         assistantFinal: {
           itemId: "assistant-turn-a",
           executionToken: "token-turn-a",
@@ -1044,8 +1045,8 @@ describe("ProjectAgentHost turn serialization and async re-entry", () => {
       },
     });
 
-    expect(failed.state.turns[0]).toMatchObject({ status: "failed", retryable: true });
-    expect(failed.state.queue[0]).toMatchObject({ status: "failed", retryable: true });
+    expect(failed.state.turns[0]).toMatchObject({ status: "failed", retryable: false });
+    expect(failed.state.queue[0]).toMatchObject({ status: "failed", retryable: false });
   });
 
   it("does not resurrect declined, done, failed, or stopped records", () => {

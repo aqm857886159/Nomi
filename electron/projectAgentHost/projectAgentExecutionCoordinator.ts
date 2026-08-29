@@ -11,9 +11,11 @@ import type {
   ProjectAgentQueueItem,
   ProjectAgentPatch,
   ProjectBinding,
+  ProjectAgentFailureItem,
   ProjectAgentStatus,
   ProjectAgentAssistantTextAnchor,
   ProjectAgentExecutionEventPayload,
+  ProposalApprovalRef,
 } from "../shared/projectAgentContracts";
 import { projectAgentPartitionKey, sameProjectAgentBinding } from "./projectAgentIdentity";
 import type { OfflineProjectAgentHost } from "./projectAgentHost";
@@ -21,8 +23,13 @@ import type { ProjectAgentRepositoryRouter } from "./projectAgentRepositoryRoute
 import type { PiCanvasReadTransportAdapter } from "../capabilityCore/canvasReadTransportAdapters";
 import type { PiDocumentReadTransportAdapter } from "../capabilityCore/documentReadTransportAdapters";
 import type { PiDocumentWriteTransportAdapter, PreparedDocumentWrite } from "../capabilityCore/documentWriteTransportAdapters";
+import type {
+  PiCanvasWriteTransportAdapter,
+  PreparedCanvasWrite,
+} from "../capabilityCore/canvasWriteTransportAdapters";
 import { resolveCapabilityAlias } from "../shared/agentCapabilities/registry";
 import { DOCUMENT_READ_CAPABILITY } from "../shared/agentCapabilities/documentRead";
+import { CANVAS_WRITE_CAPABILITY } from "../shared/agentCapabilities/canvasWrite";
 
 export type ProjectAgentSubscription = Readonly<{
   subscriptionId: string;
@@ -70,7 +77,106 @@ type ActiveExecution = {
   pending: Map<string, PendingToolDecision>;
   publicationTail: Promise<void>;
   approvedProposalId?: string;
+  capabilityOutcome?: CanvasWriteCapabilityOutcome;
 };
+
+type CanvasWriteCapabilityOutcomeCode =
+  | "capability_declined"
+  | "capability_cancelled"
+  | "capability_timeout"
+  | "capability_unsupported"
+  | "capability_target_stale"
+  | "capability_surface_unavailable"
+  | "capability_receipt_unresolved";
+
+type CanvasWriteCapabilityOutcome = Readonly<{
+  toolCallId: string;
+  code: CanvasWriteCapabilityOutcomeCode;
+  message: string;
+  nextAction: string;
+  status: Extract<ProjectAgentStatus, "declined" | "failed" | "stopped">;
+  retryable: boolean;
+}>;
+
+const CANVAS_WRITE_OUTCOMES = Object.freeze({
+  capability_declined: {
+    status: "declined",
+    retryable: false,
+    nextAction: "edit the request or submit a new proposal",
+  },
+  capability_cancelled: {
+    status: "stopped",
+    retryable: true,
+    nextAction: "submit the request again when ready",
+  },
+  capability_timeout: {
+    status: "failed",
+    retryable: true,
+    nextAction: "retry the capability request",
+  },
+  capability_unsupported: {
+    status: "failed",
+    retryable: false,
+    nextAction: "use a capability supported by this surface",
+  },
+  capability_target_stale: {
+    status: "failed",
+    retryable: true,
+    nextAction: "review the current canvas and submit a new proposal",
+  },
+  capability_surface_unavailable: {
+    status: "failed",
+    retryable: true,
+    nextAction: "reopen the canvas and retry",
+  },
+  capability_receipt_unresolved: {
+    status: "failed",
+    retryable: false,
+    nextAction: "review the canvas and submit a new proposal; do not retry automatically",
+  },
+} as const satisfies Record<
+  CanvasWriteCapabilityOutcomeCode,
+  Readonly<{ status: "declined" | "failed" | "stopped"; retryable: boolean; nextAction: string }>
+>);
+
+function normalizeCanvasWriteOutcomeCode(
+  code: string | undefined,
+  fallback: CanvasWriteCapabilityOutcomeCode,
+): CanvasWriteCapabilityOutcomeCode {
+  if (code && Object.hasOwn(CANVAS_WRITE_OUTCOMES, code)) return code as CanvasWriteCapabilityOutcomeCode;
+  if (["surface_port_suspended", "surface_port_unavailable", "surface_port_stale", "surface_owner_mismatch"].includes(code ?? "")) {
+    return "capability_surface_unavailable";
+  }
+  if (["capability_policy_stale", "project_binding_stale", "project_scope_changed"].includes(code ?? "")) {
+    return "capability_target_stale";
+  }
+  return fallback;
+}
+
+function rememberCanvasWriteOutcome(
+  execution: ActiveExecution,
+  toolCallId: string,
+  code: string | undefined,
+  fallback: CanvasWriteCapabilityOutcomeCode,
+  denied = false,
+): AgentChatToolDecision {
+  const canonicalCode = normalizeCanvasWriteOutcomeCode(code, fallback);
+  const definition = CANVAS_WRITE_OUTCOMES[canonicalCode];
+  execution.capabilityOutcome ??= Object.freeze({
+    toolCallId,
+    code: canonicalCode,
+    message: canonicalCode,
+    nextAction: definition.nextAction,
+    status: definition.status,
+    retryable: definition.retryable,
+  });
+  return {
+    ok: false,
+    code: canonicalCode,
+    message: canonicalCode,
+    ...(denied ? { denied: true } : {}),
+  };
+}
 
 type FrozenExecutionRequest = Readonly<{
   request: AgentChatRequest;
@@ -179,6 +285,7 @@ export type ProjectAgentExecutionCoordinator = Readonly<{
       canvasRead?: PiCanvasReadTransportAdapter;
       documentRead?: PiDocumentReadTransportAdapter;
       documentWrite?: PiDocumentWriteTransportAdapter;
+      canvasWrite?: PiCanvasWriteTransportAdapter;
     }>,
   ) => Promise<ProjectAgentSubscription>;
   snapshot: (subscriptionId: string) => ProjectAgentHostState;
@@ -218,6 +325,7 @@ export function createProjectAgentExecutionCoordinator(
   const canvasReads = new Map<string, PiCanvasReadTransportAdapter | undefined>();
   const documentReads = new Map<string, PiDocumentReadTransportAdapter | undefined>();
   const documentWrites = new Map<string, PiDocumentWriteTransportAdapter | undefined>();
+  const canvasWrites = new Map<string, PiCanvasWriteTransportAdapter | undefined>();
   const runAgent =
     deps.runAgent ?? (async (request, hooks) => (await import("../ai/agentChatV2")).runAgentChatV2(request, hooks));
   const now = deps.now ?? (() => new Date().toISOString());
@@ -320,6 +428,7 @@ export function createProjectAgentExecutionCoordinator(
       canvasRead?: PiCanvasReadTransportAdapter;
       documentRead?: PiDocumentReadTransportAdapter;
       documentWrite?: PiDocumentWriteTransportAdapter;
+      canvasWrite?: PiCanvasWriteTransportAdapter;
     }> = {},
   ): Promise<ProjectAgentSubscription> {
     const partitionKey = projectAgentPartitionKey(binding);
@@ -364,6 +473,7 @@ export function createProjectAgentExecutionCoordinator(
     canvasReads.set(subscription.subscriptionId, options.canvasRead);
     documentReads.set(subscription.subscriptionId, options.documentRead);
     documentWrites.set(subscription.subscriptionId, options.documentWrite);
+    canvasWrites.set(subscription.subscriptionId, options.canvasWrite);
     return subscription;
   }
 
@@ -496,7 +606,7 @@ export function createProjectAgentExecutionCoordinator(
       inputHash: string;
       actionHash: string;
     }>,
-  ): Promise<void> {
+  ): Promise<ProposalApprovalRef | undefined> {
     if (!decision.ok || decision.silent) return;
     const occurredAt = now();
     const expiresAt = new Date(new Date(occurredAt).getTime() + 10 * 60_000).toISOString();
@@ -555,6 +665,13 @@ export function createProjectAgentExecutionCoordinator(
       }));
     });
     execution.approvedProposalId = approvalId;
+    const persisted = partition.host
+      .getSnapshot(partition.binding)
+      .proposalApprovals.find((approval) => approval.ref.approvalId === approvalId);
+    if (!persisted || persisted.lifecycle !== "claimed" || stableJson(persisted.ref) !== stableJson(ref)) {
+      throw new Error("approval_persistence_failed");
+    }
+    return persisted.ref;
   }
 
   function cleanupExecution(partition: ExecutionPartition, execution: ActiveExecution, keepRequest: boolean): void {
@@ -674,6 +791,24 @@ export function createProjectAgentExecutionCoordinator(
     return selected;
   }
 
+  function canvasWriteFor(partition: ExecutionPartition, preferredSubscriptionId: string) {
+    const currentPreferred = partition.subscriptionIds.has(preferredSubscriptionId)
+      ? canvasWrites.get(preferredSubscriptionId)
+      : undefined;
+    if (currentPreferred) return currentPreferred;
+    let selected: PiCanvasWriteTransportAdapter | undefined;
+    let selectedEpoch = -1;
+    for (const subscriptionId of partition.subscriptionIds) {
+      const subscription = subscriptions.get(subscriptionId);
+      const adapter = canvasWrites.get(subscriptionId);
+      if (subscription && adapter && subscription.subscriptionEpoch > selectedEpoch) {
+        selected = adapter;
+        selectedEpoch = subscription.subscriptionEpoch;
+      }
+    }
+    return selected;
+  }
+
   async function executeTurn(partition: ExecutionPartition, execution: ActiveExecution): Promise<"continue" | "stop"> {
     const startAt = now();
     const current = partition.host.getSnapshot(partition.binding);
@@ -783,6 +918,63 @@ export function createProjectAgentExecutionCoordinator(
           if (resolveCapabilityAlias(call.toolName)?.contract.id === DOCUMENT_READ_CAPABILITY.id) {
             return { ok: false, code: "surface_port_unavailable", message: "surface_port_unavailable" };
           }
+          const canvasWriteAdapter = canvasWriteFor(partition, frozen?.preferredSubscriptionId ?? "");
+          if (canvasWriteAdapter) {
+            let prepared: PreparedCanvasWrite | null;
+            try {
+              prepared = await canvasWriteAdapter.prepare(call, signal);
+            } catch (error) {
+              const code = error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string"
+                ? (error as { code: string }).code
+                : error instanceof Error ? error.message : "capability_execution_failed";
+              return rememberCanvasWriteOutcome(execution, call.toolCallId, code, "capability_unsupported");
+            }
+            if (prepared) {
+              const decision = await awaitToolDecision(partition, execution, call, signal);
+              if (!decision.ok) {
+                return rememberCanvasWriteOutcome(
+                  execution,
+                  call.toolCallId,
+                  decision.code,
+                  signal.aborted ? "capability_cancelled" : "capability_declined",
+                  decision.denied,
+                );
+              }
+              const persisted = await persistApprovedProposal(partition, execution, call, decision, {
+                approvalId: `approval-${digest([execution.turn.executionToken, call.toolCallId])}`,
+                receiptProposalId: `receipt-${digest([execution.turn.executionToken, call.toolCallId, "receipt"])}`,
+                target: prepared.invocation.target,
+                preconditions: prepared.invocation.preconditions,
+                policyRevision: prepared.invocation.policyRevision,
+                inputHash: prepared.invocation.inputHash,
+                actionHash: prepared.invocation.actionHash,
+              });
+              if (!persisted) throw new Error("approval_persistence_failed");
+              const executed = await canvasWriteAdapter.execute(prepared, {
+                receiptProposalId: persisted.receiptProposalId,
+                approvalId: persisted.approvalId,
+                actionHash: persisted.actionHash,
+              }, signal);
+              if (!executed.ok) {
+                return rememberCanvasWriteOutcome(
+                  execution,
+                  call.toolCallId,
+                  executed.code,
+                  signal.aborted ? "capability_cancelled" : "capability_unsupported",
+                  executed.denied,
+                );
+              }
+              return executed;
+            }
+            if (resolveCapabilityAlias(call.toolName)?.contract.id === CANVAS_WRITE_CAPABILITY.id) {
+              return rememberCanvasWriteOutcome(
+                execution,
+                call.toolCallId,
+                "capability_unsupported",
+                "capability_unsupported",
+              );
+            }
+          }
           const writeAdapter = documentWriteFor(partition, frozen?.preferredSubscriptionId ?? "");
           if (writeAdapter) {
             const documentId = execution.queueItem.target.kind === "document" ? execution.queueItem.target.documentId : "";
@@ -834,8 +1026,27 @@ export function createProjectAgentExecutionCoordinator(
       const assistant = finalState.items.find(
         (candidate) => candidate.kind === "assistant" && candidate.turnId === execution.turn.turnId,
       );
-      const status = statusForResponse(response);
+      const capabilityOutcome = execution.capabilityOutcome;
+      const status = capabilityOutcome?.status ?? statusForResponse(response);
       const toolItems = response.toolCalls.map((item) => toolItem(partition.binding, execution.turn, item, now()));
+      const receivedAt = now();
+      const outcomeFailure: ProjectAgentFailureItem | undefined = capabilityOutcome
+        ? Object.freeze({
+            itemId: `failure-${digest([execution.turn.executionToken, capabilityOutcome.toolCallId, capabilityOutcome.code])}`,
+            threadId: execution.turn.threadId,
+            turnId: execution.turn.turnId,
+            correlationId: capabilityOutcome.toolCallId,
+            kind: "failure" as const,
+            code: capabilityOutcome.code,
+            message: capabilityOutcome.message,
+            nextAction: capabilityOutcome.nextAction,
+            status: capabilityOutcome.status,
+            retryable: capabilityOutcome.retryable,
+            deviated: false,
+            createdAt: receivedAt,
+            updatedAt: receivedAt,
+          })
+        : undefined;
       const beforeResult = partition.host.getSnapshot(partition.binding);
       const currentStatus = beforeResult.turns.find((turn) => turn.turnId === execution.turn.turnId)?.status;
       if (!currentStatus || ["queued", "running", "proposed"].includes(currentStatus)) {
@@ -854,8 +1065,9 @@ export function createProjectAgentExecutionCoordinator(
             target: execution.queueItem.target,
             preconditions: execution.queueItem.preconditions,
             expectedRevision: state.hostRevision,
-            items: toolItems,
+            items: outcomeFailure ? [...toolItems, outcomeFailure] : toolItems,
             turnStatus: status,
+            ...(capabilityOutcome ? { retryable: capabilityOutcome.retryable } : {}),
             ...(execution.approvedProposalId
               ? { proposalApprovalId: execution.approvedProposalId, proposalStatus: status }
               : {}),
@@ -869,7 +1081,7 @@ export function createProjectAgentExecutionCoordinator(
                   },
                 }
               : {}),
-            receivedAt: now(),
+            receivedAt,
           },
         }));
       }
@@ -1103,6 +1315,8 @@ export function createProjectAgentExecutionCoordinator(
       documentReads.delete(subscriptionId);
       documentWrites.get(subscriptionId)?.dispose();
       documentWrites.delete(subscriptionId);
+      canvasWrites.get(subscriptionId)?.dispose();
+      canvasWrites.delete(subscriptionId);
     },
     subscriptionCount: () => subscriptions.size,
   });

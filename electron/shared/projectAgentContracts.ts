@@ -341,6 +341,7 @@ export type ProjectAgentAsyncResultEnvelope = Readonly<{
   expectedRevision: number;
   items: readonly ProjectAgentItem[];
   turnStatus: ProjectAgentStatus;
+  retryable?: boolean;
   proposalApprovalId?: string;
   proposalStatus?: ProjectAgentStatus;
   assistantFinal?: ProjectAgentAssistantFinal;

@@ -69,14 +69,25 @@ export function updateProposalItems(
   approvalId: string,
   status: ProjectAgentStatus,
   updatedAt: string,
+  retryable?: boolean,
 ): { items: readonly ProjectAgentItem[]; changes: readonly ProjectAgentChange[] } {
+  assertOptionalMutationBoolean(retryable);
   const changes: ProjectAgentChange[] = [];
   const next = items.map((item) => {
-    if (item.kind !== "proposal" || item.approval?.approvalId !== approvalId || item.status === status) {
+    if (
+      item.kind !== "proposal" ||
+      item.approval?.approvalId !== approvalId ||
+      (item.status === status && (retryable === undefined || item.retryable === retryable))
+    ) {
       return item;
     }
-    assertStatusTransition(item.status, status);
-    const updated = freezeProjectAgentIncremental({ ...item, status, updatedAt }) as ProjectAgentItem;
+    if (item.status !== status) assertStatusTransition(item.status, status);
+    const updated = freezeProjectAgentIncremental({
+      ...item,
+      status,
+      retryable: retryable ?? item.retryable,
+      updatedAt,
+    }) as ProjectAgentItem;
     changes.push({ kind: "item-upserted", item: updated });
     return updated;
   });

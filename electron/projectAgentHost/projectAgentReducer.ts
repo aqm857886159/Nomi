@@ -431,6 +431,7 @@ export function reduceProjectAgentMutation(
               approval.ref.approvalId,
               mutation.payload.status,
               mutation.payload.updatedAt,
+              mutation.payload.retryable,
             );
             items = terminalItems.items;
             changes.push(...terminalItems.changes);
@@ -453,6 +454,7 @@ export function reduceProjectAgentMutation(
               approval.ref.approvalId,
               mutation.payload.status,
               mutation.payload.updatedAt,
+              mutation.payload.retryable,
             );
             items = terminalItems.items;
             changes.push(...terminalItems.changes);
@@ -518,7 +520,7 @@ export function reduceProjectAgentMutation(
         );
         const approvals = proposalApprovals.filter((approval) => approval.ref.turnId === turn.turnId);
         for (const approval of approvals) {
-          const terminalItems = updateProposalItems(items, approval.ref.approvalId, "failed", recoveredAt);
+          const terminalItems = updateProposalItems(items, approval.ref.approvalId, "failed", recoveredAt, true);
           items = terminalItems.items;
           changes.push(...terminalItems.changes);
         }
@@ -746,6 +748,7 @@ export function reduceProjectAgentMutation(
           "expectedRevision",
           "items",
           "turnStatus",
+          "retryable",
           "proposalApprovalId",
           "proposalStatus",
           "assistantFinal",
@@ -754,6 +757,7 @@ export function reduceProjectAgentMutation(
         const result = mutation.payload;
         assertWritableThreadById(current, result.threadId);
         assertCanonicalMutationTimestamp(result.receivedAt);
+        assertOptionalMutationBoolean(result.retryable);
         assertExactMutationKeys(result.binding, ["projectId", "immutableProjectUuid", "projectGeneration"]);
         if (
           result.expectedRevision !== mutation.expectedRevision ||
@@ -788,6 +792,16 @@ export function reduceProjectAgentMutation(
           assertCanAppendProjectAgentItem(prospectiveItems, item, false, true);
           prospectiveItems.push(item);
         }
+        const terminalRetryable = result.retryable ?? result.turnStatus === "failed";
+        if (
+          result.items.some(
+            (item) => item.kind === "failure" && (
+              item.status !== result.turnStatus || item.retryable !== terminalRetryable
+            ),
+          )
+        ) {
+          fail("async_result_stale");
+        }
         const runningProposalIds = items.flatMap((item) =>
           item.kind === "proposal" && item.approval && item.status === "running" ? [item.approval.approvalId] : [],
         );
@@ -816,6 +830,7 @@ export function reduceProjectAgentMutation(
             result.proposalApprovalId,
             result.proposalStatus,
             result.receivedAt,
+            terminalRetryable,
           );
           items = settledProposal.items;
           changes.push(...settledProposal.changes);
@@ -827,7 +842,7 @@ export function reduceProjectAgentMutation(
           turn,
           {
             status: result.turnStatus,
-            ...(result.turnStatus === "failed" ? { retryable: true } : {}),
+            retryable: terminalRetryable,
             updatedAt: result.receivedAt,
           },
           true,
@@ -836,7 +851,7 @@ export function reduceProjectAgentMutation(
           queueItem,
           {
             status: result.turnStatus,
-            ...(result.turnStatus === "failed" ? { retryable: true } : {}),
+            retryable: terminalRetryable,
             updatedAt: result.receivedAt,
           },
           true,

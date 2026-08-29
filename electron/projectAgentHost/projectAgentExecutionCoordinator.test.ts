@@ -21,6 +21,10 @@ import type {
   PiDocumentWriteTransportAdapter,
   PreparedDocumentWrite,
 } from "../capabilityCore/documentWriteTransportAdapters";
+import type {
+  PiCanvasWriteTransportAdapter,
+  PreparedCanvasWrite,
+} from "../capabilityCore/canvasWriteTransportAdapters";
 import type { PreconditionSet, TargetRef } from "../shared/capabilityTargeting";
 
 const binding = {
@@ -170,6 +174,54 @@ function documentWriteResponse(call: RuntimeToolCall, decision: AgentChatToolDec
       ...(decision.ok && decision.result !== undefined ? { result: decision.result } : {}),
       decision,
     }],
+    usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+  };
+}
+
+function canvasWriteAdapter(options: Readonly<{
+  result?: AgentChatToolDecision;
+}> = {}): PiCanvasWriteTransportAdapter & {
+  prepare: ReturnType<typeof vi.fn>;
+  execute: ReturnType<typeof vi.fn>;
+  dispose: ReturnType<typeof vi.fn>;
+} {
+  const prepare = vi.fn(async (call: RuntimeToolCall, _signal: AbortSignal): Promise<PreparedCanvasWrite | null> => {
+    if (call.toolName !== "set_node_prompt") return null;
+    const invocation = {
+      input: { operation: "set_node_prompt", nodeId: "node-real", prompt: "new prompt" },
+      target: { kind: "canvas", nodeIds: ["node-real"] },
+      preconditions: { nodes: [{ nodeId: "node-real", contentHash: "sha256-node" }] },
+      policyRevision: 1,
+      inputHash: "input-hash",
+      actionHash: "action-hash",
+    } as unknown as PreparedCanvasWrite["invocation"];
+    return Object.freeze({ call, invocation });
+  });
+  const execute = vi.fn(async (
+    _prepared: PreparedCanvasWrite,
+    _approval: unknown,
+    _signal: AbortSignal,
+  ): Promise<AgentChatToolDecision> => options.result ?? ({
+    ok: true,
+    result: { applied: true, proposalId: "receipt-canvas" },
+    silent: true,
+  }));
+  const dispose = vi.fn();
+  return { prepare, execute, dispose } as unknown as PiCanvasWriteTransportAdapter & {
+    prepare: ReturnType<typeof vi.fn>;
+    execute: ReturnType<typeof vi.fn>;
+    dispose: ReturnType<typeof vi.fn>;
+  };
+}
+
+function canvasWriteResponse(call: RuntimeToolCall, decision: AgentChatToolDecision): AgentChatResponse {
+  return {
+    id: `result-${call.toolCallId}`,
+    status: "finished",
+    text: "done",
+    finishReason: "stop",
+    artifacts: [],
+    toolCalls: [{ ...call, status: decision.ok ? "ok" : "denied", decision }],
     usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
   };
 }
@@ -970,6 +1022,260 @@ describe("ProjectAgentExecutionCoordinator", () => {
         preconditions,
       },
     });
+  });
+
+  it("persists and reads back Canvas approval identity before Surface execute", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-canvas-write-approved-"));
+    const canvasAdapter = canvasWriteAdapter();
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-canvas-write-approved",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = { toolCallId: "tool-canvas-write-approved", toolName: "set_node_prompt", args: { nodeId: "node-real", prompt: "new prompt" } };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          expect(decision).toMatchObject({ ok: true });
+          return canvasWriteResponse(call, decision);
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, { canvasWrite: canvasAdapter });
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type === "tool-call") {
+        void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, { ok: true, result: { approved: true } });
+      }
+    });
+
+    const base = executionInput("canvas-write-approved", 0);
+    const input = {
+      ...base,
+      mutation: {
+        ...base.mutation,
+        payload: {
+          ...base.mutation.payload,
+          queueItem: {
+            ...base.mutation.payload.queueItem,
+            target: { kind: "canvas" as const, nodeIds: ["node-real"] },
+            preconditions: { nodes: [{ nodeId: "node-real", contentHash: "sha256-node" }] },
+            originSurface: { surfaceId: "canvas-surface", kind: "canvas" as const },
+          },
+        },
+      },
+    };
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(canvasAdapter.prepare).toHaveBeenCalledOnce();
+    expect(canvasAdapter.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ invocation: expect.objectContaining({ actionHash: "action-hash" }) }),
+      { receiptProposalId: expect.stringMatching(/^receipt-/), approvalId: expect.stringMatching(/^approval-/), actionHash: "action-hash" },
+      expect.any(AbortSignal),
+    );
+    expect(final.proposalApprovals).toMatchObject([{ lifecycle: "claimed", ref: { actionHash: "action-hash", target: { kind: "canvas", nodeIds: ["node-real"] } } }]);
+    coordinator.release(opened.subscriptionId);
+  });
+
+  it("keeps legacy Canvas confirmation active until the production write adapter is installed", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-canvas-write-legacy-fallback-"));
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-canvas-write-legacy-fallback",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = {
+            toolCallId: "tool-canvas-write-legacy-fallback",
+            toolName: "set_node_prompt",
+            args: { nodeId: "node-real", prompt: "new prompt" },
+          };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          expect(decision).toMatchObject({ ok: true, result: { applied: "legacy" } });
+          return canvasWriteResponse(call, decision);
+        },
+      },
+    );
+    const opened = await coordinator.open(binding);
+    const pending = vi.fn();
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type !== "tool-call") return;
+      pending(event);
+      void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+        ok: true,
+        result: { applied: "legacy" },
+      });
+    });
+    const base = executionInput("canvas-write-legacy-fallback", 0);
+    const input = {
+      ...base,
+      mutation: {
+        ...base.mutation,
+        payload: {
+          ...base.mutation.payload,
+          queueItem: {
+            ...base.mutation.payload.queueItem,
+            target: { kind: "canvas" as const, nodeIds: ["node-real"] },
+            preconditions: { nodes: [{ nodeId: "node-real", contentHash: "sha256-node" }] },
+            originSurface: { surfaceId: "canvas-surface", kind: "canvas" as const },
+          },
+        },
+      },
+    };
+
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(pending).toHaveBeenCalledOnce();
+    expect(final.turns.find((turn) => turn.turnId === input.mutation.payload.turn.turnId)).toMatchObject({
+      status: "done",
+      retryable: false,
+    });
+    expect(final.items.some((item) => item.kind === "failure" && item.turnId === input.mutation.payload.turn.turnId)).toBe(false);
+    expect(final.items.find((item) => item.kind === "proposal")).toMatchObject({ status: "done" });
+    coordinator.release(opened.subscriptionId);
+  });
+
+  it.each([
+    {
+      code: "capability_declined",
+      status: "declined",
+      retryable: false,
+      nextAction: "edit the request or submit a new proposal",
+      approve: false,
+    },
+    {
+      code: "capability_cancelled",
+      status: "stopped",
+      retryable: true,
+      nextAction: "submit the request again when ready",
+      approve: true,
+    },
+    {
+      code: "capability_timeout",
+      status: "failed",
+      retryable: true,
+      nextAction: "retry the capability request",
+      approve: true,
+    },
+    {
+      code: "capability_unsupported",
+      status: "failed",
+      retryable: false,
+      nextAction: "use a capability supported by this surface",
+      approve: true,
+    },
+    {
+      code: "capability_target_stale",
+      status: "failed",
+      retryable: true,
+      nextAction: "review the current canvas and submit a new proposal",
+      approve: true,
+    },
+    {
+      code: "capability_surface_unavailable",
+      status: "failed",
+      retryable: true,
+      nextAction: "reopen the canvas and retry",
+      approve: true,
+    },
+    {
+      code: "capability_receipt_unresolved",
+      status: "failed",
+      retryable: false,
+      nextAction: "review the canvas and submit a new proposal; do not retry automatically",
+      approve: true,
+    },
+  ] as const)("durably projects Canvas outcome $code through every Host record", async (outcome) => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), `nomi-project-agent-${outcome.code}-`));
+    const canvasAdapter = canvasWriteAdapter(outcome.approve
+      ? { result: { ok: false, code: outcome.code, message: outcome.code } }
+      : {});
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => `subscription-${outcome.code}`,
+      {
+        runAgent: async (_request, hooks) => {
+          const call = {
+            toolCallId: `tool-${outcome.code}`,
+            toolName: "set_node_prompt",
+            args: { nodeId: "node-real", prompt: "new prompt" },
+          };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          return canvasWriteResponse(call, decision);
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, { canvasWrite: canvasAdapter });
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type !== "tool-call") return;
+      void coordinator.resolveToolDecision(
+        opened.subscriptionId,
+        event.turnId,
+        event.toolCallId,
+        outcome.approve
+          ? { ok: true, result: { approved: true } }
+          : { ok: false, denied: true, message: "User declined Canvas write" },
+      );
+    });
+
+    const base = executionInput(outcome.code, 0);
+    const input = {
+      ...base,
+      mutation: {
+        ...base.mutation,
+        payload: {
+          ...base.mutation.payload,
+          queueItem: {
+            ...base.mutation.payload.queueItem,
+            target: { kind: "canvas" as const, nodeIds: ["node-real"] },
+            preconditions: { nodes: [{ nodeId: "node-real", contentHash: "sha256-node" }] },
+            originSurface: { surfaceId: "canvas-surface", kind: "canvas" as const },
+          },
+        },
+      },
+    };
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(final.turns.find((turn) => turn.turnId === input.mutation.payload.turn.turnId)).toMatchObject({
+      status: outcome.status,
+      retryable: outcome.retryable,
+    });
+    expect(final.queue.find((item) => item.turnId === input.mutation.payload.turn.turnId)).toMatchObject({
+      status: outcome.status,
+      retryable: outcome.retryable,
+    });
+    expect(final.items.find((item) => item.kind === "failure" && item.turnId === input.mutation.payload.turn.turnId)).toMatchObject({
+      code: outcome.code,
+      message: outcome.code,
+      nextAction: outcome.nextAction,
+      status: outcome.status,
+      retryable: outcome.retryable,
+    });
+    const proposal = final.items.find((item) => item.kind === "proposal");
+    if (outcome.approve) {
+      expect(proposal).toMatchObject({ status: outcome.status, retryable: outcome.retryable });
+      expect(canvasAdapter.execute).toHaveBeenCalledOnce();
+    } else {
+      expect(proposal).toBeUndefined();
+      expect(canvasAdapter.execute).not.toHaveBeenCalled();
+    }
+
+    coordinator.release(opened.subscriptionId);
+    const reopened = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => `reopened-${outcome.code}`,
+    );
+    const reopenedSubscription = await reopened.open(binding);
+    const restored = reopened.snapshot(reopenedSubscription.subscriptionId);
+    expect(restored.turns.find((turn) => turn.turnId === input.mutation.payload.turn.turnId)).toMatchObject({
+      status: outcome.status,
+      retryable: outcome.retryable,
+    });
+    expect(restored.items.find((item) => item.kind === "failure" && item.turnId === input.mutation.payload.turn.turnId)).toMatchObject({
+      code: outcome.code,
+      status: outcome.status,
+      retryable: outcome.retryable,
+    });
+    reopened.release(reopenedSubscription.subscriptionId);
   });
 
   it("includes frozen preconditions in the proposal action hash", async () => {

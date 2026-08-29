@@ -3,7 +3,8 @@ import { z } from "zod";
 import type { CapabilityContract } from "./capabilityContract";
 
 const canonicalIdSchema = z.string().trim().min(1);
-const nonBlankPromptSchema = z.string().refine((value) => value.trim().length > 0, {
+export const CANVAS_WRITE_MAX_PROMPT_CHARS = 262_144;
+const nonBlankPromptSchema = z.string().max(CANVAS_WRITE_MAX_PROMPT_CHARS).refine((value) => value.trim().length > 0, {
   message: "Prompt must contain non-whitespace content",
 });
 

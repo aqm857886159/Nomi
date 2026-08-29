@@ -1,6 +1,10 @@
 import {
   SURFACE_CANVAS_READ_REPLY_CHANNEL,
   SURFACE_CANVAS_READ_REQUEST_CHANNEL,
+  SURFACE_CANVAS_WRITE_CAPTURE_REPLY_CHANNEL,
+  SURFACE_CANVAS_WRITE_CAPTURE_REQUEST_CHANNEL,
+  SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL,
+  SURFACE_CANVAS_WRITE_EXECUTE_REQUEST_CHANNEL,
   SURFACE_DOCUMENT_READ_REPLY_CHANNEL,
   SURFACE_DOCUMENT_READ_REQUEST_CHANNEL,
   SURFACE_DOCUMENT_WRITE_REPLY_CHANNEL,
@@ -8,6 +12,8 @@ import {
   type CapturedCanvasReadSnapshotHandleWire,
   type CanvasReadSurfaceBridge,
   type CanvasReadSurfaceRequestWire,
+  type CanvasWriteCaptureSurfaceRequestWire,
+  type CanvasWriteExecuteSurfaceRequestWire,
   type DocumentReadSurfaceRequestWire,
   type DocumentWriteSurfaceRequestWire,
   type SurfacePortBindingWire,
@@ -66,6 +72,30 @@ function documentWriteRequest(value: unknown): DocumentWriteSurfaceRequestWire |
   if (typeof request.content !== 'string' || !request.content.trim()) return null
   if (!Object.prototype.hasOwnProperty.call(request, 'target') || !Object.prototype.hasOwnProperty.call(request, 'preconditions')) return null
   return request as unknown as DocumentWriteSurfaceRequestWire
+}
+
+function canvasWriteCaptureRequest(value: unknown): CanvasWriteCaptureSurfaceRequestWire | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const request = value as Record<string, unknown>
+  if (typeof request.requestId !== 'string' || !request.requestId.trim()) return null
+  if (!request.binding || typeof request.binding !== 'object' || Array.isArray(request.binding)) return null
+  if (request.operation !== 'set_node_prompt') return null
+  if (typeof request.nodeId !== 'string' || !request.nodeId.trim()) return null
+  return request as unknown as CanvasWriteCaptureSurfaceRequestWire
+}
+
+function canvasWriteExecuteRequest(value: unknown): CanvasWriteExecuteSurfaceRequestWire | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const request = value as Record<string, unknown>
+  if (typeof request.requestId !== 'string' || !request.requestId.trim()) return null
+  if (!request.binding || typeof request.binding !== 'object' || Array.isArray(request.binding)) return null
+  if (!Object.prototype.hasOwnProperty.call(request, 'input')
+    || !Object.prototype.hasOwnProperty.call(request, 'target')
+    || !Object.prototype.hasOwnProperty.call(request, 'preconditions')) return null
+  if (typeof request.receiptProposalId !== 'string' || !request.receiptProposalId.trim()) return null
+  if (typeof request.approvalId !== 'string' || !request.approvalId.trim()) return null
+  if (typeof request.actionHash !== 'string' || !request.actionHash.trim()) return null
+  return request as unknown as CanvasWriteExecuteSurfaceRequestWire
 }
 
 export function createCanvasReadSurfacePreloadBridge(
@@ -187,6 +217,64 @@ export function createCanvasReadSurfacePreloadBridge(
             error: {
               code: error instanceof SurfacePortWireError ? error.code : 'surface_port_unavailable',
             },
+          }),
+        )
+      })
+    },
+    onCanvasWriteCapture(handler) {
+      if (!events) throw new SurfacePortWireError('surface_port_unavailable')
+      return events.subscribe(SURFACE_CANVAS_WRITE_CAPTURE_REQUEST_CHANNEL, (payload) => {
+        const request = canvasWriteCaptureRequest(payload)
+        if (!request) return
+        let result: unknown | Promise<unknown>
+        try {
+          result = handler({ binding: request.binding, operation: request.operation, nodeId: request.nodeId })
+        } catch (error) {
+          result = Promise.reject(error)
+        }
+        void Promise.resolve(result).then(
+          (value) => events.send(SURFACE_CANVAS_WRITE_CAPTURE_REPLY_CHANNEL, {
+            requestId: request.requestId,
+            binding: request.binding,
+            result: value,
+          }),
+          (error) => events.send(SURFACE_CANVAS_WRITE_CAPTURE_REPLY_CHANNEL, {
+            requestId: request.requestId,
+            binding: request.binding,
+            error: { code: error instanceof SurfacePortWireError ? error.code : 'surface_port_unavailable' },
+          }),
+        )
+      })
+    },
+    onCanvasWriteExecute(handler) {
+      if (!events) throw new SurfacePortWireError('surface_port_unavailable')
+      return events.subscribe(SURFACE_CANVAS_WRITE_EXECUTE_REQUEST_CHANNEL, (payload) => {
+        const request = canvasWriteExecuteRequest(payload)
+        if (!request) return
+        let result: unknown | Promise<unknown>
+        try {
+          result = handler({
+            binding: request.binding,
+            input: request.input,
+            target: request.target,
+            preconditions: request.preconditions,
+            receiptProposalId: request.receiptProposalId,
+            approvalId: request.approvalId,
+            actionHash: request.actionHash,
+          })
+        } catch (error) {
+          result = Promise.reject(error)
+        }
+        void Promise.resolve(result).then(
+          (value) => events.send(SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL, {
+            requestId: request.requestId,
+            binding: request.binding,
+            result: value,
+          }),
+          (error) => events.send(SURFACE_CANVAS_WRITE_EXECUTE_REPLY_CHANNEL, {
+            requestId: request.requestId,
+            binding: request.binding,
+            error: { code: error instanceof SurfacePortWireError ? error.code : 'surface_port_unavailable' },
           }),
         )
       })

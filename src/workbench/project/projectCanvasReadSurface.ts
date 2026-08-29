@@ -42,6 +42,15 @@ export type ProjectCanvasReadSurfaceCoordinator = Readonly<{
     target: unknown
     preconditions: unknown
   }) => unknown): () => void
+  registerCanvasWriteCaptureSource(capture: (input: { operation: 'set_node_prompt'; nodeId: string }) => unknown): () => void
+  registerCanvasWriteExecuteSource(execute: (input: {
+    input: unknown
+    target: unknown
+    preconditions: unknown
+    receiptProposalId: string
+    approvalId: string
+    actionHash: string
+  }) => unknown): () => void
 }>;
 
 let registeredCoordinator: ProjectCanvasReadSurfaceCoordinator | null = null
@@ -71,22 +80,39 @@ export function registerProjectCanvasReadSurface(
     target: unknown
     preconditions: unknown
   }) => unknown,
+  captureCanvasWrite?: (input: { operation: 'set_node_prompt'; nodeId: string }) => unknown,
+  executeCanvasWrite?: (input: {
+    input: unknown
+    target: unknown
+    preconditions: unknown
+    receiptProposalId: string
+    approvalId: string
+    actionHash: string
+  }) => unknown,
 ): () => void {
   const unregisterCoordinator = registerProjectCanvasReadSurfaceCoordinator(coordinator)
   let unregisterSnapshot: (() => void) | undefined
   let unregisterDocument: (() => void) | undefined
   let unregisterDocumentWrite: (() => void) | undefined
+  let unregisterCanvasWriteCapture: (() => void) | undefined
+  let unregisterCanvasWriteExecute: (() => void) | undefined
   try {
     unregisterSnapshot = coordinator.registerCanvasReadSource(readSnapshot)
     unregisterDocument = readDocument ? coordinator.registerDocumentReadSource(readDocument) : undefined
     unregisterDocumentWrite = writeDocument ? coordinator.registerDocumentWriteSource(writeDocument) : undefined
+    unregisterCanvasWriteCapture = captureCanvasWrite ? coordinator.registerCanvasWriteCaptureSource(captureCanvasWrite) : undefined
+    unregisterCanvasWriteExecute = executeCanvasWrite ? coordinator.registerCanvasWriteExecuteSource(executeCanvasWrite) : undefined
     return () => {
+      unregisterCanvasWriteExecute?.()
+      unregisterCanvasWriteCapture?.()
       unregisterDocumentWrite?.()
       unregisterDocument?.()
       unregisterSnapshot?.()
       unregisterCoordinator()
     }
   } catch (error) {
+    unregisterCanvasWriteExecute?.()
+    unregisterCanvasWriteCapture?.()
     unregisterDocument?.()
     unregisterDocumentWrite?.()
     unregisterSnapshot?.()
@@ -283,6 +309,26 @@ export function createProjectCanvasReadSurfaceCoordinator(input: Readonly<{
         if (!state || !state.binding) throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
         if (!sameBinding(binding, state.binding)) throw new SurfacePortWireError('surface_port_stale')
         return writeDocument({ documentId, operation, content, target, preconditions })
+      })
+    },
+    registerCanvasWriteCaptureSource(capture) {
+      const bridge = input.getSurfaceBridge()
+      if (!bridge || !capture) return () => undefined
+      return bridge.onCanvasWriteCapture(({ binding, operation, nodeId }) => {
+        const state = current
+        if (!state || !state.binding) throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
+        if (!sameBinding(binding, state.binding)) throw new SurfacePortWireError('surface_port_stale')
+        return capture({ operation, nodeId })
+      })
+    },
+    registerCanvasWriteExecuteSource(execute) {
+      const bridge = input.getSurfaceBridge()
+      if (!bridge || !execute) return () => undefined
+      return bridge.onCanvasWriteExecute(({ binding, ...request }) => {
+        const state = current
+        if (!state || !state.binding) throw new SurfacePortWireError(state ? 'surface_port_suspended' : 'surface_port_unavailable')
+        if (!sameBinding(binding, state.binding)) throw new SurfacePortWireError('surface_port_stale')
+        return execute(request)
       })
     },
   })

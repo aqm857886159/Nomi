@@ -152,4 +152,55 @@ describe('Surface preload bridge', () => {
     }))
     expect(JSON.stringify(send.mock.calls)).not.toContain('private')
   })
+
+  it('keeps Canvas write evidence capture and execution on strict independent channels', async () => {
+    const receivers = new Map<string, (payload: unknown) => void>()
+    const send = vi.fn()
+    const bridge = createCanvasReadSurfacePreloadBridge(
+      vi.fn(async () => ({ ok: true, value: { released: true } })),
+      {
+        subscribe: (channel, listener) => {
+          receivers.set(channel, listener)
+          return () => receivers.delete(channel)
+        },
+        send,
+      },
+    )
+    const binding = { version: 1, bindingId: 'binding-a' } as never
+    const capture = vi.fn(() => ({ node: { id: 'node-real' }, groups: [] }))
+    const execute = vi.fn(() => ({ applied: true, proposalId: 'receipt-a' }))
+    bridge.onCanvasWriteCapture(capture)
+    bridge.onCanvasWriteExecute(execute)
+
+    receivers.get('nomi:surface:canvasWrite:capture:request')?.({
+      requestId: 'capture-a', binding, operation: 'set_node_prompt', nodeId: 'node-alias',
+    })
+    await vi.waitFor(() => expect(send).toHaveBeenCalledWith('nomi:surface:canvasWrite:capture:reply', {
+      requestId: 'capture-a', binding, result: { node: { id: 'node-real' }, groups: [] },
+    }))
+    expect(capture).toHaveBeenCalledWith({ binding, operation: 'set_node_prompt', nodeId: 'node-alias' })
+
+    receivers.get('nomi:surface:canvasWrite:execute:request')?.({
+      requestId: 'execute-a', binding,
+      input: { operation: 'set_node_prompt', nodeId: 'node-alias', prompt: 'new prompt' },
+      target: { kind: 'canvas', nodeIds: ['node-real'] },
+      preconditions: { nodes: [{ nodeId: 'node-real', contentHash: 'hash-a' }] },
+      receiptProposalId: 'receipt-a', approvalId: 'approval-a', actionHash: 'action-a',
+    })
+    await vi.waitFor(() => expect(send).toHaveBeenCalledWith('nomi:surface:canvasWrite:execute:reply', {
+      requestId: 'execute-a', binding, result: { applied: true, proposalId: 'receipt-a' },
+    }))
+    expect(execute).toHaveBeenCalledWith({
+      binding,
+      input: { operation: 'set_node_prompt', nodeId: 'node-alias', prompt: 'new prompt' },
+      target: { kind: 'canvas', nodeIds: ['node-real'] },
+      preconditions: { nodes: [{ nodeId: 'node-real', contentHash: 'hash-a' }] },
+      receiptProposalId: 'receipt-a', approvalId: 'approval-a', actionHash: 'action-a',
+    })
+
+    receivers.get('nomi:surface:canvasWrite:capture:request')?.({
+      requestId: 'malformed', binding, operation: 'delete_canvas_nodes', nodeId: 'node-real',
+    })
+    expect(capture).toHaveBeenCalledTimes(1)
+  })
 })
