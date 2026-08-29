@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "id": "2026-08-28-anthropic-endpoint-derivation",
   "problem_type": "provider protocol contract regression (endpoint derived for the wrong wire protocol)",
   "symptom": "After connecting an Anthropic (Claude) provider, the onboarding connection check passed but nothing worked: every canvas agent turn failed with HTTP 404, and Settings → Models → 'Verify all again' hung until a 90s timeout and reported 'No capability passed verification / cannot be used on the canvas yet'.",
@@ -43,6 +43,24 @@
     "electron/ai/buildAiSdkModel.test.ts",
     "electron/providerAdapter/anthropicChatDraft.test.ts"
   ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every provider connection and model verification can cross the same protocol boundary, so a future non-OpenAI provider would regress if each consumer derives endpoint and request shape independently.",
+    "same_class_scan": [
+      "Scanned provider adapter drafts and runtime model construction for all AiSdkProviderKind branches and confirmed Anthropic is the only first-party non-OpenAI text protocol currently supported.",
+      "Compared onboarding probing, runtime SDK construction, and built-in verification to ensure all three consumers agree on the stored host-root base URL and provider-specific request contract.",
+      "Added focused endpoint, auth, body, and negative OpenAI regression tests covering the affected entry points."
+    ]
+  },
+  "prevention": {
+    "strategy": "Derive provider-specific endpoint and request shape from providerKind at every boundary, normalize versioned bases in one runtime helper, and keep protocol-specific verification contracts next to their adapter implementation.",
+    "artifacts": [
+      "electron/ai/buildAiSdkModel.ts",
+      "electron/ai/anthropicBaseUrl.test.ts",
+      "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "electron/providerAdapter/anthropicChatDraft.test.ts"
+    ]
+  },
   "migration": "No stored data is rewritten. Existing catalogs already hold the host-root form, so both fixes normalize on read: saved Claude connections start working without being re-added and without the API key being re-entered. buildAiSdkModel.test.ts previously asserted that a base without '/v1' routes to '/messages' — that assertion had pinned the defect as the contract and is corrected to '/v1/messages'; the '/v1'-suffixed row is unchanged and still proves no double-suffixing.",
   "residual_risks": [
     "A separate 'Model verification timed out after 90000 ms' was observed before this fix. The timeout is consistent with verification requests never succeeding against the wrong endpoint, but it was not reproduced end to end after the fix — if verification still times out with the correct endpoint, the timeout has an independent cause in the provider-adapter testing stage that this contract does not cover.",
