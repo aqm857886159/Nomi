@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "prototype": "../2026-08-29-video-recreation-canvas-minimal.html",
+  "goal": "让第一次使用视频复刻的人无需理解模型流水线，也能从一个画布视频节点完成局部修改。",
+  "principles": [
+    {
+      "id": "user-goal-first",
+      "rule": "界面表达用户目标，不表达内部流水线。",
+      "decision": "画布只显示原片段和候选；拆解、Prompt 编译、QA 默认折叠。"
+    },
+    {
+      "id": "one-primary-action",
+      "rule": "每个状态只突出一个下一步。",
+      "decision": "选择片段、复刻这 5 秒、生成候选、对比并决定、替换这 5 秒依次成为唯一主操作。"
+    },
+    {
+      "id": "one-object-one-home",
+      "rule": "一个对象只有一个编辑入口，同一信息只有一个真相源。",
+      "decision": "范围选择留在 ClipNode 内，不再弹第二条时间轴；Agent 不复制片段编辑器。"
+    },
+    {
+      "id": "direct-manipulation",
+      "rule": "动作贴着它影响的对象发生，反馈也回到原处。",
+      "decision": "用户直接在视频节点的时间轴上看选区和时长，复刻动作紧邻选区。"
+    },
+    {
+      "id": "progressive-disclosure",
+      "rule": "不影响当前决策的信息延迟展示。",
+      "decision": "保留项默认其余不变；高级约束、分析和任务轨迹按需展开。"
+    },
+    {
+      "id": "context-not-forms",
+      "rule": "系统已知的上下文不再让用户填写。",
+      "decision": "Canvas Agent 自动读取选中 ClipNode、时间范围和上游素材，用户只说想改什么。"
+    },
+    {
+      "id": "candidate-before-commit",
+      "rule": "生成与采用是两个动作。",
+      "decision": "AI 结果先成为相邻候选节点；候选只有“对比并决定”一个主动作，替换必须人工确认且可撤销。"
+    },
+    {
+      "id": "agent-prepares-user-decides",
+      "rule": "Agent 负责理解和准备，人负责花费与改变作品。",
+      "decision": "Agent 可读取选区、编译提示词和生成预检，但不能代替用户确认费用、替换或撤销。"
+    },
+    {
+      "id": "artifacts-on-canvas",
+      "rule": "画布保存可复用产物，不保存操作表单。",
+      "decision": "源片段、候选和来源关系持久化；临时选择器和确认卡完成后退出。"
+    }
+  ],
+  "journey": [
+    { "step": 1, "userAction": "在 ClipNode 的唯一时间轴中选出 3–10 秒片段", "systemResponse": "节点就地显示范围、时长和“复刻这 5 秒”" },
+    { "step": 2, "userAction": "点击复刻这 5 秒", "systemResponse": "选区自动成为 Agent 上下文，Agent 只问想改什么" },
+    { "step": 3, "userAction": "用一句话描述修改", "systemResponse": "显示修改摘要、其余保持不变和费用上限" },
+    { "step": 4, "userAction": "确认生成候选", "systemResponse": "相邻候选节点出现，原片不变" },
+    { "step": 5, "userAction": "对比原片与候选", "systemResponse": "用户可继续调整或替换选中片段" },
+    { "step": 6, "userAction": "替换片段", "systemResponse": "写入时间轴与 Undo 记录；完整轨迹保存在项目中" }
+  ],
+  "reviewStates": {
+    "entry": "08-inline-entry.png",
+    "selection": "09-inline-selection.png",
+    "agentContext": "10-agent-context.png",
+    "approval": "11-agent-confirm.png",
+    "candidate": "12-candidate.png",
+    "comparison": "13-compare-decision.png",
+    "narrow": "14-narrow-frame.png",
+    "mobile": "15-mobile-frame.jpg"
+  }
+}

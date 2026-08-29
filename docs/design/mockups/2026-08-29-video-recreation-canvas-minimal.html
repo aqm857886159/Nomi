@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nomi · 画布视频复刻</title>
+  <style>
+    :root {
+      --paper: #ffffff;
+      --canvas: #f7f7f5;
+      --surface: #fbfbfa;
+      --ink: #20201d;
+      --muted: #72726c;
+      --faint: #a7a7a0;
+      --line: #e3e3de;
+      --line-strong: #cacac3;
+      --blue: #3177ba;
+      --blue-soft: #edf5fc;
+      --green: #0b8f72;
+      --green-soft: #e9f7f2;
+      --warning: #b56e13;
+      --shadow: 0 12px 32px rgba(31, 31, 27, .10);
+      --topbar: 58px;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; }
+    body { overflow: hidden; color: var(--ink); background: var(--canvas); font-size: 13px; letter-spacing: 0; }
+    button, input { font: inherit; letter-spacing: 0; }
+    button { color: inherit; }
+    button:focus-visible, input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+    [hidden] { display: none !important; }
+
+    .topbar {
+      height: var(--topbar);
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 16px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, .96);
+      position: relative;
+      z-index: 20;
+    }
+    .brand, .project, .top-actions { display: flex; align-items: center; }
+    .brand { min-width: 0; gap: 10px; }
+    .brand-mark { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 6px; background: #1f1f1c; color: white; font-weight: 760; }
+    .brand-name { font-size: 19px; color: #27364a; }
+    .project { min-width: 0; gap: 7px; margin-left: 10px; color: var(--muted); }
+    .project-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mode-switch { display: flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 8px; background: #f4f4f2; }
+    .mode-switch button { height: 32px; border: 0; border-radius: 6px; padding: 0 15px; background: transparent; color: var(--muted); cursor: pointer; }
+    .mode-switch button.active { background: var(--paper); color: var(--ink); box-shadow: 0 1px 3px rgba(20,20,18,.10); }
+    .top-actions { justify-self: end; gap: 6px; }
+    .icon-button { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+    .icon-button:hover { border-color: var(--line); background: var(--surface); color: var(--ink); }
+    .shell { height: calc(100vh - var(--topbar)); display: grid; grid-template-columns: 214px minmax(0, 1fr) 336px; }
+    .library { min-width: 0; border-right: 1px solid var(--line); background: var(--paper); }
+    .library-tabs { height: 44px; display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--line); }
+    .library-tabs button { border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); cursor: pointer; }
+    .library-tabs button.active { border-bottom-color: var(--blue); color: var(--ink); font-weight: 650; }
+    .library-section { padding: 14px 12px; }
+    .library-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; color: var(--muted); font-size: 11px; }
+    .asset-row { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 9px; align-items: center; padding: 7px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
+    .asset-row video { width: 64px; height: 40px; border-radius: 5px; object-fit: cover; background: #111; }
+    .asset-copy { min-width: 0; }
+    .asset-copy strong, .asset-copy span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .asset-copy strong { font-size: 12px; }
+    .asset-copy span { margin-top: 3px; color: var(--faint); font-size: 10px; }
+
+    .canvas {
+      min-width: 0;
+      min-height: 0;
+      position: relative;
+      overflow: hidden;
+      background-color: var(--canvas);
+      background-image: radial-gradient(#d6d6d0 .75px, transparent .75px);
+      background-size: 18px 18px;
+    }
+    .canvas-toolbar { position: absolute; z-index: 8; top: 14px; left: 16px; display: flex; gap: 5px; padding: 4px; border: 1px solid var(--line); border-radius: 7px; background: rgba(255,255,255,.94); box-shadow: 0 3px 12px rgba(25,25,22,.06); }
+    .tool-button { height: 29px; min-width: 29px; border: 0; border-radius: 5px; padding: 0 8px; background: transparent; color: var(--muted); cursor: pointer; }
+    .tool-button:hover { background: #f0f0ed; color: var(--ink); }
+    .tool-button.active { background: var(--blue-soft); color: var(--blue); }
+    .zoom { position: absolute; z-index: 8; right: 16px; bottom: 16px; display: flex; align-items: center; gap: 3px; padding: 4px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); }
+    .zoom span { min-width: 44px; text-align: center; color: var(--muted); font-size: 11px; }
+
+    .flow { position: absolute; inset: 0; transform-origin: center; }
+    .edge { position: absolute; z-index: 1; top: 352px; left: calc(50% - 6px); width: 54px; height: 2px; background: var(--line-strong); opacity: 0; }
+    .edge::after { content: ""; position: absolute; right: -1px; top: -4px; border: 5px solid transparent; border-left-color: var(--line-strong); }
+    body.generated .edge, body.applied .edge { opacity: 1; }
+
+    .node {
+      position: absolute;
+      z-index: 3;
+      width: 350px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: var(--paper);
+      box-shadow: 0 8px 24px rgba(30,30,26,.09);
+      overflow: hidden;
+    }
+    .source-node { top: 122px; left: calc(50% - 430px); width: 420px; }
+    .candidate-node { top: 190px; left: calc(50% + 44px); opacity: 0; pointer-events: none; }
+    body.generated .candidate-node, body.applied .candidate-node { opacity: 1; pointer-events: auto; }
+    .node.selected { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(49,119,186,.12), var(--shadow); }
+    .node-head { height: 42px; display: flex; align-items: center; gap: 8px; padding: 0 11px; border-bottom: 1px solid var(--line); }
+    .node-kind { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 5px; background: var(--blue-soft); color: var(--blue); font-size: 11px; }
+    .candidate-node .node-kind { background: var(--green-soft); color: var(--green); }
+    .node-title { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
+    .node-meta { color: var(--faint); font-size: 10px; }
+    .node-media { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #10100f; }
+    .node-media video { width: 100%; height: 100%; display: block; object-fit: cover; }
+    .node-media::after { content: ""; position: absolute; inset: 60% 0 0; background: linear-gradient(transparent, rgba(0,0,0,.52)); pointer-events: none; }
+    .media-time { position: absolute; z-index: 2; right: 9px; bottom: 8px; color: white; font: 10px/1 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .candidate-badge { position: absolute; z-index: 2; top: 9px; left: 9px; height: 24px; display: inline-flex; align-items: center; gap: 6px; border-radius: 5px; padding: 0 8px; background: rgba(20,53,43,.78); color: #b8f2d8; font-size: 10px; backdrop-filter: blur(6px); }
+    .candidate-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .clip-editor { padding: 9px 10px 0; border-top: 1px solid var(--line); background: var(--surface); }
+    .clip-editor-head { height: 20px; display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 10px; }
+    .clip-editor-head strong { color: var(--ink); font-weight: 620; }
+    .clip-strip { position: relative; height: 52px; overflow: hidden; border-radius: 5px; background: #161615; }
+    .clip-frames { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(8, 1fr); opacity: .72; }
+    .clip-frames video { width: 100%; height: 100%; object-fit: cover; border-right: 1px solid rgba(255,255,255,.16); }
+    .clip-strip::before, .clip-strip::after { content: ""; position: absolute; z-index: 2; top: 0; bottom: 0; background: rgba(15,15,14,.58); opacity: 0; transition: opacity 160ms ease; }
+    .clip-strip::before { left: 0; width: 16.7%; }
+    .clip-strip::after { right: 0; width: 41.7%; }
+    .clip-selection { position: absolute; z-index: 3; top: 0; bottom: 0; left: 16.7%; width: 41.6%; border: 2px solid var(--blue); background: rgba(49,119,186,.10); opacity: 0; transition: opacity 160ms ease; }
+    .clip-selection::before, .clip-selection::after { content: ""; position: absolute; top: -2px; bottom: -2px; width: 8px; background: var(--blue); }
+    .clip-selection::before { left: -5px; border-radius: 4px 0 0 4px; }
+    .clip-selection::after { right: -5px; border-radius: 0 4px 4px 0; }
+    .clip-playhead { position: absolute; z-index: 4; top: 0; bottom: 0; left: 40%; width: 1px; background: white; box-shadow: 0 0 0 1px rgba(0,0,0,.2); }
+    body.selecting .clip-selection, body.context-ready .clip-selection, body.generated .clip-selection, body.applied .clip-selection { opacity: 1; }
+    body.selecting .clip-strip::before, body.selecting .clip-strip::after,
+    body.context-ready .clip-strip::before, body.context-ready .clip-strip::after,
+    body.generated .clip-strip::before, body.generated .clip-strip::after,
+    body.applied .clip-strip::before, body.applied .clip-strip::after { opacity: 1; }
+    body.selecting .source-node { box-shadow: 0 0 0 2px rgba(49,119,186,.12), var(--shadow); }
+    .node-foot { min-height: 48px; display: flex; align-items: center; gap: 7px; padding: 8px 10px; }
+    .node-foot-copy { min-width: 0; flex: 1; }
+    .node-foot-copy strong, .node-foot-copy span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .node-foot-copy strong { font-size: 11px; font-weight: 620; }
+    .node-foot-copy span { margin-top: 2px; color: var(--faint); font-size: 10px; }
+    .primary, .secondary, .quiet {
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border-radius: 6px;
+      padding: 0 11px;
+      cursor: pointer;
+    }
+    .primary { border: 1px solid #20201d; background: #20201d; color: white; font-weight: 650; }
+    .primary:hover { background: #33332f; }
+    .primary:disabled { border-color: var(--line-strong); background: var(--line); color: var(--faint); cursor: default; }
+    .secondary { border: 1px solid var(--line-strong); background: var(--paper); color: var(--ink); }
+    .secondary:hover { background: var(--surface); }
+    .quiet { border: 0; background: transparent; color: var(--muted); }
+    .quiet:hover { background: #f0f0ed; color: var(--ink); }
+    .applied-chip { display: none; align-items: center; gap: 6px; color: var(--green); font-size: 11px; font-weight: 650; }
+    .applied-chip::before { content: "✓"; }
+    body.applied .candidate-actions { display: none; }
+    body.applied .applied-chip { display: inline-flex; }
+
+    .agent { min-width: 0; min-height: 0; display: flex; flex-direction: column; border-left: 1px solid var(--line); background: var(--paper); }
+    .agent-head { height: 52px; display: flex; align-items: center; gap: 9px; padding: 0 14px; border-bottom: 1px solid var(--line); }
+    .agent-mark { width: 27px; height: 27px; display: grid; place-items: center; border-radius: 6px; background: #20201d; color: white; font-size: 11px; font-weight: 760; }
+    .agent-title { flex: 1; font-weight: 650; }
+    .agent-state { color: var(--faint); font-size: 10px; }
+    .thread { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; }
+    .empty-agent { height: 100%; display: grid; place-items: center; text-align: center; color: var(--faint); }
+    .empty-agent strong { display: block; color: var(--muted); font-size: 12px; font-weight: 550; }
+    .empty-agent span { display: block; margin-top: 5px; font-size: 10px; }
+    .message { max-width: 92%; margin-bottom: 12px; padding: 9px 10px; border-radius: 8px; line-height: 1.55; }
+    .message.user { margin-left: auto; background: #eeeeeb; }
+    .message.assistant { border: 1px solid var(--line); background: var(--paper); }
+    .message small { display: block; margin-top: 4px; color: var(--faint); }
+    .confirm-card { margin: 4px 0 14px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+    .confirm-main { padding: 11px; }
+    .confirm-label { color: var(--faint); font-size: 10px; }
+    .confirm-intent { margin-top: 5px; font-size: 13px; line-height: 1.5; font-weight: 620; }
+    .preserve-default { margin-top: 8px; color: var(--green); font-size: 11px; }
+    .cost-row { height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 11px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+    .cost-row strong { color: var(--ink); }
+    .confirm-actions { display: grid; grid-template-columns: 1fr auto; gap: 7px; padding: 9px 11px 11px; }
+    .confirm-actions .primary { width: 100%; }
+    .composer { padding: 10px; border-top: 1px solid var(--line); }
+    .context-bar { display: none; align-items: center; gap: 6px; margin: 0 2px 8px; color: var(--blue); font-size: 10px; }
+    .context-bar::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    body.context-ready .context-bar, body.generated .context-bar, body.applied .context-bar { display: flex; }
+    .composer-box { display: grid; grid-template-columns: minmax(0,1fr) 34px; gap: 7px; padding: 6px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--paper); }
+    .composer input { min-width: 0; height: 32px; border: 0; padding: 0 4px; background: transparent; color: var(--ink); }
+    .composer input::placeholder { color: var(--faint); }
+    .send { width: 34px; height: 32px; border: 0; border-radius: 6px; background: #20201d; color: white; cursor: pointer; }
+    .send:disabled { background: #d7d7d2; color: #999991; cursor: not-allowed; }
+
+    .range-summary { color: var(--blue); font: 11px/1 ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+    .compare-modal { position: fixed; z-index: 60; inset: 0; display: none; grid-template-rows: 54px minmax(0,1fr) 58px; background: rgba(247,247,245,.98); }
+    body.comparing .compare-modal { display: grid; }
+    .compare-head, .compare-foot { display: flex; align-items: center; gap: 9px; padding: 0 18px; background: var(--paper); }
+    .compare-head { border-bottom: 1px solid var(--line); }
+    .compare-foot { justify-content: flex-end; border-top: 1px solid var(--line); }
+    .compare-head strong { font-size: 13px; }
+    .compare-spacer { flex: 1; }
+    .compare-stage { min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 18px; background: #20201e; }
+    .compare-pane { min-width: 0; min-height: 0; position: relative; overflow: hidden; background: #10100f; }
+    .compare-pane:first-child { border-radius: 7px 0 0 7px; }
+    .compare-pane:last-child { border-radius: 0 7px 7px 0; }
+    .compare-pane video { width: 100%; height: 100%; display: block; object-fit: contain; }
+    .compare-label { position: absolute; z-index: 2; top: 12px; left: 12px; height: 26px; display: flex; align-items: center; padding: 0 9px; border-radius: 5px; background: rgba(20,20,18,.72); color: white; font-size: 11px; backdrop-filter: blur(6px); }
+    .compare-pane:last-child .compare-label { color: #b8f2d8; }
+
+    .toast { position: fixed; z-index: 80; top: 72px; left: 50%; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); box-shadow: var(--shadow); opacity: 0; pointer-events: none; transform: translate(-50%, -8px); transition: 180ms ease; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .toast strong { color: var(--green); }
+    .toast button { border: 0; background: transparent; color: var(--blue); cursor: pointer; }
+
+    @media (max-width: 1180px) {
+      .shell { grid-template-columns: minmax(0, 1fr) 316px; }
+      .library { display: none; }
+      .source-node { left: calc(50% - 410px); }
+      .candidate-node { left: calc(50% + 38px); }
+    }
+    @media (max-width: 1020px) and (min-width: 861px) {
+      .node { width: 270px; }
+      .source-node { left: 12px; }
+      .candidate-node { right: 12px; left: auto; }
+      .node-foot-copy span { display: none; }
+    }
+    @media (max-width: 860px) {
+      body { overflow: auto; }
+      .topbar { grid-template-columns: 1fr auto; }
+      .mode-switch { display: none; }
+      .shell { height: auto; min-height: calc(100vh - var(--topbar)); grid-template-columns: 1fr; grid-template-rows: 620px 430px; }
+      .agent { border-top: 1px solid var(--line); border-left: 0; }
+      .source-node { left: 22px; width: min(350px, calc(50% - 34px)); }
+      .candidate-node { left: auto; right: 22px; width: min(350px, calc(50% - 34px)); }
+      .edge { display: none; }
+      .compare-stage { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+      .compare-pane:first-child { border-radius: 7px 7px 0 0; }
+      .compare-pane:last-child { border-radius: 0 0 7px 7px; }
+    }
+    @media (max-width: 600px) {
+      .shell { grid-template-rows: 760px 430px; }
+      body.generated .shell, body.applied .shell { grid-template-rows: 1050px 430px; }
+      .node { width: min(350px, calc(100% - 44px)); }
+      .source-node { top: 86px; left: 50%; transform: translateX(-50%); }
+      .candidate-node { top: 620px; right: auto; left: 50%; transform: translateX(-50%); }
+      body.generated .candidate-node, body.applied .candidate-node { transform: translateX(-50%); }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">N</span>
+      <span class="brand-name">Nomi</span>
+      <span class="project">› <span class="project-name">咖啡馆短片</span></span>
+    </div>
+    <nav class="mode-switch" aria-label="工作区">
+      <button>创作</button>
+      <button class="active">生成</button>
+      <button>预览</button>
+    </nav>
+    <div class="top-actions">
+      <button class="icon-button" id="historyButton" title="任务记录" aria-label="任务记录">↺</button>
+      <button class="icon-button" title="设置" aria-label="设置">⚙</button>
+    </div>
+  </header>
+
+  <main class="shell">
+    <aside class="library" aria-label="项目素材">
+      <div class="library-tabs"><button class="active">镜头</button><button>素材</button></div>
+      <section class="library-section">
+        <div class="library-heading"><span>当前项目</span><span>1</span></div>
+        <div class="asset-row">
+          <video poster="assets/video-recreation-source-frame.jpg" muted playsinline></video>
+          <div class="asset-copy"><strong>咖啡馆人物镜头</strong><span>00:12 · 16:9</span></div>
+        </div>
+      </section>
+    </aside>
+
+    <section class="canvas" aria-label="生成画布">
+      <div class="canvas-toolbar" aria-label="画布工具">
+        <button class="tool-button active" title="选择">↖</button>
+        <button class="tool-button" title="整理画布">⌘</button>
+        <button class="tool-button" title="适应画布">□</button>
+      </div>
+
+      <div class="flow">
+        <div class="edge" aria-hidden="true"></div>
+        <article class="node source-node selected" id="sourceNode">
+          <header class="node-head">
+            <span class="node-kind">▶</span>
+            <span class="node-title">咖啡馆人物镜头</span>
+            <span class="node-meta">原片</span>
+          </header>
+          <div class="node-media">
+            <video id="sourceVideo" poster="assets/video-recreation-source-frame.jpg" muted playsinline></video>
+            <span class="media-time">00:12</span>
+          </div>
+          <div class="clip-editor" aria-label="片段时间轴">
+            <div class="clip-editor-head"><strong>片段</strong><span id="rangeLabel">00:00.0–00:12.0</span></div>
+            <div class="clip-strip">
+              <div class="clip-frames">
+                <video poster="assets/video-recreation-source-frame.jpg" muted playsinline></video>
+                <video poster="assets/video-recreation-source-frame.jpg" muted playsinline></video>
+                <video poster="assets/video-recreation-source-frame.jpg" muted playsinline></video>
+                <video poster="assets/video-recreation-source-frame.jpg" muted playsinline></video>
+                <video poster="assets/video-recreation-source-frame.jpg" muted playsinline></video>
+                <video poster="assets/video-recreation-source-frame.jpg" muted playsinline></video>
+                <video poster="assets/video-recreation-source-frame.jpg" muted playsinline></video>
+                <video poster="assets/video-recreation-source-frame.jpg" muted playsinline></video>
+              </div>
+              <div class="clip-selection" aria-hidden="true"></div>
+              <div class="clip-playhead" aria-hidden="true"></div>
+            </div>
+          </div>
+          <footer class="node-foot">
+            <div class="node-foot-copy"><strong id="selectionTitle">整段视频</strong><span id="selectionMeta">12.0 秒</span></div>
+            <button class="primary" id="recreateButton">选择片段</button>
+          </footer>
+        </article>
+
+        <article class="node candidate-node" id="candidateNode">
+          <header class="node-head">
+            <span class="node-kind">AI</span>
+            <span class="node-title">暖色侧光</span>
+            <span class="node-meta">候选</span>
+          </header>
+          <div class="node-media">
+            <video poster="assets/video-recreation-candidate-frame.jpg" muted playsinline></video>
+            <span class="candidate-badge">AI 候选</span>
+            <span class="media-time">00:05</span>
+          </div>
+            <footer class="node-foot">
+              <div class="node-foot-copy"><strong>其余内容保持不变</strong><span>来自 00:02.0–00:07.0</span></div>
+              <div class="candidate-actions">
+              <button class="primary" id="compareButton">对比并决定</button>
+              </div>
+              <span class="applied-chip">已替换</span>
+          </footer>
+        </article>
+      </div>
+
+      <div class="zoom"><button class="tool-button">−</button><span>100%</span><button class="tool-button">＋</button></div>
+    </section>
+
+    <aside class="agent" aria-label="Nomi Agent">
+      <header class="agent-head">
+        <span class="agent-mark">AI</span>
+        <span class="agent-title">Nomi Agent</span>
+        <span class="agent-state" id="agentState">就绪</span>
+      </header>
+      <div class="thread" id="thread">
+        <div class="empty-agent" id="emptyAgent"><div><strong>咖啡馆人物镜头</strong><span>当前选中</span></div></div>
+      </div>
+      <form class="composer" id="composer">
+        <div class="context-bar" id="contextBar">咖啡馆人物镜头 · 00:02.0–00:07.0</div>
+        <div class="composer-box">
+          <input id="agentInput" aria-label="告诉 Agent 想怎么修改" placeholder="先选择视频片段" autocomplete="off" disabled />
+          <button class="send" id="sendButton" type="submit" title="发送" disabled>↑</button>
+        </div>
+      </form>
+    </aside>
+  </main>
+
+  <section class="compare-modal" aria-label="原片与候选对比">
+    <header class="compare-head">
+      <strong>对比片段</strong><span class="range-summary">00:02.0–00:07.0</span><span class="compare-spacer"></span>
+      <button class="quiet" id="closeCompare">关闭</button>
+    </header>
+    <div class="compare-stage">
+      <div class="compare-pane"><span class="compare-label">原片</span><video poster="assets/video-recreation-source-frame.jpg" muted playsinline></video></div>
+      <div class="compare-pane"><span class="compare-label">AI 候选</span><video poster="assets/video-recreation-candidate-frame.jpg" muted playsinline></video></div>
+    </div>
+    <footer class="compare-foot">
+      <button class="secondary" id="backToAdjust">继续调整</button>
+      <button class="primary" id="applyFromCompare">替换这 5 秒</button>
+    </footer>
+  </section>
+
+  <div class="toast" id="toast"><strong>已替换时间轴片段</strong><button id="undoButton">撤销</button></div>
+
+  <script>
+    const body = document.body;
+    const thread = document.getElementById('thread');
+    const emptyAgent = document.getElementById('emptyAgent');
+    const input = document.getElementById('agentInput');
+    const sendButton = document.getElementById('sendButton');
+    const agentState = document.getElementById('agentState');
+    const recreateButton = document.getElementById('recreateButton');
+    const rangeLabel = document.getElementById('rangeLabel');
+    const selectionTitle = document.getElementById('selectionTitle');
+    const selectionMeta = document.getElementById('selectionMeta');
+    const toast = document.getElementById('toast');
+    let history = 1;
+
+    function record() {
+      history += 1;
+    }
+
+    function addMessage(role, html) {
+      emptyAgent?.remove();
+      const message = document.createElement('div');
+      message.className = `message ${role}`;
+      message.innerHTML = html;
+      thread.appendChild(message);
+      thread.scrollTop = thread.scrollHeight;
+      return message;
+    }
+
+    function showToast() {
+      toast.classList.add('show');
+      window.setTimeout(() => toast.classList.remove('show'), 4200);
+    }
+
+    function applyCandidate() {
+      body.classList.remove('comparing');
+      body.classList.add('applied');
+      agentState.textContent = '已应用';
+      addMessage('assistant', '候选已替换到原片段。<small>这一步已进入项目撤销记录</small>');
+      record();
+      showToast();
+    }
+
+    function enterSelection() {
+      body.classList.add('selecting');
+      rangeLabel.textContent = '00:02.0–00:07.0';
+      selectionTitle.textContent = '选中 5.0 秒';
+      selectionMeta.textContent = '00:02.0–00:07.0';
+      recreateButton.textContent = '复刻这 5 秒';
+      agentState.textContent = '选择片段';
+    }
+
+    function useSelection() {
+      body.classList.remove('selecting');
+      body.classList.add('context-ready');
+      addMessage('assistant', '这 5 秒想改什么？');
+      input.disabled = false;
+      input.placeholder = '描述想改变的内容';
+      input.value = '把冷色顶光改成柔和的暖色侧光';
+      sendButton.disabled = false;
+      input.focus();
+      recreateButton.textContent = '已选 5 秒';
+      recreateButton.disabled = true;
+      agentState.textContent = '等待指令';
+    }
+
+    recreateButton.addEventListener('click', () => {
+      if (body.classList.contains('selecting')) {
+        useSelection();
+        record();
+        return;
+      }
+      enterSelection();
+      record();
+    });
+
+    input.addEventListener('input', () => { sendButton.disabled = !input.value.trim(); });
+
+    document.getElementById('composer').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const value = input.value.trim();
+      if (!value) return;
+      addMessage('user', value);
+      input.value = '';
+      sendButton.disabled = true;
+      const card = document.createElement('div');
+      card.className = 'confirm-card';
+      card.innerHTML = `
+        <div class="confirm-main">
+          <div class="confirm-label">准备生成</div>
+          <div class="confirm-intent">${value.replace(/[<>]/g, '')}</div>
+          <div class="preserve-default">✓ 其余内容保持不变</div>
+        </div>
+        <div class="cost-row"><span>Wan 2.7 · 约 5 秒</span><strong>最高 3.32 Credits</strong></div>
+        <div class="confirm-actions"><button class="primary" id="confirmGenerate">生成候选</button><button class="quiet" id="editRequest">调整</button></div>`;
+      thread.appendChild(card);
+      thread.scrollTop = thread.scrollHeight;
+      agentState.textContent = '等待确认';
+      record();
+      card.querySelector('#editRequest').addEventListener('click', () => { input.value = value; sendButton.disabled = false; input.focus(); });
+      card.querySelector('#confirmGenerate').addEventListener('click', (clickEvent) => {
+        const button = clickEvent.currentTarget;
+        button.disabled = true;
+        button.textContent = '生成中…';
+        agentState.textContent = '生成中';
+        window.setTimeout(() => {
+          body.classList.add('generated');
+          document.getElementById('sourceNode').classList.remove('selected');
+          document.getElementById('candidateNode').classList.add('selected');
+          card.remove();
+          addMessage('assistant', '候选已完成。<small>先对比，满意后再替换原片段</small>');
+          agentState.textContent = '候选完成';
+          record();
+        }, 900);
+      });
+    });
+
+    document.getElementById('compareButton').addEventListener('click', () => { body.classList.add('comparing'); record(); });
+    document.getElementById('closeCompare').addEventListener('click', () => body.classList.remove('comparing'));
+    document.getElementById('backToAdjust').addEventListener('click', () => { body.classList.remove('comparing'); input.focus(); });
+    document.getElementById('applyFromCompare').addEventListener('click', applyCandidate);
+    document.getElementById('undoButton').addEventListener('click', () => {
+      body.classList.remove('applied');
+      agentState.textContent = '候选完成';
+      addMessage('assistant', '已撤销，时间轴恢复原片。');
+      toast.classList.remove('show');
+      record();
+    });
+    document.getElementById('historyButton').addEventListener('click', () => {
+      addMessage('assistant', `本次任务共记录 ${history} 步。<small>片段、指令、费用确认、候选与应用状态均已写入项目</small>`);
+    });
+
+    const reviewState = new URLSearchParams(window.location.search).get('state');
+    if (reviewState === 'select') {
+      enterSelection();
+    }
+    if (reviewState === 'generated' || reviewState === 'compare' || reviewState === 'applied') {
+      body.classList.add('context-ready');
+      body.classList.add('generated');
+      document.getElementById('sourceNode').classList.remove('selected');
+      document.getElementById('candidateNode').classList.add('selected');
+      rangeLabel.textContent = '00:02.0–00:07.0';
+      selectionTitle.textContent = '选中 5.0 秒';
+      selectionMeta.textContent = '00:02.0–00:07.0';
+      recreateButton.textContent = '已选 5 秒';
+      recreateButton.disabled = true;
+      input.disabled = false;
+      input.placeholder = '继续调整这段';
+      addMessage('user', '把冷色顶光改成柔和的暖色侧光');
+      addMessage('assistant', '候选已完成。<small>先对比，满意后再替换原片段</small>');
+      agentState.textContent = '候选完成';
+    }
+    if (reviewState === 'compare') body.classList.add('comparing');
+    if (reviewState === 'applied') {
+      body.classList.add('applied');
+      agentState.textContent = '已应用';
+    }
+  </script>
+</body>
+</html>

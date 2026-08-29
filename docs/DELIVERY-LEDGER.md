@@ -9,11 +9,12 @@
 
 ---
 
-## 现役欠账（6）
+## 现役欠账（7）
 
 | 状态 | 文档 | 标题 |
 |---|---|---|
 | 📋 方案待拍板 | [2026-08-13-video-deconstruction-storyboard-table.md](plan/2026-08-13-video-deconstruction-storyboard-table.md) | 视频拆解 → 分镜表 → 复刻生成（方案已拍板，待实施） |
+| 📋 方案待拍板 | [2026-08-29-video-recreation-product-loop.md](plan/2026-08-29-video-recreation-product-loop.md) | 视频复刻：画布内最小产品闭环与 Agent 落地方案 |
 | 🚧 进行中 | [2026-08-28-conversational-model-integration-verification.md](plan/2026-08-28-conversational-model-integration-verification.md) | 对话式模型接入与认证闭环验收记录 |
 | 🚧 进行中 | [2026-08-28-editing-engine-uplift.md](plan/2026-08-28-editing-engine-uplift.md) | Nomi Editing Engine Uplift |
 | 🚧 进行中 | [2026-08-29-root-cause-contract-v2.md](plan/2026-08-29-root-cause-contract-v2.md) | 根因合同 v2 与规则收敛 |
@@ -43,7 +44,7 @@ _没有标记为远期的方案。_
 
 </details>
 
-- 合计扫描：450 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
+- 合计扫描：451 篇方案文档（docs/plan/ 与 docs/superpowers/plans/，不含 INDEX.md）
 
 ---
 

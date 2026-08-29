@@ -39,6 +39,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-08-29-video-recreation-product-loop.md](2026-08-29-video-recreation-product-loop.md) | **画布内视频复刻最小闭环**：节点选区、一句话修改、一次付费确认、候选落画布、对比替换与撤销；对齐 Project Agent Host / ProductionRun owner | 📋 |
 | [2026-08-13-video-deconstruction-storyboard-table.md](2026-08-13-video-deconstruction-storyboard-table.md) | **视频拆解→分镜表→复刻生成**（表格=节点组的视图，非新数据模型；含 gemini/whisper 实测契约） | 📋 |
 | [2026-06-06-composable-node-execution-plan.md](2026-06-06-composable-node-execution-plan.md) | **生成节点→「档案声明+通用原语组装」执行计划**（C0–C4 已落地） | ✅ |
 | [2026-06-06-composable-node-roadmap.md](2026-06-06-composable-node-roadmap.md) | 同上的路线图+现状盘点(带 file:line) | ✅ |
